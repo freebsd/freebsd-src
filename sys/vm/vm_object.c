@@ -73,6 +73,8 @@
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/socket.h>
@@ -93,7 +95,20 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-static void	vm_object_qcollapse __P((vm_object_t object));
+#define EASY_SCAN_FACTOR       8
+
+#define MSYNC_FLUSH_HARDSEQ	0x01
+#define MSYNC_FLUSH_SOFTSEQ	0x02
+
+/*
+ * msync / VM object flushing optimizations
+ */
+static int msync_flush_flags = MSYNC_FLUSH_HARDSEQ | MSYNC_FLUSH_SOFTSEQ;
+SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
+        CTLFLAG_RW, &msync_flush_flags, 0, "");
+
+static void	vm_object_qcollapse(vm_object_t object);
+static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -578,21 +593,12 @@ vm_object_terminate(vm_object_t object)
 void
 vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int flags)
 {
-	vm_page_t p, np, tp;
+	vm_page_t p, np;
 	vm_offset_t tstart, tend;
 	vm_pindex_t pi;
-	int s;
 	struct vnode *vp;
-	int runlen;
-	int maxf;
-	int chkb;
-	int maxb;
-	int i;
 	int clearobjflags;
 	int pagerflags;
-	vm_page_t maf[vm_pageout_page_count];
-	vm_page_t mab[vm_pageout_page_count];
-	vm_page_t ma[vm_pageout_page_count];
 	int curgeneration;
 
 	GIANT_REQUIRED;
@@ -613,6 +619,72 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		tend = object->size;
 	} else {
 		tend = end;
+	}
+
+	/*
+	 * If the caller is smart and only msync()s a range he knows is
+	 * dirty, we may be able to avoid an object scan.  This results in
+	 * a phenominal improvement in performance.  We cannot do this
+	 * as a matter of course because the object may be huge - e.g.
+	 * the size might be in the gigabytes or terrabytes.
+	 */
+	if (msync_flush_flags & MSYNC_FLUSH_HARDSEQ) {
+		vm_offset_t tscan;
+		int scanlimit;
+		int scanreset;
+
+		scanreset = object->resident_page_count / EASY_SCAN_FACTOR;
+		if (scanreset < 16)
+			scanreset = 16;
+
+		scanlimit = scanreset;
+		tscan = tstart;
+		while (tscan < tend) {
+			curgeneration = object->generation;
+			p = vm_page_lookup(object, tscan);
+			if (p == NULL || p->valid == 0 ||
+			    (p->queue - p->pc) == PQ_CACHE) {
+				if (--scanlimit == 0)
+					break;
+				++tscan;
+				continue;
+			}
+			vm_page_test_dirty(p);
+			if ((p->dirty & p->valid) == 0) {
+				if (--scanlimit == 0)
+					break;
+				++tscan;
+				continue;
+			}
+			/*
+			 * If we have been asked to skip nosync pages and 
+			 * this is a nosync page, we can't continue.
+			 */
+			if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC)) {
+				if (--scanlimit == 0)
+					break;
+				++tscan;
+				continue;
+			}
+			scanlimit = scanreset;
+
+			/*
+			 * This returns 0 if it was unable to busy the first
+			 * page (i.e. had to sleep).
+			 */
+			tscan += vm_object_page_collect_flush(object, p, curgeneration, pagerflags);
+		}
+
+		/*
+		 * If everything was dirty and we flushed it successfully,
+		 * and the requested range is not the entire object, we
+		 * don't have to mess with CLEANCHK or MIGHTBEDIRTY and can
+		 * return immediately.
+		 */
+		if (tscan >= tend && (tstart || tend < object->size)) {
+			vm_object_clear_flag(object, OBJ_CLEANING);
+			return;
+		}
 	}
 
 	/*
@@ -652,8 +724,11 @@ rescan:
 	curgeneration = object->generation;
 
 	for (p = TAILQ_FIRST(&object->memq); p; p = np) {
+		int n;
+
 		np = TAILQ_NEXT(p, listq);
 
+again:
 		pi = p->pindex;
 		if (((p->flags & PG_CLEANCHK) == 0) ||
 			(pi < tstart) || (pi >= tend) ||
@@ -679,17 +754,87 @@ rescan:
 			continue;
 		}
 
-		s = splvm();
-		while (vm_page_sleep_busy(p, TRUE, "vpcwai")) {
-			if (object->generation != curgeneration) {
-				splx(s);
-				goto rescan;
-			}
-		}
+		n = vm_object_page_collect_flush(object, p,
+			curgeneration, pagerflags);
+		if (n == 0)
+			goto rescan;
 
-		maxf = 0;
-		for (i = 1; i < vm_pageout_page_count; i++) {
-			if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
+		if (object->generation != curgeneration)
+			goto rescan;
+
+		/*
+		 * Try to optimize the next page.  If we can't we pick up
+		 * our (random) scan where we left off.
+		 */
+		if (msync_flush_flags & MSYNC_FLUSH_SOFTSEQ) {
+			if ((p = vm_page_lookup(object, pi + n)) != NULL)
+				goto again;
+		}
+	}
+
+#if 0
+	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
+#endif
+
+	vm_object_clear_flag(object, OBJ_CLEANING);
+	return;
+}
+
+static int
+vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags)
+{
+	int runlen;
+	int s;
+	int maxf;
+	int chkb;
+	int maxb;
+	int i;
+	vm_pindex_t pi;
+	vm_page_t maf[vm_pageout_page_count];
+	vm_page_t mab[vm_pageout_page_count];
+	vm_page_t ma[vm_pageout_page_count];
+
+	s = splvm();
+	pi = p->pindex;
+	while (vm_page_sleep_busy(p, TRUE, "vpcwai")) {
+		if (object->generation != curgeneration) {
+			splx(s);
+			return(0);
+		}
+	}
+
+	maxf = 0;
+	for(i = 1; i < vm_pageout_page_count; i++) {
+		vm_page_t tp;
+
+		if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
+			if ((tp->flags & PG_BUSY) ||
+				(tp->flags & PG_CLEANCHK) == 0 ||
+				(tp->busy != 0))
+				break;
+			if((tp->queue - tp->pc) == PQ_CACHE) {
+				vm_page_flag_clear(tp, PG_CLEANCHK);
+				break;
+			}
+			vm_page_test_dirty(tp);
+			if ((tp->dirty & tp->valid) == 0) {
+				vm_page_flag_clear(tp, PG_CLEANCHK);
+				break;
+			}
+			maf[ i - 1 ] = tp;
+			maxf++;
+			continue;
+		}
+		break;
+	}
+
+	maxb = 0;
+	chkb = vm_pageout_page_count -  maxf;
+	if (chkb) {
+		for(i = 1; i < chkb;i++) {
+			vm_page_t tp;
+
+			if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
 				if ((tp->flags & PG_BUSY) ||
 					(tp->flags & PG_CLEANCHK) == 0 ||
 					(tp->busy != 0))
@@ -703,71 +848,45 @@ rescan:
 					vm_page_flag_clear(tp, PG_CLEANCHK);
 					break;
 				}
-				maf[ i - 1 ] = tp;
-				maxf++;
+				mab[ i - 1 ] = tp;
+				maxb++;
 				continue;
 			}
 			break;
 		}
-
-		maxb = 0;
-		chkb = vm_pageout_page_count -  maxf;
-		if (chkb) {
-			for (i = 1; i < chkb; i++) {
-				if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
-					if ((tp->flags & PG_BUSY) ||
-						(tp->flags & PG_CLEANCHK) == 0 ||
-						(tp->busy != 0))
-						break;
-					if((tp->queue - tp->pc) == PQ_CACHE) {
-						vm_page_flag_clear(tp, PG_CLEANCHK);
-						break;
-					}
-					vm_page_test_dirty(tp);
-					if ((tp->dirty & tp->valid) == 0) {
-						vm_page_flag_clear(tp, PG_CLEANCHK);
-						break;
-					}
-					mab[ i - 1 ] = tp;
-					maxb++;
-					continue;
-				}
-				break;
-			}
-		}
-
-		for (i = 0; i < maxb; i++) {
-			int index = (maxb - i) - 1;
-			ma[index] = mab[i];
-			vm_page_flag_clear(ma[index], PG_CLEANCHK);
-		}
-		vm_page_flag_clear(p, PG_CLEANCHK);
-		ma[maxb] = p;
-		for (i = 0 ; i < maxf; i++) {
-			int index = (maxb + i) + 1;
-			ma[index] = maf[i];
-			vm_page_flag_clear(ma[index], PG_CLEANCHK);
-		}
-		runlen = maxb + maxf + 1;
-
-		splx(s);
-		vm_pageout_flush(ma, runlen, pagerflags);
-		for (i = 0; i < runlen; i++) {
-			if (ma[i]->valid & ma[i]->dirty) {
-				vm_page_protect(ma[i], VM_PROT_READ);
-				vm_page_flag_set(ma[i], PG_CLEANCHK);
-			}
-		}
-		if (object->generation != curgeneration)
-			goto rescan;
 	}
 
-#if 0
-	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
-#endif
+	for(i = 0; i < maxb; i++) {
+		int index = (maxb - i) - 1;
+		ma[index] = mab[i];
+		vm_page_flag_clear(ma[index], PG_CLEANCHK);
+	}
+	vm_page_flag_clear(p, PG_CLEANCHK);
+	ma[maxb] = p;
+	for(i = 0; i < maxf; i++) {
+		int index = (maxb + i) + 1;
+		ma[index] = maf[i];
+		vm_page_flag_clear(ma[index], PG_CLEANCHK);
+	}
+	runlen = maxb + maxf + 1;
 
-	vm_object_clear_flag(object, OBJ_CLEANING);
-	return;
+	splx(s);
+	vm_pageout_flush(ma, runlen, pagerflags);
+	for (i = 0; i < runlen; i++) {
+		if (ma[i]->valid & ma[i]->dirty) {
+			vm_page_protect(ma[i], VM_PROT_READ);
+			vm_page_flag_set(ma[i], PG_CLEANCHK);
+
+			/*
+			 * maxf will end up being the actual number of pages
+			 * we wrote out contiguously, non-inclusive of the
+			 * first page.  We do not count look-behind pages.
+			 */
+			if (i >= maxb + 1 && (maxf > i - maxb - 1))
+				maxf = i - maxb - 1;
+		}
+	}
+	return(maxf + 1);
 }
 
 /*
