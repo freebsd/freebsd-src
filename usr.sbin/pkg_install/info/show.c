@@ -163,6 +163,12 @@ show_plist(char *title, Package *plist, plist_t type)
 	    printf(Quiet ? "@dirrm %s\n" : "\tDeinstall directory remove: %s\n", p->name);
 	    break;
 
+	case PLIST_OPTION:
+	    printf(Quiet ? "@option %s\n" :
+		"\tOption \"%s\" controlling package installation behaviour\n",
+		p->name);
+	    break;
+
 	default:
 	    cleanup(0);
 	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", p->type, p->name);
