@@ -2143,11 +2143,19 @@
 
   <sect2>
     <title>ATM Interfaces</title>
-    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI Adapters
-    (hea driver)</para>
-    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI Adapters (hfa driver)</para>
-    <para arch="i386,pc98">IDT 77201/211 NICStAR ATM Adapters (idt driver)</para>
-    <para arch="i386,pc98">FORE Systems, Inc. LE155 ATM Adapter (idt driver)</para>
+
+    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI
+    Adapters (hea driver)</para>
+
+    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI
+    Adapters (hfa driver)</para>
+
+    <para arch="i386,pc98">IDT 77201/211 NICStAR ATM Adapters (idt
+    driver)</para>
+
+    <para arch="i386,pc98">FORE Systems, Inc. LE155 ATM Adapter (idt
+    driver)</para>
+
     <para arch="i386,pc98">The ATM support in &os; supports the following signaling protocols:
       <itemizedlist>
         <listitem>
