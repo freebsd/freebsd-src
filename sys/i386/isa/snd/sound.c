@@ -229,7 +229,7 @@ synthprobe(struct isa_device * dev)
 }
 
 /*
- * this is the generic attach routine
+ * this is the ISA part of the generic attach routine
  */
 
 int
@@ -239,7 +239,9 @@ pcmattach(struct isa_device * dev)
     struct isa_device *dvp;
     int stat = 0;
     dev_t isadev;
+#ifdef DEVFS
     void *cookie;
+#endif
 
     dev->id_ointr = pcmintr;
 
@@ -284,18 +286,63 @@ pcmattach(struct isa_device * dev)
     isa_dma_acquire(d->dbuf_out.chan);
     if (FULL_DUPLEX(d))
 	isa_dma_acquire(d->dbuf_in.chan);
+
+    isadev = makedev(CDEV_MAJOR, 0);
+    cdevsw_add(&isadev, &snd_cdevsw, NULL);
+
+    /*
+     * should try and find a suitable value for id_id, otherwise
+     * the interrupt is not registered and dispatched properly.
+     * This is important for PnP devices, where "dev" is built on
+     * the fly and many field are not initialized.
+     */
+    if (dev->id_driver == NULL) {
+	dev->id_driver = &pcmdriver ;
+	dvp=find_isadev(isa_devtab_tty, &pcmdriver, 0);
+	if (dvp)
+	    dev->id_id = dvp->id_id;
+    }
+
+    /*
+     * call the generic part of the attach
+     */
+    pcminit(d, dev->id_unit);
+    /*
+     * and finally, call the device attach routine
+     * XXX I should probably use d->attach(dev)
+     */
+    stat = snddev_last_probed->attach(dev);
+#if 0
+    /*
+     * XXX hooks for synt support. Try probe and attach...
+     */
+    if (d->synth_base && opl3_probe(dev) ) {
+	opl3_attach(dev);
+    }
+#endif
+    snddev_last_probed = NULL ;
+
+    return stat ;
+}
+
+/*
+ * This is the generic init routine
+ */
+int
+pcminit(snddev_info *d, int unit)
+{
+    void *cookie;
+
     /*
      * initialize standard parameters for the device. This can be
      * overridden by device-specific configurations but better do
      * here the generic things.
      */
 
+    d->magic = MAGIC(unit); /* debugging... */
     d->play_speed = d->rec_speed = 8000 ;
     d->play_blocksize = d->rec_blocksize = 2048 ;
     d->play_fmt = d->rec_fmt = AFMT_MU_LAW ;
-
-    isadev = makedev(CDEV_MAJOR, 0);
-    cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
 #ifdef DEVFS
 #ifndef GID_GAMES
@@ -342,40 +389,10 @@ pcmattach(struct isa_device * dev)
     if (cookie) devfs_makelink(cookie, "sequencer");
 #endif
 #endif /* DEVFS */
-
-    /*
-     * should try and find a suitable value for id_id, otherwise
-     * the interrupt is not registered and dispatched properly.
-     * This is important for PnP devices, where "dev" is built on
-     * the fly and many field are not initialized.
-     */
-    if (dev->id_driver == NULL) {
-	dev->id_driver = &pcmdriver ;
-	dvp=find_isadev(isa_devtab_tty, &pcmdriver, 0);
-	if (dvp)
-	    dev->id_id = dvp->id_id;
-    }
-
-    d->magic = MAGIC(dev->id_unit); /* debugging... */
-    /*
-     * and finally, call the device attach routine
-     * XXX I should probably use d->attach(dev)
-     */
-    stat = snddev_last_probed->attach(dev);
-#if 0
-    /*
-     * XXX hooks for synt support. Try probe and attach...
-     */
-    if (d->synth_base && opl3_probe(dev) ) {
-	opl3_attach(dev);
-    }
-#endif
-    snddev_last_probed = NULL ;
-
 #if NAPM > 0
-    init_sound_apm(dev->id_unit);
+    init_sound_apm(unit);
 #endif
-    return stat ;
+    return 0 ;
 }
 
 int midiattach(struct isa_device * dev) { return 0 ; }
@@ -785,8 +802,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
      * we start with the new ioctl interface.
      */
     case AIONWRITE :	/* how many bytes can write ? */
-	if (d->dbuf_out.dl)
-	    dsp_wr_dmaupdate(&(d->dbuf_out));
+	if (d->dbuf_out.dl) {
+	    if (d->special_dma)
+		d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+	    else
+		dsp_wr_dmaupdate(&(d->dbuf_out));
+	}
 	*(int *)arg = d->dbuf_out.fl;
 	break;
 
@@ -872,7 +893,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	break ;
 
     case AIOSYNC:
-	printf("AIOSYNC chan 0x%03lx pos %d unimplemented\n",
+	printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
 	    ((snd_sync_parm *)arg)->chan,
 	    ((snd_sync_parm *)arg)->pos);
 	break;
@@ -880,8 +901,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
      * here follow the standard ioctls (filio.h etc.)
      */
     case FIONREAD : /* get # bytes to read */
-	if ( d->dbuf_in.dl )
-	    dsp_rd_dmaupdate(&(d->dbuf_in));
+	if ( d->dbuf_in.dl ) {
+	    if (d->special_dma)
+		d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+	    else
+		dsp_rd_dmaupdate(&(d->dbuf_in));
+	}
 	*(int *)arg = d->dbuf_in.rl;
 	break;
 
@@ -1038,8 +1063,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    audio_buf_info *a = (audio_buf_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_in);
-	    if (b->dl)
-		dsp_rd_dmaupdate( b );
+	    if (b->dl) {
+		if (d->special_dma)
+		    d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+		else
+		    dsp_rd_dmaupdate( b );
+	    }
 	    a->bytes = d->dbuf_in.fl ;
 	    a->fragments = 1 ;
 	    a->fragstotal = b->bufsize / d->rec_blocksize ;
@@ -1052,8 +1081,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    audio_buf_info *a = (audio_buf_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_out);
-	    if (b->dl)
-		dsp_wr_dmaupdate( b );
+	    if (b->dl) {
+		if (d->special_dma)
+		    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+		else
+		    dsp_wr_dmaupdate( b );
+	    }
 	    a->bytes = d->dbuf_out.fl ;
 	    a->fragments = 1 ;
 	    a->fragstotal = b->bufsize / d->play_blocksize ;
@@ -1065,8 +1098,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    count_info *a = (count_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_in);
-	    if (b->dl)
-		dsp_rd_dmaupdate( b );
+	    if (b->dl) {
+		if (d->special_dma)
+		    d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+		else
+		    dsp_rd_dmaupdate( b );
+	    }
 	    a->bytes = b->total;
 	    a->blocks = (b->total - b->prev_total +
 		    d->rec_blocksize -1 ) / d->rec_blocksize ;
@@ -1079,8 +1116,12 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    count_info *a = (count_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_out);
-	    if (b->dl)
-		dsp_wr_dmaupdate( b );
+	    if (b->dl) {
+		if (d->special_dma)
+		    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+		else
+		    dsp_wr_dmaupdate( b );
+	    }
 	    a->bytes = b->total;
 	    a->blocks = (b->total - b->prev_total
 		    /* +d->play_blocksize -1*/ ) / d->play_blocksize ;
@@ -1168,8 +1209,12 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 	    /* XXX fix the test here for half duplex devices */
 	    if (1 /* write is compatible with current mode */) {
 		flags = spltty();
-		if (d->dbuf_out.dl)
-		    dsp_wr_dmaupdate(&(d->dbuf_out));
+		if (d->dbuf_out.dl) {
+		    if (d->special_dma)
+			d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+		    else
+			dsp_wr_dmaupdate(&(d->dbuf_out));
+		}
 		c = d->dbuf_out.fl ;
 		if (c < lim) /* no space available */
 		    selrecord(p, & (d->wsel));
@@ -1186,8 +1231,12 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 		flags = spltty();
 		if ( d->dbuf_in.dl == 0 ) /* dma idle, restart it */
 		    dsp_rdintr(d);
-		else
-		    dsp_rd_dmaupdate(&(d->dbuf_in));
+		else {
+		    if (d->special_dma)
+			d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+		    else
+			dsp_rd_dmaupdate(&(d->dbuf_in));
+		}
 		c = d->dbuf_in.rl ;
 		if (c < lim) /* no data available */
 		    selrecord(p, & (d->rsel));
