@@ -1124,7 +1124,11 @@ MALLOC_DECLARE(M_NETGRAPH);
 MALLOC_DECLARE(M_NETGRAPH_MSG);
 MALLOC_DECLARE(M_NETGRAPH_META);
 
-
+/* declare the base of the netgraph sysclt hierarchy */
+/* but only if this file cares about sysctls */
+#ifdef	SYSCTL_DECL
+SYSCTL_DECL(_net_graph);
+#endif
 
 /*
  * Methods that the nodes can use.

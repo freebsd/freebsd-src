@@ -53,6 +53,7 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 #include <net/ethernet.h>
 
 #include <netgraph/ng_message.h>
@@ -71,7 +72,7 @@ MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
 
 /*
  * This section contains the netgraph method declarations for the
- * sample node. These methods define the netgraph 'type'.
+ * pppoe node. These methods define the netgraph pppoe 'type'.
  */
 
 static ng_constructor_t	ng_pppoe_constructor;
@@ -238,10 +239,34 @@ struct PPPOE {
 };
 typedef struct PPPOE *priv_p;
 
-const struct ether_header eh_prototype =
+struct ether_header eh_prototype =
 	{{0xff,0xff,0xff,0xff,0xff,0xff},
 	 {0x00,0x00,0x00,0x00,0x00,0x00},
 	 ETHERTYPE_PPPOE_DISC};
+
+int stupid_isp;
+static int
+ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int val;
+
+	val = stupid_isp;
+	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val == 1) {
+		stupid_isp = 1;
+		eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
+	} else {
+		stupid_isp = 0;
+		eh_prototype.ether_type = ETHERTYPE_PPPOE_DISC;
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_net_graph, OID_AUTO, stupid_isp, CTLTYPE_INT | CTLFLAG_RW,
+    0, sizeof(int), ngpppoe_set_ethertype, "I", "select normal or stupid ISP");
 
 union uniq {
 	char bytes[sizeof(void *)];
@@ -902,6 +927,10 @@ AAA
 		wh = mtod(m, struct pppoe_full_hdr *);
 		length = ntohs(wh->ph.length);
 		switch(wh->eh.ether_type) {
+		case	ETHERTYPE_PPPOE_STUPID_DISC:
+			stupid_isp = 1;
+			eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
+			/* fall through */
 		case	ETHERTYPE_PPPOE_DISC:
 			/*
 			 * We need to try to make sure that the tag area
@@ -1099,7 +1128,11 @@ AAA
 				 * from NEWCONNECTED to CONNECTED
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				sp->pkt_hdr.eh.ether_type
+				if (stupid_isp)
+					sp->pkt_hdr.eh.ether_type
+						= ETHERTYPE_PPPOE_STUPID_SESS;
+				else
+					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
 				sp->pkt_hdr.ph.code = 0;
 				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
@@ -1146,7 +1179,11 @@ AAA
 				 * Keep a copy of the header we will be using.
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				sp->pkt_hdr.eh.ether_type
+				if (stupid_isp)
+					sp->pkt_hdr.eh.ether_type
+						= ETHERTYPE_PPPOE_STUPID_SESS;
+				else
+					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
 				sp->pkt_hdr.ph.code = 0;
 				m_freem(neg->m);
@@ -1176,6 +1213,7 @@ AAA
 				LEAVE(EPFNOSUPPORT);
 			}
 			break;
+		case	ETHERTYPE_PPPOE_STUPID_SESS:
 		case	ETHERTYPE_PPPOE_SESS:
 			/*
 			 * find matching peer/session combination.
@@ -1423,7 +1461,10 @@ AAA
 			/* revert the stored header to DISC/PADT mode */
 		 	wh = &sp->pkt_hdr;
 			wh->ph.code = PADT_CODE;
-			wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
+			if (stupid_isp)
+				wh->eh.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
+			else
+				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 			/* generate a packet of that type */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
