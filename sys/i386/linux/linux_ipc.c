@@ -334,11 +334,13 @@ linux_msgctl(struct proc *p, struct linux_ipc_args *args)
 	int     cmd;
 	struct	msqid_ds *buf;
     } */ bsd_args;
+    int error;
 
     bsd_args.msqid = args->arg1;
     bsd_args.cmd = args->arg2;
     bsd_args.buf = (struct msqid_ds *)args->ptr;
-    return msgctl(p, &bsd_args);
+    error = msgctl(p, &bsd_args);
+    return ((args->arg2 == LINUX_IPC_RMID && error == EINVAL) ? 0 : error);
 }
 
 static int
