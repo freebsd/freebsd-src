@@ -1,6 +1,6 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.3 1995/05/30 07:58:00 rgrimes Exp $";
+static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.4 1995/11/16 10:10:50 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,24 +9,7 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.3 1995/05/30 07:58:00 rgrimes
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: if_ii.c,v $
- * Revision 1.3  1995/05/30  07:58:00  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.2  1995/02/15  06:28:26  jkh
- * Fix up include paths, nuke some warnings.
- *
- * Revision 1.1  1995/02/14  15:00:27  jkh
- * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
- * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
- * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
- * 	Juergen Krause <jkr@saarlink.de>
- *
- * This is only one part - the rest to follow in a couple of hours.
- * This part is a benign import, since it doesn't affect anything else.
- *
- *
- ******************************************************************************/
+ */
 
 /*
  * Copyright (c) 1994 Dietmar Friede (dietmar@friede.de) All rights reserved.
@@ -66,8 +49,8 @@ static struct ifnet ii_if[NII];
 static int      applnr[NII];
 static int      next_if = 0;
 
-extern int	ii_ioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
-extern int	iioutput __P((struct ifnet *ifp, struct mbuf *m,
+static int	ii_ioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
+static int	iioutput __P((struct ifnet *ifp, struct mbuf *m,
 			      struct sockaddr *dst, struct rtentry *rtp));
 
 int
@@ -95,7 +78,7 @@ iiattach(int ap)
 	return next_if++;
 }
 
-int
+static int
 iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst,
 	 struct rtentry * rtp)
 {
@@ -221,7 +204,7 @@ ii_out(int no, char *buf, int len)
 /*
  * Process an ioctl request.
  */
-int
+static int
 ii_ioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int             cmd;
