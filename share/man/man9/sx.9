@@ -71,7 +71,7 @@
 .Fn sx_downgrade "struct sx *sx"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
-.Fn SX_SYSINIT "name" "sx" "description"
+.Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
