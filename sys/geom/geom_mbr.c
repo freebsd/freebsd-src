@@ -34,6 +34,7 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/endian.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
@@ -93,8 +94,8 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 	d->dp_ehd = ptr[5];
 	d->dp_esect = ptr[6];
 	d->dp_ecyl = ptr[7];
-	d->dp_start = g_dec_le4(ptr + 8);
-	d->dp_size = g_dec_le4(ptr + 12);
+	d->dp_start = le32dec(ptr + 8);
+	d->dp_size = le32dec(ptr + 12);
 }
 
 struct g_mbr_softc {

@@ -65,13 +65,13 @@ g_dec_pc98_partition(u_char *ptr, struct pc98_partition *d)
 	d->dp_dum2 = ptr[3];
 	d->dp_ipl_sct = ptr[4];
 	d->dp_ipl_head = ptr[5];
-	d->dp_ipl_cyl = g_dec_le2(ptr + 6);
+	d->dp_ipl_cyl = le16dec(ptr + 6);
 	d->dp_ssect = ptr[8];
 	d->dp_shd = ptr[9];
-	d->dp_scyl = g_dec_le2(ptr + 10);
+	d->dp_scyl = le16dec(ptr + 10);
 	d->dp_esect = ptr[12];
 	d->dp_ehd = ptr[13];
-	d->dp_ecyl = g_dec_le2(ptr + 14);
+	d->dp_ecyl = le16dec(ptr + 14);
 	for (u = 0; u < sizeof(d->dp_name); u++)
 		d->dp_name[u] = ptr[16 + u];
 }
