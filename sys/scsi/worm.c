@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.29.2.2 1997/03/05 13:56:28 joerg Exp $
+ *      $Id: worm.c,v 1.29.2.3 1997/04/04 22:13:36 jkh Exp $
  */
 
 #include "opt_bounce.h"
@@ -53,7 +53,8 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
+#include <sys/cdio.h>
 #include <sys/wormio.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
@@ -65,8 +66,8 @@
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsi_worm.h>
+#include <scsi/scsi_cd.h>
 #include <sys/dkstat.h>
-/* #include <scsi/scsi_cd.h> */ /* XXX a CD-R includes all CD functionality */
 
 struct worm_quirks
 {
@@ -125,6 +126,9 @@ static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 static errval worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
 				struct wormio_quirk_select *);
+static errval worm_read_toc(struct scsi_link *sc_link,
+			    u_int32_t mode, u_int32_t start,
+			    struct cd_toc_entry *data, u_int32_t len);
 static errval worm_rezero_unit(struct scsi_link *sc_link);
 
 /* XXX should be moved out to an LKM */
@@ -664,6 +668,150 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			}
 		}
 		break;
+
+	case CDIOREADTOCHEADER:
+		{
+			struct ioc_toc_header th;
+			error = worm_read_toc(sc_link, 0, 0,
+					      (struct cd_toc_entry *)&th,
+					      sizeof th);
+			if (error)
+				break;
+			NTOHS(th.len);
+			bcopy(&th, addr, sizeof th);
+		}
+		break;
+
+	case CDIOREADTOCENTRYS:
+		{
+			struct {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entries[100];
+			} data;
+			struct {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entry;
+			} lead;
+			struct ioc_read_toc_entry *te =
+				(struct ioc_read_toc_entry *) addr;
+			struct ioc_toc_header *th;
+			u_int32_t len, readlen, idx, num;
+			u_int32_t starting_track = te->starting_track;
+
+			if (te->data_len < sizeof(struct cd_toc_entry)
+			    || (te->data_len % sizeof(struct cd_toc_entry)) != 0
+			    || te->address_format != CD_MSF_FORMAT
+			    && te->address_format != CD_LBA_FORMAT) {
+				error = EINVAL;
+				break;
+			}
+
+			th = &data.header;
+			error = worm_read_toc(sc_link, 0, 0,
+					      (struct cd_toc_entry *)th,
+					      sizeof (*th));
+			if (error)
+				break;
+
+			if (starting_track == 0)
+				starting_track = th->starting_track;
+			else if (starting_track == 0xaa)
+				starting_track = th->ending_track + 1;
+			else if (starting_track < th->starting_track ||
+				 starting_track > th->ending_track + 1) {
+				error = EINVAL;
+				break;
+			}
+
+			/* calculate reading length without leadout entry */
+			readlen = (th->ending_track - starting_track + 1) *
+				  sizeof(struct cd_toc_entry);
+
+			/* and with leadout entry */
+			len = readlen + sizeof(struct cd_toc_entry);
+			if (te->data_len < len) {
+				len = te->data_len;
+				if (readlen > len)
+					readlen = len;
+			}
+			if (len > sizeof(data.entries)) {
+				error = EINVAL;
+				break;
+			}
+			num = len / sizeof(struct cd_toc_entry);
+
+			if (readlen > 0) {
+				error = worm_read_toc(sc_link,
+						      te->address_format,
+						      starting_track,
+						      (struct cd_toc_entry *)&data,
+						      readlen + sizeof (*th));
+				if (error)
+					break;
+			}
+
+			/* make leadout entry if needed */
+			idx = starting_track + num - 1;
+			if (idx == th->ending_track + 1) {
+				error = worm_read_toc(sc_link,
+						      te->address_format, 0xaa,
+						      (struct cd_toc_entry *)&lead,
+						      sizeof(lead));
+				if (error)
+					break;
+				data.entries[idx - starting_track] = lead.entry;
+			}
+
+			error = copyout(data.entries, te->data, len);
+		}
+		break;
+
+	case CDIOREADTOCENTRY:
+		{
+			struct {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entry;
+			} data;
+			struct ioc_read_toc_single_entry *te =
+				(struct ioc_read_toc_single_entry *) addr;
+			struct ioc_toc_header *th;
+			u_int32_t track;
+
+			if (te->address_format != CD_MSF_FORMAT
+			    && te->address_format != CD_LBA_FORMAT) {
+				error = EINVAL;
+				break;
+			}
+
+			th = &data.header;
+			error = worm_read_toc(sc_link, 0, 0,
+					      (struct cd_toc_entry *)th,
+					      sizeof (*th));
+			if (error)
+				break;
+
+			track = te->track;
+			if (track == 0)
+				track = th->starting_track;
+			else if (track == 0xaa)
+				/* OK */;
+			else if (track < th->starting_track ||
+				 track > th->ending_track + 1) {
+				error = EINVAL;
+				break;
+			}
+
+			error = worm_read_toc(sc_link, te->address_format,
+					      track,
+					      (struct cd_toc_entry *)&data,
+					      sizeof data);
+			if (error)
+				break;
+
+			bcopy(&data.entry, &te->entry,
+			      sizeof(struct cd_toc_entry));
+		}
+		break;
 		
 	default:
 		error = ENOTTY;
@@ -694,6 +842,38 @@ worm_rezero_unit(struct scsi_link *sc_link)
 			     5000,
 			     NULL,
 			     0);
+}
+
+/*
+ * Read table of contents
+ *
+ * Stolen from cd.c
+ */
+static errval
+worm_read_toc(struct scsi_link *sc_link, u_int32_t mode, u_int32_t start,
+	      struct cd_toc_entry *data, u_int32_t len)
+{
+	struct scsi_read_toc scsi_cmd;
+	u_int32_t ntoc;
+
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	ntoc = len;
+
+	scsi_cmd.op_code = READ_TOC;
+	if (mode == CD_MSF_FORMAT)
+		scsi_cmd.byte2 |= CD_MSF;
+	scsi_cmd.from_track = start;
+	scsi_cmd.data_len[0] = (ntoc) >> 8;
+	scsi_cmd.data_len[1] = (ntoc) & 0xff;
+	return (scsi_scsi_cmd(sc_link,
+			      (struct scsi_generic *) &scsi_cmd,
+			      sizeof(struct scsi_read_toc),
+			      (u_char *) data,
+			      len,
+			      /*WORMRETRY*/ 4,
+			      5000,
+			      NULL,
+			      SCSI_DATA_IN));
 }
 
 static errval
