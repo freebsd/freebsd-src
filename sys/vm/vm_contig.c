@@ -243,12 +243,14 @@ again1:
 		vm_map_unlock(map);
 
 		tmp_addr = addr;
+		vm_object_lock(kernel_object);
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 			vm_page_insert(m, kernel_object,
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 			tmp_addr += PAGE_SIZE;
 		}
+		vm_object_unlock(kernel_object);
 		vm_map_wire(map, addr, addr + size, FALSE);
 
 		splx(s);
