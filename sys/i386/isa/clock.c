@@ -90,7 +90,7 @@
 #include <i386/isa/intr_machdep.h>
 
 #ifdef DEV_MCA
-#include <i386/isa/mca_machdep.h>
+#include <i386/bios/mca_machdep.h>
 #endif
 
 #ifdef APIC_IO
