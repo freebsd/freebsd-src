@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1992-1994 by Joerg Wunsch, Dresden
+ * Copyright (C) 1992-1994,2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +97,10 @@ struct fd_type {
 	int     f_inter;                /* format interleave factor  */
 };
 
+struct fdc_status {
+	u_int	status[7];
+};
+
 #define FD_FORM   _IOW('F', 61, struct fd_formb) /* format a track */
 #define FD_GTYPE  _IOR('F', 62, struct fd_type)  /* get drive type */
 #define FD_STYPE  _IOW('F', 63, struct fd_type)  /* set drive type */
@@ -106,7 +110,19 @@ struct fd_type {
 
 #define FD_DEBUG  _IOW('F', 66, int)
 
-#define FDOPT_NORETRY 0x0001	/* no retries on failure (cleared on close) */
+#define FD_CLRERR _IO('F', 67)	/* clear error counter */
+
+/*
+ * Obtain NE765 status registers.  Only successful if there is
+ * a valid status stored in fdc->status[].
+ */
+#define FD_GSTAT  _IOR('F', 68, struct fdc_status)
+
+/* Options for FD_GOPTS/FD_SOPTS, cleared on device close */
+#define FDOPT_NORETRY 0x0001	/* no retries on failure */
+#define FDOPT_NOERRLOG 0x002	/* no "hard error" kernel log messages */
+#define FDOPT_NOERROR 0x0004	/* do not indicate errors, caller will use
+				   FD_GSTAT in order to obtain status */
 
 /*
  * The following definitions duplicate those in sys/i386/isa/fdreg.h
