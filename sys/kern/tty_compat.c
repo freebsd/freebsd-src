@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.6 1994/10/11 20:04:49 ache Exp $
+ * $Id: tty_compat.c,v 1.7 1994/10/11 20:29:42 ache Exp $
  */
 
 /* 
@@ -307,9 +307,10 @@ ttcompatsetflags(tp, t)
 	register long cflag = t->c_cflag;
 
 	if (flags & RAW) {
-		iflag = 0;
+		iflag = IGNBRK;
 		lflag &= ~(ECHOCTL|ISIG|ICANON|IEXTEN);
 	} else {
+		iflag &= ~(PARMRK|IGNPAR|IGNCR|INLCR);
 		iflag |= BRKINT|IXON|IMAXBEL;
 		lflag |= ISIG|IEXTEN|ECHOCTL;	/* XXX was echoctl on ? */
 		if (flags & XTABS)
@@ -383,6 +384,7 @@ ttcompatsetlflags(tp, t)
 	register long lflag = t->c_lflag;
 	register long cflag = t->c_cflag;
 
+	iflag &= ~(PARMRK|IGNPAR|IGNCR|INLCR);
 	if (flags&CRTERA)
 		lflag |= ECHOE;
 	else
