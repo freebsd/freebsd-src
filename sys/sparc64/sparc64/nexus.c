@@ -228,13 +228,12 @@ nexus_attach(device_t dev)
 static void
 nexus_probe_nomatch(device_t dev, device_t child)
 {
-	char *name = nexus_get_name(dev);
 	char *type;
 
-	if ((type = nexus_get_device_type(dev)) == NULL)
+	if ((type = nexus_get_device_type(child)) == NULL)
 		type = "(unknown)";
 	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-	    name, type);
+	    nexus_get_name(child), type);
 }
 
 static int
