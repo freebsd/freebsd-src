@@ -111,7 +111,7 @@ sig_handler(int sig)
 }
 
 struct xferstat {
-	char		 name[40];
+	char		 name[64];
 	struct timeval	 start;
 	struct timeval	 last;
 	off_t		 size;
@@ -122,43 +122,61 @@ struct xferstat {
 /*
  * Compute and display ETA
  */
-static void
+static const char *
 stat_eta(struct xferstat *xs)
 {
+	static char str[16];
 	long elapsed, received, expected, eta;
 
 	elapsed = xs->last.tv_sec - xs->start.tv_sec;
 	received = xs->rcvd - xs->offset;
 	expected = xs->size - xs->rcvd;
 	eta = (long)((double)elapsed * expected / received);
-	if (eta > 3600) {
-		fprintf(stderr, "%02ld:", eta / 3600);
-		eta %= 3600;
+	if (eta > 3600)
+		snprintf(str, sizeof str, "%02ldh%02ldm",
+		    eta / 3600, (eta % 3600) / 60);
+	else
+		snprintf(str, sizeof str, "%02ldm%02lds",
+		    eta / 60, eta % 60);
+	return (str);
+}
+
+/*
+ * Format a number as "xxxx YB" where Y is ' ', 'k', 'M'...
+ */
+static const char *prefixes = " kMGTP";
+static const char *
+stat_bytes(size_t bytes)
+{
+	static char str[16];
+	const char *prefix = prefixes;
+
+	while (bytes > 9999 && prefix[1] != '\0') {
+		bytes /= 1024;
+		prefix++;
 	}
-	fprintf(stderr, "%02ld:%02ld", eta / 60, eta % 60);
+	snprintf(str, sizeof str, "%4d %cB", bytes, *prefix);
+	return (str);
 }
 
 /*
  * Compute and display transfer rate
  */
-static void
+static const char *
 stat_bps(struct xferstat *xs)
 {
+	static char str[16];
 	double delta, bps;
 
 	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
 	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
 	if (delta == 0.0) {
-		fprintf(stderr, "?? Bps");
-		return;
+		snprintf(str, sizeof str, "?? Bps");
+	} else {
+		bps = (xs->rcvd - xs->offset) / delta;
+		snprintf(str, sizeof str, "%sps", stat_bytes((size_t)bps));
 	}
-	bps = (xs->rcvd - xs->offset) / delta;
-	if (bps > 1024*1024)
-		fprintf(stderr, "%.2f MBps", bps / (1024*1024));
-	else if (bps > 1024)
-		fprintf(stderr, "%.2f kBps", bps / 1024);
-	else
-		fprintf(stderr, "%.2f Bps", bps);
+	return (str);
 }
 
 /*
@@ -170,9 +188,6 @@ stat_display(struct xferstat *xs, int force)
 	struct timeval now;
 	int ctty_pgrp;
 
-	if (!v_tty || !v_level)
-		return;
-
 	/* check if we're the foreground process */
 	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) == -1 ||
 	    (pid_t)ctty_pgrp != pgrp)
@@ -183,22 +198,18 @@ stat_display(struct xferstat *xs, int force)
 		return;
 	xs->last = now;
 
-	fprintf(stderr, "\rReceiving %s", xs->name);
+	fprintf(stderr, "\r%-46s", xs->name);
 	if (xs->size <= 0) {
-		fprintf(stderr, ": %lld bytes", (long long)xs->rcvd);
+		fprintf(stderr, "        %s", stat_bytes(xs->rcvd));
 	} else {
-		fprintf(stderr, " (%lld bytes): %d%%", (long long)xs->size,
-		    (int)((100.0 * xs->rcvd) / xs->size));
-		if (xs->rcvd > 0 && xs->last.tv_sec >= xs->start.tv_sec + 30) {
-			fprintf(stderr, " (ETA ");
-			stat_eta(xs);
-			if (v_level > 1) {
-				fprintf(stderr, " at ");
-				stat_bps(xs);
-			}
-			fprintf(stderr, ")  ");
-		}
+		fprintf(stderr, "%3d%% of %s",
+		    (int)((100.0 * xs->rcvd) / xs->size),
+		    stat_bytes(xs->size));
 	}
+	fprintf(stderr, " %s", stat_bps(xs));
+	if (xs->size > 0 && xs->rcvd > 0 &&
+	    xs->last.tv_sec >= xs->start.tv_sec + 10)
+		fprintf(stderr, " %s", stat_eta(xs));
 }
 
 /*
@@ -213,7 +224,10 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
-	stat_display(xs, 1);
+	if (v_tty && v_level > 0)
+		stat_display(xs, 1);
+	else if (v_level > 0)
+		fprintf(stderr, "%-46s", xs->name);
 }
 
 /*
@@ -223,7 +237,8 @@ static void
 stat_update(struct xferstat *xs, off_t rcvd)
 {
 	xs->rcvd = rcvd;
-	stat_display(xs, 0);
+	if (v_tty && v_level > 0)
+		stat_display(xs, 0);
 }
 
 /*
@@ -232,21 +247,14 @@ stat_update(struct xferstat *xs, off_t rcvd)
 static void
 stat_end(struct xferstat *xs)
 {
-	double delta;
-
-	if (!v_level)
-		return;
-
 	gettimeofday(&xs->last, NULL);
-
-	stat_display(xs, 1);
-	fputc('\n', stderr);
-	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
-	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
-	fprintf(stderr, "%lld bytes transferred in %.1f seconds (",
-	    (long long)(xs->rcvd - xs->offset), delta);
-	stat_bps(xs);
-	fprintf(stderr, ")\n");
+	if (v_tty && v_level > 0) {
+		stat_display(xs, 1);
+		putc('\n', stderr);
+	} else if (v_level > 0) {
+		fprintf(stderr, "        %s %s\n",
+		    stat_bytes(xs->size), stat_bps(xs));
+	}
 }
 
 /*
