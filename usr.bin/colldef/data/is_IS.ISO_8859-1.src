@@ -1,6 +1,6 @@
 # icelandic (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $Id$
 #
 charmap map.ISO_8859-1
 order \

@@ -130,7 +130,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 
 /* Local functions */
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$FreeBSD$
+#	$Id$
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend

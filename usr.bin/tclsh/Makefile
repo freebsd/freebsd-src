@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=   tclsh
 SRCS=   tclAppInit.c

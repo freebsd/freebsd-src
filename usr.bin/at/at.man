@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $Id$
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"

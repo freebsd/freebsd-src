@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG = rusers
 MAN1 = rusers.1

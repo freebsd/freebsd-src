@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 MAN1=	sgmlfmt.1
 

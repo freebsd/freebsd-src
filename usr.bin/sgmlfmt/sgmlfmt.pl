@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $FreeBSD$
+# $Id$
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.

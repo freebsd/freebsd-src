@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $FreeBSD$
+# $Id$
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security

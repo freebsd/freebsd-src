@@ -1,7 +1,7 @@
 #
 # Bmakefile for libsgmls
 #
-# $FreeBSD$
+# $Id$
 #
 
 LIB=	sgmls

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	compile_et
 SRCS=	compile_et.c error_table.y
