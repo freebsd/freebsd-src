@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.59 1999/06/01 18:56:26 phk Exp $
+ * $Id: conf.h,v 1.60 1999/06/25 07:49:01 grog Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -198,12 +198,8 @@ struct module;
 struct devsw_module_data {
 	int	(*chainevh)(struct module *, int, void *); /* next handler */
 	void	*chainarg;	/* arg for next event handler */
-	int	bmaj;		/* device major to use */
-	int	cmaj;		/* device major to use */
 	struct	cdevsw *cdevsw;	/* device functions */
 	/* Do not initialize fields hereafter */
-	dev_t	bdev;
-	dev_t	cdev;
 };
 
 #define DEV_MODULE(name, cmaj, bmaj, devsw, evh, arg)			\

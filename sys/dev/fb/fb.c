@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fb.c,v 1.5 1999/05/31 11:24:38 phk Exp $
+ * $Id: fb.c,v 1.6 1999/06/22 14:13:22 yokota Exp $
  */
 
 #include "fb.h"
@@ -508,8 +508,7 @@ fbmmap(dev_t dev, vm_offset_t offset, int nprot)
 }
 
 #if experimental
-DEV_DRIVER_MODULE(fb, ???, fb_driver, fb_devclass,
-		  CDEV_MAJOR, NOMAJ, fb_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(fb, ???, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
 #endif
 
 /*

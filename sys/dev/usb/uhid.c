@@ -577,6 +577,6 @@ uhidpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DEV_DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass,
-		UHID_CDEV_MAJOR, NOMAJ, uhid_cdevsw, usbd_driver_load, 0);
+DEV_DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, 
+	uhid_cdevsw, usbd_driver_load, 0);
 #endif
