@@ -51,57 +51,57 @@ The second role is to notify occurences of the event by way of
 and eventually to
 .Xr devd 8 .
 The third and last is to provide a way to adjust LCD brightness and
-sound mute state via sysctl.
+sound mute state via
+.Xr sysctl 8 .
 .Ss Hotkeys
 There are 9 hotkeys available on the supported hardwares:
 .Pp
 .Bl -tag -compact -offset indent
-.It Sy \&Fn+F1
+.It Sy Fn+F1
 Make LCD backlight darker.
-.It Sy \&Fn+F2
+.It Sy Fn+F2
 Make LCD backlight brighter.
-.It Sy \&Fn+F3
+.It Sy Fn+F3
 Switch video output between LCD and CRT.
 Not supported by the
 .Nm
 driver.
-.It Sy \&Fn+F4
+.It Sy Fn+F4
 Toggle muting the speaker.
-.It Sy \&Fn+F5
+.It Sy Fn+F5
 Turn the mixer volume down.
-.It Sy \&Fn+F6
+.It Sy Fn+F6
 Turn the mixer volume up.
-.It Sy \&Fn+F7
+.It Sy Fn+F7
 Enter suspend-to-RAM state.
-.It Sy \&Fn+F9
+.It Sy Fn+F9
 Show battery status.
-.It Sy \&Fn+F10
+.It Sy Fn+F10
 Enter suspend-to-disk state.
 .El
 .Pp
 Actions are automatically taken within the driver for
-.Sy \&Fn+F1 ,
-.Sy \&Fn+F2
+.Sy Fn+F1 , Fn+F2
 and
-.Sy \&Fn+F4 .
+.Sy Fn+F4 .
 For the other events such as
 mixer control and showing battery status,
 .Xr devd 8
 should take the role as described below.
-.Ss Devd Events
+.Ss Xr devd 8 Ss Events
 When notified to
 .Xr devd 8 ,
 the hotkey event provides the following information:
 .Pp
 .Bl -tag -compact -offset indent
 .It system
-.Qq ACPI
+.Qq Li ACPI
 .It subsystem
 .Qq Panasonic
 .It type
 The source of the event in ACPI namespace.
 The value depends on the model but typically
-.Qq \e_SB_.HKEY .
+.Qq Li \e_SB_.HKEY .
 .It notify
 Event code (see below).
 .El
@@ -109,18 +109,20 @@ Event code (see below).
 Event codes to be generated are assigned as follows:
 .Bl -tag -offset indent
 .It 0x81-0x86, 0x89
-.Sy \&Fn+F<n>
-pressed. 0x81 corresponds to
-.Sy \&Fn+F1 ,
+.Sy Fn+F<n>
+pressed.
+0x81 corresponds to
+.Sy Fn+F1 ,
 0x82 corresponds to
-.Sy \&Fn+F2 ,
+.Sy Fn+F2 ,
 and so on.
 .It 0x01-0x07, 0x09, 0x1a
-.Sy \&Fn+F<n>
-released. 0x01 corresponds to
-.Sy \&Fn+F1 ,
+.Sy Fn+F<n>
+released.
+0x01 corresponds to
+.Sy Fn+F1 ,
 0x02 corresponds to
-.Sy \&Fn+F2 ,
+.Sy Fn+F2 ,
 and so on.
 .El
 .Sh SYSCTLS
@@ -140,15 +142,16 @@ The value 1 means to mute and 0 not.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
-.Xr sysctl 8 ,
-.Xr devd 8 ,
 .Xr devd.conf 5
-.\" .Sh HISTORY
-.\" The
-.\" .Nm
-.\" driver first appeared in
-.\" .Fx 5.3 .
+.Xr devd 8 ,
+.Xr sysctl 8 ,
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.3 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver and this manual page were written by
