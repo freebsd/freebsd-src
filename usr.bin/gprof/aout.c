@@ -176,9 +176,6 @@ static void
 gettextspace(FILE *nfile)
 {
 
-    if ( cflag == 0 ) {
-	return;
-    }
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
 	warnx("no room for %lu bytes of text space: can't do -c" ,

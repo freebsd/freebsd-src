@@ -228,7 +228,6 @@ int	cyclethreshold;		/* with -C, minimum cycle size to ignore */
      */
 bool	aflag;				/* suppress static functions */
 bool	bflag;				/* blurbs, too */
-bool	cflag;				/* discovered call graph, too */
 bool	Cflag;				/* find cut-set to eliminate cycles */
 bool	dflag;				/* debugging options */
 bool	eflag;				/* specific functions excluded */
@@ -284,9 +283,6 @@ void		doflags(void);
 void		dotime(void);
 void		dumpsum(char *);
 int		elf_getnfile(const char *, char ***);
-/*
-		findcalls();
-*/
 void		flatprofheader(void);
 void		flatprofline(nltype *);
 void		getpfile(char *);
