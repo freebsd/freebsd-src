@@ -92,6 +92,7 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 
 struct clockframe;
 struct malloc_type;
+struct mtx;
 struct proc;
 struct timeval;
 struct tty;
@@ -318,7 +319,9 @@ extern watchdog_tickle_fn	wdog_tickler;
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */
-int	tsleep __P((void *chan, int pri, const char *wmesg, int timo));
+int	msleep __P((void *chan, struct mtx *mtx, int pri, const char *wmesg,
+		    int timo));
+#define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
 int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
 int	await  __P((int pri, int timo));
 void	wakeup __P((void *chan));
