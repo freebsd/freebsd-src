@@ -372,7 +372,8 @@ ed_stop(struct ed_softc *sc)
 	 * just in case it's an old one.
 	 */
 	if (sc->chip_type != ED_CHIP_TYPE_AX88190)
-		while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
+		while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RST) == 0) && --n)
+			continue;
 }
 
 /*
@@ -1440,7 +1441,9 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
 	 * waiting causes really bad things to happen - like the NIC
 	 * irrecoverably jamming the ISA bus.
 	 */
-	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
+	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) &&
+	    --maxwait)
+		continue;
 }
 
 /*
@@ -1551,7 +1554,9 @@ ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
 	 * waiting causes really bad things to happen - like the NIC
 	 * irrecoverably jamming the ISA bus.
 	 */
-	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
+	while (((ed_nic_inb(sc, ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) &&
+	    --maxwait)
+		continue;
 
 	if (!maxwait) {
 		log(LOG_WARNING, "%s: remote transmit DMA failed to complete\n",
