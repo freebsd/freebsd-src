@@ -99,7 +99,7 @@ getobjformat(char *buf, size_t bufsize, int *argcp, char **argv)
 		int found;
 		int len;
 
-		found = 0;
+		found = len = 0;
 		while (fgets(line, sizeof line, fp) != NULL) {
 			if (strncmp(line, "OBJFORMAT=", 10) == 0) {
 				char *p = &line[10];
