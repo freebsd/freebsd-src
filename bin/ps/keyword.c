@@ -112,6 +112,7 @@ VAR var[] = {
 		NULL, USER, rvar, NULL, 4, ROFF(ru_majflt), LONG, "ld"},
 	{"minflt", "MINFLT",
 		NULL, USER, rvar, NULL, 4, ROFF(ru_minflt), LONG, "ld"},
+	{"mtxname", "MUTEX", NULL, LJUST, mtxname, NULL, 6},
 	{"msgrcv", "MSGRCV",
 		NULL, USER, rvar, NULL, 4, ROFF(ru_msgrcv), LONG, "ld"},
 	{"msgsnd", "MSGSND",
