@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.66 2000/12/18 18:00:44 ca Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.67 2001/01/07 19:31:05 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.66 2000/12/18 18:00:44 ca Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.67 2001/01/07 19:31:05 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -1159,7 +1159,7 @@ smtp(nullserver, d_flags, e)
 			if (gothello)
 			{
 				usrerr("503 %s Duplicate HELO/EHLO",
-					MyHostName);
+				       MyHostName);
 				break;
 			}
 

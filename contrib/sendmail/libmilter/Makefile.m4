@@ -16,9 +16,9 @@ APPENDDEF(`confENVDEF', `-DNOT_SENDMAIL')
 
 divert(bldTARGETS_SECTION)
 # Install the API header file
-MFAPI=	${SRCDIR}/include/libmilter/mfapi.h
+MFAPI=	${SRCDIR}/inc`'lude/libmilter/mfapi.h
 install-mfapi: ${MFAPI}
-	${INSTALL} ${MFAPI} ${DESTDIR}${INCLUDEDIR}
+	${INSTALL} -c -o ${INCOWN} -g ${INCGRP} -m ${INCMODE} ${MFAPI} ${DESTDIR}${INCLUDEDIR}
 divert(0)
 
 bldFINISH

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: version.c,v 8.43.4.25 2000/12/29 18:22:18 gshapiro Exp $";
+static char id[] = "@(#)$Id: version.c,v 8.43.4.30 2001/02/27 19:22:31 gshapiro Exp $";
 #endif /* ! lint */
 
-char	Version[] = "8.11.2";
+char	Version[] = "8.11.3";

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.15 2000/10/18 23:46:07 ca Exp $";
+static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.19 2001/02/22 18:56:24 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -497,7 +497,8 @@ log_sendmail_pid(e)
 	pidf = safefopen(pidpath, O_WRONLY|O_TRUNC, 0644, sff);
 	if (pidf == NULL)
 	{
-		sm_syslog(LOG_ERR, NOQID, "unable to write %s", pidpath);
+		sm_syslog(LOG_ERR, NOQID, "unable to write %s: %s",
+			  pidpath, errstring(errno));
 	}
 	else
 	{
@@ -1785,10 +1786,10 @@ printit:
 **		host -- the host to shorten (stripped in place).
 **
 **	Returns:
-**		none.
+**		place where string was trunacted, NULL if not truncated.
 */
 
-void
+char *
 shorten_hostname(host)
 	char host[];
 {
@@ -1808,7 +1809,7 @@ shorten_hostname(host)
 	/* see if there is any domain at all -- if not, we are done */
 	p = strchr(host, '.');
 	if (p == NULL)
-		return;
+		return NULL;
 
 	/* yes, we have a domain -- see if it looks like us */
 	mydom = macvalue('m', CurEnv);
@@ -1817,7 +1818,11 @@ shorten_hostname(host)
 	i = strlen(++p);
 	if ((canon ? strcasecmp(p, mydom) : strncasecmp(p, mydom, i)) == 0 &&
 	    (mydom[i] == '.' || mydom[i] == '\0'))
+	{
 		*--p = '\0';
+		return p;
+	}
+	return NULL;
 }
 /*
 **  PROG_OPEN -- open a program for reading

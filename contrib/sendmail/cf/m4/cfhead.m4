@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -155,28 +155,28 @@ define(`SITE', `ifelse(CONCAT($'2`, $3), SU,
 		CONCAT(CY, $'1`),
 		CONCAT(C, $3, $'1`))')
 sinclude(_CF_DIR_`'siteconfig/$1.m4)')
-define(`EXPOSED_USER', `PUSHDIVERT(5)CE$1
+define(`EXPOSED_USER', `PUSHDIVERT(5)C{E}$1
 POPDIVERT`'dnl`'')
-ifdef(`_FFR_EXPOSED_USER_FILE', `define(`EXPOSED_USER_FILE', `PUSHDIVERT(5)FE$1
+ifdef(`_FFR_EXPOSED_USER_FILE', `define(`EXPOSED_USER_FILE', `PUSHDIVERT(5)F{E}$1
 POPDIVERT`'dnl`'')', `dnl')
-define(`LOCAL_USER', `PUSHDIVERT(5)CL$1
+define(`LOCAL_USER', `PUSHDIVERT(5)C{L}$1
 POPDIVERT`'dnl`'')
 define(`MASQUERADE_AS', `define(`MASQUERADE_NAME', $1)')
-define(`MASQUERADE_DOMAIN', `PUSHDIVERT(5)CM$1
+define(`MASQUERADE_DOMAIN', `PUSHDIVERT(5)C{M}$1
 POPDIVERT`'dnl`'')
-define(`MASQUERADE_EXCEPTION', `PUSHDIVERT(5)CN$1
+define(`MASQUERADE_EXCEPTION', `PUSHDIVERT(5)C{N}$1
 POPDIVERT`'dnl`'')
-define(`MASQUERADE_DOMAIN_FILE', `PUSHDIVERT(5)FM$1
+define(`MASQUERADE_DOMAIN_FILE', `PUSHDIVERT(5)F{M}$1
 POPDIVERT`'dnl`'')
-define(`LOCAL_DOMAIN', `PUSHDIVERT(5)Cw$1
+define(`LOCAL_DOMAIN', `PUSHDIVERT(5)C{w}$1
 POPDIVERT`'dnl`'')
 define(`CANONIFY_DOMAIN', `PUSHDIVERT(5)C{Canonify}$1
 POPDIVERT`'dnl`'')
 define(`CANONIFY_DOMAIN_FILE', `PUSHDIVERT(5)F{Canonify}$1
 POPDIVERT`'dnl`'')
-define(`GENERICS_DOMAIN', `PUSHDIVERT(5)CG$1
+define(`GENERICS_DOMAIN', `PUSHDIVERT(5)C{G}$1
 POPDIVERT`'dnl`'')
-define(`GENERICS_DOMAIN_FILE', `PUSHDIVERT(5)FG$1
+define(`GENERICS_DOMAIN_FILE', `PUSHDIVERT(5)F{G}$1
 POPDIVERT`'dnl`'')
 define(`LDAPROUTE_DOMAIN', `PUSHDIVERT(5)C{LDAPRoute}$1
 POPDIVERT`'dnl`'')
@@ -188,9 +188,9 @@ POPDIVERT`'dnl`'')
 define(`VIRTUSER_DOMAIN_FILE', `PUSHDIVERT(5)F{VirtHost}$1
 define(`_VIRTHOSTS_')
 POPDIVERT`'dnl`'')
-define(`RELAY_DOMAIN', `PUSHDIVERT(5)CR$1
+define(`RELAY_DOMAIN', `PUSHDIVERT(5)C{R}$1
 POPDIVERT`'dnl`'')
-define(`RELAY_DOMAIN_FILE', `PUSHDIVERT(5)FR$1
+define(`RELAY_DOMAIN_FILE', `PUSHDIVERT(5)F{R}$1
 POPDIVERT`'dnl`'')
 define(`TRUST_AUTH_MECH', `PUSHDIVERT(5)C{TrustAuthMech}$1
 POPDIVERT`'dnl`'')
@@ -254,4 +254,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.76.4.13 2000/08/24 17:09:50 gshapiro Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.76.4.15 2001/02/14 04:07:20 gshapiro Exp $')

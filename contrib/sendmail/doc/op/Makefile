@@ -1,23 +1,29 @@
-#	$Id: Makefile,v 8.7 2000/02/01 08:21:47 gshapiro Exp $
+#	$Id: Makefile,v 8.7.8.1 2001/01/04 18:55:46 gshapiro Exp $
 
-DIR=	smm/08.sendmailop
-SRCS=	op.me
-OBJS=	op.ps
-MACROS=	-me
+DIR=		smm/08.sendmailop
+SRCS=		op.me
+OBJS=		op.ps
+MACROS=		-me
 ROFF_CMD=	groff
 PIC_CMD=	pic
 EQN_CMD=	eqn
 PIC=		${PIC_CMD} -C
-EQN=		${EQN_CMD} -C -Tps
-ROFF=		${ROFF_CMD} -Tps -mps ${MACROS}
+EQNASCII=	${EQN_CMD} -C -Tascii
+EQNPS=		${EQN_CMD} -C -Tps
+ROFFASCII=	${ROFF_CMD} -Tascii ${MACROS}
+ROFFPS=		${ROFF_CMD} -Tps -mps ${MACROS}
 
 all: ${OBJS}
 
-${OBJS}: ${SRCS}
+op.ps: ${SRCS}
 	rm -f $@
-	${PIC} ${SRCS} | ${EQN} | ${ROFF} > $@
+	${PIC} ${SRCS} | ${EQNPS} | ${ROFFPS} > $@
+
+op.txt: ${SRCS}
+	rm -f $@
+	${PIC} ${SRCS} | ${EQNASCII} | ${ROFFASCII} > $@
 
 clean:
-	rm -f ${OBJS}
+	rm -f op.ps op.txt
 
 install: ${OBJS}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: praliases.c,v 8.59.4.15 2000/10/24 00:42:59 geir Exp $";
+static char id[] = "@(#)$Id: praliases.c,v 8.59.4.18 2001/01/22 19:00:18 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -272,6 +272,21 @@ praliases(filename, argc, argv)
 		while (*db_name != '\0' &&
 		       !(isascii(*db_name) && isspace(*db_name)))
 			db_name++;
+	}
+
+	/* Skip non-file based DB types */
+	if (db_type != NULL && *db_type != '\0')
+	{
+		if (db_type != SMDB_TYPE_DEFAULT &&
+		    strcmp(db_type, "hash") != 0 &&
+		    strcmp(db_type, "btree") != 0 &&
+		    strcmp(db_type, "dbm") != 0)
+		{
+			fprintf(stderr,
+				"praliases: Skipping non-file based alias type %s\n",
+				db_type);
+			return;
+		}
 	}
 
 	if (*db_name == '\0' || (db_type != NULL && *db_type == '\0'))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.485.4.38 2000/12/19 02:50:33 gshapiro Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.485.4.44 2001/02/08 14:06:55 ca Exp $";
 #endif /* ! lint */
 
 #define	_DEFINE
@@ -1062,7 +1062,8 @@ main(argc, argv, envp)
 
 	/* set up the $=m class now, after .cf has a chance to redefine $m */
 	expand("\201m", jbuf, sizeof jbuf, CurEnv);
-	setclass('m', jbuf);
+	if (jbuf[0] != '\0')
+		setclass('m', jbuf);
 
 	/* probe interfaces and locate any additional names */
 	if (!DontProbeInterfaces)
@@ -1231,8 +1232,10 @@ main(argc, argv, envp)
 		/* full names can't have newlines */
 		if (strchr(FullName, '\n') != NULL)
 		{
-			FullName = full = newstr(denlstring(FullName, TRUE, TRUE));
+			full = newstr(denlstring(FullName, TRUE, TRUE));
+			FullName = full;
 		}
+
 		/* check for characters that may have to be quoted */
 		if (!rfc822_string(FullName))
 		{
@@ -1241,6 +1244,7 @@ main(argc, argv, envp)
 			**  as a comment so crackaddr() doesn't destroy
 			**  the name portion of the address.
 			*/
+
 			FullName = addquotes(FullName);
 			if (full != NULL)
 				free(full);
@@ -1295,10 +1299,13 @@ main(argc, argv, envp)
 
 	/* our name for SMTP codes */
 	expand("\201j", jbuf, sizeof jbuf, CurEnv);
-	MyHostName = jbuf;
-	if (strchr(jbuf, '.') == NULL)
+	if (jbuf[0] == '\0')
+		MyHostName = newstr("localhost");
+	else
+		MyHostName = jbuf;
+	if (strchr(MyHostName, '.') == NULL)
 		message("WARNING: local host name (%s) is not qualified; fix $j in config file",
-			jbuf);
+			MyHostName);
 
 	/* make certain that this name is part of the $=w class */
 	setclass('w', MyHostName);
@@ -1855,7 +1862,7 @@ main(argc, argv, envp)
 			}
 			else
 				p = newstr(fv);
-			CurEnv->e_auth_param = newstr(xtextify(p, NULL));
+			CurEnv->e_auth_param = newstr(xtextify(p, "="));
 		}
 	}
 	if (macvalue('s', CurEnv) == NULL)
@@ -1866,6 +1873,7 @@ main(argc, argv, envp)
 		CurEnv->e_to = NULL;
 		CurEnv->e_flags |= EF_GLOBALERRS;
 		HoldErrs = FALSE;
+		SuperSafe = FALSE;
 		usrerr("Recipient names must be specified");
 
 		/* collect body for UUCP return */

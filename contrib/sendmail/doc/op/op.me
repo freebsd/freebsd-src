@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 .\"	All rights reserved.
 .\" Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1983, 1993
@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.317.4.47 2000/12/17 00:54:56 gshapiro Exp $
+.\"	$Id: op.me,v 8.317.4.56 2001/02/15 23:38:16 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -53,7 +53,7 @@ eric@Sendmail.COM
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.317.4.47 $
+.Ve $Revision: 8.317.4.56 $
 .rm Ve
 .sp
 For Sendmail Version 8.11
@@ -99,7 +99,7 @@ RFC1652 (SMTP 8BITMIME Extension),
 RFC1870 (SMTP SIZE Extension),
 RFC1891 (SMTP Delivery Status Notifications),
 RFC1892 (Multipart/Report),
-RFC1893 (Mail System Status Codes),
+RFC1893 (Enhanced Mail System Status Codes),
 RFC1894 (Delivery Status Notifications),
 RFC1985 (SMTP Service Extension for Remote Message Queue Starting),
 RFC2033 (Local Message Transmission Protocol),
@@ -624,7 +624,7 @@ option is set.
 .pp
 This command is also a link to
 .i sendmail .
-It flushes all information that is stored in the
+It flushes expired (Timeout.hoststatus) information that is stored in the
 .b HostStatusDirectory
 tree.
 .sh 3 "/var/spool/mqueue"
@@ -644,9 +644,9 @@ file.
 To use multiple queues,
 supply a value ending with an asterisk.
 For example,
-.i /var/spool/mqueue/q*
+.i /var/spool/mqueue/qd*
 will use all of the directories or symbolic links to directories
-beginning with `q' in
+beginning with `qd' in
 .i /var/spool/mqueue
 as queue directories.
 Do not change the queue directory structure
@@ -1141,6 +1141,9 @@ Removing this directory and its subdirectories has an effect similar to
 the
 .i purgestat
 command and is completely safe.
+However,
+.i purgestat
+only removes expired (Timeout.hoststatus) data.
 The information in these directories can
 be perused with the
 .i hoststat
@@ -1158,7 +1161,7 @@ the
 .b Timeout.hoststatus
 option.
 .pp
-The connection information stored on disk may be purged at any time
+The connection information stored on disk may be expired at any time
 with the
 .i purgestat
 command or by invoking sendmail with the
@@ -1174,7 +1177,8 @@ switch.
 The implementation of certain system services
 such as host and user name lookup
 is controlled by the service switch.
-If the host operating system supports such a switch
+If the host operating system supports such a switch,
+and sendmail knows about it,
 .i sendmail
 will use the native version.
 Ultrix, Solaris, and DEC OSF/1 are examples of such systems\**.
@@ -4262,7 +4266,9 @@ FAIL	cert presented but could not be verified,
 NONE	STARTTLS has not been performed.
 TEMP	temporary error occurred.
 PROTOCOL some protocol error occurred.
-SOFTWARE STARTTLS handshake failed.
+SOFTWARE STARTTLS handshake failed,
+	which is a fatal error for this session,
+	the e-mail will be queued.
 .)b
 .pp
 There are three types of dates that can be used.
@@ -4504,6 +4510,9 @@ The syntax is:
 .br
 .b F \c
 .i c\|file
+.br
+.b F \c
+.i c\||program
 .)b
 The first form defines the class
 .i c
@@ -4530,11 +4539,13 @@ CHmonet
 CHucbmonet
 .)b
 are equivalent.
-The ``F'' form
-reads the elements of the class
+The ``F'' forms
+read the elements of the class
 .i c
 from the named
-.i file .
+.i file
+or
+.i program .
 Each element should be listed on a separate line.
 To specify an optional file, use ``-o'' between the class
 name and the file name, e.g.,
@@ -5382,7 +5393,7 @@ should be in the format
 ``\c
 .i class \c
 .b :
-.i file ''
+.i info ''
 where
 .i class \c
 .b :
@@ -5397,6 +5408,10 @@ for back compatibility),
 (if
 .sm NEWDB
 is specified),
+.q btree
+(if
+.sm NEWDB
+is specified),
 .q dbm
 (if
 .sm NDBM
@@ -5404,6 +5419,13 @@ is specified),
 .q stab
 (internal symbol table \*- not normally used
 unless you have no other database lookup),
+.q sequence
+(use a sequence of maps
+previously declared),
+.q ldap
+(if
+.sm LDAPMAP
+is specified),
 or
 .q nis
 (if
@@ -9390,7 +9412,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.317.4.47 $
+.\"Version $Revision: 8.317.4.56 $
 .\".ce 0
 .bp 3
 .ce

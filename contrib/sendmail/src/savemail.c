@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: savemail.c,v 8.212.4.11 2000/12/18 18:00:44 ca Exp $";
+static char id[] = "@(#)$Id: savemail.c,v 8.212.4.12 2001/01/07 19:31:05 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -1017,7 +1017,8 @@ errbody(mci, e, separator)
 		}
 
 		/* Reporting-MTA: is us (required) */
-		(void) snprintf(buf, sizeof buf, "Reporting-MTA: dns; %.800s", MyHostName);
+		(void) snprintf(buf, sizeof buf, "Reporting-MTA: dns; %.800s",
+				MyHostName);
 		putline(buf, mci);
 
 		/* DSN-Gateway: not relevant since we are not translating */

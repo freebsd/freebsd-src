@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: map.c,v 8.414.4.34 2000/12/18 18:00:43 ca Exp $";
+static char id[] = "@(#)$Id: map.c,v 8.414.4.39 2001/02/22 18:56:22 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -52,7 +52,7 @@ static bool	db_map_open __P((MAP *, int, char *, DBTYPE, DB_INFO *));
 static bool	db_map_open __P((MAP *, int, char *, DBTYPE, void **));
 # endif /* DB_VERSION_MAJOR > 2 */
 #endif /* NEWDB */
-static bool	extract_canonname __P((char *, char *, char[], int));
+static bool	extract_canonname __P((char *, char *, char *, char[], int));
 #ifdef LDAPMAP
 static void	ldapmap_clear __P((LDAPMAP_STRUCT *));
 static STAB	*ldapmap_findconn __P((LDAPMAP_STRUCT *));
@@ -767,11 +767,10 @@ getcanonname(host, hbsize, trymx)
 
 #if NAMED_BIND
 	if (got_tempfail)
-		h_errno = TRY_AGAIN;
+		SM_SET_H_ERRNO(TRY_AGAIN);
 	else
-		h_errno = HOST_NOT_FOUND;
+		SM_SET_H_ERRNO(HOST_NOT_FOUND);
 #endif /* NAMED_BIND */
-
 	return FALSE;
 }
 /*
@@ -779,6 +778,7 @@ getcanonname(host, hbsize, trymx)
 **
 **	Parameters:
 **		name -- the name against which to match.
+**		dot -- where to reinsert '.' to get FQDN
 **		line -- the /etc/hosts line.
 **		cbuf -- the location to store the result.
 **		cbuflen -- the size of cbuf.
@@ -789,8 +789,9 @@ getcanonname(host, hbsize, trymx)
 */
 
 static bool
-extract_canonname(name, line, cbuf, cbuflen)
+extract_canonname(name, dot, line, cbuf, cbuflen)
 	char *name;
+	char *dot;
 	char *line;
 	char cbuf[];
 	int cbuflen;
@@ -819,6 +820,14 @@ extract_canonname(name, line, cbuf, cbuflen)
 		}
 		if (strcasecmp(name, p) == 0)
 			found = TRUE;
+		else if (dot != NULL)
+		{
+			/* try looking for the FQDN as well */
+			*dot = '.';
+			if (strcasecmp(name, p) == 0)
+				found = TRUE;
+			*dot = '\0';
+		}
 	}
 	if (found && strchr(cbuf, '.') == NULL)
 	{
@@ -1623,6 +1632,10 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 			ret = db->open(db, buf, NULL, dbtype, flags, DBMMODE);
 			if (ret != 0)
 			{
+#ifdef DB_OLD_VERSION
+				if (ret == DB_OLD_VERSION)
+					ret = EINVAL;
+#endif /* DB_OLD_VERSION */
 				(void) db->close(db, 0);
 				db = NULL;
 			}
@@ -2258,7 +2271,7 @@ nis_getcanonname(name, hbsize, statp)
 		*statp = EX_UNAVAILABLE;
 		return FALSE;
 	}
-	shorten_hostname(nbuf);
+	(void) shorten_hostname(nbuf);
 	keylen = strlen(nbuf);
 
 	if (yp_domain == NULL)
@@ -2302,13 +2315,13 @@ nis_getcanonname(name, hbsize, statp)
 	free(vp);
 	if (tTd(38, 44))
 		dprintf("got record `%s'\n", host_record);
-	if (!extract_canonname(nbuf, host_record, cbuf, sizeof cbuf))
+	if (!extract_canonname(nbuf, NULL, host_record, cbuf, sizeof cbuf))
 	{
 		/* this should not happen, but.... */
 		*statp = EX_NOHOST;
 		return FALSE;
 	}
-	if (hbsize < strlen(cbuf))
+	if (hbsize <= strlen(cbuf))
 	{
 		*statp = EX_UNAVAILABLE;
 		return FALSE;
@@ -2639,7 +2652,7 @@ nisplus_getcanonname(name, hbsize, statp)
 		return FALSE;
 	}
 	(void) strlcpy(nbuf, name, sizeof nbuf);
-	shorten_hostname(nbuf);
+	(void) shorten_hostname(nbuf);
 
 	p = strchr(nbuf, '.');
 	if (p == NULL)
@@ -3937,7 +3950,7 @@ ldapmap_parseargs(map, args)
 
 					if ((ptr = strchr(p, ' ')) != NULL)
 						*ptr = '\0';
-					syserr("Deref must be [never|always|search|find] not %s in map %s",
+					syserr("Deref must be [never|always|search|find] (not %s) in map %s",
 						p, map->map_mname);
 					if (ptr != NULL)
 						*ptr = ' ';
@@ -3972,7 +3985,7 @@ ldapmap_parseargs(map, args)
 
 					if ((ptr = strchr(p, ' ')) != NULL)
 						*ptr = '\0';
-					syserr("Scope must be [base|one|sub] not %s in map %s",
+					syserr("Scope must be [base|one|sub] (not %s) in map %s",
 						p, map->map_mname);
 					if (ptr != NULL)
 						*ptr = ' ';
@@ -4044,7 +4057,7 @@ ldapmap_parseargs(map, args)
 
 					if ((ptr = strchr(p, ' ')) != NULL)
 						*ptr = '\0';
-					syserr("Method for binding must be [none|simple|krbv4] not %s in map %s",
+					syserr("Method for binding must be [none|simple|krbv4] (not %s) in map %s",
 						p, map->map_mname);
 					if (ptr != NULL)
 						*ptr = ' ';
@@ -4312,6 +4325,7 @@ void
 ldapmap_set_defaults(spec)
 	char *spec;
 {
+	STAB *class;
 	MAP map;
 
 	/* Allocate and set the default values */
@@ -4320,7 +4334,17 @@ ldapmap_set_defaults(spec)
 	ldapmap_clear(LDAPDefaults);
 
 	memset(&map, '\0', sizeof map);
+
+	/* look up the class */
+	class = stab("ldap", ST_MAPCLASS, ST_FIND);
+	if (class == NULL)
+	{
+		syserr("readcf: LDAPDefaultSpec: class ldap not available");
+		return;
+	}
+	map.map_class = &class->s_mapclass;
 	map.map_db1 = (ARBPTR_T) LDAPDefaults;
+	map.map_mname = "O LDAPDefaultSpec";
 
 	(void) ldapmap_parseargs(&map, spec);
 
@@ -5412,7 +5436,7 @@ ni_getcanonname(name, hbsize, statp)
 		*statp = EX_UNAVAILABLE;
 		return FALSE;
 	}
-	shorten_hostname(nbuf);
+	(void) shorten_hostname(nbuf);
 
 	/* we only accept single token search key */
 	if (strchr(nbuf, '.'))
@@ -5832,6 +5856,7 @@ text_getcanonname(name, hbsize, statp)
 	int *statp;
 {
 	bool found;
+	char *dot;
 	FILE *f;
 	char linebuf[MAXLINE];
 	char cbuf[MAXNAME + 1];
@@ -5846,7 +5871,7 @@ text_getcanonname(name, hbsize, statp)
 		return FALSE;
 	}
 	(void) strlcpy(nbuf, name, sizeof nbuf);
-	shorten_hostname(nbuf);
+	dot = shorten_hostname(nbuf);
 
 	f = fopen(HostsFile, "r");
 	if (f == NULL)
@@ -5862,7 +5887,8 @@ text_getcanonname(name, hbsize, statp)
 		if (p != NULL)
 			*p = '\0';
 		if (linebuf[0] != '\0')
-			found = extract_canonname(nbuf, linebuf, cbuf, sizeof cbuf);
+			found = extract_canonname(nbuf, dot, linebuf,
+						  cbuf, sizeof cbuf);
 	}
 	(void) fclose(f);
 	if (!found)

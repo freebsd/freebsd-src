@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if NAMED_BIND
-static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.6 2000/12/19 02:50:33 gshapiro Exp $ (with name server)";
+static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.8 2001/02/12 21:40:19 gshapiro Exp $ (with name server)";
 # else /* NAMED_BIND */
-static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.6 2000/12/19 02:50:33 gshapiro Exp $ (without name server)";
+static char id[] = "@(#)$Id: domain.c,v 8.114.6.1.2.8 2001/02/12 21:40:19 gshapiro Exp $ (without name server)";
 # endif /* NAMED_BIND */
 #endif /* ! lint */
 
@@ -356,7 +356,7 @@ punt:
 
 			if (TryNullMXList)
 			{
-				h_errno = 0;
+				SM_SET_H_ERRNO(0);
 				errno = 0;
 				h = sm_gethostbyname(host, AF_INET);
 				if (h == NULL)
@@ -370,7 +370,7 @@ punt:
 						return -1;
 					}
 # if NETINET6
-					h_errno = 0;
+					SM_SET_H_ERRNO(0);
 					errno = 0;
 					h = sm_gethostbyname(host, AF_INET6);
 					if (h == NULL &&
@@ -752,7 +752,7 @@ cnameloop:
 				**  broken.
 				*/
 
-				h_errno = TRY_AGAIN;
+				SM_SET_H_ERRNO(TRY_AGAIN);
 				*statp = EX_TEMPFAIL;
 
 				/*
@@ -769,18 +769,22 @@ cnameloop:
 				*/
 
 #if _FFR_WORKAROUND_BROKEN_NAMESERVERS
-				/*
-				**  Only return if not TRY_AGAIN as an
-				**  attempt with a different qtype may
-				**  succeed (res_querydomain() calls
-				**  res_query() calls res_send() which
-				**  sets errno to ETIMEDOUT if the
-				**  nameservers could be contacted but
-				**  didn't give an answer).
-				*/
+				if (WorkAroundBrokenAAAA)
+				{
+					/*
+					**  Only return if not TRY_AGAIN as an
+					**  attempt with a different qtype may
+					**  succeed (res_querydomain() calls
+					**  res_query() calls res_send() which
+					**  sets errno to ETIMEDOUT if the
+					**  nameservers could be contacted but
+					**  didn't give an answer).
+					*/
 
-				if (qtype != T_ANY && errno != ETIMEDOUT)
-					return FALSE;
+					if (qtype != T_ANY &&
+					    errno != ETIMEDOUT)
+						return FALSE;
+				}
 #else /* _FFR_WORKAROUND_BROKEN_NAMESERVERS */
 				if (qtype != T_ANY)
 					return FALSE;
@@ -931,7 +935,7 @@ cnameloop:
 							host);
 						CurEnv->e_message = newstr(ebuf);
 					}
-					h_errno = NO_RECOVERY;
+					SM_SET_H_ERRNO(NO_RECOVERY);
 					*statp = EX_CONFIG;
 					return FALSE;
 				}
