@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.5 1998/03/11 21:00:49 jb Exp $
+# $Id: Makefile.alpha,v 1.6 1998/03/12 03:20:48 jb Exp $
 #
 # NOTE:
 #
@@ -449,9 +449,9 @@ build-tools:
 	ln -s /usr/bin/awk ${WORLDTMP}/usr/bin/awk
 	ln -s /bin/sh      ${WORLDTMP}/bin/sh
 .for d in			\
-	gnu/usr.bin/make 	\
-	gnu/usr.bin/xinstall 	\
-	gnu/usr.bin/lex 	\
+	usr.bin/make 		\
+	usr.bin/xinstall 	\
+	usr.bin/lex 		\
 	gnu/usr.bin/gperf	\
 	gnu/usr.bin/bison	\
 	gnu/usr.bin/binutils	\
