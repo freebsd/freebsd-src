@@ -26,13 +26,15 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
- *
  * ForeHE driver.
  *
  * This file contains the module and driver infrastructure stuff as well
  * as a couple of utility functions and the entire initialisation.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 #include "opt_natm.h"
 
