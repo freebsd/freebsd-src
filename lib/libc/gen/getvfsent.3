@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.13 1998/05/26 02:53:06 steve Exp $
+.\"	$Id: getvfsent.3,v 1.14 1998/05/30 18:20:37 steve Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -78,18 +78,13 @@ The
 .Fn vfsisloadable
 function returns a non-zero value if a later call to
 .Fn vfsload name
-is likely to succeed.  We say ``likely'' because the conditions
-checked by
+is likely to succeed.  We say 
+.Dq likely
+because
 .Fn vfsisloadable
-are only a small subset of the conditions necessary for
+does not check any of the conditions necessary for
 .Fn vfsload
-to succeed.  In particular,
-.Fn vfsisloadable
-checks that
-.Pa /dev/lkm
-is present and can be opened for writing, and that
-.Pa Ns Fa name Ns _mod.o
-can be found in one of the directories designated for LKMs.
+to succeed.
 .Pp
 The
 .Fn vfsload
@@ -105,14 +100,6 @@ has been called and returned a non-zero value.
 .It
 .Fn vfsisloadable
 has been called and returned a non-zero value.
-.It
-sufficient temporary file space is available 
-.Em and writable
-in one of
-.No Ns \&${ Ns Ev TMPDIR Ns \&} ,
-.Pa /var/tmp ,
-or
-.Pa /tmp .
 .El
 .Pp
 Here is an example, taken from the source to
@@ -159,45 +146,11 @@ function returns a non-zero value on failure, or zero on success.  If
 fails,
 .Va errno
 may be set to one of the values documented for
-.Xr fork 2 ,
-.Xr waitpid 2 ,
-.Xr chdir 2 ,
-or
-.Xr execlp 3 ,
-or the return status of the
-.Xr modload 8
-program, which is not currently particularly useful but eventually
-will be.  In addition, if
-.Xr modload 8
-exits on a signal,
-.Fn vfsload
-will fail and set
-.Va errno
-to
-.Er EINVAL .
-.Sh ENVIRONMENT
-.Bl -tag -compact -width TMPDIRx
-.It Ev TMPDIR
-location for temporary file created by
-.Xr modload 8
-on behalf of
-.Fn vfsload .
-.It Ev LKMDIR
-alternate directory for
-.Fn vfsisloadable
-and
-.Fn vfsload
-to search for loadable modules.
+.Xr kldload 2 .
 .Sh SEE ALSO
 .Xr mount 2 ,
-.Xr modload 8 ,
+.Xr kldload 2 ,
 .Xr mount 8
-.Sh BUGS
-The return value of the
-.Xr modload 8
-command isn't particularly useful when interpreted as an
-.Va errno
-value (or anything else, for that matter).
 .Sh AUTHORS
 The loadable filesystem support was written by
 .An Garrett A. Wollman ,
