@@ -87,7 +87,7 @@ main(argc, argv)
 			if (t = rindex(p, '/'))
 				p = t + 1;
 			while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1)
-				if (usr.ut_name && !strcmp(usr.ut_line, p)) {
+				if (*usr.ut_name && !strcmp(usr.ut_line, p)) {
 					output(&usr);
 					exit(0);
 				}
@@ -116,6 +116,7 @@ output(up)
 	(void)printf("%-*.*s %-*.*s", UT_NAMESIZE, UT_NAMESIZE, up->ut_name,
 	    UT_LINESIZE, UT_LINESIZE, up->ut_line);
 	(void)strftime(buf, sizeof(buf), "%c", localtime(&up->ut_time));
+	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%.12s", buf + 4);
 	if (*up->ut_host)
 		printf("\t(%.*s)", UT_HOSTSIZE, up->ut_host);
