@@ -42,6 +42,7 @@ static int underline_flag = 1;
 static int overstrike_flag = 1;
 static int draw_flag = 1;
 static int italic_flag = 0;
+static int reverse_flag = 0;
 static int old_drawing_scheme = 0;
 
 enum {
@@ -69,6 +70,8 @@ static unsigned char bold_underline_mode = BOLD_MODE|UNDERLINE_MODE;
 #define SGR_NO_ITALIC CSI "23m"
 #define SGR_UNDERLINE CSI "4m"
 #define SGR_NO_UNDERLINE CSI "24m"
+#define SGR_REVERSE CSI "7m"
+#define SGR_NO_REVERSE CSI "27m"
 // many terminals can't handle `CSI 39 m' and `CSI 49 m' to reset
 // the foreground and bachground color, respectively; thus we use
 // `CSI 0 m' exclusively
@@ -249,6 +252,8 @@ void tty_printer::make_underline()
     if (!is_underline) {
       if (italic_flag)
 	putstring(SGR_ITALIC);
+      else if (reverse_flag)
+	putstring(SGR_REVERSE);
       else
 	putstring(SGR_UNDERLINE);
     }
@@ -478,6 +483,8 @@ void tty_printer::put_color(unsigned char color_index, int back)
     if (is_underline) {
       if (italic_flag)
 	putstring(SGR_ITALIC);
+      else if (reverse_flag)
+	putstring(SGR_REVERSE);
       else
 	putstring(SGR_UNDERLINE);
     }
@@ -568,6 +575,8 @@ void tty_printer::end_page(int page_length)
 	    else if (!old_drawing_scheme && is_underline) {
 	      if (italic_flag)
 		putstring(SGR_NO_ITALIC);
+	      else if (reverse_flag)
+		putstring(SGR_NO_REVERSE);
 	      else
 		putstring(SGR_NO_UNDERLINE);
 	      is_underline = 0;
@@ -582,6 +591,8 @@ void tty_printer::end_page(int page_length)
 	  else if (!old_drawing_scheme && is_underline) {
 	    if (italic_flag)
 	      putstring(SGR_NO_ITALIC);
+	    else if (reverse_flag)
+	      putstring(SGR_NO_REVERSE);
 	    else
 	      putstring(SGR_NO_UNDERLINE);
 	    is_underline = 0;
@@ -608,6 +619,8 @@ void tty_printer::end_page(int page_length)
       else if (!old_drawing_scheme && is_underline) {
 	if (italic_flag)
 	  putstring(SGR_NO_ITALIC);
+	else if (reverse_flag)
+	  putstring(SGR_NO_REVERSE);
 	else
 	  putstring(SGR_NO_UNDERLINE);
 	is_underline = 0;
@@ -673,7 +686,7 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { NULL, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "F:vhfbciuoBUd", long_options, NULL))
+  while ((c = getopt_long(argc, argv, "bBcdfF:hioruUv", long_options, NULL))
 	 != EOF)
     switch(c) {
     case 'v':
@@ -699,6 +712,10 @@ int main(int argc, char **argv)
     case 'o':
       // Do not overstrike (other than emboldening and underlining).
       overstrike_flag = 0;
+      break;
+    case 'r':
+      // Use reverse mode instead of underlining.
+      reverse_flag = 1;
       break;
     case 'B':
       // Do bold-underlining as bold.
@@ -733,8 +750,10 @@ int main(int argc, char **argv)
     default:
       assert(0);
     }
-  if (old_drawing_scheme)
+  if (old_drawing_scheme) {
     italic_flag = 0;
+    reverse_flag = 0;
+  }
   else {
     bold_underline_mode = BOLD_MODE|UNDERLINE_MODE;
     bold_flag = 1;
@@ -752,6 +771,6 @@ int main(int argc, char **argv)
 
 static void usage(FILE *stream)
 {
-  fprintf(stream, "usage: %s [-hfvbciuodBU] [-F dir] [files ...]\n",
+  fprintf(stream, "usage: %s [-bBcdfhioruUv] [-F dir] [files ...]\n",
 	  program_name);
 }
