@@ -316,17 +316,7 @@ struct acd_softc {
     struct audiopage		au;		/* audio page info */
     struct audiopage		aumask;		/* audio page mask */
     struct cappage		cap;		/* capabilities page info */
-    struct {					/* subchannel info */
-	u_int8_t	void0;
-	u_int8_t	audio_status;
-	u_int16_t	data_length;
-	u_int8_t	data_format;
-	u_int8_t	control;
-	u_int8_t	track;
-	u_int8_t	indx;
-	u_int32_t	abslba;
-	u_int32_t	rellba;
-    } subchan;
+    struct cd_sub_channel_info	subchan;	/* subchannel info */
     struct changer		*changer_info;	/* changer info */
     struct acd_softc		**driver;	/* softc's of changer slots */
     int				slot;		/* this instance slot number */
