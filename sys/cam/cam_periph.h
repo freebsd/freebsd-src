@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_periph.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_PERIPH_H
@@ -83,6 +83,7 @@ struct cam_periph {
 #define CAM_PERIPH_LOCK_WANTED		0x04
 #define CAM_PERIPH_INVALID		0x08
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
+#define CAM_PERIPH_RECOVERY_INPROG	0x20
 	u_int32_t		 immediate_priority;
 	u_int32_t		 refcount;
 	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
