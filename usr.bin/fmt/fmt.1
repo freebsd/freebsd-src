@@ -42,7 +42,7 @@
 .Nd simple text formatter
 .Sh SYNOPSIS
 .Nm fmt
-.Op Fl cmps
+.Op Fl cmnps
 .Op Fl d Ar chars
 .Op Fl l Ar num
 .Op Fl t Ar num
@@ -88,6 +88,14 @@ In this case, most of the other
 options are ignored; no splitting or joining of lines is done.
 .It Fl m
 Try to format mail header lines contained in the input sensibly.
+.It Fl n
+Format lines beginning with a
+.Ql \&.
+(dot) character.
+Normally,
+.Nm
+does not fill these lines, for compatibility with
+.Xr nroff 1 .
 .It Fl p
 Allow indented paragraphs.
 Without the
