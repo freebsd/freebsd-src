@@ -168,6 +168,8 @@ typedef struct scr_stat {
 #endif
 	int 		xpos;			/* current X position */
 	int 		ypos;			/* current Y position */
+	int             saved_xpos;             /* saved X position */
+	int             saved_ypos;             /* saved Y position */
 	int 		xsize;			/* X text size */
 	int 		ysize;			/* Y text size */
 	int 		xpixel;			/* X graphics size */
