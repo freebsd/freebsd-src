@@ -417,6 +417,12 @@ Str_SYSVMatch(word, pattern, len)
     char *w = word;
     char *m;
 
+    if (*w == '\0') {
+	/* Zero-length word cannot be matched against */
+	*len = 0;
+	return NULL;
+    }
+
     if (*p == '\0') {
 	/* Null pattern is the whole string */
 	*len = strlen(w);
