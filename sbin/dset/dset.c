@@ -190,7 +190,7 @@ main(ac, av)
 			if (kvm_read(kd, pos_t, &buf1, sizeof(struct isa_device)) < 0)
 				fatal("kvmread", NULL);
 
-			if (buf1.id_id !=buf.id_id) {
+			if (buf1.id_id != buf.id_id) {
 				pos_t = (u_long)(buf1.id_next);
 				continue;
 			} else
@@ -221,13 +221,17 @@ main(ac, av)
 
 			if (buf1.id_id != 0)
 				if (verbose)
-					printf("kernel: id=%u io=%X irq=%u drq=%X maddr=%X flags=%X enabled=%X \n", buf1.id_id, buf1.id_iobase, buf1.id_irq, buf1.id_drq,
-					       buf1.id_maddr, buf1.id_flags, buf1.id_enabled);
+					printf(
+  "kernel: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n", 
+	buf1.id_id, buf1.id_iobase, buf1.id_irq, buf1.id_drq,
+	buf1.id_maddr, buf1.id_msize, buf1.id_flags, buf1.id_enabled);
 
 			if (buf.id_id != 0)
 				if (verbose)
-					printf("file: id=%u io=%X irq=%u drq=%X maddr=%X flags=%X enabled=%X \n", buf.id_id, buf.id_iobase, buf.id_irq, buf.id_drq,
-					       buf.id_maddr, buf.id_flags, buf.id_enabled);
+					printf(
+  "file: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
+	buf.id_id, buf.id_iobase, buf.id_irq, buf.id_drq,
+	buf.id_maddr, buf.id_msize, buf.id_flags, buf.id_enabled);
 
 
 			/*
@@ -258,6 +262,12 @@ main(ac, av)
 				if (verbose)
 					printf("Setting memory addres\n");
 				buf.id_maddr = buf1.id_maddr;
+				modified = TRUE;
+			}
+			if (buf.id_msize != buf1.id_msize) {
+				if (verbose)
+					printf("Setting msize\n");
+				buf.id_msize = buf1.id_msize;
 				modified = TRUE;
 			}
 			if (buf.id_flags != buf1.id_flags) {
