@@ -25,95 +25,85 @@
 .\" @(#) $FreeBSD$
 .\"
 .\"
-.de EX		\"Begin example
-.ne 5
-.if n .sp 1
-.if t .sp .5
-.nf
-.in +.5i
-..
-.de EE
-.fi
-.in -.5i
-.if n .sp 1
-.if t .sp .5
-..
-.TH ILMID 8 "1998-09-14" "HARP"
-.SH NAME
-ilmid \- Simple ILMI ATM address registration daemon
-.SH SYNOPSIS
-.B ilmid
-[-d level]
-[-f]
-[-r]
-.sp
-.fi
-.SH DESCRIPTION
-.B ilmid
-is a HARP ATM daemon that performs the ILMI ATM address registration 
-procedures with an ATM network switch.  It is normally invoked at boot time 
+.Dd September 14, 1998
+.Dt ILMID 8
+.Os
+.Sh NAME
+.Nm ilmid
+.Nd "simple ILMI ATM address registration daemon"
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar level
+.Op Fl f
+.Op Fl r
+.Sh DESCRIPTION
+.Nm
+is a HARP ATM daemon that performs the ILMI ATM address registration
+procedures with an ATM network switch.
+It is normally invoked at boot time
 from the ATM startup script.
-.fi
-.PP
-For each ATM interface with a UNI signalling manager attached, 
-.B ilmid
-will open an ILMI PVC (VPI = 0, VCI = 16) and register the interface's 
-ATM address with the switch.  As part of the address registration procedure,
-the ATM switch will notify the endsystem (local host) of the 
-"network prefix" portion of the endsystem's ATM address and 
-.B ilmid
-will notify the switch of the endsystem's "user part" of its address
+.Pp
+For each ATM interface with a UNI signalling manager attached,
+.Nm
+will open an ILMI PVC (VPI = 0, VCI = 16) and register the interface's
+ATM address with the switch.
+As part of the address registration procedure,
+the ATM switch will notify the endsystem (local host) of the
+.Dq "network prefix"
+portion of the endsystem's ATM address and
+.Nm
+will notify the switch of the endsystem's
+.Dq "user part"
+of its address
 (typically the interface card MAC address).
-.fi
-.SH OPTIONS
-.TP
-.B \-d level
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl d Ar level
 Specify the debug level for optional protocol tracing.
 Messages are
-written to /var/log/ilmid.
-.TP
-.B \-f
+written to
+.Pa /var/log/ilmid .
+.It Fl f
 Causes
-.B ilmid
-to run in the foregroud.
-.TP
-.B \-r
+.Nm
+to run in the foreground.
+.It Fl r
 Causes
-.B ilmid
+.Nm
 to issue a coldStart TRAP on all ATM interfaces it's able to open and exit.
-.fi
-.SH NOTES
-.PP
-This daemon does not fully conform to the ATM Forum ILMI specifications. 
+.El
+.Sh NOTES
+This daemon does not fully conform to the ATM Forum ILMI specifications.
 In particular, it
 does not make any queries of the network side to ensure
 that the ATM Address table is empty.
 It also does not implement any
 of the ATM Forum MIB that is specified as part of ILMI.
-.fi
-.PP
-.B ilmid
-will increment the debug level when it receives a SIGUSR1 signal and will
-decrement the debug level when it receives a SIGUSR2 signal.
-.SH "SEE ALSO"
-.PP
-The ATM Forum, \fIATM User-Network Interface, Version 3.1 (UNI 3.1) 
-Specification\fP for details on the ILMI protocols and address registration 
+.Pp
+.Nm
+will increment the debug level when it receives a
+.Dv SIGUSR1
+signal and will
+decrement the debug level when it receives a
+.Dv SIGUSR2
+signal.
+.Sh SEE ALSO
+The ATM Forum,
+.%T "ATM User-Network Interface, Version 3.1 (UNI 3.1) Specification"
+for details on the ILMI protocols and address registration
 procedures.
-.fi
-.SH BUGS
-Please report any bugs to harp-bugs@magic.net.
-.fi
-.SH COPYRIGHT
+.Sh BUGS
+Please report any bugs to
+.Aq harp\-bugs@magic.net .
+.Sh COPYRIGHT
 Copyright (c) 1994-1998, Network Computing Services, Inc.
-.fi
-.SH AUTHORS
-John Cavanaugh, Network Computing Services, Inc.
-.br
-Mike Spengler, Network Computing Services, Inc.
-.br
-Joseph Thomas, Network Computing Services, Inc.
-.fi
-.SH ACKNOWLEDGMENTS
+.Sh AUTHORS
+.An John Cavanaugh ,
+Network Computing Services, Inc.
+.An Mike Spengler ,
+Network Computing Services, Inc.
+.An Joseph Thomas ,
+Network Computing Services, Inc.
+.Sh ACKNOWLEDGMENTS
 This software was developed with the support of the
 Defense Advanced Research Projects Agency (DARPA).
