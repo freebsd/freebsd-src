@@ -60,9 +60,8 @@ __FBSDID("$FreeBSD$");
 #else
 #include <machine/pc/display.h>
 #endif
-#ifdef __i386__
+#if defined( __i386__) || defined(__amd64__)
 #include <machine/psl.h>
-#include <machine/apm_bios.h>
 #include <machine/frame.h>
 #endif
 
@@ -1047,12 +1046,16 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return error;
 #ifdef __i386__
 	td->td_frame->tf_eflags |= PSL_IOPL;
+#elif defined(__amd64__)
+	td->td_frame->tf_rflags |= PSL_IOPL;
 #endif
 	return 0;
 
     case KDDISABIO:     	/* disallow io operations (default) */
 #ifdef __i386__
 	td->td_frame->tf_eflags &= ~PSL_IOPL;
+#elif defined(__amd64__)
+	td->td_frame->tf_rflags &= ~PSL_IOPL;
 #endif
 	return 0;
 
