@@ -535,8 +535,8 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 	s = TAILQ_PREV(r, resource_head, r_link);
 	t = TAILQ_NEXT(r, r_link);
 
-	if (s != (void *)&rm->rm_list && (s->r_flags & RF_ALLOCATED) == 0
-	    && t != (void *)&rm->rm_list && (t->r_flags & RF_ALLOCATED) == 0) {
+	if (s != NULL && (s->r_flags & RF_ALLOCATED) == 0
+	    && t != NULL && (t->r_flags & RF_ALLOCATED) == 0) {
 		/*
 		 * Merge all three segments.
 		 */
@@ -544,15 +544,13 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		TAILQ_REMOVE(&rm->rm_list, t, r_link);
 		free(t, M_RMAN);
-	} else if (s != (void *)&rm->rm_list
-		   && (s->r_flags & RF_ALLOCATED) == 0) {
+	} else if (s != NULL && (s->r_flags & RF_ALLOCATED) == 0) {
 		/*
 		 * Merge previous segment with ours.
 		 */
 		s->r_end = r->r_end;
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
-	} else if (t != (void *)&rm->rm_list
-		   && (t->r_flags & RF_ALLOCATED) == 0) {
+	} else if (t != NULL && (t->r_flags & RF_ALLOCATED) == 0) {
 		/*
 		 * Merge next segment with ours.
 		 */
