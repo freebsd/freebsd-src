@@ -67,6 +67,7 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>		/* NB: we rely on this for <sys/types.h> */
+#include <sys/sysctl.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -107,6 +108,7 @@ static const char rcsid[] =
 #define	MAXPAYLOAD	(IP_MAXPACKET - MAXIPLEN - MINICMPLEN)
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
+#define	MAXTOS		255
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -138,6 +140,7 @@ int options;
 #define	F_TTL		0x8000
 #define	F_MISSED	0x10000
 #define	F_ONCE		0x20000
+#define	F_HDRINCL	0x40000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -151,7 +154,7 @@ char rcvd_tbl[MAX_DUP_CHK / 8];
 struct sockaddr_in whereto;	/* who to ping */
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
-u_char outpack[MINICMPLEN + MAXPAYLOAD];
+u_char outpackhdr[IP_MAXPACKET], *outpack;
 char BSPACE = '\b';		/* characters written for flood */
 char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
 char DOT = '.';
@@ -201,6 +204,7 @@ main(argc, argv)
 {
 	struct in_addr ifaddr;
 	struct iovec iov;
+	struct ip *ip;
 	struct msghdr msg;
 	struct sigaction si_sa;
 	struct sockaddr_in from, sin;
@@ -209,13 +213,15 @@ main(argc, argv)
 	struct hostent *hp;
 	struct sockaddr_in *to;
 	double t;
+	size_t sz;
 	u_char *datap, packet[IP_MAXPACKET];
 	char *ep, *source, *target;
 #ifdef IPSEC_POLICY_IPSEC
 	char *policy_in, *policy_out;
 #endif
 	u_long alarmtimeout, ultmp;
-	int ch, hold, i, packlen, preload, sockerrno, almost_done = 0, ttl;
+	int ch, df, hold, i, mib[4], packlen, preload, sockerrno,
+	    almost_done = 0, tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
@@ -239,11 +245,12 @@ main(argc, argv)
 	setuid(getuid());
 	uid = getuid();
 
-	alarmtimeout = preload = 0;
+	alarmtimeout = df = preload = tos = 0;
 
+	outpack = outpackhdr + sizeof(struct ip);
 	datap = &outpack[MINICMPLEN + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
-		"AI:LQRS:T:c:adfi:l:m:nop:qrs:t:v"
+		"ADI:LQRS:T:c:adfi:l:m:nop:qrs:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -265,6 +272,10 @@ main(argc, argv)
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
 			npackets = ultmp;
+			break;
+		case 'D':
+			options |= F_HDRINCL;
+			df = 1;
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
@@ -390,6 +401,13 @@ main(argc, argv)
 			else
 				errx(1, "invalid security policy");
 			break;
+		case 'z':
+			options |= F_HDRINCL;
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp > MAXTOS)
+				errx(EX_USAGE, "invalid TOS: `%s'", optarg);
+			tos = ultmp;
+			break;
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 		default:
@@ -509,6 +527,28 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
 
+	if (options & F_HDRINCL) {
+		ip = (struct ip*)outpackhdr;
+		if (!(options & (F_TTL | F_MTTL))) {
+			mib[0] = CTL_NET;
+			mib[1] = PF_INET;
+			mib[2] = IPPROTO_IP;
+			mib[3] = IPCTL_DEFTTL;
+			sz = sizeof(ttl);
+			if (sysctl(mib, 4, &ttl, &sz, NULL, 0) == -1)
+				err(1, "sysctl(net.inet.ip.ttl)");
+		}
+		setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hold, sizeof(hold));
+		ip->ip_v = IPVERSION;
+		ip->ip_hl = sizeof(struct ip) >> 2;
+		ip->ip_tos = tos;
+		ip->ip_id = 0;
+		ip->ip_off = df ? IP_DF : 0;
+		ip->ip_ttl = ttl;
+		ip->ip_p = IPPROTO_ICMP;
+		ip->ip_src.s_addr = source ? sin.sin_addr.s_addr : INADDR_ANY;
+		ip->ip_dst = to->sin_addr;
+        }
 	/* record route option */
 	if (options & F_RROUTE) {
 #ifdef IP_OPTIONS
@@ -758,9 +798,12 @@ stopit(sig)
 static void
 pinger(void)
 {
+	struct ip *ip;
 	struct icmp *icp;
 	int cc, i;
+	u_char *packet;
 
+	packet = outpack;
 	icp = (struct icmp *)outpack;
 	icp->icmp_type = ICMP_ECHO;
 	icp->icmp_code = 0;
@@ -779,7 +822,14 @@ pinger(void)
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
 
-	i = sendto(s, (char *)outpack, cc, 0, (struct sockaddr *)&whereto,
+	if (options & F_HDRINCL) {
+		cc += sizeof(struct ip);
+		ip = (struct ip *)outpackhdr;
+		ip->ip_len = cc;
+		ip->ip_sum = in_cksum((u_short *)outpackhdr, cc);
+		packet = outpackhdr;
+	}
+	i = sendto(s, (char *)packet, cc, 0, (struct sockaddr *)&whereto,
 	    sizeof(whereto));
 
 	if (i < 0 || i != cc)  {
@@ -1449,7 +1499,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-AQRadfnoqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
+"usage: ping [-ADQRadfnoqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
 "            [-p pattern] "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
@@ -1457,6 +1507,6 @@ usage()
 #endif
 #endif
 "[-s packetsize] [-S src_addr] [-t timeout]",
-"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
+"            [-z tos ] [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
