@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.23 1997/02/23 15:53:25 joerg Exp $
+#	$Id: Makefile,v 1.246.2.24 1997/03/02 12:03:22 joerg Exp $
 #
 # How to roll a release:
 #
@@ -56,6 +56,8 @@ MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
 CD=			/R/cdrom
+CD_DISC1=		${CD}/disc1
+CD_DISC2=		${CD}/disc2
 
 .if !defined(WHICH_CRUNCH)
 WHICH_CRUNCH=	boot fixit
@@ -446,26 +448,27 @@ ftp.1:
 # --==## Setup a suitable cdrom-area ##==--
 #
 cdrom.1:
-	mkdir -p ${CD}/filesys
-	cd ${RD} && find floppies -print | cpio -dumpl ${CD}
-	cd ${RD}/dists && find . -print | cpio -dumpl ${CD}
-	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
-	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
+	mkdir -p ${CD_DISC1} ${CD_DISC2}
+	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
+	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD_DISC1}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			chflags -R noschg ${RD}/trees/$${i} ; \
 			( cd ${RD}/trees/$${i} && \
-			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
+			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
 	done
-	rm -f ${CD}/filesys/.profile
-	cp ${.CURDIR}/fixit.profile ${CD}/filesys/.profile
-	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD}/RELNOTES.TXT
+	rm -f ${CD_DISC2}/.profile
+	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
+	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
+	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
+	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
 
 # Various "subroutine" and other supporting targets.
 
