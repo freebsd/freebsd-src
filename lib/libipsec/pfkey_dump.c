@@ -172,6 +172,9 @@ static struct val2str str_alg_auth[] = {
 #ifdef SADB_X_AALG_SHA2_512
 	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
 #endif
+#ifdef SADB_X_AALG_RIPEMD160HMAC
+	{ SADB_X_AALG_RIPEMD160HMAC, "hmac-ripemd160", },
+#endif
 	{ -1, NULL, },
 };
 

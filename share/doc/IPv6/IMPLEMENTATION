@@ -1717,6 +1717,7 @@ Currently supported algorithms are:
 	keyed SHA1 with 128bit crypto checksum (no document)
 	HMAC MD5 with 128bit crypto checksum (rfc2085.txt)
 	HMAC SHA1 with 128bit crypto checksum (no document)
+	HMAC RIPEMD160 with 128bit crypto checksum (no document)
     old IPsec ESP
 	null encryption (no document, similar to rfc2410.txt)
 	DES-CBC mode (rfc1829.txt)
@@ -1729,6 +1730,7 @@ Currently supported algorithms are:
 	HMAC SHA2-256 with 96bit crypto checksum (no document)
 	HMAC SHA2-384 with 96bit crypto checksum (no document)
 	HMAC SHA2-512 with 96bit crypto checksum (no document)
+	HMAC RIPEMD160 with 96bit crypto checksum (RFC2857)
     new IPsec ESP
 	null encryption (rfc2410.txt)
 	DES-CBC with derived IV

@@ -170,6 +170,7 @@ keyed-sha1	{ PREPROC; yylval.num = SADB_X_AALG_SHA; return(ALG_AUTH); }
 hmac-sha2-256	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_256; return(ALG_AUTH); }
 hmac-sha2-384	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_384; return(ALG_AUTH); }
 hmac-sha2-512	{ PREPROC; yylval.num = SADB_X_AALG_SHA2_512; return(ALG_AUTH); }
+hmac-ripemd160	{ PREPROC; yylval.num = SADB_X_AALG_RIPEMD160HMAC; return(ALG_AUTH); }
 null		{ PREPROC; yylval.num = SADB_X_AALG_NULL; return(ALG_AUTH); }
 
 	/* encryption alogorithm */
