@@ -40,14 +40,15 @@
 #define debug_called(level)
 #endif
 
-
 /*
- * We could actually use all 17/33 segments, but using only 16/32 means that
- * each scatter/gather map is 128/256 bytes in size, and thus we don't have to worry about
- * maps crossing page boundaries.
+ * Regardless of the actual capacity of the controller, we will allocate space
+ * for 64 s/g entries.  Typically controllers support 17 or 33 entries (64k or
+ * 128k maximum transfer assuming 4k page size and non-optimal alignment), but
+ * making that fit cleanly without crossing page boundaries requires rounding up
+ * to the next power of two.
  */
-#define MLX_NSEG_OLD	16		/* max scatter/gather segments we use 3.x and earlier */
-#define	MLX_NSEG_NEW	32		/* max scatter/gather segments we use 4.x and later */
+#define MLX_NSEG	64
+
 #define MLX_NSLOTS	256		/* max number of command slots */
 
 #define MLX_MAXDRIVES	32		/* max number of system drives */
@@ -120,11 +121,9 @@ struct mlx_softc
     u_int32_t		mlx_sgbusaddr;	/* s/g table base address in bus space */
     bus_dma_tag_t	mlx_sg_dmat;	/* s/g buffer DMA tag */
     bus_dmamap_t	mlx_sg_dmamap;	/* map for s/g buffers */
-    int			mlx_sg_nseg;	/* max number of s/g entries */
     
     /* controller limits and features */
     struct mlx_enquiry2	*mlx_enq2;
-    int			mlx_maxiop;	/* hard maximum number of commands */
     int			mlx_feature;	/* controller features/quirks */
 #define MLX_FEAT_PAUSEWORKS	(1<<0)	/* channel pause works as expected */
 
