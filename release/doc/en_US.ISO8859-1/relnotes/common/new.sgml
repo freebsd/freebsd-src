@@ -334,6 +334,23 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
       </para>
 
+    <para>Some unexpected behavior could be allowed with &man.k5su.8;
+      because it does not require that an invoking user be a member of
+      the <groupname>wheel</groupname> group when attempting to become
+      the superuser (this is the case with &man.su.1;).  To avoid this
+      situation, &man.k5su.8; is now installed non-SUID by default
+      (effectively disabling it).  More information can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
+      utility, which could allow files to be overwritten without
+      warning or allow local users unintended access to files.  These
+      problems have been corrected with a new import of
+      <application>bzip2</application>.  For more information, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
     <para>A bug has been fixed in the implementation of the TCP SYN 
       cache (<quote>syncache</quote>), which could allow a remote
       attacker to deny access to a service when accept filters
