@@ -96,12 +96,12 @@ _libsmb=	libsmb
 _libpthread=	libpthread
 .endif
 
-.if ${MACHINE_ARCH} != "arm" && !defined(NO_LIBTHR)
-_libthr=
+.if !defined(NO_LIBTHR)
+_libthr= libthr
 .endif
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "powerpc"
-_libthread_db=
+_libthread_db= libthread_db
 .endif
 
 .if !defined(NO_USB)
