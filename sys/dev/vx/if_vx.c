@@ -55,7 +55,6 @@
  */
 
 #include "vx.h"
-#if NVX > 0
 
 #if NVX < 4	/* These cost 4 bytes apiece, so give us 4 */
 #undef NVX
@@ -1077,5 +1076,3 @@ vxmbufempty(sc)
 	untimeout(vxmbuffill, sc, sc->ch);
     splx(s);
 }
-
-#endif				/* NVX > 0 */

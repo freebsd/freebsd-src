@@ -29,12 +29,6 @@
  * $FreeBSD$
  */
 
-#include "eisa.h"
-#if NEISA > 0
-
-#include "vx.h"
-#if NVX > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -197,6 +191,3 @@ static driver_t vx_eisa_driver = {
 static devclass_t vx_devclass;
 
 DRIVER_MODULE(vx, eisa, vx_eisa_driver, vx_devclass, 0, 0);
-
-#endif	/* NVX > 0 */
-#endif	/* NEISA > 0 */
