@@ -56,25 +56,28 @@
 #ifdef __FreeBSD__
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
-#endif
 
 #if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>          /* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
 #endif
+#endif
 
 #ifdef __NetBSD__
-#include <dev/ic/ioctl_meteor.h>	/* NetBSD .h file location */
-#include <dev/ic/ioctl_bt848.h>
+#include <dev/ic/bt8xx.h>	/* NetBSD .h file location */
+#include <dev/pci/bktr/bktr_reg.h>
+#include <dev/pci/bktr/bktr_tuner.h>
+#include <dev/pci/bktr/bktr_card.h>
+#include <dev/pci/bktr/bktr_core.h>
 #else
 #include <machine/ioctl_meteor.h>	/* Traditional .h file location */
 #include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
-#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
 #include <dev/bktr/bktr_core.h>
+#endif
 
 
 
@@ -835,16 +838,17 @@ tv_freq( bktr_ptr_t bktr, int frequency, int type )
 			    /* AFC failed, restore requested frequency */
 			    N = frequency + TBL_IF;
 #if defined( TEST_TUNER_AFC )
-			    printf("do_afc: failed to lock\n");
+			    printf("%s: do_afc: failed to lock\n",
+				   bktr_name(bktr));
 #endif
 			    i2cWrite( bktr, addr, (N>>8) & 0x7f, N & 0xff );
 			}
 			else
 			    frequency = N - TBL_IF;
 #if defined( TEST_TUNER_AFC )
- printf("do_afc: returned freq %d (%d %% %d)\n", frequency, frequency / 16, frequency % 16);
+ printf("%s: do_afc: returned freq %d (%d %% %d)\n", bktr_name(bktr), frequency, frequency / 16, frequency % 16);
 			    afcDelta = frequency - oldFrequency;
- printf("changed by: %d clicks (%d mod %d)\n", afcDelta, afcDelta / 16, afcDelta % 16);
+ printf("%s: changed by: %d clicks (%d mod %d)\n", bktr_name(bktr), afcDelta, afcDelta / 16, afcDelta % 16);
 #endif
 			}
 #endif /* TUNER_AFC */
@@ -913,14 +917,14 @@ do_afc( bktr_ptr_t bktr, int addr, int frequency )
 		return( -1 );
 
 #if defined( TEST_TUNER_AFC )
- printf( "\nOriginal freq: %d, status: 0x%02x\n", frequency, status );
+ printf( "%s: Original freq: %d, status: 0x%02x\n", bktr_name(bktr), frequency, status );
 #endif
 	for ( step = 0; step < AFC_MAX_STEP; ++step ) {
 		if ( (status = i2cRead( bktr, addr + 1 )) < 0 )
 			goto fubar;
 		if ( !(status & 0x40) ) {
 #if defined( TEST_TUNER_AFC )
- printf( "no lock!\n" );
+ printf( "%s: no lock!\n", bktr_name(bktr) );
 #endif
 			goto fubar;
 		}
@@ -928,14 +932,14 @@ do_afc( bktr_ptr_t bktr, int addr, int frequency )
 		switch( status & AFC_BITS ) {
 		case AFC_FREQ_CENTERED:
 #if defined( TEST_TUNER_AFC )
- printf( "Centered, freq: %d, status: 0x%02x\n", frequency, status );
+ printf( "%s: Centered, freq: %d, status: 0x%02x\n", bktr_name(bktr), frequency, status );
 #endif
 			return( frequency );
 
 		case AFC_FREQ_MINUS_125:
 		case AFC_FREQ_MINUS_62:
 #if defined( TEST_TUNER_AFC )
- printf( "Low, freq: %d, status: 0x%02x\n", frequency, status );
+ printf( "%s: Low, freq: %d, status: 0x%02x\n", bktr_name(bktr), frequency, status );
 #endif
 			--frequency;
 			break;
@@ -943,7 +947,7 @@ do_afc( bktr_ptr_t bktr, int addr, int frequency )
 		case AFC_FREQ_PLUS_62:
 		case AFC_FREQ_PLUS_125:
 #if defined( TEST_TUNER_AFC )
- printf( "Hi, freq: %d, status: 0x%02x\n", frequency, status );
+ printf( "%s: Hi, freq: %d, status: 0x%02x\n", bktr_name(bktr), frequency, status );
 #endif
 			++frequency;
 			break;
