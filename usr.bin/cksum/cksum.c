@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cksum.c,v 1.5 1997/07/06 03:18:13 bde Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -95,6 +95,9 @@ main(argc, argv)
 			} else if (!strcmp(optarg, "2")) {
 				cfncn = csum2;
 				pfncn = psum2;
+			} else if (*optarg == '3') {
+				cfncn = crc32;
+				pfncn = pcrc;
 			} else {
 				warnx("illegal argument to -o option");
 				usage();
