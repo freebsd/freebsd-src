@@ -285,7 +285,7 @@ isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
 	el.le_in_count = DFLT_INOTIFY;
 	if (cmd == RQSTYPE_ENABLE_LUN) {
 		if (IS_SCSI(isp)) {
-			el.le_flags = LUN_TQAE;
+			el.le_flags = LUN_TQAE|LUN_DISAD;
 			el.le_cdb6len = 12;
 			el.le_cdb7len = 12;
 		}
@@ -305,10 +305,8 @@ isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
 	if (IS_SCSI(isp)) {
 		el.le_tgt = tgt;
 		el.le_lun = lun;
-#ifndef	ISP2100_SCCLUN
-	} else {
+	} else if (isp->isp_maxluns <= 16) {
 		el.le_lun = lun;
-#endif
 	}
 
 	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
@@ -380,11 +378,11 @@ isp_target_put_atio(isp, iid, tgt, lun, ttype, tval)
 	if (IS_FC(isp)) {
 		atun._atio2.at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		atun._atio2.at_header.rqs_entry_count = 1;
-#ifdef ISP2100_SCCLUN
-		atun._atio2.at_scclun = (uint16_t) lun;
-#else
-		atun._atio2.at_lun = (uint8_t) lun;
-#endif
+		if (isp->isp_maxluns > 16) {
+			atun._atio2.at_scclun = (u_int16_t) lun;
+		} else {
+			atun._atio2.at_lun = (u_int8_t) lun;
+		}
 		atun._atio2.at_status = CT_OK;
 	} else {
 		atun._atio.at_header.rqs_entry_type = RQSTYPE_ATIO;
@@ -436,9 +434,9 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int32_t hdl)
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
 		cto->ct_iid = aep->at_iid;
-#ifndef	ISP2100_SCCLUN
-		cto->ct_lun = aep->at_lun;
-#endif
+		if (isp->isp_maxluns <= 16) {
+			cto->ct_lun = aep->at_lun;
+		}
 		cto->ct_rxid = aep->at_rxid;
 		cto->rsp.m1.ct_scsi_status = sts & 0xff;
 		cto->ct_flags = CT2_SENDSTATUS | CT2_NO_DATA | CT2_FLAG_MODE1;
@@ -596,11 +594,11 @@ isp_got_msg_fc(isp, bus, inp)
 		MEMZERO(&msg, sizeof (msg));
 		msg.nt_bus = bus;
 		msg.nt_iid = inp->in_iid;
-#ifdef	ISP2100_SCCLUN
-		msg.nt_lun = inp->in_scclun;
-#else
-		msg.nt_lun = inp->in_lun;
-#endif
+		if (isp->isp_maxluns > 16) {
+			msg.nt_lun = inp->in_scclun;
+		} else {
+			msg.nt_lun = inp->in_lun;
+		}
 		msg.nt_tagval = inp->in_seqid;
 
 		if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK) {
@@ -658,11 +656,11 @@ isp_notify_ack(isp, arg)
 			in_fcentry_t *inp = arg;
 			MEMCPY(storage, arg, sizeof (isphdr_t));
 			na->na_iid = inp->in_iid;
-#ifdef	ISP2100_SCCLUN
-			na->na_lun = inp->in_scclun;
-#else
-			na->na_lun = inp->in_lun;
-#endif
+			if (isp->isp_maxluns > 16) {
+				na->na_lun = inp->in_scclun;
+			} else {
+				na->na_lun = inp->in_lun;
+			}
 			na->na_task_flags = inp->in_task_flags;
 			na->na_seqid = inp->in_seqid;
 			na->na_flags = NAFC_RCOUNT;
@@ -788,11 +786,13 @@ isp_handle_atio2(isp, aep)
 	at2_entry_t *aep;
 {
 	int lun;
-#ifdef	ISP2100_SCCLUN
-	lun = aep->at_scclun;
-#else
-	lun = aep->at_lun;
-#endif
+
+	if (isp->isp_maxluns > 16) {
+		lun = aep->at_scclun;
+	} else {
+		lun = aep->at_lun;
+	}
+
 	/*
 	 * The firmware status (except for the QLTM_SVALID bit) indicates
 	 * why this ATIO was sent to us.
