@@ -2524,7 +2524,7 @@ ubt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	case USB_GET_STRING_DESC:
 		si = (struct usb_string_desc *) data;
 		status = usbd_get_string_desc(sc->sc_udev, si->usd_string_index,
-				si->usd_language_id, &si->usd_desc);
+				si->usd_language_id, &si->usd_desc, &len);
 		if (status != USBD_NORMAL_COMPLETION)
 			error = EINVAL;
 		break;
