@@ -376,9 +376,6 @@ readsb(int listerr)
 		{ badsb(listerr, "NCG OUT OF RANGE"); return (0); }
 	if (sblock.fs_cpg < 1)
 		{ badsb(listerr, "CPG OUT OF RANGE"); return (0); }
-	if (sblock.fs_ncg * sblock.fs_cpg < sblock.fs_ncyl ||
-	    (sblock.fs_ncg - 1) * sblock.fs_cpg >= sblock.fs_ncyl)
-		{ badsb(listerr, "NCYL LESS THAN NCG*CPG"); return (0); }
 	if (sblock.fs_sbsize > SBSIZE)
 		{ badsb(listerr, "SIZE PREPOSTEROUSLY LARGE"); return (0); }
 	/*
@@ -394,69 +391,36 @@ readsb(int listerr)
 		return (1);
 	}
 	/*
-	 * Set all possible fields that could differ, then do check
-	 * of whole super block against an alternate super block.
+	 * Compare all fields that should not differ in alternate super block.
 	 * When an alternate super-block is specified this check is skipped.
 	 */
 	getblk(&asblk, cgsblock(&sblock, sblock.fs_ncg - 1), sblock.fs_sbsize);
 	if (asblk.b_errs)
 		return (0);
-	altsblock.fs_firstfield = sblock.fs_firstfield;
-	altsblock.fs_unused_1 = sblock.fs_unused_1;
-	altsblock.fs_time = sblock.fs_time;
-	altsblock.fs_cstotal = sblock.fs_cstotal;
-	altsblock.fs_cgrotor = sblock.fs_cgrotor;
-	altsblock.fs_fmod = sblock.fs_fmod;
-	altsblock.fs_clean = sblock.fs_clean;
-	altsblock.fs_ronly = sblock.fs_ronly;
-	altsblock.fs_flags = sblock.fs_flags;
-	altsblock.fs_maxcontig = sblock.fs_maxcontig;
-	altsblock.fs_minfree = sblock.fs_minfree;
-	altsblock.fs_optim = sblock.fs_optim;
-	altsblock.fs_rotdelay = sblock.fs_rotdelay;
-	altsblock.fs_maxbpg = sblock.fs_maxbpg;
-	memmove(altsblock.fs_ocsp, sblock.fs_ocsp, sizeof sblock.fs_ocsp);
-	altsblock.fs_csp = sblock.fs_csp;
-	altsblock.fs_maxcluster = sblock.fs_maxcluster;
-	altsblock.fs_contigdirs = sblock.fs_contigdirs;
-	altsblock.fs_active = sblock.fs_active;
-	altsblock.fs_avgfilesize = sblock.fs_avgfilesize;
-	altsblock.fs_avgfpdir = sblock.fs_avgfpdir;
-	altsblock.fs_pendingblocks = sblock.fs_pendingblocks;
-	altsblock.fs_pendinginodes = sblock.fs_pendinginodes;
-	memmove(altsblock.fs_fsmnt, sblock.fs_fsmnt, sizeof sblock.fs_fsmnt);
-	memmove(altsblock.fs_snapinum, sblock.fs_snapinum,
-		sizeof sblock.fs_snapinum);
-	memmove(altsblock.fs_sparecon,
-		sblock.fs_sparecon, sizeof sblock.fs_sparecon);
-	/*
-	 * The following should not have to be copied.
-	 */
-	altsblock.fs_fsbtodb = sblock.fs_fsbtodb;
-	altsblock.fs_interleave = sblock.fs_interleave;
-	altsblock.fs_npsect = sblock.fs_npsect;
-	altsblock.fs_nrpos = sblock.fs_nrpos;
-	altsblock.fs_state = sblock.fs_state;
-	altsblock.fs_qbmask = sblock.fs_qbmask;
-	altsblock.fs_qfmask = sblock.fs_qfmask;
-	altsblock.fs_state = sblock.fs_state;
-	altsblock.fs_maxfilesize = sblock.fs_maxfilesize;
-	if (memcmp(&sblock, &altsblock, (int)sblock.fs_sbsize)) {
-		if (debug) {
-			long *nlp, *olp, *endlp;
-
-			printf("superblock mismatches\n");
-			nlp = (long *)&altsblock;
-			olp = (long *)&sblock;
-			endlp = olp + (sblock.fs_sbsize / sizeof *olp);
-			for ( ; olp < endlp; olp++, nlp++) {
-				if (*olp == *nlp)
-					continue;
-				printf(
-				    "offset %d, original %ld, alternate %ld\n",
-				    olp - (long *)&sblock, *olp, *nlp);
-			}
-		}
+	if (altsblock.fs_sblkno != sblock.fs_sblkno ||
+	    altsblock.fs_cblkno != sblock.fs_cblkno ||
+	    altsblock.fs_iblkno != sblock.fs_iblkno ||
+	    altsblock.fs_dblkno != sblock.fs_dblkno ||
+	    altsblock.fs_cgoffset != sblock.fs_cgoffset ||
+	    altsblock.fs_cgmask != sblock.fs_cgmask ||
+	    altsblock.fs_ncg != sblock.fs_ncg ||
+	    altsblock.fs_bsize != sblock.fs_bsize ||
+	    altsblock.fs_fsize != sblock.fs_fsize ||
+	    altsblock.fs_frag != sblock.fs_frag ||
+	    altsblock.fs_bmask != sblock.fs_bmask ||
+	    altsblock.fs_fmask != sblock.fs_fmask ||
+	    altsblock.fs_bshift != sblock.fs_bshift ||
+	    altsblock.fs_fshift != sblock.fs_fshift ||
+	    altsblock.fs_fragshift != sblock.fs_fragshift ||
+	    altsblock.fs_fsbtodb != sblock.fs_fsbtodb ||
+	    altsblock.fs_sbsize != sblock.fs_sbsize ||
+	    altsblock.fs_nindir != sblock.fs_nindir ||
+	    altsblock.fs_inopb != sblock.fs_inopb ||
+	    altsblock.fs_cssize != sblock.fs_cssize ||
+	    altsblock.fs_cpg != sblock.fs_cpg ||
+	    altsblock.fs_ipg != sblock.fs_ipg ||
+	    altsblock.fs_fpg != sblock.fs_fpg ||
+	    altsblock.fs_magic != sblock.fs_magic) {
 		badsb(listerr,
 		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
 		return (0);
