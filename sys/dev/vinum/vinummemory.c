@@ -33,20 +33,20 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.28 2001/05/23 23:04:06 grog Exp grog $
+ * $Id: vinummemory.c,v 1.30 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>
 
 #ifdef VINUMDEBUG
-#undef longjmp						    /* this was defined as LongJmp */
-
 #include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
 int rqinfo_size = RQINFO_SIZE;				    /* for debugger */
 
+#undef longjmp						    /* this was defined as LongJmp */
+#define strrchr	rindex
 #ifdef __i386__						    /* check for validity */
 void
 LongJmp(jmp_buf buf, int retval)
@@ -87,16 +87,16 @@ LongJmp(jmp_buf buf, int retval)
     longjmp(buf, retval);
 }
 
-#else
+#else /* not i386 */
 #define LongJmp longjmp					    /* just use the kernel function */
-#endif
-#endif
+#endif /* i386 */
+#endif /* VINUMDEBUG */
 
 /* find the base name of a path name */
 char *
 basename(char *file)
 {
-    char *f = rindex(file, '/');			    /* chop off dirname if present */
+    char *f = strrchr(file, '/');			    /* chop off dirname if present */
 
     if (f == NULL)
 	return file;
@@ -196,7 +196,7 @@ FFree(void *mem, char *file, int line)
 	    malloccount--;
 	    total_malloced -= malloced[i].size;
 	    if (debug & DEBUG_MEMFREE) {		    /* keep track of recent frees */
-		char *f = rindex(file, '/');		    /* chop off dirname if present */
+		char *f = strrchr(file, '/');		    /* chop off dirname if present */
 
 		if (f == NULL)
 		    f = file;
