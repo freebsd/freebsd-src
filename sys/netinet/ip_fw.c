@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.17 1998/07/18 23:30:51 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.19 1998/09/18 20:53:08 luigi Exp $
  */
 
 /*
@@ -401,8 +401,13 @@ lookup_next_rule(struct ip_fw_chain *me)
 
     if ( (me->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_SKIPTO )
 	for (chain = me->chain.le_next; chain ; chain = chain->chain.le_next )
-	    if (chain->rule->fw_number == rule)
+	    if (chain->rule->fw_number >= rule)
 		return chain ;
+    /*
+     * note the above matches any rule >= the jump target. I
+     * don't think this is a particularly good idea, but it is
+     * how ipfw always worked.
+     */
     return me->chain.le_next ; /* failure or not a skipto */
 }
 
