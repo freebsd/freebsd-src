@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.45 1998/05/06 09:11:20 phk Exp $
+ *      $Id: ch.c,v 1.46 1998/06/07 17:12:47 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -56,6 +56,7 @@
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_driver.h>
 
+#include "ioconf.h"
 
 #define CHRETRIES	2
 #define CHUNIT(x)	(minor((x)))
