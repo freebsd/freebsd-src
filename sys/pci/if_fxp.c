@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8.2.12 1997/03/17 11:11:32 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8.2.13 1997/03/17 12:12:25 davidg Exp $
  */
 
 /*
@@ -965,12 +965,39 @@ fxp_init(ifp)
 	/*
 	 * Toggle a few bits in the DP83840 PHY.
 	 */
-	if (sc->phy_primary_device == FXP_PHY_DP83840) {
+	if (sc->phy_primary_device == FXP_PHY_DP83840 ||
+	     sc->phy_primary_device == FXP_PHY_DP83840A) {
 		fxp_mdi_write(sc->csr, sc->phy_primary_addr, FXP_DP83840_PCR,
 		    fxp_mdi_read(sc->csr, sc->phy_primary_addr, FXP_DP83840_PCR) |
 		    FXP_DP83840_PCR_LED4_MODE |	/* LED4 always indicates duplex */
 		    FXP_DP83840_PCR_F_CONNECT |	/* force link disconnect bypass */
 		    FXP_DP83840_PCR_BIT10);	/* XXX I have no idea */
+		/*
+		 * If link0 is set, disable auto-negotiation and then:
+		 *	If link1 is unset = 10Mbps
+		 *	If link1 is set = 100Mbps
+		 *	If link2 is unset = half duplex
+		 *	If link2 is set = full duplex
+		 */
+		if (ifp->if_flags & IFF_LINK0) {
+			int flags;
+
+			flags = (ifp->if_flags & IFF_LINK1) ?
+			     FXP_DP83840_BMCR_SPEED_100M : 0;
+			flags |= (ifp->if_flags & IFF_LINK2) ?
+			     FXP_DP83840_BMCR_FULLDUPLEX : 0;
+			fxp_mdi_write(sc->csr, sc->phy_primary_addr, FXP_DP83840_BMCR,
+			    (fxp_mdi_read(sc->csr, sc->phy_primary_addr, FXP_DP83840_BMCR) &
+			    ~(FXP_DP83840_BMCR_AUTOEN | FXP_DP83840_BMCR_SPEED_100M |
+			     FXP_DP83840_BMCR_FULLDUPLEX)) | flags);
+		} else {
+			fxp_mdi_write(sc->csr, sc->phy_primary_addr, FXP_DP83840_BMCR,
+			    (fxp_mdi_read(sc->csr, sc->phy_primary_addr, FXP_DP83840_BMCR) |
+			    FXP_DP83840_BMCR_AUTOEN));
+		}
+	} else {
+		printf("fxp%d: warning: unsupported PHY, type = %d, addr = %d\n",
+		     ifp->if_unit, sc->phy_primary_device, sc->phy_primary_addr);
 	}
 
 	ifp->if_flags |= IFF_RUNNING;
@@ -1045,23 +1072,24 @@ fxp_add_rfabuf(sc, oldm)
 	return (m == oldm);
 }
 
-static int
+static volatile int
 fxp_mdi_read(csr, phy, reg)
 	struct fxp_csr *csr;
 	int phy;
 	int reg;
 {
 	int count = 10000;
+	int value;
 
 	csr->mdi_control = (FXP_MDI_READ << 26) | (reg << 16) | (phy << 21);
 
-	while ((csr->mdi_control & 0x10000000) == 0 && count--)
-		DELAY(1);
+	while (((value = csr->mdi_control) & 0x10000000) == 0 && count--)
+		DELAY(10);
 
 	if (count <= 0)
 		printf("fxp_mdi_read: timed out\n");
 
-	return (csr->mdi_control & 0xffff);
+	return (value & 0xffff);
 }
 
 static void
@@ -1076,8 +1104,8 @@ fxp_mdi_write(csr, phy, reg, value)
 	csr->mdi_control = (FXP_MDI_WRITE << 26) | (reg << 16) | (phy << 21)
 	    | (value & 0xffff);
 
-	while ((csr->mdi_control & 10000000) == 0 && count--)
-		DELAY(1);
+	while ((csr->mdi_control & 0x10000000) == 0 && count--)
+		DELAY(10);
 
 	if (count <= 0)
 		printf("fxp_mdi_write: timed out\n");
