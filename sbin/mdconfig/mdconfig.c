@@ -25,14 +25,13 @@
 #include <sys/queue.h>
 
 int	 list(const int);
+void	 mdmaybeload(void);
 int	 query(const int, const int);
+void	 usage(void);
 
 struct md_ioctl mdio;
 
 enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
-
-void mdmaybeload(void);
-void usage(void);
 
 void
 usage()
