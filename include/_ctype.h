@@ -46,8 +46,7 @@
 #define	_CTYPE_H_
 
 /*
- * XXX <runetype.h> brings massive namespace pollution (rune_t and struct
- * member names).
+ * XXX <runetype.h> brings namespace pollution (struct member names).
  */
 #include <runetype.h>
 
@@ -85,9 +84,15 @@ int	isxdigit(int);
 int	tolower(int);
 int	toupper(int);
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-int	digittoint(int);
+#if __XSI_VISIBLE
+int	_tolower(int);
+int	_toupper(int);
 int	isascii(int);
+int	toascii(int);
+#endif
+
+#if __BSD_VISIBLE
+int	digittoint(int);
 int	isblank(int);
 int	ishexnumber(int);
 int	isideogram(int);
@@ -95,7 +100,6 @@ int	isnumber(int);
 int	isphonogram(int);
 int	isrune(int);
 int	isspecial(int);
-int	toascii(int);
 #endif
 __END_DECLS
 
@@ -113,9 +117,26 @@ __END_DECLS
 #define	tolower(c)	__tolower(c)
 #define	toupper(c)	__toupper(c)
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-#define	digittoint(c)	__maskrune((c), 0xFF)
+#if __XSI_VISIBLE
+/*
+ * POSIX.1-2001 specifies _tolower() and _toupper() to be macros equivalent to
+ * tolower() and toupper() respectively, minus extra checking to ensure that
+ * the argument is a lower or uppercase letter respectively.  We've chosen to
+ * implement these macros with the same error checking as tolower() and
+ * toupper() since this doesn't violate the specification itself, only its
+ * intent.  We purposely leave _tolower() and _toupper() undocumented to
+ * discourage their use.
+ *
+ * XXX isascii() and toascii() should similarly be undocumented.
+ */
+#define	_tolower(c)	__tolower(c)
+#define	_toupper(c)	__toupper(c)
 #define	isascii(c)	(((c) & ~0x7F) == 0)
+#define	toascii(c)	((c) & 0x7F)
+#endif
+
+#if __BSD_VISIBLE
+#define	digittoint(c)	__maskrune((c), 0xFF)
 #define	isblank(c)	__istype((c), _CTYPE_B)
 #define	ishexnumber(c)	__istype((c), _CTYPE_X)
 #define	isideogram(c)	__istype((c), _CTYPE_I)
@@ -123,10 +144,9 @@ __END_DECLS
 #define	isphonogram(c)	__istype((c), _CTYPE_Q)
 #define	isrune(c)	__istype((c), 0xFFFFFF00L)
 #define	isspecial(c)	__istype((c), _CTYPE_T)
-#define	toascii(c)	((c) & 0x7F)
 #endif
 
-/* See comments in <machine/_types.h> about __ct_rune_t. */
+/* See comments in <sys/_types.h> about __ct_rune_t. */
 __BEGIN_DECLS
 unsigned long	___runetype(__ct_rune_t);
 __ct_rune_t	___tolower(__ct_rune_t);

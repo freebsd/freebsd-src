@@ -40,8 +40,13 @@
 #ifndef	_RUNE_H_
 #define	_RUNE_H_
 
-#include <runetype.h>
 #include <stdio.h>
+#include <runetype.h>
+
+#ifndef _RUNE_T_DECLARED
+#define	_RUNE_T_DECLARED
+typedef	__rune_t	rune_t;
+#endif
 
 #define	_PATH_LOCALE	"/usr/share/locale"
 
