@@ -56,7 +56,7 @@
 #define PACKAGE "grep"
 
 /* Version number. */
-#define VERSION "2.4d"
+#define VERSION "2.4.2"
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef ssize_t */
@@ -89,7 +89,7 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define if you have the btowc function.  */
-/* #undef HAVE_BTOWC */
+#define HAVE_BTOWC 1
 
 /* Define if you have the dcgettext function.  */
 /* #undef HAVE_DCGETTEXT */
@@ -140,7 +140,7 @@
 #define HAVE_STRERROR 1
 
 /* Define if you have the wctype function.  */
-/* #undef HAVE_WCTYPE */
+#define HAVE_WCTYPE 1
 
 /* Define if you have the <argz.h> header file.  */
 /* #undef HAVE_ARGZ_H */
@@ -188,10 +188,10 @@
 #define HAVE_UNISTD_H 1
 
 /* Define if you have the <wchar.h> header file.  */
-/* #undef HAVE_WCHAR_H */
+#define HAVE_WCHAR_H 1
 
 /* Define if you have the <wctype.h> header file.  */
-/* #undef HAVE_WCTYPE_H */
+#define HAVE_WCTYPE_H 1
 
 /* Define if you have the i library (-li).  */
 /* #undef HAVE_LIBI */
@@ -207,3 +207,4 @@
 
 /* Define if compiler has function prototypes */
 #define PROTOTYPES 1
+
