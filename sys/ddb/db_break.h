@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.h,v 1.5 1995/11/29 10:25:11 phk Exp $
+ *	$Id: db_break.h,v 1.6 1995/12/07 12:44:47 davidg Exp $
  */
 
 /*
@@ -32,8 +32,6 @@
  */
 #ifndef _DDB_DB_BREAK_H_
 #define	_DDB_DB_BREAK_H_
-
-#include <machine/db_machdep.h>
 
 /*
  * Breakpoint.

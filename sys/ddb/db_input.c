@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.10 1995/12/07 12:44:51 davidg Exp $
+ *	$Id: db_input.c,v 1.11 1995/12/10 13:32:37 phk Exp $
  */
 
 /*
@@ -33,11 +33,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm_param.h>
+
+#include <machine/cons.h>
+
 #include <ddb/ddb.h>
 #include <ddb/db_output.h>
-#include <machine/cons.h>
 
 /*
  * Character input and editing.

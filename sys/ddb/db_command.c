@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.16 1995/11/29 10:25:14 phk Exp $
+ *	$Id: db_command.c,v 1.17 1995/12/07 12:44:48 davidg Exp $
  */
 
 /*
@@ -36,12 +36,11 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_extern.h>
-#include <ddb/ddb.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
+#include <ddb/ddb.h>
 #include <ddb/db_command.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
