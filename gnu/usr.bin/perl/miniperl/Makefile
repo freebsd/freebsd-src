@@ -11,8 +11,8 @@ MYLIBPERL= ${.OBJDIR}/../libperl/libperl.a
 .else
 MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
 .endif
-DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	${MYLIBPERL} -lm -lcrypt -lutil
+DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT}
+LDADD=	${MYLIBPERL} -lm -lcrypt
 
 build-tools:	cleandepend
 	cd ${.CURDIR} && ${MAKE} ${PROG}
