@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.10 2000/01/03 04:31:58 grog Exp grog $
+ * $Id: commands.c,v 1.12 2000/03/01 03:03:53 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -412,14 +412,7 @@ initplex(int plexno, char *name)
 	exit(0);					    /* we've done our dash */
 }
 
-/*
- * Initialize a subdisk.  Currently (October 1999)
- * there is something very funny with
- * initialization, and it's a good idea to verify.
- * We do this twice, once in the kernel and once
- * after finishing the initialization.  One day
- * this should be removed.
- */
+/* Initialize a subdisk. */
 void
 initsd(int sdno, int dowait)
 {
@@ -427,14 +420,11 @@ initsd(int sdno, int dowait)
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
     char filename[MAXPATHLEN];				    /* create a file name here */
-    off_t pos;
 
     /* Variables for use by children */
     int sdfh;						    /* and for subdisk */
-    char buf[MAXPLEXINITSIZE];
     int initsize;					    /* actual size to write */
     int64_t sdsize;					    /* size of subdisk */
-    int retval;
 
     if (dowait == 0) {
 	pid = fork();					    /* into the background with you */
@@ -483,6 +473,8 @@ initsd(int sdno, int dowait)
 	exit(1);
     } else {
 	do {
+	    if (interval)				    /* pause between copies */
+		usleep(interval * 1000);
 	    message->index = sd.sdno;			    /* pass object number */
 	    message->type = sd_object;			    /* and type of object */
 	    message->state = object_up;
@@ -508,41 +500,7 @@ initsd(int sdno, int dowait)
 	    ioctl(superdev, VINUM_SETSTATE, message);
 	}
     }
-    if (vflag) {					    /* don't trust the thing, check again */
-	close(sdfh);
-	pos = 0;
-	if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) { /* no go */
-	    syslog(LOG_ERR | LOG_KERN,
-		"can't open subdisk %s: %s",
-		filename,
-		strerror(errno));
-	    exit(1);
-	} else {
-	    for (;;) {					    /* damn style(9) */
-		retval = read(sdfh, buf, initsize);
-		if (retval == 0)			    /* EOF */
-		    break;
-		else if (retval < 0) {
-		    fprintf(stderr,
-			"Can't read %s: %s (%d)\n",
-			sd.name,
-			strerror(errno),
-			errno);
-		    if (dowait)
-			return;
-		    else
-			exit(1);
-		} else if ((buf[0] != 0)		    /* first word spammed */
-		||(bcmp(buf, &buf[1], initsize - 1))) {	    /* or one of the others */
-		    fprintf(stderr,
-			"init error on %s, offset 0x%llx sectors\n",
-			sd.name,
-			pos);
-		}
-		pos += retval;
-	    }
-	}
-    }
+    printf("subdisk %s initialized\n", filename);
     if (!dowait)
 	exit(0);
 }
@@ -2408,9 +2366,16 @@ vinum_rebuildparity(int argc, char *argv[], char *argv0[])
     if (argc == 0)					    /* no parameters? */
 	fprintf(stderr, "Usage: rebuildparity object [object...]\n");
     else
-	parityops(argc, argv, rebuildparity);
+	parityops(argc, argv, vflag ? rebuildandcheckparity : rebuildparity);
 }
 
+/*
+ * Common code for rebuildparity and checkparity.
+ * We bend the meanings of some flags here:
+ *
+ * -v: Report incorrect parity on rebuild.
+ * -f: Start from beginning of the plex.
+ */
 void
 parityops(int argc, char *argv[], enum parityop op)
 {
@@ -2421,6 +2386,7 @@ parityops(int argc, char *argv[], enum parityop op)
     int index;
     enum objecttype type;
     char *msg;
+    off_t block;
 
     if (op == checkparity)
 	msg = "Checking";
@@ -2438,16 +2404,24 @@ parityops(int argc, char *argv[], enum parityop op)
 		do {
 		    message->index = object;		    /* pass object number */
 		    message->type = type;		    /* and type of object */
-		    if (op == checkparity)
-			ioctl(superdev, VINUM_CHECKPARITY, message);
+		    message->op = op;			    /* what to do */
+		    if (force)
+			message->offset = 0;		    /* start at the beginning */
 		    else
-			ioctl(superdev, VINUM_REBUILDPARITY, message);
-		    if (vflag) {
-			get_plex_info(&plex, object);
-			if (plex.checkblock != 0)
-			    printf("\r%s at %s     ",
+			message->offset = plex.checkblock;  /* continue where we left off */
+		    force = 0;				    /* don't reset after the first time */
+		    ioctl(superdev, VINUM_PARITYOP, message);
+		    get_plex_info(&plex, object);
+		    if (Verbose) {
+			block = (plex.checkblock << DEV_BSHIFT) * (plex.subdisks - 1);
+			if (block != 0)
+			    printf("\r%s at %s (%d%%)    ",
 				msg,
-				roughlength(plex.checkblock << DEV_BSHIFT, 1));
+				roughlength(block, 1),
+				((int) (block * 100 / plex.length) >> DEV_BSHIFT));
+			if ((reply.error == EAGAIN)
+			    && (reply.msg[0]))		    /* got a comment back */
+			    fputs(reply.msg, stderr);	    /* show it */
 			fflush(stdout);
 		    }
 		}
@@ -2460,7 +2434,7 @@ parityops(int argc, char *argv[], enum parityop op)
 			    "%s failed: %s\n",
 			    msg,
 			    strerror(reply.error));
-		} else if (vflag) {
+		} else if (Verbose) {
 		    if (op == checkparity)
 			fprintf(stderr, "%s has correct parity\n", argv[index]);
 		    else
