@@ -1,0 +1,6 @@
+// -*- C++ -*- forwarding header.
+// This file is part of the GNU ANSI C++ Library.
+
+#ifndef __CASSERT__
+#include <std/cassert.h>
+#endif
