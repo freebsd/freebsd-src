@@ -266,7 +266,7 @@ g_aes_access(struct g_provider *pp, int dr, int dw, int de)
 	/* ... and let go of it on last close */
 	if ((cp->acr + dr) == 0 && (cp->acw + dw) == 0 && (cp->ace + de) == 1)
 		de--;
-	return (g_access_rel(cp, dr, dw, de));
+	return (g_access(cp, dr, dw, de));
 }
 
 static struct g_geom *
@@ -288,7 +288,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->spoiled = g_std_spoiled;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-	error = g_access_rel(cp, 1, 0, 0);
+	error = g_access(cp, 1, 0, 0);
 	if (error) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
@@ -357,7 +357,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_lock();
 	if (buf)
 		g_free(buf);
-	g_access_rel(cp, -1, 0, 0);
+	g_access(cp, -1, 0, 0);
 	if (gp->softc != NULL) 
 		return (gp);
 	g_detach(cp);
