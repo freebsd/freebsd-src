@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.39 1995/05/28 09:36:06 jkh Exp $
+ * $Id: system.c,v 1.40 1995/05/29 00:50:05 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -187,6 +187,7 @@ systemDisplayFile(char *file)
 	use_helpline(NULL);
 	w = dupwin(newscr);
 	dialog_textbox(file, fname, LINES, COLS);
+	unlink(fname);
 	touchwin(w);
 	wrefresh(w);
 	delwin(w);
@@ -197,33 +198,26 @@ systemDisplayFile(char *file)
 char *
 systemHelpFile(char *file, char *buf)
 {
-    char *cp, *fname = NULL;
+    char *cp;
 
     if (!file)
 	return NULL;
 
     if ((cp = getenv("LANG")) != NULL) {
-	snprintf(buf, FILENAME_MAX, "help/%s/%s", cp, file);
+	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
+	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s",buf);
+	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
 	if (file_readable(buf))
-	    fname = buf;
-	else {
-	    snprintf(buf, FILENAME_MAX, "/stand/help/%s/%s", cp, file);
-	    if (file_readable(buf))
-		fname = buf;
-	}
-    }
-    if (!fname) {
-	snprintf(buf, FILENAME_MAX, "help/en_US.ISO8859-1/%s", file);
-	if (file_readable(buf))
-	    fname = buf;
-	else {
-	    snprintf(buf, FILENAME_MAX, "/stand/help/en_US.ISO8859-1/%s",
-		     file);
-	    if (file_readable(buf))
-		fname = buf;
-	}
-    }
-    return fname;
+	    return buf;
+    }	
+    /* Fall back to normal imperialistic mode :-) */
+    cp = "en_US.ISO8859-1";
+    snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
+    vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s",buf);
+    snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
+    if (file_readable(buf))
+	return buf;
+    return NULL;
 }
 
 void
@@ -315,7 +309,7 @@ vsystem(char *fmt, ...)
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
-#ifdef CRUNCHED_BINARY
+#ifdef NOT_A_GOOD_IDEA_CRUNCHED_BINARY
 	if (magic) {
 		char *argv[100];
 		i = 0;
