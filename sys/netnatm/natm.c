@@ -46,6 +46,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/conf.h>
 
 #include <net/if.h>
 #include <net/if_atm.h>
@@ -68,25 +69,25 @@ static u_long natm0_recvspace = 16*1024;
 /*
  * FreeBSD new usrreqs supersedes pr_usrreq.
  */
-static int natm_usr_attach __P((struct socket *, int, struct proc *));
+static int natm_usr_attach __P((struct socket *, int, d_thread_t *));
 static int natm_usr_detach __P((struct socket *));
 static int natm_usr_connect __P((struct socket *, struct sockaddr *,
-				 struct proc *));
+				 d_thread_t *));
 static int natm_usr_disconnect __P((struct socket *));
 static int natm_usr_shutdown __P((struct socket *));
 static int natm_usr_send __P((struct socket *, int, struct mbuf *,
 			      struct sockaddr *, struct mbuf *, 
-			      struct proc *));
+			      d_thread_t *));
 static int natm_usr_peeraddr __P((struct socket *, struct sockaddr **));
 static int natm_usr_control __P((struct socket *, u_long, caddr_t,
-				 struct ifnet *, struct proc *));
+				 struct ifnet *, d_thread_t *));
 static int natm_usr_abort __P((struct socket *));
 static int natm_usr_bind __P((struct socket *, struct sockaddr *, 
-			      struct proc *));
+			      d_thread_t *));
 static int natm_usr_sockaddr __P((struct socket *, struct sockaddr **));
 
 static int
-natm_usr_attach(struct socket *so, int proto, struct proc *p)
+natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
 {
     struct natmpcb *npcb;
     int error = 0;
@@ -140,7 +141,7 @@ natm_usr_detach(struct socket *so)
 }
 
 static int
-natm_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 {
     struct natmpcb *npcb;
     struct sockaddr_natm *snatm;
@@ -274,7 +275,7 @@ natm_usr_shutdown(struct socket *so)
 
 static int
 natm_usr_send(struct socket *so, int flags, struct mbuf *m, 
-	      struct sockaddr *nam, struct mbuf *control, struct proc *p)
+	      struct sockaddr *nam, struct mbuf *control, d_thread_t *p)
 {
     struct natmpcb *npcb;
     struct atm_pseudohdr *aph;
@@ -347,7 +348,7 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 
 static int
 natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
-		 struct ifnet *ifp, struct proc *p)
+		 struct ifnet *ifp, d_thread_t *p)
 {
     struct natmpcb *npcb;
     struct atm_rawioctl ario;
@@ -395,7 +396,7 @@ natm_usr_abort(struct socket *so)
 }
 
 static int
-natm_usr_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+natm_usr_bind(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 {
     return EOPNOTSUPP;
 }
