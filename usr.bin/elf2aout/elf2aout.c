@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/elf64.h>
-#include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -38,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "endian.h"
 #define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
 #define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
 #define	xe64toh(x)	((data == ELFDATA2MSB) ? be64toh(x) : le64toh(x))
