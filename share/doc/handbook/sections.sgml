@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.18 1996/11/28 18:09:29 jfieber Exp $ -->
+<!-- $Id: sections.sgml,v 1.19 1996/12/19 20:24:36 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -31,6 +31,7 @@
 <!ENTITY kerberos SYSTEM "kerberos.sgml">
 <!ENTITY kernelconfig SYSTEM "kernelconfig.sgml">
 <!ENTITY kerneldebug SYSTEM "kerneldebug.sgml">
+<!ENTITY kernelopts SYSTEM "kernelopts.sgml">
 <!ENTITY linuxemu SYSTEM "linuxemu.sgml">
 <!ENTITY mail SYSTEM "mail.sgml">
 <!ENTITY memoryuse SYSTEM "memoryuse.sgml">
