@@ -194,3 +194,8 @@ minimum:ty=mfs:se#512:nt#1:rm#300:\
 	:ns#2400:nc#1:\
 	:pa#2400:oa#0:ba#4096:fa#512:\
 	:pc#2400:oc#0:bc#4096:fc#512:
+
+	:ty=removable:dt=SCSI:se#512:nt#64:ns#32:nc#634:ts#1:rm#4800:\
+	:pc#1298431:oc#0:\
+	:pa#1298431:oa#0:ta=4.2BSD:ba#8192:fa#1024:
+
