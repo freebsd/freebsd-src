@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: utils.c,v 1.2 1994/10/20 05:00:00 phk Exp $
  *
  */
 
@@ -142,6 +142,8 @@ MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
 	struct ufs_args ufsargs;
 	char dbuf[90];
 	char pbuf[90];
+
+	memset(&ufsargs,0,sizeof ufsargs);
 
 	if (prefix)
 		strcpy(pbuf,prefix);
