@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.20 1994/10/19 00:09:47 wollman Exp $
+ * $Id: st.c,v 1.21 1994/10/23 21:27:59 wollman Exp $
  */
 
 /*
@@ -153,6 +153,7 @@ static struct rogues gallery[] =	/* ends with an all-null entry */
 
 errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
 errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
+errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags)); /* AKL */
 errval	st_mode_sense __P((u_int32 unit, u_int32 flags));
 errval	st_decide_mode __P((u_int32 unit, boolean first_read));
 errval	st_rd_blk_lim __P((u_int32 unit, u_int32 flags));
@@ -1229,6 +1230,9 @@ stioctl(dev, cmd, arg, flag)
 			case MTREW:	/* rewind */
 				errcode = st_rewind(unit, FALSE, flags);
 				break;
+			case MTERASE:	/* erase - AKL */
+				errcode = st_erase(unit, FALSE, flags);
+				break;
 			case MTOFFL:	/* rewind and put the drive offline */
 				st_unmount(unit, EJECT);
 				break;
@@ -1784,6 +1788,47 @@ st_rewind(unit, immed, flags)
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = REWIND;
 	scsi_cmd.byte2 = immed ? SR_IMMED : 0;
+	return (scsi_scsi_cmd(st->sc_link,
+		(struct scsi_generic *) &scsi_cmd,
+		sizeof(scsi_cmd),
+		0,
+		0,
+		ST_RETRIES,
+		immed ? 5000 : 300000,	/* 5 sec or 5 min */
+		NULL,
+		flags));
+}
+
+/*
+**  Erase the device - AKL: Andreas Klemm <andreas@knobel.gun.de>
+*/ 
+errval 
+st_erase(unit, immed, flags)
+	u_int32 unit, flags;
+	boolean immed;
+{
+	struct scsi_erase scsi_cmd;
+	struct st_data *st = st_data[unit];
+	errval  error;
+	int32   nmarks;
+
+	error = st_chkeod(unit, FALSE, &nmarks, flags);
+	if (error != ESUCCESS)
+		return (error);
+	/*
+	** AKL: Archive Viper 2525 technical manual 5.7 (ERASE 19h):
+	**	tape has to be positioned to BOT first before erase command
+	**	is issued or command is rejected. So we rewind the tape first
+	**	and exit with an error, if the tape can't be rewinded.
+	*/
+	error = st_rewind(unit, FALSE, SCSI_SILENT);
+	if (error != ESUCCESS)
+		return (error);
+	st->flags &= ~ST_PER_ACTION;
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	scsi_cmd.op_code = ERASE;
+	scsi_cmd.byte2 = SE_LONG;		/* LONG_ERASE - AKL */
+	scsi_cmd.byte2 += immed ? SE_IMMED : 0; /* immed bit is here the 2nd! */
 	return (scsi_scsi_cmd(st->sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),

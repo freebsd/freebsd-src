@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.8 1993/11/18 05:02:57 rgrimes Exp $
+ *	$Id: scsi_tape.h,v 1.9 1994/09/28 20:16:42 se Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -72,6 +72,23 @@ struct scsi_rewind
 	u_char	control;
 } rewind;
 
+/*
+** Tape erase - AKL: Andreas Klemm <andreas@knobel.gun.de>
+*/
+struct scsi_erase
+{
+	u_char	op_code;
+	u_char	byte2;
+#define	SE_LONG		0x01	/*
+				** Archive Viper 2525 doesn't allow short 
+				** erase, other tapes possibly don't allow 
+				** that, too.
+				*/
+#define	SE_IMMED	0x02
+	u_char	unused[3];
+	u_char	control;
+} erase;
+
 struct scsi_load
 {
 	u_char	op_code;
@@ -104,6 +121,7 @@ struct scsi_blk_limits
 #define WRITE_COMMAND_TAPE	0x0a
 #define	WRITE_FILEMARKS		0x10
 #define	SPACE			0x11
+#define	ERASE			0x19 /* AKL */
 #define LOAD_UNLOAD		0x1b /* same as above */
 
 
