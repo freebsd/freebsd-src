@@ -1140,8 +1140,8 @@ main(int argc, char *argv[])
 				}
 
 				if ( ns ) {
-					int c1;
-					int	nr;
+					char c1;
+					int nr;
 
 					nr = read ( fileno(stdin), &c1, 1 );
 					c1 &= 0xff;
