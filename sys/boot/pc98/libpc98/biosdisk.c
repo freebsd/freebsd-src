@@ -107,14 +107,15 @@ static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
 static int	bd_int13probe(struct bdinfo *bd);
 
 static void	bd_printslice(struct open_disk *od, struct dos_partition *dp,
-		    char *prefix);
-static void	bd_printbsdslice(struct open_disk *od, int offset, char *prefix);
+		    char *prefix, int verbose);
+static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
+		    char *prefix, int verbose);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, void *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, void *buf, size_t *rsize);
+		    size_t size, char *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -127,7 +128,8 @@ struct devsw biosdisk = {
     bd_open, 
     bd_close, 
     noioctl,
-    bd_print
+    bd_print,
+    NULL
 };
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
@@ -210,7 +212,7 @@ bd_init(void)
 	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
 	    /* check the BIOS equipment list for number of fixed disks */
 	    if((base == 0x80) &&
-	       (nfd >= *(unsigned short *)PTOV(BIOS_NUMDRIVES)))
+	       (nfd >= *(unsigned char *)PTOV(BIOS_NUMDRIVES)))
 	        break;
 
 	    bdinfo[nbdinfo].bd_unit = unit;
@@ -261,7 +263,7 @@ bd_int13probe(struct bdinfo *bd)
     v86int();
     
     if (!(v86.efl & 0x1) &&				/* carry clear */
-	((v86.edx & 0xff) > (bd->bd_unit & 0x7f))) {	/* unit # OK */
+	((v86.edx & 0xff) > ((unsigned)bd->bd_unit & 0x7f))) {	/* unit # OK */
 	bd->bd_flags |= BD_MODEINT13;
 	bd->bd_type = v86.ebx & 0xff;
 
@@ -274,7 +276,7 @@ bd_int13probe(struct bdinfo *bd)
 	    ((v86.ebx & 0xffff) == 0xaa55) &&		/* signature */
 	    (v86.ecx & 0x1)) {				/* packets mode ok */
 	    bd->bd_flags |= BD_MODEEDD1;
-	    if(v86.eax & 0xff00 > 0x300)
+	    if((v86.eax & 0xff00) > 0x300)
 	        bd->bd_flags |= BD_MODEEDD3;
 	}
 	return(1);
@@ -315,7 +317,7 @@ bd_print(int verbose)
 	    if (od->od_flags & BD_PARTTABOK) {
 		dptr = &od->od_slicetab[0];
 
-		/* Check for a "truly dedicated" disk */
+		/* Check for a "dedicated" disk */
 #ifdef PC98
 		for (j = 0; j < od->od_nslices; j++) {
 		    switch(dptr[j].dp_mid) {
@@ -324,7 +326,7 @@ bd_print(int verbose)
 			bd_printbsdslice(od,
 			    dptr[j].dp_scyl * od->od_hds * od->od_sec +
 			    dptr[j].dp_shd * od->od_sec + dptr[j].dp_ssect,
-			    line);
+			    line, verbose);
 			break;
 		    default:
 		    }
@@ -334,11 +336,11 @@ bd_print(int verbose)
 		    (dptr[3].dp_start == 0) &&
 		    (dptr[3].dp_size == 50000)) {
 		    sprintf(line, "      disk%d", i);
-		    bd_printbsdslice(od, 0, line);
+		    bd_printbsdslice(od, 0, line, verbose);
 		} else {
 		    for (j = 0; j < od->od_nslices; j++) {
 		        sprintf(line, "      disk%ds%d", i, j + 1);
-			bd_printslice(od, &dptr[j], line);
+			bd_printslice(od, &dptr[j], line, verbose);
                     }
                 }
 #endif
@@ -348,69 +350,94 @@ bd_print(int verbose)
     }
 }
 
-/*
- * Print information about slices on a disk
- */
 #ifndef PC98
+/*
+ * Print information about slices on a disk.  For the size calculations we
+ * assume a 512 byte sector.
+ */
 static void
-bd_printslice(struct open_disk *od, struct dos_partition *dp, char *prefix)
+bd_printslice(struct open_disk *od, struct dos_partition *dp, char *prefix,
+	int verbose)
 {
 	char line[80];
 
 	switch (dp->dp_typ) {
 	case DOSPTYP_386BSD:
-		bd_printbsdslice(od, dp->dp_start, prefix);
+		bd_printbsdslice(od, (daddr_t)dp->dp_start, prefix, verbose);
 		return;
 	case DOSPTYP_LINSWP:
-		sprintf(line, "%s: Linux swap %.6dMB (%d - %d)\n", prefix,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: Linux swap %.6dMB (%d - %d)\n",
+			    prefix, dp->dp_size / 2048,
+			    dp->dp_start, dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: Linux swap\n", prefix);
 		break;
 	case DOSPTYP_LINUX:
 		/*
 		 * XXX
 		 * read the superblock to confirm this is an ext2fs partition?
 		 */
-		sprintf(line, "%s: ext2fs  %.6dMB (%d - %d)\n", prefix,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: ext2fs  %.6dMB (%d - %d)\n", prefix,
+			    dp->dp_size / 2048, dp->dp_start,
+			    dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: ext2fs\n", prefix);
 		break;
 	case 0x00:				/* unused partition */
 	case DOSPTYP_EXT:
 		return;
 	case 0x01:
-		sprintf(line, "%s: FAT-12  %.6dMB (%d - %d)\n", prefix,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: FAT-12  %.6dMB (%d - %d)\n", prefix,
+			    dp->dp_size / 2048, dp->dp_start,
+			    dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: FAT-12\n", prefix);
 		break;
 	case 0x04:
 	case 0x06:
 	case 0x0e:
-		sprintf(line, "%s: FAT-16  %.6dMB (%d - %d)\n", prefix,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: FAT-16  %.6dMB (%d - %d)\n", prefix,
+			    dp->dp_size / 2048, dp->dp_start,
+			    dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: FAT-16\n", prefix);
 		break;
 	case 0x0b:
 	case 0x0c:
-		sprintf(line, "%s: FAT-32  %.6dMB (%d - %d)\n", prefix,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: FAT-32  %.6dMB (%d - %d)\n", prefix,
+			    dp->dp_size / 2048, dp->dp_start,
+			    dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: FAT-32\n", prefix);
 		break;
 	default:
-		sprintf(line, "%s: Unknown fs: 0x%x  %.6dMB (%d - %d)\n",
-		    prefix, dp->dp_typ,
-		    dp->dp_size / 2048,  /* 512-byte sector assumption */
-		    dp->dp_start, dp->dp_start + dp->dp_size);
+		if (verbose)
+			sprintf(line, "%s: Unknown fs: 0x%x  %.6dMB (%d - %d)\n",
+			    prefix, dp->dp_typ, dp->dp_size / 2048,
+			    dp->dp_start, dp->dp_start + dp->dp_size);
+		else
+			sprintf(line, "%s: Unknown fs: 0x%x\n", prefix,
+			    dp->dp_typ);
 	}
 	pager_output(line);
 }
 #endif
 
+/*
+ * Print out each valid partition in the disklabel of a FreeBSD slice.
+ * For size calculations, we assume a 512 byte sector size.
+ */
 static void
-bd_printbsdslice(struct open_disk *od, int offset, char *prefix)
+bd_printbsdslice(struct open_disk *od, daddr_t offset, char *prefix,
+    int verbose)
 {
     char		line[80];
-    u_char		buf[BIOSDISK_SECSIZE];
+    char		buf[BIOSDISK_SECSIZE];
     struct disklabel	*lp;
     int			i;
 
@@ -426,16 +453,32 @@ bd_printbsdslice(struct open_disk *od, int offset, char *prefix)
     
     /* Print partitions */
     for (i = 0; i < lp->d_npartitions; i++) {
+	/*
+	 * For each partition, make sure we know what type of fs it is.  If
+	 * not, then skip it.  However, since floppies often have bogus
+	 * fstypes, print the 'a' partition on a floppy even if it is marked
+	 * unused.
+	 */
 	if ((lp->d_partitions[i].p_fstype == FS_BSDFFS) ||
             (lp->d_partitions[i].p_fstype == FS_SWAP) ||
             (lp->d_partitions[i].p_fstype == FS_VINUM) ||
 	    ((lp->d_partitions[i].p_fstype == FS_UNUSED) && 
-	     (od->od_flags & BD_FLOPPY) && (i == 0))) {	/* Floppies often have bogus fstype, print 'a' */
-	    sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
+	     (od->od_flags & BD_FLOPPY) && (i == 0))) {
+
+	    /* Only print out statistics in verbose mode */
+	    if (verbose)
+	        sprintf(line, "  %s%c: %s  %.6dMB (%d - %d)\n", prefix, 'a' + i,
 		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
-		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" : "FFS",
-		    lp->d_partitions[i].p_size / 2048,	/* 512-byte sector assumption */
-		    lp->d_partitions[i].p_offset, lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
+		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
+		    "FFS",
+		    lp->d_partitions[i].p_size / 2048,
+		    lp->d_partitions[i].p_offset,
+		    lp->d_partitions[i].p_offset + lp->d_partitions[i].p_size);
+	    else
+	        sprintf(line, "  %s%c: %s\n", prefix, 'a' + i,
+		    (lp->d_partitions[i].p_fstype == FS_SWAP) ? "swap" : 
+		    (lp->d_partitions[i].p_fstype == FS_VINUM) ? "vinum" :
+		    "FFS");
 	    pager_output(line);
 	}
     }
@@ -482,7 +525,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     struct open_disk		*od;
     int				sector, slice, i;
     int				error;
-    u_char			buf[BUFSIZE];
+    char			buf[BUFSIZE];
 
     if (dev->d_kind.biosdisk.unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -537,7 +580,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     /* 
      * Check the slice table magic.
      */
-    if ((buf[0x1fe] != 0x55) || (buf[0x1ff] != 0xaa)) {
+    if (((u_char)buf[0x1fe] != 0x55) || ((u_char)buf[0x1ff] != 0xaa)) {
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
 	    DEBUG("no slice table/MBR (no magic)");
@@ -675,10 +718,12 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 
 	}
 
-	/* Complain if the partition type is wrong */
+#ifdef DISK_DEBUG
+	/* Complain if the partition is unused unless this is a floppy. */
 	if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
-	    !(od->od_flags & BD_FLOPPY))	    /* Floppies often have bogus fstype */
+	    !(od->od_flags & BD_FLOPPY))
 	    DEBUG("warning, partition marked as unused");
+#endif
 	
 	od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
     }
@@ -696,7 +741,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 static void
 bd_checkextended(struct open_disk *od, int slicenum)
 {
-	u_char buf[BIOSDISK_SECSIZE];
+	char	buf[BIOSDISK_SECSIZE];
 	struct dos_partition *dp;
 	u_int base;
 	int i, start, end;
@@ -708,9 +753,9 @@ bd_checkextended(struct open_disk *od, int slicenum)
 		goto done;
 	if (dp->dp_typ != DOSPTYP_EXT)
 		goto done;
-	if (bd_read(od, dp->dp_start, 1, buf))
+	if (bd_read(od, (daddr_t)dp->dp_start, 1, buf))
 		goto done;
-	if ((buf[0x1fe] != 0x55) || (buf[0x1ff] != 0xaa)) {
+	if (((u_char)buf[0x1fe] != 0x55) || ((u_char)buf[0x1ff] != 0xaa)) {
 		DEBUG("no magic in extended table");
 		goto done;
 	}
@@ -853,7 +898,7 @@ bd_closedisk(struct open_disk *od)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
@@ -864,7 +909,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 }
 
 static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;
@@ -913,9 +958,13 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, siz
 static int
 bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 {
-    int		x, bpc, cyl, hd, sec, result, resid, cnt, retry, maxfer;
+    u_int	x, bpc, cyl, hd, sec, result, resid, retry, maxfer;
     caddr_t	p, xp, bbuf, breg;
     
+    /* Just in case some idiot actually tries to read -1 blocks... */
+    if (blks < 0)
+	return (-1);
+
     bpc = (od->od_sec * od->od_hds);		/* blocks per cylinder */
     resid = blks;
     p = dest;
@@ -935,9 +984,9 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	 * use the top half.
 	 */
 #ifdef PC98
-	x = min(od->od_sec, blks);
+	x = min(od->od_sec, (unsigned)blks);
 #else
-	x = min(FLOPPY_BOUNCEBUF, blks);
+	x = min(FLOPPY_BOUNCEBUF, (unsigned)blks);
 #endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(dest + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
@@ -947,7 +996,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	}
 	maxfer = x;			/* limit transfers to bounce region size */
     } else {
-	bbuf = NULL;
+	breg = bbuf = NULL;
 	maxfer = 0;
     }
     
@@ -1115,7 +1164,7 @@ bd_getgeom(struct open_disk *od)
     v86int();
 
     if ((v86.efl & 0x1) ||				/* carry set */
-	((v86.edx & 0xff) <= (od->od_unit & 0x7f)))	/* unit # bad */
+	((v86.edx & 0xff) <= (unsigned)(od->od_unit & 0x7f)))	/* unit # bad */
 	return(1);
     
     /* convert max cyl # -> # of cylinders */
@@ -1236,21 +1285,22 @@ bd_getdev(struct i386_devdesc *dev)
 	    major = WDMAJOR;
 	}
     }
+    /* default root disk unit number */
+#ifdef PC98
+    if ((biosdev & 0xf0) == 0xa0)
+	unit = bdinfo[dev->d_kind.biosdisk.unit].bd_da_unit;
+    else
+	unit = biosdev & 0xf;
+#else
+    unit = (biosdev & 0x7f) - unitofs;
+#endif
+
     /* XXX a better kludge to set the root disk unit number */
     if ((nip = getenv("root_disk_unit")) != NULL) {
 	i = strtol(nip, &cp, 0);
 	/* check for parse error */
 	if ((cp != nip) && (*cp == 0))
 	    unit = i;
-    } else {
-#ifdef PC98
-	if ((biosdev & 0xf0) == 0xa0)
-	    unit = bdinfo[dev->d_kind.biosdisk.unit].bd_da_unit;
-	else
-	    unit = biosdev & 0xf;
-#else
-	unit = (biosdev & 0x7f) - unitofs;					/* allow for #wd compenstation in da case */
-#endif
     }
 
     rootdev = MAKEBOOTDEV(major,
@@ -1260,21 +1310,4 @@ bd_getdev(struct i386_devdesc *dev)
 			  dev->d_kind.biosdisk.partition);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
-}
-
-/*
- * Fix (dev) so that it refers to the 'real' disk/slice/partition that it implies.
- */
-int
-bd_fixupdev(struct i386_devdesc *dev)
-{
-    struct open_disk *od;
-    
-    /*
-     * Open the disk.  This will fix up the slice and partition fields.
-     */
-    if (bd_opendisk(&od, dev) != 0)
-	return(ENOENT);
-    
-    bd_closedisk(od);
 }
