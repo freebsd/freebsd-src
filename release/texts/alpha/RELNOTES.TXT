@@ -60,6 +60,10 @@ to tag files and directories with attribute data.  Extended attributes
 were added to support the TrustedBSD Project, in particular ACLs, 
 capability data, and mandatory access control labels.  
 
+POSIX.1b Shared Memory Objects are now supported.  The implementation
+uses regular files, but automatically enables the MAP_NOSYNC flag
+when they are mmap(2)ed.
+
 
 1.2. SECURITY FIXES
 -------------------
