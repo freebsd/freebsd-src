@@ -3,15 +3,12 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= al
-SRCS	= if_al.c al.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_al.c opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
-CLEANFILES	+= al.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 KMODDEPS = miibus
-
-al.h:
-	echo "#define NAL 1" > al.h
 
 opt_bdg.h:
 	touch opt_bdg.h

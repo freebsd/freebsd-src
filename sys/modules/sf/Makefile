@@ -3,16 +3,13 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_sf
-SRCS	= if_sf.c sf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_sf.c opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
-CLEANFILES	+= sf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 KMODDEPS = miibus
 
 CFLAGS	+= ${DEBUG_FLAGS}
-
-sf.h:
-	echo "#define NSF 1" > sf.h
 
 opt_bdg.h:
 	touch opt_bdg.h

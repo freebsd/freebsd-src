@@ -3,16 +3,13 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_vr
-SRCS	= if_vr.c vr.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_vr.c opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
-CLEANFILES	+= vr.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 KMODDEPS = miibus
 
 CFLAGS	+= ${DEBUG_FLAGS}
-
-vr.h:
-	echo "#define NVR 1" > vr.h
 
 opt_bdg.h:
 	touch opt_bdg.h
