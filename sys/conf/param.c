@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.12 1995/07/29 11:38:39 bde Exp $
+ * $Id: param.c,v 1.13 1995/12/10 13:44:55 phk Exp $
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,10 +59,10 @@
 #include <sys/shm.h>
 #endif
 #ifdef SYSVSEM
-#include "sys/sem.h"
+#include <sys/sem.h>
 #endif
 #ifdef SYSVMSG
-#include "sys/msg.h"
+#include <sys/msg.h>
 #endif
 
 /*

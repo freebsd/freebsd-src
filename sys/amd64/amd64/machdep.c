@@ -35,11 +35,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.165 1995/12/28 23:14:35 davidg Exp $
+ *	$Id: machdep.c,v 1.166 1995/12/30 23:13:32 davidg Exp $
  */
 
 #include "npx.h"
 #include "isa.h"
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
