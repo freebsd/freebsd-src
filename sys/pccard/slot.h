@@ -77,10 +77,9 @@ struct pccard_devinfo;
 
 struct pccard_device {
 	char	*name;					/* Driver name */
-	int (*enable)(struct pccard_devinfo *, int);	/* init/enable driver */
+	int (*enable)(struct pccard_devinfo *);		/* init/enable driver */
 	void (*disable)(struct pccard_devinfo *);	/* disable driver */
 	int (*handler)(struct pccard_devinfo *);	/* interrupt handler */
-	void (*suspend)(struct pccard_devinfo *);	/* Suspend driver */
 	int	attr;					/* driver attributes */
 	unsigned int *imask;				/* Interrupt mask ptr */
 
