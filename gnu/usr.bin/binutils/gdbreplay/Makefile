@@ -1,16 +1,20 @@
-#	$Id: Makefile,v 1.2 1997/04/26 17:34:04 pst Exp $
+#	$Id: Makefile,v 1.3 1998/05/01 14:48:04 bde Exp $
+
+.include "../Makefile.inc0"
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb/gdbserver
 .PATH:	${GDBDIR}/gdb
-.PATH:	${GDBDIR}/opcodes
 
 PROG=	gdbreplay
 NOMAN=	yes
 
 SRCS=	gdbreplay.c
 
-CFLAGS+=-I${.CURDIR}/../gdb -I${.CURDIR}/../bfd
-CFLAGS+=-DNO_MMALLOC
+CFLAGS+=	-I${.CURDIR}/../gdb/${MACHINE_ARCH}
+CFLAGS+=	-I${GDBDIR}/gdb
+CFLAGS+=	-I${GDBDIR}/gdb/config
+CFLAGS+=	-I${GDBDIR}/gdb/gdbserver
+CFLAGS+=	-DNO_MMALLOC
 
 .include <bsd.prog.mk>
