@@ -73,5 +73,6 @@
 
 extern const char *const unary_op[];
 extern const char *const binary_op[];
+extern const char *const andor_op[];
 extern const char op_priority[];
 extern const char op_argflag[];
