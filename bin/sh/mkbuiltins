@@ -60,7 +60,7 @@ cat <<\!
 
 !
 awk '/^[^#]/ {if(('$havejobs' || $2 != "-j") && ('$havehist' || $2 != "-h")) \
-    print $0}' builtins.def | sed 's/-j//' > $temp
+    print $0}' builtins.def | sed 's/-[hj]//' > $temp
 awk '{	printf "int %s();\n", $1}' $temp
 echo '
 int (*const builtinfunc[])() = {'
