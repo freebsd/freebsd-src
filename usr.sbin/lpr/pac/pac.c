@@ -33,13 +33,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pac.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -99,6 +103,7 @@ static struct	hent *enter __P((char []));
 static struct	hent *lookup __P((char []));
 static int	qucmp __P((const void *, const void *));
 static void	rewrite __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -158,9 +163,7 @@ main(argc, argv)
 				continue;
 
 			default:
-fprintf(stderr,
-    "usage: pac [-Pprinter] [-pprice] [-s] [-c] [-r] [-m] [user ...]\n");
-				exit(1);
+				usage();
 			}
 		}
 		(void) enter(--cp);
@@ -188,6 +191,14 @@ fprintf(stderr,
 	else
 		dumpit();
 	exit(errs);
+}
+
+static void
+usage()
+{
+	fprintf(stderr,
+	"usage: pac [-Pprinter] [-pprice] [-s] [-c] [-r] [-m] [user ...]\n");
+	exit(1);
 }
 
 /*
@@ -287,7 +298,7 @@ rewrite()
 	register FILE *acctf;
 
 	if ((acctf = fopen(sumfile, "w")) == NULL) {
-		perror(sumfile);
+		warn("%s", sumfile);
 		errs++;
 		return;
 	}
@@ -301,12 +312,12 @@ rewrite()
 	}
 	fflush(acctf);
 	if (ferror(acctf)) {
-		perror(sumfile);
+		warn("%s", sumfile);
 		errs++;
 	}
 	fclose(acctf);
 	if ((acctf = fopen(acctfile, "w")) == NULL)
-		perror(acctfile);
+		warn("%s", acctfile);
 	else
 		fclose(acctf);
 }
@@ -438,10 +449,8 @@ chkprinter(s)
 	if (!pflag && (cgetnum(bp, "pc", &price100) == 0))
 		price = price100/10000.0;
 	sumfile = (char *) calloc(sizeof(char), strlen(acctfile)+5);
-	if (sumfile == NULL) {
-		perror("pac");
-		exit(1);
-	}
+	if (sumfile == NULL)
+		errx(1, "calloc failed");
 	strcpy(sumfile, acctfile);
 	strcat(sumfile, "_sum");
 	return(1);
