@@ -256,7 +256,7 @@ extern int	fgetstr(char *buf, int size, int fd);
 
 extern int	open(const char *, int);
 #define	O_RDONLY	0x0
-#define O_WRONLY	0x1			/* writing not (yet?) supported */
+#define O_WRONLY	0x1
 #define O_RDWR		0x2
 extern int	close(int);
 extern void	closeall(void);
