@@ -39,7 +39,7 @@ do
     eval output=\$${arg##*/}_output
     case "$output" in
     /*) pipe="cat >>$output";;
-    "") pipe=cat
+    "") pipe=cat;;
     *)  pipe="mail -s '$host ${arg##*/} run output' $output";;
     esac
 
