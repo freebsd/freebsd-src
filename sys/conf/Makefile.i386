@@ -121,7 +121,7 @@ ioconf.o: ioconf.c $S/sys/param.h machine/pte.h $S/sys/buf.h \
 
 conf.o: $S/sys/param.h $S/sys/systm.h $S/sys/buf.h $S/sys/ioctl.h \
 	$S/sys/tty.h $S/sys/conf.h \
-	as.h bpfilter.h cd.h ch.h com.h dcfclk.h fd.h lpa.h \
+	bpfilter.h cd.h ch.h com.h dcfclk.h fd.h lpa.h \
 	lpt.h pty.h sd.h speaker.h st.h wd.h wt.h \
 	${I386}/i386/conf.c
 	${CC} -traditional -c ${CFLAGS} ${I386}/i386/conf.c
