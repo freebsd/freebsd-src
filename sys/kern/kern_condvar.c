@@ -367,8 +367,6 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 
-	if (td->td_proc->p_flag & P_WEXIT)
-		rval = EWOULDBLOCK;
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
