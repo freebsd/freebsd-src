@@ -517,6 +517,7 @@ static void
 mddelete(struct md_s *sc)
 {
 
+	devstat_remove_entry(&sc->stats);
 	/* XXX: LOCK(unique unit numbers) */
 	LIST_REMOVE(sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
