@@ -583,7 +583,14 @@ END(tl0_sfsr_trap)
 	.align	32
 	.endm
 
-	.macro	immu_miss_user
+	.macro	tl0_immu_miss
+	/*
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
+	 */
+	wr	%g0, ASI_IMMU, %asi
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g1
+
 	/*
 	 * Initialize the page size walker.
 	 */
@@ -677,20 +684,6 @@ END(tl0_sfsr_trap)
 	 cmp	%g2, TS_MAX
 	bne,pt	%xcc, 1b
 	 add	%g2, 1, %g2
-	.endm
-
-	.macro	tl0_immu_miss
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g1
-
-	/*
-	 * Try a fast inline lookup of the user tsb.
-	 */
-	immu_miss_user
 
 	/*
 	 * Not in user tsb, call c code.
@@ -748,10 +741,18 @@ ENTRY(tl0_immu_miss_trap)
 	 mov	T_INSTRUCTION_MISS, %o0
 END(tl0_immu_miss_trap)
 
-	.macro	dmmu_miss_user
+	.macro	tl0_dmmu_miss
+	/*
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+
 	/*
 	 * Initialize the page size walker.
 	 */
+tl1_dmmu_miss_user:
 	mov	TS_MIN, %g2
 
 	/*
@@ -814,7 +815,7 @@ END(tl0_immu_miss_trap)
 	 * Set the reference bit, if it's currently clear.
 	 */
 	 andcc	%g7, TD_REF, %g0
-	bz,a,pn	%xcc, dmmu_miss_user_set_ref
+	bz,a,pn	%xcc, tl0_dmmu_miss_set_ref
 	 nop
 
 	/*
@@ -840,9 +841,15 @@ END(tl0_immu_miss_trap)
 	 cmp	%g2, TS_MAX
 	bne,pt	%xcc, 1b
 	 add	%g2, 1, %g2
+
+	/*
+	 * Not in user tsb, call c code.
+	 */
+	ba,a	%xcc, tl0_dmmu_miss_trap
+	.align	128
 	.endm
 
-ENTRY(dmmu_miss_user_set_ref)
+ENTRY(tl0_dmmu_miss_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
@@ -860,27 +867,7 @@ ENTRY(dmmu_miss_user_set_ref)
 	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
 	stxa	%g2, [%g0] ASI_DTLB_DATA_IN_REG
 1:	retry
-END(dmmu_miss_user_set_ref)
-
-	.macro	tl0_dmmu_miss
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
-
-	/*
-	 * Try a fast inline lookup of the primary tsb.
-	 */
-	dmmu_miss_user
-
-	/*
-	 * Not in user tsb, call c code.
-	 */
-	ba,a	%xcc, tl0_dmmu_miss_trap
-	.align	128
-	.endm
+END(tl0_dmmu_miss_set_ref)
 
 ENTRY(tl0_dmmu_miss_trap)
 	/*
@@ -896,6 +883,14 @@ ENTRY(tl0_dmmu_miss_trap)
 	wrpr	%g0, PSTATE_ALT, %pstate
 
 	/*
+	 * Check if we actually came from the kernel.
+	 */
+	rdpr	%tl, %g1
+	cmp	%g1, 1
+	bgt,a,pn %xcc, 1f
+	 nop
+
+	/*
 	 * Reload the tag access register.
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
@@ -909,12 +904,43 @@ ENTRY(tl0_dmmu_miss_trap)
 	mov	%g2, %o3
 	b	%xcc, tl0_trap
 	 mov	T_DATA_MISS, %o0
+
+	/*
+	 * Handle faults during window spill/fill.
+	 */
+1:	RESUME_SPILLFILL_MMU
+
+	/*
+	 * Reload the tag access register.
+	 */
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+
+	tl1_split
+	clr	%o1
+	set	trap, %o2
+	mov	%g2, %o3
+	b	%xcc, tl1_trap
+	 mov	T_DATA_MISS | T_KERNEL, %o0
 END(tl0_dmmu_miss_trap)
 
-	.macro	dmmu_prot_user
+	.macro	tl0_dmmu_prot
+	ba,a	%xcc, tl0_dmmu_prot_1
+	 nop
+	.align	128
+	.endm
+
+ENTRY(tl0_dmmu_prot_1)
+	/*
+	 * Load the virtual page number and context from the tag access
+	 * register.  We ignore the context.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+
 	/*
 	 * Initialize the page size walker.
 	 */
+tl1_dmmu_prot_user:
 	mov	TS_MIN, %g2
 
 	/*
@@ -1014,26 +1040,6 @@ END(tl0_dmmu_miss_trap)
 	 cmp	%g2, TS_MAX
 	bne,pt	%xcc, 1b
 	 add	%g2, 1, %g2
-	.endm
-
-	.macro	tl0_dmmu_prot
-	ba,a	%xcc, tl0_dmmu_prot_1
-	 nop
-	.align	128
-	.endm
-
-ENTRY(tl0_dmmu_prot_1)
-	/*
-	 * Load the virtual page number and context from the tag access
-	 * register.  We ignore the context.
-	 */
-	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
-
-	/*
-	 * Try a fast inline lookup of the tsb.
-	 */
-	dmmu_prot_user
 
 	/*
 	 * Not in user tsb, call c code.
@@ -1056,6 +1062,14 @@ ENTRY(tl0_dmmu_prot_trap)
 	wrpr	%g0, PSTATE_ALT, %pstate
 
 	/*
+	 * Check if we actually came from the kernel.
+	 */
+	rdpr	%tl, %g1
+	cmp	%g1, 1
+	bgt,a,pn %xcc, 1f
+	 nop
+
+	/*
 	 * Load the tar, sfar and sfsr.
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
@@ -1075,6 +1089,29 @@ ENTRY(tl0_dmmu_prot_trap)
 	mov	%g4, %o5
 	ba	%xcc, tl0_utrap
 	 mov	T_DATA_PROTECTION, %o0
+
+	/*
+	 * Handle faults during window spill/fill.
+	 */
+1:	RESUME_SPILLFILL_MMU_CLR_SFSR
+
+	/*
+	 * Load the sfar, sfsr and tar.  Clear the sfsr.
+	 */
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
+
+	tl1_split
+	clr	%o1
+	set	trap, %o2
+	mov	%g2, %o3
+	mov	%g3, %o4
+	mov	%g4, %o5
+	b	%xcc, tl1_trap
+	 mov	T_DATA_PROTECTION | T_KERNEL, %o0
 END(tl0_dmmu_prot_trap)
 
 	.macro	tl0_spill_0_n
@@ -1468,42 +1505,6 @@ ENTRY(tl1_dmmu_miss_direct)
 	retry
 END(tl1_dmmu_miss_direct)
 
-ENTRY(tl1_dmmu_miss_user)
-	/*
-	 * Try a fast inline lookup of the user tsb.
-	 */
-	dmmu_miss_user
-
-	/*
-	 * Put back the contents of the tag access register, in case we
-	 * faulted.
-	 */
-	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
-	membar	#Sync
-
-	/*
-	 * Switch to alternate globals.
-	 */
-	wrpr	%g0, PSTATE_ALT, %pstate
-
-	/*
-	 * Handle faults during window spill/fill.
-	 */
-	RESUME_SPILLFILL_MMU
-
-	/*
-	 * Reload the tag access register.
-	 */
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
-	tl1_split
-	clr	%o1
-	set	trap, %o2
-	mov	%g2, %o3
-	b	%xcc, tl1_trap
-	 mov	T_DATA_MISS | T_KERNEL, %o0
-END(tl1_dmmu_miss_user)
-
 	.macro	tl1_dmmu_prot
 	ba,a	%xcc, tl1_dmmu_prot_1
 	 nop
@@ -1599,31 +1600,6 @@ tl1_dmmu_prot_patch_2:
 	stxa	%g6, [%g0] ASI_DTLB_DATA_IN_REG
 1:	retry
 END(tl1_dmmu_prot_1)
-
-ENTRY(tl1_dmmu_prot_user)
-	/*
-	 * Try a fast inline lookup of the user tsb.
-	 */
-	dmmu_prot_user
-
-	/*
-	 * Put back the contents of the tag access register, in case we
-	 * faulted.
-	 */
-	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
-	membar	#Sync
-
-	/*
-	 * Switch to alternate globals.
-	 */
-	wrpr	%g0, PSTATE_ALT, %pstate
-
-	/* Handle faults during window spill/fill. */
-	RESUME_SPILLFILL_MMU_CLR_SFSR
-
-	b,a	%xcc, tl1_dmmu_prot_trap
-	 nop
-END(tl1_dmmu_prot_user)
 
 ENTRY(tl1_dmmu_prot_trap)
 	/*
