@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.66 1997/06/24 21:25:06 brian Exp $
+ * $Id: main.c,v 1.67 1997/06/25 19:30:01 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -79,6 +79,7 @@ static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
 static char if_filename[MAXPATHLEN];
 int tunno;
+static int dial_up;
 
 static void
 TtyInit(int DontWantInt)
@@ -195,8 +196,11 @@ Hangup(signo)
 int signo;
 {
   /* NOTE, these are manual, we've done a setsid() */
-  reconnect(RECON_FALSE);
+  LogPrintf(LogPHASE, "Hangup: Caught signal %d, abort connection\n", signo);
+  reconnectState = RECON_FALSE;                  \
+  reconnectCount = 0;                   \
   DownConnection();
+  dial_up = FALSE;
 }
 
 static void
@@ -714,7 +718,6 @@ DoLoop()
   int ssize = sizeof(hisaddr);
   u_char *cp;
   u_char rbuff[MAX_MRU];
-  int dial_up;
   int tries;
   int qlen;
   int res;
