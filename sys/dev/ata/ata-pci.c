@@ -162,6 +162,7 @@ ata_pci_match(device_t dev)
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
 	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x82311106, 0) ||
 	    ata_find_dev(dev, 0x30741106, 0))
 	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
