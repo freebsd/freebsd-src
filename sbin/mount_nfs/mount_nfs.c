@@ -205,7 +205,7 @@ int	xdr_fh __P((XDR *, struct nfhret *));
  * the call to getmntopts.
  */
 static void
-setflags(int* altflags, int* nfsflags, int dir)
+set_flags(int* altflags, int* nfsflags, int dir)
 {
 #define F2(af, nf)					\
 	if (dir) {					\
@@ -345,13 +345,13 @@ main(argc, argv)
 			break;
 		case 'o':
 			altflags = 0;
-			setflags(&altflags, &nfsargsp->flags, TRUE);
+			set_flags(&altflags, &nfsargsp->flags, TRUE);
 			if (mountmode == V2)
 				altflags |= ALTF_NFSV2;
 			else if (mountmode == V3)
 				altflags |= ALTF_NFSV3;
 			getmntopts(optarg, mopts, &mntflags, &altflags);
-			setflags(&altflags, &nfsargsp->flags, FALSE);
+			set_flags(&altflags, &nfsargsp->flags, FALSE);
 			/*
 			 * Handle altflags which don't map directly to
 			 * mount flags.
