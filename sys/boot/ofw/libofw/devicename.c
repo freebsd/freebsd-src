@@ -27,7 +27,6 @@
  */
 
 #include <stand.h>
-#include <sys/disklabel.h>
 #include "libofw.h"
 
 static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
