@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.17 1998/02/20 05:11:40 jb Exp $
+ *	$Id: http.c,v 1.18 1998/05/09 20:50:37 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -1694,18 +1694,17 @@ basic_doauth(struct fetch_state *fs, struct http_auth *ha, int isproxy)
 	    (ha->ha_params == 0 || strchr(ha->ha_params, ':') == 0))
 		return EX_NOPERM;
 		
-	fp = fopen("/dev/tty", "r+");
-	if (fp == 0) {
-		warn("opening /dev/tty");
-		return EX_OSERR;
-	}
 	if (ha->ha_params == 0) {
+		fp = fopen("/dev/tty", "r+");
+		if (fp == 0) {
+			warn("opening /dev/tty");
+			return EX_OSERR;
+		}
 		fprintf(fp, "Enter `basic' user name for realm `%s': ",
 			ha->ha_realm);
 		fflush(fp);
-		user = fgetln(stdin, &userlen);
+		user = fgetln(fp, &userlen);
 		if (user == 0 || userlen < 1) { /* longer name? */
-			fclose(fp);
 			return EX_NOPERM;
 		}
 		if (user[userlen - 1] == '\n')
@@ -1713,6 +1712,7 @@ basic_doauth(struct fetch_state *fs, struct http_auth *ha, int isproxy)
 		else
 			user[userlen] = '\0';
 		user = safe_strdup(user);
+		fclose(fp);
 		pass = 0;
 	} else if ((pass = strchr(ha->ha_params, ':')) == 0) {
 		user = safe_strdup(ha->ha_params);
