@@ -1,0 +1,205 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2000
+.Dt NTP_ACC 8
+.Os
+.Sh NAME
+.Nm ntp_acc
+.Nd NTP daemon access control options
+.Sh SYNOPSIS
+.Pa /etc/ntp.conf
+.Sh DESCRIPTION
+.Xr ntpd 8
+implements a general purpose
+address-and-mask based restriction list.
+The list is sorted by address and by mask,
+and the list is searched in this order for matches,
+with the last match found
+defining the restriction flags associated with the incoming packets.
+The source address of incoming packets is used for the match,
+with the 32-bit address being AND'ed with the mask
+associated with the restriction entry
+and then compared with the entry's address
+(which has also been AND'ed with the mask)
+to look for a match.
+Additional information and examples can be found in the
+.Qo
+Notes on Configuring NTP and Setting up a NTP Subnet
+.Qc
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp ) .
+.Pp
+The restriction facility was implemented
+in conformance with the access policies
+for the original NSFnet backbone time servers.
+While this facility may be otherwise useful
+for keeping unwanted or broken remote time servers
+from affecting your own,
+it should not be considered an alternative
+to the standard NTP authentication facility.
+Source address based restrictions are easily circumvented
+by a determined cracker.
+.Ss Access Control Commands
+The following access control commands are available:
+.Bl -tag -width indent
+.It Xo Ic restrict
+.Ar numeric_address
+.Op mask Ar numeric_mask
+.Op Ar flag
+.Op ...
+.Xc
+The
+.Ar numeric_address
+argument, expressed in dotted-quad form,
+is the address of an host or network.
+The
+.Ar numeric_mask
+argument, also expressed in dotted-quad form,
+defaults to 255.255.255.255,
+meaning that the
+.Ar numeric_address
+is treated as the address of an individual host.
+A default entry
+(address 0.0.0.0, mask 0.0.0.0)
+is always included and, given the sort algorithm,
+is always the first entry in the list.
+Note that, while
+.Ar numeric_address
+is normally given in dotted-quad format,
+the text string default, with no mask option,
+may be used to indicate the default entry.
+.Pp
+In the current implementation, flag always restricts access,
+i.e. an entry with no flags indicates
+that free access to the server is to be given.
+The flags are not orthogonal, in that more restrictive flags
+will often make less restrictive ones redundant.
+The flags can generally be classed into two catagories,
+those which restrict time service
+and those which restrict informational queries
+and attempts to do run-time reconfiguration of the server.
+One or more of the following flags may be specified:
+.Bl -tag -width indent
+.It ignore
+Ignore all packets from hosts which match this entry.
+If this flag is specified neither queries
+nor time server polls will be responded to.
+.It noquery
+Ignore all NTP mode 6 and 7 packets
+(i.e. information queries and configuration requests)
+from the source.
+Time service is not affected.
+.It nomodify
+Ignore all NTP mode 6 and 7 packets
+which attempt to modify the state of the server
+(i.e. run time reconfiguration).
+Queries which return information are permitted.
+.It notrap
+Decline to provide mode 6 control message trap service
+to matching hosts.
+The trap service is a subsystem
+of the mode 6 control message protocol
+which is intended for use by remote event logging programs.
+.It lowpriotrap
+Declare traps set by matching hosts to be low priority.
+The number of traps a server can maintain is limited
+(the current limit is 3).
+Traps are usually assigned on a first come,
+first served basis,
+with later trap requestors being denied service.
+This flag modifies the assignment algorithm
+by allowing low priority traps to be overridden
+by later requests for normal priority traps.
+.It noserve
+Ignore NTP packets whose mode is other than 6 or 7.
+In effect,
+time service is denied,
+though queries may still be permitted.
+.It nopeer
+Provide stateless time service to polling hosts,
+but do not allocate peer memory resources to these hosts
+even if they otherwise might be considered useful
+as future synchronization partners.
+.It notrust
+Treat these hosts normally in other respects,
+but never use them as synchronization sources.
+.It limited
+These hosts are subject to limitation
+of number of clients from the same net.
+Net in this context refers to the IP notion of net
+(class A, class B, class C, etc.).
+Only the first
+.Va client_limit
+hosts (see below) that have shown up at the server
+and that have been active during the last
+.Va client_limit_period
+seconds (see below) are accepted.
+Requests from other clients from the same net are rejected.
+Only time request packets are taken into account.
+Query packets sent by the
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+programs are not subject to these limits.
+A history of clients is kept using the monitoring capability of
+.Xr ntpd 8 .
+Thus, monitoring is always active
+as long as there is a restriction entry with the limited flag.
+.It ntpport
+This is actually a match algorithm modifier,
+rather than a restriction flag.
+Its presence causes the restriction entry to be matched
+only if the source port in the packet
+is the standard NTP UDP port (123).
+Both ntpport and non-ntpport may be specified.
+The ntpport is considered more specific
+and is sorted later in the list.
+.El
+.Pp
+Default restriction list entries,
+with the flags ignore and ntpport,
+for each of the local host's interface addresses
+are inserted into the table at startup
+to prevent the server from attempting to synchronize
+to its own time.
+A default entry is also always present,
+unless if it is otherwise unconfigured;
+no flags are associated with the default entry
+(i.e. everything besides your own NTP server is unrestricted).
+.It clientlimit Ar limit
+Set the
+.Va client_limit
+variable,
+which limits the number of simultaneous access-controlled clients.
+The default value for this variable is 3.
+.It clientperiod Ar period
+Set the
+.Va client_limit_period
+variable,
+which specifies the number of seconds
+after which a client is considered inactive
+and thus no longer is counted for client limit restriction.
+The default value for this variable is 3600 seconds.
+.El
+.Sh SEE ALSO
+.Xr ntp_conf 8 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8 ,
+.Xr ntpq 8
+.Pp
+In addition to the manual pages provided,
+comprehensive documentation is available on the world wide web
+at
+.Li http://www.ntp.org/ .
+A snapshot of this documentation is available in HTML format in
+.Pa /usr/share/doc/ntp .
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+Text amended by
+.An David Mills
+at the University of Delaware.
