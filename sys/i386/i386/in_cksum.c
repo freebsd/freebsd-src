@@ -66,13 +66,13 @@
  * which registers contain sum & w.
  */
 #define ADD(n)	__asm __volatile \
-		("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+		("addl " #n "(%1), %0" : "+r" (sum) : "r" (w))
 #define ADDC(n)	__asm __volatile \
-		("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+		("adcl " #n "(%1), %0" : "+r" (sum) : "r" (w))
 #define LOAD(n)	__asm __volatile \
-		("movb " #n "(%1), %0" : "=r" (junk) :           "r" (w))
+		("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
 #define MOP	__asm __volatile \
-		("adcl         $0, %0" : "=r" (sum) : "0" (sum))
+		("adcl         $0, %0" : "+r" (sum))
 
 u_short
 in_cksum_skip(m, len, skip)
