@@ -7,4 +7,8 @@
 ^[tTyY].*
 # noexpr
 ^[nN].*
+# yesstr
+tak
+# nostr
+nie
 # EOF
