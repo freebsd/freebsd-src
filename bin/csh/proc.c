@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: proc.c,v 1.4 1997/02/22 14:02:06 peter Exp $";
+	"$Id: proc.c,v 1.5 1997/08/07 21:42:15 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -1172,7 +1172,7 @@ pfind(cp)
 	}
     if (np)
 	return (np);
-    stderror((ERR_NAME | cp[1]) == '?' ? ERR_JOBPAT : ERR_NOSUCHJOB);
+    stderror(ERR_NAME | (cp[1] == '?' ? ERR_JOBPAT : ERR_NOSUCHJOB));
     /* NOTREACHED */
     return (0);
 }

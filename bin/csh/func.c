@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)func.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: func.c,v 1.7 1997/02/22 14:01:55 peter Exp $";
+	"$Id: func.c,v 1.8 1997/08/07 21:42:09 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -1206,7 +1206,6 @@ getval(lp, v)
     Char  **v;
 {
     float f;
-    double  atof();
     Char   *cp = *v++;
 
     f = atof(short2str(cp));
@@ -1371,7 +1370,7 @@ dosuspend(v, t)
 {
     int     ctpgrp;
 
-    void    (*old) ();
+    void    (*old) __P((int));
 
     if (loginsh)
 	stderror(ERR_SUSPLOG);
