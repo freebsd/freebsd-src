@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
-e* notice and this permission notice appear in all copies of the
+ * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
  *
@@ -24,7 +24,7 @@ e* notice and this permission notice appear in all copies of the
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.13 1996/09/10 21:18:40 phk Exp $
+ *	$Id: sys.c,v 1.14 1996/09/11 19:23:11 phk Exp $
  */
 
 #include "boot.h"
@@ -46,6 +46,8 @@ char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
 char mapbuf[MAPBUFSIZE];
 int mapblock;
+
+int poff;
 
 #ifdef RAWBOOT
 #define STARTBYTE	8192	/* Where on the media the kernel starts */
@@ -191,8 +193,8 @@ block_map(int file_block)
 int
 openrd(void)
 {
-	char **devp, *cp = name;
-	int biosdrive, ret;
+	char **devp, *name0 = name, *cp = name0;
+	int biosdrive, dosdev_copy, ret;
 
 	/*******************************************************\
 	* If bracket given look for preceding device name	*
@@ -201,7 +203,7 @@ openrd(void)
 		cp++;
 	if (!*cp)
 	{
-		cp = name;
+		cp = name0;
 	}
 	else
 	{
@@ -210,16 +212,16 @@ openrd(void)
 		 * by a colon).
 		 */
 		biosdrivedigit = '\0';
-		if (*(name + 1) == ':' && *name >= '0' && *name <= '9') {
-			biosdrivedigit = *name;
-			name += 2;
+		if (*(name0 + 1) == ':' && *name0 >= '0' && *name0 <= '9') {
+			biosdrivedigit = *name0;
+			name0 += 2;
 		}
 
-		if (cp++ != name)
+		if (cp++ != name0)
 		{
 			for (devp = devs; *devp; devp++)
-				if (name[0] == (*devp)[0] &&
-				    name[1] == (*devp)[1])
+				if (name0[0] == (*devp)[0] &&
+				    name0[1] == (*devp)[1])
 					break;
 			if (!*devp)
 			{
@@ -262,17 +264,18 @@ openrd(void)
 	{
 	case 0:
 	case 4:
-		dosdev = biosdrive | 0x80;
+		dosdev_copy = biosdrive | 0x80;
 		break;
 	case 2:
-		dosdev = biosdrive;
+		dosdev_copy = biosdrive;
 		break;
 	default:
 		printf("Unknown device\n");
 		return 1;
 	}
-	printf("dosdev = %x, biosdrive = %d, unit = %d, maj = %d\n",
-		dosdev, biosdrive, unit, maj);
+	dosdev = dosdev_copy;
+	printf("dosdev= %x, biosdrive = %d, unit = %d, maj = %d\n",
+		dosdev_copy, biosdrive, unit, maj);
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*
