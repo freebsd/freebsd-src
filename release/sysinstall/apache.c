@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.5 1995/10/26 08:55:27 jkh Exp $
+ * $Id: apache.c,v 1.6 1995/10/27 02:12:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -56,6 +56,7 @@
 #define APACHE_BASE     "/usr/local/www"
 #define APACHE_HELPFILE "apache"
 #define APACHE_PACKAGE  "apache-0.8.14"
+#define FREEBSD_GIF	"/stand/power.gif"
 
 typedef struct
 {
@@ -389,7 +390,7 @@ int
 installApache(char *unused)
 {
     int i,maxcon;
-    char tbuf[128], company[64], file[128], cmd[256];
+    char company[64], file[128], cmd[256];
     char *tptr;
     FILE *fptr;
 
@@ -469,7 +470,7 @@ installApache(char *unused)
 		    if ((tptr = variable_get(VAR_DOMAINNAME)))
 			sprintf(tconf.email,"root@%s",tptr);
 		}
-		if (tbuf[0])
+		if (tconf.email[0])
 		{
 		    fprintf(fptr,"<ADDRESS><H4>\n");
 		    fprintf(fptr,"    For questions or comments, send mail to:\n");
@@ -479,6 +480,8 @@ installApache(char *unused)
 		}
 		fprintf(fptr,"</CENTER>\n\n");
 		fclose(fptr);
+		if (file_readable(FREEBSD_GIF))
+		    vsystem("cp %s %s", FREEBSD_GIF, tconf.docroot);
 	    }
 	    else
 		msgConfirm("Unable to create sample Web Page.");
