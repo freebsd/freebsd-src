@@ -86,7 +86,9 @@ static timeout_t 	pcic_reset;
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
+#ifdef LKM
 static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
+#endif
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
 
