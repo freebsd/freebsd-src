@@ -42,6 +42,7 @@
 #include <sys/sysctl.h>
 #include <sys/mbuf.h>
 #include <sys/uio.h>
+#include <sys/ksiginfo.h>
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_var.h>
@@ -80,10 +81,10 @@ ncp_chkintr(struct ncp_conn *conn, struct proc *p)
 
 	if (p == NULL)
 		return 0;
-	tmpset = p->p_siglist;
+	ksiginfo_to_sigset_t(p, &tmpset);
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (SIGNOTEMPTY(p->p_siglist) && NCP_SIGMASK(tmpset))
+	if (signal_queued(p, 0) && NCP_SIGMASK(tmpset))
                 return EINTR;
 	return 0;
 }
