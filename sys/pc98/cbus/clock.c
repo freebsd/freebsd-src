@@ -57,6 +57,7 @@
 #include "opt_mca.h"
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
@@ -149,7 +150,7 @@ int	statclock_disable;
 #endif
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
-u_int	tsc_freq;
+uint64_t	tsc_freq;
 int	tsc_is_broken;
 u_int	tsc_present;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
@@ -749,7 +750,7 @@ calibrate_clocks(void)
 
 	if (bootverbose) {
 		if (tsc_present)
-		        printf("TSC clock: %u Hz, ", tsc_freq);
+		        printf("TSC clock: %ju Hz, ", (intmax_t)tsc_freq);
 	        printf("i8254 clock: %u Hz\n", tot_count);
 	}
 	return (tot_count);
