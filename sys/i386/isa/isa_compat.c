@@ -315,11 +315,3 @@ haveseen_iobase(struct isa_device *dvp, int size)
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	return res ? 0 : 1;
 }
-
-void
-reconfig_isadev(isdp, mp)
-	struct isa_device *isdp;
-	u_int *mp;
-{
-	printf("reconfig_isadev() called - FIXME!\n");
-}
