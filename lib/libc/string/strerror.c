@@ -41,88 +41,87 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <errno.h>
 
-
 int
 strerror_r(int errnum, char *strerrbuf, size_t buflen)
 {
-#define	UPREFIX	"Unknown error: "
-	unsigned int uerr;
-	char *p, *t;
-	char tmp[40];				/* 64-bit number + slop */
-	int len;
+	int             len;
 
-	uerr = errnum;				/* convert to unsigned */
-	if (uerr < sys_nerr) {
-		len = strlcpy(strerrbuf, (char *)sys_errlist[uerr], buflen);
-		return (len <= buflen) ? 0 : ERANGE;
+	if ((errnum > 0) && (errnum < sys_nerr)) {
+		len = strlcpy(strerrbuf, (char *)sys_errlist[errnum], buflen);
+		return ((len <= buflen) ? 0 : ERANGE);
 	}
-
-	/* Print unknown errno by hand so we don't link to stdio(3). */
-	t = tmp;
-	if (errnum < 0)
-		uerr = -uerr;
-	do {
-		*t++ = "0123456789"[uerr % 10];
-	} while (uerr /= 10);
-
-	if (errnum < 0)
-		*t++ = '-';
-
-	strlcpy(strerrbuf, UPREFIX, buflen);
-	for (p = strerrbuf + sizeof(UPREFIX) - 1; p < strerrbuf + buflen; ) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-
-	if (p < strerrbuf + buflen) {
-		*p = '\0';
-		return 0;
-	}
-
-	return ERANGE;
+	return (EINVAL);
 }
-
-
-/*
- * NOTE: the following length should be enough to hold the longest defined
- * error message in sys_errlist, defined in ../gen/errlst.c.  This is a WAG
- * that is better than the previous value.
- */
-#define ERR_LEN 64
 
 char *
 strerror(num)
-	int num;
+	int             num;
 {
-	unsigned int uerr;
-	static char ebuf[ERR_LEN];
+	char           *p, *t;
+	unsigned int	uerr;
+	static char const unknown_prefix[] = "Unknown error: ";
 
-	uerr = num;				/* convert to unsigned */
-	if (uerr < sys_nerr)
-		return (char *)sys_errlist[uerr];
+	/*
+	 * Define a buffer size big enough to describe a 64-bit
+	 * number in ASCII decimal (19), with optional leading sign
+	 * (+1) and trailing NUL (+1).
+	 */
+#       define		NUMLEN 21
+#	define		EBUFLEN (sizeof unknown_prefix + NUMLEN)
+	char            tmp[NUMLEN];	/* temporary number */
+	static char     ebuf[EBUFLEN];	/* error message */
 
-	/* strerror can't fail so handle truncation semi-elegantly */
-	if (strerror_r(num, ebuf, (size_t) ERR_LEN) != 0)
-	    ebuf[ERR_LEN - 1] = '\0';
+	if ((num > 0) && (num < sys_nerr))
+		return ((char *)sys_errlist[num]);
 
-	return ebuf;
+	/*
+	 * Print unknown errno by hand so we don't link to stdio(3).
+	 * This collects the ASCII digits in reverse order.
+	 */
+	uerr = (num > 0) ? num : -num;
+	t = tmp;
+	do {
+		*t++ = "0123456789"[uerr % 10];
+	} while (uerr /= 10);
+	if (num < 0)
+		*t++ = '-';
+
+	/*
+	 * Copy the "unknown" message and the number into the caller
+	 * supplied buffer, inverting the number string.
+	 */
+	strcpy(ebuf, unknown_prefix);
+	for (p = ebuf + sizeof unknown_prefix - 1; t >= tmp; )
+		*p++ = *--t;
+	*p = '\0';
+	return (ebuf);
 }
 
-
 #ifdef STANDALONE_TEST
+
+#include <limits.h>
+
 main()
 {
-	char mybuf[64];
-	int ret;
+	char            mybuf[64];
+	int             ret;
 
 	printf("strerror(47) yeilds: %s\n", strerror(47));
+	printf("strerror(437) yeilds: %s\n", strerror(437));
+	printf("strerror(LONG_MAX) yeilds: %s\n", strerror(LONG_MAX));
+	printf("strerror(LONG_MIN) yeilds: %s\n", strerror(LONG_MIN));
+	printf("strerror(ULONG_MAX) yeilds: %s\n", strerror(ULONG_MAX));
+
+	memset(mybuf, '*', 63); mybuf[63] = '\0';
 	strerror_r(11, mybuf, 64);
 	printf("strerror_r(11) yeilds: %s\n", mybuf);
-	strerror_r(1234, mybuf, 64);
-	printf("strerror_r(1234) yeilds: %s\n", mybuf);
-	memset(mybuf, '*', 63);
-	ret = strerror_r(4321, mybuf, 16);
+
+	memset(mybuf, '*', 63); mybuf[63] = '\0';
+	ret = strerror_r(1234, mybuf, 64);
+	printf("strerror_r(1234) returns %d (%s)\n", ret, mybuf);
+
+	memset(mybuf, '*', 63); mybuf[63] = '\0';
+	ret = strerror_r(1, mybuf, 10);
 	printf("strerror_r on short buffer returns %d (%s)\n", ret, mybuf);
 }
 #endif
