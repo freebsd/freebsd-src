@@ -58,6 +58,7 @@
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <net/if.h>
+#include <net/radix.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -131,6 +132,19 @@ struct ip_fw_chain {
 static struct ip_fw_chain layer3_chain;
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
+
+struct table_entry {
+	struct radix_node	rn[2];
+	struct sockaddr_in	addr, mask;
+	u_int32_t		value;
+};
+
+#define	IPFW_TABLES_MAX		128
+static struct {
+	struct radix_node_head	*rnh;
+	int			modified;
+} ipfw_tables[IPFW_TABLES_MAX];
 
 static int fw_debug = 1;
 static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
@@ -1313,6 +1327,204 @@ lookup_next_rule(struct ip_fw *me)
 	return rule;
 }
 
+static void
+init_tables(void)
+{
+	int i;
+
+	for (i = 0; i < IPFW_TABLES_MAX; i++) {
+		rn_inithead((void **)&ipfw_tables[i].rnh, 32);
+		ipfw_tables[i].modified = 1;
+	}
+}
+
+static int
+add_table_entry(u_int16_t tbl, in_addr_t addr, u_int8_t mlen, u_int32_t value)
+{
+	struct radix_node_head *rnh;
+	struct table_entry *ent;
+
+	if (tbl >= IPFW_TABLES_MAX)
+		return (EINVAL);
+	rnh = ipfw_tables[tbl].rnh;
+	ent = malloc(sizeof(*ent), M_IPFW_TBL, M_NOWAIT | M_ZERO);
+	if (ent == NULL)
+		return (ENOMEM);
+	ent->value = value;
+	ent->addr.sin_len = ent->mask.sin_len = 8;
+	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
+	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
+	    NULL) {
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+		free(ent, M_IPFW_TBL);
+		return (EEXIST);
+	}
+	ipfw_tables[tbl].modified = 1;
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	return (0);
+}
+
+static int
+del_table_entry(u_int16_t tbl, in_addr_t addr, u_int8_t mlen)
+{
+	struct radix_node_head *rnh;
+	struct table_entry *ent;
+	struct sockaddr_in sa, mask;
+
+	if (tbl >= IPFW_TABLES_MAX)
+		return (EINVAL);
+	rnh = ipfw_tables[tbl].rnh;
+	sa.sin_len = mask.sin_len = 8;
+	mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
+	sa.sin_addr.s_addr = addr & mask.sin_addr.s_addr;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	ent = (struct table_entry *)rnh->rnh_deladdr(&sa, &mask, rnh);
+	if (ent == NULL) {
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+		return (ESRCH);
+	}
+	ipfw_tables[tbl].modified = 1;
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	free(ent, M_IPFW_TBL);
+	return (0);
+}
+
+static int
+flush_table_entry(struct radix_node *rn, void *arg)
+{
+	struct radix_node_head * const rnh = arg;
+	struct table_entry *ent;
+
+	ent = (struct table_entry *)
+	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
+	if (ent != NULL)
+		free(ent, M_IPFW_TBL);
+	return (0);
+}
+
+static int
+flush_table(u_int16_t tbl)
+{
+	struct radix_node_head *rnh;
+
+	if (tbl >= IPFW_TABLES_MAX)
+		return (EINVAL);
+	rnh = ipfw_tables[tbl].rnh;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+	ipfw_tables[tbl].modified = 1;
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	return (0);
+}
+
+static void
+flush_tables(void)
+{
+	u_int16_t tbl;
+
+	for (tbl = 0; tbl < IPFW_TABLES_MAX; tbl++)
+		flush_table(tbl);
+}
+
+static int
+lookup_table(u_int16_t tbl, in_addr_t addr, u_int32_t *val)
+{
+	struct radix_node_head *rnh;
+	struct table_entry *ent;
+	struct sockaddr_in sa;
+	static in_addr_t last_addr;
+	static int last_tbl;
+	static int last_match;
+	static u_int32_t last_value;
+
+	if (tbl >= IPFW_TABLES_MAX)
+		return (0);
+	if (tbl == last_tbl && addr == last_addr &&
+	    !ipfw_tables[tbl].modified) {
+		if (last_match)
+			*val = last_value;
+		return (last_match);
+	}
+	rnh = ipfw_tables[tbl].rnh;
+	sa.sin_len = 8;
+	sa.sin_addr.s_addr = addr;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	ipfw_tables[tbl].modified = 0;
+	ent = (struct table_entry *)(rnh->rnh_lookup(&sa, NULL, rnh));
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	last_addr = addr;
+	last_tbl = tbl;
+	if (ent != NULL) {
+		last_value = *val = ent->value;
+		last_match = 1;
+		return (1);
+	}
+	last_match = 0;
+	return (0);
+}
+
+static int
+count_table_entry(struct radix_node *rn, void *arg)
+{
+	u_int32_t * const cnt = arg;
+
+	(*cnt)++;
+	return (0);
+}
+
+static int
+count_table(u_int32_t tbl, u_int32_t *cnt)
+{
+	struct radix_node_head *rnh;
+
+	if (tbl >= IPFW_TABLES_MAX)
+		return (EINVAL);
+	rnh = ipfw_tables[tbl].rnh;
+	*cnt = 0;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	rnh->rnh_walktree(rnh, count_table_entry, cnt);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	return (0);
+}
+
+static int
+dump_table_entry(struct radix_node *rn, void *arg)
+{
+	struct table_entry * const n = (struct table_entry *)rn;
+	ipfw_table * const tbl = arg;
+	ipfw_table_entry *ent;
+
+	if (tbl->cnt == tbl->size)
+		return (1);
+	ent = &tbl->ent[tbl->cnt];
+	ent->tbl = tbl->tbl;
+	if (in_nullhost(n->mask.sin_addr))
+		ent->masklen = 0;
+	else
+		ent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
+	ent->addr = n->addr.sin_addr.s_addr;
+	ent->value = n->value;
+	tbl->cnt++;
+	return (0);
+}
+
+static int
+dump_table(ipfw_table *tbl)
+{
+	struct radix_node_head *rnh;
+
+	if (tbl->tbl >= IPFW_TABLES_MAX)
+		return (EINVAL);
+	rnh = ipfw_tables[tbl->tbl].rnh;
+	tbl->cnt = 0;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	rnh->rnh_walktree(rnh, dump_table_entry, tbl);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	return (0);
+}
+
 static int
 check_uidgid(ipfw_insn_u32 *insn,
 	int proto, struct ifnet *oif,
@@ -1749,6 +1961,23 @@ check_body:
 				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
 				    src_ip.s_addr);
+				break;
+
+			case O_IP_SRC_LOOKUP:
+			case O_IP_DST_LOOKUP:
+				if (hlen > 0) {
+				    uint32_t a =
+					(cmd->opcode == O_IP_DST_LOOKUP) ?
+					    dst_ip.s_addr : src_ip.s_addr;
+				    uint32_t v;
+
+				    match = lookup_table(cmd->arg1, a, &v);
+				    if (!match)
+					break;
+				    if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
+					match =
+					    ((ipfw_insn_u32 *)cmd)->d[0] == v;
+				}
 				break;
 
 			case O_IP_SRC_MASK:
@@ -2621,6 +2850,18 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
+		case O_IP_SRC_LOOKUP:
+		case O_IP_DST_LOOKUP:
+			if (cmd->arg1 >= IPFW_TABLES_MAX) {
+				printf("ipfw: invalid table number %d\n",
+				    cmd->arg1);
+				return (EINVAL);
+			}
+			if (cmdlen != F_INSN_SIZE(ipfw_insn) &&
+			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
+			break;
+
 		case O_MACADDR2:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
 				goto bad_size;
@@ -2908,6 +3149,87 @@ ipfw_ctl(struct sockopt *sopt)
 			sopt->sopt_name == IP_FW_RESETLOG);
 		break;
 
+	case IP_FW_TABLE_ADD:
+		{
+			ipfw_table_entry ent;
+
+			error = sooptcopyin(sopt, &ent,
+			    sizeof(ent), sizeof(ent));
+			if (error)
+				break;
+			error = add_table_entry(ent.tbl, ent.addr,
+			    ent.masklen, ent.value);
+		}
+		break;
+
+	case IP_FW_TABLE_DEL:
+		{
+			ipfw_table_entry ent;
+
+			error = sooptcopyin(sopt, &ent,
+			    sizeof(ent), sizeof(ent));
+			if (error)
+				break;
+			error = del_table_entry(ent.tbl, ent.addr, ent.masklen);
+		}
+		break;
+
+	case IP_FW_TABLE_FLUSH:
+		{
+			u_int16_t tbl;
+
+			error = sooptcopyin(sopt, &tbl,
+			    sizeof(tbl), sizeof(tbl));
+			if (error)
+				break;
+			error = flush_table(tbl);
+		}
+		break;
+
+	case IP_FW_TABLE_GETSIZE:
+		{
+			u_int32_t tbl, cnt;
+
+			if ((error = sooptcopyin(sopt, &tbl, sizeof(tbl),
+			    sizeof(tbl))))
+				break;
+			if ((error = count_table(tbl, &cnt)))
+				break;
+			error = sooptcopyout(sopt, &cnt, sizeof(cnt));
+		}
+		break;
+
+	case IP_FW_TABLE_LIST:
+		{
+			ipfw_table *tbl;
+
+			if (sopt->sopt_valsize < sizeof(*tbl)) {
+				error = EINVAL;
+				break;
+			}
+			size = sopt->sopt_valsize;
+			tbl = malloc(size, M_TEMP, M_WAITOK);
+			if (tbl == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			error = sooptcopyin(sopt, tbl, size, sizeof(*tbl));
+			if (error) {
+				free(tbl, M_TEMP);
+				break;
+			}
+			tbl->size = (size - sizeof(*tbl)) /
+			    sizeof(ipfw_table_entry);
+			error = dump_table(tbl);
+			if (error) {
+				free(tbl, M_TEMP);
+				break;
+			}
+			error = sooptcopyout(sopt, tbl, size);
+			free(tbl, M_TEMP);
+		}
+		break;
+
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
 		error = EINVAL;
@@ -2972,6 +3294,7 @@ ipfw_init(void)
 	layer3_chain.rules = NULL;
 	IPFW_LOCK_INIT(&layer3_chain);
 	IPFW_DYN_LOCK_INIT();
+	init_tables();
 	callout_init(&ipfw_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 
 	bzero(&default_rule, sizeof default_rule);
@@ -3043,7 +3366,7 @@ ipfw_destroy(void)
 	IPFW_UNLOCK(&layer3_chain);
 	if (reap != NULL)
 		reap_rules(reap);
-
+	flush_tables();
 	IPFW_DYN_LOCK_DESTROY();
 	IPFW_LOCK_DESTROY(&layer3_chain);
 	printf("IP firewall unloaded\n");
