@@ -119,10 +119,10 @@ SUBDIR=	alias \
 	${_mkuzip} \
 	msgs \
 	mt \
+	${_nc} \
 	ncal \
 	${_ncplist} \
 	${_ncplogin} \
-	${_nc} \
 	netstat \
 	newgrp \
 	${_newkey} \
