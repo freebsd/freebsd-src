@@ -95,8 +95,9 @@ readdir_r(dirp, entry, result)
 		return EBADF;
 	}
 #ifdef _THREAD_SAFE
-	if ((ret = _FD_LOCK(dirp->dd_fd, FD_READ, NULL)) != 0)
+	if ((ret = _FD_LOCK(dirp->dd_fd, FD_READ, NULL)) != 0) {
 		return ret;
+	}
 #endif
 	errno = 0;
 	dp = readdir(dirp);
@@ -106,14 +107,16 @@ readdir_r(dirp, entry, result)
 #endif
 		return errno;
 	}
-	if (dp != NULL) 
+	if (dp != NULL) {
 		memcpy(entry, dp, sizeof *entry);
+	}
 #ifdef _THREAD_SAFE
 	_FD_UNLOCK(dirp->dd_fd, FD_READ);
 #endif
-	if (dp != NULL)
-	*result = entry;
-	else
+	if (dp != NULL) {
+		*result = entry;
+	} else {
 		*result = NULL;
+	}
 	return 0;
 }
