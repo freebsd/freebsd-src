@@ -38,7 +38,6 @@ extern	char	esigcode[];
 extern	int	szsigcode;
 extern	int	Maxmem;
 extern	int	busdma_swi_pending;
-extern	void	(*netisrs[32]) __P((void));
 
 struct fpreg;
 struct proc;
