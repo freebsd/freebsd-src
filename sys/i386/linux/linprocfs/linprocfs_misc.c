@@ -51,22 +51,31 @@
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+#include <sys/lock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 #include <sys/vmmeter.h>
 #include <sys/exec.h>
 
-#include <machine/md_var.h>
+#include <machine/clock.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
 
 #include <i386/linux/linprocfs/linprocfs.h>
 
-#define T2J(x) (((x) * 100) / stathz)
-#define T2S(x) ((x) / stathz)
+/*
+ * Various conversion macros
+ */
+#define T2J(x) (((x) * 100) / (stathz ? stathz : hz))	/* ticks to jiffies */
+#define T2S(x) ((x) / (stathz ? stathz : hz))		/* ticks to seconds */
+#define B2K(x) ((x) >> 10)				/* bytes to kbytes */
+#define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
+#define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
 
 int
 linprocfs_domeminfo(curp, p, pfs, uio)
@@ -143,9 +152,9 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 		"SwapFree: %9lu kB\n",
 		memtotal, memused, memfree, memshared, buffers, cached,
 		swaptotal, swapused, swapfree,
-		memtotal >> 10, memfree >> 10,
-		memshared >> 10, buffers >> 10, cached >> 10,
-		swaptotal >> 10, swapfree >> 10);
+		B2K(memtotal), B2K(memfree),
+		B2K(memshared), B2K(buffers), B2K(cached),
+		B2K(swaptotal), B2K(swapfree));
 
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
@@ -164,44 +173,79 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	char *ps;
 	int xlen;
 	char psbuf[512];		/* XXX - conservative */
-	char *class;
+	int class;
+        int i;
 #if 0
 	extern char *cpu_model;		/* Yuck */
 #endif
+        /* We default the flags to include all non-conflicting flags,
+           and the Intel versions of conflicting flags.  Note the space
+           before each name; that is significant, and should be 
+           preserved. */
+
+        static char *flags[] = {
+		"fpu",      "vme",     "de",       "pse",      "tsc",
+		"msr",      "pae",     "mce",      "cx8",      "apic",
+		"sep",      "sep",     "mtrr",     "pge",      "mca",
+		"cmov",     "pat",     "pse36",    "pn",       "b19",
+		"b20",      "b21",     "mmxext",   "mmx",      "fxsr",
+		"xmm",      "b26",     "b27",      "b28",      "b29",
+		"3dnowext", "3dnow"
+	};
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
 	switch (cpu_class) {
 	case CPUCLASS_286:
-		class = "286";
+		class = 2;
 		break;
 	case CPUCLASS_386:
-		class = "386";
+		class = 3;
 		break;
 	case CPUCLASS_486:
-		class = "486";
+		class = 4;
 		break;
 	case CPUCLASS_586:
-		class = "586";
+		class = 5;
 		break;
 	case CPUCLASS_686:
-		class = "686";
+		class = 6;
 		break;
 	default:
-		class = "unknown";
+                class = 0;
 		break;
 	}
 
 	ps = psbuf;
 	ps += sprintf(ps,
 			"processor       : %d\n"
-			"cpu             : %.3s\n"
-			"model           : %.20s\n"
 			"vendor_id       : %.20s\n"
+			"cpu family      : %d\n"
+			"model           : %d\n"
 			"stepping        : %d\n",
-			0, class, "unknown", cpu_vendor, cpu_id);
+			0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
+        ps += sprintf(ps,
+                        "flags           :");
+
+        if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
+		flags[16] = "fcmov";
+        } else if (!strcmp(cpu_vendor, "CyrixInstead")) {
+		flags[24] = "cxmmx";
+        }
+        
+        for (i = 0; i < 32; i++)
+		if (cpu_feature & (1 << i))
+			ps += sprintf(ps, " %s", flags[i]);
+	ps += sprintf(ps, "\n");
+        if (class >= 5) {
+		ps += sprintf(ps,
+			"cpu MHz         : %d.%02d\n",
+                        (tsc_freq + 4999) / 1000000,
+                        ((tsc_freq + 4999) / 10000) % 100);
+        }
+        
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
@@ -291,3 +335,161 @@ linprocfs_doversion(curp, p, pfs, uio)
 	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 }
 
+int
+linprocfs_doprocstat(curp, p, pfs, uio)
+    	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	char *ps, psbuf[1024];
+	int xlen;
+
+	ps = psbuf;
+	ps += sprintf(ps, "%d", p->p_pid);
+#define PS_ADD(name, fmt, arg) ps += sprintf(ps, " " fmt, arg)
+	PS_ADD("comm",		"(%s)",	p->p_comm);
+	PS_ADD("statr",		"%c",	'0'); /* XXX */
+	PS_ADD("ppid",		"%d",	p->p_pptr->p_pid);
+	PS_ADD("pgrp",		"%d",	p->p_pgid);
+	PS_ADD("session",	"%d",	p->p_session->s_sid);
+	PS_ADD("tty",		"%d",	0); /* XXX */
+	PS_ADD("tpgid",		"%d",	0); /* XXX */
+	PS_ADD("flags",		"%u",	0); /* XXX */
+	PS_ADD("minflt",	"%u",	0); /* XXX */
+	PS_ADD("cminflt",	"%u",	0); /* XXX */
+	PS_ADD("majflt",	"%u",	0); /* XXX */
+	PS_ADD("cminflt",	"%u",	0); /* XXX */
+	PS_ADD("utime",		"%d",	0); /* XXX */
+	PS_ADD("stime",		"%d",	0); /* XXX */
+	PS_ADD("cutime",	"%d",	0); /* XXX */
+	PS_ADD("cstime",	"%d",	0); /* XXX */
+	PS_ADD("counter",	"%d",	0); /* XXX */
+	PS_ADD("priority",	"%d",	0); /* XXX */
+	PS_ADD("timeout",	"%u",	0); /* XXX */
+	PS_ADD("itrealvalue",	"%u",	0); /* XXX */
+	PS_ADD("starttime",	"%d",	0); /* XXX */
+	PS_ADD("vsize",		"%u",	0); /* XXX */
+	PS_ADD("rss",		"%u",	0); /* XXX */
+	PS_ADD("rlim",		"%u",	0); /* XXX */
+	PS_ADD("startcode",	"%u",	0); /* XXX */
+	PS_ADD("endcode",	"%u",	0); /* XXX */
+	PS_ADD("startstack",	"%u",	0); /* XXX */
+	PS_ADD("kstkesp",	"%u",	0); /* XXX */
+	PS_ADD("kstkeip",	"%u",	0); /* XXX */
+	PS_ADD("signal",	"%d",	0); /* XXX */
+	PS_ADD("blocked",	"%d",	0); /* XXX */
+	PS_ADD("sigignore",	"%d",	0); /* XXX */
+	PS_ADD("sigcatch",	"%d",	0); /* XXX */
+	PS_ADD("wchan",		"%u",	0); /* XXX */
+#undef PS_ADD
+	ps += sprintf(ps, "\n");
+	
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}
+
+/*
+ * Map process state to descriptive letter. Note that this does not
+ * quite correspond to what Linux outputs, but it's close enough.
+ */
+static char *state_str[] = {
+	"? (unknown)",
+	"I (idle)",
+	"R (running)",
+	"S (sleeping)",
+	"T (stopped)",
+	"Z (zombie)",
+	"W (waiting)",
+	"M (mutex)"
+};
+
+int
+linprocfs_doprocstatus(curp, p, pfs, uio)
+    	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	char *ps, psbuf[1024];
+	char *state;
+	int i, xlen;
+
+	ps = psbuf;
+
+	if (p->p_stat > sizeof state_str / sizeof *state_str)
+		state = state_str[0];
+	else
+		state = state_str[(int)p->p_stat];
+
+#define PS_ADD ps += sprintf
+	PS_ADD(ps, "Name:\t%s\n",	  p->p_comm); /* XXX escape */
+	PS_ADD(ps, "State:\t%s\n",	  state);
+
+	/*
+	 * Credentials
+	 */
+	PS_ADD(ps, "Pid:\t%d\n",	  p->p_pid);
+	PS_ADD(ps, "PPid:\t%d\n",	  p->p_pptr->p_pid);
+	PS_ADD(ps, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
+		                          p->p_ucred->cr_uid,
+		                          p->p_cred->p_svuid,
+		                          /* FreeBSD doesn't have fsuid */
+		                          p->p_ucred->cr_uid);
+	PS_ADD(ps, "Gid:\t%d %d %d %d\n", p->p_cred->p_rgid,
+		                          p->p_ucred->cr_gid,
+		                          p->p_cred->p_svgid,
+		                          /* FreeBSD doesn't have fsgid */
+		                          p->p_ucred->cr_gid);
+	PS_ADD(ps, "Groups:\t");
+	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
+		PS_ADD(ps, "%d ", p->p_ucred->cr_groups[i]);
+	PS_ADD(ps, "\n");
+	
+	/*
+	 * Memory
+	 */
+	PS_ADD(ps, "VmSize:\t%8u kB\n",	  B2K(p->p_vmspace->vm_map.size));
+	PS_ADD(ps, "VmLck:\t%8u kB\n",    P2K(0)); /* XXX */
+	/* XXX vm_rssize seems to always be zero, how can this be? */
+	PS_ADD(ps, "VmRss:\t%8u kB\n",    P2K(p->p_vmspace->vm_rssize));
+	PS_ADD(ps, "VmData:\t%8u kB\n",   P2K(p->p_vmspace->vm_dsize));
+	PS_ADD(ps, "VmStk:\t%8u kB\n",    P2K(p->p_vmspace->vm_ssize));
+	PS_ADD(ps, "VmExe:\t%8u kB\n",    P2K(p->p_vmspace->vm_tsize));
+	PS_ADD(ps, "VmLib:\t%8u kB\n",    P2K(0)); /* XXX */
+
+	/*
+	 * Signal masks
+	 *
+	 * We support up to 128 signals, while Linux supports 32,
+	 * but we only define 32 (the same 32 as Linux, to boot), so
+	 * just show the lower 32 bits of each mask. XXX hack.
+	 *
+	 * NB: on certain platforms (Sparc at least) Linux actually
+	 * supports 64 signals, but this code is a long way from
+	 * running on anything but i386, so ignore that for now.
+	 */
+	PS_ADD(ps, "SigPnd:\t%08x\n",	  p->p_siglist.__bits[0]);
+	PS_ADD(ps, "SigBlk:\t%08x\n",	  0); /* XXX */
+	PS_ADD(ps, "SigIgn:\t%08x\n",	  p->p_sigignore.__bits[0]);
+	PS_ADD(ps, "SigCgt:\t%08x\n",	  p->p_sigcatch.__bits[0]);
+	
+	/*
+	 * Linux also prints the capability masks, but we don't have
+	 * capabilities yet, and when we do get them they're likely to
+	 * be meaningless to Linux programs, so we lie. XXX
+	 */
+	PS_ADD(ps, "CapInh:\t%016x\n",	  0);
+	PS_ADD(ps, "CapPrm:\t%016x\n",	  0);
+	PS_ADD(ps, "CapEff:\t%016x\n",	  0);
+#undef PS_ADD
+	
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}

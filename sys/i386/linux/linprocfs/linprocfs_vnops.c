@@ -99,6 +99,8 @@ static struct proc_target {
 	{ DT_DIR, N(".."),	Proot,		NULL },
 	{ DT_REG, N("mem"),	Pmem,		NULL },
 	{ DT_LNK, N("exe"),	Pexe,		NULL },
+	{ DT_REG, N("stat"),	Pprocstat,	NULL },
+	{ DT_REG, N("status"),	Pprocstatus,	NULL },
 #undef N
 };
 static const int nproc_targets = sizeof(proc_targets) / sizeof(proc_targets[0]);
@@ -545,6 +547,12 @@ linprocfs_getattr(ap)
 		vap->va_gid = KMEM_GROUP;
 		break;
 
+	case Pprocstat:
+	case Pprocstatus:
+		vap->va_bytes = vap->va_size = 0;
+		/* uid, gid are already set */
+		break;
+
 	default:
 		panic("linprocfs_getattr");
 	}
@@ -669,7 +677,8 @@ linprocfs_lookup(ap)
 
 	*vpp = NULL;
 
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME ||
+	    cnp->cn_nameiop == CREATE)
 		return (EROFS);
 
 	if (cnp->cn_namelen == 1 && *pname == '.') {
@@ -835,7 +844,7 @@ linprocfs_readdir(ap)
 		int doingzomb = 0;
 #endif
 		int pcnt = 0;
-		volatile struct proc *p = allproc.lh_first;
+		struct proc *p = allproc.lh_first;
 
 		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
 			bzero((char *) dp, delen);
@@ -910,7 +919,7 @@ linprocfs_readdir(ap)
 				dp->d_fileno = PROCFS_FILENO(p->p_pid, Pproc);
 				dp->d_namlen = sprintf(dp->d_name, "%ld",
 				    (long)p->p_pid);
-				dp->d_type = DT_REG;
+				dp->d_type = DT_DIR;
 				p = p->p_list.le_next;
 				break;
 			}
