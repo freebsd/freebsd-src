@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
+ * $Id$
  */
 
 #ifndef	_LOCK_H_
