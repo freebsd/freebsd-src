@@ -269,7 +269,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	} while (0);
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	} else {
 		g_slice_conf_hot(gp, 0, 0, SUN_SIZE,
