@@ -124,6 +124,7 @@ afd_detach(struct ata_device *atadev)
     mtx_lock(&fdp->queue_mtx);
     bioq_flush(&fdp->queue, NULL, ENXIO);
     mtx_unlock(&fdp->queue_mtx);
+    mtx_destroy(&fdp->queue_mtx);  
     disk_destroy(fdp->disk);
     ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);

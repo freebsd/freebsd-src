@@ -123,9 +123,6 @@ ata_probe(device_t dev)
     ch->device[SLAVE].mode = ATA_PIO;
     ch->dev = dev;
     ch->state = ATA_IDLE;
-    bzero(&ch->queue_mtx, sizeof(struct mtx));
-    mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
-    TAILQ_INIT(&ch->ata_queue);
 
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
@@ -158,6 +155,11 @@ ata_attach(device_t dev)
 
     if (ch->dma)
 	ch->dma->alloc(ch);
+
+    /* initialize queue and associated lock */
+    bzero(&ch->queue_mtx, sizeof(struct mtx));
+    mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
+    TAILQ_INIT(&ch->ata_queue);
 
     /* do not attach devices if we are in early boot */
     if (ata_delayed_attach)
@@ -220,6 +222,7 @@ ata_detach(device_t dev)
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
     ch->r_irq = NULL;
+    mtx_destroy(&ch->queue_mtx);
     return 0;
 }
 
