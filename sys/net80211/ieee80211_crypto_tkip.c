@@ -780,7 +780,12 @@ michael_mic_hdr(const struct ieee80211_frame *wh0, uint8_t hdr[16])
 		break;
 	}
 
-	hdr[12] = 0; /* XXX qos priority */
+	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
+		const struct ieee80211_qosframe *qwh =
+			(const struct ieee80211_qosframe *) wh;
+		hdr[12] = qwh->i_qos[0] & IEEE80211_QOS_TID;
+	} else
+		hdr[12] = 0;
 	hdr[13] = hdr[14] = hdr[15] = 0; /* reserved */
 }
 
