@@ -66,7 +66,7 @@
 #define VX_RESOURCE_CONFIG		0x0008
 
 
-static char *vx_match __P((eisa_id_t type));
+static const char *vx_match __P((eisa_id_t type));
 static int vx_eisa_probe __P((void));
 static int vx_eisa_attach __P((struct eisa_device *));
 
@@ -80,7 +80,7 @@ struct eisa_driver vx_eisa_driver = {
 
 DATA_SET(eisadriver_set, vx_eisa_driver);
 
-static char*
+static const char*
 vx_match(type)
     eisa_id_t       type;
 {
@@ -134,10 +134,15 @@ vx_eisa_attach(e_dev)
 {
     struct vx_softc *sc;
     int             unit = e_dev->unit;
-    int             irq = ffs(e_dev->ioconf.irq) - 1;
+    int             irq;
     resvaddr_t     *ioport;
     resvaddr_t     *eisa_ioport;
     u_char          level_intr;
+
+    if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+	return (-1);
+
+    irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
     ioport = e_dev->ioconf.ioaddrs.lh_first;
 

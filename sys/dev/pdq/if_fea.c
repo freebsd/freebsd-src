@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.5 1997/09/13 15:28:30 peter Exp $
+ * $Id: if_fea.c,v 1.6 1997/09/14 11:28:30 peter Exp $
  */
 
 /*
@@ -203,7 +203,12 @@ pdq_eisa_attach(
     pdq_softc_t *sc;
     resvaddr_t *iospace;
     resvaddr_t *mspace;
-    int irq = ffs(ed->ioconf.irq) - 1;
+    int irq;
+
+    if (TAILQ_FIRST(&ed->ioconf.irqs) == NULL)
+	return (-1);
+
+    irq = TAILQ_FIRST(&ed->ioconf.irqs)->irq_no;
 
     sc = (pdq_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_WAITOK);
     if (sc == NULL) {
