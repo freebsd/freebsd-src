@@ -18,18 +18,23 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $Id: $
+ *
  */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <syslog.h>
-#include <string.h>
-
-#include "chap.h"
-#include "chap_ms.h"
 
 #include <des.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/time.h>
+#include <syslog.h>
+
+#include "mbuf.h"
+#include "timer.h"
+#include "chap.h"
+#include "chap_ms.h"
 
 /* unused, for documentation only */
 /* only NTResp is filled in for FreeBSD */
@@ -43,12 +48,12 @@ static void DesEncrypt(u_char *, u_char *, u_char *);
 static void MakeKey(u_char *, u_char *);
 
 static void      /* IN 8 octets      IN 16 octets     OUT 24 octets */
-ChallengeResponse(u_char* challenge, u_char* pwHash, u_char* response)
+ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
 {
     char    ZPasswordHash[21];
 
-    bzero(ZPasswordHash, sizeof(ZPasswordHash));
-    bcopy(pwHash, ZPasswordHash, 16);
+    memset(ZPasswordHash, '\0', sizeof(ZPasswordHash));
+    memcpy(ZPasswordHash, pwHash, 16);
 
     DesEncrypt(challenge, ZPasswordHash +  0, response + 0);
     DesEncrypt(challenge, ZPasswordHash +  7, response + 8);
@@ -56,7 +61,7 @@ ChallengeResponse(u_char* challenge, u_char* pwHash, u_char* response)
 }
 
 static void /* IN 8 octets IN 7 octest OUT 8 octets */
-DesEncrypt(u_char* clear, u_char* key, u_char* cipher)
+DesEncrypt(u_char *clear, u_char *key, u_char *cipher)
 {
     des_cblock		des_key;
     des_key_schedule	key_schedule;
@@ -66,7 +71,7 @@ DesEncrypt(u_char* clear, u_char* key, u_char* cipher)
     des_ecb_encrypt((des_cblock *)clear, (des_cblock *)cipher, key_schedule, 1);
 }
 
-static u_char Get7Bits(u_char* input, int startBit)
+static u_char Get7Bits(u_char *input, int startBit)
 {
     register unsigned int	word;
 
@@ -80,7 +85,7 @@ static u_char Get7Bits(u_char* input, int startBit)
 
 /* IN  56 bit DES key missing parity bits
    OUT 64 bit DES key with parity bits added */
-static void MakeKey(u_char* key, u_char* des_key)
+static void MakeKey(u_char *key, u_char *des_key)
 {
     des_key[0] = Get7Bits(key,  0);
     des_key[1] = Get7Bits(key,  7);
@@ -98,12 +103,12 @@ static void MakeKey(u_char* key, u_char* des_key)
    challenge    8-bytes peer CHAP challenge
    since passwordHash is in a 24-byte buffer, response is written in there */
 void
-ChapMS(char* passwordHash, char* challenge, int challenge_len)
+ChapMS(char *passwordHash, char *challenge, int challenge_len)
 {
     u_char response[24];
 
     ChallengeResponse(challenge, passwordHash, response);
-    bcopy(response, passwordHash, 24);
+    memcpy(passwordHash, response, 24);
     passwordHash += 24;
     *passwordHash = 1;
 }

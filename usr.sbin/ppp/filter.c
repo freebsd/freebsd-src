@@ -17,27 +17,33 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.14 1997/08/31 22:59:23 brian Exp $
+ * $Id: filter.c,v 1.15 1997/10/23 10:09:35 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "filter.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "ipcp.h"
+#include "filter.h"
+
+struct filterent ifilters[MAXFILTERS];	/* incoming packet filter */
+struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
+struct filterent dfilters[MAXFILTERS];	/* dial-out packet filter */
+struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
 
 static struct filterent filterdata;
 
@@ -68,7 +74,7 @@ ParseAddr(int argc,
     return (0);
   }
   pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
-  cp = index(*argv, '/');
+  cp = strchr(*argv, '/');
   if (cp)
     *cp++ = '\0';
   if (strcasecmp(*argv, "HISADDR") == 0)
@@ -104,11 +110,11 @@ ParseProto(int argc, char **argv)
   if (argc < 1)
     return (P_NONE);
 
-  if (STREQ(*argv, "tcp"))
+  if (!strcmp(*argv, "tcp"))
     proto = P_TCP;
-  else if (STREQ(*argv, "udp"))
+  else if (!strcmp(*argv, "udp"))
     proto = P_UDP;
-  else if (STREQ(*argv, "icmp"))
+  else if (!strcmp(*argv, "icmp"))
     proto = P_ICMP;
   else
     proto = P_NONE;
@@ -164,7 +170,7 @@ ParseIcmp(int argc, char **argv)
     LogPrintf(LogWARN, "ParseIcmp: bad icmp syntax.\n");
     return (0);
   case 3:
-    if (STREQ(*argv, "src") && STREQ(argv[1], "eq")) {
+    if (!strcmp(*argv, "src") && !strcmp(argv[1], "eq")) {
       type = strtol(argv[2], &cp, 0);
       if (cp == argv[2]) {
 	LogPrintf(LogWARN, "ParseIcmp: type is expected.\n");
@@ -183,11 +189,11 @@ ParseOp(char *cp)
 {
   int op = OP_NONE;
 
-  if (STREQ(cp, "eq"))
+  if (!strcmp(cp, "eq"))
     op = OP_EQ;
-  else if (STREQ(cp, "gt"))
+  else if (!strcmp(cp, "gt"))
     op = OP_GT;
-  else if (STREQ(cp, "lt"))
+  else if (!strcmp(cp, "lt"))
     op = OP_LT;
   return (op);
 }
@@ -206,7 +212,7 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
     return (1);
   }
 
-  if (argc >= 3 && STREQ(*argv, "src")) {
+  if (argc >= 3 && !strcmp(*argv, "src")) {
     filterdata.opt.srcop = ParseOp(argv[1]);
     if (filterdata.opt.srcop == OP_NONE) {
       LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
@@ -220,7 +226,7 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
     if (argc == 0)
       return (1);
   }
-  if (argc >= 3 && STREQ(argv[0], "dst")) {
+  if (argc >= 3 && !strcmp(argv[0], "dst")) {
     filterdata.opt.dstop = ParseOp(argv[1]);
     if (filterdata.opt.dstop == OP_NONE) {
       LogPrintf(LogWARN, "ParseUdpOrTcp: bad operation\n");
@@ -235,7 +241,7 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
       return (1);
   }
   if (argc == 1 && proto == P_TCP) {
-    if (STREQ(*argv, "estab")) {
+    if (!strcmp(*argv, "estab")) {
       filterdata.opt.estab = 1;
       return (1);
     }
@@ -279,13 +285,13 @@ Parse(int argc, char **argv, struct filterent * ofp)
   argv++;
 
   proto = P_NONE;
-  bzero(&filterdata, sizeof(filterdata));
+  memset(&filterdata, '\0', sizeof(filterdata));
 
-  if (STREQ(*argv, "permit")) {
+  if (!strcmp(*argv, "permit")) {
     action = A_PERMIT;
-  } else if (STREQ(*argv, "deny")) {
+  } else if (!strcmp(*argv, "deny")) {
     action = A_DENY;
-  } else if (STREQ(*argv, "clear")) {
+  } else if (!strcmp(*argv, "clear")) {
     ofp->action = A_NONE;
     return (1);
   } else {
@@ -298,11 +304,11 @@ Parse(int argc, char **argv, struct filterent * ofp)
   argv++;
 
   if (fp->action == A_DENY) {
-    if (STREQ(*argv, "host")) {
+    if (!strcmp(*argv, "host")) {
       fp->action |= A_UHOST;
       argc--;
       argv++;
-    } else if (STREQ(*argv, "port")) {
+    } else if (!strcmp(*argv, "port")) {
       fp->action |= A_UPORT;
       argc--;
       argv++;
@@ -370,7 +376,7 @@ Parse(int argc, char **argv, struct filterent * ofp)
 }
 
 int
-SetIfilter(struct cmdtab * list, int argc, char **argv)
+SetIfilter(struct cmdtab *list, int argc, char **argv)
 {
   if (argc > 0) {
     (void) Parse(argc, argv, ifilters);
@@ -380,7 +386,7 @@ SetIfilter(struct cmdtab * list, int argc, char **argv)
 }
 
 int
-SetOfilter(struct cmdtab * list, int argc, char **argv)
+SetOfilter(struct cmdtab *list, int argc, char **argv)
 {
   if (argc > 0) {
     (void) Parse(argc, argv, ofilters);
@@ -390,7 +396,7 @@ SetOfilter(struct cmdtab * list, int argc, char **argv)
 }
 
 int
-SetDfilter(struct cmdtab * list, int argc, char **argv)
+SetDfilter(struct cmdtab *list, int argc, char **argv)
 {
   if (argc > 0) {
     (void) Parse(argc, argv, dfilters);
@@ -400,7 +406,7 @@ SetDfilter(struct cmdtab * list, int argc, char **argv)
 }
 
 int
-SetAfilter(struct cmdtab * list, int argc, char **argv)
+SetAfilter(struct cmdtab *list, int argc, char **argv)
 {
   if (argc > 0) {
     (void) Parse(argc, argv, afilters);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.17 1997/08/25 00:29:18 brian Exp $
+ * $Id: lqr.c,v 1.18 1997/08/31 22:59:35 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -25,12 +25,22 @@
  *	o LQM policy
  *	o Allow user to configure LQM method and interval.
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "main.h"
 

@@ -1,3 +1,7 @@
+/*
+ * $Id: $
+ */
+
 #define LogMIN		(1)
 #define LogASYNC	(1)	/* syslog(LOG_INFO, ....)	 */
 #define LogCARRIER	(2)
@@ -24,11 +28,11 @@
 extern const char *LogName(int);
 extern void LogKeep(int);
 extern void LogDiscard(int);
-extern void LogDiscardAll();
+extern void LogDiscardAll(void);
 extern int LogIsKept(int);
 extern void LogOpen(const char *);
 extern void LogSetTun(int);
-extern void LogClose();
+extern void LogClose(void);
 extern void LogPrintf(int, char *,...);
-extern void LogDumpBp(int, char *hdr, struct mbuf * bp);
-extern void LogDumpBuff(int, char *hdr, u_char * ptr, int n);
+extern void LogDumpBp(int, char *, struct mbuf *);
+extern void LogDumpBuff(int, char *, u_char *, int);

@@ -19,15 +19,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: chap_ms.h,v 1.1 1997/09/25 00:58:20 brian Exp $
  */
 
-#ifndef _CHAPMS_H_
+/* Max # of (Unicode) chars in an NT password */
+#define MAX_NT_PASSWORD	256
 
-#define MAX_NT_PASSWORD	256   /* Max # of (Unicode) chars in an NT password */
-#define MS_CHAP_RESPONSE_LEN 49 /* Don't rely on sizeof(MS_ChapResponse) in case of struct padding */  
+/* Don't rely on sizeof(MS_ChapResponse) in case of struct padding */  
+#define MS_CHAP_RESPONSE_LEN 49
 
-extern void ChapMS(char*, char*, int);
-
-#define _CHAPMS_H_
-#endif /* _CHAPMS_H_ */
+extern void ChapMS(char *, char *, int);

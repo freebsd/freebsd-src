@@ -17,16 +17,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.18 1997/09/10 21:33:32 brian Exp $
+ * $Id: hdlc.c,v 1.19 1997/09/10 21:36:54 brian Exp $
  *
  *	TODO:
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "lcp.h"
 #include "lqr.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "pred.h"
 #include "modem.h"
@@ -39,8 +51,11 @@ struct hdlcstat {
   int unknownproto;
 }        HdlcStat;
 
-static int ifOutPackets, ifOutOctets, ifOutLQRs;
-static int ifInPackets, ifInOctets;
+static int ifOutPackets;
+static int ifOutOctets;
+static int ifOutLQRs;
+static int ifInPackets;
+static int ifInOctets;
 
 struct protostat {
   u_short number;
@@ -321,7 +336,7 @@ HdlcErrorCheck()
   struct hdlcstat *hp = &HdlcStat;
   struct hdlcstat *op = &laststat;
 
-  if (bcmp(hp, op, sizeof(laststat))) {
+  if (memcmp(hp, op, sizeof(laststat))) {
     LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	      hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
       hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);

@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.6 1997/06/09 03:27:27 brian Exp $
+ * $Id: lqr.h,v 1.7 1997/08/25 00:29:19 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _LQR_H_
-#define	_LQR_H_
 
 /*
  *  Structure of LQR packet defined in RFC1333
@@ -64,5 +61,3 @@ extern void StartLqm(void);
 extern void StopLqr(int);
 extern void StopLqrTimer(void);
 extern void RecvEchoLqr(struct mbuf *);
-
-#endif

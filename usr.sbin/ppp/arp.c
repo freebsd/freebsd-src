@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.14 1997/08/31 22:59:12 brian Exp $
+ * $Id: arp.c,v 1.15 1997/09/10 02:20:27 brian Exp $
  *
  */
 
@@ -25,44 +25,40 @@
  * TODO:
  */
 
-#include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/errno.h>
-#include <unistd.h>
-#include <string.h>
-
+#include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <fcntl.h>
-#ifdef __bsdi__
-#include <kvm.h>
-#endif
 #include <net/if_types.h>
 #include <netinet/in_var.h>
-#if RTM_VERSION >= 3
 #include <netinet/if_ether.h>
-#endif
+
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include "mbuf.h"
 #include "log.h"
+#include "arp.h"
 
 static int rtm_seq;
 
 static int get_ether_addr(int, u_long, struct sockaddr_dl *);
 
-#define BCOPY(s, d, l)		memcpy(d, s, l)
-#define BZERO(s, n)		memset(s, 0, n)
 /*
  * SET_SA_FAMILY - set the sa_family field of a struct sockaddr,
  * if it exists.
  */
 #define SET_SA_FAMILY(addr, family)		\
-    BZERO((char *) &(addr), sizeof(addr));	\
+    memset((char *) &(addr), '\0', sizeof(addr));	\
     addr.sa_family = (family); 			\
     addr.sa_len = sizeof(addr);
 
@@ -77,7 +73,7 @@ static struct {
   struct sockaddr_inarp dst;
   struct sockaddr_dl hwa;
   char extra[128];
-}      arpmsg;
+} arpmsg;
 
 static int arpmsg_valid;
 
@@ -166,7 +162,7 @@ sifproxyarp(int unit, u_long hisaddr)
     char space[128];
   }      dls;
 
-  BZERO(&arpreq, sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof(arpreq));
 
   /*
    * Get the hardware address of an interface on the same subnet as our local
@@ -178,7 +174,7 @@ sifproxyarp(int unit, u_long hisaddr)
   }
   arpreq.arp_ha.sa_len = sizeof(struct sockaddr);
   arpreq.arp_ha.sa_family = AF_UNSPEC;
-  BCOPY(LLADDR(&dls.sdl), arpreq.arp_ha.sa_data, dls.sdl.sdl_alen);
+  memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
@@ -197,7 +193,7 @@ cifproxyarp(int unit, u_long hisaddr)
 {
   struct arpreq arpreq;
 
-  BZERO(&arpreq, sizeof(arpreq));
+  memset(&arpreq, '\0', sizeof(arpreq));
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   if (ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
@@ -216,8 +212,8 @@ cifproxyarp(int unit, u_long hisaddr)
  */
 #define MAX_IFS		32
 
-int
-get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl * hwaddr)
+static int
+get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl *hwaddr)
 {
   struct ifreq *ifr, *ifend, *ifp;
   u_long ina, mask;
@@ -287,11 +283,7 @@ nextif:
        * Found the link-level address - copy it out
        */
       dla = (struct sockaddr_dl *) & ifr->ifr_addr;
-#ifdef __bsdi__
-      if (dla->sdl_alen == 0)
-	kmemgetether(ifr->ifr_name, dla);
-#endif
-      BCOPY(dla, hwaddr, dla->sdl_len);
+      memcpy(hwaddr, dla, dla->sdl_len);
       return 1;
     }
     ifr = (struct ifreq *) ((char *) &ifr->ifr_addr + ifr->ifr_addr.sa_len);
@@ -300,102 +292,9 @@ nextif:
   return 0;
 }
 
-#ifdef __bsdi__
-#include <nlist.h>
-
-struct nlist nl[] = {
-#define N_IFNET		0
-  {"_ifnet"},
-  "",
-};
-
-
-kvm_t *kvmd;
-
-/*
- * Read kernel memory, return 0 on success.
- */
-int
-kread(u_long addr, char *buf, int size)
-{
-  if (kvm_read(kvmd, addr, buf, size) != size) {
-    /* XXX this duplicates kvm_read's error printout */
-    LogPrintf(LogERROR, "kvm_read %s\n", kvm_geterr(kvmd));
-    return -1;
-  }
-  return 0;
-}
-
-void
-kmemgetether(char *ifname, struct sockaddr_dl * dlo)
-{
-  struct ifnet ifnet;
-  int n;
-  u_long addr, ifaddraddr, ifnetfound, ifaddrfound;
-  char name[16 + 32];
-  struct sockaddr *sa;
-  char *cp;
-  struct sockaddr_dl *sdl;
-  union {
-    struct ifaddr ifa;
-    struct in_ifaddr in;
-  }     ifaddr;
-  struct arpcom ac;
-
-  kvmd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);
-  if (kvmd) {
-    n = kvm_nlist(kvmd, nl);
-    if (n >= 0) {
-      addr = nl[N_IFNET].n_value;
-      kread(addr, (char *) &addr, sizeof(addr));
-      ifaddraddr = ifnetfound = 0;
-      while (addr || ifaddraddr) {
-	ifnetfound = addr;
-	if (ifaddraddr == 0) {
-	  if (kread(addr, (char *) &ifnet, sizeof(ifnet)) ||
-	      kread((u_long) ifnet.if_name, name, 16))
-	    return;
-	  name[15] = 0;
-	  addr = (u_long) ifnet.if_next;
-	  cp = (char *) index(name, '\0');
-	  cp += sprintf(cp, "%d", ifnet.if_unit);
-	  *cp = '\0';
-	  ifaddraddr = (u_long) ifnet.if_addrlist;
-	}
-	ifaddrfound = ifaddraddr;
-	if (ifaddraddr) {
-	  if (kread(ifaddraddr, (char *) &ifaddr, sizeof ifaddr)) {
-	    ifaddraddr = 0;
-	    continue;
-	  }
-#define CP(x) ((char *)(x))
-	  cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) + CP(&ifaddr);
-	  sa = (struct sockaddr *) cp;
-	  if (sa->sa_family == AF_LINK && strcmp(ifname, name) == 0) {
-	    sdl = (struct sockaddr_dl *) sa;
-	    cp = (char *) LLADDR(sdl);
-	    n = sdl->sdl_alen;
-	    if (ifnet.if_type == IFT_ETHER) {
-	      if (n == 0) {
-		kread(ifnetfound, (char *) &ac, sizeof(ac));
-		cp = (char *) LLADDR(sdl);
-		bcopy((char *) ac.ac_enaddr, cp, 6);
-		sdl->sdl_alen = 6;
-	      }
-	      bcopy(sdl, dlo, sizeof(*sdl));
-	      return;
-	    }
-	  }
-	  ifaddraddr = (u_long) ifaddr.ifa.ifa_next;
-	}
-      }
-    }
-  }
-}
-
-#endif
 
 #ifdef DEBUG
+int
 main()
 {
   u_long ipaddr;
@@ -406,5 +305,4 @@ main()
   sifproxyarp(s, ipaddr);
   close(s);
 }
-
 #endif

@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.7 1997/08/25 00:29:29 brian Exp $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.8 1997/10/07 00:56:58 brian Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.7 1997/08/25 00:29:29 brian Exp $
+ * $Id: slcompress.h,v 1.8 1997/10/07 00:56:58 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -105,7 +105,7 @@ struct cstate {
   union {
     char csu_hdr[MAX_HDR];
     struct ip csu_ip;		/* ip/tcp hdr from most recent packet */
-  }     slcs_u;
+  } slcs_u;
 };
 
 #define cs_ip slcs_u.csu_ip
@@ -124,22 +124,11 @@ struct slcompress {
   struct cstate rstate[MAX_STATES];	/* receive connection states */
 };
 
-struct slstat {
-  int sls_packets;		/* outbound packets */
-  int sls_compressed;		/* outbound compressed packets */
-  int sls_searches;		/* searches for connection state */
-  int sls_misses;		/* times couldn't find conn. state */
-  int sls_uncompressedin;	/* inbound uncompressed packets */
-  int sls_compressedin;		/* inbound compressed packets */
-  int sls_errorin;		/* inbound unknown type packets */
-  int sls_tossed;		/* inbound packets tossed because of error */
-};
-
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
-extern void sl_compress_init(struct slcompress *, int max_state);
-extern u_char sl_compress_tcp 
-__P((struct mbuf *, struct ip *,
-     struct slcompress *, int compress_cid_flag));
-  extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
+extern void sl_compress_init(struct slcompress *, int);
+extern u_char sl_compress_tcp
+  (struct mbuf *, struct ip *, struct slcompress *, int);
+extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
+extern int ReportCompress(void);

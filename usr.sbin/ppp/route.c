@@ -17,32 +17,34 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.18 1997/08/25 00:29:26 brian Exp $
+ * $Id: route.c,v 1.19 1997/08/31 22:59:47 brian Exp $
  *
  */
-#include <sys/types.h>
-#include <machine/endian.h>
-#include <sys/ioctl.h>
+
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
-
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
+#include <sys/socket.h>
 #include <net/route.h>
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <errno.h>
+#include <machine/endian.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
+
+#include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
+#include "route.h"
 
 static int IfIndex;
 
@@ -70,7 +72,7 @@ OsSetRoute(int cmd,
     LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
     return;
   }
-  bzero(&rtmes, sizeof(rtmes));
+  memset(&rtmes, '\0', sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
   rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK | RTA_GATEWAY;
@@ -78,18 +80,18 @@ OsSetRoute(int cmd,
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 
-  bzero(&rtdata, sizeof(rtdata));
+  memset(&rtdata, '\0', sizeof(rtdata));
   rtdata.sin_len = 16;
   rtdata.sin_family = AF_INET;
   rtdata.sin_port = 0;
   rtdata.sin_addr = dst;
 
   cp = rtmes.m_space;
-  bcopy(&rtdata, cp, 16);
+  memcpy(cp, &rtdata, 16);
   cp += 16;
   if (gateway.s_addr) {
     rtdata.sin_addr = gateway;
-    bcopy(&rtdata, cp, 16);
+    memcpy(cp, &rtdata, 16);
     cp += 16;
   }
   if (dst.s_addr == INADDR_ANY)

@@ -17,32 +17,45 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.24 1997/09/03 00:40:49 brian Exp $
+ * $Id: ip.c,v 1.25 1997/10/04 00:14:39 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
-#include "fsm.h"
-#include "lcpproto.h"
-#include "hdlc.h"
+#include <sys/param.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+
 #include <alias.h>
 #include <errno.h>
-#include "loadalias.h"
-#include "vars.h"
-#include "filter.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "mbuf.h"
 #include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
+#include "lcpproto.h"
+#include "hdlc.h"
+#include "loadalias.h"
+#include "command.h"
+#include "vars.h"
+#include "filter.h"
+#include "log.h"
 #include "os.h"
-
-extern void SendPppFrame();
-extern void LcpClose();
+#include "ipcp.h"
+#include "vjcomp.h"
+#include "lcp.h"
+#include "ip.h"
 
 static struct pppTimer IdleTimer;
 
@@ -224,7 +237,7 @@ IcmpError(struct ip * pip, int code)
 
   if (pip->ip_p != IPPROTO_ICMP) {
     bp = mballoc(cnt, MB_IPIN);
-    bcopy(ptr, MBUF_CTOP(bp), cnt);
+    memcpy(MBUF_CTOP(bp), ptr, cnt);
     SendPppFrame(bp);
     RestartIdleTimer();
     ipOutOctets += cnt;
@@ -336,9 +349,9 @@ PacketCheck(char *cp, int nb, int direction)
     return (-1);
   } else {
     if (FilterCheck(pip, FL_KEEP) & A_DENY) {	/* Check Keep Alive filter */
-      ipKeepAlive = FALSE;
+      ipKeepAlive = 0;
     } else {
-      ipKeepAlive = TRUE;
+      ipKeepAlive = 1;
     }
     return (pri);
   }
@@ -355,7 +368,7 @@ IpInput(struct mbuf * bp)
   cp = tunbuff;
   nb = 0;
   for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
-    bcopy(MBUF_CTOP(wp), cp, wp->cnt);
+    memcpy(cp, MBUF_CTOP(wp), wp->cnt);
     cp += wp->cnt;
     nb += wp->cnt;
   }
@@ -439,24 +452,26 @@ IpEnqueue(int pri, char *ptr, int count)
   struct mbuf *bp;
 
   bp = mballoc(count, MB_IPQ);
-  bcopy(ptr, MBUF_CTOP(bp), count);
+  memcpy(MBUF_CTOP(bp), ptr, count);
   Enqueue(&IpOutputQueues[pri], bp);
 }
 
+#if 0
 int
 IsIpEnqueued()
 {
   struct mqueue *queue;
-  int exist = FALSE;
+  int exist = 0;
 
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
     if (queue->qlen > 0) {
-      exist = TRUE;
+      exist = 1;
       break;
     }
   }
   return (exist);
 }
+#endif
 
 void
 IpStartOutput()

@@ -17,31 +17,43 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.86 1997/10/12 01:49:37 brian Exp $
+ * $Id: command.c,v 1.87 1997/10/24 22:36:28 brian Exp $
  *
  */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <ctype.h>
-#include <termios.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <netdb.h>
-#include <sys/socket.h>
+#include <sys/param.h>
+#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <net/route.h>
-#include <paths.h>
+#include <netdb.h>
+
 #include <alias.h>
-#include <fcntl.h>
+#include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
 #include "ipcp.h"
 #include "modem.h"
-#include "filter.h"
 #include "command.h"
+#include "filter.h"
 #include "alias_cmd.h"
 #include "hdlc.h"
 #include "loadalias.h"
@@ -49,26 +61,13 @@
 #include "systems.h"
 #include "chat.h"
 #include "os.h"
-#include "timeout.h"
 #include "server.h"
-
-extern void Cleanup(), TtyTermMode(), PacketMode();
-extern int EnableCommand(), DisableCommand(), DisplayCommand();
-extern int AcceptCommand(), DenyCommand();
-static int AliasCommand();
-extern int LocalAuthCommand();
-extern int LoadCommand(), SaveCommand();
-extern int ChangeParity(char *);
-extern int SelectSystem();
-extern int ShowRoute();
-extern void TtyOldMode(), TtyCommandMode();
-extern struct pppvars pppVars;
-extern struct cmdtab const SetCommands[];
-
-extern char *IfDevName;
+#include "main.h"
+#include "route.h"
+#include "ccp.h"
+#include "slcompress.h"
 
 struct in_addr ifnetmask;
-int randinit;
 
 static int ShowCommand(struct cmdtab const *, int, char **);
 static int TerminalCommand(struct cmdtab const *, int, char **);
@@ -82,6 +81,9 @@ static int DeleteCommand(struct cmdtab const *, int, char **);
 static int BgShellCommand(struct cmdtab const *, int, char **);
 static int FgShellCommand(struct cmdtab const *, int, char **);
 static int ShellCommand(struct cmdtab const *, int, char **, int);
+static int AliasCommand(struct cmdtab const *, int, char **);
+static int AliasEnable(struct cmdtab const *, int, char **);
+static int AliasOption(struct cmdtab const *, int, char **, void *);
 
 static int
 HelpCommand(struct cmdtab const * list,
@@ -326,7 +328,7 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
   return (0);
 }
 
-struct cmdtab const Commands[] = {
+static struct cmdtab const Commands[] = {
   {"accept", NULL, AcceptCommand, LOCAL_AUTH,
   "accept option request", "accept option .."},
   {"add", NULL, AddCommand, LOCAL_AUTH,
@@ -371,15 +373,6 @@ struct cmdtab const Commands[] = {
   "Generate down event", "down"},
   {NULL, NULL, NULL},
 };
-
-extern int ReportCcpStatus();
-extern int ReportLcpStatus();
-extern int ReportIpcpStatus();
-extern int ReportProtStatus();
-extern int ReportCompress();
-extern int ShowModemStatus();
-extern int ReportHdlcStatus();
-extern int ShowMemMap();
 
 static int
 ShowLoopback()
@@ -481,9 +474,6 @@ ShowAuthKey()
 static int
 ShowVersion()
 {
-  extern char VarVersion[];
-  extern char VarLocalVersion[];
-
   if (!VarTerm)
     return 0;
   fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
@@ -566,9 +556,7 @@ ShowMSExt()
 
 #endif
 
-extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
-
-struct cmdtab const ShowCommands[] = {
+static struct cmdtab const ShowCommands[] = {
   {"afilter", NULL, ShowAfilter, LOCAL_AUTH,
   "Show keep Alive filters", "show afilter option .."},
   {"auth", NULL, ShowAuthKey, LOCAL_AUTH,
@@ -626,7 +614,7 @@ struct cmdtab const ShowCommands[] = {
   {NULL, NULL, NULL},
 };
 
-struct cmdtab const *
+static struct cmdtab const *
 FindCommand(struct cmdtab const * cmds, char *str, int *pmatch)
 {
   int nmatch;
@@ -658,7 +646,7 @@ FindCommand(struct cmdtab const * cmds, char *str, int *pmatch)
   return found;
 }
 
-int
+static int
 FindExec(struct cmdtab const * cmdlist, int argc, char **argv)
 {
   struct cmdtab const *cmd;
@@ -682,7 +670,6 @@ FindExec(struct cmdtab const * cmdlist, int argc, char **argv)
 }
 
 int aft_cmd = 1;
-extern int TermMode;
 
 void
 Prompt()
@@ -856,10 +843,7 @@ SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
     if (strncasecmp(argv[0], "random", 6) == 0 &&
 	(argv[0][6] == '\0' || argv[0][6] == '.')) {
       VarRedialTimeout = -1;
-      if (!randinit) {
-	randinit = 1;
-	srandomdev();
-      }
+      randinit();
     } else {
       timeout = atoi(argv[0]);
 
@@ -871,14 +855,11 @@ SetRedialTimeout(struct cmdtab const * list, int argc, char **argv)
       }
     }
 
-    dot = index(argv[0], '.');
+    dot = strchr(argv[0], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
 	VarRedialNextTimeout = -1;
-	if (!randinit) {
-	  randinit = 1;
-	  srandomdev();
-	}
+	randinit();
       } else {
 	timeout = atoi(dot);
 	if (timeout >= 0)
@@ -1084,7 +1065,7 @@ SetIdleTimeout(struct cmdtab const * list, int argc, char **argv)
   return -1;
 }
 
-struct in_addr
+static struct in_addr
 GetIpAddr(char *cp)
 {
   struct hostent *hp;
@@ -1092,7 +1073,7 @@ GetIpAddr(char *cp)
 
   hp = gethostbyname(cp);
   if (hp && hp->h_addrtype == AF_INET)
-    bcopy(hp->h_addr, &ipaddr, hp->h_length);
+    memcpy(&ipaddr, hp->h_addr, hp->h_length);
   else if (inet_aton(cp, &ipaddr) == 0)
     ipaddr.s_addr = 0;
   return (ipaddr);
@@ -1155,7 +1136,7 @@ SetInterfaceAddr(struct cmdtab const * list, int argc, char **argv)
 
 #ifndef NOMSEXT
 
-void
+static void
 SetMSEXT(struct in_addr * pri_addr,
 	 struct in_addr * sec_addr,
 	 int argc,
@@ -1234,7 +1215,7 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
     else {
       strncpy(VarDevice, arg, sizeof(VarDevice) - 1);
       VarDevice[sizeof(VarDevice) - 1] = '\0';
-      VarBaseDevice = rindex(VarDevice, '/');
+      VarBaseDevice = strrchr(VarDevice, '/');
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
     }
     break;
@@ -1266,9 +1247,9 @@ SetCtsRts(struct cmdtab const * list, int argc, char **argv)
 {
   if (argc > 0) {
     if (strcmp(*argv, "on") == 0)
-      VarCtsRts = TRUE;
+      VarCtsRts = 1;
     else if (strcmp(*argv, "off") == 0)
-      VarCtsRts = FALSE;
+      VarCtsRts = 0;
     else
       return -1;
     return 0;
@@ -1292,9 +1273,7 @@ SetOpenMode(struct cmdtab const * list, int argc, char **argv)
   return -1;
 }
 
-extern int SetIfilter(), SetOfilter(), SetDfilter(), SetAfilter();
-
-struct cmdtab const SetCommands[] = {
+static struct cmdtab const SetCommands[] = {
   {"accmap", NULL, SetVariable, LOCAL_AUTH,
   "Set accmap value", "set accmap hex-value", (void *) VAR_ACCMAP},
   {"afilter", NULL, SetAfilter, LOCAL_AUTH,
@@ -1432,9 +1411,6 @@ DeleteCommand(struct cmdtab const * list, int argc, char **argv)
 
   return 0;
 }
-
-static int AliasEnable();
-static int AliasOption();
 
 static struct cmdtab const AliasCommands[] =
 {

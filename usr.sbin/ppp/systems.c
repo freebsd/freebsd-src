@@ -17,23 +17,35 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.15 1997/08/31 22:59:49 brian Exp $
+ * $Id: systems.c,v 1.16 1997/09/04 00:38:21 brian Exp $
  *
  *  TODO:
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "loadalias.h"
-#include "vars.h"
+#include "command.h"
 #include "ipcp.h"
 #include "pathnames.h"
 #include "vars.h"
 #include "server.h"
-#include "command.h"
+#include "systems.h"
 
-extern void DecodeCommand();
-
-static int uid, gid;
-static int euid, egid;
+static int uid;
+static int gid;
+static int euid;
+static int egid;
 static int usermode;
 
 int
@@ -220,7 +232,7 @@ LoadCommand(struct cmdtab const * list, int argc, char **argv)
 }
 
 int
-SaveCommand(struct cmdtab const * list, int argc, char **argv)
+SaveCommand(struct cmdtab const *list, int argc, char **argv)
 {
   LogPrintf(LogWARN, "save command is not implemented (yet).\n");
   return 1;
