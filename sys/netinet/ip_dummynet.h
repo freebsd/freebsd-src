@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 1998-2002 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
  *
@@ -122,7 +122,7 @@ struct dn_heap {
  * in the future this should be changed to a normal data structure.
  */
 struct dn_pkt {
-	struct m_hdr hdr ;
+    struct m_hdr hdr ;
 #define dn_next	hdr.mh_nextpkt	/* next element in queue */
 #define DN_NEXT(x)	(struct dn_pkt *)(x)->dn_next
 #define dn_m	hdr.mh_next	/* packet to be forwarded */
@@ -131,11 +131,11 @@ struct dn_pkt {
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
 
-	dn_key  output_time;    /* when the pkt is due for delivery */
-        struct ifnet *ifp;	/* interface, for ip_output		*/
-	struct sockaddr_in *dn_dst ;
-        struct route ro;	/* route, for ip_output. MUST COPY	*/
-	int flags ;		/* flags, for ip_output (IPv6 ?) */
+    dn_key  output_time;	/* when the pkt is due for delivery	*/
+    struct ifnet *ifp;		/* interface, for ip_output		*/
+    struct sockaddr_in *dn_dst ;
+    struct route ro;		/* route, for ip_output. MUST COPY	*/
+    int flags ;			/* flags, for ip_output (IPv6 ?)	*/
 };
 
 /*
@@ -202,10 +202,14 @@ flow using a number of heaps defined into the pipe itself.
  * per flow queue. This contains the flow identifier, the queue
  * of packets, counters, and parameters used to support both RED and
  * WF2Q+.
+ *
+ * A dn_flow_queue is created and initialized whenever a packet for
+ * a new flow arrives.
  */
 struct dn_flow_queue {
     struct dn_flow_queue *next ;
     struct ipfw_flow_id id ;
+
     struct dn_pkt *head, *tail ;	/* queue of packets */
     u_int len ;
     u_int len_bytes ;
@@ -214,7 +218,8 @@ struct dn_flow_queue {
     u_int64_t tot_pkts ;	/* statistics counters	*/
     u_int64_t tot_bytes ;
     u_int32_t drops ;
-    int hash_slot ;	/* debugging/diagnostic */
+
+    int hash_slot ;		/* debugging/diagnostic */
 
     /* RED parameters */
     int avg ;                   /* average queue length est. (scaled) */
@@ -223,12 +228,13 @@ struct dn_flow_queue {
     u_int32_t q_time ;          /* start of queue idle time */
 
     /* WF2Q+ support */
-    struct dn_flow_set *fs ; /* parent flow set */
-    int heap_pos ;	/* position (index) of struct in heap */
-    dn_key sched_time ; /* current time when queue enters ready_heap */
+    struct dn_flow_set *fs ;	/* parent flow set */
+    int heap_pos ;		/* position (index) of struct in heap */
+    dn_key sched_time ;		/* current time when queue enters ready_heap */
 
-    dn_key S,F ; /* start-time, finishing time */
-    /* setting F < S means the timestamp is invalid. We only need
+    dn_key S,F ;		/* start time, finish time */
+    /*
+     * Setting F < S means the timestamp is invalid. We only need
      * to test this when the queue is empty.
      */
 } ;
@@ -241,6 +247,9 @@ struct dn_flow_queue {
  * hashing the flow-id, then scan the list looking for a match.
  * The size of the hash table (buckets) is configurable on a per-queue
  * basis.
+ *
+ * A dn_flow_set is created whenever a new queue or pipe is created (in the
+ * latter case, the structure is located inside the struct dn_pipe).
  */
 struct dn_flow_set {
     struct dn_flow_set *next; /* next flow set in all_flow_sets list */
@@ -248,26 +257,27 @@ struct dn_flow_set {
     u_short fs_nr ;             /* flow_set number       */
     u_short flags_fs;
 #define DN_HAVE_FLOW_MASK	0x0001
-#define DN_IS_PIPE		0x4000
-#define DN_IS_QUEUE		0x8000
 #define DN_IS_RED		0x0002
 #define DN_IS_GENTLE_RED	0x0004
-#define DN_QSIZE_IS_BYTES	0x0008	/* queue measured in bytes */
+#define DN_QSIZE_IS_BYTES	0x0008	/* queue size is measured in bytes */
+#define DN_IS_PIPE		0x4000
+#define DN_IS_QUEUE		0x8000
 
-    struct dn_pipe *pipe ;		/* pointer to parent pipe */
+    struct dn_pipe *pipe ;	/* pointer to parent pipe */
     u_short parent_nr ;		/* parent pipe#, 0 if local to a pipe */
 
-    int weight ; /* WFQ queue weight */
-    int qsize ;		/* queue size in slots or bytes */
-    int plr ;           /* pkt loss rate (2^31-1 means 100%) */
+    int weight ;		/* WFQ queue weight */
+    int qsize ;			/* queue size in slots or bytes */
+    int plr ;			/* pkt loss rate (2^31-1 means 100%) */
 
     struct ipfw_flow_id flow_mask ;
+
     /* hash table of queues onto this flow_set */
     int rq_size ;		/* number of slots */
     int rq_elements ;		/* active elements */
     struct dn_flow_queue **rq;	/* array of rq_size entries */
+
     u_int32_t last_expired ;	/* do not expire too frequently */
-	/* XXX some RED parameters as well ? */
     int backlogged ;		/* #active queues for this flowset */
 
         /* RED parameters */
@@ -275,44 +285,42 @@ struct dn_flow_set {
 #define SCALE(x)                ( (x) << SCALE_RED )
 #define SCALE_VAL(x)            ( (x) >> SCALE_RED )
 #define SCALE_MUL(x,y)          ( ( (x) * (y) ) >> SCALE_RED )
-    int w_q ;               /* queue weight (scaled) */
-    int max_th ;            /* maximum threshold for queue (scaled) */
-    int min_th ;            /* minimum threshold for queue (scaled) */
-    int max_p ;             /* maximum value for p_b (scaled) */
-    u_int c_1 ;             /* max_p/(max_th-min_th) (scaled) */
-    u_int c_2 ;             /* max_p*min_th/(max_th-min_th) (scaled) */
-    u_int c_3 ;             /* for GRED, (1-max_p)/max_th (scaled) */
-    u_int c_4 ;             /* for GRED, 1 - 2*max_p (scaled) */
-    u_int * w_q_lookup ;    /* lookup table for computing (1-w_q)^t */
-    u_int lookup_depth ;    /* depth of lookup table */
-    int lookup_step ;       /* granularity inside the lookup table */
-    int lookup_weight ;     /* equal to (1-w_q)^t / (1-w_q)^(t+1) */
-    int avg_pkt_size ;      /* medium packet size */
-    int max_pkt_size ;      /* max packet size */
+    int w_q ;			/* queue weight (scaled) */
+    int max_th ;		/* maximum threshold for queue (scaled) */
+    int min_th ;		/* minimum threshold for queue (scaled) */
+    int max_p ;			/* maximum value for p_b (scaled) */
+    u_int c_1 ;			/* max_p/(max_th-min_th) (scaled) */
+    u_int c_2 ;			/* max_p*min_th/(max_th-min_th) (scaled) */
+    u_int c_3 ;			/* for GRED, (1-max_p)/max_th (scaled) */
+    u_int c_4 ;			/* for GRED, 1 - 2*max_p (scaled) */
+    u_int * w_q_lookup ;	/* lookup table for computing (1-w_q)^t */
+    u_int lookup_depth ;	/* depth of lookup table */
+    int lookup_step ;		/* granularity inside the lookup table */
+    int lookup_weight ;		/* equal to (1-w_q)^t / (1-w_q)^(t+1) */
+    int avg_pkt_size ;		/* medium packet size */
+    int max_pkt_size ;		/* max packet size */
 } ;
 
 /*
  * Pipe descriptor. Contains global parameters, delay-line queue,
  * and the flow_set used for fixed-rate queues.
  * 
- * For WF2Q support it also has 4 heaps holding dn_flow_queue:
+ * For WF2Q+ support it also has 3 heaps holding dn_flow_queue:
  *   not_eligible_heap, for queues whose start time is higher
  *	than the virtual time. Sorted by start time.
  *   scheduler_heap, for queues eligible for scheduling. Sorted by
  *	finish time.
- *   backlogged_heap, all flows in the two heaps above, sorted by
- *	start time. This is used to compute the virtual time.
  *   idle_heap, all flows that are idle and can be removed. We
  *	do that on each tick so we do not slow down too much
  *	operations during forwarding.
- *
+ * 
  */
-struct dn_pipe {			/* a pipe */
-	struct dn_pipe *next ;
+struct dn_pipe {		/* a pipe */
+    struct dn_pipe *next ;
 
     int	pipe_nr ;		/* number	*/
-	int	bandwidth;		/* really, bytes/tick.	*/
-	int	delay ;			/* really, ticks	*/
+    int bandwidth;		/* really, bytes/tick.	*/
+    int	delay ;			/* really, ticks	*/
 
     struct	dn_pkt *head, *tail ;	/* packets in delay line */
 
@@ -321,16 +329,15 @@ struct dn_pipe {			/* a pipe */
     struct dn_heap not_eligible_heap; /* top extract- key Start time */
     struct dn_heap idle_heap ; /* random extract - key Start=Finish time */
 
-    dn_key V ; /* virtual time */
-    int sum;	/* sum of weights of all active sessions */
-    int numbytes;	/* bit i can transmit (more or less). */
+    dn_key V ;			/* virtual time */
+    int sum;			/* sum of weights of all active sessions */
+    int numbytes;		/* bits I can transmit (more or less). */
 
-    dn_key sched_time ; /* first time pipe is scheduled in ready_heap */
+    dn_key sched_time ;		/* time pipe was scheduled in ready_heap */
 
-    /* the tx clock can come from an interface. In this case, the
-     * name is below, and the pointer is filled when the rule is
-     * configured. We identify this by setting the if_name to a
-     * non-empty string.
+    /*
+     * When the tx clock come from an interface (if_name[0] != '\0'), its name
+     * is stored below, whereas the ifp is filled when the rule is configured.
      */
     char if_name[16];
     struct ifnet *ifp ;
