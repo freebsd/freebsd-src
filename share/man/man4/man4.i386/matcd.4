@@ -76,10 +76,12 @@
 .\"
 .\"	Please note any documentation updates here including your name
 .\"	and the date.
+.\"<2>	Code brought in sync with changes made in versions 1(17) - 1(21)
+.\"	Frank Durda IV	4-Jul-95
 .\"
-.Dd April 24th, 1995
+.Dd June 24th, 1995
 .Dt MATCD 4 i386
-.\"Synchronized to Version 1(16) of matcd.c
+.\"Synchronized to Version 1(21) of matcd.c
 .Os FreeBSD 2.1
 .Sh NAME
 .Nm matcd
@@ -132,16 +134,16 @@ To support two host interfaces, change the file so it reads:
 
 (If you want to support up to three or four host interfaces, add
 additional entries).
-.if n .bp
-.if t .sp
+
 Note that the kernel configuration does not need to be modified to support
 up to four drives on a single host interface.  It is also not necessary to 
 have four drives on a single interface before adding a second interface.
-
+.if n .bp
+.if t .sp
 By default,
 .Nm matcd
 searches for the CD-ROM host interface adapters by using a table of known I/O
-ports (see \fIoptions.h\fR).  Although this
+ports on Creative host adapters (see \fIoptions.h\fR).  Although this
 is very flexible, it can cause problems when your system has other devices
 that are located at the I/O ports that 
 .Nm matcd 
@@ -154,7 +156,17 @@ where the CD-ROM host interfaces are located.  For example, by default most
 SoundBlaster cards have the Matsushita CD-ROM host interface
 located at I/O port 0x230.  (This is 0x10 above the I/O port for the
 audio section of the card.)  If this is the case for your system, you could
-change the entry in the kernel configuration file to specify that address
+change where the kernel looks for the hardware by using the -c option at
+the kernel boot prompt.  This will load the kernel and then give you the
+opportunity to change settings for any of the devices included the kernel.
+For example, to change the I/O port for
+.Nm matcd
+adapter zero to 0x340, you would type
+
+	config> port matcd0c 0x340
+
+If you recompile the kernel, you can change the entry in the kernel
+configuration file to specify a specific address by changing an entry
 like this:
 
 	controller  matcd0  at  isa?  port  0x230  bio
@@ -189,24 +201,26 @@ jack (seen on some Tandy computers), but this drive also works with
 The Matsushita CR-523-x CD-ROM drive is not usable with 
 .Nm matcd.
 The CR-523 can also be identified from the front as it requires a CD-caddy.
+
 Drives with IDE interfaces must use an IDE driver.
 
-The TEAC CD-55 4X CD-ROM drive uses the Creative/Panasonic interface
-but is \fInot\fR compatible with the Matsushita CR-56x drives.  
+The TEAC CD-55 4X CD-ROM drive also uses the Creative/Panasonic interface
+but the TEAC drive is \fInot\fR compatible with the Matsushita CR-56x drives.  
 The TEAC drive cannot be used with 
 .Nm matcd.
 .if t .sp
 .if n .bp
-The most common source of host interface adapters for these drives are in
-products from Creative Labs, including SoundBlaster sound cards.   There
-are numerous models of SoundBlaster sound cards, and most of the newer cards
-provide the appropriate interface, sometimes labeled as the
-"Creative/Panasonic" interface.
-
+The most common source of host interface adapters for the Panasonic drives
+are found in products from Creative Labs, including SoundBlaster sound
+cards.   There are numerous models of SoundBlaster sound cards, and most
+of the newer cards provide the appropriate interface, sometimes labeled as
+the "Creative/Panasonic" interface.
+.if n .sp
+.if t .bp
 The following host interface adapters are known to work with the
 .Nm matcd
 driver:
-.Bl -tag -width LONGNAME -compact -offset indent
+.Bl -tag -width MEDIAXVISION -compact -offset indent
 .It Creative
 Sound Blaster Pro (SBPRO) (CT1330A)
 .It Creative 
@@ -218,9 +232,17 @@ OmniCD upgrade kit adapter card - stand-alone CD (CT1810)
 .It Creative
 Sound Blaster 16 - 2-layer, cost-reduced  (CT2230)
 .It Creative
+Sound Blaster 16 (Vibra16) - 2-layer, single-chip (CT2260)
+.It Creative
 Sound Blaster 16 Value (SB16) - 2-layer, cost-reduced (CT2770)
 .It Creative
 PhoneBlaster SB16 + Sierra 14.4K Voice/FAX/Data/Speakerphone modem combo (CT3100)
+.It Reveal
+(SC400)
+.It Media Vision
+Jazz 16 (59-XP672SE)
+.It Crystal
+(CRD4231)
 .El
 
 Caution: Some of these sound boards can be optionally manufactured to not
@@ -231,11 +253,16 @@ This is by no means a complete list as Creative Labs and other vendors
 that produce sound cards with an identical Creative/Panasonic drive
 interface release new versions of their adapters all the time.
 
+In addition to Creative Labs adapters, adapters that are compatible with
+Media Vision, IBM and Lasermate adapters are also supported.   However,
+these adapters use a wide range of I/O port addresses, so the driver
+must be reconfigured to locate these adapters.   
+
 It is important to understand that some manufacturers have a different
 host interface implementation.  If you have a board that won't communicate
 with the drives under MS-DOS using the genuine Creative Labs drivers, then
 .Nm matcd
-probably will not work with that host adapter.
+may not work with that host adapter.
 .br
 .if t .bp
 .if n .sp
@@ -257,7 +284,7 @@ remain locked until all of the devs on that drive are closed.
 .if n .bp
 .if t .sp
 .Nm Matcd 
-accepts the numerous 
+accepts numerous 
 .Fn ioctl
 commands, including disk and functions related to CD-ROM  audio and tray
 control features.  The commands are:
@@ -366,13 +393,13 @@ numbers are always contiguous.
 .Sh SEE ALSO
 .Pa /usr/include/sys/cdio.h
 .Sh AUTHOR
-The driver and documentation was written by Frank Durda IV.
+The driver and documentation were written by Frank Durda IV.
 .br
 Program and Documentation are Copyright 1994, 1995, 
 All rights reserved.  
 .Sh HISTORY
 The
 .Nm matcd
-driver appeared in FreeBSD Release 2.1.
+driver appeared in FreeBSD Release 2.0.5.
 
-504242
+507043
