@@ -1,8 +1,12 @@
 .\" -*- nroff -*-
 .rn '' }`
-'\" $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.1,v 1.1.1.1 1993/06/19 14:21:51 paul Exp $
+'\" $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.1,v 1.2 1994/02/17 22:16:02 jkh Exp $
 '\" 
 '\" $Log: patch.1,v $
+.\" Revision 1.2  1994/02/17  22:16:02  jkh
+.\" From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
+.\" a patch before actually applying it.
+.\"
 .\" Revision 1.1.1.1  1993/06/19  14:21:51  paul
 .\" b-maked patch-2.10
 .\"
@@ -260,9 +264,6 @@ will be ignored.
 forces
 .I patch
 to interpret the patch file as a context diff.
-.TP 5
-.B "\-C, \-\-check"
-see what would happen, but don't do it.
 .TP 5
 .B "\-d dir, \-\-directory=dir"
 causes
