@@ -70,7 +70,14 @@ _start(char **ap,
 	char **argv;
 	char **env;
 
-	__asm __volatile("movl gp=_GLOBAL_OFFSET_TABLE_");
+	/* Calculate gp */
+	__asm __volatile(" \
+		movl gp=@gprel(1f) ; \
+		;; ; \
+	     1: mov r14=ip ; \
+		;; ; \
+		sub gp=r14,gp ; \
+		;; ");
 
 	argc = * (long *) ap;
 	argv = ap + 1;
