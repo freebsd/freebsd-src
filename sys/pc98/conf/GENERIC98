@@ -15,7 +15,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.63.2.11 1999/07/02 13:02:28 nyan Exp $
+#	$Id: GENERIC98,v 1.63.2.12 1999/08/09 13:59:05 nyan Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -279,4 +279,4 @@ options		SYSVSEM
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
-#pseudo-device	bpfilter 4	#Berkeley packet filter
+pseudo-device	bpfilter 1	#Berkeley packet filter
