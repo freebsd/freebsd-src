@@ -20,7 +20,7 @@ SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
 
 DPADD=	${LIBCRYPTO} ${LIBZ}
-LDADD+=	-lcrypto -lz
+LDADD=	-lcrypto -lz
 
 .include <bsd.lib.mk>
 
