@@ -362,7 +362,7 @@ kmem_malloc(map, size, flags)
 	if (flags & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
 
-	vm_object_lock(kmem_object);
+	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 retry:
 		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i), pflags);
@@ -374,11 +374,11 @@ retry:
 		 */
 		if (m == NULL) {
 			if ((flags & M_NOWAIT) == 0) {
-				vm_object_unlock(kmem_object);
+				VM_OBJECT_UNLOCK(kmem_object);
 				vm_map_unlock(map);
 				VM_WAIT;
 				vm_map_lock(map);
-				vm_object_lock(kmem_object);
+				VM_OBJECT_LOCK(kmem_object);
 				goto retry;
 			}
 			/* 
@@ -396,7 +396,7 @@ retry:
 				vm_page_free(m);
 				vm_page_unlock_queues();
 			}
-			vm_object_unlock(kmem_object);
+			VM_OBJECT_UNLOCK(kmem_object);
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
 			return (0);
@@ -408,7 +408,7 @@ retry:
 		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_unlock_queues();
 	}
-	vm_object_unlock(kmem_object);
+	VM_OBJECT_UNLOCK(kmem_object);
 
 	/*
 	 * Mark map entry as non-pageable. Assert: vm_map_insert() will never
@@ -430,9 +430,9 @@ retry:
 	 * splimp...)
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		vm_object_lock(kmem_object);
+		VM_OBJECT_LOCK(kmem_object);
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
-		vm_object_unlock(kmem_object);
+		VM_OBJECT_UNLOCK(kmem_object);
 		/*
 		 * Because this is kernel_pmap, this call will not block.
 		 */
