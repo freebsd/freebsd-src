@@ -37,23 +37,37 @@
 .Nd
 Parallel port driver
 .Sh SYNOPSIS
+For interrupt-driven ports:
 .Cd "device lpt0 at isa? port" \&"IO_LPT1\&" tty irq 7 vector lptintr
 .Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty irq 7 vector lptintr
 .Cd "device lpt2 at isa? port" \&"IO_LPT3\&" tty irq 7 vector lptintr
+.sp
+For BIOS-probed ports:
+.Cd "device lpt0 at isa? port? tty irq 7 vector lptintr"
+.sp
+For polled ports:
+.Cd "device lpt0 at isa? port? tty"
+.Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty
 .Sh DESCRIPTION
-This driver provides access to parallel ports.  It assumes that
-the parallel port controller interrupts the CPU properly.  If
-this is not the case, the
-.Nm lpa
-driver should be used instead.
+This driver provides access to parallel ports. 
+.sp
+The driver can be configured either to be either interrupt-driven, or 
+to poll the printer.  Ports that are configured to be 
+interrupt-driven can be switched to polled mode by using the
+.Xr lptcontrol 1
+command.
+.sp
+This driver replaces the functionality of the 
+.Xr lpa 4
+driver, which is now defunct.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /dev/lpt0
 first parallel port driver
 .El
 .Sh SEE ALSO
-.Xr lpa 4
+.Xr lptcontrol 1
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
 .Pp
-This driver could stand a rewrite.
+This driver could still stand a rewrite.
