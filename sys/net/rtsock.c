@@ -326,7 +326,8 @@ route_output(struct mbuf *m, struct socket *so)
 	if (info.rti_info[RTAX_GENMASK]) {
 		struct radix_node *t;
 		t = rn_addmask((caddr_t) info.rti_info[RTAX_GENMASK], 0, 1);
-		if (t && Bcmp((caddr_t *) info.rti_info[RTAX_GENMASK] + 1,
+		/* XXX why this odd cast to (caddr_t *) ? Maybe wrong ? */
+		if (t && bcmp((caddr_t *) info.rti_info[RTAX_GENMASK] + 1,
 			      (caddr_t *)t->rn_key + 1,
 			      *(u_char *)t->rn_key - 1) == 0)
 			info.rti_info[RTAX_GENMASK] =
@@ -418,7 +419,7 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(ENOBUFS);
 				}
-				Bcopy(rtm, new_rtm, rtm->rtm_msglen);
+				bcopy(rtm, new_rtm, rtm->rtm_msglen);
 				Free(rtm); rtm = new_rtm;
 			}
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
@@ -1078,7 +1079,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	af = name[0];
 	if (af > AF_MAX)
 		return (EINVAL);
-	Bzero(&w, sizeof(w));
+	bzero(&w, sizeof(w));
 	w.w_op = name[1];
 	w.w_arg = name[2];
 	w.w_req = req;
