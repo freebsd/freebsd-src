@@ -1,7 +1,7 @@
 /* opiepasswd.c: Add/change an OTP password in the key database.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_key for key blocks.
+		Use opiestrncpy().
 	Modified by cmetz for OPIE 2.32. Use OPIE_SEED_MAX instead of
 		hard coding the length. Unlock user on failed lookup.
 	Modified by cmetz for OPIE 2.3. Got of some variables and made some
@@ -97,12 +99,13 @@ static VOIDRET finish FUNCTION((name), char *name)
     }
     printf("OTP key is %d %s\n", opie.opie_n, opie.opie_seed);
     {
-      char key[8];
-      if (!opieatob8(key, opie.opie_val)) {
+      struct opie_otpkey key;
+
+      if (!opieatob8(&key, opie.opie_val)) {
 	fprintf(stderr, "Error verifying key -- possible database corruption.\n");
 	finish(NULL);
       }
-      printf("%s\n", opiebtoe(buf, key));
+      printf("%s\n", opiebtoe(buf, &key));
     }
   }
 
@@ -156,8 +159,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	       OPIE_SEED_MIN, OPIE_SEED_MAX);
 	finish(NULL);
       }
-      strncpy(seed, optarg, sizeof(seed));
-      seed[sizeof(seed) - 1] = 0;
+      opiestrncpy(seed, optarg, sizeof(seed));
       break;
     default:
       usage(argv[0]);
@@ -242,7 +244,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	{
 	  char *c;
 	  if (c = strrchr(tmp, ' '))
-	    strncpy(oseed, c + 1, sizeof(oseed));
+	    opiestrncpy(oseed, c + 1, sizeof(oseed));
 	  else {
 #if DEBUG
 	    fprintf(stderr, "opiepasswd: bogus challenge\n");
@@ -278,7 +280,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	  {
 	    char *c;
 	    if (c = strrchr(tmp, ' '))
-	      strncpy(nseed, c + 1, sizeof(nseed));
+	      opiestrncpy(nseed, c + 1, sizeof(nseed));
 	    else {
 #if DEBUG
 	      fprintf(stderr, "opiepasswd: bogus challenge\n");
@@ -349,18 +351,18 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	  finish(NULL);
 	}
 	{
-	  char key[8];
+	  struct opie_otpkey key;
 	  char tbuf[OPIE_RESPONSE_MAX + 1];
 	  
-	  if (opiekeycrunch(MDX, key, opie.opie_seed, passwd) != 0) {
+	  if (opiekeycrunch(MDX, &key, opie.opie_seed, passwd) != 0) {
 	    fprintf(stderr, "%s: key crunch failed. Secret pass phrase unchanged\n", argv[0]);
 	    finish(NULL);
 	  }
 	  memset(passwd, 0, sizeof(passwd));
 	  i = opie.opie_n - 1;
 	  while (i-- != 0)
-	    opiehash(key, MDX);
-	  opiebtoe(tbuf, key);
+	    opiehash(&key, MDX);
+	  opiebtoe(tbuf, &key);
 	  if (opieverify(&opie, tbuf)) {
 	    fprintf(stderr, "Sorry.\n");
 	    finish(NULL);

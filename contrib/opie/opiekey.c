@@ -5,7 +5,7 @@
  and outputs a response.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -18,6 +18,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_key for key blocks.
 	Modified by cmetz for OPIE 2.31. Renamed "init" and RESPONSE_INIT
 	        to "init-hex" and RESPONSE_INIT_HEX. Removed active attack
 		protection support.
@@ -135,7 +136,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   int i;
   int count = 1;
   char secret[OPIE_SECRET_MAX + 1], newsecret[OPIE_SECRET_MAX + 1];
-  char key[8], newkey[8];
+  struct opie_otpkey key, newkey;
   char *seed, newseed[OPIE_SEED_MAX + 1];
   char response[OPIE_RESPONSE_MAX + 1];
   char *slash;
@@ -266,13 +267,13 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       goto error;
     }
 
-    if (opiekeycrunch(algorithm, newkey, newseed, newsecret)) {
+    if (opiekeycrunch(algorithm, &newkey, newseed, newsecret)) {
       fprintf(stderr, "%s: key crunch failed (1)\n", argv[0]);
       goto error;
     }
 
     for (i = 0; i < 499; i++)
-      opiehash(newkey, algorithm);
+      opiehash(&newkey, algorithm);
   } else
 #if RETYPE
     getsecret(secret, "", 1);
@@ -281,13 +282,13 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 #endif /* RETYPE */
 
   /* Crunch seed and secret password into starting key normally */
-  if (opiekeycrunch(algorithm, key, seed, secret)) {
+  if (opiekeycrunch(algorithm, &key, seed, secret)) {
     fprintf(stderr, "%s: key crunch failed\n", argv[0]);
     goto error;
   }
 
   for (i = 0; i <= (keynum - count); i++)
-    opiehash(key, algorithm);
+    opiehash(&key, algorithm);
 
   {
     char buf[OPIE_SEED_MAX + 48 + 1];
@@ -300,37 +301,37 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       switch(type) {
       case RESPONSE_STANDARD:
 	if (hex)
-	  opiebtoh(response, key);
+	  opiebtoh(response, &key);
 	else
-	  opiebtoe(response, key);
+	  opiebtoe(response, &key);
 	break;
       case RESPONSE_WORD:
 	strcpy(response, "word:");
-	strcat(response, opiebtoe(buf, key));
+	strcat(response, opiebtoe(buf, &key));
 	break;
       case RESPONSE_HEX:
 	strcpy(response, "hex:");
-	strcat(response, opiebtoh(buf, key));
+	strcat(response, opiebtoh(buf, &key));
 	break;
       case RESPONSE_INIT_HEX:
       case RESPONSE_INIT_WORD:
 	if (type == RESPONSE_INIT_HEX) {
 	  strcpy(response, "init-hex:");
-	  strcat(response, opiebtoh(buf, key));
+	  strcat(response, opiebtoh(buf, &key));
 	  sprintf(buf, ":%s 499 %s:", algids[algorithm], newseed);
 	  strcat(response, buf);
-	  strcat(response, opiebtoh(buf, newkey));
+	  strcat(response, opiebtoh(buf, &newkey));
 	} else {
 	  strcpy(response, "init-word:");
-	  strcat(response, opiebtoe(buf, key));
+	  strcat(response, opiebtoe(buf, &key));
 	  sprintf(buf, ":%s 499 %s:", algids[algorithm], newseed);
 	  strcat(response, buf);
-	  strcat(response, opiebtoe(buf, newkey));
+	  strcat(response, opiebtoe(buf, &newkey));
 	}
 	break;
       }
       puts(response);
-      opiehash(key, algorithm);
+      opiehash(&key, algorithm);
     }
   }
 
