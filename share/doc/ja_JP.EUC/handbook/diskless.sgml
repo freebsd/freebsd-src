@@ -1,0 +1,163 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.7 -->
+<!-- 日本語訳 Y.Suzuki(yasu@hike.te.chiba-u.ac.jp)-->
+
+<sect><heading>Diskless operation<label id="diskless"></heading>
+
+<p><em>Contributed by &a.martin;.</em>
+
+        <tt>netboot.com/netboot.rom</tt>によって、
+        ディスクのないクライアントで
+        ネットワーク経由でFreeBSDマシンのブートを行い
+        FreeBSDを走らせることができます。
+        2.0ではローカルなスワップを持つことができます。
+        NFS経由のスワッピングもサポートされています。
+
+        サポートされているイーサネットカード:
+        Western Digital/SMC 8003, 8013, 8216 とその互換ボード,
+        NE1000/NE2000 とその互換カード (再コンパイルが必要)
+
+    <sect1>
+      <heading>セットアップの手順</heading>
+
+      <p><enum> 
+          <item>サーバにするマシンを見つけます。
+                このマシンには、FreeBSD 2.0のバイナリとbootpを
+                記憶するだけの十分なディスクスペースが必要です。
+                tftp と NFS も使えます。
+
+            テストしたマシン:
+              <itemize>
+                <item>HP9000/8xx / HP-UX 9.04以降
+                        (9.04以前では動きません)</item> 
+                <item>Sun/Solaris 2.3. (bootpが必要)</item>
+              </itemize>
+            
+          <item>クライアントにIP,gateway,netmaskを提供する
+                bootpサーバをセットアップします。
+<tscreen><verb>
+diskless:\
+        :ht=ether:\
+        :ha=0000c01f848a:\
+        :sm=255.255.255.0:\
+        :hn:\
+        :ds=192.1.2.3:\
+        :ip=192.1.2.4:\
+        :gw=192.1.2.5:\
+        :vm=rfc1048:
+</verb></tscreen></item>
+
+          <item>クライアントにブート情報を提供するTFTPサーバを
+                (bootpサーバと同じマシンに)セットアップします。
+            このファイルの名前は、<tt>cfg.X.X.X.X</tt> (もしくは
+            <tt>/tftpboot/cfg.X.X.X.X</tt>)で、
+            ここで<tt>X.X.X.X</tt> はクライアントのIPアドレスです。
+            このファイルの内容は netbootコマンドで有効です。
+            2.0では、netboot は以下のようなコマンドを持ちます:
+<tscreen><verb>
+help                    - helpリストの表示
+ip <X.X.X.X>            - クライアントのIPアドレスの表示/セット
+server <X.X.X.X>        - bootp/tftp サーバのアドレスの表示/セット
+netmask <X.X.X.X>       - netmaskの表示/セット
+hostname <name>         - hostnameの表示/セット
+kernel <name>           - カーネル名の表示/セット
+rootfs <ip:/fs>         - root ファイルシステムの表示/セット
+swapfs <ip:/fs>         - swap ファイルシステムの表示/セット
+swapsize <size>         - diskless swapsize を Kbytes単位でセット
+diskboot                - ディスクからのブート
+autoboot                - ブートプロセスの続行
+trans <on|off>          - トランシーバのオン|オフ
+flags [bcdhsv]          - ブートフラグの設定
+</verb></tscreen>
+    完全にディスクレスな場合の一般的なcfgファイルは以下のようになります:
+<tscreen><verb>
+rootfs 192.1.2.3:/rootfs/myclient
+swapfs 192.1.2.3:/swapfs
+swapsize 20000
+hostname myclient.mydomain
+</verb></tscreen>
+    ローカルにswapを持つマシンについては以下のようになります:
+<tscreen><verb>
+rootfs 192.1.2.3:/rootfs/myclient
+hostname myclient.mydomain
+</verb></tscreen>
+
+          <item>NFS サーバがクライアントにroot(必要ならswapも)
+                ファイルシステムをexportしているか、また、
+                クライアントがこれらのファイルシステムに
+                ルートアクセスできるか確認します。
+
+            FreeBSDにおける一般的な <tt>/etc/exports</tt> ファイルは
+            以下のようになります:
+<tscreen><verb>
+/rootfs/myclient -maproot=0:0 myclient.mydomain
+/swapfs -maproot=0:0 myclient.mydomain
+</verb></tscreen>
+
+            そして、HP-UX側では以下のようになります:
+<tscreen><verb>
+/rootfs/myclient -root=myclient.mydomain
+/swapfs -root=myclient.mydomain
+</verb></tscreen>
+
+          <item>NFS経由でスワッピングを行う場合
+                (完全にディスクレスな場合の設定)、
+                クライアントが <tt>dd</tt> で使用する swap ファイルを作成します。
+                もし、<tt>swapfs</tt> コマンドが上記の例のように
+                引数 <tt>/swapfs</tt>を持ちそのサイズが 20000 である場合、
+                myclientに対するスワップファイルは
+                <tt>/swapfs/swap.X.X.X.X</tt> で呼び出されます。
+                ここで <tt>X.X.X.X</tt> はクライアントのIPアドレスです。
+
+                例:
+<tscreen><verb>
+# dd if=/dev/zero of=/swapfs/swap.192.1.2.4 bs=1k count=20000
+</verb></tscreen>
+
+            また、スワッピングが開始されるとクライアントのスワップスペースは
+            センシティブな情報を含むようになるので、不正なアクセスを防止するため、
+            このファイルへの読み書きのアクセス制限がなされていることを確認して下さい:
+<tscreen><verb>
+# chmod 0600 /swapfs/swap.192.1.2.4
+</verb></tscreen>
+
+          <item>クライアントがそれぞれのrootファイルシステムとして使う
+                ディレクトリにrootファイルシステムを展開します。
+                (上記の例では<tt>/rootfs/myclient</tt>).
+
+            <itemize>
+
+              <item> HP-UX システム: サーバはHP9000/800 シリーズのマシンで、
+                HP-UX 9.04 以降が必要です。
+                これ以前のバージョンではNFSを経由するデバイスファイルが
+                作成ができません。
+
+              <item> <tt>/rootfs/myclient</tt> に <tt>/dev</tt> を
+                展開する際に、いくつかのシステム(HPUX)ではFreeBSDに合った
+                デバイスファイルが作成されないので注意してください。
+                その際には最初の起動時にシングルユーザモードに移行して
+                (ブートの段階でCtrl-Cを押す)、<tt>/dev</tt> に移って
+                "<tt>sh ./MAKEDEV all</tt>" として、クライアントからこれを
+                修正してください。
+            </itemize>
+
+          <item>クライアントで <tt>netboot.com</tt> を実行するか、
+                <tt>netboot.rom</tt> ファイルから EPROMを作成します。
+        </enum>
+
+    <sect1>
+      <heading><tt>/</tt> および <tt>/usr</tt> ファイルシステムを共有して使用する</heading>
+
+      <p>今のところ、これを行う公式に認められた方法はありませんが、
+        私はそれぞれのクライアントで <tt>/usr</tt> ファイルシステムと
+        個々の <tt>/</tt> ファイルシステム を共有して使っています。
+        どなたかこれをきちんと行うやり方の提案がありましたら、
+        私に、もしくは &a.core; グループに知らせてください。
+
+    <sect1>
+      <heading>特定の設定についてnetbootをコンパイルする</heading>
+
+      <p><tt>/sys/i386/boot/netboot/Makefile</tt> の中の設定を変更して
+        コンパイルすることで、netbootでNE1000/2000 カードをサポートします。
+        このファイルの先頭にあるコメントを見てください。

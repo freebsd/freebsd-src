@@ -1,0 +1,51 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.2 -->
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
+
+<!-- Conditional flags for this version of the document -->
+<!ENTITY % boothelp.only "INCLUDE">
+<!ENTITY % handbook.only "IGNORE">
+
+<!-- Entity shorthand for authors' names and email addresses -->
+<!ENTITY % authors SYSTEM "authors.sgml">
+%authors;
+
+<!-- Entity definitions for all the parts -->
+<!ENTITY % sections SYSTEM "sections.sgml">
+%sections;
+
+]>
+
+<linuxdoc>
+  <book>
+
+      <title>FreeBSD のインストール
+      <author>
+	<name></name>
+      </author>
+
+      <abstract>FreeBSD の世界へようこそ! このガイドは FreeBSD の
+	インストール方法について説明しています. 
+	矢印キーの<bf>上</bf>と<bf>下</bf>を使って
+	このガイドの読みたいセクションに移動し, 
+	<bf>右矢印キー</bf>か<bf>リターンキー</bf>を使ってお読みください. 
+	一度読んだことのあるセクションは<bf>左矢印キー</bf>で
+	戻って読みなおすことができます. 
+      </abstract>
+	
+    <chapt><heading>一般的な情報</heading>
+      &nutshell;
+      &history;
+      &relnotes;
+
+    &install;
+    &troubleshooting;
+    &bibliography;
+    &eresources;
+    &hw;
+    &contrib;
+   
+  </book>
+</linuxdoc>
