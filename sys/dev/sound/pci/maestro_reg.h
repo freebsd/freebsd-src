@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: maestro_reg.h,v 1.10 2000/08/29 17:27:29 taku Exp $
+ *	maestro_reg.h,v 1.13 2001/11/11 18:29:46 taku Exp
  * $FreeBSD$
  */
 
@@ -41,10 +41,13 @@
 
 /* Chip configurations */
 #define CONF_MAESTRO	0x50
+#define MAESTRO_PMC		0x08000000
+#define MAESTRO_SPDIF		0x01000000
+#define MAESTRO_HWVOL		0x00800000
 #define MAESTRO_CHIBUS		0x00100000
 #define MAESTRO_POSTEDWRITE	0x00000080
 #define MAESTRO_DMA_PCITIMING	0x00000040
-#define MAESTRO_SWAP_LR		0x00000010
+#define MAESTRO_SWAP_LR		0x00000020
 
 /* ACPI configurations */
 #define CONF_ACPI_STOPCLOCK	0x54
@@ -135,12 +138,15 @@
 #define HOSTINT_STAT_SB		0x01
 
 /* Hardware volume */
+#define PORT_HWVOL_CTRL		0x1b	/* BYTE RW */
+#define HWVOL_CTRL_SPLIT_SHADOW	0x01
+
 #define PORT_HWVOL_VOICE_SHADOW	0x1c	/* BYTE RW */
 #define PORT_HWVOL_VOICE	0x1d	/* BYTE RW */
 #define PORT_HWVOL_MASTER_SHADOW 0x1e	/* BYTE RW */
 #define PORT_HWVOL_MASTER	0x1f	/* BYTE RW */
 #define HWVOL_NOP		0x88
-#define HWVOL_MUTE		0x99
+#define HWVOL_MUTE		0x11
 #define HWVOL_UP		0xaa
 #define HWVOL_DOWN		0x66
 
@@ -163,8 +169,6 @@
 #define RINGBUS_CTRL_RINGBUS_ENABLED	0x20000000
 #define RINGBUS_CTRL_ACLINK_ENABLED	0x10000000
 #define RINGBUS_CTRL_AC97_SWRESET	0x08000000
-#define RINGBUS_CTRL_IODMA_PLAYBACK_ENABLED	0x04000000
-#define RINGBUS_CTRL_IODMA_RECORD_ENABLED	0x02000000
 
 #define RINGBUS_SRC_MIC		20
 #define RINGBUS_SRC_I2S		16
@@ -181,6 +185,15 @@
 #define RINGBUS_DEST_RESERVED3	3
 #define RINGBUS_DEST_DSOUND_IN	4
 #define RINGBUS_DEST_ASSP_IN	5
+
+/* Ring bus control B */
+#define PORT_RINGBUS_CTRL_B	0x38	/* BYTE RW */
+#define RINGBUS_CTRL_SSPE		0x40
+#define RINGBUS_CTRL_2ndCODEC		0x20
+#define RINGBUS_CTRL_SPDIF		0x10
+#define RINGBUS_CTRL_ITB_DISABLE	0x08
+#define RINGBUS_CTRL_CODEC_ID_MASK	0x03
+#define RINGBUS_CTRL_CODEC_ID_AC98	2
 
 /* General Purpose I/O */
 #define PORT_GPIO_DATA	0x60	/* WORD RW */
@@ -297,21 +310,34 @@
 
 /* APU register 4 */
 #define APUREG_WAVESPACE	4
-#define APU_STEREO		0x8000
-#define APU_USE_SYSMEM		0x4000
-#define APU_PCMBAR_MASK		0x6000
 #define APU_64KPAGE_MASK	0xff00
-
-/* PCM Base Address Register selection */
-#define APU_PCMBAR_SHIFT	13
 
 /* 64KW (==128KB) Page */
 #define APU_64KPAGE_SHIFT	8
+
+/* Wave Processor Wavespace Address */
+#define WPWA_MAX		((1 << 22) - 1)
+#define WPWA_STEREO		(1 << 23)
+#define WPWA_USE_SYSMEM		(1 << 22)
+
+#define WPWA_WTBAR_SHIFT(wtsz)	WPWA_WTBAR_SHIFT_##wtsz
+#define WPWA_WTBAR_SHIFT_1	15
+#define WPWA_WTBAR_SHIFT_2	16
+#define WPWA_WTBAR_SHIFT_4	17
+#define WPWA_WTBAR_SHIFT_8	18
+
+#define WPWA_PCMBAR_SHIFT	20
 
 /* APU register 5 - 7 */
 #define APUREG_CURPTR	5
 #define APUREG_ENDPTR	6
 #define APUREG_LOOPLEN	7
+
+/* APU register 8 */
+#define APUREG_EFFECT_GAIN	8
+
+/* Effect gain? */
+#define APUREG_EFFECT_GAIN_MASK	0x00ff
 
 /* APU register 9 */
 #define APUREG_AMPLITUDE	9
@@ -338,11 +364,20 @@
 #define PAN_FRONT	0x08
 #define PAN_LEFT	0x10
 
+/* Source routing. */
+#define APUREG_ROUTING	11
+#define APU_INVERT_POLARITY_B	0x8000
+#define APU_DATASRC_B_MASK	0x7f00
+#define APU_INVERT_POLARITY_A	0x0080
+#define APU_DATASRC_A_MASK	0x007f
+
+#define APU_DATASRC_A_SHIFT	0
+#define APU_DATASRC_B_SHIFT	8
+
 
 /* -----------------------------
  * Limits.
  */
-#define WPWA_MAX	((1 << 22) - 1)
 #define WPWA_MAXADDR	((1 << 23) - 1)
 #define MAESTRO_MAXADDR	((1 << 28) - 1)
 
