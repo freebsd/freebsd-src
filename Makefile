@@ -1,10 +1,9 @@
 #
-#	$Id: Makefile,v 1.124 1997/05/10 06:53:40 bde Exp $
+#	$Id: Makefile,v 1.125 1997/05/13 18:11:38 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
-#	-DMAKE_LOCAL to add ./local to the SUBDIR list
-#	-DMAKE_PORTS to add ./ports to the SUBDIR list
+#	-DLOCAL_DIRS to add additional dirs to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #	-DALLLANG to build documentation for all languages
 #	  (where available -- see share/doc/Makefile)
@@ -98,11 +97,12 @@ SUBDIR+= etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
-.if defined(MAKE_LOCAL) & exists(local) & exists(local/Makefile)
-SUBDIR+= local
+.if defined(LOCAL_DIRS)
+.for _DIR in ${LOCAL_DIRS}
+.if exists(${_DIR}) & exists(${_DIR}/Makefile)
+SUBDIR+= ${_DIR}
 .endif
-.if defined(MAKE_PORTS) & exists(ports) & exists(ports/Makefile)
-SUBDIR+= ports
+.endfor
 .endif
 
 # Handle -DNOOBJDIR, -DNOCLEAN and -DNOCLEANDIR
