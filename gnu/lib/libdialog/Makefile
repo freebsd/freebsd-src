@@ -1,7 +1,9 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.9 1995/04/21 10:15:31 jkh Exp $
+# $Id: Makefile,v 1.10 1995/04/21 10:18:33 jkh Exp $
 
 LIB=    dialog
+SHLIB_MAJOR= 2
+SHLIB_MINOR= 1
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
 	fselect.c ui_objects.c dir.c notify.c help.c gauge.c
