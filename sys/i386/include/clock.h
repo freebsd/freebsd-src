@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.24 1997/02/22 09:33:59 peter Exp $
+ *	$Id: clock.h,v 1.25 1997/04/26 11:45:33 peter Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -28,11 +28,13 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#if defined(I586_CPU) || defined(I686_CPU)
+#if !defined(SMP)
 extern u_int	i586_ctr_bias;
 extern u_int	i586_ctr_comultiplier;
-extern u_int	i586_ctr_freq;
 extern u_int	i586_ctr_multiplier;
+#endif
+extern u_int	i586_ctr_freq;
 #endif
 extern int	statclock_disable;
 extern u_int	timer_freq;
