@@ -163,7 +163,7 @@ parse(char *string)
 	size_t newsize = 0;
 	quad_t quadval;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], fmt[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ];
 	u_int kind;
 
 	bufp = buf;
@@ -198,25 +198,45 @@ parse(char *string)
 
 		if (!(kind&CTLFLAG_WR))
 			errx(1, "oid '%s' is read only", bufp);
+
+		if ((kind & CTLTYPE) == CTLTYPE_INT ||
+		    (kind & CTLTYPE) == CTLTYPE_UINT ||
+		    (kind & CTLTYPE) == CTLTYPE_LONG ||
+		    (kind & CTLTYPE) == CTLTYPE_ULONG) {
+			if (strlen(newval) == 0)
+				errx(1, "empty numeric value");
+		}
 	
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
-				intval = (int) strtol(newval, NULL, 0);
+				intval = (int) strtol(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid integer '%s'",
+					    newval);
 				newval = &intval;
 				newsize = sizeof(intval);
 				break;
 			case CTLTYPE_UINT:
-				uintval = (int) strtoul(newval, NULL, 0);
+				uintval = (int) strtoul(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid unsigned integer '%s'",
+					    newval);
 				newval = &uintval;
 				newsize = sizeof uintval;
 				break;
 			case CTLTYPE_LONG:
-				longval = strtol(newval, NULL, 0);
+				longval = strtol(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid long integer '%s'",
+					    newval);
 				newval = &longval;
 				newsize = sizeof longval;
 				break;
 			case CTLTYPE_ULONG:
-				ulongval = strtoul(newval, NULL, 0);
+				ulongval = strtoul(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid unsigned long integer"
+					    " '%s'", newval);
 				newval = &ulongval;
 				newsize = sizeof ulongval;
 				break;
