@@ -34,7 +34,6 @@ Write_Disk(const struct disk *d1)
 	int i;
 	char *p;
 	u_long secpercyl;
-	u_short *sp1, *sp2, cksum;
 	char device[64];
 	u_char buf[SUN_SIZE];
 	int fd;
@@ -99,7 +98,7 @@ Write_Disk(const struct disk *d1)
 	sl->sl_part[SUN_RAWPART].sdkp_nsectors = sl->sl_ncylinders * secpercyl;
 
 	memset(buf, 0, sizeof buf);
-	sunlabel_enc(buf, &sl);
+	sunlabel_enc(buf, sl);
 	write_block(fd, 0, buf, sizeof buf);
 
 	close(fd);
