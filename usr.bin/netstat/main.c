@@ -330,6 +330,7 @@ int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
 int	Wflag;		/* wide display */
+int	zflag;		/* zero stats */
 
 int	interval;	/* repeat interval for i/f stats */
 
@@ -348,7 +349,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -457,6 +458,9 @@ main(argc, argv)
 		case 'w':
 			interval = atoi(optarg);
 			iflag = 1;
+			break;
+		case 'z':
+			zflag = 1;
 			break;
 		case '?':
 		default:
