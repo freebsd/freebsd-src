@@ -32,7 +32,7 @@
 .\"	@(#)od.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd July 11, 2004
 .Os
 .Dt OD 1
 .Sh NAME
@@ -179,6 +179,10 @@ characters, which are represented as C escapes:
 .It vertical tab
 \ev
 .El
+.Pp
+Multi-byte characters are displayed in the area corresponding to the first
+byte of the character. The remaining bytes are shown as
+.Ql ** .
 .It Xo
 .Sm off
 .Op Cm d | o | u | x
@@ -231,6 +235,15 @@ contain one line for each format.
 If no output format is specified,
 .Fl t Ar oS
 is assumed.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh COMPATIBILITY
@@ -252,7 +265,3 @@ An
 .Nm
 command appeared in
 .At v1 .
-.Sh BUGS
-The
-.Nm
-utility does not recognize multibyte characters.
