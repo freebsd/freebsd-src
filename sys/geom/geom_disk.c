@@ -375,7 +375,6 @@ g_kern_disks(void *p, int flag __unused)
 		sp = " ";
 	}
 	sbuf_finish(sb);
-	wakeup(sb);
 }
 
 static int
@@ -386,10 +385,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_post_event(g_kern_disks, sb, M_WAITOK, NULL);
-	while (!sbuf_done(sb)) {
-		tsleep(sb, PZERO, "kern.disks", hz);
-	}
+	g_waitfor_event(g_kern_disks, sb, M_WAITOK, NULL);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;

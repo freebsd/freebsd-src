@@ -64,10 +64,14 @@ static struct sx g_eventstall;
 
 struct g_event {
 	TAILQ_ENTRY(g_event)	events;
-	void			*arg;
 	g_event_t		*func;
+	void			*arg;
+	int			flag;
 	void			*ref[G_N_EVENTREFS];
 };
+
+#define EV_DONE		0x80000
+#define EV_WAKEUP	0x40000
 
 void
 g_waitidle(void)
@@ -180,7 +184,12 @@ one_event(void)
 	g_topology_assert();
 	ep->func(ep->arg, 0);
 	g_topology_assert();
-	g_destroy_event(ep);
+	if (ep->flag & EV_WAKEUP) {
+		ep->flag |= EV_DONE;
+		wakeup(ep);
+	} else {
+		g_destroy_event(ep);
+	}
 	g_pending_events--;
 	if (g_pending_events == 0)
 		wakeup(&g_pending_events);
@@ -212,7 +221,12 @@ g_cancel_event(void *ref)
 			if (ep->ref[n] == ref) {
 				TAILQ_REMOVE(&g_events, ep, events);
 				ep->func(ep->arg, EV_CANCEL);
-				g_free(ep);
+				if (ep->flag & EV_WAKEUP) {
+					ep->flag |= EV_DONE;
+					wakeup(ep);
+				} else {
+					g_destroy_event(ep);
+				}
 				break;
 			}
 		}
@@ -220,21 +234,18 @@ g_cancel_event(void *ref)
 	mtx_unlock(&g_eventlock);
 }
 
-int
-g_post_event(g_event_t *func, void *arg, int flag, ...)
+static int
+g_post_event_x(g_event_t *func, void *arg, int flag, struct g_event **epp, va_list ap)
 {
 	struct g_event *ep;
-	va_list ap;
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event(%p, %p, %d", func, arg, flag);
-	KASSERT(flag == M_NOWAIT || flag == M_WAITOK,
-	    ("Wrong flag to g_post_event"));
+	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d", func, arg, flag);
 	ep = g_malloc(sizeof *ep, flag | M_ZERO);
 	if (ep == NULL)
 		return (ENOMEM);
-	va_start(ap, flag);
+	ep->flag = flag;
 	for (n = 0; n < G_N_EVENTREFS; n++) {
 		p = va_arg(ap, void *);
 		if (p == NULL)
@@ -251,6 +262,48 @@ g_post_event(g_event_t *func, void *arg, int flag, ...)
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
+	if (epp != NULL)
+		*epp = ep;
+	return (0);
+}
+
+int
+g_post_event(g_event_t *func, void *arg, int flag, ...)
+{
+	va_list ap;
+
+	va_start(ap, flag);
+	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
+	    ("Wrong flag to g_post_event"));
+	return (g_post_event_x(func, arg, flag, NULL, ap));
+}
+
+
+/*
+ * XXX: It might actually be useful to call this function with topology held.
+ * XXX: This would ensure that the event gets created before anything else
+ * XXX: changes.  At present all users have a handle on things in some other
+ * XXX: way, so this remains an XXX for now.
+ */
+
+int
+g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
+{
+	va_list ap;
+	struct g_event *ep;
+	int error;
+
+	/* g_topology_assert_not(); */
+	va_start(ap, flag);
+	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
+	    ("Wrong flag to g_post_event"));
+	error = g_post_event_x(func, arg, flag | EV_WAKEUP, &ep, ap);
+	if (error)
+		return (error);
+	do 
+		tsleep(ep, PRIBIO, "g_waitfor_event", hz);
+	while (!(ep->flag & EV_DONE));
+	g_destroy_event(ep);
 	return (0);
 }
 
