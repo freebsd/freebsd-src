@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.13 1996/05/09 13:01:44 phk Exp $
+#	$Id: sys.mk,v 1.14 1996/05/28 16:20:13 phk Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -89,21 +89,19 @@ YFLAGS		?=	-d
 .s.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
-# XXX not -j safe
 .y.o:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
-	rm -f y.tab.c
+	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
+	${CC} ${CFLAGS} -c ${.PREFIX}.tab.c -o ${.TARGET}
+	rm -f ${.PREFIX}.tab.c
 
 .l.o:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 
-# XXX not -j safe
 .y.c:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	mv y.tab.c ${.TARGET}
+	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
+	mv ${.PREFIX}.tab.c ${.TARGET}
 
 .l.c:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.TARGET}
@@ -116,11 +114,10 @@ YFLAGS		?=	-d
 	    ${LDLIBS} -o ${.TARGET}
 	rm -f ${.PREFIX}.o
 
-# XXX not -j safe
 .y.out:
-	${YACC} ${YFLAGS} ${.IMPSRC}
-	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
-	rm -f y.tab.c
+	${YACC} ${YFLAGS} -b ${.PREFIX} ${.IMPSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tab.c ${LDLIBS} -ly -o ${.TARGET}
+	rm -f ${.PREFIX}.tab.c
 
 .l.out:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
