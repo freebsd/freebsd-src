@@ -75,6 +75,8 @@ struct fstab *getfsspec(const char *);
 struct fstab *getfsfile(const char *);
 int setfsent(void);
 void endfsent(void);
+void setfstab(const char *);
+const char *getfstab(void);
 __END_DECLS
 
 #endif /* !_FSTAB_H_ */

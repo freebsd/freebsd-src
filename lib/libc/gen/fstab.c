@@ -54,10 +54,39 @@ __FBSDID("$FreeBSD$");
 static FILE *_fs_fp;
 static struct fstab _fs_fstab;
 static int LineNo = 0;
+static char *path_fstab;
+static char fstab_path[PATH_MAX];
+static int fsp_set = 0;
 
 static void error(int);
 static void fixfsfile(void);
 static int fstabscan(void);
+
+void
+setfstab(const char *file)
+{
+
+	if (file == NULL) {
+		path_fstab = _PATH_FSTAB;
+	} else {
+		strncpy(fstab_path, file, PATH_MAX);
+		fstab_path[PATH_MAX - 1] = '\0';
+		path_fstab = fstab_path;
+	}
+	fsp_set = 1;
+
+	return;
+}
+
+const char *
+getfstab (void)
+{
+
+	if (fsp_set)
+		return (path_fstab);
+	else
+		return (_PATH_FSTAB);
+}
 
 static void
 fixfsfile()
@@ -226,7 +255,13 @@ setfsent()
 		LineNo = 0;
 		return(1);
 	}
-	if ((_fs_fp = fopen(_PATH_FSTAB, "r")) != NULL) {
+	if (fsp_set == 0) {
+		if (issetugid())
+			setfstab(NULL);
+		else
+			setfstab(getenv("PATH_FSTAB"));
+	}
+	if ((_fs_fp = fopen(path_fstab, "r")) != NULL) {
 		LineNo = 0;
 		return(1);
 	}
@@ -241,6 +276,8 @@ endfsent()
 		(void)fclose(_fs_fp);
 		_fs_fp = NULL;
 	}
+
+	fsp_set = 0;
 }
 
 static void
@@ -251,7 +288,7 @@ error(err)
 	char num[30];
 
 	(void)_write(STDERR_FILENO, "fstab: ", 7);
-	(void)_write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
+	(void)_write(STDERR_FILENO, path_fstab, strlen(path_fstab));
 	(void)_write(STDERR_FILENO, ":", 1);
 	sprintf(num, "%d: ", LineNo);
 	(void)_write(STDERR_FILENO, num, strlen(num));

@@ -56,6 +56,10 @@
 .Fn setfsent void
 .Ft void
 .Fn endfsent void
+.Ft void
+.Fn setfstab "const char *file"
+.Ft const char *
+.Fn getfstab void
 .Sh DESCRIPTION
 The
 .Fn getfsent ,
@@ -94,6 +98,18 @@ function
 closes the file.
 .Pp
 The
+.Fn setfstab
+function sets the file to be used by subsequent operations.
+The value set by
+.Fn setfstab
+does not persist across calls to
+.Fn endfsent
+.Pp
+The
+.Fn getfstab
+function returns the name of the file that that will be used.
+.Pp
+The
 .Fn getfsspec
 and
 .Fn getfsfile
@@ -128,6 +144,13 @@ The
 .Fn endfsent
 function
 returns nothing.
+.Sh ENVIRONMENT
+.Bl -tag -width PATH_FSTAB
+.It Pa PATH_FSTAB
+If the environment variable
+.Pa PATH_FSTAB
+is set all operations are performed against the specified file.
+.El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
@@ -146,7 +169,13 @@ the
 and
 .Fn setfsent
 functions appeared in
-.Bx 4.3 .
+.Bx 4.3 ;
+the
+.Fn setfstab
+and
+.Fn getfstab
+functions appeared in
+.Fx 5.1.
 .Sh BUGS
 These functions use static data storage;
 if the data is needed for future use, it should be
