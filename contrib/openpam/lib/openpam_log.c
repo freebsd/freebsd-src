@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#12 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#13 $
  */
 
 #include <ctype.h>
@@ -83,9 +83,6 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 	if ((format = malloc(strlen(func) + len + 16)) != NULL) {
 		sprintf(format, "in %s(): %.*s\n", func, len, fmt);
 		vsyslog(priority, format, ap);
-#ifdef DEBUG
-		vfprintf(stderr, format, ap);
-#endif
 		free(format);
 	} else {
 		vsyslog(priority, fmt, ap);
