@@ -42,12 +42,14 @@
 
 #include "opt_inet.h"
 #include "opt_bdg.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
@@ -304,6 +306,9 @@ arprequest(ifp, sip, tip, enaddr)
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return;
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
+#ifdef MAC
+	mac_create_mbuf_linklayer(ifp, m);
+#endif
 	switch (ifp->if_type) {
 	case IFT_ARCNET:
 		ar_hrd = htons(ARPHRD_ARCNET);
