@@ -3,9 +3,11 @@
 -->
 <sect1 id="proc-ia64">
   <title>Supported Processors and Motherboards</title>
+
   <para>Currently supported processors are the 
     <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
     and the <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink>.</para>
+
   <para>Supported chipsets include:</para>
    <itemizedlist>
      <listitem>
@@ -22,8 +24,9 @@
        <para>Intel E8870</para>
      </listitem>
    </itemizedlist>
-  <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP) configurations are under active
-    development.  At this time, SMP-enabled systems are considered
-    less stable.  The
-    current priorities are UP fixes to improve stability.</para>
+
+  <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
+    configurations are under active development.  At this time,
+    SMP-enabled systems are considered less stable.  The current
+    priorities are UP fixes to improve stability.</para>
 </sect1>
