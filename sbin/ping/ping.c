@@ -168,6 +168,7 @@ int uid;			/* cached uid for micro-optimization */
 u_char icmp_type = ICMP_ECHO;
 u_char icmp_type_rsp = ICMP_ECHOREPLY;
 int phdr_len = 0;
+int send_len;
 
 /* counters */
 long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
@@ -227,7 +228,7 @@ main(argc, argv)
 	struct sockaddr_in *to;
 	double t;
 	u_long alarmtimeout, ultmp;
-	int almost_done, ch, df, hold, i, mib[4], packlen, preload, sockerrno,
+	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload, sockerrno,
 	    tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
@@ -458,12 +459,14 @@ main(argc, argv)
 		errx(EX_USAGE, "ICMP_TSTAMP and ICMP_MASKREQ are exclusive.");
 		break;
 	}
-	maxpayload = IP_MAXPACKET - sizeof(struct ip) - MINICMPLEN - phdr_len;
+	icmp_len = sizeof(struct ip) + MINICMPLEN + phdr_len;
 	if (options & F_RROUTE)
-		maxpayload -= MAX_IPOPTLEN;
+		icmp_len += MAX_IPOPTLEN;
+	maxpayload = IP_MAXPACKET - icmp_len;
 	if (datalen > maxpayload)
 		errx(EX_USAGE, "packet size too large: %d > %d", datalen,
 		    maxpayload);
+	send_len = icmp_len + datalen;
 	datap = &outpack[MINICMPLEN + phdr_len + TIMEVAL_LEN];
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
@@ -527,8 +530,6 @@ main(argc, argv)
 
 	if (datalen >= TIMEVAL_LEN)	/* can we time transfer */
 		timing = 1;
-	packlen = MAXIPLEN + MAXICMPLEN + datalen;
-	packlen = packlen > IP_MAXPACKET ? IP_MAXPACKET : packlen;
 
 	if (!(options & F_PINGFILLED))
 		for (i = TIMEVAL_LEN; i < datalen; ++i)
@@ -706,7 +707,7 @@ main(argc, argv)
 	msg.msg_control = (caddr_t)ctrl;
 #endif
 	iov.iov_base = packet;
-	iov.iov_len = packlen;
+	iov.iov_len = IP_MAXPACKET;
 
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
@@ -924,13 +925,14 @@ pr_pack(buf, cc, from, tv)
 	struct ip *ip;
 	const void *tp;
 	double triptime;
-	int dupflag, hlen, i, j, seq;
+	int dupflag, hlen, i, j, recv_len, seq;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
 
 	/* Check the IP header */
 	ip = (struct ip *)buf;
 	hlen = ip->ip_hl << 2;
+	recv_len = cc;
 	if (cc < hlen + ICMP_MINLEN) {
 		if (options & F_VERBOSE)
 			warn("packet too short (%d bytes) from %s", cc,
@@ -1008,6 +1010,11 @@ pr_pack(buf, cc, from, tv)
 				(void)printf(" tsr=%s", pr_ntime(icp->icmp_rtime));
 				(void)printf(" tst=%s", pr_ntime(icp->icmp_ttime));
 			}
+			if (recv_len != send_len) {
+                        	(void)printf(
+				     "\nwrong total length %d instead of %d",
+				     recv_len, send_len);
+			}
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[phdr_len];
 			dp = &outpack[MINICMPLEN + phdr_len];
@@ -1026,16 +1033,16 @@ pr_pack(buf, cc, from, tv)
 					(void)printf("\ncp:");
 					cp = (u_char*)&icp->icmp_data[0];
 					for (i = 0; i < datalen; ++i, ++cp) {
-						if ((i % 32) == 8)
+						if ((i % 16) == 8)
 							(void)printf("\n\t");
-						(void)printf("%x ", *cp);
+						(void)printf("%2x ", *cp);
 					}
 					(void)printf("\ndp:");
 					cp = &outpack[MINICMPLEN];
 					for (i = 0; i < datalen; ++i, ++cp) {
-						if ((i % 32) == 8)
+						if ((i % 16) == 8)
 							(void)printf("\n\t");
-						(void)printf("%x ", *cp);
+						(void)printf("%2x ", *cp);
 					}
 					break;
 				}
