@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.14 1994/08/30 19:36:35 davidg Exp $
+ *	$Id: cons.c,v 1.15 1994/08/31 07:44:22 davidg Exp $
  */
 
 
@@ -57,20 +57,20 @@
 /* XXX - all this could be autoconfig()ed */
 #include "sc.h"
 #if NSC > 0
-int pccnprobe(), pccninit(), pccngetc(), pccnputc();
+int pccnprobe(), pccninit(), pccngetc(), pccncheckc(), pccnputc();
 #endif
 
 #include "sio.h"
 #if NSIO > 0
-int siocnprobe(), siocninit(), siocngetc(), siocnputc();
+int siocnprobe(), siocninit(), siocngetc(), siocncheckc(), siocnputc();
 #endif
 
 struct	consdev constab[] = {
 #if NSC > 0
-	{ pccnprobe,	pccninit,	pccngetc,	pccnputc },
+	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
 #endif
 #if NSIO > 0
-	{ siocnprobe,	siocninit,	siocngetc,	siocnputc },
+	{ siocnprobe,	siocninit,	siocngetc,	siocncheckc,	siocnputc },
 #endif
 	{ 0 },
 };
@@ -215,6 +215,14 @@ cngetc()
 	if (cn_tab == NULL)
 		return (0);
 	return ((*cn_tab->cn_getc)(cn_tab->cn_dev));
+}
+
+int
+cncheckc()
+{
+	if (cn_tab == NULL)
+		return (0);
+	return ((*cn_tab->cn_checkc)(cn_tab->cn_dev));
 }
 
 void
