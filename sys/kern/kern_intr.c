@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
 #include <sys/interrupt.h>
@@ -461,7 +462,7 @@ swi_sched(void *cookie, int flags)
 	 */
 	atomic_store_rel_int(&ih->ih_need, 1);
 	if (!(flags & SWI_DELAY)) {
-		error = ithread_schedule(it, !cold);
+		error = ithread_schedule(it, !cold && !dumping);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
 }

@@ -486,7 +486,8 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 
     /* apparently some devices needs this repeated */
     do {
-	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_INTR)) {
+	if (ata_command(atadev, command, 0, 0, 0,
+		dumping ? ATA_WAIT_READY : ATA_WAIT_INTR)) {
 	    ata_prtdev(atadev, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    free(ata_parm, M_ATA);
