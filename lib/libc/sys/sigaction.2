@@ -541,7 +541,8 @@ The
 .Fa sig
 argument is the signal number, one of the
 .Dv SIG...
-values from <signal.h>.
+values from
+.In signal.h .
 .Pp
 The
 .Fa code
@@ -557,7 +558,8 @@ handler contain a numeric code explaining the
 cause of the signal, usually one of the
 .Dv SI_...
 values from
-<sys/signal.h> or codes specific to a signal, i.e. one of the
+.In sys/signal.h
+or codes specific to a signal, i.e. one of the
 .Dv FPE_...
 values for
 .Dv SIGFPE .
