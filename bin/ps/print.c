@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.14 1996/06/29 08:04:05 peter Exp $
+ *	$Id: print.c,v 1.15 1996/06/29 10:25:31 peter Exp $
  */
 
 #ifndef lint
@@ -100,6 +100,13 @@ command(k, ve)
 	int left;
 	char *cp, *vis_env, *vis_args;
 
+	v = ve->var;
+
+	if (cflag) {
+		(void)printf("%-*s", v->width, KI_PROC(k)->p_comm);
+		return;
+	}
+
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
 		err(1, NULL);
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
@@ -110,7 +117,6 @@ command(k, ve)
 	} else
 		vis_env = NULL;
 
-	v = ve->var;
 	if (ve->next == NULL) {
 		/* last field */
 		if (termwidth == UNLIMITED) {
