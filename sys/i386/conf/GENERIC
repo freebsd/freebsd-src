@@ -135,7 +135,7 @@ device		twe		# 3ware Escalade
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
-device		atkbd0	at atkbdc? irq 1 flags 0x1
+device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
 device		vga0	at isa?
