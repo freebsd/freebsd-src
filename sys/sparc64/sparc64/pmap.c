@@ -147,12 +147,6 @@ vm_offset_t virtual_end;
 vm_offset_t kernel_vm_end;
 
 /*
- * The locked kernel page the kernel binary was loaded into. This will need
- * to become a list later.
- */
-vm_offset_t kernel_page;
-
-/*
  * Kernel pmap.
  */
 struct pmap kernel_pmap_store;
@@ -281,10 +275,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
-	/* Look up the page the kernel binary was loaded into. */
-	kernel_page = TD_GET_PA(ldxa(TLB_DAR_SLOT(TLB_SLOT_KERNEL),
-	    ASI_DTLB_DATA_ACCESS_REG));
-
 	/*
 	 * Find out what physical memory is available from the prom and
 	 * initialize the phys_avail array.  This must be done before
@@ -325,6 +315,17 @@ pmap_bootstrap(vm_offset_t ekva)
 	virtual_avail += KVA_PAGES * PAGE_SIZE_4M;
 	pmap_map_tsb();
 	bzero(tsb_kernel, KVA_PAGES * PAGE_SIZE_4M);
+
+	/*
+	 * Enter fake 8k pages for the 4MB kernel pages, so that
+	 * pmap_kextract() will work for them.
+	 */
+	for (i = 0; i < kernel_tlb_slots; i++) {
+		va = TV_GET_VA(kernel_ttes[i].tte_vpn);
+		pa = TD_GET_PA(kernel_ttes[i].tte_data);
+		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE)
+			pmap_kenter(va + off, pa + off);
+	}
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it into
@@ -414,7 +415,6 @@ pmap_map_tsb(void)
 	vm_offset_t va;
 	vm_offset_t pa;
 	u_long data;
-	u_int slot;
 	u_long s;
 	int i;
 
@@ -423,15 +423,14 @@ pmap_map_tsb(void)
 	/*
 	 * Map the 4mb tsb pages.
 	 */
-	slot = TLB_SLOT_TSB_KERNEL_MIN;
-	for (i = 0; i < KVA_PAGES; i++, slot++) {
+	for (i = 0; i < KVA_PAGES; i++) {
 		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
 		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
 		    TD_P | TD_W;
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
-		stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, data);
+		stxa(0, ASI_DTLB_DATA_IN_REG, data);
 		membar(Sync);
 	}
 
@@ -598,8 +597,6 @@ pmap_kextract(vm_offset_t va)
 	struct tte *tp;
 	u_long d;
 
-	if (va >= KERNBASE && va < KERNBASE + PAGE_SIZE_4M)
-		return (kernel_page + (va & PAGE_MASK_4M));
 	tp = tsb_kvtotte(va);
 	d = tp->tte_data;
 	if ((d & TD_V) == 0)
