@@ -1,5 +1,5 @@
-/* $FreeBSD$ */
-/* isp_pci.c 1.18 */
+/* $Id: $ */
+/* release_12_28_98_A */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -197,9 +197,7 @@ DATA_SET (pcidevice_set, isp_pci_driver);
 
 
 static const char *
-isp_pci_probe(tag, type)
-	pcici_t tag;
-	pcidi_t type;
+isp_pci_probe(pcici_t tag, pcidi_t type)
 {       
 	static int oneshot = 1;
 	char *x;
@@ -225,9 +223,7 @@ isp_pci_probe(tag, type)
 
 
 static void    
-isp_pci_attach(config_id, unit)
-        pcici_t config_id;
-        int unit;
+isp_pci_attach(pcici_t config_id, int unit)
 {
 	int mapped;
 	pci_port_t io_port;
@@ -292,7 +288,7 @@ isp_pci_attach(config_id, unit)
 		data = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 		data |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
 		pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, data);
-
+#if	0
 		/*
 		 * Wierd- we need to clear the lsb in offset 0x30 to take the
 		 * chip out of reset state.
@@ -300,6 +296,7 @@ isp_pci_attach(config_id, unit)
 		data = pci_conf_read(config_id, 0x30);
 		data &= ~1;
 		pci_conf_write(config_id, 0x30, data);
+#endif
 		ISP_UNLOCK(isp);
 	} else {
 		printf("%s: unknown dev (%x)- punting\n", isp->isp_name, data);
@@ -352,9 +349,7 @@ isp_pci_attach(config_id, unit)
 #define  PCI_BIU_REGS_OFF		BIU_REGS_OFF
 
 static u_int16_t
-isp_pci_rd_reg(isp, regoff)
-	struct ispsoftc *isp;
-	int regoff;
+isp_pci_rd_reg(struct ispsoftc *isp, int regoff)
 {
 	u_int16_t rv;
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
@@ -387,10 +382,7 @@ isp_pci_rd_reg(isp, regoff)
 }
 
 static void
-isp_pci_wr_reg(isp, regoff, val)
-	struct ispsoftc *isp;
-	int regoff;
-	u_int16_t val;
+isp_pci_wr_reg(struct ispsoftc *isp, int regoff, u_int16_t val)
 {
 	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int offset, oldsxp = 0;
@@ -425,33 +417,21 @@ static void isp_map_result __P((void *, bus_dma_segment_t *, int, int));
 static void isp_map_fcscrt __P((void *, bus_dma_segment_t *, int, int));
 
 static void
-isp_map_rquest(arg, segs, nseg, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	int error;
+isp_map_rquest(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct ispsoftc *isp = (struct ispsoftc *) arg;
 	isp->isp_rquest_dma = segs->ds_addr;
 }
 
 static void
-isp_map_result(arg, segs, nseg, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	int error;
+isp_map_result(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct ispsoftc *isp = (struct ispsoftc *) arg;
 	isp->isp_result_dma = segs->ds_addr;
 }
 
 static void
-isp_map_fcscrt(arg, segs, nseg, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	int error;
+isp_map_fcscrt(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct ispsoftc *isp = (struct ispsoftc *) arg;
 	fcparam *fcp = isp->isp_param;
@@ -459,8 +439,7 @@ isp_map_fcscrt(arg, segs, nseg, error)
 }
 
 static int
-isp_pci_mbxdma(isp)
-	struct ispsoftc *isp;
+isp_pci_mbxdma(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	caddr_t base;
@@ -532,11 +511,7 @@ typedef struct {
 #define	MUSHERR_NOQENTRIES	-2
 
 static void
-dma2(arg, dm_segs, nseg, error)
-	void *arg;
-	bus_dma_segment_t *dm_segs;
-	int nseg;
-	int error;
+dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	mush_t *mp;
 	ISP_SCSI_XFER_T *ccb;
@@ -657,12 +632,8 @@ dma2(arg, dm_segs, nseg, error)
 }
 
 static int
-isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
-	struct ispsoftc *isp;
-	ISP_SCSI_XFER_T *ccb;
-	ispreq_t *rq;
-	u_int8_t *iptrp;
-	u_int8_t optr;
+isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
+	u_int8_t *iptrp, u_int8_t optr)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	struct ccb_hdr *ccb_h;
@@ -750,10 +721,8 @@ isp_pci_dmasetup(isp, ccb, rq, iptrp, optr)
 }
 
 static void
-isp_pci_dmateardown(isp, ccb, handle)
-	struct ispsoftc *isp;
-	ISP_SCSI_XFER_T *ccb;
-	u_int32_t handle;
+isp_pci_dmateardown(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb,
+	u_int32_t handle)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	bus_dmamap_t *dp = &pci->dmaps[handle];
@@ -770,8 +739,7 @@ isp_pci_dmateardown(isp, ccb, handle)
 
 
 static int
-isp_pci_mbxdma(isp)
-	struct ispsoftc *isp;
+isp_pci_mbxdma(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	u_int32_t len;
@@ -817,12 +785,8 @@ isp_pci_mbxdma(isp)
 }
 
 static int
-isp_pci_dmasetup(isp, xs, rq, iptrp, optr)
-	struct ispsoftc *isp;
-	ISP_SCSI_XFER_T *xs;
-	ispreq_t *rq;
-	u_int8_t *iptrp;
-	u_int8_t optr;
+isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *xs,
+	ispreq_t *rq, u_int8_t *iptrp, u_int8_t optr)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	ispcontreq_t *crq;
@@ -947,16 +911,14 @@ isp_pci_dmasetup(isp, xs, rq, iptrp, optr)
 #endif
 
 static void
-isp_pci_reset1(isp)
-	struct ispsoftc *isp;
+isp_pci_reset1(struct ispsoftc *isp)
 {
 	/* Make sure the BIOS is disabled */
 	isp_pci_wr_reg(isp, HCCR, PCI_HCCR_CMD_BIOS);
 }
 
 static void
-isp_pci_dumpregs(isp)
-	struct ispsoftc *isp;
+isp_pci_dumpregs(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	printf("%s: PCI Status Command/Status=%lx\n", pci->pci_isp.isp_name,
