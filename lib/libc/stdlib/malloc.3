@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.12 1997/06/22 17:54:27 phk Exp $
+.\"     $Id: malloc.3,v 1.13 1997/07/01 18:39:36 phk Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
@@ -155,7 +155,8 @@ option.
 This is intended for debugging and will impact performance negatively.
 .It H
 Pass a hint to the kernel about pages unused by the allocation functions.
-This may help performance if the system is paging excessively.
+This will help performance if the system is paging excessively.  This
+option is on by default.
 .It R
 Cause the
 .Fn realloc
