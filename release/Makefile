@@ -150,7 +150,7 @@ BOOTSIZE=		1440
 FIXITSIZE=		1440
 MFSSIZE=		4320
 BOOTINODE=		80000
-FIXITINODE=		4000
+FIXITINODE=		40000
 MFSINODE=		8000
 SMALLBOOTLABEL=		fd1200
 BOOTLABEL=		fd1440
@@ -162,7 +162,7 @@ FIXITSIZE=		1440
 MFSSIZE=		4320
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
-FIXITINODE=		4000
+FIXITINODE=		40000
 MFSINODE=		8000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
@@ -175,7 +175,7 @@ FIXITSIZE=		2880
 MFSSIZE=		4320
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
-FIXITINODE=		4000
+FIXITINODE=		40000
 MFSINODE=		8000
 BOOTLABEL=		fd1440
 FIXITLABEL=		minimum2
@@ -694,8 +694,7 @@ release.9:
 		DIR=${RD}/fixitfd/stand ZIP=false
 	@( cd ${RD}/fixitfd/dev && \
 		cp ${RD}/trees/bin/dev/MAKEDEV MAKEDEV && \
-		chmod 755 MAKEDEV && \
-		sh MAKEDEV fixit )
+		chmod 755 MAKEDEV)
 	@cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	@cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
