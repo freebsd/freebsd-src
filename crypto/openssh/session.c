@@ -705,7 +705,7 @@ do_login(Session *s, const char *command)
 
 	/* Done if .hushlogin exists or a command given. */
 	if (command != NULL)
-		return;
+		return newcommand;
 	snprintf(buf, sizeof(buf), "%.200s/.hushlogin", pw->pw_dir);
 #ifdef HAVE_LOGIN_CAP
 	lc = login_getpwclass(pw);
