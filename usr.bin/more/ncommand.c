@@ -238,11 +238,11 @@ void **getstr_curctxt = getstr_ctxts;
 /*
  * Read a single argument string from a command string.  This understands
  * $variables, "double quotes", 'single quotes', and backslash escapes
- * for \\, \$, \n, \e, \t, and \" (the latter only inside double quotes).  A
- * string may be delimited by double quotes or spaces, not both (duh).  It
- * may be worthwhile to add another quotation style in which arithmetic
- * expressions are expanded.  Currently an arithmetic expression is expanded
- * iff it is the only component of the string.
+ * for \\, \$, \n, \e, \t, and \".  A string may be delimited by double
+ * quotes or spaces, not both (duh).  It may be worthwhile to add
+ * another quotation style in which arithmetic expressions are expanded.
+ * Currently an arithmetic expression is expanded iff it is the only
+ * component of the string.
  *
  * Returns a pointer to the beginning of the string or NULL if it was unable to
  * read a string.  The line is modified to point somewhere between the end of
@@ -324,10 +324,14 @@ getstr(line)
 		case '\\':
 			switch (*(*line + 1)) {
 			case '\\': case '$': case '\'':
-			case 't':  case ' ': case ';':
+			case ' ': case ';':
 				hack[0] = *(*line + 1);
 				hack[1] = '\0';
 				c = hack;
+				(*line) += 2;
+				break;
+			case 't':
+				c = "\t";
 				(*line) += 2;
 				break;
 			case 'n':
