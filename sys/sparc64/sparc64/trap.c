@@ -46,9 +46,12 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -64,12 +67,15 @@
 #include <machine/pcb.h>
 #include <machine/pv.h>
 #include <machine/trap.h>
+#include <machine/tstate.h>
 #include <machine/tte.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>
+#include <machine/watch.h>
 
 void trap(struct trapframe *tf);
 int trap_mmu_fault(struct proc *p, struct trapframe *tf);
+void syscall(struct proc *p, struct trapframe *tf, u_int sticks);
 
 const char *trap_msg[] = {
 	"reserved",
@@ -104,6 +110,7 @@ const char *trap_msg[] = {
 	"bad spill",
 	"bad fill",
 	"breakpoint",
+	"syscall",
 };
 
 void
@@ -115,6 +122,7 @@ trap(struct trapframe *tf)
 	int ucode;
 	int type;
 	int sig;
+	int mask;
 
 	KASSERT(PCPU_GET(curproc) != NULL, ("trap: curproc NULL"));
 	KASSERT(PCPU_GET(curpcb) != NULL, ("trap: curpcb NULL"));
@@ -147,12 +155,55 @@ trap(struct trapframe *tf)
 	case T_INTR:
 		intr_dispatch(T_LEVEL(tf->tf_type), tf);
 		goto user;
+	case T_SYSCALL:
+		/* syscall() calls userret(), so we need goto out; */
+		syscall(p, tf, sticks);
+		goto out;
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
 			goto out;
 		break;
 #endif
+	case T_WATCH_VIRT | T_KERNEL:
+		/*
+		 * At the moment, just print the information from the trap,
+		 * remove the watchpoint, use evil magic to execute the
+		 * instruction (we temporarily save the instruction at
+		 * %tnpc, write a trap instruction, resume, and reset the
+		 * watch point when the trap arrives).
+		 * To make sure that no interrupt gets in between and creates
+		 * a potentially large window where the watchpoint is inactive,
+		 * disable interrupts temporarily.
+		 * This is obviously fragile and evilish.
+		 */
+		printf("Virtual watchpoint triggered, tpc=0x%lx, tnpc=0x%lx\n",
+		    tf->tf_tpc, tf->tf_tnpc);
+		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
+		    TSTATE_PSTATE_SHIFT);
+		tf->tf_tstate &= ~TSTATE_IE;
+		wrpr(pstate, rdpr(pstate), PSTATE_IE);
+		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
+		*((u_int *)tf->tf_tnpc) = 0x91d03002;	/* ta %xcc, 2 */
+		flush(tf->tf_tnpc);
+		PCPU_SET(wp_va, watch_virt_get(&mask));
+		PCPU_SET(wp_mask, mask);
+		watch_virt_clear();
+		goto out;
+	case T_RESTOREWP | T_KERNEL:
+		/*
+		 * Undo the tweaks tone for T_WATCH, reset the watch point and
+		 * contunue execution.
+		 * Note that here, we run with interrupts enabled, so there
+		 * is a small chance that we will be interrupted before we
+		 * could reset the watch point.
+		 */
+		tf->tf_tstate = (tf->tf_tstate & ~TSTATE_PSTATE_MASK) |
+		    PCPU_GET(wp_pstate) << TSTATE_PSTATE_SHIFT;
+		watch_virt_set_mask(PCPU_GET(wp_va), PCPU_GET(wp_mask));
+		*(u_int *)tf->tf_tpc = PCPU_GET(wp_insn);
+		flush(tf->tf_tpc);
+		goto out;
 	case T_DMMU_MISS | T_KERNEL:
 	case T_DMMU_PROT | T_KERNEL:
 		mtx_lock(&Giant);
@@ -305,4 +356,174 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 		}
 	}
 	return (rv == KERN_PROTECTION_FAILURE ? SIGBUS : SIGSEGV);
+}
+
+/* Maximum number of arguments that can be passed via the out registers. */
+#define	REG_MAXARGS	6
+
+/*
+ * Syscall handler. The arguments to the syscall are passed in the o registers
+ * by the caller, and are saved in the trap frame. The syscall number is passed
+ * in %g1 (and also saved in the trap frame).
+ */
+void
+syscall(struct proc *p, struct trapframe *tf, u_int sticks)
+{
+	struct sysent *callp;
+	u_long code;
+	u_long tpc;
+	int reg;
+	int regcnt;
+	int narg;
+	int error;
+	register_t args[8];
+	void *argp;
+
+	narg = 0;
+	error = 0;
+	reg = 0;
+	regcnt = REG_MAXARGS;
+	code = tf->tf_global[1];
+	atomic_add_int(&cnt.v_syscall, 1);
+	/*
+	 * For syscalls, we don't want to retry the faulting instruction
+	 * (usually), instead we need to advance one instruction.
+	 */
+	tpc = tf->tf_tpc;
+	tf->tf_tpc = tf->tf_tnpc;
+	tf->tf_tnpc += 4;
+
+	if (p->p_sysent->sv_prepsyscall) {
+		/*
+		 * The prep code is not MP aware.
+		 */
+#if 0
+		mtx_lock(&Giant);
+		(*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params);
+		mtx_unlock(&Giant);
+#endif	
+	} else 	if (code == SYS_syscall || code == SYS___syscall) {
+		code = tf->tf_out[reg++];
+		regcnt--;
+	}
+
+ 	if (p->p_sysent->sv_mask)
+ 		code &= p->p_sysent->sv_mask;
+
+ 	if (code >= p->p_sysent->sv_size)
+ 		callp = &p->p_sysent->sv_table[0];
+  	else
+ 		callp = &p->p_sysent->sv_table[code];
+
+	narg = callp->sy_narg & SYF_ARGMASK;
+
+	if (narg <= regcnt)
+		argp = &tf->tf_out[reg];
+	else {
+		KASSERT(narg <= sizeof(args) / sizeof(args[0]),
+		    ("Too many syscall arguments!"));
+		argp = args;
+		bcopy(&tf->tf_out[reg], args, sizeof(args[0]) * regcnt);
+		error = copyin((void *)(tf->tf_out[6] + SPOFF +
+		    offsetof(struct frame, f_pad[6])),
+		    &args[reg + regcnt], (narg - regcnt) * sizeof(args[0]));
+		if (error != 0)
+			goto bad;
+	}
+
+	/*
+	 * Try to run the syscall without the MP lock if the syscall
+	 * is MP safe.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
+		mtx_lock(&Giant);
+
+#ifdef KTRACE
+	/*
+	 * We have to obtain the MP lock no matter what if 
+	 * we are ktracing
+	 */
+	if (KTRPOINT(p, KTR_SYSCALL)) {
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
+		ktrsyscall(p->p_tracep, code, narg, args);
+	}
+#endif
+	p->p_retval[0] = 0;
+	p->p_retval[1] = tf->tf_out[1];
+
+	STOPEVENT(p, S_SCE, narg);	/* MP aware */
+
+	error = (*callp->sy_call)(p, argp);
+	
+	/*
+	 * MP SAFE (we may or may not have the MP lock at this point)
+	 */
+	switch (error) {
+	case 0:
+		tf->tf_out[0] = p->p_retval[0];
+		tf->tf_out[1] = p->p_retval[1];
+		tf->tf_tstate &= ~TSTATE_XCC_C;
+		break;
+
+	case ERESTART:
+		/*
+		 * Undo the tpc advancement we have done above, we want to
+		 * reexecute the system call.
+		 */
+		tf->tf_tpc = tpc;
+		tf->tf_tnpc -= 4;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+bad:
+ 		if (p->p_sysent->sv_errsize) {
+ 			if (error >= p->p_sysent->sv_errsize)
+  				error = -1;	/* XXX */
+   			else
+  				error = p->p_sysent->sv_errtbl[error];
+		}
+		tf->tf_out[0] = error;
+		tf->tf_tstate |= TSTATE_XCC_C;
+		break;
+	}
+
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
+	userret(p, tf, sticks);
+
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
+		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+	}
+#endif
+
+	/*
+	 * Release Giant if we had to get it
+	 */
+	if (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
+
+	/*
+	 * This works because errno is findable through the
+	 * register set.  If we ever support an emulation where this
+	 * is not the case, this code will need to be revisited.
+	 */
+	STOPEVENT(p, S_SCX, code);
+
+#ifdef WITNESS
+	if (witness_list(p)) {
+		panic("system call %s returning with mutex(s) held\n",
+		    syscallnames[code]);
+	}
+#endif
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
+	
 }
