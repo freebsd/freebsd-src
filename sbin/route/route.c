@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: route.c,v 1.3 1996/01/02 20:09:22 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -867,7 +867,7 @@ netdone:
 		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, hp->h_length);
 		return (1);
 	}
-	errx(EX_NOHOST, "bad address: %s");
+	errx(EX_NOHOST, "bad address: %s", s);
 }
 
 int
