@@ -5,7 +5,7 @@
 CFLAGS += -I${.CURDIR}/locale
 # machine-independent string sources
 SRCS+=	memccpy.c strcasecmp.c strcoll.c strdup.c strerror.c \
-	strmode.c strtok.c strxfrm.c swab.c
+	strmode.c strtok.c strxfrm.c
 
 # machine-dependent string sources
 .include "${.CURDIR}/${MACHINE}/string/Makefile.inc"
