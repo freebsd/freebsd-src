@@ -16,6 +16,8 @@ CLEANFILES=	Config.pm perlmain.c \
 		autosplit pod2man.PL pod2man ext.libs \
 		man3pages
 
+.include <bsd.prog.mk>
+
 STATIC_EXT=	DynaLoader/DynaLoader
 
 DYNAMIC_EXT=	B/B DB_File/DB_File Data/Dumper/Dumper Fcntl/Fcntl IO/IO \
@@ -26,8 +28,6 @@ DYNAMIC_EXT+=	Thread/Thread
 .endif
 
 NONXS_EXT=	Errno/pm_to_blib
-
-.include <bsd.prog.mk>
 
 ${PROG}: Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
