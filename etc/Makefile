@@ -30,7 +30,7 @@ BIN1+=	rc.isdn
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
-	primes
+	moduli
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
