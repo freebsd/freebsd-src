@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.10 1994/10/30 20:55:44 bde Exp $
+ *	$Id: db_output.c,v 1.11 1995/05/30 07:57:02 rgrimes Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <machine/stdarg.h>
 #include <ddb/ddb.h>
+#include <ddb/db_output.h>
 #include <machine/cons.h>
 
 /*
@@ -60,8 +61,8 @@ int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 int	db_max_width = 80;		/* output line width */
 
-
-static void db_printf_guts(const char *, va_list);
+static char	*db_ksprintn __P((u_long ul, int base, int *lenp));
+static void	db_printf_guts __P((const char *, va_list));
 
 /*
  * Force pending whitespace.
@@ -160,7 +161,7 @@ db_printf(const char *fmt, ...)
 
 /*VARARGS1*/
 void
-kdbprintf(char *fmt, ...)
+kdbprintf(const char *fmt, ...)
 {
 	va_list	listp;
 	va_start(listp, fmt);
@@ -377,4 +378,3 @@ number:			p = (char *)db_ksprintn(ul, base, &tmp);
 		}
 	}
 }
-

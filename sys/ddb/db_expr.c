@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_expr.c,v 1.4 1994/08/13 03:49:18 wollman Exp $
+ *	$Id: db_expr.c,v 1.5 1995/05/30 07:56:56 rgrimes Exp $
  */
 
 /*
@@ -37,6 +37,12 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
+
+extern boolean_t	db_add_expr __P((db_expr_t *valuep));
+extern boolean_t	db_mult_expr __P((db_expr_t *valuep));
+extern boolean_t	db_shift_expr __P((db_expr_t *valuep));
+extern boolean_t	db_term __P((db_expr_t *valuep));
+extern boolean_t	db_unary __P((db_expr_t *valuep));
 
 boolean_t
 db_term(valuep)
