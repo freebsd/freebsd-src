@@ -708,14 +708,14 @@ ng_string_parse(const struct ng_parse_type *type,
 {
 	char *sval;
 	int len;
+	int slen;
 
-	if ((sval = ng_get_string_token(s, off, &len)) == NULL)
+	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
 	*off += len;
-	len = strlen(sval) + 1;
-	bcopy(sval, buf, len);
+	bcopy(sval, buf, slen + 1);
 	FREE(sval, M_NETGRAPH);
-	*buflen = len;
+	*buflen = slen + 1;
 	return (0);
 }
 
@@ -724,7 +724,7 @@ ng_string_unparse(const struct ng_parse_type *type,
 	const u_char *data, int *off, char *cbuf, int cbuflen)
 {
 	const char *const raw = (const char *)data + *off;
-	char *const s = ng_encode_string(raw);
+	char *const s = ng_encode_string(raw, strlen(raw));
 
 	if (s == NULL)
 		return (ENOMEM);
@@ -768,16 +768,16 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 	const struct ng_parse_fixedstring_info *const fi = type->info;
 	char *sval;
 	int len;
+	int slen;
 
-	if ((sval = ng_get_string_token(s, off, &len)) == NULL)
+	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
 		return (EINVAL);
-	if (strlen(sval) + 1 > fi->bufSize)
+	if (slen + 1 > fi->bufSize)
 		return (E2BIG);
 	*off += len;
-	len = strlen(sval) + 1;
-	bcopy(sval, buf, len);
+	bcopy(sval, buf, slen);
 	FREE(sval, M_NETGRAPH);
-	bzero(buf + len, fi->bufSize - len);
+	bzero(buf + slen, fi->bufSize - slen);
 	*buflen = fi->bufSize;
 	return (0);
 }
@@ -856,6 +856,68 @@ const struct ng_parse_fixedstring_info ng_parse_cmdbuf_info = {
 const struct ng_parse_type ng_parse_cmdbuf_type = {
 	&ng_parse_fixedstring_type,
 	&ng_parse_cmdbuf_info
+};
+
+/************************************************************************
+			EXPLICITLY SIZED STRING TYPE
+ ************************************************************************/
+
+static int
+ng_sizedstring_parse(const struct ng_parse_type *type,
+	const char *s, int *off, const u_char *const start,
+	u_char *const buf, int *buflen)
+{
+	char *sval;
+	int len;
+	int slen;
+
+	if ((sval = ng_get_string_token(s, off, &len, &slen)) == NULL)
+		return (EINVAL);
+	if (slen > 0xffff)
+		return (EINVAL);
+	*off += len;
+	*((u_int16_t *)buf) = (u_int16_t)slen;
+	bcopy(sval, buf + 2, slen);
+	FREE(sval, M_NETGRAPH);
+	*buflen = 2 + slen;
+	return (0);
+}
+
+static int
+ng_sizedstring_unparse(const struct ng_parse_type *type,
+	const u_char *data, int *off, char *cbuf, int cbuflen)
+{
+	const char *const raw = (const char *)data + *off + 2;
+	const int slen = *((const u_int16_t *)(data + *off));
+	char *const s = ng_encode_string(raw, slen);
+
+	if (s == NULL)
+		return (ENOMEM);
+	NG_PARSE_APPEND("%s", s);
+	FREE(s, M_NETGRAPH);
+	*off += slen + 2;
+	return (0);
+}
+
+static int
+ng_sizedstring_getDefault(const struct ng_parse_type *type,
+	const u_char *const start, u_char *buf, int *buflen)
+{
+	if (*buflen < 2)
+		return (ERANGE);
+	bzero(buf, 2);
+	*buflen = 2;
+	return (0);
+}
+
+const struct ng_parse_type ng_parse_sizedstring_type = {
+	NULL,
+	NULL,
+	NULL,
+	ng_sizedstring_parse,
+	ng_sizedstring_unparse,
+	ng_sizedstring_getDefault,
+	NULL
 };
 
 /************************************************************************
@@ -949,18 +1011,18 @@ ng_bytearray_parse(const struct ng_parse_type *type,
 {
 	char *str;
 	int toklen;
+	int slen;
 
 	/* We accept either an array of bytes or a string constant */
-	if ((str = ng_get_string_token(s, off, &toklen)) != NULL) {
+	if ((str = ng_get_string_token(s, off, &toklen, &slen)) != NULL) {
 		ng_parse_array_getLength_t *const getLength = type->info;
-		int arraylen, slen;
+		int arraylen;
 
 		arraylen = (*getLength)(type, start, buf);
 		if (arraylen > *buflen) {
 			FREE(str, M_NETGRAPH);
 			return (ERANGE);
 		}
-		slen = strlen(str) + 1;
 		if (slen > arraylen) {
 			FREE(str, M_NETGRAPH);
 			return (E2BIG);
@@ -1518,7 +1580,7 @@ ng_parse_get_token(const char *s, int *startp, int *lenp)
 		*lenp = 1;
 		return T_EQUALS;
 	case '"':
-		if ((t = ng_get_string_token(s, startp, lenp)) == NULL)
+		if ((t = ng_get_string_token(s, startp, lenp, NULL)) == NULL)
 			return T_ERROR;
 		FREE(t, M_NETGRAPH);
 		return T_STRING;
@@ -1537,10 +1599,11 @@ ng_parse_get_token(const char *s, int *startp, int *lenp)
  * The normal C backslash escapes are recognized.
  */
 char *
-ng_get_string_token(const char *s, int *startp, int *lenp)
+ng_get_string_token(const char *s, int *startp, int *lenp, int *slenp)
 {
 	char *cbuf, *p;
 	int start, off;
+	int slen;
 
 	while (isspace(s[*startp]))
 		(*startp)++;
@@ -1551,10 +1614,12 @@ ng_get_string_token(const char *s, int *startp, int *lenp)
 	if (cbuf == NULL)
 		return (NULL);
 	strcpy(cbuf, s + start + 1);
-	for (off = 1, p = cbuf; *p != '\0'; off++, p++) {
+	for (slen = 0, off = 1, p = cbuf; *p != '\0'; slen++, off++, p++) {
 		if (*p == '"') {
 			*p = '\0';
 			*lenp = off + 1;
+			if (slenp != NULL)
+				*slenp = slen;
 			return (cbuf);
 		} else if (p[0] == '\\' && p[1] != '\0') {
 			int x, k;
@@ -1617,19 +1682,21 @@ ng_get_string_token(const char *s, int *startp, int *lenp)
 
 /*
  * Encode a string so it can be safely put in double quotes.
- * Caller must free the result.
+ * Caller must free the result. Exactly "slen" characters
+ * are encoded.
  */
 char *
-ng_encode_string(const char *raw)
+ng_encode_string(const char *raw, int slen)
 {
 	char *cbuf;
 	int off = 0;
+	int i;
 
 	MALLOC(cbuf, char *, strlen(raw) * 4 + 3, M_NETGRAPH, M_NOWAIT);
 	if (cbuf == NULL)
 		return (NULL);
 	cbuf[off++] = '"';
-	for ( ; *raw != '\0'; raw++) {
+	for (i = 0; i < slen; i++, raw++) {
 		switch (*raw) {
 		case '\t':
 			cbuf[off++] = '\\';
