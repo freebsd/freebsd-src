@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.2 1996/07/23 07:46:41 asami Exp $
+ *  $Id: syscons.c,v 1.3 1996/08/30 10:43:09 asami Exp $
  */
 
 #include "sc.h"
@@ -168,7 +168,7 @@ struct  tty         	*sccons[MAXCONS+1];
 #define VIRTUAL_TTY(x)  &sccons[x]
 #define CONSOLE_TTY 	&sccons[MAXCONS]
 static struct tty     	sccons[MAXCONS+1];
-static int		nsccons = MAXCONS;	/* for pstat only */
+static const int	nsccons = MAXCONS+1;
 #endif
 
 #ifdef PC98
@@ -191,17 +191,9 @@ u_short         	*Crtat;
 #endif
 
 /* prototypes */
-#ifdef PC98
-static int scattach(struct pc98_device *dev);
-#else
 static int scattach(struct isa_device *dev);
-#endif
 static int scparam(struct tty *tp, struct termios *t);
-#ifdef PC98
-static int scprobe(struct pc98_device *dev);
-#else
 static int scprobe(struct isa_device *dev);
-#endif
 static void scstart(struct tty *tp);
 static void scinit(void);
 static u_int scgetc(int noblock);
@@ -240,11 +232,7 @@ static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static void blink_screen(scr_stat *scp);
 
-#ifdef PC98
-struct	pc98_driver scdriver = {
-#else
 struct  isa_driver scdriver = {
-#endif
 	scprobe, scattach, "sc", 1
 };
 
@@ -409,11 +397,7 @@ move_crsr(scr_stat *scp, int x, int y)
 }
 
 static int
-#ifdef PC98
-scprobe(struct pc98_device *dev)
-#else
 scprobe(struct isa_device *dev)
-#endif
 {
 #ifdef PC98
     return(16);
@@ -491,11 +475,7 @@ static struct kern_devconf kdc_sc[NSC] = {
 };
 
 static inline void
-#ifdef PC98
-sc_registerdev(struct pc98_device *id)
-#else
 sc_registerdev(struct isa_device *id)
-#endif
 {
     if(id->id_unit)
 	kdc_sc[id->id_unit] = kdc_sc[0];
@@ -522,11 +502,7 @@ scresume(void *dummy)
 #endif
 
 static int
-#ifdef PC98
-scattach(struct pc98_device *dev)
-#else
 scattach(struct isa_device *dev)
-#endif
 {
     scr_stat	*scp;
 #ifdef DEVFS
@@ -1571,11 +1547,7 @@ scstart(struct tty *tp)
 void
 sccnprobe(struct consdev *cp)
 {
-#ifdef PC98
-    struct pc98_device *dvp;
-#else
     struct isa_device *dvp;
-#endif
 
     /*
      * Take control if we are the highest priority enabled display device.

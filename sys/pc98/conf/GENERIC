@@ -1,8 +1,17 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC98,v 1.1.1.1 1996/06/14 10:04:40 asami Exp $
+# For more information read the handbook part System Administration -> 
+# Configuring the FreeBSD Kernel -> The Configuration File. 
+# The handbook is available in /usr/share/doc/handbook or online as
+# latest version from the FreeBSD World Wide Web server 
+# <URL:http://www.FreeBSD.ORG/>
 #
+# An exhaustive list of options and more detailed explanations of the 
+# device lines is present in the ./LINT configuration file. If you are 
+# in doubt as to the purpose or necessity of a line, check first in LINT.
+#
+#	$Id: GENERIC,v 1.75 1996/08/27 16:25:53 wosch Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
 

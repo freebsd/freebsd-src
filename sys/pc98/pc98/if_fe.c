@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.2 1996/07/23 07:46:19 asami Exp $
+ * $Id: if_fe.c,v 1.3 1996/08/30 10:43:02 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -157,11 +157,7 @@
  * Override the following macro to adapt it to another bus.
  * (E.g., PC98.)
  */
-#ifdef PC98
-#define DEVICE	struct pc98_device
-#else
 #define DEVICE	struct isa_device
-#endif
 
 /*
  * Default settings for fe driver specific options.
@@ -297,11 +293,7 @@ static void	fe_dump		( int, struct fe_softc *, char * );
 #endif
 
 /* Driver struct used in the config code.  This must be public (external.)  */
-#ifdef PC98
-struct pc98_driver fedriver =
-#else
 struct isa_driver fedriver =
-#endif
 {
 	fe_probe,
 	fe_attach,

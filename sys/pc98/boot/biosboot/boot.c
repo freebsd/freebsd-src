@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: boot.c,v 1.2 1996/07/23 07:45:35 asami Exp $
  */
 
 
@@ -163,7 +163,7 @@ loadstart:
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdhrsv]\n"
+	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdghrsv]\n"
 	       "Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1\n"
 	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
@@ -305,38 +305,6 @@ loadprog(void)
 
 	bootinfo.bi_esymtab = addr;
 
-#ifdef notyet
-#ifdef PC98
-	/*
-	 * MO boot support by KATO Takenori (Nov 27, 1995)
-	 *
-	 * Major device number should be cahnged into 20 (od) from
-	 * 4 (sd) when you boot from MO.
-	 */
-	if (maj == 4) {
-		/* SCSI device*/
-		if (((*(unsigned char*)0x11482) & (1 << unit)) == 0) {
-			/*
-			 * XXX
-			 * Boot device is not HDD
-			 */
-			int scsi_id;
-			unit = 0;
-			/*
-			 * XXX
-			 * If you want to boot from MO, its ID should be below
-			 * than that of other SCSI devices except for HDD becaus
-			 * they seem to be a MO in following code.
-			 */
-			for (scsi_id = 0; scsi_id < unit; scsi_id++)
-				if ((*(unsigned char*)0x11482) & (1 << scsi_id) == 0)
-					unit++;
-		}
-		maj = 20;		/* od */
-	}
-#endif
-#endif
-
 	/*
 	 * For backwards compatibility, use the previously-unused adaptor
 	 * and controller bitfields to hold the slice number.
@@ -390,6 +358,8 @@ nextarg:
 					if (*howto & RB_SERIAL)
 						init_serial();
 				}
+				if (c == 'g')
+					*howto |= RB_GDB;
 				if (c == 'r')
 					*howto |= RB_DFLTROOT;
 				if (c == 's')

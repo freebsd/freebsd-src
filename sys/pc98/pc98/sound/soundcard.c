@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.42 1996/03/28 14:31:13 scrappy Exp $
+ * $Id: soundcard.c,v 1.1.1.1 1996/06/14 10:04:54 asami Exp $
  */
 
 #include "sound_config.h"
@@ -67,13 +67,8 @@ static void * sndstat_devfs_token;
 
 struct selinfo selinfo[SND_NDEVS >> 4];
 
-#ifdef PC98
-static int	sndprobe (struct pc98_device *dev);
-static int	sndattach (struct pc98_device *dev);
-#else
 static int	sndprobe (struct isa_device *dev);
 static int	sndattach (struct isa_device *dev);
-#endif
 static void	sound_mem_init(void);
 
 static d_open_t		sndopen;
@@ -89,20 +84,6 @@ static struct cdevsw snd_cdevsw =
   	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
   	  sndselect,	nommap,		NULL,	"snd", NULL, -1 };
 
-#ifdef PC98
-struct pc98_driver opldriver	= {sndprobe, sndattach, "opl"};
-struct pc98_driver sbdriver	= {sndprobe, sndattach, "sb"};
-struct pc98_driver sbxvidriver	= {sndprobe, sndattach, "sbxvi"};
-struct pc98_driver sbmididriver	= {sndprobe, sndattach, "sbmidi"};
-struct pc98_driver pasdriver	= {sndprobe, sndattach, "pas"};
-struct pc98_driver mpudriver	= {sndprobe, sndattach, "mpu"};
-struct pc98_driver gusdriver	= {sndprobe, sndattach, "gus"};
-struct pc98_driver gusxvidriver	= {sndprobe, sndattach, "gusxvi"};
-struct pc98_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
-struct pc98_driver uartdriver	= {sndprobe, sndattach, "uart"};
-struct pc98_driver mssdriver	= {sndprobe, sndattach, "mss"};
-struct pc98_driver pcmdriver	= {sndprobe, sndattach, "pcm"};
-#else
 struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
 struct isa_driver sbdriver	= {sndprobe, sndattach, "sb"};
 struct isa_driver sbxvidriver	= {sndprobe, sndattach, "sbxvi"};
@@ -114,6 +95,8 @@ struct isa_driver gusxvidriver	= {sndprobe, sndattach, "gusxvi"};
 struct isa_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver	= {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
+#ifdef PC98
+struct isa_driver pcmdriver	= {sndprobe, sndattach, "pcm"};
 #endif
 
 static unsigned short
@@ -124,11 +107,7 @@ adintr(INT_HANDLER_PARMS(unit,dummy))
 { 
 #ifndef EXCLUDE_AD1848
 	static short unit_to_irq[4] = { -1, -1, -1, -1 };
-#ifdef PC98
-        struct pc98_device *dev;
-#else
         struct isa_device *dev;
-#endif
 
         if (unit_to_irq [unit] > 0)
 		ad1848_interrupt(INT_HANDLER_CALL (unit_to_irq [unit]));
@@ -282,11 +261,7 @@ ipri_to_irq (unsigned short ipri)
 }
 
 static int
-#ifdef PC98
-driver_to_voxunit(struct pc98_driver *driver)
-#else
 driver_to_voxunit(struct isa_driver *driver)
-#endif
 {
   /* converts a sound driver pointer into the equivalent
      VoxWare device unit number */
@@ -326,11 +301,7 @@ driver_to_voxunit(struct isa_driver *driver)
 }
 
 static int
-#ifdef PC98
-sndprobe (struct pc98_device *dev)
-#else
 sndprobe (struct isa_device *dev)
-#endif
 {
   struct address_info hw_config;
   int unit;
@@ -361,11 +332,7 @@ sndprobe (struct isa_device *dev)
 }
 
 static int
-#ifdef PC98
-sndattach (struct pc98_device *dev)
-#else
 sndattach (struct isa_device *dev)
-#endif
 {
   int             unit;
   static int      midi_initialized = 0;

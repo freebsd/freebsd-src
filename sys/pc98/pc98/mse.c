@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.27 1996/06/08 09:37:51 bde Exp $
+ * $Id: mse.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -69,19 +69,10 @@
 #endif
 
 
-#ifdef PC98
-static int mseprobe(struct pc98_device *);
-static int mseattach(struct pc98_device *);
-#else
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);
-#endif
 
-#ifdef PC98
-struct	pc98_driver msedriver = {
-#else
 struct	isa_driver msedriver = {
-#endif
 	mseprobe, mseattach, "mse"
 };
 
@@ -177,7 +168,7 @@ static struct mse_softc {
 static	int	msport;
 static	int	msirq;
 
-static int mse_probe98m __P((struct pc98_device *idp));
+static int mse_probe98m __P((struct isa_device *idp));
 static void mse_disable98m __P((u_int port));
 static void mse_get98m __P((u_int port, int *dx, int *dy, int *but));
 static void mse_enable98m __P((u_int port));
@@ -250,11 +241,7 @@ static void mse_getati __P((u_int port, int *dx, int *dy, int *but));
  */
 static struct mse_types {
 	int	m_type;		/* Type of bus mouse */
-#ifdef PC98
-	int	(*m_probe) __P((struct pc98_device *idp));
-#else
 	int	(*m_probe) __P((struct isa_device *idp));
-#endif
 				/* Probe routine to test for it */
 	void	(*m_enable) __P((u_int port));
 				/* Start routine */
@@ -290,11 +277,7 @@ static struct kern_devconf kdc_mse[NMSE] = { {
 } };
 
 static inline void
-#ifdef PC98
-mse_registerdev(struct pc98_device *id)
-#else
 mse_registerdev(struct isa_device *id)
-#endif
 {
 	if(id->id_unit)
 		kdc_mse[id->id_unit] = kdc_mse[0];
@@ -309,11 +292,7 @@ mse_registerdev(struct isa_device *id)
 
 int
 mseprobe(idp)
-#ifdef PC98
-	register struct pc98_device *idp;
-#else
 	register struct isa_device *idp;
-#endif
 {
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
@@ -338,11 +317,7 @@ mseprobe(idp)
 
 int
 mseattach(idp)
-#ifdef PC98
-	struct pc98_device *idp;
-#else
 	struct isa_device *idp;
-#endif
 {
 	int unit = idp->id_unit;
 	struct mse_softc *sc = &mse_sc[unit];
@@ -716,7 +691,7 @@ mse_getati(port, dx, dy, but)
  */
 static int
 mse_probe98m(idp)
-	register struct pc98_device *idp;
+	register struct isa_device *idp;
 {
 
 	msport = NORMAL_MSPORT;

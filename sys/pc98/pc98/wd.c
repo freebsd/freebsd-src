@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.3 1996/07/30 18:56:10 asami Exp $
+ *	$Id: wd.c,v 1.4 1996/08/30 10:43:11 asami Exp $
  */
 
 /* TODO:
@@ -182,11 +182,7 @@ wd_registerdev(int ctlr, int unit)
 }
 
 static inline void
-#ifdef PC98
-wdc_registerdev(struct pc98_device *dvp)
-#else
 wdc_registerdev(struct isa_device *dvp)
-#endif
 {
 	int unit = dvp->id_unit;
 
@@ -323,13 +319,8 @@ static short wd_ctlr;
 static int old_epson_note;
 #endif
 
-#ifdef PC98
-static int wdprobe(struct pc98_device *dvp);
-static int wdattach(struct pc98_device *dvp);
-#else
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
-#endif
 static void wdustart(struct disk *du);
 static int wdcontrol(struct buf *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
@@ -371,11 +362,7 @@ wd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, req);
 }
 
-#ifdef PC98
-struct pc98_driver wdcdriver = {
-#else
 struct isa_driver wdcdriver = {
-#endif
 	wdprobe, wdattach, "wdc",
 };
 
@@ -383,7 +370,7 @@ struct isa_driver wdcdriver = {
  * Probe for controller.
  */
 static int
-wdprobe(struct pc98_device *dvp)
+wdprobe(struct isa_device *dvp)
 {
 	int	unit = dvp->id_unit;
 	struct disk *du;
@@ -527,13 +514,13 @@ nodevice:
  * Attach each drive if possible.
  */
 static int
-wdattach(struct pc98_device *dvp)
+wdattach(struct isa_device *dvp)
 {
 #ifdef DEVFS
 	int	mynor;
 #endif
 	int	unit, lunit;
-	struct pc98_device *wdup;
+	struct isa_device *wdup;
 	struct disk *du;
 
 	if (dvp->id_unit >= NWDC)
