@@ -39,7 +39,7 @@
 #ifndef _RPC_RPCCOM_H
 #define	_RPC_RPCCOM_H
 
-#pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI"
+/* From: #pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI" */
 
 #ifdef __cplusplus
 extern "C" {
