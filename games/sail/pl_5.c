@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)pl_5.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "player.h"
 
 #define turnfirst(x) (*x == 'r' || *x == 'l')
