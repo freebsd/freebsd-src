@@ -167,7 +167,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 			b = strsep(&p, " ");
 			o = strtoimax(b, &r, 0);
 			/* APPLE have ty as a string */
-			if ((*r) && strcmp(t, "APPLE")) {
+			if ((*r) && (strcmp(t, "APPLE") && strcmp(t, "GPT"))) {
 				printf("BARF %d <%d>\n", __LINE__, *r);
 				exit (0);
 			}
@@ -256,7 +256,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 				break;
 			}
 		} else if (!strcmp(t, "GPT"))
-			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, gpt, 0, 0, b);
 		else if (!strcmp(t, "APPLE"))
 			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
 		else
