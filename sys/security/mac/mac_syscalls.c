@@ -560,7 +560,7 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_externalize_cred_label(&tcred->cr_label, elements,
-	    buffer, mac.m_buflen, M_WAITOK);
+	    buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -597,7 +597,7 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_externalize_cred_label(&td->td_ucred->cr_label,
-	    elements, buffer, mac.m_buflen, M_WAITOK);
+	    elements, buffer, mac.m_buflen);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
@@ -751,12 +751,12 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_VNODE:
 		if (error == 0)
 			error = mac_externalize_vnode_label(&intlabel,
-			    elements, buffer, mac.m_buflen, M_WAITOK);
+			    elements, buffer, mac.m_buflen);
 		mac_destroy_vnode_label(&intlabel);
 		break;
 	case DTYPE_PIPE:
 		error = mac_externalize_pipe_label(&intlabel, elements,
-		    buffer, mac.m_buflen, M_WAITOK);
+		    buffer, mac.m_buflen);
 		mac_destroy_pipe_label(&intlabel);
 		break;
 	default:
@@ -812,7 +812,7 @@ __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 	mac_init_vnode_label(&intlabel);
 	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
 	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
-	    mac.m_buflen, M_WAITOK);
+	    mac.m_buflen);
 
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
@@ -867,7 +867,7 @@ __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 	mac_init_vnode_label(&intlabel);
 	mac_copy_vnode_label(&nd.ni_vp->v_label, &intlabel);
 	error = mac_externalize_vnode_label(&intlabel, elements, buffer,
-	    mac.m_buflen, M_WAITOK);
+	    mac.m_buflen);
 	NDFREE(&nd, 0);
 	mac_destroy_vnode_label(&intlabel);
 
