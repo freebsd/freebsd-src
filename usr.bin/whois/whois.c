@@ -70,15 +70,15 @@ static const char rcsid[] =
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
-#define	WHOIS_PORT	43
+#define	BNICHOST	"whois.registro.br"
 #define	WHOIS_SERVER_ID	"Whois Server: "
-#define	NO_MATCH_ID	"No match for \""
 
 #define WHOIS_RECURSE		0x01
-#define WHOIS_INIC_FALLBACK	0x02
-#define WHOIS_QUICK		0x04
+#define WHOIS_QUICK		0x02
 
-const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
+#define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
+
+const char *ip_whois[] = { RNICHOST, PNICHOST, BNICHOST, NULL };
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 		use_qnichost = 1;
 		host = NICHOST;
 		if (!(flags & WHOIS_QUICK))
-			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
+			flags |= WHOIS_RECURSE;
 	}
 	while (argc--) {
 		if (country != NULL) {
@@ -206,7 +206,7 @@ choose_server(char *domain)
 	return (retval);
 }
 
-static struct addrinfo * 
+static struct addrinfo *
 gethostinfo(char const *host, int exit_on_error)
 {
 	struct addrinfo hints, *res;
@@ -224,7 +224,7 @@ gethostinfo(char const *host, int exit_on_error)
 		return (NULL);
 	}
 	return (res);
-} 
+}
 
 /*
  * Wrapper for asprintf(3) that exits on error.
@@ -247,8 +247,8 @@ whois(char *name, struct addrinfo *res, int flags)
 {
 	FILE *sfi, *sfo;
 	struct addrinfo *res2;
-	char *buf, *nhost, *p;
-	int i, nomatch, s;
+	char *buf, *host, *nhost, *p;
+	int i, s;
 	size_t len;
 
 	for (; res; res = res->ai_next) {
@@ -269,45 +269,35 @@ whois(char *name, struct addrinfo *res, int flags)
 	fprintf(sfo, "%s\r\n", name);
 	fflush(sfo);
 	nhost = NULL;
-	nomatch = 0;
 	while ((buf = fgetln(sfi, &len)) != NULL) {
-		while (len && isspace(buf[len - 1]))
+		while (len > 0 && isspace((unsigned char)buf[len - 1]))
 			buf[--len] = '\0';
+		printf("%.*s\n", (int)len, buf);
 
 		if ((flags & WHOIS_RECURSE) && nhost == NULL) {
-			p = strstr(buf, WHOIS_SERVER_ID);
-			if (p != NULL) {
-				p += sizeof(WHOIS_SERVER_ID) - 1;
-				if ((len = strcspn(p, " \t\n\r")) != 0) {
-					s_asprintf(&nhost, "%s", p);
+			host = strnstr(buf, WHOIS_SERVER_ID, len);
+			if (host != NULL) {
+				host += sizeof(WHOIS_SERVER_ID) - 1;
+				for (p = host; p < buf + len; p++) {
+					if (!ishost(*p)) {
+						*p = '\0';
+						break;
+					}
 				}
+				s_asprintf(&nhost, "%.*s",
+				     (int)(buf + len - host), host);
 			} else {
 				for (i = 0; ip_whois[i] != NULL; i++) {
-					if (strstr(buf, ip_whois[i]) == NULL)
-						continue;
-					s_asprintf(&nhost, "%s", ip_whois[i]);
+					if (strnstr(buf, ip_whois[i], len) !=
+					    NULL) {
+						s_asprintf(&nhost, "%s",
+						    ip_whois[i]);
+						break;
+					}
 				}
 			}
 		}
-
-		if ((flags & WHOIS_INIC_FALLBACK) && nhost == NULL &&
-		    !nomatch && (p = strstr(buf, NO_MATCH_ID)) != NULL) {
-			p += sizeof(NO_MATCH_ID) - 1;
-			if ((len = strcspn(p, "\"")) &&
-			    strncasecmp(name, p, len) == 0 &&
-			    name[len] == '\0' &&
-			    strchr(name, '.') == NULL)
-				nomatch = 1;
-		}
-		printf("%s\n", buf);
 	}
-
-	/* Do second lookup as needed. */
-	if (nomatch && nhost == NULL) {
-		printf("Looking up %s at %s.\n\n", name, INICHOST);
-		s_asprintf(&nhost, "%s", INICHOST);
-	}
-
 	if (nhost != NULL) {
 		if ((res2 = gethostinfo(nhost, 0)) == NULL) {
 			free(nhost);
