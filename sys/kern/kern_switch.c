@@ -168,40 +168,14 @@ kse_reassign(struct kse *ke)
 	struct ksegrp *kg;
 	struct thread *td;
 	struct thread *original;
-	struct kse_upcall *ku;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	original = ke->ke_thread;
 	KASSERT(original == NULL || TD_IS_INHIBITED(original),
     	    ("reassigning KSE with runnable thread"));
 	kg = ke->ke_ksegrp;
-	if (original) {
-		/*
-		 * If the outgoing thread is in threaded group and has never
-		 * scheduled an upcall, decide whether this is a short
-		 * or long term event and thus whether or not to schedule
-		 * an upcall.
-		 * If it is a short term event, just suspend it in
-		 * a way that takes its KSE with it.
-		 * Select the events for which we want to schedule upcalls.
-		 * For now it's just sleep.
-		 * XXXKSE eventually almost any inhibition could do.
-		 */
-		if (TD_CAN_UNBIND(original) && (original->td_standin) &&
-		    TD_ON_SLEEPQ(original)) {
-		    	/* 
-			 * Release ownership of upcall, and schedule an upcall
-			 * thread, this new upcall thread becomes the owner of
-			 * the upcall structure.
-			 */
-			ku = original->td_upcall;
-			ku->ku_owner = NULL;
-			original->td_upcall = NULL; 
-			original->td_flags &= ~TDF_CAN_UNBIND;
-			thread_schedule_upcall(original, ku);
-		}
+	if (original)
 		original->td_kse = NULL;
-	}
 
 	/*
 	 * Find the first unassigned thread

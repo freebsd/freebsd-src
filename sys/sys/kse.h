@@ -59,7 +59,6 @@ struct kse_thr_mailbox {
 	void			*tm_udata;	/* For use by the UTS */
 	unsigned int		tm_uticks;
 	unsigned int		tm_sticks;
-	int			tm_slices;
 	int			tm_spare[8];
 };
 
@@ -79,10 +78,12 @@ struct kse_mailbox {
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
 	struct timespec		km_timeofday;	/* Time of day */
+	int			km_quantum;	/* Upcall quantum in msecs */
 	int			km_spare[8];
 };
 
 #define	KSE_VER_0	0
+#define	KSE_VERSION	KSE_VER_0
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
