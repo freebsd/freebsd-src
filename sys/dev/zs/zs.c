@@ -132,20 +132,19 @@ struct zstty_softc {
 	int			sc_icnt;
 	uint8_t			*sc_iput;
 	uint8_t			*sc_iget;
-	uint8_t			*sc_oget;
 	int			sc_ocnt;
+	uint8_t			*sc_oget;
 	int			sc_brg_clk;
 	int			sc_alt_break_state;
 	struct mtx		sc_mtx;
 	uint8_t			sc_console;
-	uint8_t			sc_opening;
 	uint8_t			sc_tx_busy;
 	uint8_t			sc_tx_done;
 	uint8_t			sc_preg_held;
 	uint8_t			sc_creg[16];
 	uint8_t			sc_preg[16];
-	uint8_t			sc_obuf[CBLOCK];
 	uint8_t			sc_ibuf[CBLOCK];
+	uint8_t			sc_obuf[CBLOCK];
 };
 
 struct zs_softc {
@@ -371,11 +370,17 @@ zs_intr(void *v)
 	int needsoft;
 	uint8_t rr3;
 
+	/*
+	 * There is only one status register, which is on channel a.  In order
+	 * to avoid needing to know which channel we're on in the tty interrupt
+	 * handler we shift the channel a status bits into the channel b
+	 * bit positions and always test the channel b bits.
+	 */
 	needsoft = 0;
 	rr3 = ZS_READ_REG(sc->sc_child[0], 3);
 	if ((rr3 & (ZSRR3_IP_A_RX | ZSRR3_IP_A_TX | ZSRR3_IP_A_STAT)) != 0) {
 		ZS_WRITE(sc->sc_child[0], ZS_CSR, ZSWR0_CLR_INTR);
-		needsoft |= zstty_intr(sc->sc_child[0], rr3);
+		needsoft |= zstty_intr(sc->sc_child[0], rr3 >> 3);
 	}
 	if ((rr3 & (ZSRR3_IP_B_RX | ZSRR3_IP_B_TX | ZSRR3_IP_B_STAT)) != 0) {
 		ZS_WRITE(sc->sc_child[1], ZS_CSR, ZSWR0_CLR_INTR);
@@ -436,6 +441,8 @@ zstty_attach(device_t dev)
 	sc->sc_bt = sc->sc_parent->sc_bt;
 	sc->sc_channel = device_get_unit(dev) & 1;
 	sc->sc_brg_clk = ZS_CLOCK / ZS_CLOCK_DIV;
+	sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
+	sc->sc_oget = sc->sc_obuf;
 
 	switch (sc->sc_channel) {
 	case 0:
@@ -513,6 +520,11 @@ zstty_detach(device_t dev)
 	return (bus_generic_detach(dev));
 }
 
+/*
+ * Note that the rr3 value is shifted so the channel a status bits are in the
+ * channel b bit positions, which makes the bit positions uniform for both
+ * channels.
+ */
 static int
 zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 {
@@ -526,7 +538,7 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 
 	brk = 0;
 	needsoft = 0;
-	if ((rr3 & ZSRR3_IP_A_RX) != 0) {
+	if ((rr3 & ZSRR3_IP_B_RX) != 0) {
 		needsoft = 1;
 		do {
 			/*
@@ -539,7 +551,8 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 			if ((rr1 & (ZSRR1_FE | ZSRR1_DO | ZSRR1_PE)) != 0)
 				ZS_WRITE(sc, ZS_CSR, ZSWR0_RESET_ERRORS);
 #if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-			brk = db_alt_break(c, &sc->sc_alt_break_state);
+			if (sc->sc_console != 0)
+				brk = db_alt_break(c, &sc->sc_alt_break_state);
 #endif
 			*sc->sc_iput++ = c;
 			*sc->sc_iput++ = rr1;
@@ -548,17 +561,17 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 		} while ((ZS_READ(sc, ZS_CSR) & ZSRR0_RX_READY) != 0);
 	}
 
-	if ((rr3 & ZSRR3_IP_A_STAT) != 0) {
+	if ((rr3 & ZSRR3_IP_B_STAT) != 0) {
 		rr0 = ZS_READ(sc, ZS_CSR);
 		ZS_WRITE(sc, ZS_CSR, ZSWR0_RESET_STATUS);
 #if defined(DDB) && defined(BREAK_TO_DEBUGGER)
-		if ((rr0 & ZSRR0_BREAK) != 0)
+		if (sc->sc_console != 0 && (rr0 & ZSRR0_BREAK) != 0)
 			brk = 1;
 #endif
 		/* XXX do something about flow control */
 	}
 
-	if ((rr3 & ZSRR3_IP_A_TX) != 0) {
+	if ((rr3 & ZSRR3_IP_B_TX) != 0) {
 		/*
 		 * If we've delayed a paramter change, do it now.
 		 */
@@ -854,6 +867,15 @@ zstty_param(struct zstty_softc *sc, struct tty *tp, struct termios *t)
 	if (ospeed < 0 || (t->c_ispeed && t->c_ispeed != t->c_ospeed))
 		return (EINVAL);
 
+	/*
+	 * If there were no changes, don't do anything.  This avoids dropping
+	 * input and improves performance when all we did was frob things like
+	 * VMIN and VTIME.
+	 */
+	if (tp->t_ospeed == t->c_ospeed &&
+	    tp->t_cflag == t->c_cflag)
+		return (0);
+
 	zstty_mdmctrl(sc, TIOCM_DTR,
 	    (t->c_ospeed == 0) ? DMBIC : DMBIS);
 
@@ -892,6 +914,12 @@ zstty_param(struct zstty_softc *sc, struct tty *tp, struct termios *t)
 		wr4 |= ZSWR4_EVENP;
 	if (cflag & PARENB)
 		wr4 |= ZSWR4_PARENB;
+
+	tp->t_ispeed = 0;
+	tp->t_ospeed = t->c_ospeed;
+	tp->t_cflag = cflag;
+
+	ttsetwater(tp);
 
 	ZSTTY_LOCK(sc);
 
