@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_subr.c,v 1.10 1997/02/22 09:39:11 peter Exp $
  */
 
 #include <sys/param.h>
@@ -218,10 +218,10 @@ hashinit(elements, type, hashmask)
 	return (hashtbl);
 }
 
-#define NPRIMES 27
 static int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531, 2039,
 			2557, 3067, 3583, 4093, 4603, 5119, 5623, 6143, 6653,
 			7159, 7673, 8191, 12281, 16381, 24571, 32749 };
+#define NPRIMES (sizeof(primes) / sizeof(primes[0]))
 
 /*
  * General routine to allocate a prime number sized hash table.
