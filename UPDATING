@@ -96,8 +96,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 
 COMMON ITEMS:
 
-	# NOTE: 5.x below applies to 6.0-currrent as well, for the
-	# momemnt.  4.any -> 5.any upgrade support will remain in
+	# NOTE: 5.x below applies to 6.0-current as well, for the
+	# moment.  4.any -> 5.any upgrade support will remain in
 	# place for 6.0 current, but after 5.3 RELEASE, the 4.any ->
 	# 6.0-current upgrade path will require moving through 5.3
 	# RELEASE or newer.
