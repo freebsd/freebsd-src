@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.29 1997/09/02 20:06:01 bde Exp $
+ * $Id: vfs_cache.c,v 1.30 1997/09/03 09:20:17 phk Exp $
  */
 
 #include <sys/param.h>
@@ -281,7 +281,7 @@ nchinit()
 {
 
 	TAILQ_INIT(&ncneg);
-	nchashtbl = hashinit(desiredvnodes, M_CACHE, &nchash);
+	nchashtbl = hashinit(desiredvnodes*2, M_CACHE, &nchash);
 }
 
 /*
@@ -298,14 +298,17 @@ cache_purge(vp)
 {
 	struct namecache *ncp;
 	struct nchashhead *ncpp;
+	static u_long nextid;
 
 	while (!LIST_EMPTY(&vp->v_cache_src)) 
 		cache_zap(LIST_FIRST(&vp->v_cache_src));
 	while (!TAILQ_EMPTY(&vp->v_cache_dst)) 
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 
-	if (!++vp->v_id)
-		vp->v_id++;
+	nextid++;
+	while (nextid == vp->v_id || !nextid)
+		continue;
+	vp->v_id = nextid;
 	vp->v_dd = vp;
 	vp->v_ddid = 0;
 }
