@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $")
+RCSID("$Id: tc.func.c,v 3.97 2001/08/28 23:13:44 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -1257,8 +1257,11 @@ rmstar(cp)
 			    tmp->next->prev = tmp->prev;
 			    xfree((ptr_t) tmp->word);
 			    del = tmp;
+			    tmp = tmp->next;
 			    xfree((ptr_t) del);
 			}
+			we = tmp;
+			continue;
 		    }
 		}
 	    }
