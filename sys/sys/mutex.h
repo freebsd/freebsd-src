@@ -86,7 +86,7 @@
 
 #endif	/* _KERNEL */
 
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 struct mtx_debug {
 	/* If you add anything here, adjust the mtxf_t definition below */
 	struct witness	*mtxd_witness;
@@ -101,7 +101,7 @@ struct mtx_debug {
 #define	mtx_line	mtx_debug->mtxd_line
 #define	mtx_file	mtx_debug->mtxd_file
 #define	mtx_witness	mtx_debug->mtxd_witness
-#endif
+#endif	/* WITNESS */
 
 /*
  * Sleep/spin mutex
@@ -110,7 +110,7 @@ struct mtx {
 	volatile uintptr_t mtx_lock;	/* lock owner/gate/flags */
 	volatile u_int	mtx_recurse;	/* number of recursive holds */
 	u_int		mtx_saveintr;	/* saved flags (for spin locks) */
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 	struct mtx_debug *mtx_debug;
 #else
 	const char	*mtx_description;
@@ -121,7 +121,7 @@ struct mtx {
 	struct mtx	*mtx_prev;
 };
 
-#ifdef	MUTEX_DEBUG
+#ifdef	WITNESS
 #define	MUTEX_DECLARE(modifiers, name)					\
 	static struct mtx_debug __mtx_debug_##name;			\
 	modifiers struct mtx name = { 0, 0, 0, &__mtx_debug_##name }
@@ -262,9 +262,6 @@ do {									\
 #endif	/* MUTEX_DEBUG */
 
 #ifdef	WITNESS
-#ifndef	MUTEX_DEBUG
-#error	WITNESS requires MUTEX_DEBUG
-#endif	/* MUTEX_DEBUG */
 #define WITNESS_ENTER(m, t, f, l)					\
 	if ((m)->mtx_witness != NULL)					\
 		witness_enter((m), (t), (f), (l))
@@ -550,12 +547,12 @@ _mtx_try_enter(struct mtx *mtxp, int type, const char *file, int line)
 	int	rval;
 
 	rval = _obtain_lock(mpp, CURTHD);
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 	if (rval && mpp->mtx_witness != NULL) {
 		MPASS(mpp->mtx_recurse == 0);
 		witness_try_enter(mpp, type, file, line);
 	}
-#endif
+#endif	/* WITNESS */
 	CTR5(KTR_LOCK, STR_mtx_try_enter_fmt,
 	    mpp->mtx_description, mpp, rval, file, line);
 
