@@ -41,36 +41,37 @@
 .Nd reformat input as morse code
 .Sh SYNOPSIS
 .Nm
-.Op Fl p
+.Op Fl elps
 .Op Fl d Ar device
-.Op Fl e
 .Op Fl w Ar speed
 .Op Fl f Ar frequency
-.Op Fl l
-.Op Fl s
 .Op Ar string ...
 .Sh DESCRIPTION
-The command
+The
 .Nm
-read the given input and reformat it in the form of morse code.
+command reads the given input and reformats it in the form of morse code.
 Acceptable input are command line arguments or the standard input.
 .Pp
 Available options:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl l
 The
 .Fl l
-option produces output suitable for led(4) devices.
+option produces output suitable for
+.Xr led 4
+devices.
 .It Fl s
 The
 .Fl s
 option produces dots and dashes rather than words.
 .It Fl p
-Send morse the real way. This only works if your system has
+Send morse the real way.
+This only works if your system has
 .Xr speaker 4
 support.
 .It Fl w Ar speed
-Set the sending speed in words per minute. If not specified the default
+Set the sending speed in words per minute.
+If not specified, the default
 speed of 20 WPM is used.
 .It Fl f Ar frequency
 Set the sidetone frequency to something other than the default 600 Hz.
@@ -79,10 +80,10 @@ Similar to
 .Fl p ,
 but use the RTS line of
 .Ar device
-(which must by a tty device)
+(which must by a TTY device)
 in order to emit the morse code.
 .It Fl e
-echo each character before it is sent, used together with either
+Echo each character before it is sent, used together with either
 .Fl p
 or
 .Fl d .
@@ -98,7 +99,8 @@ or the
 .Fl d
 flag.
 .Pp
-Not all prosigns have corresponding characters. Use
+Not all prosigns have corresponding characters.
+Use
 .Ql #
 for
 .Em AS ,
@@ -124,21 +126,24 @@ and
 for
 .Em AR .
 .Pp
-Using flag
-.Fl d Ar device
+Using the
+.Fl d
+flag,
 it is possible to key an external device, like a sidetone generator with
-a headset for training purposes, or even your ham radio transceiver.  For
+a headset for training purposes, or even your ham radio transceiver.
+For
 the latter, simply connect an NPN transistor to the serial port
 .Ar device ,
 emitter connected to ground, base connected through a resistor
 (few kiloohms) to RTS, collector to the key line of your transceiver
 (assuming the transceiver has a positive key supply voltage and is keyed
-by grounding the key input line).  A capacitor (some nanofarads) between
+by grounding the key input line).
+A capacitor (some nanofarads) between
 base and ground is advisable to keep stray RF away,
 and to suppress the
 minor glitch that is generated during program startup.
 .Sh FILES
-.Bl -tag -width /dev/speaker -compact
+.Bl -tag -width ".Pa /dev/speaker" -compact
 .It Pa /dev/speaker
 speaker device file
 .El
@@ -148,12 +153,15 @@ Your
 locale codeset determines how
 characters with the high-order bit set
 are interpreted.
+.Pp
 .Bl -tag -width ".Li ISO8859-15" -compact
 .It Li ISO8859-1
 .It Li ISO8859-15
 Interpret characters with the high-order bit set as Western European characters.
+.Pp
 .It Li KOI8-R
 Interpret characters with the high-order bit set as Cyrillic characters.
+.Pp
 .It Li ISO8859-7
 Interpret characters with the high-order bit set as Greek characters.
 .El
@@ -174,5 +182,5 @@ Only understands a few European characters
 no Asian characters,
 and no continental landline code.
 .Pp
-Sends a bit slower than it should due to system overhead. Some people
-would call this a feature.
+Sends a bit slower than it should due to system overhead.
+Some people would call this a feature.
