@@ -26,13 +26,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
-#include <sys/fcntl.h>
-#include <sys/vnode.h>
 #include <sys/linker.h>
 #include <machine/elf.h>
 

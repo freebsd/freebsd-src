@@ -31,7 +31,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 
@@ -39,7 +38,7 @@
 #include <machine/specialreg.h>
 
 #ifdef SMP
-#include "machine/smp.h"
+#include <machine/smp.h>
 #endif
 
 /*

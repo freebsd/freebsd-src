@@ -54,7 +54,6 @@
 #include <machine/cpu.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
-#include <machine/smp.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
