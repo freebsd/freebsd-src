@@ -1373,8 +1373,6 @@ enter_global_ref(lsp, name, entry)
 			lsp->nzlist.nz_type = N_TEXT|N_EXT;
 			lsp->nzlist.nz_value = 0;
 			make_executable = 0;
-		} else {
-			global_alias_count++;
 		}
 #if 0
 		if (sp->flags & GS_REFERENCED)
@@ -2381,6 +2379,14 @@ digest_pass2()
 			}
 			defined_global_sym_count++;
 		}
+
+		/*
+		 * Count the aliases that will appear in the output.
+		 */
+		if (sp->alias && !sp->so_defined && !sp->alias->so_defined &&
+		    (sp->defined || relocatable_output ||
+		     !building_shared_object))
+			global_alias_count++;
 
 		if ((sp->defined & N_TYPE) == N_SETV) {
 			/*
