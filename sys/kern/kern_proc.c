@@ -183,15 +183,12 @@ int
 inferior(p)
 	register struct proc *p;
 {
-	int rval = 1;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	for (; p != curproc; p = p->p_pptr)
-		if (p->p_pid == 0) {
-			rval = 0;
-			break;
-		}
-	return (rval);
+		if (p->p_pid == 0)
+			return (0);
+	return (1);
 }
 
 /*
