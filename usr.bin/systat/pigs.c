@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -134,36 +136,34 @@ showpigs()
 	wmove(wnd, y, 0); wclrtobot(wnd);
 }
 
-static struct nlist namelist[] = {
-#define X_FIRST		0
-#define X_CPTIME	0
-	{ "_cp_time" },
-#define X_CCPU          1
-	{ "_ccpu" },
-#define X_FSCALE        2
-	{ "_fscale" },
-
-	{ "" }
-};
-
 int
 initpigs()
 {
 	fixpt_t ccpu;
+	size_t len;
+	int err;
 
-	if (namelist[X_FIRST].n_type == 0) {
-		if (kvm_nlist(kd, namelist)) {
-			nlisterr(namelist);
-		        return(0);
-		}
-		if (namelist[X_FIRST].n_type == 0) {
-			error("namelist failed");
-			return(0);
-		}
+	len = sizeof(stime);
+	err = sysctlbyname("kern.cp_time", &stime, &len, NULL, 0);
+	if (err || len != sizeof(stime)) {
+		perror("kern.cp_time");
+		return (0);
 	}
-	KREAD(NPTR(X_CPTIME), stime, sizeof (stime));
-	NREAD(X_CCPU, &ccpu, sizeof(ccpu));
-	NREAD(X_FSCALE,  &fscale, LONG);
+
+	len = sizeof(ccpu);
+	err = sysctlbyname("kern.ccpu", &ccpu, &len, NULL, 0);
+	if (err || len != sizeof(ccpu)) {
+		perror("kern.ccpu");
+		return (0);
+	}
+
+	len = sizeof(fscale);
+	err = sysctlbyname("kern.fscale", &fscale, &len, NULL, 0);
+	if (err || len != sizeof(fscale)) {
+		perror("kern.fscale");
+		return (0);
+	}
+
 	lccpu = log((double) ccpu / fscale);
 
 	return(1);
@@ -180,9 +180,9 @@ fetchpigs()
 	long ctime[CPUSTATES];
 	double t;
 	static int lastnproc = 0;
+	size_t len;
+	int err;
 
-	if (namelist[X_FIRST].n_type == 0)
-		return;
 	if ((kpp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc)) == NULL) {
 		error("%s", kvm_geterr(kd));
 		if (pt)
@@ -215,7 +215,12 @@ fetchpigs()
 	/*
 	 * and for the imaginary "idle" process
 	 */
-	KREAD(NPTR(X_CPTIME), ctime, sizeof (ctime));
+	len = sizeof(ctime);
+	err = sysctlbyname("kern.cp_time", &ctime, &len, NULL, 0);
+	if (err || len != sizeof(ctime)) {
+		perror("kern.cp_time");
+		return;
+	}
 	t = 0;
 	for (i = 0; i < CPUSTATES; i++)
 		t += ctime[i] - stime[i];
