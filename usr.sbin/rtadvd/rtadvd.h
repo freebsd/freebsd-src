@@ -90,7 +90,7 @@ struct prefix {
 	u_int routeraddr;	/* bool: RouterAddress */
 #endif
 	int prefixlen;
-	int origin;		/* from kernel or cofig */
+	int origin;		/* from kernel or config */
 	struct in6_addr prefix;
 };
 
@@ -99,7 +99,7 @@ struct rtinfo {
 	struct rtinfo *next;	/* forward link */
 
 	u_int32_t ltime;	/* route lifetime */
-	u_int rtpref;		/* router preference */
+	u_int rtpref;		/* route preference */
 	int prefixlen;
 	struct in6_addr prefix;
 };
@@ -135,6 +135,7 @@ struct	rainfo {
 #ifdef MIP6
 	int	haflg;		/* HAFlag */
 #endif
+
 	int	rtpref;		/* router preference */
 	u_int32_t linkmtu;	/* AdvLinkMTU */
 	u_int32_t reachabletime; /* AdvReachableTime */

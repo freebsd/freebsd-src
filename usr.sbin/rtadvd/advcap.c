@@ -161,7 +161,7 @@ getent(bp, name, cp)
 				}
 				break;
 			}
-			if (cp >= bp+BUFSIZ) {
+			if (cp >= bp + BUFSIZ) {
 				write(STDERR_FILENO, "Remcap entry too long\n",
 				      23);
 				break;
@@ -198,7 +198,7 @@ tnchktc()
 
 	p = tbuf + strlen(tbuf) - 2;	/* before the last colon */
 	while (*--p != ':')
-		if (p<tbuf) {
+		if (p < tbuf) {
 			write(STDERR_FILENO, "Bad remcap entry\n", 18);
 			return (0);
 		}
