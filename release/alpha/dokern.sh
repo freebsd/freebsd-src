@@ -82,7 +82,7 @@ sed	-e '/pty/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
-	-e '/ncr/d' \
+	-e '/	ncr/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/wds/d' \
