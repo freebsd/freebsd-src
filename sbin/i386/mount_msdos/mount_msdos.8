@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.6 1997/12/19 23:03:00 bde Exp $
+.\"	$Id: mount_msdos.8,v 1.7 1998/02/18 09:30:28 jkh Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -46,6 +46,7 @@
 .Op Fl l
 .Op Fl 9
 .\".Op Fl G
+.Op Fl w Ar table
 .Pa special
 .Pa node
 .Sh DESCRIPTION
@@ -127,6 +128,19 @@ if deleting or renaming a file. This forces
 .\"filesystem. The differences to the msdos filesystem are minimal and
 .\"limited to the boot block. This option enforces
 .\".Fl s .
+.It Fl w Ar table
+Specify file with
+local character set to Unicode conversion table for Win'95 long
+names. This table is text file contains 128 Unicode codes corresponding to
+upper half of local character set.
+If file path isn't absolute,
+.Pa /usr/libdata/msdosfs/
+prefix prepended.
+.El
+.Sh FILES
+.Bl -tag -width /usr/libdata/msdosfs -compact
+.It Pa /usr/libdata/msdosfs
+default place for Unicode conversion tables
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
