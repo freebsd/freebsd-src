@@ -355,7 +355,11 @@ main(int argc, char **argv)
 			profile = 1;
 			break;
 		case 'b':
+#ifdef COP_F_BATCH
 			opflags |= COP_F_BATCH;
+#else
+			printf("Sorry, batching control never got MFC'd!\n");
+#endif
 			break;
 		default:
 			usage(argv[0]);
