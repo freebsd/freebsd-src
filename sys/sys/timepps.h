@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: timepps.h,v 1.4 1998/06/22 21:09:10 phk Exp $
+ * $Id: timepps.h,v 1.5 1999/03/11 15:09:41 phk Exp $
  *
  * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
  * specification for Pulse Per Second timing interfaces.  
@@ -107,13 +107,14 @@ void hardpps __P((struct timespec *tsp, long nsec));
 
 #else /* !KERNEL */
 
-int time_pps_create(int filedes, pps_handle_t *handle);
-int time_pps_destroy(pps_handle_t handle);
-int time_pps_setparams(pps_handle_t handle, const pps_params_t *ppsparams);
-int time_pps_getparams(pps_handle_t handle, pps_params_t *ppsparams);
-int time_pps_getcap(pps_handle_t handle, int *mode);
-int time_pps_fetch(pps_handle_t handle, pps_info_t *ppsinfobuf);
-int time_pps_wait(pps_handle_t handle, const struct timespec *timeout, 
+static int time_pps_create(int filedes, pps_handle_t *handle);
+static int time_pps_destroy(pps_handle_t handle);
+static int time_pps_setparams(pps_handle_t handle, 
+	const pps_params_t *ppsparams);
+static int time_pps_getparams(pps_handle_t handle, pps_params_t *ppsparams);
+static int time_pps_getcap(pps_handle_t handle, int *mode);
+static int time_pps_fetch(pps_handle_t handle, pps_info_t *ppsinfobuf);
+static int time_pps_wait(pps_handle_t handle, const struct timespec *timeout, 
 	pps_info_t *ppsinfobuf);
 
 static __inline int
