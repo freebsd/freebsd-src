@@ -48,6 +48,7 @@ struct buf;
 struct bufobj;
 struct mount;
 struct vnode;
+struct uio;
 
 /*
  * To avoid including <ufs/ffs/softdep.h> 
@@ -398,6 +399,7 @@ struct cluster_save {
 static __inline int
 bwrite(struct buf *bp)
 {
+
 	KASSERT(bp->b_bufobj != NULL, ("bwrite: no bufobj bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops->bop_write != NULL,
@@ -408,6 +410,7 @@ bwrite(struct buf *bp)
 static __inline void
 bstrategy(struct buf *bp)
 {
+
 	KASSERT(bp->b_bufobj != NULL, ("bwrite: no bufobj bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops->bop_strategy != NULL,
@@ -480,8 +483,6 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
-
-struct uio;
 
 caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est);
 void	bufinit(void);
