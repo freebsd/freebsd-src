@@ -52,6 +52,14 @@
 The
 .Fn isdigit
 function tests for any decimal-digit character.
+For any locale,
+this includes the following characters only:
+.Pp
+.Bl -column \&``0''______ \&``0''______ \&``0''______ \&``0''______ \&``0''______
+.It "\&``0''\t``1''\t``2''\t``3''\t``4''"
+.It "\&``5''\t``6''\t``7''\t``8''\t``9''"
+.El
+.Pp
 For single C
 .Va char Ns s
 locales (see
@@ -61,13 +69,6 @@ representable as an
 .Li unsigned char
 or the value of
 .Dv EOF .
-In the ASCII character set, this includes the following characters
-(with their numeric values shown in octal):
-.Pp
-.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
-.It "\&060\ ``0'' \t061\ ``1'' \t062\ ``2'' \t063\ ``3'' \t064\ ``4''"
-.It "\&065\ ``5'' \t066\ ``6'' \t067\ ``7'' \t070\ ``8'' \t071\ ``9''"
-.El
 .Sh RETURN VALUES
 The
 .Fn isdigit
