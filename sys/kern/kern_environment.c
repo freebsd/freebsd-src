@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_environment.c,v 1.1 1998/10/09 00:31:29 msmith Exp $
+ *	$Id: kern_environment.c,v 1.2 1998/10/09 11:03:46 jkh Exp $
  */
 
 /*
@@ -46,15 +46,6 @@
 char	*kern_envp;
 
 static char	*kernenv_next(char *cp);
-
-static void
-kernenv_init(void* arg)
-{
-    if (bootinfo.bi_envp != 0)
-	kern_envp = (char *)bootinfo.bi_envp;
-}
-
-SYSINIT(kernenv, SI_SUB_CONSOLE, SI_ORDER_FIRST, kernenv_init, 0);
 
 char *
 getenv(char *name)
