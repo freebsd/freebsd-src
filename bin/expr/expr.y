@@ -8,16 +8,25 @@
  */
 
 #include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <locale.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <regex.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <regex.h>
+#include <unistd.h>
   
+/*
+ * POSIX specifies a specific error code for syntax errors.  We exit
+ * with this code for all errors.
+ */
+#define	ERR_EXIT	2
+
 enum valtype {
 	integer, numeric_string, string
 } ;
@@ -26,20 +35,20 @@ struct val {
 	enum valtype type;
 	union {
 		char *s;
-		quad_t i;
+		intmax_t i;
 	} u;
 } ;
 
 struct val *result;
 
-int		chk_div(quad_t, quad_t);
-int		chk_minus(quad_t, quad_t, quad_t);
-int		chk_plus(quad_t, quad_t, quad_t);
-int		chk_times(quad_t, quad_t, quad_t);
+int		chk_div(intmax_t, intmax_t);
+int		chk_minus(intmax_t, intmax_t, intmax_t);
+int		chk_plus(intmax_t, intmax_t, intmax_t);
+int		chk_times(intmax_t, intmax_t, intmax_t);
 void		free_value(struct val *);
 int		is_zero_or_null(struct val *);
 int		isstring(struct val *);
-struct val	*make_integer(quad_t);
+struct val	*make_integer(intmax_t);
 struct val	*make_str(const char *);
 struct val	*op_and(struct val *, struct val *);
 struct val	*op_colon(struct val *, struct val *);
@@ -55,7 +64,7 @@ struct val	*op_or(struct val *, struct val *);
 struct val	*op_plus(struct val *, struct val *);
 struct val	*op_rem(struct val *, struct val *);
 struct val	*op_times(struct val *, struct val *);
-quad_t		to_integer(struct val *);
+intmax_t	to_integer(struct val *);
 void		to_string(struct val *);
 int		yyerror(const char *);
 int		yylex(void);
@@ -105,13 +114,13 @@ expr:	TOKEN
 %%
 
 struct val *
-make_integer(quad_t i)
+make_integer(intmax_t i)
 {
 	struct val *vp;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		errx (2, "malloc() failed");
+		errx(ERR_EXIT, "malloc() failed");
 	}
 
 	vp->type = integer;
@@ -123,26 +132,34 @@ struct val *
 make_str(const char *s)
 {
 	struct val *vp;
-	size_t i;
-	int isint;
+	char *ep;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		errx (2, "malloc() failed");
+		errx(ERR_EXIT, "malloc() failed");
 	}
 
-	for(i = 1, isint = isdigit(s[0]) || s[0] == '-';
-	    isint && i < strlen(s);
-	    i++)
-	{
-		if(!isdigit(s[i]))
-			 isint = 0;
-	}
+	/*
+	 * Previously we tried to scan the string to see if it ``looked like''
+	 * an integer (erroneously, as it happened).  Let strtoimax() do the
+	 * dirty work.  We could cache the value, except that we are using
+	 * a union and need to preserve the original string form until we
+	 * are certain that it is not needed.
+	 *
+	 * IEEE Std.1003.1-2001 says:
+	 * /integer/ An argument consisting only of an (optional) unary minus  
+	 *	     followed by digits.          
+	 *
+	 * This means that arguments which consist of digits followed by
+	 * non-digits MUST NOT be considered integers.  strtoimax() will
+	 * figure this out for us.
+	 */
+	(void)strtoimax(s, &ep, 10);
 
-	if (isint)
-		vp->type = numeric_string;
-	else	
+	if (*ep != '\0')
 		vp->type = string;
+	else	
+		vp->type = numeric_string;
 
 	return vp;
 }
@@ -156,10 +173,10 @@ free_value(struct val *vp)
 }
 
 
-quad_t
+intmax_t
 to_integer(struct val *vp)
 {
-	quad_t i;
+	intmax_t i;
 
 	if (vp->type == integer)
 		return 1;
@@ -169,10 +186,10 @@ to_integer(struct val *vp)
 
 	/* vp->type == numeric_string, make it numeric */
 	errno = 0;
-	i  = strtoq(vp->u.s, (char**)NULL, 10);
-	if (errno != 0) {
-		errx (2, "overflow");
-	}
+	i  = strtoimax(vp->u.s, (char **)NULL, 10);
+	if (errno == ERANGE)
+		err(ERR_EXIT, NULL);
+
 	free (vp->u.s);
 	vp->u.i = i;
 	vp->type = integer;
@@ -187,12 +204,17 @@ to_string(struct val *vp)
 	if (vp->type == string || vp->type == numeric_string)
 		return;
 
-	tmp = malloc ((size_t)25);
-	if (tmp == NULL) {
-		errx (2, "malloc() failed");
-	}
+	/*
+	 * log_10(x) ~= 0.3 * log_2(x).  Rounding up gives the number
+	 * of digits; add one each for the sign and terminating null
+	 * character, respectively.
+	 */
+#define	NDIGITS(x) (3 * (sizeof(x) * CHAR_BIT) / 10 + 1 + 1 + 1)
+	tmp = malloc(NDIGITS(vp->u.i));
+	if (tmp == NULL)
+		errx(ERR_EXIT, "malloc() failed");
 
-	sprintf (tmp, "%lld", (long long)vp->u.i);
+	sprintf(tmp, "%jd", vp->u.i);
 	vp->type = string;
 	vp->u.s  = tmp;
 }
@@ -243,26 +265,34 @@ is_zero_or_null(struct val *vp)
 }
 
 int
-main(int argc __unused, char *argv[])
+main(int argc, char *argv[])
 {
+	int c;
+
 	setlocale (LC_ALL, "");
+	while ((c = getopt(argc, argv, "")) != -1)
+		switch (c) {
+		default:
+			fprintf(stderr, "usage: expr [--] expression\n");
+			exit(ERR_EXIT);
+		}
 
-	av = argv + 1;
+	av = argv + optind;
 
-	yyparse ();
+	yyparse();
 
 	if (result->type == integer)
-		printf ("%lld\n", (long long)result->u.i);
+		printf("%jd\n", result->u.i);
 	else
-		printf ("%s\n", result->u.s);
+		printf("%s\n", result->u.s);
 
-	return (is_zero_or_null (result));
+	return (is_zero_or_null(result));
 }
 
 int
 yyerror(const char *s __unused)
 {
-	errx (2, "syntax error");
+	errx(ERR_EXIT, "syntax error");
 }
 
 
@@ -284,7 +314,7 @@ op_and(struct val *a, struct val *b)
 	if (is_zero_or_null (a) || is_zero_or_null (b)) {
 		free_value (a);
 		free_value (b);
-		return (make_integer ((quad_t)0));
+		return (make_integer ((intmax_t)0));
 	} else {
 		free_value (b);
 		return (a);
@@ -299,11 +329,11 @@ op_eq(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);	
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) == 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i == b->u.i));
+		r = make_integer ((intmax_t)(a->u.i == b->u.i));
 	}
 
 	free_value (a);
@@ -319,11 +349,11 @@ op_gt(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) > 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) > 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i > b->u.i));
+		r = make_integer ((intmax_t)(a->u.i > b->u.i));
 	}
 
 	free_value (a);
@@ -339,11 +369,11 @@ op_lt(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) < 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) < 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i < b->u.i));
+		r = make_integer ((intmax_t)(a->u.i < b->u.i));
 	}
 
 	free_value (a);
@@ -359,11 +389,11 @@ op_ge(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) >= 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) >= 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i >= b->u.i));
+		r = make_integer ((intmax_t)(a->u.i >= b->u.i));
 	}
 
 	free_value (a);
@@ -379,11 +409,11 @@ op_le(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) <= 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) <= 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i <= b->u.i));
+		r = make_integer ((intmax_t)(a->u.i <= b->u.i));
 	}
 
 	free_value (a);
@@ -399,11 +429,11 @@ op_ne(struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) != 0));
+		r = make_integer ((intmax_t)(strcoll (a->u.s, b->u.s) != 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i != b->u.i));
+		r = make_integer ((intmax_t)(a->u.i != b->u.i));
 	}
 
 	free_value (a);
@@ -412,7 +442,7 @@ op_ne(struct val *a, struct val *b)
 }
 
 int
-chk_plus(quad_t a, quad_t b, quad_t r)
+chk_plus(intmax_t a, intmax_t b, intmax_t r)
 {
 	/* sum of two positive numbers must be positive */
 	if (a > 0 && b > 0 && r <= 0)
@@ -430,12 +460,12 @@ op_plus(struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		errx (2, "non-numeric argument");
+		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
+	r = make_integer (/*(intmax_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		errx (2, "overflow");
+		errx(ERR_EXIT, "overflow");
 	}
 	free_value (a);
 	free_value (b);
@@ -443,16 +473,16 @@ op_plus(struct val *a, struct val *b)
 }
 
 int
-chk_minus(quad_t a, quad_t b, quad_t r)
+chk_minus(intmax_t a, intmax_t b, intmax_t r)
 {
-	/* special case subtraction of QUAD_MIN */
-	if (b == QUAD_MIN) {
+	/* special case subtraction of INTMAX_MIN */
+	if (b == INTMAX_MIN) {
 		if (a >= 0)
 			return 1;
 		else
 			return 0;
 	}
-	/* this is allowed for b != QUAD_MIN */
+	/* this is allowed for b != INTMAX_MIN */
 	return chk_plus (a, -b, r);
 }
 
@@ -462,12 +492,12 @@ op_minus(struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		errx (2, "non-numeric argument");
+		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
+	r = make_integer (/*(intmax_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		errx (2, "overflow");
+		errx(ERR_EXIT, "overflow");
 	}
 	free_value (a);
 	free_value (b);
@@ -475,7 +505,7 @@ op_minus(struct val *a, struct val *b)
 }
 
 int
-chk_times(quad_t a, quad_t b, quad_t r)
+chk_times(intmax_t a, intmax_t b, intmax_t r)
 {
 	/* special case: first operand is 0, no overflow possible */
 	if (a == 0)
@@ -492,12 +522,12 @@ op_times(struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		errx (2, "non-numeric argument");
+		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
+	r = make_integer (/*(intmax_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		errx (2, "overflow");
+		errx(ERR_EXIT, "overflow");
 	}
 	free_value (a);
 	free_value (b);
@@ -505,11 +535,11 @@ op_times(struct val *a, struct val *b)
 }
 
 int
-chk_div(quad_t a, quad_t b)
+chk_div(intmax_t a, intmax_t b)
 {
 	/* div by zero has been taken care of before */
-	/* only QUAD_MIN / -1 causes overflow */
-	if (a == QUAD_MIN && b == -1)
+	/* only INTMAX_MIN / -1 causes overflow */
+	if (a == INTMAX_MIN && b == -1)
 		return 1;
 	/* everything else is OK */
 	return 0;
@@ -521,16 +551,16 @@ op_div(struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		errx (2, "non-numeric argument");
+		errx(ERR_EXIT, "non-numeric argument");
 	}
 
 	if (b->u.i == 0) {
-		errx (2, "division by zero");
+		errx(ERR_EXIT, "division by zero");
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
+	r = make_integer (/*(intmax_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
-		errx (2, "overflow");
+		errx(ERR_EXIT, "overflow");
 	}
 	free_value (a);
 	free_value (b);
@@ -543,14 +573,14 @@ op_rem(struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		errx (2, "non-numeric argument");
+		errx(ERR_EXIT, "non-numeric argument");
 	}
 
 	if (b->u.i == 0) {
-		errx (2, "division by zero");
+		errx(ERR_EXIT, "division by zero");
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
+	r = make_integer (/*(intmax_t)*/(a->u.i % b->u.i));
 	/* chk_rem necessary ??? */
 	free_value (a);
 	free_value (b);
@@ -573,7 +603,7 @@ op_colon(struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, 0)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		errx (2, "%s", errbuf);
+		errx(ERR_EXIT, "%s", errbuf);
 	}
 
 	/* compare string against pattern */
@@ -584,11 +614,11 @@ op_colon(struct val *a, struct val *b)
 			v = make_str (a->u.s + rm[1].rm_so);
 
 		} else {
-			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
+			v = make_integer ((intmax_t)(rm[0].rm_eo - rm[0].rm_so));
 		}
 	} else {
 		if (rp.re_nsub == 0) {
-			v = make_integer ((quad_t)0);
+			v = make_integer ((intmax_t)0);
 		} else {
 			v = make_str ("");
 		}
