@@ -352,7 +352,6 @@ pxe_setup_nfsdiskless()
 		return;
 	}
 	ifa = NULL;
-	ifp = TAILQ_FIRST(&ifnet);
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if ((ifa->ifa_addr->sa_family == AF_LINK) &&
