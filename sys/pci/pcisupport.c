@@ -1297,6 +1297,10 @@ chip_match(device_t dev)
 		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* OPTi -- vendor 0x1045 */
+	case 0xc5571045:
+		return ("Opti 82C557 (Viper-M) host to PCI bridge");
+	case 0xc5581045:
+		return ("Opti 82C558 (Viper-M) ISA+IDE");
 	case 0xc8221045:
 		return ("OPTi 82C822 host to PCI Bridge");
 
