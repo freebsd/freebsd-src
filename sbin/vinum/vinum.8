@@ -38,7 +38,7 @@
 .\" $FreeBSD$
 .\"
 .Dd December 20, 2000
-.Dt VINUM 8
+.Dt vinum 8
 .Os
 .Sh NAME
 .Nm vinum
@@ -1810,10 +1810,10 @@ volume strcon
 # note that the RAID-5 volume is longer by
 # the length of one subdisk
 volume vol5
- plex org striped 64k
+ plex org striped 491k
   sd length 1000m drive drive2
   sd length 1000m drive drive4
- plex org raid5 32k
+ plex org raid5 273k
   sd length 500m drive drive1
   sd length 500m drive drive2
   sd length 500m drive drive3
@@ -1974,7 +1974,7 @@ drive d3 device /dev/da4e
 drive d4 device /dev/da5e
 drive d5 device /dev/da6e
 volume raid
- plex org raid5 512k
+ plex org raid5 433k
    sd length 512m drive d1
    sd length 512m drive d2
    sd length 512m drive d3
@@ -1993,7 +1993,7 @@ drive d1 device /dev/da2e
 drive d2 device /dev/da3e
 drive d3 device /dev/da4e
 volume raid
- plex org raid5 512k
+ plex org raid5 433k
    sd length 1g drive d1
    sd length 1g drive d2
    sd length 1g drive d3
@@ -2029,7 +2029,7 @@ drive d2 device /dev/da3e
 drive d3 device /dev/da4e
 drive d4 device /dev/da5e
 volume raid
- plex org striped 512k
+ plex org striped 433k
    sd length 512m drive d1
    sd length 512m drive d2
    sd length 512m drive d3
@@ -2050,12 +2050,12 @@ drive d2 device /dev/da3e
 drive d3 device /dev/da4e
 drive d4 device /dev/da5e
 volume raid setupstate
- plex org striped 512k
+ plex org striped 433k
    sd length 512m drive d1
    sd length 512m drive d2
    sd length 512m drive d3
    sd length 512m drive d4
- plex org striped 512k
+ plex org striped 433k
    sd length 512m drive d4
    sd length 512m drive d3
    sd length 512m drive d2
@@ -2199,7 +2199,7 @@ you only need to mention the other two:
 drive d3 device /dev/da1e
 drive d4 device /dev/da4e
 volume raid
-  plex org raid5 512k
+  plex org raid5 433k
     sd size 2g drive d1
     sd size 2g drive d2
     sd size 2g drive d3
@@ -2235,9 +2235,9 @@ S mirror.p1.s0          State: up       PO:        0  B Size:       2048 MB
 S mirror.p2.s0          State: up       PO:        0  B Size:       2048 MB
 S mirror.p3.s0          State: up       PO:        0  B Size:       2048 MB
 S raid.p0.s0            State: empty    PO:        0  B Size:       2048 MB
-S raid.p0.s1            State: empty    PO:      512 kB Size:       2048 MB
-S raid.p0.s2            State: empty    PO:     1024 kB Size:       2048 MB
-S raid.p0.s3            State: empty    PO:     1536 kB Size:       2048 MB
+S raid.p0.s1            State: empty    PO:      433 kB Size:       2048 MB
+S raid.p0.s2            State: empty    PO:      866 kB Size:       2048 MB
+S raid.p0.s3            State: empty    PO:     1299 kB Size:       2048 MB
 .Ed
 .Pp
 Note the size of the RAID-5 plex: it is only 6 GB, although together its
