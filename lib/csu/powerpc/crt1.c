@@ -66,8 +66,8 @@ extern int etext;
  * First 5 arguments are specified by the PowerPC SVR4 ABI.
  * The last argument, ps_strings, is a BSD extension.
  */
-void _start __P((int, char **, char **, const struct Struct_Obj_Entry *,
-		void (*)(void)), struct ps_strings *);
+void _start(int, char **, char **, const struct Struct_Obj_Entry *,
+		void (*)(void), struct ps_strings *);
 
 char **environ;
 char *__progname = "";
