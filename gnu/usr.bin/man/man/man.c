@@ -142,11 +142,9 @@ static char args[] = "M:P:S:adfhkp:w?";
 #endif
 #endif
 
-#ifdef SETREUID
+#ifdef SETUID
 uid_t ruid;
 uid_t euid;
-gid_t rgid;
-gid_t egid;
 #endif
 
 int
@@ -186,13 +184,10 @@ main (argc, argv)
 	gripe_no_name (tmp);
     }
 
-#ifdef SETREUID
+#ifdef SETUID
   ruid = getuid();
-  rgid = getgid();
   euid = geteuid();
-  egid = getegid();
-  setreuid(-1, ruid);
-  setregid(-1, rgid);
+  seteuid(ruid);
 #endif
 
   while (optind < argc)
@@ -1248,33 +1243,27 @@ make_cat_file (path, man_file, cat_file, manid)
 	fprintf (stderr, "\ntrying command: %s\n", command);
       else {
 
-#ifdef SETREUID
-	if (manid) {
-	  setreuid(-1, ruid);
-	  setregid(-1, rgid);
-	}
+#ifdef SETUID
+	if (manid)
+	  seteuid(ruid);
 #endif
 	if ((pp = popen(command, "r")) == NULL) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
 	  perror("popen");
-#ifdef SETREUID
-	  if (manid) {
-	    setreuid(-1, euid);
-	    setregid(-1, egid);
-	  }
+#ifdef SETUID
+	  if (manid)
+	    seteuid(euid);
 #endif
 	  unlink(temp);
 	  restore_sigs();
 	  fclose(fp);
 	  return 0;
 	}
-#ifdef SETREUID
-	if (manid) {
-	  setreuid(-1, euid);
-	  setregid(-1, egid);
-	}
+#ifdef SETUID
+	if (manid)
+	  seteuid(euid);
 #endif
 
 	f = 0;
@@ -1412,16 +1401,10 @@ format_and_display (path, man_file, cat_file)
 	  else
 	    {
 
-#ifdef SETREUID
-	      setreuid(-1, euid);
-	      setregid(-1, egid);
+#ifdef SETUID
+	      seteuid(euid);
 	      found = make_cat_file (path, man_file, cat_file, 1);
-#else
-	      found = make_cat_file (path, man_file, cat_file, 0);
-#endif
-#ifdef SETREUID
-	      setreuid(-1, ruid);
-	      setregid(-1, rgid);
+	      seteuid(ruid);
 
 	      if (!found)
 	        {
@@ -1432,6 +1415,8 @@ format_and_display (path, man_file, cat_file)
 		     of reading private man pages is avoided.  */
 		  found = make_cat_file (path, man_file, cat_file, 0);
 	        }
+#else
+	      found = make_cat_file (path, man_file, cat_file, 0);
 #endif
 #ifdef SECURE_MAN_UID
 	      if (!found)
