@@ -10,6 +10,9 @@ artifacts including BIND, INN, and DHCP.
 Note that BIND 8 is in "end-of-life", having been replaced by BIND 9.  See
 http://www.isc.org/ for more details.
 
+BIND 8.3.7 Highlights
+	Security release.
+
 BIND 8.3.6 Highlights
 	Maintenance release.
 
