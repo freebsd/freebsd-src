@@ -113,6 +113,8 @@ static int reassignbufsortbad;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 0, "");
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
+static int nameileafonly = 0;
+SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
 #ifdef ENABLE_VFS_IOOPT
 int vfs_ioopt = 0;
@@ -155,6 +157,9 @@ static struct synclist *syncer_workitem_pending;
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
     &desiredvnodes, 0, "Maximum number of vnodes");
+static int minvnodes;
+SYSCTL_INT(_kern, KERN_MAXVNODES, minvnodes, CTLFLAG_RW, 
+    &minvnodes, 0, "Minimum number of vnodes");
 
 static void	vfs_free_addrlist __P((struct netexport *nep));
 static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
@@ -169,6 +174,7 @@ vntblinit()
 {
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
+	minvnodes = desiredvnodes / 4;
 	simple_lock_init(&mntvnode_slock);
 	simple_lock_init(&mntid_slock);
 	simple_lock_init(&spechash_slock);
@@ -457,17 +463,13 @@ getnewvnode(tag, mp, vops, vpp)
 	vm_object_t object;
 	TAILQ_HEAD(freelst, vnode) vnode_tmp_list;
 
-	/*
-	 * We take the least recently used vnode from the freelist
-	 * if we can get it and it has no cached pages, and no
-	 * namecache entries are relative to it.
-	 * Otherwise we allocate a new vnode
-	 */
-
 	s = splbio();
 	simple_lock(&vnode_free_list_slock);
 	TAILQ_INIT(&vnode_tmp_list);
 
+	/*
+	 * First free vnodes on the pending-free list
+	 */
 	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
 		nvp = TAILQ_NEXT(vp, v_freelist);
 		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
@@ -483,14 +485,14 @@ getnewvnode(tag, mp, vops, vpp)
 		freevnodes++;
 	}
 
-	if (wantfreevnodes && freevnodes < wantfreevnodes) {
+	/*
+	 * Attempt to reuse a vnode already on the free list, allocating
+	 * a new vnode if we can't find one or if we have not reached a
+	 * good minimum for good LRU performance.
+	 */
+	if (freevnodes < wantfreevnodes) {
 		vp = NULL;
-	} else if (!wantfreevnodes && freevnodes <= desiredvnodes) {
-		/* 
-		 * XXX: this is only here to be backwards compatible
-		 */
-		vp = NULL;
-	} else {
+	} else if (numvnodes >= minvnodes) {
 		for (vp = TAILQ_FIRST(&vnode_free_list); vp; vp = nvp) {
 			nvp = TAILQ_NEXT(vp, v_freelist);
 			if (!simple_lock_try(&vp->v_interlock)) 
@@ -506,13 +508,37 @@ getnewvnode(tag, mp, vops, vpp)
 				TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 				TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
 				continue;
-			} else if (LIST_FIRST(&vp->v_cache_src)) {
-				/* Don't recycle if active in the namecache */
-				simple_unlock(&vp->v_interlock);
-				continue;
-			} else {
-				break;
 			}
+			if (LIST_FIRST(&vp->v_cache_src)) {
+				/*
+				 * note: nameileafonly sysctl is temporary,
+				 * for debugging only, and will eventually be
+				 * removed.
+				 */
+				if (nameileafonly > 0) {
+					/*
+					 * Do not reuse namei-cached directory
+					 * vnodes that have cached
+					 * subdirectories.
+					 */
+					if (cache_leaf_test(vp) < 0) {
+						simple_unlock(&vp->v_interlock);
+						continue;
+					}
+				} else if (nameileafonly < 0 || 
+					    vmiodirenable == 0) {
+					/*
+					 * Do not reuse namei-cached directory
+					 * vnodes if nameileafonly is -1 or
+					 * if VMIO backing for directories is
+					 * turned off (otherwise we reuse them
+					 * too quickly).
+					 */
+					simple_unlock(&vp->v_interlock);
+					continue;
+				}
+			}
+			break;
 		}
 	}
 
@@ -2586,7 +2612,7 @@ vfree(vp)
 	if (vp->v_flag & VTBFREE) {
 		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
 		vp->v_flag &= ~VTBFREE;
-	}
+	} 
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
