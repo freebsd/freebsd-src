@@ -1,10 +1,6 @@
-#	$Id: Makefile,v 1.1 1994/10/01 03:23:23 davidg Exp $
-
 PROG=		apm
-# CFLAGS+=	-I/sys/i386/include
-# BINGRP=		apm
-# BINMODE=	550
-# LINKS=		${DESTDIR}/usr/sbin/apm ${DESTDIR}/usr/sbin/zzz
-NOMAN=		1
-
+LINKS=		${BINDIR}apm /usr/sbin/zzz
+MANDIR=		/usr/share/man/man
+MAN8=		apm.8
+MLINKS=		apm.8 zzz.8
 .include <bsd.prog.mk>
