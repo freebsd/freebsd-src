@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.62 1997/04/18 02:43:05 davidg Exp $
+ *	$Id: kern_exec.c,v 1.63 1997/04/23 22:07:05 ache Exp $
  */
 
 #include <sys/param.h>
@@ -257,6 +257,18 @@ interpret:
 	else
 		suword(--stack_base, imgp->argc);
 
+	/*
+	 * For security and other reasons, the file descriptor table cannot
+	 * be shared after an exec.
+	 */
+	if (p->p_fd->fd_refcnt > 1) {
+		struct filedesc *tmp;
+
+		tmp = fdcopy(p);
+		fdfree(p);
+		p->p_fd = tmp;
+	}
+
 	/* close files on exec */
 	fdcloseexec(p);
 
@@ -279,10 +291,13 @@ interpret:
 	}
 
 	/*
-	 * Implement image setuid/setgid. Disallow if the process is
-	 * being traced.
+	 * Implement image setuid/setgid.
+	 *
+	 * Don't honor setuid/setgid if the filesystem prohibits it or if
+	 * the process is being traced.
 	 */
 	if ((attr.va_mode & (VSUID | VSGID)) &&
+	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*
 		 * Turn off syscall tracing for set-id programs, except for
@@ -648,13 +663,6 @@ exec_check_permissions(imgp)
 	error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
 	if (error)
 		return (error);
-
-	/*
-	 * Disable setuid/setgid if the filesystem prohibits it or if
-	 * the process is being traced.
-	 */
-        if ((vp->v_mount->mnt_flag & MNT_NOSUID) || (p->p_flag & P_TRACED))
-		attr->va_mode &= ~(VSUID | VSGID);
 
 	return (0);
 }
