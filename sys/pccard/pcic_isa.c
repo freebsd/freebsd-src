@@ -107,7 +107,7 @@ pcic_isa_probe(device_t dev)
 	}
 
 	sc = (struct pcic_softc *) device_get_softc(dev);
-	sc->unit = device_get_unit(dev);
+	sc->dev = dev;
 	sp = &sc->slots[0];
 	for (slotnum = 0; slotnum < PCIC_CARD_SLOTS; slotnum++, sp++) {
 		/*

@@ -623,8 +623,8 @@ pcictimeout(void *chan)
 	struct pcic_softc *sc = (struct pcic_softc *) chan;
 
 	if (pcicintr1(chan) != 0) {
-		printf("pcic%d: Static bug detected, ignoring hardware.\n",
-		    ((struct pcic_softc *)chan)->unit);
+		device_printf(sc->dev, 
+		    "Static bug detected, ignoring hardware.");
 		return;
 	}
 	sc->timeout_ch = timeout(pcictimeout, chan, hz/2);
