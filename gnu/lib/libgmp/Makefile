@@ -1,5 +1,5 @@
 # Makefile for libgmp
-# $Id: Makefile,v 1.3 1995/11/26 09:51:42 bde Exp $
+# $Id: Makefile,v 1.4 1996/05/07 23:14:38 wosch Exp $
 
 LIB=    gmp
 SRCS=	$(GMP_SRCS)
@@ -40,8 +40,8 @@ SUBDIR+=	doc
 beforedepend:	gmp-mparam.h mp_bases.c
 
 beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/gmp.h ${DESTDIR}/usr/include/
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/gmp.h \
+		${DESTDIR}/usr/include
 
 cre-mparam: cre-mparam.c
 	$(CC) $(CFLAGS) ${.CURDIR}/cre-mparam.c -o ${.TARGET}
