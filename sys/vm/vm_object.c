@@ -1260,10 +1260,12 @@ vm_object_split(vm_map_entry_t entry)
 		 * We do not have to VM_PROT_NONE the page as mappings should
 		 * not be changed by this operation.
 		 */
-		if (vm_page_sleep_busy(m, TRUE, "spltwt"))
+		vm_page_lock_queues();
+		if (vm_page_sleep_if_busy(m, TRUE, "spltwt"))
 			goto retry;
 			
 		vm_page_busy(m);
+		vm_page_unlock_queues();
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
@@ -1379,19 +1381,19 @@ vm_object_backing_scan(vm_object_t object, int op)
 		if (op & (OBSC_COLLAPSE_WAIT | OBSC_COLLAPSE_NOWAIT)) {
 			vm_page_t pp;
 
+			vm_page_lock_queues();
 			if (op & OBSC_COLLAPSE_NOWAIT) {
-				if (
-				    (p->flags & PG_BUSY) ||
+				if ((p->flags & PG_BUSY) ||
 				    !p->valid || 
 				    p->hold_count || 
 				    p->wire_count ||
-				    p->busy
-				) {
+				    p->busy) {
+					vm_page_unlock_queues();
 					p = next;
 					continue;
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
-				if (vm_page_sleep_busy(p, TRUE, "vmocol")) {
+				if (vm_page_sleep_if_busy(p, TRUE, "vmocol")) {
 					/*
 					 * If we slept, anything could have
 					 * happened.  Since the object is
@@ -1408,6 +1410,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * Busy the page
 			 */
 			vm_page_busy(p);
+			vm_page_unlock_queues();
 
 			KASSERT(
 			    p->object == backing_object,
