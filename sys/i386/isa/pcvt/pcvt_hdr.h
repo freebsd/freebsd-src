@@ -65,6 +65,21 @@
 #define	PCVT_REL "3.20-b23"	/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
+#if PCVT_FREEBSD >= 200
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/ioctl.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/tty.h>
+#include <sys/uio.h>
+#include <sys/callout.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/syslog.h>
+#include <sys/malloc.h>
+#include <sys/time.h>
+#else /* ! PCVT_FREEBSD >= 200 */
 #include "param.h"
 #include "conf.h"
 #include "ioctl.h"
@@ -78,6 +93,7 @@
 #include "syslog.h"
 #include "malloc.h"
 #include "time.h"
+#endif /* PCVT_FREEBSD >= 200 */
 
 #include "pcvt_conf.h"
 
@@ -88,40 +104,73 @@
 #if PCVT_NETBSD > 9
 #include "i386/isa/isavar.h"
 #include "i386/cpufunc.h"
-#else
+#elif PCVT_FREEBSD >= 200
+#include <i386/isa/isa_device.h>
+#else 
 #include "i386/isa/isa_device.h"
 #endif
 
+#if PCVT_FREEBSD >= 200
+#include <i386/isa/icu.h>
+#else
 #include "i386/isa/icu.h"
+#endif
 
 #if PCVT_NETBSD > 100
 #include "i386/isa/isareg.h"
+#elif PCVT_FREEBSD >= 200
+#include <i386/isa/isa.h>
 #else
 #include "i386/isa/isa.h"
 #endif
 
 #if PCVT_NETBSD > 9
 #include "dev/cons.h"
+#elif PCVT_FREEBSD >= 200
+#include <i386/i386/cons.h>
 #else
 #include "i386/i386/cons.h"
 #endif
 
 #if PCVT_NETBSD <= 9
+#if PCVT_FREEBSD >= 200
+#include <machine/psl.h>
+#include <machine/frame.h>
+#else /* ! PCVT_FREEBSD >= 200 */
 #include "machine/psl.h"
 #include "machine/frame.h"
-#endif
+#endif /* PCVT_FREEBSD >= 200 */
+#endif /* PCVT_NETBSD <= 9 */
 
+#if PCVT_FREEBSD >= 200
+#include <machine/stdarg.h>
+#else
 #include "machine/stdarg.h"
+#endif
 
 #if PCVT_NETBSD > 9
 #include "i386/isa/pcvt/pcvt_ioctl.h"
+#elif PCVT_FREEBSD >= 200
+#include <machine/pcvt_ioctl.h>
 #else
 #include "machine/pcvt_ioctl.h"
 #endif
 
+#if PCVT_FREEBSD >= 200
+#include <machine/pc/display.h>
+#include <machine/clock.h>
+#include <machine/md_var.h>
+
+#include <vm/vm_kern.h>
+#else
 #include "machine/pc/display.h"
 
 #include "vm/vm_kern.h"
+#endif
+
+#if PCVT_FREEBSD > 205
+#include <sys/devconf.h>
+#endif
 
 /* setup irq disable function to use */
 
@@ -942,6 +991,7 @@ int	vt_switch_pending	= 0; 		/* if > 0, a vt switch is */
 
 u_int	addr_6845		= MONO_BASE;	/* crtc base addr */
 u_char	do_initialization	= 1;		/* we have to init ourselves */
+u_char	pcvt_is_console		= 0;		/* until we know it */
 u_char 	shift_down 		= 0;		/* shift key down flag */
 u_char	ctrl_down		= 0; 		/* ctrl key down flag */
 u_char	meta_down		= 0; 		/* alt key down flag */
@@ -1078,6 +1128,7 @@ extern u_int		addr_6845;
 extern u_short		*Crtat;
 extern struct isa_driver vtdriver;
 extern u_char		do_initialization;
+extern u_char		pcvt_is_console;
 extern u_char		bgansitopc[];
 extern u_char		fgansitopc[];
 extern u_char 		shift_down;
@@ -1314,6 +1365,7 @@ void	vt_str ( struct video_state *svsp );
 void	vt_su ( struct video_state *svsp );
 void	vt_tst ( struct video_state *svsp );
 void	vt_udk ( struct video_state *svsp );
+void	toggl_24l ( struct video_state *svsp );
 
 #ifdef PCVT_INCLUDE_VT_SELATTR
 
