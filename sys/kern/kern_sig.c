@@ -1517,7 +1517,9 @@ trapsignal(struct thread *td, int sig, u_long code)
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			/* UTS caused a sync signal */
-			sigexit(td, SIGILL);
+			p->p_code = code;	/* XXX for core dump/debugger */
+			p->p_sig = sig;		/* XXX to verify code */
+			sigexit(td, sig);
 		}
 	} else {
 		PROC_LOCK(p);
