@@ -260,7 +260,7 @@ dec_axppci_33_intr_route(device_t pcib, device_t dev, int pin)
 	default:
 		printf("dec_axppci_33_intr_route: weird device number %d\n",
 		    pci_get_slot(dev));
-		return;
+		return -1;
 	}
 
 	pirqreg = lca_pcib_read_config(0, 0, 7, 0,
