@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.8 1998/12/27 18:03:29 dfr Exp $
+ *	$Id: subr_devstat.c,v 1.9 1999/02/10 00:03:47 ken Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ static long devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 
-STAILQ_HEAD(devstatlist, devstat) device_statq;
+static STAILQ_HEAD(devstatlist, devstat) device_statq;
 
 /*
  * Take a malloced and zeroed devstat structure given to us, fill it in 

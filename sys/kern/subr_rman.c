@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.4 1999/01/02 11:34:55 bde Exp $
+ *	$Id: subr_rman.c,v 1.5 1999/03/29 08:30:17 dfr Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include <sys/rman.h>
 #include <sys/bus.h>		/* XXX debugging */
 
-MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
+static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct	rman_head rman_head;
 #ifndef NULL_SIMPLELOCKS
