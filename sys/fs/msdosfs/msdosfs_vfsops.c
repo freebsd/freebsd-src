@@ -866,18 +866,19 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-
-		mtx_lock(&vp->v_interlock);
 		nvp = LIST_NEXT(vp, v_mntvnodes);
+
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
 			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
 			mtx_lock(&mntvnode_mtx);
