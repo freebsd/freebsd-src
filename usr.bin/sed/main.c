@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.7 1997/08/11 07:21:03 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -176,9 +176,10 @@ usage()
  * together.  Empty strings and files are ignored.
  */
 char *
-cu_fgets(buf, n)
+cu_fgets(buf, n, more)
 	char *buf;
 	int n;
+	int *more;
 {
 	static enum {ST_EOF, ST_FILE, ST_STRING} state = ST_EOF;
 	static FILE *f;		/* Current open file */
@@ -189,8 +190,11 @@ cu_fgets(buf, n)
 again:
 	switch (state) {
 	case ST_EOF:
-		if (script == NULL)
+		if (script == NULL) {
+			if (more != NULL)
+				*more = 0;
 			return (NULL);
+		}
 		linenum = 0;
 		switch (script->type) {
 		case CU_FILE:
@@ -215,6 +219,8 @@ again:
 			linenum++;
 			if (linenum == 1 && buf[0] == '#' && buf[1] == 'n')
 				nflag = 1;
+			if (more != NULL)
+				*more = !feof(f);
 			return (p);
 		}
 		script = script->next;
@@ -229,6 +235,8 @@ again:
 			if (n-- <= 1) {
 				*p = '\0';
 				linenum++;
+				if (more != NULL)
+					*more = 1;
 				return (buf);
 			}
 			switch (*s) {
@@ -241,6 +249,8 @@ again:
 					script = script->next;
 					*p = '\0';
 					linenum++;
+					if (more != NULL)
+						*more = 0;
 					return (buf);
 				}
 			case '\n':
@@ -248,6 +258,8 @@ again:
 				*p = '\0';
 				s++;
 				linenum++;
+				if (more != NULL)
+					*more = 0;
 				return (buf);
 			default:
 				*p++ = *s++;
