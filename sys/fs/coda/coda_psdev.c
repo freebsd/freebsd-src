@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.9 1998/11/11 20:32:20 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.10 1999/01/17 21:04:53 peter Exp $
  * 
  */
 
@@ -48,140 +48,6 @@
  * Coda's Venus and Minicache in Mach 2.6. They used to be in cfs_subr.c, 
  * but I moved them to make it easier to port the Minicache without 
  * porting coda. -- DCS 10/12/94
- */
-
-/*
- * HISTORY
- * $Log: coda_psdev.c,v $
- * Revision 1.9  1998/11/11 20:32:20  rvb
- * coda_lookup now passes up an extra flag.  But old veni will
- * be ok; new veni will check /dev/cfs0 to make sure that a new
- * kernel is running.
- * Also, a bug in vc_nb_close iff CODA_SIGNAL's were seen has been
- * fixed.
- *
- * Revision 1.8  1998/10/28 20:31:13  rvb
- * Change the way unmounting happens to guarantee that the
- * client programs are allowed to finish up (coda_call is
- * forced to complete) and release their locks.  Thus there
- * is a reasonable chance that the vflush implicit in the
- * unmount will not get hung on held locks.
- *
- * Revision 1.7  1998/09/29 20:19:45  rvb
- * Fixes for lkm:
- * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
- * 2. don't pass -DCODA to lkm build
- *
- * Revision 1.6  1998/09/28 20:52:58  rvb
- * Cleanup and fix THE bug
- *
- * Revision 1.5  1998/09/25 17:38:31  rvb
- * Put "stray" printouts under DIAGNOSTIC.  Make everything build
- * with DEBUG on.  Add support for lkm.  (The macro's don't work
- * for me; for a good chuckle look at the end of coda_fbsd.c.)
- *
- * Revision 1.4  1998/09/13 13:57:59  rvb
- * Finish conversion of cfs -> coda
- *
- * Revision 1.3  1998/09/11 18:50:17  rvb
- * All the references to cfs, in symbols, structs, and strings
- * have been changed to coda.  (Same for CFS.)
- *
- * Revision 1.2  1998/09/02 19:09:53  rvb
- * Pass2 complete
- *
- * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
- * Very Preliminary Coda
- *
- * Revision 1.9  1998/08/28 18:12:17  rvb
- * Now it also works on FreeBSD -current.  This code will be
- * committed to the FreeBSD -current and NetBSD -current
- * trees.  It will then be tailored to the particular platform
- * by flushing conditional code.
- *
- * Revision 1.8  1998/08/18 17:05:15  rvb
- * Don't use __RCSID now
- *
- * Revision 1.7  1998/08/18 16:31:41  rvb
- * Sync the code for NetBSD -current; test on 1.3 later
- *
- * Revision 1.8  1998/06/09 23:30:42  rvb
- * Try to allow ^C -- take 1
- *
- * Revision 1.5.2.8  98/01/23  11:21:04  rvb
- * Sync with 2.2.5
- * 
- * Revision 1.5.2.7  98/01/22  22:22:21  rvb
- * sync 1.2 and 1.3
- * 
- * Revision 1.5.2.6  98/01/22  13:11:24  rvb
- * Move make_coda_node ctlfid later so vfsp is known; work on ^c and ^z
- * 
- * Revision 1.5.2.5  97/12/16  22:01:27  rvb
- * Oops add cfs_subr.h cfs_venus.h; sync with peter
- * 
- * Revision 1.5.2.4  97/12/16  12:40:05  rvb
- * Sync with 1.3
- * 
- * Revision 1.5.2.3  97/12/10  14:08:24  rvb
- * Fix O_ flags; check result in coda_call
- * 
- * Revision 1.5.2.2  97/12/10  11:40:24  rvb
- * No more ody
- * 
- * Revision 1.5.2.1  97/12/06  17:41:20  rvb
- * Sync with peters coda.h
- * 
- * Revision 1.5  97/12/05  10:39:16  rvb
- * Read CHANGES
- * 
- * Revision 1.4.18.9  97/12/05  08:58:07  rvb
- * peter found this one
- * 
- * Revision 1.4.18.8  97/11/26  15:28:57  rvb
- * Cant make downcall pbuf == union cfs_downcalls yet
- * 
- * Revision 1.4.18.7  97/11/25  09:40:49  rvb
- * Final cfs_venus.c w/o macros, but one locking bug
- * 
- * Revision 1.4.18.6  97/11/20  11:46:41  rvb
- * Capture current cfs_venus
- * 
- * Revision 1.4.18.5  97/11/18  10:27:15  rvb
- * cfs_nbsd.c is DEAD!!!; integrated into cfs_vf/vnops.c
- * cfs_nb_foo and cfs_foo are joined
- * 
- * Revision 1.4.18.4  97/11/13  22:02:59  rvb
- * pass2 cfs_NetBSD.h mt
- * 
- * Revision 1.4.18.3  97/11/12  12:09:38  rvb
- * reorg pass1
- * 
- * Revision 1.4.18.2  97/10/29  16:06:09  rvb
- * Kill DYING
- * 
- * Revision 1.4.18.1  1997/10/28 23:10:15  rvb
- * >64Meg; venus can be killed!
- *
- * Revision 1.4  1996/12/12 22:10:58  bnoble
- * Fixed the "downcall invokes venus operation" deadlock in all known cases.
- * There may be more
- *
- * Revision 1.3  1996/11/13 04:14:20  bnoble
- * Merging BNOBLE_WORK_6_20_96 into main line
- *
- * Revision 1.2.8.1  1996/08/22 14:25:04  bnoble
- * Added a return code from vc_nb_close
- *
- * Revision 1.2  1996/01/02 16:56:58  bnoble
- * Added support for Coda MiniCache and raw inode calls (final commit)
- *
- * Revision 1.1.2.1  1995/12/20 01:57:24  bnoble
- * Added CODA-specific files
- *
- * Revision 1.1  1995/03/14  20:52:15  bnoble
- * Initial revision
- *
  */
 
 /* These routines are the device entry points for Venus. */
