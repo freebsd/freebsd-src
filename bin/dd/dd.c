@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.5.2.2 1997/08/21 02:52:39 jlemon Exp $
+ *	$Id: dd.c,v 1.5.2.3 1997/08/24 21:45:31 jkh Exp $
  */
 
 #ifndef lint
@@ -315,7 +315,7 @@ dd_in()
 		}
 
 		if (ddflags & C_SWAB) {
-			if ((n = in.dbcnt) & 1) {
+			if ((n = in.dbrcnt) & 1) {
 				++st.swab;
 				--n;
 			}
