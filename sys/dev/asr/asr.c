@@ -4461,7 +4461,7 @@ asr_ioctl(
 		sysInfo_S	Info;
 		char	      * cp;
 		/* Kernel Specific ptok `hack' */
-#		define		ptok(a) ((char *)(a) + KERNBASE)
+#		define		ptok(a) ((char *)(uintptr_t)(a) + KERNBASE)
 
 		bzero (&Info, sizeof(Info));
 
