@@ -103,6 +103,7 @@
 #define VAR_EXTRAS			"ifconfig_"
 #define VAR_COMMAND			"command"
 #define VAR_CONFIG_FILE			"configFile"
+#define VAR_FIXIT_TTY			"fixitTty"
 #define VAR_FTP_DIR			"ftpDirectory"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"_ftpPath"

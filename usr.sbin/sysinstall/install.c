@@ -398,17 +398,20 @@ fixit_common(void)
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
-	int i, fd;
+	int i, fd, fdstop;
 	struct termios foo;
 	extern int login_tty(int);
 
 	ioctl(0, TIOCNOTTY, NULL);
-	for (i = getdtablesize(); i >= 0; --i)
+	fdstop = strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0 ? 3 : 0;
+	for (i = getdtablesize(); i >= fdstop; --i)
 	    close(i);
-	fd = open("/dev/ttyv3", O_RDWR);
-	ioctl(0, TIOCSCTTY, &fd);
-	dup2(0, 1);
-	dup2(0, 2);
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
+	    fd = open("/dev/ttyv3", O_RDWR);
+	    ioctl(0, TIOCSCTTY, &fd);
+	    dup2(0, 1);
+	    dup2(0, 2);
+	}
 	DebugFD = 2;
 	if (login_tty(fd) == -1)
 	    msgDebug("fixit: I can't set the controlling terminal.\n");
@@ -432,9 +435,15 @@ fixit_common(void)
     }
     else {
 	dialog_clear_norefresh();
-	msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
-		  "typing ALT-F4.  When you are done, type ``exit'' to exit\n"
-		  "the fixit shell and be returned here.");
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
+	    msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
+		"typing ALT-F4.  When you are done, type ``exit'' to exit\n"
+		"the fixit shell and be returned here.");
+	} else {
+	    msgNotify("Waiting for fixit shell to exit.\n"
+		"When you are done, type ``exit'' to exit\n"
+		"the fixit shell and be returned here.");
+	}
 	(void)waitpid(child, &waitstatus, 0);
     }
     dialog_clear();
@@ -1086,6 +1095,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
     variable_set2(VAR_NFS_SECURE,		"NO", -1);
+    variable_set2(VAR_FIXIT_TTY,		"standard", 0);
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
     if (getpid() != 1)
