@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.12 1996/05/12 01:47:13 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.13 1996/05/12 01:49:43 gibbs Exp $
  */
 
 #include <pci.h>
@@ -426,7 +426,7 @@ aic7870_attach(config_id, unit)
 			/* See if someone else set us up already */
 			u_long i;
 		        for(i=io_port + TARG_SCRATCH; i < io_port + 0x60; i++) {
-                        	if(inb(i) != 0xff)
+                        	if(inb(i) != 0x00)
 					break;
 			}
 			if(i != io_port + 0x60) {
