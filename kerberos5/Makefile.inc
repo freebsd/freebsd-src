@@ -17,9 +17,7 @@ CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 CFLAGS+=-DKRB5_KRB4_COMPAT
 .endif
 
-.if defined(USE_INET6)
 CFLAGS+=-DINET6
-.endif
 
 .if exists(${.OBJDIR}/../../include)
 INCLUDEOBJDIR=	${.OBJDIR}/../../include
@@ -138,6 +136,16 @@ beforeinstall: ${INCLUDES}
 		${INC} ${DESTDIR}/usr/include/${INC}
 .endfor
 .endif
+
+roken.h: make-roken
+	./make-roken > tmp.h ;\
+	if [ -f roken.h ] && cmp -s tmp.h roken.h ; then rm -f tmp.h ; \
+	else rm -f roken.h; mv tmp.h roken.h; fi
+
+make-roken.c: ${KRB5DIR}/lib/roken/roken.awk ${KRB5DIR}/lib/roken/roken.h.in
+	awk -f ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	make-roken.c make-roken roken.h
 
 .else
 
