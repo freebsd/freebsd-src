@@ -394,7 +394,7 @@ netconfig:
 	if (!ifaces)
 	    variable_set2(VAR_INTERFACES, ifaces = "lo0", 1);
 	/* Only add it if it's not there already */
-+ 	if (strcmp(ifaces, "auto") && !strstr(ifaces, devp->name)) {
+ 	if (strcmp(ifaces, "auto") && !strstr(ifaces, devp->name)) {
 	    sprintf(ifn, "%s %s", devp->name, ifaces);
 	    variable_set2(VAR_INTERFACES, ifn, 1);
 	}
