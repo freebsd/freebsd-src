@@ -48,7 +48,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/cron/log; \
+	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd ${DESTDIR}/etc; \
 	( cd ${.CURDIR}/periodic; ${MAKE} install );\
