@@ -20,7 +20,7 @@
 # the rights to redistribute these changes.
 #
 #	from: Mach, Revision 2.2	92/04/04  11:33:46  rpd
-#	$Id: Makefile,v 1.5 1993/12/11 20:35:15 ats Exp $
+#	$Id: Makefile,v 1.6 1994/05/30 05:23:46 ache Exp $
 #
 
 wd0:
@@ -61,31 +61,31 @@ biosboot:	boot
 bootbios:	boot
 	dd if=boot of=bootbios skip=1
 
-/usr/mdec/bootsd:	bootbios
-	cp bootbios /usr/mdec/bootsd
+${DESTDIR}/usr/mdec/bootsd:	bootbios
+	cp bootbios ${DESTDIR}/usr/mdec/bootsd
 
-/usr/mdec/sdboot:	biosboot
-	cp biosboot /usr/mdec/sdboot
+${DESTDIR}/usr/mdec/sdboot:	biosboot
+	cp biosboot ${DESTDIR}/usr/mdec/sdboot
 
-/usr/mdec/bootwd:	/usr/mdec/bootsd
-	rm -f /usr/mdec/bootwd
-	ln /usr/mdec/bootsd /usr/mdec/bootwd
+${DESTDIR}/usr/mdec/bootwd:	${DESTDIR}/usr/mdec/bootsd
+	rm -f ${DESTDIR}/usr/mdec/bootwd
+	ln ${DESTDIR}/usr/mdec/bootsd ${DESTDIR}/usr/mdec/bootwd
 
-/usr/mdec/wdboot:	/usr/mdec/sdboot
-	rm -f /usr/mdec/wdboot
-	ln /usr/mdec/sdboot /usr/mdec/wdboot
+${DESTDIR}/usr/mdec/wdboot:	${DESTDIR}/usr/mdec/sdboot
+	rm -f ${DESTDIR}/usr/mdec/wdboot
+	ln ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/wdboot
 
-/usr/mdec/bootfd:	/usr/mdec/bootsd
-	rm -f /usr/mdec/bootfd
-	ln /usr/mdec/bootsd /usr/mdec/bootfd
+${DESTDIR}/usr/mdec/bootfd:	${DESTDIR}/usr/mdec/bootsd
+	rm -f ${DESTDIR}/usr/mdec/bootfd
+	ln ${DESTDIR}/usr/mdec/bootsd ${DESTDIR}/usr/mdec/bootfd
 
-/usr/mdec/fdboot:	/usr/mdec/sdboot
-	rm -f /usr/mdec/fdboot
-	ln /usr/mdec/sdboot /usr/mdec/fdboot
+${DESTDIR}/usr/mdec/fdboot:	${DESTDIR}/usr/mdec/sdboot
+	rm -f ${DESTDIR}/usr/mdec/fdboot
+	ln ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/fdboot
 
-sd:	/usr/mdec/bootsd /usr/mdec/sdboot
-wd:	/usr/mdec/bootwd /usr/mdec/wdboot
-fd:	/usr/mdec/bootfd /usr/mdec/fdboot
+sd:	${DESTDIR}/usr/mdec/bootsd ${DESTDIR}/usr/mdec/sdboot
+wd:	${DESTDIR}/usr/mdec/bootwd ${DESTDIR}/usr/mdec/wdboot
+fd:	${DESTDIR}/usr/mdec/bootfd ${DESTDIR}/usr/mdec/fdboot
 
 all: biosboot bootbios
 
