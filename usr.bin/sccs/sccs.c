@@ -304,7 +304,6 @@ main(int argc, char *argv[])
 {
 	char *p;
 	int i;
-# ifndef V6
 # ifndef SCCSDIR
 	struct passwd *pw;
 	char buf[FBUFSIZ];
@@ -339,7 +338,6 @@ main(int argc, char *argv[])
 		}
 	}
 # endif /* SCCSDIR */
-# endif /* V6 */
 
 	/*
 	**  Detect and decode flags intended for this program.
@@ -606,9 +604,7 @@ command(char **argv, bool forkflag, char *arg0)
 		np[-1] = "-";
 
 		/* execute the diff program of choice */
-# ifndef V6
 		execvp("diff", ap);
-# endif
 		execv(cmd->sccspath, argv);
 		syserr("cannot exec %s", cmd->sccspath);
 		exit(EX_OSERR);
