@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.h,v 1.9.2.3 1998/02/26 17:54:43 brian Exp $
+ *	$Id: chat.h,v 1.9.2.4 1998/03/09 19:24:52 brian Exp $
  */
 
 #define CHAT_EXPECT 0
@@ -82,5 +82,4 @@ extern struct chat chat;
 
 #define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 
-extern char *chat_ExpandString(struct chat *, const char *, char *, int, int);
 extern int MakeArgs(char *, char **, int);  /* Mangles the first arg ! */

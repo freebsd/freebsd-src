@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.12 1998/02/26 17:54:40 brian Exp $
+ *	$Id: chat.c,v 1.44.2.13 1998/03/09 19:24:51 brian Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,7 @@
 
 struct chat chat;
 static void ExecStr(struct physical *, char *, char *, int);
+static char *ExpandString(struct chat *, const char *, char *, int, int);
 
 static void
 chat_PauseTimer(void *v)
@@ -198,7 +199,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       needcr = c->state == CHAT_SEND && *c->argptr != '!';
 
       /* We leave room for a potential HDLC header in the target string */
-      chat_ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
+      ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
 
       if (gotabort) {
         if (c->abort.num < MAXABORTS) {
@@ -618,7 +619,7 @@ MakeArgs(char *script, char **pvect, int maxargs)
  *  \U  Auth User
  */
 char *
-chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
+ExpandString(struct chat *c, const char *str, char *result, int reslen,
                   int sendmode)
 {
   int addcr = 0;
@@ -636,12 +637,10 @@ chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	  addcr = 0;
 	break;
       case 'd':		/* Delay 2 seconds */
-        if (c != NULL)
-          chat_Pause(c, 2 * SECTICKS);
+        chat_Pause(c, 2 * SECTICKS);
 	break;
       case 'p':
-        if (c != NULL)
-          chat_Pause(c, SECTICKS / 4);
+        chat_Pause(c, SECTICKS / 4);
 	break;			/* Pause 0.25 sec */
       case 'n':
 	*result++ = '\n';
@@ -665,11 +664,9 @@ chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	result += strlen(result);
 	break;
       case 'T':
-        if (c != NULL) {
-	  strncpy(result, c->phone, reslen);
-	  reslen -= strlen(result);
-	  result += strlen(result);
-        }
+        strncpy(result, c->phone, reslen);
+        reslen -= strlen(result);
+        result += strlen(result);
 	break;
       case 'U':
 	strncpy(result, VarAuthName, reslen);

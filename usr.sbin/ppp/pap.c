@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.11 1998/03/01 01:07:48 brian Exp $
+ * $Id: pap.c,v 1.20.2.12 1998/03/06 00:34:45 brian Exp $
  *
  *	TODO:
  */
@@ -134,19 +134,6 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
   key[klen] = 0;
   LogPrintf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
 	    name, nlen, key, klen);
-
-#ifndef NOPASSWDAUTH
-  if (Enabled(ConfPasswdAuth)) {
-    struct passwd *pwd;
-    int result;
-
-    LogPrintf(LogLCP, "Using PasswdAuth\n");
-    result = (pwd = getpwnam(name)) &&
-             !strcmp(crypt(key, pwd->pw_passwd), pwd->pw_passwd);
-    endpwent();
-    return result;
-  }
-#endif
 
   return AuthValidate(bundle, SECRETFILE, name, key, physical);
 }

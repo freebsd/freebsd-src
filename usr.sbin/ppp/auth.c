@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.9 1998/02/21 01:44:57 brian Exp $
+ * $Id: auth.c,v 1.27.2.10 1998/03/01 01:07:37 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 
 #include <assert.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -123,58 +124,85 @@ LocalAuthValidate(const char *fname, const char *system, const char *key)
   return (rc);
 }
 
+static int
+auth_CheckPasswd(const char *name, const char *data, const char *key)
+{
+  if (!strcmp(data, "*")) {
+    /* Then look up the real password database */
+    struct passwd *pw;
+    int result;
+
+    result = (pw = getpwnam(name)) &&
+             !strcmp(crypt(key, pw->pw_passwd), pw->pw_passwd);
+    endpwent();
+    return result;
+  }
+
+  return !strcmp(data, key);
+}
+
 int
 AuthValidate(struct bundle *bundle, const char *fname, const char *system,
              const char *key, struct physical *physical)
 {
+  /* Used by PAP routines */
+
   FILE *fp;
   int n;
   char *vector[5];
   char buff[LINE_LEN];
-  char passwd[100];
 
   fp = OpenSecret(fname);
-  if (fp == NULL)
-    return (0);
-  while (fgets(buff, sizeof buff, fp)) {
-    if (buff[0] == '#')
-      continue;
-    buff[strlen(buff) - 1] = 0;
-    memset(vector, '\0', sizeof vector);
-    n = MakeArgs(buff, vector, VECSIZE(vector));
-    if (n < 2)
-      continue;
-    if (strcmp(vector[0], system) == 0) {
-      chat_ExpandString(NULL, vector[1], passwd, sizeof passwd, 0);
-      if (strcmp(passwd, key) == 0) {
-	CloseSecret(fp);
-	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
-	    return (0);
-        /* XXX This should be deferred - we may join an existing bundle ! */
-	ipcp_Setup(&IpcpInfo);
-	if (n > 3)
-	  SetLabel(vector[3]);
-	return (1);		/* Valid */
-      }
+  if (fp != NULL) {
+    while (fgets(buff, sizeof buff, fp)) {
+      if (buff[0] == '#')
+        continue;
+      buff[strlen(buff) - 1] = 0;
+      memset(vector, '\0', sizeof vector);
+      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if (n < 2)
+        continue;
+      if (strcmp(vector[0], system) == 0)
+        if (auth_CheckPasswd(vector[0], vector[1], key)) {
+	  CloseSecret(fp);
+	  if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
+	      return (0);
+          /* XXX This should be deferred - we may join an existing bundle ! */
+	  ipcp_Setup(&IpcpInfo);
+	  if (n > 3)
+	    SetLabel(vector[3]);
+	  return 1;		/* Valid */
+        } else {
+          CloseSecret(fp);
+          return 0;		/* Invalid */
+        }
     }
+    CloseSecret(fp);
   }
-  CloseSecret(fp);
-  return (0);			/* Invalid */
+
+#ifndef NOPASSWDAUTH
+  if (Enabled(ConfPasswdAuth))
+    return auth_CheckPasswd(system, "*", key);
+#endif
+
+  return 0;			/* Invalid */
 }
 
 char *
 AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
               int len, int setaddr, struct physical *physical)
 {
+  /* Used by CHAP routines */
+
   FILE *fp;
   int n;
   char *vector[5];
-  char buff[LINE_LEN];
-  static char passwd[100];
+  static char buff[LINE_LEN];
 
   fp = OpenSecret(fname);
   if (fp == NULL)
     return (NULL);
+
   while (fgets(buff, sizeof buff, fp)) {
     if (buff[0] == '#')
       continue;
@@ -184,7 +212,6 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
-      chat_ExpandString(NULL, vector[1], passwd, sizeof passwd, 0);
       if (setaddr)
 	memset(&IpcpInfo.cfg.peer_range, '\0', sizeof IpcpInfo.cfg.peer_range);
       if (n > 2 && setaddr)
@@ -195,7 +222,7 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
           return NULL;
       if (n > 3)
         SetLabel(vector[3]);
-      return (passwd);
+      return vector[1];
     }
   }
   CloseSecret(fp);

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97 1998/01/27 23:14:53 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.1 1998/02/23 00:38:39 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -831,6 +831,14 @@ You'll also need to create the following entry in
 MyAuthName MyAuthPasswd
 .Ed
 .Pp
+If
+.Ar MyAuthPasswd
+is a
+.Pq Dq * ,
+the password is looked up in the
+.Xr passwd 5
+database.
+.Pp
 The entry in
 .Pa /etc/ppp/ppp.conf
 on awfulhak (the initiator) should contain the following:
@@ -1608,6 +1616,9 @@ code to use the password file (see
 to authenticate the caller rather than the
 .Pa /etc/ppp/ppp.secret
 file.
+.Pa /etc/ppp/ppp.secret
+is checked before
+.Xr passwd 5 .
 .It proxy
 Default: Disabled.  Enabling this option will tell
 .Nm
