@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.7 1995/05/30 08:04:57 rgrimes Exp $
+ * $Id: cd9660_lookup.c,v 1.8 1995/10/22 09:32:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -376,7 +376,7 @@ notfound:
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vdp, *vpp, cnp);
 	if (nameiop == CREATE || nameiop == RENAME)
-		return (EJUSTRETURN);
+		return (EROFS);
 	return (ENOENT);
 
 found:
