@@ -392,6 +392,8 @@ pccbb_attach(device_t dev)
 	sc->sc_flags = 0;
 	sc->sc_cbdev = NULL;
 	sc->sc_pccarddev = NULL;
+	sc->sc_secbus = pci_read_config(dev, PCIR_SECBUS_2, 1);
+	sc->sc_subbus = pci_read_config(dev, PCIR_SUBBUS_2, 1);
 	sc->memalloc = 0;
 	sc->ioalloc = 0;
 	SLIST_INIT(&sc->rl);
@@ -1779,6 +1781,32 @@ pccbb_release_resource(device_t self, device_t child, int type, int rid,
 						      rid, r);
 }
 
+static int
+pccbb_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct pccbb_softc	*sc = device_get_softc(dev);
+    
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		*result = sc->sc_secbus;
+		return(0);
+	}
+	return(ENOENT);
+}
+
+static int
+pccbb_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct pccbb_softc	*sc = device_get_softc(dev);
+
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		sc->sc_secbus = value;
+		break;
+	}
+	return(ENOENT);
+}
+
 /************************************************************************/
 /* PCI compat methods							*/
 /************************************************************************/
@@ -1820,6 +1848,8 @@ static device_method_t pccbb_methods[] = {
 
 	/* bus methods */
 	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		pccbb_read_ivar),
+	DEVMETHOD(bus_write_ivar,		pccbb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		pccbb_alloc_resource),
 	DEVMETHOD(bus_release_resource,		pccbb_release_resource),
 	DEVMETHOD(bus_activate_resource,	pccbb_activate_resource),
