@@ -8,6 +8,7 @@ MLINKS=	ed.1 red.1
 .if exists(${.CURDIR}/../../crypto) && !defined(NO_OPENSSL)
 DISTRIBUTION=crypto
 CFLAGS+=-DDES
+WARNS=	2
 DPADD=	${LIBCRYPTO}
 LDADD=	-lcrypto
 .endif
