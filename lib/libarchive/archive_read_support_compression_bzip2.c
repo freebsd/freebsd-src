@@ -325,6 +325,7 @@ drive_decompressor(struct archive *a, struct private_data *state)
 				    a->compression_name);
 				return (ARCHIVE_FATAL);
 			}
+			a->raw_position += ret;
 			state->stream.avail_in = ret;
 		}
 
