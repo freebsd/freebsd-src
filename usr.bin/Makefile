@@ -144,9 +144,9 @@ SUBDIR=	apply \
 	talk \
 	tcopy \
 	tee \
-	tip \
 	tftp \
 	time \
+	tip \
 	top \
 	touch \
 	tput \
