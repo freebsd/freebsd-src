@@ -370,7 +370,7 @@ agp_intel_flush_tlb(device_t dev)
 	u_int32_t val;
 
 	val = pci_read_config(dev, AGP_INTEL_AGPCTRL, 4);
-	pci_write_config(dev, AGP_INTEL_AGPCTRL, val & ~(1 << 8), 4);
+	pci_write_config(dev, AGP_INTEL_AGPCTRL, val & ~(1 << 7), 4);
 	pci_write_config(dev, AGP_INTEL_AGPCTRL, val, 4);
 }
 
