@@ -45,6 +45,8 @@
 #ifndef _SYS_MAC_H
 #define	_SYS_MAC_H
 
+#include <sys/_label.h>
+
 #ifndef _POSIX_MAC
 #define	_POSIX_MAC
 #endif
@@ -177,24 +179,6 @@ int	__mac_set_file(const char *_path_p, struct mac *_mac_p);
 int	__mac_set_proc(struct mac *_mac_p);
 
 #else /* _KERNEL */
-#endif /* _KERNEL */
-
-/*
- * XXXMAC: This shouldn't be exported to userland, but is because of ucred.h
- * and various other messes.
- */
-
-#define	MAC_MAX_POLICIES	4
-
-struct label {
-	int	l_flags;
-	union {
-		void	*l_ptr;
-		long	 l_long;
-	}	l_perpolicy[MAC_MAX_POLICIES];
-};
-
-#ifdef _KERNEL
 
 /*
  * MAC entry point operations
