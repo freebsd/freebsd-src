@@ -507,26 +507,6 @@ freebsd_uthread_wait (pid, ourstatus)
 
 #ifdef __i386__
 
-static char sigmap[NUM_REGS] =	/* map reg to sigcontext  */
-{
-  12,				/* eax */
-  11,				/* ecx */
-  10,				/* edx */
-  9,				/* ebx */
-  8,				/* esp */
-  7,				/* ebp */
-  6,				/* esi */
-  5,				/* edi */
-  15,				/* eip */
-  17,				/* eflags */
-  16,				/* cs */
-  19,				/* ss */
-  4,				/* ds */
-  3,				/* es */
-  2,				/* fs */
-  1,				/* gs */
-};
-
 static char jmpmap[NUM_REGS] = /* map reg to jmp_buf */
 {
   6,				/* eax */
@@ -551,18 +531,6 @@ static char jmpmap[NUM_REGS] = /* map reg to jmp_buf */
 
 #ifdef __alpha__
 
-static char sigmap[NUM_REGS] =	/* map reg to sigcontext  */
-{
-  1,  2,  3,  4,  5,  6,  7,  8,  /* v0 - t6 */
-  9,  10, 11, 12, 13, 14, 15, 16, /* t7 - fp */
-  17, 18, 19, 20, 21, 22, 23, 24, /* a0 - t9 */
-  25, 26, 27, 28, 29, 30, 31, 32, /* t10 - zero */
-  38, 39, 40, 41, 42, 43, 44, 45, /* f0 - f7 */
-  46, 47, 48, 49, 50, 51, 52, 53, /* f8 - f15 */
-  54, 55, 56, 57, 58, 59, 60, 61, /* f16 - f23 */
-  62, 63, 64, 65, 66, 67, 68, 69, /* f24 - f31 */
-  33, -1			  /* pc, vfp */
-};
 static char jmpmap[NUM_REGS] = {
   4,  5,  6,  7,  8,  9,  10, 11, /* v0 - t6 */
   12, 13, 14, 15, 16, 17, 18, 19, /* t7 - fp */
