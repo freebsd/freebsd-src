@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.27 1998/08/10 09:49:42 phk Exp $
+# $Id: Makefile,v 1.30 1999/03/20 11:48:55 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -27,10 +27,13 @@ LOCALES=        da_DK.ISO_8859-1 \
 		ru_SU.KOI8-R     \
 		sl_SI.ISO_8859-2 \
 		sv_SE.ISO_8859-1 \
-		zh_CN.EUC
+		zh_CN.EUC	 \
+		zh_TW.BIG5
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
+8859_15_LINKS = da_DK de_AT de_DE en_GB en_US es_ES fi_FI fr_FR is_IS \
+                it_IT lt_LN nl_NL no_NO pt_PT sv_SE
 DE_LINKS =      de_CH
 FR_LINKS =      fr_BE fr_CA fr_CH
 IT_LINKS =      it_CH
@@ -51,17 +54,33 @@ afterinstall:
 		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
 			   ${LOCALEDIR}/$$l/LC_TIME; \
 	done
+	for l in ${8859_15_LINKS}; do \
+		ln -fs ../$$l.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+	done
 	for l in ${DE_LINKS}; do \
 		ln -fs ../de_DE.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${DE_LINKS}; do \
+		ln -fs ../de_DE.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
 	done
 	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
+	for l in ${IT_LINKS}; do \
+		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+	done
 	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${FR_LINKS}; do \
+		ln -fs ../fr_FR.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
 	done
 	for l in ${LN_LINKS}; do \
 		ln -fs ../lt_LN.ISO_8859-1/LC_TIME \
@@ -71,13 +90,25 @@ afterinstall:
 		ln -fs ../nl_NL.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
+	for l in ${NL_LINKS}; do \
+		ln -fs ../nl_NL.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+	done
 	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
+	for l in ${US_LINKS}; do \
+		ln -fs ../en_US.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+	done
 	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${GB_LINKS}; do \
+		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
 	done
 
 .include <bsd.prog.mk>
