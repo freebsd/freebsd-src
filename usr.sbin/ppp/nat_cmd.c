@@ -380,6 +380,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
   /* Ensure there's a bit of extra buffer for the NAT code... */
   bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
   ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
+  pip = (struct ip *)MBUF_CTOP(bp);
 
   bp->m_len = ntohs(pip->ip_len);
   if (bp->m_len > MAX_MRU) {
