@@ -30,7 +30,7 @@
 static char	SCCSid[] = "@(#)alloca.c	1.1";	/* for the "what" utility */
 #endif
 
-#ifdef emacs
+#if defined(emacs) || defined(HAVE_CONFIG_H)
 #include "config.h"
 #ifdef static
 /* actually, only want this if static is defined as ""
@@ -43,7 +43,7 @@ lose
 -- must know STACK_DIRECTION at compile-time
 #endif /* STACK_DIRECTION undefined */
 #endif /* static */
-#endif /* emacs */
+#endif /* emacs || HAVE_CONFIG_H*/
 
 #if __STDC__
 typedef void	*pointer;		/* generic pointer type */

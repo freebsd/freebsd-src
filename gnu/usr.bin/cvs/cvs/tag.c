@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Tag
  * 
@@ -14,33 +14,31 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)tag.c 1.56 92/03/31";
+static char rcsid[] = "$CVSid: @(#)tag.c 1.60 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype tag_dirproc (char *dir, char *repos, char *update_dir);
-static int tag_fileproc (char *file, char *update_dir,
+static Dtype tag_dirproc PROTO((char *dir, char *repos, char *update_dir));
+static int tag_fileproc PROTO((char *file, char *update_dir,
 			 char *repository, List * entries,
-			 List * srcfiles);
-#else
-static int tag_fileproc ();
-static Dtype tag_dirproc ();
-#endif				/* __STDC__ */
+			 List * srcfiles));
 
 static char *symtag;
 static int delete;			/* adding a tag by default */
 static int branch_mode;			/* make an automagic "branch" tag */
 static int local;			/* recursive by default */
+static int force_tag_move;		/* don't force tag to move by default */
 
 static char *tag_usage[] =
 {
-    "Usage: %s %s [-QlRq] [-b] [-d] tag [files...]\n",
+    "Usage: %s %s [-QlRqF] [-b] [-d] tag [files...]\n",
     "\t-Q\tReally quiet.\n",
     "\t-l\tLocal directory only, not recursive.\n",
     "\t-R\tProcess directories recursively.\n",
     "\t-q\tSomewhat quiet.\n",
     "\t-d\tDelete the given Tag.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
+    "\t-F\tMove tag if it already exists\n",
     NULL
 };
 
@@ -56,7 +54,7 @@ tag (argc, argv)
 	usage (tag_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "QqlRdb")) != -1)
+    while ((c = getopt (argc, argv, "FQqlRdb")) != -1)
     {
 	switch (c)
 	{
@@ -77,6 +75,9 @@ tag (argc, argv)
 		break;
 	    case 'b':
 		branch_mode = 1;
+		break;
+            case 'F':
+		force_tag_move = 1;
 		break;
 	    case '?':
 	    default:
@@ -100,7 +101,7 @@ tag (argc, argv)
     /* start the recursion processor */
     err = start_recursion (tag_fileproc, (int (*) ()) NULL, tag_dirproc,
 			   (int (*) ()) NULL, argc, argv, local,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
     return (err);
 }
 
@@ -210,26 +211,47 @@ tag_fileproc (file, update_dir, repository, entries, srcfiles)
      * time when simply moving the tag to the "current" head revisions of a
      * module -- which I have found to be a typical tagging operation.
      */
+    rev = branch_mode ? RCS_magicrev (vers->srcfile, version) : version;
     oversion = RCS_getversion (vers->srcfile, symtag, (char *) NULL, 1);
     if (oversion != NULL)
     {
-	if (strcmp (version, oversion) == 0)
-	{
-	    free (oversion);
-	    freevers_ts (&vers);
-	    return (0);
-	}
-	free (oversion);
+       int isbranch = RCS_isbranch (file, symtag, srcfiles);
+
+       /*
+	* if versions the same and neither old or new are branches don't have 
+	* to do anything
+	*/
+       if (strcmp (version, oversion) == 0 && !branch_mode && !isbranch)
+       {
+	  free (oversion);
+	  freevers_ts (&vers);
+	  return (0);
+       }
+       
+       if (!force_tag_move) {		/* we're NOT going to move the tag */
+	  if (update_dir[0])
+	     (void) printf ("W %s/%s", update_dir, file);
+	  else
+	     (void) printf ("W %s", file);
+
+	  (void) printf (" : %s already exists on %s %s", 
+			 symtag, isbranch ? "branch" : "version", oversion);
+	  (void) printf (" : NOT MOVING tag to %s %s\n", 
+			 branch_mode ? "branch" : "version", rev);
+	  free (oversion);
+	  freevers_ts (&vers);
+	  return (0);
+       }
+       free (oversion);
     }
-    rev = branch_mode ? RCS_magicrev (vers->srcfile, version) : version;
+
     run_setup ("%s%s -q -N%s:%s", Rcsbin, RCS, symtag, rev);
     run_arg (vers->srcfile->path);
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
     {
-	if (!quiet)
-	    error (0, retcode == -1 ? errno : 0,
-		   "failed to set tag %s to revision %s in %s",
-		   symtag, rev, vers->srcfile->path);
+	error (1, retcode == -1 ? errno : 0,
+	       "failed to set tag %s to revision %s in %s",
+	       symtag, rev, vers->srcfile->path);
 	freevers_ts (&vers);
 	return (1);
     }

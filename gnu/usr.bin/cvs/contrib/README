@@ -1,4 +1,4 @@
-@(#)README 1.8 92/04/10
+$CVSid: @(#)README 1.12 94/09/25 $
 
 This "contrib" directory is a place holder for code/scripts sent to
 me by contributors around the world.  This READM file will be kept
@@ -66,3 +66,22 @@ Contents of this directory:
 			$CVSROOT/CVSROOT/history file, as it can grow quite
 			large after extended use.
 			Contributed by David G. Grubbs <dgg@ksr.com>
+	sccs2rcs	A C-shell script that can convert (some) SCCS files
+			into RCS files, retaining the info contained in the
+			SCCS file (like dates, author, and log message).
+			Contributed by Ken Cox <kenstir@viewlogic.com>.
+	intro.doc	A user's view of what you need to know to get
+			started with CVS.
+			Contributed by <Steven.Pemberton@cwi.nl>.
+	rcs2sccs	A shell script to convert simple RCS files into
+			SCCS files, originally gleaned off the network
+			somewhere (originally by "kenc") and modified by
+			Jerry Jelinek <jerry@rmtc.Central.Sun.COM> and
+			Brian Berliner <berliner@sun.com> to increase
+			robustness and add support for one-level of branches.
+	rcs2log		A shell script to create a ChangeLog-format file
+			given only a set of RCS files.
+			Contributed by Paul Eggert <eggert@twinsun.com>.
+ 	clmerge		A perl script to handle merge conflicts in GNU
+			style ChangeLog files .
+			Contributed by Tom Tromey <tromey@busco.lanl.gov>.

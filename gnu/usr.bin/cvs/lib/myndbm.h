@@ -1,4 +1,4 @@
-/* @(#)myndbm.h 1.3 92/02/29	 */
+/* $CVSid: @(#)myndbm.h 1.4 94/09/21 $	 */
 
 #ifdef MY_NDBM
 
@@ -27,18 +27,10 @@ typedef struct
 #define	dbm_firstkey	mydbm_firstkey
 #define	dbm_nextkey	mydbm_nextkey
 
-#if __STDC__
-DBM *mydbm_open (char *file, int flags, int mode);
-void mydbm_close (DBM * db);
-datum mydbm_fetch (DBM * db, datum key);
-datum mydbm_firstkey (DBM * db);
-datum mydbm_nextkey (DBM * db);
-#else
-DBM *mydbm_open ();
-void mydbm_close ();
-datum mydbm_fetch ();
-datum mydbm_firstkey ();
-datum mydbm_nextkey ();
-#endif				/* __STDC__ */
+DBM *mydbm_open PROTO((char *file, int flags, int mode));
+void mydbm_close PROTO((DBM * db));
+datum mydbm_fetch PROTO((DBM * db, datum key));
+datum mydbm_firstkey PROTO((DBM * db));
+datum mydbm_nextkey PROTO((DBM * db));
 
 #endif				/* MY_NDBM */

@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#ifdef POSIX
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/types.h>		/* For pid_t. */
 #include <sys/wait.h>
 #else

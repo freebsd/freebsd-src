@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Create Version
  * 
@@ -36,22 +36,17 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)checkout.c 1.67 92/04/10";
+static char rcsid[] = "$CVSid: @(#)checkout.c 1.78 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static char *findslash (char *start, char *p);
-static int build_dirs_and_chdir (char *dir, char *prepath, char *realdir,
-				 int sticky);
-static int checkout_proc (int *pargc, char *argv[], char *where,
+static char *findslash PROTO((char *start, char *p));
+static int build_dirs_and_chdir PROTO((char *dir, char *prepath, char *realdir,
+				 int sticky));
+static int checkout_proc PROTO((int *pargc, char *argv[], char *where,
 		          char *mwhere, char *mfile, int shorten,
 		          int local_specified, char *omodule,
-		          char *msg);
-#else
-static int checkout_proc ();
-static char *findslash ();
-static int build_dirs_and_chdir ();
-#endif				/* __STDC__ */
+		          char *msg));
 
 static char *checkout_usage[] =
 {
@@ -84,8 +79,8 @@ static char *export_usage[] =
     "\t-l\tLocal directory only, not recursive\n",
     "\t-n\tDo not run module program (if any).\n",
     "\t-q\tSomewhat quiet.\n",
-    "\t-r rev\tCheck out revision or tag. (implies -P)\n",
-    "\t-D date\tCheck out revisions as of date. (implies -P)\n",
+    "\t-r rev\tCheck out revision or tag.\n",
+    "\t-D date\tCheck out revisions as of date.\n",
     "\t-d dir\tCheck out into dir instead of module name.\n",
     NULL
 };
@@ -106,7 +101,7 @@ checkout (argc, argv)
     int argc;
     char *argv[];
 {
-    register int i;
+    int i;
     int c;
     DBM *db;
     int cat = 0, err = 0, status = 0;
@@ -139,7 +134,7 @@ checkout (argc, argv)
     ign_setup ();
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, valid_options)) != -1)
+    while ((c = getopt (argc, argv, valid_options)) != -1)
     {
 	switch (c)
 	{
@@ -261,9 +256,15 @@ checkout (argc, argv)
 	where = (char *) NULL;
 	if (!isfile (CVSADM) && !isfile (OCVSADM))
 	{
-	    (void) sprintf (repository, "%s/%s", CVSroot, CVSNULLREPOS);
+	    (void) sprintf (repository, "%s/%s/%s", CVSroot, CVSROOTADM,
+			    CVSNULLREPOS);
 	    if (!isfile (repository))
 		(void) mkdir (repository, 0777);
+
+	    /* I'm not sure whether this check is redundant.  */
+	    if (!isdir (repository))
+		error (1, 0, "there is no repository %s", repository);
+
 	    Create_Admin (".", repository, (char *) NULL, (char *) NULL);
 	    if (!noexec)
 	    {
@@ -283,11 +284,11 @@ checkout (argc, argv)
      * attempt to cd to the indicated place.  where then becomes simply the
      * last component
      */
-    if (where != NULL && index (where, '/') != NULL)
+    if (where != NULL && strchr (where, '/') != NULL)
     {
 	char *slash;
 
-	slash = rindex (where, '/');
+	slash = strrchr (where, '/');
 	*slash = '\0';
 
 	if (chdir (where) < 0)
@@ -358,7 +359,7 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 	char file[PATH_MAX];
 
 	/* if mfile is really a path, straighten it out first */
-	if ((cp = rindex (mfile, '/')) != NULL)
+	if ((cp = strrchr (mfile, '/')) != NULL)
 	{
 	    *cp = 0;
 	    (void) strcat (repository, "/");
@@ -386,7 +387,7 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 	    {
 		char *slash;
 
-		if ((slash = rindex (mfile, '/')) != NULL)
+		if ((slash = strrchr (mfile, '/')) != NULL)
 		    mwhere = slash + 1;
 		else
 		    mwhere = mfile;
@@ -448,7 +449,7 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
      */
     if (shorten && where == NULL)
     {
-	if ((cp = rindex (argv[0], '/')) != NULL)
+	if ((cp = strrchr (argv[0], '/')) != NULL)
 	{
 	    (void) strcpy (xwhere, cp + 1);
 	    where = xwhere;
@@ -498,8 +499,8 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 	 * elements exist in where. Big Black Magic
 	 */
 	prepath = xstrdup (repository);
-	cp = rindex (where, '/');
-	cp2 = rindex (prepath, '/');
+	cp = strrchr (where, '/');
+	cp2 = strrchr (prepath, '/');
 	while (cp != NULL)
 	{
 	    cp = findslash (where, cp - 1);
@@ -533,13 +534,23 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 
 	    if (!noexec && *pargc > 1)
 	    {
+		/* I'm not sure whether this check is redundant.  */
+		if (!isdir (repository))
+		    error (1, 0, "there is no repository %s", repository);
+
 		Create_Admin (".", repository, (char *) NULL, (char *) NULL);
 		fp = open_file (CVSADM_ENTSTAT, "w+");
 		if (fclose(fp) == EOF)
 		    error(1, errno, "cannot close %s", CVSADM_ENTSTAT);
 	    }
 	    else
+	    {
+		/* I'm not sure whether this check is redundant.  */
+		if (!isdir (repository))
+		    error (1, 0, "there is no repository %s", repository);
+
 		Create_Admin (".", repository, tag, date);
+	    }
 	}
 	else
 	{
@@ -622,8 +633,9 @@ checkout_proc (pargc, argv, where, mwhere, mfile, shorten,
 	    if (vers->ts_user == NULL)
 	    {
 		(void) sprintf (line, "Initial %s", user);
-		Register (entries, user, vers->vn_rcs, line, vers->options,
-			  vers->tag, vers->date);
+		Register (entries, user, vers->vn_rcs ? vers->vn_rcs : "0",
+			  line, vers->options, vers->tag,
+			  vers->date, (char *) 0);
 	    }
 	    freevers_ts (&vers);
 	}
@@ -650,9 +662,9 @@ findslash (start, p)
     char *start;
     char *p;
 {
-    while ((int) p >= (int) start && *p != '/')
+    while (p >= start && *p != '/')
 	p--;
-    if ((int) p < (int) start)
+    if (p < start)
 	return (NULL);
     else
 	return (p);
@@ -681,7 +693,7 @@ build_dirs_and_chdir (dir, prepath, realdir, sticky)
     (void) strcpy (path, dir);
     (void) strcpy (path2, realdir);
     for (cp = path, cp2 = path2;
-    (slash = index (cp, '/')) != NULL && (slash2 = index (cp2, '/')) != NULL;
+    (slash = strchr (cp, '/')) != NULL && (slash2 = strchr (cp2, '/')) != NULL;
 	 cp = slash + 1, cp2 = slash2 + 1)
     {
 	*slash = '\0';
@@ -696,6 +708,9 @@ build_dirs_and_chdir (dir, prepath, realdir, sticky)
 	    strcmp (command_name, "export") != 0)
 	{
 	    (void) sprintf (repository, "%s/%s", prepath, path2);
+	    /* I'm not sure whether this check is redundant.  */
+	    if (!isdir (repository))
+		error (1, 0, "there is no repository %s", repository);
 	    Create_Admin (".", repository, sticky ? (char *) NULL : tag,
 			  sticky ? (char *) NULL : date);
 	    if (!noexec)

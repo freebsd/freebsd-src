@@ -3,19 +3,24 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Various useful functions for the CVS support code.
  */
 
 #include "cvs.h"
 
+#ifndef lint
+static char rcsid[] = "$CVSid: @(#)subr.c 1.64 94/10/07 $";
+USE(rcsid)
+#endif
+
 #ifdef _MINIX
 #undef	POSIX		/* Minix 1.6 doesn't support POSIX.1 sigaction yet */
 #endif
 
-#ifndef VPRINTF_MISSING
-#if __STDC__
+#ifdef HAVE_VPRINTF
+#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
 #include <stdarg.h>
 #define VA_START(args, lastarg) va_start(args, lastarg)
 #else
@@ -27,17 +32,24 @@
 #define va_dcl char *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8;
 #endif
 
-#ifndef lint
-static char rcsid[] = "@(#)subr.c 1.52 92/03/31";
+/*
+ * I don't know of a convenient way to test this at configure time, or else
+ * I'd certainly do it there.
+ */
+#if defined(NeXT)
+#define LOSING_TMPNAM_FUNCTION
+#ifndef	_POSIX_SOURCE
+/*
+ * NeXT doesn't define these without _POSIX_SOURCE,
+ * but that changes a lot of things.
+ */
+#define	WEXITSTATUS(x)	((x).w_retcode)
+#define	WTERMSIG(x)	((x).w_termsig)
+#endif
 #endif
 
-#if __STDC__
-static void run_add_arg (char *s);
-static void run_init_prog (void);
-#else
-static void run_add_arg ();
-static void run_init_prog ();
-#endif				/* __STDC__ */
+static void run_add_arg PROTO((char *s));
+static void run_init_prog PROTO((void));
 
 extern char *getlogin ();
 extern char *strtok ();
@@ -74,7 +86,7 @@ copy_file (from, to)
 	if (read (fdin, buf, (int) sb.st_size) != (int) sb.st_size)
 	    error (1, errno, "cannot read file %s for copying", from);
 	if (write (fdout, buf, (int) sb.st_size) != (int) sb.st_size
-#ifndef FSYNC_MISSING
+#ifdef HAVE_FSYNC
 	    || fsync (fdout) == -1
 #endif
 	    )
@@ -88,10 +100,14 @@ copy_file (from, to)
 	error (1, errno, "cannot close %s", to);
 
     /* now, set the times for the copied file to match those of the original */
+    memset ((char *) &t, 0, sizeof (t));
     t.actime = sb.st_atime;
     t.modtime = sb.st_mtime;
     (void) utime (to, &t);
 }
+
+/* FIXME-krp: these functions would benefit from caching the char * &
+   stat buf.  */
 
 /*
  * Returns non-zero if the argument file is a directory, or is a symbolic
@@ -202,25 +218,8 @@ make_directory (name)
 {
     struct stat buf;
 
-    if (stat (name, &buf) == 0)
-    {
-	if (S_ISDIR (buf.st_mode))
-	{
-	    if (access (name, (R_OK | W_OK | X_OK)) == 0)
-	    {
-		error (0, 0, "Directory %s already exists", name);
-		return;
-	    }
-	    else
-	    {
-		error (0, 0,
-		    "Directory %s already exists but is protected from you",
-		       name);
-	    }
-	}
-	else
+    if (stat (name, &buf) == 0 && (!S_ISDIR (buf.st_mode)))
 	    error (0, 0, "%s already exists but is not a directory", name);
-    }
     if (!noexec && mkdir (name, 0777) < 0)
 	error (1, errno, "cannot make directory %s", name);
 }
@@ -245,7 +244,7 @@ make_directories (name)
 	error (0, errno, "cannot make path to %s", name);
 	return;
     }
-    if ((cp = rindex (name, '/')) == NULL)
+    if ((cp = strrchr (name, '/')) == NULL)
 	return;
     *cp = '\0';
     make_directories (name);
@@ -260,14 +259,12 @@ make_directories (name)
  */
 char *
 xmalloc (bytes)
-    int bytes;
+    size_t bytes;
 {
     char *cp;
 
-    if (bytes <= 0)
-	error (1, 0, "bad malloc size %d", bytes);
-    if ((cp = malloc ((unsigned) bytes)) == NULL)
-	error (1, 0, "malloc failed");
+    if ((cp = malloc (bytes)) == NULL)
+	error (1, 0, "can not allocate %lu bytes", (unsigned long) bytes);
     return (cp);
 }
 
@@ -279,17 +276,17 @@ xmalloc (bytes)
 char *
 xrealloc (ptr, bytes)
     char *ptr;
-    int bytes;
+    size_t bytes;
 {
     char *cp;
 
     if (!ptr)
-	return (xmalloc (bytes));
+	cp = malloc (bytes);
+    else
+	cp = realloc (ptr, bytes);
 
-    if (bytes <= 0)
-	error (1, 0, "bad realloc size %d", bytes);
-    if ((cp = realloc (ptr, (unsigned) bytes)) == NULL)
-	error (1, 0, "realloc failed");
+    if (cp == NULL)
+	error (1, 0, "can not reallocate %lu bytes", (unsigned long) bytes);
     return (cp);
 }
 
@@ -320,7 +317,7 @@ xchmod (fname, writable)
     int writable;
 {
     struct stat sb;
-    int mode, oumask;
+    mode_t mode, oumask;
 
     if (stat (fname, &sb) < 0)
     {
@@ -399,9 +396,12 @@ unlink_file (f)
  * Compare "file1" to "file2". Return non-zero if they don't compare exactly.
  * 
  * mallocs a buffer large enough to hold the entire file and does two reads to
- * load the buffer and calls bcmp to do the cmp. This is reasonable, since
+ * load the buffer and calls memcmp to do the cmp. This is reasonable, since
  * source files are typically not too large.
  */
+
+/* richfix: this *could* exploit mmap. */
+
 int
 xcmp (file1, file2)
     char *file1;
@@ -430,10 +430,10 @@ xcmp (file1, file2)
 	    buf1 = xmalloc ((int) size);
 	    buf2 = xmalloc ((int) size);
 	    if (read (fd1, buf1, (int) size) != (int) size)
-		error (1, errno, "cannot read file %s cor comparing", file1);
+		error (1, errno, "cannot read file %s for comparing", file1);
 	    if (read (fd2, buf2, (int) size) != (int) size)
 		error (1, errno, "cannot read file %s for comparing", file2);
-	    ret = bcmp (buf1, buf2, (int) size);
+	    ret = memcmp(buf1, buf2, (int) size);
 	    free (buf1);
 	    free (buf2);
 	}
@@ -512,10 +512,10 @@ getcaller ()
     static char uidname[20];
     struct passwd *pw;
     char *name;
-    int uid;
+    uid_t uid;
 
     uid = getuid ();
-    if (uid == 0)
+    if (uid == (uid_t) 0)
     {
 	/* super-user; try getlogin() to distinguish */
 	if (((name = getenv("LOGNAME")) || (name = getenv("USER")) ||
@@ -524,7 +524,7 @@ getcaller ()
     }
     if ((pw = (struct passwd *) getpwuid (uid)) == NULL)
     {
-	(void) sprintf (uidname, "uid%d", uid);
+	(void) sprintf (uidname, "uid%d", (unsigned long) uid);
 	return (uidname);
     }
     return (pw->pw_name);
@@ -549,7 +549,7 @@ static int run_argc;
 static int run_argc_allocated;
 
 /* VARARGS */
-#if !defined (VPRINTF_MISSING) && __STDC__
+#if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
 void 
 run_setup (char *fmt,...)
 #else
@@ -560,7 +560,7 @@ run_setup (fmt, va_alist)
 
 #endif
 {
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
     va_list args;
 
 #endif
@@ -581,7 +581,7 @@ run_setup (fmt, va_alist)
     run_argc = 0;
 
     /* process the varargs into run_prog */
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
     VA_START (args, fmt);
     (void) vsprintf (run_prog, fmt, args);
     va_end (args);
@@ -602,7 +602,7 @@ run_arg (s)
 }
 
 /* VARARGS */
-#if !defined (VPRINTF_MISSING) && __STDC__
+#if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
 void 
 run_args (char *fmt,...)
 #else
@@ -613,7 +613,7 @@ run_args (fmt, va_alist)
 
 #endif
 {
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
     va_list args;
 
 #endif
@@ -621,7 +621,7 @@ run_args (fmt, va_alist)
     run_init_prog ();
 
     /* process the varargs into run_prog */
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
     VA_START (args, fmt);
     (void) vsprintf (run_prog, fmt, args);
     va_end (args);
@@ -668,7 +668,12 @@ run_exec (stin, stout, sterr, flags)
 {
     int shin, shout, sherr;
     int mode_out, mode_err;
-    int status = -1;
+#if	defined(NeXT) && !defined(_POSIX_SOURCE)
+    union wait status;
+#else
+    int status;
+#endif
+    int rc = -1;
     int rerrno = 0;
     int pid, w;
 
@@ -682,7 +687,7 @@ run_exec (stin, stout, sterr, flags)
     struct sigvec vec, ivec, qvec;
 
 #else
-    SIGTYPE (*istat) (), (*qstat) ();
+    RETSIGTYPE (*istat) (), (*qstat) ();
 #endif
 #endif
 
@@ -733,11 +738,15 @@ run_exec (stin, stout, sterr, flags)
 	}
     }
 
+    /* Make sure we don't flush this twice, once in the subprocess.  */
+    fflush (stdout);
+    fflush (stderr);
+
     /* The output files, if any, are now created.  Do the fork and dups */
-#ifdef VFORK_MISSING
-    pid = fork ();
-#else
+#ifdef HAVE_VFORK
     pid = vfork ();
+#else
+    pid = fork ();
 #endif
     if (pid == 0)
     {
@@ -761,6 +770,7 @@ run_exec (stin, stout, sterr, flags)
 
 	/* dup'ing is done.  try to run it now */
 	(void) execvp (run_argv[0], run_argv);
+	error (0, errno, "cannot exec %s", run_argv[0]);
 	_exit (127);
     }
     else if (pid == -1)
@@ -790,7 +800,7 @@ run_exec (stin, stout, sterr, flags)
 #ifdef BSD_SIGNALS
     if (flags & RUN_SIGIGNORE)
     {
-	bzero ((char *) &vec, sizeof (vec));
+	memset ((char *) &vec, 0, sizeof (vec));
 	vec.sv_handler = SIG_IGN;
 	(void) sigvec (SIGINT, &vec, &ivec);
 	(void) sigvec (SIGQUIT, &vec, &qvec);
@@ -816,19 +826,19 @@ run_exec (stin, stout, sterr, flags)
 #endif
     if (w == -1)
     {
-	status = -1;
+	rc = -1;
 	rerrno = errno;
     }
     else if (WIFEXITED (status))
-	status = WEXITSTATUS (status);
+	rc = WEXITSTATUS (status);
     else if (WIFSIGNALED (status))
     {
 	if (WTERMSIG (status) == SIGPIPE)
 	    error (1, 0, "broken pipe");
-	status = 2;
+	rc = 2;
     }
     else
-	status = 1;
+	rc = 1;
 
     /* restore the signals */
 #ifdef POSIX
@@ -868,7 +878,7 @@ run_exec (stin, stout, sterr, flags)
   out0:
     if (rerrno)
 	errno = rerrno;
-    return (status);
+    return (rc);
 }
 
 void
@@ -909,4 +919,131 @@ get_date (date, now)
     return (foo);
 }
 #endif
+#endif
+
+/* Given two revisions, find their greatest common ancestor.  If the
+   two input revisions exist, then rcs guarantees that the gca will
+   exist.  */
+
+char *
+gca (rev1, rev2)
+    char *rev1;
+    char *rev2;
+{
+    int dots;
+    char gca[PATH_MAX];
+    char *p[2];
+    int j[2];
+
+    if (rev1 == NULL || rev2 == NULL)
+    {
+	error (0, 0, "sanity failure in gca");
+	abort();
+    }
+
+    /* walk the strings, reading the common parts. */
+    gca[0] = '\0';
+    p[0] = rev1;
+    p[1] = rev2;
+    do
+    {
+	int i;
+	char c[2];
+	char *s[2];
+	
+	for (i = 0; i < 2; ++i)
+	{
+	    /* swap out the dot */
+	    s[i] = strchr (p[i], '.');
+	    if (s[i] != NULL) {
+		c[i] = *s[i];
+	    }
+	    
+	    /* read an int */
+	    j[i] = atoi (p[i]);
+	    
+	    /* swap back the dot... */
+	    if (s[i] != NULL) {
+		*s[i] = c[i];
+		p[i] = s[i] + 1;
+	    }
+	    else
+	    {
+		/* or mark us at the end */
+		p[i] = NULL;
+	    }
+	    
+	}
+	
+	/* use the lowest. */
+	(void) sprintf (gca + strlen (gca), "%d.",
+			j[0] < j[1] ? j[0] : j[1]);
+
+    } while (j[0] == j[1]
+	     && p[0] != NULL
+	     && p[1] != NULL);
+
+    /* back up over that last dot. */
+    gca[strlen(gca) - 1] = '\0';
+
+    /* numbers differ, or we ran out of strings.  we're done with the
+       common parts.  */
+
+    dots = numdots (gca);
+    if (dots == 0)
+    {
+	/* revisions differ in trunk major number.  */
+
+	char *q;
+	char *s;
+
+	s = (j[0] < j[1]) ? p[0] : p[1];
+
+	if (s == NULL)
+	{
+	    /* we only got one number.  this is strange.  */
+	    error (0, 0, "bad revisions %s or %s", rev1, rev2);
+	    abort();
+	}
+	else
+	{
+	    /* we have a minor number.  use it.  */
+	    q = gca + strlen (gca);
+	    
+	    *q++ = '.';
+	    for ( ; *s != '.' && *s != '\0'; )
+		*q++ = *s++;
+	    
+	    *q = '\0';
+	}
+    }
+    else if ((dots & 1) == 0)
+    {
+	/* if we have an even number of dots, then we have a branch.
+	   remove the last number in order to make it a revision.  */
+	
+	char *s;
+
+	s = strrchr(gca, '.');
+	*s = '\0';
+    }
+
+    return (xstrdup (gca));
+}
+
+#ifdef LOSING_TMPNAM_FUNCTION
+char *tmpnam(char *s)
+{
+    static char value[L_tmpnam+1];
+
+    if (s){
+       strcpy(s,"/tmp/cvsXXXXXX");
+       mktemp(s);
+       return s;
+    }else{
+       strcpy(value,"/tmp/cvsXXXXXX");
+       mktemp(s);
+       return value;
+    }
+}
 #endif

@@ -3,28 +3,25 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)classify.c 1.11 92/03/31";
+static char rcsid[] = "$CVSid: @(#)classify.c 1.17 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static void sticky_ck (char *file, int aflag, Vers_TS * vers, List * entries);
-#else
-static void sticky_ck ();
-#endif				/* __STDC__ */
+static void sticky_ck PROTO((char *file, int aflag, Vers_TS * vers, List * entries));
 
 /*
  * Classify the state of a file
  */
 Ctype
 Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
-	       entries, srcfiles, versp)
+	       entries, srcfiles, versp, update_dir, pipeout)
     char *file;
     char *tag;
     char *date;
@@ -35,9 +32,18 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
     List *entries;
     List *srcfiles;
     Vers_TS **versp;
+    char *update_dir;
+    int pipeout;
 {
     Vers_TS *vers;
     Ctype ret;
+    char *fullname;
+
+    fullname = xmalloc (strlen (update_dir) + strlen (file) + 10);
+    if (update_dir[0] == '\0')
+	strcpy (fullname, file);
+    else
+	sprintf (fullname, "%s/%s", update_dir, file);
 
     /* get all kinds of good data about the file */
     vers = Version_TS (repository, options, tag, date, file,
@@ -54,7 +60,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		/* there is no user file */
 		if (!force_tag_match || !(vers->tag || vers->date))
 		    if (!really_quiet)
-			error (0, 0, "nothing known about %s", file);
+			error (0, 0, "nothing known about %s", fullname);
 		ret = T_UNKNOWN;
 	    }
 	    else
@@ -63,7 +69,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		if (!force_tag_match || !(vers->tag || vers->date))
 		    if (!really_quiet)
 			error (0, 0, "use `cvs add' to create an entry for %s",
-			       file);
+			       fullname);
 		ret = T_UNKNOWN;
 	    }
 	}
@@ -78,16 +84,26 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	    }
 	    else
 	    {
+		if (pipeout)
+		{
+		    /*
+		     * The user file doesn't necessarily have anything
+		     * to do with this.
+		     */
+		    ret = T_CHECKOUT;
+		}
 		/*
 		 * There is a user file; print a warning and add it to the
 		 * conflict list, only if it is indeed different from what we
 		 * plan to extract
 		 */
-		if (No_Difference (file, vers, entries))
+		else if (No_Difference (file, vers, entries,
+					repository, update_dir))
 		{
 		    /* the files were different so it is a conflict */
 		    if (!really_quiet)
-			error (0, 0, "move away %s; it is in the way", file);
+			error (0, 0, "move away %s; it is in the way",
+			       fullname);
 		    ret = T_CONFLICT;
 		}
 		else
@@ -107,7 +123,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	     * entry
 	     */
 	    if (!really_quiet)
-		error (0, 0, "warning: new-born %s has disappeared", file);
+		error (0, 0, "warning: new-born %s has disappeared", fullname);
 	    ret = T_REMOVE_ENTRY;
 	}
 	else
@@ -126,7 +142,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		if (!really_quiet)
 		    error (0, 0,
 			"conflict: %s created independently by second party",
-			   file);
+			   fullname);
 		ret = T_CONFLICT;
 	    }
 	}
@@ -169,7 +185,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		if (!really_quiet)
 		    error (0, 0,
 			   "conflict: removed %s was modified by second party",
-			   file);
+			   fullname);
 		ret = T_CONFLICT;
 	    }
 	}
@@ -177,7 +193,8 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	{
 	    /* The user file shouldn't be there */
 	    if (!really_quiet)
-		error (0, 0, "%s should be removed and is still there", file);
+		error (0, 0, "%s should be removed and is still there",
+		       fullname);
 	    ret = T_REMOVED;
 	}
     }
@@ -193,7 +210,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		/* There is no user file, so just remove the entry */
 		if (!really_quiet)
 		    error (0, 0, "warning: %s is not (any longer) pertinent",
-			   file);
+			   fullname);
 		ret = T_REMOVE_ENTRY;
 	    }
 	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
@@ -204,7 +221,8 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		 * the entry list
 		 */
 		if (!really_quiet)
-		    error (0, 0, "%s is no longer in the repository", file);
+		    error (0, 0, "%s is no longer in the repository",
+			   fullname);
 		ret = T_REMOVE_ENTRY;
 	    }
 	    else
@@ -213,13 +231,14 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		 * The user file has been modified and since it is no longer
 		 * in the repository, a conflict is raised
 		 */
-		if (No_Difference (file, vers, entries))
+		if (No_Difference (file, vers, entries,
+				   repository, update_dir))
 		{
 		    /* they are different -> conflict */
 		    if (!really_quiet)
 			error (0, 0,
 	       "conflict: %s is modified but no longer in the repository",
-			   file);
+			   fullname);
 		    ret = T_CONFLICT;
 		}
 		else
@@ -228,7 +247,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		    if (!really_quiet)
 			error (0, 0,
 			       "warning: %s is not (any longer) pertinent",
-			       file);
+			       fullname);
 		    ret = T_REMOVE_ENTRY;
 		}
 	    }
@@ -246,7 +265,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		 */
 		if (strcmp (command_name, "update") == 0)
 		    if (!really_quiet)
-			error (0, 0, "warning: %s was lost", file);
+			error (0, 0, "warning: %s was lost", fullname);
 		ret = T_CHECKOUT;
 	    }
 	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
@@ -274,7 +293,8 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 		 * The user file appears to have been modified, but we call
 		 * No_Difference to verify that it really has been modified
 		 */
-		if (No_Difference (file, vers, entries))
+		if (No_Difference (file, vers, entries,
+				   repository, update_dir))
 		{
 
 		    /*
@@ -323,7 +343,7 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 
 		if (strcmp (command_name, "update") == 0)
 		    if (!really_quiet)
-			error (0, 0, "warning: %s was lost", file);
+			error (0, 0, "warning: %s was lost", fullname);
 		ret = T_CHECKOUT;
 	    }
 	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
@@ -336,7 +356,8 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	    }
 	    else
 	    {
-		if (No_Difference (file, vers, entries))
+		if (No_Difference (file, vers, entries,
+				   repository, update_dir))
 		    /* really modified, needs to merge */
 		    ret = T_NEEDS_MERGE;
 		else
@@ -351,6 +372,8 @@ Classify_File (file, tag, date, options, force_tag_match, aflag, repository,
 	*versp = vers;
     else
 	freevers_ts (&vers);
+
+    free (fullname);
 
     /* return the status of the file */
     return (ret);
@@ -374,7 +397,7 @@ sticky_ck (file, aflag, vers, entries)
 	    ((entdate && !vers->date) || (!entdate && vers->date)))
 	{
 	    Register (entries, file, vers->vn_user, vers->ts_rcs,
-		      vers->options, vers->tag, vers->date);
+		      vers->options, vers->tag, vers->date, vers->ts_conflict);
 	}
     }
 }

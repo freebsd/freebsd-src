@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Entries file to Files file
  * 
@@ -14,16 +14,13 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)entries.c 1.37 92/03/31";
+static char rcsid[] = "$CVSid: @(#)entries.c 1.44 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Node *AddEntryNode (List * list, char *name, char *version,
+static Node *AddEntryNode PROTO((List * list, char *name, char *version,
 			   char *timestamp, char *options, char *tag,
-			   char *date);
-#else
-static Node *AddEntryNode ();
-#endif				/* __STDC__ */
+			   char *date, char *conflict));
 
 static FILE *entfile;
 static char *entfilename;		/* for error messages */
@@ -32,15 +29,24 @@ static char *entfilename;		/* for error messages */
  * Write out the line associated with a node of an entries file
  */
 static int
-write_ent_proc (node)
-    Node *node;
+write_ent_proc (node, closure)
+     Node *node;
+     void *closure;
 {
     Entnode *p;
 
     p = (Entnode *) node->data;
-    if (fprintf (entfile, "/%s/%s/%s/%s/", node->key, p->version,
-		 p->timestamp, p->options) == EOF)
+    if (fprintf (entfile, "/%s/%s/%s", node->key, p->version,
+		 p->timestamp) == EOF)
 	error (1, errno, "cannot write %s", entfilename);
+    if (p->conflict)
+    {
+	if (fprintf (entfile, "+%s", p->conflict) == EOF)
+	    error (1, errno, "cannot write %s", entfilename);
+    }
+    if (fprintf (entfile, "/%s/", p->options) == EOF)
+	error (1, errno, "cannot write %s", entfilename);
+
     if (p->tag)
     {
 	if (fprintf (entfile, "T%s\n", p->tag) == EOF)
@@ -67,7 +73,7 @@ write_entries (list)
     /* open the new one and walk the list writing entries */
     entfilename = CVSADM_ENTBAK;
     entfile = open_file (entfilename, "w+");
-    (void) walklist (list, write_ent_proc);
+    (void) walklist (list, write_ent_proc, NULL);
     if (fclose (entfile) == EOF)
 	error (1, errno, "error closing %s", entfilename);
 
@@ -102,7 +108,7 @@ Scratch_Entry (list, fname)
  * removing the old entry first, if necessary.
  */
 void
-Register (list, fname, vn, ts, options, tag, date)
+Register (list, fname, vn, ts, options, tag, date, ts_conflict)
     List *list;
     char *fname;
     char *vn;
@@ -110,13 +116,19 @@ Register (list, fname, vn, ts, options, tag, date)
     char *options;
     char *tag;
     char *date;
+    char *ts_conflict;
 {
+    int should_write_file = !noexec;
     Node *node;
 
     if (trace)
-	(void) fprintf (stderr, "-> Register(%s, %s, %s, %s, %s %s)\n",
-			fname, vn, ts, options, tag ? tag : "",
-			date ? date : "");
+    {
+	(void) fprintf (stderr, "-> Register(%s, %s, %s%s%s, %s, %s %s)\n",
+			fname, vn, ts,
+			ts_conflict ? "+" : "", ts_conflict ? ts_conflict : "",
+			options, tag ? tag : "",	date ? date : "");
+    }
+
     /* was it already there? */
     if ((node = findnode (list, fname)) != NULL)
     {
@@ -124,21 +136,24 @@ Register (list, fname, vn, ts, options, tag, date)
 	delnode (node);
 
 	/* add the new one and re-write the file */
-	(void) AddEntryNode (list, fname, vn, ts, options, tag, date);
-	if (!noexec)
+	(void) AddEntryNode (list, fname, vn, ts, options, tag,
+			     date, ts_conflict);
+
+	if (should_write_file)
 	    write_entries (list);
     }
     else
     {
 	/* add the new one */
-	node = AddEntryNode (list, fname, vn, ts, options, tag, date);
+	node = AddEntryNode (list, fname, vn, ts, options, tag,
+			     date, ts_conflict);
 
-	if (!noexec)
+	if (should_write_file)
 	{
 	    /* append it to the end */
 	    entfilename = CVSADM_ENT;
 	    entfile = open_file (entfilename, "a");
-	    (void) write_ent_proc (node);
+	    (void) write_ent_proc (node, NULL);
 	    if (fclose (entfile) == EOF)
 		error (1, errno, "error closing %s", entfilename);
 	}
@@ -174,10 +189,13 @@ ParseEntries (aflag)
     List *entries;
     char line[MAXLINELEN];
     char *cp, *user, *vn, *ts, *options;
-    char *tag_or_date, *tag, *date;
+    char *tag_or_date, *tag, *date, *ts_conflict;
     char *dirtag, *dirdate;
     int lineno = 0;
+    int do_rewrite = 0;
     FILE *fpin;
+
+    vn = ts = options = tag = date = ts_conflict = 0;
 
     /* get a fresh list... */
     entries = getlist ();
@@ -192,7 +210,7 @@ ParseEntries (aflag)
 	struct stickydirtag *sdtp;
 
 	sdtp = (struct stickydirtag *) xmalloc (sizeof (*sdtp));
-	bzero ((char *) sdtp, sizeof (*sdtp));
+	memset ((char *) sdtp, 0, sizeof (*sdtp));
 	sdtp->aflag = aflag;
 	sdtp->tag = xstrdup (dirtag);
 	sdtp->date = xstrdup (dirdate);
@@ -214,23 +232,23 @@ ParseEntries (aflag)
 	    if (line[0] == '/')
 	    {
 		user = line + 1;
-		if ((cp = index (user, '/')) == NULL)
+		if ((cp = strchr (user, '/')) == NULL)
 		    continue;
 		*cp++ = '\0';
 		vn = cp;
-		if ((cp = index (vn, '/')) == NULL)
+		if ((cp = strchr (vn, '/')) == NULL)
 		    continue;
 		*cp++ = '\0';
 		ts = cp;
-		if ((cp = index (ts, '/')) == NULL)
+		if ((cp = strchr (ts, '/')) == NULL)
 		    continue;
 		*cp++ = '\0';
 		options = cp;
-		if ((cp = index (options, '/')) == NULL)
+		if ((cp = strchr (options, '/')) == NULL)
 		    continue;
 		*cp++ = '\0';
 		tag_or_date = cp;
-		if ((cp = index (tag_or_date, '\n')) == NULL)
+		if ((cp = strchr (tag_or_date, '\n')) == NULL)
 		    continue;
 		*cp = '\0';
 		tag = (char *) NULL;
@@ -239,7 +257,40 @@ ParseEntries (aflag)
 		    tag = tag_or_date + 1;
 		else if (*tag_or_date == 'D')
 		    date = tag_or_date + 1;
-		(void) AddEntryNode (entries, user, vn, ts, options, tag, date);
+
+		if (ts_conflict = strchr (ts, '+'))
+		    *ts_conflict++ = '\0';
+
+		/*
+		 * XXX - Convert timestamp from old format to new format.
+		 *
+		 * If the timestamp doesn't match the file's current
+		 * mtime, we'd have to generate a string that doesn't
+		 * match anyways, so cheat and base it on the existing
+		 * string; it doesn't have to match the same mod time.
+		 *
+		 * For an unmodified file, write the correct timestamp.
+		 */
+		{
+		    struct stat sb;
+		    if (strlen (ts) > 30 && stat (user, &sb) == 0)
+		    {
+			extern char *ctime ();
+			char *c = ctime (&sb.st_mtime);
+
+			if (!strncmp (ts + 25, c, 24))
+			    ts = time_stamp (user);
+			else
+			{
+			    ts += 24;
+			    ts[0] = '*';
+			}
+			do_rewrite = 1;
+		    }
+		}
+
+		(void) AddEntryNode (entries, user, vn, ts, options, tag,
+				     date, ts_conflict);
 	    }
 	    else
 	    {
@@ -253,6 +304,9 @@ ParseEntries (aflag)
 	    }
 	}
     }
+
+    if (do_rewrite && !noexec)
+	write_entries (entries);
 
     /* clean up and return */
     if (fpin)
@@ -311,13 +365,13 @@ check_entries (dir)
 		continue;
 	    }
 	    rev = line;
-	    if ((ts = index (line, '|')) == NULL)
+	    if ((ts = strchr (line, '|')) == NULL)
 		continue;
 	    *ts++ = '\0';
-	    if ((user = rindex (ts, ' ')) == NULL)
+	    if ((user = strrchr (ts, ' ')) == NULL)
 		continue;
 	    *user++ = '\0';
-	    if ((cp = index (user, '|')) == NULL)
+	    if ((cp = strchr (user, '|')) == NULL)
 		continue;
 	    *cp = '\0';
 	    opt = "";
@@ -368,6 +422,8 @@ Entries_delproc (node)
 	free (p->tag);
     if (p->date)
 	free (p->date);
+    if (p->conflict)
+	free (p->conflict);
     free ((char *) p);
 }
 
@@ -376,7 +432,7 @@ Entries_delproc (node)
  * list
  */
 static Node *
-AddEntryNode (list, name, version, timestamp, options, tag, date)
+AddEntryNode (list, name, version, timestamp, options, tag, date, conflict)
     List *list;
     char *name;
     char *version;
@@ -384,6 +440,7 @@ AddEntryNode (list, name, version, timestamp, options, tag, date)
     char *options;
     char *tag;
     char *date;
+    char *conflict;
 {
     Node *p;
     Entnode *entdata;
@@ -404,6 +461,7 @@ AddEntryNode (list, name, version, timestamp, options, tag, date)
     entdata->options = xstrdup (options);
     if (entdata->options == NULL)
 	entdata->options = xstrdup ("");/* must be non-NULL */
+    entdata->conflict = xstrdup (conflict);
     entdata->tag = xstrdup (tag);
     entdata->date = xstrdup (date);
 
@@ -452,7 +510,8 @@ WriteTag (dir, tag, date)
 	    error (1, errno, "cannot close %s", tmp);
     }
     else
-	(void) unlink_file (tmp);
+	if (unlink_file (tmp) < 0 && errno != ENOENT)
+	    error (1, errno, "cannot remove %s", tmp);
 }
 
 /*
@@ -476,7 +535,7 @@ ParseTag (tagp, datep)
     {
 	if (fgets (line, sizeof (line), fp) != NULL)
 	{
-	    if ((cp = rindex (line, '\n')) != NULL)
+	    if ((cp = strrchr (line, '\n')) != NULL)
 		*cp = '\0';
 	    if (*line == 'T' && tagp)
 		*tagp = xstrdup (line + 1);

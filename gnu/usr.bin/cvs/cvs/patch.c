@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Patch
  * 
@@ -15,24 +15,17 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)patch.c 1.50 92/04/10";
-
+static char rcsid[] = "$CVSid: @(#)patch.c 1.57 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static SIGTYPE patch_cleanup (void);
-static Dtype patch_dirproc (char *dir, char *repos, char *update_dir);
-static int patch_fileproc (char *file, char *update_dir, char *repository,
-			   List * entries, List * srcfiles);
-static int patch_proc (int *pargc, char *argv[], char *xwhere,
+static RETSIGTYPE patch_cleanup PROTO((void));
+static Dtype patch_dirproc PROTO((char *dir, char *repos, char *update_dir));
+static int patch_fileproc PROTO((char *file, char *update_dir, char *repository,
+			   List * entries, List * srcfiles));
+static int patch_proc PROTO((int *pargc, char *argv[], char *xwhere,
 		       char *mwhere, char *mfile, int shorten,
-		       int local_specified, char *mname, char *msg);
-#else
-static int patch_proc ();
-static int patch_fileproc ();
-static Dtype patch_dirproc ();
-static SIGTYPE patch_cleanup ();
-#endif				/* __STDC__ */
+		       int local_specified, char *mname, char *msg));
 
 static int force_tag_match = 1;
 static int patch_short = 0;
@@ -77,7 +70,7 @@ patch (argc, argv)
 	usage (patch_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "V:k:cuftsQqlRD:r:")) != -1)
+    while ((c = getopt (argc, argv, "V:k:cuftsQqlRD:r:")) != -1)
     {
 	switch (c)
 	{
@@ -218,7 +211,7 @@ patch_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	char path[PATH_MAX];
 
 	/* if the portion of the module is a path, put the dir part on repos */
-	if ((cp = rindex (mfile, '/')) != NULL)
+	if ((cp = strrchr (mfile, '/')) != NULL)
 	{
 	    *cp = '\0';
 	    (void) strcat (repository, "/");
@@ -264,7 +257,7 @@ patch_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     /* start the recursion processor */
     err = start_recursion (patch_fileproc, (int (*) ()) NULL, patch_dirproc,
 			   (int (*) ()) NULL, *pargc - 1, argv + 1, local,
-			   which, 0, 1, where, 1);
+			   which, 0, 1, where, 1, 1);
 
     return (err);
 }
@@ -282,6 +275,7 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     List *entries;
     List *srcfiles;
 {
+    struct utimbuf t;
     char *vers_tag, *vers_head;
     char rcsspace[PATH_MAX];
     char *rcs = rcsspace;
@@ -295,7 +289,6 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
     char line1[MAXLINELEN], line2[MAXLINELEN];
     char *cp1, *cp2, *commap;
     FILE *fp;
-
 
     /* find the parsed rcs file */
     p = findnode (srcfiles, file);
@@ -374,6 +367,10 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    ret = 1;
 	    goto out;
 	}
+	memset ((char *) &t, 0, sizeof (t));
+	if ((t.actime = t.modtime = RCS_getrevtime (rcsfile, vers_tag,
+						    (char *) 0, 0)) != -1)
+		(void) utime (tmpfile1, &t);
     }
     else if (toptwo_diffs)
     {
@@ -392,6 +389,9 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    ret = 1;
 	    goto out;
 	}
+	if ((t.actime = t.modtime = RCS_getrevtime (rcsfile, vers_head,
+						    (char *) 0, 0)) != -1)
+		(void) utime (tmpfile2, &t);
     }
     run_setup ("%s -%c", DIFF, unidiff ? 'u' : 'c');
     run_arg (tmpfile1);
@@ -409,6 +409,15 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	     * lines of the diff output file, and munge them to include more
 	     * reasonable file names that "patch" will understand.
 	     */
+
+	    /* Output an "Index:" line for patch to use */
+	    (void) fflush (stdout);
+	    if (update_dir[0])
+	      (void) printf ("Index: %s/%s\n", update_dir, file);
+	    else
+	      (void) printf ("Index: %s\n", file);
+	    (void) fflush (stdout);
+
 	    fp = open_file (tmpfile3, "r");
 	    if (fgets (line1, sizeof (line1), fp) == NULL ||
 		fgets (line2, sizeof (line2), fp) == NULL)
@@ -423,8 +432,8 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    {
 		if (strncmp (line1, "*** ", 4) != 0 ||
 		    strncmp (line2, "--- ", 4) != 0 ||
-		    (cp1 = index (line1, '\t')) == NULL ||
-		    (cp2 = index (line2, '\t')) == NULL)
+		    (cp1 = strchr (line1, '\t')) == NULL ||
+		    (cp2 = strchr (line2, '\t')) == NULL)
 		{
 		    error (0, 0, "invalid diff header for %s", rcs);
 		    ret = 1;
@@ -436,8 +445,8 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 	    {
 		if (strncmp (line1, "--- ", 4) != 0 ||
 		    strncmp (line2, "+++ ", 4) != 0 ||
-		    (cp1 = index (line1, '\t')) == NULL ||
-		    (cp2 = index (line2, '\t')) == NULL)
+		    (cp1 = strchr (line1, '\t')) == NULL ||
+		    (cp2 = strchr  (line2, '\t')) == NULL)
 		{
 		    error (0, 0, "invalid unidiff header for %s", rcs);
 		    ret = 1;
@@ -451,7 +460,7 @@ patch_fileproc (file, update_dir, repository, entries, srcfiles)
 		(void) strcpy (strippath, REPOS_STRIP);
 	    if (strncmp (rcs, strippath, strlen (strippath)) == 0)
 		rcs += strlen (strippath);
-	    commap = rindex (rcs, ',');
+	    commap = strrchr (rcs, ',');
 	    *commap = '\0';
 	    if (vers_tag != NULL)
 	    {
@@ -511,7 +520,7 @@ patch_dirproc (dir, repos, update_dir)
 /*
  * Clean up temporary files
  */
-static SIGTYPE
+static RETSIGTYPE
 patch_cleanup ()
 {
     if (tmpfile1[0] != '\0')

@@ -12,14 +12,11 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)release.c 1.21 92/02/29";
+static char rcsid[] = "$CVSid: @(#)release.c 1.23 94/09/21 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static void release_delete (char *dir);
-#else
-static void release_delete ();
-#endif				/* __STDC__ */
+static void release_delete PROTO((char *dir));
 
 static char *release_usage[] =
 {
@@ -49,7 +46,7 @@ release (argc, argv)
     if (argc == -1)
 	usage (release_usage);
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "Qdq")) != -1)
+    while ((c = getopt (argc, argv, "Qdq")) != -1)
     {
 	switch (c)
 	{
@@ -116,7 +113,7 @@ release (argc, argv)
 	    continue;
 	}
 	val.dptr[val.dsize] = '\0';
-	if ((cp = index (val.dptr, '#')) != NULL) /* Strip out a comment */
+	if ((cp = strchr (val.dptr, '#')) != NULL) /* Strip out a comment */
 	{
 	    do
 	    {
@@ -128,7 +125,7 @@ release (argc, argv)
 	margv = modargv;
 
 	optind = 1;
-	while (gnu_getopt (margc, margv, CVSMODULE_OPTS) != -1)
+	while (getopt (margc, margv, CVSMODULE_OPTS) != -1)
 	     /* do nothing */ ;
 	margc -= optind;
 	margv += optind;
@@ -159,7 +156,7 @@ release (argc, argv)
 	    c = 0;
 	    while (fgets (line, sizeof (line), fp))
 	    {
-		if (index ("MARCZ", *line))
+		if (strchr ("MARCZ", *line))
 		    c++;
 		(void) printf (line);
 	    }
@@ -211,7 +208,11 @@ release_delete (dir)
 	       "Parent dir on a different disk, delete of %s aborted", dir);
 	return;
     }
-    run_setup ("%s -r", RM);
+    /*
+     * XXX - shouldn't this just delete the CVS-controlled files and, perhaps,
+     * the files that would normally be ignored and leave everything else?
+     */
+    run_setup ("%s -fr", RM);
     run_arg (dir);
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
 	error (0, retcode == -1 ? errno : 0, 
