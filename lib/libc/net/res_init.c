@@ -429,6 +429,9 @@ res_init()
 				    u++;
 				}
 			    }
+			    _res.sort_list[nsort].addr.s_addr =
+				(u_int32_t)0xffffffff;
+			    _res.sort_list[nsort].mask = (u_int32_t)0xffffffff;
 			    nsort++;
 			}
 			*cp = n;
