@@ -35,6 +35,7 @@ MAN=		libradius.3 radius.conf.5
 DPADD=		${LIBMD}
 LDADD=		-lmd
 .else
+DISTRIBUTION=	crypto
 DPADD=		${LIBSSL}
 LDADD=		-lssl
 CFLAGS+=	-DWITH_SSL
