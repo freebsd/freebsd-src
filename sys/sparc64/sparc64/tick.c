@@ -40,6 +40,8 @@
 #include <sys/proc.h>
 #endif
 
+#include <dev/ofw/openfirm.h>
+
 #include <machine/clock.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -51,6 +53,15 @@
 int tick_missed;	/* statistics */
 
 #define	TICK_GRACE	1000
+
+void
+cpu_initclocks(void)
+{
+	u_int clock;
+
+	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
+	tick_start(clock, tick_hardclock);
+}
 
 static __inline void
 tick_process(struct clockframe *cf)

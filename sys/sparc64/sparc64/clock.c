@@ -35,11 +35,6 @@ u_long tick_freq;
 u_long tick_MHz;
 
 void
-cpu_initclocks(void)
-{
-}
-
-void
 DELAY(int n)
 {
 	u_long start, end;
