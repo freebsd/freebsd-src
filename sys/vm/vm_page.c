@@ -1211,6 +1211,7 @@ vm_page_unmanage(vm_page_t m)
 	int s;
 
 	s = splvm();
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & PG_UNMANAGED) == 0) {
 		if (m->wire_count == 0)
 			vm_pageq_remove(m);
