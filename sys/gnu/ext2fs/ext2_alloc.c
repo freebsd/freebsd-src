@@ -96,13 +96,13 @@ ext2_discard_prealloc(ip)
 int
 ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	struct inode *ip;
-	daddr_t lbn, bpref;
+	int32_t lbn, bpref;
 	int size;
 	struct ucred *cred;
-	daddr_t *bnp;
+	int32_t *bnp;
 {
 	struct ext2_sb_info *fs;
-	daddr_t bno;
+	int32_t bno;
 	
 	*bnp = 0;
 	fs = ip->i_e2fs;
@@ -150,11 +150,11 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
                                  &ip->i_prealloc_count,
                                  &ip->i_prealloc_block);
                 else
-			bno = (daddr_t)ext2_new_block(ITOV(ip)->v_mount, 
+			bno = (int32_t)ext2_new_block(ITOV(ip)->v_mount, 
 					bpref, 0, 0);
         }
 #else
-	bno = (daddr_t)ext2_new_block(ITOV(ip)->v_mount, bpref, 0, 0);
+	bno = (int32_t)ext2_new_block(ITOV(ip)->v_mount, bpref, 0, 0);
 #endif
 
 	if (bno > 0) {
@@ -212,9 +212,9 @@ return ENOSPC;
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	daddr_t *bap, *sbap, *ebap;
+	int32_t *bap, *sbap, *ebap;
 	struct cluster_save *buflist;
-	daddr_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
+	int32_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
@@ -257,7 +257,7 @@ return ENOSPC;
 			brelse(sbp);
 			return (ENOSPC);
 		}
-		sbap = (daddr_t *)sbp->b_data;
+		sbap = (int32_t *)sbp->b_data;
 		soff = idp->in_off;
 	}
 	/*
@@ -277,12 +277,12 @@ return ENOSPC;
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->s_blocksize, NOCRED, &ebp))
 			goto fail;
-		ebap = (daddr_t *)ebp->b_data;
+		ebap = (int32_t *)ebp->b_data;
 	}
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
-	if ((newblk = (daddr_t)ext2_hashalloc(ip, dtog(fs, pref), (long)pref,
+	if ((newblk = (int32_t)ext2_hashalloc(ip, dtog(fs, pref), (long)pref,
 	    len, (u_long (*)())ext2_clusteralloc)) == 0)
 		goto fail;
 	/*
@@ -432,13 +432,13 @@ noinodes:
  * of the above. Then, blocknr tells us the number of the block
  * that will hold the pointer
  */
-daddr_t
+int32_t
 ext2_blkpref(ip, lbn, indx, bap, blocknr)
 	struct inode *ip;
-	daddr_t lbn;
+	int32_t lbn;
 	int indx;
-	daddr_t *bap;
-	daddr_t blocknr;
+	int32_t *bap;
+	int32_t blocknr;
 {
 	int	tmp;
 
@@ -460,7 +460,7 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 	   follow the rule that a block should be allocated near its inode
 	*/
 	return blocknr ? blocknr :
-			(daddr_t)(ip->i_block_group * 
+			(int32_t)(ip->i_block_group * 
 			EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) + 
 			ip->i_e2fs->s_es->s_first_data_block;
 }
@@ -473,7 +473,7 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 void
 ext2_blkfree(ip, bno, size)
 	struct inode *ip;
-	daddr_t bno;
+	int32_t bno;
 	long size;
 {
 	struct ext2_sb_info *fs;
