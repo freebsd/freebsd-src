@@ -285,6 +285,38 @@ propagate_priority(struct proc *p)
 }
 
 /*
+ * Function versions of the inlined __mtx_* macros.  These are used by
+ * modules and can also be called from assembly language if needed.
+ */
+void
+_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
+{
+
+	__mtx_lock_flags(m, opts, file, line);
+}
+
+void
+_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
+{
+
+	__mtx_unlock_flags(m, opts, file, line);
+}
+
+void
+_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
+{
+
+	__mtx_lock_spin_flags(m, opts, file, line);
+}
+
+void
+_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
+{
+
+	__mtx_unlock_spin_flags(m, opts, file, line);
+}
+
+/*
  * The important part of mtx_trylock{,_flags}()
  * Tries to acquire lock `m.' We do NOT handle recursion here; we assume that
  * if we're called, it's because we know we don't already own this lock.
@@ -461,7 +493,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
  * is handled inline.
  */
 void
-_mtx_lock_spin(struct mtx *m, int opts, u_int mtx_intr, const char *file,
+_mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 	       int line)
 {
 	int i = 0;
@@ -488,7 +520,7 @@ _mtx_lock_spin(struct mtx *m, int opts, u_int mtx_intr, const char *file,
 		}
 	}
 
-	m->mtx_saveintr = mtx_intr;
+	m->mtx_savecrit = mtx_crit;
 	if ((opts & MTX_QUIET) == 0)
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 

@@ -38,7 +38,7 @@
 
 #ifdef _KERNEL
 
-#define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= IA64_PSR_I
+#define	mtx_intr_enable(mutex)	(mutex)->mtx_savecrit |= IA64_PSR_I
 
 #endif	/* _KERNEL */
 

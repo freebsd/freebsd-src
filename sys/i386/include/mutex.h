@@ -40,7 +40,7 @@
 /* Global locks */
 extern struct mtx	clock_lock;
 
-#define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr |= PSL_I
+#define	mtx_intr_enable(mutex)	(mutex)->mtx_savecrit |= PSL_I
 
 /*
  * Assembly macros (for internal use only)
@@ -106,7 +106,7 @@ extern struct mtx	clock_lock;
 "# getlock_spin_block"							\
 	: "+a" (_res),				/* 0 */			\
 	  "+m" (mtxp->mtx_lock),		/* 1 */			\
-	  "=m" (mtxp->mtx_saveintr)		/* 2 */			\
+	  "=m" (mtxp->mtx_savecrit)		/* 2 */			\
 	: "r" (tid),				/* 3 (input) */		\
 	  "gi" (type),				/* 4 */			\
 	  "g" (mtxp)				/* 5 */			\
@@ -221,7 +221,7 @@ extern struct mtx	clock_lock;
 	: "+m" (mtxp->mtx_lock),	/* 0 */				\
 	  "+m" (mtxp->mtx_recurse),	/* 1 */ 			\
 	  "=r" (_res)			/* 2 */				\
-	: "g"  (mtxp->mtx_saveintr)	/* 3 */				\
+	: "g"  (mtxp->mtx_savecrit)	/* 3 */				\
 	: "cc", "memory", "ecx"		/* used */ );			\
 })
 
@@ -270,7 +270,7 @@ extern struct mtx	clock_lock;
 	incl %ebx ;							\
 	movl %ebx, lck+MTX_RECURSECNT ;					\
 	jmp 1f ;							\
-2:	movl %ecx, lck+MTX_SAVEINTR ;					\
+2:	movl %ecx, lck+MTX_SAVECRIT ;					\
 1:	popl %ebx ;							\
 	popl %ecx ;							\
 	popl %eax
@@ -278,7 +278,7 @@ extern struct mtx	clock_lock;
 #define MTX_UNLOCK_SPIN(lck)						\
 	pushl %edx ;							\
 	pushl %eax ;							\
-	movl lck+MTX_SAVEINTR, %edx ;					\
+	movl lck+MTX_SAVECRIT, %edx ;					\
 	movl lck+MTX_RECURSECNT, %eax ;					\
 	testl %eax, %eax ;						\
 	jne 2f ;							\
