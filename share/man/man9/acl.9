@@ -36,18 +36,109 @@
 .In sys/vnode.h
 .In sys/acl.h
 .Pp
-.Bd -literal
-typedef int     acl_type_t;
-typedef int     acl_tag_t;
-typedef mode_t  acl_perm_t;
-typedef mode_t  *acl_permset_t;
-
-struct acl_entry {
-        acl_tag_t       ae_tag;
-        uid_t           ae_id;
-        acl_perm_t      ae_perm;
+In the kernel configuration file:
+.Cd "options UFS_ACL"
+.Sh DESCRIPTION
+Access control lists, or ACLs,
+allow fine-grained specification of rights
+for vnodes representing files and directories.
+However, as there are a plethora of file systems with differing ACL semantics,
+the vnode interface is aware only of the syntax of ACLs,
+relying on the underlying file system to implement the details.
+Depending on the underlying file system, each file or directory
+may have zero or more ACLs associated with it, named using the
+.Fa type
+field of the appropriate vnode ACL calls:
+.Xr VOP_ACLCHECK 9 ,
+.Xr VOP_GETACL 9 ,
+and
+.Xr VOP_SETACL 9 .
+.Pp
+Currently, each ACL is represented in-kernel by a fixed-size
+.Vt acl
+structure, defined as follows:
+.Bd -literal -offset indent
+struct acl {
+        int                     acl_cnt;
+        struct acl_entry        acl_entry[ACL_MAX_ENTRIES];
 };
-typedef struct acl_entry        *acl_entry_t;
+.Ed
+.Pp
+An ACL is constructed from a fixed size array of ACL entries,
+each of which consists of a set of permissions, principal namespace,
+and principal identifier.
+.Pp
+Each individual ACL entry is of the type
+.Vt acl_entry_t ,
+which is a structure with the following members:
+.Bl -tag -width 18
+.It Vt acl_tag_t Va ae_tag
+The following is a list of definitions of ACL types
+to be set in
+.Va ae_tag :
+.Pp
+.Bl -tag -width ACL_UNDEFINED_FIELD -offset indent -compact
+.It Dv ACL_UNDEFINED_FIELD
+Undefined ACL type.
+.It Dv ACL_USER_OBJ
+Discretionary access rights for processes whose effective user ID
+matches the user ID of the file's owner.
+.It Dv ACL_USER
+Discretionary access rights for processes whose effective user ID
+matches the ACL entry qualifier.
+.It Dv ACL_GROUP_OBJ
+Discretionary access rights for processes whose effective group ID
+or any supplemental groups
+match the group ID of the file's owner.
+.It Dv ACL_GROUP
+Discretionary access rights for processes whose effective group ID
+or any supplemental groups
+match the ACL entry qualifier.
+.It Dv ACL_MASK
+The maximum discretionary access rights that can be granted
+to a process in the file group class.
+.It Dv ACL_OTHER
+Discretionary access rights for processes not covered by any other ACL
+entry.
+.It Dv ACL_OTHER_OBJ
+Same as
+.Dv ACL_OTHER .
+Each ACL entry must contain exactly one
+.Dv ACL_USER_OBJ ,
+one
+.Dv ACL_GROUP_OBJ ,
+and one
+.Dv ACL_OTHER .
+If any of
+.Dv ACL_USER ,
+.Dv ACL_GROUP ,
+or
+.Dv ACL_OTHER
+are present, then exactly one
+.Dv ACL_MASK
+entry should be present.
+.El
+.It Vt uid_t Va ae_id
+The ID of user for whom this ACL describes access permissions.
+.It Vt acl_perm_t Va ae_perm
+This field defines what kind of access the process matching this ACL has
+for accessing the associated file.
+.Bl -tag -width ACL_POSIX1E_BITS
+.It Dv ACL_EXECUTE
+The process may execute the associated file.
+.It Dv ACL_WRITE
+The process may write to the associated file.
+.It Dv ACL_READ
+The process may read from the associated file.
+.It Dv ACL_PERM_NONE
+The process has no read, write or execute permissions
+to the associated file.
+.El
+.El
+.Pp
+.Sh IMPLEMENTATION NOTES
+.Bd -literal
+typedef mode_t  *acl_permset_t;
 
 /* internal ACL structure */
 struct acl {
@@ -105,29 +196,9 @@ typedef struct acl_t_struct *acl_t;
  */
 #define ACL_UNDEFINED_ID        ((uid_t)-1)
 .Ed
-.Sh DESCRIPTION
-Access control lists, or ACLs, allow fine-grained specification of rights
-for vnodes representing files and directories.  However, as there are a
-plethora of file systems with differing ACL semantics, the vnode interface
-is aware only of the syntax of ACLs, relying on the underlying file system
-to implement the details.  Depending on the underlying file system, each
-file or directory may have zero or more ACLs associated with it, named using
-the
-.Fa type
-field of the appropriate vnode ACL calls,
-.Xr VOP_ACLCHECK 9 ,
-.Xr VOP_GETACL 9 ,
-and
-.Xr VOP_SETACL 9 .
-.Pp
-Currently, each ACL is represented in-kernel by a fixed-size acl structure.
-An ACL is constructed from a fixed size array of ACL entries, each of which
-consists of a set of permissions, principal namespace, and principal
-identifier.  Zero or more of these entries may be "defined", depending on
-the value of the associated acl_cnt field.
 .Sh SEE ALSO
 .Xr acl 3 ,
-.Xr vaccess 9 ,
+.Xr vnaccess 9 ,
 .Xr vaccess_acl_posix1e 9 ,
 .Xr VFS 9 ,
 .Xr VOP_ACLCHECK 9 ,
