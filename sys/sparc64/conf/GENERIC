@@ -190,10 +190,6 @@ device		bpf		#Berkeley packet filter
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
 
-
-# Tempary things until things are farther along.
-makeoptions	NO_MODULES=true
-
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 options 	KTR_ENTRIES=8192
