@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.51 1998/06/18 15:32:06 bde Exp $
+ *	$Id: isa_device.h,v 1.1.1.2 1998/07/26 17:59:48 son Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -170,6 +170,7 @@ inthand2_t	pasintr;
 inthand2_t	pcmintr;
 inthand2_t	pcrint;
 inthand2_t	ppcintr;
+inthand2_t	pcfintr;
 inthand2_t	psmintr;
 inthand2_t	rcintr;
 inthand2_t	sbintr;
