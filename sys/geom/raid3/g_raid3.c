@@ -783,6 +783,32 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 	g_topology_unlock();
 }
 
+/*      
+ * Return 1 if we should check if RAID3 device is idling.
+ */
+static int      
+g_raid3_check_idle(struct g_raid3_softc *sc)
+{   
+	struct g_raid3_disk *disk;
+	u_int i;
+
+	if (sc->sc_idle)
+		return (0);
+	if (sc->sc_provider != NULL && sc->sc_provider->acw == 0)
+		return (0);
+	/* 
+	 * Check if there are no in-flight requests.
+	 */	 
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		disk = &sc->sc_disks[i];
+		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
+			continue;
+		if (disk->d_consumer->index > 0)
+			return (0);
+	}	   
+	return (1); 
+}
+
 /*
  * Treat bio_driver1 field in parent bio as list head and field bio_caller1
  * in child bio as pointer to the next element on the list.
@@ -1754,18 +1780,7 @@ g_raid3_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-#define	G_RAID3_IS_IDLE(sc)	((sc)->sc_idle ||			\
-				 ((sc)->sc_provider != NULL &&		\
-				  (sc)->sc_provider->acw == 0))
-			if (G_RAID3_IS_IDLE(sc)) {
-				/*
-				 * If we're already in idle state, sleep without
-				 * a timeout.
-				 */
-				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "r3:w1", 0);
-				G_RAID3_DEBUG(5, "%s: I'm here 3.", __func__);
-			} else {
+			if (g_raid3_check_idle(sc)) {
 				u_int idletime;
 
 				idletime = g_raid3_idletime;
@@ -1773,8 +1788,8 @@ g_raid3_worker(void *arg)
 					idletime = 1;
 				idletime *= hz;
 				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "r3:w2", idletime) == EWOULDBLOCK) {
-					G_RAID3_DEBUG(5, "%s: I'm here 4.",
+				    "r3:w1", idletime) == EWOULDBLOCK) {
+					G_RAID3_DEBUG(5, "%s: I'm here 3.",
 					    __func__);
 					/*
 					 * No I/O requests in 'idletime'
@@ -1782,6 +1797,10 @@ g_raid3_worker(void *arg)
 					 */
 					g_raid3_idle(sc);
 				}
+				G_RAID3_DEBUG(5, "%s: I'm here 4.", __func__);
+			} else {
+				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "r3:w2", 0);
 				G_RAID3_DEBUG(5, "%s: I'm here 5.", __func__);
 			}
 			continue;
