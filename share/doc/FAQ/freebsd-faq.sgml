@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.42 1996/04/30 19:07:58 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.43 1996/05/12 13:07:50 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1945,15 +1945,15 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 
           If you don't need to make any changes to <tt/GENERIC/, you can
           also skip step 3, where you customize the kernel for your
-          configuration.  Step 7 should only be undertaken if step 6
-          succeeds.  This will copy the new kernel image to
+          configuration.  Step 8 should only be undertaken if steps 6 and 7
+          succeed.  This will copy the new kernel image to
           <tt>/kernel</tt> and <bf/BACK UP YOUR OLD ONE IN/
           <tt>/kernel.old</tt>!  It's very important to remember this in
           case the new kernel fails to work for some reason - you can still
           select <tt>/kernel.old</tt> at the boot prompt to boot the old
           one.  When you reboot, the new kernel will boot by default.
 
-          If the compile in 6 falls over for some reason, then it's
+          If the compile in step 7 falls over for some reason, then it's
           recommended that you start from step 4 but substitute
           <tt/GENERIC/ for <tt/MYKERNEL/.  If you can generate a
           <tt/GENERIC/ kernel, then it's likely something in your special
