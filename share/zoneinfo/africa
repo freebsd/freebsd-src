@@ -1,4 +1,4 @@
-# @(#)africa	7.12
+# @(#)africa	7.13
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -80,7 +80,6 @@
 
 # Algeria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Algeria	1911	only	-	Jan	 1	 0:00s	0	-
 Rule	Algeria	1916	only	-	Jun	14	23:00s	1:00	" DST"
 Rule	Algeria	1916	1919	-	Oct	Sun<=7	23:00s	0	-
 Rule	Algeria	1917	only	-	Mar	24	23:00s	1:00	" DST"
@@ -240,7 +239,6 @@ Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Egypt	1900	only	-	Oct	 1	0:00	0	-
 Rule	Egypt	1940	only	-	Jul	15	0:00	1:00	" DST"
 Rule	Egypt	1940	only	-	Oct	 1	0:00	0	-
 Rule	Egypt	1941	only	-	Apr	15	0:00	1:00	" DST"
@@ -315,7 +313,6 @@ Zone	Africa/Banjul	-1:06:36 -	LMT	1912
 # WATDT is my invention for ``West Africa one-Third Daylight Time''.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Ghana	1918	only	-	Jan	 1	0:00	0	WAT
 # Whitman says DST was observed from 1931 to ``the present''; go with Shanks.
 Rule	Ghana	1936	1942	-	Sep	 1	0:00	0:20	WATDT
 Rule	Ghana	1936	1942	-	Dec	31	0:00	0	WAT
@@ -400,7 +397,6 @@ Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Libya	1920	only	-	Jan	 1	0:00	0	-
 Rule	Libya	1951	only	-	Oct	14	2:00	1:00	" DST"
 Rule	Libya	1952	only	-	Jan	 1	0:00	0	-
 Rule	Libya	1953	only	-	Oct	 9	2:00	1:00	" DST"
@@ -482,7 +478,6 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 
 # Morocco
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Morocco	1913	only	-	Oct	26	 0:00	0	-
 Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	" DST"
 Rule	Morocco	1939	only	-	Nov	19	 0:00	0	-
 Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	" DST"
@@ -594,7 +589,6 @@ Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	SL	1913	only	-	Oct	26	0:00	0	-
 # Whitman gives Mar 31 - Aug 31 for 1931 on; go with Shanks.
 Rule	SL	1935	1942	-	Jun	 1	0:00	1:00	S
 Rule	SL	1935	1942	-	Oct	 1	0:00	0	-
@@ -622,7 +616,6 @@ Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
 
 # South Africa
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	SA	1892	only	-	Feb	8	0:00	0	-
 Rule	SA	1942	1943	-	Sep	Sun>=15	2:00	1:00	S
 Rule	SA	1943	1944	-	Mar	Sun>=15	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -641,7 +634,6 @@ Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 # I verified this today by telephone with the Sudan Mission to the
 # United Nations: 212-573-6033
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Sudan	1931	only	-	Feb	 8	0:00	0	-
 Rule	Sudan	1970	only	-	May	 1	0:00	1:00	" DST"
 Rule	Sudan	1970	1985	-	Oct	15	0:00	0	-
 Rule	Sudan	1971	only	-	Apr	30	0:00	1:00	" DST"
@@ -680,7 +672,6 @@ Zone	Africa/Lome	0:04:52 -	LMT	1893
 
 # Tunisia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Tunisia	1911	only	-	Mar	 9	 0:00	0	-
 Rule	Tunisia	1939	only	-	Apr	15	23:00s	1:00	" DST"
 Rule	Tunisia	1939	only	-	Nov	18	23:00s	0	-
 Rule	Tunisia	1940	only	-	Feb	25	23:00s	1:00	" DST"
