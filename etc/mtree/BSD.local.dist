@@ -236,6 +236,10 @@
         ..
         examples
         ..
+        java
+            classes
+            ..
+        ..
         misc
         ..
         nls
@@ -390,7 +394,11 @@
             zh_TW.Big5
             ..
         ..
+        sgml
+        ..
         skel
+        ..
+        xml
         ..
     ..
 ..
