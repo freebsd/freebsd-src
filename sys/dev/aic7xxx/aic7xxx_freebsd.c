@@ -1,7 +1,7 @@
 /*
  * Bus independent FreeBSD shim for the aic7xxx based adaptec SCSI controllers
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs.
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,7 +133,7 @@ ahc_attach(struct ahc_softc *ahc)
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
-	devq = cam_simq_alloc(AHC_SCB_MAX - 1);
+	devq = cam_simq_alloc(AHC_MAX_QUEUE);
 	if (devq == NULL)
 		goto fail;
 
@@ -142,7 +142,7 @@ ahc_attach(struct ahc_softc *ahc)
 	 */
 	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc,
 			    device_get_unit(ahc->dev_softc),
-			    1, AHC_SCB_MAX - 1, devq);
+			    1, AHC_MAX_QUEUE, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto fail;
@@ -174,7 +174,7 @@ ahc_attach(struct ahc_softc *ahc)
 	if (ahc->features & AHC_TWIN) {
 		sim2 = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
 				    ahc, device_get_unit(ahc->dev_softc), 1,
-				    AHC_SCB_MAX - 1, devq);
+				    AHC_MAX_QUEUE, devq);
 
 		if (sim2 == NULL) {
 			printf("ahc_attach: Unable to attach second "
@@ -306,11 +306,17 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		 */
 		LIST_FOREACH(list_scb, &ahc->pending_scbs, pending_links) {
 			union ccb *ccb;
+			uint64_t time;
 
 			ccb = list_scb->io_ctx;
+			if (ccb->ccb_h.timeout == CAM_TIME_INFINITY)
+				continue;
+
+			time = ccb->ccb_h.timeout;
+			time *= hz;
+			time /= 1000;
 			ccb->ccb_h.timeout_ch = 
-			    timeout(ahc_timeout, list_scb,
-				    (ccb->ccb_h.timeout * hz)/1000);
+			    timeout(ahc_timeout, list_scb, time);
 		}
 
 		if (ahc_get_transaction_status(scb) == CAM_BDR_SENT
@@ -1194,11 +1200,16 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
+		uint64_t time;
+
 		if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
 			ccb->ccb_h.timeout = 5 * 1000;
+
+		time = ccb->ccb_h.timeout;
+		time *= hz;
+		time /= 1000;
 		ccb->ccb_h.timeout_ch =
-		    timeout(ahc_timeout, (caddr_t)scb,
-			    (ccb->ccb_h.timeout * hz) / 1000);
+		    timeout(ahc_timeout, (caddr_t)scb, time);
 	}
 
 	/*
@@ -1208,7 +1219,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	 * table in SCB space.
 	 */
 	if ((scb->hscb->control & (TARGET_SCB|TAG_ENB)) == 0
-	 && (ahc->features & AHC_SCB_BTT) == 0) {
+	 && (ahc->flags & AHC_SCB_BTT) == 0) {
 		struct scb_tailq *untagged_q;
 
 		untagged_q = &(ahc->untagged_queues[ccb->ccb_h.target_id]);
@@ -1501,8 +1512,8 @@ bus_reset:
 			 */ 
 			active_scb = ahc_lookup_scb(ahc, active_scb_index);
 			if (active_scb != scb) {
-				struct	ccb_hdr *ccbh;
-				u_int	newtimeout;
+				struct	 ccb_hdr *ccbh;
+				uint64_t newtimeout;
 
 				ahc_print_path(ahc, scb);
 				printf("Other SCB Timeout%s",
@@ -1512,10 +1523,11 @@ bus_reset:
 				newtimeout =
 				    MAX(active_scb->io_ctx->ccb_h.timeout,
 					scb->io_ctx->ccb_h.timeout);
+				newtimeout *= hz;
+				newtimeout /= 1000;
 				ccbh = &scb->io_ctx->ccb_h;
 				scb->io_ctx->ccb_h.timeout_ch =
-				    timeout(ahc_timeout, scb,
-					    (newtimeout * hz) / 1000);
+				    timeout(ahc_timeout, scb, newtimeout);
 				ahc_unlock(ahc, &s);
 				return;
 			} 

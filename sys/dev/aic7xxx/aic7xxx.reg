@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994-2000 Justin Gibbs.
+ * Copyright (c) 1994-2001 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#9 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#10 $
  *
  * $FreeBSD$
  */
@@ -818,15 +818,10 @@ register INTSTAT {
 						 * not match the entry we
 						 * intended to download.
 						 */
-	mask	ABORT_QINSCB	0xd0|SEQINT	/*
-						 * An SCB was aborted
-						 * during download.
-						 * Informational.
-						 */
-	mask	NO_FREE_SCB	0xe0|SEQINT	/*
+	mask	NO_FREE_SCB	0xd0|SEQINT	/*
 						 * get_free_or_disc_scb failed.
 						 */
-	mask	OUT_OF_RANGE	0xf0|SEQINT
+	mask	OUT_OF_RANGE	0xe0|SEQINT
 
 	mask	SEQINT_MASK	0xf0|SEQINT	/* SEQINT Status Codes */
 	mask	INT_PEND  (BRKADRINT|SEQINT|SCSIINT|CMDCMPLT)
@@ -1234,12 +1229,9 @@ scratch_ram {
 	/*
 	 * 1 byte per target starting at this address for configuration values
 	 */
-	CMDSIZE_TABLE {
-		alias		TARG_SCSIRATE
-		size		8
-	}
 	BUSY_TARGETS {
-		size		8
+		alias		TARG_SCSIRATE
+		size		16
 	}
 	/*
 	 * Bit vector of targets that have ULTRA enabled as set by
@@ -1249,6 +1241,7 @@ scratch_ram {
 	 * entries in the busy target table.
 	 */
 	ULTRA_ENB {
+		alias		CMDSIZE_TABLE
 		size		2
 	}
 	/*
@@ -1260,7 +1253,7 @@ scratch_ram {
 	DISC_DSB {
 		size		2
 	}
-	BUSY_TARGETS_TAIL {
+	CMDSIZE_TABLE_TAIL {
 		size		4
 	}
 	/*

@@ -1,7 +1,7 @@
 /*
  * FreeBSD, PCI product support functions
  *
- * Copyright (c) 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs
+ * Copyright (c) 1995-2001 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +97,8 @@ ahc_pci_attach(device_t dev)
 	ahc = ahc_alloc(dev, name);
 	if (ahc == NULL)
 		return (ENOMEM);
+
+	ahc_set_unit(ahc, device_get_unit(dev));
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
