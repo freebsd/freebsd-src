@@ -45,6 +45,7 @@ int	release_timer1(void);
 #endif
 int	sysbeep(int pitch, int period);
 void	timer_restore(void);
+void	init_TSC(void);
 
 #endif /* _KERNEL */
 
