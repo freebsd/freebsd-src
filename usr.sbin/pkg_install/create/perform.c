@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.18 1995/04/22 00:59:33 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 01:20:13 jkh Exp $";
 #endif
 
 /*
@@ -174,6 +174,15 @@ pkg_perform(char **pkgs)
     return TRUE;	/* Success */
 }
 
+/*
+ * This is evil.  It is the command executed inline on tar's command line
+ * to presort file arguments in such a way as to put the all-important
+ * +* files at the front.  I'm sure there's a way of doing this that's
+ * a hundred times more efficient, but I'm in a hurry right now and I don't
+ * have the time to think more about it.. -jkh
+ */
+#define SORTED_NAMES	"`find . | sed -e 's/^\\.\\///' -e '/^\\.$/D' | sort`"
+
 static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
@@ -194,9 +203,10 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
     strcat(args, "cf");
     if (ExcludeFrom)
-	ret = vsystem("tar %sX %s %s .", args, tball, ExcludeFrom);
+	ret = vsystem("tar %sX %s %s %s", args, tball, ExcludeFrom,
+		      SORTED_NAMES);
     else
-	ret = vsystem("tar %s %s .", args, tball);
+	ret = vsystem("tar %s %s %s", args, tball, SORTED_NAMES);
     if (ret)
 	barf("tar command failed with code %d", ret);
 }
