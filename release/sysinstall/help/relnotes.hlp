@@ -193,6 +193,9 @@ weird options, you might now consider using the -n option to config(8),
 or setting the env variable NO_CONFIG_CLOBBER, if CPU time is costly for
 you.  See also the comments in the handbook about how it works.
 
+The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
+believed to be fixed.
+
 
 2. Supported Configurations
 ---------------------------
