@@ -1,6 +1,6 @@
-/* Definitions of target machine for GNU compiler for Intel X86
-   (386, 486, Pentium).
-   Copyright (C) 1988, 92, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+/* Definitions of target machine for GNU compiler for IA-32.
+   Copyright (C) 1988, 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA. */
+Boston, MA 02111-1307, USA.  */
 
 /* The purpose of this file is to define the characteristics of the i386,
    independent of assembler syntax or operating system.
@@ -30,15 +30,13 @@ Boston, MA 02111-1307, USA. */
 
    Many macros that specify assembler syntax are omitted entirely from
    this file because they really belong in the files for particular
-   assemblers.  These include AS1, AS2, AS3, RP, IP, LPREFIX, L_SIZE,
-   PUT_OP_SIZE, USE_STAR, ADDR_BEG, ADDR_END, PRINT_IREG, PRINT_SCALE,
-   PRINT_B_I_S, and many that start with ASM_ or end in ASM_OP.  */
+   assemblers.  These include RP, IP, LPREFIX, PUT_OP_SIZE, USE_STAR,
+   ADDR_BEG, ADDR_END, PRINT_IREG, PRINT_SCALE, PRINT_B_I_S, and many
+   that start with ASM_ or end in ASM_OP.  */
+
 
 /* $FreeBSD$ */
 
-/* Names to predefine in the preprocessor for this target machine.  */
-
-#define I386 1
 
 /* Stubs for half-pic support if not OSF/1 reference platform.  */
 
@@ -48,25 +46,56 @@ Boston, MA 02111-1307, USA. */
 #define HALF_PIC_NUMBER_REFS 0
 #define HALF_PIC_ENCODE(DECL)
 #define HALF_PIC_DECLARE(NAME)
-#define HALF_PIC_INIT()	error ("half-pic init called on systems that don't support it.")
+#define HALF_PIC_INIT()	error ("half-pic init called on systems that don't support it")
 #define HALF_PIC_ADDRESS_P(X) 0
-#define HALF_PIC_PTR(X) X
+#define HALF_PIC_PTR(X) (X)
 #define HALF_PIC_FINISH(STREAM)
 #endif
 
 /* Define the specific costs for a given cpu */
 
 struct processor_costs {
-  int add;			/* cost of an add instruction */
-  int lea;			/* cost of a lea instruction */
-  int shift_var;		/* variable shift costs */
-  int shift_const;		/* constant shift costs */
-  int mult_init;		/* cost of starting a multiply */
-  int mult_bit;			/* cost of multiply per each bit set */
-  int divide;			/* cost of a divide/mod */
+  const int add;		/* cost of an add instruction */
+  const int lea;		/* cost of a lea instruction */
+  const int shift_var;		/* variable shift costs */
+  const int shift_const;	/* constant shift costs */
+  const int mult_init;		/* cost of starting a multiply */
+  const int mult_bit;		/* cost of multiply per each bit set */
+  const int divide;		/* cost of a divide/mod */
+  int movsx;			/* The cost of movsx operation.  */
+  int movzx;			/* The cost of movzx operation.  */
+  const int large_insn;		/* insns larger than this cost more */
+  const int move_ratio;		/* The threshold of number of scalar
+				   memory-to-memory move insns.  */
+  const int movzbl_load;	/* cost of loading using movzbl */
+  const int int_load[3];	/* cost of loading integer registers
+				   in QImode, HImode and SImode relative
+				   to reg-reg move (2).  */
+  const int int_store[3];	/* cost of storing integer register
+				   in QImode, HImode and SImode */
+  const int fp_move;		/* cost of reg,reg fld/fst */
+  const int fp_load[3];		/* cost of loading FP register
+				   in SFmode, DFmode and XFmode */
+  const int fp_store[3];	/* cost of storing FP register
+				   in SFmode, DFmode and XFmode */
+  const int mmx_move;		/* cost of moving MMX register.  */
+  const int mmx_load[2];	/* cost of loading MMX register
+				   in SImode and DImode */
+  const int mmx_store[2];	/* cost of storing MMX register
+				   in SImode and DImode */
+  const int sse_move;		/* cost of moving SSE register.  */
+  const int sse_load[3];	/* cost of loading SSE register
+				   in SImode, DImode and TImode*/
+  const int sse_store[3];	/* cost of storing SSE register
+				   in SImode, DImode and TImode*/
+  const int mmxsse_to_integer;	/* cost of moving mmxsse register to
+				   integer and vice versa.  */
+  const int prefetch_block;	/* bytes moved to cache for prefetch.  */
+  const int simultaneous_prefetches; /* number of parallel prefetch
+				   operations.  */
 };
 
-extern struct processor_costs *ix86_cost;
+extern const struct processor_costs *ix86_cost;
 
 /* Run-time compilation parameters selecting different hardware subsets.  */
 
@@ -75,29 +104,40 @@ extern int target_flags;
 /* Macros used in the machine description to test the flags.  */
 
 /* configure can arrange to make this 2, to force a 486.  */
+
 #ifndef TARGET_CPU_DEFAULT
 #define TARGET_CPU_DEFAULT 0
 #endif
 
 /* Masks for the -m switches */
-#define MASK_80387		000000000001	/* Hardware floating point */
-#define MASK_NOTUSED1		000000000002	/* bit not currently used */
-#define MASK_NOTUSED2		000000000004	/* bit not currently used */
-#define MASK_RTD		000000000010	/* Use ret that pops args */
-#define MASK_ALIGN_DOUBLE	000000000020	/* align doubles to 2 word boundary */
-#define MASK_SVR3_SHLIB		000000000040	/* Uninit locals into bss */
-#define MASK_IEEE_FP		000000000100	/* IEEE fp comparisons */
-#define MASK_FLOAT_RETURNS	000000000200	/* Return float in st(0) */
-#define MASK_NO_FANCY_MATH_387	000000000400	/* Disable sin, cos, sqrt */
-#define MASK_OMIT_LEAF_FRAME_POINTER 0x00000800 /* omit leaf frame pointers */
-						/* Temporary codegen switches */
-#define MASK_DEBUG_ADDR		000001000000	/* Debug GO_IF_LEGITIMATE_ADDRESS */
-#define MASK_NO_WIDE_MULTIPLY	000002000000	/* Disable 32x32->64 multiplies */
-#define MASK_NO_MOVE		000004000000	/* Don't generate mem->mem */
-#define MASK_NO_PSEUDO		000010000000	/* Move op's args -> pseudos */
-#define MASK_DEBUG_ARG		000020000000	/* Debug function_arg */   
-#define MASK_SCHEDULE_PROLOGUE  000040000000    /* Emit prologue as rtl */
-#define MASK_STACK_PROBE	000100000000	/* Enable stack probing */
+#define MASK_80387		0x00000001	/* Hardware floating point */
+#define MASK_RTD		0x00000002	/* Use ret that pops args */
+#define MASK_ALIGN_DOUBLE	0x00000004	/* align doubles to 2 word boundary */
+#define MASK_SVR3_SHLIB		0x00000008	/* Uninit locals into bss */
+#define MASK_IEEE_FP		0x00000010	/* IEEE fp comparisons */
+#define MASK_FLOAT_RETURNS	0x00000020	/* Return float in st(0) */
+#define MASK_NO_FANCY_MATH_387	0x00000040	/* Disable sin, cos, sqrt */
+#define MASK_OMIT_LEAF_FRAME_POINTER 0x080      /* omit leaf frame pointers */
+#define MASK_STACK_PROBE	0x00000100	/* Enable stack probing */
+#define MASK_NO_ALIGN_STROPS	0x00000200	/* Enable aligning of string ops.  */
+#define MASK_INLINE_ALL_STROPS	0x00000400	/* Inline stringops in all cases */
+#define MASK_NO_PUSH_ARGS	0x00000800	/* Use push instructions */
+#define MASK_ACCUMULATE_OUTGOING_ARGS 0x00001000/* Accumulate outgoing args */
+#define MASK_ACCUMULATE_OUTGOING_ARGS_SET 0x00002000
+#define MASK_MMX		0x00004000	/* Support MMX regs/builtins */
+#define MASK_MMX_SET		0x00008000
+#define MASK_SSE		0x00010000	/* Support SSE regs/builtins */
+#define MASK_SSE_SET		0x00020000
+#define MASK_SSE2		0x00040000	/* Support SSE2 regs/builtins */
+#define MASK_SSE2_SET		0x00080000
+#define MASK_3DNOW		0x00100000	/* Support 3Dnow builtins */
+#define MASK_3DNOW_SET		0x00200000
+#define MASK_3DNOW_A		0x00400000	/* Support Athlon 3Dnow builtins */
+#define MASK_3DNOW_A_SET	0x00800000
+#define MASK_128BIT_LONG_DOUBLE 0x01000000	/* long double size is 128bit */
+#define MASK_64BIT		0x02000000	/* Produce 64bit code */
+/* ... overlap with subtarget options starts by 0x04000000.  */
+#define MASK_NO_RED_ZONE	0x04000000	/* Do not use red zone */
 
 /* Use the floating point instructions */
 #define TARGET_80387 (target_flags & MASK_80387)
@@ -112,6 +152,13 @@ extern int target_flags;
    faster code on the pentium.  */
 #define TARGET_ALIGN_DOUBLE (target_flags & MASK_ALIGN_DOUBLE)
 
+/* Use push instructions to save outgoing args.  */
+#define TARGET_PUSH_ARGS (!(target_flags & MASK_NO_PUSH_ARGS))
+
+/* Accumulate stack adjustments to prologue/epilogue.  */
+#define TARGET_ACCUMULATE_OUTGOING_ARGS \
+ (target_flags & MASK_ACCUMULATE_OUTGOING_ARGS)
+
 /* Put uninitialized locals into bss, not data.
    Meaningful only on svr3.  */
 #define TARGET_SVR3_SHLIB (target_flags & MASK_SVR3_SHLIB)
@@ -123,132 +170,247 @@ extern int target_flags;
 
 /* Functions that return a floating point value may return that value
    in the 387 FPU or in 386 integer registers.  If set, this flag causes
-   the 387 to be used, which is compatible with most calling conventions. */
+   the 387 to be used, which is compatible with most calling conventions.  */
 #define TARGET_FLOAT_RETURNS_IN_80387 (target_flags & MASK_FLOAT_RETURNS)
+
+/* Long double is 128bit instead of 96bit, even when only 80bits are used.
+   This mode wastes cache, but avoid misaligned data accesses and simplifies
+   address calculations.  */
+#define TARGET_128BIT_LONG_DOUBLE (target_flags & MASK_128BIT_LONG_DOUBLE)
 
 /* Disable generation of FP sin, cos and sqrt operations for 387.
    This is because FreeBSD lacks these in the math-emulator-code */
 #define TARGET_NO_FANCY_MATH_387 (target_flags & MASK_NO_FANCY_MATH_387)
 
 /* Don't create frame pointers for leaf functions */
-#define TARGET_OMIT_LEAF_FRAME_POINTER (target_flags & MASK_OMIT_LEAF_FRAME_POINTER)
-
-/* Temporary switches for tuning code generation */
-
-/* Disable 32x32->64 bit multiplies that are used for long long multiplies
-   and division by constants, but sometimes cause reload problems.  */
-#define TARGET_NO_WIDE_MULTIPLY (target_flags & MASK_NO_WIDE_MULTIPLY)
-#define TARGET_WIDE_MULTIPLY (!TARGET_NO_WIDE_MULTIPLY)
-
-/* Emit/Don't emit prologue as rtl */
-#define TARGET_SCHEDULE_PROLOGUE (target_flags & MASK_SCHEDULE_PROLOGUE)
+#define TARGET_OMIT_LEAF_FRAME_POINTER \
+  (target_flags & MASK_OMIT_LEAF_FRAME_POINTER)
 
 /* Debug GO_IF_LEGITIMATE_ADDRESS */
-#define TARGET_DEBUG_ADDR (target_flags & MASK_DEBUG_ADDR)
+#define TARGET_DEBUG_ADDR (ix86_debug_addr_string != 0)
 
 /* Debug FUNCTION_ARG macros */
-#define TARGET_DEBUG_ARG (target_flags & MASK_DEBUG_ARG)
+#define TARGET_DEBUG_ARG (ix86_debug_arg_string != 0)
 
-/* Hack macros for tuning code generation */
-#define TARGET_MOVE	((target_flags & MASK_NO_MOVE) == 0)	/* Don't generate memory->memory */
-#define TARGET_PSEUDO	((target_flags & MASK_NO_PSEUDO) == 0)	/* Move op's args into pseudos */
+/* 64bit Sledgehammer mode */
+#ifdef TARGET_BI_ARCH
+#define TARGET_64BIT (target_flags & MASK_64BIT)
+#else
+#ifdef TARGET_64BIT_DEFAULT
+#define TARGET_64BIT 1
+#else
+#define TARGET_64BIT 0
+#endif
+#endif
 
 #define TARGET_386 (ix86_cpu == PROCESSOR_I386)
 #define TARGET_486 (ix86_cpu == PROCESSOR_I486)
 #define TARGET_PENTIUM (ix86_cpu == PROCESSOR_PENTIUM)
 #define TARGET_PENTIUMPRO (ix86_cpu == PROCESSOR_PENTIUMPRO)
 #define TARGET_K6 (ix86_cpu == PROCESSOR_K6)
+#define TARGET_ATHLON (ix86_cpu == PROCESSOR_ATHLON)
+#define TARGET_PENTIUM4 (ix86_cpu == PROCESSOR_PENTIUM4)
 
 #define CPUMASK (1 << ix86_cpu)
 extern const int x86_use_leave, x86_push_memory, x86_zero_extend_with_and;
 extern const int x86_use_bit_test, x86_cmove, x86_deep_branch;
-extern const int x86_unroll_strlen, x86_use_q_reg, x86_use_any_reg;
-extern const int x86_double_with_add;
+extern const int x86_branch_hints, x86_unroll_strlen;
+extern const int x86_double_with_add, x86_partial_reg_stall, x86_movx;
+extern const int x86_use_loop, x86_use_fiop, x86_use_mov0;
+extern const int x86_use_cltd, x86_read_modify_write;
+extern const int x86_read_modify, x86_split_long_moves;
+extern const int x86_promote_QImode, x86_single_stringop;
+extern const int x86_himode_math, x86_qimode_math, x86_promote_qi_regs;
+extern const int x86_promote_hi_regs, x86_integer_DFmode_moves;
+extern const int x86_add_esp_4, x86_add_esp_8, x86_sub_esp_4, x86_sub_esp_8;
+extern const int x86_partial_reg_dependency, x86_memory_mismatch_stall;
+extern const int x86_accumulate_outgoing_args, x86_prologue_using_move;
+extern const int x86_epilogue_using_move, x86_decompose_lea;
+extern int x86_prefetch_sse;
 
 #define TARGET_USE_LEAVE (x86_use_leave & CPUMASK)
 #define TARGET_PUSH_MEMORY (x86_push_memory & CPUMASK)
 #define TARGET_ZERO_EXTEND_WITH_AND (x86_zero_extend_with_and & CPUMASK)
 #define TARGET_USE_BIT_TEST (x86_use_bit_test & CPUMASK)
 #define TARGET_UNROLL_STRLEN (x86_unroll_strlen & CPUMASK)
-#define TARGET_USE_Q_REG (x86_use_q_reg & CPUMASK)
-#define TARGET_USE_ANY_REG (x86_use_any_reg & CPUMASK)
-#define TARGET_CMOVE (x86_cmove & (1 << ix86_arch))
+/* For sane SSE instruction set generation we need fcomi instruction.  It is
+   safe to enable all CMOVE instructions.  */
+#define TARGET_CMOVE ((x86_cmove & (1 << ix86_arch)) || TARGET_SSE)
 #define TARGET_DEEP_BRANCH_PREDICTION (x86_deep_branch & CPUMASK)
+#define TARGET_BRANCH_PREDICTION_HINTS (x86_branch_hints & CPUMASK)
 #define TARGET_DOUBLE_WITH_ADD (x86_double_with_add & CPUMASK)
+#define TARGET_USE_SAHF ((x86_use_sahf & CPUMASK) && !TARGET_64BIT)
+#define TARGET_MOVX (x86_movx & CPUMASK)
+#define TARGET_PARTIAL_REG_STALL (x86_partial_reg_stall & CPUMASK)
+#define TARGET_USE_LOOP (x86_use_loop & CPUMASK)
+#define TARGET_USE_FIOP (x86_use_fiop & CPUMASK)
+#define TARGET_USE_MOV0 (x86_use_mov0 & CPUMASK)
+#define TARGET_USE_CLTD (x86_use_cltd & CPUMASK)
+#define TARGET_SPLIT_LONG_MOVES (x86_split_long_moves & CPUMASK)
+#define TARGET_READ_MODIFY_WRITE (x86_read_modify_write & CPUMASK)
+#define TARGET_READ_MODIFY (x86_read_modify & CPUMASK)
+#define TARGET_PROMOTE_QImode (x86_promote_QImode & CPUMASK)
+#define TARGET_SINGLE_STRINGOP (x86_single_stringop & CPUMASK)
+#define TARGET_QIMODE_MATH (x86_qimode_math & CPUMASK)
+#define TARGET_HIMODE_MATH (x86_himode_math & CPUMASK)
+#define TARGET_PROMOTE_QI_REGS (x86_promote_qi_regs & CPUMASK)
+#define TARGET_PROMOTE_HI_REGS (x86_promote_hi_regs & CPUMASK)
+#define TARGET_ADD_ESP_4 (x86_add_esp_4 & CPUMASK)
+#define TARGET_ADD_ESP_8 (x86_add_esp_8 & CPUMASK)
+#define TARGET_SUB_ESP_4 (x86_sub_esp_4 & CPUMASK)
+#define TARGET_SUB_ESP_8 (x86_sub_esp_8 & CPUMASK)
+#define TARGET_INTEGER_DFMODE_MOVES (x86_integer_DFmode_moves & CPUMASK)
+#define TARGET_PARTIAL_REG_DEPENDENCY (x86_partial_reg_dependency & CPUMASK)
+#define TARGET_MEMORY_MISMATCH_STALL (x86_memory_mismatch_stall & CPUMASK)
+#define TARGET_PROLOGUE_USING_MOVE (x86_prologue_using_move & CPUMASK)
+#define TARGET_EPILOGUE_USING_MOVE (x86_epilogue_using_move & CPUMASK)
+#define TARGET_DECOMPOSE_LEA (x86_decompose_lea & CPUMASK)
+#define TARGET_PREFETCH_SSE (x86_prefetch_sse)
 
 #define TARGET_STACK_PROBE (target_flags & MASK_STACK_PROBE)
 
-#define TARGET_SWITCHES							\
-{ { "80387",			 MASK_80387, "Use hardware fp" },	\
-  { "no-80387",			-MASK_80387, "Do not use hardware fp" },\
-  { "hard-float",		 MASK_80387, "Use hardware fp" },	\
-  { "soft-float",		-MASK_80387, "Do not use hardware fp" },\
-  { "no-soft-float",		 MASK_80387, "Use hardware fp" },	\
-  { "386",			 0, "Same as -mcpu=i386" },		\
-  { "486",			 0, "Same as -mcpu=i486" },		\
-  { "pentium",			 0, "Same as -mcpu=pentium" },		\
-  { "pentiumpro",		 0, "Same as -mcpu=pentiumpro" },	\
-  { "rtd",			 MASK_RTD, "Alternate calling convention" },\
-  { "no-rtd",			-MASK_RTD, "Use normal calling convention" },\
-  { "align-double",		 MASK_ALIGN_DOUBLE, "Align some doubles on dword boundary" },\
-  { "no-align-double",		-MASK_ALIGN_DOUBLE, "Align doubles on word boundary" },		\
-  { "svr3-shlib",		 MASK_SVR3_SHLIB, "Uninitialized locals in .bss"  },			\
-  { "no-svr3-shlib",		-MASK_SVR3_SHLIB, "Uninitialized locals in .data" },			\
-  { "ieee-fp",			 MASK_IEEE_FP, "Use IEEE math for fp comparisons" },	\
-  { "no-ieee-fp",		-MASK_IEEE_FP, "Do not use IEEE math for fp comparisons" },			\
-  { "fp-ret-in-387",		 MASK_FLOAT_RETURNS, "Return values of functions in FPU registers" },			\
-  { "no-fp-ret-in-387",		-MASK_FLOAT_RETURNS , "Do not return values of functions in FPU registers"},			\
-  { "no-fancy-math-387",	 MASK_NO_FANCY_MATH_387, "Do not generate sin, cos, sqrt for 387" },		\
-  { "fancy-math-387",		-MASK_NO_FANCY_MATH_387, "Generate sin, cos, sqrt for FPU"},		\
-  { "omit-leaf-frame-pointer",	 MASK_OMIT_LEAF_FRAME_POINTER, "Omit the frame pointer in leaf functions" }, 	\
-  { "no-omit-leaf-frame-pointer",-MASK_OMIT_LEAF_FRAME_POINTER, "" },       \
-  { "no-wide-multiply",		 MASK_NO_WIDE_MULTIPLY, "multiplies of 32 bits constrained to 32 bits" },		\
-  { "wide-multiply",		-MASK_NO_WIDE_MULTIPLY, "multiplies of 32 bits are 64 bits" },		\
-  { "schedule-prologue",	 MASK_SCHEDULE_PROLOGUE, "Schedule function prologues" },		\
-  { "no-schedule-prologue",	-MASK_SCHEDULE_PROLOGUE, "" },		\
-  { "debug-addr",		 MASK_DEBUG_ADDR, 0 /* intentionally undoc */ },			\
-  { "no-debug-addr",		-MASK_DEBUG_ADDR, 0 /* intentionally undoc */ },			\
-  { "move",			-MASK_NO_MOVE, "Generate mem-mem moves" },			\
-  { "no-move",			 MASK_NO_MOVE, "Don't generate mem-mem moves" },			\
-  { "debug-arg",		 MASK_DEBUG_ARG, 0 /* intentionally undoc */ },			\
-  { "no-debug-arg",		-MASK_DEBUG_ARG, 0 /* intentionally undoc */ },			\
-  { "stack-arg-probe",		 MASK_STACK_PROBE, "Enable stack probing" },			\
-  { "no-stack-arg-probe",	-MASK_STACK_PROBE, "" },			\
-  { "windows",			0, 0 /* intentionally undoc */ },					\
-  { "dll",			0, 0 /* intentionally undoc */ },					\
-  SUBTARGET_SWITCHES							\
-  { "", MASK_SCHEDULE_PROLOGUE | TARGET_DEFAULT, 0 }}
+#define TARGET_ALIGN_STRINGOPS (!(target_flags & MASK_NO_ALIGN_STROPS))
+#define TARGET_INLINE_ALL_STRINGOPS (target_flags & MASK_INLINE_ALL_STROPS)
+
+#define ASSEMBLER_DIALECT (ix86_asm_dialect)
+
+#define TARGET_SSE ((target_flags & (MASK_SSE | MASK_SSE2)) != 0)
+#define TARGET_SSE2 ((target_flags & MASK_SSE2) != 0)
+#define TARGET_SSE_MATH ((ix86_fpmath & FPMATH_SSE) != 0)
+#define TARGET_MIX_SSE_I387 ((ix86_fpmath & FPMATH_SSE) \
+			     && (ix86_fpmath & FPMATH_387))
+#define TARGET_MMX ((target_flags & MASK_MMX) != 0)
+#define TARGET_3DNOW ((target_flags & MASK_3DNOW) != 0)
+#define TARGET_3DNOW_A ((target_flags & MASK_3DNOW_A) != 0)
+
+#define TARGET_RED_ZONE (!(target_flags & MASK_NO_RED_ZONE))
+
+#define TARGET_SWITCHES							      \
+{ { "80387",			 MASK_80387, N_("Use hardware fp") },	      \
+  { "no-80387",			-MASK_80387, N_("Do not use hardware fp") },  \
+  { "hard-float",		 MASK_80387, N_("Use hardware fp") },	      \
+  { "soft-float",		-MASK_80387, N_("Do not use hardware fp") },  \
+  { "no-soft-float",		 MASK_80387, N_("Use hardware fp") },	      \
+  { "386",			 0, N_("") /*Deprecated.*/},		      \
+  { "486",			 0, N_("") /*Deprecated.*/},		      \
+  { "pentium",			 0, N_("") /*Deprecated.*/},		      \
+  { "pentiumpro",		 0, N_("") /*Deprecated.*/},		      \
+  { "intel-syntax",		 0, N_("") /*Deprecated.*/},	 	      \
+  { "no-intel-syntax",		 0, N_("") /*Deprecated.*/},	 	      \
+  { "rtd",			 MASK_RTD,				      \
+    N_("Alternate calling convention") },				      \
+  { "no-rtd",			-MASK_RTD,				      \
+    N_("Use normal calling convention") },				      \
+  { "align-double",		 MASK_ALIGN_DOUBLE,			      \
+    N_("Align some doubles on dword boundary") },			      \
+  { "no-align-double",		-MASK_ALIGN_DOUBLE,			      \
+    N_("Align doubles on word boundary") },				      \
+  { "svr3-shlib",		 MASK_SVR3_SHLIB,			      \
+    N_("Uninitialized locals in .bss")  },				      \
+  { "no-svr3-shlib",		-MASK_SVR3_SHLIB,			      \
+    N_("Uninitialized locals in .data") },				      \
+  { "ieee-fp",			 MASK_IEEE_FP,				      \
+    N_("Use IEEE math for fp comparisons") },				      \
+  { "no-ieee-fp",		-MASK_IEEE_FP,				      \
+    N_("Do not use IEEE math for fp comparisons") },			      \
+  { "fp-ret-in-387",		 MASK_FLOAT_RETURNS,			      \
+    N_("Return values of functions in FPU registers") },		      \
+  { "no-fp-ret-in-387",		-MASK_FLOAT_RETURNS ,			      \
+    N_("Do not return values of functions in FPU registers")},		      \
+  { "no-fancy-math-387",	 MASK_NO_FANCY_MATH_387,		      \
+    N_("Do not generate sin, cos, sqrt for FPU") },			      \
+  { "fancy-math-387",		-MASK_NO_FANCY_MATH_387,		      \
+     N_("Generate sin, cos, sqrt for FPU")},				      \
+  { "omit-leaf-frame-pointer",	 MASK_OMIT_LEAF_FRAME_POINTER,		      \
+    N_("Omit the frame pointer in leaf functions") },			      \
+  { "no-omit-leaf-frame-pointer",-MASK_OMIT_LEAF_FRAME_POINTER, "" },	      \
+  { "stack-arg-probe",		 MASK_STACK_PROBE,			      \
+    N_("Enable stack probing") },					      \
+  { "no-stack-arg-probe",	-MASK_STACK_PROBE, "" },		      \
+  { "windows",			0, 0 /* undocumented */ },		      \
+  { "dll",			0,  0 /* undocumented */ },		      \
+  { "align-stringops",		-MASK_NO_ALIGN_STROPS,			      \
+    N_("Align destination of the string operations") },			      \
+  { "no-align-stringops",	 MASK_NO_ALIGN_STROPS,			      \
+    N_("Do not align destination of the string operations") },		      \
+  { "inline-all-stringops",	 MASK_INLINE_ALL_STROPS,		      \
+    N_("Inline all known string operations") },				      \
+  { "no-inline-all-stringops",	-MASK_INLINE_ALL_STROPS,		      \
+    N_("Do not inline all known string operations") },			      \
+  { "push-args",		-MASK_NO_PUSH_ARGS,			      \
+    N_("Use push instructions to save outgoing arguments") },		      \
+  { "no-push-args",		MASK_NO_PUSH_ARGS,			      \
+    N_("Do not use push instructions to save outgoing arguments") },	      \
+  { "accumulate-outgoing-args",	(MASK_ACCUMULATE_OUTGOING_ARGS		      \
+				 | MASK_ACCUMULATE_OUTGOING_ARGS_SET),	      \
+    N_("Use push instructions to save outgoing arguments") },		      \
+  { "no-accumulate-outgoing-args",MASK_ACCUMULATE_OUTGOING_ARGS_SET,	      \
+    N_("Do not use push instructions to save outgoing arguments") },	      \
+  { "mmx",			 MASK_MMX | MASK_MMX_SET,		      \
+    N_("Support MMX built-in functions") },				      \
+  { "no-mmx",			 -MASK_MMX,				      \
+    N_("Do not support MMX built-in functions") },			      \
+  { "no-mmx",			 MASK_MMX_SET, N_("") },		      \
+  { "3dnow",                     MASK_3DNOW | MASK_3DNOW_SET,		      \
+    N_("Support 3DNow! built-in functions") },				      \
+  { "no-3dnow",                  -MASK_3DNOW, N_("") },			      \
+  { "no-3dnow",                  MASK_3DNOW_SET,			      \
+    N_("Do not support 3DNow! built-in functions") },			      \
+  { "sse",			 MASK_SSE | MASK_SSE_SET,		      \
+    N_("Support MMX and SSE built-in functions and code generation") },	      \
+  { "no-sse",			 -MASK_SSE, N_("") },	 		      \
+  { "no-sse",			 MASK_SSE_SET,				      \
+    N_("Do not support MMX and SSE built-in functions and code generation") },\
+  { "sse2",			 MASK_SSE2 | MASK_SSE2_SET,		      \
+    N_("Support MMX, SSE and SSE2 built-in functions and code generation") }, \
+  { "no-sse2",			 -MASK_SSE2, N_("") },			      \
+  { "no-sse2",			 MASK_SSE2_SET,				      \
+    N_("Do not support MMX, SSE and SSE2 built-in functions and code generation") },    \
+  { "128bit-long-double",	 MASK_128BIT_LONG_DOUBLE,		      \
+    N_("sizeof(long double) is 16") },					      \
+  { "96bit-long-double",	-MASK_128BIT_LONG_DOUBLE,		      \
+    N_("sizeof(long double) is 12") },					      \
+  { "64",			MASK_64BIT,				      \
+    N_("Generate 64bit x86-64 code") },					      \
+  { "32",			-MASK_64BIT,				      \
+    N_("Generate 32bit i386 code") },					      \
+  { "red-zone",			-MASK_NO_RED_ZONE,			      \
+    N_("Use red-zone in the x86-64 code") },				      \
+  { "no-red-zone",		MASK_NO_RED_ZONE,			      \
+    N_("Do not use red-zone in the x86-64 code") },			      \
+  SUBTARGET_SWITCHES							      \
+  { "", TARGET_DEFAULT, 0 }}
+
+#ifdef TARGET_64BIT_DEFAULT
+#define TARGET_DEFAULT (MASK_64BIT | TARGET_SUBTARGET_DEFAULT)
+#else
+#define TARGET_DEFAULT TARGET_SUBTARGET_DEFAULT
+#endif
 
 /* Which processor to schedule for. The cpu attribute defines a list that
    mirrors this list, so changes to i386.md must be made at the same time.  */
 
 enum processor_type
- {PROCESSOR_I386,			/* 80386 */
+{
+  PROCESSOR_I386,			/* 80386 */
   PROCESSOR_I486,			/* 80486DX, 80486SX, 80486DX[24] */
   PROCESSOR_PENTIUM,
   PROCESSOR_PENTIUMPRO,
-  PROCESSOR_K6};
-
-#define PROCESSOR_I386_STRING "i386"
-#define PROCESSOR_I486_STRING "i486"
-#define PROCESSOR_I586_STRING "i586"
-#define PROCESSOR_PENTIUM_STRING "pentium"
-#define PROCESSOR_I686_STRING "i686"
-#define PROCESSOR_PENTIUMPRO_STRING "pentiumpro"
-#define PROCESSOR_K6_STRING "k6"
+  PROCESSOR_K6,
+  PROCESSOR_ATHLON,
+  PROCESSOR_PENTIUM4,
+  PROCESSOR_max
+};
+enum fpmath_unit
+{
+  FPMATH_387 = 1,
+  FPMATH_SSE = 2
+};
 
 extern enum processor_type ix86_cpu;
+extern enum fpmath_unit ix86_fpmath;
 
 extern int ix86_arch;
-
-/* Define the default processor.  This is overridden by other tm.h files.  */
-#define PROCESSOR_DEFAULT (enum processor_type) TARGET_CPU_DEFAULT
-#define PROCESSOR_DEFAULT_STRING \
-  (PROCESSOR_DEFAULT == PROCESSOR_I486 ? PROCESSOR_I486_STRING  \
-  : PROCESSOR_DEFAULT == PROCESSOR_PENTIUM ? PROCESSOR_PENTIUM_STRING  \
-  : PROCESSOR_DEFAULT == PROCESSOR_PENTIUMPRO ? PROCESSOR_PENTIUMPRO_STRING  \
-  : PROCESSOR_DEFAULT == PROCESSOR_K6 ? PROCESSOR_K6_STRING  \
-  : PROCESSOR_I386_STRING)
 
 /* This macro is similar to `TARGET_SWITCHES' but defines names of
    command options that have values.  Its definition is an
@@ -259,17 +421,35 @@ extern int ix86_arch;
    variable, type `char *', is set to the variable part of the given
    option if the fixed part matches.  The actual option name is made
    by appending `-m' to the specified name.  */
-#define TARGET_OPTIONS							\
-{ { "cpu=",		&ix86_cpu_string, "Schedule code for given CPU"}, \
-  { "arch=",		&ix86_arch_string, "Generate code for given CPU"}, \
-  { "reg-alloc=",	&i386_reg_alloc_order, "Control allocation order of integer registers" }, \
-  { "regparm=",		&i386_regparm_string, "Number of registers used to pass integer arguments" }, \
-  { "align-loops=",	&i386_align_loops_string, "Loop code aligned to this power of 2" }, \
-  { "align-jumps=",	&i386_align_jumps_string, "Jump targets are aligned to this power of 2" }, \
-  { "align-functions=",	&i386_align_funcs_string, "Function starts are aligned to this power of 2" }, \
-  { "preferred-stack-boundary=", &i386_preferred_stack_boundary_string, "Attempt to keep stack aligned to this power of 2" }, \
-  { "branch-cost=",	&i386_branch_cost_string, "Branches are this expensive (1-5, arbitrary units)" },			\
-  SUBTARGET_OPTIONS							\
+#define TARGET_OPTIONS						\
+{ { "cpu=",		&ix86_cpu_string,			\
+    N_("Schedule code for given CPU")},				\
+  { "fpmath=",		&ix86_fpmath_string,			\
+    N_("Generate floating point mathematics using given instruction set")},\
+  { "arch=",		&ix86_arch_string,			\
+    N_("Generate code for given CPU")},				\
+  { "regparm=",		&ix86_regparm_string,			\
+    N_("Number of registers used to pass integer arguments") },	\
+  { "align-loops=",	&ix86_align_loops_string,		\
+    N_("Loop code aligned to this power of 2") },		\
+  { "align-jumps=",	&ix86_align_jumps_string,		\
+    N_("Jump targets are aligned to this power of 2") },	\
+  { "align-functions=",	&ix86_align_funcs_string,		\
+    N_("Function starts are aligned to this power of 2") },	\
+  { "preferred-stack-boundary=",				\
+    &ix86_preferred_stack_boundary_string,			\
+    N_("Attempt to keep stack aligned to this power of 2") },	\
+  { "branch-cost=",	&ix86_branch_cost_string,		\
+    N_("Branches are this expensive (1-5, arbitrary units)") },	\
+  { "cmodel=", &ix86_cmodel_string,				\
+    N_("Use given x86-64 code model") },			\
+  { "debug-arg", &ix86_debug_arg_string,			\
+    N_("" /* Undocumented. */) },				\
+  { "debug-addr", &ix86_debug_addr_string,			\
+    N_("" /* Undocumented. */) },				\
+  { "asm=", &ix86_asm_string,					\
+    N_("Use given assembler dialect") },			\
+  SUBTARGET_OPTIONS						\
 }
 
 /* Sometimes certain combinations of command options do not make
@@ -288,58 +468,176 @@ extern int ix86_arch;
 #define SUBTARGET_OPTIONS
 
 /* Define this to change the optimizations performed by default.  */
-#define OPTIMIZATION_OPTIONS(LEVEL,SIZE) optimization_options(LEVEL,SIZE)
+#define OPTIMIZATION_OPTIONS(LEVEL, SIZE) \
+  optimization_options ((LEVEL), (SIZE))
 
 /* Specs for the compiler proper */
 
 #ifndef CC1_CPU_SPEC
 #define CC1_CPU_SPEC "\
 %{!mcpu*: \
-%{m386:-mcpu=i386 -march=i386} \
-%{m486:-mcpu=i486 -march=i486} \
-%{mpentium:-mcpu=pentium} \
-%{mpentiumpro:-mcpu=pentiumpro}}"
+%{m386:-mcpu=i386 \
+%n`-m386' is deprecated. Use `-march=i386' or `-mcpu=i386' instead.\n} \
+%{m486:-mcpu=i486 \
+%n`-m486' is deprecated. Use `-march=i486' or `-mcpu=i486' instead.\n} \
+%{mpentium:-mcpu=pentium \
+%n`-mpentium' is deprecated. Use `-march=pentium' or `-mcpu=pentium' instead.\n} \
+%{mpentiumpro:-mcpu=pentiumpro \
+%n`-mpentiumpro' is deprecated. Use `-march=pentiumpro' or `-mcpu=pentiumpro' instead.\n}} \
+%{mintel-syntax:-masm=intel \
+%n`-mintel-syntax' is deprecated. Use `-masm=intel' instead.\n} \
+%{mno-intel-syntax:-masm=att \
+%n`-mno-intel-syntax' is deprecated. Use `-masm=att' instead.\n}"
 #endif
 
-#define CPP_486_SPEC "%{!ansi:-Di486} -D__i486 -D__i486__"
-#define CPP_586_SPEC "%{!ansi:-Di586 -Dpentium} \
-	-D__i586 -D__i586__ -D__pentium -D__pentium__"
-#define CPP_K6_SPEC "%{!ansi:-Di586 -Dk6} \
-	-D__i586 -D__i586__ -D__k6 -D__k6__" 
-#define CPP_686_SPEC "%{!ansi:-Di686 -Dpentiumpro} \
-	-D__i686 -D__i686__ -D__pentiumpro -D__pentiumpro__"
+#define TARGET_CPU_DEFAULT_i386 0
+#define TARGET_CPU_DEFAULT_i486 1
+#define TARGET_CPU_DEFAULT_pentium 2
+#define TARGET_CPU_DEFAULT_pentium_mmx 3
+#define TARGET_CPU_DEFAULT_pentiumpro 4
+#define TARGET_CPU_DEFAULT_pentium2 5
+#define TARGET_CPU_DEFAULT_pentium3 6
+#define TARGET_CPU_DEFAULT_pentium4 7
+#define TARGET_CPU_DEFAULT_k6 8
+#define TARGET_CPU_DEFAULT_k6_2 9
+#define TARGET_CPU_DEFAULT_k6_3 10
+#define TARGET_CPU_DEFAULT_athlon 11
+#define TARGET_CPU_DEFAULT_athlon_sse 12
 
+#define TARGET_CPU_DEFAULT_NAMES {"i386", "i486", "pentium", "pentium-mmx",\
+				  "pentiumpro", "pentium2", "pentium3", \
+				  "pentium4", "k6", "k6-2", "k6-3",\
+				  "athlon", "athlon-4"}
 #ifndef CPP_CPU_DEFAULT_SPEC
-#if TARGET_CPU_DEFAULT == 1
-#define CPP_CPU_DEFAULT_SPEC "%(cpp_486)"
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_i486
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i486__"
 #endif
-#if TARGET_CPU_DEFAULT == 2
-#define CPP_CPU_DEFAULT_SPEC "%(cpp_586)"
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentium
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i586__ -D__tune_pentium__"
 #endif
-#if TARGET_CPU_DEFAULT == 3
-#define CPP_CPU_DEFAULT_SPEC "%(cpp_686)"
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentium_mmx
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i586__ -D__tune_pentium__ -D__tune_pentium_mmx__"
 #endif
-#if TARGET_CPU_DEFAULT == 4
-#define CPP_CPU_DEFAULT_SPEC "%(cpp_k6)"
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentiumpro
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i686__ -D__tune_pentiumpro__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentium2
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i686__ -D__tune_pentiumpro__\
+-D__tune_pentium2__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentium3
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i686__ -D__tune_pentiumpro__\
+-D__tune_pentium2__ -D__tune_pentium3__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_pentium4
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_pentium4__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_k6
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_k6__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_k6_2
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_k6__ -D__tune_k6_2__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_k6_3
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_k6__ -D__tune_k6_3__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_athlon
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_athlon__"
+#endif
+#if TARGET_CPU_DEFAULT == TARGET_CPU_DEFAULT_athlon_sse
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_athlon__ -D__tune_athlon_sse__"
 #endif
 #ifndef CPP_CPU_DEFAULT_SPEC
-#define CPP_CPU_DEFAULT_SPEC ""
+#define CPP_CPU_DEFAULT_SPEC "-D__tune_i386__"
 #endif
 #endif /* CPP_CPU_DEFAULT_SPEC */
 
+#ifdef TARGET_BI_ARCH
+#define NO_BUILTIN_SIZE_TYPE
+#define NO_BUILTIN_PTRDIFF_TYPE
+#endif
+
+#ifdef NO_BUILTIN_SIZE_TYPE
+#define CPP_CPU32_SIZE_TYPE_SPEC \
+  " -D__SIZE_TYPE__=unsigned\\ int -D__PTRDIFF_TYPE__=int"
+#define CPP_CPU64_SIZE_TYPE_SPEC \
+  " -D__SIZE_TYPE__=unsigned\\ long\\ int -D__PTRDIFF_TYPE__=long\\ int"
+#else
+#define CPP_CPU32_SIZE_TYPE_SPEC ""
+#define CPP_CPU64_SIZE_TYPE_SPEC ""
+#endif
+
+#define CPP_CPU32_SPEC \
+  "-Acpu=i386 -Amachine=i386 %{!ansi:%{!std=c*:%{!std=i*:-Di386}}} -D__i386 \
+-D__i386__ %(cpp_cpu32sizet)"
+
+#define CPP_CPU64_SPEC \
+  "-Acpu=x86_64 -Amachine=x86_64 -D__x86_64 -D__x86_64__ %(cpp_cpu64sizet)"
+
+#define CPP_CPUCOMMON_SPEC "\
+%{march=i386:%{!mcpu*:-D__tune_i386__ }}\
+%{march=i486:-D__i486 -D__i486__ %{!mcpu*:-D__tune_i486__ }}\
+%{march=pentium|march=i586:-D__i586 -D__i586__ -D__pentium -D__pentium__ \
+  %{!mcpu*:-D__tune_i586__ -D__tune_pentium__ }}\
+%{march=pentium-mmx:-D__i586 -D__i586__ -D__pentium -D__pentium__ \
+  -D__pentium__mmx__ \
+  %{!mcpu*:-D__tune_i586__ -D__tune_pentium__ -D__tune_pentium_mmx__}}\
+%{march=pentiumpro|march=i686:-D__i686 -D__i686__ \
+  -D__pentiumpro -D__pentiumpro__ \
+  %{!mcpu*:-D__tune_i686__ -D__tune_pentiumpro__ }}\
+%{march=k6:-D__k6 -D__k6__ %{!mcpu*:-D__tune_k6__ }}\
+%{march=k6-2:-D__k6 -D__k6__ -D__k6_2__ \
+  %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }}\
+%{march=k6-3:-D__k6 -D__k6__ -D__k6_3__ \
+  %{!mcpu*:-D__tune_k6__ -D__tune_k6_3__ }}\
+%{march=athlon|march=athlon-tbird:-D__athlon -D__athlon__ \
+  %{!mcpu*:-D__tune_athlon__ }}\
+%{march=athlon-4|march=athlon-xp|march=athlon-mp:-D__athlon -D__athlon__ \
+  -D__athlon_sse__ \
+  %{!mcpu*:-D__tune_athlon__ -D__tune_athlon_sse__ }}\
+%{march=pentium4:-D__pentium4 -D__pentium4__ %{!mcpu*:-D__tune_pentium4__ }}\
+%{m386|mcpu=i386:-D__tune_i386__ }\
+%{m486|mcpu=i486:-D__tune_i486__ }\
+%{mpentium|mcpu=pentium|mcpu=i586|mcpu=pentium-mmx:-D__tune_i586__ -D__tune_pentium__ }\
+%{mpentiumpro|mcpu=pentiumpro|mcpu=i686|cpu=pentium2|cpu=pentium3:-D__tune_i686__ \
+-D__tune_pentiumpro__ }\
+%{mcpu=k6|mcpu=k6-2|mcpu=k6-3:-D__tune_k6__ }\
+%{mcpu=athlon|mcpu=athlon-tbird|mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
+-D__tune_athlon__ }\
+%{mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
+-D__tune_athlon_sse__ }\
+%{mcpu=pentium4:-D__tune_pentium4__ }\
+%{march=athlon-tbird|march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4:\
+-D__SSE__ }\
+%{march=pentium-mmx|march=k6|march=k6-2|march=k6-3\
+march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
+|march=athlon-mp|march=pentium2|march=pentium3|march=pentium4: -D__MMX__ }\
+%{march=k6-2|march=k6-3\
+march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
+|march=athlon-mp: -D__3dNOW__ }\
+%{march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
+|march=athlon-mp: -D__3dNOW_A__ }\
+%{march=pentium4: -D__SSE2__ }\
+%{!march*:%{!mcpu*:%{!m386:%{!m486:%{!mpentium*:%(cpp_cpu_default)}}}}}"
+
 #ifndef CPP_CPU_SPEC
-#define CPP_CPU_SPEC "\
--Acpu(i386) -Amachine(i386) \
-%{!ansi:-Di386} -D__i386 -D__i386__ \
-%{mcpu=i486:%(cpp_486)} %{m486:%(cpp_486)} \
-%{mpentium:%(cpp_586)} %{mcpu=pentium:%(cpp_586)} \
-%{mpentiumpro:%(cpp_686)} %{mcpu=pentiumpro:%(cpp_686)} \
-%{mcpu=k6:%(cpp_k6)} \
-%{!mcpu*:%{!m486:%{!mpentium*:%(cpp_cpu_default)}}}"
+#ifdef TARGET_BI_ARCH
+#ifdef TARGET_64BIT_DEFAULT
+#define CPP_CPU_SPEC "%{m32:%(cpp_cpu32)}%{!m32:%(cpp_cpu64)} %(cpp_cpucommon)"
+#else
+#define CPP_CPU_SPEC "%{m64:%(cpp_cpu64)}%{!m64:%(cpp_cpu32)} %(cpp_cpucommon)"
+#endif
+#else
+#ifdef TARGET_64BIT_DEFAULT
+#define CPP_CPU_SPEC "%(cpp_cpu64) %(cpp_cpucommon)"
+#else
+#define CPP_CPU_SPEC "%(cpp_cpu32) %(cpp_cpucommon)"
+#endif
+#endif
 #endif
 
 #ifndef CC1_SPEC
-#define CC1_SPEC "%(cc1_spec) "
+#define CC1_SPEC "%(cc1_cpu) "
 #endif
 
 /* This macro defines names of additional specifications to put in the
@@ -357,24 +655,55 @@ extern int ix86_arch;
 #endif
 
 #define EXTRA_SPECS							\
-  { "cpp_486", CPP_486_SPEC},						\
-  { "cpp_586", CPP_586_SPEC},						\
-  { "cpp_k6", CPP_K6_SPEC},						\
-  { "cpp_686", CPP_686_SPEC},						\
   { "cpp_cpu_default",	CPP_CPU_DEFAULT_SPEC },				\
   { "cpp_cpu",	CPP_CPU_SPEC },						\
+  { "cpp_cpu32", CPP_CPU32_SPEC },					\
+  { "cpp_cpu64", CPP_CPU64_SPEC },					\
+  { "cpp_cpu32sizet", CPP_CPU32_SIZE_TYPE_SPEC },			\
+  { "cpp_cpu64sizet", CPP_CPU64_SIZE_TYPE_SPEC },			\
+  { "cpp_cpucommon", CPP_CPUCOMMON_SPEC },				\
   { "cc1_cpu",  CC1_CPU_SPEC },						\
   SUBTARGET_EXTRA_SPECS
 
 /* target machine storage layout */
 
-/* Define for XFmode extended real floating point support.
-   This will automatically cause REAL_ARITHMETIC to be defined.  */
-#define LONG_DOUBLE_TYPE_SIZE 96
+/* Define for XFmode or TFmode extended real floating point support.
+   This will automatically cause REAL_ARITHMETIC to be defined.
+ 
+   The XFmode is specified by i386 ABI, while TFmode may be faster
+   due to alignment and simplifications in the address calculations.
+ */
+#define LONG_DOUBLE_TYPE_SIZE (TARGET_128BIT_LONG_DOUBLE ? 128 : 96)
+#define MAX_LONG_DOUBLE_TYPE_SIZE 128
+#ifdef __x86_64__
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 128
+#else
+#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 96
+#endif
+/* Tell real.c that this is the 80-bit Intel extended float format
+   packaged in a 128-bit or 96bit entity.  */
+#define INTEL_EXTENDED_IEEE_FORMAT 1
+
+
+#define SHORT_TYPE_SIZE 16
+#define INT_TYPE_SIZE 32
+#define FLOAT_TYPE_SIZE 32
+#define LONG_TYPE_SIZE BITS_PER_WORD
+#define MAX_WCHAR_TYPE_SIZE 32
+#define DOUBLE_TYPE_SIZE 64
+#define LONG_LONG_TYPE_SIZE 64
+
+#if defined (TARGET_BI_ARCH) || defined (TARGET_64BIT_DEFAULT)
+#define MAX_BITS_PER_WORD 64
+#define MAX_LONG_TYPE_SIZE 64
+#else
+#define MAX_BITS_PER_WORD 32
+#define MAX_LONG_TYPE_SIZE 32
+#endif
 
 /* Define if you don't want extended real, but do want to use the
    software floating point emulator for REAL_ARITHMETIC and
-   decimal <-> binary conversion. */
+   decimal <-> binary conversion.  */
 /* #define REAL_ARITHMETIC */
 
 /* Define this if most significant byte of a word is the lowest numbered.  */
@@ -398,46 +727,68 @@ extern int ix86_arch;
    Note that this is not necessarily the width of data type `int';
    if using 16-bit ints on a 80386, this would still be 32.
    But on a machine with 16-bit registers, this would be 16.  */
-#define BITS_PER_WORD 32
+#define BITS_PER_WORD (TARGET_64BIT ? 64 : 32)
 
 /* Width of a word, in units (bytes).  */
-#define UNITS_PER_WORD 4
+#define UNITS_PER_WORD (TARGET_64BIT ? 8 : 4)
+#define MIN_UNITS_PER_WORD 4
 
 /* Width in bits of a pointer.
    See also the macro `Pmode' defined below.  */
-#define POINTER_SIZE 32
+#define POINTER_SIZE BITS_PER_WORD
 
 /* Allocation boundary (in *bits*) for storing arguments in argument list.  */
-#define PARM_BOUNDARY 32
+#define PARM_BOUNDARY BITS_PER_WORD
 
-/* Boundary (in *bits*) on which the stack pointer must be aligned.  */
-#define STACK_BOUNDARY 32
+/* Boundary (in *bits*) on which stack pointer should be aligned.  */
+#define STACK_BOUNDARY BITS_PER_WORD
 
 /* Boundary (in *bits*) on which the stack pointer preferrs to be
    aligned; the compiler cannot rely on having this alignment.  */
-#define PREFERRED_STACK_BOUNDARY i386_preferred_stack_boundary
+#define PREFERRED_STACK_BOUNDARY ix86_preferred_stack_boundary
 
-/* Allocation boundary (in *bits*) for the code of a function.
-   For i486, we get better performance by aligning to a cache
-   line (i.e. 16 byte) boundary.  */
-#define FUNCTION_BOUNDARY (1 << (i386_align_funcs + 3))
+/* As of July 2001, many runtimes to not align the stack properly when
+   entering main.  This causes expand_main_function to forcably align
+   the stack, which results in aligned frames for functions called from
+   main, though it does nothing for the alignment of main itself.  */
+#define FORCE_PREFERRED_STACK_BOUNDARY_IN_MAIN \
+  (ix86_preferred_stack_boundary > STACK_BOUNDARY && !TARGET_64BIT)
 
-/* Alignment of field after `int : 0' in a structure. */
+/* Allocation boundary for the code of a function.  */
+#define FUNCTION_BOUNDARY 16
 
-#define EMPTY_FIELD_BOUNDARY 32
+/* Alignment of field after `int : 0' in a structure.  */
+
+#define EMPTY_FIELD_BOUNDARY BITS_PER_WORD
 
 /* Minimum size in bits of the largest boundary to which any
    and all fundamental data types supported by the hardware
    might need to be aligned. No data type wants to be aligned
-   rounder than this.  The i386 supports 64-bit floating point
-   quantities, but these can be aligned on any 32-bit boundary.
-   The published ABIs say that doubles should be aligned on word
-   boundaries, but the Pentium gets better performance with them
-   aligned on 64 bit boundaries. */
-#define BIGGEST_ALIGNMENT (TARGET_ALIGN_DOUBLE ? 64 : 32)
+   rounder than this.
+   
+   Pentium+ preferrs DFmode values to be aligned to 64 bit boundary
+   and Pentium Pro XFmode values at 128 bit boundaries.  */
+
+#define BIGGEST_ALIGNMENT 128
+
+/* Decide whether a variable of mode MODE must be 128 bit aligned.  */
+#define ALIGN_MODE_128(MODE) \
+ ((MODE) == XFmode || (MODE) == TFmode || ((MODE) == TImode) \
+  || (MODE) == V4SFmode	|| (MODE) == V4SImode)
+
+/* The published ABIs say that doubles should be aligned on word
+   boundaries, so lower the aligment for structure fields unless
+   -malign-double is set.  */
+/* BIGGEST_FIELD_ALIGNMENT is also used in libobjc, where it must be
+   constant.  Use the smaller value in that context.  */
+#ifndef IN_TARGET_LIBS
+#define BIGGEST_FIELD_ALIGNMENT (TARGET_64BIT ? 128 : (TARGET_ALIGN_DOUBLE ? 64 : 32))
+#else
+#define BIGGEST_FIELD_ALIGNMENT 32
+#endif
 
 /* If defined, a C expression to compute the alignment given to a
-   constant that is being placed in memory.  CONSTANT is the constant
+   constant that is being placed in memory.  EXP is the constant
    and ALIGN is the alignment that the object would ordinarily have.
    The value of this macro is used instead of that alignment to align
    the object.
@@ -448,18 +799,7 @@ extern int ix86_arch;
    constants to be word aligned so that `strcpy' calls that copy
    constants can be done inline.  */
 
-#define CONSTANT_ALIGNMENT(EXP, ALIGN)					\
-  (TREE_CODE (EXP) == REAL_CST						\
-    ? ((TYPE_MODE (TREE_TYPE (EXP)) == DFmode && (ALIGN) < 64)		\
-	? 64								\
-   	: (TYPE_MODE (TREE_TYPE (EXP)) == XFmode && (ALIGN) < 128)	\
-	? 128								\
-	: (ALIGN))							\
-    : TREE_CODE (EXP) == STRING_CST					\
-    ? ((TREE_STRING_LENGTH (EXP) >= 31 && (ALIGN) < 256)		\
-	? 256								\
-	: (ALIGN))							\
-    : (ALIGN))
+#define CONSTANT_ALIGNMENT(EXP, ALIGN) ix86_constant_alignment ((EXP), (ALIGN))
 
 /* If defined, a C expression to compute the alignment for a static
    variable.  TYPE is the data type, and ALIGN is the alignment that
@@ -473,41 +813,7 @@ extern int ix86_arch;
    cause character arrays to be word-aligned so that `strcpy' calls
    that copy constants to character arrays can be done inline.  */
 
-#define DATA_ALIGNMENT(TYPE, ALIGN)					\
-  ((AGGREGATE_TYPE_P (TYPE)						\
-    && TYPE_SIZE (TYPE)							\
-    && TREE_CODE (TYPE_SIZE (TYPE)) == INTEGER_CST			\
-    && (TREE_INT_CST_LOW (TYPE_SIZE (TYPE)) >= 256			\
-	|| TREE_INT_CST_HIGH (TYPE_SIZE (TYPE))) && (ALIGN) < 256)	\
-    ? 256								\
-    : TREE_CODE (TYPE) == ARRAY_TYPE					\
-    ? ((TYPE_MODE (TREE_TYPE (TYPE)) == DFmode && (ALIGN) < 64)	\
-	? 64								\
-   	: (TYPE_MODE (TREE_TYPE (TYPE)) == XFmode && (ALIGN) < 128)	\
-	? 128								\
-	: (ALIGN))							\
-    : TREE_CODE (TYPE) == COMPLEX_TYPE					\
-    ? ((TYPE_MODE (TYPE) == DCmode && (ALIGN) < 64)			\
-	? 64								\
-   	: (TYPE_MODE (TYPE) == XCmode && (ALIGN) < 128)			\
-	? 128								\
-	: (ALIGN))							\
-    : ((TREE_CODE (TYPE) == RECORD_TYPE					\
-	|| TREE_CODE (TYPE) == UNION_TYPE				\
-	|| TREE_CODE (TYPE) == QUAL_UNION_TYPE)				\
-	&& TYPE_FIELDS (TYPE))						\
-    ? ((DECL_MODE (TYPE_FIELDS (TYPE)) == DFmode && (ALIGN) < 64)	\
-	? 64								\
-	: (DECL_MODE (TYPE_FIELDS (TYPE)) == XFmode && (ALIGN) < 128)	\
-	? 128								\
-	: (ALIGN))							\
-    : TREE_CODE (TYPE) == REAL_TYPE					\
-    ? ((TYPE_MODE (TYPE) == DFmode && (ALIGN) < 64)			\
-	? 64								\
-   	: (TYPE_MODE (TYPE) == XFmode && (ALIGN) < 128)			\
-	? 128								\
-	: (ALIGN))							\
-    : (ALIGN))
+#define DATA_ALIGNMENT(TYPE, ALIGN) ix86_data_alignment ((TYPE), (ALIGN))
 
 /* If defined, a C expression to compute the alignment for a local
    variable.  TYPE is the data type, and ALIGN is the alignment that
@@ -519,35 +825,14 @@ extern int ix86_arch;
    One use of this macro is to increase alignment of medium-size
    data to make it all fit in fewer cache lines.  */
 
-#define LOCAL_ALIGNMENT(TYPE, ALIGN)					\
-  (TREE_CODE (TYPE) == ARRAY_TYPE					\
-    ? ((TYPE_MODE (TREE_TYPE (TYPE)) == DFmode && (ALIGN) < 64)		\
-	? 64								\
-   	: (TYPE_MODE (TREE_TYPE (TYPE)) == XFmode && (ALIGN) < 128)	\
-	? 128								\
-	: (ALIGN))							\
-    : TREE_CODE (TYPE) == COMPLEX_TYPE					\
-    ? ((TYPE_MODE (TYPE) == DCmode && (ALIGN) < 64)			\
-	? 64								\
-   	: (TYPE_MODE (TYPE) == XCmode && (ALIGN) < 128)			\
-	? 128								\
-	: (ALIGN))							\
-    : ((TREE_CODE (TYPE) == RECORD_TYPE					\
-	|| TREE_CODE (TYPE) == UNION_TYPE				\
-	|| TREE_CODE (TYPE) == QUAL_UNION_TYPE)				\
-	&& TYPE_FIELDS (TYPE))						\
-    ? ((DECL_MODE (TYPE_FIELDS (TYPE)) == DFmode && (ALIGN) < 64)	\
-	? 64								\
-	: (DECL_MODE (TYPE_FIELDS (TYPE)) == XFmode && (ALIGN) < 128)	\
-	? 128								\
-	: (ALIGN))							\
-    : TREE_CODE (TYPE) == REAL_TYPE					\
-    ? ((TYPE_MODE (TYPE) == DFmode && (ALIGN) < 64)			\
-	? 64								\
-   	: (TYPE_MODE (TYPE) == XFmode && (ALIGN) < 128)			\
-	? 128								\
-	: (ALIGN))							\
-    : (ALIGN))
+#define LOCAL_ALIGNMENT(TYPE, ALIGN) ix86_local_alignment ((TYPE), (ALIGN))
+
+/* If defined, a C expression that gives the alignment boundary, in
+   bits, of an argument with the specified mode and type.  If it is
+   not defined, `PARM_BOUNDARY' is used for all arguments.  */
+
+#define FUNCTION_ARG_BOUNDARY(MODE, TYPE) \
+  ix86_function_arg_boundary ((MODE), (TYPE))
 
 /* Set this non-zero if move instructions will actually fail to work
    when given unaligned data.  */
@@ -557,28 +842,16 @@ extern int ix86_arch;
    and give entire struct the alignment of an int.  */
 /* Required on the 386 since it doesn't have bitfield insns.  */
 #define PCC_BITFIELD_TYPE_MATTERS 1
-
-/* Maximum power of 2 that code can be aligned to.  */
-#define MAX_CODE_ALIGN	6			/* 64 byte alignment */
-
-/* Align loop starts for optimal branching.  */
-#define LOOP_ALIGN(LABEL) (i386_align_loops)
-#define LOOP_ALIGN_MAX_SKIP (i386_align_loops_string ? 0 : 7)
-
-/* This is how to align an instruction for optimal branching.
-   On i486 we'll get better performance by aligning on a
-   cache line (i.e. 16 byte) boundary.  */
-#define LABEL_ALIGN_AFTER_BARRIER(LABEL) (i386_align_jumps)
-#define LABEL_ALIGN_AFTER_BARRIER_MAX_SKIP (i386_align_jumps_string ? 0 : 7)
-
 
 /* Standard register usage.  */
 
 /* This processor has special stack-like registers.  See reg-stack.c
-   for details. */
+   for details.  */
 
 #define STACK_REGS
-#define IS_STACK_MODE(mode) (mode==DFmode || mode==SFmode || mode==XFmode)
+#define IS_STACK_MODE(MODE)					\
+  ((MODE) == DFmode || (MODE) == SFmode || (MODE) == XFmode	\
+   || (MODE) == TFmode)
 
 /* Number of actual hardware registers.
    The hardware registers are assigned numbers for the compiler
@@ -594,27 +867,62 @@ extern int ix86_arch;
    Reg 16 does not correspond to any hardware register, but instead
    appears in the RTL as an argument pointer prior to reload, and is
    eliminated during reloading in favor of either the stack or frame
-   pointer. */
+   pointer.  */
 
-#define FIRST_PSEUDO_REGISTER 17
+#define FIRST_PSEUDO_REGISTER 53
+
+/* Number of hardware registers that go into the DWARF-2 unwind info.
+   If not defined, equals FIRST_PSEUDO_REGISTER.  */
+
+#define DWARF_FRAME_REGISTERS 17
 
 /* 1 for registers that have pervasive standard uses
    and are not available for the register allocator.
-   On the 80386, the stack pointer is such, as is the arg pointer. */
-#define FIXED_REGISTERS \
-/*ax,dx,cx,bx,si,di,bp,sp,st,st1,st2,st3,st4,st5,st6,st7,arg*/       \
-{  0, 0, 0, 0, 0, 0, 0, 1, 0,  0,  0,  0,  0,  0,  0,  0,  1 }
+   On the 80386, the stack pointer is such, as is the arg pointer.
+ 
+   The value is an mask - bit 1 is set for fixed registers
+   for 32bit target, while 2 is set for fixed registers for 64bit.
+   Proper value is computed in the CONDITIONAL_REGISTER_USAGE.
+ */
+#define FIXED_REGISTERS						\
+/*ax,dx,cx,bx,si,di,bp,sp,st,st1,st2,st3,st4,st5,st6,st7*/	\
+{  0, 0, 0, 0, 0, 0, 0, 3, 0,  0,  0,  0,  0,  0,  0,  0,	\
+/*arg,flags,fpsr,dir,frame*/					\
+    3,    3,   3,  3,    3,					\
+/*xmm0,xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7*/			\
+     0,   0,   0,   0,   0,   0,   0,   0,			\
+/*mmx0,mmx1,mmx2,mmx3,mmx4,mmx5,mmx6,mmx7*/			\
+     0,   0,   0,   0,   0,   0,   0,   0,			\
+/*  r8,  r9, r10, r11, r12, r13, r14, r15*/			\
+     1,   1,   1,   1,   1,   1,   1,   1,			\
+/*xmm8,xmm9,xmm10,xmm11,xmm12,xmm13,xmm14,xmm15*/		\
+     1,   1,    1,    1,    1,    1,    1,    1}
+ 
 
 /* 1 for registers not available across function calls.
    These must include the FIXED_REGISTERS and also any
    registers that can be used without being saved.
    The latter must include the registers where values are returned
    and the register where structure-value addresses are passed.
-   Aside from that, you can include as many other registers as you like.  */
-
-#define CALL_USED_REGISTERS \
-/*ax,dx,cx,bx,si,di,bp,sp,st,st1,st2,st3,st4,st5,st6,st7,arg*/ \
-{  1, 1, 1, 0, 0, 0, 0, 1, 1,  1,  1,  1,  1,  1,  1,  1,  1 }
+   Aside from that, you can include as many other registers as you like. 
+ 
+   The value is an mask - bit 1 is set for call used
+   for 32bit target, while 2 is set for call used for 64bit.
+   Proper value is computed in the CONDITIONAL_REGISTER_USAGE.
+*/
+#define CALL_USED_REGISTERS					\
+/*ax,dx,cx,bx,si,di,bp,sp,st,st1,st2,st3,st4,st5,st6,st7*/	\
+{  3, 3, 3, 0, 2, 2, 0, 3, 3,  3,  3,  3,  3,  3,  3,  3,	\
+/*arg,flags,fpsr,dir,frame*/					\
+     3,   3,   3,  3,    3,					\
+/*xmm0,xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7*/			\
+     3,   3,   3,   3,   3,  3,    3,   3,			\
+/*mmx0,mmx1,mmx2,mmx3,mmx4,mmx5,mmx6,mmx7*/			\
+     3,   3,   3,   3,   3,   3,   3,   3,			\
+/*  r8,  r9, r10, r11, r12, r13, r14, r15*/			\
+     3,   3,   3,   3,   1,   1,   1,   1,			\
+/*xmm8,xmm9,xmm10,xmm11,xmm12,xmm13,xmm14,xmm15*/		\
+     3,   3,    3,    3,    3,    3,    3,    3}		\
 
 /* Order in which to allocate registers.  Each register must be
    listed once, even those in FIXED_REGISTERS.  List frame pointer
@@ -633,45 +941,67 @@ extern int ix86_arch;
 
    If the order is eax, edx, ecx, ... it produces better code for simple
    functions, and a slightly slower compiler.  Users complained about the code
-   generated by allocating edx first, so restore the 'natural' order of things. */
+   generated by allocating edx first, so restore the 'natural' order of things.  */
 
-#define REG_ALLOC_ORDER \
-/*ax,dx,cx,bx,si,di,bp,sp,st,st1,st2,st3,st4,st5,st6,st7,arg*/ \
-{  0, 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 12, 13, 14, 15, 16 }
-
-/* A C statement (sans semicolon) to choose the order in which to
-   allocate hard registers for pseudo-registers local to a basic
-   block.
-
-   Store the desired register order in the array `reg_alloc_order'.
-   Element 0 should be the register to allocate first; element 1, the
-   next register; and so on.
-
-   The macro body should not assume anything about the contents of
-   `reg_alloc_order' before execution of the macro.
-
-   On most machines, it is not necessary to define this macro.  */
-
-#define ORDER_REGS_FOR_LOCAL_ALLOC order_regs_for_local_alloc ()
+#define REG_ALLOC_ORDER 					\
+/*ax,dx,cx,*/							\
+{  0, 1, 2,							\
+/* bx,si,di,bp,sp,*/						\
+   3, 4, 5, 6, 7,						\
+/*r8,r9,r10,r11,*/						\
+  37,38, 39, 40,						\
+/*r12,r15,r14,r13*/						\
+  41, 44, 43, 42,						\
+/*xmm0,xmm1,xmm2,xmm3,xmm4,xmm5,xmm6,xmm7*/			\
+    21,  22,  23,  24,  25,  26,  27,  28,			\
+/*xmm8,xmm9,xmm10,xmm11,xmm12,xmm13,xmm14,xmm15*/		\
+    45,  46,   47,   48,   49,   50,   51,   52,		\
+/*st,st1,st2,st3,st4,st5,st6,st7*/				\
+   8,  9, 10, 11, 12, 13, 14, 15,				\
+/*,arg,cc,fpsr,dir,frame*/					\
+     16,17, 18, 19,   20,					\
+/*mmx0,mmx1,mmx2,mmx3,mmx4,mmx5,mmx6,mmx7*/			\
+    29,  30,  31,  32,  33,  34,  35,  36 }
 
 /* Macro to conditionally modify fixed_regs/call_used_regs.  */
-#define CONDITIONAL_REGISTER_USAGE			\
-  {							\
-    if (flag_pic)					\
-      {							\
-	fixed_regs[PIC_OFFSET_TABLE_REGNUM] = 1;	\
-	call_used_regs[PIC_OFFSET_TABLE_REGNUM] = 1;	\
-      }							\
-    if (! TARGET_80387 && ! TARGET_FLOAT_RETURNS_IN_80387) \
-      { 						\
-	int i; 						\
-	HARD_REG_SET x;					\
-        COPY_HARD_REG_SET (x, reg_class_contents[(int)FLOAT_REGS]); \
-        for (i = 0; i < FIRST_PSEUDO_REGISTER; i++ )	\
-         if (TEST_HARD_REG_BIT (x, i)) 			\
-	  fixed_regs[i] = call_used_regs[i] = 1; 	\
-      }							\
-  }
+#define CONDITIONAL_REGISTER_USAGE					\
+do {									\
+    int i;								\
+    for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)				\
+      {									\
+        fixed_regs[i] = (fixed_regs[i] & (TARGET_64BIT ? 2 : 1)) != 0;	\
+        call_used_regs[i] = (call_used_regs[i]				\
+			     & (TARGET_64BIT ? 2 : 1)) != 0;		\
+      }									\
+    if (flag_pic)							\
+      {									\
+	fixed_regs[PIC_OFFSET_TABLE_REGNUM] = 1;			\
+	call_used_regs[PIC_OFFSET_TABLE_REGNUM] = 1;			\
+      }									\
+    if (! TARGET_MMX)							\
+      {									\
+	int i;								\
+        for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)			\
+          if (TEST_HARD_REG_BIT (reg_class_contents[(int)MMX_REGS], i))	\
+	    fixed_regs[i] = call_used_regs[i] = 1;		 	\
+      }									\
+    if (! TARGET_SSE)							\
+      {									\
+	int i;								\
+        for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)			\
+          if (TEST_HARD_REG_BIT (reg_class_contents[(int)SSE_REGS], i))	\
+	    fixed_regs[i] = call_used_regs[i] = 1;		 	\
+      }									\
+    if (! TARGET_80387 && ! TARGET_FLOAT_RETURNS_IN_80387)		\
+      {									\
+	int i;								\
+	HARD_REG_SET x;							\
+        COPY_HARD_REG_SET (x, reg_class_contents[(int)FLOAT_REGS]);	\
+        for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)			\
+          if (TEST_HARD_REG_BIT (x, i)) 				\
+	    fixed_regs[i] = call_used_regs[i] = 1;			\
+      }									\
+  } while (0)
 
 /* Return number of consecutive hard regs needed starting at reg REGNO
    to hold something of mode MODE.
@@ -684,25 +1014,48 @@ extern int ix86_arch;
    */
 
 #define HARD_REGNO_NREGS(REGNO, MODE)   \
-  (FP_REGNO_P (REGNO) ? 1 \
-   : ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD))
+  (FP_REGNO_P (REGNO) || SSE_REGNO_P (REGNO) || MMX_REGNO_P (REGNO)	\
+   ? (COMPLEX_MODE_P (MODE) ? 2 : 1)					\
+   : ((MODE) == TFmode							\
+      ? (TARGET_64BIT ? 2 : 3)						\
+      : (MODE) == TCmode						\
+      ? (TARGET_64BIT ? 4 : 6)						\
+      : ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)))
 
-/* Value is 1 if hard register REGNO can hold a value of machine-mode MODE.
-   On the 80386, the first 4 cpu registers can hold any mode
-   while the floating point registers may hold only floating point.
-   Make it clear that the fp regs could not hold a 16-byte float.  */
+#define VALID_SSE_REG_MODE(MODE)					\
+    ((MODE) == TImode || (MODE) == V4SFmode || (MODE) == V4SImode	\
+     || (MODE) == SFmode						\
+     || (TARGET_SSE2 && ((MODE) == DFmode || VALID_MMX_REG_MODE (MODE))))
 
-/* The casts to int placate a compiler on a microvax,
-   for cross-compiler testing.  */
+#define VALID_MMX_REG_MODE_3DNOW(MODE) \
+    ((MODE) == V2SFmode || (MODE) == SFmode)
 
-#define HARD_REGNO_MODE_OK(REGNO, MODE) \
-  ((REGNO) < 4 ? 1						\
-   : FP_REGNO_P (REGNO)						\
-   ? (((int) GET_MODE_CLASS (MODE) == (int) MODE_FLOAT		\
-       || (int) GET_MODE_CLASS (MODE) == (int) MODE_COMPLEX_FLOAT)	\
-      && GET_MODE_UNIT_SIZE (MODE) <= (LONG_DOUBLE_TYPE_SIZE == 96 ? 12 : 8))\
-   : (int) (MODE) != (int) QImode ? 1				\
-   : (reload_in_progress | reload_completed) == 1)
+#define VALID_MMX_REG_MODE(MODE)					\
+    ((MODE) == DImode || (MODE) == V8QImode || (MODE) == V4HImode	\
+     || (MODE) == V2SImode || (MODE) == SImode)
+
+#define VECTOR_MODE_SUPPORTED_P(MODE)					\
+    (VALID_SSE_REG_MODE (MODE) && TARGET_SSE ? 1			\
+     : VALID_MMX_REG_MODE (MODE) && TARGET_MMX ? 1			\
+     : VALID_MMX_REG_MODE_3DNOW (MODE) && TARGET_3DNOW ? 1 : 0)
+
+#define VALID_FP_MODE_P(MODE)						\
+    ((MODE) == SFmode || (MODE) == DFmode || (MODE) == TFmode		\
+     || (!TARGET_64BIT && (MODE) == XFmode)				\
+     || (MODE) == SCmode || (MODE) == DCmode || (MODE) == TCmode	\
+     || (!TARGET_64BIT && (MODE) == XCmode))
+
+#define VALID_INT_MODE_P(MODE)						\
+    ((MODE) == QImode || (MODE) == HImode || (MODE) == SImode		\
+     || (MODE) == DImode						\
+     || (MODE) == CQImode || (MODE) == CHImode || (MODE) == CSImode	\
+     || (MODE) == CDImode						\
+     || (TARGET_64BIT && ((MODE) == TImode || (MODE) == CTImode)))
+
+/* Value is 1 if hard register REGNO can hold a value of machine-mode MODE.  */
+
+#define HARD_REGNO_MODE_OK(REGNO, MODE)	\
+   ix86_hard_regno_mode_ok ((REGNO), (MODE))
 
 /* Value is 1 if it is a good idea to tie two pseudo registers
    when one has mode MODE1 and one has mode MODE2.
@@ -711,9 +1064,28 @@ extern int ix86_arch;
 
 #define MODES_TIEABLE_P(MODE1, MODE2)				\
   ((MODE1) == (MODE2)						\
-   || ((MODE1) == SImode && (MODE2) == HImode)			\
-   || ((MODE1) == HImode && (MODE2) == SImode))
+   || (((MODE1) == HImode || (MODE1) == SImode			\
+	|| ((MODE1) == QImode					\
+	    && (TARGET_64BIT || !TARGET_PARTIAL_REG_STALL))	\
+        || ((MODE1) == DImode && TARGET_64BIT))			\
+       && ((MODE2) == HImode || (MODE2) == SImode		\
+	   || ((MODE1) == QImode				\
+	       && (TARGET_64BIT || !TARGET_PARTIAL_REG_STALL))	\
+	   || ((MODE2) == DImode && TARGET_64BIT))))
 
+
+/* Specify the modes required to caller save a given hard regno.
+   We do this on i386 to prevent flags from being saved at all.
+
+   Kill any attempts to combine saving of modes.  */
+
+#define HARD_REGNO_CALLER_SAVE_MODE(REGNO, NREGS, MODE)			\
+  (CC_REGNO_P (REGNO) ? VOIDmode					\
+   : (MODE) == VOIDmode && (NREGS) != 1 ? VOIDmode			\
+   : (MODE) == VOIDmode ? choose_hard_reg_mode ((REGNO), (NREGS))	\
+   : (MODE) == HImode && !TARGET_PARTIAL_REG_STALL ? SImode		\
+   : (MODE) == QImode && (REGNO) >= 4 && !TARGET_64BIT ? SImode 	\
+   : (MODE))
 /* Specify the registers used for certain standard purposes.
    The values of these macros are register numbers.  */
 
@@ -725,7 +1097,10 @@ extern int ix86_arch;
 #define STACK_POINTER_REGNUM 7
 
 /* Base register for access to local variables of the function.  */
-#define FRAME_POINTER_REGNUM 6
+#define HARD_FRAME_POINTER_REGNUM 6
+
+/* Base register for access to local variables of the function.  */
+#define FRAME_POINTER_REGNUM 20
 
 /* First floating point reg */
 #define FIRST_FLOAT_REG 8
@@ -734,21 +1109,51 @@ extern int ix86_arch;
 #define FIRST_STACK_REG FIRST_FLOAT_REG
 #define LAST_STACK_REG (FIRST_FLOAT_REG + 7)
 
+#define FLAGS_REG 17
+#define FPSR_REG 18
+#define DIRFLAG_REG 19
+
+#define FIRST_SSE_REG (FRAME_POINTER_REGNUM + 1)
+#define LAST_SSE_REG  (FIRST_SSE_REG + 7)
+ 
+#define FIRST_MMX_REG  (LAST_SSE_REG + 1)
+#define LAST_MMX_REG   (FIRST_MMX_REG + 7)
+
+#define FIRST_REX_INT_REG  (LAST_MMX_REG + 1)
+#define LAST_REX_INT_REG   (FIRST_REX_INT_REG + 7)
+
+#define FIRST_REX_SSE_REG  (LAST_REX_INT_REG + 1)
+#define LAST_REX_SSE_REG   (FIRST_REX_SSE_REG + 7)
+
 /* Value should be nonzero if functions must have frame pointers.
    Zero means the frame pointer need not be set up (and parms
    may be accessed via the stack pointer) in functions that seem suitable.
    This is computed in `reload', in reload1.c.  */
-#define FRAME_POINTER_REQUIRED (TARGET_OMIT_LEAF_FRAME_POINTER && !leaf_function_p ()) 	
+#define FRAME_POINTER_REQUIRED  ix86_frame_pointer_required ()
+
+/* Override this in other tm.h files to cope with various OS losage
+   requiring a frame pointer.  */
+#ifndef SUBTARGET_FRAME_POINTER_REQUIRED
+#define SUBTARGET_FRAME_POINTER_REQUIRED 0
+#endif
+
+/* Make sure we can access arbitrary call frames.  */
+#define SETUP_FRAME_ADDRESSES()  ix86_setup_frame_addresses ()
 
 /* Base register for access to arguments of the function.  */
 #define ARG_POINTER_REGNUM 16
 
-/* Register in which static-chain is passed to a function.  */
-#define STATIC_CHAIN_REGNUM 2
+/* Register in which static-chain is passed to a function.
+   We do use ECX as static chain register for 32 bit ABI.  On the
+   64bit ABI, ECX is an argument register, so we use R10 instead.  */
+#define STATIC_CHAIN_REGNUM (TARGET_64BIT ? FIRST_REX_INT_REG + 10 - 8 : 2)
 
 /* Register to hold the addressing base for position independent
-   code access to data items.  */
-#define PIC_OFFSET_TABLE_REGNUM 3
+   code access to data items.
+   We don't use PIC pointer for 64bit mode.  Define the regnum to
+   dummy value to prevent gcc from pessimizing code dealing with EBX.
+ */
+#define PIC_OFFSET_TABLE_REGNUM (TARGET_64BIT ? INVALID_REGNUM : 3)
 
 /* Register in which address to store a structure value
    arrives in the function.  On the 386, the prologue
@@ -777,7 +1182,7 @@ extern int ix86_arch;
    `DEFAULT_PCC_STRUCT_RETURN' to indicate this.  */
 
 #define RETURN_IN_MEMORY(TYPE) \
-  ((TYPE_MODE (TYPE) == BLKmode) || int_size_in_bytes (TYPE) > 12)
+  ix86_return_in_memory (TYPE)
 
 
 /* Define the classes of registers for register constraints in the
@@ -802,55 +1207,105 @@ extern int ix86_arch;
 
    It might seem that class BREG is unnecessary, since no useful 386
    opcode needs reg %ebx.  But some systems pass args to the OS in ebx,
-   and the "b" register constraint is useful in asms for syscalls.  */
+   and the "b" register constraint is useful in asms for syscalls.
+
+   The flags and fpsr registers are in no class.  */
 
 enum reg_class
 {
   NO_REGS,
-  AREG, DREG, CREG, BREG,
+  AREG, DREG, CREG, BREG, SIREG, DIREG,
   AD_REGS,			/* %eax/%edx for DImode */
   Q_REGS,			/* %eax %ebx %ecx %edx */
-  SIREG, DIREG,
+  NON_Q_REGS,			/* %esi %edi %ebp %esp */
   INDEX_REGS,			/* %eax %ebx %ecx %edx %esi %edi %ebp */
-  GENERAL_REGS,			/* %eax %ebx %ecx %edx %esi %edi %ebp %esp */
+  LEGACY_REGS,			/* %eax %ebx %ecx %edx %esi %edi %ebp %esp */
+  GENERAL_REGS,			/* %eax %ebx %ecx %edx %esi %edi %ebp %esp %r8 - %r15*/
   FP_TOP_REG, FP_SECOND_REG,	/* %st(0) %st(1) */
   FLOAT_REGS,
+  SSE_REGS,
+  MMX_REGS,
+  FP_TOP_SSE_REGS,
+  FP_SECOND_SSE_REGS,
+  FLOAT_SSE_REGS,
+  FLOAT_INT_REGS,
+  INT_SSE_REGS,
+  FLOAT_INT_SSE_REGS,
   ALL_REGS, LIM_REG_CLASSES
 };
 
-#define N_REG_CLASSES (int) LIM_REG_CLASSES
+#define N_REG_CLASSES ((int) LIM_REG_CLASSES)
 
-#define FLOAT_CLASS_P(CLASS) (reg_class_subset_p (CLASS, FLOAT_REGS))
+#define INTEGER_CLASS_P(CLASS) \
+  reg_class_subset_p ((CLASS), GENERAL_REGS)
+#define FLOAT_CLASS_P(CLASS) \
+  reg_class_subset_p ((CLASS), FLOAT_REGS)
+#define SSE_CLASS_P(CLASS) \
+  reg_class_subset_p ((CLASS), SSE_REGS)
+#define MMX_CLASS_P(CLASS) \
+  reg_class_subset_p ((CLASS), MMX_REGS)
+#define MAYBE_INTEGER_CLASS_P(CLASS) \
+  reg_classes_intersect_p ((CLASS), GENERAL_REGS)
+#define MAYBE_FLOAT_CLASS_P(CLASS) \
+  reg_classes_intersect_p ((CLASS), FLOAT_REGS)
+#define MAYBE_SSE_CLASS_P(CLASS) \
+  reg_classes_intersect_p (SSE_REGS, (CLASS))
+#define MAYBE_MMX_CLASS_P(CLASS) \
+  reg_classes_intersect_p (MMX_REGS, (CLASS))
+
+#define Q_CLASS_P(CLASS) \
+  reg_class_subset_p ((CLASS), Q_REGS)
 
 /* Give names of register classes as strings for dump file.   */
 
 #define REG_CLASS_NAMES \
 {  "NO_REGS",				\
    "AREG", "DREG", "CREG", "BREG",	\
-   "AD_REGS",				\
-   "Q_REGS",				\
    "SIREG", "DIREG",			\
+   "AD_REGS",				\
+   "Q_REGS", "NON_Q_REGS",		\
    "INDEX_REGS",			\
+   "LEGACY_REGS",			\
    "GENERAL_REGS",			\
    "FP_TOP_REG", "FP_SECOND_REG",	\
    "FLOAT_REGS",			\
+   "SSE_REGS",				\
+   "MMX_REGS",				\
+   "FP_TOP_SSE_REGS",			\
+   "FP_SECOND_SSE_REGS",		\
+   "FLOAT_SSE_REGS",			\
+   "FLOAT_INT_REGS",			\
+   "INT_SSE_REGS",			\
+   "FLOAT_INT_SSE_REGS",		\
    "ALL_REGS" }
 
 /* Define which registers fit in which classes.
    This is an initializer for a vector of HARD_REG_SET
    of length N_REG_CLASSES.  */
 
-#define REG_CLASS_CONTENTS \
-{      {0},							\
-     {0x1},    {0x2},  {0x4},	 {0x8},	/* AREG, DREG, CREG, BREG */	\
-     {0x3},			/* AD_REGS */			\
-     {0xf},			/* Q_REGS */			\
-    {0x10},   {0x20},		/* SIREG, DIREG */		\
- {0x7f},				/* INDEX_REGS */		\
- {0x100ff},			/* GENERAL_REGS */		\
-  {0x0100}, {0x0200},		/* FP_TOP_REG, FP_SECOND_REG */	\
-  {0xff00},			/* FLOAT_REGS */		\
- {0x1ffff}}
+#define REG_CLASS_CONTENTS						\
+{     { 0x00,     0x0 },						\
+      { 0x01,     0x0 }, { 0x02, 0x0 },	/* AREG, DREG */		\
+      { 0x04,     0x0 }, { 0x08, 0x0 },	/* CREG, BREG */		\
+      { 0x10,     0x0 }, { 0x20, 0x0 },	/* SIREG, DIREG */		\
+      { 0x03,     0x0 },		/* AD_REGS */			\
+      { 0x0f,     0x0 },		/* Q_REGS */			\
+  { 0x1100f0,  0x1fe0 },		/* NON_Q_REGS */		\
+      { 0x7f,  0x1fe0 },		/* INDEX_REGS */		\
+  { 0x1100ff,  0x0 },			/* LEGACY_REGS */		\
+  { 0x1100ff,  0x1fe0 },		/* GENERAL_REGS */		\
+     { 0x100,     0x0 }, { 0x0200, 0x0 },/* FP_TOP_REG, FP_SECOND_REG */\
+    { 0xff00,     0x0 },		/* FLOAT_REGS */		\
+{ 0x1fe00000,0x1fe000 },		/* SSE_REGS */			\
+{ 0xe0000000,    0x1f },		/* MMX_REGS */			\
+{ 0x1fe00100,0x1fe000 },		/* FP_TOP_SSE_REG */		\
+{ 0x1fe00200,0x1fe000 },		/* FP_SECOND_SSE_REG */		\
+{ 0x1fe0ff00,0x1fe000 },		/* FLOAT_SSE_REGS */		\
+   { 0x1ffff,  0x1fe0 },		/* FLOAT_INT_REGS */		\
+{ 0x1fe100ff,0x1fffe0 },		/* INT_SSE_REGS */		\
+{ 0x1fe1ffff,0x1fffe0 },		/* FLOAT_INT_SSE_REGS */	\
+{ 0xffffffff,0x1fffff }							\
+}
 
 /* The same information, inverted:
    Return the class number of the smallest class containing
@@ -861,30 +1316,62 @@ enum reg_class
 
 /* When defined, the compiler allows registers explicitly used in the
    rtl to be used as spill registers but prevents the compiler from
-   extending the lifetime of these registers. */
+   extending the lifetime of these registers.  */
 
 #define SMALL_REGISTER_CLASSES 1
 
 #define QI_REG_P(X) \
   (REG_P (X) && REGNO (X) < 4)
+
+#define GENERAL_REGNO_P(N) \
+  ((N) < 8 || REX_INT_REGNO_P (N))
+
+#define GENERAL_REG_P(X) \
+  (REG_P (X) && GENERAL_REGNO_P (REGNO (X)))
+
+#define ANY_QI_REG_P(X) (TARGET_64BIT ? GENERAL_REG_P(X) : QI_REG_P (X))
+
 #define NON_QI_REG_P(X) \
   (REG_P (X) && REGNO (X) >= 4 && REGNO (X) < FIRST_PSEUDO_REGISTER)
 
+#define REX_INT_REGNO_P(N) ((N) >= FIRST_REX_INT_REG && (N) <= LAST_REX_INT_REG)
+#define REX_INT_REG_P(X) (REG_P (X) && REX_INT_REGNO_P (REGNO (X)))
+
 #define FP_REG_P(X) (REG_P (X) && FP_REGNO_P (REGNO (X)))
-#define FP_REGNO_P(n) ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG)
+#define FP_REGNO_P(N) ((N) >= FIRST_STACK_REG && (N) <= LAST_STACK_REG)
+#define ANY_FP_REG_P(X) (REG_P (X) && ANY_FP_REGNO_P (REGNO (X)))
+#define ANY_FP_REGNO_P(N) (FP_REGNO_P (N) || SSE_REGNO_P (N))
+
+#define SSE_REGNO_P(N) \
+  (((N) >= FIRST_SSE_REG && (N) <= LAST_SSE_REG) \
+   || ((N) >= FIRST_REX_SSE_REG && (N) <= LAST_REX_SSE_REG))
+
+#define SSE_REGNO(N) \
+  ((N) < 8 ? FIRST_SSE_REG + (N) : FIRST_REX_SSE_REG + (N) - 8)
+#define SSE_REG_P(N) (REG_P (N) && SSE_REGNO_P (REGNO (N)))
+
+#define SSE_FLOAT_MODE_P(MODE) \
+  ((TARGET_SSE_MATH && (MODE) == SFmode) || (TARGET_SSE2 && (MODE) == DFmode))
+
+#define MMX_REGNO_P(N) ((N) >= FIRST_MMX_REG && (N) <= LAST_MMX_REG)
+#define MMX_REG_P(XOP) (REG_P (XOP) && MMX_REGNO_P (REGNO (XOP)))
   
-#define STACK_REG_P(xop) (REG_P (xop) &&		       	\
-			  REGNO (xop) >= FIRST_STACK_REG &&	\
-			  REGNO (xop) <= LAST_STACK_REG)
+#define STACK_REG_P(XOP)		\
+  (REG_P (XOP) &&		       	\
+   REGNO (XOP) >= FIRST_STACK_REG &&	\
+   REGNO (XOP) <= LAST_STACK_REG)
 
-#define NON_STACK_REG_P(xop) (REG_P (xop) && ! STACK_REG_P (xop))
+#define NON_STACK_REG_P(XOP) (REG_P (XOP) && ! STACK_REG_P (XOP))
 
-#define STACK_TOP_P(xop) (REG_P (xop) && REGNO (xop) == FIRST_STACK_REG)
+#define STACK_TOP_P(XOP) (REG_P (XOP) && REGNO (XOP) == FIRST_STACK_REG)
 
-/* 1 if register REGNO can magically overlap other regs.
-   Note that nonzero values work only in very special circumstances. */
+#define CC_REG_P(X) (REG_P (X) && CC_REGNO_P (REGNO (X)))
+#define CC_REGNO_P(X) ((X) == FLAGS_REG || (X) == FPSR_REG)
 
-/* #define OVERLAPPING_REGNO_P(REGNO) FP_REGNO_P (REGNO) */
+/* Indicate whether hard register numbered REG_NO should be converted
+   to SSA form.  */
+#define CONVERT_HARD_REGISTER_TO_SSA_P(REG_NO) \
+  ((REG_NO) == FLAGS_REG || (REG_NO) == ARG_POINTER_REGNUM)
 
 /* The class value for index registers, and the one for base regs.  */
 
@@ -895,7 +1382,9 @@ enum reg_class
 
 #define REG_CLASS_FROM_LETTER(C)	\
   ((C) == 'r' ? GENERAL_REGS :					\
-   (C) == 'q' ? Q_REGS :					\
+   (C) == 'R' ? LEGACY_REGS :					\
+   (C) == 'q' ? TARGET_64BIT ? GENERAL_REGS : Q_REGS :		\
+   (C) == 'Q' ? Q_REGS :					\
    (C) == 'f' ? (TARGET_80387 || TARGET_FLOAT_RETURNS_IN_80387	\
 		 ? FLOAT_REGS					\
 		 : NO_REGS) :					\
@@ -909,6 +1398,9 @@ enum reg_class
    (C) == 'b' ? BREG :						\
    (C) == 'c' ? CREG :						\
    (C) == 'd' ? DREG :						\
+   (C) == 'x' ? TARGET_SSE ? SSE_REGS : NO_REGS :		\
+   (C) == 'Y' ? TARGET_SSE2? SSE_REGS : NO_REGS :		\
+   (C) == 'y' ? TARGET_MMX ? MMX_REGS : NO_REGS :		\
    (C) == 'A' ? AD_REGS :					\
    (C) == 'D' ? DIREG :						\
    (C) == 'S' ? SIREG : NO_REGS)
@@ -921,19 +1413,20 @@ enum reg_class
 
    I is for non-DImode shifts.
    J is for DImode shifts.
-   K and L are for an `andsi' optimization.
+   K is for signed imm8 operands.
+   L is for andsi as zero-extending move.
    M is for shifts that can be executed by the "lea" opcode.
+   N is for immedaite operands for out/in instructions (0-255)
    */
 
-#define CONST_OK_FOR_LETTER_P(VALUE, C)  \
-  ((C) == 'I' ? (VALUE) >= 0 && (VALUE) <= 31 :	\
-   (C) == 'J' ? (VALUE) >= 0 && (VALUE) <= 63 :	\
-   (C) == 'K' ? (VALUE) == 0xff :		\
-   (C) == 'L' ? (VALUE) == 0xffff :		\
-   (C) == 'M' ? (VALUE) >= 0 && (VALUE) <= 3 :	\
-   (C) == 'N' ? (VALUE) >= 0 && (VALUE) <= 255 :\
-   (C) == 'O' ? (VALUE) >= 0 && (VALUE) <= 32 :	\
-   0)
+#define CONST_OK_FOR_LETTER_P(VALUE, C)				\
+  ((C) == 'I' ? (VALUE) >= 0 && (VALUE) <= 31			\
+   : (C) == 'J' ? (VALUE) >= 0 && (VALUE) <= 63			\
+   : (C) == 'K' ? (VALUE) >= -128 && (VALUE) <= 127		\
+   : (C) == 'L' ? (VALUE) == 0xff || (VALUE) == 0xffff		\
+   : (C) == 'M' ? (VALUE) >= 0 && (VALUE) <= 3			\
+   : (C) == 'N' ? (VALUE) >= 0 && (VALUE) <= 255		\
+   : 0)
 
 /* Similar, but for floating constants, and defining letters G and H.
    Here VALUE is the CONST_DOUBLE rtx itself.  We allow constants even if
@@ -941,14 +1434,34 @@ enum reg_class
    load 0.0 into the function value register.  */
 
 #define CONST_DOUBLE_OK_FOR_LETTER_P(VALUE, C)  \
-  ((C) == 'G' ? standard_80387_constant_p (VALUE) : 0)
+  ((C) == 'G' ? standard_80387_constant_p (VALUE) \
+   : ((C) == 'H' ? standard_sse_constant_p (VALUE) : 0))
+
+/* A C expression that defines the optional machine-dependent
+   constraint letters that can be used to segregate specific types of
+   operands, usually memory references, for the target machine.  Any
+   letter that is not elsewhere defined and not matched by
+   `REG_CLASS_FROM_LETTER' may be used.  Normally this macro will not
+   be defined.
+
+   If it is required for a particular target machine, it should
+   return 1 if VALUE corresponds to the operand type represented by
+   the constraint letter C.  If C is not defined as an extra
+   constraint, the value returned should be 0 regardless of VALUE.  */
+
+#define EXTRA_CONSTRAINT(VALUE, C)				\
+  ((C) == 'e' ? x86_64_sign_extended_value (VALUE)		\
+   : (C) == 'Z' ? x86_64_zero_extended_value (VALUE)		\
+   : 0)
 
 /* Place additional restrictions on the register class to use when it
    is necessary to be able to hold a value of mode MODE in a reload
-   register for which class CLASS would ordinarily be used. */
+   register for which class CLASS would ordinarily be used.  */
 
-#define LIMIT_RELOAD_CLASS(MODE, CLASS) \
-  ((MODE) == QImode && ((CLASS) == ALL_REGS || (CLASS) == GENERAL_REGS) \
+#define LIMIT_RELOAD_CLASS(MODE, CLASS) 			\
+  ((MODE) == QImode && !TARGET_64BIT				\
+   && ((CLASS) == ALL_REGS || (CLASS) == GENERAL_REGS		\
+       || (CLASS) == LEGACY_REGS || (CLASS) == INDEX_REGS)	\
    ? Q_REGS : (CLASS))
 
 /* Given an rtx X being reloaded into a reg required to be
@@ -962,32 +1475,37 @@ enum reg_class
 /* Put float CONST_DOUBLE in the constant pool instead of fp regs.
    QImode must go into class Q_REGS.
    Narrow ALL_REGS to GENERAL_REGS.  This supports allowing movsf and
-   movdf to do mem-to-mem moves through integer regs. */
+   movdf to do mem-to-mem moves through integer regs.  */
 
-#define PREFERRED_RELOAD_CLASS(X,CLASS)					\
-  (GET_CODE (X) == CONST_DOUBLE && GET_MODE (X) != VOIDmode		\
-   ? (standard_80387_constant_p (X)					\
-      ? reg_class_subset_p (CLASS, FLOAT_REGS) ? CLASS : FLOAT_REGS	\
-      : NO_REGS)							\
-   : GET_MODE (X) == QImode && ! reg_class_subset_p (CLASS, Q_REGS) ? Q_REGS \
-   : ((CLASS) == ALL_REGS						\
-      && GET_MODE_CLASS (GET_MODE (X)) == MODE_FLOAT) ? GENERAL_REGS	\
-   : (CLASS))
+#define PREFERRED_RELOAD_CLASS(X, CLASS) \
+   ix86_preferred_reload_class ((X), (CLASS))
 
 /* If we are copying between general and FP registers, we need a memory
-   location.  */
+   location. The same is true for SSE and MMX registers.  */
+#define SECONDARY_MEMORY_NEEDED(CLASS1, CLASS2, MODE) \
+  ix86_secondary_memory_needed ((CLASS1), (CLASS2), (MODE), 1)
 
-#define SECONDARY_MEMORY_NEEDED(CLASS1,CLASS2,MODE) \
-  ((FLOAT_CLASS_P (CLASS1) && ! FLOAT_CLASS_P (CLASS2))	\
-   || (! FLOAT_CLASS_P (CLASS1) && FLOAT_CLASS_P (CLASS2)))
+/* QImode spills from non-QI registers need a scratch.  This does not
+   happen often -- the only example so far requires an uninitialized 
+   pseudo.  */
+
+#define SECONDARY_OUTPUT_RELOAD_CLASS(CLASS, MODE, OUT)			\
+  (((CLASS) == GENERAL_REGS || (CLASS) == LEGACY_REGS			\
+    || (CLASS) == INDEX_REGS) && !TARGET_64BIT && (MODE) == QImode	\
+   ? Q_REGS : NO_REGS)
 
 /* Return the maximum number of consecutive registers
    needed to represent mode MODE in a register of class CLASS.  */
 /* On the 80386, this is the size of MODE in words,
-   except in the FP regs, where a single reg is always enough.  */
-#define CLASS_MAX_NREGS(CLASS, MODE)	\
- (FLOAT_CLASS_P (CLASS) ? 1 :		\
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD))
+   except in the FP regs, where a single reg is always enough.
+   The TFmodes are really just 80bit values, so we use only 3 registers
+   to hold them, instead of 4, as the size would suggest.
+ */
+#define CLASS_MAX_NREGS(CLASS, MODE)					\
+ (!MAYBE_INTEGER_CLASS_P (CLASS)					\
+  ? (COMPLEX_MODE_P (MODE) ? 2 : 1)					\
+  : ((GET_MODE_SIZE ((MODE) == TFmode ? XFmode : (MODE))		\
+     + UNITS_PER_WORD - 1) / UNITS_PER_WORD))
 
 /* A C expression whose value is nonzero if pseudos that have been
    assigned to registers of class CLASS would likely be spilled
@@ -1014,6 +1532,21 @@ enum reg_class
    || ((CLASS) == SIREG)						\
    || ((CLASS) == DIREG))
 
+/* A C statement that adds to CLOBBERS any hard regs the port wishes
+   to automatically clobber for all asms. 
+
+   We do this in the new i386 backend to maintain source compatibility
+   with the old cc0-based compiler.  */
+
+#define MD_ASM_CLOBBERS(CLOBBERS)					\
+  do {									\
+    (CLOBBERS) = tree_cons (NULL_TREE, build_string (5, "flags"),	\
+			    (CLOBBERS));				\
+    (CLOBBERS) = tree_cons (NULL_TREE, build_string (4, "fpsr"),	\
+			    (CLOBBERS));				\
+    (CLOBBERS) = tree_cons (NULL_TREE, build_string (7, "dirflag"),	\
+			    (CLOBBERS));				\
+  } while (0)
 
 /* Stack layout; function entry, exit and calling.  */
 
@@ -1037,12 +1570,60 @@ enum reg_class
    this says how many the stack pointer really advances by.
    On 386 pushw decrements by exactly 2 no matter what the position was.
    On the 386 there is no pushb; we use pushw instead, and this
-   has the effect of rounding up to 2.  */
+   has the effect of rounding up to 2.
+ 
+   For 64bit ABI we round up to 8 bytes.
+ */
 
-#define PUSH_ROUNDING(BYTES) (((BYTES) + 1) & (-2))
+#define PUSH_ROUNDING(BYTES) \
+  (TARGET_64BIT		     \
+   ? (((BYTES) + 7) & (-8))  \
+   : (((BYTES) + 1) & (-2)))
+
+/* If defined, the maximum amount of space required for outgoing arguments will
+   be computed and placed into the variable
+   `current_function_outgoing_args_size'.  No space will be pushed onto the
+   stack for each call; instead, the function prologue should increase the stack
+   frame size by this amount.  */
+
+#define ACCUMULATE_OUTGOING_ARGS TARGET_ACCUMULATE_OUTGOING_ARGS
+
+/* If defined, a C expression whose value is nonzero when we want to use PUSH
+   instructions to pass outgoing arguments.  */
+
+#define PUSH_ARGS (TARGET_PUSH_ARGS && !ACCUMULATE_OUTGOING_ARGS)
 
 /* Offset of first parameter from the argument pointer register value.  */
 #define FIRST_PARM_OFFSET(FNDECL) 0
+
+/* Define this macro if functions should assume that stack space has been
+   allocated for arguments even when their values are passed in registers.
+
+   The value of this macro is the size, in bytes, of the area reserved for
+   arguments passed in registers for the function represented by FNDECL.
+
+   This space can be allocated by the caller, or be a part of the
+   machine-dependent stack frame: `OUTGOING_REG_PARM_STACK_SPACE' says
+   which.  */
+#define REG_PARM_STACK_SPACE(FNDECL) 0
+
+/* Define as a C expression that evaluates to nonzero if we do not know how
+   to pass TYPE solely in registers.  The file expr.h defines a
+   definition that is usually appropriate, refer to expr.h for additional
+   documentation. If `REG_PARM_STACK_SPACE' is defined, the argument will be
+   computed in the stack and then loaded into a register.  */
+#define MUST_PASS_IN_STACK(MODE, TYPE)				\
+  ((TYPE) != 0							\
+   && (TREE_CODE (TYPE_SIZE (TYPE)) != INTEGER_CST		\
+       || TREE_ADDRESSABLE (TYPE)				\
+       || ((MODE) == TImode)					\
+       || ((MODE) == BLKmode 					\
+	   && ! ((TYPE) != 0					\
+		 && TREE_CODE (TYPE_SIZE (TYPE)) == INTEGER_CST \
+		 && 0 == (int_size_in_bytes (TYPE)		\
+			  % (PARM_BOUNDARY / BITS_PER_UNIT)))	\
+	   && (FUNCTION_ARG_PADDING (MODE, TYPE)		\
+	       == (BYTES_BIG_ENDIAN ? upward : downward)))))
 
 /* Value is the number of bytes of arguments automatically
    popped when returning from a subroutine call.
@@ -1061,22 +1642,24 @@ enum reg_class
 
    The attribute stdcall is equivalent to RTD on a per module basis.  */
 
-#define RETURN_POPS_ARGS(FUNDECL,FUNTYPE,SIZE) \
-  (i386_return_pops_args (FUNDECL, FUNTYPE, SIZE))
+#define RETURN_POPS_ARGS(FUNDECL, FUNTYPE, SIZE) \
+  ix86_return_pops_args ((FUNDECL), (FUNTYPE), (SIZE))
 
 /* Define how to find the value returned by a function.
    VALTYPE is the data type of the value (as a tree).
    If the precise function being called is known, FUNC is its FUNCTION_DECL;
    otherwise, FUNC is 0.  */
 #define FUNCTION_VALUE(VALTYPE, FUNC)  \
-   gen_rtx_REG (TYPE_MODE (VALTYPE), \
-	    VALUE_REGNO (TYPE_MODE (VALTYPE)))
+   ix86_function_value (VALTYPE)
+
+#define FUNCTION_VALUE_REGNO_P(N) \
+  ix86_function_value_regno_p (N)
 
 /* Define how to find the value returned by a library function
    assuming the value has mode MODE.  */
 
 #define LIBCALL_VALUE(MODE) \
-  gen_rtx_REG (MODE, VALUE_REGNO (MODE))
+  ix86_libcall_value (MODE)
 
 /* Define the size of the result block used for communication between
    untyped_call and untyped_return.  The block contains a DImode value
@@ -1085,7 +1668,7 @@ enum reg_class
 #define APPLY_RESULT_SIZE (8+108)
 
 /* 1 if N is a possible register number for function argument passing.  */
-#define FUNCTION_ARG_REGNO_P(N) ((N) >= 0 && (N) < REGPARM_MAX)
+#define FUNCTION_ARG_REGNO_P(N) ix86_function_arg_regno_p (N)
 
 /* Define a data type for recording info about an argument list
    during the scan of that argument list.  This data type should
@@ -1093,25 +1676,29 @@ enum reg_class
    and about the args processed so far, enough to enable macros
    such as FUNCTION_ARG to determine where the next arg should go.  */
 
-typedef struct i386_args {
+typedef struct ix86_args {
   int words;			/* # words passed so far */
   int nregs;			/* # registers available for passing */
   int regno;			/* next available register number */
+  int sse_words;		/* # sse words passed so far */
+  int sse_nregs;		/* # sse registers available for passing */
+  int sse_regno;		/* next available sse register number */
+  int maybe_vaarg;		/* true for calls to possibly vardic fncts.  */
 } CUMULATIVE_ARGS;
 
 /* Initialize a variable CUM of type CUMULATIVE_ARGS
    for a call to a function whose data type is FNTYPE.
    For a library call, FNTYPE is 0.  */
 
-#define INIT_CUMULATIVE_ARGS(CUM,FNTYPE,LIBNAME,INDIRECT)	\
-  (init_cumulative_args (&CUM, FNTYPE, LIBNAME))
+#define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT) \
+  init_cumulative_args (&(CUM), (FNTYPE), (LIBNAME))
 
 /* Update the data in CUM to advance over an argument
    of mode MODE and data type TYPE.
    (TYPE is null for libcalls where that information may not be available.)  */
 
-#define FUNCTION_ARG_ADVANCE(CUM, MODE, TYPE, NAMED)	\
-  (function_arg_advance (&CUM, MODE, TYPE, NAMED))
+#define FUNCTION_ARG_ADVANCE(CUM, MODE, TYPE, NAMED) \
+  function_arg_advance (&(CUM), (MODE), (TYPE), (NAMED))
 
 /* Define where to put the arguments to a function.
    Value is zero to push the argument on the stack,
@@ -1127,404 +1714,79 @@ typedef struct i386_args {
     (otherwise it is an extra parameter matching an ellipsis).  */
 
 #define FUNCTION_ARG(CUM, MODE, TYPE, NAMED) \
-  (function_arg (&CUM, MODE, TYPE, NAMED))
+  function_arg (&(CUM), (MODE), (TYPE), (NAMED))
 
 /* For an arg passed partly in registers and partly in memory,
    this is the number of registers used.
    For args passed entirely in registers or entirely in memory, zero.  */
 
-#define FUNCTION_ARG_PARTIAL_NREGS(CUM, MODE, TYPE, NAMED) \
-  (function_arg_partial_nregs (&CUM, MODE, TYPE, NAMED))
+#define FUNCTION_ARG_PARTIAL_NREGS(CUM, MODE, TYPE, NAMED) 0
 
-/* This macro is invoked just before the start of a function.
-   It is used here to output code for -fpic that will load the
-   return address into %ebx.  */
+/* If PIC, we cannot make sibling calls to global functions
+   because the PLT requires %ebx live.
+   If we are returning floats on the register stack, we cannot make
+   sibling calls to functions that return floats.  (The stack adjust
+   instruction will wind up after the sibcall jump, and not be executed.) */
+#define FUNCTION_OK_FOR_SIBCALL(DECL)					\
+  ((DECL)								\
+   && (! flag_pic || ! TREE_PUBLIC (DECL))				\
+   && (! TARGET_FLOAT_RETURNS_IN_80387					\
+       || ! FLOAT_MODE_P (TYPE_MODE (TREE_TYPE (TREE_TYPE (DECL))))	\
+       || FLOAT_MODE_P (TYPE_MODE (TREE_TYPE (TREE_TYPE (cfun->decl))))))
 
-#undef ASM_OUTPUT_FUNCTION_PREFIX
-#define ASM_OUTPUT_FUNCTION_PREFIX(FILE, FNNAME) \
-  asm_output_function_prefix (FILE, FNNAME)
+/* Perform any needed actions needed for a function that is receiving a
+   variable number of arguments.
 
-/* This macro generates the assembly code for function entry.
-   FILE is a stdio stream to output the code to.
-   SIZE is an int: how many units of temporary storage to allocate.
-   Refer to the array `regs_ever_live' to determine which registers
-   to save; `regs_ever_live[I]' is nonzero if register number I
-   is ever used in the function.  This macro is responsible for
-   knowing which registers should not be saved even if used.  */
+   CUM is as above.
 
-#define FUNCTION_PROLOGUE(FILE, SIZE)     \
-  function_prologue (FILE, SIZE)
+   MODE and TYPE are the mode and type of the current parameter.
+
+   PRETEND_SIZE is a variable that should be set to the amount of stack
+   that must be pushed by the prolog to pretend that our caller pushed
+   it.
+
+   Normally, this macro will push all remaining incoming registers on the
+   stack and set PRETEND_SIZE to the length of the registers pushed.  */
+
+#define SETUP_INCOMING_VARARGS(CUM, MODE, TYPE, PRETEND_SIZE, NO_RTL)	\
+  ix86_setup_incoming_varargs (&(CUM), (MODE), (TYPE), &(PRETEND_SIZE), \
+			       (NO_RTL))
+
+/* Define the `__builtin_va_list' type for the ABI.  */
+#define BUILD_VA_LIST_TYPE(VALIST) \
+  ((VALIST) = ix86_build_va_list ())
+
+/* Implement `va_start' for varargs and stdarg.  */
+#define EXPAND_BUILTIN_VA_START(STDARG, VALIST, NEXTARG) \
+  ix86_va_start ((STDARG), (VALIST), (NEXTARG))
+
+/* Implement `va_arg'.  */
+#define EXPAND_BUILTIN_VA_ARG(VALIST, TYPE) \
+  ix86_va_arg ((VALIST), (TYPE))
+
+/* This macro is invoked at the end of compilation.  It is used here to
+   output code for -fpic that will load the return address into %ebx.  */
+
+#undef ASM_FILE_END
+#define ASM_FILE_END(FILE)  ix86_asm_file_end (FILE)
 
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
 
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
+#define FUNCTION_PROFILER(FILE, LABELNO)				\
+do {									\
   if (flag_pic)								\
     {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%edx\n",		\
+      fprintf ((FILE), "\tleal\t%sP%d@GOTOFF(%%ebx),%%edx\n",		\
 	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *_mcount@GOT(%%ebx)\n");			\
+      fprintf ((FILE), "\tcall\t*_mcount@GOT(%%ebx)\n");		\
     }									\
   else									\
     {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%edx\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall _mcount\n");				\
+      fprintf ((FILE), "\tmovl\t$%sP%d,%%edx\n", LPREFIX, (LABELNO));	\
+      fprintf ((FILE), "\tcall\t_mcount\n");				\
     }									\
-}
-
-
-/* There are three profiling modes for basic blocks available.
-   The modes are selected at compile time by using the options
-   -a or -ax of the gnu compiler.
-   The variable `profile_block_flag' will be set according to the
-   selected option.
-
-   profile_block_flag == 0, no option used:
-
-      No profiling done.
-
-   profile_block_flag == 1, -a option used.
-
-      Count frequency of execution of every basic block.
-
-   profile_block_flag == 2, -ax option used.
-
-      Generate code to allow several different profiling modes at run time. 
-      Available modes are:
-             Produce a trace of all basic blocks.
-             Count frequency of jump instructions executed.
-      In every mode it is possible to start profiling upon entering
-      certain functions and to disable profiling of some other functions.
-
-    The result of basic-block profiling will be written to a file `bb.out'.
-    If the -ax option is used parameters for the profiling will be read
-    from file `bb.in'.
-
-*/
-
-/* The following macro shall output assembler code to FILE
-   to initialize basic-block profiling.
-
-   If profile_block_flag == 2
-
-	Output code to call the subroutine `__bb_init_trace_func'
-	and pass two parameters to it. The first parameter is
-	the address of a block allocated in the object module.
-	The second parameter is the number of the first basic block
-	of the function.
-
-	The name of the block is a local symbol made with this statement:
-	
-	    ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 0);
-
-	Of course, since you are writing the definition of
-	`ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
-	can take a short cut in the definition of this macro and use the
-	name that you know will result.
-
-	The number of the first basic block of the function is
-	passed to the macro in BLOCK_OR_LABEL.
-
-	If described in a virtual assembler language the code to be
-	output looks like:
-
-		parameter1 <- LPBX0
-		parameter2 <- BLOCK_OR_LABEL
-		call __bb_init_trace_func
-
-    else if profile_block_flag != 0
-
-	Output code to call the subroutine `__bb_init_func'
-	and pass one single parameter to it, which is the same
-	as the first parameter to `__bb_init_trace_func'.
-
-	The first word of this parameter is a flag which will be nonzero if
-	the object module has already been initialized.  So test this word
-	first, and do not call `__bb_init_func' if the flag is nonzero.
-	Note: When profile_block_flag == 2 the test need not be done
-	but `__bb_init_trace_func' *must* be called.
-
-	BLOCK_OR_LABEL may be used to generate a label number as a
-	branch destination in case `__bb_init_func' will not be called.
-
-	If described in a virtual assembler language the code to be
-	output looks like:
-
-		cmp (LPBX0),0
-		jne local_label
-		parameter1 <- LPBX0
-		call __bb_init_func
-local_label:
-
-*/
-
-#undef	FUNCTION_BLOCK_PROFILER
-#define FUNCTION_BLOCK_PROFILER(FILE, BLOCK_OR_LABEL)			\
-do									\
-  {									\
-    static int num_func = 0;						\
-    rtx xops[8];							\
-    char block_table[80], false_label[80];				\
-									\
-    ASM_GENERATE_INTERNAL_LABEL (block_table, "LPBX", 0);		\
-									\
-    xops[1] = gen_rtx_SYMBOL_REF (VOIDmode, block_table);		\
-    xops[5] = stack_pointer_rtx;					\
-    xops[7] = gen_rtx_REG (Pmode, 0);	/* eax */			\
-									\
-    CONSTANT_POOL_ADDRESS_P (xops[1]) = TRUE;				\
-									\
-    switch (profile_block_flag) 					\
-      {									\
-									\
-      case 2:								\
-									\
-        xops[2] = GEN_INT ((BLOCK_OR_LABEL));				\
-        xops[3] = gen_rtx_MEM (Pmode, gen_rtx_SYMBOL_REF (VOIDmode, "__bb_init_trace_func")); \
-        xops[6] = GEN_INT (8);						\
-    									\
-        output_asm_insn (AS1(push%L2,%2), xops);			\
-        if (!flag_pic)							\
-          output_asm_insn (AS1(push%L1,%1), xops);			\
-        else								\
-          {								\
-            output_asm_insn (AS2 (lea%L7,%a1,%7), xops);		\
-            output_asm_insn (AS1 (push%L7,%7), xops);			\
-          }								\
-    									\
-        output_asm_insn (AS1(call,%P3), xops);				\
-        output_asm_insn (AS2(add%L0,%6,%5), xops);			\
-									\
-        break;								\
-									\
-      default:								\
-									\
-        ASM_GENERATE_INTERNAL_LABEL (false_label, "LPBZ", num_func);	\
-    									\
-        xops[0] = const0_rtx;						\
-        xops[2] = gen_rtx_MEM (Pmode, gen_rtx_SYMBOL_REF (VOIDmode, false_label)); \
-        xops[3] = gen_rtx_MEM (Pmode, gen_rtx_SYMBOL_REF (VOIDmode, "__bb_init_func")); \
-        xops[4] = gen_rtx_MEM (Pmode, xops[1]);			\
-        xops[6] = GEN_INT (4);						\
-    									\
-        CONSTANT_POOL_ADDRESS_P (xops[2]) = TRUE;			\
-    									\
-        output_asm_insn (AS2(cmp%L4,%0,%4), xops);			\
-        output_asm_insn (AS1(jne,%2), xops);				\
-    									\
-        if (!flag_pic)							\
-          output_asm_insn (AS1(push%L1,%1), xops);			\
-        else								\
-          {								\
-            output_asm_insn (AS2 (lea%L7,%a1,%7), xops);		\
-            output_asm_insn (AS1 (push%L7,%7), xops);			\
-          }								\
-    									\
-        output_asm_insn (AS1(call,%P3), xops);				\
-        output_asm_insn (AS2(add%L0,%6,%5), xops);			\
-        ASM_OUTPUT_INTERNAL_LABEL (FILE, "LPBZ", num_func);		\
-        num_func++;							\
-									\
-        break;								\
-									\
-    }									\
-  }									\
-while (0)
-
-/* The following macro shall output assembler code to FILE
-   to increment a counter associated with basic block number BLOCKNO.
-
-   If profile_block_flag == 2
-
-	Output code to initialize the global structure `__bb' and
-	call the function `__bb_trace_func' which will increment the
-	counter.
-
-	`__bb' consists of two words. In the first word the number
-	of the basic block has to be stored. In the second word
-	the address of a block allocated in the object module 
-	has to be stored.
-
-	The basic block number is given by BLOCKNO.
-
-	The address of the block is given by the label created with 
-
-	    ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 0);
-
-	by FUNCTION_BLOCK_PROFILER.
-
-	Of course, since you are writing the definition of
-	`ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
-	can take a short cut in the definition of this macro and use the
-	name that you know will result.
-
-	If described in a virtual assembler language the code to be
-	output looks like:
-
-		move BLOCKNO -> (__bb)
-		move LPBX0 -> (__bb+4)
-		call __bb_trace_func
-
-	Note that function `__bb_trace_func' must not change the
-	machine state, especially the flag register. To grant
-	this, you must output code to save and restore registers
-	either in this macro or in the macros MACHINE_STATE_SAVE
-	and MACHINE_STATE_RESTORE. The last two macros will be
-	used in the function `__bb_trace_func', so you must make
-	sure that the function prologue does not change any 
-	register prior to saving it with MACHINE_STATE_SAVE.
-
-   else if profile_block_flag != 0
-
-	Output code to increment the counter directly.
-	Basic blocks are numbered separately from zero within each
-	compiled object module. The count associated with block number
-	BLOCKNO is at index BLOCKNO in an array of words; the name of 
-	this array is a local symbol made with this statement:
-
-	    ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 2);
-
-	Of course, since you are writing the definition of
-	`ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
-	can take a short cut in the definition of this macro and use the
-	name that you know will result. 
-
-	If described in a virtual assembler language the code to be
-	output looks like:
-
-		inc (LPBX2+4*BLOCKNO)
-
-*/
-
-#define BLOCK_PROFILER(FILE, BLOCKNO)					\
-do									\
-  {									\
-    rtx xops[8], cnt_rtx;						\
-    char counts[80];							\
-    char *block_table = counts;						\
-									\
-    switch (profile_block_flag) 					\
-      {									\
-									\
-      case 2:								\
-									\
-        ASM_GENERATE_INTERNAL_LABEL (block_table, "LPBX", 0);		\
-									\
-	xops[1] = gen_rtx_SYMBOL_REF (VOIDmode, block_table);		\
-        xops[2] = GEN_INT ((BLOCKNO));					\
-        xops[3] = gen_rtx_MEM (Pmode, gen_rtx_SYMBOL_REF (VOIDmode, "__bb_trace_func")); \
-        xops[4] = gen_rtx_SYMBOL_REF (VOIDmode, "__bb");		\
-	xops[5] = plus_constant (xops[4], 4);				\
-	xops[0] = gen_rtx_MEM (SImode, xops[4]);			\
-	xops[6] = gen_rtx_MEM (SImode, xops[5]);			\
-									\
-	CONSTANT_POOL_ADDRESS_P (xops[1]) = TRUE;			\
-									\
-	fprintf(FILE, "\tpushf\n");					\
-        output_asm_insn (AS2(mov%L0,%2,%0), xops);			\
-	if (flag_pic)							\
-	  {								\
-            xops[7] = gen_rtx_REG (Pmode, 0);	/* eax */		\
-            output_asm_insn (AS1(push%L7,%7), xops);			\
-            output_asm_insn (AS2(lea%L7,%a1,%7), xops);			\
-            output_asm_insn (AS2(mov%L6,%7,%6), xops);			\
-            output_asm_insn (AS1(pop%L7,%7), xops);			\
-	  }								\
-        else								\
-          output_asm_insn (AS2(mov%L6,%1,%6), xops);			\
-        output_asm_insn (AS1(call,%P3), xops);				\
-	fprintf(FILE, "\tpopf\n");					\
-									\
-        break;								\
-									\
-      default:								\
-									\
-        ASM_GENERATE_INTERNAL_LABEL (counts, "LPBX", 2);		\
-        cnt_rtx = gen_rtx_SYMBOL_REF (VOIDmode, counts);		\
-        SYMBOL_REF_FLAG (cnt_rtx) = TRUE;				\
-									\
-        if (BLOCKNO)							\
-          cnt_rtx = plus_constant (cnt_rtx, (BLOCKNO)*4);		\
-									\
-        if (flag_pic)							\
-          cnt_rtx = gen_rtx_PLUS (Pmode, pic_offset_table_rtx, cnt_rtx);	\
-									\
-        xops[0] = gen_rtx_MEM (SImode, cnt_rtx);			\
-        output_asm_insn (AS1(inc%L0,%0), xops);				\
-									\
-        break;								\
-									\
-    }									\
-  }									\
-while (0)
-
-/* The following macro shall output assembler code to FILE
-   to indicate a return from function during basic-block profiling.
-
-   If profiling_block_flag == 2:
-
-	Output assembler code to call function `__bb_trace_ret'.
-
-	Note that function `__bb_trace_ret' must not change the
-	machine state, especially the flag register. To grant
-	this, you must output code to save and restore registers
-	either in this macro or in the macros MACHINE_STATE_SAVE_RET
-	and MACHINE_STATE_RESTORE_RET. The last two macros will be
-	used in the function `__bb_trace_ret', so you must make
-	sure that the function prologue does not change any 
-	register prior to saving it with MACHINE_STATE_SAVE_RET.
-
-   else if profiling_block_flag != 0:
-
-	The macro will not be used, so it need not distinguish
-	these cases.
-*/
-
-#define FUNCTION_BLOCK_PROFILER_EXIT(FILE) \
-do									\
-  {									\
-    rtx xops[1];							\
-									\
-    xops[0] = gen_rtx_MEM (Pmode, gen_rtx_SYMBOL_REF (VOIDmode, "__bb_trace_ret")); \
-									\
-    output_asm_insn (AS1(call,%P0), xops);				\
-									\
-  }									\
-while (0)
-
-/* The function `__bb_trace_func' is called in every basic block
-   and is not allowed to change the machine state. Saving (restoring)
-   the state can either be done in the BLOCK_PROFILER macro,
-   before calling function (rsp. after returning from function)
-   `__bb_trace_func', or it can be done inside the function by
-   defining the macros:
-
-	MACHINE_STATE_SAVE(ID)
-	MACHINE_STATE_RESTORE(ID)
-
-   In the latter case care must be taken, that the prologue code
-   of function `__bb_trace_func' does not already change the
-   state prior to saving it with MACHINE_STATE_SAVE.
-
-   The parameter `ID' is a string identifying a unique macro use.
-
-   On the i386 the initialization code at the begin of
-   function `__bb_trace_func' contains a `sub' instruction
-   therefore we handle save and restore of the flag register 
-   in the BLOCK_PROFILER macro. */
-
-#define MACHINE_STATE_SAVE(ID) \
-  asm ("	pushl %eax"); \
-  asm ("	pushl %ecx"); \
-  asm ("	pushl %edx"); \
-  asm ("	pushl %esi");
-
-#define MACHINE_STATE_RESTORE(ID) \
-  asm ("	popl %esi"); \
-  asm ("	popl %edx"); \
-  asm ("	popl %ecx"); \
-  asm ("	popl %eax");
+} while (0)
 
 /* EXIT_IGNORE_STACK should be nonzero if, when returning from a function,
    the stack pointer does not matter.  The value is tested only in
@@ -1535,35 +1797,6 @@ while (0)
    use pop */
 
 #define EXIT_IGNORE_STACK 1
-
-/* This macro generates the assembly code for function exit,
-   on machines that need it.  If FUNCTION_EPILOGUE is not defined
-   then individual return instructions are generated for each
-   return statement.  Args are same as for FUNCTION_PROLOGUE.
-
-   The function epilogue should not depend on the current stack pointer!
-   It should use the frame pointer only.  This is mandatory because
-   of alloca; we also take advantage of it to omit stack adjustments
-   before returning.
-
-   If the last non-note insn in the function is a BARRIER, then there
-   is no need to emit a function prologue, because control does not fall
-   off the end.  This happens if the function ends in an "exit" call, or
-   if a `return' insn is emitted directly into the function. */
-
-#if 0
-#define FUNCTION_BEGIN_EPILOGUE(FILE)		\
-do {						\
-  rtx last = get_last_insn ();			\
-  if (last && GET_CODE (last) == NOTE)		\
-    last = prev_nonnote_insn (last);		\
-/*  if (! last || GET_CODE (last) != BARRIER)	\
-    function_epilogue (FILE, SIZE);*/		\
-} while (0)
-#endif
-
-#define FUNCTION_EPILOGUE(FILE, SIZE)     \
-  function_epilogue (FILE, SIZE)
 
 /* Output assembler code for a block containing the constant parts
    of a trampoline, leaving space for the variable parts.  */
@@ -1577,23 +1810,14 @@ do {						\
 
 /* Length in units of the trampoline for entering a nested function.  */
 
-#define TRAMPOLINE_SIZE 10
+#define TRAMPOLINE_SIZE (TARGET_64BIT ? 23 : 10)
 
 /* Emit RTL insns to initialize the variable parts of a trampoline.
    FNADDR is an RTX for the address of the function's pure code.
    CXT is an RTX for the static chain value for the function.  */
 
-#define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT)			\
-{									\
-  /* Compute offset from the end of the jmp to the target function.  */	\
-  rtx disp = expand_binop (SImode, sub_optab, FNADDR,			\
-			   plus_constant (TRAMP, 10),			\
-			   NULL_RTX, 1, OPTAB_DIRECT);			\
-  emit_move_insn (gen_rtx_MEM (QImode, TRAMP), GEN_INT (0xb9));		\
-  emit_move_insn (gen_rtx_MEM (SImode, plus_constant (TRAMP, 1)), CXT); \
-  emit_move_insn (gen_rtx_MEM (QImode, plus_constant (TRAMP, 5)), GEN_INT (0xe9));\
-  emit_move_insn (gen_rtx_MEM (SImode, plus_constant (TRAMP, 6)), disp); \
-}
+#define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT) \
+  x86_initialize_trampoline ((TRAMP), (FNADDR), (CXT))
 
 /* Definitions for register eliminations.
 
@@ -1602,57 +1826,31 @@ do {						\
    followed by "to".  Eliminations of the same "from" register are listed
    in order of preference.
 
-   We have two registers that can be eliminated on the i386.  First, the
-   frame pointer register can often be eliminated in favor of the stack
-   pointer register.  Secondly, the argument pointer register can always be
-   eliminated; it is replaced with either the stack or frame pointer. */
+   There are two registers that can always be eliminated on the i386.
+   The frame pointer and the arg pointer can be replaced by either the
+   hard frame pointer or to the stack pointer, depending upon the
+   circumstances.  The hard frame pointer is not used before reload and
+   so it is not eligible for elimination.  */
 
-#define ELIMINABLE_REGS				\
-{{ ARG_POINTER_REGNUM, STACK_POINTER_REGNUM},	\
- { ARG_POINTER_REGNUM, FRAME_POINTER_REGNUM},   \
- { FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM}}
+#define ELIMINABLE_REGS					\
+{{ ARG_POINTER_REGNUM, STACK_POINTER_REGNUM},		\
+ { ARG_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM},	\
+ { FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM},		\
+ { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM}}	\
 
-/* Given FROM and TO register numbers, say whether this elimination is allowed.
-   Frame pointer elimination is automatically handled.
-
-   For the i386, if frame pointer elimination is being done, we would like to
-   convert ap into sp, not fp.
+/* Given FROM and TO register numbers, say whether this elimination is
+   allowed.  Frame pointer elimination is automatically handled.
 
    All other eliminations are valid.  */
 
-#define CAN_ELIMINATE(FROM, TO)					\
- ((FROM) == ARG_POINTER_REGNUM && (TO) == STACK_POINTER_REGNUM	\
-  ? ! frame_pointer_needed					\
-  : 1)
+#define CAN_ELIMINATE(FROM, TO) \
+  ((TO) == STACK_POINTER_REGNUM ? ! frame_pointer_needed : 1)
 
 /* Define the offset between two registers, one to be eliminated, and the other
    its replacement, at the start of a routine.  */
 
-#define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\
-{									\
-  if ((FROM) == ARG_POINTER_REGNUM && (TO) == FRAME_POINTER_REGNUM)	\
-    (OFFSET) = 8;	/* Skip saved PC and previous frame pointer */	\
-  else									\
-    {									\
-      int nregs;							\
-      int offset;							\
-      int preferred_alignment = PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT; \
-      HOST_WIDE_INT tsize = ix86_compute_frame_size (get_frame_size (),	\
-						     &nregs);		\
-									\
-      (OFFSET) = (tsize + nregs * UNITS_PER_WORD);			\
-									\
-      offset = 4;							\
-      if (frame_pointer_needed)						\
-	offset += UNITS_PER_WORD;					\
-									\
-      if ((FROM) == ARG_POINTER_REGNUM)					\
-	(OFFSET) += offset;						\
-      else								\
-	(OFFSET) -= ((offset + preferred_alignment - 1)			\
-		     & -preferred_alignment) - offset;			\
-    }									\
-}
+#define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
+  ((OFFSET) = ix86_initial_elimination_offset ((FROM), (TO)))
 
 /* Addressing modes, and classification of registers for them.  */
 
@@ -1670,17 +1868,28 @@ do {						\
    Since they use reg_renumber, they are safe only once reg_renumber
    has been allocated, which happens in local-alloc.c.  */
 
-#define REGNO_OK_FOR_INDEX_P(REGNO) \
-  ((REGNO) < STACK_POINTER_REGNUM \
-   || (unsigned) reg_renumber[REGNO] < STACK_POINTER_REGNUM)
+#define REGNO_OK_FOR_INDEX_P(REGNO) 					\
+  ((REGNO) < STACK_POINTER_REGNUM 					\
+   || (REGNO >= FIRST_REX_INT_REG					\
+       && (REGNO) <= LAST_REX_INT_REG)					\
+   || ((unsigned) reg_renumber[(REGNO)] >= FIRST_REX_INT_REG		\
+       && (unsigned) reg_renumber[(REGNO)] <= LAST_REX_INT_REG)		\
+   || (unsigned) reg_renumber[(REGNO)] < STACK_POINTER_REGNUM)
 
-#define REGNO_OK_FOR_BASE_P(REGNO) \
-  ((REGNO) <= STACK_POINTER_REGNUM \
-   || (REGNO) == ARG_POINTER_REGNUM \
-   || (unsigned) reg_renumber[REGNO] <= STACK_POINTER_REGNUM)
+#define REGNO_OK_FOR_BASE_P(REGNO) 					\
+  ((REGNO) <= STACK_POINTER_REGNUM 					\
+   || (REGNO) == ARG_POINTER_REGNUM 					\
+   || (REGNO) == FRAME_POINTER_REGNUM 					\
+   || (REGNO >= FIRST_REX_INT_REG					\
+       && (REGNO) <= LAST_REX_INT_REG)					\
+   || ((unsigned) reg_renumber[(REGNO)] >= FIRST_REX_INT_REG		\
+       && (unsigned) reg_renumber[(REGNO)] <= LAST_REX_INT_REG)		\
+   || (unsigned) reg_renumber[(REGNO)] <= STACK_POINTER_REGNUM)
 
-#define REGNO_OK_FOR_SIREG_P(REGNO) ((REGNO) == 4 || reg_renumber[REGNO] == 4)
-#define REGNO_OK_FOR_DIREG_P(REGNO) ((REGNO) == 5 || reg_renumber[REGNO] == 5)
+#define REGNO_OK_FOR_SIREG_P(REGNO) \
+  ((REGNO) == 4 || reg_renumber[(REGNO)] == 4)
+#define REGNO_OK_FOR_DIREG_P(REGNO) \
+  ((REGNO) == 5 || reg_renumber[(REGNO)] == 5)
 
 /* The macros REG_OK_FOR..._P assume that the arg is a REG rtx
    and check its validity for a certain class.
@@ -1699,31 +1908,29 @@ do {						\
 /* Non strict versions, pseudos are ok */
 #define REG_OK_FOR_INDEX_NONSTRICT_P(X)					\
   (REGNO (X) < STACK_POINTER_REGNUM					\
+   || (REGNO (X) >= FIRST_REX_INT_REG					\
+       && REGNO (X) <= LAST_REX_INT_REG)				\
    || REGNO (X) >= FIRST_PSEUDO_REGISTER)
 
 #define REG_OK_FOR_BASE_NONSTRICT_P(X)					\
   (REGNO (X) <= STACK_POINTER_REGNUM					\
    || REGNO (X) == ARG_POINTER_REGNUM					\
+   || REGNO (X) == FRAME_POINTER_REGNUM 				\
+   || (REGNO (X) >= FIRST_REX_INT_REG					\
+       && REGNO (X) <= LAST_REX_INT_REG)				\
    || REGNO (X) >= FIRST_PSEUDO_REGISTER)
-
-#define REG_OK_FOR_STRREG_NONSTRICT_P(X)				\
-  (REGNO (X) == 4 || REGNO (X) == 5 || REGNO (X) >= FIRST_PSEUDO_REGISTER)
 
 /* Strict versions, hard registers only */
 #define REG_OK_FOR_INDEX_STRICT_P(X) REGNO_OK_FOR_INDEX_P (REGNO (X))
 #define REG_OK_FOR_BASE_STRICT_P(X)  REGNO_OK_FOR_BASE_P (REGNO (X))
-#define REG_OK_FOR_STRREG_STRICT_P(X)					\
-  (REGNO_OK_FOR_DIREG_P (REGNO (X)) || REGNO_OK_FOR_SIREG_P (REGNO (X)))
 
 #ifndef REG_OK_STRICT
-#define REG_OK_FOR_INDEX_P(X)  REG_OK_FOR_INDEX_NONSTRICT_P(X)
-#define REG_OK_FOR_BASE_P(X)   REG_OK_FOR_BASE_NONSTRICT_P(X)
-#define REG_OK_FOR_STRREG_P(X) REG_OK_FOR_STRREG_NONSTRICT_P(X)
+#define REG_OK_FOR_INDEX_P(X)  REG_OK_FOR_INDEX_NONSTRICT_P (X)
+#define REG_OK_FOR_BASE_P(X)   REG_OK_FOR_BASE_NONSTRICT_P (X)
 
 #else
-#define REG_OK_FOR_INDEX_P(X)  REG_OK_FOR_INDEX_STRICT_P(X)
-#define REG_OK_FOR_BASE_P(X)   REG_OK_FOR_BASE_STRICT_P(X)
-#define REG_OK_FOR_STRREG_P(X) REG_OK_FOR_STRREG_STRICT_P(X)
+#define REG_OK_FOR_INDEX_P(X)  REG_OK_FOR_INDEX_STRICT_P (X)
+#define REG_OK_FOR_BASE_P(X)   REG_OK_FOR_BASE_STRICT_P (X)
 #endif
 
 /* GO_IF_LEGITIMATE_ADDRESS recognizes an RTL expression
@@ -1741,29 +1948,40 @@ do {						\
 
 #define CONSTANT_ADDRESS_P(X)					\
   (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF	\
-   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST)
+   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST	\
+   || GET_CODE (X) == CONST_DOUBLE)
 
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
-#define LEGITIMATE_CONSTANT_P(X) \
-  (GET_CODE (X) == CONST_DOUBLE ? standard_80387_constant_p (X) : 1)
+#define LEGITIMATE_CONSTANT_P(X) 1
 
 #ifdef REG_OK_STRICT
 #define GO_IF_LEGITIMATE_ADDRESS(MODE, X, ADDR)				\
-{									\
-  if (legitimate_address_p (MODE, X, 1))				\
+do {									\
+  if (legitimate_address_p ((MODE), (X), 1))				\
     goto ADDR;								\
-}
+} while (0)
 
 #else
 #define GO_IF_LEGITIMATE_ADDRESS(MODE, X, ADDR)				\
-{									\
-  if (legitimate_address_p (MODE, X, 0))				\
+do {									\
+  if (legitimate_address_p ((MODE), (X), 0))				\
     goto ADDR;								\
-}
+} while (0)
 
 #endif
+
+/* If defined, a C expression to determine the base term of address X.
+   This macro is used in only one place: `find_base_term' in alias.c.
+
+   It is always safe for this macro to not be defined.  It exists so
+   that alias analysis can understand machine-dependent addresses.
+
+   The typical use of this macro is to handle addresses containing
+   a label_ref or symbol_ref within an UNSPEC.  */
+
+#define FIND_BASE_TERM(X) ix86_find_base_term (X)
 
 /* Try machine-dependent ways of modifying an illegitimate address
    to be legitimate.  If we find one, return the new, valid address.
@@ -1787,32 +2005,256 @@ do {						\
    See comments by legitimize_pic_address in i386.c for details.  */
 
 #define LEGITIMIZE_ADDRESS(X, OLDX, MODE, WIN)				\
-{									\
-  (X) = legitimize_address (X, OLDX, MODE);				\
-  if (memory_address_p (MODE, X))					\
+do {									\
+  (X) = legitimize_address ((X), (OLDX), (MODE));			\
+  if (memory_address_p ((MODE), (X)))					\
     goto WIN;								\
-}
+} while (0)
 
-#define REWRITE_ADDRESS(x) rewrite_address(x)
+#define REWRITE_ADDRESS(X) rewrite_address (X)
 
 /* Nonzero if the constant value X is a legitimate general operand
    when generating PIC code.  It is given that flag_pic is on and 
    that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
-#define LEGITIMATE_PIC_OPERAND_P(X) \
-  (! SYMBOLIC_CONST (X) || legitimate_pic_address_disp_p (X))
+#define LEGITIMATE_PIC_OPERAND_P(X)		\
+  (! SYMBOLIC_CONST (X)				\
+   || legitimate_pic_address_disp_p (X))
 
 #define SYMBOLIC_CONST(X)	\
-(GET_CODE (X) == SYMBOL_REF						\
- || GET_CODE (X) == LABEL_REF						\
- || (GET_CODE (X) == CONST && symbolic_reference_mentioned_p (X)))
+  (GET_CODE (X) == SYMBOL_REF						\
+   || GET_CODE (X) == LABEL_REF						\
+   || (GET_CODE (X) == CONST && symbolic_reference_mentioned_p (X)))
 
 /* Go to LABEL if ADDR (a legitimate address expression)
    has an effect that depends on the machine mode it is used for.
    On the 80386, only postdecrement and postincrement address depend thus
    (the amount of decrement or increment being the length of the operand).  */
-#define GO_IF_MODE_DEPENDENT_ADDRESS(ADDR,LABEL)	\
- if (GET_CODE (ADDR) == POST_INC || GET_CODE (ADDR) == POST_DEC) goto LABEL
+#define GO_IF_MODE_DEPENDENT_ADDRESS(ADDR, LABEL)	\
+do {							\
+ if (GET_CODE (ADDR) == POST_INC			\
+     || GET_CODE (ADDR) == POST_DEC)			\
+   goto LABEL;						\
+} while (0)
+
+/* Codes for all the SSE/MMX builtins.  */
+enum ix86_builtins
+{
+  IX86_BUILTIN_ADDPS,
+  IX86_BUILTIN_ADDSS,
+  IX86_BUILTIN_DIVPS,
+  IX86_BUILTIN_DIVSS,
+  IX86_BUILTIN_MULPS,
+  IX86_BUILTIN_MULSS,
+  IX86_BUILTIN_SUBPS,
+  IX86_BUILTIN_SUBSS,
+
+  IX86_BUILTIN_CMPEQPS,
+  IX86_BUILTIN_CMPLTPS,
+  IX86_BUILTIN_CMPLEPS,
+  IX86_BUILTIN_CMPGTPS,
+  IX86_BUILTIN_CMPGEPS,
+  IX86_BUILTIN_CMPNEQPS,
+  IX86_BUILTIN_CMPNLTPS,
+  IX86_BUILTIN_CMPNLEPS,
+  IX86_BUILTIN_CMPNGTPS,
+  IX86_BUILTIN_CMPNGEPS,
+  IX86_BUILTIN_CMPORDPS,
+  IX86_BUILTIN_CMPUNORDPS,
+  IX86_BUILTIN_CMPNEPS,
+  IX86_BUILTIN_CMPEQSS,
+  IX86_BUILTIN_CMPLTSS,
+  IX86_BUILTIN_CMPLESS,
+  IX86_BUILTIN_CMPGTSS,
+  IX86_BUILTIN_CMPGESS,
+  IX86_BUILTIN_CMPNEQSS,
+  IX86_BUILTIN_CMPNLTSS,
+  IX86_BUILTIN_CMPNLESS,
+  IX86_BUILTIN_CMPNGTSS,
+  IX86_BUILTIN_CMPNGESS,
+  IX86_BUILTIN_CMPORDSS,
+  IX86_BUILTIN_CMPUNORDSS,
+  IX86_BUILTIN_CMPNESS,
+
+  IX86_BUILTIN_COMIEQSS,
+  IX86_BUILTIN_COMILTSS,
+  IX86_BUILTIN_COMILESS,
+  IX86_BUILTIN_COMIGTSS,
+  IX86_BUILTIN_COMIGESS,
+  IX86_BUILTIN_COMINEQSS,
+  IX86_BUILTIN_UCOMIEQSS,
+  IX86_BUILTIN_UCOMILTSS,
+  IX86_BUILTIN_UCOMILESS,
+  IX86_BUILTIN_UCOMIGTSS,
+  IX86_BUILTIN_UCOMIGESS,
+  IX86_BUILTIN_UCOMINEQSS,
+
+  IX86_BUILTIN_CVTPI2PS,
+  IX86_BUILTIN_CVTPS2PI,
+  IX86_BUILTIN_CVTSI2SS,
+  IX86_BUILTIN_CVTSS2SI,
+  IX86_BUILTIN_CVTTPS2PI,
+  IX86_BUILTIN_CVTTSS2SI,
+
+  IX86_BUILTIN_MAXPS,
+  IX86_BUILTIN_MAXSS,
+  IX86_BUILTIN_MINPS,
+  IX86_BUILTIN_MINSS,
+
+  IX86_BUILTIN_LOADAPS,
+  IX86_BUILTIN_LOADUPS,
+  IX86_BUILTIN_STOREAPS,
+  IX86_BUILTIN_STOREUPS,
+  IX86_BUILTIN_LOADSS,
+  IX86_BUILTIN_STORESS,
+  IX86_BUILTIN_MOVSS,
+
+  IX86_BUILTIN_MOVHLPS,
+  IX86_BUILTIN_MOVLHPS,
+  IX86_BUILTIN_LOADHPS,
+  IX86_BUILTIN_LOADLPS,
+  IX86_BUILTIN_STOREHPS,
+  IX86_BUILTIN_STORELPS,
+
+  IX86_BUILTIN_MASKMOVQ,
+  IX86_BUILTIN_MOVMSKPS,
+  IX86_BUILTIN_PMOVMSKB,
+
+  IX86_BUILTIN_MOVNTPS,
+  IX86_BUILTIN_MOVNTQ,
+
+  IX86_BUILTIN_PACKSSWB,
+  IX86_BUILTIN_PACKSSDW,
+  IX86_BUILTIN_PACKUSWB,
+
+  IX86_BUILTIN_PADDB,
+  IX86_BUILTIN_PADDW,
+  IX86_BUILTIN_PADDD,
+  IX86_BUILTIN_PADDSB,
+  IX86_BUILTIN_PADDSW,
+  IX86_BUILTIN_PADDUSB,
+  IX86_BUILTIN_PADDUSW,
+  IX86_BUILTIN_PSUBB,
+  IX86_BUILTIN_PSUBW,
+  IX86_BUILTIN_PSUBD,
+  IX86_BUILTIN_PSUBSB,
+  IX86_BUILTIN_PSUBSW,
+  IX86_BUILTIN_PSUBUSB,
+  IX86_BUILTIN_PSUBUSW,
+
+  IX86_BUILTIN_PAND,
+  IX86_BUILTIN_PANDN,
+  IX86_BUILTIN_POR,
+  IX86_BUILTIN_PXOR,
+
+  IX86_BUILTIN_PAVGB,
+  IX86_BUILTIN_PAVGW,
+
+  IX86_BUILTIN_PCMPEQB,
+  IX86_BUILTIN_PCMPEQW,
+  IX86_BUILTIN_PCMPEQD,
+  IX86_BUILTIN_PCMPGTB,
+  IX86_BUILTIN_PCMPGTW,
+  IX86_BUILTIN_PCMPGTD,
+
+  IX86_BUILTIN_PEXTRW,
+  IX86_BUILTIN_PINSRW,
+
+  IX86_BUILTIN_PMADDWD,
+
+  IX86_BUILTIN_PMAXSW,
+  IX86_BUILTIN_PMAXUB,
+  IX86_BUILTIN_PMINSW,
+  IX86_BUILTIN_PMINUB,
+
+  IX86_BUILTIN_PMULHUW,
+  IX86_BUILTIN_PMULHW,
+  IX86_BUILTIN_PMULLW,
+
+  IX86_BUILTIN_PSADBW,
+  IX86_BUILTIN_PSHUFW,
+
+  IX86_BUILTIN_PSLLW,
+  IX86_BUILTIN_PSLLD,
+  IX86_BUILTIN_PSLLQ,
+  IX86_BUILTIN_PSRAW,
+  IX86_BUILTIN_PSRAD,
+  IX86_BUILTIN_PSRLW,
+  IX86_BUILTIN_PSRLD,
+  IX86_BUILTIN_PSRLQ,
+  IX86_BUILTIN_PSLLWI,
+  IX86_BUILTIN_PSLLDI,
+  IX86_BUILTIN_PSLLQI,
+  IX86_BUILTIN_PSRAWI,
+  IX86_BUILTIN_PSRADI,
+  IX86_BUILTIN_PSRLWI,
+  IX86_BUILTIN_PSRLDI,
+  IX86_BUILTIN_PSRLQI,
+
+  IX86_BUILTIN_PUNPCKHBW,
+  IX86_BUILTIN_PUNPCKHWD,
+  IX86_BUILTIN_PUNPCKHDQ,
+  IX86_BUILTIN_PUNPCKLBW,
+  IX86_BUILTIN_PUNPCKLWD,
+  IX86_BUILTIN_PUNPCKLDQ,
+
+  IX86_BUILTIN_SHUFPS,
+
+  IX86_BUILTIN_RCPPS,
+  IX86_BUILTIN_RCPSS,
+  IX86_BUILTIN_RSQRTPS,
+  IX86_BUILTIN_RSQRTSS,
+  IX86_BUILTIN_SQRTPS,
+  IX86_BUILTIN_SQRTSS,
+  
+  IX86_BUILTIN_UNPCKHPS,
+  IX86_BUILTIN_UNPCKLPS,
+
+  IX86_BUILTIN_ANDPS,
+  IX86_BUILTIN_ANDNPS,
+  IX86_BUILTIN_ORPS,
+  IX86_BUILTIN_XORPS,
+
+  IX86_BUILTIN_EMMS,
+  IX86_BUILTIN_LDMXCSR,
+  IX86_BUILTIN_STMXCSR,
+  IX86_BUILTIN_SFENCE,
+
+  /* 3DNow! Original */
+  IX86_BUILTIN_FEMMS,
+  IX86_BUILTIN_PAVGUSB,
+  IX86_BUILTIN_PF2ID,
+  IX86_BUILTIN_PFACC,
+  IX86_BUILTIN_PFADD,
+  IX86_BUILTIN_PFCMPEQ,
+  IX86_BUILTIN_PFCMPGE,
+  IX86_BUILTIN_PFCMPGT,
+  IX86_BUILTIN_PFMAX,
+  IX86_BUILTIN_PFMIN,
+  IX86_BUILTIN_PFMUL,
+  IX86_BUILTIN_PFRCP,
+  IX86_BUILTIN_PFRCPIT1,
+  IX86_BUILTIN_PFRCPIT2,
+  IX86_BUILTIN_PFRSQIT1,
+  IX86_BUILTIN_PFRSQRT,
+  IX86_BUILTIN_PFSUB,
+  IX86_BUILTIN_PFSUBR,
+  IX86_BUILTIN_PI2FD,
+  IX86_BUILTIN_PMULHRW,
+
+  /* 3DNow! Athlon Extensions */
+  IX86_BUILTIN_PF2IW,
+  IX86_BUILTIN_PFNACC,
+  IX86_BUILTIN_PFPNACC,
+  IX86_BUILTIN_PI2FW,
+  IX86_BUILTIN_PSWAPDSI,
+  IX86_BUILTIN_PSWAPDSF,
+
+  IX86_BUILTIN_SSE_ZERO,
+  IX86_BUILTIN_MMX_ZERO,
+
+  IX86_BUILTIN_MAX
+};
 
 /* Define this macro if references to a symbol must be treated
    differently depending on something about the variable or
@@ -1821,35 +2263,29 @@ do {						\
    On i386, if using PIC, mark a SYMBOL_REF for a non-global symbol
    so that we may access it directly in the GOT.  */
 
-#define ENCODE_SECTION_INFO(DECL) \
-do									\
-  {									\
-    if (flag_pic)							\
-      {									\
-	rtx rtl = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'		\
-		   ? TREE_CST_RTL (DECL) : DECL_RTL (DECL));		\
-									\
-	if (TARGET_DEBUG_ADDR						\
-	    && TREE_CODE_CLASS (TREE_CODE (DECL)) == 'd')		\
-	  {								\
-	    fprintf (stderr, "Encode %s, public = %d\n",		\
-		     IDENTIFIER_POINTER (DECL_NAME (DECL)),		\
-		     TREE_PUBLIC (DECL));				\
-	  }								\
-									\
-	SYMBOL_REF_FLAG (XEXP (rtl, 0))					\
-	  = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'			\
-	     || ! TREE_PUBLIC (DECL));					\
-      }									\
-  }									\
-while (0)
-
-/* Initialize data used by insn expanders.  This is called from
-   init_emit, once for each function, before code is generated.
-   For 386, clear stack slot assignments remembered from previous
-   functions. */
-
-#define INIT_EXPANDERS clear_386_stack_locals ()
+#define ENCODE_SECTION_INFO(DECL)				\
+do {								\
+    if (flag_pic)						\
+      {								\
+	rtx rtl = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'	\
+		   ? TREE_CST_RTL (DECL) : DECL_RTL (DECL));	\
+								\
+	if (GET_CODE (rtl) == MEM)				\
+	  {							\
+	    if (TARGET_DEBUG_ADDR				\
+		&& TREE_CODE_CLASS (TREE_CODE (DECL)) == 'd')	\
+	      {							\
+		fprintf (stderr, "Encode %s, public = %d\n",	\
+			 IDENTIFIER_POINTER (DECL_NAME (DECL)),	\
+			 TREE_PUBLIC (DECL));			\
+	      }							\
+	    							\
+	    SYMBOL_REF_FLAG (XEXP (rtl, 0))			\
+	      = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'	\
+		 || ! TREE_PUBLIC (DECL));			\
+	  }							\
+      }								\
+} while (0)
 
 /* The `FINALIZE_PIC' macro serves as a hook to emit these special
    codes once the function is being compiled into assembly code, but
@@ -1858,93 +2294,61 @@ while (0)
    prologues being included in functions which used inline functions
    and were compiled to assembly language.)  */
 
-#define FINALIZE_PIC							\
-do									\
-  {									\
-    extern int current_function_uses_pic_offset_table;			\
-									\
-    current_function_uses_pic_offset_table |= profile_flag | profile_block_flag; \
-  }									\
-while (0)
+#define FINALIZE_PIC \
+  (current_function_uses_pic_offset_table |= current_function_profile)
 
 
-/* If defined, a C expression whose value is nonzero if IDENTIFIER
-   with arguments ARGS is a valid machine specific attribute for DECL.
-   The attributes in ATTRIBUTES have previously been assigned to DECL.  */
-
-#define VALID_MACHINE_DECL_ATTRIBUTE(DECL, ATTRIBUTES, NAME, ARGS) \
-  (i386_valid_decl_attribute_p (DECL, ATTRIBUTES, NAME, ARGS))
-
-/* If defined, a C expression whose value is nonzero if IDENTIFIER
-   with arguments ARGS is a valid machine specific attribute for TYPE.
-   The attributes in ATTRIBUTES have previously been assigned to TYPE.  */
-
-#define VALID_MACHINE_TYPE_ATTRIBUTE(TYPE, ATTRIBUTES, NAME, ARGS) \
-  (i386_valid_type_attribute_p (TYPE, ATTRIBUTES, NAME, ARGS))
-
-/* If defined, a C expression whose value is zero if the attributes on
-   TYPE1 and TYPE2 are incompatible, one if they are compatible, and
-   two if they are nearly compatible (which causes a warning to be
-   generated).  */
-
-#define COMP_TYPE_ATTRIBUTES(TYPE1, TYPE2) \
-  (i386_comp_type_attributes (TYPE1, TYPE2))
-
-/* If defined, a C statement that assigns default attributes to newly
-   defined TYPE.  */
-
-/* #define SET_DEFAULT_TYPE_ATTRIBUTES (TYPE) */
-
 /* Max number of args passed in registers.  If this is more than 3, we will
    have problems with ebx (register #4), since it is a caller save register and
    is also used as the pic register in ELF.  So for now, don't allow more than
    3 registers to be passed in registers.  */
 
-#define REGPARM_MAX 3
+#define REGPARM_MAX (TARGET_64BIT ? 6 : 3)
+
+#define SSE_REGPARM_MAX (TARGET_64BIT ? 8 : 0)
 
 
 /* Specify the machine mode that this machine uses
    for the index in the tablejump instruction.  */
-#define CASE_VECTOR_MODE Pmode
+#define CASE_VECTOR_MODE (!TARGET_64BIT || flag_pic ? SImode : DImode)
 
 /* Define as C expression which evaluates to nonzero if the tablejump
    instruction expects the table to contain offsets from the address of the
    table.
-   Do not define this if the table should contain absolute addresses. */
+   Do not define this if the table should contain absolute addresses.  */
 /* #define CASE_VECTOR_PC_RELATIVE 1 */
-
-/* Specify the tree operation to be used to convert reals to integers.
-   This should be changed to take advantage of fist --wfs ??
- */
-#define IMPLICIT_FIX_EXPR FIX_ROUND_EXPR
-
-/* This is the kind of divide that is easiest to do in the general case.  */
-#define EASY_DIV_EXPR TRUNC_DIV_EXPR
 
 /* Define this as 1 if `char' should by default be signed; else as 0.  */
 #define DEFAULT_SIGNED_CHAR 1
 
+/* Number of bytes moved into a data cache for a single prefetch operation.  */
+#define PREFETCH_BLOCK ix86_cost->prefetch_block
+
+/* Number of prefetch operations that can be done in parallel.  */
+#define SIMULTANEOUS_PREFETCHES ix86_cost->simultaneous_prefetches
+
 /* Max number of bytes we can move from memory to memory
    in one reasonably fast instruction.  */
-#define MOVE_MAX 4
+#define MOVE_MAX 16
+
+/* MOVE_MAX_PIECES is the number of bytes at a time which we can
+   move efficiently, as opposed to  MOVE_MAX which is the maximum
+   number of bytes we can move with a single instruction.  */
+#define MOVE_MAX_PIECES (TARGET_64BIT ? 8 : 4)
 
 /* If a memory-to-memory move would take MOVE_RATIO or more simple
    move-instruction pairs, we will do a movstr or libcall instead.
    Increasing the value will always make code faster, but eventually
    incurs high cost in increased code size.
 
-   If you don't define this, a reasonable default is used.
+   If you don't define this, a reasonable default is used.  */
 
-   Make this large on i386, since the block move is very inefficient with small
-   blocks, and the hard register needs of the block move require much reload
-   work. */
-
-#define MOVE_RATIO 5
+#define MOVE_RATIO (optimize_size ? 3 : ix86_cost->move_ratio)
 
 /* Define if shifts truncate the shift count
    which implies one can omit a sign-extension or zero-extension
    of a shift count.  */
-/* On i386, shifts do truncate the count.  But bit opcodes don't. */
+/* On i386, shifts do truncate the count.  But bit opcodes don't.  */
 
 /* #define SHIFT_COUNT_TRUNCATED */
 
@@ -1960,12 +2364,27 @@ while (0)
 /* When a prototype says `char' or `short', really pass an `int'.
    (The 386 can't easily push less than an int.)  */
 
-#define PROMOTE_PROTOTYPES
+#define PROMOTE_PROTOTYPES 1
+
+/* A macro to update M and UNSIGNEDP when an object whose type is
+   TYPE and which has the specified mode and signedness is to be
+   stored in a register.  This macro is only called when TYPE is a
+   scalar type.
+
+   On i386 it is sometimes useful to promote HImode and QImode
+   quantities to SImode.  The choice depends on target type.  */
+
+#define PROMOTE_MODE(MODE, UNSIGNEDP, TYPE) 		\
+do {							\
+  if (((MODE) == HImode && TARGET_PROMOTE_HI_REGS)	\
+      || ((MODE) == QImode && TARGET_PROMOTE_QI_REGS))	\
+    (MODE) = SImode;					\
+} while (0)
 
 /* Specify the machine mode that pointers have.
    After generation of rtl, the compiler makes no further distinction
    between pointers and any other objects of this machine mode.  */
-#define Pmode SImode
+#define Pmode (TARGET_64BIT ? DImode : SImode)
 
 /* A function address in a call instruction
    is a byte address (for indexing purposes)
@@ -1985,28 +2404,32 @@ while (0)
    CODE is the expression code--redundant, since it can be obtained
    with `GET_CODE (X)'.  */
 
-#define CONST_COSTS(RTX,CODE,OUTER_CODE) \
+#define CONST_COSTS(RTX, CODE, OUTER_CODE)			\
   case CONST_INT:						\
-    return (unsigned) INTVAL (RTX) < 256 ? 0 : 1;		\
   case CONST:							\
   case LABEL_REF:						\
   case SYMBOL_REF:						\
-    return flag_pic && SYMBOLIC_CONST (RTX) ? 2 : 1;		\
+    if (TARGET_64BIT && !x86_64_sign_extended_value (RTX))	\
+      return 3;							\
+    if (TARGET_64BIT && !x86_64_zero_extended_value (RTX))	\
+      return 2;							\
+    return flag_pic && SYMBOLIC_CONST (RTX) ? 1 : 0;		\
 								\
   case CONST_DOUBLE:						\
     {								\
       int code;							\
       if (GET_MODE (RTX) == VOIDmode)				\
-	return 2;						\
+	return 0;						\
 								\
       code = standard_80387_constant_p (RTX);			\
-      return code == 1 ? 0 :					\
-	     code == 2 ? 1 :					\
-			 2;					\
+      return code == 1 ? 1 :					\
+	     code == 2 ? 2 :					\
+			 3;					\
     }
 
 /* Delete the definition here when TOPLEVEL_COSTS_N_INSNS gets added to cse.c */
-#define TOPLEVEL_COSTS_N_INSNS(N) {total = COSTS_N_INSNS (N); break;}
+#define TOPLEVEL_COSTS_N_INSNS(N) \
+  do { total = COSTS_N_INSNS (N); goto egress_rtx_costs; } while (0)
 
 /* Like `CONST_COSTS' but applies to nonconstant RTL expressions.
    This can be used, for example, to indicate how costly a multiply
@@ -2018,20 +2441,33 @@ while (0)
    This macro is optional; do not define it if the default cost
    assumptions are adequate for the target machine.  */
 
-#define RTX_COSTS(X,CODE,OUTER_CODE)					\
-  case ASHIFT:								\
-    if (GET_CODE (XEXP (X, 1)) == CONST_INT				\
+#define RTX_COSTS(X, CODE, OUTER_CODE)					\
+  case ZERO_EXTEND:							\
+    /* The zero extensions is often completely free on x86_64, so make	\
+       it as cheap as possible.  */					\
+    if (TARGET_64BIT && GET_MODE (X) == DImode				\
 	&& GET_MODE (XEXP (X, 0)) == SImode)				\
       {									\
+	total = 1; goto egress_rtx_costs;				\
+      } 								\
+    else								\
+      TOPLEVEL_COSTS_N_INSNS (TARGET_ZERO_EXTEND_WITH_AND ?		\
+			      ix86_cost->add : ix86_cost->movzx);	\
+    break;								\
+  case SIGN_EXTEND:							\
+    TOPLEVEL_COSTS_N_INSNS (ix86_cost->movsx);				\
+    break;								\
+  case ASHIFT:								\
+    if (GET_CODE (XEXP (X, 1)) == CONST_INT				\
+	&& (GET_MODE (XEXP (X, 0)) != DImode || TARGET_64BIT))		\
+      {									\
 	HOST_WIDE_INT value = INTVAL (XEXP (X, 1));			\
-									\
 	if (value == 1)							\
-	  return COSTS_N_INSNS (ix86_cost->add) 			\
-				+ rtx_cost(XEXP (X, 0), OUTER_CODE);	\
-									\
-	if (value == 2 || value == 3)					\
-	  return COSTS_N_INSNS (ix86_cost->lea)				\
-				 + rtx_cost(XEXP (X, 0), OUTER_CODE);	\
+	  TOPLEVEL_COSTS_N_INSNS (ix86_cost->add);			\
+	if ((value == 2 || value == 3)					\
+	    && !TARGET_DECOMPOSE_LEA					\
+	    && ix86_cost->lea <= ix86_cost->shift_const)		\
+	  TOPLEVEL_COSTS_N_INSNS (ix86_cost->lea);			\
       }									\
     /* fall through */							\
 		  							\
@@ -2039,23 +2475,31 @@ while (0)
   case ASHIFTRT:							\
   case LSHIFTRT:							\
   case ROTATERT:							\
-    if (GET_MODE (XEXP (X, 0)) == DImode)				\
+    if (!TARGET_64BIT && GET_MODE (XEXP (X, 0)) == DImode)		\
       {									\
 	if (GET_CODE (XEXP (X, 1)) == CONST_INT)			\
 	  {								\
 	    if (INTVAL (XEXP (X, 1)) > 32)				\
-	      return COSTS_N_INSNS(ix86_cost->shift_const + 2);		\
-	    return COSTS_N_INSNS(ix86_cost->shift_const * 2);		\
+	      TOPLEVEL_COSTS_N_INSNS(ix86_cost->shift_const + 2);	\
+	    else							\
+	      TOPLEVEL_COSTS_N_INSNS(ix86_cost->shift_const * 2);	\
 	  }								\
-	return ((GET_CODE (XEXP (X, 1)) == AND				\
-		 ? COSTS_N_INSNS(ix86_cost->shift_var * 2)		\
-		 : COSTS_N_INSNS(ix86_cost->shift_var * 6 + 2))		\
-		+ rtx_cost(XEXP (X, 0), OUTER_CODE));			\
+	else								\
+	  {								\
+	    if (GET_CODE (XEXP (X, 1)) == AND)				\
+	      TOPLEVEL_COSTS_N_INSNS(ix86_cost->shift_var * 2);		\
+	    else							\
+	      TOPLEVEL_COSTS_N_INSNS(ix86_cost->shift_var * 6 + 2);	\
+	  }								\
       }									\
-    return COSTS_N_INSNS (GET_CODE (XEXP (X, 1)) == CONST_INT		\
-			  ? ix86_cost->shift_const			\
-			  : ix86_cost->shift_var)			\
-      + rtx_cost(XEXP (X, 0), OUTER_CODE);				\
+    else								\
+      {									\
+	if (GET_CODE (XEXP (X, 1)) == CONST_INT)			\
+	  TOPLEVEL_COSTS_N_INSNS (ix86_cost->shift_const);		\
+	else								\
+	  TOPLEVEL_COSTS_N_INSNS (ix86_cost->shift_var);		\
+      }									\
+    break;								\
 									\
   case MULT:								\
     if (GET_CODE (XEXP (X, 1)) == CONST_INT)				\
@@ -2063,28 +2507,15 @@ while (0)
 	unsigned HOST_WIDE_INT value = INTVAL (XEXP (X, 1));		\
 	int nbits = 0;							\
 									\
-	if (value == 2)							\
-	  return COSTS_N_INSNS (ix86_cost->add)				\
-				 + rtx_cost(XEXP (X, 0), OUTER_CODE);	\
-	if (value == 4 || value == 8)					\
-	  return COSTS_N_INSNS (ix86_cost->lea)				\
-				 + rtx_cost(XEXP (X, 0), OUTER_CODE);	\
-									\
 	while (value != 0)						\
 	  {								\
 	    nbits++;							\
 	    value >>= 1;						\
 	  } 								\
 									\
-	if (nbits == 1)							\
-	  return COSTS_N_INSNS (ix86_cost->shift_const)			\
-	    + rtx_cost(XEXP (X, 0), OUTER_CODE);			\
-									\
-	return COSTS_N_INSNS (ix86_cost->mult_init			\
-			      + nbits * ix86_cost->mult_bit)		\
-	  + rtx_cost(XEXP (X, 0), OUTER_CODE);				\
+	TOPLEVEL_COSTS_N_INSNS (ix86_cost->mult_init			\
+			        + nbits * ix86_cost->mult_bit);		\
       }									\
-									\
     else			/* This is arbitrary */			\
       TOPLEVEL_COSTS_N_INSNS (ix86_cost->mult_init			\
 			      + 7 * ix86_cost->mult_bit);		\
@@ -2096,27 +2527,68 @@ while (0)
     TOPLEVEL_COSTS_N_INSNS (ix86_cost->divide);				\
 									\
   case PLUS:								\
-    if (GET_CODE (XEXP (X, 0)) == REG					\
-	&& GET_MODE (XEXP (X, 0)) == SImode				\
-	&& GET_CODE (XEXP (X, 1)) == PLUS)				\
-      return COSTS_N_INSNS (ix86_cost->lea);				\
+    if (!TARGET_DECOMPOSE_LEA						\
+	&& INTEGRAL_MODE_P (GET_MODE (X))				\
+	&& GET_MODE_BITSIZE (GET_MODE (X)) <= GET_MODE_BITSIZE (Pmode))	\
+      {									\
+        if (GET_CODE (XEXP (X, 0)) == PLUS				\
+	    && GET_CODE (XEXP (XEXP (X, 0), 0)) == MULT			\
+	    && GET_CODE (XEXP (XEXP (XEXP (X, 0), 0), 1)) == CONST_INT	\
+	    && CONSTANT_P (XEXP (X, 1)))				\
+	  {								\
+	    HOST_WIDE_INT val = INTVAL (XEXP (XEXP (XEXP (X, 0), 0), 1));\
+	    if (val == 2 || val == 4 || val == 8)			\
+	      {								\
+		return (COSTS_N_INSNS (ix86_cost->lea)			\
+			+ rtx_cost (XEXP (XEXP (X, 0), 1),		\
+				    (OUTER_CODE))			\
+			+ rtx_cost (XEXP (XEXP (XEXP (X, 0), 0), 0),	\
+				    (OUTER_CODE))			\
+			+ rtx_cost (XEXP (X, 1), (OUTER_CODE)));	\
+	      }								\
+	  }								\
+	else if (GET_CODE (XEXP (X, 0)) == MULT				\
+		 && GET_CODE (XEXP (XEXP (X, 0), 1)) == CONST_INT)	\
+	  {								\
+	    HOST_WIDE_INT val = INTVAL (XEXP (XEXP (X, 0), 1));		\
+	    if (val == 2 || val == 4 || val == 8)			\
+	      {								\
+		return (COSTS_N_INSNS (ix86_cost->lea)			\
+			+ rtx_cost (XEXP (XEXP (X, 0), 0),		\
+				    (OUTER_CODE))			\
+			+ rtx_cost (XEXP (X, 1), (OUTER_CODE)));	\
+	      }								\
+	  }								\
+	else if (GET_CODE (XEXP (X, 0)) == PLUS)			\
+	  {								\
+	    return (COSTS_N_INSNS (ix86_cost->lea)			\
+		    + rtx_cost (XEXP (XEXP (X, 0), 0), (OUTER_CODE))	\
+		    + rtx_cost (XEXP (XEXP (X, 0), 1), (OUTER_CODE))	\
+		    + rtx_cost (XEXP (X, 1), (OUTER_CODE)));		\
+	  }								\
+      }									\
 									\
     /* fall through */							\
   case AND:								\
   case IOR:								\
   case XOR:								\
   case MINUS:								\
-    if (GET_MODE (X) == DImode)						\
-      return COSTS_N_INSNS (ix86_cost->add) * 2				\
-	+ (rtx_cost (XEXP (X, 0), OUTER_CODE)				\
-	   << (GET_MODE (XEXP (X, 0)) != DImode))			\
-	+ (rtx_cost (XEXP (X, 1), OUTER_CODE)				\
- 	   << (GET_MODE (XEXP (X, 1)) != DImode));			\
+    if (!TARGET_64BIT && GET_MODE (X) == DImode)			\
+      return (COSTS_N_INSNS (ix86_cost->add) * 2			\
+	      + (rtx_cost (XEXP (X, 0), (OUTER_CODE))			\
+	         << (GET_MODE (XEXP (X, 0)) != DImode))			\
+	      + (rtx_cost (XEXP (X, 1), (OUTER_CODE))			\
+ 	         << (GET_MODE (XEXP (X, 1)) != DImode)));		\
+									\
+    /* fall through */							\
   case NEG:								\
   case NOT:								\
-    if (GET_MODE (X) == DImode)						\
-      TOPLEVEL_COSTS_N_INSNS (ix86_cost->add * 2)			\
-    TOPLEVEL_COSTS_N_INSNS (ix86_cost->add)
+    if (!TARGET_64BIT && GET_MODE (X) == DImode)			\
+      TOPLEVEL_COSTS_N_INSNS (ix86_cost->add * 2);			\
+    TOPLEVEL_COSTS_N_INSNS (ix86_cost->add);				\
+									\
+  egress_rtx_costs:							\
+    break;
 
 
 /* An expression giving the cost of an addressing mode that contains
@@ -2166,28 +2638,19 @@ while (0)
    lifetimes.  */
 
 #define ADDRESS_COST(RTX) \
-  ((CONSTANT_P (RTX)						\
-    || (GET_CODE (RTX) == PLUS && CONSTANT_P (XEXP (RTX, 1))	\
-	&& REG_P (XEXP (RTX, 0)))) ? 0				\
-   : REG_P (RTX) ? 1						\
-   : 2)
+  ix86_address_cost (RTX)
 
-/* A C expression for the cost of moving data of mode M between a
-   register and memory.  A value of 2 is the default; this cost is
-   relative to those in `REGISTER_MOVE_COST'.
+/* A C expression for the cost of moving data from a register in class FROM to
+   one in class TO.  The classes are expressed using the enumeration values
+   such as `GENERAL_REGS'.  A value of 2 is the default; other values are
+   interpreted relative to that.
 
-   If moving between registers and memory is more expensive than
-   between two registers, you should define this macro to express the
-   relative cost.
+   It is not required that the cost always equal 2 when FROM is the same as TO;
+   on some machines it is expensive to move between registers if they are not
+   general registers.  */
 
-   On the i386, copying between floating-point and fixed-point
-   registers is expensive.  */
-
-#define REGISTER_MOVE_COST(CLASS1, CLASS2)				\
-  (((FLOAT_CLASS_P (CLASS1) && ! FLOAT_CLASS_P (CLASS2))		\
-    || (! FLOAT_CLASS_P (CLASS1) && FLOAT_CLASS_P (CLASS2))) ? 10	\
-   : 2)
-
+#define REGISTER_MOVE_COST(MODE, CLASS1, CLASS2) \
+   ix86_register_move_cost ((MODE), (CLASS1), (CLASS2))
 
 /* A C expression for the cost of moving data of mode M between a
    register and memory.  A value of 2 is the default; this cost is
@@ -2197,12 +2660,13 @@ while (0)
    between two registers, you should define this macro to express the
    relative cost.  */
 
-/* #define MEMORY_MOVE_COST(M,C,I) 2  */
+#define MEMORY_MOVE_COST(MODE, CLASS, IN)	\
+  ix86_memory_move_cost ((MODE), (CLASS), (IN))
 
 /* A C expression for the cost of a branch instruction.  A value of 1
    is the default; other values are interpreted relative to that.  */
 
-#define BRANCH_COST i386_branch_cost
+#define BRANCH_COST ix86_branch_cost
 
 /* Define this macro as a C expression which is nonzero if accessing
    less than a word of memory (i.e. a `char' or a `short') is no
@@ -2223,19 +2687,6 @@ while (0)
 /* Nonzero if access to memory by shorts is slow and undesirable.  */
 #define SLOW_SHORT_ACCESS 0
 
-/* Define this macro if zero-extension (of a `char' or `short' to an
-   `int') can be done faster if the destination is a register that is
-   known to be zero.
-
-   If you define this macro, you must have instruction patterns that
-   recognize RTL structures like this:
-
-          (set (strict_low_part (subreg:QI (reg:SI ...) 0)) ...)
-
-   and likewise for `HImode'.  */
-
-/* #define SLOW_ZERO_EXTEND */
-
 /* Define this macro to be the value 1 if unaligned accesses have a
    cost many times greater than aligned accesses, for example if they
    are emulated in a trap handler.
@@ -2248,7 +2699,7 @@ while (0)
 
    If the value of this macro is always zero, it need not be defined.  */
 
-/* #define SLOW_UNALIGNED_ACCESS 0 */
+/* #define SLOW_UNALIGNED_ACCESS(MODE, ALIGN) 0 */
 
 /* Define this macro to inhibit strength reduction of memory
    addresses.  (On some machines, such strength reduction seems to do
@@ -2269,111 +2720,63 @@ while (0)
    register.  */
 
 #define NO_RECURSIVE_FUNCTION_CSE
-
-/* A C statement (sans semicolon) to update the integer variable COST
-   based on the relationship between INSN that is dependent on
-   DEP_INSN through the dependence LINK.  The default is to make no
-   adjustment to COST.  This can be used for example to specify to
-   the scheduler that an output- or anti-dependence does not incur
-   the same cost as a data-dependence.  */
-
-#define ADJUST_COST(insn,link,dep_insn,cost)				\
-     (cost) = x86_adjust_cost(insn, link, dep_insn, cost)
-
-#define ADJUST_BLOCKAGE(last_insn,insn,blockage)			\
-{									\
-  if (is_fp_store (last_insn) && is_fp_insn (insn)			\
-      && NEXT_INSN (last_insn) && NEXT_INSN (NEXT_INSN (last_insn))	\
-      && NEXT_INSN (NEXT_INSN (NEXT_INSN (last_insn)))			\
-      && (GET_CODE (NEXT_INSN (last_insn)) == INSN)			\
-      && (GET_CODE (NEXT_INSN (NEXT_INSN (last_insn))) == JUMP_INSN)	\
-      && (GET_CODE (NEXT_INSN (NEXT_INSN (NEXT_INSN (last_insn)))) == NOTE) \
-      && (NOTE_LINE_NUMBER (NEXT_INSN (NEXT_INSN (NEXT_INSN (last_insn)))) \
-	  == NOTE_INSN_LOOP_END))					\
-    {									\
-      (blockage) = 3;							\
-    }									\
-}
-
-#define ISSUE_RATE ((int)ix86_cpu > (int)PROCESSOR_I486 ? 2 : 1)
-
 
 /* Add any extra modes needed to represent the condition code.
 
-   For the i386, we need separate modes when floating-point equality
-   comparisons are being done.  */
+   For the i386, we need separate modes when floating-point
+   equality comparisons are being done. 
+   
+   Add CCNO to indicate comparisons against zero that requires
+   Overflow flag to be unset.  Sign bit test is used instead and
+   thus can be used to form "a&b>0" type of tests.
 
-#define EXTRA_CC_MODES CCFPEQmode
+   Add CCGC to indicate comparisons agains zero that allows
+   unspecified garbage in the Carry flag.  This mode is used
+   by inc/dec instructions.
 
-/* Define the names for the modes specified above.  */
-#define EXTRA_CC_NAMES "CCFPEQ"
+   Add CCGOC to indicate comparisons agains zero that allows
+   unspecified garbage in the Carry and Overflow flag. This
+   mode is used to simulate comparisons of (a-b) and (a+b)
+   against zero using sub/cmp/add operations.
+
+   Add CCZ to indicate that only the Zero flag is valid.  */
+
+#define EXTRA_CC_MODES		\
+	CC (CCGCmode, "CCGC")	\
+	CC (CCGOCmode, "CCGOC")	\
+	CC (CCNOmode, "CCNO")	\
+	CC (CCZmode, "CCZ")	\
+	CC (CCFPmode, "CCFP")	\
+	CC (CCFPUmode, "CCFPU")
 
 /* Given a comparison code (EQ, NE, etc.) and the first operand of a COMPARE,
    return the mode to be used for the comparison.
 
    For floating-point equality comparisons, CCFPEQmode should be used.
-   VOIDmode should be used in all other cases.  */
+   VOIDmode should be used in all other cases.
 
-#define SELECT_CC_MODE(OP,X,Y) \
-  (GET_MODE_CLASS (GET_MODE (X)) == MODE_FLOAT			\
-   && ((OP) == EQ || (OP) == NE) ? CCFPEQmode : VOIDmode)
+   For integer comparisons against zero, reduce to CCNOmode or CCZmode if
+   possible, to allow for more combinations.  */
 
-/* Define the information needed to generate branch and scc insns.  This is
-   stored from the compare operation.  Note that we can't use "rtx" here
-   since it hasn't been defined!  */
+#define SELECT_CC_MODE(OP, X, Y) ix86_cc_mode ((OP), (X), (Y))
 
-extern struct rtx_def *(*i386_compare_gen)(), *(*i386_compare_gen_eq)();
+/* Return non-zero if MODE implies a floating point inequality can be
+   reversed.  */
 
-/* Tell final.c how to eliminate redundant test instructions.  */
+#define REVERSIBLE_CC_MODE(MODE) 1
 
-/* Here we define machine-dependent flags and fields in cc_status
-   (see `conditions.h').  */
+/* A C expression whose value is reversed condition code of the CODE for
+   comparison done in CC_MODE mode.  */
+#define REVERSE_CONDITION(CODE, MODE) \
+  ((MODE) != CCFPmode && (MODE) != CCFPUmode ? reverse_condition (CODE) \
+   : reverse_condition_maybe_unordered (CODE))
 
-/* Set if the cc value was actually from the 80387 and
-   we are testing eax directly (i.e. no sahf) */
-#define CC_TEST_AX 020000
-
-/* Set if the cc value is actually in the 80387, so a floating point
-   conditional branch must be output.  */
-#define CC_IN_80387 04000
-
-/* Set if the CC value was stored in a nonstandard way, so that
-   the state of equality is indicated by zero in the carry bit.  */
-#define CC_Z_IN_NOT_C 010000
-
-/* Set if the CC value was actually from the 80387 and loaded directly
-   into the eflags instead of via eax/sahf.  */
-#define CC_FCOMI 040000
-
-/* Store in cc_status the expressions
-   that the condition codes will describe
-   after execution of an instruction whose pattern is EXP.
-   Do not alter them if the instruction would not alter the cc's.  */
-
-#define NOTICE_UPDATE_CC(EXP, INSN) \
-  notice_update_cc((EXP))
-
-/* Output a signed jump insn.  Use template NORMAL ordinarily, or
-   FLOAT following a floating point comparison.
-   Use NO_OV following an arithmetic insn that set the cc's
-   before a test insn that was deleted.
-   NO_OV may be zero, meaning final should reinsert the test insn
-   because the jump cannot be handled properly without it.  */
-
-#define OUTPUT_JUMP(NORMAL, FLOAT, NO_OV)			\
-{								\
-  if (cc_prev_status.flags & CC_IN_80387)			\
-    return FLOAT;						\
-  if (cc_prev_status.flags & CC_NO_OVERFLOW)			\
-    return NO_OV;						\
-  return NORMAL;						\
-}
 
 /* Control the assembler format that we output, to the extent
    this does not vary between assemblers.  */
 
 /* How to refer to registers in assembler output.
-   This sequence is indexed by compiler's hard-register-number (see above). */
+   This sequence is indexed by compiler's hard-register-number (see above).  */
 
 /* In order to refer to the first 8 regs as 32 bit regs prefix an "e"
    For non floating point regs, the following are the HImode names.
@@ -2381,9 +2784,15 @@ extern struct rtx_def *(*i386_compare_gen)(), *(*i386_compare_gen_eq)();
    For float regs, the stack top is sometimes referred to as "%st(0)"
    instead of just "%st".  PRINT_REG handles this with the "y" code.  */
 
-#define HI_REGISTER_NAMES \
-{"ax","dx","cx","bx","si","di","bp","sp",          \
- "st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)","" }
+#undef  HI_REGISTER_NAMES						
+#define HI_REGISTER_NAMES						\
+{"ax","dx","cx","bx","si","di","bp","sp",				\
+ "st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)","",	\
+ "flags","fpsr", "dirflag", "frame",					\
+ "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7",		\
+ "mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7"	,		\
+ "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",			\
+ "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"}
 
 #define REGISTER_NAMES HI_REGISTER_NAMES
 
@@ -2392,87 +2801,75 @@ extern struct rtx_def *(*i386_compare_gen)(), *(*i386_compare_gen_eq)();
 #define ADDITIONAL_REGISTER_NAMES \
 { { "eax", 0 }, { "edx", 1 }, { "ecx", 2 }, { "ebx", 3 },	\
   { "esi", 4 }, { "edi", 5 }, { "ebp", 6 }, { "esp", 7 },	\
+  { "rax", 0 }, { "rdx", 1 }, { "rcx", 2 }, { "rbx", 3 },	\
+  { "rsi", 4 }, { "rdi", 5 }, { "rbp", 6 }, { "rsp", 7 },	\
   { "al", 0 }, { "dl", 1 }, { "cl", 2 }, { "bl", 3 },		\
-  { "ah", 0 }, { "dh", 1 }, { "ch", 2 }, { "bh", 3 } }
+  { "ah", 0 }, { "dh", 1 }, { "ch", 2 }, { "bh", 3 },		\
+  { "mm0", 8},  { "mm1", 9},  { "mm2", 10}, { "mm3", 11},	\
+  { "mm4", 12}, { "mm5", 13}, { "mm6", 14}, { "mm7", 15} }
 
 /* Note we are omitting these since currently I don't know how
 to get gcc to use these, since they want the same but different
 number as al, and ax.
 */
 
-/* note the last four are not really qi_registers, but
-   the md will have to never output movb into one of them
-   only a movw .  There is no movb into the last four regs */
-
 #define QI_REGISTER_NAMES \
-{"al", "dl", "cl", "bl", "si", "di", "bp", "sp",}
+{"al", "dl", "cl", "bl", "sil", "dil", "bpl", "spl",}
 
 /* These parallel the array above, and can be used to access bits 8:15
-   of regs 0 through 3. */
+   of regs 0 through 3.  */
 
 #define QI_HIGH_REGISTER_NAMES \
 {"ah", "dh", "ch", "bh", }
 
 /* How to renumber registers for dbx and gdb.  */
 
-/* {0,2,1,3,6,7,4,5,12,13,14,15,16,17}  */
-#define DBX_REGISTER_NUMBER(n) \
-((n) == 0 ? 0 : \
- (n) == 1 ? 2 : \
- (n) == 2 ? 1 : \
- (n) == 3 ? 3 : \
- (n) == 4 ? 6 : \
- (n) == 5 ? 7 : \
- (n) == 6 ? 4 : \
- (n) == 7 ? 5 : \
- (n) + 4)
+#define DBX_REGISTER_NUMBER(N) \
+  (TARGET_64BIT ? dbx64_register_map[(N)] : dbx_register_map[(N)])
+
+extern int const dbx_register_map[FIRST_PSEUDO_REGISTER];
+extern int const dbx64_register_map[FIRST_PSEUDO_REGISTER];
+extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
 
 /* Before the prologue, RA is at 0(%esp).  */
 #define INCOMING_RETURN_ADDR_RTX \
   gen_rtx_MEM (VOIDmode, gen_rtx_REG (VOIDmode, STACK_POINTER_REGNUM))
-
+ 
 /* After the prologue, RA is at -4(AP) in the current frame.  */
-#define RETURN_ADDR_RTX(COUNT, FRAME)					\
-  ((COUNT) == 0								\
-   ? gen_rtx_MEM (Pmode, gen_rtx_PLUS (Pmode, arg_pointer_rtx, GEN_INT(-4)))\
-   : gen_rtx_MEM (Pmode, gen_rtx_PLUS (Pmode, (FRAME), GEN_INT(4))))
+#define RETURN_ADDR_RTX(COUNT, FRAME)					   \
+  ((COUNT) == 0								   \
+   ? gen_rtx_MEM (Pmode, plus_constant (arg_pointer_rtx, -UNITS_PER_WORD)) \
+   : gen_rtx_MEM (Pmode, plus_constant (FRAME, UNITS_PER_WORD)))
 
-/* PC is dbx register 8; let's use that column for RA. */
-#define DWARF_FRAME_RETURN_COLUMN 	8
+/* PC is dbx register 8; let's use that column for RA.  */
+#define DWARF_FRAME_RETURN_COLUMN 	(TARGET_64BIT ? 16 : 8)
 
 /* Before the prologue, the top of the frame is at 4(%esp).  */
-#define INCOMING_FRAME_SP_OFFSET 4
+#define INCOMING_FRAME_SP_OFFSET UNITS_PER_WORD
+
+/* Describe how we implement __builtin_eh_return.  */
+#define EH_RETURN_DATA_REGNO(N)	((N) < 2 ? (N) : INVALID_REGNUM)
+#define EH_RETURN_STACKADJ_RTX	gen_rtx_REG (Pmode, 2)
+
+
+/* Select a format to encode pointers in exception handling data.  CODE
+   is 0 for data, 1 for code labels, 2 for function pointers.  GLOBAL is
+   true if the symbol may be affected by dynamic relocations.
+
+   ??? All x86 object file formats are capable of representing this.
+   After all, the relocation needed is the same as for the call insn.
+   Whether or not a particular assembler allows us to enter such, I
+   guess we'll have to see.  */
+#define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL)       		\
+  (flag_pic								\
+    ? ((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4\
+   : DW_EH_PE_absptr)
 
 /* This is how to output the definition of a user-level label named NAME,
    such as the label on a static function or variable NAME.  */
 
-#define ASM_OUTPUT_LABEL(FILE,NAME)	\
-  (assemble_name (FILE, NAME), fputs (":\n", FILE))
-
-/* This is how to output an assembler line defining a `double' constant.  */
-
-#define ASM_OUTPUT_DOUBLE(FILE,VALUE)					\
-do { long l[2];								\
-     REAL_VALUE_TO_TARGET_DOUBLE (VALUE, l);				\
-     fprintf (FILE, "%s 0x%lx,0x%lx\n", ASM_LONG, l[0], l[1]);		\
-   } while (0)
-
-/* This is how to output a `long double' extended real constant. */
-
-#undef ASM_OUTPUT_LONG_DOUBLE
-#define ASM_OUTPUT_LONG_DOUBLE(FILE,VALUE)  		\
-do { long l[3];						\
-     REAL_VALUE_TO_TARGET_LONG_DOUBLE (VALUE, l);	\
-     fprintf (FILE, "%s 0x%lx,0x%lx,0x%lx\n", ASM_LONG, l[0], l[1], l[2]); \
-   } while (0)
-
-/* This is how to output an assembler line defining a `float' constant.  */
-
-#define ASM_OUTPUT_FLOAT(FILE,VALUE)			\
-do { long l;						\
-     REAL_VALUE_TO_TARGET_SINGLE (VALUE, l);		\
-     fprintf ((FILE), "%s 0x%lx\n", ASM_LONG, l);	\
-   } while (0)
+#define ASM_OUTPUT_LABEL(FILE, NAME)	\
+  (assemble_name ((FILE), (NAME)), fputs (":\n", (FILE)))
 
 /* Store in OUTPUT a string (made with alloca) containing
    an assembler-name for a local static variable named NAME.
@@ -2482,327 +2879,339 @@ do { long l;						\
 ( (OUTPUT) = (char *) alloca (strlen ((NAME)) + 10),	\
   sprintf ((OUTPUT), "%s.%d", (NAME), (LABELNO)))
 
-
-
-/* This is how to output an assembler line defining an `int' constant.  */
-
-#define ASM_OUTPUT_INT(FILE,VALUE)  \
-( fprintf (FILE, "%s ", ASM_LONG),		\
-  output_addr_const (FILE,(VALUE)),		\
-  putc('\n',FILE))
-
-/* Likewise for `char' and `short' constants.  */
-/* is this supposed to do align too?? */
-
-#define ASM_OUTPUT_SHORT(FILE,VALUE)  \
-( fprintf (FILE, "%s ", ASM_SHORT),		\
-  output_addr_const (FILE,(VALUE)),		\
-  putc('\n',FILE))
-
-/*
-#define ASM_OUTPUT_SHORT(FILE,VALUE)  \
-( fprintf (FILE, "%s ", ASM_BYTE_OP),		\
-  output_addr_const (FILE,(VALUE)),		\
-  fputs (",", FILE),		      		\
-  output_addr_const (FILE,(VALUE)),		\
-  fputs (" >> 8\n",FILE))
-*/
-
-
-#define ASM_OUTPUT_CHAR(FILE,VALUE)  \
-( fprintf (FILE, "%s ", ASM_BYTE_OP),		\
-  output_addr_const (FILE, (VALUE)),		\
-  putc ('\n', FILE))
-
-/* This is how to output an assembler line for a numeric constant byte.  */
-
-#define ASM_OUTPUT_BYTE(FILE,VALUE)  \
-  fprintf ((FILE), "%s 0x%x\n", ASM_BYTE_OP, (VALUE))
-
 /* This is how to output an insn to push a register on the stack.
    It need not be very fast code.  */
 
-#define ASM_OUTPUT_REG_PUSH(FILE,REGNO)  \
-  fprintf (FILE, "\tpushl %%e%s\n", reg_names[REGNO])
+#define ASM_OUTPUT_REG_PUSH(FILE, REGNO)  \
+  asm_fprintf ((FILE), "\tpush{l}\t%%e%s\n", reg_names[(REGNO)])
 
 /* This is how to output an insn to pop a register from the stack.
    It need not be very fast code.  */
 
-#define ASM_OUTPUT_REG_POP(FILE,REGNO)  \
-  fprintf (FILE, "\tpopl %%e%s\n", reg_names[REGNO])
+#define ASM_OUTPUT_REG_POP(FILE, REGNO)  \
+  asm_fprintf ((FILE), "\tpop{l}\t%%e%s\n", reg_names[(REGNO)])
 
-/* This is how to output an element of a case-vector that is absolute.
-     */
+/* This is how to output an element of a case-vector that is absolute.  */
 
 #define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)  \
-  fprintf (FILE, "%s %s%d\n", ASM_LONG, LPREFIX, VALUE)
+  ix86_output_addr_vec_elt ((FILE), (VALUE))
 
-/* This is how to output an element of a case-vector that is relative.
-   We don't use these on the 386 yet, because the ATT assembler can't do
-   forward reference the differences.  
- */
+/* This is how to output an element of a case-vector that is relative.  */
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
-  fprintf (FILE, "\t.word %s%d-%s%d\n",LPREFIX, VALUE,LPREFIX, REL)
+  ix86_output_addr_diff_elt ((FILE), (VALUE), (REL))
 
-/* Define the parentheses used to group arithmetic operations
-   in assembler code.  */
+/* Under some conditions we need jump tables in the text section, because
+   the assembler cannot handle label differences between sections.  */
 
-#define ASM_OPEN_PAREN ""
-#define ASM_CLOSE_PAREN ""
+#define JUMP_TABLES_IN_TEXT_SECTION \
+  (!TARGET_64BIT && flag_pic && !HAVE_AS_GOTOFF_IN_DATA)
 
-/* Define results of standard character escape sequences.  */
-#define TARGET_BELL 007
-#define TARGET_BS 010
-#define TARGET_TAB 011
-#define TARGET_NEWLINE 012
-#define TARGET_VT 013
-#define TARGET_FF 014
-#define TARGET_CR 015
+/* A C statement that outputs an address constant appropriate to 
+   for DWARF debugging.  */
+
+#define ASM_OUTPUT_DWARF_ADDR_CONST(FILE, X) \
+  i386_dwarf_output_addr_const ((FILE), (X))
+
+/* Either simplify a location expression, or return the original.  */
+
+#define ASM_SIMPLIFY_DWARF_ADDR(X) \
+  i386_simplify_dwarf_addr (X)
+
+/* Switch to init or fini section via SECTION_OP, emit a call to FUNC,
+   and switch back.  For x86 we do this only to save a few bytes that
+   would otherwise be unused in the text section.  */
+#define CRT_CALL_STATIC_FUNCTION(SECTION_OP, FUNC)	\
+   asm (SECTION_OP "\n\t"				\
+	"call " USER_LABEL_PREFIX #FUNC "\n"		\
+	TEXT_SECTION_ASM_OP);
 
 /* Print operand X (an rtx) in assembler syntax to file FILE.
    CODE is a letter or dot (`z' in `%z0') or 0 if no letter was specified.
-   The CODE z takes the size of operand from the following digit, and
-   outputs b,w,or l respectively.
+   Effect of various CODE letters is described in i386.c near
+   print_operand function.  */
 
-   On the 80386, we use several such letters:
-   f -- float insn (print a CONST_DOUBLE as a float rather than in hex).
-   L,W,B,Q,S,T -- print the opcode suffix for specified size of operand.
-   R -- print the prefix for register names.
-   z -- print the opcode suffix for the size of the current operand.
-   * -- print a star (in certain assembler syntax)
-   P -- if PIC, print an @PLT suffix.
-   X -- don't print any sort of PIC '@' suffix for a symbol.
-   J -- print jump insn for arithmetic_comparison_operator.
-   s -- ??? something to do with double shifts.  not actually used, afaik.
-   C -- print a conditional move suffix corresponding to the op code.
-   c -- likewise, but reverse the condition.
-   F,f -- likewise, but for floating-point.  */
-
-#define PRINT_OPERAND_PUNCT_VALID_P(CODE)				\
-  ((CODE) == '*' || (CODE) == '_')
+#define PRINT_OPERAND_PUNCT_VALID_P(CODE) \
+  ((CODE) == '*' || (CODE) == '+')
 
 /* Print the name of a register based on its machine mode and number.
    If CODE is 'w', pretend the mode is HImode.
    If CODE is 'b', pretend the mode is QImode.
    If CODE is 'k', pretend the mode is SImode.
+   If CODE is 'q', pretend the mode is DImode.
    If CODE is 'h', pretend the reg is the `high' byte register.
-   If CODE is 'y', print "st(0)" instead of "st", if the reg is stack op. */
+   If CODE is 'y', print "st(0)" instead of "st", if the reg is stack op.  */
 
-extern char *hi_reg_name[];
-extern char *qi_reg_name[];
-extern char *qi_high_reg_name[];
-
-#define PRINT_REG(X, CODE, FILE) \
-  do { if (REGNO (X) == ARG_POINTER_REGNUM)		\
-	 abort ();					\
-       fprintf (FILE, "%s", RP);			\
-       switch ((CODE == 'w' ? 2 			\
-		: CODE == 'b' ? 1			\
-		: CODE == 'k' ? 4			\
-		: CODE == 'y' ? 3			\
-		: CODE == 'h' ? 0			\
-		: GET_MODE_SIZE (GET_MODE (X))))	\
-	 {						\
-	 case 3:					\
-	   if (STACK_TOP_P (X))				\
-	     {						\
-	       fputs ("st(0)", FILE);			\
-	       break;					\
-	     }						\
-	 case 4:					\
-	 case 8:					\
-	 case 12:					\
-	   if (! FP_REG_P (X)) fputs ("e", FILE);	\
-	 case 2:					\
-	   fputs (hi_reg_name[REGNO (X)], FILE);	\
-	   break;					\
-	 case 1:					\
-	   fputs (qi_reg_name[REGNO (X)], FILE);	\
-	   break;					\
-	 case 0:					\
-	   fputs (qi_high_reg_name[REGNO (X)], FILE);	\
-	   break;					\
-	 }						\
-     } while (0)
+#define PRINT_REG(X, CODE, FILE)  \
+  print_reg ((X), (CODE), (FILE))
 
 #define PRINT_OPERAND(FILE, X, CODE)  \
-  print_operand (FILE, X, CODE)
+  print_operand ((FILE), (X), (CODE))
 
 #define PRINT_OPERAND_ADDRESS(FILE, ADDR)  \
-  print_operand_address (FILE, ADDR)
+  print_operand_address ((FILE), (ADDR))
 
 /* Print the name of a register for based on its machine mode and number.
    This macro is used to print debugging output.
    This macro is different from PRINT_REG in that it may be used in
    programs that are not linked with aux-output.o.  */
 
-#define DEBUG_PRINT_REG(X, CODE, FILE) \
-  do { static char *hi_name[] = HI_REGISTER_NAMES;	\
-       static char *qi_name[] = QI_REGISTER_NAMES;	\
-       fprintf (FILE, "%d %s", REGNO (X), RP);	\
+#define DEBUG_PRINT_REG(X, CODE, FILE)			\
+  do { static const char * const hi_name[] = HI_REGISTER_NAMES;	\
+       static const char * const qi_name[] = QI_REGISTER_NAMES;	\
+       fprintf ((FILE), "%d ", REGNO (X));		\
+       if (REGNO (X) == FLAGS_REG)			\
+	 { fputs ("flags", (FILE)); break; }		\
+       if (REGNO (X) == DIRFLAG_REG)			\
+	 { fputs ("dirflag", (FILE)); break; }		\
+       if (REGNO (X) == FPSR_REG)			\
+	 { fputs ("fpsr", (FILE)); break; }		\
        if (REGNO (X) == ARG_POINTER_REGNUM)		\
-	 { fputs ("argp", FILE); break; }		\
+	 { fputs ("argp", (FILE)); break; }		\
+       if (REGNO (X) == FRAME_POINTER_REGNUM)		\
+	 { fputs ("frame", (FILE)); break; }		\
        if (STACK_TOP_P (X))				\
-	 { fputs ("st(0)", FILE); break; }		\
+	 { fputs ("st(0)", (FILE)); break; }		\
        if (FP_REG_P (X))				\
-	 { fputs (hi_name[REGNO(X)], FILE); break; }	\
+	 { fputs (hi_name[REGNO(X)], (FILE)); break; }	\
+       if (REX_INT_REG_P (X))				\
+	 {						\
+	   switch (GET_MODE_SIZE (GET_MODE (X)))	\
+	     {						\
+	     default:					\
+	     case 8:					\
+	       fprintf ((FILE), "r%i", REGNO (X)	\
+			- FIRST_REX_INT_REG + 8);	\
+	       break;					\
+	     case 4:					\
+	       fprintf ((FILE), "r%id", REGNO (X)	\
+			- FIRST_REX_INT_REG + 8);	\
+	       break;					\
+	     case 2:					\
+	       fprintf ((FILE), "r%iw", REGNO (X)	\
+			- FIRST_REX_INT_REG + 8);	\
+	       break;					\
+	     case 1:					\
+	       fprintf ((FILE), "r%ib", REGNO (X)	\
+			- FIRST_REX_INT_REG + 8);	\
+	       break;					\
+	     }						\
+	   break;					\
+	 }						\
        switch (GET_MODE_SIZE (GET_MODE (X)))		\
 	 {						\
+	 case 8:					\
+	   fputs ("r", (FILE));				\
+	   fputs (hi_name[REGNO (X)], (FILE));		\
+	   break;					\
 	 default:					\
-	   fputs ("e", FILE);				\
+	   fputs ("e", (FILE));				\
 	 case 2:					\
-	   fputs (hi_name[REGNO (X)], FILE);		\
+	   fputs (hi_name[REGNO (X)], (FILE));		\
 	   break;					\
 	 case 1:					\
-	   fputs (qi_name[REGNO (X)], FILE);		\
+	   fputs (qi_name[REGNO (X)], (FILE));		\
 	   break;					\
 	 }						\
      } while (0)
-
-/* Output the prefix for an immediate operand, or for an offset operand.  */
-#define PRINT_IMMED_PREFIX(FILE)  fputs (IP, (FILE))
-#define PRINT_OFFSET_PREFIX(FILE)  fputs (IP, (FILE))
-
-/* Routines in libgcc that return floats must return them in an fp reg,
-   just as other functions do which return such values.
-   These macros make that happen.  */
-
-#define FLOAT_VALUE_TYPE float
-#define INTIFY(FLOATVAL) FLOATVAL
-
-/* Nonzero if INSN magically clobbers register REGNO.  */
-
-/* #define INSN_CLOBBERS_REGNO_P(INSN, REGNO)	\
-    (FP_REGNO_P (REGNO)				\
-     && (GET_CODE (INSN) == JUMP_INSN || GET_CODE (INSN) == BARRIER))
-*/
 
 /* a letter which is not needed by the normal asm syntax, which
    we can use for operand syntax in the extended asm */
 
 #define ASM_OPERAND_LETTER '#'
 #define RET return ""
-#define AT_SP(mode) (gen_rtx_MEM ((mode), stack_pointer_rtx))
+#define AT_SP(MODE) (gen_rtx_MEM ((MODE), stack_pointer_rtx))
 
-/* Helper macros to expand a binary/unary operator if needed */
-#define IX86_EXPAND_BINARY_OPERATOR(OP, MODE, OPERANDS)			\
-do {									\
-  if (!ix86_expand_binary_operator (OP, MODE, OPERANDS))		\
-    FAIL;								\
-} while (0)
+/* Define the codes that are matched by predicates in i386.c.  */
 
-#define IX86_EXPAND_UNARY_OPERATOR(OP, MODE, OPERANDS)			\
-do {									\
-  if (!ix86_expand_unary_operator (OP, MODE, OPERANDS,))		\
-    FAIL;								\
-} while (0)
+#define PREDICATE_CODES							\
+  {"x86_64_immediate_operand", {CONST_INT, SUBREG, REG,			\
+				SYMBOL_REF, LABEL_REF, CONST}},		\
+  {"x86_64_nonmemory_operand", {CONST_INT, SUBREG, REG,			\
+				SYMBOL_REF, LABEL_REF, CONST}},		\
+  {"x86_64_movabs_operand", {CONST_INT, SUBREG, REG,			\
+				SYMBOL_REF, LABEL_REF, CONST}},		\
+  {"x86_64_szext_nonmemory_operand", {CONST_INT, SUBREG, REG,		\
+				     SYMBOL_REF, LABEL_REF, CONST}},	\
+  {"x86_64_general_operand", {CONST_INT, SUBREG, REG, MEM,		\
+			      SYMBOL_REF, LABEL_REF, CONST}},		\
+  {"x86_64_szext_general_operand", {CONST_INT, SUBREG, REG, MEM,	\
+				   SYMBOL_REF, LABEL_REF, CONST}},	\
+  {"x86_64_zext_immediate_operand", {CONST_INT, CONST_DOUBLE, CONST,	\
+				       SYMBOL_REF, LABEL_REF}},		\
+  {"shiftdi_operand", {SUBREG, REG, MEM}},				\
+  {"const_int_1_operand", {CONST_INT}},					\
+  {"symbolic_operand", {SYMBOL_REF, LABEL_REF, CONST}},			\
+  {"aligned_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,	\
+		       LABEL_REF, SUBREG, REG, MEM}},			\
+  {"pic_symbolic_operand", {CONST}},					\
+  {"call_insn_operand", {REG, SUBREG, MEM, SYMBOL_REF}},		\
+  {"constant_call_address_operand", {SYMBOL_REF, CONST}},		\
+  {"const0_operand", {CONST_INT, CONST_DOUBLE}},			\
+  {"const1_operand", {CONST_INT}},					\
+  {"const248_operand", {CONST_INT}},					\
+  {"incdec_operand", {CONST_INT}},					\
+  {"mmx_reg_operand", {REG}},						\
+  {"reg_no_sp_operand", {SUBREG, REG}},					\
+  {"general_no_elim_operand", {CONST_INT, CONST_DOUBLE, CONST,		\
+			SYMBOL_REF, LABEL_REF, SUBREG, REG, MEM}},	\
+  {"nonmemory_no_elim_operand", {CONST_INT, REG, SUBREG}},		\
+  {"q_regs_operand", {SUBREG, REG}},					\
+  {"non_q_regs_operand", {SUBREG, REG}},				\
+  {"fcmov_comparison_operator", {EQ, NE, LTU, GTU, LEU, GEU, UNORDERED, \
+				 ORDERED, LT, UNLT, GT, UNGT, LE, UNLE,	\
+				 GE, UNGE, LTGT, UNEQ}},		\
+  {"sse_comparison_operator", {EQ, LT, LE, UNORDERED, NE, UNGE, UNGT,	\
+			       ORDERED, UNEQ, UNLT, UNLE, LTGT, GE, GT	\
+			       }},					\
+  {"ix86_comparison_operator", {EQ, NE, LE, LT, GE, GT, LEU, LTU, GEU,	\
+			       GTU, UNORDERED, ORDERED, UNLE, UNLT,	\
+			       UNGE, UNGT, LTGT, UNEQ }},		\
+  {"cmp_fp_expander_operand", {CONST_DOUBLE, SUBREG, REG, MEM}},	\
+  {"ext_register_operand", {SUBREG, REG}},				\
+  {"binary_fp_operator", {PLUS, MINUS, MULT, DIV}},			\
+  {"mult_operator", {MULT}},						\
+  {"div_operator", {DIV}},						\
+  {"arith_or_logical_operator", {PLUS, MULT, AND, IOR, XOR, SMIN, SMAX, \
+				 UMIN, UMAX, COMPARE, MINUS, DIV, MOD,	\
+				 UDIV, UMOD, ASHIFT, ROTATE, ASHIFTRT,	\
+				 LSHIFTRT, ROTATERT}},			\
+  {"promotable_binary_operator", {PLUS, MULT, AND, IOR, XOR, ASHIFT}},	\
+  {"memory_displacement_operand", {MEM}},				\
+  {"cmpsi_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,	\
+		     LABEL_REF, SUBREG, REG, MEM, AND}},		\
+  {"long_memory_operand", {MEM}},
 
+/* A list of predicates that do special things with modes, and so
+   should not elicit warnings for VOIDmode match_operand.  */
+
+#define SPECIAL_MODE_PREDICATES \
+  "ext_register_operand",
 
-/* Functions in i386.c */
-extern void override_options ();
-extern void order_regs_for_local_alloc ();
-extern char *output_strlen_unroll ();
-extern struct rtx_def *i386_sext16_if_const ();
-extern int i386_aligned_p ();
-extern int i386_cc_probably_useless_p ();
-extern int i386_valid_decl_attribute_p ();
-extern int i386_valid_type_attribute_p ();
-extern int i386_return_pops_args ();
-extern int i386_comp_type_attributes ();
-extern void init_cumulative_args ();
-extern void function_arg_advance ();
-extern struct rtx_def *function_arg ();
-extern int function_arg_partial_nregs ();
-extern char *output_strlen_unroll ();
-extern char *singlemove_string ();
-extern char *output_move_double ();
-extern char *output_move_pushmem ();
-extern int standard_80387_constant_p ();
-extern char *output_move_const_single ();
-extern int symbolic_operand ();
-extern int call_insn_operand ();
-extern int expander_call_insn_operand ();
-extern int symbolic_reference_mentioned_p ();
-extern int ix86_expand_binary_operator ();
-extern int ix86_binary_operator_ok ();
-extern int ix86_expand_unary_operator ();
-extern int ix86_unary_operator_ok ();
-extern void emit_pic_move ();
-extern void function_prologue ();
-extern int simple_386_epilogue ();
-extern void function_epilogue ();
-extern int legitimate_address_p ();
-extern struct rtx_def *legitimize_pic_address ();
-extern struct rtx_def *legitimize_address ();
-extern void print_operand ();
-extern void print_operand_address ();
-extern void notice_update_cc ();
-extern void split_di ();
-extern int binary_387_op ();
-extern int shift_op ();
-extern int VOIDmode_compare_op ();
-extern char *output_387_binary_op ();
-extern char *output_fix_trunc ();
-extern void output_float_extend ();
-extern char *output_float_compare ();
-extern char *output_fp_cc0_set ();
-extern void save_386_machine_status ();
-extern void restore_386_machine_status ();
-extern void clear_386_stack_locals ();
-extern struct rtx_def *assign_386_stack_local ();
-extern int is_mul ();
-extern int is_div ();
-extern int last_to_set_cc ();
-extern int doesnt_set_condition_code ();
-extern int sets_condition_code ();
-extern int str_immediate_operand ();
-extern int is_fp_insn ();
-extern int is_fp_dest ();
-extern int is_fp_store ();
-extern int agi_dependent ();
-extern int reg_mentioned_in_mem ();
-extern char *output_int_conditional_move ();
-extern char *output_fp_conditional_move ();
-extern int ix86_can_use_return_insn_p ();
-extern int small_shift_operand ();
-extern char *output_ashl ();
-extern int memory_address_info ();
+/* CM_32 is used by 32bit ABI
+   CM_SMALL is small model assuming that all code and data fits in the first
+   31bits of address space.
+   CM_KERNEL is model assuming that all code and data fits in the negative
+   31bits of address space.
+   CM_MEDIUM is model assuming that code fits in the first 31bits of address
+   space.  Size of data is unlimited.
+   CM_LARGE is model making no assumptions about size of particular sections.
+  
+   CM_SMALL_PIC is model for PIC libraries assuming that code+data+got/plt
+   tables first in 31bits of address space.
+ */
+enum cmodel {
+  CM_32,
+  CM_SMALL,
+  CM_KERNEL,
+  CM_MEDIUM,
+  CM_LARGE,
+  CM_SMALL_PIC
+};
 
-#ifdef NOTYET
-extern struct rtx_def *copy_all_rtx ();
-extern void rewrite_address ();
-#endif
+/* Size of the RED_ZONE area.  */
+#define RED_ZONE_SIZE 128
+/* Reserved area of the red zone for temporaries.  */
+#define RED_ZONE_RESERVE 8
+extern const char *ix86_debug_arg_string, *ix86_debug_addr_string;
 
+enum asm_dialect {
+  ASM_ATT,
+  ASM_INTEL
+};
+extern const char *ix86_asm_string;
+extern enum asm_dialect ix86_asm_dialect;
+/* Value of -mcmodel specified by user.  */
+extern const char *ix86_cmodel_string;
+extern enum cmodel ix86_cmodel;
+
 /* Variables in i386.c */
-extern char *ix86_cpu_string;			/* for -mcpu=<xxx> */
-extern char *ix86_arch_string;			/* for -march=<xxx> */
-extern char *i386_reg_alloc_order;		/* register allocation order */
-extern char *i386_regparm_string;		/* # registers to use to pass args */
-extern char *i386_align_loops_string;		/* power of two alignment for loops */
-extern char *i386_align_jumps_string;		/* power of two alignment for non-loop jumps */
-extern char *i386_align_funcs_string;		/* power of two alignment for functions */
-extern char *i386_preferred_stack_boundary_string;/* power of two alignment for stack boundary */
-extern char *i386_branch_cost_string;		/* values 1-5: see jump.c */
-extern int i386_regparm;			/* i386_regparm_string as a number */
-extern int i386_align_loops;			/* power of two alignment for loops */
-extern int i386_align_jumps;			/* power of two alignment for non-loop jumps */
-extern int i386_align_funcs;			/* power of two alignment for functions */
-extern int i386_preferred_stack_boundary;	/* preferred stack boundary alignment in bits */
-extern int i386_branch_cost;			/* values 1-5: see jump.c */
-extern char *hi_reg_name[];			/* names for 16 bit regs */
-extern char *qi_reg_name[];			/* names for 8 bit regs (low) */
-extern char *qi_high_reg_name[];		/* names for 8 bit regs (high) */
-extern enum reg_class regclass_map[];		/* smalled class containing REGNO */
-extern struct rtx_def *i386_compare_op0;	/* operand 0 for comparisons */
-extern struct rtx_def *i386_compare_op1;	/* operand 1 for comparisons */
+extern const char *ix86_cpu_string;		/* for -mcpu=<xxx> */
+extern const char *ix86_arch_string;		/* for -march=<xxx> */
+extern const char *ix86_fpmath_string;		/* for -mfpmath=<xxx> */
+extern const char *ix86_regparm_string;		/* # registers to use to pass args */
+extern const char *ix86_align_loops_string;	/* power of two alignment for loops */
+extern const char *ix86_align_jumps_string;	/* power of two alignment for non-loop jumps */
+extern const char *ix86_align_funcs_string;	/* power of two alignment for functions */
+extern const char *ix86_preferred_stack_boundary_string;/* power of two alignment for stack boundary */
+extern const char *ix86_branch_cost_string;	/* values 1-5: see jump.c */
+extern int ix86_regparm;			/* ix86_regparm_string as a number */
+extern int ix86_preferred_stack_boundary;	/* preferred stack boundary alignment in bits */
+extern int ix86_branch_cost;			/* values 1-5: see jump.c */
+extern enum reg_class const regclass_map[FIRST_PSEUDO_REGISTER]; /* smalled class containing REGNO */
+extern rtx ix86_compare_op0;	/* operand 0 for comparisons */
+extern rtx ix86_compare_op1;	/* operand 1 for comparisons */
+
+/* To properly truncate FP values into integers, we need to set i387 control
+   word.  We can't emit proper mode switching code before reload, as spills
+   generated by reload may truncate values incorrectly, but we still can avoid
+   redundant computation of new control word by the mode switching pass.
+   The fldcw instructions are still emitted redundantly, but this is probably
+   not going to be noticeable problem, as most CPUs do have fast path for
+   the sequence.  
 
-/* External variables used */
-extern int optimize;				/* optimization level */
-extern int obey_regdecls;			/* TRUE if stupid register allocation */
+   The machinery is to emit simple truncation instructions and split them
+   before reload to instructions having USEs of two memory locations that
+   are filled by this code to old and new control word.
+ 
+   Post-reload pass may be later used to eliminate the redundant fildcw if
+   needed.  */
 
-/* External functions used */
-extern struct rtx_def *force_operand ();
+enum fp_cw_mode {FP_CW_STORED, FP_CW_UNINITIALIZED, FP_CW_ANY};
+
+/* Define this macro if the port needs extra instructions inserted
+   for mode switching in an optimizing compilation.  */
+
+#define OPTIMIZE_MODE_SWITCHING(ENTITY) 1
+
+/* If you define `OPTIMIZE_MODE_SWITCHING', you have to define this as
+   initializer for an array of integers.  Each initializer element N
+   refers to an entity that needs mode switching, and specifies the
+   number of different modes that might need to be set for this
+   entity.  The position of the initializer in the initializer -
+   starting counting at zero - determines the integer that is used to
+   refer to the mode-switched entity in question.  */
+
+#define NUM_MODES_FOR_MODE_SWITCHING { FP_CW_ANY }
+
+/* ENTITY is an integer specifying a mode-switched entity.  If
+   `OPTIMIZE_MODE_SWITCHING' is defined, you must define this macro to
+   return an integer value not larger than the corresponding element
+   in `NUM_MODES_FOR_MODE_SWITCHING', to denote the mode that ENTITY
+   must be switched into prior to the execution of INSN.  */
+
+#define MODE_NEEDED(ENTITY, I)						\
+  (GET_CODE (I) == CALL_INSN						\
+   || (GET_CODE (I) == INSN && (asm_noperands (PATTERN (I)) >= 0 	\
+				|| GET_CODE (PATTERN (I)) == ASM_INPUT))\
+   ? FP_CW_UNINITIALIZED						\
+   : recog_memoized (I) < 0 || get_attr_type (I) != TYPE_FISTP		\
+   ? FP_CW_ANY								\
+   : FP_CW_STORED)
+
+/* This macro specifies the order in which modes for ENTITY are
+   processed.  0 is the highest priority.  */
+
+#define MODE_PRIORITY_TO_MODE(ENTITY, N) (N)
+
+/* Generate one or more insns to set ENTITY to MODE.  HARD_REG_LIVE
+   is the set of hard registers live at the point where the insn(s)
+   are to be inserted.  */
+
+#define EMIT_MODE_SET(ENTITY, MODE, HARD_REGS_LIVE) 			\
+  ((MODE) == FP_CW_STORED						\
+   ? emit_i387_cw_initialization (assign_386_stack_local (HImode, 1),	\
+				  assign_386_stack_local (HImode, 2)), 0\
+   : 0)
+
+/* Avoid renaming of stack registers, as doing so in combination with
+   scheduling just increases amount of live registers at time and in
+   the turn amount of fxch instructions needed.
+
+   ??? Maybe Pentium chips benefits from renaming, someone can try...  */
+
+#define HARD_REGNO_RENAME_OK(SRC, TARGET)  \
+   ((SRC) < FIRST_STACK_REG || (SRC) > LAST_STACK_REG)
 
 
 /*
