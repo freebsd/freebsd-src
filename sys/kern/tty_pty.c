@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.25 1995/11/29 10:48:28 julian Exp $
+ * $Id: tty_pty.c,v 1.26 1995/11/29 14:40:36 julian Exp $
  */
 
 /*
@@ -68,8 +68,8 @@ void ptcwakeup __P((struct tty *tp, int flag));
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */
 
 /*
- * pts == /dev/tty[pqrs]?
- * ptc == /dev/pty[pqrs]?
+ * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
+ * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  */
 struct	tty pt_tty[NPTY];	/* XXX */
 struct	pt_ioctl {
@@ -757,10 +757,10 @@ static void 	ptc_drvinit(void *unused)
 {
 #ifdef DEVFS
 	int i
-	char jnames[] = "pqrstu"
-	char knames[] = "0123456789abcdef"
+	char jnames[] = "pqrsPQRS"
+	char knames[] = "0123456789abcdefghijklmnopqrstuv"
 	char devname[16];
-#define MAXUNITS (6 * 16)
+#define MAXUNITS (8 * 32)
 #endif
 	dev_t dev;
 	dev_t dev_c;
@@ -780,8 +780,8 @@ static void 	ptc_drvinit(void *unused)
 		for ( i = 0 ; i<NPTY ; i++ ) {
 			int x;
 
-			j = i / 16;
-			k = i % 16;
+			j = i / 32;
+			k = i % 32;
 			sprintf(devname,"pty%c%c",jnames[j],knames[k]);
 			x=devfs_add_devsw("/",devname,major(dev_c),0,DV_CHR,0,0,0600);
 			sprintf(devname,"tty%c%c",jnames[j],knames[k]);
