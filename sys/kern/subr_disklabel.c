@@ -47,6 +47,7 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/syslog.h>
+#include <machine/atomic.h>
 
 /*
  * Seek sort for disks.
@@ -72,6 +73,8 @@ bioqdisksort(bioq, bp)
 	struct bio *bn;
 	struct bio *be;
 	
+	if (!atomic_cmpset_int(&bioq->busy, 0, 1))
+		panic("Recursing in bioqdisksort()");
 	be = TAILQ_LAST(&bioq->queue, bio_queue);
 	/*
 	 * If the queue is empty or we are an
@@ -80,6 +83,7 @@ bioqdisksort(bioq, bp)
 	if ((bq = bioq_first(bioq)) == NULL
 	 || (bp->bio_flags & BIO_ORDERED) != 0) {
 		bioq_insert_tail(bioq, bp);
+		bioq->busy = 0;
 		return;
 	} else if (bioq->insert_point != NULL) {
 
@@ -108,6 +112,7 @@ bioqdisksort(bioq, bp)
 			if (bq == NULL) {
 				bioq->switch_point = bp;
 				bioq_insert_tail(bioq, bp);
+				bioq->busy = 0;
 				return;
 			}
 			/*
@@ -118,6 +123,7 @@ bioqdisksort(bioq, bp)
 			if (bp->bio_pblkno < bq->bio_pblkno) {
 				bioq->switch_point = bp;
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+				bioq->busy = 0;
 				return;
 			}
 		} else {
@@ -130,6 +136,7 @@ bioqdisksort(bioq, bp)
 			 */
 			if (bp->bio_pblkno < bq->bio_pblkno) {
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+				bioq->busy = 0;
 				return;
 			}
 		}
@@ -141,6 +148,7 @@ bioqdisksort(bioq, bp)
 	 */
 	if (bp->bio_pblkno > be->bio_pblkno) {
 		TAILQ_INSERT_AFTER(&bioq->queue, be, bp, bio_queue);
+		bioq->busy = 0;
 		return;
 	}
 
@@ -158,6 +166,7 @@ bioqdisksort(bioq, bp)
 		bq = bn;
 	}
 	TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
+	bioq->busy = 0;
 }
 
 
