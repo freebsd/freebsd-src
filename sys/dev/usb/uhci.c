@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.63 1999/11/12 00:34:57 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.67 1999/11/18 23:32:28 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -162,12 +162,12 @@ static uhci_intr_info_t *uhci_alloc_intr_info __P((uhci_softc_t *));
 static void		uhci_free_intr_info __P((uhci_intr_info_t *ii));
 #if 0
 static void		uhci_enter_ctl_q __P((uhci_softc_t *, uhci_soft_qh_t *,
-			    uhci_intr_info_t *));
+				      uhci_intr_info_t *));
 static void		uhci_exit_ctl_q __P((uhci_softc_t *, uhci_soft_qh_t *));
 #endif
 
 static void		uhci_free_std_chain __P((uhci_softc_t *, 
-			    uhci_soft_td_t *, uhci_soft_td_t *));
+					 uhci_soft_td_t *, uhci_soft_td_t *));
 static usbd_status	uhci_alloc_std_chain __P((struct uhci_pipe *,
 			    uhci_softc_t *, int, int, int, usb_dma_t *, 
 			    uhci_soft_td_t **, uhci_soft_td_t **));
@@ -177,9 +177,9 @@ static void		uhci_waitintr __P((uhci_softc_t *,
 static void		uhci_check_intr __P((uhci_softc_t *,
 			    uhci_intr_info_t *));
 static void		uhci_idone __P((uhci_intr_info_t *));
-static void		uhci_abort_req __P((usbd_xfer_handle,
+static void		uhci_abort_xfer __P((usbd_xfer_handle,
 			    usbd_status status));
-static void		uhci_abort_req_end __P((void *v));
+static void		uhci_abort_xfer_end __P((void *v));
 static void		uhci_timeout __P((void *));
 static void		uhci_lock_frames __P((uhci_softc_t *));
 static void		uhci_unlock_frames __P((uhci_softc_t *));
@@ -188,6 +188,7 @@ static void		uhci_add_bulk __P((uhci_softc_t *, uhci_soft_qh_t *));
 static void		uhci_remove_ctrl __P((uhci_softc_t *,uhci_soft_qh_t *));
 static void		uhci_remove_bulk __P((uhci_softc_t *,uhci_soft_qh_t *));
 static int		uhci_str __P((usb_string_descriptor_t *, int, char *));
+
 static usbd_status	uhci_setup_isoc __P((usbd_pipe_handle pipe));
 static void		uhci_device_isoc_enter __P((usbd_xfer_handle));
 
@@ -480,7 +481,7 @@ uhci_allocm(bus, dma, size)
 	u_int32_t size;
 {
 	return (usb_allocmem(&((struct uhci_softc *)bus)->sc_bus, size, 0,
-		dma));
+			     dma));
 }
 
 void
@@ -561,7 +562,7 @@ uhci_power(why, v)
 	}
 	splx(s);
 }
-#endif /* defined(__NetBSD__) */
+#endif
 
 #ifdef UHCI_DEBUG
 static void
@@ -1064,7 +1065,8 @@ uhci_idone(ii)
 	}
 
 #ifdef UHCI_DEBUG
-	DPRINTFN(10, ("uhci_idone: ii=%p ready\n", ii));
+	DPRINTFN(10, ("uhci_idone: ii=%p, xfer=%p, pipe=%p ready\n",
+		      ii, xfer, upipe));
 	if (uhcidebug > 10)
 		uhci_dump_tds(ii->stdstart);
 #endif
@@ -1125,7 +1127,7 @@ uhci_timeout(addr)
 #endif
 
 	ii->xfer->device->bus->intr_context++;
-	uhci_abort_req(ii->xfer, USBD_TIMEOUT);
+	uhci_abort_xfer(ii->xfer, USBD_TIMEOUT);
 	ii->xfer->device->bus->intr_context--;
 }
 
@@ -1253,7 +1255,7 @@ uhci_alloc_std(sc)
 			return (0);
 		for(i = 0; i < UHCI_STD_CHUNK; i++) {
 			offs = i * UHCI_STD_SIZE;
-			std = (uhci_soft_td_t *)((char *)KERNADDR(&dma) + offs);
+			std = (uhci_soft_td_t *)((char *)KERNADDR(&dma) +offs);
 			std->physaddr = DMAADDR(&dma) + offs;
 			std->link.std = sc->sc_freetds;
 			sc->sc_freetds = std;
@@ -1541,17 +1543,19 @@ uhci_device_bulk_abort(xfer)
 	usbd_xfer_handle xfer;
 {
 	DPRINTF(("uhci_device_bulk_abort:\n"));
-	uhci_abort_req(xfer, USBD_CANCELLED);
+	uhci_abort_xfer(xfer, USBD_CANCELLED);
 }
 
 void
-uhci_abort_req(xfer, status)
+uhci_abort_xfer(xfer, status)
 	usbd_xfer_handle xfer;
 	usbd_status status;
 {
 	struct uhci_pipe *upipe = (struct uhci_pipe *)xfer->pipe;
 	uhci_intr_info_t *ii = upipe->iinfo;
 	uhci_soft_td_t *std;
+
+	DPRINTFN(1,("uhci_abort_xfer: xfer=%p, status=%d\n", xfer, status));
 
 	/* Make interrupt routine ignore it, */
 	xfer->status = status;
@@ -1568,20 +1572,20 @@ uhci_abort_req(xfer, status)
 	/* make sure hardware has completed, */
 	if (xfer->device->bus->intr_context) {
 		/* We have no process context, so we can't use tsleep(). */
-		timeout(uhci_abort_req_end, xfer, hz / USB_FRAMES_PER_SECOND);
+		timeout(uhci_abort_xfer_end, xfer, hz / USB_FRAMES_PER_SECOND);
 	} else {
-#if defined(DIAGNOSTIC) && defined(__i386__)
+#if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 		KASSERT(intr_nesting_level == 0,
 	        	("ohci_abort_req in interrupt context"));
 #endif
 		usb_delay_ms(xfer->pipe->device->bus, 1);
 		/* and call final part of interrupt handler. */
-		uhci_abort_req_end(xfer);
+		uhci_abort_xfer_end(xfer);
 	}
 }
 
 void
-uhci_abort_req_end(v)
+uhci_abort_xfer_end(v)
 	void *v;
 {
 	usbd_xfer_handle xfer = v;
@@ -1735,7 +1739,7 @@ uhci_device_ctrl_abort(xfer)
 	usbd_xfer_handle xfer;
 {
 	DPRINTF(("uhci_device_ctrl_abort:\n"));
-	uhci_abort_req(xfer, USBD_CANCELLED);
+	uhci_abort_xfer(xfer, USBD_CANCELLED);
 }
 
 /* Close a device control pipe. */
@@ -1759,7 +1763,7 @@ uhci_device_intr_abort(xfer)
 		DPRINTFN(1,("uhci_device_intr_abort: remove\n"));
 		xfer->pipe->intrxfer = 0;
 	}
-	uhci_abort_req(xfer, USBD_CANCELLED);
+	uhci_abort_xfer(xfer, USBD_CANCELLED);
 }
 
 /* Close a device interrupt pipe. */
@@ -1971,6 +1975,7 @@ uhci_device_isoc_enter(xfer)
 
 	if (xfer->status == USBD_IN_PROGRESS) {
 		/* This request has already been entered into the frame list */
+		/* XXX */
 	}
 
 #ifdef DIAGNOSTIC
@@ -2087,11 +2092,11 @@ uhci_device_isoc_abort(xfer)
 	/* make sure hardware has completed, */
 	if (xfer->device->bus->intr_context) {
 		/* We have no process context, so we can't use tsleep(). */
-		timeout(uhci_abort_req_end, xfer, hz / USB_FRAMES_PER_SECOND);
+		timeout(uhci_abort_xfer_end, xfer, hz / USB_FRAMES_PER_SECOND);
 	} else {
 		usb_delay_ms(xfer->pipe->device->bus, 1);
 		/* and call final part of interrupt handler. */
-		uhci_abort_req_end(xfer);
+		uhci_abort_xfer_end(xfer);
 	}
 }
 

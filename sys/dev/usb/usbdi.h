@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.31 1999/10/13 08:10:58 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.33 1999/11/17 23:00:50 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -95,23 +95,23 @@ usbd_status usbd_open_pipe
 	     u_int8_t flags, usbd_pipe_handle *pipe));
 usbd_status usbd_close_pipe	__P((usbd_pipe_handle pipe));
 usbd_status usbd_transfer	__P((usbd_xfer_handle req));
-usbd_xfer_handle usbd_alloc_request	__P((usbd_device_handle));
-usbd_status usbd_free_request	__P((usbd_xfer_handle xfer));
-void usbd_setup_request	
+usbd_xfer_handle usbd_alloc_xfer __P((usbd_device_handle));
+usbd_status usbd_free_xfer	__P((usbd_xfer_handle xfer));
+void usbd_setup_xfer
 	__P((usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 	     usbd_private_handle priv, void *buffer,
 	     u_int32_t length, u_int16_t flags, u_int32_t timeout,
 	     usbd_callback));
-void usbd_setup_default_request
+void usbd_setup_default_xfer
 	__P((usbd_xfer_handle xfer, usbd_device_handle dev,
 	     usbd_private_handle priv, u_int32_t timeout,
 	     usb_device_request_t *req,  void *buffer,
 	     u_int32_t length, u_int16_t flags, usbd_callback));
-void usbd_setup_isoc_request	
+void usbd_setup_isoc_xfer	
 	__P((usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 	     usbd_private_handle priv, u_int16_t *frlengths,
 	     u_int32_t nframes, u_int16_t flags, usbd_callback));
-void usbd_get_request_status
+void usbd_get_xfer_status
 	__P((usbd_xfer_handle xfer, usbd_private_handle *priv,
 	     void **buffer, u_int32_t *count, usbd_status *status));
 usb_endpoint_descriptor_t *usbd_interface2endpoint_descriptor
