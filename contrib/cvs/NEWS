@@ -1,5 +1,24 @@
 Changes since 1.10:
 
+* The new "cvs version" command gives a short version message.  If
+the repository is remote, both the client and server versions are
+reported.
+
+* "cvs admin -t" now works correctly in client/server mode.
+
+* The "cvs history" command output format has changed -- the date
+now includes the year and is given is ISO 8601 format (yyyy-mm-dd).
+Also, the new LogHistory option in CVSROOT/config can be used to
+control what information gets recorded in the log file and code has
+been added to record file removals.
+
+* The buggy PreservePermissions code has been disabled.
+
+* Anonymous read-only access can now be done without requiring a
+password.  On the server side, simply give that user (presumably
+`anonymous') an empty password in the CVSROOT/passwd file, and then
+any received password will authenticate successfully.
+
 * There is a new access method :fork: which is similar to :local:
 except that it is implemented via the CVS remote protocol, and thus
 has a somewhat different set of quirks and bugs.

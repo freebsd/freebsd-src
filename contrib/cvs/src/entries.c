@@ -807,7 +807,8 @@ Subdirs_Known (entries)
 	if (!noexec)
 	{
 	    /* Create Entries.Log so that Entries_Close will do something.  */
-	    fp = CVS_FOPEN (CVSADM_ENTLOG, "a");
+	    entfilename = CVSADM_ENTLOG;
+	    fp = CVS_FOPEN (entfilename, "a");
 	    if (fp == NULL)
 	    {
 		int save_errno = errno;
@@ -821,7 +822,7 @@ Subdirs_Known (entries)
 	    else
 	    {
 		if (fclose (fp) == EOF)
-		    error (1, errno, "cannot close %s", CVSADM_ENTLOG);
+		    error (1, errno, "cannot close %s", entfilename);
 	    }
 	}
     }

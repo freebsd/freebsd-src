@@ -22,13 +22,13 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 
 # Where to install the executables.
-bindir = $(exec_prefix)/bin
+bindir = @bindir@
 
 # Where to put the system-wide .cvsrc file
-libdir = $(prefix)/lib
+libdir = @libdir@
 
 # Where to put the manual pages.
-mandir = $(prefix)/man
+mandir = @mandir@
 
 # where to find command interpreters
 perl_path = @perl_path@

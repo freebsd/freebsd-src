@@ -234,9 +234,12 @@ check_fileproc (callerdat, finfo)
 	if ((status != T_UPTODATE) && (status != T_CHECKOUT))
 	{
 	    error (0, 0, "%s is locally modified", finfo->fullname);
+	    freevers_ts (&vers);
 	    return (1);
 	}
     }
+    else
+	vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
     
     if (finfo->update_dir[0] == '\0')
 	xdir = ".";
@@ -266,11 +269,12 @@ check_fileproc (callerdat, finfo)
     p->key = xstrdup (finfo->file);
     p->type = UPDATE;
     p->delproc = tag_delproc;
-    vers = Version_TS (finfo, NULL, NULL, NULL, 0, 0);
     if (vers->srcfile == NULL)
     {
         if (!really_quiet)
 	    error (0, 0, "nothing known about %s", finfo->file);
+	freevers_ts (&vers);
+	freenode (p);
 	return (1);
     }
 
@@ -579,6 +583,8 @@ tag_fileproc (callerdat, finfo)
 	if (strcmp (version, oversion) == 0 && !branch_mode && !isbranch)
 	{
 	    free (oversion);
+	    if (branch_mode)
+		free (rev);
 	    freevers_ts (&vers);
 	    return (0);
 	}
@@ -600,6 +606,8 @@ tag_fileproc (callerdat, finfo)
 	    cvs_output (rev, 0);
 	    cvs_output ("\n", 1);
 	    free (oversion);
+	    if (branch_mode)
+		free (rev);
 	    freevers_ts (&vers);
 	    return (0);
 	}
@@ -611,9 +619,13 @@ tag_fileproc (callerdat, finfo)
 	error (1, retcode == -1 ? errno : 0,
 	       "failed to set tag %s to revision %s in %s",
 	       symtag, rev, vers->srcfile->path);
+	if (branch_mode)
+	    free (rev);
 	freevers_ts (&vers);
 	return (1);
     }
+    if (branch_mode)
+	free (rev);
     RCS_rewrite (vers->srcfile, NULL, NULL);
 
     /* more warm fuzzies */
@@ -718,7 +730,7 @@ val_direntproc (callerdat, dir, repository, update_dir, entries)
        files in a directory which does not exist yet, but which is
        about to be created.  */
     if (isdir (dir))
-	return 0;
+	return R_PROCESS;
     return R_SKIP_ALL;
 }
 
