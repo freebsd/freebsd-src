@@ -47,7 +47,6 @@
 HAL=	${.CURDIR}/../../contrib/dev/ath
 
 .PATH: ${HAL}/freebsd
-.PATH: ${HAL}
 
 KMOD=	ath_hal
 SRCS=	ah_osdep.c
@@ -56,15 +55,14 @@ OBJS=	hal.o
 MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
 	contrib/dev/ath/freebsd/ah_if.m
 
-CFLAGS+=  -I. -I${HAL}/freebsd -I${HAL}
+CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
 
 .if defined(HAL_SRC)
-.include <freebsd/Makefile.inc>
+.include "${HAL}/freebsd/Makefile.inc"
 .else
-UUDECODE?=uudecode
 
 hal.o:	${HAL}/freebsd/i386-elf.hal.o.uu
-	${UUDECODE} < ${HAL}/freebsd/i386-elf.hal.o.uu
+	uudecode -p < ${HAL}/freebsd/i386-elf.hal.o.uu > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
