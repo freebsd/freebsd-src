@@ -42,11 +42,13 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
+#include <errno.h>
 #include <netdb.h>
 #include <resolv.h>
 #include <stdio.h>
@@ -255,8 +257,6 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 	if (flags & AI_ADDRCONFIG) {
 		int s;
 
-		if ((s = socket(af, SOCK_DGRAM, 0)) < 0)
-			return NULL;
 		/*
 		 * TODO:
 		 * Note that implementation dependent test for address
@@ -264,7 +264,23 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		 * (or apropriate interval),
 		 * because addresses will be dynamically assigned or deleted.
 		 */
-		_close(s);
+		if (af == AF_UNSPEC) {
+			if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+				af = AF_INET;
+			else {
+				_close(s);
+				if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+					af = AF_INET6;
+				else
+				_close(s);
+			}
+
+		}
+		if (af != AF_UNSPEC) {
+			if ((s = socket(af, SOCK_DGRAM, 0)) < 0)
+				return NULL;
+			_close(s);
+		}
 	}
 
 	for (i = 0; i < MAXHOSTCONF; i++) {
@@ -277,16 +293,19 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 	return NULL;
 }
 
+/* getipnodebyname() internal routine for multiple query(PF_UNSPEC) support. */
 struct hostent *
-getipnodebyname(const char *name, int af, int flags, int *errp)
+_getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
 	union inx_addr addrbuf;
 
+	/* XXX: PF_UNSPEC is only supposed to be passed from getaddrinfo() */
 	if (af != AF_INET
 #ifdef INET6
 	    && af != AF_INET6
 #endif
+	    && af != PF_UNSPEC
 		)
 	{
 		*errp = NO_RECOVERY;
@@ -338,6 +357,21 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	}
 #endif
 	return _hpsort(hp);
+}
+
+struct hostent *
+getipnodebyname(const char *name, int af, int flags, int *errp)
+{
+	if (af != AF_INET
+#ifdef INET6
+	    && af != AF_INET6
+#endif
+		)
+	{
+		*errp = NO_RECOVERY;
+		return NULL;
+	}
+	return(_getipnodebyname_multi(name, af ,flags, errp));
 }
 
 struct hostent *
@@ -746,6 +780,7 @@ _files_ghbyname(const char *name, int af, int *errp)
 	char *aliases[MAXALIASES + 1], *addrs[2];
 	union inx_addr addrbuf;
 	char buf[BUFSIZ];
+	int af0 = af;
 
 	if ((fp = _files_open(errp)) == NULL)
 		return NULL;
@@ -766,11 +801,39 @@ _files_ghbyname(const char *name, int af, int *errp)
 		}
 		if (!match)
 			continue;
-		if ((af == AF_INET
-		     ? inet_aton(addrstr, (struct in_addr *)&addrbuf)
-		     : inet_pton(af, addrstr, &addrbuf)) != 1) {
+		switch (af0) {
+		case AF_INET:
+			if (inet_aton(addrstr, (struct in_addr *)&addrbuf)
+			    != 1) {
+				*errp = NO_DATA;	/* name found */
+				continue;
+			}
+			af = af0;
+			break;
+#ifdef INET6
+		case AF_INET6:
+			if (inet_pton(af, addrstr, &addrbuf) != 1) {
+				*errp = NO_DATA;	/* name found */
+				continue;
+			}
+			af = af0;
+			break;
+#endif
+		case AF_UNSPEC:
+			if (inet_aton(addrstr, (struct in_addr *)&addrbuf)
+			    == 1) {
+				af = AF_INET;
+				break;
+			}
+#ifdef INET6
+			if (inet_pton(AF_INET6, addrstr, &addrbuf) == 1) {
+				af = AF_INET6;
+				break; 
+			}
+#endif
 			*errp = NO_DATA;	/* name found */
 			continue;
+			/* NOTREACHED */
 		}
 		hp = &hpbuf;
 		hp->h_name = cname;
@@ -842,6 +905,8 @@ _nis_ghbyname(const char *name, int af, int *errp)
 {
 	struct hostent *hp = NULL;
 
+	if (af == AF_UNSPEC)
+		af = AF_INET;
 	if (af == AF_INET) {
 		hp = _gethostbynisname(name, af);
 		if (hp != NULL)
@@ -870,15 +935,22 @@ _nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 #define	DNS_ASSERT(X)	if (!(X)) { goto badanswer; }
 #endif
 
+struct __res_type_list {
+        SLIST_ENTRY(__res_type_list) rtl_entry;
+        int     rtl_type;
+};
+
 static struct hostent *
-_dns_ghbyname(const char *name, int af, int *errp)
+_gethpbyanswer(answer, anslen, qtype, errp)
+	const u_char *answer;
+	int anslen;
+	int qtype;
+	int *errp;
 {
 	int n;
-	u_char answer[BUFSIZ];
 	char tbuf[MAXDNAME+1];
 	HEADER *hp;
-	u_char *cp, *eom;
-	int qtype;
+	const u_char *cp, *eom;
 	int type, class, ancount, qdcount;
 	u_long ttl;
 	char hostbuf[BUFSIZ];
@@ -889,30 +961,17 @@ _dns_ghbyname(const char *name, int af, int *errp)
 	int buflen;
 	int na, nh;
 
-	if ((_res.options & RES_INIT) == 0) {
-		if (res_init() < 0) {
-			*errp = h_errno;
-			return NULL;
-		}
-	}
 	hbuf.h_aliases = alist;
-	hbuf.h_addrtype = af;
-	hbuf.h_length = ADDRLEN(af);
+	hbuf.h_addrtype =
+#ifdef INET6
+		(qtype == T_AAAA) ? AF_INET6 :
+#endif
+		AF_INET;
+	hbuf.h_length = ADDRLEN(hbuf.h_addrtype);
 	hbuf.h_addr_list = hlist;
 	na = nh = 0;
-
-#ifdef INET6
-	qtype = (af == AF_INET6 ? T_AAAA : T_A);
-#else
-	qtype = T_A;
-#endif
-	n = res_search(name, C_IN, qtype, answer, sizeof(answer));
-	if (n < 0) {
-		*errp = h_errno;
-		return NULL;
-	}
 	hp = (HEADER *)answer;
-	eom = answer + n;
+	eom = answer + anslen;
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
 	DNS_ASSERT(qdcount == 1);
@@ -992,6 +1051,210 @@ _dns_ghbyname(const char *name, int af, int *errp)
 	alist[na] = NULL;
 	hlist[nh] = NULL;
 	return _hpcopy(&hbuf, errp);
+}
+
+/* res_search() variant with multiple query support. */
+static struct hostent *
+_res_search_multi(name, rtl, errp)
+	const char *name;	/* domain name */
+	struct	__res_type_list *rtl; /* list of query types */
+	int *errp;
+{
+	u_char answer[BUFSIZ];	/* buffer to put answer */
+	const char *cp, * const *domain;
+	struct hostent *hp0 = NULL, *hp;
+	u_int dots;
+	int trailing_dot, ret, saved_herrno;
+	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
+	struct __res_type_list *rtl0 = rtl;
+
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		*errp = NETDB_INTERNAL;
+		return (NULL);
+	}
+	dots = 0;
+	for (cp = name; *cp; cp++)
+		dots += (*cp == '.');
+	trailing_dot = 0;
+	if (cp > name && *--cp == '.')
+		trailing_dot++;
+
+	/* If there aren't any dots, it could be a user-level alias */
+	if (!dots && (cp = hostalias(name)) != NULL) {
+		for(rtl = rtl0; rtl != NULL;
+		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
+			ret = res_query(cp, C_IN, rtl->rtl_type, answer,
+					     sizeof(answer));
+			if (ret > 0) {
+				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
+						    errp);
+				hp0 = _hpmerge(hp0, hp, errp);
+			}
+		}
+		return (hp0);
+	}
+
+	/*
+	 * If there are dots in the name already, let's just give it a try
+	 * 'as is'.  The threshold can be set with the "ndots" option.
+	 */
+	saved_herrno = -1;
+	if (dots >= _res.ndots) {
+		for(rtl = rtl0; rtl != NULL;
+		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
+			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
+					      answer, sizeof(answer));
+			if (ret > 0) {
+				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
+						    errp);
+				hp0 = _hpmerge(hp0, hp, errp);
+			}
+		}
+		if (hp0 != NULL)
+			return (hp0);
+		saved_herrno = *errp;
+		tried_as_is++;
+	}
+
+	/*
+	 * We do at least one level of search if
+	 *	- there is no dot and RES_DEFNAME is set, or
+	 *	- there is at least one dot, there is no trailing dot,
+	 *	  and RES_DNSRCH is set.
+	 */
+	if ((!dots && (_res.options & RES_DEFNAMES)) ||
+	    (dots && !trailing_dot && (_res.options & RES_DNSRCH))) {
+		int done = 0;
+
+		for (domain = (const char * const *)_res.dnsrch;
+		     *domain && !done;
+		     domain++) {
+
+			for(rtl = rtl0; rtl != NULL;
+			    rtl = SLIST_NEXT(rtl, rtl_entry)) {
+				ret = res_querydomain(name, *domain, C_IN,
+						      rtl->rtl_type,
+						      answer, sizeof(answer));
+				if (ret > 0) {
+					hp = _gethpbyanswer(answer, ret,
+							      rtl->rtl_type,
+							      errp);
+					hp0 = _hpmerge(hp0, hp, errp);
+				}
+			}
+			if (hp0 != NULL)
+				return (hp0);
+
+			/*
+			 * If no server present, give up.
+			 * If name isn't found in this domain,
+			 * keep trying higher domains in the search list
+			 * (if that's enabled).
+			 * On a NO_DATA error, keep trying, otherwise
+			 * a wildcard entry of another type could keep us
+			 * from finding this entry higher in the domain.
+			 * If we get some other error (negative answer or
+			 * server failure), then stop searching up,
+			 * but try the input name below in case it's
+			 * fully-qualified.
+			 */
+			if (errno == ECONNREFUSED) {
+				*errp = TRY_AGAIN;
+				return (NULL);
+			}
+
+			switch (*errp) {
+			case NO_DATA:
+				got_nodata++;
+				/* FALLTHROUGH */
+			case HOST_NOT_FOUND:
+				/* keep trying */
+				break;
+			case TRY_AGAIN:
+				if (((HEADER *)answer)->rcode == SERVFAIL) {
+					/* try next search element, if any */
+					got_servfail++;
+					break;
+				}
+				/* FALLTHROUGH */
+			default:
+				/* anything else implies that we're done */
+				done++;
+			}
+
+			/* if we got here for some reason other than DNSRCH,
+			 * we only wanted one iteration of the loop, so stop.
+			 */
+			if (!(_res.options & RES_DNSRCH))
+				done++;
+		}
+	}
+
+	/*
+	 * If we have not already tried the name "as is", do that now.
+	 * note that we do this regardless of how many dots were in the
+	 * name or whether it ends with a dot unless NOTLDQUERY is set.
+	 */
+	if (!tried_as_is && (dots || !(_res.options & RES_NOTLDQUERY))) {
+		for(rtl = rtl0; rtl != NULL;
+		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
+			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
+					      answer, sizeof(answer));
+			if (ret > 0) {
+				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
+						    errp);
+				hp0 = _hpmerge(hp0, hp, errp);
+			}
+		}
+		if (hp0 != NULL)
+			return (hp0);
+	}
+
+	/* if we got here, we didn't satisfy the search.
+	 * if we did an initial full query, return that query's h_errno
+	 * (note that we wouldn't be here if that query had succeeded).
+	 * else if we ever got a nodata, send that back as the reason.
+	 * else send back meaningless h_errno, that being the one from
+	 * the last DNSRCH we did.
+	 */
+	if (saved_herrno != -1)
+		*errp = saved_herrno;
+	else if (got_nodata)
+		*errp = NO_DATA;
+	else if (got_servfail)
+		*errp = TRY_AGAIN;
+	return (NULL);
+}
+
+static struct hostent *
+_dns_ghbyname(const char *name, int af, int *errp)
+{
+	struct __res_type_list *rtl, rtl4;
+#ifdef INET6
+	struct __res_type_list rtl6;
+#endif
+
+#ifdef INET6
+	switch (af) {
+	case AF_UNSPEC:
+		SLIST_NEXT(&rtl4, rtl_entry) = NULL; rtl4.rtl_type = T_A;
+		SLIST_NEXT(&rtl6, rtl_entry) = &rtl4; rtl6.rtl_type = T_AAAA;
+		rtl = &rtl6;
+		break;
+	case AF_INET6:
+		SLIST_NEXT(&rtl6, rtl_entry) = NULL; rtl6.rtl_type = T_AAAA;
+		rtl = &rtl6;
+		break;
+	case AF_INET:
+		SLIST_NEXT(&rtl4, rtl_entry) = NULL; rtl4.rtl_type = T_A;
+		rtl = &rtl4;
+		break;
+	}
+#else
+	SLIST_NEXT(&rtl4, rtl_entry) = NULL; rtl4.rtl_type = T_A;
+	rtl = &rtl4;
+#endif
+	return(_res_search_multi(name, rtl, errp));
 }
 
 static struct hostent *
