@@ -100,13 +100,13 @@ syscall is assembled to
 and
 .Fn listen
 is implemented as a function which locks
-.Va s
+.Fa s
 for read and write, then calls
 .Fn _thread_sys_listen .
 Before returning,
 .Fn listen
 unlocks
-.Va s .
+.Fa s .
 .Sh RETURN VALUES
 A 0 return value indicates success; -1 indicates an error.
 .Sh ERRORS

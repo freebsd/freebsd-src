@@ -71,13 +71,13 @@ syscall is assembled to
 and
 .Fn fsync
 is implemented as a function which locks
-.Va fd
+.Fa fd
 for read and write, then calls
 .Fn _thread_sys_fsync .
 Before returning,
 .Fn fsync
 unlocks
-.Va fd .
+.Fa fd .
 .Sh RETURN VALUES
 A 0 value is returned on success.  A -1 value indicates
 an error.

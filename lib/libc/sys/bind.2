@@ -79,13 +79,13 @@ syscall is assembled to
 and
 .Fn bind
 is implemented as a function which locks
-.Va s
+.Fa s
 for read and write, then calls
 .Fn _thread_sys_bind .
 Before returning,
 .Fn bind
 unlocks
-.Va s .
+.Fa s .
 .Sh RETURN VALUES
 If the bind is successful, a 0 value is returned.
 A return value of -1 indicates an error, which is

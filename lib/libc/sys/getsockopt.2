@@ -362,13 +362,13 @@ syscall is assembled to
 and
 .Fn getsockopt
 is implemented as a function which locks
-.Va s
+.Fa s
 for read and write, then calls
 .Fn _thread_sys_getsockopt .
 Before returning,
 .Fn getsockopt
 unlocks
-.Va s .
+.Fa s .
 .Pp
 In the non-threaded library
 .Fn setsockopt
@@ -383,13 +383,13 @@ syscall is assembled to
 and
 .Fn setsockopt
 is implemented as a function which locks
-.Va s
+.Fa s
 for read and write, then calls
 .Fn _thread_sys_setsockopt .
 Before returning,
 .Fn setsockopt
 unlocks
-.Va s .
+.Fa s .
 .Sh RETURN VALUES
 A 0 is returned if the call succeeds, -1 if it fails.
 .Sh ERRORS

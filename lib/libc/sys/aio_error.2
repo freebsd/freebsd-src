@@ -41,7 +41,7 @@ The
 .Fn aio_error
 function returns the error status of the asynchronous I/O request
 associated with the structure pointed to by
-.Ar iocb .
+.Fa iocb .
 .Sh RETURN VALUES
 If the asynchronous I/O request has completed successfully,
 .Fn aio_error
@@ -67,7 +67,7 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-.Ar iocb
+.Fa iocb
 does not reference an outstanding asynchronous I/O request.
 .El
 .Sh SEE ALSO

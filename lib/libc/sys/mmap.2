@@ -274,7 +274,7 @@ was specified and insufficient memory was available.
 .Xr munmap 2 ,
 .Xr getpagesize 3
 .Sh BUGS
-.Ar len
+.Fa len
 is limited to 2GB.  Mmapping slightly more than 2GB doesn't work, but
 it is possible to map a window of size (filesize % 2GB) for file sizes 
 of slightly less than 2G, 4GB, 6GB and 8GB.

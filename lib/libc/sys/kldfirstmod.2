@@ -42,18 +42,18 @@
 The
 .Fn kldfirstmod
 function returns the module id pertaining to the first module referenced by
-.Va fileid .
+.Fa fileid .
 .Sh RETURN VALUES
 The
 .Fn kldfirstmod
 will return the id of the first module referenced by
-.Va fileid
+.Fa fileid
 or 0 if there are no references.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOENT
 The kld file referenced by
-.Va fileid
+.Fa fileid
 was not found.
 .Sh SEE ALSO
 .Xr kldfind 2 ,

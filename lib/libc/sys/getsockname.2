@@ -71,13 +71,13 @@ syscall is assembled to
 and
 .Fn getsockname
 is implemented as a function which locks
-.Va fd
+.Fa fd
 for read and write, then calls
 .Fn _thread_sys_getsockname .
 Before returning,
 .Fn getsockname
 unlocks
-.Va fd .
+.Fa fd .
 .Sh RETURN VALUES
 A 0 is returned if the call succeeds, -1 if it fails.
 .Sh ERRORS
