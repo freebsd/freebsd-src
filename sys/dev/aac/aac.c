@@ -270,16 +270,16 @@ aac_attach(struct aac_softc *sc)
 	aac_describe_controller(sc);
 
 	/*
-	 * Register to probe our containers later.
-	 */
-	TAILQ_INIT(&sc->aac_container_tqh);
-	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
-
-	/*
-	 * Lock for the AIF queue
+	 * Initialize locks
 	 */
 	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
+	TAILQ_INIT(&sc->aac_container_tqh);
+	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
+	AAC_LOCK_INIT(&sc->aac_io_lock, "AAC I/O lock");
 
+	/*
+	 * Register to probe our containers later.
+	 */
 	sc->aac_ich.ich_func = aac_startup;
 	sc->aac_ich.ich_arg = sc;
 	if (config_intrhook_establish(&sc->aac_ich) != 0) {
@@ -660,7 +660,7 @@ aac_intr(void *arg)
 	/* It's not ok to return here because of races with the previous step */
 	if (reason & AAC_DB_RESPONSE_READY)
 		/* handle completion processing */
-		taskqueue_enqueue(taskqueue_swi_giant, &sc->aac_task_complete);
+		taskqueue_enqueue(taskqueue_swi, &sc->aac_task_complete);
 
 	/* controller wants to talk to the log */
 	if (reason & AAC_DB_PRINTF) {
@@ -777,7 +777,6 @@ aac_command_thread(struct aac_softc *sc)
 			tsleep(sc->aifthread, PRIBIO, "aifthd",
 			       AAC_PERIODIC_INTERVAL * hz);
 
-		/* While we're here, check to see if any commands are stuck */
 		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
 			aac_timeout(sc);
 
@@ -787,8 +786,18 @@ aac_command_thread(struct aac_softc *sc)
 			aac_print_printf(sc);
 		}
 
-		while (sc->aifflags & AAC_AIFFLAGS_AIF) {
+		/* See if any FIBs need to be allocated */
+		if ((sc->aifflags & AAC_AIFFLAGS_ALLOCFIBS) != 0) {
+			mtx_lock(&Giant);
+			AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+			aac_alloc_commands(sc);
+			sc->aifflags &= ~AAC_AIFFLAGS_ALLOCFIBS;
+			AAC_LOCK_RELEASE(&sc->aac_io_lock);
+			mtx_unlock(&Giant);
+		}
 
+		/* While we're here, check to see if any commands are stuck */
+		while (sc->aifflags & AAC_AIFFLAGS_AIF) {
 			if (aac_dequeue_fib(sc, AAC_HOST_NORM_CMD_QUEUE,
 					    &fib_size, &fib)) {
 				sc->aifflags &= ~AAC_AIFFLAGS_AIF;
@@ -857,6 +866,8 @@ aac_complete(void *context, int pending)
 
 	sc = (struct aac_softc *)context;
 
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
+
 	/* pull completed commands off the queue */
 	for (;;) {
 		/* look for completed FIBs on our queue */
@@ -886,6 +897,8 @@ aac_complete(void *context, int pending)
 
 	/* see if we can start some more I/O */
 	aac_startio(sc);
+
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 }
 
 /*
@@ -1035,19 +1048,20 @@ aac_bio_complete(struct aac_command *cm)
 static int
 aac_wait_command(struct aac_command *cm, int timeout)
 {
-	int s, error = 0;
+	struct aac_softc *sc;
+	int error = 0;
 
 	debug_called(2);
+
+	sc = cm->cm_sc;
 
 	/* Put the command on the ready queue and get things going */
 	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	aac_enqueue_ready(cm);
-	aac_startio(cm->cm_sc);
-	s = splbio();
+	aac_startio(sc);
 	while (!(cm->cm_flags & AAC_CMD_COMPLETED) && (error != EWOULDBLOCK)) {
-		error = tsleep(cm, PRIBIO, "aacwait", 0);
+		error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
 	}
-	splx(s);
 	return(error);
 }
 
@@ -1066,9 +1080,9 @@ aac_alloc_command(struct aac_softc *sc, struct aac_command **cmp)
 	debug_called(3);
 
 	if ((cm = aac_dequeue_free(sc)) == NULL) {
-		if ((aac_alloc_commands(sc) != 0) ||
-		    (cm = aac_dequeue_free(sc)) == NULL)
-			return (ENOMEM);
+		sc->aifflags |= AAC_AIFFLAGS_ALLOCFIBS;
+		wakeup(sc->aifthread);
+		return (EBUSY);
 	}
 
 	*cmp = cm;
@@ -2364,6 +2378,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	/*
 	 * Get a command
 	 */
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 	if (aac_alloc_command(sc, &cm)) {
 		error = EBUSY;
 		goto out;
@@ -2410,6 +2425,8 @@ out:
 	if (cm != NULL) {
 		aac_release_command(cm);
 	}
+
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	return(error);
 }
 

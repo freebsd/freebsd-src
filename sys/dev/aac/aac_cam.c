@@ -286,7 +286,9 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	/* Async ops that require communcation with the controller */
 
+	AAC_LOCK_ACQUIRE(&sc->aac_io_lock);
 	if (aac_alloc_command(sc, &cm)) {
+		AAC_LOCK_RELEASE(&sc->aac_io_lock);
 		xpt_freeze_simq(sim, 1);
 		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 		xpt_done(ccb);
@@ -401,6 +403,8 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	aac_enqueue_ready(cm);
 	aac_startio(cm->cm_sc);
+
+	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 
 	return;
 }
