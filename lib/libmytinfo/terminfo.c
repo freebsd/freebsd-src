@@ -31,12 +31,12 @@ char *msg; {
 	return write(2, msg, strlen(msg));
 }
 
-#define RETERR(e, msg)  { (err == NULL ? (printerr(msg), exit(1), 0) \
+#define RETERR(e, msg)  { (err == NULL ? (printerr(msg), exit(1)) \
 				       : (*err = e)); return ERR; }
 
 #else
 
-#define RETERR(e, msg)  { (err == NULL ? (fprintf(stderr, msg), exit(1), 0) \
+#define RETERR(e, msg)  { (err == NULL ? (fprintf(stderr, "setupterm(\"%s\",%d,NULL): %s", term, fd, msg), exit(1)) \
 				       : (*err = e)); return ERR; }
 
 #endif
