@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: $
+ *	$Id: mbr.c,v 1.1 1998/04/19 23:31:05 julian Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ static sl_h_constructor_t mbr_constructor;	/* constructor (from device) */
 static sl_h_IO_req_t mbr_IOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t mbr_ioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t mbr_open;	/* downwards travelling open */
-static sl_h_close_t mbr_close;	/* downwards travelling close */
+/*static sl_h_close_t mbr_close; */	/* downwards travelling close */
 static sl_h_claim_t mbr_claim;	/* upwards travelling claim */
 static sl_h_revoke_t mbr_revoke;/* upwards travelling revokation */
 static sl_h_verify_t mbr_verify;/* things changed, are we stil valid? */
@@ -95,7 +95,7 @@ static struct slice_handler slicetype = {
 	&mbr_IOreq,
 	&mbr_ioctl,
 	&mbr_open,
-	&mbr_close,
+	/*&mbr_close*/NULL,
 	&mbr_revoke,		/* revoke */
 	&mbr_claim,		/* claim */
 	&mbr_verify,		/* verify */
@@ -761,6 +761,7 @@ RR;
 	return (0);
 }
 
+#if 0
 static  void
 mbr_close(void *private, int flags, int mode, struct proc * p)
 {
@@ -801,6 +802,7 @@ RR;
 	pd->savedoflags = newoflags;
 	return ;
 }
+#endif /* 0 */
 
 static int
 mbr_ioctl(void *private, int cmd, caddr_t addr, int flag, struct proc * p)

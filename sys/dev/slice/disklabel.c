@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: $
+ *	$Id: disklabel.c,v 1.1 1998/04/19 23:31:03 julian Exp $
  */
 
 
@@ -63,7 +63,7 @@ static sl_h_constructor_t dkl_constructor;	/* constructor (from device) */
 static sl_h_IO_req_t dkl_IOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t dkl_ioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t dkl_open;	/* downwards travelling open */
-static sl_h_close_t dkl_close;	/* downwards travelling close */
+/*static sl_h_close_t dkl_close; */	/* downwards travelling close */
 static sl_h_claim_t dkl_claim;	/* upwards travelling claim */
 static sl_h_revoke_t dkl_revoke;/* upwards travelling revokation */
 static sl_h_verify_t dkl_verify;/* things changed, are we stil valid? */
@@ -78,7 +78,7 @@ static struct slice_handler slicetype = {
 	&dkl_IOreq,
 	&dkl_ioctl,
 	&dkl_open,
-	&dkl_close,
+	/*&dkl_close*/NULL,
 	&dkl_revoke,		/* revoke */
 	&dkl_claim,		/* claim */
 	&dkl_verify,		/* verify */
@@ -658,6 +658,7 @@ RR;
 	return (0);
 }
 
+#if 0
 static  void
 dkl_close(void *private, int flags, int mode, struct proc * p)
 {
@@ -701,6 +702,7 @@ RR;
 	pd->savedoflags = newoflags;
 	return ;
 }
+#endif	/* 0 */
 
 static int
 dkl_ioctl(void *private, int cmd, caddr_t addr, int flag, struct proc * p)

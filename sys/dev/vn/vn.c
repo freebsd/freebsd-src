@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.55 1998/02/20 13:27:36 bde Exp $
+ *	$Id: vn.c,v 1.56 1998/04/19 23:31:21 julian Exp $
  */
 
 /*
@@ -113,7 +113,7 @@ static struct bdevsw vn_bdevsw =
 static sl_h_IO_req_t	nvsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	nvsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	nvsopen;	/* downwards travelling open */
-static sl_h_close_t	nvsclose;	/* downwards travelling close */
+/*static sl_h_close_t	nvsclose; */	/* downwards travelling close */
 
 static struct slice_handler slicetype = {
 	"vn",
@@ -124,7 +124,7 @@ static struct slice_handler slicetype = {
 	&nvsIOreq,
 	&nvsioctl,
 	&nvsopen,
-	&nvsclose,
+	/*&nvsclose*/NULL,
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
@@ -913,6 +913,7 @@ nvsopen(void *private, int flags, int mode, struct proc *p)
 	return (0);
 }
 
+#if 0
 static void
 nvsclose(void *private, int flags, int mode, struct proc *p)
 {
@@ -924,6 +925,7 @@ nvsclose(void *private, int flags, int mode, struct proc *p)
 			makedev(0,vn->mynor) , flags, mode, p);
 	return;
 }
+#endif
 
 static int
 nvsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.123 1998/04/17 22:37:10 des Exp $
+ *      $Id: sd.c,v 1.124 1998/04/19 23:32:36 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -36,6 +36,7 @@
 #include <sys/devfsext.h>
 #ifdef SLICE
 #include <sys/device.h>
+#include <sys/fcntl.h>
 #include <dev/slice/slice.h>
 #endif	/* SLICE */
 #endif	/* DEVFS */
@@ -141,7 +142,7 @@ static struct bdevsw sd_bdevsw =
 static sl_h_IO_req_t	sdsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	sdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	sdsopen;	/* downwards travelling open */
-static sl_h_close_t	sdsclose;	/* downwards travelling close */
+/*static sl_h_close_t	sdsclose; */	/* downwards travelling close */
 static	void	sds_init (void *arg);
 
 static struct slice_handler slicetype = {
@@ -153,7 +154,7 @@ static struct slice_handler slicetype = {
 	&sdsIOreq,
 	&sdsioctl,
 	&sdsopen,
-	&sdsclose,
+	/*&sdsclose*/NULL,
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
@@ -1283,9 +1284,14 @@ sdsopen(void *private, int flags, int mode, struct proc *p)
 
 	sd = private;
 
-	return(sdopen(makedev(0,sd->mynor), 0 , 0, p));
+	if ((flags & (FREAD|FWRITE)) == 0) {
+		return(sdclose(makedev(0,sd->mynor), 0 , 0, p));
+	} else {
+		return(sdopen(makedev(0,sd->mynor), 0 , 0, p));
+	}
 }
 
+#if 0
 static void
 sdsclose(void *private, int flags, int mode, struct proc *p)
 {
@@ -1296,6 +1302,7 @@ sdsclose(void *private, int flags, int mode, struct proc *p)
 	sdclose(makedev(0,sd->mynor), 0 , 0, p);
 	return;
 }
+#endif 	/* 0 */
 static int
 sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 {
