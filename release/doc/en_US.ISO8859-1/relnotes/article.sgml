@@ -214,6 +214,12 @@
       For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:12.jail.asc">FreeBSD-SA-04:12</ulink>. &merged;</para>
 
+    <para>A programming error in the handling of some Linux system calls which
+      may result in memory locations being accessed without proper validation
+      has been fixed.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -304,6 +310,10 @@
     <para>The raid(4), RAIDframe disk driver from NetBSD has been removed.
       This is currently non-functional, and would require some amount of work
       to make it work under the &man.geom.4; API in 5-CURRENT.</para>
+
+    <para>The &man.pcm.4; driver has been modified to read
+      <filename>/boot/device.hints</filename> on startup, to allow setting
+      of default values for mixer channels.</para>
 
     <para arch="sparc64">The &man.sab.4; now supports
       <literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
