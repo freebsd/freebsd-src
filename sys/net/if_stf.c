@@ -163,7 +163,7 @@ static void stf_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
 
 int	stf_clone_create __P((struct if_clone *, int *));
-void	stf_clone_destroy __P((struct ifnet *));
+int	stf_clone_destroy __P((struct ifnet *));
 
 struct if_clone stf_cloner =
     IF_CLONE_INITIALIZER(STFNAME, stf_clone_create, stf_clone_destroy);
@@ -216,7 +216,7 @@ stf_clone_create(ifc, unit)
 	return (0);
 }
 
-void
+int
 stf_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -233,6 +233,7 @@ stf_clone_destroy(ifp)
 	KASSERT(err == 0, ("Unexpected error freeing resource"));
 
 	free(sc, M_STF);
+	return (0);
 }
 
 static int

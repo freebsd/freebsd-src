@@ -636,8 +636,7 @@ if_clone_destroy(name)
 	if (ifc->ifc_destroy == NULL)
 		return (EOPNOTSUPP);
 
-	(*ifc->ifc_destroy)(ifp);
-	return (0);
+	return ((*ifc->ifc_destroy)(ifp));
 }
 
 /*

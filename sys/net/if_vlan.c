@@ -94,7 +94,7 @@ static struct rman vlanunits[1];
 static LIST_HEAD(, ifvlan) ifv_list;
 
 static	int vlan_clone_create(struct if_clone *, int *);
-static	void vlan_clone_destroy(struct ifnet *);
+static	int vlan_clone_destroy(struct ifnet *);
 static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
 static	int vlan_input(struct ether_header *eh, struct mbuf *m);
@@ -274,7 +274,7 @@ vlan_clone_create(struct if_clone *ifc, int *unit)
 	return (0);
 }
 
-static void
+static int
 vlan_clone_destroy(struct ifnet *ifp)
 {
 	struct ifvlan *ifv = ifp->if_softc;
@@ -291,6 +291,7 @@ vlan_clone_destroy(struct ifnet *ifp)
 	err = rman_release_resource(ifv->r_unit);
 	KASSERT(err == 0, ("Unexpected error freeing resource"));
 	free(ifv, M_VLAN);
+	return (0);
 }
 
 static void
