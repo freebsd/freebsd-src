@@ -64,11 +64,12 @@ ENTRY(_setjmp)
         stmia	r0, {r4-r14}
 
         mov	r0, #0x00000000
-        mov	r15, r14
+	RET
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
 
+WEAK_ALIAS(___longjmp, _longjmp)
 ENTRY(_longjmp)
 	ldr	r2, .L_setjmp_magic
 	ldr	r3, [r0], #4
@@ -96,7 +97,7 @@ ENTRY(_longjmp)
 	mov	r0, r1
 	teq	r0, #0x00000000
 	moveq	r0, #0x00000001
-	mov	r15, r14
+	RET
 
 	/* validation failed, die die die. */
 botch:

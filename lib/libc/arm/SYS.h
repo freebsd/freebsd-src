@@ -74,11 +74,11 @@
 
 #define PSEUDO_NOERROR(x)						\
 	_SYSCALL_NOERROR(x);						\
-	mov r15, r14
+	RET
 
 #define PSEUDO(x)							\
 	_SYSCALL(x);							\
-	mov r15, r14
+	RET
 
 
 #define RSYSCALL_NOERROR(x)						\
