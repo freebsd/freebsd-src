@@ -67,18 +67,20 @@ klogin(pw, instance, localhost, password)
 	char *instance, *localhost, *password;
 {
 	int kerror;
-	AUTH_DAT authdata;
-	KTEXT_ST ticket;
-	struct hostent *hp;
-	unsigned long faddr;
 	char realm[REALM_SZ], savehost[MAXHOSTNAMELEN];
 	char tkt_location[MAXPATHLEN];
 	char *krb_get_phost();
 	extern int noticketsdontcomplain;
 
-#ifdef KLOGIN_PARANOID
+#ifdef	KLOGIN_PARANOID
+	AUTH_DAT authdata;
+	KTEXT_ST ticket;
+	struct hostent *hp;
+	unsigned long faddr;
+
 	noticketsdontcomplain = 0; /* enable warning message */
 #endif
+
 	/*
 	 * Root logins don't use Kerberos.
 	 * If we have a realm, try getting a ticket-granting ticket

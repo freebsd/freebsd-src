@@ -70,7 +70,7 @@ ftpd_popen(program, type)
 	int argc, gargc, pdes[2], pid;
 	char **pop, *argv[100], *gargv[1000];
 
-	if (*type != 'r' && *type != 'w' || type[1])
+	if (((*type != 'r') && (*type != 'w')) || type[1])
 		return (NULL);
 
 	if (!pids) {
