@@ -812,6 +812,7 @@ void fw_init(struct firewire_comm *fc)
 	fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_FW, M_NOWAIT);
 	if(fwb == NULL){
 		fw_xfer_free(xfer);
+		return;
 	}
 	xfer->act.hand = fw_vmaccess;
 	xfer->fc = fc;
