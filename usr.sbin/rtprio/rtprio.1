@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtprio.1,v 1.9 1997/02/22 16:13:06 peter Exp $
+.\"	$Id: rtprio.1,v 1.10 1997/03/07 07:43:19 mpp Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -182,14 +182,14 @@ process in a realtime priority.
 .Sh BUGS
 There is no way to set/view the realtime priority of process 0
 (swapper) (see
-.Xr ps 1 ) ) .
+.Xr ps 1 ) .
 .Pp
 There is in
 .Tn FreeBSD
 no way to ensure that a process page is present in memory therefore
 the process may be stopped for pagein. (See
 .Xr mprotect 2 ,
-.Xr madvise 2 ) ) .
+.Xr madvise 2 ) .
 .Pp
 Under
 .Tn FreeBSD
