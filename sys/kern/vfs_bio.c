@@ -61,12 +61,10 @@ static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
 
-static int ibwrite(struct buf *);
-static int inmem(struct vnode * vp, daddr_t blkno);
-
 struct	buf_ops buf_ops_bio = {
-	"buf_ops_bio",
-	ibwrite
+	.bop_name	=	"buf_ops_bio",
+	.bop_write	=	bufwrite,
+	.bop_strategy	=	bufstrategy,
 };
 
 /*
@@ -77,6 +75,7 @@ struct buf *buf;		/* buffer header pool */
 
 static struct proc *bufdaemonproc;
 
+static int inmem(struct vnode * vp, daddr_t blkno);
 static void vm_hold_free_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
@@ -724,10 +723,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			bp->b_rcred = crhold(cred);
 		vfs_busy_pages(bp, 0);
 		bp->b_iooffset = dbtob(bp->b_blkno);
-		if (vp->v_type == VCHR)
-			VOP_SPECSTRATEGY(vp, bp);
-		else
-			VOP_STRATEGY(vp, bp);
+		bstrategy(bp);
 		++readwait;
 	}
 
@@ -748,10 +744,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			vfs_busy_pages(rabp, 0);
 			BUF_KERNPROC(rabp);
 			rabp->b_iooffset = dbtob(rabp->b_blkno);
-			if (vp->v_type == VCHR)
-				VOP_SPECSTRATEGY(vp, rabp);
-			else
-				VOP_STRATEGY(vp, rabp);
+			bstrategy(rabp);
 		} else {
 			brelse(rabp);
 		}
@@ -775,16 +768,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
  * here.
  */
 int
-bwrite(struct buf *bp)
-{
-
-	KASSERT(bp->b_op != NULL && bp->b_op->bop_write != NULL,
-	    ("Martian buffer %p in bwrite: nobody to write it.", bp));
-	return (bp->b_op->bop_write(bp));
-}
-
-static int
-ibwrite(struct buf *bp)
+bufwrite(struct buf *bp)
 {
 	int oldflags, s;
 	struct buf *newbp;
@@ -797,7 +781,7 @@ ibwrite(struct buf *bp)
 	oldflags = bp->b_flags;
 
 	if (BUF_REFCNT(bp) == 0)
-		panic("ibwrite: buffer is not busy???");
+		panic("bufwrite: buffer is not busy???");
 	s = splbio();
 	/*
 	 * If a background write is already in progress, delay
@@ -815,7 +799,7 @@ ibwrite(struct buf *bp)
 		bp->b_vflags |= BV_BKGRDWAIT;
 		msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj), PRIBIO, "bwrbg", 0);
 		if (bp->b_vflags & BV_BKGRDINPROG)
-			panic("ibwrite: still writing");
+			panic("bufwrite: still writing");
 	}
 	BO_UNLOCK(bp->b_bufobj);
 
@@ -895,12 +879,7 @@ ibwrite(struct buf *bp)
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	if (bp->b_vp->v_type == VCHR) {
-		if (!buf_prewrite(bp->b_vp, bp))
-			VOP_SPECSTRATEGY(bp->b_vp, bp);
-	} else {
-		VOP_STRATEGY(bp->b_vp, bp);
-	}
+	bstrategy(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);
@@ -1944,7 +1923,6 @@ restart:
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
 		bp->b_magic = B_MAGIC_BIO;
-		bp->b_op = &buf_ops_bio;
 		bp->b_object = NULL;
 		bp->b_bufobj = NULL;
 
@@ -3803,8 +3781,6 @@ bwait(struct buf *bp, u_char pri, const char *wchan)
 	mtx_unlock(&bdonelock);
 }
 
-#if 0	/* this is here to unconfuse p4 diff */
-
 void
 bufstrategy(struct bufobj *bo, struct buf *bp)
 {
@@ -3812,14 +3788,19 @@ bufstrategy(struct bufobj *bo, struct buf *bp)
 	struct vnode *vp;
 
 	vp = bp->b_vp;
+#if 0
 	KASSERT(vp == bo->bo_vnode, ("Inconsistent vnode bufstrategy"));
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
 	    ("Wrong vnode in bufstrategy(bp=%p, vp=%p)", bp, vp));
-	i = VOP_STRATEGY(vp, bp);
+#endif
+	if (vp->v_type == VCHR) {
+		if (!buf_prewrite(bp->b_vp, bp))
+			i = VOP_SPECSTRATEGY(vp, bp);
+	} else {
+		i = VOP_STRATEGY(vp, bp);
+	}
 	KASSERT(i == 0, ("VOP_STRATEGY failed bp=%p vp=%p", bp, bp->b_vp));
 }
-
-#endif
 
 void
 bufobj_wref(struct bufobj *bo)
