@@ -562,7 +562,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: arp [-n] hostname",
 		"       arp [-n] -a",
-		"       arp -d hostname",
+		"       arp -d hostname [proxy]",
 		"       arp -d -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
 		"       arp -S hostname ether_addr [temp] [pub]",
