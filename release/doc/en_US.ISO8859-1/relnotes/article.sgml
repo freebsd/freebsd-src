@@ -351,6 +351,9 @@
 
       <para>The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
 
+      <para>The &man.an.4; driver now supports the Cisco Aironet 350
+      series of adaptors.</para>
+
     </sect3>
 
     <sect3>
