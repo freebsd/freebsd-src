@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.141 1999/01/21 09:40:48 dillon Exp $
+ * $Id: vm_map.c,v 1.142 1999/01/24 06:04:52 dillon Exp $
  */
 
 /*
@@ -75,9 +75,7 @@
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/vnode.h>
-#ifdef VM_STACK
 #include <sys/resourcevar.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -548,9 +546,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->eflags = protoeflags;
 	new_entry->object.vm_object = object;
 	new_entry->offset = offset;
-#ifdef VM_STACK
 	new_entry->avail_ssize = 0;
-#endif
 
 	if (object) {
 		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
@@ -589,7 +585,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	return (KERN_SUCCESS);
 }
 
-#ifdef VM_STACK
 int
 vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	      vm_prot_t prot, vm_prot_t max, int cow)
@@ -785,7 +780,6 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 	return (rv);
 
 }
-#endif
 
 /*
  * Find sufficient space for `length' bytes in the given map, starting at

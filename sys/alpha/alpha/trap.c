@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.9 1998/12/16 15:21:50 bde Exp $ */
+/* $Id: trap.c,v 1.10 1998/12/30 10:38:58 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -418,6 +418,7 @@ trap(a0, a1, a2, entry, framep)
 				/*
 				 * Grow the stack if necessary
 				 */
+#ifndef VM_STACK
 				if ((caddr_t)va > vm->vm_maxsaddr
 				    && va < USRSTACK) {
 					if (!grow(p, va)) {
@@ -426,6 +427,20 @@ trap(a0, a1, a2, entry, framep)
 						goto nogo;
 					}
 				}
+#else
+				/* grow_stack returns false only if va falls into
+				 * a growable stack region and the stack growth
+				 * fails.  It returns true if va was not within
+				 * a growable stack region, or if the stack 
+				 * growth succeeded.
+				 */
+				if (!grow_stack (p, va)) {
+				  rv = KERN_FAILURE;
+				  --p->p_lock;
+				  goto nogo;
+				}
+#endif
+
 
 				/* Fault in the user page: */
 				rv = vm_fault(map, va, ftype,

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.6 1998/12/16 15:21:50 bde Exp $
+ *	$Id: vm_machdep.c,v 1.7 1998/12/30 10:38:58 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -365,6 +365,7 @@ cpu_reset()
 	prom_halt(0);
 }
 
+#ifndef VM_STACK
 /*
  * Grow the user stack to allow for 'sp'. This version grows the stack in
  *	chunks of SGROWSIZ.
@@ -417,6 +418,22 @@ grow(p, sp)
 
 	return (1);
 }
+#else
+int
+grow_stack(p, sp)
+	struct proc *p;
+	size_t sp;
+{
+	int rv;
+
+	rv = vm_map_growstack (p, sp);
+	if (rv != KERN_SUCCESS)
+		return (0);
+
+	return (1);
+}
+#endif
+
 
 static int cnt_prezero;
 
