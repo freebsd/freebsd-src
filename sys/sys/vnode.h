@@ -395,7 +395,7 @@ extern void	(*lease_updatetime)(int deltat);
 	(!((vp)->v_iflag & VI_FREE) &&					\
 	 !(vp)->v_holdcnt && !(vp)->v_usecount &&			\
 	 (!(vp)->v_object ||						\
-	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
+	  !(vp)->v_object->resident_page_count))
 
 /* Requires interlock. */
 #define	VSHOULDBUSY(vp)							\

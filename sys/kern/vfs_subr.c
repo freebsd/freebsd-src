@@ -92,6 +92,7 @@ static void	vbusy(struct vnode *vp);
 static void	vdropl(struct vnode *vp);
 static void	vholdl(struct vnode *);
 static void	vinactive(struct vnode *, struct thread *);
+static void	v_incr_usecount(struct vnode *, int);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -683,8 +684,7 @@ vtryrecycle(struct vnode *vp)
 	object = vp->v_object;
 	if (object != NULL) {
 		VM_OBJECT_LOCK(object);
-		if (object->resident_page_count ||
-		    object->ref_count) {
+		if (object->resident_page_count) {
 			VM_OBJECT_UNLOCK(object);
 			error = EBUSY;
 			goto done;
@@ -893,7 +893,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	*vpp = vp;
-	vp->v_usecount = 1;
+	v_incr_usecount(vp, 1);
 	vp->v_data = 0;
 	if (pollinfo != NULL) {
 		knlist_destroy(&pollinfo->vpi_selinfo.si_note);
