@@ -42,7 +42,7 @@
 .Fd #include <sys/stat.h>
 .Fd #include <fts.h>
 .Ft FTS *
-.Fn fts_open "char * const *path_argv" "int options" "int *compar(const FTSENT **, const FTSENT **)"
+.Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT **, const FTSENT **)"
 .Ft FTSENT *
 .Fn fts_read "FTS *ftsp"
 .Ft FTSENT *
@@ -122,7 +122,7 @@ typedef struct _ftsent {
 These fields are defined as follows:
 .Bl -tag -width "fts_namelen"
 .It Fa fts_info
-One of the following flags describing the returned
+One of the following values describing the returned
 .Fa FTSENT
 structure and
 the file it represents.
