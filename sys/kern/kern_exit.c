@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.46 1997/03/24 11:24:35 bde Exp $
+ * $Id: kern_exit.c,v 1.47 1997/04/07 07:16:00 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -157,12 +157,6 @@ exit1(p, rv)
 	 * This may block!
 	 */
 	fdfree(p);
-
-	/*
-	 * Delete select() buffers
-	 */
-	if (p->p_selbits)
-		free (p->p_selbits, M_SELECT);
 
 	/*
 	 * XXX Shutdown SYSV semaphores
