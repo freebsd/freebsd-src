@@ -5,7 +5,7 @@ To build a kernel with the IP filter, follow these seven steps:
 	2. do "make install-bsd"
 	   (probably has to be done as root)
 
-	3. run "FreeBSD-4/kinstall" as root
+	3. run "FreeBSD-4.0/kinstall" as root
 
 	4. build a new kernel
 

@@ -31,6 +31,24 @@ for i in ip_fil.[ch] fil.c ip_nat.[ch] ip_frag.[ch] ip_state.[ch] ip_proxy.[ch] 
 	chmod 644 $ipfdir/$i
 done
 echo ""
+echo -n "Installing into /usr/include/netinet"
+for j in auth compat fil frag nat proxy state ; do
+	i=ip_$j.h
+	if [ -f "$i" ] ; then
+		echo -n " $i"
+		cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+	fi
+done
+for j in ipl.h; do
+	if [ -f "$j" ] ; then
+		echo -n " $j"
+		cp $j /usr/include/netinet/$j
+		chmod 644 /usr/include/netinet/$j
+	fi
+done
+echo
+
 if [ -f /sys/netinet/ip_fil_compat.h ] ; then
 	echo "Linking /sys/netinet/ip_compat.h to /sys/netinet/ip_fil_compat.h"
 	rm /sys/netinet/ip_fil_compat.h
