@@ -1,4 +1,4 @@
-# @(#)africa	7.25
+# @(#)africa	7.26
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -207,9 +207,9 @@ Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
 Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
 Rule	Egypt	1990	1994	-	May	 1	1:00	1:00	S
 # IATA (after 1990) says transitions are at 0:00.
-# Go with IATA starting in 1995.
+# Go with IATA starting in 1995, except correct 1995 entry from 09-30 to 09-29.
 Rule	Egypt	1995	max	-	Apr	Fri>=22	 0:00s	1:00	S
-Rule	Egypt	1995	max	-	Sep	lastFri	23:00s	0	-
+Rule	Egypt	1995	max	-	Sep	lastThu	23:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
