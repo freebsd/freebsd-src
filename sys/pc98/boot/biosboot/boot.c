@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.12 1997/05/28 09:22:59 kato Exp $
+ *	$Id: boot.c,v 1.13 1997/06/09 13:44:03 kato Exp $
  */
 
 
@@ -60,8 +60,9 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
 #define	BOOT_CONFIG_SIZE	512
-#define	BOOT_HELP_SIZE		(2 * 1024)
-#define	NAMEBUF_LEN		(4 * 1024)
+#define	BOOT_HELP_SIZE		2048
+#define	KERNEL_CONFIG_SIZE	512
+#define	NAMEBUF_LEN		1024	/* oversized to defend against gets() */
 
 static char boot_config[BOOT_CONFIG_SIZE];
 static char boot_help[BOOT_HELP_SIZE];
@@ -69,6 +70,8 @@ static char boot_help[BOOT_HELP_SIZE];
 char *dflt_name;
 #endif
 char *name;
+static char kernel_config[KERNEL_CONFIG_SIZE];
+static char kernel_config_namebuf[NAMEBUF_LEN + sizeof "config"];
 static char linebuf[NAMEBUF_LEN];
 static char namebuf[NAMEBUF_LEN];
 static struct bootinfo bootinfo;
@@ -218,6 +221,7 @@ loadprog(void)
 	long int bootdev;
 	int i;
 	unsigned pad;
+	char *s, *t;
 
 	read((void *)&head, sizeof(head));
 	if ( N_BADMAG(head)) {
@@ -337,6 +341,28 @@ loadprog(void)
 	bootinfo.bi_kernelname = name + ouraddr;
 	bootinfo.bi_nfs_diskless = NULL;
 	bootinfo.bi_size = sizeof(bootinfo);
+
+	/*
+	 * Load the kernel config file (if any).  Its name is given by
+	 * appending ".config" to the kernel name.  Build the name inline
+	 * because no str*() functions are available.  The file has to be
+	 * copied to &disklabel for userconfig.  It can't be loaded there
+	 * directly because the label is used late in readfile() in some
+	 * unusual cases, e.g., for bad144 handling.
+	 */
+	s = name;
+	t = kernel_config_namebuf;
+	do
+		;
+	while ((*t++ = *s++) != '\0');
+	s = ".config";
+	--t;
+	do
+		;
+	while ((*t++ = *s++) != '\0');
+	readfile(kernel_config_namebuf, kernel_config, KERNEL_CONFIG_SIZE);
+	pcpy(kernel_config, (char *)&disklabel + ouraddr, KERNEL_CONFIG_SIZE);
+
 	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
 	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
 		  (int)&bootinfo + ouraddr);
@@ -358,9 +384,6 @@ readfile(char *path, char *buf, size_t nbytes)
 		read(buf, nbytes);
 	}
 	buf[nbytes - 1] = '\0';
-#if 0
-	pcpy(buf, (void *)0x800, nbytes);
-#endif
 }
 
 static void
