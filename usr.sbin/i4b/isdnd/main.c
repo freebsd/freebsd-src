@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed May  2 10:05:55 2001]
+ *      last edit-date: [Tue Jun  5 17:06:20 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -609,7 +609,13 @@ static void
 kbdrdhdl(void)
 {
 	int ch = getch();
-		
+
+	if(ch == ERR)
+	{
+		log(LL_ERR, "kbdrdhdl: ERROR, read error on controlling tty, errno = %d!", errno);
+		error_exit(1, "kbdrdhdl: ERROR, read error on controlling tty, errno = %d!", errno);
+	}
+
 	switch(ch)
 	{
 		case 0x0c:	/* control L */
