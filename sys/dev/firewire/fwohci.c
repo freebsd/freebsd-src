@@ -537,7 +537,6 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_POSTWR);
 	OWRITE(sc, OHCI_SID_BUF, sc->sid_dma.bus_addr);
 	OWRITE(sc, OHCI_LNKCTL, OHCI_CNTL_SID);
-	fw_busreset(&sc->fc);
 
 	/* Enable link */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LINKEN);
