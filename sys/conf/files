@@ -690,11 +690,11 @@ geom/geom_bsd.c	optional geom
 geom/geom_dev.c	optional geom
 geom/geom_disk.c	optional geom
 geom/geom_dump.c	optional geom
+geom/geom_enc.c	optional geom
 geom/geom_event.c	optional geom
 geom/geom_io.c	optional geom
 geom/geom_kern.c	optional geom
 geom/geom_mbr.c	optional geom
-geom/geom_mbrext.c	optional geom
 geom/geom_slice.c	optional geom
 geom/geom_subr.c	optional geom
 geom/geom_sunlabel.c	optional geom
