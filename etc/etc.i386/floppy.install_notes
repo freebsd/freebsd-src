@@ -35,10 +35,18 @@ to make initial installation of the system as easy as possible.
     Next, make a third floppy from the disk image:	cpio-floppy
     You'll need this for the last stage of the boot process.
 
-    Finally, make a fourth floppy from the disk image:	dos-floppy
-    You'll need this for the last stage of the boot process.
-    This disk is MS-DOS readable and contains the os-bs boot manager
-    (for use if you are installing more than one operating system on disk.)
+    If you want to use any of the optional tools in the tools
+    subdirectory of the ftp distribution site, these should be
+    copied directly to a DOS formatted disk (using, either mcopy
+    or  mount -t pcfs).  This disk is referred to later as the
+    optional "dos" floppy.  
+
+    If installing more than one operating system on a disk, then
+    it is recommended that the dos floppy at least include the
+    os-bs boot manager.  If downloading files via a modem and SLIP
+    is not available, then the dos floppy should include kermit.
+    You'll have the option of loading the programs that are on
+    the dos floppy in the last stage of the boot process.
 
 2.  Boot the first floppy.  When it asks you to insert the file system,
     insert your second ``filesystem-floppy.''  Follow the instructions
@@ -63,8 +71,9 @@ to make initial installation of the system as easy as possible.
     drive B:
 
 5.  After the cpio-floppy has been copied to the disk, remove it from the
-    drive and insert the fourth floppy (dos-floppy).  Again, specify the 
-    drive to read from.
+    drive.  If there are programs on the  dos-floppy that you would like
+    installed, then insert this disk in a floppy drive.  Again, specify 
+    the drive to read from.
 
 5.  After the dos-floppy has been copied to the disk, enter `halt' at
     the command prompt.
@@ -109,28 +118,32 @@ to make initial installation of the system as easy as possible.
 	mv /.profile /.profile.install
 	ln /root/.profile /.profile
 
-14. If your system has several operating systems, you may want to install
-    the Thomas Wolfram's os-bs boot manager for selecting which system to
-    boot.  This works well with DOS, OS/2, FreeBSD and other systems.  To
-    install it, boot the system with MS-DOS and insert the dos-floppy of
-    the FreeBSD install suite in floppy drive A:.  Then enter the DOS
-    commands:
+14. If your disk has several operating systems, you may want to
+    install the Thomas Wolfram's os-bs boot manager for selecting
+    which system to boot.  This works well with DOS, OS/2, FreeBSD
+    and other systems.  To install it, boot the system with MS-DOS
+    and insert the dos-floppy of the FreeBSD install suite in
+    floppy drive A:.  Then enter the DOS commands:
     > A:
     > os-bs135
     > cd os-bs
     > os-bs
-    Use the cursor keys to highlight the install option and hit
-    ENTER.  The readme.1st file in the os-bs directory contains
-    more information about os-bs.
+    A menu should now appear on the screen. Use the cursor keys
+    to highlight the install option and hit ENTER.    And follow the
+    instructions from there.
 
-    If you choose not to install os-bs, then fdisk can be used to change
-    the boot system.  This is done by setting the primary partition for
-    that system active.  FreeBSD has an fdisk command that can be used
-    for this purpose as well.
+    For more information about the ob-bs program, including its
+    capabilities and limitations, see the file `readme.1st' in the
+    os-bs directory.
+
+    If you choose not to install os-bs, then fdisk can be used to
+    change the boot system.  This is done by making the primary
+    partition for the boot system active.  FreeBSD has an fdisk
+    command that can be used for this purpose as well.
 
 15. In addition to the FreeBSD  source and binary distributions, many 
     additional packages, such as X11 and TeX, may be obtained from 
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in /usr/src/RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.6 1993/09/09 13:52:35 alm Exp $
+End of $Id: floppy.install_notes,v 1.7 1993/09/11 08:32:50 alm Exp $
