@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *	$Id: aha1542.c,v 1.8 1993/08/28 03:07:38 rgrimes Exp $
+ *	$Id: aha1542.c,v 1.9 1993/10/12 07:15:28 rgrimes Exp $
  */
 
 /*
@@ -917,7 +917,7 @@ int	unit;
 	printf("aha%d:",unit);
 #define	PRNT(x) printf(x)
 #endif	__386BSD__
-	DELAY(1000);	/* for Bustek 545 */
+	DELAY(10000);	/* for Bustek 545 */
 	aha_cmd(unit,0, sizeof(conf), 0 ,&conf, AHA_CONF_GET);
 	switch(conf.chan)
 	{
