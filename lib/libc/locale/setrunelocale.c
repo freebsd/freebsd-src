@@ -73,6 +73,7 @@ setrunelocale(encoding)
 	 */
 	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
+		__mb_cur_max = 1;
 		return (0);
 	}
 
