@@ -55,9 +55,9 @@
 #include <sys/tty.h>
 
 #include <machine/clock.h>
-#include <machine/psl.h>
 #include <machine/pc/display.h>
 #ifdef __i386__
+#include <machine/psl.h>
 #include <machine/apm_bios.h>
 #include <machine/frame.h>
 #endif
@@ -139,7 +139,7 @@ static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
-#if __i386__
+#if __i386__ || __ia64__
 static void scterm(int unit, int flags);
 #endif
 static void scshutdown(void *arg, int howto);
@@ -1309,7 +1309,7 @@ scstart(struct tty *tp)
 static void
 sccnprobe(struct consdev *cp)
 {
-#if __i386__
+#if __i386__ || __ia64__
     int unit;
     int flags;
 
@@ -1327,7 +1327,7 @@ sccnprobe(struct consdev *cp)
 
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLECTL);
-#endif /* __i386__ */
+#endif /* __i386__ || __ia64__ */
 
 #if __alpha__
     /*
@@ -1342,7 +1342,7 @@ sccnprobe(struct consdev *cp)
 static void
 sccninit(struct consdev *cp)
 {
-#if __i386__
+#if __i386__ || __ia64__
     int unit;
     int flags;
 
@@ -1365,7 +1365,7 @@ sccnterm(struct consdev *cp)
     if (sc_console_unit < 0)
 	return;			/* shouldn't happen */
 
-#if __i386__
+#if __i386__ || __ia64__
 #if 0 /* XXX */
     sc_clear_screen(sc_console);
     sccnupdate(sc_console);
@@ -2743,7 +2743,7 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
-#if __i386__
+#if __i386__ || __ia64__
 static void
 scterm(int unit, int flags)
 {
