@@ -123,6 +123,9 @@ static void	mb_fini_pack(void *, int);
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
 
+/* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
+CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
+
 /*
  * Initialize FreeBSD Network buffer allocation.
  */
@@ -135,7 +138,7 @@ mbuf_init(void *dummy)
 	 * Configure UMA zones for Mbufs, Clusters, and Packets.
 	 */
 	zone_mbuf = uma_zcreate("Mbuf", MSIZE, mb_ctor_mbuf, mb_dtor_mbuf,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_MAXBUCKET);
+	    NULL, NULL, MSIZE - 1, UMA_ZONE_MAXBUCKET);
 	zone_clust = uma_zcreate("MbufClust", MCLBYTES, mb_ctor_clust,
 	    mb_dtor_clust, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	if (nmbclusters > 0)
