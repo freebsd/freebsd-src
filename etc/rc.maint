@@ -1,10 +1,8 @@
 #!/bin/sh
-#	$Id: rc.maint,v 1.1 1995/03/23 01:25:51 jkh Exp $
+#	$Id: rc.maint,v 1.2 1995/03/24 00:16:25 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # Various maintainance tasks to be done as the system is coming up
-
-echo '** Begin system maintainance tasks **'
 
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
