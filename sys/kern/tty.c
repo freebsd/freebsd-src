@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.22 1995/02/12 23:01:13 ache Exp $
+ * $Id: tty.c,v 1.23 1995/02/13 02:03:57 ache Exp $
  */
 
 #include <sys/param.h>
@@ -1138,10 +1138,8 @@ ttylclose(tp, flag)
 	int flag;
 {
 
-	if (flag & IO_NDELAY)
+	if ((flag & IO_NDELAY) || ttywflush(tp))
 		ttyflush(tp, FREAD | FWRITE);
-	else
-		ttywflush(tp);
 	return (0);
 }
 
