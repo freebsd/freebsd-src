@@ -305,8 +305,7 @@ CLEANFILES+=	${_src}
 .if !target(${_src})
 .if !exists(@)
 ${_src}: @
-.endif
-.if exists(@)
+.else
 ${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 .endif
 	${AWK} -f @/tools/makeobjops.awk @/${_srcsrc} -${_ext}
@@ -319,23 +318,25 @@ ${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 CLEANFILES+=	vnode_if.c
 .if !exists(@)
 vnode_if.c: @
-.endif
-.if exists(@)
+.else
 vnode_if.c: @/tools/vnode_if.awk @/kern/vnode_if.src
 .endif
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -c
 .endif
 
 .if ${SRCS:Mvnode_if.h} != ""
-CLEANFILES+=	vnode_if.h
+CLEANFILES+=	vnode_if.h vnode_if_newproto.h vnode_if_typedef.h
 .if !exists(@)
-vnode_if.h: @
+vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: @
+.else
+vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: @/tools/vnode_if.awk \
+    @/kern/vnode_if.src
 .endif
-.if exists(@)
-vnode_if.h: @/tools/vnode_if.awk @/kern/vnode_if.src
-.endif
+vnode_if.h: vnode_if_newproto.h vnode_if_typedef.h
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -h
+vnode_if_newproto.h:
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -p
+vnode_if_typedef.h:
 	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -q
 .endif
 
@@ -348,8 +349,7 @@ CLEANFILES+=	${_i}devs_data.h
 .endif
 .if !exists(@)
 ${_i}devs.h: @
-.endif
-.if exists(@)
+.else
 ${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
 	${AWK} -f @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
@@ -360,8 +360,7 @@ ${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 CLEANFILES+=	acpi_quirks.h
 .if !exists(@)
 acpi_quirks.h: @
-.endif
-.if exists(@)
+.else
 acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
 .endif
 	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
