@@ -702,7 +702,7 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot in single user [3]
 	make installworld
-	mergemaster
+	mergemaster		[4]
 	[1]
 	<reboot>
 
@@ -732,6 +732,13 @@ COMMON ITEMS:
 		mount -a
 		cd /usr/src
 		adjkerntz -i		# if COMS is wall time
+
+	[4] Note: This step is non-optional.  Failure to do this step
+	can result in a significant reduction in the functionality of the
+	system.  Attempting to do it by hand is not recommended and those
+	that pursue this avenue should read this file carefully, as well
+	as the archives of freebsd-current and freebsd-hackers mailing lists
+	for potential gotchas.
 
 FORMAT:
 
