@@ -3,19 +3,15 @@
  * All Rights Reserved.
  */
 
-#include <sys/types.h>
-#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/param.h>
-#include <machine/endian.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/mbuf.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
+
 #include <net/if.h>
-#include <net/route.h>
+
 #include <netinet/in.h>
 #undef s_net
 #include <netinet/if_ether.h>
@@ -23,7 +19,6 @@
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
 #include <netatalk/aarp.h>
-#include <netatalk/ddp_var.h>
 #include <netatalk/phase2.h>
 #include <netatalk/at_extern.h>
 
