@@ -197,7 +197,7 @@ int	ed_alloc_irq(device_t, int, int);
 
 int	ed_probe_generic8390(struct ed_softc *);
 int	ed_probe_WD80x3(device_t, int, int);
-int	ed_probe_WD80x3_generic(device_t, int, unsigned short *[]);
+int	ed_probe_WD80x3_generic(device_t, int, uint16_t *[]);
 int	ed_probe_3Com(device_t, int, int);
 int	ed_probe_SIC(device_t, int, int);
 int	ed_probe_Novell(device_t, int, int);
@@ -207,8 +207,8 @@ int	ed_probe_HP_pclanp(device_t, int, int);
 int	ed_attach(device_t);
 int	ed_detach(device_t);
 void	ed_stop(struct ed_softc *);
-void	ed_pio_readmem(struct ed_softc *, long, unsigned char *, unsigned short);
-void	ed_pio_writemem(struct ed_softc *, char *, unsigned short, unsigned short);
+void	ed_pio_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
+void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
 #ifndef ED_NO_MIIBUS
 int	ed_miibus_readreg(device_t, int, int);
 void	ed_miibus_writereg(device_t, int, int, int);
