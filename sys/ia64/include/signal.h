@@ -57,7 +57,7 @@ typedef long	sig_atomic_t;
 
 struct ia64_fpreg {
 	unsigned long	fpr_bits[2];
-} __attribute__ ((aligned (16)));
+} __aligned(16);
 
 #define _IA64_FPREG_DEFINED
 

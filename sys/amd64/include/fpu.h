@@ -113,7 +113,7 @@ struct  savexmm {
 	} sv_fp[8];
 	struct xmmacc	sv_xmm[8];
 	u_char sv_pad[224];
-} __attribute__((aligned(16)));
+} __aligned(16);
 
 union	savefpu {
 	struct	save87	sv_87;
