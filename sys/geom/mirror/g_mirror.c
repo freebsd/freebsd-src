@@ -2666,6 +2666,15 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    balance_name(sc->sc_balance));
 		sbuf_printf(sb, "%s<Components>%u</Components>\n", indent,
 		    sc->sc_ndisks);
+		sbuf_printf(sb, "%s<State>", indent);
+		if (sc->sc_state == G_MIRROR_DEVICE_STATE_STARTING)
+			sbuf_printf(sb, "%s", "STARTING");
+		else if (sc->sc_ndisks ==
+		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE))
+			sbuf_printf(sb, "%s", "COMPLETE");
+		else
+			sbuf_printf(sb, "%s", "DEGRADED");
+		sbuf_printf(sb, "</State>\n");
 	}
 }
 
