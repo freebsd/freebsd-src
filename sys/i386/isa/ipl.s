@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.20 1998/03/03 22:56:29 tegge Exp $
+ *	$Id: ipl.s,v 1.21 1998/03/23 19:52:59 jlemon Exp $
  */
 
 
@@ -169,9 +169,11 @@ doreti_exit:
 	 * When the cpl problem is solved, this code can disappear.
 	 */
 	ICPL_LOCK
-	cmpl	$0,_cpl
+	cmpl	$0,_cpl				/* cpl == 0, skip it */
 	je	1f
-	testl	$PSL_VM,TF_EFLAGS(%esp)
+	testl	$PSL_VM,TF_EFLAGS(%esp)		/* going to VM86 mode? */
+	jne	doreti_stop
+	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)	/* to user mode? */
 	je	1f
 doreti_stop:
 	movl	$0,_cpl
