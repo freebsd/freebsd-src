@@ -1,0 +1,10 @@
+#
+# Tinderbox setup for experimental platforms.
+#
+# $FreeBSD$
+#
+
+comment		= Experimental platforms
+branches	= CURRENT
+targets		= update, world, generic, lint
+platforms	= powerpc
