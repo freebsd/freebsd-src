@@ -20,15 +20,20 @@ linux_assym.h			optional	compat_linux		\
 	no-obj no-implicit-rule before-depend				\
 	clean		"linux_assym.h"
 #
-font8x16.o			optional	std8x16font		\
-	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c"				\
-	no-implicit-rule before-depend					\
-	clean		"${STD8X16FONT}-8x16 font8x16.c"
+font.h				optional	sc_dflt_font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"									\
+	no-obj no-implicit-rule before-depend				\
+	clean		"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
 	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
 #
 alpha/alpha/alpha-gdbstub.c	optional	ddb
 alpha/alpha/api_up1000.c	optional	api_up1000
