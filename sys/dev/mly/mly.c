@@ -685,6 +685,9 @@ mly_free(struct mly_softc *sc)
     
     debug_called(1);
 
+    /* Remove the management device */
+    destroy_dev(sc->mly_dev_t);
+
     /* detach from CAM */
     mly_cam_detach(sc);
 
