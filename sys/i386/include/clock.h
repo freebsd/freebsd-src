@@ -55,6 +55,7 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
+extern int	statclock_disable;
 #ifdef I586_CPU
 extern int	pentium_mhz;
 #endif

@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.8 1996/03/19 17:05:51 nate Exp $
+ *	$Id: apm.c,v 1.12.4.9 1996/04/18 19:26:11 nate Exp $
  */
 
 #include "apm.h"
@@ -602,6 +602,9 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
+#ifdef APM_BROKEN_STATCLOCK
+	statclock_disable = 1;
+#endif
 
 	return -1;
 }
