@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.7 1997/07/06 07:38:30 jhay Exp $
+ *	$Id: main.c,v 1.8 1999/04/24 09:18:48 jhay Exp $
  */
 
 #ifndef lint
@@ -388,7 +388,7 @@ getinfo()
 {
 	FILE *fh;
 
-	fh = fopen("/tmp/ipxrouted.dmp", "a");
+	fh = fopen("/var/log/ipxrouted.dmp", "a");
 	if(fh == NULL)
 		return;
 
