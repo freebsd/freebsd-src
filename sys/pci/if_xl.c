@@ -50,10 +50,12 @@
  * 3Com 3c905B-COMBO	10/100Mbps/RJ-45,AUI,BNC
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
- * 3Com 3c905C-TX	10/100Mbps/RJ-45
- * 3Com 3c980-TX	10/100Mbps server adapter
- * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45
+ * 3Com 3c905C-TX	10/100Mbps/RJ-45 (Tornado ASIC)
+ * 3Com 3c980-TX	10/100Mbps server adapter (Hurricane ASIC)
+ * 3Com 3c980C-TX	10/100Mbps server adapter (Tornado ASIC)
+ * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45 (Hurricane ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
+ * Dell on-board 3c920 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
  * Dell Latitude laptop docking station embedded 3c905-TX
  *
@@ -184,6 +186,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905C-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_TORNATO_10_100BT_SERV,
+		"3Com 3c980C Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_SOHO100TX,
 		"3Com 3cSOHO100-TX OfficeConnect" },
 	{ 0, 0, NULL }
@@ -1114,6 +1118,7 @@ static void xl_mediacheck(sc)
 		break;
 	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
 	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
+	case TC_DEVICEID_TORNADO_10_100BT_SERV:	/* 3c980C-TX */
 	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
 	case TC_DEVICEID_TORNADO_10_100BT:	/* 3c905C-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
