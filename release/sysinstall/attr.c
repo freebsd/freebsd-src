@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8.2.6 1997/03/28 09:30:12 jkh Exp $
+ * $Id: attr.c,v 1.8.2.7 1997/03/28 12:14:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,7 +84,8 @@ attr_parse(Attribs *attr, FILE *fp)
 		state = LOOK;
 		if (isDebug())
 		    msgDebug("Read %d characters from attributes file on state FILL\n", max);
-		ch = buf[bp = 0];
+		ch = buf[0];
+		bp = 1;
 	    }
 	    /* Fall through deliberately since we already have a character and state == LOOK */
 
