@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.6 1993/12/02 01:03:04 jkh Exp $
+ *	$Id: md.c,v 1.7 1994/01/03 18:35:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ md_init_header(hp, magic, flags)
 struct exec	*hp;
 int		magic, flags;
 {
-	if (!netzmagic && (magic == ZMAGIC) && !(link_mode & DYNAMIC)) {
+	if (!netzmagic && (magic == ZMAGIC)) {
 		hp->a_midmag = magic;
 	} else {
 		if (netzmagic)
