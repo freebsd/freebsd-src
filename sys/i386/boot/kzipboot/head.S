@@ -1,13 +1,11 @@
 /*
- * Leader for kernel
- * This needs to be at the beginning, so the start address is passed
- * to the boot loader
+ * First module in a kzipped kernel.
+ * This needs to be at the beginning so that the boot loader calls it.
+ * It may be overwritten by uncompressing the kernel, so it transfers
+ * control to a higher address that won't be overwritten.
+ *
  * Copyright (C) Serge Vakulenko
  */
 	.text
-	.globl	kzstart
-kzstart:
-	cli                             # disable interrupts
-	call   start			# unpack the kernel image
-					# never return here.
-	. = kzstart + 0x500		# skip warm boot stuff
+head:
+	jmp	tail
