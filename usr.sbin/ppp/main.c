@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.72 1997/08/25 01:52:11 brian Exp $
+ * $Id: main.c,v 1.73 1997/08/26 23:20:11 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -38,8 +38,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sysexits.h>
-#include <pwd.h>
-#include <login_cap.h>
+#include <libutil.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -320,40 +319,6 @@ Greetings()
   }
 }
 
-static int
-Runnable()
-{
-  login_cap_t *lc;
-  const struct passwd *pwd;
-  char **data;
-  int result;
-
-  result = 1;  /* return non-zero if I'm runnable */
-
-  pwd = getpwuid(getuid());
-  if (!pwd) {
-    perror("getpwuid");
-    return result;  /* Run anyway - probably spawned from inetd or the like */
-  }
-  lc = login_getpwclass(pwd);
-  if (!lc) {
-    perror("login_getpwclass");
-    return result;  /* Run anyway - We're missing login.conf ? */
-  }
-
-  data = login_getcaplist(lc, "prog.deny", NULL);
-  if (data) 
-    for (; *data; data++)
-      if (!strcmp(*data, "ppp")) {
-	result = 0;
-	break;
-      }
-
-  login_close(lc);
-
-  return result;    /* OK to run */
-}
-
 int
 main(int argc, char **argv)
 {
@@ -373,7 +338,7 @@ main(int argc, char **argv)
   if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
 
-  if (!Runnable()) {
+  if (!login_progok(getuid(), "/usr/sbin/ppp")) {
     LogPrintf(LogERROR, "You do not have permission to execute ppp\n");
     return EX_NOPERM;
   }
