@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.8 1995/11/07 14:06:44 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.9 1995/11/07 14:10:19 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -68,6 +68,26 @@
 #include <msdosfs/fat.h>
 
 static int msdosfsdoforce = 1;		/* 1 = force unmount */
+
+static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
+				  struct proc *p));
+static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
+				    struct mbuf *, struct vnode **, int *,
+				    struct ucred **));
+static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
+				   struct nameidata *, struct proc *));
+static int	msdosfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
+				      struct proc *));
+static int	msdosfs_root __P((struct mount *, struct vnode **));
+static int	msdosfs_start __P((struct mount *, int, struct proc *));
+static int	msdosfs_statfs __P((struct mount *, struct statfs *,
+				    struct proc *));
+static int	msdosfs_sync __P((struct mount *, int, struct ucred *,
+				  struct proc *));
+static int	msdosfs_unmount __P((struct mount *, int, struct proc *));
+static int	msdosfs_vget __P((struct mount *mp, ino_t ino,
+				  struct vnode **vpp));
+static int	msdosfs_vptofh __P((struct vnode *, struct fid *));
 
 /*
  * mp - path - addr in user space of mount point (ie /usr or whatever)
