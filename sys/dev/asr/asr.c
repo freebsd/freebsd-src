@@ -22,6 +22,11 @@
  *
  * SCSI I2O host adapter driver
  *
+ *	V1.10 2004/05/05 scottl@freebsd.org
+ *		- Massive cleanup of the driver to remove dead code and
+ *		  non-conformant style.
+ *		- Removed most i386-specific code to make it more portable.
+ *		- Converted to the bus_space API.
  *	V1.08 2001/08/21 Mark_Salyzyn@adaptec.com
  *		- The 2000S and 2005S do not initialize on some machines,
  *		  increased timeout to 255ms from 50ms for the StatusGet
@@ -153,11 +158,11 @@
 __FBSDID("$FreeBSD$");
 
 #define	ASR_VERSION	1
-#define	ASR_REVISION	'0'
-#define	ASR_SUBREVISION '8'
-#define	ASR_MONTH	8
-#define	ASR_DAY		21
-#define	ASR_YEAR	2001 - 1980
+#define	ASR_REVISION	'1'
+#define	ASR_SUBREVISION '0'
+#define	ASR_MONTH	5
+#define	ASR_DAY		5
+#define	ASR_YEAR	(2004 - 1980)
 
 /*
  *	Debug macros to reduce the unsightly ifdefs
