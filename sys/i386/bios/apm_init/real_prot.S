@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id$
+ *	$Id: real_prot.S,v 1.5 1997/02/22 09:29:54 peter Exp $
  */
 
 
@@ -52,9 +52,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 /*
- * LP (Laptop Package)
- *
- * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
@@ -96,7 +94,7 @@ ENTRY(real_to_prot)
 
 	/* 
 	 * deleted for APM initializer by HOSOKAWA Tatsumi 
-	 *                                <hosoakwa@mt.cs.keio.ac.jp>
+	 *                                <hosoakwa@jp.FreeBSD.org>
 	 */
 #if 0
 	/* load the gdtr */

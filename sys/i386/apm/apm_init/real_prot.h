@@ -24,13 +24,11 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- *	$Id$
+ *	$Id: real_prot.h,v 1.6 1997/02/22 09:29:54 peter Exp $
  */
 
 /*
- * LP (Laptop Package)
- *
- * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
