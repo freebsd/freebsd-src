@@ -306,6 +306,8 @@ map_pages(size_t pages)
 
     result = (caddr_t)pageround((u_long)sbrk(0));
     tail = result + (pages << malloc_pageshift);
+    if (tail < result)
+	return 0;
 
     if (brk(tail)) {
 #ifdef EXTRA_SANITY
