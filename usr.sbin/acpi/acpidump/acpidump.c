@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	/* Translate RSDT to DSDT pointer */
 	if (dsdt_input_file == NULL) {
 		sdt = sdt_from_rsdt(sdt, "FACP");
-		sdt = dsdt_from_facp((struct FACPbody *)sdt->body);
+		sdt = dsdt_from_fadt((struct FADTbody *)sdt->body);
 	}
 
 	/* Dump the DSDT to a file */
