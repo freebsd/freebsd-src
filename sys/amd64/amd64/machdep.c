@@ -229,7 +229,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %u (%uK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
+	printf("real memory  = %u (%uK bytes)\n", ptoa(Maxmem),
+	    ptoa(Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -238,8 +239,9 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			unsigned int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			unsigned int size1;
 
+			size1 = phys_avail[indx + 1] - phys_avail[indx];
 			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
 			    size1 / PAGE_SIZE);
@@ -290,7 +292,8 @@ again:
 		printf("Warning: no free entries in kernel_map.\n");
 		physmem_est = physmem;
 	} else
-		physmem_est = min(physmem, kernel_map->max_offset - kernel_map->min_offset);
+		physmem_est = min(physmem, kernel_map->max_offset -
+		    kernel_map->min_offset);
 
 	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
@@ -305,7 +308,8 @@ again:
 
 		nbuf = 50;
 		if (physmem_est > 1024)
-			nbuf += min((physmem_est - 1024) / factor, 16384 / factor);
+			nbuf += min((physmem_est - 1024) / factor,
+			    16384 / factor);
 		if (physmem_est > 16384)
 			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
 	}
@@ -749,7 +753,8 @@ osigreturn(p, uap)
 			    (eflags & VME_USERCHANGE) | PSL_VM;
 		} else {
 			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
-			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |					    (eflags & VM_USERCHANGE) | PSL_VM;
+			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |
+			    (eflags & VM_USERCHANGE) | PSL_VM;
 		}
 		tf->tf_vm86_ds = scp->sc_ds;
 		tf->tf_vm86_es = scp->sc_es;
@@ -871,7 +876,8 @@ sigreturn(p, uap)
 			    (eflags & VME_USERCHANGE) | PSL_VM;
 		} else {
 			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
-			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |					    (eflags & VM_USERCHANGE) | PSL_VM;
+			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |
+			    (eflags & VM_USERCHANGE) | PSL_VM;
 		}
 		bcopy(&ucp->uc_mcontext.mc_fs, tf, sizeof(struct trapframe));
 		tf->tf_eflags = eflags;
@@ -1736,7 +1742,8 @@ physmap_done:
 			} else {
 				pa_indx++;
 				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
-					printf("Too many holes in the physical address space, giving up\n");
+					printf(
+		"Too many holes in the physical address space, giving up\n");
 					pa_indx--;
 					break;
 				}
@@ -1886,29 +1893,49 @@ init386(first)
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(1, &IDTVEC(dbg),  SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(2, &IDTVEC(nmi),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
- 	setidt(3, &IDTVEC(bpt),  SDT_SYS386IGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(4, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(5, &IDTVEC(bnd),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(7, &IDTVEC(dna),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+		setidt(x, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL,
+		    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(1, &IDTVEC(dbg),  SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(2, &IDTVEC(nmi),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+ 	setidt(3, &IDTVEC(bpt),  SDT_SYS386IGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(4, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(5, &IDTVEC(bnd),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(7, &IDTVEC(dna),  SDT_SYS386TGT, SEL_KPL
+	    , GSEL(GCODE_SEL, SEL_KPL));
 	setidt(8, 0,  SDT_SYSTASKGT, SEL_KPL, GSEL(GPANIC_SEL, SEL_KPL));
-	setidt(9, &IDTVEC(fpusegm),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(10, &IDTVEC(tss),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(18, &IDTVEC(mchk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(19, &IDTVEC(xmm), SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
- 	setidt(0x80, &IDTVEC(int0x80_syscall),
-			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(9, &IDTVEC(fpusegm),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(10, &IDTVEC(tss),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(18, &IDTVEC(mchk),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(19, &IDTVEC(xmm), SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+ 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
@@ -1933,8 +1960,10 @@ init386(first)
 #endif
 
 	finishidentcpu();	/* Final stage of CPU initialization */
-	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
@@ -1949,11 +1978,11 @@ init386(first)
 	ltr(gsel_tss);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
-	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
+	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
 	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
 	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
 	dblfault_tss.tss_cr3 = (int)IdlePTD;
-	dblfault_tss.tss_eip = (int) dblfault_handler;
+	dblfault_tss.tss_eip = (int)dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
 	dblfault_tss.tss_ds = dblfault_tss.tss_es =
 	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
