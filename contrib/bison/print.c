@@ -15,13 +15,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 #include <stdio.h>
 #include "system.h"
 #include "machine.h"
-#include "new.h"
+#include "alloc.h"
 #include "files.h"
 #include "gram.h"
 #include "state.h"
@@ -39,18 +40,20 @@ extern char any_conflicts;
 extern char *conflicts;
 extern int final_state;
 
-extern void conflict_log();
-extern void verbose_conflict_log();
-extern void print_reductions();
+extern void conflict_log PARAMS((void));
+extern void verbose_conflict_log PARAMS((void));
+extern void print_reductions PARAMS((int));
 
-void print_token();
-void print_state();
-void print_core();
-void print_actions();
-void print_grammar();
+void terse PARAMS((void));
+void verbose PARAMS((void));
+void print_token PARAMS((int, int));
+void print_state PARAMS((int));
+void print_core PARAMS((int));
+void print_actions PARAMS((int));
+void print_grammar PARAMS((void));
 
 void
-terse()
+terse (void)
 {
   if (any_conflicts)
     {
@@ -60,7 +63,7 @@ terse()
 
 
 void
-verbose()
+verbose (void)
 {
   register int i;
 
@@ -77,26 +80,23 @@ verbose()
 
 
 void
-print_token(extnum, token)
-int extnum, token;
+print_token (int extnum, int token)
 {
-  fprintf(foutput, " type %d is %s\n", extnum, tags[token]);
+  fprintf(foutput, _(" type %d is %s\n"), extnum, tags[token]);
 }
 
 
 void
-print_state(state)
-int state;
+print_state (int state)
 {
-  fprintf(foutput, "\n\nstate %d\n\n", state);
+  fprintf(foutput, _("\n\nstate %d\n\n"), state);
   print_core(state);
   print_actions(state);
 }
 
 
 void
-print_core(state)
-int state;
+print_core (int state)
 {
   register int i;
   register int k;
@@ -133,7 +133,7 @@ int state;
 	  sp++;
 	}
 
-      fprintf (foutput, "   (rule %d)", rule);
+      fprintf (foutput, _("   (rule %d)"), rule);
       putc('\n', foutput);
     }
 
@@ -142,8 +142,7 @@ int state;
 
 
 void
-print_actions(state)
-int state;
+print_actions (int state)
 {
   register int i;
   register int k;
@@ -161,9 +160,9 @@ int state;
   if (!shiftp && !redp)
     {
       if (final_state == state)
-	fprintf(foutput, "    $default\taccept\n");
+	fprintf(foutput, _("    $default\taccept\n"));
       else
-	fprintf(foutput, "    NO ACTIONS\n");
+	fprintf(foutput, _("    NO ACTIONS\n"));
       return;
     }
 
@@ -179,9 +178,9 @@ int state;
 	  /* The following line used to be turned off.  */
 	  if (ISVAR(symbol)) break;
           if (symbol==0)      /* I.e. strcmp(tags[symbol],"$")==0 */
-            fprintf(foutput, "    $   \tgo to state %d\n", state1);
+            fprintf(foutput, _("    $   \tgo to state %d\n"), state1);
           else
-            fprintf(foutput, "    %-4s\tshift, and go to state %d\n",
+            fprintf(foutput, _("    %-4s\tshift, and go to state %d\n"),
                     tags[symbol], state1);
 	}
 
@@ -204,7 +203,7 @@ int state;
 	{
 	  if (! errp->errs[j]) continue;
 	  symbol = errp->errs[j];
-	  fprintf(foutput, "    %-4s\terror (nonassociative)\n", tags[symbol]);
+	  fprintf(foutput, _("    %-4s\terror (nonassociative)\n"), tags[symbol]);
 	}
 
       if (j > 0)
@@ -215,7 +214,7 @@ int state;
     {
       rule = redp->rules[0];
       symbol = rlhs[rule];
-      fprintf(foutput, "    $default\treduce using rule %d (%s)\n\n",
+      fprintf(foutput, _("    $default\treduce using rule %d (%s)\n\n"),
      	        rule, tags[symbol]);
     }
   else if (redp)
@@ -230,7 +229,7 @@ int state;
 	  if (! shiftp->shifts[i]) continue;
 	  state1 = shiftp->shifts[i];
 	  symbol = accessing_symbol[state1];
-	  fprintf(foutput, "    %-4s\tgo to state %d\n", tags[symbol], state1);
+	  fprintf(foutput, _("    %-4s\tgo to state %d\n"), tags[symbol], state1);
 	}
 
       putc('\n', foutput);
@@ -243,7 +242,7 @@ int state;
   else
 
 void
-print_grammar()
+print_grammar (void)
 {
   int i, j;
   short* rule;
@@ -251,23 +250,23 @@ print_grammar()
   int column = 0;
 
   /* rule # : LHS -> RHS */
-  fputs("\nGrammar\n", foutput);
+  fputs(_("\nGrammar\n"), foutput);
   for (i = 1; i <= nrules; i++)
     /* Don't print rules disabled in reduce_grammar_tables.  */
     if (rlhs[i] >= 0)
       {
-	fprintf(foutput, "rule %-4d %s ->", i, tags[rlhs[i]]);
+	fprintf(foutput, _("rule %-4d %s ->"), i, tags[rlhs[i]]);
 	rule = &ritem[rrhs[i]];
 	if (*rule > 0)
 	  while (*rule > 0)
 	    fprintf(foutput, " %s", tags[*rule++]);
 	else
-	  fputs ("		/* empty */", foutput);
+	  fputs (_("		/* empty */"), foutput);
 	putc('\n', foutput);
       }
 
   /* TERMINAL (type #) : rule #s terminal is on RHS */
-  fputs("\nTerminals, with rules where they appear\n\n", foutput);
+  fputs(_("\nTerminals, with rules where they appear\n\n"), foutput);
   fprintf(foutput, "%s (-1)\n", tags[0]);
   if (translations)
     {
@@ -315,7 +314,7 @@ print_grammar()
 	fprintf (foutput, "%s\n", buffer);
       }
 
-  fputs("\nNonterminals, with rules where they appear\n\n", foutput);
+  fputs(_("\nNonterminals, with rules where they appear\n\n"), foutput);
   for (i = ntokens; i <= nsyms - 1; i++)
     {
       int left_count = 0, right_count = 0;
@@ -341,7 +340,7 @@ print_grammar()
       if (left_count > 0)
 	{
 	  END_TEST (50);
-	  sprintf (buffer + strlen(buffer), " on left:");
+	  sprintf (buffer + strlen(buffer), _(" on left:"));
 
 	  for (j = 1; j <= nrules; j++)
 	    {
@@ -356,7 +355,7 @@ print_grammar()
 	  if (left_count > 0)
 	    sprintf (buffer + strlen(buffer), ",");
 	  END_TEST (50);
-	  sprintf (buffer + strlen(buffer), " on right:");
+	  sprintf (buffer + strlen(buffer), _(" on right:"));
 	  for (j = 1; j <= nrules; j++)
 	    {
 	      for (rule = &ritem[rrhs[j]]; *rule > 0; rule++)

@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /* set up nullable, a vector saying which nonterminals can expand into the null string.
@@ -25,14 +26,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "system.h"
 #include "types.h"
 #include "gram.h"
-#include "new.h"
+#include "alloc.h"
 
 
 char *nullable;
 
+void free_nullable PARAMS((void));
+void set_nullable PARAMS((void));
 
 void
-set_nullable()
+set_nullable (void)
 {
   register short *r;
   register short *s1;
@@ -49,7 +52,7 @@ set_nullable()
   short *r1;
 
 #ifdef	TRACE
-  fprintf(stderr, "Entering set_nullable");
+  fprintf(stderr, _("Entering set_nullable"));
 #endif
 
   nullable = NEW2(nvars, char) - ntokens;
@@ -130,7 +133,7 @@ set_nullable()
 
 
 void
-free_nullable()
+free_nullable (void)
 {
   FREE(nullable + ntokens);
 }

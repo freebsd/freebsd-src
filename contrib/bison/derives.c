@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /* set_derives finds, for each variable (nonterminal), which rules can derive it.
@@ -25,15 +26,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include "system.h"
-#include "new.h"
+#include "alloc.h"
 #include "types.h"
 #include "gram.h"
 
+void set_derives PARAMS((void));
+void free_derives PARAMS((void));
 
 short **derives;
 
 void
-set_derives()
+set_derives (void)
 {
   register int i;
   register int lhs;
@@ -82,7 +85,7 @@ set_derives()
 }
 
 void
-free_derives()
+free_derives (void)
 {
   FREE(derives[ntokens]);
   FREE(derives + ntokens);
@@ -92,18 +95,19 @@ free_derives()
 
 #ifdef	DEBUG
 
-print_derives()
+void
+print_derives (void)
 {
   register int i;
   register short *sp;
 
   extern char **tags;
 
-  printf("\n\n\nDERIVES\n\n");
+  printf(_("\n\n\nDERIVES\n\n"));
 
   for (i = ntokens; i < nsyms; i++)
     {
-      printf("%s derives", tags[i]);
+      printf(_("%s derives"), tags[i]);
       for (sp = derives[i]; *sp > 0; sp++)
 	{
 	  printf("  %d", *sp);
@@ -115,4 +119,3 @@ print_derives()
 }
 
 #endif
-
