@@ -1433,7 +1433,7 @@ got_match:
 			tip->ti_len = ip_len - hlen - (tip->ti_off << 2);
 			if (tcp->th_flags & TH_ACK) {
 				tcp_respond(NULL, (void *)ip, tcp, *m,
-				    (tcp_seq)0, ntohl(tcp->th_ack), TH_RST);
+				    (tcp_seq)0, tcp->th_ack, TH_RST);
 			} else {
 				if (tcp->th_flags & TH_SYN)
 					tip->ti_len++;
