@@ -876,7 +876,7 @@ ENTRY(exception_restore, 0)
 	rsm	psr.ic|psr.dt|psr.i	// disable interrupt collection and vm
 	add	r3=16,sp;
 	;;
-	srlz.d
+	srlz.i
 	dep	r3=0,r3,61,3		// physical address
 	;; 
 	add	r16=TF_CR_IPSR,r3
@@ -1240,8 +1240,8 @@ ENTRY(exception_save, 0)
 	mov	r14=cr.iim		// break immediate
 	ssm	psr.ic|psr.dt		// enable interrupts & translation
 	;;
-	srlz.d				// serialize
-
+	srlz.i				// serialize
+	;;
 	br.sptk.few b0			// not br.ret - we were not br.call'ed
 
 END(exception_save)
@@ -1335,9 +1335,13 @@ ENTRY(do_syscall, 0)
 	mov	r22=cr.ifs		// record user's CFM
 	add	r23=TF_CR_IFS,r18
 	;;
-	ssm	psr.dt|psr.ic|psr.i	// safe to take interrupts again
+	ssm	psr.ic|psr.dt
 	;;
-	srlz.d				// serialize psr.dt and psr.ic
+	srlz.i				// serialize psr.ic and psr.dt
+	;;
+	ssm	psr.i			// safe to take interrupts again
+	;;
+	srlz.d				// serialize psr.i
 	;;
 	st8	[r23]=r22		// save cr.ifs
 	;;
@@ -1374,7 +1378,7 @@ ENTRY(do_syscall, 0)
 
 	rsm 	psr.dt|psr.ic|psr.i	// get ready to restore
 	;;
-	srlz.d				// serialise psr.dt and psr.ic
+	srlz.i				// serialise psr.dt and psr.ic
 	dep	r30=0,loc1,61,3		// physical address
 	mov	gp=loc2			// restore user gp
 	add	r16=SIZEOF_TRAPFRAME,loc1
