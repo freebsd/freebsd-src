@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.12 1994/05/25 08:52:56 rgrimes Exp $
+ *	$Id: cons.c,v 1.13 1994/08/13 03:49:34 wollman Exp $
  */
 
 
@@ -62,18 +62,10 @@ int pccnprobe(), pccninit(), pccngetc(), pccnputc();
 int siocnprobe(), siocninit(), siocngetc(), siocnputc();
 #endif
 
-#include "com.h"
-#if NCOM > 0
-int comcnprobe(), comcninit(), comcngetc(), comcnputc();
-#endif
-
 struct	consdev constab[] = {
 	{ pccnprobe,	pccninit,	pccngetc,	pccnputc },
 #if NSIO > 0
 	{ siocnprobe,	siocninit,	siocngetc,	siocnputc },
-#endif
-#if NCOM > 0
-	{ comcnprobe,	comcninit,	comcngetc,	comcnputc },
 #endif
 	{ 0 },
 };
