@@ -4,16 +4,16 @@
 #ifdef SYSV
 #include <fcntl.h>
 #include <termio.h>
-#else SYSV
+#else /* SYSV */
 #include <sys/ioctl.h>
-#endif SYSV
+#endif /* SYSV */
 #include "header.h"
 
 static char lastok=0;
 int yrepcount=0,dayplay=0;
 #ifndef FLUSHNO
 #define FLUSHNO 5
-#endif FLUSHNO
+#endif /* FLUSHNO */
 static int flushno=FLUSHNO;	/* input queue flushing threshold */
 #define MAXUM 52	/* maximum number of user re-named monsters */
 #define MAXMNAME 40	/* max length of a monster re-name */
@@ -54,7 +54,7 @@ yylex()
 				lflush();  savegame(savefilename);  wizard=nomove=1;  sleep(4);
 				died(-257);
 				}
-#endif TIMECHECK
+#endif /* TIMECHECK */
 
 			}
 
