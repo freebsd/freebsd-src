@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.40 1996/06/17 00:00:35 alex Exp $
+ *	$Id: ip_fw.c,v 1.41 1996/06/23 14:28:02 bde Exp $
  */
 
 /*
@@ -413,23 +413,22 @@ ip_fw_chk(struct ip **pip, int hlen, struct ifnet *rif, int dir, struct mbuf **m
 			goto got_match;
 		}
 
-		/* Fragments can't match past this point */
-		if (ip->ip_off & IP_OFFMASK)
-			continue;
+		/* Check TCP flags and TCP/UDP ports only if packet is not fragment */
+		if (!(ip->ip_off & IP_OFFMASK)) {
+			/* TCP, a little more checking */
+			if (prt == IP_FW_F_TCP &&
+				(f->fw_tcpf != f->fw_tcpnf) &&
+				(!tcpflg_match(tcp, f)))
+				continue;
 
-		/* TCP, a little more checking */
-		if (prt == IP_FW_F_TCP &&
-		    (f->fw_tcpf != f->fw_tcpnf) &&
-		    (!tcpflg_match(tcp, f)))
-			continue;
+			if (!port_match(&f->fw_pts[0], f->fw_nsp,
+							src_port, f->fw_flg & IP_FW_F_SRNG))
+				continue;
 
-		if (!port_match(&f->fw_pts[0], f->fw_nsp,
-		    src_port, f->fw_flg & IP_FW_F_SRNG))
-			continue;
-
-		if (!port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
-		    dst_port, f->fw_flg & IP_FW_F_DRNG)) 
-			continue;
+			if (!port_match(&f->fw_pts[f->fw_nsp], f->fw_ndp,
+							dst_port, f->fw_flg & IP_FW_F_DRNG)) 
+				continue;
+		}
 
 got_match:
 		f->fw_pcnt++;
@@ -632,6 +631,17 @@ check_ipfw_struct(struct mbuf *m)
 		dprintf(("ip_fw_ctl: too many ports (%d+%d)\n",
 		    frwl->fw_nsp, frwl->fw_ndp));
 		return (NULL);
+	}
+
+	/*
+	 *	Rather than modify the entry to make such entries work, 
+	 *	we reject this rule and require user level utilities
+	 *	to enforce whatever policy they deem appropriate.
+	 */
+	if ((frwl->fw_src.s_addr & (~frwl->fw_smsk.s_addr)) || 
+		(frwl->fw_dst.s_addr & (~frwl->fw_dmsk.s_addr))) {
+		dprintf(("ip_fw_ctl: rule never matches\n"));
+		return(NULL);
 	}
 	return frwl;
 }
