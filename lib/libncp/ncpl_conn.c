@@ -354,7 +354,7 @@ ncp_li_arg(struct ncp_conn_loginfo *li, int opt, char *arg) {
 				if (gr) {
 					li->group = gr->gr_gid;
 				} else
-					ncp_error("Invalid group name %s, ignored",
+					ncp_error("invalid group name %s, ignored",
 					    0, cp);
 			}
 		}
@@ -363,7 +363,7 @@ ncp_li_arg(struct ncp_conn_loginfo *li, int opt, char *arg) {
 			if (pw) {
 				li->owner = pw->pw_uid;
 			} else
-				ncp_error("Invalid user name %s, ignored", 0, p);
+				ncp_error("invalid user name %s, ignored", 0, p);
 		}
 		endpwent();
 		free(p);
