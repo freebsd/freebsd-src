@@ -2483,7 +2483,7 @@ static void dc_rxeof(sc)
 	while(!(sc->dc_ldata->dc_rx_list[i].dc_status & DC_RXSTAT_OWN)) {
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_ipending & IFF_POLLING) {
+		if (ifp->if_flags & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -2885,7 +2885,7 @@ static void dc_intr(arg)
 	DC_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 #ifdef DEVICE_POLLING
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		goto done;
 	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
@@ -3265,7 +3265,7 @@ static void dc_init(xsc)
 	 * the case of polling. Some cards (e.g. fxp) turn interrupts on
 	 * after a reset.
 	 */
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 	else
 #endif

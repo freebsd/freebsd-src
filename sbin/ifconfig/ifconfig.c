@@ -999,14 +999,15 @@ setifflags(const char *vname, int value, int s, const struct afswtch *afp)
  		exit(1);
  	}
 	strncpy(my_ifr.ifr_name, name, sizeof (my_ifr.ifr_name));
- 	flags = my_ifr.ifr_flags;
+ 	flags = (ifr->ifr_flags & 0xffff) | (my_ifr.ifr_flagshigh << 16);
 
 	if (value < 0) {
 		value = -value;
 		flags &= ~value;
 	} else
 		flags |= value;
-	my_ifr.ifr_flags = flags;
+	my_ifr.ifr_flags = flags & 0xffff;
+	my_ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
 		Perror(vname);
 }

@@ -285,7 +285,7 @@ vxsetlink(sc)
     register struct ifnet *ifp = &sc->arpcom.ac_if;  
     int i, j, k;
     char *reason, *warning;
-    static short prev_flags;
+    static int prev_flags;
     static char prev_conn = -1;
 
     if (prev_conn == -1) {

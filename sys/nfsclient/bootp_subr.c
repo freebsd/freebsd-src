@@ -385,7 +385,7 @@ bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 	printf("%s%d flags %x, addr ",
 	       ifp->if_name,
 	       ifp->if_unit,
-	       (unsigned short) ifp->if_flags);
+	       ifp->if_flags);
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_addr);
 	printf(", broadcast ");
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_dstaddr);

@@ -1193,7 +1193,7 @@ fxp_intr(void *xsc)
 #ifdef DEVICE_POLLING
 	struct ifnet *ifp = &sc->sc_if;
 
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		return;
 	if (ether_poll_register(fxp_poll, ifp)) {
 		/* disable interrupts */
@@ -1785,7 +1785,7 @@ fxp_init(void *xsc)
 	 * ... but only do that if we are not polling. And because (presumably)
 	 * the default is interrupts on, we need to disable them explicitly!
 	 */
-	if ( ifp->if_ipending & IFF_POLLING )
+	if ( ifp->if_flags & IFF_POLLING )
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 	else
 #endif /* DEVICE_POLLING */

@@ -234,7 +234,7 @@ struct	in6_ifreq {
 	union {
 		struct	sockaddr_in6 ifru_addr;
 		struct	sockaddr_in6 ifru_dstaddr;
-		short	ifru_flags;
+		int	ifru_flags;
 		int	ifru_flags6;
 		int	ifru_metric;
 		caddr_t	ifru_data;
