@@ -111,12 +111,12 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
 
     obj = &res->Package.Elements[idx];
     if (obj == NULL || obj->Type != ACPI_TYPE_BUFFER ||
-	obj->Buffer.Length < sizeof(ACPI_GENERIC_ADDRESS) + 3) {
-
+	obj->Buffer.Length < sizeof(ACPI_GENERIC_ADDRESS) + 3)
 	return (EINVAL);
-    }
 
     memcpy(&gas, obj->Buffer.Pointer + 3, sizeof(gas));
+    if (gas.AddressSpaceId == ACPI_ADR_SPACE_FIXED_HARDWARE)
+	return (EOPNOTSUPP);
     *dst = acpi_bus_alloc_gas(dev, rid, &gas);
     if (*dst == NULL)
 	return (ENXIO);
