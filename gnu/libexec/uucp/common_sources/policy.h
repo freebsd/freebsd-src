@@ -213,7 +213,7 @@
    set HAVE_BROKEN_SETREUID to 1; if you do not, you will get error
    messages from setreuid.  Systems on which setreuid exists but is
    broken pretty much always have saved setuid.  */
-#define HAVE_BROKEN_SETREUID 0
+#define HAVE_BROKEN_SETREUID 1
 
 /* On the 3B2, and possibly other systems, nap takes an argument in
    hundredths of a second rather than milliseconds.  I don't know of
