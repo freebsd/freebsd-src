@@ -28,11 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adw_pci.c,v 1.4 1999/04/24 20:13:58 peter Exp $
+ *	$Id: adw_pci.c,v 1.5 1999/05/09 17:06:36 peter Exp $
  */
 
-#include <pci.h>
-#if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -183,5 +181,3 @@ adwpciattach(pcici_t config_id, int unit)
 	
 	adw_attach(adw);
 }
-
-#endif /* NPCI > 0 */

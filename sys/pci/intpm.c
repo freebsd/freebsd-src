@@ -23,14 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.9 1999/05/08 21:59:39 dfr Exp $
+ *	$Id: intpm.c,v 1.10 1999/05/09 09:56:43 phk Exp $
  */
 
-#include "pci.h"
-#include "intpm.h"
-
-#if NPCI > 0
-#if NINTPM >0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -760,5 +755,3 @@ static void intpm_intr(void *arg)
 	intsmb_intr(sc->smbus);
 	intsmb_slvintr(sc->smbus);
 }
-#endif /* NPCI > 0 */
-#endif

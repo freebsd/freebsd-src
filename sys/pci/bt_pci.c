@@ -26,11 +26,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.6 1999/04/23 23:30:22 gibbs Exp $
+ *	$Id: bt_pci.c,v 1.7 1999/05/08 21:59:38 dfr Exp $
  */
 
-#include "pci.h"
-#if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -230,5 +228,3 @@ static driver_t bt_pci_driver = {
 static devclass_t bt_devclass;
 
 DRIVER_MODULE(bt, pci, bt_pci_driver, bt_devclass, 0, 0);
-
-#endif /* NPCI > 0 */

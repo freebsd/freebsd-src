@@ -17,11 +17,8 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.15 1999/04/24 20:14:00 peter Exp $
+ *	$Id: if_ed_p.c,v 1.16 1999/05/09 17:06:52 peter Exp $
  */
-
-#include "pci.h"
-#if NPCI > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -99,6 +96,3 @@ ed_pci_attach(config_id, unit)
 
 	return;
 }
-
-#endif /* NPCI > 0 */
-

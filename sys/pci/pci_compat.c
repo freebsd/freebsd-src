@@ -23,14 +23,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.28 1999/05/11 15:28:38 peter Exp $
+ * $Id: pci_compat.c,v 1.29 1999/05/31 22:13:36 roger Exp $
  *
  */
 
 #include "opt_bus.h"
-
-#include "pci.h"
-#if NPCI > 0
 
 /* for compatibility to FreeBSD-2.2 version of PCI code */
 
@@ -282,4 +279,3 @@ pci_get_bus_from_tag(pcici_t tag)
 }
 
 #endif /* PCI_COMPAT */
-#endif /* NPCI > 0 */

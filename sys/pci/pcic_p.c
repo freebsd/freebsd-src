@@ -26,11 +26,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.11 1999/05/02 05:53:50 nate Exp $
+ * $Id: pcic_p.c,v 1.12 1999/05/09 17:07:11 peter Exp $
  */
-
-#include "pci.h"
-#if NPCI > 0
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -219,4 +216,3 @@ pd6832_legacy_init(pcici_t tag, int unit)
 		printf("CardBus: Legacy PC-card 16bit I/O address [0x%x]\n",
 		       io_port);
 }
-#endif /* NPCI > 0 */

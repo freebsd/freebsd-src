@@ -46,8 +46,6 @@
  */
 
 #include "en.h"
-#include "pci.h"
-#if (NEN > 0) && (NPCI > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -435,5 +433,3 @@ eni_get_macaddr(scp)
 }
 
 #endif /* !MIDWAY_ADPONLY */
-
-#endif /* NEN > 0 && NPCI > 0 */

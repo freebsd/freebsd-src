@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
-/*	$Id: if_de.c,v 1.105 1999/05/09 17:06:49 peter Exp $ */
+/*	$Id: if_de.c,v 1.106 1999/05/10 14:12:26 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -118,12 +118,9 @@
 #if defined(__FreeBSD__)
 #include <net/if_var.h>
 #include <vm/pmap.h>
-#include "pci.h"
-#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define	DEVAR_INCLUDE	"pci/if_devar.h"
-#endif
 #include "opt_bdg.h"
 #ifdef BRIDGE
 #include <net/bridge.h>

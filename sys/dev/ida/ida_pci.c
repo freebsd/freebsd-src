@@ -23,11 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ida_pci.c,v 1.1 1999/06/24 03:32:07 jlemon Exp $
  */
-
-#include <pci.h>
-#if NPCI > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -195,5 +192,3 @@ ida_pci_print_child(device_t bus, device_t dev)
 }
 
 DRIVER_MODULE(ida, pci, ida_pci_driver, ida_devclass, 0, 0);
-
-#endif /* NPCI > 0 */
