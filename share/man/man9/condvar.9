@@ -96,7 +96,7 @@ or
 to unblock all waiters.
 In addition to waking waiters,
 .Fn cv_broadcastpri
-ensures that all of the waiters have a priorty of at least
+ensures that all of the waiters have a priority of at least
 .Fa pri
 by raising the priority of any threads that do not.
 .Fn cv_wmesg

@@ -122,7 +122,7 @@ If no method is provided, open will always succeed.
 .It Vt "disk_close_t *" Va d_close
 Optional: invoked when the disk device is closed.
 Although an error code may be returned, the call should always terminate
-any state setup by the corresponing open method call.
+any state setup by the corresponding open method call.
 .It Vt "disk_strategy_t *" Va d_strategy
 Mandatory: invoked when a new
 .Vt "struct bio"

@@ -61,10 +61,10 @@ address space of
 .Pp
 The
 .Fa cow
-argment specifies the flags which should be propagated to the new entry,
+argument specifies the flags which should be propagated to the new entry,
 for example, to indicate that this is a copy-on-write mapping.
 .Sh IMPLEMENTATION NOTES
-This function implicity creates a new
+This function implicitly creates a new
 .Dv vm_map_entry
 by calling the internal function
 .Fn vm_map_entry_create .
