@@ -95,9 +95,6 @@ u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, 0, "");
 
-int ps_argsopen = 1;
-SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");
-
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
