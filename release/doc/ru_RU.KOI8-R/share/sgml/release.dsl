@@ -1,7 +1,7 @@
 <!--
   The FreeBSD Russian Documentation Project
 
-  $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.4 2004/07/06 12:53:46 den Exp $
+  $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.5 2004/09/13 08:00:12 den Exp $
   $FreeBSD$
   
   Original revision: 1.8
@@ -34,12 +34,12 @@
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
-                (literal "Если у Вас возник вопрос о FreeBSD, то
-		сначала прочтите ")
+                (literal "Если у вас возник вопрос, касающийся FreeBSD,
+		прочтите ")
 		(create-link
 		  (list (list "HREF" "http://www.FreeBSD.org/ru/docs.html"))
                   (literal "документацию,"))
-                (literal " а потом напишите письмо на адрес <")
+                (literal " прежде чем написать письмо в <")
 		(create-link
 		  (list (list "HREF" "mailto:questions@FreeBSD.org"))
                   (literal "questions@FreeBSD.org"))
@@ -47,9 +47,9 @@
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
-                (literal "Все пользователи FreeBSD ")
+                (literal "Всем пользователям FreeBSD ")
 		(literal (entity-text "release.branch"))
-		(literal " должны подписаться на список рассылки ")
+		(literal " рекомендуется подписаться на список рассылки ")
                 (literal "<")
 		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
                   (literal "current@FreeBSD.org"))
@@ -58,7 +58,7 @@
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"
-	      (literal "Вопросы, касающиеся этого документа, Вы можете
+	      (literal "Вопросы, касающиеся этого документа, вы можете
 	      направить по адресу <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
