@@ -89,7 +89,7 @@ packets to network hosts
 .Sh DESCRIPTION
 The
 .Nm
-command uses the
+utility uses the
 .Tn ICMPv6
 protocol's mandatory
 .Tn ICMP6_ECHO_REQUEST
@@ -106,7 +106,7 @@ The options are as follows:
 .\" old ipsec
 .\" .It Fl A
 .\" Enables transport-mode IPsec authentication header
-.\" .Pq experimental .
+.\" (experimental).
 .It Fl a Ar addrtype
 Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
 .Ar addrtype
@@ -137,7 +137,7 @@ This is an experimental option.
 Set socket buffer size.
 .It Fl c Ar count
 Stop after sending
-.Pq and receiving
+(and receiving)
 .Ar count
 .Tn ECHO_RESPONSE
 packets.
@@ -147,7 +147,7 @@ Set the
 option on the socket being used.
 .\" .It Fl E
 .\" Enables transport-mode IPsec encapsulated security payload
-.\" .Pq experimental .
+.\" (experimental).
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -173,7 +173,7 @@ The gateway must be a neighbor of the sending node.
 Specifies to try reverse-lookup of IPv6 addresses.
 The
 .Nm
-command does not try reverse-lookup unless the option is specified.
+utility does not try reverse-lookup unless the option is specified.
 .It Fl h Ar hoplimit
 Set the IPv6 hoplimit.
 .It Fl I Ar interface
@@ -201,7 +201,9 @@ Only the super-user may use this option.
 By default,
 .Nm
 asks the kernel to fragment packets to fit into the minimum IPv6 MTU.
+The
 .Fl m
+option
 will suppress the behavior in the following two levels:
 when the option is specified once, the behavior will be disabled for
 unicast packets.
@@ -215,7 +217,7 @@ Probe node information multicast group
 .Pq Li ff02::2:xxxx:xxxx .
 .Ar host
 must be string hostname of the target
-.Pq must not be a numeric IPv6 address .
+(must not be a numeric IPv6 address).
 Node information multicast group will be computed based on given
 .Ar host ,
 and will be used as the final destination.
@@ -301,12 +303,25 @@ If duplicate packets are received, they are not included in the packet
 loss calculation, although the round trip time of these packets is used
 in calculating the round-trip time statistics.
 When the specified number of packets have been sent
-.Pq and received
+(and received)
 or if the program is terminated with a
 .Dv SIGINT ,
 a brief summary is displayed, showing the number of packets sent and
-received, and the minimum, maximum, mean, and standard deviation of
+received, and the minimum, mean, maximum, and standard deviation of
 the round-trip times.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the current number of packets sent and received, and the
+minimum, mean, maximum, and standard deviation of the round-trip times
+will be written to the standard output in the same format as the
+standard completion message.
 .Pp
 This program is intended for use in network testing, measurement and
 management.
@@ -324,12 +339,14 @@ during normal operations or from automated scripts.
 .\" When a
 .\" .Ar packetsize
 .\" is given, this indicated the size of this extra piece of data
-.\" .Pq the default is 56 .
+.\" (the default is 56).
 .\" Thus the amount of data received inside of an IP packet of type
 .\" .Tn ICMP
 .\" .Tn ECHO_REPLY
 .\" will always be 8 bytes more than the requested data space
-.\" .Pq the Tn ICMP header .
+.\" (the
+.\" .Tn ICMP
+.\" header).
 .\" .Pp
 .\" If the data space is at least eight bytes large,
 .\" .Nm
@@ -340,12 +357,12 @@ during normal operations or from automated scripts.
 .Sh DUPLICATE AND DAMAGED PACKETS
 The
 .Nm
-command will report duplicate and damaged packets.
+utility will report duplicate and damaged packets.
 Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
 inappropriate link-level retransmissions.
 Duplicates may occur in many situations and are rarely
-.Pq if ever
+(if ever)
 a good sign, although the presence of low levels of duplicates may not
 always be cause for alarm.
 Duplicates are expected when pinging a broadcast or multicast address,
@@ -356,7 +373,7 @@ Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
 .Nm
 packet's path
-.Pq in the network or in the hosts .
+(in the network or in the hosts).
 .Sh TRYING DIFFERENT DATA PATTERNS
 The
 (inter)network
@@ -385,10 +402,11 @@ You can then examine this file for repeated patterns that you can test
 using the
 .Fl p
 option of
-.Nm Ns .
-.Sh RETURN VALUES
+.Nm .
+.Sh DIAGNOSTICS
+The
 .Nm
-command returns 0 on success (the host is alive),
+utility returns 0 on success (the host is alive),
 and non-zero if the arguments are incorrect or the host is not responding.
 .Sh EXAMPLES
 Normally,
@@ -444,18 +462,21 @@ ping6 -a agl dst.foo.com
 .Sh HISTORY
 The
 .Xr ping 8
-command appeared in
+utility appeared in
 .Bx 4.3 .
 The
 .Nm
-command with IPv6 support first appeared in the WIDE Hydrangea IPv6
+utility with IPv6 support first appeared in the WIDE Hydrangea IPv6
 protocol stack kit.
 .Pp
-IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
-was initially integrated into
-.Fx 4.0
+IPv6 and IPsec support based on the KAME Project
+.Pq Pa http://www.kame.net/
+stack was initially integrated into
+.Fx 4.0 .
 .Sh BUGS
+The
 .Nm
+utility
 is intentionally separate from
 .Xr ping 8 .
 .Pp
