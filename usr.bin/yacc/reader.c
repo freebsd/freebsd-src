@@ -75,7 +75,7 @@ bucket **plhs;
 int name_pool_size;
 char *name_pool;
 
-char line_format[] = "#line %d \"%s\"\n";
+static const char line_format[] = "#line %d \"%s\"\n";
 
 static void add_symbol __P((void));
 static void advance_to_start __P((void));
