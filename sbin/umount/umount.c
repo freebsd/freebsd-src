@@ -193,11 +193,12 @@ umountall(char **typelist)
 	char *cp;
 	static int firstcall = 1;
 
-	if ((fs = getfsent()) != NULL) {
-		if (firstcall)
-			errx(1, "fstab reading failure");
+	if ((fs = getfsent()) != NULL)
 		firstcall = 0;
-	}
+	else if (firstcall)
+		errx(1, "fstab reading failure");
+	else
+		return (0);
 	do {
 		/* Ignore the root. */
 		if (strcmp(fs->fs_file, "/") == 0)
