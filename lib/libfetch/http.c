@@ -76,6 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 #include "fetch.h"
 #include "common.h"
 #include "httperr.h"
@@ -670,7 +673,7 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 {
 	conn_t *conn;
 	int verbose;
-	int af;
+	int af, val;
 
 #ifdef INET6
 	af = AF_UNSPEC;
@@ -705,6 +708,10 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 		_fetch_syserr();
 		return (NULL);
 	}
+
+	val = 1;
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val, sizeof(val));
+
 	return (conn);
 }
 
@@ -906,6 +913,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		_http_cmd(conn, "Connection: close");
 		_http_cmd(conn, "");
+		shutdown(conn->sd, SHUT_WR);
 
 		/* get reply */
 		switch (_http_get_reply(conn)) {
