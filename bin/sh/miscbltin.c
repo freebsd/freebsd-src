@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: miscbltin.c,v 1.18 1998/12/16 04:45:35 imp Exp $";
+	"$Id: miscbltin.c,v 1.19 1999/05/08 10:21:56 kris Exp $";
 #endif /* not lint */
 
 /*
@@ -71,8 +71,8 @@ extern char **argptr;		/* argument list for builtin command */
 
 
 /*
- * The read builtin.  The -e option causes backslashes to escape the
- * following character.
+ * The read builtin.  The -r option causes backslashes to be treated like
+ * ordinary characters.
  *
  * This uses unbuffered input, which may be avoidable in some cases.
  */
@@ -85,7 +85,7 @@ readcmd(argc, argv)
 	char **ap;
 	int backslash;
 	char c;
-	int eflag;
+	int rflag;
 	char *prompt;
 	char *ifs;
 	char *p;
@@ -98,17 +98,19 @@ readcmd(argc, argv)
 	struct termios told, tnew;
 	int tsaved;
 
-	eflag = 0;
+	rflag = 0;
 	prompt = NULL;
 	tv.tv_sec = -1;
 	tv.tv_usec = 0;
-	while ((i = nextopt("ep:t:")) != '\0') {
+	while ((i = nextopt("erp:t:")) != '\0') {
 		switch(i) {
 		case 'p':
 			prompt = optarg;
 			break;
 		case 'e':
-			eflag = 1;
+			break;
+		case 'r':
+			rflag = 1;
 			break;
 		case 't':
 			tv.tv_sec = strtol(optarg, &tvptr, 0);
@@ -184,7 +186,7 @@ readcmd(argc, argv)
 				STPUTC(c, p);
 			continue;
 		}
-		if (eflag && c == '\\') {
+		if (!rflag && c == '\\') {
 			backslash++;
 			continue;
 		}
