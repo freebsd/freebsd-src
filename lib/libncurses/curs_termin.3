@@ -21,9 +21,10 @@ interfaces to terminfo database
 .br
 \fBint restartterm(char *term, int fildes, int *errret);\fR
 .br
-\fBchar *tparm(char *str, long int p1, long int p2, long int p3,
-      long int p4, long int p5, long int p6, long int p7,\fR
-      long int p8, long int p9);\fR
+\fBchar *tparm(char *str, long int p1, long int p2, 
+      long int p3, long int p4, long int p5, long int p6, 
+      long int p7, long int p8, long int p9);\fR
+.br
 \fBint tputs(char *str, int affcnt, int (*putc)(char));\fR
 .br
 \fBint putp(char *str);\fR
