@@ -32,7 +32,6 @@
  */
 
 #include <dev/sound/pcm/sound.h>
-#if NPCM > 0
 
 #include "sbc.h"
 
@@ -1253,7 +1252,6 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
     	return src;
 }
 
-#if NPNP > 0
 static int
 sbpnp_probe(device_t dev)
 {
@@ -1329,8 +1327,6 @@ static driver_t sbpnp_driver = {
 
 DRIVER_MODULE(sbpnp, isa, sbpnp_driver, pcm_devclass, 0, 0);
 
-#endif /* NPNP > 0 */
-
 #if NSBC > 0
 #define DESCSTR " PCM Audio"
 static int
@@ -1391,7 +1387,3 @@ static driver_t sbsbc_driver = {
 DRIVER_MODULE(sbsbc, sbc, sbsbc_driver, pcm_devclass, 0, 0);
 
 #endif /* NSBC > 0 */
-
-#endif /* NPCM > 0 */
-
-

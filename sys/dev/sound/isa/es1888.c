@@ -29,8 +29,6 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
 
-#if NPCM > 0
-
 static int
 es1888_dspready(u_int32_t port)
 {
@@ -171,5 +169,3 @@ static driver_t es1888_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(es1888, isa, es1888_driver, pcm_devclass, 0, 0);
-
-#endif /* NPCM > 0 */

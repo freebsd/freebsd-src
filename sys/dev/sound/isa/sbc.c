@@ -26,9 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sbc.h"
 #include "isa.h"
-#include "pnp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,8 +48,6 @@
 #endif
 #endif /* NISA > 0 */
 
-#if NSBC > 0
-
 /* Here is the parameter structure per a device. */
 struct sbc_softc {
 	device_t dev; /* device */
@@ -68,10 +64,10 @@ struct sbc_softc {
 
 typedef struct sbc_softc *sc_p;
 
-#if NISA > 0 && NPNP > 0
+#if NISA > 0
 static int sbc_probe(device_t dev);
 static int sbc_attach(device_t dev);
-#endif /* NISA > 0 && NPNP > 0 */
+#endif /* NISA > 0 */
 static struct resource *sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					      u_long start, u_long end, u_long count, u_int flags);
 static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
@@ -82,7 +78,7 @@ static int release_resource(sc_p scp);
 
 static devclass_t sbc_devclass;
 
-#if NISA > 0 && NPNP > 0
+#if NISA > 0
 static struct isa_pnp_id sbc_ids[] = {
 #if notdef
 	{0x0000630e, "CS423x"},
@@ -169,7 +165,7 @@ sbc_attach(device_t dev)
 
 	return (0);
 }
-#endif /* NISA > 0 && NPNP > 0 */
+#endif /* NISA > 0 */
 
 static struct resource *
 sbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -303,7 +299,7 @@ release_resource(sc_p scp)
 	return (0);
 }
 
-#if NISA > 0 && NPNP > 0
+#if NISA > 0
 static device_method_t sbc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sbc_probe),
@@ -335,6 +331,4 @@ static driver_t sbc_driver = {
  * sbc can be attached to an isa bus.
  */
 DRIVER_MODULE(sbc, isa, sbc_driver, sbc_devclass, 0, 0);
-#endif /* NISA > 0 && NPNP > 0 */
-
-#endif /* NSBC > 0 */
+#endif /* NISA > 0 */

@@ -119,10 +119,6 @@ struct isa_device { int dummy; };
 
 int fkchan_setup(pcm_channel *c);
 
-#ifdef KERNEL
-#include "pnp.h"
-#endif /* KERNEL */
-
 /*
  * Minor numbers for the sound driver.
  *

@@ -62,8 +62,6 @@
 
 #include <sys/sysctl.h>
 
-#if NPCI != 0
-
 static int debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 
@@ -911,6 +909,3 @@ static driver_t es_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(es, pci, es_driver, pcm_devclass, 0, 0);
-
-
-#endif /* NPCI != 0 */
