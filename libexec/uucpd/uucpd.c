@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uucpd.c,v 1.7.2.3 1997/12/18 07:32:42 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -140,24 +141,13 @@ void badlogin(char *name, struct sockaddr_in *sin)
 	exit(1);
 }
 
-void login_incorrect(char *name, struct sockaddr_in *sinp)
-{
-	char passwd[64];
-
-	printf("Password: "); fflush(stdout);
-	if (readline(passwd, sizeof passwd, 1) < 0) {
-		syslog(LOG_WARNING, "passwd read: %m");
-		_exit(1);
-	}
-	badlogin(name, sinp);
-}
-
 void doit(struct sockaddr_in *sinp)
 {
 	char user[64], passwd[64];
 	char *xpasswd, *crypt();
 	struct passwd *pw;
 	pid_t s;
+	int pwdok =0;
 
 	alarm(60);
 	printf("login: "); fflush(stdout);
@@ -168,20 +158,29 @@ void doit(struct sockaddr_in *sinp)
 	/* truncate username to LOGNAMESIZE characters */
 	user[LOGNAMESIZE] = '\0';
 	pw = getpwnam(user);
-	if (pw == NULL)
-		login_incorrect(user, sinp);
-	if (strcmp(pw->pw_shell, _PATH_UUCICO))
-		login_incorrect(user, sinp);
-	if (pw->pw_expire && time(NULL) >= pw->pw_expire)
-		login_incorrect(user, sinp);
-	if (pw->pw_passwd && *pw->pw_passwd != '\0') {
+	/*
+	 * Fail after password if:
+	 * 1. Invalid user
+	 * 2. Shell is not uucico
+	 * 3. Account has expired
+	 * 4. Password is incorrect
+	 */
+	if (pw != NULL && strcmp(pw->pw_shell, _PATH_UUCICO) == 0 &&
+	    (!pw->pw_expire || time(NULL) >= pw->pw_expire))
+		pwdok = 1;
+	/* always ask for passwords to deter account guessing */
+	if (!pwdok || (pw->pw_passwd && *pw->pw_passwd != '\0')) {
 		printf("Password: "); fflush(stdout);
 		if (readline(passwd, sizeof passwd, 1) < 0) {
 			syslog(LOG_WARNING, "passwd read: %m");
 			_exit(1);
 		}
-		xpasswd = crypt(passwd, pw->pw_passwd);
-		if (strcmp(xpasswd, pw->pw_passwd))
+		if (pwdok) {
+			xpasswd = crypt(passwd, pw->pw_passwd);
+			if (strcmp(xpasswd, pw->pw_passwd))
+				pwdok = 0;
+		}
+		if (!pwdok)
 			badlogin(user, sinp);
 	}
 	alarm(0);
@@ -260,6 +259,7 @@ void dologin(struct passwd *pw, struct sockaddr_in *sin)
 	} else
 		strncpy(remotehost, inet_ntoa(sin->sin_addr),
 		    sizeof (remotehost));
+	remotehost[sizeof remotehost - 1] = '\0';
 	/* hack, but must be unique and no tty line */
 	sprintf(line, "uucp%ld", getpid());
 	time(&cur_time);
