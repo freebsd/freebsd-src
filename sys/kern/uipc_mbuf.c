@@ -72,8 +72,8 @@ int	m_defragbytes;
 int	m_defraguseless;
 int	m_defragfailure;
 int	m_defragrandomfailures;
-int	m_clreflimithits;
 #endif
+int	m_clreflimithits;
 
 int	nmbclusters;
 int	nmbufs;
@@ -108,9 +108,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragfailure, CTLFLAG_RD,
 	   &m_defragfailure, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 	   &m_defragrandomfailures, 0, "");
+#endif
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_clreflimithits, CTLFLAG_RD,
 	   &m_clreflimithits, 0, "");
-#endif
 
 static void	m_reclaim __P((void));
 static struct mbuf *m_clreflimit(struct mbuf *m0, int how);
