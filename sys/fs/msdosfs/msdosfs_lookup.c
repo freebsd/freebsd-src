@@ -90,7 +90,6 @@ msdosfs_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	daddr_t bn;
 	int error;
-	int wantparent;
 	int slotcount;
 	int slotoffset = 0;
 	int frcn;
@@ -122,7 +121,6 @@ msdosfs_lookup(ap)
 	dp = VTODE(vdp);
 	pmp = dp->de_pmp;
 	*vpp = NULL;
-	wantparent = flags & (LOCKPARENT | WANTPARENT);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): vdp %p, dp %p, Attr %02x\n",
 	    vdp, dp, dp->de_Attributes);
@@ -436,9 +434,6 @@ foundroot:
 	/*
 	 * If deleting, and at end of pathname, return
 	 * parameters which can be used to remove file.
-	 * If the wantparent flag isn't set, we return only
-	 * the directory (in ndp->ni_dvp), otherwise we go
-	 * on and lock the inode, being careful with ".".
 	 */
 	if (nameiop == DELETE && (flags & ISLASTCN)) {
 		/*
@@ -476,8 +471,7 @@ foundroot:
 	 * Must get inode of directory entry to verify it's a
 	 * regular file, or empty directory.
 	 */
-	if (nameiop == RENAME && wantparent &&
-	    (flags & ISLASTCN)) {
+	if (nameiop == RENAME && (flags & ISLASTCN)) {
 		if (blkoff == MSDOSFSROOT_OFS)
 			return EROFS;				/* really? XXX */
 
