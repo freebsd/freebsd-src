@@ -214,7 +214,6 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
-static int pmap_release_free_page(pmap_t pmap, vm_page_t p);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
@@ -1295,7 +1294,9 @@ void
 pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
-	vm_page_t ptdpg;
+	vm_page_t ptdpg[NPGPTD];
+	vm_offset_t pa;
+	int i;
 
 	/*
 	 * No need to allocate page table space yet but we do need a valid
@@ -1313,18 +1314,24 @@ pmap_pinit(pmap)
 		    NPGPTD);
 
 	/*
-	 * allocate the page directory page
+	 * allocate the page directory page(s)
 	 */
-	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
-	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-	vm_page_lock_queues();
-	vm_page_flag_clear(ptdpg, PG_BUSY);
-	ptdpg->valid = VM_PAGE_BITS_ALL;
-	vm_page_unlock_queues();
+	for (i = 0; i < NPGPTD; i++) {
+		ptdpg[i] = vm_page_grab(pmap->pm_pteobj, PTDPTDI + i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED |
+		    VM_ALLOC_ZERO);
+		vm_page_lock_queues();
+		vm_page_flag_clear(ptdpg[i], PG_BUSY);
+		ptdpg[i]->valid = VM_PAGE_BITS_ALL;
+		vm_page_unlock_queues();
+	}
 
-	pmap_qenter((vm_offset_t)pmap->pm_pdir, &ptdpg, NPGPTD);
-	if ((ptdpg->flags & PG_ZERO) == 0)
-		bzero(pmap->pm_pdir, PAGE_SIZE);
+	pmap_qenter((vm_offset_t)pmap->pm_pdir, ptdpg, NPGPTD);
+
+	for (i = 0; i < NPGPTD; i++) {
+		if ((ptdpg[i]->flags & PG_ZERO) == 0)
+			bzero(pmap->pm_pdir + (i * NPDEPG), PAGE_SIZE);
+	}
 
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
@@ -1336,9 +1343,11 @@ pmap_pinit(pmap)
 	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
 #endif
 
-	/* install self-referential address mapping entry */
-	pmap->pm_pdir[PTDPTDI] =
-		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_A | PG_M;
+	/* install self-referential address mapping entry(s) */
+	for (i = 0; i < NPGPTD; i++) {
+		pa = VM_PAGE_TO_PHYS(ptdpg[i]);
+		pmap->pm_pdir[PTDPTDI + i] = pa | PG_V | PG_RW | PG_A | PG_M;
+	}
 
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -1356,50 +1365,6 @@ pmap_pinit2(pmap)
 	struct pmap *pmap;
 {
 	/* XXX: Remove this stub when no longer called */
-}
-
-static int
-pmap_release_free_page(pmap_t pmap, vm_page_t p)
-{
-	pd_entry_t *pde = pmap->pm_pdir;
-
-	/*
-	 * This code optimizes the case of freeing non-busy
-	 * page-table pages.  Those pages are zero now, and
-	 * might as well be placed directly into the zero queue.
-	 */
-	vm_page_lock_queues();
-	if (vm_page_sleep_if_busy(p, FALSE, "pmaprl"))
-		return (0);
-	vm_page_busy(p);
-
-	/*
-	 * Remove the page table page from the processes address space.
-	 */
-	pde[p->pindex] = 0;
-	pmap->pm_stats.resident_count--;
-
-	if (p->hold_count)  {
-		panic("pmap_release: freeing held page table page");
-	}
-	/*
-	 * Page directory pages need to have the kernel
-	 * stuff cleared, so they can go into the zero queue also.
-	 */
-	if (p->pindex == PTDPTDI) {
-		bzero(pde + KPTDI, nkpt * sizeof(pd_entry_t));
-#ifdef SMP
-		pde[MPPTDI] = 0;
-#endif
-		pde[APTDPTDI] = 0;
-		pmap_kremove((vm_offset_t) pmap->pm_pdir);
-	}
-
-	p->wire_count--;
-	atomic_subtract_int(&cnt.v_wire_count, 1);
-	vm_page_free_zero(p);
-	vm_page_unlock_queues();
-	return 1;
 }
 
 /*
@@ -1525,36 +1490,45 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 void
 pmap_release(pmap_t pmap)
 {
-	vm_page_t p,n,ptdpg;
-	vm_object_t object = pmap->pm_pteobj;
-	int curgeneration;
+	vm_object_t object;
+	vm_page_t m;
+	int i;
 
-#if defined(DIAGNOSTIC)
-	if (object->ref_count != 1)
-		panic("pmap_release: pteobj reference count != 1");
-#endif
-	
-	ptdpg = NULL;
+	object = pmap->pm_pteobj;
+
+	KASSERT(object->ref_count == 1,
+	    ("pmap_release: pteobj reference count %d != 1",
+	    object->ref_count));
+	KASSERT(pmap->pm_stats.resident_count == 0,
+	    ("pmap_release: pmap resident count %ld != 0",
+	    pmap->pm_stats.resident_count));
+
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
-retry:
-	curgeneration = object->generation;
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
-		n = TAILQ_NEXT(p, listq);
-		if (p->pindex == PTDPTDI) {
-			ptdpg = p;
-			continue;
-		}
-		while (1) {
-			if (!pmap_release_free_page(pmap, p) &&
-				(object->generation != curgeneration))
-				goto retry;
-		}
-	}
 
-	if (ptdpg && !pmap_release_free_page(pmap, ptdpg))
-		goto retry;
+	bzero(pmap->pm_pdir + KPTDI, nkpt * sizeof(*pmap->pm_pdir));
+	for (i = 0; i < NPGPTD; i++) {
+		pmap->pm_pdir[PTDPTDI + i] = 0;
+		pmap->pm_pdir[APTDPTDI + i] = 0;
+	}
+#ifdef SMP
+	pmap->pm_pdir[MPPTDI] = 0;
+#endif
+
+	pmap_qremove((vm_offset_t)pmap->pm_pdir, NPGPTD);
+
+	vm_page_lock_queues();
+	for (i = 0; i < NPGPTD; i++) {
+		m = TAILQ_FIRST(&object->memq);
+		m->wire_count--;
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+		vm_page_busy(m);
+		vm_page_free_zero(m);
+	}
+	KASSERT(TAILQ_EMPTY(&object->memq),
+	    ("pmap_release: leaking page table pages"));
+	vm_page_unlock_queues();
 }
 
 static int
