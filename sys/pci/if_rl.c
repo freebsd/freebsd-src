@@ -152,6 +152,8 @@ static struct rl_type rl_devs[] = {
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139,
 		"Addtron Technolgy 8139 10/100BaseTX" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS,
+		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -832,9 +834,9 @@ static int rl_attach(dev)
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, PCIM_CMD_PORTEN);
+	pci_enable_io(dev, PCIM_CMD_MEMEN);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef RL_USEIOSPACE
@@ -925,7 +927,7 @@ static int rl_attach(dev)
 
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
 	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
-	    rl_did == RT_DEVICEID_8138)
+	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
