@@ -40,6 +40,13 @@ struct csa_res {
 };
 typedef struct csa_res csa_res;
 
+/* State of the bridge. */
+struct csa_bridgeinfo {
+	u_int32_t hisr; /* The value of HISR on this interrupt. */
+};
+
+void csa_clearserialfifos(csa_res *resp);
+
 /* Common functions for csa. */
 int csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data);
 int csa_writecodec(csa_res *resp, u_long offset, u_int32_t data);

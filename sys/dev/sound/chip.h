@@ -38,9 +38,10 @@ enum {
 
 /*
  * This is the device information struct, used by
- * sndcard device to pass the device function code
- * to the driver.
+ * a bridge device to pass the device function code
+ * to the children.
  */
 struct sndcard_func {
-	int func;
+	int func;	/* The function code. */
+	void *varinfo;	/* Bridge-specific information. */
 };
