@@ -67,16 +67,16 @@
 #endif
 
 #ifdef __ia64__
-#define LABELSECTOR	1			/* sector containing label */
-#define LABELOFFSET	0			/* offset of label in sector */
+#define LABELSECTOR	1
+#define LABELOFFSET	0
 #endif
 
 #ifndef	LABELSECTOR
-#define LABELSECTOR	0			/* sector containing label */
+#define LABELSECTOR	0
 #endif
 
 #ifndef	LABELOFFSET
-#define LABELOFFSET	64			/* offset of label in sector */
+#define LABELOFFSET	64
 #endif
 
 #define DISKMAGIC	((u_int32_t)0x82564557)	/* The disk magic number */
@@ -181,10 +181,10 @@ struct disklabel {
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
 
-static u_int16_t dkcksum(struct disklabel *lp);
-
+static __inline u_int16_t dkcksum __P((struct disklabel *lp));
 static __inline u_int16_t
-dkcksum(struct disklabel *lp)
+dkcksum(lp)
+	struct disklabel *lp;
 {
 	u_int16_t *start, *end;
 	u_int16_t sum = 0;
@@ -405,7 +405,7 @@ struct dos_partition {
 #define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
 #define DIOCGPART	_IOW('d', 104, struct partinfo)	/* get partition */
-#define DIOCGDVIRGIN	_IOR('d', 105, struct disklabel) /* get virgin label */
+#define DIOCGDVIRGIN	_IOR('d', 105, struct disklabel)/* get virgin label */
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
@@ -432,7 +432,7 @@ struct dos_partition {
     -----------------------------------------------------------------
 */
 
-#define DKMAXUNIT 0x1ff		/* Highest disk unit number */
+#define	DKMAXUNIT	0x1ff
 
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
@@ -460,21 +460,19 @@ dkunit(dev_t dev)
 }
 
 struct	bio;
-struct	buf;
-struct	buf_queue_head;
 struct	bio_queue_head;
 
 int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
 				     int wlabel));
 void	diskerr __P((struct bio *bp, char *what, int blkdone,
 		     struct disklabel *lp));
-void	disksort __P((struct buf *ap, struct buf *bp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
 void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
 int	writedisklabel __P((dev_t dev, struct disklabel *lp));
 #ifdef __alpha__
+struct	buf;			
 void	alpha_fix_srm_checksum __P((struct buf *bp));
 #endif
 
