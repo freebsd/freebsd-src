@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.26 1999/06/16 17:41:07 n_hibma Exp $
+#	$Id: LINT,v 1.539.2.27 1999/06/19 21:37:46 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1643,6 +1643,10 @@ controller	isp0
 #				  course, this can fail if the PCI implement-
 #				  ation doesn't support what you want.
 #
+#	SCSI_ISP_FCDUPLEX	- mask of isp unit numbers (obviously
+#				  a max of 32) that you wish to set fibre
+#				  channel full duplex mode on.
+#				  to disable the loading of firmware on.
 #	SCSI_ISP_FABRIC		  enable loading of Fabric f/w flavor (2100).
 #	SCSI_ISP_SCCLUN		  enable loading of expanded lun f/w (2100).
 #
@@ -1655,6 +1659,8 @@ options	"SCSI_ISP_NO_FWLOAD_MASK=0x12"	# disable FW load for isp1 and isp4
 options "SCSI_ISP_NO_NVRAM_MASK=0x1"	# disable NVRAM for isp0
 options "SCSI_ISP_PREFER_MEM_MAP=0"	# prefer I/O mapping
 options	"ISP_DISABLE_1080_SUPPORT=1"	# Disable support for Qlogic 1080
+options	"SCSI_ISP_FCDUPLEX=0x4"		# isp2 is a Fibre Channel card
+					# we want in full duplex mode.
 
 device		al0
 device		ax0
