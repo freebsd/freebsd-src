@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.47 1997/08/02 04:56:44 jdp Exp $
+ *	$Id: rtld.c,v 1.48 1997/08/19 23:33:45 nate Exp $
  */
 
 #include <sys/param.h>
@@ -1916,7 +1916,7 @@ __dlsym(fd, sym)
 }
 
 	static void *
-__dlsym3(fd, sym, retaddr)
+resolvesym(fd, sym, retaddr)
 	void	*fd;
 	char	*sym;
 	void	*retaddr;
@@ -1973,6 +1973,34 @@ __dlsym3(fd, sym, retaddr)
 		addr += (long)src_map->som_addr;
 
 	return (void *)addr;
+}
+
+	static void *
+__dlsym3(fd, sym, retaddr)
+	void	*fd;
+	char	*sym;
+	void	*retaddr;
+{
+	void *result;
+
+	result = resolvesym(fd, sym, retaddr);
+	/*
+	 * XXX - Ugly, but it makes the least impact on the run-time loader
+	 * sources.  We assume that most of the time the error is a
+	 * undefined symbol error from above, so we try again.  If it's
+	 * not an undefined symbol we end up getting the same error twice,
+	 * but that's acceptable.
+	 */
+	if (result == NULL) {
+		/* Prepend an underscore and try again */
+		char *newsym = malloc(strlen(sym) + 2);
+
+		newsym[0] = '_';
+		strcpy(&newsym[1], sym);
+		result = resolvesym(fd, newsym, retaddr);
+		free(newsym);
+	}
+	return result;
 }
 
 	static char *
