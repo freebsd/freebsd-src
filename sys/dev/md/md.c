@@ -57,7 +57,6 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03 
  */
 
-#include "opt_mfs.h"		/* We have adopted some tasks from MFS */
 #include "opt_md.h"
 
 #include <sys/param.h>
@@ -99,16 +98,6 @@ MALLOC_DEFINE(M_MDSECT, "MD sectors", "Memory Disk Sectors");
 
 static int md_debug;
 SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
-
-#if defined(MFS_ROOT) && !defined(MD_ROOT)
-#define MD_ROOT MFS_ROOT
-#warning "option MFS_ROOT has been superceeded by MD_ROOT"
-#endif
-
-#if defined(MFS_ROOT_SIZE) && !defined(MD_ROOT_SIZE)
-#define MD_ROOT_SIZE MFS_ROOT_SIZE
-#warning "option MFS_ROOT_SIZE has been superceeded by MD_ROOT_SIZE"
-#endif
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /* Image gets put here: */
