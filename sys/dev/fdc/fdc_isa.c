@@ -88,11 +88,17 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 
 	for (rid = 0; ; rid++) {
 		newrid = rid;
-		res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &newrid, 0ul, ~0ul, nports, RF_ACTIVE);
+		res = bus_alloc_resource(dev, SYS_RES_IOPORT, &newrid,
+		    0ul, ~0ul, nports, RF_ACTIVE);
 		if (res == NULL)
 			break;
-		i = rman_get_start(res);
+		/*
+		 * Mask off the upper bits of the register, and sanity
+		 * check resource ranges.
+		 */
+		i = rman_get_start(res) & 0x7;
+		if (i + rman_get_size(res) - 1 > FDC_MAXREG)
+			return (ENXIO);
 		for (j = 0; j < rman_get_size(res); j++) {
 			fdc->resio[i + j] = res;
 			fdc->ridio[i + j] = newrid;
@@ -162,6 +168,7 @@ fdc_isa_attach(device_t dev)
 	int error;
 
 	fdc = device_get_softc(dev);
+	fdc->fdc_dev = dev;
 	error = fdc_isa_alloc_resources(dev, fdc);
 	if (error == 0)
 		error = fdc_attach(dev);
