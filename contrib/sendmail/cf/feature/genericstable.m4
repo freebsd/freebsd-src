@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,13 +13,13 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: genericstable.m4,v 8.16 1999/07/22 17:55:35 gshapiro Exp $')
+VERSIONID(`$Id: genericstable.m4,v 8.21 2001/03/16 00:51:26 gshapiro Exp $')
 divert(-1)
 
 define(`_GENERICS_TABLE_', `')
 
 LOCAL_CONFIG
 # Generics table (mapping outgoing addresses)
-Kgenerics ifelse(defn(`_ARG_'), `',
-		 DATABASE_MAP_TYPE MAIL_SETTINGS_DIR`genericstable',
+Kgenerics ifelse(defn(`_ARG_'), `', DATABASE_MAP_TYPE MAIL_SETTINGS_DIR`genericstable',
+		 defn(`_ARG_'), `LDAP', `ldap -1 -v sendmailMTAMapValue -k (&(objectClass=sendmailMTAMapObject)(|(sendmailMTACluster=${sendmailMTACluster})(sendmailMTAHost=$j))(sendmailMTAMapName=generics)(sendmailMTAKey=%0))',
 		 `_ARG_')

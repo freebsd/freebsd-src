@@ -8,18 +8,20 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: control.c,v 8.44.14.20 2001/05/03 17:24:03 gshapiro Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
 
+SM_RCSID("@(#)$Id: control.c,v 8.116 2001/12/13 21:51:38 gshapiro Exp $")
+
 /* values for cmd_code */
-# define CMDERROR	0	/* bad command */
-# define CMDRESTART	1	/* restart daemon */
-# define CMDSHUTDOWN	2	/* end daemon */
-# define CMDHELP	3	/* help */
-# define CMDSTATUS	4	/* daemon status */
+#define CMDERROR	0	/* bad command */
+#define CMDRESTART	1	/* restart daemon */
+#define CMDSHUTDOWN	2	/* end daemon */
+#define CMDHELP		3	/* help */
+#define CMDSTATUS	4	/* daemon status */
+#define CMDMEMDUMP	5	/* dump memory, to find memory leaks */
+#if _FFR_CONTROL_MSTAT
+# define CMDMSTAT	6	/* daemon status, more info, tagged data */
+#endif /* _FFR_CONTROL_MSTAT */
 
 struct cmd
 {
@@ -33,13 +35,18 @@ static struct cmd	CmdTab[] =
 	{ "restart",	CMDRESTART	},
 	{ "shutdown",	CMDSHUTDOWN	},
 	{ "status",	CMDSTATUS	},
+	{ "memdump",	CMDMEMDUMP	},
+#if _FFR_CONTROL_MSTAT
+	{ "mstat",	CMDMSTAT	},
+#endif /* _FFR_CONTROL_MSTAT */
 	{ NULL,		CMDERROR	}
 };
 
 
+
 int ControlSocket = -1;
 
-/*
+/*
 **  OPENCONTROLSOCKET -- create/open the daemon control named socket
 **
 **	Creates and opens a named socket for external control over
@@ -55,13 +62,13 @@ int ControlSocket = -1;
 int
 opencontrolsocket()
 {
-#if NETUNIX
+# if NETUNIX
 	int save_errno;
 	int rval;
 	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 	struct sockaddr_un controladdr;
 
-	if (ControlSocketName == NULL)
+	if (ControlSocketName == NULL || *ControlSocketName == '\0')
 		return 0;
 
 	if (strlen(ControlSocketName) >= sizeof controladdr.sun_path)
@@ -87,8 +94,8 @@ opencontrolsocket()
 	(void) unlink(ControlSocketName);
 	memset(&controladdr, '\0', sizeof controladdr);
 	controladdr.sun_family = AF_UNIX;
-	(void) strlcpy(controladdr.sun_path, ControlSocketName,
-		       sizeof controladdr.sun_path);
+	(void) sm_strlcpy(controladdr.sun_path, ControlSocketName,
+			  sizeof controladdr.sun_path);
 
 	if (bind(ControlSocket, (struct sockaddr *) &controladdr,
 		 sizeof controladdr) < 0)
@@ -115,11 +122,11 @@ opencontrolsocket()
 			sm_syslog(LOG_ALERT, NOQID,
 				  "ownership change on %s to uid %d failed: %s",
 				  ControlSocketName, (int) u,
-				  errstring(save_errno));
+				  sm_errstring(save_errno));
 			message("050 ownership change on %s to uid %d failed: %s",
 				ControlSocketName, (int) u,
-				errstring(save_errno));
-			closecontrolsocket(TRUE);
+				sm_errstring(save_errno));
+			closecontrolsocket(true);
 			errno = save_errno;
 			return -1;
 		}
@@ -128,7 +135,7 @@ opencontrolsocket()
 	if (chmod(ControlSocketName, S_IRUSR|S_IWUSR) < 0)
 	{
 		save_errno = errno;
-		closecontrolsocket(TRUE);
+		closecontrolsocket(true);
 		errno = save_errno;
 		return -1;
 	}
@@ -136,14 +143,14 @@ opencontrolsocket()
 	if (listen(ControlSocket, 8) < 0)
 	{
 		save_errno = errno;
-		closecontrolsocket(TRUE);
+		closecontrolsocket(true);
 		errno = save_errno;
 		return -1;
 	}
-#endif /* NETUNIX */
+# endif /* NETUNIX */
 	return 0;
 }
-/*
+/*
 **  CLOSECONTROLSOCKET -- close the daemon control named socket
 **
 **	Close a named socket.
@@ -160,7 +167,7 @@ void
 closecontrolsocket(fullclose)
 	bool fullclose;
 {
-#if NETUNIX
+# if NETUNIX
 	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 
 	if (ControlSocket >= 0)
@@ -184,14 +191,14 @@ closecontrolsocket(fullclose)
 		{
 			sm_syslog(LOG_WARNING, NOQID,
 				  "Could not remove control socket: %s",
-				  errstring(errno));
+				  sm_errstring(errno));
 			return;
 		}
 	}
-#endif /* NETUNIX */
+# endif /* NETUNIX */
 	return;
 }
-/*
+/*
 **  CLRCONTROL -- reset the control connection
 **
 **	Parameters:
@@ -207,16 +214,13 @@ closecontrolsocket(fullclose)
 void
 clrcontrol()
 {
-#if NETUNIX
+# if NETUNIX
 	if (ControlSocket >= 0)
 		(void) close(ControlSocket);
 	ControlSocket = -1;
-#endif /* NETUNIX */
+# endif /* NETUNIX */
 }
-
-#ifndef NOT_SENDMAIL
-
-/*
+/*
 **  CONTROL_COMMAND -- read and process command from named socket
 **
 **	Read and process the command from the opened socket.
@@ -232,6 +236,7 @@ clrcontrol()
 
 static jmp_buf	CtxControlTimeout;
 
+/* ARGSUSED0 */
 static void
 controltimeout(timeout)
 	time_t timeout;
@@ -252,17 +257,17 @@ control_command(sock, e)
 	ENVELOPE *e;
 {
 	volatile int exitstat = EX_OK;
-	FILE *s = NULL;
-	EVENT *ev = NULL;
-	FILE *traffic;
-	FILE *oldout;
+	SM_FILE_T *s = NULL;
+	SM_EVENT *ev = NULL;
+	SM_FILE_T *traffic;
+	SM_FILE_T *oldout;
 	char *cmd;
 	char *p;
 	struct cmd *c;
 	char cmdbuf[MAXLINE];
 	char inp[MAXLINE];
 
-	sm_setproctitle(FALSE, e, "control cmd read");
+	sm_setproctitle(false, e, "control cmd read");
 
 	if (TimeOuts.to_control > 0)
 	{
@@ -274,11 +279,12 @@ control_command(sock, e)
 					  "timeout waiting for input during control command");
 			exit(EX_IOERR);
 		}
-		ev = setevent(TimeOuts.to_control, controltimeout,
-			      TimeOuts.to_control);
+		ev = sm_setevent(TimeOuts.to_control, controltimeout,
+				 TimeOuts.to_control);
 	}
 
-	s = fdopen(sock, "r+");
+	s = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT, (void *) &sock,
+		       SM_IO_RDWR, NULL);
 	if (s == NULL)
 	{
 		int save_errno = errno;
@@ -287,19 +293,20 @@ control_command(sock, e)
 		errno = save_errno;
 		exit(EX_IOERR);
 	}
-	setbuf(s, NULL);
+	(void) sm_io_setvbuf(s, SM_TIME_DEFAULT, NULL,
+			     SM_IO_NBF, SM_IO_BUFSIZ);
 
-	if (fgets(inp, sizeof inp, s) == NULL)
+	if (sm_io_fgets(s, SM_TIME_DEFAULT, inp, sizeof inp) == NULL)
 	{
-		(void) fclose(s);
+		(void) sm_io_close(s, SM_TIME_DEFAULT);
 		exit(EX_IOERR);
 	}
-	(void) fflush(s);
+	(void) sm_io_flush(s, SM_TIME_DEFAULT);
 
 	/* clean up end of line */
-	fixcrlf(inp, TRUE);
+	fixcrlf(inp, true);
 
-	sm_setproctitle(FALSE, e, "control: %s", inp);
+	sm_setproctitle(false, e, "control: %s", inp);
 
 	/* break off command */
 	for (p = inp; isascii(*p) && isspace(*p); p++)
@@ -318,7 +325,7 @@ control_command(sock, e)
 	/* decode command */
 	for (c = CmdTab; c->cmd_name != NULL; c++)
 	{
-		if (strcasecmp(c->cmd_name, cmdbuf) == 0)
+		if (sm_strcasecmp(c->cmd_name, cmdbuf) == 0)
 			break;
 	}
 
@@ -335,45 +342,87 @@ control_command(sock, e)
 		break;
 
 	  case CMDRESTART:	/* restart the daemon */
-		fprintf(s, "OK\r\n");
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT, "OK\r\n");
 		exitstat = EX_RESTART;
 		break;
 
 	  case CMDSHUTDOWN:	/* kill the daemon */
-		fprintf(s, "OK\r\n");
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT, "OK\r\n");
 		exitstat = EX_SHUTDOWN;
 		break;
 
 	  case CMDSTATUS:	/* daemon status */
 		proc_list_probe();
 		{
+			int qgrp;
 			long bsize;
 			long free;
 
-			free = freediskspace(QueueDir, &bsize);
+			/* XXX need to deal with different partitions */
+			qgrp = e->e_qgrp;
+			if (!ISVALIDQGRP(qgrp))
+				qgrp = 0;
+			free = freediskspace(Queue[qgrp]->qg_qdir, &bsize);
 
 			/*
 			**  Prevent overflow and don't lose
 			**  precision (if bsize == 512)
 			*/
 
-			free = (long)((double)free * ((double)bsize / 1024));
+			if (free > 0)
+				free = (long)((double) free *
+					      ((double) bsize / 1024));
 
-			fprintf(s, "%d/%d/%ld/%d\r\n",
-				CurChildren, MaxChildren,
-				free, sm_getla(NULL));
+			(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+					     "%d/%d/%ld/%d\r\n",
+					     CurChildren, MaxChildren,
+					     free, getla());
 		}
-		proc_list_display(s);
+		proc_list_display(s, "");
+		break;
+
+# if _FFR_CONTROL_MSTAT
+	  case CMDMSTAT:	/* daemon status, extended, tagged format */
+		proc_list_probe();
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+				     "C:%d\r\nM:%d\r\nL:%d\r\n",
+				     CurChildren, MaxChildren,
+				     getla());
+		printnqe(s, "Q:");
+		disk_status(s, "D:");
+		proc_list_display(s, "P:");
+		break;
+# endif /* _FFR_CONTROL_MSTAT */
+
+	  case CMDMEMDUMP:	/* daemon memory dump, to find memory leaks */
+# if SM_HEAP_CHECK
+		/* dump the heap, if we are checking for memory leaks */
+		if (sm_debug_active(&SmHeapCheck, 2))
+		{
+			sm_heap_report(s, sm_debug_level(&SmHeapCheck) - 1);
+		}
+		else
+		{
+			(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+					     "Memory dump unavailable.\r\n");
+			(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+					     "To fix, run sendmail with -dsm_check_heap.4\r\n");
+		}
+# else /* SM_HEAP_CHECK */
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+				     "Memory dump unavailable.\r\n");
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+				     "To fix, rebuild with -DSM_HEAP_CHECK\r\n");
+# endif /* SM_HEAP_CHECK */
 		break;
 
 	  case CMDERROR:	/* unknown command */
-		fprintf(s, "Bad command (%s)\r\n", cmdbuf);
+		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
+				     "Bad command (%s)\r\n", cmdbuf);
 		break;
 	}
-	(void) fclose(s);
+	(void) sm_io_close(s, SM_TIME_DEFAULT);
 	if (ev != NULL)
-		clrevent(ev);
+		sm_clrevent(ev);
 	exit(exitstat);
 }
-#endif /* ! NOT_SENDMAIL */
-

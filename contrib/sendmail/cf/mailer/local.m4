@@ -21,65 +21,73 @@ _DEFIFNOT(`LOCAL_SHELL_FLAGS', `eu9')
 ifdef(`LOCAL_SHELL_PATH',, `define(`LOCAL_SHELL_PATH', /bin/sh)')
 ifdef(`LOCAL_SHELL_ARGS',, `define(`LOCAL_SHELL_ARGS', `sh -c $u')')
 ifdef(`LOCAL_SHELL_DIR',, `define(`LOCAL_SHELL_DIR', `$z:/')')
+define(`LOCAL_RWR', `ifdef(`_LOCAL_LMTP_',
+`S=EnvFromSMTP/HdrFromL, R=EnvToL/HdrToL',
+`S=EnvFromL/HdrFromL, R=EnvToL/HdrToL')')
+define(`_LOCAL_QGRP', `ifelse(defn(`LOCAL_MAILER_QGRP'),`',`', ` Q=LOCAL_MAILER_QGRP,')')dnl
+define(`_PROG_QGRP', `ifelse(defn(`LOCAL_PROG_QGRP'),`',`', ` Q=LOCAL_PROG_QGRP,')')dnl
 POPDIVERT
 
 ##################################################
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`$Id: local.m4,v 8.50.16.2 2000/09/17 17:04:22 gshapiro Exp $')
+VERSIONID(`$Id: local.m4,v 8.58 2000/10/26 01:58:29 ca Exp $')
 
 #
 #  Envelope sender rewriting
 #
-SEnvFromL=10
+SEnvFromL
 R<@>			$n			errors to mailer-daemon
 R@ <@ $*>		$n			temporarily bypass Sun bogosity
 R$+			$: $>AddDomain $1	add local domain if needed
-R$*			$: $>MasqEnv $1		do masquerading
+ifdef(`_LOCAL_NO_MASQUERADE_', `dnl', `dnl
+R$*			$: $>MasqEnv $1		do masquerading')
 
 #
 #  Envelope recipient rewriting
 #
-SEnvToL=20
+SEnvToL
 R$+ < @ $* >		$: $1			strip host part
-ifdef(`_FFR_ADDR_TYPE', `dnl
-ifdef(`confUSERDB_SPEC', `dnl',
-`dnl Do not forget to bump V9 to V10 before removing _FFR_ADDR_TYPE check
+ifdef(`confUSERDB_SPEC', `dnl', `dnl
 R$+ + $*		$: < $&{addr_type} > $1 + $2	mark with addr type
 R<e s> $+ + $*		$: $1			remove +detail for sender
-R< $* > $+		$: $2			else remove mark')', `dnl')
+R< $* > $+		$: $2			else remove mark')
 
 #
 #  Header sender rewriting
 #
-SHdrFromL=30
+SHdrFromL
 R<@>			$n			errors to mailer-daemon
 R@ <@ $*>		$n			temporarily bypass Sun bogosity
 R$+			$: $>AddDomain $1	add local domain if needed
-R$*			$: $>MasqHdr $1		do masquerading
+ifdef(`_LOCAL_NO_MASQUERADE_', `dnl', `dnl
+R$*			$: $>MasqHdr $1		do masquerading')
 
 #
 #  Header recipient rewriting
 #
-SHdrToL=40
+SHdrToL
 R$+			$: $>AddDomain $1	add local domain if needed
-ifdef(`_ALL_MASQUERADE_',
-`R$*			$: $>MasqHdr $1		do all-masquerading',
+ifdef(`_ALL_MASQUERADE_', `dnl
+ifdef(`_LOCAL_NO_MASQUERADE_', `dnl', `dnl
+R$*			$: $>MasqHdr $1		do all-masquerading')',
 `R$* < @ *LOCAL* > $*	$: $1 < @ $j . > $2')
 
 #
 #  Common code to add local domain name (only if always-add-domain)
 #
-SAddDomain=50
+SAddDomain
 ifdef(`_ALWAYS_ADD_DOMAIN_', `dnl
 R$* < @ $* > $* 	$@ $1 < @ $2 > $3	already fully qualified
+ifelse(len(X`'_ALWAYS_ADD_DOMAIN_),`1',`
 R$+			$@ $1 < @ *LOCAL* >	add local qualification',
+`R$+			$@ $1 < @ _ALWAYS_ADD_DOMAIN_ >	add qualification')',
 `dnl')
 
-Mlocal,		P=LOCAL_MAILER_PATH, F=_MODMF_(CONCAT(_DEF_LOCAL_MAILER_FLAGS, LOCAL_MAILER_FLAGS), `LOCAL'), S=EnvFromL/HdrFromL, R=EnvToL/HdrToL,_OPTINS(`LOCAL_MAILER_EOL', ` E=', `, ')
-		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')_OPTINS(`LOCAL_MAILER_MAXMSGS', `m=', `, ')_OPTINS(`LOCAL_MAILER_MAXRCPTS', `r=', `, ')_OPTINS(`LOCAL_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/LOCAL_MAILER_DSN_DIAGNOSTIC_CODE,
+Mlocal,		P=LOCAL_MAILER_PATH, F=_MODMF_(CONCAT(_DEF_LOCAL_MAILER_FLAGS, LOCAL_MAILER_FLAGS), `LOCAL'), LOCAL_RWR,_OPTINS(`LOCAL_MAILER_EOL', ` E=', `, ')
+		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')_OPTINS(`LOCAL_MAILER_MAXMSGS', `m=', `, ')_OPTINS(`LOCAL_MAILER_MAXRCPTS', `r=', `, ')_OPTINS(`LOCAL_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/LOCAL_MAILER_DSN_DIAGNOSTIC_CODE,_LOCAL_QGRP
 		A=LOCAL_MAILER_ARGS
 Mprog,		P=LOCAL_SHELL_PATH, F=CONCAT(_DEF_LOCAL_SHELL_FLAGS, LOCAL_SHELL_FLAGS), S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=LOCAL_SHELL_DIR,
-		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')T=X-Unix/X-Unix/X-Unix,
+		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')T=X-Unix/X-Unix/X-Unix,_PROG_QGRP
 		A=LOCAL_SHELL_ARGS

@@ -15,7 +15,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: mklinux.m4,v 8.14.4.1 2000/05/09 18:48:58 gshapiro Exp $')
+VERSIONID(`$Id: mklinux.m4,v 8.15 2000/05/09 18:48:56 gshapiro Exp $')
 define(`confEBINDIR', `/usr/sbin')
 ifdef(`STATUS_FILE',,
 	`define(`STATUS_FILE', `/var/log/sendmail.st')')

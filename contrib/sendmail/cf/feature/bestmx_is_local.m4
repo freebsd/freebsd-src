@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,10 +13,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: bestmx_is_local.m4,v 8.24 1999/10/18 21:50:24 ca Exp $')
+VERSIONID(`$Id: bestmx_is_local.m4,v 8.26 2000/09/17 17:30:00 gshapiro Exp $')
 divert(-1)
 
-define(_BESTMX_IS_LOCAL_, _ARG_)
+define(`_BESTMX_IS_LOCAL_', _ARG_)
 
 LOCAL_CONFIG
 # turn on bestMX lookup table

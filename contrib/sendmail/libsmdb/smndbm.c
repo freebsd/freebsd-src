@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -7,9 +7,8 @@
 ** the sendmail distribution.
 */
 
-#ifndef lint
-static char id[] = "@(#)$Id: smndbm.c,v 8.40.4.3 2000/10/05 22:27:50 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: smndbm.c,v 8.50 2001/09/11 04:04:53 gshapiro Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -38,7 +37,7 @@ struct smdb_dbm_cursor_struct
 };
 typedef struct smdb_dbm_cursor_struct SMDB_DBM_CURSOR;
 
-/*
+/*
 **  SMDB_PUT_FLAGS_TO_NDBM_FLAGS -- Translates smdb put flags to ndbm put flags.
 **
 **	Parameters:
@@ -67,15 +66,9 @@ smdb_put_flags_to_ndbm_flags(flags)
 	return return_flags;
 }
 
-/*
-**  smdbm_malloc_database -- Create and initialize SMDB_DBM_DATABASE
-**
-**	Parameters:
-**		None
-**
-**	Returns:
-**		A pointer to an allocated SMDB_DBM_DATABASE or NULL
-**
+/*
+**  Except for smdb_ndbm_open, the rest of these function correspond to the
+**  interface laid out in smdb.h.
 */
 
 SMDB_DBM_DATABASE *
@@ -88,16 +81,11 @@ smdbm_malloc_database()
 	{
 		db->smndbm_dbm = NULL;
 		db->smndbm_lock_fd = -1;
-		db->smndbm_cursor_in_use = FALSE;
+		db->smndbm_cursor_in_use = false;
 	}
 
 	return db;
 }
-
-/*
-** Except for smdb_ndbm_open, the rest of these function correspond to the
-** interface laid out in smdb.h.
-*/
 
 int
 smdbm_close(database)
@@ -120,13 +108,13 @@ int
 smdbm_del(database, key, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
-	u_int flags;
+	unsigned int flags;
 {
 	int result;
 	DBM *dbm = ((SMDB_DBM_DATABASE *) database->smdb_impl)->smndbm_dbm;
 	datum dbkey;
 
-	memset(&dbkey, '\0', sizeof dbkey);
+	(void) memset(&dbkey, '\0', sizeof dbkey);
 	dbkey.dptr = key->data;
 	dbkey.dsize = key->size;
 
@@ -175,13 +163,13 @@ smdbm_get(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
 	SMDB_DBENT *data;
-	u_int flags;
+	unsigned int flags;
 {
 	DBM *dbm = ((SMDB_DBM_DATABASE *) database->smdb_impl)->smndbm_dbm;
 	datum dbkey, dbdata;
 
-	memset(&dbkey, '\0', sizeof dbkey);
-	memset(&dbdata, '\0', sizeof dbdata);
+	(void) memset(&dbkey, '\0', sizeof dbkey);
+	(void) memset(&dbdata, '\0', sizeof dbdata);
 	dbkey.dptr = key->data;
 	dbkey.dsize = key->size;
 
@@ -209,15 +197,15 @@ smdbm_put(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
 	SMDB_DBENT *data;
-	u_int flags;
+	unsigned int flags;
 {
 	int result;
 	int save_errno;
 	DBM *dbm = ((SMDB_DBM_DATABASE *) database->smdb_impl)->smndbm_dbm;
 	datum dbkey, dbdata;
 
-	memset(&dbkey, '\0', sizeof dbkey);
-	memset(&dbdata, '\0', sizeof dbdata);
+	(void) memset(&dbkey, '\0', sizeof dbkey);
+	(void) memset(&dbdata, '\0', sizeof dbdata);
 	dbkey.dptr = key->data;
 	dbkey.dsize = key->size;
 	dbdata.dptr = data->data;
@@ -282,7 +270,7 @@ smndbm_set_owner(database, uid, gid)
 int
 smdbm_sync(database, flags)
 	SMDB_DATABASE *database;
-	u_int flags;
+	unsigned int flags;
 {
 	return SMDBE_UNSUPPORTED;
 }
@@ -297,7 +285,7 @@ smdbm_cursor_close(cursor)
 	if (!db->smndbm_cursor_in_use)
 		return SMDBE_NOT_A_VALID_CURSOR;
 
-	db->smndbm_cursor_in_use = FALSE;
+	db->smndbm_cursor_in_use = false;
 	free(dbm_cursor);
 	free(cursor);
 
@@ -307,7 +295,7 @@ smdbm_cursor_close(cursor)
 int
 smdbm_cursor_del(cursor, flags)
 	SMDB_CURSOR *cursor;
-	u_int flags;
+	unsigned int flags;
 {
 	int result;
 	SMDB_DBM_CURSOR *dbm_cursor = (SMDB_DBM_CURSOR *) cursor->smdbc_impl;
@@ -343,8 +331,8 @@ smdbm_cursor_get(cursor, key, value, flags)
 	DBM *dbm = db->smndbm_dbm;
 	datum dbkey, dbdata;
 
-	memset(&dbkey, '\0', sizeof dbkey);
-	memset(&dbdata, '\0', sizeof dbdata);
+	(void) memset(&dbkey, '\0', sizeof dbkey);
+	(void) memset(&dbdata, '\0', sizeof dbdata);
 
 	if (flags == SMDB_CURSOR_GET_RANGE)
 		return SMDBE_UNSUPPORTED;
@@ -406,7 +394,7 @@ smdbm_cursor_put(cursor, key, value, flags)
 	DBM *dbm = db->smndbm_dbm;
 	datum dbdata;
 
-	memset(&dbdata, '\0', sizeof dbdata);
+	(void) memset(&dbdata, '\0', sizeof dbdata);
 	dbdata.dptr = value->data;
 	dbdata.dsize = value->size;
 
@@ -448,7 +436,7 @@ smdbm_cursor(database, cursor, flags)
 	if (db->smndbm_cursor_in_use)
 		return SMDBE_ONLY_SUPPORTS_ONE_CURSOR;
 
-	db->smndbm_cursor_in_use = TRUE;
+	db->smndbm_cursor_in_use = true;
 	dbm_cursor = (SMDB_DBM_CURSOR *) malloc(sizeof(SMDB_DBM_CURSOR));
 	dbm_cursor->smndbmc_db = db;
 	dbm_cursor->smndbmc_current_key.dptr = NULL;
@@ -467,8 +455,7 @@ smdbm_cursor(database, cursor, flags)
 
 	return SMDBE_OK;
 }
-
-/*
+/*
 **  SMDB_NDBM_OPEN -- Opens a ndbm database.
 **
 **	Parameters:
@@ -481,8 +468,7 @@ smdbm_cursor(database, cursor, flags)
 **			Only SMDB_NDBM is supported.
 **		user_info -- Information on the user to use for file
 **			    permissions.
-**		db_params --
-**			No params are supported.
+**		db_params -- No params are supported.
 **
 **	Returns:
 **		SMDBE_OK -- Success, otherwise errno:

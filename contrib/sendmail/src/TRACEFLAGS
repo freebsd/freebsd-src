@@ -1,4 +1,4 @@
-#	$Id: TRACEFLAGS,v 8.29.16.1 2001/05/03 17:24:00 gshapiro Exp $
+#	$Id: TRACEFLAGS,v 8.35 2001/11/28 01:01:25 gshapiro Exp $
 0, 1	main.c		main	skip background fork
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration
@@ -75,11 +75,17 @@
 62	multiple	file descriptor checking
 63	queue.c		runqueue process watching
 64	multiple	Milter
+65	main.c		permission checks
+66	srvrsmtp.c	conformance checks
 67	conf.c		signals
+69	queue.c		scheduling
+#if _FFR_QUARANTINE
+70	queue.c		quarantining
+#endif /* _FFR_QUARANTINE */
 80			content length
 81			sun remote mode
 91	mci.c		syslogging of MCI cache information
-94	srvrsmtp.c	cause commands to fail (for protocol testing)
+94,>99	srvrsmtp.c	cause commands to fail (for protocol testing)
 95	srvrsmtp.c	AUTH
 95	usersmtp.c	AUTH
 98	*		timers

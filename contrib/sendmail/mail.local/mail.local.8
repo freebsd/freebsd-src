@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -8,20 +8,24 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: mail.local.8,v 8.14.14.5 2000/12/29 18:12:16 gshapiro Exp $
+.\"	$Id: mail.local.8,v 8.23 2001/04/05 23:27:35 gshapiro Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.TH MAIL.LOCAL 8 "$Date: 2000/12/29 18:12:16 $"
+.TH MAIL.LOCAL 8 "$Date: 2001/04/05 23:27:35 $"
 .SH NAME
 mail.local
 \- store mail in a mailbox
 .SH SYNOPSIS
 .B mail.local
-.RB [ \-7 "] [" \-B "] [" \-b "] [" \-d "] [" \-l "] [" \-s "] [" \-f 
-.IR from "] "
-.RB [ \-r 
-.IR from "] " "user ..."
+.RB [ \-7 "] [" \-B "] [" \-b "] [" \-d "] [" \-D
+.IR mbdb ]
+.RB [ \-l "] [" \-s "] [" \-f 
+\fIfrom\fR|\fB\-r\fR
+.IR from ]
+.RB [ \-h
+\fIfilename\fR ]
+.I "user ..."
 .SH DESCRIPTION
 .B Mail.local
 reads the standard input up to an end-of-file and appends it to each
@@ -47,6 +51,12 @@ if a mailbox exceeds quota.
 .TP 
 .B \-d
 Specify this is a delivery (for backward compatibility).
+This option has no effect.
+.TP 
+.BI \-D " mbdb"
+Specify the name of the mailbox database
+which is used to look up local recipient names.
+This option defaults to "pw", which means use getpwnam().
 .TP 
 .BI \-f " from"
 Specify the sender's name.
@@ -63,6 +73,11 @@ status.
 .TP 
 .BI \-r " from"
 Specify the sender's name (for backward compatibility).
+Same as \-f.
+.TP
+.BI \-h " filename"
+Store incoming mail in \fIfilename\fR in the user's home directory instead
+of a system mail spool directory.
 .PP
 Individual mail messages in the mailbox are delimited by an empty
 line followed by a line beginning with the string ``From ''.
@@ -100,10 +115,10 @@ Used to set the appropriate time zone on the timestamp.
 temporary files
 .TP
 /var/mail/user
-user's mailbox directory
+user's default mailbox directory
 .TP 
 /var/mail/user.lock
-lock file for a user's mailbox
+lock file for a user's default mailbox
 .PD
 .SH SEE ALSO
 mail(1), 

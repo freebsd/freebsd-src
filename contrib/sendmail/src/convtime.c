@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -11,11 +11,9 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: convtime.c,v 8.25 1999/06/16 21:11:26 ca Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
+
+SM_RCSID("@(#)$Id: convtime.c,v 8.39 2001/09/11 04:05:13 gshapiro Exp $")
 
 /*
 **  CONVTIME -- convert time
@@ -47,10 +45,16 @@ convtime(p, units)
 {
 	register time_t t, r;
 	register char c;
+	bool pos = true;
 
 	r = 0;
-	if (strcasecmp(p, "now") == 0)
+	if (sm_strcasecmp(p, "now") == 0)
 		return NOW;
+	if (*p == '-')
+	{
+		pos = false;
+		++p;
+	}
 	while (*p != '\0')
 	{
 		t = 0;
@@ -92,14 +96,14 @@ convtime(p, units)
 		r += t;
 	}
 
-	return r;
+	return pos ? r : -r;
 }
-/*
+/*
 **  PINTVL -- produce printable version of a time interval
 **
 **	Parameters:
 **		intvl -- the interval to be converted
-**		brief -- if TRUE, print this in an extremely compact form
+**		brief -- if true, print this in an extremely compact form
 **			(basically used for logging).
 **
 **	Returns:
@@ -154,38 +158,43 @@ pintvl(intvl, brief)
 	{
 		if (dy > 0)
 		{
-			(void) snprintf(p, SPACELEFT(buf, p), "%d+", dy);
+			(void) sm_snprintf(p, SPACELEFT(buf, p), "%d+", dy);
 			p += strlen(p);
 		}
-		(void) snprintf(p, SPACELEFT(buf, p), "%02d:%02d:%02d",
-			hr, mi, se);
+		(void) sm_snprintf(p, SPACELEFT(buf, p), "%02d:%02d:%02d",
+				   hr, mi, se);
 		return buf;
 	}
 
 	/* use the verbose form */
 	if (wk > 0)
 	{
-		(void) snprintf(p, SPACELEFT(buf, p), ", %d week%s", wk, PLURAL(wk));
+		(void) sm_snprintf(p, SPACELEFT(buf, p), ", %d week%s", wk,
+				   PLURAL(wk));
 		p += strlen(p);
 	}
 	if (dy > 0)
 	{
-		(void) snprintf(p, SPACELEFT(buf, p), ", %d day%s", dy, PLURAL(dy));
+		(void) sm_snprintf(p, SPACELEFT(buf, p), ", %d day%s", dy,
+				   PLURAL(dy));
 		p += strlen(p);
 	}
 	if (hr > 0)
 	{
-		(void) snprintf(p, SPACELEFT(buf, p), ", %d hour%s", hr, PLURAL(hr));
+		(void) sm_snprintf(p, SPACELEFT(buf, p), ", %d hour%s", hr,
+				   PLURAL(hr));
 		p += strlen(p);
 	}
 	if (mi > 0)
 	{
-		(void) snprintf(p, SPACELEFT(buf, p), ", %d minute%s", mi, PLURAL(mi));
+		(void) sm_snprintf(p, SPACELEFT(buf, p), ", %d minute%s", mi,
+				   PLURAL(mi));
 		p += strlen(p);
 	}
 	if (se > 0)
 	{
-		(void) snprintf(p, SPACELEFT(buf, p), ", %d second%s", se, PLURAL(se));
+		(void) sm_snprintf(p, SPACELEFT(buf, p), ", %d second%s", se,
+				   PLURAL(se));
 		p += strlen(p);
 	}
 

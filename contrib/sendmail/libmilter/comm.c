@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,17 +8,16 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: comm.c,v 8.30.4.6 2000/10/05 22:44:01 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: comm.c,v 8.48 2001/11/07 17:43:04 ca Exp $")
 
-#if _FFR_MILTER
 #include "libmilter.h"
+#include <sm/errstring.h>
 
-#define FD_Z	FD_ZERO(&readset);	\
-		FD_SET((u_int) sd, &readset);	\
-		FD_ZERO(&excset);	\
-		FD_SET((u_int) sd, &excset)
+#define FD_Z	FD_ZERO(&readset);			\
+		FD_SET((unsigned int) sd, &readset);	\
+		FD_ZERO(&excset);			\
+		FD_SET((unsigned int) sd, &excset)
 
 /*
 **  MI_RD_CMD -- read a command
@@ -73,11 +72,13 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 			*cmd = SMFIC_SELECT;
 			return NULL;
 		}
-		if ((len = MI_SOCK_READ(sd, data + i, sizeof data - i)) < 0)
+
+		len = MI_SOCK_READ(sd, data + i, sizeof data - i);
+		if (MI_SOCK_READ_FAIL(len))
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s, mi_rd_cmd: read returned %d: %s",
-				name, len, strerror(errno));
+				name, len, sm_errstring(errno));
 			*cmd = SMFIC_RECVERR;
 			return NULL;
 		}
@@ -100,7 +101,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	{
 		smi_log(SMI_LOG_ERR,
 			"%s: mi_rd_cmd: select returned %d: %s",
-			name, ret, strerror(errno));
+			name, ret, sm_errstring(errno));
 		*cmd = SMFIC_RECVERR;
 		return NULL;
 	}
@@ -116,7 +117,11 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		*cmd = SMFIC_TOOBIG;
 		return NULL;
 	}
+#if _FFR_ADD_NULL
+	buf = malloc(expl + 1);
+#else /* _FFR_ADD_NULL */
 	buf = malloc(expl);
+#endif /* _FFR_ADD_NULL */
 	if (buf == NULL)
 	{
 		*cmd = SMFIC_MALLOC;
@@ -133,11 +138,12 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 			free(buf);
 			return NULL;
 		}
-		if ((len = MI_SOCK_READ(sd, buf + i, expl - i)) < 0)
+		len = MI_SOCK_READ(sd, buf + i, expl - i);
+		if (MI_SOCK_READ_FAIL(len))
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: mi_rd_cmd: read returned %d: %s",
-				name, len, strerror(errno));
+				name, len, sm_errstring(errno));
 			ret = -1;
 			break;
 		}
@@ -156,6 +162,10 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		if (len >= expl - i)
 		{
 			*rlen = expl;
+#if _FFR_ADD_NULL
+			/* makes life simpler for common string routines */
+			buf[expl] = '\0';
+#endif /* _FFR_ADD_NULL */
 			return buf;
 		}
 		i += len;
@@ -175,14 +185,14 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	{
 		smi_log(SMI_LOG_ERR,
 			"%s: mi_rd_cmd: select returned %d: %s",
-			name, ret, strerror(save_errno));
+			name, ret, sm_errstring(save_errno));
 		*cmd = SMFIC_RECVERR;
 		return NULL;
 	}
 	*cmd = SMFIC_UNKNERR;
 	return NULL;
 }
-/*
+/*
 **  MI_WR_CMD -- write a cmd to sd
 **
 **	Parameters:
@@ -222,7 +232,7 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	do
 	{
 		FD_ZERO(&wrtset);
-		FD_SET((u_int) sd, &wrtset);
+		FD_SET((unsigned int) sd, &wrtset);
 		if ((ret = select(sd + 1, NULL, &wrtset, NULL, timeout)) == 0)
 			return MI_FAILURE;
 	} while (ret < 0 && errno == EINTR);
@@ -248,7 +258,7 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	do
 	{
 		FD_ZERO(&wrtset);
-		FD_SET((u_int) sd, &wrtset);
+		FD_SET((unsigned int) sd, &wrtset);
 		if ((ret = select(sd + 1, NULL, &wrtset, NULL, timeout)) == 0)
 			return MI_FAILURE;
 	} while (ret < 0 && errno == EINTR);
@@ -264,4 +274,3 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	}
 	return MI_SUCCESS;
 }
-#endif /* _FFR_MILTER */

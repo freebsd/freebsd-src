@@ -10,17 +10,15 @@
  *
  */
 
-#ifndef lint
-static char copyright[] =
+#include <sm/gen.h>
+
+SM_IDSTR(copyright,
 "@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* ! lint */
+	The Regents of the University of California.  All rights reserved.\n")
 
-#ifndef lint
-static char id[] = "@(#)$Id: rmail.c,v 8.39.4.12 2001/05/07 22:06:39 gshapiro Exp $";
-#endif /* ! lint */
+SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.61 2001/09/18 21:45:29 gshapiro Exp $")
 
 /* $FreeBSD$ */
 
@@ -56,69 +54,18 @@ static char id[] = "@(#)$Id: rmail.c,v 8.39.4.12 2001/05/07 22:06:39 gshapiro Ex
 
 #include <ctype.h>
 #include <fcntl.h>
-#ifdef BSD4_4
-# define FORK vfork
-# include <paths.h>
-#else /* BSD4_4 */
-# define FORK fork
-# ifndef _PATH_SENDMAIL
-#  define _PATH_SENDMAIL "/usr/lib/sendmail"
-# endif /* ! _PATH_SENDMAIL */
-#endif /* BSD4_4 */
-#include <stdio.h>
+#include <sm/io.h>
 #include <stdlib.h>
-#include <string.h>
+#include <sm/string.h>
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
 #endif /* EX_OK */
 #include <sysexits.h>
 
-#ifndef MAX
-# define MAX(a, b)	((a) < (b) ? (b) : (a))
-#endif /* ! MAX */
-
-#ifndef __P
-# ifdef __STDC__
-#  define __P(protos)	protos
-# else /* __STDC__ */
-#  define __P(protos)	()
-#  define const
-# endif /* __STDC__ */
-#endif /* ! __P */
-
-#ifndef STDIN_FILENO
-# define STDIN_FILENO	0
-#endif /* ! STDIN_FILENO */
-
-#if defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300 || defined(HPUX11)
-# define HASSNPRINTF	1
-#endif /* defined(BSD4_4) || defined(linux) || SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) || _AIX4 >= 40300 || defined(HPUX11) */
-
-#if defined(sun) && !defined(BSD) && !defined(SOLARIS) && !defined(__svr4__) && !defined(__SVR4)
-# define memmove(d, s, l)	(bcopy((s), (d), (l)))
-#endif /* defined(sun) && !defined(BSD) && !defined(SOLARIS) && !defined(__svr4__) && !defined(__SVR4) */
-
-#if !HASSNPRINTF && !SFIO
-extern int	snprintf __P((char *, size_t, const char *, ...));
-#endif /* !HASSNPRINTF && !SFIO */
-
-#if defined(BSD4_4) || defined(__osf__) || defined(__GNU_LIBRARY__) || defined(IRIX64) || defined(IRIX5) || defined(IRIX6)
-# ifndef HASSTRERROR
-#  define HASSTRERROR	1
-# endif /* ! HASSTRERROR */
-#endif /* defined(BSD4_4) || defined(__osf__) || defined(__GNU_LIBRARY__) ||
-	  defined(IRIX64) || defined(IRIX5) || defined(IRIX6) */
-
-#if defined(SUNOS403) || defined(NeXT) || (defined(MACH) && defined(i386) && !defined(__GNU__)) || defined(oldBSD43) || defined(MORE_BSD) || defined(umipsbsd) || defined(ALTOS_SYSTEM_V) || defined(RISCOS) || defined(_AUX_SOURCE) || defined(UMAXV) || defined(titan) || defined(UNIXWARE) || defined(sony_news) || defined(luna) || defined(nec_ews_svr4) || defined(_nec_ews_svr4) || defined(__MAXION__)
-# undef WIFEXITED
-# undef WEXITSTATUS
-# define WIFEXITED(st)		(((st) & 0377) == 0)
-# define WEXITSTATUS(st)	(((st) >> 8) & 0377)
-#endif /* defined(SUNOS403) || defined(NeXT) || (defined(MACH) && defined(i386) && !defined(__GNU__)) || defined(oldBSD43) || defined(MORE_BSD) || defined(umipsbsd) || defined(ALTOS_SYSTEM_V) || defined(RISCOS) || defined(_AUX_SOURCE) || defined(UMAXV) || defined(titan) || defined(UNIXWARE) || defined(sony_news) || defined(luna) || defined(nec_ews_svr4) || defined(_nec_ews_svr4) || defined(__MAXION__) */
-
-
-#include "sendmail/errstring.h"
+#include <sm/conf.h>
+#include <sm/errstring.h>
+#include <sendmail/pathnames.h>
 
 static void err __P((int, const char *, ...));
 static void usage __P((void));
@@ -136,7 +83,7 @@ xalloc(sz)
 	if (sz <= 0)
 		sz = 1;
 
-	p = malloc((unsigned) sz);
+	p = malloc(sz);
 	if (p == NULL)
 		err(EX_TEMPFAIL, "out of memory");
 	return (p);
@@ -150,7 +97,7 @@ main(argc, argv)
 	int ch, debug, i, pdes[2], pid, status;
 	size_t fplen = 0, fptlen = 0, len;
 	off_t offset;
-	FILE *fp;
+	SM_FILE_T *fp;
 	char *addrp = NULL, *domain, *p, *t;
 	char *from_path, *from_sys, *from_user;
 	char **args, buf[2048], lbuf[2048];
@@ -188,8 +135,9 @@ main(argc, argv)
 	for (offset = 0; ; )
 	{
 		/* Get and nul-terminate the line. */
-		if (fgets(lbuf, sizeof(lbuf), stdin) == NULL)
-			exit(EX_DATAERR);
+		if (sm_io_fgets(smioin, SM_TIME_DEFAULT, lbuf,
+				sizeof(lbuf)) == NULL)
+			err(EX_DATAERR, "no data");
 		if ((p = strchr(lbuf, '\n')) == NULL)
 			err(EX_DATAERR, "line too long");
 		*p = '\0';
@@ -223,7 +171,10 @@ main(argc, argv)
 				}
 				*t = '\0';
 				if (debug)
-					fprintf(stderr, "remote from: %s\n", p);
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "remote from: %s\n",
+							     p);
 				break;
 			}
 		}
@@ -243,7 +194,9 @@ main(argc, argv)
 					err(EX_DATAERR,
 					    "corrupted From line: %s", lbuf);
 				if (debug)
-					fprintf(stderr, "bang: %s\n", p);
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "bang: %s\n", p);
 			}
 		}
 
@@ -263,8 +216,10 @@ main(argc, argv)
 			{
 				from_sys = newstr(p);
 				if (debug)
-					fprintf(stderr, "from_sys: %s\n",
-						from_sys);
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "from_sys: %s\n",
+							     from_sys);
 			}
 
 			/* Concatenate to the path string. */
@@ -273,14 +228,14 @@ main(argc, argv)
 			{
 				fplen = 0;
 				if ((from_path = malloc(fptlen = 256)) == NULL)
-					err(EX_TEMPFAIL, NULL);
+					err(EX_TEMPFAIL, "out of memory");
 			}
 			if (fplen + len + 2 > fptlen)
 			{
-				fptlen += MAX(fplen + len + 2, 256);
+				fptlen += SM_MAX(fplen + len + 2, 256);
 				if ((from_path = realloc(from_path,
 							 fptlen)) == NULL)
-					err(EX_TEMPFAIL, NULL);
+					err(EX_TEMPFAIL, "out of memory");
 			}
 			memmove(from_path + fplen, p, len);
 			fplen += len;
@@ -304,20 +259,24 @@ main(argc, argv)
 		if (debug)
 		{
 			if (from_path != NULL)
-				fprintf(stderr, "from_path: %s\n", from_path);
-			fprintf(stderr, "from_user: %s\n", from_user);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "from_path: %s\n",
+						     from_path);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "from_user: %s\n", from_user);
 		}
 
 		if (offset != -1)
-			offset = (off_t)ftell(stdin);
+			offset = (off_t)sm_io_tell(smioin, SM_TIME_DEFAULT);
 	}
 
 
-	/* Allocate args (with room for sendmail args as well as recipients) */
+	/* Allocate args (with room for sendmail args as well as recipients */
 	args = (char **)xalloc(sizeof(*args) * (10 + argc));
 
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;	/* Build sendmail's argument list. */
+	args[i++] = "-G";		/* relay submission */
 	args[i++] = "-oee";		/* No errors, just status. */
 #ifdef QUEUE_ONLY
 	args[i++] = "-odq";		/* Queue it, don't try to deliver. */
@@ -328,16 +287,16 @@ main(argc, argv)
 
 	/* set from system and protocol used */
 	if (from_sys == NULL)
-		snprintf(buf, sizeof(buf), "-p%s", domain);
+		sm_snprintf(buf, sizeof(buf), "-p%s", domain);
 	else if (strchr(from_sys, '.') == NULL)
-		snprintf(buf, sizeof(buf), "-p%s:%s.%s",
+		sm_snprintf(buf, sizeof(buf), "-p%s:%s.%s",
 			domain, from_sys, domain);
 	else
-		snprintf(buf, sizeof(buf), "-p%s:%s", domain, from_sys);
+		sm_snprintf(buf, sizeof(buf), "-p%s:%s", domain, from_sys);
 	args[i++] = newstr(buf);
 
 	/* Set name of ``from'' person. */
-	snprintf(buf, sizeof(buf), "-f%s%s",
+	sm_snprintf(buf, sizeof(buf), "-f%s%s",
 		 from_path ? from_path : "", from_user);
 	args[i++] = newstr(buf);
 
@@ -360,7 +319,7 @@ main(argc, argv)
 			len = strlen(*argv) + 3;
 			if ((args[i] = malloc(len)) == NULL)
 				err(EX_TEMPFAIL, "Cannot malloc");
-			snprintf(args[i++], len, "<%s>", *argv);
+			sm_snprintf(args[i++], len, "<%s>", *argv);
 		}
 		argv++;
 		argc--;
@@ -373,9 +332,11 @@ main(argc, argv)
 
 	if (debug)
 	{
-		fprintf(stderr, "Sendmail arguments:\n");
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "Sendmail arguments:\n");
 		for (i = 0; args[i] != NULL; i++)
-			fprintf(stderr, "\t%s\n", args[i]);
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+					     "\t%s\n", args[i]);
 	}
 
 	/*
@@ -394,12 +355,12 @@ main(argc, argv)
 	}
 
 	if (pipe(pdes) < 0)
-		err(EX_OSERR, NULL);
+		err(EX_OSERR, "pipe failed");
 
-	switch (pid = FORK())
+	switch (pid = fork())
 	{
 	  case -1:				/* Err. */
-		err(EX_OSERR, NULL);
+		err(EX_OSERR, "fork failed");
 		/* NOTREACHED */
 
 	  case 0:				/* Child. */
@@ -410,25 +371,27 @@ main(argc, argv)
 		}
 		(void) close(pdes[1]);
 		(void) execv(_PATH_SENDMAIL, args);
-		_exit(127);
+		err(EX_UNAVAILABLE, "%s", _PATH_SENDMAIL);
 		/* NOTREACHED */
 	}
 
-	if ((fp = fdopen(pdes[1], "w")) == NULL)
-		err(EX_OSERR, NULL);
+	if ((fp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT, (void *) &(pdes[1]),
+			     SM_IO_WRONLY, NULL)) == NULL)
+		err(EX_OSERR, "sm_io_open failed");
 	(void) close(pdes[0]);
 
 	/* Copy the file down the pipe. */
 	do
 	{
-		(void) fprintf(fp, "%s", lbuf);
-	} while (fgets(lbuf, sizeof(lbuf), stdin) != NULL);
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s", lbuf);
+	} while (sm_io_fgets(smioin, SM_TIME_DEFAULT, lbuf,
+			     sizeof(lbuf)) != NULL);
 
-	if (ferror(stdin))
-		err(EX_TEMPFAIL, "stdin: %s", errstring(errno));
+	if (sm_io_error(smioin))
+		err(EX_TEMPFAIL, "stdin: %s", sm_errstring(errno));
 
-	if (fclose(fp))
-		err(EX_OSERR, NULL);
+	if (sm_io_close(fp, SM_TIME_DEFAULT))
+		err(EX_OSERR, "sm_io_close failed");
 
 	if ((waitpid(pid, &status, 0)) == -1)
 		err(EX_OSERR, "%s", _PATH_SENDMAIL);
@@ -447,15 +410,10 @@ main(argc, argv)
 static void
 usage()
 {
-	(void) fprintf(stderr, "usage: rmail [-T] [-D domain] user ...\n");
+	(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			     "usage: rmail [-T] [-D domain] user ...\n");
 	exit(EX_USAGE);
 }
-
-#ifdef __STDC__
-# include <stdarg.h>
-#else /* __STDC__ */
-# include <varargs.h>
-#endif /* __STDC__ */
 
 static void
 #ifdef __STDC__
@@ -467,15 +425,15 @@ err(eval, fmt, va_alist)
 	va_dcl
 #endif /* __STDC__ */
 {
-	va_list ap;
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else /* __STDC__ */
-	va_start(ap);
-#endif /* __STDC__ */
-	(void) fprintf(stderr, "rmail: ");
-	(void) vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void) fprintf(stderr, "\n");
+	SM_VA_LOCAL_DECL
+
+	if (fmt != NULL)
+	{
+		SM_VA_START(ap, fmt);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "rmail: ");
+		(void) sm_io_vfprintf(smioerr, SM_TIME_DEFAULT, fmt, ap);
+		SM_VA_END(ap);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "\n");
+	}
 	exit(eval);
 }
