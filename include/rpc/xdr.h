@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.3 1995/05/30 04:55:38 rgrimes Exp $
+ *	$Id: xdr.h,v 1.4 1996/01/30 23:32:45 mpp Exp $
  */
 
 /*
@@ -90,39 +90,48 @@ enum xdr_op {
 		    * BYTES_PER_XDR_UNIT)
 
 /*
- * A xdrproc_t exists for each data type which is to be encoded or decoded.
- *
- * The second argument to the xdrproc_t is a pointer to an opaque pointer.
- * The opaque pointer generally points to a structure of the data type
- * to be decoded.  If this pointer is 0, then the type routines should
- * allocate dynamic storage of the appropriate size and return it.
- * bool_t	(*xdrproc_t)(XDR *, caddr_t *);
- */
-typedef	bool_t (*xdrproc_t)();
-
-/*
  * The XDR handle.
  * Contains operation which is being applied to the stream,
  * an operations vector for the particular implementation (e.g. see xdr_mem.c),
  * and two private fields for the use of the particular implementation.
  */
-typedef struct {
+typedef struct __rpc_xdr {
 	enum xdr_op	x_op;		/* operation; fast additional param */
 	struct xdr_ops {
-		bool_t	(*x_getlong)();	/* get a long from underlying stream */
-		bool_t	(*x_putlong)();	/* put a long to " */
-		bool_t	(*x_getbytes)();/* get some bytes from " */
-		bool_t	(*x_putbytes)();/* put some bytes to " */
-		u_int	(*x_getpostn)();/* returns bytes off from beginning */
-		bool_t  (*x_setpostn)();/* lets you reposition the stream */
-		long *	(*x_inline)();	/* buf quick ptr to buffered data */
-		void	(*x_destroy)();	/* free privates of this xdr_stream */
+		/* get a long from underlying stream */
+		bool_t	(*x_getlong) __P((struct __rpc_xdr *, long *));
+		/* put a long to underlying stream */
+		bool_t	(*x_putlong) __P((struct __rpc_xdr *, long *));
+		/* get some bytes from underlying stream */
+		bool_t	(*x_getbytes) __P((struct __rpc_xdr *, caddr_t, u_int));
+		/* put some bytes to underlying stream */
+		bool_t	(*x_putbytes) __P((struct __rpc_xdr *, caddr_t, u_int));
+		/* returns bytes off from beginning */
+		u_int	(*x_getpostn) __P((struct __rpc_xdr *));
+		/* lets you reposition the stream */
+		bool_t  (*x_setpostn) __P((struct __rpc_xdr *, u_int));
+		/* buf quick ptr to buffered data */
+		int32_t *(*x_inline) __P((struct __rpc_xdr *, u_int));
+		/* free privates of this xdr_stream */
+		void	(*x_destroy) __P((struct __rpc_xdr *));
 	} *x_ops;
 	caddr_t 	x_public;	/* users' data */
 	caddr_t		x_private;	/* pointer to private data */
 	caddr_t 	x_base;		/* private used for position info */
 	int		x_handy;	/* extra private word */
 } XDR;
+
+/*
+ * A xdrproc_t exists for each data type which is to be encoded or decoded.
+ *
+ * The second argument to the xdrproc_t is a pointer to an opaque pointer.
+ * The opaque pointer generally points to a structure of the data type
+ * to be decoded.  If this pointer is 0, then the type routines should
+ * allocate dynamic storage of the appropriate size and return it.
+ *
+ * XXX can't actually prototype it, because some take three args!!!
+ */
+typedef	bool_t (*xdrproc_t) __P((/* XDR *, void *, u_int */));
 
 /*
  * Operations defined on a XDR handle
@@ -232,6 +241,10 @@ extern bool_t	xdr_long	__P((XDR *, long *));
 extern bool_t	xdr_u_long	__P((XDR *, u_long *));
 extern bool_t	xdr_short	__P((XDR *, short *));
 extern bool_t	xdr_u_short	__P((XDR *, u_short *));
+extern bool_t	xdr_int16_t	__P((XDR *, int16_t *));
+extern bool_t	xdr_u_int16_t	__P((XDR *, u_int16_t *));
+extern bool_t	xdr_int32_t	__P((XDR *, int32_t *));
+extern bool_t	xdr_u_int32_t	__P((XDR *, u_int32_t *));
 extern bool_t	xdr_bool	__P((XDR *, bool_t *));
 extern bool_t	xdr_enum	__P((XDR *, enum_t *));
 extern bool_t	xdr_array	__P((XDR *, char **, u_int *, u_int, u_int, xdrproc_t));
@@ -240,7 +253,7 @@ extern bool_t	xdr_opaque	__P((XDR *, caddr_t, u_int));
 extern bool_t	xdr_string	__P((XDR *, char **, u_int));
 extern bool_t	xdr_union	__P((XDR *, enum_t *, char *, struct xdr_discrim *, xdrproc_t));
 extern bool_t	xdr_char	__P((XDR *, char *));
-extern bool_t	xdr_u_char	__P((XDR *, char *));
+extern bool_t	xdr_u_char	__P((XDR *, u_char *));
 extern bool_t	xdr_vector	__P((XDR *, char *, u_int, u_int, xdrproc_t));
 extern bool_t	xdr_float	__P((XDR *, float *));
 extern bool_t	xdr_double	__P((XDR *, double *));
@@ -260,7 +273,7 @@ struct netobj {
 	char	*n_bytes;
 };
 typedef struct netobj netobj;
-extern bool_t   xdr_netobj();
+extern bool_t   xdr_netobj __P((XDR *, struct netobj *));
 
 /*
  * These are the public routines for the various implementations of
@@ -276,7 +289,9 @@ extern void   xdrstdio_create	__P((XDR *, FILE *, enum xdr_op));
 #endif
 
 /* XDR pseudo records for tcp */
-extern void   xdrrec_create	__P((XDR *, u_int, u_int, char *, int (*)(), int (*)()));
+extern void   xdrrec_create	__P((XDR *, u_int, u_int, char *,
+				int (*) __P((caddr_t, caddr_t, int)),
+				int (*) __P((caddr_t, caddr_t, int))));
 
 /* make end of xdr record */
 extern bool_t xdrrec_endofrecord __P((XDR *, int));

@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc.h 1.9 88/02/08 SMI
  *	from: @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC
- *	$Id: rpc.h,v 1.4 1995/05/30 04:55:23 rgrimes Exp $
+ *	$Id: rpc.h,v 1.5 1996/01/30 23:32:20 mpp Exp $
  */
 
 /*
@@ -84,8 +84,12 @@ __BEGIN_DECLS
 extern struct rpcent *getrpcbyname	__P((char *));
 extern struct rpcent *getrpcbynumber	__P((int));
 extern struct rpcent *getrpcent		__P((void));
+extern int getrpcport __P((char *host, int prognum, int versnum, int proto));
 extern void setrpcent __P((int));
 extern void endrpcent __P((void));
+
+extern int bindresvport __P((int, struct sockaddr_in *));
+extern int get_myaddress __P((struct sockaddr_in *));
 __END_DECLS
 
 #endif /* !_RPC_RPC_H */
