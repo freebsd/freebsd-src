@@ -2149,7 +2149,7 @@ main ()
   while (!done)
     {
       fprintf (stdout, "history%% ");
-      t = gets (line);
+      t = fgets (line, 1024, stdin);
 
       if (!t)
 	strcpy (line, "quit");
