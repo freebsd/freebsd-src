@@ -450,9 +450,9 @@ hash_alloc(struct uma_hash *hash)
 }
 
 /*
- * Expands the hash table for OFFPAGE zones.  This is done from zone_timeout
- * to reduce collisions.  This must not be done in the regular allocation path,
- * otherwise, we can recurse on the vm while allocating pages.
+ * Expands the hash table for HASH zones.  This is done from zone_timeout
+ * to reduce collisions.  This must not be done in the regular allocation
+ * path, otherwise, we can recurse on the vm while allocating pages.
  *
  * Arguments:
  *	oldhash  The hash you want to expand 
@@ -575,7 +575,6 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
  *
  * This function returns with the zone locked so that the per cpu queues can
  * not be filled until zone_drain is finished.
- *
  */
 static void
 cache_drain(uma_zone_t zone, int destroy)
@@ -764,7 +763,6 @@ zone_drain(uma_zone_t zone)
  * Returns:
  *	The slab that was allocated or NULL if there is no memory and the
  *	caller specified M_NOWAIT.
- *	
  */
 static uma_slab_t 
 slab_zalloc(uma_zone_t zone, int wait)
@@ -824,7 +822,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 	 *
 	 * This code doesn't seem to work properly on x86, and on alpha
 	 * it makes absolutely no performance difference. I'm sure it could
-	 * use some tuning, but sun makes outrageous claims about it's
+	 * use some tuning, but sun makes outrageous claims about its
 	 * performance.
 	 */
 #if 0
@@ -853,7 +851,6 @@ slab_zalloc(uma_zone_t zone, int wait)
 
 	zone->uz_pages += zone->uz_ppera;
 	zone->uz_free += zone->uz_ipers;
-
 
 	return (slab);
 }
@@ -909,7 +906,6 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  * Returns:
  *	A pointer to the alloced memory or possibly 
  *	NULL if M_NOWAIT is set.
- *
  */
 static void *
 obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
@@ -923,7 +919,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	retkva = 0;
 
 	/* 
-	 * This looks a little weird since we're getting one page at a time
+	 * This looks a little weird since we're getting one page at a time.
 	 */
 	VM_OBJECT_LOCK(object);
 	p = TAILQ_LAST(&object->memq, pglist);
@@ -955,7 +951,6 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 done:
 	VM_OBJECT_UNLOCK(object);
-
 	*flags = UMA_SLAB_PRIV;
 
 	return ((void *)retkva);
@@ -971,7 +966,6 @@ done:
  *
  * Returns:
  *	Nothing
- *
  */
 static void
 page_free(void *mem, int size, u_int8_t flags)
@@ -990,7 +984,6 @@ page_free(void *mem, int size, u_int8_t flags)
  * Zero fill initializer
  *
  * Arguments/Returns follow uma_init specifications
- *
  */
 static void
 zero_init(void *mem, int size)
@@ -1051,7 +1044,6 @@ zone_small_init(uma_zone_t zone)
 			zone->uz_ipers = ipers;
 		}
 	}
-
 }
 
 /*
@@ -1095,7 +1087,6 @@ zone_large_init(uma_zone_t zone)
  *
  * Arguments/Returns follow uma_ctor specifications
  *	udata  Actually uma_zcreat_args
- *
  */
 
 static void
@@ -1208,7 +1199,6 @@ zone_ctor(void *mem, int size, void *udata)
 	 * Some internal zones don't have room allocated for the per cpu
 	 * caches.  If we're internal, bail out here.
 	 */
-
 	if (zone->uz_flags & UMA_ZFLAG_INTERNAL)
 		return;
 
@@ -1239,7 +1229,8 @@ zone_dtor(void *arg, int size, void *udata)
 
 	ZONE_LOCK(zone);
 	if (zone->uz_free != 0)
-		printf("Zone %s was not empty (%d items).  Lost %d pages of memory.\n",
+		printf("Zone %s was not empty (%d items). "
+		    " Lost %d pages of memory.\n",
 		    zone->uz_name, zone->uz_free, zone->uz_pages);
 
 	ZONE_UNLOCK(zone);
@@ -1264,9 +1255,8 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 	uma_zone_t zone;
 
 	mtx_lock(&uma_mtx);
-	LIST_FOREACH(zone, &uma_zones, uz_link) {
+	LIST_FOREACH(zone, &uma_zones, uz_link)
 		zfunc(zone);
-	}
 	mtx_unlock(&uma_mtx);
 }
 
@@ -1290,7 +1280,6 @@ uma_startup(void *bootmem)
 #endif
 #ifdef UMA_DEBUG 
 	printf("Max cpu = %d, mp_maxid = %d\n", maxcpu, mp_maxid);
-	Debugger("stop");
 #endif
 	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF);
 	/* "manually" Create the initial zone */
@@ -1329,7 +1318,6 @@ uma_startup(void *bootmem)
 	 * This is the max number of free list items we'll have with
 	 * offpage slabs.
 	 */
-
 	slabsize = UMA_SLAB_SIZE - sizeof(struct uma_slab);
 	slabsize /= UMA_MAX_WASTE;
 	slabsize++;			/* In case there it's rounded */
@@ -1446,7 +1434,6 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		}
 	}
 #endif
-
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
@@ -1490,7 +1477,8 @@ zalloc_start:
 			 */
 			if (cache->uc_freebucket->ub_cnt > 0) {
 #ifdef UMA_DEBUG_ALLOC
-				printf("uma_zalloc: Swapping empty with alloc.\n");
+				printf("uma_zalloc: Swapping empty with"
+				    " alloc.\n");
 #endif
 				bucket = cache->uc_freebucket;
 				cache->uc_freebucket = cache->uc_allocbucket;
@@ -1530,12 +1518,10 @@ zalloc_start:
 	/* Bump up our uz_count so we get here less */
 	if (zone->uz_count < BUCKET_MAX)
 		zone->uz_count++;
-
 	/*
 	 * Now lets just fill a bucket and put it on the free list.  If that
 	 * works we'll restart the allocation from the begining.
 	 */
-
 	if (uma_zalloc_bucket(zone, flags)) {
 		ZONE_UNLOCK(zone);
 		goto zalloc_restart;
@@ -1601,7 +1587,8 @@ uma_zone_slab(uma_zone_t zone, int flags)
 			if (flags & M_NOWAIT)
 				break;
 			else 
-				msleep(zone, &zone->uz_lock, PVM, "zonelimit", 0);
+				msleep(zone, &zone->uz_lock, PVM,
+				    "zonelimit", 0);
 			continue;
 		}
 		zone->uz_recurse++;
@@ -1661,7 +1648,6 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 	/*
 	 * Try this zone's free list first so we don't allocate extra buckets.
 	 */
-
 	if ((bucket = LIST_FIRST(&zone->uz_free_bucket)) != NULL) {
 		KASSERT(bucket->ub_cnt == 0,
 		    ("uma_zalloc_bucket: Bucket on free list is not empty."));
@@ -1837,13 +1823,11 @@ zfree_start:
 			}
 		}
 	} 
-
 	/*
 	 * We can get here for two reasons:
 	 *
 	 * 1) The buckets are NULL
 	 * 2) The alloc and free buckets are both somewhat full.
-	 *
 	 */
 
 	ZONE_LOCK(zone);
@@ -1898,9 +1882,10 @@ zfree_internal:
 
 #ifdef INVARIANTS
 	/*
-	 * If we need to skip the dtor and the uma_dbg_free in uma_zfree_internal
-	 * because we've already called the dtor above, but we ended up here, then
-	 * we need to make sure that we take care of the uma_dbg_free immediately.
+	 * If we need to skip the dtor and the uma_dbg_free in
+	 * uma_zfree_internal because we've already called the dtor
+	 * above, but we ended up here, then we need to make sure
+	 * that we take care of the uma_dbg_free immediately.
 	 */
 	if (skip) {
 		ZONE_LOCK(zone);
@@ -1926,7 +1911,6 @@ zfree_internal:
  *	udata  User supplied data for the dtor
  *	skip   Skip the dtor, it was done in uma_zfree_arg
  */
-
 static void
 uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 {
@@ -2008,9 +1992,7 @@ void
 uma_zone_set_freef(uma_zone_t zone, uma_free freef)
 {
 	ZONE_LOCK(zone);
-
 	zone->uz_freef = freef;
-
 	ZONE_UNLOCK(zone);
 }
 
@@ -2019,10 +2001,8 @@ void
 uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf)
 {
 	ZONE_LOCK(zone);
-
 	zone->uz_flags |= UMA_ZFLAG_PRIVALLOC;
 	zone->uz_allocf = allocf;
-
 	ZONE_UNLOCK(zone);
 }
 
@@ -2046,12 +2026,10 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 		mtx_unlock(&Giant);
 		return (0);
 	}
-
-
-	if (obj == NULL)
+	if (obj == NULL) {
 		obj = vm_object_allocate(OBJT_DEFAULT,
 		    pages);
-	else {
+	} else {
 		VM_OBJECT_LOCK_INIT(obj);
 		_vm_object_allocate(OBJT_DEFAULT,
 		    pages, obj);
@@ -2060,10 +2038,8 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	zone->uz_kva = kva;
 	zone->uz_obj = obj;
 	zone->uz_maxpages = pages;
-
 	zone->uz_allocf = obj_alloc;
 	zone->uz_flags |= UMA_ZONE_NOFREE | UMA_ZFLAG_PRIVALLOC;
-
 	ZONE_UNLOCK(zone);
 	mtx_unlock(&Giant);
 
@@ -2081,7 +2057,6 @@ uma_prealloc(uma_zone_t zone, int items)
 	slabs = items / zone->uz_ipers;
 	if (slabs * zone->uz_ipers < items)
 		slabs++;
-
 	while (slabs > 0) {
 		slab = slab_zalloc(zone, M_WAITOK);
 		LIST_INSERT_HEAD(&zone->uz_free_slab, slab, us_link);
@@ -2134,7 +2109,6 @@ uma_large_malloc(int size, int wait)
 	slab = uma_zalloc_internal(slabzone, NULL, wait);
 	if (slab == NULL)
 		return (NULL);
-
 	mem = page_alloc(NULL, size, &flags, wait);
 	if (mem) {
 		vsetslab((vm_offset_t)mem, slab);
