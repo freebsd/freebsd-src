@@ -421,7 +421,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	};
 #endif
 	char *kernels[] = {
-#if __FreeBSD__ > 2
+#if __FreeBSD__ > 1
 		(char *)getbootfile(),
 #endif
 		"/vmunix",
