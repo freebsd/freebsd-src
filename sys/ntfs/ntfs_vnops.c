@@ -298,10 +298,6 @@ ntfs_reclaim(ap)
 	
 	/* Purge old data structures associated with the inode. */
 	cache_purge(vp);
-	if (ip->i_devvp) {
-		vrele(ip->i_devvp);
-		ip->i_devvp = NULL;
-	}
 
 	ntfs_frele(fp);
 	ntfs_ntput(ip);
