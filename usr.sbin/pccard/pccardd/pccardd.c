@@ -161,14 +161,18 @@ main(int argc, char *argv[])
 	int irq_specified = 0;
 	int i;
 	struct sockaddr_un sun;
-#define	COM_OPTS	":dvf:s:i:z"
+#define	COM_OPTS	":Idvf:s:i:z"
 
 	bzero(irq_arg, sizeof(irq_arg));
+	use_kern_irq = 1;
 	debug_level = 0;
 	pccard_init_sleep = 5000000;
 	cards = last_card = 0;
 	while ((count = getopt(argc, argv, COM_OPTS)) != -1) {
 		switch (count) {
+		case 'I':
+			use_kern_irq = 0;
+			break;
 		case 'd':
 			setbuf(stdout, 0);
 			setbuf(stderr, 0);
