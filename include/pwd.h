@@ -71,8 +71,8 @@
 struct passwd {
 	char	*pw_name;		/* user name */
 	char	*pw_passwd;		/* encrypted password */
-	int	pw_uid;			/* user uid */
-	int	pw_gid;			/* user gid */
+	uid_t	pw_uid;			/* user uid */
+	gid_t	pw_gid;			/* user gid */
 	time_t	pw_change;		/* password change time */
 	char	*pw_class;		/* user access class */
 	char	*pw_gecos;		/* Honeywell login info */
