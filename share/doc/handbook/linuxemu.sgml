@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.8 1996/05/24 19:33:32 jfieber Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.9 1996/08/12 11:48:47 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -58,7 +58,7 @@ also add the following.
 options SYSVSHM
 </verb>
 </tscreen>
-The linux system calls require 4.3 BSD system call compatibility.  So
+The linux system calls require 4.3BSD system call compatibility.  So
 make sure you have the following.
 <tscreen>
 <verb>
