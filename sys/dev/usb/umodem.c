@@ -39,7 +39,8 @@
  */
 
 /*
- * Comm Class spec: http://www.usb.org/developers/data/usbcdc11.pdf
+ * Comm Class spec: http://www.usb.org/developers/data/devclass/usbcdc10.pdf
+ *		    http://www.usb.org/developers/data/devclass/usbcdc11.pdf
  */
 
 /*
