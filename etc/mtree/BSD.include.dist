@@ -12,8 +12,8 @@
         ..
     ..
     dev
-	ic
-	..
+        ic
+        ..
         ppbus
         ..
         usb
