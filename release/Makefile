@@ -65,7 +65,7 @@ DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
 #
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
-CRYPTO_DISTS?=	krb4 des
+CRYPTO_DISTS?=	des krb4
 BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
