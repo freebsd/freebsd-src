@@ -137,7 +137,8 @@ redirect:
 			case 'D':
 				if (pd)
 					goto new;
-				if ((p = memchr(ps, '\n', psl - 1)) == NULL) {
+				if (psl == 0 ||
+				    (p = memchr(ps, '\n', psl - 1)) == NULL) {
 					pd = 1;
 					goto new;
 				} else {
@@ -189,7 +190,8 @@ redirect:
 			case 'P':
 				if (pd)
 					break;
-				if ((p = memchr(ps, '\n', psl - 1)) != NULL) {
+				if (psl != 0 &&
+				    (p = memchr(ps, '\n', psl - 1)) != NULL) {
 					oldpsl = psl;
 					psl = (p + 1) - ps;
 				}
@@ -241,7 +243,7 @@ redirect:
 				HS = tspace;
 				break;
 			case 'y':
-				if (pd)
+				if (pd || psl == 0)
 					break;
 				for (p = ps, len = psl; --len; ++p)
 					*p = cp->u.y[(unsigned char)*p];
