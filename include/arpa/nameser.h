@@ -53,7 +53,7 @@
  *
  *      @(#)nameser.h	8.2 (Berkeley) 2/16/94
  *	From Id: nameser.h,v 4.9.1.15 1994/07/19 22:51:24 vixie Exp
- *	$Id$
+ *	$Id: nameser.h,v 1.6 1996/01/07 05:01:52 peter Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -202,7 +202,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	qr: 1;		/* response flag */
 	unsigned	opcode: 4;	/* purpose of message */
-	unsigned	aa: 1;		/* authoritive answer */
+	unsigned	aa: 1;		/* authoritative answer */
 	unsigned	tc: 1;		/* truncated message */
 	unsigned	rd: 1;		/* recursion desired */
 			/* fields in fourth byte */
@@ -214,7 +214,7 @@ typedef struct {
 			/* fields in third byte */
 	unsigned	rd :1;		/* recursion desired */
 	unsigned	tc :1;		/* truncated message */
-	unsigned	aa :1;		/* authoritive answer */
+	unsigned	aa :1;		/* authoritative answer */
 	unsigned	opcode :4;	/* purpose of message */
 	unsigned	qr :1;		/* response flag */
 			/* fields in fourth byte */

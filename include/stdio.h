@@ -162,8 +162,8 @@ __END_DECLS
 #define	__SMBF	0x0080		/* _buf is from malloc */
 #define	__SAPP	0x0100		/* fdopen()ed in append mode */
 #define	__SSTR	0x0200		/* this is an sprintf/snprintf string */
-#define	__SOPT	0x0400		/* do fseek() optimisation */
-#define	__SNPT	0x0800		/* do not do fseek() optimisation */
+#define	__SOPT	0x0400		/* do fseek() optimization */
+#define	__SNPT	0x0800		/* do not do fseek() optimization */
 #define	__SOFF	0x1000		/* set iff _offset is in fact correct */
 #define	__SMOD	0x2000		/* true => fgetln modified _p text */
 
