@@ -5,12 +5,12 @@
 all:
 	@echo "make sysent only"
 
-sysent:  ia32_sysent.c ia32_syscall.h ia32_proto.h
+sysent:  freebsd32_sysent.c freebsd32_syscall.h freebsd32_proto.h
 
-ia32_sysent.c ia32_syscalls.c ia32_syscall.h ia32_proto.h: ../../kern/makesyscalls.sh \
-		syscalls.master syscalls.conf
-	-mv -f ia32_sysent.c ia32_sysent.c.bak
-	-mv -f ia32_syscalls.c ia32_syscalls.c.bak
-	-mv -f ia32_syscall.h ia32_syscall.h.bak
-	-mv -f ia32_proto.h ia32_proto.h.bak
+freebsd32_sysent.c freebsd32_syscalls.c freebsd32_syscall.h freebsd32_proto.h: \
+	    ../../kern/makesyscalls.sh syscalls.master syscalls.conf
+	-mv -f freebsd32_sysent.c freebsd32_sysent.c.bak
+	-mv -f freebsd32_syscalls.c freebsd32_syscalls.c.bak
+	-mv -f freebsd32_syscall.h freebsd32_syscall.h.bak
+	-mv -f freebsd32_proto.h freebsd32_proto.h.bak
 	sh ../../kern/makesyscalls.sh syscalls.master syscalls.conf

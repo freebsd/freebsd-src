@@ -37,8 +37,8 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/mount.h>
-#include <amd64/ia32/ia32.h>
-#include <amd64/ia32/ia32_proto.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
 
 ; Reserved/unimplemented system calls in the range 0-150 inclusive
 ; are reserved for use in future Berkeley releases.
@@ -51,12 +51,12 @@
 2	MNOPROTO POSIX	{ int fork(void); }
 3	MNOPROTO POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
 4	MNOPROTO POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
-5	STD	POSIX	{ int ia32_open(char *path, int flags, int mode); }
+5	STD	POSIX	{ int freebsd32_open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for `const' or varargs.
 ; XXX man page says `mode_t mode'.
 6	MNOPROTO POSIX	{ int close(int fd); }
-7	MSTD BSD	{ int ia32_wait4(int pid, int *status, int options, \
+7	MSTD BSD	{ int freebsd32_wait4(int pid, int *status, int options, \
 			    struct rusage32 *rusage); }
 8	OBSOL	BSD	old creat
 9	NOPROTO	POSIX	{ int link(char *path, char *link); }
@@ -68,7 +68,7 @@
 15	NOPROTO	POSIX	{ int chmod(char *path, int mode); }
 16	NOPROTO	POSIX	{ int chown(char *path, int uid, int gid); }
 17	MNOPROTO BSD	{ int obreak(char *nsize); } break obreak_args int
-18	STD	BSD	{ int ia32_getfsstat(struct statfs32 *buf, \
+18	STD	BSD	{ int freebsd32_getfsstat(struct statfs32 *buf, \
 			    long bufsize, int flags); }
 19	OBSOL	POSIX	olseek
 20	MNOPROTO POSIX	{ pid_t getpid(void); }
@@ -88,8 +88,8 @@
 30	MNOPROTO BSD	{ int accept(int s, caddr_t name, int *anamelen); }
 31	MNOPROTO BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
 32	MNOPROTO BSD	{ int getsockname(int fdes, caddr_t asa, int *alen); }
-33	STD	POSIX	{ int ia32_access(char *path, int flags); }
-34	STD	BSD	{ int ia32_chflags(char *path, int flags); }
+33	STD	POSIX	{ int freebsd32_access(char *path, int flags); }
+34	STD	BSD	{ int freebsd32_chflags(char *path, int flags); }
 35	NOPROTO	BSD	{ int fchflags(int fd, int flags); }
 36	NOPROTO	BSD	{ int sync(void); }
 37	MNOPROTO POSIX	{ int kill(int pid, int signum); }
@@ -110,13 +110,15 @@
 50	MNOPROTO BSD	{ int setlogin(char *namebuf); }
 51	MNOPROTO BSD	{ int acct(char *path); }
 52	MNOPROTO POSIX	{ int sigpending(void); }
-53	STD	BSD	{ int ia32_sigaltstack(struct sigaltstack32 *ss, struct sigaltstack32 *oss); }
+53	STD	BSD	{ int freebsd32_sigaltstack(struct sigaltstack32 *ss, \
+			    struct sigaltstack32 *oss); }
 54	MNOPROTO POSIX	{ int ioctl(int fd, u_long com, caddr_t data); }
 55	MNOPROTO BSD	{ int reboot(int opt); }
 56	NOPROTO	POSIX	{ int revoke(char *path); }
 57	NOPROTO	POSIX	{ int symlink(char *path, char *link); }
 58	NOPROTO	POSIX	{ int readlink(char *path, char *buf, int count); }
-59	STD	 POSIX	{ int ia32_execve(char *fname, u_int32_t *argv, u_int32_t *envv); }
+59	STD	 POSIX	{ int freebsd32_execve(char *fname, u_int32_t *argv, \
+			    u_int32_t *envv); }
 60	MNOPROTO POSIX	{ int umask(int newmask); } umask umask_args int
 61	NOPROTO	BSD	{ int chroot(char *path); }
 62	OBSOL	POSIX	ofstat
@@ -131,7 +133,8 @@
 71	OBSOL	BSD	ommap
 72	MNOPROTO BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
 73	MNOPROTO BSD	{ int munmap(void *addr, size_t len); }
-74	MNOPROTO BSD	{ int mprotect(const void *addr, size_t len, int prot); }
+74	MNOPROTO BSD	{ int mprotect(const void *addr, size_t len, \
+			    int prot); }
 75	MNOPROTO BSD	{ int madvise(void *addr, size_t len, int behav); }
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
@@ -141,7 +144,7 @@
 80	MNOPROTO POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	MNOPROTO POSIX	{ int getpgrp(void); }
 82	MNOPROTO POSIX	{ int setpgid(int pid, int pgid); }
-83	STD	BSD	{ int ia32_setitimer(u_int which, \
+83	STD	BSD	{ int freebsd32_setitimer(u_int which, \
 			    struct itimerval32 *itv, \
 			    struct itimerval32 *oitv); }
 84	OBSOL	BSD	owait
@@ -156,7 +159,7 @@
 ; XXX should be		{ int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
 ; XXX man page says `int arg' too.
-93	STD	BSD	{ int ia32_select(int nd, fd_set *in, fd_set *ou, \
+93	STD	BSD	{ int freebsd32_select(int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval32 *tv); }
 ; XXX need to override for big-endian - little-endian should work fine.
 94	UNIMPL	BSD	setdopt
@@ -183,16 +186,18 @@
 113	OBSOL	BSD	orecvmsg
 114	OBSOL	BSD	osendmsg
 115	OBSOL	NOHIDE	vtrace
-116	STD	BSD	{ int ia32_gettimeofday(struct timeval32 *tp, \
+116	STD	BSD	{ int freebsd32_gettimeofday(struct timeval32 *tp, \
 			    struct timezone *tzp); }
-117	STD	BSD	{ int ia32_getrusage(int who, struct rusage32 *rusage); }
+117	STD	BSD	{ int freebsd32_getrusage(int who, \
+			    struct rusage32 *rusage); }
 118	MNOPROTO BSD	{ int getsockopt(int s, int level, int name, \
 			    caddr_t val, int *avalsize); }
 119	UNIMPL	NOHIDE	resuba (BSD/OS 2.x)
-120	STD	BSD	{ int ia32_readv(int fd, struct iovec32 *iovp, u_int iovcnt); }
-121	STD	BSD	{ int ia32_writev(int fd, struct iovec32 *iovp, \
+120	STD	BSD	{ int freebsd32_readv(int fd, struct iovec32 *iovp, \
 			    u_int iovcnt); }
-122	STD	BSD	{ int ia32_settimeofday(struct timeval32 *tv, \
+121	STD	BSD	{ int freebsd32_writev(int fd, struct iovec32 *iovp, \
+			    u_int iovcnt); }
+122	STD	BSD	{ int freebsd32_settimeofday(struct timeval32 *tv, \
 			    struct timezone *tzp); }
 123	NOPROTO	BSD	{ int fchown(int fd, int uid, int gid); }
 124	NOPROTO	BSD	{ int fchmod(int fd, int mode); }
@@ -213,10 +218,10 @@
 			    int *rsv); }
 136	NOPROTO	POSIX	{ int mkdir(char *path, int mode); }
 137	NOPROTO	POSIX	{ int rmdir(char *path); }
-138	STD	BSD	{ int ia32_utimes(char *path, \
+138	STD	BSD	{ int freebsd32_utimes(char *path, \
 			    struct timeval32 *tptr); }
 139	OBSOL	NOHIDE	4.2 sigreturn
-140	STD	BSD	{ int ia32_adjtime(struct timeval32 *delta, \
+140	STD	BSD	{ int freebsd32_adjtime(struct timeval32 *delta, \
 			    struct timeval32 *olddelta); }
 141	OBSOL	BSD	ogetpeername
 142	OBSOL	BSD	ogethostid
@@ -242,8 +247,9 @@
 155	UNIMPL	NOHIDE	nfssvc
 156	NOPROTO	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
 			    long *basep); }
-157	STD	BSD	{ int ia32_statfs(char *path, struct statfs32 *buf); }
-158	STD	BSD	{ int ia32_fstatfs(int fd, struct statfs32 *buf); }
+157	STD	BSD	{ int freebsd32_statfs(char *path, \
+			    struct statfs32 *buf); }
+158	STD	BSD	{ int freebsd32_fstatfs(int fd, struct statfs32 *buf); }
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
 161	NOPROTO	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
@@ -255,16 +261,18 @@
 			    struct rtprio *rtp); }
 167	UNIMPL	NOHIDE	nosys
 168	UNIMPL	NOHIDE	nosys
-169	STD	BSD	{ int ia32_semsys(int which, int a2, int a3, int a4, \
-			    int a5); }
-170	STD	BSD	{ int ia32_msgsys(int which, int a2, int a3, int a4, \
-			    int a5, int a6); }
-171	STD	BSD	{ int ia32_shmsys(int which, int a2, int a3, int a4); }
+169	STD	BSD	{ int freebsd32_semsys(int which, int a2, int a3, \
+			    int a4, int a5); }
+170	STD	BSD	{ int freebsd32_msgsys(int which, int a2, int a3, \
+			    int a4, int a5, int a6); }
+171	STD	BSD	{ int freebsd32_shmsys(int which, int a2, int a3, \
+			    int a4); }
 172	UNIMPL	NOHIDE	nosys
-173	STD POSIX	{ ssize_t ia32_pread(int fd, void *buf, size_t nbyte, \
-			    int pad, u_int32_t offsetlo, u_int32_t offsethi); }
+173	STD POSIX	{ ssize_t freebsd32_pread(int fd, void *buf, \
+			    size_t nbyte, int pad, u_int32_t offsetlo, \
+			    u_int32_t offsethi); }
 ; XXX note - bigendian is different
-174	STD	POSIX	{ ssize_t ia32_pwrite(int fd, const void *buf, \
+174	STD	POSIX	{ ssize_t freebsd32_pwrite(int fd, const void *buf, \
 			    size_t nbyte, int pad, u_int32_t offsetlo, \
 			    u_int32_t offsethi); }
 ; XXX note - bigendian is different
@@ -283,9 +291,9 @@
 185	UNIMPL	BSD	lfs_markv
 186	UNIMPL	BSD	lfs_segclean
 187	UNIMPL	BSD	lfs_segwait
-188	STD	POSIX	{ int ia32_stat(char *path, struct stat32 *ub); }
-189	STD	POSIX	{ int ia32_fstat(int fd, struct stat32 *ub); }
-190	STD	POSIX	{ int ia32_lstat(char *path, struct stat32 *ub); }
+188	STD	POSIX	{ int freebsd32_stat(char *path, struct stat32 *ub); }
+189	STD	POSIX	{ int freebsd32_fstat(int fd, struct stat32 *ub); }
+190	STD	POSIX	{ int freebsd32_lstat(char *path, struct stat32 *ub); }
 191	NOPROTO	POSIX	{ int pathconf(char *path, int name); }
 192	MNOPROTO POSIX	{ int fpathconf(int fd, int name); }
 193	UNIMPL	NOHIDE	nosys
@@ -297,21 +305,21 @@
 			    setrlimit __setrlimit_args int
 196	NOPROTO	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
 			    long *basep); }
-197	STD BSD		{ caddr_t ia32_mmap(caddr_t addr, size_t len, \
+197	STD BSD		{ caddr_t freebsd32_mmap(caddr_t addr, size_t len, \
 			    int prot, int flags, int fd, int pad, \
 			    u_int32_t poslo, u_int32_t poshi); }
 198	NOPROTO	NOHIDE	{ int nosys(void); } __syscall __syscall_args int
 ; XXX note - bigendian is different
-199	STD	POSIX	{ off_t ia32_lseek(int fd, int pad, \
+199	STD	POSIX	{ off_t freebsd32_lseek(int fd, int pad, \
 			    u_int32_t offsetlo, u_int32_t offsethi, \
 			    int whence); }
 ; XXX note - bigendian is different
-200	STD	BSD	{ int ia32_truncate(char *path, int pad, \
+200	STD	BSD	{ int freebsd32_truncate(char *path, int pad, \
 			    u_int32_t lengthlo, u_int32_t lengthhi); }
 ; XXX note - bigendian is different
-201	STD	BSD	{ int ia32_ftruncate(int fd, int pad, \
+201	STD	BSD	{ int freebsd32_ftruncate(int fd, int pad, \
 			    u_int32_t lengthlo, u_int32_t lengthhi); }
-202	MSTD BSD	{ int ia32_sysctl(int *name, u_int namelen, \
+202	MSTD BSD	{ int freebsd32_sysctl(int *name, u_int namelen, \
 			    void *old, u_int32_t *oldlenp, void *new, \
 			    u_int32_t newlen); }
 203	MNOPROTO BSD	{ int mlock(const void *addr, size_t len); }
@@ -475,20 +483,22 @@
 334	MNOPROTO POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	NOPROTO	BSD	{ int utrace(const void *addr, size_t len); }
 ; XXX note - bigendian is different
-336	MCOMPAT4 BSD	{ int ia32_sendfile(int fd, int s, u_int32_t offsetlo,\
-			    u_int32_t offsethi, size_t nbytes, \
-			    struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
+336	MCOMPAT4 BSD	{ int freebsd32_sendfile(int fd, int s, \
+			    u_int32_t offsetlo,u_int32_t offsethi, \
+			    size_t nbytes, struct sf_hdtr *hdtr, \
+			    off_t *sbytes, int flags); }
 337	NOPROTO	BSD	{ int kldsym(int fileid, int cmd, void *data); }
 338	MNOPROTO BSD	{ int jail(struct jail *jail); }
 339	UNIMPL	BSD	pioctl
 340	MNOPROTO POSIX	{ int sigprocmask(int how, const sigset_t *set, \
 			    sigset_t *oset); }
 341	MNOPROTO POSIX	{ int sigsuspend(const sigset_t *sigmask); }
-342	COMPAT4 POSIX	{ int ia32_sigaction(int sig, \
+342	COMPAT4 POSIX	{ int freebsd32_sigaction(int sig, \
 			    struct sigaction32 *act, \
 			    struct sigaction32 *oact); }
 343	MNOPROTO POSIX	{ int sigpending(sigset_t *set); }
-344	MCOMPAT4 BSD	{ int ia32_sigreturn(const struct __ucontext *sigcntxp); }
+344	MCOMPAT4 BSD	{ int freebsd32_sigreturn( \
+			    const struct __ucontext *sigcntxp); }
 345	UNIMPL	NOHIDE	sigtimedwait
 346	UNIMPL	NOHIDE	sigwaitinfo
 347	MNOPROTO BSD	{ int __acl_get_file(const char *path, \
@@ -521,7 +531,7 @@
 360	MNOPROTO BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 361	MNOPROTO BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 362	MNOPROTO BSD	{ int kqueue(void); }
-363	MSTD BSD	{ int ia32_kevent(int fd, \
+363	MSTD BSD	{ int freebsd32_kevent(int fd, \
 			    const struct kevent *changelist, int nchanges, \
 			    struct kevent *eventlist, int nevents, \
 			    const struct timespec *timeout); }
@@ -561,9 +571,10 @@
 			    int len); }
 391	NOPROTO	BSD	{ int lchflags(const char *path, int flags); }
 392	NOPROTO	BSD	{ int uuidgen(struct uuid *store, int count); }
-393	MSTD	BSD	{ int ia32_sendfile(int fd, int s, u_int32_t offsetlo, \
-			    u_int32_t offsethi, size_t nbytes, \
-			    struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
+393	MSTD	BSD	{ int freebsd32_sendfile(int fd, int s, \
+			    u_int32_t offsetlo, u_int32_t offsethi, \
+			    size_t nbytes, struct sf_hdtr *hdtr, \
+			    off_t *sbytes, int flags); }
 394	UNIMPL	NOHIDE	mac_syscall
 395	UNIMPL	NOHIDE	nosys
 396	UNIMPL	NOHIDE	nosys
@@ -586,10 +597,11 @@
 413	UNIMPL	BSD	extattr_get_link
 414	UNIMPL	BSD	extattr_delete_link
 415	UNIMPL	BSD	__mac_execve
-416	STD POSIX	{ int ia32_sigaction(int sig, \
+416	STD POSIX	{ int freebsd32_sigaction(int sig, \
 			    struct sigaction32 *act, \
 			    struct sigaction32 *oact); }
-417	MSTD BSD	{ int ia32_sigreturn(const struct ia32_ucontext *sigcntxp); }
+417	MSTD BSD	{ int freebsd32_sigreturn( \
+			    const struct freebsd32_ucontext *sigcntxp); }
 418	UNIMPL	BSD	__xstat
 419	UNIMPL	BSD	__xfstat
 420	UNIMPL	BSD	__xlstat
