@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.495
+    Original revision: 1.496
 -->
 
 <articleinfo>
@@ -121,7 +121,8 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para arch="pc98">CanBe の電源管理コントローラに対応しました。</para>
+    <para arch="pc98">CanBe の電源管理コントローラに対応しました。
+      &merged;</para>
 
     <para>&man.devfs.5; がオプション機能ではなく、必須になりました。
       <literal>NODEVFS</literal> オプションは、
@@ -177,7 +178,9 @@
     <sect3>
       <title>ネットワークプロトコル</title>
 
-      <para></para>
+      <para>NewReno を有効にしていると高速リカバリが途中で終了してしまうという、
+        TCP NewReno のバグが修正されました。
+        &merged;</para>
     </sect3>
 
     <sect3>
@@ -302,6 +305,12 @@
       <filename>/usr/bin</filename> から
       <filename>/bin</filename> に移されました。</para>
 
+    <para>&man.devfs.5; の利用が必須となったため、
+       必要がなくなった MAKEDEV スクリプトは削除されました。</para>
+
+    <para>ユーザランドから &man.geom.4; サブシステムの一部へのアクセスを提供する
+      &man.libgeom.3; ライブラリが追加されました。</para>
+
     <para>&man.newsyslog.8; に、エントリの圧縮処理の開始前に、
       前回開始した圧縮処理を強制終了させる
       <literal>W</literal> フラグ (エントリのグループの場合は
@@ -309,6 +318,10 @@
       この機能は、大きいファイルを同時に圧縮する処理でシステムが過負荷に
       なるのを避けるためのものです。
       &merged;</para>
+
+    <para>&man.pam.ssh.8; が書き換えられました。
+      その影響で、各セションは最初のセションで実行されたエージェントに接続しようとするのではなく、
+      各セションに対して個別に &man.ssh-agent.1; が実行されるようになっています。</para>
 
     <para>&man.ping.8; に、送出パケットの
       <quote>Don't Fragment</quote> ビットをセットする
@@ -338,6 +351,10 @@
           機能は実験的なものと考えられています。</para>
       </note>
     </para>
+
+    <para>&man.syslogd.8; は、&man.syslog.conf.5;
+      ファイル中でホストやプログラムを指定する部分に、
+      複数のホストやプログラムを指定できるようになりました。</para>
 
     <para>&man.systat.1; に、新しく <option>-ifstat</option>
       ディスプレイモードが追加されました。
@@ -382,7 +399,8 @@
         デバイス対応が含まれています。</para>
 
       <para><application>sendmail</application> がバージョン
-        8.12.7 に更新されました。</para>
+        8.12.7 に更新されました。
+        &merged;</para>
 
       <para>&man.tcpdump.1; に、
         そのインタフェースで利用可能なデータリンクタイプを一覧表示する
