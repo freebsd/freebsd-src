@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.2 1998/06/14 13:45:21 dfr Exp $
+ *	$Id: dwlpx.c,v 1.3 1998/07/12 16:23:13 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -58,36 +58,42 @@ struct dwlpx_softc {
 
 #define DWLPX_SOFTC(dev)	(struct dwlpx_softc*) device_get_softc(dev)
 
-#define SPARSE_READ(o)			(*(u_int32_t*) (o))
-#define SPARSE_WRITE(o, d)		(*(u_int32_t*) (o) = (d))
+#define SPARSE_READ(kv)			(*(u_int32_t*) (kv))
+#define SPARSE_WRITE(kv, d)		(*(u_int32_t*) (kv) = (d))
 
 #define SPARSE_BYTE_OFFSET(o)		(((o) << 5) | ((o) & 3))
 #define SPARSE_WORD_OFFSET(o)		(((o) << 5) | ((o) & 2) | 0x8)
 #define SPARSE_LONG_OFFSET(o)		(((o) << 5) | 0x18)
 
+#define SPARSE_BYTE_ADDRESS(base, o)	((base) + SPARSE_BYTE_OFFSET(o))
+#define SPARSE_WORD_ADDRESS(base, o)	((base) + SPARSE_WORD_OFFSET(o))
+#define SPARSE_LONG_ADDRESS(base, o)	((base) + SPARSE_LONG_OFFSET(o))
+
 #define SPARSE_BYTE_EXTRACT(o, d)	((d) >> (8*((o) & 3)))
 #define SPARSE_WORD_EXTRACT(o, d)	((d) >> (8*((o) & 2)))
+#define SPARSE_LONG_EXTRACT(o, d)	(d)
 
 #define SPARSE_BYTE_INSERT(o, d)	((d) << (8*((o) & 3)))
 #define SPARSE_WORD_INSERT(o, d)	((d) << (8*((o) & 2)))
+#define SPARSE_LONG_INSERT(o, d)	(d)
 
 #define SPARSE_READ_BYTE(base, o)	\
-	SPARSE_BYTE_EXTRACT(o, SPARSE_READ(base + SPARSE_BYTE_OFFSET(o)))
+	SPARSE_BYTE_EXTRACT(o, SPARSE_READ(SPARSE_BYTE_ADDRESS(base, o)))
 
 #define SPARSE_READ_WORD(base, o)	\
-	SPARSE_WORD_EXTRACT(o, SPARSE_READ(base + SPARSE_WORD_OFFSET(o)))
+	SPARSE_WORD_EXTRACT(o, SPARSE_READ(SPARSE_WORD_ADDRESS(base, o)))
 
 #define SPARSE_READ_LONG(base, o)	\
-	SPARSE_READ(base + SPARSE_LONG_OFFSET(o))
+	SPARSE_READ(SPARSE_LONG_ADDRESS(base, o))
 
 #define SPARSE_WRITE_BYTE(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_BYTE_OFFSET(o), SPARSE_BYTE_INSERT(o, d))
+	SPARSE_WRITE(SPARSE_BYTE_ADDRESS(base, o), SPARSE_BYTE_INSERT(o, d))
 
 #define SPARSE_WRITE_WORD(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_WORD_OFFSET(o), SPARSE_WORD_INSERT(o, d))
+	SPARSE_WRITE(SPARSE_WORD_ADDRESS(base, o), SPARSE_WORD_INSERT(o, d))
 
 #define SPARSE_WRITE_LONG(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_LONG_OFFSET(o), d)
+	SPARSE_WRITE(SPARSE_LONG_ADDRESS(base, o), d)
 
 static alpha_chipset_inb_t	dwlpx_inb;
 static alpha_chipset_inw_t	dwlpx_inw;
@@ -149,6 +155,7 @@ static void
 dwlpx_outb(u_int32_t port, u_int8_t data)
 {
 	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
+
 	SPARSE_WRITE_BYTE(sc->io_base, port, data);
 }
 
@@ -177,58 +184,54 @@ dwlpx_maxdevs(u_int b)
 #define DWLPX_CFGOFF(b, s, f, r) \
 	(((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
 
+#define CFGREAD(b, s, f, r, width)					\
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);			\
+	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);			\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg_base, off);	\
+	if (badaddr((caddr_t)kv, 4)) return ~0;				\
+	return SPARSE_##width##_EXTRACT(off, SPARSE_READ(kv))
+
+#define CFGWRITE(b, s, f, r, data, width)				\
+	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);			\
+	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);			\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg_base, off);	\
+	if (badaddr((caddr_t)kv, 4)) return;				\
+	SPARSE_WRITE(kv, SPARSE_##width##_INSERT(off, data))
+
 static u_int8_t
 dwlpx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 1)) return ~0;
-	return SPARSE_READ_BYTE(sc->cfg_base, off);
+	CFGREAD(b, s, f, r, BYTE);
 }
 
 static u_int16_t
 dwlpx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 2)) return ~0;
-	return SPARSE_READ_WORD(sc->cfg_base, off);
+	CFGREAD(b, s, f, r, WORD);
 }
 
 static u_int32_t
 dwlpx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 4)) return ~0;
-	return SPARSE_READ_LONG(sc->cfg_base, off);
+	CFGREAD(b, s, f, r, LONG);
 }
 
 static void
 dwlpx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 1)) return;
-	SPARSE_WRITE_BYTE(sc->cfg_base, off, data);
+	CFGWRITE(b, s, f, r, data, BYTE);
 }
 
 static void
 dwlpx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 2)) return;
-	SPARSE_WRITE_WORD(sc->cfg_base, off, data);
+	CFGWRITE(b, s, f, r, data, WORD);
 }
 
 static void
 dwlpx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
-	struct dwlpx_softc* sc = DWLPX_SOFTC(dwlpx0);
-	vm_offset_t off = DWLPX_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg_base + off), 4)) return;
-	SPARSE_WRITE_LONG(sc->cfg_base, off, data);
+	CFGWRITE(b, s, f, r, data, LONG);
 }
 
 static int dwlpx_probe(device_t dev);
