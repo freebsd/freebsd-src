@@ -230,6 +230,9 @@ wi_pccard_attach(device_t dev)
 	if (vendor == PCMCIA_VENDOR_SYMBOL &&
 	    product == PCMCIA_PRODUCT_SYMBOL_LA4100) {
 #ifdef WI_SYMBOL_FIRMWARE
+		struct wi_softc *sc;
+
+		sc = device_get_softc(dev);
 		if (wi_symbol_load_firm(sc,
 		    spectrum24t_primsym, sizeof(spectrum24t_primsym),
 		    spectrum24t_secsym, sizeof(spectrum24t_secsym))) {
