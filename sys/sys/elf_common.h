@@ -154,12 +154,12 @@ typedef struct {
 #define SHT_PROGBITS	1		/* program defined information */
 #define SHT_SYMTAB	2		/* symbol table section */
 #define SHT_STRTAB	3		/* string table section */
-#define SHT_RELA	4		/* relocation section with addends*/
+#define SHT_RELA	4		/* relocation section with addends */
 #define SHT_HASH	5		/* symbol hash table section */
 #define SHT_DYNAMIC	6		/* dynamic section */ 
 #define SHT_NOTE	7		/* note section */
 #define SHT_NOBITS	8		/* no space section */
-#define SHT_REL		9		/* relation section without addends */
+#define SHT_REL		9		/* relocation section - no addends */
 #define SHT_SHLIB	10		/* reserved - purpose unknown */
 #define SHT_DYNSYM	11		/* dynamic symbol table section */ 
 #define SHT_NUM		12		/* number of section types */
