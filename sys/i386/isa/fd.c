@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.82 1996/03/29 11:45:12 bde Exp $
+ *	$Id: fd.c,v 1.83 1996/03/31 18:04:51 joerg Exp $
  *
  */
 
@@ -773,8 +773,8 @@ fdattach(struct isa_device *dev)
 		fd->cdev = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
 					    UID_ROOT, GID_OPERATOR, 0640,
 					    "%s", name);
-		dev_linkf(fd->bdev, "fd%d", fdu);
-		dev_linkf(fd->cdev, "rfd%d", fdu);
+		devfs_link(fd->bdev, "fd%d", fdu);
+		devfs_link(fd->cdev, "rfd%d", fdu);
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
