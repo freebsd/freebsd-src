@@ -336,14 +336,14 @@ c_conv(const void *a, const void *b)
 /*
  * Convert an expression of the following forms to a uintmax_t.
  * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a b (mult by 512).
- *	3) A positive decimal number followed by a k (mult by 1 << 10).
- *	4) A positive decimal number followed by a m (mult by 1 << 20).
- *	5) A positive decimal number followed by a g (mult by 1 << 30).
- *	5) A positive decimal number followed by a w (mult by sizeof int).
- *	6) Two or more positive decimal numbers (with/without [bkmgw])
- *	   separated by x (also * for backwards compatibility), specifying
- *	   the product of the indicated values.
+ *	2) A positive decimal number followed by a 'b' or 'B' (mult by 512).
+ *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
+ *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
+ *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
+ *	5) A positive decimal number followed by a 'w' or 'W' (mult by sizeof int).
+ *	6) Two or more positive decimal numbers (with/without [BbKkMmGgWw])
+ *	   separated by 'x' or 'X' (also '*' for backwards compatibility),
+ *	   specifying the product of the indicated values.
  */
 static uintmax_t
 get_num(const char *val)
@@ -361,18 +361,23 @@ get_num(const char *val)
 
 	mult = 0;
 	switch (*expr) {
+	case 'B':
 	case 'b':
 		mult = 512;
 		break;
+	case 'K':
 	case 'k':
 		mult = 1 << 10;
 		break;
+	case 'M':
 	case 'm':
 		mult = 1 << 20;
 		break;
+	case 'G':
 	case 'g':
 		mult = 1 << 30;
 		break;
+	case 'W':
 	case 'w':
 		mult = sizeof(int);
 		break;
@@ -393,6 +398,7 @@ get_num(const char *val)
 		case '\0':
 			break;
 		case '*':			/* Backward compatible. */
+		case 'X':
 		case 'x':
 			mult = get_num(expr + 1);
 			prevnum = num;
@@ -429,18 +435,23 @@ get_off_t(const char *val)
 
 	mult = 0;
 	switch (*expr) {
+	case 'B':
 	case 'b':
 		mult = 512;
 		break;
+	case 'K':
 	case 'k':
 		mult = 1 << 10;
 		break;
+	case 'M':
 	case 'm':
 		mult = 1 << 20;
 		break;
+	case 'G':
 	case 'g':
 		mult = 1 << 30;
 		break;
+	case 'W':
 	case 'w':
 		mult = sizeof(int);
 		break;
@@ -459,6 +470,7 @@ get_off_t(const char *val)
 		case '\0':
 			break;
 		case '*':			/* Backward compatible. */
+		case 'X':
 		case 'x':
 			mult = (intmax_t)get_off_t(expr + 1);
 			prevnum = num;
