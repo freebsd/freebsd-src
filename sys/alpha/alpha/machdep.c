@@ -1440,7 +1440,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
-#ifdef COMPAT_43
 int
 osigreturn(struct thread *td,
 	struct osigreturn_args /* {
@@ -1500,7 +1499,6 @@ osigreturn(struct thread *td,
 	td->td_pcb->pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
 }
-#endif
 
 int
 sigreturn(struct thread *td,

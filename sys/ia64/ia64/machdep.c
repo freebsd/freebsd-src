@@ -936,24 +936,16 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 }
 
 /*
- * System call to cleanup state after a signal
- * has been taken.  Reset signal mask and
- * stack state from context left by sendsig (above).
- * Return to previous pc and psl as specified by
- * context left by sendsig. Check carefully to
- * make sure that the user has not modified the
- * state to gain improper privileges.
+ * Stub to satisfy the reference to osigreturn in the syscall table.  This
+ * is needed even for newer arches that don't support old signals because
+ * the syscall table is machine-independent.
  */
-#ifdef COMPAT_43
 int
-osigreturn(struct thread *td,
-	struct osigreturn_args /* {
-		struct osigcontext *sigcntxp;
-	} */ *uap)
+osigreturn(struct thread *td, struct osigreturn_args *uap)
 {
-	return EOPNOTSUPP;
+
+	return (nosys(td, (struct nosys_args *)uap));
 }
-#endif
 
 /*
  * System call to cleanup state after a signal
@@ -964,7 +956,6 @@ osigreturn(struct thread *td,
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
-
 int
 sigreturn(struct thread *td,
 	struct sigreturn_args /* {
