@@ -84,7 +84,11 @@ static void     dsp_cleanup (void);
 static struct audio_operations sb16_dsp_operations =
 {
   "SoundBlaster 16",
+#ifdef PC98
+  NEEDS_RESTART,
+#else
   DMA_AUTOMODE,
+#endif
   AFMT_U8 | AFMT_S16_LE,
   NULL,
   sb16_dsp_open,
@@ -447,6 +451,17 @@ set_irq_hw (int level)
 
   switch (level)
     {
+#ifdef PC98
+    case 5:
+      ival = 8;
+      break;
+    case 3:
+      ival = 1;
+      break;
+    case 10:
+      ival = 2;
+      break;
+#else
     case 5:
       ival = 2;
       break;
@@ -459,6 +474,7 @@ set_irq_hw (int level)
     case 10:
       ival = 8;
       break;
+#endif
     default:
       printk ("SB16_IRQ_LEVEL %d does not exist\n", level);
       return;
@@ -517,6 +533,9 @@ sb16_dsp_detect (struct address_info *hw_config)
   if (sbc_major < 4)		/* Set by the plain SB driver */
     return 0;			/* Not a SB16 */
 
+#ifdef PC98
+  hw_config->dma = sb_config->dma;
+#else
   if (hw_config->dma < 4)
     if (hw_config->dma != sb_config->dma)
       {
@@ -524,11 +543,16 @@ sb16_dsp_detect (struct address_info *hw_config)
 		sb_config->dma, hw_config->dma);
 	return 0;
       }
+#endif
 
   dma16 = hw_config->dma;
   dma8 = sb_config->dma;
   set_irq_hw (sb_config->irq);
+#ifdef PC98
+  sb_setmixer (DMA_NR, hw_config->dma == 0 ? 1 : 2);
+#else
   sb_setmixer (DMA_NR, (1 << hw_config->dma) | (1 << sb_config->dma));
+#endif
 
   DEB (printk ("SoundBlaster 16: IRQ %d DMA %d OK\n", sb_config->irq, hw_config->dma));
 

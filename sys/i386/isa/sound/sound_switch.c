@@ -171,10 +171,16 @@ init_status (void)
 	return;
       if (!put_status_int (snd_installed_cards[i].config.irq, 10))
 	return;
+#ifdef PC98
+      if (snd_installed_cards[i].config.dma >= 0) {
+#endif
       if (!put_status (" drq "))
 	return;
       if (!put_status_int (snd_installed_cards[i].config.dma, 10))
 	return;
+#ifdef PC98
+      }
+#endif
 
       if (!snd_installed_cards[i].enabled)
 	if (!put_status (")"))

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.42 1996/03/28 14:31:13 scrappy Exp $
+ * $Id: soundcard.c,v 1.43 1996/09/10 08:26:06 bde Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -91,6 +91,9 @@ struct isa_driver gusxvidriver	= {sndprobe, sndattach, "gusxvi"};
 struct isa_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver	= {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
+#ifdef PC98
+struct isa_driver pcmdriver	= {sndprobe, sndattach, "pcm"};
+#endif
 
 static unsigned short
 ipri_to_irq (unsigned short ipri);
@@ -274,6 +277,10 @@ driver_to_voxunit(struct isa_driver *driver)
     return(SNDCARD_GUS16);
   else if(driver == &mssdriver)
     return(SNDCARD_MSS);
+#ifdef PC98
+  else if(driver == &pcmdriver)
+    return(SNDCARD_PCM86);
+#endif
   else
     return(0);
 }
@@ -291,6 +298,19 @@ sndprobe (struct isa_device *dev)
   hw_config.dma_read = dev->id_flags;	/* misuse the flags field for read dma*/
   
   if(unit)
+#ifdef PC98
+    if(unit == SNDCARD_PCM86) {
+      int result;
+
+      result = sndtable_probe (unit, &hw_config);
+      dev->id_iobase = hw_config.io_base;
+      dev->id_irq = (1 << hw_config.irq);
+      dev->id_drq = hw_config.dma;
+
+      return result;
+    }
+    else
+#endif
     return sndtable_probe (unit, &hw_config);
   else
     return 0;
@@ -468,7 +488,11 @@ sound_mem_init (void)
 
   for (dev = 0; dev < num_audiodevs; dev++)	/* Enumerate devices */
     if (!(dsp_init_mask & (1 << dev)))	/* Not already done */
+#ifdef PC98
+      if (audio_devs[dev]->buffcount > 0 && audio_devs[dev]->dmachan >= 0)
+#else
       if (audio_devs[dev]->buffcount > 0 && audio_devs[dev]->dmachan > 0)
+#endif
 	{
 	  dsp_init_mask |= (1 << dev);
 	  dmap = audio_devs[dev]->dmap;

@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.13 1996/01/13 23:27:58 phk Exp $
+ * $Id: nfs_syscalls.c,v 1.14 1996/04/30 23:26:52 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/stat.h>
@@ -79,7 +80,6 @@ extern int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 					    struct nfssvc_sock *slp,
 					    struct proc *procp,
 					    struct mbuf **mreqp));
-extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern time_t nqnfsstarttime;
 extern int nqsrv_writeslack;
@@ -715,6 +715,9 @@ done:
 }
 #endif /* NFS_NOSERVER */
 
+int nfs_defect = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0, "");
+
 /*
  * Asynchronous I/O daemons for client nfs.
  * They do read-ahead and write-behind operations on the block I/O cache.
@@ -727,6 +730,7 @@ nfssvc_iod(p)
 	register struct buf *bp, *nbp;
 	register int i, myiod;
 	struct vnode *vp;
+	struct nfsmount *nmp;
 	int error = 0, s;
 
 	/*
@@ -746,52 +750,48 @@ nfssvc_iod(p)
 	 * Just loop around doin our stuff until SIGKILL
 	 */
 	for (;;) {
-	    while (nfs_bufq.tqh_first == NULL && error == 0) {
+	    while (((nmp = nfs_iodmount[myiod]) == NULL
+		    || nmp->nm_bufq.tqh_first == NULL)
+		   && error == 0) {
+		if (nmp)
+		    nmp->nm_bufqiods--;
 		nfs_iodwant[myiod] = p;
+		nfs_iodmount[myiod] = NULL;
 		error = tsleep((caddr_t)&nfs_iodwant[myiod],
 			PWAIT | PCATCH, "nfsidl", 0);
 	    }
-	    while ((bp = nfs_bufq.tqh_first) != NULL) {
-		/* Take one off the front of the list */
-		TAILQ_REMOVE(&nfs_bufq, bp, b_freelist);
-		if (bp->b_flags & B_READ)
-		    (void) nfs_doio(bp, bp->b_rcred, (struct proc *)0);
-		else do {
-		    /*
-		     * Look for a delayed write for the same vnode, so I can do 
-		     * it now. We must grab it before calling nfs_doio() to
-		     * avoid any risk of the vnode getting vclean()'d while
-		     * we are doing the write rpc.
-		     */
-		    vp = bp->b_vp;
-		    s = splbio();
-		    for (nbp = vp->v_dirtyblkhd.lh_first; nbp;
-			nbp = nbp->b_vnbufs.le_next) {
-			if ((nbp->b_flags &
-			    (B_BUSY|B_DELWRI|B_NEEDCOMMIT|B_NOCACHE))!=B_DELWRI)
-			    continue;
-			bremfree(nbp);
-			vfs_busy_pages(nbp, 1);
-			nbp->b_flags |= (B_BUSY|B_ASYNC);
-			break;
-		    }
-		    splx(s);
-		    /*
-		     * For the delayed write, do the first part of nfs_bwrite()
-		     * up to, but not including nfs_strategy().
-		     */
-		    if (nbp) {
-			nbp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
-			reassignbuf(nbp, nbp->b_vp);
-			nbp->b_vp->v_numoutput++;
-		    }
-		    (void) nfs_doio(bp, bp->b_wcred, (struct proc *)0);
-		} while (bp = nbp);
-	    }
 	    if (error) {
 		nfs_asyncdaemon[myiod] = 0;
+		if (nmp) nmp->nm_bufqiods--;
+		nfs_iodmount[myiod] = NULL;
 		nfs_numasync--;
 		return (error);
+	    }
+	    while ((bp = nmp->nm_bufq.tqh_first) != NULL) {
+		/* Take one off the front of the list */
+		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
+		nmp->nm_bufqlen--;
+		if (nmp->nm_bufqwant && nmp->nm_bufqlen < 2 * nfs_numasync) {
+		    nmp->nm_bufqwant = FALSE;
+		    wakeup(&nmp->nm_bufq);
+		}
+		if (bp->b_flags & B_READ)
+		    (void) nfs_doio(bp, bp->b_rcred, (struct proc *)0);
+		else
+		    (void) nfs_doio(bp, bp->b_wcred, (struct proc *)0);
+
+		    /*
+		 * If there are more than one iod on this mount, then defect
+		 * so that the iods can be shared out fairly between the mounts
+		     */
+		if (nfs_defect && nmp->nm_bufqiods > 1) {
+		    NFS_DPF(ASYNCIO,
+			    ("nfssvc_iod: iod %d defecting from mount %p\n",
+			     myiod, nmp));
+		    nfs_iodmount[myiod] = NULL;
+		    nmp->nm_bufqiods--;
+		    break;
+	    }
 	    }
 	}
 }

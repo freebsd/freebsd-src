@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.68 1996/10/12 20:09:48 bde Exp $
+ *	$Id: vm_page.c,v 1.69 1996/10/15 03:16:45 dyson Exp $
  */
 
 /*
@@ -143,7 +143,7 @@ vm_page_queue_init(void) {
 }
 
 vm_page_t vm_page_array;
-static int vm_page_array_size;
+int vm_page_array_size;
 long first_page;
 static long last_page;
 static vm_size_t page_mask;
@@ -1262,6 +1262,7 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 {
 	int i, s, start;
 	vm_offset_t addr, phys, tmp_addr;
+	int pass;
 	vm_page_t pga = vm_page_array;
 
 	size = round_page(size);
@@ -1273,6 +1274,7 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 		panic("vm_page_alloc_contig: boundary must be a power of 2");
 
 	start = 0;
+	for (pass = 0; pass <= 1; pass++) {
 	s = splvm();
 again:
 	/*
@@ -1280,8 +1282,10 @@ again:
 	 * such that the boundary won't be crossed.
 	 */
 	for (i = start; i < cnt.v_page_count; i++) {
+			int pqtype;
 		phys = VM_PAGE_TO_PHYS(&pga[i]);
-		if (((pga[i].queue - pga[i].pc) == PQ_FREE) &&
+			pqtype = pga[i].queue - pga[i].pc;
+			if (((pqtype == PQ_ZERO) || (pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
 		    (phys >= low) && (phys < high) &&
 		    ((phys & (alignment - 1)) == 0) &&
 		    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
@@ -1293,8 +1297,75 @@ again:
 	 */
 	if ((i == cnt.v_page_count) ||
 		((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
+			vm_page_t m, next;
+
+again1:
+			for (m = TAILQ_FIRST(&vm_page_queue_inactive);
+				m != NULL;
+				m = next) {
+
+				if (m->queue != PQ_INACTIVE) {
+					break;
+				}
+
+				next = TAILQ_NEXT(m, pageq);
+				if (m->flags & PG_BUSY) {
+					m->flags |= PG_WANTED;
+					tsleep(m, PVM, "vpctw0", 0);
+					goto again1;
+				}
+				vm_page_test_dirty(m);
+				if (m->dirty) {
+					if (m->object->type == OBJT_VNODE) {
+						vm_object_page_clean(m->object, 0, 0, TRUE, TRUE);
+						goto again1;
+					} else if (m->object->type == OBJT_SWAP ||
+								m->object->type == OBJT_DEFAULT) {
+						vm_page_protect(m, VM_PROT_NONE);
+						vm_pageout_flush(&m, 1, 0);
+						goto again1;
+					}
+				}
+				if ((m->dirty == 0) &&
+					(m->busy == 0) &&
+					(m->hold_count == 0))
+					vm_page_cache(m);
+			}
+
+			for (m = TAILQ_FIRST(&vm_page_queue_active);
+				m != NULL;
+				m = next) {
+
+				if (m->queue != PQ_ACTIVE) {
+					break;
+				}
+
+				next = TAILQ_NEXT(m, pageq);
+				if (m->flags & PG_BUSY) {
+					m->flags |= PG_WANTED;
+					tsleep(m, PVM, "vpctw1", 0);
+					goto again1;
+				}
+				vm_page_test_dirty(m);
+				if (m->dirty) {
+					if (m->object->type == OBJT_VNODE) {
+						vm_object_page_clean(m->object, 0, 0, TRUE, TRUE);
+						goto again1;
+					} else if (m->object->type == OBJT_SWAP ||
+								m->object->type == OBJT_DEFAULT) {
+						vm_page_protect(m, VM_PROT_NONE);
+						vm_pageout_flush(&m, 1, 0);
+						goto again1;
+					}
+				}
+				if ((m->dirty == 0) &&
+					(m->busy == 0) &&
+					(m->hold_count == 0))
+					vm_page_cache(m);
+			}
+
 		splx(s);
-		return (NULL);
+			continue;
 	}
 	start = i;
 
@@ -1302,13 +1373,36 @@ again:
 	 * Check successive pages for contiguous and free.
 	 */
 	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
+			int pqtype;
+			pqtype = pga[i].queue - pga[i].pc;
 		if ((VM_PAGE_TO_PHYS(&pga[i]) !=
 		    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-		    ((pga[i].queue - pga[i].pc) != PQ_FREE)) {
+			    ((pqtype != PQ_ZERO) && (pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
 			start++;
 			goto again;
 		}
 	}
+
+		for (i = start; i < (start + size / PAGE_SIZE); i++) {
+			int pqtype;
+			vm_page_t m = &pga[i];
+
+			pqtype = m->queue - m->pc;
+			if (pqtype == PQ_CACHE)
+				vm_page_free(m);
+
+			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
+			--(*vm_page_queues[m->queue].lcnt);
+			cnt.v_free_count--;
+			m->valid = VM_PAGE_BITS_ALL;
+			m->flags = 0;
+			m->dirty = 0;
+			m->wire_count = 0;
+			m->busy = 0;
+			m->queue = PQ_NONE;
+			m->object = NULL;
+			vm_page_wire(m);
+		}
 
 	/*
 	 * We've found a contiguous chunk that meets are requirements.
@@ -1317,31 +1411,27 @@ again:
 	 */
 	tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
 	if (addr == 0) {
+			/*
+			 * XXX We almost never run out of kernel virtual
+			 * space, so we don't make the allocated memory
+			 * above available.
+			 */
 		splx(s);
 		return (NULL);
 	}
 
 	for (i = start; i < (start + size / PAGE_SIZE); i++) {
 		vm_page_t m = &pga[i];
-
-		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
-		--(*vm_page_queues[m->queue].lcnt);
-		cnt.v_free_count--;
-		m->valid = VM_PAGE_BITS_ALL;
-		m->flags = 0;
-		m->dirty = 0;
-		m->wire_count = 0;
-		m->busy = 0;
-		m->queue = PQ_NONE;
 		vm_page_insert(m, kernel_object,
 			OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-		vm_page_wire(m);
 		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
 		tmp_addr += PAGE_SIZE;
 	}
 
 	splx(s);
 	return ((void *)addr);
+	}
+	return NULL;
 }
 
 vm_offset_t

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.4 1996/10/09 21:45:29 asami Exp $
+ *	$Id: io.c,v 1.5 1996/10/23 07:24:32 asami Exp $
  */
 
 #include "boot.h"
@@ -289,14 +289,14 @@ void putc(int c)
 	int i, pos;
 
 	if (Crtat == 0) {
-		sys_type = *(unsigned char *)0x11501;
+		sys_type = *(unsigned char *)V(0xA1501);
 		if (sys_type & 0x08) {
-			Crtat = (unsigned short *)0x50000;
+			Crtat = (unsigned short *)V(0xE0000);
 			crtat = Crtat;
 			row = 31;
 			col = 80;
 		} else {
-			Crtat = (unsigned short *)0x10000;
+			Crtat = (unsigned short *)V(0xA0000);
 			crtat = Crtat;
 			row = 25;
 			col = 80;
@@ -347,10 +347,10 @@ void machine_check(void)
 	int	ret;
 	int	i;
 	int	data = 0;
-	u_char epson_machine_id = *(unsigned char *)(0x11624);
+	u_char epson_machine_id = *(unsigned char *)V(0xA1624);
 	
 	/* PC98_SYSTEM_PARAMETER(0x501) */
-	ret = ((*(unsigned char*)0x11501) & 0x08) >> 3;
+	ret = ((*(unsigned char*)V(0xA1501)) & 0x08) >> 3;
 
 	/* Wait V-SYNC */
 	while (inb(0x60) & 0x20) {}
@@ -363,7 +363,7 @@ void machine_check(void)
 	/* M_NORMAL, use CG window (all NEC OK)  */
 	/* sum */
 	for (i = 0; i < 4; i++) {
-		data += *((unsigned long*)0x14000 + i);/* 0xa4000 */
+		data += *((unsigned long*)V(0xA4000) + i);/* 0xa4000 */
 	}
 	if (data == 0x6efc58fc) { /* DA data */
 		ret |= M_NEC_PC98;
@@ -373,12 +373,12 @@ void machine_check(void)
 	ret |= (inb(0x42) & 0x20) ? M_8M : 0;
 
 	/* PC98_SYSTEM_PARAMETER(0x400) */
-	if ((*(unsigned char*)0x11400) & 0x80) {
+	if ((*(unsigned char*)V(0xA1400)) & 0x80) {
 		ret |= M_NOTE;
 	}
 	if (ret & M_NEC_PC98) {
 		/* PC98_SYSTEM_PARAMETER(0x458) */
-		if ((*(unsigned char*)0x11458) & 0x80) {
+		if ((*(unsigned char*)V(0xA1458)) & 0x80) {
 			ret |= M_H98;
 		} else {
 			ret |= M_NOT_H98;
@@ -396,5 +396,5 @@ void machine_check(void)
 			    break;
 		}
 	}
-	(*(unsigned long *)(0x11620)) = ret;
+	(*(unsigned long *)V(0xA1620)) = ret;
 }

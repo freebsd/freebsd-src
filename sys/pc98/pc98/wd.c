@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.8 1996/10/09 21:46:52 asami Exp $
+ *	$Id: wd.c,v 1.9 1996/10/23 07:25:35 asami Exp $
  */
 
 /* TODO:
@@ -89,14 +89,11 @@
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/epsonio.h>
-#include <i386/isa/isa_device.h>
-#include <pc98/pc98/wdreg.h>
 #else
-#include <i386/i386/cons.h>
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
-#endif
 #include <sys/syslog.h>
 #include <sys/dkstat.h>
 #include <vm/vm.h>
@@ -105,11 +102,7 @@
 #include <vm/pmap.h>
 
 #ifdef ATAPI
-#ifdef PC98
-#include <pc98/pc98/atapi.h>
-#else
 #include <i386/isa/atapi.h>
-#endif
 #endif
 
 extern void wdstart(int ctrlr);
@@ -252,6 +245,10 @@ static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
+struct isa_driver wdcdriver = {
+	wdprobe, wdattach, "wdc",
+};
+
 static	d_open_t	wdopen;
 static	d_close_t	wdclose;
 static	d_strategy_t	wdstrategy;
@@ -265,10 +262,6 @@ static struct cdevsw wd_cdevsw;
 static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
-
-struct isa_driver wdcdriver = {
-	wdprobe, wdattach, "wdc",
-};
 
 /*
  * Probe for controller.
@@ -489,11 +482,25 @@ wdattach(struct isa_device *dvp)
 				printf("wd%d: size unknown, using %s values\n",
 				       lunit, du->dk_dd.d_secperunit > 17
 					      ? "BIOS" : "fake");
+#ifdef PC98	/* XXX */
+			if (du->dk_dd.d_secperunit > 8 * 1024 * 1024) {
+			    du->dk_dd.d_ncylinders = 
+				bootinfo.bi_bios_geom[du->dk_unit] >> 16;
+			    du->dk_dd.d_secperunit = 
+				du->dk_dd.d_ncylinders
+					* du->dk_dd.d_ntracks
+					* du->dk_dd.d_nsectors;
+			}
+#endif
 			printf(
 "wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
 			       lunit,
 			       du->dk_dd.d_secperunit
+#ifdef PC98
+			       / ( 1024 * 1024 / du->dk_dd.d_secsize) ,
+#else
 			       * du->dk_dd.d_secsize / (1024 * 1024),
+#endif
 			       du->dk_dd.d_secperunit,
 			       du->dk_dd.d_ncylinders,
 			       du->dk_dd.d_ntracks,

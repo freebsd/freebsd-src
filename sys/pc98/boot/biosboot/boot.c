@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.5 1996/10/09 21:45:21 asami Exp $
+ *	$Id: boot.c,v 1.6 1996/10/23 07:24:29 asami Exp $
  */
 
 
@@ -110,7 +110,7 @@ boot(int drive)
 
 #ifdef PC98
 	for(ret = 0; ret < 2; ret ++) {
-		if (*(unsigned char*)0x1155d & (1 << ret)) {
+		if (*(unsigned char*)V(0xA155d) & (1 << ret)) {
 			bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
 		}
 #else /* IBM-PC */

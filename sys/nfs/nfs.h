@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.17 1996/01/30 22:59:39 mpp Exp $
+ * $Id: nfs.h,v 1.18 1996/08/21 21:55:44 dyson Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -335,7 +335,7 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	NWDELAYHASH(sock, f) \
 	(&(sock)->ns_wdelayhashtbl[(*((u_long *)(f))) % NFS_WDELAYHASHSIZ])
 #ifndef NFS_MUIDHASHSIZ
-#define NFS_MUIDHASHSIZ	67	/* Tune the size of nfsmount with this */
+#define NFS_MUIDHASHSIZ	63	/* Tune the size of nfsmount with this */
 #endif
 #define	NMUIDHASH(nmp, uid) \
 	(&(nmp)->nm_uidhashtbl[(uid) % NFS_MUIDHASHSIZ])
