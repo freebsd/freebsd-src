@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.54 2003/07/11 09:15:21 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.55 2003/07/11 09:16:40 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -209,7 +209,7 @@
 /* ASUS WL-100 */
 #define	PCMCIA_CIS_ASUS_WL-100	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_ASUS_WL-100	0x0002
-#define	PCMCIA_STR_ASUS_WL-100	"ASUS ASUS SpaceLink WL-100 Wireless LAN"
+#define	PCMCIA_STR_ASUS_WL-100	"ASUS SpaceLink WL-100 Wireless LAN"
 
 /* Bay Networks */
 #define	PCMCIA_CIS_BAY_STACK_650	{ NULL, NULL, NULL, NULL }
