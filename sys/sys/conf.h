@@ -84,6 +84,7 @@ struct cdev {
 	gid_t		si_gid;
 	mode_t		si_mode;
 	u_long		si_usecount;
+	u_long		si_threadcount;
 	union {
 		struct {
 			struct tty *__sit_tty;
