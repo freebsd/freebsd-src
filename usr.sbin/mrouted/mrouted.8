@@ -1,4 +1,5 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
+'\"$Id: mrouted.8,v 3.6 1995/06/25 19:10:58 fenner Exp $
 .TH MROUTED 8
 .UC 5
 .SH NAME
@@ -50,8 +51,7 @@ Older versions of
 .I mrouted
 tunnel using IP source routing, which puts a heavy load on some
 types of routers.
-This version supports IP source route tunnelling only for backwards 
-compatibility.
+This version does not support IP source route tunnelling.
 .PP
 The tunnelling mechanism allows 
 .I mrouted 
@@ -94,6 +94,8 @@ events are printed to stderr.
 .IP "level 3"
 all level 2 messages plus notifications of all packet
 arrivals and departures are printed to stderr.
+.PP
+Upon startup, mrouted writes its pid to the file /etc/mrouted.pid .
 .SH CONFIGURATION
 .PP
 .I Mrouted 
@@ -112,38 +114,46 @@ There are four types of configuration commands:
 
     phyint <local-addr>   [disable]   [metric <m>]
 		 [threshold <t>] [rate_limit <b>]
-		   [boundary <scoped-addr>/<mask-len>]
+		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
+		   [altnet <network>/<mask-len>]
 
     tunnel <local-addr> <remote-addr> [metric <m>]
-		 [threshold <t>] [srcrt] [rate_limit <b>]
-		   [boundary <scoped-addr>/<mask-len>]
+		 [threshold <t>] [rate_limit <b>]
+		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
 
     cache_lifetime <ct>
 
     pruning <off/on>
 
+    name <boundary-name> <scoped-addr>/<mask-len>
+
 .fi
 .PP
-One note about the configuration commands - all the phyint and tunnel 
-command options must be on a single line except for the boundary option
-which may begin on a separate line. A single phyint or tunnel command may
-have multiple boundary options.
+The file format is free-form; whitespace (including newlines) is not
+significant.
+The
+.I boundary
+and
+.I altnet
+options may be specified as many times as necessary.
 .PP
 The phyint command can be used to disable multicast routing on the physical
 interface identified by local IP address <local-addr>, or to associate a
 non-default metric or threshold with the specified physical interface.
 The local IP address <local-addr> may be alternatively replaced by the 
-interface name (e.g le0) for the phyint command only.
+interface name (e.g le0).
+If a phyint is attached to multiple IP subnets, describe each additional subnet
+with the altnet keyword.
 Phyint commands must precede tunnel commands.
 .PP
 The tunnel command can be used to establish a tunnel link between local
 IP address <local-addr> and remote IP address <remote-addr>, and to associate
 a non-default metric or threshold with that tunnel.  The tunnel must be set
 up in the mrouted.conf files of both routers before it can be used.
-For backwards compatibility with older
-.IR mrouted s,
-the srcrt keyword specifies 
-encapsulation using IP source routing.
+'\"For backwards compatibility with older
+'\".IR mrouted s,
+'\"the srcrt keyword specifies 
+'\"encapsulation using IP source routing.
 .PP
 The cache_lifetime is a value that determines the amount of time that a
 cached multicast route stays in kernel before timing out. The value of this
@@ -152,10 +162,14 @@ entry should lie between 300 (5 min) and 86400 (1 day). It defaults to 300.
 The pruning <off/on> option is provided for
 .IR mrouted
 to act as a non-pruning router. It is also possible to start 
-.Ir mrouted
+.IR mrouted
 in a non-pruning mode using the "-p" option on the command line. It is 
 expected that a router would be configured in this manner for test
 purposes only. The default mode is pruning enabled.
+.PP
+You may assign names to boundaries to make configuration easier with
+the name keyword.  The boundary option on phyint or tunnel commands
+can accept either a name or a boundary.
 .PP
 The metric is the "cost" associated with sending a datagram on the given
 interface or tunnel; it may be used to influence the choice of routes.
@@ -178,12 +192,14 @@ use the same metric and threshold for that subnet or tunnel.
 .PP
 The rate_limit option allows the network administrator to specify a 
 certain bandwidth in Kbits/second which would be allocated to multicast
-traffic.
+traffic.  It defaults to 500Kbps on tunnels, and 0 (unlimited) on physical
+interfaces.
 .PP
 The boundary option allows an interface
 to be configured as an administrative boundary for the specified
 scoped address. Packets belonging to this address will not
-be forwarded on a scoped interface.
+be forwarded on a scoped interface.  The boundary option accepts either
+a name or a boundary spec.
 .PP
 .I Mrouted
 will not initiate execution if it has fewer than two enabled vifs,
@@ -193,6 +209,45 @@ tunnels; such an
 .I mrouted
 configuration would be better replaced by more
 direct tunnels (i.e., eliminate the middle man).
+.SH "EXAMPLE CONFIGURATION"
+.PP
+This is an example configuration for a mythical multicast router at a big
+school.
+.sp
+.nf
+#
+# mrouted.conf example
+#
+# Name our boundaries to make it easier
+name LOCAL 239.255.0.0/16
+name EE 239.254.0.0/16
+#
+# le1 is our gateway to compsci, don't forward our
+#     local groups to them
+phyint le1 boundary EE
+#
+# le2 is our interface on the classroom net, it has four
+#     different length subnets on it.
+# note that you can use either an ip address or an
+# interface name
+phyint 172.16.12.38 boundary EE altnet 172.16.15.0/26
+	altnet 172.16.15.128/26 altnet 172.16.48.0/24
+#
+# atm0 is our ATM interface, which doesn't properly
+#      support multicasting.
+phyint atm0 disable
+#
+# This is an internal tunnel to another EE subnet
+# Remove the default tunnel rate limit, since this
+#   tunnel is over ethernets
+tunnel 192.168.5.4 192.168.55.101 metric 1 threshold 1
+	rate_limit 0
+#
+# This is our tunnel to the outside world.
+# Careful with those boundaries, Eugene.
+tunnel 192.168.5.4 10.11.12.13 metric 1 threshold 32
+	boundary LOCAL boundary EE
+.fi
 .SH SIGNALS
 .PP
 .I Mrouted 
@@ -214,6 +269,10 @@ dumps the internal cache tables to /usr/tmp/mrouted.cache.
 dumps the internal routing tables to stderr (only if
 .I mrouted 
 was invoked with a non-zero debug level). 
+.PP
+For convenience in sending signals,
+.I mrouted
+writes its pid to /etc/mrouted.pid upon startup.
 .bp
 .SH EXAMPLE
 .PP
@@ -245,10 +304,10 @@ Virtual Interface Table
   3   36.2.0.8	    tunnel: 36.6.8.23	  3       16
 
 Multicast Routing Table (1136 entries)
- Origin-Subnet   From-Gateway    Metric  In-Vif  Out-Vifs
- 36.2                               1       0    1* 2  3*
- 36.8            36.8.0.77          4       2    0* 1* 3*
- 36.11                              1       1    0* 2  3*
+ Origin-Subnet   From-Gateway    Metric Tmr In-Vif  Out-Vifs
+ 36.2                               1    45    0    1* 2  3*
+ 36.8            36.8.0.77          4    15    2    0* 1* 3*
+ 36.11                              1    20    1    0* 2  3*
  .
  .
  .
@@ -267,7 +326,8 @@ shown at each interface.
 .PP
 Associated with each subnet from which a multicast datagram can originate
 is the address of the previous hop router (unless the subnet is directly-
-connected), the metric of the path back to the origin, the incoming vif for
+connected), the metric of the path back to the origin, the amount of time
+since we last received an update for this subnet, the incoming vif for
 multicasts from that origin, and a list of outgoing vifs.  "*" means that
 the outgoing vif is connected to a leaf of the broadcast tree rooted at the
 origin, and a multicast datagram from that origin will be forwarded on that
@@ -282,38 +342,58 @@ are created and deleted by
 The cache tables look like this:
 .nf
 
-Multicast Routing Cache Table (325 entries)
- Origin-Subnet   Mcast-group    CTmr IVif Prcv# Psnt Forwvifs
- 134.207.7       224.2.140.239   300   1    0        0  2 
- 138.15.103      224.2.203.214   295   1    2    P   0p 2p
- 128.237.0       224.2.253.119   290   1    1        0  2p
- 129.215.200     224.2.207.48     40   1    1        0p 2 
- 36.77.14        239.0.1.234     345   2b
+Multicast Routing Cache Table (147 entries)
+ Origin             Mcast-group     CTmr  Age Ptmr IVif Forwvifs
+ 13.2.116/22        224.2.127.255     3m   2m    -  0    1 
+>13.2.116.19
+>13.2.116.196
+ 138.96.48/21       224.2.127.255     5m   2m    -  0    1 
+>138.96.48.108
+ 128.9.160/20       224.2.127.255     3m   2m    -  0    1 
+>128.9.160.45
+ 198.106.194/24     224.2.135.190     9m  28s   9m  0P  
+>198.106.194.22
 
 .fi 
-Each entry is characterized by the origin subnet number and the
+Each entry is characterized by the origin subnet number and mask and the
 destination multicast group. The 'CTmr' field indicates the lifetime
-(in seconds) of the entry.  The entry is deleted from the cache table
-when the timer decrements to zero. The Ivif field indicates the
+of the entry.  The entry is deleted from the cache table
+when the timer decrements to zero.  The 'Age' field is the time since
+this cache entry was originally created.  Since cache entries get refreshed
+if traffic is flowing, routing entries can grow very old.
+The 'Ptmr' field is simply a dash if no prune was sent upstream, or the
+amount of time until the upstream prune will time out.
+The 'Ivif' field indicates the
 incoming vif for multicast packets from that origin.  Each router also
-maintains a record of the number of prunes received from neighbouring
+maintains a record of the number of prunes received from neighboring
 routers for a particular source and group. If there are no members of
 a multicast group on any downward link of the multicast tree for a
 subnet, a prune message is sent to the upstream router. They are
-indicated by a "P" in the Psnt field.  The Forwvifs field shows the
+indicated by a "P" after the vif number.  The Forwvifs field shows the
 interfaces along which datagrams belonging to the source-group are
 forwarded. A "p" indicates that no datagrams are being forwarded along
 that interface. An unlisted interface is a leaf subnet with are no
 members of the particular group on that subnet. A "b" on an interface
 indicates that it is a boundary interface, i.e. traffic will not be
 forwarded on the scoped address on that interface.
-
-
+An additional line with a ">" as the first character is printed for
+each source on the subnet.  Note that there can be many sources in
+one subnet.
 .SH FILES
 /etc/mrouted.conf
+.br
+/etc/mrouted.pid
+.br
+/usr/tmp/mrouted.dump
+.br
+/usr/tmp/mrouted.cache
 .SH SEE ALSO
+.BR mrinfo (8) ,
+.BR mtrace (8) ,
+.BR map-mbone (8)
+.sp
 DVMRP is described, along with other multicast routing algorithms, in the
 paper "Multicast Routing in Internetworks and Extended LANs" by S. Deering,
 in the Proceedings of the ACM SIGCOMM '88 Conference.
 .SH AUTHORS
-Steve Deering & Ajit Thyagarajan
+Steve Deering, Ajit Thyagarajan, Bill Fenner

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: pathnames.h,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: pathnames.h,v 3.6 1995/06/25 19:17:45 fenner Exp $
  */
 
 #define _PATH_MROUTED_CONF	"/etc/mrouted.conf"
