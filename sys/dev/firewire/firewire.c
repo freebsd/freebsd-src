@@ -1357,23 +1357,20 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 	if(xfer->resp != 0){
 		printf("node%d: resp=%d addr=0x%x\n",
 			fc->ongonode, xfer->resp, fc->ongoaddr);
-		fc->retry_count++;
-		goto nextnode;
+		goto errnode;
 	}
 
 	if(xfer->send.buf == NULL){
 		printf("node%d: send.buf=NULL addr=0x%x\n",
 			fc->ongonode, fc->ongoaddr);
-		fc->retry_count++;
-		goto nextnode;
+		goto errnode;
 	}
 	sfp = (struct fw_pkt *)xfer->send.buf;
 
 	if(xfer->recv.buf == NULL){
 		printf("node%d: recv.buf=NULL addr=0x%x\n",
 			fc->ongonode, fc->ongoaddr);
-		fc->retry_count++;
-		goto nextnode;
+		goto errnode;
 	}
 	rfp = (struct fw_pkt *)xfer->recv.buf;
 #if 0
@@ -1482,6 +1479,10 @@ nextaddr:
 	fw_xfer_free( xfer);
 	fw_bus_explore(fc);
 	return;
+errnode:
+	fc->retry_count++;
+	if (fc->ongodev != NULL)
+		fc->ongodev->status = FWDEVINVAL;
 nextnode:
 	fw_xfer_free( xfer);
 	fc->ongonode++;

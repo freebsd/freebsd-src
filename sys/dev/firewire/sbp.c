@@ -641,6 +641,12 @@ sbp_probe_lun(struct sbp_dev *sdev)
 	crom_search_key(cc, CSRKEY_VENDOR);
 	crom_next(cc);
 	crom_parse_text(cc, sdev->vendor, sizeof(sdev->vendor));
+	/* skip to the unit directory for SBP-2 */
+	while ((reg = crom_search_key(cc, CSRKEY_VER)) != NULL) {
+		if (reg->val == CSRVAL_T10SBP2)
+			break;
+		crom_next(cc);
+	}
 	/* get firmware revision */
 	reg = crom_search_key(cc, CSRKEY_FIRM_VER);
 	if (reg != NULL)
@@ -1976,6 +1982,9 @@ END_DEBUG
 			if (sdev->status == SBP_DEV_RESET)
 				continue;
 			if (sdev->path) {
+				xpt_release_devq(sdev->path,
+						 sdev->freeze, TRUE);
+				sdev->freeze = 0;
 				xpt_async(AC_LOST_DEVICE, sdev->path, NULL);
 				xpt_free_path(sdev->path);
 				sdev->path = NULL;
@@ -2209,10 +2218,10 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 		}
 SBP_DEBUG(1)
 		printf("%s:%d:%d:%d:XPT_CALC_GEOMETRY: "
-			"Volume size = %d\n",
+			"Volume size = %lld\n",
 			device_get_nameunit(sbp->fd.dev), cam_sim_path(sbp->sim),
 			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			ccg->volume_size);
+			(u_int64_t)ccg->volume_size);
 END_DEBUG
 
 		size_mb = ccg->volume_size

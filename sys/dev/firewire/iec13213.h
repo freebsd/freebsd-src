@@ -35,6 +35,27 @@
  *
  */
 
+#define	STATE_CLEAR	0x0000
+#define	STATE_SET	0x0004
+#define	NODE_IDS	0x0008
+#define	RESET_START	0x000c
+#define	SPLIT_TIMEOUT_HI	0x0018
+#define	SPLIT_TIMEOUT_LO	0x001c
+#define	CYCLE_TIME	0x0200
+#define	BUS_TIME	0x0204
+#define	BUSY_TIMEOUT	0x0210
+#define	PRIORITY_BUDGET 0x0218
+#define	BUS_MGR_ID	0x021c
+#define	BANDWIDTH_AV	0x0220
+#define	CHANNELS_AV_HI	0x0224
+#define	CHANNELS_AV_LO	0x0228
+#define	IP_CHANNELS	0x0234
+
+#define	CONF_ROM	0x0400
+
+#define	TOPO_MAP	0x1000
+#define	SPED_MAP	0x2000
+
 #define CSRTYPE_SHIFT	6
 #define CSRTYPE_MASK	(3 << CSRTYPE_SHIFT)
 #define CSRTYPE_I	(0 << CSRTYPE_SHIFT) /* Immediate */

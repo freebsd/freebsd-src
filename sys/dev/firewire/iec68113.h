@@ -34,6 +34,13 @@
  * $FreeBSD$
  *
  */
+
+#define		DV_BROADCAST_ON (1<<30)
+#define		oMPR		0x900
+#define		oPCR		0x904
+#define		iMPR		0x980
+#define		iPCR		0x984
+
 struct ciphdr {
 #if BYTE_ORDER == BIG_ENDIAN
 	u_int8_t eoh0:1,	/* 0 */
