@@ -919,12 +919,16 @@ ReadMakefile(p, q)
 		/* if we've chdir'd, rebuild the path name */
 		if (curdir != objdir && *fname != '/') {
 			(void)snprintf(path, MAXPATHLEN, "%s/%s", curdir, fname);
-			if ((stream = fopen(path, "r")) != NULL) {
+			if (realpath(path, path) != NULL &&
+			    (stream = fopen(path, "r")) != NULL) {
 				fname = path;
 				goto found;
 			}
-		} else if ((stream = fopen(fname, "r")) != NULL)
-			goto found;
+		} else if (realpath(fname, path) != NULL) {
+			fname = path;
+			if ((stream = fopen(fname, "r")) != NULL)
+				goto found;
+		}
 		/* look in -I and system include directories. */
 		name = Dir_FindFile(fname, parseIncPath);
 		if (!name)
