@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.7 1996/07/25 15:49:39 jfieber Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.8 1996/07/29 02:31:43 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -26,12 +26,17 @@
 	    O'Reilly &amp; Associates, Inc., 1994.
 	    <newline>ISBN 1-56592-076-7</item>
 
-	    <item><sl>Unix in a Nutshell</sl>.
-	      O'Reilly &amp; Associates, Inc., 1990.
-	      <newline>ISBN 093717520X</item>
+	  <item><sl>Unix in a Nutshell</sl>.
+	    O'Reilly &amp; Associates, Inc., 1990.
+	    <newline>ISBN 093717520X</item>
+
+          <item><htmlurl url="http://www-wks.acs.ohio-state.edu/"
+		name="Ohio State University"> has written
+		a <htmlurl
+		url="http://www-wks.acs.ohio-state.edu/unix_course/unix.html"
+		name="UNIX Introductory Course"> which is available online
+		in HTML and postscript format.</item>
 	  </itemize>
-
-
 
       <sect>
 	<heading>Administrators' guides</heading>
