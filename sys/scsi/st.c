@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.38 1995/07/16 09:13:14 gibbs Exp $
+ * $Id: st.c,v 1.39 1995/10/12 02:02:03 julian Exp $
  */
 
 /*
@@ -943,7 +943,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 		}
 		if (len != bp->b_bcount) {
 			printf("st%d: bad request, must be less than %ld bytes\n",
-				unit, bp->b_bcount + 1
+				unit, bp->b_bcount + 1);
 			bp->b_error = EIO;
 			goto bad;
 		}
