@@ -31,9 +31,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94";
-#endif /* LIBC_SCCS and not lint */
+#endif
 
 /*
  * get credential
@@ -45,12 +48,12 @@ static char sccsid[] = "@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94";
 int
 getgrouplist(uname, agroup, groups, grpcnt)
 	const char *uname;
-	int agroup;
-	register int *groups;
+	gid_t agroup;
+	gid_t *groups;
 	int *grpcnt;
 {
-	register struct group *grp;
-	register int i, ngroups;
+	struct group *grp;
+	int i, ngroups;
 	int ret, maxgroups;
 
 	ret = 0;
