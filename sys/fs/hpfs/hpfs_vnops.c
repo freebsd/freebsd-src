@@ -240,7 +240,7 @@ hpfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t  a_bn;
-		struct vnode **a_vpp;
+		struct bufobj **a_bop;
 		daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
@@ -250,8 +250,8 @@ hpfs_bmap(ap)
 	daddr_t blkno;
 	int error;
 
-	if (ap->a_vpp != NULL) 
-		*ap->a_vpp = hp->h_devvp;
+	if (ap->a_bop != NULL) 
+		*ap->a_bop = &hp->h_devvp->v_bufobj;
 	if (ap->a_runb != NULL)
 		*ap->a_runb = 0;
 	if (ap->a_bnp == NULL)
