@@ -30,14 +30,14 @@
 .\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmpagent.3,v 1.2 2003/12/02 16:13:45 hbb Exp $
+.\" $Begemot: bsnmp/lib/bsnmpagent.3,v 1.5 2004/04/13 17:01:31 novo Exp $
 .\"
 .Dd August 16, 2002
 .Dt bsnmpagent 3
 .Os
 .Sh NAME
+.Nm bsnmpagent
 .Nm snmp_depop_t ,
-.Nm snmp_set_finish_t ,
 .Nm snmp_op_t ,
 .Nm tree ,
 .Nm tree_size ,
@@ -49,10 +49,10 @@
 .Nm snmp_set ,
 .Nm snmp_make_errresp ,
 .Nm snmp_dep_lookup ,
-.Nm snmp_set_atfinish ,
 .Nm snmp_init_context ,
 .Nm snmp_dep_commit ,
-.Nm snmp_dep_rollback
+.Nm snmp_dep_rollback ,
+.Nm snmp_dep_finish
 .Nd "SNMP agent library"
 .Sh LIBRARY
 Begemot SNMP library
@@ -63,8 +63,6 @@ Begemot SNMP library
 .In snmpagent.h
 .Ft typedef int
 .Fn (*snmp_depop_t) "struct snmp_context *ctx" "struct snmp_dependency *dep" "enum snmp_depop op"
-.Ft typedef void
-.Fn (*snmp_set_finish_t) "struct snmp_context *ctx" "int fail" "void *uarg"
 .Ft typedef int
 .Fn (*snmp_op_t) "struct snmp_context *ctx" "struct snmp_value *val" "u_int len" "u_int idx" "enum snmp_op op"
 .Vt extern struct snmp_node *tree ;
@@ -83,14 +81,14 @@ Begemot SNMP library
 .Fn snmp_make_errresp "const struct snmp_pdu *pdu" "struct asn_buf *req_b" "struct asn_buf *resp_b"
 .Ft struct snmp_dependency *
 .Fn snmp_dep_lookup "struct snmp_context *ctx" "const struct asn_oid *base" "const struct asn_oid *idx" "size_t alloc" "snmp_depop_t func"
-.Ft int
-.Fn snmp_set_atfinish "struct snmp_context *ctx" "snmp_set_finish_t func" "void *uarg"
 .Ft struct snmp_context *
 .Fn snmp_init_context "void"
 .Ft int
 .Fn snmp_dep_commit "struct snmp_context *ctx"
 .Ft int
 .Fn snmp_dep_rollback "struct snmp_context *ctx"
+.Ft void
+.Fn snmp_dep_finish "struct snmp_context *ctx"
 .Sh DESCRIPTION
 The SNMP library contains routines to easily build SNMP agent applications
 that use SNMP versions 1 or 2. Note, however, that it may be even easier to
@@ -121,6 +119,7 @@ struct snmp_node {
 	u_int		flags;
 	u_int32_t	index;		/* index data */
 	void		*data;		/* application data */
+	void		*tree_data;	/* application data */
 };
 .Ed
 .Pp
@@ -233,6 +232,7 @@ struct snmp_context {
 	struct snmp_scratch *scratch;
 	struct snmp_dependency *dep;
 	void	*data;		/* user data */
+	enum snmp_ret code;	/* return code */
 };
 
 struct snmp_scratch {
@@ -334,7 +334,10 @@ the callbacks is ignored (an error message is generated via
 .Fn snmp_error ).
 .It
 Now the dependencies are freed and the finalizers are called
-with a fail flag of 0. Then the function returns
+with a fail flag of 0. For each dependency just before freeing it
+its callback is called with
+.Li SNMP_DEPOP_FINISH.
+Then the function returns
 .Li SNMP_ERR_OK .
 .El
 .Pp
@@ -362,19 +365,11 @@ When all SNMP_OP_SET operations have succeeded the dependencies are executed.
 At this stage the dependency callback has all information about the given
 table row that was available in this SET PDU and can operate accordingly.
 .Pp
-If a SNMP_OP_SET operation fails, the dependency callbacks are never
-called. The nodes SNMP_OP_ROLLBACK operations have to ensure, that
-any dynamically allocated data is freed.
-.Pp
-Finalizers are a
-.Sq last change
-to do processing.
-They are called after everything has been done, just before returning to the
-user. They get a flag, that tells them, whether the return to the user is a good
-one or not. The typical use is to finally remove deleted table elements.
-Finalizers are created with
-.Fn snmp_set_atfinish
-which takes the callback function and a user data pointer as argument.
+It is guaranteed that each dependency callback is executed at minimum once
+- with an operation of
+.Li SNMP_OP_ROLLBACK .
+This ensures that all dynamically allocated resources in a callback can be
+freed correctly.
 .Pp
 The function
 .Fn snmp_make_errresp
@@ -385,7 +380,7 @@ the bindings field from the original PDUs buffer directly to the response
 PDU and thus does not depend on the decodability of this field. It may return
 the same values as the operation functions.
 .Pp
-The next three functions allow some parts of the SET operation to be executed.
+The next four functions allow some parts of the SET operation to be executed.
 This is only used in
 .Xr snmpd 1
 to implement the configuration as a single transaction.
@@ -400,6 +395,9 @@ The function
 .Fn snmp_dep_rollback
 executes SNMP_DEPOP_ROLLBACK starting at the previous of the current
 dependency in the context.
+The function
+.Fn snmp_dep_finish
+executes SNMP_DEPOP_FINISH for all dependencies.
 .Sh DIAGNOSTICS
 If an error occures in any of the function an error indication as described
 above is returned. Additionally the functions may call snmp_error on unexected
@@ -414,4 +412,4 @@ errors.
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.
 .Sh AUTHORS
-.An Hartmut Brandt Aq brandt@fokus.gmd.de
+.An Hartmut Brandt Aq harti@freebsd.org

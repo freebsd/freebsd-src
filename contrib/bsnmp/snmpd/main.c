@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.82 2003/12/09 12:28:52 hbb Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.85 2004/04/14 15:39:14 novo Exp $
  *
  * SNMPd main stuff.
  */
@@ -840,7 +840,7 @@ recv_dgram(struct port_input *pi)
 		cmsg.hdr.cmsg_type = SCM_CREDS;
 	} else {
 		msg.msg_control = NULL;
-		msg.msg_controllen = NULL;
+		msg.msg_controllen = 0;
 	}
 	msg.msg_flags = 0;
 
@@ -2015,14 +2015,14 @@ tree_merge(const struct snmp_node *ntree, u_int nsize, struct lmodule *mod)
 
 	xtree = realloc(tree, sizeof(*tree) * (tree_size + nsize));
 	if (xtree == NULL) {
-		syslog(LOG_ERR, "lm_load: %m");
+		syslog(LOG_ERR, "tree_merge: %m");
 		return (-1);
 	}
 	tree = xtree;
 	memcpy(&tree[tree_size], ntree, sizeof(*tree) * nsize);
 
 	for (i = 0; i < nsize; i++)
-		tree[tree_size + i].data = mod;
+		tree[tree_size + i].tree_data = mod;
 
 	tree_size += nsize;
 
@@ -2040,7 +2040,7 @@ tree_unmerge(struct lmodule *mod)
 	u_int s, d;
 
 	for(s = d = 0; s < tree_size; s++)
-		if (tree[s].data != mod) {
+		if (tree[s].tree_data != mod) {
 			if (s != d)
 				tree[d] = tree[s];
 			d++;
