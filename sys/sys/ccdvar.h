@@ -97,9 +97,6 @@ struct ccd_ioctl {
 	size_t	ccio_size;		/* (returned) size of ccd */
 };
 
-/* Mask of user-settable ccd flags. */
-#define CCDF_USERMASK	(CCDF_SWAP|CCDF_UNIFORM|CCDF_MIRROR|CCDF_PARITY)
-
 /*
  * Component info table.
  * Describes a single component of a concatenated disk.
@@ -180,15 +177,16 @@ struct ccd_s {
 };
 
 /* sc_flags */
-#define CCDF_SWAP	0x01	/* interleave should be dmmax */
 #define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
 #define CCDF_MIRROR	0x04	/* use mirroring */
-#define CCDF_PARITY	0x08	/* use parity (RAID level 5) */
 #define CCDF_INITED	0x10	/* unit has been initialized */
 #define CCDF_WLABEL	0x20	/* label area is writable */
 #define CCDF_LABELLING	0x40	/* unit is currently being labelled */
 #define CCDF_WANTED	0x60	/* someone is waiting to obtain a lock */
 #define CCDF_LOCKED	0x80	/* unit is locked */
+
+/* Mask of user-settable ccd flags. */
+#define CCDF_USERMASK	(CCDF_UNIFORM|CCDF_MIRROR)
 
 /*
  * Before you can use a unit, it must be configured with CCDIOCSET.
