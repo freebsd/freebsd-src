@@ -215,5 +215,5 @@ stricoll(s1, s2)
 	for (p = line2; *s2; s2++)
 		*p++ = tolower((unsigned char)*s2);
 	*p = '\0';
-	return strcoll(s1, s2);
+	return strcoll(line1, line2);
 }
