@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.45 1998/04/02 11:06:59 kato Exp $
+ *	$Id: wd.c,v 1.46 1998/04/12 05:05:19 kato Exp $
  */
 
 /* TODO:
@@ -1793,7 +1793,7 @@ wdsetctlr(struct disk *du)
 	       du->dk_dd.d_ncylinders, du->dk_dd.d_ntracks,
 	       du->dk_dd.d_nsectors);
 #endif
-	if (!(du->dk_flags &= DKFL_LBA)) {
+	if (!(du->dk_flags & DKFL_LBA)) {
 		if (du->dk_dd.d_ntracks == 0 || du->dk_dd.d_ntracks > 16) {
 			struct wdparams *wp;
 	
