@@ -1565,6 +1565,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
 	struct kse_thr_mailbox *tmbx;
+	uint32_t tflags;
 
 	kg = td->td_ksegrp;
 
@@ -1594,18 +1595,28 @@ thread_user_enter(struct proc *p, struct thread *td)
 		KASSERT(!TD_CAN_UNBIND(td), ("%s: can unbind", __func__));
 		ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
 		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
-		if ((tmbx == NULL) || (tmbx == (void *)-1)) {
+		if ((tmbx == NULL) || (tmbx == (void *)-1L) ||
+		    (ku->ku_mflags & KMF_NOUPCALL)) {
 			td->td_mailbox = NULL;
 		} else {
-			td->td_mailbox = tmbx;
 			if (td->td_standin == NULL)
 				thread_alloc_spare(td, NULL);
-			mtx_lock_spin(&sched_lock);
-			if (ku->ku_mflags & KMF_NOUPCALL)
-				td->td_flags &= ~TDF_CAN_UNBIND;
-			else
+			tflags = fuword32(tmbx);
+			/*
+			 * On some architectures, TP register points to thread
+			 * mailbox but not points to kse mailbox, and userland 
+			 * can not atomically clear km_curthread, but can 
+			 * use TP register, and set TMF_NOUPCALL in thread
+			 * flag	to indicate a critical region.
+			 */
+			if (tflags & TMF_NOUPCALL) {
+				td->td_mailbox = NULL;
+			} else {
+				td->td_mailbox = tmbx;
+				mtx_lock_spin(&sched_lock);
 				td->td_flags |= TDF_CAN_UNBIND;
-			mtx_unlock_spin(&sched_lock);
+				mtx_unlock_spin(&sched_lock);
+			}
 		}
 	}
 }
