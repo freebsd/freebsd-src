@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1996/12/28 17:42:48 peter Exp $
+# $Id: Makefile,v 1.4 1996/12/30 07:32:34 jkh Exp $
 
 DISTRIBUTION=	compat21
 
@@ -13,7 +13,7 @@ ${lib}:	${lib}.gz.uu
 	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
 .endfor
 
-install:
+beforeinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}
 
