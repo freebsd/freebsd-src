@@ -2272,16 +2272,11 @@ static int dc_newbuf(sc, i, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
-			printf("dc%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->dc_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
@@ -2949,15 +2944,12 @@ static int dc_coal(sc, m_head)
 
 	m = *m_head;
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("dc%d: no memory for tx list", sc->dc_unit);
+	if (m_new == NULL)
 		return(ENOBUFS);
-	}
 	if (m->m_pkthdr.len > MHLEN) {
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			printf("dc%d: no memory for tx list", sc->dc_unit);
 			return(ENOBUFS);
 		}
 	}
