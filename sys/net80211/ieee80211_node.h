@@ -118,6 +118,14 @@ ieee80211_unref_node(struct ieee80211_node **ni)
 	*ni = NULL;			/* guard against use */
 }
 
+#define	IEEE80211_NODE_LOCK_INIT(_ic, _name) \
+	mtx_init(&(_ic)->ic_nodelock, _name, "802.11 node table", MTX_DEF)
+#define	IEEE80211_NODE_LOCK_DESTROY(_ic)	mtx_destroy(&(_ic)->ic_nodelock)
+#define	IEEE80211_NODE_LOCK(_ic)		mtx_lock(&(_ic)->ic_nodelock)
+#define	IEEE80211_NODE_UNLOCK(_ic)		mtx_unlock(&(_ic)->ic_nodelock)
+#define	IEEE80211_NODE_LOCK_ASSERT(_ic) \
+	mtx_assert(&(_ic)->ic_nodelock, MA_OWNED)
+
 struct ieee80211com;
 
 extern	void ieee80211_node_attach(struct ifnet *);
