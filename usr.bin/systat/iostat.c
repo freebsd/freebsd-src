@@ -354,7 +354,7 @@ histogram(val, colwidth, scale)
 
 	k = MIN(v, colwidth);
 	if (v > colwidth) {
-		sprintf(buf, "%4.1f", val);
+		snprintf(buf, sizeof(buf), "%4.1f", val);
 		k -= strlen(buf);
 		while (k--)
 			waddch(wnd, 'X');

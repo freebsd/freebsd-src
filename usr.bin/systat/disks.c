@@ -128,8 +128,10 @@ dkinit()
 	dk_select = (int *)calloc(dk_ndrive, sizeof (int));
 	for (cp = buf, i = 0; i < dk_ndrive; i++) {
 		dr_name[i] = cp;
-		sprintf(dr_name[i], "dk%d", i);
-		cp += strlen(dr_name[i]) + 1;
+		snprintf(cp, sizeof(buf) - (cp - buf), "dk%d", i);
+		cp += strlen(cp) + 1;
+		if (cp > buf + sizeof(buf))
+			errx(1, "buf too small in dkinit, aborting");
 		if (dk_mspw[i] != 0.0)
 			dk_select[i] = 1;
 	}
