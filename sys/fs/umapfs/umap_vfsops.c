@@ -40,7 +40,7 @@
 
 /*
  * Umap Layer
- * (See mount_umap(8) for a description of this layer.)
+ * (See mount_umapfs(8) for a description of this layer.)
  */
 
 #include <sys/param.h>
