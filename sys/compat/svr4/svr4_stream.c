@@ -39,6 +39,8 @@
 
 #define COMPAT_43 1
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -47,6 +49,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h> 		/* Must come after sys/malloc.h */
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -165,6 +168,13 @@ svr4_sendit(td, s, mp, flags)
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
+
+#ifdef MAC
+	error = mac_check_socket_send(td->td_ucred, so);
+	if (error)
+		goto done1;
+#endif
+
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
@@ -262,6 +272,13 @@ svr4_recvit(td, s, mp, namelenp)
 
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
+
+#ifdef MAC
+	error = mac_check_socket_receive(td->td_ucred, so);
+	if (error)
+		goto done1;
+#endif
+
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
 	auio.uio_segflg = UIO_USERSPACE;
