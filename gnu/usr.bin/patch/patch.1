@@ -1,8 +1,11 @@
 .\" -*- nroff -*-
 .rn '' }`
-'\" $Header: patch.man,v 2.0.1.2 88/06/22 20:47:18 lwall Locked $
+'\" $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.1,v 1.1.1.1 1993/06/19 14:21:51 paul Exp $
 '\" 
-'\" $Log:	patch.man,v $
+'\" $Log: patch.1,v $
+.\" Revision 1.1.1.1  1993/06/19  14:21:51  paul
+.\" b-maked patch-2.10
+.\"
 '\" Revision 2.0.1.2  88/06/22  20:47:18  lwall
 '\" patch12: now avoids Bell System Logo
 '\" 
@@ -257,6 +260,9 @@ will be ignored.
 forces
 .I patch
 to interpret the patch file as a context diff.
+.TP 5
+.B "\-C, \-\-check"
+see what would happen, but don't do it.
 .TP 5
 .B "\-d dir, \-\-directory=dir"
 causes
