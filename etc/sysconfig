@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.52 1996/10/27 06:30:38 peter Exp $
+#	$Id: sysconfig,v 1.52.2.1 1996/11/06 09:22:17 phk Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -117,7 +117,7 @@ weak_mountd_authentication=NO
 #
 #	ifconfig_ed0="inet 10.0.0.1 netmask 0xffffff00"
 #	ifconfig_sl0="inet 10.0.1.0 netmask 0xffffff00"
-#	ifconfig_lo0="inet localhost"
+#	ifconfig_lo0="inet 127.0.0.1"
 #	ifconfig_ed0_alias0="inet 10.0.2.1 netmask 0xffffff00"
 #	ifconfig_ed0_alias1="inet 10.0.2.2 netmask 0xffffffff"
 #	ifconfig_ed0_ipx="ipx 0x1234"
@@ -127,7 +127,7 @@ weak_mountd_authentication=NO
 #
 network_interfaces="lo0"
 
-ifconfig_lo0="inet localhost"
+ifconfig_lo0="inet 127.0.0.1"
 
 #
 # Set to the list of route add lines for this host.  You must have a
