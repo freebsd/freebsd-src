@@ -808,6 +808,25 @@ If the checksum is valid,
 .Fn PacketAliasInternetChecksum
 will return zero.
 .Ed
+.Pp
+.Ft int
+.Fn PacketUnaliasOut "char *buffer" "int maxpacketsize"
+.Bd -ragged -offset indent
+An outgoing packet, which has already been aliased, has its private address/port 
+information restored by this function.
+The IP packet is pointed to by
+.Fa buffer ,
+and
+.Fa maxpacketsize
+is provided for error checking purposes.          
+This function can be used if an already-aliased packet needs to have its 
+original IP header restored for further processing (eg. logging).
+.Ed
+.Sh BUGS
+PPTP aliasing does not work when more than one internal client
+connects to the same external server at the same time, because
+PPTP requires a single TCP control connection to be established
+between any two IP addresses.
 .Sh AUTHORS
 .An Charles Mott Aq cmott@scientech.com ,
 versions 1.0 - 1.8, 2.0 - 2.4.
@@ -816,7 +835,9 @@ versions 1.8b, 1.9 and 2.5.
 Added IRC DCC support as well as contributing a number of architectural
 improvements; added the firewall bypass for FTP/IRC DCC.
 .An Erik Salander Aq erik@whistle.com
-added support for PPTP.
+added support for PPTP and RTSP.
+.An Junichi Satoh Aq junichi@junichi.org
+added support for RTSP/PNA.
 .Sh ACKNOWLEDGMENTS
 Listed below, in approximate chronological order, are individuals who
 have provided valuable comments and/or debugging assistance.
