@@ -50,47 +50,7 @@ uid_t	uid;
 static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-char *getnewyppasswd(struct passwd *);
-
-char *
-getnewyppasswd(register struct passwd *pw)
-{
-  char *buf;
-  char salt[9], *p=NULL;
-  int tries = 0;
-
-  buf = (char *) malloc(30);
-
-  printf("Changing YP password for %s.\n", pw->pw_name);
-
-  buf[0] = '\0';
-  while(1) {
-    p = getpass("Please enter new password:");
-    if(*p == '\0') {
-        printf("Password unchanged.\n");
-        return NULL;
-    }
-#ifndef DEBUG
-    if (strlen(p) <= 5 && (uid != 0 || ++tries < 2)) {
-        printf("Please enter a longer password.\n");
-        continue;
-    }
-#endif
-    strcpy(buf, p);
-    p = getpass("Please retype new password:");
-    if( strcmp(buf, p) == 0) {
-        break;
-    } else {
-        printf("Mismatch - password unchanged.\n");
-        return NULL;
-    }
-  }
-
-  /* grab a random printable character that isn't a colon */
-  srandom((int)time((time_t *)NULL));
-  to64(&salt[0], random(), 2);
-  return strdup(crypt(buf, salt));
-}
+extern char *getnewpasswd __P(( struct passwd * ));
 
 char *
 getfield(char *gecos, char *field, int size)
@@ -303,7 +263,7 @@ yp_passwd(char *user)
   }
 
   if (use_yp_passwd) {
-      if ((s = getnewyppasswd(pw)) == NULL)
+      if ((s = getnewpasswd(pw)) == NULL)
       	  exit (1);
       yppasswd.newpw.pw_passwd = s;
   }
