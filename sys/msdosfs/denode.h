@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.15 1998/02/18 09:28:26 jkh Exp $ */
+/*	$Id: denode.h,v 1.16 1998/05/17 18:00:42 bde Exp $ */
 /*	$NetBSD: denode.h,v 1.25 1997/11/17 15:36:28 ws Exp $	*/
 
 /*-
@@ -150,6 +150,7 @@ struct denode {
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
 	u_char de_Name[12];	/* name, from DOS directory entry */
 	u_char de_Attributes;	/* attributes, from directory entry */
+	u_char de_LowerCase;	/* NT VFAT lower case flags */
 	u_char de_CHun;		/* Hundredth of second of CTime*/
 	u_short de_CTime;	/* creation time */
 	u_short de_CDate;	/* creation date */
@@ -182,6 +183,7 @@ struct denode {
 #define DE_INTERNALIZE(dep, dp)				\
 	(bcopy((dp)->deName, (dep)->de_Name, 11),	\
 	 (dep)->de_Attributes = (dp)->deAttributes,	\
+	 (dep)->de_LowerCase = (dp)->deLowerCase,	\
 	 (dep)->de_CHun = (dp)->deCHundredth,		\
 	 (dep)->de_CTime = getushort((dp)->deCTime),	\
 	 (dep)->de_CDate = getushort((dp)->deCDate),	\
@@ -196,8 +198,8 @@ struct denode {
 	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16)
 #define DE_EXTERNALIZE(dp, dep)				\
 	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
-	 bzero((dp)->deReserved, 10),                   \
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
+	 (dp)->deLowerCase = (dep)->de_LowerCase,	\
 	 (dp)->deCHundredth = (dep)->de_CHun,		\
 	 putushort((dp)->deCTime, (dep)->de_CTime),	\
 	 putushort((dp)->deCDate, (dep)->de_CDate),	\

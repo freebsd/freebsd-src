@@ -1,4 +1,4 @@
-/*	$Id: direntry.h,v 1.11 1998/02/24 14:13:08 ache Exp $ */
+/*	$Id: direntry.h,v 1.12 1998/02/26 06:45:42 msmith Exp $ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-
@@ -65,7 +65,9 @@ struct direntry {
 #define	ATTR_VOLUME	0x08		/* entry is a volume label */
 #define	ATTR_DIRECTORY	0x10		/* entry is a directory name */
 #define	ATTR_ARCHIVE	0x20		/* file is new or modified */
-	u_int8_t	deReserved[1];	/* reserved */
+	u_int8_t	deLowerCase;	/* NT VFAT lower case flags */
+#define	LCASE_BASE	0x08		/* filename base in lower case */
+#define	LCASE_EXT	0x10		/* filename extension in lower case */
 	u_int8_t	deCHundredth;	/* hundredth of seconds in CTime */
 	u_int8_t	deCTime[2];	/* create time */
 	u_int8_t	deCDate[2];	/* create date */

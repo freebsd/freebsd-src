@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.40 1998/10/29 09:29:17 peter Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.41 1998/11/10 09:16:29 peter Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -291,6 +291,7 @@ deget(pmp, dirclust, diroffset, depp)
 		nvp->v_flag |= VROOT; /* should be further down		XXX */
 
 		ldep->de_Attributes = ATTR_DIRECTORY;
+		ldep->de_LowerCase = 0;
 		if (FAT32(pmp))
 			ldep->de_StartCluster = pmp->pm_rootdirblk;
 			/* de_FileSize will be filled in further down */
