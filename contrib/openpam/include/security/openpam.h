@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#27 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#28 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -59,6 +59,9 @@ void
 openpam_free_data(pam_handle_t *_pamh,
 	void *_data,
 	int _status);
+
+void
+openpam_free_envlist(char **_envlist);
 
 const char *
 openpam_get_option(pam_handle_t *_pamh,

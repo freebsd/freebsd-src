@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt OPENPAM_LOG 3
 .Os
 .Sh NAME
@@ -52,39 +52,39 @@ The
 .Nm
 function logs messages using
 .Xr syslog 3 .
-It is primarily
-intended for internal use by the library and modules.
+It is primarily intended for internal use by the library and modules.
 .Pp
 The
-.Va level
-argument indicates the importance of the message.  The
-following levels are defined:
+.Fa level
+argument indicates the importance of the message.
+The following levels are defined:
 .Bl -tag -width 18n
 .It Dv PAM_LOG_DEBUG
-Debugging messages.  These messages are normally not
-logged unless the global integer variable
+Debugging messages.
+These messages are normally not logged unless the global
+integer variable
 .Va _openpam_debug
-is set to a non-zero value, in which case they are logged
-with a
+is set to a non-zero
+value, in which case they are logged with a
 .Xr syslog 3
 priority of
 .Dv LOG_DEBUG .
 .It Dv PAM_LOG_VERBOSE
 Information about the progress of the authentication
-process, or other non-essential messages.  These messages
-are logged with a
+process, or other non-essential messages.
+These messages are logged with a
 .Xr syslog 3
 priority of
 .Dv LOG_INFO .
 .It Dv PAM_LOG_NOTICE
-Messages relating to non-fatal errors.  These messages are
-logged with a
+Messages relating to non-fatal errors.
+These messages are logged with a
 .Xr syslog 3
 priority of
 .Dv LOG_NOTICE .
 .It Dv PAM_LOG_ERROR
-Messages relating to serious errors.  These messages are
-logged with a
+Messages relating to serious errors.
+These messages are logged with a
 .Xr syslog 3
 priority of
 .Dv LOG_ERR .
@@ -108,7 +108,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

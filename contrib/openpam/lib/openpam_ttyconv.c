@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#24 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#25 $
  */
 
 #include <sys/types.h>
@@ -230,8 +230,9 @@ openpam_ttyconv(int n,
 
 /**
  * The =openpam_ttyconv function is a standard conversation function
- * suitable for use on TTY devices.  It should be adequate for the needs
- * of most text-based interactive programs.
+ * suitable for use on TTY devices.
+ * It should be adequate for the needs of most text-based interactive
+ * programs.
  *
  * The =openpam_ttyconv function allows the application to specify a
  * timeout for user input by setting the global integer variable

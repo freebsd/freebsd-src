@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM 3
 .Os
 .Sh NAME
@@ -94,7 +94,7 @@
 .Ft "const char *"
 .Fn pam_strerror "pam_handle_t *pamh" "int error_number"
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam.man#2 $
+.\" $P4: //depot/projects/openpam/doc/man/pam.man#4 $
 .\"
 .Sh DESCRIPTION
 The Pluggable Authentication Modules (PAM) library abstracts a number
@@ -172,7 +172,7 @@ The
 .Fn pam_open_session
 and
 .Fn pam_close_session
-handle session setup and teardown.
+functions handle session setup and teardown.
 .Ss Password Management
 The
 .Fn pam_chauthtok
@@ -184,8 +184,9 @@ The
 .Fn pam_getenv
 and
 .Fn pam_getenvlist
-manage a private environment list in which modules can set environment
-variables they want the server to export during the session.
+functions manage a private environment list in which modules can set
+environment variables they want the server to export during the
+session.
 .Pp
 The
 .Fn pam_strerror
@@ -193,12 +194,12 @@ function returns a pointer to a string describing the specified PAM
 error code.
 .Sh RETURN VALUES
 The following return codes are defined by
-.Aq Pa security/pam_constants.h :
+.In security/pam_constants.h :
 .Bl -tag -width 18n
 .It Bq Er PAM_ABORT
 General failure.
 .It Bq Er PAM_ACCT_EXPIRED
-User accound has expired.
+User account has expired.
 .It Bq Er PAM_AUTHINFO_UNAVAIL
 Authentication information is unavailable.
 .It Bq Er PAM_AUTHTOK_DISABLE_AGING
@@ -285,7 +286,7 @@ Unknown user.
 The OpenPAM library and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -1,3 +1,23 @@
+OpenPAM Feterita						2005-02-01
+
+ - BUGFIX: Correct numerous markup errors, invalid cross-references,
+   and other issues in the manual pages, with kind assistance from
+   Ruslan Ermilov <ru@freebsd.org>.
+
+ - BUGFIX: Avoid multiple evaluation of macro arguments in ENTERX()
+   and RETURNX() macros.
+
+ - BUGFIX: Remove an unnecessary and non-portable pointer cast in
+   pam_get_data(3).
+
+ - BUGFIX: Fix identical typos in PAM_ACCT_EXPIRED case in
+   pam_strerror(3) and gendoc.pl.
+
+ - ENHANCE: Minor overhaul of the autoconf / build system.
+
+ - ENHANCE: Add openpam_free_envlist(3).
+
+============================================================================
 OpenPAM Eelgrass						2004-02-10
 
  - BUGFIX: Correct array handling bugs in conversation code.
@@ -272,4 +292,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#22 $
+$P4: //depot/projects/openpam/HISTORY#23 $
