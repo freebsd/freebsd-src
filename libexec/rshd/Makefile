@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 14:22:22 peter Exp $
 
 PROG=	rshd
 SRCS=	rshd.c
@@ -12,5 +12,10 @@ DPADD=	${LIBKRB} ${LIBDES}
 LDADD=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
+
+# For login_cap handling
+CFLAGS+=-DLOGIN_CAP
+DPADD+=	${LIBUTIL}
+LDADD+= -lutil
 
 .include <bsd.prog.mk>
