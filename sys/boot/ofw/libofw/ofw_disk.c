@@ -30,7 +30,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
 
 #include <netinet/in.h>
 
