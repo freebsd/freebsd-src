@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.37.4.8 1996/04/01 00:25:28 gibbs Exp $
+**  $Id: ncr.c,v 1.37.4.9 1996/08/05 19:10:33 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.37.4.8 1996/04/01 00:25:28 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.37.4.9 1996/08/05 19:10:33 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4975,8 +4975,8 @@ void ncr_exception (ncb_p np)
 	**	Never test for an error condition you don't know how to handle.
 	*/
 
-	dstat = INB (nc_dstat);
-	sist  = INW (nc_sist) ;
+	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
+	sist  = (istat & SIP) ? INW (nc_sist)  : 0;
 	np->profile.num_int++;
 
 	if (DEBUG_FLAGS & DEBUG_TINY)
