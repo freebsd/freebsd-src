@@ -176,10 +176,10 @@ main(argc, argv)
 	setuid(getuid());
 
 	preload = 0;
-	if (tcgetattr (0, &ts) != -1) {
+	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
 		ts.c_lflag |= NOKERNINFO;
-		tcsetattr (0, TCSANOW, &ts);
+		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
 	}
 
 	datap = &outpack[8 + sizeof(struct timeval)];
@@ -787,9 +787,9 @@ finish()
 		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
 		    tmin, ((double)i) / 1000.0, tmax);
 	}
-	if (reset_kerninfo && tcgetattr (0, &ts) != -1) {
+	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		ts.c_lflag &= ~NOKERNINFO;
-		tcsetattr (0, TCSANOW, &ts);
+		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
 	}
 
 	if (nreceived)
