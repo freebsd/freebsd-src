@@ -144,7 +144,7 @@ shellexec(char **argv, char **envp, char *path, int index)
 		exerrno = 2;
 		break;
 	}
-	exerror(EXEXEC, "%s: %s", argv[0], errmsg(e, E_EXEC));
+	exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
 }
 
 
@@ -420,7 +420,7 @@ loop:
 	if (cmdp)
 		delete_cmd_entry();
 	if (printerr)
-		outfmt(out2, "%s: %s\n", name, errmsg(e, E_EXEC));
+		outfmt(out2, "%s: %s\n", name, strerror(e));
 	entry->cmdtype = CMDUNKNOWN;
 	return;
 

@@ -38,15 +38,6 @@
  */
 
 /*
- * Types of operations (passed to the errmsg routine).
- */
-
-#define E_OPEN 01	/* opening a file */
-#define E_CREAT 02	/* creating a file */
-#define E_EXEC 04	/* executing a program */
-
-
-/*
  * We enclose jmp_buf in a structure so that we can declare pointers to
  * jump locations.  The global variable handler contains the location to
  * jump to when an exception occurs, and the global variable exception
@@ -93,7 +84,6 @@ void exraise(int);
 void onint(void);
 void error(const char *, ...) __printf0like(1, 2);
 void exerror(int, const char *, ...) __printf0like(2, 3);
-char *errmsg(int, int);
 
 
 /*
