@@ -135,10 +135,8 @@ nexus_attach(device_t dev)
 	/*
 	 * First, deal with the children we know about already
 	 */
-	printf("avant\n");
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	printf("nexus_attach\n");
 	
 	return 0;
 }
