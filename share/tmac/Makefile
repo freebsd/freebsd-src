@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
-FILES=	tmac.r tmac.andoc tmac.s tmac.e
+# XXX MISSING:	tmac.r
+FILES=	tmac.andoc tmac.s tmac.e
 MSRCS=  doc doc-ditroff doc-common doc-nroff doc-syms
 
 LINKS=	${BINDIR}/tmac/tmac.andoc ${BINDIR}/tmac/tmac.an
