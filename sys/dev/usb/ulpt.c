@@ -46,9 +46,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/proc.h>
 #include <sys/device.h>
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
@@ -63,8 +63,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdevs.h>
-#include <dev/usb/usb_quirks.h>
 
 #define	TIMEOUT		hz*16	/* wait up to 16 seconds for a ready */
 #define	STEP		hz/4
