@@ -164,9 +164,9 @@ Set minute-second-frame ioctl mode (default).
 .It Ic set Cm lba
 Set LBA ioctl mode.
 .It Ic speed Ar s
-Set the highest speed that the drive should use.
-The speed is a multiple of the single speed.
-This command is currently only supported on ATAPI drives.
+Set the highest speed that the drive should use for reading data.
+The units are multiples of a single speed CDROM (150 KB/s).
+Specify "max" to use the drive's fastest speed.
 .It Ic quit
 Quit the program.
 .El

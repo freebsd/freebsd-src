@@ -116,7 +116,10 @@ main(int argc, char **argv)
 			break;
 
 		case 's':
-			speed = atoi(optarg);
+			if (strcasecmp("max", optarg) == 0)
+				speed = CDR_MAX_SPEED;
+			else
+				speed = atoi(optarg);
 			if (speed <= 0)
 				errx(EX_USAGE, "Invalid speed: %s", optarg);
 			break;

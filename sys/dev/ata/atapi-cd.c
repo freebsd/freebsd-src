@@ -1021,11 +1021,11 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDRIOCREADSPEED:
-	error = acd_set_speed(cdp, 177 * (*(int *)addr), -1);
+	error = acd_set_speed(cdp, *(int *)addr, CDR_MAX_SPEED);
 	break;
 
     case CDRIOCWRITESPEED:
-	error = acd_set_speed(cdp, -1, 177 * (*(int *)addr));
+	error = acd_set_speed(cdp, CDR_MAX_SPEED, *(int *)addr);
 	break;
 
     case CDRIOCGETBLOCKSIZE:
