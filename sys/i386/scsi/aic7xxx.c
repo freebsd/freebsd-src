@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.28.2.3 1995/06/09 18:06:45 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.29 1995/06/11 19:31:29 rgrimes Exp $
  */
 /*
  * TODO:
@@ -48,6 +48,7 @@
 #include <scsi/scsiconf.h>
 #include <machine/clock.h>
 #include <i386/scsi/aic7xxx.h>
+#include <i386/scsi/93cx6.h>
 
 #define PAGESIZ 4096
 
@@ -215,6 +216,15 @@ struct scsi_device ahc_dev =
 #define		OID		0x0f		/* Our ID mask */
 
 /*
+ * SCSI Transfer Count (pp. 3-19,20)
+ * These registers count down the number of bytes transfered
+ * across the SCSI bus.  The counter is decrimented only once
+ * the data has been safely transfered.  SDONE in SSTAT0 is
+ * set when STCNT goes to 0
+ */ 
+#define STCNT			0xc08ul
+
+/*
  * SCSI Status 0 (p. 3-21)
  * Contains one set of SCSI Interrupt codes
  * These are most likely of interest to the sequencer
@@ -256,6 +266,16 @@ struct scsi_device ahc_dev =
 #define		SCSIPERR	0x04
 #define		PHASECHG	0x02
 #define		REQINIT		0x01
+
+/*
+ * SCSI/Host Address (p. 3-30)
+ * These registers hold the host address for the byte about to be
+ * transfered on the SCSI bus.  They are counted up in the same
+ * manner as STCNT is counted down.  SHADDR should always be used
+ * to determine the address of the last byte transfered since HADDR
+ * can be squewed by write ahead.
+ */
+#define	SHADDR			0xc14ul
 
 /*
  * Selection/Reselection ID (p. 3-31)
@@ -332,6 +352,21 @@ struct scsi_device ahc_dev =
 #define		ENABLE		0x01
 
 /*
+ * Bus On/Off Time (p. 3-44)
+ */
+#define BUSTIME			0xc85ul
+#define		BOFF		0xf0
+#define		BON		0x0f
+
+/*
+ * Bus Speed (p. 3-45)
+ */
+#define	BUSSPD			0xc86ul
+#define		DFTHRSH		0xc0
+#define		STBOFF		0x38
+#define		STBON		0x07
+
+/*
  * Host Control (p. 3-47) R/W
  * Overal host control of the device.
  */
@@ -345,6 +380,12 @@ struct scsi_device ahc_dev =
 #define		INTEN		0x02
 #define		CHIPRST		0x01
 
+/*
+ * Host Address (p. 3-48)
+ * This register contains the address of the byte about
+ * to be transfered across the host bus.
+ */
+#define HADDR			0xc88ul
 /*
  * SCB Pointer (p. 3-49)
  * Gate one of the four SCBs into the SCBARRAY window.
@@ -367,7 +408,7 @@ struct scsi_device ahc_dev =
 #define			BAD_STATUS	0x70
 #define			RESIDUAL	0x80
 #define			ABORT_TAG	0x90
-#define			AWAITING_MSG		0xa0
+#define			AWAITING_MSG	0xa0
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -436,6 +477,40 @@ struct scsi_device ahc_dev =
 
 #define DSPCISTATUS		0xc86ul
 
+/*
+ * Serial EEPROM Control (p. 4-92 in 7870 Databook)
+ * Controls the reading and writing of an external serial 1-bit
+ * EEPROM Device.  In order to access the serial EEPROM, you must
+ * first set the SEEMS bit that generates a request to the memory
+ * port for access to the serial EEPROM device.  When the memory
+ * port is not busy servicing another request, it reconfigures
+ * to allow access to the serial EEPROM.  When this happens, SEERDY
+ * gets set high to verify that the memory port access has been
+ * granted.  
+ *
+ * After successful arbitration for the memory port, the SEECS bit of 
+ * the SEECTL register is connected to the chip select.  The SEECK, 
+ * SEEDO, and SEEDI are connected to the clock, data out, and data in 
+ * lines respectively.  The SEERDY bit of SEECTL is useful in that it 
+ * gives us an 800 nsec timer.  After a write to the SEECTL register, 
+ * the SEERDY goes high 800 nsec later.  The one exception to this is 
+ * when we first request access to the memory port.  The SEERDY goes 
+ * high to signify that access has been granted and, for this case, has 
+ * no implied timing.
+ *
+ * See 93cx6.c for detailed information on the protocol necessary to 
+ * read the serial EEPROM.
+ */
+#define SEECTL			0xc1eul
+#define		EXTARBACK	0x80
+#define		EXTARBREQ	0x40
+#define		SEEMS		0x20
+#define		SEERDY		0x10
+#define		SEECS		0x08
+#define		SEECK		0x04
+#define		SEEDO		0x02
+#define		SEEDI		0x01
+
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
  * BIOS or are specified by the Linux sequencer code.  If I can figure out
@@ -481,6 +556,8 @@ struct scsi_device ahc_dev =
 #define		SEND_SDTR	0x80
 #define		SEND_REJ	0x40
 
+#define	SG_COUNT		0xc4dul
+#define	SG_NEXT			0xc4eul
 #define HA_SIGSTATE		0xc4bul
 
 #define HA_SCBCOUNT		0xc52ul
@@ -502,11 +579,82 @@ struct scsi_device ahc_dev =
 #define INTDEF			0xc5cul
 #define HA_HOSTCONF		0xc5dul
 
+#define HA_274_BIOSCTRL		0xc5ful
+#define BIOSMODE		0x30
+#define BIOSDISABLED		0x30
+
 #define MSG_ABORT               0x06
 #define	MSG_BUS_DEVICE_RESET	0x0c
 #define	BUS_8_BIT		0x00
 #define BUS_16_BIT		0x01
 #define BUS_32_BIT		0x02
+
+/*
+ * Define the format of the SEEPROM registers (16 bits).
+ *
+ */
+
+struct seeprom_config {
+
+/*
+ * SCSI ID Configuration Flags
+ */
+#define CFXFER		0x0007		/* synchronous transfer rate */
+#define CFSYNCH		0x0008		/* enable synchronous transfer */
+#define CFDISC		0x0010		/* enable disconnection */
+#define CFWIDEB		0x0020		/* wide bus device */
+/* UNUSED		0x00C0 */
+#define CFSTART		0x0100		/* send start unit SCSI command */
+#define CFINCBIOS	0x0200		/* include in BIOS scan */
+#define CFRNFOUND	0x0400		/* report even if not found */
+/* UNUSED		0xf800 */
+  unsigned short device_flags[16];	/* words 0-15 */
+
+/*
+ * BIOS Control Bits
+ */
+#define CFSUPREM	0x0001		/* support all removeable drives */
+#define CFSUPREMB	0x0002		/* support removeable drives for boot only */
+#define CFBIOSEN	0x0004		/* BIOS enabled */
+/* UNUSED		0x0008 */
+#define CFSM2DRV	0x0010		/* support more than two drives */
+/* UNUSED		0x0060 */
+#define CFEXTEND	0x0080		/* extended translation enabled */
+/* UNUSED		0xff00 */
+  unsigned short bios_control;		/* word 16 */
+
+/*
+ * Host Adapter Control Bits
+ */
+/* UNUSED		0x0003 */
+#define CFSTERM		0x0004		/* SCSI low byte termination (non-wide cards) */
+#define CFWSTERM	0x0008		/* SCSI high byte termination (wide card) */
+#define CFSPARITY	0x0010		/* SCSI parity */
+/* UNUSED		0x0020 */
+#define CFRESETB	0x0040		/* reset SCSI bus at IC initialization */
+/* UNUSED		0xff80 */
+  unsigned short adapter_control;	/* word 17 */
+
+/*
+ * Bus Release, Host Adapter ID
+ */
+#define CFSCSIID	0x000f		/* host adapter SCSI ID */
+/* UNUSED		0x00f0 */
+#define CFBRTIME	0xff00		/* bus release time */
+ unsigned short brtime_id;		/* word 18 */
+
+/*
+ * Maximum targets
+ */
+#define CFMAXTARG	0x00ff	/* maximum targets */
+/* UNUSED		0xff00 */
+  unsigned short max_targets;		/* word 19 */
+
+  unsigned short res_1[11];		/* words 20-30 */
+  unsigned short checksum;		/* word 31 */
+
+};
+
 
 /*
  * Since the sequencer can disable pausing in a critical section, we
@@ -728,6 +876,7 @@ ahc_attach(unit)
 	if(ahc->type & AHC_TWIN) {
 		/* Configure the second scsi bus */
 		ahc->sc_link_b = ahc->sc_link;
+        	ahc->sc_link_b.adapter_targ = ahc->our_id_b;
 		ahc->sc_link_b.fordriver = (void *)0x0008;
 		printf("ahc%d: Probing Channel B\n", unit);
 		scsi_attachdevs(&(ahc->sc_link_b));
@@ -812,11 +961,21 @@ ahcintr(unit)
 			      unit, channel, target);  
                         break; 
                     case SEND_REJECT: 
-                        printf("ahc%d:%c:%d: Warning - " 
-                              "message reject, message type: 0x%x\n", 
-			      unit, channel, target,
-                              inb(HA_REJBYTE + iobase));
-                        break; 
+			{
+				u_char rejbyte = inb(HA_REJBYTE + iobase);
+				printf("ahc%d:%c:%d: Warning - message "
+					"rejected by target: 0x%x\n", 
+					unit, channel, target, rejbyte);
+				if(( rejbyte & 0xf0) == 0x20) {
+					/* Tagged Message */
+					printf("ahc%d:%c:%d: Tagged message "
+						"rejected.  Disabling tagged "
+						"commands for this target.\n", 
+						unit, channel, target);
+					ahc->tagenable &= ~targ_mask;
+				}
+				break; 
+			}
                     case NO_IDENT: 
                         panic("ahc%d:%c:%d: Target did not send an IDENTIFY "
 			      "message. SAVED_TCL == 0x%x\n",
@@ -827,7 +986,8 @@ ahcintr(unit)
 			{
 				u_char active;
 				int active_port = HA_ACTIVE0 + iobase;
-				printf("ahc%d:%c:%d: no active SCB - "
+				printf("ahc%d:%c:%d: no active SCB for "
+				       "reconnecting target - "
 				       "issuing ABORT\n", unit, channel, 
 				       target);
 				printf("SAVED_TCL == 0x%x\n",
@@ -1076,9 +1236,10 @@ ahcintr(unit)
 
 				if((xs->error == XS_NOERROR) &&
 				    !(scb->flags & SCB_SENSE)) {
-					u_char flags;
+					u_char control = scb->control;
 					u_char head;
 					u_char tail;
+					u_short active;
 					struct ahc_dma_seg *sg = scb->ahc_dma;
 					struct scsi_sense *sc = &(scb->sense_cmd);
 					u_char tcl = scb->target_channel_lun;
@@ -1087,6 +1248,9 @@ ahcintr(unit)
 					printf("Sending Sense\n");
 #endif
 					bzero(scb, SCB_DOWN_SIZE);
+#ifdef NOT_YET
+					scb->control |= control & SCB_DISCENB;
+#endif
 					scb->flags |= SCB_SENSE;
 					sc->op_code = REQUEST_SENSE;
 					sc->byte2 =  xs->sc_link->lun << 5;
@@ -1102,23 +1266,41 @@ ahcintr(unit)
 					scb->cmdpointer = KVTOPHYS(sc);
 					scb->cmdlen = sizeof(*sc);
 
+			                scb->data = sg->addr; 
+					scb->datalen[0] = 
+						sg->len & 0xff;
+					scb->datalen[1] = 
+						(sg->len >> 8) & 0xff;
+					scb->datalen[2] = 
+						(sg->len >> 16) & 0xff;
 					outb(SCBCNT + iobase, 0x80);
 					outsb(SCBARRAY+iobase,scb,SCB_DOWN_SIZE);
 					outb(SCBCNT + iobase, 0);
 					outb(SCBARRAY+iobase+30,SCB_LIST_NULL);
-
+					/*
+					 * Ensure that the target is "BUSY"
+					 * so we don't get overlapping 
+					 * commands if we happen to be doing
+					 * tagged I/O.
+					 */
+					active = inb(HA_ACTIVE0 + iobase) 
+					  | (inb(HA_ACTIVE1 + iobase) << 8);
+					active |= targ_mask;
+					outb(HA_ACTIVE0 + iobase,active & 0xff);
+					outb(HA_ACTIVE1 + iobase, 
+						(active >> 8) & 0xff);
 					/*
 					 * Add this SCB to the "waiting for
 					 * selection" list.
 					 */
 					head = inb(WAITING_SCBH + iobase);
 					tail = inb(WAITING_SCBT + iobase);
-					if(head & SCB_LIST_NULL) {
+					if(head == SCB_LIST_NULL) {
 						/* List was empty */
 						head = scb->position;
 						tail = SCB_LIST_NULL;
 					}
-					else if(tail & SCB_LIST_NULL) {
+					else if(tail == SCB_LIST_NULL) {
 						/* List had one element */
 						tail = scb->position;
 						outb(SCBPTR+iobase,head);
@@ -1188,8 +1370,10 @@ ahcintr(unit)
 				xs->flags |= SCSI_RESID_VALID;
 #ifdef AHC_DEBUG
 				sc_print_addr(xs->sc_link);
-				printf("Handled Residual of %d bytes\n",
-					scb->xs->resid);
+				printf("Handled Residual of %d bytes\n"
+				       "SG_COUNT == %d\n",
+					scb->xs->resid,
+					inb(SCBARRAY+18 + iobase));
 #endif
 			}
 			break;
@@ -1360,6 +1544,49 @@ cmdcomplete:
 	return 1;
 }
 
+
+int
+enable_seeprom(u_long   offset,
+                  u_short  CS,   /* chip select */
+                  u_short  CK,   /* clock */
+                  u_short  DO,   /* data out */
+                  u_short  DI,   /* data in */
+                  u_short  RDY,  /* ready */
+                  u_short  MS    /* mode select */)
+{
+	int wait;
+	/*
+	 * Request access of the memory port.  When access is
+	 * granted, SEERDY will go high.  We use a 1 second
+	 * timeout which should be near 1 second more than
+	 * is needed.  Reason: after the chip reset, there
+	 * should be no contention.
+	 */
+	outb(offset, MS);
+	wait = 1000;  /* 1 second timeout in msec */
+	while (--wait && ((inb(offset) & RDY) == 0)) {
+		DELAY (1000);  /* delay 1 msec */
+        }
+	if ((inb(offset) & RDY) == 0) {
+		outb (offset, 0); 
+		return (0);
+	}         
+	return(1);
+}
+
+void
+release_seeprom(u_long   offset,
+                  u_short  CS,   /* chip select */
+                  u_short  CK,   /* clock */
+                  u_short  DO,   /* data out */
+                  u_short  DI,   /* data in */
+                  u_short  RDY,  /* ready */
+                  u_short  MS    /* mode select */)
+{
+	/* Release access to the memory port and the serial EEPROM. */
+	outb(offset, 0);
+}
+
 /*
  * We have a scb which has been processed by the
  * adaptor, now we look to see how the operation
@@ -1426,9 +1653,10 @@ ahc_init(unit)
 {
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
-	u_char	scsi_conf, sblkctl, i;
-	int     intdef, max_targ = 16, wait;
-
+	u_char	scsi_conf, sblkctl, i, host_id;
+	int     intdef, max_targ = 16, wait, have_seeprom = 0;
+	int	bios_disabled = 0;
+	struct seeprom_config sc;
 	/*
 	 * Assume we have a board at this stage
 	 * Find out the configured interupt and the card type.
@@ -1462,17 +1690,67 @@ ahc_init(unit)
 		outb(HCNTRL + iobase, ahc->pause);
 	}
 	switch( ahc->type ) {
+	   case AHC_AIC7770:
 	   case AHC_274:
-		printf("ahc%d: 274x ", unit);
-		ahc->maxscbs = 0x4;
-		break;
 	   case AHC_284:
-		printf("ahc%d: 284x ", unit);
+	   {
+		u_char hostconf;
+		if(ahc->type == AHC_274) {
+			printf("ahc%d: 274x ", unit);
+			if((inb(HA_274_BIOSCTRL + iobase) & BIOSMODE)
+				== BIOSDISABLED)
+				bios_disabled = 1;
+		}
+		else if(ahc->type == AHC_284)
+		        printf("ahc%d: 284x ", unit);
+		else 
+		        printf("ahc%d: Motherboard ", unit);
 		ahc->maxscbs = 0x4;
+		/* Should we only do this for the 27/284x? */
+ 		/* Setup the FIFO threshold and the bus off time */
+ 		hostconf = inb(HA_HOSTCONF + iobase);
+ 		outb(BUSSPD + iobase, hostconf & DFTHRSH);
+ 		outb(BUSTIME + iobase, (hostconf << 2) & BOFF);
 		break;
+	   }
 	   case AHC_AIC7850:
 	   case AHC_AIC7870:
+	   case AHC_394:
 	   case AHC_294:
+		host_id = 0x07;  /* default to SCSI ID 7 for 7850 */
+		if (ahc->type != AHC_AIC7850) {
+			unsigned short *scarray = (u_short *)&sc;
+			unsigned short  checksum = 0;
+
+			printf("ahc%d: Reading SEEPROM...", unit);
+			have_seeprom = enable_seeprom (iobase + SEECTL,
+				SEECS, SEECK, SEEDO, SEEDI, SEERDY, SEEMS);
+			if (have_seeprom) {
+				have_seeprom = read_seeprom (iobase + SEECTL, 
+					(u_short *)&sc, sizeof(sc)/2, SEECS, 
+					SEECK, SEEDO, SEEDI, SEERDY, SEEMS);
+				release_seeprom (iobase + SEECTL, SEECS, SEECK,
+					SEEDO, SEEDI, SEERDY, SEEMS);
+				if (have_seeprom) {
+					/* Check checksum */
+				    for (i = 0;i < (sizeof(sc)/2 - 1);i = i + 1)
+					checksum = checksum + scarray[i];
+				    if (checksum != sc.checksum) {
+					printf ("checksum error");
+					have_seeprom = 0;
+				    }
+				    else {
+					printf("done.\n");
+					host_id = (sc.brtime_id & CFSCSIID);
+				    }
+				}
+			}
+			if (!have_seeprom) {
+				printf("\nahc%d: SEEPROM read failed, "
+					"using leftover BIOS values\n", unit);
+				host_id = 0x7;
+			}
+		}
 		ahc->maxscbs = 0x10;
 		if(ahc->type == AHC_AIC7850){
 			printf("ahc%d: aic7850 ", unit);
@@ -1480,23 +1758,26 @@ ahc_init(unit)
 		}
 		else if(ahc->type == AHC_AIC7870)
 			printf("ahc%d: aic7870 ", unit);
+		else if(ahc->type == AHC_394){
+			printf("ahc%d: 3940 ", unit);
+			/* XXX Test this! ahc->maxscbs = 0xff; */
+		}
 		else
-			printf("ahc%d: 294x ", unit);
-		#define DFTHRESH        3
-		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
+			printf("ahc%d: 2940 ", unit);
+		outb(DSPCISTATUS + iobase, 0xc0 /* DFTHRSH == 100% */);
 		/*
-		 * XXX Hard coded SCSI ID until we can read it from the
-		 * SEEPROM or NVRAM.
+		 * XXX Use SCSI ID from SEEPROM if we have it; otherwise
+		 * its hardcoded to 7 until we can read it from NVRAM.
 		 */
-		outb(HA_SCSICONF + iobase, 0x07 | (DFTHRESH << 6));
+		outb(HA_SCSICONF + iobase, host_id | 0xc0 /* DFTHRSH = 100% */);
 		/* In case we are a wide card */
-		outb(HA_SCSICONF + 1 + iobase, 0x07);
+		outb(HA_SCSICONF + 1 + iobase, host_id);
 		break;
 	   default:
 	};
 
         /* Determine channel configuration and who we are on the scsi bus. */
-        switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0f) ) {
+        switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0a) ) {
             case 0:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
                 printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
@@ -1525,8 +1806,9 @@ ahc_init(unit)
 	 */
 	outb(SBLKCTL + iobase, sblkctl);
 	/*
-	 * Number of SCBs that will be used. Rev E aic7770s and
-	 * aic7870s have 16.  The rest have 4.
+	 * Number of SCBs that will be used. Rev E aic7770s supposedly
+	 * can do 255 concurrent commands.  Right now, we just ID the
+	 * card until we can find out how this is done.
 	 */
 	if(!(ahc->type & AHC_AIC78X0))
 	{
@@ -1553,6 +1835,8 @@ ahc_init(unit)
 		else
 			printf("aic7770 <= Rev C, ");
 	}
+	else if(ahc->type & AHC_AIC7850)
+		printf("aic7850, ");
 	else
 		printf("aic7870, ");
 	printf("%d SCBs\n", ahc->maxscbs);
@@ -1627,25 +1911,56 @@ ahc_init(unit)
 	 */
 	ahc->needsdtr_orig = 0;
 	ahc->needwdtr_orig = 0;
+
+	/* Grab the disconnection disable table and invert it for our needs */
+	if(have_seeprom)
+		ahc->discenable = 0;
+	else if(bios_disabled){
+		printf("ahc%d: Host Adapter Bios disabled.  Using default SCSI "
+			"device parameters\n", unit);
+		ahc->discenable = 0xff;
+	}
+	else
+		ahc->discenable = ~(inw(HA_DISC_DSB + iobase));
+
 	if(!(ahc->type & AHC_WIDE))
 		max_targ = 8;
 
 	for(i = 0; i < max_targ; i++){
-		u_char target_settings = inb(HA_TARG_SCRATCH + i + iobase);
-		if(target_settings & 0x0f){
-			ahc->needsdtr_orig |= (0x01 << i);
-			/* Default to a asyncronous transfers (0 offset) */
-			target_settings &= 0xf0;
+		u_char target_settings;
+		if (have_seeprom) {
+			target_settings = (sc.device_flags[i] & CFXFER) << 4;
+			if (sc.device_flags[i] & CFSYNCH)
+				ahc->needsdtr_orig |= (0x01 << i);
+			if (sc.device_flags[i] & CFWIDEB)
+				ahc->needwdtr_orig |= (0x01 << i);
+			if (sc.device_flags[i] & CFDISC)
+				ahc->discenable |= (0x01 << i);
 		}
-		if(target_settings & 0x80){
+		else if (bios_disabled) {
+			target_settings = 0; /* 10MHz */
+			ahc->needsdtr_orig |= (0x01 << i);
 			ahc->needwdtr_orig |= (0x01 << i);
-			/*
-			 * We'll set the Wide flag when we
-			 * are successful with Wide negotiation,
-			 * so turn it off for now so we aren't
-			 * confused.
-			 */
-			target_settings &= 0x7f;
+		}
+		else {
+			/* Take the settings leftover in scratch RAM. */
+			target_settings = inb(HA_TARG_SCRATCH + i + iobase);
+
+			if(target_settings & 0x0f){
+				ahc->needsdtr_orig |= (0x01 << i);
+				/*Default to a asyncronous transfers(0 offset)*/
+				target_settings &= 0xf0;
+			}
+			if(target_settings & 0x80){
+				ahc->needwdtr_orig |= (0x01 << i);
+				/*
+				 * We'll set the Wide flag when we
+				 * are successful with Wide negotiation,
+				 * so turn it off for now so we aren't
+				 * confused.
+				 */
+				target_settings &= 0x7f;
+			}
 		}
 		outb(HA_TARG_SCRATCH+i+iobase,target_settings);
 	}
@@ -1673,8 +1988,8 @@ ahc_init(unit)
 	}
 
 #ifdef AHC_DEBUG
-	printf("NEEDSDTR == 0x%x\nNEEDWDTR == 0x%x\n", ahc->needsdtr,
-		ahc->needwdtr);
+	printf("NEEDSDTR == 0x%x\nNEEDWDTR == 0x%x\nDISCENABLE == 0x%x\n", 
+		ahc->needsdtr, ahc->needwdtr, ahc->discenable);
 #endif
 	/*
 	 * Set the number of availible SCBs
@@ -1690,7 +2005,7 @@ ahc_init(unit)
 	outb( WAITING_SCBT + iobase, SCB_LIST_NULL );
 	/*
 	 * Load the Sequencer program and Enable the adapter.
-	 * Place the aic7770 in fastmode which makes a big
+	 * Place the aic7xxx in fastmode which makes a big
 	 * difference when doing many small block transfers.
          */
 
@@ -1704,7 +2019,7 @@ ahc_init(unit)
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO);
-	DELAY(1000);
+	DELAY(10000);
 	outb(SCSISEQ + iobase, 0);
 
         UNPAUSE_SEQUENCER(ahc);
@@ -1782,6 +2097,10 @@ ahc_scsi_cmd(xs)
 
 	if(ahc->tagenable & mask)
 		scb->control |= SCB_TE;
+#ifdef NOT_YET
+	if(ahc->discenable & mask)
+		scb->control |= SCB_DISCENB;
+#endif
 	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))
 	{
 		scb->control |= SCB_NEEDWDTR;
@@ -1857,8 +2176,15 @@ ahc_scsi_cmd(xs)
                         }
                 } /*end of iov/kv decision */
                 scb->SG_segment_count = seg;
+
+		/* Copy the first SG into the data pointer area */
+		scb->data = scb->ahc_dma->addr;
+		scb->datalen[0] = scb->ahc_dma->len & 0xff;
+		scb->datalen[1] = (scb->ahc_dma->len >> 8) & 0xff;
+		scb->datalen[2] = (scb->ahc_dma->len >> 16) & 0xff;
                 SC_DEBUGN(xs->sc_link, SDEV_DB4, ("\n"));
-                if (datalen) { /* there's still data, must have run out of segs! */
+                if (datalen) { 
+			/* there's still data, must have run out of segs! */
                         printf("ahc_scsi_cmd%d: more than %d DMA segs\n",
                             unit, AHC_NSEG);
                         xs->error = XS_DRIVER_STUFFUP;
@@ -1872,6 +2198,10 @@ ahc_scsi_cmd(xs)
 	 	 */
 		scb->SG_segment_count = 0;
 		scb->SG_list_pointer = 0;
+		scb->data = 0;
+		scb->datalen[0] = 0;
+		scb->datalen[1] = 0;
+		scb->datalen[2] = 0;
 	}
 
         /*
@@ -2156,20 +2486,20 @@ ahc_abort_scb( unit, ahc, scb )
 		if(scb->target_channel_lun & 0x08){
 			ahc->needsdtr |= (ahc->needsdtr_orig & 0xff00);
 			ahc->sdtrpending &= 0x00ff;
-			outb(HA_ACTIVE1, 0);
+			outb(HA_ACTIVE1 + iobase, 0);
 		}
 		else if (ahc->type & AHC_WIDE){
 			ahc->needsdtr = ahc->needsdtr_orig;
 			ahc->needwdtr = ahc->needwdtr_orig;
 			ahc->sdtrpending = 0;
 			ahc->wdtrpending = 0;
-			outb(HA_ACTIVE0, 0);
-			outb(HA_ACTIVE1, 0);
+			outb(HA_ACTIVE0 + iobase, 0);
+			outb(HA_ACTIVE1 + iobase, 0);
 		}
 		else{
 			ahc->needsdtr |= (ahc->needsdtr_orig & 0x00ff);
 			ahc->sdtrpending &= 0xff00;
-			outb(HA_ACTIVE0, 0);
+			outb(HA_ACTIVE0 + iobase, 0);
 		}
 
 		/* Reset the bus */

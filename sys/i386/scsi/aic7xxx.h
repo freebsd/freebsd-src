@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.9.2.1 1995/06/04 09:15:29 davidg Exp $
+ *	$Id: aic7xxx.h,v 1.10 1995/06/11 19:31:31 rgrimes Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -55,7 +55,8 @@ typedef enum {
 	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
 	AHC_274		= 0x110,	/* EISA Based Controller */
 	AHC_284		= 0x210,	/* VL/ISA Based Controller */
-	AHC_294		= 0x440		/* PCI Based Controller */
+	AHC_294		= 0x440,	/* PCI Based Controller */
+	AHC_394		= 0x840		/* Twin Channel PCI Controller */
 }ahc_type;
 
 /*
@@ -89,11 +90,7 @@ struct scb {
 /*15*/	u_char target_status;
 /*18*/	u_char residual_data_count[3];
 /*19*/	u_char residual_SG_segment_count;
-#define	SCB_DOWN_SIZE 19		/* amount to actually download */
-#define SCB_BZERO_SIZE 19		/*
-					 * amount we need to clear between
-					 * commands
-					 */
+#define	SCB_DOWN_SIZE 26		/* amount to actually download */
 /*23*/	physaddr data			 __attribute__ ((packed));
 /*26*/  u_char datalen[3];
 #define SCB_UP_SIZE 26			/*
@@ -104,7 +101,7 @@ struct scb {
 /*31*/	u_char next_waiting;		/* Used to thread SCBs awaiting
 					 * selection
 					 */
-#define SCB_LIST_NULL 0x10		/* SCB list equivelent to NULL */
+#define SCB_LIST_NULL 0xff		/* SCB list equivelent to NULL */
 #if 0
 	/*
 	 *  No real point in transferring this to the
@@ -148,6 +145,7 @@ struct ahc_data {
 	u_short sdtrpending;		/* Pending SDTR to these targets */
 	u_short wdtrpending;		/* Pending WDTR to these targets */
 	u_short	tagenable;		/* Targets that can handle tagqueing */
+	u_short	discenable;		/* Targets allowed to disconnect */
 	int	numscbs;
 	int	activescbs;
 	u_char	maxscbs;
