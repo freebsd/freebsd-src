@@ -255,17 +255,13 @@ DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ${TARGET}
 DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ""
 .endif
 
-.if ${TARGET_ARCH} == "sparc64"
-CRUNCH_TARGETS= boot
-.elif ${TARGET_ARCH} == "ia64"
-CRUNCH_TARGETS= boot
-.elif ${TARGET} == "pc98"
-CRUNCH_TARGETS=	boot fixit fixit-small
-.elif ${TARGET_ARCH} == "amd64"
-CRUNCH_TARGETS= boot
+CRUNCH_TARGETS=	boot
+.if ${TARGET_ARCH} == "i386"
+CRUNCH_TARGETS+=fixit
+.if ${TARGET} == "pc98"
+CRUNCH_TARGETS+=fixit-small
 .endif
-
-CRUNCH_TARGETS?=boot fixit
+.endif
 
 EXTRAS= ftp.1
 .if !defined(NOCDROM)
@@ -553,19 +549,17 @@ release.5:
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 .for j in ${CRUNCH_TARGETS}
+.if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
-.if exists(${.CURDIR}/${TARGET}/${j}_crunch.conf)
 	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${TARGET}/${j}_crunch.conf
-.else
-	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${j}_crunch.conf
-.endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${BINMAKE} -f Makefile.inc1 _build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
 	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
 	${WMAKEENV} strip -R .comment ${j}_crunch/${j}_crunch
 	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
+.endif
 .endfor
 	touch ${.TARGET}
 
