@@ -39,11 +39,7 @@
 
 #ifndef OUTPUT_INCL
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 struct output {
 	char *nextc;
