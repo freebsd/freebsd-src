@@ -364,8 +364,8 @@ dumppacket(fd, dir, source, cp, size)
 		fprintf(fd, "Bad cmd 0x%x %s %s#%x\n", ntohs(msg->rip_cmd),
 		    dir, ipxdp_ntoa(&who->sipx_addr), 
 		    ntohs(who->sipx_addr.x_port));
-		fprintf(fd, "size=%d cp=%x packet=%x\n", size, 
-			(u_int)cp, (u_int)packet);
+		fprintf(fd, "size=%d cp=%lx packet=%x\n", size, 
+			(u_long)cp, (u_int)packet);
 		return;
 	}
 	switch (ntohs(msg->rip_cmd)) {
@@ -408,8 +408,8 @@ dumpsappacket(fd, dir, source, cp, size)
 		fprintf(fd, "Bad cmd 0x%x %s %s#%x\n", ntohs(msg->sap_cmd),
 		    dir, ipxdp_ntoa(&who->sipx_addr), 
 		    ntohs(who->sipx_addr.x_port));
-		fprintf(fd, "size=%d cp=%x packet=%x\n", size, 
-			(u_int)cp, (u_int)packet);
+		fprintf(fd, "size=%d cp=%lx packet=%x\n", size, 
+			(u_long)cp, (u_int)packet);
 		return;
 	}
 	switch (ntohs(msg->sap_cmd)) {
