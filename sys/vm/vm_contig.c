@@ -111,9 +111,11 @@ vm_contig_launder(int queue)
 				vm_pageout_flush(&m_tmp, 1, 0);
 				return (TRUE);
 			}
-		}
-		if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
+		} else if (m->busy == 0 && m->hold_count == 0) {
+			vm_page_lock_queues();
 			vm_page_cache(m);
+			vm_page_unlock_queues();
+		}
 	}
 	return (FALSE);
 }
