@@ -134,7 +134,6 @@ natm_usr_detach(struct socket *so)
      */
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
     so->so_pcb = NULL;
-    SOCK_LOCK(so);
     sotryfree(so);
  out:
     splx(s);
@@ -217,9 +216,7 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
     }
     splx(s2);
 
-    SOCK_LOCK(so);
     soisconnected(so);
-    SOCK_UNLOCK(so);
 
  out:
     splx(s);
@@ -262,9 +259,7 @@ natm_usr_disconnect(struct socket *so)
     splx(s2);
 
     npcb_free(npcb, NPCB_REMOVE);
-    SOCK_LOCK(so);
     soisdisconnected(so);
-    SOCK_UNLOCK(so);
 
  out:
     splx(s);
@@ -487,7 +482,6 @@ struct proc *p;
 
       npcb_free(npcb, NPCB_DESTROY);	/* drain */
       so->so_pcb = NULL;
-      SOCK_LOCK(so);
       sotryfree(so);
 
       break;
@@ -558,9 +552,7 @@ struct proc *p;
       }
       splx(s2);
 
-      SOCK_LOCK(so);
       soisconnected(so);
-      SOCK_UNLOCK(so);
 
       break;
 
@@ -587,9 +579,7 @@ struct proc *p;
       splx(s2);
 
       npcb_free(npcb, NPCB_REMOVE);
-      SOCK_LOCK(so);
       soisdisconnected(so);
-      SOCK_UNLOCK(so);
 
       break;
 
@@ -762,9 +752,7 @@ m->m_pkthdr.rcvif = NULL;	/* null it out to be safe */
     natm_sookbytes += m->m_pkthdr.len;
 #endif
     sbappendrecord(&so->so_rcv, m);
-    SOCK_LOCK(so);
     sorwakeup(so);
-    SOCK_UNLOCK(so);
   } else {
 #ifdef NATM_STAT
     natm_sodropcnt++;

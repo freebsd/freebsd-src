@@ -1147,19 +1147,16 @@ ip6_savecontrol(in6p, mp, ip6, m)
  		privileged++;
 
 #ifdef SO_TIMESTAMP
-	SOCK_LOCK(in6p->in6p_socket);
 	if ((in6p->in6p_socket->so_options & SO_TIMESTAMP) != 0) {
 		struct timeval tv;
 
-		SOCK_UNLOCK(in6p->in6p_socket);
 		microtime(&tv);
 		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
 				      SCM_TIMESTAMP, SOL_SOCKET);
 		if (*mp) {
 			mp = &(*mp)->m_next;
 		}
-	} else
-		SOCK_UNLOCK(in6p->in6p_socket);
+	}
 #endif
 
 	/* RFC 2292 sec. 5 */

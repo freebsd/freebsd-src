@@ -116,17 +116,15 @@ svr4_sys_read(td, uap)
 
      if (fp->f_type == DTYPE_SOCKET) {
        so = (struct socket *)fp->f_data;
-       SOCK_LOCK(so);
-       so_state = so->so_state;
-#if defined(GROTTY_READ_HACK)
-       so->so_state &= ~SS_NBIO;
-#endif
-       SOCK_UNLOCK(so);
        DPRINTF(("fd %d is a socket\n", SCARG(uap, fd)));
-       if (so_state & SS_ASYNC) {
+       if (so->so_state & SS_ASYNC) {
 	 DPRINTF(("fd %d is an ASYNC socket!\n", SCARG(uap, fd)));
        }
-       DPRINTF(("Here are its flags: 0x%x\n", so_state));
+       DPRINTF(("Here are its flags: 0x%x\n", so->so_state));
+#if defined(GROTTY_READ_HACK)
+       so_state = so->so_state;
+       so->so_state &= ~SS_NBIO;
+#endif
      }
 
      rv = read(td, &ra);
@@ -142,9 +140,7 @@ svr4_sys_read(td, uap)
 
 #if defined(GROTTY_READ_HACK)
      if (so) {  /* We've already checked to see if this is a socket */
-       SOCK_LOCK(so);
        so->so_state = so_state;
-       SOCK_UNLOCK(so);
      }
 #endif
      fdrop(fp, td);

@@ -714,14 +714,10 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 	int error, soflags, flags;
 
 	soflags = so->so_proto->pr_flags;
-	SOCK_LOCK(so);
-	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED)) {
-		SOCK_UNLOCK(so);
+	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
 		sendnam = (struct sockaddr *)0;
-	} else {
-		SOCK_UNLOCK(so);
+	else
 		sendnam = nam;
-	}
 	if (so->so_type == SOCK_SEQPACKET)
 		flags = MSG_EOR;
 	else

@@ -183,20 +183,15 @@ in_pcbbind(inp, nam, td)
 	struct sockaddr_in *sin;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short lport = 0;
-	int wild = 0, reuseport;
+	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error, prison = 0;
 
-	SOCK_LOCK(so);
-	reuseport = (so->so_options & SO_REUSEPORT);
-	SOCK_UNLOCK(so);
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	SOCK_LOCK(so);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = 1;
-	SOCK_UNLOCK(so);
 	if (nam) {
 		sin = (struct sockaddr_in *)nam;
 		if (nam->sa_len != sizeof (*sin))
@@ -221,10 +216,8 @@ in_pcbbind(inp, nam, td)
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
-			SOCK_LOCK(so);
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
-			SOCK_UNLOCK(so);
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
 			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
@@ -244,37 +237,13 @@ in_pcbbind(inp, nam, td)
 				t = in_pcblookup_local(inp->inp_pcbinfo,
 				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);
-				if (t != NULL) {
-					SOCK_LOCK(t->inp_socket);
-					if ((ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
-					     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-					     (t->inp_socket->so_options &
-						 SO_REUSEPORT) == 0) &&
-					    (so->so_cred->cr_uid !=
-					     t->inp_socket->so_cred->cr_uid)) {
-						SOCK_UNLOCK(t->inp_socket);
-#if defined(INET6)
-						if (ntohl(sin->sin_addr.s_addr) !=
-						    INADDR_ANY ||
-						    ntohl(t->inp_laddr.s_addr) !=
-						    INADDR_ANY ||
-						    INP_SOCKAF(so) ==
-						    INP_SOCKAF(t->inp_socket))
-#endif /* defined(INET6) */
-						return (EADDRINUSE);
-					} else
-						SOCK_UNLOCK(t->inp_socket);
-				}
-			}
-			if (prison &&
-			    prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
-				return (EADDRNOTAVAIL);
-			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, prison ? 0 : wild);
-			if (t != NULL) {
-				SOCK_LOCK(t->inp_socket);
-				if ((reuseport & t->inp_socket->so_options) == 0) {
-					SOCK_UNLOCK(t->inp_socket);
+				if (t &&
+				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
+				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
+				     (t->inp_socket->so_options &
+					 SO_REUSEPORT) == 0) &&
+				    (so->so_cred->cr_uid !=
+				     t->inp_socket->so_cred->cr_uid)) {
 #if defined(INET6)
 					if (ntohl(sin->sin_addr.s_addr) !=
 					    INADDR_ANY ||
@@ -284,8 +253,24 @@ in_pcbbind(inp, nam, td)
 					    INP_SOCKAF(t->inp_socket))
 #endif /* defined(INET6) */
 					return (EADDRINUSE);
-				} else
-					SOCK_UNLOCK(t->inp_socket);
+				}
+			}
+			if (prison &&
+			    prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
+				return (EADDRNOTAVAIL);
+			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
+			    lport, prison ? 0 : wild);
+			if (t &&
+			    (reuseport & t->inp_socket->so_options) == 0) {
+#if defined(INET6)
+				if (ntohl(sin->sin_addr.s_addr) !=
+				    INADDR_ANY ||
+				    ntohl(t->inp_laddr.s_addr) !=
+				    INADDR_ANY ||
+				    INP_SOCKAF(so) ==
+				    INP_SOCKAF(t->inp_socket))
+#endif /* defined(INET6) */
+				return (EADDRINUSE);
 			}
 		}
 		inp->inp_laddr = sin->sin_addr;
@@ -431,21 +416,17 @@ in_pcbladdr(inp, nam, plocal_sin)
 		 * destination, in case of sharing the cache with IPv6.
 		 */
 		ro = &inp->inp_route;
-		SOCK_LOCK(inp->inp_socket);
 		if (ro->ro_rt &&
 		    (ro->ro_dst.sa_family != AF_INET ||
 		     satosin(&ro->ro_dst)->sin_addr.s_addr !=
 		     sin->sin_addr.s_addr ||
 		     inp->inp_socket->so_options & SO_DONTROUTE)) {
-			SOCK_UNLOCK(inp->inp_socket);
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = (struct rtentry *)0;
-			SOCK_LOCK(inp->inp_socket);
 		}
 		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0 && /*XXX*/
 		    (ro->ro_rt == (struct rtentry *)0 ||
 		    ro->ro_rt->rt_ifp == (struct ifnet *)0)) {
-			SOCK_UNLOCK(inp->inp_socket);
 			/* No route yet, so try to acquire one */
 			bzero(&ro->ro_dst, sizeof(struct sockaddr_in));
 			ro->ro_dst.sa_family = AF_INET;
@@ -453,8 +434,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 			((struct sockaddr_in *) &ro->ro_dst)->sin_addr =
 				sin->sin_addr;
 			rtalloc(ro);
-		} else
-			SOCK_UNLOCK(inp->inp_socket);
+		}
 		/*
 		 * If we found a route, use the address
 		 * corresponding to the outgoing interface
@@ -568,12 +548,8 @@ in_pcbdisconnect(inp)
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
-	SOCK_LOCK(inp->inp_socket);
-	if (inp->inp_socket->so_state & SS_NOFDREF) {
-		SOCK_UNLOCK(inp->inp_socket);
+	if (inp->inp_socket->so_state & SS_NOFDREF)
 		in_pcbdetach(inp);
-	} else
-		SOCK_UNLOCK(inp->inp_socket);
 }
 
 void
@@ -589,7 +565,6 @@ in_pcbdetach(inp)
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	so->so_pcb = 0;
-	SOCK_LOCK(so);
 	sotryfree(so);
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);

@@ -146,9 +146,7 @@ ipx_input(m, ipxp)
 	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv, (struct sockaddr *)&ipx_ipx,
 	    m, (struct mbuf *)NULL) == 0)
 		goto bad;
-	SOCK_LOCK(ipxp->ipxp_socket);
 	sorwakeup(ipxp->ipxp_socket);
-	SOCK_UNLOCK(ipxp->ipxp_socket);
 	return;
 bad:
 	m_freem(m);
@@ -161,9 +159,7 @@ ipx_abort(ipxp)
 	struct socket *so = ipxp->ipxp_socket;
 
 	ipx_pcbdisconnect(ipxp);
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 }
 
 /*
@@ -190,9 +186,7 @@ ipx_drop(ipxp, errno)
 	}*/
 	so->so_error = errno;
 	ipx_pcbdisconnect(ipxp);
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 }
 
 static int
@@ -206,7 +200,6 @@ ipx_output(ipxp, m0)
 	register struct route *ro;
 	struct mbuf *m;
 	struct mbuf *mprev = NULL;
-	int soopts;
 
 	/*
 	 * Calculate data length.
@@ -268,14 +261,9 @@ ipx_output(ipxp, m0)
 	 * Output datagram.
 	 */
 	so = ipxp->ipxp_socket;
-	SOCK_LOCK(so);
-	if (so->so_options & SO_DONTROUTE) {
-		soopts = so->so_options & SO_BROADCAST;
-		SOCK_UNLOCK(so);
+	if (so->so_options & SO_DONTROUTE)
 		return (ipx_outputfl(m, (struct route *)NULL,
-		    soopts | IPX_ROUTETOIF));
-	}
-	SOCK_UNLOCK(so);
+		    (so->so_options & SO_BROADCAST) | IPX_ROUTETOIF));
 	/*
 	 * Use cached route for previous datagram if
 	 * possible.  If the previous net was the same
@@ -318,10 +306,7 @@ ipx_output(ipxp, m0)
 	}
 	ipxp->ipxp_lastdst = ipx->ipx_dna;
 #endif /* ancient_history */
-	SOCK_LOCK(so);
-	soopts = so->so_options & SO_BROADCAST;
-	SOCK_UNLOCK(so);
-	return (ipx_outputfl(m, ro, soopts));
+	return (ipx_outputfl(m, ro, so->so_options & SO_BROADCAST));
 }
 
 int
@@ -444,11 +429,8 @@ ipx_usr_abort(so)
 	s = splnet();
 	ipx_pcbdetach(ipxp);
 	splx(s);
-	SOCK_LOCK(so);
 	sotryfree(so);
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 	return (0);
 }
 
@@ -498,11 +480,8 @@ ipx_connect(so, nam, td)
 	s = splnet();
 	error = ipx_pcbconnect(ipxp, nam, td);
 	splx(s);
-	if (error == 0) {
-		SOCK_LOCK(so);
+	if (error == 0)
 		soisconnected(so);
-		SOCK_UNLOCK(so);
-	}
 	return (error);
 }
 
@@ -533,9 +512,7 @@ ipx_disconnect(so)
 	s = splnet();
 	ipx_pcbdisconnect(ipxp);
 	splx(s);
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 	return (0);
 }
 

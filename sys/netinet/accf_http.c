@@ -31,9 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/socketvar.h>
@@ -162,13 +160,11 @@ static void
 sohashttpget(struct socket *so, void *arg, int waitflag)
 {
 
-	SOCK_LOCK(so);
 	if ((so->so_state & SS_CANTRCVMORE) == 0 && !sbfull(&so->so_rcv)) {
 		struct mbuf *m;
 		char *cmp;
 		int	cmplen, cc;
 
-		SOCK_UNLOCK(so);
 		m = so->so_rcv.sb_mb;
 		cc = so->so_rcv.sb_cc - 1;
 		if (cc < 1)
@@ -201,16 +197,13 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 			return;
 		}
 		DPRINT("mbufstrcmp bad");
-	} else
-		SOCK_UNLOCK(so);
+	}
 
 fallout:
 	DPRINT("fallout");
-	SOCK_LOCK(so);
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	SOCK_UNLOCK(so);
+	soisconnected_locked(so);
 	return;
 }
 
@@ -220,12 +213,8 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 	struct mbuf *m, *n;
 	int	i, cc, spaces, inspaces;
 
-	SOCK_LOCK(so);
-	if ((so->so_state & SS_CANTRCVMORE) != 0 || sbfull(&so->so_rcv)) {
-		SOCK_UNLOCK(so);
+	if ((so->so_state & SS_CANTRCVMORE) != 0 || sbfull(&so->so_rcv))
 		goto fallout;
-	}
-	SOCK_UNLOCK(so);
 
 	m = so->so_rcv.sb_mb;
 	cc = so->so_rcv.sb_cc;
@@ -294,11 +283,9 @@ readmore:
 
 fallout:
 	DPRINT("fallout");
-	SOCK_LOCK(so);
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	SOCK_UNLOCK(so);
+	soisconnected_locked(so);
 	return;
 }
 
@@ -313,12 +300,8 @@ soishttpconnected(struct socket *so, void *arg, int waitflag)
 	int ccleft, copied;
 
 	DPRINT("start");
-	SOCK_LOCK(so);
-	if ((so->so_state & SS_CANTRCVMORE) != 0 || sbfull(&so->so_rcv)) {
-		SOCK_UNLOCK(so);
+	if ((so->so_state & SS_CANTRCVMORE) != 0 || sbfull(&so->so_rcv))
 		goto gotit;
-	}
-	SOCK_UNLOCK(so);
 
 	/*
 	 * Walk the socketbuffer and copy the last NCHRS (3) into a, b, and c
@@ -370,10 +353,8 @@ readmore:
 	return;
 
 gotit:
-	SOCK_LOCK(so);
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
-	SOCK_UNLOCK(so);
+	soisconnected_locked(so);
 	return;
 }

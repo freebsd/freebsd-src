@@ -126,7 +126,6 @@ tcp_output(tp)
 #ifdef INET6
 	int isipv6;
 #endif
-	int soopts;
 
 #ifdef INET6
 	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
@@ -820,12 +819,8 @@ send:
 	/*
 	 * Trace.
 	 */
-	SOCK_LOCK(so);
-	if (so->so_options & SO_DEBUG) {
-		SOCK_UNLOCK(so);
+	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
-	} else
-		SOCK_UNLOCK(so);
 #endif
 
 	/*
@@ -859,13 +854,10 @@ send:
 			goto out;
 		}
 #endif /*IPSEC*/
-		SOCK_LOCK(so);
-		soopts = (so->so_options & SO_DONTROUTE);
-		SOCK_UNLOCK(so);
 		error = ip6_output(m,
 			    tp->t_inpcb->in6p_outputopts,
 			    &tp->t_inpcb->in6p_route,
-			    soopts, NULL, NULL);
+			    (so->so_options & SO_DONTROUTE), NULL, NULL);
 	} else
 #endif /* INET6 */
     {
@@ -897,11 +889,8 @@ send:
 #ifdef IPSEC
  	ipsec_setsocket(m, so);
 #endif /*IPSEC*/
-	SOCK_LOCK(so);
-	soopts = (so->so_options & SO_DONTROUTE);
-	SOCK_UNLOCK(so);
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
-	    soopts, 0);
+	    (so->so_options & SO_DONTROUTE), 0);
     }
 	if (error) {
 

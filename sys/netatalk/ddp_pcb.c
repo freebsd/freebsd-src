@@ -110,11 +110,8 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	s = splnet();
 	error = at_pcbconnect( ddp, nam, td );
 	splx(s);
-	if ( error == 0 ) {
-	    SOCK_LOCK( so );
+	if ( error == 0 )
 	    soisconnected( so );
-	    SOCK_UNLOCK( so );
-	}
 	return(error);
 }
 
@@ -137,9 +134,7 @@ ddp_disconnect(struct socket *so)
 	at_pcbdisconnect( ddp );
 	ddp->ddp_fsat.sat_addr.s_node = ATADDR_ANYNODE;
 	splx(s);
-	SOCK_LOCK( so );
 	soisdisconnected( so );
-	SOCK_UNLOCK( so );
 	return(0);
 }
 
@@ -209,9 +204,7 @@ ddp_abort(struct socket *so)
 	if ( ddp == NULL ) {
 		return(EINVAL);
 	}
-	SOCK_LOCK( so );
 	soisdisconnected( so );
-	SOCK_UNLOCK( so );
 	s = splnet();
 	at_pcbdetach( so, ddp );
 	splx(s);
@@ -447,7 +440,6 @@ at_pcballoc( struct socket *so )
 static void
 at_pcbdetach( struct socket *so, struct ddpcb *ddp)
 {
-    SOCK_LOCK( so );
     soisdisconnected( so );
     so->so_pcb = 0;
     sotryfree(so);

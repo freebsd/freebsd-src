@@ -86,18 +86,15 @@ ncp_soconnect(struct socket *so,struct sockaddr *target, struct proc *p) {
 	 */
 	error = EIO;
 	s = splnet();
-	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-		(void) msleep((caddr_t)&so->so_timeo, SOCK_MTX(so), PSOCK, "ncpcon", 2 * hz);
+		(void) tsleep((caddr_t)&so->so_timeo, PSOCK, "ncpcon", 2 * hz);
 		if ((so->so_state & SS_ISCONNECTING) &&
 		    so->so_error == 0 /*&& rep &&*/) {
 			so->so_state &= ~SS_ISCONNECTING;
-			SOCK_UNLOCK(so);
 			splx(s);
 			goto bad;
 		}
 	}
-	SOCK_UNLOCK(so);
 	if (so->so_error) {
 		error = so->so_error;
 		so->so_error = 0;

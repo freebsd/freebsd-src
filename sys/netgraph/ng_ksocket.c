@@ -507,17 +507,7 @@ static struct ng_type ng_ksocket_typestruct = {
 };
 NETGRAPH_INIT(ksocket, &ng_ksocket_typestruct);
 
-#define ERROUT(x)			\
-	do {				\
-		error = (x);		\
-		goto done;		\
-	} while (0)
-#define ERROUT_SOCK(x)			\
-	do {				\
-		error = (x);		\
-		SOCK_UNLOCK(so);	\
-		goto done;		\
-	} while (0)
+#define ERROUT(x)	do { error = (x); goto done; } while (0)
 
 /************************************************************************
 			NETGRAPH NODE STUFF
@@ -623,9 +613,7 @@ ng_ksocket_connect(hook_p hook)
 	priv->so->so_upcall = ng_ksocket_incoming;
 	priv->so->so_rcv.sb_flags |= SB_UPCALL;
 	priv->so->so_snd.sb_flags |= SB_UPCALL;
-	SOCK_LOCK(priv->so);
 	priv->so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(priv->so);
 	/*
 	 * --Original comment--
 	 * On a cloned socket we may have already received one or more
@@ -720,10 +708,8 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENXIO);
 
 			/* Make sure the socket is capable of accepting */
-			SOCK_LOCK(so);
 			if (!(so->so_options & SO_ACCEPTCONN))
-				ERROUT_SOCK(EINVAL);
-			SOCK_UNLOCK(so);
+				ERROUT(EINVAL);
 			if (priv->flags & KSF_ACCEPTING)
 				ERROUT(EALREADY);
 
@@ -758,24 +744,18 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENXIO);
 
 			/* Do connect */
-			SOCK_LOCK(so);
 			if ((so->so_state & SS_ISCONNECTING) != 0)
-				ERROUT_SOCK(EALREADY);
-			SOCK_UNLOCK(so);
+				ERROUT(EALREADY);
 			if ((error = soconnect(so, sa, td)) != 0) {
-				SOCK_LOCK(so);
 				so->so_state &= ~SS_ISCONNECTING;
-				ERROUT_SOCK(error);
+				ERROUT(error);
 			}
-			SOCK_LOCK(so);
-			if ((so->so_state & SS_ISCONNECTING) != 0) {
+			if ((so->so_state & SS_ISCONNECTING) != 0)
 				/* We will notify the sender when we connect */
 				priv->response_token = msg->header.token;
 				raddr = priv->response_addr;
 				priv->flags |= KSF_CONNECTING;
-				ERROUT_SOCK(EINPROGRESS);
-			}
-			SOCK_UNLOCK(so);
+				ERROUT(EINPROGRESS);
 			break;
 		    }
 
@@ -794,11 +774,9 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Get function */
 			if (msg->header.cmd == NGM_KSOCKET_GETPEERNAME) {
-				SOCK_LOCK(so);
 				if ((so->so_state
 				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) 
-					ERROUT_SOCK(ENOTCONN);
-				SOCK_UNLOCK(so);
+					ERROUT(ENOTCONN);
 				func = so->so_proto->pr_usrreqs->pru_peeraddr;
 			} else
 				func = so->so_proto->pr_usrreqs->pru_sockaddr;
@@ -1068,13 +1046,11 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 
 	/* Check whether a pending connect operation has completed */
 	if (priv->flags & KSF_CONNECTING) {
-		SOCK_LOCK(so);
 		if ((error = so->so_error) != 0) {
 			so->so_error = 0;
 			so->so_state &= ~SS_ISCONNECTING;
 		}
 		if (!(so->so_state & SS_ISCONNECTING)) {
-			SOCK_UNLOCK(so);
 			NG_MKMESSAGE(response, NGM_KSOCKET_COOKIE,
 			    NGM_KSOCKET_CONNECT, sizeof(int32_t), waitflag);
 			if (response != NULL) {
@@ -1090,8 +1066,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 						priv->response_addr, NULL);
 			}
 			priv->flags &= ~KSF_CONNECTING;
-		} else
-			SOCK_UNLOCK(so);
+		}
 	}
 
 	/* Check whether a pending accept operation has completed */
@@ -1121,14 +1096,10 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		struct sockaddr *sa = NULL;
 		meta_p meta = NULL;
 		struct mbuf *n;
-		int sostate;
 
 		/* Try to get next packet from socket */
-		SOCK_LOCK(so);
-		sostate = so->so_state & SS_ISCONNECTED;
-		SOCK_UNLOCK(so);
 		if ((error = (*so->so_proto->pr_usrreqs->pru_soreceive)
-		    (so, sostate ? NULL : &sa,
+		    (so, (so->so_state & SS_ISCONNECTED) ? NULL : &sa,
 		    &auio, &m, (struct mbuf **)0, &flags)) != 0)
 			break;
 
@@ -1175,17 +1146,14 @@ sendit:		/* Forward data with optional peer sockaddr as meta info */
 	 * If the peer has closed the connection, forward a 0-length mbuf
 	 * to indicate end-of-file.
 	 */
-	SOCK_LOCK(so);
 	if (so->so_state & SS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
-		SOCK_UNLOCK(so);
 		MGETHDR(m, waitflag, MT_DATA);
 		if (m != NULL) {
 			m->m_len = m->m_pkthdr.len = 0;
 			NG_SEND_DATA_ONLY(error, priv->hook, m);
 		}
 		priv->flags |= KSF_EOFSEEN;
-	} else
-		SOCK_UNLOCK(so);
+	}
 	splx(s);
 }
 
@@ -1204,12 +1172,8 @@ ng_ksocket_check_accept(priv_p priv)
 		return error;
 	}
 	if (TAILQ_EMPTY(&head->so_comp)) {
-		SOCK_LOCK(head);
-		if (head->so_state & SS_CANTRCVMORE) {
-			SOCK_UNLOCK(head);
+		if (head->so_state & SS_CANTRCVMORE)
 			return ECONNABORTED;
-		}
-		SOCK_UNLOCK(head);
 		return EWOULDBLOCK;
 	}
 	return 0;
@@ -1240,10 +1204,8 @@ ng_ksocket_finish_accept(priv_p priv)
 
 	/* XXX KNOTE(&head->so_rcv.sb_sel.si_note, 0); */
 
-	SOCK_LOCK(so);
 	so->so_state &= ~SS_COMP;
 	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
 	so->so_head = NULL;
 
 	soaccept(so, &sa);
