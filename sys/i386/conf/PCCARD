@@ -16,7 +16,7 @@
 # device lines is also present in the ./LINT configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id$
+#	$Id: PCCARD,v 1.15.2.1 1999/08/13 15:58:56 kuriyama Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -167,6 +167,7 @@ device fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
 device mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device pn0		# Lite-On 82c168/82c169 (``PNIC'')
 device rl0		# RealTek 8129/8139
+device sf0		# Adaptec AIC-6915 DuraLAN (``Starfire'')
 device tl0		# Texas Instruments ThunderLAN
 device tx0		# SMC 9432TX (83c170 ``EPIC'')
 device vr0		# VIA Rhine, Rhine II
@@ -214,6 +215,4 @@ options		SYSVSEM
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
-#pseudo-device	bpfilter 4	#Berkeley packet filter
-
-
+pseudo-device	bpfilter 1	#Berkeley packet filter
