@@ -329,7 +329,7 @@ build-tools: make_hash make_keys
 make_keys:	make_keys.c names.c curses.h ncurses_def.h
 	${CC} -o $@ ${CFLAGS} ${NCURSES}/ncurses/tinfo/make_keys.c
 
-make_hash:	comp_hash.c hashsize.h curses.h
+make_hash:	comp_hash.c hashsize.h curses.h ncurses_def.h
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES}/ncurses/tinfo/comp_hash.c
 
