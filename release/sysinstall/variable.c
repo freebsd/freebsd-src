@@ -96,9 +96,11 @@ void
 variable_set2(char *var, char *value, int dirty)
 {
     if (!var || !value)
-	msgFatal("Null name or value passed to set_variable2!");
+	msgFatal("Null name or value passed to set_variable2(%s) = %s!",
+		var ? var : "", value ? value : "");
     else if (!*var || !*value)
-	msgDebug("Warning:  Zero length name or value passed to variable_set2()\n");
+	msgDebug("Warning:  Zero length name or value passed to variable_set2(%s) = %s\n",
+		var, value);
     make_variable(var, value, dirty);
 }
 
