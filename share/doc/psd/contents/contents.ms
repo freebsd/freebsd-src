@@ -195,14 +195,6 @@ A program to show the call graph and execution time of a program.
 Indispensable aid for improving the running time of almost everything.
 
 .SH
-Programming Libraries
-.IP
-.tl 'Screen Updating and Cursor Movement Optimization''PSD:19'
-.QP
-Describes the \fIcurses\fP package, an aid for writing screen-oriented,
-terminal-independent programs.
-
-.SH
 General Reference
 .IP
 .tl 'An Introductory 4.4BSD Interprocess Communication Tutorial''PSD:20'
