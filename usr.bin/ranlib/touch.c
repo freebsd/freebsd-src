@@ -65,6 +65,7 @@ touch()
 		return(1);
 	}
 	settime(afd);
+	close_archive(afd);
 	return(0);
 }
 
