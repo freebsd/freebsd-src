@@ -45,8 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
-#include <sys/taskqueue.h>
 #include <sys/sema.h>
+#include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <geom/geom.h>
 #include <dev/ata/ata-all.h>
@@ -451,7 +452,6 @@ acd_describe(struct acd_softc *cdp)
 	       (cdp->device->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(cdp->device->mode) );
     }
-
 }
 
 static __inline void 

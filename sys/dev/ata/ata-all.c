@@ -40,9 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/sema.h>
 #include <sys/sysctl.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -77,6 +78,7 @@ static void ata_init(void);
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
+uma_zone_t ata_zone;
 int ata_wc = 1;	 
 
 /* local vars */
@@ -997,10 +999,13 @@ ata_init(void)
 	free(ata_delayed_attach, M_TEMP);
     }
 
-    /* Register a handler to flush write caches on shutdown */
+    /* register handler to flush write caches on shutdown */
     if ((EVENTHANDLER_REGISTER(shutdown_post_sync, ata_shutdown,
 			       NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 	printf("ata: shutdown event registration failed!\n");
 
+    /* init our UMA zone for ATA requests */
+    ata_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
+			   NULL, NULL, NULL, NULL, 0, 0);
 }
 SYSINIT(atadev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL)
