@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20.4.4 1996/02/22 11:10:08 davidg Exp $
+ * $Id: vm_glue.c,v 1.20.4.5 1996/06/27 05:39:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -456,7 +456,7 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			if (p->p_slptime > 4) {
+			if (p->p_slptime > 10) {
 				swapout(p);
 				vm_map_deallocate(&p->p_vmspace->vm_map);
 				didswap++;
