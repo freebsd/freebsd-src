@@ -2307,6 +2307,7 @@ proc_compare(p1, p2)
 	register struct proc *p1, *p2;
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (p1 == NULL)
 		return (1);
 
@@ -2350,9 +2351,9 @@ proc_compare(p1, p2)
 	/*
 	 * favor one sleeping in a non-interruptible sleep
 	 */
-	if (p1->p_flag & P_SINTR && (p2->p_flag & P_SINTR) == 0)
+	if (p1->p_sflag & PS_SINTR && (p2->p_sflag & PS_SINTR) == 0)
 		return (1);
-	if (p2->p_flag & P_SINTR && (p1->p_flag & P_SINTR) == 0)
+	if (p2->p_sflag & PS_SINTR && (p1->p_sflag & PS_SINTR) == 0)
 		return (0);
 	return (p2->p_pid > p1->p_pid);		/* tie - return highest pid */
 }
