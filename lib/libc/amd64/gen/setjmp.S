@@ -80,7 +80,7 @@ ENTRY(__longjmp)
 	pushq	%rdi
 	pushq	%rsi
 	movq	%rdi,%rdx
-	movq	$1,%rdi			/* SIG_SETMASK     */
+	movq	$3,%rdi			/* SIG_SETMASK     */
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
 	movq	$0,%rdx			/* (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
