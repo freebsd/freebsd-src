@@ -110,7 +110,7 @@ pcic_pci_attach(pcici_t tag, int unit)
 	if (!bootverbose)
 		return;
 
-	printf ("PCI Config space:\n");
+	printf("PCI Config space:\n");
 	for (j = 0; j < 0x98; j += 16) {
 		printf("%02x: ", j);
 		for (i = 0; i < 16; i += 4) {
@@ -121,14 +121,14 @@ pcic_pci_attach(pcici_t tag, int unit)
 	/* pci_conf_write(tag, 0x44, 1); */
 	p = (u_char*)pmap_mapdev(pci_conf_read(tag, 0x10), 0x1000);
 	pl = (u_long *)p;
-	printf ("Cardbus Socket registers:\n");
+	printf("Cardbus Socket registers:\n");
 	printf("00: ");
 	for (i = 0; i < 4; i += 1)
 		 printf(" %08x:", pl[i]);
 	printf("\n10: ");
 	for (i =4 ; i < 8; i += 1)
 		printf(" %08x:", pl[i]);
-	printf ("\nExCa registers:\n");
+	printf("\nExCa registers:\n");
 	for (i = 0; i < 0x40; i += 16)
 		printf("%02x: %16D\n", i, p + 0x800 + i, " ");
 	return;
@@ -342,7 +342,7 @@ pcic_unload(struct lkm_table *lkmtp, int cmd)
 
 #if 0
 static void
-pcic_dump_attributes (unsigned char *scratch, int maxlen)
+pcic_dump_attributes(unsigned char *scratch, int maxlen)
 {
 	int i,j,k;
 
@@ -354,10 +354,10 @@ pcic_dump_attributes (unsigned char *scratch, int maxlen)
 		 *	Dump attribute memory
 		 */
 		if (scratch[i]) {
-			printf ("[%02x] ", i);
+			printf("[%02x] ", i);
 			for (j = 0; j < 2 * link + 4 && j < 128; j += 2)
-				printf ("%02x ", scratch[j + i]);
-			printf ("\n");
+				printf("%02x ", scratch[j + i]);
+			printf("\n");
 		}
 		i += 4 + 2 * link;
 	}
@@ -933,7 +933,7 @@ pcic_power(struct slot *slt)
 		break;
 	    }
 	    outb(PCIC98_REG6, reg);
-	    DELAY (100*1000);
+	    DELAY(100*1000);
 
 	    reg = inb(PCIC98_REG2) & (~PCIC98_VCC3P3V);
 	    switch(slt->pwr.vcc) {
@@ -946,7 +946,7 @@ pcic_power(struct slot *slt)
 		break;
 	    }
 	    outb(PCIC98_REG2, reg);
-	    DELAY (100*1000);
+	    DELAY(100*1000);
 	    return (0);
 #endif
 	case PCIC_PD672X:
@@ -1024,7 +1024,7 @@ pcic_power(struct slot *slt)
  * 3, 4, 5, 7, 9, 10, 11, 12, 14, 15
  */
 static void
-pcic_mapirq (struct slot *slt, int irq)
+pcic_mapirq(struct slot *slt, int irq)
 {
 	struct pcic_slot *sp = slt->cdata;
 #ifdef	PC98
