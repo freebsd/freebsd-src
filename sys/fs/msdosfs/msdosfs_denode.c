@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.37 1998/05/17 18:00:45 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.38 1998/05/17 18:09:28 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -55,7 +55,6 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>		/* defines "time" */
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

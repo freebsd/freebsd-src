@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.83 1998/06/04 17:21:39 dfr Exp $
+ * $Id: ffs_vfsops.c,v 1.84 1998/07/08 23:52:27 julian Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -63,8 +63,6 @@
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_object.h>
 
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
