@@ -38,10 +38,10 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rd_safe.c,v 1.24 1997/04/19 23:18:20 joda Exp $");
+RCSID("$Id: rd_safe.c,v 1.25 1997/12/05 00:17:09 joda Exp $");
 
 /* application include files */
-#include "lsb_addr_comp.h"
+#include "krb-archaeology.h"
 
 /* Generate two checksums in the given byteorder of the data, one
  * new-form and one old-form. It has to be done this way to be

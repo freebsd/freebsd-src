@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rd_req.c,v 1.24 1997/05/11 11:05:28 assar Exp $");
+RCSID("$Id: rd_req.c,v 1.25 1998/06/09 19:25:25 joda Exp $");
 
 static struct timeval t_local = { 0, 0 };
 
@@ -198,7 +198,7 @@ krb_rd_req(KTEXT authent,	/* The received message */
 
     s_kvno = *p++;
 
-    p += krb_get_string(p, realm);
+    p += krb_get_string(p, realm, sizeof(realm));
 
     /*
      * If "fn" is NULL, key info should already be set; don't
@@ -217,9 +217,9 @@ krb_rd_req(KTEXT authent,	/* The received message */
             return(RD_AP_UNDEC);
         if ((status = krb_set_key((char*)skey, 0)))
 	    return(status);
-        strcpy(st_rlm, realm);
-        strcpy(st_nam, service);
-        strcpy(st_inst, instance);
+        strcpy_truncate (st_rlm, realm, REALM_SZ);
+        strcpy_truncate (st_nam, service, SNAME_SZ);
+        strcpy_truncate (st_inst, instance, INST_SZ);
     }
 
     tkt->length = *p++;

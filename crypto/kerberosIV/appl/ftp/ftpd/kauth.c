@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,34 +36,9 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include "ftpd_locl.h"
 
-RCSID("$Id: kauth.c,v 1.14 1997/05/07 02:21:30 assar Exp $");
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <time.h>
-#ifdef HAVE_SYS_TIME_H 
-#include <sys/time.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
-#include <roken.h>
-
-#include <des.h>
-#include <krb.h>
-#include <kafs.h>
-
-#include "extern.h"
-#include "krb4.h"
-#include "auth.h"
-#include "base64.h"
+RCSID("$Id: kauth.c,v 1.22 1999/06/29 21:19:33 bg Exp $");
 
 static KTEXT_ST cip;
 static unsigned int lifetime;
@@ -71,9 +46,15 @@ static time_t local_time;
 
 static krb_principal pr;
 
+static int do_destroy_tickets = 1;
+
 static int
-save_tkt(char *user, char *instance, char *realm, void *arg, 
-	 int (*key_proc)(char*, char*, char*, void*, des_cblock*), KTEXT *cipp)
+save_tkt(const char *user,
+	 const char *instance,
+	 const char *realm,
+	 const void *arg, 
+	 key_proc_t key_proc,
+	 KTEXT *cipp)
 {
     local_time = time(0);
     memmove(&cip, *cipp, sizeof(cip));
@@ -89,11 +70,9 @@ store_ticket(KTEXT cip)
     unsigned char kvno;
     KTEXT_ST tkt;
     int left = cip->length;
-
+    int len;
     int kerror;
     
-    time_t kdc_time;
-
     ptr = (char *) cip->dat;
 
     /* extract session key */
@@ -101,29 +80,32 @@ store_ticket(KTEXT cip)
     ptr += 8;
     left -= 8;
 
-    if (strnlen(ptr, left) == left)
+    len = strnlen(ptr, left);
+    if (len == left)
 	return(INTK_BADPW);
     
     /* extract server's name */
-    strcpy(sp.name, ptr);
-    ptr += strlen(sp.name) + 1;
-    left -= strlen(sp.name) + 1;
+    strcpy_truncate(sp.name, ptr, sizeof(sp.name));
+    ptr += len + 1;
+    left -= len + 1;
 
-    if (strnlen(ptr, left) == left)
+    len = strnlen(ptr, left);
+    if (len == left)
 	return(INTK_BADPW);
-
+    
     /* extract server's instance */
-    strcpy(sp.instance, ptr);
-    ptr += strlen(sp.instance) + 1;
-    left -= strlen(sp.instance) + 1;
+    strcpy_truncate(sp.instance, ptr, sizeof(sp.instance));
+    ptr += len + 1;
+    left -= len + 1;
 
-    if (strnlen(ptr, left) == left)
+    len = strnlen(ptr, left);
+    if (len == left)
 	return(INTK_BADPW);
-
+    
     /* extract server's realm */
-    strcpy(sp.realm,ptr);
-    ptr += strlen(sp.realm) + 1;
-    left -= strlen(sp.realm) + 1;
+    strcpy_truncate(sp.realm, ptr, sizeof(sp.realm));
+    ptr += len + 1;
+    left -= len + 1;
 
     if(left < 3)
 	return INTK_BADPW;
@@ -154,14 +136,18 @@ store_ticket(KTEXT cip)
     
 #if 0
     /* check KDC time stamp */
-    memmove(&kdc_time, ptr, sizeof(kdc_time));
-    if (swap_bytes) swap_u_long(kdc_time);
+    {
+	time_t kdc_time;
 
-    ptr += 4;
+	memmove(&kdc_time, ptr, sizeof(kdc_time));
+	if (swap_bytes) swap_u_long(kdc_time);
+
+	ptr += 4;
     
-    if (abs((int)(local_time - kdc_time)) > CLOCK_SKEW) {
-        return(RD_AP_TIME);		/* XXX should probably be better
+	if (abs((int)(local_time - kdc_time)) > CLOCK_SKEW) {
+	    return(RD_AP_TIME);		/* XXX should probably be better
 					   code */
+	}
     }
 #endif
 
@@ -184,7 +170,8 @@ store_ticket(KTEXT cip)
     return(kerror);
 }
 
-void kauth(char *principal, char *ticket)
+void
+kauth(char *principal, char *ticket)
 {
     char *p;
     int ret;
@@ -209,8 +196,10 @@ void kauth(char *principal, char *ticket)
 	    memset(&cip, 0, sizeof(cip));
 	    return;
 	}
+	do_destroy_tickets = 1;
+
 	if(k_hasafs())
-	    k_afsklog(0, 0);
+	    krb_afslog(0, 0);
 	reply(200, "Tickets will be destroyed on exit.");
 	return;
     }
@@ -226,7 +215,10 @@ void kauth(char *principal, char *ticket)
 	reply(500, "Kerberos error: %s.", krb_get_err_text(ret));
 	return;
     }
-    base64_encode(cip.dat, cip.length, &p);
+    if(base64_encode(cip.dat, cip.length, &p) < 0) {
+	reply(500, "Out of memory while base64-encoding.");
+	return;
+    }
     reply(300, "P=%s T=%s", krb_unparse_name(&pr), p);
     free(p);
     memset(&cip, 0, sizeof(cip));
@@ -245,7 +237,8 @@ short_date(int32_t dp)
     return (cp);
 }
 
-void klist(void)
+void
+klist(void)
 {
     int err;
 
@@ -302,6 +295,8 @@ void klist(void)
      * it was done before tf_init.
      */
        
+    lreply(200, "Ticket file: %s", tkt_string());
+
     lreply(200, "Principal: %s", krb_unparse_name(&pr));
     while ((err = tf_get_cred(&c)) == KSUCCESS) {
 	if (header) {
@@ -309,17 +304,63 @@ void klist(void)
 		   "  Issued", "  Expires", "  Principal (kvno)");
 	    header = 0;
 	}
-	strcpy(buf1, short_date(c.issue_date));
+	strcpy_truncate(buf1, short_date(c.issue_date), sizeof(buf1));
 	c.issue_date = krb_life_to_time(c.issue_date, c.lifetime);
 	if (time(0) < (unsigned long) c.issue_date)
-	    strcpy(buf2, short_date(c.issue_date));
+	    strcpy_truncate(buf2, short_date(c.issue_date), sizeof(buf2));
 	else
-	    strcpy(buf2, ">>> Expired <<< ");
+	    strcpy_truncate(buf2, ">>> Expired <<< ", sizeof(buf2));
 	lreply(200, "%s  %s  %s (%d)", buf1, buf2,
 	       krb_unparse_name_long(c.service, c.instance, c.realm), c.kvno); 
     }
     if (header && err == EOF) {
 	lreply(200, "No tickets in file.");
     }
-    reply(200, "");
+    reply(200, " ");
+}
+
+/*
+ * Only destroy if we created the tickets
+ */
+
+void
+cond_kdestroy(void)
+{
+    if (do_destroy_tickets)
+	dest_tkt();
+    afsunlog();
+}
+
+void
+kdestroy(void)
+{
+    dest_tkt();
+    afsunlog();
+    reply(200, "Tickets destroyed");
+}
+
+void
+krbtkfile(const char *tkfile)
+{
+    do_destroy_tickets = 0;
+    krb_set_tkt_string(tkfile);
+    reply(200, "Using ticket file %s", tkfile);
+}
+
+void
+afslog(const char *cell)
+{
+    if(k_hasafs()) {
+	krb_afslog(cell, 0);
+	reply(200, "afslog done");
+    } else {
+	reply(200, "no AFS present");
+    }
+}
+
+void
+afsunlog(void)
+{
+    if(k_hasafs())
+	k_unlog();
 }

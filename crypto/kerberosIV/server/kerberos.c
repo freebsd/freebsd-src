@@ -9,7 +9,7 @@
 #include "config.h"
 #include "protos.h"
 
-RCSID("$Id: kerberos.c,v 1.64 1997/05/20 18:40:46 bg Exp $");
+RCSID("$Id: kerberos.c,v 1.84.2.1 1999/07/22 03:18:03 assar Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ RCSID("$Id: kerberos.c,v 1.64 1997/05/20 18:40:46 bg Exp $");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
+#if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
 #endif
 #ifdef HAVE_SYS_FILIO_H
@@ -71,12 +71,15 @@ RCSID("$Id: kerberos.c,v 1.64 1997/05/20 18:40:46 bg Exp $");
 #endif
 
 #include <roken.h>
+#include <base64.h>
 
 #include <des.h>
 #include <krb.h>
 #include <krb_db.h>
 #include <prot.h>
 #include <klog.h>
+
+#include <krb_log.h>
 
 #include <kdc.h>
 
@@ -85,12 +88,11 @@ static des_cblock master_key;
 
 static struct timeval kerb_time;
 static u_char master_key_version;
-static char k_instance[INST_SZ];
 static char *lt;
 static int more;
 
 static int mflag;		/* Are we invoked manually? */
-static char *log_file;		/* name of alt. log file */
+static char *log_file = KRBLOG;	/* name of alt. log file */
 static int nflag;		/* don't check max age */
 static int rflag;		/* alternate realm specified */
 
@@ -113,7 +115,8 @@ static void
 usage(void)
 {
     fprintf(stderr, "Usage: %s [-s] [-m] [-n] [-p pause_seconds]"
-	    " [-a max_age] [-l log_file] [-r realm] [database_pathname]\n",
+	    " [-a max_age] [-l log_file] [-i address_to_listen_on]"
+	    " [-r realm] [database_pathname]\n",
 	    __progname);
     exit(1);
 }
@@ -130,8 +133,8 @@ kerb_err_reply(int f, struct sockaddr_in *client, int err, char *string)
     KTEXT   e_pkt = &e_pkt_st;
     static char e_msg[128];
 
-    strcpy(e_msg, "\nKerberos error -- ");
-    strcat(e_msg, string);
+    snprintf (e_msg, sizeof(e_msg),
+	      "\nKerberos error -- %s", string);
     cr_err_reply(e_pkt, req_name_ptr, req_inst_ptr, req_realm_ptr,
 		 req_time_ws, err, e_msg);
     sendto(f, (char*)e_pkt->dat, e_pkt->length, 0, (struct sockaddr *)client,
@@ -242,13 +245,16 @@ set_tgtkey(char *r)
     copy_to_key(&p->key_low, &p->key_high, key);
     unseal(&key);
     krb_set_key(key, 0);
-    strcpy(lastrealm, r);
+    strcpy_truncate (lastrealm, r, REALM_SZ);
     return (KSUCCESS);
 }
 
 
 static int
-kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
+kerberos(unsigned char *buf, int len,
+	 char *proto, struct sockaddr_in *client,
+	 struct sockaddr_in *server,
+	 KTEXT rpkt)
 {
     int pvno;
     int msg_type;
@@ -270,7 +276,9 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
     
     unsigned char *p = buf;
     if(len < 2){
-	strcpy((char*)rpkt->dat, "Packet too short");
+	strcpy_truncate((char*)rpkt->dat,
+			"Packet too short",
+			sizeof(rpkt->dat));
 	return KFAILURE;
     }
 
@@ -279,7 +287,9 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
     pvno = *p++;
     if(pvno != KRB_PROT_VERSION){
 	msg = klog(L_KRB_PERR, "KRB protocol version mismatch (%d)", pvno);
-	strcpy((char*)rpkt->dat, msg);
+	strcpy_truncate((char*)rpkt->dat,
+			msg,
+			sizeof(rpkt->dat));
 	return KERB_ERR_PKT_VER;
     }
     msg_type = *p++;
@@ -292,15 +302,22 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
 	p += krb_get_int(p, &req_time, 4, lsb);
 	life = *p++;
 	p += krb_get_nir(p, service, sinst, NULL);
-	klog(L_INI_REQ, "AS REQ %s.%s@%s for %s.%s from %s", 
-	     name, inst, realm, service, sinst, inet_ntoa(client));
+	klog(L_INI_REQ,
+	     "AS REQ %s.%s@%s for %s.%s from %s (%s/%u)", 
+	     name, inst, realm, service, sinst,
+	     inet_ntoa(client->sin_addr),
+	     proto, ntohs(server->sin_port));
 	if((err = check_princ(name, inst, 0, &a_name))){
-	    strcpy((char*)rpkt->dat, krb_get_err_text(err));
+	    strcpy_truncate((char*)rpkt->dat,
+			    krb_get_err_text(err),
+			    sizeof(rpkt->dat));
 	    return err;
 	}
 	tk->length = 0;
 	if((err = check_princ(service, sinst, 0, &s_name))){
-	    strcpy((char*)rpkt->dat, krb_get_err_text(err));
+	    strcpy_truncate((char*)rpkt->dat,
+			    krb_get_err_text(err),
+			    sizeof(rpkt->dat));
 	    return err;
 	}
 	life = min(life, s_name.max_life);
@@ -310,7 +327,8 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
 	copy_to_key(&s_name.key_low, &s_name.key_high, key);
 	unseal(&key);
 	krb_create_ticket(tk, flags, a_name.name, a_name.instance, 
-			  local_realm, client.s_addr, session, 
+			  local_realm, client->sin_addr.s_addr,
+			  session, 
 			  life, kerb_time.tv_sec, 
 			  s_name.name, s_name.instance, &key);
 	copy_to_key(&a_name.key_low, &a_name.key_high, key);
@@ -328,11 +346,15 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
 	}
 	return 0;
     case AUTH_MSG_APPL_REQUEST:
-	strcpy(realm, (char*)buf + 3);
+	strcpy_truncate(realm, (char*)buf + 3, REALM_SZ);
 	if((err = set_tgtkey(realm))){
-	    msg = klog(L_ERR_UNK, "Unknown realm %s from %s", 
-		       realm, inet_ntoa(client));
-	    strcpy((char*)rpkt->dat, msg);
+	    msg = klog(L_ERR_UNK,
+		       "Unknown realm %s from %s (%s/%u)", 
+		       realm, inet_ntoa(client->sin_addr),
+		       proto, ntohs(server->sin_port));
+	    strcpy_truncate((char*)rpkt->dat,
+			    msg,
+			    sizeof(rpkt->dat));
 	    return err;
 	}
 	p = buf + strlen(realm) + 4;
@@ -340,36 +362,51 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
 	auth->length = p - buf;
 	memcpy(auth->dat, buf, auth->length);
 	err = krb_rd_req(auth, KRB_TICKET_GRANTING_TICKET,
-			 realm, client.s_addr, &ad, 0);
+			 realm, client->sin_addr.s_addr, &ad, 0);
 	if(err){
-	    msg = klog(L_ERR_UNK, "krb_rd_req from %s: %s", 
-		       inet_ntoa(client), krb_get_err_text(err));
-	    strcpy((char*)rpkt->dat, msg);
+	    msg = klog(L_ERR_UNK,
+		       "krb_rd_req from %s (%s/%u): %s", 
+		       inet_ntoa(client->sin_addr),
+		       proto,
+		       ntohs(server->sin_port),
+		       krb_get_err_text(err));
+	    strcpy_truncate((char*)rpkt->dat,
+			    msg,
+			    sizeof(rpkt->dat));
 	    return err;
 	}
 	p += krb_get_int(p, &req_time, 4, lsb);
 	life = *p++;
 	p += krb_get_nir(p, service, sinst, NULL);
-	klog(L_APPL_REQ, "APPL REQ %s.%s@%s for %s.%s from %s",
-	     ad.pname, ad.pinst, ad.prealm, 
-	     service, sinst, 
-	     inet_ntoa(client));
+	klog(L_APPL_REQ,
+	     "APPL REQ %s.%s@%s for %s.%s from %s (%s/%u)",
+	     ad.pname, ad.pinst, ad.prealm,
+	     service, sinst,
+	     inet_ntoa(client->sin_addr),
+	     proto,
+	     ntohs(server->sin_port));
+
 	if(strcmp(ad.prealm, realm)){
 	    msg = klog(L_ERR_UNK, "Can't hop realms: %s -> %s", 
 		       realm, ad.prealm);
-	    strcpy((char*)rpkt->dat, msg);
+	    strcpy_truncate((char*)rpkt->dat,
+			    msg,
+			    sizeof(rpkt->dat));
 	    return KERB_ERR_PRINCIPAL_UNKNOWN;
 	}
 
 	if(!strcmp(service, "changepw")){
-	    strcpy((char*)rpkt->dat, 
-		   "Can't authorize password changed based on TGT");
+	    strcpy_truncate((char*)rpkt->dat, 
+			    "Can't authorize password changed based on TGT",
+			    sizeof(rpkt->dat));
 	    return KERB_ERR_PRINCIPAL_UNKNOWN;
 	}
 
 	err = check_princ(service, sinst, life, &s_name);
 	if(err){
-	    strcpy((char*)rpkt->dat, krb_get_err_text(err));
+	    strcpy_truncate((char*)rpkt->dat,
+			    krb_get_err_text(err),
+			    sizeof(rpkt->dat));
 	    return err;
 	}
 	life = min(life, 
@@ -381,7 +418,8 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
 	unseal(&key);
 	des_new_random_key(&session);
 	krb_create_ticket(tk, flags, ad.pname, ad.pinst, ad.prealm,
-			  client.s_addr, &session, life, kerb_time.tv_sec,
+			  client->sin_addr.s_addr, &session,
+			  life, kerb_time.tv_sec,
 			  s_name.name, s_name.instance,
 			  &key);
 	
@@ -405,21 +443,38 @@ kerberos(unsigned char *buf, int len, struct in_addr client, KTEXT rpkt)
     case AUTH_MSG_ERR_REPLY:
 	return -1;
     default:
-	msg = klog(L_KRB_PERR, "Unknown message type: %d from %s", 
-		   msg_type, inet_ntoa(client));
-	strcpy((char*)rpkt->dat, msg);
+	msg = klog(L_KRB_PERR,
+		   "Unknown message type: %d from %s (%s/%u)", 
+		   msg_type,
+		   inet_ntoa(client->sin_addr),
+		   proto,
+		   ntohs(server->sin_port));
+	strcpy_truncate((char*)rpkt->dat,
+			msg,
+			sizeof(rpkt->dat));
 	return KFAILURE;
     }
 }
 
 
 static void
-kerberos_wrap(int s, KTEXT data, struct sockaddr_in *client)
+kerberos_wrap(int s, KTEXT data, char *proto, struct sockaddr_in *client, 
+	      struct sockaddr_in *server)
 {
     KTEXT_ST pkt;
-    int err = kerberos(data->dat, data->length, client->sin_addr, &pkt);
+    int http_flag = strcmp(proto, "http") == 0;
+    int err = kerberos(data->dat, data->length, proto, client, server, &pkt);
     if(err == -1)
 	return;
+    if(http_flag){
+	const char *msg = 
+	    "HTTP/1.1 200 OK\r\n"
+	    "Server: KTH-KRB/1\r\n"
+	    "Content-type: application/octet-stream\r\n"
+	    "Content-transfer-encoding: binary\r\n\r\n";
+	sendto(s, msg, strlen(msg), 0, (struct sockaddr *)client,
+	       sizeof(*client));
+    }
     if(err){
 	kerb_err_reply(s, client, err, (char*)pkt.dat);
 	return;
@@ -487,13 +542,13 @@ struct descr{
     KTEXT_ST buf;
     int type;
     int timeout;
+    struct sockaddr_in addr;
 };
 
 static void
 mksocket(struct descr *d, struct in_addr addr, int type, 
 	 const char *service, int port)
 {
-    struct sockaddr_in sina;
     int     on = 1;
     int sock;
 
@@ -505,14 +560,14 @@ mksocket(struct descr *d, struct in_addr addr, int type,
 		   sizeof(on)) < 0)
 	warn ("setsockopt (SO_REUSEADDR)");
 #endif
-    memset(&sina, 0, sizeof(sina));
-    sina.sin_family = AF_INET;
-    sina.sin_port   = port;
-    sina.sin_addr   = addr;
-    if (bind(sock, (struct sockaddr *)&sina, sizeof(sina)) < 0)
+    memset(&d->addr, 0, sizeof(d->addr));
+    d->addr.sin_family = AF_INET;
+    d->addr.sin_port   = port;
+    d->addr.sin_addr   = addr;
+    if (bind(sock, (struct sockaddr *)&d->addr, sizeof(d->addr)) < 0)
 	err (1, "bind '%s/%s' (%d)",
 	     service, (type == SOCK_DGRAM) ? "udp" : "tcp",
-	     ntohs(sina.sin_port));
+	     ntohs(d->addr.sin_port));
     
     if(type == SOCK_STREAM)
 	listen(sock, SOMAXCONN);
@@ -523,6 +578,118 @@ mksocket(struct descr *d, struct in_addr addr, int type,
 
 static void loop(struct descr *fds, int maxfd);
 
+struct port_spec {
+    int port;
+    int type;
+};
+
+static int
+add_port(struct port_spec **ports, int *num_ports, int port, int type)
+{
+    struct port_spec *tmp;
+    tmp = realloc(*ports, (*num_ports + 1) * sizeof(*tmp));
+    if(tmp == NULL)
+	return ENOMEM;
+    *ports = tmp;
+    tmp[*num_ports].port = port;
+    tmp[*num_ports].type = type;
+    (*num_ports)++;
+    return 0;
+}
+
+static void
+make_sockets(const char *port_spec, struct in_addr *i_addr, 
+	     struct descr **fds, int *nfds)
+{
+    int tp;
+    struct in_addr *a;
+    char *p, *q, *pos = NULL;
+    struct servent *sp;
+    struct port_spec *ports = NULL;
+    int num_ports = 0;
+    int i, j;
+    char *port_spec_copy = strdup (port_spec);
+
+    if (port_spec_copy == NULL)
+	err (1, "strdup");
+
+    for(p = strtok_r(port_spec_copy, ", \t", &pos); 
+	p; 
+	p = strtok_r(NULL, ", \t", &pos)){
+	if(strcmp(p, "+") == 0){
+	    add_port(&ports, &num_ports, 88, SOCK_DGRAM);
+	    add_port(&ports, &num_ports, 88, SOCK_STREAM);
+	    add_port(&ports, &num_ports, 750, SOCK_DGRAM);
+	    add_port(&ports, &num_ports, 750, SOCK_STREAM);
+	}else{
+	    q = strchr(p, '/');
+	    if(q){
+		*q = 0;
+		q++;
+	    }
+	    sp = getservbyname(p, q);
+	    if(sp)
+		tp = ntohs(sp->s_port);
+	    else if(sscanf(p, "%d", &tp) != 1) {
+		warnx("Unknown port: %s%s%s", p, q ? "/" : "", q ? q : "");
+		continue;
+	    }
+	    if(q){
+		if(strcasecmp(q, "tcp") == 0)
+		    add_port(&ports, &num_ports, tp, SOCK_STREAM);
+		else if(strcasecmp(q, "udp") == 0)
+		    add_port(&ports, &num_ports, tp, SOCK_DGRAM);
+		else
+		    warnx("Unknown protocol type: %s", q);
+	    }else{
+		add_port(&ports, &num_ports, tp, SOCK_DGRAM);
+		add_port(&ports, &num_ports, tp, SOCK_STREAM);
+	    }
+	}
+    }
+    free (port_spec_copy);
+
+    if(num_ports == 0)
+	errx(1, "No valid ports specified!");
+    
+    if (i_addr) {
+	*nfds = 1;
+	a = malloc(sizeof(*a) * *nfds);
+	if (a == NULL)
+	    errx (1, "Failed to allocate %lu bytes",
+		  (unsigned long)(sizeof(*a) * *nfds));
+	memcpy(a, i_addr, sizeof(struct in_addr));
+    } else
+	*nfds = k_get_all_addrs (&a);
+    if (*nfds < 0) {
+	struct in_addr any;
+
+	any.s_addr = INADDR_ANY;
+
+	warnx ("Could not get local addresses, binding to INADDR_ANY");
+	*nfds = 1;
+	a = malloc(sizeof(*a) * *nfds);
+	if (a == NULL)
+	    errx (1, "Failed to allocate %lu bytes",
+		  (unsigned long)(sizeof(*a) * *nfds));
+	memcpy(a, &any, sizeof(struct in_addr));
+    }
+    *fds = malloc(*nfds * num_ports * sizeof(**fds));
+    if (*fds == NULL)
+	errx (1, "Failed to allocate %lu bytes",
+	      (unsigned long)(*nfds * num_ports * sizeof(**fds)));
+    for (i = 0; i < *nfds; i++) {
+	for(j = 0; j < num_ports; j++) {
+	    mksocket(*fds + num_ports * i + j, a[i], 
+		     ports[j].type, "", htons(ports[j].port));
+	}
+    }
+    *nfds *= num_ports;
+    free(ports);
+    free (a);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -530,30 +697,26 @@ main(int argc, char **argv)
     int c;
     struct descr *fds;
     int nfds;
-    int i;
     int n;
     int     kerror;
+    int i_flag = 0;
+    struct in_addr i_addr;
+    char *port_spec = "+";
 
     umask(077);		/* Create protected files */
 
     set_progname (argv[0]);
 
-    while ((c = getopt(argc, argv, "snmp:a:l:r:")) != EOF) {
+    while ((c = getopt(argc, argv, "snmp:P:a:l:r:i:")) != EOF) {
 	switch(c) {
 	case 's':
 	    /*
 	     * Set parameters to slave server defaults.
 	     */
 	    if (max_age == -1 && !nflag)
-		max_age = ONE_DAY;	/* 24 hours */
+		max_age = THREE_DAYS;	/* Survive weekend */
 	    if (pause_int == -1)
 		pause_int = FIVE_MINUTES; /* 5 minutes */
-#if 0
-	    if (log_file == NULL) {
-		/* this is only silly */
-		log_file = KRBSLAVELOG;
-	    }
-#endif
 	    break;
 	case 'n':
 	    max_age = -1;	/* don't check max age. */
@@ -562,26 +725,41 @@ main(int argc, char **argv)
 	case 'm':
 	    mflag++;		/* running manually; prompt for master key */
 	    break;
-	case 'p':
+	case 'p': {
 	    /* Set pause interval. */
-	    if (!isdigit(optarg[0]))
-		usage();
-	    pause_int = atoi(optarg);
+	    char *tmp;
+
+	    pause_int = strtol (optarg, &tmp, 0);
+	    if (pause_int == 0 && tmp == optarg) {
+		fprintf(stderr, "pause_int `%s' not a number\n", optarg);
+		usage ();
+	    }
+
 	    if ((pause_int < 5) ||  (pause_int > ONE_HOUR)) {
 		fprintf(stderr, "pause_int must be between 5 and 3600 seconds.\n");
 		usage();
 	    }
 	    break;
-	case 'a':
+	}
+	case 'P':
+	    port_spec = optarg;
+	    break;
+	case 'a': {
 	    /* Set max age. */
-	    if (!isdigit(optarg[0])) 
-		usage();
-	    max_age = atoi(optarg);
+	    char *tmp;
+
+	    max_age = strtol (optarg, &tmp, 0);
+	    if (max_age == 0 && tmp == optarg) {
+		fprintf (stderr, "max_age `%s' not a number\n", optarg);
+		usage ();
+	    }
 	    if ((max_age < ONE_HOUR) || (max_age > THREE_DAYS)) {
-		fprintf(stderr, "max_age must be between one hour and three days, in seconds\n");
+		fprintf(stderr, "max_age must be between one hour and "
+			"three days, in seconds\n");
 		usage();
 	    }
 	    break;
+	}
 	case 'l':
 	    /* Set alternate log file */
 	    log_file = optarg;
@@ -589,7 +767,15 @@ main(int argc, char **argv)
 	case 'r':
 	    /* Set realm name */
 	    rflag++;
-	    strcpy(local_realm, optarg);
+	    strcpy_truncate(local_realm, optarg, sizeof(local_realm));
+	    break;
+	case 'i':
+	    /* Only listen on this address */
+	    if(inet_aton (optarg, &i_addr) == 0) {
+		fprintf (stderr, "Bad address: %s\n", optarg);
+		exit (1);
+	    }
+	    ++i_flag;
 	    break;
 	default:
 	    usage();
@@ -597,9 +783,6 @@ main(int argc, char **argv)
 	}
     }
     
-    if(log_file == NULL)
-	log_file = KRBLOG;
-
     if (optind == (argc-1)) {
 	if (kerb_db_set_name(argv[optind]) != 0) {
 	    fprintf(stderr, "Could not set alternate database name\n");
@@ -626,51 +809,8 @@ main(int argc, char **argv)
 
     kset_logfile(log_file);
     
-    /* find our hostname, and use it as the instance */
-    if (k_gethostname(k_instance, INST_SZ))
-	err (1, "gethostname");
+    make_sockets(port_spec, i_flag ? &i_addr : NULL, &fds, &nfds);
 
-    /*
-     * Yes this looks backwards but it has to be this way to enable a
-     * smooth migration to the new port 88.
-     */
-    {
-      int p1, p2;
-      struct in_addr *a;
-
-      p1 = k_getportbyname ("kerberos-iv", "udp", htons(750));
-      p2 = k_getportbyname ("kerberos-sec", "udp", htons(88));
-
-      if (p1 == p2)
-	{
-	  fprintf(stderr, "Either define kerberos-iv/udp as 750\n");
-	  fprintf(stderr, "      and kerberos-sec/udp as 88\n");
-	  fprintf(stderr, "or the other way around!");
-	  exit(1);
-	}
-
-      nfds = k_get_all_addrs (&a);
-      if (nfds < 0) {
-	   struct in_addr any;
-
-	   any.s_addr = INADDR_ANY;
-
-	   fprintf (stderr, "Could not get local addresses, "
-		    "binding to INADDR_ANY\n");
-	   nfds = 1;
-	   a = malloc(sizeof(*a) * nfds);
-	   memcpy(a, &any, sizeof(struct in_addr));
-      }
-      nfds *= 4;
-      fds = (struct descr*)malloc(nfds * sizeof(struct descr));
-      for (i = 0; i < nfds/4; i++) {
-	  mksocket(fds + 4 * i + 0, a[i], SOCK_DGRAM, "kerberos-iv", p1);
-	  mksocket(fds + 4 * i + 1, a[i], SOCK_DGRAM, "kerberos-sec", p2);
-	  mksocket(fds + 4 * i + 2, a[i], SOCK_STREAM, "kerberos-iv", p1);
-	  mksocket(fds + 4 * i + 3, a[i], SOCK_STREAM, "kerberos-sec", p2);
-      }
-      free (a);
-    }
     /* do all the database and cache inits */
     if ((n = kerb_init())) {
 	if (mflag) {
@@ -689,7 +829,7 @@ main(int argc, char **argv)
     
     /* setup master key */
     if (kdb_get_master_key (mflag, &master_key, master_key_schedule) != 0) {
-      klog (L_KRB_PERR, "kerberos: couldn't get master key.\n");
+      klog (L_KRB_PERR, "kerberos: couldn't get master key.");
       exit (1);
     }
     kerror = kdb_verify_master_key (&master_key, master_key_schedule, stdout);
@@ -737,6 +877,98 @@ main(int argc, char **argv)
 
 
 static void
+read_socket(struct descr *n)
+{
+    int b;
+    struct sockaddr_in from;
+    int fromlen = sizeof(from);
+    b = recvfrom(n->s, n->buf.dat + n->buf.length, 
+		 MAX_PKT_LEN - n->buf.length, 0, 
+		 (struct sockaddr *)&from, &fromlen);
+    if(b < 0){
+	if(n->type == SOCK_STREAM){
+	    close(n->s);
+	    n->s = -1;
+	}
+	n->buf.length = 0;
+	return;
+    }
+    n->buf.length += b;
+    if(n->type == SOCK_STREAM){
+	char *proto = "tcp";
+	if(n->buf.length > 4 && 
+	   strncmp((char *)n->buf.dat, "GET ", 4) == 0 &&
+	   strncmp((char *)n->buf.dat + n->buf.length - 4, 
+		   "\r\n\r\n", 4) == 0){
+	    char *p;
+	    char *save = NULL;
+
+	    n->buf.dat[n->buf.length - 1] = 0;
+	    strtok_r((char *)n->buf.dat, " \t\r\n", &save);
+	    p = strtok_r(NULL, " \t\r\n", &save);
+	    if(p == NULL)
+		p = "";
+	    if(*p == '/') p++;
+	    n->buf.length = base64_decode(p, n->buf.dat);
+	    if(n->buf.length <= 0){
+		const char *msg = 
+		    "HTTP/1.1 404 Not found\r\n"
+		    "Server: KTH-KRB/1\r\n"
+		    "Content-type: text/html\r\n"
+		    "Content-transfer-encoding: 8bit\r\n\r\n"
+		    "<TITLE>404 Not found</TITLE>\r\n"
+		    "<H1>404 Not found</H1>\r\n"
+		    "That page does not exist. Information about "
+		    "<A HREF=\"http://www.pdc.kth.se/kth-krb\">KTH-KRB</A> "
+		    "is available elsewhere.\r\n";
+		fromlen = sizeof(from);
+		if(getpeername(n->s,(struct sockaddr*)&from, &fromlen) == 0)
+		    klog(L_KRB_PERR, "Unknown HTTP request from %s", 
+			 inet_ntoa(from.sin_addr));
+		else
+		    klog(L_KRB_PERR, "Unknown HTTP request from <unknown>");
+		write(n->s, msg, strlen(msg));
+		close(n->s);
+		n->s = -1;
+		n->buf.length = 0;
+		return;
+	    }
+	    proto = "http";
+	    b = 0;
+	}
+	else if(n->buf.length >= 4 && n->buf.dat[0] == 0){
+	    /* if this is a new type of packet (with
+	       the length attached to the head of the
+	       packet), and there is no more data to
+	       be read, fake an old packet, so the
+	       code below will work */
+	    u_int32_t len;
+	    krb_get_int(n->buf.dat, &len, 4, 0);
+	    if(n->buf.length == len + 4){
+		memmove(n->buf.dat, n->buf.dat + 4, len);
+		b = 0;
+	    }
+	}
+	if(b == 0){
+	    /* handle request if there are 
+	       no more bytes to read */
+	    fromlen = sizeof(from);
+	    getpeername(n->s,(struct sockaddr*)&from, &fromlen);
+	    kerberos_wrap(n->s, &n->buf, proto, &from,
+			  &n->addr);
+	    n->buf.length = 0;
+	    close(n->s);
+	    n->s = -1;
+	}
+    }else{
+	/* udp packets are atomic */
+	kerberos_wrap(n->s, &n->buf, "udp", &from,
+		      &n->addr);
+	n->buf.length = 0;
+    }
+}
+
+static void
 loop(struct descr *fds, int nfds)
 {
     for (;;) {
@@ -745,6 +977,7 @@ loop(struct descr *fds, int nfds)
 	struct timeval tv;
 	int maxfd = 0;
 	struct descr *n, *minfree;
+	int accepted; /* accept at most one socket per `round' */
 	
 	FD_ZERO(&readfds);
 	gettimeofday(&tv, NULL);
@@ -778,13 +1011,17 @@ loop(struct descr *fds, int nfds)
 	    }
 	}
 	ret = select(maxfd + 1, &readfds, 0, 0, 0);
+	accepted = 0;
 	for (n = fds; n < fds + nfds; n++){
 	    if(n->s < 0) continue;
 	    if (FD_ISSET(n->s, &readfds)){
 		if(n->type == SOCK_STREAM && n->timeout == 0){
 		    /* add accepted socket to list of sockets we are
                        selecting on */
-		    int s = accept(n->s, NULL, 0);
+		    int s;
+		    if(accepted) continue;
+		    accepted = 1;
+		    s = accept(n->s, NULL, 0);
 		    if(minfree == NULL){
 			kerb_err_reply(s, NULL, KFAILURE, "Out of memory");
 			close(s);
@@ -793,53 +1030,11 @@ loop(struct descr *fds, int nfds)
 			minfree->type = SOCK_STREAM;
 			gettimeofday(&tv, NULL);
 			minfree->timeout = tv.tv_sec + 4; /* XXX */
+			minfree->buf.length = 0;
+			memcpy(&minfree->addr, &n->addr, sizeof(minfree->addr));
 		    }
-		}else{
-		    int b;
-		    struct sockaddr_in from;
-		    int fromlen = sizeof(from);
-		    b = recvfrom(n->s, n->buf.dat + n->buf.length, 
-				 MAX_PKT_LEN - n->buf.length, 0, 
-				 (struct sockaddr *)&from, &fromlen);
-		    if(b < 0){
-			if(n->type == SOCK_STREAM){
-			    close(n->s);
-			    n->s = -1;
-			}
-			n->buf.length = 0;
-			continue;
-		    }
-		    n->buf.length += b;
-		    if(n->type == SOCK_STREAM){
-			if(n->buf.length >= 4 && n->buf.dat[0] == 0){
-			    /* if this is a new type of packet (with
-                               the length attached to the head of the
-                               packet), and there is no more data to
-                               be read, fake an old packet, so the
-                               code below will work */
-			    u_int32_t len;
-			    krb_get_int(n->buf.dat, &len, 4, 0);
-			    if(n->buf.length == len + 4){
-				memmove(n->buf.dat, n->buf.dat + 4, len);
-				b = 0;
-			    }
-			}
-			if(b == 0){
-			    /* handle request if there are 
-			       no more bytes to read */
-			    fromlen = sizeof(from);
-			    getpeername(n->s,(struct sockaddr*)&from, &fromlen);
-			    kerberos_wrap(n->s, &n->buf, &from);
-			    n->buf.length = 0;
-			    close(n->s);
-			    n->s = -1;
-			}
-		    }else{
-			/* udp packets are atomic */
-			kerberos_wrap(n->s, &n->buf, &from);
-			n->buf.length = 0;
-		    }
-		}
+		}else
+		    read_socket(n);
 	    }
 	}
     }

@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: parse_name.c,v 1.4 1997/04/01 08:18:39 joda Exp $");
+RCSID("$Id: parse_name.c,v 1.5 1998/06/09 19:25:24 joda Exp $");
 
 int
 krb_parse_name(const char *fullname, krb_principal *principal)
@@ -86,10 +86,10 @@ kname_parse(char *np, char *ip, char *rp, char *fullname)
     krb_principal p;
     int ret;
     if((ret = krb_parse_name(fullname, &p)) == 0){
-	strcpy(np, p.name);
-	strcpy(ip, p.instance);
+	strcpy_truncate (np, p.name, ANAME_SZ);
+	strcpy_truncate (ip, p.instance, INST_SZ);
 	if(p.realm[0])
-	    strcpy(rp, p.realm);
+	    strcpy_truncate (rp, p.realm, REALM_SZ);
     }
     return ret;
 }

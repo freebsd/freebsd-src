@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: mk_auth.c,v 1.4 1997/04/01 08:18:35 joda Exp $");
+RCSID("$Id: mk_auth.c,v 1.6 1998/06/09 19:25:22 joda Exp $");
 
 /*
  * Generate an authenticator for service.instance@realm.
@@ -62,12 +62,14 @@ krb_mk_auth(int32_t options,
   char realinst[INST_SZ];
   char realrealm[REALM_SZ];
   int ret;
-  unsigned char *p;
+  char *tmp;
 
   if (options & KOPT_DONT_CANON)
-    strncpy(realinst, instance, sizeof(realinst));
+    tmp = instance;
   else
-    strncpy(realinst, krb_get_phost (instance), sizeof(realinst));
+    tmp = krb_get_phost (instance);
+
+  strcpy_truncate(realinst, tmp, sizeof(realinst));
 
   if (realm == NULL) {
     ret = krb_get_lrealm (realrealm, 1);
@@ -82,15 +84,35 @@ krb_mk_auth(int32_t options,
       return ret;
   }
     
-  p = buf->dat;
+  {
+      int tmp;
+      size_t rem = sizeof(buf->dat);
+      unsigned char *p = buf->dat;
 
-  memcpy (p, KRB_SENDAUTH_VERS, KRB_SENDAUTH_VLEN);
-  p += KRB_SENDAUTH_VLEN;
-  memcpy (p, version, KRB_SENDAUTH_VLEN);
-  p += KRB_SENDAUTH_VLEN;
-  p += krb_put_int(ticket->length, p, 4);
-  memcpy(p, ticket->dat, ticket->length);
-  p += ticket->length;
-  buf->length = p - buf->dat;
+      p = buf->dat;
+
+      if (rem < 2 * KRB_SENDAUTH_VLEN)
+	  return KFAILURE;
+      memcpy (p, KRB_SENDAUTH_VERS, KRB_SENDAUTH_VLEN);
+      p += KRB_SENDAUTH_VLEN;
+      rem -= KRB_SENDAUTH_VLEN;
+
+      memcpy (p, version, KRB_SENDAUTH_VLEN);
+      p += KRB_SENDAUTH_VLEN;
+      rem -= KRB_SENDAUTH_VLEN;
+
+      tmp = krb_put_int(ticket->length, p, rem, 4);
+      if (tmp < 0)
+	  return KFAILURE;
+      p += tmp;
+      rem -= tmp;
+
+      if (rem < ticket->length)
+	  return KFAILURE;
+      memcpy(p, ticket->dat, ticket->length);
+      p += ticket->length;
+      rem -= ticket->length;
+      buf->length = p - buf->dat;
+  }
   return KSUCCESS;
 }

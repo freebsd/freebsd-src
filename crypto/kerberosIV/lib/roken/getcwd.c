@@ -38,13 +38,16 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getcwd.c,v 1.7 1997/04/01 08:19:00 joda Exp $");
+RCSID("$Id: getcwd.c,v 1.10 1998/06/09 19:25:36 joda Exp $");
 #endif
 
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
 
-#include "protos.h"
 #include "roken.h"
 
 char*
@@ -54,6 +57,6 @@ getcwd(char *path, size_t size)
     char *ret;
     ret = getwd(xxx);
     if(ret)
-	strncpy(path, xxx, size);
+	strcpy_truncate(path, xxx, size);
     return ret;
 }

@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: create_auth_reply.c,v 1.11 1997/04/01 08:18:20 joda Exp $");
+RCSID("$Id: create_auth_reply.c,v 1.14 1998/06/13 00:06:59 assar Exp $");
 
 /*
  * This routine is called by the Kerberos authentication server
@@ -98,32 +98,65 @@ create_auth_reply(char *pname,	/* Principal's name */
     KTEXT pkt = &pkt_st;
     
     unsigned char *p = pkt->dat;
+    int tmp;
+    size_t rem = sizeof(pkt->dat);
 
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_KDC_REPLY, p, 1);
-
-    if(n != 0){
-	/* barf on old code */
-	krb_warning("create_auth_reply: don't give me no krb3 crap!"
-		    " (n == %d)\n", n);
+    if(n != 0)
 	return NULL;
-    }
+    
+    tmp = krb_put_int(KRB_PROT_VERSION, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
 
+    tmp = krb_put_int(AUTH_MSG_KDC_REPLY, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_nir(pname, pinst, prealm, p);
+    tmp = krb_put_nir(pname, pinst, prealm, p, rem);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_int(time_ws, p, 4);
+    tmp = krb_put_int(time_ws, p, rem, 4);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_int(n, p, 1);
+    tmp = krb_put_int(n, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_int(x_date, p, 4);
+    tmp = krb_put_int(x_date, p, rem, 4);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_int(kvno, p, 1);
+    tmp = krb_put_int(kvno, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_int(cipher->length, p, 2);
+    tmp = krb_put_int(cipher->length, p, rem, 2);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
+    if (rem < cipher->length)
+	return NULL;
     memcpy(p, cipher->dat, cipher->length);
     p += cipher->length;
+    rem -= cipher->length;
 
     pkt->length = p - pkt->dat;
 

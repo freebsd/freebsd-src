@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_ad_tkt.c,v 1.16 1997/05/30 17:43:34 bg Exp $");
+RCSID("$Id: get_ad_tkt.c,v 1.20 1998/11/22 09:42:55 assar Exp $");
 
 /*
  * get_ad_tkt obtains a new service ticket from Kerberos, using
@@ -86,6 +86,8 @@ get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
     u_int32_t time_ws = 0;
     int kerror;
     unsigned char *p;
+    size_t rem;
+    int tmp;
 
     /*
      * First check if we have a "real" TGT for the corresponding
@@ -93,9 +95,9 @@ get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
      */
 
     kerror = krb_get_cred(KRB_TICKET_GRANTING_TICKET, realm, realm, &cr);
-    if (kerror == KSUCCESS)
-      strncpy(lrealm, realm, REALM_SZ);
-    else
+    if (kerror == KSUCCESS) {
+      strcpy_truncate(lrealm, realm, REALM_SZ);
+    } else
       kerror = krb_get_tf_realm(TKT_FILE, lrealm);
     
     if (kerror != KSUCCESS)
@@ -119,11 +121,12 @@ get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
 	else{
 	    if ((kerror = 
 		 get_ad_tkt(KRB_TICKET_GRANTING_TICKET,
-			    realm, lrealm, lifetime)) != KSUCCESS)
+			    realm, lrealm, lifetime)) != KSUCCESS) {
 		if (kerror == KDC_PR_UNKNOWN)
 		  return(AD_INTR_RLM_NOTGT);
 		else
 		  return(kerror);
+	    }
 	    if ((kerror = krb_get_cred(KRB_TICKET_GRANTING_TICKET,
 				       realm, lrealm, &cr)) != KSUCCESS)
 		return(kerror);
@@ -144,10 +147,25 @@ get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
 	return(AD_NOTGT);
 
     p = pkt->dat + pkt->length;
+    rem = sizeof(pkt->dat) - pkt->length;
 
-    p += krb_put_int(time_ws, p, 4);
-    p += krb_put_int(lifetime, p, 1);
-    p += krb_put_nir(service, sinstance, NULL, p);
+    tmp = krb_put_int(time_ws, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(lifetime, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_nir(service, sinstance, NULL, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
     
     pkt->length = p - pkt->dat;
     rpkt->length = 0;
@@ -176,7 +194,7 @@ get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
 	    strcmp(cred.realm, realm))	/* not what we asked for */
 	    return INTK_ERR;	/* we need a better code here XXX */
 	
-	gettimeofday(&tv, NULL);
+	krb_kdctimeofday(&tv);
 	if (abs((int)(tv.tv_sec - cred.issue_date)) > CLOCK_SKEW) {
 	    return RD_AP_TIME; /* XXX should probably be better code */
 	}

@@ -6,9 +6,9 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: str2key.c,v 1.10 1997/03/23 03:53:19 joda Exp $");
+RCSID("$Id: str2key.c,v 1.12.2.1 1999/08/19 13:35:01 assar Exp $");
 
-static void
+static inline void
 mklower(char *s)
 {
     for (; *s; s++)
@@ -19,8 +19,8 @@ mklower(char *s)
 /*
  * Short passwords, i.e 8 characters or less.
  */
-static void
-afs_cmu_StringToKey (char *str, char *cell, des_cblock *key)
+static inline void
+afs_cmu_StringToKey(const char *str, const char *cell, des_cblock *key)
 {
     char  password[8+1];	/* crypt is limited to 8 chars anyway */
     int   i;
@@ -29,7 +29,7 @@ afs_cmu_StringToKey (char *str, char *cell, des_cblock *key)
     memset (key, 0, sizeof(key));
     memset(password, 0, sizeof(password));
 
-    strncpy (password, cell, 8);
+    strcpy_truncate (password, cell, sizeof(password));
     passlen = strlen (str);
     if (passlen > 8) passlen = 8;
 
@@ -41,7 +41,7 @@ afs_cmu_StringToKey (char *str, char *cell, des_cblock *key)
 
     /* crypt only considers the first 8 characters of password but for some
        reason returns eleven characters of result (plus the two salt chars). */
-    strncpy((char *)key, (char *)crypt(password, "#~") + 2, sizeof(des_cblock));
+    strncpy((char *)key, crypt(password, "p1") + 2, sizeof(des_cblock));
 
     /* parity is inserted into the LSB so leftshift each byte up one bit.  This
        allows ascii characters with a zero MSB to retain as much significance
@@ -60,8 +60,8 @@ afs_cmu_StringToKey (char *str, char *cell, des_cblock *key)
 /*
  * Long passwords, i.e 9 characters or more.
  */
-static void
-afs_transarc_StringToKey (char *str, char *cell, des_cblock *key)
+static inline void
+afs_transarc_StringToKey(const char *str, const char *cell, des_cblock *key)
 {
     des_key_schedule schedule;
     des_cblock temp_key;
@@ -69,10 +69,11 @@ afs_transarc_StringToKey (char *str, char *cell, des_cblock *key)
     char password[512];
     int  passlen;
 
-    strncpy (password, str, sizeof(password));
+    strcpy_truncate (password, str, sizeof(password));
     if ((passlen = strlen (password)) < sizeof(password)-1)
-        strncat (password, cell, sizeof(password)-passlen);
-    if ((passlen = strlen(password)) > sizeof(password)) passlen = sizeof(password);
+        strcat_truncate (password, cell, sizeof(password));
+    if ((passlen = strlen(password)) > sizeof(password))
+	passlen = sizeof(password);
 
     memcpy(&ivec, "kerberos", 8);
     memcpy(&temp_key, "kerberos", 8);
@@ -89,11 +90,11 @@ afs_transarc_StringToKey (char *str, char *cell, des_cblock *key)
 }
 
 void
-afs_string_to_key(char *str, char *cell, des_cblock *key)
+afs_string_to_key(const char *str, const char *cell, des_cblock *key)
 {
-    char realm[REALM_SZ+1];
-    strncpy(realm, cell, REALM_SZ);
-    realm[REALM_SZ] = 0;
+    char realm[REALM_SZ];
+
+    strcpy_truncate(realm, cell, REALM_SZ);
     mklower(realm);
 
     if (strlen(str) > 8)

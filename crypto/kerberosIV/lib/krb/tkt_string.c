@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: tkt_string.c,v 1.10 1997/05/02 14:54:26 assar Exp $");
+RCSID("$Id: tkt_string.c,v 1.14 1998/06/09 19:25:28 joda Exp $");
 
 /*
  * This routine is used to generate the name of the file that holds
@@ -39,25 +39,19 @@ RCSID("$Id: tkt_string.c,v 1.10 1997/05/02 14:54:26 assar Exp $");
 
 static char krb_ticket_string[MaxPathLen] = "";
 
-#ifndef HAVE_GETUID
-int getuid(void)
-{
-    return 27;
-}
-#endif
-
-char *tkt_string(void)
+char *
+tkt_string(void)
 {
     char *env;
 
     if (!*krb_ticket_string) {
         if ((env = getenv("KRBTKFILE"))) {
-	    strncpy(krb_ticket_string, env,
-			   sizeof(krb_ticket_string)-1);
-	    krb_ticket_string[sizeof(krb_ticket_string)-1] = '\0';
+	    strcpy_truncate (krb_ticket_string,
+			     env,
+			     sizeof(krb_ticket_string));
 	} else {
 	    snprintf(krb_ticket_string, sizeof(krb_ticket_string),
-		     "%s%u",TKT_ROOT,(unsigned)getuid());
+		     "%s%u",TKT_ROOT, (unsigned)getuid());
         }
     }
     return krb_ticket_string;
@@ -75,11 +69,7 @@ char *tkt_string(void)
  */
 
 void
-krb_set_tkt_string(char *val)
+krb_set_tkt_string(const char *val)
 {
-
-    strncpy(krb_ticket_string, val, sizeof(krb_ticket_string)-1);
-    krb_ticket_string[sizeof(krb_ticket_string)-1] = '\0';
-
-    return;
+    strcpy_truncate (krb_ticket_string, val, sizeof(krb_ticket_string));
 }

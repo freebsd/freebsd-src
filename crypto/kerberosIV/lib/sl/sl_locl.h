@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -36,13 +36,16 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sl_locl.h,v 1.3 1997/04/01 08:19:18 joda Exp $ */
+/* $Id: sl_locl.h,v 1.5 1998/02/15 04:14:08 joda Exp $ */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <roken.h>
-#include <protos.h>
 
 #include <sl.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -56,7 +56,7 @@
  */
 #include "krb_locl.h"
 
-RCSID("$Id: krb_equiv.c,v 1.13 1997/04/01 08:18:33 joda Exp $");
+RCSID("$Id: krb_equiv.c,v 1.14 1999/03/13 21:25:30 assar Exp $");
 
 int krb_ignore_ip_address = 0;
 
@@ -100,9 +100,9 @@ krb_equiv(u_int32_t a, u_int32_t b)
 	  ++t;
 	} else if (*t == '\\' ) /* continuation */
 	  break;
-	else if (isspace(*t))	/* skip space */
+	else if (isspace((unsigned char)*t))	/* skip space */
 	  t++;
-	else if (isdigit(*t))	/* an address? */
+	else if (isdigit((unsigned char)*t))	/* an address? */
 	  {
 	    u_int32_t tmp;
 	    u_int32_t tmpa, tmpb, tmpc, tmpd;
@@ -110,7 +110,8 @@ krb_equiv(u_int32_t a, u_int32_t b)
 	    sscanf(t, "%d.%d.%d.%d", &tmpa, &tmpb, &tmpc, &tmpd);
 	    tmp = (tmpa << 24) | (tmpb << 16) | (tmpc << 8) | tmpd;
 
-	    while (*t == '.' || isdigit(*t)) /* done with this address */
+	    /* done with this address */
+	    while (*t == '.' || isdigit((unsigned char)*t))
 	      t++;
 
 	    if (tmp != -1) {	/* an address (and not broadcast) */
@@ -120,7 +121,7 @@ krb_equiv(u_int32_t a, u_int32_t b)
 		++t;
 		mask <<= 32 - atoi(t);
 
-		while(isdigit(*t))
+		while(isdigit((unsigned char)*t))
 		  ++t;
 	      }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "kadm_locl.h"
 
-RCSID("$Id: new_pwd.c,v 1.11 1997/05/02 14:28:54 assar Exp $");
+RCSID("$Id: new_pwd.c,v 1.13 1998/06/09 19:24:55 joda Exp $");
 
 #ifdef NOENCRYPTION
 #define read_long_pw_string placebo_read_pw_string
@@ -49,24 +49,22 @@ RCSID("$Id: new_pwd.c,v 1.11 1997/05/02 14:28:54 assar Exp $");
 static char *
 check_pw (char *pword)
 {
-    if (strlen(pword) == 0)
-	return "Null passwords are not allowed - Please enter a longer password.";
-    
-    if (strlen(pword) < MIN_KPW_LEN)
+    int ret = kadm_check_pw(pword);
+    switch(ret) {
+    case 0:
+	return NULL;
+    case KADM_PASS_Q_NULL:
+	return "Null passwords are not allowed - "
+	    "Please enter a longer password.";
+    case KADM_PASS_Q_TOOSHORT:
 	return "Password is to short - Please enter a longer password.";
-    
-    /* Don't allow all lower case passwords regardless of length */
-    {
-	char *t;
-	for (t = pword; *t && islower(*t); t++)
-	    ;
-	if (*t == 0)
-	    return "Please don't use an all-lower case password.\n"
-	      "\tUnusual capitalization, delimiter characters or "
-	      "digits are suggested.";
+    case KADM_PASS_Q_CLASS:
+	/* XXX */
+	return "Please don't use an all-lower case password.\n"
+	    "\tUnusual capitalization, delimiter characters or "
+	    "digits are suggested.";
     }
-
-    return NULL;
+    return "Password is insecure"; /* XXX this shouldn't happen */
 }
 
 int
@@ -119,6 +117,7 @@ get_pw_new_pwd(char *pword, int pwlen, krb_principal *pr, int print_realm)
     
     do {
 	char verify[MAX_KPW_LEN];
+
 	snprintf(npromp, sizeof(npromp), "New Password for %s:",p);
 	if (read_long_pw_string(pword, pwlen-1, npromp, 0)) {
 	    fprintf(stderr,

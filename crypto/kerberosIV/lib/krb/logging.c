@@ -39,7 +39,7 @@
 #include "krb_locl.h"
 #include <klog.h>
 
-RCSID("$Id: logging.c,v 1.14 1997/05/11 09:01:40 assar Exp $");
+RCSID("$Id: logging.c,v 1.16 1998/07/24 06:13:35 assar Exp $");
 
 struct krb_log_facility {
     char filename[MaxPathLen]; 
@@ -87,7 +87,7 @@ krb_openlog(struct krb_log_facility *f,
 	    FILE *file,
 	    krb_log_func_t func)
 {
-    strcpy(f->filename, filename);
+    strcpy_truncate(f->filename, filename, MaxPathLen);
     f->file = file;
     f->func = func;
     return KSUCCESS;
@@ -109,7 +109,7 @@ log_tty(FILE *f, const char *format,  va_list args)
 static struct krb_log_facility std_log = { "/dev/tty", NULL, log_tty };
 
 static void
-init_std_log ()
+init_std_log (void)
 {
   static int done = 0;
 

@@ -1,3 +1,118 @@
+Changes in release 0.10.1:
+
+* Bug fixes:
+  - krb_get_lrealm now works with zero `n'
+  - kadmin cosmetic fix
+  - login now compiles on IRIX < 6.5
+  - kxd fix for solaris waitpid breakage, fix for unicos setjob
+    breakage, better handling of fork failures
+
+Changes in release 0.10:
+
+* Some support for Irix 6.5 capabilities
+
+* Improved kadmin interface; you can get more info via kadmin.
+
+* Some improved support for OSF C2.
+
+* General bug-fixes and improvements, including a large number of
+  potential buffer overrun fixes.  A large number of portability
+  improvements.
+
+* Support for multiple local realms.
+
+* Support batch kadmin operation.
+
+* Heimdal support in push.
+
+* Removed `--with-shared' configure option (use `--enable-shared'.)
+
+* Now uses Autoconf 2.13.
+
+Changes in release 0.9.9:
+
+* New configuration file /etc/krb.extra
+
+* New program `push' for popping mail.
+
+* Add (still little tested) support for maildir spool files in popper.
+
+* Added `delete' to ksrvutil.
+
+* Support the strange X11 sockets used on HP-UX and some versions of
+  Solaris.
+
+* Arla compatibility in libkafs.
+
+* More compatibility with the Solaris version of libkrb.
+
+* New configure option `--with-mips-abi'
+
+* Support `/etc/securetty' in login.
+
+* Bug fixes and improvements to the Win32 telnet.
+
+* Add support for installing with DESTDIR
+
+* SIA module with added support for password changing, and
+  reauthentication.
+
+* Add better support for MIT `compile_et' and `mk_cmds', this should
+  make it easier to build things like `zephyr'.
+
+* Bug fixes:
+  - Krb: fixed dangling references to flock in libkrb
+  - FTP: fixed `logwtmp' name conflict
+  - Telnet: fix a few literal IP-number bugs
+  - Telnet: hopefully fixed stair-stepping bug
+  - Kafs: don't store expired tokens in the kernel
+  - Kafs: fix broken installation of afslib.so in AIX
+
+Changes in release 0.9.8:
+
+* several bug fixes; some which deserve mentioning:
+  - fix non-working `kauth -h'
+  - the sia-module should work again
+  - don't leave tickets in popper
+
+Changes in release 0.9.7:
+
+* new configure option --disable-otp
+
+* new configure option --with-afsws
+
+* includes rxkad implementation
+
+* ftp client is more careful with suspicious filenames (|, .., /)
+
+* fixed setuid-vulnerability of rcp, rlogin, and rsh.
+
+* removed use of tgetent from telnetd (thereby eliminating buffer-overflow)
+
+* new commands in ftp and ftpd: kdestroy, krbtkfile, and afslog.
+
+* implement HTTP transport in libkrb and KDC.
+
+* win32 terminal program much improved.  also implemented ticket
+  management program.
+
+* introduce `-i' option to kerberos server for listening only on one
+  interface.
+
+* updated otp applications and man pages.
+
+* merged in libdes 4.01
+
+* popper is more resilient to badly formatted mails.
+
+* minor fixes for Cray support.
+
+* fix popen bug i ftpd.
+
+* lots of bug fixes and portability fixes.
+
+* better compatibility with Heimdal.
+
 Minor changes in release 0.9.6:
 
 * utmp(x) works correctly on systems with utmpx.

@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.15 1997/03/23 03:53:08 joda Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.23 1999/07/01 09:36:22 assar Exp $");
 
 /*
  * This file contains three routines: passwd_to_key() and
@@ -35,7 +35,10 @@ RCSID("$Id: get_in_tkt.c,v 1.15 1997/03/23 03:53:08 joda Exp $");
  */
 
 int
-passwd_to_key(char *user, char *instance, char *realm, void *passwd,
+passwd_to_key(const char *user,
+	      const char *instance,
+	      const char *realm,
+	      const void *passwd,
 	      des_cblock *key)
 {
 #ifndef NOENCRYPTION
@@ -44,13 +47,34 @@ passwd_to_key(char *user, char *instance, char *realm, void *passwd,
     return 0;
 }
 
+int
+passwd_to_5key(const char *user,
+	       const char *instance,
+	       const char *realm,
+	       const void *passwd, 
+	       des_cblock *key)
+{
+    char *p;
+    size_t len;
+    len = roken_mconcat (&p, 512, passwd, realm, user, instance, NULL);
+    if(len == 0)
+	return  -1;
+    des_string_to_key(p, key);
+    memset(p, 0, len);
+    free(p);
+    return 0;
+}
+
 
 int
-passwd_to_afskey(char *user, char *instance, char *realm, void *passwd,
-		  des_cblock *key)
+passwd_to_afskey(const char *user,
+		 const char *instance,
+		 const char *realm,
+		 const void *passwd,
+		 des_cblock *key)
 {
 #ifndef NOENCRYPTION
-    afs_string_to_key((char *)passwd, realm, key);
+    afs_string_to_key(passwd, realm, key);
 #endif
     return (0);
 }
@@ -72,9 +96,21 @@ passwd_to_afskey(char *user, char *instance, char *realm, void *passwd,
  * The result of the call to krb_get_in_tkt() is returned.
  */
 
+typedef int (*const_key_proc_t) __P((const char *name,
+				     const char *instance, /* IN parameter */
+				     const char *realm,
+				     const void *password,
+				     des_cblock *key));
+
 int
-krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
-		  char *sinstance, int life, char *password)
+krb_get_pw_in_tkt2(const char *user,
+		   const char *instance,
+		   const char *realm,
+		   const char *service,
+		   const char *sinstance,
+		   int life,
+		   const char *password,
+		   des_cblock *key)
 {
     char pword[100];		/* storage for the password */
     int code;
@@ -88,12 +124,61 @@ krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
         password = pword;
     }
 
-    code = krb_get_in_tkt(user,instance,realm,service,sinstance,life,
-                          passwd_to_key, NULL, password);
-    if (code == INTK_BADPW)
-	 code = krb_get_in_tkt(user,instance,realm,service,sinstance,life,
-			       passwd_to_afskey, NULL, password);
+    {
+	KTEXT_ST as_rep;
+	CREDENTIALS cred;
+	int ret = 0;
+	const_key_proc_t key_procs[] = { passwd_to_key,
+					 passwd_to_afskey, 
+					 passwd_to_5key,
+					 NULL };
+	const_key_proc_t *kp;
+	
+	code = krb_mk_as_req(user, instance, realm,
+			     service, sinstance, life, &as_rep);
+	if(code)
+	    return code;
+	for(kp = key_procs; *kp; kp++){
+	    KTEXT_ST tmp;
+	    memcpy(&tmp, &as_rep, sizeof(as_rep));
+	    code = krb_decode_as_rep(user,
+				     (char *)instance, /* const_key_proc_t */
+				     realm,
+				     service,
+				     sinstance, 
+				     (key_proc_t)*kp, /* const_key_proc_t */
+				     NULL,
+				     password,
+				     &tmp,
+				     &cred);
+	    if(code == 0){
+		if(key)
+		    (**kp)(user, instance, realm, password, key);
+		break;
+	    }
+	    if(code != INTK_BADPW)
+		ret = code; /* this is probably a better code than
+			       what code gets after this loop */
+	}
+	if(code)
+	    return ret ? ret : code;
+
+	code = tf_setup(&cred, user, instance);
+    }
     if (password == pword)
         memset(pword, 0, sizeof(pword));
     return(code);
+}
+
+int
+krb_get_pw_in_tkt(const char *user,
+		  const char *instance,
+		  const char *realm,
+		  const char *service,
+		  const char *sinstance,
+		  int life,
+		  const char *password)
+{
+    return krb_get_pw_in_tkt2(user, instance, realm, 
+			      service, sinstance, life, password, NULL);
 }

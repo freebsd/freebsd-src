@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -45,7 +45,7 @@
 #include "ticket_memory.h"
 #include <Windows.h>
 
-RCSID("$Id: dllmain.c,v 1.6 1997/05/02 14:29:13 assar Exp $");
+RCSID("$Id: dllmain.c,v 1.8 1998/07/13 14:29:33 assar Exp $");
 
 void
 msg(char *text, int error)
@@ -55,11 +55,27 @@ msg(char *text, int error)
     asprintf (&buf, "%s\nAn error of type: %d", text, error);
 
     MessageBox(GetActiveWindow(),
-	       buf ? buf : "can't tell you",
+	       buf ? buf : "Out of memory!",
 	       "kerberos message",
 	       MB_OK|MB_APPLMODAL);
     free (buf);
 }
+
+void
+PostUpdateMessage(void)
+{
+	HWND		hWnd;
+	static UINT km_message;
+	
+    if(km_message == 0)
+        km_message = RegisterWindowMessage("krb4-update-cache");
+
+	hWnd = FindWindow("KrbManagerWndClass", NULL);
+	if (hWnd == NULL)
+		hWnd = HWND_BROADCAST;
+	PostMessage(hWnd, km_message, 0, 0);
+}
+
 
 BOOL WINAPI
 DllMain (HANDLE hInst, 
@@ -90,35 +106,35 @@ DllMain (HANDLE hInst,
 	}
 	if(GetLastError() != ERROR_ALREADY_EXISTS)
 	{
-	    STARTUPINFO s = 
-	    {
+	    STARTUPINFO s = {
 		sizeof(s),
-		0,
-		0,
-		0,
+		NULL,
+		NULL,
+		NULL,
 		0,0,
 		0,0,
 		0,0,
 		0,
-		0,
-		0,
-		0,0,
-		0,0,0};
+		STARTF_USESHOWWINDOW,
+		SW_SHOWMINNOACTIVE,
+		0, NULL,
+		NULL, NULL, NULL
+	    };
 
-	    s.dwFlags = STARTF_USESHOWWINDOW;
-	    s.wShowWindow = SW_HIDE;
 	    if(!CreateProcess(0,"krbmanager",
 			      0,0,FALSE,0,0,
-			      0,&s, &p))
-	    {
-		msg("Unable to create kerberos manager process.\n"
+			      0,&s, &p)) {
+#if 0
+		msg("Unable to create Kerberos manager process.\n"
 		    "Make sure krbmanager.exe is in your PATH.",
 		    GetLastError());
 		return FALSE;
+#endif
 	    }
 	}
 	break;
     case DLL_PROCESS_DETACH:
+	/* should this really be done here? */
 	freeTktMem(0);
 	WSACleanup();
 	break;

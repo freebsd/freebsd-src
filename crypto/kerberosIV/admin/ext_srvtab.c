@@ -9,21 +9,12 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: ext_srvtab.c,v 1.13 1997/05/02 14:27:33 assar Exp $");
+RCSID("$Id: ext_srvtab.c,v 1.17 1998/06/09 19:24:13 joda Exp $");
 
 static des_cblock master_key;
 static des_cblock session_key;
 static des_key_schedule master_key_schedule;
 static char realm[REALM_SZ];
-
-static void
-usage(void)
-{
-    fprintf(stderr, 
-	    "Usage: %s [-n] [-r realm] instance [instance ...]\n",
-	    __progname);
-    exit(1);
-}
 
 static void
 StampOutSecrets(void)
@@ -34,8 +25,11 @@ StampOutSecrets(void)
 }
 
 static void
-Die(void)
+usage(void)
 {
+    fprintf(stderr, 
+	    "Usage: %s [-n] [-r realm] instance [instance ...]\n",
+	    __progname);
     StampOutSecrets();
     exit(1);
 }
@@ -44,8 +38,8 @@ static void
 FWrite(void *p, int size, int n, FILE *f)
 {
     if (fwrite(p, size, n, f) != n) {
-	printf("Error writing output file.  Terminating.\n");
-	Die();
+        StampOutSecrets();
+	errx(1, "Error writing output file.  Terminating.\n");
     }
 }
 
@@ -64,6 +58,10 @@ main(int argc, char **argv)
     set_progname (argv[0]);
     memset(realm, 0, sizeof(realm));
     
+#ifdef HAVE_ATEXIT
+    atexit(StampOutSecrets);
+#endif
+
     /* Parse commandline arguments */
     if (argc < 2)
 	usage();
@@ -75,7 +73,7 @@ main(int argc, char **argv)
 		if (++i >= argc)
 		    usage();
 		else {
-		    strcpy(realm, argv[i]);
+		    strcpy_truncate(realm, argv[i], REALM_SZ);
 		    /* 
 		     * This is to humor the broken way commandline
 		     * argument parsing is done.  Later, this
@@ -104,8 +102,10 @@ main(int argc, char **argv)
     /* For each arg, search for instances of arg, and produce */
     /* srvtab file */
     if (!realm[0])
-	if (krb_get_lrealm(realm, 1) != KSUCCESS)
+      if (krb_get_lrealm(realm, 1) != KSUCCESS) {
+	  StampOutSecrets();
 	  errx (1, "couldn't get local realm");
+      }
     umask(077);
 
     for (arg = 1; arg < argc; arg++) {
@@ -135,9 +135,6 @@ main(int argc, char **argv)
 	}
 	fclose(fout);
     }
-
     StampOutSecrets();
-
     return fopen_errs;		/* 0 errors if successful */
-
 }

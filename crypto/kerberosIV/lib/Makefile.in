@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.21 1997/05/20 18:58:40 bg Exp $
+# $Id: Makefile.in,v 1.27 1998/04/05 10:27:59 assar Exp $
 #
 
 srcdir		= @srcdir@
@@ -9,7 +9,7 @@ SHELL		= /bin/sh
 
 @SET_MAKE@
 
-SUBDIRS		= des krb kdb kadm acl kafs roken otp auth sl editline
+SUBDIRS		= roken com_err des krb kdb kadm acl kafs auth editline sl @LIB_SUBDIRS@
 
 all:
 		for i in $(SUBDIRS); \
@@ -44,3 +44,5 @@ distclean:
 realclean:
 		for i in $(SUBDIRS); \
 		do (cd $$i && $(MAKE) $(MFLAGS) realclean); done
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

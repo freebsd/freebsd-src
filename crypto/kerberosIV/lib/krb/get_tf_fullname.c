@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_tf_fullname.c,v 1.6 1997/03/23 03:53:10 joda Exp $");
+RCSID("$Id: get_tf_fullname.c,v 1.7 1998/06/09 19:25:19 joda Exp $");
 
 /*
  * This file contains a routine to extract the fullname of a user
@@ -51,12 +51,12 @@ krb_get_tf_fullname(char *ticket_file, char *name, char *instance, char *realm)
 	return (tf_status);
     
     if (name)
-	strcpy(name, c.pname);
+	strcpy_truncate (name, c.pname, ANAME_SZ);
     if (instance)
-	strcpy(instance, c.pinst);
+	strcpy_truncate (instance, c.pinst, INST_SZ);
     if ((tf_status = tf_get_cred(&c)) == KSUCCESS) {
 	if (realm)
-	    strcpy(realm, c.realm);
+	    strcpy_truncate (realm, c.realm, REALM_SZ);
     }
     else {
 	if (tf_status == EOF)

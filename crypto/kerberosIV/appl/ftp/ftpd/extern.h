@@ -36,6 +36,9 @@
 #ifndef _EXTERN_H_
 #define _EXTERN_H_
 
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -49,8 +52,13 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifndef NBBY
+#define NBBY CHAR_BIT
 #endif
 
 void	abor(void);
@@ -63,8 +71,8 @@ void	fatal(char *);
 int	filename_check(char *);
 int	ftpd_pclose(FILE *);
 FILE   *ftpd_popen(char *, char *, int, int);
-char   *getline(char *, int);
-void	logwtmp(char *, char *, char *);
+char   *ftpd_getline(char *, int);
+void	ftpd_logwtmp(char *, char *, char *);
 void	lreply(int, const char *, ...)
 #ifdef __GNUC__
 __attribute__ ((format (printf, 2, 3)))
@@ -105,6 +113,11 @@ void	yyerror(char *);
 
 void	kauth(char *, char*);
 void	klist(void);
+void	cond_kdestroy(void);
+void	kdestroy(void);
+void	krbtkfile(const char *tkfile);
+void	afslog(const char *cell);
+void	afsunlog(void);
 
 int	find(char *);
 

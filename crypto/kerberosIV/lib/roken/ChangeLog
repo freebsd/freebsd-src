@@ -1,0 +1,373 @@
+1999-07-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.awk: use puts, as suggested by Jeffrey Hutzelman
+	<jhutz+@cmu.edu>
+
+1999-07-06  Assar Westerlund  <assar@sics.se>
+
+	* readv.c (readv): typo
+
+1999-07-03  Assar Westerlund  <assar@sics.se>
+
+	* writev.c (writev): error check malloc properly
+
+	* sendmsg.c (sendmsg): error check malloc properly
+
+	* resolve.c (parse_reply): error check malloc properly
+
+	* recvmsg.c (recvmsg): error check malloc properly
+
+	* readv.c (readv): error check malloc properly
+
+1999-06-23  Assar Westerlund  <assar@sics.se>
+
+	* parse_units.c (acc_units): move the special case of 0 -> 1 to
+ 	parse_something to avoid having it happen at the end of the string
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add get_default_username
+
+	* get_default_username.c: new file
+
+	* roken.h.in (get_default_username): add prototype
+
+	* Makefile.am: add get_default_username
+
+1999-05-08  Assar Westerlund  <assar@sics.se>
+
+	* xdbm.h: also try <db.h> with DB_DBM_HSEARCH == 1
+
+	* strnlen.c (strnlen): update prototype
+
+	* Makefile.am: strndup.c: add
+
+	* Makefile.in: strndup.c: add
+
+	* roken.h.in (strndup): add
+	(strnlen): update prototype
+
+	* strndup.c: new file
+
+Fri Apr 16 17:59:30 1999  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in: include strsep prototype if needed
+
+Thu Apr 15 14:04:03 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: make make-print-version.o depend on version.h
+
+Wed Apr  7 14:11:00 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: make it compile w/o krb4
+
+Sat Mar 27 17:33:03 1999  Johan Danielsson  <joda@blubb.pdc.kth.se>
+
+	* snprintf.c (vasnprintf): correct check if realloc returns NULL
+
+Sat Mar 27 12:37:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: link print_version with -ldes to avoid unresolved
+ 	references if -lkrb is shared
+
+Sat Mar 20 03:42:30 1999  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h (eread, ewrite): add
+
+	* simple_exec.c: add <roken.h>
+
+Fri Mar 19 21:29:58 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add eread, ewrite
+
+	* eread.c, ewrite.c: new files
+
+	* Makefile.am (libroken_la_SOURCES): add eread and ewrite
+
+Fri Mar 19 14:52:57 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: add version-info
+
+Thu Mar 18 12:53:32 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* Makefile.am: remove include_dir hack
+
+	* Makefile.am: parse_units.h
+
+	* Makefile.am: include Makefile.am.common
+
+Sat Mar 13 23:31:35 1999  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (SOURCES): add glob.c
+
+Thu Mar 11 15:02:21 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* iruserok.c: move innetgr() to separate file
+
+	* innetgr.c: move innetgr() to separate file
+
+	* hstrerror.c (hstrerror): add const to return type
+
+	* erealloc.c: fix types in format string
+
+	* emalloc.c: fix types in format string
+
+Wed Mar 10 16:36:55 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* resolve.c: ugly fix for crays
+
+Mon Mar  8 11:52:20 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* roken.h.in: protos for {un,}setenv
+
+1999-02-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (SOURCES): add fnmatch
+
+	* roken-common.h (abs): add
+
+Sat Feb 13 17:12:53 1999  Assar Westerlund  <assar@sics.se>
+
+	* emalloc.c, erealloc.c, estrup.c: new files
+
+	* roken.h.in (mkstemp, gethostname): also includes prototypes if
+ 	they are needed.
+
+1998-12-23  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in: mkstemp: add prototype
+
+1998-12-20  Assar Westerlund  <assar@sics.se>
+
+	* snprintf.c, iruserok.c, parse-units.c: unsigned char-correctness
+
+	* roken.h.in (inet_aton): also chedk NEED_INET_ATON_PROTO
+
+	* roken-common.h: __attribute__: check for autoconf'd
+	HAVE___ATTRIBUTE__ instead of GNUC
+
+Sun Dec  6 19:53:21 1998  Assar Westerlund  <assar@sics.se>
+
+	* parse_units.c (parse_something): func is called with val == 0 if
+ 	no unit was given
+	(acc_flags, acc_units): update to new standard
+
+Fri Nov 27 03:09:42 1998  Assar Westerlund  <assar@sics.se>
+
+	* resolve.c (stot): constify
+	(type_to_string): always declare
+	(dns_lookup_int): correct debug output
+
+Thu Nov 26 23:43:55 1998  Assar Westerlund  <assar@sics.se>
+
+	* resolve.c (dns_lookup_int): send rr_class to res_search
+
+Thu Nov 26 17:09:47 1998  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* resolve.c: some cleanup
+
+	* resolve.h: add T_NAPTR
+
+Sun Nov 22 10:23:07 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (WFLAGS): set
+
+	* k_getpwnam.c (k_getpwnam): check for `struct spwd'
+
+	* k_getpwuid.c (k_getpwuid): check for `struct spwd'
+
+Tue Sep  8 05:18:31 1998  Assar Westerlund  <assar@sics.se>
+
+	* recvmsg.c (recvmsg): patch from bpreece@unity.ncsu.edu
+
+Fri Sep  4 16:29:27 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* vsyslog.c: asprintf -> vasprintf
+
+Tue Aug 18 22:25:52 1998  Assar Westerlund  <assar@sics.se>
+
+	* getarg.h (arg_printusage): new signature
+
+	* getarg.c (arg_printusage): new parameter `progname'.  NULL means
+ 	__progname.
+
+Sun Aug  9 14:53:44 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Makefile.am: net_{read,write}.c
+
+Fri Jul 24 21:56:02 1998  Assar Westerlund  <assar@sics.se>
+
+	* simple_exec.c (simple_execvp): loop around waitpid when errno ==
+ 	EINTR
+
+Thu Jul 23 20:24:35 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* Makefile.am: net_{read,write}.c
+
+Wed Jul 22 21:38:35 1998  Assar Westerlund  <assar@sics.se>
+
+	* simple_exec.c (simple_execlp): initialize `argv'
+
+Mon Jul 13 23:01:22 1998  Assar Westerlund  <assar@sics.se>
+
+	* inaddr2str.c (inaddr2str): don't advance hostent->h_addr_list,
+ 	use a copy instead
+
+Fri Jul 10 01:20:08 1998  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (net_write, net_read): add prototypes
+
+	* Makefile.in: net_{read,write}.c: add
+
+	* net_{read,write}.c: new files
+
+Tue Jun 30 17:29:09 1998  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (issuid): add
+
+	* get_window_size.c: fix misspelling of TIOCGWINSZ and bad use of
+ 	fields
+
+Sun May 31 03:24:34 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c (mandoc_template): Put short and long options in
+ 	SYNOPSIS within the same [ ] pair.
+
+Sat May 30 00:13:01 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c (arg_printusage): try to keep options shorter than
+ 	column width
+
+	* get_window_size.c (get_window_size): check COLUMNS and LINES
+
+Fri May 29 00:05:04 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c (mandoc_template): Put short and long options in
+ 	DESCRIPTION on the same line.
+
+	* getarg.c (arg_match_long): make sure you only get an exact match
+ 	if the strings are the same length
+
+Thu May 14 02:23:40 1998  Assar Westerlund  <assar@sics.se>
+
+	* roken.awk: stupid cray awk wants \#
+
+Fri May  1 01:29:36 1998  Assar Westerlund  <assar@sics.se>
+
+	* print_version.c (print_version): according to ISO/ANSI C the
+ 	elements of `arg' are not constant and therefore not settable at
+ 	compile-time.  Set the at run-time instead.
+
+Sun Apr 19 10:00:06 1998  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in: include paths.h
+
+Sun Apr  5 12:30:49 1998  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in (SOURCES): add roken_gethostby.c to make solaris
+ 	make happy
+
+Thu Mar 19 20:41:25 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* simple_exec.c: Simple fork+exec system() replacement.
+
+Fri Mar  6 00:21:53 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* roken_gethostby.c: Make `roken_gethostby_setup' take url-like
+ 	specification instead of split up versions. Makes it easier for
+ 	calling applications.
+
+	* roken_gethostby.c: Another miracle of the 20th century:
+ 	gethostby* over HTTP.
+
+Sat Feb 21 15:18:36 1998  assar westerlund  <assar@sics.se>
+
+	* parse_time.c (unparse_time_approx): new function that calls
+ 	`unparse_units_approx'
+
+	* parse_units.c (unparse_units_approx): new function that will
+ 	only print the first unit.
+
+	* Makefile.in: include parse_{time,units}
+
+Thu Feb 12 03:30:08 1998  Assar Westerlund  <assar@sics.se>
+
+	* parse_time.c (print_time_table): don't return a void value.
+
+Tue Feb  3 11:06:24 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c (mandoc_template): Change date format to full month
+ 	name, and day of month without leading zero.
+
+Thu Jan 22 21:23:23 1998  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c: Fix long form of negative flags.
+
+Mon Dec 29 23:31:10 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* roken.h.in: Include <err.h>, to get linux __progname.
+
+Sun Dec 21 09:45:18 1997  Assar Westerlund  <assar@sics.se>
+
+	* parse_time.c (print_time_table): new function
+
+	* parse_units.c (print_flags_table, print_units_table): new
+ 	functions.
+
+Thu Dec  4 02:51:46 1997  Assar Westerlund  <assar@sics.se>
+
+	* iruserok.c: moved here.
+
+	* snprintf.c (sn_append_char): don't write any terminating zero.
+	(as_reserve): don't loop.  better heuristic for how much space to
+ 	realloc.
+	(vasnprintf): simplify initializing to one.
+
+Sun Nov 30 14:56:59 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* getarg.c: Add mandoc help back-end to getarg.
+
+Wed Nov 12 01:09:17 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* verr.c, verrx.c: Fix warnings by moving exit from.
+
+Tue Nov 11 21:12:09 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* parse_units.c: Change the list of separating characters (between
+ 	units) to comma, space, and tab, removing digits. Having digits in
+ 	this list makes a flag like `T42 generate a parse error. This
+ 	change makes `17m3s' an invalid time-spec (you need a space).
+
+Tue Nov 11 02:38:44 1997  Assar Westerlund  <assar@sics.se>
+
+	* roken.h: add <sys/socket.h>
+
+Sun Nov  9 04:48:46 1997  Johan Danielsson  <joda@emma.pdc.kth.se>
+
+	* fnmatch.c: Add fnmatch from NetBSD
+
+Sun Nov  9 02:00:08 1997  Assar Westerlund  <assar@sics.se>
+
+	* parse_units.c (parse_something): ignore white-space and ','
+
+Mon Nov  3 22:38:32 1997  Assar Westerlund  <assar@sics.se>
+	
+	* roken.h: fclose prototype
+
+	* roken.h: add prototype for vsyslog
+
+	* Makefile.in: add some more source files to make soriasis make
+ 	happy
+
+Sat Nov  1 00:19:21 1997  Assar Westerlund  <assar@sics.se>
+
+	* roken.h: include <sys/uio.h> and <errno.h>.
+	prototypes for readv and writev
+
+	* readv.c, writev.c: new files
+
+Wed Oct 29 02:21:38 1997  Assar Westerlund  <assar@sics.se>
+
+	* roken.h: Add ugly macros for openlog, gethostbyname,
+ 	gethostbyaddr, and getservbyname for the benefit of Crays.  Add
+ 	default definition of MAXPATHLEN

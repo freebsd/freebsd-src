@@ -19,7 +19,7 @@ provided "as is" without express or implied warranty.
 
 #include "slav_locl.h"
 
-RCSID("$Id: kprop.c,v 1.29 1997/05/25 02:43:54 joda Exp $");
+RCSID("$Id: kprop.c,v 1.36 1999/03/11 20:57:07 bg Exp $");
 
 #include "kprop.h"
 
@@ -43,26 +43,23 @@ struct slave_host {
     struct slave_host *next;
 };
 
-static
-int get_slaves(struct slave_host **psl, char *file, time_t ok_mtime)
+static int
+get_slaves(struct slave_host **psl,
+	   const char *dir_path,
+	   const char *file,
+	   time_t ok_mtime)
 {
     FILE   *fin;
     char    namebuf[128], *inst;
     char   *pc;
     struct hostent *host;
     struct slave_host **th;
-    char    path[256];
-    char   *ppath;
+    char   *last_prop_path;
     struct stat stbuf;
 
     if ((fin = fopen(file, "r")) == NULL)
 	err (1, "open(%s)", file);
-    strcpy(path, file);
-    if ((ppath = strrchr(path, '/'))) {
-	ppath += 1;
-    } else {
-	ppath = path;
-    }
+
     th = psl;
     while(fgets(namebuf, sizeof(namebuf), fin)){
 	if ((pc = strchr(namebuf, '\n'))) {
@@ -84,12 +81,7 @@ int get_slaves(struct slave_host **psl, char *file, time_t ok_mtime)
 	if (host == NULL) {
 	    warnx ("Ignoring host '%s' in '%s': %s", 
 		   namebuf, file,
-#ifdef HAVE_H_ERRNO
-		   hstrerror(h_errno)
-#else
-		   "unknown error"
-#endif
-		   );
+		   hstrerror(h_errno));
 	    continue;
 	}
 	(*th) = (struct slave_host *) malloc(sizeof(struct slave_host));
@@ -113,11 +105,16 @@ int get_slaves(struct slave_host **psl, char *file, time_t ok_mtime)
 	(*th)->not_time_yet = 0;
 	(*th)->succeeded = 0;
 	(*th)->next = NULL;
-	strcat(strcpy(ppath, (*th)->name), "-last-prop");
-	if (!force_flag && !stat(path, &stbuf) && stbuf.st_mtime > ok_mtime) {
+	asprintf(&last_prop_path, "%s%s-last-prop", dir_path, (*th)->name);
+	if (last_prop_path == NULL)
+	    errx (1, "malloc failed");
+	if (!force_flag
+	    && !stat(last_prop_path, &stbuf)
+	    && stbuf.st_mtime > ok_mtime) {
 	    (*th)->not_time_yet = 1;
 	    (*th)->succeeded = 1;	/* no change since last success */
 	}
+	free(last_prop_path);
 	th = &(*th)->next;
     }
     fclose(fin);
@@ -135,16 +132,18 @@ int get_slaves(struct slave_host **psl, char *file, time_t ok_mtime)
 */
 
 static int
-prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
+prop_to_slaves(struct slave_host *sl,
+	       int fd,
+	       const char *dir_path,
+	       const char *fslv)
 {
     u_char buf[KPROP_BUFSIZ];
     u_char obuf[KPROP_BUFSIZ + 64]; /* leave room for private msg overhead */
     struct sockaddr_in sin, my_sin;
     int     i, n, s;
     struct slave_host *cs;	/* current slave */
-    char   path[256], my_host_name[MaxHostNameLen], *p_my_host_name;
+    char   my_host_name[MaxHostNameLen], *p_my_host_name;
     char   kprop_service_instance[INST_SZ];
-    char   *pc;
     u_int32_t cksum;
     u_int32_t length, nlength;
     long   kerror;
@@ -152,8 +151,8 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
     CREDENTIALS  cred;
     MSG_DAT msg_dat;
     static char tkstring[] = "/tmp/kproptktXXXXXX";
-    
     des_key_schedule session_sched;
+    char   *last_prop_path;
 
     close(mkstemp(tkstring));
     krb_set_tkt_string(tkstring);
@@ -162,13 +161,6 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
     sin.sin_family = AF_INET;
     sin.sin_port = k_getportbyname ("krb_prop", "tcp", htons(KPROP_PORT));
     sin.sin_addr.s_addr = INADDR_ANY;
-
-    strcpy(path, fslv);
-    if ((pc = strrchr(path, '/'))) {
-	pc += 1;
-    } else {
-	pc = path;
-    }
 
     for (i = 0; i < 5; i++) {	/* try each slave five times max */
 	for (cs = sl; cs; cs = cs->next) {
@@ -205,15 +197,10 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
 		 * first get a TGT ...
 		 */
 		if (kerror != MK_AP_OK) {
-		    if (k_gethostname (my_host_name, sizeof(my_host_name)) != 0) {
+		    if (gethostname (my_host_name, sizeof(my_host_name)) != 0) {
 			warnx ("gethostname(%s): %s",
 			       my_host_name,
-#ifdef HAVE_H_ERRNO
-			       hstrerror(h_errno)
-#else
-			       "unknown error"
-#endif			       
-			       );
+			       hstrerror(h_errno));
 			close (s);
 			break;	/* next one can't work either! */
 		    }
@@ -221,7 +208,9 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
 		    p_my_host_name = krb_get_phost (my_host_name);
 		    /* copy it to make sure gethostbyname static doesn't
 		     * screw us. */
-		    strcpy (kprop_service_instance, p_my_host_name);
+		    strcpy_truncate (kprop_service_instance,
+				     p_my_host_name,
+				     INST_SZ);
 		    kerror = krb_get_svc_in_tkt (KPROP_SERVICE_NAME, 
 #if 0
 						 kprop_service_instance,
@@ -240,7 +229,8 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
 			goto punt;
 		    }
 		    kerror = krb_mk_req (&ticket, KPROP_SERVICE_NAME, 
-					 cs->instance, cs->realm, (u_int32_t) 0);
+					 cs->instance, cs->realm,
+					 (u_int32_t) 0);
 		}
 		if (kerror != MK_AP_OK) {
 		    warnx ("%s: krb_mk_req: %s",
@@ -363,10 +353,17 @@ prop_to_slaves(struct slave_host *sl, int fd, char *fslv)
 		}
 		close(s);
 		cs->succeeded = 1;
-		fprintf(stderr, "%s: success.\n", cs->name);
-		strcat(strcpy(pc, cs->name), "-last-prop");
-		unlink(path);
-		close(creat(path, 0600));
+		printf("%s: success.\n", cs->name);
+
+		asprintf(&last_prop_path,
+			 "%s%s-last-prop",
+			 dir_path,
+			 cs->name);
+		if (last_prop_path == NULL)
+		    errx (1, "malloc failed");
+
+		unlink(last_prop_path);
+		close(creat(last_prop_path, 0600));
 	    }
 	}
     }
@@ -381,7 +378,7 @@ punt:
 }
 
 static void
-usage()
+usage(void)
 {
     /* already got floc and fslv, what is this? */
     fprintf(stderr,
@@ -400,6 +397,7 @@ main(int argc, char **argv)
     int     fd, i;
     char   *floc, *floc_ok;
     char   *fslv;
+    char   *dir_path;
     struct stat stbuf, stbuf_ok;
     time_t   l_init, l_final;
     char   *pc;
@@ -436,7 +434,7 @@ main(int argc, char **argv)
 	else if (strcmp (argv[i], "-realm") == 0) {
 	    i++;
 	    if (i < argc)
-		strcpy(my_realm, argv[i]);
+		strcpy_truncate(my_realm, argv[i], REALM_SZ);
 	    else
 		usage();
 	} else if (strcmp (argv[i], "-force") == 0)
@@ -466,9 +464,19 @@ main(int argc, char **argv)
     if (floc_ok == NULL)
 	errx (1, "out of memory in copying %s", floc);
 
+    dir_path = strdup(fslv);
+    if(dir_path == NULL)
+	errx (1, "malloc failed");
+    pc = strrchr(dir_path, '/');
+    if (pc != NULL)
+	++pc;
+    else
+	pc = dir_path;
+    *pc = '\0';
+
     if ((fd = open(floc, O_RDONLY)) < 0)
 	err (1, "open(%s)", floc);
-    if (k_flock(fd, K_LOCK_SH | K_LOCK_NB))
+    if (flock(fd, LOCK_SH | LOCK_NB))
 	err (1, "flock(%s)", floc);
     if (stat(floc, &stbuf))
 	err (1, "stat(%s)", floc);
@@ -476,7 +484,7 @@ main(int argc, char **argv)
 	err (1, "stat(%s)", floc_ok);
     if (stbuf.st_mtime > stbuf_ok.st_mtime)
 	errx (1, "'%s' more recent than '%s'.", floc, floc_ok);
-    if (!get_slaves(&slave_host_list, fslv, stbuf_ok.st_mtime))
+    if (!get_slaves(&slave_host_list, dir_path, fslv, stbuf_ok.st_mtime))
 	errx (1, "can't read slave host file '%s'.", fslv);
 #ifdef KPROP_DBG
     {
@@ -492,14 +500,19 @@ main(int argc, char **argv)
     }
 #endif				/* KPROP_DBG */
 
-    if (!prop_to_slaves(slave_host_list, fd, fslv))
+    if (!prop_to_slaves(slave_host_list, fd, dir_path, fslv))
 	errx (1, "propagation failed.");
-    if (k_flock(fd, K_LOCK_UN))
+    if (flock(fd, LOCK_UN))
 	err (1, "flock(%s, LOCK_UN)", floc);
-    fprintf(stderr, "\n\n");
+    printf("\n\n");
     for (sh = slave_host_list; sh; sh = sh->next) {
-	fprintf(stderr, "%s:\t\t%s\n", sh->name,
-		(sh->not_time_yet? "Not time yet" : (sh->succeeded ? "Succeeded" : "FAILED")));
+        if (sh->not_time_yet)
+	    printf(         "%s:\t\tNot time yet\n", sh->name);
+	else if (sh->succeeded)
+	    printf(         "%s:\t\tSucceeded\n", sh->name);
+	else
+	    fprintf(stderr, "%s:\t\tFAILED\n", sh->name);
+	fflush(stdout);
     }
 
     time(&l_final);
