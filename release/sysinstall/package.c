@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.65.2.3 1999/05/12 09:04:15 jkh Exp $
+ * $Id: package.c,v 1.65.2.4 1999/05/12 10:55:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,14 +117,14 @@ package_extract(Device *dev, char *name, Boolean depended)
     if (package_exists(name))
 	return DITEM_SUCCESS;
 
-    /* If necessary, initialize the ldconfig hints */
-    if (!file_readable("/var/run/ld.so.hints"))
-	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
-
     if (!dev->init(dev)) {
 	msgConfirm("Unable to initialize media type for package extract.");
 	return DITEM_FAILURE;
     }
+
+    /* If necessary, initialize the ldconfig hints */
+    if (!file_readable("/var/run/ld.so.hints"))
+	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
 
     /* Be initially optimistic */
     ret = DITEM_SUCCESS | DITEM_RESTORE;
@@ -136,10 +136,12 @@ package_extract(Device *dev, char *name, Boolean depended)
     Mkdir(variable_get(VAR_PKG_TMPDIR));
     vsystem("chmod 1777 %s", variable_get(VAR_PKG_TMPDIR));
 
-    if (!strpbrk(name, "-_"))
-	sprintf(path, "packages/Latest/%s.tgz", name);
-    else if (!index(name, '/'))
-	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+    if (!index(name, '/')) {
+	if (!strpbrk(name, "-_"))
+	    sprintf(path, "packages/Latest/%s.tgz", name);
+	else
+	    sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+    }
     else
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
 
