@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_timer.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_timer.c,v 1.2 1994/08/02 07:47:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -60,10 +60,6 @@
  * default values are inappropriate
  */
 
-int	hd_t1 = T1;
-int	hd_t3 = T3;
-int	hd_n2 = N2;
-
 /*
  *  HDLC TIMER 
  *
@@ -71,6 +67,7 @@ int	hd_n2 = N2;
  *  amount - if expired then process the event.
  */
 
+void
 hd_timer ()
 {
 	register struct hdcb *hdp;

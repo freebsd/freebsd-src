@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_input.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_input.c,v 1.2 1994/08/02 07:47:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -55,9 +55,11 @@
 #include <netccitt/hd_var.h>
 #include <netccitt/x25.h>
 
-static frame_reject();
-static rej_routine();
-static free_iframes();
+static void frame_reject();
+static void rej_routine();
+static void free_iframes();
+void	process_sframe ();
+
 /*
  *      HDLC INPUT INTERFACE
  *
@@ -65,6 +67,7 @@ static free_iframes();
  *      completed reading a frame.
  */
 
+void
 hdintr ()
 {
 	register struct mbuf *m;
@@ -116,6 +119,7 @@ hdintr ()
 	}
 }
 
+int
 process_rxframe (hdp, fbuf)
 register struct hdcb *hdp;
 register struct mbuf *fbuf;
@@ -314,6 +318,7 @@ register struct mbuf *fbuf;
 	return (queued);
 }
 
+int
 process_iframe (hdp, fbuf, frame)
 register struct hdcb *hdp;
 struct mbuf *fbuf;
@@ -442,9 +447,10 @@ int     rear,
  *  condition Y (frame length error) are handled elsewhere.
  */
 
-static
+static void
 frame_reject (hdp, rejectcode, frame)
 struct hdcb *hdp;
+int rejectcode;
 struct Hdlc_iframe *frame;
 {
 	register struct Frmr_frame *frmr = &hd_frmr;
@@ -489,6 +495,7 @@ struct Hdlc_iframe *frame;
  *  frames is done here.
  */
 
+void
 process_sframe (hdp, frame, frametype)
 register struct hdcb *hdp;
 register struct Hdlc_sframe *frame;
@@ -547,6 +554,7 @@ int frametype;
 bool
 valid_nr (hdp, nr, finalbit)
 register struct hdcb *hdp;
+int nr;
 register int finalbit;
 {
 	/* Make sure it really does acknowledge something. */
@@ -591,7 +599,7 @@ register int finalbit;
  *  It then resets the Send State Variable V(S) to accomplish this.
  */
 
-static
+static void
 rej_routine (hdp, rejnr)
 register struct hdcb *hdp;
 register int rejnr;
@@ -635,7 +643,7 @@ register int rejnr;
  *  when a previously written iframe is acknowledged.
  */
 
-static
+static void
 free_iframes (hdp, nr, finalbit)
 register struct hdcb *hdp;
 int *nr;

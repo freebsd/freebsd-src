@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_debug.c,v 1.2 1994/08/02 07:46:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -68,8 +68,10 @@ struct	hdlctrace {
 int	lasttracelogged, freezetrace;
 #endif
 
+void
 hd_trace (hdp, direction, frame)
 struct hdcb *hdp;
+int direction;
 register struct Hdlc_frame *frame;
 {
 	register char *s;
