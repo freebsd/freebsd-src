@@ -115,7 +115,7 @@ ofw_cons_poll()
 	if (saved_char != -1)
 		return 1;
 
-	if (OF_read(stdin, &ch, 1) != 0) {
+	if (OF_read(stdin, &ch, 1) > 0) {
 		saved_char = ch;
 		return 1;
 	}
