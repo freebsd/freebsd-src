@@ -29,6 +29,9 @@ savecore_prestart()
 		debug 'No dump device. Quitting.'
 		return 1
 		;;
+	[Aa][Uu][Tt][Oo])
+		dumpdev=/dev/dumpdev
+		;;
 	esac
 
 	# If there is no crash directory set it now
@@ -50,8 +53,8 @@ savecore_prestart()
 
 savecore_start()
 {
-		echo "Checking for core dump on ${dumpdev} ..."
-		savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
+	echo "Checking for core dump on ${dumpdev}..."
+	savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
 }
 
 load_rc_config $name
