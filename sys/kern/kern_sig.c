@@ -181,9 +181,7 @@ static int sigproptbl[NSIG] = {
 int
 cursig(struct thread *td)
 {
-	struct proc *p = td->td_proc;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	return (SIGPENDING(td) ? issignal(td) : 0);
 }
