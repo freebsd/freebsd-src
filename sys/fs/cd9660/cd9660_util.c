@@ -36,25 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.3 (Berkeley) 12/5/94
- * $Id$
+ * $Id: cd9660_util.c,v 1.9 1997/02/22 09:38:50 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/resourcevar.h>
-#include <sys/kernel.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h> /* XXX */
-#include <miscfs/fifofs/fifo.h> /* XXX */
-#include <sys/malloc.h>
-#include <sys/dir.h>
 
 #include <isofs/cd9660/iso.h>
 
