@@ -53,7 +53,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "dev/kttcp/kttcpio.h"
+#include "kttcpio.h"
 
 #define	KTTCP_PORT		"22222"
 #define	KTTCP_XMITSIZE		(10*1024*1024)
