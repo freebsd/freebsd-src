@@ -86,6 +86,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"localtime",		TRUE, NULL },
    { JUST_COPY,		"login.access",		TRUE, NULL },
    { JUST_COPY,		"login.conf",		TRUE, NULL },
+   { JUST_COPY,		"mail",			TRUE, NULL },
    { JUST_COPY,		"mail.rc",		TRUE, NULL },
    { JUST_COPY,		"make.conf",		TRUE, NULL },
    { JUST_COPY,		"manpath.config",	TRUE, NULL },
