@@ -1036,6 +1036,7 @@ product PALM TUNGSTEN_Z		0x0031	Palm Tungsten Z
 product PALM M125		0x0040	Palm m125
 product PALM M130		0x0050	Palm m130
 product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
+product PALM ZIRE31		0x0061	Palm Zire 31
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
