@@ -306,6 +306,13 @@ system time
 cpu idle
 .El
 .El
+.Sh FILES
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
+default kernel namelist
+.It Pa /dev/kmem
+default memory file
+.El
 .Sh EXAMPLES
 The command:
 .Dl vmstat -w 5
@@ -320,13 +327,6 @@ The command:
 will tell vmstat to select the first three direct access or CDROM devices
 and display statistics on those devices, as well as other systems
 statistics every second.
-.Sh FILES
-.Bl -tag -width /boot/kernel/kernel -compact
-.It Pa /boot/kernel/kernel
-default kernel namelist
-.It Pa /dev/kmem
-default memory file
-.El
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,

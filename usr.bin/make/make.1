@@ -1345,23 +1345,6 @@ Each source specifies a suffix to
 .Nm .
 If no sources are specified, any previous specified suffices are deleted.
 .El
-.Sh COMPATIBILITY
-Older versions of
-.Nm
-used
-.Ev MAKE
-instead of
-.Ev MAKEFLAGS .
-This was removed for POSIX compatibility.
-The internal variable
-.Va MAKE
-is set to the same value as
-.Va .MAKE ;
-support for this may be removed in the future.
-.Pp
-Most of the more esoteric features of
-.Nm
-should probably be avoided for greater compatibility.
 .Sh ENVIRONMENT
 The
 .Nm
@@ -1400,6 +1383,35 @@ directory.
 List all included makefiles in order visited:
 .Pp
 .Dl "make -V .MAKEFILE_LIST | tr \e\  \e\en"
+.Sh COMPATIBILITY
+Older versions of
+.Nm
+used
+.Ev MAKE
+instead of
+.Ev MAKEFLAGS .
+This was removed for POSIX compatibility.
+The internal variable
+.Va MAKE
+is set to the same value as
+.Va .MAKE ;
+support for this may be removed in the future.
+.Pp
+Most of the more esoteric features of
+.Nm
+should probably be avoided for greater compatibility.
+.Sh SEE ALSO
+.Xr mkdep 1 ,
+.Xr make.conf 5
+.Rs
+.%T "PMake - A Tutorial"
+.Re
+in
+.Pa /usr/share/doc/psd/12.make
+.Sh HISTORY
+A
+.Nm
+command appeared in PWB UNIX.
 .Sh BUGS
 The determination of
 .Va .OBJDIR
@@ -1455,15 +1467,3 @@ all:
      ...
 \&.endfor
 .Ed
-.Sh SEE ALSO
-.Xr mkdep 1 ,
-.Xr make.conf 5
-.Rs
-.%T "PMake - A Tutorial"
-.Re
-in
-.Pa /usr/share/doc/psd/12.make
-.Sh HISTORY
-A
-.Nm
-command appeared in PWB UNIX.

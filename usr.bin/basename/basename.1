@@ -92,6 +92,8 @@ character to the end of
 .Ar string
 (after first stripping trailing slashes),
 and writes the result to the standard output.
+.Sh EXIT STATUS
+.Ex -std basename dirname
 .Sh EXAMPLES
 The following line sets the shell variable
 .Ev FOO
@@ -99,8 +101,6 @@ to
 .Pa /usr/bin .
 .Pp
 .Dl FOO=`dirname /usr/bin/trail`
-.Sh EXIT STATUS
-.Ex -std basename dirname
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr sh 1

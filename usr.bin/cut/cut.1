@@ -134,6 +134,8 @@ environment variables affect the execution of the
 utility.
 Their effect is described in
 .Xr environ 7 .
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Extract users' login names and shells from the system
 .Xr passwd 5
@@ -146,8 +148,6 @@ pairs:
 Show the names and login times of the currently logged in users:
 .Pp
 .Dl "who | cut -c 1-16,26-38"
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .Xr colrm 1 ,
 .Xr paste 1

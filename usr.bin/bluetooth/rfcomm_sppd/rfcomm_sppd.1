@@ -95,6 +95,15 @@ This option is required if
 .Fl b
 option was specified.
 .El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/tty[p-sP-S][0-9a-v]" -compact
+.It Pa /dev/pty[p-sP-S][0-9a-v]
+master pseudo terminals
+.It Pa /dev/tty[p-sP-S][0-9a-v]
+slave pseudo terminals
+.El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 .Dl "rfcomm_sppd -a 00:01:02:03:04:05 -c 1 -t /dev/ttyp1"
 .Pp
@@ -107,17 +116,6 @@ and channel
 Once the connection has been established,
 .Pa /dev/ttyp1
 can be used to talk to the remote serial port on the server.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/tty[p-sP-S][0-9a-v]" -compact
-.It Pa /dev/pty[p-sP-S][0-9a-v]
-master pseudo terminals
-.It Pa /dev/tty[p-sP-S][0-9a-v]
-slave pseudo terminals
-.El
-.Sh EXIT STATUS
-.Ex -std
-.Sh BUGS
-Please report if found.
 .Sh SEE ALSO
 .Xr bluetooth 3 ,
 .Xr ng_btsocket 4 ,
@@ -125,3 +123,5 @@ Please report if found.
 .Xr rfcomm_pppd 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh BUGS
+Please report if found.

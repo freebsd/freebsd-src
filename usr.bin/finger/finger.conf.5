@@ -49,6 +49,12 @@ reference to another alias or the path of a world readable file.
 .Pp
 Where an alias points to a file, the contents of that file will be displayed
 when the alias is fingered.
+.Sh FILES
+.Bl -tag -width /etc/finger.conf -compact
+.It Pa /etc/finger.conf
+.Xr finger 1
+alias definition data base
+.El
 .Sh EXAMPLES
 .Bd -literal
 # /etc/finger.conf alias definition file
@@ -76,12 +82,6 @@ abuse:admin
 #
 admin:sod
 .Ed
-.Sh FILES
-.Bl -tag -width /etc/finger.conf -compact
-.It Pa /etc/finger.conf
-.Xr finger 1
-alias definition data base
-.El
 .Sh SEE ALSO
 .Xr finger 1
 .Sh HISTORY
