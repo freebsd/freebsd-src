@@ -51,7 +51,7 @@ int __nlocale_changed = 1;
 
 static char
 cnv(char *str) {
-	return (char)strtol(str, NULL, 10);
+	return (char)strtol(str, NULL, 0);
 }
 
 /*
