@@ -193,10 +193,12 @@ static int bge_init_tx_ring	__P((struct bge_softc *));
 static int bge_chipinit		__P((struct bge_softc *));
 static int bge_blockinit	__P((struct bge_softc *));
 
+#ifdef notdef
 static u_int8_t bge_vpd_readbyte __P((struct bge_softc *, int));
 static void bge_vpd_read_res	__P((struct bge_softc *,
                                         struct vpd_res *, int));
 static void bge_vpd_read	__P((struct bge_softc *));
+#endif
 
 static u_int32_t bge_readmem_ind
 				__P((struct bge_softc *, int));
@@ -302,6 +304,7 @@ bge_writereg_ind(sc, off, val)
 	return;
 }
 
+#ifdef notdef
 static u_int8_t
 bge_vpd_readbyte(sc, addr)
 	struct bge_softc *sc;
@@ -389,6 +392,7 @@ bge_vpd_read(sc)
 
 	return;
 }
+#endif
 
 /*
  * Read a byte of data stored in the EEPROM at address 'addr.' The
