@@ -254,6 +254,14 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
+	/*
+	 * For the older cards, we have to get the MAC address from the
+	 * card in some way.  Let's try the standard way first.  If that
+	 * fails, check to see if the card has a hint about where to look
+	 * in its CIS.  If that fails, maybe we should look at some default
+	 * value.  In all fails, we should fail the attach, but don't right
+	 * now.
+	 */
 	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
