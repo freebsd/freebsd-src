@@ -27,11 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -291,8 +294,13 @@ alq_doio(struct alq *alq)
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VOP_LEASE(vp, td, alq->aq_cred, LEASE_WRITE);
-	/* XXX error ignored */
-	VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);	
+	/*
+	 * XXX: VOP_WRITE error checks are ignored.
+	 */
+#ifdef MAC
+	if (mac_check_vnode_write(alq->aq_cred, NOCRED, vp) == 0)
+#endif
+		VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 
