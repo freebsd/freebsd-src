@@ -142,7 +142,7 @@ static int	 glob1 __P((Char *, glob_t *));
 static int	 glob2 __P((Char *, Char *, Char *, glob_t *));
 static int	 glob3 __P((Char *, Char *, Char *, Char *, glob_t *));
 static int	 globextend __P((const Char *, glob_t *));
-static const Char *	 globtilde __P((const Char *, Char *, glob_t *));
+static const Char *	 globtilde __P((const Char *, Char *, size_t, glob_t *));
 static int	 globexp1 __P((const Char *, glob_t *));
 static int	 globexp2 __P((const Char *, const Char *, glob_t *, int *));
 static int	 match __P((Char *, Char *, Char *));
@@ -332,22 +332,26 @@ static int globexp2(ptr, pattern, pglob, rv)
  * expand tilde from the passwd file.
  */
 static const Char *
-globtilde(pattern, patbuf, pglob)
+globtilde(pattern, patbuf, patbuf_len, pglob)
 	const Char *pattern;
 	Char *patbuf;
+	size_t patbuf_len;
 	glob_t *pglob;
 {
 	struct passwd *pwd;
 	char *h;
 	const Char *p;
-	Char *b;
+	Char *b, *eb;
 
 	if (*pattern != TILDE || !(pglob->gl_flags & GLOB_TILDE))
 		return pattern;
 
-	/* Copy up to the end of the string or / */
-	for (p = pattern + 1, h = (char *) patbuf; *p && *p != SLASH;
-	     *h++ = *p++)
+	/* 
+	 * Copy up to the end of the string or / 
+	 */
+	eb = &patbuf[patbuf_len - 1];
+	for (p = pattern + 1, h = (char *) patbuf;
+	    h < (char *)eb && *p && *p != SLASH; *h++ = *p++)
 		continue;
 
 	*h = EOS;
@@ -375,12 +379,13 @@ globtilde(pattern, patbuf, pglob)
 	}
 
 	/* Copy the home directory */
-	for (b = patbuf; *h; *b++ = *h++)
+	for (b = patbuf; b < eb && *h; *b++ = *h++)
 		continue;
 
 	/* Append the rest of the pattern */
-	while ((*b++ = *p++) != EOS)
+	while (b < eb && (*b++ = *p++) != EOS)
 		continue;
+	*b = EOS;
 
 	return patbuf;
 }
@@ -402,7 +407,8 @@ glob0(pattern, pglob)
 	int c, err, oldpathc;
 	Char *bufnext, patbuf[MAXPATHLEN+1];
 
-	qpatnext = globtilde(pattern, patbuf, pglob);
+	qpatnext = globtilde(pattern, patbuf, sizeof(patbuf) / sizeof(Char), 
+	    pglob);
 	oldpathc = pglob->gl_pathc;
 	bufnext = patbuf;
 
