@@ -33,21 +33,21 @@ isa/atkbd_isa.c			optional	atkbd
 
 amd64/amd64/autoconf.c		standard
 amd64/amd64/busdma_machdep.c	standard
+amd64/amd64/cpu_swtch.S		standard
 amd64/amd64/critical.c		standard
 amd64/amd64/dump_machdep.c	standard
 amd64/amd64/elf_machdep.c	standard
-amd64/amd64/exception.s		standard
+amd64/amd64/exception.S		standard
 amd64/amd64/identcpu.c		standard
 amd64/amd64/initcpu.c		standard
 amd64/amd64/legacy.c		standard
-amd64/amd64/locore.s		standard	no-obj
+amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		standard
 amd64/amd64/nexus.c		standard
 amd64/amd64/pmap.c		standard
-amd64/amd64/sigtramp.s		standard
-amd64/amd64/support.s		standard
-amd64/amd64/swtch.s		standard
+amd64/amd64/sigtramp.S		standard
+amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
 amd64/amd64/tsc.c		standard
