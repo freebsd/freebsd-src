@@ -594,6 +594,16 @@ or
 options of
 .BR checkout " and " export .
 .TP
+.B \-T
+Create/Update CVS/Template by copying it from the (local) repository.
+This option is useful for developers maintaining a local cvs repository
+but commiting to a remote repository.  By maintaining CVS/Template the
+remote commits will still be able to bring up the proper template in the
+commit editor session.
+Available with the
+.BR checkout " and " update
+commands.
+.TP
 .B \-p
 Pipe the files retrieved from the repository to standard output,
 rather than writing them in the current directory.  Available with the
@@ -1081,7 +1091,7 @@ Others would simply do
 .` "cvs checkout -rEXPR1 whatever_module"
 to work with you on the experimental change.
 .TP
-\fBdiff\fP [\fB\-kl\fP] [\fIrcsdiff_options\fP] [[\fB\-r\fP \fIrev1\fP | \fB\-D\fP \fIdate1\fP] [\fB\-r\fP \fIrev2\fP | \fB\-D\fP \fIdate2\fP]] [\fIfiles.\|.\|.\fP]
+\fBdiff\fP [\fB\-kl\fP] [\fIrcsdiff_options\fP] [[\fB\-r\fP \fIrev1\fP | \fB\-D\fP \fIdate1\fP | \fB\-j\fP \fIrev1:date1\fP] [\fB\-r\fP \fIrev2\fP | \fB\-D\fP \fIdate2\fP | \fB\-j\fP \fIrev2:date2\fP]] [\fIfiles.\|.\|.\fP]
 .I Requires:
 working directory, repository.
 .br
@@ -1104,11 +1114,16 @@ twice, you can see differences between two revisions in the
 repository.
 You can also specify
 .B \-D
-options to diff against a revision in the past.
+options to diff against a revision (on the head branch) in the past, and
+you can also specify
+.B \-j
+options to diff against a revision relative to a branch tag in the past.
 The
 .B \-r
 and
 .B \-D
+and
+.B \-j
 options can be mixed together with at most two options ever specified.
 .SP
 See
