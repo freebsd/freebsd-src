@@ -31,14 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.56 1997/11/18 09:26:50 bde Exp $
+ * $Id: vnode.h,v 1.57 1997/11/22 08:35:43 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
 #define	_SYS_VNODE_H_
 
-#include <sys/lock.h>
 #include <sys/queue.h>
+
+#include <machine/lock.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a

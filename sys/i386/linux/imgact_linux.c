@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.23 1997/07/20 14:21:36 bde Exp $
+ *	$Id: imgact_linux.c,v 1.24 1997/07/20 16:05:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 

@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.11 1997/10/14 18:51:07 phk Exp $
+ * $Id: ufs_ihash.c,v 1.12 1997/10/15 07:32:45 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.14 1997/11/18 15:10:38 bde Exp $
+ * $Id: ffs_subr.c,v 1.15 1997/11/22 08:35:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include "opt_ddb.h"
 
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/buf.h>
 #include <ufs/ufs/quota.h>

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.36 1997/10/27 13:33:39 bde Exp $
+ * $Id: fifo_vnops.c,v 1.37 1997/10/27 15:33:04 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/socket.h>
