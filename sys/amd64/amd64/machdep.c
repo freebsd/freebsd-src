@@ -99,6 +99,7 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/proc.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
