@@ -1,8 +1,8 @@
 /*
- * Product specific probe and attach routines for:
- * 	27/284X and aic7770 motherboard SCSI controllers
+ * FreeBSD, EISA product support functions
+ * 
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997, 1998, 2000 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,92 +26,60 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/bus_pio.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
+#include <dev/aic7xxx/aic7xxx_freebsd.h>
 
 #include <dev/eisa/eisaconf.h>
-
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/scsi/scsi_all.h>
-
-#include <dev/aic7xxx/aic7xxx.h>
-#include <dev/aic7xxx/93cx6.h>
-
-#include <aic7xxx_reg.h>
-
-#define EISA_DEVICE_ID_ADAPTEC_AIC7770	0x04907770
-#define EISA_DEVICE_ID_ADAPTEC_274x	0x04907771
-#define EISA_DEVICE_ID_ADAPTEC_284xB	0x04907756 /* BIOS enabled */
-#define EISA_DEVICE_ID_ADAPTEC_284x	0x04907757 /* BIOS disabled*/
-
-#define AHC_EISA_SLOT_OFFSET	0xc00
-#define AHC_EISA_IOSIZE		0x100
-#define INTDEF			0x5cul	/* Interrupt Definition Register */
-
-static void	aha2840_load_seeprom(struct ahc_softc *ahc);
-
-static const char *aic7770_match(eisa_id_t type);
-
-static const char*
-aic7770_match(eisa_id_t type)
-{
-	switch (type) {
-	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
-		return ("Adaptec aic7770 SCSI host adapter");
-		break;
-	case EISA_DEVICE_ID_ADAPTEC_274x:
-		return ("Adaptec 274X SCSI host adapter");
-		break;
-	case EISA_DEVICE_ID_ADAPTEC_284xB:
-	case EISA_DEVICE_ID_ADAPTEC_284x:
-		return ("Adaptec 284X SCSI host adapter");
-		break;
-	default:
-		break;
-	}
-	return (NULL);
-}
 
 static int
 aic7770_probe(device_t dev)
 {
-	const char *desc;
+	struct	 aic7770_identity *entry;
+	struct	 resource *regs;
 	uint32_t iobase;
-	uint32_t irq;
-	uint8_t intdef;
-	uint8_t hcntrl;
-	int shared;
+	bus_space_handle_t bsh;
+	bus_space_tag_t	tag;
+	u_int	 irq;
+	u_int	 intdef;
+	u_int	 hcntrl;
+	int	 shared;
+	int	 rid;
+	int	 error;
 
-	desc = aic7770_match(eisa_get_id(dev));
-	if (!desc)
+	entry = aic7770_find_device(eisa_get_id(dev));
+	if (entry == NULL)
 		return (ENXIO);
-	device_set_desc(dev, desc);
+	device_set_desc(dev, entry->name);
 
 	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + AHC_EISA_SLOT_OFFSET;
 
-		/* Pause the card preseving the IRQ type */
-	hcntrl = inb(iobase + HCNTRL) & IRQMS;
-
-	outb(iobase + HCNTRL, hcntrl | PAUSE);
-
 	eisa_add_iospace(dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
-	intdef = inb(INTDEF + iobase);
-	shared = (intdef & 0x80) ? EISA_TRIGGER_EDGE : EISA_TRIGGER_LEVEL;
-	irq = intdef & 0xf;
+
+	regs = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (regs == NULL) {
+		device_printf(dev, "Unable to map I/O space?!\n");
+		return ENOMEM;
+	}
+
+	tag = rman_get_bustag(regs);
+	bsh = rman_get_bushandle(regs);
+	error = 0;
+
+	/* Pause the card preseving the IRQ type */
+	hcntrl = bus_space_read_1(tag, bsh, HCNTRL) & IRQMS;
+	bus_space_write_1(tag, bsh, HCNTRL, hcntrl | PAUSE);
+	while ((bus_space_read_1(tag, bsh, HCNTRL) & PAUSE) == 0)
+		;
+
+	/* Make sure we have a valid interrupt vector */
+	intdef = bus_space_read_1(tag, bsh, INTDEF);
+	shared = (intdef & EDGE_TRIG) ? EISA_TRIGGER_EDGE : EISA_TRIGGER_LEVEL;
+	irq = intdef & VECTOR;
 	switch (irq) {
 	case 9: 
 	case 10:
@@ -119,342 +87,107 @@ aic7770_probe(device_t dev)
 	case 12:
 	case 14:
 	case 15:
-	    break;
+		break;
 	default:
-	    printf("aic7770 at slot %d: illegal "
-		   "irq setting %d\n", eisa_get_slot(dev),
-		   intdef);
-	    irq = 0;
-	    break;
+		printf("aic7770 at slot %d: illegal irq setting %d\n",
+		       eisa_get_slot(dev), intdef);
+		error = ENXIO;
 	}
-	if (irq == 0)
-	    return ENXIO;
 
-	eisa_add_intr(dev, irq, shared);
+	if (error == 0)
+		eisa_add_intr(dev, irq, shared);
 
-	return 0;
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, regs);
+	return (error);
 }
 
 static int
 aic7770_attach(device_t dev)
 {
-	struct ahc_probe_config probe_config;
-	bus_dma_tag_t parent_dmat;
-	struct ahc_softc *ahc;
-	struct resource *io;
-	int error, rid;
+	struct	 aic7770_identity *entry;
+	struct	 ahc_softc *ahc;
+	char	*name;
+	int	 error;
 
-	rid = 0;
-	io = NULL;
-	ahc = NULL;
-	ahc_init_probe_config(&probe_config);
-	switch (eisa_get_id(dev)) {
-	case EISA_DEVICE_ID_ADAPTEC_274x:
-	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
-		probe_config.chip = AHC_AIC7770|AHC_EISA;
-		break;
-	case EISA_DEVICE_ID_ADAPTEC_284xB:
-	case EISA_DEVICE_ID_ADAPTEC_284x:
-		probe_config.chip = AHC_AIC7770|AHC_VL;
-		break;
-	default: 
-		printf("aic7770_attach: Unknown device type!\n");
-		goto bad;
-	}
+	entry = aic7770_find_device(eisa_get_id(dev));
+	if (entry == NULL)
+		return (ENXIO);
 
-	probe_config.description = aic7770_match(eisa_get_id(dev));
-	probe_config.channel = 'A';
-	probe_config.channel_b = 'B';
-	probe_config.features = AHC_AIC7770_FE;
-	probe_config.bugs |= AHC_TMODE_WIDEODD_BUG;
-	probe_config.flags |= AHC_PAGESCBS;
-	/* XXX Should be a child of the EISA bus dma tag */
+	/*
+	 * Allocate a softc for this card and
+	 * set it up for attachment by our
+	 * common detect routine.
+	 */
+	name = malloc(strlen(device_get_nameunit(dev)) + 1, M_DEVBUF, M_NOWAIT);
+	if (name == NULL)
+		return (ENOMEM);
+	strcpy(name, device_get_nameunit(dev));
+	ahc = ahc_alloc(NULL, name);
+	if (ahc == NULL)
+		return (ENOMEM);
+
+	/* Allocate a dmatag for our SCB DMA maps */
+	/* XXX Should be a child of the PCI bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
-				   /*maxsize*/MAXBSIZE,
-				   /*nsegments*/AHC_NSEG,
+				   /*maxsize*/MAXBSIZE, /*nsegments*/AHC_NSEG,
 				   /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-				   /*flags*/BUS_DMA_ALLOCNOW, &parent_dmat);
+				   /*flags*/BUS_DMA_ALLOCNOW,
+				   &ahc->parent_dmat);
 
 	if (error != 0) {
 		printf("ahc_eisa_attach: Could not allocate DMA tag "
 		       "- error %d\n", error);
-		goto bad;
-	}
-
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
-		return ENOMEM;
-	}
-
-	if (!(ahc = ahc_alloc(dev, io, SYS_RES_IOPORT, rid,
-			      parent_dmat, &probe_config, NULL)))
-		goto bad;
-
-	io = NULL;
-	
-	if (ahc_reset(ahc) != 0) {
-		goto bad;
-	}
-
-	/*
-	 * The IRQMS bit enables level sensitive interrupts. Only allow
-	 * IRQ sharing if it's set.
-	 */
-	rid = 0;
-	ahc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				      0, ~0, 1, RF_ACTIVE);
-	if (ahc->irq == NULL) {
-		device_printf(dev, "Can't allocate interrupt\n");
-		goto bad;
-	}
-	ahc->irq_res_type = SYS_RES_IRQ;
-
-	/*
-	 * Tell the user what type of interrupts we're using.
-	 * usefull for debugging irq problems
-	 */
-	if (bootverbose) {
-		printf("%s: Using %s Interrupts\n",
-		       ahc_name(ahc),
-		       ahc->pause & IRQMS ?
-				"Level Sensitive" : "Edge Triggered");
-	}
-
-	/*
-	 * Now that we know we own the resources we need, do the 
-	 * card initialization.
-	 *
-	 * First, the aic7770 card specific setup.
-	 */
-	switch (probe_config.chip & (AHC_EISA|AHC_VL)) {
-	case AHC_EISA:
-	{
-		u_int biosctrl;
-		u_int scsiconf;
-		u_int scsiconf1;
-#if DEBUG
-		int i;
-#endif
-
-		biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
-		scsiconf = ahc_inb(ahc, SCSICONF);
-		scsiconf1 = ahc_inb(ahc, SCSICONF + 1);
-
-#if DEBUG
-		for (i = TARG_SCSIRATE; i <= HA_274_BIOSCTRL; i+=8) {
-			printf("0x%x, 0x%x, 0x%x, 0x%x, "
-			       "0x%x, 0x%x, 0x%x, 0x%x\n",
-				ahc_inb(ahc, i),
-				ahc_inb(ahc, i+1),
-				ahc_inb(ahc, i+2),
-				ahc_inb(ahc, i+3),
-				ahc_inb(ahc, i+4),
-				ahc_inb(ahc, i+5),
-				ahc_inb(ahc, i+6),
-				ahc_inb(ahc, i+7));
-		}
-#endif
-
-		/* Get the primary channel information */
-		if ((biosctrl & CHANNEL_B_PRIMARY) != 0)
-			ahc->flags |= AHC_CHANNEL_B_PRIMARY;
-
-		if ((biosctrl & BIOSMODE) == BIOSDISABLED) {
-			ahc->flags |= AHC_USEDEFAULTS;
-		} else {
-			if ((ahc->features & AHC_WIDE) != 0) {
-				ahc->our_id = scsiconf1 & HWSCSIID;
-				if (scsiconf & TERM_ENB)
-					ahc->flags |= AHC_TERM_ENB_A;
-			} else {
-				ahc->our_id = scsiconf & HSCSIID;
-				ahc->our_id_b = scsiconf1 & HSCSIID;
-				if (scsiconf & TERM_ENB)
-					ahc->flags |= AHC_TERM_ENB_A;
-				if (scsiconf1 & TERM_ENB)
-					ahc->flags |= AHC_TERM_ENB_B;
-			}
-		}
-		/*
-		 * We have no way to tell, so assume extended
-		 * translation is enabled.
-		 */
-		ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B;
-		break;
-	}
-	case AHC_VL:
-	{
-		aha2840_load_seeprom(ahc);
-		break;
-	}
-	default:
-		break;
-	}
-
-	/*
-	 * See if we have a Rev E or higher aic7770. Anything below a
-	 * Rev E will have a R/O autoflush disable configuration bit.
-	 */
-	{
-		char *id_string;
-		uint8_t sblkctl;
-		uint8_t sblkctl_orig;
-
-		sblkctl_orig = ahc_inb(ahc, SBLKCTL);
-		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
-		ahc_outb(ahc, SBLKCTL, sblkctl);
-		sblkctl = ahc_inb(ahc, SBLKCTL);
-		if (sblkctl != sblkctl_orig) {
-			id_string = "aic7770 >= Rev E, ";
-			/*
-			 * Ensure autoflush is enabled
-			 */
-			sblkctl &= ~AUTOFLUSHDIS;
-			ahc_outb(ahc, SBLKCTL, sblkctl);
-
-		} else
-			id_string = "aic7770 <= Rev C, ";
-
-		printf("%s: %s", ahc_name(ahc), id_string);
-	}
-
-	/* Setup the FIFO threshold and the bus off time */
-	{
-		uint8_t hostconf = ahc_inb(ahc, HOSTCONF);
-		ahc_outb(ahc, BUSSPD, hostconf & DFTHRSH);
-		ahc_outb(ahc, BUSTIME, (hostconf << 2) & BOFF);
-	}
-
-	/*
-	 * Generic aic7xxx initialization.
-	 */
-	if (ahc_init(ahc)) {
-		/*
-		 * The board's IRQ line is not yet enabled so it's safe
-		 * to release the irq.
-		 */
-		goto bad;
-	}
-
-	/*
-	 * Enable the board's BUS drivers
-	 */
-	ahc_outb(ahc, BCTL, ENABLE);
-
-	/* Attach sub-devices - always succeeds */
-	ahc_attach(ahc);
-
-	return 0;
-
- bad:
-	if (ahc != NULL)
 		ahc_free(ahc);
-	
-	if (io != NULL)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+		return (ENOMEM);
+	}
+	ahc->dev_softc = dev;
+	error = aic7770_config(ahc, entry);
+	if (error != 0) {
+		ahc_free(ahc);
+		return (error);
+	}
 
-	return -1;
+	ahc_attach(ahc);
+	return (0);
 }
 
-/*
- * Read the 284x SEEPROM.
- */
-static void
-aha2840_load_seeprom(struct ahc_softc *ahc)
+int
+aic7770_map_registers(struct ahc_softc *ahc)
 {
-	struct	  seeprom_descriptor sd;
-	struct	  seeprom_config sc;
-	uint16_t checksum = 0;
-	uint8_t  scsi_conf;
-	int	  have_seeprom;
+	struct	resource *regs;
+	int	rid;
 
-	sd.sd_tag = ahc->tag;
-	sd.sd_bsh = ahc->bsh;
-	sd.sd_control_offset = SEECTL_2840;
-	sd.sd_status_offset = STATUS_2840;
-	sd.sd_dataout_offset = STATUS_2840;		
-	sd.sd_chip = C46;
-	sd.sd_MS = 0;
-	sd.sd_RDY = EEPROM_TF;
-	sd.sd_CS = CS_2840;
-	sd.sd_CK = CK_2840;
-	sd.sd_DO = DO_2840;
-	sd.sd_DI = DI_2840;
-
-	if (bootverbose)
-		printf("%s: Reading SEEPROM...", ahc_name(ahc));
-	have_seeprom = read_seeprom(&sd,
-				    (uint16_t *)&sc,
-				    /*start_addr*/0,
-				    sizeof(sc)/2);
-
-	if (have_seeprom) {
-		/* Check checksum */
-		int i;
-		int maxaddr = (sizeof(sc)/2) - 1;
-		uint16_t *scarray = (uint16_t *)&sc;
-
-		for (i = 0; i < maxaddr; i++)
-			checksum = checksum + scarray[i];
-		if (checksum != sc.checksum) {
-			if(bootverbose)
-				printf ("checksum error\n");
-			have_seeprom = 0;
-		} else if (bootverbose) {
-			printf("done.\n");
-		}
+	regs = bus_alloc_resource(ahc->dev_softc, SYS_RES_IOPORT,
+				  &rid, 0, ~0, 1, RF_ACTIVE);
+	if (regs == NULL) {
+		device_printf(ahc->dev_softc, "Unable to map I/O space?!\n");
+		return ENOMEM;
 	}
+	ahc->platform_data->regs_res_type = SYS_RES_IOPORT;
+	ahc->platform_data->regs_res_id = rid,
+	ahc->platform_data->regs = regs;
+	ahc->tag = rman_get_bustag(regs);
+	ahc->bsh = rman_get_bushandle(regs);
+	return (0);
+}
 
-	if (!have_seeprom) {
-		if (bootverbose)
-			printf("%s: No SEEPROM available\n", ahc_name(ahc));
-		ahc->flags |= AHC_USEDEFAULTS;
-	} else {
-		/*
-		 * Put the data we've collected down into SRAM
-		 * where ahc_init will find it.
-		 */
-		int i;
-		int max_targ = (ahc->features & AHC_WIDE) != 0 ? 16 : 8;
-		uint16_t discenable;
+int
+aic7770_map_int(struct ahc_softc *ahc)
+{
+	int zero;
 
-		discenable = 0;
-		for (i = 0; i < max_targ; i++){
-	                uint8_t target_settings;
-			target_settings = (sc.device_flags[i] & CFXFER) << 4;
-			if (sc.device_flags[i] & CFSYNCH)
-				target_settings |= SOFS;
-			if (sc.device_flags[i] & CFWIDEB)
-				target_settings |= WIDEXFER;
-			if (sc.device_flags[i] & CFDISC)
-				discenable |= (0x01 << i);
-			ahc_outb(ahc, TARG_SCSIRATE + i, target_settings);
-		}
-		ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
-		ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
-
-		ahc->our_id = sc.brtime_id & CFSCSIID;
-
-		scsi_conf = (ahc->our_id & 0x7);
-		if (sc.adapter_control & CFSPARITY)
-			scsi_conf |= ENSPCHK;
-		if (sc.adapter_control & CFRESETB)
-			scsi_conf |= RESET_SCSI;
-
-		if (sc.bios_control & CF284XEXTEND)		
-			ahc->flags |= AHC_EXTENDED_TRANS_A;
-		/* Set SCSICONF info */
-		ahc_outb(ahc, SCSICONF, scsi_conf);
-
-		if (sc.adapter_control & CF284XSTERM)
-			ahc->flags |= AHC_TERM_ENB_A;
-	}
+	zero = 0;
+	ahc->platform_data->irq =
+	    bus_alloc_resource(ahc->dev_softc, SYS_RES_IRQ, &zero,
+			       0, ~0, 1, RF_ACTIVE);
+	if (ahc->platform_data->irq == NULL)
+		return (ENOMEM);
+	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
+	return (0);
 }
 
 static device_method_t ahc_eisa_methods[] = {
