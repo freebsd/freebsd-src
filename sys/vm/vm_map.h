@@ -221,8 +221,6 @@ struct vmspace {
 	struct vm_map vm_map;	/* VM address map */
 	struct pmap vm_pmap;	/* private physical map */
 	struct shmmap_state *vm_shm;	/* SYS5 shared memory private data XXX */
-/* we copy between vm_startcopy and vm_endcopy on fork */
-#define vm_startcopy vm_swrss
 	segsz_t vm_swrss;	/* resident set size before last swap */
 	segsz_t vm_tsize;	/* text size (pages) XXX */
 	segsz_t vm_dsize;	/* data size (pages) XXX */
@@ -230,7 +228,6 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-#define	vm_endcopy vm_exitingcnt
 	int	vm_exitingcnt;	/* several processes zombied in exit1  */
 	int	vm_refcnt;	/* number of references */
 };

@@ -244,7 +244,6 @@ vm_map_zdtor(void *mem, int size, void *arg)
 /*
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
- * The remaining fields must be initialized by the caller.
  */
 struct vmspace *
 vmspace_alloc(min, max)
@@ -258,6 +257,13 @@ vmspace_alloc(min, max)
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
+	vm->vm_swrss = 0;
+	vm->vm_tsize = 0;
+	vm->vm_dsize = 0;
+	vm->vm_ssize = 0;
+	vm->vm_taddr = 0;
+	vm->vm_daddr = 0;
+	vm->vm_maxsaddr = 0;
 	vm->vm_exitingcnt = 0;
 	return (vm);
 }
@@ -2391,13 +2397,6 @@ vmspace_fork(struct vmspace *vm1)
 	old_map->infork = 1;
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
-	/*
-	 * Using vm_{start,end}copy is invalid for more fields than
-	 * it is valid here.  For the most part, initialize size
-	 * fields to zero and update them as map entries are copied
-	 */
-	bzero(&vm2->vm_startcopy,
-	    (caddr_t)&vm2->vm_endcopy - (caddr_t)&vm2->vm_startcopy);
 	vm2->vm_taddr = vm1->vm_taddr;
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
@@ -2829,9 +2828,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 
 	GIANT_REQUIRED;
 	newvmspace = vmspace_alloc(minuser, maxuser);
-	bcopy(&oldvmspace->vm_startcopy, &newvmspace->vm_startcopy,
-	    (caddr_t) &newvmspace->vm_endcopy -
-	    (caddr_t) &newvmspace->vm_startcopy);
+	newvmspace->vm_swrss = oldvmspace->vm_swrss;
 	/*
 	 * This code is written like this for prototype purposes.  The
 	 * goal is to avoid running down the vmspace here, but let the
