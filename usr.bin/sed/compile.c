@@ -172,8 +172,14 @@ compile_stream(link)
 		}
 
 semicolon:	EATSPACE();
-		if (p && (*p == '#' || *p == '\0'))
-			continue;
+ 		if (p) {
+ 			if (*p == '#' || *p == '\0')
+ 				continue;
+ 			else if (*p == ';') {
+ 				p++;
+ 				goto semicolon;
+ 			}
+ 		}
 		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
 			err(1, "malloc");
 		link = &cmd->next;
