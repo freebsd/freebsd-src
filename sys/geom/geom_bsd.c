@@ -690,6 +690,13 @@ g_bsd_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_
 		    indent, (intmax_t)ms->rawoffset);
 		sbuf_printf(sb, "%s<mbroffset>%jd</mbroffset>\n",
 		    indent, (intmax_t)ms->mbroffset);
+	} else if (pp != NULL) {
+		if (indent == NULL)
+			sbuf_printf(sb, " ty %d",
+			    ms->inram.d_partitions[pp->index].p_fstype);
+		else
+			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
+			    ms->inram.d_partitions[pp->index].p_fstype);
 	}
 }
 
