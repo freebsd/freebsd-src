@@ -216,6 +216,8 @@ struct sbp_softc {
 	struct fw_bind fwb;
 	bus_dma_tag_t	dmat;
 	struct timeval last_busreset;
+#define SIMQ_FREEZED 1
+	int flags;
 };
 
 static void sbp_post_explore __P((void *));
@@ -764,6 +766,10 @@ sbp_post_busreset(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
+	if ((sbp->sim->flags & SIMQ_FREEZED) == 0) {
+		xpt_freeze_simq(sbp->sim, /*count*/1);
+		sbp->sim->flags |= SIMQ_FREEZED;
+	}
 	microtime(&sbp->last_busreset);
 }
 
@@ -833,6 +839,8 @@ END_DEBUG
 		if (target->num_lun == 0)
 			sbp_free_target(target);
 	}
+	xpt_release_simq(sbp->sim, /*run queue*/TRUE);
+	sbp->sim->flags &= ~SIMQ_FREEZED;
 }
 
 #if NEED_RESPONSE

@@ -258,7 +258,9 @@ void fw_asybusy(struct fw_xfer *xfer){
 /*
 	xfer->ch =  timeout((timeout_t *)fw_asystart, (void *)xfer, 20000);
 */
+#if 0
 	DELAY(20000);
+#endif
 	fw_asystart(xfer);
 	return;
 }
@@ -326,6 +328,9 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 			xfer = tl->xfer;
 			if (timevalcmp(&xfer->tv, &tv, >))
 				/* the rests are newer than this */
+				break;
+			if (xfer->state == FWXF_START)
+				/* not sent yet */
 				break;
 			device_printf(fc->bdev,
 				"split transaction timeout dst=0x%x tl=0x%x state=%d\n",
@@ -734,7 +739,6 @@ void fw_init(struct firewire_comm *fc)
 	CSRARC(fc, SPED_MAP + 4) = 1;
 
 	STAILQ_INIT(&fc->devices);
-	STAILQ_INIT(&fc->pending);
 
 /* Initialize csr ROM work space */
 	SLIST_INIT(&fc->ongocsr);
@@ -987,12 +991,7 @@ fw_xfer_done(struct fw_xfer *xfer)
 	if (xfer->fc == NULL)
 		panic("fw_xfer_done: why xfer->fc is NULL?");
 
-	if (xfer->fc->status != FWBUSRESET)
-		xfer->act.hand(xfer);
-	else {
-		printf("fw_xfer_done: pending\n");
-		STAILQ_INSERT_TAIL(&xfer->fc->pending, xfer, link);
-	}
+	xfer->act.hand(xfer);
 }
 
 void
@@ -1597,7 +1596,6 @@ static void
 fw_attach_dev(struct firewire_comm *fc)
 {
 	struct fw_device *fwdev, *next;
-	struct fw_xfer *xfer;
 	int i, err;
 	device_t *devlistp;
 	int devcnt;
@@ -1633,16 +1631,6 @@ fw_attach_dev(struct firewire_comm *fc)
 	}
 	free(devlistp, M_TEMP);
 
-	/* call pending handlers */
-	i = 0;
-	while ((xfer = STAILQ_FIRST(&fc->pending))) {
-		STAILQ_REMOVE_HEAD(&fc->pending, link);
-		i++;
-		if (xfer->act.hand)
-			xfer->act.hand(xfer);
-	}
-	if (i > 0)
-		printf("fw_attach_dev: %d pending handlers called\n", i);
 	if (fc->retry_count > 0) {
 		printf("probe failed for %d node\n", fc->retry_count);
 #if 0
@@ -1895,11 +1883,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			}
 			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
 			fw_rcv_copy(rb);
-			if (rb->fc->status != FWBUSRESET)
-				rb->xfer->act.hand(rb->xfer);
-			else
-				STAILQ_INSERT_TAIL(&rb->fc->pending,
-				    rb->xfer, link);
+			rb->xfer->act.hand(rb->xfer);
 			return;
 			break;
 		case FWACT_CH:

@@ -136,7 +136,6 @@ struct firewire_comm{
 	STAILQ_HEAD(, tlabel) tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
-	STAILQ_HEAD(, fw_xfer)	pending;
 	u_int  sid_cnt;
 #define CSRSIZE 0x4000
 	u_int32_t csr_arc[CSRSIZE/4];
