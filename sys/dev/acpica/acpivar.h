@@ -406,7 +406,7 @@ int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 #ifndef ACPI_MAX_THREADS
-#define ACPI_MAX_THREADS	3
+#define ACPI_MAX_THREADS	1
 #endif
 
 /* ACPI task kernel thread initialization. */
