@@ -422,8 +422,7 @@ quotaon(td, mp, type, fname)
 	 * Save the credential of the process that turned on quotas.
 	 * Set up the time limits for this quota.
 	 */
-	crhold(td->td_proc->p_ucred);
-	ump->um_cred[type] = td->td_proc->p_ucred;
+	ump->um_cred[type] = crhold(td->td_proc->p_ucred);
 	ump->um_btime[type] = MAX_DQ_TIME;
 	ump->um_itime[type] = MAX_IQ_TIME;
 	if (dqget(NULLVP, 0, ump, type, &dq) == 0) {

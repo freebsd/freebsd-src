@@ -471,8 +471,7 @@ again:
 	 * We start off holding one spinlock after fork: sched_lock.
 	 */
 	PROC_LOCK(p1);
-	crhold(p1->p_ucred);
-	p2->p_ucred = p1->p_ucred;
+	p2->p_ucred = crhold(p1->p_ucred);
 
 	if (p2->p_args)
 		p2->p_args->ar_ref++;
