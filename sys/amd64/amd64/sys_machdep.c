@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.31 1997/12/27 03:00:59 peter Exp $
+ *	$Id: sys_machdep.c,v 1.32 1998/02/09 06:08:18 eivind Exp $
  *
  */
 
@@ -180,16 +180,17 @@ i386_set_ioperm(p, args)
 	struct proc *p;
 	char *args;
 {
-	int i, error = 0;
+	int i, error;
 	struct i386_ioperm_args ua;
 	char *iomap;
 
 	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
 		return (error);
 
-        /* Only root can do this */
         if (error = suser(p->p_ucred, &p->p_acflag))
                 return (error);
+	if (securelevel > 0)
+		return (EPERM);
 	/*
 	 * XXX 
 	 * While this is restricted to root, we should probably figure out
@@ -202,7 +203,7 @@ i386_set_ioperm(p, args)
 			return (error);
 	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
 
-	if ((int)(ua.start + ua.length) > 0xffff)
+	if (ua.start + ua.length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
 	for (i = ua.start; i < (int)(ua.start + ua.length) + 1; i++) {
@@ -219,12 +220,14 @@ i386_get_ioperm(p, args)
 	struct proc *p;
 	char *args;
 {
-	int i, state, error = 0;
+	int i, state, error;
 	struct i386_ioperm_args ua;
 	char *iomap;
 
 	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
 		return (error);
+	if (ua.start >= IOPAGES * PAGE_SIZE * NBBY)
+		return (EINVAL);
 
 	if (p->p_addr->u_pcb.pcb_ext == 0) {
 		ua.length = 0;
@@ -238,7 +241,7 @@ i386_get_ioperm(p, args)
 	ua.enable = !state;
 	ua.length = 1;
 
-	for (i = ua.start + 1; i < 0x10000; i++) {
+	for (i = ua.start + 1; i < IOPAGES * PAGE_SIZE * NBBY; i++) {
 		if (state != ((iomap[i >> 3] >> (i & 7)) & 1))
 			break;
 		ua.length++;
