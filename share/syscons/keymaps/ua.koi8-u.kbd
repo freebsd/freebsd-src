@@ -44,7 +44,7 @@
   038   'l'    'L'    ff     ff     196    228    ff     ff      C
   039   ';'    ':'    nop    nop    214    246    nop    nop     O
   040   '''    '"'    nop    nop    164    180    220    252     O
-  041   '`'    '~'    nop    nop    '`'    '~'    nop    nop     O
+  041   '`'    '~'    nop    nop    173    189    163    179     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
   044   'z'    'Z'    sub    sub    209    241    sub    sub     C
@@ -173,7 +173,7 @@
   166   196    228    ff     ff     'l'    'L'    ff     ff      C
   167   214    246    nop    nop    ';'    ':'    nop    nop     C
   168   164    180    nop    nop    '''    '"'    220    252     C
-  169   '.'    '>'    nop    nop    '`'    '~'    nop    nop     C
+  169   173    189    nop    nop    '`'    '~'    163    179     C
   170   lshift lshift lshift lshift lshift lshift lshift lshift  O
   171   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
   172   209    241    sub    sub    'z'    'Z'    sub    sub     C

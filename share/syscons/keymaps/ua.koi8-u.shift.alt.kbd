@@ -27,8 +27,8 @@
   009   '8'    '*'    nop    nop    '8'    '*'    nop    nop     O
   010   '9'    '('    nop    nop    '9'    '('    nop    nop     O
   011   '0'    ')'    nop    nop    '0'    ')'    nop    nop     O
-  012   '-'    '_'    ns     ns     0xa6   0xb6   159    159     O
-  013   '='    '+'    nop    nop    0xa4   0xb4   nop    nop     O
+  012   '-'    '_'    ns     ns     166    182    159    159     O
+  013   '='    '+'    nop    nop    164    180    nop    nop     O
   014   bs     bs     del    del    bs     bs     255    255     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    202    234    145    145     C
@@ -56,9 +56,9 @@
   038   'l'    'L'    ff     ff     196    228    140    140     C
   039   ';'    ':'    nop    nop    214    246    nop    nop     O
   040   '''    '"'    nop    nop    220    252    nop    nop     O
-  041   '`'    '~'    nop    nop    0xad   0xbd   nop    nop     O
+  041   '`'    '~'    nop    nop    173    189    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   '\'    '|'    fs     fs     0xa7   0xb7   156    156     O
+  043   '\'    '|'    fs     fs     167    183    156    156     O
   044   'z'    'Z'    sub    sub    209    241    154    154     C
   045   'x'    'X'    can    can    222    254    152    152     C
   046   'c'    'C'    etx    etx    211    243    131    131     C
@@ -68,7 +68,7 @@
   050   'm'    'M'    cr     cr     216    248    141    141     C
   051   ','    '<'    nop    nop    194    226    nop    nop     O
   052   '.'    '>'    nop    nop    192    224    nop    nop     O
-  053   '/'    '?'    nop    nop    0xa3   0xb3   nop    nop     O
+  053   '/'    '?'    nop    nop    163    179    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nl     nl     '*'    '*'    138    138     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
@@ -155,8 +155,8 @@
   137   '8'    '*'    nop    nop    '8'    '*'    nop    nop     O
   138   '9'    '('    nop    nop    '9'    '('    nop    nop     O
   139   '0'    ')'    nop    nop    '0'    ')'    nop    nop     O
-  140   0xa6   0xb6   ns     ns     '-'    '_'    159    159     O
-  141   0xa4   0xb4   nop    nop    '='    '+'    nop    nop     O
+  140   166    182    ns     ns     '-'    '_'    159    159     O
+  141   164    180    nop    nop    '='    '+'    nop    nop     O
   142   bs     bs     del    del    bs     bs     255    255     O
   143   ht     btab   nop    nop    ht     btab   nop    nop     O
   144   202    234    dc1    dc1    'q'    'Q'    145    145     C
@@ -184,9 +184,9 @@
   166   196    228    ff     ff     'l'    'L'    140    140     C
   167   214    246    nop    nop    ';'    ':'    nop    nop     C
   168   220    252    nop    nop    '''    '"'    nop    nop     C
-  169   0xad   0xbd   nop    nop    '`'    '~'    nop    nop     C
+  169   173    189    nop    nop    '`'    '~'    nop    nop     C
   170   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  171   0xa7   0xb7   fs     fs     '\'    '|'    156    156     O
+  171   167    183    fs     fs     '\'    '|'    156    156     O
   172   209    241    sub    sub    'z'    'Z'    154    154     C
   173   222    254    can    can    'x'    'X'    152    152     C
   174   211    243    etx    etx    'c'    'C'    131    131     C
@@ -196,7 +196,7 @@
   178   216    248    cr     cr     'm'    'M'    141    141     C
   179   194    226    nop    nop    ','    '<'    nop    nop     C
   180   192    224    nop    nop    '.'    '>'    nop    nop     C
-  181   0xa3   0xb3   nop    nop    '/'    '?'    nop    nop     O
+  181   163    179    nop    nop    '/'    '?'    nop    nop     O
   182   rshift rshift rshift rshift rshift rshift rshift rshift  O
   183   '*'    '*'    nl     nl     '*'    '*'    138    138     O
   184   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
