@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001 Søren Schmidt
+ * Copyright (c) 2000,2001 Søren Schmidt <sos@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,24 +44,44 @@
 
 #define BLOCKS	16
 
-void cleanup(int);
-void write_file(const char *, int);
-void usage(const char *);
 
-static int fd, quiet, saved_block_size;
-static struct cdr_track track;
+struct track_info {
+	int	file;
+	char	*file_name;
+	int	file_size;
+	int	block_size;
+	int	block_type;
+	int	addr;
+	int	gap;
+};
+static struct track_info tracks[100];
+static int fd, quiet, verbose, saved_block_size, notracks;
+
+void add_track(char *, int, int);
+void do_DAO(void);
+void do_TAO(int, int);
+int write_file(struct track_info *);
+int roundup_blocks(struct track_info *);
+void cue_ent(struct cdr_cue_entry *, int, int, int, int, int, int, int);
+void cleanup(int);
+void usage(const char *);
 
 int
 main(int argc, char **argv)
 {
 	int ch, arg, addr;
-	int eject=0, list=0, multi=0, preemp=0, speed=1, test_write=0;
+	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
+	int speed = 4, test_write = 0;
+	int block_size = 0, block_type = 0, cdopen = 0;
 	char *devname = "/dev/acd0c", *prog_name;
-	int block_size = 0;
 
 	prog_name = argv[0];
-	while ((ch = getopt(argc, argv, "ef:lmpqs:t")) != -1) {
+	while ((ch = getopt(argc, argv, "def:lmpqs:tv")) != -1) {
 		switch (ch) {
+		case 'd':
+			dao = 1;
+			break;
+
 		case 'e':
 			eject = 1;
 			break;
@@ -96,6 +116,10 @@ main(int argc, char **argv)
 			test_write = 1;
 			break;
 
+		case 'v':
+			verbose = 1;
+			break;
+
 		default: 
 			usage(prog_name);
 		}
@@ -109,20 +133,17 @@ main(int argc, char **argv)
 	if ((fd = open(devname, O_RDWR, 0)) < 0)
 		err(EX_NOINPUT, "open(%s)", devname);
 
-	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
-
 	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
        		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
+
+	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
+       		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
 
 	err_set_exit(cleanup);
 
 	for (arg = 0; arg < argc; arg++) {
 		if (!strcmp(argv[arg], "fixate")) {
-			if (!quiet)
-				fprintf(stderr, "fixating CD, please wait..\n");
-			if (ioctl(fd, CDRIOCCLOSEDISK, &multi) < 0)
-        			err(EX_IOERR, "ioctl(CDRIOCCLOSEDISK)");
+			fixate = 1;
 			break;
 		}
 		if (!strcmp(argv[arg], "msinfo")) {
@@ -168,31 +189,28 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (!strcmp(argv[arg], "audio") || !strcmp(argv[arg], "raw")) {
-			track.test_write = test_write;
-			track.datablock_type = CDR_DB_RAW;
-			track.preemp = preemp;
+			block_type = CDR_DB_RAW;
 			block_size = 2352;
 			continue;
 		}
 		if (!strcmp(argv[arg], "data") || !strcmp(argv[arg], "mode1")) {
-			track.test_write = test_write;
-			track.datablock_type = CDR_DB_ROM_MODE1;
-			track.preemp = 0;
+			block_type = CDR_DB_ROM_MODE1;
 			block_size = 2048;
 			continue;
 		}
 		if (!strcmp(argv[arg], "mode2")) {
-			track.test_write = test_write;
-			track.datablock_type = CDR_DB_ROM_MODE2;
-			track.preemp = 0;
+			block_type = CDR_DB_ROM_MODE2;
 			block_size = 2336;
 			continue;
 		}
 		if (!strcmp(argv[arg], "XAmode1")) {
-			track.test_write = test_write;
-			track.datablock_type = CDR_DB_XA_MODE1;
-			track.preemp = 0;
+			block_type = CDR_DB_XA_MODE1;
 			block_size = 2048;
+			continue;
+		}
+		if (!strcmp(argv[arg], "XAmode2")) {
+			block_type = CDR_DB_XA_MODE2_F2;
+			block_size = 2324;
 			continue;
 		}
 		if (!block_size)
@@ -207,9 +225,9 @@ main(int argc, char **argv)
 			while (fgets(file_buf, sizeof(file_buf), fp) != NULL) {
 				if (*file_buf == '#' || *file_buf == '\n')
 					continue;
-				if (eol = strchr(file_buf, '\n'))
+				if ((eol = strchr(file_buf, '\n')))
 					*eol = NULL;
-				write_file(file_buf, block_size);
+				add_track(file_buf, block_size, block_type);
 			}
 			if (feof(fp))
 				fclose(fp);
@@ -217,7 +235,26 @@ main(int argc, char **argv)
 				err(EX_IOERR, "fgets(%s)", file_buf);
 		}
 		else
-			write_file(argv[arg], block_size);
+			add_track(argv[arg], block_size, block_type);
+	}
+	if (notracks) {
+		if (ioctl(fd, CDIOCSTART, 0) < 0)
+			err(EX_IOERR, "ioctl(CDIOCSTART)");
+		if (!cdopen) {
+			if (ioctl(fd, CDRIOCINITWRITER, &test_write) < 0)
+				err(EX_IOERR, "ioctl(CDRIOCINITWRITER)");
+			cdopen = 1;
+		}
+		if (dao) 
+			do_DAO();
+		else
+			do_TAO(test_write, preemp);
+	}
+	if (fixate && !dao) {
+		if (!quiet)
+			fprintf(stderr, "fixating CD, please wait..\n");
+		if (ioctl(fd, CDRIOCFIXATE, &multi) < 0)
+        		err(EX_IOERR, "ioctl(CDRIOCFIXATE)");
 	}
 
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) {
@@ -233,6 +270,265 @@ main(int argc, char **argv)
 }
 
 void
+add_track(char *name, int block_size, int block_type)
+{
+	struct stat stat;
+	int file;
+	static int done_stdin = 0;
+
+	if (!strcmp(name, "-")) {
+		if (done_stdin) {
+			warn("skipping multiple usages of stdin");
+			return;
+		}
+		file = STDIN_FILENO;
+		done_stdin = 1;
+	}
+	else if ((file = open(name, O_RDONLY, 0)) < 0)
+		err(EX_NOINPUT, "open(%s)", name);
+	if (fstat(file, &stat) < 0)
+		err(EX_IOERR, "fstat(%s)", name);
+	tracks[notracks].file = file;
+	tracks[notracks].file_name = name;
+	tracks[notracks].file_size = stat.st_size;
+	tracks[notracks].block_size = block_size;
+	tracks[notracks].block_type = block_type;
+	if (verbose) {
+		int pad = 0;
+
+		if (tracks[notracks].file_size / tracks[notracks].block_size !=
+		    roundup_blocks(&tracks[notracks]))
+			pad = 1;
+		fprintf(stderr, 
+			"adding type 0x%02x file %s size %qd KB %d blocks %s\n",
+			tracks[notracks].block_type, name,
+			stat.st_size / 1024, roundup_blocks(&tracks[notracks]),
+			pad ? "(0 padded)" : "");
+	}
+	notracks++;
+}
+
+void
+do_DAO(void)
+{
+	struct cdr_cuesheet sheet;
+	struct cdr_cue_entry cue[100];
+	int addr, i, j = 0;
+	int last_type;
+
+	int bt2ctl[16] = { 0x0,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
+			   0x4, 0x4, 0x4, 0x4, 0x4, 0x4,  -1,  -1 };
+
+	int bt2df[16] = { 0x0,    -1,   -1,   -1,   -1,   -1,   -1,   -1,
+			  0x10, 0x30, 0x20,   -1, 0x21,   -1,   -1,   -1 };
+	
+	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+	if (verbose)
+		fprintf(stderr, "next writeable LBA %d\n", addr);
+
+	cue_ent(&cue[j++], bt2ctl[tracks[0].block_type], 0x01, 0x00, 0x0,
+		(bt2df[tracks[0].block_type] & 0xf0) | 
+		(tracks[0].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
+
+	last_type = tracks[0].block_type;
+
+	for (i = 0; i < notracks; i++) {
+		if (bt2ctl[tracks[i].block_type] < 0 ||
+		    bt2df[tracks[i].block_type] < 0)
+			err(EX_IOERR, "track type not supported in DAO mode");
+
+		if (tracks[i].block_type == last_type)
+			tracks[i].gap = 150;
+		else
+			tracks[i].gap = 255;
+		last_type = tracks[i].block_type;
+
+		if (i == 0) { /* gap uses no data */
+			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type], 
+				0x01, i+1, 0x0,
+				(bt2df[tracks[i].block_type] & 0xf0) | 
+				(tracks[i].block_type < 8 ? 0x01 : 0x04), 
+				0x00, addr);
+
+			addr += tracks[i].gap;
+			tracks[i].addr = addr;
+
+			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type], 
+				0x01, i+1, 0x1, bt2df[tracks[i].block_type],
+				0x00, addr);
+
+		}
+		else {
+			if (tracks[i].block_type > 0x7) {
+				cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+					0x01, i+1, 0x0,
+					(bt2df[tracks[i].block_type] & 0xf0) | 
+					(tracks[i].block_type < 8 ? 0x01 :0x04),
+					0x00, addr);
+			}
+			else
+				cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+					0x01, i+1, 0x0,
+					bt2df[tracks[i].block_type],
+					0x00, addr);
+
+			tracks[i].addr = tracks[i - 1].addr +
+				roundup_blocks(&tracks[i - 1]);
+
+			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type],
+				0x01, i+1, 0x1, bt2df[tracks[i].block_type],
+				0x00, addr + tracks[i].gap);
+
+			if (tracks[i].block_type > 0x7)
+				addr += tracks[i].gap;
+		}
+		addr += roundup_blocks(&tracks[i]);
+	}
+	cue_ent(&cue[j++], bt2ctl[tracks[i - 1].block_type], 0x01, 0xaa, 0x01,
+		(bt2df[tracks[i - 1].block_type] & 0xf0) | 
+		(tracks[i - 1].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
+
+	sheet.len = j * 8;
+	sheet.entries = cue;
+	if (verbose) {
+		u_int8_t *ptr = (u_int8_t *)sheet.entries;
+		
+		fprintf(stderr,"CUE sheet:");
+		for (i = 0; i < sheet.len; i++)
+			if (i % 8)
+				fprintf(stderr," %02x", ptr[i]);
+			else
+				fprintf(stderr,"\n%02x", ptr[i]);
+		fprintf(stderr,"\n");
+	}
+	
+	if (ioctl(fd, CDRIOCSENDCUE, &sheet) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
+
+	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+	for (i = 0; i < notracks; i++) {
+		if (write_file(&tracks[i]))
+			err(EX_IOERR, "write_file");
+	}
+	ioctl(fd, CDRIOCFLUSH);
+}
+
+void
+do_TAO(int test_write, int preemp)
+{
+	struct cdr_track track;
+	int i;
+
+	for (i = 0; i < notracks; i++) {
+		track.test_write = test_write;
+		track.datablock_type = tracks[i].block_type;
+		track.preemp = preemp;
+		if (ioctl(fd, CDRIOCINITTRACK, &track) < 0)
+			err(EX_IOERR, "ioctl(CDRIOCINITTRACK)");
+
+		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &tracks[i].addr) < 0)
+			err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+		if (!quiet)
+			fprintf(stderr, "next writeable LBA %d\n",
+				tracks[i].addr);
+		if (write_file(&tracks[i]))
+			err(EX_IOERR, "write_file");
+		if (ioctl(fd, CDRIOCFLUSH) < 0)
+			err(EX_IOERR, "ioctl(CDRIOCFLUSH)");
+	}
+}
+
+int
+write_file(struct track_info *track_info)
+{
+	int size, count, filesize;
+	char buf[2352*BLOCKS];
+	static int tot_size = 0;
+
+	filesize = track_info->file_size / 1024;
+
+	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &track_info->block_size) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
+
+	if (track_info->addr >= 0)
+		lseek(fd, track_info->addr * track_info->block_size, SEEK_SET);
+
+	fprintf(stderr, "addr = %d size = %d blocks = %d\n",
+		track_info->addr, track_info->file_size, roundup_blocks(track_info)); /* SOS */
+
+	if (!quiet) {
+		if (track_info->file == STDIN_FILENO)
+			fprintf(stderr, "writing from stdin\n");
+		else
+			fprintf(stderr, 
+				"writing from file %s size %d KB\n",
+				track_info->file_name, filesize);
+	}
+	size = 0;
+	if (filesize == 0)
+		filesize++;	/* cheat, avoid divide by zero */
+
+	while ((count = read(track_info->file, buf,
+		track_info->block_size * BLOCKS)) > 0) {	
+		int res;
+
+		if (count % track_info->block_size) {
+			/* pad file to % block_size */
+			bzero(&buf[count],
+			      (track_info->block_size * BLOCKS) - count);
+			count = ((count / track_info->block_size) + 1) *
+				track_info->block_size;
+		}
+		if ((res = write(fd, buf, count)) != count) {
+			fprintf(stderr, "\nonly wrote %d of %d bytes err=%d\n",
+				res, count, errno);
+			break;
+		}
+		size += count;
+		tot_size += count;
+		if (!quiet) {
+			int pct;
+
+			fprintf(stderr, "written this track %d KB", size/1024);
+			if (track_info->file != STDIN_FILENO) {
+				pct = (size / 1024) * 100 / filesize;
+				fprintf(stderr, " (%d%%)", pct);
+			}
+			fprintf(stderr, " total %d KB\r", tot_size/1024);
+		}
+	}
+
+	if (!quiet)
+		fprintf(stderr, "\n");
+	close(track_info->file);
+	return 0;
+}
+
+int
+roundup_blocks(struct track_info *track)
+{
+	return ((track->file_size + track->block_size - 1) / track->block_size);
+}
+
+void
+cue_ent(struct cdr_cue_entry *cue, int ctl, int adr, int track, int index,
+	int dataform, int scms, int lba)
+{
+	cue->adr = adr;
+	cue->ctl = ctl;
+	cue->track = track;
+	cue->index = index;
+	cue->dataform = dataform;
+	cue->scms = scms;
+	lba += 150;
+	cue->min = lba / (60*75);
+	cue->sec = (lba % (60*75)) / 75;
+	cue->frame = (lba % (60*75)) % 75;
+}
+
+void
 cleanup(int dummy)
 {
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
@@ -245,88 +541,4 @@ usage(const char *prog_name)
 	fprintf(stderr, "Usage: %s [-f device] [-s speed] [-e] [-l] [-m] [-p]\n"
 		"\t[-q] [command] [command filename...]\n", prog_name);
 	exit(EX_USAGE);
-}
-
-void
-write_file(const char *name, int block_size)
-{
-	int addr, count, file, filesize, size;
-	char buf[2352*BLOCKS];
-	struct stat stat;
-	static int cdopen, done_stdin, tot_size = 0;
-
-	if (!strcmp(name, "-")) {
-		if (done_stdin) {
-			warn("skipping multiple usages of stdin");
-			return;
-		}
-		file = STDIN_FILENO;
-		done_stdin = 1;
-	}
-	else if ((file = open(name, O_RDONLY, 0)) < 0)
-		err(EX_NOINPUT, "open(%s)", name);
-
-	if (!cdopen) {
-		if (ioctl(fd, CDRIOCOPENDISK) < 0)
-			err(EX_IOERR, "ioctl(CDRIOCOPENDISK)");
-		cdopen = 1;
-	}
-
-	if (ioctl(fd, CDRIOCOPENTRACK, &track) < 0)
-       		err(EX_IOERR, "ioctl(CDRIOCOPENTRACK)");
-
-	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
-
-	if (fstat(file, &stat) < 0)
-		err(EX_IOERR, "fstat(%s)", name);
-	filesize = stat.st_size / 1024;
-
-	if (!quiet) {
-		fprintf(stderr, "next writeable LBA %d\n", addr);
-		if (file == STDIN_FILENO)
-			fprintf(stderr, "writing from stdin\n");
-		else
-			fprintf(stderr, 
-				"writing from file %s size %d KB\n",
-				name, filesize);
-	}
-
-	lseek(fd, addr * block_size, SEEK_SET);
-	size = 0;
-	if (filesize == 0)
-		filesize++;	/* cheat, avoid divide by zero */
-
-	while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
-		int res;
-		if (count % block_size) {
-			/* pad file to % block_size */
-			bzero(&buf[count], block_size * BLOCKS - count);
-			count = ((count / block_size) + 1) * block_size;
-		}
-		if ((res = write(fd, buf, count)) != count) {
-			fprintf(stderr, "\nonly wrote %d of %d bytes\n",
-				res, count);
-			break;
-		}
-		size += count;
-		tot_size += count;
-		if (!quiet) {
-			int pct;
-
-			fprintf(stderr, "written this track %d KB", size/1024);
-			if (file != STDIN_FILENO) {
-				pct = (size / 1024) * 100 / filesize;
-				fprintf(stderr, " (%d%%)", pct);
-			}
-			fprintf(stderr, " total %d KB\r", tot_size/1024);
-		}
-	}
-
-	if (!quiet)
-		fprintf(stderr, "\n");
-
-	close(file);
-	if (ioctl(fd, CDRIOCCLOSETRACK) < 0)
-		err(EX_IOERR, "ioctl(CDRIOCCLOSETRACK)");
 }
