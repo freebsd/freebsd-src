@@ -60,7 +60,6 @@
 /*
  * See sys_pipe.c for info on what these limits mean. 
  */
-extern int	maxpipes;
 extern int	maxpipekva;
 extern int	maxpipekvawired;
 
