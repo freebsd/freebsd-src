@@ -1963,6 +1963,9 @@ void frsync()
      (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
 #   if (NetBSD >= 199905) || defined(__OpenBSD__)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+#   elif defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
 #   else
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 #   endif
@@ -1973,6 +1976,9 @@ void frsync()
 		ip_natsync(ifp);
 		ip_statesync(ifp);
 	}
+#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500043)
+	IFNET_RUNLOCK();
+#  endif
 	ip_natsync((struct ifnet *)-1);
 # endif /* !SOLARIS */
 

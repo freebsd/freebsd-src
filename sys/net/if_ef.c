@@ -163,8 +163,9 @@ ef_detach(struct efnet *sc)
 		    }
 		}
 	}
-
+	IFNET_WLOCK();
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
+	IFNET_WUNLOCK();
 	splx(s);
 	return 0;
 }
@@ -508,6 +509,7 @@ ef_load(void)
 	struct ef_link *efl = NULL;
 	int error = 0, d;
 
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
@@ -538,6 +540,7 @@ ef_load(void)
 		efcount++;
 		SLIST_INSERT_HEAD(&efdev, efl, el_next);
 	}
+	IFNET_RUNLOCK();
 	if (error) {
 		if (efl)
 			SLIST_INSERT_HEAD(&efdev, efl, el_next);

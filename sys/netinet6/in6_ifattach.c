@@ -381,6 +381,7 @@ get_ifid(ifp0, altifp, in6)
 	}
 
 	/* next, try to get it from some other hardware interface */
+	IFNET_RLOCK();
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
 	{
 		if (ifp == ifp0)
@@ -396,9 +397,11 @@ get_ifid(ifp0, altifp, in6)
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
+			IFNET_RUNLOCK();
 			goto success;
 		}
 	}
+	IFNET_RUNLOCK();
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {
@@ -688,6 +691,7 @@ in6_nigroup_attach(name, namelen)
 	if (in6_nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
 		return;
 
+	IFNET_RLOCK();
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
 	{
 		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
@@ -701,6 +705,7 @@ in6_nigroup_attach(name, namelen)
 			}
 		}
 	}
+	IFNET_RUNLOCK();
 }
 
 void
@@ -718,6 +723,7 @@ in6_nigroup_detach(name, namelen)
 	if (in6_nigroup(NULL, name, namelen, &mltaddr.sin6_addr) != 0)
 		return;
 
+	IFNET_RLOCK();
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
 	{
 		mltaddr.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
@@ -725,6 +731,7 @@ in6_nigroup_detach(name, namelen)
 		if (in6m)
 			in6_delmulti(in6m);
 	}
+	IFNET_RUNLOCK();	
 }
 
 /*

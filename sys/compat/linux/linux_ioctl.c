@@ -1907,12 +1907,16 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifscan, &ifnet, if_link) {
-		if (ifscan == ifp)
+		if (ifscan == ifp) {
+			IFNET_RUNLOCK();
 			return (snprintf(buffer, buflen, "eth%d", ethno));
+		}
 		if (IFP_IS_ETH(ifscan))
 			ethno++;
 	}
+	IFNET_RUNLOCK();
 
 	return (0);
 }
@@ -1942,6 +1946,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		return (NULL);
 	index = 0;
 	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		/*
 		 * Allow Linux programs to use FreeBSD names. Don't presume
@@ -1954,6 +1959,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		if (is_eth && IFP_IS_ETH(ifp) && unit == index++)
 			break;
 	}
+	IFNET_RUNLOCK();
 	if (ifp != NULL)
 		snprintf(bsdname, IFNAMSIZ, "%s%d", ifp->if_name, ifp->if_unit);
 	return (ifp);
@@ -1993,6 +1999,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	ethno = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
+	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (uio.uio_resid <= 0)
 			break;
@@ -2019,11 +2026,14 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 
 				error = uiomove((caddr_t)&ifr, sizeof ifr,
 				    &uio);
-				if (error != 0)
+				if (error != 0) {
+					IFNET_RUNLOCK();
 					return (error);
+				}
 			}
 		}
 	}
+	IFNET_RUNLOCK();
 
 	ifc.ifc_len -= uio.uio_resid;
 	error = copyout(&ifc, uifc, sizeof ifc);

@@ -875,7 +875,9 @@ atm_nif_detach(nip)
 	/*
 	 * Remove from system interface list (ie. if_detach())
 	 */
+	IFNET_WLOCK();
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
+	IFNET_WUNLOCK();
 
 	/*
 	 * Remove from physical interface list

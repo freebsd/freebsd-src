@@ -414,11 +414,12 @@ route_output(m, so)
 			/* new gateway could require new ifaddr, ifp;
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
-#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), (a1)->sa_len) == 0)
+/* compare two sockaddr structures */
+#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
 			if ((rt->rt_flags & RTF_GATEWAY && gate != NULL) ||
 			    ifpaddr != NULL ||
 			    (ifaaddr != NULL &&
-			    !equal(ifaaddr, rt->rt_ifa->ifa_addr))) {
+			    !sa_equal(ifaaddr, rt->rt_ifa->ifa_addr))) {
 				if ((error = rt_getifa(&info)) != 0)
 					senderr(error);
 			}
@@ -946,6 +947,7 @@ sysctl_iflist(af, w)
 	int	len, error = 0;
 
 	bzero((caddr_t)&info, sizeof(info));
+	/* IFNET_RLOCK(); */		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -991,6 +993,7 @@ sysctl_iflist(af, w)
 		ifaaddr = netmask = brdaddr = 0;
 	}
 done:
+	/* IFNET_RUNLOCK(); */ /* XXX */
 	return (error);
 }
 

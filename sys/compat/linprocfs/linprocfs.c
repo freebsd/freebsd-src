@@ -725,6 +725,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	    "bytes    packets errs drop fifo frame compressed",
 	    "bytes    packets errs drop fifo frame compressed");
 
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
 			sbuf_printf(sb, "%6.6s:", ifname);
@@ -733,6 +734,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
 		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
 	}
+	IFNET_RUNLOCK();
 	
 	return (0);
 }
