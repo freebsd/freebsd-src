@@ -342,7 +342,6 @@ mdcreate(struct cdevsw *devsw)
 	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK);
 	bzero(sc, sizeof(*sc));
 	sc->unit = mdunits++;
-	sc->type = MD_PRELOAD;
 	bufq_init(&sc->buf_queue);
 	devstat_add_entry(&sc->stats, "md", sc->unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
@@ -359,6 +358,7 @@ mdcreate_preload(u_char *image, unsigned length)
 	struct md_s *sc;
 
 	sc = mdcreate(&md_cdevsw);
+	sc->type = MD_PRELOAD;
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
@@ -373,6 +373,7 @@ mdcreate_malloc(void)
 	struct md_s *sc;
 
 	sc = mdcreate(&md_cdevsw);
+	sc->type = MD_MALLOC;
 
 	sc->nsect = MDNSECT;	/* for now */
 	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK);
@@ -410,6 +411,7 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		mdcreate_preload(ptr, len);
 	} 
+	printf("md%d: Malloc disk\n", mdunits);
 	mdcreate_malloc();
 }
 
