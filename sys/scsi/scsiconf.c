@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.96 1997/10/19 09:37:49 joerg Exp $
+ *      $Id: scsiconf.c,v 1.97 1997/11/06 08:29:50 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -1301,8 +1301,10 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	struct scsi_link *sc_link;
 	int *type_p;
 {
+#ifdef SCSIDEBUG
 	u_int8_t  target = sc_link->target;
 	u_int8_t  lu = sc_link->lun;
+#endif
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	int    dtype = 0;
 	char   *desc;
