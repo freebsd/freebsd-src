@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18.2.1 1998/02/10 03:23:27 brian Exp $
+ *	$Id: log.h,v 1.18.2.2 1998/04/03 19:25:41 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -50,6 +50,8 @@
 #define LogMAX		(19)
 
 struct mbuf;
+struct cmdargs;
+struct prompt;
 
 /* The first int arg for all of the following is one of the above values */
 extern const char *LogName(int);

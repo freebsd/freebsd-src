@@ -23,20 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.8 1998/03/17 22:29:08 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.9 1998/04/06 09:12:26 brian Exp $
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <zlib.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
 #include "vars.h"
 #include "timer.h"
 #include "lqr.h"

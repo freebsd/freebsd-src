@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.11 1998/04/03 19:25:54 brian Exp $
+ *	$Id: server.c,v 1.16.2.12 1998/04/06 09:12:36 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

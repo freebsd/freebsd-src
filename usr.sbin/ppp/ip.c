@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.18 1998/04/03 19:25:02 brian Exp $
+ * $Id: ip.c,v 1.38.2.19 1998/04/06 09:12:29 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -41,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -50,7 +49,6 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "throughput.h"
 #include "iplist.h"
 #include "slcompress.h"
@@ -374,7 +372,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
     int iresult;
     char *fptr;
 
-    iresult = VarPacketAliasIn(tun.data, sizeof tun.data);
+    iresult = (*PacketAlias.In)(tun.data, sizeof tun.data);
     nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
@@ -405,8 +403,8 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = VarPacketAliasGetFragment(tun.data)) != NULL) {
-	  VarPacketAliasFragmentIn(tun.data, fptr);
+	while ((fptr = (*PacketAlias.GetFragment)(tun.data)) != NULL) {
+	  (*PacketAlias.FragmentIn)(tun.data, fptr);
 	  nb = ntohs(((struct ip *) fptr)->ip_len);
           frag = (struct tun_data *)
 	    ((char *)fptr - sizeof tun + sizeof tun.data);
@@ -430,7 +428,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       else {
         tun_fill_header(*frag, AF_INET);
 	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
-	VarPacketAliasSaveFragment(frag->data);
+	(*PacketAlias.SaveFragment)(frag->data);
       }
     }
   } else

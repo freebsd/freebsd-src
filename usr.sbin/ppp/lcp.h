@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.17 1998/04/03 19:24:03 brian Exp $
+ * $Id: lcp.h,v 1.16.2.18 1998/04/05 19:02:49 brian Exp $
  *
  *	TODO:
  */
@@ -86,7 +86,11 @@ struct lcp_opt {
     (o) = (struct lcp_opt *)((char *)(o) + (length)); \
   } while (0)
 
+struct mbuf;
+struct link;
 struct physical;
+struct bundle;
+struct cmdargs;
 
 #define fsm2lcp(fp) (fp->proto == PROTO_LCP ? (struct lcp *)fp : NULL)
 

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.12 1998/03/24 18:46:59 brian Exp $
+ * $Id: fsm.h,v 1.16.2.13 1998/04/03 19:21:21 brian Exp $
  *
  *	TODO:
  */
@@ -75,6 +75,9 @@ struct fsm_parent {
   void (*LayerFinish) (void *, struct fsm *);        /* tlf */
   void *object;
 };
+
+struct link;
+struct bundle;
 
 struct fsm {
   const char *name;		/* Name of protocol */

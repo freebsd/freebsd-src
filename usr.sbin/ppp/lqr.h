@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.12.2.1 1998/01/29 00:49:26 brian Exp $
+ * $Id: lqr.h,v 1.12.2.2 1998/03/13 00:44:12 brian Exp $
  *
  *	TODO:
  */
@@ -44,6 +44,7 @@ struct lqrdata {
 #define	LQM_LQR	  1
 #define	LQM_ECHO  2
 
+struct mbuf;
 struct physical;
 struct lcp;
 struct fsm;

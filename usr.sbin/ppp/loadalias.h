@@ -23,23 +23,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: loadalias.h,v 1.4 1997/12/21 12:11:06 brian Exp $
  */
 
 struct aliasHandlers {
-  char *(*PacketAliasGetFragment)(char *);
-  void (*PacketAliasInit)(void);
-  int (*PacketAliasIn)(char *, int);
-  int (*PacketAliasOut)(char *, int);
-  struct alias_link *(*PacketAliasRedirectAddr)(struct in_addr, struct in_addr);
-  struct alias_link *(*PacketAliasRedirectPort)
-    (struct in_addr, u_short, struct in_addr, u_short,
-     struct in_addr, u_short, u_char);
-  int (*PacketAliasSaveFragment)(char *);
-  void (*PacketAliasSetAddress)(struct in_addr);
-  unsigned (*PacketAliasSetMode)(unsigned, unsigned);
-  void (*PacketAliasFragmentIn)(char *, char *);
+  void *dl;
+
+  char *(*GetFragment)(char *);
+  void (*Init)(void);
+  int (*In)(char *, int);
+  int (*Out)(char *, int);
+  struct alias_link *(*RedirectAddr)(struct in_addr, struct in_addr);
+  struct alias_link *(*RedirectPort)(struct in_addr, u_short, struct in_addr,
+                                     u_short, struct in_addr, u_short, u_char);
+  int (*SaveFragment)(char *);
+  void (*SetAddress)(struct in_addr);
+  unsigned (*SetMode)(unsigned, unsigned);
+  void (*FragmentIn)(char *, char *);
 };
 
-extern int loadAliasHandlers(struct aliasHandlers *);
+extern struct aliasHandlers PacketAlias;
+
+extern int loadAliasHandlers(void);
 extern void unloadAliasHandlers(void);

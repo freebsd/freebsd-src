@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.15 1998/04/03 19:25:52 brian Exp $
+ * $Id: route.c,v 1.42.2.16 1998/04/06 09:12:35 brian Exp $
  *
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if_types.h>
 #include <net/route.h>

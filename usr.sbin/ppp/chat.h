@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.h,v 1.9.2.5 1998/03/09 19:25:34 brian Exp $
+ *	$Id: chat.h,v 1.9.2.6 1998/03/13 21:08:00 brian Exp $
  */
 
 #define CHAT_EXPECT 0
@@ -32,6 +32,8 @@
 #define CHAT_FAILED 3
 
 #define MAXABORTS   50
+
+struct physical;
 
 struct chat {
   struct descriptor desc;

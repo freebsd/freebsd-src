@@ -23,16 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.19 1998/04/03 19:24:43 brian Exp $
+ *	$Id: chat.c,v 1.44.2.20 1998/04/06 09:12:24 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +41,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

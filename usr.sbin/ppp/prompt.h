@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.4 1998/04/03 19:25:51 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.5 1998/04/05 18:25:34 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -33,7 +33,9 @@
 #define LOCAL_CX_OPT	0x08	/* OR'd value - optional context */
 
 struct server;
+struct datalink;
 struct bundle;
+struct cmdargs;
 
 struct prompt {
   struct descriptor desc;

@@ -17,10 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.53 1998/04/05 22:48:08 brian Exp $
+ * $Id: command.c,v 1.131.2.54 1998/04/06 09:12:25 brian Exp $
  *
  */
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -486,6 +487,9 @@ ShowAuthKey(struct cmdargs const *arg)
 static int
 ShowVersion(struct cmdargs const *arg)
 {
+  static char VarVersion[] = "PPP Version 2.0-beta";
+  static char VarLocalVersion[] = "$Date: 1998/04/06 09:12:38 $";
+
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
 }
@@ -1580,7 +1584,7 @@ AliasEnable(struct cmdargs const *arg)
   if (arg->argc == 1)
     if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (!(mode & MODE_ALIAS)) {
-	if (loadAliasHandlers(&VarAliasHandlers) == 0) {
+	if (loadAliasHandlers() == 0) {
 	  mode |= MODE_ALIAS;
 	  return 0;
 	}
@@ -1606,13 +1610,13 @@ AliasOption(struct cmdargs const *arg)
   if (arg->argc == 1)
     if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (mode & MODE_ALIAS) {
-	VarPacketAliasSetMode(param, param);
+	(*PacketAlias.SetMode)(param, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");
     } else if (strcmp(arg->argv[0], "no") == 0) {
       if (mode & MODE_ALIAS) {
-	VarPacketAliasSetMode(0, param);
+	(*PacketAlias.SetMode)(0, param);
 	return 0;
       }
       LogPrintf(LogWARN, "alias not enabled\n");

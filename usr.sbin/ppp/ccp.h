@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.14 1998/04/03 19:21:09 brian Exp $
+ * $Id: ccp.h,v 1.14.2.15 1998/04/03 19:23:54 brian Exp $
  *
  *	TODO:
  */
@@ -34,6 +34,8 @@
 #define	TY_BSD		21	/* BSD LZW Compress */
 #define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
 #define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
+
+struct mbuf;
 
 struct ccp_config {
   struct {

@@ -26,19 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.6 1998/03/17 22:29:12 brian Exp $
+ *	$Id: pred.c,v 1.20.2.7 1998/04/06 09:12:35 brian Exp $
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
-#include "loadalias.h"
 #include "vars.h"
 #include "timer.h"
 #include "fsm.h"

@@ -15,12 +15,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.7 1998/04/03 19:23:55 brian Exp $
+ * $Id: command.h,v 1.12.2.8 1998/04/03 19:25:26 brian Exp $
  *
  *	TODO:
  */
 
 struct cmdtab;
+struct bundle;
+struct datalink;
+struct prompt;
 
 struct cmdargs {
   struct cmdtab const *cmdtab;		/* The entire command table */
@@ -62,9 +65,6 @@ struct cmdtab {
 #define	VAR_PAPRETRY	17
 #define	VAR_CCPRETRY	18
 #define	VAR_IPCPRETRY	19
-
-extern struct in_addr ifnetmask;
-extern int aft_cmd;
 
 extern int IsInteractive(struct prompt *);
 extern void InterpretCommand(char *, int, int *, char ***);

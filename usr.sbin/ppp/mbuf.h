@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.11.2.1 1998/01/30 19:45:55 brian Exp $
+ * $Id: mbuf.h,v 1.11.2.2 1998/04/03 19:21:39 brian Exp $
  *
  *	TODO:
  */
@@ -50,6 +50,8 @@ struct mqueue {
 #define	MB_IPQ		10
 #define	MB_MP		11
 #define	MB_MAX		MB_MP
+
+struct cmdargs;
 
 extern int plength(struct mbuf *);
 extern struct mbuf *mballoc(int, int);

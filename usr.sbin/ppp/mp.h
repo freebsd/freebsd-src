@@ -23,8 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mp.h,v 1.1.2.1 1998/04/03 19:21:46 brian Exp $
  */
+
+struct mbuf;
+struct physical;
+struct bundle;
+struct cmdargs;
 
 struct mp {
   struct link link;

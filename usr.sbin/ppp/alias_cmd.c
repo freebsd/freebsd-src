@@ -2,10 +2,10 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.12.2.3 1998/04/03 19:25:20 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12.2.4 1998/04/06 09:12:21 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -19,7 +19,6 @@
 #include "command.h"
 #include "log.h"
 #include "loadalias.h"
-#include "vars.h"
 #include "alias_cmd.h"
 #include "descriptor.h"
 #include "prompt.h"
@@ -76,7 +75,7 @@ AliasRedirectPort(struct cmdargs const *arg)
     }
     null_addr.s_addr = INADDR_ANY;
 
-    link = VarPacketAliasRedirectPort(local_addr, local_port,
+    link = (*PacketAlias.RedirectPort)(local_addr, local_port,
 				      null_addr, 0,
 				      null_addr, alias_port,
 				      proto_constant);
@@ -115,7 +114,7 @@ AliasRedirectAddr(struct cmdargs const *arg)
                     arg->cmd->syntax);
       return 1;
     }
-    link = VarPacketAliasRedirectAddr(local_addr, alias_addr);
+    link = (*PacketAlias.RedirectAddr)(local_addr, alias_addr);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");

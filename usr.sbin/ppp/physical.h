@@ -16,9 +16,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.17 1998/03/20 19:48:18 brian Exp $
+ *  $Id: physical.h,v 1.1.2.18 1998/04/03 19:21:50 brian Exp $
  *
  */
+
+struct bundle;
 
 struct physical {
   struct link link;
@@ -50,8 +52,8 @@ struct physical {
     unsigned is_dedicated : 1; /* Dedicated mode?  XXX-ML - not yet used */
     unsigned is_direct : 1;    /* Direct mode?  XXX-ML - not yet used */
     unsigned rts_cts : 1;      /* Is rts/cts enabled? */
-    unsigned int parity;       /* What parity is enabled? (TTY flags) */
-    unsigned int speed;        /* Modem speed */
+    unsigned parity;           /* What parity is enabled? (TTY flags) */
+    unsigned speed;            /* Modem speed */
     char devlist[LINE_LEN];    /* Comma-separated list of devices */
   } cfg;
 
@@ -72,32 +74,32 @@ struct physical {
 int Physical_GetFD(struct physical *);
 int Physical_IsATTY(struct physical *);
 int Physical_IsSync(struct physical *);
-int Physical_IsDedicated(struct physical *phys);
-int Physical_IsDirect(struct physical *phys);
+int Physical_IsDedicated(struct physical *);
+int Physical_IsDirect(struct physical *);
 const char *Physical_GetDevice(struct physical *);
 
 
 void Physical_SetDeviceList(struct physical *, const char *);
 int /* Was this speed OK? */
-Physical_SetSpeed(struct physical *phys, int speed);
+Physical_SetSpeed(struct physical *, int);
 
 /* XXX-ML I'm not certain this is the right way to handle this, but we
    can solve that later. */
-void Physical_SetSync(struct physical *phys);
+void Physical_SetSync(struct physical *);
 
 int /* Can this be set?  (Might not be a relevant attribute for this
        device, for instance) */
-Physical_SetRtsCts(struct physical *phys, int enable);
+Physical_SetRtsCts(struct physical *, int);
 
-void Physical_SetDedicated(struct physical *phys, int enable);
-void Physical_SetDirect(struct physical *phys, int enable);
+void Physical_SetDedicated(struct physical *, int);
+void Physical_SetDirect(struct physical *, int);
 
 void Physical_FD_SET(struct physical *, fd_set *);
 int Physical_FD_ISSET(struct physical *, fd_set *);
 
 void Physical_DupAndClose(struct physical *);
-ssize_t Physical_Read(struct physical *phys, void *buf, size_t nbytes);
-ssize_t Physical_Write(struct physical *phys, const void *buf, size_t nbytes);
+ssize_t Physical_Read(struct physical *, void *, size_t);
+ssize_t Physical_Write(struct physical *, const void *, size_t);
 int Physical_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                        int *, int);
 int Physical_IsSet(struct descriptor *, const fd_set *);

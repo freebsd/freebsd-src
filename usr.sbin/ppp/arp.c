@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.10 1998/04/03 19:21:04 brian Exp $
+ * $Id: arp.c,v 1.27.2.11 1998/04/06 09:12:22 brian Exp $
  *
  */
 
@@ -25,7 +25,7 @@
  * TODO:
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -43,7 +43,6 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "id.h"

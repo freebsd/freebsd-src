@@ -17,9 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.h,v 1.10.2.2 1998/02/02 19:33:02 brian Exp $
+ * $Id: route.h,v 1.10.2.3 1998/02/07 20:50:08 brian Exp $
  *
  */
+
+struct bundle;
+struct cmdargs;
 
 extern int GetIfIndex(char *);
 extern int ShowRoute(struct cmdargs const *);

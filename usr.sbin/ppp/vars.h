@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.20 1998/04/03 19:26:02 brian Exp $
+ * $Id: vars.h,v 1.42.2.21 1998/04/03 19:26:29 brian Exp $
  *
  *	TODO:
  */
@@ -56,27 +56,7 @@ struct confdesc {
 
 extern struct confdesc pppConfs[NCONFS];
 
-struct pppvars {
-  /* The rest are just default initialized in vars.c */
-  struct aliasHandlers handler;	/* Alias function pointers */
-};
-
-#define VarAliasHandlers	   pppVars.handler
-#define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
-#define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
-#define VarPacketAliasInit	   (*pppVars.handler.PacketAliasInit)
-#define VarPacketAliasIn	   (*pppVars.handler.PacketAliasIn)
-#define VarPacketAliasOut	   (*pppVars.handler.PacketAliasOut)
-#define VarPacketAliasRedirectAddr (*pppVars.handler.PacketAliasRedirectAddr)
-#define VarPacketAliasRedirectPort (*pppVars.handler.PacketAliasRedirectPort)
-#define VarPacketAliasSaveFragment (*pppVars.handler.PacketAliasSaveFragment)
-#define VarPacketAliasSetAddress   (*pppVars.handler.PacketAliasSetAddress)
-#define VarPacketAliasSetMode	   (*pppVars.handler.PacketAliasSetMode)
-#define VarPacketAliasFragmentIn   (*pppVars.handler.PacketAliasFragmentIn)
-
-extern struct pppvars pppVars;
-extern char VarVersion[];
-extern char VarLocalVersion[];
+struct cmdargs;
 
 extern int EnableCommand(struct cmdargs const *);
 extern int DisableCommand(struct cmdargs const *);

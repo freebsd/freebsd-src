@@ -17,19 +17,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.25 1998/04/03 19:21:20 brian Exp $
+ * $Id: fsm.c,v 1.27.2.26 1998/04/06 09:12:27 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
  *		o Better option log display
  */
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #include <string.h>
 #include <termios.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -40,7 +38,6 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "loadalias.h"
 #include "vars.h"
 #include "throughput.h"
 #include "async.h"

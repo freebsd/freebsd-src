@@ -17,13 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.5 1998/04/03 19:25:56 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.6 1998/04/06 09:12:36 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>

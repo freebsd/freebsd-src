@@ -17,11 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.h,v 1.8.2.6 1998/03/16 22:52:18 brian Exp $
+ * $Id: ip.h,v 1.8.2.7 1998/04/03 19:21:26 brian Exp $
  *
  */
 
+struct mbuf;
 struct filter;
+struct link;
+struct bundle;
 
 extern int IpFlushPacket(struct link *, struct bundle *);
 extern int  PacketCheck(struct bundle *, char *, int, struct filter *);

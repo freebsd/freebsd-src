@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.h,v 1.4.2.1 1998/02/09 19:24:02 brian Exp $
+ *	$Id: server.h,v 1.4.2.2 1998/04/03 19:25:55 brian Exp $
  */
+
+struct bundle;
 
 struct server {
   struct descriptor desc;

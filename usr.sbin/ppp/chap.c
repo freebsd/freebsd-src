@@ -17,11 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.21 1998/04/03 19:26:18 brian Exp $
+ * $Id: chap.c,v 1.28.2.22 1998/04/06 09:12:24 brian Exp $
  *
  *	TODO:
  */
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -35,7 +35,6 @@
 #else
 #endif
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

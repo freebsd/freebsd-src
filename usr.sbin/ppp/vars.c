@@ -17,11 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.24 1998/04/03 19:26:28 brian Exp $
+ * $Id: vars.c,v 1.45.2.25 1998/04/06 09:12:38 brian Exp $
  *
  */
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -29,13 +28,9 @@
 #include "command.h"
 #include "log.h"
 #include "termios.h"
-#include "loadalias.h"
 #include "vars.h"
 #include "descriptor.h"
 #include "prompt.h"
-
-char VarVersion[] = "PPP Version 2.0-beta";
-char VarLocalVersion[] = "$Date: 1998/04/03 19:26:28 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -59,8 +54,6 @@ struct confdesc pppConfs[NCONFS] = {
   {"throughput", CONF_DISABLE, CONF_NONE},
   {"utmp", CONF_ENABLE, CONF_NONE}
 };
-
-struct pppvars pppVars;
 
 int
 DisplayCommand(struct cmdargs const *arg)

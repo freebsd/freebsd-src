@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14.2.8 1998/04/03 19:21:23 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.9 1998/04/05 22:48:19 brian Exp $
  *
  *	TODO:
  */
@@ -58,6 +58,10 @@
 
 struct physical;
 struct link;
+struct lcp;
+struct bundle;
+struct mbuf;
+struct cmdargs;
 
 struct hdlc {
   struct pppTimer ReportTimer;

@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.39 1998/04/05 22:48:00 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.40 1998/04/06 09:12:23 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>

@@ -23,8 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vjcomp.h,v 1.5.4.3 1998/02/23 00:38:44 brian Exp $
+ *	$Id: vjcomp.h,v 1.5.4.4 1998/03/16 22:54:35 brian Exp $
  */
+
+struct mbuf;
+struct link;
+struct ipcp;
+struct bundle;
 
 extern void SendPppFrame(struct link *, struct mbuf *, struct bundle *);
 extern struct mbuf *VjCompInput(struct ipcp *, struct mbuf *, int);

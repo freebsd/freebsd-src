@@ -16,12 +16,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.20 1998/04/03 19:21:49 brian Exp $
+ *  $Id: physical.c,v 1.1.2.21 1998/04/06 09:12:34 brian Exp $
  *
  */
 
-#include <sys/param.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 
 #include <sys/tty.h>
 
@@ -34,11 +33,8 @@
 
 
 /* XXX Name space pollution from vars.h */
-#include <netinet/in.h>
 
 #include "defs.h"
-#include "command.h"
-#include "loadalias.h"
 
 /* XXX Name space pollution from hdlc.h */
 #include "mbuf.h"

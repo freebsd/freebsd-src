@@ -15,12 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.9.2.3 1998/03/01 01:07:41 brian Exp $
+ * $Id: chap.h,v 1.9.2.4 1998/04/03 19:26:18 brian Exp $
  *
  *	TODO:
  */
 
+struct mbuf;
 struct physical;
+struct bundle;
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2

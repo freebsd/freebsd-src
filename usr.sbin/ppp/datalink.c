@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.33 1998/04/05 22:48:12 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.34 1998/04/06 09:12:26 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -36,7 +36,6 @@
 #include <string.h>
 #include <termios.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

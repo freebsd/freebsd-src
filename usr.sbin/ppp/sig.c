@@ -23,14 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.11.2.1 1998/03/08 23:44:48 brian Exp $
+ *	$Id: sig.c,v 1.11.2.2 1998/04/06 09:12:36 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <signal.h>
 
-#include "command.h"
 #include "log.h"
 #include "sig.h"
 

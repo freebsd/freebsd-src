@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.h,v 1.5.4.1 1998/04/03 19:21:54 brian Exp $
+ * $Id: timer.h,v 1.5.4.2 1998/04/03 19:26:01 brian Exp $
  *
  *	TODO:
  */
@@ -44,8 +44,5 @@ extern void StartTimer(struct pppTimer *);
 extern void StopTimer(struct pppTimer *);
 extern void TermTimerService(void);
 extern void ShowTimers(int LogLevel, struct prompt *);
-
-#ifdef SIGALRM
 extern void nointr_sleep(u_int);
 extern void nointr_usleep(u_int);
-#endif

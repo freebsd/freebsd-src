@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.19 1998/04/03 19:26:35 brian Exp $
+ * $Id: lqr.c,v 1.22.2.20 1998/04/06 09:12:31 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -26,7 +26,7 @@
  *	o Allow user to configure LQM method and interval.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -34,7 +34,6 @@
 #include <string.h>
 #include <termios.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -56,7 +55,6 @@
 #include "filter.h"
 #include "mp.h"
 #include "bundle.h"
-#include "loadalias.h"
 #include "vars.h"
 
 struct echolqr {

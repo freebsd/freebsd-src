@@ -17,11 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.10.2.1 1998/02/02 19:32:15 brian Exp $
+ * $Id: systems.h,v 1.10.2.2 1998/04/03 19:25:59 brian Exp $
  *
  */
 
 struct prompt;
+struct bundle;
+struct cmdargs;
 
 extern int SelectSystem(struct bundle *bundle, const char *, const char *,
                         struct prompt *);

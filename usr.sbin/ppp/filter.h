@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.11.2.2 1998/03/16 22:52:07 brian Exp $
+ * $Id: filter.h,v 1.11.2.3 1998/04/03 19:25:01 brian Exp $
  *
  *	TODO:
  */
@@ -77,6 +77,9 @@ struct filter {
 #define FL_OUT		1
 #define FL_DIAL		2
 #define FL_KEEP		3
+
+struct ipcp;
+struct cmdargs;
 
 extern int ParseAddr(struct ipcp *, int, char const *const *, struct in_addr *,
                      struct in_addr *, int *);

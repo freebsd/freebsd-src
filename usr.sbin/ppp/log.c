@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.4 1998/04/05 18:25:32 brian Exp $
+ *	$Id: log.c,v 1.25.2.5 1998/04/06 09:12:31 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 
 #include <stdarg.h>
 #include <stdio.h>

@@ -17,12 +17,9 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.h,v 1.9.2.7 1998/02/17 19:28:31 brian Exp $
+ * $Id: main.h,v 1.9.2.8 1998/03/16 22:53:13 brian Exp $
  *
  */
 
 extern void Cleanup(int);
 extern void AbortProgram(int);
-extern void TtyTermMode(void);
-extern void TtyOldMode(void);
-extern void TtyCommandMode(struct bundle *, int);

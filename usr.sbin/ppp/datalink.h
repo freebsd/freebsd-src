@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.14 1998/04/03 19:25:28 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.15 1998/04/05 22:48:14 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -35,6 +35,10 @@
 #define DATALINK_LCP     (6)
 #define DATALINK_AUTH    (7)
 #define DATALINK_OPEN    (8)
+
+struct prompt;
+struct physical;
+struct bundle;
 
 struct datalink {
   struct descriptor desc;       /* We play either a physical or a chat */
@@ -93,8 +97,6 @@ struct datalink {
 #define datalink2descriptor(dl) (&(dl)->desc)
 #define descriptor2datalink(d) \
   ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
-
-struct prompt;
 
 extern struct datalink *datalink_Create(const char *name, struct bundle *,
                                         const struct fsm_parent *);

@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.11 1998/04/03 19:24:05 brian Exp $
+ *	$Id: tun.c,v 1.6.4.12 1998/04/06 09:12:38 brian Exp $
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <net/if_tun.h>
 #include <netinet/in_systm.h>
@@ -36,7 +36,6 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"

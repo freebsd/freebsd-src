@@ -17,12 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.44 1998/04/05 18:25:33 brian Exp $
+ * $Id: main.c,v 1.121.2.45 1998/04/06 09:12:32 brian Exp $
  *
  *	TODO:
- *		o Add commands for traffic summary, version display, etc.
- *		o Add signal handler for misc controls.
  */
+
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -226,7 +225,7 @@ ProcessArgs(int argc, char **argv)
       mode &= ~MODE_INTER;
 #ifndef NOALIAS
     } else if (strcmp(cp, "alias") == 0) {
-      if (loadAliasHandlers(&VarAliasHandlers) == 0)
+      if (loadAliasHandlers() == 0)
 	mode |= MODE_ALIAS;
       else
 	LogPrintf(LogWARN, "Cannot load alias library\n");
@@ -565,7 +564,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
 #ifndef NOALIAS
 	    if (mode & MODE_ALIAS) {
-	      VarPacketAliasIn(tun.data, sizeof tun.data);
+	      (*PacketAlias.In)(tun.data, sizeof tun.data);
 	      n = ntohs(((struct ip *)tun.data)->ip_len);
 	    }
 #endif
@@ -605,7 +604,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       if (pri >= 0) {
 #ifndef NOALIAS
 	if (mode & MODE_ALIAS) {
-	  VarPacketAliasOut(tun.data, sizeof tun.data);
+	  (*PacketAlias.Out)(tun.data, sizeof tun.data);
 	  n = ntohs(((struct ip *)tun.data)->ip_len);
 	}
 #endif

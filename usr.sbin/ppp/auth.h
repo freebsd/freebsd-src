@@ -15,12 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.10.2.5 1998/04/03 19:23:52 brian Exp $
+ * $Id: auth.h,v 1.10.2.6 1998/04/03 19:25:21 brian Exp $
  *
  *	TODO:
  */
 
 struct physical;
+struct bundle;
 
 struct authinfo {
   void (*ChallengeFunc)(struct authinfo *, int, struct physical *);

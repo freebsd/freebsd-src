@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.31 1998/04/03 19:25:33 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.32 1998/04/06 09:12:29 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -560,7 +560,7 @@ IpcpLayerUp(struct fsm *fp)
 
 #ifndef NOALIAS
   if (mode & MODE_ALIAS)
-    VarPacketAliasSetAddress(ipcp->my_ip);
+    (*PacketAlias.SetAddress)(ipcp->my_ip);
 #endif
 
   LogPrintf(LogIsKept(LogLINK) ? LogLINK : LogIPCP, "IpcpLayerUp: %s\n",

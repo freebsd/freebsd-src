@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.3 1997/12/21 12:11:10 brian Exp $
+ *	$Id: tun.h,v 1.3.4.1 1998/02/02 19:32:16 brian Exp $
  */
 
 struct tun_data {
@@ -40,5 +40,7 @@ struct tun_data {
 #define tun_fill_header(f,proto) do { } while (0)
 #define tun_check_header(f,proto) (1)
 #endif
+
+struct bundle;
 
 extern void tun_configure(struct bundle *, int, int);
