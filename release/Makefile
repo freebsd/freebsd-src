@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.164 1995/05/21 13:36:13 jkh Exp $
+#	$Id: Makefile,v 1.165 1995/05/21 18:29:49 jkh Exp $
 #
 # How to roll a release:
 #
@@ -298,14 +298,8 @@ release.7:
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
 		DIR=${RD}/cpiofd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
-	( JUST_TELL_ME=please ; . ${.CURDIR}/../sys/conf/newvers.sh ; \
-	sed "/DISTNAME=/s/FOOBAR/$$DISTNAME/" \
-		< ${RD}/cpiofd/stand/scripts/miscfuncs.sh \
-		> ${RD}/cpiofd/stand/scripts/tmp ;\
-	)
-	mv ${RD}/cpiofd/stand/scripts/tmp \
-		${RD}/cpiofd/stand/scripts/miscfuncs.sh
-	chmod 755 ${RD}/cpiofd/stand/scripts/*
+	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall info | tar xvf - -C ${RD}/cpiofd/stand
+	( JUST_TELL_ME=please ; \
 	( cd ${RD}/cpiofd ; \
 		( rm -f OK ; find . -print ; touch OK ; echo OK ) | \
 		cpio -H newc -oa | gzip -9 -c | dd conv=osync ) \
