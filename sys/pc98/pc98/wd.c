@@ -59,7 +59,6 @@
 #if     NWDC > 0
 
 #include "opt_hw_wdog.h"
-#include "opt_ide_delay.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
