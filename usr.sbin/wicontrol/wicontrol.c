@@ -697,6 +697,18 @@ int main(argc, argv)
 	char			*key = NULL;
 	int			modifier = 0;
 
+	/* Get the interface name */
+	opterr = 0;
+	ch = getopt(argc, argv, "i:");
+	if (ch == 'i') {
+		iface = optarg;
+	} else {
+		iface = "wi0";
+		optreset = 1;
+		optind = 1;
+	}
+	opterr = 1;
+		
 	while((ch = getopt(argc, argv,
 	    "hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
 		switch(ch) {
@@ -719,9 +731,6 @@ int main(argc, argv)
 		case 'o':
 			wi_dumpstats(iface);
 			exit(0);
-			break;
-		case 'i':
-			iface = optarg;
 			break;
 		case 'c':
 			wi_setword(iface, WI_RID_CREATE_IBSS, atoi(optarg));
