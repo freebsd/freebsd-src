@@ -272,30 +272,37 @@ static struct witness_order_list_entry order_lists[] = {
 	 */
 	{ "filedesc structure", &lock_class_mtx_sleep },
 	{ "accept", &lock_class_mtx_sleep },
+	{ "so_snd", &lock_class_mtx_sleep },
+	{ "so_rcv", &lock_class_mtx_sleep },
 	{ "sellck", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * Routing
 	 */
+	{ "so_rcv", &lock_class_mtx_sleep },
 	{ "radix node head", &lock_class_mtx_sleep },
 	{ "rtentry", &lock_class_mtx_sleep },
 	{ "ifaddr", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
-	{ NULL, NULL },
 	 */
+	{ "unp", &lock_class_mtx_sleep },
+	{ "so_snd", &lock_class_mtx_sleep },
+	{ NULL, NULL },
 	/*
 	 * UDP/IP
 	 */
 	{ "udp", &lock_class_mtx_sleep },
 	{ "udpinp", &lock_class_mtx_sleep },
+	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * TCP/IP
 	 */
 	{ "tcp", &lock_class_mtx_sleep },
 	{ "tcpinp", &lock_class_mtx_sleep },
+	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * SLIP
