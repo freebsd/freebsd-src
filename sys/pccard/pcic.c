@@ -38,8 +38,6 @@
 #include <sys/kernel.h>
 #include <sys/select.h>
 #include <sys/interrupt.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <machine/clock.h>
 
@@ -55,85 +53,6 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
-#ifdef LKM
-#define NPCI 0
-#else
-#include <pci.h>
-#endif
-
-#if NPCI > 0
-#include <pci/pcivar.h>
-
-static char *pcic_pci_probe(pcici_t tag, pcidi_t type);
-static void  pcic_pci_attach(pcici_t tag, int unit);
-
-static u_long pcic_pci_count;
-
-static struct pci_device pcic_pci_device = {
-	"pcic",
-	pcic_pci_probe,
-	pcic_pci_attach,
-	&pcic_pci_count,
-	NULL
-};
-
-DATA_SET(pcidevice_set, pcic_pci_device);
-
-#define	 PCI_DEVICE_ID_PCIC_TI1130	0xAC12104Cul
-#define	 PCI_DEVICE_ID_PCIC_TI1131	0xAC15104Cul
-#define	 PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul
-#define	 PCI_DEVICE_ID_PCIC_O2MICRO	0x673A1217ul
-
-static char *
-pcic_pci_probe(pcici_t tag, pcidi_t type)
-{
-	switch (type) {
-	case PCI_DEVICE_ID_PCIC_TI1130:
-		return ("TI 1130 PCMCIA/CardBus Bridge");
-	case PCI_DEVICE_ID_PCIC_TI1131:
-		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
-	case PCI_DEVICE_ID_PCIC_CLPD6729:
-		return ("Cirrus Logic PD6729/6730 PC-Card Controller");
-	default:
-		break;
-	}
-	return (NULL);
-}
-
-static void
-pcic_pci_attach(pcici_t tag, int unit)
-{
-	int i, j;
-	u_char *p;
-	u_long *pl;
-
-	if (!bootverbose)
-		return;
-
-	printf("PCI Config space:\n");
-	for (j = 0; j < 0x98; j += 16) {
-		printf("%02x: ", j);
-		for (i = 0; i < 16; i += 4) {
-			printf(" %08x", pci_conf_read(tag, i+j));
-		}
-		printf("\n");
-	}
-	/* pci_conf_write(tag, 0x44, 1); */
-	p = (u_char*)pmap_mapdev(pci_conf_read(tag, 0x10), 0x1000);
-	pl = (u_long *)p;
-	printf("Cardbus Socket registers:\n");
-	printf("00: ");
-	for (i = 0; i < 4; i += 1)
-		 printf(" %08x:", pl[i]);
-	printf("\n10: ");
-	for (i =4 ; i < 8; i += 1)
-		printf(" %08x:", pl[i]);
-	printf("\nExCa registers:\n");
-	for (i = 0; i < 0x40; i += 16)
-		printf("%02x: %16D\n", i, p + 0x800 + i, " ");
-	return;
-}
-#endif /* NPCI > 0 */
 /*
  *	Prototypes for interrupt handler.
  */
@@ -265,7 +184,7 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 		/*
 		 * Don't load twice! (lkmexists() is exported by kern_lkm.c)
 		 */
-		if(lkmexists(lkmtp))
+		if (lkmexists(lkmtp))
 			return(EEXIST);
 		/*
 		 *	Call the probe routine to find the slots. If
@@ -326,7 +245,7 @@ pcic_unload(struct lkm_table *lkmtp, int cmd)
 	int	slot;
 	struct pcic_slot *sp = pcic_slots;
 
-	untimeout(pcictimeout,0, pcictimeout_ch);
+	untimeout(pcictimeout, 0, pcictimeout_ch);
 	if (pcic_irq) {
 		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
 			if (sp->slt)
@@ -1091,16 +1010,16 @@ pcic_reset(void *chan)
 	    case 1: /* Assert reset */
 		clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slt->insert_seq = 2;
-		timeout(pcic_reset, (void*) slt, hz/4);
+		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	    case 2: /* Deassert it again */
 		setb(sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slt->insert_seq = 3;
-		timeout(pcic_reset, (void*) slt, hz/4);
+		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	    case 3: /* Wait if card needs more time */
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
-			timeout(pcic_reset, (void*) slt, hz/10);
+			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
 		}
 	}
