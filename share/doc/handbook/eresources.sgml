@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.16 1995/11/24 07:55:25 jkh Exp $ -->
+<!-- $Id: eresources.sgml,v 1.17 1995/12/11 15:09:12 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -51,6 +51,7 @@ freebsd-announce         Important events and project milestones
 freebsd-bugs             Bug reports
 freebsd-chat             Non-technical items related to the FreeBSD community
 freebsd-current          Discussion concerning the use of FreeBSD-current
+freebsd-stable           Discussion concerning the use of FreeBSD-stable
 freebsd-isp              Issues for Internet Service Providers using FreeBSD
 freebsd-policy           General policy issues and suggestions
 freebsd-questions        User questions
@@ -204,6 +205,13 @@ FreeBSD-current</em><newline> This is the digest version of the
 freebsd-current mailing list.  The digest consists of all
 messages sent to freebsd-current bundled together and mailed out
 as a single message.  The average digest size is about 40kB.
+
+<tag/FREEBSD-STABLE/ <em>Discussions about the use of
+FreeBSD-stable</em><newline> This is the mailing list for users
+of freebsd-stable.  It includes warnings about new features
+coming out in -stable that will affect the users, and
+instructions on steps that must be taken to remain -stable.
+Anyone running ``stable'' should subscribe to this list.
 
 <tag/FREEBSD-DOC/ <em>Documentation project</em><newline> 
 This mailing list belongs to the FreeBSD Doc Project and is for
