@@ -79,9 +79,7 @@ static void usage(void);
  *	option parsing and sanity checking.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int c;
 	char *p;
