@@ -322,6 +322,8 @@
             mdoc
             ..
             more
+	    ..
+	    nwclient
             ..
             perfmon
             ..
