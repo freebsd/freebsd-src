@@ -256,6 +256,8 @@ ex_attach(device_t dev)
 	if (temp & EE_W5_PORT_AUI)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
 
+	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_NONE, 0, NULL);
 	ifmedia_set(&sc->ifmedia, ex_get_media(sc->iobase));
 
 	ifm = &sc->ifmedia;
@@ -970,24 +972,34 @@ ex_watchdog(struct ifnet *ifp)
 static int
 ex_get_media (u_int32_t iobase)
 {
-	int	tmp;
+	int	current;
+	int	media;
+
+	media = eeprom_read(iobase, EE_W5);
 
 	outb(iobase + CMD_REG, Bank2_Sel);
-	tmp = inb(iobase + REG3);
+	current = inb(iobase + REG3);
 	outb(iobase + CMD_REG, Bank0_Sel);
 
-	if (tmp & TPE_bit)
+	if ((current & TPE_bit) && (media & EE_W5_PORT_TPE))
 		return(IFM_ETHER|IFM_10_T);
-	if (tmp & BNC_bit)
+	if ((current & BNC_bit) && (media & EE_W5_PORT_BNC))
 		return(IFM_ETHER|IFM_10_2);
 
-	return (IFM_ETHER|IFM_10_5);
+	if (media & EE_W5_PORT_AUI)
+		return (IFM_ETHER|IFM_10_5);
+
+	return (IFM_ETHER|IFM_AUTO);
 }
 
 static int
 ex_ifmedia_upd (ifp)
 	struct ifnet *		ifp;
 {
+	struct ex_softc *       sc = ifp->if_softc;
+
+	if (IFM_TYPE(sc->ifmedia.ifm_media) != IFM_ETHER)
+		return EINVAL;
 
 	return (0);
 }
@@ -1000,6 +1012,7 @@ ex_ifmedia_sts(ifp, ifmr)
 	struct ex_softc *       sc = ifp->if_softc;
 
 	ifmr->ifm_active = ex_get_media(sc->iobase);
+	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
 
 	return;
 }
