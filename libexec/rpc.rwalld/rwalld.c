@@ -53,18 +53,16 @@ static const char rcsid[] =
 #define WALL_CMD "/usr/bin/wall -n"
 #endif
 
-void wallprog_1();
-void possess();
-void killkids();
-static void usage __P((void));
+void wallprog_1(struct svc_req *rqstp, SVCXPRT *transp);
+void possess(void);
+void killkids(int sig);
+static void usage(void);
 
 int nodaemon = 0;
 int from_inetd = 1;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
 	int s, salen;
@@ -135,26 +133,27 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rpc.rwalld [-n]\n");
 	exit(1);
 }
 
-void possess()
+void
+possess(void)
 {
 	daemon(0, 0);
 }
 
-void killkids()
+void
+killkids(int sig)
 {
 	while(wait4(-1, NULL, WNOHANG, NULL) > 0)
 		;
 }
 
-void *wallproc_wall_1_svc(s, rqstp)
-	wrapstring		*s;
-	struct svc_req		*rqstp;
+void *
+wallproc_wall_1_svc(wrapstring *s, struct svc_req *rqstp)
 {
 	static void		*dummy = NULL;
 
@@ -173,9 +172,7 @@ void *wallproc_wall_1_svc(s, rqstp)
 }
 
 void
-wallprog_1(rqstp, transp)
-	struct svc_req *rqstp;
-	SVCXPRT *transp;
+wallprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 {
 	union {
 		char *wallproc_wall_1_arg;

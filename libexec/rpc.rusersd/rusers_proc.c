@@ -98,7 +98,7 @@ Display *dpy;
 static jmp_buf openAbort;
 
 static void
-abortOpen ()
+abortOpen(void)
 {
     longjmp (openAbort, 1);
 }
@@ -237,7 +237,7 @@ do_names_2(int all)
 }
 
 int *
-rusers_num()
+rusers_num(void)
 {
         static int num_users = 0;
 	struct utmp usr;
@@ -287,41 +287,31 @@ do_names_1(int all)
 }
 
 utmpidlearr *
-rusersproc_names_2_svc(argp, rqstp)
-	void			*argp;
-	struct svc_req		*rqstp;
+rusersproc_names_2_svc(void *argp, struct svc_req *rqstp)
 {
         return(do_names_2(0));
 }
 
 utmpidlearr *
-rusersproc_allnames_2_svc(argp, rqstp)
-	void			*argp;
-	struct svc_req		*rqstp;
+rusersproc_allnames_2_svc(void *argp, struct svc_req *rqstp)
 {
         return(do_names_2(1));
 }
 
 utmparr *
-rusersproc_names_1_svc(argp, rqstp)
-	void			*argp;
-	struct svc_req		*rqstp;
+rusersproc_names_1_svc(void *argp, struct svc_req *rqstp)
 {
-        return(do_names_1(0));
+	return(do_names_1(0));
 }
 
 utmparr *
-rusersproc_allnames_1_svc(argp, rqstp)
-	void			*argp;
-	struct svc_req		*rqstp;
+rusersproc_allnames_1_svc(void *argp, struct svc_req *rqstp)
 {
         return(do_names_1(1));
 }
 
 void
-rusers_service(rqstp, transp)
-	struct svc_req *rqstp;
-	SVCXPRT *transp;
+rusers_service(struct svc_req *rqstp, SVCXPRT *transp)
 {
 	union {
 		int fill;
