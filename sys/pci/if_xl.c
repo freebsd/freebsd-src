@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.35 1998/08/24 17:46:19 wpaul Exp $
+ *	$Id: if_xl.c,v 1.5.2.1 1998/08/24 18:17:49 wpaul Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.35 1998/08/24 17:46:19 wpaul Exp $";
+	"$Id: if_xl.c,v 1.5.2.1 1998/08/24 18:17:49 wpaul Exp $";
 #endif
 
 /*
@@ -766,7 +766,7 @@ static void xl_autoneg_mii(sc, flag, verbose)
 			return;
 		}
 		xl_autoneg_xmit(sc);
-		ifp->if_timer = 3;
+		ifp->if_timer = 5;
 		sc->xl_autoneg = 1;
 		sc->xl_want_auto = 0;
 		return;
