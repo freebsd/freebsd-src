@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.131 2000/12/29 01:24:56 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.132 2001/01/20 23:36:02 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -683,7 +683,7 @@ uhci_power(int why, void *v)
 	int cmd;
 	int s;
 
-	s = splusb();
+	s = splhardusb();
 	cmd = UREAD2(sc, UHCI_CMD);
 
 	DPRINTF(("uhci_power: sc=%p, why=%d (was %d), cmd=0x%x\n",
@@ -1215,13 +1215,9 @@ uhci_intr(void *arg)
 		sc->sc_dying = 1;
 	}
 
-	if (ack) {	/* acknowledge the ints */
-		UWRITE2(sc, UHCI_STS, ack);
-	} else {	/* nothing to acknowledge */
-		printf("%s: UHCI interrupt, STS = 0x%04x, but ack == 0\n",
-		       USBDEVNAME(sc->sc_bus.bdev), status);
-		return (0);
-	}
+	if (!ack)
+		return (0);	/* nothing to acknowledge */
+	UWRITE2(sc, UHCI_STS, ack); /* acknowledge the ints */
 
 	sc->sc_bus.no_intrs++;
 	usb_schedsoftintr(&sc->sc_bus);
@@ -1525,7 +1521,7 @@ uhci_run(uhci_softc_t *sc, int run)
 	u_int16_t cmd;
 
 	run = run != 0;
-	s = splusb();
+	s = splhardusb();
 	DPRINTF(("uhci_run: setting run=%d\n", run));
 	cmd = UREAD2(sc, UHCI_CMD);
 	if (run)
