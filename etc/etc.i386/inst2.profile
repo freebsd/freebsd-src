@@ -106,8 +106,11 @@ extract()
 			tarverbose=
 			;;
 	esac
-	cat "$@"* | gunzip | (cd / ; tar --extract --file - --unlink --preserve-permissions ${tarverbose} )
-
+	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
+	#from there...
+	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
+	/tmp/cat "$@"* | /tmp/gunzip | (cd / ; /tmp/tar --extract --file - --unlink --preserve-permissions ${tarverbose} )
+	rm -f /bin/cat /tmp/gunzip /tmp/tar
 	sync
 }
 configure()
@@ -134,38 +137,6 @@ configure()
 	if [ "$dname" = "" ]; then
 		dname=$proto_domain
 	fi
-
-#	echo -n "Setting up domain name in sendmail.cf..."
-#	sed -e "s/YOUR_DOMAIN_GOES_HERE/$dname/" \
-#		< /etc/sendmail.cf_proto > /etc/sendmail.cf
-#	echo    " done."
-#
-#	echo -n "Freezing sendmail.cf..."
-#	/usr/sbin/sendmail -bz
-#	echo    " done."
-#
-#	echo    ""
-#	echo    "WARNING: you should look over the /etc/sendmail.cf file,"
-#	echo    "make sure things are set up properly, then re-freeze"
-#	echo	"it with the command '/usr/sbin/sendmail -bz'."
-#
-#	echo    ""
-#	echo	"Building aliases database..."
-#	newaliases
-#	echo    ""
-#	echo    "WARNING: you should look over the /etc/aliases file,"
-#	echo    "make sure things are set up properly, then re-build"
-#	echo	"it with the command 'newaliases'."
-
-#	cp /etc/sendmail.cf_proto /etc/sendmail.cf
-
-#	echo	""
-#	echo	"WARNING: sendmail will puke on your carpet when the machine"
-#	echo	"starts up.  If you don't want it to keep doing this, either"
-#	echo	"turn it off in /etc/rc, or give it a reasonable"
-#	echo	"/etc/sendmail.cf file."
-
-#	echo	"127.0.0.1     localhost" > /etc/hosts
 
 	echo	""
 	echo -n "Does this machine have an ethernet interface? [y] "
