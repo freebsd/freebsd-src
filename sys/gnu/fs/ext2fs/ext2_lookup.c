@@ -856,7 +856,7 @@ ext2_direnter(ip, dvp, cnp)
 			/* overwrite; nothing there; header is ours */
 			spacefree += dsize;
 		}
-		dsize = EXT2_DIR_REC_LEN(ep->name_len);
+		dsize = EXT2_DIR_REC_LEN(nep->name_len);
 		spacefree += nep->rec_len - dsize;
 		loc += nep->rec_len;
 		bcopy((caddr_t)nep, (caddr_t)ep, dsize);
