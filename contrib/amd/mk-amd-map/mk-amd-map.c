@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 5.2.2.1 1992/02/09 15:09:18 jsp beta $
+ * $Id: mk-amd-map.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  */
 
 /*
@@ -229,7 +229,7 @@ main(int argc, char *argv[])
   extern int optind;
 
   /* test options */
-  while ((ch = getopt(argc, argv, "p")) != EOF)
+  while ((ch = getopt(argc, argv, "p")) != -1)
     switch (ch) {
     case 'p':
       printit = 1;
@@ -301,6 +301,7 @@ main(int argc, char *argv[])
     int error = read_file(mapf, map, mapd);
     (void) close(mapfd);
     (void) fclose(mapf);
+	dbm_close(mapd);
     if (printit) {
       if (error) {
 	fprintf(stderr, "Error creating ndbm map for %s\n", map);

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.16 1993/09/13 15:11:00 ezk Exp $
+ * $Id: homedir.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -66,7 +66,7 @@ static struct passwd passwd_ent;
 static uid2home_t *lastchild;
 static uid2home_t *pwtab;
 static void delay(uid2home_t *, int);
-static void table_add(int, char *, char *);
+static void table_add(int, const char *, const char *);
 
 /* GLOBAL FUNCTIONS */
 char *homeof(char *username);
@@ -619,7 +619,7 @@ plt_reset(void)
  * n: user ID name
  */
 static void
-table_add(int u, char *h, char *n)
+table_add(int u, const char *h, const char *n)
 {
   int i;
 

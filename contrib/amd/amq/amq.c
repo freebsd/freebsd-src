@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq.c,v 5.2.2.1 1992/02/09 15:09:16 jsp beta $
+ * $Id: amq.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -54,7 +54,7 @@ char copyright[] = "\
 @(#)Copyright (c) 1990 The Regents of the University of California.\n\
 @(#)All rights reserved.\n";
 #if __GNUC__ < 2
-static char rcsid[] = "$Id: amq.c,v 6.0 1997-1998/01/01 15:09:16 ezk $";
+static char rcsid[] = "$Id: amq.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $";
 static char sccsid[] = "%W% (Berkeley) %G%";
 #endif /* __GNUC__ < 2 */
 #endif /* not lint */
@@ -330,7 +330,7 @@ main(int argc, char *argv[])
   /*
    * Parse arguments
    */
-  while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:pP:TU")) != EOF)
+  while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:pP:TU")) != -1)
     switch (opt_ch) {
     case 'f':
       flush_flag = 1;
