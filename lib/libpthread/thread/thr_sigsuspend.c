@@ -47,8 +47,7 @@ _sigsuspend(const sigset_t *set)
 	sigset_t	oldmask, newmask;
 	int             ret = -1;
 
-	if (!_kse_isthreaded() ||
-	    (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		return (__sys_sigsuspend(set));
 
 	/* Check if a new signal set was provided by the caller: */

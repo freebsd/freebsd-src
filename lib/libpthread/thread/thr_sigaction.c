@@ -52,9 +52,6 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		if (!_kse_isthreaded())
-			return __sys_sigaction(sig, act, oact);
-
 		if (act)
 			newact = *act;
 

@@ -55,8 +55,7 @@ _sigpending(sigset_t *set)
 		ret = EINVAL;
 	}
 	else {
-		if (!_kse_isthreaded() ||
-		    (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 			return (__sys_sigpending(set));
 
 		crit = _kse_critical_enter();

@@ -268,9 +268,7 @@ _libpthread_init(struct pthread *curthread)
 	_kse_initial->k_kseg = _kseg_alloc(NULL);
 	if (_kse_initial->k_kseg == NULL)
 		PANIC("Can't allocate initial kseg.");
-#ifdef SYSTEM_SCOPE_ONLY
 	_kse_initial->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
-#endif
 	_kse_initial->k_schedq = &_kse_initial->k_kseg->kg_schedq;
 
 	TAILQ_INSERT_TAIL(&_kse_initial->k_kseg->kg_kseq, _kse_initial, k_kgqe);
@@ -309,6 +307,9 @@ _libpthread_init(struct pthread *curthread)
 	_kcb_set(_thr_initial->kse->k_kcb);
 	_tcb_set(_thr_initial->kse->k_kcb, _thr_initial->tcb);
 	_thr_initial->kse->k_flags |= KF_INITIALIZED;
+
+	_thr_signal_init();
+	_kse_critical_leave(&_thr_initial->tcb->tcb_tmbx);
 }
 
 /*
@@ -322,9 +323,7 @@ init_main_thread(struct pthread *thread)
 
 	/* Setup the thread attributes. */
 	thread->attr = _pthread_attr_default;
-#ifdef SYSTEM_SCOPE_ONLY
 	thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
-#endif
 	/*
 	 * Set up the thread stack.
 	 *

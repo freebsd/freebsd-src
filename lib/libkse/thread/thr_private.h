@@ -188,14 +188,10 @@ struct kse {
 	struct lock		k_lock;
 	struct lockuser		k_lockusers[MAX_KSE_LOCKLEVEL];
 	int			k_locklevel;
-	sigset_t		k_sigmask;
-	struct sigstatus	k_sigq[_SIG_MAXSIG];
 	stack_t			k_stack;
-	int			k_check_sigq;
 	int			k_flags;
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
-	int			k_waiting;
 	int			k_idle;		/* kse is idle */
 	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
@@ -294,11 +290,6 @@ do { \
 #define KSE_WAITQ_INSERT(kse, thrd)	kse_waitq_insert(thrd)
 #define	KSE_WAITQ_FIRST(kse)		TAILQ_FIRST(&(kse)->k_schedq->sq_waitq)
 
-#define	KSE_SET_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 1)
-
-#define	KSE_CLEAR_WAIT(kse) 	atomic_store_rel_int(&(kse)->k_waiting, 0)
-
-#define	KSE_WAITING(kse)	(kse)->k_waiting != 0
 #define	KSE_WAKEUP(kse)		kse_wakeup(&(kse)->k_kcb->kcb_kmbx)
 
 #define	KSE_SET_IDLE(kse)	((kse)->k_idle = 1)
@@ -732,9 +723,6 @@ struct pthread {
 	 * interrupted by a signal:
 	 */
 	int			interrupted;
-
-	/* Signal number when in state PS_SIGWAIT: */
-	int			signo;
 
 	/*
 	 * Set to non-zero when this thread has entered a critical

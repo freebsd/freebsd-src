@@ -411,6 +411,9 @@ _kse_setthreaded(int threaded)
 	sigset_t sigset;
 
 	if ((threaded != 0) && (__isthreaded == 0)) {
+		SIGFILLSET(sigset);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
+
 		/*
 		 * Tell the kernel to create a KSE for the initial thread
 		 * and enable upcalls in it.
@@ -425,10 +428,11 @@ _kse_setthreaded(int threaded)
 		_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
 		KSE_SET_MBOX(_kse_initial, _thr_initial);
 		_kse_initial->k_kcb->kcb_kmbx.km_flags |= KMF_BOUND;
+#else
+		_thr_initial->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+		_kse_initial->k_kseg->kg_flags &= ~KGF_SINGLE_THREAD;
+		_kse_initial->k_kcb->kcb_kmbx.km_curthread = NULL;
 #endif
-		SIGFILLSET(sigset);
-		__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
-		_thr_signal_init();
 
 		/*
 		 * Locking functions in libc are required when there are
@@ -963,12 +967,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	 */
 	_tcb_set(curkse->k_kcb, NULL);
 
-	/* This may have returned from a kse_release(). */
-	if (KSE_WAITING(curkse)) {
-		DBG_MSG("Entered upcall when KSE is waiting.");
-		KSE_CLEAR_WAIT(curkse);
-	}
-
 	/* If this is an upcall; take the scheduler lock. */
 	if (curkse->k_switch == 0)
 		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
@@ -1156,16 +1154,16 @@ thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 	struct kse *curkse;
-	int ret, err_save = curthread->error;
+	int ret, err_save = errno;
 
 	DBG_MSG(">>> sig wrapper\n");
 	if (curthread->lock_switch)
 		PANIC("thr_resume_wrapper, lock_switch != 0\n");
 	thr_resume_check(curthread, ucp, NULL);
+	errno = err_save;
 	_kse_critical_enter();
 	curkse = _get_curkse();
 	curthread->tcb->tcb_tmbx.tm_context = *ucp;
-	curthread->error = err_save;
 	ret = _thread_switch(curkse->k_kcb, curthread->tcb, 1);
 	if (ret != 0)
 		PANIC("thr_resume_wrapper: thread has returned "
@@ -2290,11 +2288,7 @@ kse_reinit(struct kse *kse, int sys_scope)
 	kse->k_kseg = 0;
 	kse->k_schedq = 0;
 	kse->k_locklevel = 0;
-	SIGEMPTYSET(kse->k_sigmask);
-	bzero(&kse->k_sigq, sizeof(kse->k_sigq));
-	kse->k_check_sigq = 0;
 	kse->k_flags = 0;
-	kse->k_waiting = 0;
 	kse->k_idle = 0;
 	kse->k_error = 0;
 	kse->k_cpu = 0;
