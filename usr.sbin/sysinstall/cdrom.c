@@ -155,6 +155,8 @@ mediaInitCDROM(Device *dev)
 		if (strcmp(cp, "any") &&
 #ifdef __alpha__
 		  strcmp(cp, "alpha")) {
+#elif defined(__sparc64__)
+		  strcmp(cp, "sparc64")) {
 #else
 		  strcmp(cp, "x86")) {
 #endif
