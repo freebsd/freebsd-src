@@ -14,9 +14,9 @@
   and
   <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
   files from <ulink
-  url="ftp://ftp.freebsd.org/pub/FreeBSD">ftp://ftp.freebsd.org/pub/FreeBSD</ulink>
+  url="ftp://ftp.FreeBSD.org/pub/FreeBSD">ftp://ftp.FreeBSD.org/pub/FreeBSD</ulink>
   or one of the many mirrors listed at <ulink
-  url="http://www.freebsd.org/handbook/mirrors.html">http://www.freebsd.org/handbook/mirrors.html</ulink>.
+  url="http://www.FreeBSD.org/handbook/mirrors.html">http://www.FreeBSD.org/handbook/mirrors.html</ulink>.
   </para>
 
   <para>Get two blank, freshly formatted floppies and image copy
