@@ -724,6 +724,10 @@ Zone	Europe/Dublin	-0:25:21 -	LMT	1880 Aug  2
 			 1:00	-	BST	1971 Oct 31 3:00
 			 0:00	GB-Eire	%s
 
+# ZONE-DESCR Europe London United_Kingdom All points except N. Ireland
+# ZONE-DESCR Europe Belfast United_Kingdom Northern Ireland
+# ZONE-DESCR Europe Dublin Eire All points
+
 ###############################################################################
 
 # Continental Europe
@@ -831,12 +835,16 @@ Zone	Europe/Tirane	1:19:20 -	LMT	1914
 			1:00	Albania	MET%s	1985 Mar 31 1:00
 			1:00	W-Eur	MET%s
 
+# ZONE-DESCR Europe Tirane Albania All points
+
 # Andorra
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Andorra	0:06:04 -	LMT	1901
 			0:00	-	WET	1946 Sep 30
 			1:00	-	MET	1985 Mar 31 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Andorra Andorra All points
 
 # Austria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -857,6 +865,8 @@ Zone	Europe/Vienna	1:05:20 -	LMT	1893 Apr
 			1:00	Austria	MET%s	1981 Mar 29 2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Vienna Austria All points
+
 # Belarus
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Minsk	1:50:16 -	LMT	1880
@@ -868,6 +878,8 @@ Zone	Europe/Minsk	1:50:16 -	LMT	1880
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	-	EET	1992 Jan 19 2:00s
 			3:00	Russia	MS%s
+
+# ZONE-DESCR Europe Minsk Belarus All points
 
 # Belgium
 # Whitman and Shanks disagree; go with Shanks, usually.
@@ -917,6 +929,8 @@ Zone	Europe/Brussels	0:17:20 -	LMT	1880
 			1:00	Belgium	MET%s	1977 Apr  3  2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Brussels Belgium All points
+
 # Bosnia and Herzegovina
 # They switched from the Julian to the Gregorian calendar on 1918 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -926,6 +940,8 @@ Zone	Europe/Sarajevo	1:13:40	-	LMT	1884
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983 Mar 27  2:00s
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Sarajevo Bosnia_and_Herzegovina All points
 
 # Bulgaria
 # Part switched from the Julian to the Gregorian calendar on 1915 Nov 14;
@@ -945,6 +961,8 @@ Zone	Europe/Sofia	1:33:16 -	LMT	1880
 			2:00	Bulg	EET%s	1982 Sep 26  2:00
 			2:00	M-Eur	EET%s
 
+# ZONE-DESCR Europe Sofia Bulgaria All points
+
 # Croatia
 # They switched from the Julian to the Gregorian calendar on 1918 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -954,6 +972,8 @@ Zone	Europe/Zagreb	1:03:52	-	LMT	1884
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983 Mar 27  2:00s
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Zagreb Croatia All points
 
 # Czech Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -971,6 +991,8 @@ Zone	Europe/Prague	0:57:44 -	LMT	1850
 			1:00	M-Eur	MET%s	1944 Sep 17 2:00s
 			1:00	Czech	MET%s	1979 Apr  1 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Prague Czech_Republic All points
 
 # Denmark
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1009,6 +1031,13 @@ Zone America/Godthab	-3:26:56 -	LMT	1916 Jul 28
 Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28
 			-4:00	-	AST
 
+# ZONE-DESCR Europe Copenhagen Denmark All points except:
+# ZONE-DESCR Atlantic Faeroe Denmark Faeroe Islands
+
+# ZONE-DESCR America Scoresbysund Denmark Eastern Greenland
+# ZONE-DESCR America Godthab Denmark Western Greenland
+# ZONE-DESCR America Thule Denmark Far Western Greenland (Thule)
+
 # Estonia
 # They switched from the Julian to the Gregorian calendar on 1918 Feb 15.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1023,6 +1052,8 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			2:00	1:00  "EET DST"	1989 Sep 24 2:00s
 			2:00	M-Eur	EET%s
 
+# ZONE-DESCR Europe Tallinn Estonia All points
+
 # Finland
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Finland	1921	only	-	May	1	0:00	0	-
@@ -1035,6 +1066,8 @@ Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 #			2:00	M-Eur	EET%s
 # Finland uses E-Eur not M-Eur rules, according to Hannu Strang.
 			2:00	E-Eur	EET%s
+
+# ZONE-DESCR Europe Helsinki Finland All points
 
 # France
 # Shanks seems to use `24:00' ambiguously; we resolve it with Whitman.
@@ -1100,6 +1133,8 @@ Zone	Europe/Paris	0:09:05 -	LMT	1891 Mar 15 0:01
 			1:00	France	MET%s	1977 Apr Sun>=1 2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Paris France All points
+
 # Germany
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Germany	1945	only	-	Apr	 2	2:00s	1:00	" DST"
@@ -1120,12 +1155,16 @@ Zone	Europe/Berlin	0:53:28 -	LMT	1893 Apr
 			1:00	Germany	MET%s	1980 Apr 6 2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Berlin Germany All points
+
 # Gibraltar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Europe/Gibraltar	-0:21:24 -	LMT	1880 Aug  2
 			0:00	GB-Eire	%s	1957 Apr 14 2:00
 			1:00	-	MET	1982 Mar 28 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Gibraltar United_Kingdom Gibraltar
 
 # Greece
 # They adopted the Julian calendar in 1846.
@@ -1164,6 +1203,8 @@ Zone	Europe/Athens	1:34:52 -	LMT	1895 Sep 14
 			2:00	Greece	EET%s	1981 Mar 29 2:00
 			2:00	M-Eur	EET%s
 
+# ZONE-DESCR Europe Athens Greece All points
+
 # Hungary
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Hungary	1918	only	-	Sep	29	 2:00s	0	-
@@ -1192,6 +1233,8 @@ Zone	Europe/Budapest	1:16:20 -	LMT	1890 Oct
 			1:00	M-Eur	MET%s	1945 May  1 23:00
 			1:00	Hungary	MET%s	1980 Sep 28  2:00s
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Budapest Hungary All points
 
 # Iceland
 #
@@ -1256,6 +1299,8 @@ Zone Atlantic/Reykjavik	-1:27:24 -	LMT	1837
 			-1:00	Iceland	I%sT	1968 Apr 7 1:00s
 			 0:00	-	GMT
 
+# ZONE-DESCR Atlantic Reykjavik Iceland All points
+
 # Italy
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Italy	1893	only	-	Nov	 1	0:00s	0	S
@@ -1305,6 +1350,10 @@ Zone	Europe/Rome	0:49:56 -	LMT	1866 Sep 22
 			1:00	M-Eur	MET%s
 # Vatican is identical to Europe/Rome; San Marino is like Europe/Rome.
 
+# ZONE-DESCR Europe Rome Italy All points
+# ZONE-DESCR Europe Rome Vatican_City All points
+# ZONE-DESCR Europe Rome San_Marino All points
+
 # Latvia
 # They switched from the Julian to the Gregorian calendar on 1918 Feb 15.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1320,11 +1369,15 @@ Zone	Europe/Riga	1:36:24	-	LMT	1880
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
 
+# ZONE-DESCR Europe Riga Latvia All points
+
 # Liechtenstein
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
 			1:00	-	MET	1981 Mar 29 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Vaduz Liechtenstein All points
 
 # Lithuania
 # They switched from the Julian to the Gregorian calendar on 1918 Feb 15.
@@ -1340,6 +1393,8 @@ Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			3:00	Russia	MS%s	1991 Mar 31 2:00s
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
+
+# ZONE-DESCR Europe Vilnius Lithuania All points
 
 # Luxembourg
 # Whitman disagrees with most of these dates in minor ways; go with Shanks.
@@ -1377,6 +1432,8 @@ Zone Europe/Luxembourg	0:24:36 -	LMT	1904 Jun
 			1:00	Belgium	MET%s	1979 Apr  1 2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Luxembourg Luxembourg All points
+
 # Macedonia
 # They switched from the Julian to the Gregorian calendar on 1918 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1386,6 +1443,8 @@ Zone	Europe/Skopje	1:25:44	-	LMT	1884
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983 Mar 27  2:00s
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Skopje F_Y_R_O_Macedonia All points
 
 # Malta
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1404,6 +1463,8 @@ Zone	Europe/Malta	0:58:04 -	LMT	1893 Nov  2	# Valletta
 			1:00	Malta	MET%s	1981 Mar 29 2:00s
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Malta Malta All points
+
 # Moldova
 # They switched from the Julian to the Gregorian calendar on 1919 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1413,6 +1474,8 @@ Zone	Europe/Chisinau	1:55:20 -	LMT	1924 May  2
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
 
+# ZONE-DESCR Europe Chisinau Moldova All points
+
 # Monaco
 # Shanks gives 0:09 for Paris Mean Time; go with Whitman's more precise 0:09:05.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1421,6 +1484,8 @@ Zone	Europe/Monaco	0:29:32 -	LMT	1891 Mar 15
 			0:00	France	WET%s	1945 Sep 16 3:00
 			1:00	France	MET%s	1977 Apr Sun>=1 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Monaco Monaco All points
 
 # Netherlands
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1458,6 +1523,8 @@ Zone Europe/Amsterdam	0:19:28 -	LMT	1892 May
 			1:00	Neth	MET%s	1977 Apr Sun>=1 2:00
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Amsterdam Netherlands All points
+
 # Norway
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Norway	1892	only	-	May	 1	0:00	0	-
@@ -1484,6 +1551,9 @@ Zone	Europe/Oslo	0:43:00 -	LMT	1895
 # From Whitman:
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Jan_Mayen	-1:00	-	EGT
+
+# ZONE-DESCR Europe Oslo Norway All points except:
+# ZONE-DESCR Atlantic Jan_Mayen Norway Jan Mayen Island
 
 # Poland
 # Austrian and German Poland switched from the Julian to the Gregorian calendar
@@ -1519,6 +1589,8 @@ Zone	Europe/Warsaw	1:24:00 -	LMT	1880
 			1:00	M-Eur	MET%s	1944 Oct
 			1:00	Poland	MET%s	1977 Apr  3 1:00
 			1:00	W-Eur	MET%s
+
+# ZONE-DESCR Europe Warsaw Poland All points
 
 # Portugal
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1610,8 +1682,14 @@ Zone Atlantic/Madeira	-1:07:36 -	LMT	1884		# Funchal
 			 0:00	Port	WET%s	1983 Sep 25 1:00s
 			 0:00	W-Eur	WET%s
 
+# ZONE-DESCR Europe Lisbon Portugal All points except:
+# ZONE-DESCR Atlantic Azores Portugal Azores
+# ZONE-DESCR Atlantic Madeira Portugal Madeira
+
 # Slovakia
 Link Europe/Prague Europe/Bratislava
+
+# ZONE-DESCR Europe Bratislava Slovakia All points
 
 # Romania
 # Catholic Romania switched from the Julian to the Gregorian calendar on
@@ -1630,6 +1708,8 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 			1:44	-	BMT	1931 Jul 24	# Bucharest MT
 			2:00	Romania	EET%s	1981 Mar 29 2:00s
 			2:00	M-Eur	EET%s
+
+# ZONE-DESCR Europe Bucharest Romania All points
 
 # Russia
 # From Paul Eggert <eggert@twinsun.com> (May 28, 1994):
@@ -1653,24 +1733,28 @@ Zone Europe/Moscow	 2:30:20 -	LMT	1880
 			 2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			 2:00	-	EET	1992 Jan 19 2:00s
 			 3:00	Russia	MS%s
+# ZONE-DESCR Europe Moscow Russia Moscow zone
 Zone Europe/Kuybyshev	 3:20:36 -	LMT	1924 May  2
 			 3:00	-	KSK	1957 Mar
 			 4:00	Russia	KS%s	1991 Mar 31 2:00s
 			 3:00	1:00	KSD	1991 Sep 29 2:00s
 			 3:00	-	KSK	1992 Jan 19 2:00s
 			 4:00	Russia	KS%s
+# ZONE-DESCR Europe Kuybyshev Russia Kuybyshev zone
 Zone Asia/Yekaterinburg	 4:02:34 -	LMT	1924 May  2
 			 4:00	-	SSK	1957 Mar
 			 5:00	Russia	SS%s	1991 Mar 31 2:00s
 			 4:00	1:00	SSD	1991 Sep 29 2:00s
 			 4:00	-	SSK	1992 Jan 19 2:00s
 			 5:00	Russia	ES%s	# name change from Sverdlovsk
+# ZONE-DESCR Asia Yekaterinburg Russia Yekaterinburg zone
 Zone Asia/Omsk		 4:53:36 -	LMT	1924 May  2
 			 5:00	-	OSK	1957 Mar
 			 6:00	Russia	OS%s	1991 Mar 31 2:00s
 			 5:00	1:00	OSD	1991 Sep 29 2:00s
 			 5:00	-	OSK	1992 Jan 19 2:00s
 			 6:00	Russia	OS%s
+# ZONE-DESCR Asia Omsk Russia Omsk zone
 # From Stanislaw A. Kuzikowski <S.A.Kuz@iae.nsk.su> (June 29, 1994):
 # But now it is some months since Novosibirsk is 3 hours ahead of Moscow!
 # I do not know why they have decided to make this change;
@@ -1685,12 +1769,14 @@ Zone Asia/Novosibirsk	 5:31:40 -	LMT	1924 May  2
 			 7:00	Russia	NS%s	1994 Mar 27 2:00s
 			 6:00	1:00	NSD	1994 Sep 25 2:00s
 			 6:00	Russia	NS%s
+# ZONE-DESCR Asia Novosibirsk Russia Novosibirsk zone
 Zone Asia/Tomsk		 5:39:52 -	LMT	1924 May  2
 			 6:00	-	TSK	1957 Mar
 			 7:00	Russia	TS%s	1991 Mar 31 2:00s
 			 6:00	1:00	TSD	1991 Sep 29 2:00s
 			 6:00	-	TSK	1992 Jan 19 2:00s
 			 7:00	Russia	TS%s
+# ZONE-DESCR Asia Tomsk Russia Tomsk zone
 Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
 			 6:57	-	LST	1924 May  2
 			 7:00	-	ISK	1957 Mar
@@ -1698,12 +1784,14 @@ Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
 			 7:00	1:00	ISD	1991 Sep 29 2:00s
 			 7:00	-	ISK	1992 Jan 19 2:00s
 			 8:00	Russia	IS%s
+# ZONE-DESCR Asia Irkutsk Russia Irkutsk zone
 Zone Asia/Yakutsk	 8:38:40 -	LMT	1924 May  2
 			 8:00	-	YSK	1957 Mar
 			 9:00	Russia	YS%s	1991 Mar 31 2:00s
 			 8:00	1:00	YSD	1991 Sep 29 2:00s
 			 8:00	-	YSK	1992 Jan 19 2:00s
 			 9:00	Russia	YS%s
+# ZONE-DESCR Asia Yakutsk Russia Yakutsk zone
 Zone Asia/Vladivostok	 8:47:44 -	LMT	1880
 			 8:48	-	LST	1924 May  2
 			 9:00	-	VSK	1957 Mar
@@ -1711,6 +1799,7 @@ Zone Asia/Vladivostok	 8:47:44 -	LMT	1880
 			 9:00	1:00	VSD	1991 Sep 29 2:00s
 			 9:00	-	VSK	1992 Jan 19 2:00s
 			10:00	Russia	VS%s
+# ZONE-DESCR Asia Vladivostok Russia Vladivostok zone
 # MSK is taken; settle for GSK.
 Zone Asia/Magadan	10:03:12 -	LMT	1924 May  2
 			10:00	-	GSK	1957 Mar
@@ -1718,6 +1807,7 @@ Zone Asia/Magadan	10:03:12 -	LMT	1924 May  2
 			10:00	1:00	GSD	1991 Sep 29 2:00s
 			10:00	-	GSK	1992 Jan 19 2:00s
 			11:00	Russia	GS%s
+# ZONE-DESCR Asia Magadan Russia Magadan zone
 # This name should be Asia/Petropavlovsk-Kamchatski, but that's too long.
 Zone Asia/Kamchatka	10:34:36 -	LMT	1924 May  2
 			11:00	-	PSK	1957 Mar
@@ -1725,6 +1815,7 @@ Zone Asia/Kamchatka	10:34:36 -	LMT	1924 May  2
 			11:00	1:00	PSD	1991 Sep 29 2:00s
 			11:00	-	PSK	1992 Jan 19 2:00s
 			12:00	Russia	PS%s
+# ZONE-DESCR Asia Kamchatka Russia Kamchatka zone
 Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
 			12:00	-	ASK	1957 Mar
 			13:00	Russia	AS%s	1991 Mar 31 2:00s
@@ -1732,6 +1823,7 @@ Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
 			12:00	-	ASK	1992 Jan 19 2:00s
 			13:00	Russia	AS%s
 
+# ZONE-DESCR Asia Anadyr Russia Anadyr zone
 # Serbia
 # They switched from the Julian to the Gregorian calendar on 1918 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1742,6 +1834,8 @@ Zone	Europe/Belgrade	1:22:00	-	LMT	1884
 			1:00	-	MET	1983 Mar 27  2:00s
 			1:00	M-Eur	MET%s
 
+# ZONE-DESCR Europe Belgrade Serbia All points
+
 # Slovenia
 # They switched from the Julian to the Gregorian calendar on 1918 Mar 18.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1751,6 +1845,8 @@ Zone Europe/Ljubljana	0:58:04	-	LMT	1884
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983 Mar 27  2:00s
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Ljubljana Slovenia All points
 
 # Spain
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1802,6 +1898,9 @@ Zone	Atlantic/Canary	-1:01:36 -	LMT	1922 Mar # Las Palmas de Gran C.
 			 0:00	1:00  "WET DST"	1980 Sep 28 0:00s
 			 0:00	W-Eur	WET%s
 
+# ZONE-DESCR Europe Madrid Spain All points except:
+# ZONE-DESCR Atlantic Canary Spain Canary Islands
+
 # Sweden
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Europe/Stockholm	1:12:12 -	LMT	1878 May 31
@@ -1810,6 +1909,8 @@ Zone Europe/Stockholm	1:12:12 -	LMT	1878 May 31
 			1:00	1:00  "MET DST"	1916 Sep 30 23:00s
 			1:00	-	MET	1980 Apr  6  2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Stockholm Sweden All points
 
 # Switzerland
 # From Howse (1988), p 82:
@@ -1829,6 +1930,8 @@ Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 			0:30	-	SST	1894 Jun   # Swiss Standard Time
 			1:00	Swiss	MET%s	1981 Mar 29 2:00
 			1:00	M-Eur	MET%s
+
+# ZONE-DESCR Europe Zurich Switzerland All points
 
 # Turkey
 # European Turkey switched to the Gregorian calendar in 1908.
@@ -1896,6 +1999,8 @@ Zone	Europe/Istanbul	1:55:52 -	LMT	1880
 			2:00	M-Eur	EET%s
 Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 
+# ZONE-DESCR Europe Istanbul Turkey All points
+
 # Ukraine
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Ukraine	1919	only	-	Jul	 1	 2:00	1:00	" DST"
@@ -1923,6 +2028,9 @@ Zone Europe/Simferopol	2:16:24 -	LMT	1880
 # For now, we'll guess that there was a 2-hour leap forward on March 27.
 			2:00	M-Eur	EET%s	1994 Mar 27 2:00s
 			3:00	Russia	MS%s
+
+# ZONE-DESCR Europe Kiev Ukraine All points except:
+# ZONE-DESCR Europe Simferopol Ukraine Crimea
 
 ###############################################################################
 
