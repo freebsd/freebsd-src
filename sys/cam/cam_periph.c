@@ -491,7 +491,7 @@ cam_periph_unlock(struct cam_periph *periph)
 int
 cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 {
-	int numbufs, i;
+	int numbufs, i, j;
 	int flags[CAM_PERIPH_MAXMAPS];
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
@@ -618,7 +618,20 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS;
 
 		/* map the buffer into kernel memory */
-		vmapbuf(mapinfo->bp[i]);
+		if (vmapbuf(mapinfo->bp[i]) < 0) {
+			printf("cam_periph_mapmem: error, "
+				"address %p, length %lu isn't "
+				"user accessible any more\n",
+				(void *)*data_ptrs[i],
+				(u_long)lengths[i]);
+			for (j = 0; j < i; ++j) {
+				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
+				mapinfo->bp[j]->b_flags &= ~B_PHYS;
+				relpbuf(mapinfo->bp[j], NULL);
+			}
+			PRELE(curproc);
+			return(EACCES);
+		}
 
 		/* set our pointer to the new mapped area */
 		*data_ptrs[i] = mapinfo->bp[i]->b_data;
