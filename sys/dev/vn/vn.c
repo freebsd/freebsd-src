@@ -144,7 +144,7 @@ static SLIST_HEAD(, vn_softc) vn_list;
 #define VNF_INITED	0x01
 #define	VNF_READONLY	0x02
 
-static u_long	vn_options = VN_LABELS;
+static u_long	vn_options;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 #define TESTOPT(vn,opt) (((vn)->sc_options|vn_options) & (opt))
@@ -160,9 +160,8 @@ vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
 	struct vn_softc *vn = dev->si_drv1;
 
-	IFOPT(vn, VN_LABELS)
-		if (vn->sc_slices != NULL)
-			dsclose(dev, mode, vn->sc_slices);
+	if (vn->sc_slices != NULL)
+		dsclose(dev, mode, vn->sc_slices);
 	return (0);
 }
 
@@ -233,27 +232,25 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	 * Initialize label
 	 */
 
-	IFOPT(vn, VN_LABELS) {
-		if (vn->sc_flags & VNF_INITED) {
-			struct disklabel label;
+	if (vn->sc_flags & VNF_INITED) {
+		struct disklabel label;
 
-			/* Build label for whole disk. */
-			bzero(&label, sizeof label);
-			label.d_secsize = vn->sc_secsize;
-			label.d_nsectors = 32;
-			label.d_ntracks = 64 / (vn->sc_secsize / DEV_BSIZE);
-			label.d_secpercyl = label.d_nsectors * label.d_ntracks;
-			label.d_ncylinders = vn->sc_size / label.d_secpercyl;
-			label.d_secperunit = vn->sc_size;
-			label.d_partitions[RAW_PART].p_size = vn->sc_size;
+		/* Build label for whole disk. */
+		bzero(&label, sizeof label);
+		label.d_secsize = vn->sc_secsize;
+		label.d_nsectors = 32;
+		label.d_ntracks = 64 / (vn->sc_secsize / DEV_BSIZE);
+		label.d_secpercyl = label.d_nsectors * label.d_ntracks;
+		label.d_ncylinders = vn->sc_size / label.d_secpercyl;
+		label.d_secperunit = vn->sc_size;
+		label.d_partitions[RAW_PART].p_size = vn->sc_size;
 
-			return (dsopen(dev, mode, 0, &vn->sc_slices, &label));
-		}
-		if (dkslice(dev) != WHOLE_DISK_SLICE ||
-		    dkpart(dev) != RAW_PART ||
-		    mode != S_IFCHR) {
-			return (ENXIO);
-		}
+		return (dsopen(dev, mode, 0, &vn->sc_slices, &label));
+	}
+	if (dkslice(dev) != WHOLE_DISK_SLICE ||
+	    dkpart(dev) != RAW_PART ||
+	    mode != S_IFCHR) {
+		return (ENXIO);
 	}
 	return(0);
 }
@@ -293,54 +290,11 @@ vnstrategy(struct bio *bp)
 
 	bp->bio_resid = bp->bio_bcount;
 
-	IFOPT(vn, VN_LABELS) {
-		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			biodone(bp);
-			return;
-		}
-	} else {
-		int pbn;	/* in sc_secsize chunks */
-		long sz;	/* in sc_secsize chunks */
-
-		/*
-		 * Check for required alignment.  Transfers must be a valid
-		 * multiple of the sector size.
-		 */
-		if (bp->bio_bcount % vn->sc_secsize != 0 ||
-		    bp->bio_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
-			bp->bio_error = EINVAL;
-			bp->bio_flags |= BIO_ERROR;
-			biodone(bp);
-			return;
-		}
-
-		pbn = bp->bio_blkno / (vn->sc_secsize / DEV_BSIZE);
-		sz = howmany(bp->bio_bcount, vn->sc_secsize);
-
-		/*
-		 * If out of bounds return an error.  If at the EOF point,
-		 * simply read or write less.
-		 */
-		if (pbn < 0 || pbn >= vn->sc_size) {
-			if (pbn != vn->sc_size) {
-				bp->bio_error = EINVAL;
-				/* XXX bp->b_flags |= B_INVAL; */
-				bp->bio_flags |= BIO_ERROR;
-			}
-			biodone(bp);
-			return;
-		}
-
-		/*
-		 * If the request crosses EOF, truncate the request.
-		 */
-		if (pbn + sz > vn->sc_size) {
-			bp->bio_bcount = (vn->sc_size - pbn) * vn->sc_secsize;
-			bp->bio_resid = bp->bio_bcount;
-		}
-		bp->bio_pblkno = pbn;
+	if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
+		biodone(bp);
+		return;
 	}
 
 	if (vn->sc_vp && (bp->bio_cmd == BIO_DELETE)) {
@@ -443,16 +397,14 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		goto vn_specific;
 	}
 
-	IFOPT(vn,VN_LABELS) {
-		if (vn->sc_slices != NULL) {
-			error = dsioctl(dev, cmd, data, flag, &vn->sc_slices);
-			if (error != ENOIOCTL)
-				return (error);
-		}
-		if (dkslice(dev) != WHOLE_DISK_SLICE ||
-		    dkpart(dev) != RAW_PART)
-			return (ENOTTY);
+	if (vn->sc_slices != NULL) {
+		error = dsioctl(dev, cmd, data, flag, &vn->sc_slices);
+		if (error != ENOIOCTL)
+			return (error);
 	}
+	if (dkslice(dev) != WHOLE_DISK_SLICE ||
+	    dkpart(dev) != RAW_PART)
+		return (ENOTTY);
 
     vn_specific:
 
@@ -575,18 +527,16 @@ vniocattach_file(vn, vio, dev, flag, p)
 	vn->sc_flags |= VNF_INITED;
 	if (flags == FREAD)
 		vn->sc_flags |= VNF_READONLY;
-	IFOPT(vn, VN_LABELS) {
-		/*
-		 * Reopen so that `ds' knows which devices are open.
-		 * If this is the first VNIOCSET, then we've
-		 * guaranteed that the device is the cdev and that
-		 * no other slices or labels are open.  Otherwise,
-		 * we rely on VNIOCCLR not being abused.
-		 */
-		error = vnopen(dev, flag, S_IFCHR, p);
-		if (error)
-			vnclear(vn);
-	}
+	/*
+	 * Reopen so that `ds' knows which devices are open.
+	 * If this is the first VNIOCSET, then we've
+	 * guaranteed that the device is the cdev and that
+	 * no other slices or labels are open.  Otherwise,
+	 * we rely on VNIOCCLR not being abused.
+	 */
+	error = vnopen(dev, flag, S_IFCHR, p);
+	if (error)
+		vnclear(vn);
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnioctl: SET vp %p size %x blks\n",
 		       vn->sc_vp, vn->sc_size);
@@ -643,16 +593,14 @@ vniocattach_swap(vn, vio, dev, flag, p)
 
 	error = vnsetcred(vn, p->p_ucred);
 	if (error == 0) {
-		IFOPT(vn, VN_LABELS) {
-			/*
-			 * Reopen so that `ds' knows which devices are open.
-			 * If this is the first VNIOCSET, then we've
-			 * guaranteed that the device is the cdev and that
-			 * no other slices or labels are open.  Otherwise,
-			 * we rely on VNIOCCLR not being abused.
-			 */
-			error = vnopen(dev, flag, S_IFCHR, p);
-		}
+		/*
+		 * Reopen so that `ds' knows which devices are open.
+		 * If this is the first VNIOCSET, then we've
+		 * guaranteed that the device is the cdev and that
+		 * no other slices or labels are open.  Otherwise,
+		 * we rely on VNIOCCLR not being abused.
+		 */
+		error = vnopen(dev, flag, S_IFCHR, p);
 	}
 	if (error == 0) {
 		IFOPT(vn, VN_FOLLOW) {

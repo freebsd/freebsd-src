@@ -104,8 +104,6 @@ Reset
 .Ar flag .
 The list of allowed flags and their meanings are:
 .Bl -tag -width "follow"
-.It Ar labels 
-use disk/slice labels.
 .It Ar reserve 
 Pre-reserve the blocks underlying the file or swap backing store.  Currently only
 works for swap backing store.  This option also disables on-the-fly freeing of 
@@ -226,7 +224,7 @@ Unmounts (disables)
 Configures and enables all devices specified in
 .Pa /etc/vntab .
 .Pp
-.Dl vnconfig -s labels -c vn0 somebackingfile
+.Dl vnconfig -c vn0 somebackingfile
 .Dl disklabel -r -w vn0 auto
 .Dl disklabel -e vn0
 .Pp
@@ -239,7 +237,7 @@ and using the VN configuration already stored in the file rather then
 relabeling and recreating the filesystem.  It is even possible to fsck the
 VN partitions that previously contained filesystems.
 .Pp
-.Dl vnconfig -e -s labels,reserve -S 400m vn1
+.Dl vnconfig -e -s reserve -S 400m vn1
 .Dl disklabel -r -w vn1 auto
 .Dl newfs /dev/vn1c
 .Dl mount /dev/vn1c /usr/obj
