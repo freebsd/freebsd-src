@@ -41,7 +41,7 @@
 #	da*	SCSI Direct Access Devices
 #	fd*	floppy disk drives (3 1/2", 5 1/4")
 #	fla*	M-Systems DiskOnChip
-#	ida*	Compaq Smart-2 RAID
+#	idad*	Compaq Smart-2 RAID arrays
 #	matcd*	Matsushita (Panasonic) CD-ROM disks
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
@@ -360,7 +360,7 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; chr=116;;
@@ -368,7 +368,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 	amrd*s*) name=amrd; chr=133;;
 	da*s*) name=da;  chr=13;;
 	fla*s*) name=fla; chr=102;;
-	ida*s*) name=ida; chr=109;;
+	idad*s*) name=idad; chr=109;;
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
 	vn*s*) name=vn; chr=43;;
@@ -376,12 +376,12 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*s*|mlxd*s*)
+	amrd*s*|mlxd*s*|idad*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
 		;;
-	afd*s*|fla*s*|ida*s*|wfd*s*)
+	afd*s*|fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -551,7 +551,7 @@ fd*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|vn*|wd*|wfd*)
+ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; chr=116;;
@@ -559,7 +559,7 @@ ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|vn*|wd*|wfd*)
 	amrd*) name=amrd; chr=133;;
 	da*) name=da;  chr=13;;
 	fla*) name=fla; chr=102;;
-	ida*) name=ida; chr=109;;
+	idad*) name=idad; chr=109;;
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
 	vn*) name=vn; chr=43;;
@@ -567,10 +567,10 @@ ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|vn*|wd*|wfd*)
 	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*|mlxd*)
+	amrd*|mlxd*|idad*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
-	afd*|fla*|ida*|wfd*)
+	afd*|fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
