@@ -749,6 +749,13 @@ thread_suspend_check(int return_instead)
 		td->td_state = TDS_SUSPENDED;
 		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
 		PROC_UNLOCK(p);
+		if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
+			if (p->p_numthreads == p->p_suspcount) {
+				TAILQ_REMOVE(&p->p_suspended,
+				    p->p_singlethread, td_runq);
+				setrunqueue(p->p_singlethread);
+			}
+		}
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
