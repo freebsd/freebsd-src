@@ -72,7 +72,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 #ifdef KERBEROS
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include "bsd_locl.h"
 
