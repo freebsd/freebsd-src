@@ -1401,7 +1401,6 @@ netipx/ipx_ip.c		optional ipx
 netipx/ipx_outputfl.c	optional ipx
 netipx/ipx_pcb.c	optional ipx
 netipx/ipx_proto.c	optional ipx
-netipx/ipx_tun.c	optional ipx
 netipx/ipx_usrreq.c	optional ipx
 netipx/spx_debug.c	optional ipx
 netipx/spx_usrreq.c	optional ipx

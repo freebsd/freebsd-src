@@ -378,7 +378,6 @@ options 	IPSEC_DEBUG		#debug for IP security
 
 options 	IPX			#IPX/SPX communications protocols
 options 	IPXIP			#IPX in IP encapsulation (not available)
-options 	IPTUNNEL		#IP in IPX encapsulation (not available)
 
 #options 	NCP			#NetWare Core protocol
 

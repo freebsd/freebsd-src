@@ -404,13 +404,6 @@ ipx_ctloutput(so, sopt)
 			error = ipxip_route(so, sopt);
 			break;
 #endif /* IPXIP */
-#ifdef IPTUNNEL
-#if 0
-		case SO_IPXTUNNEL_ROUTE:
-			error = ipxtun_route(so, sopt);
-			break;
-#endif
-#endif
 		default:
 			error = EINVAL;
 		}
