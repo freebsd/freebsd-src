@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.92 1994/10/01 17:59:26 davidg Exp $
+#	$Id: LINT,v 1.93 1994/10/03 22:32:13 phk Exp $
 #
 
 machine		"i386"
@@ -64,6 +64,9 @@ options		MSDOSFS_DEBUG
 
 options		APM			#Advance Power Management support for laptops
 					#(Note: also need apm device)
+
+options		USE_RTC_CENTURY		#Use it, if you	are shure that your BIOS
+					#supports century byte
 
 # See /sys/i386/doc/sound.doc for information about EXCLUDE options for
 #  the sound drivers.
