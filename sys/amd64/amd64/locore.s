@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.123 1999/06/01 18:19:39 jlemon Exp $
+ *	$Id: locore.s,v 1.124 1999/06/18 14:32:13 bde Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -43,7 +43,6 @@
  *			and many others.
  */
 
-#include "apm.h"
 #include "opt_bootp.h"
 #include "opt_ddb.h"
 #include "opt_nfsroot.h"
@@ -306,9 +305,6 @@ NON_GPROF_ENTRY(btext)
 	cld
 	rep
 	stosb
-
-#if NAPM > 0
-#endif
 
 	call	create_pagetables
 
