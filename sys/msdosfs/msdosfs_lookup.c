@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.26 1998/09/13 15:40:31 dt Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.27 1998/12/07 21:58:35 archie Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -1040,21 +1040,22 @@ findwin95(dep)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct direntry *dentp;
-	int blsize;
+	int blsize, win95;
 	u_long cn;
 	daddr_t bn;
 	struct buf *bp;
 
+	win95 = 1;
 	/*
 	 * Read through the directory looking for Win'95 entries
 	 * Note: Error currently handled just as EOF			XXX
 	 */
 	for (cn = 0;; cn++) {
 		if (pcbmap(dep, cn, &bn, 0, &blsize))
-			return 0;
+			return (win95);
 		if (bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp)) {
 			brelse(bp);
-			return 0;
+			return (win95);
 		}
 		for (dentp = (struct direntry *)bp->b_data;
 		     (char *)dentp < bp->b_data + blsize;
@@ -1064,7 +1065,7 @@ findwin95(dep)
 				 * Last used entry and not found
 				 */
 				brelse(bp);
-				return 0;
+				return (win95);
 			}
 			if (dentp->deName[0] == SLOT_DELETED) {
 				/*
@@ -1077,6 +1078,7 @@ findwin95(dep)
 				brelse(bp);
 				return 1;
 			}
+			win95 = 0;
 		}
 		brelse(bp);
 	}
