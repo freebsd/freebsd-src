@@ -59,6 +59,9 @@
 #ifdef __v850__
 #include "va-v850.h"
 #else
+#if defined (_TMS320C4x) || defined (_TMS320C3x)
+#include <va-c4x.h>
+#else
 
 #ifdef __NeXT__
 
@@ -92,7 +95,9 @@
 
 #define va_alist  __builtin_va_alist
 /* The ... causes current_function_varargs to be set in cc1.  */
-#define va_dcl    int __builtin_va_alist; __va_ellipsis
+/* ??? We don't process attributes correctly in K&R argument context.  */
+typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
+#define va_dcl	__builtin_va_alist_t __builtin_va_alist; __va_ellipsis
 
 /* Define __gnuc_va_list, just as in gstdarg.h.  */
 
@@ -112,6 +117,9 @@ typedef void *__gnuc_va_list;
 #if defined(sysV68)
 #define __va_rounded_size(TYPE)  \
   (((sizeof (TYPE) + sizeof (short) - 1) / sizeof (short)) * sizeof (short))
+#elif defined(_AIX)
+#define __va_rounded_size(TYPE)  \
+  (((sizeof (TYPE) + sizeof (long) - 1) / sizeof (long)) * sizeof (long))
 #else
 #define __va_rounded_size(TYPE)  \
   (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
@@ -134,6 +142,7 @@ typedef void *__gnuc_va_list;
 /* Copy __gnuc_va_list into another variable of this type.  */
 #define __va_copy(dest, src) (dest) = (src)
 
+#endif /* not TMS320C3x or TMS320C4x */
 #endif /* not v850 */
 #endif /* not mn10200 */
 #endif /* not mn10300 */

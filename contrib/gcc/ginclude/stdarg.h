@@ -61,6 +61,9 @@
 #ifdef __v850__
 #include "va-v850.h"
 #else
+#if defined (_TMS320C4x) || defined (_TMS320C3x)
+#include <va-c4x.h>
+#else
 
 /* Define __gnuc_va_list.  */
 
@@ -83,6 +86,9 @@ typedef void *__gnuc_va_list;
 #if defined(sysV68)
 #define __va_rounded_size(TYPE)  \
   (((sizeof (TYPE) + sizeof (short) - 1) / sizeof (short)) * sizeof (short))
+#elif defined(_AIX)
+#define __va_rounded_size(TYPE)  \
+  (((sizeof (TYPE) + sizeof (long) - 1) / sizeof (long)) * sizeof (long))
 #else
 #define __va_rounded_size(TYPE)  \
   (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
@@ -117,6 +123,7 @@ void va_end (__gnuc_va_list);		/* Defined in libgcc.a */
 
 #endif /* _STDARG_H */
 
+#endif /* not TMS320C3x or TMS320C4x */
 #endif /* not v850 */
 #endif /* not mn10200 */
 #endif /* not mn10300 */
