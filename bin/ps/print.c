@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.2 1994/09/24 02:56:45 davidg Exp $
+ *	$Id: print.c,v 1.3 1994/10/02 08:19:12 davidg Exp $
  */
 
 #ifndef lint
@@ -40,7 +40,6 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/rtprio.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 
