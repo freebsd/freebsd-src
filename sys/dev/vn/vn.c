@@ -572,9 +572,8 @@ vnclear(struct vn_softc *vn)
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
-	IFOPT(vn, VN_LABELS)
-		if (vn->sc_slices != NULL)
-			dsgone(&vn->sc_slices);
+	if (vn->sc_slices != NULL)
+		dsgone(&vn->sc_slices);
 }
 
 size_t
