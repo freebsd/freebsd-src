@@ -297,11 +297,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 	}
 
-	if (error != 0 && cmd == DIOCGDVIRGIN) {
-		g_topology_lock();
-		gp = g_create_geomf("BSD", cp->provider, NULL);
-		g_topology_unlock();
-	}
 	PICKUP_GIANT();
 	g_waitidle();
 	if (error == ENOIOCTL) {
