@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.5 1997/02/22 12:49:09 peter Exp $
+#	$Id: Makefile,v 1.6 1997/07/15 14:49:23 yokota Exp $
 
 KMOD=	fade_saver_mod
 SRCS= 	fade_saver.c
 
 NOMAN=
-CFLAGS+= -I${.CURDIR}/.. -I${.CURDIR}/../../../sys
+CFLAGS+= -I${.CURDIR}/..
 
 .include <bsd.kmod.mk>
