@@ -40,10 +40,28 @@
 
 #include <isa/isavar.h>
 
+static devclass_t pmtimer_devclass;
+
 /* reject any PnP devices for now */
 static struct isa_pnp_id pmtimer_ids[] = {
 	{0}
 };
+
+static void
+pmtimer_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+
+	/*
+	 * Only add a child if one doesn't exist already.
+	 */
+	child = devclass_get_device(pmtimer_devclass, 0);
+	if (child == NULL) {
+		child = BUS_ADD_CHILD(parent, 0, "pmtimer", 0);
+		if (child == NULL)
+			panic("pmtimer_identify");
+	}
+}
 
 static int
 pmtimer_probe(device_t dev)
@@ -121,6 +139,7 @@ pmtimer_resume(device_t dev)
 
 static device_method_t pmtimer_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	pmtimer_identify),
 	DEVMETHOD(device_probe,		pmtimer_probe),
 	DEVMETHOD(device_attach,	bus_generic_attach),
 	DEVMETHOD(device_suspend,	pmtimer_suspend),
@@ -133,7 +152,5 @@ static driver_t pmtimer_driver = {
 	pmtimer_methods,
 	1,		/* no softc */
 };
-
-static devclass_t pmtimer_devclass;
 
 DRIVER_MODULE(pmtimer, isa, pmtimer_driver, pmtimer_devclass, 0, 0);
