@@ -54,7 +54,6 @@ static char sccsid[] = "@(#)vacation.c	8.2 (Berkeley) 1/26/94";
 #include <db.h>
 #include <time.h>
 #include <syslog.h>
-#include <tzfile.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -114,7 +113,7 @@ main(argc, argv)
 			break;
 		case 'r':
 			if (isdigit(*optarg)) {
-				interval = atol(optarg) * SECSPERDAY;
+				interval = atol(optarg) * 86400;
 				if (interval < 0)
 					usage();
 			}
@@ -319,7 +318,7 @@ recent()
 	key.data = VIT;
 	key.size = sizeof(VIT);
 	if ((db->get)(db, &key, &data, 0))
-		next = SECSPERDAY * DAYSPERWEEK;
+		next = 86400 * 7;
 	else
 		bcopy(data.data, &next, sizeof(next));
 

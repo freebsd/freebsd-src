@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)contents.c	8.3 (Berkeley) 4/2/94";
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #include "archive.h"

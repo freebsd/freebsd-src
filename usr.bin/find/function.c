@@ -53,7 +53,6 @@ static char sccsid[] = "@(#)function.c	8.6 (Berkeley) 4/1/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #include "find.h"
@@ -140,7 +139,7 @@ f_atime(plan, entry)
 	extern time_t now;
 
 	COMPARE((now - entry->fts_statp->st_atime +
-	    SECSPERDAY - 1) / SECSPERDAY, plan->t_data);
+	    86400 - 1) / 86400, plan->t_data);
 }
 
 PLAN *
@@ -170,7 +169,7 @@ f_ctime(plan, entry)
 	extern time_t now;
 
 	COMPARE((now - entry->fts_statp->st_ctime +
-	    SECSPERDAY - 1) / SECSPERDAY, plan->t_data);
+	    86400 - 1) / 86400, plan->t_data);
 }
 
 PLAN *
@@ -577,8 +576,8 @@ f_mtime(plan, entry)
 {
 	extern time_t now;
 
-	COMPARE((now - entry->fts_statp->st_mtime + SECSPERDAY - 1) /
-	    SECSPERDAY, plan->t_data);
+	COMPARE((now - entry->fts_statp->st_mtime + 86400 - 1) /
+	    86400, plan->t_data);
 }
 
 PLAN *

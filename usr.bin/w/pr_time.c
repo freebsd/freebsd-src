@@ -40,7 +40,6 @@ static char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 
 #include <stdio.h>
 #include <string.h>
-#include <tzfile.h>
 
 #include "extern.h"
 
@@ -64,11 +63,11 @@ pr_attime(started, now)
 	diff = *now - *started;
 
 	/* If more than a week, use day-month-year. */
-	if (diff > SECSPERDAY * DAYSPERWEEK)
+	if (diff > 86400 * 7)
 		(void)strcpy(fmt, "%d%b%y");
 
 	/* If not today, use day-hour-am/pm. */
-	else if (*now / SECSPERDAY != *started / SECSPERDAY) {
+	else if (*now / 86400 != *started / 86400) {
 		(void)strcpy(fmt, __CONCAT("%a%", "I%p"));
 	}
 
@@ -90,18 +89,18 @@ pr_idle(idle)
 	time_t idle;
 {
 	/* If idle more than 36 hours, print as a number of days. */
-	if (idle >= 36 * SECSPERHOUR)
-		(void)printf(" %ddays ", idle / SECSPERDAY);
+	if (idle >= 36 * 3600)
+		(void)printf(" %ddays ", idle / 86400);
 
 	/* If idle more than an hour, print as HH:MM. */
-	else if (idle >= SECSPERHOUR)
+	else if (idle >= 3600)
 		(void)printf(" %2d:%02d ",
-		    idle / SECSPERHOUR, (idle % SECSPERHOUR) / SECSPERMIN);
+		    idle / 3600, (idle % 3600) / 60);
 
-	else if (idle / SECSPERMIN == 0)
+	else if (idle / 60 == 0)
 		(void)printf("     - ");
 
 	/* Else print the minutes idle. */
 	else
-		(void)printf("    %2d ", idle / SECSPERMIN);
+		(void)printf("    %2d ", idle / 60);
 }

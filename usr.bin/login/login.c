@@ -64,7 +64,6 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #include <string.h>
 #include <syslog.h>
 #include <ttyent.h>
-#include <tzfile.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -366,7 +365,7 @@ main(argc, argv)
 			(void)printf("Sorry -- your password has expired.\n");
 			changepass=1;
 		} else if (pwd->pw_change - tp.tv_sec <
-		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
+		    2 * 7 * 86400 && !quietlog)
 			(void)printf("Warning: your password expires on %s",
 			    ctime(&pwd->pw_change));
 	if (pwd->pw_expire)
@@ -374,7 +373,7 @@ main(argc, argv)
 			(void)printf("Sorry -- your account has expired.\n");
 			sleepexit(1);
 		} else if (pwd->pw_expire - tp.tv_sec <
-		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
+		    2 * 7 * 86400 && !quietlog)
 			(void)printf("Warning: your account expires on %s",
 			    ctime(&pwd->pw_expire));
 

@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)sprint.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
-#include <tzfile.h>
 #include <db.h>
 #include <pwd.h>
 #include <errno.h>
@@ -117,6 +116,9 @@ sflag_print()
 			} else
 				(void)printf("    *  ");
 			p = ctime(&w->loginat);
+#define SECSPERDAY 86400
+#define DAYSPERWEEK 7
+#define DAYSPERNYEAR 365
 			if (now - w->loginat < SECSPERDAY * (DAYSPERWEEK - 1))
 				(void)printf("%.3s   ", p);
 			else
