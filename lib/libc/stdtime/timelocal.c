@@ -63,7 +63,7 @@ static const struct lc_time_T	_C_time_locale = {
 	** Using just numbers (as here) makes Quakers happier;
 	** it's also compatible with SVR4.
 	*/
-	"%m/%d/%y",
+	"%m/%d/%Y",
 
 	/*
 	** c_fmt (ctime-compatible)
