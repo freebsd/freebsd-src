@@ -34,7 +34,7 @@
  */
 
 #ifndef _STDLIB_H_
-#define _STDLIB_H_
+#define	_STDLIB_H_
 
 #include <machine/ansi.h>
 
@@ -44,7 +44,7 @@ typedef	_BSD_SIZE_T_	size_t;
 #endif
 
 #ifdef	_BSD_WCHAR_T_
-#ifndef _ANSI_SOURCE
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 typedef	_BSD_WCHAR_T_	rune_t;
 #endif
 typedef	_BSD_WCHAR_T_	wchar_t;
@@ -79,7 +79,7 @@ __BEGIN_DECLS
 __dead void
 	 abort __P((void)) __dead2;
 __pure int
-	 abs __P((int));
+	 abs __P((int)) __pure2;
 int	 atexit __P((void (*)(void)));
 double	 atof __P((const char *));
 int	 atoi __P((const char *));
@@ -88,15 +88,15 @@ void	*bsearch __P((const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *)));
 void	*calloc __P((size_t, size_t));
 __pure div_t
-	 div __P((int, int));
+	 div __P((int, int)) __pure2;
 __dead void
 	 exit __P((int)) __dead2;
 void	 free __P((void *));
 char	*getenv __P((const char *));
 __pure long
-	 labs __P((long));
+	 labs __P((long)) __pure2;
 __pure ldiv_t
-	 ldiv __P((long, long));
+	 ldiv __P((long, long)) __pure2;
 void	*malloc __P((size_t));
 void	 qsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
@@ -109,28 +109,26 @@ unsigned long
 	 strtoul __P((const char *, char **, int));
 int	 system __P((const char *));
 
-/* These are currently just stubs. */
 int	 mblen __P((const char *, size_t));
 size_t	 mbstowcs __P((wchar_t *, const char *, size_t));
 int	 wctomb __P((char *, wchar_t));
 int	 mbtowc __P((wchar_t *, const char *, size_t));
 size_t	 wcstombs __P((char *, const wchar_t *, size_t));
 
-#ifndef _ANSI_SOURCE
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 int	 putenv __P((const char *));
 int	 setenv __P((const char *, const char *, int));
-#endif
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-double		drand48	__P((void));
-double		erand48	__P((unsigned short[3]));
-long		lrand48	__P((void));
-long		nrand48	__P((unsigned short[3]));
-long		mrand48	__P((void));
-long		jrand48	__P((unsigned short[3]));
-void		srand48	__P((long));
-unsigned short *seed48	__P((unsigned short[3]));
-void		lcong48	__P((unsigned short[7]));
+double	 drand48 __P((void));
+double	 erand48 __P((unsigned short[3]));
+long	 jrand48 __P((unsigned short[3]));
+void	 lcong48 __P((unsigned short[7]));
+long	 lrand48 __P((void));
+long	 mrand48 __P((void));
+long	 nrand48 __P((unsigned short[3]));
+unsigned short
+	*seed48 __P((unsigned short[3]));
+void	 srand48 __P((long));
 
 void	*alloca __P((size_t));		/* built-in for gcc */
 					/* getcap(3) functions */
@@ -179,7 +177,7 @@ unsigned long long
 	 strtouq __P((const char *, char **, int));
 #endif
 void	 unsetenv __P((const char *));
-#endif
+#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 __END_DECLS
 
-#endif /* _STDLIB_H_ */
+#endif /* !_STDLIB_H_ */
