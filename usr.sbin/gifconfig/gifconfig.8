@@ -90,6 +90,13 @@ interfaces.
 Please note that it is very easy to create infinite routing loop,
 when you configure tunnel over same address family
 (e.g. IPv4-over-IPv4).
+.Pp
+gif
+interfaces are allocated at runtime using interface cloning.  This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command.
 .Sh EXAMPLES
 If you would like to configure IPv6 over IPv4
 (aka IPv6 in IPv4)
