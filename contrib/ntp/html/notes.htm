@@ -1244,18 +1244,21 @@ value of <TT>tick</TT>.
 
 <P>The <TT>tickadj</TT> program can reset several other kernel variables
 if asked. It can change the value of <TT>tick</TT> if asked. This is
-handy
-to compensate for kernel bugs which cause the clock to run with a very
-large frequency error, as with SunOS 4.1.1 systems. It can also be used
-to set the value of the kernel <TT>dosynctodr</TT> variable to zero.
-This
-variable controls whether to synchronize the system clock to the time-
-of-day
-clock, something you really don't want to be happen when <TT>ntpd</TT>
-is trying to keep it under control. In some systems, such as recent Sun
-Solaris kernels, the <TT>dosynctodr </TT>variable is the only one that
-can be changed by the <TT>tickadj </TT>program. In this and other modern
-kernels, it is not necessary to change the other variables in any case.
+handy to compensate for kernel bugs which cause the clock to run with a
+very large frequency error, as with SunOS 4.1.1 systems. It can also be
+used to set the value of the kernel <TT>dosynctodr</TT> variable to
+zero.  This variable controls whether to synchronize the system clock to
+the time-of-day clock, something you really don't want to be happen
+when <TT>ntpd</TT> is trying to keep it under control. In some systems,
+such as recent Sun Solaris kernels, the <TT>dosynctodr </TT>variable is
+the only one that can be changed by the <TT>tickadj </TT>program. In
+this and other modern kernels, it is not necessary to change the other
+variables in any case.
+
+<P>
+We have a report that says starting with Solaris 2.6 we should
+leave <I>dosynctodr</I> alone. 
+<A HREF="solaris-dosynctodr.html">Here is the report</A>. 
 
 <P>In order to maintain reasonable correctness bounds, as well as
 reasonably

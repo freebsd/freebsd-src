@@ -4,9 +4,9 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_COMPUTIME)
 /*
- * /src/NTP/ntp-4/libparse/clk_computime.c,v 4.5 1998/06/14 21:09:34 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/clk_computime.c,v 4.6 1999/11/28 09:13:49 kardel RELEASE_19991128_A
  *
- * clk_computime.c,v 4.5 1998/06/14 21:09:34 kardel RELEASE_19990228_A
+ * clk_computime.c,v 4.6 1999/11/28 09:13:49 kardel RELEASE_19991128_A
  * 
  * Supports Diem's Computime Radio Clock
  * 
@@ -171,6 +171,9 @@ int clk_computime_bs;
 
 /*
  * clk_computime.c,v
+ * Revision 4.6  1999/11/28 09:13:49  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.5  1998/06/14 21:09:34  kardel
  * Sun acc cleanup
  *

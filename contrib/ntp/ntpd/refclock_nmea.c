@@ -32,7 +32,11 @@
 /*
  * Definitions
  */
-#define	DEVICE		"/dev/gps%d"	/* name of radio device */
+#ifdef SYS_WINNT
+# define DEVICE "COM%d:" 	/* COM 1 - 3 supported */
+#else
+# define DEVICE	"/dev/gps%d"	/* name of radio device */
+#endif
 #define	SPEED232	B4800	/* uart speed (4800 bps) */
 #define	PRECISION	(-9)	/* precision assumed (about 2 ms) */
 #define	DCD_PRECISION	(-20)	/* precision assumed (about 1 us) */
@@ -98,6 +102,7 @@ nmea_start(
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
 	(void)sprintf(device, DEVICE, unit);
+
 	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
 	    return (0);
 

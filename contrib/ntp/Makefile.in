@@ -63,15 +63,18 @@ host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+AMDEP = @AMDEP@
 AMTAR = @AMTAR@
-AMTARFLAGS = @AMTARFLAGS@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DCFD = @DCFD@
+DEPDIR = @DEPDIR@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -93,6 +96,7 @@ RSAREF = @RSAREF@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = foreign dist-tarZ #distdir=$(PACKAGE)$(VERSION)
 #AUTOMAKE_OPTIONS = util/ansi2knr foreign dist-tarZ no-dependencies
@@ -141,7 +145,8 @@ CONFIG_CLEAN_FILES =
 DIST_SOURCES = 
 DIST_COMMON =  README ./stamp-h.in ChangeLog INSTALL Makefile.am \
 Makefile.in NEWS TODO acconfig.h aclocal.m4 config.guess config.h.in \
-config.sub configure configure.in install-sh missing mkinstalldirs
+config.sub configure configure.in depcomp install-sh missing \
+mkinstalldirs
 
 
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -150,9 +155,9 @@ GZIP_ENV = --best
 all: all-redirect
 .SUFFIXES:
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --foreign --include-deps Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --foreign Makefile
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
@@ -253,15 +258,17 @@ tags-recursive:
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -f$$here/ID $$unique $(LISP)
 
-TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) $(LISP)
+TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
 	list='$(SUBDIRS)'; for subdir in $$list; do \
@@ -269,12 +276,14 @@ TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) $(LI
 	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
    fi; \
 	done; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)config.h.in$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -288,50 +297,69 @@ maintainer-clean-tags:
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
 
+
 # This target untars the dist file and tries a VPATH configuration.  Then
 # it guarantees that the distribution is self-contained by making another
 # tarfile.
 distcheck: dist
-	-rm -rf $(distdir)
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 	GZIP=$(GZIP_ENV) gunzip -c $(distdir).tar.gz | $(AMTAR) xf -
+	chmod -R a-w $(distdir); chmod a+w $(distdir)
 	mkdir $(distdir)/=build
 	mkdir $(distdir)/=inst
-	dc_install_base=`cd $(distdir)/=inst && pwd`; \
-	cd $(distdir)/=build \
+	chmod a-w $(distdir)
+	dc_install_base=`CDPATH=: && cd $(distdir)/=inst && pwd` \
+	  && cd $(distdir)/=build \
 	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
 	  && $(MAKE) $(AM_MAKEFLAGS) \
 	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
 	  && $(MAKE) $(AM_MAKEFLAGS) check \
 	  && $(MAKE) $(AM_MAKEFLAGS) install \
 	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
-	  && $(MAKE) $(AM_MAKEFLAGS) dist
-	-rm -rf $(distdir)
+	  && $(MAKE) $(AM_MAKEFLAGS) uninstall \
+	  && test `find $$dc_install_base -type f -print | wc -l` -le 1 \
+	  && $(MAKE) $(AM_MAKEFLAGS) dist \
+	  && $(MAKE) $(AM_MAKEFLAGS) distclean \
+	  && rm -f $(distdir).tar.gz \
+	  && test `find . -type f -print | wc -l` -eq 0
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 	@banner="$(distdir).tar.gz is ready for distribution"; \
 	dashes=`echo "$$banner" | sed s/./=/g`; \
 	echo "$$dashes"; \
 	echo "$$banner"; \
 	echo "$$dashes"
 dist: distdir
-	-chmod -R a+r $(distdir)
-	$(AMTAR) ch$(AMTARFLAGS)f - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
-	-rm -rf $(distdir)
+	-find $(distdir) -type d ! -perm -777 -exec chmod a+rwx {} \; -o \
+	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -444 -exec $(SHELL) $(install_sh) -c -m a+r {} {} \; \
+	|| chmod -R a+r $(distdir)
+	$(AMTAR) chof - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 dist-tarZ: distdir
-	-chmod -R a+r $(distdir)
-	$(AMTAR) ch$(AMTARFLAGS)f - $(distdir) | compress -c > $(distdir).tar.Z
-	-rm -rf $(distdir)
+	-find $(distdir) -type d ! -perm -777 -exec chmod a+rwx {} \; -o \
+	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -444 -exec $(SHELL) $(install_sh) -c -m a+r {} {} \; \
+	|| chmod -R a+r $(distdir)
+	$(AMTAR) chof - $(distdir) | compress -c > $(distdir).tar.Z
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 dist-all: distdir
-	-chmod -R a+r $(distdir)
-	$(AMTAR) ch$(AMTARFLAGS)f - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
-	$(AMTAR) ch$(AMTARFLAGS)f - $(distdir) | compress -c > $(distdir).tar.Z
-	-rm -rf $(distdir)
+	-find $(distdir) -type d ! -perm -777 -exec chmod a+rwx {} \; -o \
+	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
+	  ! -type d ! -perm -444 -exec $(SHELL) $(install_sh) -c -m a+r {} {} \; \
+	|| chmod -R a+r $(distdir)
+	$(AMTAR) chof - $(distdir) | GZIP=$(GZIP_ENV) gzip -c > $(distdir).tar.gz
+	$(AMTAR) chof - $(distdir) | compress -c > $(distdir).tar.Z
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 distdir: $(DISTFILES)
-	-rm -rf $(distdir)
+	-chmod -R a+w $(distdir) > /dev/null 2>&1; rm -rf $(distdir)
 	mkdir $(distdir)
-	-chmod 777 $(distdir)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir); \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
@@ -343,7 +371,6 @@ distdir: $(DISTFILES)
 	    test -d $(distdir)/$$subdir \
 	    || mkdir $(distdir)/$$subdir \
 	    || exit 1; \
-	    chmod 777 $(distdir)/$$subdir; \
 	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(distdir) distdir=../$(distdir)/$$subdir distdir) \
 	      || exit 1; \
 	  fi; \
@@ -388,6 +415,7 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 mostlyclean-am:  mostlyclean-hdr mostlyclean-tags mostlyclean-generic
 

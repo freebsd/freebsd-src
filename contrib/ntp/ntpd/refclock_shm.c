@@ -264,7 +264,7 @@ shm_poll(
 		int ok=1;
 		switch (up->mode) {
 		    case 0: {
-			    tvr.tv_sec=up->receiveTimeStampSec-172800;
+			    tvr.tv_sec=up->receiveTimeStampSec;
 			    tvr.tv_usec=up->receiveTimeStampUSec;
 			    tvt.tv_sec=up->clockTimeStampSec;
 			    tvt.tv_usec=up->clockTimeStampUSec;
@@ -272,7 +272,7 @@ shm_poll(
 		    break;
 		    case 1: {
 			    int cnt=up->count;
-			    tvr.tv_sec=up->receiveTimeStampSec-172800;
+			    tvr.tv_sec=up->receiveTimeStampSec;
 			    tvr.tv_usec=up->receiveTimeStampUSec;
 			    tvt.tv_sec=up->clockTimeStampSec;
 			    tvt.tv_usec=up->clockTimeStampUSec;
@@ -282,17 +282,17 @@ shm_poll(
 		    default:
 			msyslog (LOG_ERR, "SHM: bad mode found in shared memory: %d",up->mode);
 		}
-		/*msyslog(LOG_NOTICE,"poll2a tvr.s %d tvr.u %d tvt.s %d tvt.u %d",tvr.tv_sec,tvr.tv_usec,tvt.tv_sec,tvt.tv_usec);*/
 		up->valid=0;
 		if (ok) {
 			TVTOTS(&tvr,&pp->lastrec);
 			/* pp->lasttime = current_time; */
 			pp->polls++;
 			t=gmtime (&tvt.tv_sec);
-			pp->day=t->tm_yday;/*+2; */
+			pp->day=t->tm_yday+1;
 			pp->hour=t->tm_hour;
 			pp->minute=t->tm_min;
 			pp->second=t->tm_sec;
+			pp->msec=0;
 			pp->usec=tvt.tv_usec;
 			peer->precision=up->precision;
 			pp->leap=up->leap;

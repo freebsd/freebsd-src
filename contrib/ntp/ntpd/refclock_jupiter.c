@@ -762,10 +762,11 @@ jupiter_process(register struct peer *peer)
 }
 
 /* Compare two l_fp's, used with qsort() */
-int
 #ifdef QSORT_USES_VOID_P
+int
 jupiter_cmpl_fp(register const void *p1, register const void *p2)
 #else
+int
 jupiter_cmpl_fp(register const l_fp *fp1, register const l_fp *fp2)
 #endif
 {
@@ -960,7 +961,7 @@ jupiter_pps(register struct peer *peer)
 /*
  * jupiter_debug - print debug messages
  */
-#if __STDC__
+#if defined(__STDC__)
 static void
 jupiter_debug(struct peer *peer, char *fmt, ...)
 #else
@@ -968,17 +969,17 @@ static void
 jupiter_debug(peer, fmt, va_alist)
 	struct peer *peer;
 	char *fmt;
-#endif
+#endif /* __STDC__ */
 {
 	va_list ap;
 
 	if (debug) {
 
-#if __STDC__
+#if defined(__STDC__)
 		va_start(ap, fmt);
 #else
 		va_start(ap);
-#endif
+#endif /* __STDC__ */
 		/*
 		 * Print debug message to stdout
 		 * In the future, we may want to get get more creative...

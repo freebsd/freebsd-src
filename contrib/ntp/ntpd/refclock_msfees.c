@@ -322,10 +322,6 @@ static int deltas[60];
 static l_fp acceptable_slop; /* = { 0, 1 << (FRACTION_PREC -2) }; */
 static l_fp onesec; /* = { 1, 0 }; */
 
-#ifdef	DEBUG
-static int debug;
-#endif
-
 #ifndef	DUMP_BUF_SIZE	/* Size of buffer to be used by dump_buf */
 #define	DUMP_BUF_SIZE	10112
 #endif
@@ -354,8 +350,13 @@ static	void	msfees_init	P((void));
 static	void	dump_buf	P((l_fp *coffs, int from, int to, char *text));
 static	void	ees_report_event P((struct eesunit *ees, int code));
 static	void	ees_receive	P((struct recvbuf *rbufp));
-static	int	offcompare	P((l_fp *a, l_fp *b));
 static	void	ees_process	P((struct eesunit *ees));
+#ifdef QSORT_USES_VOID_P
+static	int	offcompare	P((const void *va, const void *vb));
+#else
+static	int	offcompare	P((const l_fp *a, const l_fp *b));
+#endif /* QSORT_USES_VOID_P */
+
 
 /*
  * Transfer vector
@@ -1221,14 +1222,27 @@ ees_receive(
 
 /* offcompare - auxiliary comparison routine for offset sort */
 
+#ifdef QSORT_USES_VOID_P
 static int
 offcompare(
-	l_fp *a,
-	l_fp *b
+	const void *va,
+	const void *vb
+	)
+{
+	const l_fp *a = (const l_fp *)va;
+	const l_fp *b = (const l_fp *)vb;
+	return(L_ISGEQ(a, b) ? (L_ISEQU(a, b) ? 0 : 1) : -1);
+}
+#else
+static int
+offcompare(
+	const l_fp *a,
+	const l_fp *b
 	)
 {
 	return(L_ISGEQ(a, b) ? (L_ISEQU(a, b) ? 0 : 1) : -1);
 }
+#endif /* QSORT_USES_VOID_P */
 
 
 /* ees_process - process a pile of samples from the clock */
@@ -1349,12 +1363,12 @@ ees_process(
 			new = offset.l_uf + ((diff * (samd -1)) / samd);
 
 			/* Sign change -> need to fix up int part */
-			if ((new & (1 << 31)) !=
-			    (((long) offset.l_uf) & ( 1 << 31)))
+			if ((new & 0x80000000) !=
+			    (((long) offset.l_uf) & 0x80000000))
 			{	NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
 					msyslog(LOG_INFO, "I: %lx != %lx (%lx %lx), so add %d",
-						new & (1 << 31),
-						((long) offset.l_uf) & ( 1 << 31),
+						new & 0x80000000,
+						((long) offset.l_uf) & 0x80000000,
 						new, (long) offset.l_uf,
 						(new < 0) ? -1 : 1);
 				offset.l_ui += (new < 0) ? -1 : 1;

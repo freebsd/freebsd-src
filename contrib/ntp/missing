@@ -1,7 +1,7 @@
 #! /bin/sh
 # Common stub for a few missing GNU programs while installing.
-# Copyright (C) 1996, 1997 Free Software Foundation, Inc.
-# Franc,ois Pinard <pinard@iro.umontreal.ca>, 1996.
+# Copyright (C) 1996, 1997, 1999 Free Software Foundation, Inc.
+# Originally by Fran,cois Pinard <pinard@iro.umontreal.ca>, 1996.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,19 @@ if test $# -eq 0; then
   exit 1
 fi
 
+run=:
+
+case "$1" in
+--run)
+  # Try to run requested program, and just exit if it succeeds.
+  run=
+  shift
+  "$@" && exit 0
+  ;;
+esac
+
+# If it does not exist, or fails to run (possibly an outdated version),
+# try to emulate it.
 case "$1" in
 
   -h|--h|--he|--hel|--help)
@@ -35,19 +48,23 @@ error status if there is no known handling for PROGRAM.
 Options:
   -h, --help      display this help and exit
   -v, --version   output version information and exit
+  --run           try to run the given command, and emulate it if it fails
 
 Supported PROGRAM values:
   aclocal      touch file \`aclocal.m4'
   autoconf     touch file \`configure'
   autoheader   touch file \`config.h.in'
   automake     touch all \`Makefile.in' files
-  bison        touch file \`y.tab.c'
+  bison        create \`y.tab.[ch]', if possible, from existing .[ch]
+  flex         create \`lex.yy.c', if possible, from existing .c
+  lex          create \`lex.yy.c', if possible, from existing .c
   makeinfo     touch the output file
-  yacc         touch file \`y.tab.c'"
+  tar          try tar, gnutar, gtar, then tar without non-portable flags
+  yacc         create \`y.tab.[ch]', if possible, from existing .[ch]"
     ;;
 
   -v|--v|--ve|--ver|--vers|--versi|--versio|--version)
-    echo "missing - GNU libit 0.0"
+    echo "missing 0.2 - GNU automake"
     ;;
 
   -*)
@@ -80,7 +97,17 @@ WARNING: \`$1' is missing on your system.  You should only need it if
          you modified \`acconfig.h' or \`configure.in'.  You might want
          to install the \`Autoconf' and \`GNU m4' packages.  Grab them
          from any GNU archive site."
-    touch config.h.in
+    files=`sed -n 's/^[ ]*A[CM]_CONFIG_HEADER(\([^)]*\)).*/\1/p' configure.in`
+    test -z "$files" && files="config.h"
+    touch_files=
+    for f in $files; do
+      case "$f" in
+      *:*) touch_files="$touch_files "`echo "$f" |
+				       sed -e 's/^[^:]*://' -e 's/:.*//'`;;
+      *) touch_files="$touch_files $f.in";;
+      esac
+    done
+    touch $touch_files
     ;;
 
   automake)
@@ -89,9 +116,9 @@ WARNING: \`$1' is missing on your system.  You should only need it if
          you modified \`Makefile.am', \`acinclude.m4' or \`configure.in'.
          You might want to install the \`Automake' and \`Perl' packages.
          Grab them from any GNU archive site."
-    find . -type f -name Makefile.am -print \
-      | sed 's/^\(.*\).am$/touch \1.in/' \
-      | sh
+    find . -type f -name Makefile.am -print |
+	   sed 's/\.am$/.in/' |
+	   while read f; do touch "$f"; done
     ;;
 
   bison|yacc)
@@ -100,7 +127,51 @@ WARNING: \`$1' is missing on your system.  You should only need it if
          you modified a \`.y' file.  You may need the \`Bison' package
          in order for those modifications to take effect.  You can get
          \`Bison' from any GNU archive site."
-    touch y.tab.c
+    rm -f y.tab.c y.tab.h
+    if [ $# -ne 1 ]; then
+        eval LASTARG="\${$#}"
+	case "$LASTARG" in
+	*.y)
+	    SRCFILE=`echo "$LASTARG" | sed 's/y$/c/'`
+	    if [ -f "$SRCFILE" ]; then
+	         cp "$SRCFILE" y.tab.c
+	    fi
+	    SRCFILE=`echo "$LASTARG" | sed 's/y$/h/'`
+	    if [ -f "$SRCFILE" ]; then
+	         cp "$SRCFILE" y.tab.h
+	    fi
+	  ;;
+	esac
+    fi
+    if [ ! -f y.tab.h ]; then
+	echo >y.tab.h
+    fi
+    if [ ! -f y.tab.c ]; then
+	echo 'main() { return 0; }' >y.tab.c
+    fi
+    ;;
+
+  lex|flex)
+    echo 1>&2 "\
+WARNING: \`$1' is missing on your system.  You should only need it if
+         you modified a \`.l' file.  You may need the \`Flex' package
+         in order for those modifications to take effect.  You can get
+         \`Flex' from any GNU archive site."
+    rm -f lex.yy.c
+    if [ $# -ne 1 ]; then
+        eval LASTARG="\${$#}"
+	case "$LASTARG" in
+	*.l)
+	    SRCFILE=`echo "$LASTARG" | sed 's/l$/c/'`
+	    if [ -f "$SRCFILE" ]; then
+	         cp "$SRCFILE" lex.yy.c
+	    fi
+	  ;;
+	esac
+    fi
+    if [ ! -f lex.yy.c ]; then
+	echo 'main() { return 0; }' >lex.yy.c
+    fi
     ;;
 
   makeinfo)
@@ -117,6 +188,45 @@ WARNING: \`$1' is missing on your system.  You should only need it if
       file=`sed -n '/^@setfilename/ { s/.* \([^ ]*\) *$/\1/; p; q; }' $file`
     fi
     touch $file
+    ;;
+
+  tar)
+    shift
+    if test -n "$run"; then
+      echo 1>&2 "ERROR: \`tar' requires --run"
+      exit 1
+    fi
+
+    # We have already tried tar in the generic part.
+    # Look for gnutar/gtar before invocation to avoid ugly error
+    # messages.
+    if (gnutar --version > /dev/null 2>&1); then
+       gnutar ${1+"$@"} && exit 0
+    fi
+    if (gtar --version > /dev/null 2>&1); then
+       gtar ${1+"$@"} && exit 0
+    fi
+    firstarg="$1"
+    if shift; then
+	case "$firstarg" in
+	*o*)
+	    firstarg=`echo "$firstarg" | sed s/o//`
+	    tar "$firstarg" ${1+"$@"} && exit 0
+	    ;;
+	esac
+	case "$firstarg" in
+	*h*)
+	    firstarg=`echo "$firstarg" | sed s/h//`
+	    tar "$firstarg" ${1+"$@"} && exit 0
+	    ;;
+	esac
+    fi
+
+    echo 1>&2 "\
+WARNING: I can't seem to be able to run \`tar' with the given arguments.
+         You may want to install GNU tar or Free paxutils, or check the
+         command line arguments."
+    exit 1
     ;;
 
   *)

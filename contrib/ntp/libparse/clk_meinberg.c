@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/clk_meinberg.c,v 4.7 1999/02/21 11:09:14 kardel RELEASE_19990228_A
+ * /src/NTP/ntp-4/libparse/clk_meinberg.c,v 4.8 1999/11/28 09:13:50 kardel RELEASE_19991128_A
  *  
- * clk_meinberg.c,v 4.7 1999/02/21 11:09:14 kardel RELEASE_19990228_A
+ * clk_meinberg.c,v 4.8 1999/11/28 09:13:50 kardel RELEASE_19991128_A
  *
  * Meinberg clock support
  *
@@ -718,6 +718,9 @@ int clk_meinberg_bs;
  * History:
  *
  * clk_meinberg.c,v
+ * Revision 4.8  1999/11/28 09:13:50  kardel
+ * RECON_4_0_98F
+ *
  * Revision 4.7  1999/02/21 11:09:14  kardel
  * cleanup
  *

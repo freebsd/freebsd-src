@@ -24,7 +24,6 @@ static	struct recvbuf *volatile fulllist;  /* lifo buffers with data */
 static	struct recvbuf *volatile beginlist; /* fifo buffers with data */
 	
 #if defined(HAVE_IO_COMPLETION_PORT)
-static HANDLE fulldatabufferevent;
 static CRITICAL_SECTION RecvCritSection;
 # define RECV_BLOCK_IO()	EnterCriticalSection(&RecvCritSection)
 # define RECV_UNBLOCK_IO()	LeaveCriticalSection(&RecvCritSection)
@@ -116,22 +115,10 @@ init_recvbuff(int nbufs)
 
 #if defined(HAVE_IO_COMPLETION_PORT)
 	InitializeCriticalSection(&RecvCritSection);
-	fulldatabufferevent = CreateEvent(NULL, FALSE,FALSE, NULL);
 #endif
 
 }
 
-#if defined(HAVE_IO_COMPLETION_PORT)
-
-/*  Return the new full buffer event handle . This handle is 
- *  signalled when a recv buffer is placed in the full list.
- */
-HANDLE
-get_recv_buff_event()
-{
-	return fulldatabufferevent;
-}
-#endif
 
 /*
  * getrecvbufs - get receive buffers which have data in them
@@ -224,11 +211,6 @@ add_full_recv_buffer(
 	fulllist = rb;
 	full_recvbufs++;
 
-#if defined(HAVE_IO_COMPLETION_PORT)
-	if (!SetEvent(fulldatabufferevent)) {
-		msyslog(LOG_ERR, "Can't set receive buffer event");
-	}
-#endif
 	RECV_UNBLOCK_IO();
 }
 
