@@ -406,6 +406,10 @@ fill_eproc(p, ep)
 		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
 		ep->e_wmesg[WMESGLEN] = 0;
 	}
+	if (p->p_mtxname) {
+		strncpy(ep->e_mtxname, p->p_mtxname, MTXNAMELEN);
+		ep->e_mtxname[MTXNAMELEN] = 0;
+	}
 }
 
 static struct proc *
