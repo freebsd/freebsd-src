@@ -52,7 +52,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "\
 -D__alpha__ -D__alpha -Acpu(alpha) -Amachine(alpha) " \
-FBSD_CPP_PREDEFINES \
+CPP_FBSD_PREDEFINES \
 SUB_CPP_PREDEFINES
 
 /* Make gcc agree with <machine/ansi.h> */
