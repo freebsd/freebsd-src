@@ -864,7 +864,6 @@ apm_probe(device_t dev)
 #define APM_KERNBASE	KERNBASE
 	struct vm86frame	vmf;
 	struct apm_softc	*sc = &apm_softc;
-	int			flags;
 #ifdef PC98
 	int			rid;
 #endif
@@ -880,9 +879,6 @@ apm_probe(device_t dev)
 		printf("apm: Other PM system enabled.\n");
 		return ENXIO;
 	}
-
-	if (resource_int_value("apm", 0, "flags", &flags) != 0)
-		flags = 0;
 
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
 	bzero(&apm_softc, sizeof(apm_softc));
@@ -1123,16 +1119,12 @@ static int
 apm_attach(device_t dev)
 {
 	struct apm_softc	*sc = &apm_softc;
-	int			flags;
 	int			drv_version;
 #ifdef PC98
 	int			rid;
 #endif
 
-	if (resource_int_value("apm", 0, "flags", &flags) != 0)
-		flags = 0;
-
-	if (flags & 0x20)
+	if (device_get_flags(dev) & 0x20)
 		statclock_disable = 1;
 
 	sc->initialized = 0;
