@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1987, 1993
+ * Copyright (c) 1987, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)addbytes.c	8.3 (Berkeley) 3/19/94";
+static char sccsid[] = "@(#)addbytes.c	8.4 (Berkeley) 5/4/94";
 #endif	/* not lint */
 
-#include <curses.h>
+#include "curses.h"
 
 #define	SYNCH_IN	{y = win->cury; x = win->curx;}
 #define	SYNCH_OUT	{win->cury = y; win->curx = x;}
