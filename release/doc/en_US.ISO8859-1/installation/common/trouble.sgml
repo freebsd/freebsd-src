@@ -234,34 +234,6 @@
       </qandaentry>
       <qandaentry>
         <question>
-	  <para>I have a Matsushita/Panasonic drive but it isn't
-	  recognized by the system.</para>
-	</question>
-	<answer>
-	  <para>Make certain that the I/O port that the &man.matcd.4; driver
-          is set to is correct for the host interface card you have.
-          (Some SoundBlaster DOS drivers report a hardware I/O port
-          address for the CD-ROM interface that is 0x10 lower than it
-          really is.)</para>
-
-          <para>If you are unable to determine the settings for the
-          card by examining the board or documentation, you can use
-          UserConfig to change the 'port' address (I/O port) to -1 and
-          start the system.  This setting causes the driver to look at
-          a number of I/O ports that various manufacturers use for
-          their Matsushita/Panasonic/Creative CD-ROM interfaces.  Once
-          the driver locates the address, you should run UserConfig
-          again and specify the correct address.  Leaving the 'port'
-          parameter set to -1 increases the amount of time that it
-          takes the system to boot, and this could interfere with
-          other devices.</para>
-
-          <para>The double-speed Matsushita CR-562 and CR-563 are the
-          only drives that are supported.</para>
-	</answer>
-      </qandaentry>
-      <qandaentry>
-        <question>
 	  <para>I booted the install floppy on my IBM ThinkPad (tm)
           laptop, and the keyboard is all messed up.</para>
 	</question>
