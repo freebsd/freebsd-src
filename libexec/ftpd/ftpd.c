@@ -2015,12 +2015,13 @@ send_data(instr, outstr, blksize, filesize, isreg)
 
 		if (isreg) {
 
+			char *msg = "Transfer complete.";
 			off_t offset;
 			int err;
 
-			err = cnt = offset = 0;
+			cnt = offset = 0;
 
-			while (err != -1 && filesize > 0) {
+			while (filesize > 0) {
 				err = sendfile(filefd, netfd, offset, 0,
 					(struct sf_hdtr *) NULL, &cnt, 0);
 				/*
@@ -2034,15 +2035,25 @@ send_data(instr, outstr, blksize, filesize, isreg)
 				filesize -= cnt;
 
 				if (err == -1) {
-					if (!cnt)
+					if (cnt == 0 && offset == 0)
 						goto oldway;
 
 					goto data_err;
 				}
+
+				/*
+				 * We hit the EOF prematurely.
+				 * Perhaps the file was externally truncated.
+				 */
+				if (cnt == 0) {
+					msg = "Transfer finished due to "
+					      "premature end of file.";
+					break;
+				}
 			}
 
 			transflag = 0;
-			reply(226, "Transfer complete.");
+			reply(226, msg);
 			return (0);
 		}
 
