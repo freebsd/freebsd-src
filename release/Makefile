@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.141 1995/04/20 06:48:30 phk Exp $
+#	$Id: Makefile,v 1.142 1995/04/23 23:06:36 phk Exp $
 #
 # How to roll a release:
 #
@@ -124,6 +124,8 @@ release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
 	chflags -R noschg ${RD}/trees
+	uudecode ${.CURDIR}/compat20/libgcc.so.261.0.uu
+	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
 	touch release.2
 
 # Make and install a couple of kernels we need.
