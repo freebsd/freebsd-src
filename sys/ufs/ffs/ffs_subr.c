@@ -142,7 +142,7 @@ ffs_checkoverlap(bp, ip)
 		    ep->b_vp == NULLVP)
 			continue;
 		if (VOP_BMAP(ep->b_vp, (ufs_daddr_t)0, &vp, (ufs_daddr_t)0,
-		    NULL))
+		    NULL, NULL))
 			continue;
 		if (vp != ip->i_devvp)
 			continue;
