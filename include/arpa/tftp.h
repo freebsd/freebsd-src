@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tftp.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef _ARPA_TFTP_H_
@@ -49,6 +50,7 @@
 #define	DATA	03			/* data packet */
 #define	ACK	04			/* acknowledgement */
 #define	ERROR	05			/* error code */
+#define	OACK	06			/* option acknowledgement */
 
 struct	tftphdr {
 	unsigned short	th_opcode;		/* packet type */
@@ -76,5 +78,6 @@ struct	tftphdr {
 #define	EBADID		5		/* unknown transfer ID */
 #define	EEXISTS		6		/* file already exists */
 #define	ENOUSER		7		/* no such user */
+#define	EOPTNEG		8		/* option negotiation failed */
 
 #endif /* !_TFTP_H_ */
