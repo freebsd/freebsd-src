@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.241 1996/02/28 21:39:54 gpalmer Exp $
+#	$Id: LINT,v 1.242 1996/03/02 19:37:32 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -53,6 +53,11 @@ options		MATH_EMULATE		#Support for x87 emulation
 # Don't enable both of these in a real config.
 options		GPL_MATH_EMULATE	#Support for x87 emulation via
 					#new math emulator 
+
+# When this is set, be extra conservative in various parts of the kernel
+# and choose functionality over speed (on the widest variety of systems).
+options		FAILSAFE
+
 
 #
 # This directive defines a number of things:
