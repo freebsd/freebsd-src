@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.2 1995/03/21 00:48:55 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.4 1995/03/24 21:21:37 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -180,6 +180,7 @@ struct dom_binding **ypdb;
 	int clnt_sock, fd, gpid;
 	CLIENT *client;
 	int new=0, r;
+	char *_defaultdom;
 
 	gpid = getpid();
 	if( !(pid==-1 || pid==gpid) ) {
@@ -251,10 +252,27 @@ again:
 			goto gotit;
 		} else {
 			/* no lock on binding file, YP is dead. */
+			/*
+			 * XXX Not necessarily: the caller might be asking
+			 * for a domain that we simply aren't bound to yet.
+			 * Check that the binding file for the default domain
+			 * is also unlocked before giving up.
+			 */
 			close(fd);
-			if(new)
-				free(ysd);
-			return YPERR_YPBIND;
+			if (new) {
+				if (yp_get_default_domain(&_defaultdom))
+					return YPERR_NODOM;
+				sprintf(path, "%s/%s.%d", BINDINGDIR, _defaultdom, 2);
+				if((fd=open(path, O_RDONLY)) > 0 && 
+					(flock(fd, LOCK_EX|LOCK_NB)) == -1 &&
+						errno==EWOULDBLOCK) {
+						close(fd);
+				} else {
+					close(fd); /* for paranoia's sake */
+					free(ysd);
+					return YPERR_YPBIND;
+				}
+			}
 		}
 	}
 #endif
@@ -262,7 +280,7 @@ again:
 		bzero((char *)&clnt_sin, sizeof clnt_sin);
 		clnt_sin.sin_family = AF_INET;
 		clnt_sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
+		
 		clnt_sock = RPC_ANYSOCK;
 		client = clnttcp_create(&clnt_sin, YPBINDPROG, YPBINDVERS, &clnt_sock,
 			0, 0);
@@ -279,7 +297,7 @@ again:
 			xdr_domainname, dom, xdr_ypbind_resp, &ypbr, tv);
 		if(r != RPC_SUCCESS) {
 			fprintf(stderr,
-			"YP: server for domain %s not responding, still trying\n", dom);
+			"YP: server for domain %s not responding, retrying\n", dom);
 			clnt_destroy(client);
 			ysd->dom_vers = -1;
 			goto again;
