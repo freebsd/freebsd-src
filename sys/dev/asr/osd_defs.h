@@ -34,8 +34,8 @@
  *
  *Copyright Distributed Processing Technology, Corp.
  *	  140 Candace Dr.
- *	  Maitland, Fl.	32751   USA
- *	  Phone: (407) 830-5522  Fax: (407) 260-5366
+ *	  Maitland, Fl. 32751	USA
+ *	  Phone: (407) 830-5522	 Fax: (407) 260-5366
  *	  All Rights Reserved
  *
  *Author:	Doug Anderson
@@ -66,7 +66,7 @@
 #if defined (ZIL_CURSES)
 #define		_DPT_CURSES
 #else
-#define	        _DPT_MOTIF
+#define		_DPT_MOTIF
 #endif
 
   /* Redefine 'far' to nothing - no far pointer type required in UNIX */
