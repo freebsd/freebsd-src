@@ -44,18 +44,6 @@
 
 #include <sys/queue.h>
 
-struct bio;
-
-struct iodone_chain {
-	long	ic_prev_flags;
-	void	(*ic_prev_iodone)(struct bio *);
-	void	*ic_prev_iodone_chain;
-	struct {
-		long	ia_long;
-		void	*ia_ptr;
-	}	ic_args[5];
-};
-
 /*
  * The bio structure describes an I/O operation in the kernel.
  */
@@ -84,7 +72,6 @@ struct bio {
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
-	struct	iodone_chain *bio_done_chain;
 	struct bio *bio_linkage;
 };
 
