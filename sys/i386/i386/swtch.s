@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.38 1996/07/31 09:25:53 davidg Exp $
+ *	$Id: swtch.s,v 1.39 1996/07/31 12:36:11 bde Exp $
  */
 
 #include "apm.h"
@@ -263,7 +263,7 @@ idle_loop:
 	testl	%eax, %eax
 	jnz	idle_loop
 	sti
-#if NAPM > 0
+#if NAPM > 0 && defined(APM_IDLE_CPU)
 	call    _apm_cpu_idle
 	call    _apm_cpu_busy
 #else
