@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.32 1998/04/05 13:10:11 ache Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.33 1998/04/15 11:04:53 dt Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -510,7 +510,8 @@ mountmsdosfs(devvp, mp, p, argp)
 		pmp->pm_HiddenSects = getushort(b33->bpbHiddenSecs);
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
 	}
-	if (pmp->pm_HugeSectors > 0xffffffff / pmp->pm_BytesPerSec + 1) {
+	if (pmp->pm_HugeSectors > 0xffffffff / 
+	    (pmp->pm_BytesPerSec / sizeof(struct direntry)) + 1) {
 		/*
 		 * We cannot deal currently with this size of disk
 		 * due to fileid limitations (see msdosfs_getattr and
@@ -641,7 +642,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	if (FAT12(pmp))
 		pmp->pm_fatblocksize = 3 * pmp->pm_BytesPerSec;
 	else
-		pmp->pm_fatblocksize = MAXBSIZE;
+		pmp->pm_fatblocksize = DFLTBSIZE;
 
 	pmp->pm_fatblocksec = pmp->pm_fatblocksize / pmp->pm_BytesPerSec;
 	pmp->pm_bnshift = ffs(pmp->pm_BytesPerSec) - 1;
@@ -896,12 +897,10 @@ msdosfs_sync(mp, waitfor, cred, p)
 	 */
 	simple_lock(&mntvnode_slock);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
-	     vp != NULL;
-	     vp = nvp) {
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
-		 * assoicated with this mount point, start over.
+		 * associated with this mount point, start over.
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
@@ -909,11 +908,11 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		dep = VTODE(vp);
-		if (vp->v_type == VNON
-		|| (waitfor == MNT_LAZY) /* can this happen with msdosfs? */
-		|| (((dep->de_flag &
-		     (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0)
-		  && (vp->v_dirtyblkhd.lh_first == NULL))) {
+		if (vp->v_type == VNON ||
+		    (dep->de_flag &
+		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
+		    (vp->v_dirtyblkhd.lh_first == NULL || 
+		    waitfor == MNT_LAZY)) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -929,7 +928,7 @@ loop:
 		if (error)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, p);
-		vrele(vp);	/* done with this one	 */
+		vrele(vp);
 		simple_lock(&mntvnode_slock);
 	}
 	simple_unlock(&mntvnode_slock);
@@ -937,9 +936,13 @@ loop:
 	/*
 	 * Flush filesystem control info.
 	 */
-	error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, p);
-	if (error)
-		allerror = error;
+	if (waitfor != MNT_LAZY) {
+		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		error = VOP_FSYNC(pmp->pm_devvp, cred, waitfor, p);
+		if (error)
+			allerror = error;
+		VOP_UNLOCK(pmp->pm_devvp, 0, p);
+	}
 	return (allerror);
 }
 
