@@ -181,7 +181,8 @@ NDINIT(ndp, op, flags, segflg, namep, p)
 		_ndp->ni_cnd.cn_flags &= ~HASBUF;			\
 	}								\
 	if (!(_flags & NDF_NO_DVP_UNLOCK) &&				\
-	    (_ndp->ni_cnd.cn_flags & LOCKPARENT))			\
+	    (_ndp->ni_cnd.cn_flags & LOCKPARENT) &&			\
+	    _ndp->ni_dvp != _ndp->ni_vp)				\
 		VOP_UNLOCK(_ndp->ni_dvp, 0, _ndp->ni_cnd.cn_proc);	\
 	if (!(_flags & NDF_NO_DVP_RELE) &&				\
 	    (_ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {	\
