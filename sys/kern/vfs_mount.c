@@ -1317,11 +1317,8 @@ dounmount(mp, flags, td)
 	crfree(mp->mnt_cred);
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
-	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
-		vn_lock(coveredvp, LK_EXCLUSIVE|LK_RETRY, td);
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
 		coveredvp->v_mountedhere = NULL;
-		VOP_UNLOCK(coveredvp, 0, td);
-	}
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
