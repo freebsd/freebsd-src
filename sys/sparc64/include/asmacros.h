@@ -129,8 +129,16 @@
 	set	sym, dst
 #endif
 
+#define	_ALIGN_DATA	.align 8
+#ifdef GPROF
+#define	_ALIGN_TEXT	.align 32
+#else
+#define	_ALIGN_TEXT	.align 16
+#endif
+
 #define	DATA(name) \
 	.data ; \
+	_ALIGN_DATA ; \
 	.globl	name ; \
 	.type	name, @object ; \
 name ## :
@@ -139,7 +147,7 @@ name ## :
 
 #define	ENTRY(name) \
 	.text ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 	.globl	name ; \
 	.type	name, @function ; \
 name ## :
