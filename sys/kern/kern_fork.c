@@ -367,6 +367,7 @@ again:
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
 
+	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
 	p2->p_aioinfo = NULL;
 
 	/*
