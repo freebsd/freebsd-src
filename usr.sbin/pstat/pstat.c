@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #undef _KERNEL
 #include <sys/stat.h>
+#include <sys/stdint.h>
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
@@ -77,11 +78,11 @@ static struct nlist nl[] = {
 	{ "_mountlist" },	/* address of head of mount list. */
 #define V_NUMV		1
 	{ "_numvnodes" },
-#define	FNL_NFILE	2
+#define	FNL_NFILES	2
 	{"_nfiles"},
-#define FNL_MAXFILE	3
+#define FNL_MAXFILES	3
 	{"_maxfiles"},
-#define NLMANDATORYEND FNL_MAXFILE	/* names up to here are mandatory */
+#define NLMANDATORYEND FNL_MAXFILES	/* names up to here are mandatory */
 #define	SCONS		NLMANDATORYEND + 1
 	{ "_constty" },
 #define	SPTY		NLMANDATORYEND + 2
@@ -209,26 +210,23 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (nlistf != NULL || memf != NULL)
-		(void)setgid(getgid());
-
-	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == 0)
-		errx(1, "kvm_openfiles: %s", buf);
-	(void)setgid(getgid());
-	if ((ret = kvm_nlist(kd, nl)) != 0) {
-		if (ret == -1)
-			errx(1, "kvm_nlist: %s", kvm_geterr(kd));
-		for (i = NLMANDATORYBEG, quit = 0; i <= NLMANDATORYEND; i++)
-			if (!nl[i].n_value) {
-				quit = 1;
-				warnx("undefined symbol: %s", nl[i].n_name);
-			}
-		if (quit)
-			exit(1);
+	if (memf != NULL) {
+		kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
+		if (kd == NULL)
+			errx(1, "kvm_openfiles: %s", buf);
+		if ((ret = kvm_nlist(kd, nl)) != 0) {
+			if (ret == -1)
+				errx(1, "kvm_nlist: %s", kvm_geterr(kd));
+			quit = 0;
+			for (i = NLMANDATORYBEG; i <= NLMANDATORYEND; i++)
+				if (!nl[i].n_value) {
+					quit = 1;
+					warnx("undefined symbol: %s",
+					    nl[i].n_name);
+				}
+			if (quit)
+				exit(1);
+		}
 	}
 	if (!(fileflag | ttyflag | swapflag | totalflag))
 		usage();
@@ -250,7 +248,7 @@ usage(void)
 
 static const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
-int ttyspace = 128;
+static int ttyspace = 128;
 
 static void
 ttymode(void)
@@ -269,6 +267,9 @@ ttymode(void)
 			ttyprt(&ttyb[i], 0);
 		}
 	}
+	/* XXX */
+	if (kd == NULL)
+		return;
 	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
 		errx(1, "malloc");
 	if (nl[SCONS].n_type != 0) {
@@ -390,14 +391,14 @@ ttyprt(struct tty *tp, int line)
 		tp->t_ihiwat, tp->t_ilowat, tp->t_ohiwat, tp->t_olowat,
 		tp->t_column);
 	for (i = j = 0; ttystates[i].flag; i++)
-		if (tp->t_state&ttystates[i].flag)
+		if (tp->t_state & ttystates[i].flag)
 			state[j++] = ttystates[i].val;
 	if (j == 0)
 		state[j++] = '-';
 	state[j] = '\0';
 	(void)printf("%-6s %8lx", state, (u_long)(void *)tp->t_session);
 	pgid = 0;
-	if (tp->t_pgrp != NULL)
+	if (kd != NULL /* XXX */ && tp->t_pgrp != NULL)
 		KGET2(&tp->t_pgrp->pg_id, &pgid, sizeof(pid_t), "pgid");
 	(void)printf("%6d ", pgid);
 	switch (tp->t_line) {
@@ -425,13 +426,24 @@ filemode(void)
 	struct file *fp;
 	struct file *addr;
 	char *buf, flagbuf[16], *fbp;
-	int len, maxfile, nfile;
+	int maxfile, nfiles;
+	size_t len;
 	static char *dtypes[] = { "???", "inode", "socket" };
 
-	KGET(FNL_MAXFILE, maxfile);
+	if (kd != NULL) {
+		KGET(FNL_MAXFILES, maxfile);
+		KGET(FNL_NFILES, nfiles);
+	} else {
+		len = sizeof maxfile;
+		if (sysctlbyname("kern.maxfiles", &maxfile, &len, 0, 0) == -1)
+			err(1, "sysctlbyname()");
+		len = sizeof nfiles;
+		if (sysctlbyname("kern.openfiles", &nfiles, &len, 0, 0) == -1)
+			err(1, "sysctlbyname()");
+	}
+
 	if (totalflag) {
-		KGET(FNL_NFILE, nfile);
-		(void)printf("%3d/%3d files\n", nfile, maxfile);
+		(void)printf("%3d/%3d files\n", nfiles, maxfile);
 		return;
 	}
 	if (getfiles(&buf, &len) == -1)
@@ -443,9 +455,9 @@ filemode(void)
 	 */
 	addr = LIST_FIRST((struct filelist *)buf);
 	fp = (struct file *)(buf + sizeof(struct filelist));
-	nfile = (len - sizeof(struct filelist)) / sizeof(struct file);
+	nfiles = (len - sizeof(struct filelist)) / sizeof(struct file);
 
-	(void)printf("%d/%d open files\n", nfile, maxfile);
+	(void)printf("%d/%d open files\n", nfiles, maxfile);
 	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
 	for (; (char *)fp < buf + len; addr = LIST_NEXT(fp, f_list), fp++) {
 		if ((unsigned)fp->f_type > DTYPE_SOCKET)
@@ -484,7 +496,7 @@ getfiles(char **abuf, int *alen)
 	 * XXX
 	 * Add emulation of KINFO_FILE here.
 	 */
-	if (memf != NULL)
+	if (kd != NULL)
 		errx(1, "files on dead kernel, not implemented");
 
 	mib[0] = CTL_KERN;
@@ -508,69 +520,121 @@ getfiles(char **abuf, int *alen)
  * swapmode is based on a program called swapinfo written
  * by Kevin Lahey <kml@rokkaku.atl.ga.us>.
  */
+
+#define CONVERT(v)	((int)((intmax_t)(v) * pagesize / blocksize))
+static struct kvm_swap swtot;
+static int nswdev;
+
 static void
-swapmode(void)
+print_swap_header(void)
 {
-	struct kvm_swap kswap[16];
-	int i;
-	int n;
-	int pagesize = getpagesize();
-	const char *header;
 	int hlen;
 	long blocksize;
-
-	n = kvm_getswapinfo(
-	    kd,
-	    kswap,
-	    sizeof(kswap)/sizeof(kswap[0]),
-	    ((swapflag > 1) ? SWIF_DUMP_TREE : 0) | SWIF_DEV_PREFIX
-	);
-
-#define CONVERT(v)	((int)((quad_t)(v) * pagesize / blocksize))
+	const char *header;
 
 	header = getbsize(&hlen, &blocksize);
-	if (totalflag == 0) {
+	if (totalflag == 0)
 		(void)printf("%-15s %*s %8s %8s %8s  %s\n",
 		    "Device", hlen, header,
 		    "Used", "Avail", "Capacity", "Type");
+}
 
-		for (i = 0; i < n; ++i) {
-			(void)printf(
-			    "%-15s %*d ",
-			    kswap[i].ksw_devname,
-			    hlen,
-			    CONVERT(kswap[i].ksw_total)
-			);
-			(void)printf(
-			    "%8d %8d %5.0f%%    %s\n",
-			    CONVERT(kswap[i].ksw_used),
-			    CONVERT(kswap[i].ksw_total - kswap[i].ksw_used),
-			    (double)kswap[i].ksw_used * 100.0 /
-				(double)kswap[i].ksw_total,
-			    (kswap[i].ksw_flags & SW_SEQUENTIAL) ?
-				"Sequential" : "Interleaved"
-			);
-		}
+static void
+print_swap(struct kvm_swap *ksw)
+{
+	int hlen, pagesize;
+	long blocksize;
+
+	pagesize = getpagesize();
+	getbsize(&hlen, &blocksize);
+	swtot.ksw_total += ksw->ksw_total;
+	swtot.ksw_used += ksw->ksw_used;
+	++nswdev;
+	if (totalflag == 0) {
+		(void)printf("/dev/%-10s %*d ",
+		    ksw->ksw_devname, hlen,
+		    CONVERT(ksw->ksw_total));
+		(void)printf("%8d %8d %5.0f%%    %s\n",
+		    CONVERT(ksw->ksw_used),
+		    CONVERT(ksw->ksw_total - ksw->ksw_used),
+		    (ksw->ksw_used * 100.0) / ksw->ksw_total,
+		    (ksw->ksw_flags & SW_SEQUENTIAL) ?
+		    "Sequential" : "Interleaved");
 	}
+}
 
+static void
+print_swap_total(void)
+{
+	int hlen, pagesize;
+	long blocksize;
+
+	pagesize = getpagesize();
+	getbsize(&hlen, &blocksize);
 	if (totalflag) {
 		blocksize = 1024 * 1024;
-
-		(void)printf(
-		    "%dM/%dM swap space\n",
-		    CONVERT(kswap[n].ksw_used),
-		    CONVERT(kswap[n].ksw_total)
-		);
-	} else if (n > 1) {
-		(void)printf(
-		    "%-15s %*d %8d %8d %5.0f%%\n",
-		    "Total",
-		    hlen,
-		    CONVERT(kswap[n].ksw_total),
-		    CONVERT(kswap[n].ksw_used),
-		    CONVERT(kswap[n].ksw_total - kswap[n].ksw_used),
-		    (double)kswap[n].ksw_used * 100.0 /
-			(double)kswap[n].ksw_total
-		);
+		(void)printf("%dM/%dM swap space\n",
+		    CONVERT(swtot.ksw_used), CONVERT(swtot.ksw_total));
+	} else if (nswdev > 1) {
+		(void)printf("%-15s %*d %8d %8d %5.0f%%\n",
+		    "Total", hlen, CONVERT(swtot.ksw_total),
+		    CONVERT(swtot.ksw_used),
+		    CONVERT(swtot.ksw_total - swtot.ksw_used),
+		    (swtot.ksw_used * 100.0) / swtot.ksw_total);
 	}
+}
+
+static void
+swapmode_kvm(void)
+{
+	struct kvm_swap kswap[16];
+	int i, n;
+
+	n = kvm_getswapinfo(kd, kswap, sizeof kswap / sizeof kswap[0],
+	    ((swapflag > 1) ? SWIF_DUMP_TREE : 0) | SWIF_DEV_PREFIX);
+
+	print_swap_header();
+	for (i = 0; i < n; ++i)
+		print_swap(&kswap[i]);
+	print_swap_total();
+}
+
+static void
+swapmode_sysctl(void)
+{
+	struct kvm_swap ksw;
+	struct xswdev xsw;
+	size_t mibsize, size;
+	int mib[16], n;
+
+	print_swap_header();
+	mibsize = sizeof mib / sizeof mib[0];
+	if (sysctlnametomib("vm.swap_info", mib, &mibsize) == -1)
+		err(1, "sysctlnametomib()");
+	for (n = 0; ; ++n) {
+		mib[mibsize] = n;
+		size = sizeof xsw;
+		if (sysctl(mib, mibsize + 1, &xsw, &size, NULL, NULL) == -1)
+			break;
+		if (xsw.xsw_version != XSWDEV_VERSION)
+			errx(1, "xswdev version mismatch");
+		snprintf(ksw.ksw_devname, sizeof ksw.ksw_devname,
+		    "/dev/%s", devname(xsw.xsw_dev, S_IFCHR));
+		ksw.ksw_used = xsw.xsw_used;
+		ksw.ksw_total = xsw.xsw_nblks;
+		ksw.ksw_flags = xsw.xsw_flags;
+		print_swap(&ksw);
+	}
+	if (errno != ENOENT)
+		err(1, "sysctl()");
+	print_swap_total();
+}
+
+static void
+swapmode(void)
+{
+	if (kd != NULL)
+		swapmode_kvm();
+	else
+		swapmode_sysctl();
 }
