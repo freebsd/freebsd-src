@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.59 1999/04/28 01:03:18 luoqi Exp $
+ *	$Id: exception.s,v 1.60 1999/05/06 09:44:49 bde Exp $
  */
 
 #include "npx.h"
-#include "opt_vm86.h"
 
 #include <machine/asmacros.h>
 #include <machine/ipl.h>
@@ -362,12 +361,10 @@ ENTRY(fork_trampoline)
 	jmp	_doreti
 
 
-#ifdef VM86
 /*
  * Include vm86 call routines, which want to call _doreti.
  */
 #include "i386/i386/vm86bios.s"
-#endif /* VM86 */
 
 /*
  * Include what was once config+isa-dependent code.

@@ -23,10 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.24 1999/04/28 01:03:27 luoqi Exp $
+ *	$Id: vm86.c,v 1.25 1999/05/12 21:38:45 luoqi Exp $
  */
-
-#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,6 +39,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
+#include <sys/reboot.h>
 #include <sys/user.h>
 
 #include <machine/md_var.h>
@@ -49,14 +48,20 @@
 #include <machine/specialreg.h>
 
 extern int i386_extend_pcb	__P((struct proc *));
-extern int vm86paddr, vm86pa;
+extern int vm86pa;
 extern struct pcb *vm86pcb;
 
 extern int vm86_bioscall(struct vm86frame *);
 extern void vm86_biosret(struct vm86frame *);
 
 void vm86_prepcall(struct vm86frame);
- 
+
+struct system_map {
+	int		type;
+	vm_offset_t	start;
+	vm_offset_t	end;
+};
+
 #define	HLT	0xf4
 #define	CLI	0xfa
 #define	STI	0xfb
@@ -350,7 +355,7 @@ struct vm86_layout {
 	char	vml_iomap_trailer;
 };
 
-static void
+void
 vm86_initialize(void)
 {
 	int i;
@@ -447,6 +452,13 @@ vm86_initialize(void)
 	ssdtosd(&ssd, &ext->ext_tssd);
 
 	vm86pcb = pcb;
+
+        /*
+         * use whatever is leftover of the vm86 page layout as a
+         * message buffer so we can capture early output.
+         */
+        msgbufinit((vm_offset_t)vm86paddr + sizeof(struct vm86_layout),
+            ctob(3) - sizeof(struct vm86_layout));
 }
 
 vm_offset_t
@@ -484,97 +496,6 @@ vm86_addpage(struct vm86context *vmc, int pagenum, vm_offset_t kva)
 	return (kva);
 bad:
 	panic("vm86_addpage: not enough room, or overlap");
-}
-
-void
-initial_bioscalls(u_int *basemem, u_int *extmem)
-{
-	int i, method;
-	struct vm86frame vmf;
-	struct vm86context vmc;
-	u_int64_t highwat = 0;
-	pt_entry_t pte;
-	struct {
-		u_int64_t base;
-		u_int64_t length;
-		u_int32_t type;
-	} *smap;
-
-	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
-	vm86_initialize();
-
-#ifndef PC98
-	vm86_intcall(0x12, &vmf);
-	*basemem = vmf.vmf_ax;
-	*extmem = 0;
-
-	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so 
-	 * that the bios can scribble on it.
-	 */
-	pte = (pt_entry_t)vm86paddr;
-	for (i = *basemem / 4; i < 160; i++)
-		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
-
-	/*
-	 * map page 1 R/W into the kernel page table so we can use it
-	 * as a buffer.  The kernel will unmap this page later.
-	 */
-	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
-	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
-
-	/*
-	 * get memory map with INT 15:E820
-	 */
-#define SMAPSIZ 	sizeof(*smap)
-#define SMAP_SIG	0x534D4150			/* 'SMAP' */
-
-	vmc.npages = 0;
-	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
-	vmf.vmf_ebx = 0;
-	do {
-		vmf.vmf_eax = 0xE820;
-		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = SMAPSIZ;
-		i = vm86_datacall(0x15, &vmf, &vmc);
-		if (i || vmf.vmf_eax != SMAP_SIG)
-			break;
-		if (smap->type == 0x01 && smap->base >= highwat) {
-			*extmem += (smap->length / 1024);
-			highwat = smap->base + smap->length;
-		}
-	} while (vmf.vmf_ebx != 0);
-
-	if (*extmem != 0) {
-		if (*extmem > *basemem) {
-			*extmem -= *basemem;
-			method = 0xE820;
-			goto done;
-		}
-		printf("E820: extmem (%d) < basemem (%d)\n", *extmem, *basemem);
-	}
-
-	/*
-	 * try memory map with INT 15:E801
-	 */
-	vmf.vmf_ax = 0xE801;
-	if (vm86_intcall(0x15, &vmf) == 0) {
-		*extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
-		method = 0xE801;
-		goto done;
-	}
-
-	vmf.vmf_ah = 0x88;
-	vm86_intcall(0x15, &vmf);
-	*extmem = vmf.vmf_ax;
-	method = 0x88;
-
-done:
-	printf("BIOS basemem: %dK, extmem: %dK (from %#x call)\n",
-	    *basemem, *extmem, method);
-#endif /* !PC98 */
 }
 
 static void

@@ -23,10 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.12 1999/05/12 21:30:51 luoqi Exp $
+ *	$Id: vm86bios.s,v 1.13 1999/05/12 21:38:46 luoqi Exp $
  */
-
-#include "opt_vm86.h"
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/trap.h>
