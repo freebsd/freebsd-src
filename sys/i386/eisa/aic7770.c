@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.24 1994/10/23 21:27:05 wollman Exp $
+ *      $Id: aic7770.c,v 1.2 1994/11/18 08:19:21 jkh Exp $
  */
 /*
  * TODO:
@@ -1615,9 +1615,7 @@ gottit: if (!(flags & SCSI_NOMASK))
 void ahc_loadseq(port)
 	int port;
 {
-        static unsigned char seqprog[] = {
-#               include <aic7770_seq.h>
-        };
+        extern unsigned char seqprog[];
  
         outb(SEQCTL + port, PERRORDIS|SEQRESET|LOADRAM);
 
