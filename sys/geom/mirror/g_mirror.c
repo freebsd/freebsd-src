@@ -53,9 +53,6 @@ SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0, "GEOM_MIRROR stuff");
 u_int g_mirror_debug = 0;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
     "Debug level");
-static u_int g_mirror_sync_block_size = 131072;
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_block_size, CTLFLAG_RW,
-    &g_mirror_sync_block_size, 0, "Synchronization block size");
 static u_int g_mirror_timeout = 8;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
@@ -467,7 +464,6 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	}
 	callout_drain(&sc->sc_callout);
 	gp->softc = NULL;
-	uma_zdestroy(sc->sc_sync.ds_zone);
 
 	LIST_FOREACH_SAFE(cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
 		g_mirror_disconnect_consumer(sc, cp);
@@ -923,11 +919,11 @@ g_mirror_sync_one(struct g_mirror_disk *disk)
 	bp->bio_parent = NULL;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_offset = disk->d_sync.ds_offset;
-	bp->bio_length = MIN(sc->sc_sync.ds_block,
+	bp->bio_length = MIN(G_MIRROR_SYNC_BLOCK_SIZE,
 	    sc->sc_mediasize - bp->bio_offset);
 	bp->bio_cflags = 0;
 	bp->bio_done = g_mirror_sync_done;
-	bp->bio_data = uma_zalloc(sc->sc_sync.ds_zone, M_NOWAIT | M_ZERO);
+	bp->bio_data = disk->d_sync.ds_data;
 	if (bp->bio_data == NULL) {
 		g_destroy_bio(bp);
 		return;
@@ -950,7 +946,6 @@ g_mirror_sync_request(struct bio *bp)
 		g_topology_lock();
 		g_mirror_kill_consumer(sc, bp->bio_from);
 		g_topology_unlock();
-		uma_zfree(sc->sc_sync.ds_zone, bp->bio_data);
 		g_destroy_bio(bp);
 		return;
 	}
@@ -967,7 +962,6 @@ g_mirror_sync_request(struct bio *bp)
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
-			uma_zfree(sc->sc_sync.ds_zone, bp->bio_data);
 			g_destroy_bio(bp);
 			return;
 		}
@@ -982,7 +976,6 @@ g_mirror_sync_request(struct bio *bp)
 		return;
 	    }
 	case BIO_WRITE:
-		uma_zfree(sc->sc_sync.ds_zone, bp->bio_data);
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
@@ -1005,7 +998,7 @@ g_mirror_sync_request(struct bio *bp)
 			    G_MIRROR_EVENT_DONTWAIT);
 			return;
 		} else if ((disk->d_sync.ds_offset_done %
-		    (sc->sc_sync.ds_block * 100)) == 0) {
+		    (G_MIRROR_SYNC_BLOCK_SIZE * 100)) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1591,6 +1584,8 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	error = g_access(disk->d_sync.ds_consumer, 1, 0, 0);
 	KASSERT(error == 0, ("Cannot open %s (error=%d).",
 	    disk->d_softc->sc_name, error));
+	disk->d_sync.ds_data = malloc(G_MIRROR_SYNC_BLOCK_SIZE, M_MIRROR,
+	    M_WAITOK);
 	sc->sc_sync.ds_ndisks++;
 }
 
@@ -1621,6 +1616,7 @@ g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 	cp = disk->d_sync.ds_consumer;
 	g_access(cp, -1, 0, 0);
 	g_mirror_kill_consumer(disk->d_softc, cp);
+	free(disk->d_sync.ds_data, M_MIRROR);
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_softc->sc_sync.ds_ndisks--;
 	cp = disk->d_consumer;
@@ -2435,16 +2431,12 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	gp->spoiled = g_mirror_spoiled;
 	gp->orphan = g_mirror_orphan;
 	sc->sc_sync.ds_geom = gp;
-	sc->sc_sync.ds_block = atomic_load_acq_int(&g_mirror_sync_block_size);
 	sc->sc_sync.ds_ndisks = 0;
-	sc->sc_sync.ds_zone = uma_zcreate("gmirror:sync", sc->sc_sync.ds_block,
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	error = kthread_create(g_mirror_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_mirror %s", md->md_name);
 	if (error != 0) {
 		G_MIRROR_DEBUG(1, "Cannot create kernel thread for %s.",
 		    sc->sc_name);
-		uma_zdestroy(sc->sc_sync.ds_zone);
 		g_destroy_geom(sc->sc_sync.ds_geom);
 		mtx_destroy(&sc->sc_events_mtx);
 		mtx_destroy(&sc->sc_queue_mtx);
