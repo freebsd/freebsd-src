@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.3 1994/08/21 05:27:39 paul Exp $
+ * $Id: tcp_var.h,v 1.4 1995/02/08 20:18:47 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -333,7 +333,11 @@ struct rmxp_tao *
 #endif
 void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
+#ifdef TTCP
 void	 tcp_mss __P((struct tcpcb *, int));
+#else
+int	 tcp_mss __P((struct tcpcb *, u_int));
+#endif
 int	 tcp_mssopt __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
