@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Doug Rabson
+ * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,68 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/ktr.h>
-#include <sys/interrupt.h>
-#include <machine/ipl.h>
-#include <machine/cpu.h>
-#include <machine/globaldata.h>
-#include <machine/globals.h>
-#include <machine/mutex.h>
-#include <net/netisr.h>
+#include <sys/proc.h>
+#include <machine/db_machdep.h>
 
-#include "sio.h"
-
-unsigned int bio_imask;		/* XXX */
-unsigned int cam_imask;		/* XXX */
-unsigned int net_imask;		/* XXX */
-unsigned int tty_imask;		/* XXX */
-
-static void swi_net(void);
-
-void	(*netisrs[32]) __P((void));
-swihand_t *shandlers[32] = {	/* software interrupts */
-	swi_null,	swi_net,	swi_null,	swi_null,
-	swi_null,	softclock,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-	swi_null,	swi_null,	swi_null,	swi_null,
-};
-
-u_int32_t netisr;
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h> 
+#include <ddb/db_access.h>
+#include <ddb/db_variables.h>
+#include <ddb/db_output.h>
 
 void
-swi_null()
+db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 {
-    /* No interrupt registered, do nothing */
-}
-
-void
-swi_generic()
-{
-    /* Just a placeholder, we call swi_dispatcher directly */
-    panic("swi_generic() called");
-}
-
-static void
-swi_net()
-{
-    u_int32_t bits = atomic_readandclear_32(&netisr);
-    int i;
-
-    for (i = 0; i < 32; i++) {
-	if (bits & 1)
-	    netisrs[i]();
-	bits >>= 1;
-    }
 }

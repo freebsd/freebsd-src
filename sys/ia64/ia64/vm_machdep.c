@@ -268,6 +268,13 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_return);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
 		up->u_pcb.pcb_b0 = FDESC_FUNC(switch_trampoline);
+
+		/*
+		 * Clear the saved recursion count for sched_lock
+		 * since the child needs only one count which is
+		 * released in switch_trampoline.
+		 */
+		up->u_pcb.pcb_schednest = 0;
 	}
 }
 

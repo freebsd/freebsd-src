@@ -187,4 +187,27 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 				  (u_long)exp, (u_long)src);
 }
 
+static __inline u_int32_t
+atomic_readandclear_32(volatile u_int32_t* p)
+{
+	u_int32_t val;
+	do {
+		val = *p;
+	} while (!atomic_cmpset_32(p, val, 0));
+	return val;
+}
+
+static __inline u_int64_t
+atomic_readandclear_64(volatile u_int64_t* p)
+{
+	u_int64_t val;
+	do {
+		val = *p;
+	} while (!atomic_cmpset_64(p, val, 0));
+	return val;
+}
+
+#define atomic_readandclear_int	atomic_readandclear_32
+#define atomic_readandclear_long atomic_readandclear_64
+
 #endif /* ! _MACHINE_ATOMIC_H_ */

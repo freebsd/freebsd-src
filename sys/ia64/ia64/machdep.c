@@ -416,7 +416,7 @@ ia64_init()
 	 * Find the beginning and end of the kernel.
 	 */
 	kernstart = trunc_page(kernel_text);
-#ifdef DDB
+#ifdef DDBxx
 	ksym_start = (void *)bootinfo.ssym;
 	ksym_end   = (void *)bootinfo.esym;
 	kernend = (vm_offset_t)round_page(ksym_end);

@@ -112,6 +112,7 @@ ASSYM(U_PCB_UNAT,	offsetof(struct user, u_pcb.pcb_unat));
 ASSYM(U_PCB_RNAT,	offsetof(struct user, u_pcb.pcb_rnat));
 ASSYM(U_PCB_PR,		offsetof(struct user, u_pcb.pcb_pr));
 
+ASSYM(U_PCB_SCHEDNEST,	offsetof(struct user, u_pcb.pcb_onfault));
 ASSYM(U_PCB_ONFAULT,	offsetof(struct user, u_pcb.pcb_onfault));
 
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));

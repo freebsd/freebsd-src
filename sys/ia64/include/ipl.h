@@ -29,90 +29,11 @@
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
 
-
-#include <machine/cpu.h> 	/* for pal inlines */
-
 /*
  * Software interrupt bit numbers
  */
-#define SWI_TTY		0
-#define SWI_NET		1
-#define SWI_CAMNET	2
-#define SWI_CAMBIO	3
-#define SWI_VM		4
-#define SWI_CLOCK	5
-#define SWI_TQ		6
 #define NSWI		32
 #define NHWI		0
-
-extern u_int32_t ipending;
-
-#define getcpl()	(alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)
-
-#define SPLDOWN(name, pri)			\
-						\
-static __inline int name(void)			\
-{						\
-	return 0;				\
-}
-
-SPLDOWN(splsoftclock, SOFT)
-SPLDOWN(splsoft, SOFT)
-
-#define SPLUP(name, pri)			\
-						\
-static __inline int name(void)			\
-{						\
-	return 0;				\
-}
-
-SPLUP(splsoftcam, SOFT)
-SPLUP(splsoftnet, SOFT)
-SPLUP(splsoftvm, SOFT)
-SPLUP(splsofttq, SOFT)
-SPLUP(splnet, IO)
-SPLUP(splbio, IO)
-SPLUP(splcam, IO)
-SPLUP(splimp, IO)
-SPLUP(spltty, IO)
-SPLUP(splvm, IO)
-SPLUP(splclock, CLOCK)
-SPLUP(splstatclock, CLOCK)
-SPLUP(splhigh, HIGH)
-
-static __inline void
-spl0(void)
-{
-    if (ipending)
-	do_sir();		/* lowers ipl to SOFT */
-}
-
-static __inline void
-splx(int s)
-{
-}
-
-extern void setdelayed(void);
-extern void setsofttty(void);
-extern void setsoftnet(void);
-extern void setsoftcamnet(void);
-extern void setsoftcambio(void);
-extern void setsoftvm(void);
-extern void setsofttq(void);
-extern void setsoftclock(void);
-
-extern void schedsofttty(void);
-extern void schedsoftnet(void);
-extern void schedsoftcamnet(void);
-extern void schedsoftcambio(void);
-extern void schedsoftvm(void);
-extern void schedsofttq(void);
-extern void schedsoftclock(void);
-
-#if 0
-/* XXX bogus */
-extern		unsigned cpl;	/* current priority level mask */
-#endif
 
 /*
  * Interprocessor interrupts for SMP.

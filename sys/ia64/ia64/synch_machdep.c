@@ -547,20 +547,3 @@ mtx_destroy(struct mtx *m)
 	mtx_cur_cnt--;
 	mtx_exit(&all_mtx, MTX_DEF);
 }
-
-void
-cpu_switch()
-{
-	struct proc *p = curproc;
-
-	if (savectx(&p->p_addr->u_pcb)) {
-		sched_lock.mtx_lock = CURTHD;
-		sched_lock.mtx_recurse = p->p_addr->u_pcb.pcb_schednest;
-		return;
-	}
-
-	p = chooseproc();
-	curproc = p;
-	ia64_set_k7((u_int64_t) curproc);
-	restorectx(&p->p_addr->u_pcb);
-}
