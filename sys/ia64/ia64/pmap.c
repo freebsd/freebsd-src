@@ -1334,6 +1334,31 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 }
 
 /*
+ * Extract the physical page address associated with a kernel
+ * virtual address.
+ */
+vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+	struct ia64_lpte *pte;
+
+	KASSERT(va >= IA64_RR_BASE(5), ("Must be kernel VA"));
+
+	/* Regions 6 and 7 are direct mapped. */
+	if (va >= IA64_RR_BASE(6))
+		return (IA64_RR_MASK(va));
+
+	/* Bail out if the virtual address is beyond our limits. */
+	if (IA64_RR_MASK(va) >= nkpt * PAGE_SIZE * NKPTEPG)
+		return (0);
+
+	pte = pmap_find_kpte(va);
+	if (!pte->pte_p)
+		return (0);
+	return ((pte->pte_ppn << 12) | (va & PAGE_MASK));
+}
+
+/*
  * Add a list of wired pages to the kva
  * this routine is only used for temporary
  * kernel mappings that do not need to have
