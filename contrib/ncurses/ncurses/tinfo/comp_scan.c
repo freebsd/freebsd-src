@@ -274,8 +274,10 @@ start_token:
 			if (desc) {
 			    if (*desc == '\0')
 				_nc_warning("empty longname field");
+#ifndef FREEBSD_NATIVE
 			    else if (strchr(desc, ' ') == (char *)NULL)
 				_nc_warning("older tic versions may treat the description field as an alias");
+#endif
 			}
 			if (!desc)
 			    desc = buffer + strlen(buffer);
