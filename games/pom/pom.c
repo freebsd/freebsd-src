@@ -75,6 +75,7 @@ static const char rcsid[] =
 
 static void	adj360 __P((double *));
 static double	dtor __P((double));
+int main	__P((void));
 static double	potm __P((double));
 
 int
