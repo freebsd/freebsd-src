@@ -12,9 +12,9 @@
   <sect><heading>DMA: What it is and how it works<label id="dma"></heading>
 
     <p><em>Copyright &copy; 1995 &a.uhclem;, All Rights Reserved.<newline>
-	18 October 1995.</em>
+	10 December 1996.</em>
 
-<!-- Version 1(2) -->
+<!-- Version 1(3) -->
 
       Direct Memory Access (DMA) is a method of allowing data to
       be moved from one location to another in a computer without
@@ -28,16 +28,18 @@
 
       The PC DMA subsystem is based on the Intel 8237 DMA
       controller.  The 8237 contains four DMA channels that can
-      be programmed independently and any of the channels may be
+      be programmed independently and any one of the channels may be
       active at any moment.  These channels are numbered 0, 1, 2
       and 3.  Starting with the PC/AT, IBM added a second 8237
       chip, and numbered those channels 4, 5, 6 and 7.
 
       The original DMA controller (0, 1, 2 and 3) moves one byte
       in each transfer.  The second DMA controller (4, 5, 6, and
-      7) moves 16-bits in each transfer.  The two controllers are
-      identical and the difference in transfer size is caused by
-      the way the second controller is wired into the system.
+      7) moves 16-bits from two adjacent memory locations in each
+      transfer, with the first byte always coming from an even-numbered
+      address.  The two controllers are identical components and the
+      difference in transfer size is caused by the way the second
+      controller is wired into the system.
 
       The 8237 has two electrical signals for each channel, named
       DRQ and -DACK.  There are additional signals with the
@@ -114,7 +116,7 @@
 	The floppy disk controller is now responsible for placing
 	the byte to be transferred on the bus Data lines.  Unless
 	the floppy controller needs more time to get the data
-	byte on the bus (and if the peripheral needs more time it
+	byte on the bus (and if the peripheral does need more time it
 	alerts the DMA via the READY signal), the DMA will wait
 	one DMA clock, and then de-assert the -MEMW and -IOR
 	signals so that the memory will latch and store the byte
@@ -190,10 +192,10 @@
 	supported more than 64K of memory, something had to be
 	done to allow the DMA to read or write memory locations
 	above the 64K mark.  What IBM did to solve this problem
-	was to add a latch for each DMA channel, that holds the
+	was to add a latch for each DMA channel that holds the
 	upper bits of the address to be read to or written from.
 	Whenever a DMA channel is active, the contents of that
-	latch is written to the address bus and kept there until
+	latch are written to the address bus and kept there until
 	the DMA operation for the channel ends.  These latches
 	are called ``Page Registers''.
 
@@ -206,9 +208,10 @@
 	Because the Page Register latch is independent of the DMA
 	chip, the area of memory to be read or written must not
 	span a 64K physical boundary.  If the DMA accesses memory
-	location 0xffff, the DMA will then increment the address
-	register and it will access the next byte at 0x0000, not
-	0x10000.  The results of letting this happen are probably not intended.
+	location 0xffff, after the transfer the DMA will then increment
+	the address register and the DMA will access the next byte at
+	location 0x0000, not 0x10000.  The results of letting this
+	happen are probably not intended.
 
 	<quote><em>Note:</em> ``Physical'' 64K boundaries should
 	  not be confused with 8086-mode 64K ``Segments'', which
@@ -220,15 +223,15 @@
 	us 8+16=24 bits, which means that the DMA can only point
 	at memory locations between 0 and 16Meg.  For newer
 	computers that allow more than 16Meg of memory, the
-	PC-compatible DMA cannot access locations above 16Meg.
+	PC-compatible DMA cannot access memory locations above 16Meg.
 
 	To get around this restriction, operating systems will
 	reserve a buffer in an area below 16Meg that also does not
 	span a physical 64K boundary.  Then the DMA will be
-	programmed to read data to that buffer.  Once the DMA has
-	moved the data into this buffer, the operating system
-	will then copy the data from the buffer to the address
-	where the data is really supposed to be stored.
+	programmed to transfer data from the peripheral and into that
+	buffer.  Once the DMA has moved the data into this buffer,
+	the operating system will then copy the data from the buffer
+	to the address where the data is really supposed to be stored.
 
 	When writing data from an address above 16Meg to a
 	DMA-based peripheral, the data must be first copied from
@@ -260,42 +263,45 @@
 	  <tag>Block/Demand</tag> Once the DMA acquires the
 	    system bus, an entire block of data is transferred,
 	    up to a maximum of 64K.  If the peripheral needs
-	    additional time, it can assert the READY signal.
-	    READY should not be used excessively, and for slow
-	    peripheral transfers, the Single Transfer Mode should
-	    be used instead.
+	    additional time, it can assert the READY signal to
+	    suspend the transfer briefly.  READY should not be
+	    used excessively, and for slow peripheral transfers,
+	    the Single Transfer Mode should be used instead.
 
-	    The difference between Block and Demand is the once a
+	    The difference between Block and Demand is that once a
 	    Block transfer is started, it runs until the transfer
 	    count reaches zero.  DRQ only needs to be asserted
 	    until -DACK is asserted.  Demand Mode will transfer
-	    one more bytes until DRQ is de-asserted, then when
-	    DRQ is asserted later, the transfer resumes where it
-	    was suspended.
+	    one more bytes until DRQ is de-asserted and the DMA
+	    pauses the transfer and releases the bus back to the CPU.
+	    When DRQ is asserted later, the transfer resumes where
+	    it was suspended.
 
 	    Older hard disk controllers used Demand Mode until
 	    CPU speeds increased to the point that it was more
-	    efficient to read the data using the CPU.
+	    efficient to transfer the data using the CPU, particularly
+	    if the memory locations used in the transfer were above the
+	    16Meg mark.
 		
 
 	  <tag>Cascade</tag> This mechanism allows a DMA channel
 	    to request the bus, but then the attached peripheral
-	    device is responsible for placing addressing
-	    information on the bus.  This is also known as ``Bus
-	    Mastering''.
+	    device is responsible for placing the addressing
+	    information on the bus instead of the DMA.  This is also
+	    known as ``Bus Mastering''.
 
 	    When a DMA channel in Cascade Mode receives control
 	    of the bus, the DMA does not place addresses and I/O
-	    control signals on the bus like it normally does.
-	    Instead, the DMA only asserts the -DACK signal for
-	    this channel.
+	    control signals on the bus like the DMA normally does
+	    when it is active.  Instead, the DMA only asserts the
+	    -DACK signal for this channel.
 
-	    Now it is up to the device connected to that DMA
+	    At this point it is up to the device connected to that DMA
 	    channel to provide address and bus control signals.
 	    The peripheral has complete control over the system
 	    bus, and can do reads and/or writes to any address
 	    below 16Meg.  When the peripheral is finished with
-	    bus, it de-asserts the DRQ line, and the DMA
+	    the bus, it de-asserts the DRQ line, and the DMA
 	    controller can return control to the CPU or to some
 	    other DMA channel.
 
@@ -312,7 +318,8 @@
 	    DMA controller.  The slave DMA controller then
 	    transfers data for the DMA channel that requested it,
 	    or the slave DMA may grant the bus to a peripheral
-	    that wants to perform its own bus-mastering.
+	    that wants to perform its own bus-mastering, such as
+	    a SCSI controller.
 
 	    Because of this wiring arrangement, only DMA channels
 	    0, 1, 2, 3, 5, 6 and 7 are usable on PC/AT systems.
@@ -327,45 +334,61 @@
 	    from memory constantly while it holds the system bus.
 	    If the peripheral cannot do this, it must release the
 	    bus frequently so that the system can perform refresh
-	    operations on memory.
+	    operations on main memory.
+
+	    The Dynamic RAM used in all PCs for main memory must be
+	    accessed frequently to keep the bits stored in the
+	    components "charged".  Dynamic RAM essentially consists
+	    of millions of capacitors with each one holding one bit
+	    of data.  These capacitors are charged with power to
+	    represent a "1" or drained to represent a "0".  Because
+	    all capacitors leak, power must be added at regular intervals
+	    to keep the "1" values intact.  The RAM chips actually handle
+	    the task of pumping power back into all of the appropriate
+	    locations in RAM, but they must be told when to do it by
+	    the rest of the computer so that the refresh activity won't
+	    interfere with the computer wanting to access RAM normally.
+	    If the computer is unable to refresh memory, the contents
+	    of memory will become corrupted in just a few milliseconds.  
 
 	    Since memory read and write cycles ``count'' as refresh
-	    cycles (a refresh cycle is actually an incomplete
+	    cycles (a dynamic RAM refresh cycle is actually an incomplete
 	    memory read cycle), as long as the peripheral
 	    controller continues reading or writing data to
 	    sequential memory locations, that action will refresh
 	    all of memory.
 	
-	    Bus-mastering is found in some SCSI adapters and
-	    other high-performance peripheral cards.
+	    Bus-mastering is found in some SCSI host interfaces and
+	    other high-performance peripheral controllers.
 
 
 	  <tag>Autoinitialize</tag> This mode causes the DMA to
 	    perform Byte, Block or Demand transfers, but when the
 	    DMA transfer counter reaches zero, the counter and
-	    address is set back to where they were when the DMA
+	    address are set back to where they were when the DMA
 	    channel was originally programmed.  This means that
-	    as long as the device requests transfers, they will
+	    as long as the peripheral requests transfers, they will
 	    be granted.  It is up to the CPU to move new data
 	    into the fixed buffer ahead of where the DMA is about
-	    to transfer it for output operations, and read new
-	    data out of the buffer behind where the DMA is
-	    writing on input operations.  This technique is
-	    frequently used on audio devices that have small or
-	    no hardware ``sample'' buffers.  There is additional
-	    CPU overhead to manage this ``circular'' buffer, but in
-	    some cases this may be the only way to eliminate the
+	    to transfer it when doing output operations, and read new
+	    data out of the buffer behind where the DMA is writing
+	    when doing input operations.
+
+	    This technique is frequently used on audio devices that
+	    have small or no hardware ``sample'' buffers.  There is
+	    additional CPU overhead to manage this ``circular'' buffer,
+	    but in some cases this may be the only way to eliminate the
 	    latency that occurs when the DMA counter reaches zero
-	    and the DMA stops until it is reprogrammed.
+	    and the DMA stops transfers until it is reprogrammed.
 	</descrip>
 
     <sect1><heading>Programming the DMA</heading>
 
       <p>The DMA channel that is to be programmed should always
 	be ``masked'' before loading any settings.  This is because
-	the hardware might assert DRQ, and the DMA might respond,
-	even though not all of the parameters have been loaded or
-	updated.
+	the hardware might unexpectedly assert DRQ, and the DMA might
+	respond, even though not all of the parameters have been
+	loaded or updated.
 
 	Once masked, the host must specify the direction of the
 	transfer (memory-to-I/O or I/O-to-memory), what mode of
@@ -376,7 +399,8 @@
 	transfer.  The LSB and MSB of the address and length are
 	written to the same 8-bit I/O port, so another port must
 	be written to first to guarantee that the DMA accepts the
-	first byte as the LSB and the second byte as the MSB.
+	first byte as the LSB and the second byte as the MSB of
+	the length and address.
 
 	Then, be sure to update the Page Register, which is
 	external to the DMA and is accessed through a different
@@ -388,7 +412,7 @@
 
 	Refer to a hardware data book for precise programming
 	details for the 8237.  You will also need to refer to the
-	I/O port map for the PC system.  This map describes where
+	I/O port map for the PC system, which describes where
 	the DMA and Page Register ports are located.  A complete
 	table is located below.
 
