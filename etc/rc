@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.64 1995/05/11 21:11:17 jkh Exp $
+#	$Id: rc,v 1.65 1995/05/15 08:39:08 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -99,7 +99,7 @@ if [ -f /etc/netstart ]; then
 	sh /etc/netstart
 fi
 
-mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
+mount -a -t nfs >/dev/null 2>&1
 
 # Whack the pty perms back into shape.
 chmod 666 /dev/tty[pqrs]*
