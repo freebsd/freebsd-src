@@ -237,6 +237,25 @@ log(int level, const char *fmt, ...)
 	msgbuftrigger = 1;
 }
 
+int
+vlog(const char *fmt, va_list ap)
+{
+	int savintr;
+	struct putchar_arg pca;
+	int retval;
+
+	savintr = consintr;		/* disable interrupts */
+	consintr = 0;
+	pca.tty = NULL;
+	pca.flags = log_open ? TOLOG : TOCONS;
+	pca.pri = -1;
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+	if (!panicstr)
+		msgbuftrigger = 1;
+	consintr = savintr;		/* reenable interrupts */
+	return (retval);
+}
+
 #define CONSCHUNK 128
 
 void
@@ -322,6 +341,7 @@ vprintf(const char *fmt, va_list ap)
 	consintr = savintr;		/* reenable interrupts */
 	return (retval);
 }
+
 
 /*
  * Print a character on console or users terminal.  If destination is
