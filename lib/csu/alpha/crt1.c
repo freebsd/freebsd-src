@@ -52,6 +52,8 @@ extern int _DYNAMIC;
 extern void _init(void);
 extern void _fini(void);
 extern int main(int, char **, char **);
+extern void _start(char **, void (*)(void), struct Struct_Obj_Entry *,
+    struct ps_strings *);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -67,8 +69,8 @@ const char *__progname = "";
 void
 _start(char **ap,
 	void (*cleanup)(void),			/* from shared loader */
-	struct Struct_Obj_Entry *obj,		/* from shared loader */
-	struct ps_strings *ps_strings)
+	struct Struct_Obj_Entry *obj __unused,	/* from shared loader */
+	struct ps_strings *ps_strings __unused)
 {
 	int argc;
 	char **argv;
