@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,16 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ls.h	8.1 (Berkeley) 5/31/93
- *	$Id: ls.h,v 1.5 1997/02/22 14:04:00 peter Exp $
+ *	from: @(#)ls.h	8.1 (Berkeley) 5/31/93
+ *	$Id: ls.h,v 1.6 1997/04/29 10:03:05 dfr Exp $
  */
 
 #define NO_PRINT	1
-/*
- * XXX Until we get kernel support for the undelete(2) system call,
- * this define *must* remain in place.
- */
-/* #define BSD4_4_LITE */
 
 extern long blocksize;		/* block size units */
 
