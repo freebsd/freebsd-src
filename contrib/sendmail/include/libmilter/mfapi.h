@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.35 2001/10/09 19:05:24 gshapiro Exp $
+ *	$Id: mfapi.h,v 8.41 2002/03/22 21:36:12 gshapiro Exp $
  */
 
 /*
@@ -17,12 +17,12 @@
 #ifndef _LIBMILTER_MFAPI_H
 # define _LIBMILTER_MFAPI_H	1
 
+# include <sys/types.h>
 # include <sys/socket.h>
 # include "libmilter/mfdef.h"
 
 # define LIBMILTER_API		extern
 
-# include <sys/types.h>
 
 #ifndef _SOCK_ADDR
 # define _SOCK_ADDR	struct sockaddr
@@ -108,6 +108,7 @@ struct smfiDesc
 
 LIBMILTER_API int smfi_register __P((struct smfiDesc));
 LIBMILTER_API int smfi_main __P((void));
+LIBMILTER_API int smfi_setbacklog __P((int));
 LIBMILTER_API int smfi_setdbg __P((int));
 LIBMILTER_API int smfi_settimeout __P((int));
 LIBMILTER_API int smfi_setconn __P((char *));
@@ -370,6 +371,17 @@ LIBMILTER_API int smfi_addrcpt __P((SMFICTX *, char *));
 */
 
 LIBMILTER_API int smfi_delrcpt __P((SMFICTX *, char *));
+
+#if _FFR_SMFI_PROGRESS
+/*
+**  Send a "no-op" up to the MTA to tell it we're still alive, so long
+**  milter-side operations don't time out.
+**
+**	SMFICTX *ctx; Opaque context structure
+*/
+
+LIBMILTER_API int smfi_progress __P((SMFICTX *));
+#endif /* _FFR_SMFI_PROGRESS */
 
 /*
 **  Delete a recipient from the envelope

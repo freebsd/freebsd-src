@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,13 +8,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-event.c,v 1.7 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: t-event.c,v 1.9 2002/03/19 00:26:21 ca Exp $")
 
 #include <stdio.h>
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
+# include <sys/wait.h>
 #if SM_CONF_SETITIMER
 # include <sys/time.h>
 #endif /* SM_CONF_SETITIMER */
@@ -51,7 +51,7 @@ main(argc, argv)
 	SM_EVENT *ev;
 
 	sm_test_begin(argc, argv, "test event handling");
-	fprintf(stdout, "this test may hang. If there is no output within twelve seconds, abort it\nand recompile with -DSM_CONF_SETITIMER=%d\n",
+	fprintf(stdout, "This test may hang. If there is no output within twelve seconds, abort it\nand recompile with -DSM_CONF_SETITIMER=%d\n",
 		SM_CONF_SETITIMER == 0 ? 1 : 0);
 	sleep(1);
 	SM_TEST(1 == 1);

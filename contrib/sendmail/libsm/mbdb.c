@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mbdb.c,v 1.28 2002/01/07 23:29:43 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mbdb.c,v 1.36 2002/03/25 18:08:20 gshapiro Exp $")
 
 #include <sys/param.h>
 
@@ -26,6 +26,9 @@ SM_RCSID("@(#)$Id: mbdb.c,v 1.28 2002/01/07 23:29:43 gshapiro Exp $")
 #include <sm/heap.h>
 #include <sm/mbdb.h>
 #include <sm/string.h>
+# ifdef EX_OK
+#  undef EX_OK			/* for SVr4.2 SMP */
+# endif /* EX_OK */
 #include <sm/sysexits.h>
 
 #if LDAPMAP
@@ -207,6 +210,20 @@ sm_mbdb_frompw(user, pw)
 **		none.
 */
 
+#if _FFR_HANDLE_ISO8859_GECOS
+static char Latin1ToASCII[128] =
+{
+	32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+	32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 33,
+	99, 80, 36, 89, 124, 36, 34, 99, 97, 60, 45, 45, 114, 45, 111, 42,
+	50, 51, 39, 117, 80, 46, 44, 49, 111, 62, 42, 42, 42, 63, 65, 65,
+	65, 65, 65, 65, 65, 67, 69, 69, 69, 69, 73, 73, 73, 73, 68, 78, 79,
+	79, 79, 79, 79, 88, 79, 85, 85, 85, 85, 89, 80, 66, 97, 97, 97, 97,
+	97, 97, 97, 99, 101, 101, 101, 101, 105, 105, 105, 105, 100, 110,
+	111, 111, 111, 111, 111, 47, 111, 117, 117, 117, 117, 121, 112, 121
+};
+#endif /* _FFR_HANDLE_ISO8859_GECOS */
+
 void
 sm_pwfullname(gecos, user, buf, buflen)
 	register char *gecos;
@@ -237,7 +254,14 @@ sm_pwfullname(gecos, user, buf, buflen)
 			bp += strlen(bp);
 		}
 		else
-			*bp++ = *p;
+		{
+#if _FFR_HANDLE_ISO8859_GECOS
+			if ((unsigned char) *p >= 128)
+				*bp++ = Latin1ToASCII[(unsigned char) *p - 128];
+			else
+#endif /* _FFR_HANDLE_ISO8859_GECOS */
+				*bp++ = *p;
+		}
 	}
 	*bp = '\0';
 }
@@ -409,13 +433,13 @@ mbdb_ldap_initialize(arg)
 {
 	sm_ldap_clear(&LDAPLMAP);
 	LDAPLMAP.ldap_base = MBDB_DEFAULT_LDAP_BASEDN;
-	LDAPLMAP.ldap_host = MBDB_DEFAULT_LDAP_SERVER;
+	LDAPLMAP.ldap_target = MBDB_DEFAULT_LDAP_SERVER;
 	LDAPLMAP.ldap_filter = MBDB_LDAP_FILTER;
 
 	/* Only want one match */
 	LDAPLMAP.ldap_sizelimit = 1;
 
-	/* interpolate new ldap_base and ldap_host from arg if given */
+	/* interpolate new ldap_base and ldap_target from arg if given */
 	if (arg != NULL && *arg != '\0')
 	{
 		char *new;
@@ -431,7 +455,7 @@ mbdb_ldap_initialize(arg)
 		if (sep != NULL)
 		{
 			*sep++ = '\0';
-			LDAPLMAP.ldap_host = sep;
+			LDAPLMAP.ldap_target = sep;
 		}
 		LDAPLMAP.ldap_base = new;
 	}
@@ -568,9 +592,7 @@ mbdb_ldap_lookup(name, user)
 			errno = sm_ldap_geterrno(LDAPLMAP.ldap_ld);
 			if (errno == LDAP_SUCCESS)
 			{
-# if USING_NETSCAPE_LDAP
 				ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 				continue;
 			}
 
@@ -670,9 +692,7 @@ mbdb_ldap_lookup(name, user)
 
 skip:
 		ldap_value_free(vals);
-# if USING_NETSCAPE_LDAP
 		ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 	}
 
 	errno = sm_ldap_geterrno(LDAPLMAP.ldap_ld);
@@ -699,9 +719,7 @@ skip:
 	save_errno = errno;
 	if (attr != NULL)
 	{
-# if USING_NETSCAPE_LDAP
 		ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 		attr = NULL;
 	}
 	if (LDAPLMAP.ldap_res != NULL)

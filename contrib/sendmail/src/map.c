@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.618 2002/01/11 22:06:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.641 2002/03/26 22:56:36 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -2591,7 +2591,7 @@ nis_map_open(map, mode)
 		if (yperr != 0)
 		{
 			if (!bitset(MF_OPTIONAL, map->map_mflags))
-				syserr("421 4.3.5 NIS map %s specified, but NIS not running",
+				syserr("451 4.3.5 NIS map %s specified, but NIS not running",
 				       map->map_file);
 			return false;
 		}
@@ -2625,7 +2625,7 @@ nis_map_open(map, mode)
 
 	if (!bitset(MF_OPTIONAL, map->map_mflags))
 	{
-		syserr("421 4.0.0 Cannot bind to map %s in domain %s: %s",
+		syserr("451 4.3.5 Cannot bind to map %s in domain %s: %s",
 			map->map_file, map->map_domain, yperr_string(yperr));
 	}
 
@@ -2879,7 +2879,7 @@ nisplus_map_open(map, mode)
 		  default:		/* all other nisplus errors */
 # if 0
 			if (!bitset(MF_OPTIONAL, map->map_mflags))
-				syserr("421 4.0.0 Cannot find table %s.%s: %s",
+				syserr("451 4.3.5 Cannot find table %s.%s: %s",
 					map->map_file, map->map_domain,
 					nis_sperrno(res->status));
 # endif /* 0 */
@@ -2895,7 +2895,7 @@ nisplus_map_open(map, mode)
 			sm_dprintf("nisplus_map_open: %s is not a table\n", qbuf);
 # if 0
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
-			syserr("421 4.0.0 %s.%s: %s is not a table",
+			syserr("451 4.3.5 %s.%s: %s is not a table",
 				map->map_file, map->map_domain,
 				nis_sperrno(res->status));
 # endif /* 0 */
@@ -3132,7 +3132,7 @@ nisplus_getcanonname(name, hbsize, statp)
 	}
 
 	if (tTd(38, 20))
-		sm_dprintf("\nnisplus_getcanoname(%s), qbuf=%s\n",
+		sm_dprintf("\nnisplus_getcanonname(%s), qbuf=%s\n",
 			   name, qbuf);
 
 	result = nis_list(qbuf, EXPAND_NAME|FOLLOW_LINKS|FOLLOW_PATH,
@@ -3152,12 +3152,12 @@ nisplus_getcanonname(name, hbsize, statp)
 
 			/* ignore second entry */
 			if (tTd(38, 20))
-				sm_dprintf("nisplus_getcanoname(%s), got %d entries, all but first ignored\n",
+				sm_dprintf("nisplus_getcanonname(%s), got %d entries, all but first ignored\n",
 					   name, count);
 		}
 
 		if (tTd(38, 20))
-			sm_dprintf("nisplus_getcanoname(%s), found in directory \"%s\"\n",
+			sm_dprintf("nisplus_getcanonname(%s), found in directory \"%s\"\n",
 				   name, (NIS_RES_OBJECT(result))->zo_domain);
 
 
@@ -3325,7 +3325,7 @@ ldapmap_open(map, mode)
 			if (LogLevel > 1)
 				sm_syslog(LOG_NOTICE, CurEnv->e_id,
 					  "timeout conning to LDAP server %.100s",
-					  lmap->ldap_host == NULL ? "localhost" : lmap->ldap_host);
+					  lmap->ldap_target == NULL ? "localhost" : lmap->ldap_target);
 		}
 
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
@@ -3337,18 +3337,18 @@ ldapmap_open(map, mode)
 # else /* USE_LDAP_INIT */
 				       "ldap_open",
 # endif /* USE_LDAP_INIT */
-				       lmap->ldap_host == NULL ? "localhost"
-							       : lmap->ldap_host,
+				       lmap->ldap_target == NULL ? "localhost"
+								 : lmap->ldap_target,
 				       map->map_mname);
 			else
-				syserr("421 4.0.0 %s failed to %s in map %s",
+				syserr("451 4.3.5 %s failed to %s in map %s",
 # if USE_LDAP_INIT
 				       "ldap_init/ldap_bind",
 # else /* USE_LDAP_INIT */
 				       "ldap_open",
 # endif /* USE_LDAP_INIT */
-				       lmap->ldap_host == NULL ? "localhost"
-							       : lmap->ldap_host,
+				       lmap->ldap_target == NULL ? "localhost"
+								 : lmap->ldap_target,
 				       map->map_mname);
 		}
 		return false;
@@ -3445,12 +3445,17 @@ ldapmap_lookup(map, name, av, statp)
 	char **av;
 	int *statp;
 {
-	int i;
+# if _FFR_LDAP_RECURSION
+	int plen = 0;
+	int psize = 0;
+# else /* _FFR_LDAP_RECURSION */
 	int entries = 0;
-	int msgid;
+	int i;
 	int ret;
-	int save_errno;
 	int vsize;
+# endif /* _FFR_LDAP_RECURSION */
+	int msgid;
+	int save_errno;
 	char *vp, *p;
 	char *result = NULL;
 	SM_LDAP_STRUCT *lmap = NULL;
@@ -3485,15 +3490,15 @@ ldapmap_lookup(map, name, av, statp)
 				syserr("Error in ldap_search using %s in map %s",
 				       keybuf, map->map_mname);
 			else
-				syserr("421 4.0.0 Error in ldap_search using %s in map %s",
+				syserr("451 4.3.5 Error in ldap_search using %s in map %s",
 				       keybuf, map->map_mname);
 		}
 		*statp = EX_TEMPFAIL;
 		switch (save_errno - E_LDAPBASE)
 		{
-#ifdef LDAP_SERVER_DOWN
+# ifdef LDAP_SERVER_DOWN
 		  case LDAP_SERVER_DOWN:
-#endif /* LDAP_SERVER_DOWN */
+# endif /* LDAP_SERVER_DOWN */
 		  case LDAP_TIMEOUT:
 		  case LDAP_UNAVAILABLE:
 			/* server disappeared, try reopen on next search */
@@ -3523,7 +3528,7 @@ ldapmap_lookup(map, name, av, statp)
 
 		p = NULL;
 		*statp = sm_ldap_results(lmap, msgid, flags, map->map_coldelim,
-					 rpool, &p, NULL);
+					 rpool, &p, &plen, &psize, NULL);
 		save_errno = errno;
 
 		/* Copy result so rpool can be freed */
@@ -3547,15 +3552,14 @@ ldapmap_lookup(map, name, av, statp)
 					syserr("Error getting LDAP results in map %s",
 					       map->map_mname);
 				else
-					syserr("421 4.0.0 Error getting LDAP results in map %s",
+					syserr("451 4.3.5 Error getting LDAP results in map %s",
 					       map->map_mname);
 			}
 			errno = save_errno;
 			return NULL;
 		}
-		goto finishlookup;
 	}
-# endif /* _FFR_LDAP_RECURSION */
+# else /* _FFR_LDAP_RECURSION */
 
 	/* Get results */
 	while ((ret = ldap_result(lmap->ldap_ld, msgid, 0,
@@ -3608,7 +3612,7 @@ ldapmap_lookup(map, name, av, statp)
 			    bitset(MF_MATCHONLY, map->map_mflags))
 				continue;
 
-# if !defined(LDAP_VERSION_MAX) && !defined(LDAP_OPT_SIZELIMIT)
+#  if !defined(LDAP_VERSION_MAX) && !defined(LDAP_OPT_SIZELIMIT)
 			/*
 			**  Reset value to prevent lingering
 			**  LDAP_DECODING_ERROR due to
@@ -3616,7 +3620,7 @@ ldapmap_lookup(map, name, av, statp)
 			*/
 
 			lmap->ldap_ld->ld_errno = LDAP_SUCCESS;
-# endif /* !defined(LDAP_VERSION_MAX) !defined(LDAP_OPT_SIZELIMIT) */
+#  endif /* !defined(LDAP_VERSION_MAX) !defined(LDAP_OPT_SIZELIMIT) */
 
 			for (attr = ldap_first_attribute(lmap->ldap_ld, entry,
 							 &ber);
@@ -3636,9 +3640,7 @@ ldapmap_lookup(map, name, av, statp)
 						save_errno = sm_ldap_geterrno(lmap->ldap_ld);
 						if (save_errno == LDAP_SUCCESS)
 						{
-# if USING_NETSCAPE_LDAP
 							ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 							continue;
 						}
 
@@ -3653,13 +3655,11 @@ ldapmap_lookup(map, name, av, statp)
 								syserr("Error getting LDAP values in map %s",
 								       map->map_mname);
 							else
-								syserr("421 4.0.0 Error getting LDAP values in map %s",
+								syserr("451 4.3.5 Error getting LDAP values in map %s",
 								       map->map_mname);
 						}
 						*statp = EX_TEMPFAIL;
-# if USING_NETSCAPE_LDAP
 						ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 						if (lmap->ldap_res != NULL)
 						{
 							ldap_msgfree(lmap->ldap_res);
@@ -3676,7 +3676,7 @@ ldapmap_lookup(map, name, av, statp)
 
 				*statp = EX_OK;
 
-# if !defined(LDAP_VERSION_MAX) && !defined(LDAP_OPT_SIZELIMIT)
+#  if !defined(LDAP_VERSION_MAX) && !defined(LDAP_OPT_SIZELIMIT)
 				/*
 				**  Reset value to prevent lingering
 				**  LDAP_DECODING_ERROR due to
@@ -3684,7 +3684,7 @@ ldapmap_lookup(map, name, av, statp)
 				*/
 
 				lmap->ldap_ld->ld_errno = LDAP_SUCCESS;
-# endif /* !defined(LDAP_VERSION_MAX) !defined(LDAP_OPT_SIZELIMIT) */
+#  endif /* !defined(LDAP_VERSION_MAX) !defined(LDAP_OPT_SIZELIMIT) */
 
 				/*
 				**  If matching only,
@@ -3696,9 +3696,7 @@ ldapmap_lookup(map, name, av, statp)
 					if (lmap->ldap_attrsonly == LDAPMAP_FALSE)
 						ldap_value_free(vals);
 
-# if USING_NETSCAPE_LDAP
 					ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 					continue;
 				}
 
@@ -3712,18 +3710,14 @@ ldapmap_lookup(map, name, av, statp)
 					if (lmap->ldap_attrsonly == LDAPMAP_TRUE)
 					{
 						vp = newstr(attr);
-# if USING_NETSCAPE_LDAP
 						ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 						break;
 					}
 
 					if (vals[0] == NULL)
 					{
 						ldap_value_free(vals);
-# if USING_NETSCAPE_LDAP
 						ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 						continue;
 					}
 
@@ -3740,9 +3734,7 @@ ldapmap_lookup(map, name, av, statp)
 					else
 						sm_strlcpy(vp, vals[0], vsize);
 					ldap_value_free(vals);
-# if USING_NETSCAPE_LDAP
 					ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 					break;
 				}
 
@@ -3763,9 +3755,7 @@ ldapmap_lookup(map, name, av, statp)
 						sm_free(vp); /* XXX */
 						vp = tmp;
 					}
-# if USING_NETSCAPE_LDAP
 					ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 					continue;
 				}
 
@@ -3803,9 +3793,7 @@ ldapmap_lookup(map, name, av, statp)
 				}
 
 				ldap_value_free(vals);
-# if USING_NETSCAPE_LDAP
 				ldap_memfree(attr);
-# endif /* USING_NETSCAPE_LDAP */
 				if (vp == NULL)
 				{
 					vp = vp_tmp;
@@ -3843,7 +3831,7 @@ ldapmap_lookup(map, name, av, statp)
 						syserr("Error getting LDAP attributes in map %s",
 						       map->map_mname);
 					else
-						syserr("421 4.0.0 Error getting LDAP attributes in map %s",
+						syserr("451 4.3.5 Error getting LDAP attributes in map %s",
 						       map->map_mname);
 				}
 				*statp = EX_TEMPFAIL;
@@ -3876,7 +3864,7 @@ ldapmap_lookup(map, name, av, statp)
 					syserr("Error getting LDAP entries in map %s",
 					       map->map_mname);
 				else
-					syserr("421 4.0.0 Error getting LDAP entries in map %s",
+					syserr("451 4.3.5 Error getting LDAP entries in map %s",
 					       map->map_mname);
 			}
 			*statp = EX_TEMPFAIL;
@@ -3911,7 +3899,7 @@ ldapmap_lookup(map, name, av, statp)
 				syserr("Error getting LDAP results in map %s",
 				       map->map_mname);
 			else
-				syserr("421 4.0.0 Error getting LDAP results in map %s",
+				syserr("451 4.3.5 Error getting LDAP results in map %s",
 				       map->map_mname);
 		}
 		*statp = EX_TEMPFAIL;
@@ -3920,9 +3908,9 @@ ldapmap_lookup(map, name, av, statp)
 
 		switch (save_errno - E_LDAPBASE)
 		{
-#ifdef LDAP_SERVER_DOWN
+#  ifdef LDAP_SERVER_DOWN
 		  case LDAP_SERVER_DOWN:
-#endif /* LDAP_SERVER_DOWN */
+#  endif /* LDAP_SERVER_DOWN */
 		  case LDAP_TIMEOUT:
 		  case LDAP_UNAVAILABLE:
 			/* server disappeared, try reopen on next search */
@@ -3932,9 +3920,6 @@ ldapmap_lookup(map, name, av, statp)
 		errno = save_errno;
 		return NULL;
 	}
-
-# if _FFR_LDAP_RECURSION
-finishlookup:
 # endif /* _FFR_LDAP_RECURSION */
 
 	/* Did we match anything? */
@@ -3980,15 +3965,25 @@ static STAB *
 ldapmap_findconn(lmap)
 	SM_LDAP_STRUCT *lmap;
 {
+	char *format;
 	char *nbuf;
 	STAB *SM_NONVOLATILE s = NULL;
 
-	nbuf = sm_stringf_x("%s%c%d%c%s%c%s%d",
-			    (lmap->ldap_host == NULL ? "localhost"
-						     : lmap->ldap_host),
+# if _FFR_LDAP_SETVERSION
+	format = "%s%c%d%c%d%c%s%c%s%d";
+# else /* _FFR_LDAP_SETVERSION */
+	format = "%s%c%d%c%s%c%s%d";
+# endif /* _FFR_LDAP_SETVERSION */
+	nbuf = sm_stringf_x(format,
+			    (lmap->ldap_target == NULL ? "localhost"
+						       : lmap->ldap_target),
 			    CONDELSE,
 			    lmap->ldap_port,
 			    CONDELSE,
+# if _FFR_LDAP_SETVERSION
+			    lmap->ldap_version,
+			    CONDELSE,
+# endif /* _FFR_LDAP_SETVERSION */
 			    (lmap->ldap_binddn == NULL ? ""
 						       : lmap->ldap_binddn),
 			    CONDELSE,
@@ -4039,6 +4034,9 @@ ldapmap_parseargs(map, args)
 	char *args;
 {
 	bool secretread = true;
+# if _FFR_LDAP_URI
+	bool ldaphost = false;
+# endif /* _FFR_LDAP_URI */
 	int i;
 	register char *p = args;
 	SM_LDAP_STRUCT *lmap;
@@ -4320,7 +4318,16 @@ ldapmap_parseargs(map, args)
 		  case 'h':		/* ldap host */
 			while (isascii(*++p) && isspace(*p))
 				continue;
-			lmap->ldap_host = p;
+# if _FFR_LDAP_URI
+			if (lmap->ldap_uri)
+			{
+				syserr("Can not specify both an LDAP host and an LDAP URI in map %s",
+				       map->map_mname);
+				return false;
+			}
+			ldaphost = true;
+# endif /* _FFR_LDAP_URI */
+			lmap->ldap_target = p;
 			break;
 
 		  case 'b':		/* search base */
@@ -4402,6 +4409,54 @@ ldapmap_parseargs(map, args)
 			secretread = false;
 			break;
 
+# if _FFR_LDAP_URI
+		  case 'H':		/* Use LDAP URI */
+#  if !USE_LDAP_INIT
+			syserr("Must compile with -DUSE_LDAP_INIT to use LDAP URIs (-H) in map %s",
+			       map->map_mname);
+			return false;
+#  else /* !USE_LDAP_INIT */
+			if (ldaphost)
+			{
+				syserr("Can not specify both an LDAP host and an LDAP URI in map %s",
+				       map->map_mname);
+				return false;
+			}
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->ldap_target = p;
+			lmap->ldap_uri = true;
+			break;
+#  endif /* !USE_LDAP_INIT */
+# endif /* _FFR_LDAP_URI */
+
+# if _FFR_LDAP_SETVERSION
+		  case 'w':
+			/* -w should be for passwd, -P should be for version */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->ldap_version = atoi(p);
+#  ifdef LDAP_VERSION_MAX
+			if (lmap->ldap_version > LDAP_VERSION_MAX)
+			{
+				syserr("LDAP version %d exceeds max of %d in map %s",
+				       lmap->ldap_version, LDAP_VERSION_MAX,
+				       map->map_mname);
+				return false;
+			}
+#  endif /* LDAP_VERSION_MAX */
+#  ifdef LDAP_VERSION_MIN
+			if (lmap->ldap_version < LDAP_VERSION_MIN)
+			{
+				syserr("LDAP version %d is lower than min of %d in map %s",
+				       lmap->ldap_version, LDAP_VERSION_MIN,
+				       map->map_mname);
+				return false;
+			}
+#  endif /* LDAP_VERSION_MIN */
+			break;
+# endif /* _FFR_LDAP_SETVERSION */
+
 		  default:
 			syserr("Illegal option %c map %s", *p, map->map_mname);
 			break;
@@ -4435,12 +4490,12 @@ ldapmap_parseargs(map, args)
 	**  and dump it into map->map_dbptr1
 	*/
 
-	if (lmap->ldap_host != NULL &&
+	if (lmap->ldap_target != NULL &&
 	    (LDAPDefaults == NULL ||
 	     LDAPDefaults == lmap ||
-	     LDAPDefaults->ldap_host != lmap->ldap_host))
-		lmap->ldap_host = newstr(ldapmap_dequote(lmap->ldap_host));
-	map->map_domain = lmap->ldap_host;
+	     LDAPDefaults->ldap_target != lmap->ldap_target))
+		lmap->ldap_target = newstr(ldapmap_dequote(lmap->ldap_target));
+	map->map_domain = lmap->ldap_target;
 
 	if (lmap->ldap_binddn != NULL &&
 	    (LDAPDefaults == NULL ||
@@ -4564,14 +4619,22 @@ ldapmap_parseargs(map, args)
 
 	if (lmap->ldap_attr[0] != NULL)
 	{
-#if _FFR_LDAP_RECURSION
+# if _FFR_LDAP_RECURSION
 		bool recurse = false;
-		int final = 0;
-#endif /* _FFR_LDAP_RECURSION */
+		bool normalseen = false;
+# endif /* _FFR_LDAP_RECURSION */
 
 		i = 0;
 		p = ldapmap_dequote(lmap->ldap_attr[0]);
 		lmap->ldap_attr[0] = NULL;
+
+# if _FFR_LDAP_RECURSION
+		/* Prime the attr list with the objectClass attribute */
+		lmap->ldap_attr[i] = "objectClass";
+		lmap->ldap_attr_type[i] = SM_LDAP_ATTR_OBJCLASS;
+		lmap->ldap_attr_needobjclass[i] = NULL;
+		i++;
+# endif /* _FFR_LDAP_RECURSION */
 
 		while (p != NULL)
 		{
@@ -4594,48 +4657,85 @@ ldapmap_parseargs(map, args)
 			}
 			if (*v != '\0')
 			{
-#if _FFR_LDAP_RECURSION
+# if _FFR_LDAP_RECURSION
+				int j;
+				int use;
 				char *type;
+				char *needobjclass;
 
 				type = strchr(v, ':');
 				if (type != NULL)
-					*type++ = '\0';
-#endif /* _FFR_LDAP_RECURSION */
-
-				lmap->ldap_attr[i] = newstr(v);
-
-#if _FFR_LDAP_RECURSION
-				if (type != NULL)
 				{
-					if (sm_strcasecmp(type, "normal") == 0)
+					*type++ = '\0';
+					needobjclass = strchr(type, ':');
+					if (needobjclass != NULL)
+						*needobjclass++ = '\0';
+				}
+				else
+				{
+					needobjclass = NULL;
+				}
+
+				use = i;
+
+				/* allow override on "objectClass" type */
+				if (sm_strcasecmp(v, "objectClass") == 0 &&
+				    lmap->ldap_attr_type[0] == SM_LDAP_ATTR_OBJCLASS)
+				{
+					use = 0;
+				}
+				else
+				{
+					/*
+					**  Don't add something to attribute
+					**  list twice.
+					*/
+
+					for (j = 1; j < i; j++)
 					{
-						lmap->ldap_attr_type[i] = LDAPMAP_ATTR_NORMAL;
+						if (sm_strcasecmp(v, lmap->ldap_attr[j]) == 0)
+						{
+							syserr("Duplicate attribute (%s) in %s",
+							       v, map->map_mname);
+							return false;
+						}
 					}
-					else if (sm_strcasecmp(type, "dn") == 0)
+
+					lmap->ldap_attr[use] = newstr(v);
+					if (needobjclass != NULL &&
+					    *needobjclass != '\0' &&
+					    *needobjclass != '*')
+					{
+						lmap->ldap_attr_needobjclass[use] = newstr(needobjclass);
+					}
+					else
+					{
+						lmap->ldap_attr_needobjclass[use] = NULL;
+					}
+
+				}
+
+				if (type != NULL && *type != '\0')
+				{
+					if (sm_strcasecmp(type, "dn") == 0)
 					{
 						recurse = true;
-						lmap->ldap_attr_type[i] = LDAPMAP_ATTR_DN;
+						lmap->ldap_attr_type[use] = SM_LDAP_ATTR_DN;
 					}
 					else if (sm_strcasecmp(type, "filter") == 0)
 					{
 						recurse = true;
-						lmap->ldap_attr_type[i] = LDAPMAP_ATTR_FILTER;
+						lmap->ldap_attr_type[use] = SM_LDAP_ATTR_FILTER;
 					}
 					else if (sm_strcasecmp(type, "url") == 0)
 					{
 						recurse = true;
-						lmap->ldap_attr_type[i] = LDAPMAP_ATTR_URL;
+						lmap->ldap_attr_type[use] = SM_LDAP_ATTR_URL;
 					}
-					else if (sm_strcasecmp(type, "final") == 0)
+					else if (sm_strcasecmp(type, "normal") == 0)
 					{
-						lmap->ldap_attr_type[i] = LDAPMAP_ATTR_FINAL;
-						if (final >= LDAPMAP_MAX_ATTR)
-						{
-							syserr("Too many FINAL attributes in %s (max %d)",
-							       map->map_mname, LDAPMAP_MAX_ATTR);
-							return false;
-						}
-						lmap->ldap_attr_final[final++] = lmap->ldap_attr[i];
+						lmap->ldap_attr_type[use] = SM_LDAP_ATTR_NORMAL;
+						normalseen = true;
 					}
 					else
 					{
@@ -4645,17 +4745,21 @@ ldapmap_parseargs(map, args)
 					}
 				}
 				else
-					lmap->ldap_attr_type[i] = LDAPMAP_ATTR_NORMAL;
-#endif /* _FFR_LDAP_RECURSION */
+				{
+					lmap->ldap_attr_type[use] = SM_LDAP_ATTR_NORMAL;
+					normalseen = true;
+				}
+# else /* _FFR_LDAP_RECURSION */
+				lmap->ldap_attr[i] = newstr(v);
+# endif /* _FFR_LDAP_RECURSION */
 				i++;
 			}
 		}
 		lmap->ldap_attr[i] = NULL;
-#if _FFR_LDAP_RECURSION
-		lmap->ldap_attr_final[final] = NULL;
-		if (recurse && lmap->ldap_attr_final[0] == NULL)
+# if _FFR_LDAP_RECURSION
+		if (recurse && !normalseen)
 		{
-			syserr("LDAP recursion requested in %s but no FINAL attribute given",
+			syserr("LDAP recursion requested in %s but no returnable attribute given",
 			       map->map_mname);
 			return false;
 		}
@@ -4665,7 +4769,7 @@ ldapmap_parseargs(map, args)
 			       map->map_mname);
 			return false;
 		}
-#endif /* _FFR_LDAP_RECURSION */
+# endif /* _FFR_LDAP_RECURSION */
 	}
 	map->map_db1 = (ARBPTR_T) lmap;
 	return true;
@@ -4722,6 +4826,7 @@ ldapmap_set_defaults(spec)
 	if (LDAPDefaults->ldap_filter != NULL)
 	{
 		syserr("readcf: option LDAPDefaultSpec: Do not set the LDAP search filter");
+
 		/* don't free, it isn't malloc'ed in parseargs */
 		LDAPDefaults->ldap_filter = NULL;
 	}
@@ -4917,7 +5022,7 @@ ph_map_close(map)
 
 	pmap = (PH_MAP_STRUCT *)map->map_db1;
 	if (tTd(38, 9))
-		sm_dprintf("ph_map_close(%s): pmap->ph_fastclose=%d",
+		sm_dprintf("ph_map_close(%s): pmap->ph_fastclose=%d\n",
 			   map->map_mname, pmap->ph_fastclose);
 
 
@@ -5311,7 +5416,7 @@ hes_map_open(map, mode)
 		return true;
 
 	if (!bitset(MF_OPTIONAL, map->map_mflags))
-		syserr("421 4.0.0 cannot initialize Hesiod map (%s)",
+		syserr("451 4.3.5 cannot initialize Hesiod map (%s)",
 			sm_errstring(errno));
 	return false;
 # else /* HESIOD_INIT */
@@ -5325,7 +5430,7 @@ hes_map_open(map, mode)
 	}
 
 	if (!bitset(MF_OPTIONAL, map->map_mflags))
-		syserr("421 4.0.0 cannot initialize Hesiod map (%d)", hes_error());
+		syserr("451 4.3.5 cannot initialize Hesiod map (%d)", hes_error());
 
 	return false;
 # endif /* HESIOD_INIT */

@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.345 2002/01/09 18:04:30 ca Exp $
+#	$Id: README,v 8.353 2002/04/04 21:39:33 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -73,7 +73,8 @@ file.
 
 You can recompile from scratch using the -c flag with the Build
 command.  This removes the existing compilation directory for the
-current platform and builds a new one.
+current platform and builds a new one.  The -c flag must also
+be used if any site.*.m4 file in devtools/Site/ is changed.
 
 Porting to a new Unix-based system should be a matter of creating
 an appropriate configuration file in the devtools/OS/ directory.
@@ -158,8 +159,8 @@ and the filename includes the string "/yp/", sendmail adds the special
 tokens "YP_LAST_MODIFIED" and "YP_MASTER_NAME", both of which are
 required if the NDBM file is to be used as an NIS map.
 
-All of these flags are normally defined in the DBMDEF line in the
-Makefile.
+All of these flags are normally defined in a confMAPDEF setting in your
+site.config.m4.
 
 If you define NEWDB or HESIOD you get the User Database (USERDB)
 automatically.  Generally you do want to have NEWDB for it to do
@@ -465,10 +466,8 @@ NEEDSGETIPNODE	Set this if your system supports IPv6 but doesn't include
 		for Linux's glibc.
 PIPELINING	Support SMTP PIPELINING	(set by default).
 USING_NETSCAPE_LDAP
-		Set this if LDAPMAP is set and your LDAP libraries are from
-		(or are derived from) Netscape's implementation, which
-		requires that the return value of ldap_first_attribute()
-		and ldap_next_attribute() be ldap_memfree()'d.
+		Deprecated in favor of SM_CONF_LDAP_MEMFREE.  See
+		libsm/README.
 NEEDLINK	Set this if your system doesn't have a link() call.  It
 		will create a copy of the file instead of a hardlink.
 USE_ENVIRON	Set this to 1 to access process environment variables from
@@ -586,7 +585,7 @@ SASL		Enables SMTP AUTH (RFC 2554).  This requires the Cyrus SASL
 		compared with the actual version found and if there is a
 		mismatch, compilation will fail.
 EGD		Define this if your system has EGD installed, see
-		http://www.lothar.com/tech/crypto/ .  It should be used to
+		http://egd.sourceforge.net/ .  It should be used to
 		seed the PRNG for STARTTLS if HASURANDOMDEV is not defined.
 STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
 		(http://www.OpenSSL.org/); use OpenSSL 0.9.5a or later
@@ -878,10 +877,10 @@ Solaris 2.x (SunOS 5.x)
 	make sure /opt/SUNWspro/bin/cc is used instead of /usr/ucb/cc
 	(or it might complain about tm_zone).
 
-	The Solaris "syslog" function is apparently limited to something
-	about 90 characters because of a kernel limitation.  If you have
-	source code, you can probably up this number.  You can get patches
-	that fix this problem: the patch ids are:
+	The Solaris 2.x (x <= 3) "syslog" function is apparently limited
+	to something about 90 characters because of a kernel limitation.
+	If you have source code, you can probably up this number.  You
+	can get patches that fix this problem:  the patch ids are:
 
 		Solaris 2.1	100834
 		Solaris 2.2	100999
@@ -974,9 +973,10 @@ Solaris 8 and later (SunOS 5.8 and later)
 Solaris 9 and later (SunOS 5.9 and later)
 	Solaris 9 and later have a revised LDAP library, libldap.so.5,
 	which is derived from a Netscape implementation, thus requiring
-	that USING_NETSCAPE_LDAP be defined in conjunction with LDAPMAP:
+	that SM_CONF_LDAP_MEMFREE be defined in conjunction with LDAPMAP:
 
-	APPENDDEF(`confMAPDEF', `-DLDAPMAP -DUSING_NETSCAPE_LDAP')
+	APPENDDEF(`confMAPDEF', `-DLDAPMAP')
+	APPENDDEF(`confENVDEF', `-DSM_CONF_LDAP_MEMFREE')
 	APPENDDEF(`confLIBS', `-lldap')
 
 Solaris
@@ -1472,7 +1472,10 @@ UNICOS 8.0.3.4
 	problems.  You may want to turn this off if you have problems
 	running sendmail.  Reported by Jerry G. DeLapp <jgd@acl.lanl.gov>.
 
-Mac OS X (10.0.X)
+Darwin/Mac OS X (10.X.X)
+	The linker errors produced regarding getopt() and it's associated
+	variables can safely be ignored.
+
 	From Mike Zimmerman <zimmy@torrentnet.com>:
 
 	From scratch here is what Darwin users need to do to the standard
@@ -1735,4 +1738,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.345 $, last update $Date: 2002/01/09 18:04:30 $ )
+(Version $Revision: 8.353 $, last update $Date: 2002/04/04 21:39:33 $ )

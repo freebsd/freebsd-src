@@ -1,11 +1,11 @@
-# Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: TUNING,v 1.16 2001/08/19 21:03:38 gshapiro Exp $
+#	$Id: TUNING,v 1.18 2002/03/03 03:38:21 ca Exp $
 #
 
 ********************************************
@@ -141,13 +141,12 @@ should be added to the .mc file.
 
 Before 8.12 sendmail delivers an e-mail sequentially to all its
 recipients.  For mailing lists or large aliases the overall delivery
-time can be substantial, especially if some of the recipients are located
-at hosts that are slow to accept e-mail.  Some mailing list software
-therefore "split" up e-mails into smaller pieces with fewer recipients.
-sendmail 8.12 can do this itself, either across queue groups or
-within a queue directory.  For the former the option SplitAcrossQueueGroups
-option must be set, the latter is controlled by the 'r=' field of
-a queue group declaration.
+time can be substantial, especially if some of the recipients are
+located at hosts that are slow to accept e-mail.  Some mailing list
+software therefore "split" up e-mails into smaller pieces with
+fewer recipients.  sendmail 8.12 can do this itself, either across
+queue groups or within a queue directory.  The latter is controlled
+by the 'r=' field of a queue group declaration.
 
 Let's assume a simple example: a mailing lists where most of
 the recipients are at three domains: the local one (local.domain)

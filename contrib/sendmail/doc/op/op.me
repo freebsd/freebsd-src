@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 .\"	All rights reserved.
 .\" Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1983, 1993
@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.592 2001/12/26 03:44:39 ca Exp $
+.\"	$Id: op.me,v 8.600 2002/03/06 16:00:27 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -88,7 +88,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.592 $
+.Ve $Revision: 8.600 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -124,30 +124,30 @@ incrementally.
 .pp
 .i Sendmail
 is based on
-RFC821 (Simple Mail Transport Protocol),
-RFC822 (Internet Mail Headers Format),
-RFC974 (MX routing),
-RFC1123 (Internet Host Requirements),
-RFC1413 (Identification server),
-RFC1652 (SMTP 8BITMIME Extension),
-RFC1869 (SMTP Service Extensions),
-RFC1870 (SMTP SIZE Extension),
-RFC1891 (SMTP Delivery Status Notifications),
-RFC1892 (Multipart/Report),
-RFC1893 (Enhanced Mail System Status Codes),
-RFC1894 (Delivery Status Notifications),
-RFC1985 (SMTP Service Extension for Remote Message Queue Starting),
-RFC2033 (Local Message Transmission Protocol),
-RFC2034 (SMTP Service Extension for Returning Enhanced Error Codes),
-RFC2045 (MIME),
-RFC2476 (Message Submission),
-RFC2487 (SMTP Service Extension for Secure SMTP over TLS),
-RFC2554 (SMTP Service Extension for Authentication),
-RFC2821 (Simple Mail Transfer Protocol),
-RFC2822 (Internet Message Format),
-RFC2852 (Deliver By SMTP Service Extension),
+RFC 821 (Simple Mail Transport Protocol),
+RFC 822 (Internet Mail Headers Format),
+RFC 974 (MX routing),
+RFC 1123 (Internet Host Requirements),
+RFC 1413 (Identification server),
+RFC 1652 (SMTP 8BITMIME Extension),
+RFC 1869 (SMTP Service Extensions),
+RFC 1870 (SMTP SIZE Extension),
+RFC 1891 (SMTP Delivery Status Notifications),
+RFC 1892 (Multipart/Report),
+RFC 1893 (Enhanced Mail System Status Codes),
+RFC 1894 (Delivery Status Notifications),
+RFC 1985 (SMTP Service Extension for Remote Message Queue Starting),
+RFC 2033 (Local Message Transmission Protocol),
+RFC 2034 (SMTP Service Extension for Returning Enhanced Error Codes),
+RFC 2045 (MIME),
+RFC 2476 (Message Submission),
+RFC 2487 (SMTP Service Extension for Secure SMTP over TLS),
+RFC 2554 (SMTP Service Extension for Authentication),
+RFC 2821 (Simple Mail Transfer Protocol),
+RFC 2822 (Internet Message Format),
+RFC 2852 (Deliver By SMTP Service Extension),
 and
-RFC2920 (SMTP Service Extension for Command Pipelining).
+RFC 2920 (SMTP Service Extension for Command Pipelining).
 However, since
 .i sendmail
 is designed to work in a wider world,
@@ -1040,7 +1040,7 @@ The name of the mailer used to deliver to this recipient.
 .ip relay
 The name of the host that actually accepted (or rejected) this recipient.
 .ip dsn
-The enhanced error code (RFC2034) if available.
+The enhanced error code (RFC 2034) if available.
 .ip stat
 The delivery status.
 .lp
@@ -1158,6 +1158,13 @@ in the message, then the message will be split into multiple messages,
 each of which have at most
 .i N
 recipients.
+.pp
+Notice: if multiple queue groups are used, do
+.b not
+move queue files around, e.g., into a different queue directory.
+This may have wierd effects and can cause mail not to be delivered.
+Queue files and directories should be treated as opaque
+and should not be manipulated directly.
 .sh 3 "Queue Runs"
 .pp
 .i sendmail
@@ -4347,7 +4354,7 @@ The SMTP entry message.
 This is printed out when SMTP starts up.
 The first word must be the
 .b $j
-macro as specified by RFC821.
+macro as specified by RFC 821.
 Defaults to
 .q "$j Sendmail $v ready at $b" .
 Commonly redefined to include the configuration version number, e.g.,
@@ -5359,7 +5366,7 @@ This mailer is local
 (i.e.,
 final delivery will be performed).
 .ip L
-Limit the line lengths as specified in RFC821.
+Limit the line lengths as specified in RFC 821.
 This deprecated option should be replaced by the
 .b L=
 mail declaration.
@@ -5411,7 +5418,7 @@ Use the route-addr style reverse-path in the SMTP
 .q "MAIL FROM:"
 command
 rather than just the return address;
-although this is required in RFC821 section 3.1,
+although this is required in RFC 821 section 3.1,
 many hosts do not process reverse-paths properly.
 Reverse-paths are officially discouraged by RFC 1123.
 .ip P\(dg
@@ -5455,10 +5462,14 @@ If the
 field is also specified,
 this flag causes the effective user id to be set to that user.
 .ip u
-Upper case should be preserved in user names
-for this mailer.
-Standards require preservation of case in the local part of addresses,
-except for those address for which your system accepts responsibility.
+Upper case should be preserved in user names for this mailer.  Standards
+require preservation of case in the local part of addresses, except for
+those address for which your system accepts responsibility.
+RFC 2142 provides a long list of addresses which should be case
+insensitive.
+If you use this flag, you may be violating RFC 2142.
+Note that postmaster is always treated as a case insensitive address
+regardless of this flag.
 .ip U
 This mailer wants UUCP-style
 .q From
@@ -5482,7 +5493,7 @@ This mailer wants a
 .q Full-Name:
 header line.
 .ip X
-This mailer wants to use the hidden dot algorithm as specified in RFC821;
+This mailer wants to use the hidden dot algorithm as specified in RFC 821;
 basically, any line beginning with a dot will have an extra dot prepended
 (to be stripped at the other end).
 This insures that lines in the message containing a dot
@@ -6060,7 +6071,7 @@ with intervening white space or commas.
 A	Use the AUTH= parameter for the MAIL FROM
 	command only when authentication succeeded.
 	This can be used as a workaround for broken
-	MTAs that do not implement RFC2554 correctly.
+	MTAs that do not implement RFC 2554 correctly.
 a	protection from active (non-dictionary) attacks
 	during authentication exchange.
 c	require mechanisms which pass client credentials,
@@ -7308,7 +7319,7 @@ too.
 If this option is set, a
 .q Return-Receipt-To:
 header causes the request of a DSN, which is sent to
-the envelope sender as required by RFC1891,
+the envelope sender as required by RFC 1891,
 not to the address given in the header.
 .ip RunAsUser=\fIuser\fP
 [no short name]
@@ -7434,12 +7445,12 @@ process gathering the data each time it is required.
 .ip SendMimeErrors
 [j]
 If set, send error messages in MIME format
-(see RFC2045 and RFC1344 for details).
+(see RFC 2045 and RFC 1344 for details).
 If disabled,
 .i sendmail
 will not return the DSN keyword in response to an EHLO
 and will not do Delivery Status Notification processing as described in
-RFC1891.
+RFC 1891.
 .ip ServerCertFile
 [no short name]
 File containing the certificate of the server, i.e., this certificate
@@ -7494,7 +7505,7 @@ This shouldn't be necessary.
 If set, From: lines that have embedded newlines are unwrapped
 onto one line.
 This is to get around a botch in Lotus Notes
-that apparently cannot understand legally wrapped RFC822 headers.
+that apparently cannot understand legally wrapped RFC 822 headers.
 .ip SingleThreadDelivery
 [no short name]
 If set, a client machine will never try to open two SMTP connections
@@ -7987,7 +7998,7 @@ indicates the database key.
 For example, the rule
 .(b
 .ta 1.5i
-R$\- ! $+	$: $(uucp $1 $@ $2 $: %1 @ %0 . UUCP $)
+R$\- ! $+	$: $(uucp $1 $@ $2 $: $2 @ $1 . UUCP $)
 .)b
 Looks up the UUCP name in a (user defined) UUCP map;
 if not found it turns it into
@@ -8400,7 +8411,7 @@ The key column name (for NIS+) or number
 For LDAP maps this is an LDAP filter string
 in which %s is replaced with the literal contents of the lookup key
 and %0 is replaced with the LDAP escaped contents of the lookup key
-according to RFC2254.
+according to RFC 2254.
 .ip "\-v\fIvalcol\fP"
 The value column name (for NIS+) or number
 (for text lookups).
@@ -10026,7 +10037,7 @@ by
 is incremented during processing,
 and if it reaches
 MAXHOP
-(currently 30)
+(currently 25)
 .i sendmail
 throws away the message with an error.
 .ip "\-L \fItag\fP"
@@ -10391,6 +10402,18 @@ and
 .b w
 indicating that a warning message has been sent
 announcing that the mail has been delayed.
+Other flag bits are:
+.b 8 :
+the body contains 8bit data,
+.b b :
+a Bcc: header should be removed,
+.b d :
+the mail has RET parameters (see RFC 1894),
+.b n :
+the body of the message should not be returned
+in case of an error,
+.b s :
+the envelope has been split.
 .ip N
 The total number of delivery attempts.
 .ip K
@@ -10556,7 +10579,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.592 $
+.\"Version $Revision: 8.600 $
 .\".ce 0
 .bp 3
 .ce
