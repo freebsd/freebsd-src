@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.10 1995/11/12 06:43:04 bde Exp $
+ * $Id: subr_prof.c,v 1.11 1995/11/20 12:42:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -58,8 +58,8 @@ extern char btext[];
 extern char etext[];
 
 static void
-kmstartup(udata)
-	void *udata;
+kmstartup(dummy)
+	void *dummy;
 {
 	char *cp;
 	struct gmonparam *p = &_gmonparam;
