@@ -168,10 +168,8 @@ ppi_attach(device_t dev)
 #ifdef PERIPH_1284
 	uintptr_t irq;
 	int zero = 0;
-#endif /* PERIPH_1284 */
 	struct ppi_data *ppi = DEVTOSOFTC(dev);
 
-#ifdef PERIPH_1284
 	/* retrive the irq */
 	BUS_READ_IVAR(device_get_parent(dev), dev, PPBUS_IVAR_IRQ, &irq);
 
