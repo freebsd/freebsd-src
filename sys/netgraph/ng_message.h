@@ -292,10 +292,9 @@ struct typelist {
 #define NG_MKMESSAGE(msg, cookie, cmdid, len, how)			\
 	do {								\
 	  MALLOC((msg), struct ng_mesg *, sizeof(struct ng_mesg)	\
-	    + (len), M_NETGRAPH, (how));				\
+	    + (len), M_NETGRAPH, (how) | M_ZERO);			\
 	  if ((msg) == NULL)						\
 	    break;							\
-	  bzero((msg), sizeof(struct ng_mesg) + (len));			\
 	  (msg)->header.version = NG_VERSION;				\
 	  (msg)->header.typecookie = (cookie);				\
 	  (msg)->header.cmd = (cmdid);					\
@@ -311,10 +310,9 @@ struct typelist {
 #define NG_MKRESPONSE(rsp, msg, len, how)				\
 	do {								\
 	  MALLOC((rsp), struct ng_mesg *, sizeof(struct ng_mesg)	\
-	    + (len), M_NETGRAPH, (how));				\
+	    + (len), M_NETGRAPH, (how) | M_ZERO);			\
 	  if ((rsp) == NULL)						\
 	    break;							\
-	  bzero((rsp), sizeof(struct ng_mesg) + (len));			\
 	  (rsp)->header.version = NG_VERSION;				\
 	  (rsp)->header.arglen = (len);					\
 	  (rsp)->header.token = (msg)->header.token;			\

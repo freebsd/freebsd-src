@@ -196,10 +196,9 @@ cisco_constructor(node_p *nodep)
 	sc_p sc;
 	int error = 0;
 
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
-	bzero(sc, sizeof(struct cisco_priv));
 
 	callout_handle_init(&sc->handle);
 	if ((error = ng_make_node_common(&typestruct, nodep))) {

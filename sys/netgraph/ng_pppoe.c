@@ -537,10 +537,10 @@ ng_pppoe_constructor(node_p *nodep)
 
 AAA
 	/* Initialize private descriptor */
-	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
+	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH,
+	    M_NOWAIT | M_ZERO);
 	if (privdata == NULL)
 		return (ENOMEM);
-	bzero(privdata, sizeof(*privdata));
 
 	/* Call the 'generic' (ie, superclass) node constructor */
 	if ((error = ng_make_node_common(&typestruct, nodep))) {
@@ -581,11 +581,10 @@ AAA
 		 * The infrastructure has already checked that it's unique,
 		 * so just allocate it and hook it in.
 		 */
-		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH, M_NOWAIT);
+		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH, M_NOWAIT | M_ZERO);
 		if (sp == NULL) {
 				return (ENOMEM);
 		}
-		bzero(sp, sizeof(*sp));
 
 		hook->private = sp;
 		sp->hook = hook;
@@ -662,13 +661,13 @@ AAA
 			/*
 			 * set up prototype header
 			 */
-			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH, M_NOWAIT);
+			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH,
+			    M_NOWAIT | M_ZERO);
 
 			if (neg == NULL) {
 				printf("pppoe: Session out of memory\n");
 				LEAVE(ENOMEM);
 			}
-			bzero(neg, sizeof(*neg));
 			MGETHDR(neg->m, M_DONTWAIT, MT_DATA);
 			if(neg->m == NULL) {
 				printf("pppoe: Session out of mbufs\n");
