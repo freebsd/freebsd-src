@@ -178,8 +178,8 @@ forward(fp, style, off, sbp)
 			break;
 
 		/* Sleep(3) is eight system calls.  Do it fast. */
-		second.tv_sec = 1;
-		second.tv_usec = 0;
+		second.tv_sec = 0;
+		second.tv_usec = 250000;
 		if (select(0, NULL, NULL, NULL, &second) == -1)
 			if (errno != EINTR)
 				err(1, "select");
