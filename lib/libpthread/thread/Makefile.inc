@@ -91,6 +91,7 @@ SRCS+= \
 	uthread_pipe.c \
 	uthread_poll.c \
 	uthread_priority_queue.c \
+	uthread_pselect.c \
 	uthread_read.c \
 	uthread_readv.c \
 	uthread_recvfrom.c \
