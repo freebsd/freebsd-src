@@ -13,11 +13,19 @@ fi
 
 case "$daily_distfile_enable" in
     [Yy][Ee][Ss])
-	if [ -f /etc/Distfile ]
+	if [ ! -f /etc/Distfile ]
 	then
+	    echo '$daily_distfile_enable is set but /etc/Distfile' \
+		"doesn't exist"
+	    rc=2
+	else
 	    echo ""
 	    echo "Running rdist with /etc/Distfile:"
 
-	    rdist -f /etc/Distfile
+	    rdist -f /etc/Distfile && rc=0 || rc=3
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc
