@@ -43,7 +43,10 @@
 
 __KERNEL_RCSID(1, "$NetBSD: pal.s,v 1.12 1998/02/27 03:44:53 thorpej Exp $");
 
-inc2:	.stabs	__FILE__,132,0,0,inc2; .loc	1 __LINE__
+inc2:	.stabs	__FILE__,132,0,0,inc2
+	.text
+	.loc	1 __LINE__
+
 /*
  * alpha_rpcc: read process cycle counter (XXX INSTRUCTION, NOT PALcode OP)
  */
