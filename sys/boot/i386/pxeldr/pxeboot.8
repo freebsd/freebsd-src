@@ -33,15 +33,17 @@
 .Nm pxeboot
 .Nd Preboot Execution Environment (PXE) bootloader
 .Sh DESCRIPTION
+The
 .Nm
-is a modified version of the system third-stage bootstrap
+bootloader is a modified version of the system third-stage bootstrap
 .Xr loader 8
 configured to run under Intel's Preboot Execution Environment (PXE) system.
 PXE is a form of smart boot ROM, built into Intel EtherExpress Pro/100 and
 3Com 3c905c Ethernet cards, and Ethernet-equipped Intel motherboards.
 PXE supports DHCP configuration and provides low-level NIC access services.
+The
 .Nm
-retrieves the kernel, modules,
+bootloader retrieves the kernel, modules,
 and other files either via NFS over UDP or by TFTP,
 selectable through compile-time options.
 In combination with a memory filesystem image or NFS-mounted root filesystem,
@@ -92,8 +94,9 @@ acts just like
 .Pp
 As PXE is still in its infancy, some firmware versions may not work
 properly.
+The
 .Nm
-has been extensively tested on version 0.99 of Intel firmware;
+bootloader has been extensively tested on version 0.99 of Intel firmware;
 pre-release versions of the newer 2.0 firmware are known to have
 problems.
 Check with the device's manufacturer for their latest stable release.
@@ -104,13 +107,15 @@ Management (WfM) systems, see
 .Sh SEE ALSO
 .Xr loader 8
 .Sh HISTORY
+The
 .Nm
-first appeared in
+bootloader first appeared in
 .Fx 4.1 .
 .Sh AUTHORS
 .An -nosplit
+The
 .Nm
-was written by
+bootloader was written by
 .An John Baldwin Aq jhb@FreeBSD.org
 and
 .An Paul Saab Aq ps@FreeBSD.org .
