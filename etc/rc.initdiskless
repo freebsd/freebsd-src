@@ -81,8 +81,8 @@
 # /conf/default/etc/{rc.conf,rc.local,fstab}.  Your fstab should be sure
 # to mount a /usr... typically an NFS readonly /usr.
 #
-# NOTE!  /etc/rc.d/diskless will create /var, /tmp, and /dev.
-# Those filesystems should not be specified in /conf.  At least not yet.
+# NOTE!  /var, /tmp, and /dev will be created elsewhere.
+# Those filesystems should not be specified in /conf.
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 [ ${dlv:=0} -eq 0 ] && [ ! -f /etc/diskless ] && exit 0
@@ -166,6 +166,17 @@ while [ $# -ge 1 ] ; do
     fi
     shift
 done
+
+# If /conf/diskless_remount exists, remount all of /conf.  This allows
+# multiple roots to share the same conf files.
+if [ -d /conf -a -f /conf/diskless_remount ]; then
+    nfspt=`/bin/cat /conf/diskless_remount`
+    if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
+	nfspt="${nfsroot}${nfspt}"
+    fi
+    mount_nfs $nfspt /conf
+    chkerr $? "mount_nfs $nfspt /conf"
+fi
 
 # Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
 # and /conf/${bootp_ipa}.  For each subdirectory found within these
