@@ -200,7 +200,9 @@ makefile()
 			fprintf(ofp, "%s", line);
 			continue;
 		}
-		if (eq(line, "%OBJS\n"))
+		if (eq(line, "%BEFORE_DEPEND\n"))
+			do_before_depend(ofp);
+		else if (eq(line, "%OBJS\n"))
 			do_objs(ofp);
 		else if (eq(line, "%CFILES\n"))
 			do_cfiles(ofp);
@@ -230,7 +232,8 @@ read_files()
 	register struct opt *op;
 	char *wd, *this, *needs, *special, *depends;
 	char fname[32];
-	int nreqs, first = 1, configdep, isdup, std, filetype, imp_rule, no_obj;
+	int nreqs, first = 1, configdep, isdup, std, filetype, 
+	    imp_rule, no_obj, before_depend;
 
 	ftab = 0;
 	(void) strcpy(fname, "../../conf/files");
@@ -249,7 +252,7 @@ next:
 	 * filename	[ standard | optional ] [ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ] 
-	 *		       [ dependancy "dependancy-list"] 
+	 *      [ dependancy "dependancy-list"] [ before-depend ]
 	 */
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
@@ -302,6 +305,7 @@ next:
 	std = 0;
 	imp_rule = 0;
 	no_obj = 0;
+	before_depend = 0;
 	filetype = NORMAL;
 	if (eq(wd, "standard"))
 		std = 1;
@@ -315,6 +319,33 @@ nextparam:
 		goto doneparam;
 	if (eq(wd, "config-dependent")) {
 		configdep++;
+		goto nextparam;
+	}
+	if (eq(wd, "no-obj")) {
+		no_obj++;
+		goto nextparam;
+	}
+	if (eq(wd, "no-implicit-rule")) {
+		if (special == 0) {
+			printf("%s: alternate rule required when "
+			       "\"no-implicit-rule\" is specified.\n",
+			       fname);
+		}
+		imp_rule++;
+		goto nextparam;
+	}
+	if (eq(wd, "before-depend")) {
+		before_depend++;
+		goto nextparam;
+	}
+	if (eq(wd, "dependancy")) {
+		next_quoted_word(fp, wd);
+		if (wd == 0) {
+			printf("%s: %s missing compile command string.\n",
+			       fname);
+			exit(1);
+		}
+		depends = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "no-obj")) {
@@ -426,6 +457,12 @@ save:
 		tp->f_flags |= NO_IMPLCT_RULE;
 	if (no_obj)
 		tp->f_flags |= NO_OBJ;
+	if (before_depend)
+		tp->f_flags |= BEFORE_DEPEND;
+	if (imp_rule)
+		tp->f_flags |= NO_IMPLCT_RULE;
+	if (no_obj)
+		tp->f_flags |= NO_OBJ;
 	tp->f_needs = needs;
 	tp->f_special = special;
 	tp->f_depends = depends;
@@ -449,6 +486,33 @@ opteq(cp, dp)
 		if (*cp == 0)
 			return (1);
 	}
+}
+
+
+do_before_depend(fp)
+	FILE *fp;
+{
+	register struct file_list *tp, *fl;
+	register int lpos, len;
+	char swapname[32];
+
+	fputs("BEFORE_DEPEND=", fp);
+	lpos = 15;
+	for (tp = ftab; tp; tp = tp->f_next)
+		if (tp->f_flags & BEFORE_DEPEND) {
+			len = strlen(tp->f_fn);
+			if ((len = 3 + len) + lpos > 72) {
+				lpos = 8;
+				fputs("\\\n\t", fp);
+			}
+			if (tp->f_flags & NO_IMPLCT_RULE)
+				fprintf(fp, "%s ", tp->f_fn);
+			else
+				fprintf(fp, "$S/%s ", tp->f_fn);
+			lpos += len + 1;
+		}
+	if (lpos != 8)
+		putc('\n', fp);
 }
 
 do_objs(fp)
