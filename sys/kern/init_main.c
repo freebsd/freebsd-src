@@ -348,8 +348,6 @@ proc0_init(void *dummy __unused)
 	LIST_INIT(&pgrp0.pg_members);
 	LIST_INSERT_HEAD(&pgrp0.pg_members, p, p_pglist);
 
-	TAILQ_INIT(&p->p_sigq);
-
 	pgrp0.pg_session = &session0;
 	mtx_init(&session0.s_mtx, "session", NULL, MTX_DEF);
 	session0.s_count = 1;

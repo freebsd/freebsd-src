@@ -42,7 +42,6 @@
 #include <sys/socket.h>
 #include <sys/signalvar.h>
 #include <sys/mbuf.h>
-#include <sys/ksiginfo.h>
 
 #include <sys/iconv.h>
 
@@ -76,10 +75,10 @@ smb_proc_intr(struct proc *p)
 
 	if (p == NULL)
 		return 0;
-	ksiginfo_to_sigset_t(p, &tmpset);
+	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (signal_queued(p, 0) && SMB_SIGMASK(tmpset))
+	if (SIGNOTEMPTY(p->p_siglist) && SMB_SIGMASK(tmpset))
                 return EINTR;
 	return 0;
 }

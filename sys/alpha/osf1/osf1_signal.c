@@ -46,7 +46,6 @@
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/mbuf.h>
-#include <sys/ksiginfo.h>
 #include <sys/vmmeter.h>
 #include <sys/msgbuf.h>
 #include <sys/exec.h>
@@ -524,7 +523,7 @@ osf1_sigpending(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	ksiginfo_to_sigset_t(p, &bss);
+	bss = p->p_siglist;
 	SIGSETAND(bss, p->p_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_osf1_sigset(&bss, &oss);
