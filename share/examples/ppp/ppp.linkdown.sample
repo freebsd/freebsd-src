@@ -25,10 +25,10 @@
 MYADDR:
  !bg /usr/X11R6/bin/auplay /etc/ppp/linkdown.au
 
-# If you're running ``ppp -auto -alias dynamic-alias-auto'', and are
+# If you're running ``ppp -auto -nat dynamic-nat-auto'', and are
 # assigned a dynamic IP number by the peer, this may be worth while
 # to keep the interface aliases to a minimum (see ``enable iface-alias''
 # in the man page):
 #
-dynamic-alias-auto:
+dynamic-nat-auto:
  iface clear

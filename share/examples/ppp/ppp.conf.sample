@@ -180,15 +180,15 @@ examples:
 #
     set dns 10.0.0.1 10.0.0.2
 #
-# If we're using the -alias switch, redirect ftp and http to an internal
+# If we're using the -nat switch, redirect ftp and http to an internal
 # machine:
 #
-    alias port 10.0.0.2:ftp ftp
-    alias port 10.0.0.2:http http
+    nat port 10.0.0.2:ftp ftp
+    nat port 10.0.0.2:http http
 #
 # or don't trust the outside at all
 #
-    alias deny_incoming yes
+    nat deny_incoming yes
 #
 # I trust user brian to run ppp, so this goes in the `default' section:
 #
