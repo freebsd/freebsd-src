@@ -340,9 +340,9 @@ _fetch_putln(int fd, const char *str, size_t len)
     ssize_t wlen;
 
     /* XXX should enforce timeout */
-    (const char *)iov[0].iov_base = str; /* XXX */
+    iov[0].iov_base = (char *)str;
     iov[0].iov_len = len;
-    (const char *)iov[1].iov_base = ENDL; /* XXX */
+    iov[1].iov_base = (char *)ENDL;
     iov[1].iov_len = sizeof ENDL;
     len += sizeof ENDL;
     wlen = writev(fd, iov, 2);
