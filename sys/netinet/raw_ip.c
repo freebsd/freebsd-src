@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.55 1998/08/23 03:07:14 wollman Exp $
+ *	$Id: raw_ip.c,v 1.56 1998/12/14 18:09:13 luigi Exp $
  */
 
 #include <sys/param.h>
@@ -64,12 +64,6 @@
 #include "opt_ipdn.h"
 #ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
-#endif
-#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
-#undef COMPAT_IPFW
-#define COMPAT_IPFW 1
-#else
-#undef COMPAT_IPFW
 #endif
 
 static struct inpcbhead ripcb;
@@ -249,7 +243,6 @@ rip_ctloutput(so, sopt)
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
-#ifdef COMPAT_IPFW
 		case IP_FW_GET:
 			if (ip_fw_ctl_ptr == 0)
 				error = ENOPROTOOPT;
@@ -257,12 +250,6 @@ rip_ctloutput(so, sopt)
 				error = ip_fw_ctl_ptr(sopt);
 			break;
 
-		case IP_NAT:
-			if (ip_nat_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
-				error = ip_nat_ctl_ptr(sopt);
-			break;
 #ifdef DUMMYNET
 		case IP_DUMMYNET_GET:
 			if (ip_dn_ctl_ptr == NULL)
@@ -271,7 +258,6 @@ rip_ctloutput(so, sopt)
 				error = ip_dn_ctl_ptr(sopt);
 			break ;
 #endif /* DUMMYNET */
-#endif /* COMPAT_IPFW */
 
 		case MRT_INIT:
 		case MRT_DONE:
@@ -303,7 +289,6 @@ rip_ctloutput(so, sopt)
 				inp->inp_flags &= ~INP_HDRINCL;
 			break;
 
-#ifdef COMPAT_IPFW
 		case IP_FW_ADD:
 		case IP_FW_DEL:
 		case IP_FW_FLUSH:
@@ -314,12 +299,6 @@ rip_ctloutput(so, sopt)
 				error = ip_fw_ctl_ptr(sopt);
 			break;
 
-		case IP_NAT:
-			if (ip_nat_ctl_ptr == 0)
-				error = ENOPROTOOPT;
-			else
-				error = ip_nat_ctl_ptr(sopt);
-			break;
 #ifdef DUMMYNET
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
@@ -330,7 +309,6 @@ rip_ctloutput(so, sopt)
 				error = ip_dn_ctl_ptr(sopt);
 			break ;
 #endif
-#endif /* COMPAT_IPFW */
 
 		case IP_RSVP_ON:
 			error = ip_rsvp_init(so);
