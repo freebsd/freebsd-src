@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.34 1995/11/04 15:45:17 jkh Exp $
+ * $Id: config.c,v 1.16.2.35 1995/11/04 17:16:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,9 +61,9 @@ chunk_compare(Chunk *c1, Chunk *c2)
     else if (!c1->private && !c2->private)
 	return 0;
     else if (c1->private && !c2->private)
-	return -1;
-    else if (!c1->private && c2->private)
 	return 1;
+    else if (!c1->private && c2->private)
+	return -1;
     else
 	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
 }
