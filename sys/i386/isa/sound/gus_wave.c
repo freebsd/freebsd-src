@@ -2414,17 +2414,24 @@ gus_copy_from_user (int dev, char *localbuf, int localoffs,
       int             i;
 
       len /= 4;
-      localoffs /= 4;
+      localoffs /= 2;
 
       out_left = (short *) &localbuf[localoffs];
       out_right = out_left + (pcm_bsize / 2);
 
       for (i = 0; i < len; i++)
 	{
+#ifdef __FreeBSD__
+	  GET_SHORT_FROM_USER (*out_left++, userbuf, in_left);
+	  in_left += 2;
+	  GET_SHORT_FROM_USER (*out_right++, userbuf, in_right);
+	  in_right += 2;
+#else
 	  GET_SHORT_FROM_USER (*out_left++, (short *) userbuf, in_left);
 	  in_left += 2;
 	  GET_SHORT_FROM_USER (*out_right++, (short *) userbuf, in_right);
 	  in_right += 2;
+#endif
 	}
     }
 }
