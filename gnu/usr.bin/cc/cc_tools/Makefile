@@ -37,7 +37,7 @@ GENSRCS+=	insn-$i.c
 .for i in attr codes config emit extract flags opinit output peep recog
 build-tools: gen$i
 
-gen$i: gen$i.o rtl.o obstack.o bitmap.o
+gen$i: gen$i.o rtl.o obstack.o print-rtl.o bitmap.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$i.c
@@ -132,11 +132,17 @@ CLEANFILES+=	objc-parse.y objc-parse.y.out	# insurance
 # the host/target compiler config.
 
 COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h tm.h
-GENSRCS+=	${COMMONHDRS}
+GENSRCS+=	${COMMONHDRS} gencheck.h
 
 config.h hconfig.h:
 	echo '#include "auto-host.h"'			> ${.TARGET}
+	echo '#include "gansidecl.h"'			>> ${.TARGET}
 	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
+	echo '#include "hwint.h"'			>> ${.TARGET}
+
+gencheck.h:
+	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
+	echo '#include "objc/objc-tree.def"'		>> ${.TARGET}
 
 multilib.h:
 	echo 'static char *multilib_raw[] = { \
@@ -152,16 +158,20 @@ options.h:
 specs.h:
 	echo '#include "cp/lang-specs.h"'		> ${.TARGET}
 	echo '#include "f/lang-specs.h"'		>> ${.TARGET}
+	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	> ${.TARGET}
+	echo '#include "gansidecl.h"'			> ${.TARGET}
+	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
 
+#	KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
 tm.h:
 	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
 	echo '#include "svr4.h"'			>> ${.TARGET}
 .endif
+	echo '#include <freebsd.h>'			>> ${.TARGET}
 	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/perform.h"'		>> ${.TARGET}
@@ -193,7 +203,7 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # all headers.  Filter out the objects that would cause problems (i.e.,
 # objects that will be used to create programs that will generate headers).
 #
-${OBJS:Nbitmap.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Nobstack.o:Nrtl.o}: ${SRCS:M*.h}
+${OBJS:Nbitmap.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Nobstack.o:Nprint-rtl.o:Nrtl.o}: ${SRCS:M*.h}
 
 # Next, make each of the problematic objects depend on only most headers.
 # Filter out the headers that would cause problems (and a few more when it
@@ -201,6 +211,6 @@ ${OBJS:Nbitmap.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Nge
 #
 bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o rtl.o: \
     ${SRCS:M*.h:Ninsn-*.h}
-gencheck.o: ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
+gencheck.o: gencheck.h ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
 gengenrtl.o: ${SRCS:M*.h:Ngenrtl.h:Ninsn-*.h}
 .endif
