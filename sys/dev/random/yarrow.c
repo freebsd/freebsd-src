@@ -38,6 +38,7 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/select.h>
 #include <sys/random.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -45,8 +46,8 @@
 #include <machine/mutex.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include <dev/randomdev/hash.h>
-#include <dev/randomdev/yarrow.h>
+#include <dev/random/hash.h>
+#include <dev/random/yarrow.h>
 
 /* #define DEBUG */
 /* #define DEBUG1 */	/* Very noisy - prints plenty harvesting stats */
@@ -65,11 +66,11 @@ TAILQ_HEAD(harvestqueue, harvest) harvestqueue,
 	initqueue = TAILQ_HEAD_INITIALIZER(harvestqueue);
 
 /* These are used to queue harvested packets of entropy. The entropy
- * buffer size of 16 is pretty arbitrary.
+ * buffer size is pretty arbitrary.
  */
 struct harvest {
 	struct timespec time;		/* nanotime for clock jitter */
-	u_char entropy[16];		/* the harvested entropy */
+	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
 	u_int pool;			/* which pool this goes into */
@@ -79,11 +80,10 @@ struct harvest {
 /* The reseed thread mutex */
 static struct mtx random_reseed_mtx;
 
-/* The entropy harvest mutex */
+/* The entropy harvest mutex, as well as the mutex associated
+ * with the msleep() call during deinit
+ */
 static struct mtx random_harvest_mtx;
-
-/* <0 until the kthread starts, 0 for running */
-static int random_kthread_status = -1;
 
 /* <0 to end the kthread, 0 to let it run */
 static int random_kthread_control = 0;
@@ -91,7 +91,7 @@ static int random_kthread_control = 0;
 static struct proc *random_kthread_proc;
 
 static void
-random_kthread(void *status)
+random_kthread(void *arg /* NOTUSED */)
 {
 	int pl, src, overthreshhold[2];
 	struct harvest *event;
@@ -101,10 +101,8 @@ random_kthread(void *status)
 #endif
 
 #ifdef DEBUG
-	printf("At %s, line %d: mtx_owned(&Giant) == %d\n", __FILE__, __LINE__, mtx_owned(&Giant));
-	printf("At %s, line %d: mtx_owned(&sched_lock) == %d\n", __FILE__, __LINE__, mtx_owned(&sched_lock));
+	printf("At %s, line %d: mtx_owned(&Giant) == %d, mtx_owned(&sched_lock) == %d\n", __FILE__, __LINE__, mtx_owned(&Giant), mtx_owned(&sched_lock));
 #endif
-	random_set_wakeup((int *)status, 0);
 
 	for (pl = 0; pl < 2; pl++)
 		yarrow_hash_init(&random_state.pool[pl].hash, NULL, 0);
@@ -148,9 +146,6 @@ random_kthread(void *status)
 				source->frac %= 1024;
 				free(event, M_TEMP);
 
-				/* XXX abuse tsleep() to get at mi_switch() */
-				/* tsleep(&harvestqueue, PUSER, "rndprc", 1); */
-
 			}
 #ifdef DEBUG1
 			printf("Harvested %d events\n", queuecount);
@@ -177,7 +172,7 @@ random_kthread(void *status)
 		}
 
 		/* Is the thread scheduled for a shutdown? */
-		if (random_kthread_control < 0) {
+		if (random_kthread_control != 0) {
 			if (!TAILQ_EMPTY(&harvestqueue)) {
 #ifdef DEBUG
 				printf("Random cleaning extraneous events\n");
@@ -192,7 +187,8 @@ random_kthread(void *status)
 #ifdef DEBUG
 			printf("Random kthread setting terminate\n");
 #endif
-			random_set_wakeup_exit((int *)status, -1, 0);
+			random_set_wakeup_exit(&random_kthread_control);
+			/* NOTREACHED */
 			break;
 		}
 
@@ -223,13 +219,13 @@ random_init(void)
 	mtx_init(&random_harvest_mtx, "random harvest", MTX_DEF);
 
 	/* Start the hash/reseed thread */
-	error = kthread_create(random_kthread, &random_kthread_status,
+	error = kthread_create(random_kthread, NULL,
 		&random_kthread_proc, RFHIGHPID, "random");
 	if (error != 0)
 		return error;
 
 	/* Register the randomness harvesting routine */
-	random_init_harvester(random_harvest_internal);
+	random_init_harvester(random_harvest_internal, read_random_real);
 
 #ifdef DEBUG
 	printf("Random initalise finish\n");
@@ -253,9 +249,11 @@ random_deinit(void)
 #endif
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
+	mtx_enter(&random_harvest_mtx, MTX_DEF);
 	random_kthread_control = -1;
-	while (random_kthread_status != -1)
-		tsleep(&random_kthread_status, PUSER, "rndend", hz);
+	msleep((void *)&random_kthread_control, &random_harvest_mtx, PUSER,
+		"rndend", 0);
+	mtx_exit(&random_harvest_mtx, MTX_DEF);
 
 #ifdef DEBUG
 	printf("Random deinitalise removing mutexes\n");
@@ -364,10 +362,16 @@ reseed(int fastslow)
 	printf("Reseed finish\n");
 #endif
 
+	if (!random_state.seeded) {
+		random_state.seeded = 1;
+		selwakeup(&random_state.rsel);
+		wakeup(&random_state);
+	}
+
 }
 
 u_int
-read_random(void *buf, u_int count)
+read_random_real(void *buf, u_int count)
 {
 	static u_int64_t genval;
 	static int cur = 0;
@@ -430,19 +434,19 @@ write_random(void *buf, u_int count)
 	u_int i;
 	struct timespec timebuf;
 
-	/* arbitrarily break the input up into 8-byte chunks */
-	for (i = 0; i < count; i += 8) {
+	/* arbitrarily break the input up into HARVESTSIZE chunks */
+	for (i = 0; i < count; i += HARVESTSIZE) {
 		nanotime(&timebuf);
-		random_harvest_internal(&timebuf, (char *)buf + i, 8, 0, 0,
+		random_harvest_internal(&timebuf, (char *)buf + i, HARVESTSIZE, 0, 0,
 			RANDOM_WRITE);
 	}
 
 	/* Maybe the loop iterated at least once */
 	if (i > count)
-		i -= 8;
+		i -= HARVESTSIZE;
 
-	/* Get the last bytes even if the input length is not a multiple of 8 */
-	count %= 8;
+	/* Get the last bytes even if the input length is not a multiple of HARVESTSIZE */
+	count %= HARVESTSIZE;
 	if (count) {
 		nanotime(&timebuf);
 		random_harvest_internal(&timebuf, (char *)buf + i, count, 0, 0,
@@ -486,7 +490,6 @@ random_harvest_internal(struct timespec *timep, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
 	struct harvest *event;
-	u_int64_t entropy_buf;
 
 #if 0
 #ifdef DEBUG
@@ -501,8 +504,8 @@ random_harvest_internal(struct timespec *timep, void *entropy, u_int count,
 		event->time = *timep;
 
 		/* the harvested entropy */
-		count = count > sizeof(entropy_buf)
-			? sizeof(entropy_buf)
+		count = count > sizeof(event->entropy)
+			? sizeof(event->entropy)
 			: count;
 		memcpy(event->entropy, entropy, count);
 

@@ -36,20 +36,24 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/select.h>
 #include <sys/random.h>
+#include <sys/vnode.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/sysctl.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include <dev/randomdev/hash.h>
-#include <dev/randomdev/yarrow.h>
+#include <dev/random/hash.h>
+#include <dev/random/yarrow.h>
 
 static d_open_t random_open;
 static d_read_t random_read;
 static d_write_t random_write;
 static d_ioctl_t random_ioctl;
+static d_poll_t random_poll;
 
 #define CDEV_MAJOR	2
 #define RANDOM_MINOR	3
@@ -61,7 +65,7 @@ static struct cdevsw random_cdevsw = {
 	/* read */	random_read,
 	/* write */	random_write,
 	/* ioctl */	random_ioctl,
-	/* poll */	nopoll,
+	/* poll */	random_poll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"random",
@@ -105,13 +109,22 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	int error = 0;
 	void *random_buf;
 
-	c = min(uio->uio_resid, PAGE_SIZE);
-	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
-	while (uio->uio_resid > 0 && error == 0) {
-		ret = read_random(random_buf, c);
-		error = uiomove(random_buf, ret, uio);
+	if (flag & IO_NDELAY && !random_state.seeded) {
+		error =  EWOULDBLOCK;
 	}
-	free(random_buf, M_TEMP);
+	else {
+		if (random_state.seeded) {
+			c = min(uio->uio_resid, PAGE_SIZE);
+			random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
+			while (uio->uio_resid > 0 && error == 0) {
+				ret = read_random_real(random_buf, c);
+				error = uiomove(random_buf, ret, uio);
+			}
+			free(random_buf, M_TEMP);
+		}
+		else
+			error = tsleep(&random_state, 0, "rndblk", 0);
+	}
 	return error;
 }
 
@@ -138,6 +151,21 @@ static int
 random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
 	return ENOTTY;
+}
+
+static int
+random_poll(dev_t dev, int events, struct proc *p)
+{
+	int revents;
+
+	revents = 0;
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (random_state.seeded)
+			revents = events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &random_state.rsel);
+	}
+	return revents;
 }
 
 static int

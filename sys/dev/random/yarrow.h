@@ -36,16 +36,18 @@
 #define ENTROPYBIN	256	/* buckets to harvest entropy events  */
 #define TIMEBIN		16	/* max value for Pt/t */
 
+#define HARVESTSIZE	16	/* max size of each harvested entropy unit */
+
 #define FAST		0
 #define SLOW		1
 
 int random_init(void);
 void random_deinit(void);
-void random_init_harvester(void (*)(struct timespec *, void *, u_int, u_int, u_int, enum esource));
+void random_init_harvester(void (*)(struct timespec *, void *, u_int, u_int, u_int, enum esource), u_int (*)(void *, u_int));
 void random_deinit_harvester(void);
-void random_set_wakeup(int *, int);
-void random_set_wakeup_exit(int *, int, int);
+void random_set_wakeup_exit(void *);
 
+u_int read_random_real(void *, u_int);
 void write_random(void *, u_int);
 
 /* This is the beastie that needs protecting. It contains all of the
@@ -70,6 +72,8 @@ struct random_state {
 		struct yarrowhash hash;	/* accumulated entropy */
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
 	int which;		/* toggle - shows the current insertion pool */
+	int seeded;		/* 0 until first reseed, then 1 */
+	struct selinfo rsel;	/* For poll(2) */
 };
 
 extern struct random_state random_state;
