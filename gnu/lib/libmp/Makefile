@@ -1,24 +1,44 @@
 #
-# $Id: Makefile,v 1.11 1997/04/10 16:33:32 bde Exp $
+# $Id: Makefile,v 1.12 1997/08/29 13:58:08 peter Exp $
 #
 
 LIB=	mp
 
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
-.PATH:	${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic \
-	${GMPDIR}/mpbsd
 
-CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86 \
-		-I${GMPDIR}/mpz -DBERKELEY_MP
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
-MPN_SRC_C=	inlines.c cmp.c divmod_1.c divrem.c divrem_1.c dump.c \
-		mod_1.c mul.c mul_n.c random2.c sqrtrem.c get_str.c set_str.c \
-		scan0.c scan1.c popcount.c hamdist.c gcd_1.c pre_mod_1.c \
-		perfsqr.c bdivmod.c gcd.c gcdext.c mp_bases.c
+.if ${MACHINE_ARCH} == "alpha"
+.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic \
+		${GMPDIR}/mpbsd
+
+CFLAGS+=	-I${GMPDIR}/mpn/alpha -I${GMPDIR}/mpz -DBERKELEY_MP
+
+MPN_SRC_ASM=	add_n.s addmul_1.s lshift.s mul_1.s rshift.s sub_n.s submul_1.s udiv_qrnnd.S
+
+.elif ${MACHINE_ARCH} == "i386"
+.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic \
+		${GMPDIR}/mpbsd
+
+CFLAGS+=	-I${GMPDIR}/mpn/x86 -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 
-MPN_SRCS=	${MPN_SRC_C} ${MPN_SRC_ASM}
+.elif ${MACHINE_ARCH} == "m68k"
+.PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/m68k ${GMPDIR}/mpn/generic \
+		${GMPDIR}/mpbsd
+
+CFLAGS+=	-I${GMPDIR}/mpn/m68k -I${GMPDIR}/mpz -DBERKELEY_MP
+
+MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
+
+.endif
+
+MPN_SRC_C=	add_n.c addmul_1.c bdivmod.c cmp.c divmod_1.c divrem.c \
+		divrem_1.c dump.c gcd.c gcd_1.c gcdext.c get_str.c hamdist.c \
+		inlines.c lshift.c mod_1.c mul.c mul_1.c mul_n.c perfsqr.c \
+		popcount.c pre_mod_1.c random2.c rshift.c scan0.c scan1.c \
+		set_str.c sqrtrem.c mp_bases.c
 
 MPBSD_LINKS=	mpz/add.c mpz/cmp.c mpz/gcd.c mpz/mul.c mpz/pow_ui.c \
 		mpz/powm.c mpz/sqrtrem.c mpz/sub.c mpz/realloc.c
@@ -27,7 +47,17 @@ MPBSD_SRCS=	itom.c mdiv.c mfree.c min.c mout.c move.c mtox.c sdiv.c xtom.c \
 
 SRCS=		memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c \
 		mp_bpl.c extract-double.c insert-double.c \
-		${MPN_SRCS} ${MPBSD_SRCS}
+		${MPN_SRC_ASM}
+
+# Look though the generic C source for names that don't have assembly
+# source version.
+.for _src in ${MPN_SRC_C}
+.if (${MPN_SRC_ASM:R:M${_src:R}} == "")
+SRCS+=$(_src)
+.endif
+.endfor
+
+SRCS+=		${MPBSD_SRCS}
 
 beforedepend all: mpz sysdep.h asm-syntax.h
 
