@@ -48,5 +48,4 @@
  * must be saved.   On FreeBSD, this is not the case.
  */
 
-PSYSCALL(sigreturn)
-	ret
+RSYSCALL(sigreturn)
