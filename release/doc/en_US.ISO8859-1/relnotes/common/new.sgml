@@ -112,7 +112,8 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
+      has been enabled by default.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -124,6 +125,13 @@
       load, has been fixed.  More details are contained in errata note
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>.
       </para>
+
+    <para arch="i386">Memory allocation for legacy PCI bridges has
+      been limited to the top 32MB of RAM.  Many older, legacy bridges
+      only allow allocation from this range and this only appies
+      to devices which don't have their memory assigned by the BIOS.
+      This change fixes the <quote>bad Vcc</quote> error of CardBus
+      bridges (&man.pccbb.4;).</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -200,6 +208,9 @@
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>The MTU feedback in IPv6 has been disabled when the sender writes
+	data that must be fragmented.</para>
 
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
