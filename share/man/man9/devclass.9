@@ -38,18 +38,18 @@
 .Vt typedef struct devclass *devclass_t ;
 .Sh DESCRIPTION
 The
-.Nm
+.Vt devclass
 object has two main functions in the system.  The first is to manage
 the allocation of unit numbers for device instances and the second is
 to hold the list of device drivers for a particular bus type.
 Each
-.Nm
+.Vt devclass
 has a name and there cannot be two devclasses with the same name.
 This ensures that unique unit numbers are allocated to device
 instances.
 .Pp
 Beware that this means
-.Nm
+.Vt devclass
 must be the same for different bus attachments of the same device driver.
 .Sh SEE ALSO
 .Xr devclass_add_driver 9 ,
