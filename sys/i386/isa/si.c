@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.53.2.2 1998/03/21 19:23:28 peter Exp $
+ *	$Id: si.c,v 1.53.2.3 1998/03/23 19:37:48 peter Exp $
  */
 
 #ifndef lint
@@ -792,7 +792,7 @@ siattach(id)
 
 	/* OK, now lets download the download code */
 
-	if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI)) {
+	if (SI_ISJET(sc->sc_type)) {
 		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_download: nbytes %d\n",
 			id->id_unit, si3_t225_dsize));
 		si_bcopy(si3_t225_download, maddr + si3_t225_downloadaddr,
@@ -888,7 +888,7 @@ siattach(id)
 		sc->sc_type = SIEMPTY;
 		return 0;
 	case 1:
-		if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI)) {
+		if (SI_ISJET(sc->sc_type)) {
 			/* set throttle to 100 times per second */
 			regp->int_count = JET_INT_COUNT;
 			/* rx_intr_count is a NOP in Jet */
