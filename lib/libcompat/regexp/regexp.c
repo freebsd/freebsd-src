@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "regmagic.h"
+#include "collate.h"
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -489,6 +490,7 @@ int *flagp;
 	case '[': {
 			register int class;
 			register int classend;
+			int i;
 
 			if (*regparse == '^') {	/* Complement of range. */
 				ret = regnode(ANYBUT);
@@ -503,12 +505,16 @@ int *flagp;
 					if (*regparse == ']' || *regparse == '\0')
 						regc('-');
 					else {
-						class = UCHARAT(regparse-2)+1;
+						class = UCHARAT(regparse-2);
 						classend = UCHARAT(regparse);
-						if (class > classend+1)
+						if (__collcmp(class, classend) > 0)
 							FAIL("invalid [] range");
-						for (; class <= classend; class++)
-							regc(class);
+						for (i = 0; i <= UCHAR_MAX; i++)
+							if (   i != class
+							    && __collcmp(class, i) <= 0
+							    && __collcmp(i, classend) <= 0
+							   )
+								regc(i);
 						regparse++;
 					}
 				} else
@@ -888,7 +894,6 @@ char *prog;
 {
 	register char *scan;	/* Current node. */
 	char *next;		/* Next node. */
-	extern char *strchr();
 
 	scan = prog;
 #ifdef DEBUG
@@ -913,16 +918,16 @@ char *prog;
 			break;
 		case WORDA:
 			/* Must be looking at a letter, digit, or _ */
-			if ((!isalnum(*reginput)) && *reginput != '_')
+			if ((!isalnum((unsigned char)*reginput)) && *reginput != '_')
 				return(0);
 			/* Prev must be BOL or nonword */
 			if (reginput > regbol &&
-			    (isalnum(reginput[-1]) || reginput[-1] == '_'))
+			    (isalnum((unsigned char)reginput[-1]) || reginput[-1] == '_'))
 				return(0);
 			break;
 		case WORDZ:
 			/* Must be looking at non letter, digit, or _ */
-			if (isalnum(*reginput) || *reginput == '_')
+			if (isalnum((unsigned char)*reginput) || *reginput == '_')
 				return(0);
 			/* We don't care what the previous char was */
 			break;
