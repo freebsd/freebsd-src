@@ -560,12 +560,15 @@ int
 tcpMenuSelect(dialogMenuItem *self)
 {
     Device *tmp;
+    WINDOW *save;
 
     variable_set("NETWORK_CONFIGURED=NO",0);
     tmp = tcpDeviceSelect();
     variable_unset("NETWORK_CONFIGURED");
+    save = savescr();
     if (tmp && tmp->private && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 	if (!tmp->init(tmp))
 	    msgConfirm("Initialization of %s device failed.", tmp->name);
+    restorescr(save);
     return DITEM_SUCCESS;
 }
