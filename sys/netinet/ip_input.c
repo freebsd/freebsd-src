@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.22.4.4 1996/02/26 15:23:36 phk Exp $
+ * $Id: ip_input.c,v 1.22.4.5 1996/03/25 17:42:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -517,6 +517,8 @@ ip_reass(ip, fp)
 	 * if they are completely covered, dequeue them.
 	 */
 	while (q != (struct ipasfrag *)fp && ip->ip_off + ip->ip_len > q->ip_off) {
+		struct mbuf *m0;
+
 		i = (ip->ip_off + ip->ip_len) - q->ip_off;
 		if (i < q->ip_len) {
 			q->ip_len -= i;
@@ -524,9 +526,10 @@ ip_reass(ip, fp)
 			m_adj(dtom(q), i);
 			break;
 		}
+		m0 = dtom(q);
 		q = q->ipf_next;
-		m_freem(dtom(q->ipf_prev));
 		ip_deq(q->ipf_prev);
+		m_freem(m0);
 	}
 
 insert:
