@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.24 1995/05/30 05:01:49 rgrimes Exp $
+ *	$Id: rtld.c,v 1.25 1995/06/27 09:53:19 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -276,6 +276,10 @@ struct _dynamic		*dp;
 	/* Load required objects into the process address space */
 	load_objects(crtp, dp);
 
+	/* Fill in some fields in main's __DYNAMIC structure */
+	crtp->crt_dp->d_entry = &ld_entry;
+	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
+
 	/* Relocate all loaded objects according to their RRS segments */
 	for (smp = link_map_head; smp; smp = smp->som_next) {
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
@@ -297,10 +301,6 @@ struct _dynamic		*dp;
 			continue;
 		init_map(smp, ".init", 0);
 	}
-
-	/* Fill in some field in main's __DYNAMIC structure */
-	crtp->crt_dp->d_entry = &ld_entry;
-	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
 	ddp = crtp->crt_dp->d_debug;
 	ddp->dd_cc = rt_symbol_head;
