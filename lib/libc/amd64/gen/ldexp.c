@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * We do the conversion in C to let gcc optimize it away, if possible.
- * The "fxch ; fstp" stuff is because value is still on the stack
- * (stupid 8087!).
  */
 double
 ldexp (double value, int exp)
@@ -62,7 +60,7 @@ ldexp (double value, int exp)
 		: "=u" (temp2), "=t" (temp)
 		: "0" (texp), "1" (value));
 #else
-error unknown asm
+#error unknown asm
 #endif
 	return (temp);
 }
