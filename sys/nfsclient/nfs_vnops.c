@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.103 1998/05/31 20:08:56 peter Exp $
+ * $Id: nfs_vnops.c,v 1.104 1998/06/01 10:59:23 peter Exp $
  */
 
 
@@ -3059,7 +3059,7 @@ nfs_writebp(bp, force)
 	if (retv) {
 		if (force)
 			bp->b_flags |= B_WRITEINPROG;
-		VOP_STRATEGY(bp);
+		VOP_STRATEGY(bp->b_vp, bp);
 	}
 
 	if( (oldflags & B_ASYNC) == 0) {

@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.32 1998/03/09 20:39:26 julian Exp $ */
+/* $Id: ccd.c,v 1.33 1998/06/07 17:09:41 dfr Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -792,12 +792,12 @@ ccdstart(cs, bp)
 		rcount = cbp[0]->cb_buf.b_bcount;
 		if ((cbp[0]->cb_buf.b_flags & B_READ) == 0)
 			cbp[0]->cb_buf.b_vp->v_numoutput++;
-		VOP_STRATEGY(&cbp[0]->cb_buf);
+		VOP_STRATEGY(cbp[0]->cb_buf.b_vp, &cbp[0]->cb_buf);
 		if (cs->sc_cflags & CCDF_MIRROR &&
 		    (cbp[0]->cb_buf.b_flags & B_READ) == 0) {
 			/* mirror, start another write */
 			cbp[1]->cb_buf.b_vp->v_numoutput++;
-			VOP_STRATEGY(&cbp[1]->cb_buf);
+			VOP_STRATEGY(cbp[1]->cb_buf.b_vp, &cbp[1]->cb_buf);
 		}
 		bn += btodb(rcount);
 		addr += rcount;

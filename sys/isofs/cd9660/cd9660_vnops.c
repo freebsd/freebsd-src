@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.51 1997/12/27 02:56:20 bde Exp $
+ * $Id: cd9660_vnops.c,v 1.52 1998/03/06 09:46:14 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -727,6 +727,7 @@ cd9660_abortop(ap)
 static int
 cd9660_strategy(ap)
 	struct vop_strategy_args /* {
+		struct buf *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {
@@ -755,7 +756,7 @@ cd9660_strategy(ap)
 	}
 	vp = ip->i_devvp;
 	bp->b_dev = vp->v_rdev;
-	VOCALL (vp->v_op, VOFFSET(vop_strategy), ap);
+	VOP_STRATEGY(vp, bp);
 	return (0);
 }
 

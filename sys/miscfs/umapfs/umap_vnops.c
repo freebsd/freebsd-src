@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.22 1997/10/21 21:08:17 roberto Exp $
+ * $Id: umap_vnops.c,v 1.23 1998/02/07 01:36:24 kato Exp $
  */
 
 /*
@@ -430,6 +430,7 @@ umap_reclaim(ap)
 static int
 umap_strategy(ap)
 	struct vop_strategy_args /* {
+		struct vnode *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {
@@ -440,7 +441,7 @@ umap_strategy(ap)
 	savedvp = bp->b_vp;
 	bp->b_vp = UMAPVPTOLOWERVP(bp->b_vp);
 
-	error = VOP_STRATEGY(ap->a_bp);
+	error = VOP_STRATEGY(bp->b_vp, ap->a_bp);
 
 	bp->b_vp = savedvp;
 
