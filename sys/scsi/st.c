@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.82 1997/09/21 22:03:19 gibbs Exp $
+ * $Id: st.c,v 1.83 1997/11/23 11:56:18 bde Exp $
  */
 
 /*
@@ -961,7 +961,7 @@ ststart(unit, flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			0,	/* can't retry a read on a tape really */
 			1000000,

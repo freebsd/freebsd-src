@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.104 1997/09/23 22:14:43 gibbs Exp $
+ *	$Id: fd.c,v 1.105 1997/10/19 13:12:02 joerg Exp $
  *
  */
 
@@ -1326,7 +1326,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
 	if(format) {
-		finfo = (struct fd_formb *)bp->b_un.b_addr;
+		finfo = (struct fd_formb *)bp->b_data;
 		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
 			- (char *)finfo;
 	}
@@ -1468,7 +1468,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		}
 
 		fd->track = b_cylinder;
-		isa_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
+		isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
 			format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
@@ -1560,7 +1560,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		/* FALLTHROUGH */
 
 	case IOTIMEDOUT:
-		isa_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
+		isa_dmadone(bp->b_flags, bp->b_data+fd->skip,
 			    format ? bp->b_bcount : fdblk, fdc->dmachan);
 		if (fdc->status[0] & NE7_ST0_IC)
 		{
@@ -1801,7 +1801,7 @@ fdformat(dev, finfo, p)
 		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
 
 	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->b_un.b_addr = (caddr_t)finfo;
+	bp->b_data = (caddr_t)finfo;
 
 	/* now do the format */
 	fdstrategy(bp);

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.85 1997/09/07 15:06:06 joerg Exp $
+ *      $Id: cd.c,v 1.86 1997/09/21 22:02:59 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -540,7 +540,7 @@ cdstart(unit, flags)
 	if (scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &cmd,
 		sizeof(cmd),
-		(u_char *) bp->b_un.b_addr,
+		(u_char *) bp->b_data,
 		bp->b_bcount,
 		CDRETRIES,
 		30000,

@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.47 1997/11/05 21:32:00 sos Exp $
+ * $Id: wcd.c,v 1.48 1997/11/07 08:52:43 phk Exp $
  */
 
 #include "wdc.h"
@@ -660,7 +660,7 @@ static void wcd_start (struct wcd *t)
 
 	atapi_request_callback (t->ata, t->unit, ATAPI_READ_BIG, 0,
 		blkno>>24, blkno>>16, blkno>>8, blkno, 0, nblk>>8, nblk, 0, 0,
-		0, 0, 0, 0, 0, (u_char*) bp->b_un.b_addr, bp->b_bcount,
+		0, 0, 0, 0, 0, (u_char*) bp->b_data, bp->b_bcount,
 		wcd_done, t, bp);
 }
 

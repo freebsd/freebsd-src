@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.23 1997/09/02 20:06:32 bde Exp $
+ *      $Id: pt.c,v 1.24 1997/09/21 22:03:03 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -180,7 +180,7 @@ ptstart(unit, flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			0,
 			10000,

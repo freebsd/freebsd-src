@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.24 1997/09/24 08:21:26 kato Exp $
+ *	$Id: fd.c,v 1.25 1997/10/21 09:48:38 kato Exp $
  *
  */
 
@@ -1657,7 +1657,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
 	if(format) {
-		finfo = (struct fd_formb *)bp->b_un.b_addr;
+		finfo = (struct fd_formb *)bp->b_data;
 		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
 			- (char *)finfo;
 	}
@@ -1848,7 +1848,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-		isa_dmastart(bp->b_flags, bp->b_un.b_addr+fd->skip,
+		isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
 			format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
@@ -1933,10 +1933,10 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			nrd_addrset(fdblk * nrdblkn);
 			while (!nrd_check_ready()) DELAY(1);
 			if (read) epson_insw(P_NRD_DATA,
-					bp->b_un.b_addr + fd->skip,
+					bp->b_data + fd->skip,
 					fdblk / sizeof(short));
 			else epson_outsw(P_NRD_DATA,
-				bp->b_un.b_addr + fd->skip,
+				bp->b_data + fd->skip,
 				(format ? bp->b_bcount : fdblk)
 					/ sizeof(short));
 
@@ -1977,7 +1977,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-		isa_dmadone(bp->b_flags, bp->b_un.b_addr+fd->skip,
+		isa_dmadone(bp->b_flags, bp->b_data+fd->skip,
 			    format ? bp->b_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
 		}
@@ -2231,7 +2231,7 @@ fdformat(dev, finfo, p)
 		+ finfo->head * fd->ft->sectrac) * fdblk / DEV_BSIZE;
 
 	bp->b_bcount = sizeof(struct fd_idfield_data) * finfo->fd_formb_nsecs;
-	bp->b_un.b_addr = (caddr_t)finfo;
+	bp->b_data = (caddr_t)finfo;
 
 	/* now do the format */
 	fdstrategy(bp);

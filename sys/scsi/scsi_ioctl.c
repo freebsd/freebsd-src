@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.25 1997/03/23 06:33:48 bde Exp $
+ * $Id: scsi_ioctl.c,v 1.26 1997/09/02 20:06:34 bde Exp $
  *
  *
  */
@@ -215,7 +215,7 @@ scsistrategy(struct buf *bp)
 	err = scsi_scsi_cmd(sc_link,
 			(struct	scsi_generic *)screq->cmd,
 			screq->cmdlen,
-			(u_char *)bp->b_un.b_addr,
+			(u_char *)bp->b_data,
 			screq->datalen,
 			0,	/* user must do the retries *//* ignored */
 			screq->timeout,
@@ -314,7 +314,7 @@ struct proc *p, struct scsi_link *sc_link)
 					minphys, &auio);
 			} else {
 				/* if no data, no need to translate it.. */
-				bp->b_un.b_addr = 0;
+				bp->b_data = 0;
 				bp->b_dev = dev;
 				bp->b_flags |= B_BUSY;
 
