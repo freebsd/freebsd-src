@@ -148,6 +148,7 @@ struct pargs {
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
+ *      o - ktrace lock
  *      p - select lock (sellock)
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
@@ -271,6 +272,7 @@ struct thread {
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_inktr;	/* (k) Currently handling a KTR. */
+	u_char		td_inktrace;	/* (k) Currently handling a KTRACE. */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
@@ -412,8 +414,8 @@ struct proc {
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
 	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
 	struct bintime	p_runtime;	/* (j) Real time. */
-	int		p_traceflag;	/* (j?) Kernel trace points. */
-	struct vnode	*p_tracep;	/* (j?) Trace to vnode. */
+	int		p_traceflag;	/* (o) Kernel trace points. */
+	struct vnode	*p_tracep;	/* (c + o) Trace to vnode. */
 	sigset_t	p_siglist;	/* (c) Sigs arrived, not delivered. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
