@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * compress.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Oct 25 22:12:46 1995 ylo
- * 
+ *
  * Interface to packet compression for ssh.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: compress.c,v 1.4 1999/11/24 19:53:46 markus Exp $");
+RCSID("$Id: compress.c,v 1.7 2000/04/14 10:30:31 markus Exp $");
 
 #include "ssh.h"
 #include "buffer.h"
@@ -28,7 +28,7 @@ static z_stream outgoing_stream;
  * (as in gzip).
  */
 
-void 
+void
 buffer_compress_init(int level)
 {
 	debug("Enabling compression at level %d.", level);
@@ -40,7 +40,7 @@ buffer_compress_init(int level)
 
 /* Frees any data structures allocated for compression. */
 
-void 
+void
 buffer_compress_uninit()
 {
 	debug("compress outgoing: raw data %lu, compressed %lu, factor %.2f",
@@ -64,7 +64,7 @@ buffer_compress_uninit()
  * receiver.  This appends the compressed data to the output buffer.
  */
 
-void 
+void
 buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 {
 	char buf[4096];
@@ -75,13 +75,13 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 		return;
 
 	/* Input is the contents of the input buffer. */
-	outgoing_stream.next_in = buffer_ptr(input_buffer);
+	outgoing_stream.next_in = (unsigned char *) buffer_ptr(input_buffer);
 	outgoing_stream.avail_in = buffer_len(input_buffer);
 
 	/* Loop compressing until deflate() returns with avail_out != 0. */
 	do {
 		/* Set up fixed-size output buffer. */
-		outgoing_stream.next_out = buf;
+		outgoing_stream.next_out = (unsigned char *)buf;
 		outgoing_stream.avail_out = sizeof(buf);
 
 		/* Compress as much data into the buffer as possible. */
@@ -90,23 +90,13 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
 		case Z_OK:
 			/* Append compressed data to output_buffer. */
 			buffer_append(output_buffer, buf,
-				      sizeof(buf) - outgoing_stream.avail_out);
+			    sizeof(buf) - outgoing_stream.avail_out);
 			break;
-		case Z_STREAM_END:
-			fatal("buffer_compress: deflate returned Z_STREAM_END");
-			/* NOTREACHED */
-		case Z_STREAM_ERROR:
-			fatal("buffer_compress: deflate returned Z_STREAM_ERROR");
-			/* NOTREACHED */
-		case Z_BUF_ERROR:
-			fatal("buffer_compress: deflate returned Z_BUF_ERROR");
-			/* NOTREACHED */
 		default:
 			fatal("buffer_compress: deflate returned %d", status);
 			/* NOTREACHED */
 		}
-	}
-	while (outgoing_stream.avail_out == 0);
+	} while (outgoing_stream.avail_out == 0);
 }
 
 /*
@@ -118,36 +108,26 @@ buffer_compress(Buffer * input_buffer, Buffer * output_buffer)
  * with that.  This appends the uncompressed data to the output buffer.
  */
 
-void 
+void
 buffer_uncompress(Buffer * input_buffer, Buffer * output_buffer)
 {
 	char buf[4096];
 	int status;
 
-	incoming_stream.next_in = buffer_ptr(input_buffer);
+	incoming_stream.next_in = (unsigned char *) buffer_ptr(input_buffer);
 	incoming_stream.avail_in = buffer_len(input_buffer);
 
-	incoming_stream.next_out = buf;
-	incoming_stream.avail_out = sizeof(buf);
-
 	for (;;) {
+		/* Set up fixed-size output buffer. */
+		incoming_stream.next_out = (unsigned char *) buf;
+		incoming_stream.avail_out = sizeof(buf);
+
 		status = inflate(&incoming_stream, Z_PARTIAL_FLUSH);
 		switch (status) {
 		case Z_OK:
 			buffer_append(output_buffer, buf,
-				      sizeof(buf) - incoming_stream.avail_out);
-			incoming_stream.next_out = buf;
-			incoming_stream.avail_out = sizeof(buf);
+			    sizeof(buf) - incoming_stream.avail_out);
 			break;
-		case Z_STREAM_END:
-			fatal("buffer_uncompress: inflate returned Z_STREAM_END");
-			/* NOTREACHED */
-		case Z_DATA_ERROR:
-			fatal("buffer_uncompress: inflate returned Z_DATA_ERROR");
-			/* NOTREACHED */
-		case Z_STREAM_ERROR:
-			fatal("buffer_uncompress: inflate returned Z_STREAM_ERROR");
-			/* NOTREACHED */
 		case Z_BUF_ERROR:
 			/*
 			 * Comments in zlib.h say that we should keep calling
@@ -155,11 +135,9 @@ buffer_uncompress(Buffer * input_buffer, Buffer * output_buffer)
 			 * be the error that we get.
 			 */
 			return;
-		case Z_MEM_ERROR:
-			fatal("buffer_uncompress: inflate returned Z_MEM_ERROR");
-			/* NOTREACHED */
 		default:
 			fatal("buffer_uncompress: inflate returned %d", status);
+			/* NOTREACHED */
 		}
 	}
 }

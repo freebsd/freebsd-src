@@ -15,12 +15,13 @@ MAN=	ssh.1
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MLINKS=	ssh.1 slogin.1
 
-SRCS=	ssh.c sshconnect.c log-client.c readconf.c clientloop.c
+SRCS=	ssh.c log-client.c readconf.c clientloop.c \
+	sshconnect.c sshconnect1.c sshconnect2.c
 
 .include <bsd.own.mk> # for AFS
 
 .if (${KERBEROS} == "yes")
-CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
+CFLAGS+= -DKRB4 -I${DESTDIR}/usr/include/kerberosIV
 LDADD+=	 -lkrb
 DPADD+=	 ${LIBKRB}
 .if (${AFS} == "yes")

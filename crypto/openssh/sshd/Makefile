@@ -7,20 +7,21 @@ BINDIR=	/usr/sbin
 MAN=	sshd.8
 
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
-	pty.c log-server.c login.c servconf.c serverloop.c
+	pty.c log-server.c login.c servconf.c serverloop.c \
+	auth.c auth1.c auth2.c session.c
 
 .include <bsd.own.mk> # for KERBEROS and AFS
 
 .if (${KERBEROS} == "yes")
-CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
-SRCS+=	auth-krb4.c
-LDADD+=	 -lkrb
-DPADD+=	 ${LIBKRB}
 .if (${AFS} == "yes")
 CFLAGS+= -DAFS
 LDADD+=  -lkafs
 DPADD+=  ${LIBKRBAFS}
 .endif # AFS
+CFLAGS+= -DKRB4 -I${DESTDIR}/usr/include/kerberosIV
+SRCS+=	auth-krb4.c
+LDADD+=	 -lkrb
+DPADD+=	 ${LIBKRB}
 .endif # KERBEROS
 
 .if (${SKEY} == "yes")

@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $Id: scp.1,v 1.5 2000/01/04 16:57:16 markus Exp $
+.\" $Id: scp.1,v 1.7 2000/04/12 21:47:50 aaron Exp $
 .\"
 .Dd September 25, 1999
 .Dt SCP 1
@@ -36,9 +36,10 @@
 .Ar host2 No :
 .Oc Ar file2
 .Sm on
-.Sh DESCRIPTION 
+.Sh DESCRIPTION
 .Nm
-copies files between hosts on a network.  It uses
+copies files between hosts on a network.
+It uses
 .Xr ssh 1
 for data transfer, and uses the same authentication and provides the
 same security as
@@ -50,18 +51,19 @@ will ask for passwords or passphrases if they are needed for
 authentication.
 .Pp
 Any file name may contain a host and user specification to indicate
-that the file is to be copied to/from that host.  Copies between two
-remote hosts are permitted.
+that the file is to be copied to/from that host.
+Copies between two remote hosts are permitted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl c Ar cipher
-Selects the cipher to use for encrypting the data transfer.  This
-option is directly passed to
+Selects the cipher to use for encrypting the data transfer.
+This option is directly passed to
 .Xr ssh 1 .
 .It Fl i Ar identity_file
 Selects the file from which the identity (private key) for RSA
-authentication is read.  This option is directly passed to
+authentication is read.
+This option is directly passed to
 .Xr ssh 1 .
 .It Fl p
 Preserves modification times, access times, and modes from the
@@ -69,25 +71,28 @@ original file.
 .It Fl r
 Recursively copy entire directories.
 .It Fl v
-Verbose mode.  Causes
+Verbose mode.
+Causes
 .Nm
-and 
+and
 .Xr ssh 1
-to print debugging messages about their progress.  This is helpful in
+to print debugging messages about their progress.
+This is helpful in
 debugging connection, authentication, and configuration problems.
 .It Fl B
 Selects batch mode (prevents asking for passwords or passphrases).
 .It Fl q
 Disables the progress meter.
 .It Fl C
-Compression enable.  Passes the
+Compression enable.
+Passes the
 .Fl C
 flag to
 .Xr ssh 1
 to enable compression.
 .It Fl P Ar port
-Specifies the port to connect to on the remote host.  Note that this
-option is written with a capital
+Specifies the port to connect to on the remote host.
+Note that this option is written with a capital
 .Sq P ,
 because
 .Fl p

@@ -1,19 +1,19 @@
 /*
- * 
+ *
  * getput.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Jun 28 22:36:30 1995 ylo
- * 
+ *
  * Macros for storing and retrieving data in msb first and lsb first order.
- * 
+ *
  */
 
-/* RCSID("$Id: getput.h,v 1.2 1999/11/24 00:26:02 deraadt Exp $"); */
+/* RCSID("$Id: getput.h,v 1.3 2000/04/14 10:30:31 markus Exp $"); */
 
 #ifndef GETPUT_H
 #define GETPUT_H
@@ -21,7 +21,7 @@
 /*------------ macros for storing/extracting msb first words -------------*/
 
 #define GET_32BIT(cp) (((unsigned long)(unsigned char)(cp)[0] << 24) | \
-  		       ((unsigned long)(unsigned char)(cp)[1] << 16) | \
+		       ((unsigned long)(unsigned char)(cp)[1] << 16) | \
 		       ((unsigned long)(unsigned char)(cp)[2] << 8) | \
 		       ((unsigned long)(unsigned char)(cp)[3]))
 

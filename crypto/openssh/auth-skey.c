@@ -1,20 +1,23 @@
-#include "includes.h"
-RCSID("$Id: auth-skey.c,v 1.5 1999/12/06 19:04:57 deraadt Exp $");
+/* $FreeBSD$ */
 
+#include "includes.h"
+RCSID("$Id: auth-skey.c,v 1.6 2000/04/14 10:30:29 markus Exp $");
+
+#include <sys/sysctl.h>
 #include "ssh.h"
 #include "packet.h"
-#include <sha1.h>
+#include <sha.h>
 
-/* 
+/*
  * try skey authentication,
- * return 1 on success, 0 on failure, -1 if skey is not available 
+ * return 1 on success, 0 on failure, -1 if skey is not available
  */
 
-int 
+int
 auth_skey_password(struct passwd * pw, const char *password)
 {
 	if (strncasecmp(password, "s/key", 5) == 0) {
-		char *skeyinfo = skey_keyinfo(pw->pw_name);
+		char *skeyinfo = opie_keyinfo(pw->pw_name);
 		if (skeyinfo == NULL) {
 			debug("generating fake skeyinfo for %.100s.",
 			    pw->pw_name);
@@ -24,8 +27,8 @@ auth_skey_password(struct passwd * pw, const char *password)
 			packet_send_debug(skeyinfo);
 		/* Try again. */
 		return 0;
-	} else if (skey_haskey(pw->pw_name) == 0 &&
-		   skey_passcheck(pw->pw_name, (char *) password) != -1) {
+	} else if (opie_haskey(pw->pw_name) == 0 &&
+		   opie_passverify(pw->pw_name, (char *) password) != -1) {
 		/* Authentication succeeded. */
 		return 1;
 	}
@@ -43,18 +46,18 @@ auth_skey_password(struct passwd * pw, const char *password)
  */
 static u_int32_t
 hash_collapse(s)
-        u_char *s;
+	u_char *s;
 {
-        int len, target;
+	int len, target;
 	u_int32_t i;
 	
 	if ((strlen(s) % sizeof(u_int32_t)) == 0)
-  		target = strlen(s);    /* Multiple of 4 */
+		target = strlen(s);    /* Multiple of 4 */
 	else
 		target = strlen(s) - (strlen(s) % sizeof(u_int32_t));
-  
+
 	for (i = 0, len = 0; len < target; len += 4)
-        	i ^= ROUND(s + len);
+		i ^= ROUND(s + len);
 
 	return i;
 }
@@ -64,16 +67,19 @@ skey_fake_keyinfo(char *username)
 {
 	int i;
 	u_int ptr;
-	u_char hseed[SKEY_MAX_SEED_LEN], flg = 1, *up;
-	char pbuf[SKEY_MAX_PW_LEN+1];
-	static char skeyprompt[SKEY_MAX_CHALLENGE+1];
+	u_char hseed[OPIE_SEED_MAX], flg = 1, *up;
+	char pbuf[OPIE_SECRET_MAX+1];
+	static char skeyprompt[OPIE_CHALLENGE_MAX+1];
 	char *secret = NULL;
 	size_t secretlen = 0;
 	SHA1_CTX ctx;
 	char *p, *u;
+	int mib[2];
+	size_t size;
+	struct timeval boottime;
 
 	/*
-	 * Base first 4 chars of seed on hostname.
+	 * Base first 2 chars of seed on hostname.
 	 * Add some filler for short hostnames if necessary.
 	 */
 	if (gethostname(pbuf, sizeof(pbuf)) == -1)
@@ -82,31 +88,34 @@ skey_fake_keyinfo(char *username)
 		for (p = pbuf; *p && isalnum(*p); p++)
 			if (isalpha(*p) && isupper(*p))
 				*p = tolower(*p);
-	if (*p && pbuf - p < 4)
-		(void)strncpy(p, "asjd", 4 - (pbuf - p));
-	pbuf[4] = '\0';
+	if (*p && pbuf - p < 2)
+		(void)strncpy(p, "asjd", 2 - (pbuf - p));
+	pbuf[2] = '\0';
 
 	/* Hash the username if possible */
-	if ((up = SHA1Data(username, strlen(username), NULL)) != NULL) {
+	if ((up = SHA1_Data(username, strlen(username), NULL)) != NULL) {
 		struct stat sb;
 		time_t t;
-		int fd;
 
 		/* Collapse the hash */
 		ptr = hash_collapse(up);
 		memset(up, 0, strlen(up));
 
-		/* See if the random file's there, else use ctime */
-		if ((fd = open(_SKEY_RAND_FILE_PATH_, O_RDONLY)) != -1
-		    && fstat(fd, &sb) == 0 &&
-		    sb.st_size > (off_t)SKEY_MAX_SEED_LEN &&
-		    lseek(fd, ptr % (sb.st_size - SKEY_MAX_SEED_LEN),
-		    SEEK_SET) != -1 && read(fd, hseed,
-		    SKEY_MAX_SEED_LEN) == SKEY_MAX_SEED_LEN) {
-			close(fd);
-			fd = -1;
-			secret = hseed;
-			secretlen = SKEY_MAX_SEED_LEN;
+		/*
+		 * Seed the fake challenge with the system boot time,
+		 * otherwise use ctime.
+		 *
+		 * XXX This should be a random source which is constant
+		 * over short time periods, but changes over timescales on
+		 * the order of a week.
+		 */
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_BOOTTIME;
+		size = sizeof(boottime);
+		if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
+			boottime.tv_sec != 0) {
+			secret = (char *)&boottime;
+			secretlen = size/sizeof(char); 
 			flg = 0;
 		} else if (!stat(_PATH_MEM, &sb) || !stat("/", &sb)) {
 			t = sb.st_ctime;
@@ -114,51 +123,49 @@ skey_fake_keyinfo(char *username)
 			secretlen = strlen(secret);
 			flg = 0;
 		}
-		if (fd != -1)
-			close(fd);
 	}
 
 	/* Put that in your pipe and smoke it */
 	if (flg == 0) {
 		/* Hash secret value with username */
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, secret, secretlen);
-		SHA1Update(&ctx, username, strlen(username));
-		SHA1End(&ctx, up);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, secret, secretlen);
+		SHA1_Update(&ctx, username, strlen(username));
+		SHA1_End(&ctx, up);
 		
 		/* Zero out */
 		memset(secret, 0, secretlen);
 
 		/* Now hash the hash */
-		SHA1Init(&ctx);
-		SHA1Update(&ctx, up, strlen(up));
-		SHA1End(&ctx, up);
+		SHA1_Init(&ctx);
+		SHA1_Update(&ctx, up, strlen(up));
+		SHA1_End(&ctx, up);
 		
 		ptr = hash_collapse(up + 4);
 		
-		for (i = 4; i < 9; i++) {
+		for (i = 2; i < 6; i++) {
 			pbuf[i] = (ptr % 10) + '0';
 			ptr /= 10;
 		}
 		pbuf[i] = '\0';
 
 		/* Sequence number */
-		ptr = ((up[2] + up[3]) % 99) + 1;
+		ptr = ((up[2] + up[3]) % 499) + 1;
 
 		memset(up, 0, 20); /* SHA1 specific */
 		free(up);
 
 		(void)snprintf(skeyprompt, sizeof skeyprompt,
-			      "otp-%.*s %d %.*s",
-			      SKEY_MAX_HASHNAME_LEN,
-			      skey_get_algorithm(),
-			      ptr, SKEY_MAX_SEED_LEN,
+			      "opt-%.*s %d %.*s ext",
+			      OPIE_HASHNAME_MAX,
+			      opie_get_algorithm(),
+			      ptr, OPIE_SEED_MAX,
 			      pbuf);
 	} else {
-		/* Base last 8 chars of seed on username */
+		/* Base last 4 chars of seed on username */
 		u = username;
-		i = 8;
-		p = &pbuf[4];
+		i = 4;
+		p = &pbuf[2];
 		do {
 			if (*u == 0) {
 				/* Pad remainder with zeros */
@@ -169,13 +176,11 @@ skey_fake_keyinfo(char *username)
 
 			*p++ = (*u++ % 10) + '0';
 		} while (--i != 0);
-		pbuf[12] = '\0';
+		pbuf[6] = '\0';
 
 		(void)snprintf(skeyprompt, sizeof skeyprompt,
-			      "otp-%.*s %d %.*s",
-			      SKEY_MAX_HASHNAME_LEN,
-			      skey_get_algorithm(),
-			      99, SKEY_MAX_SEED_LEN, pbuf);
+			      "opt-md5 %d %.*s ext",
+			      499, OPIE_SEED_MAX, pbuf);
 	}
 	return skeyprompt;
 }

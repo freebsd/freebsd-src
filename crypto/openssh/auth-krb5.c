@@ -11,7 +11,7 @@
 
 #ifdef KRB5
 
-extern krb5_context ssh_context;
+krb5_context ssh_context = NULL;
 krb5_auth_context auth_context;
 krb5_ccache mem_ccache = NULL; /* Credential cache for acquired ticket */
 
