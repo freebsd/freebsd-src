@@ -2763,6 +2763,9 @@ vfsconf2x(struct vfsconf *vfsp, struct xvfsconf *xvfsp)
 	xvfsp->vfc_next = NULL;
 }
 
+/*
+ * Top level filesystem related information gathering.
+ */
 static int
 sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 {
@@ -2794,9 +2797,7 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLFLAG_RD, NULL, 0, sysctl_vfs_conflist,
     "S,xvfsconf", "List of all configured filesystems");
 
-/*
- * Top level filesystem related information gathering.
- */
+#ifndef BURN_BRIDGES
 static int	sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS);
 
 static int
@@ -2861,6 +2862,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 }
 
 #endif /* 1 || COMPAT_PRELITE2 */
+#endif /* !BURN_BRIDGES */
 
 #define KINFO_VNODESLOP		10
 #ifdef notyet
