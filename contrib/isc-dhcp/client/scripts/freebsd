@@ -187,7 +187,7 @@ if [ x$reason = xTIMEOUT ]; then
       done
       set $new_static_routes
       while [ $# -gt 1 ]; do
-	route add $0 $1
+	route add $1 $2
 	shift; shift
       done
       echo search $new_domain_name >/etc/resolv.conf.std
