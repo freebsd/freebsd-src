@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.8 1996/06/25 18:29:53 joerg Exp $
+ *      $Id: scsiconf.c,v 1.30.4.9 1996/06/28 16:59:47 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -330,17 +330,17 @@ static struct scsidevs knowndevs[] =
 /* od's must be probed before sd's since some of them identify as T_DIRECT */
 #if NOD > 0
 	{
-		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000", "*",
-		"od", SC_MORE_LUS
+		T_OPTICAL, T_REMOV, "standard", "any"
+		    ,"any", "od", SC_ONE_LU
+	},
+	{
+		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000"
+		    ,"any", "od", SC_MORE_LUS
 	},
 	/* See comments under NEW_SCSICONF above. */
 	{
-		T_OPTICAL, T_REMOV, "SONY", "SMO-*", "*",
-		"od", SC_MORE_LUS
-	},
-	{
-		T_OPTICAL, T_REMOV, "*", "*", "*",
-		"od", SC_ONE_LU
+		T_OPTICAL, T_REMOV, "SONY", "SMO-C501-09"
+		    ,"*", "od", SC_MORE_LUS
 	},
 #endif  /* NOD */
 #if NSD > 0
