@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.31 1998/03/19 15:21:19 bde Exp $
+#	$Id: Makefile,v 1.32 1998/04/30 08:03:49 dfr Exp $
 
 PROG = gdb
 
@@ -15,7 +15,6 @@ BFDDIR= ${.CURDIR}/../bfd
 CFLAGS+=	-DFREEBSD_ELF
 .endif
 
-BINDIR?= /usr/bin
 XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
 	ch-valprint.c coffread.c command.c complaints.c copying.c \
