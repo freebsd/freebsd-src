@@ -539,12 +539,17 @@ MAIN:{
 	}
     }
 
-    # Build the world
+    # Build the world, or at least the kernel toolchain
     if ($cmds{'world'}) {
 	logstage("building world (CFLAGS=$ENV{'CFLAGS'})");
 	cd("$sandbox/src");
 	make('buildworld')
 	    or error("failed to build world");
+    } elsif ($cmds{'generic'} || $cmds{'lint'}) {
+	logstage("building kernel toolchain (CFLAGS=$ENV{'CFLAGS'})");
+	cd("$sandbox/src");
+	make('kernel-toolchain')
+	    or error("failed to build kernel toolchain");
     }
 
     # Build GENERIC if requested
