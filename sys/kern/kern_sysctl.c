@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.41 1995/11/14 09:07:14 phk Exp $
+ * $Id: kern_sysctl.c,v 1.42 1995/11/14 09:10:54 phk Exp $
  */
 
 /*
@@ -98,9 +98,6 @@ SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
 	CTLFLAG_RD, &maxprocperuid, 0, "");
 
-SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
-	CTLFLAG_RD, &maxfilesperproc, 0, "");
-
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 0, ARG_MAX, "");
 
 SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _POSIX_VERSION, "");
@@ -108,8 +105,6 @@ SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _POSIX_VERSION, "")
 SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD, 0, NGROUPS_MAX, "");
 
 SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD, 0, 1, "");
-
-SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
 #ifdef _POSIX_SAVED_IDS
 SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 1, "");
