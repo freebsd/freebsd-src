@@ -43,6 +43,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <fcntl.h>
+#include <fstab.h>
 #include <errno.h>
 #include <paths.h>
 #include <pwd.h>
@@ -526,6 +527,7 @@ main(argc,argv)
 {
 	char all = 0;
 	struct statfs *mp;
+	struct fstab *fs;
 	char dev[MNAMELEN + 1];
 	char *nm;
 	int cnt;
@@ -578,7 +580,12 @@ main(argc,argv)
 			}
 		}
 	}
-	while (--argc >= 0)
-		quot(*argv++,0);
+	while (--argc >= 0) {
+		if ((fs = getfsfile(*argv)) != NULL)
+			quot(fs->fs_spec, 0);
+		else
+			quot(*argv,0);
+		argv++;
+	}
 	return 0;
 }
