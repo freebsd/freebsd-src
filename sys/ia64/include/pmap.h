@@ -89,7 +89,6 @@ struct md_page {
 struct pmap {
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_int32_t		pm_rid[5];	/* base RID for pmap */
-	int			pm_count;	/* reference count */
 	int			pm_flags;	/* pmap flags */
 	int			pm_active;	/* active flag */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
@@ -104,7 +103,8 @@ struct pmap {
 typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
-extern pmap_t		kernel_pmap;
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 #endif
 
 /*
@@ -134,7 +134,6 @@ vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(void);
 void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
 int	pmap_uses_prom_console(void);
-pmap_t	pmap_kernel(void);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;

@@ -208,7 +208,6 @@ struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	int			pm_count;	/* reference count */
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
@@ -220,7 +219,8 @@ struct pmap {
 typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
-extern pmap_t		kernel_pmap;
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 #endif
 
 /*
@@ -262,7 +262,6 @@ extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap( vm_offset_t, vm_offset_t);
-pmap_t	pmap_kernel(void);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;

@@ -406,7 +406,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = ~0;
-	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
 
 	/* XXX flush all non-locked tlb entries */
@@ -1116,7 +1115,6 @@ pmap_pinit0(pmap_t pm)
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = 0;
 	pm->pm_active = 0;
-	pm->pm_count = 1;
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
 	TAILQ_INIT(&pm->pm_pvlist);
@@ -1167,7 +1165,6 @@ pmap_pinit(pmap_t pm)
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
 	pm->pm_active = 0;
-	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1217,26 +1214,6 @@ pmap_release(pmap_t pm)
 void
 pmap_growkernel(vm_offset_t addr)
 {
-}
-
-/*
- * Retire the given physical map from service.  Pmaps are always allocated
- * as part of a larger structure, so this never happens.
- */
-void
-pmap_destroy(pmap_t pm)
-{
-	panic("pmap_destroy: unimplemented");
-}
-
-/*
- * Add a reference to the specified pmap.
- */
-void
-pmap_reference(pmap_t pm)
-{
-	if (pm != NULL)
-		pm->pm_count++;
 }
 
 /*

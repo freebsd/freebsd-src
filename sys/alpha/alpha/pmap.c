@@ -222,7 +222,7 @@
  * Given a map and a machine independent protection code,
  * convert to an alpha protection code.
  */
-#define pte_prot(m, p)		(protection_codes[m == pmap_kernel() ? 0 : 1][p])
+#define pte_prot(m, p)		(protection_codes[m == kernel_pmap ? 0 : 1][p])
 int	protection_codes[2][8];
 
 /*
@@ -296,8 +296,7 @@ vm_size_t	Lev2mapsize, Lev3mapsize;
 /*
  * Statically allocated kernel pmap
  */
-static struct pmap kernel_pmap_store;
-pmap_t kernel_pmap;
+struct pmap kernel_pmap_store;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -531,13 +530,9 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	alpha_protection_init();
 
 	/*
-	 * The kernel's pmap is statically allocated so we don't have to use
-	 * pmap_create, which is unlikely to work correctly at this part of
-	 * the boot sequence (XXX and which no longer exists).
+	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_lev1 = Lev1map;
-	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = ~0;
 	kernel_pmap->pm_asn[alpha_pal_whami()].asn = 0;
 	kernel_pmap->pm_asn[alpha_pal_whami()].gen = 1;
@@ -1356,7 +1351,6 @@ pmap_pinit0(pmap)
 	int i;
 
 	pmap->pm_lev1 = Lev1map;
-	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	for (i = 0; i < MAXCPU; i++) {
@@ -1407,7 +1401,6 @@ pmap_pinit(pmap)
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
 		| PG_V | PG_KRE | PG_KWE;
 
-	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	for (i = 0; i < MAXCPU; i++) {
@@ -1775,39 +1768,9 @@ pmap_growkernel(vm_offset_t addr)
 	critical_exit();
 }
 
-/*
- *	Retire the given physical map from service.
- *	Should only be called if the map contains
- *	no valid mappings.
- */
-void
-pmap_destroy(pmap_t pmap)
-{
-	int count;
-
-	if (pmap == NULL)
-		return;
-
-	count = --pmap->pm_count;
-	if (count == 0) {
-		pmap_release(pmap);
-		panic("destroying a pmap is not yet implemented");
-	}
-}
-
-/*
- *	Add a reference to the specified pmap.
- */
-void
-pmap_reference(pmap_t pmap)
-{
-	if (pmap != NULL) {
-		pmap->pm_count++;
-	}
-}
 
 /***************************************************
-* page management routines.
+ * page management routines.
  ***************************************************/
 
 /*
@@ -2691,16 +2654,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 {
 }	
 
-/*
- *	Routine:	pmap_kernel
- *	Function:
- *		Returns the physical map handle for the kernel.
- */
-pmap_t
-pmap_kernel()
-{
-	return (kernel_pmap);
-}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by

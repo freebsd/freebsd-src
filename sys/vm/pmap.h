@@ -98,7 +98,6 @@ void		 pmap_clear_reference(vm_page_t m);
 void		 pmap_collect(void);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
-void		 pmap_destroy(pmap_t);
 void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
 		    boolean_t);
 vm_offset_t	 pmap_extract(pmap_t pmap, vm_offset_t va);
@@ -122,7 +121,6 @@ void		 pmap_pinit2(pmap_t);
 void		 pmap_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
 void		 pmap_qenter(vm_offset_t, vm_page_t *, int);
 void		 pmap_qremove(vm_offset_t, int);
-void		 pmap_reference(pmap_t);
 void		 pmap_release(pmap_t);
 void		 pmap_remove(pmap_t, vm_offset_t, vm_offset_t);
 void		 pmap_remove_pages(pmap_t, vm_offset_t, vm_offset_t);

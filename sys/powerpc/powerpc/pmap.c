@@ -686,7 +686,6 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	}
 	kernel_pmap->pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
 	kernel_pmap->pm_active = ~0;
-	kernel_pmap->pm_count = 1;
 
 	/*
 	 * Allocate a kernel stack with a guard page for thread0 and map it
@@ -1223,7 +1222,6 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * Allocate some segment registers for this pmap.
 	 */
-	pmap->pm_count = 1;
 	for (i = 0; i < NPMAPS; i += VSID_NBPW) {
 		u_int	hash, n;
 
@@ -1367,17 +1365,6 @@ pmap_qremove(vm_offset_t va, int count)
 
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kremove(va);
-}
-
-/*
- * Add a reference to the specified pmap.
- */
-void
-pmap_reference(pmap_t pm)
-{
-
-	if (pm != NULL)
-		pm->pm_count++;
 }
 
 void
