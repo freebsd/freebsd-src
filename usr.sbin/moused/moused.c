@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id$
+ **      $Id: moused.c,v 1.1 1996/06/21 09:24:09 sos Exp $
  **/
 
 /**
@@ -246,24 +246,10 @@ main(int argc, char *argv[])
 	act = r_protocol(b);		/* pass byte to handler */
 	if (act)			/* handler detected action */
 	{
-	    if (act->buttons != saved_buttons) {
-		if (act->buttons == 0x04) {
-			mouse.operation = MOUSE_CUT_START;
-	    		ioctl(cfd, CONS_MOUSECTL, &mouse);
-		}
-		if (act->buttons == 0x00) {
-			mouse.operation = MOUSE_CUT_END;
-	    		ioctl(cfd, CONS_MOUSECTL, &mouse);
-		}
-		if (act->buttons == 0x01) {
-			mouse.operation = MOUSE_RETURN_CUTBUFFER;
-	    		ioctl(cfd, CONS_MOUSECTL, &mouse);
-		}
-		saved_buttons = act->buttons;
-	    }
-	    mouse.operation = MOUSE_MOVEREL;
-	    mouse.x = act->dx;
-	    mouse.y = act->dy;
+	    mouse.operation = MOUSE_ACTION;
+	    mouse.u.data.x = act->dx;
+	    mouse.u.data.y = act->dy;
+	    mouse.u.data.buttons = act->buttons;
 	    ioctl(cfd, CONS_MOUSECTL, &mouse);
 	    debug("Activity : buttons 0x%02x  dx %d  dy %d",
 		    act->buttons,act->dx,act->dy);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.16 1996/06/21 07:19:18 sos Exp $
+ *	$Id: syscons.h,v 1.17 1996/06/23 17:12:03 bde Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -128,8 +128,8 @@ typedef struct term_stat {
 	int 		num_param;		/* # of parameters to ESC */
 	int	 	last_param;		/* last parameter # */
 	int 		param[MAX_ESC_PAR];	/* contains ESC parameters */
-	int             cur_attr;               /* current hardware attributes word */
-	int             attr_mask;              /* current logical attributes mask */
+	int             cur_attr;               /* current hardware attr word */
+	int             attr_mask;              /* current logical attr mask */
 	int             cur_color;              /* current hardware color */
 	int             std_color;              /* normal hardware color */
 	int             rev_color;              /* reverse hardware color */
@@ -154,9 +154,13 @@ typedef struct scr_stat {
 	u_short		mouse_saveunder[4];	/* saved chars under mouse */
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
+	short		mouse_buttons;		/* mouse buttons */
 	u_char		mouse_cursor[128];	/* mouse cursor bitmap store */
 	u_short		*mouse_cut_start;	/* mouse cut start pos */
 	u_short		*mouse_cut_end;		/* mouse cut end pos */
+	struct proc 	*mouse_proc;		/* proc* of controlling proc */
+	pid_t 		mouse_pid;		/* pid of controlling proc */
+	int		mouse_signal;		/* signal # to report with */
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
