@@ -141,8 +141,7 @@ __END_DECLS
 static __inline int
 __istype(_BSD_RUNE_T_ _c, unsigned long _f)
 {
-	return (_c < 0 || _c & _CRMASK) ? !!(___runetype(_c) & _f) :
-	       (_c >= _CACHED_RUNES) ? 0 :
+	return (_c < 0 || _c >= _CACHED_RUNES) ? !!(___runetype(_c) & _f) :
 	       !!(_CurrentRuneLocale->runetype[_c] & _f);
 }
 
@@ -156,16 +155,14 @@ __isctype(_BSD_RUNE_T_ _c, unsigned long _f)
 static __inline _BSD_RUNE_T_
 __toupper(_BSD_RUNE_T_ _c)
 {
-	return (_c < 0 || _c & _CRMASK) ? ___toupper(_c) :
-	       (_c >= _CACHED_RUNES) ? _c :
+	return (_c < 0 || _c >= _CACHED_RUNES) ? ___toupper(_c) :
 	       _CurrentRuneLocale->mapupper[_c];
 }
 
 static __inline _BSD_RUNE_T_
 __tolower(_BSD_RUNE_T_ _c)
 {
-	return (_c < 0 || _c & _CRMASK) ? ___tolower(_c) :
-	       (_c >= _CACHED_RUNES) ? _c :
+	return (_c < 0 || _c >= _CACHED_RUNES) ? ___tolower(_c) :
 	       _CurrentRuneLocale->maplower[_c];
 }
 
