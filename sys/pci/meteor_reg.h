@@ -219,7 +219,7 @@ typedef struct meteor_softc {
 #define	METEOR_RGB16		0x00010000
 #define	METEOR_RGB24		0x00020000
 #define	METEOR_YUV_PACKED	0x00040000
-#define	METEOR_YUV_PLANER	0x00080000
+#define	METEOR_YUV_PLANAR	0x00080000
 #define	METEOR_WANT_EVEN	0x00100000	/* want even frame */
 #define	METEOR_WANT_ODD		0x00200000	/* want odd frame */
 #define	METEOR_WANT_MASK	0x00300000
