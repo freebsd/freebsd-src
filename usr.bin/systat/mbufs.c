@@ -52,12 +52,9 @@ static const char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 #include "systat.h"
 #include "extern.h"
 
-static struct mbpstat **mbpstat;
 static struct mbstat *mbstat;
-static int num_objs;
 static long *m_mbtypes;
 static short nmbtypes;
-#define	GENLST	(num_objs - 1)
 
 static struct mtnames {
 	short mt_type;
@@ -101,20 +98,11 @@ void
 showmbufs()
 {
 	int i, j, max, idx;
-	u_long totfree;
+	u_long totmbufs;
 	char buf[10];
 	const char *mtname;
 
-	totfree = mbpstat[GENLST]->mb_mbfree; 
-	for (i = 1; i < nmbtypes; i++)
-		m_mbtypes[i] += mbpstat[GENLST]->mb_mbtypes[i];
-	for (i = 0; i < GENLST; i++) {
-		if (mbpstat[i]->mb_active == 0)
-			continue;
-		totfree += mbpstat[i]->mb_mbfree;
-		for (j = 1; j < nmbtypes; j++)
-			m_mbtypes[j] += mbpstat[i]->mb_mbtypes[j];
-	}
+	totmbufs = mbstat->m_mbufs;
 
 	/*
 	 * Print totals for different mbuf types.
@@ -159,16 +147,16 @@ showmbufs()
 	/*
 	 * Print total number of free mbufs.
 	 */
-	if (totfree > 0) {
-		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
-		if (totfree > 60) {
-			snprintf(buf, sizeof(buf), " %lu", totfree);
-			totfree = 60;
-			while(totfree--)
+	if (totmbufs > 0) {
+		mvwprintw(wnd, 1+j, 0, "%-10.10s", "Mbufs");
+		if (totmbufs > 60) {
+			snprintf(buf, sizeof(buf), " %lu", totmbufs);
+			totmbufs = 60;
+			while(totmbufs--)
 				waddch(wnd, 'X');
 			waddstr(wnd, buf);
 		} else {
-			while(totfree--)
+			while(totmbufs--)
 				waddch(wnd, 'X');
 		}
 		wclrtoeol(wnd);
@@ -198,23 +186,6 @@ initmbufs()
 		return 0;
 	}
 
-	if (sysctlbyname("kern.ipc.mb_statpcpu", NULL, &len, NULL, 0) < 0) {
-		error("sysctl getting mbpstat total size failed");
-		return 0;
-	}
-	num_objs = (int)(len / sizeof(struct mbpstat));
-	if ((mbpstat = calloc(num_objs, sizeof(struct mbpstat *))) == NULL) {
-		error("calloc mbpstat pointers failed");
-		return 0;
-	}
-	if ((mbpstat[0] = calloc(num_objs, sizeof(struct mbpstat))) == NULL) {
-		error("calloc mbpstat structures failed");
-		return 0;
-	}
-
-	for (i = 0; i < num_objs; i++)
-		mbpstat[i] = mbpstat[0] + i;
-
 	return 1;
 }
 
@@ -223,7 +194,7 @@ fetchmbufs()
 {
 	size_t len;
 
-	len = num_objs * sizeof(struct mbpstat);
-	if (sysctlbyname("kern.ipc.mb_statpcpu", mbpstat[0], &len, NULL, 0) < 0)
-		printw("sysctl: mbpstat: %s", strerror(errno));
+	len = sizeof *mbstat;
+	if (sysctlbyname("kern.ipc.mbstat", mbstat, &len, NULL, 0) < 0)
+		printw("sysctl: mbstat: %s", strerror(errno));
 }

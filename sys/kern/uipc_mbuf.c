@@ -86,6 +86,161 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
+ * Malloc-type for external ext_buf ref counts.
+ */
+MALLOC_DEFINE(M_MBUF, "mbextcnt", "mbuf external ref counts");
+
+/*
+ * Allocate a given length worth of mbufs and/or clusters (whatever fits
+ * best) and return a pointer to the top of the allocated chain.  If an
+ * existing mbuf chain is provided, then we will append the new chain
+ * to the existing one but still return the top of the newly allocated
+ * chain.
+ */
+struct mbuf *
+m_getm(struct mbuf *m, int len, int how, short type)
+{
+	struct mbuf *mb, *top, *cur, *mtail;
+	int num, rem;
+	int i;
+
+	KASSERT(len >= 0, ("m_getm(): len is < 0"));
+
+	/* If m != NULL, we will append to the end of that chain. */
+	if (m != NULL)
+		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next);
+	else
+		mtail = NULL;
+
+	/*
+	 * Calculate how many mbufs+clusters ("packets") we need and how much
+	 * leftover there is after that and allocate the first mbuf+cluster
+	 * if required.
+	 */
+	num = len / MCLBYTES;
+	rem = len % MCLBYTES;
+	top = cur = NULL;
+	if (num > 0) {
+		if ((top = cur = m_getcl(how, type, 0)) == NULL)
+			goto failed;
+	}
+	num--;
+	top->m_len = 0;
+
+	for (i = 0; i < num; i++) {
+		mb = m_getcl(how, type, 0);
+		if (mb == NULL)
+			goto failed;
+		mb->m_len = 0;
+		cur = (cur->m_next = mb);
+	}
+	if (rem > 0) {
+		mb = (rem > MINCLSIZE) ?
+		    m_getcl(how, type, 0) : m_get(how, type);
+		if (mb == NULL)
+			goto failed;
+		mb->m_len = 0;
+		if (cur == NULL)
+			top = mb;
+		else
+			cur->m_next = mb;
+	}
+
+	if (mtail != NULL)
+		mtail->m_next = top;
+	return top;
+failed:
+	if (top != NULL)
+		m_freem(top);
+	return NULL;
+}
+
+/*
+ * Free an entire chain of mbufs and associated external buffers, if
+ * applicable.
+ */
+void
+m_freem(struct mbuf *mb)
+{
+
+	while (mb != NULL)
+		mb = m_free(mb);
+}
+
+/*-
+ * Configure a provided mbuf to refer to the provided external storage
+ * buffer and setup a reference count for said buffer.  If the setting
+ * up of the reference count fails, the M_EXT bit will not be set.  If
+ * successfull, the M_EXT bit is set in the mbuf's flags.
+ *
+ * Arguments:
+ *    mb     The existing mbuf to which to attach the provided buffer.
+ *    buf    The address of the provided external storage buffer.
+ *    size   The size of the provided buffer.
+ *    freef  A pointer to a routine that is responsible for freeing the
+ *           provided external storage buffer.
+ *    args   A pointer to an argument structure (of any type) to be passed
+ *           to the provided freef routine (may be NULL).
+ *    flags  Any other flags to be passed to the provided mbuf.
+ *    type   The type that the external storage buffer should be
+ *           labeled with.
+ *
+ * Returns:
+ *    Nothing.
+ */
+void
+m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
+    void (*freef)(void *, void *), void *args, int flags, int type)
+{
+	u_int *ref_cnt = NULL;
+
+	/* XXX Shouldn't be adding EXT_CLUSTER with this API */
+	if (type == EXT_CLUSTER)
+		ref_cnt = (u_int *)uma_find_refcnt(zone_clust,
+		    mb->m_ext.ext_buf);
+	else if (type == EXT_EXTREF)
+		ref_cnt = mb->m_ext.ref_cnt;
+	mb->m_ext.ref_cnt = (ref_cnt == NULL) ?
+	    malloc(sizeof(u_int), M_MBUF, M_NOWAIT) : (u_int *)ref_cnt;
+	if (mb->m_ext.ref_cnt != NULL) {
+		*(mb->m_ext.ref_cnt) = 1;
+		mb->m_flags |= (M_EXT | flags);
+		mb->m_ext.ext_buf = buf;
+		mb->m_data = mb->m_ext.ext_buf;
+		mb->m_ext.ext_size = size;
+		mb->m_ext.ext_free = freef;
+		mb->m_ext.ext_args = args;
+		mb->m_ext.ext_type = type;
+        }
+}
+
+/*
+ * Non-directly-exported function to clean up after mbufs with M_EXT
+ * storage attached to them if the reference count hits 0.
+ */
+void
+mb_free_ext(struct mbuf *m)
+{
+
+	MEXT_REM_REF(m);
+	if (atomic_cmpset_int(m->m_ext.ref_cnt, 0, 1)) {
+		if (m->m_ext.ext_type == EXT_PACKET) {
+			uma_zfree(zone_pack, m);
+			return;
+		} else if (m->m_ext.ext_type == EXT_CLUSTER) {
+			uma_zfree(zone_clust, m->m_ext.ext_buf);
+			m->m_ext.ext_buf = NULL;
+		} else {
+			(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
+			    m->m_ext.ext_args);
+			if (m->m_ext.ext_type != EXT_EXTREF)
+				free(m->m_ext.ref_cnt, M_MBUF);
+		}
+	}
+	uma_zfree(zone_mbuf, m);
+}
+
+/*
  * "Move" mbuf pkthdr from "from" to "to".
  * "from" must have M_PKTHDR set, and "to" must be empty.
  */
@@ -364,22 +519,22 @@ m_dup(struct mbuf *m, int how)
 		struct mbuf *n;
 
 		/* Get the next new mbuf */
-		MGET(n, how, m->m_type);
+		if (remain >= MINCLSIZE) {
+			n = m_getcl(how, m->m_type, 0);
+			nsize = MCLBYTES;
+		} else {
+			n = m_get(how, m->m_type);
+			nsize = MLEN;
+		}
 		if (n == NULL)
 			goto nospace;
-		if (top == NULL) {		/* first one, must be PKTHDR */
-			if (!m_dup_pkthdr(n, m, how))
-				goto nospace;
-			nsize = MHLEN;
-		} else				/* not the first one */
-			nsize = MLEN;
-		if (remain >= MINCLSIZE) {
-			MCLGET(n, how);
-			if ((n->m_flags & M_EXT) == 0) {
-				(void)m_free(n);
+
+		if (top == NULL) {		/* First one, must be PKTHDR */
+			if (!m_dup_pkthdr(n, m, how)) {
+				m_free(n);
 				goto nospace;
 			}
-			nsize = MCLBYTES;
+			nsize = MHLEN;
 		}
 		n->m_len = 0;
 
@@ -651,39 +806,42 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	 void (*copy)(char *from, caddr_t to, u_int len))
 {
 	struct mbuf *m;
-	struct mbuf *top = 0, **mp = &top;
+	struct mbuf *top = NULL, **mp = &top;
 	int len;
 
 	if (off < 0 || off > MHLEN)
 		return (NULL);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL)
-		return (NULL);
-	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.len = totlen;
-	len = MHLEN;
-
 	while (totlen > 0) {
-		if (top) {
-			MGET(m, M_DONTWAIT, MT_DATA);
+		if (top == NULL) {	/* First one, must be PKTHDR */
+			if (totlen + off >= MINCLSIZE) {
+				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				len = MCLBYTES;
+			} else {
+				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				len = MHLEN;
+
+				/* Place initial small packet/header at end of mbuf */
+				if (m && totlen + off + max_linkhdr <= MLEN) {
+					m->m_data += max_linkhdr;
+					len -= max_linkhdr;
+				}
+			}
+			if (m == NULL)
+				return NULL;
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = totlen;
+		} else {
+			if (totlen + off >= MINCLSIZE) {
+				m = m_getcl(M_DONTWAIT, MT_DATA, 0);
+				len = MCLBYTES;
+			} else {
+				m = m_get(M_DONTWAIT, MT_DATA);
+				len = MLEN;
+			}
 			if (m == NULL) {
 				m_freem(top);
-				return (NULL);
-			}
-			len = MLEN;
-		}
-		if (totlen + off >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
-			if (m->m_flags & M_EXT)
-				len = MCLBYTES;
-		} else {
-			/*
-			 * Place initial small packet/header at end of mbuf.
-			 */
-			if (top == NULL && totlen + off + max_linkhdr <= len) {
-				m->m_data += max_linkhdr;
-				len -= max_linkhdr;
+				return NULL;
 			}
 		}
 		if (off) {
@@ -722,9 +880,10 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 		off -= mlen;
 		totlen += mlen;
 		if (m->m_next == NULL) {
-			n = m_get_clrd(M_DONTWAIT, m->m_type);
+			n = m_get(M_DONTWAIT, m->m_type);
 			if (n == NULL)
 				goto out;
+			bzero(mtod(n, caddr_t), MLEN);
 			n->m_len = min(MLEN, len + off);
 			m->m_next = n;
 		}

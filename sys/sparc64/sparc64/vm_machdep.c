@@ -86,6 +86,10 @@
 #include <machine/tlb.h>
 #include <machine/tstate.h>
 
+#ifndef NSFBUFS
+#define	NSFBUFS		(512 + maxusers * 16)
+#endif
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 
@@ -350,6 +354,9 @@ sf_buf_init(void *arg)
 	struct sf_buf *sf_bufs;
 	vm_offset_t sf_base;
 	int i;
+
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
 	SLIST_INIT(&sf_freelist.sf_head);

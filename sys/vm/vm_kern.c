@@ -320,16 +320,6 @@ kmem_malloc(map, size, flags)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
-		if (map != kmem_map) {
-			static int last_report; /* when we did it (in ticks) */
-			if (ticks < last_report ||
-			    (ticks - last_report) >= hz) {
-				last_report = ticks;
-				printf("Out of mbuf address space!\n");
-				printf("Consider increasing NMBCLUSTERS\n");
-			}
-			return (0);
-		}
 		if ((flags & M_NOWAIT) == 0)
 			panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
 				(long)size, (long)map->size);

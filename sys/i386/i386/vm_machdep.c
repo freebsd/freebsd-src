@@ -95,6 +95,10 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/isa.h>
 #endif
 
+#ifndef NSFBUFS
+#define	NSFBUFS		(512 + maxusers * 16)
+#endif
+
 static void	cpu_reset_real(void);
 #ifdef SMP
 static void	cpu_reset_proxy(void);
@@ -583,6 +587,9 @@ sf_buf_init(void *arg)
 	struct sf_buf *sf_bufs;
 	vm_offset_t sf_base;
 	int i;
+
+	nsfbufs = NSFBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
