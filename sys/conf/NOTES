@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.66 1994/05/13 08:48:22 jkh Exp $
+#	$Id: LINT,v 1.67 1994/05/17 14:15:11 jkh Exp $
 #
 
 machine		"i386"
@@ -163,7 +163,7 @@ device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
 device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 #PS/2 mouse driver (must follow pc0 or sc0 if enabled).  Also enable
 #ALLOW_CONFLICT_IOADDR option (see above) if you want to use this.
-device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
+#device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
 
 pseudo-device	speaker
 #tw	device-driver
