@@ -517,92 +517,78 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	return (error);
 }
 
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
-	{
-		struct sf_buf *sf;
-		int i, rv;
-		int offs, len, lastp, lastend;
-		vm_page_t m;
-		u_char *p;
+	struct sf_buf *sf;
+	int i, rv;
+	int offs, len, lastp, lastend;
+	vm_page_t m;
+	u_char *p;
 
-		p = bp->bio_data;
+	p = bp->bio_data;
 
-		/*
-		 * offs is the ofset at whih to start operating on the
-		 * next (ie, first) page.  lastp is the last page on
-		 * which we're going to operate.  lastend is the ending
-		 * position within that last page (ie, PAGE_SIZE if
-		 * we're operating on complete aligned pages).
-		 */
-		offs = bp->bio_offset % PAGE_SIZE;
-		lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
-		lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
+	/*
+	 * offs is the ofset at whih to start operating on the
+	 * next (ie, first) page.  lastp is the last page on
+	 * which we're going to operate.  lastend is the ending
+	 * position within that last page (ie, PAGE_SIZE if
+	 * we're operating on complete aligned pages).
+	 */
+	offs = bp->bio_offset % PAGE_SIZE;
+	lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
+	lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
+	VM_OBJECT_LOCK(sc->object);
+	vm_object_pip_add(sc->object, 1);
+	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
+		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
+
+		m = vm_page_grab(sc->object, i,
+		    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+		VM_OBJECT_UNLOCK(sc->object);
+		sf = sf_buf_alloc(m);
 		VM_OBJECT_LOCK(sc->object);
-		vm_object_pip_add(sc->object, 1);
-		for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
-			len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
-
-			m = vm_page_grab(sc->object, i,
-			    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
-			VM_OBJECT_UNLOCK(sc->object);
-			sf = sf_buf_alloc(m);
-			VM_OBJECT_LOCK(sc->object);
-			if (bp->bio_cmd == BIO_READ) {
-				if (m->valid != VM_PAGE_BITS_ALL) {
-					rv = vm_pager_get_pages(sc->object,
-					    &m, 1, 0);
-				}
-				bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
-			} else if (bp->bio_cmd == BIO_WRITE) {
-				if (len != PAGE_SIZE && m->valid !=
-				    VM_PAGE_BITS_ALL) {
-					rv = vm_pager_get_pages(sc->object,
-					    &m, 1, 0);
-				}
-				bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
-				m->valid = VM_PAGE_BITS_ALL;
+		if (bp->bio_cmd == BIO_READ) {
+			if (m->valid != VM_PAGE_BITS_ALL)
+				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
+		} else if (bp->bio_cmd == BIO_WRITE) {
+			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
+			m->valid = VM_PAGE_BITS_ALL;
 #if 0
-			} else if (bp->bio_cmd == BIO_DELETE) {
-				if (len != PAGE_SIZE && m->valid !=
-				    VM_PAGE_BITS_ALL) {
-					rv = vm_pager_get_pages(sc->object,
-					    &m, 1, 0);
-				}
-				bzero((void *)(sf_buf_kva(sf) + offs), len);
-				vm_page_dirty(m);
-				m->valid = VM_PAGE_BITS_ALL;
+		} else if (bp->bio_cmd == BIO_DELETE) {
+			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
+				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			bzero((void *)(sf_buf_kva(sf) + offs), len);
+			vm_page_dirty(m);
+			m->valid = VM_PAGE_BITS_ALL;
 #endif
-			} 
-			sf_buf_free(sf);
-			vm_page_lock_queues();
-			vm_page_wakeup(m);
-			vm_page_activate(m);
-			if (bp->bio_cmd == BIO_WRITE) {
-				vm_page_dirty(m);
-			}
-			vm_page_unlock_queues();
+		}
+		sf_buf_free(sf);
+		vm_page_lock_queues();
+		vm_page_wakeup(m);
+		vm_page_activate(m);
+		if (bp->bio_cmd == BIO_WRITE)
+			vm_page_dirty(m);
+		vm_page_unlock_queues();
 
-			/* Actions on further pages start at offset 0 */
-			p += PAGE_SIZE - offs;
-			offs = 0;
+		/* Actions on further pages start at offset 0 */
+		p += PAGE_SIZE - offs;
+		offs = 0;
 #if 0
 if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
 printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
     m->wire_count, m->busy, 
     m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
 #endif
-		}
-		vm_object_pip_subtract(sc->object, 1);
-		vm_object_set_writeable_dirty(sc->object);
-		VM_OBJECT_UNLOCK(sc->object);
-		return (0);
 	}
+	vm_object_pip_subtract(sc->object, 1);
+	vm_object_set_writeable_dirty(sc->object);
+	VM_OBJECT_UNLOCK(sc->object);
+	return (0);
 }
 
 static void
