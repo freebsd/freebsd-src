@@ -1,6 +1,6 @@
 /* 25 May 93*/
 /*
- * Makefile for miscmod
+ * miscmod.c
  *
  * 05 Jun 93	Terry Lambert		Split mycall.c out
  * 25 May 93	Terry Lambert		Original
@@ -38,17 +38,20 @@
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/sysent.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/exec.h>
+#include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <a.out.h>
 #include <sys/file.h>
 #include <sys/errno.h>
 
-
-extern int	misccall();
+/* XXX this should be in a header. */
+extern int	misccall __P((struct proc *p, void *uap, int retval[]));
 
 /*
  * These two entries define our system call and module information.  We
@@ -63,7 +66,12 @@ static struct sysent newent = {
  */
 static struct sysent	oldent;		/* save are for old callslot entry*/
 
-MOD_MISC( "miscmod")
+/*
+ * Number of syscall entries for a.out executables
+ */
+#define nsysent (aout_sysvec.sv_size)
+
+MOD_MISC( "miscmod");
 
 
 /*
@@ -79,18 +87,17 @@ MOD_MISC( "miscmod")
  * kick out the copyright to the console here (to give an example).
  *
  * The stat information is basically common to all modules, so there
- * is no real issue involved with stat; we will leave it nosys(),
+ * is no real issue involved with stat; we will leave it lkm_nullcmd(),
  * cince we don't have to do anything about it.
  */
 static int
-miscmod_handle( lkmtp, cmd)
+misc_load( lkmtp, cmd)
 struct lkm_table	*lkmtp;
 int			cmd;
 {
 	int			i;
 	struct lkm_misc		*args = lkmtp->private.lkm_misc;
 	int			err = 0;	/* default = success*/
-	extern int		nsysent;	/* init_sysent.c*/
 	extern int		lkmnosys();	/* allocable slot*/
 
 	switch( cmd) {
@@ -175,15 +182,11 @@ int			cmd;
  * The entry point should return 0 unless it is refusing load (in which
  * case it should return an errno from errno.h).
  */
-miscmod( lkmtp, cmd, ver)
+int
+misc_mod( lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
 {
-	DISPATCH(lkmtp,cmd,ver,miscmod_handle,miscmod_handle,nosys)
+	DISPATCH(lkmtp, cmd, ver, misc_load, misc_load, nosys);
 }
-
-
-/*
- * EOF -- This file has not been truncated.
- */

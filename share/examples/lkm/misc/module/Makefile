@@ -34,32 +34,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-
-SRCS=miscmod.c
-OBJS=$(SRCS:.c=.o)
-
-KSRCS=misccall.c
-KOBJS=misccall.o
-
-MODOBJ=combined.o
-
-KMOD=miscmod
-CFLAGS= -DKERNEL -I/sys/sys -I/sys
-
-all:	$(MODOBJ)
-
-clean:
-	rm -f $(OBJS) $(KOBJS) $(MODOBJ) $(KMOD)
-
-load:
-	/sbin/modload -o $(KMOD) -e$(KMOD) $(MODOBJ)
-
-unload:
-	/sbin/modunload -n $(KMOD)
-
-$(MODOBJ): $(OBJS) $(KOBJS)
-	$(LD) -r -o $(MODOBJ) $(OBJS) $(KOBJS)
-
+# $Id: Makefile,v 1.3 1995/12/25 07:18:49 bde Exp $
 #
-# EOF -- This file has not been truncated
-#
+BINDIR=	/tmp
+SRCS=	misccall.c miscmod.c
+KMOD=	misc_mod
+NOMAN=	none
+
+CLEANFILES+= ${KMOD}
+
+.include <bsd.kmod.mk>

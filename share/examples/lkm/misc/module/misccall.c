@@ -39,11 +39,13 @@
 #include <sys/ioctl.h>
 #include <sys/systm.h>
 
+/* XXX this should be in a header. */
+extern int	misccall __P((struct proc *p, void *uap, int retval[]));
 
 /*
- * This is the actual code for system call...  it can be static because
- * we've externed it up above... the only plae it needs to be referenced
- * is the sysent we are interested in.
+ * This is the actual code for the system call... it can't be static because
+ * it is exported to another part of the module... the only place it needs
+ * to be referenced is the sysent we are interested in.
  *
  * To write your own system call using this as a template, you could strip
  * out this code and use the rest as a prototype module, changing only the
@@ -65,13 +67,10 @@ int		retval[];
 	 * arguments.
 	 */
 
-	printf( "\nI am a loaded system call using the miscellaneous\n");
-	printf( "module loader interface and a kernel printf!\n");
+	printf( "\nI am a loaded system call.\n");
+	printf( "I was loaded using the miscellaneous module loader interface.\n");
+	printf( "I don't do anything except call the kernel's printf().\n");
 	printf( "I will print this message each time I am called!\n");
 
 	return( 0);	/* success (or error code from errno.h)*/
 }
-
-/*
- * EOF -- This file has not been truncated.
- */
