@@ -40,11 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <signal.h>
 .Ft void
-.Fn *signal sig func\*(lp\*(rp
-.Ft void
-.\" can not do this with .Fn yet
-.br
-\*(lp\|\*(fN*func\*(rp\*(lp\|\*(rp\fR
+.Fn *signal "int sig" "void \*(lp*func\*(rp\*(lpint\*(rp"
 .Sh DESCRIPTION
 This
 .Fn signal
