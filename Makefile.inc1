@@ -118,37 +118,66 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
-# bootstrap make
-BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
+#
+# Building a world goes through the following stages
+#
+# bootstrap-tool stage [BMAKE]
+#	This stage is responsible for creating programs that
+#	are needed for backward compatibility reasons. They
+#	are not built as cross-tools.
+# build-tool stage [TMAKE]
+#	This stage is responsible for creating the object
+#	tree and building any tools that are needed during
+#	the build process.
+# cross-tool stage [XMAKE]
+#	This stage is responsible for creating any tools that
+#	are needed for cross-builds. A cross-compiler is one
+#	of them.
+# world stage [WMAKE]
+#	This stage actually builds the world.
+# install stage (optional) [IMAKE]
+#	This stage installs a previously built world.
+#
+
+# Common environment for bootstrap related stages
+BOOTSTRAPENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		TARGET_ARCH=${MACHINE_ARCH} \
 		MACHINE_ARCH=${BUILD_ARCH} \
 		PATH=${TMPPATH}
-BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
-		-DNO_FORTRAN -DNO_GDB
 
-# script/tool make
-TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh"
-TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
-
-CROSSENV=	COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
+# Common environment for world related stages
+CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503
 
-# cross make used for compilation
-XMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
-		${CROSSENV} \
+# bootstrap-tool stage
+BMAKEENV=	${BOOTSTRAPENV}
+BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO
+
+# build-tool stage
+TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${TMPPATH}
+TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
+
+# cross-tool stage
+XMAKEENV=	${BOOTSTRAPENV} \
+		TARGET_ARCH=${MACHINE_ARCH}
+XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO \
+		-DNO_FORTRAN -DNO_GDB
+
+# world stage
+WMAKEENV=	${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
-XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1
+WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
-# cross make used for final installation
-IMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
-		${CROSSENV}
+# install stage
+IMAKEENV=	${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
@@ -186,7 +215,7 @@ buildworld:
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}/sys
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding bootstrap tools"
+	@echo ">>> stage 1: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
 .if !empty(.MAKEFLAGS:M-j)
@@ -196,46 +225,51 @@ buildworld:
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Cleaning up the object tree"
+	@echo ">>> stage 2: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding the object tree"
+	@echo ">>> stage 2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} par-obj
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding build tools"
+	@echo ">>> stage 2: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} build-tools
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding ${WORLDTMP}/usr/include"
+	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} includes
+	cd ${.CURDIR}; ${XMAKE} cross-tools
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building libraries"
+	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN libraries
+	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding dependencies"
+	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} par-depend
+	cd ${.CURDIR}; ${WMAKE} -DNOINFO -DNOMAN libraries
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building everything.."
+	@echo ">>> stage 4: make dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} all
+	cd ${.CURDIR}; ${WMAKE} par-depend
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 4: building everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${WMAKE} all
 
 everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} all
+	cd ${.CURDIR}; ${WMAKE} all
 
 #
 # installworld
@@ -350,7 +384,44 @@ installmost:
 #
 
 #
-# bootstrap-tools - Build tools needed to run the actual build.
+# bootstrap-tools: Build tools needed for compatibility
+#
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_games_tools=	games/caesar games/fortune/strfile
+.endif
+
+bootstrap-tools:
+.for _tool in ${_games_tools} usr.bin/yacc usr.bin/colldef gnu/usr.bin/bison
+	cd ${.CURDIR}/${_tool}; \
+		${MAKE} obj; \
+		${MAKE} depend; \
+		${MAKE} all; \
+		${MAKE} install
+.endfor
+
+#
+# build-tools: Build special purpose build tools
+#
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_games=	games/adventure games/hack games/phantasia
+.endif
+
+.if exists(${.CURDIR}/share) && !defined(NOSHARE)
+_share=	share/syscons/scrnmaps
+.endif
+
+.if !defined(NO_FORTRAN)
+_fortran= gnu/usr.bin/cc/f771
+.endif
+
+build-tools:
+.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
+    lib/libncurses ${_share}
+	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
+.endfor
+
+#
+# cross-tools: Build cross-building tools
 #
 # WARNING: Because the bootstrap tools are expected to run on the
 # build-machine, MACHINE_ARCH is *always* set to BUILD_ARCH when this
@@ -363,8 +434,8 @@ installmost:
 # tools to produce output for the architecture we're trying to
 # cross-build.
 #
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_games_tools=	games/caesar games/fortune/strfile
+.if ${TARGET_ARCH} == "alpha" && ${MACHINE_ARCH} != "alpha"
+_elf2exe=	usr.sbin/elf2exe
 .endif
 
 # XXX - MACHINE should actually be TARGET. But we don't set that...
@@ -372,36 +443,14 @@ _games_tools=	games/caesar games/fortune/strfile
 _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 .endif
 
-.if ${TARGET_ARCH} == "alpha" && ${MACHINE_ARCH} != "alpha"
-_elf2exe=	usr.sbin/elf2exe
-.endif
-
-bootstrap-tools:
-.for _tool in ${_games_tools} ${_aout_tools} ${_elf2exe} usr.bin/gensetdefs \
-    gnu/usr.bin/binutils usr.bin/objformat usr.bin/yacc usr.bin/colldef \
-    gnu/usr.bin/bison gnu/usr.bin/cc
+cross-tools:
+.for _tool in ${_aout_tools} ${_elf2exe} usr.bin/gensetdefs \
+    gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
 		${MAKE} all; \
 		${MAKE} install
-.endfor
-
-#
-# build-tools
-#
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_games=	games/adventure games/hack games/phantasia
-.endif
-
-.if exists(${.CURDIR}/share) && !defined(NOSHARE)
-_share=	share/syscons/scrnmaps
-.endif
-
-build-tools:
-.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools gnu/usr.bin/cc/f771 \
-    lib/libncurses ${_share}
-	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
 #
@@ -414,7 +463,7 @@ hierarchy:
 # includes - possibly generate and install the include files.
 #
 includes:
-	cd ${.CURDIR}/include;		${MAKE} SHARED=symlinks -B all install
+	cd ${.CURDIR}/include;			${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
