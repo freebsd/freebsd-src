@@ -688,11 +688,6 @@ pass:
 	default:
 		printf("ip_output: Invalid policy found. %d\n", sp->policy);
 	}
-
-	ip->ip_len = htons((u_short)ip->ip_len);
-	ip->ip_off = htons((u_short)ip->ip_off);
-	ip->ip_sum = 0;
-
     {
 	struct ipsec_output_state state;
 	bzero(&state, sizeof(state));
@@ -704,6 +699,8 @@ pass:
 		state.ro = ro;
 	state.dst = (struct sockaddr *)dst;
 
+	ip->ip_sum = 0;
+
 	/*
 	 * XXX
 	 * delayed checksums are not currently compatible with IPsec
@@ -712,6 +709,9 @@ pass:
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
+
+	ip->ip_len = htons((u_short)ip->ip_len);
+	ip->ip_off = htons((u_short)ip->ip_off);
 
 	error = ipsec4_output(&state, sp, flags);
 
