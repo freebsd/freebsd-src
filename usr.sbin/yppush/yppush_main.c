@@ -415,7 +415,7 @@ int yp_push(server, map, tid)
 	job->stat = 0;
 	job->tid = tid;
 	job->port = xprt->xp_port;
-	job->sock = xprt->xp_sock; /*XXX: Evil!! EEEEEEEVIL!!! */
+	job->sock = xprt->xp_fd; /*XXX: Evil!! EEEEEEEVIL!!! */
 	job->server = strdup(server);
 	job->map = strdup(map);
 	job->prognum = prognum;
@@ -437,8 +437,8 @@ int yp_push(server, map, tid)
 	 * 2) Even in this day and age, there are still some *NIXes
 	 *    that don't support async socket I/O.
 	 */
-	if (fcntl(xprt->xp_sock, F_SETOWN, getpid()) == -1 ||
-	    fcntl(xprt->xp_sock, F_SETFL, O_ASYNC) == -1) {
+	if (fcntl(xprt->xp_fd, F_SETOWN, getpid()) == -1 ||
+	    fcntl(xprt->xp_fd, F_SETFL, O_ASYNC) == -1) {
 		yp_error("failed to set async I/O mode: %s",
 			 strerror(errno));
 		yppush_exit(1);

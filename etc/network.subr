@@ -514,59 +514,61 @@ network_pass2() {
 
 	case ${portmap_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' portmap';	${portmap_program:-/usr/sbin/portmap} ${portmap_flags}
-		;;
-	esac
+		echo -n ' rpcbind';	${portmap_program:-/usr/sbin/rpcbind} \
+			${portmap_flags}
 
-	# Start ypserv if we're an NIS server.
-	# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
-	#
-	case ${nis_server_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' ypserv'; ypserv ${nis_server_flags}
-
-		case ${nis_ypxfrd_enable} in
+		# Start ypserv if we're an NIS server.
+		# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
+		#
+		case ${nis_server_enable} in
 		[Yy][Ee][Ss])
-			echo -n ' rpc.ypxfrd'
-			rpc.ypxfrd ${nis_ypxfrd_flags}
+			echo -n ' ypserv'; ypserv ${nis_server_flags}
+
+			case ${nis_ypxfrd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.ypxfrd'
+				rpc.ypxfrd ${nis_ypxfrd_flags}
+				;;
+			esac
+
+			case ${nis_yppasswdd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' rpc.yppasswdd'
+				rpc.yppasswdd ${nis_yppasswdd_flags}
+				;;
+			esac
 			;;
 		esac
 
-		case ${nis_yppasswdd_enable} in
+		# Start ypbind if we're an NIS client
+		#
+		case ${nis_client_enable} in
 		[Yy][Ee][Ss])
-			echo -n ' rpc.yppasswdd'
-			rpc.yppasswdd ${nis_yppasswdd_flags}
+			echo -n ' ypbind'; ypbind ${nis_client_flags}
+			case ${nis_ypset_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' ypset';	ypset ${nis_ypset_flags}
+				;;
+			esac
 			;;
 		esac
-		;;
-	esac
 
-	# Start ypbind if we're an NIS client
-	#
-	case ${nis_client_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' ypbind'; ypbind ${nis_client_flags}
-		case ${nis_ypset_enable} in
+		# Start keyserv if we are running Secure RPC
+		#
+		case ${keyserv_enable} in
 		[Yy][Ee][Ss])
-			echo -n ' ypset';	ypset ${nis_ypset_flags}
+			echo -n ' keyserv';	keyserv ${keyserv_flags}
 			;;
 		esac
-		;;
-	esac
 
-	# Start keyserv if we are running Secure RPC
-	#
-	case ${keyserv_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' keyserv';	keyserv ${keyserv_flags}
-		;;
-	esac
-
-	# Start ypupdated if we are running Secure RPC and we are NIS master
-	#
-	case ${rpc_ypupdated_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' rpc.ypupdated';	rpc.ypupdated
+		# Start ypupdated if we are running Secure RPC
+		# and we are NIS master
+		#
+		case ${rpc_ypupdated_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' rpc.ypupdated';	rpc.ypupdated
+			;;
+		esac
 		;;
 	esac
 
@@ -582,99 +584,103 @@ network_pass2() {
 network_pass3() {
 	echo -n 'Starting final network daemons:'
 
-	case ${nfs_server_enable} in
+	case ${portmap_enable} in
 	[Yy][Ee][Ss])
-		if [ -r /etc/exports ]; then
-			echo -n ' mountd'
-
-			case ${weak_mountd_authentication} in
-			[Yy][Ee][Ss])
-				mountd_flags="${mountd_flags} -n"
-				;;
-			esac
-
-			mountd ${mountd_flags}
-
-			case ${nfs_reserved_port_only} in
-			[Yy][Ee][Ss])
-				echo -n ' NFS on reserved port only=YES'
-				sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
-				;;
-			esac
-
-			echo -n ' nfsd';	nfsd ${nfs_server_flags}
-
-			if [ -n "${nfs_bufpackets}" ]; then
-				sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} \
-					> /dev/null
-			fi
-
-			case ${rpc_lockd_enable} in
-			[Yy][Ee][Ss])
-				echo -n ' rpc.lockd';	rpc.lockd
-				;;
-			esac
-
-			case ${rpc_statd_enable} in
-			[Yy][Ee][Ss])
-				echo -n ' rpc.statd';	rpc.statd
-				;;
-			esac
-		fi
-		;;
-	*)
-		case ${single_mountd_enable} in
+		case ${nfs_server_enable} in
 		[Yy][Ee][Ss])
 			if [ -r /etc/exports ]; then
 				echo -n ' mountd'
 
 				case ${weak_mountd_authentication} in
 				[Yy][Ee][Ss])
-					mountd_flags="-n"
+					mountd_flags="${mountd_flags} -n"
 					;;
 				esac
 
 				mountd ${mountd_flags}
+
+				case ${nfs_reserved_port_only} in
+				[Yy][Ee][Ss])
+					echo -n ' NFS on reserved port only=YES'
+					sysctl -w vfs.nfs.nfs_privport=1 > /dev/null
+					;;
+				esac
+
+				echo -n ' nfsd';	nfsd ${nfs_server_flags}
+
+				if [ -n "${nfs_bufpackets}" ]; then
+					sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
+				fi
+
+				case ${rpc_lockd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' rpc.lockd';	rpc.lockd
+					;;
+				esac
+
+				case ${rpc_statd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' rpc.statd';	rpc.statd
+					;;
+				esac
+			fi
+			;;
+		*)
+			case ${single_mountd_enable} in
+			[Yy][Ee][Ss])
+				if [ -r /etc/exports ]; then
+					echo -n ' mountd'
+
+					case ${weak_mountd_authentication} in
+					[Yy][Ee][Ss])
+						mountd_flags="-n"
+						;;
+					esac
+
+					mountd ${mountd_flags}
+				fi
+				;;
+			esac
+			;;
+		esac
+
+		case ${nfs_client_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
+				if [ -n "${nfs_access_cache}" ]; then
+			echo -n " NFS access cache time=${nfs_access_cache}"
+			sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
 			fi
 			;;
 		esac
-		;;
-	esac
 
-	case ${nfs_client_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
-		if [ -n "${nfs_access_cache}" ]; then
-		echo -n " NFS access cache time=${nfs_access_cache}"
-		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
-			>/dev/null
+		# If /var/db/mounttab exists, some nfs-server has not been
+		# sucessfully notified about a previous client shutdown.
+		# If there is no /var/db/mounttab, we do nothing.
+		if [ -f /var/db/mounttab ]; then
+			rpc.umntall -k
 		fi
-		;;
-	esac
 
-	# If /var/db/mounttab exists, some nfs-server has not been
-	# sucessfully notified about a previous client shutdown.
-	# If there is no /var/db/mounttab, we do nothing.
-	if [ -f /var/db/mounttab ]; then
-		rpc.umntall -k
-	fi
-
-	case ${amd_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' amd'
-		case ${amd_map_program} in
-		[Nn][Oo] | '')
-			;;
-		*)
-			amd_flags="${amd_flags} `eval ${amd_map_program}`"
-			;;
+		case ${amd_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' amd'
+			case ${amd_map_program} in
+			[Nn][Oo] | '')
+				;;
+			*)
+				amd_flags="${amd_flags} `eval\
+					${amd_map_program}`"
+				;;
 		esac
 
-		if [ -n "${amd_flags}" ]; then
-			amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
-		else
-			amd 2> /dev/null
-		fi
+			if [ -n "${amd_flags}" ]; then
+				amd -p ${amd_flags}\
+					> /var/run/amd.pid 2> /dev/null
+			else
+				amd 2> /dev/null
+			fi
+			;;
+		esac
 		;;
 	esac
 

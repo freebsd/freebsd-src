@@ -1,3 +1,5 @@
+/*	$NetBSD: svc_raw.c,v 1.14 2000/07/06 03:10:35 christos Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,11 +28,17 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+/*
+ * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)svc_raw.c 1.15 87/08/11 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)svc_raw.c	2.1 88/07/29 4.0 RPCSRC";*/
+/* #ident	"@(#)svc_raw.c	1.16	94/04/24 SMI" */
+
+#if 0
+#if defined(SCCSIDS) && !defined(lint)
+static char sccsid[] = "@(#)svc_raw.c 1.25 89/01/31 Copyr 1984 Sun Micro";
 static char *rcsid = "$FreeBSD$";
+#endif
 #endif
 
 /*
@@ -39,130 +47,214 @@ static char *rcsid = "$FreeBSD$";
  * This lets us similate rpc and get rpc (round trip) overhead, without
  * any interference from the kernal.
  *
- * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "reentrant.h"
+#include "namespace.h"
 #include <rpc/rpc.h>
+#include <sys/types.h>
+#include <rpc/raw.h>
 #include <stdlib.h>
+#include "un-namespace.h"
+
+#ifndef UDPMSGSIZE
+#define	UDPMSGSIZE 8800
+#endif
 
 /*
  * This is the "network" that we will be moving data over
  */
-static struct svcraw_private {
-	char	_raw_buf[UDPMSGSIZE];
+static struct svc_raw_private {
+	char	*raw_buf;	/* should be shared with the cl handle */
 	SVCXPRT	server;
 	XDR	xdr_stream;
 	char	verf_body[MAX_AUTH_BYTES];
-} *svcraw_private;
+} *svc_raw_private;
 
-static bool_t		svcraw_recv();
-static enum xprt_stat 	svcraw_stat();
-static bool_t		svcraw_getargs();
-static bool_t		svcraw_reply();
-static bool_t		svcraw_freeargs();
-static void		svcraw_destroy();
+extern mutex_t	svcraw_lock;
 
-static struct xp_ops server_ops = {
-	svcraw_recv,
-	svcraw_stat,
-	svcraw_getargs,
-	svcraw_reply,
-	svcraw_freeargs,
-	svcraw_destroy
-};
+static enum xprt_stat svc_raw_stat __P((SVCXPRT *));
+static bool_t svc_raw_recv __P((SVCXPRT *, struct rpc_msg *));
+static bool_t svc_raw_reply __P((SVCXPRT *, struct rpc_msg *));
+static bool_t svc_raw_getargs __P((SVCXPRT *, xdrproc_t, caddr_t));
+static bool_t svc_raw_freeargs __P((SVCXPRT *, xdrproc_t, caddr_t));
+static void svc_raw_destroy __P((SVCXPRT *));
+static void svc_raw_ops __P((SVCXPRT *));
+static bool_t svc_raw_control __P((SVCXPRT *, const u_int, void *));
+
+char *__rpc_rawcombuf = NULL;
 
 SVCXPRT *
-svcraw_create()
+svc_raw_create()
 {
-	register struct svcraw_private *srp = svcraw_private;
+	struct svc_raw_private *srp;
+/* VARIABLES PROTECTED BY svcraw_lock: svc_raw_private, srp */
 
-	if (srp == 0) {
-		srp = (struct svcraw_private *)calloc(1, sizeof (*srp));
-		if (srp == 0)
-			return (0);
+	mutex_lock(&svcraw_lock);
+	srp = svc_raw_private;
+	if (srp == NULL) {
+		srp = (struct svc_raw_private *)calloc(1, sizeof (*srp));
+		if (srp == NULL) {
+			mutex_unlock(&svcraw_lock);
+			return (NULL);
+		}
+		if (__rpc_rawcombuf == NULL)
+			__rpc_rawcombuf = calloc(UDPMSGSIZE, sizeof (char));
+		srp->raw_buf = __rpc_rawcombuf; /* Share it with the client */
+		svc_raw_private = srp;
 	}
-	srp->server.xp_sock = 0;
+	srp->server.xp_fd = FD_SETSIZE;
 	srp->server.xp_port = 0;
-	srp->server.xp_ops = &server_ops;
+	srp->server.xp_p3 = NULL;
+	svc_raw_ops(&srp->server);
 	srp->server.xp_verf.oa_base = srp->verf_body;
-	xdrmem_create(&srp->xdr_stream, srp->_raw_buf, UDPMSGSIZE, XDR_FREE);
+	xdrmem_create(&srp->xdr_stream, srp->raw_buf, UDPMSGSIZE, XDR_DECODE);
+	xprt_register(&srp->server);
+	mutex_unlock(&svcraw_lock);
 	return (&srp->server);
 }
 
+/*ARGSUSED*/
 static enum xprt_stat
-svcraw_stat()
+svc_raw_stat(xprt)
+SVCXPRT *xprt; /* args needed to satisfy ANSI-C typechecking */
 {
-
 	return (XPRT_IDLE);
 }
 
+/*ARGSUSED*/
 static bool_t
-svcraw_recv(xprt, msg)
+svc_raw_recv(xprt, msg)
 	SVCXPRT *xprt;
 	struct rpc_msg *msg;
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svc_raw_private *srp;
+	XDR *xdrs;
 
-	if (srp == 0)
-		return (0);
+	mutex_lock(&svcraw_lock);
+	srp = svc_raw_private;
+	if (srp == NULL) {
+		mutex_unlock(&svcraw_lock);
+		return (FALSE);
+	}
+	mutex_unlock(&svcraw_lock);
+
 	xdrs = &srp->xdr_stream;
 	xdrs->x_op = XDR_DECODE;
-	XDR_SETPOS(xdrs, 0);
-	if (! xdr_callmsg(xdrs, msg))
-	       return (FALSE);
+	(void) XDR_SETPOS(xdrs, 0);
+	if (! xdr_callmsg(xdrs, msg)) {
+		return (FALSE);
+	}
 	return (TRUE);
 }
 
+/*ARGSUSED*/
 static bool_t
-svcraw_reply(xprt, msg)
+svc_raw_reply(xprt, msg)
 	SVCXPRT *xprt;
 	struct rpc_msg *msg;
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svc_raw_private *srp;
+	XDR *xdrs;
 
-	if (srp == 0)
+	mutex_lock(&svcraw_lock);
+	srp = svc_raw_private;
+	if (srp == NULL) {
+		mutex_unlock(&svcraw_lock);
 		return (FALSE);
+	}
+	mutex_unlock(&svcraw_lock);
+
 	xdrs = &srp->xdr_stream;
 	xdrs->x_op = XDR_ENCODE;
-	XDR_SETPOS(xdrs, 0);
-	if (! xdr_replymsg(xdrs, msg))
-	       return (FALSE);
-	(void)XDR_GETPOS(xdrs);  /* called just for overhead */
+	(void) XDR_SETPOS(xdrs, 0);
+	if (! xdr_replymsg(xdrs, msg)) {
+		return (FALSE);
+	}
+	(void) XDR_GETPOS(xdrs);  /* called just for overhead */
 	return (TRUE);
 }
 
+/*ARGSUSED*/
 static bool_t
-svcraw_getargs(xprt, xdr_args, args_ptr)
+svc_raw_getargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
 	caddr_t args_ptr;
 {
-	register struct svcraw_private *srp = svcraw_private;
+	struct svc_raw_private *srp;
 
-	if (srp == 0)
+	mutex_lock(&svcraw_lock);
+	srp = svc_raw_private;
+	if (srp == NULL) {
+		mutex_unlock(&svcraw_lock);
 		return (FALSE);
-	return ((*xdr_args)(&srp->xdr_stream, args_ptr));
+	}
+	mutex_unlock(&svcraw_lock);
+	return (*xdr_args)(&srp->xdr_stream, args_ptr);
 }
 
+/*ARGSUSED*/
 static bool_t
-svcraw_freeargs(xprt, xdr_args, args_ptr)
+svc_raw_freeargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
 	caddr_t args_ptr;
 {
-	register struct svcraw_private *srp = svcraw_private;
-	register XDR *xdrs;
+	struct svc_raw_private *srp;
+	XDR *xdrs;
 
-	if (srp == 0)
+	mutex_lock(&svcraw_lock);
+	srp = svc_raw_private;
+	if (srp == NULL) {
+		mutex_unlock(&svcraw_lock);
 		return (FALSE);
+	}
+	mutex_unlock(&svcraw_lock);
+
 	xdrs = &srp->xdr_stream;
 	xdrs->x_op = XDR_FREE;
-	return ((*xdr_args)(xdrs, args_ptr));
+	return (*xdr_args)(xdrs, args_ptr);
+}
+
+/*ARGSUSED*/
+static void
+svc_raw_destroy(xprt)
+SVCXPRT *xprt;
+{
+}
+
+/*ARGSUSED*/
+static bool_t
+svc_raw_control(xprt, rq, in)
+	SVCXPRT *xprt;
+	const u_int	rq;
+	void		*in;
+{
+	return (FALSE);
 }
 
 static void
-svcraw_destroy()
+svc_raw_ops(xprt)
+	SVCXPRT *xprt;
 {
+	static struct xp_ops ops;
+	static struct xp_ops2 ops2;
+	extern mutex_t ops_lock;
+
+/* VARIABLES PROTECTED BY ops_lock: ops */
+
+	mutex_lock(&ops_lock);
+	if (ops.xp_recv == NULL) {
+		ops.xp_recv = svc_raw_recv;
+		ops.xp_stat = svc_raw_stat;
+		ops.xp_getargs = svc_raw_getargs;
+		ops.xp_reply = svc_raw_reply;
+		ops.xp_freeargs = svc_raw_freeargs;
+		ops.xp_destroy = svc_raw_destroy;
+		ops2.xp_control = svc_raw_control;
+	}
+	xprt->xp_ops = &ops;
+	xprt->xp_ops2 = &ops2;
+	mutex_unlock(&ops_lock);
 }

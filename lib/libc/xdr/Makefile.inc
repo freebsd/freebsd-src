@@ -3,12 +3,19 @@
 
 .PATH: ${.CURDIR}/../libc/xdr ${.CURDIR}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
-	xdr_rec.c xdr_reference.c xdr_stdio.c xdr_sizeof.c
+	xdr_rec.c xdr_reference.c xdr_stdio.c
 
 .if ${LIB} == "c"
 MAN3+=	xdr.3
 
-MLINKS+=	xdr.3 xdr_array.3 \
+MLINKS+=	rpc_xdr.3 xdr_accepted_reply.3 \
+		rpc_xdr.3 xdr_authsys_parms.3 \
+		rpc_xdr.3 xdr_callhdr.3 \
+		rpc_xdr.3 xdr_callmsg.3 \
+		rpc_xdr.3 xdr_opaque_auth.3 \
+		rpc_xdr.3 xdr_rejected_reply.3 \
+		rpc_xdr.3 xdr_replymsg.3 \
+		xdr.3 xdr_array.3 \
 		xdr.3 xdr_bool.3 \
 		xdr.3 xdr_bytes.3 \
 		xdr.3 xdr_char.3 \
@@ -32,6 +39,8 @@ MLINKS+=	xdr.3 xdr_array.3 \
 		xdr.3 xdr_setpos.3 \
 		xdr.3 xdr_short.3 \
 		xdr.3 xdrstdio_create.3 \
+		xdr.3 xdr_short.3 \
+		xdr.3 xdrstdio_create.3 \
 		xdr.3 xdr_string.3 \
 		xdr.3 xdr_u_char.3 \
 		xdr.3 xdr_u_long.3 \
@@ -39,5 +48,5 @@ MLINKS+=	xdr.3 xdr_array.3 \
 		xdr.3 xdr_union.3 \
 		xdr.3 xdr_vector.3 \
 		xdr.3 xdr_void.3 \
-		xdr.3 xdr_wrapstring.3
+                xdr.3 xdr_wrapstring.3
 .endif

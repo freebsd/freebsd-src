@@ -66,7 +66,6 @@ SUBDIR=	IPXrouted \
 	pim6sd \
 	pkg_install \
 	pnpinfo \
-	portmap \
 	ppp \
 	pppctl \
 	pppd \
@@ -84,6 +83,7 @@ SUBDIR=	IPXrouted \
 	rip6query \
 	rmt \
 	route6d \
+	rpcbind \
 	rpc.lockd \
 	rpc.statd \
 	rpc.umntall \

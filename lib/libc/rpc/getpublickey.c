@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)publickey.c 1.10 91/03/11 Copyr 1986 Sun Micro";
 /*
  * Public key lookup routines
  */
+#include "namespace.h"
 #include <stdio.h>
 #include <pwd.h>
 #include <rpc/rpc.h>
@@ -49,6 +50,7 @@ static char sccsid[] = "@(#)publickey.c 1.10 91/03/11 Copyr 1986 Sun Micro";
 #include <rpcsvc/ypclnt.h>
 #include <string.h>
 #include <stdlib.h>
+#include "un-namespace.h"
 
 #define PKFILE "/etc/publickey"
 
