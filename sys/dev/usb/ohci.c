@@ -2308,7 +2308,8 @@ ohci_root_ctrl_start(xfer)
 				    index));
 			OWRITE4(sc, port, UPS_RESET);
 			for (i = 0; i < 10; i++) {
-				usb_delay_ms(&sc->sc_bus, 10);
+				usb_delay_ms(&sc->sc_bus,
+				    USB_PORT_ROOT_RESET_DELAY);
 				if ((OREAD4(sc, port) & UPS_RESET) == 0)
 					break;
 			}
