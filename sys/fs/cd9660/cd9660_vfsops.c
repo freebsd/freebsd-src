@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.21 1997/03/24 11:24:32 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.22 1997/04/14 18:15:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -255,7 +255,9 @@ iso_mountfs(devvp, mp, p, argp)
 	 */
 	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
 
-	for (iso_blknum = 16; iso_blknum < 100; iso_blknum++) {
+	for (iso_blknum = 16 + argp->ssector;
+	     iso_blknum < 100 + argp->ssector;
+	     iso_blknum++) {
 		if (error = bread(devvp, iso_blknum * btodb(iso_bsize),
 				  iso_bsize, NOCRED, &bp))
 			goto out;
