@@ -100,3 +100,47 @@ static driver_t ata_isa_driver = {
 };
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
+
+/* 
+ * the following is a bandaid to get ISA only setups to link,
+ * since these are getting rare the ugliness is kept here
+ */
+#include "pci.h"
+#if NPCI == 0
+void *
+ata_dmaalloc(struct ata_softc *scp, int device)
+{
+    return 0;
+}
+
+void
+ata_dmainit(struct ata_softc *scp, int device,
+	    int piomode, int wdmamode, int udmamode)
+{
+}
+
+int
+ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
+	     caddr_t data, int32_t count)
+{
+    return -1;
+}
+
+void
+ata_dmastart(struct ata_softc *scp, int device, 
+	     struct ata_dmaentry *dmatab, int dir)
+{
+}
+
+int
+ata_dmadone(struct ata_softc *scp)
+{
+    return -1;
+}
+
+int
+ata_dmastatus(struct ata_softc *scp)
+{
+    return -1;
+}
+#endif
