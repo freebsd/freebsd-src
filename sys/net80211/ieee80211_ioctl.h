@@ -38,6 +38,50 @@
  * IEEE 802.11 ioctls.
  */
 
+struct ieee80211_stats {
+	u_int32_t	is_rx_badversion;	/* rx frame with bad version */
+	u_int32_t	is_rx_tooshort;		/* rx frame too short */
+	u_int32_t	is_rx_wrongbss;		/* rx from wrong bssid */
+	u_int32_t	is_rx_dup;		/* rx discard 'cuz dup */
+	u_int32_t	is_rx_wrongdir;		/* rx w/ wrong direction */
+	u_int32_t	is_rx_mcastecho;	/* rx discard 'cuz mcast echo */
+	u_int32_t	is_rx_notassoc;		/* rx discard 'cuz sta !assoc */
+	u_int32_t	is_rx_nowep;		/* rx w/ wep but wep !config */
+	u_int32_t	is_rx_wepfail;		/* rx wep processing failed */
+	u_int32_t	is_rx_decap;		/* rx decapsulation failed */
+	u_int32_t	is_rx_mgtdiscard;	/* rx discard mgt frames */
+	u_int32_t	is_rx_ctl;		/* rx discard ctrl frames */
+	u_int32_t	is_rx_rstoobig;		/* rx rate set truncated */
+	u_int32_t	is_rx_elem_missing;	/* rx required element missing*/
+	u_int32_t	is_rx_elem_toobig;	/* rx element too big */
+	u_int32_t	is_rx_elem_toosmall;	/* rx element too small */
+	u_int32_t	is_rx_elem_unknown;	/* rx element unknown */
+	u_int32_t	is_rx_badchan;		/* rx frame w/ invalid chan */
+	u_int32_t	is_rx_chanmismatch;	/* rx frame chan mismatch */
+	u_int32_t	is_rx_nodealloc;	/* rx frame dropped */
+	u_int32_t	is_rx_ssidmismatch;	/* rx frame ssid mismatch  */
+	u_int32_t	is_rx_auth_unsupported;	/* rx w/ unsupported auth alg */
+	u_int32_t	is_rx_auth_fail;	/* rx sta auth failure */
+	u_int32_t	is_rx_assoc_bss;	/* rx assoc from wrong bssid */
+	u_int32_t	is_rx_assoc_notauth;	/* rx assoc w/o auth */
+	u_int32_t	is_rx_assoc_capmismatch;/* rx assoc w/ cap mismatch */
+	u_int32_t	is_rx_assoc_norate;	/* rx assoc w/ no rate match */
+	u_int32_t	is_rx_deauth;		/* rx deauthentication */
+	u_int32_t	is_rx_disassoc;		/* rx disassociation */
+	u_int32_t	is_rx_badsubtype;	/* rx frame w/ unknown subtype*/
+	u_int32_t	is_rx_nombuf;		/* rx failed for lack of mbuf */
+	u_int32_t	is_rx_decryptcrc;	/* rx decrypt failed on crc */
+	u_int32_t	is_rx_ahdemo_mgt;	/* rx discard ahdemo mgt frame*/
+	u_int32_t	is_rx_bad_auth;		/* rx bad auth request */
+	u_int32_t	is_tx_nombuf;		/* tx failed for lack of mbuf */
+	u_int32_t	is_tx_nonode;		/* tx failed for no node */
+	u_int32_t	is_tx_unknownmgt;	/* tx of unknown mgt frame */
+	u_int32_t	is_scan_active;		/* active scans started */
+	u_int32_t	is_scan_passive;	/* passive scans started */
+	u_int32_t	is_node_timeout;	/* nodes timed out inactivity */
+	u_int32_t	is_crypto_nomem;	/* no memory for crypto ctx */
+};
+
 #ifdef __FreeBSD__
 /*
  * FreeBSD-style ioctls.
@@ -79,6 +123,8 @@ struct ieee80211req {
 #ifndef IEEE80211_CHAN_ANY
 #define	IEEE80211_CHAN_ANY	0xffff		/* token for ``any channel'' */
 #endif
+
+#define	SIOCG80211STATS		_IOWR('i', 236, struct ifreq)
 #endif /* __FreeBSD__ */
 
 #endif /* _NET80211_IEEE80211_IOCTL_H_ */

@@ -40,6 +40,7 @@
 
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_crypto.h>
+#include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
 #include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
 
@@ -193,6 +194,7 @@ struct ieee80211com {
 	int			ic_wep_txkey;	/* default tx key index */
 	void			*ic_wep_ctx;	/* wep crypt context */
 	u_int32_t		ic_iv;		/* initial vector for wep */
+	struct ieee80211_stats	ic_stats;	/* statistics */
 };
 #define	ic_if		ic_ac.ac_if
 #define	ic_softc	ic_if.if_softc
