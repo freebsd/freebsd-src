@@ -85,7 +85,7 @@
 
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static struct rman gifunits[1];
-LIST_HEAD(, gif_softc) gif_softc_list;
+static LIST_HEAD(, gif_softc) gif_softc_list;
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
