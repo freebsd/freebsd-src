@@ -413,7 +413,7 @@ installcheck: ${SPECIAL_INSTALLCHECKS}
 		echo "ERROR: Required smmsp user is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
-	@if ! `id -g smmsp > /dev/null`; then \
+	@if ! `pw groupshow smmsp > /dev/null`; then \
 		echo "ERROR: Required smmsp group is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
