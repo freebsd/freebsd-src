@@ -11,12 +11,12 @@ CFLAGS+=-I${.CURDIR}
 YFLAGS=
 WFORMAT=0
 
-DPADD=	${LIBMD} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lmd -lcrypt -lutil
+DPADD=	${LIBUTIL} ${LIBCRYPT}
+LDADD=	-lutil -lcrypt
 
 # XXX Kluge! Conversation mechanism needs to be fixed.
-DPADD+=	${LIBOPIE}
-LDADD+=	-lopie
+DPADD+=	${LIBOPIE} ${LIBMD}
+LDADD+=	-lopie -lmd
 
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
