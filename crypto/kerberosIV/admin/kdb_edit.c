@@ -8,6 +8,7 @@
  * This routine changes the Kerberos encryption keys for principals,
  * i.e., users or services. 
  */
+/* $FreeBSD$ */
 
 /*
  * exit returns 	 0 ==> success -1 ==> error 
@@ -162,7 +163,7 @@ change_principal(void)
 			memset(new_key, 0, sizeof(des_cblock));
 			new_key[0] = 127;
 #else
-			des_new_random_key(&new_key);
+			des_random_key(new_key);
 #endif
 			memset(pw_str, 0, sizeof pw_str);
 		    }
@@ -383,9 +384,6 @@ main(int argc, char **argv)
 						    master_key_schedule,
 						    stdout)) < 0)
       return 1;
-
-    /* Initialize non shared random sequence */
-    des_init_random_number_generator(&master_key);
 
     /* lookup the default values */
     n = kerb_get_principal(KERB_DEFAULT_NAME, KERB_DEFAULT_INST,

@@ -334,7 +334,7 @@ kerberos(unsigned char *buf, int len,
 	life = min(life, s_name.max_life);
 	life = min(life, a_name.max_life);
     
-	des_new_random_key(&session);
+	des_random_key(session);
 	copy_to_key(&s_name.key_low, &s_name.key_high, key);
 	unseal(&key);
 	krb_create_ticket(tk, flags, a_name.name, a_name.instance, 
@@ -428,7 +428,7 @@ kerberos(unsigned char *buf, int len,
 	life = min(life, s_name.max_life);
 	copy_to_key(&s_name.key_low, &s_name.key_high, key);
 	unseal(&key);
-	des_new_random_key(&session);
+	des_random_key(session);
 	krb_create_ticket(tk, flags, ad.pname, ad.pinst, ad.prealm,
 			  client->sin_addr.s_addr, &session,
 			  life, kerb_time.tv_sec,
@@ -860,7 +860,6 @@ main(int argc, char **argv)
 
     fprintf(stdout, "\nCurrent Kerberos master key version is %d\n",
 	    master_key_version);
-    des_init_random_number_generator(&master_key);
 
     if (!rflag) {
 	/* Look up our local realm */
