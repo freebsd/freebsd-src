@@ -284,6 +284,7 @@ struct vattr {
 #define	IO_NOWDRAIN	0x0200		/* do not block on wdrain */
 #define	IO_EXT		0x0400		/* operate on external attributes */
 #define	IO_NORMAL	0x0800		/* operate on regular data */
+#define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
 
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.
