@@ -153,6 +153,9 @@
       &man.dconschat.8; utility provides user access to &man.dcons.4;
       devices.</para>
 
+    <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
+      may become readable under certain circumstances, has been fixed.</para>
+
     <para>The &man.stl.4; driver has been updated to version 5.6.0b1.</para>
 
     <para>The &man.umct.4; driver, which provides support for USB to RS-232
@@ -220,6 +223,11 @@
 	<literal>FAST_IPSEC</literal> kernel options, is a TCP option
 	for authenticating TCP sessions.  &man.setkey.8; now includes
 	support for the TCP-MD5 class of security associations.</para>
+
+      <para>The random ephemeral port allocation, which come from OpenBSD
+	has been implemented.  This is enabled by default and can be disabled
+	using the <varname>net.inet.ip.portrange.randomized</varname>
+	sysctl.</para>
 
       <para>The &man.ng.vlan.4; NetGraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.</para>
@@ -386,7 +394,7 @@
     </para>
 
     <para>The supported release of <application>KDE</application>
-      has been updated from 3.1.4 to 3.2.1.</para>
+      has been updated from 3.1.4 to 3.2.2.</para>
   </sect2>
 </sect1>
 
