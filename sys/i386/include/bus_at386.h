@@ -67,12 +67,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id: bus.h,v 1.3 1998/05/06 01:45:47 gibbs Exp $ */
+/* $Id: bus.h,v 1.4 1998/09/29 09:06:00 bde Exp $ */
 
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
 
 #include <machine/cpufunc.h>
+
+/*
+ * To remain compatible with NetBSD's interface, default to both memio and
+ * pio when neither of them is defined.
+ */ 
+#if !defined(_I386_BUS_PIO_H_) && !defined(_I386_BUS_MEMIO_H_)
+#define _I386_BUS_PIO_H_
+#define _I386_BUS_MEMIO_H_
+#endif
 
 /*
  * Values for the i386 bus space tag, not to be used directly by MI code.

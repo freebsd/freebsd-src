@@ -67,12 +67,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id: bus.h,v 1.2 1998/09/16 08:22:57 dfr Exp $ */
+/* $Id: bus.h,v 1.3 1999/06/05 13:30:01 dfr Exp $ */
 
 #ifndef _ALPHA_BUS_H_
 #define _ALPHA_BUS_H_
 
 #include <machine/cpufunc.h>
+
+/*
+ * To remain compatible with NetBSD's interface, default to both memio and
+ * pio when neither of them is defined.
+ */ 
+#if !defined(_ALPHA_BUS_PIO_H_) && !defined(_ALPHA_BUS_MEMIO_H_)
+#define _ALPHA_BUS_PIO_H_
+#define _ALPHA_BUS_MEMIO_H_
+#endif
 
 /*
  * Values for the alpha bus space tag, not to be used directly by MI code.
