@@ -194,6 +194,9 @@ g_modevent(module_t mod, int type, void *data)
 		}
 		g_free(hh);
 		break;
+	default:
+		g_free(hh);
+		break;
 	}
 	return (error);
 }
