@@ -114,7 +114,7 @@ int		atm_endpoint_deregister __P((Atm_endpoint *));
 int		atm_dev_inst __P((struct stack_defn **, Atm_connvc *));
 void		atm_dev_lower __P((int, void *, int, int));
 void *		atm_dev_alloc __P((u_int, u_int, u_int));
-void		atm_dev_free __P((void *));
+void		atm_dev_free __P((volatile void *));
 #if defined(sun4m)
 void *		atm_dma_map __P((caddr_t, int, int));
 void		atm_dma_free __P((caddr_t, int));
