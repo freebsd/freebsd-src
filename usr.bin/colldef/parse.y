@@ -274,7 +274,7 @@ void yyerror(char *fmt, ...)
 	char msg[128];
 
 	va_start(ap, fmt);
-	vsprintf(msg, fmt, ap);
+	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 	errx(EX_UNAVAILABLE, "%s near line %d", msg, line_no);
 }
