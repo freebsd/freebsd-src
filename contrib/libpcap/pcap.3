@@ -17,6 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
+.\" $FreeBSD$
 .\" $Id$
 .\"
 .TH PCAP 3  "24 June 1998"
@@ -226,6 +227,15 @@ struct and is filled in by
 controls whether optimization on the resulting code is performed.
 .I netmask
 specifies the netmask of the local net.
+.PP
+.B pcap_compile_nopcap()
+is similar to
+.B pcap_compile()
+except that instead of passing a pcap structure, one passes the
+snaplen and linktype explicitly.  It is intended to be used for
+compiling filters for direct bpf usage, without necessarily having
+called
+.BR pcap_open() .
 .PP
 .B pcap_setfilter()
 is used to specify a filter program.

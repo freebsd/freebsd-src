@@ -37,7 +37,8 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: /tcpdump/master/libpcap/bpf/net/bpf.h,v 1.37 1999/10/19 15:18:31 itojun Exp $ (LBL)
+ * $FreeBSD$
+ * @(#) $Header: bpf.h,v 1.36 97/06/12 14:29:53 leres Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION
@@ -52,11 +53,7 @@ typedef	u_int bpf_u_int32;
  * Alignment macros.  BPF_WORDALIGN rounds up to the next 
  * even multiple of BPF_ALIGNMENT. 
  */
-#ifndef __NetBSD__
 #define BPF_ALIGNMENT sizeof(bpf_int32)
-#else
-#define BPF_ALIGNMENT sizeof(long)
-#endif
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
 
 #define BPF_MAXINSNS 512
@@ -172,21 +169,10 @@ struct bpf_hdr {
 #define DLT_SLIP	8	/* Serial Line IP */
 #define DLT_PPP		9	/* Point-to-point Protocol */
 #define DLT_FDDI	10	/* FDDI */
-#ifdef __FreeBSD__
 #define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
-#endif
-#ifdef __OpenBSD__
-#define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
-#define DLT_LOOP	12	/* loopback */
-#endif
-/* offset to avoid collision with BSD/OS values */
-#ifndef DLT_ATM_RFC1483
-#define DLT_ATM_RFC1483	100	/* LLC/SNAP encapsulated atm */
-#endif
-#define DLT_RAW		101	/* raw IP */
-#define DLT_SLIP_BSDOS	102	/* BSD/OS Serial Line IP */
-#define DLT_PPP_BSDOS	103	/* BSD/OS Point-to-point Protocol */
-#define DLT_CHDLC	104	/* Cisco HDLC */
+#define DLT_RAW		12	/* raw IP */
+#define DLT_SLIP_BSDOS	13	/* BSD/OS Serial Line IP */
+#define DLT_PPP_BSDOS	14	/* BSD/OS Point-to-point Protocol */
 
 /*
  * The instruction encondings.
