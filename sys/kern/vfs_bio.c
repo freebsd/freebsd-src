@@ -1932,7 +1932,6 @@ restart:
 		bp->b_bcount = 0;
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
-		bp->b_magic = B_MAGIC_BIO;
 		bp->b_bufobj = NULL;
 
 		LIST_INIT(&bp->b_dep);
