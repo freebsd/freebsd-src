@@ -1,3 +1,4 @@
+.\" t
 .\"
 .\" Copyright (c) 1999
 .\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
@@ -24,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: atkbd.4,v 1.1.2.2 1999/02/10 14:49:51 yokota Exp $
+.\" $Id: atkbd.4,v 1.1.2.3 1999/05/28 04:34:00 yokota Exp $
 .\"
 .Dd May 21, 1999
 .Dt ATKBD 4
@@ -60,6 +61,44 @@ keyboard controller to be present.
 The
 .Em irq
 number must always be 1; there is no provision of changing the number.
+.Ss Function Keys
+The AT keyboard has a number of function keys.
+They are numbered as follows and can be associated with strings
+by the
+.Xr kbdcontrol 1
+command.
+.Pp
+.TS
+c c
+c c
+r l.
+Function Key Number	Function Key
+-------------------	-----------------------------------------------
+1, 2,...12	F1, F2,... F12
+13, 14,...24	Shift+F1, Shift+F2,... Shift+F12
+25, 26,...36	Ctl+F1, Ctl+F2,... Ctl+F12
+37, 38,...48	Shift+Ctl+F1, Shift+Ctl+F2,... Shift+Ctl+F12
+49	Home and Numpad 7 (without NumLock)
+50	Up Arrow and Numpad 8 (without NumLock)
+51	Page Up and Numpad 9 (without NumLock)
+52	Numpad -
+53	Left Arrow and Numpad 4 (without NumLock)
+54	Numpad 5 (without NumLock)
+55	Right Arrow and Numpad 6 (without NumLock)
+56	Numpad + 
+57	End and Numpad 1 (without NumLock)
+58	Down Arrow and Numpad 2 (without NumLock)
+59	Page Down and Numpad 3 (without NumLock)
+60	Ins and Numpad 0 (without NumLock)
+61	Del
+62	Left GUI Key
+63	Right GUI Key
+64	Menu
+.TE
+.Pp
+See the man page for the
+.Xr kbdcontrol 1
+command for how to assign a string to the function key.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
 The following kernel configuration options control the
