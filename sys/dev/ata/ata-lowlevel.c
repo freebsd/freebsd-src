@@ -606,10 +606,14 @@ ata_reset(struct ata_channel *ch)
 	if (mask == 0x02)	/* wait for slave only */
 	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20))
 		break;
-	if (mask == 0x03)	/* wait for both master & slave */
-	    if ((!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20)) &&
-	        (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20)))
+	if (mask == 0x03) {	/* wait for both master & slave */
+	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
+	    if (stat0 == 0xff && timeout > 20)
+		mask &= ~0x01;
+	    if (stat1 == 0xff && timeout > 20)
+		mask &= ~0x02;
+	}
 	DELAY(100000);
     }	
 
