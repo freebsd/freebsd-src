@@ -40,6 +40,10 @@
 #include "popen.h"
 #endif
 
+/* Begin GNULIB headers.  */
+#include "xsize.h"
+/* End GNULIB headers.  */
+
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
@@ -608,7 +612,6 @@ extern void expand_wild PROTO ((int argc, char **argv,
 
 #ifdef SERVER_SUPPORT
 extern int cvs_casecmp PROTO ((const char *, const char *));
-extern int fopen_case PROTO ((char *, char *, FILE **, char **));
 #endif
 
 void strip_trailing_slashes PROTO((char *path));

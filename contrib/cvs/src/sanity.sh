@@ -792,7 +792,7 @@ if test x"$*" = x; then
 	tests="${tests} modules modules2 modules3 modules4 modules5 modules6"
 	tests="${tests} mkmodules co-d"
 	tests="${tests} cvsadm emptydir abspath abspath2 toplevel toplevel2"
-        tests="${tests} top-level checkout_repository"
+        tests="${tests} rstar-toplevel trailingslashes checkout_repository"
 	# Log messages, error messages.
 	tests="${tests} mflag editor errmsg1 errmsg2 adderrmsg opterrmsg"
 	# Watches, binary files, history browsing, &c.
@@ -1920,12 +1920,45 @@ done"
 ${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
 new revision: 2\.0; previous revision: 1\.3
 done"
+	  dotest basica-8a1a "${testcvs} -q ci -m bump-it -r 2.9" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.9; previous revision: 2\.0
+done"
+	  # Test string-based revion number increment rollover
+	  dotest basica-8a1b "${testcvs} -q ci -m bump-it -f -r 2" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.10; previous revision: 2\.9
+done"
+	  dotest basica-8a1c "${testcvs} -q ci -m bump-it -r 2.99" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.99; previous revision: 2\.10
+done"
+	  # Test string-based revion number increment rollover
+	  dotest basica-8a1d "${testcvs} -q ci -m bump-it -f -r 2" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.100; previous revision: 2\.99
+done"
+	  dotest basica-8a1e "${testcvs} -q ci -m bump-it -r 2.1099" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.1099; previous revision: 2\.100
+done"
+	  # Test string-based revion number increment rollover
+	  dotest basica-8a1f "${testcvs} -q ci -m bump-it -f -r 2" \
+"Checking in ssfile;
+${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
+new revision: 2\.1100; previous revision: 2\.1099
+done"
 	  # -f should not be necessary, but it should be harmless.
 	  # Also test the "-r 3" (rather than "-r 3.0") usage.
 	  dotest basica-8a2 "${testcvs} -q ci -m bump-it -f -r 3" \
 "Checking in ssfile;
 ${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v  <--  ssfile
-new revision: 3\.1; previous revision: 2\.0
+new revision: 3\.1; previous revision: 2\.1100
 done"
 
 	  # Test using -r to create a branch
@@ -1943,9 +1976,8 @@ done"
 	  dotest basica-8a5 "${testcvs} -q up -A ./" "[UP] ssfile"
 
 	  cd ../..
-	  dotest basica-8b "${testcvs} -q diff -r1.2 -r1.3" ''
-	  dotest basica-8b1 "${testcvs} -q diff -r1.2 -r1.3 -C 3isacrowd" \
-''
+	  dotest basica-8b "${testcvs} -q diff -r1.2 -r1.3"
+	  dotest basica-8b1 "${testcvs} -q diff -r1.2 -r1.3 -C 3isacrowd"
 
 	  # The .* here will normally be "No such file or directory",
 	  # but if memory serves some systems (AIX?) have a different message.
@@ -2013,11 +2045,23 @@ done"
 done"
 	  dotest basica-o5a "${testcvs} -n admin -o 1.2::3.1 ssfile" \
 "RCS file: ${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v
+deleting revision 2\.1100
+deleting revision 2\.1099
+deleting revision 2\.100
+deleting revision 2\.99
+deleting revision 2\.10
+deleting revision 2\.9
 deleting revision 2\.0
 deleting revision 1\.3
 done"
 	  dotest basica-o6 "${testcvs} admin -o 1.2::3.1 ssfile" \
 "RCS file: ${CVSROOT_DIRNAME}/first-dir/sdir/ssdir/ssfile,v
+deleting revision 2\.1100
+deleting revision 2\.1099
+deleting revision 2\.100
+deleting revision 2\.99
+deleting revision 2\.10
+deleting revision 2\.9
 deleting revision 2\.0
 deleting revision 1\.3
 done"
@@ -6018,8 +6062,7 @@ ${QUESTION} sdir"
 "${QUESTION} sdir
 ${PROG} \[update aborted\]: no such tag br"
 	    dotest dirs2-10ar \
-"${testcvs} -q rdiff -u -r 1.1 -r br first-dir/sdir/file1" \
-""
+"${testcvs} -q rdiff -u -r 1.1 -r br first-dir/sdir/file1"
 	    dotest_fail dirs2-10-again "${testcvs} update -d -r br" \
 "${QUESTION} sdir
 ${PROG} update: Updating \.
@@ -13849,14 +13892,14 @@ ${PROG} commit: Rebuilding administrative file database"
 
 
 
-	top-level)
+	rstar-toplevel)
 	  # FIXCVS:
 	  # This test confirms a bug that exists in the r* commands currently
 	  # when run against the top-level project.
 	  #
 	  # The assertion failure is something like:
 	  # do_recursion: Assertion \`strstr (repository, \"/\./\") == ((void \*)0)' failed\..*"
-	  dotest_fail top-level-1 "$testcvs rlog ." \
+	  dotest_fail rstar-toplevel-1 "$testcvs rlog ." \
 "${DOTSTAR}ssertion.*failed${DOTSTAR}" "${DOTSTAR}failed assertion${DOTSTAR}"
 
 	  if $keep; then
@@ -13864,6 +13907,52 @@ ${PROG} commit: Rebuilding administrative file database"
 	    exit 0
 	  fi
 	;;
+
+
+
+	trailingslashes)
+	  # Some tests of CVS's reactions to path specifications containing
+	  # trailing slashes.
+	  mkdir trailingslashes; cd trailingslashes
+	  dotest trailingslashes-init-1 "$testcvs -Q co -ldt ."
+	  dotest trailingslashes-init-2 "$testcvs -Q co -dt2 ."
+	  cd t
+	  echo "Ahh'll be baaack." >topfile
+	  dotest trailingslashes-init-3 "$testcvs -Q add topfile"
+	  dotest trailingslashes-init-4 "$testcvs -Q ci -mto-top" \
+"RCS file: $CVSROOT_DIRNAME/topfile,v
+done
+Checking in topfile;
+$CVSROOT_DIRNAME/topfile,v  <--  topfile
+initial revision: 1\.1
+done"
+
+	  # First, demonstrate the usual case.
+	  cd ../t2
+	  dotest trailingslashes-1 "$testcvs -q up CVSROOT"
+	  dotest_fail trailingslashes-1a "test -f topfile"
+
+	  # FIXCVS:
+	  # Now the one that fails in remote mode.
+	  # This highlights one of the failure cases mentioned in TODO item
+	  # #205.
+	  if $remote; then
+		  dotest trailingslashes-2 "$testcvs -q up CVSROOT/" \
+"U topfile"
+		  dotest trailingslashes-2a "test -f topfile"
+	  else
+		  dotest trailingslashes-2 "$testcvs -q up CVSROOT/"
+		  dotest_fail trailingslashes-2a "test -f topfile"
+	  fi
+
+	  if $keep; then
+	    echo Keeping $TESTDIR and exiting due to --keep
+	    exit 0
+	  fi
+
+	  cd ../..
+	  rm -rf trailingslashes $CVSROOT_DIRNAME/topfile,v
+	  ;;
 
 
 
@@ -26973,6 +27062,27 @@ Global_option -l
 noop
 EOF
 
+	    # There used to be some exploits based on malformed Entry requests
+	    dotest server-17 "$testcvs server" \
+"E protocol error: Malformed Entry
+error  " <<EOF
+Root $TESTDIR/crerepos
+Directory .
+$TESTDIR/crerepos/dir1
+Entry X/file1/1.1////
+noop
+EOF
+
+	    dotest server-18 "$testcvs server" \
+"E protocol error: Malformed Entry
+error  " <<EOF
+Root $TESTDIR/crerepos
+Directory .
+$TESTDIR/crerepos/dir1
+Entry /CC/CC/CC
+noop
+EOF
+
 	    if $keep; then
 	      echo Keeping ${TESTDIR} and exiting due to --keep
 	      exit 0
@@ -27494,7 +27604,11 @@ done"
     # files.  We would like to not leave any behind.
     if $remote && ls $TMPDIR/cvs-serv* >/dev/null 2>&1; then
 	# A true value means ls found files/directories with these names.
-	fail "Found cvs-serv* directories in $TMPDIR."
+	# Give the server some time to finish, then retry.
+	sleep 1
+	if ls $TMPDIR/cvs-serv* >/dev/null 2>&1; then
+	    fail "Found cvs-serv* directories in $TMPDIR."
+	fi
     fi
     if ls $TMPDIR/cvs?????? >/dev/null 2>&1; then
 	# A true value means ls found files/directories with these names.

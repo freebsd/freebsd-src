@@ -134,7 +134,9 @@ libdiff_a_SOURCES = diff.c diff3.c analyze.c cmpbuf.c cmpbuf.h io.c \
         side.c system.h diffrun.h
 
 
-EXTRA_DIST = ChangeLog build_diff.com diagmeet.note libdiff.dsp
+EXTRA_DIST = ChangeLog build_diff.com diagmeet.note \
+	libdiff.dep libdiff.dsp libdiff.mak
+
 subdir = diff
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs

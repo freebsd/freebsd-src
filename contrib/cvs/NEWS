@@ -1,18 +1,62 @@
-Changes since 1.11.14:
+Changes since 1.11.16:
 **********************
+
+SERVER SECURITY FIXES
+
+* Thanks to Stefan Esser & Sebastian Krahmer, several potential security
+  problems have been fixed.  The ones which were considered dangerous enough
+  to catalogue were assigned issue numbers CAN-2004-0416, CAN-2004-0417, &
+  CAN-2004-0418 by the Common Vulnerabilities and Exposures Project.  Please
+  see <http://www.cve.mitre.org> for more information.
+
+* A potential buffer overflow vulnerability in the server has been fixed.
+  This addresses the Common Vulnerabilities and Exposures Project's issue
+  #CAN-2004-0414.  Please see <http://www.cve.mitre.org> for more information.
+
+Changes from 1.11.15 to 1.11.16:
+********************************
+
+SERVER SECURITY FIXES
+
+* A potential buffer overflow vulnerability in the server has been fixed.
+  Prior to this patch, a malicious client could potentially use carefully
+  crafted server requests to run arbitrary programs on the CVS server machine.
+  This addresses the Common Vulnerabilities and Exposures Project's issue
+  #CAN-2004-0396.  Please see <http://www.cve.mitre.org> for more information.
+
+BUG FIXES
+
+* The Microsoft Visual C++ workspace and project files have been repaired and
+  regenerated with MSVC++ 6.0.
+
+* The cvs.1 man page is now generated automatically from a section of the CVS
+  Manual.
+
+* Thanks to a report from Mark Andrews at the Internet Systems Consortium, the
+  :ext: connection method no longer relies on a transparent transport that uses
+  an argument processor that can handle arbitrary ordering of options and other
+  arguments when using a username other than the caller's.
+
+* Thanks to Ken Raeburn at MIT, directory deletion, whether via `cvs release'
+  or empty directory pruning, now works on network shares under Windows XP.
+
+Changes from 1.11.14 to 1.11.15:
+********************************
 
 SERVER SECURITY ISSUES
 
 * Piped checkouts of paths above $CVSROOT no longer work.  Previously, clients
   could have requested the contents of RCS archive files anywhere on a CVS
-  server.
+  server.  This addresses CVE issue CAN-2004-0405.  Please see
+  <http://www.cve.mitre.org> for more information.
 
 CLIENT SECURITY ISSUES
 
 * Clients now check paths from the server to verify that they are within one of
   the sandboxes the user requested be updated.  Previously, a trojan server
   could have written or overwritten files anywhere the user had access,
-  presenting a serious security risk.
+  presenting a serious security risk.  This addresses CVE issue CAN-2004-1080.
+  Please see <http://www.cve.mitre.org> for more information.
 
 GENERAL USER ISSUES
 
