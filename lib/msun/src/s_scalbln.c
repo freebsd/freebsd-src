@@ -27,18 +27,50 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <limits.h>
 #include <math.h>
 
 double
 scalbln (double x, long n)
 {
+	int in;
 
-	return (scalbn(x, (int)n));
+	in = (int)n;
+	if (in != n) {
+		if (n > 0)
+			in = INT_MAX;
+		else
+			in = INT_MIN;
+	}
+	return (scalbn(x, in));
 }
 
 float
 scalblnf (float x, long n)
 {
+	int in;
 
-	return (scalbnf(x, (int)n));
+	in = (int)n;
+	if (in != n) {
+		if (n > 0)
+			in = INT_MAX;
+		else
+			in = INT_MIN;
+	}
+	return (scalbnf(x, in));
+}
+
+long double
+scalblnl (long double x, long n)
+{
+	int in;
+
+	in = (int)n;
+	if (in != n) {
+		if (n > 0)
+			in = INT_MAX;
+		else
+			in = INT_MIN;
+	}
+	return (scalbnl(x, (int)n));
 }
