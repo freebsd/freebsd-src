@@ -55,7 +55,7 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-echo "+++ mfs_mount of /var"
+echo "+++ mount_md of /var"
 mount_md ${varsize:=65536} /var 1
 
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"

@@ -224,14 +224,14 @@ For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-mount -t mfs -o nosuid,-N,-s=4000 /dev/dk0b /tmp
+mount -t unionfs -o -b /sys $HOME/sys
 .Ed
 .Pp
 causes
 .Nm
 to execute the equivalent of:
 .Bd -literal -offset indent
-/sbin/mount_mfs -o nosuid -N -s 4000 /dev/dk0b /tmp
+/sbin/mount_unionfs -b /sys $HOME/sys
 .Ed
 .Pp
 Additional options specific to filesystem types
@@ -279,13 +279,13 @@ For example, the
 .Nm
 command:
 .Bd -literal -offset indent
-mount -a -t nonfs,mfs
+mount -a -t nonfs,nullfs
 .Ed
 .Pp
 mounts all filesystems except those of type
 .Tn NFS
 and
-.Tn MFS .
+.Tn NULLFS .
 .Pp
 If the type is not one of the internally known types,
 .Nm
@@ -374,7 +374,6 @@ file system table
 .Xr mount_fdescfs 8 ,
 .Xr mount_hpfs 8 ,
 .Xr mount_linprocfs 8 ,
-.Xr mount_mfs 8 ,
 .Xr mount_msdos 8 ,
 .Xr mount_nfs 8 ,
 .Xr mount_ntfs 8 ,

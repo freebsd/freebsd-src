@@ -55,7 +55,7 @@ mount_md()
 	/sbin/mount /dev/md$3c $2
 }
 
-echo "+++ mfs_mount of /var"
+# If there is a global system configuration file, suck it in.
 mount_md ${varsize:=65536} /var 1
 if [ -r /etc/rc.subr ]; then
         . /etc/rc.subr
