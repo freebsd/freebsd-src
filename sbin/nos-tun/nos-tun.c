@@ -27,20 +27,20 @@
  */
 
 /*
- *  'nos_tun' program configure tunN interface as a point-to-point
+ *  'nos-tun' program configure tunN interface as a point-to-point
  *  connection with two "pseudo"-addresses between this host and
  *  'target'.
  *
  *  It uses Ip-over-Ip incapsulation ( protocol number 94 - IPIP)
  *  (known as NOS-incapsulation in CISCO-routers' terminology).
  *
- *  'nos_tun' can works with itself and CISCO-routers.
- *  (It may also work with Linux 'nos_tun's, but
+ *  'nos-tun' can works with itself and CISCO-routers.
+ *  (It may also work with Linux 'nos-tun's, but
  *  I have no Linux system here to test with).
  *
  *  BUGS (or features ?):
  *  - you must specify ONE of the target host's addresses
- *    ( nos_tun sends and accepts packets only to/from this
+ *    ( nos-tun sends and accepts packets only to/from this
  *      address )
  *  - there can be only ONE tunnel between two hosts,
  *    more precisely - between given host and (one of)
@@ -285,7 +285,7 @@ int main (int argc, char **argv)
   target = *argv;
 
   /* Establish logging through 'syslog' */
-  openlog("nos_tun", LOG_PID, LOG_DAEMON);
+  openlog("nos-tun", LOG_PID, LOG_DAEMON);
 
   if(Set_address(point_to, (struct sockaddr_in *)&t_laddr)) {
     closelog();
@@ -365,7 +365,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-"usage: nos_tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> <target_addr>\n");
+"usage: nos-tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> <target_addr>\n");
 	exit(1);
 }
 
