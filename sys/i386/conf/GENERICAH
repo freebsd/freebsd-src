@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.43 1994/09/18 21:18:49 se Exp $
+#	$Id: GENERICAH,v 1.44 1994/09/22 19:37:25 wollman Exp $
 #
 
 machine		"i386"
@@ -62,6 +62,7 @@ device		st1
 device		cd0	#Only need one of these, the code dynamically grows
 
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
+controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
 device		pas0	at isa? port 0x1f88 bio
