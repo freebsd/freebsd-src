@@ -20,7 +20,7 @@
 */
 
 /*
- * $Id: yp_mkdb.c,v 1.2 1995/03/31 19:45:13 wpaul Exp $
+ * $Id: yp_mkdb.c,v 1.3 1995/05/30 05:05:26 rgrimes Exp $
  */
 
 #define BUFFERSIZE 4096
@@ -168,6 +168,8 @@ load( char *FileName, char *DbName)
 		}
 		for (; Buffer[r]; r++)
 			if (Buffer[r]!=' ' && Buffer[r]!='\t') break;
+
+		if (Buffer[r] == '+' || Buffer[r] == '-') break;
 
 		key.data=Buffer; key.size=strlen(Buffer);
 		data.data=Buffer+r; data.size=strlen(Buffer+r);
