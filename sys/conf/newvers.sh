@@ -44,7 +44,7 @@ if [ "X${SNAPDATE}" != "X" ]; then
 fi
 VERSION="${TYPE} ${RELEASE}"
 
-RELDATE="199702"
+RELDATE="300000"
 
 b=share/examples/etc/bsd-style-copyright
 year=`date '+%Y'`
