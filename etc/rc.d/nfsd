@@ -18,6 +18,7 @@ case `${CMD_OSTYPE}` in
 FreeBSD)
 	command_args="${nfs_server_flags}"
 	start_precmd="nfsd_precmd"
+	sig_stop="USR1"
 	;;
 NetBSD)
 	required_vars="mountd rpcbind"
