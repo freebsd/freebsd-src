@@ -3,8 +3,8 @@
    BSD socket interface code... */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999
+ * The Internet Software Consortium.   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,7 +50,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: socket.c,v 1.26.2.2 1998/06/25 21:11:32 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: socket.c,v 1.26.2.6 1999/02/03 19:46:04 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -102,7 +102,7 @@ int if_register_socket (info)
 	int sock;
 	int flag;
 
-#ifndef SO_BINDTODEVICE
+#if !defined (SO_BINDTODEVICE) && !defined (USE_FALLBACK)
 	/* Make sure only one interface is registered. */
 	if (once)
 		error ("The standard socket API can only support %s",
@@ -136,9 +136,10 @@ int if_register_socket (info)
 	if (bind (sock, (struct sockaddr *)&name, sizeof name) < 0)
 		error ("Can't bind to dhcp address: %m");
 
-#ifdef SO_BINDTODEVICE
+#if defined (SO_BINDTODEVICE)
 	/* Bind this socket to this interface. */
-	if (setsockopt (sock, SOL_SOCKET, SO_BINDTODEVICE,
+	if (info -> ifp &&
+	    setsockopt (sock, SOL_SOCKET, SO_BINDTODEVICE,
 			(char *)(info -> ifp), sizeof *(info -> ifp)) < 0) {
 		error("setting SO_BINDTODEVICE");
 	}
@@ -236,7 +237,7 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 }
 #endif /* USE_SOCKET_RECEIVE */
 
-#ifdef USE_SOCKET_FALLBACK
+#ifdef USE_SOCKET_SEND
 /* This just reads in a packet and silently discards it. */
 
 void fallback_discard (protocol)
@@ -253,4 +254,27 @@ void fallback_discard (protocol)
 	if (status < 0)
 		warn ("fallback_discard: %m");
 }
-#endif /* USE_SOCKET_RECEIVE */
+#endif /* USE_SOCKET_SEND */
+
+#if defined (USE_SOCKET_SEND) && !defined (USE_SOCKET_FALLBACK)
+int can_unicast_without_arp ()
+{
+	return 0;
+}
+
+/* If we have SO_BINDTODEVICE, set up a fallback interface; otherwise,
+   do not. */
+
+void maybe_setup_fallback ()
+{
+#if defined (SO_BINDTODEVICE)
+	struct interface_info *fbi;
+	fbi = setup_fallback ();
+	if (fbi) {
+		fbi -> wfdesc = if_register_socket (fbi);
+		add_protocol ("fallback",
+			      fbi -> wfdesc, fallback_discard, fbi);
+	}
+#endif
+}
+#endif /* USE_SOCKET_SEND && !USE_SOCKET_FALLBACK */

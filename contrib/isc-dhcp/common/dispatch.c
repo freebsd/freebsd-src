@@ -3,7 +3,7 @@
    Network input dispatcher... */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: dispatch.c,v 1.47.2.2 1998/06/25 21:11:28 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dispatch.c,v 1.47.2.9 1999/02/05 20:23:50 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
 #include <sys/ioctl.h>
 
-struct interface_info *interfaces, *dummy_interfaces;
+struct interface_info *interfaces, *dummy_interfaces, *fallback_interface;
 struct protocol *protocols;
 struct timeout *timeouts;
 static struct timeout *free_timeouts;
@@ -57,7 +57,6 @@ void (*bootp_packet_handler) PROTO ((struct interface_info *,
 				     struct dhcp_packet *, int, unsigned int,
 				     struct iaddr, struct hardware *));
 
-static void got_one PROTO ((struct protocol *));
 int quiet_interface_discovery;
 
 /* Use the SIOCGIFCONF ioctl to get a list of all the attached interfaces.
@@ -83,9 +82,6 @@ void discover_interfaces (state)
 #ifdef ALIAS_NAMES_PERMUTED
 	char *s;
 #endif
-#ifdef USE_FALLBACK
-	static struct shared_network fallback_network;
-#endif
 
 	/* Create an unbound datagram socket to do the SIOCGIFADDR ioctl on. */
 	if ((sock = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
@@ -110,9 +106,7 @@ void discover_interfaces (state)
 	else
 		ir = INTERFACE_REQUESTED;
 
-	/* Cycle through the list of interfaces looking for IP addresses.
-	   Go through twice; once to count the number of addresses, and a
-	   second time to copy them into an array of addresses. */
+	/* Cycle through the list of interfaces looking for IP addresses. */
 	for (i = 0; i < ic.ifc_len;) {
 		struct ifreq *ifp = (struct ifreq *)((caddr_t)ic.ifc_req + i);
 #ifdef HAVE_SA_LEN
@@ -187,59 +181,6 @@ void discover_interfaces (state)
 		if (ifp -> ifr_addr.sa_family == AF_INET) {
 			struct iaddr addr;
 
-#if defined (SIOCGIFHWADDR) && !defined (AF_LINK)
-			struct ifreq ifr;
-			struct sockaddr sa;
-			int b, sk;
-			
-			/* Read the hardware address from this interface. */
-			ifr = *ifp;
-			if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0)
-				error ("Can't get hardware address for %s: %m",
-				       ifr.ifr_name);
-
-			sa = *(struct sockaddr *)&ifr.ifr_hwaddr;
-					
-			switch (sa.sa_family) {
-#ifdef ARPHRD_LOOPBACK
-			      case ARPHRD_LOOPBACK:
-				/* ignore loopback interface */
-				break;
-#endif
-
-			      case ARPHRD_ETHER:
-				tmp -> hw_address.hlen = 6;
-				tmp -> hw_address.htype = ARPHRD_ETHER;
-				memcpy (tmp -> hw_address.haddr,
-					sa.sa_data, 6);
-				break;
-
-#ifndef ARPHRD_IEEE802
-# define ARPHRD_IEEE802 HTYPE_IEEE802
-#endif
-			      case ARPHRD_IEEE802:
-				tmp -> hw_address.hlen = 6;
-				tmp -> hw_address.htype = ARPHRD_IEEE802;
-				memcpy (tmp -> hw_address.haddr,
-					sa.sa_data, 6);
-				break;
-
-#ifdef ARPHRD_METRICOM
-			      case ARPHRD_METRICOM:
-				tmp -> hw_address.hlen = 6;
-				tmp -> hw_address.htype = ARPHRD_METRICOM;
-				memcpy (tmp -> hw_address.haddr,
-					sa.sa_data, 6);
-
-				break;
-#endif
-
-			      default:
-				error ("%s: unknown hardware address type %d",
-				       ifr.ifr_name, sa.sa_family);
-			}
-#endif /* defined (SIOCGIFHWADDR) && !defined (AF_LINK) */
-
 			/* Get a pointer to the address... */
 			memcpy (&foo, &ifp -> ifr_addr,
 				sizeof ifp -> ifr_addr);
@@ -312,6 +253,157 @@ void discover_interfaces (state)
 		}
 	}
 
+#if defined (LINUX_SLASHPROC_DISCOVERY)
+	/* On Linux, interfaces that don't have IP addresses don't show up
+	   in the SIOCGIFCONF syscall.   We got away with this prior to
+	   Linux 2.1 because we would give each interface an IP address of
+	   0.0.0.0 before trying to boot, but that doesn't work after 2.1
+	   because we're using LPF, because we can't configure interfaces
+	   with IP addresses of 0.0.0.0 anymore (grumble).   This only
+	   matters for the DHCP client, of course - the relay agent and
+	   server should only care about interfaces that are configured
+	   with IP addresses anyway.
+
+	   The PROCDEV_DEVICE (/proc/net/dev) is a kernel-supplied file
+	   that, when read, prints a human readable network status.   We
+	   extract the names of the network devices by skipping the first
+	   two lines (which are header) and then parsing off everything
+	   up to the colon in each subsequent line - these lines start
+	   with the interface name, then a colon, then a bunch of
+	   statistics.   Yes, Virgina, this is a kludge, but you work
+	   with what you have. */
+
+	if (state == DISCOVER_UNCONFIGURED) {
+		FILE *proc_dev;
+		char buffer [256];
+		struct ifreq *tif;
+		int skip = 2;
+
+		proc_dev = fopen (PROCDEV_DEVICE, "r");
+		if (!proc_dev)
+			error ("%s: %m", PROCDEV_DEVICE);
+
+		while (fgets (buffer, sizeof buffer, proc_dev)) {
+			char *name = buffer;
+			char *sep;
+
+			/* Skip the first two blocks, which are header
+			   lines. */
+			if (skip) {
+				--skip;
+				continue;
+			}
+
+			sep = strrchr (buffer, ':');
+			if (sep)
+				*sep = '\0';
+			while (*name == ' ')
+				name++;
+
+			/* See if we've seen an interface that matches
+			   this one. */
+			for (tmp = interfaces; tmp; tmp = tmp -> next)
+				if (!strcmp (tmp -> name, name))
+					break;
+
+			/* If we found one, and it already has an ifreq
+			   structure, nothing more to do.. */
+			if (tmp && tmp -> ifp)
+				continue;
+
+			/* Make up an ifreq structure. */
+			tif = (struct ifreq *)malloc (sizeof (struct ifreq));
+			if (!tif)
+				error ("no space to remember ifp.");
+			memset (tif, 0, sizeof (struct ifreq));
+			strcpy (tif -> ifr_name, name);
+
+			/* Now, if we just needed the ifreq structure, hook
+			   it in and move on. */
+			if (tmp) {
+				tmp -> ifp = tif;
+				continue;
+			}
+
+			/* Otherwise, allocate one. */
+			tmp = ((struct interface_info *)
+			       dmalloc (sizeof *tmp, "discover_interfaces"));
+			if (!tmp)
+				error ("Insufficient memory to %s %s",
+				       "record interface", name);
+			memset (tmp, 0, sizeof *tmp);
+			strcpy (tmp -> name, name);
+
+			tmp -> ifp = tif;
+			tmp -> flags = ir;
+			tmp -> next = interfaces;
+			interfaces = tmp;
+		}
+		fclose (proc_dev);
+	}
+#endif
+
+	/* Now cycle through all the interfaces we found, looking for
+	   hardware addresses. */
+#if defined (SIOCGIFHWADDR) && !defined (AF_LINK)
+	for (tmp = interfaces; tmp; tmp = tmp -> next) {
+		struct ifreq ifr;
+		struct sockaddr sa;
+		int b, sk;
+		
+		/* Read the hardware address from this interface. */
+		ifr = *tmp -> ifp;
+		if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0)
+			continue;
+		
+		sa = *(struct sockaddr *)&ifr.ifr_hwaddr;
+		
+		switch (sa.sa_family) {
+#ifdef ARPHRD_LOOPBACK
+		      case ARPHRD_LOOPBACK:
+			/* ignore loopback interface */
+			break;
+#endif
+
+		      case ARPHRD_ETHER:
+			tmp -> hw_address.hlen = 6;
+			tmp -> hw_address.htype = ARPHRD_ETHER;
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
+			break;
+
+#ifndef ARPHRD_IEEE802
+# define ARPHRD_IEEE802 HTYPE_IEEE802
+#endif
+		      case ARPHRD_IEEE802:
+			tmp -> hw_address.hlen = 6;
+			tmp -> hw_address.htype = ARPHRD_IEEE802;
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
+			break;
+
+#ifndef ARPHRD_FDDI
+# define ARPHRD_FDDI HTYPE_FDDI
+#endif
+		      case ARPHRD_FDDI:
+			tmp -> hw_address.hlen = 16;
+			tmp -> hw_address.htype = HTYPE_FDDI; /* XXX */
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 16);
+			break;
+
+#ifdef ARPHRD_METRICOM
+		      case ARPHRD_METRICOM:
+			tmp -> hw_address.hlen = 6;
+			tmp -> hw_address.htype = ARPHRD_METRICOM;
+			memcpy (tmp -> hw_address.haddr, sa.sa_data, 6);
+			break;
+#endif
+
+		      default:
+			error ("%s: unknown hardware address type %d",
+			       ifr.ifr_name, sa.sa_family);
+		}
+	}
+#endif /* defined (SIOCGIFHWADDR) && !defined (AF_LINK) */
+
 	/* If we're just trying to get a list of interfaces that we might
 	   be able to configure, we can quit now. */
 	if (state == DISCOVER_UNCONFIGURED)
@@ -375,14 +467,26 @@ void discover_interfaces (state)
 
 	close (sock);
 
-#ifdef USE_FALLBACK
-	strcpy (fallback_interface.name, "fallback");	
-	fallback_interface.shared_network = &fallback_network;
-	fallback_network.name = "fallback-net";
-	if_register_fallback (&fallback_interface);
-	add_protocol ("fallback", fallback_interface.wfdesc,
-		      fallback_discard, &fallback_interface);
-#endif
+	maybe_setup_fallback ();
+}
+
+struct interface_info *setup_fallback ()
+{
+	fallback_interface =
+		((struct interface_info *)
+		 dmalloc (sizeof *fallback_interface, "discover_interfaces"));
+	if (!fallback_interface)
+		error ("Insufficient memory to record fallback interface.");
+	memset (fallback_interface, 0, sizeof *fallback_interface);
+	strcpy (fallback_interface -> name, "fallback");
+	fallback_interface -> shared_network =
+		new_shared_network ("parse_statement");
+	if (!fallback_interface -> shared_network)
+		error ("No memory for shared subnet");
+	memset (fallback_interface -> shared_network, 0,
+		sizeof (struct shared_network));
+	fallback_interface -> shared_network -> name = "fallback-net";
+	return fallback_interface;
 }
 
 void reinitialize_interfaces ()
@@ -394,24 +498,17 @@ void reinitialize_interfaces ()
 		if_reinitialize_send (ip);
 	}
 
-#ifdef USE_FALLBACK
-	if_reinitialize_fallback (&fallback_interface);
-#endif
+	if (fallback_interface)
+		if_reinitialize_send (fallback_interface);
 
 	interfaces_invalidated = 1;
 }
 
 #ifdef USE_POLL
-/* Wait for packets to come in using poll().  Anyway, when a packet
-   comes in, call receive_packet to receive the packet and possibly
-   strip hardware addressing information from it, and then call
-   do_packet to try to do something with it. 
-
-   As you can see by comparing this with the code that uses select(),
-   below, this is gratuitously complex.  Quelle surprise, eh?  This is
-   SysV we're talking about, after all, and even in the 90's, it
-   wouldn't do for SysV to make networking *easy*, would it?  Rant,
-   rant... */
+/* Wait for packets to come in using poll().  When a packet comes in,
+   call receive_packet to receive the packet and possibly strip hardware
+   addressing information from it, and then call through the
+   bootp_packet_handler hook to try to do something with it. */
 
 void dispatch ()
 {
@@ -499,8 +596,8 @@ void dispatch ()
 #else
 /* Wait for packets to come in using select().   When one does, call
    receive_packet to receive the packet and possibly strip hardware
-   addressing information from it, and then call do_packet to try to
-   do something with it. */
+   addressing information from it, and then call through the
+   bootp_packet_handler hook to try to do something with it. */
 
 void dispatch ()
 {
@@ -566,7 +663,7 @@ void dispatch ()
 }
 #endif /* USE_POLL */
 
-static void got_one (l)
+void got_one (l)
 	struct protocol *l;
 {
 	struct sockaddr_in from;
