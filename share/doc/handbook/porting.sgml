@@ -608,7 +608,7 @@ MASTER_SITE_SUBDIR=   applications
 </verb></tscreen>
         <p>The user can also set the MASTER_SITE_* variables in
           <tt>/etc/make.conf</tt> to override our choices, and use their
-	  favorate mirrors of these popular archives instead.
+	  favorite mirrors of these popular archives instead.
 
       <sect3>
 	<heading>PATCHFILES<label id="porting:patchfiles"></heading>
