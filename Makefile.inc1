@@ -655,11 +655,15 @@ _xargs=		usr.bin/xargs
 _yacc=		usr.bin/yacc
 .endif
 
+.if ${BOOTSTRAPPING} < 500019
+_kbdcontrol=	usr.sbin/kbdcontrol
+.endif
+
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/colldef \
     usr.bin/makewhatis usr.bin/rpcgen ${_uudecode} \
     ${_xargs} usr.bin/xinstall ${_yacc} \
-    usr.sbin/config usr.sbin/kbdcontrol \
+    usr.sbin/config ${_kbdcontrol} \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
