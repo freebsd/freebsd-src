@@ -74,7 +74,7 @@ Lst_Next(Lst list)
 {
     LstNode	tln;
 
-    if ((Lst_Valid (list) == FALSE) || (list->isOpen == FALSE)) {
+    if ((Lst_Valid(list) == FALSE) || (list->isOpen == FALSE)) {
 	    return (NULL);
     }
 

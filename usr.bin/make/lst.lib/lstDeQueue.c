@@ -69,13 +69,13 @@ Lst_DeQueue(Lst l)
     void *	rd;
     LstNode	tln;
 
-    tln = Lst_First (l);
+    tln = Lst_First(l);
     if (tln == NULL) {
 	return (NULL);
     }
 
     rd = tln->datum;
-    if (Lst_Remove (l, tln) == FAILURE) {
+    if (Lst_Remove(l, tln) == FAILURE) {
 	return (NULL);
     } else {
 	return (rd);

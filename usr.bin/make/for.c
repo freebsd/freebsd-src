@@ -86,9 +86,6 @@ typedef struct _For {
 
 static int ForExec(void *, void *);
 
-
-
-
 /*-
  *-----------------------------------------------------------------------
  * For_Eval --
@@ -107,7 +104,7 @@ static int ForExec(void *, void *);
  *-----------------------------------------------------------------------
  */
 int
-For_Eval (char *line)
+For_Eval(char *line)
 {
     char	    *ptr = line, *sub, *wrd;
     int	    	    level;  	/* Level at which to report errors. */
@@ -119,53 +116,53 @@ For_Eval (char *line)
 	Buffer	    buf;
 	int	    varlen;
 
-	for (ptr++; *ptr && isspace((unsigned char) *ptr); ptr++)
+	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
 	    continue;
 	/*
 	 * If we are not in a for loop quickly determine if the statement is
 	 * a for.
 	 */
 	if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' ||
-	    !isspace((unsigned char) ptr[3]))
-	    return FALSE;
+	    !isspace((unsigned char)ptr[3]))
+	    return (FALSE);
 	ptr += 3;
 
 	/*
 	 * we found a for loop, and now we are going to parse it.
 	 */
-	while (*ptr && isspace((unsigned char) *ptr))
+	while (*ptr && isspace((unsigned char)*ptr))
 	    ptr++;
 
 	/*
 	 * Grab the variable
 	 */
 	buf = Buf_Init(0);
-	for (wrd = ptr; *ptr && !isspace((unsigned char) *ptr); ptr++)
+	for (wrd = ptr; *ptr && !isspace((unsigned char)*ptr); ptr++)
 	    continue;
-	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd);
+	Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd);
 
-	forVar = (char *) Buf_GetAll(buf, &varlen);
+	forVar = (char *)Buf_GetAll(buf, &varlen);
 	if (varlen == 0) {
-	    Parse_Error (level, "missing variable in for");
-	    return 0;
+	    Parse_Error(level, "missing variable in for");
+	    return (0);
 	}
 	Buf_Destroy(buf, FALSE);
 
-	while (*ptr && isspace((unsigned char) *ptr))
+	while (*ptr && isspace((unsigned char)*ptr))
 	    ptr++;
 
 	/*
 	 * Grab the `in'
 	 */
 	if (ptr[0] != 'i' || ptr[1] != 'n' ||
-	    !isspace((unsigned char) ptr[2])) {
-	    Parse_Error (level, "missing `in' in for");
+	    !isspace((unsigned char)ptr[2])) {
+	    Parse_Error(level, "missing `in' in for");
 	    printf("%s\n", ptr);
-	    return 0;
+	    return (0);
 	}
 	ptr += 3;
 
-	while (*ptr && isspace((unsigned char) *ptr))
+	while (*ptr && isspace((unsigned char)*ptr))
 	    ptr++;
 
 	/*
@@ -176,19 +173,19 @@ For_Eval (char *line)
 	sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
 
 #define	ADDWORD() \
-	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
-	Buf_AddByte(buf, (Byte) '\0'), \
-	Lst_AtFront(forLst, (void *) Buf_GetAll(buf, &varlen)), \
+	Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd), \
+	Buf_AddByte(buf, (Byte)'\0'), \
+	Lst_AtFront(forLst, (void *)Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
-	for (ptr = sub; *ptr && isspace((unsigned char) *ptr); ptr++)
+	for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
 	    continue;
 
 	for (wrd = ptr; *ptr; ptr++)
-	    if (isspace((unsigned char) *ptr)) {
+	    if (isspace((unsigned char)*ptr)) {
 		ADDWORD();
 		buf = Buf_Init(0);
-		while (*ptr && isspace((unsigned char) *ptr))
+		while (*ptr && isspace((unsigned char)*ptr))
 		    ptr++;
 		wrd = ptr--;
 	    }
@@ -201,35 +198,35 @@ For_Eval (char *line)
 
 	forBuf = Buf_Init(0);
 	forLevel++;
-	return 1;
+	return (1);
     }
     else if (*ptr == '.') {
 
-	for (ptr++; *ptr && isspace((unsigned char) *ptr); ptr++)
+	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
 	    continue;
 
 	if (strncmp(ptr, "endfor", 6) == 0 &&
-	    (isspace((unsigned char) ptr[6]) || !ptr[6])) {
+	    (isspace((unsigned char)ptr[6]) || !ptr[6])) {
 	    DEBUGF(FOR, ("For: end for %d\n", forLevel));
 	    if (--forLevel < 0) {
-		Parse_Error (level, "for-less endfor");
-		return 0;
+		Parse_Error(level, "for-less endfor");
+		return (0);
 	    }
 	}
 	else if (strncmp(ptr, "for", 3) == 0 &&
-		 isspace((unsigned char) ptr[3])) {
+		 isspace((unsigned char)ptr[3])) {
 	    forLevel++;
 	    DEBUGF(FOR, ("For: new loop %d\n", forLevel));
 	}
     }
 
     if (forLevel != 0) {
-	Buf_AddBytes(forBuf, strlen(line), (Byte *) line);
-	Buf_AddByte(forBuf, (Byte) '\n');
-	return 1;
+	Buf_AddBytes(forBuf, strlen(line), (Byte *)line);
+	Buf_AddByte(forBuf, (Byte)'\n');
+	return (1);
     }
     else {
-	return 0;
+	return (0);
     }
 }
 
@@ -254,14 +251,13 @@ ForExec(void *namep, void *argp)
     int len;
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
-    Parse_FromString(Var_Subst(arg->var, (char *) Buf_GetAll(arg->buf, &len),
+    Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, &len),
 			       VAR_GLOBAL, FALSE), arg->lineno);
     Var_Delete(arg->var, VAR_GLOBAL);
 
-    return 0;
+    return (0);
 }
 
-
 /*-
  *-----------------------------------------------------------------------
  * For_Run --
@@ -290,7 +286,7 @@ For_Run(int lineno)
     forBuf = NULL;
     forLst = NULL;
 
-    Lst_ForEach(arg.lst, ForExec, (void *) &arg);
+    Lst_ForEach(arg.lst, ForExec, (void *)&arg);
 
     free(arg.var);
     Lst_Destroy(arg.lst, free);

@@ -73,11 +73,11 @@ Lst_Duplicate(Lst list, DuplicateProc *copyProc)
     Lst 	nl;
     LstNode  	ln;
 
-    if (!Lst_Valid (list)) {
+    if (!Lst_Valid(list)) {
 	return (NULL);
     }
 
-    nl = Lst_Init (list->isCirc);
+    nl = Lst_Init(list->isCirc);
     if (nl == NULL) {
 	return (NULL);
     }
@@ -85,7 +85,7 @@ Lst_Duplicate(Lst list, DuplicateProc *copyProc)
     ln = list->firstPtr;
     while (ln != NULL) {
 	if (copyProc != NOCOPY) {
-	    if (Lst_AtEnd (nl, (*copyProc) (ln->datum)) == FAILURE) {
+	    if (Lst_AtEnd(nl, (*copyProc)(ln->datum)) == FAILURE) {
 		return (NULL);
 	    }
 	} else if (Lst_AtEnd (nl, ln->datum) == FAILURE) {

@@ -72,7 +72,7 @@ static void RebuildTable(Hash_Table *);
  *---------------------------------------------------------
  *
  * Hash_InitTable --
- * 
+ *
  * 	Set up the hash table t with a given number of buckets, or a
  * 	reasonable default if the number requested is less than or
  * 	equal to zero.  Hash tables will grow in size as needed.
@@ -234,13 +234,13 @@ Hash_CreateEntry(Hash_Table *t, char *key, Boolean *newPtr)
 	 */
 	if (t->numEntries >= rebuildLimit * t->size)
 		RebuildTable(t);
-	e = (Hash_Entry *) emalloc(sizeof(*e) + keylen);
+	e = (Hash_Entry *)emalloc(sizeof(*e) + keylen);
 	hp = &t->bucketPtr[h & t->mask];
 	e->next = *hp;
 	*hp = e;
 	e->clientData = NULL;
 	e->namehash = h;
-	(void) strcpy(e->name, p);
+	strcpy(e->name, p);
 	t->numEntries++;
 
 	if (newPtr != NULL)
@@ -281,7 +281,7 @@ Hash_DeleteEntry(Hash_Table *t, Hash_Entry *e)
 			return;
 		}
 	}
-	(void) write(STDERR_FILENO, "bad call to Hash_DeleteEntry\n", 29);
+	write(STDERR_FILENO, "bad call to Hash_DeleteEntry\n", 29);
 	abort();
 }
 
@@ -307,10 +307,11 @@ Hash_DeleteEntry(Hash_Table *t, Hash_Entry *e)
 Hash_Entry *
 Hash_EnumFirst(Hash_Table *t, Hash_Search *searchPtr)
 {
+
 	searchPtr->tablePtr = t;
 	searchPtr->nextIndex = 0;
 	searchPtr->hashEntryPtr = NULL;
-	return Hash_EnumNext(searchPtr);
+	return (Hash_EnumNext(searchPtr));
 }
 
 /*
@@ -388,7 +389,7 @@ RebuildTable(Hash_Table *t)
 	i <<= 1;
 	t->size = i;
 	t->mask = mask = i - 1;
-	t->bucketPtr = hp = (struct Hash_Entry **) emalloc(sizeof(*hp) * i);
+	t->bucketPtr = hp = (struct Hash_Entry **)emalloc(sizeof(*hp) * i);
 	while (--i >= 0)
 		*hp++ = NULL;
 	for (hp = oldhp, i = oldsize; --i >= 0;) {

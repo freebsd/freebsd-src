@@ -70,14 +70,14 @@ Lst_FindFrom(Lst l, LstNode ln, void *d, CompareProc *cProc)
     LstNode	tln;
     Boolean	found = FALSE;
 
-    if (!Lst_Valid (l) || Lst_IsEmpty (l) || !Lst_NodeValid (ln, l)) {
+    if (!Lst_Valid(l) || Lst_IsEmpty(l) || !Lst_NodeValid(ln, l)) {
 	return (NULL);
     }
 
     tln = ln;
 
     do {
-	if ((*cProc) (tln->datum, d) == 0) {
+	if ((*cProc)(tln->datum, d) == 0) {
 	    found = TRUE;
 	    break;
 	} else {

@@ -77,6 +77,6 @@ Boolean
 Lst_IsAtEnd(Lst list)
 {
 
-    return (!Lst_Valid (list) || !list->isOpen ||
+    return (!Lst_Valid(list) || !list->isOpen ||
 	    (list->atEnd == LstHead) || (list->atEnd == LstTail));
 }

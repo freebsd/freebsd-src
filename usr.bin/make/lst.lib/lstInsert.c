@@ -76,10 +76,10 @@ Lst_Insert(Lst list, LstNode ln, void *d)
     /*
      * check validity of arguments
      */
-    if (Lst_Valid (list) && (Lst_IsEmpty (list) && ln == NULL))
+    if (Lst_Valid(list) && (Lst_IsEmpty(list) && ln == NULL))
 	goto ok;
 
-    if (!Lst_Valid (list) || Lst_IsEmpty (list) || !Lst_NodeValid (ln, list)) {
+    if (!Lst_Valid(list) || Lst_IsEmpty(list) || !Lst_NodeValid(ln, list)) {
 	return (FAILURE);
     }
 
