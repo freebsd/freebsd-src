@@ -278,53 +278,6 @@ mmrw(dev, uio, flags)
 			error = uiomove(zbuf, (int)c, uio);
 			continue;
 
-#ifdef notyet
-/* 386 I/O address space (/dev/ioport[bwl]) is a read/write access to seperate
-   i/o device address bus, different than memory bus. Semantics here are
-   very different than ordinary read/write, as if iov_len is a multiple
-   an implied string move from a single port will be done. Note that lseek
-   must be used to set the port number reliably. */
-		case 14:
-			if (iov->iov_len == 1) {
-				u_char tmp;
-				tmp = inb(uio->uio_offset);
-				error = uiomove (&tmp, iov->iov_len, uio);
-			} else {
-				if (!useracc((caddr_t)iov->iov_base,
-					iov->iov_len, uio->uio_rw))
-					return (EFAULT);
-				insb(uio->uio_offset, iov->iov_base,
-					iov->iov_len);
-			}
-			break;
-		case 15:
-			if (iov->iov_len == sizeof (short)) {
-				u_short tmp;
-				tmp = inw(uio->uio_offset);
-				error = uiomove (&tmp, iov->iov_len, uio);
-			} else {
-				if (!useracc((caddr_t)iov->iov_base,
-					iov->iov_len, uio->uio_rw))
-					return (EFAULT);
-				insw(uio->uio_offset, iov->iov_base,
-					iov->iov_len/ sizeof (short));
-			}
-			break;
-		case 16:
-			if (iov->iov_len == sizeof (long)) {
-				u_long tmp;
-				tmp = inl(uio->uio_offset);
-				error = uiomove (&tmp, iov->iov_len, uio);
-			} else {
-				if (!useracc((caddr_t)iov->iov_base,
-					iov->iov_len, uio->uio_rw))
-					return (EFAULT);
-				insl(uio->uio_offset, iov->iov_base,
-					iov->iov_len/ sizeof (long));
-			}
-			break;
-#endif
-
 		default:
 			return (ENXIO);
 		}
