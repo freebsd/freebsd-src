@@ -11,6 +11,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <skey.h>
 
 #if (MAXHOSTNAMELEN < 64)		/* AIX weirdness */
 #undef MAXHOSTNAMELEN
@@ -20,7 +21,6 @@
 #define MAXHOSTNAMELEN 255
 #endif
 
-#include "skey.h"
 #include "pathnames.h"
 
 static int isaddr();

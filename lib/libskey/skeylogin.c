@@ -19,12 +19,12 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
-#include "skey.h"
+#include <skey.h>
 
 #define	KEYFILE	"/etc/skeykeys"
 
 char *skipspace();
-int skeylookup __ARGS((struct skey *mp,char *name));
+int skeylookup __P((struct skey *mp,char *name));
 
 #define setpriority(x,y,z)	/* nothing */
 

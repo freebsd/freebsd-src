@@ -4,7 +4,6 @@
 
 PROG=	keyinit
 MAN1=   keyinit.1
-CFLAGS+=-I${.CURDIR}/../../lib
 DPADD=	/usr/bin/libskey.a
 LDADD=	-lskey
 

@@ -8,8 +8,8 @@
 #include <fcntl.h>
 #include <termios.h>
 #endif
+#include <skey.h>
 #include "md4.h"
-#include "skey.h"
 
 #if (defined(__MSDOS__) || defined(MPU8086) || defined(MPU8080) \
  || defined(vax) || defined (MIPSEL))
