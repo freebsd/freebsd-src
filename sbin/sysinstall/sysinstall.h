@@ -12,7 +12,7 @@
  * its use.
  */
 
-#define TITLE	"FreeBSD 2.0-950408-SNAP Install"
+#define TITLE	"FreeBSD 2.0-950412-SNAP Install"
 
 #define MAX_NO_DISKS	10
 #define MAX_NO_FS	30
