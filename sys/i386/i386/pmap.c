@@ -213,11 +213,18 @@ int pmap_pagedaemon_waken;
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
+struct sysmaps {
+	struct	mtx lock;
+	pt_entry_t *CMAP1;
+	pt_entry_t *CMAP2;
+	caddr_t	CADDR1;
+	caddr_t	CADDR2;
+};
+static struct sysmaps sysmaps_pcpu[MAXCPU];
 pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP2, *CMAP3;
+static pt_entry_t *CMAP3;
 caddr_t CADDR1 = 0, ptvmmap = 0;
-static caddr_t CADDR2, CADDR3;
-static struct mtx CMAPCADDR12_lock;
+static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
 /*
@@ -307,6 +314,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
+	struct sysmaps *sysmaps;
 	int i;
 
 	/*
@@ -353,12 +361,15 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
 	 * CMAP3 is used for the idle process page zeroing.
 	 */
+	for (i = 0; i < MAXCPU; i++) {
+		sysmaps = &sysmaps_pcpu[i];
+		mtx_init(&sysmaps->lock, "SYSMAPS", NULL, MTX_DEF);
+		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
+		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
+	}
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 	*CMAP3 = 0;
-
-	mtx_init(&CMAPCADDR12_lock, "CMAPCADDR12", NULL, MTX_DEF);
 
 	/*
 	 * Crashdump maps.
@@ -385,7 +396,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	virtual_avail = va;
 
-	*CMAP1 = *CMAP2 = 0;
+	*CMAP1 = 0;
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
 
@@ -2432,17 +2443,19 @@ pagezero(void *page)
 void
 pmap_zero_page(vm_page_t m)
 {
+	struct sysmaps *sysmaps;
 
-	mtx_lock(&CMAPCADDR12_lock);
-	if (*CMAP2)
+	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+	mtx_lock(&sysmaps->lock);
+	if (*sysmaps->CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	sched_pin();
-	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
-	invlcaddr(CADDR2);
-	pagezero(CADDR2);
-	*CMAP2 = 0;
+	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
+	invlcaddr(sysmaps->CADDR2);
+	pagezero(sysmaps->CADDR2);
+	*sysmaps->CMAP2 = 0;
 	sched_unpin();
-	mtx_unlock(&CMAPCADDR12_lock);
+	mtx_unlock(&sysmaps->lock);
 }
 
 /*
@@ -2454,20 +2467,22 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
+	struct sysmaps *sysmaps;
 
-	mtx_lock(&CMAPCADDR12_lock);
-	if (*CMAP2)
+	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+	mtx_lock(&sysmaps->lock);
+	if (*sysmaps->CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	sched_pin();
-	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
-	invlcaddr(CADDR2);
+	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
+	invlcaddr(sysmaps->CADDR2);
 	if (off == 0 && size == PAGE_SIZE) 
-		pagezero(CADDR2);
+		pagezero(sysmaps->CADDR2);
 	else
-		bzero((char *)CADDR2 + off, size);
-	*CMAP2 = 0;
+		bzero((char *)sysmaps->CADDR2 + off, size);
+	*sysmaps->CMAP2 = 0;
 	sched_unpin();
-	mtx_unlock(&CMAPCADDR12_lock);
+	mtx_unlock(&sysmaps->lock);
 }
 
 /*
@@ -2499,26 +2514,28 @@ pmap_zero_page_idle(vm_page_t m)
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
+	struct sysmaps *sysmaps;
 
-	mtx_lock(&CMAPCADDR12_lock);
-	if (*CMAP1)
+	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+	mtx_lock(&sysmaps->lock);
+	if (*sysmaps->CMAP1)
 		panic("pmap_copy_page: CMAP1 busy");
-	if (*CMAP2)
+	if (*sysmaps->CMAP2)
 		panic("pmap_copy_page: CMAP2 busy");
 	sched_pin();
 #ifdef I386_CPU
 	invltlb();
 #else
-	invlpg((u_int)CADDR1);
-	invlpg((u_int)CADDR2);
+	invlpg((u_int)sysmaps->CADDR1);
+	invlpg((u_int)sysmaps->CADDR2);
 #endif
-	*CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
-	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
-	bcopy(CADDR1, CADDR2, PAGE_SIZE);
-	*CMAP1 = 0;
-	*CMAP2 = 0;
+	*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
+	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
+	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
+	*sysmaps->CMAP1 = 0;
+	*sysmaps->CMAP2 = 0;
 	sched_unpin();
-	mtx_unlock(&CMAPCADDR12_lock);
+	mtx_unlock(&sysmaps->lock);
 }
 
 /*
