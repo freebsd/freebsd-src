@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.7 1995/07/09 16:35:59 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.8 1995/07/18 21:33:53 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -67,6 +67,7 @@ freebsd-doc              Documentation project
 freebsd-fs               Filesystems
 freebsd-hackers          General Technical discussions
 freebsd-hardware         General discussion of FreeBSD hardware
+freebsd-multimedia       Multimedia discussions
 freebsd-platforms        Porting to Non-Intel platforms
 freebsd-ports            Discussion of "ports"
 freebsd-security         Security issues
@@ -235,6 +236,11 @@ concerning what to buy or avoid.
 <tag/FREEBSD-INSTALL/ <em>Installation discussion</em><newline> 
 This is the mailing list for people discussing FreeBSD installation
 development for the 2.0 release.
+
+<tag/FREEBSD-MULTIMEDIA/ <em>Multimedia discussions</em><newline>
+This is a forum about multimedia applications using FreeBSD.
+Discussion center around multimedia applications, their installation, their
+development and their support within FreeBSD
 
 <tag/FREEBSD-PLATFORMS/ <em>Porting to Non-Intel
 platforms</em><newline> Cross-platform freebsd issues, general
