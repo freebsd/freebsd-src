@@ -34,7 +34,7 @@
 #include <sys/systm.h> 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -68,7 +68,7 @@ static struct cdevsw ardisk_cdevsw;
 
 /* prototypes */
 static void ar_attach(struct ar_softc *);
-static void ar_done(struct bio *);
+static void ar_done(struct buf *);
 static int ar_highpoint_conf(struct ad_softc *, struct ar_config *);
 static int32_t ar_promise_magic(struct promise_raid_conf *);
 static int ar_promise_conf(struct ad_softc *, struct ar_config *);
@@ -167,23 +167,23 @@ aropen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static void
-arstrategy(struct bio *bp)
+arstrategy(struct buf *bp)
 {
-    struct ar_softc *rdp = bp->bio_dev->si_drv1;
+    struct ar_softc *rdp = bp->b_dev->si_drv1;
     int lba, count, chunk;
     caddr_t data;
 
     /* if it's a null transfer, return immediatly. */
-    if (bp->bio_bcount == 0) {
-	bp->bio_resid = 0;
+    if (bp->b_bcount == 0) {
+	bp->b_resid = 0;
 	biodone(bp);
 	return;
     }
 
-    bp->bio_resid = bp->bio_bcount;
-    lba = bp->bio_pblkno;
-    data = bp->bio_data;
-    for (count = howmany(bp->bio_bcount, DEV_BSIZE); count > 0; 
+    bp->b_resid = bp->b_bcount;
+    lba = bp->b_pblkno;
+    data = bp->b_data;
+    for (count = howmany(bp->b_bcount, DEV_BSIZE); count > 0; 
 	 count -= chunk, lba += chunk, data += (chunk * DEV_BSIZE)) {
 	struct ar_buf *buf1, *buf2;
 	int plba;
@@ -195,7 +195,7 @@ arstrategy(struct bio *bp)
 	    while (plba >= (rdp->subdisk[buf1->drive]->total_secs-rdp->reserved)
 		   && buf1->drive < rdp->num_subdisks)
 		plba-=(rdp->subdisk[buf1->drive++]->total_secs-rdp->reserved);
-	    buf1->bp.bio_pblkno = plba;
+	    buf1->bp.b_pblkno = plba;
 	    chunk = min(rdp->subdisk[buf1->drive]->total_secs - 
 		        rdp->reserved - plba, count);
 	}
@@ -203,91 +203,90 @@ arstrategy(struct bio *bp)
 	    plba = lba / rdp->interleave;
 	    chunk = lba % rdp->interleave;
 	    buf1->drive = plba % rdp->num_subdisks;
-	    buf1->bp.bio_pblkno = 
+	    buf1->bp.b_pblkno = 
 		((plba / rdp->num_subdisks) * rdp->interleave) + chunk;
 	    chunk = min(rdp->interleave - chunk, count);
 	}
 	else {
-	    buf1->bp.bio_pblkno = lba;
+	    buf1->bp.b_pblkno = lba;
 	    buf1->drive = 0;
 	    chunk = count;
 	}
 
-	buf1->bp.bio_pblkno += rdp->offset;
-	buf1->bp.bio_caller1 = (void *)rdp;
-	buf1->bp.bio_bcount = chunk * DEV_BSIZE;
-	buf1->bp.bio_data = data;
-	buf1->bp.bio_cmd = bp->bio_cmd;
-	buf1->bp.bio_flags = bp->bio_flags;
-	buf1->bp.bio_done = ar_done;
+	buf1->bp.b_pblkno += rdp->offset;
+	buf1->bp.b_caller1 = (void *)rdp;
+	buf1->bp.b_bcount = chunk * DEV_BSIZE;
+	buf1->bp.b_data = data;
+	buf1->bp.b_flags = bp->b_flags | B_CALL;
+	buf1->bp.b_iodone = ar_done;
 	buf1->org = bp;
 
 	/* simpleminded load balancing on RAID1 arrays */
-	if (rdp->flags & AR_F_RAID_1 && bp->bio_cmd == BIO_READ) {
-	    if (buf1->bp.bio_pblkno < 
+	if (rdp->flags & AR_F_RAID_1 && bp->b_flags & B_READ) {
+	    if (buf1->bp.b_pblkno < 
 		(rdp->last_lba[buf1->drive][rdp->last_disk] - 100) ||
-		buf1->bp.bio_pblkno > 
+		buf1->bp.b_pblkno > 
 		(rdp->last_lba[buf1->drive][rdp->last_disk] + 100)) {
 		rdp->last_disk = 1 - rdp->last_disk;
 		rdp->last_lba[buf1->drive][rdp->last_disk] = 
-		    buf1->bp.bio_pblkno;
+		    buf1->bp.b_pblkno;
 	    }
 	    if (rdp->last_disk)
-	    	buf1->bp.bio_dev = rdp->mirrordisk[buf1->drive]->dev;
+	    	buf1->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev1;
 	    else
-	    	buf1->bp.bio_dev = rdp->subdisk[buf1->drive]->dev;
+	    	buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev1;
 	}
 	else
-	    buf1->bp.bio_dev = rdp->subdisk[buf1->drive]->dev;
+	    buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev1;
 
-	if (rdp->flags & AR_F_RAID_1 && bp->bio_cmd == BIO_WRITE) {
+	if (rdp->flags & AR_F_RAID_1 && !(bp->b_flags & B_READ)) {
 	    buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
 	    bcopy(buf1, buf2, sizeof(struct ar_buf));
-	    buf2->bp.bio_dev = rdp->mirrordisk[buf1->drive]->dev;
+	    buf2->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev1;
 	    buf2->mirror = buf1;
 	    buf1->mirror = buf2;
-	    buf2->bp.bio_dev->si_disk->d_devsw->d_strategy((struct bio *)buf2);
+	    buf2->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf2);
 	}
-	buf1->bp.bio_dev->si_disk->d_devsw->d_strategy((struct bio *)buf1);
+	buf1->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf1);
     }
 }
 
 static void
-ar_done(struct bio *bp)
+ar_done(struct buf *bp)
 {
-    struct ar_softc *rdp = (struct ar_softc *)bp->bio_caller1;
+    struct ar_softc *rdp = (struct ar_softc *)bp->b_caller1;
     struct ar_buf *buf = (struct ar_buf *)bp;
     int s;
 
     s = splbio();
 
-    if (bp->bio_flags & BIO_ERROR) {
-	if (bp->bio_cmd == BIO_WRITE || buf->done || !(rdp->flags&AR_F_RAID_1)){
-	    buf->org->bio_flags |= BIO_ERROR;
-	    buf->org->bio_error = bp->bio_error;
+    if (bp->b_flags & B_ERROR) {
+	if (!(bp->b_flags & B_READ) || buf->done || !(rdp->flags&AR_F_RAID_1)) {
+	    buf->org->b_flags |= B_ERROR;
+	    buf->org->b_error = bp->b_error;
 	}
 	printf("ar%d: subdisk error\n", rdp->lun);
     }
 
     if (rdp->flags & AR_F_RAID_1) {
-	if (bp->bio_cmd == BIO_WRITE) {
+	if (!(bp->b_flags & B_READ)) {
 	    if (!buf->done) {
 		buf->mirror->done = 1;
 		goto done;
 	    }
 	}
 	else {
-	    if (!buf->done && bp->bio_flags & BIO_ERROR) {
+	    if (!buf->done && bp->b_flags & B_ERROR) {
 		/* read error on this disk, try mirror */
 		buf->done = 1;
-	    	buf->bp.bio_dev = rdp->mirrordisk[buf->drive]->dev;
-	    	buf->bp.bio_dev->si_disk->d_devsw->d_strategy((struct bio*)buf);
+	    	buf->bp.b_dev = rdp->mirrordisk[buf->drive]->dev1;
+	    	buf->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf);
 		return;
 	    }
 	}
     }
-    buf->org->bio_resid -= bp->bio_bcount;
-    if (buf->org->bio_resid == 0)
+    buf->org->b_resid -= bp->b_bcount;
+    if (buf->org->b_resid == 0)
 	biodone(buf->org);
 done:
     free(buf, M_AR);

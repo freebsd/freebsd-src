@@ -63,8 +63,8 @@ struct ar_config {
 };
 
 struct ar_buf {
-    struct bio bp;
-    struct bio *org;
+    struct buf bp;
+    struct buf *org;
     int drive;
     struct ar_buf *mirror;
     int done;
