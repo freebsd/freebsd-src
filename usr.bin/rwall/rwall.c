@@ -40,7 +40,7 @@ char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";*/
-static char rcsid[] = "$Id: rwall.c,v 1.1.1.1 1994/08/28 15:11:02 csgr Exp $";
+static char rcsid[] = "$Id: rwall.c,v 1.2 1995/05/30 06:33:30 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -71,6 +71,7 @@ main(argc, argv)
 {
 	char *wallhost, res;
 	CLIENT *cl;
+	struct timeval tv;
 
 	if ((argc < 2) || (argc > 3)) {
 		fprintf(stderr, "usage: %s hostname [file]\n", argv[0]);
@@ -96,7 +97,9 @@ main(argc, argv)
 		exit(1);
 	}
 
-	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void, &res, NULL) != RPC_SUCCESS) {
+	tv.tv_sec = 15;		/* XXX ?? */
+	tv.tv_usec = 0;
+	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void, &res, tv) != RPC_SUCCESS) {
 		/*
 		 * An error occurred while calling the server.
 		 * Print error message and die.
