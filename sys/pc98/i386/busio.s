@@ -713,6 +713,9 @@ ENTRY(SBUS_DA_mem_space_copy_region_4)
 #define	BUS_ACCESS_ADDR(BSHREG,ADDRREG)	\
 	movl BUS_SPACE_HANDLE_IAT/**/(%/**/BSHREG/**/, %/**/ADDRREG/**/, 4), \
 	     %/**/ADDRREG
+#define	BUS_ACCESS_ADDR2(BSHREG,ADDRREG,DSTREG)	\
+	movl BUS_SPACE_HANDLE_IAT/**/(%/**/BSHREG/**/, %/**/ADDRREG/**/, 4), \
+	     %/**/DSTREG
 /* 
  *	read_N 
  *	IN:  edx port
@@ -814,50 +817,59 @@ ENTRY(SBUS_RA_io_space_write_multi_4)
  *	    edi BUFP
  */
 ENTRY(SBUS_RA_io_space_read_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%esi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%esi
 1:
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inb	%dx,%al
 	stosb
-	incl	%edx
+	incl	%esi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%esi
 	popl	%eax
 	ret
 
 ENTRY(SBUS_RA_io_space_read_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%esi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%esi
 1:
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inw	%dx,%ax
 	stosw
-	addl	$2,%edx
+	addl	$2,%esi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%esi
 	popl	%eax
 	ret
 
 ENTRY(SBUS_RA_io_space_read_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%esi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%esi
 1:
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inl	%dx,%eax
 	stosl
-	addl	$4,%edx
+	addl	$4,%esi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%esi
 	popl	%eax
 	ret
 
@@ -868,50 +880,59 @@ ENTRY(SBUS_RA_io_space_read_region_4)
  *	    esi BUFP
  */
 ENTRY(SBUS_RA_io_space_write_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	lodsb
 	outb	%al,%dx
-	incl	%edx
+	incl	%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	popl	%eax
 	ret	
 
 ENTRY(SBUS_RA_io_space_write_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	lodsw
 	outw	%ax,%dx
-	addl	$2,%edx
+	addl	$2,%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	popl	%eax
 	ret	
 
 ENTRY(SBUS_RA_io_space_write_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%eax
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	lodsl
 	outl	%eax,%dx
-	addl	$4,%edx
+	addl	$4,%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	popl	%eax
 	ret	
 
@@ -961,39 +982,48 @@ ENTRY(SBUS_RA_io_space_set_multi_4)
  *	    edx PORT
  */
 ENTRY(SBUS_RA_io_space_set_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outb	%al,%dx
-	incl	%edx
+	incl	%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_io_space_set_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outw	%ax,%dx
-	addl	$2,%edx
+	addl	$2,%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_io_space_set_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
+	pushl	%edi
 	orl	%ecx,%ecx
 	jz	2f
+	movl	%edx,%edi
 1:
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outl	%eax,%dx
-	addl	$4,%edx
+	addl	$4,%edi
 	decl	%ecx
 	jnz	1b
 2:
+	popl	%edi
 	ret
 
 /*
@@ -1003,18 +1033,16 @@ ENTRY(SBUS_RA_io_space_set_region_4)
  *	    edi	DPORT
  */
 ENTRY(SBUS_RA_io_space_copy_region_1)
-	BUS_ACCESS_ADDR(eax,esi)
-	BUS_ACCESS_ADDR(ebx,edi)
 	pushl	%eax
 	pushl	%edx
 	orl	%ecx,%ecx
 	jz	2f
 1:
-	movl	%esi,%edx
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inb	%dx,%al
 	incl	%esi
 
-	movl	%edi,%edx
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outb	%al,%dx
 	incl	%edi
 
@@ -1026,18 +1054,16 @@ ENTRY(SBUS_RA_io_space_copy_region_1)
 	ret
 
 ENTRY(SBUS_RA_io_space_copy_region_2)
-	BUS_ACCESS_ADDR(eax,esi)
-	BUS_ACCESS_ADDR(ebx,edi)
 	pushl	%eax
 	pushl	%edx
 	orl	%ecx,%ecx
 	jz	2f
 1:
-	movl	%esi,%edx
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inw	%dx,%ax
 	addl	$2,%esi
 
-	movl	%edi,%edx
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outw	%ax,%dx
 	addl	$2,%edi
 
@@ -1049,18 +1075,16 @@ ENTRY(SBUS_RA_io_space_copy_region_2)
 	ret
 
 ENTRY(SBUS_RA_io_space_copy_region_4)
-	BUS_ACCESS_ADDR(eax,esi)
-	BUS_ACCESS_ADDR(ebx,edi)
 	pushl	%eax
 	pushl	%edx
 	orl	%ecx,%ecx
 	jz	2f
 1:
-	movl	%esi,%edx
+	BUS_ACCESS_ADDR2(ebx,esi,edx)
 	inl	%dx,%eax
 	addl	$4,%esi
 
-	movl	%edi,%edx
+	BUS_ACCESS_ADDR2(ebx,edi,edx)
 	outl	%eax,%dx
 	addl	$4,%edi
 
@@ -1210,32 +1234,47 @@ ENTRY(SBUS_RA_mem_space_write_multi_4)
  *	read_region_N
  */
 ENTRY(SBUS_RA_mem_space_read_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%esi
-	movl	%edx,%esi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,esi)
 	movsb
+	incl	%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%esi
 	ret
 
 ENTRY(SBUS_RA_mem_space_read_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%esi
-	movl	%edx,%esi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,esi)
 	movsw
+	addl	$2,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%esi
 	ret
 
 ENTRY(SBUS_RA_mem_space_read_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%esi
-	movl	%edx,%esi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,esi)
 	movsl
+	addl	$4,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%esi
 	ret
 
@@ -1243,32 +1282,47 @@ ENTRY(SBUS_RA_mem_space_read_region_4)
  *	write_region_N
  */
 ENTRY(SBUS_RA_mem_space_write_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	movsb
+	incl	%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_mem_space_write_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	movsw
+	addl	$2,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_mem_space_write_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	movsl
+	addl	$4,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
@@ -1312,32 +1366,47 @@ ENTRY(SBUS_RA_mem_space_set_multi_4)
  *	set_region_N
  */
 ENTRY(SBUS_RA_mem_space_set_region_1)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	stosb
+	incl	%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_mem_space_set_region_2)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	stosw
+	addl	$2,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
 ENTRY(SBUS_RA_mem_space_set_region_4)
-	BUS_ACCESS_ADDR(ebx,edx)
 	cld
 	pushl	%edi
-	movl	%edx,%edi
-	rep
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	BUS_ACCESS_ADDR2(ebx,edx,edi)
 	stosl
+	addl	$4,%edx
+	decl	%ecx
+	jnz	1b
+2:
 	popl	%edi
 	ret
 
@@ -1345,30 +1414,64 @@ ENTRY(SBUS_RA_mem_space_set_region_4)
  *	copy_region_N
  */
 ENTRY(SBUS_RA_mem_space_copy_region_1)
+	cld
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	pushl	%esi
+	pushl	%edi
 	BUS_ACCESS_ADDR(eax,esi)
 	BUS_ACCESS_ADDR(ebx,edi)
-	cld
-	rep
 	movsb
+	popl	%edi
+	popl	%esi
+	incl	%esi
+	incl	%edi
+	decl	%ecx
+	jnz	1b
+2:
 	ret
-
+	
 ENTRY(SBUS_RA_mem_space_copy_region_2)
+	cld
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	pushl	%esi
+	pushl	%edi
 	BUS_ACCESS_ADDR(eax,esi)
 	BUS_ACCESS_ADDR(ebx,edi)
-	cld
-	rep
 	movsw
+	popl	%edi
+	popl	%esi
+	addl	$2,%esi
+	addl	$2,%edi
+	decl	%ecx
+	jnz	1b
+2:
 	ret
 
 ENTRY(SBUS_RA_mem_space_copy_region_4)
+	cld
+	orl	%ecx,%ecx
+	jz	2f
+1:
+	pushl	%esi
+	pushl	%edi
 	BUS_ACCESS_ADDR(eax,esi)
 	BUS_ACCESS_ADDR(ebx,edi)
-	cld
-	rep
 	movsl
+	popl	%edi
+	popl	%esi
+	addl	$4,%esi
+	addl	$4,%edi
+	decl	%ecx
+	jnz	1b
+2:
 	ret
 
 #undef	BUS_ACCESS_ADDR
+#undef	BUS_ACCESS_ADDR2
 
 
 #include "opt_mecia.h"
