@@ -6,11 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: sysctlbyname.c,v 1.1 1997/05/30 20:53:13 phk Exp $
+ * $Id: sysctlbyname.c,v 1.2 1997/07/12 11:14:30 peter Exp $
  *
  */
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <string.h>
 
 int
 sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp,
@@ -18,7 +19,8 @@ sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp,
 {
 	int name2oid_oid[2];
 	int real_oid[CTL_MAXNAME+2];
-	int error, oidlen;
+	int error;
+	size_t oidlen;
 
 	name2oid_oid[0] = 0;	/* This is magic & undocumented! */
 	name2oid_oid[1] = 3;
