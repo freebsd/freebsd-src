@@ -223,9 +223,9 @@ char STR_IDIS[] = "!(fl & 0x200)";
 extern char STR_IEN[];
 extern char STR_IDIS[];
 #endif	/* MTX_STRS */
-#define	ASS_IEN		MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)	\
+#define	ASS_IEN		MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
 			       == ALPHA_PSL_IPL_HIGH, STR_IEN)
-#define	ASS_IDIS	MPASS2((alpha_pal_rdps & ALPHA_PSL_IPL_MASK)	\
+#define	ASS_IDIS	MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
 			       != ALPHA_PSL_IPL_HIGH, STR_IDIS)
 #endif	/* INVARIANTS */
 
@@ -326,7 +326,7 @@ void	witness_restore(mtx_t *, const char *, int);
  */
 
 #define	_getlock_spin_block(mp, tid, type) do {				\
-	u_int _ipl = alpha_pal_rdps() & ALPHA_PSL_IPL_MASK;		\
+	u_int _ipl = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);		\
 	if (atomic_cmpset_64(&(mp)->mtx_lock, MTX_UNOWNED, (tid)) == 0) \
 		mtx_enter_hard(mp, (type) & MTX_HARDOPTS, _ipl);	\
 	else {								\
@@ -542,8 +542,8 @@ _mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
  * Simple assembly macros to get and release non-recursive spin locks
  */
 #define MTX_ENTER(lck)				\
-	call_pal PAL_OSF1_rdps;			\
-	and	v0, ALPHA_PSL_IPL_MASK, v0;	\
+	ldiq	a0, ALPHA_PSL_IPL_HIGH;		\
+	call_pal PAL_OSF1_swpipl;		\
 1:	ldq_l	a0, lck+MTX_LOCK;		\
 	cmpeq	a0, MTX_UNOWNED, a1;		\
 	beq	a1, 1b;				\
@@ -551,9 +551,7 @@ _mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
 	stq_c	a0, lck+MTX_LOCK;		\
 	beq	a0, 1b;				\
 	mb;					\
-	stl	v0, lck+MTX_SAVEIPL;		\
-	ldq	a0, ALPHA_PSL_IPL_HIGH;		\
-	call_pal PSL_OSF1_swpipl
+	stl	v0, lck+MTX_SAVEIPL
 
 #define MTX_EXIT(lck)				\
 	mb;					\
