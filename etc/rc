@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.22 1997/09/13 09:30:58 brian Exp $
+#	$Id: rc,v 1.104.2.23 1997/09/13 21:08:29 brian Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -134,13 +134,10 @@ rm -rf /var/spool/uucp/.Temp/*
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 # enable dumpdev so that savecore can see it
-if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} ]; then
-	dumpon ${dumpdev}
-fi
-
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ "X${savecore_enable}" = X"YES" -a -d /var/crash ]; then
+if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
+	dumpon ${dumpdev}
 	echo -n checking for core dump...
 	savecore /var/crash
 fi
