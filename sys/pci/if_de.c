@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.70 1997/09/20 02:29:56 peter Exp $
+ * $Id: if_de.c,v 1.54.2.7 1997/10/10 04:17:03 peter Exp $
  *
  */
 
@@ -77,6 +77,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -4189,6 +4194,22 @@ tulip_ifioctl(
 		    break;
 		}
 #endif /* INET */
+
+#ifdef IPX
+		case AF_IPX: {
+		    struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+		    if (ipx_nullhost(*ina)) {
+			ina->x_host = *(union ipx_host *)(sc->tulip_enaddr);
+		    } else {
+			ifp->if_flags &= ~IFF_RUNNING;
+			bcopy((caddr_t)ina->x_host.c_host,
+			      (caddr_t)sc->tulip_enaddr,
+			      sizeof(sc->tulip_enaddr));
+		    }
+		    tulip_init(sc);
+		    break;
+		}
+#endif /* IPX */
 
 #ifdef NS
 		/*
