@@ -38,8 +38,6 @@
  * for Intersil Prism2" by Jouni Malinen <jkm@ssh.com> or <jkmaline@cc.hut.fi>.
  */
 
-#ifdef WI_HOSTAP
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -77,9 +75,7 @@
 #include <netinet/if_ether.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
-#ifdef WI_HOSTAP
 #include <dev/wi/wi_hostap.h>
-#endif
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
 
@@ -1185,5 +1181,3 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 
 	return(error);
 }
-
-#endif /* WI_HOSTAP */
