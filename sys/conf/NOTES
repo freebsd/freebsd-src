@@ -1210,8 +1210,11 @@ options 	AHC_TMODE_ENABLE
 options		AHD_DEBUG
 
 # Aic79xx driver debugging options.   
-# See sys/dev/aic79xx/aic79xx.h
+# See the ahd(4) manpage
 options		AHD_DEBUG_OPTS=0xFFFFFFFF
+
+# Print human-readable register definitions when debugging
+options		AHD_REG_PRETTY_PRINT
 
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
