@@ -1825,15 +1825,15 @@ ohci_dump_td(ohci_soft_td_t *std)
 			 "\20\23R\24OUT\25IN\31TOG1\32SETTOGGLE",
 			 sbuf, sizeof(sbuf));
 
-	DPRINTF(("TD(%p) at %08lx: %s delay=%d ec=%d cc=%d\ncbp=0x%08lx "
-		 "nexttd=0x%08lx be=0x%08lx\n",
-		 std, (u_long)std->physaddr, sbuf,
-		 OHCI_TD_GET_DI(le32toh(std->td.td_flags)),
-		 OHCI_TD_GET_EC(le32toh(std->td.td_flags)),
-		 OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
-		 (u_long)le32toh(std->td.td_cbp),
-		 (u_long)le32toh(std->td.td_nexttd),
-		 (u_long)le32toh(std->td.td_be)));
+	printf("TD(%p) at %08lx: %s delay=%d ec=%d cc=%d\ncbp=0x%08lx "
+	       "nexttd=0x%08lx be=0x%08lx\n", 
+	       std, (u_long)std->physaddr, sbuf,
+	       OHCI_TD_GET_DI(le32toh(std->td.td_flags)),
+	       OHCI_TD_GET_EC(le32toh(std->td.td_flags)),
+	       OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
+	       (u_long)le32toh(std->td.td_cbp),
+	       (u_long)le32toh(std->td.td_nexttd),
+	       (u_long)le32toh(std->td.td_be));
 }
 
 void
@@ -1841,20 +1841,20 @@ ohci_dump_itd(ohci_soft_itd_t *sitd)
 {
 	int i;
 
-	DPRINTF(("ITD(%p) at %08lx: sf=%d di=%d fc=%d cc=%d\n"
-		 "bp0=0x%08lx next=0x%08lx be=0x%08lx\n", 
-		 sitd, (u_long)sitd->physaddr,
-		 OHCI_ITD_GET_SF(le32toh(sitd->itd.itd_flags)),
-		 OHCI_ITD_GET_DI(le32toh(sitd->itd.itd_flags)),
-		 OHCI_ITD_GET_FC(le32toh(sitd->itd.itd_flags)),
-		 OHCI_ITD_GET_CC(le32toh(sitd->itd.itd_flags)),
-		 (u_long)le32toh(sitd->itd.itd_bp0),
-		 (u_long)le32toh(sitd->itd.itd_nextitd),
-		 (u_long)le32toh(sitd->itd.itd_be)));
+	printf("ITD(%p) at %08lx: sf=%d di=%d fc=%d cc=%d\n"
+	       "bp0=0x%08lx next=0x%08lx be=0x%08lx\n", 
+	       sitd, (u_long)sitd->physaddr,
+	       OHCI_ITD_GET_SF(le32toh(sitd->itd.itd_flags)),
+	       OHCI_ITD_GET_DI(le32toh(sitd->itd.itd_flags)),
+	       OHCI_ITD_GET_FC(le32toh(sitd->itd.itd_flags)),
+	       OHCI_ITD_GET_CC(le32toh(sitd->itd.itd_flags)),
+	       (u_long)le32toh(sitd->itd.itd_bp0),
+	       (u_long)le32toh(sitd->itd.itd_nextitd),
+	       (u_long)le32toh(sitd->itd.itd_be));
 	for (i = 0; i < OHCI_ITD_NOFFSET; i++)
-		DPRINTF(("offs[%d]=0x%04x ", i,
-			 (u_int)le16toh(sitd->itd.itd_offset[i])));
-	DPRINTF(("\n"));
+		printf("offs[%d]=0x%04x ", i,
+		       (u_int)le16toh(sitd->itd.itd_offset[i]));
+	printf("\n");
 }
 
 void
@@ -1875,7 +1875,7 @@ ohci_dump_ed(ohci_soft_ed_t *sed)
 	bitmask_snprintf((int)le32toh(sed->ed.ed_headp),
 			 "\20\1HALT\2CARRY", sbuf2, sizeof(sbuf2));
 
-	DPRINTF(("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d flags=%s\ntailp=0x%08lx "
+	printf("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d flags=%s\ntailp=0x%08lx "
 		 "headflags=%s headp=0x%08lx nexted=0x%08lx\n",
 
 		 sed, (u_long)sed->physaddr,
@@ -1884,7 +1884,7 @@ ohci_dump_ed(ohci_soft_ed_t *sed)
 		 OHCI_ED_GET_MAXP(le32toh(sed->ed.ed_flags)), sbuf,
 		 (u_long)le32toh(sed->ed.ed_tailp), sbuf2,
 		 (u_long)le32toh(sed->ed.ed_headp),
-		 (u_long)le32toh(sed->ed.ed_nexted)));
+		 (u_long)le32toh(sed->ed.ed_nexted));
 }
 #endif
 
@@ -2025,6 +2025,9 @@ ohci_close_pipe(usbd_pipe_handle pipe, ohci_soft_ed_t *head)
 		       (int)le32toh(sed->ed.ed_headp),
 		       (int)le32toh(sed->ed.ed_tailp),
 		       pipe, std);
+#ifdef USB_DEBUG
+		usbd_dump_pipe(&opipe->pipe);
+#endif
 #ifdef OHCI_DEBUG
 		ohci_dump_ed(sed);
 		if (std)
@@ -2086,7 +2089,9 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	 * has run.
 	 */
 	usb_delay_ms(opipe->pipe.device->bus, 1); /* Hardware finishes in 1ms */
-	usb_delay_ms(opipe->pipe.device->bus, 50); /* XXX software finish */
+	/* XXX should have some communication with softintr() to know
+	   when it's done */
+	usb_delay_ms(opipe->pipe.device->bus, 250);
 		
 	/* 
 	 * Step 3: Remove any vestiges of the xfer from the hardware.
