@@ -1084,8 +1084,8 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 			 */
 			if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
 			    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
-			    p1->p_cred->p_ruid != p2->p_ucred->cr_uid &&
-			    p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
+			    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
+			    p1->p_ucred->cr_uid != p2->p_cred->p_svuid) {
 				/* Not permitted, try privilege. */
 				error = suser_xxx(NULL, p1, PRISON_ROOT);
 				if (error)
@@ -1106,9 +1106,7 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 		if (p1->p_cred->p_ruid != p2->p_cred->p_ruid &&
 		    p1->p_cred->p_ruid != p2->p_cred->p_svuid &&
 		    p1->p_ucred->cr_uid != p2->p_cred->p_ruid &&
-		    p1->p_ucred->cr_uid != p2->p_cred->p_svuid &&
-		    p1->p_cred->p_ruid != p2->p_ucred->cr_uid &&
-		    p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) {
+		    p1->p_ucred->cr_uid != p2->p_cred->p_svuid) {
 			/* Not permitted, try privilege. */
 			error = suser_xxx(NULL, p1, PRISON_ROOT);
 			if (error)
