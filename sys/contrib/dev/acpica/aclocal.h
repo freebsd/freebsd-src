@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 167 $
+ *       $Revision: 173 $
  *
  *****************************************************************************/
 
@@ -123,10 +123,6 @@
 typedef void*                           ACPI_MUTEX;
 typedef UINT32                          ACPI_MUTEX_HANDLE;
 
-
-#define ACPI_MEMORY_MODE                0x01
-#define ACPI_LOGICAL_ADDRESSING         0x00
-#define ACPI_PHYSICAL_ADDRESSING        0x01
 
 /* Total number of aml opcodes defined */
 
@@ -663,8 +659,8 @@ ACPI_STATUS (*ACPI_EXECUTE_OP) (
  */
 typedef struct acpi_opcode_info
 {
-#ifdef _OPCODE_NAMES
-    NATIVE_CHAR             *Name;          /* Opcode name (debug only) */
+#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUG)
+    NATIVE_CHAR             *Name;          /* Opcode name (disassembler/debug only) */
 #endif
     UINT32                  ParseArgs;      /* Grammar/Parse time arguments */
     UINT32                  RuntimeArgs;    /* Interpret time arguments */
@@ -699,15 +695,23 @@ typedef union acpi_parse_val
     UINT32                  AmlOffset;      /* offset of declaration in AML */\
     union acpi_parse_obj    *Parent;        /* parent op */\
     union acpi_parse_obj    *Next;          /* next op */\
-    ACPI_DEBUG_ONLY_MEMBERS (\
+    ACPI_DISASM_ONLY_MEMBERS (\
+    UINT8                   DisasmFlags;    /* Used during AML disassembly */\
+    UINT8                   DisasmOpcode;   /* Subtype used for disassembly */\
     NATIVE_CHAR             AmlOpName[16])  /* op name (debug only) */\
                                             /* NON-DEBUG members below: */\
     ACPI_NAMESPACE_NODE     *Node;          /* for use by interpreter */\
     ACPI_PARSE_VALUE        Value;          /* Value or args associated with the opcode */\
 
+#define ACPI_DASM_BUFFER        0x00
+#define ACPI_DASM_RESOURCE      0x01
+#define ACPI_DASM_STRING        0x02
+#define ACPI_DASM_UNICODE       0x03
+#define ACPI_DASM_EISAID        0x04
+#define ACPI_DASM_MATCHOP       0x05
 
 /*
- * generic operation (eg. If, While, Store)
+ * generic operation (for example:  If, While, Store)
  */
 typedef struct acpi_parseobj_common
 {
@@ -722,6 +726,7 @@ typedef struct acpi_parseobj_common
 typedef struct acpi_parseobj_named
 {
     ACPI_PARSE_COMMON
+    UINT8                   *Path;
     UINT8                   *Data;          /* AML body or bytelist data */
     UINT32                  Length;         /* AML length */
     UINT32                  Name;           /* 4-byte name or zero if no name */
@@ -749,15 +754,15 @@ typedef struct acpi_parseobj_asl
     UINT32                      LogicalByteOffset;
     UINT32                      EndLine;
     UINT32                      EndLogicalLine;
-    UINT16                      ParseOpcode;
     UINT32                      AcpiBtype;
     UINT32                      AmlLength;
     UINT32                      AmlSubtreeLength;
     UINT32                      FinalAmlLength;
     UINT32                      FinalAmlOffset;
+    UINT16                      ParseOpcode;
+    UINT16                      CompileFlags;
     UINT8                       AmlOpcodeLength;
     UINT8                       AmlPkgLenBytes;
-    UINT16                      CompileFlags;
     UINT8                       Extra;
     char                        ParseOpName[12];
 
@@ -801,6 +806,13 @@ typedef struct acpi_parse_state
 #define ACPI_PARSEOP_DEFERRED                   0x04
 #define ACPI_PARSEOP_BYTELIST                   0x08
 #define ACPI_PARSEOP_IN_CACHE                   0x80
+
+/* Parse object DisasmFlags */
+
+#define ACPI_PARSEOP_IGNORE                     0x01
+#define ACPI_PARSEOP_PARAMLIST                  0x02
+#define ACPI_PARSEOP_EMPTY_TERMLIST             0x04
+#define ACPI_PARSEOP_SPECIAL                    0x10
 
 
 /*****************************************************************************

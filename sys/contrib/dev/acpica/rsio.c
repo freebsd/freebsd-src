@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsio - IO and DMA resource descriptors
- *              $Revision: 20 $
+ *              $Revision: 22 $
  *
  ******************************************************************************/
 
@@ -491,7 +491,7 @@ AcpiRsDmaResource (
     Buffer += 1;
     Temp8 = *Buffer;
 
-    /* Decode the IRQ bits */
+    /* Decode the DMA channel bits */
 
     for (i = 0, Index = 0; Index < 8; Index++)
     {
@@ -501,19 +501,17 @@ AcpiRsDmaResource (
             i++;
         }
     }
-    if (i == 0)
-    {
-        /* Zero channels is invalid! */
 
-        return_ACPI_STATUS (AE_BAD_DATA);
-    }
+    /* Zero DMA channels is valid */
+
     OutputStruct->Data.Dma.NumberOfChannels = i;
-
-
-    /*
-     * Calculate the structure size based upon the number of interrupts
-     */
-    StructSize += ((ACPI_SIZE) OutputStruct->Data.Dma.NumberOfChannels - 1) * 4;
+    if (i > 0)
+    {
+        /*
+         * Calculate the structure size based upon the number of interrupts
+         */
+        StructSize += ((ACPI_SIZE) i - 1) * 4;
+    }
 
     /*
      * Point to Byte 2
@@ -528,6 +526,7 @@ AcpiRsDmaResource (
 
     if (0x03 == OutputStruct->Data.Dma.Transfer)
     {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid DMA.Transfer preference (3)\n"));
         return_ACPI_STATUS (AE_BAD_DATA);
     }
 

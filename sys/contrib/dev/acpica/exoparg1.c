@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 139 $
+ *              $Revision: 141 $
  *
  *****************************************************************************/
 
@@ -464,7 +464,7 @@ AcpiExOpcode_1A_1T_1R (
                 goto Cleanup;
             }
 
-            /* Get the object reference and store it */
+            /* Get the object reference, store it, and remove our reference */
 
             Status = AcpiExGetObjectReference (Operand[0], &ReturnDesc2, WalkState);
             if (ACPI_FAILURE (Status))
@@ -473,6 +473,7 @@ AcpiExOpcode_1A_1T_1R (
             }
 
             Status = AcpiExStore (ReturnDesc2, Operand[1], WalkState);
+            AcpiUtRemoveReference (ReturnDesc2);
 
             /* The object exists in the namespace, return TRUE */
 
@@ -867,6 +868,15 @@ AcpiExOpcode_1A_0T_1R (
                     Operand[0] = TempDesc;
                     break;
 
+                case AML_REF_OF_OP:
+
+                    /* Get the object to which the reference refers */
+
+                    TempDesc = Operand[0]->Reference.Object;
+                    AcpiUtRemoveReference (Operand[0]);
+                    Operand[0] = TempDesc;
+                    break;
+
                 default:
 
                     /* Must be an Index op - handled below */
@@ -933,17 +943,7 @@ AcpiExOpcode_1A_0T_1R (
                 {
                 case ACPI_TYPE_BUFFER_FIELD:
 
-                    /* Ensure that the Buffer arguments are evaluated */
-
                     TempDesc = Operand[0]->Reference.Object;
-#if 0
-                    
-                    Status = AcpiDsGetBufferArguments (TempDesc);
-                    if (ACPI_FAILURE (Status))
-                    {
-                        goto Cleanup;
-                    }
-#endif
 
                     /*
                      * Create a new object that contains one element of the 
@@ -972,15 +972,6 @@ AcpiExOpcode_1A_0T_1R (
 
                 case ACPI_TYPE_PACKAGE:
 
-#if 0
-                    /* Ensure that the Package arguments are evaluated */
-
-                    Status = AcpiDsGetPackageArguments (Operand[0]->Reference.Object);
-                    if (ACPI_FAILURE (Status))
-                    {
-                        goto Cleanup;
-                    }
-#endif
                     /*
                      * Return the referenced element of the package.  We must add 
                      * another reference to the referenced object, however.
@@ -1016,6 +1007,12 @@ AcpiExOpcode_1A_0T_1R (
             case AML_REF_OF_OP:
 
                 ReturnDesc = Operand[0]->Reference.Object;
+
+                if (ACPI_GET_DESCRIPTOR_TYPE (ReturnDesc) == ACPI_DESC_TYPE_NAMED)
+                {
+
+                    ReturnDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ReturnDesc);
+                }
 
                 /* Add another reference to the object! */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 61 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -435,7 +435,7 @@ AcpiPsGetNextNamepath (
     NATIVE_CHAR             *Path;
     ACPI_PARSE_OBJECT       *NameOp;
     ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *MethodNode = NULL;
+    ACPI_OPERAND_OBJECT     *MethodDesc;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_GENERIC_STATE      ScopeInfo;
 
@@ -476,32 +476,38 @@ AcpiPsGetNextNamepath (
     {
         if (Node->Type == ACPI_TYPE_METHOD)
         {
-            MethodNode = Node;
-            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "method - %p Path=%p\n",
-                MethodNode, Path));
+            MethodDesc = AcpiNsGetAttachedObject (Node);
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Control Method - %p Desc %p Path=%p\n",
+                Node, MethodDesc, Path));
 
             NameOp = AcpiPsAllocOp (AML_INT_NAMEPATH_OP);
-            if (NameOp)
+            if (!NameOp)
             {
-                /* Change arg into a METHOD CALL and attach name to it */
-
-                AcpiPsInitOp (Arg, AML_INT_METHODCALL_OP);
-
-                NameOp->Common.Value.Name = Path;
-
-                /* Point METHODCALL/NAME to the METHOD Node */
-
-                NameOp->Common.Node = MethodNode;
-                AcpiPsAppendArg (Arg, NameOp);
-
-                if (!AcpiNsGetAttachedObject (MethodNode))
-                {
-                    return_VOID;
-                }
-
-                *ArgCount = (AcpiNsGetAttachedObject (MethodNode))->Method.ParamCount;
+                return_VOID;
             }
 
+            /* Change arg into a METHOD CALL and attach name to it */
+
+            AcpiPsInitOp (Arg, AML_INT_METHODCALL_OP);
+
+            NameOp->Common.Value.Name = Path;
+
+            /* Point METHODCALL/NAME to the METHOD Node */
+
+            NameOp->Common.Node = Node;
+            AcpiPsAppendArg (Arg, NameOp);
+
+            if (!MethodDesc)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Control Method - %p has no attached object\n",
+                    Node));
+                return_VOID;
+            }
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Control Method - %p Args %X\n",
+                Node, MethodDesc->Method.ParamCount));
+
+            *ArgCount = MethodDesc->Method.ParamCount;
             return_VOID;
         }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 51 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -118,9 +118,41 @@
 #include "acpi.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psutils")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiPsCreateScopeOp
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      ScopeOp
+ *
+ * DESCRIPTION: Create a Scope and associated namepath op with the root name
+ *
+ ******************************************************************************/
+
+ACPI_PARSE_OBJECT *
+AcpiPsCreateScopeOp (
+    void)
+{
+    ACPI_PARSE_OBJECT       *ScopeOp;
+
+
+    ScopeOp = AcpiPsAllocOp (AML_SCOPE_OP);
+    if (!ScopeOp)
+    {
+        return (NULL);
+    }
+
+
+    ScopeOp->Named.Name = ACPI_ROOT_NAME;
+    return (ScopeOp);
+}
 
 
 /*******************************************************************************
@@ -148,7 +180,7 @@ AcpiPsInitOp (
     Op->Common.DataType = ACPI_DESC_TYPE_PARSER;
     Op->Common.AmlOpcode = Opcode;
 
-    ACPI_DEBUG_ONLY_MEMBERS (ACPI_STRNCPY (Op->Common.AmlOpName,
+    ACPI_DISASM_ONLY_MEMBERS (ACPI_STRNCPY (Op->Common.AmlOpName,
             (AcpiPsGetOpcodeInfo (Opcode))->Name, sizeof (Op->Common.AmlOpName)));
 }
 
@@ -254,7 +286,7 @@ AcpiPsFreeOp (
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n", Op));
     }
 
-    if (Op->Common.Flags == ACPI_PARSEOP_GENERIC)
+    if (Op->Common.Flags & ACPI_PARSEOP_GENERIC)
     {
         AcpiUtReleaseToCache (ACPI_MEM_LIST_PSNODE, Op);
     }

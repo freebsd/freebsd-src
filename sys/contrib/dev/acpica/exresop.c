@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 53 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -309,6 +309,7 @@ AcpiExResolveOperands (
                 case AML_DEBUG_OP:
                 case AML_NAME_OP:
                 case AML_INDEX_OP:
+                case AML_REF_OF_OP:
                 case AML_ARG_OP:
                 case AML_LOCAL_OP:
 
