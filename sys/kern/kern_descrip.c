@@ -144,6 +144,10 @@ int nfiles;			/* actual number of open files */
 struct sx filelist_lock;	/* sx to protect filelist */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 
+/* A mutex to protect the association between a proc and filedesc. */
+struct mtx	fdesc_mtx;
+MTX_SYSINIT(fdesc, &fdesc_mtx, "fdesc", MTX_DEF);
+
 /*
  * Find the first zero bit in the given bitmap, starting at low and not
  * exceeding size - 1.
@@ -1523,10 +1527,6 @@ fdcopy(fdp)
 	FILEDESC_UNLOCK_FAST(fdp);
 	return (newfdp);
 }
-
-/* A mutex to protect the association between a proc and filedesc. */
-struct mtx	fdesc_mtx;
-MTX_SYSINIT(fdesc, &fdesc_mtx, "fdesc", MTX_DEF);
 
 /*
  * Release a filedesc structure.
