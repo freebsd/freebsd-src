@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
+#include <stdlib.h>
+
+int yyparse(void);
+
 int
 main(void)
 {
