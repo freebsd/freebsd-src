@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflog.4,v 1.4 2003/09/22 04:53:15 jmc Exp $
+.\"	$OpenBSD: pflog.4,v 1.7 2004/03/21 19:47:59 miod Exp $
 .\"
 .\" Copyright (c) 2001 Tobias Weingartner
 .\" All rights reserved.
@@ -30,19 +30,20 @@
 .Nm pflog
 .Nd packet filter logging interface
 .Sh SYNOPSIS
-.Sy pseudo-device Nm pflog Em <number>
+.Cd "pseudo-device pflog"
 .Sh DESCRIPTION
 The
 .Nm pflog
-interface is the interface the packet filter,
-.Xr pf 4 ,
-copies all the packets to which it has been configured to log.
-In this way, all logged packets can easily be monitored in real
+interface is a pseudo-device which makes visible all packets logged by
+the packet filter,
+.Xr pf 4 .
+Logged packets can easily be monitored in real
 time by invoking
 .Xr tcpdump 8
 on the
 .Nm
-interface.
+interface, or stored to disk using
+.Xr pflogd 8 .
 .Pp
 Each packet retrieved on this interface has a header associated
 with it of length
