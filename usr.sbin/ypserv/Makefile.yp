@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.6 1996/06/05 02:01:27 wpaul Exp $
+# $Id: Makefile.yp,v 1.7 1996/06/25 20:28:01 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -39,11 +39,10 @@ RM  = @/bin/rm -f
 MV  = @/bin/mv -f
 RCAT = /bin/cat
 CAT = @$(RCAT)
-SED = /usr/bin/sed
 
-DBLOAD = /usr/sbin/yp_mkdb -m `hostname`
+MKDB = /usr/sbin/yp_mkdb
+DBLOAD = $(MKDB) -m `hostname`
 MKNETID = /usr/libexec/mknetid
-MKALIASES = /usr/libexec/mkaliases
 NEWALIASES = /usr/bin/newaliases
 YPPUSH = /usr/sbin/yppush
 .if !defined(UPDATE_DOMAIN)
@@ -55,8 +54,8 @@ REVNETGROUP = /usr/libexec/revnetgroup
 NFILE = /tmp/ypmake
 TMP = `$(RCAT) $(NFILE)`
 
-# It is advisable to create a seperate directory to contain the
-# source files used to generate your NIS maps. If you intent to
+# It is advisable to create a separate directory to contain the
+# source files used to generate your NIS maps. If you intend to
 # support multiple domains, something like /src/dir/$DOMAIN
 # would work well.
 YPSRCDIR = /etc
@@ -118,7 +117,7 @@ target:
 #
 
 all:  master.passwd passwd hosts group networks protocols rpc \
-      services servers netid # aliases publickey netgroup ethers bootparam
+      services servers netid # aliases publickey netgrp ethers bootparam
 
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
@@ -154,13 +153,11 @@ pushpw:
 mail.aliases: $(ALIASES)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
-	$(CAT) $(ALIASES) | \
-	$(SED) -e "/^#/d" -e s/#.*$$// -e "/^ *$$/d" |\
-	$(MKALIASES) \
+	@$(NEWALIASES) -oA$(ALIASES)
+	$(MKDB) -u $(ALIASES).db \
 		| $(DBLOAD) -i $(ALIASES) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
-	@$(NEWALIASES)
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 
