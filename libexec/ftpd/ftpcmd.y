@@ -71,6 +71,7 @@ extern	struct sockaddr_in data_dest, his_addr;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
+extern 	int paranoid;
 extern	int logging;
 extern	int type;
 extern	int form;
@@ -152,19 +153,16 @@ cmd
 	| PORT check_login SP host_port CRLF
 		{
 			if ($2) {
-#ifdef PARANOID
-				if ((ntohs(data_dest.sin_port) <
-				     IPPORT_RESERVED) ||
-				    memcmp(&data_dest.sin_addr,
-					   &his_addr.sin_addr,
-					   sizeof(data_dest.sin_addr)))
-				{
+				if (paranoid &&
+				    ((ntohs(data_dest.sin_port) <
+				      IPPORT_RESERVED) ||
+				     memcmp(&data_dest.sin_addr,
+					    &his_addr.sin_addr,
+					    sizeof(data_dest.sin_addr)))) {
 					usedefault = 1;
 					reply(500,
 					      "Illegal PORT range rejected.");
-				} else
-#endif
-				{
+				} else {
 					usedefault = 0;
 					if (pdata >= 0) {
 						(void) close(pdata);
@@ -510,8 +508,9 @@ cmd
 					struct tm *t;
 					t = gmtime(&stbuf.st_mtime);
 					reply(213,
-					    "19%02d%02d%02d%02d%02d%02d",
-					    t->tm_year, t->tm_mon+1, t->tm_mday,
+					    "%04d%02d%02d%02d%02d%02d",
+					    1900 + t->tm_year,
+					    t->tm_mon+1, t->tm_mday,
 					    t->tm_hour, t->tm_min, t->tm_sec);
 				}
 			}
@@ -572,11 +571,12 @@ host_port
 		{
 			char *a, *p;
 
-			a = (char *)&data_dest.sin_addr;
-			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+			data_dest.sin_len = sizeof(struct sockaddr_in);
+			data_dest.sin_family = AF_INET;
 			p = (char *)&data_dest.sin_port;
 			p[0] = $9; p[1] = $11;
-			data_dest.sin_family = AF_INET;
+			a = (char *)&data_dest.sin_addr;
+			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
 		}
 	;
 
