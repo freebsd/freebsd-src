@@ -201,6 +201,7 @@ ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
 ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
 ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 
 #ifdef SMP
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
