@@ -47,12 +47,12 @@ struct ac97_info {
 	void *devinfo;
 	char id[4];
 	char rev;
-	unsigned caps, se, extcaps, extid, extstat;
+	unsigned caps, se, extcaps, extid, extstat, noext:1;
 	struct ac97mixtable_entry mix[32];
 };
 
 struct ac97_codecid {
-	u_int32_t id;
+	u_int32_t id, noext:1;
 	char *name;
 };
 
@@ -81,14 +81,15 @@ static const unsigned ac97recdevs =
 	SOUND_MASK_CD | SOUND_MASK_LINE1 | SOUND_MASK_VIDEO;
 
 static struct ac97_codecid ac97codecid[] = {
-	{ 0x414B4D00, "Asahi Kasei AK4540" 	},
-	{ 0x43525900, "Cirrus Logic CS4297" 	},
-	{ 0x83847600, "SigmaTel STAC????" 	},
-	{ 0x83847604, "SigmaTel STAC9701/3/4/5" },
-	{ 0x83847605, "SigmaTel STAC9704" 	},
-	{ 0x83847608, "SigmaTel STAC9708" 	},
-	{ 0x83847609, "SigmaTel STAC9721" 	},
-	{ 0, 	      NULL			}
+	{ 0x414b4d00, 1, "Asahi Kasei AK4540 rev 0" },
+	{ 0x43525900, 0, "Cirrus Logic CS4297" 	},
+	{ 0x83847600, 0, "SigmaTel STAC????" 	},
+	{ 0x83847604, 0, "SigmaTel STAC9701/3/4/5" },
+	{ 0x83847605, 0, "SigmaTel STAC9704" 	},
+	{ 0x83847608, 0, "SigmaTel STAC9708" 	},
+	{ 0x83847609, 0, "SigmaTel STAC9721" 	},
+	{ 0x414b4d01, 1, "Asahi Kasei AK4540 rev 1" },
+	{ 0, 	      0, NULL			}
 };
 
 static char *ac97enhancement[] = {
@@ -308,14 +309,23 @@ ac97_initmixer(struct ac97_info *codec)
 	codec->caps = i & 0x03ff;
 	codec->se =  (i & 0x7c00) >> 10;
 
-	i = rdcd(codec, AC97_REGEXT_ID);
-	codec->extcaps = i & 0x3fff;
-	codec->extid =  (i & 0xc000) >> 14;
-
-	codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
-
 	id = (rdcd(codec, AC97_REG_ID1) << 16) | rdcd(codec, AC97_REG_ID2);
 	codec->rev = id & 0x000000ff;
+
+	for (i = 0; ac97codecid[i].id; i++)
+		if (ac97codecid[i].id == id)
+			codec->noext = 1;
+
+	if (!codec->noext) {
+		i = rdcd(codec, AC97_REGEXT_ID);
+		codec->extcaps = i & 0x3fff;
+		codec->extid =  (i & 0xc000) >> 14;
+		codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+	} else {
+		codec->extcaps = 0;
+		codec->extid = 0;
+		codec->extstat = 0;
+	}
 
 	wrcd(codec, AC97_MIX_MASTER, 0x20);
 	if ((rdcd(codec, AC97_MIX_MASTER) & 0x20) == 0x20)
