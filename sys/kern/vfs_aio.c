@@ -1587,24 +1587,17 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	struct aiocb *ujob;
 	struct kaioinfo *ki;
 
-	ki = p->p_aioinfo;
-	if (ki == NULL)
-		return EINVAL;
-
 	ujob = uap->aiocbp;
-
 	jobref = fuword(&ujob->_aiocb_private.kernelinfo);
 	if (jobref == -1 || jobref == 0)
 		return EINVAL;
 
+	ki = p->p_aioinfo;
+	if (ki == NULL)
+		return EINVAL;
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
-			if (ujob == cb->uuaiocb) {
-				td->td_retval[0] =
-				    cb->uaiocb._aiocb_private.status;
-			} else
-				td->td_retval[0] = EFAULT;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
 				p->p_stats->p_ru.ru_oublock +=
 				    cb->outputcharge;
@@ -1613,8 +1606,7 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 				p->p_stats->p_ru.ru_inblock += cb->inputcharge;
 				cb->inputcharge = 0;
 			}
-			aio_free_entry(cb);
-			return 0;
+			goto done;
 		}
 	}
 	s = splbio();
@@ -1622,18 +1614,20 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 		ncb = TAILQ_NEXT(cb, plist);
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo)
 		    == jobref) {
-			splx(s);
-			if (ujob == cb->uuaiocb) {
-				td->td_retval[0] =
-				    cb->uaiocb._aiocb_private.status;
-			} else
-				td->td_retval[0] = EFAULT;
-			aio_free_entry(cb);
-			return 0;
+			break;
 		}
 	}
 	splx(s);
-
+ done:
+	if (cb != NULL) {
+		if (ujob == cb->uuaiocb) {
+			td->td_retval[0] =
+			    cb->uaiocb._aiocb_private.status;
+		} else
+			td->td_retval[0] = EFAULT;
+		aio_free_entry(cb);
+		return (0);
+	}
 	return (EINVAL);
 }
 
