@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.14 1995/05/29 16:39:52 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.15 1995/05/30 03:55:13 rgrimes Exp $";
 #endif
 
 #include <sys/param.h>
@@ -316,7 +316,8 @@ int sig;
 {
 	int st;
 
-	wait3(&st, WNOHANG, NULL);
+	while(wait3(&st, WNOHANG, NULL) > 0)
+		children--;
 }
 
 void terminate(sig)
@@ -462,7 +463,6 @@ char **argv;
 			for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 				if (READFD > 0 && FD_ISSET(READFD, &fdsr)) {
 					handle_children(ypdb);
-					children--;
 					if (children == (MAX_CHILDREN - 1))
 						checkwork();
 				}
