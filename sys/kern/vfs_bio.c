@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.9 1998/05/06 19:10:59 gibbs Exp $
+ * $Id: vfs_bio.c,v 1.104.2.10 1998/08/28 20:38:57 luoqi Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/lock.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
