@@ -141,6 +141,19 @@ static const char microp[] = "MICROP";
 
 static struct da_quirk_entry da_quirk_table[] =
 {
+	/*
+	 * Logitec USB/Firewire LHD-P30FU
+	 */
+	{
+		/* USB part */
+		{T_DIRECT, SIP_MEDIA_FIXED, "HITACHI_", "DK23DA*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/* Firewire part */
+		{T_DIRECT, SIP_MEDIA_FIXED, "LSILogic", "SYM13FW*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
 	{
 		/*
 		 * Fujitsu M2513A MO drives.
@@ -1032,6 +1045,7 @@ daasync(void *callback_arg, u_int32_t code,
 			break;
 
 		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
+		    && SID_TYPE(&cgd->inq_data) != T_RBC
 		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
 			break;
 
@@ -1131,7 +1145,7 @@ daregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = DA_Q_NONE;
 
-	if (softc->quirks & DA_Q_NO_6_BYTE)
+	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
 		softc->minimum_cmd_size = 10;
 	else
 		softc->minimum_cmd_size = 6;
