@@ -114,11 +114,6 @@
 struct msgbuf *msgbufp;
 vm_paddr_t msgbuf_phys;
 
-/*
- * Physical address of the last available physical page.
- */
-vm_paddr_t avail_end;
-
 int pmap_pagedaemon_waken;
 
 /*
@@ -437,8 +432,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	 */
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
 		;
-	avail_end = phys_avail[i + 1];
-	Maxmem = sparc64_btop(avail_end);
+	Maxmem = sparc64_btop(phys_avail[i + 1]);
 
 	/*
 	 * Add the prom mappings to the kernel tsb.
