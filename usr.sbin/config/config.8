@@ -58,8 +58,9 @@ Only the version of
 applicable to the architecture that you are running
 will be installed on your machine.
 .Pp
+The
 .Nm
-builds a set of system configuration files from the file
+utility builds a set of system configuration files from the file
 .Ar SYSTEM_NAME
 which describes
 the system to configure.
@@ -145,8 +146,9 @@ it is necessary to run
 .Dq Li make depend
 in the directory where the new makefile
 was created.
+The
 .Nm
-prints a reminder of this when it completes.
+utility prints a reminder of this when it completes.
 .Pp
 If any other error messages are produced by
 .Nm ,
@@ -165,7 +167,7 @@ This means that
 can be used to extract it from a kernel:
 to extract the configuration information, use the command
 .Pp
-.Dl "strings kernel | grep ___"
+.Dl "strings -n 3 kernel | sed -n 's/^___//p'"
 .Sh DEBUG KERNELS
 Traditional
 .Bx
@@ -259,5 +261,5 @@ The line numbers reported in error messages are usually off by one.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.1 .
