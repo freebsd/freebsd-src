@@ -41,7 +41,9 @@
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
-.Nm Sync
+The
+.Nm
+utility
 can be called to ensure that all disk writes have been completed before the
 processor is halted in a way not suitably done by
 .Xr reboot 8
@@ -57,8 +59,9 @@ such as resynchronizing the hardware clock
 and flushing internal caches before performing a final
 .Nm .
 .Pp
-.Nm Sync
-utilizes the
+The
+.Nm
+utility utilizes the
 .Xr sync 2
 function call.
 .Sh SEE ALSO
@@ -70,5 +73,5 @@ function call.
 .Sh HISTORY
 A
 .Nm
-command appeared in
-.At v6 .
+utility appeared in
+.At v4 .
