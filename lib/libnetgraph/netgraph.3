@@ -35,16 +35,22 @@
 .\" $FreeBSD$
 .\" $Whistle: netgraph.3,v 1.7 1999/01/25 07:14:06 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd January 27, 2004
 .Dt NETGRAPH 3
 .Os
 .Sh NAME
 .Nm NgMkSockNode ,
 .Nm NgNameNode ,
 .Nm NgSendMsg ,
+.Nm NgSendAsciiMsg ,
+.Nm NgSendMsgReply ,
 .Nm NgRecvMsg ,
+.Nm NgAllocRecvMsg ,
+.Nm NgRecvAsciiMsg ,
+.Nm NgAllocRecvAsciiMsg ,
 .Nm NgSendData ,
 .Nm NgRecvData ,
+.Nm NgAllocRecvData ,
 .Nm NgSetDebug ,
 .Nm NgSetErrLog
 .Nd netgraph user library
@@ -71,11 +77,17 @@
 .Ft int
 .Fn NgRecvMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
 .Ft int
+.Fn NgAllocRecvMsg "int cs" "struct ng_mesg **rep" "char *path"
+.Ft int
 .Fn NgRecvAsciiMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
+.Ft int
+.Fn NgAllocRecvAsciiMsg "int cs" "struct ng_mesg **rep" "char *path"
 .Ft int
 .Fn NgSendData "int ds" "const char *hook" "const u_char *buf" "size_t len"
 .Ft int
 .Fn NgRecvData "int ds" "u_char *buf" "size_t len" "char *hook"
+.Ft int
+.Fn NgAllocRecvData "int ds" "u_char **buf" "char *hook"
 .Ft int
 .Fn NgSetDebug "int level"
 .Ft void
@@ -204,6 +216,15 @@ The length of the control message is returned.
 A return value of zero indicates that the socket was closed.
 .Pp
 The
+.Fn NgAllocRecvMsg
+function works exactly like
+.Fn NgRecvMsg ,
+except that the buffer for a message is dynamically allocated
+to guarantee that a message is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
+.Pp
+The
 .Fn NgRecvAsciiMsg
 function works exactly like
 .Fn NgRecvMsg ,
@@ -220,6 +241,15 @@ with the exception that the reply arguments field will contain a
 .Tn ASCII
 version of the arguments (and the reply
 header argument length field will be adjusted).
+.Pp
+The
+.Fn NgAllocRecvAsciiMsg
+function works exactly like
+.Fn NgRecvAsciiMsg ,
+except that the buffer for a message is dynamically allocated
+to guarantee that a message is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
 .Pp
 The
 .Fn NgSendData
@@ -250,6 +280,15 @@ the hook on which the data was received.
 .Pp
 The length of the packet is returned.
 A return value of zero indicates that the socket was closed.
+.Pp
+The
+.Fn NgAllocRecvData
+function works exactly like
+.Fn NgRecvData ,
+except that the buffer for a data packet is dynamically allocated
+to guarantee that a data packet is not truncated.
+The size of the buffer is equal to the socket's receive buffer size.
+The caller is responsible for freeing the buffer when it is no longer required.
 .Pp
 The
 .Fn NgSetDebug
