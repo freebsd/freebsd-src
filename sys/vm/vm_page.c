@@ -454,31 +454,6 @@ vm_page_protect(vm_page_t mem, int prot)
 		vm_page_flag_clear(mem, PG_WRITEABLE);
 	}
 }
-/*
- *	vm_page_zero_fill:
- *
- *	Zero-fill the specified page.
- *	Written as a standard pagein routine, to
- *	be used by the zero-fill object.
- */
-boolean_t
-vm_page_zero_fill(vm_page_t m)
-{
-	pmap_zero_page(m);
-	return (TRUE);
-}
-
-/*
- *	vm_page_zero_fill_area:
- *
- *	Like vm_page_zero_fill but only fill the specified area.
- */
-boolean_t
-vm_page_zero_fill_area(vm_page_t m, int off, int size)
-{
-	pmap_zero_page_area(m, off, size);
-	return (TRUE);
-}
 
 /*
  *	vm_page_copy:
