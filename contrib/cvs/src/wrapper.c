@@ -96,17 +96,17 @@ void wrap_setup()
         wrap_setup_already_done = 1;
 
 #ifdef CLIENT_SUPPORT
-    if (!client_active)
+    if (!current_parsed_root->isremote)
 #endif
     {
 	char *file;
 
-	file = xmalloc (strlen (CVSroot_directory)
+	file = xmalloc (strlen (current_parsed_root->directory)
 			+ sizeof (CVSROOTADM)
 			+ sizeof (CVSROOTADM_WRAPPER)
-			+ 10);
+			+ 3);
 	/* Then add entries found in repository, if it exists.  */
-	(void) sprintf (file, "%s/%s/%s", CVSroot_directory, CVSROOTADM,
+	(void) sprintf (file, "%s/%s/%s", current_parsed_root->directory, CVSROOTADM,
 			CVSROOTADM_WRAPPER);
 	if (isfile (file))
 	{
