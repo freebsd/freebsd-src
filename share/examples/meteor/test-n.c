@@ -127,9 +127,9 @@ main()
 
 	printf("mmap %d %d\n", errno, i);
 	size = ((width*height*depth*frames+4095)/4096)*4096;
-        y=(uint8 *) mmap((caddr_t)0, size + 4096, PROT_READ |PROT_WRITE,0, i, (off_t)0);
+        y=(uint8 *) mmap((caddr_t)0, size + 4096, PROT_READ |PROT_WRITE,MAP_SHARED, i, (off_t)0);
 
-	if (y == (uint8 *) -1) return (0);
+	if (y == (uint8 *) MAP_FAILED) return (0);
 
 	common_mem = (struct meteor_mem *) (y + size);
 
