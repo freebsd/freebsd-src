@@ -3643,7 +3643,7 @@ extern bfd_byte *bfd_get_relocated_section_contents
                  boolean, asymbol **));
 
 boolean
-bfd_alt_mach_code PARAMS ((bfd *abfd, int index));
+bfd_alt_mach_code PARAMS ((bfd *abfd, int _index));
 
 /* Extracted from archive.c.  */
 symindex
