@@ -156,7 +156,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 	
 	/* check valid unit no */
 	
-	if((unit = hdr->unit) > NI4BTRC)
+	if((unit = hdr->unit) >= NI4BTRC)
 	{
 		printf("i4b_trace: get_trace_data_from_l1 - unit > NI4BTRC!\n"); 
 		return(0);

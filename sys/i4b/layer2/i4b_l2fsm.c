@@ -226,8 +226,8 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 	int (*savpostfsmfunc)(int) = NULL;
 
 	/* check event number */
-	if(event > N_EVENTS)
-		panic("i4b_l2fsm.c: event > N_EVENTS\n");
+	if(event >= N_EVENTS)
+		panic("i4b_l2fsm.c: event >= N_EVENTS\n");
 
 	/* get current state and check it */
 	if((currstate = l2sc->Q921_state) > N_STATES) 	/* failsafe */
