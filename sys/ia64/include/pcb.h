@@ -54,6 +54,7 @@ struct pcb {
 	u_int64_t		pcb_sp;
 	u_int64_t		pcb_pfs;
 	u_int64_t		pcb_bspstore;
+	u_int64_t		pcb_lc;
 
 	u_int64_t		pcb_unat;	/* ar.unat for r4..r7 */
 	u_int64_t		pcb_rnat;
