@@ -52,8 +52,12 @@ FEATURE(access_db, `hash -o -T<TMPF> /etc/mail/access')
 FEATURE(blacklist_recipients)
 FEATURE(local_lmtp)
 FEATURE(mailertable, `hash -o /etc/mail/mailertable')
-FEATURE(relay_based_on_MX)
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')
+
+dnl Uncomment to allow relaying based on your MX records.
+dnl NOTE: This can allow sites to use your server as a backup MX without
+dnl       your permission.
+dnl FEATURE(relay_based_on_MX)
 
 dnl Uncomment to activate Realtime Blackhole List
 dnl information available at http://www.mail-abuse.com/
