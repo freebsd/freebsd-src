@@ -409,7 +409,7 @@ quotaon(td, mp, type, fname)
 	vp = nd.ni_vp;
 	VOP_UNLOCK(vp, 0, td);
 	if (vp->v_type != VREG) {
-		(void) vn_close(vp, FREAD|FWRITE, td->td_proc->p_ucred, td);
+		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		return (EACCES);
 	}
 	if (*vpp != vp)
@@ -422,7 +422,7 @@ quotaon(td, mp, type, fname)
 	 * Save the credential of the process that turned on quotas.
 	 * Set up the time limits for this quota.
 	 */
-	ump->um_cred[type] = crhold(td->td_proc->p_ucred);
+	ump->um_cred[type] = crhold(td->td_ucred);
 	ump->um_btime[type] = MAX_DQ_TIME;
 	ump->um_itime[type] = MAX_IQ_TIME;
 	if (dqget(NULLVP, 0, ump, type, &dq) == 0) {
@@ -523,7 +523,7 @@ again:
 	mtx_unlock(&mntvnode_mtx);
 	dqflush(qvp);
 	qvp->v_flag &= ~VSYSTEM;
-	error = vn_close(qvp, FREAD|FWRITE, td->td_proc->p_ucred, td);
+	error = vn_close(qvp, FREAD|FWRITE, td->td_ucred, td);
 	ump->um_quotas[type] = NULLVP;
 	crfree(ump->um_cred[type]);
 	ump->um_cred[type] = NOCRED;

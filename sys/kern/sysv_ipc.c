@@ -76,7 +76,7 @@ ipcperm(td, perm, mode)
 	struct ipc_perm *perm;
 	int mode;
 {
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 
 	/* Check for user match. */
 	if (cred->cr_uid != perm->cuid && cred->cr_uid != perm->uid) {

@@ -830,7 +830,7 @@ getnewvnode(tag, mp, vops, vpp)
 
 	splx(s);
 
-	vfs_object_create(vp, td, td->td_proc->p_ucred);
+	vfs_object_create(vp, td, td->td_ucred);
 
 #if 0
 	vnodeallocs++;
@@ -1256,7 +1256,7 @@ sched_sync(void)
 			if (VOP_ISLOCKED(vp, NULL) == 0 &&
 			    vn_start_write(vp, &mp, V_NOWAIT) == 0) {
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-				(void) VOP_FSYNC(vp, td->td_proc->p_ucred, MNT_LAZY, td);
+				(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
 				VOP_UNLOCK(vp, 0, td);
 				vn_finished_write(mp);
 			}

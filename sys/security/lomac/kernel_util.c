@@ -383,7 +383,7 @@ unmount(td, uap)
 	 */
 	if (!mediate_subject_at_level("unmount", td->td_proc,
 	    LOMAC_HIGHEST_LEVEL) ||
-	    ((mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) &&
+	    ((mp->mnt_stat.f_owner != td->td_ucred->cr_uid) &&
 	    (error = suser_td(td)))) {
 		vput(vp);
 		return (error);
@@ -661,8 +661,7 @@ lomac_do_recwd(struct proc *p) {
 		if (vp->v_type != VDIR)
 			error = ENOTDIR;
 		else
-			error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred,
-			    curthread);
+			error = VOP_ACCESS(vp, VEXEC, td->td_ucred, curthread);
 		if (error)
 			vput(vp);
 		else {

@@ -976,7 +976,6 @@ smbfs_advlock(ap)
 	caddr_t id = (caddr_t)1 /* ap->a_id */;
 /*	int flags = ap->a_flags;*/
 	struct thread *td = curthread;
-	struct proc *p = td ? td->td_proc : NULL;
 	struct smb_cred scred;
 	u_quad_t size;
 	off_t start, end, oadd;
@@ -1027,7 +1026,7 @@ smbfs_advlock(ap)
 			return EOVERFLOW;
 		end = start + oadd;
 	}
-	smb_makescred(&scred, td, p ? p->p_ucred : NULL);
+	smb_makescred(&scred, td, td->td_ucred);
 	switch (ap->a_op) {
 	    case F_SETLK:
 		switch (fl->l_type) {

@@ -636,7 +636,7 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
@@ -684,7 +684,7 @@ unp_connect(so, nam, td)
 		error = ENOTSOCK;
 		goto bad;
 	}
-	error = VOP_ACCESS(vp, VWRITE, td->td_proc->p_ucred, td);
+	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
 	so2 = vp->v_socket;
@@ -717,7 +717,7 @@ unp_connect(so, nam, td)
 		 * from its process structure at the time of connect()
 		 * (which is now).
 		 */
-		cru2x(td->td_proc->p_ucred, &unp3->unp_peercred);
+		cru2x(td->td_ucred, &unp3->unp_peercred);
 		unp3->unp_flags |= UNP_HAVEPC;
 		/*
 		 * The receiver's (server's) credentials are copied
@@ -853,7 +853,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
 		if (unp->unp_gencnt <= gencnt) {
-			if (cr_cansee(req->td->td_proc->p_ucred,
+			if (cr_cansee(req->td->td_ucred,
 			    unp->unp_socket->so_cred))
 				continue;
 			unp_list[i++] = unp;
@@ -1130,14 +1130,14 @@ unp_internalize(controlp, td)
 			cmcred = (struct cmsgcred *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			cmcred->cmcred_pid = p->p_pid;
-			cmcred->cmcred_uid = p->p_ucred->cr_ruid;
-			cmcred->cmcred_gid = p->p_ucred->cr_rgid;
-			cmcred->cmcred_euid = p->p_ucred->cr_uid;
-			cmcred->cmcred_ngroups = MIN(p->p_ucred->cr_ngroups,
+			cmcred->cmcred_uid = td->td_ucred->cr_ruid;
+			cmcred->cmcred_gid = td->td_ucred->cr_rgid;
+			cmcred->cmcred_euid = td->td_ucred->cr_uid;
+			cmcred->cmcred_ngroups = MIN(td->td_ucred->cr_ngroups,
 							CMGROUP_MAX);
 			for (i = 0; i < cmcred->cmcred_ngroups; i++)
 				cmcred->cmcred_groups[i] =
-				    p->p_ucred->cr_groups[i];
+				    td->td_ucred->cr_groups[i];
 			break;
 
 		case SCM_RIGHTS:

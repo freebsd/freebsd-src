@@ -275,7 +275,7 @@ svr4_sys_getdents64(td, uap)
 		return (EINVAL);
 	}
 
-	if ((error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td))) {
+	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
 		fdrop(fp, td);
 		return error;
 	}
@@ -616,7 +616,7 @@ svr4_sys_fchroot(td, uap)
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
 	else
-		error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
+		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (error) {
 		fdrop(fp, td);

@@ -317,7 +317,7 @@ coda_root(vfsp, vpp)
 	    }
     }
 
-    error = venus_root(vftomi(vfsp), p->p_ucred, p, &VFid);
+    error = venus_root(vftomi(vfsp), td->td_ucred, p, &VFid);
 
     if (!error) {
 	/*
@@ -457,7 +457,7 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
 	return(0);
     }
     
-    error = venus_fhtovp(vftomi(vfsp), &cfid->cfid_fid, p->p_ucred, p, &VFid, &vtype);
+    error = venus_fhtovp(vftomi(vfsp), &cfid->cfid_fid, td->td_ucred, p, &VFid, &vtype);
     
     if (error) {
 	CODADEBUG(CODA_VGET, myprintf(("vget error %d\n",error));)

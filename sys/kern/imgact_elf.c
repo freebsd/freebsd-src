@@ -754,7 +754,7 @@ elf_coredump(td, vp, limit)
 	off_t limit;
 {
 	register struct proc *p = td->td_proc;
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred = td->td_ucred;
 	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;

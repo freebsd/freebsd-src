@@ -236,7 +236,7 @@ cd9660_mount(mp, path, data, ndp, td)
 	 */
 	accessmode = VREAD;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td);
+	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 	if (error) 
 		error = suser_td(td);
 	if (error) {
@@ -305,7 +305,7 @@ iso_mountfs(devvp, mp, td, argp)
 		return error;
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return EBUSY;
-	if ((error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0)))
+	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)))
 		return (error);
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);

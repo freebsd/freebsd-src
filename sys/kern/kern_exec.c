@@ -837,10 +837,12 @@ exec_check_permissions(imgp)
 	struct proc *p = imgp->proc;
 	struct vnode *vp = imgp->vp;
 	struct vattr *attr = imgp->attr;
+	struct thread *td;
 	int error;
 
+	td = curthread;			/* XXXKSE */
 	/* Get file attributes */
-	error = VOP_GETATTR(vp, attr, p->p_ucred, curthread); /* XXXKSE */
+	error = VOP_GETATTR(vp, attr, td->td_ucred, td);
 	if (error)
 		return (error);
 
@@ -854,9 +856,8 @@ exec_check_permissions(imgp)
 	 */
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
 	    ((attr->va_mode & 0111) == 0) ||
-	    (attr->va_type != VREG)) {
+	    (attr->va_type != VREG))
 		return (EACCES);
-	}
 
 	/*
 	 * Zero length files can't be exec'd
@@ -867,7 +868,7 @@ exec_check_permissions(imgp)
 	/*
 	 *  Check for execute permission to file based on current credentials.
 	 */
-	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, curthread); /* XXXKSE */
+	error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	if (error)
 		return (error);
 
@@ -882,11 +883,8 @@ exec_check_permissions(imgp)
 	 * Call filesystem specific open routine (which does nothing in the
 	 * general case).
 	 */
-	error = VOP_OPEN(vp, FREAD, p->p_ucred, curthread); /* XXXKSE */
-	if (error)
-		return (error);
-
-	return (0);
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
+	return (error);
 }
 
 /*

@@ -345,7 +345,7 @@ mmap(td, uap)
 					struct vattr va;
 					if ((error =
 					    VOP_GETATTR(vp, &va,
-						        p->p_ucred, td))) {
+						        td->td_ucred, td))) {
 						goto done;
 					}
 					if ((va.va_flags &

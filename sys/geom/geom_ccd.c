@@ -441,7 +441,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		 * Get partition information for the component.
 		 */
 		if ((error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
-		    FREAD, td->td_proc->p_ucred, td)) != 0) {
+		    FREAD, td->td_ucred, td)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
@@ -1328,7 +1328,7 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			if ((error = ccdlookup(cpp[i], td, &vpp[i])) != 0) {
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
-					    td->td_proc->p_ucred, td);
+					    td->td_ucred, td);
 				free(vpp, M_DEVBUF);
 				free(cpp, M_DEVBUF);
 				ccdunlock(cs);
@@ -1345,7 +1345,7 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		if ((error = ccdinit(cs, cpp, td)) != 0) {
 			for (j = 0; j < lookedup; ++j)
 				(void)vn_close(vpp[j], FREAD|FWRITE,
-				    td->td_proc->p_ucred, td);
+				    td->td_ucred, td);
 			/*
 			 * We can't ccddestroy() cs just yet, because nothing
 			 * prevents user-level app to do another ioctl()
@@ -1406,7 +1406,7 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 				    cs->sc_cinfo[i].ci_vp);
 #endif
 			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
-			    td->td_proc->p_ucred, td);
+			    td->td_ucred, td);
 			free(cs->sc_cinfo[i].ci_path, M_DEVBUF);
 		}
 
@@ -1637,7 +1637,7 @@ bad:
 	VOP_UNLOCK(vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* vn_close does vrele() for vp */
-	(void)vn_close(vp, FREAD|FWRITE, td->td_proc->p_ucred, td);
+	(void)vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 	return (error);
 }
 

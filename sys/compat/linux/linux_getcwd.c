@@ -132,7 +132,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	 * current directory is still locked.
 	 */
 	if (bufp != NULL) {
-		error = VOP_GETATTR(lvp, &va, td->td_proc->p_ucred, td);
+		error = VOP_GETATTR(lvp, &va, td->td_ucred, td);
 		if (error) {
 			vput(lvp);
 			*lvpp = NULL;
@@ -148,7 +148,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	cn.cn_nameiop = LOOKUP;
 	cn.cn_flags = ISLASTCN | ISDOTDOT | RDONLY;
 	cn.cn_thread = td;
-	cn.cn_cred = td->td_proc->p_ucred;
+	cn.cn_cred = td->td_ucred;
 	cn.cn_pnbuf = NULL;
 	cn.cn_nameptr = "..";
 	cn.cn_namelen = 2;
@@ -200,7 +200,7 @@ unionread:
 
 		eofflag = 0;
 
-		error = VOP_READDIR(uvp, &uio, td->td_proc->p_ucred, &eofflag, 0, 0);
+		error = VOP_READDIR(uvp, &uio, td->td_ucred, &eofflag, 0, 0);
 
 		off = uio.uio_offset;
 
@@ -335,7 +335,7 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 		 * whether or not caller cares.
 		 */
 		if (flags & GETCWD_CHECK_ACCESS) {
-			error = VOP_ACCESS(lvp, perms, td->td_proc->p_ucred, td);
+			error = VOP_ACCESS(lvp, perms, td->td_ucred, td);
 			if (error)
 				goto out;
 			perms = VEXEC|VREAD;

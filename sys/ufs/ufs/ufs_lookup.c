@@ -749,7 +749,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	char *dirbuf;
 
 	td = curthread;	/* XXX */
-	cr = td->td_proc->p_ucred;
+	cr = td->td_ucred;
 
 	dp = VTOI(dvp);
 	newentrysize = DIRSIZ(OFSFMT(dvp), dirp);
@@ -819,7 +819,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 				return (error);
 			if (tvp != NULL)
 				VOP_UNLOCK(tvp, 0, td);
-			error = VOP_FSYNC(dvp, td->td_proc->p_ucred, MNT_WAIT, td);
+			error = VOP_FSYNC(dvp, td->td_ucred, MNT_WAIT, td);
 			if (tvp != NULL)
 				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);

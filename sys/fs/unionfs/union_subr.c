@@ -1011,7 +1011,7 @@ union_mkwhiteout(um, dvp, cnp, path)
 	}
 
 	/* VOP_LEASE: dvp is locked */
-	VOP_LEASE(dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(dvp, td, td->td_ucred, LEASE_WRITE);
 
 	error = VOP_WHITEOUT(dvp, &cn, CREATE);
 	if (cn.cn_flags & HASBUF) {
@@ -1043,7 +1043,7 @@ union_vn_create(vpp, un, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int fmode = FFLAGS(O_WRONLY|O_CREAT|O_TRUNC|O_EXCL);
@@ -1071,7 +1071,7 @@ union_vn_create(vpp, un, td)
 	cn.cn_nameiop = CREATE;
 	cn.cn_flags = (LOCKPARENT|LOCKLEAF|HASBUF|SAVENAME|ISLASTCN);
 	cn.cn_thread = td;
-	cn.cn_cred = td->td_proc->p_ucred;
+	cn.cn_cred = td->td_ucred;
 	cn.cn_nameptr = cn.cn_pnbuf;
 	cn.cn_consume = 0;
 

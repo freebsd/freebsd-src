@@ -246,8 +246,8 @@ portal_open(ap)
 	/*
 	 * Create a new socket.
 	 */
-	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0,
-	    ap->a_td->td_proc->p_ucred, ap->a_td);
+	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0, ap->a_td->td_ucred,
+	    ap->a_td);
 	if (error)
 		goto bad;
 

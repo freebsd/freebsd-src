@@ -194,7 +194,7 @@ osf1_emul_find(td, sgp, prefix, path, pbuf, cflag)
 			return error;
 		}
 
-		ucred = td->td_proc->p_ucred;
+		ucred = td->td_ucred;
 		if ((error = VOP_GETATTR(nd.ni_vp, &vat, ucred, td)) != 0) {
 			goto bad;
 		}

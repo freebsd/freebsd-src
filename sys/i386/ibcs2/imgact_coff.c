@@ -183,7 +183,7 @@ coff_load_file(struct thread *td, char *name)
     		goto fail;
   	}
 
-  	if ((error = VOP_GETATTR(vp, &attr, p->p_ucred, td)) != 0)
+  	if ((error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) != 0)
     		goto fail;
 
   	if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
@@ -196,10 +196,10 @@ coff_load_file(struct thread *td, char *name)
     		goto fail;
   	}
 
-  	if ((error = VOP_ACCESS(vp, VEXEC, p->p_ucred, td)) != 0)
+  	if ((error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td)) != 0)
     		goto fail;
 
-  	if ((error = VOP_OPEN(vp, FREAD, p->p_ucred, td)) != 0)
+  	if ((error = VOP_OPEN(vp, FREAD, td->td_ucred, td)) != 0)
     		goto fail;
 
 	/*

@@ -223,7 +223,7 @@ union_mount(mp, path, data, ndp, td)
 			goto bad;
 	}
 
-	um->um_cred = crhold(td->td_proc->p_ucred);
+	um->um_cred = crhold(td->td_ucred);
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	um->um_cmode = UN_DIRMODE &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);

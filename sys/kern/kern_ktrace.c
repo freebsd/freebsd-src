@@ -311,7 +311,7 @@ ktrace(td, uap)
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp, 0, td);
 		if (vp->v_type != VREG) {
-			(void) vn_close(vp, FREAD|FWRITE, curp->p_ucred, td);
+			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (EACCES);
 		}
@@ -327,7 +327,7 @@ ktrace(td, uap)
 					p->p_tracep = NULL;
 					p->p_traceflag = 0;
 					(void) vn_close(vp, FREAD|FWRITE,
-						p->p_ucred, td);
+						td->td_ucred, td);
 				} else {
 					error = EPERM;
 				}
@@ -387,7 +387,7 @@ ktrace(td, uap)
 		error = EPERM;
 done:
 	if (vp != NULL)
-		(void) vn_close(vp, FWRITE, curp->p_ucred, td);
+		(void) vn_close(vp, FWRITE, td->td_ucred, td);
 	curp->p_traceflag &= ~KTRFAC_ACTIVE;
 	return (error);
 #else
@@ -550,11 +550,11 @@ ktrwrite(vp, kth, uio)
 	}
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	(void)VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
-	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, p->p_ucred);
+	(void)VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
+	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, td->td_ucred);
 	if (error == 0 && uio != NULL) {
-		(void)VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
-		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, p->p_ucred);
+		(void)VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
+		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, td->td_ucred);
 	}
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);

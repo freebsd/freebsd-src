@@ -194,7 +194,7 @@ xenix_scoinfo(struct thread *td, struct xenix_scoinfo_args *uap)
 int     
 xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
 {
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct vnode *vp;
         struct nameidata nd;
         int error, flags;

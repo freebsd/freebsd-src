@@ -246,7 +246,6 @@ svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
 	char		**pbuf;
 	int		  cflag;
 {
-	struct proc	 	*p = td->td_proc;
 	struct nameidata	 nd;
 	struct nameidata	 ndroot;
 	struct vattr		 vat;
@@ -331,11 +330,11 @@ svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
 		}
 		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, td)) != 0) {
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, td))
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_ucred, td))
 		    != 0) {
 			goto done;
 		}

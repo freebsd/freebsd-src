@@ -346,7 +346,7 @@ mmap(td, uap)
 			 * other securelevel.
 			 * XXX this will have to go
 			 */
-			if (securelevel_ge(td->td_proc->p_ucred, 1))
+			if (securelevel_ge(td->td_ucred, 1))
 				disablexworkaround = 1;
 			else
 				disablexworkaround = suser_td(td);
@@ -387,7 +387,7 @@ mmap(td, uap)
 					struct vattr va;
 					if ((error =
 					    VOP_GETATTR(vp, &va,
-						        td->td_proc->p_ucred, td))) {
+						        td->td_ucred, td))) {
 						goto done;
 					}
 					if ((va.va_flags &
@@ -1184,7 +1184,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			struct vattr vat;
 			int error;
 
-			error = VOP_GETATTR(vp, &vat, td->td_proc->p_ucred, td);
+			error = VOP_GETATTR(vp, &vat, td->td_ucred, td);
 			if (error) {
 				mtx_unlock(&Giant);
 				return (error);

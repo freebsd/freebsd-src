@@ -224,7 +224,7 @@ ufs_extattr_start(struct mount *mp, struct thread *td)
 
 	ump->um_extattr.uepm_flags |= UFS_EXTATTR_UEPM_STARTED;
 
-	ump->um_extattr.uepm_ucred = crhold(td->td_proc->p_ucred);
+	ump->um_extattr.uepm_ucred = crhold(td->td_ucred);
 
 unlock:
 	ufs_extattr_uepm_unlock(ump, td);
@@ -258,7 +258,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 	if (lockparent == UE_GETDIR_LOCKPARENT)
 		cnp.cn_flags |= LOCKPARENT;
 	cnp.cn_thread = td;
-	cnp.cn_cred = td->td_proc->p_ucred;
+	cnp.cn_cred = td->td_ucred;
 	cnp.cn_pnbuf = zalloc(namei_zone);
 	cnp.cn_nameptr = cnp.cn_pnbuf;
 	error = copystr(dirname, cnp.cn_pnbuf, MAXPATHLEN,
@@ -330,7 +330,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 {
 	int error;
 
-	error = VOP_OPEN(vp, FREAD|FWRITE, td->td_proc->p_ucred, td);
+	error = VOP_OPEN(vp, FREAD|FWRITE, td->td_ucred, td);
 	if (error) {
 		printf("ufs_extattr_enable_with_open.VOP_OPEN(): failed "
 		    "with %d\n", error);
@@ -344,7 +344,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 	 */
 	if (vn_canvmio(vp) == TRUE)
 		if ((error = vfs_object_create(vp, td,
-		    td->td_proc->p_ucred)) != 0) {
+		    td->td_ucred)) != 0) {
 			/*
 			 * XXX: bug replicated from vn_open(): should
 			 * VOP_CLOSE() here.
@@ -361,7 +361,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 
 	error = ufs_extattr_enable(ump, attrnamespace, attrname, vp, td);
 	if (error != 0)
-		vn_close(vp, FREAD|FWRITE, td->td_proc->p_ucred, td);
+		vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 	return (error);
 }
 
@@ -400,7 +400,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	vargs.a_desc = NULL;
 	vargs.a_vp = dvp;
 	vargs.a_uio = &auio;
-	vargs.a_cred = td->td_proc->p_ucred;
+	vargs.a_cred = td->td_ucred;
 	vargs.a_eofflag = &eofflag;
 	vargs.a_ncookies = NULL;
 	vargs.a_cookies = NULL;
@@ -631,7 +631,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 
-	VOP_LEASE(backing_vnode, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(backing_vnode, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
@@ -692,7 +692,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 
 	uele->uele_backing_vnode->v_flag &= ~VSYSTEM;
 	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 
 	FREE(uele, M_UFS_EXTATTR);
 
@@ -715,7 +715,7 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	 * Processes with privilege, but in jail, are not allowed to
 	 * configure extended attributes.
 	 */
-	if ((error = suser_xxx(td->td_proc->p_ucred, td->td_proc, 0))) {
+	if ((error = suser_xxx(td->td_ucred, td->td_proc, 0))) {
 		if (filename_vp != NULL)
 			VOP_UNLOCK(filename_vp, 0, td);
 		return (error);
