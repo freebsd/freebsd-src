@@ -243,6 +243,7 @@ ata_pci_match(device_t dev)
     case 0x4d33105a:
 	return "Promise ATA33 controller";
 
+    case 0x0d38105a:
     case 0x4d38105a:
 	return "Promise ATA66 controller";
 
@@ -404,9 +405,10 @@ ata_pci_attach(device_t dev)
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
 
-    case 0x4d38105a: /* Promise 66 & 100 (before TX2) need the clock changed */
+    case 0x0d30105a: /* Promise 66 & 100 (before TX2) need the clock changed */
     case 0x4d30105a:
-    case 0x0d30105a:
+    case 0x0d38105a:
+    case 0x4d38105a:
 	ATA_OUTB(controller->bmio, 0x11, ATA_INB(controller->bmio, 0x11)|0x0a);
 	/* FALLTHROUGH */
 
@@ -565,9 +567,10 @@ ata_pci_intr(struct ata_channel *ch)
 	break;
 
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
+    case 0x0d38105a:	/* Promise Fasttrak 66 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
-    case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
+    case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
 	if (!(ATA_INL(ch->r_bmio, (ch->unit ? 0x14 : 0x1c)) &
 	      (ch->unit ? 0x00004000 : 0x00000400)))
 	    return 1;
