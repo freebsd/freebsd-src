@@ -13,7 +13,7 @@ chop;
 close(FD);
 system("kill -INT $_");
 
-open(NS, "/usr/local/v6/bin/netstat -r -n|") || die "Can not open netstat";
+open(NS, "/usr/bin/netstat -r -n|") || die "Can not open netstat";
 while (<NS>) {
 	chop;
 	next unless (/^3f/ || /^5f/);
