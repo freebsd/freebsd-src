@@ -194,19 +194,6 @@ getstr(char *str, int size)
     }
 }
 
-static inline uint32_t
-drvinfo(int drive)
-{
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = DRV_HARD + drive;
-    v86int();
-    if (V86_CY(v86.efl))
-	return 0x4f010f;
-    return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
-	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
-}
-
 static inline void
 putc(int c)
 {
@@ -233,8 +220,6 @@ main(void)
     bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
     bootinfo.bi_extmem = memsize(MEM_EXT);
     bootinfo.bi_memsizes_valid++;
-    for (i = 0; i < N_BIOS_GEOM; i++)
-	bootinfo.bi_bios_geom[i] = drvinfo(i);
 
     /* Process configuration file */
 
