@@ -408,6 +408,7 @@ options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
 
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
+device		lmc	# tulip based LanMedia WAN cards
 
 #
 # Network interfaces:

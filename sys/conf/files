@@ -169,6 +169,7 @@ dev/iicbus/iicsmb.c	optional iicsmb					\
 dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
+dev/lmc/if_lmc.c	optional lmc
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
