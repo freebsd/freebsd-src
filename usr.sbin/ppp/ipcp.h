@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.21 1998/10/22 02:32:49 brian Exp $
+ * $Id: ipcp.h,v 1.22 1998/10/26 19:07:39 brian Exp $
  *
  *	TODO:
  */
@@ -33,6 +33,14 @@
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
 #define TY_ADJUST_NS		119 /* subtract from NS val for REJECT bit */
+
+#define addr2mask(addr) (			\
+  IN_CLASSA(addr) ?				\
+    htonl(IN_CLASSA_NET) :			\
+  IN_CLASSB(addr) ?				\
+    htonl(IN_CLASSB_NET) : htonl(IN_CLASSC_NET)	\
+)
+
 
 struct sticky_route;
 
@@ -53,7 +61,7 @@ struct ipcp {
     } vj;
 
     struct in_range  my_range;		/* MYADDR spec */
-    struct in_addr   netmask;		/* netmask (unused by most OSs) */
+    struct in_addr   netmask;		/* Iface netmask (unused by most OSs) */
     struct in_range  peer_range;	/* HISADDR spec */
     struct iplist    peer_list;		/* Ranges of HISADDR values */
 
@@ -84,6 +92,8 @@ struct ipcp {
   struct in_addr peer_ip;		/* IP address he's willing to use */
   u_int32_t peer_compproto;		/* VJ params he's willing to use */
 
+  struct in_addr ifmask;		/* Interface netmask */
+
   struct in_addr my_ip;			/* IP address I'm willing to use */
   u_int32_t my_compproto;		/* VJ params I'm willing to use */
 
@@ -102,13 +112,14 @@ struct cmdargs;
 
 extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *,
                       const struct fsm_parent *);
-extern void ipcp_Setup(struct ipcp *);
+extern void ipcp_Setup(struct ipcp *, u_int32_t);
 extern void ipcp_SetLink(struct ipcp *, struct link *);
 
 extern int  ipcp_Show(struct cmdargs const *);
 extern void ipcp_Input(struct ipcp *, struct bundle *, struct mbuf *);
 extern void ipcp_AddInOctets(struct ipcp *, int);
 extern void ipcp_AddOutOctets(struct ipcp *, int);
+extern int  ipcp_UseHisIPaddr(struct bundle *, struct in_addr);
 extern int  ipcp_UseHisaddr(struct bundle *, const char *, int);
 extern int  ipcp_vjset(struct cmdargs const *);
 extern void ipcp_CleanInterface(struct ipcp *);
