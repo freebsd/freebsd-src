@@ -25,12 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.h,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: atapi-tape.h,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 /* ATAPI tape commands not in std ATAPI command set */
 #define ATAPI_TAPE_REWIND   		0x01
-#define ATAPI_TAPE_REQUEST_SENSE   	0x03
 #define ATAPI_TAPE_READ_CMD   		0x08
 #define ATAPI_TAPE_WRITE_CMD   		0x0a
 #define ATAPI_TAPE_WEOF 		0x10
@@ -93,29 +92,6 @@ struct ast_cappage {
     u_int16_t	buffer_size;        	/* buffer Size, in 512 bytes */
     u_int8_t	reserved18;
     u_int8_t	reserved19;
-};
-
-/* REQUEST SENSE structure */
-struct ast_reqsense {
-    u_int8_t	error_code     	:7;	/* current or deferred errors */
-    u_int8_t	valid          	:1;	/* follows QIC-157C */
-    u_int8_t	reserved1;		/* Segment number - reserved */
-    u_int8_t	sense_key	:4;	/* sense key */
-    u_int8_t	reserved2_4	:1;	/* reserved */
-    u_int8_t	ili		:1;	/* incorrect length indicator */
-    u_int8_t	eom		:1;	/* end of medium */
-    u_int8_t	filemark	:1;	/* filemark */
-    u_int8_t	info __attribute__((packed)); /* cmd specific info */
-    u_int8_t	asl;			/* additional sense length (n-7) */
-    u_int8_t	command_specific;	/* additional cmd specific info */
-    u_int8_t	asc;			/* additional sense code */
-    u_int8_t	ascq;			/* additional sense code qualifier */
-    u_int8_t	replaceable_unit_code;	/* field replaceable unit code */
-    u_int8_t	sk_specific1	:7;	/* sense key specific */
-    u_int8_t	sksv		:1;	/* sense key specific info valid */
-    u_int8_t	sk_specific2;		/* sense key specific */
-    u_int8_t	sk_specific3;		/* sense key Specific */
-    u_int8_t	pad[2];			/* padding */
 };
 
 struct ast_softc {

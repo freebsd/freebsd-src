@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: ata-all.h,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 /* ATA register defines */
@@ -72,6 +72,8 @@
 #define	ATA_MASTER			0x00
 #define	ATA_SLAVE			0x10
 #define	ATA_IOSIZE			0x08
+#define ATA_OP_FINISHED			0x00
+#define ATA_OP_CONTINUES		0x01
 
 /* Devices types */
 #define ATA_ATA_MASTER			0x01

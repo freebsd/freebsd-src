@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: ata-disk.h,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 /* ATA device parameter information */
@@ -129,5 +129,5 @@ struct ad_softc {
 };
 
 void ad_transfer(struct buf *);
-void ad_interrupt(struct buf *);
+int32_t ad_interrupt(struct buf *);
 
