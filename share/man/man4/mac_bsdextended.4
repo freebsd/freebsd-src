@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2004
+.Dd September 10, 2004
 .Os
 .Dt MAC_BSDEXTENDED 4
 .Sh NAME
@@ -101,12 +101,10 @@ List the number of defined rules, the maximum rule count is
 current set at 256.
 .It Va security.mac.bsdextended.rule_slots
 List the number of rule slots currently being used.
-.It Va security.mac.bsdextended.debugging
-Toggle between debugging mode, currently this does
-nothing and will soon be removed.
 .It Va security.mac.bsdextended.firstmatch_enabled
 Toggle between the old all rules match functionality
 and the new first rule matches functionality.
+This is enabled by default.
 .It Va security.mac.bsdextended.logging
 Log all access violations via the
 .Dv AUTHPRIV
