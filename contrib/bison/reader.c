@@ -60,6 +60,7 @@ extern void output_trailers();
 extern void free_symtab();
 extern void open_extra_files();
 extern char *int_to_string();
+extern char *printable_version();
 extern void fatal();
 extern void fatals();
 extern void warn();
