@@ -2177,12 +2177,6 @@ options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
 options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 
 #
-# Add tie-ins for a hardware watchdog.  This only enables the hooks;
-# the user must still supply the actual driver.
-#
-options 	HW_WDOG
-
-#
 # Add software watchdog routines.
 #
 options 	SW_WATCHDOG
