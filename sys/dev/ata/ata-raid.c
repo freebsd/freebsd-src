@@ -1312,8 +1312,8 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 		return -1;
 	    }
 	}
+	free(config, M_AR);
     }
-    free(config, M_AR);
     return 0;
 }
 
@@ -1609,8 +1609,8 @@ ar_promise_write_conf(struct ar_softc *rdp)
 		return -1;
 	    }
 	}
+	free(config, M_AR);
     }
-    free(config, M_AR);
     return 0;
 }
 
