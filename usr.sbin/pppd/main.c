@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: main.c,v 1.13 1997/08/19 17:52:43 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -487,7 +487,7 @@ main(argc, argv)
 	    while ((i = open(devnam, O_RDWR)) < 0) {
 		if (errno != EINTR)
 		    syslog(LOG_ERR, "Failed to reopen %s: %m", devnam);
-		if (!persist || errno != EINTR)
+		if (!persist || errno != EINTR || hungup || kill_link)
 		    goto fail;
 	    }
 	    close(i);
