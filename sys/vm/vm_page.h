@@ -234,6 +234,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 #define PG_REFERENCED	0x0080		/* page has been referenced */
 #define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
 #define PG_SWAPINPROG	0x0200		/* swap I/O in progress on page	     */
+#define PG_NOSYNC	0x0400		/* do not collect for syncer */
 
 /*
  * Misc constants.
@@ -437,10 +438,9 @@ vm_page_unhold(vm_page_t mem)
 /*
  * 	vm_page_protect:
  *
- *	Reduce the protection of a page.  This routine never
- *	raises the protection and therefore can be safely
- *	called if the page is already at VM_PROT_NONE ( it
- *	will be a NOP effectively ).
+ *	Reduce the protection of a page.  This routine never raises the 
+ *	protection and therefore can be safely called if the page is already
+ *	at VM_PROT_NONE (it will be a NOP effectively ).
  */
 
 static __inline void
