@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.12 1997/08/21 04:49:01 peter Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.13 1997/09/19 01:53:59 julian Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -190,6 +190,8 @@
                 ..
                 sort
                 ..
+            ..
+            libvgl
             ..
             worm
             ..
