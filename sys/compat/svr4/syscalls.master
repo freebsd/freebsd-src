@@ -35,7 +35,7 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	UNIMPL	SVR4	unused
-1	NOPROTO	POSIX	{ int exit(int rval); }
+1	NOPROTO	POSIX	{ void exit(int rval); } exit rexit_args void
 2	NOPROTO	POSIX	{ int fork(void); }
 3	NOPROTO	POSIX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	SVR4	{ int write(int fd, char *buf, u_int nbyte); }
