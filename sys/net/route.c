@@ -1001,15 +1001,13 @@ rt_fixchange(struct radix_node *rn, void *vp)
 			 rt_mask(rt), rt->rt_flags, (struct rtentry **)0);
 }
 
-#define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
 	/* XXX dst may be overwritten, can we move this to below */
 	struct radix_node_head *rnh = rt_tables[dst->sa_family];
 	caddr_t new, old;
-	int dlen = ROUNDUP(dst->sa_len), glen = ROUNDUP(gate->sa_len);
+	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 
 	RT_LOCK_ASSERT(rt);
 
@@ -1037,7 +1035,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	 * if we need to malloc a new chunk, then keep the old one around
 	 * till we don't need it any more.
 	 */
-	if (rt->rt_gateway == 0 || glen > ROUNDUP(rt->rt_gateway->sa_len)) {
+	if (rt->rt_gateway == 0 || glen > SA_SIZE(rt->rt_gateway)) {
 		old = (caddr_t)rt_key(rt);
 		R_Malloc(new, caddr_t, dlen + glen);
 		if (new == 0)
