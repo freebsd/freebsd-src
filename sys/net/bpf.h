@@ -38,7 +38,7 @@
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *	@(#)bpf.h	1.34 (LBL)     6/16/96
  *
- * $Id$
+ * $Id: bpf.h,v 1.12 1997/02/22 09:40:55 peter Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -128,7 +128,8 @@ struct bpf_hdr {
  * Only the kernel needs to know about it; applications use bh_hdrlen.
  */
 #ifdef KERNEL
-#define SIZEOF_BPF_HDR 18
+#define	SIZEOF_BPF_HDR	(sizeof(struct bpf_hdr) <= 20 ? 18 : \
+    sizeof(struct bpf_hdr))
 #endif
 
 /*
