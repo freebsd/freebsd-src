@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: da.4,v 1.16 1999/06/07 16:36:41 bde Exp $
+.\"	$Id: da.4,v 1.17 1999/08/09 02:35:55 chris Exp $
 .\"
 .Dd October 15, 1998
 .Dt DA 4
@@ -54,7 +54,7 @@ before a
 .Tn SCSI
 direct access device can be configured.
 .Sh PARTITIONING
-The 
+The
 .Nm
 driver allows the disk to have two levels of partitioning.
 One layer, called the
@@ -89,7 +89,7 @@ partition encompassing the entire slice.
 Many direct access devices are equipped with read and/or write caches.
 Parameters affecting the device's cache are stored in mode page 8,
 the caching control page.  Mode pages can be examined and modified
-via the 
+via the
 .Xr camcontrol 8
 utility.
 
@@ -137,8 +137,8 @@ remapping features are 'Auto Write Reallocation' and 'Auto Read
 Reallocation' which can be enabled via the AWRE and ARRE bits,
 respectively, of the Read-Write Error Recovery page.
 Many devices do not ship from the factory with these feature enabled.
-Mode pages can be examined and modified 
-via the 
+Mode pages can be examined and modifie
+via the
 .Xr camcontrol 8
 utility.
 .Sh KERNEL CONFIGURATION
@@ -149,16 +149,16 @@ on the
 .Tn SCSI
 bus.
 .Sh IOCTLS
-The following 
+The following
 .Xr ioctl 2
-calls apply to 
+calls apply to
 .Tn SCSI
 disks as well as to other disks.  They are defined in the header file
 .Aq Pa sys/disklabel.h .
 .Pp
 .Bl -tag -width DIOCSDINFO
 .It Dv DIOCSBAD
-Usually used to set up a bad-block mapping system on the disk. 
+Usually used to set up a bad-block mapping system on the disk.
 .Tn SCSI
 drives incorporate their own bad-block mapping so this command is not
 implemented.
