@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.14 1997/05/26 00:44:05 brian Exp $
+ * $Id: lqr.c,v 1.15 1997/06/09 03:27:27 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -192,6 +192,9 @@ StartLqm()
   int period;
 
   lqrsendcnt = 0;	/* start waiting all over for ECHOs */
+  echoseq = 0;
+  gotseq = 0;
+  
   lqmmethod = LQM_ECHO;
   if (Enabled(ConfLqr))
     lqmmethod |= LQM_LQR;
