@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 static unsigned piix_get_timecount(struct timecounter *tc);
 
@@ -96,14 +97,14 @@ piix_get_timecount(struct timecounter *tc)
 }
 
 static int
-piix_probe (device_t dev)
+piix_probe(device_t dev)
 {
 	u_int32_t	d;
 
 	switch (pci_get_devid(dev)) {
 	case 0x71138086:
-		d = pci_read_config(dev, 0x4, 2);
-		if (d & 1)
+		d = pci_read_config(dev, PCIR_COMMAND, 2);
+		if (d & PCIM_CMD_PORTEN)
 			return (0);
 		printf("PIIX I/O space not mapped\n");
 		return (ENXIO);
@@ -114,7 +115,7 @@ piix_probe (device_t dev)
 }
 
 static int
-piix_attach (device_t dev)
+piix_attach(device_t dev)
 {
 	u_int32_t	d;
 
