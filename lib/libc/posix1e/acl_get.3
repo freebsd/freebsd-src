@@ -1,6 +1,8 @@
 .\"-
-.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2000, 2002 Robert N. M. Watson
 .\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD Project.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,13 +27,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2000
+.Dd December 29, 2002
 .Dt ACL_GET 3
 .Os
 .Sh NAME
 .Nm acl_get_fd ,
 .Nm acl_get_fd_np ,
-.Nm acl_get_file
+.Nm acl_get_file ,
+.Nm acl_get_link_np
 .Nd get an ACL for a file
 .Sh LIBRARY
 .Lb libc
@@ -39,23 +42,21 @@
 .In sys/types.h
 .In sys/acl.h
 .Ft acl_t
-.Fn acl_get_file "const char *path_p" "acl_type_t type"
-.Ft acl_t
 .Fn acl_get_fd "int fd"
 .Ft acl_t
 .Fn acl_get_fd_np "int fd" "acl_type_t type"
+.Ft acl_t
+.Fn acl_get_file "const char *path_p" "acl_type_t type"
+.Ft acl_t
+.Fn acl_get_link_np "const char *path_p" "acl_type_t type"
 .Sh DESCRIPTION
 The
-.Fn acl_get_file ,
 .Fn acl_get_fd ,
-and
+.Fn acl_get_file ,
+.Fn acl_get_link_np ,
 .Fn acl_get_fd_np
 each allow the retrieval of an ACL from a file.
 The
-.Fn acl_get_file
-function
-is a POSIX.1e call that allows the retrieval of a
-specified type of ACL from a file by name;
 .Fn acl_get_fd
 is a POSIX.1e call that allows the retrieval of an ACL of type
 ACL_TYPE_ACCESS
@@ -66,8 +67,16 @@ function
 is a non-portable form of
 .Fn acl_get_fd
 that allows the retrieval of any type of ACL from a file descriptor.
+.Fn acl_get_file
+is a POSIX.1e call that allows the retrieval of a
+specified type of ACL from a file by name;
+.Fn acl_get_link_np
+is a non-portable variation on
+.Fn acl_get_file
+which does not follow a symlink if the target of the call is a
+symlink.
 .Pp
-This function may cause memory to be allocated.  The caller should free
+These functions may cause memory to be allocated.  The caller should free
 any releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
@@ -139,5 +148,3 @@ POSIX.1e support was introduced in
 and development continues.
 .Sh AUTHORS
 .An Robert N M Watson
-.Sh BUGS
-These features are not yet fully implemented.

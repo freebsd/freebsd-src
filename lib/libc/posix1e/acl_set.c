@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,6 +69,28 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 	acl->ats_cur_entry = 0;
 
 	return (__acl_set_file(path_p, type, &acl->ats_acl));
+}
+
+int
+acl_set_link_np(const char *path_p, acl_type_t type, acl_t acl)
+{
+	int	error;
+
+	if (acl == NULL || path_p == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (_posix1e_acl(acl, type)) {
+		error = _posix1e_acl_sort(acl);
+		if (error) {
+			errno = error;
+			return (-1);
+		}
+	}
+
+	acl->ats_cur_entry = 0;
+
+	return (__acl_set_link(path_p, type, &acl->ats_acl));
 }
 
 int
