@@ -157,11 +157,11 @@ init_dqd(dqd)
 	RF_DiskQueueData_t *dqd;
 {
 
-	dqd->bp = (RF_Buf_t) malloc(sizeof(RF_Buf_t), M_RAIDFRAME, M_NOWAIT);
+	dqd->bp = (RF_Buf_t) malloc(sizeof(*dqd->bp), M_RAIDFRAME, M_NOWAIT);
 	if (dqd->bp == NULL) {
 		return (ENOMEM);
 	}
-	memset(dqd->bp, 0, sizeof(RF_Buf_t));	/* if you don't do it, nobody
+	memset(dqd->bp, 0, sizeof(*dqd->bp));	/* if you don't do it, nobody
 						 * else will.. */
 	return (0);
 }
