@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.54 1995/01/23 02:52:20 phk Exp $
+ *	$Id: conf.c,v 1.55 1995/01/25 20:57:32 jmz Exp $
  */
 
 #include <sys/param.h>
@@ -735,6 +735,22 @@ d_ioctl_t joyioctl;
 #define	joyioctl (d_ioctl_t *)enxio
 #endif
 
+#include "tun.h"                                                                
+#if NTUN > 0                                                                    
+d_open_t tunopen;
+d_close_t tunclose;
+d_rdwr_t tunread, tunwrite;
+d_ioctl_t tunioctl;
+d_select_t tunselect;
+#else
+#define tunopen         (d_open_t *)enxio
+#define tunclose        (d_close_t *)enxio
+#define tunread         (d_rdwr_t *)enxio
+#define tunwrite        (d_rdwr_t *)enxio
+#define tunioctl        (d_ioctl_t *)enxio
+#define tunselect       (d_select_t *)enxio
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -905,6 +921,9 @@ struct cdevsw	cdevsw[] =
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
 	  joyioctl,	nostop,		nullreset,	NULL,	/*joystick */
 	  seltrue,	nommap,		NULL},
+	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
+	  tunioctl,     nostop,         nullreset,      NULL,   /* tunnel */
+	  tunselect,    nommap,         NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
