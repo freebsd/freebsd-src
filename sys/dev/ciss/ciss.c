@@ -134,7 +134,9 @@ static int	ciss_report_request(struct ciss_request *cr, int *command_status,
 static int	ciss_synch_request(struct ciss_request *cr, int timeout);
 static int	ciss_poll_request(struct ciss_request *cr, int timeout);
 static int	ciss_wait_request(struct ciss_request *cr, int timeout);
+#if 0
 static int	ciss_abort_request(struct ciss_request *cr);
+#endif
 
 /* request queueing */
 static int	ciss_get_request(struct ciss_softc *sc, struct ciss_request **crp);
@@ -1631,6 +1633,7 @@ ciss_wait_request(struct ciss_request *cr, int timeout)
     return(error);
 }
 
+#if 0
 /************************************************************************
  * Abort a request.  Note that a potential exists here to race the
  * request being completed; the caller must deal with this.
@@ -1677,6 +1680,7 @@ ciss_abort_request(struct ciss_request *ar)
 
     return(error);
 }
+#endif
 
 
 /************************************************************************
