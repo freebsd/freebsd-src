@@ -84,7 +84,6 @@ char	*a_outname;
 #define	A_OUTNAME		"a.out"
 
 char	*gmonname;
-#define	GMONNAME		"gmon.out"
 #define	GMONSUM			"gmon.sum"
 
     /*
