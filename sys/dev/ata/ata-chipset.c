@@ -1866,7 +1866,9 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
+    {{ ATA_SIS964_1,0x00, SISSATA,   0, ATA_SA150, "SiS 964" }, /* south */
+     { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 964" }, /* south */
+     { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
      { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" }, /* south */
 
      { ATA_SIS755,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 755" }, /* ext south */
@@ -1905,7 +1907,7 @@ ata_sis_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_find_chip(dev, ids, -1))) 
+    if (!(idx = ata_find_chip(dev, ids, -pci_get_slot(dev)))) 
 	return ENXIO;
 
     if (idx->cfg1 == SIS_SOUTH) {
@@ -1960,6 +1962,10 @@ ata_sis_chipinit(device_t dev)
 	pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 2) & 0xfff7, 2);
 	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 2) & 0xfff7, 2);
 	break;
+    case SISSATA:
+	pci_write_config(dev, 0x04, pci_read_config(dev, 0x04, 2) & ~0x0400, 2);
+	ctlr->setmode = ata_sata_setmode;
+	return 0;
     default:
 	return ENXIO;
     }
@@ -2225,7 +2231,8 @@ ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
 
     while (index->chipid != 0) {
 	for (i = 0; i < nchildren; i++) {
-	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || slot < 0)&&
+	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || 
+		 (slot < 0 && pci_get_slot(children[i]) <= -slot)) &&
 		pci_get_devid(children[i]) == index->chipid &&
 		pci_get_revid(children[i]) >= index->chiprev) {
 		free(children, M_TEMP);

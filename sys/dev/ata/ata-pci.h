@@ -206,6 +206,8 @@ struct ata_pci_controller {
 #define ATA_SIS961		0x09611039
 #define ATA_SIS962		0x09621039
 #define ATA_SIS963		0x09631039
+#define ATA_SIS964		0x09641039
+#define ATA_SIS964_1		0x01801039
 
 #define ATA_VIA_ID		0x1106
 #define ATA_VIA82C571		0x05711106
@@ -255,12 +257,13 @@ struct ata_pci_controller {
 #define SIISETCLK	0x02
 
 #define SIS_SOUTH	1
-#define SIS133NEW	2
-#define SIS133OLD	3
-#define SIS100NEW	4
-#define SIS100OLD	5
-#define SIS66		6
-#define SIS33		7
+#define SISSATA		2
+#define SIS133NEW	3
+#define SIS133OLD	4
+#define SIS100NEW	5
+#define SIS100OLD	6
+#define SIS66		7
+#define SIS33		8
 
 #define VIA33		0
 #define VIA66		1
