@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.214 1996/06/24 04:24:10 jkh Exp $
+# $Id: bsd.port.mk,v 1.215 1996/06/26 21:12:28 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -206,34 +206,6 @@
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
-
-# Support for an encapsulation in /usr/src - these are essentially simplied ports
-# and have a number of defaults we can presume right off the bat.
-.if defined(SRC_ENCAPSULATION)
-.if exists (${BSDOBJDIR}/${.CURDIR})
-WRKDIR=${BSDOBJDIR}/${.CURDIR}
-.else
-NO_WRKDIR=			yes
-.endif
-
-# Disable things that should be disabled for encapsulations.
-NO_PACKAGE=			yes
-NO_MTREE=			yes
-NO_FETCH=			yes
-NO_PKG_REGISTER=	yes
-describe:
-	@${DO_NADA}
-
-# Finally, give us working obj and cleandir targets to make us more compatible
-# with "traditional" /usr/src ports.
-.include <bsd.obj.mk>
-
-.if !target(distribute)
-distribute:
-	@cd ${.CURDIR} && ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
-.endif
-.endif
-# end of SRC_ENCAPSULATION defines
 
 
 # These need to be absolute since we don't know how deep in the ports
