@@ -72,16 +72,16 @@ esac
 # Set the various sysctls based on the profile's values.
 node="hw.acpi.cpu.cx_lowest"
 highest_value="C1"
-lowest_value="$(sysctl -n hw.acpi.cpu.cx_supported | \
-	awk '{ print "C" split($0, a) }' - 2> /dev/null)"
+lowest_value="`(sysctl -n hw.acpi.cpu.cx_supported | \
+	awk '{ print "C" split($0, a) }' -) 2> /dev/null`"
 eval value=\$${profile}_cx_lowest
 sysctl_set
 
 node="dev.cpu.0.freq"
-highest_value="$(sysctl -n dev.cpu.0.freq_levels | \
-	awk '{ split($0, a, "[/ ]"); print a[1] }' - 2> /dev/null)"
-lowest_value="$(sysctl -n dev.cpu.0.freq_levels | \
-	awk '{ split($0, a, "[/ ]"); print a[length(a) - 1] }' - 2> /dev/null)"
+highest_value="`(sysctl -n dev.cpu.0.freq_levels | \
+	awk '{ split($0, a, "[/ ]"); print a[1] }' -) 2> /dev/null`"
+lowest_value="`(sysctl -n dev.cpu.0.freq_levels | \
+	awk '{ split($0, a, "[/ ]"); print a[length(a) - 1] }' -) 2> /dev/null`"
 eval value=\$${profile}_cpu_freq
 sysctl_set
 
