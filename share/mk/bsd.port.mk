@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.271 1998/02/19 06:49:27 asami Exp $
+#	$Id: bsd.port.mk,v 1.272 1998/03/07 04:40:19 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -1147,7 +1147,10 @@ package-links:
 
 .if !target(delete-package-links)
 delete-package-links:
-	@${RM} -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX} ${PKGLATESTFILE}
+	@${RM} -f ${PACKAGES}/[a-z]*/${PKGNAME}${PKG_SUFX}
+.if !defined(NO_LATEST_LINK)
+	@${RM} -f ${PKGLATESTFILE}
+.endif
 .endif
 
 .if !target(delete-package)
