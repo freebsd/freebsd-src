@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_ext2fs.c,v 1.4 1996/09/14 02:57:56 bde Exp $";
+	"$Id: mount_ext2fs.c,v 1.4.2.1 1997/12/04 07:36:11 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -111,7 +111,7 @@ main(argc, argv)
 		vfc = getvfsbyname("ext2fs");
 	}
 	if (!vfc)
-		errx(EX_OSERR, "ext2fs filesystem not available");
+		errx(EX_OSERR, "ext2fs filesystem is not available");
 
 	if (mount(vfc->vfc_index, fs_name, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", args.fspec);
