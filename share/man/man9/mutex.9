@@ -126,7 +126,7 @@ These should only be used to protect data shared with any devices that
 require non-preemptive interrupts, and low level scheduling code.
 In most/all architectures both acquiring and releasing of a
 uncontested spin mutex is more expensive than the same operation
-on a non spin mutex.
+on a non-spin mutex.
 In order to protect an interrupt service routine from blocking
 against itself all interrupts are blocked on a processor while
 holding a spin lock.
