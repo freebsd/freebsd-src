@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.48 2002/02/11 15:11:49 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.50 2002/07/11 21:14:31 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -177,7 +177,7 @@ USB_MATCH(ulpt)
 {
 	USB_MATCH_START(ulpt, uaa);
 	usb_interface_descriptor_t *id;
-	
+
 	DPRINTFN(10,("ulpt_match\n"));
 	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
@@ -205,14 +205,14 @@ USB_ATTACH(ulpt)
 	usb_endpoint_descriptor_t *ed;
 	u_int8_t epcount;
 	int i, altno;
-	
+
 	DPRINTFN(10,("ulpt_attach: sc=%p\n", sc));
 	usbd_devinfo(dev, 0, devinfo);
 	USB_ATTACH_SETUP;
 	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
 	       devinfo, ifcd->bInterfaceClass, ifcd->bInterfaceSubClass);
 
-	/* XXX 
+	/* XXX
 	 * Stepping through the alternate settings needs to be abstracted out.
 	 */
 	cdesc = usbd_get_config_descriptor(dev);
@@ -672,7 +672,7 @@ ulpt_do_write(struct ulpt_softc *sc, struct uio *uio, int flags)
 		if (error)
 			break;
 		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
-		err = usbd_bulk_transfer(xfer, sc->sc_out_pipe, USBD_NO_COPY, 
+		err = usbd_bulk_transfer(xfer, sc->sc_out_pipe, USBD_NO_COPY,
 			  USBD_NO_TIMEOUT, bufp, &n, "ulptwr");
 		if (err) {
 			DPRINTF(("ulptwrite: error=%d\n", err));
