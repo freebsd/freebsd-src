@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.9.2.4 1999/05/23 19:00:40 gibbs Exp $
+ *      $Id: cam_periph.c,v 1.9.2.5 1999/05/25 17:12:02 ken Exp $
  */
 
 #include <sys/param.h>
@@ -654,6 +654,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 		break;
 	case XPT_SCSI_IO:
+	case XPT_CONT_TARGET_IO:
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		numbufs = min(mapinfo->num_bufs_used, 1);
 		break;
@@ -1113,7 +1114,6 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	sense  = (status & CAM_AUTOSNS_VALID) != 0;
 	status &= CAM_STATUS_MASK;
 	relsim_flags = 0;
-
 
 	switch (status) {
 	case CAM_REQ_CMP:

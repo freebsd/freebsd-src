@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.12 1999/05/22 22:57:38 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.13 1999/05/23 19:00:41 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2720,10 +2720,13 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 void
 xpt_action(union ccb *start_ccb)
 {
+	int iopl;
+
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action\n"));
 
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
 
+	iopl = splsoftcam();
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{
@@ -3282,6 +3285,7 @@ xpt_action(union ccb *start_ccb)
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		break;
 	}
+	splx(iopl);
 }
 
 void
