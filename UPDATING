@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040801:
+	The /dev/mem, /dev/io /dev/(null/zero) devices are now modules,
+	so you may wish to add them to your kernel config file. See
+	GENERIC for examples.
+
 20040728:
 	System compiler has been upgraded to GCC 3.4.2-pre. As with any major
 	compiler upgrade, there are several issues to be aware of. GCC 3.4.x
