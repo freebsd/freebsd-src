@@ -89,7 +89,10 @@ static const char rcsid[] =
 #define PPP_LCP_HI          0xc0  /* LCP protocol - high byte */
 #define PPP_LCP_LOW         0x21  /* LCP protocol - low byte */
 
-struct termios tmode, omode;
+/* original mode; flags've been reset using values from <sys/ttydefaults.h> */
+struct termios omode;
+/* current mode */
+struct termios tmode;
 
 int crmod, digit, lower, upper;
 
@@ -103,6 +106,7 @@ char	ttyn[32];
 
 char	defent[TABBUFSIZ];
 char	tabent[TABBUFSIZ];
+const	char *tname;
 
 char	*env[128];
 
@@ -131,7 +135,9 @@ char partab[] = {
 
 #define	puts	Gputs
 
+static void	defttymode __P((void));
 static void	dingdong __P((int));
+static void	dogettytab __P((void));
 static int	getname __P((void));
 static void	interrupt __P((int));
 static void	oflush __P((void));
@@ -142,8 +148,7 @@ static void	putpad __P((const char *));
 static void	puts __P((const char *));
 static void	timeoverrun __P((int));
 static char	*getline __P((int));
-static void	setttymode __P((const char *, int));
-static void	setdefttymode __P((const char *));
+static void	setttymode __P((int));
 static int	opentty __P((const char *, int));
 
 int		main __P((int, char **));
@@ -185,7 +190,6 @@ main(argc, argv)
 	char **argv;
 {
 	extern	char **environ;
-	const char *tname;
 	int first_sleep = 1, first_time = 1;
 	struct rlimit limit;
 	int rval;
@@ -230,14 +234,25 @@ main(argc, argv)
 		chmod(ttyn, 0600);
 		revoke(ttyn);
 
-		gettable(tname, tabent);
-
-		/* Init modem sequence has been specified
+		/*
+		 * Do the first scan through gettytab.
+		 * Terminal mode parameters will be wrong until
+		 * defttymode() called, but they're irrelevant for
+		 * the initial setup of the terminal device.
 		 */
-		if (IC) {
+		dogettytab();
+
+		/*
+		 * Init or answer modem sequence has been specified.
+		 */
+		if (IC || AC) {
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
-			setdefttymode(tname);
+			defttymode();
+			setttymode(1);
+		}
+
+		if (IC) {
 			if (getty_chat(IC, CT, DC) > 0) {
 				syslog(LOG_ERR, "modem init problem on %s", ttyn);
 				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
@@ -249,9 +264,6 @@ main(argc, argv)
 			int i, rfds;
 			struct timeval timeout;
 
-			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
-				exit(1);
-        		setdefttymode(tname);
         		rfds = 1 << 0;	/* FD_SET */
         		timeout.tv_sec = RT;
         		timeout.tv_usec = 0;
@@ -277,25 +289,7 @@ main(argc, argv)
 	    }
 	}
 
-	/* Start with default tty settings */
-	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
-		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
-		exit(1);
-	}
-	/*
-	 * Don't rely on the driver too much, and initialize crucial
-	 * things according to <sys/ttydefaults.h>.  Avoid clobbering
-	 * the c_cc[] settings however, the console drivers might wish
-	 * to leave their idea of the preferred VERASE key value
-	 * there.
-	 */
-	tmode.c_iflag = TTYDEF_IFLAG;
-	tmode.c_oflag = TTYDEF_OFLAG;
-	tmode.c_lflag = TTYDEF_LFLAG;
-	tmode.c_cflag = TTYDEF_CFLAG;
-	tmode.c_cflag |= (NC ? CLOCAL : 0);
-	omode = tmode;
-
+	defttymode();
 	for (;;) {
 
 		/*
@@ -309,13 +303,15 @@ main(argc, argv)
 		}
 		first_sleep = 0;
 
-		setttymode(tname, 0);
+		setttymode(0);
 		if (AB) {
 			tname = autobaud();
+			dogettytab();
 			continue;
 		}
 		if (PS) {
 			tname = portselector();
+			dogettytab();
 			continue;
 		}
 		if (CL && *CL)
@@ -350,6 +346,8 @@ main(argc, argv)
 			signal(SIGALRM, dingdong);
 			alarm(TO);
 		}
+
+		rval = 0;
 		if (AL) {
 			const char *p = AL;
 			char *q = name;
@@ -361,7 +359,7 @@ main(argc, argv)
 				else if (islower(*p))
 					lower = 1;
 				else if (isdigit(*p))
-					digit++;
+					digit = 1;
 				*q++ = *p++;
 			}
 		} else if (!(PL && PP))
@@ -381,12 +379,20 @@ main(argc, argv)
 			oflush();
 			alarm(0);
 			signal(SIGALRM, SIG_DFL);
+			if (name[0] == '\0')
+				continue;
 			if (name[0] == '-') {
 				puts("user names may not start with '-'.");
 				continue;
 			}
-			if (!(upper || lower || digit))
-				continue;
+			if (!(upper || lower || digit)) {
+				if (AL) {
+					syslog(LOG_ERR,
+					    "invalid auto-login name: %s", AL);
+					exit(1);
+				} else
+					continue;
+			}
 			set_flags(2);
 			if (crmod) {
 				tmode.c_iflag |= ICRNL;
@@ -418,8 +424,10 @@ main(argc, argv)
 		alarm(0);
 		signal(SIGALRM, SIG_DFL);
 		signal(SIGINT, SIG_IGN);
-		if (NX && *NX)
+		if (NX && *NX) {
 			tname = NX;
+			dogettytab();
+		}
 	}
 }
 
@@ -460,32 +468,38 @@ opentty(const char *ttyn, int flags)
 }
 
 static void
-setdefttymode(tname)
-	const char * tname;
+defttymode()
 {
+
+	/* Start with default tty settings. */
 	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
 		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
 		exit(1);
 	}
+	omode = tmode; /* fill c_cc for dogettytab() */
+	dogettytab();
+	/*
+	 * Don't rely on the driver too much, and initialize crucial
+	 * things according to <sys/ttydefaults.h>.  Avoid clobbering
+	 * the c_cc[] settings however, the console drivers might wish
+	 * to leave their idea of the preferred VERASE key value
+	 * there.
+	 */
 	tmode.c_iflag = TTYDEF_IFLAG;
-        tmode.c_oflag = TTYDEF_OFLAG;
-        tmode.c_lflag = TTYDEF_LFLAG;
-        tmode.c_cflag = TTYDEF_CFLAG;
-        omode = tmode;
-	setttymode(tname, 1);
+	tmode.c_oflag = TTYDEF_OFLAG;
+	tmode.c_lflag = TTYDEF_LFLAG;
+	tmode.c_cflag = TTYDEF_CFLAG;
+	if (NC)
+		tmode.c_cflag |= CLOCAL;
+	omode = tmode;
 }
 
 static void
-setttymode(tname, raw)
-	const char * tname;
+setttymode(raw)
 	int raw;
 {
 	int off = 0;
 
-	gettable(tname, tabent);
-	if (OPset || EPset || APset)
-		APset++, OPset++, EPset++;
-	setdefaults();
 	(void)tcflush(STDIN_FILENO, TCIOFLUSH);	/* clear out the crap */
 	ioctl(STDIN_FILENO, FIONBIO, &off);	/* turn off non-blocking mode */
 	ioctl(STDIN_FILENO, FIOASYNC, &off);	/* ditto for async mode */
@@ -574,7 +588,7 @@ getname()
 		}
 
 		if (c == EOT || c == CTRL('d'))
-			exit(1);
+			exit(0);
 		if (c == '\r' || c == '\n' || np >= &name[sizeof name-1]) {
 			putf("\r\n");
 			break;
@@ -600,10 +614,11 @@ getname()
 			else if (np > name)
 				puts("                                     \r");
 			prompt();
+			digit = lower = upper = 0;
 			np = name;
 			continue;
 		} else if (isdigit(c))
-			digit++;
+			digit = 1;
 		if (IG && (c <= ' ' || c > 0176))
 			continue;
 		*np++ = c;
@@ -796,4 +811,26 @@ putf(cp)
 		}
 		cp++;
 	}
+}
+
+/*
+ * Read a gettytab database entry and perform necessary quirks.
+ */
+static void
+dogettytab()
+{
+	
+	/* Read the database entry. */
+	gettable(tname, tabent);
+
+	/*
+	 * Avoid inheriting the parity values from the default entry
+	 * if any of them is set in the current entry.
+	 * Mixing different parity settings is unreasonable.
+	 */
+	if (OPset || EPset || APset || NPset)
+		OPset = EPset = APset = NPset = 1;
+
+	/* Fill in default values for unset capabilities. */
+	setdefaults();
 }
