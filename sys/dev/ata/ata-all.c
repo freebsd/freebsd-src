@@ -190,6 +190,11 @@ ata_detach(device_t dev)
     /* fail outstanding requests on this channel */
     ata_fail_requests(ch, NULL);
 
+    /* unlock the channel */
+    ch->running = NULL;
+    ATA_UNLOCK_CH(ch);
+    ch->locking(ch, ATA_LF_UNLOCK);
+
     /* detach devices on this channel */
     if (ch->device[MASTER].detach)
 	ch->device[MASTER].detach(&ch->device[MASTER]);
@@ -265,8 +270,10 @@ ata_reinit(struct ata_channel *ch)
 	}
     }
 
+    /* unlock the channel */
     ch->running = NULL;
     ATA_UNLOCK_CH(ch);
+    ch->locking(ch, ATA_LF_UNLOCK);
 
     /* identify what is present on the channel now */
     ata_identify_devices(ch);
