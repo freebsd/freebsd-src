@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: bt74x.c,v 1.9 1997/02/22 09:32:00 peter Exp $
  */
 
 #include "eisa.h"
@@ -28,9 +28,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <machine/clock.h>
 #include <i386/eisa/eisaconf.h>
 #include <i386/scsi/btreg.h>
 
