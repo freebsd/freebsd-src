@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.30 1998/06/07 08:40:53 phk Exp $
+ * $Id: time.h,v 1.31 1998/06/07 14:14:39 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -128,10 +128,12 @@ struct timezone {
 
 struct timecounter;
 typedef unsigned timecounter_get_t __P((struct timecounter *));
+typedef void timecounter_pps_t __P((struct timecounter *));
 
 struct timecounter {
 	/* These fields must be initialized by the driver. */
 	timecounter_get_t	*get_timecount;
+	timecounter_pps_t	*poll_pps;
 	unsigned 		counter_mask;
 	u_int32_t		frequency;
 	char			*name;
@@ -274,6 +276,7 @@ void	microtime __P((struct timeval *tv));
 void	nanouptime __P((struct timespec *ts));
 void	nanotime __P((struct timespec *ts));
 void	set_timecounter __P((struct timespec *ts));
+void	timecounter_timespec __P((unsigned count, struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 int	tvtohz __P((struct timeval *));
