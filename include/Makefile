@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.89 1998/12/23 11:50:52 dfr Exp $
+#	$Id: Makefile,v 1.90 1999/01/14 05:53:54 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -11,7 +11,7 @@ SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h strhash.h histedit.h ieeefp.h iso646.h \
-	kvm.h limits.h link.h linker_set.h locale.h malloc.h memory.h mpool.h \
+	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h \
 	ndbm.h netdb.h nl_types.h nlist.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
@@ -36,7 +36,7 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 PFILES=	mqueue.h sched.h semaphore.h \
 		# aio.h
 
-LFILES=	errno.h fcntl.h inttypes.h poll.h syslog.h termios.h
+LFILES=	errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
 
 LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
 	pccard posix4 sys vm
