@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.16 1997/04/13 06:25:03 phk Exp $
+ * $Id: union_subr.c,v 1.17 1997/04/13 06:27:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -971,8 +971,23 @@ union_removed_upper(un)
 	struct union_node *un;
 {
 	struct proc *p = curproc;	/* XXX */
+	struct vnode **vpp;
 
+	/*
+	 * Do not set the uppervp to NULLVP.  If lowervp is NULLVP,
+	 * union node will have neither uppervp nor lowervp.  We romove
+	 * the union node from cache, so that it will not be referrenced.
+	 */
+#if 0
 	union_newupper(un, NULLVP);
+#endif
+	if (un->un_dircache != 0) {
+		for (vpp = un->un_dircache; *vpp != NULLVP; vpp++)
+			vrele(*vpp);
+		free(un->un_dircache, M_TEMP);
+		un->un_dircache = 0;
+	}
+
 	if (un->un_flags & UN_CACHED) {
 		un->un_flags &= ~UN_CACHED;
 		LIST_REMOVE(un, un_cache);
