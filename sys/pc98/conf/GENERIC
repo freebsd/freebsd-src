@@ -158,7 +158,7 @@ device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
-device		olpt
+#device		olpt
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
