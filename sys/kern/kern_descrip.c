@@ -1193,11 +1193,17 @@ falloc(td, resultfp, resultfd)
 	struct file *fp, *fq;
 	int error, i;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
+	static struct timeval lastfail;
+	static int curfail;
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
 	sx_xlock(&filelist_lock);
-	if (((nfiles >= maxuserfiles) && (td->td_ucred->cr_ruid != 0))
-	   || (nfiles >= maxfiles)) {
+	if ((nfiles >= maxuserfiles && td->td_ucred->cr_ruid != 0)
+	   || nfiles >= maxfiles) {
+		if (ppsratecheck(&lastfail, &curfail, 1)) {
+			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
+				td->td_ucred->cr_ruid);
+		}			
 		sx_xunlock(&filelist_lock);
 		uma_zfree(file_zone, fp);
 		return (ENFILE);
