@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.10 1998/02/09 06:10:21 eivind Exp $
+ * $Id: ipx_outputfl.c,v 1.11 1999/02/06 10:48:10 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -164,7 +164,7 @@ ipx_output_type20(m)
 	struct mbuf *m;
 {
 	register struct ipx *ipx;
-	union ipx_net *nbnet = (union ipx_net *)(ipx + 1);
+	union ipx_net *nbnet;
 	struct ipx_ifaddr *ia, *tia = NULL;
 	int error = 0;
 	struct mbuf *m1;
