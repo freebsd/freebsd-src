@@ -149,21 +149,32 @@ ext2_readdir(ap)
 	struct uio auio;
 	struct iovec aiov;
 	caddr_t dirbuf;
+	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->s_blocksize;
 	int readcnt;
-	u_quad_t startoffset = uio->uio_offset;
+	off_t startoffset = uio->uio_offset;
 
-        count = uio->uio_resid;		/* legyenek boldogok akik akarnak ... */
-        uio->uio_resid = count;
-        uio->uio_iov->iov_len = count;
+	count = uio->uio_resid;
+	/*
+	 * Avoid complications for partial directory entries by adjusting
+	 * the i/o to end at a block boundary.  Don't give up (like ufs
+	 * does) if the initial adjustment gives a negative count, since
+	 * many callers don't supply a large enough buffer.  The correct
+	 * size is a little larger than DIRBLKSIZ to allow for expansion
+	 * of directory entries, but some callers just use 512.
+	 */
+	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
+	if (count <= 0)
+		count += DIRBLKSIZ;
 
-#if 0
-printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n", 
-	(int)uio->uio_offset, (int)uio->uio_resid, (int)count);
+#ifdef EXT2FS_DEBUG
+	printf("ext2_readdir: uio_offset = %lld, uio_resid = %d, count = %d\n", 
+	    uio->uio_offset, uio->uio_resid, count);
 #endif
 
 	auio = *uio;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
+	auio.uio_resid = count;
 	auio.uio_segflg = UIO_SYSSPACE;
 	aiov.iov_len = count;
 	MALLOC(dirbuf, caddr_t, count, M_TEMP, M_WAITOK);
@@ -222,8 +233,7 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 		uio->uio_offset = startoffset + (caddr_t)dp - dirbuf;
 
 		if (!error && ap->a_ncookies != NULL) {
-			u_long *cookies;
-			u_long *cookiep;
+			u_long *cookiep, *cookies, *ecookies;
 			off_t off;
 
 			if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
@@ -231,8 +241,9 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 			MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
 			       M_WAITOK);
 			off = startoffset;
-			for (dp = (struct ext2_dir_entry_2 *)dirbuf, cookiep = cookies;
-			     dp < edp;
+			for (dp = (struct ext2_dir_entry_2 *)dirbuf,
+			     cookiep = cookies, ecookies = cookies + ncookies;
+			     cookiep < ecookies;
 			     dp = (struct ext2_dir_entry_2 *)((caddr_t) dp + dp->rec_len)) {
 				off += dp->rec_len;
 				*cookiep++ = (u_long) off;
