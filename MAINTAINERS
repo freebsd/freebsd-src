@@ -33,3 +33,14 @@ md(4)		phk	Pre-commit review requested.
 aac		scottl	Pre-commit review requested
 udf		scottl	Pre-commit review with myself or asmodai requested.
 powerpc		benno	Pre-commit review preferred.
+CAM		gibbs,
+		ken,
+		mjacob	Pre-commit review requested.
+devstat(9)	ken	Pre-commit review requested.
+camcontrol(8)	ken	Pre-commit review requested.
+libcam		ken	Pre-commit review requested.
+libdevstat	ken	Pre-commit review requested.
+iostat(8)	ken	Pre-commit review requested.
+cd(4)		ken	Pre-commit review requested.
+pass(4)		ken	Pre-commit review requested.
+ch(4)		ken	Pre-commit review requested.
