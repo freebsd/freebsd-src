@@ -157,7 +157,7 @@ int ip6_fw_enable = 1;
 struct ip6stat ip6stat;
 
 static void ip6_init2 __P((void *));
-static struct m_tag *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
+static struct ip6aux *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
 static int ip6_hopopts_input __P((u_int32_t *, u_int32_t *, struct mbuf **, int *));
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr __P((struct mbuf *, size_t, int));
@@ -719,7 +719,7 @@ ip6_input(m)
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
 		return;
-	}	
+	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -762,22 +762,6 @@ ip6_input(m)
 			goto bad;
 		}
 
-#if 0
-		/*
-		 * do we need to do it for every header?  yeah, other
-		 * functions can play with it (like re-allocate and copy).
-		 */
-		mhist = ip6_addaux(m);
-		if (mhist && M_TRAILINGSPACE(mhist) >= sizeof(nxt)) {
-			hist = mtod(mhist, caddr_t) + mhist->m_len;
-			bcopy(&nxt, hist, sizeof(nxt));
-			mhist->m_len += sizeof(nxt);
-		} else {
-			ip6stat.ip6s_toomanyhdr++;
-			goto bad;
-		}
-#endif
-
 #ifdef IPSEC
 		/*
 		 * enforce IPsec policy checking if we are seeing last header.
@@ -801,28 +785,28 @@ ip6_input(m)
  * set/grab in6_ifaddr correspond to IPv6 destination address.
  * XXX backward compatibility wrapper
  */
-static struct m_tag *
+static struct ip6aux *
 ip6_setdstifaddr(m, ia6)
 	struct mbuf *m;
 	struct in6_ifaddr *ia6;
 {
-	struct m_tag *mtag;
+	struct ip6aux *ip6a;
 
-	mtag = ip6_addaux(m);
-	if (mtag)
-		((struct ip6aux *)(mtag + 1))->ip6a_dstia6 = ia6;
-	return mtag;	/* NULL if failed to set */
+	ip6a = ip6_addaux(m);
+	if (ip6a)
+		ip6a->ip6a_dstia6 = ia6;
+	return ip6a;	/* NULL if failed to set */
 }
 
 struct in6_ifaddr *
 ip6_getdstifaddr(m)
 	struct mbuf *m;
 {
-	struct m_tag *mtag;
+	struct ip6aux *ip6a;
 
-	mtag = ip6_findaux(m);
-	if (mtag)
-		return ((struct ip6aux *)(mtag + 1))->ip6a_dstia6;
+	ip6a = ip6_findaux(m);
+	if (ip6a)
+		return ip6a->ip6a_dstia6;
 	else
 		return NULL;
 }
@@ -1537,7 +1521,7 @@ ip6_lasthdr(m, off, proto, nxtp)
 	}
 }
 
-struct m_tag *
+struct ip6aux *
 ip6_addaux(m)
 	struct mbuf *m;
 {
@@ -1552,17 +1536,17 @@ ip6_addaux(m)
 			bzero(mtag + 1, sizeof(struct ip6aux));
 		}
 	}
-	return mtag;
+	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
-struct m_tag *
+struct ip6aux *
 ip6_findaux(m)
 	struct mbuf *m;
 {
 	struct m_tag *mtag;
 
 	mtag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
-	return mtag;
+	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
 }
 
 void
