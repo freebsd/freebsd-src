@@ -107,7 +107,7 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
     /* If the device hasn't been probed yet, force it to do so. */
     error = device_probe_and_attach(child);
     if (error != 0) {
-	device_printf((device_t)arg, "failed to force attach of %s\n",
+	device_printf(pcib, "failed to force attach of %s\n",
 	    acpi_name(handle));
 	return;
     }
