@@ -293,6 +293,11 @@ doit(f, fromp)
 		if (f > 2)	/* f should always be 0, but... */
 			(void) close(f);
 		setup_term(0);
+		if (strchr(lusername, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       lusername);
+			fatal(STDERR_FILENO, "invalid user", 0);
+		}
 		if (authenticated) {
 #ifdef	KERBEROS
 			if (use_kerberos && (pwd->pw_uid == 0))
