@@ -579,9 +579,11 @@ card "Viking" "V.90 K56flex"
         insert echo Viking 56K Modem inserted
         remove echo Viking 56K Modem removed
 
-# Zoom 56K modem
+# Zoom 56K modem 
+# Freezes your system entirely if you don't have the reset..
 card "Zoom Telephonics, Inc." "PCMCIA 56K LT DataFax"
         config 0x1f "sio2" ?
+	reset 1000
         insert echo Zoom modem inserted
         remove echo Zoom modem removed
 
