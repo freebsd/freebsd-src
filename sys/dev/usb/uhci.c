@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.133 2001/01/21 02:39:52 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.134 2001/03/25 22:52:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -704,6 +704,8 @@ uhci_power(int why, void *v)
 		sc->sc_saved_frnum = UREAD2(sc, UHCI_FRNUM);
 		sc->sc_saved_sof = UREAD1(sc, UHCI_SOF);
 
+		UWRITE2(sc, UHCI_INTR, 0); /* disable intrs */
+
 		UHCICMD(sc, cmd | UHCI_CMD_EGSM); /* enter global suspend */
 		usb_delay_ms(&sc->sc_bus, USB_RESUME_WAIT);
 		sc->sc_suspend = why;
@@ -1179,6 +1181,7 @@ uhci_intr(void *arg)
 	if (sc->sc_suspend != PWR_RESUME) {
 		printf("%s: interrupt while not operating ignored\n",
 		       USBDEVNAME(sc->sc_bus.bdev));
+		UWRITE2(sc, UHCI_STS, status); /* acknowledge the ints */
 		return (0);
 	}
 
