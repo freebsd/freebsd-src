@@ -31,12 +31,13 @@
 .Nm snd_ad1816
 .Nd "Analog Devices AD1816 ISA bridge device driver"
 .Sh SYNOPSIS
+.Cd "device sound"
 .Cd "device snd_ad1816"
 .Pp
-.Cd hint.snd_ad1816.0.at="isa"
-.Cd hint.snd_ad1816.0.irq="10"
-.Cd hint.snd_ad1816.0.drq="1"
-.Cd hint.snd_ad1816.0.flags="0x0"
+.Cd hint.pcm.0.at="isa"
+.Cd hint.pcm.0.irq="10"
+.Cd hint.pcm.0.drq="1"
+.Cd hint.pcm.0.flags="0x0"
 .Pp
 .Sh DESCRIPTION
 The
