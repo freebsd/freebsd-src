@@ -4,7 +4,6 @@ PROG=	btx
 INTERNALPROG=
 NOMAN=
 SRCS=	btx.S
-CLEANFILES= btx
 
 .if defined(PAGING)
 CFLAGS+=-DPAGING
