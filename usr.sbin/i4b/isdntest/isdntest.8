@@ -86,6 +86,10 @@ The
 .Nm
 utility does almost no error checking and error recovery, so unexpected
 hangs or crashes may occur.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /dev/i4b
+.El
 .Sh EXAMPLES
 For the following example, it is assumed that a machine with isdn4bsd
 installed is connected to an S0 bus and that one of the valid MSN's (MSN = Multiple Subscriber Number
@@ -105,10 +109,6 @@ and disconnect after 5 seconds.
 The
 .Nm
 utility has to be finished by the user by entering Control-C.
-.Sh FILES
-.Bl -tag -width indent
-.It Pa /dev/i4b
-.El
 .Sh AUTHORS
 The
 .Nm

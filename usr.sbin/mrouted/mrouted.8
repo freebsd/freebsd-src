@@ -510,6 +510,13 @@ For convenience in sending signals,
 writes its pid to
 .Pa /var/run/mrouted.pid
 upon startup.
+.Sh FILES
+.Bl -tag -width /var/tmp/mrouted.cache -compact
+.It Pa /etc/mrouted.conf
+.It Pa /var/run/mrouted.pid
+.It Pa /var/tmp/mrouted.dump
+.It Pa /var/tmp/mrouted.cache
+.El
 .Sh EXAMPLES
 The routing tables look like this:
 .Pp
@@ -643,13 +650,6 @@ one subnet.
 An additional line with a "<" as the first character is printed
 describing any prunes received from downstream dependent neighbors
 for this subnet and group.
-.Sh FILES
-.Bl -tag -width /var/tmp/mrouted.cache -compact
-.It Pa /etc/mrouted.conf
-.It Pa /var/run/mrouted.pid
-.It Pa /var/tmp/mrouted.dump
-.It Pa /var/tmp/mrouted.cache
-.El
 .Sh SEE ALSO
 .Xr map-mbone 8 ,
 .Xr mrinfo 8 ,

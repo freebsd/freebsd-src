@@ -111,14 +111,17 @@ any editor that unlinks the file and recreates it cannot be used.
 After you exit
 from the editor, the modified crontab will be installed automatically.
 .El
-.Sh SEE ALSO
-.Xr crontab 5 ,
-.Xr cron 8
 .Sh FILES
 .Bl -tag -width /var/cron/allow -compact
 .It Pa /var/cron/allow
 .It Pa /var/cron/deny
 .El
+.Sh DIAGNOSTICS
+A fairly informative usage message appears if you run it with a bad command
+line.
+.Sh SEE ALSO
+.Xr crontab 5 ,
+.Xr cron 8
 .Sh STANDARDS
 The
 .Nm
@@ -134,8 +137,5 @@ must be specified to read from standard input.
 The new command syntax
 differs from previous versions of Vixie Cron, as well as from the classic
 SVR3 syntax.
-.Sh DIAGNOSTICS
-A fairly informative usage message appears if you run it with a bad command
-line.
 .Sh AUTHORS
 .An Paul Vixie Aq paul@vix.com

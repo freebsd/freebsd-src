@@ -110,6 +110,26 @@ If this switch is not used,
 will prompt for a password once it has successfully connected to
 .Nm ppp .
 .El
+.Sh ENVIRONMENT
+The following environment variables are understood by
+.Nm
+when in interactive mode:
+.Bl -tag -width XXXXXXXXXX
+.It Dv EL_SIZE
+The number of history lines.
+The default is 20.
+.It Dv EL_EDITOR
+The edit mode.
+Only values of "emacs" and "vi" are accepted.
+Other values
+are silently ignored.
+This environment variable will override the
+.Ar bind -v
+and
+.Ar bind -e
+commands in
+.Pa ~/.editrc .
+.El
 .Sh EXAMPLES
 If you run
 .Nm ppp
@@ -199,26 +219,6 @@ pppctl /var/run/internet set filter dial -1
 .Ed
 .Pp
 will allow them again.
-.Sh ENVIRONMENT
-The following environment variables are understood by
-.Nm
-when in interactive mode:
-.Bl -tag -width XXXXXXXXXX
-.It Dv EL_SIZE
-The number of history lines.
-The default is 20.
-.It Dv EL_EDITOR
-The edit mode.
-Only values of "emacs" and "vi" are accepted.
-Other values
-are silently ignored.
-This environment variable will override the
-.Ar bind -v
-and
-.Ar bind -e
-commands in
-.Pa ~/.editrc .
-.El
 .Sh SEE ALSO
 .Xr ps 1 ,
 .Xr editline 3 ,

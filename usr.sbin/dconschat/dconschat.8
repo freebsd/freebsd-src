@@ -183,6 +183,12 @@ on the target to omit this option.
 Specify FireWire bus number.
 The default is 0.
 .El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/fwmem0.0
+.It Pa /dev/mem
+.It Pa /dev/kmem
+.El
 .Sh EXAMPLES
 To use
 .Nm
@@ -289,12 +295,6 @@ console remote {
 	exec /usr/sbin/dconschat -rh 25 -t 00-11-22-33-44-55-66-77;
 }
 .Ed
-.Sh FILES
-.Bl -tag -width indent -compact
-.It Pa /dev/fwmem0.0
-.It Pa /dev/mem
-.It Pa /dev/kmem
-.El
 .Sh SEE ALSO
 .Xr gdb 1 ,
 .Xr telnet 1 ,

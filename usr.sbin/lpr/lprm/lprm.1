@@ -135,18 +135,18 @@ Spooling directories.
 Lock file used to obtain the pid of the current
 daemon and the job number of the currently active job.
 .El
+.Sh DIAGNOSTICS
+``Permission denied" if the user tries to remove files other than his
+own.
 .Sh SEE ALSO
 .Xr lpq 1 ,
 .Xr lpr 1 ,
 .Xr lpd 8
-.Sh DIAGNOSTICS
-``Permission denied" if the user tries to remove files other than his
-own.
-.Sh BUGS
-Since there are race conditions possible in the update of the lock file,
-the currently active job may be incorrectly identified.
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 3.0 .
+.Sh BUGS
+Since there are race conditions possible in the update of the lock file,
+the currently active job may be incorrectly identified.

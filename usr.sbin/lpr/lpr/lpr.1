@@ -265,19 +265,6 @@ Data files specified in "cf" files.
 .It Pa /var/spool/output/*/tf*
 Temporary copies of "cf" files.
 .El
-.Sh SEE ALSO
-.Xr lpq 1 ,
-.Xr lprm 1 ,
-.Xr pr 1 ,
-.Xr symlink 2 ,
-.Xr printcap 5 ,
-.Xr lpc 8 ,
-.Xr lpd 8
-.Sh HISTORY
-The
-.Nm
-command appeared in
-.Bx 3 .
 .Sh DIAGNOSTICS
 If you try to spool too large a file, it will be truncated.
 The
@@ -294,6 +281,19 @@ will say that the daemon cannot be started.
 Diagnostics may be printed in the daemon's log file
 regarding missing spool files by
 .Xr lpd 8 .
+.Sh SEE ALSO
+.Xr lpq 1 ,
+.Xr lprm 1 ,
+.Xr pr 1 ,
+.Xr symlink 2 ,
+.Xr printcap 5 ,
+.Xr lpc 8 ,
+.Xr lpd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3 .
 .Sh BUGS
 Fonts for
 .Xr troff 1

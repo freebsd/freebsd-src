@@ -186,6 +186,32 @@ If latter two parameters are omitted, they will not affect the
 corresponding SLIP configuration.
 If any of first two parameters is equal to zero, it will not affect
 the corresponding SLIP configuration.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/sliphome/slip.hosts
+list of host login names and parameters.
+.It Pa /etc/sliphome/slip.login
+script executed when a connection is made.
+.It Pa /etc/sliphome/slip.login. Ns Ar loginname
+script executed when a connection is made by
+.Ar loginname .
+.It Pa /etc/sliphome/slip.logout
+script executed when a connection is lost.
+.It Pa /etc/sliphome/slip.logout. Ns Ar loginname
+script executed when a connection is lost by
+.Ar loginname .
+.It Pa /etc/sliphome/slip.slparms
+extra parameters file.
+.It Pa /etc/sliphome/slip.slparms. Ns Ar loginname
+extra parameters file for
+.Ar loginname .
+.It Pa /var/run/ Ns Ar ttyXn Ns Pa .if
+contains the name of the network interface used by the sliplogin process on
+.Ar ttyXn .
+.It Pa /var/run/ Ns Ar slX Ns Pa .pid
+contains the PID of the sliplogin process which is using interface
+.Ar slX .
+.El
 .Sh EXAMPLES
 The normal use of
 .Nm
@@ -278,32 +304,6 @@ was found in
 unit
 .Em unit
 was successfully attached.
-.El
-.Sh FILES
-.Bl -tag -width indent
-.It Pa /etc/sliphome/slip.hosts
-list of host login names and parameters.
-.It Pa /etc/sliphome/slip.login
-script executed when a connection is made.
-.It Pa /etc/sliphome/slip.login. Ns Ar loginname
-script executed when a connection is made by
-.Ar loginname .
-.It Pa /etc/sliphome/slip.logout
-script executed when a connection is lost.
-.It Pa /etc/sliphome/slip.logout. Ns Ar loginname
-script executed when a connection is lost by
-.Ar loginname .
-.It Pa /etc/sliphome/slip.slparms
-extra parameters file.
-.It Pa /etc/sliphome/slip.slparms. Ns Ar loginname
-extra parameters file for
-.Ar loginname .
-.It Pa /var/run/ Ns Ar ttyXn Ns Pa .if
-contains the name of the network interface used by the sliplogin process on
-.Ar ttyXn .
-.It Pa /var/run/ Ns Ar slX Ns Pa .pid
-contains the PID of the sliplogin process which is using interface
-.Ar slX .
 .El
 .Sh SEE ALSO
 .Xr slattach 8 ,

@@ -128,6 +128,23 @@ signing scheme uses eight bytes markers such
 .Sq CKSHA1
 + length for its signatures (those markers are conveniently
 eight bytes long).
+.Sh FILES
+.Bl -tag -width "/usr/local/bin/pgp" -compact
+.It Pa file.sign
+Temporary file built by
+.Nm
+from
+.Ar file .
+.It Pa /usr/local/bin/pgp
+Default path to
+.Xr pgp 1 .
+.It Pa /var/db/pkgs/SHA1
+Recorded checksums.
+.It Pa /etc/ssl/pkg.key
+Default package signing key.
+.It Pa /etc/ssl/pkg.crt
+Default package verification certificate(s).
+.El
 .Sh EXIT STATUS
 The
 .Nm
@@ -156,41 +173,6 @@ The extended area of the gzip file has been used for an unknown purpose.
 The gzip file uses a very early version of package signing that was
 substantially slower.
 .El
-.Sh BUGS
-The
-.Xr pgp 1
-utility is an ill-designed program, which is hard to interface with.
-For instance, the `separate signing scheme' it pretends to offer is
-useless, as it can't be used with pipes, so that
-.Nm pgp_sign
-needs to kludge it by knowing the length of a pgp signature, and invoking
-pgp in `seamless' signature mode, without compression of the main file,
-and just retrieving the signature.
-.Pp
-The checking scheme is little less convoluted, namely we rebuild the file
-that pgp expects on the fly.
-.Pp
-Paths to
-.Nm pgp
-and
-the checksum file are hard-coded to avoid tampering and hinder flexibility.
-.Sh FILES
-.Bl -tag -width "/usr/local/bin/pgp" -compact
-.It Pa file.sign
-Temporary file built by
-.Nm
-from
-.Ar file .
-.It Pa /usr/local/bin/pgp
-Default path to
-.Xr pgp 1 .
-.It Pa /var/db/pkgs/SHA1
-Recorded checksums.
-.It Pa /etc/ssl/pkg.key
-Default package signing key.
-.It Pa /etc/ssl/pkg.crt
-Default package verification certificate(s).
-.El
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr pgp 1 ,
@@ -209,3 +191,21 @@ X.509 signatures and
 .Fx
 support added by
 .An Wes Peters Aq wes@softweyr.com .
+.Sh BUGS
+The
+.Xr pgp 1
+utility is an ill-designed program, which is hard to interface with.
+For instance, the `separate signing scheme' it pretends to offer is
+useless, as it can't be used with pipes, so that
+.Nm pgp_sign
+needs to kludge it by knowing the length of a pgp signature, and invoking
+pgp in `seamless' signature mode, without compression of the main file,
+and just retrieving the signature.
+.Pp
+The checking scheme is little less convoluted, namely we rebuild the file
+that pgp expects on the fly.
+.Pp
+Paths to
+.Nm pgp
+and
+the checksum file are hard-coded to avoid tampering and hinder flexibility.

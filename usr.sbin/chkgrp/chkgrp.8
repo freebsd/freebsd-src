@@ -50,16 +50,6 @@ numeric.
 .It Pa /etc/group
 group database file
 .El
-.Sh SEE ALSO
-.Xr getgrent 3 ,
-.Xr group 5
-.Sh DIAGNOSTICS
-For each error found,
-.Nm
-will print an error message containing the name of the file being
-scanned and the line number on which the error was found.
-Otherwise no
-output is produced.
 .Sh EXIT STATUS
 The
 .Nm
@@ -69,6 +59,16 @@ if errors were found in the group file,
 and
 .Dv EX_OK
 otherwise.
+.Sh DIAGNOSTICS
+For each error found,
+.Nm
+will print an error message containing the name of the file being
+scanned and the line number on which the error was found.
+Otherwise no
+output is produced.
+.Sh SEE ALSO
+.Xr getgrent 3 ,
+.Xr group 5
 .Sh HISTORY
 The
 .Nm

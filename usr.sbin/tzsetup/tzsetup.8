@@ -87,18 +87,6 @@ The source code to the database
 .Pq Pa /usr/src/share/zoneinfo/[a-z]*
 contains many additional comments and documentation references for the
 historically minded.
-.Sh BUGS
-Programs which are already running when
-.Nm
-creates or updates
-.Pa /etc/localtime
-will not reflect the updated timezone.
-When the system is first configured for a
-.Pf non- Tn UTC
-hardware clock, it is necessary to run
-.Xr adjkerntz 8
-(which normally happens as a part of system startup) in order to update
-the kernel's idea of the correct timezone offset.
 .Sh FILES
 .Bl -tag -width /usr/share/zoneinfo/zone.tab -compact
 .It Pa /etc/localtime
@@ -130,3 +118,15 @@ countries and/or territories is for the purposes of identification only,
 and does not imply any endorsement or rejection on the part of the
 .Fx
 Project of the territorial claims of any entity.
+.Sh BUGS
+Programs which are already running when
+.Nm
+creates or updates
+.Pa /etc/localtime
+will not reflect the updated timezone.
+When the system is first configured for a
+.Pf non- Tn UTC
+hardware clock, it is necessary to run
+.Xr adjkerntz 8
+(which normally happens as a part of system startup) in order to update
+the kernel's idea of the correct timezone offset.

@@ -155,6 +155,15 @@ quietly zero padded to fit the blocksize requirement.
 The conventional filename
 .Fl
 refers to stdin, and can only be used once.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev CDROM"
+.It Ev CDROM
+The CD device to use if one is not specified with the
+.Fl f
+flag.
+.El
 .Sh EXAMPLES
 The typical usage for burning a data CD-R:
 .Pp
@@ -186,17 +195,6 @@ as part of the
 .Pa sysutils/cdrtools
 port, is commonly used to create ISO9660 file system images
 from a given directory tree.
-.Sh ENVIRONMENT
-The following environment variables affect the execution of
-.Nm :
-.Bl -tag -width ".Ev CDROM"
-.It Ev CDROM
-The CD device to use if one is not specified with the
-.Fl f
-flag.
-.El
-.Sh BUGS
-Probably, please report when found.
 .Sh HISTORY
 The
 .Nm
@@ -209,3 +207,5 @@ utility and this manpage was contributed by
 .An S\(/oren Schmidt ,
 Denmark
 .Aq sos@FreeBSD.org .
+.Sh BUGS
+Probably, please report when found.

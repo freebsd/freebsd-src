@@ -120,6 +120,11 @@ Control files specifying jobs.
 .It Pa /var/spool/*/lock
 The lock file to obtain the currently active job.
 .El
+.Sh DIAGNOSTICS
+Unable to open various files.
+The lock file being malformed.
+Garbage
+files when there is no daemon active, but files in the spooling directory.
 .Sh SEE ALSO
 .Xr lpr 1 ,
 .Xr lprm 1 ,
@@ -136,8 +141,3 @@ Due to the dynamic nature of the information in the spooling directory
 may report unreliably.
 Output formatting is sensitive to the line length of the terminal;
 this can results in widely spaced columns.
-.Sh DIAGNOSTICS
-Unable to open various files.
-The lock file being malformed.
-Garbage
-files when there is no daemon active, but files in the spooling directory.

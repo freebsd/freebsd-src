@@ -266,6 +266,8 @@ Switched Data), HSCSD (High Speed Circuit Switched Data) or GPRS (General
 Packet Radio Service) connection.
 The availability of the particular connection
 type depends on the phone model and service plan activated on the phone.
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 .Dl "rfcomm_pppd -s -a 00:01:02:03:04:05 -C 1 -l rfcomm-server"
 .Pp
@@ -305,8 +307,6 @@ in
 mode with
 .Dq Li rfcomm-client
 label.
-.Sh EXIT STATUS
-.Ex -std
 .Sh CAVEAT
 The
 .Nm

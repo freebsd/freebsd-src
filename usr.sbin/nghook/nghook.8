@@ -123,13 +123,6 @@ Use file descriptor 0 for output instead of the default 1.
 .It Fl s
 Use file descriptor 1 for input instead of the default 0.
 .El
-.Sh BUGS
-Although all input is read in unbuffered mode,
-there is no way to control the packetization of the input.
-.Pp
-If the node sends a response to a message (specified by
-.Fl m ) ,
-this response is lost.
 .Sh SEE ALSO
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
@@ -143,3 +136,10 @@ in a version of
 customized for the Whistle InterJet.
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@whistle.com
+.Sh BUGS
+Although all input is read in unbuffered mode,
+there is no way to control the packetization of the input.
+.Pp
+If the node sends a response to a message (specified by
+.Fl m ) ,
+this response is lost.
