@@ -1,4 +1,4 @@
-	@(#)Makefile	8.1 (Berkeley) 6/4/93
+#	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
 # Present but disabled: kpasswdd
