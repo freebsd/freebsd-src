@@ -1,9 +1,10 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
 
 BINGRP=       games
+BINDIR?=      /usr/games
+
 .if defined(HIDEGAME)
-BINDIR?=       /usr/games/hide
+GBINDIR:=      ${BINDIR}
+BINDIR:=       ${BINDIR}/hide
 BINMODE=       550
-.else
-BINDIR=        /usr/games
 .endif
