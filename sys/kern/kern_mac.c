@@ -745,7 +745,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		pipe = fp->f_data;
 		intlabel = mac_pipe_label_alloc();
 		PIPE_LOCK(pipe);
-		mac_copy_pipe_label(pipe->pipe_label, intlabel);
+		mac_copy_pipe_label(pipe->pipe_pair->pp_label, intlabel);
 		PIPE_UNLOCK(pipe);
 		error = mac_externalize_pipe_label(intlabel, elements,
 		    buffer, mac.m_buflen);
@@ -953,8 +953,8 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		if (error == 0) {
 			pipe = fp->f_data;
 			PIPE_LOCK(pipe);
-			error = mac_pipe_label_set(td->td_ucred, pipe,
-			    intlabel);
+			error = mac_pipe_label_set(td->td_ucred,
+			    pipe->pipe_pair, intlabel);
 			PIPE_UNLOCK(pipe);
 		}
 		mac_pipe_label_free(intlabel);

@@ -1156,7 +1156,7 @@ mac_lomac_create_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_lomac_create_pipe(struct ucred *cred, struct pipe *pipe,
+mac_lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1193,7 +1193,7 @@ mac_lomac_relabel_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_lomac_relabel_pipe(struct ucred *cred, struct pipe *pipe,
+mac_lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1798,7 +1798,7 @@ mac_lomac_check_kld_unload(struct ucred *cred)
 }
 
 static int
-mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
+mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1811,7 +1811,7 @@ mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_lomac_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+mac_lomac_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -1829,7 +1829,7 @@ mac_lomac_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
+mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *obj, *new;
@@ -1880,7 +1880,7 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_lomac_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+mac_lomac_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_lomac *subj, *obj;

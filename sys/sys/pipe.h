@@ -113,13 +113,24 @@ struct pipe {
 	struct	timespec pipe_ctime;	/* time of status change */
 	struct	sigio *pipe_sigio;	/* information for async I/O */
 	struct	pipe *pipe_peer;	/* link with other direction */
+	struct	pipepair *pipe_pair;	/* container structure pointer */
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
-	struct	label *pipe_label;	/* pipe MAC label - shared */
-	struct	mtx *pipe_mtxp;		/* shared mutex between both pipes */
+	int	pipe_present;		/* still present? */
 };
 
-#define PIPE_MTX(pipe)		(pipe)->pipe_mtxp
+/*
+ * Container structure to hold the two pipe endpoints, mutex, and label
+ * pointer.
+ */
+struct pipepair {
+	struct pipe	pp_rpipe;
+	struct pipe	pp_wpipe;
+	struct mtx	pp_mtx;
+	struct label	*pp_label;
+};
+
+#define PIPE_MTX(pipe)		(&(pipe)->pipe_pair->pp_mtx)
 #define PIPE_LOCK(pipe)		mtx_lock(PIPE_MTX(pipe))
 #define PIPE_UNLOCK(pipe)	mtx_unlock(PIPE_MTX(pipe))
 #define PIPE_LOCK_ASSERT(pipe, type)  mtx_assert(PIPE_MTX(pipe), (type))
