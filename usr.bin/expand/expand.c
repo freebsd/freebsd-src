@@ -67,6 +67,7 @@ main(argc, argv)
 {
 	register int c, column;
 	register int n;
+	int rval;
 
 	/* handle obsolete syntax */
 	while (argc > 1 && argv[1][0] == '-' && isdigit(argv[1][1])) {
@@ -88,10 +89,15 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+	rval = 0;
 	do {
 		if (argc > 0) {
-			if (freopen(argv[0], "r", stdin) == NULL)
-				errx(1, "%s", argv[0]);
+			if (freopen(argv[0], "r", stdin) == NULL) {
+				warn("%s", argv[0]);
+				rval = 1;
+				argc--, argv++;
+				continue;
+			}
 			argc--, argv++;
 		}
 		column = 0;
@@ -144,7 +150,7 @@ main(argc, argv)
 			}
 		}
 	} while (argc > 0);
-	exit(0);
+	exit(rval);
 }
 
 static void
