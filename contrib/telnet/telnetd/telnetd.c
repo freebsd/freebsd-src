@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.4 1998/02/16 12:09:27 markm Exp $";
+	"$Id: telnetd.c,v 1.5 1998/12/16 06:06:06 peter Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -869,7 +869,23 @@ doit(who)
 	} else if (hp &&
 	    (strlen(hp->h_name) <= (unsigned int)((utmp_len < 0) ? -utmp_len
 								 : utmp_len))) {
-		host = hp->h_name;
+		strncpy(remote_host_name, hp->h_name,
+			sizeof(remote_host_name)-1);
+		hp = gethostbyname(remote_host_name);
+		if (hp == NULL)
+			host = inet_ntoa(who->sin_addr); 
+		else for (; ; hp->h_addr_list++) {
+			if (hp->h_addr_list[0] == NULL) {
+				/* End of list - ditch it */
+				host = inet_ntoa(who->sin_addr);
+				break;
+			}
+			if (!bcmp(hp->h_addr_list[0], (caddr_t)&who->sin_addr,
+			    sizeof(who->sin_addr))) {
+				host = hp->h_name;
+				break;          /* OK! */
+			}
+		}
 	} else {
 		host = inet_ntoa(who->sin_addr);
 	}
