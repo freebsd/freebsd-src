@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.32 1995/08/17 11:53:40 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.33 1995/08/28 09:18:56 julian Exp $
  */
 
 #include <sys/param.h>
@@ -314,6 +314,10 @@ dounmount(mp, flags, p)
 int syncprt = 0;
 struct ctldebug debug0 = { "syncprt", &syncprt };
 #endif
+
+struct sync_args {
+        int     dummy;
+};
 
 /* ARGSUSED */
 int

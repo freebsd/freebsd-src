@@ -281,6 +281,13 @@ done:
 	cpu_exit(p);
 }
 
+struct wait_args {
+        int pid;
+        int *status;
+        int options;
+        struct rusage *rusage;
+};
+
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>

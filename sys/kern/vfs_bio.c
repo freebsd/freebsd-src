@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.64 1995/09/23 21:12:43 dyson Exp $
+ * $Id: vfs_bio.c,v 1.65 1995/10/01 05:50:27 davidg Exp $
  */
 
 /*
@@ -35,6 +35,7 @@
 #define VMIO
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
