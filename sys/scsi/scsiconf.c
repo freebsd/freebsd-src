@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.15 1994/11/17 23:22:22 ats Exp $
+ *      $Id: scsiconf.c,v 1.16 1994/11/27 23:30:48 ats Exp $
  */
 
 #include <sys/types.h>
@@ -30,7 +30,15 @@
 #include "cd.h"
 #include "uk.h"
 #include "su.h"
+
 #include "scbus.h"
+/* If we have any at all, we want at least 8 */
+#if NSCBUS > 0
+#if NSCBUS < 8
+#undef NSCBUS
+#endif /* NSCBUS < 8 */
+#endif /* NSCBUS > 0 */
+
 #ifndef	NSCBUS
 #define	NSCBUS	8
 #endif	/* NSCBUS */
