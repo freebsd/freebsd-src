@@ -59,19 +59,19 @@ ENTRY(_ia64_restore_context, 3)
 }
 {	.mmi
 	ld8		r19=[r30],16		// pfs
-	ld8		r20=[r31],24		// bspstore
+	ld8		r20=[r31],32		// bspstore
 	mov		rp=r17
 	;;
 }
 {	.mmi
-	ld8		r21=[r30],24		// rnat
-	ld8		r13=[r31],16		// tp
+	ld8		r21=[r30],32		// rnat
+	ld8		r22=[r31],16		// rsc
 	mov		pr=r18,0x1fffe
 	;;
 }
 {	.mmi
-	ld8		r22=[r30],16		// rsc
-	ld8		r23=[r31],16		// fpsr
+	ld8		r23=[r30]		// fpsr
+	ld8		r24=[r31]		// psr		-- not used
 	mov		r3=r34
 	;;
 }
@@ -161,12 +161,15 @@ ENTRY(_ia64_restore_context, 3)
 	ldf.fill	f28=[r14],32
 	ldf.fill	f29=[r15],32
 	;;
-{	.mmi
-	ldf.fill	f30=[r14]
-	ldf.fill	f31=[r15]
-	add		r8=1,r0
+	ldf.fill	f30=[r14],32+24
+	ldf.fill	f31=[r15],24+24
 	;;
-}
+	ld8		r8=[r14],16
+	ld8		r9=[r15],16
+	;;
+	ld8		r10=[r14]
+	ld8		r11=[r15]
+	;;
 {	.mmb
 (p15)	st8		[r3]=r2
 	mov		ar.fpsr=r23
@@ -234,7 +237,7 @@ ENTRY(_ia64_save_context, 1)
 	;;
 }
 {	.mmi
-	st8		[r32]=r13,16		// tp
+	st8		[r32]=r13,16		// tp		-- not used
 	st8		[r31]=r14,16		// rsc
 	mov		r16=b1
 	;;
@@ -312,12 +315,21 @@ ENTRY(_ia64_save_context, 1)
 	;;
 {	.mmi
 	stf.spill	[r31]=f29,32
-	stf.spill	[r32]=f30
+	stf.spill	[r32]=f30,32+24
+	add		r14=1,r0
+	;;
+}
+{	.mmi
+	stf.spill	[r31]=f31,24+24
+	st8		[r32]=r14,16		// r8
 	add		r8=0,r0
 	;;
 }
+	st8		[r31]=r0,16		// r9
+	st8		[r32]=r0		// r10
+	;;
 {	.mmb
-	stf.spill	[r31]=f31
+	st8		[r31]=r0		// r11
 	mf
 	br.ret.sptk	rp
 	;;
