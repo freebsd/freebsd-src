@@ -529,7 +529,8 @@ print(format, file)
 			av[2] = length;
 			av[3] = "-h";
 			av[4] = *title ? title : " ";
-			av[5] = 0;
+			av[5] = "-F";
+			av[6] = 0;
 			fo = ofd;
 			goto start;
 		}
@@ -540,7 +541,7 @@ print(format, file)
 			for (n = 3; n < NOFILE; n++)
 				(void) close(n);
 			execl(_PATH_PR, "pr", width, length,
-			    "-h", *title ? title : " ", 0);
+			    "-h", *title ? title : " ", "-F", 0);
 			syslog(LOG_ERR, "cannot execl %s", _PATH_PR);
 			exit(2);
 		}
