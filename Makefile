@@ -3,8 +3,8 @@
 #
 # The user-driven targets are:
 #
-# universe 	      - *Really* build *everything*:  Buildworld and
-#			all kernels on all architectures.
+# universe            - *Really* build *everything* (buildworld and
+#                       all kernels on all architectures).
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
@@ -209,49 +209,45 @@ ${UPGRADE} : upgrade_checks
 	@cd ${.CURDIR}; \
 		${_MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
 
-
+#
+# universe
+#
+# Attempt to rebuild *everything* for all supported architectures,
+# with reasonable chance of success, regardless of how old your
+# existing system is.
+#
+i386_mach=	pc98
 universe:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .for arch in i386 sparc64 alpha ia64
-	@printf ">> ${arch} started on `LC_ALL=C date`\n"
-	-cd ${.CURDIR} && make ${JFLAG} buildworld TARGET_ARCH=${arch} \
-		__MAKE_CONF=/dev/null \
-		> _.${arch}.buildworld 2>&1
-	@printf ">> ${arch} buildworld ended on `LC_ALL=C date`\n"
-.if exists(${.CURDIR}/sys/${arch}/conf/NOTES)
-	-cd ${.CURDIR}/sys/${arch}/conf && make LINT \
-		> _.${arch}.makeLINT 2>&1
+.for mach in ${arch} ${${arch}_mach}
+	@echo ">> ${mach} started on `LC_ALL=C date`"
+	-cd ${.CURDIR} && ${MAKE} buildworld \
+	    TARGET_ARCH=${arch} TARGET=${mach} \
+	    __MAKE_CONF=/dev/null \
+	    > _.${mach}.buildworld 2>&1
+	@echo ">> ${mach} buildworld completed on `LC_ALL=C date`"
+.if exists(${.CURDIR}/sys/${mach}/conf/NOTES)
+	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
+	    > _.${mach}.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && make buildkernels ARCH=${arch} TARGET_ARCH=${arch} JFLAG="${JFLAG}"
-	@printf ">> ${arch} ended on `LC_ALL=C date`\n"
+	cd ${.CURDIR} && ${MAKE} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
+	@echo ">> ${mach} completed on `LC_ALL=C date`"
 .endfor
-	@printf ">> pc98 started on `LC_ALL=C date`\n"
-	-cd ${.CURDIR} && make buildworld TARGET=pc98 TARGET_ARCH=i386 \
-		__MAKE_CONF=/dev/null \
-		> _.pc98.buildworld 2>&1
-	@printf ">> pc98 buildworld ended on `LC_ALL=C date`\n"
-.if exists(${.CURDIR}/sys/pc98/conf/NOTES)
-	-cd ${.CURDIR}/sys/pc98/conf && make LINT \
-		> _.pc98.makeLINT 2>&1
-.endif
-	cd ${.CURDIR} && make buildkernels ARCH=pc98 TARGET_ARCH=i386 \
-		JFLAG="${JFLAG}"
-	@printf ">> pc98 ended on `LC_ALL=C date`\n"
+.endfor
 	@echo "--------------------------------------------------------------"
 	@printf ">>> make universe completed on `LC_ALL=C date`\n                      (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
-KERNCONFS !=	echo ${.CURDIR}/sys/${ARCH}/conf/[A-Z]*
-KERNCONF2 = ${KERNCONFS:T:N*[a-z]*:NCVS:NNOTES}
+KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
+		find [A-Z]*[A-Z] -type f -maxdepth 0 ! -name NOTES
 
 buildkernels:
-.for kernel in ${KERNCONF2}
-.if exists(${.CURDIR}/sys/${ARCH}/conf/${kernel})
-	-cd ${.CURDIR} && make ${JFLAG} buildkernel \
-		ARCH=${ARCH} TARGET_ARCH=${TARGET_ARCH} KERNCONF=${kernel} \
-		__MAKE_CONF=/dev/null \
-		 > _.${ARCH}.${kernel} 2>&1
-.endif
+.for kernel in ${KERNCONFS}
+	-cd ${.CURDIR} && ${MAKE} buildkernel \
+	    KERNCONF=${kernel} \
+	    __MAKE_CONF=/dev/null \
+	    > _.${TARGET}.${kernel} 2>&1
 .endfor
