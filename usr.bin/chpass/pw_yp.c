@@ -405,8 +405,8 @@ get_yp_master(int getserver)
 void
 yp_submit(struct passwd *pw)
 {
-	struct yppasswd yppasswd;
-	struct master_yppasswd master_yppasswd;
+	struct yppasswd yppwd;
+	struct master_yppasswd master_yppwd;
 	struct netconfig *nconf;
 	void *localhandle;
 	CLIENT *clnt;
@@ -424,30 +424,30 @@ yp_submit(struct passwd *pw)
 	/* Populate the yppasswd structure that gets handed to yppasswdd. */
 
 	if (suser_override) {
-		master_yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
-		master_yppasswd.newpw.pw_name = strdup(pw->pw_name);
-		master_yppasswd.newpw.pw_uid = pw->pw_uid;
-		master_yppasswd.newpw.pw_gid = pw->pw_gid;
-		master_yppasswd.newpw.pw_expire = pw->pw_expire;
-		master_yppasswd.newpw.pw_change = pw->pw_change;
-		master_yppasswd.newpw.pw_fields = pw->pw_fields;
-		master_yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
-		master_yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
-		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		master_yppasswd.newpw.pw_class = pw->pw_class != NULL
+		master_yppwd.newpw.pw_passwd = strdup(pw->pw_passwd);
+		master_yppwd.newpw.pw_name = strdup(pw->pw_name);
+		master_yppwd.newpw.pw_uid = pw->pw_uid;
+		master_yppwd.newpw.pw_gid = pw->pw_gid;
+		master_yppwd.newpw.pw_expire = pw->pw_expire;
+		master_yppwd.newpw.pw_change = pw->pw_change;
+		master_yppwd.newpw.pw_fields = pw->pw_fields;
+		master_yppwd.newpw.pw_gecos = strdup(pw->pw_gecos);
+		master_yppwd.newpw.pw_dir = strdup(pw->pw_dir);
+		master_yppwd.newpw.pw_shell = strdup(pw->pw_shell);
+		master_yppwd.newpw.pw_class = pw->pw_class != NULL
 						? strdup(pw->pw_class)
 						: strdup("");
-		master_yppasswd.oldpass = strdup(""); /* not really needed */
-		master_yppasswd.domain = yp_domain;
+		master_yppwd.oldpass = strdup(""); /* not really needed */
+		master_yppwd.domain = yp_domain;
 	} else {
-		yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
-		yppasswd.newpw.pw_name = strdup(pw->pw_name);
-		yppasswd.newpw.pw_uid = pw->pw_uid;
-		yppasswd.newpw.pw_gid = pw->pw_gid;
-		yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
-		yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
-		yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		yppasswd.oldpass = strdup("");
+		yppwd.newpw.pw_passwd = strdup(pw->pw_passwd);
+		yppwd.newpw.pw_name = strdup(pw->pw_name);
+		yppwd.newpw.pw_uid = pw->pw_uid;
+		yppwd.newpw.pw_gid = pw->pw_gid;
+		yppwd.newpw.pw_gecos = strdup(pw->pw_gecos);
+		yppwd.newpw.pw_dir = strdup(pw->pw_dir);
+		yppwd.newpw.pw_shell = strdup(pw->pw_shell);
+		yppwd.oldpass = strdup("");
 	}
 
 	/* Get the user's password for authentication purposes. */
@@ -462,7 +462,7 @@ yp_submit(struct passwd *pw)
 			warnx("Password incorrect.");
 			pw_error(tempname, 0, 1);
 		}
-		yppasswd.oldpass = password;	/* XXX */
+		yppwd.oldpass = password;	/* XXX */
 	}
 
 	if (suser_override) {
@@ -501,9 +501,9 @@ yp_submit(struct passwd *pw)
 	clnt->cl_auth = authunix_create_default();
 
 	if (suser_override)
-		status = yppasswdproc_update_master_1(&master_yppasswd, clnt);
+		status = yppasswdproc_update_master_1(&master_yppwd, clnt);
 	else
-		status = yppasswdproc_update_1(&yppasswd, clnt);
+		status = yppasswdproc_update_1(&yppwd, clnt);
 
 	clnt_geterr(clnt, &lerr);
 
