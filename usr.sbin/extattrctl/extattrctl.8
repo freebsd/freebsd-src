@@ -71,12 +71,47 @@ option must have been enabled.
 Stop extended attribute support on the file system named using
 .Ar path .
 Extended attribute support must previously have been started.
-.It Cm initattr Ar attrsize Ar attrfile
+.It Xo
+.Cm initattr
+.Op Fl p Ar path
+.Op Fl r Op Ar kroa
+.Op Fl w Op Ar kroa
+.Ar attrsize attrfile
+.Xc
 Create and initialize a file to use as an attribute backing file.
 You must specify a maximum per-inode size for the attribute in bytes in
 .Ar attrsize ,
 as well as the file where the attribute will be stored, using
 .Ar attrfile .
+.Pp
+The
+.Fl p Ar path
+argument may be used to preallocate space for all attributes rather than
+relying on sparse files to conserve space.
+This has the advantage of guaranteeing that space will be available
+for attributes when they are written, preventing low disk space conditions
+from denying attribute service.
+.Pp
+The
+.Fl r
+and
+.Fl w
+options can be used to set the read and write permissions on the named
+attribute, respectively.
+There are four levels possible for both read and write:
+.Dq k
+limits reading or writing to the kernel,
+.Dq r
+limits activities to root,
+.Dq o
+limits activities to root and the owner of the file having the attribute
+read or written, and
+.Dq q
+allows any user to perform the attribute operation.
+The default is to limit activities to the root user, or
+.Dq r
+.
+.Pp
 This file should not exist before running
 .Cm initattr.
 .It Cm enable Ar path Ar attrname Ar attrfile
@@ -108,7 +143,9 @@ Start extended attributes on the root file system.
 .Dl extattrctl initattr 17 /.attribute/md5
 .Pp
 Create an attribute backing file in /.attribute/md5, and set the maximum
-size of each attribute to 17 bytes.
+size of each attribute to 17 bytes.  Sparse files are used for storing the
+attributes, and the default permissions limiting access to the root user
+are implied.
 .Pp
 .Dl extattrctl enable / md5 /.attribute/md5
 .Pp
