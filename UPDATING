@@ -5,6 +5,21 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20010823:
+ 	named now runs as user bind and group bind rather than as 
+ 	root.  If named_enable is set to YES in /etc/rc.conf, ensure 
+ 	that user bind is available in /etc/passwd (using vipw(8)) 
+ 	and that group bind is available in /etc/group.  Also make 
+ 	sure that user or group bind has read (and not write) 
+ 	permission for your name server configuration and that it 
+ 	has read and write permission for your slave zone files and 
+ 	directory.
+ 
+ 	If you wish to continue to run named as root (a less secure 
+ 	alternative), add a line to /etc/rc.conf saying
+ 
+ 		named_flags=
+
 20010709:
 	The PAM libraries have had an API upgrade that is beyond
 	the ability of the shared library major number to handle.
@@ -16,11 +31,11 @@ COMMON ITEMS: section later in the file.
 	to src/sys/${MACHINE}/compile/FOO.
 
 20010625:
-	The pccard modem issue has been corrected.  OLDCARD support is
-	still a little weak in -current.  slot 1 is known not to work
-	on some TI based cardbus bridges.  Some cardbus bridges do not
-	properly detect insert/removal events.  IRQ configuration needs
-	more safety belts.
+	The pccard modem issue from 20010613 has been corrected.
+	OLDCARD support is still a little weak in -current.  slot 1 is
+	known not to work on some TI based cardbus bridges.  Some
+	cardbus bridges do not properly detect insert/removal events.
+	IRQ configuration needs more safety belts.
 
 20010617:
 	Softupdates problems have been corrected.
