@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.31.2.4 1995/06/07 06:38:11 jkh Exp $
+ * $Id: label.c,v 1.32.2.2 1995/07/21 11:45:39 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,10 @@
 #include "sysinstall.h"
 #include <ctype.h>
 #include <sys/disklabel.h>
+#include <sys/param.h>
+#undef TRUE
+#undef FALSE
+#include <sys/sysctl.h>
 
 /*
  * Everything to do with editing the contents of disk labels.
@@ -178,7 +182,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs");
+    strcpy(ret->newfs_cmd, "newfs -b 8192 -f 2048");
     ret->newfs = newfs;
     if (!size)
 	    return ret;
@@ -352,21 +356,20 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
 	    if (label_chunk_info[i].c->private
-		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT)) {
-		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
-		if (label_chunk_info[i].type == PART_FAT)
-		    newfs = "DOS";
-		else
-		    newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "Y" : "N";
-	    }
-	    else if (label_chunk_info[i].type == PART_SWAP) {
-		mountpoint = "swap";
-		newfs = " ";
-	    }
-	    else {
-		mountpoint = "<NONE>";
+		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT))
+	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
+	    else
+	        mountpoint = "<none>";
+
+	    /* Now display the newfs field */
+	    if (label_chunk_info[i].type == PART_FAT)
+	        newfs = "DOS";
+	    else if (label_chunk_info[i].c->private && label_chunk_info[i].type == PART_FILESYSTEM)
+		newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "UFS Y" : "UFS N";
+	    else if (label_chunk_info[i].type == PART_SWAP)
+		newfs = "SWAP";
+	    else
 		newfs = "*";
-	    }
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
@@ -385,22 +388,23 @@ static void
 print_command_summary()
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create New     D = Delete           M = Set Mountpoint");
-    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs     U = Undo    Q = Finish");
-    mvprintw(21, 0, "The default target will be displayed in ");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount   W = Write");
+    mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");
+    mvprintw(20, 0, "A = Auto Defaults for all!");
+    mvprintw(22, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
     addstr("reverse");
     attrset(A_NORMAL);
     addstr(" video.");
-    mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to move.");
+    mvprintw(23, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
 
 int
 diskLabelEditor(char *str)
 {
-    int sz, i, key = 0;
+    int sz, key = 0;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p, *oldp;
@@ -428,6 +432,7 @@ diskLabelEditor(char *str)
 	refresh();
 	key = toupper(getch());
 	switch (key) {
+	    int i, cnt;
 
 	case '\014':	/* ^L */
 	    continue;
@@ -465,6 +470,87 @@ diskLabelEditor(char *str)
 	    systemDisplayFile("partition.hlp");
 	    break;
 
+	case 'A':
+	    if (label_chunk_info[here].type != PART_SLICE) {
+		msg = "You can only do this in a master partition (see top of screen)";
+		break;
+	    }
+	    
+	    cnt = i = 0;
+	    while (label_chunk_info[i].c)
+		if (label_chunk_info[i++].type != PART_SLICE)
+		    cnt++;
+	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
+		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\nthis limitation by partitioning your disks individually rather than all\nat once.  This will be fixed just as soon as we get a scrolling partition\nbox written.  Sorry for the inconvenience!");
+		break;
+	    }
+	    
+	    sz = space_free(label_chunk_info[here].c);
+	    if (sz <= FS_MIN_SIZE) {
+		msg = "Not enough space to create additional FreeBSD partition";
+		break;
+	    }
+	{
+	    struct chunk *tmp;
+	    int mib[2];
+	    int physmem;
+	    size_t size;
+	    
+	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+				    label_chunk_info[here].c,
+				    32 * ONE_MEG, part, FS_BSDFFS, 
+				    CHUNK_IS_ROOT);
+	    
+	    if (!tmp) {
+		msgConfirm("Unable to create the root partition. Too big?");
+		break;
+	    }
+	    tmp->private = new_part("/", TRUE, tmp->size);
+	    tmp->private_free = safe_free;
+	    record_label_chunks();
+	    
+	    mib[0] = CTL_HW;
+	    mib[1] = HW_PHYSMEM;
+	    size = sizeof physmem;
+	    sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
+	    
+	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+				    label_chunk_info[here].c,
+				    physmem * 2 / 512, part, FS_SWAP, 0);
+	    if (!tmp) {
+		msgConfirm("Unable to create the swap partition. Too big?");
+		break;
+	    }
+	    
+	    tmp->private = 0;
+	    tmp->private_free = safe_free;
+	    record_label_chunks();
+	    
+	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+				    label_chunk_info[here].c,
+				    16 * ONE_MEG, part, FS_BSDFFS, 0);
+	    if (!tmp) {
+		msgConfirm("Unable to create the /var partition.  Too big?");
+		break;
+	    }
+	    tmp->private = new_part("/var", TRUE, tmp->size);
+	    tmp->private_free = safe_free;
+	    record_label_chunks();
+	    
+	    sz = space_free(label_chunk_info[here].c);
+	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+				    label_chunk_info[here].c,
+				    sz, part, FS_BSDFFS, 0);
+	    if (!tmp) {
+		msgConfirm("Unable to create the /usr partition. Too big?");
+		break;
+	    }
+	    tmp->private = new_part("/usr", TRUE, tmp->size);
+	    tmp->private_free = safe_free;
+	    record_label_chunks();
+	}
+	    break;
+	    
 	case 'C':
 	    if (label_chunk_info[here].type != PART_SLICE) {
 		msg = "You can only do this in a master partition (see top of screen)";
@@ -639,6 +725,11 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'W':
+	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\nat this time?  You also have the option of doing it later in\none final 'commit' operation, and if you're at all unsure as\nto which option to chose, then chose No."))
+	      diskLabelCommit(NULL);
+	    break;
+
+	case '|':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
 		int i;
 		Device **devs;
@@ -678,5 +769,12 @@ diskLabelEditor(char *str)
     return 0;
 }
 
-
-
+int
+diskLabelCommit(char *str)
+{
+    if (!getenv(DISK_LABELLED))
+	msgConfirm("You must assign disk labels before this option can be used.");
+    else if (!installFilesystems())
+	msgConfirm("Failed to make/mount all filesystems.  Please correct\nwhatever went wrong and try again.");
+    return 0;
+}

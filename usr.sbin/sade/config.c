@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.28 1995/06/10 08:24:28 jkh Exp $
+ * $Id: config.c,v 1.16.2.2 1995/07/21 11:45:36 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,7 +114,7 @@ fstype_short(Chunk *c1)
 	    return "sw";
     }
     else if (c1->type == fat)
-	return "rw";
+	return "ro";
     return "bog";
 }
 
@@ -362,12 +362,8 @@ configRoutedFlags(char *str)
 int
 configPackages(char *str)
 {
-    int i, pstat;
-    pid_t pid;
     Boolean onCD;
 
-    msgConfirm("Warning:  This utility (pkg_manage) is still somewhat experimental\nand may not function for all packages.  If it fails to load the\npackages you want, try running it directly once the system is up or use the\npkg_add, pkg_info and pkg_delete utilities directly.");
-    i = -1;
     /* If we're running as init, we know that a CD in the drive is probably ours */
     onCD = file_readable("/cdrom/packages");
     if (!onCD && RunningAsInit) {
@@ -376,19 +372,7 @@ configPackages(char *str)
 		onCD = TRUE;
 	}
     }
-
-    if (!(pid = fork())) {
-	if (onCD && chdir("/cdrom/packages/All"))
-	    exit(1);
-	execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
-	exit(1);
-    }
-    else {
-	pid = waitpid(pid, (int *)&pstat, 0);
-	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-    }
-    if (i != 0 && isDebug())
-	msgDebug("pkg_manage returns status of %d\n", i);
+    /* XXX Construct some sort of menu here using an INDEX file from /cdrom/packages XXX */
     return 0;
 }
 
