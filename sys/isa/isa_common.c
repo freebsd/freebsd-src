@@ -94,7 +94,7 @@ isa_probe(device_t dev)
 {
 	device_set_desc(dev, "ISA bus");
 	isa_init(dev);		/* Allow machdep code to initialise */
-	return 0;
+	return (0);
 }
 
 extern device_t isa_bus_device;
@@ -106,7 +106,7 @@ isa_attach(device_t dev)
 	 * Arrange for isa_probe_children(dev) to be called later. XXX
 	 */
 	isa_bus_device = dev;
-	return 0;
+	return (0);
 }
 
 /*
@@ -115,9 +115,8 @@ isa_attach(device_t dev)
  * a set of ranges was found.
  */
 static int
-isa_find_memory(device_t child,
-		struct isa_config *config,
-		struct isa_config *result)
+isa_find_memory(device_t child, struct isa_config *config,
+    struct isa_config *result)
 {
 	int success, i;
 	struct resource *res[ISA_NMEM];
@@ -133,7 +132,7 @@ isa_find_memory(device_t child,
 	success = 1;
 	result->ic_nmem = config->ic_nmem;
 	for (i = 0; i < config->ic_nmem; i++) {
-		u_int32_t start, end, size, align;
+		uint32_t start, end, size, align;
 
 		size = config->ic_mem[i].ir_size;
 
@@ -181,7 +180,7 @@ isa_find_memory(device_t child,
 					     i, res[i]);
 	}
 
-	return success;
+	return (success);
 }
 
 /*
@@ -190,9 +189,8 @@ isa_find_memory(device_t child,
  * a set of ranges was found.
  */
 static int
-isa_find_port(device_t child,
-	      struct isa_config *config,
-	      struct isa_config *result)
+isa_find_port(device_t child, struct isa_config *config,
+    struct isa_config *result)
 {
 	int success, i;
 	struct resource *res[ISA_NPORT];
@@ -208,7 +206,7 @@ isa_find_port(device_t child,
 	success = 1;
 	result->ic_nport = config->ic_nport;
 	for (i = 0; i < config->ic_nport; i++) {
-		u_int32_t start, end, size, align;
+		uint32_t start, end, size, align;
 
 		size = config->ic_port[i].ir_size;
 
@@ -263,23 +261,23 @@ isa_find_port(device_t child,
  * Return the index of the first bit in the mask (or -1 if mask is empty.
  */
 static int
-find_first_bit(u_int32_t mask)
+find_first_bit(uint32_t mask)
 {
-	return ffs(mask) - 1;
+	return (ffs(mask) - 1);
 }
 
 /*
  * Return the index of the next bit in the mask, or -1 if there are no more.
  */
 static int
-find_next_bit(u_int32_t mask, int bit)
+find_next_bit(uint32_t mask, int bit)
 {
 	bit++;
 	while (bit < 32 && !(mask & (1 << bit)))
 		bit++;
 	if (bit != 32)
-		return bit;
-	return -1;
+		return (bit);
+	return (-1);
 }
 
 /*
@@ -288,9 +286,8 @@ find_next_bit(u_int32_t mask, int bit)
  * irqs was found.
  */
 static int
-isa_find_irq(device_t child,
-	     struct isa_config *config,
-	     struct isa_config *result)
+isa_find_irq(device_t child, struct isa_config *config,
+    struct isa_config *result)
 {
 	int success, i;
 	struct resource *res[ISA_NIRQ];
@@ -306,7 +303,7 @@ isa_find_irq(device_t child,
 	success = 1;
 	result->ic_nirq = config->ic_nirq;
 	for (i = 0; i < config->ic_nirq; i++) {
-		u_int32_t mask = config->ic_irqmask[i];
+		uint32_t mask = config->ic_irqmask[i];
 		int irq;
 
 		/* the PnP device may have a null resource as filler */
@@ -345,7 +342,7 @@ isa_find_irq(device_t child,
 					     i, res[i]);
 	}
 
-	return success;
+	return (success);
 }
 
 /*
@@ -354,9 +351,8 @@ isa_find_irq(device_t child,
  * drqs was found.
  */
 static int
-isa_find_drq(device_t child,
-	     struct isa_config *config,
-	     struct isa_config *result)
+isa_find_drq(device_t child, struct isa_config *config,
+    struct isa_config *result)
 {
 	int success, i;
 	struct resource *res[ISA_NDRQ];
@@ -372,7 +368,7 @@ isa_find_drq(device_t child,
 	success = 1;
 	result->ic_ndrq = config->ic_ndrq;
 	for (i = 0; i < config->ic_ndrq; i++) {
-		u_int32_t mask = config->ic_drqmask[i];
+		uint32_t mask = config->ic_drqmask[i];
 		int drq;
 
 		/* the PnP device may have a null resource as filler */
@@ -411,7 +407,7 @@ isa_find_drq(device_t child,
 					     i, res[i]);
 	}
 
-	return success;
+	return (success);
 }
 
 /*
@@ -453,7 +449,7 @@ isa_assign_resources(device_t child)
 			idev->id_config_cb(idev->id_config_arg,
 					   cfg, 1);
 			free(cfg, M_TEMP);
-			return 1;
+			return (1);
 		}
 	}
 
@@ -463,14 +459,14 @@ isa_assign_resources(device_t child)
 	bus_print_child_header(device_get_parent(child), child);
 	printf(" can't assign resources (%s)\n", reason);
 	if (bootverbose)
-	    isa_print_child(device_get_parent(child), child);
+		isa_print_child(device_get_parent(child), child);
 	bzero(cfg, sizeof (*cfg));
 	if (idev->id_config_cb)
 		idev->id_config_cb(idev->id_config_arg, cfg, 0);
 	device_disable(child);
 
 	free(cfg, M_TEMP);
-	return 0;
+	return (0);
 }
 
 /*
@@ -482,12 +478,12 @@ isa_has_single_config(device_t dev)
 {
 	struct isa_device *idev = DEVTOISA(dev);
 	struct isa_config_entry *ice;
-	u_int32_t mask;
+	uint32_t mask;
 	int i;
 
 	ice = TAILQ_FIRST(&idev->id_configs);
 	if (TAILQ_NEXT(ice, ice_link))
-		return 0;
+		return (0);
 
 	for (i = 0; i < ice->ice_config.ic_nmem; ++i) {
 		if (ice->ice_config.ic_mem[i].ir_size == 0)
@@ -495,7 +491,7 @@ isa_has_single_config(device_t dev)
 		if (ice->ice_config.ic_mem[i].ir_end !=
 		    ice->ice_config.ic_mem[i].ir_start + 
 		    ice->ice_config.ic_mem[i].ir_size - 1)
-			return 0;
+			return (0);
 	}
 	for (i = 0; i < ice->ice_config.ic_nport; ++i) {
 		if (ice->ice_config.ic_port[i].ir_size == 0)
@@ -503,23 +499,23 @@ isa_has_single_config(device_t dev)
 		if (ice->ice_config.ic_port[i].ir_end !=
 		    ice->ice_config.ic_port[i].ir_start + 
 		    ice->ice_config.ic_port[i].ir_size - 1)
-			return 0;
+			return (0);
 	}
 	for (i = 0; i < ice->ice_config.ic_nirq; ++i) {
 		mask = ice->ice_config.ic_irqmask[i];
 		if (mask == 0)
 			continue;
 		if (find_next_bit(mask, find_first_bit(mask)) != -1)
-			return 0;
+			return (0);
 	}
 	for (i = 0; i < ice->ice_config.ic_ndrq; ++i) {
 		mask = ice->ice_config.ic_drqmask[i];
 		if (mask == 0)
 			continue;
 		if (find_next_bit(mask, find_first_bit(mask)) != -1)
-			return 0;
+			return (0);
 	}
-	return 1;
+	return (1);
 }
 
 /*
@@ -634,7 +630,7 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 	
 	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT | M_ZERO);
 	if (!idev)
-		return 0;
+		return (0);
 
 	resource_list_init(&idev->id_resources);
 	TAILQ_INIT(&idev->id_configs);
@@ -661,7 +657,7 @@ isa_print_all_resources(device_t dev)
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
-	return retval;
+	return (retval);
 }
 
 static int
@@ -814,15 +810,14 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 		break;
 
 	default:
-		return ENOENT;
+		return (ENOENT);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
-isa_write_ivar(device_t bus, device_t dev,
-	       int index, uintptr_t value)
+isa_write_ivar(device_t bus, device_t dev, int index, uintptr_t value)
 {
 	struct isa_device* idev = DEVTOISA(dev);
 
@@ -839,7 +834,7 @@ isa_write_ivar(device_t bus, device_t dev,
 	case ISA_IVAR_IRQ_1:
 	case ISA_IVAR_DRQ_0:
 	case ISA_IVAR_DRQ_1:
-		return EINVAL;
+		return (EINVAL);
 
 	case ISA_IVAR_VENDORID:
 		idev->id_vendorid = value;
@@ -964,28 +959,28 @@ isa_driver_added(device_t dev, driver_t *driver)
 
 static int
 isa_set_resource(device_t dev, device_t child, int type, int rid,
-		 u_long start, u_long count)
+    u_long start, u_long count)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
 	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (rid < 0)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IOPORT && rid >= ISA_NPORT)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_MEMORY && rid >= ISA_NMEM)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IRQ && rid >= ISA_NIRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_DRQ && rid >= ISA_NDRQ)
-		return EINVAL;
+		return (EINVAL);
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
 
-	return 0;
+	return (0);
 }
 
 static struct resource_list *
@@ -1001,15 +996,15 @@ isa_get_resource_list (device_t dev, device_t child)
 }
 
 static int
-isa_add_config(device_t dev, device_t child,
-	       int priority, struct isa_config *config)
+isa_add_config(device_t dev, device_t child, int priority,
+    struct isa_config *config)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct isa_config_entry *newice, *ice;
 
 	newice = malloc(sizeof *ice, M_DEVBUF, M_NOWAIT);
 	if (!newice)
-		return ENOMEM;
+		return (ENOMEM);
 
 	newice->ice_priority = priority;
 	newice->ice_config = *config;
@@ -1028,12 +1023,12 @@ isa_add_config(device_t dev, device_t child,
 	else
 		idev->id_config_attr |= ISACFGATTR_MULTI;
 
-	return 0;
+	return (0);
 }
 
 static void
-isa_set_config_callback(device_t dev, device_t child,
-			isa_config_cb *fn, void *arg)
+isa_set_config_callback(device_t dev, device_t child, isa_config_cb *fn,
+    void *arg)
 {
 	struct isa_device* idev = DEVTOISA(child);
 
@@ -1047,7 +1042,7 @@ isa_pnp_probe(device_t dev, device_t child, struct isa_pnp_id *ids)
 	struct isa_device* idev = DEVTOISA(child);
 
 	if (!idev->id_vendorid)
-		return ENOENT;
+		return (ENOENT);
 
 	while (ids && ids->ip_id) {
 		/*
@@ -1057,12 +1052,12 @@ isa_pnp_probe(device_t dev, device_t child, struct isa_pnp_id *ids)
 		    || idev->id_compatid == ids->ip_id) {
 			if (ids->ip_desc)
 				device_set_desc(child, ids->ip_desc);
-			return 0;
+			return (0);
 		}
 		ids++;
 	}
 
-	return ENXIO;
+	return (ENXIO);
 }
 
 static device_method_t isa_methods[] = {
