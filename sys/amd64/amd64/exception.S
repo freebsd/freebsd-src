@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
+#include "opt_npx.h"
 
 #include <machine/asmacros.h>
 #include <sys/ipl.h>
@@ -151,7 +151,7 @@ IDTVEC(rsvd)
 	pushl $0; TRAP(T_RESERVED)
 
 IDTVEC(fpu)
-#if NNPX > 0
+#ifdef DEV_NPX
 	/*
 	 * Handle like an interrupt (except for accounting) so that we can
 	 * call npx_intr to clear the error.  It would be better to handle
@@ -182,9 +182,9 @@ IDTVEC(fpu)
 	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
-#else	/* NNPX > 0 */
+#else	/* DEV_NPX */
 	pushl $0; TRAP(T_ARITHTRAP)
-#endif	/* NNPX > 0 */
+#endif	/* DEV_NPX */
 
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
