@@ -16,7 +16,7 @@ load_rc_config $name
 
 case ${OSTYPE} in
 FreeBSD)
-	stop_precmd="test -f ${ipfilter_rules}"
+	stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
 	;;
 NetBSD)
 	stop_precmd="test -f /etc/ipf.conf -o -f /etc/ipf6.conf"
@@ -49,7 +49,8 @@ FreeBSD)
 	fi
 
 	# check for ipfilter rules
-	if [ ! -r "${ipfilter_rules}" ]; then
+	if [ ! -r "${ipfilter_rules}" ] && [ ! -r "${ipv6_ipfilter_rules}" ]
+	then
 		warn 'IP-filter: NO IPF RULES'
 		return 1
 	fi
@@ -78,8 +79,15 @@ ipfilter_start()
 	echo "Enabling ipfilter."
 	case ${OSTYPE} in
 	FreeBSD)
-		${ipfilter_program:-/sbin/ipf} -Fa -f \
-		    "${ipfilter_rules}" ${ipfilter_flags}
+		${ipfilter_program:-/sbin/ipf} -Fa
+		if [ -r "${ipfilter_rules}" ]; then
+			${ipfilter_program:-/sbin/ipf} \
+			    -f "${ipfilter_rules}" ${ipfilter_flags}
+		fi
+		if [ -r "${ipv6_ipfilter_rules}" ]; then
+			${ipfilter_program:-/sbin/ipf} -6 \
+			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+		fi
 		;;
 	NetBSD)
 		/sbin/ipf -E -Fa
@@ -114,8 +122,15 @@ ipfilter_reload()
 
 	case ${OSTYPE} in
 	FreeBSD)
-		${ipfilter_program:-/sbin/ipf} -I -Fa -f \
-		    "${ipfilter_rules}" ${ipfilter_flags}
+		${ipfilter_program:-/sbin/ipf} -I -Fa
+		if [ -r "${ipfilter_rules}" ]; then
+			${ipfilter_program:-/sbin/ipf} -I \
+			    -f "${ipfilter_rules}" ${ipfilter_flags}
+		fi
+		if [ -r "${ipv6_ipfilter_rules}" ]; then
+			${ipfilter_program:-/sbin/ipf} -I -6 \
+			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+		fi
 		;;
 	NetBSD)
 		/sbin/ipf -I -Fa
