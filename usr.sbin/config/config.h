@@ -56,12 +56,11 @@ struct file_list {
 /*
  * Types.
  */
-#define DRIVER		1
-#define NORMAL		2
-#define	INVISIBLE	3
-#define	PROFILING	4
-#define NODEPEND	5
-#define LOCAL		6
+#define NORMAL		1
+#define	INVISIBLE	2
+#define	PROFILING	3
+#define NODEPEND	4
+#define LOCAL		5
 #define DEVDONE		0x80000000
 #define TYPEMASK	0x7fffffff
 

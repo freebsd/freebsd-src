@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.42 1999/05/09 17:23:37 phk Exp $";
+	"$Id: mkmakefile.c,v 1.43 1999/05/09 18:54:23 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -249,6 +249,7 @@ read_files()
 	register struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean;
 	char fname[80];
+	int ddwarned = 0;
 	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, before_depend, mandatory;
 
@@ -266,7 +267,7 @@ openit:
 next:
 	/*
 	 * filename    [ standard | mandatory | optional ] [ config-dependent ]
-	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
+	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
 	 *	[ clean "file-list"]
@@ -404,7 +405,10 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "device-driver")) {
-		filetype = DRIVER;
+		if (!ddwarned) {
+			printf("%s: `device-driver' flag ignored.\n", fname);
+			ddwarned++;
+		}
 		goto nextparam;
 	}
 	if (eq(wd, "profiling-routine")) {
@@ -714,10 +718,6 @@ do_rules(f)
 
 			case NORMAL:
 				ftype = "NORMAL";
-				break;
-
-			case DRIVER:
-				ftype = "DRIVER";
 				break;
 
 			case PROFILING:
