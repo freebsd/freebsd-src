@@ -28,10 +28,10 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
 	libipx libisc libkiconv libmenu ${_libmilter} ${_libmp} ${_libncp} \
-	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
-	${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
-	libstand libtelnet ${_libthr} libufs libugidfw ${_libusbhid} \
-	${_libvgl} libwrap libxpg4 liby libz
+	libnetgraph ${_libngatm} libopie libpam libpanel libpcap \
+	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
+	${_libsmutil} libstand libtelnet ${_libthr} libufs libugidfw \
+	${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -50,6 +50,7 @@ _libc_r=	libc_r
 
 .if !defined(NOATM)
 _libatm=	libatm
+_libngatm=	libngatm
 .endif
 
 .if !defined(NO_BIND)
