@@ -47,7 +47,9 @@ typedef enum {
 	extended,
 	part,
 	spare,
-	unused
+	unused,
+
+	apple
 } chunk_e;
 
 __BEGIN_DECLS
