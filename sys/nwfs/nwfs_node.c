@@ -284,9 +284,9 @@ nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi) {
 		va->va_fileid = NWFS_ROOT_INO;
 	va->va_blocksize=nmp->connh->nh_conn->buffer_size;/* blocksize preferred for i/o */
 	/* time of last modification */
-	ncp_dos2unixtime(fi->modifyDate, fi->modifyTime, 0, &va->va_mtime);
+	ncp_dos2unixtime(fi->modifyDate, fi->modifyTime, 0, nmp->m.tz, &va->va_mtime);
 	/* time of last access */
-	ncp_dos2unixtime(fi->lastAccessDate, 0, 0, &va->va_atime);
+	ncp_dos2unixtime(fi->lastAccessDate, 0, 0, nmp->m.tz, &va->va_atime);
 	va->va_ctime = va->va_mtime;	/* time file changed */
 	va->va_gen = VNOVAL;		/* generation number of file */
 	va->va_flags = 0;		/* flags defined for file */

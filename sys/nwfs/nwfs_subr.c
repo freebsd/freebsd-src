@@ -384,11 +384,11 @@ ncp_setattr(vp, vap, cred, procp)
 
 	if (vap->va_mtime.tv_sec != VNOVAL) {
 		info_mask |= (DM_MODIFY_TIME | DM_MODIFY_DATE);
-		ncp_unix2dostime(&vap->va_mtime, &info.modifyDate, &info.modifyTime, NULL);
+		ncp_unix2dostime(&vap->va_mtime, nmp->m.tz, &info.modifyDate, &info.modifyTime, NULL);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL) {
 		info_mask |= (DM_LAST_ACCESS_DATE);
-		ncp_unix2dostime(&vap->va_atime, &info.lastAccessDate,NULL,NULL);
+		ncp_unix2dostime(&vap->va_atime, nmp->m.tz, &info.lastAccessDate, NULL, NULL);
 	}
 	if (info_mask) {
 		error = ncp_modify_file_or_subdir_dos_info(nmp, vp, info_mask, &info,procp,cred);
@@ -532,8 +532,9 @@ static u_short lastdtime;
  * file timestamps. The passed in unix time is assumed to be in GMT.
  */
 void
-ncp_unix2dostime(tsp, ddp, dtp, dhp)
+ncp_unix2dostime(tsp, tzoff, ddp, dtp, dhp)
 	struct timespec *tsp;
+	int tzoff;
 	u_int16_t *ddp;
 	u_int16_t *dtp;
 	u_int8_t *dhp;
@@ -549,9 +550,8 @@ ncp_unix2dostime(tsp, ddp, dtp, dhp)
 	 * If the time from the last conversion is the same as now, then
 	 * skip the computations and use the saved result.
 	 */
-	t = tsp->tv_sec - (tz.tz_minuteswest * 60)
-	    - (wall_cmos_clock ? adjkerntz : 0);
-	    /* - daylight savings time correction */
+	t = tsp->tv_sec - tzoff * 60 - tz.tz_minuteswest * 60 -
+	    (wall_cmos_clock ? adjkerntz : 0);
 	t &= ~1;
 	if (lasttime != t) {
 		lasttime = t;
@@ -613,10 +613,11 @@ static u_long  lastseconds;
  * not be too efficient.
  */
 void
-ncp_dos2unixtime(dd, dt, dh, tsp)
+ncp_dos2unixtime(dd, dt, dh, tzoff, tsp)
 	u_int dd;
 	u_int dt;
 	u_int dh;
+	int tzoff;
 	struct timespec *tsp;
 {
 	u_long seconds;
@@ -659,8 +660,7 @@ ncp_dos2unixtime(dd, dt, dh, tsp)
 		days += ((dd & DD_DAY_MASK) >> DD_DAY_SHIFT) - 1;
 		lastseconds = (days * 24 * 60 * 60) + SECONDSTO1980;
 	}
-	tsp->tv_sec = seconds + lastseconds + (tz.tz_minuteswest * 60)
-	     + adjkerntz;
-	     /* + daylight savings time correction */
+	tsp->tv_sec = seconds + lastseconds + tz.tz_minuteswest * 60 +
+	    tzoff * 60 + (wall_cmos_clock ? adjkerntz : 0);
 	tsp->tv_nsec = (dh % 100) * 10000000;
 }
