@@ -288,7 +288,7 @@ static int
 oltr_pci_attach(device_t dev)
 {
         int 			i, s, rc = 0, rid,
-				scratch_size, work_size;
+				scratch_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
@@ -336,26 +336,6 @@ oltr_pci_attach(device_t dev)
 	if (sc->TRlldAdapter == NULL) {
 		device_printf(dev, "couldn't allocate scratch buffer (%d bytes)\n", scratch_size);
 		goto config_failed;
-	}
-
-	switch(sc->config.type) {
-	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size) {
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			device_printf(dev, "failed to allocate work memory.\n");
-		} else {
-		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-		    vtophys(sc->work_memory), work_size);
-		}
 	}
 
 	/*
@@ -544,7 +524,7 @@ oltr_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 oltr_pci_attach(pcici_t config_id, int unit)
 {
-        int 			i, s, rc = 0, scratch_size, work_size;
+        int 			i, s, rc = 0, scratch_size;
 	int			media = IFM_TOKEN|IFM_TOK_UTP16;
 	u_long 			command;
 	char 			PCIConfigHeader[64];
@@ -596,26 +576,6 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	if (sc->TRlldAdapter == NULL) {
 		printf("oltr%d: couldn't allocate scratch buffer (%d bytes)\n",unit, scratch_size);
 		goto config_failed;
-	}
-
-	switch(sc->config.type) {
-	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
-		work_size = 32 * 1024;
-		break;
-	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
-		work_size = 256;
-		break;
-	default:
-		work_size = 0;
-	}
-
-	if (work_size) {
-		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
-			printf("oltr%d: failed to allocate work memory.\n", unit);
-		} else {
-		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
-		    vtophys(sc->work_memory), work_size);
-		}
 	}
 
 	/*
@@ -839,6 +799,7 @@ oltr_init(void * xsc)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct ifmedia		*ifm = &sc->ifmedia;
 	int			poll = 0, i, rc = 0, s;
+	int			work_size;
 
 	/*
 	 * Check adapter state, don't allow multiple inits
@@ -875,6 +836,26 @@ oltr_init(void * xsc)
 		goto init_failed;
 	}
 	sc->state = OL_INIT;
+
+	switch(sc->config.type) {
+	case TRLLD_ADAPTER_PCI4:        /* OC-3139 */
+		work_size = 32 * 1024;
+		break;
+	case TRLLD_ADAPTER_PCI7:        /* OC-3540 */
+		work_size = 256;
+		break;
+	default:
+		work_size = 0;
+	}
+
+	if (work_size) {
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
+			printf("oltr%d: failed to allocate work memory (%d octets).\n", sc->unit, work_size);
+		} else {
+		TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
+		    vtophys(sc->work_memory), work_size);
+		}
+	}
 
 	switch(IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
@@ -988,7 +969,7 @@ oltr_init(void * xsc)
 			(void)splx(s);
 			return;
 		default:
-			printf("oltr%d: unkown open error (%d)\n", sc->unit, rc);
+			printf("oltr%d: unknown open error (%d)\n", sc->unit, rc);
 			(void)splx(s);
 			return;
 	}
