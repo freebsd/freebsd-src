@@ -997,7 +997,7 @@ device_set_driver(device_t dev, driver_t *driver)
 	dev->driver = driver;
 	if (driver) {
 		kobj_init((kobj_t) dev, (kobj_class_t) driver);
-		if (!(dev->flags & DF_EXTERNALSOFTC)) {
+		if (!(dev->flags & DF_EXTERNALSOFTC) && driver->size > 0) {
 			dev->softc = malloc(driver->size, M_BUS,
 			    M_NOWAIT | M_ZERO);
 			if (!dev->softc) {
