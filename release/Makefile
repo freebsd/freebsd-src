@@ -268,22 +268,15 @@ DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${DISKLABEL} ""
 
 .if ${TARGET_ARCH} == "sparc64"
 CRUNCH_TARGETS= boot
-FIXIT_TARGET=
 .elif ${TARGET_ARCH} == "ia64"
 CRUNCH_TARGETS= boot
-FIXIT_TARGET=
 .elif ${TARGET} == "pc98"
 CRUNCH_TARGETS=	boot fixit fixit-small
 .elif ${TARGET_ARCH} == "amd64"
 CRUNCH_TARGETS= boot
-FIXIT_TARGET=
 .endif
 
 CRUNCH_TARGETS?=boot fixit
-
-.if !defined(FIXIT_TARGET)
-FIXIT_TARGET= release.10
-.endif
 
 EXTRAS= ftp.1
 .if !defined(NOCDROM)
@@ -492,7 +485,7 @@ release rerelease:
 	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] ${FIXIT_TARGET} \
+	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] release.10 \
 	    ${EXTRAS}
 
 fetch-distfiles:
@@ -671,7 +664,6 @@ release.8:
 #
 
 release.9:
-.if ${TARGET_ARCH} != "ia64" || ${TARGET_ARCH} == ${MACHINE_ARCH}
 	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -717,34 +709,40 @@ release.9:
 .if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
-	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 .if ${TARGET_ARCH} == "alpha" && !defined(NO_FLOPPIES)
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
-.if defined(SMALLBOOTSIZE) && !defined(NO_FLOPPIES)
+	@mkdir -p ${RD}/mfsroot
+.if defined(SMALLBOOTSIZE)
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
-	@rm -rf ${RD}/mfsfd/modules
 	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
-	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
+	sh -e ${DOFS_SH} mfsroot-small ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > mfsroot.gz
-	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot.gz \
-		${BOOTINODE} ${SMALLBOOTLABEL}
+	@gzip -9vc mfsroot-small > ${RD}/mfsroot/mfsroot-small.gz
+	@rm -rf ${RD}/mfsfd/modules
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@rm -rf ${RD}/mfsfd/modules
 	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
+.endif
+	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
+		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
+	@gzip -9vc mfsroot > ${RD}/mfsroot/mfsroot.gz
+	@rm mfsroot mfsroot-small
+	touch ${.TARGET}
+
+release.10:
 .if !defined(NO_FLOPPIES)
+.if exists(${.CURDIR}/${TARGET}/drivers.conf)
+	@echo "Making the drivers floppy."
 	@rm -rf ${RD}/driversfd
 	@mkdir ${RD}/driversfd
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
@@ -759,35 +757,25 @@ release.9:
 		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
 	fi
 .endif
-.endif
-	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > mfsroot.gz
-	@mkdir -p ${RD}/mfsroot
-	@cp mfsroot.gz ${RD}/mfsroot
-.if !defined(NO_FLOPPIES)
 .if defined(BOOTSIZE)
+	@echo "Making the regular boot floppy."
 	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
+		${RD} ${MNT} ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz \
+		${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 .endif
 .if defined(SMALLBOOTSIZE)
+	@echo "Making the small boot floppy."
+	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
+		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot/mfsroot-small.gz \
+		${BOOTINODE} ${SMALLBOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
 .endif
 .if defined(BIGBOOTSIZE)
+	@echo "Making the big boot floppy."
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
-.endif
-	@rm mfsroot mfsroot.gz
-	@echo "Regular and MFS boot floppies made."
-.endif
-	touch ${.TARGET}
-
-#
-# --==## Create a fixit floppy ##==--
-#
-release.10:
-.if !defined(NO_FLOPPIES)
+.if defined(FIXITSIZE) || defined(SMALLFIXITSIZE)
 	@echo "Making fixit floppy."
 	@rm -rf ${RD}/fixitfd
 	@mkdir ${RD}/fixitfd
@@ -813,10 +801,13 @@ release.10:
 	@rm -rf ${RD}/fixitfd/stand
 	@mkdir ${RD}/fixitfd/stand
 .endif
+.if defined(FIXITSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
+.endif
+.endif
 # Do our last minute floppies directory setup in a convenient place.
 .if !defined(NODOC)
 	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
@@ -1011,22 +1002,14 @@ RELEASE9=release.9
 .endif
 
 doRELEASE:  release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
-		release.6 release.7 release.8 ${RELEASE9} ${FIXIT_TARGET}
+		release.6 release.7 release.8 ${RELEASE9} release.10
 	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
 floppies:
-	@cd ${.CURDIR} && ${MAKE} boot.flp
-	@cd ${.CURDIR} && ${MAKE} fixit.flp
+	@rm -f release.5 release.9 release.10
+	@cd ${.CURDIR} && ${MAKE} release.5 release.9 release.10
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
-
-boot.flp:
-	@rm -f release.5 release.9
-	@cd ${.CURDIR} && ${MAKE} release.5 release.9 CRUNCH_TARGETS=boot
-
-fixit.flp:
-	@rm -f release.5 release.10
-	@cd ${.CURDIR} && ${MAKE} release.5 release.10 CRUNCH_TARGETS=fixit
 
 installCRUNCH:
 .if !defined(CRUNCH)
@@ -1126,7 +1109,7 @@ doMFSKERN:
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
 .if defined(FDSIZE) && ${FDSIZE} == "BIG"
-	@cp mfsroot.gz ${RD}/image.${FSIMAGE}
+	@cp ${RD}/mfsroot/mfsroot.gz ${RD}/image.${FSIMAGE}
 	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BIGBOOTLABEL}
