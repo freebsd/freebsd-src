@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
  * 
  */
 
@@ -53,6 +53,9 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.4  1998/09/13 13:57:59  rvb
+ * Finish conversion of cfs -> coda
+ *
  * Revision 1.3  1998/09/11 18:50:17  rvb
  * All the references to cfs, in symbols, structs, and strings
  * have been changed to coda.  (Same for CFS.)
@@ -158,7 +161,11 @@
 
 extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#define NVCODA 4
+#else
 #include <vcoda.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -175,6 +182,7 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <coda/cnode.h>
 #include <coda/coda_namecache.h>
 #include <coda/coda_io.h>
+#include <coda/coda_psdev.h>
 
 #define CTL_C
 
@@ -183,12 +191,6 @@ int coda_psdev_print_entry = 0;
 #define ENTRY if(coda_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
 
 void vcodaattach(int n);
-int vc_nb_open(dev_t dev, int flag, int mode, struct proc *p);
-int vc_nb_close (dev_t dev, int flag, int mode, struct proc *p);
-int vc_nb_read(dev_t dev, struct uio *uiop, int flag);
-int vc_nb_write(dev_t dev, struct uio *uiop, int flag);
-int vc_nb_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p);
-int vc_nb_poll(dev_t dev, int events, struct proc *p);
 
 struct vmsg {
     struct queue vm_chain;
@@ -340,7 +342,7 @@ vc_nb_read(dev, uiop, flag)
 	error = EINVAL;
     }
 
-#ifdef DIAGNOSTIC    
+#ifdef OLD_DIAGNOSTIC    
     if (vmp->vm_chain.forw == 0 || vmp->vm_chain.back == 0)
 	panic("vc_nb_read: bad chain");
 #endif
@@ -467,7 +469,7 @@ vc_nb_write(dev, uiop, flag)
 int
 vc_nb_ioctl(dev, cmd, addr, flag, p) 
     dev_t         dev;       
-    int           cmd;       
+    u_long        cmd;       
     caddr_t       addr;      
     int           flag;      
     struct proc  *p;
@@ -619,20 +621,26 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	    if (error == 0)
 	    	break;
 	    else if (error == EWOULDBLOCK) {
+#ifdef	DIAGNOSTIC
 		    printf("coda_call: tsleep TIMEOUT %d sec\n", 2+2*i);
+#endif
     	    } else if (p->p_siglist == sigmask(SIGIO)) {
 		    p->p_sigmask |= p->p_siglist;
+#ifdef	DIAGNOSTIC
 		    printf("coda_call: tsleep returns %d SIGIO, cnt %d\n", error, i);
+#endif
 	    } else {
 		    printf("coda_call: tsleep returns %d, cnt %d\n", error, i);
 		    printf("coda_call: siglist = %x, sigmask = %x, mask %x\n",
 			    p->p_siglist, p->p_sigmask,
 			    p->p_siglist & ~p->p_sigmask);
 		    break;
+#ifdef	notyet
 		    p->p_sigmask |= p->p_siglist;
 		    printf("coda_call: new mask, siglist = %x, sigmask = %x, mask %x\n",
 			    p->p_siglist, p->p_sigmask,
 			    p->p_siglist & ~p->p_sigmask);
+#endif
 	    }
 	} while (error && i++ < 128);
 	p->p_sigmask = psig_omask;
@@ -648,7 +656,11 @@ coda_call(mntinfo, inSize, outSize, buffer)
 
 	    else if (!(vmp->vm_flags & VM_READ)) { 
 		/* Interrupted before venus read it. */
-		if (codadebug||1)
+#ifdef	DIAGNOSTIC
+		if (1)
+#else
+		if (codadebug)
+#endif
 		    myprintf(("interrupted before read: op = %d.%d, flags = %x\n",
 			   vmp->vm_opcode, vmp->vm_unique, vmp->vm_flags));
 		REMQUE(vmp->vm_chain);
@@ -662,7 +674,11 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		struct coda_in_hdr *dog;
 		struct vmsg *svmp;
 		
-		if (codadebug||1)
+#ifdef	DIAGNOSTIC
+		if (1)
+#else
+		if (codadebug)
+#endif
 		    myprintf(("Sending Venus a signal: op = %d.%d, flags = %x\n",
 			   vmp->vm_opcode, vmp->vm_unique, vmp->vm_flags));
 		
