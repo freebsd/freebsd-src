@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.20.2.1 1997/01/17 19:28:20 davidg Exp $
+ * $Id: param.c,v 1.20.2.2 1997/02/28 11:11:33 bde Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -83,11 +83,12 @@ int	hz = HZ;
 int	tick = 1000000 / HZ;
 int	tickadj = 30000 / (60 * HZ);		/* can adjust 30ms in 60s */
 #define	NPROC (20 + 16 * MAXUSERS)
+#define MAXFILES (NPROC*2)
 int	maxproc = NPROC;			/* maximum # of processes */
 int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
-int	maxfiles = NPROC*2;			/* system wide open files limit */
-int	maxfilesperproc = NPROC*2;		/* per-process open files limit */
-int	ncallout = 16 + NPROC;			/* maximum # of timer events */
+int	maxfiles = MAXFILES;			/* system wide open files limit */
+int	maxfilesperproc = MAXFILES;		/* per-process open files limit */
+int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
 
 /* maximum # of mbuf clusters */
 #ifndef NMBCLUSTERS
