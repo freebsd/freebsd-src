@@ -55,6 +55,8 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 			u *= 10;
 			u += name[i++] - '0';
 		}
+		if (u > DKMAXUNIT)
+			continue;
 		p = RAW_PART;
 		s = WHOLE_DISK_SLICE;
 		pdev = makedev(dp->d_devsw->d_maj, dkmakeminor(u, s, p));
