@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zalloc.c,v 1.1 1998/09/26 01:42:39 msmith Exp $
  */
 
 /*
@@ -514,6 +514,7 @@ zextendPool(MemPool *mp, void *base, iaddr_t bytes)
     if (mp->mp_Size == 0) {
 	mp->mp_Base = base;
 	mp->mp_Used = bytes;
+	mp->mp_End = (char *)base + bytes;
     } else {
 	void *pend = (char *)mp->mp_Base + mp->mp_Size;
 
@@ -526,8 +527,8 @@ zextendPool(MemPool *mp, void *base, iaddr_t bytes)
 	if (base > pend) {
 	    /* mp->mp_Size += (char *)base - (char *)pend; */
 	    mp->mp_Used += (char *)base - (char *)pend;
+	    mp->mp_End = (char *)base;
 	}
-	mp->mp_End = (char *)mp->mp_Base + mp->mp_Size;
     }
     mp->mp_Size += bytes;
 }
