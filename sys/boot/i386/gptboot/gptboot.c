@@ -269,7 +269,11 @@ main(void)
     /* Present the user with the boot2 prompt. */
 
     for (;;) {
-	printf(" \n>> FreeBSD/i386 BOOT\n"
+#ifdef UFS1_ONLY
+	printf(" \n>> FreeBSD/i386/UFS1 BOOT\n"
+#else
+	printf(" \n>> FreeBSD/i386/UFS[12] BOOT\n"
+#endif
 	       "Default: %u:%s(%u,%c)%s\n"
 	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
