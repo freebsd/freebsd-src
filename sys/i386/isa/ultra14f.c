@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.54 1997/03/24 11:24:10 bde Exp $
+ *      $Id: ultra14f.c,v 1.55 1997/07/20 14:10:16 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/kernel.h>
 
 #include <machine/clock.h>
 
@@ -70,7 +71,6 @@ typedef struct {
 #define	MSCP_HASH_SHIFT	9	/* only hash on multiples of 512 */
 #define MSCP_HASH(x)	((((long int)(x))>>MSCP_HASH_SHIFT) % MSCP_HASH_SIZE)
 
-extern int hz;
 #define UHA_NSEG        33	/* number of dma segments supported */
 
 /************************** board definitions *******************************/
