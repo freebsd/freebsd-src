@@ -19,6 +19,7 @@ PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
 CFLAGS+=-DINET6 -DHAVE_GETIFADDRS
+WARNS=	0
 
 NOMAN=	yes
 

@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	badsect
+WARNS=	0
 MAN=	badsect.8
 
 .include <bsd.prog.mk>

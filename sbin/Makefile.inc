@@ -3,3 +3,4 @@
 
 BINDIR?=	/sbin
 NOSHARED?=	YES
+WARNS?=	2

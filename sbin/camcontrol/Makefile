@@ -7,6 +7,7 @@ MAN=   camcontrol.8
 SDIR=	${.CURDIR}/../../sys
 
 CFLAGS+= -I${SDIR}
+WARNS=	0
 DPADD=   ${LIBCAM} ${LIBSBUF}
 LDADD+=  -lcam -lsbuf
 

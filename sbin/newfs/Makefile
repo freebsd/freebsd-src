@@ -7,6 +7,8 @@ MAN=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-DFSIRAND -I${MOUNT}
+WARNS=	0
+
 .PATH:	${MOUNT}
 
 .include <bsd.prog.mk>

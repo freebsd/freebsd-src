@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	tunefs
-WARNS?=	2
 MAN=	tunefs.8
 
 .include <bsd.prog.mk>
