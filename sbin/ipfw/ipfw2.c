@@ -1528,6 +1528,29 @@ sets_handler(int ac, char *av[])
 }
 
 static void
+sysctl_handler(int ac, char *av[], int which)
+{
+	ac--;
+	av++;
+
+	if (*av == NULL) {
+		warnx("missing keyword to enable/disable\n");
+	} else if (strncmp(*av, "firewall", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.enable", NULL, 0, &which, sizeof(which));
+	} else if (strncmp(*av, "one_pass", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0, &which, sizeof(which));
+	} else if (strncmp(*av, "debug", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.debug", NULL, 0, &which, sizeof(which));
+	} else if (strncmp(*av, "verbose", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.verbose", NULL, 0, &which, sizeof(which));
+	} else if (strncmp(*av, "dyn_keepalive", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0, &which, sizeof(which));
+	} else {
+		warnx("unrecognize enable/disable keyword: %s\n", *av);
+	}
+}
+
+static void
 list(int ac, char *av[])
 {
 	struct ip_fw *r;
@@ -3407,6 +3430,10 @@ ipfw_main(int ac, char **av)
 		list(ac, av);
 	else if (!strncmp(*av, "set", strlen(*av)))
 		sets_handler(ac, av);
+	else if (!strncmp(*av, "enable", strlen(*av)))
+		sysctl_handler(ac, av, 1);
+	else if (!strncmp(*av, "disable", strlen(*av)))
+		sysctl_handler(ac, av, 0);
 	else if (!strncmp(*av, "show", strlen(*av))) {
 		do_acct++;
 		list(ac, av);
