@@ -1,9 +1,14 @@
-#include "lsdev.h"
+#include <sys/types.h>
+#include <sys/devconf.h>
+#include <sys/sysctl.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <err.h>
-#include <ctype.h>
 #include <string.h>
+
+#include "lsdev.h"
 
 const char *const devtypes[] = DEVTYPENAMES;
 int vflag = 0;
