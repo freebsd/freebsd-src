@@ -34,17 +34,6 @@
                 (literal ">.")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
-              (make element gi: "small"  
-                (literal "All users of FreeBSD ")
-		(literal (entity-text "release.branch"))
-		(literal " should subscribe to the ")
-                (literal "<")
-		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
-                  (literal "stable@FreeBSD.org"))
-                (literal "> mailing list.")))
-
-            (make element gi: "p"
-                  attributes: (list (list "align" "center"))
 	      (literal "For questions about this documentation, e-mail <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
@@ -64,7 +53,7 @@
         (define ($create-refentry-xref-link$ refentrytitle manvolnum)
 	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
 			 refentrytitle "&" "sektion=" manvolnum
-			 "&" "manpath=FreeBSD+4.4-stable"))
+			 "&" "manpath=FreeBSD+4.5-RELEASE"))
       ]]>
 
       (define (toc-depth nd)
