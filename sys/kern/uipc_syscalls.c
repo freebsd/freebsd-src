@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.19 1996/08/24 03:35:13 peter Exp $
+ * $Id: uipc_syscalls.c,v 1.20 1996/10/15 19:28:44 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -207,20 +207,36 @@ accept1(p, uap, retval, compat)
 		splx(s);
 		return (error);
 	}
+
+	/*
+	 * At this point we know that there is at least one connection
+	 * ready to be accepted. Remove it from the queue prior to
+	 * allocating the file descriptor for it since falloc() may
+	 * block allowing another process to accept the connection
+	 * instead.
+	 */
+	so = head->so_comp.tqh_first;
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	head->so_qlen--;
+
 	fflag = fp->f_flag;
 	error = falloc(p, &fp, retval);
 	if (error) {
+		/*
+		 * Probably ran out of file descriptors. Put the
+		 * unaccepted connection back onto the queue and
+		 * do another wakeup so some other process might
+		 * have a chance at it.
+		 */
+		TAILQ_INSERT_HEAD(&head->so_comp, so, so_list);
+		head->so_qlen++;
+		wakeup_one(&head->so_timeo);
 		splx(s);
 		return (error);
 	}
 
-	so = head->so_comp.tqh_first;
-	if (so == NULL)
-		panic("accept: nothing queued");
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	so->so_state &= ~SS_COMP;
 	so->so_head = NULL;
-	head->so_qlen--;
 
 	fp->f_type = DTYPE_SOCKET;
 	fp->f_flag = fflag;
