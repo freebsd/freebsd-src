@@ -360,6 +360,9 @@ struct dos_partition {
 #define DOSPARTOFF	446
 #define NDOSPART	4
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
+#define	DOSPTYP_LINUX	0x83	/* Linux partition */
+#define	DOSPTYP_EXT	5	/* DOS extended partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */
