@@ -72,6 +72,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1371_PCI_ID2 0x13713274
 #define CT5880_PCI_ID 0x58801274
 
+#define ES1371REV_ES1371_A  0x02
 #define ES1371REV_ES1371_B  0x09
 
 #define ES1371REV_ES1373_8  0x08
@@ -751,6 +752,10 @@ es_pci_probe(device_t dev)
 
 	case ES1371_PCI_ID:
 		switch(pci_get_revid(dev)) {
+		case ES1371REV_ES1371_A:
+			device_set_desc(dev, "AudioPCI ES1371-A");
+			return 0;
+
 		case ES1371REV_ES1371_B:
 			device_set_desc(dev, "AudioPCI ES1371-B");
 			return 0;
@@ -778,7 +783,7 @@ es_pci_probe(device_t dev)
 		}
 
 	case ES1371_PCI_ID2:
-		device_set_desc(dev, "Strange AudioPCI ES1371-?");
+		device_set_desc(dev, "Strange AudioPCI ES1371-? (vid=3274)");
 		device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
 		return 0;
 
