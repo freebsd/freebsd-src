@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.28 2003/09/03 19:58:27 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.29 2003/11/07 00:08:02 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -1973,6 +1973,7 @@ extern void	setup_queues __P((bool));
 extern bool	setnewqueue __P((ENVELOPE *));
 extern bool	shouldqueue __P((long, time_t));
 extern void	sync_queue_time __P((void));
+extern void	init_qid_alg __P((void));
 extern int	print_single_queue __P((int, int));
 #if REQUIRES_DIR_FSYNC
 # define SYNC_DIR(path, panic) sync_dir(path, panic)

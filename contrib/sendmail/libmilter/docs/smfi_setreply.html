@@ -75,6 +75,12 @@ Otherwise, it return MI_SUCCESS.
 <td>
 <ul>
 <li>Values passed to smfi_setreply are not checked for standards compliance.
+<li>The message parameter should contain only printable characters,
+other characters may lead to undefined behavior.
+For example, CR or LF will cause the call to fail,
+single '%' characters will cause the text to be ignored
+(if there really should be a '%' in the string,
+use '%%' just like for <tt>printf(3)</tt>).
 <li>For details about reply codes and their meanings, please see RFC's 
 <a href="http://www.rfc-editor.org/rfc/rfc821.txt">821</a>/
 <a href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</a>
