@@ -58,7 +58,7 @@ typedef	u_int32_t bpf_u_int32;
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
 
 #define BPF_MAXINSNS 512
-#define BPF_MAXBUFSIZE 0x8000
+#define BPF_MAXBUFSIZE 0x80000
 #define BPF_MINBUFSIZE 32
 
 /*
