@@ -53,7 +53,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
 	lock.9 \
 	mac.9 \
-	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
+	make_dev.9 malloc.9 mbchain.9 mbpool.9 mbuf.9 mdchain.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mtx_pool.9 mutex.9 \
 	namei.9 \
@@ -360,6 +360,17 @@ MLINKS+=mdchain.9 md_get_int64le.9
 MLINKS+=mdchain.9 md_get_mem.9
 MLINKS+=mdchain.9 md_get_mbuf.9
 MLINKS+=mdchain.9 md_get_uio.9
+
+MLINKS+=mbpool.9 mbp_create.9
+MLINKS+=mbpool.9 mbp_destroy.9
+MLINKS+=mbpool.9 mbp_alloc.9
+MLINKS+=mbpool.9 mbp_free.9
+MLINKS+=mbpool.9 mbp_ext_free.9
+MLINKS+=mbpool.9 mbp_card_free.9
+MLINKS+=mbpool.9 mbp_count.9
+MLINKS+=mbpool.9 mbp_get.9
+MLINKS+=mbpool.9 mbp_get_keep.9
+MLINKS+=mbpool.9 mbp_sync.9
 
 MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
 MLINKS+=microtime.9 getnanotime.9

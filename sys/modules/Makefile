@@ -62,6 +62,7 @@ SUBDIR=	accf_data \
 	kue \
 	lge \
 	libiconv \
+	libmbpool \
 	libmchain \
 	lpt \
 	mac_biba \
