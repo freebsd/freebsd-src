@@ -41,6 +41,7 @@ MAN=	aac.4 \
 	faith.4 \
 	fd.4 \
 	fdc.4 \
+	ffs.4 \
 	fpa.4 \
 	fxp.4 \
 	gif.4 \
@@ -173,6 +174,7 @@ MAN=	aac.4 \
 	txp.4 \
 	udbp.4 \
 	udp.4 \
+	ufs.4 \
 	ugen.4 \
 	uhci.4 \
 	ukbd.4 \
