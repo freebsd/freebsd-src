@@ -86,9 +86,7 @@ void	find_entries(char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int	argc;
-	char	**argv;
+main(int argc, char **argv)
 {
 	static const char	*outfile = "tags";	/* output file */
 	int	aflag;				/* -a: append to tags */
@@ -197,7 +195,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: ctags [-BFTaduwvx] [-f tagsfile] file ...\n");
 	exit(1);
@@ -214,7 +212,7 @@ usage()
  *	the string CWHITE, else NO.
  */
 void
-init()
+init(void)
 {
 	int		i;
 	const unsigned char	*sp;
@@ -246,8 +244,7 @@ init()
  *	which searches the file.
  */
 void
-find_entries(file)
-	char	*file;
+find_entries(char *file)
 {
 	char	*cp;
 

@@ -104,9 +104,7 @@ void		ignoreclean(void);
 int		ignorep(FTSENT *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FTS		*fts;
 	FTSENT		*p;
@@ -317,8 +315,7 @@ typedef struct _ID {
 
 
 int
-linkchk(p)
-	FTSENT *p;
+linkchk(FTSENT *p)
 {
 	static ID *files;
 	static int maxfiles, nfiles;
@@ -349,8 +346,7 @@ linkchk(p)
  *
  */
 unit_t
-unit_adjust(val)
-	double *val;
+unit_adjust(double *val)
 {
 	double abval;
 	unit_t unit;
@@ -371,8 +367,7 @@ unit_adjust(val)
 }
 
 void
-prthumanval(bytes)
-	double bytes;
+prthumanval(double bytes)
 {
 	unit_t unit;
 
@@ -388,7 +383,7 @@ prthumanval(bytes)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-h | -k] [-x] [-I mask] [file ...]\n");
@@ -396,8 +391,7 @@ usage()
 }
 
 void
-ignoreadd(mask)
-	const char *mask;
+ignoreadd(const char *mask)
 {
 	struct ignentry *ign;
 
@@ -411,7 +405,7 @@ ignoreadd(mask)
 }
 
 void
-ignoreclean()
+ignoreclean(void)
 {
 	struct ignentry *ign;
 	
@@ -424,8 +418,7 @@ ignoreclean()
 }
 
 int
-ignorep(ent)
-	FTSENT *ent;
+ignorep(FTSENT *ent)
 {
 	struct ignentry *ign;
 

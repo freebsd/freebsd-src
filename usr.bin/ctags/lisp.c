@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * just look for (def or (DEF
  */
 void
-l_entries()
+l_entries(void)
 {
 	int	special;
 	char	*cp;
