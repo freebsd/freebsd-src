@@ -40,7 +40,6 @@
 #define	_MACHINE_LIMITS_H_
 
 #define	CHAR_BIT	8		/* number of bits in a char */
-#define	MB_LEN_MAX	6		/* Allow 31 bit UTF2 */
 
 /*
  * According to ANSI (section 2.2.4.2), the values below must be usable by
