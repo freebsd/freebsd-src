@@ -346,6 +346,7 @@ struct adapter {
 	int             io_rid;
 	u_int8_t        unit;
 	struct mtx	mtx;
+	int		em_insert_vlan_header;
 
 	/* Info about the board itself */
 	u_int32_t       part_num;
