@@ -435,6 +435,7 @@ udp6_ctlinput(cmd, sa, d)
 	int off = 0;
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
+	void *cmdarg;
 	struct inpcb *(*notify) __P((struct inpcb *, int)) = udp_notify;
 	struct udp_portonly {
 		u_int16_t uh_sport;
@@ -460,10 +461,12 @@ udp6_ctlinput(cmd, sa, d)
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
 		off = ip6cp->ip6c_off;
+		cmdarg = ip6cp->ip6c_cmdarg;
 		sa6_src = ip6cp->ip6c_src;
 	} else {
 		m = NULL;
 		ip6 = NULL;
+		cmdarg = NULL;
 		sa6_src = &sa6_any;
 	}
 
@@ -481,12 +484,12 @@ udp6_ctlinput(cmd, sa, d)
 		m_copydata(m, off, sizeof(*uhp), (caddr_t)&uh);
 
 		(void) in6_pcbnotify(&udb, sa, uh.uh_dport,
-				     (struct sockaddr *)ip6cp->ip6c_src, 
-				     uh.uh_sport, cmd, notify);
+				     (struct sockaddr *)ip6cp->ip6c_src,
+				     uh.uh_sport, cmd, cmdarg, notify);
 	} else
 		(void) in6_pcbnotify(&udb, sa, 0,
 				     (const struct sockaddr *)sa6_src,
-				     0, cmd, notify);
+				     0, cmd, cmdarg, notify);
 }
 
 static int
