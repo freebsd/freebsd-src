@@ -27,12 +27,24 @@ NONXS_EXT=	Errno/pm_to_blib
 
 .include <bsd.prog.mk>
 
+PERL_THREADED?=	no
+.if ${PERL_THREADED} == "true"
+DYNAMIC_EXT+=	Thread/Thread
+CFLAGS+=	-pthread
+LDADD+=		-pthread
+.endif
+     
+PERL_DEBUGGING?=	no
+.if ${PERL_DEBUGGING} ==	"true"
+CFLAGS+=	-DDEBUGGING
+.endif
+
 ${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
 config_h.sh config.sh cflags.sh writemain.sh: linkfarm
 
 config.h: linkfarm config_h.sh config.sh
-	sh config_h.sh
+	sh -x config_h.sh
 
 cflags: linkfarm cflags.sh
 	sh cflags.sh
