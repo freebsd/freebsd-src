@@ -47,7 +47,6 @@ SUBDIR=	adjkerntz \
 	mount_nfs \
 	mount_ntfs \
 	mount_nullfs \
-	mount_portalfs \
 	mount_std \
 	mount_udf \
 	mount_umapfs \
@@ -93,9 +92,7 @@ SUBDIR+=ipf \
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=cxconfig \
-	mount_nwfs \
-	mount_smbfs
+SUBDIR+=cxconfig
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
