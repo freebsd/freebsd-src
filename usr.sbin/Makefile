@@ -34,6 +34,8 @@ SUBDIR=	IPXrouted \
 	fdformat \
 	fdread \
 	fdwrite \
+	getfmac \
+	getpmac \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -93,7 +95,9 @@ SUBDIR=	IPXrouted \
 	rtsold \
 	rwhod \
 	sa \
+	setfmac \
 	setkey \
+	setpmac \
 	sliplogin \
 	slstat \
 	spray \
