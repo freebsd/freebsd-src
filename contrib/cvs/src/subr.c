@@ -288,18 +288,13 @@ increment_revnum (rev)
 
 /* Return the username by which the caller should be identified in
    CVS, in contexts such as the author field of RCS files, various
-   logs, etc.
-
-   Returns a pointer to storage that we manage; it is good until the
-   next call to getcaller () (provided that the caller doesn't call
-   getlogin () or some such themself).  */
+   logs, etc.  */
 char *
 getcaller ()
 {
 #ifndef SYSTEM_GETCALLER
-    static char uidname[20];
+    static char *cache;
     struct passwd *pw;
-    char *name;
     uid_t uid;
 #endif
 
@@ -316,20 +311,32 @@ getcaller ()
        try LOGNAME USER or getlogin(). If getlogin() and getpwuid()
        both fail, return the uid as a string.  */
 
+    if (cache != NULL)
+	return cache;
+
     uid = getuid ();
     if (uid == (uid_t) 0)
     {
+	char *name;
+
 	/* super-user; try getlogin() to distinguish */
 	if (((name = getlogin ()) || (name = getenv("LOGNAME")) ||
 	     (name = getenv("USER"))) && *name)
-	    return (name);
+	{
+	    cache = xstrdup (name);
+	    return cache;
+	}
     }
     if ((pw = (struct passwd *) getpwuid (uid)) == NULL)
     {
+	char uidname[20];
+
 	(void) sprintf (uidname, "uid%lu", (unsigned long) uid);
-	return (uidname);
+	cache = xstrdup (uidname);
+	return cache;
     }
-    return (pw->pw_name);
+    cache = xstrdup (pw->pw_name);
+    return cache;
 #endif
 }
 
@@ -608,8 +615,16 @@ get_file (name, fullname, mode, buf, bufsize, len)
     }
     else
     {
-	if (CVS_STAT (name, &s) < 0)
+	if (CVS_LSTAT (name, &s) < 0)
 	    error (1, errno, "can't stat %s", fullname);
+
+	/* Don't attempt to read special files or symlinks. */
+	if (!S_ISREG (s.st_mode))
+	{
+	    *len = 0;
+	    return;
+	}
+
 	/* Convert from signed to unsigned.  */
 	filesize = s.st_size;
 

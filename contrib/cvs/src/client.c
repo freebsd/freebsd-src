@@ -134,7 +134,6 @@ static void handle_e PROTO((char *, int));
 static void handle_f PROTO((char *, int));
 static void handle_notified PROTO((char *, int));
 
-static void buf_memory_error PROTO((struct buffer *));
 static size_t try_read_from_server PROTO ((char *, size_t));
 #endif /* CLIENT_SUPPORT */
 
@@ -182,11 +181,13 @@ mode_to_string (mode)
 /*
  * Change mode of FILENAME to MODE_STRING.
  * Returns 0 for success or errno code.
+ * If RESPECT_UMASK is set, then honor the umask.
  */
 int
-change_mode (filename, mode_string)
+change_mode (filename, mode_string, respect_umask)
     char *filename;
     char *mode_string;
+    int respect_umask;
 {
 #ifdef CHMOD_BROKEN
     char *p;
@@ -217,6 +218,10 @@ change_mode (filename, mode_string)
 	    ++p;
     }
 
+    /* xchmod honors the umask for us.  In the !respect_umask case, we
+       don't try to cope with it (probably to handle that well, the server
+       needs to deal with modes in data structures, rather than via the
+       modes in temporary files).  */
     xchmod (filename, writeable);
 	return 0;
 
@@ -224,6 +229,7 @@ change_mode (filename, mode_string)
 
     char *p;
     mode_t mode = 0;
+    mode_t oumask;
 
     p = mode_string;
     while (*p != '\0')
@@ -277,6 +283,13 @@ change_mode (filename, mode_string)
 	    ++p;
     }
 
+    if (respect_umask)
+    {
+	oumask = umask (0);
+	(void) umask (oumask);
+	mode &= ~oumask;
+    }
+
     if (chmod (filename, mode) < 0)
 	return errno;
     return 0;
@@ -304,16 +317,6 @@ static FILE *from_server_fp;
 /* Process ID of rsh subprocess.  */
 static int rsh_pid = -1;
 
-
-/* This routine is called when one of the buffer routines runs out of
-   memory.  */
-
-static void
-buf_memory_error (buf)
-     struct buffer *buf;
-{
-    error (1, 0, "out of memory");
-}
 
 /* We want to be able to log data sent between us and the server.  We
    do it using log buffers.  Each log buffer has another buffer which
@@ -1138,7 +1141,7 @@ warning: server is not creating directories one at a time");
 
 	if (strcmp (command_name, "export") != 0)
 	{
-	    last_entries = Entries_Open (0);
+	    last_entries = Entries_Open (0, dir_name);
 
 	    /* If this is a newly created directory, we will record
 	       all subdirectory information, so call Subdirs_Known in
@@ -1928,8 +1931,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	}
 
         {
-	    /* FIXME: we should be respecting the umask.  */
-	    int status = change_mode (filename, mode_string);
+	    int status = change_mode (filename, mode_string, 1);
 	    if (status != 0)
 		error (0, status, "cannot change mode of %s", short_pathname);
 	}
@@ -1939,7 +1941,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
     }
 
     if (stored_mode_valid)
-	change_mode (filename, stored_mode);
+	change_mode (filename, stored_mode, 1);
     stored_mode_valid = 0;
 
     if (stored_modtime_valid)
@@ -4012,9 +4014,9 @@ the :server: access method is not supported by this port of CVS");
     if (use_socket_style)
     {
 	to_server = socket_buffer_initialize (server_sock, 0,
-					      buf_memory_error);
+					      (BUFMEMERRPROC) NULL);
 	from_server = socket_buffer_initialize (server_sock, 1,
-						buf_memory_error);
+						(BUFMEMERRPROC) NULL);
     }
     else
 #endif /* NO_SOCKET_TO_FD */
@@ -4038,13 +4040,13 @@ the :server: access method is not supported by this port of CVS");
         if (to_server_fp == NULL)
 	    error (1, errno, "cannot fdopen %d for write", tofd);
 	to_server = stdio_buffer_initialize (to_server_fp, 0,
-					     buf_memory_error);
+					     (BUFMEMERRPROC) NULL);
 
         from_server_fp = fdopen (fromfd, FOPEN_BINARY_READ);
         if (from_server_fp == NULL)
 	    error (1, errno, "cannot fdopen %d for read", fromfd);
 	from_server = stdio_buffer_initialize (from_server_fp, 1,
-					       buf_memory_error);
+					       (BUFMEMERRPROC) NULL);
     }
 
     /* Set up logfiles, if any. */
@@ -4071,7 +4073,7 @@ the :server: access method is not supported by this port of CVS");
 	    error (0, errno, "opening to-server logfile %s", buf);
 	else
 	    to_server = log_buffer_initialize (to_server, fp, 0,
-					       buf_memory_error);
+					       (BUFMEMERRPROC) NULL);
 
 	strcpy (p, ".out");
 	fp = open_file (buf, "wb");
@@ -4079,7 +4081,7 @@ the :server: access method is not supported by this port of CVS");
 	    error (0, errno, "opening from-server logfile %s", buf);
 	else
 	    from_server = log_buffer_initialize (from_server, fp, 1,
-						 buf_memory_error);
+						 (BUFMEMERRPROC) NULL);
 
 	free (buf);
     }
@@ -4240,10 +4242,10 @@ the :server: access method is not supported by this port of CVS");
 	    send_to_server ("Kerberos-encrypt\012", 0);
 	    to_server = krb_encrypt_buffer_initialize (to_server, 0, sched,
 						       kblock,
-						       buf_memory_error);
+						       (BUFMEMERRPROC) NULL);
 	    from_server = krb_encrypt_buffer_initialize (from_server, 1,
 							 sched, kblock,
-							 buf_memory_error);
+							 (BUFMEMERRPROC) NULL);
 	}
 	else
 #endif /* HAVE_KERBEROS */
@@ -4255,10 +4257,12 @@ the :server: access method is not supported by this port of CVS");
 	    send_to_server ("Gssapi-encrypt\012", 0);
 	    to_server = cvs_gssapi_wrap_buffer_initialize (to_server, 0,
 							   gcontext,
-							   buf_memory_error);
+							   ((BUFMEMERRPROC)
+							    NULL));
 	    from_server = cvs_gssapi_wrap_buffer_initialize (from_server, 1,
 							     gcontext,
-							     buf_memory_error);
+							     ((BUFMEMERRPROC)
+							      NULL));
 	    cvs_gssapi_encrypt = 1;
 	}
 	else
@@ -4283,10 +4287,10 @@ the :server: access method is not supported by this port of CVS");
                compressed.  */
 
 	    to_server = compress_buffer_initialize (to_server, 0, gzip_level,
-						    buf_memory_error);
+						    (BUFMEMERRPROC) NULL);
 	    from_server = compress_buffer_initialize (from_server, 1,
 						      gzip_level,
-						      buf_memory_error);
+						      (BUFMEMERRPROC) NULL);
 	}
 #ifndef NO_CLIENT_GZIP_PROCESS
 	else if (supported_request ("gzip-file-contents"))
@@ -4327,10 +4331,12 @@ the :server: access method is not supported by this port of CVS");
 	    send_to_server ("Gssapi-authenticate\012", 0);
 	    to_server = cvs_gssapi_wrap_buffer_initialize (to_server, 0,
 							   gcontext,
-							   buf_memory_error);
+							   ((BUFMEMERRPROC)
+							    NULL));
 	    from_server = cvs_gssapi_wrap_buffer_initialize (from_server, 1,
 							     gcontext,
-							     buf_memory_error);
+							     ((BUFMEMERRPROC)
+							      NULL));
 	}
 	else
 	    error (1, 0, "Stream authentication is only supported when using GSSAPI");
@@ -5093,7 +5099,7 @@ send_file_names (argc, argv, flags)
 	       command line, not the case of the
 	       directory in the filesystem.  This
 	       is correct behavior.  */
-	    entries = Entries_Open (0);
+	    entries = Entries_Open (0, NULL);
 	    node = findnode_fn (entries, p);
 	    if (node != NULL)
 	    {

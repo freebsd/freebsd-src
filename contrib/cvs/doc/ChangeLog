@@ -1,3 +1,45 @@
+1998-03-04  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Special Files): Add notes about client/server CVS
+	and hard links across directories.
+
+1998-03-01  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keeping a checked out copy): The magic loginfo
+	incantation isn't too likely to work except on unix.
+
+1998-02-23  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (user-defined logging): Double "@" literal.
+
+1998-02-18  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (user-defined logging): Add taginfo example.
+
+1998-02-04  Tim Pierce  <twp@skepsis.com>
+
+	* cvs.texinfo (config): PreservePermissions variable.
+	(Special Files): New.
+	(Editing files): Add note about PreservePermissions.
+
+Tue Feb 10 18:07:35 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Connection): New node.
+
+	* cvsclient.texi (Protocol): Fix typo (lots -> lost).
+
+Sun Feb  8 21:39:22 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Invoking CVS): For admin -b, point to the section
+	where we talk about reverting to vendor branch.
+
+	* cvs.texinfo (Invoking CVS, rdiff options): Document rdiff -V
+	option as obsolete, since it was made a fatal error some time ago.
+
+	* cvs.texinfo (Invoking CVS): Add global options, keywords, and
+	keyword substitution modes.  Wording fix in reference to --help
+	and Index.
+
 Wed Jan 28 23:09:39 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (Excluding directories): Add index entry for "!".
