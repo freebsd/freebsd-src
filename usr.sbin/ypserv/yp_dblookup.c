@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.2 1995/12/23 21:35:28 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.3 1996/02/04 05:39:35 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -78,7 +78,7 @@ DB *yp_open_db(domain, map)
 
 	snprintf(buf, sizeof(buf), "%s/%s/%s", yp_dir, domain, map);
 
-	dbp = dbopen(buf,O_RDONLY|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
+	dbp = dbopen(buf,O_RDONLY|O_EXCL, PERM_SECURE, DB_HASH, NULL);
 
 	if (dbp == NULL) {
 		switch(errno) {
