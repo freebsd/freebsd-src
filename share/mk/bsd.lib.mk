@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.32 1996/05/09 13:01:42 phk Exp $
+#	$Id: bsd.lib.mk,v 1.33 1996/05/28 16:20:11 phk Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -43,15 +43,15 @@ STRIP?=	-s
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-.cc.o .cxx.o .C.o:
+.cc.o .C.o .cxx.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-.cc.po .C.po .cxx.o:
+.cc.po .C.po .cxx.po:
 	${CXX} -p ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
-.cc.so .C.so:
+.cc.so .C.so .cxx.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
