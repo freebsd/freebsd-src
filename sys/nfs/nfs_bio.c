@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.22 1996/01/24 18:52:18 mpp Exp $
+ * $Id: nfs_bio.c,v 1.23 1996/06/08 05:59:04 pst Exp $
  */
 
 #include <sys/param.h>
@@ -584,6 +584,13 @@ again:
 			bp->b_validoff = min(bp->b_validoff, bp->b_dirtyoff);
 			bp->b_validend = max(bp->b_validend, bp->b_dirtyend);
 		}
+
+		/*
+		 * Since this block is being modified, it must be written
+		 * again and not just committed.
+		 */
+		bp->b_flags &= ~B_NEEDCOMMIT;
+
 		/*
 		 * If the lease is non-cachable or IO_SYNC do bwrite().
 		 */
