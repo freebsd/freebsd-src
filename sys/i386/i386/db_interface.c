@@ -184,19 +184,20 @@ db_write_bytes(addr, size, data)
 {
 	register char	*dst;
 
-	register pt_entry_t *ptep0 = 0;
-	pt_entry_t	oldmap0 = { 0 };
+	unsigned	*ptep0 = NULL;
+	unsigned	oldmap0 = 0;
 	vm_offset_t	addr1;
-	register pt_entry_t *ptep1 = 0;
-	pt_entry_t	oldmap1 = { 0 };
+	unsigned	*ptep1 = NULL;
+	unsigned	oldmap1 = 0;
 
 	db_nofault = &db_jmpbuf;
 
-	if (addr >= VM_MIN_KERNEL_ADDRESS && addr <= (vm_offset_t)&etext) {
+	if (addr >= VM_MIN_KERNEL_ADDRESS &&
+	    addr <= round_page((vm_offset_t)&etext)) {
 
 	    ptep0 = pmap_pte(kernel_pmap, addr);
 	    oldmap0 = *ptep0;
-	    *(int *)ptep0 |= /* INTEL_PTE_WRITE */ PG_RW;
+	    *ptep0 |= PG_RW;
 
 	    addr1 = trunc_page(addr + size - 1);
 
@@ -204,7 +205,7 @@ db_write_bytes(addr, size, data)
 	    if (trunc_page(addr) != addr1) {
 		ptep1 = pmap_pte(kernel_pmap, addr1);
 		oldmap1 = *ptep1;
-		*(int *)ptep1 |= /* INTEL_PTE_WRITE */ PG_RW;
+		*ptep1 |= PG_RW;
 	    }
 
 	    invltlb();
