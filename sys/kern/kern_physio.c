@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.29 1998/10/25 17:44:51 phk Exp $
+ * $Id: kern_physio.c,v 1.30 1999/01/21 08:29:04 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -49,10 +49,10 @@ physio(strategy, bp, dev, rw, minp, uio)
 	int bp_alloc = (bp == 0);
 	struct buf *bpa;
 
-/*
- * keep the process from being swapped
- */
-	curproc->p_flag |= P_PHYSIO;
+	/*
+	 * Keep the process UPAGES from being swapped. (XXX for performance?)
+	 */
+	PHOLD(curproc);
 
 	/* create and build a buffer header for a transfer */
 	bpa = (struct buf *)phygetvpbuf(dev, uio->uio_resid);
@@ -155,10 +155,10 @@ doerror:
 			wakeup((caddr_t)bp);
 		}
 	}
-/*
- * allow the process to be swapped
- */
-	curproc->p_flag &= ~P_PHYSIO;
+	/*
+	 * Allow the process UPAGES to be swapped again.
+	 */
+	PRELE(curproc);
 
 	return (error);
 }
