@@ -32,6 +32,10 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
+#ifndef NOINET6
+#include <netinet6/in6.h>
+#endif
+#include <netdb.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -72,26 +76,40 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
            struct sockaddr *pmask, int width)
 {
   char buf[29];
-  struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
-  struct sockaddr_in *mask = (struct sockaddr_in *)pmask;
+  struct sockaddr_in *ihost4 = (struct sockaddr_in *)phost;
+  struct sockaddr_in *mask4 = (struct sockaddr_in *)pmask;
   struct sockaddr_dl *dl = (struct sockaddr_dl *)phost;
+
+  if (log_IsKept(LogDEBUG)) {
+    char tmp[50];
+
+    log_Printf(LogDEBUG, "Found the following sockaddr:\n");
+    log_Printf(LogDEBUG, "  Family %d, len %d\n",
+               (int)phost->sa_family, (int)phost->sa_len);
+    inet_ntop(phost->sa_family, phost, tmp, sizeof tmp);
+    log_Printf(LogDEBUG, "  Addr %s\n", tmp);
+    if (pmask) {
+      inet_ntop(pmask->sa_family, pmask, tmp, sizeof tmp);
+      log_Printf(LogDEBUG, "  Mask %s\n", tmp);
+    }
+  }
 
   switch (phost->sa_family) {
   case AF_INET:
     if (!phost)
       buf[0] = '\0';
-    else if (ihost->sin_addr.s_addr == INADDR_ANY)
+    else if (ihost4->sin_addr.s_addr == INADDR_ANY)
       strcpy(buf, "default");
-    else if (!mask) 
-      strcpy(buf, inet_ntoa(ihost->sin_addr));
+    else if (!pmask) 
+      strcpy(buf, inet_ntoa(ihost4->sin_addr));
     else {
-      u_int32_t msk = ntohl(mask->sin_addr.s_addr);
+      u_int32_t msk = ntohl(mask4->sin_addr.s_addr);
       u_int32_t tst;
       int bits;
       int len;
       struct sockaddr_in net;
 
-      for (tst = 1, bits=32; tst; tst <<= 1, bits--)
+      for (tst = 1, bits = 32; tst; tst <<= 1, bits--)
         if (msk & tst)
           break;
 
@@ -99,7 +117,7 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
         if (!(msk & tst))
           break;
 
-      net.sin_addr.s_addr = ihost->sin_addr.s_addr & mask->sin_addr.s_addr;
+      net.sin_addr.s_addr = ihost4->sin_addr.s_addr & mask4->sin_addr.s_addr;
       strcpy(buf, inet_ntoa(net.sin_addr));
       for (len = strlen(buf); len > 3; buf[len -= 2] = '\0')
         if (strcmp(buf + len - 2, ".0"))
@@ -134,6 +152,55 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
     else
       sprintf(buf, "link#%d", dl->sdl_index);
     break;
+
+#ifndef NOINET6
+  case AF_INET6:
+    if (!phost)
+      buf[0] = '\0';
+    else {
+      const u_char masks[] = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe };
+      struct sockaddr_in6 *ihost6 = (struct sockaddr_in6 *)phost;
+      struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *)pmask;
+      int masklen, len;
+      const u_char *c;
+
+      /* XXX: ?????!?!?!!!!!  This is horrible ! */
+      if (IN6_IS_ADDR_LINKLOCAL(&ihost6->sin6_addr) ||
+          IN6_IS_ADDR_MC_LINKLOCAL(&ihost6->sin6_addr)) {
+        ihost6->sin6_scope_id =
+          ntohs(*(u_short *)&ihost6->sin6_addr.s6_addr[2]);
+        *(u_short *)&ihost6->sin6_addr.s6_addr[2] = 0;
+      }
+
+      if (mask6) {
+        const u_char *p, *end;
+
+        p = (const u_char *)&mask6->sin6_addr;
+        end = p + 16;
+        for (masklen = 0, end = p + 16; p < end && *p == 0xff; p++)
+          masklen += 8;
+
+        if (p < end) {
+          for (c = masks; c < masks + sizeof masks; c++)
+            if (*c == *p) {
+              masklen += c - masks;
+              break;
+            }
+        }
+      } else
+        masklen = 128;
+
+      if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&ihost6->sin6_addr))
+        snprintf(buf, sizeof buf, "default");
+      else {
+        getnameinfo(phost, ihost6->sin6_len, buf, sizeof buf,
+                    NULL, 0, NI_WITHSCOPEID | NI_NUMERICHOST);
+        if (mask6 && (len = strlen(buf)) < sizeof buf - 1)
+          snprintf(buf + len, sizeof buf - len, "/%d", masklen);
+      }
+    }
+    break;
+#endif
 
   default:
     sprintf(buf, "<AF type %d>", phost->sa_family);
@@ -334,6 +401,12 @@ route_Show(struct cmdargs const *arg)
     rtm = (struct rt_msghdr *) cp;
     wp = (char *)(rtm+1);
 
+    /*
+     * This code relies on RTA_DST, RTA_GATEWAY and RTA_NETMASK
+     * having values 1, 2 and 4 respectively (or at least relies
+     * on them being the first 3 possible sockaddrs in that order) !
+     */
+
     if (rtm->rtm_addrs & RTA_DST) {
       sa_dst = (struct sockaddr *)wp;
       wp += sa_dst->sa_len;
@@ -352,11 +425,14 @@ route_Show(struct cmdargs const *arg)
     } else
       sa_mask = NULL;
 
-    p_sockaddr(arg->prompt, sa_dst, sa_mask, 20);
-    p_sockaddr(arg->prompt, sa_gw, NULL, 20);
+    if (sa_dst && sa_gw) {
+      p_sockaddr(arg->prompt, sa_dst, sa_mask, 20);
+      p_sockaddr(arg->prompt, sa_gw, NULL, 20);
 
-    p_flags(arg->prompt, rtm->rtm_flags, 6);
-    prompt_Printf(arg->prompt, " %s\n", Index2Nam(rtm->rtm_index));
+      p_flags(arg->prompt, rtm->rtm_flags, 6);
+      prompt_Printf(arg->prompt, " %s\n", Index2Nam(rtm->rtm_index));
+    } else
+      prompt_Printf(arg->prompt, "<can't parse routing entry>\n");
   }
   free(sp);
   return 0;
