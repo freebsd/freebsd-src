@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_types.h#12 $
+ * $P4: //depot/projects/openpam/include/security/pam_types.h#13 $
  */
 
 #ifndef _PAM_TYPES_H_INCLUDED
@@ -47,22 +47,22 @@ extern "C" {
  * XSSO 5.1.1
  */
 struct pam_message {
-	int		 msg_style;
-	const char	*msg;
+	int	 msg_style;
+	char	*msg;
 };
 
 struct pam_response {
-	char		*resp;
-	int		 resp_retcode;
+	char	*resp;
+	int	 resp_retcode;
 };
 
 /*
  * XSSO 5.1.2
  */
 struct pam_conv {
-	int		(*conv)(int, const struct pam_message **,
-			    struct pam_response **, void *);
-	void		*appdata_ptr;
+	int	(*conv)(int, const struct pam_message **,
+	    struct pam_response **, void *);
+	void	*appdata_ptr;
 };
 
 /*
@@ -75,9 +75,9 @@ typedef struct pam_handle pam_handle_t;
  * Solaris 9
  */
 typedef struct pam_repository {
-	char		*type;
-	void		*scope;
-	size_t		 scope_len;
+	char	*type;
+	void	*scope;
+	size_t	scope_len;
 } pam_repository_t;
 
 #ifdef __cplusplus
