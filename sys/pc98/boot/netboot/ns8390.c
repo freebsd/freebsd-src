@@ -19,6 +19,11 @@ SMC8416 support added by Bill Paul (wpaul@ctr.columbia.edu) on 12/25/94
 
 **************************************************************************/
 
+DELAY(int x)
+{ volatile long a, b, l;
+   for (x; x>0; x--) b=a;
+}  
+
 #include "netboot.h"
 #include "ns8390.h"
 
@@ -38,15 +43,28 @@ unsigned char  eth_memsize;
 unsigned char  *eth_bmem;
 unsigned char  *eth_rmem;
 unsigned char  *eth_node_addr;
+#ifdef	PC98
+int twiddle_max = 1;
+int twiddle_counter = 0;
+#endif
 
 /**************************************************************************
 The following two variables are used externally
 **************************************************************************/
 char eth_driver[] = "ed0";
-char packet[ETH_MAX_PACKET];
+char packet[ETHER_MAX_LEN];
 int  packetlen;
 
-#ifdef	INCLUDE_NE
+#ifdef PC98
+#ifdef	INCLUDE_LGY
+int type98 = TYPE98_LGY;
+#endif
+#ifdef	INCLUDE_EGY
+int type98 = TYPE98_EGY;
+#endif
+#endif
+
+#if	defined(INCLUDE_NE) || defined(INCLUDE_LGY) || defined(INCLUDE_EGY)
 static unsigned short ne_base_list[]= {
 #ifdef	NE_BASE
 	NE_BASE,
@@ -91,7 +109,7 @@ eth_probe()
 		for (brd = wd_boards; brd->name; brd++)
 			if (brd->id == c) break;
 		if (!brd->name) {
-			printf("\r\nUnknown Ethernet type %x\r\n", c);
+			printf("\nUnknown Ethernet type %x\n", c);
 			return(0);	/* Unknown type */
 		}
 		eth_flags = brd->flags;
@@ -115,7 +133,7 @@ eth_probe()
 			}
 		}
 		outb(eth_asic_base + WD_MSR, 0x80);	/* Reset */
-		printf("\r\n%s base 0x%x, memory 0x%X, addr ",
+		printf("\n%s base 0x%x, memory 0x%X, addr ",
 			brd->name, eth_asic_base, eth_bmem);
 		for (i=0; i<6; i++) {
 			printf("%b",(int)(arptable[ARP_CLIENT].node[i] =
@@ -140,7 +158,11 @@ eth_probe()
 			if (eth_flags & FLAG_790) {
 				eth_laar = inb(eth_asic_base + WD_LAAR);
 				outb(eth_asic_base + WD_LAAR, WD_LAAR_M16EN);
+#ifndef PC98
 				inb(0x84);
+#else
+				(void)outb(0x5f,0);
+#endif
 			} else {
 				outb(eth_asic_base + WD_LAAR, (eth_laar =
 					WD_LAAR_M16EN | WD_LAAR_L16EN | 1));
@@ -235,7 +257,7 @@ eth_probe()
         /* Get our ethernet address */
 
                 outb(eth_asic_base + _3COM_CR, _3COM_CR_EALO | _3COM_CR_XSEL);
-                printf("\r\n3Com 3c503 base 0x%x, memory 0x%X addr ",
+                printf("\n3Com 3c503 base 0x%x, memory 0x%X addr ",
                                  eth_nic_base, eth_bmem);
                 for (i=0; i<6; i++) {
                         printf("%b",(int)(arptable[ARP_CLIENT].node[i] =
@@ -259,7 +281,7 @@ eth_probe()
                 bzero(eth_bmem, 0x2000);
                 for(i = 0; i < 0x2000; ++i)
                         if (*((eth_bmem)+i)) {
-                                printf ("Failed to clear 3c503 shared mem.\r\n");
+                                printf ("Failed to clear 3c503 shared mem.\n");
                                 return (0);
                         }
         /*
@@ -272,7 +294,7 @@ eth_probe()
 
         }
 #endif
-#ifdef INCLUDE_NE
+#if	defined(INCLUDE_NE) || defined(INCLUDE_LGY) || defined(INCLUDE_EGY)
 	/******************************************************************
 	Search for NE1000/2000 if no WD/SMC or 3com cards
 	******************************************************************/
@@ -284,14 +306,27 @@ eth_probe()
 ne_again:
 		eth_asic_base = *tent_base + NE_ASIC_OFFSET;
 		eth_nic_base = *tent_base;
-
+#ifdef	PC98
+		printf("Looking for LGY/EGY at 0x%x\n", eth_nic_base);
+#else
+		printf("Looking for NE1000/NE2000 at 0x%x\n", eth_nic_base);
+#endif
 		eth_vendor = VENDOR_NOVELL;
 		eth_flags = FLAG_PIO;
 		eth_memsize = MEM_16384;
 		eth_tx_start = 32;
+#ifdef GWETHER
+		outb(eth_asic_base + NE_RESET, 0);
+		DELAY(200);
+#endif
 		c = inb(eth_asic_base + NE_RESET);
 		outb(eth_asic_base + NE_RESET, c);
+		DELAY(5000);
+#ifndef PC98
 	        inb(0x84);
+#else
+		(void)outb(0x5f,0);
+#endif
 		outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_STP |
 			D8390_COMMAND_RD2);
 		outb(eth_nic_base + D8390_P0_RCR, D8390_RCR_MON);
@@ -317,7 +352,17 @@ ne_again:
 					return (0);
 		}
 		eth_pio_read(0, romdata, 16);
-		printf("\r\nNE1000/NE2000 base 0x%x, addr ", eth_nic_base);
+#ifdef PC98
+		printf("\n%s base 0x%x, addr ",
+			type98 == TYPE98_LGY ? "Ethernet adapter LGY-98" :
+			(type98 == TYPE98_EGY ? "Ethernet adapter EGY-98" :
+			(type98 == TYPE98_ICM ? "Ethernet adapter ICM" :
+			"Unknown")),
+			eth_nic_base);
+#else
+		printf("\nNE1000/NE2000 (%d bit) base 0x%x, addr ",
+			eth_flags & FLAG_16BIT ? 16:8, eth_nic_base);
+#endif
 		for (i=0; i<6; i++) {
 			printf("%b",(int)(arptable[ARP_CLIENT].node[i] = romdata[i
 				+ ((eth_flags & FLAG_16BIT) ? i : 0)]));
@@ -327,7 +372,7 @@ ne_again:
 	}
 #endif
 found_board:
-	printf("\r\n");
+	printf("\n");
 	if (eth_vendor == VENDOR_NONE) return(0);
 
         if (eth_vendor != VENDOR_3COM) eth_rmem = eth_bmem;
@@ -371,7 +416,11 @@ eth_reset()
 		outb(eth_nic_base+D8390_P0_COMMAND, D8390_COMMAND_PS1 |
 			D8390_COMMAND_RD2 | D8390_COMMAND_STP);
 	for (i=0; i<6; i++)
+#ifdef	INCLUDE_EGY
+		outb(eth_nic_base+D8390_P1_PAR0+i*2, eth_node_addr[i]); /* for EGY-98 XXX HN2 */
+#else
 		outb(eth_nic_base+D8390_P1_PAR0+i, eth_node_addr[i]);
+#endif
 	for (i=0; i<6; i++)
 		outb(eth_nic_base+D8390_P1_MAR0+i, 0xFF);
 	outb(eth_nic_base+D8390_P1_CURR, eth_tx_start + D8390_TXBUF_SIZE+1);
@@ -413,43 +462,63 @@ eth_transmit(d,t,s,p)
 #ifdef INCLUDE_3COM
         if (eth_vendor == VENDOR_3COM) {
                 bcopy(d, eth_bmem, 6);                             /* dst */
-                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE); /* src */
+                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
                 *(eth_bmem+12) = t>>8;                             /* type */
                 *(eth_bmem+13) = t;
                 bcopy(p, eth_bmem+14, s);
                 s += 14;
-                while (s < ETH_MIN_PACKET) *(eth_bmem+(s++)) = 0;
+		while (s < ETHER_MIN_LEN) *(eth_bmem+(s++)) = 0;
         }
 #endif
 #ifdef INCLUDE_WD
 	if (eth_vendor == VENDOR_WD) {		/* Memory interface */
 		if (eth_flags & FLAG_16BIT) {
 			outb(eth_asic_base + WD_LAAR, eth_laar | WD_LAAR_M16EN);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, WD_MSR_MENB);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
+#ifndef PC98
 		inb(0x84);
+#else
+		(void)outb(0x5f,0);
+#endif
 		bcopy(d, eth_bmem, 6);				   /* dst */
-		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE); /* src */
+		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
 		*(eth_bmem+12) = t>>8;				   /* type */
 		*(eth_bmem+13) = t;
 		bcopy(p, eth_bmem+14, s);
 		s += 14;
-		while (s < ETH_MIN_PACKET) *(eth_bmem+(s++)) = 0;
+		while (s < ETHER_MIN_LEN) *(eth_bmem+(s++)) = 0;
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, 0);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
 		if (eth_flags & FLAG_16BIT) {
 			outb(eth_asic_base + WD_LAAR, eth_laar & ~WD_LAAR_M16EN);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
 	}
 #endif
-#ifdef INCLUDE_NE
+#if defined(INCLUDE_NE) || defined(INCLUDE_LGY) || defined(INCLUDE_EGY)
 	if (eth_vendor == VENDOR_NOVELL) {	/* Programmed I/O */
 		unsigned short type;
 		type = (t >> 8) | (t << 8);
@@ -458,10 +527,17 @@ eth_transmit(d,t,s,p)
 		eth_pio_write(&type, (eth_tx_start<<8)+12, 2);
 		eth_pio_write(p, (eth_tx_start<<8)+14, s);
 		s += 14;
-		if (s < ETH_MIN_PACKET) s = ETH_MIN_PACKET;
+		if (s < ETHER_MIN_LEN) s = ETHER_MIN_LEN;
 	}
 #endif
+#ifndef	PC98
 	twiddle();
+#else
+	if (twiddle_counter-- <= 0) {
+		twiddle();
+		twiddle_counter = twiddle_max;
+	}
+#endif
 	if (eth_flags & FLAG_790)
 		outb(eth_nic_base+D8390_P0_COMMAND, D8390_COMMAND_PS0 |
 			D8390_COMMAND_STA);
@@ -481,6 +557,12 @@ eth_transmit(d,t,s,p)
 	return(0);
 }
 
+void
+set_twiddle_max(int max)
+{
+	twiddle_max = max;
+}
+
 /**************************************************************************
 ETH_POLL - Wait for a frame
 **************************************************************************/
@@ -489,7 +571,7 @@ eth_poll()
 	int ret = 0;
 	unsigned short type = 0;
 	unsigned char bound,curr,rstat;
-	unsigned short len;
+	unsigned short len, copylen;
 	unsigned short pktoff;
 	unsigned char *p;
 	struct ringbuffer pkthdr;
@@ -509,13 +591,25 @@ eth_poll()
 	if (eth_vendor == VENDOR_WD) {
 		if (eth_flags & FLAG_16BIT) {
 			outb(eth_asic_base + WD_LAAR, eth_laar | WD_LAAR_M16EN);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, WD_MSR_MENB);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
+#ifndef PC98
 		inb(0x84);
+#else
+		(void)outb(0x5f,0);
+#endif
 	}
 	pktoff = (bound << 8);
 	if (eth_flags & FLAG_PIO)
@@ -528,7 +622,7 @@ eth_poll()
 	bound = pkthdr.bound;		/* New bound ptr */
 	if ( (pkthdr.status & D8390_RSTAT_PRX) && (len > 14) && (len < 1518)) {
 		p = packet;
-		packetlen = len;
+		packetlen = copylen = len;
 		len = (eth_memsize << 8) - pktoff;
 		if (packetlen > len) {		/* We have a wrap-around */
 			if (eth_flags & FLAG_PIO)
@@ -537,12 +631,12 @@ eth_poll()
 				bcopy(eth_rmem + pktoff, p, len);
 			pktoff = (eth_tx_start + D8390_TXBUF_SIZE) << 8;
 			p += len;
-			packetlen -= len;
+			copylen -= len;
 		}
 		if (eth_flags & FLAG_PIO)
-			eth_pio_read(pktoff, p, packetlen);
+			eth_pio_read(pktoff, p, copylen);
 		else
-			bcopy(eth_rmem + pktoff, p, packetlen);
+			bcopy(eth_rmem + pktoff, p, copylen);
 
 		type = (packet[12]<<8) | packet[13];
 		ret = 1;
@@ -550,14 +644,26 @@ eth_poll()
 	if (eth_vendor == VENDOR_WD) {
 		if (eth_flags & FLAG_790) {
 			outb(eth_asic_base + WD_MSR, 0);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
 		if (eth_flags & FLAG_16BIT) {
 			outb(eth_asic_base + WD_LAAR, eth_laar &
 				~WD_LAAR_M16EN);
+#ifndef PC98
 			inb(0x84);
+#else
+			(void)outb(0x5f,0);
+#endif
 		}
+#ifndef PC98
 		inb(0x84);
+#else
+		(void)outb(0x5f,0);
+#endif
 	}
 	if (bound == (eth_tx_start + D8390_TXBUF_SIZE))
 		bound = eth_memsize;
@@ -565,7 +671,7 @@ eth_poll()
 	if (ret && (type == ARP)) {
 		struct arprequest *arpreq;
 		unsigned long reqip;
-		arpreq = (struct arprequest *)&packet[ETHER_HDR_SIZE];
+		arpreq = (struct arprequest *)&packet[ETHER_HDR_LEN];
 		convert_ipaddr(&reqip, arpreq->tipaddr);
 		if ((ntohs(arpreq->opcode) == ARP_REQUEST) &&
 			(reqip == arptable[ARP_CLIENT].ipaddr)) {
@@ -582,7 +688,7 @@ eth_poll()
 	return(ret);
 }
 
-#ifdef INCLUDE_NE
+#if defined(INCLUDE_NE) || defined(INCLUDE_LGY) || defined(INCLUDE_EGY)
 /**************************************************************************
 ETH_PIO_READ - Read a frame via Programmed I/O
 **************************************************************************/
@@ -644,8 +750,9 @@ eth_pio_write(src, dst, cnt, init)
 		while (cnt--)
 			outb(eth_asic_base + NE_DATA, *(src++));
 	}
+	cnt = 200;
 	while((inb(eth_nic_base + D8390_P0_ISR) & D8390_ISR_RDC)
-		!= D8390_ISR_RDC);
+		!= D8390_ISR_RDC && --cnt);
 }
 #else
 /**************************************************************************

@@ -3,7 +3,11 @@ MISC Support Routines
 **************************************************************************/
 
 #include "netboot.h"
-
+#ifdef	PC98
+#include "../../pc98/pc98.h"
+void putchar(int c);
+void putc(int c);
+#endif
 #define NO_SWITCH		/* saves space */
 
 /**************************************************************************
@@ -288,3 +292,166 @@ gateA20()
 #endif	IBM_L40
 #endif
 }
+
+#ifdef	PC98
+void
+putchar(int c)
+{
+	if (c == '\n')
+		putc('\r');
+	putc(c);
+}
+
+static unsigned short *Crtat = (unsigned short *)0;
+static int row;
+static int col;
+
+void putc(int c)
+{
+	static unsigned short *crtat;
+	unsigned char sys_type;
+	unsigned short *cp;
+	int i, pos;
+
+	if (Crtat == 0) {
+		sys_type = *(unsigned char *)0x0a1501/*0x11501*/;
+		if (sys_type & 0x08) {
+			Crtat = (unsigned short *)0x0e0000/*0x50000*/;
+			crtat = Crtat;
+			row = 31;
+			col = 80;
+		} else {
+			Crtat = (unsigned short *)0x0a0000/*0x10000*/;
+			crtat = Crtat;
+			row = 25;
+			col = 80;
+		}
+	}
+
+	switch(c) {
+	case '\t':
+		do {
+			putc(' ');
+		} while ((int)crtat % 16);
+		break;
+	case '\b':
+		crtat--;
+		break;
+	case '\r':
+		crtat -= (crtat - Crtat) % col;
+		break;
+	case '\n':
+		crtat += col;
+		break;
+	default:
+		*crtat = (c == 0x5c ? 0xfc : c);
+		*(crtat++ + 0x1000) = 0xe1;
+		break;
+	}
+
+	if (crtat >= Crtat + col * row) {
+		for (i = 1; i < row; i++)
+			bcopy(Crtat+col*i, Crtat+col*(i-1), col*2);
+		for (i = 0, cp = Crtat + col * (row - 1); i < col*2; i++) {
+			*cp++ = ' ';
+		}
+		crtat -= col;
+	}
+	pos = crtat - Crtat;
+	while((inb(0x60) & 0x04) == 0) {}
+	outb(0x62, 0x49);
+	outb(0x60, pos & 0xff);
+	outb(0x60, pos >> 8);
+}
+
+unsigned int bios98getdate();
+
+unsigned int currticks() 
+{
+	unsigned int biostime = bios98getdate() >> 8;
+	unsigned int time;
+	static unsigned int oldtime;
+	time = ((   (biostime >> 4)  & 0x0f)*10
+		+   (biostime        & 0x0f))*3600	/*  hour    */
+		+ (((biostime >> 12) & 0x0f)*10
+		+  ((biostime >>  8) & 0x0f))*60	/*  minute  */
+		+ (((biostime >> 20) & 0x0f)*10
+		+  ((biostime >> 16) & 0x0f));		/*  second  */
+	while(oldtime > time)
+		time += 24*3600;
+	oldtime = time;
+	return time*20;
+}
+
+void machine_check(void)
+{
+	int	ret;
+	int	i;
+	int	data = 0;
+	u_char epson_machine_id = *(unsigned char *)(0x0a1624/*0x11624*/);
+	
+	/* PC98_SYSTEM_PARAMETER(0x501) */
+	ret = ((*(unsigned char*)0x0a1501/*0x11501*/) & 0x08) >> 3;
+
+	/* wait V-SYNC */
+	while (inb(0x60) & 0x20) {}
+	while (!(inb(0x60) & 0x20)) {}
+
+	/* ANK 'A' font */
+	outb(0xa1, 0x00);
+	outb(0xa3, 0x41);
+
+	if (ret & M_NORMAL) {
+		/* M_NORMAL, use CG window (all NEC OK)  */
+		/* sum */
+		for (i = 0; i < 4; i++) {
+			data += *((unsigned long*)0x0a4000/*0x14000*/ + i);/* 0xa4000 */
+		}
+		if (data == 0x6efc58fc) { /* DA data */
+			ret |= M_NEC_PC98;
+		} else {
+			ret |= M_EPSON_PC98;
+		}
+		ret |= (inb(0x42) & 0x20) ? M_8M : 0;
+	} else {
+		/* M_HIGHRESO, use CG window */
+		/* sum */
+		for (i = 0; i < 12; i++) {
+			data += *((unsigned long*)0x0e4000/*0x54000*/ + i); /* 0xe4000 */
+		}
+		if ( data == 0x50154624) { /* XA data */
+			ret |= M_NEC_PC98;
+		} else {
+			ret |= M_EPSON_PC98;
+		}
+		ret |= (inb(0x63) & 0x01) ? M_8M : 0;
+	}
+
+	/* PC98_SYSTEM_PARAMETER(0x400) */
+	if ((*(unsigned char*)0xa1400/*0x11400*/) & 0x80) {
+		ret |= M_NOTE;
+	}
+	if (ret & M_NEC_PC98) {
+		/* PC98_SYSTEM_PARAMETER(0x458) */
+		if ((*(unsigned char*)0x0a1458/*0x11458*/) & 0x80) {
+			ret |= M_H98;
+		} else {
+			ret |= M_NOT_H98;
+		}
+	} else {
+		ret |= M_NOT_H98;
+		switch (epson_machine_id) {
+		case 0x20:	/* note A */
+		case 0x22:	/* note W */
+		case 0x27:	/* note AE */
+		case 0x2a:	/* note WR */
+		/*case 0x2:	/* note AR */
+			ret |= M_NOTE;
+			break;
+		default:
+			    break;
+		}
+	}
+	(*(unsigned long *)(0x0a1620/*0x11620*/)) = ret;
+}
+#endif

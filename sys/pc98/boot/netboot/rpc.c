@@ -31,7 +31,7 @@ rpclookup(addr, prog, ver)
 		udp_transmit(arptable[addr].ipaddr, RPC_SOCKET,
 			SUNRPC, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus == rpc->u.reply.verifier ==
 				rpc->u.reply.astatus == 0)
 				return(ntohl(rpc->u.reply.data[0]));
@@ -66,7 +66,7 @@ nfs_mount(server, port, path, fh)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);
@@ -86,12 +86,13 @@ nfs_mount(server, port, path, fh)
 NFS_LOOKUP:  Lookup Pathname
 
 ***************************************************************************/
-nfs_lookup(server, port, fh, path, file_fh)
+nfs_lookup(server, port, fh, path, file_fh, sizep)
 	int server;
 	int port;
 	char *fh;
 	char *path;
 	char *file_fh;
+	int *sizep;
 {
 	struct	rpc_t buf, *rpc;
 	char	*rpcptr;
@@ -104,13 +105,15 @@ nfs_lookup(server, port, fh, path, file_fh)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);
 				return(-(ntohl(rpc->u.reply.data[0])));
 			} else {
 				bcopy(&rpc->u.reply.data[1],file_fh, 32);
+				if (sizep)
+				  *sizep = ntohl(rpc->u.reply.data[14]);
 				return(0);
 			}
 		}
@@ -143,7 +146,7 @@ nfs_read(server, port, fh, offset, len, buffer)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);
@@ -151,7 +154,7 @@ nfs_read(server, port, fh, offset, len, buffer)
 			} else {
 				rlen = ntohl(rpc->u.reply.data[18]);
 				if (len < rlen) rlen = len;
-				if (len > rlen) printf("short read\r\n");
+				if (len > rlen) printf("short read\n");
 				bcopy(&rpc->u.reply.data[19], buffer, rlen);
 				return(rlen);
 			}
@@ -169,7 +172,7 @@ rpc_err(rpc)
 	struct rpc_t	*rpc;
 {
 	int err = ntohl(rpc->u.reply.data[0]);
-	printf("***RPC Error: (%d,%d,%d):\r\n ",
+	printf("***RPC Error: (%d,%d,%d):\n ",
 		ntohl(rpc->u.reply.rstatus),
 		ntohl(rpc->u.reply.verifier),
 		ntohl(rpc->u.reply.astatus));
@@ -183,5 +186,5 @@ nfs_err(err)
 	else if (err == NFSERR_NOENT) 	printf("No such file or directory");
 	else if (err == NFSERR_ACCES)	printf("Permission denied");
 	else printf("Error %d",err);
-	printf("\r\n");
+	printf("\n");
 }

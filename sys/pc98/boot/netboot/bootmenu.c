@@ -40,7 +40,7 @@ struct bootcmds_t {
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
         {"trans",       cmd_aui,        "<on|off>     turn transceiver on|off"},
-	{"flags",	cmd_flags,	"[bcdhsv]  set boot flags"},
+	{"flags",       cmd_flags,      "[bcdghsv] set boot flags"},
 	{NULL,		NULL,		NULL}
 };
 
@@ -50,9 +50,9 @@ CMD_HELP - Display help screen
 cmd_help()
 {
 	struct bootcmds_t *cmd = bootcmds;
-	printf("\r\n");
+	printf("\n");
 	while (cmd->name) {
-		printf("%s %s\n\r",cmd->name,cmd->help);
+		printf("%s %s\n",cmd->name,cmd->help);
 		cmd++;
 	}
 }
@@ -65,7 +65,7 @@ cmd_ip(p)
 {
 	int i;
 	if (!setip(p, &arptable[ARP_CLIENT].ipaddr)) {
-		printf("IP address is %I\r\n",
+		printf("IP address is %I\n",
 			arptable[ARP_CLIENT].ipaddr);
 	} else default_netmask();
 }
@@ -86,7 +86,7 @@ cmd_aui(p)
                 eth_reset();
                 return(0);
         }
-        printf ("Transceiver is %s\r\n",aui ? "off" : "on");
+        printf ("Transceiver is %s\n",aui ? "off" : "on");
 }
 
 /**************************************************************************
@@ -97,7 +97,7 @@ cmd_gateway(p)
 {
 	int i;
 	if (!setip(p, &arptable[ARP_GATEWAY].ipaddr)) {
-		printf("Server IP address is %I\r\n",
+		printf("Server IP address is %I\n",
 			arptable[ARP_GATEWAY].ipaddr);
 	} else		/* Need to clear arp entry if we change IP address */
 		for (i=0; i<6; i++) arptable[ARP_GATEWAY].node[i] = 0;
@@ -111,7 +111,7 @@ cmd_server(p)
 {
 	int i;
 	if (!setip(p, &arptable[ARP_SERVER].ipaddr)) {
-		printf("Server IP address is %I\r\n",
+		printf("Server IP address is %I\n",
 			arptable[ARP_SERVER].ipaddr);
 	} else		/* Need to clear arp entry if we change IP address */
 		for (i=0; i<6; i++) arptable[ARP_SERVER].node[i] = 0;
@@ -126,7 +126,7 @@ cmd_netmask(p)
 	int i;
 	if (!setip(p, &netmask)) {
 		netmask = ntohl(netmask);
-		printf("netmask is %I\r\n", netmask);
+		printf("netmask is %I\n", netmask);
 	}
 	netmask = htonl(netmask);
 }
@@ -139,7 +139,7 @@ cmd_swapsize(p)
 {
 	int blks = getdec(&p);
 	if (blks > 0) nfsdiskless.swap_nblks = blks;
-	else printf("Swap size is: %d blocks\r\n",nfsdiskless.swap_nblks);
+	else printf("Swap size is: %d blocks\n",nfsdiskless.swap_nblks);
 }
 
 extern char kernel_buf[], *kernel;
@@ -150,7 +150,7 @@ cmd_kernel(p)
 	char *p;
 {
 	if (*p) sprintf(kernel = kernel_buf,"%s",p);
-	printf("Bootfile is: %s\r\n", kernel);
+	printf("Bootfile is: %s\n", kernel);
 }
 
 
@@ -161,7 +161,7 @@ cmd_rootfs(p)
 	char *p;
 {
 	if (!setip(p, &arptable[ARP_ROOTSERVER].ipaddr)) {
-		printf("Root filesystem is %I:%s\r\n",
+		printf("Root filesystem is %I:%s\n",
 			nfsdiskless.root_saddr.sin_addr,
 			nfsdiskless.root_hostnam);
 	} else {
@@ -180,7 +180,7 @@ cmd_swapfs(p)
 	char *p;
 {
 	if (!setip(p, &arptable[ARP_SWAPSERVER].ipaddr)) {
-		printf("Swap filesystem is %I:%s\r\n",
+		printf("Swap filesystem is %I:%s\n",
 			nfsdiskless.swap_saddr.sin_addr,
 			nfsdiskless.swap_hostnam);
 	} else {
@@ -201,47 +201,57 @@ cmd_hostname(p)
 	if (*p)
 		hostnamelen = ((sprintf(&nfsdiskless.my_hostnam,"%s",p) -
 			(char*)&nfsdiskless.my_hostnam) + 3) & ~3;
-	else	printf("Hostname is: %s\r\n",nfsdiskless.my_hostnam);
+	else	printf("Hostname is: %s\n",nfsdiskless.my_hostnam);
 }
+
+static void mountopts(prefix,args,p)
+	char *prefix;    
+	struct onfs_args *args;
+	char *p;
+{
+        char *tmp;
+
+	if (*p) {
+		args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
+		args->sotype = SOCK_DGRAM;
+		if ((tmp = (char *)substr(p,"rsize=")))
+			args->rsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"wsize=")))
+			args->wsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"intr")))
+			args->flags |= NFSMNT_INT;
+		if ((tmp = (char *)substr(p,"soft")))
+			args->flags |= NFSMNT_SOFT;
+		if ((tmp = (char *)substr(p,"noconn")))
+			args->flags |= NFSMNT_NOCONN;
+		if ((tmp = (char *)substr(p, "tcp")))
+		    args->sotype = SOCK_STREAM;
+	} else {
+		printf("%s mount options: rsize=%d,wsize=%d,resvport",
+		       prefix,
+		       args->rsize,
+		       args->wsize);
+		if (args->flags & NFSMNT_INT)
+			printf (",intr");
+		if (args->flags & NFSMNT_SOFT)
+			printf (",soft");
+		if (args->flags & NFSMNT_NOCONN)
+			printf (",noconn");
+		if (args->sotype == SOCK_STREAM)
+			printf (",tcp");
+		else
+			printf (",udp");
+		printf ("\n");
+	}
+}
+
 /**************************************************************************
 CMD_ROOTOPTS - Set root mount options
 **************************************************************************/
 cmd_rootopts(p)
         char *p;
 {
-        char *tmp;
-
-        if (*p) {
-                nfsdiskless.root_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
-                nfsdiskless.root_args.sotype = SOCK_DGRAM;
-                if ((tmp = (char *)substr(p,"rsize=")))
-                        nfsdiskless.root_args.rsize=getdec(&tmp);
-                if ((tmp = (char *)substr(p,"wsize=")))
-                        nfsdiskless.root_args.wsize=getdec(&tmp);
-                if ((tmp = (char *)substr(p,"resvport")))
-                        nfsdiskless.root_args.flags |= NFSMNT_RESVPORT;
-                if ((tmp = (char *)substr(p,"intr")))
-                        nfsdiskless.root_args.flags |= NFSMNT_INT;
-                if ((tmp = (char *)substr(p,"soft")))
-                        nfsdiskless.root_args.flags |= NFSMNT_SOFT;
-                if ((tmp = (char *)substr(p, "tcp")))
-                         nfsdiskless.root_args.sotype = SOCK_STREAM;
-        } else {
-                printf("Rootfs mount options: rsize=%d,wsize=%d",
-                nfsdiskless.root_args.rsize,
-                nfsdiskless.root_args.wsize);
-                if (nfsdiskless.root_args.flags & NFSMNT_RESVPORT)
-                        printf (",resvport");
-                if (nfsdiskless.root_args.flags & NFSMNT_SOFT)
-                        printf (",soft");
-                if (nfsdiskless.root_args.flags & NFSMNT_INT)
-                        printf (",intr");
-                if (nfsdiskless.root_args.sotype == SOCK_STREAM)
-                        printf (",tcp");
-                else
-                        printf (",udp");
-                printf ("\r\n");
-        }
+	mountopts("Rootfs",&nfsdiskless.root_args,p);
 }
 
 /**************************************************************************
@@ -250,39 +260,7 @@ CMD_SWAPOPTS - Set swap mount options
 cmd_swapopts(p)
         char *p;
 {
-	char *tmp;
-
-	if (*p) {
-                nfsdiskless.swap_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
-                nfsdiskless.swap_args.sotype = SOCK_DGRAM;
-		if ((tmp = (char *)substr(p,"rsize=")))
-			nfsdiskless.swap_args.rsize=getdec(&tmp);
-		if ((tmp = (char *)substr(p,"wsize=")))
-			nfsdiskless.swap_args.wsize=getdec(&tmp);
-		if ((tmp = (char *)substr(p,"resvport")))
-			nfsdiskless.swap_args.flags |= NFSMNT_RESVPORT;
-		if ((tmp = (char *)substr(p,"intr")))
-			nfsdiskless.swap_args.flags |= NFSMNT_INT;
-		if ((tmp = (char *)substr(p,"soft")))
-			nfsdiskless.swap_args.flags |= NFSMNT_SOFT;
-		if ((tmp = (char *)substr(p, "tcp")))
-			 nfsdiskless.swap_args.sotype = SOCK_STREAM;
-        } else {
-		printf("Swapfs mount options: rsize=%d,wsize=%d",
-		nfsdiskless.swap_args.rsize,
-		nfsdiskless.swap_args.wsize);
-		if (nfsdiskless.swap_args.flags & NFSMNT_RESVPORT)
-			printf (",resvport");
-		if (nfsdiskless.swap_args.flags & NFSMNT_SOFT)
-			printf (",soft");
-		if (nfsdiskless.swap_args.flags & NFSMNT_INT)
-			printf (",intr");
-		if (nfsdiskless.swap_args.sotype == SOCK_STREAM)
-			printf (",tcp");
-		else
-			printf (",udp");
-		printf ("\r\n");
-        }
+	mountopts("Swapfs",&nfsdiskless.swap_args,p);
 }
 
 /**************************************************************************
@@ -299,6 +277,7 @@ cmd_flags(buf)
 	case 'b':	flags |= RB_HALT; break;
 	case 'c':	flags |= RB_CONFIG; break;
 	case 'd':	flags |= RB_KDB; break;
+	case 'g':	flags |= RB_GDB; break;
 	case 'h':	flags ^= RB_SERIAL; break;
 	case 's':	flags |= RB_SINGLE; break;
 	case 'v':	flags |= RB_VERBOSE; break;
@@ -337,7 +316,7 @@ execute(buf)
 		} else
 			cmd++;
 	}
-	printf("bad command - type 'help' for list\n\r");
+	printf("bad command - type 'help' for list\n");
 	return(0);
 }
 
@@ -348,7 +327,7 @@ bootmenu()
 {
 	char cmd[80];
 	int ptr, c;
-	printf("\r\n");
+	printf("\n");
 	while (1) {
 		ptr = 0;
 		printf("boot> ");
@@ -367,7 +346,7 @@ bootmenu()
 			}
 		}
 		cmd[ptr] = 0;
-		printf("\r\n");
+		printf("\n");
 		if (execute(cmd)) break;
 	}
 	eth_reset();

@@ -2,7 +2,8 @@
 #define STACKADDR	0xe000	/* Needs to be end of bss + stacksize */
 #define KERN_CODE_SEG	0x08
 #define KERN_DATA_SEG	0x10
-#define REAL_MODE_SEG	0x18
+#define REAL_MODE_CSEG	0x18
+#define REAL_MODE_DSEG  0x20
 #define CR0_PE		1
 
 #define opsize		.byte 0x66
@@ -13,6 +14,7 @@
  * 32 bit sensitive until things are fixed up.
  */
 #ifdef BOOTROM
+#ifndef PC98
 	.word	0xaa55			/* bios extension signature */
 	.byte	(ROMSIZE>>9)		/* no. of 512B blocks */
 	jmp	1f			/* enter from bios here */
@@ -65,6 +67,70 @@
 2:	pop	%ds
 	pop	%eax
 	lret
+#else	/*  defined PC98  */
+	.byte	0xcb			/*  00 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  03 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  06 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0x55			/*  09 MAGIC  */
+	.byte	0xaa
+	.byte	0x00
+	.byte	0xeb			/*  0c jmp 1f */
+	.byte	0x22
+	.byte	0x00
+	.byte	0xcb			/*  0f retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  12 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  15 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  18 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  1b retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  1e retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  21 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  24 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  27 retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  2a retf  */
+	.byte	0x00
+	.byte	0x00
+	.byte	0xcb			/*  2d retf  */
+	.byte	0x00
+	.byte	0x00
+1:
+	cli
+	pusha
+	opsize
+	mov	$0x1fc0, %eax
+	mov	%ax, %es
+	mov	%esp, %eax
+	addrsize
+	.byte	0x26			/*  es:  */
+	mov	%eax, (0x0000)
+	mov	%ss, %ax
+	addrsize
+	.byte	0x26			/*  es:  */
+	mov	%eax, (0x0004)
+#endif
 #endif
 
 /**************************************************************************
@@ -93,6 +159,59 @@ _start:
 	ljmp	$(RELOC>>4),$1f-RELOC		/* Jmp to RELOC:1f */
 1:
 	nop
+#ifdef PC98
+	opsize
+	mov	$0x0a00, %eax		/* 80 x 25 mode  */
+	int	$0x18
+	movb	$0x0c, %ah		/* text on */
+	int	$0x18
+	movb	$0x16, %ah		/* t-vram clear */
+	opsize
+	mov	$0xe100, %edx
+	int	$0x18
+
+        /* cursor home and on */
+	xor	%edx, %edx
+	movb	$0x13, %ah
+	int	$0x18
+	movb	$0x11, %ah
+	int     $0x18
+
+	/* set up %ds */
+	xor	%ax, %ax
+	mov	%ax, %ds
+
+	opsize
+	mov	$0xa000, %eax
+	mov	%ax, %es
+
+	/* transfer PC-9801 system common area to 0xa1000 */
+	opsize
+	mov	$0x0000, %esi
+	opsize
+	mov	$0x1000, %edi
+	opsize
+	mov	$0x0630, %ecx
+	cld
+	rep
+	movsb
+
+	/* transfer EPSON machine type to 0xa1200 */
+	push	%ds
+	opsize
+	mov	$0xfd00, %eax
+	mov	%ax, %ds
+	addrsize
+	opsize
+	mov	0x804, %eax
+	opsize
+	and	$0x00ffffff, %eax
+	addrsize
+	opsize
+	.byte	0x26
+	mov	%eax, %es: (0x1624)
+	pop	%ds
+#endif
 	mov	%cs,%ax
 	mov	%ax,%ds
 	mov	%ax,%es
@@ -106,6 +225,7 @@ _start:
 	.globl	_exit
 _exit:
 	call	_prot_to_real
+#ifndef PC98
 #ifdef BOOTROM
 	xor	%eax,%eax
 	mov	%ax,%ds
@@ -119,7 +239,57 @@ _exit:
 #else
 	int	$0x19
 #endif
+#else	/*  defined PC98  */
+#ifdef BOOTROM
+	cli
+	movb	$0x0e, %al		/*  CPU RESET  */
+	outb	%al, $0x37
+	xor	%eax, %eax
+	mov	%ax, %es
+	push	%cs
+	push	$2f
+	addrsize
+	.byte	0x26			/*  es:  */
+	mov	%esp, (0x0404)
+	addrsize
+	.byte	0x26			/*  es:  */
+	movw	%ss, (0x0406)
+	movb	$0x00, %al
+	outb	%al, $0xf0
+1:
+	jmp	1b
+2:
+	movb	$0x0f, %al
+	outb	%al, $0x37
 
+	opsize				/*  restore ss:sp  */
+	mov	$0x1fc0, %eax
+	mov	%ax, %es
+	addrsize
+	.byte	0x26			/*  es:  */
+	mov	(0x0000), %ebx
+	addrsize
+	.byte	0x26			/*  es:  */
+	mov	(0x0004), %eax
+	mov	%ax, %ss
+	mov	%ebx, %esp
+	sti
+	popa
+	lret
+#else
+	mov	$0x8000, %ecx
+	movb	$0x00, %al
+1:
+	jmp	1b
+	outb	%al, $0x5f
+	loop	1b
+	outb	%al, $0xf0
+1:
+	jmp	1b
+#endif
+#endif
+
+#ifndef PC98
 /**************************************************************************
 CURRTICKS - Get Time
 **************************************************************************/
@@ -127,8 +297,9 @@ CURRTICKS - Get Time
 _currticks:
 	push	%ebp
 	mov	%esp,%ebp
-	push	%ecx
-	push	%edx
+	push    %ebx
+	push	%esi
+	push	%edi
 	xor	%edx,%edx
 	call	_prot_to_real
 	xor	%eax,%eax
@@ -139,8 +310,9 @@ _currticks:
 	shl	$16,%ecx
 	mov	%edx,%eax
 	or	%ecx,%eax
-	pop	%edx
-	pop	%ecx
+	pop	%edi
+	pop	%esi
+	pop	%ebx
 	pop	%ebp
 	ret
 
@@ -151,8 +323,9 @@ PUTCHAR - Print a character
 _putchar:
 	push	%ebp
 	mov	%esp,%ebp
-	push	%ecx
 	push	%ebx
+	push	%esi
+	push	%edi
 	movb	8(%ebp),%cl
 	call	_prot_to_real
 	opsize
@@ -162,8 +335,9 @@ _putchar:
 	int	$0x10
 	opsize
 	call	_real_to_prot
+	pop	%edi
+	pop	%esi
 	pop	%ebx
-	pop	%ecx
 	pop	%ebp
 	ret
 
@@ -175,6 +349,8 @@ _getchar:
 	push	%ebp
 	mov	%esp,%ebp
 	push	%ebx
+	push	%esi
+	push	%edi
 	call	_prot_to_real
 	movb	$0x0,%ah
 	int	$0x16
@@ -183,6 +359,8 @@ _getchar:
 	call	_real_to_prot
 	xor	%eax,%eax
 	movb	%bl,%al
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
@@ -195,6 +373,8 @@ _iskey:
 	push	%ebp
 	mov	%esp,%ebp
 	push	%ebx
+	push	%esi
+	push	%edi
 	call	_prot_to_real
 	xor	%ebx,%ebx
 	movb	$0x1,%ah
@@ -207,9 +387,119 @@ _iskey:
 	call	_real_to_prot
 	xor	%eax,%eax
 	movb	%bl,%al
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
+#else	/*  defined PC98  */
+/**************************************************************************
+Get Date & Time
+**************************************************************************/
+	.globl	_bios98getdate
+_bios98getdate:
+	push	%ebp
+	mov	%esp,%ebp
+	push	%ebx
+	push	%es
+
+	call	_prot_to_real
+
+	opsize
+	mov	$0x1ff0, %eax
+	mov	%ax, %es
+	movb	$0x00, %ah
+	opsize
+	mov	$0x80, %ebx	/*  bios uses 1ff0:0080  */
+	int	$0x1c
+
+	opsize
+	mov	$0x82, %ebx
+	opsize
+	.byte	0x26		/*  es:  */
+	.byte	0x8b		/*  mov	(%ebx), %ebx  */
+	.byte	0x1f
+
+	opsize
+	call	_real_to_prot
+
+	mov	%ebx, %eax
+	pop	%es
+	pop	%ebx
+	pop	%ebp
+	ret
+
+/*
+ * getc()
+ * BIOS call "INT 18H Function 00H" to read character from keyboard
+ *	Call with	%ah = 0x0
+ *	Return:		%ah = keyboard scan code
+ *			%al = ASCII character
+ */
+
+	.globl	_getchar
+_getchar:
+	push	%ebp
+	mov	%esp, %ebp
+	push	%ebx			/* save %ebx */
+
+	call	_prot_to_real
+
+	movb	$0x0, %ah
+	int	$0x18
+
+	movb	%al, %bl		/* real_to_prot uses %eax */
+
+	opsize
+	call	_real_to_prot
+
+	xor	%eax, %eax
+	movb	%bl, %al
+
+	pop	%ebx
+	pop	%ebp
+	ret
+/*
+ * ischar()
+ *	if there is a character pending, return it; otherwise return 0
+ * BIOS call "INT 18H Function 01H" to check whether a character is pending
+ *	Call with	%ah = 0x1
+ *	Return:
+ *		If key waiting to be input:
+ *			%ah = keyboard scan code
+ *			%al = ASCII character
+ *			%bh = 1
+ *		else
+ *			%bh = 0
+ */
+	.globl	_iskey
+_iskey:
+	push	%ebp
+	mov	%esp, %ebp
+	push	%ebx
+
+	call	_prot_to_real		/* enter real mode */
+
+	xor	%ebx, %ebx
+	movb	$0x1, %ah
+	int	$0x18
+	andb	%bh, %bh
+	opsize
+	jz	nochar
+	movb	%al, %bl
+
+nochar:
+	opsize
+	call	_real_to_prot
+
+	xor	%eax, %eax
+	movb	%bl, %al
+
+	pop	%ebx
+	pop	%ebp
+	ret
+
+#endif
 
 
 /*
@@ -298,8 +588,17 @@ _prot_to_real:
 	sub	$RELOC,%eax		/* Adjust return address */
 	push	%eax
 	sub	$RELOC,%esp		/* Adjust stack pointer */
-	ljmp	$REAL_MODE_SEG, $1f	/* jump to a 16 bit segment */
+		
+	/* Prepare %ax while we're still in a mode that gas understands. */
+	movw	$REAL_MODE_DSEG, %ax
+	
+	ljmp	$REAL_MODE_CSEG, $1f-RELOC /* jump to a 16 bit segment */
 1:
+	mov	%ax, %ds
+	mov	%ax, %ss 
+	mov	%ax, %es
+	mov	%ax, %fs
+	
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
 	opsize
@@ -324,6 +623,76 @@ _prot_to_real:
 	ret
 
 /**************************************************************************
+GET DISK GEOMETRY INFO
+**************************************************************************/
+#ifdef	PC98
+/*
+ *
+ * get_diskinfo():  return a word that represents the
+ *	max number of sectors and heads and drives for this device
+ *
+ */
+	.globl	_get_diskinfo
+_get_diskinfo:
+	push	%ebp
+	mov	%esp, %ebp
+	push	%ebx
+	push	%esi
+	push    %edi
+
+	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
+	call	_prot_to_real		/* enter real mode */
+
+	movb	%dl, %al		/* ask for disk info */
+	andb	$0xf0, %al
+	cmpb	$0x90, %al
+	jz	fdd
+
+	movb	%dl, %al
+	movb	$0x84, %ah
+
+	int	$0x1b
+
+	jnc	ok
+	/*
+	 * Urk.  Call failed.  It is not supported for floppies by old BIOS's.
+	 * Guess it's a 15-sector floppy.
+	 */
+fdd:
+	subb	%ah, %ah		/* %ax = 0 */
+	movb	%al, %al
+	movb	%ah, %bh		/* %bh = 0 */
+	movb	$2, %bl			/* %bl	bits 0-3 = drive type,
+						bit    2 = 1.2M */
+	movb	$79, %ch		/* max track */
+	movb	$1, %cl			/* # floppy drives installed */
+	movb	$2, %dh			/* max head */
+	movb	$15, %dl		/* max sector */
+	/* es:di = parameter table */
+	/* carry = 0 */
+ok:
+
+	opsize
+	call	_real_to_prot		/* back to protected mode */
+
+	/* 
+	 * form a longword representing all this gunk:
+	 *	16 bit cylinder
+	 *	 8 bit head
+	 *	 8 bit sector
+	 */
+	mov	%ecx, %eax
+	sall	$16,%eax		/* << 16 */
+	movb	%dh, %ah		/* max head */
+	movb	%dl, %al		/* max sector (and # sectors) */
+
+	pop	%edi
+	pop	%esi
+	pop	%ebx
+	pop	%ebp
+	ret
+#endif
+/**************************************************************************
 GLOBAL DESCRIPTOR TABLE
 **************************************************************************/
 	.align	4
@@ -339,11 +708,15 @@ gdt:
 	.word	0xffff, 0
 	.byte	0, 0x93, 0xcf, 0
 
-	/* 16 bit real mode */
-	.word	0xffff, 0
-	.byte	0, 0x9b, 0x0f, 0
+	/* 16 bit real mode code segment */
+	.word	0xffff, RELOC & 0xffff
+	.byte	(RELOC>>16), 0x9b, 0x00, (RELOC>>24)
+
+	/* 16 bit real mode data segment */
+	.word	0xffff, RELOC & 0xffff
+	.byte	(RELOC>>16), 0x93, 0x00, (RELOC>>24)
 
 	.align	4
 gdtarg:
-	.word	0x1f			/* limit */
+	.word	0x27			/* limit */
 	.long	gdt			/* addr */
