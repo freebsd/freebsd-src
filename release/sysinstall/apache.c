@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.21 1996/04/28 03:26:44 jkh Exp $
+ * $Id: apache.c,v 1.22 1996/04/29 19:34:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -48,8 +48,8 @@
 
 
 #define APACHE_HELPFILE "apache"
-#define APACHE_PACKAGE  "apache-1.0.3"
-#define FREEBSD_GIF	"/stand/power.gif"
+#define APACHE_PACKAGE  "apache-1.0.5"
+#define FREEBSD_GIF	"http://www.freebsd.org/gifs/powerlogo.gif"
 
 /* These change if the package uses different defaults */
 
@@ -469,7 +469,7 @@ configApache(dialogMenuItem *self)
 		fprintf(fptr, "<H1>Welcome to %s </H1>\n</CENTER>\n",company);
 		fprintf(fptr, "<P><HR SIZE=4>\n<CENTER>\n");
 		fprintf(fptr, "<A HREF=\"http://www.FreeBSD.org/What\">\n");
-		fprintf(fptr, "<IMG SRC=\"./power.gif\" ALIGN=CENTER BORDER=0 ");
+		fprintf(fptr, "<IMG SRC=\"%s\" ALIGN=CENTER BORDER=0 ", FREEBSD_GIF);
 		fprintf(fptr, " ALT=\"Powered by FreeBSD\"></A>\n");
 		if (!tconf.email[0]) {
 		    if ((tptr = variable_get(VAR_DOMAINNAME)))
@@ -484,8 +484,6 @@ configApache(dialogMenuItem *self)
 		}
 		fprintf(fptr, "</CENTER>\n\n");
 		fclose(fptr);
-		if (file_readable(FREEBSD_GIF))
-		    vsystem("cp %s %s", FREEBSD_GIF, tconf.docroot);
 	    }
 	    else {
 		msgConfirm("Unable to create sample Web Page.");
