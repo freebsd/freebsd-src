@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.429 1998/04/29 17:09:41 andreas Exp $
+#	$Id: LINT,v 1.430 1998/05/16 14:08:31 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -515,7 +515,7 @@ options		"CD9660_ROOTDELAY=20"
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similiar to group). It's a security hole
-# if you let these users run programs so, confine it to file-servers
+# if you let these users run programs, so confine it to file-servers
 # (but it'll save you lots of headaches in those cases). Root owned
 # directories are exempt and X bits are cleared. The suid bit must be
 # set on the directory as well; see chmod(1) PC owners can't see/set
