@@ -520,22 +520,22 @@ ata_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
     DELAY(10000); 
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
-    DELAY(100000);
-    ATA_IDX_INB(ch, ATA_ERROR);
+    DELAY(10000);
 
     /* wait for BUSY to go inactive */
-    for (timeout = 0; timeout < 310000; timeout++) {
+    for (timeout = 0; timeout < 310; timeout++) {
 	if (stat0 & ATA_S_BUSY) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	    DELAY(10);
+    	    ATA_IDX_INB(ch, ATA_ERROR);
 
-	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 	    if (!(stat0 & ATA_S_BUSY)) {
+		/* check for ATAPI signature while its still there */
+		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
+		ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+		ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		if (bootverbose)
 		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
 		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
@@ -545,14 +545,15 @@ ata_reset(struct ata_channel *ch)
 	if (stat1 & ATA_S_BUSY) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
+    	    ATA_IDX_INB(ch, ATA_ERROR);
 
-	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 	    if (!(stat1 & ATA_S_BUSY)) {
+		/* check for ATAPI signature while its still there */
+		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
+		ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+		ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		if (bootverbose)
 		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
 		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
@@ -568,7 +569,7 @@ ata_reset(struct ata_channel *ch)
 	if (mask == 0x03)      /* wait for both master & slave */
 	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
-	DELAY(100);
+	DELAY(100000);
     }	
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
