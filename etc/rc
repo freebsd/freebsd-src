@@ -16,7 +16,7 @@ HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export PATH
 
-if [ -r /fastboot ]
+if [ -e /fastboot ]
 then
 	echo Fast boot ... skipping disk checks
 elif [ $1x = autobootx ]
