@@ -63,7 +63,8 @@ main(int argc, char *argv[])
 	struct hostent		*he = NULL;
 	uint8_t			*echo_data = NULL;
 	struct sockaddr_l2cap	 sa;
-	int32_t			 n, s, count, wait, flood, echo_size;
+	int32_t			 n, s, count, wait, flood, echo_size, numeric;
+	char			*rname = NULL;
 
 	/* Set defaults */
 	memcpy(&src, NG_HCI_BDADDR_ANY, sizeof(src));
@@ -84,9 +85,10 @@ main(int argc, char *argv[])
 	count = -1; /* unimited */
 	wait = 1;   /* sec */
 	flood = 0;
+	numeric = 0;
 
 	/* Parse command line arguments */
-	while ((n = getopt(argc, argv, "a:c:fi:n:s:S:h")) != -1) {
+	while ((n = getopt(argc, argv, "a:c:fi:nS:s:h")) != -1) {
 		switch (n) {
 		case 'a':
 			if (!bt_aton(optarg, &dst)) {
@@ -94,15 +96,6 @@ main(int argc, char *argv[])
 					errx(1, "%s: %s", optarg, hstrerror(h_errno));
 
 				memcpy(&dst, he->h_addr, sizeof(dst));
-			}
-			break;
-
-		case 'S':
-			if (!bt_aton(optarg, &src)) {
-				if ((he = bt_gethostbyname(optarg)) == NULL)
-					errx(1, "%s: %s", optarg, hstrerror(h_errno));
-
-				memcpy(&src, he->h_addr, sizeof(src));
 			}
 			break;
 
@@ -122,13 +115,24 @@ main(int argc, char *argv[])
 				usage();
 			break;
 
+		case 'n':
+			numeric = 1;
+			break;
+
+		case 'S':
+			if (!bt_aton(optarg, &src)) {
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
+
+				memcpy(&src, he->h_addr, sizeof(src));
+			}
+			break;
+
 		case 's':
 			echo_size = atoi(optarg);
-			if (echo_size < sizeof(int32_t))
+			if (echo_size < sizeof(int32_t) ||
+			    echo_size > NG_L2CAP_MAX_ECHO_SIZE)
 				usage();
-
-			if (echo_size > NG_L2CAP_MAX_ECHO_SIZE)
-				echo_size = NG_L2CAP_MAX_ECHO_SIZE;
 			break;
 
 		case 'h':
@@ -140,6 +144,15 @@ main(int argc, char *argv[])
 
 	if (memcmp(&dst, NG_HCI_BDADDR_ANY, sizeof(dst)) == 0)
 		usage();
+
+	he = bt_gethostbyaddr((const char *)&dst, sizeof(dst), AF_BLUETOOTH);
+	if (he == NULL || he->h_name == NULL || he->h_name[0] == '\0' || numeric)
+		asprintf(&rname, "%s", bt_ntoa(&dst, NULL));
+	else
+		rname = strdup(he->h_name);
+
+	if (rname == NULL)
+		errx(1, "Failed to create remote hostname");
 
 	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_L2CAP);
 	if (s < 0)
@@ -203,7 +216,7 @@ main(int argc, char *argv[])
 		fprintf(stdout,
 "%d bytes from %s seq_no=%d time=%.3f ms result=%#x %s\n",
 			r.echo_size,
-			bt_ntoa(&dst, NULL),
+			rname,
 			ntohl(*((int32_t *)(r.echo_data))),
 			tv2msec(&b), r.result,
 			((fail == 0)? "" : strerror(errno)));
@@ -219,6 +232,7 @@ main(int argc, char *argv[])
 			count --;
 	}
 
+	free(rname);
 	free(echo_data);
 	close(s);
 
@@ -259,16 +273,17 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage: l2ping -a bd_addr " \
-		"[-S bd_addr -c count -i wait -s size -h]\n");
+		"[-S bd_addr -c count -i wait -n -s size -h]\n");
 	fprintf(stderr, "Where:\n");
-	fprintf(stderr, "\t-S bd_addr         - Source BD_ADDR\n");
-	fprintf(stderr, "\t-a bd_addr         - Remote BD_ADDR to ping\n");
-	fprintf(stderr, "\t-c count           - Number of packets to send\n");
-	fprintf(stderr, "\t-f                 - No delay (soft of flood)\n");
-	fprintf(stderr, "\t-i wait            - Delay between packets (sec)\n");
-	fprintf(stderr, "\t-s size            - Packet size (bytes), " \
+	fprintf(stderr, "  -a remote  Specify remote device to ping\n");
+	fprintf(stderr, "  -c count   Number of packets to send\n");
+	fprintf(stderr, "  -f         No delay (soft of flood)\n");
+	fprintf(stderr, "  -h         Display this message\n");
+	fprintf(stderr, "  -i wait    Delay between packets (sec)\n");
+	fprintf(stderr, "  -n         Numeric output only\n");
+	fprintf(stderr, "  -S source  Specify source device\n");
+	fprintf(stderr, "  -s size    Packet size (bytes), " \
 		"between %zd and %zd\n", sizeof(int32_t), NG_L2CAP_MAX_ECHO_SIZE);
-	fprintf(stderr, "\t-h                 - Display this message\n");
 	
 	exit(255);
 } /* usage */

@@ -33,27 +33,30 @@
 .Nd send L2CAP ECHO_REQUEST to remote devices
 .Sh SYNOPSIS
 .Nm
-.Op Fl fh
-.Fl a Ar BD_ADDR
+.Op Fl fhn
+.Fl a Ar remote
 .Op Fl c Ar count
 .Op Fl i Ar delay
-.Op Fl S Ar BD_ADDR
+.Op Fl S Ar source
 .Op Fl s Ar size
 .Sh DESCRIPTION
 The
 .Nm
 utility uses L2CAP
 .Dv ECHO_REQUEST
-datagram to elicit an L2CAP
+datagram to elicit a L2CAP
 .Dv ECHO_RESPONSE
-from a remote device.
+datagram from a remote device.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl a Ar BD_ADDR
-Address of remote device to ping.
-Example:
-.Fl a Li 00:01:02:03:04:05 .
+.It Fl a Ar remote
+Specify the remote device to ping.
+The remote device can be specified by either its BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .It Fl c Ar count
 Number of packets to send.
 If this option is not specified,
@@ -72,18 +75,27 @@ The default is to wait for one second between each packet.
 This option is ignored if
 .Fl f
 has been specified.
-.It Fl S Ar BD_ADDR
-Send L2CAP
+.It Fl n
+Numeric output only.
+No attempt will be made to lookup symbolic names for host addresses.
+.It Fl S Ar source
+Specify the local device which should be used to send L2CAP
 .Dv ECHO_REQUEST
-from local device that has
-.Ar BD_ADDR .
-Example:
-.Fl S Li 00:05:04:03:02:01 .
+datagrams.
+The local device can be specified by either its BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .It Fl s Ar size
 Specify the number of payload bytes to be sent.
-The default is the minimum L2CAP MTU minus the size of the L2CAP signalling
-command header (44 bytes).
-The maximum size is 65531.
+The default size is 44 bytes.
+It is calculated as minimum L2CAP MTU (48 bytes) minus the size of the L2CAP
+signalling command header (4 bytes).
+The maximum size is 65531 bytes. Is is calculated as maximum L2CAP MTU
+(65535 bytes) minus four bytes of payload reserved for
+.Nm
+internal use.
 Use this option with caution.
 Some implementations may not like large sizes and may hang or even crash.
 .El
@@ -93,6 +105,7 @@ Could check for duplicated, corrupted and lost packets.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
+.Xr bluetooth 3 ,
 .Xr netgraph 3 ,
 .Xr netgraph 4 ,
 .Xr ng_l2cap 4 ,
