@@ -31,19 +31,21 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
+static const char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+
 #include "extern.h"
 
 extern speed_t Ospeed;
@@ -74,7 +76,8 @@ MAP *cur, *maplist;
  */
 void
 add_mapping(port, arg)
-	char *port, *arg;
+	const char *port;
+	char *arg;
 {
 	MAP *mapp;
 	char *copy, *p, *termp;
@@ -159,7 +162,7 @@ next:	if (*arg == ':') {
 done:	if (port) {
 		if (mapp->porttype)
 badmopt:		errx(1, "illegal -m option format: %s", copy);
-		mapp->porttype = port;
+		mapp->porttype = strdup(port);
 	}
 
 #ifdef MAPDEBUG
@@ -186,9 +189,9 @@ badmopt:		errx(1, "illegal -m option format: %s", copy);
  * by the first applicable mapping in 'map'.  If no mappings apply, return
  * 'type'.
  */
-char *
+const char *
 mapped(type)
-	char *type;
+	const char *type;
 {
 	MAP *mapp;
 	int match;
@@ -223,16 +226,16 @@ mapped(type)
 }
 
 typedef struct speeds {
-	char	*string;
+	const char	*string;
 	speed_t	speed;
 } SPEEDS;
 
 SPEEDS speeds[] = {
-	"0",		B0,
-	"134.5",	B134,
-	"exta",		B19200,
-	"extb",		B38400,
-	NULL
+	{ "0",		B0 },
+	{ "134.5",	B134 },
+	{ "exta",	B19200 },
+	{ "extb",	B38400 },
+	{ NULL, 0 }
 };
 
 speed_t
