@@ -84,6 +84,7 @@ int	toupper __P((int));
 int	isascii __P((int));
 int	isblank __P((int));
 int	toascii __P((int));
+int	digittoint __P((int));
 #endif
 __END_DECLS
 
@@ -105,9 +106,9 @@ __END_DECLS
 #define	isascii(c)	(((c) & ~0x7F) == 0)
 #define	isblank(c)	__istype((c), _B)
 #define	toascii(c)	((c) & 0x7F)
+#define	digittoint(c)	(__maskrune((c), 0xFF))
 
 /* XXX the following macros are not backed up by functions. */
-#define	digittoint(c)	__istype((c), 0xFF)
 #define	ishexnumber(c)	__istype((c), _X)
 #define	isideogram(c)	__istype((c), _I)
 #define	isnumber(c)	__istype((c), _D)
@@ -166,11 +167,19 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 	       _CurrentRuneLocale->maplower[_c];
 }
 
+static __inline int
+__maskrune(_BSD_RUNE_T_ c, unsigned long f)
+{
+	return(((c & _CRMASK)
+		? ___runetype(c) : _CurrentRuneLocale->runetype[c]) & f);
+}
+
 #else /* not using inlines */
 
 __BEGIN_DECLS
 int		__istype __P((_BSD_CT_RUNE_T_, unsigned long));
 int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
+int		__maskrune __P((_BSD_CT_RUNE_T_, unsigned long));
 _BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
 _BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
 __END_DECLS
