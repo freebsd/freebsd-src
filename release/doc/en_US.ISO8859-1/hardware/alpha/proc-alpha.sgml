@@ -1896,7 +1896,8 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
       <para>On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 
       5V variants.</para>
 
-      <para>The USB ports are not supported and disabled by Compaq.</para>
+      <para>The USB ports are not supported and are disabled by the 
+      SRM console in all recent SRM versions.</para>
 
       <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
