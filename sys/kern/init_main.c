@@ -50,6 +50,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -66,7 +67,6 @@
 
 #include <machine/cpu.h>
 #include <machine/globals.h>
-#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

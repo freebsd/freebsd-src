@@ -50,6 +50,7 @@
 #include <sys/sysent.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/namei.h>
 #include <sys/filedesc.h>
@@ -65,7 +66,6 @@
 #include <sys/extattr.h>
 
 #include <machine/limits.h>
-#include <machine/mutex.h>
 #include <miscfs/union/union.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>

@@ -38,13 +38,11 @@
 #define	_SYS_VNODE_H_
 
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
-
-#include <machine/lock.h>
-#include <machine/mutex.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a

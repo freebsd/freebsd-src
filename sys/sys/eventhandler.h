@@ -27,7 +27,7 @@
  */
 
 #include <sys/queue.h>
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 #ifndef SYS_EVENTHANDLER_H
 #define SYS_EVENTHANDLER_H

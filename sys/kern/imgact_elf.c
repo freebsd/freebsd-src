@@ -38,6 +38,7 @@
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
 #include <sys/pioctl.h>
@@ -63,7 +64,6 @@
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 
 #define OLD_EI_BRAND	8
 

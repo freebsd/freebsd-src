@@ -48,12 +48,12 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
 
 #include <machine/limits.h>
-#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

@@ -55,6 +55,8 @@
 #include <sys/pioctl.h>
 #include <sys/acct.h>
 #include <sys/fcntl.h>
+#include <sys/ipl.h>
+#include <sys/mutex.h>
 #include <sys/wait.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
@@ -64,10 +66,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
-
-#include <machine/ipl.h>
 #include <machine/cpu.h>
-#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */

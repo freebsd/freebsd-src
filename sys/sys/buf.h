@@ -233,7 +233,7 @@ extern struct mtx buftimelock;		/* Interlock on setting prio and timo */
 extern char *buf_wmesg;			/* Default buffer lock message */
 #define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curproc */
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 /*
  * Initialize a lock.
