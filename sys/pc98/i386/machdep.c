@@ -125,7 +125,6 @@ extern void init386 __P((int first));
 extern void dblfault_handler __P((void));
 
 extern void printcpuinfo(void);	/* XXX header file */
-extern void earlysetcpuclass(void);	/* same header file */
 extern void finishidentcpu(void);
 extern void panicifcpuunsupported(void);
 extern void initializecpu(void);
@@ -273,7 +272,6 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf("%s", version);
-	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
 	panicifcpuunsupported();
