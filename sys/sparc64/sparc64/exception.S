@@ -219,7 +219,7 @@ ENTRY(tl1_kstack_fault)
 	clr	%fp
 
 	set	trap, %o2
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_KSTACK_FAULT | T_KERNEL, %o0
 END(tl1_kstack_fault)
 
@@ -318,7 +318,7 @@ END(tl1_kstack_fault)
  * Generate a T_SPILL or T_FILL trap if the window operation fails.
  */
 #define	RSF_TRAP(type) \
-	b	%xcc, tl0_sftrap ; \
+	ba	%xcc, tl0_sftrap ; \
 	 mov	type, %g2 ; \
 	.align	16
 
@@ -326,7 +326,7 @@ END(tl1_kstack_fault)
  * Game over if the window operation fails.
  */
 #define	RSF_FATAL(type) \
-	b	%xcc, rsf_fatal ; \
+	ba	%xcc, rsf_fatal ; \
 	 mov	type, %g2 ; \
 	.align	16
 
@@ -345,7 +345,7 @@ END(tl1_kstack_fault)
  * Spill to the pcb if a spill to the user stack in kernel mode fails.
  */
 #define	RSF_SPILL_TOPCB \
-	b,a	%xcc, tl1_spill_topcb ; \
+	ba,a	%xcc, tl1_spill_topcb ; \
 	 nop ; \
 	.align	16
 
@@ -468,7 +468,7 @@ END(rsf_fatal)
 	tl1_split
 	clr	%o1
 	set	trap, %o2
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	\type | T_KERNEL, %o0
 	.endm
 
@@ -490,7 +490,7 @@ END(rsf_fatal)
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
 	membar	#Sync
-	b	%xcc, tl0_sfsr_trap
+	ba	%xcc, tl0_sfsr_trap
 	 mov	T_INSTRUCTION_EXCEPTION, %g2
 	.align	32
 	.endm
@@ -502,7 +502,7 @@ END(rsf_fatal)
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
-	b	%xcc, tl0_sfsr_trap
+	ba	%xcc, tl0_sfsr_trap
 	 mov	T_DATA_EXCEPTION, %g2
 	.align	32
 	.endm
@@ -513,7 +513,7 @@ END(rsf_fatal)
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
-	b	%xcc, tl0_sfsr_trap
+	ba	%xcc, tl0_sfsr_trap
 	 mov	T_MEM_ADDRESS_NOT_ALIGNED, %g2
 	.align	32
 	.endm
@@ -531,7 +531,7 @@ END(tl0_sfsr_trap)
 	.macro	tl0_intr level, mask
 	tl0_split
 	set	\mask, %o1
-	b	%xcc, tl0_intr
+	ba	%xcc, tl0_intr
 	 mov	\level, %o0
 	.align	32
 	.endm
@@ -908,7 +908,7 @@ ENTRY(tl0_dmmu_miss_trap)
 	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
 END(tl0_dmmu_miss_trap)
 
@@ -1033,7 +1033,7 @@ tl1_dmmu_prot_user:
 	/*
 	 * Not in user tsb, call c code.
 	 */
-	b,a	%xcc, tl0_dmmu_prot_trap
+	ba,a	%xcc, tl0_dmmu_prot_trap
 	 nop
 END(tl0_dmmu_prot_1)
 
@@ -1099,7 +1099,7 @@ ENTRY(tl0_dmmu_prot_trap)
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_DATA_PROTECTION | T_KERNEL, %o0
 END(tl0_dmmu_prot_trap)
 
@@ -1150,7 +1150,7 @@ ENTRY(tl0_sftrap)
 	tl0_split
 	clr	%o1
 	set	trap, %o2
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_trap
 	 mov	%g2, %o0
 END(tl0_sftrap)
 
@@ -1205,7 +1205,7 @@ END(tl0_fp_restore)
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
 	membar	#Sync
-	b	%xcc, tl1_insn_exceptn_trap
+	ba	%xcc, tl1_insn_exceptn_trap
 	 mov	T_INSTRUCTION_EXCEPTION | T_KERNEL, %g2
 	.align	32
 	.endm
@@ -1216,7 +1216,7 @@ ENTRY(tl1_insn_exceptn_trap)
 	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	%g2, %o0
 END(tl1_insn_exceptn_trap)
 
@@ -1252,26 +1252,26 @@ END(tl1_fp_disabled_1)
 
 	.macro	tl1_data_excptn
 	wrpr	%g0, PSTATE_ALT, %pstate
-	b,a	%xcc, tl1_data_excptn_trap
+	ba,a	%xcc, tl1_data_excptn_trap
 	 nop
 	.align	32
 	.endm
 
 ENTRY(tl1_data_excptn_trap)
 	RESUME_SPILLFILL_MMU_CLR_SFSR
-	b	%xcc, tl1_sfsr_trap
+	ba	%xcc, tl1_sfsr_trap
 	 mov	T_DATA_EXCEPTION | T_KERNEL, %g2
 END(tl1_data_excptn_trap)
 
 	.macro	tl1_align
-	b,a	%xcc, tl1_align_trap
+	ba,a	%xcc, tl1_align_trap
 	 nop
 	.align	32
 	.endm
 
 ENTRY(tl1_align_trap)
 	RESUME_SPILLFILL_ALIGN
-	b	%xcc, tl1_sfsr_trap
+	ba	%xcc, tl1_sfsr_trap
 	 mov	T_MEM_ADDRESS_NOT_ALIGNED | T_KERNEL, %g2
 END(tl1_data_excptn_trap)
 
@@ -1287,14 +1287,14 @@ ENTRY(tl1_sfsr_trap)
 	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	%g2, %o0
 END(tl1_sfsr_trap)
 
 	.macro	tl1_intr level, mask
 	tl1_split
 	set	\mask, %o1
-	b	%xcc, tl1_intr
+	ba	%xcc, tl1_intr
 	 mov	\level, %o0
 	.align	32
 	.endm
@@ -1403,7 +1403,7 @@ ENTRY(tl1_immu_miss_trap)
 	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
 END(tl1_immu_miss_trap)
 
@@ -1522,7 +1522,7 @@ ENTRY(tl1_dmmu_miss_trap)
 	clr	%o1
 	set	trap, %o2
 	mov	%g2, %o3
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
 END(tl1_dmmu_miss_trap)
 
@@ -1662,7 +1662,7 @@ ENTRY(tl1_dmmu_prot_trap)
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl1_trap
+	ba	%xcc, tl1_trap
 	 mov	T_DATA_PROTECTION | T_KERNEL, %o0
 END(tl1_dmmu_prot_trap)
 
@@ -2332,7 +2332,7 @@ ENTRY(tl0_intr)
 	call	critical_exit
 	 nop
 
-	b,a	%xcc, tl0_ret
+	ba,a	%xcc, tl0_ret
 	 nop
 END(tl0_intr)
 
@@ -2901,6 +2901,6 @@ ENTRY(fork_trampoline)
 	mov	%l1, %o1
 	call	fork_exit
 	 mov	%l2, %o2
-	b,a	%xcc, tl0_ret
+	ba,a	%xcc, tl0_ret
 	 nop
 END(fork_trampoline)
