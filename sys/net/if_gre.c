@@ -91,6 +91,11 @@
 
 #define GRENAME	"gre"
 
+/*
+ * gre_mtx protects all global variables in if_gre.c.
+ * XXX: gre_softc data not protected yet.
+ */
+struct mtx gre_mtx;
 static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
 
 struct gre_softc_head gre_softc_list;
@@ -149,6 +154,7 @@ static void
 greattach(void)
 {
 
+	mtx_init(&gre_mtx, "gre_mtx", NULL, MTX_DEF);
 	LIST_INIT(&gre_softc_list);
 	if_clone_attach(&gre_cloner);
 }
@@ -181,8 +187,23 @@ gre_clone_create(ifc, unit)
 	sc->wccp_ver = WCCP_V1;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
+	mtx_lock(&gre_mtx);
 	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
+	mtx_unlock(&gre_mtx);
 	return (0);
+}
+
+static void
+gre_destroy(struct gre_softc *sc)
+{
+
+#ifdef INET
+	if (sc->encap != NULL)
+		encap_detach(sc->encap);
+#endif
+	bpfdetach(&sc->sc_if);
+	if_detach(&sc->sc_if);
+	free(sc, M_GRE);
 }
 
 static void
@@ -191,14 +212,10 @@ gre_clone_destroy(ifp)
 {
 	struct gre_softc *sc = ifp->if_softc;
 
-#ifdef INET
-	if (sc->encap != NULL)
-		encap_detach(sc->encap);
-#endif
+	mtx_lock(&gre_mtx);
 	LIST_REMOVE(sc, sc_list);
-	bpfdetach(ifp);
-	if_detach(ifp);
-	free(sc, M_GRE);
+	mtx_unlock(&gre_mtx);
+	gre_destroy(sc);
 }
 
 /*
@@ -727,6 +744,7 @@ gre_in_cksum(u_int16_t *p, u_int len)
 static int
 gremodevent(module_t mod, int type, void *data)
 {
+	struct gre_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
@@ -735,8 +753,15 @@ gremodevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&gre_cloner);
 
-		while (!LIST_EMPTY(&gre_softc_list))
-			gre_clone_destroy(&LIST_FIRST(&gre_softc_list)->sc_if);
+		mtx_lock(&gre_mtx);
+		while ((sc = LIST_FIRST(&gre_softc_list)) != NULL) {
+			LIST_REMOVE(sc, sc_list);
+			mtx_unlock(&gre_mtx);
+			gre_destroy(sc);
+			mtx_lock(&gre_mtx);
+		}
+		mtx_unlock(&gre_mtx);
+		mtx_destroy(&gre_mtx);
 		break;
 	}
 	return 0;
