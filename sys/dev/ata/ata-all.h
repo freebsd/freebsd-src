@@ -156,6 +156,8 @@
 #define ATA_OP_CONTINUES		0
 #define ATA_OP_FINISHED			1
 
+#define ATA_MAX_28BIT_LBA		268435455
+
 /* ATAPI request sense structure */
 struct atapi_sense {
     u_int8_t	error_code	:7;		/* current or deferred errors */
