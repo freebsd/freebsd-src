@@ -103,20 +103,21 @@ static struct {
 	{SSCOP_INIT, SSCOP_TERM},	/* CMAPI_SSCOP */
 };
 
+static uma_zone_t atm_connection_zone;
+static uma_zone_t atm_connvc_zone;
 
-static struct sp_info          atm_connection_pool = {
-	"atm connection pool",		/* si_name */
-	sizeof(Atm_connection),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-static struct sp_info          atm_connvc_pool = {
-	"atm connection vcc pool",	/* si_name */
-	sizeof(Atm_connvc),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
+void
+atm_cm_init(void *arg)
+{
 
+	atm_connection_zone = uma_zcreate("atm connection",
+	    sizeof(Atm_connection), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(atm_connection_zone, 100);
+
+	atm_connvc_zone = uma_zcreate("atm connvc", sizeof(Atm_connvc), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(atm_connvc_zone, 100);
+}
 
 /*
  * Initiate Outgoing ATM Call
@@ -173,7 +174,7 @@ atm_cm_connect(epp, token, ap, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = (Atm_connection *)atm_allocate(&atm_connection_pool);
+	cop = uma_zalloc(atm_connection_zone, 0);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -404,7 +405,7 @@ atm_cm_connect(epp, token, ap, copp)
 	/*
 	 * Get a connection VCC block
 	 */
-	cvp = (Atm_connvc *)atm_allocate(&atm_connvc_pool);
+	cvp = uma_zalloc(atm_connvc_zone, 0);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto donex;
@@ -494,7 +495,7 @@ done:
 		 * Undo any partial setup stuff
 		 */
 		if (cop)
-			atm_free((caddr_t)cop);
+			uma_zfree(atm_connection_zone, cop);
 	} else {
 		/*
 		 * Finish connection setup
@@ -550,7 +551,7 @@ atm_cm_listen(epp, token, ap, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = (Atm_connection *)atm_allocate(&atm_connection_pool);
+	cop = uma_zalloc(atm_connection_zone, 0);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -741,7 +742,7 @@ done:
 		if (cop) {
 			if (cop->co_lattr)
 				uma_zfree(atm_attributes_zone, cop->co_lattr);
-			atm_free((caddr_t)cop);
+			uma_zfree(atm_connection_zone, cop);
 		}
 	} else {
 		/*
@@ -814,7 +815,7 @@ atm_cm_addllc(epp, token, llc, ecop, copp)
 	/*
 	 * Get a connection block
 	 */
-	cop = (Atm_connection *)atm_allocate(&atm_connection_pool);
+	cop = uma_zalloc(atm_connection_zone, 0);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -904,7 +905,7 @@ done:
 		 * Undo any partial setup stuff
 		 */
 		if (cop)
-			atm_free((caddr_t)cop);
+			uma_zfree(atm_connection_zone, cop);
 	} else {
 		/*
 		 * Pass new connection back to caller
@@ -1265,7 +1266,7 @@ atm_cm_incoming(vcp, ap)
 	/*
 	 * Get a connection VCC block
 	 */
-	cvp = (Atm_connvc *)atm_allocate(&atm_connvc_pool);
+	cvp = uma_zalloc(atm_connvc_zone, 0);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto fail;
@@ -1312,7 +1313,7 @@ fail:
 	 * Free any resources
 	 */
 	if (cvp)
-		atm_free((caddr_t)cvp);
+		uma_zfree(atm_connvc_zone, cvp);
 	return (err);
 }
 
@@ -1587,8 +1588,7 @@ atm_cm_incall(cvp)
 			/*
 			 * Need a new connection block
 			 */
-			cop = (Atm_connection *)
-				atm_allocate(&atm_connection_pool);
+			cop = uma_zalloc(atm_connection_zone, 0);
 			if (cop == NULL) {
 				cvp->cvc_attr.cause = atm_cause_tmpl;
 				cvp->cvc_attr.cause.v.cause_value =
@@ -1691,7 +1691,7 @@ atm_cm_incall(cvp)
 	 * Clean up loose ends
 	 */
 	if (cop)
-		atm_free((caddr_t)cop);
+		uma_zfree(atm_connection_zone, cop);
 
 	/*
 	 * Call has been accepted
@@ -1707,7 +1707,7 @@ fail:
 	 * Clean up loose ends
 	 */
 	if (cop)
-		atm_free((caddr_t)cop);
+		uma_zfree(atm_connection_zone, cop);
 
 	if (cvp->cvc_attr.cause.tag != T_ATM_PRESENT) {
 		cvp->cvc_attr.cause = atm_cause_tmpl;
@@ -2395,8 +2395,7 @@ atm_cm_closeconn(cop, cause)
 	 * Free the connection block
 	 */
 	cop->co_state = COS_FREE;
-	atm_free((caddr_t)cop);
-
+	uma_zfree(atm_connection_zone, cop);
 	return;
 }
 
@@ -2572,8 +2571,7 @@ atm_cm_closevc(cvp)
 	/*
 	 * Finally, free our own control blocks
 	 */
-	atm_free((caddr_t)cvp);
-
+	uma_zfree(atm_connvc_zone, cvp);
 	return;
 }
 

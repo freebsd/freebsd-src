@@ -343,6 +343,9 @@ struct atm_cm_stat {
 	u_long		cms_rcvconn;	/* Packets dropped, bad conn state */
 	u_long		cms_rcvconnvc;	/* Packets dropped, bad connvc state */
 };
+
+void atm_cm_init(void *);
+
 #endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_CM_H */
