@@ -47,7 +47,7 @@
 .Fn mtx_init "struct mtx *mutex" "char *name" "flags"
 .Ft void
 .Fn mtx_enter "struct mtx *mutex" "int flags"
-.Ft void
+.Ft int
 .Fn mtx_try_enter "struct mtx *mutex" "int flags"
 .Ft void
 .Fn mtx_exit "struct mtx *mutex" "int flags"
