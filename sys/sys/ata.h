@@ -369,6 +369,7 @@ struct ata_cmd {
 #define ATARAIDDELETE		10
 #define ATARAIDSTATUS		11
 #define ATAENCSTAT		12
+#define ATAGMAXCHANNEL		13
 
     union {
 	struct {
@@ -421,6 +422,7 @@ struct ata_cmd {
 	    int			error;
 	    char		sense_data[18];
 	} atapi;
+	int			maxchan;
     } u;
 };
 

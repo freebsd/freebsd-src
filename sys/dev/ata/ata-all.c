@@ -304,6 +304,11 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
     if (cmd != IOCATA)
 	return ENOTTY;
     
+    if (iocmd->cmd == ATAGMAXCHANNEL) {
+	iocmd->u.maxchan = devclass_get_maxunit(ata_devclass);
+	return 0;
+    }
+
     if (iocmd->channel < -1 || iocmd->device < -1 || iocmd->device > SLAVE)
 	return ENXIO;
 
