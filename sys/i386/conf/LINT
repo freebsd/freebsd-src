@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539 1999/01/20 14:49:10 eivind Exp $
+#	$Id: LINT,v 1.540 1999/01/21 09:24:28 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -879,6 +879,20 @@ options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 # The video card driver.
 device		vga0	at isa? port ? conflicts
 
+# Options for vga:
+# Try the following option if the mouse pointer is not drawn correctly 
+# or font does not seem to be loaded properly.  May cause flicker on 
+# some systems.
+options		VGA_ALT_SEQACCESS
+
+# If you can dispense with some vga driver features, you may want to
+# use the following options to save some memory.
+options		VGA_NO_FONT_LOADING	# don't save/load font
+options		VGA_NO_MODE_CHANGE	# don't change video modes
+
+# Older video cards may require this option for proper operation.
+options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+
 # Splash screen at start up!  Screen savers require this too.
 pseudo-device	splash
 
@@ -892,15 +906,10 @@ options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa? tty
 options		MAXCONS=16		# number of virtual consoles
-options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
-# Try the following option if the mouse pointer is not drawn correctly 
-# or font does not seem to be loaded properly.  May cause flicker on 
-# some systems.
-#options	SC_ALT_SEQACCESS
 
 # To include support for VESA video modes
 # Dont use together with SMP!!
