@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: library.c,v 1.7 1997/02/22 14:21:45 peter Exp $
  */
 
 #ifndef lint
@@ -544,7 +544,7 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 		    MAP_SHARED, fid, seg_byte);
 		if (*segbuf == MAP_FAILED) {
 			err(0, "mmap_segment: mmap failed");
-			return (NULL);
+			return (0);
 		}
 	} else {
 #ifdef VERBOSE
@@ -555,7 +555,7 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 		*segbuf = malloc(ssize);
 		if (!*segbuf) {
 			err(0, "mmap_segment: malloc failed");
-			return(NULL);
+			return(0);
 		}
 
 		/* read the segment data into the buffer */

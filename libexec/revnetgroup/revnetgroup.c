@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: revnetgroup.c,v 1.6 1997/02/22 14:22:03 peter Exp $
+ *	$Id: revnetgroup.c,v 1.7 1997/03/28 15:48:15 imp Exp $
  */
 
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: revnetgroup.c,v 1.6 1997/02/22 14:22:03 peter Exp $";
+static const char rcsid[] = "$Id: revnetgroup.c,v 1.7 1997/03/28 15:48:15 imp Exp $";
 #endif
 
 /* Default location of netgroup file. */
@@ -150,7 +150,7 @@ main(argc, argv)
 		gcur = gtable[i];
 		while(gcur) {
 			__setnetgrent(gcur->key);
-			while(__getnetgrent(&host, &user, &domain) != NULL) {
+			while(__getnetgrent(&host, &user, &domain) != 0) {
 				if (hosts ? host && strcmp(host,"-") : user && strcmp(user, "-"))
 					mstore(mtable, hosts ? host : user, gcur->key, domain);
 			}

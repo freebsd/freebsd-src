@@ -293,7 +293,7 @@ preserve(msgvec)
 		printf("Cannot \"preserve\" in edit mode\n");
 		return(1);
 	}
-	for (ip = msgvec; *ip != NULL; ip++) {
+	for (ip = msgvec; *ip != 0; ip++) {
 		mesg = *ip;
 		mp = &message[mesg-1];
 		mp->m_flag |= MPRESERVE;
@@ -312,7 +312,7 @@ unread(msgvec)
 {
 	register int *ip;
 
-	for (ip = msgvec; *ip != NULL; ip++) {
+	for (ip = msgvec; *ip != 0; ip++) {
 		dot = &message[*ip-1];
 		dot->m_flag &= ~(MREAD|MTOUCH);
 		dot->m_flag |= MSTATUS;
@@ -330,7 +330,7 @@ messize(msgvec)
 	register struct message *mp;
 	register int *ip, mesg;
 
-	for (ip = msgvec; *ip != NULL; ip++) {
+	for (ip = msgvec; *ip != 0; ip++) {
 		mesg = *ip;
 		mp = &message[mesg-1];
 		printf("%d: %d/%ld\n", mesg, mp->m_lines, mp->m_size);

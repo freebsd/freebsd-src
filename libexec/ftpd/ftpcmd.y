@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94
- *	$Id: ftpcmd.y,v 1.10 1997/02/22 14:21:27 peter Exp $
+ *	$Id: ftpcmd.y,v 1.11 1997/07/24 09:26:10 davidn Exp $
  */
 
 /*
@@ -957,7 +957,7 @@ yylex()
 			}
 			(void) alarm(0);
 #ifdef SETPROCTITLE
-			if (strncasecmp(cbuf, "PASS", 4) != NULL)
+			if (strncasecmp(cbuf, "PASS", 4) != 0)
 				setproctitle("%s: %s", proctitle, cbuf);
 #endif /* SETPROCTITLE */
 			if ((cp = strchr(cbuf, '\r'))) {

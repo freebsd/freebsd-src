@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: day.c,v 1.9 1997/06/23 06:52:12 charnier Exp $
  */
 
 
@@ -186,12 +186,12 @@ time_t Mktime (dp)
 
 
     /* day */
-    *(date+2) = NULL;
+    *(date+2) = '\0';
     tm.tm_mday = atoi(date);
 
     /* month */
     if (len >= 4) {
-	*(date+5) = NULL;
+	*(date+5) = '\0';
 	tm.tm_mon = atoi(date+3) - 1;
     }
 

@@ -817,7 +817,7 @@ checkrestore()
 			ep->e_flags &= ~KEEP;
 			if (ep->e_type == NODE)
 				ep->e_flags &= ~(NEW|EXISTED);
-			if (ep->e_flags != NULL)
+			if (ep->e_flags != 0)
 				badentry(ep, "incomplete operations");
 		}
 	}

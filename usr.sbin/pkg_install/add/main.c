@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.13 1997/02/22 16:09:18 peter Exp $";
+static char *rcsid = "$Id: main.c,v 1.14 1997/03/31 05:10:45 imp Exp $";
 #endif
 
 /*
@@ -133,7 +133,7 @@ main(int argc, char **argv)
 	usage(prog_name, "Missing package name(s)");
     else if (ch > 1 && AddMode == MASTER)
 	usage(prog_name, "Only one package name may be specified with master mode");
-    if ((err = pkg_perform(pkgs)) != NULL) {
+    if ((err = pkg_perform(pkgs)) != 0) {
 	if (Verbose)
 	    fprintf(stderr, "%d package addition(s) failed.\n", err);
 	return err;

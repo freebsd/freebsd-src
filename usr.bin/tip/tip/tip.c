@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.5 1997/08/25 05:02:10 imp Exp $";
+	"$Id: tip.c,v 1.6 1997/08/26 10:25:19 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -189,7 +189,7 @@ notnumber:
 		PH = _PATH_PHONES;
 	vinit();				/* init variables */
 	setparity("even");			/* set the parity table */
-	if ((i = speed(number(value(BAUDRATE)))) == NULL) {
+	if ((i = speed(number(value(BAUDRATE)))) == 0) {
 		printf("tip: bad baud rate %d\n", number(value(BAUDRATE)));
 		(void)uu_unlock(uucplock);
 		exit(3);

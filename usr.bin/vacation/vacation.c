@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
 static char rcsid[] =
-	"$Id: vacation.c,v 1.9 1997/04/23 22:40:19 ache Exp $";
+	"$Id: vacation.c,v 1.10 1997/08/28 04:40:51 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -297,7 +297,7 @@ junkmail()
 	} ignore[] = {
 		{"-request", 8},	{"postmaster", 10},	{"uucp", 4},
 		{"mailer-daemon", 13},	{"mailer", 6},		{"-relay", 6},
-		{NULL, NULL},
+		{NULL, 0},
 	};
 	register struct ignore *cur;
 	register int len;

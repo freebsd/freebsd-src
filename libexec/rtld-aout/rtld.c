@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.47 1997/08/02 04:56:44 jdp Exp $
+ *	$Id: rtld.c,v 1.48 1997/08/19 23:33:45 nate Exp $
  */
 
 #include <sys/param.h>
@@ -2117,7 +2117,7 @@ struct env_scan_tab {
 	L("LD_BIND_NOW=",		0, &ld_bind_now)
 	L("LD_SUPPRESS_WARNINGS=",	0, &ld_suppress_warnings)
 	L("LD_WARN_NON_PURE_CODE=",	0, &ld_warn_non_pure_code)
-	{ NULL, 0, NULL }
+	{ NULL, 0, 0, NULL }
 };
 #undef L
 
