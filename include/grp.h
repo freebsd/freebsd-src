@@ -41,6 +41,8 @@
 #ifndef _GRP_H_
 #define	_GRP_H_
 
+#include <sys/types.h>
+
 #ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
 #endif

@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id$
+ *	$Id: clnt.h,v 1.7 1997/02/23 09:17:22 peter Exp $
  */
 
 /*
@@ -40,6 +40,9 @@
 #ifndef _RPC_CLNT_H_
 #define _RPC_CLNT_H_
 #include <sys/cdefs.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+#include <rpc/auth.h>
 
 /*
  * Rpc calls return an enum clnt_stat.  This should be looked at more,

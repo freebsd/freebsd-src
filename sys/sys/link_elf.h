@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: link.h,v 1.11 1997/02/23 09:17:13 peter Exp $
  */
 
 /*
@@ -40,6 +40,9 @@
 
 #ifndef _LINK_H_
 #define _LINK_H_
+
+#include <sys/types.h>
+#include <nlist.h>
 
 /*
  * A `Shared Object Descriptor' describes a shared object that is needed
