@@ -191,7 +191,7 @@ restart:
 		for (xipp = sipp + 1; *xipp; xipp++) {
 			if ((*sipp)->subsystem < (*xipp)->subsystem ||
 			     ((*sipp)->subsystem == (*xipp)->subsystem &&
-			      (*sipp)->order < (*xipp)->order))
+			      (*sipp)->order <= (*xipp)->order))
 				continue;	/* skip*/
 			save = *sipp;
 			*sipp = *xipp;
