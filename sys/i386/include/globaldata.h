@@ -61,11 +61,11 @@ struct globaldata {
 	struct timeval	gd_switchtime;
 	struct i386tss	gd_common_tss;
 	int		gd_switchticks;
-	int		gd_intr_nesting_level;
+	u_char		gd_intr_nesting_level;
+	u_char		gd_pad0[3];
 	struct segment_descriptor gd_common_tssd;
 	struct segment_descriptor *gd_tss_gdt;
 	int		gd_currentldt;		/* only used for USER_LDT */
-#ifdef SMP
 	u_int		gd_cpuid;
 	u_int		gd_cpu_lockid;
 	u_int		gd_other_cpus;
@@ -79,7 +79,6 @@ struct globaldata {
 	caddr_t		gd_prv_CADDR2;
 	caddr_t		gd_prv_CADDR3;
 	unsigned	*gd_prv_PADDR1;
-#endif
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
