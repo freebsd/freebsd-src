@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.2 1997/01/31 19:55:50 wollman Exp $
+ *	$Id: http.c,v 1.3 1997/02/05 19:59:14 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -169,7 +169,7 @@ http_parse(struct fetch_state *fs, const char *uri)
 		port = 80;
 	}
 
-	p = slash + 1;
+	p = slash;
 
 	https = safe_malloc(sizeof *https);
 
@@ -184,7 +184,12 @@ http_parse(struct fetch_state *fs, const char *uri)
 	sprintf(hosthdr, "Host: %s:%d\r\n", hostname, port);
 	https->http_host_header = safe_strdup(hosthdr);
 
+	/*
+	 * NB: HTTP/1.1 servers MUST also accept a full URI.
+	 * However, HTTP/1.0 servers will ONLY accept a trimmed URI.
+	 */
 	https->http_remote_request = safe_strdup(p);
+	p++;
 	ques = strpbrk(p, "?#");
 	if (ques) {
 		trimmed_name = safe_strndup(p, ques - p);
@@ -449,7 +454,7 @@ http_retrieve(struct fetch_state *fs)
         } while(0)
 
 retry:
-	addstr(iov, n, "GET /");
+	addstr(iov, n, "GET ");
 	addstr(iov, n, https->http_remote_request);
 	addstr(iov, n, " HTTP/1.1\r\n");
 	/*
@@ -864,6 +869,11 @@ doretry:
 	fseek(local, restart_from, SEEK_SET); /* XXX truncation off_t->long */
 	display(fs, total_length, restart_from); /* XXX truncation */
 
+	/*
+	 * Eventually this loop will be separated out as http_suck(), and
+	 * there will be a separate http_suck_chunked() to deal with that
+	 * Transfer-Encoding.
+	 */
 	do {
 		alarm(timo);
 		readresult = fread(buf, 1, sizeof buf, remote);
