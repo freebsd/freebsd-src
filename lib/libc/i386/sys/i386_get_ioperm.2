@@ -40,7 +40,9 @@
 .Ft int
 .Fn i386_set_ioperm "unsigned int start" "unsigned int length" "int enable"
 .Sh DESCRIPTION
+The
 .Fn i386_get_ioperm
+system call
 will return the permission for the process' I/O port space in the
 .Fa *enable
 argument.  The port range starts at
@@ -48,7 +50,9 @@ argument.  The port range starts at
 and the number of contiguous entries will be returned in
 .Fa *length .
 .Pp
+The
 .Fn i386_set_ioperm
+system call
 will set access to a range of I/O ports described by the
 .Fa start
 and
@@ -59,9 +63,11 @@ argument.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
+The
 .Fn i386_get_ioperm
 and
 .Fn i386_set_ioperm
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
