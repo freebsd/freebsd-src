@@ -453,6 +453,19 @@ CYRUS_BB_MAILER_FLAGS	[u] The flags used by the cyrusbb mailer.
 			The flags lsDFMnP are always included.
 CYRUS_BB_MAILER_ARGS	[deliver -e -m $u] The arguments passed
 			to deliver cyrusbb mail.
+CYRUSV2_MAILER_FLAGS	[A@/:|m] The flags used by the cyrusv2 mailer.  The
+			flags lsDFMnqXz are always included.
+CYRUSV2_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
+			messages to deliver in a single connection for the
+			cyrusv2 mailer.
+CYRUSV2_MAILER_MAXRCPTS	[undefined] If defined, the maximum number of
+			recipients to deliver in a single connection for the
+			cyrusv2 mailer.
+CYRUSV2_MAILER_ARGS	[FILE /var/imap/socket/lmtp] The arguments passed
+			to the cyrusv2 mailer.  This can be used to
+			change the name of the Unix domain socket, or
+			to switch to delivery via TCP (e.g., `TCP $h lmtp')
+CYRUSV2_MAILER_QGRP	[undefined] The queue group for the cyrusv2 mailer.
 confEBINDIR		[/usr/libexec] The directory for executables.
 			Currently used for FEATURE(`local_lmtp') and
 			FEATURE(`smrsh').
@@ -633,6 +646,14 @@ cyrus		The cyrus and cyrusbb mailers.  The cyrus mailer delivers to
 		permits.  The cyrusbb mailer delivers to a system-wide
 		cyrus mailbox if the mailbox's ACL permits.  The cyrus
 		mailer must be defined after the local mailer.
+
+cyrusv2		The mailer for Cyrus v2.x.  The cyrusv2 mailer delivers to
+		local cyrus users via LMTP.  This mailer can make use of the
+		"user+detail@local.host" syntax (see
+		FEATURE(`preserve_local_plus_detail')); it will deliver the
+		mail to the user's "detail" mailbox if the mailbox's ACL
+		permits.  The cyrusv2 mailer must be defined after the
+		local mailer.
 
 qpage		A mailer for QuickPage, a pager interface.  See
 		http://www.qpage.org/ for further information.
@@ -1084,16 +1105,15 @@ promiscuous_relay
 		MASQUERADE_DOMAIN_FILE, see below).
 
 relay_entire_domain
-		By default, only hosts listed as RELAY in the access db
-		will be allowed to relay.  This option also allows any
-		host in your domain as defined by class {m}.
-		Notice: make sure that your domain is not just a top level
-		domain, e.g., com.  This can happen if you give your
-		host a name like example.com instead of host.example.com.
+		This option allows any host in your domain as defined by
+		class {m} to use your server for relaying.  Notice: make
+		sure that your domain is not just a top level domain,
+		e.g., com.  This can happen if you give your host a name
+		like example.com instead of host.example.com.
 
 relay_hosts_only
 		By default, names that are listed as RELAY in the access
-		db and class {R} are domain names, not host names.
+		db and class {R} are treated as domain names, not host names.
 		For example, if you specify ``foo.com'', then mail to or
 		from foo.com, abc.foo.com, or a.very.deep.domain.foo.com
 		will all be accepted for relaying.  This feature changes
@@ -1120,8 +1140,8 @@ relay_mail_from
 		relaying can be allowed just based on the domain portion
 		of the sender address.  This feature should only be used if
 		absolutely necessary as the sender address can be easily
-		forged.  Use of this feature requires the "From:" tag be
-		prepended to the key in the access map; see the discussion
+		forged.  Use of this feature requires the "From:" tag to
+		be used for the key in the access map; see the discussion
 		of tags and FEATURE(`relay_mail_from') in the section on
 		anti-spam configuration control.
 
@@ -1202,6 +1222,16 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		an example.  The dnsbl feature can be included several times
 		to query different DNS based rejection lists.  See also
 		enhdnsbl for an enhanced version.
+
+		Some DNS based rejection lists cause failures if asked
+		for AAAA records. If your sendmail version is compiled
+		with IPv6 support (NETINET6) and you experience this
+		problem, add
+
+			define(`DNSBL_MAP', `dns -R A')
+
+		before the first use of this feature.  Alternatively you
+		can use enhdnsbl instead (see below).
 
 		NOTE: The default DNS blacklist, blackholes.mail-abuse.org,
 		is a service offered by the Mail Abuse Prevention System
@@ -1292,6 +1322,15 @@ msp		Defines config file for Message Submission Program.
 
 		Some more hints about possible changes can be found below
 		in the section MESSAGE SUBMISSION PROGRAM.
+
+		Note: if localhost doesn't resolve to the IP address
+		of your local system (127.0.0.1 or ::1 for IPv6),
+		then you either need to fix your hostname resolution
+		(localhost and localhost.YOUR.DOMAIN should resolve
+		to that address by convention) or you need to specify
+		the IP address as argument, e.g.,
+
+			FEATURE(`msp', `[127.0.0.1]')
 
 queuegroup	A simple example how to select a queue group based
 		on the full e-mail address or the domain of the
@@ -3212,7 +3251,7 @@ more careful about checking for security problems than previous
 versions, but there are some things that you still need to watch
 for.  In particular:
 
-* Make sure the aliases file isn't writable except by trusted
+* Make sure the aliases file is not writable except by trusted
   system personnel.  This includes both the text and database
   version.
 
@@ -3517,18 +3556,18 @@ confTO_HOSTSTATUS	Timeout.hoststatus
 					information (see below).
 confTO_RESOLVER_RETRANS	Timeout.resolver.retrans
 					[varies] Sets the resolver's
-					retransmition time interval (in
+					retransmission time interval (in
 					seconds).  Sets both
 					Timeout.resolver.retrans.first and
 					Timeout.resolver.retrans.normal.
 confTO_RESOLVER_RETRANS_FIRST  Timeout.resolver.retrans.first
 					[varies] Sets the resolver's
-					retransmition time interval (in
+					retransmission time interval (in
 					seconds) for the first attempt to
 					deliver a message.
 confTO_RESOLVER_RETRANS_NORMAL  Timeout.resolver.retrans.normal
 					[varies] Sets the resolver's
-					retransmition time interval (in
+					retransmission time interval (in
 					seconds) for all resolver lookups
 					except the first delivery attempt.
 confTO_RESOLVER_RETRY	Timeout.resolver.retry
@@ -4018,10 +4057,24 @@ absolutely sure you need them.  Options you may want to change
 include:
 
 - confTRUSTED_USERS, FEATURE(`use_ct_file'), and confCT_FILE for
-  avoiding X-Authorization warnings.
+  avoiding X-Authentication warnings.
 - confTIME_ZONE to change it from the default `USE_TZ'.
 - confDELIVERY_MODE is set to interactive in msp.m4 instead
   of the default background mode.
+- FEATURE(stickyhost) and LOCAL_RELAY to send unqualified addresses
+  to the LOCAL_RELAY instead of the default relay.
+- confRAND_FILE if you use STARTTLS and sendmail is not compiled with
+  the flag HASURANDOM.
+
+The MSP performs hostname canonicalization by default.  As also
+explained in sendmail/SECURITY, mail may end up for various DNS
+related reasons in the MSP queue. This problem can be minimized by
+using
+
+	FEATURE(`nocanonify', `canonify_hosts')
+	define(`confDIRECT_SUBMISSION_MODIFIERS', `C')
+
+See the discussion about nocanonify for possible side effects.
 
 Some things are not intended to work with the MSP.  These include
 features that influence the delivery process (e.g., mailertable,
@@ -4258,4 +4311,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.612 $, Last updated $Date: 2002/04/03 17:12:52 $
+$Revision: 8.622 $, Last updated $Date: 2002/06/03 13:15:16 $

@@ -33,13 +33,14 @@ sendmail/SECURITY for more installation information.
    Then install the sendmail binary built in step 3 by cd-ing back to
    sendmail/ and running "sh Build install".
 
-7. For each of the associated sendmail utilities (makemap, mailstats, etc.),
-   read the README in the utility's directory.  When you are ready to install
-   it, back up your installed version and type "sh Build install".
+7. For each of the associated sendmail utilities (makemap, mailstats,
+   etc.), read the README in the utility's directory if it exists.  When
+   you are ready to install it, back up your installed version and type "sh
+   Build install".
 
 8. If you are upgrading from an older version of sendmail and are using any
    database maps, be sure to rebuild them with the new version of makemap,
    in case you are now using a different (and thereby incompatible) version
    of Berkeley DB.
 
-$Revision: 8.14 $, Last updated $Date: 2001/11/04 20:59:11 $
+$Revision: 8.15 $, Last updated $Date: 2002/05/28 18:09:25 $

@@ -1,10 +1,103 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1296 2002/04/05 19:17:34 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1336 2002/06/03 13:21:25 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.4/8.12.4	2002/06/03
+	SECURITY: Inherent limitations in the UNIX file locking model
+		can leave systems open to a local denial of service
+		attack.  Be sure to read the "FILE AND MAP PERMISSIONS"
+		section of the top level README for more information.
+		Problem noted by lumpy.
+	Use TempFileMode (defaults to 0600) for the permissions of PidFile
+		instead of 0644.
+	Change the default file permissions for new alias database files
+		from 0644 to 0640.  This can be overridden at compile time
+		by setting the DBMMODE macro.
+	Fix a potential core dump problem if the environment variable
+		NAME is set.  Problem noted by Beth A. Chaney of
+		Purdue University.
+	Expand macros before passing them to libmilter.  Problem noted
+		by Jose Marcio Martins da Cruz of Ecole Nationale
+		Superieure des Mines de Paris.
+	Rewind the df (message body) before truncating it when libmilter
+		replaces the body of a message.  Problem noted by Gisle Aas
+		of Active State.
+	Change SMTP reply code for AUTH failure from 500 to 535 and the
+		initial zero-length response to "=" per RFC 2554.  Patches
+		from Kenneth Murchison of Oceana Matrix Ltd.
+	Do not try to fix broken message/rfc822 MIME attachments by
+		inserting a MIME-Version: header when MaxMimeHeaderLength
+		is set and no 8 to 7 bit conversion is needed.  Based on
+		patch from Rehor Petr of ICZ (Czech Republic).
+	Do not log "did not issue MAIL/EXPN/VRFY/ETRN" if the connection
+		is rejected anyway.  Noted by Chris Loelke.
+	Mention the submission mail queue in the mailq man page.  Requested
+		by Bill Fenner of AT&T.
+	Set ${msg_size} macro when reading a message from the command line
+		or the queue.
+	Detach from shared memory before dropping privileges back to
+		user who started sendmail.
+	If AllowBogusHELO is set to false (default) then also complain if
+		the argument to HELO/EHLO contains white space.  Suggested
+		by Seva Gluschenko of Cronyx Plus.
+	Allow symbolicly linked forward files in writable directory paths
+		if both ForwardFileInUnsafeDirPath and
+		LinkedForwardFileInWritableDir DontBlameSendmail options
+		are set.  Problem noted by Werner Spirk of
+		Leibniz-Rechenzentrum Munich.
+	Portability:
+		Operating systems that lack the ftruncate() call will not
+			be able to use Milter's body replacement feature.
+			This only affects Altos, Maxion, and MPE/iX.
+		Digital UNIX 5.0 has changed flock() semantics to be
+			non-compliant.  Problem noted by Martin Mokrejs of
+			Charles University in Prague.
+		The sparc64 port of FreeBSD 5.0 now supports shared
+			memory.
+	CONFIG: FEATURE(`preserve_luser_host') needs the macro map.
+		Problem noted by Andrzej Filip.
+	CONFIG: Using 'local:' as a mailertable value with
+		FEATURE(`preserve_luser_host') and LUSER_RELAY caused mail
+		to be misaddressed.  Problem noted by Andrzej Filip.
+	CONFIG: Provide a workaround for DNS based rejection lists that
+		fail for AAAA queries.  Problem noted by Chris Boyd.
+	CONFIG: Accept the machine's hostname as resolvable when checking
+		the sender address.  This allows locally submitted mail to
+		be accepted if the machine isn't connected to a nameserver
+		and doesn't have an /etc/hosts entry for itself.  Problem
+		noted by Robert Watson of the TrustedBSD Project.
+	CONFIG: Use deferred expansion for checking the ${deliveryMode}
+		macro in case the SMTP VERB command is used.  Problem
+		noted by Bryan Costales.
+	CONFIG: Avoid a duplicate '@domain' virtusertable lookup if no
+		matches are found.  Fix from Andrzej Filip.
+	CONFIG: Fix wording in default dnsbl rejection message.  Suggested
+		by Lou Katz of Metron Computerware, Ltd.
+	CONFIG: Add mailer cyrusv2 for Cyrus V2.  Contributed by
+		Kenneth Murchison of Oceana Matrix Ltd.
+	CONTRIB: Fix wording in default dnsblaccess rejection message to
+		match dnsbl change.
+	DEVTOOLS: Add new option for access mode of statistics file,
+		confSTMODE, which specifies the permissions when initially
+		installing the sendmail statistics file.
+	LIBMILTER: Mark the listening socket as close-on-exec in case
+		a user's filter starts other applications.
+	LIBSM: Allow the MBDB initialize, lookup, and/or terminate
+		functions in SmMbdbTypes to be set to NULL.
+	MAKEMAP: Change the default file permissions for new databases from
+		0644 to 0640.  This can be overridden at compile time
+		by setting the DBMMODE macro.
+	SMRSH: Fix man page bug: replace SMRSH_CMDBIN with SMRSH_CMDDIR.
+		Problem noted by Dave Alden of Ohio State University.
+	VACATION: When listing the vacation database (-l), don't show
+		bogus timestamps for excluded (-x) addresses.  Problem
+		noted by Bryan Costales.
+	New Files:
+		cf/mailer/cyrusv2.m4
 
 8.12.3/8.12.3	2002/04/05
 	NOTICE: In general queue files should not be moved if queue groups
@@ -110,7 +203,7 @@ summary of the changes in that release.
 		command).
 	Portability:
 		Check LDAP_API_VERSION to determine if ldap_memfree() is
-			availble.
+			available.
 		Define HPUX10 when building on HP-UX 10.X.  That platform
 			now gets the proper _PATH_SENDMAIL and SMRSH_CMDDIR
 			settings.  Patch from Elias Halldor Agustsson of
@@ -159,8 +252,8 @@ summary of the changes in that release.
 	DEVTOOLS: Add dependency generation for test programs.
 	LIBMILTER: Remove conversion of port number for the socket
 		structure that is passed to xxfi_connect().  Notice:
-		this fix requires that sendmail and libmilter have both
-		this change, mixing versions may lead to wrong port
+		this fix requires that sendmail and libmilter both have
+		this change; mixing versions may lead to wrong port
 		values depending on the endianness of the involved systems.
 		Problem noted by Gisle Aas of ActiveState.
 	LIBMILTER: If smfi_setreply() sets a custom reply code of '4XX' but

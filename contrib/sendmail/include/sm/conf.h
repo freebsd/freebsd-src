@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.87 2002/04/02 08:11:52 gshapiro Exp $
+ *	$Id: conf.h,v 1.88 2002/05/01 16:09:41 gshapiro Exp $
  */
 
 /*
@@ -609,7 +609,12 @@ extern long	dgux_inet_addr();
 #  define GIDSET_T	gid_t
 #  define SM_INT32	int	/* 32bit integer */
 #  ifndef HASFLOCK
-#   define HASFLOCK	1	/* has flock(2) call */
+#   include <standards.h>
+#   if _XOPEN_SOURCE+0 >= 400
+#    define HASFLOCK	0	/* 5.0 and later has bad flock(2) call */
+#   else /* _XOPEN_SOURCE+0 >= 400 */
+#    define HASFLOCK	1	/* has flock(2) call */
+#   endif /* _XOPEN_SOURCE+0 >= 400 */
 #  endif /* ! HASFLOCK */
 #  define LA_TYPE	LA_ALPHAOSF
 #  define SFS_TYPE	SFS_STATVFS	/* use <sys/statvfs.h> statfs() impl */

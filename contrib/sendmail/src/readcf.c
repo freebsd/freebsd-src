@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.604 2002/04/02 16:43:25 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.606 2002/05/09 21:09:01 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -3350,6 +3350,14 @@ setoption(opt, val, safe, sticky, e)
 			  case 'f':
 				SASLOpts |= SASL_SEC_FORWARD_SECRECY;
 				break;
+# if _FFR_SASL_OPT_M
+/* to be activated in 8.13 */
+#  if SASL >= 20101
+			  case 'm':
+				SASLOpts |= SASL_SEC_MUTUAL_AUTH;
+				break;
+#  endif /* SASL >= 20101 */
+# endif /* _FFR_SASL_OPT_M */
 			  case 'p':
 				SASLOpts |= SASL_SEC_NOPLAINTEXT;
 				break;

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: main.c,v 8.55 2002/02/25 17:54:41 gshapiro Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.63 2002/04/30 23:52:24 msk Exp $")
 
 #define _DEFINE	1
 #include "libmilter.h"
@@ -93,7 +93,29 @@ smfi_stop()
 static int dbg = 0;
 static char *conn = NULL;
 static int timeout = MI_TIMEOUT;
-static int backlog= MI_SOMAXCONN;
+static int backlog = MI_SOMAXCONN;
+
+#if _FFR_SMFI_OPENSOCKET
+/*
+**  SMFI_OPENSOCKET -- try the socket setup to make sure we'll be
+**                     able to start up
+**
+**  	Parameters:
+**  		None.
+**
+**  	Return:
+**  		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_opensocket()
+{
+	if (smfi == NULL || conn == NULL)
+		return MI_FAILURE;
+
+	return mi_opensocket(conn, backlog, dbg, smfi);
+}
+#endif /* _FFR_SMFI_OPENSOCKET */
 
 /*
 **  SMFI_SETDBG -- set debug level.

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stats.c,v 8.54 2002/03/19 00:23:28 gshapiro Exp $")
+SM_RCSID("@(#)$Id: stats.c,v 8.55 2002/05/21 22:28:52 gshapiro Exp $")
 
 #include <sendmail/mailstats.h>
 
@@ -154,7 +154,7 @@ poststats(sfile)
 	if (!bitnset(DBS_WRITESTATSTOHARDLINK, DontBlameSendmail))
 		sff |= SFF_NOHLINK;
 
-	fd = safeopen(sfile, O_RDWR, 0644, sff);
+	fd = safeopen(sfile, O_RDWR, 0600, sff);
 	if (fd < 0)
 	{
 		if (LogLevel > 12)

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: mbdb.h,v 1.4 2001/03/08 03:23:08 ca Exp $
+ *	$Id: mbdb.h,v 1.6 2002/05/24 20:50:14 gshapiro Exp $
  */
 
 #ifndef SM_MBDB_H
@@ -30,8 +30,8 @@ typedef struct
 	gid_t	mbdb_gid;
 	char	mbdb_name[MBDB_MAXNAME];
 	char	mbdb_fullname[MBDB_MAXNAME];
-	char	mbdb_homedir[PATH_MAX + 1];
-	char	mbdb_shell[PATH_MAX + 1];
+	char	mbdb_homedir[PATH_MAX];
+	char	mbdb_shell[PATH_MAX];
 } SM_MBDB_T;
 
 extern int	sm_mbdb_initialize __P((char *));
