@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: console.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: console.c,v 1.2 1998/09/26 01:29:13 msmith Exp $
  */
 
 #include <stand.h>
@@ -51,15 +51,23 @@ cons_probe(void)
     char		*prefconsole;
     
     /* Do all console probes */
-    for (cons = 0, active = -1; consoles[cons] != NULL; cons++) {
+    for (cons = 0; consoles[cons] != NULL; cons++) {
 	consoles[cons]->c_flags = 0;
  	consoles[cons]->c_probe(consoles[cons]);
-	if ((consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT)) && (active == -1))
-	    active = cons;		/* first candidate */
+    }
+    /* Now find the first working one */
+    active = -1;
+    for (cons = 0; consoles[cons] != NULL && active == -1; cons++) {
+	consoles[cons]->c_flags = 0;
+ 	consoles[cons]->c_probe(consoles[cons]);
+	if (consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT))
+	    active = cons;
     }
 
     /* Check to see if a console preference has already been registered */
-    prefconsole = strdup(getenv("console"));
+    prefconsole = getenv("console");
+    if (prefconsole != NULL)
+	prefconsole = strdup(prefconsole);
     if (prefconsole != NULL) {
 	unsetenv("console");		/* we want to replace this */
 	for (cons = 0; consoles[cons] != NULL; cons++)
@@ -69,9 +77,14 @@ cons_probe(void)
 		active = cons;
 	free(prefconsole);
     }
+    if (active == -1)
+	active = 0;
     consoles[active]->c_flags |= (C_ACTIVEIN | C_ACTIVEOUT);
+    consoles[active]->c_init(0);
+
     printf("Console: %s\n", consoles[active]->c_desc);
-    env_setenv("console", 0, consoles[active]->c_name, cons_set, env_nounset);
+    env_setenv("console", EV_VOLATILE, consoles[active]->c_name, cons_set,
+	env_nounset);
 }
 
 int
@@ -148,7 +161,8 @@ cons_set(struct env_var *ev, int flags, void *value)
     
     /* enable selected console */
     consoles[active]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-    
+    consoles[active]->c_init(0);
+
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
     return(CMD_OK);
 }
