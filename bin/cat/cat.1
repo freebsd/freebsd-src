@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)cat.1	8.1 (Berkeley) 6/29/93
-.\"	$Id$
+.\"	$Id: cat.1,v 1.2 1994/09/24 02:53:25 davidg Exp $
 .\"
 .Dd June 29, 1993
 .Dt CAT 1
@@ -103,7 +103,7 @@ utility exits 0 on success, and >0 if an error occurs.
 .Sh BUGS
 Because of the shell language mechanism used to perform output
 redirection, the command
-.Dq Li cat file1 file 2 > file1
+.Dq Li cat file1 file2 > file1
 will cause the original data in file1 to be destroyed!
 .Sh SEE ALSO
 .Xr head 1 ,
@@ -119,4 +119,8 @@ will cause the original data in file1 to be destroyed!
 .Sh HISTORY
 A
 .Nm
-command appeared in Version 6 AT&T UNIX.
+command appeared in Version 1 AT&T UNIX. 
+Dennis Ritchie designed and wrote the first man page. 
+It appears to have been
+.Xr cat 1 .
+
