@@ -57,20 +57,20 @@ In particular, Xircom RealPort2 cards are not supported by this driver.
 The
 .Nm
 driver supports the following media types:
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It autoselect
+.Bl -tag -width ".Cm autoselect"
+.It Cm autoselect
 Enable autoselection of media type and options.
-.It 10Base2/BNC
+.It Cm 10Base2/BNC
 Select 10Mbps operation on a BNC coaxial connector.
-.It 10BaseT/UTP
+.It Cm 10BaseT/UTP
 Select 10Mbps operation on a RJ-45 connector.
-.It 100BaseTX
+.It Cm 100BaseTX
 Select 100Mbps operation.
 .El
 .Pp
 Note that 100BaseTX operation is not available on CE2-class cards,
 while the 10Base2/BNC mode is only available on CE2-class cards.
-.Ar Full-duplex
+Full-duplex
 operation is currently not supported.
 For more information on configuring network interface devices,
 see
@@ -80,7 +80,7 @@ The
 .Nm
 driver supports the following cards:
 .Pp
-.Bl -bullet -compact -offset -indent
+.Bl -bullet -compact
 .It
 Xircom CreditCard Ethernet (PS-CE2-10)
 .It
@@ -134,12 +134,12 @@ The
 driver first appeared in
 .Fx 3.3 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 device driver was written by
 .An Scott Mitchell Aq rsm@FreeBSD.org .
 This manual page was written by
-.An -nosplit
 .An Scott Mitchell Aq rsm@FreeBSD.org ,
 and
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
