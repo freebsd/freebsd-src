@@ -15,6 +15,4 @@ rcvar=`set_rcvar`
 command="/usr/sbin/powerd"
 
 load_rc_config $name
-command_args="${powerd_flags}"
-
 run_rc_command "$1"
