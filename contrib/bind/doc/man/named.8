@@ -68,7 +68,7 @@
 .Pc
 .Ar config_file
 .Oc
-.Op Fl f q r
+.Op Fl f q r v
 .Op Fl u Ar user_name
 .Op Fl g Ar group_name
 .Op Fl t Ar directory
@@ -189,6 +189,8 @@ This option can be overridden by and is deprecated in favor of the
 clause of the configuration file's
 .Dq Li options
 statement.
+.It Fl v
+Report the version and exit. 
 .It Fl u Ar user_name
 Specifies the user the server should run as after it initializes.  The value
 specified may be either a username or a numeric user id.  If the
@@ -232,6 +234,7 @@ records for objects in the zone of the forms:
 .Bd -literal -offset indent
 $INCLUDE <filename> <opt_domain>
 $ORIGIN <domain>
+$TTL <ttl>
 <domain> <opt_ttl> <opt_class> <type> <resource_record_data>
 .Ed
 .Pp
@@ -261,10 +264,14 @@ Neither the
 field nor 
 .Li $ORIGIN 
 statements in the included file modify the current origin for this file.
+.It Ar ttl
+A integer number that sets the default time-to-live for future records without
+an explicit ttl.
 .It Ar opt_ttl
 An optional integer number for the time-to-live field.
-It defaults to zero, meaning the minimum value specified in the SOA
-record for the zone.
+If not set the ttl is taken from the last $TTL statement.
+If no $TTL statement has occured then the SOA minimum value is used and a
+warning is generated.
 .It Ar opt_class
 The object address type; currently only one type is supported,
 .Dv IN ,
@@ -286,7 +293,8 @@ the canonical name for an alias (domain)
 .It Dv SOA
 marks the start of a zone of authority (domain of originating host,
 domain address of maintainer, a serial number and the following
-parameters in seconds: refresh, retry, expire and minimum TTL (see RFC 883)).
+parameters in seconds: refresh, retry, expire and minimum TTL (see RFC 883
+and RFC 2308)).
 .It Dv NULL
 a null resource record (no format or data)
 .It Dv RP
@@ -342,9 +350,7 @@ the new data.  If a master server cannot be contacted when a refresh is due,
 the retry time specifies the interval at which refreshes should be attempted.
 If a master server cannot be contacted within the interval given by the
 expire time, all data from the zone is discarded by secondary servers.  The
-minimum value is the time-to-live 
-.Pq Dq TTL 
-used by records in the file with no explicit time-to-live value.
+minimum value is the cache time-to-live for negative answers (RFC 2308).
 .Sh NOTES
 The boot file directives 
 .Dq Li domain 
@@ -389,9 +395,7 @@ Dumps the profiling data in
 .Pa /var/tmp 
 if the server is compiled with profiling (server forks, chdirs and exits).
 .It Dv SIGTERM
-Dumps the primary and secondary database files.
-Used to save modified data on shutdown if the
-server is compiled with dynamic updating enabled.
+Saves any modified dynamic zones to the file system, and shuts down the server.
 .It Dv SIGUSR1
 Turns on debugging; each 
 .Dv SIGUSR1 
@@ -433,4 +437,5 @@ nameserver statistics data
 .Xr resolver @FORMAT_EXT@ , 
 .Xr signal @SYSCALL_EXT@ ,
 RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
+RFC 2308
 .Dq Name Server Operations Guide for Sy BIND

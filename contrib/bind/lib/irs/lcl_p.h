@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: lcl_p.h,v 1.5 1996/10/25 07:23:19 vixie Exp $
+ * $Id: lcl_p.h,v 1.7 1999/01/08 19:24:51 vixie Exp $
  */
 
 /*
@@ -30,7 +30,8 @@
  * Object state.
  */
 struct lcl_p {
-	void	*placeholder;
+	struct __res_state *	res;
+	void                    (*free_res) __P((void *));
 };
 
 /*

@@ -14,6 +14,7 @@
 <PRE>
 server <VAR><A HREF="docdef.html">ip_addr</A></VAR> {
   [ bogus <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ support-ixfr <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ transfers <VAR><A HREF="docdef.html">number</A></VAR>; ]
   [ transfer-format ( one-answer | many-answers ); ]
   [ keys { <VAR><A HREF="key.html">key_id</A></VAR> [<VAR>key_id</VAR> ... ] }; ]
@@ -45,18 +46,24 @@ specified by the <CODE>options</CODE> statement will be used.
 to limit the number of concurrent in-bound zone transfers from the specified
 server.  It is checked for syntax but is otherwise ignored.
 
-<P>The <CODE>keys</CODE> statement is intended for future use by the
-server.  It is checked for syntax but is otherwise ignored.
+<P>The <CODE>keys</CODE> clause is used to identify a
+<VAR>key_id</VAR> defined by the <CODE>key</CODE> statement, to be
+used for transaction security when talking to the remote server.
+The <CODE>key</CODE> statememnt must come before the <CODE>server</CODE>
+statement that references it.  When a request is sent to the remote server,
+a request signature will be generated using the key specified here and
+appended to the message.  A request originating from the remote server is not
+required to be signed by this key.
 
 <HR>
 
 <CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
-| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-|&nbsp;<A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: server.html,v 1.6 1998/03/21 01:03:13 halley Exp $
+Last Updated: $Id: server.html,v 1.10 1999/09/15 20:28:02 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

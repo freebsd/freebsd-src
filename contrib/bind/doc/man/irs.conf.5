@@ -1,4 +1,4 @@
-.\" Copyright (c) 1996 by Internet Software Consortium
+.\" Copyright (c) 1996,1999 by Internet Software Consortium
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -44,7 +44,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: irs.conf.5,v 8.2 1997/11/17 06:46:27 vixie Exp $
+.\" $Id: irs.conf.5,v 8.4 1999/01/18 07:46:45 vixie Exp $
 .\"
 .Dd November 16, 1997
 .Dt IRS.CONF 5
@@ -96,6 +96,7 @@ Access method	Description
 local           Use a local file, usually in /etc
 dns             Use the domain name service (includes hesiod)
 nis             Use the Sun-compatible Network Information Service
+irp		Use the IRP daemon on the localhost.
 .Ed
 .Pp
 Available options:
@@ -138,7 +139,10 @@ protocols	local
 hosts		dns	continue
 hosts		local
 
-networks	local
+# Networks comes first from the local file, and failing 
+# that the, irp daemon
+networks	local	continue
+networks	irp
 
 netgroup        local
 .Ed

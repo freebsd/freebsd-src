@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns.c,v 1.11 1998/03/21 00:59:45 halley Exp $";
+static const char rcsid[] = "$Id: dns.c,v 1.14 1999/01/18 07:46:47 vixie Exp $";
 #endif
 
 /*
@@ -29,6 +29,14 @@ static const char rcsid[] = "$Id: dns.c,v 1.11 1998/03/21 00:59:45 halley Exp $"
 #include <string.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <resolv.h>
+
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -40,6 +48,9 @@ static const char rcsid[] = "$Id: dns.c,v 1.11 1998/03/21 00:59:45 halley Exp $"
 /* forward */
 
 static void		dns_close(struct irs_acc *);
+static struct __res_state *	dns_res_get(struct irs_acc *);
+static void		dns_res_set(struct irs_acc *, struct __res_state *,
+				void (*)(void *));
 
 /* public */
 
@@ -48,17 +59,19 @@ irs_dns_acc(const char *options) {
 	struct irs_acc *acc;
 	struct dns_p *dns;
 
-	if (!(acc = malloc(sizeof *acc))) {
+	if (!(acc = memget(sizeof *acc))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(acc, 0x5e, sizeof *acc);
-	if (!(dns = malloc(sizeof *dns))) {
+	if (!(dns = memget(sizeof *dns))) {
 		errno = ENOMEM;
-		free(acc);
+		memput(acc, sizeof *acc);
 		return (NULL);
 	}
 	memset(dns, 0x5e, sizeof *dns);
+	dns->res = NULL;
+	dns->free_res = NULL;
 	if (hesiod_init(&dns->hes_ctx) < 0) {
 		/*
 		 * We allow the dns accessor class to initialize
@@ -83,20 +96,56 @@ irs_dns_acc(const char *options) {
 	acc->ho_map = irs_dns_ho;
 	acc->nw_map = irs_dns_nw;
 	acc->ng_map = irs_nul_ng;
+	acc->res_get = dns_res_get;
+	acc->res_set = dns_res_set;
 	acc->close = dns_close;
 	return (acc);
 }
 
 /* methods */
+static struct __res_state *
+dns_res_get(struct irs_acc *this) {
+	struct dns_p *dns = (struct dns_p *)this->private;
+
+	if (dns->res == NULL) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (res == NULL)
+			return (NULL);
+		memset(dns->res, 0, sizeof *dns->res);
+		dns_res_set(this, res, free);
+	}
+
+	if ((dns->res->options | RES_INIT) == 0 &&
+	    res_ninit(dns->res) < 0)
+		return (NULL);
+
+	return (dns->res);
+}
+
+static void
+dns_res_set(struct irs_acc *this, struct __res_state *res,
+	    void (*free_res)(void *)) {
+	struct dns_p *dns = (struct dns_p *)this->private;
+
+	if (dns->res && dns->free_res) {
+		res_nclose(dns->res);
+		(*dns->free_res)(dns->res);
+	}
+	dns->res = res;
+	dns->free_res = free_res;
+}
 
 static void
 dns_close(struct irs_acc *this) {
 	struct dns_p *dns;
 
 	dns = (struct dns_p *)this->private;
+	if (dns->res && dns->free_res)
+		(*dns->free_res)(dns->res);
 	if (dns->hes_ctx)
 		hesiod_end(dns->hes_ctx);
-	free(dns);
-	free(this);
+	memput(dns, sizeof *dns);
+	memput(this, sizeof *this);
 }
 

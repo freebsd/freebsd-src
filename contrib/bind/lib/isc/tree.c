@@ -1,5 +1,5 @@
 #ifndef LINT
-static char RCSid[] = "$Id: tree.c,v 8.6 1997/09/26 17:56:11 halley Exp $";
+static const char rcsid[] = "$Id: tree.c,v 8.9 1999/01/08 19:25:47 vixie Exp $";
 #endif
 
 /*
@@ -22,7 +22,7 @@ static char RCSid[] = "$Id: tree.c,v 8.6 1997/09/26 17:56:11 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996,1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -56,7 +56,7 @@ static char	*debugFuncs[256];
 # define ENTER(proc) { \
 			debugFuncs[debugDepth] = proc; \
 			fprintf(stderr, "ENTER(%d:%s.%s)\n", \
-				debugDepth, DEBUG,
+				debugDepth, DEBUG, \
 				debugFuncs[debugDepth]); \
 			debugDepth++; \
 		}

@@ -1,9 +1,9 @@
 /*
- *	$Id: pathtemplate.h,v 8.1 1998/03/19 19:53:21 halley Exp $
+ *	$Id: pathtemplate.h,v 8.4 1999/01/08 19:28:30 vixie Exp $
  */
 
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -39,6 +39,10 @@
 
 #ifndef _PATH_PIDFILE
 #define _PATH_PIDFILE	"%DESTRUN%/named.pid"
+#endif
+
+#ifndef _PATH_NDCSOCK
+#define _PATH_NDCSOCK	"%DESTRUN%/ndc"
 #endif
 
 #ifndef _PATH_STATS

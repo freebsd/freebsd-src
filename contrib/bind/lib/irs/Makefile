@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.6 1997/05/21 19:23:18 halley Exp $
+# $Id: Makefile,v 8.16 1999/02/22 02:47:58 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -26,29 +26,48 @@ A=a
 CC= cc
 LD= ld
 SHELL= /bin/sh
-CDEBUG= -g
+CDEBUG= -g 
 TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
+LIBBINDR = ../${TOP}/lib/libbind_r.${A}
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+# -D__BIND_NOSTATIC -Wimplicit
 LD_LIBFLAGS= -x -r
-AR= ar cruv
+AR= ar cru
 RANLIB= ranlib
 INSTALL= install
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
+THREADED= threaded
 
-SRCS=	dns.c dns_gr.c dns_ho.c dns_nw.c dns_pr.c dns_pw.c dns_sv.c gen.c \
-	gen_gr.c gen_ho.c gen_ng.c gen_nw.c gen_pr.c gen_pw.c gen_sv.c \
-	getgrent.c gethostent.c getnetent.c getnetgrent.c getprotoent.c \
-	getpwent.c getservent.c hesiod.c irs_data.c lcl.c lcl_gr.c lcl_ho.c \
-	lcl_ng.c lcl_nw.c lcl_pr.c lcl_pw.c lcl_sv.c nis.c nis_gr.c nis_ho.c \
-	nis_ng.c nis_nw.c nis_pr.c nis_pw.c nis_sv.c nul_ng.c util.c
+SRCS=	dns.c dns_gr.c dns_ho.c dns_nw.c dns_pr.c dns_pw.c \
+	dns_sv.c gai_strerror.c gen.c gen_gr.c gen_ho.c \
+	gen_ng.c gen_nw.c gen_pr.c gen_pw.c gen_sv.c \
+	getaddrinfo.c getgrent.c getgrent_r.c gethostent.c \
+	gethostent_r.c getnameinfo.c getnetent.c getnetent_r.c \
+	getnetgrent.c getnetgrent_r.c getprotoent.c \
+	getprotoent_r.c getpwent.c getpwent_r.c getservent.c \
+	getservent_r.c hesiod.c irs_data.c \
+	irp.c irp_gr.c irp_ho.c irp_ng.c irp_nw.c \
+	irp_pr.c irp_pw.c irp_sv.c irpmarshall.c \
+	lcl.c lcl_gr.c \
+	lcl_ho.c lcl_ng.c lcl_nw.c lcl_pr.c lcl_pw.c \
+	lcl_sv.c nis.c nis_gr.c nis_ho.c nis_ng.c nis_nw.c \
+	nis_pr.c nis_pw.c nis_sv.c nul_ng.c util.c
 
 OBJS=	dns.${O} dns_gr.${O} dns_ho.${O} dns_nw.${O} dns_pr.${O} dns_pw.${O} \
-	dns_sv.${O} gen.${O} gen_gr.${O} gen_ho.${O} gen_ng.${O} gen_nw.${O} \
-	gen_pr.${O} gen_pw.${O} gen_sv.${O} getgrent.${O} gethostent.${O} \
-	getnetent.${O} getnetgrent.${O} getprotoent.${O} getpwent.${O} \
-	getservent.${O} hesiod.${O} irs_data.${O} lcl.${O} lcl_gr.${O} \
+	dns_sv.${O} gai_strerror.${O} gen.${O} gen_gr.${O} gen_ho.${O} \
+	gen_ng.${O} gen_nw.${O} gen_pr.${O} gen_pw.${O} gen_sv.${O} \
+	getaddrinfo.${O} getgrent.${O} getgrent_r.${O} gethostent.${O} \
+	gethostent_r.${O} getnameinfo.${O} getnetent.${O} getnetent_r.${O} \
+	getnetgrent.${O} getnetgrent_r.${O} getprotoent.${O} \
+	getprotoent_r.${O} getpwent.${O} getpwent_r.${O} getservent.${O} \
+	getservent_r.${O} hesiod.${O} irs_data.${O} \
+	irp.${O} irp_gr.${O} irp_ho.${O} irp_ng.${O} irp_nw.${O} \
+	irp_pr.${O} irp_pw.${O} irp_sv.${O} irpmarshall.${O} \
+	lcl.${O} lcl_gr.${O} \
 	lcl_ho.${O} lcl_ng.${O} lcl_nw.${O} lcl_pr.${O} lcl_pw.${O} \
 	lcl_sv.${O} nis.${O} nis_gr.${O} nis_ho.${O} nis_ng.${O} nis_nw.${O} \
 	nis_pr.${O} nis_pw.${O} nis_sv.${O} nul_ng.${O} util.${O}
@@ -56,18 +75,29 @@ OBJS=	dns.${O} dns_gr.${O} dns_ho.${O} dns_nw.${O} dns_pr.${O} dns_pw.${O} \
 all: ${LIBBIND}
 
 ${LIBBIND}: ${OBJS}
+	-( cd ${THREADED} ; \
+	${AR} ${LIBBINDR} ${ARPREF} ${OBJS} ${ARSUFF} ; \
+	${RANLIB} ${LIBBINDR} )
 	${AR} ${LIBBIND} ${ARPREF} ${OBJS} ${ARSUFF}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} && ${LDS} mv a.out $*.${O}
+	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; fi
+	-(${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
+	 -o ${THREADED}/$*.${O} ; \
+	 ${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} && \
+	 ${LDS} mv a.out ${THREADED}/$*.${O})
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
+	 ${LDS} mv a.out $*.${O}
 
 distclean: clean
 
 clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
+	rm -f ${THREADED}/*.${O}
+	-rmdir ${THREADED}
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}
@@ -75,6 +105,10 @@ depend: FRC
 links: FRC
 	@set -e; ln -s SRC/*.[ch] .
 
+testirpd: testirpd.o ${LIBBIND}
+	${CC} ${CDEBUG} ${LDFLAGS} -o testirpd testirpd.o ${LIBBIND} ${SYSLIBS}
+
+	
 install:
 
 FRC:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 by Internet Software Consortium.
+ * Copyright (c) 1997,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,10 +24,15 @@
 #ifdef MEMCLUSTER_DEBUG
 #define memget(s)	__memget_debug(s, __FILE__, __LINE__)
 #define memput(p, s)	__memput_debug(p, s, __FILE__, __LINE__)
-#else
+#else /*MEMCLUSTER_DEBUG*/
+#ifdef MEMCLUSTER_RECORD
+#define memget(s)	__memget_record(s, __FILE__, __LINE__)
+#define memput(p, s)	__memput_record(p, s, __FILE__, __LINE__)
+#else /*MEMCLUSTER_RECORD*/
 #define memget		__memget
 #define memput		__memput
-#endif
+#endif /*MEMCLUSTER_RECORD*/
+#endif /*MEMCLUSTER_DEBUG*/
 #define memstats	__memstats
 
 int	meminit(size_t, size_t);
@@ -35,6 +40,8 @@ void *	__memget(size_t);
 void 	__memput(void *, size_t);
 void *	__memget_debug(size_t, const char *, int);
 void 	__memput_debug(void *, size_t, const char *, int);
+void *	__memget_record(size_t, const char *, int);
+void 	__memput_record(void *, size_t, const char *, int);
 void 	memstats(FILE *);
 
 #endif /* MEMCLUSTER_H */

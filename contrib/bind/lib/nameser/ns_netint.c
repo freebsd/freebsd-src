@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,20 +16,18 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ns_netint.c,v 8.1 1996/11/18 09:09:57 vixie Exp $";
+static const char rcsid[] = "$Id: ns_netint.c,v 8.4 1999/10/13 16:39:35 vixie Exp $";
 #endif
 
 /* Import. */
 
 #include "port_before.h"
 
-/*#include <sys/types.h>*/
-/*#include <sys/socket.h>*/
-
-/*#include <netinet/in.h>*/
 #include <arpa/nameser.h>
 
 #include "port_after.h"
+
+/* Public. */
 
 u_int
 ns_get16(const u_char *src) {
