@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -181,7 +181,7 @@ const token_info *lookup_token(const char *start, const char *end)
   for (;;) {
     if (token_table[n].tok == 0)
       break;
-    if (strlen(token_table[n].tok) == end - start
+    if (strlen(token_table[n].tok) == size_t(end - start)
 	&& memcmp(token_table[n].tok, start, end - start) == 0)
       return &(token_table[n].ti);
     if (n == 0)

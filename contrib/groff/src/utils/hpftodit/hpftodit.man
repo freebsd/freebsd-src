@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1994-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1994-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -153,3 +153,7 @@ TrueType tfm files are not supported.
 .BR groff (@MAN1EXT@),
 .BR grolj4 (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

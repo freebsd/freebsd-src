@@ -78,7 +78,7 @@ public:
   void   done_big       (void);
   void   do_indent      (char *arg, int indent, int pageoff, int linelen);
   int    emitted_text   (void);
-  int    emit_space     (void);
+  void   emit_space     (void);
   int    is_in_pre      (void);
   void   remove_tag     (HTML_TAG tag);
   void   remove_sub_sup (void);

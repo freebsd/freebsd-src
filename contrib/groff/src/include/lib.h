@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -19,16 +19,18 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 extern "C" {
-#ifndef strerror
+#ifndef HAVE_STRERROR
   char *strerror(int);
 #endif
   const char *i_to_a(int);
   const char *if_to_a(int, int);
 }
 
-/* stdio.h on IRIX and OSF/1 include getopt.h */
+/* stdio.h on IRIX, OSF/1, and UWIN includes getopt.h */
 
-#if !(defined(__sgi) || (defined(__osf__) && defined(__alpha)))
+#if !(defined(__sgi) \
+      || (defined(__osf__) && defined(__alpha)) \
+      || defined(_UWIN))
 #include <groff-getopt.h>
 #endif
 
@@ -41,8 +43,8 @@ int is_prime(unsigned);
 #include <strings.h>
 #endif
 
-FILE *xtmpfile(char **namep=0, char *postfix=0, int do_unlink=1);
-char *xtmptemplate(char *extension=0);
+FILE *xtmpfile(char **namep = 0, char *postfix = 0, int do_unlink = 1);
+char *xtmptemplate(char *extension = 0);
 
 #ifdef NEED_DECLARATION_POPEN
 
@@ -55,6 +57,8 @@ extern "C" { FILE *popen(const char *, const char *); }
 extern "C" { int pclose (FILE *); }
 
 #endif /* NEED_DECLARATION_PCLOSE */
+
+size_t file_name_max(const char *fname);
 
 int interpret_lf_args(const char *p);
 

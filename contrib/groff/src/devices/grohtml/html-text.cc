@@ -350,7 +350,7 @@ void html_text::do_pre (void)
   done_bold();
   done_italic();
   done_tt();
-  char *type = done_para();
+  (void)done_para();
   if (! is_present(PRE_TAG)) {
     push_para(PRE_TAG, "");
   }
@@ -661,7 +661,7 @@ int html_text::emitted_text (void)
  *  emit_space - writes a space providing that text was written beforehand.
  */
 
-int html_text::emit_space (void)
+void html_text::emit_space (void)
 {
   if (space_emitted) {
     if (is_present(PRE_TAG)) {

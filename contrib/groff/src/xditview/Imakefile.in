@@ -19,7 +19,11 @@ PROGRAMS = \
   gxditview \
   xtotroff
 DEPLIBS = XawClientDepLibs
+#if defined(HPArchitecture) && (OSMajorVersion > 9)
+LOCAL_LIBRARIES = -L/usr/contrib/X11R6/lib XawClientLibs
+#else
 LOCAL_LIBRARIES = XawClientLibs
+#endif
 SRCS1 = \
   $(srcdir)/xditview.c \
   $(srcdir)/Dvi.c \
@@ -50,9 +54,16 @@ OBJS2 = \
   xtotroff.o \
   XFontName.o \
   DviChar.o
+#if defined(HPArchitecture) && (OSMajorVersion > 9)
+INCLUDES = \
+  -I/usr/contrib/X11R6/include \
+  -I$(TOOLKITSRC) \
+  -I$(TOP)
+#else
 INCLUDES = \
   -I$(TOOLKITSRC) \
   -I$(TOP)
+#endif
 MATHLIB = -lm
 DEFINES = \
   $(SIGNAL_DEFINES) \

@@ -25,6 +25,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "search.h"
 #include "command.h"
 
+extern "C" const char *Version_string;
+
 const char PRE_LABEL_MARKER = '\013';
 const char POST_LABEL_MARKER = '\014';
 const char LABEL_MARKER = '\015'; // label_type is added on
@@ -344,7 +346,6 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(opt,"-version")==0) {
       case 'v':
-	  extern const char *Version_string;
 	  printf("GNU refer (groff) version %s\n", Version_string);
 	  exit(0);
 	  break;

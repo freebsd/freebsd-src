@@ -1,5 +1,5 @@
 /* Declarations for getopt.
-   Copyright (C) 1989,90,91,92,93,94,96,97,98 Free Software Foundation, Inc.
+   Copyright (C) 1989-1994, 1996-1999, 2001 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -21,6 +21,17 @@
 
 #ifndef __need_getopt
 # define _GETOPT_H 1
+#endif
+
+/* If __GNU_LIBRARY__ is not already defined, either we are being used
+   standalone, or this is the first header included in the source file.
+   If we are being used with glibc, we need to include <features.h>, but
+   that does not exist if we are standalone.  So: if __GNU_LIBRARY__ is
+   not defined, include <ctype.h>, which will pull in <features.h> for us
+   if it's from glibc.  (Why ctype.h?  It's guaranteed to exist and it
+   doesn't flood the namespace with stuff the way some other headers do.)  */
+#if !defined __GNU_LIBRARY__
+# include <ctype.h>
 #endif
 
 #ifdef	__cplusplus
@@ -82,7 +93,7 @@ extern int optopt;
 
 struct option
 {
-# if defined __STDC__ && __STDC__
+# if (defined __STDC__ && __STDC__) || defined __cplusplus
   const char *name;
 # else
   char *name;
@@ -126,7 +137,7 @@ struct option
    arguments to the option '\0'.  This behavior is specific to the GNU
    `getopt'.  */
 
-#if defined __STDC__ && __STDC__
+#if (defined __STDC__ && __STDC__) || defined __cplusplus
 # ifdef __GNU_LIBRARY__
 /* Many other libraries have conflicting prototypes for getopt, with
    differences in the consts, in stdlib.h.  To avoid compilation

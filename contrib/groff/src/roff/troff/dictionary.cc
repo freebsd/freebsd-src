@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -25,10 +25,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
   
 // is `p' a good size for a hash table
 
-static int is_good_size(int p)
+static int is_good_size(unsigned int p)
 {
-  const int SMALL = 10;
-  unsigned i;
+  const unsigned int SMALL = 10;
+  unsigned int i;
   for (i = 2; i <= p/2; i++)
     if (p % i == 0)
       return 0;

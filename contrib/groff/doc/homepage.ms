@@ -4,7 +4,7 @@
 .\"
 .\" To make it work with other output devices also, we include arkup.tmac
 .\" directly.
-.mso arkup.tmac
+.mso www.tmac
 .\"
 .LP
 .\"

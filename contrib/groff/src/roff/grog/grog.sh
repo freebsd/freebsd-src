@@ -29,12 +29,12 @@ do
 	esac
 done
 
-egrep -h "^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|so|\[|R1|GS|G1|PH|SA)$sp" $* \
+egrep -h "^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|so|\[|R1|GS|G1|PH|SA)$sp" $* \
 | sed -e '/^\.so/s/^.*$/.SO_START\
 &\
 .SO_END/' \
 | $soelim \
-| egrep '^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|\[|R1|GS|G1|PH|SA|SO_START|SO_END)' \
+| egrep '^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|.* Oo|Oc|.* Oc|TS|EQ|TH|SH|\[|R1|GS|G1|PH|SA|SO_START|SO_END)' \
 | awk '
 /^\.SO_START$/ { so = 1 }
 /^\.SO_END$/ { so = 0 }
@@ -52,8 +52,23 @@ egrep -h "^\.(P|PS|[PLI]P|[pnil]p|sh|Dd|Tp|Dp|De|Cx|Cl|Oo|Oc|TS|EQ|TH|SH|so|\[|R
 /^\.([pnil]p|sh)/ { me++ }
 /^\.Dd/ { mdoc++ }
 /^\.(Tp|Dp|De|Cx|Cl)/ { mdoc_old++ }
-/^\.Oo/ { Oo++ }
-/^\.Oc/ { Oo-- }
+/^\.(O[oc]|.* O[oc]( |$))/ {
+	sub(/\\\".*/, "")
+	gsub(/\"[^\"]*\"/, "")
+	sub(/\".*/, "")
+	sub(/^\.Oo/, " Oo ")
+	sub(/^\.Oc/, " Oc ")
+	sub(/ Oo$/, " Oo ")
+	sub(/ Oc$/, " Oc ")
+	while (/ Oo /) {
+		sub(/ Oo /, " ")
+		Oo++
+	}
+	while (/ Oc /) {
+		sub(/ Oc /, " ")
+		Oo--
+	}
+}
 
 END {
 	if (files ~ /^-/)

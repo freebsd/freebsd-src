@@ -54,6 +54,8 @@ const int LAST_PAGE_EJECTOR = 0205;
 const int ESCAPE_RIGHT_PARENTHESIS = 0206;
 const int ESCAPE_TILDE = 0207;
 const int ESCAPE_COLON = 0210;
+const int COMPATIBLE_SAVE = 0211;
+const int COMPATIBLE_RESTORE = 0212;
 
 #else /* IS_EBCDIC_HOST */
 
@@ -88,5 +90,7 @@ const int LAST_PAGE_EJECTOR = 065;
 const int ESCAPE_RIGHT_PARENTHESIS = 066;
 const int ESCAPE_TILDE = 067;
 const int ESCAPE_COLON = 070;
+const int COMPATIBLE_SAVE = 071;
+const int COMPATIBLE_RESTORE = 072;
 
 #endif /* IS_EBCDIC_HOST */

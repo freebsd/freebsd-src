@@ -48,7 +48,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #   define FALSE (1==0)
 #endif
 
-#   define ERROR(X)         (fprintf(stderr, "%s:%d error %s\n", __FILE__, __LINE__, X) && \
+#   define ERROR(X)   (void)(fprintf(stderr, "%s:%d error %s\n", __FILE__, __LINE__, X) && \
                             (fflush(stderr)) && localexit(1))
 
 
@@ -195,7 +195,6 @@ int pushBackBuffer::isString (char *s)
 {
   int length=strlen(s);
   int i=0;
-  int j;
 
   while ((i<length) && (putPB(getPB())==s[i])) {
     if (getPB() != s[i]) {
@@ -230,10 +229,12 @@ static int isDigit (char ch)
  *  isHexDigit - returns TRUE if the character, ch, is a hex digit.
  */
 
+#if 0
 static int isHexDigit (char ch)
 {
   return( (isDigit(ch)) || ((ch>='a') && (ch<='f')) );
 }
+#endif
 
 /*
  *  readInt - returns an integer from the input stream.

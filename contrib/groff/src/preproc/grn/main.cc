@@ -82,6 +82,8 @@
 #include "error.h"
 #include "defs.h"
 
+extern "C" const char *Version_string;
+
 /* database imports */
 
 extern void HGPrintElt(ELT *element, int baseline);
@@ -282,7 +284,6 @@ main(int argc,
       case '-':
 	if (strcmp(*argv,"--version")==0) {
       case 'v':
-	  extern const char *Version_string;
 	  printf("GNU grn (groff) version %s\n", Version_string);
 	  exit(0);
 	  break;
