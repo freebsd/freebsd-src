@@ -80,7 +80,7 @@ struct 	fileops vnops = {
 	.fo_kqfilter = vn_kqfilter,
 	.fo_stat = vn_statfile,
 	.fo_close = vn_closefile,
-	.fo_flags = DFLAG_PASSABLE
+	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
 int
