@@ -35,22 +35,8 @@
 
 #include <alpha/linux/linux.h>
 #include <linux_proto.h>
+#include <compat/linux/linux_util.h>
 
-#define	DUMMY(s) 							\
-int									\
-linux_ ## s(struct proc *p, struct linux_ ## s ## _args *args)		\
-{									\
-	return (unsupported_msg(p, #s));				\
-}									\
-struct __hack
-
-static int
-unsupported_msg(struct proc *p, const char *fname)
-{
-	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
-	    fname, (long)p->p_pid);
-	return (ENOSYS);
-}
 
 DUMMY(mount);
 DUMMY(umount);
