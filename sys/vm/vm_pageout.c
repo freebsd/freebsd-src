@@ -661,13 +661,13 @@ vm_pageout_scan(int pass)
 	int page_shortage, maxscan, pcount;
 	int addl_page_shortage, addl_page_shortage_init;
 	struct proc *p, *bigproc;
+	struct thread *td;
 	vm_offset_t size, bigsize;
 	vm_object_t object;
 	int actcount;
 	int vnodes_skipped = 0;
 	int maxlaunder;
 	int s;
-	struct thread *td;
 
 	mtx_lock(&Giant);
 	/*
@@ -822,6 +822,7 @@ rescan0:
 		} else {
 			vm_page_dirty(m);
 		}
+
 		object = m->object;
 		if (!VM_OBJECT_TRYLOCK(object))
 			continue;
@@ -1169,9 +1170,7 @@ unlock_and_continue:
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			int breakout;
-			/*
-			 * If this process is already locked, skip it.
-			 */
+
 			if (PROC_TRYLOCK(p) == 0)
 				continue;
 			/*
@@ -1184,8 +1183,8 @@ unlock_and_continue:
 				continue;
 			}
 			/*
-			 * if the process is in a non-running type state,
-			 * don't touch it. Check all the threads individually.
+			 * If the process is in a non-running type state,
+			 * don't touch it.  Check all the threads individually.
 			 */
 			mtx_lock_spin(&sched_lock);
 			breakout = 0;
@@ -1499,10 +1498,10 @@ vm_req_vmdaemon()
 static void
 vm_daemon()
 {
-	struct proc *p;
-	int breakout;
-	struct thread *td;
 	struct rlimit rsslim;
+	struct proc *p;
+	struct thread *td;
+	int breakout;
 
 	mtx_lock(&Giant);
 	while (TRUE) {
@@ -1528,7 +1527,6 @@ vm_daemon()
 				PROC_UNLOCK(p);
 				continue;
 			}
-			lim_rlimit(p, RLIMIT_RSS, &rsslim);
 			/*
 			 * if the process is in a non-running type state,
 			 * don't touch it.
@@ -1551,6 +1549,7 @@ vm_daemon()
 			/*
 			 * get a limit
 			 */
+			lim_rlimit(p, RLIMIT_RSS, &rsslim);
 			limit = OFF_TO_IDX(
 			    qmin(rsslim.rlim_cur, rsslim.rlim_max));
 
