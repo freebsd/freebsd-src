@@ -45,7 +45,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -54,6 +53,7 @@
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
