@@ -29,16 +29,7 @@
 .eo
 .
 .
-.\" FreeBSD section names
-.ds doc-volume-ds-1 FreeBSD General Commands Manual
-.ds doc-volume-ds-2 FreeBSD System Calls Manual
-.ds doc-volume-ds-3 FreeBSD Library Functions Manual
-.ds doc-volume-ds-4 FreeBSD Kernel Interfaces Manual
-.ds doc-volume-ds-5 FreeBSD File Formats Manual
-.ds doc-volume-ds-6 FreeBSD Games Manual
-.ds doc-volume-ds-7 FreeBSD Miscellaneous Information Manual
-.ds doc-volume-ds-8 FreeBSD System Manager's Manual
-.ds doc-volume-ds-9 FreeBSD Kernel Developer's Manual
+.ds doc-volume-operating-system FreeBSD
 .
 .\" FreeBSD .Lb values
 .ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-pthread)
