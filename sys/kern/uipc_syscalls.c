@@ -261,17 +261,17 @@ accept1(td, uap, compat)
 	pid_t pgid;
 	int tmp;
 
-	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
 	if (uap->name) {
 		error = copyin(uap->anamelen, &namelen, sizeof (namelen));
 		if(error)
-			goto done2;
+			goto done3;
 		if (namelen < 0) {
 			error = EINVAL;
-			goto done2;
+			goto done3;
 		}
 	}
+	mtx_lock(&Giant);
 	error = fgetsock(td, uap->s, &head, &fflag);
 	if (error)
 		goto done2;
@@ -419,6 +419,7 @@ done:
 	fputsock(head);
 done2:
 	mtx_unlock(&Giant);
+done3:
 	return (error);
 }
 
@@ -625,7 +626,6 @@ sendit(td, s, mp, flags)
 	struct sockaddr *to;
 	int error;
 
-	mtx_lock(&Giant);
 	if (mp->msg_name != NULL) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error) {
@@ -674,7 +674,6 @@ sendit(td, s, mp, flags)
 bad:
 	if (to)
 		FREE(to, M_SONAME);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -697,6 +696,7 @@ kern_sendit(td, s, mp, flags, control)
 	int iovlen;
 #endif
 
+	mtx_lock(&Giant);
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		goto bad2;
 
@@ -757,6 +757,7 @@ kern_sendit(td, s, mp, flags, control)
 bad:
 	fputsock(so);
 bad2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -935,6 +936,7 @@ recvit(td, s, mp, namelenp)
 	int iovlen;
 #endif
 
+	mtx_lock(&Giant);
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 
@@ -1065,6 +1067,7 @@ recvit(td, s, mp, namelenp)
 	}
 out:
 	fputsock(so);
+	mtx_unlock(&Giant);
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 	if (control)
@@ -1091,7 +1094,6 @@ recvfrom(td, uap)
 	struct iovec aiov;
 	int error;
 
-	mtx_lock(&Giant);
 	if (uap->fromlenaddr) {
 		error = copyin(uap->fromlenaddr,
 		    &msg.msg_namelen, sizeof (msg.msg_namelen));
@@ -1109,7 +1111,6 @@ recvfrom(td, uap)
 	msg.msg_flags = uap->flags;
 	error = recvit(td, uap->s, &msg, uap->fromlenaddr);
 done2:
-	mtx_unlock(&Giant);
 	return(error);
 }
 
@@ -1147,7 +1148,6 @@ orecv(td, uap)
 	struct iovec aiov;
 	int error;
 
-	mtx_lock(&Giant);
 	msg.msg_name = 0;
 	msg.msg_namelen = 0;
 	msg.msg_iov = &aiov;
@@ -1157,7 +1157,6 @@ orecv(td, uap)
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
 	error = recvit(td, uap->s, &msg, NULL);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -1185,7 +1184,6 @@ orecvmsg(td, uap)
 	if (error)
 		return (error);
 
-	mtx_lock(&Giant);
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
 		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
 			error = EMSGSIZE;
@@ -1212,7 +1210,6 @@ done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif
@@ -1233,7 +1230,6 @@ recvmsg(td, uap)
 	struct iovec aiov[UIO_SMALLIOV], *uiov, *iov;
 	register int error;
 
-	mtx_lock(&Giant);
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error)
 		goto done2;
@@ -1268,7 +1264,6 @@ done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
