@@ -162,12 +162,78 @@ int elf64_offsets[] = {
 	offsetof(Elf64_Rela, r_addend)
 };
 
-char *d_tags[] = {
-	"DT_NULL", "DT_NEEDED", "DT_PLTRELSZ", "DT_PLTGOT", "DT_HASH",
-	"DT_STRTAB", "DT_SYMTAB", "DT_RELA", "DT_RELASZ", "DT_RELAENT",
-	"DT_STRSZ", "DT_SYMENT", "DT_INIT", "DT_FINI", "DT_SONAME",
-	"DT_RPATH", "DT_SYMBOLIC", "DT_REL", "DT_RELSZ", "DT_RELENT",
-	"DT_PLTREL", "DT_DEBUG", "DT_TEXTREL", "DT_JMPREL"
+/* http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#tag_encodings */
+const char *
+d_tags(u_int64_t tag) {
+	switch (tag) {
+	case 0: return "DT_NULL";
+	case 1: return "DT_NEEDED";
+	case 2: return "DT_PLTRELSZ";
+	case 3: return "DT_PLTGOT";
+	case 4: return "DT_HASH";
+	case 5: return "DT_STRTAB";
+	case 6: return "DT_SYMTAB";
+	case 7: return "DT_RELA";
+	case 8: return "DT_RELASZ";
+	case 9: return "DT_RELAENT";
+	case 10: return "DT_STRSZ";
+	case 11: return "DT_SYMENT";
+	case 12: return "DT_INIT";
+	case 13: return "DT_FINI";
+	case 14: return "DT_SONAME";
+	case 15: return "DT_RPATH";
+	case 16: return "DT_SYMBOLIC";
+	case 17: return "DT_REL";
+	case 18: return "DT_RELSZ";
+	case 19: return "DT_RELENT";
+	case 20: return "DT_PLTREL";
+	case 21: return "DT_DEBUG";
+	case 22: return "DT_TEXTREL";
+	case 23: return "DT_JMPREL";
+	case 24: return "DT_BIND_NOW";
+	case 25: return "DT_INIT_ARRAY";
+	case 26: return "DT_FINI_ARRAY";
+	case 27: return "DT_INIT_ARRAYSZ";
+	case 28: return "DT_FINI_ARRAYSZ";
+	case 29: return "DT_RUNPATH";
+	case 30: return "DT_FLAGS";
+	case 32: return "DT_PREINIT_ARRAY"; /* XXX: DT_ENCODING */
+	case 33: return "DT_PREINIT_ARRAYSZ";
+	/* 0x6000000D - 0x6ffff000 operating system-specific semantics */
+	case 0x6ffffdf5: return "DT_GNU_PRELINKED";
+	case 0x6ffffdf6: return "DT_GNU_CONFLICTSZ";
+	case 0x6ffffdf7: return "DT_GNU_LIBLISTSZ";
+	case 0x6ffffdf8: return "DT_SUNW_CHECKSUM";
+	case 0x6ffffdf9: return "DT_PLTPADSZ";
+	case 0x6ffffdfa: return "DT_MOVEENT";
+	case 0x6ffffdfb: return "DT_MOVESZ";
+	case 0x6ffffdfc: return "DT_FEATURE";
+	case 0x6ffffdfd: return "DT_POSFLAG_1";
+	case 0x6ffffdfe: return "DT_SYMINSZ";
+	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
+	case 0x6ffffe00: return "DT_ADDRRNGLO";
+	case 0x6ffffef8: return "DT_GNU_CONFLICT";
+	case 0x6ffffef9: return "DT_GNU_LIBLIST";
+	case 0x6ffffefa: return "DT_SUNW_CONFIG";
+	case 0x6ffffefb: return "DT_SUNW_DEPAUDIT";
+	case 0x6ffffefc: return "DT_SUNW_AUDIT";
+	case 0x6ffffefd: return "DT_SUNW_PLTPAD";
+	case 0x6ffffefe: return "DT_SUNW_MOVETAB";
+	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
+	case 0x6ffffff9: return "DT_RELACOUNT";
+	case 0x6ffffffa: return "DT_RELCOUNT";
+	case 0x6ffffffb: return "DT_FLAGS_1";
+	case 0x6ffffffc: return "DT_VERDEF";
+	case 0x6ffffffd: return "DT_VERDEFNUM";
+	case 0x6ffffffe: return "DT_VERNEED";
+	case 0x6fffffff: return "DT_VERNEEDNUM";
+	case 0x6ffffff0: return "DT_GNU_VERSYM";
+	/* 0x70000000 - 0x7fffffff processor-specific semantics */
+	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
+	case 0x7ffffffe: return "DT_SUNW_USED";
+	case 0x7fffffff: return "DT_SUNW_FILTER";
+	default: return "ERROR: TAG NOT DEFINED";
+	}
 };
 
 char *e_machines[] = {
@@ -209,8 +275,8 @@ char *p_flags[] = {
 };
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
-const char 
-*sh_types(u_int64_t sht) {
+const char *
+sh_types(u_int64_t sht) {
 	switch (sht) {
 	case 0:	return "SHT_NULL";
 	case 1: return "SHT_PROGBITS";
@@ -229,14 +295,17 @@ const char
 	case 16: return "SHT_PREINIT_ARRAY";
 	case 17: return "SHT_GROUP";
 	case 18: return "SHT_SYMTAB_SHNDX";
+	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
 	case 0x6ffffff0: return "XXX:VERSYM";
 	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
 	case 0x6ffffffc: return "XXX:VERDEF";
 	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
 	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
 	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
+	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x7ffffffd: return "XXX:AUXILIARY";
 	case 0x7fffffff: return "XXX:FILTER";
+	/* 0x80000000 - 0xffffffff application programs */
 	default: return "ERROR: SHT NOT DEFINED";
 	}
 };
@@ -663,7 +732,7 @@ elf_print_dynamic(void *e, void *sh)
 		val = elf_get_addr(e, d, D_VAL);
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
-		fprintf(out, "\td_tag: %s\n", d_tags[tag]);
+		fprintf(out, "\td_tag: %s\n", d_tags(tag));
 		switch (tag) {
 		case DT_NEEDED:
 		case DT_SONAME:
