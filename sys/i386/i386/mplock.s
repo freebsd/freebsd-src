@@ -162,17 +162,26 @@ NON_GPROF_ENTRY(MPtrylock)
  *
  *  SERIALIZATION NOTE!
  *
- *  The pentium may execute instructions out of order.  On a UP system
- *  this isn't a problem but on an MP system the pentium can get it 
- *  wrong.
+ *  After a lot of arguing, it turns out that there is no problem with
+ *  not having a synchronizing instruction in the MP unlock code.  There
+ *  are two things to keep in mind:  First, Intel guarentees that writes
+ *  are ordered amoungst themselves.  Second, the P6 is allowed to reorder
+ *  reads around writes.  Third, the P6 maintains cache consistency (snoops
+ *  the bus).  The second is not an issue since the one read we do is the 
+ *  basis for the conditional which determines whether the write will be 
+ *  made or not.
  *
- *  We must force instruction serialization prior to releasing the MP lock for
- *  the last time.  'cpuid' or a locked bus cycle will accomplish this.  A
- *  locked bus cycle is the fastest solution.  We use a memory location that
- *  we know we 'own' in our cache to provide for the fastest execution of the
- *  instruction, one that has no contention with other cpu's.  0(%esp) is
- *  perfect.  It may also be possible to use invlpg for even more speed,
- *  but this will be less deterministic across processor families.
+ *  Therefore, no synchronizing instruction is required on unlock.  There are
+ *  three performance cases:  First, if a single cpu is getting and releasing
+ *  the lock the removal of the synchronizing instruction saves approx
+ *  200 nS (testing w/ duel cpu PIII 450).  Second, if one cpu is contending
+ *  for the lock while the other holds it, the removal of the synchronizing
+ *  instruction results in a 700nS LOSS in performance.  Third, if two cpu's
+ *  are switching off ownership of the MP lock but not contending for it (the
+ *  most common case), this results in a 400nS IMPROVEMENT in performance.
+ *
+ *  Since our goal is to reduce lock contention in the first place, we have
+ *  decided to remove the synchronizing instruction from the unlock code.
  */
 
 NON_GPROF_ENTRY(MPrellock_edx)
@@ -182,8 +191,10 @@ NON_GPROF_ENTRY(MPrellock_edx)
 	jnz	2f
 	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
+#if 0
 	lock
 	addl	$0,0(%esp)		/* see note above */
+#endif
 2:
 	movl	%ecx, (%edx)
 	ret
