@@ -32,7 +32,7 @@ struct yarrowhash {		/* Big! Make static! */
 	keyInstance hashkey;	/* Data cycles through here */
 	cipherInstance cipher;	/* Rijndael internal */
 	u_char hash[KEYSIZE];	/* Repeatedly encrypted */
-	u_char accum[KEYSIZE];	/* Accumulate partial chunks */
+	char accum[KEYSIZE];	/* Accumulate partial chunks */
 	u_int partial;		/* Keep track of < KEYSIZE chunks */
 };
 

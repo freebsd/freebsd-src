@@ -42,7 +42,7 @@
 
 #include <dev/random/randomdev.h>
 
-static u_int read_random_phony(void *, u_int);
+static int read_random_phony(void *, int);
 
 /* Structure holding the desired entropy sources */
 struct harvest_select harvest = { 0, 0, 0 };
@@ -52,12 +52,12 @@ struct harvest_select harvest = { 0, 0, 0 };
  */
 static void (*reap_func)(u_int64_t, void *, u_int, u_int, u_int, enum esource)
     = NULL;
-static u_int (*read_func)(void *, u_int) = read_random_phony;
+static int (*read_func)(void *, int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
 random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int,
-    enum esource), u_int (*reader)(void *, u_int))
+    enum esource), int (*reader)(void *, int))
 {
 	reap_func = reaper;
 	read_func = reader;
@@ -86,8 +86,8 @@ random_harvest(void *entropy, u_int count, u_int bits, u_int frac,
 }
 
 /* Userland-visible version of read_random */
-u_int
-read_random(void *buf, u_int count)
+int
+read_random(void *buf, int count)
 {
 	return (*read_func)(buf, count);
 }
@@ -96,8 +96,8 @@ read_random(void *buf, u_int count)
  * provide _some_ kind of randomness. This should only be used
  * inside other RNG's, like arc4random(9).
  */
-static u_int
-read_random_phony(void *buf, u_int count)
+static int
+read_random_phony(void *buf, int count)
 {
 	u_long randval;
 	int size, i;
@@ -110,10 +110,12 @@ read_random_phony(void *buf, u_int count)
 		srandom((u_long)get_cyclecount());
 
 	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i+= sizeof(u_long)) {
+	for (i = 0; i < count; i+= (size_t)sizeof(u_long)) {
 		randval = random();
-		size = (count - i) < sizeof(u_long) ? (count - i) : sizeof(u_long);
-		memcpy(&((char *)buf)[i], &randval, size);
+		size = (count - i) < (int)sizeof(u_long)
+		    ? (count - i)
+		    : sizeof(u_long);
+		memcpy(&((char *)buf)[i], &randval, (size_t)size);
 	}
 
 	return count;

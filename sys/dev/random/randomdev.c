@@ -36,11 +36,9 @@
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
@@ -50,7 +48,6 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/resource.h>
 
 #include <dev/random/randomdev.h>
 
@@ -78,11 +75,12 @@ static struct cdevsw random_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
+	/* kqfilter */	NULL
 };
 
 static void random_kthread(void *);
 static void random_harvest_internal(u_int64_t, void *, u_int, u_int, u_int, enum esource);
-static void random_write_internal(void *, u_int);
+static void random_write_internal(void *, int);
 
 /* Ring buffer holding harvested entropy */
 static struct harvestring {
@@ -106,6 +104,7 @@ static struct proc *random_kthread_proc;
 static dev_t	random_dev;
 static dev_t	urandom_dev;
 
+/* ARGSUSED */
 static int
 random_check_boolean(SYSCTL_HANDLER_ARGS)
 {
@@ -138,8 +137,9 @@ SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, interrupt,
 	CTLTYPE_INT|CTLFLAG_RW, &harvest.interrupt, 0,
 	random_check_boolean, "I", "Harvest IRQ entropy");
 
+/* ARGSUSED */
 static int
-random_open(dev_t dev, int flags, int fmt, struct thread *td)
+random_open(dev_t dev __unused, int flags, int fmt __unused, struct thread *td)
 {
 	int error;
 
@@ -154,8 +154,9 @@ random_open(dev_t dev, int flags, int fmt, struct thread *td)
 	return 0;
 }
 
+/* ARGSUSED */
 static int
-random_close(dev_t dev, int flags, int fmt, struct thread *td)
+random_close(dev_t dev __unused, int flags, int fmt __unused, struct thread *td)
 {
 	if (flags & FWRITE) {
 		if (!(suser(td->td_proc) ||
@@ -165,10 +166,11 @@ random_close(dev_t dev, int flags, int fmt, struct thread *td)
 	return 0;
 }
 
+/* ARGSUSED */
 static int
-random_read(dev_t dev, struct uio *uio, int flag)
+random_read(dev_t dev __unused, struct uio *uio, int flag)
 {
-	u_int	c, ret;
+	int	c, ret;
 	int	error = 0;
 	void	*random_buf;
 
@@ -181,8 +183,8 @@ random_read(dev_t dev, struct uio *uio, int flag)
 		if (error != 0)
 			return error;
 	}
-	c = min(uio->uio_resid, PAGE_SIZE);
-	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
+	c = uio->uio_resid < PAGE_SIZE ? uio->uio_resid : PAGE_SIZE;
+	random_buf = (void *)malloc((u_long)c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {
 		ret = read_random_real(random_buf, c);
 		error = uiomove(random_buf, ret, uio);
@@ -191,17 +193,20 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	return error;
 }
 
+/* ARGSUSED */
 static int
-random_write(dev_t dev, struct uio *uio, int flag)
+random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 {
-	u_int	c;
+	int	c;
 	int	error;
 	void	*random_buf;
 
 	error = 0;
 	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0) {
-		c = min(uio->uio_resid, PAGE_SIZE);
+		c = (int)(uio->uio_resid < PAGE_SIZE
+		    ? uio->uio_resid
+		    : PAGE_SIZE);
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
@@ -211,8 +216,10 @@ random_write(dev_t dev, struct uio *uio, int flag)
 	return error;
 }
 
+/* ARGSUSED */
 static int
-random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+random_ioctl(dev_t dev __unused, u_long cmd, caddr_t addr __unused,
+    int flags __unused, struct thread *td __unused)
 {
 	switch (cmd) {
 	/* Really handled in upper layer */
@@ -224,8 +231,9 @@ random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	}
 }
 
+/* ARGSUSED */
 static int
-random_poll(dev_t dev, int events, struct thread *td)
+random_poll(dev_t dev __unused, int events, struct thread *td)
 {
 	int	revents;
 
@@ -239,8 +247,9 @@ random_poll(dev_t dev, int events, struct thread *td)
 	return revents;
 }
 
+/* ARGSUSED */
 static int
-random_modevent(module_t mod, int type, void *data)
+random_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	int	error;
 
@@ -306,11 +315,12 @@ random_modevent(module_t mod, int type, void *data)
 
 DEV_MODULE(random, random_modevent, NULL);
 
+/* ARGSUSED */
 static void
-random_kthread(void *arg /* NOTUSED */)
+random_kthread(void *arg __unused)
 {
 	struct harvest	*event;
-	int		newtail, burst;
+	u_int		newtail, burst;
 
 	/* Drain the harvest queue (in 'burst' size chunks,
 	 * if 'burst' > 0. If 'burst' == 0, then completely
@@ -365,8 +375,8 @@ static void
 random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
-	struct harvest	*harvest;
-	int		newhead;
+	struct harvest	*pharvest;
+	u_int		newhead;
 
 	newhead = (harvestring.head + 1) & HARVEST_RING_MASK;
 
@@ -374,16 +384,17 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 
 		/* Add the harvested data to the ring buffer */
 
-		harvest = &harvestring.data[harvestring.head];
+		pharvest = &harvestring.data[harvestring.head];
 
 		/* Stuff the harvested data into the ring */
-		harvest->somecounter = somecounter;
+		pharvest->somecounter = somecounter;
 		count = count > HARVESTSIZE ? HARVESTSIZE : count;
-		memcpy(harvest->entropy, entropy, count);
-		harvest->size = count;
-		harvest->bits = bits;
-		harvest->frac = frac;
-		harvest->source = origin < ENTROPYSOURCE ? origin : 0;
+		memcpy(pharvest->entropy, entropy, count);
+		pharvest->size = count;
+		pharvest->bits = bits;
+		pharvest->frac = frac;
+		pharvest->source =
+		    origin < ENTROPYSOURCE ? origin : RANDOM_START;
 
 		/* Bump the ring counter. This action is assumed
 		 * to be atomic.
@@ -395,9 +406,9 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 }
 
 static void
-random_write_internal(void *buf, u_int count)
+random_write_internal(void *buf, int count)
 {
-	u_int	i;
+	int	i;
 
 	/* Break the input up into HARVESTSIZE chunks.
 	 * The writer has too much control here, so "estimate" the
@@ -418,7 +429,7 @@ random_write_internal(void *buf, u_int count)
 	count %= HARVESTSIZE;
 	if (count) {
 		random_harvest_internal(get_cyclecount(), (char *)buf + i,
-			count, 0, 0, RANDOM_WRITE);
+			(u_int)count, 0, 0, RANDOM_WRITE);
 	}
 }
 

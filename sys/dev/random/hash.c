@@ -28,10 +28,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
-#include <sys/libkern.h>
-#include <sys/random.h>
-#include <sys/types.h>
 
 #include <crypto/rijndael/rijndael.h>
 
@@ -55,9 +51,14 @@ yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
 {
 	u_char temp[KEYSIZE];
 	u_int i, j;
+	union {
+		void *pv;
+		char *pc;
+	} trans;
 
+	trans.pv = data;
 	for (i = 0; i < size; i++) {
-		context->accum[context->partial++] = ((u_char *)(data))[i];
+		context->accum[context->partial++] = trans.pc[i];
 		if (context->partial == (KEYSIZE - 1)) {
 			rijndael_makeKey(&context->hashkey, DIR_ENCRYPT,
 				KEYSIZE*8, context->accum);
