@@ -217,7 +217,7 @@ MFSLABEL=		auto
 MFSSIZE=		8192
 .endif
 
-ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
+ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
 # Things that need to be recompiled with Kerberos support.
 .if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
