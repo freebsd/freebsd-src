@@ -88,6 +88,7 @@ static struct fdcache fdcache[NFDCACHE];
 /*
  * Initialise cache headers
  */
+int
 fdesc_init()
 {
 	struct fdcache *fc;
@@ -96,6 +97,7 @@ fdesc_init()
 
 	for (fc = fdcache; fc < fdcache + NFDCACHE; fc++)
 		fc->fc_forw = fc->fc_back = (struct fdescnode *) fc;
+	return (0);
 }
 
 /*
@@ -183,7 +185,7 @@ fdesc_lookup(ap)
 	char *pname;
 	struct proc *p;
 	int nfiles;
-	unsigned fd;
+	unsigned fd = 0;
 	int error;
 	struct vnode *fvp;
 	char *ln;
@@ -800,6 +802,7 @@ fdesc_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
+int
 fdesc_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;

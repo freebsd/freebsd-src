@@ -74,23 +74,33 @@
  * use whichver order, defined above, is correct, so that it
  * is all invisible to the user.
  */
-struct regs {
+struct reg {
 	unsigned int	r_es;
 	unsigned int	r_ds;
 	unsigned int	r_edi;
 	unsigned int	r_esi;
 	unsigned int	r_ebp;
+	unsigned int	r_isp;
 	unsigned int	r_ebx;
 	unsigned int	r_edx;
 	unsigned int	r_ecx;
 	unsigned int	r_eax;
+	unsigned int	r_trapno;
+	unsigned int	r_err;
 	unsigned int	r_eip;
 	unsigned int	r_cs;
 	unsigned int	r_eflags;
 	unsigned int	r_esp;
 	unsigned int	r_ss;
-	unsigned int	r_fs;
-	unsigned int	r_gs;
+};
+
+/*
+ * Register set accessible via /proc/$pid/fpreg
+ */
+struct fpreg {
+#if 0
+	int	fpr_xxx;	/* not implemented */
+#endif
 };
 
 #endif /* _MACHINE_REG_H_ */

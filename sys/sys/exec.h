@@ -66,6 +66,6 @@ struct ps_strings {
  */
 struct execve_args {
 	char	*fname;
-	char	**argp;
-	char	**envp;
+	char	**argv;
+	char	**envv;
 };

@@ -84,6 +84,7 @@ int prtactive;	/* 1 => print out reclaim of active vnodes */
 /*
  * Initialize hash links for inodes and dnodes.
  */
+int
 cd9660_init()
 {
 	register int i;
@@ -102,6 +103,7 @@ cd9660_init()
 		dh->dh_head[1] = dh;
 	}
 #endif
+	return (0);
 }
 
 #ifdef	ISODEVMAP
@@ -163,9 +165,11 @@ iso_dunmap(dev)
  * return the inode locked. Detection and handling of mount
  * points must be done by the calling routine.
  */
+int
 iso_iget(xp, ino, relocated, ipp, isodir)
 	struct iso_node *xp;
 	ino_t ino;
+	int relocated;
 	struct iso_node **ipp;
 	struct iso_directory_record *isodir;
 {
@@ -338,6 +342,7 @@ loop:
 /*
  * Unlock and decrement the reference count of an inode structure.
  */
+int
 iso_iput(ip)
 	register struct iso_node *ip;
 {
@@ -346,6 +351,7 @@ iso_iput(ip)
 		panic("iso_iput");
 	ISO_IUNLOCK(ip);
 	vrele(ITOV(ip));
+	return (0);
 }
 
 /*
@@ -412,6 +418,7 @@ cd9660_reclaim(ap)
 /*
  * Lock an inode. If its already locked, set the WANT bit and sleep.
  */
+int
 iso_ilock(ip)
 	register struct iso_node *ip;
 {
@@ -426,11 +433,13 @@ iso_ilock(ip)
 	ip->i_spare1 = 0;
 	ip->i_spare0 = curproc->p_pid;
 	ip->i_flag |= ILOCKED;
+	return (0);
 }
 
 /*
  * Unlock an inode.  If WANT bit is on, wakeup.
  */
+int
 iso_iunlock(ip)
 	register struct iso_node *ip;
 {
@@ -443,6 +452,7 @@ iso_iunlock(ip)
 		ip->i_flag &= ~IWANT;
 		wakeup((caddr_t)ip);
 	}
+	return (0);
 }
 
 /*

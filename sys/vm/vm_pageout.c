@@ -1,6 +1,10 @@
 /* 
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1991 Regents of the University of California.
+ * All rights reserved.
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
+ * Copyright (c) 1994 David Greenman
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * The Mach Operating System project at Carnegie-Mellon University.
@@ -33,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_pageout.c	8.5 (Berkeley) 2/14/94
+ *	@(#)vm_pageout.c	7.4 (Berkeley) 5/7/91
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -60,6 +64,8 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $Id: vm_pageout.c,v 1.20 1994/04/20 07:07:15 davidg Exp $
  */
 
 /*
@@ -67,72 +73,470 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 
-#ifndef VM_PAGE_FREE_MIN
-#define VM_PAGE_FREE_MIN	(cnt.v_free_count / 20)
-#endif
+extern vm_map_t kmem_map;
+int	vm_pages_needed;		/* Event on which pageout daemon sleeps */
+int	vm_pagescanner;			/* Event on which pagescanner sleeps */
+int	vm_pageout_free_min = 0;	/* Stop pageout to wait for pagers at this free level */
 
-#ifndef VM_PAGE_FREE_TARGET
-#define VM_PAGE_FREE_TARGET	((cnt.v_free_min * 4) / 3)
-#endif
+int	vm_pageout_pages_needed = 0;	/* flag saying that the pageout daemon needs pages */
+int	vm_page_pagesfreed;
 
-int	vm_page_free_min_min = 16 * 1024;
-int	vm_page_free_min_max = 256 * 1024;
+extern int npendingio;
+extern int hz;
+int	vm_pageout_proc_limit;
+extern int nswiodone;
+extern int swap_pager_full;
+extern int swap_pager_ready();
 
-int	vm_pages_needed;	/* Event on which pageout daemon sleeps */
+#define MAXREF 32767
+
+#define MAXSCAN 512	/* maximum number of pages to scan in active queue */
+			/* set the "clock" hands to be (MAXSCAN * 4096) Bytes */
+#define ACT_DECLINE	1
+#define ACT_ADVANCE	6
+#define ACT_MAX		300
+
+#define LOWATER ((2048*1024)/NBPG)
+
+#define VM_PAGEOUT_PAGE_COUNT 8
+static vm_offset_t vm_space_needed;
+int vm_pageout_req_do_stats;
 
 int	vm_page_max_wired = 0;	/* XXX max # of wired pages system-wide */
 
-#ifdef CLUSTERED_PAGEOUT
-#define MAXPOCLUSTER		(MAXPHYS/NBPG)	/* XXX */
-int doclustered_pageout = 1;
-#endif
+
+/*
+ * vm_pageout_clean:
+ * 	cleans a vm_page
+ */
+int
+vm_pageout_clean(m, sync) 
+	register vm_page_t m;
+	int sync;
+{
+	/*
+	 *	Clean the page and remove it from the
+	 *	laundry.
+	 *
+	 *	We set the busy bit to cause
+	 *	potential page faults on this page to
+	 *	block.
+	 *
+	 *	And we set pageout-in-progress to keep
+	 *	the object from disappearing during
+	 *	pageout.  This guarantees that the
+	 *	page won't move from the inactive
+	 *	queue.  (However, any other page on
+	 *	the inactive queue may move!)
+	 */
+
+	register vm_object_t	object;
+	register vm_pager_t	pager;
+	int			pageout_status[VM_PAGEOUT_PAGE_COUNT];
+	vm_page_t		ms[VM_PAGEOUT_PAGE_COUNT];
+	int			pageout_count;
+	int			anyok=0;
+	int			i;
+	vm_offset_t offset = m->offset;
+
+	object = m->object;
+	if (!object) {
+		printf("pager: object missing\n");
+		return 0;
+	}
+
+	/*
+	 *	Try to collapse the object before
+	 *	making a pager for it.  We must
+	 *	unlock the page queues first.
+	 *	We try to defer the creation of a pager
+	 *	until all shadows are not paging.  This
+	 *	allows vm_object_collapse to work better and
+	 *	helps control swap space size.
+	 *	(J. Dyson 11 Nov 93)
+	 */
+
+	if (!object->pager &&
+		cnt.v_free_count < vm_pageout_free_min)
+		return 0;
+
+	if (!object->pager &&
+		object->shadow &&
+		object->shadow->paging_in_progress)
+		return 0;
+
+	if( !sync) {
+		if (object->shadow) {
+			vm_object_collapse(object);
+			if (!vm_page_lookup(object, offset))
+				return 0;
+		}
+
+		if ((m->flags & PG_BUSY) || (m->hold_count != 0)) {
+			return 0;
+		} 
+	}
+
+	pageout_count = 1;
+	ms[0] = m;
+
+	if( pager = object->pager) {
+		for(i=1;i<VM_PAGEOUT_PAGE_COUNT;i++) {
+			if( ms[i] = vm_page_lookup( object, offset+i*NBPG)) {
+				if((((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
+					|| (( ms[i]->flags & PG_CLEAN) == 0 && sync == VM_PAGEOUT_FORCE))
+					&& (ms[i]->wire_count == 0)
+					&& (ms[i]->hold_count == 0))
+					pageout_count++;
+				else
+					break;
+			} else
+				break;
+		}
+		for(i=0;i<pageout_count;i++) {
+			ms[i]->flags |= PG_BUSY;
+			pmap_page_protect(VM_PAGE_TO_PHYS(ms[i]), VM_PROT_READ);
+		}
+		object->paging_in_progress += pageout_count;
+		cnt.v_pageouts += pageout_count; 
+	} else {
+
+		m->flags |= PG_BUSY;
+
+		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_READ);
+
+		cnt.v_pageouts++;
+
+		object->paging_in_progress++;
+
+		pager = vm_pager_allocate(PG_DFLT, (caddr_t)0,
+			object->size, VM_PROT_ALL, 0);
+		if (pager != NULL) {
+			vm_object_setpager(object, pager, 0, FALSE);
+		}
+	}
+
+	/*
+	 *	If there is no pager for the page,
+	 *	use the default pager.  If there's
+	 *	no place to put the page at the
+	 *	moment, leave it in the laundry and
+	 *	hope that there will be paging space
+	 *	later.
+	 */
+
+	if ((pager && pager->pg_type == PG_SWAP) || 
+		cnt.v_free_count >= vm_pageout_free_min) {
+		if( pageout_count == 1) {
+			pageout_status[0] = pager ?
+				vm_pager_put(pager, m,
+				    ((sync || (object == kernel_object)) ? TRUE: FALSE)) :
+				VM_PAGER_FAIL;
+		} else {
+			if( !pager) {
+				for(i=0;i<pageout_count;i++)
+					pageout_status[i] = VM_PAGER_FAIL;
+			} else {
+				vm_pager_put_pages(pager, ms, pageout_count,
+				    ((sync || (object == kernel_object)) ? TRUE : FALSE),
+				    pageout_status);
+			}
+		}
+			
+	} else {
+		for(i=0;i<pageout_count;i++)
+			pageout_status[i] = VM_PAGER_FAIL;
+	}
+
+	for(i=0;i<pageout_count;i++) {
+		switch (pageout_status[i]) {
+		case VM_PAGER_OK:
+			ms[i]->flags &= ~PG_LAUNDRY;
+			++anyok;
+			break;
+		case VM_PAGER_PEND:
+			ms[i]->flags &= ~PG_LAUNDRY;
+			++anyok;
+			break;
+		case VM_PAGER_BAD:
+			/*
+			 * Page outside of range of object.
+			 * Right now we essentially lose the
+			 * changes by pretending it worked.
+			 */
+			ms[i]->flags &= ~PG_LAUNDRY;
+			ms[i]->flags |= PG_CLEAN;
+			pmap_clear_modify(VM_PAGE_TO_PHYS(ms[i]));
+			break;
+		case VM_PAGER_ERROR:
+		case VM_PAGER_FAIL:
+			/*
+			 * If page couldn't be paged out, then
+			 * reactivate the page so it doesn't
+			 * clog the inactive list.  (We will
+			 * try paging out it again later).
+			 */
+			if (ms[i]->flags & PG_INACTIVE)
+				vm_page_activate(ms[i]);
+			break;
+		case VM_PAGER_AGAIN:
+			break;
+		}
+
+
+		/*
+		 * If the operation is still going, leave
+		 * the page busy to block all other accesses.
+		 * Also, leave the paging in progress
+		 * indicator set so that we don't attempt an
+		 * object collapse.
+		 */
+		if (pageout_status[i] != VM_PAGER_PEND) {
+			PAGE_WAKEUP(ms[i]);
+			if (--object->paging_in_progress == 0)
+				wakeup((caddr_t) object);
+			if (pmap_is_referenced(VM_PAGE_TO_PHYS(ms[i]))) {
+				pmap_clear_reference(VM_PAGE_TO_PHYS(ms[i]));
+				if( ms[i]->flags & PG_INACTIVE)
+					vm_page_activate(ms[i]);
+			}
+		}
+	}
+	return anyok;
+}
+
+/*
+ *	vm_pageout_object_deactivate_pages
+ *
+ *	deactivate enough pages to satisfy the inactive target
+ *	requirements or if vm_page_proc_limit is set, then
+ *	deactivate all of the pages in the object and its
+ *	shadows.
+ *
+ *	The object and map must be locked.
+ */
+int
+vm_pageout_object_deactivate_pages(map, object, count)
+	vm_map_t map;
+	vm_object_t object;
+	int count;
+{
+	register vm_page_t	p, next;
+	int rcount;
+	int s;
+	int dcount;
+
+	dcount = 0;
+	if (count == 0)
+		count = 1;
+
+	if (object->shadow) {
+		int scount = count;
+		if( object->shadow->ref_count > 1)
+			scount /= object->shadow->ref_count;
+		if( scount)
+			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, scount);
+	}
+
+	if (object->paging_in_progress)
+		return dcount;
+
+	/*
+	 * scan the objects entire memory queue
+	 */
+	rcount = object->resident_page_count;
+	p = object->memq.tqh_first;
+	while (p && (rcount-- > 0)) {
+		next = p->listq.tqe_next;
+		vm_page_lock_queues();
+		/*
+		 * if a page is active, not wired and is in the processes pmap,
+		 * then deactivate the page.
+		 */
+		if ((p->flags & (PG_ACTIVE|PG_BUSY)) == PG_ACTIVE &&
+			p->wire_count == 0 &&
+			p->hold_count == 0 &&
+			pmap_page_exists(vm_map_pmap(map), VM_PAGE_TO_PHYS(p))) {
+			if (!pmap_is_referenced(VM_PAGE_TO_PHYS(p))) {
+				p->act_count -= min(p->act_count, ACT_DECLINE);
+				/*
+				 * if the page act_count is zero -- then we deactivate
+				 */
+				if (!p->act_count) {
+					vm_page_deactivate(p);
+					pmap_page_protect(VM_PAGE_TO_PHYS(p),
+						VM_PROT_NONE);
+				/*
+				 * else if on the next go-around we will deactivate the page
+				 * we need to place the page on the end of the queue to age
+				 * the other pages in memory.
+				 */
+				} else {
+					TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
+					TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+					TAILQ_REMOVE(&object->memq, p, listq);
+					TAILQ_INSERT_TAIL(&object->memq, p, listq);
+				}
+				/*
+				 * see if we are done yet
+				 */
+				if (p->flags & PG_INACTIVE) {
+					--count;
+					++dcount;
+					if (count <= 0 &&
+						cnt.v_inactive_count > cnt.v_inactive_target) {
+							vm_page_unlock_queues();
+							return dcount;
+					}
+				}
+				
+			} else {
+				/*
+				 * Move the page to the bottom of the queue.
+				 */
+				pmap_clear_reference(VM_PAGE_TO_PHYS(p));
+				if (p->act_count < ACT_MAX)
+					p->act_count += ACT_ADVANCE;
+
+				TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+				TAILQ_REMOVE(&object->memq, p, listq);
+				TAILQ_INSERT_TAIL(&object->memq, p, listq);
+			}
+		}
+
+		vm_page_unlock_queues();
+		p = next;
+	}
+	return dcount;
+}
+
+
+/*
+ * deactivate some number of pages in a map, try to do it fairly, but
+ * that is really hard to do.
+ */
+
+void
+vm_pageout_map_deactivate_pages(map, entry, count, freeer)
+	vm_map_t map;
+	vm_map_entry_t entry;
+	int *count;
+	int (*freeer)(vm_map_t, vm_object_t, int);
+{
+	vm_map_t tmpm;
+	vm_map_entry_t tmpe;
+	vm_object_t obj;
+	if (*count <= 0)
+		return;
+	vm_map_reference(map);
+	if (!lock_try_read(&map->lock)) {
+		vm_map_deallocate(map);
+		return;
+	}
+	if (entry == 0) {
+		tmpe = map->header.next;
+		while (tmpe != &map->header && *count > 0) {
+			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer);
+			tmpe = tmpe->next;
+		};
+	} else if (entry->is_sub_map || entry->is_a_map) {
+		tmpm = entry->object.share_map;
+		tmpe = tmpm->header.next;
+		while (tmpe != &tmpm->header && *count > 0) {
+			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer);
+			tmpe = tmpe->next;
+		};
+	} else if (obj = entry->object.vm_object) {
+		*count -= (*freeer)(map, obj, *count);
+	}
+	lock_read_done(&map->lock);
+	vm_map_deallocate(map);
+	return;
+}
 
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
-void
+int
 vm_pageout_scan()
 {
-	register vm_page_t	m, next;
-	register int		page_shortage;
-	register int		s;
-	register int		pages_freed;
-	int			free;
-	vm_object_t		object;
+	vm_page_t	m;
+	int		page_shortage, maxscan, maxlaunder;
+	int		pages_freed, free, nproc;
+	int		desired_free;
+	vm_page_t	next;
+	struct proc	*p;
+	vm_object_t	object;
+	int		s;
+	int		force_wakeup = 0;
 
+morefree:
 	/*
-	 *	Only continue when we want more pages to be "free"
+	 * scan the processes for exceeding their rlimits or if process
+	 * is swapped out -- deactivate pages 
 	 */
 
-	cnt.v_rev++;
-
-	s = splimp();
-	simple_lock(&vm_page_queue_free_lock);
-	free = cnt.v_free_count;
-	simple_unlock(&vm_page_queue_free_lock);
-	splx(s);
-
-	if (free < cnt.v_free_target) {
-		swapout_threads();
+rescanproc1:
+	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+		vm_offset_t size;
+		int overage;
+		vm_offset_t limit;
 
 		/*
-		 *	Be sure the pmap system is updated so
-		 *	we can scan the inactive queue.
+		 * if this is a system process or if we have already
+		 * looked at this process, skip it.
 		 */
+		if (p->p_flag & (P_SYSTEM|P_WEXIT)) {
+			continue;
+		}
 
-		pmap_update();
+		/*
+		 * if the process is in a non-running type state,
+		 * don't touch it.
+		 */
+		if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+			continue;
+		}
+
+		/*
+		 * get a limit
+		 */
+		limit = min(p->p_rlimit[RLIMIT_RSS].rlim_cur,
+			    p->p_rlimit[RLIMIT_RSS].rlim_max);
+			
+		/*
+		 * let processes that are swapped out really be swapped out
+		 * set the limit to nothing (will force a swap-out.)
+		 */
+		if ((p->p_flag & P_INMEM) == 0)
+			limit = 0;
+
+		size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
+		if (size >= limit) {
+			overage = (size - limit) / NBPG;
+			vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
+				(vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
+		}
+
 	}
 
-	/*
-	 *	Acquire the resident page system lock,
-	 *	as we may be changing what's resident quite a bit.
-	 */
-	vm_page_lock_queues();
+	if (((cnt.v_free_count + cnt.v_inactive_count) >=
+		(cnt.v_inactive_target + cnt.v_free_target)) &&
+		(cnt.v_free_count >= cnt.v_free_target))
+		return force_wakeup;
+
+	pages_freed = 0;
+	desired_free = cnt.v_free_target;
 
 	/*
 	 *	Start scanning the inactive queue for pages we can free.
@@ -141,427 +545,330 @@ vm_pageout_scan()
 	 *	encounter dirty pages, we start cleaning them.
 	 */
 
-	pages_freed = 0;
-	for (m = vm_page_queue_inactive.tqh_first; m != NULL; m = next) {
-		s = splimp();
-		simple_lock(&vm_page_queue_free_lock);
-		free = cnt.v_free_count;
-		simple_unlock(&vm_page_queue_free_lock);
-		splx(s);
-		if (free >= cnt.v_free_target)
-			break;
+	maxlaunder = (cnt.v_free_target - cnt.v_free_count);
+	maxscan = cnt.v_inactive_count;
+rescan1:
+	m = vm_page_queue_inactive.tqh_first;
+	while (m && (maxscan-- > 0) &&
+		(cnt.v_free_count < desired_free) ) {
+		vm_page_t	next;
 
-		cnt.v_scan++;
 		next = m->pageq.tqe_next;
 
-		/*
-		 * If the page has been referenced, move it back to the
-		 * active queue.
-		 */
-		if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-			vm_page_activate(m);
-			cnt.v_reactivated++;
+		if( (m->flags & PG_INACTIVE) == 0) {
+			printf("vm_pageout_scan: page not inactive?");
 			continue;
 		}
 
 		/*
-		 * If the page is clean, free it up.
+		 * activate held pages
+		 */
+		if (m->hold_count != 0) {
+			vm_page_activate(m);
+			m = next;
+			continue;
+		}
+
+		/*
+		 * dont mess with busy pages
+		 */
+		if (m->flags & PG_BUSY) {
+			m = next;
+			continue;
+		}
+
+		/*
+		 * if page is clean and but the page has been referenced,
+		 * then reactivate the page, but if we are very low on memory
+		 * or the page has not been referenced, then we free it to the
+		 * vm system.
 		 */
 		if (m->flags & PG_CLEAN) {
-			object = m->object;
-			if (vm_object_lock_try(object)) {
+			if ((cnt.v_free_count > vm_pageout_free_min)			/* XXX */
+				&& pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+				vm_page_activate(m);
+			} else if (!m->act_count) {
 				pmap_page_protect(VM_PAGE_TO_PHYS(m),
 						  VM_PROT_NONE);
 				vm_page_free(m);
-				pages_freed++;
-				cnt.v_dfree++;
-				vm_object_unlock(object);
+				++pages_freed;
+			} else {
+				m->act_count -= min(m->act_count, ACT_DECLINE);
+				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 			}
-			continue;
-		}
+		} else if ((m->flags & PG_LAUNDRY) && maxlaunder > 0) {
+			int written;
+			if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+				pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+				vm_page_activate(m);
+				m = next;
+				continue;
+			}
+			/*
+			 *	If a page is dirty, then it is either
+			 *	being washed (but not yet cleaned)
+			 *	or it is still in the laundry.  If it is
+			 *	still in the laundry, then we start the
+			 *	cleaning operation.
+			 */
 
-		/*
-		 * If the page is dirty but already being washed, skip it.
-		 */
-		if ((m->flags & PG_LAUNDRY) == 0)
-			continue;
-
-		/*
-		 * Otherwise the page is dirty and still in the laundry,
-		 * so we start the cleaning operation and remove it from
-		 * the laundry.
-		 */
-		object = m->object;
-		if (!vm_object_lock_try(object))
-			continue;
-		cnt.v_pageouts++;
-#ifdef CLUSTERED_PAGEOUT
-		if (object->pager &&
-		    vm_pager_cancluster(object->pager, PG_CLUSTERPUT))
-			vm_pageout_cluster(m, object);
-		else
-#endif
-		vm_pageout_page(m, object);
-		thread_wakeup((int) object);
-		vm_object_unlock(object);
-		/*
-		 * Former next page may no longer even be on the inactive
-		 * queue (due to potential blocking in the pager with the
-		 * queues unlocked).  If it isn't, we just start over.
-		 */
-		if (next && (next->flags & PG_INACTIVE) == 0)
-			next = vm_page_queue_inactive.tqh_first;
+			if (written = vm_pageout_clean(m,0)) {
+				maxlaunder -= written;
+			}
+			/*
+			 * if the next page has been re-activated, start scanning again
+			 */
+			if (next && (next->flags & PG_INACTIVE) == 0)
+				goto rescan1;
+		} else if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			vm_page_activate(m);
+		} 
+		m = next;
 	}
-	
+
+	/*
+	 * now check malloc area or swap processes out if we are in low
+	 * memory conditions
+	 */
+	if (cnt.v_free_count <= cnt.v_free_min) {
+		/*
+		 * swap out inactive processes
+		 */
+		swapout_threads();
+	}
+
 	/*
 	 *	Compute the page shortage.  If we are still very low on memory
 	 *	be sure that we will move a minimal amount of pages from active
 	 *	to inactive.
 	 */
 
-	page_shortage = cnt.v_inactive_target - cnt.v_inactive_count;
-	if (page_shortage <= 0 && pages_freed == 0)
-		page_shortage = 1;
+	page_shortage = cnt.v_inactive_target - 
+	    (cnt.v_free_count + cnt.v_inactive_count); 
 
-	while (page_shortage > 0) {
-		/*
-		 *	Move some more pages from active to inactive.
-		 */
-
-		if ((m = vm_page_queue_active.tqh_first) == NULL)
-			break;
-		vm_page_deactivate(m);
-		page_shortage--;
-	}
-
-	vm_page_unlock_queues();
-}
-
-/*
- * Called with object and page queues locked.
- * If reactivate is TRUE, a pager error causes the page to be
- * put back on the active queue, ow it is left on the inactive queue.
- */
-void
-vm_pageout_page(m, object)
-	vm_page_t m;
-	vm_object_t object;
-{
-	vm_pager_t pager;
-	int pageout_status;
-
-	/*
-	 * We set the busy bit to cause potential page faults on
-	 * this page to block.
-	 *
-	 * We also set pageout-in-progress to keep the object from
-	 * disappearing during pageout.  This guarantees that the
-	 * page won't move from the inactive queue.  (However, any
-	 * other page on the inactive queue may move!)
-	 */
-	pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
-	m->flags |= PG_BUSY;
-
-	/*
-	 * Try to collapse the object before making a pager for it.
-	 * We must unlock the page queues first.
-	 */
-	vm_page_unlock_queues();
-	if (object->pager == NULL)
-		vm_object_collapse(object);
-
-	object->paging_in_progress++;
-	vm_object_unlock(object);
-
-	/*
-	 * Do a wakeup here in case the following operations block.
-	 */
-	thread_wakeup((int) &cnt.v_free_count);
-
-	/*
-	 * If there is no pager for the page, use the default pager.
-	 * If there is no place to put the page at the moment,
-	 * leave it in the laundry and hope that there will be
-	 * paging space later.
-	 */
-	if ((pager = object->pager) == NULL) {
-		pager = vm_pager_allocate(PG_DFLT, (caddr_t)0, object->size,
-					  VM_PROT_ALL, (vm_offset_t)0);
-		if (pager != NULL)
-			vm_object_setpager(object, pager, 0, FALSE);
-	}
-	pageout_status = pager ? vm_pager_put(pager, m, FALSE) : VM_PAGER_FAIL;
-	vm_object_lock(object);
-	vm_page_lock_queues();
-
-	switch (pageout_status) {
-	case VM_PAGER_OK:
-	case VM_PAGER_PEND:
-		cnt.v_pgpgout++;
-		m->flags &= ~PG_LAUNDRY;
-		break;
-	case VM_PAGER_BAD:
-		/*
-		 * Page outside of range of object.  Right now we
-		 * essentially lose the changes by pretending it
-		 * worked.
-		 *
-		 * XXX dubious, what should we do?
-		 */
-		m->flags &= ~PG_LAUNDRY;
-		m->flags |= PG_CLEAN;
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-		break;
-	case VM_PAGER_AGAIN:
-	{
-		extern int lbolt;
-
-		/*
-		 * FAIL on a write is interpreted to mean a resource
-		 * shortage, so we put pause for awhile and try again.
-		 * XXX could get stuck here.
-		 */
-		(void) tsleep((caddr_t)&lbolt, PZERO|PCATCH, "pageout", 0);
-		break;
-	}
-	case VM_PAGER_FAIL:
-	case VM_PAGER_ERROR:
-		/*
-		 * If page couldn't be paged out, then reactivate
-		 * the page so it doesn't clog the inactive list.
-		 * (We will try paging out it again later).
-		 */
-		vm_page_activate(m);
-		cnt.v_reactivated++;
-		break;
-	}
-
-	pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-
-	/*
-	 * If the operation is still going, leave the page busy
-	 * to block all other accesses.  Also, leave the paging
-	 * in progress indicator set so that we don't attempt an
-	 * object collapse.
-	 */
-	if (pageout_status != VM_PAGER_PEND) {
-		m->flags &= ~PG_BUSY;
-		PAGE_WAKEUP(m);
-		object->paging_in_progress--;
-	}
-}
-
-#ifdef CLUSTERED_PAGEOUT
-#define PAGEOUTABLE(p) \
-	((((p)->flags & (PG_INACTIVE|PG_CLEAN|PG_LAUNDRY)) == \
-	  (PG_INACTIVE|PG_LAUNDRY)) && !pmap_is_referenced(VM_PAGE_TO_PHYS(p)))
-
-/*
- * Attempt to pageout as many contiguous (to ``m'') dirty pages as possible
- * from ``object''.  Using information returned from the pager, we assemble
- * a sorted list of contiguous dirty pages and feed them to the pager in one
- * chunk.  Called with paging queues and object locked.  Also, object must
- * already have a pager.
- */
-void
-vm_pageout_cluster(m, object)
-	vm_page_t m;
-	vm_object_t object;
-{
-	vm_offset_t offset, loff, hoff;
-	vm_page_t plist[MAXPOCLUSTER], *plistp, p;
-	int postatus, ix, count;
-
-	/*
-	 * Determine the range of pages that can be part of a cluster
-	 * for this object/offset.  If it is only our single page, just
-	 * do it normally.
-	 */
-	vm_pager_cluster(object->pager, m->offset, &loff, &hoff);
-	if (hoff - loff == PAGE_SIZE) {
-		vm_pageout_page(m, object);
-		return;
-	}
-
-	plistp = plist;
-
-	/*
-	 * Target page is always part of the cluster.
-	 */
-	pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
-	m->flags |= PG_BUSY;
-	plistp[atop(m->offset - loff)] = m;
-	count = 1;
-
-	/*
-	 * Backup from the given page til we find one not fulfilling
-	 * the pageout criteria or we hit the lower bound for the
-	 * cluster.  For each page determined to be part of the
-	 * cluster, unmap it and busy it out so it won't change.
-	 */
-	ix = atop(m->offset - loff);
-	offset = m->offset;
-	while (offset > loff && count < MAXPOCLUSTER-1) {
-		p = vm_page_lookup(object, offset - PAGE_SIZE);
-		if (p == NULL || !PAGEOUTABLE(p))
-			break;
-		pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
-		p->flags |= PG_BUSY;
-		plistp[--ix] = p;
-		offset -= PAGE_SIZE;
-		count++;
-	}
-	plistp += atop(offset - loff);
-	loff = offset;
-
-	/*
-	 * Now do the same moving forward from the target.
-	 */
-	ix = atop(m->offset - loff) + 1;
-	offset = m->offset + PAGE_SIZE;
-	while (offset < hoff && count < MAXPOCLUSTER) {
-		p = vm_page_lookup(object, offset);
-		if (p == NULL || !PAGEOUTABLE(p))
-			break;
-		pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
-		p->flags |= PG_BUSY;
-		plistp[ix++] = p;
-		offset += PAGE_SIZE;
-		count++;
-	}
-	hoff = offset;
-
-	/*
-	 * Pageout the page.
-	 * Unlock everything and do a wakeup prior to the pager call
-	 * in case it blocks.
-	 */
-	vm_page_unlock_queues();
-	object->paging_in_progress++;
-	vm_object_unlock(object);
-again:
-	thread_wakeup((int) &cnt.v_free_count);
-	postatus = vm_pager_put_pages(object->pager, plistp, count, FALSE);
-	/*
-	 * XXX rethink this
-	 */
-	if (postatus == VM_PAGER_AGAIN) {
-		extern int lbolt;
-
-		(void) tsleep((caddr_t)&lbolt, PZERO|PCATCH, "pageout", 0);
-		goto again;
-	} else if (postatus == VM_PAGER_BAD)
-		panic("vm_pageout_cluster: VM_PAGER_BAD");
-	vm_object_lock(object);
-	vm_page_lock_queues();
-
-	/*
-	 * Loop through the affected pages, reflecting the outcome of
-	 * the operation.
-	 */
-	for (ix = 0; ix < count; ix++) {
-		p = *plistp++;
-		switch (postatus) {
-		case VM_PAGER_OK:
-		case VM_PAGER_PEND:
-			cnt.v_pgpgout++;
-			p->flags &= ~PG_LAUNDRY;
-			break;
-		case VM_PAGER_FAIL:
-		case VM_PAGER_ERROR:
-			/*
-			 * Pageout failed, reactivate the target page so it
-			 * doesn't clog the inactive list.  Other pages are
-			 * left as they are.
-			 */
-			if (p == m) {
-				vm_page_activate(p);
-				cnt.v_reactivated++;
+	if (page_shortage <= 0) {
+		if (pages_freed == 0) {
+			if( cnt.v_free_count < cnt.v_free_min) {
+				page_shortage = cnt.v_free_min - cnt.v_free_count;
+			} else if(((cnt.v_free_count + cnt.v_inactive_count) <
+				(cnt.v_free_min + cnt.v_inactive_target))) {
+				page_shortage = 1;
+			} else {
+				page_shortage = 0;
 			}
-			break;
 		}
-		pmap_clear_reference(VM_PAGE_TO_PHYS(p));
-		/*
-		 * If the operation is still going, leave the page busy
-		 * to block all other accesses.
-		 */
-		if (postatus != VM_PAGER_PEND) {
-			p->flags &= ~PG_BUSY;
-			PAGE_WAKEUP(p);
-
-		}
+			
 	}
-	/*
-	 * If the operation is still going, leave the paging in progress
-	 * indicator set so that we don't attempt an object collapse.
-	 */
-	if (postatus != VM_PAGER_PEND)
-		object->paging_in_progress--;
 
+	maxscan = cnt.v_active_count;
+	m = vm_page_queue_active.tqh_first;
+	while (m && maxscan-- && (page_shortage > 0)) {
+
+		next = m->pageq.tqe_next;
+
+		/*
+ 		 * Don't deactivate pages that are busy.
+		 */
+		if ((m->flags & PG_BUSY) || (m->hold_count != 0)) {
+			m = next;
+			continue;
+		}
+
+		if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			if (m->act_count < ACT_MAX)
+				m->act_count += ACT_ADVANCE;
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&m->object->memq, m, listq);
+			TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
+		} else {
+			m->act_count -= min(m->act_count, ACT_DECLINE);
+
+			/*
+			 * if the page act_count is zero -- then we deactivate
+			 */
+			if (!m->act_count) {
+				vm_page_deactivate(m);
+				--page_shortage;
+			/*
+			 * else if on the next go-around we will deactivate the page
+			 * we need to place the page on the end of the queue to age
+			 * the other pages in memory.
+			 */
+			} else {
+				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				TAILQ_REMOVE(&m->object->memq, m, listq);
+				TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
+			}
+		}
+
+		m = next;
+	}
+
+	/*
+	 * if we have not freed any pages and we are desparate for memory
+	 * then we keep trying until we get some (any) memory.
+	 */
+
+	if( !force_wakeup && (swap_pager_full || !force_wakeup ||
+		(pages_freed == 0 && (cnt.v_free_count < cnt.v_free_min)))){
+		vm_pager_sync();
+		force_wakeup = 1;
+		goto morefree;
+	}
+	vm_page_pagesfreed += pages_freed;
+	return force_wakeup;
 }
-#endif
+
+void
+vm_pagescan()
+{
+	int maxscan, pages_scanned, pages_referenced, nextscan, scantick = hz/20;
+	int m_ref, next_ref;
+	vm_page_t m, next;
+
+	(void) spl0();
+
+	nextscan = scantick;
+
+scanloop:
+
+	pages_scanned = 0;
+	pages_referenced = 0;
+	maxscan = min(cnt.v_active_count, MAXSCAN);
+
+	/*
+	 * Gather statistics on page usage.
+	 */
+	m = vm_page_queue_active.tqh_first;
+	while (m && (maxscan-- > 0)) {
+
+		++pages_scanned;
+
+		next = m->pageq.tqe_next;
+
+		/*
+ 		 * Dont mess with pages that are busy.
+		 */
+		if ((m->flags & PG_BUSY) || (m->hold_count != 0)) {
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			m = next;
+			continue;
+		}
+
+		/*
+		 * Advance pages that have been referenced, decline pages that
+		 * have not.
+		 */
+		if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			pages_referenced++;
+			if (m->act_count < ACT_MAX)
+				m->act_count += ACT_ADVANCE;
+			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&m->object->memq, m, listq);
+			TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
+		} else {
+			m->act_count -= min(m->act_count, ACT_DECLINE);
+			/*
+			 * if the page act_count is zero, and we are low on mem -- then we deactivate
+			 */
+			if (!m->act_count &&
+			    (cnt.v_free_count+cnt.v_inactive_count < cnt.v_free_target+cnt.v_inactive_target )) {
+				vm_page_deactivate(m);
+			/*
+			 * else if on the next go-around we will deactivate the page
+			 * we need to place the page on the end of the queue to age
+			 * the other pages in memory.
+			 */
+			} else {
+				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				TAILQ_REMOVE(&m->object->memq, m, listq);
+				TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
+			}
+		}
+		m = next;
+	}
+
+	if (pages_referenced) {
+		nextscan = (pages_scanned / pages_referenced) * scantick;
+		nextscan = max(nextscan, scantick);
+		nextscan = min(nextscan, hz);
+	} else
+		nextscan = hz;
+	tsleep((caddr_t) &vm_pagescanner, PVM, "scanw", nextscan);
+
+	goto scanloop;
+}
 
 /*
  *	vm_pageout is the high level pageout daemon.
  */
-
-void vm_pageout()
+void
+vm_pageout()
 {
+	extern npendingio, swiopend;
+	static nowakeup;
 	(void) spl0();
 
 	/*
 	 *	Initialize some paging parameters.
 	 */
 
-	if (cnt.v_free_min == 0) {
-		cnt.v_free_min = VM_PAGE_FREE_MIN;
-		vm_page_free_min_min /= cnt.v_page_size;
-		vm_page_free_min_max /= cnt.v_page_size;
-		if (cnt.v_free_min < vm_page_free_min_min)
-			cnt.v_free_min = vm_page_free_min_min;
-		if (cnt.v_free_min > vm_page_free_min_max)
-			cnt.v_free_min = vm_page_free_min_max;
-	}
+vmretry:
+	cnt.v_free_min = 12;
+	cnt.v_free_reserved = 8;
+	if (cnt.v_free_min < 8)
+		cnt.v_free_min = 8;
+	if (cnt.v_free_min > 32)
+		cnt.v_free_min = 32;
+	vm_pageout_free_min = 4;
+	cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;
+	cnt.v_inactive_target = cnt.v_free_count / 12;
+	cnt.v_free_min += cnt.v_free_reserved;
 
-	if (cnt.v_free_target == 0)
-		cnt.v_free_target = VM_PAGE_FREE_TARGET;
-
-	if (cnt.v_free_target <= cnt.v_free_min)
-		cnt.v_free_target = cnt.v_free_min + 1;
-
-	/* XXX does not really belong here */
+        /* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = cnt.v_free_count / 3;
+
+
+	(void) swap_pager_alloc(0, 0, 0, 0);
 
 	/*
 	 *	The pageout daemon is never done, so loop
 	 *	forever.
 	 */
-
-	simple_lock(&vm_pages_needed_lock);
 	while (TRUE) {
-		thread_sleep((int) &vm_pages_needed, &vm_pages_needed_lock,
-			     FALSE);
-		/*
-		 * Compute the inactive target for this scan.
-		 * We need to keep a reasonable amount of memory in the
-		 * inactive list to better simulate LRU behavior.
-		 */
-		cnt.v_inactive_target =
-			(cnt.v_active_count + cnt.v_inactive_count) / 3;
-		if (cnt.v_inactive_target <= cnt.v_free_target)
-			cnt.v_inactive_target = cnt.v_free_target + 1;
-
-		/*
-		 * Only make a scan if we are likely to do something.
-		 * Otherwise we might have been awakened by a pager
-		 * to clean up async pageouts.
-		 */
-		if (cnt.v_free_count < cnt.v_free_target ||
-		    cnt.v_inactive_count < cnt.v_inactive_target)
-			vm_pageout_scan();
+		int force_wakeup;
+		extern struct loadavg averunnable;
+/*
+		cnt.v_free_min = 12 + averunnable.ldavg[0] / 1024;
+		cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;
+		cnt.v_inactive_target = cnt.v_free_target*2;
+*/
+		
+		tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
+	
 		vm_pager_sync();
-		simple_lock(&vm_pages_needed_lock);
-		thread_wakeup((int) &cnt.v_free_count);
+		/*
+		 * The force wakeup hack added to eliminate delays and potiential
+		 * deadlock.  It was possible for the page daemon to indefintely
+		 * postpone waking up a process that it might be waiting for memory
+		 * on.  The putmulti stuff seems to have aggravated the situation.
+		 */
+		force_wakeup = vm_pageout_scan();
+		vm_pager_sync();
+		if( force_wakeup)
+			wakeup( (caddr_t) &cnt.v_free_count);
+		cnt.v_scan++;
+		wakeup((caddr_t) kmem_map);
 	}
 }
+

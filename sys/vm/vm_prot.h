@@ -75,7 +75,7 @@
  *	vm_prot_t		VM protection values.
  */
 
-typedef int		vm_prot_t;
+typedef u_char	vm_prot_t;
 
 /*
  *	Protection values, defined as bits within the vm_prot_t type

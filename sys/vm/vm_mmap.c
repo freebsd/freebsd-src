@@ -217,8 +217,10 @@ mmap(p, uap, retval)
 	if (flags & MAP_FIXED) {
 		if (VM_MAXUSER_ADDRESS > 0 && addr + size >= VM_MAXUSER_ADDRESS)
 			return (EINVAL);
+#ifndef i386
 		if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 			return (EINVAL);
+#endif
 		if (addr > addr + size)
 			return (EINVAL);
 	}
@@ -400,8 +402,10 @@ munmap(p, uap, retval)
 	 */
 	if (VM_MAXUSER_ADDRESS > 0 && addr + size >= VM_MAXUSER_ADDRESS)
 		return (EINVAL);
+#ifndef i386
 	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 		return (EINVAL);
+#endif
 	if (addr > addr + size)
 		return (EINVAL);
 	map = &p->p_vmspace->vm_map;

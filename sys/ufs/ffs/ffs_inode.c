@@ -137,6 +137,7 @@ ffs_update(ap)
  * Truncate the inode oip to at most length size, freeing the
  * disk blocks.
  */
+int
 ffs_truncate(ap)
 	struct vop_truncate_args /* {
 		struct vnode *a_vp;

@@ -998,7 +998,7 @@ ip_forward(m, srcrt)
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct sockaddr_in *sin;
 	register struct rtentry *rt;
-	int error, type = 0, code;
+	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
 	n_long dest;
 	struct ifnet *destifp;

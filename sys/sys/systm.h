@@ -38,6 +38,8 @@
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
  */
 
+#include <machine/cpufunc.h>
+
 /*
  * The `securelevel' variable controls the security level of the system.
  * It can only be decreased by process 1 (/sbin/init).
@@ -147,6 +149,7 @@ int	suword __P((void *base, int word));
 int	suiword __P((void *base, int word));
 
 int	hzto __P((struct timeval *tv));
+typedef void (*timeout_func_t)(void *);
 void	timeout __P((void (*func)(void *), void *arg, int ticks));
 void	untimeout __P((void (*func)(void *), void *arg));
 void	realitexpire __P((void *));

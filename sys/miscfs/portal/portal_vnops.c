@@ -524,6 +524,7 @@ portal_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
+int
 portal_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;

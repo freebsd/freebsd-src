@@ -209,6 +209,8 @@ slattach()
 	}
 }
 
+TEXT_SET(pseudo_set, slattach);
+
 static int
 slinit(sc)
 	register struct sl_softc *sc;
@@ -397,7 +399,7 @@ slstart(tp)
 	struct mbuf *m2;
 #if NBPFILTER > 0
 	u_char bpfbuf[SLMTU + SLIP_HDRLEN];
-	register int len;
+	register int len = 0;
 #endif
 	extern int cfreecount;
 
@@ -479,6 +481,7 @@ slstart(tp)
 #endif
 		sc->sc_if.if_lastchange = time;
 
+#if 0
 		/*
 		 * If system is getting low on clists, just flush our
 		 * output queue (if the stuff was important, it'll get
@@ -489,6 +492,7 @@ slstart(tp)
 			sc->sc_if.if_collisions++;
 			continue;
 		}
+#endif
 		/*
 		 * The extra FRAME_END will start up a new packet, and thus
 		 * will flush any accumulated garbage.  We do this whenever

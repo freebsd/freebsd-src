@@ -51,6 +51,7 @@ struct ptrace_args {
 	caddr_t	addr;
 	int	data;
 };
+int
 ptrace(a1, a2, a3)
 	struct proc *a1;
 	struct ptrace_args *a2;
@@ -63,6 +64,7 @@ ptrace(a1, a2, a3)
 	return (ENOSYS);
 }
 
+int
 trace_req(a1)
 	struct proc *a1;
 {

@@ -618,9 +618,9 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 	register struct rtentry *rt;
 {
 	struct rt_addrinfo info;
-	struct sockaddr *sa;
+	struct sockaddr *sa = 0;
 	int pass;
-	struct mbuf *m;
+	struct mbuf *m = 0;
 	struct ifnet *ifp = ifa->ifa_ifp;
 
 	if (route_cb.any_count == 0)

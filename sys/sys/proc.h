@@ -96,7 +96,8 @@ struct	proc {
 
 	int	p_flag;			/* P_* flags. */
 	char	p_stat;			/* S* process status. */
-	char	p_pad1[3];
+	char	p_lock;			/* process lock count */
+	char	p_pad1[2];
 
 	pid_t	p_pid;			/* Process identifier. */
 	struct	proc *p_hash;	 /* Hashed based on p_pid for kill+exit+... */

@@ -34,6 +34,7 @@
 #include "param.h"
 #include "systm.h"
 #include "resourcevar.h"
+#include <sys/exec.h>
 #include "imgact.h"
 #include "kernel.h"
 #include "machine/endian.h"

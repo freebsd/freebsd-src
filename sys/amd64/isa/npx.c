@@ -438,7 +438,7 @@ npxintr(frame)
 		 * in doreti, and the frame for that could easily be set up
 		 * just before it is used).
 		 */
-		curproc->p_regs = (int *)&frame.if_es;
+		curproc->p_md.md_regs = (int *)&frame.if_es;
 #ifdef notyet
 		/*
 		 * Encode the appropriate code for detailed information on

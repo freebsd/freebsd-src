@@ -47,10 +47,13 @@
 
 #include <vm/vm.h>
 
+void	m_reclaim	__P(());
+
 extern	vm_map_t mb_map;
 struct	mbuf *mbutl;
 char	*mclrefcnt;
 
+void
 mbinit()
 {
 	int s;
@@ -75,6 +78,7 @@ bad:
  * Must be called at splimp.
  */
 /* ARGSUSED */
+int
 m_clalloc(ncl, nowait)
 	register int ncl;
 	int nowait;
@@ -137,6 +141,7 @@ m_retryhdr(i, t)
 	return (m);
 }
 
+void
 m_reclaim()
 {
 	register struct domain *dp;
@@ -323,6 +328,7 @@ nospace:
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
  * continuing for "len" bytes, into the indicated buffer.
  */
+void
 m_copydata(m, off, len, cp)
 	register struct mbuf *m;
 	register int off;
@@ -358,6 +364,7 @@ m_copydata(m, off, len, cp)
  * Both chains must be of the same type (e.g. MT_DATA).
  * Any m_pkthdr is not updated.
  */
+void
 m_cat(m, n)
 	register struct mbuf *m, *n;
 {
@@ -378,6 +385,7 @@ m_cat(m, n)
 	}
 }
 
+void
 m_adj(mp, req_len)
 	struct mbuf *mp;
 	int req_len;

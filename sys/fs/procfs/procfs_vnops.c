@@ -100,6 +100,7 @@ static pid_t atopid __P((const char *, u_int));
  * is to support exclusive open on process
  * memory images.
  */
+int
 procfs_open(ap)
 	struct vop_open_args *ap;
 {
@@ -134,6 +135,7 @@ procfs_open(ap)
  * nothing to do for procfs other than undo
  * any exclusive open flag (see _open above).
  */
+int
 procfs_close(ap)
 	struct vop_close_args *ap;
 {
@@ -153,6 +155,7 @@ procfs_close(ap)
  * do an ioctl operation on pfsnode (vp).
  * (vp) is not locked on entry or exit.
  */
+int
 procfs_ioctl(ap)
 	struct vop_ioctl_args *ap;
 {
@@ -170,6 +173,7 @@ procfs_ioctl(ap)
  * usual no-op bmap, although returning
  * (EIO) would be a reasonable alternative.
  */
+int
 procfs_bmap(ap)
 	struct vop_bmap_args *ap;
 {
@@ -197,6 +201,7 @@ procfs_bmap(ap)
  *
  * (vp) is not locked on entry or exit.
  */
+int
 procfs_inactive(ap)
 	struct vop_inactive_args *ap;
 {
@@ -215,6 +220,7 @@ procfs_inactive(ap)
  * to free any private data and remove the node
  * from any private lists.
  */
+int
 procfs_reclaim(ap)
 	struct vop_reclaim_args *ap;
 {
@@ -227,6 +233,7 @@ procfs_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
+int
 procfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -265,6 +272,7 @@ procfs_pathconf(ap)
  * just print a readable description
  * of (vp).
  */
+int
 procfs_print(ap)
 	struct vop_print_args *ap;
 {
@@ -273,6 +281,7 @@ procfs_print(ap)
 	printf("tag VT_PROCFS, pid %d, mode %x, flags %x\n",
 		pfs->pfs_pid,
 		pfs->pfs_mode, pfs->pfs_flags);
+	return (0);
 }
 
 /*
@@ -281,6 +290,7 @@ procfs_print(ap)
  * for undoing any side-effects caused by the lookup.
  * this will always include freeing the pathname buffer.
  */
+int
 procfs_abortop(ap)
 	struct vop_abortop_args *ap;
 {
@@ -293,6 +303,7 @@ procfs_abortop(ap)
 /*
  * generic entry point for unsupported operations
  */
+int
 procfs_badop()
 {
 
@@ -308,6 +319,7 @@ procfs_badop()
  *
  * this is relatively minimal for procfs.
  */
+int
 procfs_getattr(ap)
 	struct vop_getattr_args *ap;
 {
@@ -423,6 +435,7 @@ procfs_getattr(ap)
 	return (error);
 }
 
+int
 procfs_setattr(ap)
 	struct vop_setattr_args *ap;
 {
@@ -451,6 +464,7 @@ procfs_setattr(ap)
  * but does mean that the i/o entry points need to check
  * that the operation really does make sense.
  */
+int
 procfs_access(ap)
 	struct vop_access_args *ap;
 {
@@ -502,6 +516,7 @@ found:
  * filesystem doesn't do any locking of its own.  otherwise
  * read and inwardly digest ufs_lookup().
  */
+int
 procfs_lookup(ap)
 	struct vop_lookup_args *ap;
 {
@@ -612,6 +627,7 @@ procfs_lookup(ap)
  *
  * this should just be done through read()
  */
+int
 procfs_readdir(ap)
 	struct vop_readdir_args *ap;
 {

@@ -39,9 +39,9 @@
 	_swapmap
 #vmstat
 	_cp_time
-	_rate
+#	_rate
 	_total
-	_sum
+#	_sum
 #	_rectime
 #	_pgintime
 	_dk_xfer
@@ -61,13 +61,13 @@
 	_rawcb
 	_Sysmap
 	_ifnet
-	_rthost
-	_rtnet
+#	_rthost
+#	_rtnet
 	_icmpstat
 	_filehead
 	_nfiles
-	_rthashsize
-	_radix_node_head
+#	_rthashsize
+#	_radix_node_head
 #routed
 	_ifnet
 #rwho

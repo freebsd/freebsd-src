@@ -84,6 +84,7 @@ extern u_long nextgennumber;
  */
 #define ROOTNAME	"root_device"
 
+int
 ffs_mountroot()
 {
 	extern struct vnode *rootvp;
@@ -146,7 +147,7 @@ ffs_mount(mp, path, data, ndp, p)
 {
 	struct vnode *devvp;
 	struct ufs_args args;
-	struct ufsmount *ump;
+	struct ufsmount *ump = 0;
 	register struct fs *fs;
 	u_int size;
 	int error, flags;
@@ -238,6 +239,7 @@ ffs_mount(mp, path, data, ndp, p)
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
  */
+int
 ffs_reload(mountp, cred, p)
 	register struct mount *mountp;
 	struct ucred *cred;
@@ -447,6 +449,7 @@ out:
  *
  * XXX - goes away some day.
  */
+int
 ffs_oldfscompat(fs)
 	struct fs *fs;
 {
@@ -509,6 +512,7 @@ ffs_unmount(mp, mntflags, p)
 /*
  * Flush out all the files in a filesystem.
  */
+int
 ffs_flushfiles(mp, flags, p)
 	register struct mount *mp;
 	int flags;
@@ -786,6 +790,7 @@ ffs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
+int
 ffs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

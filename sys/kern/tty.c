@@ -1355,7 +1355,7 @@ ttwrite(tp, uio, flag)
 	register struct uio *uio;
 	int flag;
 {
-	register char *cp;
+	register char *cp = 0;
 	register int cc, ce;
 	register struct proc *p;
 	int i, hiwat, cnt, error, s;

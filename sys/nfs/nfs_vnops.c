@@ -480,7 +480,7 @@ nfs_setattr(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
 	register struct vattr *vap = ap->a_vap;
-	u_quad_t frev, tsize;
+	u_quad_t frev, tsize = 0;
 
 	if (vap->va_size != VNOVAL || vap->va_mtime.ts_sec != VNOVAL ||
 		vap->va_atime.ts_sec != VNOVAL) {
@@ -572,14 +572,14 @@ nfs_lookup(ap)
 	register long t1, t2;
 	struct nfsmount *nmp;
 	caddr_t bpos, dpos, cp2;
-	time_t reqtime;
+	time_t reqtime = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	struct vnode *newvp;
 	long len;
 	nfsv2fh_t *fhp;
 	struct nfsnode *np;
 	int lockparent, wantparent, error = 0;
-	int nqlflag, cachable;
+	int nqlflag = 0, cachable = 0;
 	u_quad_t frev;
 
 	*vpp = NULL;
@@ -953,7 +953,7 @@ nfs_mknod(ap)
 	register u_long *tl;
 	register caddr_t cp;
 	register long t1, t2;
-	struct vnode *newvp;
+	struct vnode *newvp = 0;
 	struct vattr vattr;
 	char *cp2;
 	caddr_t bpos, dpos;
@@ -1589,11 +1589,11 @@ nfs_readdirrpc(vp, uiop, cred)
 	struct ucred *cred;
 {
 	register long len;
-	register struct dirent *dp;
+	register struct dirent *dp = 0;
 	register u_long *tl;
 	register caddr_t cp;
 	register long t1;
-	long tlen, lastlen;
+	long tlen, lastlen = 0;
 	caddr_t bpos, dpos, cp2;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
@@ -1601,8 +1601,8 @@ nfs_readdirrpc(vp, uiop, cred)
 	caddr_t dpos2;
 	int siz;
 	int more_dirs = 1;
-	u_long off, savoff;
-	struct dirent *savdp;
+	u_long off, savoff = 0;
+	struct dirent *savdp = 0;
 	struct nfsmount *nmp;
 	struct nfsnode *np = VTONFS(vp);
 	long tresid;
@@ -1732,7 +1732,7 @@ nfs_readdirlookrpc(vp, uiop, cred)
 	struct ucred *cred;
 {
 	register int len;
-	register struct dirent *dp;
+	register struct dirent *dp = 0;
 	register u_long *tl;
 	register caddr_t cp;
 	register long t1;
@@ -1740,15 +1740,15 @@ nfs_readdirlookrpc(vp, uiop, cred)
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	struct nameidata nami, *ndp = &nami;
 	struct componentname *cnp = &ndp->ni_cnd;
-	u_long off, endoff, fileno;
-	time_t reqtime, ltime;
+	u_long off, endoff = 0, fileno;
+	time_t reqtime, ltime = 0;
 	struct nfsmount *nmp;
 	struct nfsnode *np;
 	struct vnode *newvp;
 	nfsv2fh_t *fhp;
 	u_quad_t frev;
 	int error = 0, tlen, more_dirs = 1, tresid, doit, bigenough, i;
-	int cachable;
+	int cachable = 0;
 
 	if (uiop->uio_iovcnt != 1)
 		panic("nfs rdirlook");
@@ -2177,6 +2177,7 @@ loop:
  * information from the remote server.
  */
 /* ARGSUSED */
+int
 nfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -2225,6 +2226,7 @@ nfs_print(ap)
 		fifo_printinfo(vp);
 #endif /* FIFO */
 	printf("\n");
+	return (0);
 }
 
 /*

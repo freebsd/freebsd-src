@@ -112,7 +112,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 	struct indir a[NIADDR], *xap;
 	daddr_t daddr;
 	long metalbn;
-	int error, maxrun, num;
+	int error, maxrun = 0, num;
 
 	ip = VTOI(vp);
 	mp = vp->v_mount;

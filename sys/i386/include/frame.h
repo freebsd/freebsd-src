@@ -100,6 +100,32 @@ struct intrframe {
 	int	if_ss;
 };
 
+/* frame of clock (same as interrupt frame) */
+
+struct clockframe {
+	int	cf_vec;
+	int	cf_ppl;
+	int	cf_es;
+	int	cf_ds;
+	int	cf_edi;
+	int	cf_esi;
+	int	cf_ebp;
+	int	:32;
+	int	cf_ebx;
+	int	cf_edx;
+	int	cf_ecx;
+	int	cf_eax;
+	int	:32;		/* for compat with trap frame - trapno */
+	int	:32;		/* for compat with trap frame - err */
+	/* below portion defined in 386 hardware */
+	int	cf_eip;
+	int	cf_cs;
+	int	cf_eflags;
+	/* below only when transitting rings (e.g. user to kernel) */
+	int	cf_esp;
+	int	cf_ss;
+};
+
 /*
  * Signal frame
  */

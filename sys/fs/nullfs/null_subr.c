@@ -73,6 +73,7 @@ static struct null_node_cache null_node_cache[NNULLNODECACHE];
 /*
  * Initialise cache headers
  */
+int
 nullfs_init()
 {
 	struct null_node_cache *ac;
@@ -82,6 +83,7 @@ nullfs_init()
 
 	for (ac = null_node_cache; ac < null_node_cache + NNULLNODECACHE; ac++)
 		ac->ac_forw = ac->ac_back = (struct null_node *) ac;
+	return (0);
 }
 
 /*

@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/map.h>
 #include <sys/kernel.h>
@@ -348,6 +349,7 @@ free(addr, type)
 /*
  * Initialize the kernel memory allocator
  */
+void
 kmeminit()
 {
 	register long indx;

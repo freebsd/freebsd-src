@@ -53,7 +53,7 @@ int	ffs_alloc __P((struct inode *,
 int	ffs_balloc __P((struct inode *,
 	    daddr_t, int, struct ucred *, struct buf **, int));
 int	ffs_blkatoff __P((struct vop_blkatoff_args *));
-int	ffs_blkfree __P((struct inode *, daddr_t, long));
+void	ffs_blkfree __P((struct inode *, daddr_t, long));
 daddr_t	ffs_blkpref __P((struct inode *, daddr_t, int, daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, daddr_t));

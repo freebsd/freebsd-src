@@ -600,6 +600,7 @@ mi_switch()
  * Initialize the (doubly-linked) run queues
  * to be empty.
  */
+void
 rqinit()
 {
 	register int i;

@@ -75,7 +75,8 @@ int	tickadj = 30000 / (60 * HZ);		/* can adjust 30ms in 60s */
 struct	timezone tz = { TIMEZONE, DST };
 #define	NPROC (20 + 16 * MAXUSERS)
 int	maxproc = NPROC;
-#define	NTEXT (80 + NPROC / 8)			/* actually the object cache */
+#define NTEXT NPROC
+int	vm_cache_max = NTEXT/2 + 16;
 #define	NVNODE (NPROC + NTEXT + 100)
 int	desiredvnodes = NVNODE;
 int	maxfiles = 3 * (NPROC + MAXUSERS) + 80;

@@ -41,32 +41,33 @@
  * 386 Trap and System call handleing
  */
 
+#include <sys/param.h>
+#include <sys/systm.h>
+
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/acct.h>
+#include <sys/kernel.h>
+#include <sys/syscall.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+
+#include <machine/cpu.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+#include <machine/eflags.h>
+
+#include <machine/trap.h>
+
 #include "isa.h"
 #include "npx.h"
 #include "ddb.h"
-#include "machine/cpu.h"
-#include "machine/psl.h"
-#include "machine/reg.h"
-#include "machine/eflags.h"
-
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "user.h"
-#include "acct.h"
-#include "kernel.h"
-#ifdef KTRACE
-#include "ktrace.h"
-#endif
-
-#include "vm/vm_param.h"
-#include "vm/pmap.h"
-#include "vm/vm_map.h"
-#include "vm/vm_user.h"
-#include "vm/vm_page.h"
-#include "sys/vmmeter.h"
-
-#include "machine/trap.h"
 
 #ifdef	__GNUC__
 
@@ -84,7 +85,7 @@ void	write_gs	__P((/* promoted u_short */ int gs));
 
 #endif	/* __GNUC__ */
 
-extern int grow(struct proc *,int);
+extern int grow(struct proc *,u_int);
 
 struct	sysent sysent[];
 int	nsysent;
@@ -139,7 +140,7 @@ trap(frame)
 {
 	register int i;
 	register struct proc *p = curproc;
-	struct timeval syst;
+	u_quad_t sticks = 0;
 	int ucode, type, code, eva, fault_type;
 
 	frame.tf_eflags &= ~PSL_NT;	/* clear nested trap XXX */
@@ -177,10 +178,10 @@ copyfault:
 		return;
 	}
 
-	syst = p->p_stime;
 	if (ISPL(frame.tf_cs) == SEL_UPL) {
 		type |= T_USER;
-		p->p_regs = (int *)&frame;
+		p->p_md.md_regs = (int *)&frame;
+		sticks = p->p_sticks;
 	}
 
 skiptoswitch:
@@ -210,9 +211,9 @@ skiptoswitch:
 	case T_ASTFLT|T_USER:		/* Allow process switch */
 		astoff();
 		cnt.v_soft++;
-		if ((p->p_flag & SOWEUPC) && p->p_stats->p_prof.pr_scale) {
+		if ((p->p_flag & P_OWEUPC) && p->p_stats->p_prof.pr_scale) {
 			addupc(frame.tf_eip, &p->p_stats->p_prof, 1);
-			p->p_flag &= ~SOWEUPC;
+			p->p_flag &= ~P_OWEUPC;
 		}
 		goto out;
 
@@ -284,7 +285,6 @@ skiptoswitch:
 		else
 			ftype = VM_PROT_READ;
 
-		oldflags = p->p_flag;
 		if (map != kernel_map) {
 			vm_offset_t pa;
 			vm_offset_t v = (vm_offset_t) vtopte(va);
@@ -294,7 +294,7 @@ skiptoswitch:
 			 * Keep swapout from messing with us during this
 			 *	critical time.
 			 */
-			p->p_flag |= SLOCK;
+			++p->p_lock;
 
 			/*
 			 * Grow the stack if necessary
@@ -303,8 +303,7 @@ skiptoswitch:
 			    && (caddr_t)va < (caddr_t)USRSTACK) {
 				if (!grow(p, va)) {
 					rv = KERN_FAILURE;
-					p->p_flag &= ~SLOCK;
-					p->p_flag |= (oldflags & SLOCK);
+					--p->p_lock;
 					goto nogo;
 				}
 			}
@@ -332,13 +331,10 @@ skiptoswitch:
 			if( ptepg->hold_count == 0 && ptepg->wire_count == 0) {
 				pmap_page_protect( VM_PAGE_TO_PHYS(ptepg),
 					VM_PROT_NONE);
-				if( ptepg->flags & PG_CLEAN)
-					vm_page_free(ptepg);
+				vm_page_free(ptepg);
 			}
 
-
-			p->p_flag &= ~SLOCK;
-			p->p_flag |= (oldflags & SLOCK);
+			--p->p_lock;
 		} else {
 			/*
 			 * Since we know that kernel virtual address addresses
@@ -482,32 +478,29 @@ nogo:
 
 out:
 	while (i = CURSIG(p))
-		psig(i);
-	p->p_pri = p->p_usrpri;
+		postsig(i);
+	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		int s;
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
 		 * (since the running process is not on a queue.)
-		 * If that happened after we setrq ourselves but before we
-		 * swtch()'ed, we might not be on the queue indicated by
+		 * If that happened after we setrunqueue ourselves but before we
+		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
 		s = splclock();
-		setrq(p);
+		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
-		swtch();
+		mi_switch();
 		splx(s);
 		while (i = CURSIG(p))
-			psig(i);
+			postsig(i);
 	}
 	if (p->p_stats->p_prof.pr_scale) {
-		int ticks;
-		struct timeval *tv = &p->p_stime;
+		u_quad_t ticks = p->p_sticks - sticks;
 
-		ticks = ((tv->tv_sec - syst.tv_sec) * 1000 +
-			(tv->tv_usec - syst.tv_usec) / 1000) / (tick / 1000);
 		if (ticks) {
 #ifdef PROFTIMER
 			extern int profscale;
@@ -518,7 +511,7 @@ out:
 #endif
 		}
 	}
-	curpri = p->p_pri;
+	curpriority = p->p_priority;
 }
 
 /*
@@ -546,14 +539,12 @@ int trapwrite(addr)
 	p = curproc;
 	vm = p->p_vmspace;
 
-	oldflags = p->p_flag;
-	p->p_flag |= SLOCK;
+	++p->p_lock;
 
 	if ((caddr_t)va >= vm->vm_maxsaddr
 	    && (caddr_t)va < (caddr_t)USRSTACK) {
 		if (!grow(p, va)) {
-			p->p_flag &= ~SLOCK;
-			p->p_flag |= (oldflags & SLOCK);
+			--p->p_lock;
 			return (1);
 		}
 	}
@@ -579,8 +570,7 @@ int trapwrite(addr)
 		vm_map_pageable(&vm->vm_map, v, round_page(v+1), TRUE);
 	}
 
-	p->p_flag &= ~SLOCK;
-	p->p_flag |= (oldflags & SLOCK);
+	--p->p_lock;
 
 	if (rv != KERN_SUCCESS)
 		return 1;
@@ -603,31 +593,45 @@ syscall(frame)
 	register int i;
 	register struct sysent *callp;
 	register struct proc *p = curproc;
-	struct timeval syst;
+	u_quad_t sticks;
 	int error, opc;
 	int args[8], rval[2];
-	int code;
+	u_int code;
 
 #ifdef lint
 	r0 = 0; r0 = r0; r1 = 0; r1 = r1;
 #endif
-	syst = p->p_stime;
+	sticks = p->p_sticks;
 	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("syscall");
 
 	code = frame.tf_eax;
-	p->p_regs = (int *)&frame;
+	p->p_md.md_regs = (int *)&frame;
 	params = (caddr_t)frame.tf_esp + sizeof (int) ;
 
 	/*
 	 * Reconstruct pc, assuming lcall $X,y is 7 bytes, as it is always.
 	 */
 	opc = frame.tf_eip - 7;
-	if (code == 0) {
+	/*
+	 * Need to check if this is a 32 bit or 64 bit syscall.
+	 */
+	if (code == SYS_syscall) {
+		/*
+		 * Code is first argument, followed by actual args.
+		 */
 		code = fuword(params);
 		params += sizeof (int);
+	} else if (code == SYS___syscall) {
+		/*
+		 * Like syscall, but code is a quad, so as to maintain
+		 * quad alignment for the rest of the arguments.
+		 */
+		code = fuword(params + _QUAD_LOWWORD * sizeof(int));
+		params += sizeof(quad_t);
 	}
-	if (code < 0 || code >= nsysent)
+
+	if (code >= nsysent)
 		callp = &sysent[0];
 	else
 		callp = &sysent[code];
@@ -672,32 +676,29 @@ done:
 	 */
 	p = curproc;
 	while (i = CURSIG(p))
-		psig(i);
-	p->p_pri = p->p_usrpri;
+		postsig(i);
+	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		int s;
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
 		 * (since the running process is not on a queue.)
-		 * If that happened after we setrq ourselves but before we
+		 * If that happened after we setrunqueue ourselves but before we
 		 * swtch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
 		s = splclock();
-		setrq(p);
+		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
-		swtch();
+		mi_switch();
 		splx(s);
 		while (i = CURSIG(p))
-			psig(i);
+			postsig(i);
 	}
 	if (p->p_stats->p_prof.pr_scale) {
-		int ticks;
-		struct timeval *tv = &p->p_stime;
+		u_quad_t ticks = p->p_sticks - sticks;
 
-		ticks = ((tv->tv_sec - syst.tv_sec) * 1000 +
-			(tv->tv_usec - syst.tv_usec) / 1000) / (tick / 1000);
 		if (ticks) {
 #ifdef PROFTIMER
 			extern int profscale;
@@ -708,21 +709,9 @@ done:
 #endif
 		}
 	}
-	curpri = p->p_pri;
+	curpriority = p->p_priority;
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, rval[0]);
-#endif
-#ifdef	DIAGNOSTICx
-{ extern int _udatasel, _ucodesel;
-	if (frame.tf_ss != _udatasel)
-		printf("ss %x call %d\n", frame.tf_ss, code);
-	if ((frame.tf_cs&0xffff) != _ucodesel)
-		printf("cs %x call %d\n", frame.tf_cs, code);
-	if (frame.tf_eip > VM_MAXUSER_ADDRESS) {
-		printf("eip %x call %d\n", frame.tf_eip, code);
-		frame.tf_eip = 0;
-	}
-}
 #endif
 }

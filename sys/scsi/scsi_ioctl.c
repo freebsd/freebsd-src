@@ -6,21 +6,15 @@
  *
  *
  */
-#include <sys/types.h>
 #include <sys/param.h>
-#include <machine/param.h>
-#include <vm/vm_statistics.h>
-#include <vm/vm_param.h>
-#include <vm/lock.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#include "systm.h"
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #define	b_screq b_driver1	/* a patch in buf.h */
 #define	b_sc_link b_driver2	/* a patch in buf.h */
 #include <sys/proc.h>
+#include <vm/vm.h>
 
 #include "scbus.h"
 #include <scsi/scsi_all.h>
@@ -227,7 +221,7 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
 	switch(cmd)
 	{
-#ifndef NetBSD
+#if 0
 		case SCIOCCOMMAND:
 		{
 			/*

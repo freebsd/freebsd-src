@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
@@ -74,16 +75,25 @@ struct	pagerops {
 			    __P((caddr_t, vm_size_t, vm_prot_t, vm_offset_t));
 	void		(*pgo_dealloc)		/* Disassociate. */
 			    __P((vm_pager_t));
+	int		(*pgo_getpage)
+			    __P((vm_pager_t, vm_page_t, boolean_t));
 	int		(*pgo_getpages)		/* Get (read) page. */
-			    __P((vm_pager_t, vm_page_t *, int, boolean_t));
+			    __P((vm_pager_t, vm_page_t *, int, int, boolean_t));
+	int		(*pgo_putpage)
+			    __P((vm_pager_t, vm_page_t, boolean_t));
 	int		(*pgo_putpages)		/* Put (write) page. */
-			    __P((vm_pager_t, vm_page_t *, int, boolean_t));
+			    __P((vm_pager_t, vm_page_t *, int, boolean_t, int *));
 	boolean_t  	(*pgo_haspage)		/* Does pager have page? */
 			    __P((vm_pager_t, vm_offset_t));
-	void		(*pgo_cluster)		/* Return range of cluster. */
-			    __P((vm_pager_t, vm_offset_t,
-				 vm_offset_t *, vm_offset_t *));
 };
+
+#define	VM_PAGER_ALLOC(h, s, p, o)		(*(pg)->pg_ops->pgo_alloc)(h, s, p, o)
+#define	VM_PAGER_DEALLOC(pg)		(*(pg)->pg_ops->pgo_dealloc)(pg)
+#define	VM_PAGER_GET(pg, m, s)		(*(pg)->pg_ops->pgo_getpage)(pg, m, s)
+#define	VM_PAGER_GET_MULTI(pg, m, c, r, s)	(*(pg)->pg_ops->pgo_getpages)(pg, m, c, r, s)
+#define	VM_PAGER_PUT(pg, m, s)		(*(pg)->pg_ops->pgo_putpage)(pg, m, s)
+#define	VM_PAGER_PUT_MULTI(pg, m, c, s, rtval)		(*(pg)->pg_ops->pgo_putpages)(pg, m, c, s, rtval)
+#define	VM_PAGER_HASPAGE(pg, o)		(*(pg)->pg_ops->pgo_haspage)(pg, o)
 
 /*
  * get/put return values
@@ -107,21 +117,15 @@ extern struct pagerops *dfltpagerops;
 vm_pager_t	 vm_pager_allocate
 		    __P((int, caddr_t, vm_size_t, vm_prot_t, vm_offset_t));
 vm_page_t	 vm_pager_atop __P((vm_offset_t));
-void		 vm_pager_cluster
-		    __P((vm_pager_t, vm_offset_t,
-			 vm_offset_t *, vm_offset_t *));
-void		 vm_pager_clusternull
-		    __P((vm_pager_t, vm_offset_t,
-			 vm_offset_t *, vm_offset_t *));
 void		 vm_pager_deallocate __P((vm_pager_t));
 int		 vm_pager_get_pages
-		    __P((vm_pager_t, vm_page_t *, int, boolean_t));
+		    __P((vm_pager_t, vm_page_t *, int, int, boolean_t));
 boolean_t	 vm_pager_has_page __P((vm_pager_t, vm_offset_t));
 void		 vm_pager_init __P((void));
 vm_pager_t	 vm_pager_lookup __P((struct pagerlst *, caddr_t));
 vm_offset_t	 vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
 int		 vm_pager_put_pages
-		    __P((vm_pager_t, vm_page_t *, int, boolean_t));
+		    __P((vm_pager_t, vm_page_t *, int, boolean_t, int *));
 void		 vm_pager_sync __P((void));
 void		 vm_pager_unmap_pages __P((vm_offset_t, int));
 
@@ -134,13 +138,16 @@ void		 vm_pager_unmap_pages __P((vm_offset_t, int));
 ({ \
 	vm_page_t ml[1]; \
 	ml[0] = (m); \
-	vm_pager_get_pages(p, ml, 1, s); \
+	vm_pager_get_pages(p, ml, 1, 0, s); \
 })
+
 #define vm_pager_put(p, m, s) \
 ({ \
+	int rtval; \
 	vm_page_t ml[1]; \
 	ml[0] = (m); \
-	vm_pager_put_pages(p, ml, 1, s); \
+	vm_pager_put_pages(p, ml, 1, s, &rtval); \
+	rtval; \
 })
 #endif
 

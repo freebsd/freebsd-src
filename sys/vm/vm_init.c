@@ -1,3 +1,4 @@
+
 /* 
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -79,7 +80,8 @@
  *	The start and end address of physical memory is passed in.
  */
 
-void vm_mem_init()
+void
+vm_mem_init()
 {
 	extern vm_offset_t	avail_start, avail_end;
 	extern vm_offset_t	virtual_avail, virtual_end;
@@ -89,9 +91,9 @@ void vm_mem_init()
 	 *	From here on, all physical memory is accounted for,
 	 *	and we use only virtual addresses.
 	 */
-	vm_set_page_size();
-	vm_page_startup(&avail_start, &avail_end);
 
+	vm_set_page_size();
+	virtual_avail = vm_page_startup(avail_start, avail_end, virtual_avail);
 	/*
 	 * Initialize other VM packages
 	 */

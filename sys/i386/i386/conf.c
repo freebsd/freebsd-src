@@ -44,12 +44,27 @@
  *	$Id: conf.c,v 1.24 1994/04/21 14:10:31 sos Exp $
  */
 
-#include "param.h"
-#include "systm.h"
-#include "buf.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "conf.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/buf.h>
+#include <sys/ioctl.h>
+#include <sys/proc.h>
+#include <sys/vnode.h>
+#include <sys/tty.h>
+#include <sys/conf.h>
+
+typedef int d_open_t __P((dev_t, int, int, struct proc *));
+typedef int d_close_t __P((dev_t, int, int, struct proc *));
+typedef int d_strategy_t __P((struct buf *));
+typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
+typedef int d_dump_t __P(());
+typedef int d_psize_t __P((dev_t));
+
+typedef int d_rdwr_t __P((dev_t, struct uio *, int));
+typedef int d_stop_t __P((struct tty *, int));
+typedef int d_reset_t __P((int));
+typedef int d_select_t __P((dev_t, int, struct proc *));
+typedef int d_mmap_t __P((/* XXX */));
 
 int	nullop(), enxio(), enodev();
 d_rdwr_t rawread, rawwrite;
@@ -237,7 +252,7 @@ d_close_t pcclose;
 d_rdwr_t pcread, pcwrite;
 d_ioctl_t pcioctl;
 d_mmap_t pcmmap;
-extern	struct tty *pccons;
+extern	struct tty pccons[];
 
 /* controlling TTY */
 d_open_t cttyopen;
@@ -263,7 +278,7 @@ d_close_t ptcclose;
 d_rdwr_t ptcread, ptcwrite;
 d_select_t ptcselect;
 d_ioctl_t ptyioctl;
-extern struct	tty *pt_tty[];
+extern struct	tty pt_tty[];
 #else
 #define ptsopen		(d_open_t *)enxio
 #define ptsclose	(d_close_t *)enxio
@@ -288,7 +303,7 @@ d_rdwr_t comwrite;
 d_ioctl_t comioctl;
 d_select_t comselect;
 #define comreset	(d_reset_t *)enxio
-extern	struct tty *com_tty[];
+extern	struct tty com_tty[];
 #else
 #define comopen		(d_open_t *)enxio
 #define comclose	(d_close_t *)enxio
@@ -463,7 +478,7 @@ d_ioctl_t sioioctl;
 d_select_t sioselect;
 d_stop_t siostop;
 #define sioreset	(d_reset_t *)enxio
-extern	struct tty *sio_tty[];
+extern	struct tty sio_tty[];
 #else
 #define sioopen		(d_open_t *)enxio
 #define sioclose	(d_close_t *)enxio
@@ -554,7 +569,7 @@ struct cdevsw	cdevsw[] =
 	  noioc,	nostop,		nullreset,	NULL,
 	  seltrue,	nommap,		nostrat },
 	{ pcopen,	pcclose,	pcread,		pcwrite,	/*12*/
-	  pcioctl,	nullstop,	nullreset,	&pccons, /* pc */
+	  pcioctl,	nullstop,	nullreset,	pccons, /* pc */
 	  ttselect,	pcmmap,		NULL },
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	nostop,		nullreset,	NULL,	/* sd */
@@ -634,3 +649,108 @@ int	mem_no = 2; 	/* major device number of memory special file */
  * provided as a character (raw) device.
  */
 dev_t	swapdev = makedev(1, 0);
+
+/*
+ * Routine that identifies /dev/mem and /dev/kmem.
+ *
+ * A minimal stub routine can always return 0.
+ */
+int
+iskmemdev(dev)
+	dev_t dev;
+{
+
+	return (major(dev) == 2 && (minor(dev) == 0 || minor(dev) == 1));
+}
+
+int
+iszerodev(dev)
+	dev_t dev;
+{
+	return (major(dev) == 2 && minor(dev) == 12);
+}
+
+/*
+ * Routine to determine if a device is a disk.
+ *
+ * A minimal stub routine can always return 0.
+ */
+int
+isdisk(dev, type)
+	dev_t dev;
+	int type;
+{
+
+	switch (major(dev)) {
+	case 0:
+	case 2:
+	case 4:
+	case 6:
+	case 7:
+		if (type == VBLK)
+			return (1);
+		return (0);
+	case 3:
+	case 9:
+	case 13:
+	case 15:
+	case 29:
+		if (type == VCHR)
+			return (1);
+		/* fall through */
+	default:
+		return (0);
+	}
+	/* NOTREACHED */
+}
+
+#define MAXDEV 32
+static int chrtoblktbl[MAXDEV] =  {
+	/* VCHR */	/* VBLK */
+	/* 0 */		NODEV,
+	/* 1 */		NODEV,
+	/* 2 */		NODEV,
+	/* 3 */		0,
+	/* 4 */		NODEV,
+	/* 5 */		NODEV,
+	/* 6 */		NODEV,
+	/* 7 */		NODEV,
+	/* 8 */		NODEV,
+	/* 9 */		2,
+	/* 10 */	3,
+	/* 11 */	NODEV,
+	/* 12 */	NODEV,
+	/* 13 */	4,
+	/* 14 */	5,
+	/* 15 */	6,
+	/* 16 */	NODEV,
+	/* 17 */	NODEV,
+	/* 18 */	NODEV,
+	/* 19 */	NODEV,
+	/* 20 */	NODEV,
+	/* 21 */	NODEV,
+	/* 22 */	NODEV,
+	/* 23 */	NODEV,
+	/* 25 */	NODEV,
+	/* 26 */	NODEV,
+	/* 27 */	NODEV,
+	/* 28 */	NODEV,
+	/* 29 */	7,
+	/* 30 */	NODEV,
+	/* 31 */	NODEV,
+};
+/*
+ * Routine to convert from character to block device number.
+ *
+ * A minimal stub routine can always return NODEV.
+ */
+int
+chrtoblk(dev)
+	dev_t dev;
+{
+	int blkmaj;
+
+	if (major(dev) >= MAXDEV || (blkmaj = chrtoblktbl[major(dev)]) == NODEV)
+		return (NODEV);
+	return (makedev(blkmaj, minor(dev)));
+}

@@ -59,6 +59,7 @@
 #include "rlist.h"
 #include "machine/segments.h"
 #include "vm/vm.h"
+#include <machine/spl.h>
 #include "i386/isa/isa_device.h"
 #include "i386/isa/isa.h"
 #include "i386/isa/icu.h"

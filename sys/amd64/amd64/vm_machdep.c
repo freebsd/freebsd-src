@@ -42,26 +42,20 @@
  */
 
 #include "npx.h"
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "malloc.h"
-#include "buf.h"
-#include "user.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/malloc.h>
+#include <sys/buf.h>
+#include <sys/vnode.h>
+#include <sys/user.h>
 
-#include "../include/cpu.h"
+#include <machine/cpu.h>
 
-#include "vm/vm.h"
-#include "vm/vm_kern.h"
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
 
 #define b_cylin b_resid
-
-#define MAXCLSTATS 256
-int clstats[MAXCLSTATS];
-int rqstats[MAXCLSTATS];
-
-
-#ifndef NOBOUNCE
 
 caddr_t		bouncememory;
 vm_offset_t	bouncepa, bouncepaend;
@@ -75,7 +69,8 @@ unsigned	*bounceallocarray;
 int		bouncefree;
 
 #define SIXTEENMEG (4096*4096)
-#define MAXBKVA 1024
+#define MAXBKVA 512
+int		maxbkva=MAXBKVA*NBPG;
 
 /* special list that can be used at interrupt time for eventual kva free */
 struct kvasfree {
@@ -258,6 +253,7 @@ int count;
 		pa = vm_bounce_page_find(1);
 		pmap_kenter(kva + i * NBPG, pa);
 	}
+	pmap_update();
 	return kva;
 }
 
@@ -309,8 +305,8 @@ vm_bounce_alloc(bp)
 		bp->b_bufsize = bp->b_bcount;
 	}
 
-	vastart = (vm_offset_t) bp->b_un.b_addr;
-	vaend = (vm_offset_t) bp->b_un.b_addr + bp->b_bufsize;
+	vastart = (vm_offset_t) bp->b_data;
+	vaend = (vm_offset_t) bp->b_data + bp->b_bufsize;
 
 	vapstart = i386_trunc_page(vastart);
 	vapend = i386_round_page(vaend);
@@ -369,11 +365,11 @@ vm_bounce_alloc(bp)
 /*
  * save the original buffer kva
  */
-	bp->b_savekva = bp->b_un.b_addr;
+	bp->b_savekva = bp->b_data;
 /*
  * put our new kva into the buffer (offset by original offset)
  */
-	bp->b_un.b_addr = (caddr_t) (((vm_offset_t) kva) |
+	bp->b_data = (caddr_t) (((vm_offset_t) kva) |
 				((vm_offset_t) bp->b_savekva & (NBPG - 1)));
 	return;
 }
@@ -403,7 +399,7 @@ vm_bounce_free(bp)
 		return;
 
 	origkva = (vm_offset_t) bp->b_savekva;
-	bouncekva = (vm_offset_t) bp->b_un.b_addr;
+	bouncekva = (vm_offset_t) bp->b_data;
 
 	vastart = bouncekva;
 	vaend = bouncekva + bp->b_bufsize;
@@ -449,16 +445,14 @@ vm_bounce_free(bp)
 /*
  * add the old kva into the "to free" list
  */
-	bouncekva = i386_trunc_page((vm_offset_t) bp->b_un.b_addr);
+	bouncekva = i386_trunc_page((vm_offset_t) bp->b_data);
 	vm_bounce_kva_free( bouncekva, countvmpg*NBPG, 0);
-	bp->b_un.b_addr = bp->b_savekva;
+	bp->b_data = bp->b_savekva;
 	bp->b_savekva = 0;
 	bp->b_flags &= ~B_BOUNCE;
 
 	return;
 }
-
-#endif /* NOBOUNCE */
 
 /*
  * init the bounce buffer system
@@ -468,10 +462,8 @@ vm_bounce_init()
 {
 	vm_offset_t minaddr, maxaddr;
 
-	io_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, MAXBKVA * NBPG, FALSE);
 	kvasfreecnt = 0;
 
-#ifndef NOBOUNCE
 	if (bouncepages == 0)
 		return;
 	
@@ -487,11 +479,10 @@ vm_bounce_init()
 	bouncepa = pmap_kextract((vm_offset_t) bouncememory);
 	bouncepaend = bouncepa + bouncepages * NBPG;
 	bouncefree = bouncepages;
-#endif
-
 }
 
 
+#ifdef BROKEN_IN_44
 static void
 cldiskvamerge( kvanew, orig1, orig1cnt, orig2, orig2cnt)
 	vm_offset_t kvanew;
@@ -827,6 +818,7 @@ nocluster:
 	ap->av_forw = bp;
 	bp->av_back = ap;
 }
+#endif
 
 /*
  * quick version of vm_fault
@@ -881,7 +873,7 @@ cpu_fork(p1, p2)
 	offset = mvesp() - (int)kstack;
 	bcopy((caddr_t)kstack + offset, (caddr_t)p2->p_addr + offset,
 	    (unsigned) ctob(UPAGES) - offset);
-	p2->p_regs = p1->p_regs;
+	p2->p_md.md_regs = p1->p_md.md_regs;
 
 	/*
 	 * Wire top of address space of child to it's kstack.
@@ -930,7 +922,7 @@ cpu_fork(p1, p2)
  *
  * Next, we assign a dummy context to be written over by swtch,
  * calling it to send this process off to oblivion.
- * [The nullpcb allows us to minimize cost in swtch() by not having
+ * [The nullpcb allows us to minimize cost in mi_switch() by not having
  * a special case].
  */
 struct proc *swtch_to_inactive();
@@ -952,8 +944,7 @@ cpu_exit(p)
 	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 
 	p->p_addr = (struct user *) &nullpcb;
-	splclock();
-	swtch();
+	mi_switch();
 	/* NOTREACHED */
 }
 #else
@@ -965,9 +956,8 @@ cpu_exit(p)
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
-	splclock();
-	curproc = 0;
-	swtch();
+	curproc = p;
+	mi_switch();
 	/* 
 	 * This is to shutup the compiler, and if swtch() failed I suppose
 	 * this would be a good thing.  This keeps gcc happy because panic
@@ -990,6 +980,21 @@ cpu_wait(p) struct proc *p; {
 #endif
 
 /*
+ * Dump the machine specific header information at the start of a core dump.
+ */
+int
+cpu_coredump(p, vp, cred)
+	struct proc *p;
+	struct vnode *vp;
+	struct ucred *cred;
+{
+
+	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
+	    (off_t)0, UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, cred, (int *)NULL,
+	    p));
+}
+
+/*
  * Set a red zone in the kernel stack after the u. area.
  */
 void
@@ -1005,6 +1010,43 @@ setredzone(pte, vaddr)
    taken. a sensible scheme might be to save the initial context
    used by sched (that has physical memory mapped 1:1 at bottom)
    and take the dump while still in mapped mode */
+}
+
+/*
+ * Move pages from one kernel virtual address to another.
+ * Both addresses are assumed to reside in the Sysmap,
+ * and size must be a multiple of CLSIZE.
+ */
+
+/*
+ * Move pages from one kernel virtual address to another.
+ * Both addresses are assumed to reside in the Sysmap,
+ * and size must be a multiple of CLSIZE.
+ */
+
+void
+pagemove(from, to, size)
+	register caddr_t from, to;
+	int size;
+{
+	register vm_offset_t pa;
+
+	if (size & CLOFSET)
+		panic("pagemove");
+	while (size > 0) {
+		pa = pmap_kextract((vm_offset_t)from);
+		if (pa == 0)
+			panic("pagemove 2");
+		if (pmap_kextract((vm_offset_t)to) != 0)
+			panic("pagemove 3");
+		pmap_remove(kernel_pmap,
+			    (vm_offset_t)from, (vm_offset_t)from + PAGE_SIZE);
+		pmap_kenter( (vm_offset_t)to, pa);
+		from += PAGE_SIZE;
+		to += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	pmap_update();
 }
 
 /*
@@ -1036,22 +1078,49 @@ vmapbuf(bp)
 {
 	register int npf;
 	register caddr_t addr;
-	register long flags = bp->b_flags;
-	struct proc *p;
 	int off;
 	vm_offset_t kva;
-	register vm_offset_t pa;
+	vm_offset_t pa, lastv, v;
 
-	if ((flags & B_PHYS) == 0)
+	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
+
+	lastv = 0;
+	for (addr = (caddr_t)trunc_page(bp->b_data);
+		addr < bp->b_data + bp->b_bufsize;
+		addr += PAGE_SIZE) {
+
+/*
+ * make sure that the pde is valid and held
+ */
+		v = trunc_page(((vm_offset_t)vtopte(addr)));
+		if (v != lastv) {
+			vm_fault_quick(v, VM_PROT_READ);
+			pa = pmap_extract(&curproc->p_vmspace->vm_pmap, v);
+			vm_page_hold(PHYS_TO_VM_PAGE(pa));
+			lastv = v;
+		}
+
+/*
+ * do the vm_fault if needed, do the copy-on-write thing when
+ * reading stuff off device into memory.
+ */
+		vm_fault_quick(addr,
+			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
+		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t) addr);
+/*
+ * hold the data page
+ */
+		vm_page_hold(PHYS_TO_VM_PAGE(pa));
+	}
+
 	addr = bp->b_saveaddr = bp->b_un.b_addr;
 	off = (int)addr & PGOFSET;
-	p = bp->b_proc;
 	npf = btoc(round_page(bp->b_bufsize + off));
 	kva = kmem_alloc_wait(phys_map, ctob(npf));
 	bp->b_un.b_addr = (caddr_t) (kva + off);
 	while (npf--) {
-		pa = pmap_extract(&p->p_vmspace->vm_pmap, (vm_offset_t)addr);
+		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t)addr);
 		if (pa == 0)
 			panic("vmapbuf: null page frame");
 		pmap_kenter(kva, trunc_page(pa));
@@ -1071,7 +1140,7 @@ vunmapbuf(bp)
 {
 	register int npf;
 	register caddr_t addr = bp->b_un.b_addr;
-	vm_offset_t kva;
+	vm_offset_t kva,va,v,lastv,pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
@@ -1080,6 +1149,32 @@ vunmapbuf(bp)
 	kmem_free_wakeup(phys_map, kva, ctob(npf));
 	bp->b_un.b_addr = bp->b_saveaddr;
 	bp->b_saveaddr = NULL;
+
+
+/*
+ * unhold the pde, and data pages
+ */
+	lastv = 0;
+	for (addr = (caddr_t)trunc_page(bp->b_data);
+		addr < bp->b_data + bp->b_bufsize;
+		addr += NBPG) {
+
+	/*
+	 * release the data page
+	 */
+		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t) addr);
+		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
+
+	/*
+	 * and unhold the page table
+	 */
+		v = trunc_page(((vm_offset_t)vtopte(addr)));
+		if (v != lastv) {
+			pa = pmap_extract(&curproc->p_vmspace->vm_pmap, v);
+			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
+			lastv = v;
+		}
+	}
 }
 
 /*
@@ -1104,7 +1199,7 @@ cpu_reset() {
 int
 grow(p, sp)
 	struct proc *p;
-	int sp;
+	u_int sp;
 {
 	unsigned int nss;
 	caddr_t v;

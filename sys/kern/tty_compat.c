@@ -49,6 +49,9 @@
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 
+void ttcompatsetflags	__P((struct tty *, struct termios *));
+void ttcompatsetlflags	__P((struct tty *, struct termios *));
+
 int ttydebug = 0;
 
 static struct speedtab compatspeeds[] = {
@@ -76,6 +79,7 @@ static int compatspcodes[16] = {
 };
 
 /*ARGSUSED*/
+int
 ttcompat(tp, com, data, flag)
 	register struct tty *tp;
 	int com;
@@ -222,6 +226,7 @@ ttcompat(tp, com, data, flag)
 	return (0);
 }
 
+int
 ttcompatgetflags(tp)
 	register struct tty *tp;
 {
@@ -279,6 +284,7 @@ if (ttydebug)
 	return (flags);
 }
 
+void
 ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
@@ -350,6 +356,7 @@ ttcompatsetflags(tp, t)
 	t->c_cflag = cflag;
 }
 
+void
 ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;

@@ -162,7 +162,7 @@ union_lookup(ap)
 	int lockparent = cnp->cn_flags & LOCKPARENT;
 	int rdonly = cnp->cn_flags & RDONLY;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(dvp->v_mount);
-	struct ucred *saved_cred;
+	struct ucred *saved_cred = 0;
 
 	cnp->cn_flags |= LOCKPARENT;
 

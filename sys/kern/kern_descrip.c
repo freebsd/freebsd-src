@@ -68,6 +68,7 @@ struct getdtablesize_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 getdtablesize(p, uap, retval)
 	struct proc *p;
 	struct getdtablesize_args *uap;
@@ -85,6 +86,7 @@ struct dup_args {
 	u_int	fd;
 };
 /* ARGSUSED */
+int
 dup(p, uap, retval)
 	struct proc *p;
 	struct dup_args *uap;
@@ -116,6 +118,7 @@ struct dup2_args {
 	u_int	to;
 };
 /* ARGSUSED */
+int
 dup2(p, uap, retval)
 	struct proc *p;
 	struct dup2_args *uap;
@@ -159,6 +162,7 @@ struct fcntl_args {
 	int	arg;
 };
 /* ARGSUSED */
+int
 fcntl(p, uap, retval)
 	struct proc *p;
 	register struct fcntl_args *uap;
@@ -324,6 +328,7 @@ struct close_args {
 	int	fd;
 };
 /* ARGSUSED */
+int
 close(p, uap, retval)
 	struct proc *p;
 	struct close_args *uap;
@@ -358,6 +363,7 @@ struct ofstat_args {
 	struct	ostat *sb;
 };
 /* ARGSUSED */
+int
 ofstat(p, uap, retval)
 	struct proc *p;
 	register struct ofstat_args *uap;
@@ -401,6 +407,7 @@ struct fstat_args {
 	struct	stat *sb;
 };
 /* ARGSUSED */
+int
 fstat(p, uap, retval)
 	struct proc *p;
 	register struct fstat_args *uap;
@@ -441,6 +448,7 @@ struct fpathconf_args {
 	int	name;
 };
 /* ARGSUSED */
+int
 fpathconf(p, uap, retval)
 	struct proc *p;
 	register struct fpathconf_args *uap;
@@ -476,6 +484,7 @@ fpathconf(p, uap, retval)
  */
 int fdexpand;
 
+int
 fdalloc(p, want, result)
 	struct proc *p;
 	int want;
@@ -538,12 +547,14 @@ fdalloc(p, want, result)
 		fdp->fd_nfiles = nfiles;
 		fdexpand++;
 	}
+	return (0);
 }
 
 /*
  * Check to see whether n user file descriptors
  * are available to the process p.
  */
+int
 fdavail(p, n)
 	struct proc *p;
 	register int n;
@@ -566,6 +577,7 @@ fdavail(p, n)
  * Create a new open file structure and allocate
  * a file decriptor for the process that refers to it.
  */
+int
 falloc(p, resultfp, resultfd)
 	register struct proc *p;
 	struct file **resultfp;
@@ -612,6 +624,7 @@ falloc(p, resultfp, resultfd)
 /*
  * Free a file descriptor.
  */
+void
 ffree(fp)
 	register struct file *fp;
 {
@@ -709,11 +722,40 @@ fdfree(p)
 }
 
 /*
+ * Close any files on exec?
+ */
+void
+fdcloseexec(p)
+	struct proc *p;
+{
+	struct filedesc *fdp = p->p_fd;
+	struct file **fpp;
+	char *fdfp;
+	register int i;
+
+	fpp = fdp->fd_ofiles;
+	fdfp = fdp->fd_ofileflags;
+	for (i = 0; i <= fdp->fd_lastfile; i++, fpp++, fdfp++)
+		if (*fpp != NULL && (*fdfp & UF_EXCLOSE)) {
+			if (*fdfp & UF_MAPPED)
+				(void) munmapfd(i);
+			(void) closef(*fpp, p);
+			*fpp = NULL;
+			*fdfp = 0;
+			if (i < fdp->fd_freefile)
+				fdp->fd_freefile = i;
+		}
+	while (fdp->fd_lastfile > 0 && fdp->fd_ofiles[fdp->fd_lastfile] == NULL)
+		fdp->fd_lastfile--;
+}
+
+/*
  * Internal form of close.
  * Decrement reference count on file structure.
  * Note: p may be NULL when closing a file
  * that was being passed in a message.
  */
+int
 closef(fp, p)
 	register struct file *fp;
 	register struct proc *p;
@@ -771,6 +813,7 @@ struct flock_args {
 	int	how;
 };
 /* ARGSUSED */
+int
 flock(p, uap, retval)
 	struct proc *p;
 	register struct flock_args *uap;
@@ -816,6 +859,7 @@ flock(p, uap, retval)
  * references to this file will be direct to the other driver.
  */
 /* ARGSUSED */
+int
 fdopen(dev, mode, type, p)
 	dev_t dev;
 	int mode, type;
@@ -837,6 +881,7 @@ fdopen(dev, mode, type, p)
 /*
  * Duplicate the specified descriptor to a free descriptor.
  */
+int
 dupfdopen(fdp, indx, dfd, mode, error)
 	register struct filedesc *fdp;
 	register int indx, dfd;

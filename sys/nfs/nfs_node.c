@@ -63,6 +63,7 @@ u_long nheadhash;
  * Initialize hash links for nfsnodes
  * and build nfsnode free list.
  */
+void
 nfs_nhinit()
 {
 
@@ -97,6 +98,7 @@ nfs_hash(fhp)
  * In all cases, a pointer to a
  * nfsnode structure is returned.
  */
+int
 nfs_nget(mntp, fhp, npp)
 	struct mount *mntp;
 	register nfsv2fh_t *fhp;
@@ -153,6 +155,7 @@ loop:
 	return (0);
 }
 
+int
 nfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -188,6 +191,7 @@ nfs_inactive(ap)
 /*
  * Reclaim an nfsnode so that it can be used for other purposes.
  */
+int
 nfs_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -230,6 +234,7 @@ nfs_reclaim(ap)
 /*
  * Lock an nfsnode
  */
+int
 nfs_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -254,6 +259,7 @@ nfs_lock(ap)
 /*
  * Unlock an nfsnode
  */
+int
 nfs_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -266,6 +272,7 @@ nfs_unlock(ap)
 /*
  * Check for a locked nfsnode
  */
+int
 nfs_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;

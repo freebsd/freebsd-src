@@ -55,6 +55,7 @@ struct fork_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 fork(p, uap, retval)
 	struct proc *p;
 	struct fork_args *uap;
@@ -65,6 +66,7 @@ fork(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 vfork(p, uap, retval)
 	struct proc *p;
 	struct fork_args *uap;
@@ -76,6 +78,7 @@ vfork(p, uap, retval)
 
 int	nprocs = 1;		/* process 0 */
 
+int
 fork1(p1, isvfork, retval)
 	register struct proc *p1;
 	int isvfork, retval[];
