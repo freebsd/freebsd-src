@@ -7,6 +7,9 @@
 #
 
 if [ "X$pccard_enable" = X"YES" ] ; then
+	if kldload pcic; then
+		echo "Kernel pcic module loaded."
+	fi
 	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
 		pccardc pccardmem $pccard_mem
 	else
