@@ -3201,6 +3201,7 @@ bge_start_locked(ifp)
 	struct bge_softc *sc;
 	struct mbuf *m_head = NULL;
 	u_int32_t prodidx = 0;
+	int count = 0;
 
 	sc = ifp->if_softc;
 
@@ -3247,12 +3248,18 @@ bge_start_locked(ifp)
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
+		++count;
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
 		BPF_MTAP(ifp, m_head);
+	}
+
+	if (count == 0) {
+		/* no packets were dequeued */
+		return;
 	}
 
 	/* Transmit */
