@@ -1203,11 +1203,12 @@ nfs_uninit(vfsp)
  *    copy the attributes to *vaper
  */
 int
-nfs_loadattrcache(vpp, mdp, dposp, vaper)
+nfs_loadattrcache(vpp, mdp, dposp, vaper, dontshrink)
 	struct vnode **vpp;
 	struct mbuf **mdp;
 	caddr_t *dposp;
 	struct vattr *vaper;
+	int dontshrink;
 {
 	register struct vnode *vp = *vpp;
 	register struct vattr *vap;
@@ -1323,9 +1324,18 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_gen = fxdr_unsigned(u_int32_t,fp->fa2_ctime.nfsv2_usec);
 		vap->va_filerev = 0;
 	}
+	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
-			if (np->n_flag & NMODIFIED) {
+			if (dontshrink && vap->va_size < np->n_size) {
+				/*
+				 * We've been told not to shrink the file;
+				 * zero np->n_attrstamp to indicate that
+				 * the attributes are stale.
+				 */
+				vap->va_size = np->n_size;
+				np->n_attrstamp = 0;
+			} else if (np->n_flag & NMODIFIED) {
 				if (vap->va_size < np->n_size)
 					vap->va_size = np->n_size;
 				else
@@ -1338,7 +1348,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 			np->n_size = vap->va_size;
 		}
 	}
-	np->n_attrstamp = time_second;
 	if (vaper != NULL) {
 		bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
