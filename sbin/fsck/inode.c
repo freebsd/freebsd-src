@@ -396,7 +396,7 @@ cacheino(dp, inumber)
 		malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs_daddr_t));
 	if (inp == NULL)
 		errx(EEXIT, "cannot increase directory list");
-	inpp = &inphead[inumber % numdirs];
+	inpp = &inphead[inumber % dirhash];
 	inp->i_nexthash = *inpp;
 	*inpp = inp;
 	inp->i_parent = inumber == ROOTINO ? ROOTINO : (ino_t)0;
@@ -424,7 +424,7 @@ getinoinfo(inumber)
 {
 	register struct inoinfo *inp;
 
-	for (inp = inphead[inumber % numdirs]; inp; inp = inp->i_nexthash) {
+	for (inp = inphead[inumber % dirhash]; inp; inp = inp->i_nexthash) {
 		if (inp->i_number != inumber)
 			continue;
 		return (inp);
