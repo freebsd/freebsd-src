@@ -548,6 +548,9 @@ uhci_alloc_intr_info(sc)
 		ii = malloc(sizeof(uhci_intr_info_t), M_USBDEV, M_NOWAIT);
 	}
 	ii->sc = sc;
+#if defined(__FreeBSD__)
+	callout_handle_init(&ii->timeout_handle);
+#endif
 	return ii;
 }
 
@@ -1239,6 +1242,9 @@ uhci_device_bulk_start(reqh)
 	ii->reqh = reqh;
 	ii->stdstart = xfer;
 	ii->stdend = xferend;
+#if defined(__FreeBSD__)
+	callout_handle_init(&ii->timeout_handle);
+#endif
 #ifdef DIAGNOSTIC
 	ii->isdone = 0;
 #endif
@@ -1254,10 +1260,6 @@ uhci_device_bulk_start(reqh)
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
 		usb_timeout(uhci_timeout, ii,
                             MS_TO_TICKS(reqh->timeout), ii->timeout_handle);
-#if defined(__FreeBSD__)
-	} else {
-		callout_handle_init(&ii->timeout_handle);
-#endif
 	}
 	splx(s);
 
@@ -1594,6 +1596,9 @@ uhci_device_request(reqh)
 	ii->reqh = reqh;
 	ii->stdstart = setup;
 	ii->stdend = stat;
+#if defined(__FreeBSD__)
+	callout_handle_init(&ii->timeout_handle);
+#endif
 #ifdef DIAGNOSTIC
 	ii->isdone = 0;
 #endif
@@ -1634,10 +1639,6 @@ uhci_device_request(reqh)
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
 		usb_timeout(uhci_timeout, ii,
                             MS_TO_TICKS(reqh->timeout), ii->timeout_handle);
-#if defined(__FreeBSD__)
-	} else {
-		callout_handle_init(&ii->timeout_handle);
-#endif
 	}
 	splx(s);
 
