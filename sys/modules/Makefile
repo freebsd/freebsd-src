@@ -1,11 +1,13 @@
 # $FreeBSD$
 
-.if exists(${.CURDIR}/../opencrypto) && !defined(NOCRYPT)
+.if !defined(NOCRYPT) || defined(ALL_MODULES)
+.if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
 .endif
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT)
+.if exists(${.CURDIR}/../crypto)
 _random=	random
+.endif
 .endif
 
 SUBDIR=	accf_data \
@@ -145,11 +147,11 @@ SUBDIR=	accf_data \
 	wlan \
 	xl
 
-.if defined(WANT_EXT2FS_MODULE)
+.if defined(WANT_EXT2FS_MODULE) || defined(ALL_MODULES)
 SUBDIR+=ext2fs
 .endif
 
-.if !defined(NO_IPFILTER)
+.if !defined(NO_IPFILTER) || defined(ALL_MODULES)
 SUBDIR+=ipfilter
 .endif
 
@@ -292,6 +294,10 @@ SUBDIR+=gem
 
 .if ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=hme
+.endif
+
+.if defined(ALL_MODULES)
+SUBDIR+=ufs
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
