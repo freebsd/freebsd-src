@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.64 1999/07/22 14:11:26 sheldonh Exp $";
+	"$Id: inetd.c,v 1.65 1999/07/22 14:47:29 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -151,6 +151,7 @@ static const char rcsid[] =
 	   ( ((wrap_ex && !(sep)->se_bi) || (wrap_bi && (sep)->se_bi)) \
 	&& ( ((sep)->se_accept && (sep)->se_socktype == SOCK_STREAM) \
 	    || (sep)->se_socktype == SOCK_DGRAM))
+#define LARGEST(x,y)	((x) > (y) ? (x) : (y))
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
@@ -184,7 +185,8 @@ int	wrap_ex = 0;
 int	wrap_bi = 0;
 int	debug = 0;
 int	log = 0;
-int	nsock, maxsock;
+int	nsock;
+int	maxsock;			/* highest-numbered descriptor */
 fd_set	allsock;
 int	options;
 int	timingout;
@@ -365,8 +367,8 @@ main(argc, argv, envp)
 	}
 	FD_SET(signalpipe[0], &allsock);
 	nsock++;
-	if (signalpipe[0] > maxsock)
-	    maxsock = signalpipe[0];
+	if (signalpipe[0] > maxsock || signalpipe[1] > maxsock)
+	    maxsock = LARGEST(signalpipe[0], signalpipe[1]);
 
 	for (;;) {
 	    int n, ctrl;
