@@ -1637,7 +1637,7 @@ sf_buf_init(void *arg)
  * Get an sf_buf from the freelist. Will block if none are available.
  */
 struct sf_buf *
-sf_buf_alloc()
+sf_buf_alloc(struct vm_page *m)
 {
 	struct sf_buf *sf;
 	int error;
@@ -1655,8 +1655,11 @@ sf_buf_alloc()
 		if (error)
 			break;
 	}
-	if (sf != NULL)
+	if (sf != NULL) {
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
+		sf->m = m;
+		pmap_qenter(sf->kva, &sf->m, 1);
+	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
 }
@@ -1930,7 +1933,7 @@ retry_lookup:
 		 * Get a sendfile buf. We usually wait as long as necessary,
 		 * but this wait can be interrupted.
 		 */
-		if ((sf = sf_buf_alloc()) == NULL) {
+		if ((sf = sf_buf_alloc(pg)) == NULL) {
 			vm_page_lock_queues();
 			vm_page_unwire(pg, 0);
 			if (pg->wire_count == 0 && pg->object == NULL)
@@ -1941,12 +1944,6 @@ retry_lookup:
 			goto done;
 		}
 
-		/*
-		 * Allocate a kernel virtual page and insert the physical page
-		 * into it.
-		 */
-		sf->m = pg;
-		pmap_qenter(sf->kva, &pg, 1);
 		/*
 		 * Get an mbuf header and set it up as having external storage.
 		 */

@@ -371,7 +371,7 @@ int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 struct sf_buf *
-	sf_buf_alloc(void);
+	sf_buf_alloc(struct vm_page *m);
 void	sf_buf_free(void *addr, void *args);
 int	sb_lock(struct sockbuf *sb);
 int	soabort(struct socket *so);
