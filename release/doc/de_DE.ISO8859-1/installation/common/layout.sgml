@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/layout.sgml,v 1.3 2002/03/12 17:24:26 ue Exp $
-  $Id: layout.sgml,v 1.3 2002/03/10 15:37:18 ue Exp $
-  basiert auf: 1.4
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/layout.sgml,v 1.4 2002/10/15 23:35:57 ue Exp $
+  basiert auf: 1.5
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
@@ -12,13 +11,13 @@
   <para>Ein Verzeichnis mit einer typischen &os; Distribution sieht
     ungef&auml;hr so aus:</para>
 
-<screen>ERRATA.HTM      README.TXT      compat1x        dict            manpages
-ERRATA.TXT      RELNOTES.HTM    compat20        doc             packages
-HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     ports
-HARDWARE.TXT    XF86336         compat22        floppies        proflibs
-INSTALL.HTM     bin             compat3x        games           src
-INSTALL.TXT     catpages        compat4x        info            tools
-README.HTM      cdrom.inf       crypto          kernel</screen>
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
+HARDWARE.TXT    bin             compat22        filename.txt    ports
+INSTALL.HTM     boot            compat3x        floppies        proflibs
+INSTALL.TXT     catpages        compat4x        games           src
+README.HTM      cdrom.inf       crypto          info            tools</screen>
 
   <para>Wenn Sie dieses Verzeichnis f&uuml;r eine CD-, FTP- oder
     NFS-Installation nutzen wollen, brauchen Sie nur die beiden 1.44
@@ -32,7 +31,8 @@ README.HTM      cdrom.inf       crypto          kernel</screen>
 
   <para>Wenn Sie eine der anderen Varianten der Installation nutzen
     oder einfach nur wissen wollen, wie eine Distribution aufgebaut
-    ist, finden Sie hier weitere Informationen zu dem Thema.</para>
+    ist, finden Sie hier weitere Informationen zum Inhalt einiger der
+    Verzeichnisse:</para>
 
   <orderedlist>
     <listitem>
@@ -53,14 +53,6 @@ README.HTM      cdrom.inf       crypto          kernel</screen>
       <para><filename>docbook.css</filename> ist ein Cascading Style
         Sheet (CSS), der von einigen Browsern zur Formatierung der
         HTML Dokumentation benutzt wird.</para>
-    </listitem>
-
-    <listitem>
-      <para>Das Verzeichnis <filename>XF86336</filename> enth&auml;lt
-        die Release 3.3.6 des XFree86 Projekt.  In dem Verzeichnis
-        finden Sie mehrere komprimierte Archivdateien, die die
-        einzelnen Komponenten der XFree86 Distribution
-        enthalten.</para>
     </listitem>
 
     <listitem>
