@@ -582,7 +582,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	struct mddt_cluster *memc;
 	int i, mddtweird;
 	int cputype;
-	char* p;
+	char *p;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
 
@@ -1068,6 +1068,16 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	}
 
 	/*
+	 * Catch case of boot_verbose set in environment.
+	 */
+	if ((p = getenv("boot_verbose")) != NULL) {
+		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
+			boothowto |= RB_VERBOSE;
+			bootverbose = 1;
+		}
+	}
+
+	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
 #ifdef DDB
@@ -1154,7 +1164,9 @@ DELAY(int n)
 
         while (usec <= n) {
 		/*
-		 * Get the next CPU cycle count;
+		 * Get the next CPU cycle count. The assumption here
+		 * is that we can't have wrapped twice past 32 bits worth
+		 * of CPU cycles since we last checked.
 		 */
 		pcc1 = alpha_rpcc() & 0xffffffffUL;
 		if (pcc1 < pcc0) {
