@@ -101,6 +101,41 @@ static int	fd_last_used(struct filedesc *, int, int);
 static void	fdgrowtable(struct filedesc *, int);
 
 /*
+ * A process is initially started out with NDFILE descriptors stored within
+ * this structure, selected to be enough for typical applications based on
+ * the historical limit of 20 open files (and the usage of descriptors by
+ * shells).  If these descriptors are exhausted, a larger descriptor table
+ * may be allocated, up to a process' resource limit; the internal arrays
+ * are then unused.
+ */
+#define NDFILE		20
+#define NDSLOTSIZE	sizeof(NDSLOTTYPE)
+#define	NDENTRIES	(NDSLOTSIZE * __CHAR_BIT)
+#define NDSLOT(x)	((x) / NDENTRIES)
+#define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
+#define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
+
+/*
+ * Basic allocation of descriptors:
+ * one of the above, plus arrays for NDFILE descriptors.
+ */
+struct filedesc0 {
+	struct	filedesc fd_fd;
+	/*
+	 * These arrays are used when the number of open files is
+	 * <= NDFILE, and are then pointed to by the pointers above.
+	 */
+	struct	file *fd_dfiles[NDFILE];
+	char	fd_dfileflags[NDFILE];
+	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
+};
+
+/*
+ * Storage required per open file descriptor.
+ */
+#define OFILESIZE (sizeof(struct file *) + sizeof(char))
+
+/*
  * Descriptor management.
  */
 struct filelist filehead;	/* head of list of open files */
