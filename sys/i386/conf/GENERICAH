@@ -76,7 +76,7 @@ device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		lpa0	at isa? port "IO_LPT1" tty
 device		lpa1	at isa? port "IO_LPT2" tty
 
-device ed0 at isa? port 0x280 net irq 9 iomem 0xd0000 iosiz 8192 vector weintr
+device ed0 at isa? port 0x280 net irq 9 iomem 0xd0000 vector edintr
 device ne0 at isa? port 0x300 net irq 9 vector neintr
 device ec0 at isa? port 0x250 net irq 9 iomem 0xd8000 iosiz 8192 vector ecintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
