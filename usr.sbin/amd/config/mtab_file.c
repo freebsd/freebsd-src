@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_file.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: mtab_file.c,v 1.4 1997/02/22 16:02:27 peter Exp $
  *
  */
 
@@ -271,7 +271,7 @@ mntlist *mp;
 	 * directory as the target mount table
 	 * so that rename() will work.
 	 */
-	char tmpname[64];
+	char tmpname[MAXPATHLEN + 1];
 	int retries;
 	int tmpfd;
 	char *cp;
@@ -285,17 +285,7 @@ mntlist *mp;
 		tmpname[0] = '.'; tmpname[1] = '\0';
 	}
 	strcat(tmpname, "/mtabXXXXXX");
-	mktemp(tmpname);
-	retries = 0;
-enfile1:
-	if ((tmpfd = open(tmpname, O_RDWR|O_CREAT|O_TRUNC, 0644)) < 0) {
-		if (errno == ENFILE && retries++ < NFILE_RETRIES) {
-			sleep(1);
-			goto enfile1;
-		}
-		plog(XLOG_ERROR, "%s: open: %m", tmpname);
-		return;
-	}
+	tmpfd = mktemp(tmpname);
 	if (close(tmpfd) < 0)
 		plog(XLOG_ERROR, "Couldn't close tmp file descriptor: %m");
 
