@@ -131,13 +131,20 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					if (strlen(ores->ai_canonname) > hsize &&
-					    addr->sa_family == AF_INET) {
-						freeaddrinfo(ores);
-						goto numeric;
-					}
-					strncpy(host, ores->ai_canonname,
-						hsize);
+					if (strlen(ores->ai_canonname) > hsize) {
+						if (addr->sa_family == AF_INET) {
+							freeaddrinfo(ores);
+							goto numeric;
+						}
+						strncpy(buf,
+							ores->ai_canonname,
+							sizeof(buf));
+						trimdomain(buf, hsize);
+						strncpy(host, buf, hsize);
+					} else
+						strncpy(host,
+							ores->ai_canonname,
+							hsize);
 					break;
 				}
 				((struct sockinet *)addr)->si_port = port;
