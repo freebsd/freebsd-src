@@ -47,10 +47,6 @@ extern char *altlogin;
 int cleanopen(char *line);
 void scrub_env(void);
 
-#if defined(CRAY) || defined(__hpux)
-# define PARENT_DOES_UTMP
-#endif
-
 #ifdef	NEWINIT
 #include <initreq.h>
 #else	/* NEWINIT*/
@@ -79,20 +75,6 @@ char	wtmpf[]	= "/etc/wtmp";
 
 #include <libutil.h>
 
-# ifdef CRAY
-#include <tmpdir.h>
-#include <sys/wait.h>
-#  if (UNICOS_LVL == '7.0') || (UNICOS_LVL == '7.1')
-#   define UNICOS7x
-#  endif
-
-#  ifdef UNICOS7x
-#include <sys/sysv.h>
-#include <sys/secstat.h>
-extern int secflag;
-extern struct sysv sysv;
-#  endif /* UNICOS7x */
-# endif	/* CRAY */
 #endif	/* NEWINIT */
 
 #ifdef	STREAMSPTY
@@ -105,10 +87,6 @@ extern struct sysv sysv;
 
 #ifdef	STREAMS
 #include <sys/stream.h>
-#endif
-#ifdef __hpux
-#include <sys/resource.h>
-#include <sys/proc.h>
 #endif
 #include <sys/tty.h>
 #ifdef	t_erase
@@ -126,10 +104,6 @@ extern struct sysv sysv;
 #undef	t_flushc
 #undef	t_werasc
 #undef	t_lnextc
-#endif
-
-#if defined(UNICOS5) && defined(CRAY2) && !defined(EXTPROC)
-# define EXTPROC 0400
 #endif
 
 #ifndef	USE_TERMIO
@@ -258,9 +232,6 @@ set_termbuf()
 		(void) tcsetattr(ttyfd, TCSANOW, &termbuf);
 # else
 		(void) tcsetattr(pty, TCSANOW, &termbuf);
-# endif
-# if	defined(CRAY2) && defined(UNICOS5)
-	needtermstat = 1;
 # endif
 #endif	/* USE_TERMIO */
 }
@@ -449,26 +420,6 @@ spcset(func, valp, valpp)
 }
 #endif	/* USE_TERMIO */
 
-#ifdef CRAY
-/*
- * getnpty()
- *
- * Return the number of pty's configured into the system.
- */
-	int
-getnpty()
-{
-#ifdef _SC_CRAY_NPTY
-	int numptys;
-
-	if ((numptys = sysconf(_SC_CRAY_NPTY)) != -1)
-		return numptys;
-	else
-#endif /* _SC_CRAY_NPTY */
-		return 128;
-}
-#endif /* CRAY */
-
 #ifndef	convex
 /*
  * getpty()
@@ -478,11 +429,7 @@ getnpty()
  *
  * Returns the file descriptor of the opened pty.
  */
-#ifdef	CRAY
-char myline[16];
-#else
 char line[16];
-#endif	/* CRAY */
 
 	int
 getpty(ptynum)
@@ -502,23 +449,13 @@ int *ptynum;
 	}
 
 #else	/* ! STREAMSPTY */
-#ifndef CRAY
 	register char *cp, *p1, *p2;
 	register int i;
-#if defined(sun) && defined(TIOCGPGRP) && BSD < 199207
-	int dummy;
-#endif
 
-#ifndef	__hpux
 	(void) strcpy(line, _PATH_DEV);
 	(void) strcat(line, "ptyXX");
 	p1 = &line[8];
 	p2 = &line[9];
-#else
-	(void) strcpy(line, "/dev/ptym/ptyXX");
-	p1 = &line[13];
-	p2 = &line[14];
-#endif
 
 	for (cp = "pqrsPQRS"; *cp; cp++) {
 		struct stat stb;
@@ -536,64 +473,13 @@ int *ptynum;
 			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
 			p = open(line, 2);
 			if (p > 0) {
-#ifndef	__hpux
 				line[5] = 't';
-#else
-				for (p1 = &line[8]; *p1; p1++)
-					*p1 = *(p1+1);
-				line[9] = 't';
-#endif
 				chown(line, 0, 0);
 				chmod(line, 0600);
-#if defined(sun) && defined(TIOCGPGRP) && BSD < 199207
-				if (ioctl(p, TIOCGPGRP, &dummy) == 0
-				    || errno != EIO) {
-					chmod(line, 0666);
-					close(p);
-					line[5] = 'p';
-				} else
-#endif /* defined(sun) && defined(TIOCGPGRP) && BSD < 199207 */
 					return(p);
 			}
 		}
 	}
-#else	/* CRAY */
-	extern lowpty, highpty;
-	struct stat sb;
-
-	for (*ptynum = lowpty; *ptynum <= highpty; (*ptynum)++) {
-		(void) sprintf(myline, "%spty/%03d", _PATH_DEV, *ptynum);
-		p = open(myline, 2);
-		if (p < 0)
-			continue;
-		(void) sprintf(line, "%sp%03d", _PATH_TTY, *ptynum);
-		/*
-		 * Here are some shenanigans to make sure that there
-		 * are no listeners lurking on the line.
-		 */
-		if(stat(line, &sb) < 0) {
-			(void) close(p);
-			continue;
-		}
-		if(sb.st_uid || sb.st_gid || sb.st_mode != 0600) {
-			chown(line, 0, 0);
-			chmod(line, 0600);
-			(void)close(p);
-			p = open(myline, 2);
-			if (p < 0)
-				continue;
-		}
-		/*
-		 * Now it should be safe...check for accessability.
-		 */
-		if (access(line, 6) == 0)
-			return(p);
-		else {
-			/* no tty side to pty so skip it */
-			(void) close(p);
-		}
-	}
-#endif	/* CRAY */
 #endif	/* STREAMSPTY */
 	return(-1);
 }
@@ -1022,15 +908,6 @@ tty_rspeed(val)
 #endif	/* DECODE_BAUD */
 }
 
-#if	defined(CRAY2) && defined(UNICOS5)
-	int
-tty_isnewmap()
-{
-	return((termbuf.c_oflag & OPOST) && (termbuf.c_oflag & ONLCR) &&
-			!(termbuf.c_oflag & ONLRET));
-}
-#endif
-
 #ifdef PARENT_DOES_UTMP
 # ifndef NEWINIT
 extern	struct utmp wtmp;
@@ -1069,7 +946,6 @@ getptyslave()
 	register int t = -1;
 	char erase;
 
-#if	!defined(CRAY) || !defined(NEWINIT)
 # ifdef	LINEMODE
 	int waslm;
 # endif
@@ -1151,21 +1027,11 @@ getptyslave()
 # endif	/* USE_TERMIO */
 
 	/*
-	 * Settings for UNICOS (and HPUX)
-	 */
-# if defined(CRAY) || defined(__hpux)
-	termbuf.c_oflag = OPOST|ONLCR|TAB3;
-	termbuf.c_iflag = IGNPAR|ISTRIP|ICRNL|IXON;
-	termbuf.c_lflag = ISIG|ICANON|ECHO|ECHOE|ECHOK;
-	termbuf.c_cflag = EXTB|HUPCL|CS8;
-# endif
-
-	/*
 	 * Settings for all other termios/termio based
 	 * systems, other than 4.4BSD.  In 4.4BSD the
 	 * kernel does the initial terminal setup.
 	 */
-# if defined(USE_TERMIO) && !(defined(CRAY) || defined(__hpux)) && (BSD <= 43)
+# if defined(USE_TERMIO) && (BSD <= 43)
 #  ifndef	OXTABS
 #   define OXTABS	0
 #  endif
@@ -1173,7 +1039,7 @@ getptyslave()
 	termbuf.c_oflag |= ONLCR|OXTABS;
 	termbuf.c_iflag |= ICRNL;
 	termbuf.c_iflag &= ~IXOFF;
-# endif /* defined(USE_TERMIO) && !defined(CRAY) && (BSD <= 43) */
+# endif /* defined(USE_TERMIO) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
 	if (erase)
@@ -1189,7 +1055,6 @@ getptyslave()
 	set_termbuf();
 	if (login_tty(t) == -1)
 		fatalperror(net, "login_tty");
-#endif	/* !defined(CRAY) || !defined(NEWINIT) */
 	if (net > 2)
 		(void) close(net);
 	if (pty > 2) {
@@ -1198,7 +1063,6 @@ getptyslave()
 	}
 }
 
-#if	!defined(CRAY) || !defined(NEWINIT)
 #ifndef	O_NOCTTY
 #define	O_NOCTTY	0
 #endif
@@ -1211,9 +1075,6 @@ cleanopen(line)
 	char *line;
 {
 	register int t;
-#ifdef	UNICOS7x
-	struct secstat secbuf;
-#endif	/* UNICOS7x */
 
 #ifndef STREAMSPTY
 	/*
@@ -1224,30 +1085,9 @@ cleanopen(line)
 	(void) chmod(line, 0600);
 #endif
 
-# if !defined(CRAY) && (BSD > 43)
 	(void) revoke(line);
-# endif
-#ifdef	UNICOS7x
-	if (secflag) {
-		if (secstat(line, &secbuf) < 0)
-			return(-1);
-		if (setulvl(secbuf.st_slevel) < 0)
-			return(-1);
-		if (setucmp(secbuf.st_compart) < 0)
-			return(-1);
-	}
-#endif	/* UNICOS7x */
 
 	t = open(line, O_RDWR|O_NOCTTY);
-
-#ifdef	UNICOS7x
-	if (secflag) {
-		if (setulvl(sysv.sy_minlvl) < 0)
-			return(-1);
-		if (setucmp(0) < 0)
-			return(-1);
-	}
-#endif	/* UNICOS7x */
 
 	if (t < 0)
 		return(-1);
@@ -1256,7 +1096,7 @@ cleanopen(line)
 	 * Hangup anybody else using this ttyp, then reopen it for
 	 * ourselves.
 	 */
-# if !(defined(CRAY) || defined(__hpux)) && (BSD <= 43) && !defined(STREAMSPTY)
+# if (BSD <= 43) && !defined(STREAMSPTY)
 	(void) signal(SIGHUP, SIG_IGN);
 	vhangup();
 	(void) signal(SIGHUP, SIG_DFL);
@@ -1264,45 +1104,8 @@ cleanopen(line)
 	if (t < 0)
 		return(-1);
 # endif
-# if	defined(CRAY) && defined(TCVHUP)
-	{
-		register int i;
-		(void) signal(SIGHUP, SIG_IGN);
-		(void) ioctl(t, TCVHUP, (char *)0);
-		(void) signal(SIGHUP, SIG_DFL);
-		setpgrp();
-
-#ifdef	UNICOS7x
-		if (secflag) {
-			if (secstat(line, &secbuf) < 0)
-				return(-1);
-			if (setulvl(secbuf.st_slevel) < 0)
-				return(-1);
-			if (setucmp(secbuf.st_compart) < 0)
-				return(-1);
-		}
-#endif	/* UNICOS7x */
-
-		i = open(line, O_RDWR);
-
-#ifdef	UNICOS7x
-		if (secflag) {
-			if (setulvl(sysv.sy_minlvl) < 0)
-				return(-1);
-			if (setucmp(0) < 0)
-				return(-1);
-		}
-#endif	/* UNICOS7x */
-
-		if (i < 0)
-			return(-1);
-		(void) close(t);
-		t = i;
-	}
-# endif	/* defined(CRAY) && defined(TCVHUP) */
 	return(t);
 }
-#endif	/* !defined(CRAY) || !defined(NEWINIT) */
 
 #if BSD <= 43
 
@@ -1324,15 +1127,6 @@ login_tty(t)
 # ifdef	TIOCSCTTY
 	if (ioctl(t, TIOCSCTTY, (char *)0) < 0)
 		fatalperror(net, "ioctl(sctty)");
-#  if defined(CRAY)
-	/*
-	 * Close the hard fd to /dev/ttypXXX, and re-open through
-	 * the indirect /dev/tty interface.
-	 */
-	close(t);
-	if ((t = open(_PATH_TTY, O_RDWR)) < 0)
-		fatalperror(net, "open(/dev/tty)");
-#  endif
 # else
 	/*
 	 * We get our controlling tty assigned as a side-effect
@@ -1341,11 +1135,7 @@ login_tty(t)
 	 * setsid() call above may have set our pgrp, so clear
 	 * it out before opening the tty...
 	 */
-#  ifndef SOLARIS
 	(void) setpgrp(0, 0);
-#  else
-	(void) setpgrp();
-#  endif
 	close(open(line, O_RDWR));
 # endif
 	if (t != 0)
@@ -1415,20 +1205,13 @@ startslave(host, autologin, autoname)
 		SCPYN(wtmp.ut_user, "LOGIN");
 		SCPYN(wtmp.ut_host, host);
 		SCPYN(wtmp.ut_line, line + sizeof(_PATH_DEV) - 1);
-#ifndef	__hpux
 		SCPYN(wtmp.ut_id, wtmp.ut_line+3);
-#else
-		SCPYN(wtmp.ut_id, wtmp.ut_line+7);
-#endif
 		pututline(&wtmp);
 		endutent();
 		if ((i = open(wtmpf, O_WRONLY|O_APPEND)) >= 0) {
 			(void) write(i, (char *)&wtmp, sizeof(struct utmp));
 			(void) close(i);
 		}
-#ifdef	CRAY
-		(void) signal(WJSIGNAL, sigjob);
-#endif
 		utmp_sig_notify(pid);
 # endif	/* PARENT_DOES_UTMP */
 	} else {
@@ -1453,10 +1236,8 @@ startslave(host, autologin, autoname)
 	SCPYN(request.tty_id, &line[8]);
 	SCPYN(request.host, host);
 	SCPYN(request.term_type, terminaltype ? terminaltype : "network");
-#if	!defined(UNICOS5)
 	request.signal = SIGCLD;
 	request.pid = getpid();
-#endif
 #ifdef BFTPDAEMON
 	/*
 	 * Are we working as the bftp daemon?
@@ -1504,10 +1285,6 @@ init_env()
 	envp = envinit;
 	if ((*envp = getenv("TZ")))
 		*envp++ -= 3;
-#if	defined(CRAY) || defined(__hpux)
-	else
-		*envp++ = "TZ=GMT0";
-#endif
 	*envp = 0;
 	environ = envinit;
 }
@@ -1788,61 +1565,9 @@ cleanup(sig)
 	(void) shutdown(net, 2);
 	exit(1);
 # else	/* NEWINIT */
-#  ifdef CRAY
-	static int incleanup = 0;
-	register int t;
-	int child_status; /* status of child process as returned by waitpid */
-	int flags = WNOHANG|WUNTRACED;
-
-	/*
-	 * 1: Pick up the zombie, if we are being called
-	 *    as the signal handler.
-	 * 2: If we are a nested cleanup(), return.
-	 * 3: Try to clean up TMPDIR.
-	 * 4: Fill in utmp with shutdown of process.
-	 * 5: Close down the network and pty connections.
-	 * 6: Finish up the TMPDIR cleanup, if needed.
-	 */
-	if (sig == SIGCHLD) {
-		while (waitpid(-1, &child_status, flags) > 0)
-			;	/* VOID */
-		/* Check if the child process was stopped
-		 * rather than exited.  We want cleanup only if
-		 * the child has died.
-		 */
-		if (WIFSTOPPED(child_status)) {
-			return;
-		}
-	}
-	t = sigblock(sigmask(SIGCHLD));
-	if (incleanup) {
-		sigsetmask(t);
-		return;
-	}
-	incleanup = 1;
-	sigsetmask(t);
-#ifdef	UNICOS7x
-	if (secflag) {
-		/*
-		 *	We need to set ourselves back to a null
-		 *	label to clean up.
-		 */
-
-		setulvl(sysv.sy_minlvl);
-		setucmp((long)0);
-	}
-#endif	/* UNICOS7x */
-
-	t = cleantmp(&wtmp);
-	setutent();	/* just to make sure */
-#  endif /* CRAY */
 	rmut(line);
 	close(pty);
 	(void) shutdown(net, 2);
-#  ifdef CRAY
-	if (t == 0)
-		cleantmp(&wtmp);
-#  endif /* CRAY */
 	exit(1);
 # endif	/* NEWINT */
 #endif	/* PARENT_DOES_UTMP */
@@ -1886,11 +1611,6 @@ utmp_sig_reset()
 	(void) signal(SIGUSR1, func);	/* reset handler to default */
 }
 
-# ifdef __hpux
-# define sigoff() /* do nothing */
-# define sigon() /* do nothing */
-# endif
-
 	void
 utmp_sig_wait()
 {
@@ -1911,184 +1631,6 @@ utmp_sig_notify(pid)
 	kill(pid, SIGUSR1);
 }
 
-# ifdef CRAY
-static int gotsigjob = 0;
-
-	/*ARGSUSED*/
-	void
-sigjob(sig)
-	int sig;
-{
-	register int jid;
-	register struct jobtemp *jp;
-
-	while ((jid = waitjob(NULL)) != -1) {
-		if (jid == 0) {
-			return;
-		}
-		gotsigjob++;
-		jobend(jid, NULL, NULL);
-	}
-}
-
-/*
- *	jid_getutid:
- *		called by jobend() before calling cleantmp()
- *		to find the correct $TMPDIR to cleanup.
- */
-
-	struct utmp *
-jid_getutid(jid)
-	int jid;
-{
-	struct utmp *cur = NULL;
-
-	setutent();	/* just to make sure */
-	while (cur = getutent()) {
-		if ( (cur->ut_type != NULL) && (jid == cur->ut_jid) ) {
-			return(cur);
-		}
-	}
-
-	return(0);
-}
-
-/*
- * Clean up the TMPDIR that login created.
- * The first time this is called we pick up the info
- * from the utmp.  If the job has already gone away,
- * then we'll clean up and be done.  If not, then
- * when this is called the second time it will wait
- * for the signal that the job is done.
- */
-	int
-cleantmp(wtp)
-	register struct utmp *wtp;
-{
-	struct utmp *utp;
-	static int first = 1;
-	register int mask, omask, ret;
-	extern struct utmp *getutid P((const struct utmp *_Id));
-
-
-	mask = sigmask(WJSIGNAL);
-
-	if (first == 0) {
-		omask = sigblock(mask);
-		while (gotsigjob == 0)
-			sigpause(omask);
-		return(1);
-	}
-	first = 0;
-	setutent();	/* just to make sure */
-
-	utp = getutid(wtp);
-	if (utp == 0) {
-		syslog(LOG_ERR, "can't get /etc/utmp entry to clean TMPDIR");
-		return(-1);
-	}
-	/*
-	 * Nothing to clean up if the user shell was never started.
-	 */
-	if (utp->ut_type != USER_PROCESS || utp->ut_jid == 0)
-		return(1);
-
-	/*
-	 * Block the WJSIGNAL while we are in jobend().
-	 */
-	omask = sigblock(mask);
-	ret = jobend(utp->ut_jid, utp->ut_tpath, utp->ut_user);
-	sigsetmask(omask);
-	return(ret);
-}
-
-	int
-jobend(jid, path, user)
-	register int jid;
-	register char *path;
-	register char *user;
-{
-	static int saved_jid = 0;
-	static int pty_saved_jid = 0;
-	static char saved_path[sizeof(wtmp.ut_tpath)+1];
-	static char saved_user[sizeof(wtmp.ut_user)+1];
-
-	/*
-	 * this little piece of code comes into play
-	 * only when ptyreconnect is used to reconnect
-	 * to an previous session.
-	 *
-	 * this is the only time when the
-	 * "saved_jid != jid" code is executed.
-	 */
-
-	if ( saved_jid && saved_jid != jid ) {
-		if (!path) {	/* called from signal handler */
-			pty_saved_jid = jid;
-		} else {
-			pty_saved_jid = saved_jid;
-		}
-	}
-
-	if (path) {
-		strncpy(saved_path, path, sizeof(wtmp.ut_tpath));
-		strncpy(saved_user, user, sizeof(wtmp.ut_user));
-		saved_path[sizeof(saved_path)] = '\0';
-		saved_user[sizeof(saved_user)] = '\0';
-	}
-	if (saved_jid == 0) {
-		saved_jid = jid;
-		return(0);
-	}
-
-	/* if the jid has changed, get the correct entry from the utmp file */
-
-	if ( saved_jid != jid ) {
-		struct utmp *utp = NULL;
-		struct utmp *jid_getutid();
-
-		utp = jid_getutid(pty_saved_jid);
-
-		if (utp == 0) {
-			syslog(LOG_ERR, "Can't get /etc/utmp entry to clean TMPDIR");
-			return(-1);
-		}
-
-		cleantmpdir(jid, utp->ut_tpath, utp->ut_user);
-		return(1);
-	}
-
-	cleantmpdir(jid, saved_path, saved_user);
-	return(1);
-}
-
-/*
- * Fork a child process to clean up the TMPDIR
- */
-cleantmpdir(jid, tpath, user)
-	register int jid;
-	register char *tpath;
-	register char *user;
-{
-	switch(fork()) {
-	case -1:
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): fork() failed: %m",
-							tpath);
-		break;
-	case 0:
-		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, (char *)0);
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m",
-							tpath, CLEANTMPCMD);
-		exit(1);
-	default:
-		/*
-		 * Forget about child.  We will exit, and
-		 * /etc/init will pick it up.
-		 */
-		break;
-	}
-}
-# endif /* CRAY */
 #endif	/* defined(PARENT_DOES_UTMP) && !defined(NEWINIT) */
 
 /*
@@ -2128,7 +1670,7 @@ rmut()
 }  /* end of rmut */
 #endif
 
-#if	!defined(UTMPX) && !(defined(CRAY) || defined(__hpux)) && BSD <= 43
+#if	!defined(UTMPX) && BSD <= 43
 	void
 rmut()
 {
@@ -2179,43 +1721,4 @@ rmut()
 	(void) chmod(line, 0666);
 	(void) chown(line, 0, 0);
 }  /* end of rmut */
-#endif	/* CRAY */
-
-#ifdef __hpux
-rmut (line)
-char *line;
-{
-	struct utmp utmp;
-	struct utmp *utptr;
-	int fd;			/* for /etc/wtmp */
-
-	utmp.ut_type = USER_PROCESS;
-	(void) strncpy(utmp.ut_id, line+12, sizeof(utmp.ut_id));
-	(void) setutent();
-	utptr = getutid(&utmp);
-	/* write it out only if it exists */
-	if (utptr) {
-		utptr->ut_type = DEAD_PROCESS;
-		utptr->ut_time = time((long *) 0);
-		(void) pututline(utptr);
-		/* set wtmp entry if wtmp file exists */
-		if ((fd = open(wtmpf, O_WRONLY | O_APPEND)) >= 0) {
-			(void) write(fd, utptr, sizeof(utmp));
-			(void) close(fd);
-		}
-	}
-	(void) endutent();
-
-	(void) chmod(line, 0666);
-	(void) chown(line, 0, 0);
-	line[14] = line[13];
-	line[13] = line[12];
-	line[8] = 'm';
-	line[9] = '/';
-	line[10] = 'p';
-	line[11] = 't';
-	line[12] = 'y';
-	(void) chmod(line, 0666);
-	(void) chown(line, 0, 0);
-}
 #endif

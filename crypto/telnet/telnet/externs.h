@@ -53,17 +53,12 @@
 
 #include <stdio.h>
 #include <setjmp.h>
-#if defined(CRAY) && !defined(NO_BSD_SETJMP)
-#include <bsdsetjmp.h>
-#endif
 #ifndef	FILIO_H
 #include <sys/ioctl.h>
 #else
 #include <sys/filio.h>
 #endif
-#ifdef CRAY
 # include <errno.h>
-#endif /* CRAY */
 #ifdef	USE_TERMIO
 # ifndef	VINTR
 #  ifdef SYSV_TERMIO
@@ -108,10 +103,6 @@ extern char *ipsec_policy_out;
 #endif
 
 #define	SUBBUFSIZE	256
-
-#ifndef CRAY
-extern int errno;		/* outside this world */
-#endif /* !CRAY */
 
 #if	!defined(P)
 # ifdef	__STDC__
@@ -432,7 +423,7 @@ extern cc_t termAytChar;
 #  define termAytChar		new_tc.c_cc[VSTATUS]
 #endif
 
-# if !defined(CRAY) || defined(__STDC__)
+# if defined(__STDC__)
 #  define termEofCharp		&termEofChar
 #  define termEraseCharp	&termEraseChar
 #  define termIntCharp		&termIntChar
