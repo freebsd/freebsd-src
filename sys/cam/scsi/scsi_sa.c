@@ -1281,7 +1281,6 @@ static void
 saoninvalidate(struct cam_periph *periph)
 {
 	struct sa_softc *softc;
-	struct bio *q_bp;
 	struct ccb_setasync csa;
 	int s;
 
@@ -1312,11 +1311,7 @@ saoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
-		bioq_remove(&softc->bio_queue, q_bp);
-		q_bp->bio_resid = q_bp->bio_bcount;
-		biofinish(q_bp, NULL, ENXIO);
-	}
+	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	softc->queue_count = 0;
 	splx(s);
 
@@ -1698,7 +1693,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if (error == EIO) {
 			int s;			
-			struct bio *q_bp;
 
 			/*
 			 * Catastrophic error. Mark the tape as frozen
@@ -1713,11 +1707,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			s = splbio();
 			softc->flags |= SA_FLAG_TAPE_FROZEN;
-			while ((q_bp = bioq_first(&softc->bio_queue)) != NULL) {
-				bioq_remove(&softc->bio_queue, q_bp);
-				q_bp->bio_resid = q_bp->bio_bcount;
-				biofinish(q_bp, NULL, EIO);
-			}
+			bioq_flush(&softc->bio_queue, NULL, EIO);
 			splx(s);
 		}
 		if (error != 0) {

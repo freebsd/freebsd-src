@@ -441,7 +441,7 @@ acdstrategy(struct bio *bp)
     bp->bio_resid = bp->bio_bcount;
 
     x = splbio();
-    bioqdisksort(&cdp->bio_queue, bp);
+    bioq_disksort(&cdp->bio_queue, bp);
     acd_start(cdp);
     splx(x);
 }

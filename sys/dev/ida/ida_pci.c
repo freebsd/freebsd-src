@@ -33,7 +33,6 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -43,6 +42,8 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+#include <geom/geom_disk.h>
 
 #include <dev/ida/idavar.h>
 #include <dev/ida/idareg.h>

@@ -43,7 +43,6 @@
 
 #include <sys/devicestat.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
@@ -52,6 +51,8 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <geom/geom_disk.h>
 
 #ifndef _KERNEL
 #include <stdio.h>
@@ -750,7 +751,7 @@ dastrategy(struct bio *bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	bioqdisksort(&softc->bio_queue, bp);
+	bioq_disksort(&softc->bio_queue, bp);
 
 	splx(s);
 	
@@ -935,7 +936,6 @@ daoninvalidate(struct cam_periph *periph)
 {
 	int s;
 	struct da_softc *softc;
-	struct bio *q_bp;
 	struct ccb_setasync csa;
 
 	softc = (struct da_softc *)periph->softc;
@@ -965,11 +965,7 @@ daoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
-		bioq_remove(&softc->bio_queue, q_bp);
-		q_bp->bio_resid = q_bp->bio_bcount;
-		biofinish(q_bp, NULL, ENXIO);
-	}
+	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	splx(s);
 
 	SLIST_REMOVE(&softc_list, softc, da_softc, links);
@@ -1438,7 +1434,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
-				struct bio *q_bp;
 
 				s = splbio();
 
@@ -1460,12 +1455,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * the client can retry these I/Os in the
 				 * proper order should it attempt to recover.
 				 */
-				while ((q_bp = bioq_first(&softc->bio_queue))
-					!= NULL) {
-					bioq_remove(&softc->bio_queue, q_bp);
-					q_bp->bio_resid = q_bp->bio_bcount;
-					biofinish(q_bp, NULL, EIO);
-				}
+				bioq_flush(&softc->bio_queue, NULL, EIO);
 				splx(s);
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;

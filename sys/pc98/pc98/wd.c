@@ -640,7 +640,7 @@ wdstrategy(struct bio *bp)
 		du->dk_state = WANTOPEN;
 	}
 
-	bioqdisksort(&drive_queue[lunit], bp);
+	bioq_disksort(&drive_queue[lunit], bp);
 
 	if (wdutab[lunit].b_active == 0)
 		wdustart(du);	/* start drive */

@@ -38,7 +38,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
-#include <sys/disk.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -48,6 +47,8 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
+
+#include <geom/geom_disk.h>
 
 #include <dev/ida/idareg.h>
 #include <dev/ida/idavar.h>

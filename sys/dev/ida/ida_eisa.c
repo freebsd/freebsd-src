@@ -34,12 +34,13 @@
 
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+
+#include <geom/geom_disk.h>
 
 #include <dev/ida/idavar.h>
 #include <dev/ida/idareg.h>

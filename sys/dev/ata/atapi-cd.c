@@ -193,17 +193,13 @@ acddetach(struct ata_device *atadev)
 {   
     struct acd_softc *cdp = atadev->driver;
     struct acd_devlist *entry;
-    struct bio *bp;
     int subdev;
     
     if (cdp->changer_info) {
 	for (subdev = 0; subdev < cdp->changer_info->slots; subdev++) {
 	    if (cdp->driver[subdev] == cdp)
 		continue;
-	    while ((bp = bioq_first(&cdp->driver[subdev]->queue))) {
-		bioq_remove(&cdp->driver[subdev]->queue, bp);
-		biofinish(bp, NULL, ENXIO);
-	    }
+	    bioq_flush(&cdp->driver[subdev]->queue, NULL, ENXIO);
 	    destroy_dev(cdp->driver[subdev]->dev);
 	    while ((entry = TAILQ_FIRST(&cdp->driver[subdev]->dev_list))) {
 		destroy_dev(entry->dev);
@@ -217,8 +213,7 @@ acddetach(struct ata_device *atadev)
 	free(cdp->driver, M_ACD);
 	free(cdp->changer_info, M_ACD);
     }
-    while ((bp = bioq_first(&cdp->queue)))
-	biofinish(bp, NULL, ENXIO);
+    bioq_flush(&cdp->queue, NULL, ENXIO);
     while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
 	destroy_dev(entry->dev);
 	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
@@ -1100,7 +1095,7 @@ acdstrategy(struct bio *bp)
     bp->bio_resid = bp->bio_bcount;
 
     s = splbio();
-    bioqdisksort(&cdp->queue, bp);
+    bioq_disksort(&cdp->queue, bp);
     splx(s);
     ata_start(cdp->device->channel);
 }

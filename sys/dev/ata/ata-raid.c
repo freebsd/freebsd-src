@@ -44,6 +44,7 @@
 #include <sys/kthread.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
 #include <dev/ata/ata-disk.h>

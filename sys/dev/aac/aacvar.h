@@ -34,6 +34,8 @@
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
 #include <sys/selinfo.h>
+#include <geom/geom_disk.h>
+
 
 /*
  * Driver Parameter Definitions
