@@ -72,7 +72,6 @@
 #include <vm/vm_page.h>
 
 #include <machine/clock.h>
-#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -198,10 +197,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 	 * User Mode Traps
 	 */
 	case T_MEM_ADDRESS_NOT_ALIGNED:
-		if ((sig = unaligned_fixup(td, tf)) == 0) {
-			TF_DONE(tf);
-			goto user;
-		}
+		sig = SIGILL;
 		goto trapsig;
 #if 0
 	case T_ALIGN_LDDF:
@@ -216,18 +212,9 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		sig = SIGFPE;
 		goto trapsig;
 	case T_FP_DISABLED:
-		if (fp_enable_thread(td, tf))
-			goto user;
-		/* Fallthrough. */
 	case T_FP_EXCEPTION_IEEE_754:
 	case T_FP_EXCEPTION_OTHER:
-		mtx_lock(&Giant);
-		if ((sig = fp_exception_other(td, tf, &ucode)) == 0) {
-			mtx_unlock(&Giant);
-			TF_DONE(tf);
-			goto user;
-		}
-		mtx_unlock(&Giant);
+		sig = SIGFPE;
 		goto trapsig;
 	case T_DATA_ERROR:
 	case T_DATA_EXCEPTION:
@@ -258,10 +245,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		}
 		goto user;
 	case T_ILLEGAL_INSTRUCTION:
-		if ((sig = emul_insn(td, tf)) == 0) {
-			TF_DONE(tf);
-			goto user;
-		}
+		sig = SIGILL;
 		goto trapsig;
 	case T_PRIVILEGED_ACTION:
 	case T_PRIVILEGED_OPCODE:
