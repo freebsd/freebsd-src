@@ -63,6 +63,7 @@ asn1_compile:	parse.o lex.o main.c hash.c symbol.c emalloc.c gen.c \
 
 parse.o:	parse.c
 
+.ORDER: parse.c parse.h
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c
