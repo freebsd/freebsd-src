@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -50,16 +52,26 @@ static char sccsid[] = "@(#)process.c	8.2 (Berkeley) 11/16/93";
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <protocols/talkd.h>
+#include <ctype.h>
+#include <err.h>
 #include <netdb.h>
-#include <syslog.h>
+#include <paths.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
-#include <paths.h>
+#include <syslog.h>
 
+int announce __P((CTL_MSG *, char *));
+int delete_invite __P((int));
+void do_announce __P((CTL_MSG *, CTL_RESPONSE *));
 CTL_MSG *find_request();
 CTL_MSG *find_match();
+int find_user __P((char *, char *));
+void insert_table __P((CTL_MSG *, CTL_RESPONSE *));
+int new_id __P((void));
+void print_request __P((char *, CTL_MSG *));
+void print_response __P((char *, CTL_RESPONSE *));
 
+void
 process_request(mp, rp)
 	register CTL_MSG *mp;
 	register CTL_RESPONSE *rp;
@@ -72,28 +84,28 @@ process_request(mp, rp)
 	rp->type = mp->type;
 	rp->id_num = htonl(0);
 	if (mp->vers != TALK_VERSION) {
-		syslog(LOG_WARNING, "Bad protocol version %d", mp->vers);
+		syslog(LOG_WARNING, "bad protocol version %d", mp->vers);
 		rp->answer = BADVERSION;
 		return;
 	}
 	mp->id_num = ntohl(mp->id_num);
 	mp->addr.sa_family = ntohs(mp->addr.sa_family);
 	if (mp->addr.sa_family != AF_INET) {
-		syslog(LOG_WARNING, "Bad address, family %d",
+		syslog(LOG_WARNING, "bad address, family %d",
 		    mp->addr.sa_family);
 		rp->answer = BADADDR;
 		return;
 	}
 	mp->ctl_addr.sa_family = ntohs(mp->ctl_addr.sa_family);
 	if (mp->ctl_addr.sa_family != AF_INET) {
-		syslog(LOG_WARNING, "Bad control address, family %d",
+		syslog(LOG_WARNING, "bad control address, family %d",
 		    mp->ctl_addr.sa_family);
 		rp->answer = BADCTLADDR;
 		return;
 	}
 	for (s = mp->l_name; *s; s++)
 		if (!isprint(*s)) {
-			syslog(LOG_NOTICE, "Illegal user name. Aborting");
+			syslog(LOG_NOTICE, "illegal user name. Aborting");
 			rp->answer = FAILED;
 			return;
 		}
@@ -138,6 +150,7 @@ process_request(mp, rp)
 		print_response("process_request", rp);
 }
 
+void
 do_announce(mp, rp)
 	register CTL_MSG *mp;
 	CTL_RESPONSE *rp;
@@ -185,6 +198,7 @@ do_announce(mp, rp)
 /*
  * Search utmp for the local user
  */
+int
 find_user(name, tty)
 	char *name, *tty;
 {
@@ -197,7 +211,7 @@ find_user(name, tty)
 	char ftty[sizeof(_PATH_DEV) - 1 + sizeof(line)];
 
 	if ((fd = fopen(_PATH_UTMP, "r")) == NULL) {
-		fprintf(stderr, "talkd: can't read %s.\n", _PATH_UTMP);
+		warnx("can't read %s", _PATH_UTMP);
 		return (FAILED);
 	}
 #define SCMPN(a, b)	strncmp(a, b, sizeof (a))
