@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.4 1995/09/20 08:30:56 davidg Exp $
+ *	$Id: eval.c,v 1.5 1996/09/01 10:19:57 peter Exp $
  */
 
 #ifndef lint
@@ -209,8 +209,11 @@ evaltree(n, flags)
 		break;
 	case NAND:
 		evaltree(n->nbinary.ch1, EV_TESTED);
-		if (evalskip || exitstatus != 0)
+		if (evalskip || exitstatus != 0) {
+			/* don't bomb out on "set -e; false && true" */
+			flags |= EV_TESTED;
 			goto out;
+		}
 		evaltree(n->nbinary.ch2, flags);
 		break;
 	case NOR:
