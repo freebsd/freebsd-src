@@ -81,7 +81,7 @@
 
 #include <ddb/ddb.h>
 
-#include <machine/bootinfo.h>
+#include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/fp.h>
@@ -95,6 +95,12 @@
 #include <machine/tick.h>
 #include <machine/tstate.h>
 #include <machine/ver.h>
+
+#define	MD_FETCH(mdp, info, type) ({ \
+	type *__p; \
+	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
+	__p ? *__p : 0; \
+})
 
 typedef int ofw_vec_t(void *);
 
@@ -132,7 +138,7 @@ u_long ofw_tba;
 static struct timecounter tick_tc;
 
 static timecounter_get_t tick_get_timecount;
-void sparc64_init(struct bootinfo *bi, ofw_vec_t *vec);
+void sparc64_init(caddr_t mdp, ofw_vec_t *vec);
 void sparc64_shutdown_final(void *dummy, int howto);
 
 static void cpu_startup(void *);
@@ -164,6 +170,7 @@ cpu_startup(void *arg)
 	tc_init(&tick_tc);
 
 	cpu_identify(clock);
+	cache_init(child);
 
 	vm_ksubmap_init(&kmi);
 
@@ -186,31 +193,61 @@ tick_get_timecount(struct timecounter *tc)
 }
 
 void
-sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
+sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 {
+	vm_offset_t end;
 	vm_offset_t off;
+	caddr_t kmdp;
 	u_long ps;
+
+	end = 0;
+	kmdp = NULL;
 
 	/*
 	 * Initialize openfirmware (needed for console).
 	 */
 	OF_init(vec);
+	cninit();
+
+	/*
+	 * Parse metadata if present and fetch parameters.  Must be before the
+	 * console is inited so cninit gets the right value of boothowto.
+	 */
+	if (mdp != NULL) {
+		preload_metadata = mdp;
+		kmdp = preload_search_by_type("elf kernel");
+		if (kmdp != NULL) {
+			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+		}
+	}
 
 	/*
 	 * Initialize the console before printing anything.
 	 */
-	cninit();
+
+	printf("sparc64_init: mdp=%p kmdp=%p boothowto=%d envp=%p end=%#lx\n",
+	    mdp, kmdp, boothowto, kern_envp, end);
 
 	/*
-	 * Check that the bootinfo struct is sane.
+	 * Panic is there is no metadata.  Most likely the kernel was booted
+	 * directly, instead of through loader(8).
 	 */
-	if (bi->bi_version != BOOTINFO_VERSION)
-		panic("sparc64_init: bootinfo version mismatch");
-	if (bi->bi_metadata == 0)
-		panic("sparc64_init: no loader metadata");
-	boothowto = bi->bi_howto;
-	kern_envp = (char *)bi->bi_envp;
-	preload_metadata = (caddr_t)bi->bi_metadata;
+	if (mdp == NULL || kmdp == NULL) {
+		printf("sparc64_init: no loader metadata.\n"
+		       "This probably means you are not using loader(8).\n");
+		panic("sparc64_init");
+	}
+
+	/*
+	 * Sanity check the kernel end, which is important.
+	 */
+	if (end == 0) {
+		printf("sparc64_init: warning, kernel end not specified.\n"
+		       "Attempting to continue anyway.\n");
+		end = (vm_offset_t)_end;
+	}
 
 	/*
 	 * Initialize tunables.
@@ -224,7 +261,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	/*
 	 * Initialize virtual memory.
 	 */
-	pmap_bootstrap(bi->bi_end);
+	pmap_bootstrap(end);
 
 	/*
 	 * Disable tick for now.
@@ -341,7 +378,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	bcopy(tf->tf_global, sf.sf_uc.uc_mcontext.mc_global,
 	    sizeof (tf->tf_global));
 	bcopy(tf->tf_out, sf.sf_uc.uc_mcontext.mc_out, sizeof (tf->tf_out));
-	sf.sf_uc.uc_mcontext.mc_sp = tf->tf_sp;
 	sf.sf_uc.uc_mcontext.mc_tpc = tf->tf_tpc;
 	sf.sf_uc.uc_mcontext.mc_tnpc = tf->tf_tnpc;
 	sf.sf_uc.uc_mcontext.mc_tstate = tf->tf_tstate;
@@ -463,7 +499,6 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
 	    sizeof(tf->tf_global));
 	bcopy(uc.uc_mcontext.mc_out, tf->tf_out, sizeof(tf->tf_out));
-	tf->tf_sp = uc.uc_mcontext.mc_sp;
 	tf->tf_tpc = uc.uc_mcontext.mc_tpc;
 	tf->tf_tnpc = uc.uc_mcontext.mc_tnpc;
 	tf->tf_tstate = uc.uc_mcontext.mc_tstate;
@@ -593,9 +628,12 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 void
 Debugger(const char *msg)
 {
+	critical_t c;
 
 	printf("Debugger(\"%s\")\n", msg);
+	c = critical_enter();
 	breakpoint();
+	critical_exit(c);
 }
 
 int
