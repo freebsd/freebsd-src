@@ -1251,24 +1251,23 @@ pass(passwd)
 		}
 #ifdef USE_PAM
 		rval = auth_pam(&pw, passwd);
-		opieunlock();   /* XXX */
-		if (rval == 0 || (!pwok && rval > 0))
+		if (rval >= 0) {
+			opieunlock();
 			goto skip;
-		xpasswd = crypt(passwd, pw->pw_passwd);
-#else /* !USE_PAM */
+		}
+#endif
 		if (opieverify(&opiedata, passwd) == 0)
 			xpasswd = pw->pw_passwd;
-		else if (pwok)
+		else if (pwok) {
 			xpasswd = crypt(passwd, pw->pw_passwd);
-		else {
+			if (passwd[0] == '\0' && pw->pw_passwd[0] != '\0')
+				xpasswd = ":";
+		} else {
 			rval = 1;
 			goto skip;
 		}
-#endif /* !USE_PAM */
 		rval = strcmp(pw->pw_passwd, xpasswd);
-		/* The strcmp does not catch null passwords! */
-		if (*pw->pw_passwd == '\0' ||
-		    (pw->pw_expire && time(NULL) >= pw->pw_expire))
+		if (pw->pw_expire && time(NULL) >= pw->pw_expire)
 			rval = 1;	/* failure */
 skip:
 		/*
