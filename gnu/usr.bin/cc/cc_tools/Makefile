@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.23 1999/04/08 15:11:44 peter Exp $
+# $Id: Makefile,v 1.24 1999/04/08 23:37:46 obrien Exp $
 #
 
 #
@@ -54,6 +54,7 @@ GENSRCS+=	gen$i.c
 CLEANFILES+=	gen$i
 .endfor
 
+.ORDER: genrtl.c genrtl.h
 genrtl.h genrtl.c: gengenrtl
 	./gengenrtl genrtl.h genrtl.c
 
@@ -87,17 +88,13 @@ GENSRCS+=	hash.h
 #-----------------------------------------------------------------------
 # common parser stuff
 
-.for i in c objc
-$i-parse.c: tree-check.h
-.endfor
-
 tree-check.h: gencheck
 	./gencheck > ${.TARGET}
-
-CLEANFILES+=	tree-check.h
+GENSRCS+=	tree-check.h
 
 #-----------------------------------------------------------------------
 # C parser
+.ORDER: c-parse.c c-parse.h
 c-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
@@ -110,6 +107,7 @@ CLEANFILES+=	c-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 # objc parser
+.ORDER: objc-parse.c objc-parse.h
 objc-parse.c objc-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
@@ -179,21 +177,20 @@ all: ${SRCS}
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 
 .if !exists(${DEPENDFILE})
-# Fudge pre-dependfile dependencies of objects the same as bsd.prog.mk
-# would do if we defined PROG, except for leaving out dependencies on
-# insn-*.h because these dependencies would be circular.
+# Fudge pre-dependfile dependencies of objects in much the same way as
+# bsd.prog.mk would do if we defined PROG.  There are complications to
+# avoid circular dependencies.  First, only make most objects depend on
+# all headers.  Filter out the objects that would cause problems (i.e.,
+# objects that will be used to create programs that will generate headers).
 #
-${OBJS:Ngengenrtl.o}: ${SRCS:M*.h:Ninsn-*.h}
+${OBJS:Nbitmap.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Nobstack.o:Nrtl.o}: ${SRCS:M*.h}
 
-# Give all dependencies on insn-*.h explicitly
-# This suffices for `make -j<any> depend', and after that all
-# the dependencies will be in .depend since all .c source files are in
-# SRCS.
+# Next, make each of the problematic objects depend on only most headers.
+# Filter out the headers that would cause problems (and a few more when it
+# is inconvenient to filter precisely).
 #
-genattrtab.o genextract.o: insn-config.h
-insn-attrtab.o: insn-attr.h insn-config.h
-insn-emit.o: insn-codes.h insn-config.h insn-flags.h
-insn-opinit.o: insn-codes.h insn-config.h insn-flags.h
-insn-output.o: insn-attr.h insn-codes.h insn-config.h insn-flags.h
-insn-recog.o: insn-config.h
+bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o rtl.o: \
+    ${SRCS:M*.h:Ninsn-*.h}
+gencheck.o: ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
+gengenrtl.o: ${SRCS:M*.h:Ngenrtl.h:Ninsn-*.h}
 .endif
