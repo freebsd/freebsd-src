@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.39.4.3 1997/03/24 01:48:10 gibbs Exp $
+ *      $Id: scsi_base.c,v 1.39.4.4 1997/04/04 19:50:04 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -866,13 +866,13 @@ void scsi_sense_print(xs)
 						printf(" ILI (length mismatch): %ld", info);
 					}
 					else {
-						printf(" info:%lx", info);
+						printf(" info:%#lx", info);
 					}
 				}
 			}
 		}
 		else if (info)
-			printf(" info?:%lx", info);
+			printf(" info?:%#lx", info);
 
 		if (ext->extra_len >= 4) {
 			if (bcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
