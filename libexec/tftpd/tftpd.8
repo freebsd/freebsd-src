@@ -41,7 +41,7 @@
 Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/tftpd
-.Op Fl ln
+.Op Fl cCln
 .Op Fl s Ar directory
 .Op Fl u Ar user
 .Op Ar directory ...
@@ -114,6 +114,25 @@ option is specified.
 .Pp
 The options are:
 .Bl -tag -width Ds
+.It Fl c
+Changes the default root directory of a connecting host via chroot based on the
+connecting IP address.
+This prevents multiple clients from writing to the same file at the same time.
+If the directory does not exist, the client connection is refused.
+The
+.Fl s
+option is required for
+.Fl c
+and the specified 
+.Ar directory
+is used as a base.
+.It Fl C
+Operates the same as
+.Fl c
+except it falls back to
+.Fl s Ns No 's
+.Ar directory
+if a directory does not exist for the client's IP.
 .It Fl l
 Log all requests using
 .Xr syslog 3 
@@ -165,7 +184,16 @@ the
 .Fl s
 option was introduced in
 .Fx 2.2 ,
-and the
+the
 .Fl u
 option was introduced in
-.Fx 4.2 .
+.Fx 4.2 ,
+and the
+.Fl c
+option was introduced in
+.Fx 4.3 .
+.Sh BUGS
+Files larger than 33488896 octets (65535 blocks) cannot be transferred
+without client and server supporting blocksize negotiation (RFC1783).
+.Pp
+Many tftp clients will not transfer files over 16744448 octets (32767 blocks).
