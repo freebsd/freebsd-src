@@ -1339,3 +1339,11 @@ linux_getuid(struct thread *td, struct linux_getuid_args *args)
 	td->td_retval[0] = td->td_proc->p_ucred->cr_ruid;
 	return (0);
 }
+
+int
+linux_getsid(struct thread *td, struct linux_getsid_args *args)
+{
+	struct getsid_args bsd;
+	bsd.pid = args->pid;
+	return getsid(td, &bsd);
+}
