@@ -371,8 +371,8 @@ scanradix(
 			);
 		}
 
-		radix >>= BLIST_META_RADIX_SHIFT;
-		next_skip = skip >> BLIST_META_RADIX_SHIFT;
+		radix /= BLIST_META_RADIX;
+		next_skip = skip / BLIST_META_RADIX;
 
 		for (i = 1; i <= skip; i += next_skip) {
 			int r;
