@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.32 1996/10/28 11:36:06 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.33 1996/11/21 07:18:59 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -144,14 +144,14 @@ DBPRINT(("cached "));
 			VREF(*result_vnode); /* not a full vget() */
 			error = 0;
 		} else if (flags & ISDOTDOT) {/* do a locking dance */
-			VOP_UNLOCK(dir_vnode);
+			VOP_UNLOCK(dir_vnode, 0, p);
 			error = vget(*result_vnode,1);
 			if (!error && lockparent && (flags & ISLASTCN))
-				VOP_LOCK(dir_vnode);
+				vn_lock(dir_vnode, LK_EXCLUSIVE | LK_RETRY, p);
 		} else {
 			error = vget(*result_vnode,1);
 			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(dir_vnode);
+				VOP_UNLOCK(dir_vnode, 0, p);
 		}
 		/*
 		 * Check that the capability number did not change
@@ -164,11 +164,11 @@ DBPRINT(("cached "));
 			if (lockparent
 			&& (dir_vnode != *result_vnode)
 			&& (flags & ISLASTCN))
-				VOP_UNLOCK(dir_vnode);
+				VOP_UNLOCK(dir_vnode, 0, p);
 		} else { /* we have an error */
 
 		}
-		if( error = VOP_LOCK(dir_vnode))
+		if (error = vn_lock(dir_vnode, LK_EXCLUSIVE | LK_RETRY, p))
 			return error;
 		*result_vnode = NULL; /* safe not sorry */
 DBPRINT(("errr, maybe not cached "));
@@ -229,7 +229,7 @@ DBPRINT(("MKACCESS "));
 		 */
 		cnp->cn_flags |= SAVENAME; /*XXX why? */
 		if (!lockparent)
-			VOP_UNLOCK(dir_vnode);
+			VOP_UNLOCK(dir_vnode, 0, p);
 		return (EJUSTRETURN);
 	}
 
@@ -272,12 +272,12 @@ DBPRINT(("MKACCESS "));
 		    cnp->cn_cred->cr_uid != 0 &&
 		    cnp->cn_cred->cr_uid != dir_node->uid &&
 		    cnp->cn_cred->cr_uid != new_node->uid) {
-			VOP_UNLOCK((*result_vnode));
+			VOP_UNLOCK(*result_vnode, 0, p);
 			return (EPERM);
 		}
 #endif
 		if (!lockparent)
-			VOP_UNLOCK(dir_vnode);
+			VOP_UNLOCK(dir_vnode, 0, p);
 		return (0);
 	}
 
@@ -304,7 +304,7 @@ DBPRINT(("MKACCESS "));
 		/* hmm save the 'from' name (we need to delete it) */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(dir_vnode);
+			VOP_UNLOCK(dir_vnode, 0, p);
 		return (0);
 	}
 
@@ -329,17 +329,17 @@ DBPRINT(("MKACCESS "));
 	 * that point backwards in the directory structure.
 	 */
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dir_vnode);	/* race to get the node */
+		VOP_UNLOCK(dir_vnode, 0, p);	/* race to get the node */
 		devfs_dntovn(new_node,result_vnode);
 		if (lockparent && (flags & ISLASTCN))
-			VOP_LOCK(dir_vnode);
+			vn_lock(dir_vnode, LK_EXCLUSIVE | LK_RETRY, p);
 	} else if (dir_node == new_node) {
 		VREF(dir_vnode);	/* we want ourself, ie "." */
 		*result_vnode = dir_vnode;
 	} else {
 		devfs_dntovn(new_node,result_vnode);
 		if (!lockparent || (flags & ISLASTCN))
-			VOP_UNLOCK(dir_vnode);
+			VOP_UNLOCK(dir_vnode, 0, p);
 	}
 
 	/*
@@ -1097,6 +1097,7 @@ devfs_rename(struct vop_rename_args *ap)
 	struct vnode *fdvp = ap->a_fdvp;
 	struct componentname *tcnp = ap->a_tcnp;
 	struct componentname *fcnp = ap->a_fcnp;
+	struct proc *p = fcnp->cn_proc;
 	dn_p fp, fdp, tp, tdp;
 	devnm_p fnp,tnp;
 	int doingdirectory = 0;
@@ -1287,7 +1288,7 @@ bad:
 		vput(tvp);
 	vput(tdvp);
 out:
-	if (VOP_LOCK(fvp) == 0) {
+	if (vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, p) == 0) {
 		fp->links--; /* we added one earlier*/
 		vput(fvp);
 	} else
@@ -1720,7 +1721,7 @@ devfs_dropvnode(dn_p dnp)
 	 */
 	if((vn_p) && ( dnp->vn_id == vn_p->v_id) && (dnp == (dn_p)vn_p->v_data))
 	{
-		vgoneall(vn_p);
+		VOP_REVOKE(vn_p, REVOKEALL);
 	}
 	dnp->vn = NULL; /* be pedantic about this */
 }
