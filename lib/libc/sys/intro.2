@@ -183,7 +183,8 @@ not a directory, when a directory was expected.
 .It Er 21 EISDIR Em "Is a directory" .
 An attempt was made to open a directory with write mode specified.
 .It Er 22 EINVAL Em "Invalid argument" .
-Some invalid argument was supplied. (For example,
+Some invalid argument was supplied.
+(For example,
 specifying an undefined signal to a
 .Xr signal 3
 or
@@ -671,7 +672,8 @@ information applicable to the caller.
 Read, write, and execute/search permissions on
 a file are granted to a process if:
 .Pp
-The process's effective user ID is that of the super-user. (Note:
+The process's effective user ID is that of the super-user.
+(Note:
 even the super-user cannot execute a non-executable file.)
 .Pp
 The process's effective user ID matches the user ID of the owner

@@ -94,7 +94,8 @@ The following keywords are valid in the system configuration section:
 If this parameter is set to
 .Em on ,
 accounting information is written even if the local site was not charged
-or no charging information is available or is not subscribed. (optional)
+or no charging information is available or is not subscribed.
+(optional)
 
 .It Li acctfile
 Specifies the name of the accounting file which is used when the keyword
@@ -103,14 +104,16 @@ Specifies the name of the accounting file which is used when the keyword
 .Em on .
 See also system keyword
 .Em rotatesuffix .
-If this keyword is omitted the system default is used. (optional)
+If this keyword is omitted the system default is used.
+(optional)
 
 .It Li aliasing
 If this parameter is set to
 .Em on ,
 alias processing of telephone-number to name is enabled (see also the
 .Em aliasfile
-keyword below). The default is off. (optional)
+keyword below). The default is off.
+(optional)
 
 .It Li aliasfile
 Specifies the name of the telephone number-to-name alias database file shared
@@ -118,7 +121,8 @@ with the
 .Xr isdntel 1
 utility when alias processing is enabled via the
 .Em aliasing
-keyword. (optional)
+keyword.
+(optional)
 
 .It Li beepconnect
 In fullscreen mode, if this parameter is set to
@@ -130,7 +134,8 @@ If this parameter is set to
 .Em on ,
 date/time information from the exchange (if provided) is written to the
 logfile.
-The default is off. (optional)
+The default is off.
+(optional)
 
 .It Li mailer
 This keyword is used to specify the path/name of a mail program which
@@ -204,7 +209,8 @@ The supported access rights are:
 .It Li ratesfile
 Specifies the name of the ratesfile.
 If this keyword is omitted the system
-default is used. (optional)
+default is used.
+(optional)
 
 .It Li regexpr
 This keyword is used to specify regular expressions.
@@ -247,7 +253,8 @@ rotatesuffix is used and a USR1 signal is sent to isdnd, the logfile and the
 accounting file is not only closed and reopened but the old logfile is also
 renamed to the former filename with the rotatesuffix string appended.
 If this keyword is omitted, the logfiles are just closed and reopened; this
-is also the default behaviour. (optional)
+is also the default behaviour.
+(optional)
 
 .It Li rtprio
 Specifies the realtime priority 
@@ -268,7 +275,8 @@ was compiled with -DUSE_RTPRIO.
 If this parameter is set to
 .Em on
 charging (if available) and accounting information is written to the
-accounting file. (optional)
+accounting file.
+(optional)
 
 .El
 
@@ -341,11 +349,13 @@ No framing at all (used for telephony).
 
 .It Li callbackwait
 The time in seconds to wait between hanging up the call from a remote site
-and calling back the remote site. (optional)
+and calling back the remote site.
+(optional)
 
 .It Li calledbackwait
 The time in seconds to wait for a remote site calling back the local site
-after a call from the local site to the remote site has been made. (optional)
+after a call from the local site to the remote site has been made.
+(optional)
 
 .It Li dialin-reaction
 Used to specify what to do when an incoming connection request is received.
@@ -386,7 +396,8 @@ to minimize the chance of two sites dialing synchronously so each gets a busy
 each time it dials because the other side is also dialing.
 
 .It Li dialretries
-The number of dialing retries before giving up. (optional)
+The number of dialing retries before giving up.
+(optional)
 
 .It Li direction
 This keyword is used to configure if incoming and outgoing, incoming-only or
@@ -426,7 +437,8 @@ This keyword is optional and is set to 60 seconds by default.
 
 .It Li earlyhangup
 A (safety) time in seconds which specifies the time to hangup before an
-expected next charging unit will occur. (optional)
+expected next charging unit will occur.
+(optional)
 
 .It Li idle-algorithm-outgoing
 The algorithm used to determine when to hang up an outgoing call when the
@@ -472,13 +484,15 @@ A delay value suitable for the
 kernel subroutine to delay the transmittion of the first packet after a
 successfull connection is made by this value for 
 .Em incoming
-ISDN connections. The specification unit is 1/100 second.
+ISDN connections.
+The specification unit is 1/100 second.
 A zero (0) disables
 this feature and is the default value.
 This feature is implemented (and makes 
 sense only) for the
 .Xr i4bipr 4
-IP over raw HDLC ISDN driver. (optional)
+IP over raw HDLC ISDN driver.
+(optional)
 
 .It Li isdntxdel-outgoing
 A delay value suitable for the
@@ -486,13 +500,15 @@ A delay value suitable for the
 kernel subroutine to delay the transmittion of the first packet after a
 successfull connection is made by this value for 
 .Em outgoing
-ISDN connections. The specification unit is 1/100 second.
+ISDN connections.
+The specification unit is 1/100 second.
 A zero (0) disables   
 this feature and is the default value.
 This feature is implemented (and makes
 sense only) for the
 .Xr i4bipr 4
-IP over raw HDLC ISDN driver. (optional)
+IP over raw HDLC ISDN driver.
+(optional)
 
 .It Li local-phone-dialout
 The local telephone number used when the local site dials out.
@@ -520,17 +536,20 @@ This keyword is mandatory for the ipr interfaces.
 Defines a symbolic name for this configuration entry.
 It's purpose is to
 use this name in the full-screen display for easy identification of a link
-to a remote site and for accounting purposes. (mandatory)
+to a remote site and for accounting purposes.
+(mandatory)
 
 .It Li ratetype
-The rate entry used from the rates file. (optional)
+The rate entry used from the rates file.
+(optional)
 .br
 For example, ratetype=0 selects lines beginning "ra0" in /etc/isdn/isdnd.rates;
 (typically ra0 lines are a set of tables for local call rates on different
 days of the week & times per day).
 
 .It Li recoverytime
-The time in seconds to wait between dial retries. (optional)
+The time in seconds to wait between dial retries.
+(optional)
 
 .It Li remdial-handling
 is used to specify the dialout behavior in case more than one outgoing 
@@ -577,7 +596,8 @@ This keyword may have a wildcard parameter '*' to permit anyone dialing in.
 .It Li unitlength
 The length of a charging unit in seconds.
 This is used in conjunction with
-the idletime to decide when to hangup a connection. (optional)
+the idletime to decide when to hangup a connection.
+(optional)
 
 .It Li unitlengthsrc
 This keyword is used to specify from which source
@@ -599,7 +619,8 @@ file with the keyword
 .Em ratetype .
 .It Ar aocd
 Use a dynamically calculated unitlength in case AOCD is subscribed on
-the ISDN line. (AOCD is an acronym for ``Advice Of Charge During the call''
+the ISDN line.
+(AOCD is an acronym for ``Advice Of Charge During the call''
 which is a service provided by the telecommunications (ie phone) provider,
 to indicate billable units).
 .El

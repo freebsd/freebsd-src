@@ -57,7 +57,8 @@ microsequencer implementation and an example of how using it in
 .Ss Background
 The parallel port model chosen for ppbus is the PC parallel port model.
 Thus, any register described later has the same semantic than its counterpart
-in a PC parallel port. For more info about ISA/ECP programming, get the
+in a PC parallel port.
+For more info about ISA/ECP programming, get the
 Microsoft standard referenced as "Extended Capabilities Port Protocol and
 ISA interface Standard". Registers described later are standard parallel port
 registers.
@@ -66,8 +67,10 @@ Mask macros are defined in the standard ppbus include files for each valid
 bit of parallel port registers.
 .Ss Data register
 In compatible or nibble mode, writing to this register will drive data to the
-parallel port data lines. In any other mode, drivers may be tri-stated by
-setting the direction bit (PCD) in the control register. Reads to this register
+parallel port data lines.
+In any other mode, drivers may be tri-stated by
+setting the direction bit (PCD) in the control register.
+Reads to this register
 return the value on the data lines.
 .Ss Device status register
 This read-only register reflects the inputs on the parallel port interface.
@@ -99,7 +102,8 @@ some functions.
 .Ss Description
 .Em Microinstructions
 are either parallel port accesses, program iterations, submicrosequence or
-C calls. The parallel port must be considered as the logical model described in
+C calls.
+The parallel port must be considered as the logical model described in
 .Xr ppbus 4 .
 .Pp
 Available microinstructions are:
@@ -217,7 +221,8 @@ is positive.
 Parameter:
 .Bl -enum -offset ident
 .It
-integer offset in the current executed (sub)microsequence. Offset is added to
+integer offset in the current executed (sub)microsequence.
+Offset is added to
 the index of the next microinstruction to execute.
 .El
 .Pp
@@ -231,7 +236,8 @@ Parameter:
 .It
 bits of the status register
 .It
-integer offset in the current executed (sub)microsequence. Offset is added to
+integer offset in the current executed (sub)microsequence.
+Offset is added to
 the index of the next microinstruction to execute.
 .El
 .Pp
@@ -245,13 +251,16 @@ Parameter:
 .It
 bits of the status register
 .It
-integer offset in the current executed (sub)microsequence. Offset is added to
+integer offset in the current executed (sub)microsequence.
+Offset is added to
 the index of the next microinstruction to execute.
 .El
 .Pp
 Predefined macro: MS_BRCLEAR(mask,offset)
 .Ss MS_OP_RET - RETurn
-is used to return from a microsequence. This instruction is mandatory. This
+is used to return from a microsequence.
+This instruction is mandatory.
+This
 is the only way for the microsequencer to detect the end of the microsequence.
 The return code is returned in the integer pointed by the (int *) parameter
 of the ppb_MS_microseq().
@@ -264,7 +273,8 @@ integer return code
 .Pp
 Predefined macro: MS_RET(code)
 .Ss MS_OP_C_CALL - C function CALL
-is used to call C functions from microsequence execution. This may be useful
+is used to call C functions from microsequence execution.
+This may be useful
 when a non-standard i/o is performed to retrieve a data character from the
 parallel port.
 .Pp
@@ -294,7 +304,8 @@ Note that this pointer is automatically incremented during xxx_P() calls
 .Pp
 Predefined macro: MS_PTR(ptr)
 .Ss MS_OP_ADELAY - do an Asynchronous DELAY
-is used to make a tsleep() during microsequence execution. The tsleep is
+is used to make a tsleep() during microsequence execution.
+The tsleep is
 executed at PPBPRI level.
 .Pp
 Parameter:
@@ -310,27 +321,33 @@ is used to branch on status register state condition.
 Parameter:
 .Bl -enum -offset ident
 .It
-mask of asserted bits. Bits that shall be asserted in the status register
+mask of asserted bits.
+Bits that shall be asserted in the status register
 are set in the mask
 .It
-mask of cleared bits. Bits that shall be cleared in the status register
+mask of cleared bits.
+Bits that shall be cleared in the status register
 are set in the mask
 .It
-integer offset in the current executed (sub)microsequence. Offset is added
+integer offset in the current executed (sub)microsequence.
+Offset is added
 to the index of the next microinstruction to execute.
 .El
 .Pp
 Predefined macro: MS_BRSTAT(asserted_bits,clear_bits,offset)
 .Ss MS_OP_SUBRET - SUBmicrosequence RETurn
-is used to return from the submicrosequence call. This action is mandatory
-before a RET call. Some microinstructions (PUT, GET) may not be callable
+is used to return from the submicrosequence call.
+This action is mandatory
+before a RET call.
+Some microinstructions (PUT, GET) may not be callable
 within a submicrosequence.
 .Pp
 No parameter.
 .Pp
 Predefined macro: MS_SUBRET()
 .Ss MS_OP_CALL - submicrosequence CALL
-is used to call a submicrosequence. A submicrosequence is a microsequence with
+is used to call a submicrosequence.
+A submicrosequence is a microsequence with
 a SUBRET call.
 Parameter:
 .Bl -enum -offset ident
@@ -352,7 +369,8 @@ register
 .Pp  
 Predefined macro: MS_RASSERT_P(iter,reg)
 .Ss MS_OP_RFETCH_P - Register FETCH to internal PTR
-is used to fetch data from a register. Data is stored in the buffer currently
+is used to fetch data from a register.
+Data is stored in the buffer currently
 pointed by the internal PTR pointer.
 Parameter:
 .Bl -enum -offset ident
@@ -366,9 +384,12 @@ mask applied to fetched data
 .Pp
 Predefined macro: MS_RFETCH_P(iter,reg,mask)
 .Ss MS_OP_TRIG - TRIG register
-is used to trigger the parallel port. This microinstruction is intended to
-provide a very efficient control of the parallel port. Triggering a register
-is writing data, wait a while, write data, wait a while... This allows to
+is used to trigger the parallel port.
+This microinstruction is intended to
+provide a very efficient control of the parallel port.
+Triggering a register
+is writing data, wait a while, write data, wait a while...
+This allows to
 write magic sequences to the port.
 Parameter:
 .Bl -enum -offset ident
@@ -379,8 +400,10 @@ register
 .It
 size of the array
 .It
-array of unsigned chars. Each couple of u_chars define the data to write to
-the register and the delay in us to wait. The delay is limited to 255 us to
+array of unsigned chars.
+Each couple of u_chars define the data to write to
+the register and the delay in us to wait.
+The delay is limited to 255 us to
 simplify and reduce the size of the array.
 .El
 .Pp
@@ -402,9 +425,11 @@ struct ppb_microseq {
 .Ed
 .Ss Using microsequences
 To instantiate a microsequence, just declare an array of ppb_microseq
-structures and initialize it as needed. You may either use predefined macros
+structures and initialize it as needed.
+You may either use predefined macros
 or code directly your microinstructions according to the ppb_microseq
-definition. For example,
+definition.
+For example,
 .Bd -literal
      struct ppb_microseq select_microseq[] = {
 
@@ -430,7 +455,8 @@ definition. For example,
 .Ed
 .Pp
 Here, some parameters are undefined and must be filled before executing
-the microsequence. In order to initialize each microsequence, one
+the microsequence.
+In order to initialize each microsequence, one
 should use the ppb_MS_init_msq() function like this:
 .Bd -literal
      ppb_MS_init_msq(select_microseq, 2,
@@ -443,7 +469,8 @@ and then execute the microsequence.
 The microsequencer is executed either at ppbus or adapter level (see
 .Xr ppbus 4
 for info about ppbus system layers). Most of the microsequencer is executed
-at ppc level to avoid ppbus to adapter function call overhead. But some
+at ppc level to avoid ppbus to adapter function call overhead.
+But some
 actions like deciding whereas the transfer is IEEE1284-1994 compliant are
 executed at ppbus layer.
 .Sh BUGS

@@ -143,7 +143,8 @@ maps in a special way.
 When the server receives a request to access
 either of these two maps, it will check the TCP port from which the
 request originated and return an error if the port number is greater
-than 1023. Since only the superuser is allowed to bind to TCP ports
+than 1023.
+Since only the superuser is allowed to bind to TCP ports
 with values less than 1024, the server can use this test to determine
 whether or not the access request came from a privileged user.
 Any requests made by non-privileged users are therefore rejected.
@@ -236,7 +237,8 @@ called
 (Note that this path varies depending on the path specified with
 the
 .Fl p
-option, which is explained below.) This file contains entries
+option, which is explained below.)
+This file contains entries
 that consist of a network specification and a network mask separated
 by white space.
 Lines starting with
@@ -339,7 +341,8 @@ It is generally a good idea to force the servers to
 bind to themselves rather than allowing them to broadcast bind
 requests and possibly become bound to each other: strange failure
 modes can result if one server goes down and
-others are dependent upon on it. (Eventually all the clients will
+others are dependent upon on it.
+(Eventually all the clients will
 time out and attempt to bind to other servers, but the delay
 involved can be considerable and the failure mode is still present
 since the servers might bind to each other all over again).
@@ -404,10 +407,12 @@ request that it receives.
 Also, while running in debug mode,
 .Nm
 will not spawn any additional subprocesses as it normally does
-when handling yp_all requests or doing DNS lookups. (These actions
+when handling yp_all requests or doing DNS lookups.
+(These actions
 often take a fair amount of time to complete and are therefore handled
 in subprocesses, allowing the parent server process to go on handling
-other requests.) This makes it easier to trace the server with
+other requests.)
+This makes it easier to trace the server with
 a debugging tool.
 .It Fl p Ar path
 Normally,

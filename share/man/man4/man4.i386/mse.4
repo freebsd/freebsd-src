@@ -35,19 +35,23 @@ and a D-sub 9-pin male connector or a round DIN 9-pin
 male connector.
 .Pp
 The primary port address of the bus and InPort mouse interface cards
-is usually 0x23c. Some cards may also be set to use the secondary port
-address at 0x238. The interface cards require a single IRQ, which may be
+is usually 0x23c.
+Some cards may also be set to use the secondary port
+address at 0x238.
+The interface cards require a single IRQ, which may be
 2, 3, 4 or 5. Some cards may offer additional IRQs.
 The port number and the IRQ number are configured by jumpers on the cards
 or by software provided with the card.
 .Pp
 Frequency, or report rate, at which the device sends movement
 and button state reports to the host system, may also be configurable on
-some interface cards. It may be 15, 30, 60 or 120Hz.
+some interface cards.
+It may be 15, 30, 60 or 120Hz.
 .Pp
 The difference between the two types of the mice is not in mouse devices
 (in fact they are exactly the same). But in the circuit on the interface
-cards. This means that the device from a bus mouse package can be 
+cards.
+This means that the device from a bus mouse package can be 
 connected to the interface card from an InPort mouse package, or vice
 versa, provided that their connectors match.
 .Ss Operation Levels
@@ -71,7 +75,8 @@ Always zero.
 .It bit 2
 Left button status; cleared if pressed, otherwise set.
 .It bit 1
-Middle button status; cleared if pressed, otherwise set. Always one,
+Middle button status; cleared if pressed, otherwise set.
+Always one,
 if the device does not have the middle button.
 .It bit 0
 Right button status; cleared if pressed, otherwise set.
@@ -101,7 +106,8 @@ driver can somewhat `accelerate' the movement of the pointing device.
 The faster you move the device, the further the pointer 
 travels on the screen. 
 The driver has an internal variable which governs the effect of 
-the acceleration. Its value can be modified via the driver flag 
+the acceleration.
+Its value can be modified via the driver flag 
 or via an ioctl call.
 .Ss Device Number
 The minor device number of the
@@ -124,7 +130,8 @@ for device node names.
 .Ss Driver Flags
 The
 .Nm
-driver accepts the following driver flag. Set it in the 
+driver accepts the following driver flag.
+Set it in the 
 kernel configuration file 
 .Pq see Xr config 8
 or in the User Configuration Menu at
@@ -136,7 +143,8 @@ the boot time
 This flag controls the amount of acceleration effect.
 The smaller the value of this flag is, more sensitive the movement becomes. 
 The minimum value allowed, thus the value for the most sensitive setting, 
-is one. Setting this flag to zero will completely disables the
+is one.
+Setting this flag to zero will completely disables the
 acceleration effect. 
 .El
 .Sh IOCTLS
@@ -258,7 +266,8 @@ If it is zero, acceleration is disabled.
 .Pp
 The
 .Dv packetsize
-field specifies the length of the data packet. It depends on the
+field specifies the length of the data packet.
+It depends on the
 operation level.
 .Pp
 .Bl -tag -width level_0__ -compact
@@ -273,7 +282,8 @@ The array
 holds a bit mask and pattern to detect the first byte of the
 data packet.
 .Dv syncmask[0]
-is the bit mask to be ANDed with a byte. If the result is equal to
+is the bit mask to be ANDed with a byte.
+If the result is equal to
 .Dv syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
 Note that this detection method is not 100% reliable,
@@ -296,7 +306,8 @@ Only
 .Dv level 
 and 
 .Dv accelfactor
-may be modifiable. Setting values in the other field does not generate
+may be modifiable.
+Setting values in the other field does not generate
 error and has no effect.
 .\" .Pp
 .\" .It Dv MOUSE_GETVARS Ar mousevar_t *vars

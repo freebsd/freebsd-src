@@ -234,7 +234,8 @@ If an option is given with no value, a value of 1
 .Pq activated
 is substituted.
 If an option value is given as 0, this options is
-deactivated. Any other value is substituted by 1, too.
+deactivated.
+Any other value is substituted by 1, too.
 If an option
 is omitted, a built-in default is assumed.
 
@@ -303,7 +304,8 @@ Default: off
 .It Em PCVT_EMU_MOUSE
 Emulate a three-button mouse via the keypad.
 Useful for notebooks when
-running XFree86. See
+running XFree86.
+See
 .Sx Mouse emulation
 below.
 .br
@@ -524,7 +526,8 @@ were the mouse emulator device.
 The mouse emulation is turned on by
 pressing the
 .Aq Em NumLock
-key. The pointer is moved by the numerical keypad keys, into the
+key.
+The pointer is moved by the numerical keypad keys, into the
 obvious directions.
 The pointer is initially moved in single steps,
 and is accelerated after an adjustable time
@@ -729,7 +732,8 @@ sets the number of columns for the current screen,
 .El
 
 its parameter is a pointer to an integer containing either a value of 80,
-or a value of 132. Note that setting the number of columns to 132 is
+or a value of 132.
+Note that setting the number of columns to 132 is
 only supported on VGA adaptors.
 Any unsupported numbers cause the ioctl
 to fail with
