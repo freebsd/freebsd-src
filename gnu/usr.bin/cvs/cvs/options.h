@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * This file holds (most of) the configuration tweaks that can be made to
  * customize CVS for your site.  CVS comes configured for a typical SunOS 4.x
  * environment.  The comments for each configurable item are intended to be
  * self-explanatory.  All #defines are tested first to see if an over-riding
  * option was specified on the "make" command line.
- *
+ * 
  * If special libraries are needed, you will have to edit the Makefile.in file
  * or the configure script directly.  Sorry.
  */
@@ -33,7 +33,7 @@
  * you should turn on the following define.  It only exists to try to do
  * reasonable things with your existing checked out files when you upgrade to
  * RCS V5, since the keyword expansion formats have changed with RCS V5.
- *
+ * 
  * If you already have been running with RCS5, or haven't been running with CVS
  * yet at all, or are sticking with RCS V4 for now, leave the commented out.
  */
@@ -56,7 +56,7 @@
  * must support the "-c" option for context diffing.  Specify a full pathname
  * if your site wants to use a particular diff.  If you are using the GNU
  * version of diff (version 1.15 or later), this should be "diff -a".
- *
+ * 
  * NOTE: this program is only used for the ``patch'' sub-command.  The other
  * commands use rcsdiff which will use whatever version of diff was specified
  * when rcsdiff was built on your system.
@@ -100,7 +100,7 @@
  * this here will cause all RCS programs to be executed from this directory,
  * unless the user overrides the default with the RCSBIN environment variable
  * or the "-b" option to CVS.
- *
+ * 
  * This define should be either the empty string ("") or a full pathname to the
  * directory containing all the installed programs from the RCS distribution.
  */
@@ -123,7 +123,7 @@
  * The Repository file holds the path to the directory within the source
  * repository that contains the RCS ,v files for each CVS working directory.
  * This path is either a full-path or a path relative to CVSROOT.
- *
+ * 
  * The only advantage that I can see to having a relative path is that One can
  * change the physical location of the master source repository, change one's
  * CVSROOT environment variable, and CVS will work without problems.  I

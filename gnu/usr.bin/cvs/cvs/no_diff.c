@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * No Difference
- *
+ * 
  * The user file looks modified judging from its time stamp; however it needn't
  * be.  No_difference() finds out whether it is or not. If it is not, it
  * updates the administration.
- *
+ * 
  * returns 0 if no differences are found and non-zero otherwise
  */
 

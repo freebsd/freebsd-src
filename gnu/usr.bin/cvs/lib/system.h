@@ -97,7 +97,7 @@ extern long timezone;
 **     On most systems MAXPATHLEN is defined in sys/param.h to be 1024. Of
 **     those that this is not true, again most define PATH_MAX in limits.h
 **     or sys/limits.h which usually gets included by limits.h. On the few
-**     remaining systems that neither statement is true, _POSIX_PATH_MAX
+**     remaining systems that neither statement is true, _POSIX_PATH_MAX 
 **     is defined.
 **
 **     So:
@@ -125,7 +125,7 @@ extern long timezone;
 /* On MOST systems this will get you MAXPATHLEN */
 #include <sys/param.h>
 
-#ifndef PATH_MAX
+#ifndef PATH_MAX  
 #  ifdef MAXPATHLEN
 #    define PATH_MAX                 MAXPATHLEN
 #  else
@@ -232,10 +232,10 @@ char *getwd ();
 #endif
 #ifdef HAVE_SYS_DIR_H
 #include <sys/dir.h>
-#endif
+#endif 
 #ifdef HAVE_NDIR_H
 #include <ndir.h>
-#endif
+#endif 
 #endif /* not (DIRENT or _POSIX_VERSION) */
 
 /* Convert B 512-byte blocks to kilobytes if K is nonzero,

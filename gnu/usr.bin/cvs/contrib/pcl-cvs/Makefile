@@ -1,4 +1,4 @@
-# @(#) Id: dist-makefile,v 1.19 1993/05/31 22:43:45 ceder Exp
+# @(#) Id: dist-makefile,v 1.19 1993/05/31 22:43:45 ceder Exp 
 # Makefile for pcl-cvs release 1.05.
 # Copyright (C) 1992, 1993  Per Cederqvist
 #
@@ -53,7 +53,7 @@ elcfiles:
 
 all: elcfiles info
 
-# Don't install the info file yet, since it requires makeinfo
+# Don't install the info file yet, since it requires makeinfo 
 # version 2.something (and version 1.something is distributed with emacs).
 #
 # install: install_elc install_info

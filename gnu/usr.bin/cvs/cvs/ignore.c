@@ -11,7 +11,7 @@ USE(rcsid)
 
 /*
  * Ignore file section.
- *
+ * 
  *	"!" may be included any time to reset the list (i.e. ignore nothing);
  *	"*" may be specified to ignore everything.  It stays as the first
  *	    element forever, unless a "!" clears it out.

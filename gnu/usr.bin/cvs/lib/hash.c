@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Polk's hash list manager.  So cool.
  */
 
@@ -203,7 +203,7 @@ freenode (p)
 /*
  * insert item p at end of list "list" (maybe hash it too) if hashing and it
  * already exists, return -1 and don't actually put it in the list
- *
+ * 
  * return 0 on success
  */
 int
@@ -392,7 +392,7 @@ printlist (list)
 
     (void) printf("List at 0x%p: list = 0x%p, HASHSIZE = %d, next = 0x%p\n",
 	   list, list->list, HASHSIZE, list->next);
-
+    
     (void) walklist(list, printnode, NULL);
 
     return;

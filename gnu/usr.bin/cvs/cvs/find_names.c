@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Find Names
- *
+ * 
  * Finds all the pertinent file names, both from the administration and from the
  * repository
- *
+ * 
  * Find Dirs
- *
+ * 
  * Finds all pertinent sub-directories of the checked out instantiation and the
  * repository (and optionally the attic)
  */
@@ -174,7 +174,7 @@ find_rcs (dir, list)
     /* read the dir, grabbing the ,v files */
     while ((dp = readdir (dirp)) != NULL)
     {
-	if (fnmatch (RCSPAT, dp->d_name, 0) == 0)
+	if (fnmatch (RCSPAT, dp->d_name, 0) == 0) 
 	{
 	    char *comma;
 
@@ -221,7 +221,7 @@ find_dirs (dir, list, checkadm)
 	    continue;
 
 #ifdef DT_DIR
-	if (dp->d_type != DT_DIR)
+	if (dp->d_type != DT_DIR) 
 	{
 	    if (dp->d_type != DT_UNKNOWN && dp->d_type != DT_LNK)
 		continue;

@@ -1,10 +1,10 @@
 /*
  * Release: "cancel" a checkout in the history log.
- *
+ * 
  * - Don't allow release if anything is active - Don't allow release if not
  * above or inside repository. - Don't allow release if ./CVS/Repository is
  * not the same as the directory specified in the module database.
- *
+ * 
  * - Enter a line in the history log indicating the "release". - If asked to,
  * delete the local working directory.
  */
@@ -215,6 +215,6 @@ release_delete (dir)
     run_setup ("%s -fr", RM);
     run_arg (dir);
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
-	error (0, retcode == -1 ? errno : 0,
+	error (0, retcode == -1 ? errno : 0, 
 	       "deletion of module %s failed.", dir);
 }

@@ -38,7 +38,7 @@ read_cvsrc (argc, argv)
     FILE *cvsrcfile;
 
     char linebuf [MAXLINELEN];
-
+  
     char *optstart;
 
     int found = 0;
@@ -102,13 +102,13 @@ read_cvsrc (argc, argv)
     {
 	/* skip over command in the options line */
 	optstart = strtok(linebuf+strlen((*argv)[0]), "\t \n");
-
+      
 	do
 	{
 	    new_argv [new_argc] = xstrdup (optstart);
 	    new_argv [new_argc+1] = NULL;
 	    new_argc += 1;
-
+	  
 	    if (new_argc >= max_new_argv)
 	    {
 		char **tmp_argv;
@@ -119,13 +119,13 @@ read_cvsrc (argc, argv)
 		free(new_argv);
 		new_argv = tmp_argv;
 	    }
-
+	  
 	}
 	while (optstart = strtok (NULL, "\t \n"));
     }
 
     /* now copy the remaining arguments */
-
+  
     for (i=1; i < *argc; i++)
     {
 	new_argv [new_argc] = (*argv)[i];
