@@ -354,7 +354,6 @@ char *get_yp_master(getserver)
 	char *mastername;
 	int rval, localport;
 	struct stat st;
-	char			*sockname = YP_SOCKNAME;
 
 	/*
 	 * Sometimes we are called just to probe for rpc.yppasswdd and
@@ -407,7 +406,7 @@ char *get_yp_master(getserver)
 	/* See if _we_ are the master server. */
 	if (!force_old && !getuid() && (localport = getrpcport("localhost",
 		YPPASSWDPROG, YPPASSWDPROC_UPDATE, IPPROTO_UDP)) != 0) {
-		if (localport == rval && stat(sockname, &st) != -1) {
+		if (localport == rval) {
 			suser_override = 1;
 			mastername = "localhost";
 		}
@@ -433,12 +432,14 @@ void yp_submit(pw)
 {
 	struct yppasswd yppasswd;
 	struct master_yppasswd master_yppasswd;
+	struct netconfig *nconf;
+	void *localhandle;
 	CLIENT *clnt;
 	char *master, *password;
 	int *status = NULL;
 	struct rpc_err err;
-	char			*sockname = YP_SOCKNAME;
 
+	nconf = NULL;
 	_use_yp = 1;
 
 	/* Get NIS master server name */
@@ -490,13 +491,26 @@ void yp_submit(pw)
 
 	if (suser_override) {
 		/* Talk to server via AF_UNIX socket. */
-		clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
-					MASTER_YPPASSWDVERS, "unix");
+		localhandle = setnetconfig();
+		while ((nconf = getnetconfig(localhandle)) != NULL) {
+			if (nconf->nc_protofmly != NULL &&
+			    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+				break;
+		}
+		if (nconf == NULL) {
+			warnx("getnetconfig: %s", nc_sperror());
+			pw_error(tempname, 0, 1);
+		}
+
+		clnt = clnt_tp_create(NULL, MASTER_YPPASSWDPROG,
+		   MASTER_YPPASSWDVERS, nconf);
 		if (clnt == NULL) {
 			warnx("failed to contact rpc.yppasswdd: %s",
 				clnt_spcreateerror(master));
+			endnetconfig(localhandle);
 			pw_error(tempname, 0, 1);
 		}
+		endnetconfig(localhandle);
 	} else {
 		/* Create a handle to yppasswdd. */
 
