@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$Id$
  */
 
 /*
@@ -382,3 +382,51 @@ in_inithead(void **head, int off)
 	return 1;
 }
 
+
+/*
+ * This zaps old routes when the interface goes down.
+ * Currently it doesn't delete static routes; there are
+ * arguments one could make for both behaviors.  For the moment,
+ * we will adopt the Principle of Least Surprise and leave them
+ * alone (with the knowledge that this will not be enough for some
+ * people).  The ones we really want to get rid of are things like ARP
+ * entries, since the user might down the interface, walk over to a completely
+ * different network, and plug back in.
+ */
+struct in_ifadown_arg {
+	struct radix_node_head *rnh;
+	struct ifaddr *ifa;
+};
+
+static int
+in_ifadownkill(struct radix_node *rn, void *xap)
+{
+	struct in_ifadown_arg *ap = xap;
+	struct rtentry *rt = (struct rtentry *)rn;
+	int err;
+
+	if (rt->rt_ifa == ap->ifa && !(rt->rt_flags & RTF_STATIC)) {
+		err = rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
+				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
+		if (err) {
+			log(LOG_WARNING, "in_ifadownkill: error %d\n", err);
+		}
+	}
+	return 0;
+}
+
+int
+in_ifadown(struct ifaddr *ifa)
+{
+	struct in_ifadown_arg arg;
+	struct radix_node_head *rnh;
+
+	if (ifa->ifa_addr->sa_family != AF_INET)
+		return 1;
+
+	arg.rnh = rnh = rt_tables[AF_INET];
+	arg.ifa = ifa;
+	rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
+	ifa->ifa_flags &= ~IFA_ROUTE;
+	return 0;
+}
