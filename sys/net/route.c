@@ -972,7 +972,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	if (old) {
 		Bcopy(dst, new, dlen);
 		Free(old);
-		dst = gate = 0;		/* XXX??? */
+		old = 0;
 	}
 
 	/*
