@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ftpd.c,v 1.43 1997/11/21 07:38:42 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -483,7 +483,7 @@ main(argc, argv, envp)
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
 
 	/* set this here so klogin can use it... */
-	(void)sprintf(ttyline, "ftp%d", getpid());
+	(void)snprintf(ttyline, sizeof(ttyline), "ftp%d", getpid());
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
@@ -1132,7 +1132,7 @@ retrieve(cmd, name)
 	} else {
 		char line[BUFSIZ];
 
-		(void) sprintf(line, cmd, name), name = line;
+		(void) snprintf(line, sizeof(line), cmd, name), name = line;
 		fin = ftpd_popen(line, "r"), closefunc = ftpd_pclose;
 		st.st_size = -1;
 		st.st_blksize = BUFSIZ;
@@ -1333,9 +1333,9 @@ dataconn(name, size, mode)
 	file_size = size;
 	byte_count = 0;
 	if (size != (off_t) -1)
-		(void) sprintf(sizebuf, " (%qd bytes)", size);
+		(void) snprintf(sizebuf, sizeof(sizebuf), " (%qd bytes)", size);
 	else
-		(void) strcpy(sizebuf, "");
+		*sizebuf = '\0';
 	if (pdata >= 0) {
 		struct sockaddr_in from;
 		int s, fromlen = sizeof(from);
@@ -2059,7 +2059,8 @@ gunique(local)
 	}
 	if (cp)
 		*cp = '/';
-	(void) snprintf(new, sizeof(new), "%s", local);
+	/* -4 is for the .nn<null> we put on the end below */
+	(void) snprintf(new, sizeof(new) - 4, "%s", local);
 	cp = new + strlen(new);
 	*cp++ = '.';
 	for (count = 1; count < 100; count++) {
@@ -2172,7 +2173,8 @@ send_file_list(whichf)
 			    dir->d_namlen == 2)
 				continue;
 
-			sprintf(nbuf, "%s/%s", dirname, dir->d_name);
+			snprintf(nbuf, sizeof(nbuf), 
+				"%s/%s", dirname, dir->d_name);
 
 			/*
 			 * We have to do a stat to insure it's
