@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.70 1995/05/04 07:56:23 davidg Exp $
+ * $Id: if_ed.c,v 1.71 1995/05/12 22:39:40 davidg Exp $
  */
 
 #include "ed.h"
@@ -169,8 +169,8 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ15
 };
 
-#define	ETHER_MIN_LEN	64
-#define ETHER_MAX_LEN	1518
+#define	ETHER_MIN_LEN	60
+#define ETHER_MAX_LEN	1514
 #define	ETHER_ADDR_LEN	6
 #define	ETHER_HDR_SIZE	14
 
@@ -1682,7 +1682,7 @@ ed_rint(unit)
 			ed_pio_readmem(sc, packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
-		if (len > ETHER_MAX_LEN) {
+		if (len > ETHER_MAX_LEN+4) { /* len includes 4 byte header */
 			/*
 			 * Length is a wild value. There's a good chance that
 			 * this was caused by the NIC being old and buggy.
