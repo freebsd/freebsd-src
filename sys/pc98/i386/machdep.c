@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.5 1996/12/21 18:16:22 bde Exp $
+ *	$Id: machdep.c,v 1.11.2.6 1997/01/04 16:31:24 kato Exp $
  */
 
 #include "npx.h"
@@ -1477,7 +1477,7 @@ Debugger(const char *msg)
 #endif /* no DDB */
 
 #include <sys/disklabel.h>
-
+#define b_cylin	b_resid
 /*
  * Determine the size of the transfer, and make sure it is
  * within the boundaries of the partition. Adjust transfer
@@ -1527,7 +1527,9 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
                 bp->b_bcount = sz << DEV_BSHIFT;
         }
 
+        /* calculate cylinder for disksort to order transfers with */
         bp->b_pblkno = bp->b_blkno + p->p_offset;
+        bp->b_cylin = bp->b_pblkno / lp->d_secpercyl;
         return(1);
 
 bad:
