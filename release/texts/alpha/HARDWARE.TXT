@@ -460,7 +460,8 @@ A more radical approach is to use:
 	set pci_device_override -1
 
 This disables PCI ID checking altogether, so that you can stick in any
-random PCI card without its ID getting checked. Again: do this on your own
+random PCI card without its ID getting checked. For this to work you need
+a sufficiently new SRM in your Miata. Again: do this on your own
 risk.
 
 The kernel reports it when it sees a buggy Pyxis chip:
