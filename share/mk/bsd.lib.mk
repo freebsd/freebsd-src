@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.78 1998/08/30 20:33:27 jb Exp $
+#	$Id: bsd.lib.mk,v 1.79 1998/09/20 19:49:44 obrien Exp $
 #
 
 .if !target(__initialized__)
@@ -10,10 +10,10 @@ __initialized__:
 .endif
 
 # Default executable format
-.if ${MACHINE} == "alpha"
-OBJFORMAT?=	elf
-.else
+.if ${MACHINE_ARCH} == "i386"
 OBJFORMAT?=	aout
+.else
+OBJFORMAT?=	elf
 .endif
 
 .if exists(${.CURDIR}/shlib_version)
