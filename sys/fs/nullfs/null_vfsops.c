@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id$
+ * $Id: null_vfsops.c,v 1.14 1997/02/22 09:40:21 peter Exp $
  */
 
 /*
@@ -127,7 +127,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	lowerrootvp = ndp->ni_vp;
 
 	vrele(ndp->ni_dvp);
-	ndp->ni_dvp = NULL;
+	ndp->ni_dvp = NULLVP;
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
 				M_UFSMNT, M_WAITOK);	/* XXX */
