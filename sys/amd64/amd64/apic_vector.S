@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.9 1997/07/13 00:18:33 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.10 1997/07/15 00:08:01 smp Exp smp $
  */
 
 
@@ -24,8 +24,7 @@
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	movl	$lapic_eoi, %eax ;					\
-	movl	$0, (%eax) ;						\
+	movl	$0, lapic_eoi ;						\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	REL_MPLOCK ;			/* SMP release global lock */	\
 	popl	%es ;							\
@@ -74,8 +73,7 @@ IDTVEC(vec_name) ;							\
 	GET_MPLOCK ;		/* SMP Spin lock */			\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
-	movl	$lapic_eoi, %eax ;					\
-	movl	$0, (%eax) ;						\
+	movl	$0, lapic_eoi ;						\
 	addl	$4,%esp ;						\
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
 	movl	_intr_countp + (irq_num) * 4,%eax ;			\
@@ -134,8 +132,7 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%es ;						\
 	GET_MPLOCK ;		/* SMP Spin lock */			\
 	MAYBE_MASK_IRQ(irq_num) ;					\
-	movl	$lapic_eoi, %eax ;					\
-	movl	$0, (%eax) ;						\
+	movl	$0, lapic_eoi ;						\
 	movl	_cpl,%eax ;						\
 	testl	$IRQ_BIT(irq_num), %eax ;				\
 	jne	3f ;							\
@@ -208,9 +205,8 @@ _Xinvltlb:
 	movl	%cr3, %eax		/* invalidate the TLB */
 	movl	%eax, %cr3
 
-	movl	$lapic_eoi, %eax
 	ss				/* stack segment, avoid %ds load */
-	movl	$0, (%eax)		/* End Of Interrupt to APIC */
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
 	popl	%eax
 	iret
@@ -261,8 +257,7 @@ _Xcpustop:
 
 	ASMPOSTCODE_HI(0x40)
 
-	movl	$lapic_eoi, %eax
-	movl	$0, (%eax)		/* End Of Interrupt to APIC */
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
 	popl	%ds			/* restore previous data segment */
 	popl	%eax
