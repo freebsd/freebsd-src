@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.59 1999/04/19 20:16:22 peter Exp $
+ *	$Id: isa_device.h,v 1.60 1999/04/21 07:26:28 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -69,7 +69,6 @@ struct isa_device {
 #define	id_ointr	id_iu.id_oi
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
-	int	id_scsiid;	/* scsi id if needed */
 	int	id_alive;	/* device is present */
 #define	RI_FAST		1		/* fast interrupt handler */
 	u_int	id_ri_flags;	/* flags for register_intr() */
@@ -77,17 +76,8 @@ struct isa_device {
 	int	id_enabled;	/* is device enabled */
 	int	id_conflicts;	/* we're allowed to conflict with things */
 	struct isa_device *id_next; /* used in isa_devlist in userconfig() */
+	struct device *id_device; /* new-bus wrapper device */
 };
-
-/*
- * Bits to specify the type and amount of conflict checking.
- */
-#define	CC_ATTACH	(1 << 0)
-#define	CC_DRQ		(1 << 1)
-#define	CC_IOADDR	(1 << 2)
-#define	CC_IRQ		(1 << 3)
-#define	CC_MEMADDR	(1 << 4)
-#define	CC_QUIET	(1 << 5)
 
 /*
  * Per-driver structure.
@@ -107,10 +97,9 @@ struct isa_driver {
 
 #ifdef KERNEL
 
-int	haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
+int	haveseen_iobase __P((struct isa_device *dvp, int iosize));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	isa_compat_nextid __P((void));
-void	isa_wrap_old_drivers __P((void));
 
 #endif /* KERNEL */
 
