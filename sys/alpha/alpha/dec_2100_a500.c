@@ -47,18 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <alpha/pci/t2var.h>
 #include <alpha/pci/t2reg.h>
 
+#ifndef NO_SIO
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole; 
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void dec_2100_a500_init(int);
 static void dec_2100_a500_cons_init(void);
 static void dec_2100_a500_intr_init(void);
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
 
 void
 dec_2100_a500_init(int cputype)
@@ -91,8 +94,6 @@ dec_2100_a500_init(int cputype)
 	t2_init();
 }
 
-/* XXX for forcing comconsole when srm serial console is used */
-extern int comconsole; 
 
 static void
 dec_2100_a500_cons_init()
@@ -100,15 +101,18 @@ dec_2100_a500_cons_init()
 	struct ctb *ctb;
 	t2_init();
 
+#ifndef NO_SIO
 #ifdef DDB
 	siogdbattach(0x2f8, 9600);
 #endif
+#endif
+
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
-		/* XXX */
 		/*
 		 * Delay to allow PROM putchars to complete.
 		 * FIFO depth * character time,
@@ -123,6 +127,7 @@ dec_2100_a500_cons_init()
 			panic("can't init serial console");
 
 		boothowto |= RB_SERIAL;
+#endif
 		break;
 
 	case 3:

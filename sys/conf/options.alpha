@@ -16,6 +16,8 @@ DEC_AXPPCI_33		opt_cpu.h
 DEC_1000A		opt_cpu.h
 API_UP1000		opt_cpu.h
 
+NO_SIO			opt_global.h
+
 MAXMEM
 
 PPC_PROBE_CHIPSET       opt_ppc.h

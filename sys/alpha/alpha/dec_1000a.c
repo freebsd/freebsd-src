@@ -94,14 +94,20 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 
+#ifndef NO_SIO
 #ifndef CONSPEED
 #define CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
+extern int comconsole;
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+#endif
+
+extern int sccnattach(void);
 
 void dec_1000a_init(int);
 static void dec_1000a_cons_init(void);
-
 
 static void dec_1000_intr_map(void *);
 static void dec_1000_intr_disable(int);
@@ -112,11 +118,6 @@ static void dec_1000a_intr_map(void *);
 static void dec_1000a_intr_disable(int);
 static void dec_1000a_intr_enable(int);
 static void dec_1000a_intr_init(void);
-
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-extern int sccnattach(void);
-
 
 static const struct alpha_variation_table dec_1000_variations[] = {
 	{ 0, "AlphaServer 1000" },
@@ -172,8 +173,6 @@ dec_1000a_init(int cputype)
 
 }
 
-/* XXX for forcing comconsole when srm serial console is used */
-extern int comconsole;
 
 static void
 dec_1000a_cons_init()
@@ -186,35 +185,36 @@ dec_1000a_cons_init()
 		apecs_init();
 	}
 
+#ifndef NO_SIO
 #ifdef DDB
 	siogdbattach(0x2f8, 57600);
+#endif
 #endif
 
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
+#ifndef NO_SIO
 		/* serial console ... */
-		/* XXX */
-		{
-			/*
-			 * Delay to allow PROM putchars to complete.
-			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10)).
-			 */
-			DELAY(160000000 / comcnrate);
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10)).
+		 */
+		DELAY(160000000 / comcnrate);
 
-                        /*
-                         * Force a comconsole on com1 if the SRM has a serial
-			 * console.
-                         */
-                        comconsole = 0;
-			if (siocnattach(0x3f8, comcnrate))
-				panic("can't init serial console");
+		/*
+		 * Force a comconsole on com1 if the SRM has a serial
+		 * console.
+		 */
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-			boothowto |= RB_SERIAL;
-			break;
-		}
+		boothowto |= RB_SERIAL;
+#endif
+		break;
 
 	case 3:
 		/* display console ... */
