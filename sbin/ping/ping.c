@@ -210,7 +210,7 @@ main(argc, argv)
 	int argc;
 	char *const *argv;
 {
-	struct sockaddr_in from, sin;
+	struct sockaddr_in from, sock_in;
 	struct in_addr ifaddr;
 	struct timeval last, intvl;
 	struct iovec iov;
@@ -237,7 +237,7 @@ main(argc, argv)
 #endif
 	unsigned char loop, mttl;
 
-	source = NULL;
+	payload = source = NULL;
 #ifdef IPSEC_POLICY_IPSEC
 	policy_in = policy_out = NULL;
 #endif
@@ -468,9 +468,9 @@ main(argc, argv)
 		fill((char *)datap, payload);
 	}
 	if (source) {
-		bzero((char *)&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		if (inet_aton(source, &sin.sin_addr) != 0) {
+		bzero((char *)&sock_in, sizeof(sock_in));
+		sock_in.sin_family = AF_INET;
+		if (inet_aton(source, &sock_in.sin_addr) != 0) {
 			shostname = source;
 		} else {
 			hp = gethostbyname2(source, AF_INET);
@@ -478,18 +478,18 @@ main(argc, argv)
 				errx(EX_NOHOST, "cannot resolve %s: %s",
 				    source, hstrerror(h_errno));
 
-			sin.sin_len = sizeof sin;
-			if (hp->h_length > sizeof(sin.sin_addr) ||
+			sock_in.sin_len = sizeof sock_in;
+			if ((unsigned)hp->h_length > sizeof(sock_in.sin_addr) ||
 			    hp->h_length < 0)
 				errx(1, "gethostbyname2: illegal address");
-			memcpy(&sin.sin_addr, hp->h_addr_list[0],
-			    sizeof(sin.sin_addr));
+			memcpy(&sock_in.sin_addr, hp->h_addr_list[0],
+			    sizeof(sock_in.sin_addr));
 			(void)strncpy(snamebuf, hp->h_name,
 			    sizeof(snamebuf) - 1);
 			snamebuf[sizeof(snamebuf) - 1] = '\0';
 			shostname = snamebuf;
 		}
-		if (bind(s, (struct sockaddr *)&sin, sizeof sin) == -1)
+		if (bind(s, (struct sockaddr *)&sock_in, sizeof sock_in) == -1)
 			err(1, "bind");
 	}
 
@@ -505,7 +505,7 @@ main(argc, argv)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
 			    target, hstrerror(h_errno));
 
-		if (hp->h_length > sizeof(to->sin_addr))
+		if ((unsigned)hp->h_length > sizeof(to->sin_addr))
 			errx(1, "gethostbyname2 returned an illegal address");
 		memcpy(&to->sin_addr, hp->h_addr_list[0], sizeof to->sin_addr);
 		(void)strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
@@ -597,7 +597,7 @@ main(argc, argv)
 		ip->ip_off = df ? IP_DF : 0;
 		ip->ip_ttl = ttl;
 		ip->ip_p = IPPROTO_ICMP;
-		ip->ip_src.s_addr = source ? sin.sin_addr.s_addr : INADDR_ANY;
+		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
 		ip->ip_dst = to->sin_addr;
         }
 	/* record route option */
@@ -741,7 +741,7 @@ main(argc, argv)
 		int cc, n;
 
 		check_status();
-		if (s >= FD_SETSIZE)
+		if ((unsigned)s >= FD_SETSIZE)
 			errx(EX_OSERR, "descriptor too large");
 		FD_ZERO(&rfds);
 		FD_SET(s, &rfds);
@@ -762,7 +762,7 @@ main(argc, argv)
 		if (n < 0)
 			continue;	/* Must be EINTR. */
 		if (n == 1) {
-			struct timeval *t = NULL;
+			struct timeval *tv = NULL;
 #ifdef SO_TIMESTAMP
 			struct cmsghdr *cmsg = (struct cmsghdr *)&ctrl;
 
@@ -778,19 +778,19 @@ main(argc, argv)
 #ifdef SO_TIMESTAMP
 			if (cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_TIMESTAMP &&
-			    cmsg->cmsg_len == CMSG_LEN(sizeof *t)) {
+			    cmsg->cmsg_len == CMSG_LEN(sizeof *tv)) {
 				/* Copy to avoid alignment problems: */
 				memcpy(&now, CMSG_DATA(cmsg), sizeof(now));
-				t = &now;
+				tv = &now;
 			}
 #endif
-			if (t == NULL) {
+			if (tv == NULL) {
 				(void)gettimeofday(&now, NULL);
-				t = &now;
+				tv = &now;
 			}
-			pr_pack((char *)packet, cc, &from, t);
-			if (options & F_ONCE && nreceived ||
-			    npackets && nreceived >= npackets)
+			pr_pack((char *)packet, cc, &from, tv);
+			if ((options & F_ONCE && nreceived) ||
+			    (npackets && nreceived >= npackets))
 				break;
 		}
 		if (n == 0 || options & F_FLOOD) {
@@ -1579,16 +1579,25 @@ fill(bp, patp)
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload]",
-"            [-M mask | time] [-m ttl] [-p pattern] "
+	(void)fprintf(stderr,
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-"[-P policy] "
+"%s\n%s\n%s%s\n%s\n",
+#else
+"%s\n%s\n%s\n%s\n",
 #endif
+#else
+"%s\n%s\n%s\n%s\n",
 #endif
-"[-S src_addr]",
+
+"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload]",
+"            [-M mask | time] [-m ttl] [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-t timeout] [-z tos]",
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+" [-P policy]",
+#endif
+#endif
 "            [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
