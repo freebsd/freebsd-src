@@ -342,14 +342,17 @@ Arch_ParseArchive (char **linePtr, Lst nodeLst, GNode *ctxt)
 	    char  *member;
 	    size_t sz = MAXPATHLEN;
 	    size_t nsz;
+
 	    nameBuf = emalloc(sz);
 
 	    Dir_Expand(memName, dirSearchPath, members);
 	    while (!Lst_IsEmpty(members)) {
 		member = (char *)Lst_DeQueue(members);
 		nsz = strlen(libName) + strlen(member) + 3;
-		if (sz > nsz)
-			nameBuf = erealloc(nameBuf, sz = nsz * 2);
+		if (nsz > sz) {
+			sz = nsz * 2;
+			nameBuf = erealloc(nameBuf, sz);
+		}
 
 		snprintf(nameBuf, sz, "%s(%s)", libName, member);
 		free(member);
