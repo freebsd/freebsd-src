@@ -216,16 +216,24 @@ smbfs_open(ap)
 		np->n_opencount++;
 		return 0;
 	}
-	accmode = SMB_AM_OPENREAD;
+	/*
+	 * Use DENYNONE to give unixy semantics of permitting
+	 * everything not forbidden by permissions.  Ie denial
+	 * is up to server with clients/openers needing to use
+	 * advisory locks for further control.
+	 */
+	accmode = SMB_SM_DENYNONE|SMB_AM_OPENREAD;
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
-		accmode = SMB_AM_OPENRW;
+		accmode = SMB_SM_DENYNONE|SMB_AM_OPENRW;
 	smb_makescred(&scred, ap->a_td, ap->a_cred);
 	error = smbfs_smb_open(np, accmode, &scred);
 	if (error) {
 		if (mode & FWRITE)
 			return EACCES;
-		accmode = SMB_AM_OPENREAD;
-		error = smbfs_smb_open(np, accmode, &scred);
+		else if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
+			accmode = SMB_SM_DENYNONE|SMB_AM_OPENREAD;
+			error = smbfs_smb_open(np, accmode, &scred);
+		}
 	}
 	if (!error) {
 		np->n_opencount++;
@@ -390,7 +398,9 @@ smbfs_setattr(ap)
  		tsize = np->n_size;
  		np->n_size = vap->va_size;
 		if (np->n_opencount == 0) {
-			error = smbfs_smb_open(np, SMB_AM_OPENRW, &scred);
+			error = smbfs_smb_open(np,
+					       SMB_SM_DENYNONE|SMB_AM_OPENRW,
+					       &scred);
 			if (error == 0)
 				doclose = 1;
 		}
