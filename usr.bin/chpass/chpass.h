@@ -37,8 +37,9 @@
 struct passwd;
 
 typedef struct _entry {
-	char *prompt;
-	int (*func)(), restricted, len;
+	const char *prompt;
+	int (*func)(char *, struct passwd *, struct _entry *);
+	int restricted, len;
 	char *except, *save;
 } ENTRY;
 
