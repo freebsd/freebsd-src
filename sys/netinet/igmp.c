@@ -69,6 +69,8 @@
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
 
+#include <machine/in_cksum.h>
+
 static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
 static struct router_info *

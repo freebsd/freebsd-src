@@ -67,6 +67,8 @@
 #include <net/if_types.h>
 #endif
 
+#include <machine/in_cksum.h>
+
 /*
  * ICMP routines: error generation, receive packet processing, and
  * routines to turnaround packets back to the originator, and
