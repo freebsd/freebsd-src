@@ -309,4 +309,4 @@ ${OBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.obj.mk>
-.include <bsd.kern.mk>
+.include "kern.mk"
