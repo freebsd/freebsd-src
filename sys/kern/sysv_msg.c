@@ -288,17 +288,12 @@ msgsys(td, uap)
 {
 	int error;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
+	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
+		return (EINVAL);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
-	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0])) {
-		error = EINVAL;
-		goto done2;
-	}
 	error = (*msgcalls[uap->which])(td, &uap->a2);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -353,12 +348,10 @@ msgctl(td, uap)
 #ifdef MSG_DEBUG_OK
 	printf("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, user_msqptr);
 #endif
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
@@ -498,19 +491,17 @@ msgget(td, uap)
 	int msqid, error = 0;
 	int key = uap->key;
 	int msgflg = uap->msgflg;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	register struct msqid_ds *msqptr = NULL;
 
 #ifdef MSG_DEBUG_OK
 	printf("msgget(0x%x, 0%o)\n", key, msgflg);
 #endif
 
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	if (key != IPC_PRIVATE) {
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
 			msqptr = &msqids[msqid];
@@ -630,12 +621,10 @@ msgsnd(td, uap)
 	printf("call to msgsnd(%d, 0x%x, %d, %d)\n", msqid, user_msgp, msgsz,
 	    msgflg);
 #endif
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
@@ -974,12 +963,10 @@ msgrcv(td, uap)
 	    msgsz, msgtyp, msgflg);
 #endif
 
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
