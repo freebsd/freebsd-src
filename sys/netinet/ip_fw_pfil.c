@@ -93,8 +93,8 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 
 	bzero(&args, sizeof(args));
 
-	if (DUMMYNET_LOADED &&
-	    (dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL)) != NULL) {
+	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
+	if (dn_tag != NULL){
 		struct dn_pkt_tag *dt;
 
 		dt = (struct dn_pkt_tag *)(dn_tag+1);
@@ -178,8 +178,8 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 
 	bzero(&args, sizeof(args));
 
-	if (DUMMYNET_LOADED &&
-	    (dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL)) != NULL) {
+	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
+	if (dn_tag != NULL) {
 		struct dn_pkt_tag *dt;
 
 		dt = (struct dn_pkt_tag *)(dn_tag+1);
