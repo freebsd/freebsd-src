@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.30 1997/03/12 02:19:15 jkh Exp $
+ * $Id: config.c,v 1.51.2.31 1997/04/06 17:59:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -510,7 +510,20 @@ configXFree86(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	dialog_clear();
-	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall");
+	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
+	if (directory_exists("/dist/CDE") && !msgYesNo("Would you like to install the CDE desktop package?")) {
+	    int i;
+
+	    dialog_clear();
+	    i = vsystem("/dist/CDE/dtinstall");
+	    dialog_clear_no_refresh();
+	    if (i) {
+		msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
+			   "To try again, you should run this command manually after the system\n"
+			   "is up (and if your CDROM is mounted in the standard location, the path\n"
+			   "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
+	    }
+	}
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
 
