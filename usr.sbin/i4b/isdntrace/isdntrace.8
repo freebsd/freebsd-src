@@ -55,8 +55,8 @@
 .Op Fl T Ar unit
 .Sh DESCRIPTION
 .Nm
-is part of the isdn4bsd package and is used to provide the user with a 
-mnemonic display of the layers 1, 2 and 3 protocol activities on 
+is part of the isdn4bsd package and is used to provide the user with a
+mnemonic display of the layers 1, 2 and 3 protocol activities on
 the D channel and hex dump of the B channel(s) activities.
 .Pp
 Together with two passive supported cards and an easy to build cable it can
@@ -86,7 +86,7 @@ switch B channel tracing on (default off).
 .It Fl d
 switch D channel tracing off (default on).
 .It Fl f
-Use 
+Use
 .Ar filename
 as the name of a file into which to write tracing output (default filename is
 isdntrace<n> where n is the number of the unit to trace).
@@ -97,13 +97,13 @@ print layer 1 (I.430) INFO signals to monitor layer 1 activity (default off).
 .It Fl l
 switch displaying of Layer 2 (Q.921) frames off (default on).
 .It Fl n
-This option takes a numeric argument specifying the minimum 
+This option takes a numeric argument specifying the minimum
 frame size in octetts a frame must have to be displayed.
 (default 0)
 .It Fl o
 switch off writing trace output to a file (default on).
 .It Fl p
-Use 
+Use
 .Ar filename
 as the name of a file used for the -B and -P options (default filename
 is isdntracebin<n> where n is the number of the unit to trace).
@@ -111,11 +111,11 @@ is isdntracebin<n> where n is the number of the unit to trace).
 Switch off printing a raw hexadecimal dump of the packets preceding
 the decoded protocol information (default on).
 .It Fl u
-Use 
+Use
 .Ar number
 as the unit number of the controller card to trace (default 0).
 .It Fl B
-Write undecoded binary trace data to a file for later or remote 
+Write undecoded binary trace data to a file for later or remote
 analyzing (default off).
 .It Fl F
 This option can only be used when option -P (playback from binary data file)
@@ -177,7 +177,7 @@ isdntrace -f /var/tmp/isdn.trace
 .Ed
 .Pp
 will start D channel tracing on passive controller 0 with all except B
-channel tracing enabled and logs everything into the output file 
+channel tracing enabled and logs everything into the output file
 /tmp/isdn.trace.
 .Sh SEE ALSO
 .Xr isdnd 8
@@ -199,10 +199,10 @@ ITU Recommendation X.208, X.209
 .An -nosplit
 The
 .Nm
-utility was written by 
-.An Gary Jennejohn 
-and 
+utility was written by
+.An Gary Jennejohn
+and
 .An Hellmuth Michaelis .
 .Pp
-This manual page was written by 
+This manual page was written by
 .An Hellmuth Michaelis Aq hm@kts.org .

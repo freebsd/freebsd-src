@@ -29,12 +29,12 @@ Normally, root's key is read from the file
 .Pa /etc/.rootkey
 when the daemon is started.
 This is useful during power-fail reboots
-when no one is around to type a password. 
+when no one is around to type a password.
 .Pp
-If a client with no secret key calls 
+If a client with no secret key calls
 .Nm ,
-then the key of user 
-.Em nobody 
+then the key of user
+.Em nobody
 is used instead as the default key.
 .Pp
 The following options are available:
@@ -43,7 +43,7 @@ The following options are available:
 Disable the use of default keys for
 .Em nobody .
 .It Fl D
-Run in debugging mode and log all requests to 
+Run in debugging mode and log all requests to
 .Nm .
 .It Fl n
 Root's secret key is not read from

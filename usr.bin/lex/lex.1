@@ -217,7 +217,7 @@ A somewhat more complicated example:
                 yyin = fopen( argv[0], "r" );
         else
                 yyin = stdin;
-        
+
         yylex();
         }
 
@@ -705,7 +705,7 @@ a single blank, and throws away whitespace found at the end of a line:
 .PP
 If the action contains a '{', then the action spans till the balancing '}'
 is found, and the action may cross multiple lines.
-.I flex 
+.I flex
 knows about C strings and comments and won't be fooled by braces found
 within them, but also allows actions to begin with
 .B %{
@@ -1903,7 +1903,7 @@ interactive to avoid problems due to waiting to fill buffers
 (see the discussion of the
 .B \-I
 flag below).  A non-zero value
-in the macro invocation marks the buffer as interactive, a zero  
+in the macro invocation marks the buffer as interactive, a zero
 value as non-interactive.  Note that use of this macro overrides
 .B %option interactive ,
 .B %option always-interactive
@@ -2123,7 +2123,7 @@ The result is large but fast.  This option is equivalent to
 generates a "help" summary of
 .I flex's
 options to
-.I stdout 
+.I stdout
 and then exits.
 .B \-?
 and
@@ -2427,7 +2427,7 @@ and 8-bit scanners.
 specifies that you want flex to generate a C++
 scanner class.  See the section on Generating C++ Scanners below for
 details.
-.TP 
+.TP
 .B \-C[aefFmr]
 controls the degree of table compression and, more generally, trade-offs
 between small scanners and fast scanners.
@@ -2885,7 +2885,7 @@ It is a particularly expensive option.
 Getting rid of backing up is messy and often may be an enormous
 amount of work for a complicated scanner.  In principal, one begins
 by using the
-.B \-b 
+.B \-b
 flag to generate a
 .I lex.backup
 file.  For example, on the input
@@ -3155,7 +3155,7 @@ one which doesn't include a newline:
 Compiled with
 .B \-Cf,
 this is about as fast as one can get a
-.I flex 
+.I flex
 scanner to go for this particular problem.
 .PP
 A final note:
@@ -3481,7 +3481,7 @@ for the other.
 .PP
 IMPORTANT: the present form of the scanning class is
 .I experimental
-and may change considerably between major releases. 
+and may change considerably between major releases.
 .SH INCOMPATIBILITIES WITH LEX AND POSIX
 .I flex
 is a rewrite of the AT&T Unix

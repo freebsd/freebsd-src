@@ -44,7 +44,7 @@
 .Op Fl w Ar wtmp
 .Op Ar users ...
 .Sh DESCRIPTION
-If the file 
+If the file
 .Pa /var/log/wtmp
 exists, a record of individual login and logout
 times are written to it by
@@ -61,7 +61,7 @@ The options are as follows:
 .It Fl d
 Display the connect times in 24 hour chunks.
 .\" .It Fl c Ar console
-.\" Use 
+.\" Use
 .\" .Ar console
 .\" as the name of the device that local X sessions (ut_host of ":0.0")
 .\" originate from.  If any login has been recorded on
@@ -138,10 +138,10 @@ rotated files
 .\" .Nm ac
 .\" ignores the fact that entries with ut_host of ":0.0" are not real
 .\" login sessions.  Normally such entries are ignored except in the case
-.\" of a user being logged in when the 
+.\" of a user being logged in when the
 .\" .Pa wtmp
 .\" file was rotated, in which case a login with ut_host of ":0.0" may
-.\" appear without any preceding console logins.  
+.\" appear without any preceding console logins.
 .\" If no one is logged in on the console, the user is deemed to have
 .\" logged in on at the earliest time stamp found in
 .\" .Pa wtmp .

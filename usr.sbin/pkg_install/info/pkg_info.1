@@ -75,7 +75,7 @@ Show files that don't match the recorded checksum.
 .It Fl i
 Show the install script (if any) for each package.
 .It Fl I
-Show an index line for each package.  This option takes 
+Show an index line for each package.  This option takes
 precedence over all other package formatting options.
 .It Fl k
 Show the de-install script (if any) for each package.
@@ -110,7 +110,7 @@ automatically expands shell glob patterns in the
 For the specified
 .Ar filename
 argument show which package it belongs to.  If the file is not in the
-current directory, and does not have an absolute path, then the 
+current directory, and does not have an absolute path, then the
 .Ev PATH
 is searched using
 .Xr which 1 .
@@ -142,8 +142,8 @@ each field.
 .It Fl t Ar template
 Use
 .Ar template
-as the input to 
-.Xr mktemp 3 
+as the input to
+.Xr mktemp 3
 when creating a
 .Dq staging area .
 By default, this is the string
@@ -159,7 +159,7 @@ to fill in with a unique ID.
 Note:  This should really not be necessary with
 .Nm ,
 since very little information is extracted from each package
-and one would have to have a very small 
+and one would have to have a very small
 .Pa /tmp
 indeed to overflow it.
 .Ed
@@ -185,16 +185,16 @@ specifies an alternative location for the installed package database.
 .It Pa /var/tmp
 Used if the environment variables
 .Ev PKG_TMPDIR
-and 
+and
 .Ev TMPDIR
 are not set, or if the directories named have insufficient space.
 .It Pa /tmp
-The next choice if 
+The next choice if
 .Pa /var/tmp
 does not exist or has insufficient space.
 .It Pa /usr/tmp
-The last choice if 
-.Pa /tmp 
+The last choice if
+.Pa /tmp
 is unsuitable.
 .It Pa /var/db/pkg
 Default location of the installed package database.

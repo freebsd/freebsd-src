@@ -61,7 +61,7 @@ is a language similar to C known as
 Language (Remote Procedure Call Language).
 .Pp
 .Nm Rpcgen
-is normally used as in the first synopsis where 
+is normally used as in the first synopsis where
 it takes an input file and generates three output files.
 If the
 .Ar infile
@@ -93,7 +93,7 @@ The
 .Fl \&Ss
 and
 .Fl \&Sm
-options generate sample client, server and makefile, respectively. 
+options generate sample client, server and makefile, respectively.
 The
 .Fl a
 option generates all files, including sample files.
@@ -106,14 +106,14 @@ then the client side sample file is written to
 the server side sample file to
 .Pa proto_server.c
 and the sample makefile to
-.Pa makefile.proto . 
+.Pa makefile.proto .
 .Pp
 The server created can be started both by the port monitors
 (for example,
 .Xr inetd 8 )
 or by itself.
 When it is started by a port monitor,
-it creates servers only for the transport for which 
+it creates servers only for the transport for which
 the file descriptor
 .Em 0
 was passed.
@@ -159,20 +159,20 @@ a pointer to the input and output arguments,
 .It
 the size of these routines.
 .El
-A server can use the dispatch table to check authorization 
-and then to execute the service routine; 
+A server can use the dispatch table to check authorization
+and then to execute the service routine;
 a client library may use it to deal with the details of storage
 management and XDR data conversion.
 .Pp
-The other three synopses shown above are used when 
+The other three synopses shown above are used when
 one does not want to generate all the output files,
 but only a particular one.
 See the
 .Sx EXAMPLES
-section below for examples of 
+section below for examples of
 .Nm
 usage.
-When 
+When
 .Nm
 is executed with the
 .Fl s
@@ -282,7 +282,7 @@ This option may be specified more than once.
 .It Fl h
 Compile into C data-definitions (a header).
 .Fl T
-option can be used in conjunction to produce a 
+option can be used in conjunction to produce a
 header which supports
 .Tn RPC
 dispatch tables.
@@ -307,8 +307,8 @@ Such servers can be self-started or can be started by
 When the server is self-started, it backgrounds itself by default.
 A special define symbol
 .Em RPC_SVC_FG
-can be used to run the 
-server process in foreground, or the user may simply compile without 
+can be used to run the
+server process in foreground, or the user may simply compile without
 the
 .Fl I
 option.
@@ -316,12 +316,12 @@ option.
 If there are no pending client requests, the
 .Nm inetd
 servers exit after 120 seconds (default).
-The default can be changed with the 
+The default can be changed with the
 .Fl K
 option.
 All the error messages for
 .Nm inetd
-servers 
+servers
 are always logged with
 .Xr syslog 3 .
 .\" .IP
@@ -340,7 +340,7 @@ after servicing a request before exiting.
 That interval can be changed using the
 .Fl K
 flag.
-To create a server that exits immediately upon servicing a request, 
+To create a server that exits immediately upon servicing a request,
 use
 .Fl K Ar 0 .
 To create a server that never exits, the appropriate argument is
@@ -368,21 +368,21 @@ Compile into server-side stubs,
 but do not generate a
 .Qq main
 routine.
-This option is useful for doing callback-routines 
-and for users who need to write their own 
+This option is useful for doing callback-routines
+and for users who need to write their own
 .Qq main
 routine to do initialization.
 .It Fl M
 Generate multithread-safe stubs for passing arguments and results between
 rpcgen generated code and user written code.
-This option is useful 
+This option is useful
 for users who want to use threads in their code.
 However, the
 .Xr rpc_svc_calls 3
 functions are not yet MT-safe, which means that rpcgen generated server-side
 code will not be MT-safe.
 .It Fl N
-This option allows procedures to have multiple arguments. 
+This option allows procedures to have multiple arguments.
 It also uses the style of parameter passing that closely resembles C.
 So, when passing an argument to a remote procedure, you do not have to
 pass a pointer to the argument, but can pass the argument itself.
@@ -416,10 +416,10 @@ standard output is used
 .Fl \&Sm ,
 .Fl \&Ss ,
 and
-.Fl t 
+.Fl t
 modes only).
 .It Fl s Ar nettype
-Compile into server-side stubs for all the 
+Compile into server-side stubs for all the
 transports belonging to the class
 .Ar nettype .
 The supported classes are
@@ -431,8 +431,8 @@ The supported classes are
 .Em datagram_v ,
 .Em tcp ,
 and
-.Em udp 
-(see 
+.Em udp
+(see
 .Xr rpc 3
 for the meanings associated with these classes).
 This option may be specified more than once.
@@ -455,7 +455,7 @@ Generate the code to support
 .Tn RPC
 dispatch tables.
 .Pp
-The options 
+The options
 .Fl c ,
 .Fl h ,
 .Fl l ,
@@ -465,7 +465,7 @@ The options
 .Fl \&Sm ,
 .Fl \&Ss ,
 and
-.Fl t 
+.Fl t
 are used exclusively to generate a particular type of file,
 while the options
 .Fl D
@@ -473,7 +473,7 @@ and
 .Fl T
 are global and can be used with the other options.
 .It Fl Y Ar pathname
-Give the name of the directory where 
+Give the name of the directory where
 .Nm
 will start looking for the C-preprocessor.
 .El
@@ -495,7 +495,7 @@ to the standard output.
 .Pp
 To send the test version of the
 .Fl D Ns Ar TEST ,
-server side stubs for 
+server side stubs for
 all the transport belonging to the class
 .Ar datagram_n
 to standard output, use:

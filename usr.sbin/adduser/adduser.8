@@ -48,7 +48,7 @@
 .Op Fl v | verbose
 .Ek
 .Sh DESCRIPTION
-.Nm Adduser 
+.Nm Adduser
 is a simple program for adding new users.
 Adduser checks
 the passwd, group and shell databases.
@@ -61,16 +61,16 @@ directory, dotfiles and sends the new user a welcome message.
 Login name.
 May contain only lowercase characters or digits.
 Maximum length
-is 16 characters (see 
+is 16 characters (see
 .Xr setlogin 2
-BUGS section). 
-The reasons for this limit are "Historical". 
+BUGS section).
+The reasons for this limit are "Historical".
 Given that people have traditionally wanted to break this
 limit for aesthetic reasons, it's never been of great importance to break
 such a basic fundamental parameter in UNIX.
-You can change 
-.Dv UT_NAMESIZE 
-in 
+You can change
+.Dv UT_NAMESIZE
+in
 .Pa /usr/include/utmp.h
 and recompile the
 world; people have done this and it works, but you will have problems
@@ -81,7 +81,7 @@ If you need a longer login name for e-mail addresses,
 you can define an alias in
 .Pa /etc/mail/aliases .
 .It Sy fullname
-Firstname and surname. 
+Firstname and surname.
 The
 .Ql Pa \&:
 character is not allowed.
@@ -90,13 +90,13 @@ Only valid shells from the shell database or sliplogin and pppd
 .It Sy uid
 Automatically generated or your choice, must be less than 32000.
 .It Sy gid/login group
-Your choice or automatically generated. 
+Your choice or automatically generated.
 .It Sy password
-If not empty, password is encoded with 
+If not empty, password is encoded with
 .Xr crypt 3 .
 .El
 .Sh UNIQUE GROUPS
-Perhaps you're missing what 
+Perhaps you're missing what
 .Em can
 be done with this scheme that falls apart
 with most other schemes.  With each user in his/her own group the user can
@@ -129,33 +129,33 @@ Check /etc/passwd, /etc/group, /etc/shells and exit.
 .It Fl class Ar login_class
 Set default login class.
 .It Fl config_create
-Create new configuration and message file and exit. 
+Create new configuration and message file and exit.
 .It Fl dotdir Ar directory
-Copy files from 
-.Ar directory 
+Copy files from
+.Ar directory
 into the
 .Ev HOME
 directory of new users,
 .Ql Pa dot.foo
-will be renamed to 
+will be renamed to
 .Ql Pa .foo .
 Don't copy files if
-.Ar directory 
+.Ar directory
 specified is equal to
 .Ar no .
 For security make all files writable and readable for owner,
 don't allow group or world to write files and allow only owner
-to read/execute/write 
-.Pa .rhost , 
-.Pa .Xauthority , 
-.Pa .kermrc , 
-.Pa .netrc , 
+to read/execute/write
+.Pa .rhost ,
+.Pa .Xauthority ,
+.Pa .kermrc ,
+.Pa .netrc ,
 .Pa Mail ,
-.Pa prv , 
-.Pa iscreen , 
+.Pa prv ,
+.Pa iscreen ,
 .Pa term .
 .It Fl group Ar login_group
-Login group. 
+Login group.
 .Ar USER
 means that the username is to be used as login group.
 .It Fl help , h , \&?
@@ -168,16 +168,16 @@ Send new users a welcome message from
 Specifying a value of
 .Ar no
 for
-.Ar file 
+.Ar file
 causes no message to be sent to new users.
 .It Fl noconfig
 Do not read the default configuration file.
-.It Fl shell Ar shell 
+.It Fl shell Ar shell
 Default shell for new users.
 .It Fl silent , s , quiet , q
-Few warnings, questions, bug reports. 
+Few warnings, questions, bug reports.
 .It Fl uid Ar uid
-Use uid's from 
+Use uid's from
 .Ar uid
 on up.
 .It Fl verbose , v
@@ -187,11 +187,11 @@ Recommended for novice users.
 .Sh FORMATS
 .Bl -tag -width Ds -compact
 .Ql Pa #
-is a comment.  
+is a comment.
 .It Sy configuration file
 .Nm Adduser
-reads and writes this file. 
-See 
+reads and writes this file.
+See
 .Pa /etc/adduser.conf
 for more details.
 .It Sy message file

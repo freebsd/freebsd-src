@@ -57,7 +57,7 @@ man page for further details.
 .Sh EXAMPLES
 .Ss Setting up a Jail Directory Tree
 This shows how to setup a jail directory tree:
-.Bd -literal 
+.Bd -literal
 D=/here/is/the/jail
 cd /usr/src
 make world DESTDIR=$D
@@ -247,7 +247,7 @@ or
 signals to all processes in the jail from within the jail.  Depending on
 the intended use of the jail, you may also want to run
 .Pa /etc/rc.shutdown
-from within the jail.  Currently there is no way to insert new processes 
+from within the jail.  Currently there is no way to insert new processes
 into a jail, so you must first log into the jail before performing these
 actions.
 .Pp

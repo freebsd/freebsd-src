@@ -4,7 +4,7 @@
 .\" $FreeBSD$
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
-.\" 
+.\"
 .\" Permission to use, copy, modify, and distribute this software
 .\" and its documentation for any purpose and without fee is
 .\" hereby granted, provided that the above copyright notice
@@ -34,7 +34,7 @@
 is a program that should be scheduled to run periodically by
 .Xr cron 8 .
 When it is executed it archives log files if necessary.  If a log file
-is determined to require archiving, 
+is determined to require archiving,
 .Nm
 rearranges the files so that
 .Dq Va logfile
@@ -46,7 +46,7 @@ the last period's logs in it,
 has the next to last
 period's logs in it, and so on, up to a user-specified number of
 archived logs.  Optionally the archived logs can be compressed to save
-space. 
+space.
 .Pp
 A log can be archived for three reasons:
 .Bl -enum -offset indent
@@ -67,11 +67,11 @@ Since the program is quite fast, it may be scheduled to run every hour
 without any ill effects,
 and mode three (above) assumes that this is so.
 .Pp
-When starting up, 
+When starting up,
 .Nm
 reads in a configuration file to determine which logs may potentially
 be archived.
-By default, this configuration file is 
+By default, this configuration file is
 .Pa /etc/newsyslog.conf .
 Each line of the file contains information about a particular log file
 that should be handled by
@@ -79,7 +79,7 @@ that should be handled by
 Each line has five mandatory fields and four optional fields, with
 whitespace separating each field.  Blank lines or lines beginning with
 ``#'' are ignored.  The fields of the configuration file are as
-follows: 
+follows:
 .Pp
 .Bl -tag -width indent
 .It Ar logfile_name
@@ -90,12 +90,12 @@ The ":" is essential, even if the
 .Ar owner
 or
 .Ar group
-field is left blank.  The field may be numeric, or a name which is 
+field is left blank.  The field may be numeric, or a name which is
 present in
 .Pa /etc/passwd
 or
 .Pa /etc/group .
-.It Ar mode 
+.It Ar mode
 Specify the mode of the log file and archives.
 .It Ar count
 Specify the number of archive files to be kept
@@ -127,14 +127,14 @@ by an
 .So Li \&@ Sc Ns No -sign
 and a time in a restricted
 .Tn ISO 8601
-format or by an 
+format or by an
 .So Li \&$ Sc Ns No -sign
-and a time specification for logfile rotation at a fixed time once 
+and a time specification for logfile rotation at a fixed time once
 per day, per week or per month.
 .Pp
 If a time is specified, the log file will only be trimmed if
 .Nm
-is run within one hour of the specified time.  If an 
+is run within one hour of the specified time.  If an
 interval is specified, the log file will be trimmed if that many hours have
 passed since the last rotation.  When both a time and an interval are
 specified, both conditions must be satisfied for the rotation to take
@@ -221,7 +221,7 @@ The particular format of day, week and month specification is:
 and
 .Op Va M\&dd Ns Op Va D\&hh
 respectively.
-Optional time fields default to midnight. 
+Optional time fields default to midnight.
 The ranges for day and hour secifications are:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
@@ -295,7 +295,7 @@ The following options can be used with
 .It Fl f Ar config_file
 Instruct
 .Nm
-to use 
+to use
 .Ar config_file
 instead of
 .Pa /etc/newsyslog.conf
@@ -318,7 +318,7 @@ it will be created when
 .Nm
 is run.
 .It Fl v
-Place 
+Place
 .Nm
 in verbose mode.  In this mode it will print out each log and its
 reasons for either trimming that log or skipping it.
@@ -330,7 +330,7 @@ were not specified.
 .It Fl r
 Remove the restriction that
 .Nm
-must be running as root.  Of course, 
+must be running as root.  Of course,
 .Nm
 will not be able to send a HUP signal to
 .Xr syslogd 8
@@ -364,8 +364,8 @@ Copyright 1987, Massachusetts Institute of Technology
 Previous versions of the
 .Nm
 utility used the dot (``.'') character to
-distinguish the group name.  
-Begining with 
+distinguish the group name.
+Begining with
 .Fx 3.3 ,
 this has been changed to a colon (``:'') character so that user and group
 names may contain the dot character.  The dot (``.'') character is still

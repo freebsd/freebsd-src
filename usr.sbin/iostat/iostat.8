@@ -112,7 +112,7 @@ is also specfied to enable the display of CPU or TTY statistics.
 .It Fl h
 Put iostat in
 .Sq top
-mode.  In this mode, iostat will show devices in order from highest to 
+mode.  In this mode, iostat will show devices in order from highest to
 lowest bytes per measurement cycle.
 .It Fl I
 Display total statstics for a given time period, rather than average
@@ -150,7 +150,7 @@ categories of devices:
 .Bl -tag -width indent -compact
 .It device type:
 .Bl -tag -width 9n -compact
-.It da 
+.It da
 Direct Access devices
 .It sa
 Sequential Access devices
@@ -197,7 +197,7 @@ Passthrough devices
 .Pp
 The user must specify at least one device type, and may specify at most
 one device type from each category.  Multiple device types in a single
-device type statement must be separated by commas. 
+device type statement must be separated by commas.
 .Pp
 Any number of
 .Fl t
@@ -207,7 +207,7 @@ arguments are ORed together to form a matching expression against which
 all devices in the system are compared.  Any device that fully matches
 any
 .Fl t
-argument will be included in the 
+argument will be included in the
 .Nm
 output, up to the number of devices that can be displayed in
 80 columns, or the maximum number of devices specified by the user.
@@ -338,7 +338,7 @@ Default memory file.
 .Sh EXAMPLES
 .Dl iostat -w 1 da0 da1 cd0
 .Pp
-Display statistics for the first two Direct Access devices and the first 
+Display statistics for the first two Direct Access devices and the first
 CDROM device every second ad infinitum.
 .Pp
 .Dl iostat -c 2
@@ -353,7 +353,7 @@ ad infinitum.
 .Pp
 .Dl iostat -t da,scsi,pass -t cd,scsi,pass
 .Pp
-Display statistics once for all SCSI passthrough devices that provide access 
+Display statistics once for all SCSI passthrough devices that provide access
 to either Direct Access or CDROM devices.
 .Pp
 .Dl iostat -h -n 8 -w 1
@@ -396,8 +396,8 @@ This version of
 first appeared in
 .Fx 3.0 .
 .Sh BUGS
-You cannot display device statistics for a non-running system, due to the 
-fact that the new device statistics interface is accessible only via 
+You cannot display device statistics for a non-running system, due to the
+fact that the new device statistics interface is accessible only via
 .Xr sysctl 3 ,
 which does not provide a way to access non-running systems.
 .Sh AUTHORS

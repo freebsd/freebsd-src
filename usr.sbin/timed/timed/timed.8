@@ -50,7 +50,7 @@ The
 daemon is a time server daemon
 which is normally invoked at boot time from the
 .Xr rc.network 8
-file.  
+file.
 It synchronizes the host's time with the time of other
 machines, which are also running
 .Nm ,
@@ -78,7 +78,7 @@ are used by
 This option may be specified multiple times
 to add more than one network to the list.
 .It Fl F Ar host ...
-Create a list of trusted hosts.  
+Create a list of trusted hosts.
 .Nm
 will only accept trusted hosts as masters.
 If it finds an untrusted host claiming to be master,
@@ -115,9 +115,9 @@ is running with the
 utility.
 .El
 .Pp
-The 
-.Fl n 
-and 
+The
+.Fl n
+and
 .Fl i
 are mutually exclusive
 and require as arguments real networks to which
@@ -130,14 +130,14 @@ will listen on all connected networks.
 .Pp
 A
 .Nm
-running without the 
-.Fl M 
-nor 
-.Fl F 
-flags will always remain a slave.  
-If the 
-.Fl F 
-flag is not used, 
+running without the
+.Fl M
+nor
+.Fl F
+flags will always remain a slave.
+If the
+.Fl F
+flag is not used,
 .Nm
 will treat all machines as trustworthy.
 .Pp
@@ -149,16 +149,16 @@ When
 is started on a machine, it asks the master for the network time
 and sets the host's clock to that time.
 After that, it accepts synchronization messages periodically sent by
-the master and calls 
+the master and calls
 .Xr adjtime 2
 to perform the needed corrections on the host's clock.
 .Pp
 It also communicates with
 .Xr date 1
 in order to set the date globally,
-and with 
+and with
 .Xr timedc 8 ,
-a 
+a
 .Nm
 control program.
 If the machine running the master becomes unreachable,
@@ -182,7 +182,7 @@ It will request synchronization service from the first master server
 located.
 If permitted by the
 .Fl M
-or 
+or
 .Fl F
 flags, it will provide synchronization service on any attached networks
 on which no trusted master server was detected.
@@ -195,14 +195,14 @@ it will begin the election process on that network.
 .Pp
 One way to synchronize a group of machines is to use an
 .Tn NTP
-daemon to 
+daemon to
 synchronize the clock of one machine to a distant standard or a radio
-receiver and 
+receiver and
 .Fl F Ar hostname
 to tell its timed daemon to trust only itself.
 .Pp
 Messages printed by the kernel on the system console occur with
-interrupts disabled. 
+interrupts disabled.
 This means that the clock stops while they are printing.
 A machine with many disk or network hardware problems and consequent
 messages cannot keep good time by itself.  Each message typically causes
@@ -216,19 +216,19 @@ settings are often associated with "multi-homed" machines
 that looked for time masters on more than one network and eventually
 chose to become a slave on the other network.
 .Sh WARNINGS
-If two or more time daemons, whether 
+If two or more time daemons, whether
 .Nm ,
 .Tn NTP ,
 try to adjust the same clock, temporal chaos will result.
-If both 
+If both
 .Nm
 and another time daemon are run on the same machine,
-ensure that the 
+ensure that the
 .Fl F
-flag is used, so that 
+flag is used, so that
 .Nm
 never attempts to adjust the local clock.
-.Pp 
+.Pp
 The protocol is based on
 .Tn UDP/IP
 broadcasts.  All machines within
@@ -245,7 +245,7 @@ Failure to follow this rule is usually indicated by complaints concerning
 .It Pa /var/log/timed.log
 tracing file for timed
 .It Pa /var/log/timed.masterlog
-log file for master timed 
+log file for master timed
 .El
 .Sh SEE ALSO
 .Xr date 1 ,

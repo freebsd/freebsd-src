@@ -41,10 +41,10 @@
 .Fl 23AbDEfHIMOPRrtVvXxYz
 .Fl c Ar file
 .Fl d Ar file
-.Fl i Ar port Ns Xo 
+.Fl i Ar port Ns Xo
 .Op : Ns Ar cnt
 .Xc
-.Fl o Ar port Ns Xo 
+.Fl o Ar port Ns Xo
 .Op : Ns Ar cnt
 .Xc
 .Fl S Ar int
@@ -61,7 +61,7 @@ which allows it to run a larger variety of DOS applications.
 It should be noted that MS DOS 6.2 and higher appear
 to cause difficulties for
 .Nm .
-To boot DOS, either provide the 
+To boot DOS, either provide the
 .Fl b
 flag or omit the
 .Ar cmd
@@ -74,7 +74,7 @@ and
 .Ar args
 are ignored.
 .Pp
-Although 
+Although
 .Nm
 only provides a subset of DOS, it is sufficient to run a variety of
 programs, including, but not limited to, compilers, assemblers and
@@ -417,7 +417,7 @@ the number of heads and
 .Ar sec
 the number of sectors per track,
 or it can be one of the standard types specified by
-.Ar type 
+.Ar type
 (see below).
 The option
 .Ar fdisk_tab
@@ -489,7 +489,7 @@ already defined:
 .Bd -literal
 .Cm "COMSPEC=C:\eCOMMAND.COM
 .Cm "PATH=C:\e
-.Cm "PROMPT=DOS> 
+.Cm "PROMPT=DOS>
 .Ed
 .Pp
 The
@@ -501,7 +501,7 @@ Like DOS, first
 will be looked for and then
 .Ar cmd.exe .
 .Sh "CONFIGURATION VARIABLES"
-There are several variables in the 
+There are several variables in the
 .Cm .doscmdrc
 file which are internal to doscmd and do not actually get inserted into
 the DOS environment.  These are:
@@ -540,7 +540,7 @@ to let the X server find it.
 .Nm Doscmd
 translates
 .Tn BSD/OS
-file names into 
+file names into
 .Tn DOS
 file names by converting to all upper case and eliminating any invalid
 character.  It does not make any attempt to convert ASCII files into
@@ -617,7 +617,7 @@ _
 To install DOS on a pseudo hard disk under doscmd, do the following:
 .Bl -tag -width XXXX
 .It 1
-Create a 
+Create a
 .Pa .doscmdrc
 with at least the following:
 .Bd -literal -offset indent
@@ -664,10 +664,10 @@ run doscmd.
 At the > prompt type
 .Li fdisk .
 .It 5
-Select 
+Select
 .Li Create DOS partition or Logical Drive .
 .It 6
-Select 
+Select
 .Li Create Primary DOS Partition .
 .It 7
 Tell it how big to make it
@@ -689,7 +689,7 @@ At the > prompt type
 Get out of doscmd.
 .It 13
 Either remove the floppy from the drive or add the line
-.Bd -literal -offset indent 
+.Bd -literal -offset indent
 boot C:
 .Ed
 to your
@@ -711,7 +711,7 @@ redir.com
 Quit doscmd.
 .It 16
 You know have a bootable pseudo disk which will automatically call
-the magic 
+the magic
 .Li redir
 program, which installs
 .Fx
@@ -736,7 +736,7 @@ and exit.
 .Pp
 If
 .Nm
-emits the message 
+emits the message
 .Ic X11 support not compiled in
 when supplied the
 .Fl x
@@ -744,10 +744,10 @@ switch, this support can be added by defining an environment variable
 .Ev X11BASE
 which points to the installed X Window System (normally
 .Pa /usr/X11R6
-) and then typing 
+) and then typing
 .Ic make install
-in the source directory (normally 
-.Pa /usr/src/usr.bin/doscmd 
+in the source directory (normally
+.Pa /usr/src/usr.bin/doscmd
 ).  For this to work, the X programmer's kit must have been installed.
 .Sh AUTHORS
 .An Pace Willisson ,

@@ -50,14 +50,14 @@
 .Op Fl o
 .Sh DESCRIPTION
 .Nm Passwd
-changes the user's local, Kerberos, or NIS password.  
+changes the user's local, Kerberos, or NIS password.
 If the user is not the super-user,
 .Nm
 first prompts for the current password and will not continue unless the correct
 password is entered.
 .Pp
 When entering the new password, the characters entered do not echo, in order to
-avoid the password being seen by a passer-by.  
+avoid the password being seen by a passer-by.
 .Nm
 prompts for the new password twice in order to detect typing errors.
 .Pp
@@ -94,7 +94,7 @@ is used to update the password databases.
 .Pp
 .El
 When changing local or NIS password, the next password change date
-is set according to 
+is set according to
 .Dq passwordtime
 capability in the user's login class.
 .Pp
@@ -111,7 +111,7 @@ has built-in support for NIS.
 If a user exists in the NIS password
 database but does not exist locally,
 .Nm
-automatically switches into 
+automatically switches into
 .Dq yppasswd
 mode.
 If the specified
@@ -148,12 +148,12 @@ When NIS is enabled, the
 .Fl l
 flag can be used to force
 .Nm
-into 
+into
 .Dq local only
 mode.
 This flag can be used to change the entry
 for a local user when an NIS user exists with the same login name.
-For example, you will sometimes find entries for system 
+For example, you will sometimes find entries for system
 .Dq placeholder
 users such as
 .Pa bin
@@ -193,7 +193,7 @@ option and
 .Nm
 is unable to determine the name of the NIS master server (possibly because
 the local domainname isn't set), the name of the NIS master is assumed to
-be 
+be
 .Dq localhost .
 This can be overridden with the
 .Fl h
@@ -213,7 +213,7 @@ flag is of limited practical use but is useful for testing.
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
 The user database
-.It Pa /etc/passwd 
+.It Pa /etc/passwd
 A Version 7 format password file
 .It Pa /etc/passwd.XXXXXX
 Temporary copy of the password file

@@ -18,7 +18,7 @@ The device is a name such
 as
 .Pa cd0
 or
-.Pa mcd0 . 
+.Pa mcd0 .
 .Pp
 If no command is given, then
 .Nm
@@ -46,7 +46,7 @@ characters as are required to uniquely identify a command
 need be specified.
 The word
 .Cm play
-can be omitted or the characters 
+can be omitted or the characters
 .Dq +
 and
 .Dq -
@@ -57,7 +57,7 @@ and
 .Cm prev .
 .Bl -tag -width Cm
 .It Cm play Ar first_track Op Ar last_track
-Play from track 
+Play from track
 .Ar first_track
 to track
 .Ar last_track .
@@ -69,17 +69,17 @@ Can be omitted in all cases.
 .Ar end_f Oc
 .Xc
 Play from the absolute address
-(MSF) defined by 
+(MSF) defined by
 .Ar start_m
-in minutes, 
+in minutes,
 .Ar start_s ,
-in seconds and 
+in seconds and
 .Ar start_f
 (frame number) to the absolute address defined by
 .Ar end_m
-in minutes, 
+in minutes,
 .Ar end_s ,
-in seconds and 
+in seconds and
 .Ar end_f
 (frame number). Minutes are in the range 0-99.
 Seconds are in the range 0-59.
@@ -99,7 +99,7 @@ Stop playing.
 Do not stop the disc.
 .It Cm resume
 Resume playing.
-Used after the 
+Used after the
 .Em pause
 command.
 .It Cm stop
@@ -109,11 +109,11 @@ Eject the disc.
 .It Cm close
 Inject the disc.
 .It Cm volume Ar left_channel Ar right_channel
-Set the volume of left channel to 
+Set the volume of left channel to
 .Ar left_channel
-and the volume of right channel to 
-.Ar right_channel . 
-Allowed values are in the range 0-255. 
+and the volume of right channel to
+.Ar right_channel .
+Allowed values are in the range 0-255.
 .It Cm volume Ar mute
 Turn the sound off.
 .It Cm volume Ar mono

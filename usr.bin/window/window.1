@@ -87,7 +87,7 @@ Ignore
 .Pa .windowrc
 and create the two default
 windows instead.
-.It Fl e Ar escape-char 
+.It Fl e Ar escape-char
 Set the escape character to
 .Ar escape-char  .
 .Ar Escape-char
@@ -96,8 +96,8 @@ can be a single character, or in the form
 where
 .Ar X
 is any character, meaning
-.No control\- Ns Ar X  . 
-.It Fl c Ar command 
+.No control\- Ns Ar X  .
+.It Fl c Ar command
 Execute the string
 .Ar command
 as a long command (see below)
@@ -191,7 +191,7 @@ represents one of the digits ``1'' to ``9''
 corresponding to the windows 1 to 9.
 .Ic ^X
 means
-.No control\- Ns Ar X  , 
+.No control\- Ns Ar X  ,
 where
 .Ar X
 is any character.  In particular,
@@ -207,7 +207,7 @@ Select window
 .Ar #
 as the current window
 and return to conversation mode.
-.It Ic \&% Ns Ar # 
+.It Ic \&% Ns Ar #
 Select window
 .Ar #
 but stay in command mode.
@@ -263,7 +263,7 @@ is used (see
 command below).
 .Pp
 Only fully visible windows can be created this way.
-.It Ic c Ns Ar # 
+.It Ic c Ns Ar #
 Close window
 .Ar # .
 The process in the window is sent
@@ -272,7 +272,7 @@ the hangup signal (see
 .Xr Csh 1
 should
 handle this signal correctly and cause no problems.
-.It Ic m Ns Ar # 
+.It Ic m Ns Ar #
 Move window
 .Ar #
 to another location.  A box in the shape
@@ -282,11 +282,11 @@ those for the
 .Ic w
 command are used to position the box.  The
 window can be moved partially off-screen.
-.It Ic M Ns Ar # 
+.It Ic M Ns Ar #
 Move window
 .Ar #
 to its previous position.
-.It Ic s Ns Ar # 
+.It Ic s Ns Ar #
 Change the size of window
 .Ar # .
 The user is prompted
@@ -297,7 +297,7 @@ keys used in
 and
 .Ic m
 are used to enter the position.
-.It Ic S Ns Ar # 
+.It Ic S Ns Ar #
 Change window
 .Ar #
 to its previous size.
@@ -415,12 +415,12 @@ The operators in order of increasing precedence:
 .Aq Va expr2
 .Xc
 Assignment.  The variable of name
-.Aq Va expr1 , 
+.Aq Va expr1 ,
 which must be string valued,
 is assigned the result of
-.Aq Va expr2 . 
+.Aq Va expr2 .
 Returns the value of
-.Aq Va expr2 . 
+.Aq Va expr2 .
 .It Xo
 .Aq Va expr1
 .Ic \&?
@@ -429,19 +429,19 @@ Returns the value of
 .Aq Va expr3
 .Xc
 Returns the value of
-.Aq Va expr2 
+.Aq Va expr2
 if
-.Aq Va expr1 
+.Aq Va expr1
 evaluates true
 (non-zero numeric value); returns the value of
-.Aq Va expr3 
+.Aq Va expr3
 otherwise.  Only
 one of
-.Aq Va expr2 
+.Aq Va expr2
 and
-.Aq Va expr3 
+.Aq Va expr3
 is evaluated.
-.Aq Va Expr1 
+.Aq Va Expr1
 must
 be numeric.
 .It Xo
@@ -451,9 +451,9 @@ be numeric.
 .Xc
 Logical or.  Numeric values only.  Short circuit evaluation is supported
 (i.e., if
-.Aq Va expr1 
+.Aq Va expr1
 evaluates true, then
-.Aq Va expr2 
+.Aq Va expr2
 is not evaluated).
 .It Xo
 .Aq Va expr1
@@ -641,7 +641,7 @@ listed.  Otherwise,
 .Aq Ar string
 is defined as an alias,
 with expansion
-.Aq Ar string\-list > . 
+.Aq Ar string\-list > .
 The previous definition of
 .Aq Ar string ,
 if any, is returned.  Default for
@@ -736,7 +736,7 @@ meaning
 .No control\- Ns Ar X .
 .It Xo
 .Ic foreground Ns ( Bq Ar window ,
-.Bq Ar flag ) 
+.Bq Ar flag )
 .Xc
 Move
 .Nm
@@ -751,7 +751,7 @@ default for
 is no change.
 .It Xo
 .Ic label Ns ( Bq Ar window ,
-.Bq Ar label ) 
+.Bq Ar label )
 .Xc
 Set the label of
 .Nm
@@ -812,12 +812,12 @@ No arguments.  List all variables.  No value is returned.
 .Bq Ar ncol ,
 .Bq Ar nline ,
 .Bq Ar label ,
-.Bq Ar pty , 
+.Bq Ar pty ,
 .Bq Ar frame ,
 .Bq Ar mapnl ,
 .Bq Ar keepopen ,
 .Bq Ar smooth ,
-.Bq Ar shell ) . 
+.Bq Ar shell ) .
 .Xc
 Open a window with upper left corner at
 .Ar row  ,
@@ -937,7 +937,7 @@ utilizes these environment variables:
 .Bl -tag -width /dev/[pt]ty[pq]? -compact
 .It Pa ~/.windowrc
 startup command file.
-.It Pa /dev/[pt]ty[pq]? 
+.It Pa /dev/[pt]ty[pq]?
 pseudo-terminal devices.
 .El
 .Sh HISTORY

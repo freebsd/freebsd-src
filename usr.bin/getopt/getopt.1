@@ -55,14 +55,14 @@ then
 fi
 set \-\- $args
 # You cannot use the set command with a backquoted getopt directly,
-# since the exit code from getopt would be shadowed by those of set, 
+# since the exit code from getopt would be shadowed by those of set,
 # which is zero by definition.
 for i
 do
 	case "$i"
 	in
 		\-a|\-b)
-			echo flag $i set; sflags="${i#-}$sflags"; 
+			echo flag $i set; sflags="${i#-}$sflags";
 			shift;;
 		\-o)
 			echo oarg is "'"$2"'"; oarg="$2"; shift;
@@ -107,7 +107,7 @@ has.
 .Pp
 Arguments containing white space or embedded shell metacharacters
 generally will not survive intact;  this looks easy to fix but
-isn't. People trying to fix 
+isn't. People trying to fix
 .Nm
 or the example in this manpage should check the history of this file
 in

@@ -83,8 +83,8 @@ The following options are available for
 .Nm uudecode :
 .Bl -tag -width ident
 .It Fl c
-Decode more than one uuencode'd file from 
-.Ar file 
+Decode more than one uuencode'd file from
+.Ar file
 if possible.
 .It Fl i
 Do not overwrite files.
@@ -94,8 +94,8 @@ Decode
 and write output to standard output.
 .It Fl s
 Do not strip output pathname to base filename.
-By default 
-.Nm uudecode 
+By default
+.Nm uudecode
 deletes any prefix ending with the last slash '/' for security
 purpose.
 .El
@@ -113,7 +113,7 @@ tar cf \- src_tree \&| compress \&|
 uuencode src_tree.tar.Z \&| mail sys1!sys2!user
 .Ed
 .Pp
-The following example unpack all uuencode'd 
+The following example unpack all uuencode'd
 files from your mailbox into your current working directory.
 .Pp
 .Bd -literal -offset indent -compact

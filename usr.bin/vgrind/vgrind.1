@@ -40,7 +40,7 @@
 .Nd grind nice listings of programs
 .Sh SYNOPSIS
 .Nm
-.Op Fl 
+.Op Fl
 .Op Fl W
 .Op Fl d Ar file
 .Op Fl f
@@ -54,7 +54,7 @@
 .Ar name Ar ...
 .Sh DESCRIPTION
 .Nm Vgrind
-formats the program sources which are arguments 
+formats the program sources which are arguments
 in a nice style using
 .Xr troff 1
 Comments are placed in italics, keywords in bold face,
@@ -64,12 +64,12 @@ page as it is encountered.
 .Nm Vgrind
 runs in two basic modes, filter mode (see the
 .Fl f
-option) or regular mode.  In filter mode 
+option) or regular mode.  In filter mode
 .Nm
 acts as a filter in a manner similar to
 .Xr tbl 1 .
 The standard input is passed directly to the standard output except
-for lines bracketed by the 
+for lines bracketed by the
 .Em troff-like
 macros:
 .Bl -tag -width Ds
@@ -80,27 +80,27 @@ ends processing
 .El
 .Pp
 These lines are formatted as described above.  The output from this
-filter can be passed to 
+filter can be passed to
 .Xr troff
-for output.  There need be no particular ordering with 
+for output.  There need be no particular ordering with
 .Xr eqn 1
 or
 .Xr tbl 1 .
 .Pp
-In regular mode 
+In regular mode
 .Nm
 accepts input files, processes them, and passes them to the postprocessor
 for output,
 .Xr psroff 1
-by default.  
+by default.
 .Pp
-In both modes 
+In both modes
 .Nm
 passes any lines beginning with a decimal point without conversion.
 .Pp
 The options are:
 .Bl -tag -width Ar
-.It Fl 
+.It Fl
 forces input to be taken from standard input (default if
 .Fl f
 is specified )
@@ -160,14 +160,14 @@ similar to the same option in
 .Xr troff
 causing formatted text to go to the standard output
 .It Fl x
-outputs the index file in a ``pretty'' format. 
-The index file itself is produced whenever 
+outputs the index file in a ``pretty'' format.
+The index file itself is produced whenever
 .Nm
-is run with a file called 
+is run with a file called
 .Pa index
 in the current directory.
 The index of function
-definitions can then be run off by giving 
+definitions can then be run off by giving
 .Nm
 the
 .Fl x
@@ -192,7 +192,7 @@ language descriptions
 .Sh BUGS
 Vfontedpr assumes that a certain programming style is followed:
 .Pp
-For 
+For
 .Tn C
 \- function names can be preceded on a line only by spaces, tabs, or an
 asterisk.  The parenthesized arguments must also be on the same line.
