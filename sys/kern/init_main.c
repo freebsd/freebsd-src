@@ -487,6 +487,8 @@ start_init(void *dummy)
 	td = curthread;
 	p = td->td_proc;
 
+	vfs_mountroot(NULL);
+
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
 		panic("cannot find root vnode");
