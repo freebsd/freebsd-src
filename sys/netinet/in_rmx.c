@@ -388,9 +388,8 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 */
 		rt->rt_flags &= ~(RTF_CLONING | RTF_PRCLONING);
 		rtexpunge(rt);
-		RTFREE_LOCKED(rt);
-	} else
-		RT_UNLOCK(rt);
+	}
+	RT_UNLOCK(rt);
 	return 0;
 }
 
