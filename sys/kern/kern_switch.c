@@ -584,6 +584,10 @@ critical_exit(void)
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
 	if (td->td_critnest == 1) {
+		if (td->td_pflags & TDP_WAKEPROC0) {
+			td->td_pflags &= ~TDP_WAKEPROC0;
+			wakeup(&proc0);
+		}
 #ifdef PREEMPTION
 		mtx_assert(&sched_lock, MA_NOTOWNED);
 		if (td->td_pflags & TDP_OWEPREEMPT) {
