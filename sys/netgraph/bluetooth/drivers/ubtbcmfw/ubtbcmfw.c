@@ -39,7 +39,7 @@
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -220,8 +220,6 @@ USB_DETACH(ubtbcmfw)
 {
 	USB_DETACH_START(ubtbcmfw, sc);
 
-	struct vnode	*vp = NULL;
-
 	sc->sc_dying = 1;
 
 	if (-- sc->sc_refcnt >= 0) {
@@ -236,28 +234,16 @@ USB_DETACH(ubtbcmfw)
 
 	/* Destroy device nodes */
 	if (sc->sc_bulk_out_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_bulk_out_dev->si_hlist);
-		if (vp != NULL)
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_bulk_out_dev);
 		sc->sc_bulk_out_dev = NODEV;
 	}
 
 	if (sc->sc_intr_in_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_intr_in_dev->si_hlist);
-		if (vp != NULL)
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_intr_in_dev);
 		sc->sc_intr_in_dev = NODEV;
 	}
 
 	if (sc->sc_ctrl_dev != NODEV) {
-		vp = SLIST_FIRST(&sc->sc_ctrl_dev->si_hlist);
-		if (vp != NULL)
-			VOP_REVOKE(vp, REVOKEALL);
-
 		destroy_dev(sc->sc_ctrl_dev);
 		sc->sc_ctrl_dev = NODEV;
 	}

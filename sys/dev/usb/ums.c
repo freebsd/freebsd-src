@@ -367,7 +367,6 @@ Static int
 ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
-	struct vnode *vp;
 
 	if (sc->sc_enabled)
 		ums_disable(sc);
@@ -376,10 +375,6 @@ ums_detach(device_t self)
 
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
-
-	vp = SLIST_FIRST(&sc->dev->si_hlist);
-	if (vp)
-		VOP_REVOKE(vp, REVOKEALL);
 
 	/* someone waiting for data */
 	/*
