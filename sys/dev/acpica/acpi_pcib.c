@@ -116,8 +116,11 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
     /* Look up the PRT entry for this device. */
     entry = acpi_pci_find_prt(pcib, dev, pin);
-    if (entry == NULL)
+    if (entry == NULL) {
+	device_printf(pcib, "no PRT entry for %d.%d.INT%c\n", pci_get_bus(dev),
+	    pci_get_slot(dev), 'A' + pin);
 	goto out;
+    }
     prt = &entry->prt;
     link = entry->pci_link;
     if (bootverbose)

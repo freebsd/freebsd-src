@@ -380,9 +380,8 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_DIS", NULL, NULL))) {
 		link->current_irq = 0;
 		link->flags = ACPI_LINK_NONE;
-	} else {
+	} else
 		link->flags = ACPI_LINK_ROUTED;
-	}
 
 	error = AcpiGetPossibleResources(handle, &buf);
 	if (ACPI_FAILURE(error)) {
@@ -458,53 +457,60 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (prt == NULL || prt->Source == NULL || prt->Source[0] == '\0') {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't handle this routing table - hardwired\n"));
+	if (prt == NULL) {
+		device_printf(pcidev, "NULL PRT entry\n");
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
-	error = AcpiGetHandle(acpi_get_handle(pcidev), prt->Source, &handle);
-	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "couldn't get handle - %s\n",
-		    AcpiFormatException(error)));
-		return_ACPI_STATUS (error);
-	}
-
-	error = acpi_pci_link_get_object_status(handle, &sta);
-	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't get object status %s - %s\n",
-		    acpi_name(handle), AcpiFormatException(error)));
-		return_ACPI_STATUS (error);
-	}
-
-	/*
-	 * PCI link status (_STA) is unreliable.  Many systems return
-	 * erroneous values so we ignore it.
-	 */
-	if ((sta & (ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)) == 0)
-		device_printf(pcidev, "acpi PRT ignoring status for %s\n",
-		    acpi_name(handle));
-
+	/* Bail out if attempting to add a duplicate PRT entry. */
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		if (entry->busno == busno &&
 		    entry->prt.Address == prt->Address &&
 		    entry->prt.Pin == prt->Pin) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			    "interrupt link entry already exists - %s\n",
-			    acpi_name(handle)));
+			    "PRT entry already exists\n"));
 			return_ACPI_STATUS (AE_ALREADY_EXISTS);
 		}
 	}
 
+	/* Allocate and initialize our new PRT entry. */
 	entry = AcpiOsAllocate(sizeof(struct acpi_prt_entry));
 	if (entry == NULL) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't allocate memory - %s\n", acpi_name(handle)));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "can't allocate memory\n"));
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 	bzero(entry, sizeof(struct acpi_prt_entry));
+
+	/*
+	 * If the source link is NULL, then this IRQ is hardwired so skip
+	 * initializing the link but still add it to the list.
+	 */
+	if (prt->Source[0] != '\0') {
+		/* Get a handle for the link source. */
+		error = AcpiGetHandle(acpi_get_handle(pcidev), prt->Source,
+		    &handle);
+		if (ACPI_FAILURE(error)) {
+			device_printf(pcidev, "get handle for %s - %s\n",
+			    prt->Source, AcpiFormatException(error));
+			goto out;
+		}
+
+		error = acpi_pci_link_get_object_status(handle, &sta);
+		if (ACPI_FAILURE(error)) {
+			device_printf(pcidev, "can't get status for %s - %s\n",
+			    acpi_name(handle), AcpiFormatException(error));
+			goto out;
+		}
+
+		/* Probe/initialize the link. */
+		error = acpi_pci_link_add_link(handle, entry);
+		if (ACPI_FAILURE(error)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			    "couldn't add _PRT entry to link %s - %s\n",
+			    acpi_name(handle), AcpiFormatException(error)));
+			goto out;
+		}
+	}
 
 	entry->pcidev = pcidev;
 	entry->busno = busno;
@@ -520,14 +526,6 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 	 */
 	entry->prt.Source[sizeof(prt->Source) - 1] = '\0';
 	entry->prt_source = handle;
-
-	error = acpi_pci_link_add_link(handle, entry);
-	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't add _PRT entry to link %s - %s\n",
-		    acpi_name(handle), AcpiFormatException(error)));
-		goto out;
-	}
 
 	TAILQ_INSERT_TAIL(&acpi_prt_entries, entry, links);
 	error = AE_OK;
@@ -1039,7 +1037,8 @@ acpi_pci_find_prt(device_t pcibdev, device_t dev, int pin)
 
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		prt = &entry->prt;
-		if ((prt->Address & 0xffff0000) >> 16 == pci_get_slot(dev) &&
+		if (entry->busno == pci_get_bus(dev) &&
+		    (prt->Address & 0xffff0000) >> 16 == pci_get_slot(dev) &&
 		    prt->Pin == pin)
 			return (entry);
 	}
