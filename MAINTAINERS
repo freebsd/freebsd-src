@@ -5,7 +5,6 @@ subsystem	login	notes
 mergemaster	dougb	Prefers to pre-approve commits
 binutils	obrien	Insists to keep BU blocked from other's unapproved
 			commits
-gcc		obrien	Do not commit w/o approval until Gcc 3.1 WIP completed
 libc/posix1e	rwatson	Would like to review patches
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
