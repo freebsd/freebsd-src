@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.14 1995/05/16 11:37:20 jkh Exp $
+ * $Id: menus.c,v 1.15 1995/05/17 14:39:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -546,7 +546,7 @@ DMenu MenuOptionsFTP = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose FTP Options",
     "In case of ftp failure, how would you like this installation\n\
-to deal with it?  You have one of several choices:",
+to deal with it?  You have several choices:",
     NULL,
     NULL,
     { { "Ftp Retry", "On transfer failure, retry same host",
@@ -577,9 +577,9 @@ at this time then select Cancel to leave this menu.",
 	DMENU_SUBMENU, (void *)&MenuInstallType, 0, 0	},
       { "Media", "Choose the installation media type",		/* M */
 	DMENU_SUBMENU, (void *)&MenuMedia, 0, 0		},
-      { "Partition", "Go to the Disk Partition Editor",		/* P */
+      { "Partition", "Allocate disk space for FreeBSD",		/* P */
 	DMENU_CALL, (void *)diskPartitionEditor, 0, 0	},
-      { "Label", "Label allocated disk partitions for FreeBSD",	/* L */
+      { "Label", "Label allocated disk partitions",		/* L */
 	DMENU_CALL, (void *)diskLabelEditor, 0, 0	},
       { "Networking", "Configure any network interfaces",	/* N */
 	DMENU_CALL, (void *)tcpOpenDialog, 0, 0		},
