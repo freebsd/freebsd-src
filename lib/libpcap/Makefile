@@ -9,12 +9,10 @@ SRCS=	grammar.y tokdefs.h pcap-bpf.c \
 MAN=	pcap.3
 CLEANFILES=tokdefs.h version.c
 
-DEFS=	-DHAVE_CONFIG_H
+CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcap_lval -I${.CURDIR} -I.
 .if !defined(NOINET6)
-DEFS+=	-DINET6
+CFLAGS+=-DINET6
 .endif
-
-CFLAGS+=-I. -Dyylval=pcap_lval ${DEFS}
 
 SHLIB_MAJOR=2
 SHLIB_MINOR=5
