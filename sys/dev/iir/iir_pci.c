@@ -48,6 +48,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h> 
+#include <sys/stdint.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -227,8 +228,8 @@ iir_pci_attach(device_t dev)
                       htole32(GDT_MPR_MAGIC));
     if (bus_space_read_4(gdt->sc_dpmemt, gdt->sc_dpmemh, GDT_MPR_IC) !=
         htole32(GDT_MPR_MAGIC)) {
-        printf("cannot access DPMEM at 0x%llx (shadowed?)\n",
-               (long long)gdt->sc_dpmembase);
+        printf("cannot access DPMEM at 0x%jx (shadowed?)\n",
+               (uintmax_t)gdt->sc_dpmembase);
         error = ENXIO;
         goto err;
     }
