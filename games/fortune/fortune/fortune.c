@@ -303,7 +303,9 @@ register char	**argv;
 	int ch;
 
 	ignore_case = FALSE;
+# ifndef NO_REGEX
 	pat = NULL;
+# endif /* NO_REGEX */
 
 # ifdef DEBUG
 	while ((ch = getopt(argc, argv, "aDefilm:osw")) != -1)
