@@ -87,6 +87,20 @@ static struct g_class g_dev_class	= {
 	G_CLASS_INITIALIZER
 };
 
+int
+g_dev_print(void)
+{
+	struct g_geom *gp;
+
+	if (LIST_EMPTY(&g_dev_class.geom))
+		return (0);
+	printf("List of GEOM disk devices:\n  ");
+	LIST_FOREACH(gp, &g_dev_class.geom, geom)
+		printf(" %s", gp->name);
+	printf("\n");
+	return (1);
+}
+
 static void
 g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
 {
