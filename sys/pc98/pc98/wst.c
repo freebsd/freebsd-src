@@ -39,7 +39,7 @@
 #include <sys/buf.h>
 #include <sys/mtio.h>
 #include <machine/clock.h>
-#include <i386/isa/atapi.h>
+#include <pc98/pc98/atapi.h>
 
 static  d_open_t    wstopen;
 static  d_close_t   wstclose;
