@@ -8,6 +8,8 @@ SRCS+=	rijndael-api-fst.c
 SRCS+=	sha2.c
 SRCS+=	g_bde_lock.c
 
+WARNS?=	5
+
 CFLAGS+= -I${.CURDIR}/../../sys
 .PATH:	${.CURDIR}/../../sys/geom \
 	${.CURDIR}/../../sys/geom/bde \
