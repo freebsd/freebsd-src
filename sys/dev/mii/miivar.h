@@ -45,10 +45,7 @@
 #include <sys/queue.h>
 
 /*
- * Media Independent Interface autoconfiguration defintions.
- *
- * This file exports an interface which attempts to be compatible
- * with the BSD/OS 3.0 interface.
+ * Media Independent Interface configuration defintions.
  */
 
 struct mii_softc;
@@ -124,9 +121,11 @@ struct mii_softc {
 
 	int mii_flags;			/* misc. flags; see below */
 	int mii_capabilities;		/* capabilities from BMSR */
+	int mii_extcapabilities;	/* extended capabilities */
 	int mii_ticks;			/* MII_TICK counter */
-	int mii_active;			/* last active media */
-	int mii_status;			/* last active status */
+	int mii_anegticks;		/* ticks before retrying aneg */
+	int mii_media_active;		/* last active media */
+	int mii_media_status;		/* last active status */
 };
 typedef struct mii_softc mii_softc_t;
 
