@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.5 1999/03/05 23:28:42 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.6 1999/04/18 15:50:33 peter Exp $
  */
 
 #include "eisa.h"
@@ -141,14 +141,12 @@ static int
 aic7770_attach(device_t dev)
 {
 	ahc_chip chip;
-
+	bus_dma_tag_t parent_dmat;
 	struct ahc_softc *ahc;
 	struct resource *io = 0;
 	struct resource *irq = 0;
-	int unit = device_get_unit(dev);
 	int error, rid;
 	int shared;
-	void *ih;
 
 	rid = 0;
 	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -172,12 +170,6 @@ aic7770_attach(device_t dev)
 		goto bad;
 	}
 
-	if (!(ahc = ahc_alloc(unit, rman_get_start(io), NULL,
-			      chip, AHC_AIC7770_FE, AHC_FNONE, NULL)))
-		goto bad;
-
-	ahc->channel = 'A';
-	ahc->channel_b = 'B';
 	/* XXX Should be a child of the EISA bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
 				   /*boundary*/0,
@@ -187,16 +179,21 @@ aic7770_attach(device_t dev)
 				   /*maxsize*/MAXBSIZE,
 				   /*nsegments*/AHC_NSEG,
 				   /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-				   /*flags*/BUS_DMA_ALLOCNOW, &ahc->dmat);
+				   /*flags*/BUS_DMA_ALLOCNOW, &parent_dmat);
 
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       ahc_name(ahc), error);
-		ahc_free(ahc);
+		printf("ahc_eisa_attach: Could not allocate DMA tag "
+		       "- error %d\n", error);
 		goto bad;
 	}
 
+	if (!(ahc = ahc_alloc(dev, io, SYS_RES_IOPORT, rid,
+			      parent_dmat, chip, AHC_AIC7770_FE, AHC_FNONE,
+			      NULL)))
+		goto bad;
 
+	ahc->channel = 'A';
+	ahc->channel_b = 'B';
 	if (ahc_reset(ahc) != 0) {
 		ahc_free(ahc);
 		goto bad;
@@ -208,12 +205,13 @@ aic7770_attach(device_t dev)
 	 */
 	shared = (ahc->pause & IRQMS) ? RF_SHAREABLE : 0;
 	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, shared  | RF_ACTIVE);
-	if (!irq) {
+	ahc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				      0, ~0, 1, shared  | RF_ACTIVE);
+	if (ahc->irq == NULL) {
 		device_printf(dev, "Can't allocate interrupt\n");
 		goto bad;
 	}
+	ahc->irq_res_type = SYS_RES_IRQ;
 
 	/*
 	 * Tell the user what type of interrupts we're using.
@@ -347,12 +345,6 @@ aic7770_attach(device_t dev)
 	 * Enable the board's BUS drivers
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
-
-	/*
-	 * Enable our interrupt handler.
-	 */
-	if (bus_setup_intr(dev, irq, ahc_intr, ahc, &ih))
-		goto bad;
 
 	/* Attach sub-devices - always succeeds */
 	ahc_attach(ahc);
