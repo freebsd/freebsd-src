@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.73 1995/03/28 06:15:44 ache Exp $
+ *	$Id: sio.c,v 1.74 1995/03/28 10:51:59 ache Exp $
  */
 
 #include "sio.h"
@@ -1127,7 +1127,7 @@ if (com->iptr - com->ibuf == 8)
 				works even if IGN* is set.
 				Assume TTY_OE mapped to TTY_PE
 			      */
-				if (   (!(line_status & (LSR_PE|LSR_OE))
+				if (   (!(line_status & (LSR_PE|LSR_OE|LSR_FE))
 				    ||  !(com->tp->t_iflag & IGNPAR))
 				    && (!(line_status & LSR_BI)
 				    ||  !(com->tp->t_iflag & IGNBRK))) {
