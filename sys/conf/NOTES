@@ -126,7 +126,9 @@ options 	GEOM_FOX		# Redundant path mitigation
 options 	GEOM_GATE		# Userland services.
 options 	GEOM_GPT		# GPT partitioning
 options 	GEOM_MBR		# DOS/MBR partitioning
+options 	GEOM_NOP		# Test class.
 options 	GEOM_PC98		# NEC PC9800 partitioning
+options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_VOL		# Volume names from UFS superblock
 
