@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.14 1997/03/31 05:10:18 imp Exp $\n";
+	"\n$Id: lpr.c,v 1.15 1997/05/13 20:46:45 brian Exp $\n";
 #endif /* not lint */
 
 /*
@@ -433,10 +433,10 @@ linked(file)
 	register char *file;
 {
 	register char *cp;
-	static char buf[BUFSIZ];
+	static char buf[MAXPATHLEN];
 
 	if (*file != '/') {
-		if (getcwd(buf,sizeof(buf)) == NULL)
+		if (getcwd(buf, sizeof(buf)) == NULL)
 			return(NULL);
 		while (file[0] == '.') {
 			switch (file[1]) {
@@ -453,8 +453,8 @@ linked(file)
 			}
 			break;
 		}
-		strcat(buf, "/");
-		strcat(buf, file);
+		strncat(buf, "/", sizeof(buf) - strlen(buf) - 1);
+		strncat(buf, file, sizeof(buf) - strlen(buf) - 1);
 		file = buf;
 	}
 	return(symlink(file, dfname) ? NULL : file);
