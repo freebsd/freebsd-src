@@ -423,7 +423,7 @@
 	    programs are &man.camcontrol.8; in the base system, 
 	    the <filename role="port">sysutils/cdrtools</filename>
 	    port, and the
-	    <filename role="port">multimedia/xmms</filename>port.</para>
+	    <filename role="port">multimedia/xmms</filename> port.</para>
 	</note>
 	
 	</para>
