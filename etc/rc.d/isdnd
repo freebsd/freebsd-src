@@ -7,8 +7,7 @@
 #
 
 # PROVIDE: isdnd
-# REQUIRE: NETWORKING syslogd mountcritremote
-# BEFORE: SERVERS
+# REQUIRE: network1 mountcritlocal
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
