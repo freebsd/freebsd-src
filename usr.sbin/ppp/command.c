@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.163 1998/08/29 18:37:02 brian Exp $
+ * $Id: command.c,v 1.164 1998/08/29 23:02:39 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -127,7 +127,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/29 18:37:02 $";
+const char VersionDate[] = "$Date: 1998/08/29 23:02:39 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -376,10 +376,22 @@ expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle)
 
   nargv[0] = strdup(oargv[0]);
   for (arg = 1; arg < argc; arg++) {
-    nargv[arg] = subst(strdup(oargv[arg]), "HISADDR",
+    nargv[arg] = strdup(oargv[arg]);
+    nargv[arg] = subst(nargv[arg], "HISADDR",
                        inet_ntoa(bundle->ncp.ipcp.peer_ip));
+    nargv[arg] = subst(nargv[arg], "AUTHNAME", bundle->cfg.auth.name);
     nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->ifp.Name);
     nargv[arg] = subst(nargv[arg], "MYADDR", inet_ntoa(bundle->ncp.ipcp.my_ip));
+    nargv[arg] = subst(nargv[arg], "USER", bundle->ncp.mp.peer.authname);
+    nargv[arg] = subst(nargv[arg], "PEER_ENDDISC",
+                       mp_Enddisc(bundle->ncp.mp.peer.enddisc.class,
+                                  bundle->ncp.mp.peer.enddisc.address,
+                                  bundle->ncp.mp.peer.enddisc.len));
+    nargv[arg] = subst(nargv[arg], "ENDDISC", 
+                       mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
+                                  bundle->ncp.mp.cfg.enddisc.address,
+                                  bundle->ncp.mp.cfg.enddisc.len));
+    nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
   }
   nargv[arg] = NULL;
 }
