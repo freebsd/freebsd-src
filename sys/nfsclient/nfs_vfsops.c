@@ -378,6 +378,11 @@ nfsmout:
  * - If nfs_diskless.mygateway is filled in, use that address as
  *   a default gateway.
  * - build the rootfs mount point and call mountnfs() to do the rest.
+ *
+ * It is assumed to be safe to read, modify, and write the nfsv3_diskless
+ * structure, as well as other global NFS client variables here, as
+ * nfs_mountroot() will be called once in the boot before any other NFS
+ * client activity occurs.
  */
 int
 nfs_mountroot(struct mount *mp, struct thread *td)
@@ -389,7 +394,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	u_long l;
 	char buf[128];
 
-	GIANT_REQUIRED;		/* XXX until socket locking done */
+	NET_ASSERT_GIANT();
 
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
