@@ -317,7 +317,7 @@ parityops(struct vinum_ioctl_msg *data)
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    plex->checkblock = pstripe + (pbp->b_bcount >> DEV_BSHIFT);	/* moved this much further down */
-	    if (pstripe >= SD[plex->sdnos[0]].sectors) {    /* finished */
+	    if (plex->checkblock >= SD[plex->sdnos[0]].sectors) { /* finished */
 		plex->checkblock = 0;
 		reply->error = 0;
 	    }
