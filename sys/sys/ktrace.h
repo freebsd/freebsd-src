@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id: ktrace.h,v 1.8 1995/12/14 08:32:31 phk Exp $
+ * $Id: ktrace.h,v 1.9 1996/09/19 19:49:08 phk Exp $
  */
 
 #ifndef _SYS_KTRACE_H_
@@ -136,12 +136,6 @@ struct ktr_csw {
  * KTR_USER - data comming from userland
  */
 #define KTR_USER	7
-struct ktr_user {
-	int	len;	/* number of bytes */
-	/*
-	 * followed by data provided by user
-	 */
-};
 
 /*
  * kernel trace points (in p_traceflag)
