@@ -266,7 +266,7 @@
     </sect3>
   </sect2>
   <sect2 id="security">
-    <title>Security Fixes</title>
+    <title>Security-Related Changes</title>
 
     <para>The security fix mentioned in security advisory
     FreeBSD-SA-01:39, which governs initial sequence number generation
@@ -303,6 +303,15 @@
     variables limit the amount of memory that can be consumed by IPv4
     and IPv6 packet fragments, which defends against some denial of service
     attacks (see security advisory FreeBSD-SA-01:52).</para>
+
+    <para>The number of <quote>security profiles</quote> available in
+    &man.sysinstall.8; for new installations has been reduced to two.</para>
+
+    <para>All services in <filename>inetd.conf</filename> are now
+    disabled by default for new installations.  &man.sysinstall.8;
+    gives the option of enabling or disabling &man.inetd.8; on new
+    installations, as well as editing
+    <filename>inetd.conf</filename>.</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
