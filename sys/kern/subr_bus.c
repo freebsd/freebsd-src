@@ -1154,7 +1154,7 @@ device_get_devclass(device_t dev)
 const char *
 device_get_name(device_t dev)
 {
-	if (dev->devclass)
+	if (dev != NULL && dev->devclass)
 		return (devclass_get_name(dev->devclass));
 	return (NULL);
 }
