@@ -1072,7 +1072,8 @@ ndis_linksts_done(adapter)
 	case NDIS_STATUS_MEDIA_DISCONNECT:
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
-		ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
+		if (sc->ndis_link)
+			ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 		break;
 	default:
 		break;
