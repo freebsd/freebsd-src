@@ -53,8 +53,8 @@ closedir(dirp)
 	fd = dirp->dd_fd;
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
-	(void)free((void *)dirp->dd_buf);
-	(void)free((void *)dirp);
+	free((void *)dirp->dd_buf);
+	free((void *)dirp);
 	_reclaim_telldir(dirp);
 	return(close(fd));
 }
