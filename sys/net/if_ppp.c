@@ -143,6 +143,11 @@ void	pppinput __P((int c, struct tty *tp));
 int	pppioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
 void	pppstart __P((struct tty *tp));
 
+static struct linesw pppdisc = {
+	pppopen, pppclose, pppread, pppwrite, ppptioctl,
+	pppinput, pppstart, nullmodem
+};
+
 static int	pppasyncstart __P((struct ppp_softc *));
 static u_short	pppfcs __P((u_short fcs, u_char *cp, int len));
 static int	pppgetm __P((struct ppp_softc *sc));
@@ -188,11 +193,13 @@ pppattach()
     register struct ppp_softc *sc;
     register int i = 0;
 
+    linesw[PPPDISC] = pppdisc;
+
     for (sc = ppp_softc; i < NPPP; sc++) {
 	sc->sc_if.if_name = "ppp";
 	sc->sc_if.if_unit = i++;
 	sc->sc_if.if_mtu = PPP_MTU;
-	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	sc->sc_if.if_flags = IFF_POINTOPOINT;
 	sc->sc_if.if_type = IFT_PPP;
 	sc->sc_if.if_hdrlen = PPP_HDRLEN;
 	sc->sc_if.if_ioctl = pppioctl;
@@ -1488,18 +1495,6 @@ pppioctl(ifp, cmd, data)
 
     case SIOCGIFMTU:
 	ifr->ifr_mtu = sc->sc_if.if_mtu;
-	break;
-    case SIOCADDMULTI:
-    case SIOCDELMULTI:
-	switch(ifr->ifr_addr.sa_family) {
-#ifdef INET
-	case AF_INET:
-		break;
-#endif
-	default:
-		error = EAFNOSUPPORT;
-		break;
-	}
 	break;
 
     default:

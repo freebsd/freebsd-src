@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.6 1994/09/12 11:49:49 davidg Exp $
+ * $Id: if_sl.c,v 1.7 1994/09/13 16:05:50 davidg Exp $
  */
 
 /*
@@ -184,6 +184,13 @@ struct sl_softc sl_softc[NSL];
 static int slinit __P((struct sl_softc *));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
 
+
+#define ttyerrio ((int (*) __P((struct tty *, struct uio *, int)))enodev)
+
+static struct linesw slipdisc =
+	{ slopen, slclose, ttyerrio, ttyerrio, sltioctl,
+	  slinput, slstart, nullmodem };
+
 /*
  * Called from boot code to establish sl interfaces.
  */
@@ -192,6 +199,8 @@ slattach()
 {
 	register struct sl_softc *sc;
 	register int i = 0;
+
+	linesw[SLIPDISC] = slipdisc;
 
 	for (sc = sl_softc; i < NSL; sc++) {
 		sc->sc_if.if_name = "sl";
@@ -212,7 +221,7 @@ slattach()
 	}
 }
 
-TEXT_SET(pseudo_set, slattach);
+PSEUDO_SET(slattach);
 
 static int
 slinit(sc)
