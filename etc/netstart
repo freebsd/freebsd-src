@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.31 1995/05/11 21:11:14 jkh Exp $
+#	$Id: netstart,v 1.32 1995/05/17 04:46:56 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -29,8 +29,8 @@ fi
 # relocation of sysctl to /sbin is done that problem will go away.
 #
 if [ -n "$tcp_extensions" -a "x$tcp_extensions" = "xNO" ] ; then
-	sysctl -nw net.inet.tcp.rfc1323=0
-	sysctl -nw net.inet.tcp.rfc1644=0
+	sysctl -w net.inet.tcp.rfc1323=0
+	sysctl -w net.inet.tcp.rfc1644=0
 fi
 
 # Set up all the network interfaces, calling startup scripts if needed
