@@ -611,14 +611,14 @@ cam_rescan(struct cam_sim *sim)
     struct cam_path *path;
     union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_WAITOK | M_ZERO);
     
-#ifdef CAMDEBUG
-    xpt_print_path(cam_sim_path(sim));
-    printf ("rescanning ATAPI bus.\n");
-#endif
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 	return;
-    
+
+#ifdef CAMDEBUG
+    xpt_print_path(path);
+    printf ("rescanning ATAPI bus.\n");
+#endif
     xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
     ccb->ccb_h.func_code = XPT_SCAN_BUS;
     ccb->ccb_h.cbfcnp = cam_rescan_callback;
