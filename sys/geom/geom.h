@@ -49,7 +49,6 @@ struct g_class;
 struct g_geom;
 struct g_consumer;
 struct g_provider;
-struct g_event;
 struct g_stat;
 struct thread;
 struct bio;
@@ -95,14 +94,12 @@ struct g_class {
          */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
-	struct g_event		*event;
 	u_int			protect;
 };
 
 #define G_CLASS_INITIALIZER 	\
 	.class = { 0, 0 },	\
 	.geom = { 0 },		\
-	.event = 0,		\
 	.protect = 0	
 
 /*
@@ -123,7 +120,6 @@ struct g_geom {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	void			*softc;
-	struct g_event		*event;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
 };
@@ -152,7 +148,6 @@ struct g_consumer {
 	struct g_provider	*provider;
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
-	struct g_event		*event;
 	int			spoiled;
 	struct devstat		*stat;
 	u_int			nstart, nend;
@@ -169,7 +164,6 @@ struct g_provider {
 	LIST_HEAD(,g_consumer)	consumers;
 	int			acr, acw, ace;
 	int			error;
-	struct g_event		*event;
 	TAILQ_ENTRY(g_provider)	orphan;
 	u_int			index;
 	off_t			mediasize;
