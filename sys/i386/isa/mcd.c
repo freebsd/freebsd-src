@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.71 1996/02/13 02:32:36 ache Exp $
+ *	$Id: mcd.c,v 1.72 1996/02/27 18:53:50 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -407,7 +407,7 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 
 int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int unit,part,phys;
+	int unit,part;
 	struct mcd_data *cd;
 
 	unit = mcd_unit(dev);
@@ -416,7 +416,6 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	cd = mcd_data + unit;
 	part = mcd_part(dev);
-	phys = mcd_phys(dev);
 
 	if (!(cd->flags & MCDINIT))
 		return ENXIO;
@@ -597,6 +596,7 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 
 	if (!(cd->flags & MCDVALID)) {
 		if (   major(dev) != CDEV_MAJOR
+		    || part != RAW_PART
 		    || !(cd->openflags & (1<<RAW_PART))
 		   )
 			return ENXIO;
@@ -616,7 +616,9 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 			return ENXIO;
 		cd->flags |= MCDVALID;
 		mcd_getdisklabel(unit);
-		cd->partflags[RAW_PART] |= MCDOPEN;
+		cd->partflags[part] |= MCDOPEN;
+		if (mcd_phys(dev))
+			cd->partflags[part] |= MCDREADRAW;
 		(void) mcd_lock_door(unit, MCD_LK_LOCK);
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
