@@ -16,7 +16,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.55.2.3 1999/07/01 00:08:23 jkh Exp $
+#	$Id: services,v 1.55.2.4 1999/07/01 20:14:08 jkh Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1191,6 +1191,9 @@ device		801/udp
 supfilesrv	871/tcp			# for SUP
 accessbuilder	888/tcp
 accessbuilder	888/udp
+telnets		992/tcp
+imaps		993/tcp
+pop3s		995/tcp
 vsinet		996/tcp
 vsinet		996/udp
 maitrd		997/tcp
