@@ -294,7 +294,7 @@ while ((getline < srcfile) > 0) {
 
 	if (hfile) {
 		# Print out the vop_F_args structure.
-		printh("struct "name"_args {\n\tstruct vnodeop_desc *a_desc;");
+		printh("struct "name"_args {\n\tstruct vop_generic_args a_gen;");
 		for (i = 0; i < numargs; ++i)
 			printh("\t" t_spc(types[i]) "a_" args[i] ";");
 		printh("};");
@@ -310,7 +310,7 @@ while ((getline < srcfile) > 0) {
 		}
 		printh("{\n\tstruct " name "_args a;");
 		printh("\tint rc;");
-		printh("\ta.a_desc = VDESC(" name ");");
+		printh("\ta.a_gen.a_desc = VDESC(" name ");");
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		for (i = 0; i < numargs; ++i)
@@ -324,7 +324,7 @@ while ((getline < srcfile) > 0) {
 		printh("\t\tif (vop->"name" != NULL)")
 		printh("\t\t\trc = vop->"name"(&a);")
 		printh("\t\telse")
-		printh("\t\t\trc = vop->vop_bypass((struct vop_generic_args *)(void *)&a);")
+		printh("\t\t\trc = vop->vop_bypass(&a.a_gen);")
 		printh("\t}")
 		printh(ctrstr);
 		printh("if (rc == 0) {");
