@@ -476,8 +476,7 @@ tunioctl(dev, cmd, data, flag, p)
 		switch (*(int *)data & ~IFF_MULTICAST) {
 		case IFF_POINTOPOINT:
 		case IFF_BROADCAST:
-			tp->tun_if.if_flags &=
-			    ~(IFF_BROADCAST|IFF_POINTOPOINT|IFF_MULTICAST);
+			tp->tun_if.if_flags &= ~(IFF_BROADCAST|IFF_POINTOPOINT);
 			tp->tun_if.if_flags |= *(int *)data;
 			break;
 		default:
