@@ -1403,12 +1403,26 @@ aic_reset(struct aic_softc *aic, int initiate_reset)
 	aic_outb(aic, DMACNTRL0, INTEN);
 }
 
+static char *aic_chip_names[] = {
+	"AIC6260", "AIC6360", "AIC6370", "GM82C700",
+};
+
+static struct {
+    	int type;
+	char *idstring;
+} aic_chip_ids[] = {
+    	{ AIC6360, IDSTRING_AIC6360 },
+	{ AIC6370, IDSTRING_AIC6370 },
+	{ GM82C700, IDSTRING_GM82C700 },
+};
+
 static void
 aic_init(struct aic_softc *aic)
 {
 	struct aic_scb *scb;
 	struct aic_tinfo *ti;
 	u_int8_t porta, portb;
+	char chip_id[33];
 	int i;
 
 	TAILQ_INIT(&aic->pending_ccbs);
@@ -1420,6 +1434,17 @@ aic_init(struct aic_softc *aic)
 
 	aic_chip_reset(aic);
 	aic_scsi_reset(aic);
+
+	/* determine the chip type from its ID string */
+	aic->chip_type = AIC6260;
+	aic_insb(aic, ID, chip_id, sizeof(chip_id) - 1);
+	chip_id[sizeof(chip_id) - 1] = '\0';
+	for (i = 0; i < sizeof(aic_chip_ids) / sizeof(aic_chip_ids[0]); i++) {
+		if (!strcmp(chip_id, aic_chip_ids[i].idstring)) {
+			aic->chip_type = aic_chip_ids[i].type;
+			break;
+		}
+	}
 
 	porta = aic_inb(aic, PORTA);
 	portb = aic_inb(aic, PORTB);
@@ -1437,17 +1462,16 @@ aic_init(struct aic_softc *aic)
 	 * is set and we've got a 6360.  The 6260 can only do standard
 	 * 5MHz SCSI.
 	 */
-	if (aic_inb(aic, REV)) {
-		if (PORTB_FSYNC(portb)) {
-			aic->max_period = AIC_FAST_SYNC_PERIOD;
+	if (aic->chip_type > AIC6260 || aic_inb(aic, REV)) {
+		if (PORTB_FSYNC(portb))
 			aic->flags |= AIC_FAST_ENABLE;
-		} else
-			aic->max_period = AIC_SYNC_PERIOD;
-
 		aic->flags |= AIC_DWIO_ENABLE;
-	} else
-		aic->max_period = AIC_SYNC_PERIOD;
+	}
 
+	if (aic->flags & AIC_FAST_ENABLE)
+		aic->max_period = AIC_FAST_SYNC_PERIOD;
+    	else
+		aic->max_period = AIC_SYNC_PERIOD;
 	aic->min_period = AIC_MIN_SYNC_PERIOD;
 	
 	free_scbs = NULL;
@@ -1533,8 +1557,7 @@ aic_attach(struct aic_softc *aic)
 
 	aic_init(aic);
 
-	printf("aic%d: %s", aic->unit,
-	    aic_inb(aic, REV) > 0 ? "aic6360" : "aic6260");
+	printf("aic%d: %s", aic->unit, aic_chip_names[aic->chip_type]);
 	if (aic->flags & AIC_DMA_ENABLE)
 		printf(", dma");
 	if (aic->flags & AIC_DISC_ENABLE)
