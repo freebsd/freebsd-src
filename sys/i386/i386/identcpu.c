@@ -570,6 +570,7 @@ printcpuinfo(void)
 		switch (cpu_id & 0xfff) {
 		case 0x540:
 			strcpy(cpu_model, "Geode SC1100");
+			cpu = CPU_GEODE1100;
 			tsc_is_broken = 1;
 			break;
 		default:
@@ -640,6 +641,7 @@ printcpuinfo(void)
 	    strcmp(cpu_vendor, "TransmetaCPU") == 0 ||
 	    strcmp(cpu_vendor, "RiseRiseRise") == 0 ||
 	    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
+	    strcmp(cpu_vendor, "Geode by NSC") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
 		 ((cpu_id & 0xf00) > 0x500))) {
 		printf("  Stepping = %u", cpu_id & 0xf);

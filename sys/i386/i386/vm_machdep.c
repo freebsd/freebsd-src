@@ -545,6 +545,12 @@ cpu_reset_real()
 		elan_mmcr->RESCFG = 1;
 #endif
 
+	if (cpu == CPU_GEODE1100) {
+		/* Attempt Geode's own reset */
+		outl(0xcf8, 0x80009044ul);
+		outl(0xcfc, 0xf);
+	}
+
 #ifdef PC98
 	/*
 	 * Attempt to do a CPU reset via CPU reset port.
