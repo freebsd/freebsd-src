@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.5 1997/02/22 14:58:01 peter Exp $";
+	"$Id: disklabel.c,v 1.6 1997/03/11 11:52:25 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -99,9 +99,9 @@ getdiskbyname(name)
         { long f; (field) = (cgetnum(buf, dname, &f) == -1) ? (dflt) : f; }
 
 	getnumdflt(dp->d_secsize, "se", DEV_BSIZE);
-	cgetnum(buf, "nt",(long *) &dp->d_ntracks);
-	cgetnum(buf, "ns",(long *) &dp->d_nsectors);
-	cgetnum(buf, "nc",(long *) &dp->d_ncylinders);
+	getnumdflt(dp->d_ntracks, "nt", 0);
+	getnumdflt(dp->d_nsectors, "ns", 0);
+	getnumdflt(dp->d_ncylinders, "nc", 0);
 
 	if (cgetstr(buf, "dt", &cq) > 0)
 		dp->d_type = gettype(cq, dktypenames);
@@ -125,11 +125,14 @@ getdiskbyname(name)
 	max = 'a' - 1;
 	pp = &dp->d_partitions[0];
 	for (p = 'a'; p < 'a' + MAXPARTITIONS; p++, pp++) {
+		long l;
 		psize[1] = pbsize[1] = pfsize[1] = poffset[1] = ptype[1] = p;
-		if (cgetnum(buf, psize,(long *) &pp->p_size) == -1)
+		if (cgetnum(buf, psize, &l) == -1)
 			pp->p_size = 0;
 		else {
-			cgetnum(buf, poffset, (long *) &pp->p_offset);
+			pp->p_size = l;
+			cgetnum(buf, poffset, &l);
+			pp->p_offset = l;
 			getnumdflt(pp->p_fsize, pfsize, 0);
 			if (pp->p_fsize) {
 				long bsize;
