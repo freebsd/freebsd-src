@@ -90,9 +90,7 @@
  * should the kernel Lev1map be inserted into this object?).
  * 
  * pvtmmap is not needed for alpha since K0SEG maps all of physical
- * memory. CADDR1 and CADDR2 are not needed for the same reason.  The
- * only places outside pmap and machdep which use CADDR1 are xxdump
- * routines which use them for dumping physical pages.
+ * memory.
  * 
  * 
  * alpha virtual memory map:
@@ -341,14 +339,6 @@ static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
 
-/*
- * All those kernel PT submaps that BSD is so fond of
- */
-pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP2;
-caddr_t CADDR1;
-static caddr_t CADDR2;
-
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
 static void	alpha_protection_init __P((void));
@@ -578,15 +568,7 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	va = virtual_avail;
 	pte = pmap_lev3pte(kernel_pmap, va);
 
-	/*
-	 * CMAP1/CMAP2 are used for zeroing and copying pages.
-	 */
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
-
 	virtual_avail = va;
-
-	*CMAP1 = *CMAP2 = 0;
 
 	/*
 	 * Set up proc0's PCB such that the ptbr points to the right place
@@ -2217,6 +2199,16 @@ retry:
 
 	alpha_pal_imb();			/* XXX overkill? */
 	return mpte;
+}
+
+/*
+ * Make temporary mapping for a physical address. This is called
+ * during dump.
+ */
+vm_offset_t
+pmap_enter_temporary(vm_offset_t pa, vm_prot_t prot)
+{
+	return ALPHA_PHYS_TO_K0SEG(pa);
 }
 
 #define MAX_INIT_PT (96)
