@@ -1,2 +1,2 @@
-BINDIR=		/usr/local/bin
-MANDIR=		/usr/local/man/man
+# Inherit BINDIR from one level up.
+.include "../Makefile.inc"
