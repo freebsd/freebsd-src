@@ -445,6 +445,8 @@ fill_kinfo_proc(p, kp)
 
 		kp->ki_size = vm->vm_map.size;
 		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
+		if (p->p_sflag & PS_INMEM)
+			kp->ki_rssize += UPAGES;
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
 		kp->ki_dsize = vm->vm_dsize;
