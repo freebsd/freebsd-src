@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.25.2.3 1997/06/06 02:18:41 brian Exp $
+#	$Id: Makefile,v 1.25.2.4 1997/10/29 01:23:14 asami Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -30,7 +30,7 @@ gcrt0.o: crt0.o
 # dependencies fudged as for gcrt0.o
 scrt0.o: crt0.o
 	${CC} ${CFLAGS} -c -DCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -O ${TARGET} -x -r ${.TARGET}
+	${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 # dependencies fudged as for gcrt0.o
 sgcrt0.o: scrt0.o
@@ -39,11 +39,11 @@ sgcrt0.o: scrt0.o
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
-		${DESTDIR}/usr/include
+		${DESTDIR}${INCLUDEDIR}
 
 realinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
-		${DESTDIR}/usr/lib
+		${DESTDIR}${LIBDIR}
 
 depend:	.depend
 

@@ -53,7 +53,7 @@ ns_ntoa(addr)
 	static char *spectHex();
 
 	net.net_e = addr.x_net;
-	sprintf(obuf, "%lx", ntohl(net.long_e));
+	sprintf(obuf, "%lx", (u_long)ntohl(net.long_e));
 	cp = spectHex(obuf);
 	cp2 = cp + 1;
 	while (*up==0 && up < uplim) up++;

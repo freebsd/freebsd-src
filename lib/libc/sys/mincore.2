@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
-.\"	$Id: mincore.2,v 1.4.2.2 1997/01/11 23:34:44 mpp Exp $
+.\"	$Id: mincore.2,v 1.4.2.3 1998/06/06 05:03:43 jkoshy Exp $
 .\"
 .Dd June 9, 1993
 .Dt MINCORE 2
@@ -55,11 +55,11 @@ in the character array
 with a value of 1 meaning
 that the page is in-core.
 .Sh RETURN VALUES
-Upson successful completion,
+Upon successful completion,
 .Fn mincore
 returns 0 and
 .Fa vec
-is updated to relect the page status.  Otherwise a value of -1
+is updated to reflect the page status.  Otherwise a value of -1
 is returned and
 .Va error
 is set to indicate the error.

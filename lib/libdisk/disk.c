@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.10 1998/05/15 21:18:59 obrien Exp $
+ * $Id: disk.c,v 1.22.2.11 1998/05/19 11:16:41 obrien Exp $
  *
  */
 
@@ -289,7 +289,7 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
-static char * device_list[] = {"wd","sd","wfd","od",0};
+static char * device_list[] = {"wd","sd","da","od","wfd",0};
 
 char **
 Disk_Names()
@@ -372,11 +372,11 @@ slice_type_name( int type, int subtype )
 					case 12:        return "fat (32-bit,LBA)";
 					case 14:        return "fat (16-bit,>32Mb,LBA)";
 					case 15:        return "extended DOS, LBA";
-					case 18:        return "Compaq Diags";
+					case 18:        return "Compaq Diagnostic";
 					case 84:	return "OnTrack diskmgr";
 					case 100:	return "Netware 2.x";
 					case 101:	return "Netware 3.x";
-					case 115:	return "UnixWare";
+					case 115:	return "SCO UnixWare";
 					case 128:	return "Minix 1.1";
 					case 129:	return "Minix 1.5";
 					case 130:	return "linux_swap";
@@ -391,7 +391,6 @@ slice_type_name( int type, int subtype )
 		case 2:		return "fat";
 		case 3:		switch (subtype) {
 					case 165:	return "freebsd";
-					case 181:	return "freebsd"; /* tweaked by boot mgr */
 					default:	return "unknown";
 				}
 		case 4:		return "extended";

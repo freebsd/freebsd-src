@@ -90,7 +90,7 @@
         SetExpire() function added. (cjm)
 
         DeleteLink() no longer frees memory association with a pointer
-        to a fragment (this bug was first recognized by E. Eiklund in
+        to a fragment (this bug was first recognized by E. Eklund in
         v1.9).
 
     Version 2.1: May, 1997 (cjm)
@@ -102,6 +102,8 @@
         added to the API.  The first function is a more generalized
         version of PacketAliasPermanentLink().  The second function
         implements static network address translation.
+
+    See HISTORY file for additional revisions.
 */
 
 
