@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <err.h>
@@ -310,7 +311,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-k", NULL);
 			break;
 		case 'm':
-			Dir_AddDir(&sysIncPath, optarg);
+			Path_AddDir(&sysIncPath, optarg);
 			MFLAGS_append("-m", optarg);
 			break;
 		case 'n':
@@ -703,7 +704,7 @@ main(int argc, char **argv)
 	}
 	Dir_InitDot();		/* Initialize the "." directory */
 	if (objdir != curdir)
-		Dir_AddDir(&dirSearchPath, curdir);
+		Path_AddDir(&dirSearchPath, curdir);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
@@ -749,15 +750,15 @@ main(int argc, char **argv)
 	 * add the directories from the DEFSYSPATH (more than one may be given
 	 * as dir1:...:dirn) to the system include path.
 	 */
-	if (Lst_IsEmpty(&sysIncPath)) {
+	if (TAILQ_EMPTY(&sysIncPath)) {
 		for (start = syspath; *start != '\0'; start = cp) {
 			for (cp = start; *cp != '\0' && *cp != ':'; cp++)
 				continue;
 			if (*cp == '\0') {
-				Dir_AddDir(&sysIncPath, start);
+				Path_AddDir(&sysIncPath, start);
 			} else {
 				*cp++ = '\0';
-				Dir_AddDir(&sysIncPath, start);
+				Path_AddDir(&sysIncPath, start);
 			}
 		}
 	}
@@ -772,7 +773,7 @@ main(int argc, char **argv)
 		Lst sysMkPath = Lst_Initializer(sysMkPath);
 		LstNode *ln;
 
-		Dir_Expand(PATH_DEFSYSMK, &sysIncPath, &sysMkPath);
+		Path_Expand(PATH_DEFSYSMK, &sysIncPath, &sysMkPath);
 		if (Lst_IsEmpty(&sysMkPath))
 			Fatal("make: no system rules (%s).", PATH_DEFSYSMK);
 		LST_FOREACH(ln, &sysMkPath) {
@@ -835,7 +836,7 @@ main(int argc, char **argv)
 			*ptr = '\0';
 
 			/* Add directory to search path */
-			Dir_AddDir(&dirSearchPath, vpath);
+			Path_AddDir(&dirSearchPath, vpath);
 
 			vpath = ptr + 1;
 		} while (savec != '\0');
@@ -1014,9 +1015,9 @@ ReadMakefile(const char *p)
 		}
 #endif
 		/* look in -I and system include directories. */
-		name = Dir_FindFile(fname, &parseIncPath);
+		name = Path_FindFile(fname, &parseIncPath);
 		if (!name)
-			name = Dir_FindFile(fname, &sysIncPath);
+			name = Path_FindFile(fname, &sysIncPath);
 		if (!name || !(stream = fopen(name, "r")))
 			return (FALSE);
 		MAKEFILE = fname = name;
