@@ -510,8 +510,8 @@ str_prefport(family, pref, port)
 	u_int family, pref, port;
 {
 	static char buf[128];
-	char prefbuf[20];
-	char portbuf[20];
+	char prefbuf[128];
+	char portbuf[128];
 	int plen;
 
 	switch (family) {
