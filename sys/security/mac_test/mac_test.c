@@ -1496,4 +1496,4 @@ static struct mac_policy_ops mac_test_ops =
 };
 
 MAC_POLICY_SET(&mac_test_ops, mac_test, "TrustedBSD MAC/Test",
-    MPC_LOADTIME_FLAG_UNLOADOK, &test_slot);
+    MPC_LOADTIME_FLAG_UNLOADOK | MPC_LOADTIME_FLAG_LABELMBUFS, &test_slot);

@@ -2507,4 +2507,4 @@ static struct mac_policy_ops mac_mls_ops =
 };
 
 MAC_POLICY_SET(&mac_mls_ops, mac_mls, "TrustedBSD MAC/MLS",
-    MPC_LOADTIME_FLAG_NOTLATE, &mac_mls_slot);
+    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &mac_mls_slot);
