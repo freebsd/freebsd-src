@@ -58,6 +58,7 @@ struct fetchconn {
 	X509		*ssl_cert;	/* server certificate */
 	SSL_METHOD	*ssl_meth;	/* SSL method */
 #endif
+	int		 ref;		/* reference count */
 };
 
 /* Structure used for error message lists */
@@ -74,6 +75,7 @@ int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
 conn_t		*_fetch_connect(const char *, int, int, int);
 conn_t		*_fetch_reopen(int);
+conn_t		*_fetch_ref(conn_t *);
 int		 _fetch_ssl(conn_t *, int);
 ssize_t		 _fetch_read(conn_t *, char *, size_t);
 int		 _fetch_getln(conn_t *);
