@@ -29,9 +29,13 @@
 #ifndef _ULIMIT_H_
 #define	_ULIMIT_H_
 
+#include <sys/cdefs.h>
+
 #define	UL_GETSIZE	1
 #define	UL_SETSIZE	2
 
+__BEGIN_DECLS
 long	ulimit(int, ...);
+__END_DECLS
 
 #endif /* !_ULIMIT_H_ */
