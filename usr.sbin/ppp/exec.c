@@ -109,7 +109,7 @@ exec_Create(struct physical *p)
       log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
                  strerror(errno));
     else {
-      static int child_status, child_pid;	/* These variables are abused */
+      static int child_status;		/* This variable is abused ! */
       int stat, argc, i, ret, wret, pidpipe[2];
       pid_t pid, realpid;
       char *argv[MAXARGS];
