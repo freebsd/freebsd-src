@@ -154,14 +154,14 @@ static struct kern_devconf kdc_lnc = {
 	DC_CLS_NETIF
 };
 
-inline void
+static inline void
 write_csr(int unit, u_short port, u_short val)
 {
 	outw(lnc_softc[unit].rap, port);
 	outw(lnc_softc[unit].rdp, val);
 }
 
-inline u_short
+static inline u_short
 read_csr(int unit, u_short port)
 {
 	outw(lnc_softc[unit].rap, port);
