@@ -232,7 +232,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
-	 * and verify that it refers to a sensible block device.
+	 * and verify that it refers to a sensible disk device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
 	error = namei(ndp);
@@ -323,12 +323,12 @@ mountmsdosfs(devvp, mp, td, argp)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	VOP_UNLOCK(devvp, 0, td);
-	if (error)
+	if (error) {
+		VOP_UNLOCK(devvp, 0, td);
 		return (error);
+	}
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	/*
 	 * XXX: open the device with read and write access even if only
 	 * read access is needed now.  Write access is needed if the
