@@ -117,9 +117,11 @@
 #include <machine/ipl.h>
 #include <machine/dvcfg.h>
 
-#include <scsi/scsi_all.h>
-#include <scsi/scsiconf.h>
-#include <scsi/scsi_disk.h>
+#include <cam/scsi/scsi_all.h>
+#if 0
+#include <cam/scsi/scsiconf.h>
+#endif
+#include <cam/scsi/scsi_da.h>
 
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
@@ -173,8 +175,8 @@
  * xs flags's abstraction (all currently used)
  ***************************************************/
 #define	XSBS_ITSDONE	ITSDONE
-#define	XSBS_SCSI_NOSLEEP	SCSI_NOSLEEP
 #ifdef __NetBSD__
+#define	XSBS_SCSI_NOSLEEP	SCSI_NOSLEEP
 #define XSBS_SCSI_POLL	SCSI_POLL
 #endif	/* __NetBSD__ */
 #ifdef __FreeBSD__
@@ -182,20 +184,17 @@
 #endif	/* __FreeBSD__ */
 
 /***************************************************
- * Special operations
- ***************************************************/
-#ifdef __FreeBSD__
-#define	BS_ADDRESS_CHECK
-#endif	/* __FreeBSD__ */
-
-/***************************************************
  * declare
  ***************************************************/
 /* (I) common declare */
 void bs_alloc_buf __P((struct targ_info *));
+#ifdef __NetBSD__
 XSBS_INT32T bs_target_open __P((struct scsi_link *, struct cfdata *));
 XSBS_INT32T bs_scsi_cmd __P((struct scsi_xfer *));
-
+#endif
+#ifdef __FreeBSD__
+void bs_scsi_cmd(struct cam_sim *sim, union ccb *ccb);
+#endif
 extern int delaycount;
 
 /* (II) os depend declare */

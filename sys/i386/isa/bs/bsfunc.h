@@ -44,22 +44,22 @@ struct targ_info *bs_init_target_info __P((struct bs_softc *, int));
 
 /* msg op */
 int bs_send_msg __P((struct targ_info *, u_int, struct msgbase *, int));
-struct ccb *bs_request_sense __P((struct targ_info *));
+struct bsccb *bs_request_sense __P((struct targ_info *));
 
 /* sync msg op */
-int bs_start_syncmsg __P((struct targ_info *, struct ccb *, int));
+int bs_start_syncmsg __P((struct targ_info *, struct bsccb *, int));
 int bs_send_syncmsg __P((struct targ_info *));
-int bs_analyze_syncmsg __P((struct targ_info *, struct ccb *));
+int bs_analyze_syncmsg __P((struct targ_info *, struct bsccb *));
 
 /* reset device */
 void bs_scsibus_start __P((struct bs_softc *));
 void bs_reset_nexus __P((struct bs_softc *));
-struct ccb *bs_force_abort __P((struct targ_info *));
+struct bsccb *bs_force_abort __P((struct targ_info *));
 void bs_reset_device __P((struct targ_info *));
 
 /* ccb */
-struct ccb *bs_make_internal_ccb __P((struct targ_info *, u_int, u_int8_t *, u_int, u_int8_t *, u_int, u_int, int));
-struct ccb *bs_make_msg_ccb __P((struct targ_info *, u_int, struct ccb *, struct msgbase *, u_int));
+struct bsccb *bs_make_internal_ccb __P((struct targ_info *, u_int, u_int8_t *, u_int, u_int8_t *, u_int, u_int, int));
+struct bsccb *bs_make_msg_ccb __P((struct targ_info *, u_int, struct bsccb *, struct msgbase *, u_int));
 
 /* misc funcs */
 void bs_printf __P((struct targ_info *, char *, char *));
@@ -77,9 +77,9 @@ void bs_debug_print __P((struct bs_softc *, struct targ_info *));
 static BS_INLINE int bs_check_sat __P((struct targ_info *));
 static BS_INLINE int bs_check_smit __P((struct targ_info *));
 static BS_INLINE int bs_check_disc __P((struct targ_info *));
-static BS_INLINE int bs_check_link __P((struct targ_info *, struct ccb *));
+static BS_INLINE int bs_check_link __P((struct targ_info *, struct bsccb *));
 static BS_INLINE u_int8_t bs_identify_msg __P((struct targ_info *));
-static BS_INLINE void bs_targ_flags __P((struct targ_info *, struct ccb *));
+static BS_INLINE void bs_targ_flags __P((struct targ_info *, struct bsccb *));
 
 static BS_INLINE int
 bs_check_disc(ti)
@@ -108,13 +108,13 @@ bs_check_smit(ti)
 static BS_INLINE int
 bs_check_link(ti, cb)
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
-	struct ccb *nextcb;
+	struct bsccb *nextcb;
 
 	return ((ti->ti_flags & BSLINK) &&
 		(nextcb = cb->ccb_chain.tqe_next) &&
-		(nextcb->flags & BSLINK));
+		(nextcb->bsccb_flags & BSLINK));
 }
 
 static BS_INLINE u_int8_t
@@ -128,17 +128,17 @@ bs_identify_msg(ti)
 static BS_INLINE void
 bs_targ_flags(ti, cb)
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	u_int cmf = (u_int) bshw_cmd[cb->cmd[0]];
 
-	cb->flags |= ((cmf & (BSSAT | BSSMIT | BSLINK)) | BSDISC);
-	cb->flags &= ti->ti_mflags;
+	cb->bsccb_flags |= ((cmf & (BSSAT | BSSMIT | BSLINK)) | BSDISC);
+	cb->bsccb_flags &= ti->ti_mflags;
 
 	if (cb->datalen < DEV_BSIZE)
-		cb->flags &= ~BSSMIT;
-	if (cb->flags & BSFORCEIOPOLL)
-		cb->flags &= ~(BSLINK | BSSMIT | BSSAT | BSDISC);
+		cb->bsccb_flags &= ~BSSMIT;
+	if (cb->bsccb_flags & BSFORCEIOPOLL)
+		cb->bsccb_flags &= ~(BSLINK | BSSMIT | BSSAT | BSDISC);
 }
 
 /**************************************************

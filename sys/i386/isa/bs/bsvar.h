@@ -92,7 +92,7 @@
  *	PARAMETER
  **************************************************/
 #define	NTARGETS	8
-#define	RETRIES		4	/* number of retries before giving up */
+#define	RETRIES		0	/* number of retries before giving up */
 #define	HARDRETRIES	3
 #define	XSMAX		4
 #define	BSDMABUFSIZ	0x10000
@@ -240,7 +240,7 @@ struct sc_p {
 
 #define	BSERRORBITS	"\020\014busy\013abnormal\012retry\011msgerr\010fatal\007seltimeout\006sense\005timeout\004statuserr\003parity\002cmderr\001dmaerr"
 
-/* ccb & targ_info flags & cmd flags*/
+/* bsccb bsccb_flags & targ_info flags & cmd flags*/
 #define	BSREAD		0x0001
 #define	BSSAT		0x0002
 #define	BSLINK		0x0004
@@ -258,14 +258,14 @@ struct sc_p {
 
 #define	BSCFLAGSMASK	(0xffff)
 
-struct ccb {
-	TAILQ_ENTRY(ccb) ccb_chain;
+struct bsccb {
+	TAILQ_ENTRY(bsccb) ccb_chain;
 
-	struct scsi_xfer *xs;		/* upper drivers info */
+	union ccb *ccb;			/* upper drivers info */
 
 	u_int lun;			/* lun */
 
-	u_int flags;			/* control flags */
+	u_int bsccb_flags;		/* control flags */
 
 	int rcnt;			/* retry counter of this ccb */
 
@@ -290,75 +290,75 @@ struct ccb {
 	int tcmax;
 };
 
-GENERIC_CCB_ASSERT(bs, ccb)
+GENERIC_CCB_ASSERT(bs, bsccb)
 
 /* target info */
 struct targ_info {
-	TAILQ_ENTRY(targ_info) ti_tchain;	/* targ_info link */
+/*0*/	TAILQ_ENTRY(targ_info) ti_tchain;	/* targ_info link */
 
-	TAILQ_ENTRY(targ_info) ti_wchain;	/* wait link */
+/*4*/	TAILQ_ENTRY(targ_info) ti_wchain;	/* wait link */
 
-	struct bs_softc *ti_bsc;		/* our controller */
-	u_int ti_id;				/* scsi id */
-	u_int ti_lun;				/* current lun */
+/*8*/	struct bs_softc *ti_bsc;		/* our controller */
+/*c*/	u_int ti_id;				/* scsi id */
+/*10*/	u_int ti_lun;				/* current lun */
 
-	struct ccbtab ti_ctab, ti_bctab;	/* ccb */
+/*14*/	struct bsccbtab ti_ctab, ti_bctab;	/* ccb */
 
 #define	BS_TARG_NULL	0
 #define	BS_TARG_CTRL	1
 #define	BS_TARG_START	2
 #define	BS_TARG_SYNCH	3
 #define BS_TARG_RDY	4
-	int ti_state;				/* target state */
+/*24*/	int ti_state;				/* target state */
 
-	u_int ti_cfgflags;			/* target cfg flags */
+/*28*/	u_int ti_cfgflags;			/* target cfg flags */
 
-	u_int ti_flags;				/* flags */
-	u_int ti_mflags;			/* flags masks */
+/*2c*/	u_int ti_flags;				/* flags */
+/*30*/	u_int ti_mflags;			/* flags masks */
 
-	u_int ti_error;				/* error flags */
-	u_int ti_herrcnt;			/* hardware err retry counter */
+/*34*/	u_int ti_error;				/* error flags */
+/*38*/	u_int ti_herrcnt;			/* hardware err retry counter */
 
 	/*****************************************
 	 * scsi phase data
 	 *****************************************/
-	struct sc_p ti_scsp;			/* saved scsi data pointer */
+/*3c*/	struct sc_p ti_scsp;			/* saved scsi data pointer */
 
-	enum scsi_phase ti_phase;		/* scsi phase */
-	enum scsi_phase ti_ophase;		/* previous scsi phase */
+/*50*/	enum scsi_phase ti_phase;		/* scsi phase */
+/*54*/	enum scsi_phase ti_ophase;		/* previous scsi phase */
 
-	u_int8_t ti_status;			/* status in */
+/*58*/	u_int8_t ti_status;			/* status in */
 
-	u_int8_t ti_msgin[MAXMSGLEN];		/* msgin buffer */
-	int ti_msginptr;
+/*59*/	u_int8_t ti_msgin[MAXMSGLEN];		/* msgin buffer */
+/*64*/	int ti_msginptr;
 
-	u_int8_t ti_msgout;			/* last msgout byte */
-	u_int8_t ti_emsgout;			/* last msgout byte */
-	u_int ti_omsgoutlen;			/* for retry msgout */
+/*68*/	u_int8_t ti_msgout;			/* last msgout byte */
+/*69*/	u_int8_t ti_emsgout;			/* last msgout byte */
+/*6c*/	u_int ti_omsgoutlen;			/* for retry msgout */
 
-	struct syncdata ti_syncmax;		/* synch data (scsi) */
-	struct syncdata ti_syncnow;
-	u_int8_t ti_sync;			/* synch val (chip) */
+/*70*/	struct syncdata ti_syncmax;		/* synch data (scsi) */
+/*72*/	struct syncdata ti_syncnow;
+/*74*/	u_int8_t ti_sync;			/* synch val (chip) */
 
 	/*****************************************
 	 * bounce buffer & smit data pointer
 	 *****************************************/
-	u_int8_t *bounce_phys;
-	u_int8_t *bounce_addr;
-	u_int bounce_size;
+/*75*/	u_int8_t *bounce_phys;
+/*76*/	u_int8_t *bounce_addr;
+/*78*/	u_int bounce_size;
 
-	u_long sm_offset;
+/*7c*/	u_long sm_offset;
 
 	/*****************************************
 	 * target inq data
 	 *****************************************/
-	u_int8_t targ_type;
-	u_int8_t targ_support;
+/*79*/	u_int8_t targ_type;
+/*7a*/	u_int8_t targ_support;
 
 	/*****************************************
 	 * generic scsi cmd buffer for this target
 	 *****************************************/
-	u_int8_t scsi_cmd[12];
+/*7b*/	u_int8_t scsi_cmd[12];
 	struct scsi_sense_data sense;
 };
 
@@ -370,8 +370,6 @@ struct bs_softc {
 	 * OS depend header
 	 *****************************************/
 	OS_DEPEND_DEVICE_HEADER
-
-	OS_DEPEND_SCSI_HEADER
 
 	OS_DEPEND_MISC_HEADER
 
@@ -433,7 +431,7 @@ struct bs_softc {
 	u_int sc_wc;				/* weight count */
 
 	int sc_poll;
-	struct ccb *sc_outccb;
+	struct bsccb *sc_outccb;
 
 	/*****************************************
 	 * wd33c93 chip depend section
@@ -462,6 +460,12 @@ struct bs_softc {
 	 *****************************************/
 #define	BS_DVNAME_LEN	16
 	u_char sc_dvname[BS_DVNAME_LEN];
+
+	/*****************************************
+	 * CAM support
+	 *****************************************/
+	struct		cam_sim  *sim;
+	struct		cam_path *path;
 };
 
 /*************************************************
@@ -496,10 +500,10 @@ extern int bs_debug_flag;
 /*************************************************
  * Function declare
  *************************************************/
-int bs_scsi_cmd_internal __P((struct ccb *, u_int));
-struct ccb *bscmddone __P((struct targ_info *));
+int bs_scsi_cmd_internal __P((struct bsccb *, u_int));
+struct bsccb *bscmddone __P((struct targ_info *));
 int bscmdstart __P((struct targ_info *, int));
-int bs_scsi_cmd_poll __P((struct targ_info *, struct ccb *));
+int bs_scsi_cmd_poll __P((struct targ_info *, struct bsccb *));
 int bs_sequencer __P((struct bs_softc *));
 void bs_poll_timeout __P((struct bs_softc *, char *));
 
@@ -507,8 +511,9 @@ void bs_poll_timeout __P((struct bs_softc *, char *));
  * XXX
  *************************************************/
 /* misc error */
-#define NOTARGET	-2
-#define	HASERROR	-1
+#define COMPLETE	2
+#define NOTARGET	(-2)
+#define	HASERROR	(-1)
 
 /* XXX: use scsi_message.h */
 /* status */

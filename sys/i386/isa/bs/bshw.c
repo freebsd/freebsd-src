@@ -385,7 +385,7 @@ bshw_setup_ctrl_reg(bsc, flags)
 void
 bshw_issue_satcmd(bsc, cb, link)
 	struct bs_softc *bsc;
-	struct ccb *cb;
+	struct bsccb *cb;
 	int link;
 {
 	int i;

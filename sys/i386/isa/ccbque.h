@@ -36,7 +36,6 @@
 #define	_CCBQUE_H_
 
 #define	CCB_MWANTED 0x01
-#define	CCB_WOK(fl) (((fl) == 0) ? M_WAITOK : M_NOWAIT)
 						
 /* (I)  structure and prototype */
 #define GENERIC_CCB_ASSERT(DEV, CCBTYPE)				\
@@ -49,7 +48,7 @@ struct CCBTYPE##que {							\
 };									\
 									\
 void DEV##_init_ccbque __P((int));					\
-struct CCBTYPE *DEV##_get_ccb __P((int));				\
+struct CCBTYPE *DEV##_get_ccb __P((void));				\
 void DEV##_free_ccb __P((register struct CCBTYPE *));
 
 /* (II)  static allocated memory */
@@ -69,8 +68,7 @@ DEV##_init_ccbque(count)						\
 }									\
 									\
 struct CCBTYPE *							\
-DEV##_get_ccb(flags)							\
-	int flags;							\
+DEV##_get_ccb()								\
 {									\
 	register struct CCBTYPE *cb;					\
 	int s = splbio();						\
@@ -87,7 +85,7 @@ again:									\
 		}							\
 		else							\
 		{							\
-			cb = malloc(sizeof(*cb), M_DEVBUF, CCB_WOK(flags));\
+			cb = malloc(sizeof(*cb), M_DEVBUF, M_NOWAIT);	\
 			if (cb != NULL)					\
 			{						\
 				bzero(cb, sizeof(*cb));			\
@@ -97,12 +95,6 @@ again:									\
 		CCBTYPE##que.count --;					\
 	}								\
 									\
-	if (flags == 0)							\
-	{ 								\
-		CCBTYPE##que.flags |= CCB_MWANTED;			\
-		tsleep((caddr_t) &CCBTYPE##que.count, PRIBIO, "ccbwait", 0);\
-		goto again;						\
-	}								\
 	cb = NULL;							\
 									\
 out:									\

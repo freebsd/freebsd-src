@@ -51,7 +51,7 @@ int bs_debug_flag = 0;
 
 static void bs_print_syncmsg __P((struct targ_info *, char*));
 static void bs_timeout_target __P((struct targ_info *));
-static void bs_kill_msg __P((struct ccb *cb));
+static void bs_kill_msg __P((struct bsccb *cb));
 
 static int bs_start_target __P((struct targ_info *));
 static int bs_check_target __P((struct targ_info *));
@@ -59,8 +59,8 @@ static int bs_check_target __P((struct targ_info *));
 /*************************************************************
  * CCB
  ************************************************************/
-GENERIC_CCB_STATIC_ALLOC(bs, ccb)
-GENERIC_CCB(bs, ccb, ccb_chain)
+GENERIC_CCB_STATIC_ALLOC(bs, bsccb)
+GENERIC_CCB(bs, bsccb, ccb_chain)
 
 /*************************************************************
  * TIMEOUT
@@ -87,7 +87,7 @@ bstimeout(arg)
 {
 	struct bs_softc *bsc = (struct bs_softc *) arg;
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 	int s;
 
 	s = splbio();
@@ -126,7 +126,7 @@ bstimeout(arg)
  *************************************************/
 static u_int8_t cmd_unit_ready[6];
 
-struct ccb *
+struct bsccb *
 bs_make_internal_ccb(ti, lun, cmd, cmdlen, data, datalen, flags, timeout)
 	struct targ_info *ti;
 	u_int lun;
@@ -137,19 +137,19 @@ bs_make_internal_ccb(ti, lun, cmd, cmdlen, data, datalen, flags, timeout)
 	u_int flags;
 	int timeout;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 
-	if ((cb = bs_get_ccb(XSBS_SCSI_NOSLEEP)) == NULL)
+	if ((cb = bs_get_ccb()) == NULL)
 		bs_panic(ti->ti_bsc, "can not get ccb mem");
 
-	cb->xs = NULL;
+	cb->ccb = NULL;
 	cb->lun = lun;
 	cb->cmd = (cmd ? cmd : cmd_unit_ready);
 	cb->cmdlen = (cmd ? cmdlen : sizeof(cmd_unit_ready));
 	cb->data = data;
 	cb->datalen = (data ? datalen : 0);
 	cb->msgoutlen = 0;
-	cb->flags = flags & BSCFLAGSMASK;
+	cb->bsccb_flags = flags & BSCFLAGSMASK;
 	bs_targ_flags(ti, cb);
 	cb->rcnt = 0;
 	cb->tcmax = (timeout > BS_DEFAULT_TIMEOUT_SECOND ? timeout :
@@ -160,11 +160,11 @@ bs_make_internal_ccb(ti, lun, cmd, cmdlen, data, datalen, flags, timeout)
 	return cb;
 }
 
-struct ccb *
+struct bsccb *
 bs_make_msg_ccb(ti, lun, cb, msg, timex)
 	struct targ_info *ti;
 	u_int lun;
-	struct ccb *cb;
+	struct bsccb *cb;
 	struct msgbase *msg;
 	u_int timex;
 {
@@ -175,7 +175,7 @@ bs_make_msg_ccb(ti, lun, cb, msg, timex)
 		cb = bs_make_internal_ccb(ti, lun, NULL, 0, NULL, 0,
 					   flags, timex);
 	else
-		cb->flags |= flags & BSCFLAGSMASK;
+		cb->bsccb_flags |= flags & BSCFLAGSMASK;
 
 	cb->msgoutlen = msg->msglen;
 	bcopy(msg->msg, cb->msgout, msg->msglen);
@@ -189,7 +189,7 @@ bs_send_msg(ti, lun, msg, timex)
 	struct msgbase *msg;
 	int timex;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	cb = bs_make_msg_ccb(ti, lun, NULL, msg, timex);
 	bscmdstart(ti, BSCMDSTART);
@@ -198,7 +198,7 @@ bs_send_msg(ti, lun, msg, timex)
 
 static void
 bs_kill_msg(cb)
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	cb->msgoutlen = 0;
 }
@@ -206,11 +206,11 @@ bs_kill_msg(cb)
 /**************************************************
  * MAKE SENSE CCB
  **************************************************/
-struct ccb *
+struct bsccb *
 bs_request_sense(ti)
 	struct targ_info *ti;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	bzero(ti->scsi_cmd, sizeof(struct scsi_sense));
 	bzero(&ti->sense, sizeof(struct scsi_sense_data));
@@ -223,7 +223,7 @@ bs_request_sense(ti)
 				     sizeof(struct scsi_sense_data),
 				     BSFORCEIOPOLL,
 				     BS_DEFAULT_TIMEOUT_SECOND);
-	cb->flags |= BSSENSECCB;
+	cb->bsccb_flags |= BSSENSECCB;
 	return cb;
 }
 
@@ -234,7 +234,7 @@ bs_request_sense(ti)
 int
 bs_start_syncmsg(ti, cb, flag)
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 	int flag;
 {
 	struct syncdata *negp, *maxp;
@@ -308,7 +308,7 @@ bs_print_syncmsg(ti, s)
 int
 bs_analyze_syncmsg(ti, cb)
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
 	u_int8_t ans = ti->ti_syncnow.state;
@@ -411,13 +411,13 @@ bs_reset_device(ti)
 }
 
 /* send abort msg */
-struct ccb *
+struct bsccb *
 bs_force_abort(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
 	struct msgbase msg;
-	struct ccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = ti->ti_ctab.tqh_first;
 	u_int lun;
 
 	if (cb)
@@ -523,7 +523,7 @@ bs_reset_nexus(bsc)
 	struct bs_softc *bsc;
 {
 	struct targ_info *ti;
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	bsc->sc_flags &= ~(BSRESET | BSUNDERRESET);
 	if (bsc->sc_poll)
@@ -575,7 +575,7 @@ bs_reset_nexus(bsc)
 		for ( ; cb; cb = cb->ccb_chain.tqe_next)
 		{
 			bs_kill_msg(cb);
-			cb->flags &= ~(BSITSDONE | BSCASTAT);
+			cb->bsccb_flags &= ~(BSITSDONE | BSCASTAT);
 			cb->error = 0;
 		}
 
@@ -597,19 +597,15 @@ static int
 bs_start_target(ti)
 	struct targ_info *ti;
 {
-	struct ccb *cb;
-	struct scsi_start_stop cmd;
+	struct bsccb *cb;
+	struct scsi_start_stop_unit cmd;
 
-	bzero(&cmd, sizeof(struct scsi_start_stop));
-#ifdef __NetBSD__
+	bzero(&cmd, sizeof(struct scsi_start_stop_unit));
 	cmd.opcode = START_STOP;
-#else
-	cmd.op_code = START_STOP;
-#endif
 	cmd.how = SSS_START;
 	ti->ti_lun = 0;
 	cb = bs_make_internal_ccb(ti, 0, (u_int8_t *) &cmd,
-				   sizeof(struct scsi_start_stop),
+				   sizeof(struct scsi_start_stop_unit),
 				   NULL, 0, BSFORCEIOPOLL, BS_MOTOR_TIMEOUT);
 	bscmdstart(ti, BSCMDSTART);
 	return bs_scsi_cmd_poll(ti, cb);
@@ -623,7 +619,7 @@ bs_check_target(ti)
 	struct bs_softc *bsc = ti->ti_bsc;
 	struct scsi_inquiry scsi_cmd;
 	struct scsi_inquiry_data scsi_inquiry_data;
-	struct ccb *cb;
+	struct bsccb *cb;
 	int count, retry = bsc->sc_retry;
 	int s, error = COMPLETE;
 
@@ -633,11 +629,7 @@ bs_check_target(ti)
 
 	/* inquiry */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
-#ifdef __NetBSD__
 	scsi_cmd.opcode = INQUIRY;
-#else
-	scsi_cmd.op_code = INQUIRY;
-#endif
 	scsi_cmd.length = sizeof(struct scsi_inquiry_data);
 	cb = bs_make_internal_ccb(ti, 0,
 				   (u_int8_t *) &scsi_cmd, sizeof(scsi_cmd),
@@ -662,7 +654,7 @@ bs_check_target(ti)
 			goto done;
 	}
 
-	if (cb->flags & BSCASTAT)
+	if (cb->bsccb_flags & BSCASTAT)
 		bs_printf(ti, "check", "could not clear CA state");
 	ti->ti_error = 0;
 
@@ -897,7 +889,7 @@ bs_debug_print(bsc, ti)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
 {
-	struct ccb *cb;
+	struct bsccb *cb;
 
 	/* host stat */
 	printf("%s <DEBUG INFO> nexus %lx bs %lx bus status %lx \n",
@@ -921,7 +913,7 @@ bs_debug_print(bsc, ti)
 		       sp->datalen, (u_long) sp->data, sp->seglen);
 		if (cb)
 			printf("odatalen %x flags %x\n",
-				cb->datalen, cb->flags);
+				cb->datalen, cb->bsccb_flags);
 		else
 			printf("\n");
 		printf("error flags %b\n", ti->ti_error, BSERRORBITS);
