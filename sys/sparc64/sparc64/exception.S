@@ -364,7 +364,7 @@ ENTRY(rsf_fatal)
 	sir
 END(rsf_fatal)
 
-	.comm	intrnames, IV_MAX * 8
+	.comm	intrnames, IV_NAMLEN
 	.comm	eintrnames, 0
 
 	.comm	intrcnt, IV_MAX * 8
@@ -2316,6 +2316,17 @@ ENTRY(tl0_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
+	/* %l3 contains PIL */
+	SET(intrcnt, %l1, %l2)
+	prefetcha [%l2] ASI_N, 1
+	SET(pil_countp, %l1, %l0)
+	sllx	%l3, 1, %l1
+	lduh	[%l0 + %l1], %l0
+	sllx	%l0, 3, %l0
+	add	%l0, %l2, %l0
+
+	ATOMIC_INC_ULONG(%l0, %l1, %l2)
+
 	call	critical_enter
 	 nop
 
@@ -2819,6 +2830,17 @@ ENTRY(tl1_intr)
 	mov	%l4, PCB_REG
 	mov	%l5, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	/* %l3 contains PIL */
+	SET(intrcnt, %l5, %l4)
+	prefetcha [%l4] ASI_N, 1
+	SET(pil_countp, %l5, %l6)
+	sllx	%l7, 1, %l5
+	lduh	[%l5 + %l6], %l5
+	sllx	%l5, 3, %l5
+	add	%l5, %l4, %l4
+
+	ATOMIC_INC_ULONG(%l4, %l5, %l6)
 
 	call	critical_enter
 	 nop

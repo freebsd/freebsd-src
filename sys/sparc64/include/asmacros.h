@@ -69,6 +69,17 @@
 	 mov	r3, r2
 
 /*
+ * Atomically increment an u_long in memory.
+ */
+#define	ATOMIC_INC_ULONG(r1, r2, r3) \
+	ldx	[r1], r2 ; \
+9:	add	r2, 1, r3 ; \
+	casxa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%icc, 9b ; \
+	 mov	r3, r2
+
+/*
  * Atomically clear a number of bits of an integer in memory.
  */
 #define	ATOMIC_CLEAR_INT(r1, r2, r3, bits) \
