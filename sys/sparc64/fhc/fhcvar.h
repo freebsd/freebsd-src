@@ -43,17 +43,16 @@ struct fhc_softc {
 	int			sc_flags;
 };
 
-int fhc_probe(device_t dev);
-int fhc_attach(device_t dev);
+device_probe_t fhc_probe;
+device_attach_t fhc_attach;
 
-int fhc_print_child(device_t dev, device_t child);
-void fhc_probe_nomatch(device_t dev, device_t child);
-int fhc_setup_intr(device_t, device_t, struct resource *, int, driver_intr_t *,
-    void *, void **);
-int fhc_teardown_intr(device_t, device_t, struct resource *, void *);
-struct resource *fhc_alloc_resource(device_t, device_t, int, int *, u_long,
-    u_long, u_long, u_int);
-int fhc_release_resource(device_t, device_t, int, int, struct resource *);
+bus_print_child_t fhc_print_child;
+bus_probe_nomatch_t fhc_probe_nomatch;
+bus_setup_intr_t fhc_setup_intr;
+bus_teardown_intr_t fhc_teardown_intr;
+bus_alloc_resource_t fhc_alloc_resource;
+bus_release_resource_t fhc_release_resource;
+
 ofw_bus_get_compat_t fhc_get_compat;
 ofw_bus_get_model_t fhc_get_model;
 ofw_bus_get_name_t fhc_get_name;

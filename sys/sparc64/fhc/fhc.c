@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,8 +46,6 @@
 #include <sparc64/fhc/fhcreg.h>
 #include <sparc64/fhc/fhcvar.h>
 #include <sparc64/sbus/ofw_sbus.h>
-
-#define	INTIGN(map)	(((map) & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT)
 
 struct fhc_clr {
 	driver_intr_t		*fc_func;
@@ -93,6 +92,11 @@ fhc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = sc->sc_node;
 
+	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
+		device_printf(dev, "board %d, %s\n", sc->sc_board, name);
+		free(name, M_OFWPROP);
+	}
+
 	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
 		bus_space_write_4(sc->sc_bt[i], sc->sc_bh[i], FHC_ICLR, 0x0);
 		bus_space_read_4(sc->sc_bt[i], sc->sc_bh[i], FHC_ICLR);
@@ -117,7 +121,7 @@ fhc_attach(device_t dev)
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
-		device_printf(dev, "can't get ranges");
+		device_printf(dev, "can't get ranges\n");
 		return (ENXIO);
 	}
 
@@ -126,8 +130,9 @@ fhc_attach(device_t dev)
 			continue;
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			fdi = malloc(sizeof(*fdi), M_DEVBUF,
-			    M_WAITOK | M_ZERO);
+			fdi = malloc(sizeof(*fdi), M_DEVBUF, M_WAITOK | M_ZERO);
+			if (fdi == NULL)
+				continue;
 			fdi->fdi_name = name;
 			fdi->fdi_node = child;
 			OF_getprop_alloc(child, "compatible", 1,
@@ -196,6 +201,8 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	rid = rman_get_rid(r);
 
 	fc = malloc(sizeof(*fc), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (fc == NULL)
+		return (0);
 	fc->fc_func = func;
 	fc->fc_arg = arg;
 	fc->fc_bt = sc->sc_bt[rid];
@@ -290,7 +297,7 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (rle == NULL)
 			return (NULL);
 		if (rle->res != NULL)
-			panic("fhc_alloc_resource: resource entry is busy");
+			panic("%s: resource entry is busy", __func__);
 		if (isdefault) {
 			start = rle->start;
 			count = ulmax(count, rle->count);
@@ -332,9 +339,9 @@ fhc_release_resource(device_t bus, device_t child, int type, int rid,
 	fdi = device_get_ivars(child);
 	rle = resource_list_find(&fdi->fdi_rl, type, rid);
 	if (rle == NULL)
-		panic("fhc_release_resource: can't find resource");
+		panic("%s: can't find resource", __func__);
 	if (rle->res == NULL)
-		panic("fhc_release_resource: resource entry is not busy");
+		panic("%s: resource entry is not busy", __func__);
 	rle->res = NULL;
 	return (error);
 }
