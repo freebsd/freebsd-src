@@ -1052,9 +1052,20 @@ Don't forget the loopback interface.
 .Sh FINE POINTS
 .Bl -bullet
 .It
-There is one kind of packet that the firewall will always
-discard, that is a TCP packet's fragment with a fragment offset of
-one.
+There are circumstances where fragmented datagrams are unconditionally
+dropped.
+TCP packets are dropped if they do not contain at least 20 bytes of
+TCP header, UDP packets are dropped if they do not contain a full 8
+byte UDP header, and ICMP packets are dropped if they do not contain
+4 bytes of ICMP header, enough to specify the ICMP type, code, and
+checksum.
+These packets are simply logged as
+.Dq pullup failed
+since there may not be enough good data in the packet to produce a
+meaningful log entry.
+.It
+Another type of packet is unconditionally dropped, a TCP packet with a
+fragment offset of one.
 This is a valid packet, but it only has one use, to try
 to circumvent firewalls.
 When logging is enabled, these packets are
