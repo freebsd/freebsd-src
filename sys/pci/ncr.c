@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $
+**  $Id: ncr.c,v 1.141.2.1 1999/05/07 00:43:45 ken Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $\n";
+	"\n$Id: ncr.c,v 1.141.2.1 1999/05/07 00:43:45 ken Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -3860,7 +3860,7 @@ ncr_attach (pcici_t config_id, int unit)
 
 	
 	if (xpt_bus_register(np->sim, 0) != CAM_SUCCESS) {
-		free(np->sim, M_DEVBUF);
+		cam_sim_free(np->sim, /*free_devq*/ TRUE);
 		return;
 	}
 	
@@ -3872,8 +3872,7 @@ ncr_attach (pcici_t config_id, int unit)
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
-		cam_sim_free(np->sim, /*free_simq*/TRUE);
-		free(np->sim, M_DEVBUF);
+		cam_sim_free(np->sim, /*free_devq*/TRUE);
 		return;
 	}
 
