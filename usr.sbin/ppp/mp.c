@@ -574,7 +574,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 
       if (q) {
         q = m_pullup(q);
-        log_Printf(LogDEBUG, "MP: Reassembled frags %lu-%lu, length %d\n",
+        log_Printf(LogDEBUG, "MP: Reassembled frags %lu-%lu, length %zd\n",
                    (u_long)first, (u_long)h.seq, m_length(q));
         link_PullPacket(&mp->link, MBUF_CTOP(q), q->m_len, mp->bundle);
         m_freem(q);
@@ -650,7 +650,7 @@ mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
     m = m_prepend(m, prepend, 4, 0);
   }
   if (log_IsKept(LogDEBUG))
-    log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
+    log_Printf(LogDEBUG, "MP[frag %d]: Send %zd bytes on link `%s'\n",
                mp->out.seq, m_length(m), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
@@ -907,7 +907,8 @@ mp_Enddisc(u_char c, const char *address, size_t len)
       break;
 
     case ENDDISC_LOCAL:
-      snprintf(result, sizeof result, "Local Addr: %.*s", len, address);
+	    snprintf(result, sizeof result, "Local Addr: %.*s", (int)len,
+		address);
       break;
 
     case ENDDISC_IP:
@@ -915,7 +916,7 @@ mp_Enddisc(u_char c, const char *address, size_t len)
         snprintf(result, sizeof result, "IP %s",
                  inet_ntoa(*(const struct in_addr *)address));
       else
-        sprintf(result, "IP[%d] ???", len);
+        sprintf(result, "IP[%zd] ???", len);
       break;
 
     case ENDDISC_MAC:
@@ -924,7 +925,7 @@ mp_Enddisc(u_char c, const char *address, size_t len)
         snprintf(result, sizeof result, "MAC %02x:%02x:%02x:%02x:%02x:%02x",
                  m[0], m[1], m[2], m[3], m[4], m[5]);
       } else
-        sprintf(result, "MAC[%d] ???", len);
+        sprintf(result, "MAC[%zd] ???", len);
       break;
 
     case ENDDISC_MAGIC:
@@ -937,7 +938,7 @@ mp_Enddisc(u_char c, const char *address, size_t len)
       break;
 
     case ENDDISC_PSN:
-      snprintf(result, sizeof result, "PSN: %.*s", len, address);
+	    snprintf(result, sizeof result, "PSN: %.*s", (int)len, address);
       break;
 
     default:
