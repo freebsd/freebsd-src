@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_sim.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -54,8 +54,8 @@ cam_simq_free(struct cam_devq *devq)
 struct cam_sim *
 cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	      char *sim_name, void *softc, u_int32_t unit,
-	      u_int32_t max_dev_transactions,
-	      u_int32_t max_tagged_dev_transactions, struct cam_devq *queue)
+	      int max_dev_transactions,
+	      int max_tagged_dev_transactions, struct cam_devq *queue)
 {
 	struct cam_sim *sim;
 
@@ -80,7 +80,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 		sim->path_id = CAM_PATH_ANY;
 		sim->unit_number = unit;
 		sim->bus_id = 0;	/* set in xpt_bus_register */
-		sim->base_transfer_speed = 3300; /* asynchronous 3300 kB/sec */
 		sim->max_tagged_dev_openings = max_tagged_dev_transactions;
 		sim->max_dev_openings = max_dev_transactions;
 		sim->flags = 0;
@@ -97,12 +96,6 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 	if (free_devq)
 		cam_simq_free(sim->devq);
 	free(sim, M_DEVBUF);
-}
-
-void
-cam_sim_set_basexfer_speed(struct cam_sim *sim, u_int32_t base_xfer_speed)
-{
-	sim->base_transfer_speed = base_xfer_speed;
 }
 
 void

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.14.2.2 1999/04/07 23:09:03 gibbs Exp $
+ *      $Id: scsi_cd.c,v 1.14.2.3 1999/04/19 21:36:45 gibbs Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -126,7 +126,7 @@ typedef enum {
 struct cd_softc {
 	cam_pinfo		pinfo;
 	cd_state		state;
-	cd_flags		flags;
+	volatile cd_flags	flags;
 	struct buf_queue_head	buf_queue;
 	LIST_HEAD(, ccb_hdr)	pending_ccbs;
 	struct cd_params	params;
@@ -301,7 +301,7 @@ struct cdchanger {
 	struct cd_softc			 *cur_device;
 	struct callout_handle		 short_handle;
 	struct callout_handle		 long_handle;
-	cd_changer_flags		 flags;
+	volatile cd_changer_flags	 flags;
 	STAILQ_ENTRY(cdchanger)		 changer_links;
 	STAILQ_HEAD(chdevlist, cd_softc) chluns;
 };
@@ -1103,7 +1103,8 @@ cdschedule(struct cam_periph *periph, int priority)
 		 * bootstrap things.
 		 */
 		if (((softc->changer->flags & CHANGER_TIMEOUT_SCHED)==0)
-		 &&((softc->changer->flags & CHANGER_NEED_TIMEOUT)==0)){
+		 && ((softc->changer->flags & CHANGER_NEED_TIMEOUT)==0)
+		 && ((softc->changer->flags & CHANGER_SHORT_TMOUT_SCHED)==0)){
 			softc->changer->flags |= CHANGER_MANUAL_CALL;
 			cdrunchangerqueue(softc->changer);
 		}
@@ -1341,7 +1342,7 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 		 * This should work the first time this device is woken up,
 		 * but just in case it doesn't, we use a while loop.
 		 */
-		while ((((volatile cd_flags)softc->flags) & CD_FLAG_ACTIVE)==0){
+		while ((softc->flags & CD_FLAG_ACTIVE) == 0) {
 			/*
 			 * If this changer isn't already queued, queue it up.
 			 */
@@ -1352,10 +1353,10 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 				camq_insert(&softc->changer->devq,
 					    (cam_pinfo *)softc);
 			}
-			if (((((volatile cd_changer_flags)softc->changer->flags)
-				& CHANGER_TIMEOUT_SCHED)==0)
-			 &&((((volatile cd_changer_flags)softc->changer->flags)
-				& CHANGER_NEED_TIMEOUT)==0)){
+			if (((softc->changer->flags & CHANGER_TIMEOUT_SCHED)==0)
+			 && ((softc->changer->flags & CHANGER_NEED_TIMEOUT)==0)
+			 && ((softc->changer->flags
+			      & CHANGER_SHORT_TMOUT_SCHED)==0)) {
 				softc->changer->flags |= CHANGER_MANUAL_CALL;
 				cdrunchangerqueue(softc->changer);
 			} else
@@ -1739,18 +1740,12 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 							   &asc, &ascq);
 				}
 				/*
-				 * With CDROM devices, we expect 0x3a
-				 * (Medium not present) errors, since not
-				 * everyone leaves a CD in the drive.  Some
-				 * broken Philips and HP WORM drives return
-				 * 0x04,0x00 (logical unit not ready, cause
-				 * not reportable), so we accept any "not
-				 * ready" type errors as well.  If the error
-				 * is anything else, though, we shouldn't
-				 * attach.
+				 * Attach to anything that claims to be a
+				 * CDROM or WORM device, as long as it
+				 * doesn't return a "Logical unit not
+				 * supported" (0x25) error.
 				 */
-				if ((have_sense)
-				 && ((asc == 0x3a) || (asc == 0x04))
+				if ((have_sense) && (asc != 0x25)
 				 && (error_code == SSD_CURRENT_ERROR))
 					snprintf(announce_buf,
 					    sizeof(announce_buf),

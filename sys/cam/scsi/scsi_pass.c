@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.5 1998/11/22 23:44:47 ken Exp $
+ *      $Id: scsi_pass.c,v 1.5.2.1 1999/02/18 22:05:56 ken Exp $
  */
 
 #include <sys/param.h>
@@ -703,13 +703,55 @@ passioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	{
 		union ccb *inccb;
 		union ccb *ccb;
+		int ccb_malloced;
 
 		inccb = (union ccb *)addr;
-		ccb = cam_periph_getccb(periph, inccb->ccb_h.pinfo.priority);
+
+		/*
+		 * Some CCB types, like scan bus and scan lun can only go
+		 * through the transport layer device.
+		 */
+		if (inccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
+			xpt_print_path(periph->path);
+			printf("CCB function code %#x is restricted to the "
+			       "XPT device\n", inccb->ccb_h.func_code);
+			error = ENODEV;
+			break;
+		}
+
+		/*
+		 * Non-immediate CCBs need a CCB from the per-device pool
+		 * of CCBs, which is scheduled by the transport layer.
+		 * Immediate CCBs and user-supplied CCBs should just be
+		 * malloced.
+		 */
+		if ((inccb->ccb_h.func_code & XPT_FC_QUEUED)
+		 && ((inccb->ccb_h.func_code & XPT_FC_USER_CCB) == 0)) {
+			ccb = cam_periph_getccb(periph,
+						inccb->ccb_h.pinfo.priority);
+			ccb_malloced = 0;
+		} else {
+			ccb = xpt_alloc_ccb();
+
+			if (ccb != NULL)
+				xpt_setup_ccb(&ccb->ccb_h, periph->path,
+					      inccb->ccb_h.pinfo.priority);
+			ccb_malloced = 1;
+		}
+
+		if (ccb == NULL) {
+			xpt_print_path(periph->path);
+			printf("unable to allocate CCB\n");
+			error = ENOMEM;
+			break;
+		}
 
 		error = passsendccb(periph, ccb, inccb);
 
-		xpt_release_ccb(ccb);
+		if (ccb_malloced)
+			xpt_free_ccb(ccb);
+		else
+			xpt_release_ccb(ccb);
 
 		break;
 	}

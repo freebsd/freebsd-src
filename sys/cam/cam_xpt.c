@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.6 1999/04/07 23:08:55 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.7 1999/04/19 21:36:28 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -217,8 +217,8 @@ struct xpt_quirk_entry {
 	u_int8_t quirks;
 #define	CAM_QUIRK_NOLUNS	0x01
 #define	CAM_QUIRK_NOSERIAL	0x02
-	u_int8_t mintags;
-	u_int8_t maxtags;
+	u_int mintags;
+	u_int maxtags;
 };
 
 typedef enum {
@@ -944,6 +944,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			}
 			/* FALLTHROUGH */
 		case XPT_SCAN_LUN:
+		case XPT_RESET_DEV:
 		case XPT_ENG_INQ:  /* XXX not implemented yet */
 		case XPT_ENG_EXEC:
 
@@ -1451,8 +1452,15 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 			freq = scsi_calc_syncsrate(cts.sync_period);
 			speed = freq;
 		} else {
+			struct ccb_pathinq cpi;
+
+			/* Ask the SIM for its base transfer speed */
+			xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+			cpi.ccb_h.func_code = XPT_PATH_INQ;
+			xpt_action((union ccb *)&cpi);
+
+			speed = cpi.base_transfer_speed;
 			freq = 0;
-			speed = path->bus->sim->base_transfer_speed;
 		}
 		if ((cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
 			speed *= (0x01 << cts.bus_width);
@@ -2045,6 +2053,14 @@ xptedtdevicefunc(struct cam_ed *device, void *arg)
 		bcopy(&device->inq_data,
 		      &cdm->matches[j].result.device_result.inq_data,
 		      sizeof(struct scsi_inquiry_data));
+
+		/* Let the user know whether this device is unconfigured */
+		if (device->flags & CAM_DEV_UNCONFIGURED)
+			cdm->matches[j].result.device_result.flags =
+				DEV_RESULT_UNCONFIGURED;
+		else
+			cdm->matches[j].result.device_result.flags =
+				DEV_RESULT_NOFLAG;
 	}
 
 	/*
@@ -4342,16 +4358,7 @@ xpt_done(union ccb *done_ccb)
 	s = splcam();
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
-	switch (done_ccb->ccb_h.func_code) {
-	case XPT_SCSI_IO:
-	case XPT_ENG_EXEC:
-	case XPT_TARGET_IO:
-	case XPT_ACCEPT_TARGET_IO:
-	case XPT_CONT_TARGET_IO:
-	case XPT_IMMED_NOTIFY:
-	case XPT_SCAN_BUS:
-	case XPT_SCAN_LUN:
-	{
+	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
 		/*
 		 * Queue up the request for handling by our SWI handler
 		 * any of the "non-immediate" type of ccbs.
@@ -4370,10 +4377,6 @@ xpt_done(union ccb *done_ccb)
 			setsoftcamnet();
 			break;
 		}
-		break;
-	}
-	default:
-		break;
 	}
 	splx(s);
 }
@@ -5511,6 +5514,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	if (async_update == FALSE) {
 		struct	scsi_inquiry_data *inq_data;
 		struct	ccb_pathinq cpi;
+		struct	ccb_trans_settings cur_cts;
 
 		if (device == NULL) {
 			cts->ccb_h.status = CAM_PATH_INVALID;
@@ -5525,8 +5529,28 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, /*priority*/1);
 		cpi.ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action((union ccb *)&cpi);
-
+		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, /*priority*/1);
+		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cur_cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cur_cts);
 		inq_data = &device->inq_data;
+
+		/* Fill in any gaps in what the user gave us */
+		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) == 0)
+			cts->sync_period = cur_cts.sync_period;
+		if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) == 0)
+			cts->sync_offset = cur_cts.sync_offset;
+		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) == 0)
+			cts->bus_width = cur_cts.bus_width;
+		if ((cts->valid & CCB_TRANS_DISC_VALID) == 0) {
+			cts->flags &= ~CCB_TRANS_DISC_ENB;
+			cts->flags |= cur_cts.flags & CCB_TRANS_DISC_ENB;
+		}
+		if ((cts->valid & CCB_TRANS_TQ_VALID) == 0) {
+			cts->flags &= ~CCB_TRANS_TAG_ENB;
+			cts->flags |= cur_cts.flags & CCB_TRANS_TAG_ENB;
+		}
+
 		if ((inq_data->flags & SID_Sync) == 0
 		 || (cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 			/* Force async */
@@ -5903,6 +5927,7 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
 		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
 		cpi->bus_id = sim->bus_id;
+		cpi->base_transfer_speed = 0;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(work_ccb);
 		break;
@@ -5976,10 +6001,7 @@ camisr(cam_isrq_t *queue)
 						 TRUE);
 			}
 		}
-		if ((ccb_h->func_code != XPT_ACCEPT_TARGET_IO)
-		 && (ccb_h->func_code != XPT_IMMED_NOTIFY)
-		 && (ccb_h->func_code != XPT_SCAN_LUN)
-		 && (ccb_h->func_code != XPT_SCAN_BUS)) {
+		if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
 			struct cam_ed *dev;
 
 			dev = ccb_h->path->device;

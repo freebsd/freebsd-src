@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simos.c,v 1.2 1998/09/26 14:49:26 dfr Exp $
+ *	$Id: simos.c,v 1.3 1998/12/14 06:32:57 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -312,6 +312,7 @@ simos_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 0;
 		cpi->initiator_id = 7;
 		cpi->bus_id = sim->bus_id;
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "SimOS", HBA_IDLEN);
 		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
