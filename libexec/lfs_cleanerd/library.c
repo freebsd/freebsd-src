@@ -204,8 +204,8 @@ get_ifile (fsp, use_mmap)
 		if (fsp->fi_cip)
 			munmap((caddr_t)fsp->fi_cip, fsp->fi_ifile_length);
 		ifp = mmap ((caddr_t)0, file_stat.st_size,
-		    PROT_READ|PROT_WRITE, 0, fid, (off_t)0);
-		if (ifp ==  (caddr_t)(-1))
+		    PROT_READ|PROT_WRITE, MAP_SHARED, fid, (off_t)0);
+		if (ifp == MAP_FAILED)
 			err(1, "get_ifile: mmap failed");
 	} else {
 		if (fsp->fi_cip)
@@ -541,8 +541,8 @@ mmap_segment (fsp, segment, segbuf, use_mmap)
 
 	if (use_mmap) {
 		*segbuf = mmap ((caddr_t)0, seg_size(lfsp), PROT_READ,
-		    0, fid, seg_byte);
-		if (*(long *)segbuf < 0) {
+		    MAP_SHARED, fid, seg_byte);
+		if (*segbuf == MAP_FAILED) {
 			err(0, "mmap_segment: mmap failed");
 			return (NULL);
 		}

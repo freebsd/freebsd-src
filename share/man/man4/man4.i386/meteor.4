@@ -233,7 +233,8 @@ main()
 		exit(1);
 	}
 
-        mmbuf=(char *)mmap((caddr_t)0, SIZE, PROT_READ, 0, i, (off_t)0);
+        mmbuf=(char *)mmap((caddr_t)0, SIZE, PROT_READ, 
+		MAP_SHARED, i, (off_t)0);
 
 #ifdef SINGLE_MODE
 			/* single frame capture */
@@ -405,9 +406,9 @@ main()
 	size = ((width*height*depth*frames+4095)/4096)*4096;
 			/* add one page after data for meteor_mem */
 	data_frames = mmap((caddr_t)0, size + 4096, PROT_READ | PROT_WRITE,
-							       0, i, (off_t)0);
+						MAP_SHARED, i, (off_t)0);
 
-	if (data_frames == (caddr_t) -1) return (0);
+	if (data_frames == (caddr_t) MAP_FAILED) return (0);
 
 			/* common_mem is located at page following data */
 	common_mem = (struct meteor_mem *) (y + size);

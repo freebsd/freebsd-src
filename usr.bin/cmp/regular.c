@@ -80,12 +80,12 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 		return (c_special(fd1, file1, skip1, fd2, file2, skip2));
 
 	if ((p1 = (u_char *)mmap(NULL,
-	    (size_t)length, PROT_READ, 0, fd1, off1)) == (u_char *)-1)
+	    (size_t)length, PROT_READ, MAP_SHARED, fd1, off1)) == (u_char *)MAP_FAILED)
 		err(ERR_EXIT, "%s", file1);
 
 	madvise(p1, length, MADV_SEQUENTIAL);
 	if ((p2 = (u_char *)mmap(NULL,
-	    (size_t)length, PROT_READ, 0, fd2, off2)) == (u_char *)-1)
+	    (size_t)length, PROT_READ, MAP_SHARED, fd2, off2)) == (u_char *)MAP_FAILED)
 		err(ERR_EXIT, "%s", file2);
 	madvise(p2, length, MADV_SEQUENTIAL);
 

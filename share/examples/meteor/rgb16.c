@@ -77,9 +77,9 @@ main()
 		exit(1);
 	}
 
-        rgb16 = (short *)mmap((caddr_t)0,SIZE,PROT_READ,0, i, (off_t)0);
+        rgb16 = (short *)mmap((caddr_t)0,SIZE,PROT_READ,MAP_SHARED, i, (off_t)0);
 
-	if (rgb16 == (short *) -1) return (0);
+	if (rgb16 == (short *) MAP_FAILED) return (0);
 
 	c = METEOR_CAP_SINGLE ;
         ioctl(i, METEORCAPTUR, &c);

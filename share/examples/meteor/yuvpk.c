@@ -81,9 +81,9 @@ main()
 		exit(1);
 	}
 
-        yuv_data = (uint8 *)mmap((caddr_t)0,SIZE,PROT_READ,0, i, (off_t)0);
+        yuv_data = (uint8 *)mmap((caddr_t)0,SIZE,PROT_READ,MAP_SHARED, i, (off_t)0);
 
-	if (yuv_data == (int8 *) -1) return (0);
+	if (yuv_data == (int8 *) MAP_FAILED) return (0);
 
 	c = METEOR_CAP_SINGLE ;
         ioctl(i, METEORCAPTUR, &c);

@@ -301,7 +301,7 @@ search_mmap(db, s)
 
 	if ((p = mmap((caddr_t)0, (size_t)len,
 		      PROT_READ, MAP_SHARED,
-		      fd, (off_t)0)) == (caddr_t)-1)
+		      fd, (off_t)0)) == MAP_FAILED)
 		err(1, "mmap ``%s''", path_fcodes);
 
 	/* foreach search string ... */

@@ -183,7 +183,7 @@ mkfs(pp, fsys, fi, fo)
 				MAP_SHARED,
 				fd,
 				0);
-			if((int)membase == -1) {
+			if(membase == MAP_FAILED) {
 				perror("mmap");
 				exit(12);
 			}

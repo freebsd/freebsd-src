@@ -190,7 +190,7 @@ uc_open(char *name){
 	kern->core = mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
 			  MAP_SHARED, kd, 0);
 	kern->incore = 0;
-	if (kern->core == (caddr_t)0) {
+	if (kern->core == MAP_FAILED) {
 	    free(kern);
 	    msgDebug("uc_open: Unable to mmap from %s.\n", kname);
 	    return NULL;
