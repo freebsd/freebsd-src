@@ -904,11 +904,12 @@ finish(sig)
 		ntransmitted++;
 		advertise(&whereto);
 	}
-	logtrace("\n----%s rdisc Statistics----\n", sendaddress );
-	logtrace("%d packets transmitted, ", ntransmitted );
-	logtrace("%d packets received, ", nreceived );
-	logtrace("\n");
-	(void) fflush(stdout);
+	if (verbose) {
+	    logtrace("\n----%s rdisc Statistics----\n", sendaddress );
+	    logtrace("%d packets transmitted, ", ntransmitted );
+	    logtrace("%d packets received, ", nreceived );
+	    (void) fflush(stdout);
+	}
 	exit(0);
 }
 
