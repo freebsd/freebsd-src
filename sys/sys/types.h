@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.33 1999/05/12 11:06:56 phk Exp $
+ * $Id: types.h,v 1.34 1999/07/18 02:26:02 jdp Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -97,8 +97,10 @@ typedef	struct vm_page	*vm_page_t;
 
 #ifdef KERNEL
 
+struct specinfo;
+
 typedef	u_int32_t	udev_t;		/* device number */
-typedef void 		*dev_t;
+typedef struct specinfo	*dev_t;
 
 #else /* !KERNEL */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.88 1999/06/01 20:29:58 dt Exp $
+ * $Id: spec_vnops.c,v 1.89 1999/06/26 02:46:21 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,6 @@ static int	spec_read __P((struct vop_read_args *));
 static int	spec_strategy __P((struct vop_strategy_args *));
 static int	spec_write __P((struct vop_write_args *));
 
-struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },

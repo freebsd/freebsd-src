@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.211 1999/07/18 14:30:37 phk Exp $
+ * $Id: vfs_subr.c,v 1.212 1999/07/19 09:37:59 phk Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
+static struct vnode *checkalias2 __P((struct vnode *nvp, dev_t dev, struct mount *mp));
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
@@ -1245,12 +1246,11 @@ bdevvp(dev, vpp)
 	}
 	vp = nvp;
 	/* dev2udev() results in a CDEV, so we need to cheat here. */
-	vp->v_type = VCHR;
-	if ((nvp = checkalias(vp, dev2udev(dev), (struct mount *)0)) != NULL) {
+	vp->v_type = VBLK;
+	if ((nvp = checkalias2(vp, dev, (struct mount *)0)) != NULL) {
 		vput(vp);
 		vp = nvp;
 	}
-	vp->v_type = VBLK;
 	*vpp = vp;
 	return (0);
 }
@@ -1269,21 +1269,33 @@ checkalias(nvp, nvp_rdev, mp)
 	udev_t nvp_rdev;
 	struct mount *mp;
 {
-	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp;
-	struct vnode **vpp;
 	dev_t	dev;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		return (NULLVP);
 
 	dev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
+	return (checkalias2(nvp, dev, mp));
+}
 
-	vpp = &speclisth[SPECHASH(dev)];
+static struct vnode *
+checkalias2(nvp, dev, mp)
+	register struct vnode *nvp;
+	dev_t dev;
+	struct mount *mp;
+{
+	struct proc *p = curproc;	/* XXX */
+	struct vnode *vp;
+	struct vnode **vpp;
+
+	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
+		return (NULLVP);
+	
+	vpp = &dev->si_hlist;
 loop:
 	simple_lock(&spechash_slock);
 	for (vp = *vpp; vp; vp = vp->v_specnext) {
-		if (dev != vp->v_rdev || nvp->v_type != vp->v_type)
+		if (nvp->v_type != vp->v_type)
 			continue;
 		/*
 		 * Alias, but not in use, so flush it out.
@@ -1319,32 +1331,11 @@ loop:
 		 * Put the new vnode into the hash chain.
 		 * and if there was an alias, connect them.
 		 */
-		MALLOC(sinfo, struct specinfo *,
-		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
-		bzero(sinfo, sizeof(struct specinfo));
-		nvp->v_specinfo = sinfo;
-		sinfo->si_rdev = dev;
-		sinfo->si_hashchain = vpp;
-		sinfo->si_specnext = *vpp;
-		sinfo->si_bsize_phys = DEV_BSIZE;
-		sinfo->si_bsize_best = BLKDEV_IOSIZE;
-		sinfo->si_bsize_max = MAXBSIZE;
-
-		/*
-		 * Ask the device to fix up specinfo.  Typically the 
-		 * si_bsize_* parameters may need fixing up.
-		 */
-
-		if (nvp->v_type == VBLK) {
-			if (bdevsw(dev) && bdevsw(dev)->d_parms)
-				(*bdevsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
-		} else if (nvp->v_type == VCHR) {
-			if (devsw(dev) && devsw(dev)->d_parms)
-				(*devsw(dev)->d_parms)(dev, sinfo, DPARM_GET);
-		}
+		nvp->v_specnext = *vpp;
+		*vpp = nvp;
+		nvp->v_specinfo = sinfo = dev;
 
 		simple_unlock(&spechash_slock);
-		*vpp = nvp;
 		if (vp != NULLVP) {
 			nvp->v_flag |= VALIASED;
 			vp->v_flag |= VALIASED;
@@ -1355,7 +1346,7 @@ loop:
 	/*
 	 * if ( vp && (vp->v_tag == VT_NULL))
 	 * We have a vnode alias, but it is a trashed.
-	 * Make it look like it's newley allocated. (by getnewvnode())
+	 * Make it look like it's newly allocated. (by getnewvnode())
 	 * The caller should use this instead.
 	 */
 	simple_unlock(&spechash_slock);
@@ -1797,9 +1788,8 @@ vop_revoke(ap)
 		simple_unlock(&vp->v_interlock);
 		while (vp->v_flag & VALIASED) {
 			simple_lock(&spechash_slock);
-			for (vq = *vp->v_hashchain; vq; vq = vq->v_specnext) {
-				if (vq->v_rdev != vp->v_rdev ||
-				    vq->v_type != vp->v_type || vp == vq)
+			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
+				if (vq->v_type != vp->v_type || vp == vq)
 					continue;
 				simple_unlock(&spechash_slock);
 				vgone(vq);
@@ -1902,10 +1892,10 @@ vgonel(vp, p)
 	 */
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_specinfo != 0) {
 		simple_lock(&spechash_slock);
-		if (*vp->v_hashchain == vp) {
-			*vp->v_hashchain = vp->v_specnext;
+		if (vp->v_hashchain == vp) {
+			vp->v_hashchain = vp->v_specnext;
 		} else {
-			for (vq = *vp->v_hashchain; vq; vq = vq->v_specnext) {
+			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
 				if (vq->v_specnext != vp)
 					continue;
 				vq->v_specnext = vp->v_specnext;
@@ -1916,9 +1906,8 @@ vgonel(vp, p)
 		}
 		if (vp->v_flag & VALIASED) {
 			vx = NULL;
-			for (vq = *vp->v_hashchain; vq; vq = vq->v_specnext) {
-				if (vq->v_rdev != vp->v_rdev ||
-				    vq->v_type != vp->v_type)
+			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
+				if (vq->v_type != vp->v_type)
 					continue;
 				if (vx)
 					break;
@@ -1931,7 +1920,6 @@ vgonel(vp, p)
 			vp->v_flag &= ~VALIASED;
 		}
 		simple_unlock(&spechash_slock);
-		FREE(vp->v_specinfo, M_VNODE);
 		vp->v_specinfo = NULL;
 	}
 
@@ -1979,8 +1967,8 @@ vfinddev(dev, type, vpp)
 	int rc = 0;
 
 	simple_lock(&spechash_slock);
-	for (vp = speclisth[SPECHASH(dev)]; vp; vp = vp->v_specnext) {
-		if (dev != vp->v_rdev || type != vp->v_type)
+	for (vp = dev->si_hlist; vp; vp = vp->v_specnext) {
+		if (type != vp->v_type)
 			continue;
 		*vpp = vp;
 		rc = 1;
@@ -2004,9 +1992,9 @@ loop:
 	if ((vp->v_flag & VALIASED) == 0)
 		return (vp->v_usecount);
 	simple_lock(&spechash_slock);
-	for (count = 0, vq = *vp->v_hashchain; vq; vq = vnext) {
+	for (count = 0, vq = vp->v_hashchain; vq; vq = vnext) {
 		vnext = vq->v_specnext;
-		if (vq->v_rdev != vp->v_rdev || vq->v_type != vp->v_type)
+		if (vq->v_type != vp->v_type)
 			continue;
 		/*
 		 * Alias, but not in use, so flush it out.
@@ -2267,9 +2255,8 @@ vfs_mountedon(vp)
 		return (EBUSY);
 	if (vp->v_flag & VALIASED) {
 		simple_lock(&spechash_slock);
-		for (vq = *vp->v_hashchain; vq; vq = vq->v_specnext) {
-			if (vq->v_rdev != vp->v_rdev ||
-			    vq->v_type != vp->v_type)
+		for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
+			if (vq->v_type != vp->v_type)
 				continue;
 			if (vq->v_specmountpoint != NULL) {
 				error = EBUSY;
