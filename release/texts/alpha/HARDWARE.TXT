@@ -89,7 +89,10 @@ dependent. For older PCI based machines this means you will need either
 a NCR/Symbios 53C810 based adapter, or a Qlogic 1020/1040 based adapter. 
 Some machines come with a SCSI chip embedded on the mainboard. Newer machine 
 designs and SRM versions will be able to work with later SCSI chips/adapters. 
-Check out the machine specific info below.
+Check out the machine specific info below. Please note that the rest 
+of this discussion only refers to Symbios chips, this is meant to include
+the older chips that still have NCR stamped on them. Symbios bought the NCR
+designs.
 
 The problem might bite those who have machines that started their lives as 
 WinNT boxes. The ARC or AlphaBIOS knows about *other* adapter types that it 
@@ -213,7 +216,7 @@ Features:
 - 1x embedded IDE interface
 - expansion: 3 32 bit PCI slots (1 shared with ISA)
 	     5 ISA slots (1 shared with PCI)
-- embedded Fast SCSI using a NCR/Symbios 53C810 chip
+- embedded Fast SCSI using a Symbios 53C810 chip
 
 SRM:
 NoNames can either have SRM *or* ARC console firmware in their Flash ROM.
@@ -282,7 +285,7 @@ Features:
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
 - expansion: 1 32 bit PCI slot, 2 PCMCIA slots
 - onboard Crystal CS4231 or AD1848 sound chip
-- embedded Fast SCSI using a NCR/Symbios 53C810 chip on the PCI riser card
+- embedded Fast SCSI using a Symbios 53C810 chip on the PCI riser card
 
 SRM/ARC:
 Multia has enough Flash ROM to store both SRM and ARC code at the same time
@@ -700,7 +703,7 @@ set:
 - 21072 ("APECS") chip set 
 - Intel 82378ZB PCI to ISA bridge chip ('Saturn')
 - dual 16550A serial ports
-- NCR/Symbios 53C810 Fast-SCSI
+- Symbios 53C810 Fast-SCSI
 - embedded 10 Mbit Ethernet
 - 2 PCI slots
 - 3 ISA slots
@@ -838,7 +841,7 @@ Features:
 - ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
   (some ISA/PCI slots are physically shared)
 - embedded 21040-based Ethernet (200 & 250 series)
-- embedded NCR/Symbios 53c810 Fast SCSI-2 chip
+- embedded Symbios 53c810 Fast SCSI-2 chip
 - Intel 82378IB ("Saturn") PCI-ISA bridge chip
 - graphics is embedded TGA or PCI VGA (model dependent)
 - 16 bit sound (on 200 & 250 series)
@@ -980,7 +983,7 @@ Features:
 	3 PCI, 2 EISA, 1 64-bit PCI/EISA combo (AS800)
   	7 PCI, 2 EISA (AS1000A)
  	2 PCI, 1 EISA/PCI, 7 EISA (AS1000)
-- embedded SCSI based on NCR/Symbios 810 [AS1000] or Qlogic 1020 [AS1000A]
+- embedded SCSI based on Symbios 810 [AS1000] or Qlogic 1020 [AS1000A]
 	
 Box:
 AS1000 based machines come in multiple boxes. Floor standing, rack-mount,
@@ -1157,7 +1160,7 @@ the SRM variable "usb_enable" is set to "on". You can change this by
 performing: "set usb_enable on" at the SRM >>> prompt.
 
 Expansion caveats:
-- Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+- Don't try to use Symbios-chip based SCSI adapters in the PCI slots
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
 from working correctly. 
 - Not all VGA cards will work behind the PCI-PCI bridge (so in slots 4 & 5). 
@@ -1213,9 +1216,9 @@ be installed in the DIMM slots marked '0' on the mainboard. The DIMM slots
 should be filled 'in order' so after bank 0 install in bank 1 and so on.
 
 Expansion:
-Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+Don't try to use Symbios-chip based SCSI adapters in the PCI slots
 connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
-from working correctly. DS20 ships by default with an NCR on hose 1 so you
+from working correctly. DS20 ships by default with a Symbios on hose 1 so you
 have to move this card before you can install/boot FreeBSD on it.
 
 The kernel config file must contain:
@@ -1336,7 +1339,7 @@ The SRM >>> SHOW FRU command produces an overview of your configuration
 with module serial numbers, hardware revisions and error log counts.
 
 Embedded SCSI:
-Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
+Both Sable, DemiSable and Lynx have Symbios 810 based Fast SCSI onboard.
 Check if it is set to Fast SCSI speed by >>> SHOW PKA0_FAST. If set to
 1 it is negotiating for Fast speeds. >>> SET PKA0_FAST 1 enables Fast
 speeds.
@@ -1424,14 +1427,14 @@ is allowed. A mix of EDO and SDRAM is also reported as working (assuming you
 don't try to mix EDO and SDRAM in one module pair).
 
 Embedded SCSI:
-Rawhide has an embedded NCR810 Fast SCSI bus.
+Rawhide has an embedded Symbios 810 Fast SCSI bus.
 
 Expansion:
 Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
 (called 'Saddle' modules). There are 2 seperate PCI buses, PCI0 and PCI1.
 PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
 PCI/EISA bridge that drives things like the serial and parallel ports,
-keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip. VGA
+keyboard/mouse etc. PCI1 has 4 PCI slots and an Symbios 810 SCSI chip. VGA
 console cards must be installed in a slot connected to PCI0.
 
 The current implementation has problems in handling PCI bridges. There is
@@ -1487,7 +1490,7 @@ physical memory map will contain 'holes'. Supported DIMM sizes are 64 Mbytes
 and 256 Mbytes. The DIMMs are 72 bit SDRAM based, as the system employs ECC.
 
 Embedded SCSI:
-AS1200 has an embedded NCR810 Fast SCSI bus.
+AS1200 has an embedded Symbios 810 Fast SCSI bus.
 
 Expansion:
 AS1200 has 5 64-bit PCI slots, one 1 32-bit PCI slot and one EISA slot
@@ -1495,7 +1498,7 @@ AS1200 has 5 64-bit PCI slots, one 1 32-bit PCI slot and one EISA slot
 There are 2 seperate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
 slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
 PCI/EISA bridge that drives things like the serial and parallel ports, 
-keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an NCR810 SCSI chip. 
+keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an Symbios 810 SCSI chip. 
 VGA console cards must be installed in a slot connected to PCI0.
 
 Power:
@@ -1685,7 +1688,7 @@ aware of bootability restrictions for IDE disks. See the machine specific
 information.
 
 - SCSI: full support via the CAM layer for Adaptec 2940x (AIC7xxx
-chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
+chip-based), Qlogic family and Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
 - FibreChannel: the Qlogic QL2x00 FibreChannel host adapters are fully
