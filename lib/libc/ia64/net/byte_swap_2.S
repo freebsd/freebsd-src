@@ -40,8 +40,9 @@
  * Argument is an unsigned 2-byte integer (u_int16_t).
  */
 ENTRY(NAME, 1)				/* in0  = 0x0123 */
-	extr.u	ret0=in0,8,8		/* ret0 = 0x  01 */
+	extr.u	r2=in0,8,8		/* r2   = 0x  01 */
+	dep	r3=in0,r0,8,8		/* r3   = 0x23   */
 	;; 
-	dep	ret0=ret0,in0,8,8	/* ret0 = 0x2301 */
+	or	ret0=r2,r3		/* ret0 = 0x2301 */
 	br.ret.sptk.few rp
 END(NAME)
