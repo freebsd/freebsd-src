@@ -87,16 +87,12 @@ case ${OSTYPE} in
 FreeBSD)
 	required_files=
 	
-	# I'd like to use checkyesno here, but for reason, sendmail_enable
-	# get's reset after run_rc_command
-	case ${sendmail_enable} in
-	[Nn][Oo]*)
+	if ! checkyesno sendmail_enable; then
 		name="sendmail_submit"
 		rcvar=`set_rcvar`
 		start_cmd="${command} ${sendmail_submit_flags}"
 		run_rc_command "$1"
-		;;
-	esac
+	fi
 
 	if ! checkyesno sendmail_outbound_enable; then
 		name="sendmail_outbound"
