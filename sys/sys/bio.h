@@ -100,7 +100,6 @@ struct buf {
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
-	unsigned char b_unused1;	/* unused field */
 	unsigned char b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
 	int	b_error;		/* Errno value. */
@@ -127,8 +126,8 @@ struct buf {
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
-	void	*b_caller1;		/* for private use by the driver */
-	void	*b_caller2;		/* for private use by the driver */
+	void	*b_caller1;		/* for private use by the caller */
+	void	*b_caller2;		/* for private use by the caller */
 	union	pager_info {
 		void	*pg_spc;
 		int	pg_reqpage;
