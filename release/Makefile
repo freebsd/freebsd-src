@@ -841,7 +841,7 @@ doSTDKERNEL:
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make depend && \
 			make ${KERNEL_FLAGS} KERNEL=${kernel} && \
-			make KERNEL=${kernel} DESTDIR=${RD}/kernels install && \
+			make KERNEL=${KERNEL} DESTDIR=${RD}/kernels install && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
 
