@@ -643,8 +643,8 @@ sched_switchout(struct thread *td)
 	ke = td->td_kse;
 
 	td->td_last_kse = ke;
-        td->td_lastcpu = ke->ke_oncpu;
-	ke->ke_oncpu = NOCPU;
+        td->td_lastcpu = td->td_oncpu;
+	td->td_oncpu = NOCPU;
         td->td_flags &= ~TDF_NEEDRESCHED;
 
 	if (TD_IS_RUNNING(td)) {
@@ -667,7 +667,7 @@ sched_switchin(struct thread *td)
 	/* struct kse *ke = td->td_kse; */
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
+	td->td_oncpu = PCPU_GET(cpuid);
 #if SCHED_STRICT_RESCHED
 	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 	    td->td_priority != td->td_ksegrp->kg_user_pri)
