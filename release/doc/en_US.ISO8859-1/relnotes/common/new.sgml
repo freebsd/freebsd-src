@@ -154,10 +154,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-	<para><application>sendmail</application> has been updated 
-	  from version 8.12.3 to version 8.12.4.</para>
-
       <para></para>
+
     </sect3>
   </sect2>
 
@@ -209,6 +207,9 @@
       <para>The FTP daemon from NetBSD, otherwise known as
 	<application>lukemftpd</application> 1.2 beta 1, has been imported and is
 	available as &man.lukemftpd.8;.</para>
+
+      <para><application>sendmail</application> has been updated 
+	from version 8.12.3 to version 8.12.4.</para>
 
     </sect3>
 
