@@ -107,9 +107,10 @@ VNDEVICE?=		vn0
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
-RD=			/R/stage
-FD=			/R/ftp
-CD=			/R/cdrom
+_R=			/R
+RD=			${_R}/stage
+FD=			${_R}/ftp
+CD=			${_R}/cdrom
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 
@@ -158,7 +159,7 @@ rerelease release:
 	-chflags -R noschg ${CHROOTDIR}/.
 	-rm -rf ${CHROOTDIR}
 .endif
-	-mkdir -p ${CHROOTDIR}
+	mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
@@ -245,7 +246,7 @@ rerelease release:
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
-	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
+	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
@@ -269,11 +270,11 @@ rerelease release:
 clean:
 	rm -rf boot_crunch ${.OBJDIR}/boot_crunch.conf release.[0-9]
 
-# Clean out /R and make the directory structure.
+# Clean out ${_R} and make the directory structure.
 release.1:
-	-mkdir /R
-	-chflags -R noschg /R/.
-	rm -rf /R/*
+	mkdir -p ${_R}
+	-chflags -R noschg ${_R}/.
+	rm -rf ${_R}/*
 	mkdir ${RD}
 	mkdir ${RD}/floppies
 .if ${MACHINE_ARCH} == "i386"
@@ -429,12 +430,10 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
-.if exists(${RD}/dists/des)
-	( cd ${RD}/dists/src && \
+	( test -d ${RD}/dists/des && cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; )
-.endif
 	@echo "src distribution is finished."
 .endif
 	touch release.7
