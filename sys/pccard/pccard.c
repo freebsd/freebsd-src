@@ -434,14 +434,13 @@ crdioctl_sresource(dev_t dev, caddr_t data)
 {
 	struct pccard_resource *pr;
 	struct resource *r;
-	int i;
-	int rid = 1;
-	int err;
+	int flags;
+	int rid = 0;
 	device_t bridgedev;
 
 	pr = (struct pccard_resource *)data;
 	pr->resource_addr = ~0ul;
-	bridgedev = device_get_parent(PCCARD_DEV2SOFTC(dev)->dev);
+	bridgedev = PCCARD_DEV2SOFTC(dev)->dev;
 	switch(pr->type) {
 	default:
 		return (EINVAL);
@@ -450,17 +449,12 @@ crdioctl_sresource(dev_t dev, caddr_t data)
 	case SYS_RES_IOPORT:
 		break;
 	}
-	for (i = pr->min; i + pr->size - 1 <= pr->max; i++) {
-		err = bus_set_resource(bridgedev, pr->type, rid, i, pr->size);
-		if (err != 0)
-			continue;
-		r = bus_alloc_resource(bridgedev, pr->type, &rid, 0ul, ~0ul,
-		    pr->size, 0);
-		if (r == NULL)
-			continue;
+	flags = rman_make_alignment_flags(pr->size);
+	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
+	   pr->size, flags);
+	if (r != NULL) {
 		pr->resource_addr = (u_long)rman_get_start(r);
 		bus_release_resource(bridgedev, pr->type, rid, r);
-		return (0);
 	}
 	return (0);
 }
