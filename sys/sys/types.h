@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.2 1994/08/02 07:53:59 davidg Exp $
+ * $Id: types.h,v 1.3 1994/09/16 11:44:45 paul Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -86,8 +86,13 @@ __END_DECLS
 #endif
 
 #ifndef _POSIX_SOURCE
+/*
+ * minor() gives a cookie instead of an index since we don't want to
+ * change the meanings of bits 0-15 or waste time and space shifting
+ * bits 16-31 for devices that don't use them.
+ */
 #define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#define	minor(x)	((int)((x)&0xff))		/* minor number */
+#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
 #define	makedev(x,y)	((dev_t)(((x)<<8) | (y)))	/* create dev_t */
 #endif
 
