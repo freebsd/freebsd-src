@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.640
+    Original revision: 1.644
 -->
 
 <articleinfo>
@@ -180,7 +180,7 @@
       &merged;</para>
 
     <para><application>OpenSSH</application> の
-      PAM チャレンジ/認証サブシステムにあったいくつかの誤りが修正されました。
+      PAM チャレンジ/レスポンス認証サブシステムにあったいくつかの誤りが修正されました。
       これらのバグの影響には、さまざまなものが存在します。
       詳細はセキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
@@ -244,7 +244,7 @@
       経由したパラレルポートへの接続に対応しました。</para>
 
     <para arch="i386,pc98">&man.safe.4; ドライバが追加されました。
-      これは SafeNet 1141、1741 ベースの
+      これは SafeNet 1141 ベース、1741 ベースの
       暗号処理アクセラレータに対応しています。
       &merged;
 
@@ -353,7 +353,7 @@
         拡張や新機能の追加が可能なように書き直されました。</para>
 
       <para>xe ドライバが CE2, CEM28, CEM33 カードに対応し、
-        マルチキャスト機能に対応しました。また、
+        マルチキャスト (&man.multicast.4;) データグラムに対応しました。また、
         ドライバにあったいくつかのバグも修正されています。</para>
     </sect3>
 
@@ -364,6 +364,10 @@
 	これを有効にすると、特定のネットワークインタフェースに送られる
 	すべての &man.ip.4; ブロードキャストを、
         強制的にリミテッドブロードキャストアドレスに向けることが可能です。</para>
+
+      <para>&man.ipfw.4; limit ルールの処理に含まれていた、
+        システムパニックを発生させる可能性のあるバグが修正されました。
+        &merged;</para>
 
       <para>&man.ipfw.4; ルールに、カンマで区切られたアドレスリスト
         (たとえば <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>)
@@ -395,12 +399,57 @@
 	HARP ATM スタックを動作させることができます。</para>
 
       <para>カーネルが
-	Protocol Independent Multicast ルーティングに対応しました。
+	Protocol Independent Multicast ルーティング (&man.pim.4;) に対応しました。
 	&merged;</para>
 
       <para>情報漏洩を防ぐため、フラグメンテーション (断片化) されない場合は
         IPv4 パケットの <varname>ip_id</varname>
         フィールドが設定されなくなりました。</para>
+
+      <para>&os; の Bluetooth プロトコルスタックが更新されました。</para>
+     
+      <itemizedlist>
+        <listitem>
+          <para><application>libsdp</application> が
+            BSD 風のライセンスで再実装されました。これは、
+            Linux BlueZ に含まれるコードが GPL で配布されていたためです。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hccontrol.8; ユーティリティが
+            Read/Write_Page_Scan_Mode、Read/Write_Page_Scan_Period_Mode
+            という 4 個の新しいコマンドに対応しました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hcsecd.8; デーモンが、
+            リンクキーをディスクに保存するようになりました。
+            毎回、デバイスを合わせる必要はなくなっています。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.ng.hci.4; および &man.ng.l2cap.4; カーネルモジュールに含まれていた、
+            解放されたデータ構造体にアクセスする可能性のあった
+            netgraph タイムアウト問題が修正されました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&os; &release.prev; で構築できなかった
+            &man.ng.ubt.4; モジュールが修正されました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.rfcomm.sppd.1; および &man.rfcomm.pppd.8; が、
+            サーバから SDP 経由で RFCOMM チャネルを取得できるようになりました。
+            RFCOMM チャネルを手動で設定すると、これらのユーティリティは SDP
+            経由での取得をおこないません。</para>
+        </listitem>
+
+        <listitem>
+          <para>Linux BlueZ SDP パッケージに含まれる sdptool ユーティリティに似た
+            &man.sdpcontrol.8; ユーティリティが追加されました。</para>
+        </listitem>
+      </itemizedlist>
    </sect3>
 
     <sect3 id="disks">
@@ -489,7 +538,7 @@
       <option>-G</option> オプションを使います。
       &merged;</para>
 
-    <para>devfs が必須となったため、dev_db ユーティリティは削除されました。</para>
+    <para>devfs が必須となったため、dev_mkdb ユーティリティは削除されました。</para>
 
     <para>&man.dhclient.8; が
       ネットワークインタフェースの状態をポーリングするようになり、

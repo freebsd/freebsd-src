@@ -27,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.183
+        Original revision: 1.184
 -->
 
 <sect1 id="support">
@@ -1617,7 +1617,7 @@
     <para arch="i386">Broadcom BCM4401 ベースの Fast Ethernet アダプタ
       (&man.bfe.4; ドライバ)</para>
 
-    <para arch="i386,pc98">RealTek RTL8139C+, RTL8169, RTL8169S,
+    <para arch="alpha,i386,pc98">RealTek RTL8139C+, RTL8169, RTL8169S,
       RTL8110S ベースの PCI Fast Ethernet および Gigabit Ethernet
       コントローラ (&man.re.4; ドライバ)</para>
 
