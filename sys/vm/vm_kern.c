@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.4 1994/08/06 09:15:38 davidg Exp $
+ * $Id: vm_kern.c,v 1.5 1994/08/07 13:10:39 davidg Exp $
  */
 
 /*
@@ -373,7 +373,6 @@ kmem_malloc(map, size, canwait)
 		vm_object_unlock(kmem_object);
 		pmap_kenter( addr + i, VM_PAGE_TO_PHYS(m));
 	}
-	pmap_update();
 	vm_map_unlock(map);
 
 	vm_map_simplify(map, addr);

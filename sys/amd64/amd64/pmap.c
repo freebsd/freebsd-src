@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.29 1994/08/06 10:25:36 davidg Exp $
+ *	$Id: pmap.c,v 1.30 1994/08/07 13:10:19 davidg Exp $
  */
 
 /*
@@ -695,7 +695,6 @@ pmap_alloc_pv_entry()
 			 * let the kernel see it
 			 */
 			pmap_kenter(pvva, VM_PAGE_TO_PHYS(m));
-			tlbflush();
 
 			entry = (pv_entry_t) pvva;
 			/*
@@ -1345,9 +1344,17 @@ pmap_kenter(va, pa)
 	register vm_offset_t pa;
 {
 	register pt_entry_t *pte;
+	int wasvalid = 0;
+
 	pte = vtopte(va);
 
+	if (*pte)
+		wasvalid++;
+
 	*pte = (pt_entry_t) ( (int) (pa | PG_RW | PG_V | PG_W));
+
+	if (wasvalid)
+		tlbflush();
 }
 
 /*
