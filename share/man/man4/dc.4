@@ -52,7 +52,7 @@ DEC/Intel 21143
 .It
 Macronix 98713, 98713A, 98715, 98715A and 98725
 .It
-Davicom DM9100 and DM9102
+Davicom DM9100, DM9102 and DM9102A
 .It
 ASIX Electronics AX88140A and AX88141
 .It
@@ -96,15 +96,20 @@ Digital DE500-BA 10/100 (21143, non-MII)
 .It
 Built in DE500-BA on DEC Alpha workstations (21143, non-MII)
 .It
+Built in 10Mbps only ethernet on Compaq Presario 7900 series
+desktops (21143, non-MII)
+.It
+Built in ethernet on LinkSys EtherFast 10/100 Instant GigaDrive (DM9102, MII)
+.It
 Kingston KNE100TX (21143, MII)
 .It
 D-Link DFE-570TX (21143, MII, quad port)
 .It
-NDC SOHOware SFA110 (98513A)
+NDC SOHOware SFA110 (98713A)
 .It
 SVEC PN102-TX (98713)
 .It
-CNet Pro120A (98715A or 9713A) and CNet Pro120B (98715)
+CNet Pro120A (98715A or 98713A) and CNet Pro120B (98715)
 .It
 Compex RL100-TX (98713 or 98713A)
 .It
@@ -293,7 +298,7 @@ is to work around problems with some NIC/PCI bus combinations where
 the PNIC can transmit corrupt frames when operating at 100Mbps,
 probably due to PCI DMA burst transfer errors.
 .Pp
-The 82c168 abd 82c169 PNIC chips also have a receiver bug that
+The 82c168 and 82c169 PNIC chips also have a receiver bug that
 sometimes manifests during periods of heavy receive and transmit
 activity, where the chip will improperly DMA received frames to
 the host. The chips appear to upload several kilobytes of garbage
