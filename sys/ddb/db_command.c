@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.17 1995/12/07 12:44:48 davidg Exp $
+ *	$Id: db_command.c,v 1.18 1995/12/10 19:07:49 bde Exp $
  */
 
 /*
@@ -35,6 +35,7 @@
  * Command dispatcher.
  */
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -58,7 +59,9 @@ db_addr_t	db_prev;
 db_addr_t	db_next;
 
 static db_cmdfcn_t	db_fncall;
+static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_panic;
+
 /*
  * if 'ed' style: 'dot' is set at start of last item printed,
  * and '+' points to next line.
@@ -366,6 +369,7 @@ static struct command db_command_table[] = {
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
 	{ "panic",	db_panic,		0,	0 },
+	{ "gdb",	db_gdb,			0,	0 },
 	{ (char *)0, }
 };
 
@@ -493,4 +497,20 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	retval = (*func)(args[0], args[1], args[2], args[3], args[4],
 			 args[5], args[6], args[7], args[8], args[9] );
 	db_printf("%#n\n", retval);
+}
+
+/* Enter GDB remote protocol debugger on the next trap. */
+
+static void
+db_gdb (dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
+{
+	boothowto ^= RB_GDB;
+
+	db_printf("Next trap will enter %s\n",
+		   boothowto & RB_GDB ? "GDB remote protocol mode"
+				      : "DDB debugger");
 }
