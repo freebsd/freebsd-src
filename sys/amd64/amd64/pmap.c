@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.132 1996/12/29 02:27:07 dyson Exp $
+ *	$Id: pmap.c,v 1.133 1997/01/11 07:19:02 dyson Exp $
  */
 
 /*
@@ -1863,15 +1863,20 @@ pmap_protect(pmap, sva, eva, prot)
 
 			unsigned pbits = ptbase[sindex];
 
-                       if (prot & VM_PROT_WRITE) {
-                               if ((pbits & (PG_RW|PG_V)) == PG_V) {
-                                       ptbase[sindex] = pbits | PG_RW;
-                                       anychanged = 1;
-                               }
-                       } else if (pbits & PG_RW) {
+			if (prot & VM_PROT_WRITE) {
+				if ((pbits & (PG_RW|PG_V)) == PG_V) {
+					if (pbits & PG_MANAGED) {
+						vm_page_t m = PHYS_TO_VM_PAGE(pbits);
+						m->flags |= PG_WRITEABLE;
+						m->object->flags |= OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY;
+					}
+					ptbase[sindex] = pbits | PG_RW;
+					anychanged = 1;
+				}
+			} else if (pbits & PG_RW) {
 				if (pbits & PG_M) {
 					vm_offset_t sva = i386_ptob(sindex);
-					if (pmap_track_modified(sva)) {
+					if ((pbits & PG_MANAGED) && pmap_track_modified(sva)) {
 						vm_page_t m = PHYS_TO_VM_PAGE(pbits);
 						m->dirty = VM_PAGE_BITS_ALL;
 					}
