@@ -902,7 +902,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		printf("%*llu %*llu ", pcwidth, align_uint64(&rule->pcnt),
 		    bcwidth, align_uint64(&rule->bcnt));
 
-	if (do_time) {
+	if (do_time == 2)
+		printf("%10u ", rule->timestamp);
+	else if (do_time == 1) {
 		char timestr[30];
 		time_t t = (time_t)0;
 
@@ -3667,7 +3669,7 @@ ipfw_main(int oldac, char **oldav)
 	save_av = av;
 
 	optind = optreset = 0;
-	while ((ch = getopt(ac, av, "acdefhnNqs:Stv")) != -1)
+	while ((ch = getopt(ac, av, "acdefhnNqs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
 			do_acct = 1;
@@ -3715,6 +3717,10 @@ ipfw_main(int oldac, char **oldav)
 
 		case 't':
 			do_time = 1;
+			break;
+
+		case 'T':
+			do_time = 2;	/* numeric timestamp */
 			break;
 
 		case 'v': /* verbose */
