@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.24 1995/05/25 01:22:16 jkh Exp $
+ * $Id: label.c,v 1.25 1995/05/25 18:48:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,7 +201,7 @@ get_mountpoint(struct chunk *old)
 
     val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
-    if (!val) {
+    if (!val || !*val) {
 	if (!old)
 	    return NULL;
 	else {
@@ -369,8 +369,7 @@ print_label_chunks(void)
 	    }
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
-	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ?
-		    label_chunk_info[i].c->size / ONE_MEG : 0);
+	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
@@ -495,8 +494,15 @@ diskLabelEditor(char *str)
 			size *= ONE_MEG;
 		    else if (toupper(*cp) == 'C')
 			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
-		    else if (*cp == '%')
-			size = sz * (size * 0.10);
+		    else if (*cp == '%') {
+			float fsz, fsize;
+
+			fsz = (float)sz;
+			fsize = (float)size;
+			fsize *= 0.10;
+			fsz *= fsize;
+			size = (int)fsz;
+		    }
 		}
 		type = get_partition_type();
 		if (type == PART_NONE)
