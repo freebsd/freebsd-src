@@ -303,7 +303,7 @@ static	swihand_t siopoll;
 static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
-static	int	siosetwater	__P((struct com_s *com, speed_t speed, int locked));
+static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
 static	void	comstop		__P((struct tty *tp, int rw));
 static	timeout_t comwakeup;
@@ -1113,6 +1113,7 @@ sioattach(dev, xrid)
 	int		rid;
 	struct resource *port;
 	int		ret;
+	int		intrstate;
 
 	rid = xrid;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -1181,7 +1182,10 @@ sioattach(dev, xrid)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
-	if (siosetwater(com, com->it_in.c_ispeed, 0) != 0) {
+	intrstate = save_intr();
+	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+		COM_UNLOCK();
+		restore_intr(intrstate);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1190,6 +1194,8 @@ sioattach(dev, xrid)
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
 	}
+	COM_UNLOCK();
+	restore_intr(intrstate);
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -2415,11 +2421,13 @@ comparam(tp, t)
 		sio_setreg(com, com_fifo, com->fifo_image);
 	}
 
+	/*
+	 * This returns with interrupts disabled so that we can complete
+	 * the speed change atomically.  Keeping interrupts disabled is
+	 * especially important while com_data is hidden.
+	 */
 	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
-
-	(void) siosetwater(com, t->c_ispeed, 1);
+	(void) siosetwater(com, t->c_ispeed);
 
 	if (divisor != 0) {
 		sio_setreg(com, com_cfcr, cfcr | CFCR_DLAB);
@@ -2517,17 +2525,19 @@ comparam(tp, t)
 	return (0);
 }
 
+/*
+ * This function must be called with interrupts enabled and the com_lock
+ * unlocked.  It will return with interrupts disabled and the com_lock locked.
+ */
 static int
-siosetwater(com, speed, locked)
+siosetwater(com, speed)
 	struct com_s	*com;
 	speed_t		speed;
-	int		locked;
 {
 	int		cp4ticks;
 	u_char		*ibuf;
 	int		ibufsize;
 	struct tty	*tp;
-	int		intrsave;
 
 	/*
 	 * Make the buffer size large enough to handle a softtty interrupt
@@ -2538,16 +2548,22 @@ siosetwater(com, speed, locked)
 	cp4ticks = speed / 10 / hz * 4;
 	for (ibufsize = 128; ibufsize < cp4ticks;)
 		ibufsize <<= 1;
-	if (ibufsize == com->ibufsize)
+	if (ibufsize == com->ibufsize) {
+		disable_intr();
+		COM_LOCK();
 		return (0);
+	}
 
 	/*
 	 * Allocate input buffer.  The extra factor of 2 in the size is
 	 * to allow for an error byte for each input byte.
 	 */
 	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
-	if (ibuf == NULL)
+	if (ibuf == NULL) {
+		disable_intr();
+		COM_LOCK();
 		return (ENOMEM);
+	}
 
 	/* Initialize non-critical variables. */
 	com->ibufold = com->ibuf;
@@ -2563,10 +2579,8 @@ siosetwater(com, speed, locked)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	intrsave = save_intr();
 	disable_intr();
-	if (!locked)
-		COM_LOCK();
+	COM_LOCK();
 	if (com->iptr != com->ibuf)
 		sioinput(com);
 
@@ -2585,9 +2599,6 @@ siosetwater(com, speed, locked)
 	com->ibufend = ibuf + ibufsize;
 	com->ierroff = ibufsize;
 	com->ihighwater = ibuf + 3 * ibufsize / 4;
-	if (!locked)
-		COM_UNLOCK();
-	restore_intr(intrsave);
 	return (0);
 }
 
