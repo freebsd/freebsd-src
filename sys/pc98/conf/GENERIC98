@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.64 1999/01/28 09:12:05 kato Exp $
+#	$Id: GENERIC98,v 1.65 1999/02/16 11:15:21 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -177,7 +177,7 @@ device		sio1	at isa? port 0x238 tty irq 5 flags 0x12000000
 #options	COM_ESP
 #device		sio1	at isa? port 0x18b0 tty irq 5 flags 0x19000000
 
-device		lpt0	at isa? port IO_LPT  tty
+#device		lpt0	at isa? port IO_LPT  tty
 device		mse0	at isa? port IO_MSE tty irq 13
 
 # Order is important here due to intrusive probes, do *not* alphabetize
