@@ -169,9 +169,8 @@ void	 srandom __P((unsigned long));
 void	 srandomdev __P((void));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
-long long
-	 strtoq __P((const char *, char **, int));
-unsigned long long
+int64_t	 strtoq __P((const char *, char **, int));
+u_int64_t
 	 strtouq __P((const char *, char **, int));
 #endif
 void	 unsetenv __P((const char *));
