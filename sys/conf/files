@@ -209,6 +209,7 @@ kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard
 kern/kern_descrip.c	standard
+kern/kern_environment.c	standard
 kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
@@ -237,6 +238,7 @@ kern/subr_devstat.c	standard
 kern/subr_diskslice.c	standard
 kern/subr_dkbad.c	standard
 kern/subr_log.c		standard
+kern/subr_module.c	standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
 kern/subr_rlist.c	standard
