@@ -41,6 +41,7 @@ my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 
 my $arch;			# Target architecture
 my $branch;			# CVS branch to checkou
+my $cvsup;			# Name of CVSup server
 my $date;			# Date of sources to check out
 my $jobs;			# Number of paralell jobs
 my $hostname;			# Name of the host running the tinderbox
@@ -133,28 +134,32 @@ sub remove_dir($);
 sub remove_dir($) {
     my $dir = shift;
 
-    if (!-d $dir) {
-	print("$dir\n")
+    if (-l $dir || !-d $dir) {
+	print("rm $dir\n")
 	    if ($verbose);
-	return (unlink($dir) || $! == ENOENT);
+	if (!unlink($dir) && $! != ENOENT) {
+	    return warning("$dir: $!");
+	}
+	return 1;
     }
 
     local *DIR;
     opendir(DIR, $dir)
 	or return warning("$dir: $!");
-    foreach my $ent (readdir(DIR)) {
-	next if ($ent eq '.' || $ent eq '..');
-	$ent =~ m/(.*)/;
-	if (!remove_dir("$dir/$1")) {
-	    closedir(DIR);
-	    return undef;
-	}
-    }
+    my @entries = readdir(DIR);
     closedir(DIR)
 	or return warning("$dir: $!");
-    print("$dir\n")
+    foreach my $ent (@entries) {
+	next if ($ent eq '.' || $ent eq '..');
+	$ent =~ m/(.*)/;
+	remove_dir("$dir/$1")
+	    or return undef;
+    }
+    print("rmdir $dir\n")
 	if ($verbose);
-    return rmdir($dir);
+    rmdir($dir)
+	or return warning("$dir: $!");
+    return 1;
 }
 
 sub make_dir($);
@@ -293,6 +298,7 @@ MAIN:{
     GetOptions(
 	"a|arch=s"	        => \$arch,
 	"b|branch=s"		=> \$branch,
+	"c|cvsup=s"		=> \$cvsup,
 	"d|date=s"		=> \$date,
 	"j|jobs=i"		=> \$jobs,
 	"l|logfile=s"		=> \$logfile,
@@ -353,6 +359,7 @@ MAIN:{
 	error("invalid sandbox directory");
     }
     $sandbox = "$1/$branch/$arch/$machine";
+    $ENV{'HOME'} = $sandbox;
     make_dir($sandbox)
 	or error("$sandbox: $!");
     my $lockfile = open_locked("$sandbox/lock", O_RDWR|O_CREAT);
@@ -388,33 +395,62 @@ MAIN:{
 	    or error("unable to remove old source directory");
 	remove_dir("$sandbox/obj")
 	    or error("unable to remove old object directory");
-# This will fail due to schg files - must clear flags before removing
-#	remove_dir("$sandbox/root")
-#	    or error("unable to remove old chroot directory");
+	spawn('/bin/chflags', '-R', '0', "$sandbox/root");
+	remove_dir("$sandbox/root")
+	    or error("unable to remove old chroot directory");
     }
 
     # Check out new source tree
     if ($cmds{'update'}) {
-	logstage("checking out the source tree");
-	cd("$sandbox");
-	my @cvsargs = (
-	    "-f",
-	    "-R",
-	    $verbose ? "-q" : "-Q",
-	    "-d$repository",
-	);
-	if (-d "$sandbox/src") {
-	    push(@cvsargs, "update", "-Pd");
+	if (defined($cvsup)) {
+	    logstage("cvsupping the source tree");
+	    local *SUPFILE;
+	    open(SUPFILE, ">", "$sandbox/supfile")
+		or error("$sandbox/supfile: $!");
+	    print(SUPFILE "*default host=$cvsup\n");
+	    print(SUPFILE "*default base=$sandbox\n");
+	    print(SUPFILE "*default prefix=$sandbox\n");
+	    print(SUPFILE "*default delete use-rel-suffix\n");
+	    print(SUPFILE "src-all release=cvs");
+	    if ($branch eq 'CURRENT') {
+		print(SUPFILE " tag=.");
+	    } else {
+		print(SUPFILE " tag=$branch");
+	    }
+	    print(SUPFILE " date=$date")
+		if defined($date);
+	    print(SUPFILE "\n");
+	    close(SUPFILE);
+	    my @cvsupargs = (
+	        "-1",
+		"-g",
+		"-L", ($verbose ? 2 : 1),
+		"$sandbox/supfile"
+	    );
+	    spawn('/usr/local/bin/cvsup', @cvsupargs)
+		or error("unable to cvsup the source tree");
 	} else {
-	    push(@cvsargs, "checkout", "-P");
-	};
-	push(@cvsargs, ($branch eq 'CURRENT') ? "-A" : "-r$branch")
-	    if defined($branch);
-	push(@cvsargs, "-D$date")
-	    if defined($date);
-	push(@cvsargs, "src");
-	spawn('/usr/bin/cvs', @cvsargs)
-	    or error("unable to check out the source tree");
+	    logstage("checking out the source tree");
+	    cd("$sandbox");
+	    my @cvsargs = (
+		"-f",
+		"-R",
+		$verbose ? "-q" : "-Q",
+		"-d$repository",
+	    );
+	    if (-d "$sandbox/src") {
+		push(@cvsargs, "update", "-Pd");
+	    } else {
+		push(@cvsargs, "checkout", "-P");
+	    };
+	    push(@cvsargs, ($branch eq 'CURRENT') ? "-A" : "-r$branch")
+		if defined($branch);
+	    push(@cvsargs, "-D$date")
+		if defined($date);
+	    push(@cvsargs, "src");
+	    spawn('/usr/bin/cvs', @cvsargs)
+		or error("unable to check out the source tree");
+	}
     }
 
     # Patch sources
