@@ -892,6 +892,7 @@ usage(const char *p)
 	fprintf(stderr, "usage:  %s -i iface\n", p);
 	fprintf(stderr, "\t%s -i iface -o\n", p);
 	fprintf(stderr, "\t%s -i iface -l\n", p);
+	fprintf(stderr, "\t%s -i iface -L\n", p);
 	fprintf(stderr, "\t%s -i iface -t tx rate\n", p);
 	fprintf(stderr, "\t%s -i iface -n network name\n", p);
 	fprintf(stderr, "\t%s -i iface -s station name\n", p);
