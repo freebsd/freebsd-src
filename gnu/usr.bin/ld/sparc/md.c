@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.7 1994/02/13 20:43:03 jkh Exp $
+ *	$Id: md.c,v 1.8 1994/06/15 22:41:19 rich Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,7 @@
 #include <stab.h>
 #include <string.h>
 
-#include "ld.h"
+#include "dynamic.h"
 
 /*
  * Relocation masks and sizes for the Sparc architecture.

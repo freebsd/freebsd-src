@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.h,v 1.6 1994/02/13 20:43:07 jkh Exp $
+ *	$Id: md.h,v 1.7 1995/03/04 17:46:25 nate Exp $
  */
 
 /*
@@ -290,3 +290,13 @@ void	md_swapout_jmpslot __P((jmpslot_t *, int));
 
 #endif /* CROSS_LINKER */
 
+void	md_init_header __P((struct exec *, int, int));
+long	md_get_addend __P((struct relocation_info *, unsigned char *));
+void	md_relocate __P((struct relocation_info *, long, unsigned char *, int));
+void	md_make_jmpslot __P((jmpslot_t *, long, long));
+void	md_fix_jmpslot __P((jmpslot_t *, long, u_long));
+int	md_make_reloc __P((struct relocation_info *, struct relocation_info *, int));
+void	md_make_jmpreloc __P((struct relocation_info *, struct relocation_info *, int));
+void	md_make_gotreloc __P((struct relocation_info *, struct relocation_info *, int));
+void	md_make_copyreloc __P((struct relocation_info *, struct relocation_info *));
+void	md_set_breakpoint __P((long, long *));
