@@ -663,6 +663,7 @@ display(f, lp)
 	fprintf(f, "tracks/cylinder: %d\n", lp->d_ntracks);
 	fprintf(f, "sectors/cylinder: %d\n", lp->d_secpercyl);
 	fprintf(f, "cylinders: %d\n", lp->d_ncylinders);
+	fprintf(f, "sectors/unit: %d\n", lp->d_secperunit);
 	fprintf(f, "rpm: %d\n", lp->d_rpm);
 	fprintf(f, "interleave: %d\n", lp->d_interleave);
 	fprintf(f, "trackskew: %d\n", lp->d_trackskew);
@@ -987,6 +988,16 @@ getasciilabel(f, lp)
 				errors++;
 			} else
 				lp->d_ncylinders = v;
+			continue;
+		}
+		if (streq(cp, "sectors/unit")) {
+			v = atoi(tp);
+			if (v <= 0) {
+				fprintf(stderr, "line %d: %s: bad %s\n",
+				    lineno, tp, cp);
+				errors++;
+			} else
+				lp->d_secperunit = v;
 			continue;
 		}
 		if (streq(cp, "rpm")) {
