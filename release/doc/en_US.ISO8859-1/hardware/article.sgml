@@ -89,7 +89,10 @@
 		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
+		<para>Promise SATA150 TX2/TX4 Serial ATA/150</para>
+	   </listitem>
+	   <listitem>
+		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000/TX4000</para>
 	   </listitem>
 	   <listitem>
 		<para>ServerWorks ROSB4 ATA33</para>
