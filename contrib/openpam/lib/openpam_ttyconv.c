@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#9 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#10 $
  */
 
 #include <sys/types.h>
@@ -160,9 +160,15 @@ openpam_ttyconv(int n,
 			break;
 		case PAM_ERROR_MSG:
 			fputs(msg[i]->msg, stderr);
+			if (strlen(msg[i]->msg) > 0 &&
+			    msg[i]->msg[strlen(msg[i]->msg) - 1] != '\n')
+				fputc('\n', stderr);
 			break;
 		case PAM_TEXT_INFO:
 			fputs(msg[i]->msg, stdout);
+			if (strlen(msg[i]->msg) > 0 &&
+			    msg[i]->msg[strlen(msg[i]->msg) - 1] != '\n')
+				fputc('\n', stdout);
 			break;
 		default:
 			goto fail;
