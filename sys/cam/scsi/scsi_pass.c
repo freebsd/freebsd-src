@@ -28,14 +28,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/buf.h>
-#include <sys/dkbad.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
