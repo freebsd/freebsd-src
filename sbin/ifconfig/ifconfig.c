@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <sys/module.h>
 #include <sys/linker.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -153,7 +154,7 @@ c_func	setifprefixlen;
 c_func	setip6flags;
 #endif
 c_func	setifipdst;
-c_func	setifflags, setifmetric, setifmtu;
+c_func	setifflags, setifmetric, setifmtu, setiflladdr;
 
 
 #define	NEXTARG		0xffffff
@@ -212,6 +213,7 @@ struct	cmd {
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
 	{ "mtu",	NEXTARG,	setifmtu },
+	{ "lladdr",	NEXTARG,	setiflladdr },
 	{ 0,		0,		setifaddr },
 	{ 0,		0,		setifdstaddr },
 };
@@ -815,6 +817,29 @@ setifmtu(val, dummy, s, afp)
 		warn("ioctl (set mtu)");
 }
 
+void
+setiflladdr(val, dummy, s, afp)
+	const char *val;
+	int dummy __unused;
+	int s;
+	const struct afswtch *afp;
+{
+	struct ether_addr	*ea;
+
+	ea = ether_aton(val);
+	if (ea == NULL) {
+		warn("malformed link-level address");
+		return;
+	}
+	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	ifr.ifr_addr.sa_len = ETHER_ADDR_LEN;
+	ifr.ifr_addr.sa_family = AF_LINK;
+	bcopy(ea, ifr.ifr_addr.sa_data, ETHER_ADDR_LEN);
+	if (ioctl(s, SIOCSIFLLADDR, (caddr_t)&ifr) < 0)
+		warn("ioctl (set lladdr)");
+
+	return;
+}
 
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
