@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.17 1997/04/13 06:44:24 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.18 1997/06/21 15:40:34 jkh Exp $
 #
 # The include file <bsd.subdir.mk> contains the default targets
 # for building subdirectories. It has the same seven targets
@@ -59,7 +59,7 @@ ${SUBDIR}::
 
 .for __target in all checkdpadd clean cleandir depend lint \
 		 maninstall obj objlink
-.if !target(__target)
+.if !target(${__target})
 ${__target}: _SUBDIRUSE
 .endif
 .endfor
