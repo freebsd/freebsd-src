@@ -620,7 +620,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	vm_object_t object;
 	vm_offset_t kva;
 	off_t foff, tfoff, nextoff;
-	int i, size, bsize, first, firstaddr;
+	int i, j, size, bsize, first, firstaddr;
 	struct vnode *dp;
 	int runpg;
 	int runend;
@@ -650,11 +650,11 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * if we can't bmap, use old VOP code
 	 */
 	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
-		for (i = 0; i < count; i++) {
-			if (i != reqpage) {
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
+			if (i != reqpage)
 				vm_page_free(m[i]);
-			}
-		}
+		vm_page_unlock_queues();
 		cnt.v_vnodein++;
 		cnt.v_vnodepgsin++;
 		return vnode_pager_input_old(object, m[reqpage]);
@@ -666,11 +666,11 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
-		for (i = 0; i < count; i++) {
-			if (i != reqpage) {
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
+			if (i != reqpage)
 				vm_page_free(m[i]);
-			}
-		}
+		vm_page_unlock_queues();
 		cnt.v_vnodein++;
 		cnt.v_vnodepgsin++;
 		return vnode_pager_input_smlfs(object, m[reqpage]);
@@ -682,10 +682,11 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * media.
 	 */
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		for (i = 0; i < count; i++) {
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
 			if (i != reqpage)
 				vm_page_free(m[i]);
-		}
+		vm_page_unlock_queues();
 		return VM_PAGER_OK;
 	}
 	m[reqpage]->valid = 0;
@@ -712,21 +713,25 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 				 (u_long)(u_int32_t)
 				 object->un_pager.vnp.vnp_size);
 			}
+			vm_page_lock_queues();
 			vm_page_free(m[i]);
+			vm_page_unlock_queues();
 			runend = i + 1;
 			first = runend;
 			continue;
 		}
 		runend = i + runpg;
 		if (runend <= reqpage) {
-			int j;
-			for (j = i; j < runend; j++) {
+			vm_page_lock_queues();
+			for (j = i; j < runend; j++)
 				vm_page_free(m[j]);
-			}
+			vm_page_unlock_queues();
 		} else {
 			if (runpg < (count - first)) {
+				vm_page_lock_queues();
 				for (i = first + runpg; i < count; i++)
 					vm_page_free(m[i]);
+				vm_page_unlock_queues();
 				count = first + runpg;
 			}
 			break;
