@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Wind River Systems, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>

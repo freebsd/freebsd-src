@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Paycounter, Inc.
  * Author: Alfred Perlstein <alfred@paycounter.com>, <alfred@FreeBSD.org>
  * All rights reserved.
