@@ -59,10 +59,18 @@ The
 .Nm
 utility exits with a status of 0 on success
 and with a nonzero status if an error occurs.
+.Sh AUTOMATICALLY LOADING MODULES
+Some modules (ipfw, ipf, etc) may be automatically loaded at boot
+time by having their operation enabled in
+.Xr rc.conf 5 . 
+Modules may also be auto-loaded through their addition to
+.Xr loader.conf 5 .
 .Sh SEE ALSO
 .Xr kldload 2 ,
 .Xr kldstat 8 ,
-.Xr kldunload 8
+.Xr kldunload 8 ,
+.Xr loader.conf 5 ,
+.Xr rc.conf 5
 .Sh HISTORY
 The
 .Nm
