@@ -46,7 +46,7 @@ editline.c: ${OSRCS}
 .depend: vi.h emacs.h common.h fcns.h help.h help.c
 
 
-test:	libedit.a test.o 
+test:	test.o libedit.a ${DPADD} ${LIBTERM}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD} -ltermcap
 
 .include <bsd.lib.mk>
