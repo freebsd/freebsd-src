@@ -237,10 +237,11 @@ random_kthread(void *arg __unused)
 {
 	STAILQ_HEAD(, harvest) local_queue;
 	struct harvest *event = NULL;
-	int active;
+	int active, local_count;
 	enum esource source;
 
 	STAILQ_INIT(&local_queue);
+	local_count = 0;
 
 	/* Process until told to stop */
 	for (; random_kthread_control == 0;) {
@@ -254,14 +255,9 @@ random_kthread(void *arg __unused)
 			 * Drain entropy source records into a thread-local
 			 * queue for processing while not holding the mutex.
 			 */
-			while ((event =
-			    STAILQ_FIRST(&harvestfifo[source].head)) != NULL) {
-				/* Get a harvested entropy event */
-				harvestfifo[source].count--;
-				STAILQ_REMOVE_HEAD(&harvestfifo[source].head,
-				    next);
-				STAILQ_INSERT_TAIL(&local_queue, event, next);
-			}
+			STAILQ_CONCAT(&local_queue, &harvestfifo[source].head);
+			local_count += harvestfifo[source].count;
+			harvestfifo[source].count = 0;
 		}
 
 		/*
@@ -274,13 +270,14 @@ random_kthread(void *arg __unused)
 			STAILQ_FOREACH(event, &local_queue, next)
 				random_process_event(event);
 			mtx_lock_spin(&harvest_mtx);
-			while ((event = STAILQ_FIRST(&local_queue)) != NULL) {
-				STAILQ_REMOVE_HEAD(&local_queue, next);
-				STAILQ_INSERT_TAIL(&emptyfifo.head, event,
-				    next);
-			}
+			STAILQ_CONCAT(&emptyfifo.head, &local_queue);
+			emptyfifo.count += local_count;
+			local_count = 0;
 		}
 		mtx_unlock_spin(&harvest_mtx);
+
+		KASSERT(local_count == 0, ("random_kthread: local_count %d",
+		    local_count));
 
 		/* Found nothing, so don't belabour the issue */
 		if (!active)
