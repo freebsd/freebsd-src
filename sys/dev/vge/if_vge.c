@@ -680,7 +680,7 @@ vge_probe(dev)
 		if ((pci_get_vendor(dev) == t->vge_vid) &&
 		    (pci_get_device(dev) == t->vge_did)) {
 			device_set_desc(dev, t->vge_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

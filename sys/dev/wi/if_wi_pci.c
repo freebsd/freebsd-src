@@ -128,7 +128,7 @@ wi_pci_probe(dev)
 			(pci_get_device(dev) == pci_ids[i].device)) {
 			sc->wi_bus_type = pci_ids[i].bus_type;
 			device_set_desc(dev, pci_ids[i].desc);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return(ENXIO);
