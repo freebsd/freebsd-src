@@ -79,9 +79,7 @@ no_lease_updatetime(deltat)
 void (*lease_updatetime)(int)  = no_lease_updatetime;
 
 static int
-settime(td, tv)
-	struct thread *td;
-	struct timeval *tv;
+settime(struct thread *td, struct timeval *tv)
 {
 	struct timeval delta, tv1, tv2;
 	static struct timeval maxtime, laststep;
@@ -154,9 +152,7 @@ struct clock_gettime_args {
  */
 /* ARGSUSED */
 int
-clock_gettime(td, uap)
-	struct thread *td;
-	struct clock_gettime_args *uap;
+clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
 
@@ -180,9 +176,7 @@ struct clock_settime_args {
  */
 /* ARGSUSED */
 int
-clock_settime(td, uap)
-	struct thread *td;
-	struct clock_settime_args *uap;
+clock_settime(struct thread *td, struct clock_settime_args *uap)
 {
 	struct timeval atv;
 	struct timespec ats;
@@ -210,9 +204,7 @@ struct clock_getres_args {
 #endif
 
 int
-clock_getres(td, uap)
-	struct thread *td;
-	struct clock_getres_args *uap;
+clock_getres(struct thread *td, struct clock_getres_args *uap)
 {
 	struct timespec ts;
 	int error;
@@ -231,9 +223,7 @@ clock_getres(td, uap)
 static int nanowait;
 
 static int
-nanosleep1(td, rqt, rmt)
-	struct thread *td;
-	struct timespec *rqt, *rmt;
+nanosleep1(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
 	struct timespec ts, ts2, ts3;
 	struct timeval tv;
@@ -281,9 +271,7 @@ struct nanosleep_args {
  */
 /* ARGSUSED */
 int
-nanosleep(td, uap)
-	struct thread *td;
-	struct nanosleep_args *uap;
+nanosleep(struct thread *td, struct nanosleep_args *uap)
 {
 	struct timespec rmt, rqt;
 	int error;
@@ -324,9 +312,7 @@ struct gettimeofday_args {
  */
 /* ARGSUSED */
 int
-gettimeofday(td, uap)
-	struct thread *td;
-	register struct gettimeofday_args *uap;
+gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 {
 	struct timeval atv;
 	int error = 0;
@@ -354,9 +340,7 @@ struct settimeofday_args {
  */
 /* ARGSUSED */
 int
-settimeofday(td, uap)
-	struct thread *td;
-	struct settimeofday_args *uap;
+settimeofday(struct thread *td, struct settimeofday_args *uap)
 {
 	struct timeval atv;
 	struct timezone atz;
@@ -416,9 +400,7 @@ struct getitimer_args {
  */
 /* ARGSUSED */
 int
-getitimer(td, uap)
-	struct thread *td;
-	register struct getitimer_args *uap;
+getitimer(struct thread *td, struct getitimer_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
@@ -467,14 +449,12 @@ struct setitimer_args {
  */
 /* ARGSUSED */
 int
-setitimer(td, uap)
-	struct thread *td;
-	register struct setitimer_args *uap;
+setitimer(struct thread *td, struct setitimer_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct itimerval aitv;
 	struct timeval ctv;
-	register struct itimerval *itvp;
+	struct itimerval *itvp;
 	int s, error = 0;
 
 	if (uap->which > ITIMER_PROF)
@@ -535,10 +515,9 @@ done2:
  * interrupt even when we're delayed.
  */
 void
-realitexpire(arg)
-	void *arg;
+realitexpire(void *arg)
 {
-	register struct proc *p;
+	struct proc *p;
 	struct timeval ctv, ntv;
 	int s;
 
@@ -576,8 +555,7 @@ realitexpire(arg)
  * than the resolution of the clock, round it up.)
  */
 int
-itimerfix(tv)
-	struct timeval *tv;
+itimerfix(struct timeval *tv)
 {
 
 	if (tv->tv_sec < 0 || tv->tv_sec > 100000000 ||
@@ -599,9 +577,7 @@ itimerfix(tv)
  * on which it is operating cannot change in value.
  */
 int
-itimerdecr(itp, usec)
-	register struct itimerval *itp;
-	int usec;
+itimerdecr(struct itimerval *itp, int usec)
 {
 
 	if (itp->it_value.tv_usec < usec) {
@@ -639,8 +615,7 @@ expire:
  * Caveat emptor.
  */
 void
-timevaladd(t1, t2)
-	struct timeval *t1, *t2;
+timevaladd(struct timeval *t1, struct timeval *t2)
 {
 
 	t1->tv_sec += t2->tv_sec;
@@ -649,8 +624,7 @@ timevaladd(t1, t2)
 }
 
 void
-timevalsub(t1, t2)
-	struct timeval *t1, *t2;
+timevalsub(struct timeval *t1, struct timeval *t2)
 {
 
 	t1->tv_sec -= t2->tv_sec;
@@ -659,8 +633,7 @@ timevalsub(t1, t2)
 }
 
 static void
-timevalfix(t1)
-	struct timeval *t1;
+timevalfix(struct timeval *t1)
 {
 
 	if (t1->tv_usec < 0) {
