@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
-.\"	$Id: shutdown.8,v 1.7 1998/12/11 10:25:55 bde Exp $
+.\"	$Id: shutdown.8,v 1.8 1998/12/11 10:35:38 bde Exp $
 .\"
 .Dd Dec 11, 1998
 .Dt SHUTDOWN 8
@@ -110,7 +110,7 @@ and starting at ten hours before shutdown, warning messages are displayed
 on the terminals of all users logged in.  Five minutes before
 shutdown, or immediately if shutdown is in less than 5 minutes,
 logins are disabled by creating
-.Pa /etc/nologin
+.Pa /var/run/nologin
 and copying the
 warning message there.  If this file exists when a user attempts to
 log in,
@@ -129,13 +129,13 @@ to bring the system down to single-user state (depending on above
 options).
 The time of the shutdown and the warning message
 are placed in
-.Pa /etc/nologin
+.Pa /var/run/nologin
 and should be used to
 inform the users about when the system will be back up
 and why it is going down (or anything else).
 .Sh FILES
-.Bl -tag -width /etc/nologin -compact
-.It Pa /etc/nologin
+.Bl -tag -width /var/run/nologin -compact
+.It Pa /var/run/nologin
 tells login not to let anyone log in
 .El
 .Sh SEE ALSO
