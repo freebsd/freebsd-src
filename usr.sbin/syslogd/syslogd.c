@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.37 1998/07/02 19:35:40 guido Exp $";
+	"$Id: syslogd.c,v 1.38 1998/07/06 20:28:08 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -67,6 +67,8 @@ static const char rcsid[] =
  * more extensive changes by Eric Allman (again)
  * Extension to log by program name as well as facility and priority
  *   by Peter da Silva.
+ * -u and -v by Harlan Stenn.
+ * Priority comparison code by Harlan Stenn.
  */
 
 #define	MAXLINE		1024		/* maximum line length */
@@ -146,6 +148,10 @@ struct filed {
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
+	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
+#define PRI_LT	0x1
+#define PRI_EQ	0x2
+#define PRI_GT	0x4
 	char	*f_program;		/* program this applies to */
 	union {
 		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
@@ -258,6 +264,10 @@ char	bootfile[MAXLINE+1];	/* booted kernel file */
 struct allowedpeer *AllowedPeers;
 int	NumAllowed = 0;		/* # of AllowedPeer entries */
 
+int	UniquePriority = 0;	/* Only log specified priority? */
+int	LogFacPri = 0;		/* Put facility and priority in log message: */
+				/* 0=no, 1=numeric, 2=names */
+
 int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
@@ -293,7 +303,7 @@ main(argc, argv)
 	struct timeval tv, *tvp;
 	pid_t ppid;
 
-	while ((ch = getopt(argc, argv, "a:dl:sf:m:p:")) != -1)
+	while ((ch = getopt(argc, argv, "a:dl:f:m:p:suv")) != -1)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
@@ -321,6 +331,12 @@ main(argc, argv)
 				fprintf(stderr,
 				   "syslogd: out of descriptors, ignoring %s\n",
 					optarg);
+			break;
+		case 'u':		/* only log specified priority */
+		        UniquePriority++;
+			break;
+		case 'v':		/* log facility and priority */
+		  	LogFacPri++;
 			break;
 		case '?':
 		default:
@@ -507,7 +523,7 @@ usage()
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: syslogd [-ds] [-a allowed_peer] [-f config_file]",
+		"usage: syslogd [-dsuv] [-a allowed_peer] [-f config_file]",
 		"               [-m mark_interval] [-p log_socket]",
 		"               [-l log_socket]");
 	exit(1);
@@ -677,8 +693,11 @@ logmsg(pri, msg, from, flags)
 	}
 	for (f = Files; f; f = f->f_next) {
 		/* skip messages that are incorrect priority */
-		if (f->f_pmask[fac] < prilev ||
-		    f->f_pmask[fac] == INTERNAL_NOPRI)
+		if (!(((f->f_pcmp[fac] & PRI_EQ) && (f->f_pmask[fac] == prilev))
+		     ||((f->f_pcmp[fac] & PRI_LT) && (f->f_pmask[fac] < prilev))
+		     ||((f->f_pcmp[fac] & PRI_GT) && (f->f_pmask[fac] > prilev))
+		     )
+		    || f->f_pmask[fac] == INTERNAL_NOPRI)
 			continue;
 		/* skip messages with the incorrect program name */
 		if(f->f_program)
@@ -742,7 +761,7 @@ fprintlog(f, flags, msg)
 	int flags;
 	char *msg;
 {
-	struct iovec iov[6];
+	struct iovec iov[7];
 	struct iovec *v;
 	int l;
 	char line[MAXLINE + 1], repbuf[80], greetings[200];
@@ -766,6 +785,49 @@ fprintlog(f, flags, msg)
 		v->iov_len = 1;
 		v++;
 	}
+
+	if (LogFacPri) {
+	  	static char fp_buf[30];	/* Hollow laugh */
+		int fac = f->f_prevpri & LOG_FACMASK;
+		int pri = LOG_PRI(f->f_prevpri);
+		char *f_s = 0;
+		char f_n[5];	/* Hollow laugh */
+		char *p_s = 0;
+		char p_n[5];	/* Hollow laugh */
+
+		if (LogFacPri > 1) {
+		  CODE *c;
+
+		  for (c = facilitynames; c; c++) {
+		    if (c->c_val == fac) {
+		      f_s = c->c_name;
+		      break;
+		    }
+		  }
+		  for (c = prioritynames; c; c++) {
+		    if (c->c_val == pri) {
+		      p_s = c->c_name;
+		      break;
+		    }
+		  }
+		}
+		if (!f_s) {
+		  snprintf(f_n, sizeof f_n, "%d", LOG_FAC(fac));
+		  f_s = f_n;
+		}
+		if (!p_s) {
+		  snprintf(p_n, sizeof p_n, "%d", pri);
+		  p_s = p_n;
+		}
+		snprintf(fp_buf, sizeof fp_buf, "<%s.%s> ", f_s, p_s);
+		v->iov_base = fp_buf;
+		v->iov_len = strlen(fp_buf);
+	} else {
+	        v->iov_base="";
+		v->iov_len = 0;
+	}
+	v++;
+
 	v->iov_base = f->f_prevhost;
 	v->iov_len = strlen(v->iov_base);
 	v++;
@@ -823,7 +885,7 @@ fprintlog(f, flags, msg)
 		dprintf(" %s\n", f->f_un.f_fname);
 		v->iov_base = "\n";
 		v->iov_len = 1;
-		if (writev(f->f_file, iov, 6) < 0) {
+		if (writev(f->f_file, iov, 7) < 0) {
 			int e = errno;
 			(void)close(f->f_file);
 			f->f_type = F_UNUSED;
@@ -845,7 +907,7 @@ fprintlog(f, flags, msg)
 				break;
 			}
 		}
-		if (writev(f->f_file, iov, 6) < 0) {
+		if (writev(f->f_file, iov, 7) < 0) {
 			int e = errno;
 			(void)close(f->f_file);
 			if (f->f_un.f_pipe.f_pid > 0)
@@ -869,7 +931,7 @@ fprintlog(f, flags, msg)
 		v->iov_len = 2;
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(iov, 6, f->f_un.f_fname, 10))) {
+		if ((msgret = ttymsg(iov, 7, f->f_un.f_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -918,7 +980,7 @@ wallmsg(f, iov)
 		strncpy(line, ut.ut_line, sizeof(ut.ut_line));
 		line[sizeof(ut.ut_line)] = '\0';
 		if (f->f_type == F_WALL) {
-			if ((p = ttymsg(iov, 6, line, TTYMSGTIME)) != NULL) {
+			if ((p = ttymsg(iov, 7, line, TTYMSGTIME)) != NULL) {
 				errno = 0;	/* already in msg */
 				logerror(p);
 			}
@@ -930,7 +992,7 @@ wallmsg(f, iov)
 				break;
 			if (!strncmp(f->f_un.f_uname[i], ut.ut_name,
 			    UT_NAMESIZE)) {
-				if ((p = ttymsg(iov, 6, line, TTYMSGTIME))
+				if ((p = ttymsg(iov, 7, line, TTYMSGTIME))
 								!= NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
@@ -1304,10 +1366,40 @@ cfline(line, f, prog)
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t';) {
+		int pri_done;
+		int pri_cmp;
 
 		/* find the end of this facility name list */
 		for (q = p; *q && *q != '\t' && *q++ != '.'; )
 			continue;
+
+		/* get the priority comparison */
+		pri_cmp = 0;
+		pri_done = 0;
+		while (!pri_done) {
+			switch (*q) {
+			case '<':
+				pri_cmp |= PRI_LT;
+				q++;
+				break;
+			case '=':
+				pri_cmp |= PRI_EQ;
+				q++;
+				break;
+			case '>':
+				pri_cmp |= PRI_GT;
+				q++;
+				break;
+			default:
+				pri_done++;
+				break;
+			}
+		}
+		if (!pri_cmp)
+			pri_cmp = (UniquePriority)
+				  ? (PRI_EQ)
+				  : (PRI_EQ | PRI_GT)
+				  ;
 
 		/* collect priority name */
 		for (bp = buf; *q && !strchr("\t,;", *q); )
@@ -1336,9 +1428,12 @@ cfline(line, f, prog)
 			for (bp = buf; *p && !strchr("\t,;.", *p); )
 				*bp++ = *p++;
 			*bp = '\0';
+
 			if (*buf == '*')
-				for (i = 0; i < LOG_NFACILITIES; i++)
+				for (i = 0; i < LOG_NFACILITIES; i++) {
 					f->f_pmask[i] = pri;
+					f->f_pcmp[i] = pri_cmp;
+				}
 			else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
@@ -1349,6 +1444,7 @@ cfline(line, f, prog)
 					return;
 				}
 				f->f_pmask[i >> 3] = pri;
+				f->f_pcmp[i >> 3] = pri_cmp;
 			}
 			while (*p == ',' || *p == ' ')
 				p++;
