@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id: telnet.1,v 1.9 1997/12/27 18:58:27 steve Exp $
+.\"	$Id: telnet.1,v 1.10 1998/12/14 22:40:38 billf Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -49,6 +49,7 @@ protocol
 .Op Fl k Ar realm
 .Op Fl l Ar user
 .Op Fl n Ar tracefile
+.Op Fl s Ar src_addr
 .Oo
 .Ar host
 .Op Ar port
@@ -184,6 +185,12 @@ mode, the escape character is set to the tilde (~) character,
 unless modified by the
 .Fl e
 option.
+.It Fl s Ar src_addr
+Set the source IP address for the
+.Nm
+connection to
+.Ar src_addr ,
+which can be an IP address or a host name.
 .It Fl x
 Turns on encryption of the data stream if possible.  This
 option is not available outside of the United States and
