@@ -9,4 +9,8 @@ SUBDIR= adjkerntz badsect clri comcontrol disklabel dmesg dump dumpfs dumplfs \
 	nfsiod nologin ping quotacheck reboot restore route savecore \
 	shutdown slattach startslip swapon tunefs umount
 
+. if !defined(NOLKM)
+SUBDIR+= ip_mroute_mod
+.endif
+
 .include <bsd.subdir.mk>
