@@ -1,7 +1,5 @@
 /*
- * ++Copyright++ 1985, 1990, 1993
- * -
- * Copyright (c) 1985, 1990, 1993
+ * Copyright (c) 1985
  *    The Regents of the University of California.  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
@@ -49,7 +49,9 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1995 by International Business Machines, Inc.
  *
  * International Business Machines, Inc. (hereinafter called IBM) grants
@@ -72,176 +74,60 @@
  * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
- * --Copyright--
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid[] = "From: Id: res_debug.c,v 8.20 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_debug.c,v 1.13 1997/02/22 15:00:31 peter Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 8.20 1998/02/13 01:11:34 halley Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include "res_config.h"
-
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
 #include <ctype.h>
+#include <errno.h>
+#include <math.h>
 #include <netdb.h>
 #include <resolv.h>
 #include <stdio.h>
-#include <time.h>
-
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#define SPRINTF(x) sprintf x
 
 extern const char *_res_opcodes[];
 extern const char *_res_resultcodes[];
-
-/* XXX: we should use getservbyport() instead. */
-static const char *
-dewks(wks)
-	int wks;
-{
-	static char nbuf[20];
-
-	switch (wks) {
-	case 5: return "rje";
-	case 7: return "echo";
-	case 9: return "discard";
-	case 11: return "systat";
-	case 13: return "daytime";
-	case 15: return "netstat";
-	case 17: return "qotd";
-	case 19: return "chargen";
-	case 20: return "ftp-data";
-	case 21: return "ftp";
-	case 23: return "telnet";
-	case 25: return "smtp";
-	case 37: return "time";
-	case 39: return "rlp";
-	case 42: return "name";
-	case 43: return "whois";
-	case 53: return "domain";
-	case 57: return "apts";
-	case 59: return "apfs";
-	case 67: return "bootps";
-	case 68: return "bootpc";
-	case 69: return "tftp";
-	case 77: return "rje";
-	case 79: return "finger";
-	case 87: return "link";
-	case 95: return "supdup";
-	case 100: return "newacct";
-	case 101: return "hostnames";
-	case 102: return "iso-tsap";
-	case 103: return "x400";
-	case 104: return "x400-snd";
-	case 105: return "csnet-ns";
-	case 109: return "pop-2";
-	case 111: return "sunrpc";
-	case 113: return "auth";
-	case 115: return "sftp";
-	case 117: return "uucp-path";
-	case 119: return "nntp";
-	case 121: return "erpc";
-	case 123: return "ntp";
-	case 133: return "statsrv";
-	case 136: return "profile";
-	case 144: return "NeWS";
-	case 161: return "snmp";
-	case 162: return "snmp-trap";
-	case 170: return "print-srv";
-	default: (void) sprintf(nbuf, "%d", wks); return (nbuf);
-	}
-}
-
-/* XXX: we should use getprotobynumber() instead. */
-static const char *
-deproto(protonum)
-	int protonum;
-{
-	static char nbuf[20];
-
-	switch (protonum) {
-	case 1: return "icmp";
-	case 2: return "igmp";
-	case 3: return "ggp";
-	case 5: return "st";
-	case 6: return "tcp";
-	case 7: return "ucl";
-	case 8: return "egp";
-	case 9: return "igp";
-	case 11: return "nvp-II";
-	case 12: return "pup";
-	case 16: return "chaos";
-	case 17: return "udp";
-	default: (void) sprintf(nbuf, "%d", protonum); return (nbuf);
-	}
-}
-
-static const u_char *
-do_rrset(msg, len, cp, cnt, pflag, file, hs)
-	int cnt, pflag, len;
-	const u_char *cp, *msg;
-	const char *hs;
-	FILE *file;
-{
-	int n;
-	int sflag;
-
-	/*
-	 * Print answer records.
-	 */
-	sflag = (_res.pfcode & pflag);
-	if ((n = ntohs(cnt)) != 0) {
-		if ((!_res.pfcode) ||
-		    ((sflag) && (_res.pfcode & RES_PRF_HEAD1)))
-			fprintf(file, hs);
-		while (--n >= 0) {
-			if ((!_res.pfcode) || sflag) {
-				cp = p_rr(cp, msg, file);
-			} else {
-				unsigned int dlen;
-				cp += __dn_skipname(cp, cp + MAXCDNAME);
-				cp += INT16SZ;
-				cp += INT16SZ;
-				cp += INT32SZ;
-				dlen = _getshort((u_char*)cp);
-				cp += INT16SZ;
-				cp += dlen;
-			}
-			if ((cp - msg) > len)
-				return (NULL);
-		}
-		if ((!_res.pfcode) ||
-		    ((sflag) && (_res.pfcode & RES_PRF_HEAD1)))
-			putc('\n', file);
-	}
-	return (cp);
-}
-
-void
-__p_query(msg)
-	const u_char *msg;
-{
-	__fp_query(msg, stdout);
-}
+extern const char *_res_sectioncodes[];
 
 /*
  * Print the current options.
- * This is intended to be primarily a debugging routine.
  */
 void
-__fp_resstat(statp, file)
-	struct __res_state *statp;
-	FILE *file;
-{
-	register u_long mask;
+fp_resstat(struct __res_state *statp, FILE *file) {
+	u_long mask;
 
 	fprintf(file, ";; res options:");
 	if (!statp)
@@ -252,152 +138,146 @@ __fp_resstat(statp, file)
 	putc('\n', file);
 }
 
+static void
+do_section(ns_msg *handle, ns_sect section, int pflag, FILE *file) {
+	int n, sflag, rrnum;
+	char buf[2048];	/* XXX need to malloc */
+	ns_opcode opcode;
+	ns_rr rr;
+
+	/*
+	 * Print answer records.
+	 */
+	sflag = (_res.pfcode & pflag);
+	if (_res.pfcode && !sflag)
+		return;
+
+	opcode = ns_msg_getflag(*handle, ns_f_opcode);
+	rrnum = 0;
+	for (;;) {
+		if (ns_parserr(handle, section, rrnum, &rr)) {
+			if (errno != ENODEV)
+				fprintf(file, ";; ns_parserr: %s\n",
+					strerror(errno));
+			else if (rrnum > 0 && sflag != 0 &&
+				 (_res.pfcode & RES_PRF_HEAD1))
+				putc('\n', file);
+			return;
+		}
+		if (rrnum == 0 && sflag != 0 && (_res.pfcode & RES_PRF_HEAD1))
+			fprintf(file, ";; %s SECTION:\n",
+				p_section(section, opcode));
+		if (section == ns_s_qd)
+			fprintf(file, ";;\t%s, type = %s, class = %s\n",
+				ns_rr_name(rr),
+				p_type(ns_rr_type(rr)),
+				p_class(ns_rr_class(rr)));
+		else {
+			n = ns_sprintrr(handle, &rr, NULL, NULL,
+					buf, sizeof buf);
+			if (n < 0) {
+				fprintf(file, ";; ns_sprintrr: %s\n",
+					strerror(errno));
+				return;
+			}
+			fputs(buf, file);
+			fputc('\n', file);
+		}
+		rrnum++;
+	}
+}
+
+void
+p_query(const u_char *msg) {
+	fp_query(msg, stdout);
+}
+
+void
+fp_query(const u_char *msg, FILE *file) {
+	fp_nquery(msg, PACKETSZ, file);
+}
+
 /*
  * Print the contents of a query.
  * This is intended to be primarily a debugging routine.
  */
 void
-__fp_nquery(msg, len, file)
-	const u_char *msg;
-	int len;
-	FILE *file;
-{
-	register const u_char *cp, *endMark;
-	register const HEADER *hp;
-	register int n;
+fp_nquery(const u_char *msg, int len, FILE *file) {
+	ns_msg handle;
+	int n, qdcount, ancount, nscount, arcount;
+	u_int opcode, rcode, id;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
 		return;
 
-#define TruncTest(x) if (x > endMark) goto trunc
-#define	ErrorTest(x) if (x == NULL) goto error
+	if (ns_initparse(msg, len, &handle) < 0) {
+		fprintf(file, ";; ns_initparse: %s\n", strerror(errno));
+		return;
+	}
+	opcode = ns_msg_getflag(handle, ns_f_opcode);
+	rcode = ns_msg_getflag(handle, ns_f_rcode);
+	id = ns_msg_id(handle);
+	qdcount = ns_msg_count(handle, ns_s_qd);
+	ancount = ns_msg_count(handle, ns_s_an);
+	nscount = ns_msg_count(handle, ns_s_ns);
+	arcount = ns_msg_count(handle, ns_s_ar);
 
 	/*
 	 * Print header fields.
 	 */
-	hp = (HEADER *)msg;
-	cp = msg + HFIXEDSZ;
-	endMark = msg + len;
-	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEADX) || hp->rcode) {
-		fprintf(file, ";; ->>HEADER<<- opcode: %s, status: %s, id: %d",
-			_res_opcodes[hp->opcode],
-			_res_resultcodes[hp->rcode],
-			ntohs(hp->id));
-		putc('\n', file);
-	}
+	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEADX) || rcode)
+		fprintf(file,
+			";; ->>HEADER<<- opcode: %s, status: %s, id: %d\n",
+			_res_opcodes[opcode], _res_resultcodes[rcode], id);
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEADX))
 		putc(';', file);
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEAD2)) {
 		fprintf(file, "; flags:");
-		if (hp->qr)
+		if (ns_msg_getflag(handle, ns_f_qr))
 			fprintf(file, " qr");
-		if (hp->aa)
+		if (ns_msg_getflag(handle, ns_f_aa))
 			fprintf(file, " aa");
-		if (hp->tc)
+		if (ns_msg_getflag(handle, ns_f_tc))
 			fprintf(file, " tc");
-		if (hp->rd)
+		if (ns_msg_getflag(handle, ns_f_rd))
 			fprintf(file, " rd");
-		if (hp->ra)
+		if (ns_msg_getflag(handle, ns_f_ra))
 			fprintf(file, " ra");
-		if (hp->unused)
-			fprintf(file, " UNUSED-BIT-ON");
-		if (hp->ad)
+		if (ns_msg_getflag(handle, ns_f_z))
+			fprintf(file, " ??");
+		if (ns_msg_getflag(handle, ns_f_ad))
 			fprintf(file, " ad");
-		if (hp->cd)
+		if (ns_msg_getflag(handle, ns_f_cd))
 			fprintf(file, " cd");
 	}
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEAD1)) {
-		fprintf(file, "; Ques: %d", ntohs(hp->qdcount));
-		fprintf(file, ", Ans: %d", ntohs(hp->ancount));
-		fprintf(file, ", Auth: %d", ntohs(hp->nscount));
-		fprintf(file, ", Addit: %d", ntohs(hp->arcount));
+		fprintf(file, "; %s: %d",
+			p_section(ns_s_qd, opcode), qdcount);
+		fprintf(file, ", %s: %d",
+			p_section(ns_s_an, opcode), ancount);
+		fprintf(file, ", %s: %d",
+			p_section(ns_s_ns, opcode), nscount);
+		fprintf(file, ", %s: %d",
+			p_section(ns_s_ar, opcode), arcount);
 	}
 	if ((!_res.pfcode) || (_res.pfcode & 
 		(RES_PRF_HEADX | RES_PRF_HEAD2 | RES_PRF_HEAD1))) {
 		putc('\n',file);
 	}
 	/*
-	 * Print question records.
+	 * Print the various sections.
 	 */
-	if ((n = ntohs(hp->qdcount)) != 0) {
-		if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-			fprintf(file, ";; QUESTIONS:\n");
-		while (--n >= 0) {
-			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-				fprintf(file, ";;\t");
-			TruncTest(cp);
-			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-				cp = p_cdnname(cp, msg, len, file);
-			else {
-				int n;
-				char name[MAXDNAME];
-
-				if ((n = dn_expand(msg, msg+len, cp, name,
-						sizeof name)) < 0)
-					cp = NULL;
-				else
-					cp += n;
-			}
-			ErrorTest(cp);
-			TruncTest(cp);
-			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-				fprintf(file, ", type = %s",
-					__p_type(_getshort((u_char*)cp)));
-			cp += INT16SZ;
-			TruncTest(cp);
-			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-				fprintf(file, ", class = %s\n",
-					__p_class(_getshort((u_char*)cp)));
-			cp += INT16SZ;
-			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
-				putc('\n', file);
-		}
-	}
-	/*
-	 * Print authoritative answer records
-	 */
-	TruncTest(cp);
-	cp = do_rrset(msg, len, cp, hp->ancount, RES_PRF_ANS, file,
-		      ";; ANSWERS:\n");
-	ErrorTest(cp);
-
-	/*
-	 * print name server records
-	 */
-	TruncTest(cp);
-	cp = do_rrset(msg, len, cp, hp->nscount, RES_PRF_AUTH, file,
-		      ";; AUTHORITY RECORDS:\n");
-	ErrorTest(cp);
-
-	TruncTest(cp);
-	/*
-	 * print additional records
-	 */
-	cp = do_rrset(msg, len, cp, hp->arcount, RES_PRF_ADD, file,
-		      ";; ADDITIONAL RECORDS:\n");
-	ErrorTest(cp);
-	return;
- trunc:
-	fprintf(file, "\n;; ...truncated\n");
-	return;
- error:
-	fprintf(file, "\n;; ...malformed\n");
-}
-
-void
-__fp_query(msg, file)
-	const u_char *msg;
-	FILE *file;
-{
-	fp_nquery(msg, PACKETSZ, file);
+	do_section(&handle, ns_s_qd, RES_PRF_QUES, file);
+	do_section(&handle, ns_s_an, RES_PRF_ANS, file);
+	do_section(&handle, ns_s_ns, RES_PRF_AUTH, file);
+	do_section(&handle, ns_s_ar, RES_PRF_ADD, file);
+	if (qdcount == 0 && ancount == 0 &&
+	    nscount == 0 && arcount == 0)
+		putc('\n', file);
 }
 
 const u_char *
-__p_cdnname(cp, msg, len, file)
-	const u_char *cp, *msg;
-	int len;
-	FILE *file;
-{
+p_cdnname(const u_char *cp, const u_char *msg, int len, FILE *file) {
 	char name[MAXDNAME];
 	int n;
 
@@ -411,19 +291,15 @@ __p_cdnname(cp, msg, len, file)
 }
 
 const u_char *
-__p_cdname(cp, msg, file)
-	const u_char *cp, *msg;
-	FILE *file;
-{
+p_cdname(const u_char *cp, const u_char *msg, FILE *file) {
 	return (p_cdnname(cp, msg, PACKETSZ, file));
 }
-
 
 /* Return a fully-qualified domain name from a compressed name (with
    length supplied).  */
 
 const u_char *
-__p_fqnname(cp, msg, msglen, name, namelen)
+p_fqnname(cp, msg, msglen, name, namelen)
 	const u_char *cp, *msg;
 	int msglen;
 	char *name;
@@ -433,422 +309,28 @@ __p_fqnname(cp, msg, msglen, name, namelen)
 
 	if ((n = dn_expand(msg, cp + msglen, cp, name, namelen)) < 0)
 		return (NULL);
-	newlen = strlen (name);
-	if (newlen == 0 || name[newlen - 1] != '.')
-		if (newlen+1 >= namelen)	/* Lack space for final dot */
+	newlen = strlen(name);
+	if (newlen == 0 || name[newlen - 1] != '.') {
+		if (newlen + 1 >= namelen)	/* Lack space for final dot */
 			return (NULL);
 		else
 			strcpy(name + newlen, ".");
+	}
 	return (cp + n);
 }
 
-/* XXX:	the rest of these functions need to become length-limited, too. (vix)
- */
+/* XXX:	the rest of these functions need to become length-limited, too. */
 
 const u_char *
-__p_fqname(cp, msg, file)
-	const u_char *cp, *msg;
-	FILE *file;
-{
+p_fqname(const u_char *cp, const u_char *msg, FILE *file) {
 	char name[MAXDNAME];
 	const u_char *n;
 
-	n = __p_fqnname(cp, msg, MAXCDNAME, name, sizeof name);
+	n = p_fqnname(cp, msg, MAXCDNAME, name, sizeof name);
 	if (n == NULL)
 		return (NULL);
 	fputs(name, file);
 	return (n);
-}
-
-/*
- * Print resource record fields in human readable form.
- */
-const u_char *
-__p_rr(cp, msg, file)
-	const u_char *cp, *msg;
-	FILE *file;
-{
-	int type, class, dlen, n, c;
-	struct in_addr inaddr;
-	const u_char *cp1, *cp2;
-	u_int32_t tmpttl, t;
-	int lcnt;
-	u_int16_t keyflags;
-	char rrname[MAXDNAME];		/* The fqdn of this RR */
-	char base64_key[MAX_KEY_BASE64];
-
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (NULL);
-	}
-	cp = __p_fqnname(cp, msg, MAXCDNAME, rrname, sizeof rrname);
-	if (!cp)
-		return (NULL);			/* compression error */
-	fputs(rrname, file);
-	
-	type = _getshort((u_char*)cp);
-	cp += INT16SZ;
-	class = _getshort((u_char*)cp);
-	cp += INT16SZ;
-	tmpttl = _getlong((u_char*)cp);
-	cp += INT32SZ;
-	dlen = _getshort((u_char*)cp);
-	cp += INT16SZ;
-	cp1 = cp;
-	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_TTLID))
-		fprintf(file, "\t%lu", (u_long)tmpttl);
-	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_CLASS))
-		fprintf(file, "\t%s", __p_class(class));
-	fprintf(file, "\t%s", __p_type(type));
-	/*
-	 * Print type specific data, if appropriate
-	 */
-	switch (type) {
-	case T_A:
-		switch (class) {
-		case C_IN:
-		case C_HS:
-			bcopy(cp, (char *)&inaddr, INADDRSZ);
-			if (dlen == 4) {
-				fprintf(file, "\t%s", inet_ntoa(inaddr));
-				cp += dlen;
-			} else if (dlen == 7) {
-				char *address;
-				u_char protocol;
-				u_short port;
-
-				address = inet_ntoa(inaddr);
-				cp += INADDRSZ;
-				protocol = *(u_char*)cp;
-				cp += sizeof (u_char);
-				port = _getshort((u_char*)cp);
-				cp += INT16SZ;
-				fprintf(file, "\t%s\t; proto %d, port %d",
-					address, protocol, port);
-			}
-			break;
-		default:
-			cp += dlen;
-		}
-		break;
-	case T_CNAME:
-	case T_MB:
-	case T_MG:
-	case T_MR:
-	case T_NS:
-	case T_PTR:
-		putc('\t', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-
-	case T_HINFO:
-	case T_ISDN:
-		cp2 = cp + dlen;
-		(void) fputs("\t\"", file);
-		if ((n = (unsigned char) *cp++) != 0) {
-			for (c = n; c > 0 && cp < cp2; c--) {
-				if (strchr("\n\"\\", *cp))
-					(void) putc('\\', file);
-				(void) putc(*cp++, file);
-			}
-		}
-		putc('"', file);
-		if (cp < cp2 && (n = (unsigned char) *cp++) != 0) {
-			(void) fputs ("\t\"", file);
-			for (c = n; c > 0 && cp < cp2; c--) {
-				if (strchr("\n\"\\", *cp))
-					(void) putc('\\', file);
-				(void) putc(*cp++, file);
-			}
-			putc('"', file);
-		} else if (type == T_HINFO) {
-			(void) fputs("\"?\"", file);
-			fprintf(file, "\n;; *** Warning *** OS-type missing");
-		}
-		break;
-
-	case T_SOA:
-		putc('\t', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		putc(' ', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		fputs(" (\n", file);
-		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file, "\t\t\t%lu\t; serial\n", (u_long)t);
-		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file, "\t\t\t%lu\t; refresh (%s)\n",
-			(u_long)t, __p_time(t));
-		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file, "\t\t\t%lu\t; retry (%s)\n",
-			(u_long)t, __p_time(t));
-		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file, "\t\t\t%lu\t; expire (%s)\n",
-			(u_long)t, __p_time(t));
-		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file, "\t\t\t%lu )\t; minimum (%s)",
-			(u_long)t, __p_time(t));
-		break;
-
-	case T_MX:
-	case T_AFSDB:
-	case T_RT:
-		fprintf(file, "\t%d ", _getshort((u_char*)cp));
-		cp += INT16SZ;
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-
-	case T_PX:
-		fprintf(file, "\t%d ", _getshort((u_char*)cp));
-		cp += INT16SZ;
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		putc(' ', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-
-	case T_X25:
-		cp2 = cp + dlen;
-		(void) fputs("\t\"", file);
-		if ((n = (unsigned char) *cp++) != 0) {
-			for (c = n; c > 0 && cp < cp2; c--) {
-				if (strchr("\n\"\\", *cp))
-					(void) putc('\\', file);
-				(void) putc(*cp++, file);
-			}
-		}
-		putc('"', file);
-		break;
-
-	case T_TXT:
-		(void) putc('\t', file);
-		cp2 = cp1 + dlen;
-		while (cp < cp2) {
-			putc('"', file);
-			if ((n = (unsigned char) *cp++) != '\0') {
-				for (c = n; c > 0 && cp < cp2; c--) {
-					if (strchr("\n\"\\", *cp))
-						(void) putc('\\', file);
-					(void) putc(*cp++, file);
-				}
-			}
-			putc('"', file);
-			if (cp < cp2)
-				putc(' ', file);
-		}
-		break;
-
-	case T_NSAP:
-		(void) fprintf(file, "\t%s", inet_nsap_ntoa(dlen, cp, NULL));
-		cp += dlen;
-		break;
-
-	case T_AAAA: {
-		char t[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"];
-
-		fprintf(file, "\t%s", inet_ntop(AF_INET6, cp, t, sizeof t));
-		cp += dlen;
-		break;
-	    }
-
-	case T_LOC: {
-		char t[255];
-
-		fprintf(file, "\t%s", loc_ntoa(cp, t));
-		cp += dlen;
-		break;
-	    }
-
-	case T_NAPTR: {
-		u_int order, preference;
-
-		order = _getshort(cp);  cp += INT16SZ;
-		preference   = _getshort(cp);  cp += INT16SZ;
-		fprintf(file, "\t%u %u ",order, preference);
-		/* Flags */
-		n = *cp++;
-		fprintf(file,"\"%.*s\" ", (int)n, cp);
-		cp += n;
-		/* Service */
-		n = *cp++;
-		fprintf(file,"\"%.*s\" ", (int)n, cp);
-		cp += n;
-		/* Regexp */
-		n = *cp++;
-		fprintf(file,"\"%.*s\" ", (int)n, cp);
-		cp += n;
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-	    }
-
-	case T_SRV: {
-		u_int priority, weight, port;
-
-		priority = _getshort(cp);  cp += INT16SZ;
-		weight   = _getshort(cp);  cp += INT16SZ;
-		port     = _getshort(cp);  cp += INT16SZ;
-		fprintf(file, "\t%u %u %u ", priority, weight, port);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-	    }
-
-	case T_MINFO:
-	case T_RP:
-		putc('\t', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		putc(' ', file);
-		if ((cp = p_fqname(cp, msg, file)) == NULL)
-			return (NULL);
-		break;
-
-	case T_UINFO:
-		putc('\t', file);
-		fputs((char *)cp, file);
-		cp += dlen;
-		break;
-
-	case T_UID:
-	case T_GID:
-		if (dlen == 4) {
-			fprintf(file, "\t%u", _getlong((u_char*)cp));
-			cp += INT32SZ;
-		}
-		break;
-
-	case T_WKS:
-		if (dlen < INT32SZ + 1)
-			break;
-		bcopy(cp, (char *)&inaddr, INADDRSZ);
-		cp += INT32SZ;
-		fprintf(file, "\t%s %s ( ",
-			inet_ntoa(inaddr),
-			deproto((int) *cp));
-		cp += sizeof (u_char);
-		n = 0;
-		lcnt = 0;
-		while (cp < cp1 + dlen) {
-			c = *cp++;
-			do {
-				if (c & 0200) {
-					if (lcnt == 0) {
-						fputs("\n\t\t\t", file);
-						lcnt = 5;
-					}
-					fputs(dewks(n), file);
-					putc(' ', file);
-					lcnt--;
-				}
-				c <<= 1;
-			} while (++n & 07);
-		}
-		putc(')', file);
-		break;
-
-	case T_KEY:
-		putc('\t', file);
-		keyflags = _getshort(cp);
-		cp += 2;
-		fprintf(file,"0x%04x", keyflags );	/* flags */
-		fprintf(file," %u", *cp++);	/* protocol */
-		fprintf(file," %u (", *cp++);	/* algorithm */
-
-		n = b64_ntop(cp, (cp1 + dlen) - cp,
-			     base64_key, sizeof base64_key);
-		for (c = 0; c < n; ++c) {
-			if (0 == (c & 0x3F))
-				fprintf(file, "\n\t");
-			putc(base64_key[c], file);  /* public key data */
-		}
-
-		fprintf(file, " )");
-		if (n < 0)
-			fprintf(file, "\t; BAD BASE64");
-		fflush(file);
-		cp = cp1 + dlen;
-		break;
-
-	case T_SIG:
-	        type = _getshort((u_char*)cp);
-		cp += INT16SZ;
-		fprintf(file, " %s", p_type(type));
-		fprintf(file, "\t%d", *cp++);	/* algorithm */
-		/* Check label value and print error if wrong. */
-		n = *cp++;
-		c = dn_count_labels (rrname);
-		if (n != c)
-			fprintf(file, "\t; LABELS WRONG (%d should be %d)\n\t",
-				n, c);
-		/* orig ttl */
-		n = _getlong((u_char*)cp);
-		if (n != tmpttl)
-			fprintf(file, " %u", n);
-		cp += INT32SZ;
-		/* sig expire */
-		fprintf(file, " (\n\t%s",
-				     __p_secstodate(_getlong((u_char*)cp)));
-		cp += INT32SZ;
-		/* time signed */
-		fprintf(file, " %s", __p_secstodate(_getlong((u_char*)cp)));
-		cp += INT32SZ;
-		/* sig footprint */
-		fprintf(file," %u ", _getshort((u_char*)cp));
-		cp += INT16SZ;
-		/* signer's name */
-		cp = p_fqname(cp, msg, file);
-		n = b64_ntop(cp, (cp1 + dlen) - cp,
-			     base64_key, sizeof base64_key);
-		for (c = 0; c < n; c++) {
-			if (0 == (c & 0x3F))
-				fprintf (file, "\n\t");
-			putc(base64_key[c], file);		/* signature */
-		}
-		/* Clean up... */
-		fprintf(file, " )");
-		if (n < 0)
-			fprintf(file, "\t; BAD BASE64");
-		fflush(file);
-		cp = cp1+dlen;
-		break;
-
-#ifdef ALLOW_T_UNSPEC
-	case T_UNSPEC:
-		{
-			int NumBytes = 8;
-			u_char *DataPtr;
-			int i;
-
-			if (dlen < NumBytes) NumBytes = dlen;
-			fprintf(file, "\tFirst %d bytes of hex data:",
-				NumBytes);
-			for (i = 0, DataPtr = cp; i < NumBytes; i++, DataPtr++)
-				fprintf(file, " %x", *DataPtr);
-			cp += dlen;
-		}
-		break;
-#endif /* ALLOW_T_UNSPEC */
-
-	default:
-		fprintf(file, "\t?%d?", type);
-		cp += dlen;
-	}
-#if 0
-	fprintf(file, "\t; dlen=%d, ttl %s\n", dlen, __p_time(tmpttl));
-#else
-	putc('\n', file);
-#endif
-	if (cp - cp1 != dlen) {
-		fprintf(file, ";; packet size error (found %d, dlen was %d)\n",
-			cp - cp1, dlen);
-		cp = NULL;
-	}
-	return (cp);
 }
 
 /*
@@ -862,7 +344,27 @@ const struct res_sym __p_class_syms[] = {
 	{C_HS,		"HS"},
 	{C_HS,		"HESIOD"},
 	{C_ANY,		"ANY"},
+	{C_NONE,	"NONE"},
 	{C_IN, 		(char *)0}
+};
+
+/*
+ * Names of message sections.
+ */
+const struct res_sym __p_default_section_syms[] = {
+	{ns_s_qd,	"QUERY"},
+	{ns_s_an,	"ANSWER"},
+	{ns_s_ns,	"AUTHORITY"},
+	{ns_s_ar,	"ADDITIONAL"},
+	{0,             (char *)0}
+};
+
+const struct res_sym __p_update_section_syms[] = {
+	{S_ZONE,	"ZONE"},
+	{S_PREREQ,	"PREREQUISITE"},
+	{S_UPDATE,	"UPDATE"},
+	{S_ADDT,	"ADDITIONAL"},
+	{0,             (char *)0}
 };
 
 /*
@@ -909,24 +411,14 @@ const struct res_sym __p_type_syms[] = {
 	{T_AXFR,	"AXFR",		"zone transfer"},
 	{T_MAILB,	"MAILB",	"mailbox-related data (deprecated)"},
 	{T_MAILA,	"MAILA",	"mail agent (deprecated)"},
-	{T_UINFO,	"UINFO",	"user information (nonstandard)"},
-	{T_UID,		"UID",		"user ID (nonstandard)"},
-	{T_GID,		"GID",		"group ID (nonstandard)"},
 	{T_NAPTR,	"NAPTR",	"URN Naming Authority"},
-#ifdef ALLOW_T_UNSPEC
-	{T_UNSPEC,	"UNSPEC",	"unspecified data (nonstandard)"},
-#endif /* ALLOW_T_UNSPEC */
 	{T_ANY,		"ANY",		"\"any\""},
 	{0, 		NULL,		NULL}
 };
 
 int
-__sym_ston(syms, name, success)
-	const struct res_sym *syms;
-	char *name;
-	int *success;
-{
-	for (NULL; syms->name != 0; syms++) {
+sym_ston(const struct res_sym *syms, const char *name, int *success) {
+	for ((void)NULL; syms->name != 0; syms++) {
 		if (strcasecmp (name, syms->name) == 0) {
 			if (success)
 				*success = 1;
@@ -939,14 +431,10 @@ __sym_ston(syms, name, success)
 }
 
 const char *
-__sym_ntos(syms, number, success)
-	const struct res_sym *syms;
-	int number;
-	int *success;
-{
+sym_ntos(const struct res_sym *syms, int number, int *success) {
 	static char unname[20];
 
-	for (NULL; syms->name != 0; syms++) {
+	for ((void)NULL; syms->name != 0; syms++) {
 		if (number == syms->number) {
 			if (success)
 				*success = 1;
@@ -954,22 +442,17 @@ __sym_ntos(syms, number, success)
 		}
 	}
 
-	sprintf (unname, "%d", number);
+	sprintf(unname, "%d", number);
 	if (success)
 		*success = 0;
 	return (unname);
 }
 
-
 const char *
-__sym_ntop(syms, number, success)
-	const struct res_sym *syms;
-	int number;
-	int *success;
-{
+sym_ntop(const struct res_sym *syms, int number, int *success) {
 	static char unname[20];
 
-	for (NULL; syms->name != 0; syms++) {
+	for ((void)NULL; syms->name != 0; syms++) {
 		if (number == syms->number) {
 			if (success)
 				*success = 1;
@@ -983,32 +466,44 @@ __sym_ntop(syms, number, success)
 }
 
 /*
- * Return a string for the type
+ * Return a string for the type.
  */
 const char *
-__p_type(type)
-	int type;
-{
-	return (__sym_ntos (__p_type_syms, type, (int *)0));
+p_type(int type) {
+	return (sym_ntos(__p_type_syms, type, (int *)0));
 }
 
 /*
- * Return a mnemonic for class
+ * Return a string for the type.
  */
 const char *
-__p_class(class)
-	int class;
-{
-	return (__sym_ntos (__p_class_syms, class, (int *)0));
+p_section(int section, int opcode) {
+	const struct res_sym *symbols;
+
+	switch (opcode) {
+	case ns_o_update:
+		symbols = __p_update_section_syms;
+		break;
+	default:
+		symbols = __p_default_section_syms;
+		break;
+	}
+	return (sym_ntos(symbols, section, (int *)0));
+}
+
+/*
+ * Return a mnemonic for class.
+ */
+const char *
+p_class(int class) {
+	return (sym_ntos(__p_class_syms, class, (int *)0));
 }
 
 /*
  * Return a mnemonic for an option
  */
 const char *
-__p_option(option)
-	u_long option;
-{
+p_option(u_long option) {
 	static char nbuf[40];
 
 	switch (option) {
@@ -1030,55 +525,17 @@ __p_option(option)
 }
 
 /*
- * Return a mnemonic for a time to live
+ * Return a mnemonic for a time to live.
  */
 const char *
-p_time(value)
-	u_int32_t value;
-{
+p_time(u_int32_t value) {
 	static char nbuf[40];
-	int secs, mins, hours, days;
-	register char *p;
 
-	if (value == 0) {
-		strcpy(nbuf, "0 secs");
-		return (nbuf);
-	}
-
-	secs = value % 60;
-	value /= 60;
-	mins = value % 60;
-	value /= 60;
-	hours = value % 24;
-	value /= 24;
-	days = value;
-	value = 0;
-
-#define	PLURALIZE(x)	x, (x == 1) ? "" : "s"
-	p = nbuf;
-	if (days) {
-		(void)sprintf(p, "%d day%s", PLURALIZE(days));
-		while (*++p);
-	}
-	if (hours) {
-		if (days)
-			*p++ = ' ';
-		(void)sprintf(p, "%d hour%s", PLURALIZE(hours));
-		while (*++p);
-	}
-	if (mins) {
-		if (days || hours)
-			*p++ = ' ';
-		(void)sprintf(p, "%d min%s", PLURALIZE(mins));
-		while (*++p);
-	}
-	if (secs || ! (days || hours || mins)) {
-		if (days || hours || mins)
-			*p++ = ' ';
-		(void)sprintf(p, "%d sec%s", PLURALIZE(secs));
-	}
+	if (ns_format_ttl(value, nbuf, sizeof nbuf) < 0)
+		sprintf(nbuf, "%u", value);
 	return (nbuf);
 }
+
 
 /*
  * routines to convert between on-the-wire RR format and zone file format.
@@ -1112,47 +569,40 @@ static u_int8_t
 precsize_aton(strptr)
 	char **strptr;
 {
+	unsigned int mval = 0, cmval = 0;
 	u_int8_t retval = 0;
 	char *cp;
-	int exponent = 0;
-	int mantissa = 0;
+	int exponent;
+	int mantissa;
 
 	cp = *strptr;
-	while (isdigit(*cp)) {
-		if (mantissa == 0)
-			mantissa = *cp - '0';
-		else
-			exponent++;
-		cp++;
-	}
 
-	if (*cp == '.') {
+	while (isdigit(*cp))
+		mval = mval * 10 + (*cp++ - '0');
+
+	if (*cp == '.') {		/* centimeters */
 		cp++;
 		if (isdigit(*cp)) {
-			if (mantissa == 0)
-				mantissa = *cp - '0';
-			else
-				exponent++;
-			cp++;
-
+			cmval = (*cp++ - '0') * 10;
 			if (isdigit(*cp)) {
-				if (mantissa == 0)
-					mantissa = *cp - '0';
-				else
-					exponent++;
-				cp++;
+				cmval += (*cp++ - '0');
 			}
-			else
-				exponent++;
 		}
 	}
-	else
-		exponent += 2;
+	cmval = (mval * 100) + cmval;
 
-	if (mantissa == 0)
-		exponent = 0;
+	for (exponent = 0; exponent < 9; exponent++)
+		if (cmval < poweroften[exponent+1])
+			break;
+
+	mantissa = cmval / poweroften[exponent];
+	if (mantissa > 9)
+		mantissa = 9;
+
 	retval = (mantissa << 4) | exponent;
+
 	*strptr = cp;
+
 	return (retval);
 }
 
@@ -1162,7 +612,7 @@ latlon2ul(latlonstrptr,which)
 	char **latlonstrptr;
 	int *which;
 {
-	register char *cp;
+	char *cp;
 	u_int32_t retval;
 	int deg = 0, min = 0, secs = 0, secsfrac = 0;
 
@@ -1373,14 +823,14 @@ loc_ntoa(binary, ascii)
 	char *ascii;
 {
 	static char *error = "?";
-	register const u_char *cp = binary;
+	const u_char *cp = binary;
 
 	int latdeg, latmin, latsec, latsecfrac;
 	int longdeg, longmin, longsec, longsecfrac;
 	char northsouth, eastwest;
 	int altmeters, altfrac, altsign;
 
-	const int referencealt = 100000 * 100;
+	const u_int32_t referencealt = 100000 * 100;
 
 	int32_t latval, longval, altval;
 	u_int32_t templ;
@@ -1391,7 +841,7 @@ loc_ntoa(binary, ascii)
 	versionval = *cp++;
 
 	if (versionval) {
-		sprintf(ascii, "; error: unknown LOC RR version");
+		(void) sprintf(ascii, "; error: unknown LOC RR version");
 		return (ascii);
 	}
 
@@ -1472,14 +922,12 @@ loc_ntoa(binary, ascii)
 
 /* Return the number of DNS hierarchy levels in the name. */
 int
-__dn_count_labels(name)
-	char *name;
-{
+dn_count_labels(const char *name) {
 	int i, len, count;
 
 	len = strlen(name);
-
-	for(i = 0, count = 0; i < len; i++) {
+	for (i = 0, count = 0; i < len; i++) {
+		/* XXX need to check for \. or use named's nlabels(). */
 		if (name[i] == '.')
 			count++;
 	}
@@ -1503,9 +951,7 @@ __dn_count_labels(name)
  * SIG records are required to be printed like this, by the Secure DNS RFC.
  */
 char *
-__p_secstodate (secs)
-	unsigned long secs;
-{
+p_secstodate (u_long secs) {
 	static char output[15];		/* YYYYMMDDHHMMSS and null */
 	time_t clock = secs;
 	struct tm *time;

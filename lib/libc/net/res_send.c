@@ -1,6 +1,4 @@
 /*
- * ++Copyright++ 1985, 1989, 1993
- * -
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -31,7 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
@@ -49,14 +49,29 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
- * --Copyright--
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid[] = "From: Id: res_send.c,v 8.14 1998/04/07 04:59:46 vixie Exp $";
-static char rcsid[] = "$Id: res_send.c,v 1.21 1998/05/02 13:11:02 peter Exp $";
+static char orig_rcsid[] = "From: Id: res_send.c,v 8.20 1998/04/06 23:27:51 halley Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.22 1998/05/02 15:51:54 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -68,27 +83,31 @@ static char rcsid[] = "$Id: res_send.c,v 1.21 1998/05/02 13:11:02 peter Exp $";
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+
 #include <netinet/in.h>
+#include <arpa/nameser.h>
 #include <arpa/inet.h>
 
-#include "res_config.h"
-#include <arpa/nameser.h>
-
-#include <stdio.h>
-#include <netdb.h>
 #include <errno.h>
+#include <netdb.h>
 #include <resolv.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <poll.h>
 
+#include "res_config.h"
+
 static int use_poll = 1;	/* adapt to poll() syscall availability */
 				/* 0 = not present, 1 = try it, 2 = exists */
 
-static int s = -1;	/* socket used for communications */
+static int s = -1;		/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
-static int vc = 0;	/* is the socket a virtual ciruit? */
+static int vc = 0;		/* is the socket a virtual circuit? */
+static res_send_qhook Qhook = NULL;
+static res_send_rhook Rhook = NULL;
+
 
 #define CAN_RECONNECT 1
 
@@ -137,9 +156,6 @@ static int vc = 0;	/* is the socket a virtual ciruit? */
     }
 #endif
 
-static res_send_qhook Qhook = NULL;
-static res_send_rhook Rhook = NULL;
-
 void
 res_send_setqhook(hook)
 	res_send_qhook hook;
@@ -170,12 +186,12 @@ res_isourserver(inp)
 	const struct sockaddr_in *inp;
 {
 	struct sockaddr_in ina;
-	register int ns, ret;
+	int ns, ret;
 
 	ina = *inp;
 	ret = 0;
 	for (ns = 0;  ns < _res.nscount;  ns++) {
-		register const struct sockaddr_in *srv = &_res.nsaddr_list[ns];
+		const struct sockaddr_in *srv = &_res.nsaddr_list[ns];
 
 		if (srv->sin_family == ina.sin_family &&
 		    srv->sin_port == ina.sin_port &&
@@ -192,7 +208,7 @@ res_isourserver(inp)
  * res_nameinquery(name, type, class, buf, eom)
  *	look for (name,type,class) in the query section of packet (buf,eom)
  * requires:
- *	buf + HFIXESDZ <= eom
+ *	buf + HFIXEDSZ <= eom
  * returns:
  *	-1 : format error
  *	0  : not found
@@ -203,15 +219,15 @@ res_isourserver(inp)
 int
 res_nameinquery(name, type, class, buf, eom)
 	const char *name;
-	register int type, class;
+	int type, class;
 	const u_char *buf, *eom;
 {
-	register const u_char *cp = buf + HFIXEDSZ;
+	const u_char *cp = buf + HFIXEDSZ;
 	int qdcount = ntohs(((HEADER*)buf)->qdcount);
 
 	while (qdcount-- > 0) {
 		char tname[MAXDNAME+1];
-		register int n, ttype, tclass;
+		int n, ttype, tclass;
 
 		n = dn_expand(buf, eom, cp, tname, sizeof tname);
 		if (n < 0)
@@ -219,8 +235,8 @@ res_nameinquery(name, type, class, buf, eom)
 		cp += n;
 		if (cp + 2 * INT16SZ > eom)
 			return (-1);
-		ttype = _getshort(cp); cp += INT16SZ;
-		tclass = _getshort(cp); cp += INT16SZ;
+		ttype = ns_get16(cp); cp += INT16SZ;
+		tclass = ns_get16(cp); cp += INT16SZ;
 		if (ttype == type &&
 		    tclass == class &&
 		    strcasecmp(tname, name) == 0)
@@ -245,17 +261,25 @@ res_queriesmatch(buf1, eom1, buf2, eom2)
 	const u_char *buf1, *eom1;
 	const u_char *buf2, *eom2;
 {
-	register const u_char *cp = buf1 + HFIXEDSZ;
+	const u_char *cp = buf1 + HFIXEDSZ;
 	int qdcount = ntohs(((HEADER*)buf1)->qdcount);
 
 	if (buf1 + HFIXEDSZ > eom1 || buf2 + HFIXEDSZ > eom2)
 		return (-1);
 
+	/*
+	 * Only header section present in replies to
+	 * dynamic update packets.
+	 */
+	if ( (((HEADER *)buf1)->opcode == ns_o_update) &&
+	     (((HEADER *)buf2)->opcode == ns_o_update) )
+		return (1);
+
 	if (qdcount != ntohs(((HEADER*)buf2)->qdcount))
 		return (0);
 	while (qdcount-- > 0) {
 		char tname[MAXDNAME+1];
-		register int n, ttype, tclass;
+		int n, ttype, tclass;
 
 		n = dn_expand(buf1, eom1, cp, tname, sizeof tname);
 		if (n < 0)
@@ -263,8 +287,8 @@ res_queriesmatch(buf1, eom1, buf2, eom2)
 		cp += n;
 		if (cp + 2 * INT16SZ > eom1)
 			return (-1);
-		ttype = _getshort(cp);	cp += INT16SZ;
-		tclass = _getshort(cp); cp += INT16SZ;
+		ttype = ns_get16(cp);	cp += INT16SZ;
+		tclass = ns_get16(cp); cp += INT16SZ;
 		if (!res_nameinquery(tname, ttype, tclass, buf2, eom2))
 			return (0);
 	}
@@ -280,9 +304,8 @@ res_send(buf, buflen, ans, anssiz)
 {
 	HEADER *hp = (HEADER *) buf;
 	HEADER *anhp = (HEADER *) ans;
-	int gotsomewhere, connreset, terrno, try, v_circuit, resplen, ns;
-	register int n;
-	u_int badns;	/* XXX NSMAX can't exceed #/bits in this var */
+	int gotsomewhere, connreset, terrno, try, v_circuit, resplen, ns, n;
+	u_int badns;	/* XXX NSMAX can't exceed #/bits in this variable */
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		/* errno should have been set by res_init() in this case. */
@@ -358,7 +381,7 @@ res_send(buf, buflen, ans, anssiz)
 			 */
 			try = _res.retry;
 			truncated = 0;
-			if ((s < 0) || (!vc)) {
+			if (s < 0 || !vc || hp->opcode == ns_o_update) {
 				if (s >= 0)
 					res_close();
 
@@ -370,7 +393,7 @@ res_send(buf, buflen, ans, anssiz)
 				}
 				errno = 0;
 				if (connect(s, (struct sockaddr *)nsap,
-					    sizeof(struct sockaddr)) < 0) {
+					    sizeof *nsap) < 0) {
 					terrno = errno;
 					Aerror(stderr, "connect/vc",
 					       errno, *nsap);
@@ -427,7 +450,7 @@ read_len:
 				res_close();
 				goto next_ns;
 			}
-			resplen = _getshort(ans);
+			resplen = ns_get16(ans);
 			if (resplen > anssiz) {
 				Dprint(_res.options & RES_DEBUG,
 				       (stdout, ";; response truncated\n")
@@ -509,7 +532,7 @@ read_len:
 					res_close();
 				s = socket(PF_INET, SOCK_DGRAM, 0);
 				if (s < 0) {
-#if !CAN_RECONNECT
+#ifndef CAN_RECONNECT
  bad_dg_sock:
 #endif
 					terrno = errno;
@@ -518,6 +541,7 @@ read_len:
 				}
 				connected = 0;
 			}
+#ifndef CANNOT_CONNECT_DGRAM
 			/*
 			 * On a 4.3BSD+ machine (client and server,
 			 * actually), sending to a nameserver datagram
@@ -540,7 +564,7 @@ read_len:
 				 */
 				if (!connected) {
 					if (connect(s, (struct sockaddr *)nsap,
-						    sizeof(struct sockaddr)
+						    sizeof *nsap
 						    ) < 0) {
 						Aerror(stderr,
 						       "connect(dg)",
@@ -563,7 +587,7 @@ read_len:
 				 * for responses from more than one server.
 				 */
 				if (connected) {
-#if CAN_RECONNECT
+#ifdef CAN_RECONNECT
 					struct sockaddr_in no_addr;
 
 					no_addr.sin_family = AF_INET;
@@ -572,7 +596,7 @@ read_len:
 					(void) connect(s,
 						       (struct sockaddr *)
 						        &no_addr,
-						       sizeof(no_addr));
+						       sizeof no_addr);
 #else
 					int s1 = socket(PF_INET, SOCK_DGRAM,0);
 					if (s1 < 0)
@@ -581,20 +605,23 @@ read_len:
 					(void) close(s1);
 					Dprint(_res.options & RES_DEBUG,
 						(stdout, ";; new DG socket\n"))
-#endif
+#endif /* CAN_RECONNECT */
 					connected = 0;
 					errno = 0;
 				}
+#endif /* !CANNOT_CONNECT_DGRAM */
 				if (sendto(s, (char*)buf, buflen, 0,
 					   (struct sockaddr *)nsap,
-					   sizeof(struct sockaddr))
+					   sizeof *nsap)
 				    != buflen) {
 					Aerror(stderr, "sendto", errno, *nsap);
 					badns |= (1 << ns);
 					res_close();
 					goto next_ns;
 				}
+#ifndef CANNOT_CONNECT_DGRAM
 			}
+#endif /* !CANNOT_CONNECT_DGRAM */
 
 			/*
 			 * Wait for reply
@@ -723,7 +750,7 @@ read_len:
 					ans, (resplen>anssiz)?anssiz:resplen);
 				goto wait;
 			}
-#if CHECK_SRVR_ADDR
+#ifdef CHECK_SRVR_ADDR
 			if (!(_res.options & RES_INSECURE1) &&
 			    !res_isourserver(&from)) {
 				/*
@@ -830,12 +857,12 @@ read_len:
 	   } /*foreach ns*/
 	} /*foreach retry*/
 	res_close();
-	if (!v_circuit)
+	if (!v_circuit) {
 		if (!gotsomewhere)
 			errno = ECONNREFUSED;	/* no nameservers found */
 		else
 			errno = ETIMEDOUT;	/* no answer obtained */
-	else
+	} else
 		errno = terrno;
 	return (-1);
 }

@@ -1,6 +1,4 @@
 /*
- * ++Copyright++ 1985, 1989, 1993
- * -
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -31,7 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
@@ -49,14 +49,29 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
- * --Copyright--
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static char orig_rcsid[] = "From: Id: res_init.c,v 8.8 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_init.c,v 1.13 1997/06/27 08:22:03 peter Exp $";
+static char orig_rcsid[] = "From: Id: res_init.c,v 8.7 1996/11/18 09:10:04 vixie Exp $";
+static char rcsid[] = "$Id: res_init.c,v 1.14 1997/09/01 01:19:20 brian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -65,16 +80,15 @@ static char rcsid[] = "$Id: res_init.c,v 1.13 1997/06/27 08:22:03 peter Exp $";
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#include "res_config.h"
 #include <arpa/nameser.h>
-
-#include <stdio.h>
 #include <ctype.h>
 #include <resolv.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#include "res_config.h"
 
 static void res_setoptions __P((char *, char *));
 
@@ -82,6 +96,10 @@ static void res_setoptions __P((char *, char *));
 static const char sort_mask[] = "/&";
 #define ISSORTMASK(ch) (strchr(sort_mask, ch) != NULL)
 static u_int32_t net_mask __P((struct in_addr));
+#endif
+
+#if !defined(isascii) /* XXX - could be a function */
+# define isascii(c) (!(c & 0200))
 #endif
 
 /*
@@ -93,6 +111,7 @@ struct __res_state _res
 	= { RES_TIMEOUT, }	/* Motorola, et al. */
 # endif
 	;
+
 
 /*
  * Set up default settings.  If the configuration file exist, the values
@@ -376,7 +395,7 @@ res_init()
 				printf(";;\t%s\n", *pp);
 			printf(";;\t..END..\n");
 		}
-#endif /* DEBUG */
+#endif
 #endif /* !RFC1535 */
 	}
 
