@@ -398,7 +398,7 @@ vnode_pager_addr(vp, address, run)
 	int voffset;
 
 	GIANT_REQUIRED;
-	if ((int) address < 0)
+	if (address < 0)
 		return -1;
 
 	if (vp->v_mount == NULL)
