@@ -276,6 +276,14 @@ An incompatible filter
 may result in undefined behavior (most likely, an error returned by
 .Fn ioctl
 or haphazard packet matching).
+.It Dv BIOCSHDRCMPLT
+.It Dv BIOCGHDRCMPLT
+.Pq Li u_int
+Set or get the status of the ``header complete'' flag.
+Set to zero if the link level source address should be filled in automatically
+by the the interface output routine.  Set to one if the link level source
+address will be written, as provided, to the wire.  This flag is initialized
+to zero by default.
 .Sh BPF HEADER
 The following structure is prepended to each packet returned by
 .Xr read 2 :
