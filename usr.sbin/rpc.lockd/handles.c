@@ -31,7 +31,10 @@
  *
  */
 
-
+#ifndef lint
+static const char rcsid[] =
+	"$Id: handles.c,v 1.3 1997/10/13 11:10:49 charnier Exp $";
+#endif /* not lint */
 
 #include "nlm_prot.h"
 

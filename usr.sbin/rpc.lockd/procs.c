@@ -31,8 +31,12 @@
  *
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: procs.c,v 1.3 1997/10/13 11:10:57 charnier Exp $";
+#endif /* not lint */
 
-
+#include <string.h>
 #include "lockd.h"
 
 #include <sys/param.h>	/* for MAXHOSTNAMELEN	*/
@@ -205,7 +209,7 @@ static void transmit_result(int opcode, nlm_res *result, struct svc_req *req)
   struct timeval timeo;
 
   addr = svc_getcaller(req->rq_xprt);
-  if (cli = get_client(addr))
+  if ((cli = get_client(addr)))
   {
     timeo.tv_sec = 0;		/* No timeout - not expecting response	*/
     timeo.tv_usec = 0;
@@ -284,7 +288,7 @@ void *nlm_test_msg_1_svc(nlm_testargs *arg, struct svc_req *rqstp)
   /* nlm_test has different result type to the other operations, so	*/
   /* can't use transmit_result() in this case				*/
   addr = svc_getcaller(rqstp->rq_xprt);
-  if (cli = get_client(addr))
+  if ((cli = get_client(addr)))
   {
     timeo.tv_sec = 0;		/* No timeout - not expecting response	*/
     timeo.tv_usec = 0;
