@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_bootp.h"
 #include "opt_isa.h"
-#include "opt_nfs.h"
-#include "opt_nfsroot.h"
 #include "opt_bus.h"
 
 #include <sys/param.h>
@@ -66,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
-#include <nfs/rpcv2.h>
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
 
 #include <machine/md_var.h>
 
@@ -136,22 +130,3 @@ configure_final(dummy)
 		printf("Device configuration finished.\n");
 	cold = 0;
 }
-
-/*
- * Do legacy root filesystem discovery.
- */
-void
-cpu_rootconf()
-{
-#ifdef BOOTP
-        bootpc_init();
-#endif
-#if defined(NFSCLIENT) && defined(NFS_ROOT)
-#if !defined(BOOTP_NFSROOT)
-	nfs_setup_diskless();
-	if (nfs_diskless_valid)
-#endif
-		rootdevnames[0] = "nfs:";
-#endif
-}
-SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
