@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.102 1998/07/19 11:12:14 jkh Exp $
+ *	$Id: autoconf.c,v 1.103 1998/08/23 14:17:52 des Exp $
  */
 
 /*
@@ -102,6 +102,8 @@
 #if NSCBUS > 0
 #include <scsi/scsiconf.h>
 #endif
+
+#include <sys/bus.h>
 
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
@@ -239,6 +241,9 @@ configure(dummy)
 #if NISA > 0
 	isa_configure();
 #endif
+
+	/* initialize new bus architecture */
+	root_bus_configure();
 
 	/*
 	 * Now we're ready to handle (pending) interrupts.
