@@ -56,7 +56,9 @@ char   *renamefrom __P((char *));
 void	reply __P((int, const char *, ...));
 void	retrieve __P((char *, char *));
 void	send_file_list __P((char *));
+#ifdef OLD_SETPROCTITLE
 void	setproctitle __P((const char *, ...));
+#endif
 void	statcmd __P((void));
 void	statfilecmd __P((char *));
 void	store __P((char *, char *, int));
