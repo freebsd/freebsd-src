@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.5 1997/05/18 12:28:38 kato Exp $
+ *	$Id: serial.S,v 1.6 1997/07/14 12:34:01 kato Exp $
  */
 
 /*
@@ -69,7 +69,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * modified for PC-98 by KATO T. of Nagoya University
  */
 
-	.file	"serial.s"
+	.file	"serial.S"
 
 #ifdef PC98
 #include <pc98/pc98/sioreg.h>
