@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.7 1999/01/18 03:36:17 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.6 1999/01/21 00:35:35 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -43,10 +43,10 @@
 #define REALLYKERNEL
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
-#include <dev/vinum/request.h>
 #endif
 
 jmp_buf command_fail;					    /* return on a failed command */
