@@ -214,7 +214,7 @@ main(argc, argv)
 
 				p->fts_parent->fts_number += p->fts_statp->st_blocks;
 		}
-		savednumber = p->fts_number;
+		savednumber = p->fts_parent->fts_number;
 	}
 
 	if (errno)
