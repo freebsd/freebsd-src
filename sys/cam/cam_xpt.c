@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.2 1999/03/07 00:39:49 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.3 1999/03/07 22:51:15 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3045,7 +3045,7 @@ xpt_action(union ccb *start_ccb)
 					xpt_dev_ccbq_resize(crs->ccb_h.path,
 							    crs->openings);
 
-					if (bootverbose || 1) {
+					if (bootverbose) {
 						xpt_print_path(crs->ccb_h.path);
 						printf("tagged openings "
 						       "now %d\n",
