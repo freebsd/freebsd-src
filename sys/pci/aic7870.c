@@ -452,7 +452,7 @@ ahc_pci_attach(parent, self, aux)
 	/* Remeber how the card was setup in case there is no SEEPROM */
 	our_id = ahc_inb(ahc, SCSIID) & OID;
 	if (ahc_t & AHC_ULTRA)
-		ultra_enb = ahc_inb(ahc, SXFRCTL0) & ULTRAEN;
+		ultra_enb = ahc_inb(ahc, SXFRCTL0) & FAST20;
 	sxfrctl1 = ahc_inb(ahc, SXFRCTL1) & STPWEN;
 
 #if defined(__NetBSD__)
