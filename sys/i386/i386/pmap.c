@@ -1523,15 +1523,13 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kptobj, nkpt, VM_ALLOC_SYSTEM);
+		nkpg = vm_page_alloc(kptobj, nkpt,
+				     VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
 
-		vm_page_lock_queues();
-		vm_page_wire(nkpg);
-		vm_page_unlock_queues();
 		pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);

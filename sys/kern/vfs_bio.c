@@ -2693,13 +2693,13 @@ allocbuf(struct buf *bp, int size)
 					 * with paging I/O, no matter which
 					 * process we are.
 					 */
-					m = vm_page_alloc(obj, pi, VM_ALLOC_SYSTEM);
+					m = vm_page_alloc(obj, pi,
+					    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 					if (m == NULL) {
 						VM_WAIT;
 						vm_pageout_deficit += desiredpages - bp->b_npages;
 					} else {
 						vm_page_lock_queues();
-						vm_page_wire(m);
 						vm_page_wakeup(m);
 						vm_page_unlock_queues();
 						bp->b_flags &= ~B_CACHE;
@@ -3352,14 +3352,13 @@ tryagain:
 		 */
 		p = vm_page_alloc(kernel_object,
 			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
-		    VM_ALLOC_SYSTEM);
+		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!p) {
 			vm_pageout_deficit += (to - from) >> PAGE_SHIFT;
 			VM_WAIT;
 			goto tryagain;
 		}
 		vm_page_lock_queues();
-		vm_page_wire(p);
 		p->valid = VM_PAGE_BITS_ALL;
 		vm_page_flag_clear(p, PG_ZERO);
 		vm_page_unlock_queues();
