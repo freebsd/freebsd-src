@@ -298,8 +298,8 @@ wtmp()
 		}
 	}
 	tm = localtime(&buf[0].ut_time);
-	(void) strftime(ct, sizeof(ct), "%c", tm);
-	printf("\nwtmp begins %10.10s %5.5s \n", ct, ct + 11);
+	(void) strftime(ct, sizeof(ct), "\nwtmp begins %c\n", tm);
+	printf(ct);
 }
 
 /*
