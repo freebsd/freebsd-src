@@ -1,0 +1,84 @@
+# $FreeBSD$
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+
+# This directive is mandatory.  It defines the architecture to be
+# configured for.  In this case, this kernel is for a machine using
+# UltraSparc processors.
+#
+machine		sparc64
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.
+# XXX: On the Sparc6, there is only one CPU type
+cpu		SUN4U
+
+
+#####################################################################
+# HARDWARE BUS CONFIGURATION
+
+device		apb			# Sun APB PCI-PCI bridge
+device		ebus
+device		isa
+device		pci
+device		sbus
+device		central
+device		fhc
+
+
+#####################################################################
+# HARDWARE DEVICE CONFIGURATION
+
+#
+# Mandatory devices:
+#
+
+device		genclock	# Generic clock interface
+device		eeprom		# eeprom (really an ebus driver for the MK48Txx)
+device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
+
+#
+# Optional devices:
+#
+
+device		sab		# Siemens SAB82532 based serial ports
+device		zs		# Zilog 8530 based serial ports
+
+
+#####################################################################
+# Devices we don't want to deal with
+
+nodevice	ukbd
+nodevice	atkbdc
+nodevice	atkbd
+nodevice	psm
+nodevice	vga
+nodevice	splash
+nodevice	sc
+nodevice	blank_saver
+nodevice	daemon_saver
+nodevice	fade_saver
+nodevice	fire_saver
+nodevice	green_saver
+nodevice	logo_saver
+nodevice	rain_saver
+nodevice	star_saver
+nodevice	warp_saver
+nodevice	bktr
+nodevice	fdc
+nodevice	ppc
+nodevice	gusc
+nodevice	sbc
+nodevice	pcm
+nodevice	aha
+nodevice	bt
+nodevice	wds
+nodevice	ep
+nodevice	ex

@@ -39,4 +39,5 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 			-e /PSM_HOOKRESUME/d \
 			-e /KBD_DISABLE_KEYMAP_LOAD/d \
 			-e /ATKBD_DFLT_KEYMAP/d \
-		> LINT
+			-e /EXT2FS/d \
+		> ${.TARGET}

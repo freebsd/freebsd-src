@@ -955,3 +955,27 @@ options 	VM_KMEM_SIZE_SCALE
 
 # Yet more undocumented options for linting.
 options 	COMPAT_SUNOS
+
+
+#####################################################################
+# Devices we don't want to deal with
+
+nodevice	atkbdc
+nodevice	atkbd
+nodevice	psm
+nodevice	vga
+nodevice	aha
+nodevice	bt
+nodevice	wds
+nodevice	asr
+nodevice	dpt
+nodevice	ciss
+nodevice	iir
+nodevice	mly
+nodevice	ida		# Compaq Smart RAID
+nodevice	mlx		# Mylex DAC960
+nodevice	amr		# AMI MegaRAID
+nodevice	twe		# 3ware ATA RAID
+nodevice	cbb
+nodevice	pccard
+nodevice	cardbus
