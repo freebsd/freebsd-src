@@ -74,10 +74,10 @@ method, no metadata are stored on the devices, so a label has to be configured
 by hand every time it is needed.
 The
 .Dq automatic
-method use on-disk metadata to store label and detect it automatically in the
-future.
+method uses on-disk metadata to store the label and detect it automatically in
+the future.
 .Pp
-This class also provide volume label detection for file systems.
+This class also provides volume label detection for file systems.
 Those labels cannot be set with
 .Nm ,
 but must be set with the appropriate file system utility, e.g. for UFS
@@ -123,7 +123,7 @@ Setup a label
 for the given provider.
 This is the
 .Dq automatic
-method, where metadata are stored in provider's last sector.
+method, where metadata is stored in provider's last sector.
 The kernel module
 .Pa geom_label.ko
 will be loaded if it is not loaded already.
