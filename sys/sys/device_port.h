@@ -30,12 +30,8 @@
 #if defined(__NetBSD__)
 # include <sys/device.h>
 #elif defined(__FreeBSD__)
-# if __FreeBSD_version >= 400001
-#  include <sys/module.h>
-#  include <sys/bus.h>
-# else
-#  include <sys/device.h>
-# endif
+# include <sys/module.h>
+# include <sys/bus.h>
 #endif
 
 /*
@@ -51,65 +47,24 @@
 /*
  * FreeBSD (compatibility for struct device)
  */
-#if __FreeBSD_version >= 400001
-# define DEVPORT_DEVICE			device_t
-# define DEVPORT_DEVNAME(dev)		device_get_name(dev)
-# define DEVPORT_DEVUNIT(dev)		device_get_unit(dev)
-# define DEVPORT_ALLOC_SOFTC(dev)       device_get_softc(dev)
-# define DEVPORT_GET_SOFTC(dev)         device_get_softc(dev)
+#define DEVPORT_DEVICE			device_t
+#define DEVPORT_DEVNAME(dev)		device_get_name(dev)
+#define DEVPORT_DEVUNIT(dev)		device_get_unit(dev)
+#define DEVPORT_ALLOC_SOFTC(dev) 	device_get_softc(dev)
+#define DEVPORT_GET_SOFTC(dev)		device_get_softc(dev)
 
-# define UNCONF	1		/* print " not configured\n" */
-
-#else
-
-# define DEVPORT_DEVICE			struct device
-# define DEVPORT_DEVNAME(dev)		(dev).dv_xname
-# define DEVPORT_DEVUNIT(dev)		(dev).dv_unit
-# ifdef DEVPORT_ALLOCSOFTCFUNC
-#  define DEVPORT_ALLOC_SOFTC(dev)	(DEVPORT_ALLOCSOFTCFUNC)((dev).dv_unit)
-# else
-#  define DEVPORT_ALLOC_SOFTC(dev)	DEVPORT_ALLOCSOFTCFUNC_is_not_defined_prior_than_device_port_h
-# endif
-# ifdef DEVPORT_SOFTCARRAY
-#  define DEVPORT_GET_SOFTC(dev)	(DEVPORT_SOFTCARRAY)[(dev).dv_unit]
-# else
-#  define DEVPORT_GET_SOFTC(dev)	DEVPORT_SOFTCARRAY_is_not_defined_prior_than_device_port_h
-# endif
-
-#endif
+#define UNCONF	1		/* print " not configured\n" */
 
 /*
  * PC-Card device driver (compatibility for struct pccard_devinfo *)
  */
-#if __FreeBSD_version >= 400001
-# define DEVPORT_PDEVICE		device_t
-# define DEVPORT_PDEVUNIT(pdev)		device_get_unit(pdev)
-# define DEVPORT_PDEVFLAGS(pdev)	device_get_flags(pdev)
-# define DEVPORT_PDEVIOBASE(pdev)	bus_get_resource_start(pdev, SYS_RES_IOPORT, 0)
-# define DEVPORT_PDEVIRQ(pdev)		bus_get_resource_start(pdev, SYS_RES_IRQ, 0)
-# define DEVPORT_PDEVMADDR(pdev)	bus_get_resource_start(pdev, SYS_RES_MEMORY, 0)
-# define DEVPORT_PDEVALLOC_SOFTC(pdev)	device_get_softc(pdev)
-# define DEVPORT_PDEVGET_SOFTC(pdev)	device_get_softc(pdev)
-
-#else
-
-# define DEVPORT_PDEVICE		struct pccard_devinfo *
-# define DEVPORT_PDEVUNIT(pdev)		(pdev)->pd_unit
-# define DEVPORT_PDEVFLAGS(pdev)	(pdev)->pd_flags
-# define DEVPORT_PDEVIOBASE(pdev)	(pdev)->pd_iobase
-# define DEVPORT_PDEVIRQ(pdev)		(pdev)->pd_irq
-# define DEVPORT_PDEVMADDR(pdev)	(pdev)->pd_maddr
-# ifdef DEVPORT_ALLOCSOFTCFUNC
-#  define DEVPORT_PDEVALLOC_SOFTC(pdev)	(DEVPORT_ALLOCSOFTCFUNC)((pdev)->pd_unit)
-# else
-#  define DEVPORT_PDEVALLOC_SOFTC(pdev)	DEVPORT_ALLOCSOFTCFUNC_is_not_defined_prior_than_device_port_h
-# endif
-# ifdef DEVPORT_SOFTCARRAY
-#  define DEVPORT_PDEVGET_SOFTC(pdev)	(DEVPORT_SOFTCARRAY)[(pdev)->pd_unit]
-# else
-#  define DEVPORT_PDEVGET_SOFTC(pdev)	DEVPORT_SOFTCARRAY_is_not_defined_prior_than_device_port_h
-# endif
-#endif
+#define DEVPORT_PDEVICE			device_t
+#define DEVPORT_PDEVUNIT(pdev)		device_get_unit(pdev)
+#define DEVPORT_PDEVFLAGS(pdev)		device_get_flags(pdev)
+#define DEVPORT_PDEVIOBASE(pdev)	bus_get_resource_start(pdev, SYS_RES_IOPORT, 0)
+#define DEVPORT_PDEVIRQ(pdev)		bus_get_resource_start(pdev, SYS_RES_IRQ, 0)
+#define DEVPORT_PDEVMADDR(pdev)		bus_get_resource_start(pdev, SYS_RES_MEMORY, 0)
+#define DEVPORT_PDEVALLOC_SOFTC(pdev)	device_get_softc(pdev)
+#define DEVPORT_PDEVGET_SOFTC(pdev)	device_get_softc(pdev)
 
 #endif /* __FreeBSD__ */
-
