@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.40 1995/07/13 08:47:29 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.41 1995/07/29 11:38:53 bde Exp $
  */
 
 #include "npx.h"
@@ -861,4 +861,23 @@ grow(p, sp)
 	}
 
 	return (1);
+}
+
+/*
+ * prototype routine to implement the pre-zeroed page mechanism
+ * this routine is called from the idle loop.
+ */
+int
+vm_page_zero_idle() {
+	vm_page_t m;
+	if ((cnt.v_free_count > cnt.v_interrupt_free_min) &&
+		(m = vm_page_queue_free.tqh_first)) {
+		TAILQ_REMOVE(&vm_page_queue_free, m, pageq);
+		enable_intr();
+		pmap_zero_page(VM_PAGE_TO_PHYS(m));
+		disable_intr();
+		TAILQ_INSERT_TAIL(&vm_page_queue_zero, m, pageq);
+		return 1;
+	}
+	return 0;
 }
