@@ -440,6 +440,7 @@ UMS_DEBUG		opt_usb.h
 VINUMDEBUG		opt_vinum.h
 
 # Embedded system options
+UKBD_DFLT_KEYMAP	opt_ukbd.h
 INIT_PATH		opt_init_path.h
 
 ROOTDEVNAME		opt_rootdevname.h
