@@ -35,7 +35,7 @@
 .Nd print information about system device configuration
 .Sh SYNOPSIS
 .Nm
-.Op Fl ru
+.Op Fl ruv
 .Sh DESCRIPTION
 The
 .Nm
@@ -56,6 +56,10 @@ but sorts by resource type rather than by device, allowing to review the
 set of system resources by usage and available resources.
 I.e., it lists all
 the IRQ consumers together.
+.It Fl v
+Display all devices in the driver tree, not just those that are attached or
+busy.
+Without this flag, only those devices that have attached are reported.
 .El
 .Sh SEE ALSO
 .Xr systat 1 ,
