@@ -59,6 +59,7 @@
 #include <sys/random.h>
 #include <sys/signalvar.h>
 #include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
@@ -237,6 +238,8 @@ mmrw(dev, uio, flags)
 			if (poolsize == 0) {
 				if (buf)
 					free(buf, M_TEMP);
+				if ((flags & IO_NDELAY) != 0)
+					return (EWOULDBLOCK);
 				return (0);
 			}
 			c = min(c, poolsize);
