@@ -83,6 +83,16 @@
 #include <netinet/ip_carp.h>
 #endif
 
+SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
+SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
+
+/* Log link state change events */
+static int log_link_state_change = 1;
+
+SYSCTL_INT(_net_link, OID_AUTO, log_link_state_change, CTLFLAG_RW,
+	&log_link_state_change, 0,
+	"log interface link state change events");
+
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
@@ -1010,8 +1020,9 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
 #endif
-	log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
-	    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
+	if (log_link_state_change)
+		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
+		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
 }
 
 /*
@@ -2036,6 +2047,3 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 		if_start(ifp);
 	return (1);
 }
-
-SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
-SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
