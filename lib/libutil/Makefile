@@ -29,5 +29,7 @@ MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_unlock.3 uucplock.3 uu_lockerr.3
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libutil.h \
 		${DESTDIR}/usr/include
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/login_cap.h \
+		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
