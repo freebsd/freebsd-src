@@ -45,12 +45,18 @@ make_hierarchy(char *dir)
 	if ((cp2 = index(cp1, '/')) !=NULL )
 	    *cp2 = '\0';
 	if (fexists(dir)) {
-	    if (!isdir(dir))
+	    if (!isdir(dir)) {
+		if (cp2)
+		    *cp2 = '/';
 		return FAIL;
+	    }
 	}
 	else {
-	    if (vsystem("mkdir %s", dir))
+	    if (vsystem("mkdir %s", dir)) {
+		if (cp2)
+		    *cp2 = '/';
 		return FAIL;
+	    }
 	    apply_perms(NULL, dir);
 	}
 	/* Put it back */
