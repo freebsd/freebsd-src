@@ -66,7 +66,6 @@
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
-#include <netinet6/in6_ifattach.h>
 #endif
 
 #ifdef IPX
@@ -669,9 +668,6 @@ ether_ifattach(ifp)
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy((IFP2AC(ifp))->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
-#ifdef INET6
-	in6_ifattach_getifid(ifp);
-#endif
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
 }

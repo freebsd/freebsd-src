@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_ifattach.h,v 1.10 2000/05/27 02:57:05 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,26 +28,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _NETINET6_IN6_IFATTACH_H_
-#define	_NETINET6_IN6_IFATTACH_H_
+#define _NETINET6_IN6_IFATTACH_H_
 
 #ifdef _KERNEL
-extern int	found_first_ifid;
-
-int	in6_ifattach_getifid __P((struct ifnet *));
-void	in6_ifattach_p2p __P((void));
-void	in6_ifattach __P((struct ifnet *, u_int, caddr_t, int));
-void	in6_ifdetach __P((struct ifnet *));
+void in6_nigroup_attach __P((const char *, int));
+void in6_nigroup_detach __P((const char *, int));
+void in6_ifattach __P((struct ifnet *, struct ifnet *));
+void in6_ifdetach __P((struct ifnet *));
 #endif /* _KERNEL */
-
-#define	IN6_IFT_LOOP	1
-#define	IN6_IFT_P2P	2
-#define	IN6_IFT_802	3
-#define	IN6_IFT_P2P802	4
-#define	IN6_IFT_ARCNET	5
 
 #endif /* _NETINET6_IN6_IFATTACH_H_ */

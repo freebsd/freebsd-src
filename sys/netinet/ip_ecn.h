@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
@@ -26,17 +29,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ip_ecn.h,v 1.2 1999/08/19 12:57:44 itojun Exp $
- * $FreeBSD$
  */
 /*
  * ECN consideration on tunnel ingress/egress operation.
  * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
  */
 
-#define	ECN_ALLOWED	1	/* ECN allowed */
-#define	ECN_FORBIDDEN	0	/* ECN forbidden */
-#define	ECN_NOCARE	(-1)	/* no consideration to ECN */
+#define ECN_ALLOWED	1	/* ECN allowed */
+#define ECN_FORBIDDEN	0	/* ECN forbidden */
+#define ECN_NOCARE	(-1)	/* no consideration to ECN */
 
 #ifdef _KERNEL
 extern void ip_ecn_ingress __P((int, u_int8_t *, u_int8_t *));

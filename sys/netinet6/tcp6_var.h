@@ -66,7 +66,7 @@
  */
 
 #ifndef _NETINET_TCP6_VAR_H_
-#define	_NETINET_TCP6_VAR_H_
+#define _NETINET_TCP6_VAR_H_
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL

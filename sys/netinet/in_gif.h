@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in_gif.h,v 1.5 2000/04/14 08:36:02 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,23 +28,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef _NETINET_IN_GIF_H_
-#define	_NETINET_IN_GIF_H_
+#define _NETINET_IN_GIF_H_
 
-#define	GIF_TTL		30
+#define GIF_TTL		30
 
 extern int ip_gif_ttl;
 
-struct	mbuf;
-struct	ifnet;
-struct	rtentry;
-
-void	in_gif_input __P((struct mbuf *, int off, int proto));
-int	in_gif_output __P((struct ifnet *, int, struct mbuf *,
-			   struct rtentry *));
+void in_gif_input __P((struct mbuf *, ...));
+int in_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
+int gif_encapcheck4 __P((const struct mbuf *, int, int, void *));
 
 #endif /*_NETINET_IN_GIF_H_*/

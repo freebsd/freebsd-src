@@ -131,9 +131,6 @@ struct	ipstat {
 #define	IP_RAWOUTPUT		0x2		/* raw ip header exists */
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
-#define	IP_SOCKINMRCVIF		0x100		/* IPSEC hack;
-						 * socket pointer in sending
-						 * packet's m_pkthdr.rcvif */
 
 struct ip;
 struct inpcb;

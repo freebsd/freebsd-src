@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: ip6_fw.c,v 1.15 2000/07/02 14:17:37 itojun Exp $	*/
+
 /*
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -11,9 +14,6 @@
  * but requiring it would be too onerous.
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
- *
- *	$Id: ip6_fw.c,v 1.7 1999/08/31 12:25:57 shin Exp $
- * $FreeBSD$
  */
 
 /*
@@ -21,6 +21,15 @@
  */
 
 #include "opt_ip6fw.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
+#ifdef IP6DIVERT
+#error "NOT SUPPORTED IPV6 DIVERT"
+#endif
+#ifdef IP6FW_DIVERT_RESTART
+#error "NOT SUPPORTED IPV6 DIVERT"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -36,10 +45,14 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/in_pcb.h>
+
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
-#include <netinet6/ip6.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
+
+#include <netinet/in_pcb.h>
+
 #include <netinet6/ip6_fw.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
@@ -76,11 +89,11 @@ SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw6_verbose, 0, ""
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_limit, 0, "");
 #endif
 
-#define	dprintf(a)	if (!fw6_debug); else printf a
+#define dprintf(a)	if (!fw6_debug); else printf a
 
-#define	print_ip6(a)	printf("[%s]", ip6_sprintf(a))
+#define print_ip6(a)	printf("[%s]", ip6_sprintf(a))
 
-#define	dprint_ip6(a)	if (!fw6_debug); else print_ip6(a)
+#define dprint_ip6(a)	if (!fw6_debug); else print_ip6(a)
 
 static int	add_entry6 __P((struct ip6_fw_head *chainptr, struct ip6_fw *frwl));
 static int	del_entry6 __P((struct ip6_fw_head *chainptr, u_short number));
@@ -131,7 +144,7 @@ static int
 tcp6flg_match(struct tcphdr *tcp6, struct ip6_fw *f)
 {
 	u_char		flg_set, flg_clr;
-
+	
 	if ((f->fw_tcpf & IPV6_FW_TCPF_ESTAB) &&
 	    (tcp6->th_flags & (IPV6_FW_TCPF_RST | IPV6_FW_TCPF_ACK)))
 		return 1;
@@ -344,7 +357,7 @@ ip6fw_report(struct ip6_fw *f, struct ip6_hdr *ip6,
 		case IPV6_FW_F_SKIPTO:
 			printf("SkipTo %d", f->fw_skipto_rule);
 			break;
-		default:
+		default:	
 			printf("UNKNOWN");
 			break;
 		}
@@ -468,7 +481,7 @@ ip6_fw_chk(struct ip6_hdr **pip6,
 				continue;
 		}
 
-#define	IN6_ARE_ADDR_MASKEQUAL(x,y,z) (\
+#define IN6_ARE_ADDR_MASKEQUAL(x,y,z) (\
 	(((x)->s6_addr32[0] & (y)->s6_addr32[0]) == (z)->s6_addr32[0]) && \
 	(((x)->s6_addr32[1] & (y)->s6_addr32[1]) == (z)->s6_addr32[1]) && \
 	(((x)->s6_addr32[2] & (y)->s6_addr32[2]) == (z)->s6_addr32[2]) && \
@@ -522,7 +535,7 @@ ip6_fw_chk(struct ip6_hdr **pip6,
 		if (nxt != f->fw_prot)
 			continue;
 
-#define	PULLUP_TO(len)	do {						\
+#define PULLUP_TO(len)	do {						\
 			    if ((*m)->m_len < (len)			\
 				&& (*m = m_pullup(*m, (len))) == 0) {	\
 				    goto dropit;			\
@@ -780,7 +793,7 @@ add_entry6(struct ip6_fw_head *chainptr, struct ip6_fw *frwl)
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
 	fwc->rule = ftmp;
-
+	
 	s = splnet();
 
 	if (!chainptr->lh_first) {
