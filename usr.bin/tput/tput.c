@@ -164,6 +164,11 @@ process(cap, str, argv)
 			    case 'B':
 			    case 'D':
 				    break;
+			    case 'p':
+				    if (cp[1]) {
+					cp++;
+					break;
+				    }
 			    default:
 				/*
 				 * hpux has lot's of them, but we complain
