@@ -165,19 +165,19 @@ bind(td, uap)
 		int	namelen;
 	} */ *uap;
 {
+	struct socket *so;
 	struct sockaddr *sa;
-	struct socket *sp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = fgetsock(td, uap->s, &sp, NULL)) != 0)
+	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done2;
 	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
 		goto done1;
-	error = sobind(sp, sa, td);
+	error = sobind(so, sa, td);
 	FREE(sa, M_SONAME);
 done1:
-	fputsock(sp);
+	fputsock(so);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -195,13 +195,13 @@ listen(td, uap)
 		int	backlog;
 	} */ *uap;
 {
-	struct socket *sp;
+	struct socket *so;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = fgetsock(td, uap->s, &sp, NULL)) == 0) {
-		error = solisten(sp, uap->backlog, td);
-		fputsock(sp);
+	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
+		error = solisten(so, uap->backlog, td);
+		fputsock(so);
 	}
 	mtx_unlock(&Giant);
 	return(error);
