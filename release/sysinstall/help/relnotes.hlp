@@ -316,6 +316,9 @@ directory for details of possible configuration conflicts.
 Pthread read/write locks as defined by the Single UNIX Specification,
 Version 2, have been added to the POSIX threads library, libc_r.
 
+System files are now owned by user `root', group `wheel'.  UID 0 is far
+more protected than `bin'.  Especially over NFS.
+
 
 2. Supported Configurations
 ---------------------------
