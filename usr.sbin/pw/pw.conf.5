@@ -1,10 +1,36 @@
 .\" Copyright (c) 1996
 .\"	David L. Nugent.
-.\"	Password/Group file maintenance suite
+.\"	Password Maintenance
 .\"
-.\"	$Id: pw.conf.5,v 1.2 1996/11/18 03:09:02 davidn Exp $
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by David L. Nugent.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
 .\"
-.Dd November 13, 1996
+.\" THIS SOFTWARE IS PROVIDED BY THE DAVID L. NUGENT ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID L. NUGENT BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: pw.conf.5,v 1.1.1.2 1996/12/09 23:55:22 joerg Exp $
+.\"
+.Dd December 9, 1996
 .Dt PW.CONF 5
 .Os 
 .Sh NAME
@@ -64,7 +90,7 @@ default shell (without path)
 default group
 .It extragroups
 add new users to this groups
-.It loginclass
+.It defaultclass
 place new users in this login class
 .It minuid
 .It maxuid
@@ -200,7 +226,7 @@ their own created automatically.
 This is the recommended procedure for new users as it best secures each
 user's files against interference by other users of the system
 irrespective of the 
-.Em umask .
+.Em umask
 normally used by the user.
 .Pp
 .Ar extragroups
@@ -212,9 +238,16 @@ This is useful where all users share some resources, and is preferable
 to placing users into the same primary group.
 The effect of this keyword can be overridden using the
 .Ql \&-G
-option on
-.Xr pw 8 's
+option on the
+.Xr pw 8
 command line.
+.Pp
+The
+.Ar defaultclass
+field determines the login class (See
+.Xr login.conf 5 )
+that new users will be allocated unless overwritten by
+.Xr pw 8 .
 .Pp
 The
 .Ar minuid ,
@@ -259,6 +292,7 @@ as comments.
 .El
 .Sh SEE ALSO
 .Xr pw 8 ,
+.Xr login.conf 5 ,
 .Xr passwd 1 ,
 .Xr passwd 5 ,
 .Xr group 5

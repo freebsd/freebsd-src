@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pw_group.c,v 1.1.1.2 1996/12/09 23:55:25 joerg Exp $
  */
 
 #include <unistd.h>
@@ -60,18 +60,31 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		NULL
 	};
 
+	/*
+	 * With M_NEXT, we only need to return the
+	 * next gid to stdout
+	 */
+	if (mode == M_NEXT)
+	{
+		gid_t next = gr_gidpolicy(cnf, args);
+		if (getarg(args, 'q'))
+			return next;
+		printf("%ld\n", (long)next);
+		return EXIT_SUCCESS;
+	}
+
 	if (mode == M_PRINT && getarg(args, 'a')) {
-		int             pretty = getarg(args, 'p') != NULL;
+		int             pretty = getarg(args, 'P') != NULL;
 
 		setgrent();
 		while ((grp = getgrent()) != NULL)
 			print_group(grp, pretty);
 		endgrent();
-		return X_ALLOK;
+		return EXIT_SUCCESS;
 	}
 	if (a_gid == NULL) {
 		if (a_name == NULL)
-			cmderr(X_CMDERR, "group name or id required\n");
+			cmderr(EX_DATAERR, "group name or id required\n");
 
 		if (mode != M_ADD && grp == NULL && isdigit(*a_name->val)) {
 			(a_gid = a_name)->ch = 'g';
@@ -88,9 +101,9 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
 				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : -1;
-				return print_group(&fakegroup, getarg(args, 'p') != NULL);
+				return print_group(&fakegroup, getarg(args, 'P') != NULL);
 			}
-			cmderr(X_CMDERR, "unknown group `%s'\n", a_name ? a_name->val : a_gid->val);
+			cmderr(EX_DATAERR, "unknown group `%s'\n", a_name ? a_name->val : a_gid->val);
 		}
 		if (a_name == NULL)	/* Needed later */
 			a_name = addarg(args, 'n', grp->gr_name);
@@ -102,11 +115,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			gid_t           gid = grp->gr_gid;
 
 			if (delgrent(grp) == -1)
-				cmderr(X_NOUPDATE, "Error updating group file: %s\n", strerror(errno));
+				cmderr(EX_IOERR, "Error updating group file: %s\n", strerror(errno));
 			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
-			return X_ALLOK;
+			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
-			return print_group(grp, getarg(args, 'p') != NULL);
+			return print_group(grp, getarg(args, 'P') != NULL);
 
 		if (a_gid)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
@@ -115,9 +128,9 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			grp->gr_name = arg->val;
 	} else {
 		if (a_name == NULL)	/* Required */
-			cmderr(X_CMDERR, "group name required\n");
+			cmderr(EX_DATAERR, "group name required\n");
 		else if (grp != NULL)	/* Exists */
-			cmderr(X_EXISTS, "group name `%s' already exists\n", a_name->val);
+			cmderr(EX_DATAERR, "group name `%s' already exists\n", a_name->val);
 
 		memset(members, 0, sizeof members);
 		grp = &fakegroup;
@@ -165,27 +178,61 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			}
 			if (b < 0) {
 				perror("-h file descriptor");
-				return X_CMDERR;
+				return EX_OSERR;
 			}
 			line[b] = '\0';
 			if ((p = strpbrk(line, " \t\r\n")) != NULL)
 				*p = '\0';
 			if (!*line)
-				cmderr(X_CMDERR, "empty password read on file descriptor %d\n", fd);
+				cmderr(EX_DATAERR, "empty password read on file descriptor %d\n", fd);
 			grp->gr_passwd = pw_pwcrypt(line);
 		}
 	}
+
+	if (((arg = getarg(args, 'M')) != NULL || (arg = getarg(args, 'm')) != NULL) && arg->val) {
+		int	i = 0;
+		char   *p;
+		struct passwd	*pwd;
+
+		if (arg->ch == 'm') {
+			while (i < _UC_MAXGROUPS && grp->gr_mem[i] != NULL) {
+				members[i] = grp->gr_mem[i];
+				i++;
+			}
+		}
+		for (p = strtok(arg->val, ", \t"); i < _UC_MAXGROUPS && p != NULL; p = strtok(NULL, ", \t")) {
+			int     j;
+			if ((pwd = getpwnam(p)) == NULL) {
+				if (!isdigit(*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
+					cmderr(EX_NOUSER, "user `%s' does not exist\n", p);
+			}
+			/*
+			 * Check for duplicates
+			 */
+			for (j = 0; j < i && strcmp(members[j], pwd->pw_name)!=0; j++)
+				;
+			if (j == i)
+				members[i++] = newstr(pwd->pw_name);
+		}
+		while (i < _UC_MAXGROUPS)
+			members[i++] = NULL;
+		grp->gr_mem = members;
+	}
+
+	if (getarg(args, 'N') != NULL)
+		return print_group(grp, getarg(args, 'P') != NULL);
+
 	if ((mode == M_ADD && !addgrent(grp)) || (mode == M_UPDATE && !chggrent(a_name->val, grp))) {
 		perror("group update");
-		return X_NOUPDATE;
+		return EX_IOERR;
 	}
 	/* grp may have been invalidated */
 	if ((grp = getgrnam(a_name->val)) == NULL)
-		cmderr(X_NOTFOUND, "group disappeared during update\n");
+		cmderr(EX_SOFTWARE, "group disappeared during update\n");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
 
-	return X_ALLOK;
+	return EXIT_SUCCESS;
 }
 
 
@@ -203,7 +250,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		gid = (gid_t) atol(a_gid->val);
 
 		if ((grp = getgrgid(gid)) != NULL && getarg(args, 'o') == NULL)
-			cmderr(X_EXISTS, "gid `%ld' has already been allocated\n", (long) grp->gr_gid);
+			cmderr(EX_DATAERR, "gid `%ld' has already been allocated\n", (long) grp->gr_gid);
 	} else {
 		struct bitmap   bm;
 
@@ -244,7 +291,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		 * Another sanity check
 		 */
 		if (gid < cnf->min_gid || gid > cnf->max_gid)
-			cmderr(X_EXISTS, "unable to allocate a new gid - range fully used\n");
+			cmderr(EX_SOFTWARE, "unable to allocate a new gid - range fully used\n");
 		bm_dealloc(&bm);
 	}
 	return gid;
@@ -269,5 +316,5 @@ print_group(struct group * grp, int pretty)
 			printf("%s%s", i ? "," : "", grp->gr_mem[i]);
 		fputs("\n\n", stdout);
 	}
-	return X_ALLOK;
+	return EXIT_SUCCESS;
 }

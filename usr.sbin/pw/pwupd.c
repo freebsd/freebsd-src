@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pwupd.c,v 1.1.1.2 1996/12/09 23:55:27 joerg Exp $
  */
 
 #include <stdio.h>
@@ -44,6 +44,8 @@
 #include <stdarg.h>
 
 #include "pwupd.h"
+
+#define HAVE_PWDB_C	1
 
 static int
 pwdb(char *arg,...)
@@ -114,8 +116,13 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 
 	/*
 	 * First, let's check the see if the database is alright
+	 * Note: -c is only available in FreeBSD 2.2 and above
 	 */
+#ifdef HAVE_PWDB_C
 	if (pwdb("-c", NULL) == 0) {	/* Check only */
+#else
+	{				/* No -c */
+#endif
 		char            pfx[32];
 		char            pwbuf[MAXPWLINE];
 		int             l = sprintf(pfx, "%s:", user);
