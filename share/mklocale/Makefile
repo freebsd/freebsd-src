@@ -3,7 +3,8 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        ja_JP.EUC \
+LOCALES=        el_GR.ISO_8859-7 \
+		ja_JP.EUC \
 		ja_JP.SJIS \
 		ko_KR.EUC \
 		la_LN.ASCII \
