@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipcomp.h,v 1.8 2000/09/26 07:55:14 itojun Exp $	*/
+/*	$KAME: ipcomp.h,v 1.11 2001/09/04 08:43:19 itojun Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
@@ -66,6 +66,6 @@ struct ipsecrequest;
 extern const struct ipcomp_algorithm *ipcomp_algorithm_lookup __P((int));
 extern void ipcomp4_input __P((struct mbuf *, int));
 extern int ipcomp4_output __P((struct mbuf *, struct ipsecrequest *));
-#endif /*KERNEL*/
+#endif /* KERNEL */
 
-#endif /*_NETINET6_IPCOMP_H_*/
+#endif /* _NETINET6_IPCOMP_H_ */

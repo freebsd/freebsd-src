@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_stf.c,v 1.62 2001/06/07 22:32:16 itojun Exp $	*/
+/*	$KAME: if_stf.c,v 1.73 2001/12/03 11:08:30 keiichi Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.

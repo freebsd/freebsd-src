@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipsec.h,v 1.44 2001/03/23 08:08:47 itojun Exp $	*/
+/*	$KAME: ipsec.h,v 1.53 2001/11/20 08:32:38 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -49,10 +49,9 @@
 
 /*
  * Security Policy Index
- * NOTE: Ensure to be same address family and upper layer protocol.
- * NOTE: ul_proto, port number, uid, gid:
- *	ANY: reserved for waldcard.
- *	0 to (~0 - 1): is one of the number of each value.
+ * Ensure that both address families in the "src" and "dst" are same.
+ * When the value of the ul_proto is ICMPv6, the port field in "src"
+ * specifies ICMPv6 type, and the port field in "dst" specifies ICMPv6 code.
  */
 struct secpolicyindex {
 	u_int8_t dir;			/* direction of packet flow, see blow */
@@ -128,7 +127,7 @@ struct secspacq {
 	int count;		/* for lifetime */
 	/* XXX: here is mbuf place holder to be sent ? */
 };
-#endif /*_KERNEL*/
+#endif /* _KERNEL */
 
 /* according to IANA assignment, port 0x0000 and proto 0xff are reserved. */
 #define IPSEC_PORT_ANY		0
@@ -225,7 +224,7 @@ struct ipsecstat {
 #define IPSECCTL_DEF_ESP_NETLEV		4	/* int; ESP tunnel mode */
 #define IPSECCTL_DEF_AH_TRANSLEV	5	/* int; AH transport mode */
 #define IPSECCTL_DEF_AH_NETLEV		6	/* int; AH tunnel mode */
-#if 0	/*obsolete, do not reuse*/
+#if 0	/* obsolete, do not reuse */
 #define IPSECCTL_INBOUND_CALL_IKE	7
 #endif
 #define	IPSECCTL_AH_CLEARTOS		8
@@ -342,7 +341,7 @@ extern struct socket *ipsec_getsocket __P((struct mbuf *));
 extern int ipsec_addhist __P((struct mbuf *, int, u_int32_t)); 
 extern struct ipsec_history *ipsec_gethist __P((struct mbuf *, int *));
 extern void ipsec_clearhist __P((struct mbuf *));
-#endif /*_KERNEL*/
+#endif /* _KERNEL */
 
 #ifndef _KERNEL
 extern caddr_t ipsec_set_policy __P((char *, int));
@@ -350,6 +349,6 @@ extern int ipsec_get_policylen __P((caddr_t));
 extern char *ipsec_dump_policy __P((caddr_t, char *));
 
 extern const char *ipsec_strerror __P((void));
-#endif /*!_KERNEL*/
+#endif /* !_KERNEL */
 
-#endif /*_NETINET6_IPSEC_H_*/
+#endif /* _NETINET6_IPSEC_H_ */
