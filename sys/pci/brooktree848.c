@@ -113,6 +113,19 @@
                 	   new bt848 specific versions of hue/bright/
                            contrast/satu/satv.
                            Amancio's patch to fix "screen freeze" problem.
+
+1.6             3/19/97    fsmp@freefall.org
+			   new table-driven frequency lookup.
+			   removed disable_intr()/enable_intr() calls from i2c.
+			   misc. cleanup.
+
+1.7             3/19/97    fsmp@freefall.org
+			   added audio support submitted by:
+				Michael Petry <petry@netwolf.NetMasters.com>
+1.8             3/20/97    fsmp@freefall.org
+			   extended audio support.
+			   card auto-detection.
+			   major cleanup, order of routines, declarations, etc.
 */
 
 #include "bktr.h"
@@ -143,43 +156,35 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-/*
- * XXX: include code to support specific tuners.
- * once we add auto-probe code to detect tuner types this can go away.
- *
- * the STB card has a TEMIC tuner, others(?) have the PHILIPS tuner.
- * check the label on the metal can to be sure!
- *
- * in your kernel config file set one of:
-options	TEMIC_TUNER		# STB TV PCI
-options	PHILIPS_TUNER		# WinCast/TV
- *
- * alternately, in this file, you can select one of:
- *
-#define TEMIC_TUNER
-#define PHILIPS_TUNER
- */
-#if !defined( TEMIC_TUNER ) && !defined( PHILIPS_TUNER )
-#define PHILIPS_TUNER
-#endif
 
 /*
- * XXX: the 'options' aspect of this is a REAL KLUDGE, fix it!
+ * This is for start-up convenience only, NOT mandatory.
  * XXX: we need to support additional sets of frequencies.
  *
  * this selects the set of frequencies used by the tuner.
  * in your kernel config file set one of:
-options	DEFAULT_TUNERTYPE=1	# TUNERTYPE_NABCST
-options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
+options	DEFAULT_CHNLSET=1	# CHNLSET_NABCST
+options	DEFAULT_CHNLSET=2	# CHNLSET_CABLEIRC
  *
  * alternately, in this file, you can select one of:
  *
-#define DEFAULT_TUNERTYPE	TUNERTYPE_NABCST
-#define DEFAULT_TUNERTYPE	TUNERTYPE_CABLEIRC
+#define DEFAULT_CHNLSET	CHNLSET_NABCST
+#define DEFAULT_CHNLSET	CHNLSET_CABLEIRC
  */
-#if !defined( DEFAULT_TUNERTYPE )
-#define DEFAULT_TUNERTYPE	TUNERTYPE_NABCST
+#if !defined( DEFAULT_CHNLSET )
+#define DEFAULT_CHNLSET	CHNLSET_NABCST
 #endif
+
+/*
+ * the recognized cards.
+ * used as indexes of several tables.
+ */
+#define	CARD_UNKNOWN		0
+#define	CARD_MIRO		1
+#define	CARD_HAUPPAUGE		2
+#define	CARD_STB		3
+#define	CARD_INTEL		4
+
 
 /*
  * XXX: hack to allow multiple programs to open the device,
@@ -199,6 +204,9 @@ options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
 /* XXX attempt to hold sync on marginal signals, experimental */
 #define LOW_SYNC_NOT
 
+/* srart of audio support */
+#define AUDIO_SUPPORT
+
 
 #include "pci.h"
 #if NPCI > 0
@@ -211,19 +219,13 @@ options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <pci/brktree_reg.h>
 
-/*
- * tuner specific functions
- */
-static int	tv_channel __P(( bktr_reg_t* bktr, int channel ));
-static int	tv_freq __P(( bktr_reg_t* bktr, int frequency ));
-static int	tuner_status __P(( bktr_reg_t* bktr ));
-
 
 #define METPRI (PZERO+8)|PCATCH
 
-static void bktr_intr __P((void *arg));
-static bt_enable_cnt;
-static u_long btl_status_prev;
+static void	bktr_intr __P((void *arg));
+static		bt_enable_cnt;
+static u_long	btl_status_prev;
+
 /* 
  * Allocate enough memory for:
  *	768x576 RGB 16 or YUV (16 storage bits/pixel) = 884736 = 216 pages
@@ -232,30 +234,19 @@ static u_long btl_status_prev;
  * kernel configuration file.
  */
 #ifndef BROOKTREE_ALLOC_PAGES
-#define BROOKTREE_ALLOC_PAGES 217*4
+#define BROOKTREE_ALLOC_PAGES	217*4
 #endif
-#define BROOKTREE_ALLOC (BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
+#define BROOKTREE_ALLOC		(BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
 
 static bktr_reg_t brooktree[NBKTR];
 #define BROOKTRE_NUM(mtr)	((bktr - &brooktree[0])/sizeof(bktr_reg_t))
 
 #define BKTRPRI (PZERO+8)|PCATCH
 
-static	char*	bktr_probe (pcici_t tag, pcidi_t type);
-static	void	bktr_attach(pcici_t tag, int unit);
-int dump_bt848(	 volatile u_char *bt848 );
+static char*	bktr_probe( pcici_t tag, pcidi_t type );
+static void	bktr_attach( pcici_t tag, int unit );
 
-void yuvpack_prog( bktr_reg_t * bktr, char i_flag, int cols,
-	       int rows,  int interlace) ;
-
-void yuv422_prog( bktr_reg_t * bktr, char i_flag, int cols,
-	       int rows, int interlace);
-void rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
-	       int rows, int pixel_width, int interlace) ;
-void start_capture(bktr_reg_t *bktr, unsigned type);
-void build_dma_prog( bktr_reg_t * bktr, char i_flag);
-
-static	u_long	bktr_count;
+static u_long	bktr_count;
 
 static struct	pci_device bktr_device = {
 	"bktr",
@@ -284,7 +275,60 @@ static struct cdevsw bktr_cdevsw =
 
 
 /*
- * 
+ * misc. support routines.
+ */
+struct CARDTYPE {
+	char*	name;
+	u_char	tuner;
+	u_char	dbx;
+	u_char	audiomuxs[4];	/* tuner, external, internal/unused, mute */
+};
+static struct CARDTYPE card_types[];
+static int	probe_card( bktr_reg_t *bktr, int verbose );
+static vm_offset_t get_bktr_mem( int unit, unsigned size );
+
+
+/*
+ * bt848 RISC programming routines.
+ */
+static int	dump_bt848( volatile u_char *bt848 );
+
+static void	yuvpack_prog( bktr_reg_t * bktr, char i_flag, int cols,
+			      int rows,  int interlace) ;
+
+static void	yuv422_prog( bktr_reg_t * bktr, char i_flag, int cols,
+			     int rows, int interlace);
+static void	rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
+			  int rows, int pixel_width, int interlace) ;
+static void	build_dma_prog( bktr_reg_t * bktr, char i_flag);
+
+
+/*
+ * video & video capture specific routines.
+ */
+static void	start_capture( bktr_reg_t *bktr, unsigned type );
+static void	set_fps( bktr_reg_t *bktr, u_short fps );
+
+
+/*
+ * tuner specific functions.
+ */
+static int	tv_channel( bktr_reg_t* bktr, int channel );
+static int	tv_freq( bktr_reg_t* bktr, int frequency );
+static int	tuner_status( bktr_reg_t* bktr );
+
+
+#if defined( AUDIO_SUPPORT )
+/*
+ * audio specific functions.
+ */
+static int	set_audio( bktr_reg_t * bktr, int mode );
+static int	set_BTSC( bktr_reg_t * bktr, int control );
+#endif /* AUDIO_SUPPORT */
+
+
+/*
+ * the boot time probe routine.
  */
 static char*
 bktr_probe( pcici_t tag, pcidi_t type )
@@ -299,7 +343,7 @@ bktr_probe( pcici_t tag, pcidi_t type )
 
 
 /*
- * interrupt handling routine complete meteor_read() if using interrupts
+ * interrupt handling routine complete bktr_read() if using interrupts.
  */
 static void
 bktr_intr( void *arg )
@@ -453,648 +497,6 @@ bktr_intr( void *arg )
 
 
 /*
- * 
- */
-int
-dump_bt848( volatile u_char *bt848 )
-{
-	u_long	*bt_long;
-	u_short *bt_short;
-	int	r[60]={
-			   4,    8, 0xc, 0x8c, 0x10, 0x90, 0x14, 0x94, 
-			0x18, 0x98, 0x1c, 0x9c, 0x20, 0xa0, 0x24, 0xa4,
-			0x28, 0x2c, 0xac, 0x30, 0x34, 0x38, 0x3c, 0x40,
-			0xc0, 0x48, 0x4c, 0xcc, 0x50, 0xd0, 0xd4, 0x60,
-			0x64, 0x68, 0x6c, 0xec, 0xd8, 0xdc, 0xe0, 0xe4,
-			0,	 0,    0,    0
-		   };
-	int	i;
-
-	for (i = 0; i < 40; i+=4) {
-		printf(" Reg:value : \t%x:%x \t%x:%x \t %x:%x \t %x:%x\n",
-		       r[i], bt848[r[i]],
-		       r[i+1], bt848[r[i+1]],
-		       r[i+2], bt848[r[i+2]],
-		       r[i+3], bt848[r[i+3]]);
-	}
-
-	bt_long = (u_long *) &bt848[BKTR_INT_STAT];
-	printf(" Reg 100 %x \n",  *bt_long);
-
-	bt_long = (u_long *) &bt848[BKTR_INT_MASK];
-	printf(" Reg 104 %x \n",  *bt_long);
-
-	bt_long = (u_long *) &bt848[BKTR_GPIO_DMA_CTL];
-	printf(" Reg 10C %x \n",  *bt_long);
-
-	return 0;
-}
-
-
-/*
- * build write instruction
- */
-#define BKTR_FM1      0x6
-#define BKTR_FM3      0xe
-#define BKTR_VRE      0x4
-#define BKTR_VRO      0xC
-#define BKTR_PXV      0x0
-#define BKTR_EOL      0x1
-#define BKTR_SOL      0x2
-
-#define OP_WRITE      0x1 << 28
-#define OP_WRITEC     0x5 << 28
-#define OP_JUMP	      0x7 << 28
-#define OP_SYNC	      0x8 << 28
-#define OP_WRITE123   0x9 << 28
-#define OP_WRITES123  0xb << 28
-#define OP_SOL	      1 << 27
-#define OP_EOL	      1 << 26
-
-void
-rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
-	  int rows, int pixel_width, int interlace )
-{
-	int			i;
-	int  			byte_count;
-	volatile unsigned int	inst;
-	volatile unsigned int	inst2;
-	volatile unsigned int	inst3;
-	volatile u_long		target_buffer, buffer;
-	volatile u_char		*bt848, *bt_reg;
-	volatile u_short	*bts_reg;
-	volatile u_long		pitch;
-	volatile  u_long	*dma_prog, *foo, *btl_reg, *t_test;
-	int			b, c;
-
-	bt848 = bktr->base;
-
-	/* color format : rgb32 */
-	if (bktr->depth == 4)
-		bt848[BKTR_COLOR_FMT] = 0;
-	else
-		bt848[BKTR_COLOR_FMT] = 0x33;
-
-	bt848[BKTR_COLOR_CTL] = 0x40;
-	bt848[BKTR_COLOR_CTL] = 0x10;
-
-#if 0
-	bt848[0x10] = 0x1C;
-	bt848[0x90] = 0x1C;
-#endif
-
-	bt848[BKTR_VBI_PACK_SIZE] = 0;	    
-	bt848[BKTR_VBI_PACK_DEL] = 0;
-
-	bt848[BKTR_ADC] = 0x81;
-	bt848[BKTR_COLOR_CTL] = 0x20;
-
-	bt848[BKTR_E_VSCALE_HI] |= 0xc0;
-	bt848[BKTR_O_VSCALE_HI] |= 0xc0;
-
-	bktr->capcontrol = 3 << 2 |  3;
-
-	dma_prog = (u_long *) bktr->dma_prog;
-
-	/* Construct Write */
-	bt_enable_cnt = 0;
-
-	b = (cols * pixel_width ) / 2;
-
-	/* write, sol, eol */
-	inst = OP_WRITE	 |  OP_SOL  |  bt_enable_cnt << 12 |  (b);
-	inst2 = OP_WRITE |  bt_enable_cnt << 12 |  (cols * pixel_width/2); 
-	/* write , sol, eol */
-	inst3 = OP_WRITE |  OP_EOL  |  bt_enable_cnt << 12 |  (b);
-
-	if (bktr->video.addr) {
-		target_buffer = (u_long) bktr->video.addr;
-		pitch = bktr->video.width;
-	}
-	else {
-		target_buffer = (u_long) vtophys(bktr->bigbuf);
-		pitch = cols*pixel_width;
-	}
-
-	buffer = target_buffer;
-
-	/* contruct sync : for video packet format */
-	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 | BKTR_FM1;
-
-	/* sync, mode indicator packed data */
-	*dma_prog++ = 0;  /* NULL WORD */
-
-	for (i = 0; i < (rows/interlace); i++) {
-		*dma_prog++ = inst;
-		*dma_prog++ = target_buffer;
-		*dma_prog++ = inst3;
-		*dma_prog++ = target_buffer + b;
-		target_buffer += interlace*pitch;
-	}
-
-	switch (i_flag) {
-	case 1:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | BKTR_VRE;
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP	| 0xC << 24;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-
-	case 2:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 20 | BKTR_VRO;
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-
-	case 3:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | 1 << 15 | BKTR_VRO;
-		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP | 0xc << 24 ;
-		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
-		break;
-	}
-
-	if (interlace == 2) {
-
-		target_buffer =	 (u_long) buffer + pitch;
-
-		dma_prog = (u_long *) bktr->odd_dma_prog;
-
-		/* sync vre IRQ bit */
-		*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 15 | BKTR_FM1;
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		for (i = 0; i < (rows/interlace); i++) {
-			*dma_prog++ = inst;
-			*dma_prog++ = target_buffer;
-			*dma_prog++ = inst3;
-			*dma_prog++ = target_buffer + b;
-			target_buffer += interlace * pitch;
-		}
-	}
-
-	/* sync vre IRQ bit */
-	*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 24 | 1 << 15 | BKTR_VRE;
-	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xc << 24;
-	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
-	*dma_prog++ = 0;  /* NULL WORD */
-}
-
-
-/*
- * 
- */
-void
-yuvpack_prog( bktr_reg_t *bktr, char i_flag, int cols, int rows, int interlace)
-{
-	int			i;
-	int  			byte_count;
-	volatile unsigned int	inst;
-	volatile unsigned int	inst2;
-	volatile unsigned int	inst3;
-	volatile u_long		target_buffer, buffer;
-	volatile u_char		*bt848, *bt_reg;
-	volatile u_short	*bts_reg;
-	volatile  u_long	*dma_prog, *foo, *btl_reg;
-	int			b;
-
-	bt848 = bktr->base;
-
-	/* color format : yuvpack */
-	bt848[BKTR_COLOR_FMT] = 0x44;
-
-	bt848[BKTR_E_SCLOOP] |= 0x40; /* enable chroma comb */
-	bt848[BKTR_O_SCLOOP] |= 0x40;
-
-	bt848[BKTR_COLOR_CTL] = 0x30;
-	bt848[BKTR_ADC] = 0x81;
-
-	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
-	bktr->capcontrol =   1 << 5 | 1 << 4 | 1 << 2 | 3;
-
-	dma_prog = (u_long *) bktr->dma_prog;
-
-	/* Construct Write */
-	bt_enable_cnt = 0;
-    
-	/* write , sol, eol */
-	inst = OP_WRITE	 | OP_SOL | 0xf << 16 | bt_enable_cnt << 12 | (cols*2);
-	/* write , sol, eol */
-	inst3 = OP_WRITE | OP_EOL | 0xf << 16 | bt_enable_cnt << 12 | (cols);
-	inst2 = OP_WRITE | bt_enable_cnt << 12 | (cols ); 
-
-	if (bktr->video.addr)
-		target_buffer = (u_long) bktr->video.addr;
-	else
-		target_buffer = (u_long) vtophys(bktr->bigbuf);
-
-	buffer = target_buffer;
-
-	/* contruct sync : for video packet format */
-	/* sync, mode indicator packed data */
-	*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 15 | BKTR_FM1;
-	*dma_prog++ = 0;  /* NULL WORD */
-
-	b = cols;
-
-	for (i = 0; i < (rows/interlace); i++) {
-		*dma_prog++ = inst;
-		*dma_prog++ = target_buffer;
-		*dma_prog++ = inst3;
-		*dma_prog++ = target_buffer + b; 
-		target_buffer += interlace*(cols * 2);
-	}
-
-	switch (i_flag) {
-	case 1:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC  | 1 << 24  | BKTR_VRE;
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-
-	case 2:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC  | 1 << 24 | 1 << 20 | BKTR_VRO;
-		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-
-	case 3:
-		/* sync vre */
-		*dma_prog++ = OP_SYNC	| 1 << 24 |  0xf << 16 | BKTR_VRE;
-		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP  ;
-		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
-		break;
-	}
-
-	if (interlace == 2) {
-
-		target_buffer =	 (u_long) buffer + cols*2;
-
-		dma_prog = (u_long * ) bktr->odd_dma_prog;
-
-		/* sync vre */
-		*dma_prog++ = OP_SYNC | 1 << 24 | 0xf << 16 | 1 << 15 | BKTR_FM1;
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		for (i = 0; i < (rows/interlace) ; i++) {
-			*dma_prog++ = inst;
-			*dma_prog++ = target_buffer;
-			*dma_prog++ = inst3;
-			*dma_prog++ = target_buffer + b;
-			target_buffer += interlace * ( cols*2);
-		}
-	}
-
-	/* sync vre IRQ bit */
-	*dma_prog++ = OP_SYNC	| 1 << 24 |  0xf << 16 |  BKTR_VRO;
-	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xf << 16;
-	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-
-	*dma_prog++ = OP_JUMP;
-	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-	*dma_prog++ = 0;  /* NULL WORD */
-}
-
-
-/*
- * 
- */
-void
-yuv422_prog( bktr_reg_t * bktr, char i_flag, int cols,
-	     int rows, int interlace)
-{
-	int			i, j;
-	int			byte_count;
-	volatile unsigned int	inst;
-	volatile unsigned int	inst2;
-	volatile unsigned int	instskip, instskip2, instskip3;
-	volatile unsigned int	inst3;
-	volatile u_long		target_buffer, t1, buffer;
-	volatile u_char		*bt848, *bt_reg;
-	volatile u_short	*bts_reg;
-	volatile  u_long	*dma_prog, *foo, *btl_reg;
-	int			b, b1;
-
-	bt848 = bktr->base;
-	dma_prog = (u_long *) bktr->dma_prog;
-
-	bktr->capcontrol =   1 << 6 | 1 << 4 |	3;
-
-	bt848[BKTR_ADC] = 0x81 ;
-	bt848[BKTR_OFORM] = 0x00;
-
-	bt848[BKTR_E_CONTROL] |= 0x20; /* disable luma decimation */
-	bt848[BKTR_O_CONTROL] |= 0x20;
-
-	bt848[BKTR_E_SCLOOP] |= 0x40; /* chroma agc enable */
-	bt848[BKTR_O_SCLOOP] |= 0x40; 
-
-	bt848[BKTR_E_VSCALE_HI] |= 0xc0; /* luma comb and comb enable */
-	bt848[BKTR_O_VSCALE_HI] |= 0xc0;
-
-	bt848[BKTR_COLOR_FMT] = 0x88;
-
-	bt848[BKTR_COLOR_CTL] = 0x10; /* disable gamma correction */
-
-	bt_enable_cnt = 0;
-
-	/* Construct Write */
-	inst  = OP_WRITE123  | OP_SOL  |  OP_EOL | bt_enable_cnt << 12 |  (cols); 
-	inst2 = OP_WRITES123 | OP_SOL  |  OP_EOL | bt_enable_cnt << 12 |  (cols); 
-
-	if (bktr->video.addr)
-	    target_buffer = (u_long) bktr->video.addr;
-	else
-	    target_buffer = (u_long) vtophys(bktr->bigbuf);
-    
-	buffer = target_buffer;
-
-	t1 = target_buffer;
-
-	/* contruct sync : for video packet format */
-	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
-	*dma_prog++ = 0;  /* NULL WORD */
-
-	for (i = 0; i < (rows/interlace )  ; i++) {
-		*dma_prog++ = inst;
-		*dma_prog++ = cols/2 | cols/2 << 16;
-		*dma_prog++ = target_buffer;
-		*dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
-		*dma_prog++ = t1 + (cols*rows) + (cols*rows/2) + i*cols/2 * interlace;
-		target_buffer += interlace*cols;
-	}
-
-	switch (i_flag) {
-	case 1:
-		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE;  /*sync vre*/
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP | 0xc << 24;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-		break;
-	case 2:
-		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRO;  /*sync vre*/
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP;
-		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
-		return;
-		break;
-	case 3:
-		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 15 |  BKTR_VRO;  
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		*dma_prog++ = OP_JUMP  | 0xc << 24 ;
-		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
-		break;
-	}
-
-	if (interlace == 2) {
-
-		dma_prog = (u_long * ) bktr->odd_dma_prog;
-
-		target_buffer  = (u_long) buffer + cols;
-		t1 = target_buffer + cols/2;
-		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 24 |   1 << 15 | BKTR_FM3; 
-		*dma_prog++ = 0;  /* NULL WORD */
-
-		for (i = 0; i < (rows/interlace ) ; i++) {
-			*dma_prog++ = inst;
-			*dma_prog++ = cols/2 | cols/2 << 16;
-			*dma_prog++ = target_buffer;
-			*dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
-			*dma_prog++ = t1 + (cols*rows) + (cols*rows/2) + i*cols/2 * interlace;
-			target_buffer += interlace*cols;
-		}
-	}
-    
-	*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE; 
-	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xC << 24;;
-	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
-	*dma_prog++ = 0;  /* NULL WORD */
-}
-
-
-/*
- * 
- */
-void
-build_dma_prog( bktr_reg_t * bktr, char i_flag)
-{
-	int i;
-	int pixel_width, rows, cols, byte_count, interlace;
-	volatile unsigned int inst;
-	volatile unsigned int inst2;
-	volatile unsigned int inst3;
-	volatile u_long target_buffer;
-	volatile u_char *bt848, *bt_reg;
-	volatile u_short *bts_reg;
-	volatile  u_long *  dma_prog, *foo, *btl_reg;
-	int b;
-
-	bt848 = bktr->base;
-	btl_reg = (u_long *) &bt848[BKTR_INT_MASK] ;
-	*btl_reg = 0;
-
-	bts_reg = (u_short * ) &bt848[BKTR_GPIO_DMA_CTL];
-	*bts_reg &= ~3;
-
-	/* capture control */
-	switch (i_flag) {
-	case 1:
- 	        bktr->bktr_cap_ctl  = 0x11;
-		bt848[BKTR_CAP_CTL] = 0x11;
-		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
-		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
-		interlace = 1;
-		break;
-	 case 2:
- 	        bktr->bktr_cap_ctl  = 0x12;
-		bt848[BKTR_CAP_CTL] = 0x12;
-		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
-		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
-		interlace = 1;
-		break;
-	 default:
- 	        bktr->bktr_cap_ctl  = 0x13;
-		bt848[BKTR_CAP_CTL] = 0x13;
-		bt848[BKTR_E_VSCALE_HI] |= 0x20;
-		bt848[BKTR_O_VSCALE_HI] |= 0x20;
-		interlace = 2;
-		break;
-	}
-
-	btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD] ;
-	*btl_reg =  vtophys(bktr->dma_prog);
-
-	pixel_width = bktr->depth;
-	rows = bktr->rows;
-	cols = bktr->cols;
-
-	if (bktr->format  == METEOR_GEO_RGB24 ||
-	    bktr->format  == METEOR_GEO_RGB16) {
-		rgb_prog(bktr, i_flag, cols, rows, pixel_width, interlace);
-		return;
-	}
-
-	if (bktr->format == METEOR_GEO_YUV_422 ){
-		yuv422_prog(bktr, i_flag, cols, rows, interlace);
-		return;
-	}
-
-	if (bktr->format == METEOR_GEO_YUV_PACKED ){
-		yuvpack_prog(bktr, i_flag, cols, rows, interlace);
-		return;
-	}
-
-	return;
-}
-
-
-/*
- * 
- */
-void
-start_capture(bktr_reg_t *bktr, unsigned type)
-{
-	volatile u_char * bt848, *bt_reg, i_flag;
-	volatile u_short  *bts_reg;
-	volatile u_long *btl_reg;
-	bt848 = (u_char *) bktr->base;
-
-	*bt848 = 0;
-	btl_reg = (u_long *)  &bt848[BKTR_INT_STAT];
-	*btl_reg = *btl_reg;
-
-	bktr->flags |= type;
-	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
-	case METEOR_ONLY_EVEN_FIELDS:
-		bktr->flags |= METEOR_WANT_EVEN;
-		i_flag = 1;
-		break;
-	case METEOR_ONLY_ODD_FIELDS:
-		bktr->flags |= METEOR_WANT_ODD;
-		i_flag = 2;
-		break;
-	default:
-		bktr->flags |= METEOR_WANT_MASK;
-		i_flag = 3;
-		break;
-	}
-
-	if (!bktr->dma_prog_loaded) {
-		build_dma_prog(bktr, i_flag);
-		bktr->dma_prog_loaded = 1;
-	}
-	
-/*XXX
-	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
-	default:
-	*bts_reg |= 0xb;
-	}
-*/
-
-	btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD];
-	*btl_reg =  vtophys(bktr->dma_prog);
-
-/*XXX
-	bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
-	*bts_reg = 0x3;
-*/
-
-}
-
-/*
- * 
- */
-static void
-set_fps(bktr_reg_t *bktr, u_short fps)
-{
-	volatile u_char * bt848, *bt_reg;
-	volatile u_long * btl_reg;
-	volatile u_short * bts_reg;
-	bt848 = (u_char *) bktr->base;
-
-	bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
-	*bts_reg = 0;
-	btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
-	*btl_reg = 0xffffffff;
-
-	bktr->fps = fps;
-
-	if ( fps == 30 ) {
-		bt848[BKTR_TDEC] = 0;
-		return;
-	} else {
-		bt848[BKTR_TDEC] = (int) (((float) fps / 30.0) * 60.0) & 0x3f;
-		bt848[BKTR_TDEC] |= 0x80;
-	}
-
-	if ( bktr->flags & METEOR_CAP_MASK ) {
-
-		btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
-		*btl_reg = 0xffffffff;	  
-		btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD];
-		*btl_reg =  vtophys(bktr->dma_prog);
-
-		bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
-		*bts_reg = 1;
-		*bts_reg = bktr->capcontrol;
-		btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
-		*btl_reg =    1 << 11 |	 2 | 1;
-	}
-
-	return;
-
-}
-
-
-/*
- * There is also a problem with range checking on the 7116.
- * It seems to only work for 22 bits, so the max size we can allocate
- * is 22 bits long or 4194304 bytes assuming that we put the beginning
- * of the buffer on a 2^24 bit boundary.  The range registers will use
- * the top 8 bits of the dma start registers along with the bottom 22
- * bits of the range register to determine if we go out of range.
- * This makes getting memory a real kludge.
- *
- */
-
-#define RANGE_BOUNDARY	(1<<22)
-static vm_offset_t
-get_bktr_mem( int unit, unsigned size )
-{
-	vm_offset_t	addr = 0;
-
-	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
-	if (addr == 0)
-		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
-								PAGE_SIZE);
-	if (addr == 0) {
-		printf("meteor%d: Unable to allocate %d bytes of memory.\n",
-			unit, size);
-	}
-	return addr;
-}
-
-
-/*
  * what should we do here?
  */
 static void
@@ -1104,21 +506,26 @@ bktr_init ( bktr_reg_t *bktr )
 }
 
 
+/*
+ * the attach routine.
+ */
 static	void
 bktr_attach( pcici_t tag, int unit )
 {
-	bktr_reg_t *bktr;
-	volatile u_char	 *bt848;
-	volatile u_long *btl_reg;
+	bktr_reg_t	*bktr;
+	volatile u_char	*bt848;
+	volatile u_long	*btl_reg;
 #ifdef BROOKTREE_IRQ
-	u_long old_irq, new_irq;
+	u_long		old_irq, new_irq;
 #endif 
-	u_char *test;
-	vm_offset_t buf;
-	u_long latency;
-	u_long foo,fun;
+	u_char		*test;
+	vm_offset_t	buf;
+	u_long		latency;
+	u_long		fun;
+
 	bt_enable_cnt = 0;
 	bktr = &brooktree[unit];
+
 	if (unit >= NBKTR) {
 		printf("brooktree%d: attach: only %d units configured.\n",
 				unit, NBKTR);
@@ -1145,7 +552,6 @@ bktr_attach( pcici_t tag, int unit )
 /*
  * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
  * you have more than for, then 16 would probably be a better value.
- *
  */
 #ifndef BROOKTREE_DEF_LATENCY_VALUE
 #define BROOKTREE_DEF_LATENCY_VALUE	10
@@ -1217,7 +623,9 @@ end of setup up dma risc program
 	/* defaults for the tuner section of the card */
 	bktr->tuner.frequency = 0;
 	bktr->tuner.channel = 0;
-	bktr->tuner.tunertype = DEFAULT_TUNERTYPE;
+	bktr->tuner.chnlset = DEFAULT_CHNLSET;
+
+	probe_card( bktr, 1 );
 
 #ifdef DEVFS
 	bktr->devfs_token = devfs_add_devswf(&bktr_cdevsw, unit,
@@ -1242,12 +650,12 @@ end of setup up dma risc program
 int
 bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 {
-	bktr_reg_t *bktr;
-	int	unit;
-	int	i;
-	volatile u_char	 *bt848;
-	volatile u_char *bt_reg;
-	volatile u_long *btl_reg;
+	bktr_reg_t	*bktr;
+	int		unit;
+	int		i;
+	volatile u_char	*bt848;
+	volatile u_char	*bt_reg;
+	volatile u_long	*btl_reg;
 
 	unit = UNIT(minor(dev));
 	if (unit >= NBKTR)			/* unit out of range */
@@ -1270,7 +678,10 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	
 	bt848 = bktr->base;
 
-	/* dump_bt848(bt848); */
+#if 0
+	dump_bt848( bt848 );
+#endif /* 0 */
+
 	*bt848 = 0x3;				/* bt848[ 0 ] */
 	*bt848 = 0xc0;
 
@@ -1312,6 +723,12 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
 	*btl_reg = 1 << 23;
 
+#if defined( AUDIO_SUPPORT )
+	set_audio( bktr, AUDIO_UNMUTE );
+	if ( card_types[ bktr->card_type ].dbx )
+		set_BTSC( bktr, 0 );		/* enable the stereo chip */
+#endif /* AUDIO_SUPPORT */
+
 	return(0);
 }
 
@@ -1330,6 +747,7 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 #ifdef METEOR_DEALLOC_ABOVE
 	int		temp;
 #endif
+
 	unit = UNIT(minor(dev));
 	if (unit >= NBKTR)			/* unit out of range */
 		return(ENXIO);
@@ -1352,6 +770,11 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 	bt848[BKTR_SRESET] = 0xf;
 	btl_reg = (u_long *) &bt848[BKTR_INT_STAT] ;
 	*btl_reg = 0xffffffff;
+
+#if defined( AUDIO_SUPPORT )
+	/* mute the audio by switching the mux */
+	set_audio( bktr, AUDIO_MUTE );
+#endif /* AUDIO_SUPPORT */
 
 	return(0);
 }
@@ -1435,7 +858,6 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 	struct meteor_geomet	*geo;
 	struct meteor_counts	*cnt;
 	struct meteor_video	*video;
-	u_long			*foo;
 	vm_offset_t		buf;
 
 	unit = UNIT(minor(dev));
@@ -1451,7 +873,13 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 	switch (cmd) {
 
 	case TVTUNER_SETCHNL:
+#if defined( AUDIO_SUPPORT )
+		set_audio( bktr, AUDIO_MUTE );
+#endif /* AUDIO_SUPPORT */
 		temp = tv_channel( bktr, (int)*(unsigned long *)arg );
+#if defined( AUDIO_SUPPORT )
+		set_audio( bktr, AUDIO_UNMUTE );
+#endif /* AUDIO_SUPPORT */
 		if ( temp < 0 )
 			return EINVAL;
 		*(unsigned long *)arg = temp;
@@ -1463,13 +891,13 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 
 	case TVTUNER_SETTYPE:
 		temp = *(unsigned long *)arg;
-		if ( (temp < TUNERTYPE_MIN) || (temp > TUNERTYPE_MAX) )
+		if ( (temp < CHNLSET_MIN) || (temp > CHNLSET_MAX) )
 			return EINVAL;
-		bktr->tuner.tunertype = temp;
+		bktr->tuner.chnlset = temp;
 		break;
 
 	case TVTUNER_GETTYPE:
-		*(unsigned long *)arg = bktr->tuner.tunertype;
+		*(unsigned long *)arg = bktr->tuner.chnlset;
 		break;
 
 	case TVTUNER_GETSTATUS:
@@ -1478,7 +906,13 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		break;
 
 	case TVTUNER_SETFREQ:
+#if defined( AUDIO_SUPPORT_XXX )
+		set_audio( bktr, AUDIO_MUTE );
+#endif /* AUDIO_SUPPORT */
 		temp = tv_freq( bktr, (int)*(unsigned long *)arg );
+#if defined( AUDIO_SUPPORT_XXX )
+		set_audio( bktr, AUDIO_UNMUTE );
+#endif /* AUDIO_SUPPORT */
 		if ( temp < 0 )
 			return EINVAL;
 		*(unsigned long *)arg = temp;
@@ -1498,6 +932,8 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 
 	case METEORSINPUT:	/* set input device */
 		switch(*(unsigned long *)arg & METEOR_DEV_MASK) {
+
+		/* this is the RCA video input */
 		case 0:		/* default */
 		case METEOR_INPUT_DEV0:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
@@ -1506,8 +942,14 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 			bt848[BKTR_IFORM] |= 0x60;
 			bt848[BKTR_E_CONTROL] &= ~0x40;
 			bt848[BKTR_O_CONTROL] &= ~0x40;
+#if defined( AUDIO_SUPPORT )
+			set_audio( bktr, AUDIO_MUTE );
+			set_audio( bktr, AUDIO_EXTERN );
+			set_audio( bktr, AUDIO_UNMUTE );
+#endif /* AUDIO_SUPPORT */
 			break;
 
+		/* this is the tuner input */
 		case METEOR_INPUT_DEV1:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV1;
@@ -1515,17 +957,15 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 			bt848[BKTR_IFORM] |= 0x40;
 			bt848[BKTR_E_CONTROL] &= ~0x40;
 			bt848[BKTR_O_CONTROL] &= ~0x40;
+#if defined( AUDIO_SUPPORT )
+			set_audio( bktr, AUDIO_MUTE );
+			set_audio( bktr, AUDIO_TUNER );
+			set_audio( bktr, AUDIO_UNMUTE );
+#endif /* AUDIO_SUPPORT */
 			break;
 
+		/* this is the S-VHS input */
 		case METEOR_INPUT_DEV2:
-			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
-				| METEOR_DEV2;
-			bt848[BKTR_IFORM] &= ~0x60;
-			bt848[BKTR_IFORM] |= 0x20;
-			bt848[BKTR_E_CONTROL] |= 0x40;
-			bt848[BKTR_O_CONTROL] |= 0x40;
-			break;
-
 		case METEOR_INPUT_DEV_SVIDEO:
 			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
 				| METEOR_DEV2;
@@ -1533,6 +973,11 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 			bt848[BKTR_IFORM] |= 0x20;
 			bt848[BKTR_E_CONTROL] |= 0x40;
 			bt848[BKTR_O_CONTROL] |= 0x40;
+#if defined( AUDIO_SUPPORT )
+			set_audio( bktr, AUDIO_MUTE );
+			set_audio( bktr, AUDIO_EXTERN );
+			set_audio( bktr, AUDIO_UNMUTE );
+#endif /* AUDIO_SUPPORT */
 			break;
 
 		default:
@@ -1784,6 +1229,25 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		bt848[BKTR_COLOR_CTL] &= ~0x40;
 		break;
 
+#if defined( AUDIO_SUPPORT )
+	case BT848_SAUDIO:	/* set audio channel */
+		if ( set_audio( bktr, *(int*)arg ) < 0 )
+			return EIO;
+		break;
+
+	case BT848_GAUDIO:	/* get audio channel */
+		temp = bktr->audio_mux_select;
+		if ( bktr->audio_mute_state == TRUE )
+			temp |= AUDIO_MUTE;
+		*(int*)arg = temp;
+		break;
+
+	case BT848_SBTSC:	/* set audio channel */
+		if ( set_BTSC( bktr, *(int*)arg ) < 0 )
+			return EIO;
+		break;
+#endif /* AUDIO_SUPPORT */
+
 	case METEORSSIGNAL:
 		bktr->signal = *(int *) arg;
 		bktr->proc = pr;
@@ -1853,7 +1317,10 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 			btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
 			*btl_reg =    1 << 23 |	 1 << 11 |  2 | 1;
 
-			/*			dump_bt848(bt848); */
+#if 0
+			dump_bt848( bt848 );
+#endif /* 0 */
+
 			break;
 		
 		case METEOR_CAP_STOP_CONT:
@@ -2095,54 +1562,664 @@ bktr_mmap( dev_t dev, int offset, int nprot )
 
 
 /******************************************************************************
- * tuner specific routines:
+ * bt848 RISC programming routines:
  */
-
-/* guaranteed address for any TSA5522 */
-#define TSA5522_WADDR		0xc2
-#define TSA5522_RADDR		0xc3
-
-/* EEProm */
-#define X24C01_WADDR		0xae		/* STB */
-#define X24C01_RADDR		0xaf
 
 
 /*
- * bit 7: CONTROL BYTE = 1
- * bit 6: CP = 0		moderate speed tuning, better FM
- * bit 5: T2 = 0		normal operation
- * bit 4: T1 = 0		normal operation
- * bit 3: T0 = 1		normal operation
- * bit 2: RSA = 1		62.5kHz
- * bit 1: RSB = 1		62.5kHz
- * bit 0: OS = 0		normal operation
+ * 
  */
-#if defined( TEMIC_TUNER )
-#define TSA5522_CONTROL		0xce
-#else
-#define TSA5522_CONTROL		0x8e
+static int
+dump_bt848( volatile u_char *bt848 )
+{
+	u_long	*bt_long;
+	u_short *bt_short;
+	int	r[60]={
+			   4,    8, 0xc, 0x8c, 0x10, 0x90, 0x14, 0x94, 
+			0x18, 0x98, 0x1c, 0x9c, 0x20, 0xa0, 0x24, 0xa4,
+			0x28, 0x2c, 0xac, 0x30, 0x34, 0x38, 0x3c, 0x40,
+			0xc0, 0x48, 0x4c, 0xcc, 0x50, 0xd0, 0xd4, 0x60,
+			0x64, 0x68, 0x6c, 0xec, 0xd8, 0xdc, 0xe0, 0xe4,
+			0,	 0,    0,    0
+		   };
+	int	i;
+
+	for (i = 0; i < 40; i+=4) {
+		printf(" Reg:value : \t%x:%x \t%x:%x \t %x:%x \t %x:%x\n",
+		       r[i], bt848[r[i]],
+		       r[i+1], bt848[r[i+1]],
+		       r[i+2], bt848[r[i+2]],
+		       r[i+3], bt848[r[i+3]]);
+	}
+
+	bt_long = (u_long *) &bt848[BKTR_INT_STAT];
+	printf(" Reg 100 %x \n",  *bt_long);
+
+	bt_long = (u_long *) &bt848[BKTR_INT_MASK];
+	printf(" Reg 104 %x \n",  *bt_long);
+
+	bt_long = (u_long *) &bt848[BKTR_GPIO_DMA_CTL];
+	printf(" Reg 10C %x \n",  *bt_long);
+
+	return 0;
+}
+
+
+/*
+ * build write instruction
+ */
+#define BKTR_FM1      0x6
+#define BKTR_FM3      0xe
+#define BKTR_VRE      0x4
+#define BKTR_VRO      0xC
+#define BKTR_PXV      0x0
+#define BKTR_EOL      0x1
+#define BKTR_SOL      0x2
+
+#define OP_WRITE      0x1 << 28
+#define OP_WRITEC     0x5 << 28
+#define OP_JUMP	      0x7 << 28
+#define OP_SYNC	      0x8 << 28
+#define OP_WRITE123   0x9 << 28
+#define OP_WRITES123  0xb << 28
+#define OP_SOL	      1 << 27
+#define OP_EOL	      1 << 26
+
+static void
+rgb_prog( bktr_reg_t * bktr, char i_flag, int cols,
+	  int rows, int pixel_width, int interlace )
+{
+	int			i;
+	int  			byte_count;
+	volatile unsigned int	inst;
+	volatile unsigned int	inst2;
+	volatile unsigned int	inst3;
+	volatile u_long		target_buffer, buffer;
+	volatile u_char		*bt848, *bt_reg;
+	volatile u_short	*bts_reg;
+	volatile u_long		pitch;
+	volatile  u_long	*dma_prog, *btl_reg, *t_test;
+	int			b, c;
+
+	bt848 = bktr->base;
+
+	/* color format : rgb32 */
+	if (bktr->depth == 4)
+		bt848[BKTR_COLOR_FMT] = 0;
+	else
+		bt848[BKTR_COLOR_FMT] = 0x33;
+
+	bt848[BKTR_COLOR_CTL] = 0x40;
+	bt848[BKTR_COLOR_CTL] = 0x10;
+
+#if 0
+	bt848[0x10] = 0x1C;
+	bt848[0x90] = 0x1C;
 #endif
 
-#if defined( TEMIC_TUNER )
+	bt848[BKTR_VBI_PACK_SIZE] = 0;	    
+	bt848[BKTR_VBI_PACK_DEL] = 0;
 
-#define TSA5522_BANDA		0x02
-#define TSA5522_BANDB		0x04
-#define TSA5522_BANDC		0x01
+	bt848[BKTR_ADC] = 0x81;
+	bt848[BKTR_COLOR_CTL] = 0x20;
 
-#elif defined( PHILIPS_TUNER )
+	bt848[BKTR_E_VSCALE_HI] |= 0xc0;
+	bt848[BKTR_O_VSCALE_HI] |= 0xc0;
 
-#define TSA5522_BANDA		0xa0
-#define TSA5522_BANDB		0x90
-#define TSA5522_BANDC		0x30
+	bktr->capcontrol = 3 << 2 |  3;
 
-#else
+	dma_prog = (u_long *) bktr->dma_prog;
 
-#error you must define a tuner type
+	/* Construct Write */
+	bt_enable_cnt = 0;
 
-#endif /* XXXXXX_TUNER */
+	b = (cols * pixel_width ) / 2;
+
+	/* write, sol, eol */
+	inst = OP_WRITE	 |  OP_SOL  |  bt_enable_cnt << 12 |  (b);
+	inst2 = OP_WRITE |  bt_enable_cnt << 12 |  (cols * pixel_width/2); 
+	/* write , sol, eol */
+	inst3 = OP_WRITE |  OP_EOL  |  bt_enable_cnt << 12 |  (b);
+
+	if (bktr->video.addr) {
+		target_buffer = (u_long) bktr->video.addr;
+		pitch = bktr->video.width;
+	}
+	else {
+		target_buffer = (u_long) vtophys(bktr->bigbuf);
+		pitch = cols*pixel_width;
+	}
+
+	buffer = target_buffer;
+
+	/* contruct sync : for video packet format */
+	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 | BKTR_FM1;
+
+	/* sync, mode indicator packed data */
+	*dma_prog++ = 0;  /* NULL WORD */
+
+	for (i = 0; i < (rows/interlace); i++) {
+		*dma_prog++ = inst;
+		*dma_prog++ = target_buffer;
+		*dma_prog++ = inst3;
+		*dma_prog++ = target_buffer + b;
+		target_buffer += interlace*pitch;
+	}
+
+	switch (i_flag) {
+	case 1:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | BKTR_VRE;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP	| 0xC << 24;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 2:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 20 | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 3:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | 1 << 15 | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+		*dma_prog++ = OP_JUMP | 0xc << 24 ;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+		target_buffer =	 (u_long) buffer + pitch;
+
+		dma_prog = (u_long *) bktr->odd_dma_prog;
+
+		/* sync vre IRQ bit */
+		*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 15 | BKTR_FM1;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		for (i = 0; i < (rows/interlace); i++) {
+			*dma_prog++ = inst;
+			*dma_prog++ = target_buffer;
+			*dma_prog++ = inst3;
+			*dma_prog++ = target_buffer + b;
+			target_buffer += interlace * pitch;
+		}
+	}
+
+	/* sync vre IRQ bit */
+	*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 24 | 1 << 15 | BKTR_VRE;
+	*dma_prog++ = 0;  /* NULL WORD */
+	*dma_prog++ = OP_JUMP | 0xc << 24;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
+	*dma_prog++ = 0;  /* NULL WORD */
+}
 
 
-/******************************* i2c primitives ******************************/
+/*
+ * 
+ */
+static void
+yuvpack_prog( bktr_reg_t *bktr, char i_flag,
+	      int cols, int rows, int interlace )
+{
+	int			i;
+	int  			byte_count;
+	volatile unsigned int	inst;
+	volatile unsigned int	inst2;
+	volatile unsigned int	inst3;
+	volatile u_long		target_buffer, buffer;
+	volatile u_char		*bt848, *bt_reg;
+	volatile u_short	*bts_reg;
+	volatile  u_long	*dma_prog, *btl_reg;
+	int			b;
+
+	bt848 = bktr->base;
+
+	/* color format : yuvpack */
+	bt848[BKTR_COLOR_FMT] = 0x44;
+
+	bt848[BKTR_E_SCLOOP] |= 0x40; /* enable chroma comb */
+	bt848[BKTR_O_SCLOOP] |= 0x40;
+
+	bt848[BKTR_COLOR_CTL] = 0x30;
+	bt848[BKTR_ADC] = 0x81;
+
+	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
+	bktr->capcontrol =   1 << 5 | 1 << 4 | 1 << 2 | 3;
+
+	dma_prog = (u_long *) bktr->dma_prog;
+
+	/* Construct Write */
+	bt_enable_cnt = 0;
+    
+	/* write , sol, eol */
+	inst = OP_WRITE	 | OP_SOL | 0xf << 16 | bt_enable_cnt << 12 | (cols*2);
+	/* write , sol, eol */
+	inst3 = OP_WRITE | OP_EOL | 0xf << 16 | bt_enable_cnt << 12 | (cols);
+	inst2 = OP_WRITE | bt_enable_cnt << 12 | (cols ); 
+
+	if (bktr->video.addr)
+		target_buffer = (u_long) bktr->video.addr;
+	else
+		target_buffer = (u_long) vtophys(bktr->bigbuf);
+
+	buffer = target_buffer;
+
+	/* contruct sync : for video packet format */
+	/* sync, mode indicator packed data */
+	*dma_prog++ = OP_SYNC | 1 << 24 | 1 << 15 | BKTR_FM1;
+	*dma_prog++ = 0;  /* NULL WORD */
+
+	b = cols;
+
+	for (i = 0; i < (rows/interlace); i++) {
+		*dma_prog++ = inst;
+		*dma_prog++ = target_buffer;
+		*dma_prog++ = inst3;
+		*dma_prog++ = target_buffer + b; 
+		target_buffer += interlace*(cols * 2);
+	}
+
+	switch (i_flag) {
+	case 1:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC  | 1 << 24  | BKTR_VRE;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 2:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC  | 1 << 24 | 1 << 20 | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 3:
+		/* sync vre */
+		*dma_prog++ = OP_SYNC	| 1 << 24 |  0xf << 16 | BKTR_VRE;
+		*dma_prog++ = 0;  /* NULL WORD */
+		*dma_prog++ = OP_JUMP  ;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+		target_buffer =	 (u_long) buffer + cols*2;
+
+		dma_prog = (u_long * ) bktr->odd_dma_prog;
+
+		/* sync vre */
+		*dma_prog++ = OP_SYNC | 1 << 24 | 0xf << 16 | 1 << 15
+				| BKTR_FM1;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		for (i = 0; i < (rows/interlace) ; i++) {
+			*dma_prog++ = inst;
+			*dma_prog++ = target_buffer;
+			*dma_prog++ = inst3;
+			*dma_prog++ = target_buffer + b;
+			target_buffer += interlace * ( cols*2);
+		}
+	}
+
+	/* sync vre IRQ bit */
+	*dma_prog++ = OP_SYNC	| 1 << 24 |  0xf << 16 |  BKTR_VRO;
+	*dma_prog++ = 0;  /* NULL WORD */
+	*dma_prog++ = OP_JUMP | 0xf << 16;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+
+	*dma_prog++ = OP_JUMP;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+	*dma_prog++ = 0;  /* NULL WORD */
+}
+
+
+/*
+ * 
+ */
+static void
+yuv422_prog( bktr_reg_t * bktr, char i_flag,
+	     int cols, int rows, int interlace ){
+
+	int			i, j;
+	int			byte_count;
+	volatile unsigned int	inst;
+	volatile unsigned int	inst2;
+	volatile unsigned int	instskip, instskip2, instskip3;
+	volatile unsigned int	inst3;
+	volatile u_long		target_buffer, t1, buffer;
+	volatile u_char		*bt848, *bt_reg;
+	volatile u_short	*bts_reg;
+	volatile  u_long	*dma_prog, *btl_reg;
+	int			b, b1;
+
+	bt848 = bktr->base;
+	dma_prog = (u_long *) bktr->dma_prog;
+
+	bktr->capcontrol =   1 << 6 | 1 << 4 |	3;
+
+	bt848[BKTR_ADC] = 0x81 ;
+	bt848[BKTR_OFORM] = 0x00;
+
+	bt848[BKTR_E_CONTROL] |= 0x20;		/* disable luma decimation */
+	bt848[BKTR_O_CONTROL] |= 0x20;
+
+	bt848[BKTR_E_SCLOOP] |= 0x40;		/* chroma agc enable */
+	bt848[BKTR_O_SCLOOP] |= 0x40; 
+
+	bt848[BKTR_E_VSCALE_HI] |= 0xc0;	/* luma comb and comb enable */
+	bt848[BKTR_O_VSCALE_HI] |= 0xc0;
+
+	bt848[BKTR_COLOR_FMT] = 0x88;
+
+	bt848[BKTR_COLOR_CTL] = 0x10;		/* disable gamma correction */
+
+	bt_enable_cnt = 0;
+
+	/* Construct Write */
+	inst  = OP_WRITE123  | OP_SOL | OP_EOL | bt_enable_cnt << 12 | (cols); 
+	inst2 = OP_WRITES123 | OP_SOL | OP_EOL | bt_enable_cnt << 12 | (cols); 
+
+	if (bktr->video.addr)
+		target_buffer = (u_long) bktr->video.addr;
+	else
+		target_buffer = (u_long) vtophys(bktr->bigbuf);
+    
+	buffer = target_buffer;
+
+	t1 = target_buffer;
+
+	/* contruct sync : for video packet format */
+	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
+	*dma_prog++ = 0;  /* NULL WORD */
+
+	for (i = 0; i < (rows/interlace ); i++) {
+		*dma_prog++ = inst;
+		*dma_prog++ = cols/2 | cols/2 << 16;
+		*dma_prog++ = target_buffer;
+		*dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
+		*dma_prog++ = t1 + (cols*rows) + (cols*rows/2) + i*cols/2 * interlace;
+		target_buffer += interlace*cols;
+	}
+
+	switch (i_flag) {
+	case 1:
+		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE;  /*sync vre*/
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP | 0xc << 24;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+		break;
+	case 2:
+		*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRO;  /*sync vre*/
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+		break;
+	case 3:
+		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 15 |  BKTR_VRO;  
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP  | 0xc << 24 ;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+		dma_prog = (u_long * ) bktr->odd_dma_prog;
+
+		target_buffer  = (u_long) buffer + cols;
+		t1 = target_buffer + cols/2;
+		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 24 |   1 << 15 | BKTR_FM3; 
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		for (i = 0; i < (rows/interlace ) ; i++) {
+			*dma_prog++ = inst;
+			*dma_prog++ = cols/2 | cols/2 << 16;
+			*dma_prog++ = target_buffer;
+			*dma_prog++ = t1 + (cols*rows) + i*cols/2 * interlace;
+			*dma_prog++ = t1 + (cols*rows) + (cols*rows/2) + i*cols/2 * interlace;
+			target_buffer += interlace*cols;
+		}
+	}
+    
+	*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE; 
+	*dma_prog++ = 0;  /* NULL WORD */
+	*dma_prog++ = OP_JUMP | 0xC << 24;;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
+	*dma_prog++ = 0;  /* NULL WORD */
+}
+
+
+/*
+ * 
+ */
+static void
+build_dma_prog( bktr_reg_t * bktr, char i_flag )
+{
+	int			i;
+	int			pixel_width, rows, cols, byte_count, interlace;
+	volatile unsigned int	inst;
+	volatile unsigned int	inst2;
+	volatile unsigned int	inst3;
+	volatile u_long		target_buffer;
+	volatile u_char		*bt848, *bt_reg;
+	volatile u_short	*bts_reg;
+	volatile  u_long	*dma_prog, *btl_reg;
+	int			b;
+
+	bt848 = bktr->base;
+	btl_reg = (u_long *) &bt848[BKTR_INT_MASK] ;
+	*btl_reg = 0;
+
+	bts_reg = (u_short * ) &bt848[BKTR_GPIO_DMA_CTL];
+	*bts_reg &= ~3;
+
+	/* capture control */
+	switch (i_flag) {
+	case 1:
+ 	        bktr->bktr_cap_ctl  = 0x11;
+		bt848[BKTR_CAP_CTL] = 0x11;
+		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
+		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
+		interlace = 1;
+		break;
+	 case 2:
+ 	        bktr->bktr_cap_ctl  = 0x12;
+		bt848[BKTR_CAP_CTL] = 0x12;
+		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
+		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
+		interlace = 1;
+		break;
+	 default:
+ 	        bktr->bktr_cap_ctl  = 0x13;
+		bt848[BKTR_CAP_CTL] = 0x13;
+		bt848[BKTR_E_VSCALE_HI] |= 0x20;
+		bt848[BKTR_O_VSCALE_HI] |= 0x20;
+		interlace = 2;
+		break;
+	}
+
+	btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD] ;
+	*btl_reg =  vtophys(bktr->dma_prog);
+
+	pixel_width = bktr->depth;
+	rows = bktr->rows;
+	cols = bktr->cols;
+
+	if (bktr->format  == METEOR_GEO_RGB24 ||
+	    bktr->format  == METEOR_GEO_RGB16) {
+		rgb_prog(bktr, i_flag, cols, rows, pixel_width, interlace);
+		return;
+	}
+
+	if (bktr->format == METEOR_GEO_YUV_422 ){
+		yuv422_prog(bktr, i_flag, cols, rows, interlace);
+		return;
+	}
+
+	if (bktr->format == METEOR_GEO_YUV_PACKED ){
+		yuvpack_prog(bktr, i_flag, cols, rows, interlace);
+		return;
+	}
+
+	return;
+}
+
+
+/******************************************************************************
+ * video & video capture specific routines:
+ */
+
+
+/*
+ * 
+ */
+static void
+start_capture( bktr_reg_t *bktr, unsigned type )
+{
+	volatile u_char		*bt848, *bt_reg, i_flag;
+	volatile u_short	*bts_reg;
+	volatile u_long		*btl_reg;
+
+	bt848 = (u_char *) bktr->base;
+
+	*bt848 = 0;
+	btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
+	*btl_reg = *btl_reg;
+
+	bktr->flags |= type;
+	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+	case METEOR_ONLY_EVEN_FIELDS:
+		bktr->flags |= METEOR_WANT_EVEN;
+		i_flag = 1;
+		break;
+	case METEOR_ONLY_ODD_FIELDS:
+		bktr->flags |= METEOR_WANT_ODD;
+		i_flag = 2;
+		break;
+	default:
+		bktr->flags |= METEOR_WANT_MASK;
+		i_flag = 3;
+		break;
+	}
+
+	if (!bktr->dma_prog_loaded) {
+		build_dma_prog(bktr, i_flag);
+		bktr->dma_prog_loaded = 1;
+	}
+	
+/*XXX
+	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+	default:
+	*bts_reg |= 0xb;
+	}
+*/
+
+	btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD];
+	*btl_reg =  vtophys(bktr->dma_prog);
+
+/*XXX
+	bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
+	*bts_reg = 0x3;
+*/
+
+}
+
+/*
+ * 
+ */
+static void
+set_fps( bktr_reg_t *bktr, u_short fps )
+{
+	volatile u_char		*bt848, *bt_reg;
+	volatile u_long		*btl_reg;
+	volatile u_short	*bts_reg;
+
+	bt848 = (u_char *) bktr->base;
+
+	bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
+	*bts_reg = 0;
+	btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
+	*btl_reg = 0xffffffff;
+
+	bktr->fps = fps;
+
+	if ( fps == 30 ) {
+		bt848[BKTR_TDEC] = 0;
+		return;
+	} else {
+		bt848[BKTR_TDEC] = (int) (((float) fps / 30.0) * 60.0) & 0x3f;
+		bt848[BKTR_TDEC] |= 0x80;
+	}
+
+	if ( bktr->flags & METEOR_CAP_MASK ) {
+
+		btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
+		*btl_reg = 0xffffffff;	  
+		btl_reg = (u_long *) &bt848[BKTR_RISC_STRT_ADD];
+		*btl_reg =  vtophys(bktr->dma_prog);
+
+		bts_reg = (u_short *) &bt848[BKTR_GPIO_DMA_CTL];
+		*bts_reg = 1;
+		*bts_reg = bktr->capcontrol;
+		btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
+		*btl_reg =    1 << 11 |	 2 | 1;
+	}
+
+	return;
+}
+
+
+/*
+ * There is also a problem with range checking on the 7116.
+ * It seems to only work for 22 bits, so the max size we can allocate
+ * is 22 bits long or 4194304 bytes assuming that we put the beginning
+ * of the buffer on a 2^24 bit boundary.  The range registers will use
+ * the top 8 bits of the dma start registers along with the bottom 22
+ * bits of the range register to determine if we go out of range.
+ * This makes getting memory a real kludge.
+ *
+ */
+
+#define RANGE_BOUNDARY	(1<<22)
+static vm_offset_t
+get_bktr_mem( int unit, unsigned size )
+{
+	vm_offset_t	addr = 0;
+
+	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
+	if (addr == 0)
+		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
+								PAGE_SIZE);
+	if (addr == 0) {
+		printf("meteor%d: Unable to allocate %d bytes of memory.\n",
+			unit, size);
+	}
+
+	return addr;
+}
+
+
+/******************************************************************************
+ * i2c primitives:
+ */
 
 /* delays for the I2C bus transactions */
 #define NDELAY			0
@@ -2335,10 +2412,208 @@ i2cWrite( i2c_regptr_t bti2c, u_char byte )
 #undef LDELAY
 
 
-/*************************** end of i2c primitives ***************************/
-
-
 #define I2C_REGADDR()		(i2c_regptr_t)&bktr->base[ BKTR_I2C_CONTROL ]
+
+
+/******************************************************************************
+ * card probe
+ */
+
+
+/* guaranteed address for any TSA5522 (PLL on all(?) tuners) */
+#define TSA5522_WADDR		0xc2
+#define TSA5522_RADDR		0xc3
+
+/* address of BTSC/SAP decoder chip */
+#define TDA9850_WADDR		0xb6
+#define TDA9850_RADDR		0xb7
+
+/* EEProm (128 * 8) on an STB card */
+#define X24C01_WADDR		0xae
+#define X24C01_RADDR		0xaf
+
+/* EEProm (256 * 8) on a Hauppauge card */
+#define PFC8582_WADDR		0xa0
+#define PFC8582_RADDR		0xa1
+
+/*
+ * the data for each type of card
+ */
+
+#define NO_TUNER		0
+#define TEMIC_TUNER		1
+#define PHILIPS_TUNER		2
+
+
+/*
+ * Note:
+ *   these entried MUST be kept in the order defined by the CARD_XXX defines!
+ */
+struct CARDTYPE card_types[] = {
+
+	/* CARD_UNKNOWN */
+	{ "Unknown",
+	   NO_TUNER,
+	   0,
+	   { 0, 0, 0, 0 } },
+
+	/* CARD_MIRO */
+	{ "Miro TV",
+	   NO_TUNER, /** TEMIC_TUNER ??? */
+	   0,
+	   { 0x02, 0x01, 0x00, 0x00 } },	/* XXX ??? */
+
+	/* CARD_HAUPPAUGE */
+	{ "Hauppauge WinCast/TV",
+	   PHILIPS_TUNER,
+	   0,
+	   { 0x00, 0x02, 0x01, 0x01 } },
+
+	/* CARD_STB */
+	{ "STB TV/PCI",
+	   TEMIC_TUNER,
+	   0,
+	   { 0x00, 0x01, 0x02, 0x02 } },
+
+	/* CARD_INTEL */
+	{ "Intel Smart Video III",
+	   NO_TUNER,
+	   0,
+	   { 0, 0, 0, 0 } }
+};
+
+/*
+ * If probe_card() fails to detect the proper card on boot you can
+ * override it by setting the following define to the card you are using:
+ *
+#define OVERRIDE_CARD	<card type>
+ *
+ * where <card type> is one of the card defines in the above array.
+ */
+#define PRESENT		0
+#define ABSENT		1
+static int
+probe_card( bktr_reg_t *bktr, int verbose )
+{
+	i2c_regptr_t	bti2c;
+	int		status;
+
+#if defined( OVERRIDE_CARD )
+	bktr->card_type = OVERRIDE_CARD;
+	goto end;
+#endif
+	/* get the i2c register address */
+	bti2c = I2C_REGADDR();
+
+	/* look for a tuner */
+	status = i2cStart( bti2c, TSA5522_WADDR );
+	i2cStop( bti2c );
+	if ( status == ABSENT ) {
+		bktr->card_type = CARD_INTEL;
+		goto checkDBX;
+	}
+
+	/* look for a hauppauge card */
+	status = i2cStart( bti2c, PFC8582_WADDR );
+	i2cStop( bti2c );
+	if ( status == PRESENT ) {
+		bktr->card_type = CARD_HAUPPAUGE;
+		goto checkTuner;
+	}
+
+	/* look for an STB card */
+	status = i2cStart( bti2c, X24C01_WADDR );
+	i2cStop( bti2c );
+	if ( status == PRESENT ) {
+		bktr->card_type = CARD_STB;
+		goto checkTuner;
+	}
+
+	/* XXX FIXME: (how do I) look for a Miro card */
+	bktr->card_type = CARD_MIRO;
+
+checkTuner:
+	/**
+	 * XXX FIXME: how can we differentiate TEMIC vs. PHILIPS tuners ???
+	 */
+	status = i2cStart( bti2c, 0xc0 );
+	i2cStop( bti2c );
+	if ( status == PRESENT ) {
+		card_types[ bktr->card_type ].tuner = TEMIC_TUNER;
+		goto checkDBX;
+	}
+
+	status = i2cStart( bti2c, 0xc6 );
+	i2cStop( bti2c );
+	if ( status == PRESENT ) {
+		card_types[ bktr->card_type ].tuner = PHILIPS_TUNER;
+		goto checkDBX;
+	}
+
+	card_types[ bktr->card_type ].tuner = NO_TUNER;
+
+checkDBX:
+	/*
+	 * probe for BTSC (dbx) chips.
+	 */
+	status = i2cStart( bti2c, TDA9850_WADDR );
+	i2cStop( bti2c );
+	if ( status == PRESENT )
+		card_types[ bktr->card_type ].dbx = 1;
+
+end:
+	if ( verbose ) {
+		printf( "%s", card_types[ bktr->card_type ].name );
+
+		if ( card_types[ bktr->card_type ].tuner )
+			printf( ", %s tuner",
+			        card_types[ bktr->card_type ].tuner
+			         == TEMIC_TUNER ? "Temic" : "Philips" );
+
+		if ( card_types[ bktr->card_type ].dbx )
+			printf( ", dbx stereo" );
+
+		printf( "\n" );
+	}
+	return bktr->card_type;
+}
+#undef ABSENT
+#undef PRESENT
+
+
+#define TSA5522_BANDA	band_addrs[card_types[bktr->card_type].tuner-1][0]
+#define TSA5522_BANDB	band_addrs[card_types[bktr->card_type].tuner-1][1]
+#define TSA5522_BANDC	band_addrs[card_types[bktr->card_type].tuner-1][2]
+
+u_char band_addrs[][3] = {
+	/* BANDA BANDB  BANDC */
+	{  0x02,  0x04,  0x01 },	/* TEMIC */
+	{  0xa0,  0x90,  0x30 }		/* PHILIPS */
+};
+
+
+/******************************************************************************
+ * tuner specific routines:
+ */
+
+
+/*
+ * bit 7: CONTROL BYTE = 1
+ * bit 6: CP = 0		moderate speed tuning, better FM
+ * bit 5: T2 = 0		normal operation
+ * bit 4: T1 = 0		normal operation
+ * bit 3: T0 = 1		normal operation
+ * bit 2: RSA = 1		62.5kHz
+ * bit 1: RSB = 1		62.5kHz
+ * bit 0: OS = 0		normal operation
+ *
+ * FIXME: create defines for the above bitfields.
+ */
+#if 0
+#define TSA5522_CONTROL		0xce
+#else
+#define TSA5522_CONTROL		0x8e
+#endif
 
 
 /* scaling factor for frequencies expressed as ints */
@@ -2373,14 +2648,16 @@ i2cWrite( i2c_regptr_t bti2c, u_char byte )
  *
  * IF freq: 45.75 mHz
  */
+#define OFFSET	6.00
 int	nabcst[] = {
 	83,	(int)( 45.75 * FREQFACTOR),	0,
-	14,	(int)(471.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 7,	(int)(175.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 5,	(int)( 77.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 2,	(int)( 55.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	 0
 };
+#undef OFFSET
 
 /*
  * North American Cable Channels, IRC:
@@ -2394,16 +2671,18 @@ int	nabcst[] = {
  *
  * IF freq: 45.75 mHz
  */
+#define OFFSET	6.00
 int	irccable[] = {
 	99,	(int)( 45.75 * FREQFACTOR),	0,
-	95,	(int)( 91.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	23,	(int)(217.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	14,	(int)(121.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 7,	(int)(175.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 5,	(int)( 77.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
-	 2,	(int)( 55.25 * FREQFACTOR),	(int)(6.00 * FREQFACTOR),
+	95,	(int)( 91.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	23,	(int)(217.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	14,	(int)(121.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	 0
 };
+#undef OFFSET
 
 /*
  * North American Cable Channels, HRC:
@@ -2432,9 +2711,9 @@ int* freqTable[] = {
 };
 
 
-#define TBL_CHNL	freqTable[ bktr->tuner.tunertype ][ x ]
-#define TBL_BASE_FREQ	freqTable[ bktr->tuner.tunertype ][ x + 1 ]
-#define TBL_OFFSET	freqTable[ bktr->tuner.tunertype ][ x + 2 ]
+#define TBL_CHNL	freqTable[ bktr->tuner.chnlset ][ x ]
+#define TBL_BASE_FREQ	freqTable[ bktr->tuner.chnlset ][ x + 1 ]
+#define TBL_OFFSET	freqTable[ bktr->tuner.chnlset ][ x + 2 ]
 static int
 frequency_lookup( bktr_reg_t* bktr, int channel )
 {
@@ -2461,7 +2740,7 @@ frequency_lookup( bktr_reg_t* bktr, int channel )
 #undef TBL_CHNL
 
 
-#define TBL_IF	freqTable[ bktr->tuner.tunertype ][ 1 ]
+#define TBL_IF	freqTable[ bktr->tuner.chnlset ][ 1 ]
 /*
  * set the frequency of the tuner
  */
@@ -2473,7 +2752,11 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	int		N;
 	int		order;
 
-	/* select the band based on frequency */
+	/*
+	 * select the band based on frequency
+	 * FIXME: do the cross-over points need to be set on a
+	 * tuner by tuner basis?
+	 */
 	if ( frequency < (160 * FREQFACTOR) )
 		band = TSA5522_BANDA;
 	else if ( frequency < (454 * FREQFACTOR) )
@@ -2486,7 +2769,7 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	 * where:
 	 *  pc is picture carrier, fRF & fIF are in mHz
 	 *
-	 * frequency is mHz * 16, eg. 55.25 mHz * 16 == 884
+	 * frequency was passed in as mHz * 16
 	 */
 	N = frequency + TBL_IF;
 
@@ -2565,9 +2848,123 @@ tuner_status( bktr_reg_t* bktr )
 }
 
 
+#if defined( AUDIO_SUPPORT )
+/******************************************************************************
+ * audio specific routines:
+ */
+
+
 /*
  * 
  */
+#define AUDIOMUX_DISCOVER_NOT
+static int
+set_audio( bktr_reg_t *bktr, int cmd )
+{
+	volatile u_char		*bt848;
+	volatile u_char		temp;
+	volatile u_char		idx;
+
+#if defined( AUDIOMUX_DISCOVER )
+	if ( cmd >= 200 )
+		cmd -= 200;
+	else
+#endif /* AUDIOMUX_DISCOVER */
+
+	switch (cmd) {
+	case AUDIO_TUNER:
+		bktr->audio_mux_select = 0;
+		break;
+	case AUDIO_EXTERN:
+		bktr->audio_mux_select = 1;
+		break;
+	case AUDIO_INTERN:
+		bktr->audio_mux_select = 2;
+		break;
+	case AUDIO_MUTE:
+		bktr->audio_mute_state = TRUE;	/* set mute */
+		break;
+	case AUDIO_UNMUTE:
+		bktr->audio_mute_state = FALSE;	/* clear mute */
+		break;
+	default:
+		printf("bktr: audio cmd error %02x\n", cmd);
+		return -1;
+	}
+
+	bt848 =	bktr->base;
+
+	/*
+	 * Leave the upper bits of the GPIO port alone in case they control
+	 * something like the dbx or teletext chips.  This doesn't guarantee
+	 * success, but follows the rule of least astonishment.
+	 */
+	bt848[BKTR_GPIO_OUT_EN] = 0x07;		/* drive low 3 bits */
+	bt848[BKTR_GPIO_REG_INP] = 0xf8;	/* read state of others */
+
+#if defined( AUDIOMUX_DISCOVER )
+	printf("cmd: %d\n", cmd );
+
+	temp = bt848[BKTR_GPIO_DATA] & ~7;
+	bt848[BKTR_GPIO_DATA] = temp | (cmd & 0xff);
+
+	return 0;
+#endif /* AUDIOMUX_DISCOVER */
+
+	if ( bktr->audio_mute_state == TRUE )
+		idx = 3;
+	else
+		idx = bktr->audio_mux_select;
+
+	temp = bt848[BKTR_GPIO_DATA] & ~7; /* mask off lower three bits */
+	bt848[BKTR_GPIO_DATA] =
+		temp | card_types[bktr->card_type].audiomuxs[idx];
+
+	return 0;
+}
+
+
+/*
+ * 
+ */
+#define CON1ADDR		0x04
+#define CON2ADDR		0x05
+#define CON3ADDR		0x06
+#define CON4ADDR		0x07
+
+static int
+set_BTSC( bktr_reg_t *bktr, int control )
+{
+	i2c_regptr_t	bti2c;
+
+	/* get the i2c register address */
+	bti2c = I2C_REGADDR();
+
+	/* send the data to the TDA9850 BTSC */
+	if ( i2cStart( bti2c, TDA9850_WADDR ) )
+		goto fubar;
+
+	if ( i2cWrite( bti2c, CON3ADDR ) )
+		goto fubar;
+
+	if ( i2cWrite( bti2c, control ) )
+		goto fubar;
+
+	i2cStop( bti2c );
+	return 0;
+
+ fubar:
+	i2cStop( bti2c );
+	return -1;
+}
+#endif /* AUDIO_SUPPORT */
+
+
+/******************************************************************************
+ * magic:
+ */
+
+
 static bktr_devsw_installed = 0;
 
 static void

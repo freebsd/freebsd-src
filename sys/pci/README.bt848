@@ -10,43 +10,42 @@ to support the bt848 boards (unless there were prio modifications that I am
 unaware of).
 
 -------------------------------------------------------------------------------
-There are 2 settings that you need to make based on the type of card you have.
+There are 2 settings that you might need to make based on the type of card
+you have:
 
 --
 1:
 
-First, you need include code to support specific tuners.  Once we add
-auto-probe code to detect tuner types this can go away.
+The code now attempts to auto-probe code to detect card/tuner types.
+The detected card is printed in the dmesg as the driver is loaded.  If
+this fails to detect the proper card you can override it in brooktree848.c:
 
-The STB card has a TEMIC tuner, others(?) have the PHILIPS tuner.  Check
-the label on the metal can to be sure!
+#define OVERRIDE_CARD	<card type>
 
-In your kernel config file set ONE of:
-
-options	TEMIC_TUNER		# STB TV PCI
-options	PHILIPS_TUNER		# WinCast/TV
-
-Or, in pci/brooktree848.c, you can define ONE of:
-
-#define TEMIC_TUNER
-#define PHILIPS_TUNER
-
-PHILIPS_TUNER is the default if you don't do one of the above.
+where <card type> is one of:
+	CARD_UNKNOWN
+	CARD_MIRO
+	CARD_HAUPPAUGE
+	CARD_STB
+	CARD_INTEL
 
 --
 2:
 
+The following is for start-up convenience only, NOT mandatory:
+
 These options select the set of frequencies used by the tuner.  In your
 kernel config file set ONE of:
 
-options	DEFAULT_TUNERTYPE=1	# TUNERTYPE_NABCST
-options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
+options	DEFAULT_CHNLSET=1	# CHNLSET_NABCST
+options	DEFAULT_CHNLSET=2	# CHNLSET_CABLEIRC
 
 Or, in pci/brooktree848.c, you can define ONE of:
 
-#define DEFAULT_TUNERTYPE	TUNERTYPE_NABCST
-#define DEFAULT_TUNERTYPE	TUNERTYPE_CABLEIRC
+#define DEFAULT_CHNLSET	CHNLSET_NABCST
+#define DEFAULT_CHNLSET	CHNLSET_CABLEIRC
 
-TUNERTYPE_NABCST (North American Broadcast frequencies) is the default.
-TUNERTYPE_CABLEIRC selects the IRC cable frequencies.
-Subroutines for other frequencies are yet to be written.
+CHNLSET_NABCST (North American Broadcast frequencies) is the default.
+CHNLSET_CABLEIRC selects the IRC cable frequencies.
+
+Frequeny tables for other frequencies are yet to be written.
