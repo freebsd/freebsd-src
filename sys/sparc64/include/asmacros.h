@@ -69,4 +69,16 @@ name ## :
 #define	END(name) \
 	.size	name, . - name
 
+/*
+ * If the kernel can be located above 4G, setx needs to be used to load
+ * symbol values, otherwise set is sufficient.
+ */
+#ifdef HIGH_KERNEL
+#define	SET(sym, tmp, dst) \
+	setx sym, tmp, dst
+#else
+#define	SET(sym, tmp, dst) \
+	set sym, dst
+#endif
+
 #endif /* !_MACHINE_ASMACROS_H_ */
