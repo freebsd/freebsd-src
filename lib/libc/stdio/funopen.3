@@ -34,7 +34,7 @@
 .\"     @(#)funopen.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd March 19, 2004
 .Dt FUNOPEN 3
 .Os
 .Sh NAME
@@ -170,3 +170,11 @@ The
 function
 may not be portable to systems other than
 .Bx .
+.Pp
+The
+.Fn funopen
+interface erroneously assumes that
+.Vt fpos_t
+is an integral type; see
+.Xr fseek 3
+for a discussion of this issue.
