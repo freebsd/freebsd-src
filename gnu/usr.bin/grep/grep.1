@@ -13,7 +13,7 @@
 .de Id
 .ds Dt \\$4
 ..
-.Id $Id: grep.1,v 1.11 2000/02/26 03:18:40 alainm Exp $
+.Id $Id: grep.1,v 1.23 2002/01/22 13:20:04 bero Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
 grep, egrep, fgrep, zgrep, zegrep, zfgrep,
@@ -72,6 +72,9 @@ is the same as
 Print
 .I NUM
 lines of trailing context after matching lines.
+Places a line containing
+.B \-\^\-
+between contiguous groups of matches.
 .TP
 .BR \-a ", " \-\^\-text
 Process a binary file as if it were text; this is equivalent to the
@@ -82,11 +85,17 @@ option.
 Print
 .I NUM
 lines of leading context before matching lines.
+Places a line containing
+.B \-\^\-
+between contiguous groups of matches.
 .TP
-\fB\-C\fP [\fINUM\fP], \fB\-\fP\fINUM\fP, \fB\-\^\-context\fP[\fB=\fP\fINUM\fP]
+.BI \-C " NUM" "\fR,\fP \-\^\-context=" NUM
 Print
 .I NUM
-lines (default 2) of output context.
+lines of output context.
+Places a line containing
+.B \-\^\-
+between contiguous groups of matches.
 .TP
 .BR \-b ", " \-\^\-byte-offset
 Print the byte offset within the input file before
@@ -127,12 +136,31 @@ might output binary garbage,
 which can have nasty side effects if the output is a terminal and if the
 terminal driver interprets some of it as commands.
 .TP
+.BI \-\^\-colour[=\fIWHEN\fR] ", " \-\^\-color[=\fIWHEN\fR]
+Surround the matching string with the marker find in
+.B GREP_COLOR
+environment variable. WHEN may be `never', `always', or `auto'
+.TP
 .BR \-c ", " \-\^\-count
 Suppress normal output; instead print a count of
 matching lines for each input file.
 With the
 .BR \-v ", " \-\^\-invert-match
 option (see below), count non-matching lines.
+.TP
+.BI \-D " ACTION" "\fR,\fP \-\^\-devices=" ACTION
+If an input file is a device, FIFO or socket, use
+.I ACTION
+to process it.  By default,
+.I ACTION
+is
+.BR read ,
+which means that devices are read just as if they were ordinary files.
+If
+.I ACTION
+is
+.BR skip ,
+devices are silently skipped.
 .TP
 .BI \-d " ACTION" "\fR,\fP \-\^\-directories=" ACTION
 If an input file is a directory, use
@@ -173,6 +201,10 @@ Interpret
 .I PATTERN
 as a list of fixed strings, separated by newlines,
 any of which is to be matched.
+.BR \-P ", " \-\^\-perl-regexp
+Interpret
+.I PATTERN
+as a Perl regular expression.
 .TP
 .BI \-f " FILE" "\fR,\fP \-\^\-file=" FILE
 Obtain patterns from
@@ -218,6 +250,39 @@ the name of each input file from which output
 would normally have been printed.  The scanning will
 stop on the first match.
 .TP
+.BI \-m " NUM" "\fR,\fP \-\^\-max-count=" NUM
+Stop reading a file after
+.I NUM
+matching lines.  If the input is standard input from a regular file,
+and
+.I NUM
+matching lines are output,
+.B grep
+ensures that the standard input is positioned to just after the last
+matching line before exiting, regardless of the presence of trailing
+context lines.  This enables a calling process to resume a search.
+When
+.B grep
+stops after
+.I NUM
+matching lines, it outputs any trailing context lines.  When the
+.B \-c
+or
+.B \-\^\-count
+option is also used,
+.B grep
+does not output a count greater than
+.IR NUM .
+When the
+.B \-v
+or
+.B \-\^\-invert-match
+option is also used,
+.B grep
+stops after outputting
+.I NUM
+non-matching lines.
+.TP
 .B \-\^\-mmap
 If possible, use the
 .BR mmap (2)
@@ -237,20 +302,42 @@ is operating, or if an I/O error occurs.
 Prefix each line of output with the line number
 within its input file.
 .TP
+.BR \-o ", " \-\^\-only-matching
+Show only the part of a matching line that matches
+.I PATTERN.
+.TP
+.BI \-\^\-label= LABEL
+Displays input actually coming from standard input as input coming from file
+.I LABEL.
+This is especially useful for tools like zgrep, e.g.
+.B "gzip -cd foo.gz |grep --label=foo something"
+.TP
+.BR \-\^\-line-buffering
+Use line buffering, it can be a performance penality.
+.TP
 .BR \-q ", " \-\^\-quiet ", " \-\^\-silent
-Quiet; suppress normal output.  The scanning will stop
-on the first match.
+Quiet; do not write anything to standard output.
+Exit immediately with zero status if any match is found,
+even if an error was detected.
 Also see the
 .B \-s
 or
 .B \-\^\-no-messages
-option below.
+option.
 .TP
-.BR \-r ", " \-\^\-recursive
+.BR \-R ", " \-r ", " \-\^\-recursive
 Read all files under each directory, recursively;
 this is equivalent to the
 .B "\-d recurse"
 option.
+.TP
+.BR "\fR \fP \-\^\-include=" PATTERN
+Recurse in directories only searching file matching
+.I PATTERN.
+.TP
+.BR "\fR \fP \-\^\-exclude=" PATTERN
+Recurse in directories skip file matching
+.I PATTERN.
 .TP
 .BR \-s ", " \-\^\-no-messages
 Suppress error messages about nonexistent or unreadable files.
@@ -378,11 +465,13 @@ a single character.  Most characters, including all letters and digits,
 are regular expressions that match themselves.  Any metacharacter with
 special meaning may be quoted by preceding it with a backslash.
 .PP
-A list of characters enclosed by
+A
+.I "bracket expression"
+is a list of characters enclosed by
 .B [
 and
-.B ]
-matches any single
+.BR ] .
+It matches any single
 character in that list; if the first character of the list
 is the caret
 .B ^
@@ -391,10 +480,32 @@ then it matches any character
 in the list.
 For example, the regular expression
 .B [0123456789]
-matches any single digit.  A range of characters
-may be specified by giving the first and last characters, separated
-by a hyphen.
-Finally, certain named classes of characters are predefined.
+matches any single digit.
+.PP
+Within a bracket expression, a
+.I "range expression"
+consists of two characters separated by a hyphen.
+It matches any single character that sorts between the two characters,
+inclusive, using the locale's collating sequence and character set.
+For example, in the default C locale,
+.B [a\-d]
+is equivalent to
+.BR [abcd] .
+Many locales sort characters in dictionary order, and in these locales
+.B [a\-d]
+is typically not equivalent to
+.BR [abcd] ;
+it might be equivalent to
+.BR [aBbCcDd] ,
+for example.
+To obtain the traditional interpretation of bracket expressions,
+you can use the C locale by setting the
+.B LC_ALL
+environment variable to the value
+.BR C .
+.PP
+Finally, certain named classes of characters are predefined within
+bracket expressions, as follows.
 Their names are self explanatory, and they are
 .BR [:alnum:] ,
 .BR [:alpha:] ,
@@ -411,8 +522,8 @@ and
 For example,
 .B [[:alnum:]]
 means
-.BR [0-9A-Za-z] ,
-except the latter form depends upon the \s-1POSIX\s0 locale and the
+.BR [0\-9A\-Za\-z] ,
+except the latter form depends upon the C locale and the
 \s-1ASCII\s0 character encoding, whereas the former is independent
 of locale and character set.
 (Note that the brackets in these class names are part of the symbolic
@@ -559,6 +670,29 @@ instead of reporting a syntax error in the regular expression.
 \s-1POSIX.2\s0 allows this behavior as an extension, but portable scripts
 should avoid it.
 .SH "ENVIRONMENT VARIABLES"
+Grep's behavior is affected by the following environment variables.
+.PP
+A locale
+.BI LC_ foo
+is specified by examining the three environment variables
+.BR LC_ALL ,
+.BR LC_\fIfoo\fP ,
+.BR LANG ,
+in that order.
+The first of these variables that is set specifies the locale.
+For example, if
+.B LC_ALL
+is not set, but
+.B LC_MESSAGES
+is set to
+.BR pt_BR ,
+then Brazilian Portuguese is used for the
+.B LC_MESSAGES
+locale.
+The C locale is used if none of these environment variables are set,
+or if the locale catalog is not installed, or if
+.B grep
+was not compiled with national language support (\s-1NLS\s0).
 .TP
 .B GREP_OPTIONS
 This variable specifies default options to be placed in front of any
@@ -576,28 +710,29 @@ Option specifications are separated by whitespace.
 A backslash escapes the next character,
 so it can be used to specify an option containing whitespace or a backslash.
 .TP
-\fBLC_ALL\fP, \fBLC_MESSAGES\fP, \fBLANG\fP
+.B GREP_COLOR
+Specifies the marker for highlighting.
+.TP
+\fBLC_ALL\fP, \fBLC_COLLATE\fP, \fBLANG\fP
 These variables specify the
-.B LC_MESSAGES
-locale, which determines the language that
-.B grep
-uses for messages.
-The locale is determined by the first of these variables that is set.
-American English is used if none of these environment variables are set,
-or if the message catalog is not installed, or if
-.B grep
-was not compiled with national language support (\s-1NLS\s0).
+.B LC_COLLATE
+locale, which determines the collating sequence used to interpret
+range expressions like
+.BR [a\-z] .
 .TP
 \fBLC_ALL\fP, \fBLC_CTYPE\fP, \fBLANG\fP
 These variables specify the
 .B LC_CTYPE
 locale, which determines the type of characters, e.g., which
 characters are whitespace.
-The locale is determined by the first of these variables that is set.
-The \s-1POSIX\s0 locale is used if none of these environment variables
-are set, or if the locale catalog is not installed, or if
+.TP
+\fBLC_ALL\fP, \fBLC_MESSAGES\fP, \fBLANG\fP
+These variables specify the
+.B LC_MESSAGES
+locale, which determines the language that
 .B grep
-was not compiled with national language support (\s-1NLS\s0).
+uses for messages.
+The default C locale uses American English messages.
 .TP
 .B POSIXLY_CORRECT
 If set,
@@ -612,13 +747,15 @@ Also, \s-1POSIX.2\s0 requires that unrecognized options be diagnosed as
 \*(lqillegal\*(rq, but since they are not really against the law the default
 is to diagnose them as \*(lqinvalid\*(rq.
 .SH DIAGNOSTICS
-Normally, exit status is 0 if matches were found,
-and 1 if no matches were found.  (The
-.B \-v
-option inverts the sense of the exit status.)
-Exit status is 2 if there were syntax errors
-in the pattern, inaccessible input files, or
-other system errors.
+.PP
+Normally, exit status is 0 if selected lines are found and 1 otherwise.
+But the exit status is 2 if an error occurred, unless the
+.B \-q
+or
+.B \-\^\-quiet
+or
+.B \-\^\-silent
+option is used and a selected line is found.
 .SH BUGS
 Email bug reports to
 .BR bug-gnu-utils@gnu.org .
@@ -626,7 +763,7 @@ Be sure to include the word \*(lqgrep\*(rq somewhere in the
 \*(lqSubject:\*(rq field.
 .PP
 Large repetition counts in the
-.BI { m , n }
+.BI { n , m }
 construct may cause grep to use lots of memory.
 In addition,
 certain other obscure regular expressions require exponential time
