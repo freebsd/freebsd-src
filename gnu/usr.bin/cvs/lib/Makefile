@@ -9,6 +9,7 @@ CLEANFILES+= getdate.c y.tab.h
 
 NOPROFILE= yes
 
-install:;
+install:
+	@echo -n
 
 .include <bsd.lib.mk>
