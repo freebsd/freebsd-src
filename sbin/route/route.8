@@ -412,3 +412,13 @@ utility appeared in
 The first paragraph may have slightly exaggerated
 .Xr routed 8 Ns 's
 abilities.
+.Pp
+Currently, routes with the
+.Dv RTF_BLACKHOLE
+flag set need to have the gateway set to an instance of the
+.Xr lo 4
+driver, using the
+.Fl iface
+option, for the flag to have any effect; unless IP fast forwarding
+is enabled, in which case the meaning of the flag will always
+be honored.
