@@ -44,10 +44,20 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(ptrace)
 	xorl	%eax,%eax
-        movl    %eax,PIC_GOT(CNAME(errno))
+#ifdef PIC
+	movq	PIC_GOT(CNAME(errno)),%r8
+	movl	%eax,(%r8)
+#else
+	movl	%eax,CNAME(errno)(%rip)
+#endif
 	mov	$SYS_ptrace,%eax
 	KERNCALL
 	jb	err
 	ret
 err:
-	jmp	PIC_PLT(HIDENAME(cerror))
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif
