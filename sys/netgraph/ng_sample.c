@@ -216,10 +216,11 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 				break;
 		if (chan == XXX_NUM_DLCIS) {
 			for (chan = 0; chan < XXX_NUM_DLCIS; chan++)
-				if (xxxp->channel[chan].dlci != -2)
-					continue;
+				if (xxxp->channel[chan].dlci == -2)
+					break;
 			if (chan == XXX_NUM_DLCIS)
 				return (ENOBUFS);
+			xxxp->channel[chan].dlci = dlci;
 		}
 		if (xxxp->channel[chan].hook != NULL)
 			return (EADDRINUSE);
