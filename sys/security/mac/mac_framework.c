@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
  * modules to refuse to be loaded if the necessary support isn't present,
  * even if it's pre-boot.
  */
-MODULE_VERSION(kernel_mac_support, 1);
+MODULE_VERSION(kernel_mac_support, 2);
 
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
