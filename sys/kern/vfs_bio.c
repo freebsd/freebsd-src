@@ -1907,6 +1907,7 @@ flushbufqueues(void)
 				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY],
 				    bp, b_freelist);
 				bp->b_flags |= B_DEFERRED;
+				bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
 				continue;
 			}
 			vfs_bio_awrite(bp);
