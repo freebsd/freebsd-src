@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.8,v 1.29 2000/05/02 11:50:28 hm Exp $ 
+.\"	$Id: isdnd.8,v 1.29 2000/05/02 11:50:28 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
@@ -50,22 +50,22 @@
 .Op Fl m
 .Sh DESCRIPTION
 .Nm Isdnd
-is the isdn4bsd package demon which manages all ISDN related connection
+is the isdn4bsd package daemon which manages all ISDN related connection
 and disconnection of ISDN devices supported by the package.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl c
-Use 
+Use
 .Ar configfile
-as the name of the runtime configuration filename for 
+as the name of the runtime configuration filename for
 .Nm
 instead of the default file
 .Li /etc/isdn/isdnd.rc .
 .It Fl d
 If debugging support is compiled into
 .Nm
-this option is used to specify the debugging level, or better which kind 
+this option is used to specify the debugging level, or better which kind
 of debugging messages are displayed.
 The debugging level is the sum of the
 following values:
@@ -148,7 +148,7 @@ in the system section of
 This option prints out the parsed and verified isdnd configuration in the same
 format as the isdnd.rc file.
 This output can be used as an isdnd.rc file.
-This 
+This
 feature is especially useful when debugging an isdnd.rc file to see, what the
 default settings of options are when they are not set in the isdnd.rc input
 file.
@@ -161,7 +161,7 @@ This option prevents
 .Nm
 to detach from the controlling tty and become a daemon.
 .It Fl r
-In conjunction with the 
+In conjunction with the
 .Fl t
 option,
 .Ar device
@@ -174,9 +174,9 @@ This option may be used to specify the logging facility in case
 logging is configured and another facility than the default LOCAL0
 facility shall be used.
 The facility is to be specified as an integer in
-the range 0-11 or 16-23 (see the file /usr/include/syslog.h). 
+the range 0-11 or 16-23 (see the file /usr/include/syslog.h).
 .It Fl t
-In conjunction with the 
+In conjunction with the
 .Fl f
 and
 .Fl r
@@ -187,12 +187,12 @@ used for
 .Nm
 full-screen output.
 This is useful if an unused (no getty running) tty line is
-used for full-screen output for which no 
+used for full-screen output for which no
 .Li TERM
 environment variable exists.
 .It Fl u
 Specifies the length of a charging unit in case the config file entry
-keyword 
+keyword
 .Em unitlenghtsrc
 is set to
 .Em cmdl .
@@ -217,7 +217,7 @@ The messages and message parameters are documented in the include
 file
 .Em /usr/include/machine/i4b_ioctl.h .
 .Pp
-Supported command and response messages (ioctl's) to the kernel are:
+Supported command and response messages (ioctls) to the kernel are:
 .Bl -tag -width Ds -compact -offset indent
 .It Ar I4B_CDID_REQ
 Request a unique Call Description IDentifier (cdid) which identifies
@@ -270,8 +270,8 @@ Charging information from the kernel.
 .Ss OUTGOING CALLS
 Currently the only possibility to trigger an outgoing call is that an
 isdn4bsd network driver
-.Em (ipr<n>) 
-sends a 
+.Em (ipr<n>)
+sends a
 .Em MSG_DIALOUT_IND
 to the
 .Nm
@@ -283,7 +283,7 @@ ioctl message, this CDID is now used in all interactions with the kernel
 to identify this single call until a disconnect occurs.
 .Pp
 After getting the CDID, the daemon looks up several additional information
-in its entry section of the configuration corresponding to that connection 
+in its entry section of the configuration corresponding to that connection
 and issues a
 .Em I4B_CONNECT_REQ
 ioctl message to the kernel.
@@ -292,7 +292,7 @@ if the remote side accepts the call, the kernel sends a
 .Em MSG_CONNECT_ACTIVE_IND
 to the daemon.
 .Pp
-The call is terminated by either the local site timing out or the remote
+The call is terminated by either the local side timing out or the remote
 side hanging up the connection or the local side actively sending a
 .Em I4B_DISCONNECT_REQ
 ioctl message, both events are signaled to the
@@ -306,7 +306,7 @@ Incoming calls are signaled to the
 .Nm
 by the kernel transmitting the
 .Em MSG_CONNECT_IND
-message to the daemon. 
+message to the daemon.
 .Pp
 With the information contained in this message, the
 .Nm
@@ -321,7 +321,7 @@ by sending a
 .Em MSG_CONNECT_ACTIVE_IND
 message to the daemon.
 .Pp
-The call is terminated by either the local site timing out or the remote
+The call is terminated by either the local side timing out or the remote
 side hanging up the connection or the local side actively sending a
 .Em I4B_DISCONNECT_REQ
 ioctl message, both events are signaled to the
@@ -331,17 +331,17 @@ by the kernel sending the
 message and the CDID corresponding to the call is no longer valid.
 .Pp
 .Sh SIGNALS
-Sending a HUP signal to 
+Sending a HUP signal to
 .Nm
 causes all open connections to be terminated and the configuration file is
 reread.
 In case aliasfile handling was enabled, the aliasfile is also
 reread.
 .Pp
-Sending a USR1 signal to 
+Sending a USR1 signal to
 .Nm
-causes the accounting file and the logfile (if logging to a file is used 
-instead of logging via the 
+causes the accounting file and the logfile (if logging to a file is used
+instead of logging via the
 .Xr syslog 3
 facility) to be closed and reopened to make logfile rotation possible.
 .Sh ENVIRONMENT
@@ -397,8 +397,8 @@ isdnd -d0xf9 -f -r /dev/ttyv3 -t vt100
 .Pp
 will start
 .Nm
-with reasonable debugging messages enabled, full-screen mode of operation, 
-full-screen display redirected to /dev/ttyv03 and using a termcap entry
+with reasonable debugging messages enabled, full-screen mode of operation,
+full-screen display redirected to /dev/ttyv3 and using a termcap entry
 for vt100 on this display.
 .Sh DIAGNOSTICS
 Exit status is 0 on success, 1 on error.
@@ -416,5 +416,5 @@ Still one or more left.
 .Sh AUTHORS
 The
 .Nm
-daemon and this manual page were written by 
+daemon and this manual page were written by
 .An Hellmuth Michaelis Aq hm@kts.org .
