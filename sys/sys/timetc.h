@@ -76,22 +76,11 @@ struct timecounter {
 	u_int32_t		tc_frequency;
 	char			*tc_name;
 	void			*tc_priv;
-	/* These fields will be managed by the generic code. */
-	int64_t			tc_adjustment;
-	u_int64_t		tc_scale;
-	unsigned 		tc_offset_count;
-	struct bintime		tc_offset;
-	struct timeval		tc_microtime;
-	struct timespec		tc_nanotime;
-	struct timecounter	*tc_avail;
-	struct timecounter	*tc_tweak;
-	/* Fields not to be copied in tc_windup start with tc_generation */
-	volatile unsigned	tc_generation;
 	struct timecounter	*tc_next;
 };
 
 #ifdef _KERNEL
-extern struct timecounter *volatile timecounter;
+extern struct timecounter *timecounter;
 
 u_int32_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
