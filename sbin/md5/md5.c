@@ -38,6 +38,7 @@ static const char rcsid[] =
 #define TEST_BLOCK_LEN 10000
 #define TEST_BLOCK_COUNT 100000
 
+int qflag;
 int rflag;
 
 static void MDString PROTO_LIST((char *));
@@ -65,10 +66,13 @@ main(argc, argv)
 	char	buf[33];
 
 	if (argc > 1) {
-		while ((ch = getopt(argc, argv, "ps:rtx")) != -1) {
+		while ((ch = getopt(argc, argv, "ps:qrtx")) != -1) {
 			switch (ch) {
 			case 'p':
 				MDFilter(1);
+				break;
+			case 'q':
+				qflag = 1;
 				break;
 			case 'r':
 				rflag = 1;
@@ -91,7 +95,9 @@ main(argc, argv)
 			if (!p)
 				warn("%s", argv[optind]);
 			else
-				if (rflag)
+				if (qflag)
+					printf("%s\n", p);
+				else if (rflag)
 					printf("%s %s\n", p, argv[optind]);
 				else
 					printf("MD5 (%s) = %s\n", argv[optind],
@@ -113,7 +119,9 @@ MDString(string)
 	size_t len = strlen(string);
 	char buf[33];
 
-	if (rflag)
+	if (qflag)
+		printf("%s\n", MD5Data(string, len, buf));
+	else if (rflag)
 		printf("%s \"%s\"\n", MD5Data(string, len, buf), string);
 	else
 		printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
