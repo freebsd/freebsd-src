@@ -822,10 +822,38 @@ ENTRY(exception_restore, 0)
 	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
 	;;
 	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
+(p1)	br.cond.dpnt 2f			// skip ast checking for returns to kernel
+3:
+	add	r3=PC_CURTHREAD,r13	// &curthread
 	;;
-(p2)	add	out0=16,sp		// trapframe argument to ast()
-(p2)	br.call.dptk.many rp=ast	// note: p1, p2 preserved
-	
+	ld8	r3=[r3]			// curthread
+	add	r2=(KEF_ASTPENDING|KEF_NEEDRESCHED),r0
+	;;
+	add	r3=TD_KSE,r3		// &curthread->td_kse
+	mov	r15=psr			// save interrupt enable status
+	;;
+	ld8	r3=[r3]			// curkse
+	;;
+	add	r3=KE_FLAGS,r3		// &curkse->ke_flags
+	rsm	psr.i			// disable interrupts
+	;;
+	ld4	r14=[r3]		// fetch curkse->ke_flags
+	;;
+	and	r14=r2,r14		// flags & (KEF_ASTPENDING|KEF_NEEDRESCHED)
+	;;
+	cmp4.eq	p6,p7=r0,r14		//  == 0 ?
+(p6)	br.cond.dptk	2f
+	;;
+	mov	psr.l=r15		// restore interrups
+	;;
+	srlz.d
+	;;
+	add	out0=16,sp		// trapframe argument to ast()
+	br.call.sptk.many rp=ast	// note: p1, p2 preserved
+	;;
+	br	3b
+	;;
+2:
 	rsm	psr.ic|psr.dt|psr.i	// disable interrupt collection and vm
 	add	r3=16,sp;
 	;;

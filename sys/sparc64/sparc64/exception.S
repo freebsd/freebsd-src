@@ -2249,19 +2249,38 @@ ENTRY(tl0_ret)
 9:
 #endif
 
-	wrpr	%g0, PIL_TICK, %pil
+	/*
+	 * Check for pending asts atomically with returning.  We must raise
+	 * the pil before checking, and if no asts are found the pil must
+	 * remain raised until the retry is executed, or we risk missing asts
+	 * caused by interrupts occuring after the test.  If the pil is lowered,
+	 * as it is when we call ast, the check must be re-executed.
+	 */
+1:	wrpr	%g0, PIL_TICK, %pil
 	ldx	[PCPU(CURTHREAD)], %l0
 	ldx	[%l0 + TD_KSE], %l1
 	lduw	[%l1 + KE_FLAGS], %l2
 	and	%l2, KEF_ASTPENDING | KEF_NEEDRESCHED, %l2
-	brz,pt	%l2, 1f
+	brz,a,pt %l2, 2f
 	 nop
+	wrpr	%g0, 0, %pil
 	call	ast
 	 add	%sp, CCFSZ + SPOFF, %o0
+	ba,a	%xcc, 1b
+	 nop
 
-1:	ldx	[PCB_REG + PCB_NSAVED], %l1
+	/*
+	 * Check for windows that were spilled to the pcb and need to be
+	 * copied out.  This must be the last thing that is done before the
+	 * return to usermode.  If there are still user windows in the cpu
+	 * and we call a nested function after this, which causes them to be
+	 * spilled to the pcb, they will not be copied out and the stack will
+	 * be inconsistent.
+	 */
+2:	ldx	[PCB_REG + PCB_NSAVED], %l1
+	mov	T_SPILL, %o0
 	brnz,a,pn %l1, .Ltl0_trap_reenter
-	 mov	T_SPILL, %o0
+	 wrpr	%g0, 0, %pil
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
