@@ -1258,7 +1258,7 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 	LOCK_VBI(bktr);
 
 	while(bktr->vbisize == 0) {
-		if (ioflag & FNDELAY) {
+		if (ioflag & IO_NDELAY) {
 			status = EWOULDBLOCK;
 			goto out;
 		}
