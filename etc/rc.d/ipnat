@@ -58,7 +58,7 @@ ipnat_start()
 		warn 'NO IPNAT RULES'
 		return 0
 	fi
-	echo -n "Installing NAT rules."
+	echo "Installing NAT rules."
 	${ipnat_program} -CF -f ${ipnat_rules} ${ipnat_flags}
 }
 
