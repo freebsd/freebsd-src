@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.80 1999/03/12 02:24:56 julian Exp $
+ * $Id: vfs_cluster.c,v 1.81 1999/05/02 23:56:11 alc Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -660,7 +660,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = trypbuf(&cluster_pbuf_freecnt)) == NULL)) {
+		  ((bp = getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;
