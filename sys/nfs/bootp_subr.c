@@ -219,15 +219,15 @@ void
 bootpboot_p_tree(struct radix_node *rn)
 {
 	while (rn != NULL) {
-		if (rn->rn_b < 0) {
+		if (rn->rn_bit < 0) {
 			if ((rn->rn_flags & RNF_ROOT) != 0) {
 			} else {
 				bootpboot_p_rtentry((struct rtentry *) rn);
 			}
 			rn = rn->rn_dupedkey;
 		} else {
-			bootpboot_p_tree(rn->rn_l);
-			bootpboot_p_tree(rn->rn_r);
+			bootpboot_p_tree(rn->rn_left);
+			bootpboot_p_tree(rn->rn_right);
 			return;
 		}
 	}
@@ -1156,7 +1156,7 @@ md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
 		
 		/* Do RPC to mountd. */
 		error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER3,
-				  RPCMNT_MOUNT, &m, NULL, curproc);
+				  RPCMNT_MOUNT, &m, NULL, procp);
 	}
 	if (error == 0) {
 		args->flags |= NFSMNT_NFSV3;
@@ -1174,7 +1174,7 @@ md_mount(struct sockaddr_in *mdsin,		/* mountd server address */
 		
 		/* Do RPC to mountd. */
 		error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER1,
-				  RPCMNT_MOUNT, &m, NULL, curproc);
+				  RPCMNT_MOUNT, &m, NULL, procp);
 		if (error != 0)
 			return error;	/* message already freed */
 		
