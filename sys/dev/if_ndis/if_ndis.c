@@ -381,6 +381,11 @@ ndis_attach(dev)
 	/* Set up driver image in memory. */
 	ndis_load_driver((vm_offset_t)img, sc);
 
+	/* Tell the user what version of the API the driver is using. */
+	device_printf(dev, "NDIS API version: %d.%d\n",
+	    sc->ndis_chars.nmc_version_major,
+	    sc->ndis_chars.nmc_version_minor);
+
 	/* Do resource conversion. */
 	ndis_convert_res(sc);
 
