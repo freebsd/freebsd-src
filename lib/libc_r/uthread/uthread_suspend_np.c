@@ -104,10 +104,15 @@ pthread_suspend_np(pthread_t thread)
 
 			PTHREAD_SET_STATE(thread, PS_SUSPENDED);
 			break;
+		case PS_JOIN:
+			/* Mark the thread as suspended and joining: */
+			thread->suspended = SUSP_JOIN;
+
+			PTHREAD_NEW_STATE(thread, PS_SUSPENDED);
+			break;
 		case PS_FDLR_WAIT:
 		case PS_FDLW_WAIT:
 		case PS_FILE_WAIT:
-		case PS_JOIN:
 			/* Mark the thread as suspended: */
 			thread->suspended = SUSP_YES;
 
