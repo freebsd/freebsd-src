@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: kvm_alpha.c,v 1.1 1998/08/15 12:12:22 dfr Exp $ */
 /*	$NetBSD: kvm_alpha.c,v 1.7.2.1 1997/11/02 20:34:26 mellon Exp $	*/
 
 /*
@@ -32,6 +32,8 @@
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <unistd.h>
 #include <nlist.h>
 #include <kvm.h>
@@ -42,8 +44,16 @@
 #include <limits.h>
 #include <db.h>
 #include <stdlib.h>
-
+#include <machine/pmap.h>
 #include "kvm_private.h"
+
+static off_t   _kvm_pa2off(kvm_t *kd, u_long pa);
+
+struct vmstate {
+	u_int64_t       lev1map_pa;             /* PA of Lev1map */
+        u_int64_t       page_size;              /* Page size */
+        u_int64_t       nmemsegs;               /* Number of RAM segm */
+};
 
 void
 _kvm_freevtop(kd)
@@ -59,8 +69,39 @@ int
 _kvm_initvtop(kd)
 	kvm_t *kd;
 {
+	struct vmstate *vm;
+	struct nlist nlist[2];
+	u_long pa;
 
+	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
+	if (vm == 0) {
+		_kvm_err(kd, kd->program, "cannot allocate vm");
+		return (-1);
+	}
+	kd->vmst = vm;
+	vm->page_size = ALPHA_PGBYTES;
+
+	nlist[0].n_name = "_Lev1map";
+	nlist[1].n_name = 0;
+
+	if (kvm_nlist(kd, nlist) != 0) {
+		_kvm_err(kd, kd->program, "bad namelist");
+		return (-1);
+	}
+
+	if(!ISALIVE(kd)) {
+		if (kvm_read(kd, (nlist[0].n_value), &pa, sizeof(pa)) != sizeof(pa)) {
+			_kvm_err(kd, kd->program, "cannot read Lev1map");
+			return (-1);
+		}
+	} else 
+		if (kvm_read(kd, (nlist[0].n_value), &pa, sizeof(pa)) != sizeof(pa)) {
+			_kvm_err(kd, kd->program, "cannot read Lev1map");
+			return (-1);
+		}
+	vm->lev1map_pa = pa;
 	return (0);
+
 }
 
 int
@@ -69,35 +110,42 @@ _kvm_kvatop(kd, va, pa)
 	u_long va;
 	u_long *pa;
 {
-#if 0
-	cpu_kcore_hdr_t *cpu_kh;
+	u_int64_t       lev1map_pa;             /* PA of Lev1map */
+        u_int64_t       page_size;
 	int rv, page_off;
 	alpha_pt_entry_t pte;
 	off_t pteoff;
+	struct vmstate *vm;
+	vm = kd->vmst ;
+	
 
         if (ISALIVE(kd)) {
                 _kvm_err(kd, 0, "vatop called in live kernel!");
                 return(0);
         }
+	lev1map_pa = vm->lev1map_pa;
+	page_size  = vm->page_size;
 
-	cpu_kh = kd->cpu_data;
-	page_off = va & (cpu_kh->page_size - 1);
-
+	page_off = va & (page_size - 1);
 	if (va >= ALPHA_K0SEG_BASE && va <= ALPHA_K0SEG_END) {
 		/*
 		 * Direct-mapped address: just convert it.
 		 */
 
 		*pa = ALPHA_K0SEG_TO_PHYS(va);
-		rv = cpu_kh->page_size - page_off;
+		rv = page_size - page_off;
 	} else if (va >= ALPHA_K1SEG_BASE && va <= ALPHA_K1SEG_END) {
 		/*
 		 * Real kernel virtual address: do the translation.
 		 */
+#define PTMASK			((1 << ALPHA_PTSHIFT) - 1)
+#define pmap_lev1_index(va)	(((va) >> ALPHA_L1SHIFT) & PTMASK)
+#define pmap_lev2_index(va)	(((va) >> ALPHA_L2SHIFT) & PTMASK)
+#define pmap_lev3_index(va)	(((va) >> ALPHA_L3SHIFT) & PTMASK)
 
 		/* Find and read the L1 PTE. */
-		pteoff = cpu_kh->lev1map_pa +
-		    kvtol1pte(va) * sizeof(alpha_pt_entry_t);
+		pteoff = lev1map_pa +
+			pmap_lev1_index(va)  * sizeof(alpha_pt_entry_t);
 		if (lseek(kd->pmfd, _kvm_pa2off(kd, pteoff), 0) == -1 ||
 		    read(kd->pmfd, (char *)&pte, sizeof(pte)) != sizeof(pte)) {
 			_kvm_syserr(kd, 0, "could not read L1 PTE");
@@ -109,8 +157,8 @@ _kvm_kvatop(kd, va, pa)
 			_kvm_err(kd, 0, "invalid translation (invalid L1 PTE)");
 			goto lose;
 		}
-		pteoff = ALPHA_PTE_TO_PFN(pte) * cpu_kh->page_size +
-		    vatoste(va) * sizeof(alpha_pt_entry_t);
+		pteoff = ALPHA_PTE_TO_PFN(pte) * page_size +
+		    pmap_lev2_index(va) * sizeof(alpha_pt_entry_t);
 		if (lseek(kd->pmfd, _kvm_pa2off(kd, pteoff), 0) == -1 ||
 		    read(kd->pmfd, (char *)&pte, sizeof(pte)) != sizeof(pte)) {
 			_kvm_syserr(kd, 0, "could not read L2 PTE");
@@ -122,8 +170,8 @@ _kvm_kvatop(kd, va, pa)
 			_kvm_err(kd, 0, "invalid translation (invalid L2 PTE)");
 			goto lose;
 		}
-		pteoff = ALPHA_PTE_TO_PFN(pte) * cpu_kh->page_size +
-		    vatopte(va) * sizeof(alpha_pt_entry_t);
+		pteoff = ALPHA_PTE_TO_PFN(pte) * page_size +
+		    pmap_lev3_index(va) * sizeof(alpha_pt_entry_t);
 		if (lseek(kd->pmfd, _kvm_pa2off(kd, pteoff), 0) == -1 ||
 		    read(kd->pmfd, (char *)&pte, sizeof(pte)) != sizeof(pte)) {
 			_kvm_syserr(kd, 0, "could not read L3 PTE");
@@ -135,8 +183,8 @@ _kvm_kvatop(kd, va, pa)
 			_kvm_err(kd, 0, "invalid translation (invalid L3 PTE)");
 			goto lose;
 		}
-		*pa = ALPHA_PTE_TO_PFN(pte) * cpu_kh->page_size + page_off;
-		rv = cpu_kh->page_size - page_off;
+		*pa = ALPHA_PTE_TO_PFN(pte) * page_size + page_off;
+		rv = page_size - page_off;
 	} else {
 		/*
 		 * Bogus address (not in KV space): punt.
@@ -149,9 +197,6 @@ lose:
 	}
 
 	return (rv);
-#else
-	return (0);
-#endif
 }
 
 /*
@@ -162,36 +207,6 @@ _kvm_pa2off(kd, pa)
 	kvm_t *kd;
 	u_long pa;
 {
-#if 0
-	off_t off;
-	cpu_kcore_hdr_t *cpu_kh;
-
-	cpu_kh = kd->cpu_data;
-
-	off = 0;
-	pa -= cpu_kh->core_seg.start;
-
-	return (kd->dump_off + off + pa);
-#else
-	return 0;		/* XXX fixme */
-#endif
+	return ALPHA_K0SEG_TO_PHYS(pa);
 }
 
-/*
- * Machine-dependent initialization for ALL open kvm descriptors,
- * not just those for a kernel crash dump.  Some architectures
- * have to deal with these NOT being constants!  (i.e. m68k)
- */
-int
-_kvm_mdopen(kd)
-	kvm_t	*kd;
-{
-
-#if 0				/* XXX fixme */
-	kd->usrstack = USRSTACK;
-	kd->min_uva = VM_MIN_ADDRESS;
-	kd->max_uva = VM_MAXUSER_ADDRESS;
-#endif
-
-	return (0);
-}
