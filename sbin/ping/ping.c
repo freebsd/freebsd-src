@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.18 1997/03/02 06:32:40 imp Exp $";
+	"$Id: ping.c,v 1.19 1997/03/02 20:01:13 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -324,6 +324,8 @@ main(argc, argv)
 			     target, hstrerror(h_errno));
 
 		to->sin_len = sizeof *to;
+		if (hp->h_length > sizeof(to->sin_addr))
+			errx(1,"gethostbyname2 returned an illegal address");
 		memcpy(&to->sin_addr, hp->h_addr_list[0], sizeof to->sin_addr);
 		(void)strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
 		hnamebuf[(sizeof hnamebuf) - 1] = '\0';
