@@ -66,4 +66,22 @@ cd /
 
 echo ""
 echo "Rebuilding locate database:"
-echo /usr/libexec/locate.updatedb | nice -5 su -m nobody 2>/dev/null
+locdb=/var/db/locate.database
+touch ${locdb}; chown nobody ${locdb}; chmod 644 ${locdb}
+echo /usr/libexec/locate.updatedb | nice -5 su -m nobody 2>&1 |\
+        fgrep -v 'Permission denied'
+chmod 444 ${locdb}
+
+echo ""
+echo "Rebuilding whatis database:"
+MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
+
+for mandir in `( IFS=":"; set -- ${MANPATH}; echo $* )`
+do
+        if [ ! -d ${mandir} ]
+        then
+                continue
+        fi
+        echo "==> ${mandir}"
+        makewhatis ${mandir}
+done

@@ -44,10 +44,11 @@ fi
 
 cd /tmp
 # This is not safe, you need to decide what is appropriate for your
-# system.
+# system. Leave a warning note for now.
+echo "You did not enable the cleaning of /tmp in /etc/daily!"
 #
 #find / ! -fstype local -a -prune -o \
-#	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name core \
+#	\( -name '[#,]*' -o -name '.#*' -o -name a.out -o -name *.core \
 #	   -o -name '*.CKP' -o -name '.emacs_[0-9]*' \) \
 #		-a -atime +3 -exec rm -f -- {} \;
 #
@@ -124,7 +125,7 @@ echo ""
 echo "Checking subsystem status:"
 echo ""
 echo "disks:"
-df -k
+df -k -t local
 echo ""
 dump W
 echo ""
