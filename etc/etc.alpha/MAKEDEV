@@ -84,6 +84,7 @@
 #	smb*	SMBUS devices
 #
 # USB devices:
+#	usb*	USB bus control device
 #	ums*	mouse
 #	ulpt*	printer
 #	ugen*	generic USB device
@@ -128,7 +129,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.9 1999/07/09 13:37:59 sheldonh Exp $
+#	$Id: MAKEDEV,v 1.10 1999/08/16 16:00:23 sheldonh Exp $
 #	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 
@@ -232,7 +233,7 @@ all)
 	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
-	sh MAKEDEV ums0 ulpt0 ugen0			# cdev, USB devices
+	sh MAKEDEV usb0 ums0 ulpt0 ugen0		# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm card0 card1 card2 card3		# cdev, laptop
