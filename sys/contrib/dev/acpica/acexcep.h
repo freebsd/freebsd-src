@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 49 $
+ *       $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -244,7 +244,7 @@
  * String versions of the exception codes above
  * These strings must match the corresponding defines exactly
  */
-NATIVE_CHAR          *AcpiGbl_ExceptionNames_Env[] =
+NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Env[] =
 {
     "AE_OK",
     "AE_ERROR",
@@ -275,7 +275,7 @@ NATIVE_CHAR          *AcpiGbl_ExceptionNames_Env[] =
     "AE_NO_GLOBAL_LOCK",
 };
 
-NATIVE_CHAR          *AcpiGbl_ExceptionNames_Pgm[] =
+NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Pgm[] =
 {
     "AE_BAD_PARAMETER",
     "AE_BAD_CHARACTER",
@@ -284,7 +284,7 @@ NATIVE_CHAR          *AcpiGbl_ExceptionNames_Pgm[] =
     "AE_BAD_ADDRESS",
 };
 
-NATIVE_CHAR          *AcpiGbl_ExceptionNames_Tbl[] =
+NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Tbl[] =
 {
     "AE_BAD_SIGNATURE",
     "AE_BAD_HEADER",
@@ -292,7 +292,7 @@ NATIVE_CHAR          *AcpiGbl_ExceptionNames_Tbl[] =
     "AE_BAD_VALUE",
 };
 
-NATIVE_CHAR          *AcpiGbl_ExceptionNames_Aml[] =
+NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
 {
     "AE_AML_ERROR",
     "AE_AML_PARSE",
@@ -321,7 +321,7 @@ NATIVE_CHAR          *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_INVALID_RESOURCE_TYPE",
 };
 
-NATIVE_CHAR          *AcpiGbl_ExceptionNames_Ctrl[] =
+NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Ctrl[] =
 {
     "AE_CTRL_RETURN_VALUE",
     "AE_CTRL_PENDING",

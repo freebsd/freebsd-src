@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exnames - interpreter/scanner name load/execute
- *              $Revision: 81 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -167,7 +167,6 @@ AcpiExAllocateNameString (
      * Also, one byte for the null terminator.
      * This may actually be somewhat longer than needed.
      */
-
     if (PrefixCount == (UINT32) -1)
     {
         /* Special case for root */
@@ -183,7 +182,6 @@ AcpiExAllocateNameString (
      * Allocate a buffer for the name.
      * This buffer must be deleted by the caller!
      */
-
     NameString = ACPI_MEM_ALLOCATE (SizeNeeded);
     if (!NameString)
     {
@@ -230,7 +228,6 @@ AcpiExAllocateNameString (
      * Terminate string following prefixes. AcpiExNameSegment() will
      * append the segment(s)
      */
-
     *TempPtr = 0;
 
     return_PTR (NameString);
@@ -388,7 +385,6 @@ AcpiExGetNameString (
          * DataType is not a field name.
          * Examine first character of name for root or parent prefix operators
          */
-
         switch (*AmlAddress)
         {
 
@@ -446,6 +442,7 @@ AcpiExGetNameString (
             }
 
             /* Indicate that we processed a prefix */
+
             HasPrefix = TRUE;
 
             Status = AcpiExNameSegment (&AmlAddress, NameString);
@@ -473,6 +470,7 @@ AcpiExGetNameString (
             }
 
             /* Indicate that we processed a prefix */
+
             HasPrefix = TRUE;
 
             while (NumSegments &&

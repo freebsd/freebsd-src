@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exxface - External interpreter interfaces
- *              $Revision: 27 $
+ *              $Revision: 29 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,7 @@
 #define _COMPONENT          ACPI_EXECUTER
         MODULE_NAME         ("exxface")
 
+#if 0
 
 /*
  * DEFINE_AML_GLOBALS is tested in amlcode.h
@@ -177,7 +178,6 @@ AcpiExExecuteMethod (
      * The point here is to lock the interpreter and call the low
      * level execute.
      */
-
     Status = AcpiExEnterInterpreter ();
     if (ACPI_FAILURE (Status))
     {
@@ -192,3 +192,4 @@ AcpiExExecuteMethod (
 }
 
 
+#endif

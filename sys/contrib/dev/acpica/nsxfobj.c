@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 88 $
+ *              $Revision: 89 $
  *
  ******************************************************************************/
 
@@ -185,14 +185,12 @@ AcpiEvaluateObject (
      * (which must be a control method), the external objects
      * must be converted to internal objects
      */
-
     if (ParamObjects && ParamObjects->Count)
     {
         /*
          * Allocate a new parameter block for the internal objects
          * Add 1 to count to allow for null terminated internal list
          */
-
         Count           = ParamObjects->Count;
         ParamLength     = (Count + 1) * sizeof (void *);
         ObjectLength    = Count * sizeof (ACPI_OPERAND_OBJECT);
@@ -211,7 +209,6 @@ AcpiEvaluateObject (
          * Init the param array of pointers and NULL terminate
          * the list
          */
-
         for (i = 0; i < Count; i++)
         {
             ParamPtr[i] = &ObjectPtr[i];
@@ -243,7 +240,6 @@ AcpiEvaluateObject (
      * 2) No handle, not fully qualified pathname (error)
      * 3) Valid handle
      */
-
     if ((Pathname) &&
         (AcpiNsValidRootPrefix (Pathname[0])))
     {
@@ -260,7 +256,6 @@ AcpiEvaluateObject (
          * is specified.  Since we've already handled fully
          * qualified names above, this is an error
          */
-
         if (!Pathname)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Both Handle and Pathname are NULL\n"));
@@ -281,7 +276,6 @@ AcpiEvaluateObject (
          * pathname it is relative.  The handle will be validated
          * in the lower procedures
          */
-
         if (!Pathname)
         {
             /*
@@ -345,7 +339,6 @@ AcpiEvaluateObject (
                      * Check if there is enough room in the
                      * caller's buffer
                      */
-
                     if (UserBufferLength < BufferSpaceNeeded)
                     {
                         /*
@@ -353,7 +346,6 @@ AcpiEvaluateObject (
                          * give him partial results fail the call
                          * but return the buffer size needed
                          */
-
                         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                             "Needed buffer size %X, received %X\n",
                             BufferSpaceNeeded, UserBufferLength));
@@ -391,7 +383,6 @@ AcpiEvaluateObject (
     /*
      * Free the input parameter list (if we created one),
      */
-
     if (ParamPtr)
     {
         /* Free the allocated parameter block */
@@ -713,7 +704,6 @@ AcpiWalkNamespace (
      * to the user function - since this function
      * must be allowed to make Acpi calls itself.
      */
-
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     Status = AcpiNsWalkNamespace ((ACPI_OBJECT_TYPE8) Type,
                                     StartObject, MaxDepth,
@@ -876,7 +866,6 @@ AcpiGetDevices (
      * to the user function - since this function
      * must be allowed to make Acpi calls itself.
      */
-
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE,
                                     ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,

@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 47 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -173,7 +173,6 @@ AcpiEvInitialize (
      * done prior to enabling SCIs to prevent interrupts from occuring
      * before handers are installed.
      */
-
     Status = AcpiEvFixedEventInitialize ();
     if (ACPI_FAILURE (Status))
     {
@@ -275,14 +274,14 @@ AcpiEvFixedEventDetect (void)
     UINT32                  StatusRegister;
     UINT32                  EnableRegister;
 
-    PROC_NAME ("AcpiEvFixedEventDetect");
+
+    PROC_NAME ("EvFixedEventDetect");
 
 
     /*
      * Read the fixed feature status and enable registers, as all the cases
      * depend on their values.
      */
-
     StatusRegister = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM1_STS);
     EnableRegister = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM1_EN);
 
@@ -344,7 +343,11 @@ UINT32
 AcpiEvFixedEventDispatch (
     UINT32                  Event)
 {
-    UINT32 RegisterId;
+    UINT32                  RegisterId;
+
+
+    FUNCTION_ENTRY ();
+
 
     /* Clear the status bit */
 
@@ -443,7 +446,6 @@ AcpiEvGpeInitialize (void)
      * FADT table contain zeros. The GPE0_LEN and GPE1_LEN do not need
      * to be the same size."
      */
-
     Gpe0RegisterCount           = (UINT16) DIV_2 (AcpiGbl_FADT->Gpe0BlkLen);
     Gpe1RegisterCount           = (UINT16) DIV_2 (AcpiGbl_FADT->Gpe1BlkLen);
     AcpiGbl_GpeRegisterCount    = Gpe0RegisterCount + Gpe1RegisterCount;
@@ -457,7 +459,6 @@ AcpiEvGpeInitialize (void)
     /*
      * Allocate the Gpe information block
      */
-
     AcpiGbl_GpeRegisters = ACPI_MEM_CALLOCATE (AcpiGbl_GpeRegisterCount *
                                 sizeof (ACPI_GPE_REGISTERS));
     if (!AcpiGbl_GpeRegisters)
@@ -472,7 +473,6 @@ AcpiEvGpeInitialize (void)
      * There are eight distinct GP events per register.
      * Initialization to zeros is sufficient
      */
-
     AcpiGbl_GpeInfo = ACPI_MEM_CALLOCATE (MUL_8 (AcpiGbl_GpeRegisterCount) *
                                             sizeof (ACPI_GPE_LEVEL_INFO));
     if (!AcpiGbl_GpeInfo)
@@ -651,7 +651,6 @@ AcpiEvSaveMethodInfo (
      * Now we can add this information to the GpeInfo block
      * for use during dispatch of this GPE.
      */
-
     AcpiGbl_GpeInfo [GpeNumber].Type            = Type;
     AcpiGbl_GpeInfo [GpeNumber].MethodHandle    = ObjHandle;
 
@@ -659,7 +658,6 @@ AcpiEvSaveMethodInfo (
     /*
      * Enable the GPE (SCIs should be disabled at this point)
      */
-
     AcpiHwEnableGpe (GpeNumber);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Registered GPE method %s as GPE number %X\n",
@@ -741,16 +739,16 @@ AcpiEvGpeDetect (void)
      */
     for (i = 0; i < AcpiGbl_GpeRegisterCount; i++)
     {
-        AcpiOsReadPort (AcpiGbl_GpeRegisters[i].StatusAddr, 
+        AcpiOsReadPort (AcpiGbl_GpeRegisters[i].StatusAddr,
                 &AcpiGbl_GpeRegisters[i].Status, 8);
 
-        AcpiOsReadPort (AcpiGbl_GpeRegisters[i].EnableAddr, 
+        AcpiOsReadPort (AcpiGbl_GpeRegisters[i].EnableAddr,
                 &AcpiGbl_GpeRegisters[i].Enable, 8);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
             "GPE block at %X - Enable %08X Status %08X\n",
-            AcpiGbl_GpeRegisters[i].EnableAddr, 
-            AcpiGbl_GpeRegisters[i].Status, 
+            AcpiGbl_GpeRegisters[i].EnableAddr,
+            AcpiGbl_GpeRegisters[i].Status,
             AcpiGbl_GpeRegisters[i].Enable));
 
         /* First check if there is anything active at all in this register */
@@ -873,6 +871,7 @@ AcpiEvGpeDispatch (
     UINT32                  GpeNumber)
 {
     ACPI_GPE_LEVEL_INFO     GpeInfo;
+
 
     FUNCTION_TRACE ("EvGpeDispatch");
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 31 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -144,6 +144,10 @@ AcpiHwEnableGpe (
     UINT32                  RegisterIndex;
     UINT32                  BitMask;
 
+
+    FUNCTION_ENTRY ();
+
+
     /*
      * Translate GPE number to index into global registers array.
      */
@@ -184,6 +188,10 @@ AcpiHwDisableGpe (
     UINT32                  InByte;
     UINT32                  RegisterIndex;
     UINT32                  BitMask;
+
+
+    FUNCTION_ENTRY ();
+
 
     /*
      * Translate GPE number to index into global registers array.
@@ -226,6 +234,9 @@ AcpiHwClearGpe (
     UINT32                  BitMask;
 
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * Translate GPE number to index into global registers array.
      */
@@ -264,6 +275,9 @@ AcpiHwGetGpeStatus (
     UINT32                  InByte = 0;
     UINT32                  RegisterIndex = 0;
     UINT32                  BitMask = 0;
+
+
+    FUNCTION_ENTRY ();
 
 
     if (!EventStatus)

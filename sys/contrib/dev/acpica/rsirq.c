@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
- *              $Revision: 17 $
+ *              $Revision: 18 $
  *
  ******************************************************************************/
 
@@ -505,10 +505,10 @@ AcpiRsExtendedIrqResource (
 
         Buffer += 1;
 
-        /* 
+        /*
          * Point the String pointer to the end of this structure.
          */
-        OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr = 
+        OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr =
                 (NATIVE_CHAR *)(OutputStruct + StructSize);
 
         TempPtr = OutputStruct->Data.ExtendedIrq.ResourceSource.StringPtr;
@@ -654,7 +654,7 @@ AcpiRsExtendedIrqStream (
         /*
          * Copy the string
          */
-        STRCPY (TempPointer, 
+        STRCPY (TempPointer,
             LinkedList->Data.ExtendedIrq.ResourceSource.StringPtr);
 
         /*

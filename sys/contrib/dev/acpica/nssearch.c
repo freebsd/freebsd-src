@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 72 $
+ *              $Revision: 74 $
  *
  ******************************************************************************/
 
@@ -186,7 +186,6 @@ AcpiNsSearchNode (
      * Search for name in this table, which is to say that we must search
      * for the name among the children of this object
      */
-
     NextNode = Node->Child;
     while (NextNode)
     {
@@ -201,7 +200,6 @@ AcpiNsSearchNode (
              * The DefFieldDefn and BankFieldDefn cases are actually looking up
              * the Region in which the field will be defined
              */
-
             if ((INTERNAL_TYPE_FIELD_DEFN == Type) ||
                 (INTERNAL_TYPE_BANK_FIELD_DEFN == Type))
             {
@@ -214,7 +212,6 @@ AcpiNsSearchNode (
              * looked up.  For any other value of Type, if the type stored in
              * the entry is Any (i.e. unknown), save the actual type.
              */
-
             if (Type != INTERNAL_TYPE_SCOPE &&
                 Type != INTERNAL_TYPE_DEF_ANY &&
                 Type != INTERNAL_TYPE_INDEX_FIELD_DEFN &&
@@ -223,7 +220,7 @@ AcpiNsSearchNode (
                 NextNode->Type = (UINT8) Type;
             }
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Name %4.4s (actual type %X) found at %p\n",
                 &TargetName, NextNode->Type, NextNode));
 
@@ -314,7 +311,7 @@ AcpiNsSearchParentTree (
 
         if (AcpiNsLocal (Type))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] type %X is local(no search)\n", 
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] type %X is local(no search)\n",
                 &TargetName, Type));
         }
 
@@ -347,7 +344,6 @@ AcpiNsSearchParentTree (
          * Not found here, go up another level
          * (until we reach the root)
          */
-
         ParentNode = AcpiNsGetParentObject (ParentNode);
     }
 
@@ -457,7 +453,6 @@ AcpiNsSearchAndEnter (
      * the search when namespace references are being resolved
      * (load pass 2) and during the execution phase.
      */
-
     if ((InterpreterMode != IMODE_LOAD_PASS1) &&
         (Flags & NS_SEARCH_PARENT))
     {
@@ -465,7 +460,6 @@ AcpiNsSearchAndEnter (
          * Not found in table - search parent tree according
          * to ACPI specification
          */
-
         Status = AcpiNsSearchParentTree (TargetName, Node,
                                             Type, ReturnNode);
         if (ACPI_SUCCESS (Status))

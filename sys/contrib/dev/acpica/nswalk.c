@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nswalk - Functions for walking the ACPI namespace
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -154,9 +154,11 @@ AcpiNsGetNextObject (
     ACPI_NAMESPACE_NODE     *NextNode = NULL;
 
 
+    FUNCTION_ENTRY ();
+
+
     if (!ChildNode)
     {
-
         /* It's really the parent's _scope_ that we want */
 
         if (ParentNode->Child)
@@ -255,6 +257,7 @@ AcpiNsWalkNamespace (
 
     FUNCTION_TRACE ("NsWalkNamespace");
 
+
     /* Special case for the namespace Root Node */
 
     if (StartNode == ACPI_ROOT_OBJECT)
@@ -275,14 +278,12 @@ AcpiNsWalkNamespace (
      * started. When Level is zero, the loop is done because we have
      * bubbled up to (and passed) the original parent handle (StartEntry)
      */
-
     while (Level > 0)
     {
         /*
          * Get the next typed object in this scope.  Null returned
          * if not found
          */
-
         Status = AE_OK;
         ChildNode = AcpiNsGetNextObject (ACPI_TYPE_ANY,
                                             ParentNode,
@@ -294,7 +295,6 @@ AcpiNsWalkNamespace (
              * Found an object, Get the type if we are not
              * searching for ANY
              */
-
             if (Type != ACPI_TYPE_ANY)
             {
                 ChildType = ChildNode->Type;
@@ -306,7 +306,6 @@ AcpiNsWalkNamespace (
                  * Found a matching object, invoke the user
                  * callback function
                  */
-
                 if (UnlockBeforeCallback)
                 {
                     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -324,16 +323,21 @@ AcpiNsWalkNamespace (
                 {
                 case AE_OK:
                 case AE_CTRL_DEPTH:
+
                     /* Just keep going */
                     break;
 
                 case AE_CTRL_TERMINATE:
+
                     /* Exit now, with OK status */
+
                     return_ACPI_STATUS (AE_OK);
                     break;
 
                 default:
+
                     /* All others are valid exceptions */
+
                     return_ACPI_STATUS (Status);
                     break;
                 }
@@ -347,7 +351,6 @@ AcpiNsWalkNamespace (
              * or if the user function has specified that the
              * maximum depth has been reached.
              */
-
             if ((Level < MaxDepth) && (Status != AE_CTRL_DEPTH))
             {
                 if (AcpiNsGetNextObject (ACPI_TYPE_ANY,
@@ -378,6 +381,7 @@ AcpiNsWalkNamespace (
     }
 
     /* Complete walk, not terminated by user function */
+
     return_ACPI_STATUS (AE_OK);
 }
 

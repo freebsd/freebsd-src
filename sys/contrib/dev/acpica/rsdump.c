@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 21 $
+ *              $Revision: 23 $
  *
  ******************************************************************************/
 
@@ -124,6 +124,8 @@
         MODULE_NAME         ("rsdump")
 
 
+#ifdef ACPI_DEBUG
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiRsDumpIrq
@@ -142,6 +144,9 @@ AcpiRsDumpIrq (
 {
     ACPI_RESOURCE_IRQ       *IrqData = (ACPI_RESOURCE_IRQ *) Data;
     UINT8                   Index = 0;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("IRQ Resource\n");
@@ -185,6 +190,9 @@ AcpiRsDumpDma (
 {
     ACPI_RESOURCE_DMA       *DmaData = (ACPI_RESOURCE_DMA *) Data;
     UINT8                   Index = 0;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("DMA Resource\n");
@@ -266,8 +274,10 @@ AcpiRsDumpStartDependentFunctions (
     ACPI_RESOURCE_START_DPF     *SdfData = (ACPI_RESOURCE_START_DPF *) Data;
 
 
-    AcpiOsPrintf ("Start Dependent Functions Resource\n");
+    FUNCTION_ENTRY ();
 
+
+    AcpiOsPrintf ("Start Dependent Functions Resource\n");
 
     switch (SdfData->CompatibilityPriority)
     {
@@ -331,6 +341,9 @@ AcpiRsDumpIo (
     ACPI_RESOURCE_IO        *IoData = (ACPI_RESOURCE_IO *) Data;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("Io Resource\n");
 
     AcpiOsPrintf ("    %d bit decode\n",
@@ -371,6 +384,9 @@ AcpiRsDumpFixedIo (
     ACPI_RESOURCE_FIXED_IO  *FixedIoData = (ACPI_RESOURCE_FIXED_IO *) Data;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("Fixed Io Resource\n");
     AcpiOsPrintf ("    Range base address: %08X",
                 FixedIoData->BaseAddress);
@@ -400,6 +416,9 @@ AcpiRsDumpVendorSpecific (
 {
     ACPI_RESOURCE_VENDOR    *VendorData = (ACPI_RESOURCE_VENDOR *) Data;
     UINT16                  Index = 0;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Vendor Specific Resource\n");
@@ -433,6 +452,9 @@ AcpiRsDumpMemory24 (
     ACPI_RESOURCE_DATA      *Data)
 {
     ACPI_RESOURCE_MEM24     *Memory24Data = (ACPI_RESOURCE_MEM24 *) Data;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("24-Bit Memory Range Resource\n");
@@ -477,6 +499,9 @@ AcpiRsDumpMemory32 (
     ACPI_RESOURCE_MEM32     *Memory32Data = (ACPI_RESOURCE_MEM32 *) Data;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("32-Bit Memory Range Resource\n");
 
     AcpiOsPrintf ("    Read%s\n",
@@ -519,6 +544,9 @@ AcpiRsDumpFixedMemory32 (
     ACPI_RESOURCE_FIXED_MEM32   *FixedMemory32Data = (ACPI_RESOURCE_FIXED_MEM32 *) Data;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("32-Bit Fixed Location Memory Range Resource\n");
 
     AcpiOsPrintf ("    Read%s\n",
@@ -553,6 +581,9 @@ AcpiRsDumpAddress16 (
     ACPI_RESOURCE_DATA      *Data)
 {
     ACPI_RESOURCE_ADDRESS16 *Address16Data = (ACPI_RESOURCE_ADDRESS16 *) Data;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("16-Bit Address Space Resource\n");
@@ -699,6 +730,9 @@ AcpiRsDumpAddress32 (
     ACPI_RESOURCE_ADDRESS32 *Address32Data = (ACPI_RESOURCE_ADDRESS32 *) Data;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("32-Bit Address Space Resource\n");
 
     switch (Address32Data->ResourceType)
@@ -840,6 +874,9 @@ AcpiRsDumpAddress64 (
     ACPI_RESOURCE_DATA      *Data)
 {
     ACPI_RESOURCE_ADDRESS64 *Address64Data = (ACPI_RESOURCE_ADDRESS64 *) Data;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("64-Bit Address Space Resource\n");
@@ -986,6 +1023,9 @@ AcpiRsDumpExtendedIrq (
     UINT8                   Index = 0;
 
 
+    FUNCTION_ENTRY ();
+
+
     AcpiOsPrintf ("Extended IRQ Resource\n");
 
     AcpiOsPrintf ("    Resource %s\n",
@@ -1044,6 +1084,9 @@ AcpiRsDumpResourceList (
 {
     UINT8               Count = 0;
     BOOLEAN             Done = FALSE;
+
+
+    FUNCTION_ENTRY ();
 
 
     if (AcpiDbgLevel & ACPI_LV_RESOURCES && _COMPONENT & AcpiDbgLayer)
@@ -1152,6 +1195,9 @@ AcpiRsDumpIrqList (
     PCI_ROUTING_TABLE   *PrtElement;
 
 
+    FUNCTION_ENTRY ();
+
+
     if (AcpiDbgLevel & ACPI_LV_RESOURCES && _COMPONENT & AcpiDbgLayer)
     {
         PrtElement = (PCI_ROUTING_TABLE *) Buffer;
@@ -1183,4 +1229,6 @@ AcpiRsDumpIrqList (
 
     return;
 }
+
+#endif
 

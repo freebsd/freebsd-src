@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 49 $
+ *       $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -152,15 +152,6 @@ AcpiPsxExecute (
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObjDesc);
 
-
-BOOLEAN
-AcpiPsIsNamespaceObjectOp (
-    UINT16                  Opcode);
-BOOLEAN
-AcpiPsIsNamespaceOp (
-    UINT16                  Opcode);
-
-
 /******************************************************************************
  *
  * Parser interfaces
@@ -208,7 +199,7 @@ AcpiPsGetNextArg (
 
 /* psopcode - AML Opcode information */
 
-ACPI_OPCODE_INFO *
+const ACPI_OPCODE_INFO *
 AcpiPsGetOpcodeInfo (
     UINT16                  Opcode);
 
@@ -376,34 +367,6 @@ AcpiPsIsLeadingChar (
 BOOLEAN
 AcpiPsIsPrefixChar (
     UINT32                  c);
-
-BOOLEAN
-AcpiPsIsNamedOp (
-    UINT16                  opcode);
-
-BOOLEAN
-AcpiPsIsNodeOp (
-    UINT16                  opcode);
-
-BOOLEAN
-AcpiPsIsDeferredOp (
-    UINT16                  opcode);
-
-BOOLEAN
-AcpiPsIsBytelistOp(
-    UINT16                  opcode);
-
-BOOLEAN
-AcpiPsIsFieldOp(
-    UINT16                  opcode);
-
-BOOLEAN
-AcpiPsIsCreateFieldOp (
-    UINT16                  Opcode);
-
-ACPI_PARSE2_OBJECT*
-AcpiPsToExtendedOp(
-    ACPI_PARSE_OBJECT       *op);
 
 UINT32
 AcpiPsGetName(

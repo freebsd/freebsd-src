@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -187,7 +187,6 @@ AcpiExCreateBufferField (
     /*
      * Allocate a method object for this field unit
      */
-
     ObjDesc->BufferField.Extra = AcpiUtCreateInternalObject (
                                     INTERNAL_TYPE_EXTRA);
     if (!ObjDesc->BufferField.Extra)
@@ -201,7 +200,6 @@ AcpiExCreateBufferField (
      * opcode and operands -- since the buffer and index
      * operands must be evaluated.
      */
-
     ObjDesc->BufferField.Extra->Extra.Pcode       = AmlPtr;
     ObjDesc->BufferField.Extra->Extra.PcodeLength = AmlLength;
     ObjDesc->BufferField.Node = Node;
@@ -235,7 +233,6 @@ AcpiExCreateBufferField (
              * There is an existing object here;  delete it and zero out the
              * object field within the Node
              */
-
             DUMP_PATHNAME (Node,
                 "ExCreateBufferField: Removing Current Reference",
                 ACPI_LV_BFIELD, _COMPONENT);
@@ -380,8 +377,6 @@ AcpiExCreateEvent (
 
     FUNCTION_TRACE ("ExCreateEvent");
 
-
- BREAKPOINT3;
 
     ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_EVENT);
     if (!ObjDesc)
@@ -556,7 +551,6 @@ AcpiExCreateRegion (
     /*
      * Allocate a method object for this region.
      */
-
     ObjDesc->Region.Extra =  AcpiUtCreateInternalObject (
                                         INTERNAL_TYPE_EXTRA);
     if (!ObjDesc->Region.Extra)
@@ -569,7 +563,6 @@ AcpiExCreateRegion (
      * Remember location in AML stream of address & length
      * operands since they need to be evaluated at run time.
      */
-
     ObjDesc->Region.Extra->Extra.Pcode       = AmlPtr;
     ObjDesc->Region.Extra->Extra.PcodeLength = AmlLength;
 
@@ -596,7 +589,6 @@ AcpiExCreateRegion (
      * If we have a valid region, initialize it
      * Namespace is NOT locked at this point.
      */
-
     Status = AcpiEvInitializeRegion (ObjDesc, FALSE);
 
     if (ACPI_FAILURE (Status))
@@ -830,7 +822,6 @@ AcpiExCreateMethod (
      * First argument is the Method Flags (contains parameter count for the
      * method)
      */
-
     ObjDesc->Method.MethodFlags = (UINT8) MethodFlags;
     ObjDesc->Method.ParamCount  = (UINT8) (MethodFlags &
                                             METHOD_FLAGS_ARG_COUNT);
