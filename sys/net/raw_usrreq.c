@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -216,7 +217,7 @@ raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 	if (rp->rcb_faddr == 0) {
 		return ENOTCONN;
 	}
-	*nam = dup_sockaddr(rp->rcb_faddr, 1);
+	*nam = sodupsockaddr(rp->rcb_faddr, M_WAITOK);
 	return 0;
 }
 
@@ -286,7 +287,7 @@ raw_usockaddr(struct socket *so, struct sockaddr **nam)
 		return EINVAL;
 	if (rp->rcb_laddr == 0)
 		return EINVAL;
-	*nam = dup_sockaddr(rp->rcb_laddr, 1);
+	*nam = sodupsockaddr(rp->rcb_laddr, M_WAITOK);
 	return 0;
 }
 

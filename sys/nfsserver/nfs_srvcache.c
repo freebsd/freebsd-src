@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>	/* for dup_sockaddr */
+#include <sys/socketvar.h>	/* for sodupsockaddr */
 
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
@@ -244,7 +244,7 @@ loop:
 /*	case AF_ISO:	*/
 	default:
 		rp->rc_flag |= RC_NAM;
-		rp->rc_nam = dup_sockaddr(nd->nd_nam, 1);
+		rp->rc_nam = sodupsockaddr(nd->nd_nam, M_WAITOK);
 		break;
 	};
 	rp->rc_proc = nd->nd_procnum;

@@ -338,7 +338,7 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
         sizeof(snatm->snatm_if));
     snatm->snatm_vci = npcb->npcb_vci;
     snatm->snatm_vpi = npcb->npcb_vpi;
-    *nam = dup_sockaddr((struct sockaddr *)snatm, 0);
+    *nam = sodupsockaddr((struct sockaddr *)snatm, M_NOWAIT);
 
  out:
     splx(s);

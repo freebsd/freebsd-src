@@ -1061,14 +1061,11 @@ pru_sosetlabel_null(struct socket *so)
  * Make a copy of a sockaddr in a malloced buffer of type M_SONAME.
  */
 struct sockaddr *
-dup_sockaddr(sa, canwait)
-	struct sockaddr *sa;
-	int canwait;
+sodupsockaddr(const struct sockaddr *sa, int mflags)
 {
 	struct sockaddr *sa2;
 
-	MALLOC(sa2, struct sockaddr *, sa->sa_len, M_SONAME, 
-	       canwait ? M_WAITOK : M_NOWAIT);
+	sa2 = malloc(sa->sa_len, M_SONAME, mflags);
 	if (sa2)
 		bcopy(sa, sa2, sa->sa_len);
 	return sa2;
