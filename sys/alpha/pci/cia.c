@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.3 1998/07/22 08:32:17 dfr Exp $
+ *	$Id: cia.c,v 1.4 1998/07/31 09:17:51 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -387,60 +387,95 @@ cia_swiz_maxdevs(u_int b)
 #define CIA_SWIZ_CFGOFF(b, s, f, r) \
 	(((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
 
+/*  when doing a type 1 pci configuration space access, we
+ *  must set a bit in the CIA_CSR_CFG register & clear it 
+ *  when we're done 
+*/
+
+#define CIA_TYPE1_SETUP(b,s,old_cfg) if((b)) {		\
+        do {						\
+		(s) = splhigh();			\
+		(old_cfg) = REGVAL(CIA_CSR_CFG);	\
+		alpha_mb();				\
+		REGVAL(CIA_CSR_CFG) = (old_cfg) | 0x1;	\
+		alpha_mb();				\
+        } while(0);					\
+}
+
+#define CIA_TYPE1_TEARDOWN(b,s,old_cfg) if((b)) {	\
+        do {						\
+		alpha_mb();				\
+		REGVAL(CIA_CSR_CFG) = (old_cfg);	\
+		alpha_mb();				\
+		splx((s));				\
+        } while(0);					\
+}
+
+#define SWIZ_CFGREAD(b, s, f, r, width, type)				\
+	type val = ~0;							\
+	int ipl = 0;							\
+	u_int32_t old_cfg = 0;						\
+	struct cia_softc* sc = CIA_SOFTC(cia0);				\
+	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	alpha_mb();							\
+	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
+	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
+		val = SPARSE_##width##_EXTRACT(off, SPARSE_READ(kv));	\
+	}								\
+        CIA_TYPE1_TEARDOWN(b,ipl,old_cfg);				\
+	return val;							
+
+#define SWIZ_CFGWRITE(b, s, f, r, data, width, type)			\
+	int ipl = 0;							\
+	u_int32_t old_cfg = 0;						\
+	struct cia_softc* sc = CIA_SOFTC(cia0);				\
+	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	alpha_mb();							\
+	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
+	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
+                SPARSE_WRITE(kv, SPARSE_##width##_INSERT(off, data));	\
+		alpha_wmb();						\
+	}								\
+        CIA_TYPE1_TEARDOWN(b,ipl,old_cfg);				\
+	return;							
+
 static u_int8_t
 cia_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_BYTE_OFFSET(off)), 1)) return ~0;
-	return SPARSE_READ_BYTE(KV(CIA_PCI_CONF), off);
+	SWIZ_CFGREAD(b, s, f, r, BYTE, u_int8_t);
 }
 
 static u_int16_t
 cia_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_WORD_OFFSET(off)), 2)) return ~0;
-	return SPARSE_READ_WORD(KV(CIA_PCI_CONF), off);
+	SWIZ_CFGREAD(b, s, f, r, WORD, u_int16_t);
 }
 
 static u_int32_t
 cia_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	alpha_mb();
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_LONG_OFFSET(off)), 4)) return ~0;
-	return SPARSE_READ_LONG(KV(CIA_PCI_CONF), off);
+	SWIZ_CFGREAD(b, s, f, r, LONG, u_int32_t);
 }
 
 static void
 cia_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_BYTE_OFFSET(off)), 1)) return;
-	SPARSE_WRITE_BYTE(KV(CIA_PCI_CONF), off, data);
-	alpha_wmb();
+	SWIZ_CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
 }
 
 static void
 cia_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_WORD_OFFSET(off)), 2)) return;
-	SPARSE_WRITE_WORD(KV(CIA_PCI_CONF), off, data);
-	alpha_wmb();
+	SWIZ_CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
 }
 
 static void
 cia_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
-	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_LONG_OFFSET(off)), 4)) return;
-	SPARSE_WRITE_LONG(KV(CIA_PCI_CONF), off, data);
-	alpha_wmb();
+	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
 }
-
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
