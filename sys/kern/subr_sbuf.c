@@ -29,17 +29,21 @@
  */
 
 #include <sys/param.h>
-#include <sys/sbuf.h>
 
 #ifdef _KERNEL
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 #include <machine/stdarg.h>
 #else /* _KERNEL */
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #endif /* _KERNEL */
+
+#include <sys/sbuf.h>
 
 #ifdef _KERNEL
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
@@ -132,6 +136,34 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	SBUF_SETFLAG(s, SBUF_DYNAMIC);
 	return (s);
 }
+
+#ifdef _KERNEL
+/*
+ * Create an sbuf with uio data
+ */
+struct sbuf *
+sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
+{
+	KASSERT(uio != NULL,
+	    (__FUNCTION__ " called with NULL uio pointer"));
+	KASSERT(error != NULL,
+	    (__FUNCTION__ " called with NULL error pointer"));
+
+	s = sbuf_new(s, NULL, uio->uio_resid + 1, 0);
+	if (s == NULL) {
+		*error = ENOMEM;
+		return (NULL);
+	}
+	*error = uiomove(s->s_buf, uio->uio_resid, uio);
+	if (*error != 0) {
+		sbuf_delete(s);
+		return (NULL);
+	}
+	s->s_len = s->s_size - 1;
+	*error = 0;
+	return (s);
+}
+#endif
 
 /*
  * Clear an sbuf and reset its position
@@ -353,6 +385,24 @@ sbuf_putc(struct sbuf *s, int c)
 	}
 	if (c != '\0')
 	    s->s_buf[s->s_len++] = c;
+	return (0);
+}
+
+/*
+ * Trim whitespace characters from an sbuf.
+ */
+int
+sbuf_trim(struct sbuf *s)
+{
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+	
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+	
+	while (s->s_len && isspace(s->s_buf[s->s_len-1]))
+		--s->s_len;
+
 	return (0);
 }
 
