@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.60.2.6 1999/05/15 14:38:42 jkh Exp $
+ * $Id: index.c,v 1.60.2.7 1999/05/27 10:34:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -635,11 +635,19 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		*cp2 = '\0';
 	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
 		status = index_extract(dev, top, tmp2, TRUE);
-		if (DITEM_STATUS(status) != DITEM_SUCCESS)
-		    msgCNotify("Loading of dependant package %s failed", cp);
+		if (DITEM_STATUS(status) != DITEM_SUCCESS) {
+		    if (variable_get(VAR_NO_CONFIRM))
+			msgNotify("Loading of dependant package %s failed", cp);
+		    else
+			msgConfirm("Loading of dependant package %s failed", cp);
+		}
 	    }
-	    else if (!package_exists(cp))
-		msgCNotify("Warning: %s is a required package but was not found.", cp);
+	    else if (!package_exists(cp)) {
+		if (variable_get(VAR_NO_CONFIRM))
+		    msgNotify("Warning: %s is a required package but was not found.", cp);
+		else
+		    msgConfirm("Warning: %s is a required package but was not found.", cp);
+	    }
 	    if (cp2)
 		cp = cp2 + 1;
 	    else
