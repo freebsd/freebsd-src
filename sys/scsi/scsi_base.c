@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.6 1994/02/07 02:15:01 rgrimes Exp $
+ *      $Id: scsi_base.c,v 1.7 1994/04/20 07:06:54 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -293,7 +293,7 @@ scsi_start_unit(sc_link, flags)
 		0,
 		0,
 		2,
-		6000,
+		10000,
 		NULL,
 		flags));
 }
@@ -321,7 +321,7 @@ scsi_stop_unit(sc_link, eject, flags)
 		0,
 		0,
 		2,
-		6000,
+		10000,
 		NULL,
 		flags));
 }
