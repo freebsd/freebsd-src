@@ -54,21 +54,6 @@
 #define PTHREAD_THREADS_MAX			ULONG_MAX
 
 /*
- * Compile time symbolic constants for portability specifications:
- *
- * Note that those commented out are not currently supported by the
- * implementation.
- */
-#define _POSIX_THREADS
-#define _POSIX_THREAD_ATTR_STACKADDR
-#define _POSIX_THREAD_ATTR_STACKSIZE
-#define _POSIX_THREAD_PRIORITY_SCHEDULING
-#define _POSIX_THREAD_PRIO_INHERIT
-#define _POSIX_THREAD_PRIO_PROTECT
-/* #define _POSIX_THREAD_PROCESS_SHARED */
-#define _POSIX_THREAD_SAFE_FUNCTIONS
-
-/*
  * Flags for threads and thread attributes.
  */
 #define PTHREAD_DETACHED            0x1
@@ -174,10 +159,8 @@ struct pthread_once {
 #endif
 
 #define PTHREAD_PRIO_NONE	0
-#ifdef _POSIX_THREAD_PRIO_PROTECT
 #define PTHREAD_PRIO_INHERIT	1
 #define PTHREAD_PRIO_PROTECT	2
-#endif
 
 /*
  * Mutex types (Single UNIX Specification, Version 2, 1997).
