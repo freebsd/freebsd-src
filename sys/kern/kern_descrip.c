@@ -1607,12 +1607,11 @@ fdfree(struct thread *td)
 		if (fdtol != NULL)
 			FREE(fdtol, M_FILEDESC_TO_LEADER);
 	}
-	FILEDESC_LOCK(fdp);
-	if (--fdp->fd_refcnt > 0) {
-		FILEDESC_UNLOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
+	i = --fdp->fd_refcnt;
+	FILEDESC_UNLOCK_FAST(fdp);
+	if (i > 0)
 		return;
-	}
-
 	/*
 	 * We are the last reference to the structure, so we can
 	 * safely assume it will not change out from under us.
@@ -1622,6 +1621,7 @@ fdfree(struct thread *td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
+	FILEDESC_LOCK(fdp);
 
 	/* XXX This should happen earlier. */
 	mtx_lock(&fdesc_mtx);
@@ -2324,6 +2324,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 			nrele++;
 		}
 		FILEDESC_UNLOCK_FAST(fdp);
+		fddrop(fdp);
 		while (nrele--)
 			vrele(olddp);
 	}
@@ -2418,7 +2419,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (fdp == NULL)
 			continue;
 		FILEDESC_LOCK_FAST(fdp);
-		for (n = 0; n < fdp->fd_nfiles; ++n) {
+		for (n = 0; fdp->fd_refcnt > 0 && n < fdp->fd_nfiles; ++n) {
 			if ((fp = fdp->fd_ofiles[n]) == NULL)
 				continue;
 			xf.xf_fd = n;
