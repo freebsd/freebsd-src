@@ -6,7 +6,7 @@ WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
 
-.if defined(WITH_BSDTAR)
+.if !defined(WITH_GTAR)
 SYMLINKS=	${BINDIR}/bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 .endif
