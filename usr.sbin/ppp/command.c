@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.110 1997/12/15 20:21:46 brian Exp $
+ * $Id: command.c,v 1.111 1997/12/17 00:19:22 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -75,6 +75,7 @@
 #include "auth.h"
 
 struct in_addr ifnetmask;
+static const char *HIDDEN = "********";
 
 static int ShowCommand(struct cmdargs const *arg);
 static int TerminalCommand(struct cmdargs const *arg);
@@ -487,7 +488,7 @@ ShowAuthKey(struct cmdargs const *arg)
   if (!VarTerm)
     return 0;
   fprintf(VarTerm, "AuthName = %s\n", VarAuthName);
-  fprintf(VarTerm, "AuthKey  = %s\n", VarAuthKey);
+  fprintf(VarTerm, "AuthKey  = %s\n", HIDDEN);
 #ifdef HAVE_DES
   fprintf(VarTerm, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
 #endif
@@ -666,7 +667,8 @@ FindCommand(struct cmdtab const *cmds, const char *str, int *pmatch)
 }
 
 static int
-FindExec(struct cmdtab const *cmds, int argc, char const *const *argv)
+FindExec(struct cmdtab const *cmds, int argc, char const *const *argv,
+         const char *prefix)
 {
   struct cmdtab const *cmd;
   int val = 1;
@@ -675,7 +677,7 @@ FindExec(struct cmdtab const *cmds, int argc, char const *const *argv)
 
   cmd = FindCommand(cmds, *argv, &nmatch);
   if (nmatch > 1)
-    LogPrintf(LogWARN, "%s: Ambiguous command\n", *argv);
+    LogPrintf(LogWARN, "%s%s: Ambiguous command\n", prefix, *argv);
   else if (cmd && (cmd->lauth & VarLocalAuth)) {
     arg.cmd = cmds;
     arg.argc = argc-1;
@@ -683,12 +685,12 @@ FindExec(struct cmdtab const *cmds, int argc, char const *const *argv)
     arg.data = cmd->args;
     val = (cmd->func) (&arg);
   } else
-    LogPrintf(LogWARN, "%s: Invalid command\n", *argv);
+    LogPrintf(LogWARN, "%s%s: Invalid command\n", prefix, *argv);
 
   if (val == -1)
     LogPrintf(LogWARN, "Usage: %s\n", cmd->syntax);
   else if (val)
-    LogPrintf(LogWARN, "%s: Failed %d\n", *argv, val);
+    LogPrintf(LogWARN, "%s%s: Failed %d\n", prefix, *argv, val);
 
   return val;
 }
@@ -736,6 +738,17 @@ InterpretCommand(char *buff, int nb, int *argc, char ***argv)
     *argc = 0;
 }
 
+static int
+arghidden(int argc, char const *const *argv, int n)
+{
+  /* Is arg n of the given command to be hidden from the log ? */
+  if (n == 2 && !strncasecmp(argv[0], "se", 2) &&
+      (!strncasecmp(argv[1], "authk", 5) || !strncasecmp(argv[1], "ke", 2)))
+    return 1;
+
+  return 0;
+}
+
 void
 RunCommand(int argc, char const *const *argv, const char *label)
 {
@@ -754,12 +767,15 @@ RunCommand(int argc, char const *const *argv, const char *label)
       for (f = 0; f < argc; f++) {
         if (n < sizeof(buf)-1 && f)
           buf[n++] = ' ';
-        strncpy(buf+n, argv[f], sizeof(buf)-n-1);
+        if (arghidden(argc, argv, f))
+          strncpy(buf+n, HIDDEN, sizeof(buf)-n-1);
+        else
+          strncpy(buf+n, argv[f], sizeof(buf)-n-1);
         n += strlen(buf+n);
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(Commands, argc, argv);
+    FindExec(Commands, argc, argv, "");
   }
 }
 
@@ -777,7 +793,7 @@ static int
 ShowCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(ShowCommands, arg->argc, arg->argv);
+    FindExec(ShowCommands, arg->argc, arg->argv, "show ");
   else if (VarTerm)
     fprintf(VarTerm, "Use ``show ?'' to get a arg->cmd.\n");
   else
@@ -1459,7 +1475,7 @@ static int
 SetCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(SetCommands, arg->argc, arg->argv);
+    FindExec(SetCommands, arg->argc, arg->argv, "set ");
   else if (VarTerm)
     fprintf(VarTerm, "Use `set ?' to get a arg->cmd or `set ? <var>' for"
 	    " syntax help.\n");
@@ -1563,7 +1579,7 @@ static int
 AliasCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(AliasCommands, arg->argc, arg->argv);
+    FindExec(AliasCommands, arg->argc, arg->argv, "alias ");
   else if (VarTerm)
     fprintf(VarTerm, "Use `alias help' to get a arg->cmd or `alias help <option>'"
 	    " for syntax help.\n");
@@ -1634,7 +1650,7 @@ static int
 AllowCommand(struct cmdargs const *arg)
 {
   if (arg->argc > 0)
-    FindExec(AllowCommands, arg->argc, arg->argv);
+    FindExec(AllowCommands, arg->argc, arg->argv, "allow ");
   else if (VarTerm)
     fprintf(VarTerm, "Use `allow ?' to get a arg->cmd or `allow ? <cmd>' for"
 	    " syntax help.\n");
