@@ -52,7 +52,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *
  *	from: @(#)softdep.h	9.4 (McKusick) 1/15/98
  */
 
