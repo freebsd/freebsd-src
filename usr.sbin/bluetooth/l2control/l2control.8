@@ -1,0 +1,84 @@
+.\" l2control.8
+.\" 
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $Id: l2control.8,v 1.4 2002/11/09 19:18:16 max Exp $
+.\" $FreeBSD$
+.Dd June 14, 2002
+.Dt L2CONTROL 8
+.Os
+.Sh NAME
+.Nm l2control
+.Nd L2CAP configuration utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar local BD_ADDR
+.Op Ar command 
+.Op Ar parameters ...
+.Sh DESCRIPTION
+The
+.Nm
+utility connects to the local device with specified BD_ADDR and attempts 
+to send specified command.
+.Nm
+will print results to the standard output and error messages to 
+the standard error.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl a Ar local BD_ADDR 
+Connect to the local device with specified BD_ADDR. Example:
+.Fl a Ar 00:01:02:03:04:05 .
+.It command
+One of the supported commands (see below). Special command 
+.Dq help
+can be used to obtain the list of all supported commands. To get more
+information about specific command use
+.Dq help command .
+.It parameters
+One or more optional space separated command parameters.
+.El
+.Sh COMMANDS
+The currently supported node commands in
+.Nm
+are:
+.Pp
+.Bd -literal -offset indent -compact
+Read_Node_Flags
+Read_Debug_Level
+Write_Debug_Level
+Read_Connection_List
+Read_Channel_List
+.Ed
+.Pp
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr netgraph 3 ,
+.Xr netgraph 4 ,
+.Xr ng_l2cap 4 ,
+.Xr l2ping 8
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
