@@ -28,8 +28,10 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.4 1995/10/06 02:46:23 jkh Exp $";
+	"$Id: main.c,v 1.5 1996/03/22 22:22:38 joerg Exp $";
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <ncurses.h>
 #include <dialog.h>
@@ -206,7 +208,22 @@ setzone(const char *zone)
 	struct tm *tm;
 	char msg[_POSIX2_LINE_MAX];
 	int rv;
-	FILE *ifp, *ofp;
+	struct stat sb;
+
+	/*
+	 * Make sure the definition file does exist before clobbering
+	 * an existing PATH_LOCALTIME.  We do this before evaluating
+	 * locatlime below, since a missing zoneinfo file would result
+	 * in nothing but garbage in the displayed time information.
+	 */
+	snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
+	if (stat(msg, &sb) == -1) {
+		snprintf(msg, sizeof msg,
+			 "Could not find definition file\n"
+			 PATH_ZONEINFO "/%s", zone);
+		dialog_notify(msg);
+		return 1;
+	}
 
 	snprintf(msg, sizeof msg, "TZ=%s", zone);
 	putenv(msg);
@@ -226,46 +243,13 @@ setzone(const char *zone)
 		return 1;
 
 	snprintf(msg, sizeof msg, PATH_ZONEINFO "/%s", zone);
-	ifp = fopen(msg, "r");
-	if (!ifp) {
-		snprintf(msg, sizeof msg,
-			 "Could not open " PATH_ZONEINFO "/%s: %s",
-			 zone, strerror(errno));
-		dialog_notify(msg);
+	(void)unlink(PATH_LOCALTIME);
+	if (symlink(msg, PATH_LOCALTIME) == -1) {
+		dialog_notify("Could not create a symbolic link for "
+			      PATH_LOCALTIME);
 		return 1;
 	}
 
-	ofp = fopen(PATH_LOCALTIME, "w");
-	if (!ofp) {
-		snprintf(msg, sizeof msg, "Could not open " PATH_LOCALTIME
-			 ": %s", strerror(errno));
-		dialog_notify(msg);
-		fclose(ifp);
-		return 1;
-	}
-
-	while((rv = fread(msg, 1, sizeof msg, ifp)) > 0) {
-		int rv2;
-		if((rv2 = fwrite(msg, 1, rv, ofp)) != rv) {
-			snprintf(msg, sizeof msg,
-				 "Could not write " PATH_LOCALTIME ": %s",
-				 strerror(errno));
-out:
-			dialog_notify(msg);
-			fclose(ifp);
-			fclose(ofp);
-			unlink(PATH_LOCALTIME);
-			return 1;
-		}
-	}
-	if (rv < 0) {
-		snprintf(msg, sizeof msg, "Could not read timezone file: %s",
-			 strerror(errno));
-		goto out;
-	}
-
-	fclose(ifp);
-	fclose(ofp);
 	snprintf(msg, sizeof msg, "Installed timezone file %s", zone);
 	dialog_notify(msg);
 	return 0;
