@@ -4,33 +4,29 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- *
- * Redistribution of this software and documentation and use in source and
- * binary forms, with or without modification, are permitted provided that
- * the following conditions are met:
- *
- * 1. Redistributions of source code or documentation must retain the above
- *    copyright notice, this list of conditions and the following disclaimer.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
- * AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Begemot: bsnmp/lib/asn1.h,v 1.17 2003/12/02 15:52:37 hbb Exp $
+ * $Begemot: bsnmp/lib/asn1.h,v 1.18 2004/08/06 08:46:50 brandt Exp $
  *
  * ASN.1 for SNMP
  */
@@ -57,7 +53,7 @@ struct asn_buf {
 #define ASN_OIDSTRLEN	(ASN_MAXOIDLEN * (10 + 1) - 1 + 1)
 
 /* type of subidentifiers */
-typedef u_int32_t asn_subid_t;
+typedef uint32_t asn_subid_t;
 
 struct asn_oid {
 	u_int	len;
@@ -81,8 +77,8 @@ enum asn_err {
 #define ASN_ERR_STOPPED(E) (((E) & 0x1000) != 0)
 
 /* type for the length field of encoded values. The length is restricted
- * to 65535, but using u_int16_t would give conversion warnings on gcc */
-typedef u_int32_t asn_len_t;	/* could be also u_int16_t */
+ * to 65535, but using uint16_t would give conversion warnings on gcc */
+typedef uint32_t asn_len_t;	/* could be also uint16_t */
 
 /* maximal length of a long length field without the length of the length */
 #define ASN_MAXLEN	65535
@@ -123,14 +119,14 @@ enum asn_err asn_get_ipaddress_raw(struct asn_buf *, asn_len_t, u_char *);
 enum asn_err asn_get_ipaddress(struct asn_buf *, u_char *);
 enum asn_err asn_put_ipaddress(struct asn_buf *, const u_char *);
 
-enum asn_err asn_get_uint32_raw(struct asn_buf *, asn_len_t, u_int32_t *);
-enum asn_err asn_put_uint32(struct asn_buf *, u_char, u_int32_t);
+enum asn_err asn_get_uint32_raw(struct asn_buf *, asn_len_t, uint32_t *);
+enum asn_err asn_put_uint32(struct asn_buf *, u_char, uint32_t);
 
-enum asn_err asn_get_counter64_raw(struct asn_buf *, asn_len_t, u_int64_t *);
-enum asn_err asn_put_counter64(struct asn_buf *, u_int64_t);
+enum asn_err asn_get_counter64_raw(struct asn_buf *, asn_len_t, uint64_t *);
+enum asn_err asn_put_counter64(struct asn_buf *, uint64_t);
 
-enum asn_err asn_get_timeticks(struct asn_buf *, u_int32_t *);
-enum asn_err asn_put_timeticks(struct asn_buf *, u_int32_t);
+enum asn_err asn_get_timeticks(struct asn_buf *, uint32_t *);
+enum asn_err asn_put_timeticks(struct asn_buf *, uint32_t);
 
 enum asn_err asn_skip(struct asn_buf *, asn_len_t);
 
