@@ -95,7 +95,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     }
     if (udmamode > 2 && !ATA_PARAM(scp, device)->cblid) {
 	ata_printf(scp, device,
-		   "DMA limitted to UDMA33, non-ATA66 compliant cable\n");
+		   "DMA limited to UDMA33, non-ATA66 compliant cable\n");
 	udmamode = 2;
     }
 
