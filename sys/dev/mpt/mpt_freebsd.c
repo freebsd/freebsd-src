@@ -35,6 +35,8 @@
 static void mpt_poll(struct cam_sim *);
 static timeout_t mpttimeout;
 static void mpt_action(struct cam_sim *, union ccb *);
+static int mpt_setwidth(mpt_softc_t *, int, int);
+static int mpt_setsync(mpt_softc_t *, int, int, int);
 
 void
 mpt_cam_attach(mpt_softc_t *mpt)
@@ -430,8 +432,10 @@ mpt_start(union ccb *ccb)
 			mpt_req->Control |= MPI_SCSIIO_CONTROL_UNTAGGED;
 	}
 
-	if (mpt->is_fc == 0 && (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) != 0) {
-		mpt_req->Control |= MPI_SCSIIO_CONTROL_NO_DISCONNECT;
+	if (mpt->is_fc == 0) {
+		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
+			mpt_req->Control |= MPI_SCSIIO_CONTROL_NO_DISCONNECT;
+		}
 	}
 
 	/* Copy the scsi command block into place */
@@ -1071,9 +1075,19 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 #else
 #define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
 #endif
-#define	DP_DISC		0x1
-#define	DP_TQING	0x2
-#define	DP_WIDE		0x4
+#define	DP_DISC_ENABLE	0x1
+#define	DP_DISC_DISABL	0x2
+#define	DP_DISC		(DP_DISC_ENABLE|DP_DISC_DISABL)
+
+#define	DP_TQING_ENABLE	0x4
+#define	DP_TQING_DISABL	0x8
+#define	DP_TQING	(DP_TQING_ENABLE|DP_TQING_DISABL)
+
+#define	DP_WIDE		0x10
+#define	DP_NARROW	0x20
+#define	DP_WIDTH	(DP_WIDE|DP_NARROW)
+
+#define	DP_SYNC		0x40
 
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 		cts = &ccb->cts;
@@ -1082,7 +1096,104 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		/* XXX: need to implement */
+		tgt = cts->ccb_h.target_id;
+		if (mpt->is_fc == 0) {
+			u_int8_t dval = 0;
+			u_int period = 0, offset = 0;
+#ifndef	CAM_NEW_TRAN_CODE
+			if (cts->valid & CCB_TRANS_DISC_VALID) {
+				dval |= DP_DISC_ENABLE;
+			}
+			if (cts->valid & CCB_TRANS_TQ_VALID) {
+				dval |= DP_TQING_ENABLE;
+			}
+			if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID) {
+				if (cts->bus_width)
+					dval |= DP_WIDE;
+				else
+					dval |= DP_NARROW;
+			}
+			/*
+			 * Any SYNC RATE of nonzero and SYNC_OFFSET
+			 * of nonzero will cause us to go to the
+			 * selected (from NVRAM) maximum value for
+			 * this device. At a later point, we'll
+			 * allow finer control.
+			 */
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
+			    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
+				dval |= DP_SYNC;
+				period = cts->sync_period;
+				offset = cts->sync_offset;
+			}
+#else
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
+			struct ccb_trans_settings_spi *spi =
+			    &cts->xport_specific.spi;
+
+			if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
+				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
+					dval |= DP_DISC_ENABLE;
+				else
+					dval |= DP_DISC_DISABL;
+			}
+
+			if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+				if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
+					dval |= DP_TQING_ENABLE;
+				else
+					dval |= DP_TQING_DISABL;
+			}
+
+			if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
+				if (spi->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
+					dval |= DP_WIDE;
+				else
+					dval |= DP_NARROW;
+			}
+
+			if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
+			    (spi->valid & CTS_SPI_VALID_SYNC_RATE) &&
+			    (spi->sync_period && spi->sync_offset)) {
+				dval |= DP_SYNC;
+				period = spi->sync_period;
+				offset = spi->sync_offset;
+			}
+#endif
+			CAMLOCK_2_MPTLOCK(mpt);
+			if (dval & DP_DISC_ENABLE) {
+				mpt->mpt_disc_enable |= (1 << tgt);
+			} else if (dval & DP_DISC_DISABL) {
+				mpt->mpt_disc_enable &= ~(1 << tgt);
+			}
+			if (dval & DP_TQING_ENABLE) {
+				mpt->mpt_tag_enable |= (1 << tgt);
+			} else if (dval & DP_TQING_DISABL) {
+				mpt->mpt_tag_enable &= ~(1 << tgt);
+			}
+			if (dval & DP_WIDTH) {
+				if (mpt_setwidth(mpt, tgt, dval & DP_WIDE)) {
+					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+					MPTLOCK_2_CAMLOCK(mpt);
+					xpt_done(ccb);
+					break;
+				}
+			}
+			if (dval & DP_SYNC) {
+				if (mpt_setsync(mpt, tgt, period, offset)) {
+					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+					MPTLOCK_2_CAMLOCK(mpt);
+					xpt_done(ccb);
+					break;
+				}
+			}
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, 
+				    "SET tgt %d flags %x period %x off %x\n",
+				    tgt, dval, period, offset);
+			}
+		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1127,22 +1238,46 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 #endif
 			u_int8_t dval, pval, oval;
 
+			/*
+			 * We aren't going off of Port PAGE2 params for
+			 * tagged queuing or disconnect capabilities
+			 * for current settings. For goal settings,
+			 * we assert all capabilities- we've had some
+			 * problems with reading NVRAM data.
+			 */
 			if (IS_CURRENT_SETTINGS(cts)) {
+				fCONFIG_PAGE_SCSI_DEVICE_0 tmp;
 				dval = 0;
+
+				tmp = mpt->mpt_dev_page0[tgt];
+				CAMLOCK_2_MPTLOCK(mpt);
+				if (mpt_read_cfg_page(mpt, tgt, &tmp.Header)) {
+					device_printf(mpt->dev,
+					    "cannot get target %d DP0\n", tgt);
+				} else  {
+					mpt->mpt_dev_page0[tgt] = tmp;
+					if (mpt->verbose > 1) {
+						device_printf(mpt->dev,
+                            "SPI Tgt %d Page 0: NParms %x Information %x\n",
+						    tgt,
+						    tmp.NegotiatedParameters,
+						    tmp.Information);
+					}
+				}
+				MPTLOCK_2_CAMLOCK(mpt);
+
 				if (mpt->mpt_dev_page0[tgt].
 				    NegotiatedParameters & 
 				    MPI_SCSIDEVPAGE0_NP_WIDE)
 					dval |= DP_WIDE;
 
-				if (mpt->mpt_port_page2.DeviceSettings[tgt].
-				    DeviceFlags &
-				    MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE)
-					dval |= DP_DISC;
+				if (mpt->mpt_disc_enable & (1 << tgt)) {
+					dval |= DP_DISC_ENABLE;
+				}
 
-				if (mpt->mpt_port_page2.DeviceSettings[tgt].
-				    DeviceFlags &
-				    MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE)
-					dval |= DP_TQING;
+				if (mpt->mpt_tag_enable & (1 << tgt)) {
+					dval |= DP_TQING_ENABLE;
+				}
 
 				oval = (mpt->mpt_dev_page0[tgt].
 				    NegotiatedParameters >> 16);
@@ -1160,10 +1295,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			}
 #ifndef	CAM_NEW_TRAN_CODE
 			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-			if (dval & DP_DISC) {
+			if (dval & DP_DISC_ENABLE) {
 				cts->flags |= CCB_TRANS_DISC_ENB;
 			}
-			if (dval & DP_TQING) {
+			if (dval & DP_TQING_ENABLE) {
 				cts->flags |= CCB_TRANS_TAG_ENB;
 			}
 			if (dval & DP_WIDE) {
@@ -1188,10 +1323,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
-			if (dval & DP_DISC) {
+			if (dval & DP_DISC_ENABLE) {
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 			}
-			if (dval & DP_TQING) {
+			if (dval & DP_TQING_ENABLE) {
 				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 			}
 			if (oval && pval) {
@@ -1215,9 +1350,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 #endif
 			if (mpt->verbose > 1) {
 				device_printf(mpt->dev, 
-				    "GET %s targ %d flags %x off %x per %x\n",
+				    "GET %s tgt %d flags %x period %x off %x\n",
 				    IS_CURRENT_SETTINGS(cts)? "ACTIVE" :
-				    "NVRAM", tgt, dval, oval, pval);
+				    "NVRAM", tgt, dval, pval, oval);
 			}
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -1287,4 +1422,86 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
+}
+
+static int
+mpt_setwidth(mpt_softc_t *mpt, int tgt, int onoff)
+{
+	fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	tmp = mpt->mpt_dev_page1[tgt];
+	if (onoff) {
+		tmp.RequestedParameters |= MPI_SCSIDEVPAGE1_RP_WIDE;
+	} else {
+		tmp.RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_WIDE;
+	}
+	if (mpt_write_cfg_page(mpt, tgt, &tmp.Header)) {
+		return (-1);
+	}
+	if (mpt_read_cfg_page(mpt, tgt, &tmp.Header)) {
+		return (-1);
+	}
+	mpt->mpt_dev_page1[tgt] = tmp;
+	if (mpt->verbose > 1) {
+		device_printf(mpt->dev,
+		    "SPI Target %d Page 1: RequestedParameters %x Config %x\n",
+		    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
+		    mpt->mpt_dev_page1[tgt].Configuration);
+	}
+	return (0);
+}
+
+static int
+mpt_setsync(mpt_softc_t *mpt, int tgt, int period, int offset)
+{
+	fCONFIG_PAGE_SCSI_DEVICE_1 tmp;
+	tmp = mpt->mpt_dev_page1[tgt];
+	tmp.RequestedParameters &=
+	    ~MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
+	tmp.RequestedParameters &=
+	    ~MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
+	tmp.RequestedParameters &=
+	    ~MPI_SCSIDEVPAGE1_RP_DT;
+	tmp.RequestedParameters &=
+	    ~MPI_SCSIDEVPAGE1_RP_QAS;
+	tmp.RequestedParameters &=
+	    ~MPI_SCSIDEVPAGE1_RP_IU;
+	/*
+	 * XXX: For now, we're ignoring specific settings
+	 */
+	if (period && offset) {
+		int factor, offset, np;
+		factor =
+		    (mpt->mpt_port_page0.Capabilities >> 8) & 0xff;
+		offset =
+		    (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
+		if ((mpt->mpt_port_page0.PhysicalInterface &
+		    MPI_SCSIPORTPAGE0_PHY_SIGNAL_TYPE_MASK) != 
+		    MPI_SCSIPORTPAGE0_PHY_SIGNAL_LVD && factor < 0xa) {
+			factor = 0xa;
+		}
+		np = 0;
+		if (factor < 0x9) {
+			np |= MPI_SCSIDEVPAGE1_RP_QAS;
+			np |= MPI_SCSIDEVPAGE1_RP_IU;
+		}
+		if (factor < 0xa) {
+			np |= MPI_SCSIDEVPAGE1_RP_DT;
+		}
+		np |= (factor << 8) | (offset << 16);
+		tmp.RequestedParameters |= np;
+	}
+	if (mpt_write_cfg_page(mpt, tgt, &tmp.Header)) {
+		return (-1);
+	}
+	if (mpt_read_cfg_page(mpt, tgt, &tmp.Header)) {
+		return (-1);
+	}
+	mpt->mpt_dev_page1[tgt] = tmp;
+	if (mpt->verbose > 1) {
+		device_printf(mpt->dev,
+		    "SPI Target %d Page 1: RequestedParameters %x Config %x\n",
+		    tgt, mpt->mpt_dev_page1[tgt].RequestedParameters,
+		    mpt->mpt_dev_page1[tgt].Configuration);
+	}
+	return (0);
 }
