@@ -12,9 +12,8 @@ LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
 	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
-CLEANFILES=	config.h config.sh config_h.sh writemain writemain.sh \
-		Config.pm cflags cflags.sh myconfig perlmain.c miniperlmain.c \
-		autosplit regcomp.c regexec.c pod2man.PL pod2man ext.libs \
+CLEANFILES=	Config.pm perlmain.c \
+		autosplit pod2man.PL pod2man ext.libs \
 		man3pages
 
 STATIC_EXT=	DynaLoader/DynaLoader
@@ -22,59 +21,39 @@ STATIC_EXT=	DynaLoader/DynaLoader
 DYNAMIC_EXT=	B/B DB_File/DB_File Data/Dumper/Dumper Fcntl/Fcntl IO/IO \
 		IPC/SysV/SysV NDBM_File/NDBM_File Opcode/Opcode POSIX/POSIX \
 		SDBM_File/SDBM_File Socket/Socket attrs/attrs re/re
+.if ${PERL_THREADED} == "yes"
+DYNAMIC_EXT+=	Thread/Thread
+.endif
 
 NONXS_EXT=	Errno/pm_to_blib
 
 .include <bsd.prog.mk>
 
-PERL_THREADED?=	no
-.if ${PERL_THREADED} == "true"
-DYNAMIC_EXT+=	Thread/Thread
-CFLAGS+=	-pthread
-LDADD+=		-pthread
-.endif
-     
-PERL_DEBUGGING?=	no
-.if ${PERL_DEBUGGING} ==	"true"
-CFLAGS+=	-DDEBUGGING
-.endif
+${PROG}: Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
-${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
-
-config_h.sh config.sh cflags.sh writemain.sh: linkfarm
-
-config.h: linkfarm config_h.sh config.sh
-	sh -x config_h.sh
-
-cflags: linkfarm cflags.sh
-	sh cflags.sh
-
-Config.pm: linkfarm ${PERL5SRC}/configpm myconfig config.sh
+Config.pm: links ${PERL5SRC}/configpm myconfig config.sh
 	miniperl ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig config.sh
 	cd lib ; ln -sf ../${.TARGET}
 
-perlmain.c: linkfarm writemain config.h
+perlmain.c: config.sh writemain config.h
 	sh writemain lib/auto/DynaLoader/DynaLoader.a > ${.TARGET}
 
-writemain: linkfarm writemain.sh
-	sh writemain.sh
-
-autosplit: linkfarm Config.pm lib/*.pm lib/*/*.pm
+autosplit: links Config.pm lib/*.pm lib/*/*.pm
 	miniperl -I${.OBJDIR}/lib \
 		-e 'use AutoSplit; autosplit_lib_modules(@ARGV)' \
 		lib/*.pm lib/*/*.pm
 	touch ${.TARGET}
 
 .for I in ${STATIC_EXT}
-ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm config.h
+ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm config.h
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
 		LINKTYPE=static INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		LIBS="-lperl" INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3; \
 	make -B config PERL_SRC=${.OBJDIR}
 
-lib/auto/${I}.a: linkfarm ext/${I:H}/Makefile
+lib/auto/${I}.a: links ext/${I:H}/Makefile
 	cd ext/${I:H}; \
 	make -B all PERL_SRC=${.OBJDIR}
 
@@ -84,7 +63,7 @@ STATICS+=	lib/auto/${I}.a
 .endfor
 
 .for I in ${DYNAMIC_EXT}
-ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm pod2man config.h
+ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags Config.pm pod2man config.h
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
 		LINKTYPE=dynamic INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
@@ -94,7 +73,7 @@ ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm pod2man co
 	make -B config PERL_SRC=${.OBJDIR}
 	
 
-lib/auto/${I}.so: linkfarm ${PROG} ext/${I:H}/Makefile
+lib/auto/${I}.so: links ${PROG} ext/${I:H}/Makefile
 	cd ext/${I:H}; \
 	make -B all PERL_SRC=${.OBJDIR}
 
@@ -104,7 +83,7 @@ DYNAMICS+=	lib/auto/${I}.so
 .endfor
 
 .for I in ${NONXS_EXT}
-ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags lib/Config.pm
+ext/${I:H}/Makefile: links ext/${I:H}/Makefile.PL cflags lib/Config.pm
 	mkdir -p ${.OBJDIR}/lib/auto/${I:H} ;\
 	cd ext/${I:H} ;\
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
@@ -114,7 +93,7 @@ ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags lib/Config.pm
 		INST_ARCHLIB=${.OBJDIR}/lib/auto/${I:H} ;\
 	make -B config PERL_SRC=${.OBJDIR}
 
-lib/auto/${I}: linkfarm ${PROG} ext/${I:H}/Makefile
+lib/auto/${I}: links ${PROG} ext/${I:H}/Makefile
 	cd ext/${I:H}; \
 	make -B all LINKTYPE=nonxs PERL_SRC=${.OBJDIR}
 
