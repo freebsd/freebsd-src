@@ -2870,9 +2870,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.savecore.8; now works correctly on machines with 2 GB
       or more of RAM. &merged;</para>
 
-    <para>The &man.sccs.1; front-end to the Source Code Control System
-      has been revived.</para>
-
     <para role="historic">&man.sed.1; now takes a <option>-E</option> option for
       extended regular expression support. &merged;</para>
 
@@ -3903,11 +3900,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <listitem>
         <para><emphasis>The C Programming Language &mdash; Reference Manual</emphasis>
 	  (<filename>06.Clang</filename>)</para>
-      </listitem>
-
-      <listitem>
-        <para><emphasis>An Introduction to the Source Code Control System</emphasis>
-	  (<filename>14.sccs</filename>)</para>
       </listitem>
 
       <listitem>
