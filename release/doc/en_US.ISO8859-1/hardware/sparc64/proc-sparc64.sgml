@@ -18,7 +18,6 @@
 
     <para>The following systems are fully supported by &os;.</para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>Blade 100</para>
@@ -87,7 +86,6 @@
           <para>Ultra 80</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 
   <sect2>
@@ -96,7 +94,6 @@
     <para>The following systems are partially supported by &os;.  In particular
       the onboard scsi controller in sbus systems is not supported.</para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>Enterprise 4500</para>
@@ -108,7 +105,6 @@
           <para>Ultra 2</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 
   <sect2>
@@ -119,7 +115,6 @@
       system design that makes &os; unstable, or due to lack of support for
       sufficient onboard devices to make &os; generally useful.</para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>All systems containing UltraSPARC III processor(s).</para>
@@ -131,6 +126,5 @@
           <para>Ultra 1</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 </sect1>
