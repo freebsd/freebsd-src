@@ -626,8 +626,10 @@ sbappendaddr(sb, asa, m0, control)
 	space += m_length(control, &n);
 	if (space > sbspace(sb))
 		return (0);
+#if MSIZE <= 256
 	if (asa->sa_len > MLEN)
 		return (0);
+#endif
 	MGET(m, M_DONTWAIT, MT_SONAME);
 	if (m == 0)
 		return (0);
