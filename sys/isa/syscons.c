@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.217 1997/06/22 12:04:36 yokota Exp $
+ *  $Id: syscons.c,v 1.218 1997/06/29 15:11:39 yokota Exp $
  */
 
 #include "sc.h"
@@ -491,7 +491,7 @@ sckbdprobe(int unit, int flags)
          printf("sc%d: keyboard scancode set %d\n", unit, codeset);
 #endif /* DETECT_XT_KEYBOARD */
  
-    if (dev->id_flags & KBD_NORESET) {
+    if (flags & KBD_NORESET) {
         write_kbd_command(sc_kbdc, KBDC_ECHO);
         if (read_kbd_data(sc_kbdc) != KBD_ECHO) {
             empty_both_buffers(sc_kbdc, 10);
