@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.21 1996/04/02 04:53:05 scrappy Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.22 1996/04/03 03:03:27 scrappy Exp $
  */
 
 #include "param.h"
@@ -32,7 +32,8 @@ int devfs_up_and_going;
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
  */
-void  devfs_sinit(void *junk) /*proto*/
+void
+devfs_sinit(void *junk) /*proto*/
 {
 	int retval; /* we will discard this */
 	devnm_p new;
@@ -66,7 +67,8 @@ void  devfs_sinit(void *junk) /*proto*/
 * Search down the linked list off a dir to find "name"		*
 * return the dn_p for that node.
 \***************************************************************/
-devnm_p dev_findname(dn_p dir,char *name) /*proto*/
+devnm_p
+dev_findname(dn_p dir,char *name) /*proto*/
 {
 	devnm_p newfp;
 	DBPRINT(("	dev_findname(%s)\n",name));
@@ -107,7 +109,8 @@ devnm_p dev_findname(dn_p dir,char *name) /*proto*/
 *	int	create,		 create path if not found 		*
 *	dn_p	*dn_pp)		 where to return the node of the dir	*
 \***********************************************************************/
-int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
+int
+dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/
 {
 	devnm_p	devnmp;
 	dn_p	dnp;
@@ -215,7 +218,9 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 *									*
 * Creates a name node, and links it to the supplied node		*
 \***********************************************************************/
-int	dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp, devnm_p *devnm_pp) /*proto*/
+int
+dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
+	     devnm_p *devnm_pp) /*proto*/
 {
 	devnm_p devnmp;
 	devnm_p realthing;	/* needed to create an alias */
@@ -345,7 +350,8 @@ int	dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp, devnm_p *devn
 * but it is only cleared on a transition				*
 * so this is ok till we link it to something				*
 \***********************************************************************/
-int	dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*proto*/
+int
+dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*proto*/
 {
 	dn_p	dnp;
 	int	retval;
@@ -436,7 +442,8 @@ int	dev_add_node(int entrytype, union typeinfo *by, dn_p proto, dn_p *dn_pp) /*p
 * DEV_NODE reference count manipulations.. when a ref count	*
 * reaches 0, the node is to be deleted				*
 \***************************************************************/
-int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
+int
+dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/
 {
 	DBPRINT(("dev_touch\n"));
 	TIMEVAL_TO_TIMESPEC(&time,&(key->dnp->mtime))
@@ -470,7 +477,8 @@ void	devfs_dn_free(dn_p dnp) /*proto*/
 * This allows a new node to be propogated through all mounted planes	*
 *									*
 \***********************************************************************/
-int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
+int
+devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 {
 	int	error;
 	devnm_p newnmp;
@@ -520,7 +528,8 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
  * The argument is the 'cookie' they were given when they created the node
  * this function is exported.. see sys/devfsext.h
  ***********************************************************************/
-void	devfs_remove_dev(void *devnmp)
+void
+devfs_remove_dev(void *devnmp)
 {
 	DBPRINT(("devfs_remove_dev\n"));
 	/*
@@ -544,7 +553,8 @@ void	devfs_remove_dev(void *devnmp)
  * up the tree..
  * If we are the first plane, just return the base root 
  **************************************************************/
-int dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
+int
+dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
 {
 	devnm_p	new;
 	int	error = 0;
@@ -567,7 +577,8 @@ int dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/
 /***************************************************************\
 * Free a whole plane
 \***************************************************************/
-void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
+void
+devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 {
 	devnm_p devnmp;
 
@@ -584,7 +595,9 @@ void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 * recursively will create subnodes corresponding to equivalent	*
 * child nodes in the base level					*
 \***************************************************************/
-int dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/
+int
+dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
+	      struct devfsmount *dvm) /*proto*/
 {
 	devnm_p	newnmp;
 	struct	devfsmount *dmt;
@@ -649,7 +662,8 @@ int dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount 
 * dev_node then it may not get freed yet			*
 * can handle if there is no dnp 				*
 \***************************************************************/
-void dev_free_name(devnm_p devnmp) /*proto*/
+void
+dev_free_name(devnm_p devnmp) /*proto*/
 {
 	dn_p	parent = devnmp->parent;
 	dn_p	dnp = devnmp->dnp;
@@ -727,7 +741,8 @@ void dev_free_name(devnm_p devnmp) /*proto*/
 * Theoretically this could be called for any kind of 	*
 * vnode, however in practice it must be a DEVFS vnode	*
 \*******************************************************/
-int devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/
+int
+devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/
 {
 
 DBPRINT(("	vntodn "));
@@ -762,7 +777,8 @@ DBPRINT(("	vntodn "));
 * associated, or get a new one an associate it with the dev_node*
 * need to check about vnode references.. should we increment it?*
 \***************************************************************/
-int devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/
+int
+devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/
 {
 	struct vnode *vn_p, *nvp;
 	int error = 0;
@@ -870,7 +886,9 @@ DBPRINT(("(New vnode)"));
 /***********************************************************************\
 * add a whole device, with no prototype.. make name element and node	*
 \***********************************************************************/
-int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p *nm_pp) /*proto*/ 
+int
+dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by,
+	      devnm_p *nm_pp) /*proto*/ 
 {
 	dn_p	dnp;
 	int	error = 0;
@@ -899,15 +917,9 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 * Has the capacity to take  printf type arguments to format the device 	*
 * names									*
 \***********************************************************************/
-void *devfs_add_devswf(
-		void *devsw,
-		int minor,
-		int chrblk,
-		uid_t uid,
-		gid_t gid,
-		int perms,
-		char *fmt,
-		...)
+void *
+devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
+		 gid_t gid, int perms, char *fmt, ...)
 {
 	int	major;
 	devnm_p	new_dev;
@@ -979,7 +991,8 @@ void *devfs_add_devswf(
 *  a link to the already created device given as an arg..		*
 * this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
-void *devfs_link(void *original, char *fmt, ...)
+void *
+devfs_link(void *original, char *fmt, ...)
 {
 	devnm_p	new_dev;
 	devnm_p	orig = (devnm_p) original;

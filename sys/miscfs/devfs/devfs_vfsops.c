@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.8 1995/12/14 19:04:08 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.9 1996/01/02 09:14:49 peter Exp $
  *
  *
  */
@@ -50,7 +50,9 @@ devfs_init(void)
  * it must be mounted during single user.. until it is, only std{in/out/err}
  * and the root filesystem are available.
  */
-int devfs_mount( struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct proc *p) /*proto*/
+int
+devfs_mount(struct mount *mp, char *path, caddr_t data,
+	    struct nameidata *ndp, struct proc *p) /*proto*/
 {
 	struct devfsmount *devfs_mp_p;	/* devfs specific mount control block	*/
 	int error;
@@ -165,7 +167,8 @@ DBPRINT(("root "));
 }
 
 static int
-devfs_quotactl( struct mount *mp, int cmds, uid_t uid, caddr_t arg, struct proc *p)
+devfs_quotactl(struct mount *mp, int cmds, uid_t uid, caddr_t arg,
+	       struct proc *p)
 {
 DBPRINT(("quotactl "));
 	return EOPNOTSUPP;
@@ -226,7 +229,8 @@ DBPRINT(("vget "));
  */
 
 static int
-devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam, struct vnode **vpp, int *exflagsp, struct ucred **credanonp)
+devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam,
+	      struct vnode **vpp, int *exflagsp, struct ucred **credanonp)
 {
 DBPRINT(("fhtovp "));
 	return (EINVAL);
