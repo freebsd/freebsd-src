@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: mail.1,v 1.13 1997/11/01 00:56:15 jraynard Exp $
+.\"	$Id: mail.1,v 1.14 1998/01/02 16:43:49 joerg Exp $
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
@@ -44,7 +44,8 @@
 .Op Fl s Ar subject
 .Op Fl c Ar cc-addr
 .Op Fl b Ar bcc-addr
-.Ar to-addr...
+.Ar to-addr ...
+.Op \&- Ar sendmail-option ...
 .Nm mail
 .Op Fl iInNv
 .Fl f
