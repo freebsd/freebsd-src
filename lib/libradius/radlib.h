@@ -106,6 +106,20 @@
 	#define RAD_ISDN_ASYNC_V120		3
 	#define RAD_ISDN_ASYNC_V110		4
 	#define RAD_VIRTUAL			5
+	#define RAD_PIAFS			6
+	#define RAD_HDLC_CLEAR_CHANNEL		7
+	#define RAD_X_25			8
+	#define RAD_X_75			9
+	#define RAD_G_3_FAX			10
+	#define RAD_SDSL			11
+	#define RAD_ADSL_CAP			12
+	#define RAD_ADSL_DMT			13
+	#define RAD_IDSL			14
+	#define RAD_ETHERNET			15
+	#define RAD_XDSL			16
+	#define RAD_CABLE			17
+	#define RAD_WIRELESS_OTHER		18
+	#define RAD_WIRELESS_IEEE_802_11	19
 #define RAD_PORT_LIMIT			62	/* Integer */
 #define RAD_LOGIN_LAT_PORT		63	/* Integer */
 #define RAD_CONNECT_INFO		77	/* String */
@@ -176,7 +190,10 @@ int			 rad_put_attr(struct rad_handle *, int,
 int			 rad_put_int(struct rad_handle *, int, u_int32_t);
 int			 rad_put_string(struct rad_handle *, int,
 			    const char *);
+ssize_t			 rad_request_authenticator(struct rad_handle *, char *,
+			    size_t);
 int			 rad_send_request(struct rad_handle *);
+const char		*rad_server_secret(struct rad_handle *);
 const char		*rad_strerror(struct rad_handle *);
 __END_DECLS
 

@@ -863,3 +863,84 @@ split(char *str, char *fields[], int maxfields, char *msg, size_t msglen)
 	}
 	return i;
 }
+
+int
+rad_get_vendor_attr(u_int32_t *vendor, const void **data, size_t *len)
+{
+	struct vendor_attribute *attr;
+
+	attr = (struct vendor_attribute *)*data;
+	*vendor = ntohl(attr->vendor_value);
+	*data = attr->attrib_data;
+	*len = attr->attrib_len - 2;
+
+	return (attr->attrib_type);
+}
+
+int
+rad_put_vendor_addr(struct rad_handle *h, int vendor, int type,
+    struct in_addr addr)
+{
+	return (rad_put_vendor_attr(h, vendor, type, &addr.s_addr,
+	    sizeof addr.s_addr));
+}
+
+int
+rad_put_vendor_attr(struct rad_handle *h, int vendor, int type,
+    const void *value, size_t len)
+{
+	struct vendor_attribute *attr;
+	int res;
+
+	if ((attr = malloc(len + 6)) == NULL) {
+		generr(h, "malloc failure (%d bytes)", len + 6);
+		return -1;
+	}
+
+	attr->vendor_value = htonl(vendor);
+	attr->attrib_type = type;
+	attr->attrib_len = len + 2;
+	memcpy(attr->attrib_data, value, len);
+
+	res = put_raw_attr(h, RAD_VENDOR_SPECIFIC, attr, len + 6);
+	free(attr);
+	if (res == 0 && vendor == RAD_VENDOR_MICROSOFT
+	    && (type == RAD_MICROSOFT_MS_CHAP_RESPONSE
+	    || type == RAD_MICROSOFT_MS_CHAP2_RESPONSE)) {
+		h->chap_pass = 1;
+	}
+	return (res);
+}
+
+int
+rad_put_vendor_int(struct rad_handle *h, int vendor, int type, u_int32_t i)
+{
+	u_int32_t value;
+
+	value = htonl(i);
+	return (rad_put_vendor_attr(h, vendor, type, &value, sizeof value));
+}
+
+int
+rad_put_vendor_string(struct rad_handle *h, int vendor, int type,
+    const char *str)
+{
+	return (rad_put_vendor_attr(h, vendor, type, str, strlen(str)));
+}
+
+ssize_t
+rad_request_authenticator(struct rad_handle *h, char *buf, size_t len)
+{
+	if (len < LEN_AUTH)
+		return (-1);
+	memcpy(buf, h->request + POS_AUTH, LEN_AUTH);
+	if (len > LEN_AUTH)
+		buf[LEN_AUTH] = '\0';
+	return (LEN_AUTH);
+}
+
+const char *
+rad_server_secret(struct rad_handle *h)
+{
+	return (h->servers[h->srv].secret);
+}
