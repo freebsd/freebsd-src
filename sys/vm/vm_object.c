@@ -109,6 +109,7 @@ SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
 
 static void	vm_object_qcollapse(vm_object_t object);
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
+static void	vm_object_pip_sleep(vm_object_t object, char *waitid);
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -306,7 +307,7 @@ vm_object_pip_wakeupn(vm_object_t object, short i)
 	}
 }
 
-void
+static void
 vm_object_pip_sleep(vm_object_t object, char *waitid)
 {
 	GIANT_REQUIRED;
@@ -323,9 +324,12 @@ vm_object_pip_sleep(vm_object_t object, char *waitid)
 void
 vm_object_pip_wait(vm_object_t object, char *waitid)
 {
-	GIANT_REQUIRED;
-	while (object->paging_in_progress)
-		vm_object_pip_sleep(object, waitid);
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	while (object->paging_in_progress) {
+		object->flags |= OBJ_PIPWNT;
+		msleep(object, VM_OBJECT_MTX(object), PVM, waitid, 0);
+	}
 }
 
 /*
@@ -537,12 +541,12 @@ vm_object_terminate(vm_object_t object)
 	 */
 	VM_OBJECT_LOCK(object);
 	vm_object_set_flag(object, OBJ_DEAD);
-	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * wait for the pageout daemon to be done with the object
 	 */
 	vm_object_pip_wait(object, "objtrm");
+	VM_OBJECT_UNLOCK(object);
 
 	KASSERT(!object->paging_in_progress,
 		("vm_object_terminate: pageout in progress"));
