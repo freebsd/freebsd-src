@@ -43,7 +43,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * HID spec: http://www.usb.org/developers/data/devclass/hid1_1.pdf
+ * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
 #include "opt_kbd.h"
@@ -746,10 +746,10 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	for (i = 0; i < NKEYCODE; i++) {
 		key = state->ks_odata.keycode[i];
 		if (key == 0)
-			break;
+			continue;
 		for (j = 0; j < NKEYCODE; j++) {
 			if (ud->keycode[j] == 0)
-				break;
+				continue;
 			if (key == ud->keycode[j])
 				goto rfound;
 		}
@@ -762,11 +762,11 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	for (i = 0; i < NKEYCODE; i++) {
 		key = ud->keycode[i];
 		if (key == 0)
-			break;
+			continue;
 		state->ks_ntime[i] = now + kbd->kb_delay1;
 		for (j = 0; j < NKEYCODE; j++) {
 			if (state->ks_odata.keycode[j] == 0)
-				break;
+				continue;
 			if (key == state->ks_odata.keycode[j]) {
 				state->ks_ntime[i] = state->ks_otime[j];
 				if (state->ks_otime[j] > now)
