@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.56 1999/01/09 13:07:18 bde Exp $
+ *	$Id: identcpu.c,v 1.57 1999/01/16 13:41:33 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -99,6 +99,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "NexGen 586",		CPUCLASS_386 },		/* CPU_NX586 (XXX) */
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
+	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
 };
 
 static void
@@ -199,8 +200,16 @@ printcpuinfo(void)
 					cpu = CPU_PII;
 					break;
 				case 0x50:
-				        strcat(cpu_model, "Pentium II (quarter-micron)");
+				        strcat(cpu_model, "Pentium II/Xeon/Celeron");
 					cpu = CPU_PII;
+					break;
+				case 0x60:
+				        strcat(cpu_model, "Celeron");
+					cpu = CPU_PII;
+					break;
+				case 0x70:
+				        strcat(cpu_model, "Pentium III");
+					cpu = CPU_PIII;
 					break;
 				default:
 				        strcat(cpu_model, "Unknown 80686");
