@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.77 1997/02/22 09:36:40 peter Exp $
+ *	$Id: isa.c,v 1.78 1997/03/25 03:13:05 ache Exp $
  */
 
 /*
@@ -394,7 +394,7 @@ config_isadev_c(isdp, mp, reconfig)
 			printf("%s%d", dp->name, isdp->id_unit);
 			if (id_alive != -1) {
 				if (isdp->id_iobase == -1)
-					printf(" at <not configured>");
+					printf(" at ?");
 				else if (isdp->id_iobase != -2) {
 					printf(" at 0x%x", isdp->id_iobase);
 					if (isdp->id_iobase + id_alive - 1 !=
@@ -455,7 +455,7 @@ config_isadev_c(isdp, mp, reconfig)
 				printf("%s%d not found",
 				       dp->name, isdp->id_unit);
 				if (isdp->id_iobase == -1)
-					printf(" at <not configured>");
+					printf(" at ?");
 				else if (isdp->id_iobase != -2)
 					printf(" at 0x%x", isdp->id_iobase);
 				printf("\n");
