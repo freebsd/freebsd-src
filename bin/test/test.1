@@ -214,11 +214,6 @@ True if string
 comes after
 .Ar \&s\&2
 based on the ASCII value of their characters.
-.It Ar \&s\&1
-True if
-.Ar \&s\&1
-is not the null
-string.
 .It Ar \&n\&1 Fl \&eq Ar \&n\&2
 True if the integers
 .Ar \&n\&1
@@ -258,6 +253,17 @@ is algebraically less
 than or equal to the integer
 .Ar \&n\&2 .
 .El
+.Pp
+If
+.Ar file
+is a symbolic link,
+.Nm
+will fully dereference it and then evaluate the expression
+against the file referenced, except for the
+.Fl h
+and
+.Fl L
+primaries.
 .Pp
 These primaries can be combined with the following operators:
 .Bl -tag -width Ar
@@ -319,7 +325,8 @@ An error occurred.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr expr 1 ,
-.Xr sh 1
+.Xr sh 1 ,
+.Xr symlink 7
 .Sh STANDARDS
 The
 .Nm
