@@ -330,6 +330,9 @@ aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	splx(s);
 }
 
+/*
+ * Start another command if the controller is not busy.
+ */
 static void
 aic_start(struct aic_softc *aic)
 {
@@ -354,6 +357,9 @@ aic_start(struct aic_softc *aic)
 	aic_outb(aic, SCSISEQ, ENRESELI);
 }
 
+/*
+ * Start a selection.
+ */
 static void
 aic_select(struct aic_softc *aic)
 {
@@ -374,6 +380,10 @@ aic_select(struct aic_softc *aic)
 	aic_outb(aic, SCSISEQ, ENRESELI|ENSELO|ENAUTOATNO);
 }
 
+/*
+ * We have successfully selected a target, prepare for the information
+ * transfer phases.
+ */
 static void
 aic_selected(struct aic_softc *aic)
 {
@@ -398,6 +408,8 @@ aic_selected(struct aic_softc *aic)
 		if ((ti->flags & TINFO_SDTR_NEGO) != 0)
 			aic->msg_outq |= AIC_MSG_SDTR;
 	}
+
+	/* mark target/lun busy only for untagged operations */
 	if ((aic->msg_outq & AIC_MSG_TAG_Q) == 0)
 		ti->lubusy |= 1 << scb->lun;
 
@@ -409,6 +421,10 @@ aic_selected(struct aic_softc *aic)
 	aic_outb(aic, SCSIRATE, ti->scsirate);
 }
 
+/*
+ * We are re-selected by a target, save the target id and wait for the
+ * target to further identify itself.
+ */
 static void
 aic_reselected(struct aic_softc *aic)
 {
@@ -417,6 +433,10 @@ aic_reselected(struct aic_softc *aic)
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_reselected\n"));
 
+	/*
+	 * If we have started a selection, it must have lost out in
+	 * the arbitration, put the command back to the pending queue.
+	 */
 	if (aic->nexus) {
 		TAILQ_INSERT_HEAD(&aic->pending_ccbs,
 		    &aic->nexus->ccb->ccb_h, sim_links.tqe);
@@ -425,7 +445,9 @@ aic_reselected(struct aic_softc *aic)
 
 	selid = aic_inb(aic, SELID) & SCSI_ID_MASK;
 	if (selid & (selid - 1)) {
-		;
+		/* this should never have happened */
+		aic_reset(aic, /*initiate_reset*/TRUE);
+		return;
 	}
 
 	aic->state = AIC_RESELECTED;
@@ -441,6 +463,9 @@ aic_reselected(struct aic_softc *aic)
 	aic_outb(aic, SCSIRATE, ti->scsirate);
 }
 
+/*
+ * Wait for SPIORDY (SCSI PIO ready) flag, or a phase change.
+ */
 static __inline int
 aic_spiordy(struct aic_softc *aic)
 {
@@ -453,6 +478,9 @@ aic_spiordy(struct aic_softc *aic)
 	return (spiordy);
 }
 
+/*
+ * Read messages.
+ */
 static void
 aic_msgin(struct aic_softc *aic)
 {
@@ -466,6 +494,11 @@ aic_msgin(struct aic_softc *aic)
 	aic->flags &= ~AIC_DROP_MSGIN;
 	aic->msg_len = 0;
 	do {
+		/*
+		 * If a parity error is detected, drop the remaining
+		 * bytes and inform the target so it could resend
+		 * the messages.
+		 */
 		if (aic_inb(aic, SSTAT1) & SCSIPERR) {
 			aic_outb(aic, CLRSINT1, CLRSCSIPERR);
 			aic->flags |= AIC_DROP_MSGIN;
@@ -475,6 +508,7 @@ aic_msgin(struct aic_softc *aic)
 			aic_inb(aic, SCSIDAT);
 			continue;
 		}
+		/* read the message byte without ACKing on it */
 		aic->msg_buf[aic->msg_len++] = aic_inb(aic, SCSIBUS);
 		if (aic->msg_buf[0] == MSG_EXTENDED) {
 			if (aic->msg_len < 2) {
@@ -501,10 +535,15 @@ aic_msgin(struct aic_softc *aic)
 			msglen = 2;
 		else
 			msglen = 1;
+		/*
+		 * If we have a complete message, handle it before the final
+		 * ACK (in case we decide to reject the message).
+		 */
 		if (aic->msg_len == msglen) {
 			aic_handle_msgin(aic);
 			aic->msg_len = 0;
 		}
+		/* ACK on the message byte */
 		(void) aic_inb(aic, SCSIDAT);
 	} while (aic_spiordy(aic));
 
@@ -512,6 +551,9 @@ aic_msgin(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 }
 
+/*
+ * Handle a message.
+ */
 static void
 aic_handle_msgin(struct aic_softc *aic)
 {
@@ -524,7 +566,10 @@ aic_handle_msgin(struct aic_softc *aic)
 		int tag;
 
 		ti = &aic->tinfo[aic->target];
-
+		/*
+		 * We expect to see an IDENTIFY message, possibly followed
+		 * by a tagged queue message.
+		 */
 		if (MSG_ISIDENTIFY(aic->msg_buf[0])) {
 			aic->lun = aic->msg_buf[0] & MSG_IDENTIFY_LUNMASK;
 			if (ti->flags & TINFO_TAG_ENB)
@@ -539,6 +584,7 @@ aic_handle_msgin(struct aic_softc *aic)
 			return;
 		}
 
+		/* Find the nexus */
 		TAILQ_FOREACH(ccb_h, &aic->nexus_ccbs, sim_links.tqe) {
 			scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
 			if (ccb_h->target_id == aic->target &&
@@ -547,11 +593,13 @@ aic_handle_msgin(struct aic_softc *aic)
 				break;
 		}
 
+		/* ABORT if nothing is found */
 		if (!ccb_h) {
 			aic_sched_msgout(aic, MSG_ABORT); /* MSG_ABORT_TAG?*/
 			return;
 		}
 
+		/* Reestablish the nexus */
 		TAILQ_REMOVE(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
 		aic->nexus = scb;
 		scb->flags &= ~SCB_DISCONNECTED;
@@ -567,12 +615,13 @@ aic_handle_msgin(struct aic_softc *aic)
 		csio = &scb->ccb->csio;
 		ccb_h->status &= ~CAM_STATUS_MASK;
 		if ((scb->flags & SCB_SENSE) != 0) {
+			/* auto REQUEST SENSE command */
 			scb->flags &= ~SCB_SENSE;
 			csio->sense_resid = scb->data_len;
 			if (scb->status == SCSI_STATUS_OK) {
 				ccb_h->status |=
 				    CAM_SCSI_STATUS_ERROR|CAM_AUTOSNS_VALID;
-				scsi_sense_print(csio);
+				/*scsi_sense_print(csio);*/
 			} else {
 				ccb_h->status |= CAM_AUTOSENSE_FAIL;
 				printf("ccb %p sense failed %x\n",
@@ -582,10 +631,12 @@ aic_handle_msgin(struct aic_softc *aic)
 			csio->scsi_status = scb->status;
 			csio->resid = scb->data_len;
 			if (scb->status == SCSI_STATUS_OK) {
+				/* everything goes well */
 				ccb_h->status |= CAM_REQ_CMP;
 			} else if ((ccb_h->flags & CAM_DIS_AUTOSENSE) == 0 &&
 			    (csio->scsi_status == SCSI_STATUS_CHECK_COND ||
 			     csio->scsi_status == SCSI_STATUS_CMD_TERMINATED)) {
+				/* try to retrieve sense information */
 				scb->flags |= SCB_SENSE;
 				aic->flags |= AIC_BUSFREE_OK;
 				return;
@@ -609,6 +660,10 @@ aic_handle_msgin(struct aic_softc *aic)
 					max(ti->goal.period, aic->msg_buf[3]);
 				ti->current.offset = aic->msg_buf[4] =
 					min(ti->goal.offset, aic->msg_buf[4]);
+				/*
+				 * The target initiated the negotiation,
+				 * send back a response.
+				 */
 				aic_sched_msgout(aic, 0);
 			}
 			ti->flags &= ~(TINFO_SDTR_SENT|TINFO_SDTR_NEGO);
@@ -643,6 +698,7 @@ aic_handle_msgin(struct aic_softc *aic)
 			scb = aic->nexus;
 			ti = &aic->tinfo[scb->target];
 			ti->flags &= ~TINFO_TAG_ENB;
+			ti->lubusy |= 1 << scb->lun;
 			break;
 		case AIC_MSG_SDTR:
 			scb = aic->nexus;
@@ -676,6 +732,9 @@ aic_handle_msgin(struct aic_softc *aic)
 	}
 }
 
+/*
+ * Raise ATNO to signal the target that we have a message for it.
+ */
 static void
 aic_sched_msgout(struct aic_softc *aic, u_int8_t msg)
 {
@@ -687,6 +746,9 @@ aic_sched_msgout(struct aic_softc *aic, u_int8_t msg)
 	aic_outb(aic, SCSISIGO, aic_inb(aic, SCSISIGI) | ATNO);
 }
 
+/*
+ * Send messages.
+ */
 static void
 aic_msgout(struct aic_softc *aic)
 {
@@ -700,12 +762,19 @@ aic_msgout(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENPHASEMIS|ENBUSFREE);
 	aic_outb(aic, SXFRCTL0, CHEN|SPIOEN);
 
+	/*
+	 * If the previous phase is also the message out phase,
+	 * we need to retransmit all the messages, probably
+	 * because the target has detected a parity error during
+	 * the past transmission.
+	 */
 	if (aic->prev_phase == PH_MSGOUT)
 		aic->msg_outq = aic->msg_sent;
 
 	do {
 		int q = aic->msg_outq;
 		if (msgidx > 0 && msgidx == aic->msg_len) {
+			/* complete message sent, start the next one */
 			q &= -q;
 			aic->msg_sent |= q;
 			aic->msg_outq ^= q;
@@ -713,6 +782,7 @@ aic_msgout(struct aic_softc *aic)
 			msgidx = 0;
 		}
 		if (msgidx == 0) {
+			/* setup the message */
 			switch (q & -q) {
 			case AIC_MSG_IDENTIFY:
 				scb = aic->nexus;
@@ -742,6 +812,7 @@ aic_msgout(struct aic_softc *aic)
 				ti->flags |= TINFO_SDTR_SENT;
 				break;
 			case AIC_MSG_MSGBUF:
+				/* a single message already in the buffer */
 				if (aic->msg_buf[0] == MSG_BUS_DEV_RESET ||
 				    aic->msg_buf[0] == MSG_ABORT ||
 				    aic->msg_buf[0] == MSG_ABORT_TAG)
@@ -749,8 +820,13 @@ aic_msgout(struct aic_softc *aic)
 				break;
 			}
 		}
+		/*
+		 * If this is the last message byte of all messages,
+		 * clear ATNO to signal transmission complete.
+		 */
 		if ((q & (q - 1)) == 0 && msgidx == aic->msg_len - 1)
 			aic_outb(aic, CLRSINT1, CLRATNO);
+		/* transmit the message byte */
 		aic_outb(aic, SCSIDAT, aic->msg_buf[msgidx++]);
 	} while (aic_spiordy(aic));
 
@@ -758,6 +834,9 @@ aic_msgout(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 }
 
+/*
+ * Read data bytes.
+ */
 static void
 aic_datain(struct aic_softc *aic)
 {
@@ -772,6 +851,7 @@ aic_datain(struct aic_softc *aic)
 
 	while (scb->data_len > 0) {
 		for (;;) {
+			/* wait for the fifo the fill up or a phase change */
 			dmastat = aic_inb(aic, DMASTAT);
 			if (dmastat & (INTSTAT|DFIFOFULL))
 				break;
@@ -779,6 +859,10 @@ aic_datain(struct aic_softc *aic)
 		if (dmastat & DFIFOFULL) {
 			n = FIFOSIZE;
 		} else {
+			/*
+			 * No more data, wait for the remaining bytes in
+			 * the scsi fifo to be transfer to the host fifo.
+			 */
 			while (!(aic_inb(aic, SSTAT2) & SEMPTY))
 				;
 			n = aic_inb(aic, FIFOSTAT);
@@ -813,6 +897,9 @@ aic_datain(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 }
 
+/*
+ * Send data bytes.
+ */
 static void
 aic_dataout(struct aic_softc *aic)
 {
@@ -827,6 +914,7 @@ aic_dataout(struct aic_softc *aic)
 
 	while (scb->data_len > 0) {
 		for (;;) {
+			/* wait for the fifo to clear up or a phase change */
 			dmastat = aic_inb(aic, DMASTAT);
 			if (dmastat & (INTSTAT|DFIFOEMP))
 				break;
@@ -857,6 +945,7 @@ aic_dataout(struct aic_softc *aic)
 	}
 
 	for (;;) {
+		/* wait until all bytes in the fifos are transmitted */
 		dmastat = aic_inb(aic, DMASTAT);
 		if (dmastat & INTSTAT)
 			break;
@@ -868,6 +957,9 @@ aic_dataout(struct aic_softc *aic)
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 }
 
+/*
+ * Send the scsi command.
+ */
 static void
 aic_cmd(struct aic_softc *aic)
 {
@@ -875,6 +967,7 @@ aic_cmd(struct aic_softc *aic)
 	struct scsi_request_sense sense_cmd;
 
 	if (scb->flags & SCB_SENSE) {
+		/* autosense request */
 		sense_cmd.opcode = REQUEST_SENSE;
 		sense_cmd.byte2 = scb->lun << 2;
 		sense_cmd.length = scb->ccb->csio.sense_len;
@@ -897,6 +990,10 @@ aic_cmd(struct aic_softc *aic)
 	aic_outb(aic, SXFRCTL0, CHEN);
 }
 
+/*
+ * Finish off a command. The caller is responsible to remove the ccb
+ * from any queue.
+ */
 static void
 aic_done(struct aic_softc *aic, struct aic_scb *scb)
 {
@@ -1052,6 +1149,7 @@ aic_intr(void *arg)
 	sstat1 = aic_inb(aic, SSTAT1);
 
 	if ((sstat1 & SCSIRSTI) != 0) {
+		/* a device-initiated bus reset */
 		aic_outb(aic, CLRSINT1, CLRSCSIRSTI);
 		aic_reset(aic, /*initiate_reset*/FALSE);
 		return;
@@ -1142,6 +1240,7 @@ aic_intr(void *arg)
 				ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
 				aic_done(aic, scb);
 			} else if (scb->flags & SCB_SENSE) {
+				/* autosense request */
 				aic->flags &= ~AIC_BUSFREE_OK;
 				aic_select(aic);
 				aic_outb(aic, DMACNTRL0, INTEN);
@@ -1160,6 +1259,9 @@ aic_intr(void *arg)
 	aic_outb(aic, DMACNTRL0, INTEN);
 }
 
+/*
+ * Reset ourselves.
+ */
 static void
 aic_chip_reset(struct aic_softc *aic)
 {
@@ -1200,6 +1302,9 @@ aic_chip_reset(struct aic_softc *aic)
 	aic_outb(aic, BRSTCNTRL, EISA_BRST_TIM);
 }
 
+/*
+ * Reset the SCSI bus
+ */
 static void
 aic_scsi_reset(struct aic_softc *aic)
 {
@@ -1209,6 +1314,9 @@ aic_scsi_reset(struct aic_softc *aic)
 	DELAY(50);
 }
 
+/*
+ * Reset. Abort all pending commands.
+ */
 static void
 aic_reset(struct aic_softc *aic, int initiate_reset)
 {
