@@ -2381,9 +2381,16 @@ comparam(tp, t)
 		 * latencies are reasonable for humans.  Serial comms
 		 * protocols shouldn't expect anything better since modem
 		 * latencies are larger.
+		 *
+		 * Interrupts can be held up for long periods of time
+		 * due to inefficiencies in other parts of the kernel,
+		 * certain video cards, etc.  Setting the FIFO trigger
+		 * point to MEDH instead of HIGH gives us 694uS of slop
+		 * (8 character times) instead of 173uS (2 character times)
+		 * @ 115200 bps.
 		 */
 		com->fifo_image = t->c_ospeed <= 4800
-				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
+				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDH;
 #ifdef COM_ESP
 		/*
 		 * The Hayes ESP card needs the fifo DMA mode bit set
