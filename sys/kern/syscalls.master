@@ -79,7 +79,7 @@
 23	MSTD	POSIX	{ int setuid(uid_t uid); }
 24	MSTD	POSIX	{ uid_t getuid(void); }
 25	MSTD	POSIX	{ uid_t geteuid(void); }
-26	MSTD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
+26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
 			    int data); }
 27	MSTD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
 28	MSTD	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
