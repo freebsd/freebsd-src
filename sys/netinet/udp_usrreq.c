@@ -155,7 +155,7 @@ udp_init()
 	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 					&udbinfo.porthashmask);
 	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 }
 
