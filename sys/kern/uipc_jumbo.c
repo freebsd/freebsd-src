@@ -228,8 +228,10 @@ jumbo_pg_free(vm_offset_t addr)
 		       atop(addr - jumbo_basekva), paddr);
 */
 	} else {
+		vm_page_lock_queues();
 		vm_page_busy(pg); /* vm_page_free wants pages to be busy*/
 		vm_page_free(pg);
+		vm_page_unlock_queues();
 	}
 
 	mtx_lock(&jumbo_mutex);
