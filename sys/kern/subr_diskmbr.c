@@ -107,10 +107,10 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	 * 1023/255/63.
 	 */
 	if ((ssector < ssector1
-	    && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
-		 && chs_scyl == 1023)
-		|| (secpercyl != 0
-		    && (ssector1 - ssector) % (1024 * secpercyl) == 0)))
+	     && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
+		  && chs_scyl == 1023)
+		 || (secpercyl != 0
+		     && (ssector1 - ssector) % (1024 * secpercyl) == 0)))
 	    || (dp->dp_scyl == 255 && dp->dp_shd == 255
 		&& dp->dp_ssect == 255)) {
 		TRACE(("%s: C/H/S start %d/%d/%d, start %lu: allow\n",
@@ -126,10 +126,10 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 
 	/* Allow certain bogus C/H/S values for esector, as above. */
 	if ((esector < esector1
-	    && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
-		 && chs_ecyl == 1023)
-		|| (secpercyl != 0
-		    && (esector1 - esector) % (1024 * secpercyl) == 0)))
+	     && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
+		  && chs_ecyl == 1023)
+		 || (secpercyl != 0
+		     && (esector1 - esector) % (1024 * secpercyl) == 0)))
 	    || (dp->dp_ecyl == 255 && dp->dp_ehd == 255
 		&& dp->dp_esect == 255)) {
 		TRACE(("%s: C/H/S end %d/%d/%d, end %lu: allow\n",
@@ -186,7 +186,7 @@ reread_mbr:
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, "error reading primary partition table",
+		diskerr(bp, "reading primary partition table: error",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;
@@ -195,8 +195,7 @@ reread_mbr:
 
 	/* Weakly verify it. */
 	cp = bp->b_data;
-	sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
-		       partname);
+	sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART, partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		if (bootverbose)
 			printf("%s: invalid primary partition table: no magic\n",
@@ -337,8 +336,8 @@ reread_mbr:
 	/* Handle extended partitions. */
 	sp -= NDOSPART;
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
-		if (sp->ds_type == DOSPTYP_EXTENDED || 
-                    sp->ds_type == DOSPTYP_EXTENDEDX)
+		if (sp->ds_type == DOSPTYP_EXTENDED ||
+		    sp->ds_type == DOSPTYP_EXTENDEDX)
 			mbr_extended(bp->b_dev, lp, ssp,
 				     sp->ds_offset, sp->ds_size, sp->ds_offset,
 				     max_nsectors, max_ntracks, mbr_offset);
@@ -384,7 +383,7 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, "error reading extended partition table",
+		diskerr(bp, "reading extended partition table: error",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		goto done;
@@ -411,8 +410,8 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		if (dp->dp_typ == DOSPTYP_EXTENDED || 
-                    dp->dp_typ == DOSPTYP_EXTENDEDX) {
+		if (dp->dp_typ == DOSPTYP_EXTENDED ||
+		    dp->dp_typ == DOSPTYP_EXTENDEDX) {
 			char buf[32];
 
 			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
