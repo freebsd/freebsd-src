@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.6 1996/01/31 03:28:21 asami Exp $ */
+/* $Id: ccd.c,v 1.7 1996/01/31 11:25:46 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -92,6 +92,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
@@ -101,11 +105,13 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/disklabel.h> 
+#include <sys/disklabel.h>
 #include <ufs/ffs/fs.h> 
-#include <sys/devconf.h> 
+#include <sys/devconf.h>
 #include <sys/device.h>
-#include <sys/disk.h> 
+#undef KERNEL			/* XXX */
+#include <sys/disk.h>
+#define KERNEL
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
@@ -145,18 +151,35 @@ struct ccdbuf {
 #define CCDLABELDEV(dev)	\
 	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
 
-/* {b,c}devsw[] function prototypes */
-d_open_t ccdopen ;
-d_close_t ccdclose ;
-d_strategy_t ccdstrategy ;
-d_ioctl_t ccdioctl ;
-d_read_t ccdread ;
-d_write_t ccdwrite ;
+d_open_t ccdopen;
+d_close_t ccdclose;
+d_strategy_t ccdstrategy;
+d_ioctl_t ccdioctl;
+d_dump_t ccddump;
+d_psize_t ccdsize;
+d_read_t ccdread;
+d_write_t ccdwrite;
 
+#define CDEV_MAJOR 74
+#define BDEV_MAJOR 21
 
-/* called by main() at boot time */
-int	ccdattach __P((struct isa_device *dp));
-int	ccdprobe __P((struct isa_device *dp));
+extern struct cdevsw ccd_cdevsw;
+static struct bdevsw ccd_bdevsw = {
+  ccdopen, ccdclose, ccdstrategy, ccdioctl,
+  ccddump, ccdsize, 0,
+  "ccd", &ccd_cdevsw, -1
+};
+
+static struct cdevsw ccd_cdevsw = {
+  ccdopen, ccdclose, ccdread, ccdwrite,
+  ccdioctl, nostop, nullreset, nodevtotty,
+  seltrue, nommap, ccdstrategy,
+  "ccd", &ccd_bdevsw, -1
+};
+
+/* Called by main() during pseudo-device attachment */
+static void	ccdattach __P((void *));
+PSEUDO_SET(ccdattach, ccd);
 
 /* called by biodone() at interrupt time */
 void	ccdiodone __P((struct ccdbuf *cbp));
@@ -184,57 +207,26 @@ struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
 int	numccd = 0;
 
-static struct kern_devconf kdc_ccd[NCCD] = { {
-        0, 0, 0,                /* filled in by dev_attach */
-        "ccd", 0, { MDDT_DISK, 0, "tty" },
-        0, 0, 0, DISK_EXTERNALLEN,
-        0,                      /* parent */
-        0,                      /* parentdata */
-        DC_UNKNOWN,             /* not supported */
-        "Concatenated disk driver"
-} };
-
-struct isa_driver ccddriver = {
-        ccdprobe, ccdattach, "ccd",
-};
-
-int
-ccdprobe(dp)
-	struct isa_device *dp;
-{
-	return -1;
-}
+static ccd_devsw_installed = 0;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
- * to do is allocate enough space for devices to be configured later.
+ * to do is allocate enough space for devices to be configured later, and
+ * add devsw entries.
  */
-int
-ccdattach(dp)
-	struct isa_device *dp;
+void
+ccdattach(dummy)
+	void *dummy;
 {
 	int i;
-	int num = dp->id_unit;
+	int num = NCCD;
+	dev_t dev;
 
-	if (num < 0) {
-#ifdef DIAGNOSTIC
-		panic("ccdattach: count <= 0");
-#endif
-		return 0;
-	}
+	if (num > 1)
+		printf("ccd0-%d: Concatenated disk drivers\n", num-1);
+	else
+		printf("ccd0: Concatenated disk driver\n");
 
-	if (num == NCCD-1) {
-		if (num)
-			printf("ccd0-%d: Concatenated disk drivers\n", num);
-		else
-			printf("ccd0: Concatenated disk driver\n", num);
-	}
-
-	if (num > 0) {
-		/* only do initialization first time around */
-		return 0;
-	}
-	num = NCCD;
 	ccd_softc = (struct ccd_softc *)malloc(num * sizeof(struct ccd_softc),
 	    M_DEVBUF, M_NOWAIT);
 	ccddevs = (struct ccddevice *)malloc(num * sizeof(struct ccddevice),
@@ -245,7 +237,7 @@ ccdattach(dp)
 			free(ccd_softc, M_DEVBUF);
 		if (ccddevs != NULL)
 			free(ccddevs, M_DEVBUF);
-		return 0;
+		return;
 	}
 	numccd = num;
 	bzero(ccd_softc, num * sizeof(struct ccd_softc));
@@ -255,8 +247,16 @@ ccdattach(dp)
 	for (i = 0; i < numccd; ++i)
 		ccddevs[i].ccd_dk = -1;
 
-	dev_attach(&kdc_ccd[dp->id_unit]);
-	return 1;
+	if( ! ccd_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&ccd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&ccd_bdevsw, NULL);
+		ccd_devsw_installed = 1;
+    	}
+	else {
+		printf("huh?\n");
+	}
 }
 
 static int
@@ -266,7 +266,7 @@ ccdinit(ccd, cpaths, p)
 	struct proc *p;
 {
 	register struct ccd_softc *cs = &ccd_softc[ccd->ccd_unit];
-	register struct ccdcinfo *ci;
+	register struct ccdcinfo *ci = NULL;	/* XXX */
 	register size_t size;
 	register int ix;
 	struct vnode *vp;
@@ -790,7 +790,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	caddr_t addr;
 	long bcount;
 {
-	register struct ccdcinfo *ci, *ci2;
+	register struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
 	register struct ccdbuf *cbp;
 	register daddr_t cbn, cboff;
 
@@ -860,7 +860,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	 */
 	cbp = getccdbuf();
 	cbp->cb_buf.b_flags = bp->b_flags | B_CALL;
-	cbp->cb_buf.b_iodone = (void (*)())ccdiodone;
+	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
 	cbp->cb_buf.b_proc = bp->b_proc;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
 	cbp->cb_buf.b_blkno = cbn + cboff;
@@ -1301,7 +1301,7 @@ ccdioctl(dev, cmd, data, flag, p)
 				/*, &cs->sc_dkdev.dk_cpulabel); */
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
-				error = correct_writedisklabel(CCDLABELDEV(dev),
+				error = writedisklabel(CCDLABELDEV(dev),
 				    ccdstrategy, &cs->sc_dkdev.dk_label);
 				/*
 				    &cs->sc_dkdev.dk_cpulabel); */
@@ -1362,11 +1362,8 @@ ccdsize(dev)
 }
 
 int
-ccddump(dev, blkno, va, size)
+ccddump(dev)
 	dev_t dev;
-	daddr_t blkno;
-	caddr_t va;
-	size_t size;
 {
 
 	/* Not implemented. */
@@ -1482,7 +1479,7 @@ ccdgetdisklabel(dev)
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
-	if (errstring = correct_readdisklabel(CCDLABELDEV(dev), ccdstrategy,
+	if (errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
 	    &cs->sc_dkdev.dk_label/*, &dos_partdummy, &dkbaddummy*/)) 
 		/*, &cs->sc_dkdev.dk_cpulabel)) */
 		ccdmakedisklabel(cs);
