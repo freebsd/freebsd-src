@@ -33,12 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mail.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)mail.h	8.2 (Berkeley) 5/4/95
+ *	$Id: mail.h,v 1.2 1994/09/24 02:57:45 davidg Exp $
  */
 
-#ifdef __STDC__
-void chkmail(int);
-#else
-void chkmail();
-#endif
+void chkmail __P((int));

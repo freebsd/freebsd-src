@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)myhistedit.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)myhistedit.h	8.2 (Berkeley) 5/4/95
+ *	$Id: myhistedit.h,v 1.2 1994/09/24 02:57:59 davidg Exp $
  */
 
 #include <histedit.h>
@@ -39,3 +39,10 @@
 extern History *hist;
 extern EditLine *el;
 extern int displayhist;
+
+void histedit __P((void));
+void sethistsize __P((void));
+int histcmd __P((int, char **));
+int not_fcnumber __P((char *));
+int str_to_event __P((char *, int));
+

@@ -32,8 +32,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)cmv	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	@(#)cmv	8.2 (Berkeley) 5/4/95
+#	$Id: cmv,v 1.2 1994/09/24 02:58:33 davidg Exp $
 
 # Conditional move--don't replace an existing file.
 
