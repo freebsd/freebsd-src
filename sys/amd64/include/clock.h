@@ -44,6 +44,7 @@ int	acquire_timer1 __P((int mode));
 int	release_timer1 __P((void));
 #endif
 int	sysbeep __P((int pitch, int period));
+void	i8254_restore __P((void));
 
 #endif /* KERNEL */
 
