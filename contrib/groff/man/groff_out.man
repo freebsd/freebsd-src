@@ -1,6 +1,6 @@
 '\" e
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -16,6 +16,9 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
+
+	$FreeBSD$
+
 ..
 .\" This man page must be preprocessed with eqn.
 .ie \n(.g .ds ic \/

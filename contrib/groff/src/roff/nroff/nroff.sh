@@ -17,6 +17,7 @@ else
 fi
 fi
 opts=
+safer=-S
 
 for i
 do
@@ -40,6 +41,14 @@ do
 		;;
 	-T*)
 		# ignore other devices
+		;;
+	-S)
+		# safer behaviour
+		safer=-S
+		;;
+	-U)
+		# unsafe behaviour
+		safer=-U
 		;;
 	-u*)
 		# Solaris 2.2 `man' uses -u0; ignore it,
@@ -65,4 +74,4 @@ done
 
 # This shell script is intended for use with man, so warnings are
 # probably not wanted.  Also load nroff-style character definitions.
-exec groff -S -Wall -mtty-char $T $opts ${1+"$@"}
+exec groff $safer -Wall -mtty-char $T $opts ${1+"$@"}

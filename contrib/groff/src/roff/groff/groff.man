@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -15,6 +15,9 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
+
+	$FreeBSD$
+
 ..
 .de TQ
 .br
@@ -33,7 +36,7 @@ groff \- front end for the groff document formatting system
 .SH SYNOPSIS
 .B groff
 [
-.B \-tpeszaivhblCENRSVXZ
+.B \-abehilpstvzCENRSUVXZ
 ]
 [
 .BI \-w name
@@ -46,6 +49,9 @@ groff \- front end for the groff document formatting system
 ]
 [
 .BI \-F dir
+]
+[
+.BI \-I dir
 ]
 [
 .BI \-T dev
@@ -72,6 +78,9 @@ groff \- front end for the groff document formatting system
 .BI \-P arg
 ]
 [
+.BI \-L arg
+]
+[
 .IR files \|.\|.\|.\|
 ]
 .SH DESCRIPTION
@@ -87,16 +96,16 @@ Available devices are:
 For PostScript printers and previewers
 .TP
 .B dvi
-For TeX dvi format
+For TeX dvi format.
 .TP
 .B X75
-For a 75 dpi X11 previewer
+For a 75 dpi X11 previewer.
 .TP
 .B X100
-For a 100dpi X11 previewer
+For a 100dpi X11 previewer.
 .TP
 .B ascii
-For typewriter-like devices
+For typewriter-like devices.
 .TP
 .B latin1
 For typewriter-like devices using the ISO Latin-1 character set.
@@ -106,6 +115,9 @@ For an HP LaserJet4-compatible (or other PCL5-compatible) printer.
 .TP
 .B koi8-r
 For typewriter-like devices using the russian KOI8-R character set.
+.TP
+.B html
+To produce HTML output.
 .LP
 The postprocessor to be used for a device is specified by the
 .B postpro
@@ -150,6 +162,13 @@ Preprocess with @g@pic.
 .TP
 .B \-s
 Preprocess with @g@soelim.
+.TP
+.BI \-I dir
+This option is as described in
+.BR @g@soelim (@MAN1EXT@) .
+This option implies the
+.B \-s
+option.
 .TP
 .B \-R
 Preprocess with @g@refer.
@@ -258,6 +277,10 @@ and use the
 .B \%\-msafer
 macros with
 .BR @g@troff .
+(enabled by default)
+.TP
+.B \-U
+Unsafe mode.  Reverts to the old unsafe behaviour.
 .TP
 .B \-a
 .TQ
@@ -306,13 +329,15 @@ This also applies to
 .BR tbl ,
 .BR pic ,
 .BR eqn ,
-.B refer
+.BR refer ,
 and
 .BR soelim .
 It does not apply to
 .BR grops ,
 .BR grodvi ,
-.BR grotty
+.BR grotty ,
+.BR grolj4 ,
+.BR grohtml ,
 and
 .BR gxditview .
 .TP
@@ -364,12 +389,12 @@ of device
 .SH AUTHOR
 James Clark <jjc@jclark.com>
 .SH BUGS
-Report bugs to bug-groff@prep.ai.mit.edu.
+Report bugs to bug-groff@gnu.org.
 Include a complete, self-contained example
 that will allow the bug to be reproduced,
 and say which version of groff you are using.
 .SH COPYRIGHT
-Copyright \(co 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+Copyright \(co 1989, 1990, 1991, 1992, 1999 Free Software Foundation, Inc.
 .LP
 groff is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -386,10 +411,9 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 .SH AVAILABILITY
 The most recent released version of groff is always available for
-anonymous ftp from prep.ai.mit.edu (18.71.0.38) in the directory
-pub/gnu.
+anonymous ftp from ftp.gnu.org in the directory gnu/groff.
 .SH "SEE ALSO"
-.\" .BR grog (@MAN1EXT@),
+.BR grog (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
@@ -399,10 +423,12 @@ pub/gnu.
 .BR grops (@MAN1EXT@),
 .BR grodvi (@MAN1EXT@),
 .BR grotty (@MAN1EXT@),
-.\" .BR gxditview (@MAN1EXT@),
+.BR grohtml (@MAN1EXT@),
+.BR grohtml (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
+.BR groff_man (@MAN7EXT@),
 .BR groff_ms (@MAN7EXT@),
-.BR me (@MAN7EXT@),
+.BR groff_me (@MAN7EXT@),
 .BR groff_char (@MAN7EXT@),
-.BR msafer (@MAN7EXT@)
+.BR groff_msafer (@MAN7EXT@)
