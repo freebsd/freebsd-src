@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-PROG?=		boot0
-NOMAN=
-STRIP=
-BINMODE=	444
+FILES=	${BOOT}
+CLEANFILES= ${BOOT} ${BOOT}.out ${BOOT}.o
 
-M4?=	m4
+BOOT?=	boot0
 
 # The default set of flags compiled into boot0.  This enables update (writing
 # the modified boot0 back to disk after running so that the selection made is
@@ -28,16 +26,14 @@ BOOT_BOOT0_ORG?=	0x600
 # command line
 BOOT_BOOT0_COMCONSOLE_SPEED?=	0xE3
 
-${PROG}: ${PROG}.o
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${PROG}.out ${PROG}.o
-	objcopy -S -O binary ${PROG}.out ${.TARGET}
+AFLAGS+=--defsym FLAGS=${BOOT_BOOT0_FLAGS} \
+	--defsym TICKS=${BOOT_BOOT0_TICKS} \
+	--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
-${PROG}.o: ${PROG}.s
-	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
-		--defsym TICKS=${BOOT_BOOT0_TICKS} \
-		--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED} \
-		${.IMPSRC} -o ${.TARGET}
+${BOOT}: ${BOOT}.out
+	objcopy -S -O binary ${BOOT}.out ${.TARGET}
 
-CLEANFILES+= ${PROG}.out ${PROG}.o
+${BOOT}.out: ${BOOT}.o
+	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${.TARGET} ${BOOT}.o
 
 .include <bsd.prog.mk>
