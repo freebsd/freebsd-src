@@ -179,6 +179,18 @@ When the
 .Fl a
 flag is specified, wait this many seconds between successive retries.
 .El
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+the current transfer rate statistics will be written to the
+standard error output, in the same format as the standard completion
+message.
 .Sh DIAGNOSTICS
 The
 .Nm
