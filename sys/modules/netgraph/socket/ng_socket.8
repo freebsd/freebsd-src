@@ -51,7 +51,9 @@ node is both a BSD socket and a netgraph node.  The
 .Nm socket
 node type allows user-mode processes to participate in the kernel
 .Xr netgraph 4
-networking subsystem using the BSD socket interface.
+networking subsystem using the BSD socket interface. The process must have
+root privileges to be able to create netgraph sockets however once created,
+any process that has one may use it.
 .Pp
 A new
 .Nm socket
