@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.15 1994/09/03 02:38:28 paul Exp $
+#	$Id: Makefile,v 1.16 1994/09/09 20:29:20 csgr Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -163,8 +163,8 @@ includes:
 	chmod 755 ${DESTDIR}/usr/include
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
-#XXX	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
-#XXX	cd ${.CURDIR}/gnu/usr.bin/cc/libobjc &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 .if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
 .endif
