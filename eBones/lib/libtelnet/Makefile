@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.4 1995/07/24 21:10:47 ache Exp $
+#	$Id: Makefile,v 1.5 1995/07/24 21:38:32 ache Exp $
 
 # This stuff need original libdes to run (new_rnd_key.c module),
 # current eBones/des lib don't have it
@@ -22,17 +22,15 @@ CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
 SRCS+=  kerberos.c
 # KRB4_ENCPWD not yet defined
 #SRCS+=   krb4encpwd.c
-LDADD+= -lkrb
+LDADD+= -lkrb -ldes
 .endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
 CFLAGS+= -DKRB5 -DFORWARD
 SRCS+=	kerberos5.c forward.c
-LDADD+= -lkrb5
+LDADD+= -lkrb5 -ldes
 .endif
-
-LDADD+= -ldes
 
 #endif	/* ENCRYPTION */
 
