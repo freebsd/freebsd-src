@@ -312,6 +312,8 @@ struct hpfsmount {
 	struct spblock	hpm_sp;
 	struct mount *	hpm_mp;
 	struct vnode *	hpm_devvp;
+	struct g_consumer *hpm_cp;
+	struct bufobj *hpm_bo;
 	struct cdev *hpm_dev;
 	uid_t          	hpm_uid;
 	gid_t           hpm_gid;
