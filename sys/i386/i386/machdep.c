@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.176 1996/03/02 19:37:39 peter Exp $
+ *	$Id: machdep.c,v 1.177 1996/03/03 01:57:43 jkh Exp $
  */
 
 #include "npx.h"
@@ -666,7 +666,7 @@ void
 sendsig(catcher, sig, mask, code)
 	sig_t catcher;
 	int sig, mask;
-	unsigned code;
+	u_long code;
 {
 	register struct proc *p = curproc;
 	register int *regs;
