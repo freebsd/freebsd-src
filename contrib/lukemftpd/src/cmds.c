@@ -1,4 +1,4 @@
-/*	$NetBSD: cmds.c,v 1.18 2002/10/12 08:35:16 darrenr Exp $	*/
+/*	$NetBSD: cmds.c,v 1.20 2003/01/08 18:07:31 manu Exp $	*/
 
 /*
  * Copyright (c) 1999-2001 The NetBSD Foundation, Inc.
@@ -101,7 +101,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: cmds.c,v 1.18 2002/10/12 08:35:16 darrenr Exp $");
+__RCSID("$NetBSD: cmds.c,v 1.20 2003/01/08 18:07:31 manu Exp $");
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -171,6 +171,8 @@ struct ftpfact facttab[] = {
 
 #define FACTTABSIZE	(sizeof(facttab) / sizeof(struct ftpfact))
 
+static char cached_path[MAXPATHLEN + 1] = "/";
+static void discover_path(char *, const char *);
 
 void
 cwd(const char *path)
@@ -181,6 +183,9 @@ cwd(const char *path)
 	else {
 		show_chdir_messages(250);
 		ack("CWD");
+		if (getcwd(cached_path, MAXPATHLEN) == NULL) {
+			discover_path(cached_path, path);
+		}
 	}
 }
 
@@ -404,11 +409,15 @@ pwd(void)
 {
 	char path[MAXPATHLEN];
 
-	if (getcwd(path, sizeof(path) - 1) == NULL)
-		reply(550, "Can't get the current directory: %s.",
-		    strerror(errno));
-	else
-		replydirname(path, "is the current directory.");
+	if (getcwd(path, sizeof(path) - 1) == NULL) {
+		if (chdir(cached_path) < 0) {
+			reply(550, "Can't get the current directory: %s.",
+			    strerror(errno));
+			return;
+		}
+		(void)strlcpy(path, cached_path, MAXPATHLEN);
+	}
+	replydirname(path, "is the current directory.");
 }
 
 void
@@ -844,3 +853,126 @@ replydirname(const char *name, const char *message)
 	*p = '\0';
 	reply(257, "\"%s\" %s", npath, message);
 }
+
+static void
+discover_path(last_path, new_path) 
+	char *last_path;
+	const char *new_path;
+{
+	char tp[MAXPATHLEN + 1] = "";
+	char tq[MAXPATHLEN + 1] = "";
+	char *cp;
+	char *cq; 
+	int sz1, sz2;
+	int nomorelink;
+	struct stat st1, st2;
+	
+	if (new_path[0] != '/') {
+		(void)strlcpy(tp, last_path, MAXPATHLEN);
+		(void)strlcat(tp, "/", MAXPATHLEN);
+	}
+	(void)strlcat(tp, new_path, MAXPATHLEN);
+	(void)strlcat(tp, "/", MAXPATHLEN);
+
+	/* 
+	 * resolve symlinks. A symlink may introduce another symlink, so we
+	 * loop trying to resolve symlinks until we don't find any of them.
+	 */
+	do {
+		/* Collapse any // into / */
+		while ((cp = strstr(tp, "//")) != NULL)
+			(void)memmove(cp, cp + 1, strlen(cp) - 1 + 1);
+
+		/* Collapse any /./ into / */
+		while ((cp = strstr(tp, "/./")) != NULL)
+			(void)memmove(cp, cp + 2, strlen(cp) - 2 + 1);
+
+		cp = tp;
+		nomorelink = 1;
+		
+		while ((cp = strstr(++cp, "/")) != NULL) {
+			sz1 = (u_long)cp - (u_long)tp;
+			if (sz1 > MAXPATHLEN)
+				goto bad;
+			*cp = 0;
+			sz2 = readlink(tp, tq, MAXPATHLEN); 
+			*cp = '/';
+
+			/* If this is not a symlink, move to next / */
+			if (sz2 <= 0)
+				continue;
+
+			/*
+			 * We found a symlink, so we will have to 
+			 * do one more pass to check there is no 
+			 * more symlink in the path
+			 */
+			nomorelink = 0;
+
+			/* 
+			 * Null terminate the string and remove trailing /
+			 */
+			tq[sz2] = 0;
+			sz2 = strlen(tq);
+			if (tq[sz2 - 1] == '/') 
+				tq[--sz2] = 0;
+
+			/* 
+			 * Is this an absolute link or a relative link? 
+			 */
+			if (tq[0] == '/') {
+				/* absolute link */
+				if (strlen(cp) + sz2 > MAXPATHLEN)
+					goto bad;
+				memmove(tp + sz2, cp, strlen(cp) + 1);
+				memcpy(tp, tq, sz2);
+			} else {			
+				/* relative link */
+				for (cq = cp - 1; *cq != '/'; cq--);
+				if (strlen(tp) - ((u_long)cq - (u_long)cp)
+				    + 1 + sz2 > MAXPATHLEN)
+					goto bad;
+				(void)memmove(cq + 1 + sz2, 
+				    cp, strlen(cp) + 1);
+				(void)memcpy(cq + 1, tq, sz2);
+			}
+
+			/* 
+			 * start over, looking for new symlinks 
+			 */
+			break;
+		}
+	} while (nomorelink == 0);
+
+	/* Collapse any /foo/../ into /foo/ */
+	while ((cp = strstr(tp, "/../")) != NULL) {
+		/* ^/../foo/ becomes ^/foo/ */
+		if (cp == tp) {
+			(void)memmove(cp, cp + 3,
+			    strlen(cp) - 3 + 1);
+		} else {
+			for (cq = cp - 1; *cq != '/'; cq--);
+			(void)memmove(cq, cp + 3,
+			    strlen(cp) - 3 + 1);
+		}
+	}
+
+	/* strip strailing / */
+	if (strlen(tp) != 1)
+		tp[strlen(tp) - 1] = '\0';
+
+	/* check that the path is correct */
+	stat(tp, &st1);
+	stat(".", &st2);
+	if ((st1.st_dev != st2.st_dev) || (st1.st_ino != st2.st_ino))
+		goto bad;
+
+	(void)strlcpy(last_path, tp, MAXPATHLEN);
+	return;
+
+bad:
+	(void)strlcat(last_path, "/", MAXPATHLEN);
+	(void)strlcat(last_path, new_path, MAXPATHLEN);
+	return;
+}
+

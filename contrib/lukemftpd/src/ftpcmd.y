@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpcmd.y,v 1.71 2002/10/12 08:35:17 darrenr Exp $	*/
+/*	$NetBSD: ftpcmd.y,v 1.73 2003/01/22 04:33:35 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
@@ -83,7 +83,7 @@
 #if 0
 static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #else
-__RCSID("$NetBSD: ftpcmd.y,v 1.71 2002/10/12 08:35:17 darrenr Exp $");
+__RCSID("$NetBSD: ftpcmd.y,v 1.73 2003/01/22 04:33:35 lukem Exp $");
 #endif
 #endif /* not lint */
 
@@ -1222,7 +1222,7 @@ struct tab cmdtab[] = {
 	{ "SMNT", SMNT, ARGS,	0,	"(structure mount)" },
 	{ "QUIT", QUIT, NOARGS,	1,	"(terminate service)" },
 	{ "REIN", REIN, NOARGS,	0,	"(reinitialize server state)" },
-	{ "PORT", PORT, ARGS,	1,	"<sp> b0, b1, b2, b3, b4" },
+	{ "PORT", PORT, ARGS,	1,	"<sp> b0, b1, b2, b3, b4, b5" },
 	{ "LPRT", LPRT, ARGS,	1,	"<sp> af, hal, h1, h2, h3,..., pal, p1, p2..." },
 	{ "EPRT", EPRT, STR1,	1,	"<sp> |af|addr|port|" },
 	{ "PASV", PASV, NOARGS,	1,	"(set server in passive mode)" },
