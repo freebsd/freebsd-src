@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +41,7 @@
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
 #include <sys/param.h>
+#include <arpa/inet.h>
 
 #define BLOCKS	16
 
@@ -486,8 +486,6 @@ write_file(struct track_info *track_info)
 				track_info->file_name, filesize);
 	}
 	size = 0;
-	if (filesize == 0)
-		filesize++;	/* cheat, avoid divide by zero */
 
 	while ((count = read(track_info->file, buf,
 			     MIN((track_info->file_size - size),
@@ -512,7 +510,7 @@ write_file(struct track_info *track_info)
 			int pct;
 
 			fprintf(stderr, "written this track %d KB", size/1024);
-			if (track_info->file != STDIN_FILENO) {
+			if (track_info->file != STDIN_FILENO && filesize) {
 				pct = (size / 1024) * 100 / filesize;
 				fprintf(stderr, " (%d%%)", pct);
 			}
