@@ -752,7 +752,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	u_int64_t sbs = 0;
 	int oonstack, rndfsize;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	frame = p->p_frame;
 	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
@@ -844,7 +844,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -885,7 +884,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 	else
 		frame->tf_r[FRAME_R15] = code;
-	PROC_UNLOCK(p);
 
 	frame->tf_r[FRAME_SP] = (u_int64_t)sfp - 16;
 	frame->tf_r[FRAME_R14] = sig;
