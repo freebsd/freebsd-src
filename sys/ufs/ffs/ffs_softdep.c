@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.36 (McKusick) 5/6/99
- *	$Id: ffs_softdep.c,v 1.25 1999/05/07 02:26:47 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.26 1999/05/07 05:11:31 mckusick Exp $
  */
 
 /*
@@ -492,10 +492,11 @@ add_to_worklist(wk)
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: already on list");
 	wk->wk_state |= ONWORKLIST;
-	if (LIST_FIRST(&softdep_workitem_pending) == NULL)
+	if (LIST_FIRST(&softdep_workitem_pending) == NULL) {
 		LIST_INSERT_HEAD(&softdep_workitem_pending, wk, wk_list);
-	else
+	} else {
 		LIST_INSERT_AFTER(worklist_tail, wk, wk_list);
+	}
 	worklist_tail = wk;
 }
 
@@ -3699,6 +3700,7 @@ softdep_sync_metadata(ap)
 	waitfor = MNT_NOWAIT;
 top:
 	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
+		drain_output(vp, 1);
 		FREE_LOCK(&lk);
 		return (0);
 	}
