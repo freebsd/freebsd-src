@@ -629,4 +629,7 @@
 434	MNOPROTO BSD	{ int _umtx_lock(struct umtx *umtx); }
 435	MNOPROTO BSD	{ int _umtx_unlock(struct umtx *umtx); }
 436	MNOPROTO BSD	{ int jail_attach(int jid); }
-
+437	UNIMPL	BSD	extattr_list_fd
+438	UNIMPL	BSD	extattr_list_file
+439	UNIMPL	BSD	extattr_list_link
+440	UNIMPL	BSD	kse_switchin
