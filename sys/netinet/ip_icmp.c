@@ -409,7 +409,8 @@ icmp_input(m, off)
 		 * notice that the MTU has changed and adapt accordingly.
 		 * If no new MTU was suggested, then we guess a new one
 		 * less than the current value.  If the new MTU is 
-		 * unreasonably small, then we don't update the MTU value.
+		 * unreasonably small (defined by sysctl tcp_minmss), then
+		 * we don't update the MTU value.
 		 *
 		 * XXX: All this should be done in tcp_mtudisc() because
 		 * the way we do it now, everyone can send us bogus ICMP
@@ -431,7 +432,8 @@ icmp_input(m, off)
 			if (!mtu)
 				mtu = ip_next_mtu(mtu, 1);
 
-			if (mtu >= 256 + sizeof(struct tcpiphdr))
+			if (mtu >= max(296, (tcp_minmss +
+					sizeof(struct tcpiphdr))))
 				tcp_hc_updatemtu(&inc, mtu);
 
 #ifdef DEBUG_MTUDISC
