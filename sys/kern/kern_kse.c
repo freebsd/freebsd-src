@@ -161,7 +161,7 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 				ptrace_single_step(td);
 			else
 				ptrace_clear_single_step(td);
-			if (tmbx.tm_dflags & TMDF_DONOTRUNUSER) {
+			if (tmbx.tm_dflags & TMDF_SUSPEND) {
 				mtx_lock_spin(&sched_lock);
 				/* fuword can block, check again */
 				if (td->td_upcall)
@@ -1159,7 +1159,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 			mtx_unlock_spin(&sched_lock);
 			if (__predict_false(p->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
-				if (flags & TMDF_DONOTRUNUSER) {
+				if (flags & TMDF_SUSPEND) {
 					mtx_lock_spin(&sched_lock);
 					/* fuword can block, check again */
 					if (td->td_upcall)

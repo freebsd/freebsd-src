@@ -274,7 +274,7 @@ _pq_first_debug(pq_queue_t *pq)
 		} else {
 			/*
 			 * note there may be a suspension event during this
-			 * test, If TMDF_DONOTRUNUSER is set after we tested it,
+			 * test, If TMDF_SUSPEND is set after we tested it,
 			 * we will run the thread, this seems be a problem,
 			 * fortunatly, when we are being debugged, all context
 			 * switch will be done by kse_switchin, that is a
