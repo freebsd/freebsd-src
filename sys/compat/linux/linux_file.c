@@ -804,34 +804,6 @@ linux_link(struct proc *p, struct linux_link_args *args)
     return link(p, &bsd);
 }
 
-int
-linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
-{
-	struct __getcwd_args bsd;
-	caddr_t sg;
-	int error, len;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): getcwd(%p, %ld)\n", (long)p->p_pid,
-	       args->buf, args->bufsize);
-#endif
-
-	sg = stackgap_init();
-	bsd.buf = stackgap_alloc(&sg, SPARE_USRSPACE);
-	bsd.buflen = SPARE_USRSPACE;
-	error = __getcwd(p, &bsd);
-	if (!error) {
-		len = strlen(bsd.buf) + 1;
-		if (len <= args->bufsize) {
-			p->p_retval[0] = len;
-			error = copyout(bsd.buf, args->buf, len);
-		}
-		else
-			error = ERANGE;
-	}
-	return (error);
-}
-
 #ifndef __alpha__
 int
 linux_fdatasync(p, uap)
