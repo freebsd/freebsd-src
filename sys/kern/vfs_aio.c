@@ -390,6 +390,7 @@ static void
 aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
+
 	if (p->p_aioinfo == NULL) {
 		ki = uma_zalloc(kaio_zone, M_WAITOK);
 		p->p_aioinfo = ki;
@@ -485,7 +486,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 
 	if (aiocbe->jobstate == JOBST_JOBQBUF) {
 		if ((error = aio_fphysio(aiocbe)) != 0)
-			return error;
+			return (error);
 		if (aiocbe->jobstate != JOBST_JOBBFINISHED)
 			panic("aio_free_entry: invalid physio finish-up state");
 		s = splbio();
@@ -517,7 +518,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	fdrop(aiocbe->fd_file, curthread);
 	crfree(aiocbe->cred);
 	uma_zfree(aiocb_zone, aiocbe);
-	return 0;
+	return (0);
 }
 
 /*
@@ -659,12 +660,12 @@ aio_selectjob(struct aiothreadlist *aiop)
 		if (ki->kaio_active_count < ki->kaio_maxactive_count) {
 			TAILQ_REMOVE(&aio_jobs, aiocbe, list);
 			splx(s);
-			return aiocbe;
+			return (aiocbe);
 		}
 	}
 	splx(s);
 
-	return NULL;
+	return (NULL);
 }
 
 /*
@@ -1010,7 +1011,7 @@ aio_daemon(void *uproc)
  * AIO daemon modifies its environment itself.
  */
 static int
-aio_newproc()
+aio_newproc(void)
 {
 	int error;
 	struct proc *p;
@@ -1018,7 +1019,7 @@ aio_newproc()
 	error = kthread_create(aio_daemon, curproc, &p, RFNOWAIT, 0, "aiod%d",
 			       num_aio_procs);
 	if (error)
-		return error;
+		return (error);
 
 	/*
 	 * Wait until daemon is started, but continue on just in case to
@@ -1028,7 +1029,7 @@ aio_newproc()
 
 	num_aio_procs++;
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1173,7 +1174,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	splx(s);
 	if (notify)
 		KNOTE(&aiocbe->klist, 0);
-	return 0;
+	return (0);
 
 doerror:
 	ki->kaio_buffer_count--;
@@ -1181,7 +1182,7 @@ doerror:
 		lj->lioj_buffer_count--;
 	aiocbe->bp = NULL;
 	relpbuf(bp, NULL);
-	return error;
+	return (error);
 }
 
 /*
@@ -1201,7 +1202,7 @@ aio_fphysio(struct aiocblist *iocb)
 		if (tsleep(bp, PRIBIO, "physstr", aiod_timeout)) {
 			if ((bp->b_flags & B_DONE) == 0) {
 				splx(s);
-				return EINPROGRESS;
+				return (EINPROGRESS);
 			} else
 				break;
 		}
@@ -1303,12 +1304,12 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	if (error) {
 		suword(&job->_aiocb_private.error, error);
 		uma_zfree(aiocb_zone, aiocbe);
-		return error;
+		return (error);
 	}
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL &&
 		!_SIG_VALID(aiocbe->uaiocb.aio_sigevent.sigev_signo)) {
 		uma_zfree(aiocb_zone, aiocbe);
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	/* Save userspace address of the job info. */
@@ -1333,7 +1334,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
-		return EBADF;
+		return (EBADF);
 	}
 
 	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
@@ -1343,7 +1344,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
-		return EBADF;
+		return (EBADF);
 	}
 	fhold(fp);
 	FILEDESC_UNLOCK(fdp);
@@ -1371,7 +1372,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 			suword(&job->_aiocb_private.status, 0);
 			suword(&job->_aiocb_private.kernelinfo, 0);
 		}
-		return 0;
+		return (0);
 	}
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
 		if (type == 0)
@@ -1511,7 +1512,7 @@ retryproc:
 	}
 	splx(s);
 done:
-	return error;
+	return (error);
 }
 
 /*
@@ -1527,11 +1528,11 @@ aio_aqueue(struct thread *td, struct aiocb *job, int type)
 		aio_init_aioinfo(p);
 
 	if (num_queue_count >= max_queue_count)
-		return EAGAIN;
+		return (EAGAIN);
 
 	ki = p->p_aioinfo;
 	if (ki->kaio_queue_count >= ki->kaio_qallowed_count)
-		return EAGAIN;
+		return (EAGAIN);
 
 	return _aio_aqueue(td, job, NULL, type);
 }
@@ -1553,11 +1554,11 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	ujob = uap->aiocbp;
 	jobref = fuword(&ujob->_aiocb_private.kernelinfo);
 	if (jobref == -1 || jobref == 0)
-		return EINVAL;
+		return (EINVAL);
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
-		return EINVAL;
+		return (EINVAL);
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
@@ -1613,13 +1614,13 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	struct aiocb **ujoblist;
 	
 	if (uap->nent < 0 || uap->nent > AIO_LISTIO_MAX)
-		return EINVAL;
+		return (EINVAL);
 
 	timo = 0;
 	if (uap->timeout) {
 		/* Get timespec struct. */
 		if ((error = copyin(uap->timeout, &ts, sizeof(ts))) != 0)
-			return error;
+			return (error);
 
 		if (ts.tv_nsec < 0 || ts.tv_nsec >= 1000000000)
 			return (EINVAL);
@@ -1632,7 +1633,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
-		return EAGAIN;
+		return (EAGAIN);
 
 	njoblist = 0;
 	ijoblist = uma_zalloc(aiol_zone, M_WAITOK);
@@ -1651,7 +1652,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	if (njoblist == 0) {
 		uma_zfree(aiol_zone, ijoblist);
 		uma_zfree(aiol_zone, ujoblist);
-		return 0;
+		return (0);
 	}
 
 	error = 0;
@@ -1665,7 +1666,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 						error = EINVAL;
 					uma_zfree(aiol_zone, ijoblist);
 					uma_zfree(aiol_zone, ujoblist);
-					return error;
+					return (error);
 				}
 			}
 		}
@@ -1682,7 +1683,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 						error = EINVAL;
 					uma_zfree(aiol_zone, ijoblist);
 					uma_zfree(aiol_zone, ujoblist);
-					return error;
+					return (error);
 				}
 			}
 		}
@@ -1694,16 +1695,16 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		if (error == ERESTART || error == EINTR) {
 			uma_zfree(aiol_zone, ijoblist);
 			uma_zfree(aiol_zone, ujoblist);
-			return EINTR;
+			return (EINTR);
 		} else if (error == EWOULDBLOCK) {
 			uma_zfree(aiol_zone, ijoblist);
 			uma_zfree(aiol_zone, ujoblist);
-			return EAGAIN;
+			return (EAGAIN);
 		}
 	}
 
 /* NOTREACHED */
-	return EINVAL;
+	return (EINVAL);
 }
 
 /*
@@ -1735,7 +1736,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		
 		if (vn_isdisk(vp,&error)) {
 			td->td_retval[0] = AIO_NOTCANCELED;
-        	        return 0;
+        	        return (0);
 		}
 	} else if (fp->f_type == DTYPE_SOCKET) {
 		so = fp->f_data;
@@ -1773,7 +1774,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 
 		if ((cancelled) && (uap->aiocbp)) {
 			td->td_retval[0] = AIO_CANCELED;
-			return 0;
+			return (0);
 		}
 	}
 	ki=p->p_aioinfo;
@@ -1814,15 +1815,15 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 done:
 	if (notcancelled) {
 		td->td_retval[0] = AIO_NOTCANCELED;
-		return 0;
+		return (0);
 	}
 	if (cancelled) {
 		td->td_retval[0] = AIO_CANCELED;
-		return 0;
+		return (0);
 	}
 	td->td_retval[0] = AIO_ALLDONE;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1841,17 +1842,17 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
-		return EINVAL;
+		return (EINVAL);
 
 	jobref = fuword(&uap->aiocbp->_aiocb_private.kernelinfo);
 	if ((jobref == -1) || (jobref == 0))
-		return EINVAL;
+		return (EINVAL);
 
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
-			return 0;
+			return (0);
 		}
 	}
 
@@ -1863,7 +1864,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		    jobref) {
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
-			return 0;
+			return (0);
 		}
 	}
 
@@ -1873,7 +1874,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		    jobref) {
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
-			return 0;
+			return (0);
 		}
 	}
 	splx(s);
@@ -1885,7 +1886,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		    jobref) {
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
 			splx(s);
-			return 0;
+			return (0);
 		}
 	}
 
@@ -1895,7 +1896,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		    jobref) {
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
-			return 0;
+			return (0);
 		}
 	}
 	splx(s);
@@ -1908,7 +1909,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	if (status == -1)
 		return fuword(&uap->aiocbp->_aiocb_private.error);
 #endif
-	return EINVAL;
+	return (EINVAL);
 }
 
 /* syscall - asynchronous read from a file (REALTIME) */
@@ -1943,25 +1944,25 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	int s;
 
 	if ((uap->mode != LIO_NOWAIT) && (uap->mode != LIO_WAIT))
-		return EINVAL;
+		return (EINVAL);
 
 	nent = uap->nent;
 	if (nent < 0 || nent > AIO_LISTIO_MAX)
-		return EINVAL;
+		return (EINVAL);
 
 	if (p->p_aioinfo == NULL)
 		aio_init_aioinfo(p);
 
 	if ((nent + num_queue_count) > max_queue_count)
-		return EAGAIN;
+		return (EAGAIN);
 
 	ki = p->p_aioinfo;
 	if ((nent + ki->kaio_queue_count) > ki->kaio_qallowed_count)
-		return EAGAIN;
+		return (EAGAIN);
 
 	lj = uma_zalloc(aiolio_zone, M_WAITOK);
 	if (!lj)
-		return EAGAIN;
+		return (EAGAIN);
 
 	lj->lioj_flags = 0;
 	lj->lioj_buffer_count = 0;
@@ -1978,11 +1979,11 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 			       sizeof(lj->lioj_signal));
 		if (error) {
 			uma_zfree(aiolio_zone, lj);
-			return error;
+			return (error);
 		}
 		if (!_SIG_VALID(lj->lioj_signal.sigev_signo)) {
 			uma_zfree(aiolio_zone, lj);
-			return EINVAL;
+			return (EINVAL);
 		}
 		lj->lioj_flags |= LIOJ_SIGNAL;
 	}
@@ -2008,7 +2009,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	 * If we haven't queued any, then just return error.
 	 */
 	if (nentqueued == 0)
-		return 0;
+		return (0);
 
 	/*
 	 * Calculate the appropriate error return.
@@ -2042,7 +2043,8 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 					continue;
 				}
 
-				jobref = fuword(&iocb->_aiocb_private.kernelinfo);
+				jobref =
+				    fuword(&iocb->_aiocb_private.kernelinfo);
 
 				TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 					if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo)
@@ -2080,19 +2082,19 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 			 * return.
 			 */
 			if (found == nentqueued)
-				return runningcode;
+				return (runningcode);
 			
 			ki->kaio_flags |= KAIO_WAKEUP;
 			error = tsleep(p, PRIBIO | PCATCH, "aiospn", 0);
 
 			if (error == EINTR)
-				return EINTR;
+				return (EINTR);
 			else if (error == EWOULDBLOCK)
-				return EAGAIN;
+				return (EAGAIN);
 		}
 	}
 
-	return runningcode;
+	return (runningcode);
 }
 
 /*
@@ -2209,7 +2211,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		/* Get timespec struct. */
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
-			return error;
+			return (error);
 
 		if ((ts.tv_nsec < 0) || (ts.tv_nsec >= 1000000000))
 			return (EINVAL);
@@ -2222,7 +2224,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
-		return EAGAIN;
+		return (EAGAIN);
 
 	for (;;) {
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
@@ -2237,7 +2239,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 				cb->inputcharge = 0;
 			}
 			aio_free_entry(cb);
-			return cb->uaiocb._aiocb_private.error;
+			return (cb->uaiocb._aiocb_private.error);
 		}
 
 		s = splbio();
@@ -2246,7 +2248,7 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
-			return cb->uaiocb._aiocb_private.error;
+			return (cb->uaiocb._aiocb_private.error);
 		}
 
 		ki->kaio_flags |= KAIO_WAKEUP;
@@ -2254,13 +2256,13 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		splx(s);
 
 		if (error == ERESTART)
-			return EINTR;
+			return (EINTR);
 		else if (error < 0)
-			return error;
+			return (error);
 		else if (error == EINTR)
-			return EINTR;
+			return (EINTR);
 		else if (error == EWOULDBLOCK)
-			return EAGAIN;
+			return (EAGAIN);
 	}
 }
 
