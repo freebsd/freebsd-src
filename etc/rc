@@ -247,9 +247,11 @@ esac
 
 # Whack the pty perms back into shape.
 #
-chflags 0 /dev/tty[pqrsPQRS]*
-chmod 666 /dev/tty[pqrsPQRS]*
-chown root:wheel /dev/tty[pqrsPQRS]*
+if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
+	chflags 0 /dev/tty[pqrsPQRS]*
+	chmod 666 /dev/tty[pqrsPQRS]*
+	chown root:wheel /dev/tty[pqrsPQRS]*
+fi
 
 # Clean up left-over files
 #
