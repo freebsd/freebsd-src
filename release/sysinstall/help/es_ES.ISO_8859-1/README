@@ -1,108 +1,106 @@
-   ------------------------------------------
-     FreeBSD 2.0.5  ---  Versión DEFINITIVA            ,        ,
-   ------------------------------------------         /(        )`
+   -----------------------------------------
+       FreeBSD 2.0.5  ---  Versión RELEASE             ,        ,
+   -----------------------------------------          /(        )`
                                                       \ \___   / |
-¡Bienvenido a la versión 2.0.5 de FreeBSD! 2.0.5 es   /- _  `-/  '
-una versión intermedia de FreeBSD que rellena el     (/\/ \ \   /\
-hueco existente entre 2.0R (publicada en Noviembre   / /   | `    \
-de 1994) y 2.1R, que se publicará a finales de       O O   ) /    |
-Julio de 1995. FreeBSD 2.0.5 contiene gran           `-^--'`<     '
-cantidad de mejoras significativas respecto de      (_.)  _  )   /
-2.0R, entre las que destacan una mayor estabilidad   `.___/`    /
-(por un considerable margen), docenas de               `-----' /
-características nuevas y un programa      <----.     __ / __   \
-de instalación muy mejorado. Vea las      <----|====O)))==) \) /====
-notas a la versión para más detalles      <----'    `--' `.__,' \
-sobre las novedades de FreeBSD 2.0.5.                  |        |
+Bienvenido al release 2.0.5 de FreeBSD!, 2.0.5 es     /- _  `-/  '
+un release intermedio de FreeBSD, que satisface la   (/\/ \ \   /\
+necesidad de llenar un gran hueco entre 2.0R         / /   | `    \
+(liberado en nov 94) y 2.1R, el cual será liberado   O O   ) /    |
+a fines de julio del 95. FreeBSD 2.0.5 contiene      `-^--'`<     '
+muchas mejoras substanciales respecto a 2.0R,       (_.)  _  )   /
+entre las cuales está una mayor estabilidad (con     `.___/`    /
+un márgen considerable), docenas de nuevas             `-----' /
+características y un programa de          <----.     __ / __   \
+instalación grandemente mejorado. Ver     <----|====O)))==) \) /====
+las notas de release para los detalles    <----'    `--' `.__,' \
+sobre lo que es nuevo en FreeBSD 2.0.5!                |        |
                                                         \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
 
 
-¿Qué es FreeBSD? FreeBSD es un sistema operativo basado en 4.4 BSD Lite
-para hardware PC basado en "x86" de Intel, AMD, Cyrix o NexGen. Funciona
-con un abanico muy amplio de periféricos y configuraciones de PC y se
-puede utilizar para todo tipo de actividades, desde el desarrollo de
-software hasta la provisión de servicios de Internet; ¡el lugar más
-concurrido de la Internet, ftp.cdrom.com, es una máquina con FreeBSD!
+Que es FreeBSD? FreeBSD es un sistema operativo basado en 4.4 BSD Lite
+para hardware de PC basado en Intel, AMD, Cyrix o NexGen "x86". Trabaja 
+con una amplia variedad de periféricos y configuraciones de PC y tiene 
+aplicaciones que van desde desarrollo de software hasta proveedor de 
+servicios de Internet; el lugar de mayor carga de Internet, ftp.cdrom.com, 
+es una máquina FreeBSD!.
 
-Esta versión de FreeBSD contiene todo lo que necesita para montar
-un sistema así, además del código fuente completo. Con la distribución
-de las fuentes instalada, puede recompilar literalmente el sistema
-entero desde cero con un solo comando, lo que lo hace ideal para
-estudiantes, investigadores o quienes simplemente deseen ver cómo
-funciona todo.
+Este release de FreeBSD contiene todo lo necesario para poner en marcha un
+tal sistema, así como el código fuente de todo. Con la distribución fuente
+instalada puede recompilar literalmente el sistema completo desde el
+principio con un solo comando, haciendolo ideal para estudiantes,
+investigadores o personas que simplemente quieren ver como trabaja.
 
-También se proporciona una gran recopilación de software de terceros
-adaptado (la "colección de adaptaciones") para facilitarle la
-obtención e instalación de todas sus utilidades tradicionales de UNIX
-favoritas bajo FreeBSD. Son más de 270 adaptaciones, que abarcan desde
-editores hasta lenguajes de programación o aplicaciones gráficas, lo
-cual hace de FreeBSD un potente y completo entorno de trabajo, capaz de
-rivalizar en utilización general y potencia con el de muchas estaciones
-de trabajo grandes.
+Para facilitarle el obtener e instalar todas sus utilerías favoritas 
+tradicionales de UNIX a FreeBSD, se dispone de una gran colección de 
+software portado por terceros (la "colección de puertos").
+Alrededor de 270 puertos, comprendiendo desde el editor EMACS al lenguaje
+Lisp, hacen de FreeBSD un poderoso y completo sistema operativo que 
+rivaliza con muchas estaciones de trabajo en cuanto a utilidad en general
+y poder.
 
 
-Para obtener más documentación sobre este sistema, se recomienda que
-adquiera el juego de publicaciones sobre 4.4BSD de O'Reilly Associates
-y la asociación USENIX, ISBN 1-56592-082-1. No tenemos ninguna conexión
-con O'Reilly, ¡simplemente somos consumidores satisfechos!
+Para mayor documentación sobre este sistema, se recomienda que adquiera
+el conjunto de documentación para 4.4BSD de "O'Reilly Associates" así como
+"USENIX Association", ISBN 1-56592-082-1. No estamos asociados con 
+O'Reilly, simplemente somos consumidores satisfechos.
 
-Quizá también desee leer la GUIA DEL HARDWARE *antes* de avanzar más
-con la instalación. La configuración del hardware del PC para algo que
-no sea DOS/Windows (los cuales en realidad no exigen demasiado al
-hardware) es realmente un poco más complicada de lo que parece, y si
-cree que comprende los PC, está claro que aún no los ha utilizado
-durante el tiempo suficiente. :) Esta guía le proporcionará algunos
-consejos sobre cómo configurar el hardware, así como los síntomas que hay
-que buscar en caso de problema. Esta guía está disponible en el menú
-Documentación del disquete de arranque de FreeBSD.
+Puede interesarle leer la GUIA DEL HARDWARE *ántes* de ir más lejos con
+la instalación. Configurar hardware de PC para cualquier cosa que no sea 
+DOS/Windows (lo cual actualmente no pide mucho del hardware) es 
+actualmente más difícil de lo que parece, y si usted piensa que entiende
+las PCs, es claro que no las ha usado durante un tiempo suficientemente
+largo! :) Esta guía le dará algunos tips sobre como configurar su 
+hardware y que síntomas buscar en caso de problema. Esta guía es disponible
+en el menú de documentación del flopy de boot.
 
-ADVERTENCIA: Aunque FreeBSD hace todo lo posible para prevenir la pérdida
-accidental de datos, ¡sigue siendo más que posible BORRAR EL DISCO ENTERO
-con esta instalación! Por favor, ¡no pase al menú final de la instalación
-de FreeBSD hasta haber realizado primero una copia de seguridad adecuada
-de todos los datos importantes! ¡Lo decimos en serio!
-
-Los comentarios técnicos sobre esta versión deben enviarse (en inglés) a:
+DECLARACION DE NO RESPONSABILIDAD: Mientras que FreeBSD hace lo mejor de 
+su parte por protegerlo contra una pérdida de datos accidental, con todo
+y ello existe la posibilidad de que EL DISCO COMPLETO SEA BORRADO con la 
+instalación!. Le suplico que no continúe hasta el fin del menú de instalación 
+de FreeBSD a menos que ya haya salvaguardado la información inportante!.
+Lo decimos realmente en serio!
+ 
+Comentarios técnicos de este release deberán enviarse a:
 
         hackers@FreeBSD.org
 
 
-Los informes sobre errores deben enviarse mediante el comando 'send-pr',
-si fue posible instalar el sistema, o en otro caso a:
+Reportes de bugs deberán enviarse usando el comando `send-pr', siempre
+y cuando alla sido posible instalar el sistema, de otra manera a:
 
         bugs@FreeBSD.org
 
-Por favor, asegúrese de indicar QUE VERSION de FreeBSD utiliza en todos
-los informes sobre errores.
 
+Le suplico se asegure de indicar CUAL VERSION de FreeBSD está corriendo
+en cualquier reporte de bugs que envíe.
 
-Las preguntas generales deben enviarse a:
+Preguntas en general deberán enviarse a:
 
         questions@FreeBSD.org
 
-Por favor sea paciente si no se responde a sus preguntas de inmediato,
-pues este es un momento especialmente atareado para nosotros y nuestros
-recursos voluntarios a menudo están copados hasta el límite. Los informes
-sobre errores enviados con el comando send-pr se registran y se siguen en
-nuestra base de datos de errores y se le mantendrá informado sobre todos
-los cambios en su estado durante la vida del error (o de la petición de
-nuevas características).
 
-Nuestro nodo del WEB, http://www.freebsd.org, también es una fuente muy
-buena de información actualizada y proporciona una serie de facilidades
-avanzadas de documentación. Puede utilizar la versión de Netscape para
-BSDI para ojear el World Wide Web directamente desde FreeBSD.
+Por favor sea paciente si sus preguntas no son respondidas inmediatamente,
+éste es un momento muy atareado para nosotros, y nuestros recursos
+voluntarios son con frecuencia llevados al límite!. Reportes de bugs
+enviados con el comando send-pr son almacenados en nuestra base de datos
+de bugs, y lo mantendremos informado de cualquier cambio de estado durante
+el tiempo de vida del bug (o funcionalidad requerida).
 
-Puede que también desee inspeccionar /usr/share/FAQ y /usr/share/doc para
-más información sobre el sistema.
+Nuestra dirección WEB, http://www.freebsd.org,  es también una buena fuente 
+de información actualizada y provee un buena cantidad de documentación
+avanzada. Usted puede usar la versión de BSDI de Netscape para recorrer
+el directorio "World Wibe Web" de FreeBSD.
+
+Usted puede también dar una mirada a /usr/share/FAQ y /usr/share/doc
+para mayor información del sistema.
 
 
-Gracias por leer todo esto; ¡esperamos sinceramente que disfrute esta
-versión de FreeBSD!
+Gracias por leer esto, sinceramente esperamos que disfrute este
+release de FreeBSD!
+
 
                                 Jordan Hubbard,
-                                para El Proyecto FreeBSD
-
+                                Proyecto FreeBSD
