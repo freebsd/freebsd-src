@@ -688,7 +688,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				 * the command runs. Partly deleting like
 				 * changepatch() does doesn't seem worth the
 				 * bookinging effort, since most such runs add
-				 * diretories in front of the new PATH.
+				 * directories in front of the new PATH.
 				 */
 				clearcmdentry(0);
 				do_clearcmdentry = 1;
