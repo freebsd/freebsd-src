@@ -463,6 +463,7 @@ dev/sound/pci/t4dwave.c	optional pcm pci
 dev/sound/pci/via82c686.c	optional pcm pci
 dev/sound/pcm/ac97.c	optional pcm
 dev/sound/pcm/ac97_if.m	optional pcm
+dev/sound/pcm/buffer.c	optional pcm
 dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/channel_if.m	optional pcm
 dev/sound/pcm/dsp.c	optional pcm
