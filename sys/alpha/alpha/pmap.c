@@ -1855,16 +1855,12 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 
 	s = splvm();
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
-		for (pv = TAILQ_FIRST(&m->md.pv_list);
-			pv;
-			pv = TAILQ_NEXT(pv, pv_list)) {
+		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
 				break;
 		}
 	} else {
-		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-			pv;
-			pv = TAILQ_NEXT(pv, pv_plist)) {
+		TAILQ_FOREACH(pv, &pmap->pm_pvlist, pv_plist) {
 			if (va == pv->pv_va) 
 				break;
 		}
@@ -2762,9 +2758,7 @@ pmap_page_exists(pmap, m)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
 			splx(s);
 			return TRUE;
@@ -2870,10 +2864,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	 * Loop over all current mappings setting/clearing as appropos If
 	 * setting RO do we need to clear the VAC?
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		/*
 		 * don't write protect pager mappings
 		 */
@@ -2953,9 +2944,7 @@ pmap_ts_referenced(vm_page_t m)
 	 * reference trap recently).
 	 */
 	count = 0;
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-	     pv;
-	     pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & PG_FOR)) {
@@ -2987,9 +2976,7 @@ pmap_is_modified(vm_page_t m)
 	 * A page is modified if any mapping has had its PG_FOW flag
 	 * cleared.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-	     pv;
-	     pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		if (!(*pte & PG_FOW))
 			return 1;
@@ -3013,9 +3000,7 @@ pmap_clear_modify(vm_page_t m)
 	/*
 	 * Loop over current mappings setting PG_FOW where needed.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-	     pv;
-	     pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & PG_FOW)) {
@@ -3055,9 +3040,7 @@ pmap_clear_reference(vm_page_t m)
 	/*
 	 * Loop over current mappings setting PG_FOR and PG_FOE where needed.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-	     pv;
-	     pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & (PG_FOR | PG_FOE))) {
@@ -3402,9 +3385,7 @@ pmap_pvdump(pa)
 
 	printf("pa %x", pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		printf(" -> pmap %p, va %x", (void *)pv->pv_pmap, pv->pv_va);
 		pads(pv->pv_pmap);
 	}
