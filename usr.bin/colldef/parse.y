@@ -50,9 +50,14 @@ char map_name[FILENAME_MAX] = ".";
 
 char __collate_version[STR_LEN];
 u_char charmap_table[UCHAR_MAX + 1][CHARMAP_SYMBOL_LEN];
+
+#undef __collate_substitute_table
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
+#undef __collate_char_pri_table
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
+#undef __collate_chain_pri_table
 struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
+
 int chain_index;
 int prim_pri = 1, sec_pri = 1;
 #ifdef COLLATE_DEBUG
