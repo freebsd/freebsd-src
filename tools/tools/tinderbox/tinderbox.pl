@@ -415,13 +415,19 @@ MAIN:{
     # Clean up remains from old runs
     if ($cmds{'clean'}) {
 	logstage("cleaning the sandbox");
-	remove_dir("$sandbox/src")
-	    or error("unable to remove old source directory");
-	remove_dir("$sandbox/obj")
-	    or error("unable to remove old object directory");
-	spawn('/bin/chflags', '-R', '0', "$sandbox/root");
-	remove_dir("$sandbox/root")
-	    or error("unable to remove old chroot directory");
+	if (-e "$sandbox/src") {
+	    remove_dir("$sandbox/src")
+		or error("unable to remove old source directory");
+	}
+	if (-e "$sandbox/obj") {
+	    remove_dir("$sandbox/obj")
+		or error("unable to remove old object directory");
+	}
+	if (-e "$sandbox/root") {
+	    spawn('/bin/chflags', '-R', '0', "$sandbox/root");
+	    remove_dir("$sandbox/root")
+		or error("unable to remove old chroot directory");
+	}
     }
 
     # Check out new source tree
