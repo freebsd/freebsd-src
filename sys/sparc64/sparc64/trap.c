@@ -151,7 +151,9 @@ trap(struct trapframe *tf)
 	u_int sticks;
 	int error;
 	int ucode;
+#ifdef DDB
 	int mask;
+#endif
 	int type;
 	int sig;
 
@@ -306,13 +308,14 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		if (error == 0)
 			goto out;
 		break;
+#ifdef DDB
 	case T_PA_WATCHPOINT | T_KERNEL:
 		TR3("trap: watch phys pa=%#lx tpc=%#lx, tnpc=%#lx",
 		    watch_phys_get(&mask), tf->tf_tpc, tf->tf_tnpc);
 		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
 		    TSTATE_PSTATE_SHIFT);
 		tf->tf_tstate &= ~TSTATE_IE;
-		wrpr(pstate, rdpr(pstate), PSTATE_IE);
+		intr_disable();
 		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
 		*((u_int *)tf->tf_tnpc) = 0x91d03002;	/* ta %xcc, 2 */
 		flush(tf->tf_tnpc);
@@ -337,7 +340,12 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
 		    TSTATE_PSTATE_SHIFT);
 		tf->tf_tstate &= ~TSTATE_IE;
-		wrpr(pstate, rdpr(pstate), PSTATE_IE);
+		/*
+		 * This has no matching intr_restore; the PSTATE_IE state of the
+		 * trapping code will be restored when the watch point is
+		 * restored.
+		 */
+		intr_disable();
 		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
 		*((u_int *)tf->tf_tnpc) = 0x91d03003;	/* ta %xcc, 3 */
 		flush(tf->tf_tnpc);
@@ -366,6 +374,7 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		*(u_int *)tf->tf_tpc = PCPU_GET(wp_insn);
 		flush(tf->tf_tpc);
 		goto out;
+#endif
 	default:
 		break;
 	}
