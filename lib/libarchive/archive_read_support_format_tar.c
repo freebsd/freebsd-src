@@ -1602,10 +1602,17 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
                 return ((size_t)-1);
         }
         if (pwc != NULL) {
-		if (wch < WCHAR_MAX)
-			*pwc = (wchar_t)wch;
-		else
+		/* Assign the value to the output; out-of-range values
+		 * just get truncated. */
+		*pwc = (wchar_t)wch;
+#ifdef WCHAR_MAX
+		/*
+		 * If platform has WCHAR_MAX, we can do something
+		 * more sensible with out-of-range values.
+		 */
+		if (wch >= WCHAR_MAX)
 			*pwc = '?';
+#endif
 	}
         return (wch == L'\0' ? 0 : len);
 }

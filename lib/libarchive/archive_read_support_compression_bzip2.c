@@ -26,21 +26,20 @@
 
 #include "archive_platform.h"
 
-/* Don't compile this if we don't have bzlib. */
-#if HAVE_BZLIB_H
-
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_BZLIB_H
 #include <bzlib.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
 
+#if HAVE_BZLIB_H
 struct private_data {
 	bz_stream	 stream;
 	unsigned char	*uncompressed_buffer;
@@ -49,12 +48,15 @@ struct private_data {
 	int64_t		 total_out;
 };
 
-static int	bid(const void *, size_t);
 static int	finish(struct archive *);
-static int	init(struct archive *, const void *, size_t);
 static ssize_t	read_ahead(struct archive *, const void **, size_t);
 static ssize_t	read_consume(struct archive *, size_t);
 static int	drive_decompressor(struct archive *a, struct private_data *);
+#endif
+
+/* These two functions are defined even if we lack bzlib.  See below. */
+static int	bid(const void *, size_t);
+static int	init(struct archive *, const void *, size_t);
 
 int
 archive_read_support_compression_bzip2(struct archive *a)
@@ -115,6 +117,28 @@ bid(const void *buff, size_t len)
 
 	return (bits_checked);
 }
+
+#ifndef HAVE_BZLIB_H
+
+/*
+ * If we don't have bzlib on this system, we can't actually do the
+ * decompression.  We can, however, still detect bzip2-compressed
+ * archives and emit a useful message.
+ */
+static int
+init(struct archive *a, const void *buff, size_t n)
+{
+	(void)a;	/* UNUSED */
+	(void)buff;	/* UNUSED */
+	(void)n;	/* UNUSED */
+
+	archive_set_error(a, -1,
+	    "This version of libarchive was compiled without bzip2 support");
+	return (ARCHIVE_FATAL);
+}
+
+
+#else
 
 /*
  * Setup the callbacks.
@@ -264,9 +288,8 @@ read_consume(struct archive *a, size_t n)
 	a->file_position += n;
 	state->read_next += n;
 	if (state->read_next > state->stream.next_out)
-		errx(1, "Internal error: Request to consume too many "
-		    "bytes from %s decompressor.\n",
-		    a->compression_name);
+		__archive_errx(1, "Request to consume too many "
+		    "bytes from bzip2 decompressor");
 	return (n);
 }
 

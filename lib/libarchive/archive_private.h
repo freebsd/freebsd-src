@@ -235,6 +235,8 @@ int	__archive_read_register_compression(struct archive *a,
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive *, const void *,	size_t));
 
+void	__archive_errx(int retvalue, const char *msg);
+
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
 #endif
