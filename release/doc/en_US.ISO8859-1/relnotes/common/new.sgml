@@ -64,6 +64,14 @@
       mode, settable via the <option>-M</option> option to
       &man.ancontrol.8;.</para>
 
+      <para arch="i386">The &man.bge.4; driver has been added to
+      support the Broadcom BCM570x family of Gigabit Ethernet
+      controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
+      and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
+      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
+      and VLAN tag insertion/stripping are supported, as well as
+      interrupt moderation.</para>
+
       <para>The dgm driver has been updated from &os; -CURRENT.</para>
     </sect3>
 
@@ -143,7 +151,8 @@
       <para><application>OpenSSH</application> has been updated to
       version 2.9, which adds two new programs, &man.sftp.1; and
       &man.ssh-keyscan.1;.  Among the various enhancements: Rekeying
-      of existing SSH sessions is now supported, and an experimental
+      of existing SSH sessions is now supported, &man.ssh-agent.1; now
+      supports authentication forwarding for DSA keys, and an experimental
       <application>SOCKS4</application> proxy has been added to
       &man.ssh.1;.
         <note>

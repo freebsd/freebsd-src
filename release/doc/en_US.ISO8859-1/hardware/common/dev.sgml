@@ -1507,6 +1507,21 @@
       </itemizedlist>
     </para>
 
+    <para>Gigabit Ethernet NICs based on the Broadcom BCM570x
+    (&man.bge.4 driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com 3c996-T</para>
+        </listitem>
+        <listitem>
+	  <para>SysKonnect SK-9D21 and 9D41</para>
+        </listitem>
+        <listitem>
+	  <para>Built-in Gigabit Ethernet NICs on DELL PowerEdge 2550
+	  servers</para>
+        </listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
