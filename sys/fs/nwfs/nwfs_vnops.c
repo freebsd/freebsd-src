@@ -172,7 +172,7 @@ nwfs_open(ap)
 	}
 	if (vp->v_type == VDIR) return 0;	/* nothing to do now */
 	if (np->n_flag & NMODIFIED) {
-		if ((error = nwfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1)) == EINTR)
+		if ((error = nwfs_vinvalbuf(vp, ap->a_td)) == EINTR)
 			return (error);
 		np->n_atime = 0;
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
@@ -182,7 +182,7 @@ nwfs_open(ap)
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
 		if (error) return (error);
 		if (np->n_mtime != vattr.va_mtime.tv_sec) {
-			if ((error = nwfs_vinvalbuf(vp, V_SAVE,	ap->a_cred, ap->a_td, 1)) == EINTR)
+			if ((error = nwfs_vinvalbuf(vp, ap->a_td)) == EINTR)
 				return (error);
 			np->n_mtime = vattr.va_mtime.tv_sec;
 		}
@@ -237,7 +237,7 @@ nwfs_close(ap)
 		return 0;
 	}
 	mtx_unlock(&vp->v_interlock);
-	error = nwfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+	error = nwfs_vinvalbuf(vp, ap->a_td);
 	mtx_lock(&vp->v_interlock);
 	if (np->opened == 0) {
 		mtx_unlock(&vp->v_interlock);
