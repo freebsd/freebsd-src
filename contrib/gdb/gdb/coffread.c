@@ -1,23 +1,25 @@
 /* Read coff symbol tables and convert to internal format, for GDB.
-   Copyright 1987, 88, 89, 90, 91, 92, 93, 94, 96, 97, 1998
-             Free Software Foundation, Inc.
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
+   1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by David D. Johnson, Brown University (ddj@cs.brown.edu).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "symtab.h"
@@ -41,17 +43,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "stabsread.h"
 #include "complaints.h"
 #include "target.h"
+#include "gdb_assert.h"
 
-struct coff_symfile_info {
-  file_ptr min_lineno_offset;		/* Where in file lowest line#s are */
-  file_ptr max_lineno_offset;		/* 1+last byte of line#s in file */
+extern void _initialize_coffread (void);
 
-  CORE_ADDR textaddr;			/* Addr of .text section. */
-  unsigned int textsize;		/* Size of .text section. */
-  struct stab_section_list *stabsects;	/* .stab sections.  */
-  asection *stabstrsect;		/* Section pointer for .stab section */
-  char *stabstrdata;
-};
+struct coff_symfile_info
+  {
+    file_ptr min_lineno_offset;	/* Where in file lowest line#s are */
+    file_ptr max_lineno_offset;	/* 1+last byte of line#s in file */
+
+    CORE_ADDR textaddr;		/* Addr of .text section. */
+    unsigned int textsize;	/* Size of .text section. */
+    struct stab_section_list *stabsects;	/* .stab sections.  */
+    asection *stabstrsect;	/* Section pointer for .stab section */
+    char *stabstrdata;
+  };
 
 /* Translate an external name string into a user-visible name.  */
 #define	EXTERNAL_NAME(string, abfd) \
@@ -63,14 +69,6 @@ struct coff_symfile_info {
    dbx-in-coff file.  */
 
 #define SDB_TYPE(type) (BTYPE(type) | (type & N_TMASK))
-
-/* Convert from an sdb register number to an internal gdb register number.
-   This should be defined in tm.h, if REGISTER_NAMES is not set up
-   to map one to one onto the sdb register numbers.  */
-
-#ifndef SDB_REG_TO_REGNUM
-# define SDB_REG_TO_REGNUM(value)     (value)
-#endif
 
 /* Core address of start and end of text of current source file.
    This comes from a ".text" symbol where x_nlinno > 0.  */
@@ -84,21 +82,6 @@ static CORE_ADDR current_source_end_addr;
 static bfd *nlist_bfd_global;
 static int nlist_nsyms_global;
 
-/* Vector of line number information.  */
-
-static struct linetable *line_vector;
-
-/* Index of next entry to go in line_vector_index.  */
-
-static int line_vector_index;
-
-/* Last line number recorded in the line vector.  */
-
-static int prev_line_number;
-
-/* Number of elements allocated for line_vector currently.  */
-
-static int line_vector_length;
 
 /* Pointers to scratch storage, used for reading raw symbols and auxents.  */
 
@@ -111,24 +94,24 @@ static char *temp_aux;
    internally to the BTYPE, ISPTR, ISFCN, ISARY, ISTAG, and DECREF
    macros from include/coff/internal.h .  */
 
-static unsigned	local_n_btmask;
-static unsigned	local_n_btshft;
-static unsigned	local_n_tmask;
-static unsigned	local_n_tshift;
+static unsigned local_n_btmask;
+static unsigned local_n_btshft;
+static unsigned local_n_tmask;
+static unsigned local_n_tshift;
 
 #define	N_BTMASK	local_n_btmask
 #define	N_BTSHFT	local_n_btshft
 #define	N_TMASK		local_n_tmask
 #define	N_TSHIFT	local_n_tshift
- 
+
 /* Local variables that hold the sizes in the file of various COFF structures.
    (We only need to know this to read them from the file -- BFD will then
    translate the data in them, into `internal_xxx' structs in the right
    byte order, alignment, etc.)  */
 
-static unsigned	local_linesz;
-static unsigned	local_symesz;
-static unsigned	local_auxesz;
+static unsigned local_linesz;
+static unsigned local_symesz;
+static unsigned local_auxesz;
 
 /* This is set if this is a PE format file.  */
 
@@ -141,124 +124,96 @@ static struct symbol *opaque_type_chain[HASHSIZE];
 
 /* Complaints about various problems in the file being read  */
 
-struct complaint ef_complaint = 
-  {"Unmatched .ef symbol(s) ignored starting at symnum %d", 0, 0};
+struct complaint ef_complaint =
+{"Unmatched .ef symbol(s) ignored starting at symnum %d", 0, 0};
 
-struct complaint ef_stack_complaint = 
-  {"`.ef' symbol without matching `.bf' symbol ignored starting at symnum %d", 0, 0};
+struct complaint ef_stack_complaint =
+{"`.ef' symbol without matching `.bf' symbol ignored starting at symnum %d", 0, 0};
 
-struct complaint eb_stack_complaint = 
-  {"`.eb' symbol without matching `.bb' symbol ignored starting at symnum %d", 0, 0};
+struct complaint eb_stack_complaint =
+{"`.eb' symbol without matching `.bb' symbol ignored starting at symnum %d", 0, 0};
 
 struct complaint bf_no_aux_complaint =
-  {"`.bf' symbol %d has no aux entry", 0, 0};
+{"`.bf' symbol %d has no aux entry", 0, 0};
 
 struct complaint ef_no_aux_complaint =
-  {"`.ef' symbol %d has no aux entry", 0, 0};
+{"`.ef' symbol %d has no aux entry", 0, 0};
 
 struct complaint lineno_complaint =
-  {"Line number pointer %d lower than start of line numbers", 0, 0};
+{"Line number pointer %d lower than start of line numbers", 0, 0};
 
 struct complaint unexpected_type_complaint =
-  {"Unexpected type for symbol %s", 0, 0};
+{"Unexpected type for symbol %s", 0, 0};
 
 struct complaint bad_sclass_complaint =
-  {"Bad n_sclass for symbol %s", 0, 0};
+{"Bad n_sclass for symbol %s", 0, 0};
 
 struct complaint misordered_blocks_complaint =
-  {"Blocks out of order at address %x", 0, 0};
+{"Blocks out of order at address %x", 0, 0};
 
 struct complaint tagndx_bad_complaint =
-  {"Symbol table entry for %s has bad tagndx value", 0, 0};
+{"Symbol table entry for %s has bad tagndx value", 0, 0};
 
-struct complaint eb_complaint = 
-  {"Mismatched .eb symbol ignored starting at symnum %d", 0, 0};
+struct complaint eb_complaint =
+{"Mismatched .eb symbol ignored starting at symnum %d", 0, 0};
 
 /* Simplified internal version of coff symbol table information */
 
-struct coff_symbol {
-  char *c_name;
-  int c_symnum;		/* symbol number of this entry */
-  int c_naux;		/* 0 if syment only, 1 if syment + auxent, etc */
-  long c_value;
-  int c_sclass;
-  int c_secnum;
-  unsigned int c_type;
-};
+struct coff_symbol
+  {
+    char *c_name;
+    int c_symnum;		/* symbol number of this entry */
+    int c_naux;			/* 0 if syment only, 1 if syment + auxent, etc */
+    long c_value;
+    int c_sclass;
+    int c_secnum;
+    unsigned int c_type;
+  };
 
-static struct type *coff_read_struct_type PARAMS ((int, int, int));
+extern void stabsread_clear_cache (void);
 
-static struct type *decode_base_type PARAMS ((struct coff_symbol *,
-					      unsigned int,
-					      union internal_auxent *));
+static struct type *coff_read_struct_type (int, int, int);
 
-static struct type *decode_type PARAMS ((struct coff_symbol *, unsigned int,
-					 union internal_auxent *));
+static struct type *decode_base_type (struct coff_symbol *,
+				      unsigned int, union internal_auxent *);
 
-static struct type *decode_function_type PARAMS ((struct coff_symbol *,
-						  unsigned int,
-						  union internal_auxent *));
+static struct type *decode_type (struct coff_symbol *, unsigned int,
+				 union internal_auxent *);
 
-static struct type *coff_read_enum_type PARAMS ((int, int, int));
+static struct type *decode_function_type (struct coff_symbol *,
+					  unsigned int,
+					  union internal_auxent *);
 
-static struct symbol *process_coff_symbol PARAMS ((struct coff_symbol *,
-						   union internal_auxent *,
-						   struct section_offsets *,
-						   struct objfile *));
+static struct type *coff_read_enum_type (int, int, int);
 
-static void patch_opaque_types PARAMS ((struct symtab *));
+static struct symbol *process_coff_symbol (struct coff_symbol *,
+					   union internal_auxent *,
+					   struct objfile *);
 
-static void patch_type PARAMS ((struct type *, struct type *));
+static void patch_opaque_types (struct symtab *);
 
-static void enter_linenos PARAMS ((long, int, int, struct section_offsets *));
+static void enter_linenos (long, int, int, struct objfile *);
 
-static void free_linetab PARAMS ((void));
+static void free_linetab (void);
 
-static int init_lineno PARAMS ((bfd *, long, int));
+static void free_linetab_cleanup (void *ignore);
 
-static char *getsymname PARAMS ((struct internal_syment *));
+static int init_lineno (bfd *, long, int);
 
-static char *coff_getfilename PARAMS ((union internal_auxent *));
+static char *getsymname (struct internal_syment *);
 
-static void free_stringtab PARAMS ((void));
+static char *coff_getfilename (union internal_auxent *);
 
-static int init_stringtab PARAMS ((bfd *, long));
+static void free_stringtab (void);
 
-static void read_one_sym PARAMS ((struct coff_symbol *,
-				  struct internal_syment *,
-				  union internal_auxent *));
+static void free_stringtab_cleanup (void *ignore);
 
-static void coff_symtab_read PARAMS ((long, int, struct section_offsets *,
-				      struct objfile *));
+static int init_stringtab (bfd *, long);
 
-static void find_linenos PARAMS ((bfd *, sec_ptr, PTR));
+static void read_one_sym (struct coff_symbol *,
+			  struct internal_syment *, union internal_auxent *);
 
-static void coff_symfile_init PARAMS ((struct objfile *));
-
-static void coff_new_init PARAMS ((struct objfile *));
-
-static void coff_symfile_read PARAMS ((struct objfile *,
-				       struct section_offsets *, int));
-
-static void coff_symfile_finish PARAMS ((struct objfile *));
-
-static void record_minimal_symbol PARAMS ((char *, CORE_ADDR,
-					   enum minimal_symbol_type,
-					   struct objfile *));
-
-static void coff_end_symtab PARAMS ((struct objfile *));
-
-static void complete_symtab PARAMS ((char *, CORE_ADDR, unsigned int));
-
-static void coff_start_symtab PARAMS ((char *));
-
-static void coff_record_line PARAMS ((int, CORE_ADDR));
-
-static struct type *coff_alloc_type PARAMS ((int));
-
-static struct type **coff_lookup_type PARAMS ((int));
-
-static void coff_locate_sections PARAMS ((bfd *, asection *, PTR));
+static void coff_symtab_read (long, unsigned int, struct objfile *);
 
 /* We are called once per section from coff_symfile_read.  We
    need to examine each section we are passed, check to see
@@ -271,10 +226,7 @@ static void coff_locate_sections PARAMS ((bfd *, asection *, PTR));
    -kingdon).  */
 
 static void
-coff_locate_sections (abfd, sectp, csip)
-     bfd *abfd;
-     asection *sectp;
-     PTR csip;
+coff_locate_sections (bfd *abfd, asection *sectp, void *csip)
 {
   register struct coff_symfile_info *csi;
   const char *name;
@@ -301,7 +253,7 @@ coff_locate_sections (abfd, sectp, csip)
       /* We can have multiple .stab sections if linked with
          --split-by-reloc.  */
       for (s = name + sizeof ".stab" - 1; *s != '\0'; s++)
-	if (! isdigit (*s))
+	if (!isdigit (*s))
 	  break;
       if (*s == '\0')
 	{
@@ -316,42 +268,37 @@ coff_locate_sections (abfd, sectp, csip)
 	  *pn = n;
 
 	  /* This will be run after coffstab_build_psymtabs is called
-             in coff_symfile_read, at which point we no longer need
-             the information.  */
-	  make_cleanup (free, n);
+	     in coff_symfile_read, at which point we no longer need
+	     the information.  */
+	  make_cleanup (xfree, n);
 	}
     }
 }
 
 /* Return the section_offsets* that CS points to.  */
-static int cs_to_section PARAMS ((struct coff_symbol *, struct objfile *));
+static int cs_to_section (struct coff_symbol *, struct objfile *);
 
-struct find_targ_sec_arg {
-  int targ_index;
-  asection **resultp;
-};
+struct find_targ_sec_arg
+  {
+    int targ_index;
+    asection **resultp;
+  };
 
-static void find_targ_sec PARAMS ((bfd *, asection *, void *));
-
-static void find_targ_sec (abfd, sect, obj)
-     bfd *abfd;
-     asection *sect;
-     PTR obj;
+static void
+find_targ_sec (bfd *abfd, asection *sect, void *obj)
 {
-  struct find_targ_sec_arg *args = (struct find_targ_sec_arg *)obj;
+  struct find_targ_sec_arg *args = (struct find_targ_sec_arg *) obj;
   if (sect->target_index == args->targ_index)
     *args->resultp = sect;
 }
 
 /* Return the section number (SECT_OFF_*) that CS points to.  */
 static int
-cs_to_section (cs, objfile)
-     struct coff_symbol *cs;
-     struct objfile *objfile;
+cs_to_section (struct coff_symbol *cs, struct objfile *objfile)
 {
   asection *sect = NULL;
   struct find_targ_sec_arg args;
-  int off = SECT_OFF_TEXT;
+  int off = SECT_OFF_TEXT (objfile);
 
   args.targ_index = cs->c_secnum;
   args.resultp = &sect;
@@ -360,23 +307,22 @@ cs_to_section (cs, objfile)
     {
       /* This is the section.  Figure out what SECT_OFF_* code it is.  */
       if (bfd_get_section_flags (abfd, sect) & SEC_CODE)
-	off = SECT_OFF_TEXT;
+	off = SECT_OFF_TEXT (objfile);
       else if (bfd_get_section_flags (abfd, sect) & SEC_LOAD)
-	off = SECT_OFF_DATA;
+	off = SECT_OFF_DATA (objfile);
       else
-	off = SECT_OFF_BSS;
+	/* Just return the bfd section index. */
+	off = sect->index;
     }
   return off;
 }
 
 /* Return the address of the section of a COFF symbol.  */
 
-static CORE_ADDR cs_section_address PARAMS ((struct coff_symbol *, bfd *));
+static CORE_ADDR cs_section_address (struct coff_symbol *, bfd *);
 
 static CORE_ADDR
-cs_section_address (cs, abfd)
-     struct coff_symbol *cs;
-     bfd *abfd;
+cs_section_address (struct coff_symbol *cs, bfd *abfd)
 {
   asection *sect = NULL;
   struct find_targ_sec_arg args;
@@ -398,22 +344,21 @@ cs_section_address (cs, abfd)
    or for associating a new type with the index.  */
 
 static struct type **
-coff_lookup_type (index)
-     register int index;
+coff_lookup_type (register int index)
 {
   if (index >= type_vector_length)
     {
       int old_vector_length = type_vector_length;
 
       type_vector_length *= 2;
-      if (index /* is still */ >= type_vector_length)
+      if (index /* is still */  >= type_vector_length)
 	type_vector_length = index * 2;
 
       type_vector = (struct type **)
 	xrealloc ((char *) type_vector,
 		  type_vector_length * sizeof (struct type *));
       memset (&type_vector[old_vector_length], 0,
-	     (type_vector_length - old_vector_length) * sizeof(struct type *));
+	 (type_vector_length - old_vector_length) * sizeof (struct type *));
     }
   return &type_vector[index];
 }
@@ -423,8 +368,7 @@ coff_lookup_type (index)
    This can create an empty (zeroed) type object.  */
 
 static struct type *
-coff_alloc_type (index)
-     int index;
+coff_alloc_type (int index)
 {
   register struct type **type_addr = coff_lookup_type (index);
   register struct type *type = *type_addr;
@@ -440,61 +384,25 @@ coff_alloc_type (index)
   return type;
 }
 
-/* Record a line number entry for line LINE at address PC.
-   FIXME:  Use record_line instead.  */
-
-static void
-coff_record_line (line, pc)
-     int line;
-     CORE_ADDR pc;
-{
-  struct linetable_entry *e;
-  /* Make sure line vector is big enough.  */
-
-  if (line_vector_index + 2 >= line_vector_length)
-    {
-      line_vector_length *= 2;
-      line_vector = (struct linetable *)
-	xrealloc ((char *) line_vector, sizeof (struct linetable)
-		  + (line_vector_length
-		     * sizeof (struct linetable_entry)));
-    }
-
-  e = line_vector->item + line_vector_index++;
-  e->line = line; e->pc = pc;
-}
-
 /* Start a new symtab for a new source file.
    This is called when a COFF ".file" symbol is seen;
    it indicates the start of data for one original source file.  */
 
 static void
-coff_start_symtab (name)
-    char *name;
+coff_start_symtab (char *name)
 {
   start_symtab (
-		/* We fill in the filename later.  start_symtab puts
-		   this pointer into last_source_file and we put it in
-		   subfiles->name, which end_symtab frees; that's why
-		   it must be malloc'd.  */
-		savestring (name, strlen(name)),
-		/* We never know the directory name for COFF.  */
-		NULL,
-		/* The start address is irrelevant, since we set
-		   last_source_start_addr in coff_end_symtab.  */
-		0);
+  /* We fill in the filename later.  start_symtab puts
+     this pointer into last_source_file and we put it in
+     subfiles->name, which end_symtab frees; that's why
+     it must be malloc'd.  */
+		 savestring (name, strlen (name)),
+  /* We never know the directory name for COFF.  */
+		 NULL,
+  /* The start address is irrelevant, since we set
+     last_source_start_addr in coff_end_symtab.  */
+		 0);
   record_debugformat ("COFF");
-
-  /* Initialize the source file line number information for this file.  */
-
-  if (line_vector)		/* Unlikely, but maybe possible? */
-    free ((PTR)line_vector);
-  line_vector_index = 0;
-  line_vector_length = 1000;
-  prev_line_number = -2;	/* Force first line number to be explicit */
-  line_vector = (struct linetable *)
-    xmalloc (sizeof (struct linetable)
-	     + line_vector_length * sizeof (struct linetable_entry));
 }
 
 /* Save the vital information from when starting to read a file,
@@ -503,22 +411,19 @@ coff_start_symtab (name)
    text address for the file, and SIZE is the number of bytes of text.  */
 
 static void
-complete_symtab (name, start_addr, size)
-    char *name;
-    CORE_ADDR start_addr;
-    unsigned int size;
+complete_symtab (char *name, CORE_ADDR start_addr, unsigned int size)
 {
   if (last_source_file != NULL)
-    free (last_source_file);
+    xfree (last_source_file);
   last_source_file = savestring (name, strlen (name));
   current_source_start_addr = start_addr;
   current_source_end_addr = start_addr + size;
 
-  if (current_objfile -> ei.entry_point >= current_source_start_addr &&
-      current_objfile -> ei.entry_point <  current_source_end_addr)
+  if (current_objfile->ei.entry_point >= current_source_start_addr &&
+      current_objfile->ei.entry_point < current_source_end_addr)
     {
-      current_objfile -> ei.entry_file_lowpc = current_source_start_addr;
-      current_objfile -> ei.entry_file_highpc = current_source_end_addr;
+      current_objfile->ei.entry_file_lowpc = current_source_start_addr;
+      current_objfile->ei.entry_file_highpc = current_source_end_addr;
     }
 }
 
@@ -528,45 +433,28 @@ complete_symtab (name, start_addr, size)
    struct symtab for that file and put it in the list of all such. */
 
 static void
-coff_end_symtab (objfile)
-     struct objfile *objfile;
+coff_end_symtab (struct objfile *objfile)
 {
   struct symtab *symtab;
 
   last_source_start_addr = current_source_start_addr;
 
-  /* For no good reason, this file stores the number of entries in a
-     separate variable instead of in line_vector->nitems.  Fix it.  */
-  if (line_vector)
-    line_vector->nitems = line_vector_index;
-
-  /* For COFF, we only have one subfile, so we can just look at
-     subfiles and not worry about there being other elements in the
-     chain.  We fill in various fields now because we didn't know them
-     before (or because doing it now is simply an artifact of how this
-     file used to be written).  */
-  subfiles->line_vector = line_vector;
-
-  symtab = end_symtab (current_source_end_addr, objfile, 0);
+  symtab = end_symtab (current_source_end_addr, objfile, SECT_OFF_TEXT (objfile));
 
   if (symtab != NULL)
     free_named_symtabs (symtab->filename);
 
   /* Reinitialize for beginning of new file. */
-  line_vector = 0;
-  line_vector_length = -1;
   last_source_file = NULL;
 }
 
 static void
-record_minimal_symbol (name, address, type, objfile)
-     char *name;
-     CORE_ADDR address;
-     enum minimal_symbol_type type;
-     struct objfile *objfile;
+record_minimal_symbol (char *name, CORE_ADDR address,
+		       enum minimal_symbol_type type, struct objfile *objfile)
 {
   /* We don't want TDESC entry points in the minimal symbol table */
-  if (name[0] == '@') return;
+  if (name[0] == '@')
+    return;
 
   prim_record_minimal_symbol (name, address, type, objfile);
 }
@@ -585,14 +473,14 @@ record_minimal_symbol (name, address, type, objfile)
    The ultimate result is a new symtab (or, FIXME, eventually a psymtab).  */
 
 static void
-coff_symfile_init (objfile)
-     struct objfile *objfile;
+coff_symfile_init (struct objfile *objfile)
 {
   /* Allocate struct to keep track of stab reading. */
   objfile->sym_stab_info = (struct dbx_symfile_info *)
     xmmalloc (objfile->md, sizeof (struct dbx_symfile_info));
 
-  memset ((PTR) objfile->sym_stab_info, 0, sizeof (struct dbx_symfile_info));
+  memset (objfile->sym_stab_info, 0,
+	  sizeof (struct dbx_symfile_info));
 
   /* Allocate struct to keep track of the symfile */
   objfile->sym_private = xmmalloc (objfile->md,
@@ -614,10 +502,7 @@ coff_symfile_init (objfile)
 
 /* ARGSUSED */
 static void
-find_linenos (abfd, asect, vpinfo)
-     bfd *abfd;
-     sec_ptr asect;
-     PTR vpinfo;
+find_linenos (bfd *abfd, sec_ptr asect, void *vpinfo)
 {
   struct coff_symfile_info *info;
   int size, count;
@@ -631,7 +516,7 @@ find_linenos (abfd, asect, vpinfo)
     return;
   size = count * local_linesz;
 
-  info = (struct coff_symfile_info *)vpinfo;
+  info = (struct coff_symfile_info *) vpinfo;
 /* WARNING WILL ROBINSON!  ACCESSING BFD-PRIVATE DATA HERE!  FIXME!  */
   offset = asect->line_filepos;
 /* End of warning */
@@ -654,10 +539,7 @@ static bfd *symfile_bfd;
 
 /* ARGSUSED */
 static void
-coff_symfile_read (objfile, section_offsets, mainline)
-     struct objfile *objfile;
-     struct section_offsets *section_offsets;
-     int mainline;
+coff_symfile_read (struct objfile *objfile, int mainline)
 {
   struct coff_symfile_info *info;
   struct dbx_symfile_info *dbxinfo;
@@ -665,82 +547,84 @@ coff_symfile_read (objfile, section_offsets, mainline)
   coff_data_type *cdata = coff_data (abfd);
   char *name = bfd_get_filename (abfd);
   register int val;
-  int num_symbols;
+  unsigned int num_symbols;
   int symtab_offset;
   int stringtab_offset;
   struct cleanup *back_to;
   int stabstrsize;
-
-  info = (struct coff_symfile_info *) objfile -> sym_private;
+  int len;
+  char * target;
+  
+  info = (struct coff_symfile_info *) objfile->sym_private;
   dbxinfo = objfile->sym_stab_info;
-  symfile_bfd = abfd;			/* Kludge for swap routines */
+  symfile_bfd = abfd;		/* Kludge for swap routines */
 
 /* WARNING WILL ROBINSON!  ACCESSING BFD-PRIVATE DATA HERE!  FIXME!  */
-   num_symbols = bfd_get_symcount (abfd);	/* How many syms */
-   symtab_offset = cdata->sym_filepos;		/* Symbol table file offset */
-   stringtab_offset = symtab_offset +		/* String table file offset */
-		      num_symbols * cdata->local_symesz;
+  num_symbols = bfd_get_symcount (abfd);	/* How many syms */
+  symtab_offset = cdata->sym_filepos;	/* Symbol table file offset */
+  stringtab_offset = symtab_offset +	/* String table file offset */
+    num_symbols * cdata->local_symesz;
 
   /* Set a few file-statics that give us specific information about
      the particular COFF file format we're reading.  */
-  local_linesz   = cdata->local_linesz;
   local_n_btmask = cdata->local_n_btmask;
   local_n_btshft = cdata->local_n_btshft;
-  local_n_tmask  = cdata->local_n_tmask;
+  local_n_tmask = cdata->local_n_tmask;
   local_n_tshift = cdata->local_n_tshift;
-  local_linesz   = cdata->local_linesz;
-  local_symesz   = cdata->local_symesz;
-  local_auxesz   = cdata->local_auxesz;
+  local_linesz = cdata->local_linesz;
+  local_symesz = cdata->local_symesz;
+  local_auxesz = cdata->local_auxesz;
 
   /* Allocate space for raw symbol and aux entries, based on their
      space requirements as reported by BFD.  */
   temp_sym = (char *) xmalloc
-	 (cdata->local_symesz + cdata->local_auxesz);
+    (cdata->local_symesz + cdata->local_auxesz);
   temp_aux = temp_sym + cdata->local_symesz;
-  back_to = make_cleanup ((make_cleanup_func) free_current_contents, &temp_sym);
+  back_to = make_cleanup (free_current_contents, &temp_sym);
 
   /* We need to know whether this is a PE file, because in PE files,
      unlike standard COFF files, symbol values are stored as offsets
      from the section address, rather than as absolute addresses.
      FIXME: We should use BFD to read the symbol table, and thus avoid
      this problem.  */
-  pe_file = strncmp (bfd_get_target (objfile->obfd), "pe", 2) == 0;
+  pe_file =
+    strncmp (bfd_get_target (objfile->obfd), "pe", 2) == 0
+    || strncmp (bfd_get_target (objfile->obfd), "epoc-pe", 7) == 0;
 
 /* End of warning */
 
   /* Read the line number table, all at once.  */
   info->min_lineno_offset = 0;
   info->max_lineno_offset = 0;
-  bfd_map_over_sections (abfd, find_linenos, (PTR) info);
+  bfd_map_over_sections (abfd, find_linenos, (void *) info);
 
-  make_cleanup ((make_cleanup_func) free_linetab, 0);
-  val = init_lineno (abfd, info->min_lineno_offset, 
+  make_cleanup (free_linetab_cleanup, 0 /*ignore*/);
+  val = init_lineno (abfd, info->min_lineno_offset,
 		     info->max_lineno_offset - info->min_lineno_offset);
   if (val < 0)
     error ("\"%s\": error reading line numbers\n", name);
 
   /* Now read the string table, all at once.  */
 
-  make_cleanup ((make_cleanup_func) free_stringtab, 0);
+  make_cleanup (free_stringtab_cleanup, 0 /*ignore*/);
   val = init_stringtab (abfd, stringtab_offset);
   if (val < 0)
     error ("\"%s\": can't get string table", name);
 
   init_minimal_symbol_collection ();
-  make_cleanup ((make_cleanup_func) discard_minimal_symbols, 0);
+  make_cleanup_discard_minimal_symbols ();
 
   /* Now that the executable file is positioned at symbol table,
      process it and define symbols accordingly.  */
 
-  coff_symtab_read ((long) symtab_offset, num_symbols, section_offsets,
-		    objfile);
+  coff_symtab_read ((long) symtab_offset, num_symbols, objfile);
 
   /* Sort symbols alphabetically within each block.  */
 
   {
     struct symtab *s;
 
-    for (s = objfile -> symtabs; s != NULL; s = s -> next)
+    for (s = objfile->symtabs; s != NULL; s = s->next)
       sort_symtab_syms (s);
   }
 
@@ -749,30 +633,41 @@ coff_symfile_read (objfile, section_offsets, mainline)
 
   install_minimal_symbols (objfile);
 
-  bfd_map_over_sections (abfd, coff_locate_sections, (PTR) info);
+  bfd_map_over_sections (abfd, coff_locate_sections, (void *) info);
 
   if (info->stabsects)
     {
+      if (!info->stabstrsect)
+	{
+	  error (("The debugging information in `%s' is corrupted.\n"
+		  "The file has a `.stabs' section, but no `.stabstr' "
+		  "section."),
+		 name);
+	}
+
       /* FIXME: dubious.  Why can't we use something normal like
-	 bfd_get_section_contents?  */
+         bfd_get_section_contents?  */
       bfd_seek (abfd, abfd->where, 0);
 
       stabstrsize = bfd_section_size (abfd, info->stabstrsect);
 
       coffstab_build_psymtabs (objfile,
-			       section_offsets,
 			       mainline,
 			       info->textaddr, info->textsize,
 			       info->stabsects,
 			       info->stabstrsect->filepos, stabstrsize);
+    }
+  if (dwarf2_has_info (abfd))
+    {
+      /* DWARF2 sections.  */
+      dwarf2_build_psymtabs (objfile, mainline);
     }
 
   do_cleanups (back_to);
 }
 
 static void
-coff_new_init (ignore)
-     struct objfile *ignore;
+coff_new_init (struct objfile *ignore)
 {
 }
 
@@ -782,27 +677,26 @@ coff_new_init (ignore)
    objfile struct from the global list of known objfiles. */
 
 static void
-coff_symfile_finish (objfile)
-     struct objfile *objfile;
+coff_symfile_finish (struct objfile *objfile)
 {
-  if (objfile -> sym_private != NULL)
+  if (objfile->sym_private != NULL)
     {
-      mfree (objfile -> md, objfile -> sym_private);
+      xmfree (objfile->md, objfile->sym_private);
     }
-}
 
+  /* Let stabs reader clean up */
+  stabsread_clear_cache ();
+}
 
+
 /* Given pointers to a symbol table in coff style exec file,
    analyze them and create struct symtab's describing the symbols.
    NSYMS is the number of symbols in the symbol table.
    We read them one at a time using read_one_sym ().  */
 
 static void
-coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
-     long symtab_offset;
-     int nsyms;
-     struct section_offsets *section_offsets;
-     struct objfile *objfile;
+coff_symtab_read (long symtab_offset, unsigned int nsyms,
+		  struct objfile *objfile)
 {
   register struct context_stack *new;
   struct coff_symbol coff_symbol;
@@ -820,6 +714,7 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
   char *filestring = "";
   int depth = 0;
   int fcn_first_line = 0;
+  CORE_ADDR fcn_first_line_addr = 0;
   int fcn_last_line = 0;
   int fcn_start_addr = 0;
   long fcn_line_ptr = 0;
@@ -853,8 +748,8 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
   last_source_file = NULL;
   memset (opaque_type_chain, 0, sizeof opaque_type_chain);
 
-  if (type_vector)			/* Get rid of previous one */
-    free ((PTR) type_vector);
+  if (type_vector)		/* Get rid of previous one */
+    xfree (type_vector);
   type_vector_length = 160;
   type_vector = (struct type **)
     xmalloc (type_vector_length * sizeof (struct type *));
@@ -888,7 +783,7 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
       if (ISFCN (cs->c_type) && cs->c_sclass != C_TPDEF)
 	{
 	  /* Record all functions -- external and static -- in minsyms. */
-	  tmpaddr = cs->c_value + ANOFFSET (section_offsets, SECT_OFF_TEXT);
+	  tmpaddr = cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
 	  record_minimal_symbol (cs->c_name, tmpaddr, mst_text, objfile);
 
 	  fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
@@ -901,50 +796,51 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
 
       switch (cs->c_sclass)
 	{
-	  case C_EFCN:
-	  case C_EXTDEF:
-	  case C_ULABEL:
-	  case C_USTATIC:
-	  case C_LINE:
-	  case C_ALIAS:
-	  case C_HIDDEN:
-	    complain (&bad_sclass_complaint, cs->c_name);
-	    break;
+	case C_EFCN:
+	case C_EXTDEF:
+	case C_ULABEL:
+	case C_USTATIC:
+	case C_LINE:
+	case C_ALIAS:
+	case C_HIDDEN:
+	  complain (&bad_sclass_complaint, cs->c_name);
+	  break;
 
-	  case C_FILE:
-	    /* c_value field contains symnum of next .file entry in table
-	       or symnum of first global after last .file.  */
-	    next_file_symnum = cs->c_value;
-	    if (cs->c_naux > 0)
-	      filestring = coff_getfilename (&main_aux);
-	    else
-	      filestring = "";
+	case C_FILE:
+	  /* c_value field contains symnum of next .file entry in table
+	     or symnum of first global after last .file.  */
+	  next_file_symnum = cs->c_value;
+	  if (cs->c_naux > 0)
+	    filestring = coff_getfilename (&main_aux);
+	  else
+	    filestring = "";
 
-	    /* Complete symbol table for last object file
-	       containing debugging information.  */
-	    if (last_source_file)
-	      {
-		coff_end_symtab (objfile);
-		coff_start_symtab (filestring);
-	      }
-	    in_source_file = 1;
-	    break;
+	  /* Complete symbol table for last object file
+	     containing debugging information.  */
+	  if (last_source_file)
+	    {
+	      coff_end_symtab (objfile);
+	      coff_start_symtab (filestring);
+	    }
+	  in_source_file = 1;
+	  break;
 
 	  /* C_LABEL is used for labels and static functions.  Including
 	     it here allows gdb to see static functions when no debug
 	     info is available.  */
-	  case C_LABEL:
-	    /* However, labels within a function can make weird backtraces,
-	       so filter them out (from phdm@macqel.be). */
-	    if (within_function)
-	      break;
-          case C_STAT:
-	  case C_THUMBLABEL:
-	  case C_THUMBSTAT:
-	  case C_THUMBSTATFUNC:
-	    if (cs->c_name[0] == '.')
-	      {
-		if (STREQ (cs->c_name, ".text")) {
+	case C_LABEL:
+	  /* However, labels within a function can make weird backtraces,
+	     so filter them out (from phdm@macqel.be). */
+	  if (within_function)
+	    break;
+	case C_STAT:
+	case C_THUMBLABEL:
+	case C_THUMBSTAT:
+	case C_THUMBSTATFUNC:
+	  if (cs->c_name[0] == '.')
+	    {
+	      if (STREQ (cs->c_name, ".text"))
+		{
 		  /* FIXME:  don't wire in ".text" as section name
 		     or symbol name! */
 		  /* Check for in_source_file deals with case of
@@ -952,236 +848,247 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
 		     followed by a later file with no symbols.  */
 		  if (in_source_file)
 		    complete_symtab (filestring,
-				     cs->c_value + ANOFFSET (section_offsets, SECT_OFF_TEXT),
+		    cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)),
 				     main_aux.x_scn.x_scnlen);
 		  in_source_file = 0;
 		}
-		/* flush rest of '.' symbols */
-		break;
-	      }
-	    else if (!SDB_TYPE (cs->c_type)
-		     && cs->c_name[0] == 'L'
-		     && (strncmp (cs->c_name, "LI%", 3) == 0
-			 || strncmp (cs->c_name, "LF%", 3) == 0
-			 || strncmp (cs->c_name,"LC%",3) == 0
-			 || strncmp (cs->c_name,"LP%",3) == 0
-			 || strncmp (cs->c_name,"LPB%",4) == 0
-			 || strncmp (cs->c_name,"LBB%",4) == 0
-			 || strncmp (cs->c_name,"LBE%",4) == 0
-			 || strncmp (cs->c_name,"LPBX%",5) == 0))
-	      /* At least on a 3b1, gcc generates swbeg and string labels
-		 that look like this.  Ignore them.  */
+	      /* flush rest of '.' symbols */
 	      break;
-	    /* fall in for static symbols that don't start with '.' */
-	  case C_THUMBEXT:
-	  case C_THUMBEXTFUNC:
-	  case C_EXT:
+	    }
+	  else if (!SDB_TYPE (cs->c_type)
+		   && cs->c_name[0] == 'L'
+		   && (strncmp (cs->c_name, "LI%", 3) == 0
+		       || strncmp (cs->c_name, "LF%", 3) == 0
+		       || strncmp (cs->c_name, "LC%", 3) == 0
+		       || strncmp (cs->c_name, "LP%", 3) == 0
+		       || strncmp (cs->c_name, "LPB%", 4) == 0
+		       || strncmp (cs->c_name, "LBB%", 4) == 0
+		       || strncmp (cs->c_name, "LBE%", 4) == 0
+		       || strncmp (cs->c_name, "LPBX%", 5) == 0))
+	    /* At least on a 3b1, gcc generates swbeg and string labels
+	       that look like this.  Ignore them.  */
+	    break;
+	  /* fall in for static symbols that don't start with '.' */
+	case C_THUMBEXT:
+	case C_THUMBEXTFUNC:
+	case C_EXT:
+	  {
+	    /* Record it in the minimal symbols regardless of
+	       SDB_TYPE.  This parallels what we do for other debug
+	       formats, and probably is needed to make
+	       print_address_symbolic work right without the (now
+	       gone) "set fast-symbolic-addr off" kludge.  */
+
+	    /* FIXME: should use mst_abs, and not relocate, if absolute.  */
+	    enum minimal_symbol_type ms_type;
+	    int sec;
+
+	    if (cs->c_secnum == N_UNDEF)
+	      {
+		/* This is a common symbol.  See if the target
+		   environment knows where it has been relocated to.  */
+		CORE_ADDR reladdr;
+		if (target_lookup_symbol (cs->c_name, &reladdr))
+		  {
+		    /* Error in lookup; ignore symbol.  */
+		    break;
+		  }
+		tmpaddr = reladdr;
+		/* The address has already been relocated; make sure that
+		   objfile_relocate doesn't relocate it again.  */
+		sec = -2;
+		ms_type = cs->c_sclass == C_EXT
+		  || cs->c_sclass == C_THUMBEXT ?
+		  mst_bss : mst_file_bss;
+	      }
+	    else
+	      {
+		sec = cs_to_section (cs, objfile);
+		tmpaddr = cs->c_value;
+		if (cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
+		    || cs->c_sclass == C_THUMBEXT)
+		  tmpaddr += ANOFFSET (objfile->section_offsets, sec);
+
+		if (sec == SECT_OFF_TEXT (objfile))
+		  {
+		    ms_type =
+		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
+		      || cs->c_sclass == C_THUMBEXT ?
+		      mst_text : mst_file_text;
+		    tmpaddr = SMASH_TEXT_ADDRESS (tmpaddr);
+		  }
+		else if (sec == SECT_OFF_DATA (objfile))
+		  {
+		    ms_type =
+		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
+		      mst_data : mst_file_data;
+		  }
+		else if (sec == SECT_OFF_BSS (objfile))
+		  {
+		    ms_type =
+		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
+		      mst_data : mst_file_data;
+		  }
+		else
+		  ms_type = mst_unknown;
+	      }
+
+	    if (cs->c_name[0] != '@' /* Skip tdesc symbols */ )
+	      {
+		struct minimal_symbol *msym;
+
+ 		/* FIXME: cagney/2001-02-01: The nasty (int) -> (long)
+                   -> (void*) cast is to ensure that that the value of
+                   cs->c_sclass can be correctly stored in a void
+                   pointer in MSYMBOL_INFO.  Better solutions
+                   welcome. */
+		gdb_assert (sizeof (void *) >= sizeof (cs->c_sclass));
+		msym = prim_record_minimal_symbol_and_info
+		  (cs->c_name, tmpaddr, ms_type, (void *) (long) cs->c_sclass,
+		   sec, NULL, objfile);
+		if (msym)
+		  COFF_MAKE_MSYMBOL_SPECIAL (cs->c_sclass, msym);
+	      }
+	    if (SDB_TYPE (cs->c_type))
+	      {
+		struct symbol *sym;
+		sym = process_coff_symbol
+		  (cs, &main_aux, objfile);
+		SYMBOL_VALUE (sym) = tmpaddr;
+		SYMBOL_SECTION (sym) = sec;
+	      }
+	  }
+	  break;
+
+	case C_FCN:
+	  if (STREQ (cs->c_name, ".bf"))
 	    {
-	      /* Record it in the minimal symbols regardless of
-		 SDB_TYPE.  This parallels what we do for other debug
-		 formats, and probably is needed to make
-		 print_address_symbolic work right without the (now
-		 gone) "set fast-symbolic-addr off" kludge.  */
+	      within_function = 1;
 
-	      /* FIXME: should use mst_abs, and not relocate, if absolute.  */
-	      enum minimal_symbol_type ms_type;
-	      int sec;
+	      /* value contains address of first non-init type code */
+	      /* main_aux.x_sym.x_misc.x_lnsz.x_lnno
+	         contains line number of '{' } */
+	      if (cs->c_naux != 1)
+		complain (&bf_no_aux_complaint, cs->c_symnum);
+	      fcn_first_line = main_aux.x_sym.x_misc.x_lnsz.x_lnno;
+	      fcn_first_line_addr = cs->c_value;
 
-	      if (cs->c_secnum == N_UNDEF)
+	      /* Might want to check that locals are 0 and
+	         context_stack_depth is zero, and complain if not.  */
+
+	      depth = 0;
+	      new = push_context (depth, fcn_start_addr);
+	      fcn_cs_saved.c_name = getsymname (&fcn_sym_saved);
+	      new->name =
+		process_coff_symbol (&fcn_cs_saved, &fcn_aux_saved, objfile);
+	    }
+	  else if (STREQ (cs->c_name, ".ef"))
+	    {
+	      if (!within_function)
+		error ("Bad coff function information\n");
+	      /* the value of .ef is the address of epilogue code;
+	         not useful for gdb.  */
+	      /* { main_aux.x_sym.x_misc.x_lnsz.x_lnno
+	         contains number of lines to '}' */
+
+	      if (context_stack_depth <= 0)
+		{		/* We attempted to pop an empty context stack */
+		  complain (&ef_stack_complaint, cs->c_symnum);
+		  within_function = 0;
+		  break;
+		}
+
+	      new = pop_context ();
+	      /* Stack must be empty now.  */
+	      if (context_stack_depth > 0 || new == NULL)
 		{
-		  /* This is a common symbol.  See if the target
-		     environment knows where it has been relocated to.  */
-		  CORE_ADDR reladdr;
-		  if (target_lookup_symbol (cs->c_name, &reladdr))
-		    {
-		      /* Error in lookup; ignore symbol.  */
-		      break;
-		    }
-		  tmpaddr = reladdr;
-		  /* The address has already been relocated; make sure that
-		     objfile_relocate doesn't relocate it again.  */
-		  sec = -2;
-		  ms_type = cs->c_sclass == C_EXT
-			    || cs->c_sclass == C_THUMBEXT ?
-			       mst_bss : mst_file_bss;
+		  complain (&ef_complaint, cs->c_symnum);
+		  within_function = 0;
+		  break;
+		}
+	      if (cs->c_naux != 1)
+		{
+		  complain (&ef_no_aux_complaint, cs->c_symnum);
+		  fcn_last_line = 0x7FFFFFFF;
 		}
 	      else
 		{
-		  sec = cs_to_section (cs, objfile);
-		  tmpaddr = cs->c_value;
-		  if (cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
-		      || cs->c_sclass == C_THUMBEXT)
-		    tmpaddr += ANOFFSET (section_offsets, sec);
-
-		  switch (sec)
-		    {
-		    case SECT_OFF_TEXT:
-		    case SECT_OFF_RODATA:
-		      ms_type =
-			cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
-					|| cs->c_sclass == C_THUMBEXT ?
-					  mst_text : mst_file_text;
-#ifdef SMASH_TEXT_ADDRESS
-		      if (tmpaddr & 1)	/* FIXME: delete this line */
-			SMASH_TEXT_ADDRESS (tmpaddr);
-#endif
-		      break;
-		    case SECT_OFF_DATA:
-		      ms_type =
-			cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
-			  mst_data : mst_file_data;
-		      break;
-		    case SECT_OFF_BSS:
-		      ms_type =
-			cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
-			  mst_data : mst_file_data;
-		      break;
-		    default:
-		      ms_type = mst_unknown;
-		      break;
-		    }
+		  fcn_last_line = main_aux.x_sym.x_misc.x_lnsz.x_lnno;
 		}
-
-	      if (cs->c_name[0] != '@' /* Skip tdesc symbols */)
-		{
-		  struct minimal_symbol *msym;
-
-		  msym = prim_record_minimal_symbol_and_info
-		  (cs->c_name, tmpaddr, ms_type, (char *)(long)cs->c_sclass, sec,
-		   NULL, objfile);
-#ifdef COFF_MAKE_MSYMBOL_SPECIAL
-		  if(msym)
-		    COFF_MAKE_MSYMBOL_SPECIAL(cs->c_sclass, msym);		
-#endif
-		}
-	      if (SDB_TYPE (cs->c_type))
-		{
-		  struct symbol *sym;
-		  sym = process_coff_symbol
-		    (cs, &main_aux, section_offsets, objfile);
-		  SYMBOL_VALUE (sym) = tmpaddr;
-		  SYMBOL_SECTION (sym) = sec;
-		}
-	    }
-	    break;
-
-	  case C_FCN:
-	    if (STREQ (cs->c_name, ".bf"))
-	      {
-		within_function = 1;
-
-		/* value contains address of first non-init type code */
-		/* main_aux.x_sym.x_misc.x_lnsz.x_lnno
-			    contains line number of '{' } */
-		if (cs->c_naux != 1)
-		  complain (&bf_no_aux_complaint, cs->c_symnum);
-		fcn_first_line = main_aux.x_sym.x_misc.x_lnsz.x_lnno;
-
-		/* Might want to check that locals are 0 and
-		   context_stack_depth is zero, and complain if not.  */
-
-		depth = 0;
-		new = push_context (depth, fcn_start_addr);
-		fcn_cs_saved.c_name = getsymname (&fcn_sym_saved);
-		new->name =
-		  process_coff_symbol (&fcn_cs_saved, &fcn_aux_saved,
-				       section_offsets, objfile);
-	      }
-	    else if (STREQ (cs->c_name, ".ef"))
-	      {
-		/* the value of .ef is the address of epilogue code;
-		   not useful for gdb.  */
-		/* { main_aux.x_sym.x_misc.x_lnsz.x_lnno
-			    contains number of lines to '}' */
-
-		if (context_stack_depth <= 0)
-		  {		/* We attempted to pop an empty context stack */
-		    complain (&ef_stack_complaint, cs->c_symnum);
-		    within_function = 0;
-		    break;
-		  }
-
-		new = pop_context ();
-		/* Stack must be empty now.  */
-		if (context_stack_depth > 0 || new == NULL)
-		  {
-		    complain (&ef_complaint, cs->c_symnum);
-		    within_function = 0;
-		    break;
-		  }
-		if (cs->c_naux != 1)
-		  {
-		    complain (&ef_no_aux_complaint, cs->c_symnum);
-		    fcn_last_line = 0x7FFFFFFF;
-		  }
-		else
-		  {
-		    fcn_last_line = main_aux.x_sym.x_misc.x_lnsz.x_lnno;
-		  }
+	      /* fcn_first_line is the line number of the opening '{'.
+	         Do not record it - because it would affect gdb's idea
+	         of the line number of the first statement of the function -
+	         except for one-line functions, for which it is also the line
+	         number of all the statements and of the closing '}', and
+	         for which we do not have any other statement-line-number. */
+	      if (fcn_last_line == 1)
+		record_line (current_subfile, fcn_first_line,
+			     fcn_first_line_addr);
+	      else
 		enter_linenos (fcn_line_ptr, fcn_first_line, fcn_last_line,
-			       section_offsets);
+			       objfile);
 
-		finish_block (new->name, &local_symbols, new->old_blocks,
-			      new->start_addr,
+	      finish_block (new->name, &local_symbols, new->old_blocks,
+			    new->start_addr,
 #if defined (FUNCTION_EPILOGUE_SIZE)
-			      /* This macro should be defined only on
-				 machines where the
-				 fcn_aux_saved.x_sym.x_misc.x_fsize
-				 field is always zero.
-				 So use the .bf record information that
-				 points to the epilogue and add the size
-				 of the epilogue.  */
-			      cs->c_value
-			      + FUNCTION_EPILOGUE_SIZE
-			      + ANOFFSET (section_offsets, SECT_OFF_TEXT),
+	      /* This macro should be defined only on
+	         machines where the
+	         fcn_aux_saved.x_sym.x_misc.x_fsize
+	         field is always zero.
+	         So use the .bf record information that
+	         points to the epilogue and add the size
+	         of the epilogue.  */
+			    cs->c_value
+			    + FUNCTION_EPILOGUE_SIZE
+			    + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)),
 #else
-			      fcn_cs_saved.c_value
-			      + fcn_aux_saved.x_sym.x_misc.x_fsize
-			      + ANOFFSET (section_offsets, SECT_OFF_TEXT),
+			    fcn_cs_saved.c_value
+			    + fcn_aux_saved.x_sym.x_misc.x_fsize
+			    + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)),
 #endif
-			      objfile
-			      );
-		within_function = 0;
-	      }
-	    break;
+			    objfile
+		);
+	      within_function = 0;
+	    }
+	  break;
 
-	  case C_BLOCK:
-	    if (STREQ (cs->c_name, ".bb"))
-	      {
-		tmpaddr = cs->c_value;
-		tmpaddr += ANOFFSET (section_offsets, SECT_OFF_TEXT);
-		push_context (++depth, tmpaddr);
-	      }
-	    else if (STREQ (cs->c_name, ".eb"))
-	      {
-		if (context_stack_depth <= 0)
-		  {		/* We attempted to pop an empty context stack */
-		    complain (&eb_stack_complaint, cs->c_symnum);
-		    break;
-		  }
+	case C_BLOCK:
+	  if (STREQ (cs->c_name, ".bb"))
+	    {
+	      tmpaddr = cs->c_value;
+	      tmpaddr += ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+	      push_context (++depth, tmpaddr);
+	    }
+	  else if (STREQ (cs->c_name, ".eb"))
+	    {
+	      if (context_stack_depth <= 0)
+		{		/* We attempted to pop an empty context stack */
+		  complain (&eb_stack_complaint, cs->c_symnum);
+		  break;
+		}
 
-		new = pop_context ();
-		if (depth-- != new->depth)
-		  {
-		    complain (&eb_complaint, symnum);
-		    break;
-		  }
-		if (local_symbols && context_stack_depth > 0)
-		  {
-		    tmpaddr =
-		      cs->c_value + ANOFFSET (section_offsets, SECT_OFF_TEXT);
-		    /* Make a block for the local symbols within.  */
-		    finish_block (0, &local_symbols, new->old_blocks,
-				  new->start_addr, tmpaddr, objfile);
-		  }
-		/* Now pop locals of block just finished.  */
-		local_symbols = new->locals;
-	      }
-	    break;
+	      new = pop_context ();
+	      if (depth-- != new->depth)
+		{
+		  complain (&eb_complaint, symnum);
+		  break;
+		}
+	      if (local_symbols && context_stack_depth > 0)
+		{
+		  tmpaddr =
+		    cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+		  /* Make a block for the local symbols within.  */
+		  finish_block (0, &local_symbols, new->old_blocks,
+				new->start_addr, tmpaddr, objfile);
+		}
+	      /* Now pop locals of block just finished.  */
+	      local_symbols = new->locals;
+	    }
+	  break;
 
-	  default:
-	    process_coff_symbol (cs, &main_aux, section_offsets, objfile);
-	    break;
+	default:
+	  process_coff_symbol (cs, &main_aux, objfile);
+	  break;
 	}
     }
 
@@ -1203,26 +1110,25 @@ coff_symtab_read (symtab_offset, nsyms, section_offsets, objfile)
    in internal_auxent form, and skip any other auxents.  */
 
 static void
-read_one_sym (cs, sym, aux)
-    register struct coff_symbol *cs;
-    register struct internal_syment *sym;
-    register union internal_auxent *aux;
+read_one_sym (register struct coff_symbol *cs,
+	      register struct internal_syment *sym,
+	      register union internal_auxent *aux)
 {
   int i;
 
   cs->c_symnum = symnum;
-  bfd_read (temp_sym, local_symesz, 1, nlist_bfd_global);
-  bfd_coff_swap_sym_in (symfile_bfd, temp_sym, (char *)sym);
+  bfd_bread (temp_sym, local_symesz, nlist_bfd_global);
+  bfd_coff_swap_sym_in (symfile_bfd, temp_sym, (char *) sym);
   cs->c_naux = sym->n_numaux & 0xff;
   if (cs->c_naux >= 1)
     {
-    bfd_read (temp_aux, local_auxesz, 1, nlist_bfd_global);
-    bfd_coff_swap_aux_in (symfile_bfd, temp_aux, sym->n_type, sym->n_sclass,
-			  0, cs->c_naux, (char *)aux);
-    /* If more than one aux entry, read past it (only the first aux
-       is important). */
-    for (i = 1; i < cs->c_naux; i++)
-      bfd_read (temp_aux, local_auxesz, 1, nlist_bfd_global);
+      bfd_bread (temp_aux, local_auxesz, nlist_bfd_global);
+      bfd_coff_swap_aux_in (symfile_bfd, temp_aux, sym->n_type, sym->n_sclass,
+			    0, cs->c_naux, (char *) aux);
+      /* If more than one aux entry, read past it (only the first aux
+         is important). */
+      for (i = 1; i < cs->c_naux; i++)
+	bfd_bread (temp_aux, local_auxesz, nlist_bfd_global);
     }
   cs->c_name = getsymname (sym);
   cs->c_value = sym->n_value;
@@ -1234,7 +1140,7 @@ read_one_sym (cs, sym, aux)
 
 #if 0
   if (cs->c_sclass & 128)
-    printf("thumb symbol %s, class 0x%x\n", cs->c_name, cs->c_sclass);
+    printf ("thumb symbol %s, class 0x%x\n", cs->c_name, cs->c_sclass);
 #endif
 
   symnum += 1 + cs->c_naux;
@@ -1273,9 +1179,7 @@ read_one_sym (cs, sym, aux)
 static char *stringtab = NULL;
 
 static int
-init_stringtab (abfd, offset)
-    bfd *abfd;
-    long offset;
+init_stringtab (bfd *abfd, long offset)
 {
   long length;
   int val;
@@ -1291,9 +1195,9 @@ init_stringtab (abfd, offset)
   if (bfd_seek (abfd, offset, 0) < 0)
     return -1;
 
-  val = bfd_read ((char *)lengthbuf, sizeof lengthbuf, 1, abfd);
+  val = bfd_bread ((char *) lengthbuf, sizeof lengthbuf, abfd);
   length = bfd_h_get_32 (symfile_bfd, lengthbuf);
-       
+
   /* If no string table is needed, then the file may end immediately
      after the symbols.  Just return with `stringtab' set to null. */
   if (val != sizeof lengthbuf || length < sizeof lengthbuf)
@@ -1303,10 +1207,11 @@ init_stringtab (abfd, offset)
   /* This is in target format (probably not very useful, and not currently
      used), not host format.  */
   memcpy (stringtab, lengthbuf, sizeof lengthbuf);
-  if (length == sizeof length)		/* Empty table -- just the count */
+  if (length == sizeof length)	/* Empty table -- just the count */
     return 0;
 
-  val = bfd_read (stringtab + sizeof lengthbuf, length - sizeof lengthbuf, 1, abfd);
+  val = bfd_bread (stringtab + sizeof lengthbuf, length - sizeof lengthbuf,
+		   abfd);
   if (val != length - sizeof lengthbuf || stringtab[length - 1] != '\0')
     return -1;
 
@@ -1314,24 +1219,29 @@ init_stringtab (abfd, offset)
 }
 
 static void
-free_stringtab ()
+free_stringtab (void)
 {
   if (stringtab)
-    free (stringtab);
+    xfree (stringtab);
   stringtab = NULL;
 }
 
-static char *
-getsymname (symbol_entry)
-    struct internal_syment *symbol_entry;
+static void
+free_stringtab_cleanup (void *ignore)
 {
-  static char buffer[SYMNMLEN+1];
+  free_stringtab ();
+}
+
+static char *
+getsymname (struct internal_syment *symbol_entry)
+{
+  static char buffer[SYMNMLEN + 1];
   char *result;
 
   if (symbol_entry->_n._n_n._n_zeroes == 0)
     {
       /* FIXME: Probably should be detecting corrupt symbol files by
-	 seeing whether offset points to within the stringtab.  */
+         seeing whether offset points to within the stringtab.  */
       result = stringtab + symbol_entry->_n._n_n._n_offset;
     }
   else
@@ -1348,8 +1258,7 @@ getsymname (symbol_entry)
    is only good for temporary use.  */
 
 static char *
-coff_getfilename (aux_entry)
-    union internal_auxent *aux_entry;
+coff_getfilename (union internal_auxent *aux_entry)
 {
   static char buffer[BUFSIZ];
   register char *temp;
@@ -1381,30 +1290,27 @@ static unsigned long linetab_size;
 /* Read in all the line numbers for fast lookups later.  Leave them in
    external (unswapped) format in memory; we'll swap them as we enter
    them into GDB's data structures.  */
- 
+
 static int
-init_lineno (abfd, offset, size)
-    bfd *abfd;
-    long offset;
-    int size;
+init_lineno (bfd *abfd, long offset, int size)
 {
   int val;
 
   linetab_offset = offset;
   linetab_size = size;
 
-  free_linetab();
+  free_linetab ();
 
   if (size == 0)
     return 0;
 
   if (bfd_seek (abfd, offset, 0) < 0)
     return -1;
-  
+
   /* Allocate the desired table, plus a sentinel */
   linetab = (char *) xmalloc (size + local_linesz);
 
-  val = bfd_read (linetab, size, 1, abfd);
+  val = bfd_bread (linetab, size, abfd);
   if (val != size)
     return -1;
 
@@ -1415,11 +1321,17 @@ init_lineno (abfd, offset, size)
 }
 
 static void
-free_linetab ()
+free_linetab (void)
 {
   if (linetab)
-    free (linetab);
+    xfree (linetab);
   linetab = NULL;
+}
+
+static void
+free_linetab_cleanup (void *ignore)
+{
+  free_linetab ();
 }
 
 #if !defined (L_LNNO32)
@@ -1427,25 +1339,22 @@ free_linetab ()
 #endif
 
 static void
-enter_linenos (file_offset, first_line, last_line, section_offsets)
-     long file_offset;
-     register int first_line;
-     register int last_line;
-     struct section_offsets *section_offsets;
+enter_linenos (long file_offset, register int first_line,
+	       register int last_line, struct objfile *objfile)
 {
   register char *rawptr;
   struct internal_lineno lptr;
 
   if (!linetab)
-    return ;
+    return;
   if (file_offset < linetab_offset)
     {
       complain (&lineno_complaint, file_offset);
       if (file_offset > linetab_size)	/* Too big to be an offset? */
 	return;
-      file_offset += linetab_offset;  /* Try reading at that linetab offset */
+      file_offset += linetab_offset;	/* Try reading at that linetab offset */
     }
-  
+
   rawptr = &linetab[file_offset - linetab_offset];
 
   /* skip first line entry for each function */
@@ -1453,23 +1362,22 @@ enter_linenos (file_offset, first_line, last_line, section_offsets)
   /* line numbers start at one for the first line of the function */
   first_line--;
 
-  for (;;) {
-    bfd_coff_swap_lineno_in (symfile_bfd, rawptr, &lptr);
-    rawptr += local_linesz;
-    /* The next function, or the sentinel, will have L_LNNO32 zero; we exit. */
-    if (L_LNNO32 (&lptr) && L_LNNO32 (&lptr) <= last_line)
-      coff_record_line (first_line + L_LNNO32 (&lptr),
-			lptr.l_addr.l_paddr
-			+ ANOFFSET (section_offsets, SECT_OFF_TEXT));
-    else
-      break;
-  } 
+  for (;;)
+    {
+      bfd_coff_swap_lineno_in (symfile_bfd, rawptr, &lptr);
+      rawptr += local_linesz;
+      /* The next function, or the sentinel, will have L_LNNO32 zero; we exit. */
+      if (L_LNNO32 (&lptr) && L_LNNO32 (&lptr) <= last_line)
+	record_line (current_subfile, first_line + L_LNNO32 (&lptr),
+		     lptr.l_addr.l_paddr
+		     + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)));
+      else
+	break;
+    }
 }
 
 static void
-patch_type (type, real_type)
-    struct type *type;
-    struct type *real_type;
+patch_type (struct type *type, struct type *real_type)
 {
   register struct type *target = TYPE_TARGET_TYPE (type);
   register struct type *real_target = TYPE_TARGET_TYPE (real_type);
@@ -1484,7 +1392,7 @@ patch_type (type, real_type)
   if (TYPE_NAME (real_target))
     {
       if (TYPE_NAME (target))
-	free (TYPE_NAME (target));
+	xfree (TYPE_NAME (target));
       TYPE_NAME (target) = concat (TYPE_NAME (real_target), NULL);
     }
 }
@@ -1493,21 +1401,20 @@ patch_type (type, real_type)
    so that they can be used to print out opaque data structures properly.  */
 
 static void
-patch_opaque_types (s)
-     struct symtab *s;
+patch_opaque_types (struct symtab *s)
 {
   register struct block *b;
   register int i;
   register struct symbol *real_sym;
-  
+
   /* Go through the per-file symbols only */
   b = BLOCKVECTOR_BLOCK (BLOCKVECTOR (s), STATIC_BLOCK);
   for (i = BLOCK_NSYMS (b) - 1; i >= 0; i--)
     {
       /* Find completed typedefs to use to fix opaque ones.
-	 Remove syms from the chain when their types are stored,
-	 but search the whole chain, as there may be several syms
-	 from different files with the same name.  */
+         Remove syms from the chain when their types are stored,
+         but search the whole chain, as there may be several syms
+         from different files with the same name.  */
       real_sym = BLOCK_SYM (b, i);
       if (SYMBOL_CLASS (real_sym) == LOC_TYPEDEF &&
 	  SYMBOL_NAMESPACE (real_sym) == VAR_NAMESPACE &&
@@ -1517,7 +1424,7 @@ patch_opaque_types (s)
 	  register char *name = SYMBOL_NAME (real_sym);
 	  register int hash = hashname (name);
 	  register struct symbol *sym, *prev;
-	  
+
 	  prev = 0;
 	  for (sym = opaque_type_chain[hash]; sym;)
 	    {
@@ -1532,9 +1439,9 @@ patch_opaque_types (s)
 		    {
 		      opaque_type_chain[hash] = SYMBOL_VALUE_CHAIN (sym);
 		    }
-		  
+
 		  patch_type (SYMBOL_TYPE (sym), SYMBOL_TYPE (real_sym));
-		  
+
 		  if (prev)
 		    {
 		      sym = SYMBOL_VALUE_CHAIN (prev);
@@ -1555,15 +1462,13 @@ patch_opaque_types (s)
 }
 
 static struct symbol *
-process_coff_symbol (cs, aux, section_offsets, objfile)
-     register struct coff_symbol *cs;
-     register union internal_auxent *aux;
-     struct section_offsets *section_offsets;
-     struct objfile *objfile;
+process_coff_symbol (register struct coff_symbol *cs,
+		     register union internal_auxent *aux,
+		     struct objfile *objfile)
 {
   register struct symbol *sym
-    = (struct symbol *) obstack_alloc (&objfile->symbol_obstack,
-				       sizeof (struct symbol));
+  = (struct symbol *) obstack_alloc (&objfile->symbol_obstack,
+				     sizeof (struct symbol));
   char *name;
 
   memset (sym, 0, sizeof (struct symbol));
@@ -1581,9 +1486,9 @@ process_coff_symbol (cs, aux, section_offsets, objfile)
 
   if (ISFCN (cs->c_type))
     {
-      SYMBOL_VALUE (sym) += ANOFFSET (section_offsets, SECT_OFF_TEXT);
-       SYMBOL_TYPE(sym) = 
-	 lookup_function_type (decode_function_type (cs, cs->c_type, aux));
+      SYMBOL_VALUE (sym) += ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+      SYMBOL_TYPE (sym) =
+	lookup_function_type (decode_function_type (cs, cs->c_type, aux));
 
       SYMBOL_CLASS (sym) = LOC_BLOCK;
       if (cs->c_sclass == C_STAT || cs->c_sclass == C_THUMBSTAT
@@ -1598,181 +1503,183 @@ process_coff_symbol (cs, aux, section_offsets, objfile)
       SYMBOL_TYPE (sym) = decode_type (cs, cs->c_type, aux);
       switch (cs->c_sclass)
 	{
-	  case C_NULL:
-	    break;
+	case C_NULL:
+	  break;
 
-	  case C_AUTO:
-	    SYMBOL_CLASS (sym) = LOC_LOCAL;
-	    add_symbol_to_list (sym, &local_symbols);
-	    break;
+	case C_AUTO:
+	  SYMBOL_CLASS (sym) = LOC_LOCAL;
+	  add_symbol_to_list (sym, &local_symbols);
+	  break;
 
-	  case C_THUMBEXT:
-	  case C_THUMBEXTFUNC:
-	  case C_EXT:
-	    SYMBOL_CLASS (sym) = LOC_STATIC;
-	    SYMBOL_VALUE_ADDRESS (sym) = (CORE_ADDR) cs->c_value;
-	    SYMBOL_VALUE_ADDRESS (sym) += ANOFFSET (section_offsets, SECT_OFF_TEXT);
-	    add_symbol_to_list (sym, &global_symbols);
-	    break;
+	case C_THUMBEXT:
+	case C_THUMBEXTFUNC:
+	case C_EXT:
+	  SYMBOL_CLASS (sym) = LOC_STATIC;
+	  SYMBOL_VALUE_ADDRESS (sym) = (CORE_ADDR) cs->c_value;
+	  SYMBOL_VALUE_ADDRESS (sym) += ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+	  add_symbol_to_list (sym, &global_symbols);
+	  break;
 
-	  case C_THUMBSTAT:
-	  case C_THUMBSTATFUNC:
-	  case C_STAT:
-	    SYMBOL_CLASS (sym) = LOC_STATIC;
-	    SYMBOL_VALUE_ADDRESS (sym) = (CORE_ADDR) cs->c_value;
-	    SYMBOL_VALUE_ADDRESS (sym) += ANOFFSET (section_offsets, SECT_OFF_TEXT);
-	    if (within_function) {
+	case C_THUMBSTAT:
+	case C_THUMBSTATFUNC:
+	case C_STAT:
+	  SYMBOL_CLASS (sym) = LOC_STATIC;
+	  SYMBOL_VALUE_ADDRESS (sym) = (CORE_ADDR) cs->c_value;
+	  SYMBOL_VALUE_ADDRESS (sym) += ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+	  if (within_function)
+	    {
 	      /* Static symbol of local scope */
 	      add_symbol_to_list (sym, &local_symbols);
 	    }
-	    else {
+	  else
+	    {
 	      /* Static symbol at top level of file */
 	      add_symbol_to_list (sym, &file_symbols);
 	    }
-	    break;
+	  break;
 
 #ifdef C_GLBLREG		/* AMD coff */
-	  case C_GLBLREG:
+	case C_GLBLREG:
 #endif
-	  case C_REG:
-	    SYMBOL_CLASS (sym) = LOC_REGISTER;
-	    SYMBOL_VALUE (sym) = SDB_REG_TO_REGNUM(cs->c_value);
-	    add_symbol_to_list (sym, &local_symbols);
-	    break;
+	case C_REG:
+	  SYMBOL_CLASS (sym) = LOC_REGISTER;
+	  SYMBOL_VALUE (sym) = SDB_REG_TO_REGNUM (cs->c_value);
+	  add_symbol_to_list (sym, &local_symbols);
+	  break;
 
-	  case C_THUMBLABEL:
-	  case C_LABEL:
-	    break;
+	case C_THUMBLABEL:
+	case C_LABEL:
+	  break;
 
-	  case C_ARG:
-	    SYMBOL_CLASS (sym) = LOC_ARG;
-	    add_symbol_to_list (sym, &local_symbols);
+	case C_ARG:
+	  SYMBOL_CLASS (sym) = LOC_ARG;
+	  add_symbol_to_list (sym, &local_symbols);
 #if !defined (BELIEVE_PCC_PROMOTION)
-	    if (TARGET_BYTE_ORDER == BIG_ENDIAN)
-	      {
-		/* If PCC says a parameter is a short or a char,
-		   aligned on an int boundary, realign it to the
-		   "little end" of the int.  */
-		struct type *temptype;
-		temptype = lookup_fundamental_type (current_objfile,
-						    FT_INTEGER);
-		if (TYPE_LENGTH (SYMBOL_TYPE (sym)) < TYPE_LENGTH (temptype)
-		    && TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_INT
-		    && 0 == SYMBOL_VALUE (sym) % TYPE_LENGTH (temptype))
-		  {
-		    SYMBOL_VALUE (sym) +=
-		      TYPE_LENGTH (temptype)
-			- TYPE_LENGTH (SYMBOL_TYPE (sym));
-		  }
-	      }
+	  if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
+	    {
+	      /* If PCC says a parameter is a short or a char,
+	         aligned on an int boundary, realign it to the
+	         "little end" of the int.  */
+	      struct type *temptype;
+	      temptype = lookup_fundamental_type (current_objfile,
+						  FT_INTEGER);
+	      if (TYPE_LENGTH (SYMBOL_TYPE (sym)) < TYPE_LENGTH (temptype)
+		  && TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_INT
+		  && 0 == SYMBOL_VALUE (sym) % TYPE_LENGTH (temptype))
+		{
+		  SYMBOL_VALUE (sym) +=
+		    TYPE_LENGTH (temptype)
+		    - TYPE_LENGTH (SYMBOL_TYPE (sym));
+		}
+	    }
 #endif
-	    break;
+	  break;
 
-	  case C_REGPARM:
-	    SYMBOL_CLASS (sym) = LOC_REGPARM;
-	    SYMBOL_VALUE (sym) = SDB_REG_TO_REGNUM(cs->c_value);
-	    add_symbol_to_list (sym, &local_symbols);
+	case C_REGPARM:
+	  SYMBOL_CLASS (sym) = LOC_REGPARM;
+	  SYMBOL_VALUE (sym) = SDB_REG_TO_REGNUM (cs->c_value);
+	  add_symbol_to_list (sym, &local_symbols);
 #if !defined (BELIEVE_PCC_PROMOTION)
-	    /* FIXME:  This should retain the current type, since it's just
-	       a register value.  gnu@adobe, 26Feb93 */
+	  /* FIXME:  This should retain the current type, since it's just
+	     a register value.  gnu@adobe, 26Feb93 */
+	  {
+	    /* If PCC says a parameter is a short or a char,
+	       it is really an int.  */
+	    struct type *temptype;
+	    temptype =
+	      lookup_fundamental_type (current_objfile, FT_INTEGER);
+	    if (TYPE_LENGTH (SYMBOL_TYPE (sym)) < TYPE_LENGTH (temptype)
+		&& TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_INT)
 	      {
-	        /* If PCC says a parameter is a short or a char,
-		   it is really an int.  */
-		struct type *temptype;
-		temptype =
-		  lookup_fundamental_type (current_objfile, FT_INTEGER);
-		if (TYPE_LENGTH (SYMBOL_TYPE (sym)) < TYPE_LENGTH (temptype)
-		    && TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_INT)
-		  {
-		    SYMBOL_TYPE (sym) =
-		      (TYPE_UNSIGNED (SYMBOL_TYPE (sym))
-		       ? lookup_fundamental_type (current_objfile,
-						  FT_UNSIGNED_INTEGER)
-		       : temptype);
-		  }
+		SYMBOL_TYPE (sym) =
+		  (TYPE_UNSIGNED (SYMBOL_TYPE (sym))
+		   ? lookup_fundamental_type (current_objfile,
+					      FT_UNSIGNED_INTEGER)
+		   : temptype);
 	      }
+	  }
 #endif
-	    break;
-	    
-	  case C_TPDEF:
-	    SYMBOL_CLASS (sym) = LOC_TYPEDEF;
-	    SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
+	  break;
 
-	    /* If type has no name, give it one */
-	    if (TYPE_NAME (SYMBOL_TYPE (sym)) == 0)
-	      {
-		if (TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_PTR
-		    || TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_FUNC)
-		  {
-		    /* If we are giving a name to a type such as "pointer to
-		       foo" or "function returning foo", we better not set
-		       the TYPE_NAME.  If the program contains "typedef char
-		       *caddr_t;", we don't want all variables of type char
-		       * to print as caddr_t.  This is not just a
-		       consequence of GDB's type management; CC and GCC (at
-		       least through version 2.4) both output variables of
-		       either type char * or caddr_t with the type
-		       refering to the C_TPDEF symbol for caddr_t.  If a future
-		       compiler cleans this up it GDB is not ready for it
-		       yet, but if it becomes ready we somehow need to
-		       disable this check (without breaking the PCC/GCC2.4
-		       case).
+	case C_TPDEF:
+	  SYMBOL_CLASS (sym) = LOC_TYPEDEF;
+	  SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
 
-		       Sigh.
+	  /* If type has no name, give it one */
+	  if (TYPE_NAME (SYMBOL_TYPE (sym)) == 0)
+	    {
+	      if (TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_PTR
+		  || TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_FUNC)
+		{
+		  /* If we are giving a name to a type such as "pointer to
+		     foo" or "function returning foo", we better not set
+		     the TYPE_NAME.  If the program contains "typedef char
+		     *caddr_t;", we don't want all variables of type char
+		     * to print as caddr_t.  This is not just a
+		     consequence of GDB's type management; CC and GCC (at
+		     least through version 2.4) both output variables of
+		     either type char * or caddr_t with the type
+		     refering to the C_TPDEF symbol for caddr_t.  If a future
+		     compiler cleans this up it GDB is not ready for it
+		     yet, but if it becomes ready we somehow need to
+		     disable this check (without breaking the PCC/GCC2.4
+		     case).
 
-		       Fortunately, this check seems not to be necessary
-		       for anything except pointers or functions.  */
-		    ;
-		  }
-		else
-		  TYPE_NAME (SYMBOL_TYPE (sym)) =
-		    concat (SYMBOL_NAME (sym), NULL);
-	      }
+		     Sigh.
+
+		     Fortunately, this check seems not to be necessary
+		     for anything except pointers or functions.  */
+		  ;
+		}
+	      else
+		TYPE_NAME (SYMBOL_TYPE (sym)) =
+		  concat (SYMBOL_NAME (sym), NULL);
+	    }
 #ifdef CXUX_TARGET
-	    /* Ignore vendor section for Harris CX/UX targets. */
-            else if (cs->c_name[0] == '$') 
-	      break;
+	  /* Ignore vendor section for Harris CX/UX targets. */
+	  else if (cs->c_name[0] == '$')
+	    break;
 #endif /* CXUX_TARGET */
 
-	    /* Keep track of any type which points to empty structured type,
-		so it can be filled from a definition from another file.  A
-		simple forward reference (TYPE_CODE_UNDEF) is not an
-		empty structured type, though; the forward references
-		work themselves out via the magic of coff_lookup_type.  */
-	    if (TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_PTR &&
-		TYPE_LENGTH (TYPE_TARGET_TYPE (SYMBOL_TYPE (sym))) == 0 &&
-		TYPE_CODE   (TYPE_TARGET_TYPE (SYMBOL_TYPE (sym))) !=
-						TYPE_CODE_UNDEF)
-	      {
-		register int i = hashname (SYMBOL_NAME (sym));
+	  /* Keep track of any type which points to empty structured type,
+	     so it can be filled from a definition from another file.  A
+	     simple forward reference (TYPE_CODE_UNDEF) is not an
+	     empty structured type, though; the forward references
+	     work themselves out via the magic of coff_lookup_type.  */
+	  if (TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_PTR &&
+	      TYPE_LENGTH (TYPE_TARGET_TYPE (SYMBOL_TYPE (sym))) == 0 &&
+	      TYPE_CODE (TYPE_TARGET_TYPE (SYMBOL_TYPE (sym))) !=
+	      TYPE_CODE_UNDEF)
+	    {
+	      register int i = hashname (SYMBOL_NAME (sym));
 
-		SYMBOL_VALUE_CHAIN (sym) = opaque_type_chain[i];
-		opaque_type_chain[i] = sym;
-	      }
-	    add_symbol_to_list (sym, &file_symbols);
-	    break;
+	      SYMBOL_VALUE_CHAIN (sym) = opaque_type_chain[i];
+	      opaque_type_chain[i] = sym;
+	    }
+	  add_symbol_to_list (sym, &file_symbols);
+	  break;
 
-	  case C_STRTAG:
-	  case C_UNTAG:
-	  case C_ENTAG:
-	    SYMBOL_CLASS (sym) = LOC_TYPEDEF;
-	    SYMBOL_NAMESPACE (sym) = STRUCT_NAMESPACE;
+	case C_STRTAG:
+	case C_UNTAG:
+	case C_ENTAG:
+	  SYMBOL_CLASS (sym) = LOC_TYPEDEF;
+	  SYMBOL_NAMESPACE (sym) = STRUCT_NAMESPACE;
 
-            /* Some compilers try to be helpful by inventing "fake"
-               names for anonymous enums, structures, and unions, like
-               "~0fake" or ".0fake".  Thanks, but no thanks... */
-	    if (TYPE_TAG_NAME (SYMBOL_TYPE (sym)) == 0)
-	      if (SYMBOL_NAME(sym) != NULL
-		  && *SYMBOL_NAME(sym) != '~'
-		  && *SYMBOL_NAME(sym) != '.')
-		TYPE_TAG_NAME (SYMBOL_TYPE (sym)) =
-		  concat (SYMBOL_NAME (sym), NULL);
+	  /* Some compilers try to be helpful by inventing "fake"
+	     names for anonymous enums, structures, and unions, like
+	     "~0fake" or ".0fake".  Thanks, but no thanks... */
+	  if (TYPE_TAG_NAME (SYMBOL_TYPE (sym)) == 0)
+	    if (SYMBOL_NAME (sym) != NULL
+		&& *SYMBOL_NAME (sym) != '~'
+		&& *SYMBOL_NAME (sym) != '.')
+	      TYPE_TAG_NAME (SYMBOL_TYPE (sym)) =
+		concat (SYMBOL_NAME (sym), NULL);
 
-	    add_symbol_to_list (sym, &file_symbols);
-	    break;
+	  add_symbol_to_list (sym, &file_symbols);
+	  break;
 
-	  default:
-	    break;
+	default:
+	  break;
 	}
     }
   return sym;
@@ -1781,10 +1688,8 @@ process_coff_symbol (cs, aux, section_offsets, objfile)
 /* Decode a coff type specifier;  return the type that is meant.  */
 
 static struct type *
-decode_type (cs, c_type, aux)
-     register struct coff_symbol *cs;
-     unsigned int c_type;
-     register union internal_auxent *aux;
+decode_type (register struct coff_symbol *cs, unsigned int c_type,
+	     register union internal_auxent *aux)
 {
   register struct type *type = 0;
   unsigned int new_c_type;
@@ -1862,13 +1767,11 @@ decode_type (cs, c_type, aux)
    return the type that the function returns.  */
 
 static struct type *
-decode_function_type (cs, c_type, aux)
-     register struct coff_symbol *cs;
-     unsigned int c_type;
-     register union internal_auxent *aux;
+decode_function_type (register struct coff_symbol *cs, unsigned int c_type,
+		      register union internal_auxent *aux)
 {
   if (aux->x_sym.x_tagndx.l == 0)
-    cs->c_naux = 0;	/* auxent refers to function, not base type */
+    cs->c_naux = 0;		/* auxent refers to function, not base type */
 
   return decode_type (cs, DECREF (c_type), aux);
 }
@@ -1876,149 +1779,147 @@ decode_function_type (cs, c_type, aux)
 /* basic C types */
 
 static struct type *
-decode_base_type (cs, c_type, aux)
-     register struct coff_symbol *cs;
-     unsigned int c_type;
-     register union internal_auxent *aux;
+decode_base_type (register struct coff_symbol *cs, unsigned int c_type,
+		  register union internal_auxent *aux)
 {
   struct type *type;
 
   switch (c_type)
     {
-      case T_NULL:
-        /* shows up with "void (*foo)();" structure members */
-	return lookup_fundamental_type (current_objfile, FT_VOID);
+    case T_NULL:
+      /* shows up with "void (*foo)();" structure members */
+      return lookup_fundamental_type (current_objfile, FT_VOID);
 
 #if 0
 /* DGUX actually defines both T_ARG and T_VOID to the same value.  */
 #ifdef T_ARG
-      case T_ARG:
-	/* Shows up in DGUX, I think.  Not sure where.  */
-	return lookup_fundamental_type (current_objfile, FT_VOID);	/* shouldn't show up here */
+    case T_ARG:
+      /* Shows up in DGUX, I think.  Not sure where.  */
+      return lookup_fundamental_type (current_objfile, FT_VOID);	/* shouldn't show up here */
 #endif
 #endif /* 0 */
 
 #ifdef T_VOID
-      case T_VOID:
-	/* Intel 960 COFF has this symbol and meaning.  */
-	return lookup_fundamental_type (current_objfile, FT_VOID);
+    case T_VOID:
+      /* Intel 960 COFF has this symbol and meaning.  */
+      return lookup_fundamental_type (current_objfile, FT_VOID);
 #endif
 
-      case T_CHAR:
-	return lookup_fundamental_type (current_objfile, FT_CHAR);
+    case T_CHAR:
+      return lookup_fundamental_type (current_objfile, FT_CHAR);
 
-      case T_SHORT:
-	return lookup_fundamental_type (current_objfile, FT_SHORT);
+    case T_SHORT:
+      return lookup_fundamental_type (current_objfile, FT_SHORT);
 
-      case T_INT:
-	return lookup_fundamental_type (current_objfile, FT_INTEGER);
+    case T_INT:
+      return lookup_fundamental_type (current_objfile, FT_INTEGER);
 
-      case T_LONG:
-	if (cs->c_sclass == C_FIELD
-	    && aux->x_sym.x_misc.x_lnsz.x_size > TARGET_LONG_BIT)
-	  return lookup_fundamental_type (current_objfile, FT_LONG_LONG);
-	else
-	  return lookup_fundamental_type (current_objfile, FT_LONG);
+    case T_LONG:
+      if (cs->c_sclass == C_FIELD
+	  && aux->x_sym.x_misc.x_lnsz.x_size > TARGET_LONG_BIT)
+	return lookup_fundamental_type (current_objfile, FT_LONG_LONG);
+      else
+	return lookup_fundamental_type (current_objfile, FT_LONG);
 
-      case T_FLOAT:
-	return lookup_fundamental_type (current_objfile, FT_FLOAT);
+    case T_FLOAT:
+      return lookup_fundamental_type (current_objfile, FT_FLOAT);
 
-      case T_DOUBLE:
-	return lookup_fundamental_type (current_objfile, FT_DBL_PREC_FLOAT);
+    case T_DOUBLE:
+      return lookup_fundamental_type (current_objfile, FT_DBL_PREC_FLOAT);
 
-      case T_LNGDBL:
-	return lookup_fundamental_type (current_objfile, FT_EXT_PREC_FLOAT);
+    case T_LNGDBL:
+      return lookup_fundamental_type (current_objfile, FT_EXT_PREC_FLOAT);
 
-      case T_STRUCT:
-	if (cs->c_naux != 1)
-	  {
-	    /* anonymous structure type */
-	    type = coff_alloc_type (cs->c_symnum);
-	    TYPE_CODE (type) = TYPE_CODE_STRUCT;
-	    TYPE_NAME (type) = NULL;
-	    /* This used to set the tag to "<opaque>".  But I think setting it
-	       to NULL is right, and the printing code can print it as
-	       "struct {...}".  */
-	    TYPE_TAG_NAME (type) = NULL;
-	    INIT_CPLUS_SPECIFIC(type);
-	    TYPE_LENGTH (type) = 0;
-	    TYPE_FIELDS (type) = 0;
-	    TYPE_NFIELDS (type) = 0;
-	  }
-	else
-	  {
-	    type = coff_read_struct_type (cs->c_symnum,
-				    aux->x_sym.x_misc.x_lnsz.x_size,
-				    aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
-	  }
-	return type;
-
-      case T_UNION:
-	if (cs->c_naux != 1)
-	  {
-	    /* anonymous union type */
-	    type = coff_alloc_type (cs->c_symnum);
-	    TYPE_NAME (type) = NULL;
-	    /* This used to set the tag to "<opaque>".  But I think setting it
-	       to NULL is right, and the printing code can print it as
-	       "union {...}".  */
-	    TYPE_TAG_NAME (type) = NULL;
-	    INIT_CPLUS_SPECIFIC(type);
-	    TYPE_LENGTH (type) = 0;
-	    TYPE_FIELDS (type) = 0;
-	    TYPE_NFIELDS (type) = 0;
-	  }
-	else
-	  {
-	    type = coff_read_struct_type (cs->c_symnum,
-				    aux->x_sym.x_misc.x_lnsz.x_size,
-				    aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
-	  }
-	TYPE_CODE (type) = TYPE_CODE_UNION;
-	return type;
-
-      case T_ENUM:
-	if (cs->c_naux != 1)
-	  {
-	    /* anonymous enum type */
-	    type = coff_alloc_type (cs->c_symnum);
-	    TYPE_CODE (type) = TYPE_CODE_ENUM;
-	    TYPE_NAME (type) = NULL;
-	    /* This used to set the tag to "<opaque>".  But I think setting it
-	       to NULL is right, and the printing code can print it as
-	       "enum {...}".  */
-	    TYPE_TAG_NAME (type) = NULL;
-	    TYPE_LENGTH (type) = 0;
-	    TYPE_FIELDS (type) = 0;
-	    TYPE_NFIELDS(type) = 0;
-	  }
-	else
-	  {
-	    type = coff_read_enum_type (cs->c_symnum,
+    case T_STRUCT:
+      if (cs->c_naux != 1)
+	{
+	  /* anonymous structure type */
+	  type = coff_alloc_type (cs->c_symnum);
+	  TYPE_CODE (type) = TYPE_CODE_STRUCT;
+	  TYPE_NAME (type) = NULL;
+	  /* This used to set the tag to "<opaque>".  But I think setting it
+	     to NULL is right, and the printing code can print it as
+	     "struct {...}".  */
+	  TYPE_TAG_NAME (type) = NULL;
+	  INIT_CPLUS_SPECIFIC (type);
+	  TYPE_LENGTH (type) = 0;
+	  TYPE_FIELDS (type) = 0;
+	  TYPE_NFIELDS (type) = 0;
+	}
+      else
+	{
+	  type = coff_read_struct_type (cs->c_symnum,
 					aux->x_sym.x_misc.x_lnsz.x_size,
-					aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
-	  }
-	return type;
+				      aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
+	}
+      return type;
 
-      case T_MOE:
-	/* shouldn't show up here */
-	break;
+    case T_UNION:
+      if (cs->c_naux != 1)
+	{
+	  /* anonymous union type */
+	  type = coff_alloc_type (cs->c_symnum);
+	  TYPE_NAME (type) = NULL;
+	  /* This used to set the tag to "<opaque>".  But I think setting it
+	     to NULL is right, and the printing code can print it as
+	     "union {...}".  */
+	  TYPE_TAG_NAME (type) = NULL;
+	  INIT_CPLUS_SPECIFIC (type);
+	  TYPE_LENGTH (type) = 0;
+	  TYPE_FIELDS (type) = 0;
+	  TYPE_NFIELDS (type) = 0;
+	}
+      else
+	{
+	  type = coff_read_struct_type (cs->c_symnum,
+					aux->x_sym.x_misc.x_lnsz.x_size,
+				      aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
+	}
+      TYPE_CODE (type) = TYPE_CODE_UNION;
+      return type;
 
-      case T_UCHAR:
-	return lookup_fundamental_type (current_objfile, FT_UNSIGNED_CHAR);
+    case T_ENUM:
+      if (cs->c_naux != 1)
+	{
+	  /* anonymous enum type */
+	  type = coff_alloc_type (cs->c_symnum);
+	  TYPE_CODE (type) = TYPE_CODE_ENUM;
+	  TYPE_NAME (type) = NULL;
+	  /* This used to set the tag to "<opaque>".  But I think setting it
+	     to NULL is right, and the printing code can print it as
+	     "enum {...}".  */
+	  TYPE_TAG_NAME (type) = NULL;
+	  TYPE_LENGTH (type) = 0;
+	  TYPE_FIELDS (type) = 0;
+	  TYPE_NFIELDS (type) = 0;
+	}
+      else
+	{
+	  type = coff_read_enum_type (cs->c_symnum,
+				      aux->x_sym.x_misc.x_lnsz.x_size,
+				      aux->x_sym.x_fcnary.x_fcn.x_endndx.l);
+	}
+      return type;
 
-      case T_USHORT:
-	return lookup_fundamental_type (current_objfile, FT_UNSIGNED_SHORT);
+    case T_MOE:
+      /* shouldn't show up here */
+      break;
 
-      case T_UINT:
-	return lookup_fundamental_type (current_objfile, FT_UNSIGNED_INTEGER);
+    case T_UCHAR:
+      return lookup_fundamental_type (current_objfile, FT_UNSIGNED_CHAR);
 
-      case T_ULONG:
-	if (cs->c_sclass == C_FIELD
-	    && aux->x_sym.x_misc.x_lnsz.x_size > TARGET_LONG_BIT)
-	  return lookup_fundamental_type (current_objfile, FT_UNSIGNED_LONG_LONG);
-	else
-	  return lookup_fundamental_type (current_objfile, FT_UNSIGNED_LONG);
+    case T_USHORT:
+      return lookup_fundamental_type (current_objfile, FT_UNSIGNED_SHORT);
+
+    case T_UINT:
+      return lookup_fundamental_type (current_objfile, FT_UNSIGNED_INTEGER);
+
+    case T_ULONG:
+      if (cs->c_sclass == C_FIELD
+	  && aux->x_sym.x_misc.x_lnsz.x_size > TARGET_LONG_BIT)
+	return lookup_fundamental_type (current_objfile, FT_UNSIGNED_LONG_LONG);
+      else
+	return lookup_fundamental_type (current_objfile, FT_UNSIGNED_LONG);
     }
   complain (&unexpected_type_complaint, cs->c_name);
   return lookup_fundamental_type (current_objfile, FT_VOID);
@@ -2030,10 +1931,7 @@ decode_base_type (cs, c_type, aux)
    object describing the type.  */
 
 static struct type *
-coff_read_struct_type (index, length, lastsym)
-     int index;
-     int length;
-     int lastsym;
+coff_read_struct_type (int index, int length, int lastsym)
 {
   struct nextfield
     {
@@ -2055,7 +1953,7 @@ coff_read_struct_type (index, length, lastsym)
 
   type = coff_alloc_type (index);
   TYPE_CODE (type) = TYPE_CODE_STRUCT;
-  INIT_CPLUS_SPECIFIC(type);
+  INIT_CPLUS_SPECIFIC (type);
   TYPE_LENGTH (type) = length;
 
   while (!done && symnum < lastsym && symnum < nlist_nsyms_global)
@@ -2066,46 +1964,46 @@ coff_read_struct_type (index, length, lastsym)
 
       switch (ms->c_sclass)
 	{
-	  case C_MOS:
-	  case C_MOU:
+	case C_MOS:
+	case C_MOU:
 
-	    /* Get space to record the next field's data.  */
-	    new = (struct nextfield *) alloca (sizeof (struct nextfield));
-	    new->next = list;
-	    list = new;
+	  /* Get space to record the next field's data.  */
+	  new = (struct nextfield *) alloca (sizeof (struct nextfield));
+	  new->next = list;
+	  list = new;
 
-	    /* Save the data.  */
-	    list->field.name =
-	      obsavestring (name,
-			    strlen (name),
-			    &current_objfile->symbol_obstack);
-	    FIELD_TYPE (list->field) = decode_type (ms, ms->c_type, &sub_aux);
-	    FIELD_BITPOS (list->field) = 8 * ms->c_value;
-	    FIELD_BITSIZE (list->field) = 0;
-	    nfields++;
-	    break;
+	  /* Save the data.  */
+	  list->field.name =
+	    obsavestring (name,
+			  strlen (name),
+			  &current_objfile->symbol_obstack);
+	  FIELD_TYPE (list->field) = decode_type (ms, ms->c_type, &sub_aux);
+	  FIELD_BITPOS (list->field) = 8 * ms->c_value;
+	  FIELD_BITSIZE (list->field) = 0;
+	  nfields++;
+	  break;
 
-	  case C_FIELD:
+	case C_FIELD:
 
-	    /* Get space to record the next field's data.  */
-	    new = (struct nextfield *) alloca (sizeof (struct nextfield));
-	    new->next = list;
-	    list = new;
+	  /* Get space to record the next field's data.  */
+	  new = (struct nextfield *) alloca (sizeof (struct nextfield));
+	  new->next = list;
+	  list = new;
 
-	    /* Save the data.  */
-	    list->field.name =
-	      obsavestring (name,
-			    strlen (name),
-			    &current_objfile->symbol_obstack);
-	    FIELD_TYPE (list->field) = decode_type (ms, ms->c_type, &sub_aux);
-	    FIELD_BITPOS (list->field) = ms->c_value;
-	    FIELD_BITSIZE (list->field) = sub_aux.x_sym.x_misc.x_lnsz.x_size;
-	    nfields++;
-	    break;
+	  /* Save the data.  */
+	  list->field.name =
+	    obsavestring (name,
+			  strlen (name),
+			  &current_objfile->symbol_obstack);
+	  FIELD_TYPE (list->field) = decode_type (ms, ms->c_type, &sub_aux);
+	  FIELD_BITPOS (list->field) = ms->c_value;
+	  FIELD_BITSIZE (list->field) = sub_aux.x_sym.x_misc.x_lnsz.x_size;
+	  nfields++;
+	  break;
 
-	  case C_EOS:
-	    done = 1;
-	    break;
+	case C_EOS:
+	  done = 1;
+	  break;
 	}
     }
   /* Now create the vector of fields, and record how big it is.  */
@@ -2128,10 +2026,7 @@ coff_read_struct_type (index, length, lastsym)
 
 /* ARGSUSED */
 static struct type *
-coff_read_enum_type (index, length, lastsym)
-     int index;
-     int length;
-     int lastsym;
+coff_read_enum_type (int index, int length, int lastsym)
 {
   register struct symbol *sym;
   register struct type *type;
@@ -2164,28 +2059,28 @@ coff_read_enum_type (index, length, lastsym)
 
       switch (ms->c_sclass)
 	{
-	  case C_MOE:
-	    sym = (struct symbol *) obstack_alloc
-	      (&current_objfile->symbol_obstack,
-	       sizeof (struct symbol));
-	    memset (sym, 0, sizeof (struct symbol));
+	case C_MOE:
+	  sym = (struct symbol *) obstack_alloc
+	    (&current_objfile->symbol_obstack,
+	     sizeof (struct symbol));
+	  memset (sym, 0, sizeof (struct symbol));
 
-	    SYMBOL_NAME (sym) =
-	      obsavestring (name, strlen (name),
-			    &current_objfile->symbol_obstack);
-	    SYMBOL_CLASS (sym) = LOC_CONST;
-	    SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
-	    SYMBOL_VALUE (sym) = ms->c_value;
-	    add_symbol_to_list (sym, symlist);
-	    nsyms++;
-	    break;
+	  SYMBOL_NAME (sym) =
+	    obsavestring (name, strlen (name),
+			  &current_objfile->symbol_obstack);
+	  SYMBOL_CLASS (sym) = LOC_CONST;
+	  SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
+	  SYMBOL_VALUE (sym) = ms->c_value;
+	  add_symbol_to_list (sym, symlist);
+	  nsyms++;
+	  break;
 
-	  case C_EOS:
-	    /* Sometimes the linker (on 386/ix 2.0.2 at least) screws
-	       up the count of how many symbols to read.  So stop
-	       on .eos.  */
-	    done = 1;
-	    break;
+	case C_EOS:
+	  /* Sometimes the linker (on 386/ix 2.0.2 at least) screws
+	     up the count of how many symbols to read.  So stop
+	     on .eos.  */
+	  done = 1;
+	  break;
 	}
     }
 
@@ -2194,7 +2089,7 @@ coff_read_enum_type (index, length, lastsym)
   if (length > 0)
     TYPE_LENGTH (type) = length;
   else
-    TYPE_LENGTH (type) = TARGET_INT_BIT / TARGET_CHAR_BIT; /* Assume ints */
+    TYPE_LENGTH (type) = TARGET_INT_BIT / TARGET_CHAR_BIT;	/* Assume ints */
   TYPE_CODE (type) = TYPE_CODE_ENUM;
   TYPE_NFIELDS (type) = nsyms;
   TYPE_FIELDS (type) = (struct field *)
@@ -2214,7 +2109,7 @@ coff_read_enum_type (index, length, lastsym)
 
       if (syms == osyms)
 	j = o_nsyms;
-      for (; j < syms->nsyms; j++,n++)
+      for (; j < syms->nsyms; j++, n++)
 	{
 	  struct symbol *xsym = syms->symbol[j];
 	  SYMBOL_TYPE (xsym) = type;
@@ -2239,17 +2134,16 @@ coff_read_enum_type (index, length, lastsym)
 static struct sym_fns coff_sym_fns =
 {
   bfd_target_coff_flavour,
-  coff_new_init,	/* sym_new_init: init anything gbl to entire symtab */
-  coff_symfile_init,	/* sym_init: read initial info, setup for sym_read() */
-  coff_symfile_read,	/* sym_read: read a symbol file into symtab */
-  coff_symfile_finish,	/* sym_finish: finished with file, cleanup */
-  default_symfile_offsets,
-			/* sym_offsets:  xlate external to internal form */
-  NULL			/* next: pointer to next struct sym_fns */
+  coff_new_init,		/* sym_new_init: init anything gbl to entire symtab */
+  coff_symfile_init,		/* sym_init: read initial info, setup for sym_read() */
+  coff_symfile_read,		/* sym_read: read a symbol file into symtab */
+  coff_symfile_finish,		/* sym_finish: finished with file, cleanup */
+  default_symfile_offsets,	/* sym_offsets:  xlate external to internal form */
+  NULL				/* next: pointer to next struct sym_fns */
 };
 
 void
-_initialize_coffread ()
+_initialize_coffread (void)
 {
   add_symtab_fns (&coff_sym_fns);
 }
