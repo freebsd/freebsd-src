@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id: setproctitle.c,v 1.6 1998/04/28 06:59:14 dg Exp $
+ * $Id: setproctitle.c,v 1.7 1998/04/28 07:02:33 dg Exp $
  */
 
 #include <sys/types.h>
@@ -72,8 +72,8 @@ setproctitle(fmt, va_alist)
 	static char buf[SPT_BUFSIZE];
 	static char *ps_argv[2];
 	va_list ap;
-	int mib[2];
 	size_t len;
+	unsigned long ul_ps_strings;
 
 #if defined(__STDC__)
 	va_start(ap, fmt);
@@ -104,12 +104,11 @@ setproctitle(fmt, va_alist)
 	va_end(ap);
 
 	if (ps_strings == NULL) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_PS_STRINGS;
-		len = sizeof(ps_strings);
-		if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
-		    ps_strings == NULL)
-			ps_strings = PS_STRINGS;
+		len = sizeof(ul_ps_strings);
+		if (sysctlbyname("kern.ps_strings", &ul_ps_strings, &len, NULL,
+		    0) == -1)
+			ul_ps_strings = PS_STRINGS;
+		ps_strings = (struct ps_strings *)ul_ps_strings;
 	}
 
 	/* PS_STRINGS points to zeroed memory on a style #2 kernel */
