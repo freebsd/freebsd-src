@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id: conf.sh,v 5.14 1991/11/20 18:21:10 eggert Exp $ */
+	/* $Id: conf.sh,v 5.14.0.1 1993/03/25 04:24:49 eggert Exp $ */
 
 /*
  * This file is generated automatically.
@@ -79,7 +79,7 @@
 /* Fix any uncommented typedefs that are wrong.  */
 /* typedef int mode_t; */
 /* typedef int pid_t; */
-typedef int sig_atomic_t;
+/* typedef int sig_atomic_t; */
 /* typedef unsigned size_t; */
 /* typedef int ssize_t; */
 /* typedef long time_t; */
@@ -142,7 +142,7 @@ typedef int sig_atomic_t;
 #define bad_fopen_wplus 0 /* Does fopen(f,FOPEN_WPLUS) fail to truncate f?  */
 #define getlogin_is_secure 0 /* Is getlogin() secure?  Usually it's not.  */
 #define has_dirent 1 /* Do opendir(), readdir(), closedir() work?  */
-#define has_fchmod 0 /* Does fchmod() work?  */
+#define has_fchmod 1 /* Does fchmod() work?  */
 #define has_fputs 0 /* Does fputs() work?  */
 #define has_ftruncate 1 /* Does ftruncate() work?  */
 #define has_getuid 1 /* Does getuid() work?  */
@@ -152,7 +152,7 @@ typedef int sig_atomic_t;
 #define has_memcpy 1 /* Does memcpy() work?  */
 #define has_memmove 1 /* Does memmove() work?  */
 #define has_madvise 0 /* Does madvise() work?  */
-#define has_mmap 0 /* Does mmap() work on regular files?  */
+#define has_mmap 1 /* Does mmap() work on regular files?  */
 #define has_rename 1 /* Does rename() work?  */
 #define bad_a_rename 0 /* Does rename(A,B) fail if A is unwritable?  */
 #define bad_b_rename 0 /* Does rename(A,B) fail if B is unwritable?  */
@@ -167,7 +167,7 @@ typedef int sig_atomic_t;
 /* #define has_sigblock ? */ /* Does sigblock() work?  */
 /* #define sigmask(s) (1 << ((s)-1)) */ /* Yield mask for signal number.  */
 #define has_sys_siglist 0 /* Does sys_siglist[] work?  */
-typedef ssize_t fread_type; /* type returned by fread() and fwrite() */
+typedef size_t fread_type; /* type returned by fread() and fwrite() */
 typedef size_t freadarg_type; /* type of their size arguments */
 typedef void *malloc_type; /* type returned by malloc() */
 #define has_getcwd 1 /* Does getcwd() work?  */
@@ -177,17 +177,17 @@ typedef void *malloc_type; /* type returned by malloc() */
 /* #define strchr index */ /* Use old-fashioned name for strchr()?  */
 /* #define strrchr rindex */ /* Use old-fashioned name for strrchr()?  */
 #define bad_unlink 0 /* Does unlink() fail on unwritable files?  */
-#define has_vfork 0 /* Does vfork() work?  */
+#define has_vfork 1 /* Does vfork() work?  */
 #define has_fork 1 /* Does fork() work?  */
 #define has_spawn 0 /* Does spawn*() work?  */
 #define has_wait 1 /* Does wait() work?  */
-#define has_waitpid 0 /* Does waitpid() work?  */
+#define has_waitpid 1 /* Does waitpid() work?  */
 #define RCS_SHELL "/bin/sh" /* shell to run RCS subprograms */
 #define has_vfprintf 1 /* Does vfprintf() work?  */
 /* #define has__doprintf ? */ /* Does _doprintf() work?  */
 /* #define has__doprnt ? */ /* Does _doprnt() work?  */
 /* #undef EXIT_FAILURE */ /* Uncomment this if EXIT_FAILURE is broken.  */
-#define large_memory 0 /* Can main memory hold entire RCS files?  */
+#define large_memory 1 /* Can main memory hold entire RCS files?  */
 /* #undef ULONG_MAX */ /* Uncomment this if ULONG_MAX is broken (e.g. < 0).  */
 /* struct utimbuf { time_t actime, modtime; }; */ /* Uncomment this if needed.  */
 #define CO "/usr/bin/co" /* name of 'co' program */
@@ -195,6 +195,7 @@ typedef void *malloc_type; /* type returned by malloc() */
 #define DATEFORM "%.2d.%.2d.%.2d.%.2d.%.2d.%.2d" /* e.g. 01.01.01.01.01.01 */
 #define DIFF "/usr/bin/diff" /* name of 'diff' program */
 #define DIFF3 "/usr/bin/diff3" /* name of 'diff3' program */
+#define DIFF3_A 1 /* Does diff3 have an -A option?  */
 #define DIFF3_BIN 1 /* Is diff3 user-visible (not the /usr/lib auxiliary)?  */
 #define DIFF_FLAGS , "-an" /* Make diff output suitable for RCS.  */
 #define DIFF_L 1 /* Does diff -L work? */
