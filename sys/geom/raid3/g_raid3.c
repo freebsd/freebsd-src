@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
 #include <vm/uma.h>
-#include <machine/atomic.h>
 #include <geom/geom.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
