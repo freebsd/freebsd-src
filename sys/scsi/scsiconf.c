@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.64.2.13 1997/05/03 22:24:50 joerg Exp $
+ *      $Id: scsiconf.c,v 1.64.2.14 1997/05/21 19:38:02 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -357,7 +357,7 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
-		"cd", SC_ONE_LU
+		"cd", SC_ONE_LU, CD_Q_BCD_TRACKS
 	},
 	/*
 	 * Note: My drive with v1.0 firmware "forgets" to generate scsi parity
