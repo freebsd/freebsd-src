@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.111 1999/01/24 06:04:51 dillon Exp $
+ * $Id: swap_pager.c,v 1.112 1999/01/27 18:19:52 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,7 @@ struct pagerops swappagerops = {
 int dmmax;
 static int dmmax_mask;
 int nswap_lowat = 128;		/* in pages, swap_pager_full warning	*/
-int nswap_hiwat = 256;		/* in pages, swap_pager_full warning	*/
+int nswap_hiwat = 512;		/* in pages, swap_pager_full warning	*/
 
 static __inline void	swp_sizecheck __P((void));
 static void	swp_pager_sync_iodone __P((struct buf *bp));
@@ -203,9 +203,10 @@ static __inline void
 swp_sizecheck()
 {
 	if (vm_swap_size < nswap_lowat) {
-		if (swap_pager_full == 0)
+		if (swap_pager_full == 0) {
 			printf("swap_pager: out of swap space\n");
-		swap_pager_full = 1;
+			swap_pager_full = 1;
+		}
 	} else if (vm_swap_size > nswap_hiwat) {
 		swap_pager_full = 0;
 	}
@@ -443,7 +444,10 @@ swp_pager_getswapspace(npages)
 	daddr_t blk;
 
 	if ((blk = blist_alloc(swapblist, npages)) == SWAPBLK_NONE) {
-		printf("swap_pager_getswapspace: failed\n");
+		if (swap_pager_full != 2) {
+			printf("swap_pager_getswapspace: failed\n");
+			swap_pager_full = 2;
+		}
 	} else {
 		vm_swap_size -= npages;
 		swp_sizecheck();
