@@ -1,4 +1,4 @@
-# $Id: no_NO.ISO_8859-1.src,v 1.2.2.1 1997/06/23 19:46:07 julian Exp $
+# $Id: no_NO.ISO_8859-1.src,v 1.2.2.2 1998/05/23 11:36:55 danny Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -63,7 +63,7 @@ lørdag
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %e. %b %X %Y
 #
 # am
 #
@@ -75,4 +75,4 @@ pm
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %e. %b %Y %X %Z
