@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: su.c,v 1.12 1996/03/09 14:57:43 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -186,9 +186,10 @@ main(argc, argv)
 	if (ruid) {
 #ifdef KERBEROS
 		if (use_kerberos && koktologin(username, user)
-		    && !pwd->pw_uid)
-			errx(1, "kerberos: not in %s's ACL.", user);
-		else
+		    && !pwd->pw_uid) {
+			warnx("kerberos: not in %s's ACL.", user);
+			use_kerberos = 0;
+		}
 #endif
 		{
 			/* only allow those in group zero to su to root. */
@@ -228,8 +229,8 @@ main(argc, argv)
 			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd))) {
 #endif
 #ifdef KERBEROS
-	    			if (use_kerberos &&
-	    			    kerberos(username, user, pwd->pw_uid, p)
+	    			if (!use_kerberos || (use_kerberos &&
+	    			    kerberos(username, user, pwd->pw_uid, p))
 					)
 #endif
 					{
