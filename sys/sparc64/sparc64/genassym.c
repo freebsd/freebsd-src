@@ -58,6 +58,8 @@
 #include <machine/tsb.h>
 #include <machine/tstate.h>
 
+ASSYM(KERNBASE, KERNBASE);
+
 /*
  * XXX: gas, as of version 2.11.2, does not know this ASI (and some other
  * UltraSparc specific ones). This definition will probably get us into trouble
