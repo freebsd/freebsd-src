@@ -41,6 +41,7 @@
 #					    default standard
 #
 
+# XXX MD crud should be in separate makefiles
 .if ${MACHINE_ARCH} == "alpha"
 ARCH_SRCS = s_copysign.S s_copysignf.S
 # XXX Comment from NetBSD/Alpha:
@@ -50,6 +51,8 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 #CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
 .elif ${MACHINE_ARCH} == "amd64"
 ARCH_SRCS = e_sqrt.S s_lrint.S s_llrint.S
+.elif ${MACHINE_ARCH} == "ia64"
+ARCH_SRCS = s_fma.S s_fmaf.S
 .elif ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR= i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
@@ -88,7 +91,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_ceil.c s_ceilf.c s_ceill.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c s_erf.c s_erff.c \
 	s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c s_finite.c s_finitef.c \
-	s_floor.c s_floorf.c s_floorl.c s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
+	s_floor.c s_floorf.c s_floorl.c s_fma.c s_fmaf.c \
+	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
 	s_lib_version.c s_llrint.c s_llrintf.c s_llround.c s_llroundf.c \
@@ -137,7 +141,8 @@ INCS=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	cimag.3 cos.3 cosh.3 erf.3 exp.3 fabs.3 fdim.3 feclearexcept.3 \
-	fegetenv.3 fegetround.3 fenv.3 floor.3 fmax.3 fmod.3 hypot.3 ieee.3 \
+	fegetenv.3 fegetround.3 fenv.3 floor.3 \
+	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 \
 	ieee_test.3 j0.3 lgamma.3 lrint.3 lround.3 math.3 rint.3 round.3 \
 	signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
 
@@ -167,6 +172,7 @@ MLINKS+=fegetenv.3 feholdexcept.3 fegetenv.3 fesetenv.3 \
 	fegetenv.3 feupdateenv.3
 MLINKS+=fegetround.3 fesetround.3
 MLINKS+=floor.3 floorf.3 floor.3 floorl.3
+MLINKS+=fma.3 fmaf.3
 MLINKS+=fmax.3 fmaxf.3 fmax.3 fmaxl.3 \
 	fmax.3 fmin.3 fmax.3 fminf.3 fmax.3 fminl.3
 MLINKS+=fmod.3 fmodf.3
