@@ -92,6 +92,7 @@ static void	vbusy(struct vnode *vp);
 static void	vdropl(struct vnode *vp);
 static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *, int);
+static void	vfree(struct vnode *);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -149,8 +150,6 @@ SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
  */
 static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
-static int nameileafonly;
-SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
@@ -261,6 +260,15 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 
 /* Hook for calling soft updates. */
 int (*softdep_process_worklist_hook)(struct mount *);
+
+/*
+ * Macros to control when a vnode is freed and recycled.  All require
+ * the vnode interlock.
+ */
+#define VCANRECYCLE(vp) (((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
+#define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
+#define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
+
 
 /*
  * Initialize the vnode management data structures.
@@ -657,7 +665,6 @@ static int
 vtryrecycle(struct vnode *vp)
 {
 	struct thread *td = curthread;
-	vm_object_t object;
 	struct mount *vnmp;
 	int error;
 
@@ -676,53 +683,10 @@ vtryrecycle(struct vnode *vp)
 		VOP_UNLOCK(vp, 0, td);
 		return (EBUSY);
 	}
-
-	/*
-	 * Don't recycle if we still have cached pages.
-	 */
-	object = vp->v_object;
-	if (object != NULL) {
-		VM_OBJECT_LOCK(object);
-		if (object->resident_page_count) {
-			VM_OBJECT_UNLOCK(object);
-			error = EBUSY;
-			goto done;
-		}
-		VM_OBJECT_UNLOCK(object);
-	}
-	if (LIST_FIRST(&vp->v_cache_src)) {
-		/*
-		 * note: nameileafonly sysctl is temporary,
-		 * for debugging only, and will eventually be
-		 * removed.
-		 */
-		if (nameileafonly > 0) {
-			/*
-			 * Do not reuse namei-cached directory
-			 * vnodes that have cached
-			 * subdirectories.
-			 */
-			if (cache_leaf_test(vp) < 0) {
-				error = EISDIR;
-				goto done;
-			}
-		} else if (nameileafonly < 0 ||
-			    vmiodirenable == 0) {
-			/*
-			 * Do not reuse namei-cached directory
-			 * vnodes if nameileafonly is -1 or
-			 * if VMIO backing for directories is
-			 * turned off (otherwise we reuse them
-			 * too quickly).
-			 */
-			error = EBUSY;
-			goto done;
-		}
-	}
 	/*
 	 * If we got this far, we need to acquire the interlock and see if
 	 * anyone picked up this vnode from another list.  If not, we will
-	 * mark it with XLOCK via vgonel() so that anyone who does find it
+	 * mark it with DOOMED via vgonel() so that anyone who does find it
 	 * will skip over it.
 	 */
 	VI_LOCK(vp);
@@ -2744,7 +2708,7 @@ loop:
 /*
  * Mark a vnode as free, putting it up for recycling.
  */
-void
+static void
 vfree(struct vnode *vp)
 {
 
