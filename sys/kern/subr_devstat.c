@@ -216,13 +216,6 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 	devstat_start_transaction(ds, &bp->bio_t0);
 }
 
-void
-devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
-{
-
-	devstat_start_transaction(ds);
-}
-
 /*
  * Record the ending of a transaction, and incrment the various counters.
  *
