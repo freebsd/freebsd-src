@@ -455,6 +455,21 @@ If the real
 service is disabled,
 return this username for every request.
 This is primarily useful when running this service on a NAT machine.
+.It Fl g
+Instead of returning
+the user's name to the ident requester,
+report a
+username made up of random alphanumeric characters,
+e.g.
+.Dq c0c993 .
+The
+.Fl g
+flag overrides not only the user names,
+but also any fallback name,
+.Pa .fakeid
+or
+.Pa .noident
+files.
 .It Fl t Xo
 .Ar sec Ns Op . Ns Ar usec
 .Xc
@@ -465,6 +480,8 @@ Offer a real
 .Dq auth
 service, as per RFC 1413.
 All the remaining flags apply only in this case.
+.It Fl i
+Return numeric user IDs instead of usernames.
 .It Fl f
 If the file
 .Pa .fakeid
@@ -474,29 +491,25 @@ If the the username found in
 .Pa .fakeid
 is that of an existing user,
 then the real username is reported.
+If the
+.Fl i
+flag is also given then the username in
+.Pa .fakeid
+is checked against existing user IDs instead.
 .It Fl F
 same as 
 .Fl f
 but without the restriction that the username in
 .Pa .fakeid
 must not match an existing user.
-.It Fl g
-Instead of returning the user's name to the ident requester, report a
-username made up of random alphanumeric characters, e.g.
-.Dq c0c993 .
-The
-.Fl g
-flag overrides not only the user names, but also any
-.Pa .fakeid
-or
-.Pa .noident
-files.
 .It Fl n
 If the file
 .Pa .noident
 exists in the home directory of the identified user, return
 .Dq ERROR\ : HIDDEN-USER .
-instead.
+This overrides any
+.Pa fakeid
+file which might exist.
 .It Fl o Ar osname
 Use
 .Ar osname
