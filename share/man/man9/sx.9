@@ -1,0 +1,85 @@
+.\" 
+.\" Copyright (C) 2001 Jason Evans <jasone@freebsd.org>.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible 
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2001
+.Dt SX 9
+.Os
+.Sh NAME
+.Nm sx ,
+.Nm sx_init ,
+.Nm sx_destroy ,
+.Nm sx_slock ,
+.Nm sx_xlock ,
+.Nm sx_sunlock ,
+.Nm sx_xunlock
+.Nd kernel shared/exclusive lock.
+.Sh SYNOPSIS
+.Fd #include <sys/sx.h>
+.Ft void
+.Fn sx_init "struct sx *sx" "const char *description"
+.Ft void
+.Fn sx_destroy "struct sx *sx"
+.Ft void
+.Fn sx_slock "struct sx *sx"
+.Ft void
+.Fn sx_xlock "struct sx *sx"
+.Ft void
+.Fn sx_sunlock "struct sx *sx"
+.Ft void
+.Fn sx_xunlock "struct sx *sx"
+.Sh DESCRIPTION
+Shared/exclusive locks are used to protect data that are read far more often
+than they are written.
+Mutexes are inherently more efficient than shared/exclusive locks, so
+shared/exclusive locks should be used prudently.
+.Pp
+Shared/exclusive locks are created with
+.Fn sx_init ,
+where
+.Fa sx
+is a pointer to space for a
+.Vt struct sx ,
+and
+.Fa description
+is a pointer to a null-terminated character string that describes the
+shared/exclusive lock.
+Shared/exclusive locks are destroyed with
+.Fn sx_destroy .
+Threads acquire and release a shared lock by calling
+.Fn sx_slock
+and
+.Fn sx_sunlock .
+Threads acquire and release an exclusive lock by calling
+.Fn sx_xlock
+and
+.Fn sx_xunlock .
+.Pp
+A thread may not own a shared lock and an exclusive lock simultaneously;
+attempting to do so will result in deadlock.
+.Sh SEE ALSO
+.Xr mutex 9
