@@ -187,6 +187,12 @@ openpic_probe(device_t dev)
 	sc->sc_nirq = ((val & OPENPIC_FEATURE_LAST_IRQ_MASK) >>
 	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
 
+	/*
+	 * PSIM seems to report 1 too many IRQs
+	 */
+	if (sc->sc_psim)
+		sc->sc_nirq--;
+
 	device_set_desc(dev, "OpenPIC interrupt controller");
 	return (0);
 }
