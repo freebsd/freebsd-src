@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.371 1998/09/01 06:57:18 jkh Exp $
+#	$Id: Makefile,v 1.372 1998/09/02 18:04:18 max Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -33,7 +33,7 @@ RELEASEDOCMODULE?=	doc
 RELEASEPORTSMODULE?=	ports
 
 # Unless set elsewhere, indicate the object format we'll be using.
-OBJFORMAT?=		aout
+OBJFORMAT?=		elf
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
@@ -226,7 +226,7 @@ rerelease release:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
-.if exists(/usr/lib/aout/)
+.if exists(/usr/lib/aout/) && (${OBJFORMAT} == "aout")
 	echo "mkdir -p /usr/lib/compat/aout"	>> ${CHROOTDIR}/mk
 	echo "chflags noschg /usr/lib/aout/lib*.so.*" >> ${CHROOTDIR}/mk
 	echo "mv /usr/lib/aout/lib*.so.* /usr/lib/compat/aout" >> ${CHROOTDIR}/mk
@@ -243,7 +243,7 @@ rerelease release:
 	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
 	# Now we've got our own shared libs, remove the bootstrapping
 	# libs again.
-.if !exists(/usr/lib/aout/)
+.if !exists(/usr/lib/aout/) && (${OBJFORMAT} == "aout")
 	echo "rm -f /usr/lib/compat/*"		>> ${CHROOTDIR}/mk
 	echo "ldconfig /usr/lib"		>> ${CHROOTDIR}/mk
 .endif
