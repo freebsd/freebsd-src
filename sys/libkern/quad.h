@@ -102,6 +102,7 @@ quad_t		__moddi3 __P((quad_t a, quad_t b));
 u_quad_t	__qdivrem __P((u_quad_t u, u_quad_t v, u_quad_t *rem));
 u_quad_t	__udivdi3 __P((u_quad_t a, u_quad_t b));
 u_quad_t	__umoddi3 __P((u_quad_t a, u_quad_t b));
+int		__ucmpdi2 __P((u_quad_t a, u_quad_t b));
 
 /*
  * XXX
