@@ -30,7 +30,7 @@
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
  *
- * $Id$
+ * $Id: streams.c,v 1.8 1999/08/01 12:51:06 newton Exp $
  */
 
 #include "streams.h"		/* generated file.. defines NSTREAMS */
@@ -251,11 +251,11 @@ streamsopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	  return error;
 	}
 
-	fp->f_flag = FREAD|FWRITE;
-	fp->f_type = DTYPE_SOCKET;
-	fp->f_ops = &svr4_netops;
-
 	fp->f_data = (caddr_t)so;
+	fp->f_flag = FREAD|FWRITE;
+	fp->f_ops = &svr4_netops;
+	fp->f_type = DTYPE_SOCKET;
+
 	(void)svr4_stream_get(fp);
 	p->p_dupfd = fd;
 	return ENXIO;
@@ -334,13 +334,13 @@ svr4_stream_get(fp)
 		return so->so_emuldata;
 
 	/* Allocate a new one. */
-	fp->f_ops = &svr4_netops;
 	st = malloc(sizeof(struct svr4_strm), M_TEMP, M_WAITOK);
 	st->s_family = so->so_proto->pr_domain->dom_family;
 	st->s_cmd = ~0;
 	st->s_afd = -1;
 	st->s_eventmask = 0;
 	so->so_emuldata = st;
+	fp->f_ops = &svr4_netops;
 
 	return st;
 }

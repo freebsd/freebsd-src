@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.23 1999/02/01 21:16:29 newton Exp $
+ * $Id: sys_socket.c,v 1.24 1999/04/04 21:41:16 dt Exp $
  */
 
 #include <sys/param.h>
@@ -171,6 +171,7 @@ soo_close(fp, p)
 {
 	int error = 0;
 
+	fp->f_ops = &badfileops;
 	if (fp->f_data)
 		error = soclose((struct socket *)fp->f_data);
 	fp->f_data = 0;

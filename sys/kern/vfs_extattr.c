@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.127 1999/08/03 17:07:04 imp Exp $
+ * $Id: vfs_syscalls.c,v 1.128 1999/08/04 04:52:18 imp Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -995,10 +995,10 @@ open(p, uap)
 	p->p_dupfd = 0;
 	vp = nd.ni_vp;
 
-	fp->f_flag = flags & FMASK;
-	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
-	fp->f_ops = &vnops;
 	fp->f_data = (caddr_t)vp;
+	fp->f_flag = flags & FMASK;
+	fp->f_ops = &vnops;
+	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;

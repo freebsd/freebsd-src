@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.63 1999/05/31 11:27:30 phk Exp $
+ * $Id: kern_descrip.c,v 1.64 1999/06/07 20:37:27 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -101,6 +101,13 @@ static struct cdevsw fildesc_cdevsw = {
 };
 
 static int finishdup __P((struct filedesc *fdp, int old, int new, register_t *retval));
+static int badfo_readwrite __P((struct file *fp, struct uio *uio,
+    struct ucred *cred, int flags));
+static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
+    struct proc *p));
+static int badfo_poll __P((struct file *fp, int events,
+    struct ucred *cred, struct proc *p));
+static int badfo_close __P((struct file *fp, struct proc *p));
 /*
  * Descriptor management.
  */
@@ -836,16 +843,17 @@ falloc(p, resultfp, resultfd)
 	nfiles++;
 	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK);
 	bzero(fp, sizeof(struct file));
+	fp->f_count = 1;
+	fp->f_cred = p->p_ucred;
+	fp->f_ops = &badfileops;
+	fp->f_seqcount = 1;
+	crhold(fp->f_cred);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
 	} else {
 		LIST_INSERT_HEAD(&filehead, fp, f_list);
 	}
 	p->p_fd->fd_ofiles[i] = fp;
-	fp->f_count = 1;
-	fp->f_cred = p->p_ucred;
-	fp->f_seqcount = 1;
-	crhold(fp->f_cred);
 	if (resultfp)
 		*resultfp = fp;
 	if (resultfd)
@@ -1078,7 +1086,7 @@ closef(fp, p)
 		vp = (struct vnode *)fp->f_data;
 		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
 	}
-	if (fp->f_ops)
+	if (fp->f_ops != &badfileops)
 		error = (*fp->f_ops->fo_close)(fp, p);
 	else
 		error = 0;
@@ -1321,6 +1329,56 @@ static void 	fildesc_drvinit(void *unused)
 					 "stderr");
 #endif
     	}
+}
+
+struct fileops badfileops = {
+	badfo_readwrite,
+	badfo_readwrite,
+	badfo_ioctl,
+	badfo_poll,
+	badfo_close
+};
+
+static int
+badfo_readwrite(fp, uio, cred, flags)
+	struct file *fp;
+	struct uio *uio;
+	struct ucred *cred;
+	int flags;
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_ioctl(fp, com, data, p)
+	struct file *fp;
+	u_long com;
+	caddr_t data;
+	struct proc *p;
+{
+
+	return (EBADF);
+}
+
+static int
+badfo_poll(fp, events, cred, p)
+	struct file *fp;
+	int events;
+	struct ucred *cred;
+	struct proc *p;
+{
+
+	return (0);
+}
+
+static int
+badfo_close(fp, p)
+	struct file *fp;
+	struct proc *p;
+{
+
+	return (EBADF);
 }
 
 SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
