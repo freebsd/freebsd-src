@@ -422,17 +422,23 @@ acd_describe(struct acd_softc *cdp)
     }
     else {
 	char changer[32];
+	char devnum[8];
 
 	bzero(changer, sizeof(changer));
-	if (cdp->changer_info)
+	if (cdp->changer_info) {
+	    sprintf(devnum, "%d-%d",
+		    cdp->lun, cdp->lun + cdp->changer_info->slots - 1);
 	    sprintf(changer, " with %d CD changer", cdp->changer_info->slots);
+	}
+	else
+	    sprintf(devnum, "%d", cdp->lun);
 
-	printf("acd%d: %s%s <%.40s> at ata%d-%s using %s\n",
-	       cdp->lun, (cdp->cap.write_dvdr) ? "DVD-R" : 
-			  (cdp->cap.write_dvdram) ? "DVD-RAM" : 
-			   (cdp->cap.write_cdrw) ? "CD-RW" :
-			    (cdp->cap.write_cdr) ? "CD-R" : 
-			     (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
+	printf("acd%s: %s%s <%.40s> at ata%d-%s using %s\n",
+	       devnum, (cdp->cap.write_dvdr) ? "DVD-R" : 
+			(cdp->cap.write_dvdram) ? "DVD-RAM" : 
+			 (cdp->cap.write_cdrw) ? "CD-RW" :
+			  (cdp->cap.write_cdr) ? "CD-R" : 
+			   (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
 	       changer, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
 	       device_get_unit(cdp->atp->controller->dev),
 	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
@@ -1134,7 +1140,7 @@ acd_done(struct atapi_request *request)
     }	
     else {
 	bp->b_resid = request->bytecount;
-	if ((bp->b_flags & B_READ) == B_WRITE)
+	if (!(bp->b_flags & B_READ))
 	    cdp->flags |= F_WRITTEN;
     }
     devstat_end_transaction_buf(cdp->stats, bp);
@@ -1244,16 +1250,16 @@ acd_select_slot(struct acd_softc *cdp)
     /* unlock (might not be needed but its cheaper than asking) */
     acd_prevent_allow(cdp, 0);
 
-    bzero(ccb, sizeof(ccb));
+
     /* unload the current media from player */
+    bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_LOAD_UNLOAD;
-    ccb[1] = 0x01;
     ccb[4] = 2;
     ccb[8] = cdp->changer_info->current_slot;
-    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
-    atapi_wait_ready(cdp->atp, 30);
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 
     /* load the wanted slot */
+    bzero(ccb, sizeof(ccb));
     ccb[0] = ATAPI_LOAD_UNLOAD;
     ccb[1] = 0x01;
     ccb[4] = 3;
