@@ -328,12 +328,12 @@ g_bde_purge_sector(struct g_bde_softc *sc, int fraction)
 }
 
 static struct g_bde_sector *
-g_bde_read_sector(struct g_bde_softc *sc, struct g_bde_work *wp, off_t offset)
+g_bde_read_keysector(struct g_bde_softc *sc, struct g_bde_work *wp)
 {
 	struct g_bde_sector *sp;
 
-	g_trace(G_T_TOPOLOGY, "g_bde_read_sector(%p)", wp);
-	sp = g_bde_get_sector(wp, offset);
+	g_trace(G_T_TOPOLOGY, "g_bde_read_keysector(%p)", wp);
+	sp = g_bde_get_sector(wp, wp->kso);
 	if (sp == NULL)
 		return (sp);
 	if (sp->owner != wp)
@@ -667,7 +667,7 @@ g_bde_start2(struct g_bde_work *wp)
 			g_bde_delete_work(wp);
 			return;
 		}
-		g_bde_read_sector(sc, wp, wp->kso);
+		g_bde_read_keysector(sc, wp);
 		if (wp->ksp == NULL)
 			wp->error = ENOMEM;
 	} else if (wp->bp->bio_cmd == BIO_DELETE) {
@@ -684,7 +684,7 @@ g_bde_start2(struct g_bde_work *wp)
 			g_bde_delete_work(wp);
 			return;
 		}
-		g_bde_read_sector(sc, wp, wp->kso);
+		g_bde_read_keysector(sc, wp);
 		if (wp->ksp == NULL) {
 			g_bde_contribute(wp->bp, wp->length, ENOMEM);
 			g_bde_delete_sector(sc, wp->sp);
