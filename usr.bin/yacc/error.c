@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include "defs.h"
 
-static void print_pos __P((char *, char *));
+static void print_pos(char *, char *);
 
 void
 fatal(msg)

@@ -64,9 +64,9 @@ typedef struct nlist NLIST;
 
 #define	strx	n_un.n_strx
 
-void s_stab __P((const char *, int, EXEC *));
-void s_sym __P((const char *, int, EXEC *));
-static void usage __P((void));
+void s_stab(const char *, int, EXEC *);
+void s_sym(const char *, int, EXEC *);
+static void usage(void);
 
 int xflag = 0;
 int err_val = 0;
@@ -78,7 +78,7 @@ main(argc, argv)
 {
 	register int fd, nb;
 	EXEC head;
-	void (*sfcn)__P((const char *, int, EXEC *));
+	void (*sfcn)(const char *, int, EXEC *);
 	int ch;
 	char *fn;
 

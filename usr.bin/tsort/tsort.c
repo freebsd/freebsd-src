@@ -103,14 +103,14 @@ DB *db;
 NODE *graph, **cycle_buf, **longest_cycle;
 int debug, longest, quiet;
 
-void	 add_arc __P((char *, char *));
-int	 find_cycle __P((NODE *, NODE *, int, int));
-NODE	*get_node __P((char *));
-void	*grow_buf __P((void *, int));
-void	 remove_node __P((NODE *));
-void	 clear_cycle __P((void));
-void	 tsort __P((void));
-void	 usage __P((void));
+void	 add_arc(char *, char *);
+int	 find_cycle(NODE *, NODE *, int, int);
+NODE	*get_node(char *);
+void	*grow_buf(void *, int);
+void	 remove_node(NODE *);
+void	 clear_cycle(void);
+void	 tsort(void);
+void	 usage(void);
 
 int
 main(argc, argv)

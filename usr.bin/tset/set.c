@@ -47,7 +47,7 @@ static const char sccsid[] = "@(#)set.c	8.2 (Berkeley) 2/28/94";
 
 #define	CHK(val, dft)	(val <= 0 ? dft : val)
 
-int	set_tabs __P((void));
+int	set_tabs(void);
 
 /*
  * Reset the terminal mode bits to a sensible state.  Very useful after

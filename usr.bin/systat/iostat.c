@@ -88,11 +88,11 @@ static  double etime;
 static  int numbers = 0;		/* default display bar graphs */
 static  int kbpt = 0;			/* default ms/seek shown */
 
-static int barlabels __P((int));
-static void histogram __P((long double, int, double));
-static int numlabels __P((int));
-static int devstats __P((int, int, int));
-static void stat1 __P((int, int));
+static int barlabels(int);
+static void histogram(long double, int, double);
+static int numlabels(int);
+static int devstats(int, int, int);
+static void stat1(int, int);
 
 WINDOW *
 openiostat()

@@ -40,8 +40,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <unistd.h>
 
-static off_t	parselength __P((char *, off_t *));
-static void	usage __P((void));
+static off_t	parselength(char *, off_t *);
+static void	usage(void);
 
 static int	no_create;
 static int	do_relative;

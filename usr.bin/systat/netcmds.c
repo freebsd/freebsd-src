@@ -72,13 +72,13 @@ static	struct hitem {
 
 int nports, nhosts, protos;
 
-static void changeitems __P((const char *, int));
-static int selectproto __P((const char *));
-static void showprotos __P((void));
-static int selectport __P((long, int));
-static void showports __P((void));
-static int selecthost __P((struct in_addr *, int));
-static void showhosts __P((void));
+static void changeitems(const char *, int);
+static int selectproto(const char *);
+static void showprotos(void);
+static int selectport(long, int);
+static void showports(void);
+static int selecthost(struct in_addr *, int);
+static void showhosts(void);
 
 int
 netcmd(cmd, args)

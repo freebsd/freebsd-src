@@ -95,14 +95,12 @@ static struct mountlist *mntdump;
 static struct exportslist *exports;
 static int type = 0;
 
-void print_dump __P((struct mountlist *));
-static void usage __P((void));
-int xdr_mntdump __P((XDR *, struct mountlist **));
-int xdr_exports __P((XDR *, struct exportslist **));
-int tcp_callrpc __P((const char *host,
-		     int prognum, int versnum, int procnum,
-		     xdrproc_t inproc, char *in,
-		     xdrproc_t outproc, char *out));
+void print_dump(struct mountlist *);
+static void usage(void);
+int xdr_mntdump(XDR *, struct mountlist **);
+int xdr_exports(XDR *, struct exportslist **);
+int tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
+		xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 
 /*
  * This command queries the NFS mount daemon for it's mount list and/or

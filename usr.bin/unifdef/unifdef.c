@@ -101,16 +101,16 @@ char incomment BSS;         /* inside C comment */
 char inquote BSS;           /* inside single or double quotes */
 
 int exitstat BSS;
-char *skipcomment __P((char *));
-char *skipquote __P((char *, int));
-static void usage __P((void));
-void flushline __P((Bool));
-int getlin __P((char *, int, FILE *, int));
-int error __P((int, int, int));
-void pfile __P((void));
-int doif __P((int, int, Reject_level, int));
-int findsym __P((char *));
-Linetype checkline __P((int *));
+char *skipcomment(char *);
+char *skipquote(char *, int);
+static void usage(void);
+void flushline(Bool);
+int getlin(char *, int, FILE *, int);
+int error(int, int, int);
+void pfile(void);
+int doif(int, int, Reject_level, int);
+int findsym(char *);
+Linetype checkline(int *);
 
 int
 main (argc, argv)

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "defs.h"
 
-static void transitive_closure __P((unsigned *, int));
+static void transitive_closure(unsigned *, int);
 
 static void
 transitive_closure(R, n)

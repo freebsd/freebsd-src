@@ -52,16 +52,16 @@ struct mapinfo {
 
 enum STYLE { NOTSET = 0, FBYTES, FLINES, RBYTES, RLINES, REVERSE };
 
-void forward __P((FILE *, enum STYLE, off_t, struct stat *));
-void reverse __P((FILE *, enum STYLE, off_t, struct stat *));
+void forward(FILE *, enum STYLE, off_t, struct stat *);
+void reverse(FILE *, enum STYLE, off_t, struct stat *);
 
-int bytes __P((FILE *, off_t));
-int lines __P((FILE *, off_t));
+int bytes(FILE *, off_t);
+int lines(FILE *, off_t);
 
-void ierr __P((void));
-void oerr __P((void));
-int mapprint __P((struct mapinfo *, off_t, off_t));
-int maparound __P((struct mapinfo *, off_t));
+void ierr(void);
+void oerr(void);
+int mapprint(struct mapinfo *, off_t, off_t);
+int maparound(struct mapinfo *, off_t);
 
 extern int Fflag, fflag, rflag, rval;
 extern const char *fname;

@@ -52,11 +52,11 @@ short *itemset;
 short *itemsetend;
 unsigned *ruleset;
 
-static void set_EFF __P((void));
+static void set_EFF(void);
 #ifdef DEBUG
-static void print_closure __P((int));
-static void print_EFF __P(());
-static void print_first_derives __P(());
+static void print_closure(int);
+static void print_EFF();
+static void print_first_derives();
 #endif
 
 static unsigned *first_derives;

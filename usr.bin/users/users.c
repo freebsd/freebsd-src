@@ -55,8 +55,8 @@ static const char rcsid[] =
 
 typedef char   namebuf[UT_NAMESIZE];
 
-int scmp __P((const void *, const void *));
-static void usage __P((void));
+int scmp(const void *, const void *);
+static void usage(void);
 
 int
 main(argc, argv)

@@ -104,9 +104,9 @@ const char *fname;		/* File name. */
 u_long linenum;
 int lastline;			/* TRUE on the last line of the last file */
 
-static void add_compunit __P((enum e_cut, char *));
-static void add_file __P((char *));
-static void usage __P((void));
+static void add_compunit(enum e_cut, char *);
+static void add_file(char *);
+static void usage(void);
 
 int
 main(argc, argv)
