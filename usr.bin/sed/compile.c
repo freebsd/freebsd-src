@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: compile.c,v 1.8.2.1 1997/08/12 06:36:11 charnier Exp $";
+	"$Id: compile.c,v 1.8.2.2 1998/09/22 18:40:43 brian Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -483,7 +483,10 @@ compile_subst(p, s)
 				} else if (*p == '&' || *p == '\\')
 					*sp++ = '\\';
 			} else if (*p == c) {
-				p++;
+				if (*++p == '\0') {
+					if (cu_fgets(lbuf, sizeof(lbuf)))
+						p = lbuf;
+				}
 				*sp++ = '\0';
 				size += sp - op;
 				s->new = xrealloc(text, size);
@@ -498,7 +501,7 @@ compile_subst(p, s)
 		size += sp - op;
 		if (asize - size < _POSIX2_LINE_MAX + 1) {
 			asize *= 2;
-			text = xmalloc(asize);
+			text = xrealloc(text, asize);
 		}
 	} while (cu_fgets(p = lbuf, sizeof(lbuf)));
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
