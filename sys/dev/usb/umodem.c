@@ -1,5 +1,31 @@
-/*	$NetBSD: umodem.c,v 1.5 1999/01/08 11:58:25 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: umodem.c,v 1.45 2002/09/23 05:51:23 simonb Exp $	*/
+/* $FreeBSD$ */
+
+/*-
+ * Copyright (c) 2003, M. Warner Losh <imp@freebsd.org>.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -39,8 +65,8 @@
  */
 
 /*
- * Comm Class spec: http://www.usb.org/developers/data/devclass/usbcdc10.pdf
- *		    http://www.usb.org/developers/data/devclass/usbcdc11.pdf
+ * Comm Class spec:  http://www.usb.org/developers/data/devclass/usbcdc10.pdf
+ *                   http://www.usb.org/developers/data/devclass/usbcdc11.pdf
  */
 
 /*
@@ -54,28 +80,15 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <sys/device.h>
-#include <sys/ioctl.h>
-#elif defined(__FreeBSD__)
-#include <sys/bus.h>
 #include <sys/ioccom.h>
-#include <sys/fcntl.h>
-#endif
 #include <sys/conf.h>
 #include <sys/tty.h>
-#include <sys/clist.h>
 #include <sys/file.h>
-#if __FreeBSD_version >= 500014
-#include <sys/selinfo.h>
-#else
 #include <sys/select.h>
-#endif
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/bus.h>
 #include <sys/poll.h>
-#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -86,35 +99,32 @@
 #include <dev/usb/usb_quirks.h>
 
 #include <dev/usb/usbdevs.h>
+#include <dev/usb/ucomvar.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x) if(umodemdebug) logprintf x
-#define DPRINTFN(n, x) if(umodemdebug > (n)) logprintf x
 int	umodemdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
 SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
 	   &umodemdebug, 0, "umodem debug level");
+#define DPRINTFN(n, x)	if (umodemdebug > (n)) logprintf x
 #else
-#define DPRINTF(x)
 #define DPRINTFN(n, x)
 #endif
+#define DPRINTF(x) DPRINTFN(0, x)
 
-/* Macros to clear/set/test flags. */
-#define	SET(t, f)	(t) |= (f)
-#define	CLR(t, f)	(t) &= ~((unsigned)(f))
-#define	ISSET(t, f)	((t) & (f))
-
-#define	UMODEMUNIT_MASK		0x3ffff
-#define	UMODEMDIALOUT_MASK	0x80000
-#define	UMODEMCALLUNIT_MASK	0x40000
-
-#define	UMODEMUNIT(x)		(minor(x) & UMODEMUNIT_MASK)
-#define	UMODEMDIALOUT(x)	(minor(x) & UMODEMDIALOUT_MASK)
-#define	UMODEMCALLUNIT(x)	(minor(x) & UMODEMCALLUNIT_MASK)
-
+/*
+ * These are the maximum number of bytes transferred per frame.
+ * If some really high speed devices should use this driver they
+ * may need to be increased, but this is good enough for normal modems.
+ */
 #define UMODEMIBUFSIZE 64
+#define UMODEMOBUFSIZE 256
+
+#define UMODEM_MODVER			1	/* module version */
 
 struct umodem_softc {
+	struct ucom_softc	sc_ucom;
+
 	USBBASEDEVICE		sc_dev;		/* base device */
 
 	usbd_device_handle	sc_udev;	/* USB device */
@@ -124,106 +134,95 @@ struct umodem_softc {
 	int			sc_data_iface_no;
 	usbd_interface_handle	sc_data_iface;	/* data interface */
 
-	int			sc_bulkin_no;	/* bulk in endpoint address */
-	usbd_pipe_handle	sc_bulkin_pipe;	/* bulk in pipe */
-	usbd_xfer_handle	sc_ixfer;	/* read request */
-	u_char			*sc_ibuf;	/* read buffer */
-
-	int			sc_bulkout_no;	/* bulk out endpoint address */
-	usbd_pipe_handle	sc_bulkout_pipe;/* bulk out pipe */
-	usbd_xfer_handle	sc_oxfer;	/* read request */
-
 	int			sc_cm_cap;	/* CM capabilities */
 	int			sc_acm_cap;	/* ACM capabilities */
 
 	int			sc_cm_over_data;
 
-	struct tty		*sc_tty;	/* our tty */
-
 	usb_cdc_line_state_t	sc_line_state;	/* current line state */
 	u_char			sc_dtr;		/* current DTR state */
+	u_char			sc_rts;		/* current RTS state */
 
 	u_char			sc_opening;	/* lock during open */
 	u_char			sc_dying;	/* disconnecting */
 
-#if defined(__FreeBSD__)
-	dev_t			dev;		/* special device node */
-#endif
+	int			sc_ctl_notify;	/* Notification endpoint */
+	usbd_pipe_handle	sc_notify_pipe; /* Notification pipe */
+	usb_cdc_notification_t	sc_notify_buf;	/* Notification structure */
+	u_char			sc_lsr;		/* Local status register */
+	u_char			sc_msr;		/* Modem status register */
 };
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-cdev_decl(umodem);
+Static void	*umodem_get_desc(usbd_device_handle dev, int type, int subtype);
+Static usbd_status umodem_set_comm_feature(struct umodem_softc *sc,
+					   int feature, int state);
+Static usbd_status umodem_set_line_coding(struct umodem_softc *sc,
+					  usb_cdc_line_state_t *state);
 
-#elif defined(__FreeBSD__)
-d_open_t  umodemopen;
-d_close_t umodemclose;
-d_read_t  umodemread;
-d_write_t umodemwrite;
-d_ioctl_t umodemioctl;
+Static void	umodem_get_caps(usbd_device_handle, int *, int *);
 
-#define UMODEM_CDEV_MAJOR  124
+Static void	umodem_get_status(void *, int portno, u_char *lsr, u_char *msr);
+Static void	umodem_set(void *, int, int, int);
+Static void	umodem_dtr(struct umodem_softc *, int);
+Static void	umodem_rts(struct umodem_softc *, int);
+Static void	umodem_break(struct umodem_softc *, int);
+Static void	umodem_set_line_state(struct umodem_softc *);
+Static int	umodem_param(void *, int, struct termios *);
+Static int	umodem_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr );
+Static int	umodem_open(void *, int portno);
+Static void	umodem_close(void *, int portno);
+Static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 
-static struct cdevsw umodem_cdevsw = {
-	/* open */      umodemopen,
-	/* close */     umodemclose,
-	/* read */      umodemread,
-	/* write */     umodemwrite,
-	/* ioctl */     umodemioctl,
-	/* poll */      ttypoll,
-	/* mmap */      nommap,
-	/* strategy */  nostrategy,
-	/* name */      "umodem",
-	/* maj */       UMODEM_CDEV_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     D_TTY | D_KQFILTER,
-#if __FreeBSD_version < 500014
-	/* bmaj */	-1,
-#endif
-	/* kqfilter */	ttykqfilter,
+Static struct ucom_callback umodem_callback = {
+	umodem_get_status,
+	umodem_set,
+	umodem_param,
+	umodem_ioctl,
+	umodem_open,
+	umodem_close,
+	NULL,
+	NULL,
 };
-#endif
 
-void *umodem_get_desc
-	(usbd_device_handle dev, int type, int subtype);
-usbd_status umodem_set_comm_feature
-	(struct umodem_softc *sc, int feature, int state);
-usbd_status umodem_set_line_coding
-	(struct umodem_softc *sc, usb_cdc_line_state_t *state);
+Static device_probe_t umodem_match;
+Static device_attach_t umodem_attach;
+Static device_detach_t umodem_detach;
 
-void	umodem_get_caps	(usbd_device_handle, int *, int *);
-void	umodem_cleanup	(struct umodem_softc *);
-int	umodemparam	(struct tty *, struct termios *);
-void	umodemstart	(struct tty *);
-void	umodemstop	(struct tty *, int);
-struct tty * umodemtty	(dev_t dev);
-void	umodem_shutdown	(struct umodem_softc *);
-void	umodem_modem	(struct umodem_softc *, int);
-void	umodem_break	(struct umodem_softc *, int);
-usbd_status umodemstartread (struct umodem_softc *);
-void	umodemreadcb	(usbd_xfer_handle, usbd_private_handle, 
-			     usbd_status status);
-void	umodemwritecb	(usbd_xfer_handle, usbd_private_handle, 
-			     usbd_status status);
+Static device_method_t umodem_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, umodem_match),
+	DEVMETHOD(device_attach, umodem_attach),
+	DEVMETHOD(device_detach, umodem_detach),
+	{ 0, 0 }
+};
 
-USB_DECLARE_DRIVER(umodem);
+Static driver_t umodem_driver = {
+	"ucom",
+	umodem_methods,
+	sizeof (struct umodem_softc)
+};
+
+DRIVER_MODULE(umodem, uhub, umodem_driver, ucom_devclass, usbd_driver_load, 0);
+MODULE_DEPEND(umodem, usb, 1, 1, 1);
+MODULE_DEPEND(umodem, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
+MODULE_VERSION(umodem, UMODEM_MODVER);
 
 USB_MATCH(umodem)
 {
 	USB_MATCH_START(umodem, uaa);
 	usb_interface_descriptor_t *id;
 	int cm, acm;
-	
-	if (!uaa->iface)
+
+	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
 
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id == 0 ||
+	if (id == NULL ||
 	    id->bInterfaceClass != UICLASS_CDC ||
 	    id->bInterfaceSubClass != UISUBCLASS_ABSTRACT_CONTROL_MODEL ||
 	    id->bInterfaceProtocol != UIPROTO_CDC_AT)
 		return (UMATCH_NONE);
-	
+
 	umodem_get_caps(uaa->device, &cm, &acm);
 	if (!(cm & USB_CDC_CM_DOES_CM) ||
 	    !(cm & USB_CDC_CM_OVER_DATA) ||
@@ -240,129 +239,265 @@ USB_ATTACH(umodem)
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	usb_cdc_cm_descriptor_t *cmd;
-	char devinfo[1024];
+	char *devinfo = NULL;
+	const char *devname;
 	usbd_status err;
-	int data_ifaceno;
+	int data_ifcno;
 	int i;
-	struct tty *tp;
+	struct ucom_softc *ucom;
 
-	usbd_devinfo(uaa->device, 0, devinfo);
-	USB_ATTACH_SETUP;
+	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
+	usbd_devinfo(dev, 0, devinfo);
+	ucom = &sc->sc_ucom;
+	ucom->sc_dev = self;
+	sc->sc_dev = self;
+	device_set_desc_copy(self, devinfo);
+	ucom->sc_udev = dev;
+	ucom->sc_iface = uaa->iface;
+	/*USB_ATTACH_SETUP; */
 
 	sc->sc_udev = dev;
-
 	sc->sc_ctl_iface = uaa->iface;
+
+	devname = USBDEVNAME(sc->sc_dev);
+	/* XXX ? use something else ? XXX */
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
-	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
-	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
+	printf("%s: %s, iclass %d/%d\n", devname, devinfo,
+	  id->bInterfaceClass, id->bInterfaceSubClass);
 	sc->sc_ctl_iface_no = id->bInterfaceNumber;
 
 	umodem_get_caps(dev, &sc->sc_cm_cap, &sc->sc_acm_cap);
 
 	/* Get the data interface no. */
 	cmd = umodem_get_desc(dev, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
-	if (!cmd) {
-		DPRINTF(("%s: no CM desc\n", USBDEVNAME(sc->sc_dev)));
+	if (cmd == NULL) {
+		printf("%s: no CM descriptor\n", devname);
 		goto bad;
 	}
-	sc->sc_data_iface_no = data_ifaceno = cmd->bDataInterface;
+	sc->sc_data_iface_no = data_ifcno = cmd->bDataInterface;
 
 	printf("%s: data interface %d, has %sCM over data, has %sbreak\n",
-	       USBDEVNAME(sc->sc_dev), data_ifaceno,
+	       devname, data_ifcno,
 	       sc->sc_cm_cap & USB_CDC_CM_OVER_DATA ? "" : "no ",
 	       sc->sc_acm_cap & USB_CDC_ACM_HAS_BREAK ? "" : "no ");
 
-
 	/* Get the data interface too. */
 	for (i = 0; i < uaa->nifaces; i++) {
-		if (uaa->ifaces[i]) {
+		if (uaa->ifaces[i] != NULL) {
 			id = usbd_get_interface_descriptor(uaa->ifaces[i]);
-			if (id->bInterfaceNumber == data_ifaceno) {
+			if (id != NULL && id->bInterfaceNumber == data_ifcno) {
 				sc->sc_data_iface = uaa->ifaces[i];
-				uaa->ifaces[i] = 0;
+				uaa->ifaces[i] = NULL;
 			}
 		}
 	}
-	if (!sc->sc_data_iface) {
-		printf("%s: no data interface\n", USBDEVNAME(sc->sc_dev));
+	if (sc->sc_data_iface == NULL) {
+		printf("%s: no data interface\n", devname);
 		goto bad;
 	}
+	ucom->sc_iface = sc->sc_data_iface;
 
-	/* 
-	 * Find the bulk endpoints. 
+	/*
+	 * Find the bulk endpoints.
 	 * Iterate over all endpoints in the data interface and take note.
 	 */
-	sc->sc_bulkin_no = sc->sc_bulkout_no = -1;
+	ucom->sc_bulkin_no = ucom->sc_bulkout_no = -1;
 
 	id = usbd_get_interface_descriptor(sc->sc_data_iface);
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(sc->sc_data_iface, i);
-		if (!ed) {
-			printf("%s: no endpoint descriptor for %d\n",
-				USBDEVNAME(sc->sc_dev), i);
+		if (ed == NULL) {
+			printf("%s: no endpoint descriptor for %d\n", devname,
+			    i);
 			goto bad;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
-		    (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
-                        sc->sc_bulkin_no = ed->bEndpointAddress;
+		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
+			ucom->sc_bulkin_no = ed->bEndpointAddress;
                 } else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT &&
-			   (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
-                        sc->sc_bulkout_no = ed->bEndpointAddress;
+		    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK) {
+			ucom->sc_bulkout_no = ed->bEndpointAddress;
                 }
         }
 
-	if (sc->sc_bulkin_no == -1) {
-		DPRINTF(("%s: Could not find data bulk in\n",
-			USBDEVNAME(sc->sc_dev)));
+	if (ucom->sc_bulkin_no == -1) {
+		printf("%s: Could not find data bulk in\n", devname);
 		goto bad;
 	}
-	if (sc->sc_bulkout_no == -1) {
-		DPRINTF(("%s: Could not find data bulk out\n",
-			USBDEVNAME(sc->sc_dev)));
+	if (ucom->sc_bulkout_no == -1) {
+		printf("%s: Could not find data bulk out\n", devname);
 		goto bad;
 	}
 
 	if (usbd_get_quirks(sc->sc_udev)->uq_flags & UQ_ASSUME_CM_OVER_DATA) {
+		DPRINTF(("Quirk says to assume CM over data\n"));
 		sc->sc_cm_over_data = 1;
 	} else {
-	    if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
-		    err = umodem_set_comm_feature(sc, UCDC_ABSTRACT_STATE,
-						UCDC_DATA_MULTIPLEXED);
-		    if (err)
+		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
+			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE)
+				err = umodem_set_comm_feature(sc,
+				    UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
+			else
+				err = 0;
+			if (err) {
+				printf("%s: could not set data multiplex mode\n",
+				    devname);
 				goto bad;
-		    sc->sc_cm_over_data = 1;
+			}
+			sc->sc_cm_over_data = 1;
 		}
 	}
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	sc->sc_tty = tp = ttymalloc();
-#elif defined(__FreeBSD__)
-	sc->sc_tty = tp = ttymalloc(sc->sc_tty);
-#endif
-	tp->t_oproc = umodemstart;
-	tp->t_param = umodemparam;
-	tp->t_stop = umodemstop;
-	DPRINTF(("umodem_attach: tty_attach %p\n", tp));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	tty_attach(tp);
-#endif
+	/*
+	 * The standard allows for notification messages (to indicate things
+	 * like a modem hangup) to come in via an interrupt endpoint
+	 * off of the control interface.  Iterate over the endpoints on
+	 * the control interface and see if there are any interrupt
+	 * endpoints; if there are, then register it.
+	 */
 
-#if defined(__FreeBSD__)
-	DPRINTF(("umodem_attach: make_dev: umodem%d\n", device_get_unit(self)));
-	sc->dev = make_dev(&umodem_cdevsw, device_get_unit(self),
-			UID_UUCP, GID_DIALER, 0660,
-			"umodem%d", device_get_unit(self));
-	sc->dev->si_tty = tp;
-#endif
+	sc->sc_ctl_notify = -1;
+	sc->sc_notify_pipe = NULL;
+
+	for (i = 0; i < id->bNumEndpoints; i++) {
+		ed = usbd_interface2endpoint_descriptor(sc->sc_ctl_iface, i);
+		if (ed == NULL)
+			continue;
+
+		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
+		    (ed->bmAttributes & UE_XFERTYPE) == UE_INTERRUPT) {
+			printf("%s: status change notification available\n",
+			    devname);
+			sc->sc_ctl_notify = ed->bEndpointAddress;
+		}
+	}
 
 	sc->sc_dtr = -1;
 
+	ucom->sc_parent = sc;
+	ucom->sc_portno = UCOM_UNK_PORTNO;
+	/* bulkin, bulkout set above */
+	ucom->sc_ibufsize = UMODEMIBUFSIZE;
+	ucom->sc_obufsize = UMODEMOBUFSIZE;
+	ucom->sc_ibufsizepad = UMODEMIBUFSIZE;
+	ucom->sc_opkthdrlen = 0;
+	ucom->sc_callback = &umodem_callback;
+
+	ucom_attach(&sc->sc_ucom);
+
+	free(devinfo, M_USBDEV);
 	USB_ATTACH_SUCCESS_RETURN;
 
  bad:
-	DPRINTF(("umodem_attach: BAD -> DYING\n"));
+	ucom->sc_dying = 1;
 	sc->sc_dying = 1;
+	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
+}
+
+Static int
+umodem_open(void *addr, int portno)
+{
+	struct umodem_softc *sc = addr;
+	int err;
+
+	DPRINTF(("umodem_open: sc=%p\n", sc));
+
+	if (sc->sc_ctl_notify != -1 && sc->sc_notify_pipe == NULL) {
+		err = usbd_open_pipe_intr(sc->sc_ctl_iface, sc->sc_ctl_notify,
+		    USBD_SHORT_XFER_OK, &sc->sc_notify_pipe, sc,
+		    &sc->sc_notify_buf, sizeof(sc->sc_notify_buf),
+		    umodem_intr, USBD_DEFAULT_INTERVAL);
+
+		if (err) {
+			DPRINTF(("Failed to establish notify pipe: %s\n",
+				usbd_errstr(err)));
+			return EIO;
+		}
+	}
+
+	return 0;
+}
+
+Static void
+umodem_close(void *addr, int portno)
+{
+	struct umodem_softc *sc = addr;
+	int err;
+
+	DPRINTF(("umodem_close: sc=%p\n", sc));
+
+	if (sc->sc_notify_pipe != NULL) {
+		err = usbd_abort_pipe(sc->sc_notify_pipe);
+		if (err)
+			printf("%s: abort notify pipe failed: %s\n",
+			    USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+		err = usbd_close_pipe(sc->sc_notify_pipe);
+		if (err)
+			printf("%s: close notify pipe failed: %s\n",
+			    USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+		sc->sc_notify_pipe = NULL;
+	}
+}
+
+Static void
+umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
+{
+	struct umodem_softc *sc = priv;
+	u_char mstatus;
+
+	if (sc->sc_dying)
+		return;
+
+	if (status != USBD_NORMAL_COMPLETION) {
+		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
+			return;
+		printf("%s: abnormal status: %s\n", USBDEVNAME(sc->sc_dev),
+		       usbd_errstr(status));
+		return;
+	}
+
+	if (sc->sc_notify_buf.bmRequestType != UCDC_NOTIFICATION) {
+		DPRINTF(("%s: unknown message type (%02x) on notify pipe\n",
+			 USBDEVNAME(sc->sc_dev),
+			 sc->sc_notify_buf.bmRequestType));
+		return;
+	}
+
+	switch (sc->sc_notify_buf.bNotification) {
+	case UCDC_N_SERIAL_STATE:
+		/*
+		 * Set the serial state in ucom driver based on
+		 * the bits from the notify message
+		 */
+		if (UGETW(sc->sc_notify_buf.wLength) != 2) {
+			printf("%s: Invalid notification length! (%d)\n",
+			       USBDEVNAME(sc->sc_dev),
+			       UGETW(sc->sc_notify_buf.wLength));
+			break;
+		}
+		DPRINTF(("%s: notify bytes = %02x%02x\n",
+			 USBDEVNAME(sc->sc_dev),
+			 sc->sc_notify_buf.data[0],
+			 sc->sc_notify_buf.data[1]));
+		/* Currently, lsr is always zero. */
+		sc->sc_lsr = sc->sc_msr = 0;
+		mstatus = sc->sc_notify_buf.data[0];
+
+		if (ISSET(mstatus, UCDC_N_SERIAL_RI))
+			sc->sc_msr |= UMSR_RI;
+		if (ISSET(mstatus, UCDC_N_SERIAL_DSR))
+			sc->sc_msr |= UMSR_DSR;
+		if (ISSET(mstatus, UCDC_N_SERIAL_DCD))
+			sc->sc_msr |= UMSR_DCD;
+		ucom_status_change(&sc->sc_ucom);
+		break;
+	default:
+		DPRINTF(("%s: unknown notify message: %02x\n",
+			 USBDEVNAME(sc->sc_dev),
+			 sc->sc_notify_buf.bNotification));
+		break;
+	}
 }
 
 void
@@ -374,163 +509,41 @@ umodem_get_caps(usbd_device_handle dev, int *cm, int *acm)
 	*cm = *acm = 0;
 
 	cmd = umodem_get_desc(dev, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
-	if (!cmd) {
+	if (cmd == NULL) {
 		DPRINTF(("umodem_get_desc: no CM desc\n"));
 		return;
 	}
 	*cm = cmd->bmCapabilities;
 
 	cad = umodem_get_desc(dev, UDESC_CS_INTERFACE, UDESCSUB_CDC_ACM);
-	if (!cad) {
+	if (cad == NULL) {
 		DPRINTF(("umodem_get_desc: no ACM desc\n"));
 		return;
 	}
 	*acm = cad->bmCapabilities;
-} 
-
-void
-umodemstart(struct tty *tp)
-{
-	struct umodem_softc *sc;
-	struct cblock *cbp;
-	int s;
-	u_char *data;
-	int cnt;
-
-	USB_GET_SC(umodem, UMODEMUNIT(tp->t_dev), sc);
-
-	if (sc->sc_dying)
-		return;
-
-	s = spltty();
-	if (ISSET(tp->t_state, TS_BUSY | TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
-		DPRINTFN(4,("umodemstart: stopped\n"));
-		goto out;
-	}
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (ISSET(tp->t_state, TS_ASLEEP)) {
-			CLR(tp->t_state, TS_ASLEEP);
-			wakeup(&tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-		if (tp->t_outq.c_cc == 0)
-			goto out;
-	}
-#elif defined(__FreeBSD__)
-	if (tp->t_outq.c_cc <= tp->t_olowat) {
-		if (ISSET(tp->t_state, TS_SO_OLOWAT)) {
-			CLR(tp->t_state, TS_SO_OLOWAT);
-			wakeup(TSA_OLOWAT(tp));
-		}
-		selwakeup(&tp->t_wsel);
-		if (tp->t_outq.c_cc == 0) {
-		        if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==
-		            TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
-		                CLR(tp->t_state, TS_SO_OCOMPLETE);
-		                wakeup(TSA_OCOMPLETE(tp));
-		        } 
-			goto out;
-		}
-	}
-#endif
-
-	/* Grab the first contiguous region of buffer space. */
-	data = tp->t_outq.c_cf;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	cnt = ndqb(&tp->t_outq, 0);
-#elif defined(__FreeBSD__)
-	cbp = (struct cblock *) ((intptr_t) tp->t_outq.c_cf & ~CROUND);
-	cnt = min((char *) (cbp+1) - tp->t_outq.c_cf, tp->t_outq.c_cc);
-#endif
-
-	if (cnt == 0) {
-		DPRINTF(("umodemstart: cnt==0\n"));
-		splx(s);
-		return;
-	}
-
-	SET(tp->t_state, TS_BUSY);
-
-	DPRINTFN(4,("umodemstart: %d chars\n", cnt));
-	/* XXX what can we do on error? */
-	usbd_setup_xfer(sc->sc_oxfer, sc->sc_bulkout_pipe, 
-			   (usbd_private_handle)sc, data, cnt,
-			   0, USBD_NO_TIMEOUT, umodemwritecb);
-	(void)usbd_transfer(sc->sc_oxfer);
-
-	ttwwakeup(tp);
-out:
-	splx(s);
 }
 
 void
-umodemwritecb(usbd_xfer_handle xfer, usbd_private_handle priv,
-	      usbd_status status)
+umodem_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 {
-	struct umodem_softc *sc = (struct umodem_softc *)priv;
-	struct tty *tp = sc->sc_tty;
-	u_int32_t cc;
-	int s;
+	struct umodem_softc *sc = addr;
 
-	DPRINTFN(5,("umodemwritecb: status=%d\n", status));
+	DPRINTF(("umodem_get_status:\n"));
 
-	if (status == USBD_CANCELLED)
-		return;
-
-	if (status != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("umodemwritecb: status=%d\n", status));
-		if (status == USBD_STALLED)
-		    usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		/* XXX we should restart after some delay. */
-		return;
-	}
-
-	usbd_get_xfer_status(xfer, 0, 0, &cc, 0);
-	DPRINTFN(5,("umodemwritecb: cc=%d\n", cc));
-
-	s = spltty();
-	CLR(tp->t_state, TS_BUSY);
-	if (ISSET(tp->t_state, TS_FLUSH))
-		CLR(tp->t_state, TS_FLUSH);
-	else
-		ndflush(&tp->t_outq, cc);
-	(*linesw[tp->t_line].l_start)(tp);
-	splx(s);
+	if (lsr != NULL)
+		*lsr = sc->sc_lsr;
+	if (msr != NULL)
+		*msr = sc->sc_msr;
 }
 
 int
-umodemparam(struct tty *tp, struct termios *t)
+umodem_param(void *addr, int portno, struct termios *t)
 {
-	struct umodem_softc *sc;
+	struct umodem_softc *sc = addr;
+	usbd_status err;
 	usb_cdc_line_state_t ls;
 
-	USB_GET_SC(umodem, UMODEMUNIT(tp->t_dev), sc);
-
-	if (sc->sc_dying)
-		return (EIO);
-
-	/* Check requested parameters. */
-	if (t->c_ospeed < 0)
-		return (EINVAL);
-	if (t->c_ispeed && t->c_ispeed != t->c_ospeed)
-		return (EINVAL);
-
-	/*
-	 * If there were no changes, don't do anything.  This avoids dropping
-	 * input and improves performance when all we did was frob things like
-	 * VMIN and VTIME.
-	 */
-	if (tp->t_ospeed == t->c_ospeed &&
-	    tp->t_cflag == t->c_cflag)
-		return (0);
-
-	/* And copy to tty. */
-	tp->t_ispeed = 0;
-	tp->t_ospeed = t->c_ospeed;
-	tp->t_cflag = t->c_cflag;
+	DPRINTF(("umodem_param: sc=%p\n", sc));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 	if (ISSET(t->c_cflag, CSTOPB))
@@ -558,412 +571,28 @@ umodemparam(struct tty *tp, struct termios *t)
 		ls.bDataBits = 8;
 		break;
 	}
-	/* XXX what can we if it fails? */
-	(void)umodem_set_line_coding(sc, &ls);
 
-	/*
-	 * Update the tty layer's idea of the carrier bit, in case we changed
-	 * CLOCAL or MDMBUF.  We don't hang up here; we only do that by
-	 * explicit request.
-	 */
-	(void) (*linesw[tp->t_line].l_modem)(tp, 1 /* XXX carrier */ );
-
-	return (0);
-}
-
-int
-umodemopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
-{
-	int unit = UMODEMUNIT(dev);
-	struct umodem_softc *sc;
-	usbd_status err;
-	struct tty *tp;
-	int s;
-	int error;
- 
-	USB_GET_SC_OPEN(umodem, unit, sc);
-
-	if (sc->sc_dying)
-		return (EIO);
-
-#if defined(__NetBSD__) || defined(__OpenBBSD__)
-	if (ISSET(sc->sc_dev.dv_flags, DVF_ACTIVE) == 0)
-		return (ENXIO);
-#endif
-
-	tp = sc->sc_tty;
-
-	DPRINTF(("%s: umodemopen: tp=%p\n", USBDEVNAME(sc->sc_dev), tp));
-
-	if (ISSET(tp->t_state, TS_ISOPEN) &&
-	    ISSET(tp->t_state, TS_XCLUDE) &&
-	    suser(p))
-		return (EBUSY);
-
-	/*
-	 * Do the following iff this is a first open.
-	 */
-	s = spltty();
-	while (sc->sc_opening)
-		tsleep(&sc->sc_opening, PRIBIO, "umdmop", 0);
-	sc->sc_opening = 1;
-	
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN) && tp->t_wopen == 0) {
-#elif defined(__FreeBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN)) {
-#endif
-		struct termios t;
-
-		tp->t_dev = dev;
-
-		/*
-		 * Initialize the termios status to the defaults.  Add in the
-		 * sticky bits from TIOCSFLAGS.
-		 */
-		t.c_ispeed = 0;
-		t.c_ospeed = TTYDEF_SPEED;
-		t.c_cflag = TTYDEF_CFLAG;
-		/* Make sure umodemparam() will do something. */
-		tp->t_ospeed = 0;
-		(void) umodemparam(tp, &t);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
-		ttychars(tp);
-		ttsetwater(tp);
-
-		/*
-		 * Turn on DTR.  We must always do this, even if carrier is not
-		 * present, because otherwise we'd have to use TIOCSDTR
-		 * immediately after setting CLOCAL, which applications do not
-		 * expect.  We always assert DTR while the device is open
-		 * unless explicitly requested to deassert it.
-		 */
-		umodem_modem(sc, 1);
-
-		DPRINTF(("umodemopen: open pipes\n"));
-
-		/* Open the bulk pipes */
-		err = usbd_open_pipe(sc->sc_data_iface, sc->sc_bulkin_no, 0,
-				   &sc->sc_bulkin_pipe);
-		if (err) {
-			DPRINTF(("%s: cannot open bulk out pipe (addr %d)\n",
-				 USBDEVNAME(sc->sc_dev), sc->sc_bulkin_no));
-			return (EIO);
-		}
-		err = usbd_open_pipe(sc->sc_data_iface, sc->sc_bulkout_no,
-				   USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
-		if (err) {
-			DPRINTF(("%s: cannot open bulk in pipe (addr %d)\n",
-				 USBDEVNAME(sc->sc_dev), sc->sc_bulkout_no));
-			usbd_close_pipe(sc->sc_bulkin_pipe);
-			return (EIO);
-		}
-		
-		/* Allocate a request and an input buffer and start reading. */
-		sc->sc_ixfer = usbd_alloc_xfer(sc->sc_udev);
-		if (sc->sc_ixfer == 0) {
-			usbd_close_pipe(sc->sc_bulkin_pipe);
-			usbd_close_pipe(sc->sc_bulkout_pipe);
-			return (ENOMEM);
-		}
-		sc->sc_oxfer = usbd_alloc_xfer(sc->sc_udev);
-		if (sc->sc_oxfer == 0) {
-			usbd_close_pipe(sc->sc_bulkin_pipe);
-			usbd_close_pipe(sc->sc_bulkout_pipe);
-			usbd_free_xfer(sc->sc_ixfer);
-			return (ENOMEM);
-		}
-		sc->sc_ibuf = malloc(UMODEMIBUFSIZE, M_USBDEV, M_WAITOK);
-		umodemstartread(sc);
-	}
-	sc->sc_opening = 0;
-	wakeup(&sc->sc_opening);
-	splx(s);
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	error = ttyopen(tp, UMODEMDIALOUT(dev), ISSET(flag, O_NONBLOCK));
-	if (error)
-		goto bad;
-#elif defined(__FreeBSD__)
-	error = ttyopen(dev, tp);
-	if (error)
-		goto bad;
-#endif
-
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
-	if (error)
-		goto bad;
-
-	return (0);
-
-bad:
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN) && tp->t_wopen == 0) {
-#elif defined(__FreeBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN)) {
-#endif
-		/*
-		 * We failed to open the device, and nobody else had it opened.
-		 * Clean up the state as appropriate.
-		 */
-		umodem_cleanup(sc);
-	}
-
-	return (error);
-}
-
-usbd_status
-umodemstartread(struct umodem_softc *sc)
-{
-	usbd_status err;
-
-	DPRINTFN(5,("umodemstartread: start\n"));
-	usbd_setup_xfer(sc->sc_ixfer, sc->sc_bulkin_pipe, 
-			   (usbd_private_handle)sc, 
-			   sc->sc_ibuf,  UMODEMIBUFSIZE, USBD_SHORT_XFER_OK, 
-			   USBD_NO_TIMEOUT, umodemreadcb);
-
-	err = usbd_transfer(sc->sc_ixfer);
-	if (err != USBD_IN_PROGRESS)
-		return (err);
-
-	return (USBD_NORMAL_COMPLETION);
-}
- 
-void
-umodemreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
-{
-	struct umodem_softc *sc = (struct umodem_softc *)p;
-	struct tty *tp = sc->sc_tty;
-	int (*rint) (int c, struct tty *tp) = linesw[tp->t_line].l_rint;
-	usbd_status err;
-	u_int32_t cc;
-	u_char *cp;
-	int s;
-
-	if (status == USBD_CANCELLED)
-		return;
-
-	if (status != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("umodemreadcb: status=%d\n", status));
-		if (status == USBD_STALLED)
-		    usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		/* XXX we should restart after some delay. */
-		return;
-	}
-
-	usbd_get_xfer_status(xfer, 0, (void **)&cp, &cc, 0);
-	DPRINTFN(5,("umodemreadcb: got %d chars, tp=%p\n", cc, tp));
-	s = spltty();
-	/* Give characters to tty layer. */
-	while (cc-- > 0) {
-		DPRINTFN(7,("umodemreadcb: char=0x%02x\n", *cp));
-		if ((*rint)(*cp++, tp) == -1) {
-			/* XXX what should we do? */
-			break;
-		}
-	}
-	splx(s);
-
-	err = umodemstartread(sc);
+	err = umodem_set_line_coding(sc, &ls);
 	if (err) {
-		printf("%s: read start failed\n", USBDEVNAME(sc->sc_dev));
-		/* XXX what should we dow now? */
+		DPRINTF(("umodem_param: err=%s\n", usbd_errstr(err)));
+		return (ENOTTY);
 	}
-}
-
-int
-umodemclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
-{
-	struct umodem_softc *sc;
-	struct tty *tp;
-        int s;
-
-	USB_GET_SC(umodem, UMODEMUNIT(dev), sc);
-
-	tp = sc->sc_tty;
-
-	DPRINTF(("%s: umodemclose sc_tty=%p\n", USBDEVNAME(sc->sc_dev), tp));
-
-	if (!ISSET(tp->t_state, TS_ISOPEN))
-		return (0);
-
-	DPRINTF(("%s: umodemclose lclose(%p,%d)\n", USBDEVNAME(sc->sc_dev), tp,flag));
-
-        s=spltty();
-	DPRINTF(("%s: umodemclose lclose=%p\n", USBDEVNAME(sc->sc_dev), linesw[tp->t_line].l_close));
-	(*linesw[tp->t_line].l_close)(tp, flag);
-
-	DPRINTF(("%s: umodemclose ttyclose(%p)\n", USBDEVNAME(sc->sc_dev), tp));
-	ttyclose(tp);
-        splx(s);
-
-	DPRINTF(("%s: umodemclose sc->sc_dying=%d\n", USBDEVNAME(sc->sc_dev), sc->sc_dying));
-	if (sc->sc_dying)
-		return (0);
-
-	DPRINTF(("%s: umodemclose tp->t_state=%d\n", USBDEVNAME(sc->sc_dev), tp->t_state));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN) && tp->t_wopen == 0) {
-#elif defined(__FreeBSD__)
-	if (!ISSET(tp->t_state, TS_ISOPEN)) {
-#endif
-		/*
-		 * Although we got a last close, the device may still be in
-		 * use; e.g. if this was the dialout node, and there are still
-		 * processes waiting for carrier on the non-dialout node.
-		 */
-		DPRINTF(("%s: umodemclose umodem_cleanup(%p)\n", USBDEVNAME(sc->sc_dev), sc));
-		umodem_cleanup(sc);
-	}
-	DPRINTF(("%s: umodemclose return\n", USBDEVNAME(sc->sc_dev)));
-
 	return (0);
 }
- 
-void
-umodem_cleanup(struct umodem_softc *sc)
-{
-	umodem_shutdown(sc);
-
-	DPRINTFN(5, ("%s: umodem_cleanup: closing pipes\n",
-		USBDEVNAME(sc->sc_dev)));
-
-	usbd_abort_pipe(sc->sc_bulkin_pipe);
-	usbd_close_pipe(sc->sc_bulkin_pipe);
-	usbd_abort_pipe(sc->sc_bulkout_pipe);
-	usbd_close_pipe(sc->sc_bulkout_pipe);
-	usbd_free_xfer(sc->sc_ixfer);
-	usbd_free_xfer(sc->sc_oxfer);
-	free(sc->sc_ibuf, M_USBDEV);
-}
 
 int
-umodemread(dev_t dev, struct uio *uio, int flag)
+umodem_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
+	     usb_proc_ptr p)
 {
-	struct umodem_softc *sc;
-	struct tty *tp;
-
-	USB_GET_SC(umodem, UMODEMUNIT(dev), sc);
-
-	tp = sc->sc_tty;
-	
-	if (sc->sc_dying)
-		return (EIO);
- 
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
- 
-int
-umodemwrite(dev_t dev, struct uio *uio, int flag)
-{
-	struct umodem_softc *sc;
-	struct tty *tp;
-
-	USB_GET_SC(umodem, UMODEMUNIT(dev), sc);
-
- 	tp = sc->sc_tty;
+	struct umodem_softc *sc = addr;
+	int error = 0;
 
 	if (sc->sc_dying)
 		return (EIO);
- 
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
-}
 
-void
-umodemstop(struct tty *tp, int flag)
-{
-	struct umodem_softc *sc;
-	int s;
-
-	USB_GET_SC(umodem, UMODEMUNIT(tp->t_dev), sc);
-
-	DPRINTF(("umodemstop: %d\n", flag));
-	s = spltty();
-	if (ISSET(tp->t_state, TS_BUSY)) {
-		DPRINTF(("umodemstop: XXX\n"));
-		/* XXX do what? */
-		if (!ISSET(tp->t_state, TS_TTSTOP))
-			SET(tp->t_state, TS_FLUSH);
-	}
-	splx(s);
-}
-
-struct tty *
-umodemtty(dev_t dev)
-{
-	struct umodem_softc *sc;
-	struct tty *tp;
-
-	USB_GET_SC(umodem, UMODEMUNIT(dev), sc);
-
-	tp = sc->sc_tty;
-
-	return (tp);
-}
-
-int
-umodemioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
-{
-	struct umodem_softc *sc;
-	struct tty *tp;
-	int error;
-	int s;
-	int bits;
-
-	USB_GET_SC(umodem, UMODEMUNIT(dev), sc);
-
-	tp = sc->sc_tty;
-
-	if (sc->sc_dying)
-		return (EIO);
- 
 	DPRINTF(("umodemioctl: cmd=0x%08lx\n", cmd));
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
-		return (error);
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	error = ttioctl(tp, cmd, data, flag, p);
-#elif defined(__FreeBSD__)
-	error = ttioctl(tp, cmd, data, flag);
-#endif
-	if (error >= 0)
-		return (error);
-
-	DPRINTF(("umodemioctl: our cmd=0x%08lx\n", cmd));
-	s = spltty();
-
 	switch (cmd) {
-	case TIOCSBRK:
-		umodem_break(sc, 1);
-		break;
-
-	case TIOCCBRK:
-		umodem_break(sc, 0);
-		break;
-
-	case TIOCSDTR:
-		umodem_modem(sc, 1);
-		break;
-
-	case TIOCCDTR:
-		umodem_modem(sc, 0);
-		break;
-
-	case TIOCMGET:
-		bits = TIOCM_LE;
-		if(sc->sc_dtr)
-			bits |= TIOCM_DTR;
-		*(int *)data = bits;
-		break;
-
-	case TIOCMSET:
-		break;
-
 	case USB_GET_CM_OVER_DATA:
 		*(int *)data = sc->sc_cm_over_data;
 		break;
@@ -977,53 +606,52 @@ umodemioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	default:
 		DPRINTF(("umodemioctl: unknown\n"));
 		error = ENOTTY;
-		splx(s);
-		return (error);
+		break;
 	}
 
-	splx(s);
-	return(0);
+	return (error);
 }
 
 void
-umodem_shutdown(struct umodem_softc *sc)
+umodem_dtr(struct umodem_softc *sc, int onoff)
 {
-	struct tty *tp = sc->sc_tty;
-
-	DPRINTF(("%s: umodem_shutdown\n", USBDEVNAME(sc->sc_dev)));
-	/*
-	 * Hang up if necessary.  Wait a bit, so the other side has time to
-	 * notice even if we immediately open the port again.
-	 */
-	if (ISSET(tp->t_cflag, HUPCL)) {
-		umodem_modem(sc, 0);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		(void) tsleep(sc, TTIPRI, ttclos, hz);
-#elif defined(__FreeBSD__)
-		(void) tsleep(sc, TTIPRI, "umdmsd", hz);
-#endif
-	}
-}
-
-void
-umodem_modem(struct umodem_softc *sc, int onoff)
-{
-	usb_device_request_t req;
-
-	DPRINTF(("%s: umodem_modem: onoff=%d\n", USBDEVNAME(sc->sc_dev),onoff));
+	DPRINTF(("umodem_modem: onoff=%d\n", onoff));
 
 	if (sc->sc_dtr == onoff)
 		return;
+	sc->sc_dtr = onoff;
 
+	umodem_set_line_state(sc);
+}
+
+void
+umodem_rts(struct umodem_softc *sc, int onoff)
+{
+	DPRINTF(("umodem_modem: onoff=%d\n", onoff));
+
+	if (sc->sc_rts == onoff)
+		return;
+	sc->sc_rts = onoff;
+
+	umodem_set_line_state(sc);
+}
+
+void
+umodem_set_line_state(struct umodem_softc *sc)
+{
+	usb_device_request_t req;
+	int ls;
+
+	ls = (sc->sc_dtr ? UCDC_LINE_DTR : 0) |
+	     (sc->sc_rts ? UCDC_LINE_RTS : 0);
 	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 	req.bRequest = UCDC_SET_CONTROL_LINE_STATE;
-	USETW(req.wValue, onoff ? UCDC_LINE_DTR : 0);
+	USETW(req.wValue, ls);
 	USETW(req.wIndex, sc->sc_ctl_iface_no);
 	USETW(req.wLength, 0);
 
 	(void)usbd_do_request(sc->sc_udev, &req, 0);
 
-	sc->sc_dtr = onoff;
 }
 
 void
@@ -1031,7 +659,7 @@ umodem_break(struct umodem_softc *sc, int onoff)
 {
 	usb_device_request_t req;
 
-	DPRINTF(("%s: umodem_break: onoff=%d\n", USBDEVNAME(sc->sc_dev),onoff));
+	DPRINTF(("umodem_break: onoff=%d\n", onoff));
 
 	if (!(sc->sc_acm_cap & USB_CDC_ACM_HAS_BREAK))
 		return;
@@ -1043,6 +671,59 @@ umodem_break(struct umodem_softc *sc, int onoff)
 	USETW(req.wLength, 0);
 
 	(void)usbd_do_request(sc->sc_udev, &req, 0);
+}
+
+void
+umodem_set(void *addr, int portno, int reg, int onoff)
+{
+	struct umodem_softc *sc = addr;
+
+	switch (reg) {
+	case UCOM_SET_DTR:
+		umodem_dtr(sc, onoff);
+		break;
+	case UCOM_SET_RTS:
+		umodem_rts(sc, onoff);
+		break;
+	case UCOM_SET_BREAK:
+		umodem_break(sc, onoff);
+		break;
+	default:
+		break;
+	}
+}
+
+usbd_status
+umodem_set_line_coding(struct umodem_softc *sc, usb_cdc_line_state_t *state)
+{
+	usb_device_request_t req;
+	usbd_status err;
+
+	DPRINTF(("umodem_set_line_coding: rate=%d fmt=%d parity=%d bits=%d\n",
+		 UGETDW(state->dwDTERate), state->bCharFormat,
+		 state->bParityType, state->bDataBits));
+
+	if (memcmp(state, &sc->sc_line_state, UCDC_LINE_STATE_LENGTH) == 0) {
+		DPRINTF(("umodem_set_line_coding: already set\n"));
+		return (USBD_NORMAL_COMPLETION);
+	}
+
+	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
+	req.bRequest = UCDC_SET_LINE_CODING;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, sc->sc_ctl_iface_no);
+	USETW(req.wLength, UCDC_LINE_STATE_LENGTH);
+
+	err = usbd_do_request(sc->sc_udev, &req, state);
+	if (err) {
+		DPRINTF(("umodem_set_line_coding: failed, err=%s\n",
+			 usbd_errstr(err)));
+		return (err);
+	}
+
+	sc->sc_line_state = *state;
+
+	return (USBD_NORMAL_COMPLETION);
 }
 
 void *
@@ -1071,6 +752,9 @@ umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 	usbd_status err;
 	usb_cdc_abstract_state_t ast;
 
+	DPRINTF(("umodem_set_comm_feature: feature=%d state=%d\n", feature,
+		 state));
+
 	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 	req.bRequest = UCDC_SET_COMM_FEATURE;
 	USETW(req.wValue, feature);
@@ -1080,120 +764,30 @@ umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 
 	err = usbd_do_request(sc->sc_udev, &req, &ast);
 	if (err) {
-		DPRINTF(("%s: umodem_set_comm_feat: feature=%d failed, err=%d\n",
-			 USBDEVNAME(sc->sc_dev), feature, err));
+		DPRINTF(("umodem_set_comm_feature: feature=%d, err=%s\n",
+			 feature, usbd_errstr(err)));
 		return (err);
 	}
 
 	return (USBD_NORMAL_COMPLETION);
 }
-
-usbd_status
-umodem_set_line_coding(struct umodem_softc *sc, usb_cdc_line_state_t *state)
-{
-	usb_device_request_t req;
-	usbd_status err;
-
-	DPRINTF(("%s: umodem_set_line_cod: rate=%d fmt=%d parity=%d bits=%d\n",
-		 USBDEVNAME(sc->sc_dev), UGETDW(state->dwDTERate),
-		 state->bCharFormat, state->bParityType, state->bDataBits));
-
-	if (bcmp(state, &sc->sc_line_state, UCDC_LINE_STATE_LENGTH) == 0) {
-		DPRINTF(("%s: umodem_set_line_coding: already set\n",
-			USBDEVNAME(sc->sc_dev)));
-		return (USBD_NORMAL_COMPLETION);
-	}
-
-	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
-	req.bRequest = UCDC_SET_LINE_CODING;
-	USETW(req.wValue, 0);
-	USETW(req.wIndex, sc->sc_ctl_iface_no);
-	USETW(req.wLength, UCDC_LINE_STATE_LENGTH);
-
-	err = usbd_do_request(sc->sc_udev, &req, state);
-	if (err) {
-		DPRINTF(("%s: umodem_set_line_coding: failed, err=%d\n",
-			USBDEVNAME(sc->sc_dev), err));
-		return (err);
-	}
-
-	sc->sc_line_state = *state;
-
-	return (USBD_NORMAL_COMPLETION);
-}
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-int
-umodem_activate(device_ptr_t self, enum devact act)
-{
-	struct umodem_softc *sc = (struct umodem_softc *)self;
-
-	switch (act) {
-	case DVACT_ACTIVATE:
-		return (EOPNOTSUPP);
-		break;
-
-	case DVACT_DEACTIVATE:
-		sc->sc_dying = 1;
-		break;
-	}
-	return (0);
-}
-#endif
 
 USB_DETACH(umodem)
 {
 	USB_DETACH_START(umodem, sc);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int maj, mn;
+	int rv = 0;
 
-	DPRINTF(("umodem_detach: sc=%p flags=%d tp=%p\n", 
-		 sc, flags, sc->sc_tty));
-#elif defined(__FreeBSD__)
-	DPRINTF(("umodem_detach: sc=%p flags=%d, tp=%p\n", 
-		 sc, 0,  sc->sc_tty));
-#endif
+	DPRINTF(("umodem_detach: sc=%p flags=%d\n", sc, flags));
 
+	if (sc->sc_notify_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_notify_pipe);
+		usbd_close_pipe(sc->sc_notify_pipe);
+		sc->sc_notify_pipe = NULL;
+	}
 	sc->sc_dying = 1;
 
-#ifdef DIAGNOSTIC
-	if (sc->sc_tty == 0) {
-		DPRINTF(("umodem_detach: no tty\n"));
-		return (0);
-	}
-#endif
+	sc->sc_ucom.sc_dying = 1;
+	rv = ucom_detach(&sc->sc_ucom);
 
-	/* use refernce count? XXX */
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	/* locate the major number */
-	for (maj = 0; maj < nchrdev; maj++)
-		if (cdevsw[maj].d_open == umodemopen)
-			break;
-
-	/* Nuke the vnodes for any open instances. */
-	mn = self->dv_unit;
-	vdevgone(maj, mn, mn, VCHR);
-	vdevgone(maj, mn, mn | UMODEMDIALOUT_MASK, VCHR);
-	vdevgone(maj, mn, mn | UMODEMCALLUNIT_MASK, VCHR);
-#elif defined(__FreeBSD__)
-	/* XXX not yet implemented */
-#endif
-
-#if defined(__FreeBSD__)
-	destroy_dev(sc->dev);
-#endif
-
-	/* Detach and free the tty. */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	tty_detach(sc->sc_tty);
-	ttyfree(sc->sc_tty);
-	sc->sc_tty = 0;
-#endif
-
-	return (0);
+	return (rv);
 }
-
-#if defined(__FreeBSD__)
-DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, usbd_driver_load,0);
-#endif
