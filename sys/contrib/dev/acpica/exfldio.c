@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 88 $
+ *              $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -157,6 +157,8 @@ AcpiExSetupRegion (
 
     RgnDesc = ObjDesc->CommonField.RegionObj;
 
+    /* We must have a valid region */
+
     if (ACPI_GET_OBJECT_TYPE (RgnDesc) != ACPI_TYPE_REGION)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %X (%s)\n",
@@ -177,6 +179,13 @@ AcpiExSetupRegion (
         {
             return_ACPI_STATUS (Status);
         }
+    }
+
+    if (RgnDesc->Region.SpaceId == ACPI_ADR_SPACE_SMBUS)
+    {
+        /* SMBus has a non-linear address space */
+
+        return_ACPI_STATUS (AE_OK);
     }
 
     /*
@@ -225,8 +234,10 @@ AcpiExSetupRegion (
  * PARAMETERS:  *ObjDesc                - Field to be read
  *              FieldDatumByteOffset    - Byte offset of this datum within the
  *                                        parent field
- *              *Value                  - Where to store value (must be 32 bits)
- *              ReadWrite               - Read or Write flag
+ *              *Value                  - Where to store value (must at least
+ *                                        the size of ACPI_INTEGER)
+ *              Function                - Read or Write flag plus other region-
+ *                                        dependent flags
  *
  * RETURN:      Status
  *
@@ -239,7 +250,7 @@ AcpiExAccessRegion (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT32                  FieldDatumByteOffset,
     ACPI_INTEGER            *Value,
-    UINT32                  ReadWrite)
+    UINT32                  Function)
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *RgnDesc;
@@ -248,6 +259,16 @@ AcpiExAccessRegion (
 
     ACPI_FUNCTION_TRACE ("ExAccessRegion");
 
+
+    /* 
+     * Ensure that the region operands are fully evaluated and verify
+     * the validity of the request
+     */
+    Status = AcpiExSetupRegion (ObjDesc, FieldDatumByteOffset);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      * The physical address of this field datum is:
@@ -261,7 +282,7 @@ AcpiExAccessRegion (
                 + ObjDesc->CommonField.BaseByteOffset
                 + FieldDatumByteOffset;
 
-    if (ReadWrite == ACPI_READ)
+    if ((Function & ACPI_IO_MASK) == ACPI_READ)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "[READ]"));
     }
@@ -281,7 +302,7 @@ AcpiExAccessRegion (
 
     /* Invoke the appropriate AddressSpace/OpRegion handler */
 
-    Status = AcpiEvAddressSpaceDispatch (RgnDesc, ReadWrite,
+    Status = AcpiEvAddressSpaceDispatch (RgnDesc, Function,
                     Address, ACPI_MUL_8 (ObjDesc->CommonField.AccessByteWidth), Value);
 
     if (ACPI_FAILURE (Status))
@@ -293,7 +314,6 @@ AcpiExAccessRegion (
                 AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
                 RgnDesc->Region.SpaceId));
         }
-
         else if (Status == AE_NOT_EXIST)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -450,7 +470,7 @@ AcpiExFieldDatumIo (
         break;
 
 
-    case INTERNAL_TYPE_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
 
         /* Ensure that the BankValue is not beyond the capacity of the register */
 
@@ -480,23 +500,17 @@ AcpiExFieldDatumIo (
         /*lint -fallthrough */
 
 
-    case INTERNAL_TYPE_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
         /*
          * For simple RegionFields, we just directly access the owning
          * Operation Region.
          */
-        Status = AcpiExSetupRegion (ObjDesc, FieldDatumByteOffset);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-
         Status = AcpiExAccessRegion (ObjDesc, FieldDatumByteOffset, Value,
                         ReadWrite);
         break;
 
 
-    case INTERNAL_TYPE_INDEX_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 
         /* Ensure that the IndexValue is not beyond the capacity of the register */

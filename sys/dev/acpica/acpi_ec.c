@@ -254,8 +254,8 @@ EcLock(struct acpi_ec_softc *sc)
 {
     ACPI_STATUS	status;
 
-    /* XXX WAIT_FOREVER is probably a bad idea, what is a better time? */
-    if (ACPI_SUCCESS(status = AcpiAcquireGlobalLock(WAIT_FOREVER, &sc->ec_lockhandle)))
+    /* XXX ACPI_WAIT_FOREVER is probably a bad idea, what is a better time? */
+    if (ACPI_SUCCESS(status = AcpiAcquireGlobalLock(ACPI_WAIT_FOREVER, &sc->ec_lockhandle)))
 	(sc)->ec_locked = 1;
 
     return(status);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 88 $
+ *              $Revision: 90 $
  *
  ******************************************************************************/
 
@@ -411,7 +411,6 @@ AcpiDbSetMethodCallBreakpoint (
         AcpiOsPrintf ("There is no method currently executing\n");
         return;
     }
-
 
     AcpiGbl_StepToNextCall = TRUE;
 }
@@ -1055,7 +1054,7 @@ ErrorExit:
  *
  * RETURN:      None
  *
- * DESCRIPTION:
+ * DESCRIPTION: Display the resource objects associated with a device.
  *
  ******************************************************************************/
 
@@ -1222,7 +1221,7 @@ AcpiDbIntegrityWalk (
             Node, ACPI_GET_DESCRIPTOR_TYPE (Node));
     }
 
-    if (Node->Type > INTERNAL_TYPE_MAX)
+    if (Node->Type > ACPI_TYPE_LOCAL_MAX)
     {
         AcpiOsPrintf ("Invalid Object Type for Node %p, Type = %X\n",
             Node, Node->Type);

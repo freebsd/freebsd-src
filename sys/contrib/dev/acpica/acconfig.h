@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 112 $
+ *       $Revision: 118 $
  *
  *****************************************************************************/
 
@@ -145,7 +145,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20021002
+#define ACPI_CA_VERSION                 0x20021115
 
 /* Version of ACPI supported */
 
@@ -256,6 +256,10 @@
 
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
+
+/* SMBus bidirectional buffer size */
+
+#define ACPI_SMBUS_BUFFER_SIZE          34
 
 
 /******************************************************************************
