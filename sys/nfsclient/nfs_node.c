@@ -258,7 +258,6 @@ loop:
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
 	lockinit(&np->n_rslock, PVFS | rsflags, "nfrslk", 0, LK_NOPAUSE);
-	lockinit(&vp->v_lock, PVFS, "nfsnlk", 0, LK_NOPAUSE);
 	*npp = np;
 
 	if (nfs_node_hash_lock < 0)

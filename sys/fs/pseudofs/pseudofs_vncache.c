@@ -179,8 +179,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		pvd->pvd_next->pvd_prev = pvd;
 	pfs_vncache = pvd;
 	mtx_unlock(&pfs_vncache_mutex);
-        (*vpp)->v_vnlock = &(*vpp)->v_lock;
-        lockinit((*vpp)->v_vnlock, PINOD, "pfsnod", VLKTIMEOUT, LK_CANRECURSE);
+        (*vpp)->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
 	return (0);
 }

@@ -576,7 +576,6 @@ loop:
 	un = VTOUNION(*vpp);
 	bzero(un, sizeof(*un));
 
-	lockinit(&un->un_lock, PVFS, "unlock", VLKTIMEOUT, 0);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	un->un_vnode = *vpp;
@@ -643,7 +642,6 @@ union_freevp(vp)
 		free(un->un_path, M_TEMP);
 		un->un_path = NULL;
 	}
-	lockdestroy(&un->un_lock);
 
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = 0;

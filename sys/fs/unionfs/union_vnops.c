@@ -80,7 +80,6 @@ static int	union_inactive(struct vop_inactive_args *ap);
 static int	union_ioctl(struct vop_ioctl_args *ap);
 static int	union_lease(struct vop_lease_args *ap);
 static int	union_link(struct vop_link_args *ap);
-static int	union_lock(struct vop_lock_args *ap);
 static int	union_lookup(struct vop_lookup_args *ap);
 static int	union_lookup1(struct vnode *udvp, struct vnode **dvp,
 				   struct vnode **vpp,
@@ -103,7 +102,6 @@ static int	union_poll(struct vop_poll_args *ap);
 static int	union_setattr(struct vop_setattr_args *ap);
 static int	union_strategy(struct vop_strategy_args *ap);
 static int	union_symlink(struct vop_symlink_args *ap);
-static int	union_unlock(struct vop_unlock_args *ap);
 static int	union_whiteout(struct vop_whiteout_args *ap);
 static int	union_write(struct vop_read_args *ap);
 
@@ -1700,86 +1698,6 @@ union_reclaim(ap)
 	return (0);
 }
 
-static int
-union_lock(ap)
-	struct vop_lock_args *ap;
-{
-#if 0
-	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
-	int flags = ap->a_flags;
-	struct union_node *un;
-#endif
-	int error;
-
-	error = vop_stdlock(ap);
-#if 0
-	un = VTOUNION(vp);
-
-	if (error == 0) {
-		/*
-		 * Lock the upper if it exists and this is an exclusive lock
-		 * request.
-		 */
-		if (un->un_uppervp != NULLVP && 
-		    (flags & LK_TYPE_MASK) == LK_EXCLUSIVE) {
-			if ((un->un_flags & UN_ULOCK) == 0 && vrefcnt(vp)) {
-				error = vn_lock(un->un_uppervp, flags, td);
-				if (error) {
-					struct vop_unlock_args uap = { 0 };
-					uap.a_vp = ap->a_vp;
-					uap.a_flags = ap->a_flags;
-					uap.a_td = ap->a_td;
-					vop_stdunlock(&uap);
-					return (error);
-				}
-				un->un_flags |= UN_ULOCK;
-			}
-		}
-	}
-#endif
-	return (error);
-}
-
-/*
- *	union_unlock:
- *
- *	Unlock our union node.  This also unlocks uppervp.  
- */
-static int
-union_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct thread *a_td;
-	} */ *ap;
-{
-#if 0
-	struct union_node *un = VTOUNION(ap->a_vp);
-#endif
-	int error;
-
-#if 0
-	KASSERT((un->un_uppervp == NULL || vrefcnt(un->un_uppervp) > 0), ("uppervp usecount is 0"));
-#endif
-
-	error = vop_stdunlock(ap);
-#if 0
-
-	/*
-	 * If no exclusive locks remain and we are holding an uppervp lock,
-	 * remove the uppervp lock.
-	 */
-
-	if ((un->un_flags & UN_ULOCK) && 
-	    lockstatus(&un->un_lock, NULL) != LK_EXCLUSIVE) {
-		un->un_flags &= ~UN_ULOCK;
-		VOP_UNLOCK(un->un_uppervp, LK_EXCLUSIVE, td);
-	}
-#endif
-	return(error);
-}
-
 /*
  * unionvp do not hold a VM object and there is no need to create one for
  * upper or lower vp because it is done in the union_open()
@@ -1936,7 +1854,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lease_desc,		(vop_t *) union_lease },
 	{ &vop_link_desc,		(vop_t *) union_link },
-	{ &vop_lock_desc,		(vop_t *) union_lock },
 	{ &vop_lookup_desc,		(vop_t *) union_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) union_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) union_mknod },
@@ -1956,7 +1873,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) union_setattr },
 	{ &vop_strategy_desc,		(vop_t *) union_strategy },
 	{ &vop_symlink_desc,		(vop_t *) union_symlink },
-	{ &vop_unlock_desc,		(vop_t *) union_unlock },
 	{ &vop_whiteout_desc,		(vop_t *) union_whiteout },
 	{ &vop_write_desc,		(vop_t *) union_write },
 	{ NULL, NULL }

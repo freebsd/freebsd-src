@@ -613,8 +613,6 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->i_dev = udfmp->im_dev;
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
-	lockinit(&vp->v_lock, PINOD, "udfnode", 0, 0);
-	vp->v_vnlock = &vp->v_lock;
 	VREF(udfmp->im_devvp);
 	udf_hashins(unode);
 
