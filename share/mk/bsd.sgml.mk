@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.19 1997/05/25 12:43:06 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.20 1997/06/21 15:40:33 jkh Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -198,7 +198,7 @@ CLEANFILES+= ${DOC}.${_XFORMAT}
 
 
 .for __target in beforeinstall afterinstall maninstall depend _SUBDIR
-.if !target(__target)
+.if !target(${__target})
 ${__target}:
 .endif
 .endfor
