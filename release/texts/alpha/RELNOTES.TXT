@@ -153,6 +153,10 @@ A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
 has been implemented to improve NFS performance by increasing the
 efficiency of the nfsnode hash tables.
 
+AlphaServer 4000 and 4100 refuse to boot from the FreeBSD install
+floppy or install CDROM. Workaround is to 'dd' the 2.88MB floppy image 
+onto a harddisk and boot the installer from it. Once sysinstall is
+running a normal installation can be performed.
 
 1.2. SECURITY FIXES
 -------------------
