@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.10 1995/05/10 18:59:11 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.11 1995/05/30 08:06:35 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -165,8 +165,6 @@ retry:
 			object = (vm_object_t) vp->v_vmdata;
 			if (object->pager != pager)
 				panic("vn_open: pager/object mismatch");
-			(void) vm_object_lookup(pager);
-			pager_cache(object, TRUE);
 			vp->v_flag |= VVMIO;
 		} else {
 			if ((object = (vm_object_t)vp->v_vmdata) &&
