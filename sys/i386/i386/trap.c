@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.18 1994/03/07 11:38:35 davidg Exp $
+ *	$Id: trap.c,v 1.19 1994/03/14 21:54:03 davidg Exp $
  */
 
 /*
@@ -88,8 +88,8 @@ extern int grow(struct proc *,int);
 
 struct	sysent sysent[];
 int	nsysent;
-extern short cpl;
-extern short netmask, ttymask, biomask;
+extern unsigned cpl;
+extern unsigned netmask, ttymask, biomask;
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -290,6 +290,7 @@ skiptoswitch:
 		if (map != kernel_map) {
 			vm_offset_t pa;
 			vm_offset_t v = (vm_offset_t) vtopte(va);
+			vm_page_t ptepg;
 
 			/*
 			 * Keep swapout from messing with us during this
@@ -318,12 +319,25 @@ skiptoswitch:
 			/* Fault the pte only if needed: */
 			*(volatile char *)v += 0;	
 
-			vm_page_hold(pmap_pte_vm_page(vm_map_pmap(map),v));
+			ptepg = (vm_page_t) pmap_pte_vm_page(vm_map_pmap(map), v);
+			vm_page_hold(ptepg);
 
 			/* Fault in the user page: */
 			rv = vm_fault(map, va, ftype, FALSE);
 
-			vm_page_unhold(pmap_pte_vm_page(vm_map_pmap(map),v));
+			vm_page_unhold(ptepg);
+
+			/*
+			 * page table pages don't need to be kept if they
+			 * are not held
+			 */
+			if( ptepg->hold_count == 0 && ptepg->wire_count == 0) {
+				pmap_page_protect( VM_PAGE_TO_PHYS(ptepg),
+					VM_PROT_NONE);
+				if( ptepg->flags & PG_CLEAN)
+					vm_page_free(ptepg);
+			}
+
 
 			p->p_flag &= ~SLOCK;
 			p->p_flag |= (oldflags & SLOCK);
