@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.11 1994/10/19 20:34:15 wollman Exp $
+ *      $Id: scsiconf.c,v 1.12 1994/10/23 21:27:55 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -399,9 +399,7 @@ scsi_attachdevs(sc_link_proto)
 #undef	SCSI_DELAY
 #define SCSI_DELAY 2
 #endif	/* SCSI_DELAY */
-	if (scsibus == 0) {
-		DELAY(1000000 * SCSI_DELAY);
-	}
+	DELAY(1000000 * SCSI_DELAY);
 	scsibus++;
 	scsi_probe_bus(scsibus - 1,-1,-1);
 }
