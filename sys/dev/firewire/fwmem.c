@@ -295,7 +295,8 @@ fwmem_biodone(struct fw_xfer *xfer)
 	bp->bio_error = xfer->resp;
 
 	if (bp->bio_error != 0) {
-		printf("%s: err=%d\n", __FUNCTION__, bp->bio_error);
+		if (fwmem_debug)
+			printf("%s: err=%d\n", __FUNCTION__, bp->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
 	}
@@ -362,7 +363,8 @@ fwmem_strategy(struct bio *bp)
 error:
 	splx(s);
 	if (err != 0) {
-		printf("%s: err=%d\n", __FUNCTION__, err);
+		if (fwmem_debug)
+			printf("%s: err=%d\n", __FUNCTION__, err);
 		bp->bio_error = err;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
