@@ -253,6 +253,7 @@ vm_map_init(map, min, max)
 	map->nentries = 0;
 	map->size = 0;
 	map->system_map = 0;
+	map->infork = 0;
 	map->min_offset = min;
 	map->max_offset = max;
 	map->first_free = &map->header;
@@ -2120,6 +2121,7 @@ vmspace_fork(vm1)
 	vm_object_t object;
 
 	vm_map_lock(old_map);
+	old_map->infork = 1;
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
@@ -2212,6 +2214,7 @@ vmspace_fork(vm1)
 	}
 
 	new_map->size = old_map->size;
+	old_map->infork = 0;
 	vm_map_unlock(old_map);
 
 	return (vm2);

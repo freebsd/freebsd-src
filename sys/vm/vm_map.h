@@ -162,6 +162,7 @@ struct vm_map {
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	u_char system_map;		/* Am I a system map? */
+	u_char infork;			/* Am I in fork processing? */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
