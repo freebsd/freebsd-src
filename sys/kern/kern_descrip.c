@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.28 1996/02/25 09:38:18 hsu Exp $
+ * $Id: kern_descrip.c,v 1.27 1996/03/11 02:17:30 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -1102,26 +1102,30 @@ static	void *devfs_token_fildesc[NUMFDESC];
 static void 	fildesc_drvinit(void *unused)
 {
 	dev_t dev;
-	int	i;
-	char	name[32];
+	int fd;
 
 	if( ! fildesc_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&fildesc_cdevsw,NULL);
 		fildesc_devsw_installed = 1;
 #ifdef DEVFS
-		for ( i = 0 ; i < NUMFDESC ; i++ ) {
-			sprintf(name,"%d",i);
-			devfs_token_fildesc[i] = devfs_add_devsw("fd",name,
-							&fildesc_cdevsw,0,
-							DV_CHR, 0,  0, 0666);
-		}
+		for (fd = 0; fd < NUMFDESC; fd++)
+			devfs_token_fildesc[fd] =
+				devfs_add_devswf(&fildesc_cdevsw, fd, DV_CHR,
+						 UID_BIN, GID_BIN, 0666,
+						 "fd/%d", fd);
 		devfs_token_stdin =
-			dev_link("/","stdin",devfs_token_fildesc[0]);
+			devfs_add_devswf(&fildesc_cdevsw, 0, DV_CHR,
+					 UID_ROOT, GID_WHEEL, 0666,
+					 "stdin", fd);
 		devfs_token_stdout =
-			dev_link("/","stdout",devfs_token_fildesc[1]);
+			devfs_add_devswf(&fildesc_cdevsw, 1, DV_CHR,
+					 UID_ROOT, GID_WHEEL, 0666,
+					 "stdout", fd);
 		devfs_token_stderr =
-			dev_link("/","stderr",devfs_token_fildesc[2]);
+			devfs_add_devswf(&fildesc_cdevsw, 2, DV_CHR,
+					 UID_ROOT, GID_WHEEL, 0666,
+					 "stderr", fd);
 #endif
     	}
 }
