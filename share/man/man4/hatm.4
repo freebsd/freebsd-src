@@ -124,75 +124,75 @@ to see if the default queues sizes should be overwritten or not. The
 following variables are checked and interpreted as unsigned integer
 values (in either radix):
 .Bl -tag -width XXX
-.It Cm hw.hatmN.rbps0.size
+.It Cm hw.hatmN.rbps0_size
 Size of the small receive buffer pool 0. This pool is used for all
 except raw AAL connections. The pool size must be a power of two between
 4 and 8192 inclusive. When attaching the driver allocates this number
 of mbufs.
-.It Cm hw.hatmN.rbps0.thresh
+.It Cm hw.hatmN.rbps0_thresh
 Interrupt threshold for small receive buffer pool 0. When the number of free
 buffers in the pool falls below this threshold it generates an interrupt
 so that the driver can refill the pool.
-.It Cm hw.hatmN.rbpl0.thresh
+.It Cm hw.hatmN.rbpl0_thresh
 Size of the large receive buffer pool 0. This pool is used for all
 except raw AAL connections. The pool size must be a power of two between
 4 and 8192 inclusive. When attaching the driver allocates this number
 of mbufs with clusters.
-.It Cm hw.hatmN.rbpl0.thresh
+.It Cm hw.hatmN.rbpl0_thresh
 Interrupt threshold for large receive buffer pool 0. When the number of free
 buffers in the pool falls below this threshold it generates an interrupt
 so that the driver can refill the pool.
-.It Cm hw.hatmN.rbrq0.size
+.It Cm hw.hatmN.rbrq0_size
 Size of receive buffer return queue 0. This queue is used to return buffers
 filled with received frames to the driver. The size must be a power of 2
 between 1 and 16384 inclusive.
-.It Cm hw.hatmN.rbrq0.thresh
+.It Cm hw.hatmN.rbrq0_thresh
 Interrupt threshold for receive buffer return queue 0. This threshold
 should only be triggered in exceptional cases.
-.It Cm hw.hatmN.rbrq0.tout
+.It Cm hw.hatmN.rbrq0_tout
 Interrupt timeout for receive buffer return queue 0. An interrupt is generated
 after this time if the queue is not empty. The number is in internal card
 ticks.
-.It Cm hw.hatmN.rbrq0.pcnt
+.It Cm hw.hatmN.rbrq0_pcnt
 Packet count threshold for receive buffer return queue 0. An interrupt
 is generated if this number of packets is in the queue.
-.It Cm hw.hatmN.rbps1.size
+.It Cm hw.hatmN.rbps1_size
 Size of the small receive buffer pool 1. This pool is used for all
 raw AAL connections. The pool size must be a power of two between
 4 and 8192 inclusive. When attaching the driver allocates this number
 of mbufs.
-.It Cm hw.hatmN.rbps1.thresh
+.It Cm hw.hatmN.rbps1_thresh
 Interrupt threshold for small receive buffer pool 1. When the number of free
 buffers in the pool falls below this threshold it generates an interrupt
 so that the driver can refill the pool.
-.It Cm hw.hatmN.rbrq1.size
+.It Cm hw.hatmN.rbrq1_size
 Size of receive buffer return queue 1. This queue is used to return buffers
 filled with received cells to the driver. The size must be a power of 2
 between 1 and 16384 inclusive.
-.It Cm hw.hatmN.rbrq1.thresh
+.It Cm hw.hatmN.rbrq1_thresh
 Interrupt threshold for receive buffer return queue 1. This threshold
 should only be triggered in exceptional cases.
-.It Cm hw.hatmN.rbrq1.tout
+.It Cm hw.hatmN.rbrq1_tout
 Interrupt timeout for receive buffer return queue 1. An interrupt is generated
 after this time if the queue is not empty. The number is in internal card
 ticks.
-.It Cm hw.hatmN.rbrq1.pcnt
+.It Cm hw.hatmN.rbrq1_pcnt
 Packet count threshold for receive buffer return queue 0. An interrupt
 is generated if this number of cells is in the queue.
-.It Cm hw.hatmN.irq0.size
+.It Cm hw.hatmN.irq0_size
 Size of interrupt queue 0. This must be a number between 1 and 1023 inclusive.
-.It Cm hw.hatmN.irq0.thresh
+.It Cm hw.hatmN.irq0_thresh
 Interrupt retrigger threshold of interrupt queue 0. A new interrupt is trigger
 if the queue fill state reaches this threshold and the interrupt was no
 served.
-.It Cm hw.hatmN.tbrq0.size
+.It Cm hw.hatmN.tbrq0_size
 Transmit buffer return queue 0 size. This queue is used to feed back empty
 buffers of transmitted frames back to the driver. It must be a power of 2
 between 1 and 4096 inclusive.
-.It Cm hw.hatmN.tbrq0.thresh
+.It Cm hw.hatmN.tbrq0_thresh
 Transmit buffer return queue 0 threshold. An interrupt is generated if the
 queue fill state reaches this point.
-.It Cm hw.hatmN.tpdrq.size
+.It Cm hw.hatmN.tpdrq_size
 Transmit descriptor ready queue size. This queue is used by the driver
 to feed transmit descriptors into the card. The size must be a power of 2
 between 1 and 16384 inclusive.
