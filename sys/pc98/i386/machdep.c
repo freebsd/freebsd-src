@@ -35,15 +35,16 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.17 1998/01/17 15:59:42 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.18 1998/01/18 15:11:53 kato Exp $
  */
 
 #include "npx.h"
-#include "opt_sysvipc.h"
-#include "opt_ddb.h"
 #include "opt_bounce.h"
+#include "opt_cpu.h"
+#include "opt_ddb.h"
 #include "opt_machdep.h"
 #include "opt_perfmon.h"
+#include "opt_sysvipc.h"
 #include "opt_userconfig.h"
 
 #include <sys/param.h>
