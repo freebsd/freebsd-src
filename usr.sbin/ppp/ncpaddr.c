@@ -591,8 +591,13 @@ ncprange_sethost(struct ncprange *range, const struct ncpaddr *from)
   case AF_INET:
     range->ncprange_family = AF_INET;
     range->ncprange_ip4addr = from->ncpaddr_ip4addr;
-    range->ncprange_ip4mask.s_addr = INADDR_BROADCAST;
-    range->ncprange_ip4width = 32;
+    if (from->ncpaddr_ip4addr.s_addr == INADDR_ANY) {
+      range->ncprange_ip4mask.s_addr = INADDR_ANY;
+      range->ncprange_ip4width = 0;
+    } else {
+      range->ncprange_ip4mask.s_addr = INADDR_BROADCAST;
+      range->ncprange_ip4width = 32;
+    }
     break;
 
 #ifndef NOINET6
@@ -654,8 +659,13 @@ ncprange_setip4host(struct ncprange *range, struct in_addr from)
 {
   range->ncprange_family = AF_INET;
   range->ncprange_ip4addr = from;
-  range->ncprange_ip4mask.s_addr = INADDR_BROADCAST;
-  range->ncprange_ip4width = 32;
+  if (from.s_addr == INADDR_ANY) {
+    range->ncprange_ip4mask.s_addr = INADDR_ANY;
+    range->ncprange_ip4width = 0;
+  } else {
+    range->ncprange_ip4mask.s_addr = INADDR_BROADCAST;
+    range->ncprange_ip4width = 32;
+  }
 }
 
 void
@@ -693,7 +703,10 @@ ncprange_setsa(struct ncprange *range, const struct sockaddr *host,
   case AF_INET:
     range->ncprange_family = AF_INET;
     range->ncprange_ip4addr = host4->sin_addr;
-    if (mask4) {
+    if (host4->sin_addr.s_addr == INADDR_ANY) {
+      range->ncprange_ip4mask.s_addr = INADDR_ANY;
+      range->ncprange_ip4width = 0;
+    } else if (mask4 && mask4->sin_family == AF_INET) {
       range->ncprange_ip4mask.s_addr = mask4->sin_addr.s_addr;
       range->ncprange_ip4width = mask42bits(mask4->sin_addr);
     } else {
