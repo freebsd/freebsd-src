@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isakmp.c,v 1.26 2000/12/12 09:20:26 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isakmp.c,v 1.29 2001/10/26 03:41:29 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -702,12 +702,8 @@ isakmp_id_print(struct isakmp_gen *ext, u_char *ep, u_int32_t phase,
 		    {
 			int i;
 			printf(" len=%d ", len);
-			for (i = 0; i < len; i++) {
-				if (isprint(data[i]))
-					printf("%c", data[i]);
-				else
-					printf("\\%03o", data[i]);
-			}
+			for (i = 0; i < len; i++)
+				safeputchar(data[i]);
 			len = 0;
 			break;
 		    }
@@ -759,7 +755,6 @@ isakmp_id_print(struct isakmp_gen *ext, u_char *ep, u_int32_t phase,
 	    }
 	}
 	if (data && len) {
-		len -= sizeof(*p);
 		printf(" len=%d", len);
 		if (2 < vflag) {
 			printf(" ");
@@ -1188,7 +1183,7 @@ isakmp_print(const u_char *bp, u_int length, const u_char *bp2)
 		 * encrypted, nothing we can do right now.
 		 * we hope to decrypt the packet in the future...
 		 */
-		printf(" [|%s]", NPSTR(base.np));
+		printf(" [encrypted %s]", NPSTR(base.np));
 		goto done;
 	}
 

@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.3 2000/12/23 20:49:34 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.6 2001/07/05 18:54:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -46,9 +46,6 @@ struct rtentry;
 
 #include "ether.h"
 #include "sll.h"
-
-const u_char *packetp;
-const u_char *snapend;
 
 static inline void
 sll_print(register const struct sll_header *sllp, u_int length)
@@ -113,6 +110,7 @@ sll_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_short ether_type;
 	u_short extracted_ethertype;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < SLL_HDR_LEN) {
@@ -200,6 +198,13 @@ sll_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		 */
 		switch (ether_type) {
 
+		case LINUX_SLL_P_802_3:
+			/*
+			 * Ethernet_802.3 IPX frame.
+			 */
+			ipx_print(p, length);
+			break;
+
 		case LINUX_SLL_P_802_2:
 			/*
 			 * 802.2.
@@ -235,4 +240,7 @@ sll_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		default_print(p, caplen);
  out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }

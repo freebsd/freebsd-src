@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rip.c,v 1.47 2000/10/03 04:19:07 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rip.c,v 1.49 2001/05/10 05:30:22 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -181,7 +181,7 @@ rip_print(const u_char *dat, u_int length)
 		 *
 		 * so perhaps we should just dump the first few words of
 		 * the packet, in hex.
-                 */
+		 */
 		printf(" RIPv0: ");
 		ni = (struct rip_netinfo *)(rp + 1);
 		rip_printblk((u_char *)&ni->rip_family,
@@ -215,7 +215,7 @@ rip_print(const u_char *dat, u_int length)
 		case RIPCMD_TRACEON:
 			printf(" RIPv%d-traceon %d: \"", rp->rip_vers, length);
 			(void)fn_print((const u_char *)(rp + 1), snapend);
-			fputs("\"\n", stdout);
+			fputs("\"", stdout);
 			break;
 		case RIPCMD_TRACEOFF:
 			printf(" RIPv%d-traceoff %d", rp->rip_vers, length);
@@ -231,5 +231,5 @@ rip_print(const u_char *dat, u_int length)
 			       length);
 			break;
 		}
-        }
+	}
 }

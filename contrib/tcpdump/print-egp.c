@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.26 2000/09/29 04:58:36 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.28 2001/09/17 21:58:01 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -99,7 +99,7 @@ struct egp_packet {
 #define  egp_sourcenet  egp_pands.egpu_sourcenet
 };
 
-char *egp_acquire_codes[] = {
+const char *egp_acquire_codes[] = {
 	"request",
 	"confirm",
 	"refuse",
@@ -107,7 +107,7 @@ char *egp_acquire_codes[] = {
 	"cease_ack"
 };
 
-char *egp_acquire_status[] = {
+const char *egp_acquire_status[] = {
 	"unspecified",
 	"active_mode",
 	"passive_mode",
@@ -118,18 +118,18 @@ char *egp_acquire_status[] = {
 	"protocol_violation"
 };
 
-char *egp_reach_codes[] = {
+const char *egp_reach_codes[] = {
 	"hello",
 	"i-h-u"
 };
 
-char *egp_status_updown[] = {
+const char *egp_status_updown[] = {
 	"indeterminate",
 	"up",
 	"down"
 };
 
-char *egp_reasons[] = {
+const char *egp_reasons[] = {
 	"unspecified",
 	"bad_EGP_header_format",
 	"bad_EGP_data_field_format",
@@ -230,9 +230,7 @@ egp_print(register const u_char *bp, register u_int length,
 
 	egp = (struct egp_packet *)bp;
 	ip = (struct ip *)bp2;
-        (void)printf("%s > %s: egp: ",
-		     ipaddr_string(&ip->ip_src),
-		     ipaddr_string(&ip->ip_dst));
+	(void)printf("egp: ");
 
 	if (egp->egp_version != EGP_VERSION) {
 		printf("[version %d]", egp->egp_version);
