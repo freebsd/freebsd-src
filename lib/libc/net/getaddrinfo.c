@@ -112,10 +112,10 @@
 # define FAITH
 #endif
 
-#define SUCCESS 0
-#define ANY 0
-#define YES 1
-#define NO  0
+#define	SUCCESS 0
+#define	ANY 0
+#define	YES 1
+#define	NO  0
 
 static const char in_addrany[] = { 0, 0, 0, 0 };
 static const char in6_addrany[] = {
@@ -132,7 +132,7 @@ static const struct afd {
 	int a_socklen;
 	int a_off;
 	const char *a_addrany;
-	const char *a_loopback;	
+	const char *a_loopback;
 	int a_scoped;
 } afdl [] = {
 #ifdef INET6
@@ -158,9 +158,9 @@ struct explore {
 	int e_protocol;
 	const char *e_protostr;
 	int e_wild;
-#define WILD_AF(ex)		((ex)->e_wild & 0x01)
-#define WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
-#define WILD_PROTOCOL(ex)	((ex)->e_wild & 0x04)
+#define	WILD_AF(ex)		((ex)->e_wild & 0x01)
+#define	WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
+#define	WILD_PROTOCOL(ex)	((ex)->e_wild & 0x04)
 };
 
 static const struct explore explore[] = {
@@ -182,9 +182,9 @@ static const struct explore explore[] = {
 };
 
 #ifdef INET6
-#define PTON_MAX	16
+#define	PTON_MAX	16
 #else
-#define PTON_MAX	4
+#define	PTON_MAX	4
 #endif
 
 static const ns_src default_dns_files[] = {
@@ -274,7 +274,7 @@ static char *ai_errlist[] = {
 
 /* XXX macros that make external reference is BAD. */
 
-#define GET_AI(ai, afd, addr) \
+#define	GET_AI(ai, afd, addr) \
 do { \
 	/* external reference: pai, error, and label free */ \
 	(ai) = get_ai(pai, (afd), (addr)); \
@@ -284,7 +284,7 @@ do { \
 	} \
 } while (/*CONSTCOND*/0)
 
-#define GET_PORT(ai, serv) \
+#define	GET_PORT(ai, serv) \
 do { \
 	/* external reference: error and label free */ \
 	error = get_port((ai), (serv), 0); \
@@ -292,7 +292,7 @@ do { \
 		goto free; \
 } while (/*CONSTCOND*/0)
 
-#define GET_CANONNAME(ai, str) \
+#define	GET_CANONNAME(ai, str) \
 do { \
 	/* external reference: pai, error and label free */ \
 	error = get_canonname(pai, (ai), (str)); \
@@ -300,7 +300,7 @@ do { \
 		goto free; \
 } while (/*CONSTCOND*/0)
 
-#define ERR(err) \
+#define	ERR(err) \
 do { \
 	/* external reference: error, and label bad */ \
 	error = (err); \
@@ -308,9 +308,9 @@ do { \
 	/*NOTREACHED*/ \
 } while (/*CONSTCOND*/0)
 
-#define MATCH_FAMILY(x, y, w) \
+#define	MATCH_FAMILY(x, y, w) \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == PF_UNSPEC || (y) == PF_UNSPEC)))
-#define MATCH(x, y, w) \
+#define	MATCH(x, y, w) \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == ANY || (y) == ANY)))
 
 char *
@@ -453,7 +453,7 @@ getaddrinfo(hostname, servname, hints, res)
 	 */
 	if (MATCH_FAMILY(pai->ai_family, PF_INET, 1)
 #ifdef PF_INET6
-	 || MATCH_FAMILY(pai->ai_family, PF_INET6, 1)
+	    || MATCH_FAMILY(pai->ai_family, PF_INET6, 1)
 #endif
 	    ) {
 		ai0 = *pai;	/* backup *pai */
