@@ -117,6 +117,10 @@ is returned and
 the memory referenced by
 .Fa ptr
 is valid and unchanged.
+If memory can be allocated a pointer to the newly allocated portion of
+the memory is returned.  Note that this may be different from the value
+passed as
+.Fa ptr .
 If
 .Fa ptr
 is
