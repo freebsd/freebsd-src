@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.28 1999/05/31 11:24:08 phk Exp $
+ * $Id: scsi_sa.c,v 1.29 1999/06/24 15:21:10 mjacob Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
@@ -705,6 +705,7 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
+	scsi_space_code spaceop;
 	int didlockperiph = 0;
 	int s;
 	int unit;
@@ -715,6 +716,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
 	density = SADENSITY(dev);
+	error = 0;		/* shut up gcc */
+	spaceop = 0;		/* shut up gcc */
 
 	periph = cam_extend_get(saperiphs, unit);
 	if (periph == NULL)
@@ -877,8 +880,8 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		case MTEOD:	/* space to end of recorded medium */
 		{
 			int nmarks;
-			scsi_space_code spaceop = SS_FILEMARKS;
 
+			spaceop = SS_FILEMARKS;
 			nmarks = softc->filemarks;
 			error = sacheckeod(periph);
 			if (error) {
