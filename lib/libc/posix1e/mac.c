@@ -358,9 +358,15 @@ int
 mac_prepare_type(struct mac **mac, const char *name)
 {
 	struct label_default *ld;
+	int error;
+
+	error = mac_maybe_init_internal();
+	if (error != 0)
+		return (error);
 
 	for (ld = LIST_FIRST(&label_default_head); ld != NULL;
 	    ld = LIST_NEXT(ld, ld_entries)) {
+		printf("%s\n", ld->ld_name);
 		if (strcmp(name, ld->ld_name) == 0)
 			return (mac_prepare(mac, ld->ld_labels));
 	}
@@ -372,11 +378,6 @@ mac_prepare_type(struct mac **mac, const char *name)
 int
 mac_prepare_ifnet_label(struct mac **mac)
 {
-	int error;
-
-	error = mac_maybe_init_internal();
-	if (error != 0)
-		return (error);
 
 	return (mac_prepare_type(mac, "ifnet"));
 }
@@ -384,11 +385,6 @@ mac_prepare_ifnet_label(struct mac **mac)
 int
 mac_prepare_file_label(struct mac **mac)
 {
-	int error;
-
-	error = mac_maybe_init_internal();
-	if (error != 0)
-		return (error);
 
 	return (mac_prepare_type(mac, "file"));
 }
@@ -396,11 +392,6 @@ mac_prepare_file_label(struct mac **mac)
 int
 mac_prepare_packet_label(struct mac **mac)
 {
-	int error;
-
-	error = mac_maybe_init_internal();
-	if (error != 0)
-		return (error);
 
 	return (mac_prepare_type(mac, "packet"));
 }
@@ -408,11 +399,6 @@ mac_prepare_packet_label(struct mac **mac)
 int
 mac_prepare_process_label(struct mac **mac)
 {
-	int error;
-
-	error = mac_maybe_init_internal();
-	if (error != 0)
-		return (error);
 
 	return (mac_prepare_type(mac, "process"));
 }
