@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.2 1994/05/25 09:08:21 rgrimes Exp $
+ * $Id: portal_vnops.c,v 1.3 1994/08/20 03:48:52 davidg Exp $
  */
 
 /*
@@ -707,3 +707,5 @@ struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 };
 struct vnodeopv_desc portal_vnodeop_opv_desc =
 	{ &portal_vnodeop_p, portal_vnodeop_entries };
+
+VNODEOP_SET(portal_vnodeop_opv_desc);

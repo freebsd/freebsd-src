@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: lofs_vfsops.c,v 1.9 1992/05/30 10:26:24 jsp Exp jsp $
+ * $Id: null_vfsops.c,v 1.1.1.1 1994/05/24 10:05:03 rgrimes Exp $
  */
 
 /*
@@ -364,3 +364,5 @@ struct vfsops null_vfsops = {
 	nullfs_vptofh,
 	nullfs_init,
 };
+
+VFS_SET(null_vfsops, null, MOUNT_NULL, 0);

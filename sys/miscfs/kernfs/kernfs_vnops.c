@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.3 1994/08/02 07:45:04 davidg Exp $
+ * $Id: kernfs_vnops.c,v 1.4 1994/08/18 22:35:12 wollman Exp $
  */
 
 /*
@@ -775,3 +775,5 @@ struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 };
 struct vnodeopv_desc kernfs_vnodeop_opv_desc =
 	{ &kernfs_vnodeop_p, kernfs_vnodeop_entries };
+
+VNODEOP_SET(kernfs_vnodeop_opv_desc);
