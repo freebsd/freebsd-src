@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #ifndef COMPAT_OLDPCI
 #error "The stallion pci driver requires the old pci compatibility shims"
 #endif
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #endif
 
 /*****************************************************************************/
