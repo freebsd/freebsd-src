@@ -1,0 +1,37 @@
+# $Id: cvs-supfile,v 1.2 1996/08/21 00:26:24 jkh Exp $
+#
+# This file contains all of the "CVSUP collections" that comprise the FreeBSD
+# cvs development tree.  CVSup (CVS Update Protocol) allows you to download
+# the latest cvs tree (or any branch of development therefrom) to your
+# system easily and efficiently (far more so than with sup, which CVSup
+# is aimed at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows to
+# keep your CVS tree up-to-date:
+#
+#	cvsup secure-cvs-supfile
+#
+# If not running X, or invoking cvsup from a non-interactive script, then
+# run it as follows:
+#
+#	cvsup -g -L 2 secure-cvs-supfile
+#
+# You may wish to change some of the settings in this file to better
+# suit your system:
+#
+# base=/usr	
+#		base specifies the root where SUP will store information
+#		about the collections you have transferred to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are SUPing a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.
+#
+# prefix=/home/cvs.crypt
+#		prefix specifies where to place the requested files.  A
+#		setting of "/home/cvs.crypt" will place all of the files
+#		requested in /home/cvs.crypt (ie /home/cvs.crypt/src/secure, 
+#		/home/cvs.crypt/eBones). The directory that is the prefix
+#		must exist in order for SUP to transfer files successfully.
+
+src-eBones release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/home/cvs.crypt delete old use-rel-suffix compress
+src-secure release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/home/cvs.crypt delete old use-rel-suffix compress
