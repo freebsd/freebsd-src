@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #
-# Copyright (c) Nov 1994 Wolfram Schneider. All rights reserved.
+# Copyright (c) 1994, 1995 Wolfram Schneider. All rights reserved.
+# Alle Rechte vorbehalten. Es gilt das kontinentaleuropäische Urheberrecht.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -32,29 +33,17 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# /etc/weekly: makewhatis `manpath -q`
+#   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-
-# Bugs: You need perl!
-#       My English :(
-# Features: faster!!!
-# tested with /usr/share/man (1414 Files)
-# uncompressed manpages:
-# perl:		  53.65 real	 27.20 user	  6.81 sys
-# shell:	1036.27 real	597.27 user	654.93 sys
-# compressed manpages:
-# perl:		 192.70 real	 80.06 user	 90.26 sys
-# shell:        1077.26 real    671.64 user     664.27 sys
+# $Id: makewhatis.pl,v 1.10 1995/03/29 09:44:34 w Exp $
 #
-# Send bugs and comments to: Wolfram Schneider <wosch@cs.tu-berlin.de>
 
 sub usage {
 
     warn <<EOF;
-usage: makewhatis [-verbose] [-help] [-format colum] [-name name]
-                  [-outfile file] directory [...]	      
+usage: makewhatis [-v|-verbose] [-h|-help] [-i|-indent colum]
+                  [-n|-name name] [-o|-outfile file] [directories ...]
 EOF
-
     exit 1;
 }
 
@@ -68,27 +57,18 @@ sub open_output {
     if ($outfile) {		# Write all Output to $outfile
 	$whatisdb = $outfile;
     } else {		# Use man/whatis
-	$dir =~ s|/$||;
 	$whatisdb = $dir . "/$whatis_name.tmp";
     }
+    $tmp = $whatisdb;		# for signals
 
-    if (!open(A, ">> $whatisdb")) {
-	if ($outfile) {
-	    die "$whatisdb: $!\n";
-	} else {
-	    warn "$whatisdb: $!\n"; $err++;
-	    return 0;
-        }
-    }
-    close A;
+    if (!open(A, "> $whatisdb")) {
+	die "$whatisdb: $!\n" if $outfile;
 
-    if ($unix_sort) {
-	open(A, "|sort -u > $whatisdb");
-    } else {
-	open(A, "> $whatisdb");
-	@a = '';
+	warn "$whatisdb: $!\n"; $err++; return 0;
     }
-    warn "Open $whatisdb\n" if $debug;
+    @a = ();
+
+    warn "Open $whatisdb\n" if $verbose;
     select A;
     return 1;
 }
@@ -97,96 +77,105 @@ sub close_output {
     local($success) = @_;
     local($w) = $whatisdb;
     local($counter) = 0;
-
+    local($i, $last,@b);
 
     $w =~ s/\.tmp$//;
-    if ($success) {		# success 
-	if ($unix_sort) {
-	    close A; select STDOUT;
-	    open(R, "$whatisdb");
-	    while(<R>) { $counter++; }
-	    close R;
-	} else {
-	    local($i, $last,@b);
-	    # uniq
-	    foreach $i (sort @a) {
-		if ($i ne $last) {
-		    push(@b, $i);
-		    $counter++;
-		}
-		$last =$i;
+    if ($success) {		# success
+
+	# uniq
+	@b = ();
+	warn "\n" if $verbose && $pointflag;
+	warn "sort -u > $whatisdb\n" if $verbose;
+	foreach $i (sort @a) {
+	    if ($i ne $last) {
+		push(@b, $i);
+		$counter++;
 	    }
-	    print @b; close A; select STDOUT;
+	    $last =$i;
 	}
+	print @b; close A; select STDOUT;
 
 	if (!$outfile) {
 	    rename($whatisdb, $w);
-	    warn "Rename $whatisdb to $w\n" if $debug;
+	    warn "Rename $whatisdb to $w\n" if $verbose;
 	    $counter_all += $counter;
-	    warn "$counter entries in $w\n" if $debug;
+	    warn "$counter entries in $w\n" if $verbose;
 	} else {
 	    $counter_all = $counter;
 	}
     } else {		# building whatisdb failed
 	unlink($whatisdb);
-	warn "building whatisdb: $whatisdb failed\n" if $debug;
+	warn "building whatisdb: $whatisdb failed\n" if $verbose;
     }
     return 1;
 }
 
+sub parse_subdir {
+    local($dir) = @_;
+    local($file, $dev,$ino);
 
-# find manpages (recursive) 
-#
-# find /man/man* \( -type f -or -type l \) -print
-sub find_manuals {
-    local(@dirlist) = @_;
-    local($subdir,$file,$flag,$dir);
-    local($m) = "man/man";
+    warn "\n" if $pointflag;
+    warn "traverse $dir\n" if $verbose;
+    $pointflag = 0;
 
-  line:  
-    while($dir = $dirlist[0]) {	# 
-	shift @dirlist;
-	$flag = 0;
-	$dir =~ s|/$||;
-	warn "traverse $dir\n" if $debug;
+    if (!opendir(M, $dir)) {
+	warn "$dir: $!\n"; $err++; return 0;
+    }
 
-	if (! -e $dir) {
-	    warn "$dir does not exist!\n"; $err++; next line;
-	} elsif (-d _) {
-	    opendir(M, $dir);
-	# } elsif ($debug && (-f _ || -l _)) { 
-        # allow files as arguments for testing
-        #   return &manual($dir);
-	} else {
-	    warn "$dir is not a dir\n"; $err++; next line;
+    $| = 1 if $verbose;
+    foreach $file (readdir(M)) {
+	next if $file =~ /^(\.|\.\.)$/;
+
+	($dev, $ino) = ((stat("$dir/$file"))[01]);
+	if (-f _) {
+	    if ($man_red{"$dev.$ino"}) {
+		# Link
+		print STDERR "+" if $verbose;
+		$pointflag++ if $verbose;
+	    } else {
+		&manual("$dir/$file");
+	    }
+	    $man_red{"$dev.$ino"} = 1;
+	} elsif (! -d _) {
+	    warn "Cannot find file: $dir/$file\n"; $err++;
 	}
+    }
+    closedir M;
+    return 1;
+}
 
-	foreach $subdir (sort (readdir(M))) {
-	    if ($subdir !~ /^(\.|\.\.)$/ && "$dir/$subdir" =~ $m) {
-		$flag++;
-		if (! -e "$dir/$subdir") {
-		    warn "Cannot find file: $dir/$subdir\n"; $err++;
-		} elsif (-d _) {
-		    &find_manuals("$dir/$subdir");                    
-		} elsif (-f _ || -l _) {
-		    &manual("$dir/$subdir");
-		} else {
-		    warn "Cannot find file: $dir/$subdir\n"; $err++;
-		}
-	    } elsif ($subdir eq "." && $dir =~ $m) 	{ 
-		# Empty subdir, no manpages
-		$flag++;
+# read man directory
+sub parse_dir {
+    local($dir) = @_;
+    local($subdir, $file);
+
+    # clean up, in case mandir and subdirs are called simultaneously
+    # e. g.:  ~/man/man1 ~/man/man2 ~/man
+    #~/man/ man1 and ~/man/man2 are a subset of ~/man
+    foreach $file (keys %man_red) {
+	delete $man_red{$file};
+    }
+
+    if ($dir =~ /man$/) {
+	warn "\n" if $verbose && $pointflag;
+	warn "open manpath directory ``$dir''\n" if $verbose;
+	$pointflag = 0;
+	if (!opendir(DIR, $dir)) {
+	    warn "opendir ``$dir'':$!\n"; $err = 1; return 0;
+	}
+	foreach $subdir (sort(readdir(DIR))) {
+	    if ($subdir =~ /^man\w+$/) {
+		$subdir = "$dir/$subdir";
+		&parse_subdir($subdir);
 	    }
 	}
-	closedir M;
-	if (!$flag) {
-	    warn <<EOF;
-No subdirs found. Maybe ``$dir'' is not a ``*/man/'' dir.
-Please use full path name, e. g.: makewhatis /usr/local/man
-EOF
-	    $err++;
-            return 0;
-	}
+	closedir DIR
+
+    } elsif ($dir =~ /man\w+$/) {
+	&parse_subdir($dir);
+    } else {
+	warn "Assume ``$dir'' is not a man directory.\n";
+	$err = 1; return 0;
     }
     return 1;
 }
@@ -197,7 +186,7 @@ sub dir_redundant {
     local ($dev,$ino) = (stat($dir))[0..1];
 
     if ($dir_redundant{"$dev.$ino"}) {
-	warn "$dir is equal to: $dir_redundant{\"$dev.$ino\"}\n" if $debug;
+	warn "$dir is equal to: $dir_redundant{\"$dev.$ino\"}\n" if $verbose;
 	return 0;
     }
     $dir_redundant{"$dev.$ino"} = $dir;
@@ -208,20 +197,23 @@ sub dir_redundant {
 # ``/usr/man/man1/foo.l'' -> ``l''
 sub ext {
     local($filename) = @_;
-    local($ext) = $filename;
+    local($extension) = $filename;
 
-    $ext =~ s/\.gz$//g;
-    $ext =~ s/.*\///g;
+    $extension =~ s/$ext$//g;	# strip .gz
+    $extension =~ s/.*\///g;	# basename
 
-    if ($ext !~ /\./) {
-	$ext = $filename;
-	$ext =~ s|/[^/]+$||;
-	$ext =~ s/.*(.)/\1/;
-	warn "$filename has no extension, try section ``$ext''\n" if $debug;
+    if ($extension !~ /\./) {	# no dot
+	$extension = $filename;
+	#$extension =~ s|/[^/]+$||;
+	$extension =~ s/.*(.)/$1/; # last character
+	warn "\n" if $verbose && $pointflag;
+	warn "$filename has no extension, try section ``$extension''\n"
+	    if $verbose;
+	$pointflag = 0;
     } else {
-	$ext =~ s/.*\.//g;
+	$extension =~ s/.*\.//g; # foo.bla.1 -> 1
     }
-    return "$ext";
+    return "$extension";
 }
 
 # ``/usr/man/man1/foo.1'' -> ``foo''
@@ -229,7 +221,7 @@ sub name {
     local($name) = @_;
 
     $name =~ s/.*\///g;
-    $name =~ s/\..*$//;
+    $name =~ s/\.[^.]*$//;
 
     return "$name";
 }
@@ -247,46 +239,54 @@ sub out {
     s/\\\*p//g;
     s/\(OBSOLETED\)[ ]?//;
     s/\\&//g;
-    s/^@INDOT@//;
+    s/^\@INDOT\@//;
     s/[\"\\]//g;		#"
     s/[. \t-]+$//;
 
     s/ / - / unless / - /;
     ($man,$desc) = split(/ - /);
-    
+
     $man = $name unless $man;
     $man =~ s/[,. ]+$//;
-    $man =~ s/,/($ext),/g;
-    $man .= "($ext)";
+    $man =~ s/,/($extension),/g;
+    $man .= "($extension)";
     $desc =~ s/^[ \t]+//;
-    for($i = length($man); $i< $format && $desc; $i++) {
+
+    for($i = length($man); $i < $indent && $desc; $i++) {
 	$man .= ' ';
     }
-    if ($desc) { $man .=  "$delim$desc\n"  } else { $man .= "\n" }
-    if ($unix_sort) { print $man } else { push(@a, $man) }
+    if ($desc) {
+	push(@a, "$man$delim$desc\n");
+    } else {
+	push(@a, "$man\n");
+    }
 }
 
-# looking for NAME 
+# looking for NAME
 sub manual {
     local($file) = @_;
-    local($list, $desc, $ext);
+    local($list, $desc, $extension);
     local($ofile) = $file;
 
     # Compressed man pages
-    if ($ofile =~ /\.gz$/) {
+    if ($ofile =~ /$ext$/) {
 	$ofile = "gzcat $file |";
+	print STDERR "*" if $verbose;
+    } else {
+	print STDERR "." if $verbose;
     }
+    $pointflag++ if $verbose;
 
     if (!open(F, "$ofile")) {
 	warn "Cannot open file: $ofile\n"; $err++;
 	return 0;
     }
     # extension/section
-    $ext = &ext($file);
+    $extension = &ext($file);
     $name = &name($file);
 
     local($source) = 0;
-    local($l, $list);
+    local($list);
     while(<F>) {
 	# ``man'' style pages
 	# &&: it takes you only half the user time, regexp is slow!!!
@@ -330,21 +330,111 @@ sub manual {
 	    }
 	    &out($list); close F; return 1;
 
-	} elsif(/^\.so/ && /^\.so[ \t]+man/) { 
+	} elsif(/^\.so/ && /^\.so[ \t]+man/) {
 	    close F; return 1;
-            # source File
-	    $source++;
-	    s/[ \t]*\.so[ \t]+//; 
-	    s/[ \t\n]*$//;
-	    local($so) = $file;
-	    $so =~ s|/[^/]+/[^/]+$|/|;
-	    # redundant
-	    &manual($so . $_);   
-	    return 1;
 	}
     }
-    warn "Maybe $file is not a manpage\n" if (!$source && $debug);
+    if (!$source && $verbose) {
+	warn "\n" if $pointflag;
+	warn "Maybe $file is not a manpage\n" ;
+	$pointflag = 0;
+    }
     return 0;
+}
+
+# make relative path to absolute path
+sub absolute_path {
+    local(@dirlist) = @_;
+    local($pwd, $dir, @a);
+
+    $pwd = $ENV{'PWD'};
+    foreach $dir (@dirlist) {
+	if ($dir !~ "^/") {
+	    chop($pwd = `pwd`) if (!$pwd || $pwd !~ /^\//);
+	    push(@a, "$pwd/$dir");
+	} else {
+	    push(@a, $dir);
+	}
+    }
+    return @a;
+}
+
+# strip unused '/'
+# e.g.: //usr///home// -> /usr/home
+sub stripdir {
+    local($dir) = @_;
+
+    $dir =~ s|/+|/|g;		# delete double '/'
+    $dir =~ s|/$||;		# delete '/' at end
+    $dir =~ s|/(\.\/)+|/|g;	# delete ././././
+
+    $dir =~ s|/+|/|g;		# delete double '/'
+    $dir =~ s|/$||;		# delete '/' at end
+    $dir =~ s|/\.$||;		# delete /. at end
+    return $dir if $dir ne "";
+    return '/';
+}
+
+sub variables {
+    $verbose = 0;		# Verbose
+    $indent = 24;		# indent for description
+    $outfile = 0;		# Don't write to ./whatis
+    $whatis_name = "whatis";	# Default name for DB
+
+    # if no argument for directories given
+    @defaultmanpath = ( '/usr/share/man' );
+
+    $ext = ".gz";		# extension
+    umask(022);
+
+    $err = 0;			# exit code
+    $whatisdb = '';
+    $counter_all = 0;
+    $dir_redundant = '';	# redundant directories
+    $man_red = '';		# redundant man pages
+    @a = ();			# Array for output
+
+    # Signals
+    $SIG{'INT'} = 'Exit';
+    $SIG{'HUP'} = 'Exit';
+    $SIG{'TRAP'} = 'Exit';
+    $SIG{'QUIT'} = 'Exit';
+    $SIG{'TERM'} = 'Exit';
+    $tmp = '';			# tmp file
+
+    $ENV{'PATH'} = "/bin:/usr/bin:$ENV{'PATH'}";
+}
+
+sub  Exit {
+    unlink($tmp) if $tmp ne ""; # unlink if a filename
+    die "$0: die on signal SIG@_\n";
+}
+
+sub parse {
+    local(@argv) = @_;
+    local($i);
+
+    while ($_ = $argv[0], /^-/) {
+	shift @argv;
+	last if /^--$/;
+	if    (/^--?(v|verbose)$/)      { $verbose = 1 }
+	elsif (/^--?(h|help|\?)$/)      { &usage }
+	elsif (/^--?(o|outfile)$/)      { $outfile = $argv[0]; shift @argv }
+	elsif (/^--?(f|format|i|indent)$/) { $i = $argv[0]; shift @argv }
+	elsif (/^--?(n|name)$/)         { $whatis_name = $argv[0];shift @argv }
+	else                            { &usage }
+    }
+
+    if ($i =~ /^[0-9]+$/) {
+	$indent = $i;
+    } else {
+	warn "Ignore wrong indent value: ``$i''\n";
+    }
+
+    return &absolute_path(@argv) if $#argv >= 0;
+    return @defaultmanpath if $#defaultmanpath >= 0;
+
+    warn "Missing directories\n"; &usage;
 }
 
 
@@ -352,46 +442,26 @@ sub manual {
 ## Main
 ##
 
-$debug = 0;			# Verbose
-$unix_sort = 0;			# Use sort(1) instead of builtin sort
-@a = '';			# Array for output if $unix_sort=0
-$outfile = 0;			# Don't write to ./whatis
-$whatis_name = "whatis";	# Default name for DB
-
-$whatisdb = '';
-$counter_all = 0;
-$err = 0; 
-$format = 24;
-$dir_redundant = '';			# 
-
-
-while ($_ = $ARGV[0], /^-/) {
-    shift @ARGV;
-    last if /^--$/;
-    if (/^-(debug|verbose|d|v)$/) { $debug = 1 }
-    elsif (/^--?(h|help|\?)$/)      { &usage }
-    elsif (/^--?(o|outfile)$/)      { $outfile = $ARGV[0]; shift @ARGV }
-    elsif (/^--?(f|format)$/)       { $format  = $ARGV[0]; shift @ARGV }
-    elsif (/^--?(n|name)$/)         { $whatis_name = $ARGV[0]; shift @ARGV }
-    else                            { &usage }
-}
-&usage if $#ARGV < 0;
-
+&variables;
 # allow colons in dir: ``makewhatis dir1:dir2:dir3''
-@argv = split($", join($", (split(/:/, join($", @ARGV))))); #"
+@argv = &parse(split(/[: ]/, join($", @ARGV)));	# "
+
 
 if ($outfile) {
-    if(&open_output($outfile)){ 
-	foreach $dir (@argv) { &dir_redundant($dir) && &find_manuals($dir); }
+    if(&open_output($outfile)){
+	foreach $dir (@argv) {
+	    $dir = &stripdir($dir);
+	    &dir_redundant($dir) && &parse_dir($dir);
+	}
     }
     &close_output(1);
 } else {
     foreach $dir (@argv) {
-	&dir_redundant($dir) && 
-	    &close_output(&open_output($dir) && &find_manuals($dir));
+	$dir = &stripdir($dir);
+	&dir_redundant($dir) &&
+	    &close_output(&open_output($dir) && &parse_dir($dir));
     }
 }
 
-warn "Total entries: $counter_all\n" if $debug && ($#argv > 0 || $outfile);
+warn "Total entries: $counter_all\n" if $verbose && ($#argv > 0 || $outfile);
 exit $err;
-
