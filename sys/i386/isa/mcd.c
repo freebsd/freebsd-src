@@ -262,10 +262,6 @@ int mcd_attach(struct isa_device *dev)
 #endif
 	/* name filled in probe */
 	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
-	    UID_ROOT, GID_OPERATOR, 0640, "rmcd%da", unit);
-	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-	    UID_ROOT, GID_OPERATOR, 0640, "rmcd%dc", unit);
-	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, 0),
 	    UID_ROOT, GID_OPERATOR, 0640, "mcd%da", unit);
 	make_dev(&mcd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
 	    UID_ROOT, GID_OPERATOR, 0640, "mcd%dc", unit);
