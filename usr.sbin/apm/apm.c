@@ -146,7 +146,7 @@ apm_enable(int fd, int enable) {
 }
 
 void 
-print_all_info(int fd, apm_info_t aip)
+print_all_info(int fd, apm_info_t aip, int bioscall_available)
 {
 	struct apm_bios_arg args;
 	int apmerr;
@@ -202,64 +202,67 @@ print_all_info(int fd, apm_info_t aip)
 			printf("%d\n", aip->ai_batteries);
 	}
 
-	/*
-	 * try to get the suspend timer
-	 */
-	bzero(&args, sizeof(args));
-	args.eax = (APM_BIOS) << 8 | APM_RESUMETIMER;
-	args.ebx = PMDV_APMBIOS;
-	args.ecx = 0x0001;
-	if (ioctl(fd, APMIO_BIOS, &args)) {
-		printf("Resume timer: unknown\n");
-	} else {
-		apmerr = APMERR(args.eax);
-		 if (apmerr == 0x0d || apmerr == 0x86)
-			printf("Resume timer: disabled\n");
-		else if (apmerr)
-			fprintf(stderr, 
-			    "Failed to get the resume timer: APM error0x%x\n",
-			    apmerr);
-		else {
-			/*
-			 * OK.  We have the time (all bcd).
-			 * CH - seconds
-			 * DH - hours
-			 * DL - minutes
-			 * xh(SI) - month (1-12)
-			 * xl(SI) - day of month (1-31)
-			 * DI - year
-			 */
-			struct tm tm;
-			char buf[1024];
-			time_t t;
+	if (bioscall_available) {
+		/*
+		 * try to get the suspend timer
+		 */
+		bzero(&args, sizeof(args));
+		args.eax = (APM_BIOS) << 8 | APM_RESUMETIMER;
+		args.ebx = PMDV_APMBIOS;
+		args.ecx = 0x0001;
+		if (ioctl(fd, APMIO_BIOS, &args)) {
+			printf("Resume timer: unknown\n");
+		} else {
+			apmerr = APMERR(args.eax);
+			if (apmerr == 0x0d || apmerr == 0x86)
+				printf("Resume timer: disabled\n");
+			else if (apmerr)
+				fprintf(stderr, 
+					"Failed to get the resume timer: APM error0x%x\n",
+					apmerr);
+			else {
+				/*
+				 * OK.  We have the time (all bcd).
+				 * CH - seconds
+				 * DH - hours
+				 * DL - minutes
+				 * xh(SI) - month (1-12)
+				 * xl(SI) - day of month (1-31)
+				 * DI - year
+				 */
+				struct tm tm;
+				char buf[1024];
+				time_t t;
 
-			tm.tm_sec = bcd2int(xh(args.ecx));
-			tm.tm_min = bcd2int(xl(args.edx));
-			tm.tm_hour = bcd2int(xh(args.edx));
-			tm.tm_mday = bcd2int(xl(args.esi));
-			tm.tm_mon = bcd2int(xh(args.esi)) - 1;
-			tm.tm_year = bcd2int(args.edi) - 1900;
-			if (cmos_wall)
-				t = mktime(&tm);
-			else
-				t = timegm(&tm);
-			tm = *localtime(&t);
-			strftime(buf, sizeof(buf), "%c", &tm);
-			printf("Resume timer: %s\n", buf);
+				tm.tm_sec = bcd2int(xh(args.ecx));
+				tm.tm_min = bcd2int(xl(args.edx));
+				tm.tm_hour = bcd2int(xh(args.edx));
+				tm.tm_mday = bcd2int(xl(args.esi));
+				tm.tm_mon = bcd2int(xh(args.esi)) - 1;
+				tm.tm_year = bcd2int(args.edi) - 1900;
+				if (cmos_wall)
+					t = mktime(&tm);
+				else
+					t = timegm(&tm);
+				tm = *localtime(&t);
+				strftime(buf, sizeof(buf), "%c", &tm);
+				printf("Resume timer: %s\n", buf);
+			}
+		}
+
+		/*
+		 * Get the ring indicator resume state
+		 */
+		bzero(&args, sizeof(args));
+		args.eax  = (APM_BIOS) << 8 | APM_RESUMEONRING;
+		args.ebx = PMDV_APMBIOS;
+		args.ecx = 0x0002;
+		if (ioctl(fd, APMIO_BIOS, &args) == 0) {
+			printf("Resume on ring indicator: %sabled\n",
+			       args.ecx ? "en" : "dis");
 		}
 	}
 
-	/*
-	 * Get the ring indicator resume state
-	 */
-	bzero(&args, sizeof(args));
-	args.eax  = (APM_BIOS) << 8 | APM_RESUMEONRING;
-	args.ebx = PMDV_APMBIOS;
-	args.ecx = 0x0002;
-	if (ioctl(fd, APMIO_BIOS, &args) == 0) {
-		printf("Resume on ring indicator: %sabled\n",
-			args.ecx ? "en" : "dis");
-	}
 	if (aip->ai_infoversion >= 1) {
 		printf("APM Capacities:\n", aip->ai_capabilities);
 		if (aip->ai_capabilities == 0xff00)
@@ -343,6 +346,7 @@ main(int argc, char *argv[])
 	int     display = -1, batt_life = 0, ac_status = 0, standby = 0;
 	int	batt_time = 0, delta = 0, enable = -1, haltcpu = -1;
 	char	*cmdname;
+	int	bioscall_available = 0;
 	size_t	cmos_wall_len = sizeof(cmos_wall);
 
 	if (sysctlbyname("machdep.wall_cmos_clock", &cmos_wall, &cmos_wall_len,
@@ -412,8 +416,11 @@ main(int argc, char *argv[])
 		argv += optind;
 	}
 finish_option:
-	if (haltcpu != -1 || enable != -1 || display != -1 || delta || sleep || standby)
+	if (haltcpu != -1 || enable != -1 || display != -1 || delta || sleep || standby) {
 		fd = open(APMDEV, O_RDWR);
+		bioscall_available = 1;
+	} else if ((fd = open(APMDEV, O_RDWR)) >= 0)
+		bioscall_available = 1;
 	else
 		fd = open(APMDEV, O_RDONLY);
 	if (fd == -1)
@@ -433,7 +440,7 @@ finish_option:
 
 		apm_getinfo(fd, &info);
 		if (all_info)
-			print_all_info(fd, &info);
+			print_all_info(fd, &info, bioscall_available);
 		if (ac_status)
 			printf("%d\n", info.ai_acline);
 		if (batt_status)
