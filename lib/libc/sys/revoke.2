@@ -41,8 +41,9 @@
 .Nm revoke
 .Nd revoke file access
 .Sh SYNOPSIS
+.Fd #include <unistd.h>
 .Ft int
-.Fn revoke "char *path"
+.Fn revoke "const char *path"
 .Sh DESCRIPTION
 The
 .Fn revoke

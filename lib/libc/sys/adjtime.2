@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
 .Ft int
-.Fn adjtime "struct timeval *delta" "struct timeval *olddelta"
+.Fn adjtime "const struct timeval *delta" "struct timeval *olddelta"
 .Sh DESCRIPTION
 .Fn Adjtime
 makes small adjustments to the system time, as returned by

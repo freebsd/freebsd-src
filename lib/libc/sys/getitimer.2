@@ -46,7 +46,7 @@
 .Ft int
 .Fn getitimer "int which" "struct itimerval *value"
 .Ft int
-.Fn setitimer "int which" "struct itimerval *value" "struct itimerval *ovalue"
+.Fn setitimer "int which" "const struct itimerval *value" "struct itimerval *ovalue"
 .Sh DESCRIPTION
 The system provides each process with three interval timers,
 defined in
