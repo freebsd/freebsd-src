@@ -40,26 +40,21 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	uint64_t *kstack;
 	int error;
 
-	error = 0;
+	error = EINVAL;
+	tf = td->td_frame;
+
 	switch (req) {
 	case PT_GETKSTACK:
-		tf = td->td_frame;
-		if (data >= 0 && (data << 3) < tf->tf_special.ndirty) {
+		if (data >= 0 && data < (tf->tf_special.ndirty >> 3)) {
 			kstack = (uint64_t*)td->td_kstack;
 			error = copyout(kstack + data, addr, 8);
-		} else
-			error = EINVAL;
+		}
 		break;
 	case PT_SETKSTACK:
-		tf = td->td_frame;
-		if (data >= 0 && (data << 3) < tf->tf_special.ndirty) {
+		if (data >= 0 && data < (tf->tf_special.ndirty >> 3)) {
 			kstack = (uint64_t*)td->td_kstack;
 			error = copyin(addr, kstack + data, 8);
-		} else
-			error = EINVAL;
-		break;
-	default:
-		error = EINVAL;
+		}
 		break;
 	}
 
