@@ -59,8 +59,8 @@
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
-#include <dev/cs/if_csreg.h>
 #include <dev/cs/if_csvar.h>
+#include <dev/cs/if_csreg.h>
 
 #ifdef  CS_USE_64K_DMA
 #define CS_DMA_BUFFER_SIZE 65536
@@ -111,10 +111,10 @@ get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
 	for (i=0;i<len;i++) {
 		if (wait_eeprom_ready(sc) < 0) return -1;
 		/* Send command to EEPROM to read */
-		cs_writereg(sc->nic_addr, PP_EECMD, (off+i)|EEPROM_READ_CMD );
+		cs_writereg(sc, PP_EECMD, (off + i) | EEPROM_READ_CMD);
 		if (wait_eeprom_ready(sc)<0)
-			return -1;
-		buffer[i] = cs_readreg (sc->nic_addr, PP_EEData);
+			return (-1);
+		buffer[i] = cs_readreg(sc, PP_EEData);
 
 #ifdef CS_DEBUG
 		printf("%02x %02x ",(unsigned char)buffer[i],
@@ -125,8 +125,7 @@ get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
 #ifdef CS_DEBUG
 	printf("\n");
 #endif
-
-	return 0;
+	return (0);
 }
 
 static int
@@ -158,7 +157,7 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 		self_control |= HCB1;
 	else
 		self_control &= ~HCB1;
-	cs_writereg( sc->nic_addr, PP_SelfCTL, self_control );
+	cs_writereg(sc, PP_SelfCTL, self_control);
 
 	DELAY( 500000 );
 }
@@ -169,9 +168,9 @@ cs_duplex_auto(struct cs_softc *sc)
 {
         int i, error=0, unit=sc->arpcom.ac_if.if_unit;
         
-        cs_writereg(sc->nic_addr, PP_AutoNegCTL,
-                    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE );
-        for (i=0; cs_readreg(sc->nic_addr,PP_AutoNegST)&AUTO_NEG_BUSY; i++) {
+	cs_writereg(sc, PP_AutoNegCTL,
+	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
+        for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
                 if (i > 40000) {
                         printf(CS_NAME"%1d: full/half duplex "
                                "auto negotiation timeout\n", unit);
@@ -189,11 +188,11 @@ enable_tp(struct cs_softc *sc)
 {
 	int unit = sc->arpcom.ac_if.if_unit;
 
-	cs_writereg(sc->nic_addr, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
+	cs_writereg(sc, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
 	control_dc_dc(sc, 0);
 	DELAY( 150000 );
 
-	if ((cs_readreg(sc->nic_addr, PP_LineST) & LINK_OK)==0) {
+	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
 		printf(CS_NAME"%1d: failed to enable TP\n", unit);
                 return EINVAL;
 	}
@@ -218,18 +217,16 @@ send_test_pkt(struct cs_softc *sc)
 		ether_address_backup[i] = sc->arpcom.ac_enaddr[i];
 	}
 
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-		cs_readreg(sc->nic_addr, PP_LineCTL) | SERIAL_TX_ON );
-	bcopy(test_packet,
-			sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-	bcopy(test_packet+ETHER_ADDR_LEN,
-			sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-	outw(sc->nic_addr + TX_CMD_PORT, sc->send_cmd);
-	outw(sc->nic_addr + TX_LEN_PORT, sizeof(test_packet));
+	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) | SERIAL_TX_ON);
+	bcopy(test_packet, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	bcopy(test_packet+ETHER_ADDR_LEN, 
+	    sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	cs_outw(sc, TX_CMD_PORT, sc->send_cmd);
+	cs_outw(sc, TX_LEN_PORT, sizeof(test_packet));
 
 	/* Wait for chip to allocate memory */
 	DELAY(50000);
-	if (!(cs_readreg(sc->nic_addr, PP_BusST) & READY_FOR_TX_NOW)) {
+	if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
 		for (i = 0; i < ETHER_ADDR_LEN; i++) {
 			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
 		}
@@ -240,7 +237,7 @@ send_test_pkt(struct cs_softc *sc)
 
 	DELAY(30000);
 
-	if ((cs_readreg(sc->nic_addr,PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
+	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
 		for (i = 0; i < ETHER_ADDR_LEN; i++) {
 			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
 		}
@@ -261,8 +258,8 @@ enable_aui(struct cs_softc *sc)
 	int unit = sc->arpcom.ac_if.if_unit;
 
 	control_dc_dc(sc, 0);
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-		(sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
+	cs_writereg(sc, PP_LineCTL,
+	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
 		printf(CS_NAME"%1d failed to enable AUI\n", unit);
@@ -280,8 +277,8 @@ enable_bnc(struct cs_softc *sc)
 	int unit = sc->arpcom.ac_if.if_unit;
 
 	control_dc_dc(sc, 1);
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-		(sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
+	cs_writereg(sc, PP_LineCTL,
+	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
 		printf(CS_NAME"%1d failed to enable BNC\n", unit);
@@ -294,14 +291,11 @@ int
 cs_cs89x0_probe(device_t dev)
 {
 	int i;
-	int iobase;
 	int error;
-
 	u_long irq, junk;
-
 	struct cs_softc *sc = device_get_softc(dev);
-
 	unsigned rev_type = 0;
+	u_int16_t id;
 	char chip_revision;
 	int eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
@@ -310,29 +304,32 @@ cs_cs89x0_probe(device_t dev)
 	if (error)
 		return (error);
 
-	iobase=rman_get_start(sc->port_res);
+	sc->nic_addr = rman_get_start(sc->port_res);
 
-	if ((inw(iobase+ADD_PORT) & ADD_MASK) != ADD_SIG) {
+	if ((cs_inw(sc, ADD_PORT) & ADD_MASK) != ADD_SIG) {
 		/* Chip not detected. Let's try to reset it */
 		if (bootverbose)
 			device_printf(dev, "trying to reset the chip.\n");
-		outw(iobase+ADD_PORT, PP_SelfCTL);
-		i = inw(iobase+DATA_PORT);
-		outw(iobase+ADD_PORT, PP_SelfCTL);
-		outw(iobase+DATA_PORT, i | POWER_ON_RESET);
-		if ((inw(iobase+ADD_PORT) & ADD_MASK) != ADD_SIG)
+		cs_outw(sc, ADD_PORT, PP_SelfCTL);
+		i = cs_inw(sc, DATA_PORT);
+		cs_outw(sc, ADD_PORT, PP_SelfCTL);
+		cs_outw(sc, DATA_PORT, i | POWER_ON_RESET);
+		if ((cs_inw(sc, ADD_PORT) & ADD_MASK) != ADD_SIG)
 			return (ENXIO);
 	}
 
-	outw(iobase+ADD_PORT, PP_ChipID);
-	if (inw(iobase+DATA_PORT) != CHIP_EISA_ID_SIG)
+	for (i = 0; i < 10000; i++) {
+		id = cs_readreg(sc, PP_ChipID);
+		if (id == CHIP_EISA_ID_SIG)
+			break;
+	}
+	if (i == 10000)
 		return (ENXIO);
 
-	rev_type = cs_readreg(iobase, PRODUCT_ID_ADD);
+	rev_type = cs_readreg(sc, PRODUCT_ID_ADD);
 	chip_type = rev_type & ~REVISON_BITS;
 	chip_revision = ((rev_type & REVISON_BITS) >> 8) + 'A';
 
-	sc->nic_addr = iobase;
 	sc->chip_type = chip_type;
 
 	if(chip_type==CS8900) {
@@ -360,7 +357,7 @@ cs_cs89x0_probe(device_t dev)
 	/*
 	 * Get data from EEPROM
 	 */
-	if((cs_readreg(iobase, PP_SelfST) & EEPROM_PRESENT) == 0) {
+	if((cs_readreg(sc, PP_SelfST) & EEPROM_PRESENT) == 0) {
 		device_printf(dev, "No EEPROM, assuming defaults.\n");
 	} else {
 		if (get_eeprom_data(sc,START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
@@ -456,7 +453,7 @@ cs_cs89x0_probe(device_t dev)
 	}
 
 	if (!error) {
-                cs_writereg(iobase, pp_isaint, irq);
+                cs_writereg(sc, pp_isaint, irq);
 	} else {
 	       	device_printf(dev, "Unknown or invalid irq\n");
                 return (ENXIO);
@@ -466,7 +463,7 @@ cs_cs89x0_probe(device_t dev)
          * Temporary disabled
          *
         if (drq>0)
-		cs_writereg(iobase, pp_isadma, drq);
+		cs_writereg(sc, pp_isadma, drq);
 	else {
 		printf( CS_NAME"%1d: incorrect drq\n", unit );
 		return 0;
@@ -701,9 +698,8 @@ cs_init(void *xsc)
 	 */
 
 	/* Enable receiver and transmitter */
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-		cs_readreg( sc->nic_addr, PP_LineCTL ) |
-		SERIAL_RX_ON | SERIAL_TX_ON);
+	cs_writereg(sc, PP_LineCTL,
+		cs_readreg(sc, PP_LineCTL) | SERIAL_RX_ON | SERIAL_TX_ON);
 
 	/* Configure the receiver mode */
 	cs_setmode(sc);
@@ -717,34 +713,31 @@ cs_init(void *xsc)
 		 RX_EXTRA_DATA_ENBL;
 	if (sc->isa_config & STREAM_TRANSFER)
 		rx_cfg |= RX_STREAM_ENBL;
-	cs_writereg(sc->nic_addr, PP_RxCFG, rx_cfg);
-
-	cs_writereg(sc->nic_addr, PP_TxCFG, TX_LOST_CRS_ENBL |
+	cs_writereg(sc, PP_RxCFG, rx_cfg);
+	cs_writereg(sc, PP_TxCFG, TX_LOST_CRS_ENBL |
 		    TX_SQE_ERROR_ENBL | TX_OK_ENBL | TX_LATE_COL_ENBL |
 		    TX_JBR_ENBL | TX_ANY_COL_ENBL | TX_16_COL_ENBL);
-
-	cs_writereg(sc->nic_addr, PP_BufCFG, READY_FOR_TX_ENBL |
+	cs_writereg(sc, PP_BufCFG, READY_FOR_TX_ENBL |
 		    RX_MISS_COUNT_OVRFLOW_ENBL | TX_COL_COUNT_OVRFLOW_ENBL |
 		    TX_UNDERRUN_ENBL /*| RX_DMA_ENBL*/);
 
         /* Write MAC address into IA filter */
         for (i=0; i<ETHER_ADDR_LEN/2; i++)
-                cs_writereg(sc->nic_addr, PP_IA+i*2,
-                            sc->arpcom.ac_enaddr[i*2] |
-                            (sc->arpcom.ac_enaddr[i*2+1] << 8) );
+                cs_writereg(sc, PP_IA + i * 2,
+		    sc->arpcom.ac_enaddr[i * 2] |
+		    (sc->arpcom.ac_enaddr[i * 2 + 1] << 8) );
 
 	/*
 	 * Now enable everything
 	 */
 /*
 #ifdef	CS_USE_64K_DMA
-	cs_writereg(sc->nic_addr, PP_BusCTL, ENABLE_IRQ | RX_DMA_SIZE_64K);
-        #else
-
-        cs_writereg(sc->nic_addr, PP_BusCTL, ENABLE_IRQ);
+	cs_writereg(sc, PP_BusCTL, ENABLE_IRQ | RX_DMA_SIZE_64K);
+#else
+        cs_writereg(sc, PP_BusCTL, ENABLE_IRQ);
 #endif
 */
-	cs_writereg(sc->nic_addr, PP_BusCTL, ENABLE_IRQ);
+	cs_writereg(sc, PP_BusCTL, ENABLE_IRQ);
 	
 	/*
 	 * Set running and clear output active flags
@@ -776,8 +769,8 @@ cs_get_packet(struct cs_softc *sc)
 	int i;
 #endif
 
-	status = inw(iobase + RX_FRAME_PORT);
-	length = inw(iobase + RX_FRAME_PORT);
+	status = cs_inw(sc, RX_FRAME_PORT);
+	length = cs_inw(sc, RX_FRAME_PORT);
 
 #ifdef CS_DEBUG
 	printf(CS_NAME"%1d: rcvd: stat %x, len %d\n",
@@ -855,7 +848,7 @@ csintr(void *arg)
 	printf(CS_NAME"%1d: Interrupt.\n", unit);
 #endif
 
-	while ((status=cs_readword(sc->nic_addr, ISQ_PORT))) {
+	while ((status=cs_inw(sc, ISQ_PORT))) {
 
 #ifdef CS_DEBUG
 		printf( CS_NAME"%1d:from ISQ: %04x\n", unit, status );
@@ -983,15 +976,15 @@ cs_start(struct ifnet *ifp)
 		/*
 		 * Issue a SEND command
 		 */
-		outw(sc->nic_addr+TX_CMD_PORT, sc->send_cmd);
-		outw(sc->nic_addr+TX_LEN_PORT, length );
+		cs_outw(sc, TX_CMD_PORT, sc->send_cmd);
+		cs_outw(sc, TX_LEN_PORT, length );
 
 		/*
 		 * If there's no free space in the buffer then leave
 		 * this packet for the next time: indicate output active
 		 * and return.
 		 */
-		if (!(cs_readreg(sc->nic_addr, PP_BusST) & READY_FOR_TX_NOW)) {
+		if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
 			ifp->if_timer = sc->buf_len;
 			(void) splx(s);
 			ifp->if_flags |= IFF_OACTIVE;
@@ -1021,10 +1014,10 @@ cs_stop(struct cs_softc *sc)
 {
 	int s = splimp();
 
-	cs_writereg(sc->nic_addr, PP_RxCFG, 0);
-	cs_writereg(sc->nic_addr, PP_TxCFG, 0);
-	cs_writereg(sc->nic_addr, PP_BufCFG, 0);
-	cs_writereg(sc->nic_addr, PP_BusCTL, 0);
+	cs_writereg(sc, PP_RxCFG, 0);
+	cs_writereg(sc, PP_TxCFG, 0);
+	cs_writereg(sc, PP_BufCFG, 0);
+	cs_writereg(sc, PP_BusCTL, 0);
 
 	sc->arpcom.ac_if.if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	sc->arpcom.ac_if.if_timer = 0;
@@ -1049,8 +1042,7 @@ cs_setmode(struct cs_softc *sc)
 	int rx_ctl;
 
 	/* Stop the receiver while changing filters */
-	cs_writereg(sc->nic_addr, PP_LineCTL, 
-			cs_readreg(sc->nic_addr, PP_LineCTL) & ~SERIAL_RX_ON);
+	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) & ~SERIAL_RX_ON);
 
 	if (ifp->if_flags & IFF_PROMISC) {
 		/* Turn on promiscuous mode. */
@@ -1078,11 +1070,10 @@ cs_setmode(struct cs_softc *sc)
 	}
 
 	/* Set up the filter */
-	cs_writereg(sc->nic_addr, PP_RxCTL, RX_DEF_ACCEPT | rx_ctl);
+	cs_writereg(sc, PP_RxCTL, RX_DEF_ACCEPT | rx_ctl);
 
 	/* Turn on receiver */
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-			cs_readreg(sc->nic_addr, PP_LineCTL) | SERIAL_RX_ON);
+	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) | SERIAL_RX_ON);
 }
 
 static int
@@ -1191,13 +1182,13 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct cs_softc *sc = ifp->if_softc;
 
 	ifmr->ifm_active = IFM_ETHER;
-	line_status = cs_readreg(sc->nic_addr, PP_LineST);
+	line_status = cs_readreg(sc, PP_LineST);
 	if (line_status & TENBASET_ON) {
 		ifmr->ifm_active |= IFM_10_T;
 		if (sc->chip_type != CS8900) {
-			if (cs_readreg(sc->nic_addr, PP_AutoNegST) & FDX_ACTIVE)
+			if (cs_readreg(sc, PP_AutoNegST) & FDX_ACTIVE)
 				ifmr->ifm_active |= IFM_FDX;
-			if (cs_readreg(sc->nic_addr, PP_AutoNegST) & HDX_ACTIVE)
+			if (cs_readreg(sc, PP_AutoNegST) & HDX_ACTIVE)
 				ifmr->ifm_active |= IFM_HDX;
 		}
 		ifmr->ifm_status = IFM_AVALID;
@@ -1205,11 +1196,10 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 			ifmr->ifm_status |= IFM_ACTIVE;
 	} else {
 		if (line_status & AUI_ON) {
-			cs_writereg(sc->nic_addr, PP_SelfCTL,
-				    cs_readreg(sc->nic_addr, PP_SelfCTL) |
-				    HCB1_ENBL);
+			cs_writereg(sc, PP_SelfCTL, cs_readreg(sc, PP_SelfCTL) |
+			    HCB1_ENBL);
 			if (((sc->adapter_cnf & A_CNF_DC_DC_POLARITY)!=0)^
-			    (cs_readreg(sc->nic_addr, PP_SelfCTL)&HCB1))
+			    (cs_readreg(sc, PP_SelfCTL) & HCB1))
 				ifmr->ifm_active |= IFM_10_2;
 			else
 				ifmr->ifm_active |= IFM_10_5;
@@ -1223,9 +1213,8 @@ cs_mediaset(struct cs_softc *sc, int media)
         int error;
 
 	/* Stop the receiver & transmitter */
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-                    cs_readreg(sc->nic_addr, PP_LineCTL) &
-		    ~(SERIAL_RX_ON | SERIAL_TX_ON));
+	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) &
+	    ~(SERIAL_RX_ON | SERIAL_TX_ON));
 
 #ifdef CS_DEBUG
 	printf(CS_NAME"%d: cs_setmedia(%x)\n",sc->arpcom.ac_if.if_unit,media);
@@ -1260,9 +1249,8 @@ cs_mediaset(struct cs_softc *sc, int media)
 	/*
 	 * Turn the transmitter & receiver back on
 	 */
-	cs_writereg(sc->nic_addr, PP_LineCTL,
-		    cs_readreg( sc->nic_addr, PP_LineCTL ) |
-		    SERIAL_RX_ON | SERIAL_TX_ON); 
+	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) |
+	    SERIAL_RX_ON | SERIAL_TX_ON); 
 
 	return error;
 }

@@ -521,24 +521,58 @@
 /* Device name */
 #define CS_NAME			"cs"
 
-#define cs_readreg(iobase, portno) \
-	(outw((iobase) + ADD_PORT, (portno)), \
-	inw((iobase) + DATA_PORT))
-#define cs_writereg(iobase, portno, value) \
-	(outw((iobase) + ADD_PORT, (portno)), \
-	outw((iobase) + DATA_PORT, (value)))
-#define cs_readword(iobase, portno) \
-	(inw((iobase) + (portno)))
-#define cs_writeword(iobase, portno, value) \
-	(outw((iobase) + (portno), (value)))
+/*
+ * It would appear that for pccards (well, the IBM EtherJet PCMCIA card) that
+ * are connected to card bus bridges there's a problem.  For reading the
+ * value back you have to go into 8 bit mode.  The Linux driver also uses
+ * this trick.  This may be a bug in the card and how it handles fast 16-bit
+ * read after a write.
+ */
+#define HACK_FOR_CARDBUS_BRIDGE_PROBLEM
+#ifdef HACK_FOR_CARDBUS_BRIDGE_PROBLEM
+static __inline u_int16_t
+cs_inw(struct cs_softc *sc, int off)
+{
+	return ((inb(sc->nic_addr + off) & 0xff) |
+	    (inb(sc->nic_addr + off + 1) << 8));
+}
+#else
+static __inline u_int16_t
+cs_inw(struct cs_softc *sc, int off)
+{
+	return (inw(sc->nic_addr + off));
+}
+#endif
 
-#define reset_chip(nic_addr) \
-	cs_writereg(nic_addr, PP_SelfCTL, cs_readreg(ioaddr, PP_SelfCTL) | POWER_ON_RESET), \
-	DELAY(30000)
+static __inline void
+cs_outw(struct cs_softc *sc, int off, u_int16_t val)
+{
+	outw(sc->nic_addr + off, val);
+}
+
+static __inline u_int16_t
+cs_readreg(struct cs_softc *sc, u_int16_t port)
+{
+	cs_outw(sc, ADD_PORT, port);
+	return (cs_inw(sc, DATA_PORT));
+}
+static __inline void
+cs_writereg(struct cs_softc *sc, u_int16_t port, u_int16_t val)
+{
+	cs_outw(sc, ADD_PORT, port);
+	cs_outw(sc, DATA_PORT, val);
+}
+
+static __inline void
+reset_chip(struct cs_softc *sc)
+{
+	cs_writereg(sc, PP_SelfCTL,
+	    cs_readreg(sc, PP_SelfCTL) | POWER_ON_RESET);
+}
 
 #define cs_duplex_full(sc) \
-        (cs_writereg(sc->nic_addr, PP_AutoNegCTL, FORCE_FDX))
+        (cs_writereg(sc, PP_AutoNegCTL, FORCE_FDX))
 
 #define cs_duplex_half(sc) \
-        (cs_writereg(sc->nic_addr, PP_AutoNegCTL, NLP_ENABLE))
+        (cs_writereg(sc, PP_AutoNegCTL, NLP_ENABLE))
 
