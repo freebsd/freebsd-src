@@ -28,20 +28,23 @@
 
 /*
  * Create an MS-DOS (FAT) file system.
- *
- * $Id: mkdosfs.c,v 1.4 1997/02/22 16:06:38 peter Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <memory.h>
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 
 #include "bootcode.h"
 #include "dosfs.h"
@@ -93,11 +96,11 @@ table[] =
        0,  0,  0,  "4.4BSD     ", "FAT12   "},
 };
 
-void
+static void
 usage(void)
 {
-  fprintf(stderr, "usage: ");
-  errx(2, "[-f kbytes] [-L label] device");
+  fprintf(stderr, "usage: mkdosfs [-f kbytes] [-L label] device\n");
+  exit(2);
 }
 
 unsigned
@@ -117,7 +120,7 @@ findformat(int fd)
    */
 
   if(fstat(fd, &sb) == -1)
-    err(1, "Huh? Cannot fstat()"); /* Cannot happen */
+    err(1, "huh? cannot fstat()"); /* Cannot happen */
   if(S_ISREG(sb.st_mode))
     {
       off_t o;
