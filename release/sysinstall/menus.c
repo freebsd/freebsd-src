@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.23 1995/06/05 22:18:16 jkh Exp $
+ * $Id: menus.c,v 1.41.2.24 1995/06/06 04:26:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,8 +83,7 @@ DMenu MenuDocumentation = {
 or are looking to build a system specifically for FreeBSD, read the\n\
 Hardware guide!  New users should also read the Install document for\n\
 a step-by-step tutorial on installing FreeBSD.  For general information,\n\
-consult the README file.  If you are having other problems, you may find\n\
-answers in the FAQ.",
+consult the README file.",
     "Confused?  Press F1 for help.",
     "usage.hlp",			/* help file */
     { { "README", "Read this for a general description of FreeBSD",	/* R */
@@ -279,8 +278,8 @@ DMenu MenuNetworkDevice = {
     "Choose a network interface type",
 "FreeBSD can be installed directly over a network, using NFS or FTP.\n
 If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
-to a direct ethernet connection, then you may need to first dial your\n\
-service provider using a special utility we provide for that purpose.\n\
+to a direct ethernet connection, then you may first need to dial your\n\
+service provider using the ppp utility we provide for that purpose.\n\
 You can also install over a parallel port using a special \"laplink\"\n\
 cable, though this only works if you have another FreeBSD machine running\n\
 a fairly recent (2.0R or later) release to talk to.\n\n\
@@ -399,6 +398,8 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
 	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
       { "XFree86", "The XFree86 3.1.1u1 distribution [?]",
 	DMENU_CALL,	distSetXF86, 0, 0, x11FlagCheck			},
+      { "Experimental", "Work in progress!",
+	DMENU_SET_FLAG,	&Dists, DIST_EXPERIMENTAL, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
