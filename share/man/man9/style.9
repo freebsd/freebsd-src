@@ -91,7 +91,13 @@ Put a single tab character between the
 and the macro name.  
 If they are an inline expansion of a function, the function is defined
 all in lowercase, the macro has the same name all in uppercase.  If the
-macro needs more than a single line, use braces.  Right-justify the
+macro needs more than a single line, use braces
+.Po
+.Sq \&{
+and
+.Sq \&}
+.Pc .
+Right-justify the
 backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
 .Dq Li do
@@ -477,7 +483,12 @@ The usage statement should be structured in the following order:
 .It
 Options without operands come first,
 in alphabetical order,
-inside a single set of brackets.
+inside a single set of brackets
+.Po
+.Sq \&[
+and
+.Sq \&]
+.Pc .
 .It
 Options with operands come next,
 also in alphabetical order,
