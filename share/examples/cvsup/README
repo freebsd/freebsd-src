@@ -1,4 +1,4 @@
-# $Id: README,v 1.2.2.2 1997/02/01 05:43:41 jdp Exp $
+# $Id: README,v 1.2.2.3 1997/07/30 16:00:06 jdp Exp $
 
 This directory contains sample "supfiles" for obtaining and updating
 the FreeBSD sources via the Internet.  These supfiles will work
@@ -58,6 +58,9 @@ below for your updates.
 
   Taiwan:
     cvsup.tw.FreeBSD.org
+
+  United Kingdom:
+    cvsup.uk.FreeBSD.org
 
   USA:
     cvsup.FreeBSD.org		(Washington state)
