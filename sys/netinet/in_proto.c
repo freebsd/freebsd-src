@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.27 1996/03/26 19:16:43 fenner Exp $
+ *	$Id: in_proto.c,v 1.28 1996/04/18 15:41:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -188,49 +188,3 @@ SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
 
-#if 0
-#include "imp.h"
-#if NIMP > 0
-extern	struct domain impdomain;
-int	rimp_output(), hostslowtimo();
-
-struct protosw impsw[] = {
-{ SOCK_RAW,	&impdomain,	0,		PR_ATOMIC|PR_ADDR,
-  0,		rimp_output,	0,		0,
-  rip_usrreq,
-  0,		0,		hostslowtimo,	0,
-},
-};
-
-struct domain impdomain =
-    { AF_IMPLINK, "imp", 0, 0, 0,
-      impsw, &impsw[sizeof (impsw)/sizeof(impsw[0])] };
-
-DOMAIN_SET(imp);
-
-#endif
-#endif
-
-#if 0
-#include "hy.h"
-#if NHY > 0
-/*
- * HYPERchannel protocol family: raw interface.
- */
-int	rhy_output();
-extern	struct domain hydomain;
-
-struct protosw hysw[] = {
-{ SOCK_RAW,	&hydomain,	0,		PR_ATOMIC|PR_ADDR,
-  0,		rhy_output,	0,		0,
-  rip_usrreq,
-  0,		0,		0,		0,
-},
-};
-
-struct domain hydomain =
-    { AF_HYLINK, "hy", 0, 0, 0, hysw, &hysw[sizeof (hysw)/sizeof(hysw[0])] };
-
-DOMAIN_SET(hy);
-#endif
-#endif
