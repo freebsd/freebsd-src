@@ -1790,7 +1790,10 @@ Cause the shell to parse and execute
 when any specified
 .Ar signal
 is received.
-The signals are specified by signal number.
+The signals are specified by name or number.
+In addition, the pseudo-signal
+.Ic EXIT
+may be used to specify an action that is performed when the shell terminates.
 The
 .Ar action
 may be null or omitted;
