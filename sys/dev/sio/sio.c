@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id$
+ *	$Id: sio.c,v 1.12 1993/10/16 13:46:18 rgrimes Exp $
  */
 
 #include "sio.h"
@@ -1471,6 +1471,10 @@ siostop(tp, rw)
 	if (rw & FWRITE)
 		comflush(com);
 	disable_intr();
+	if (rw & FREAD) {
+		com_events -= (com->iptr - com->ibuf);
+		com->iptr = com->ibuf;
+	}
 	if (tp->t_state & TS_TTSTOP)
 		com->state &= ~CS_TTGO;
 	else
