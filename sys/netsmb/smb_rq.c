@@ -414,7 +414,7 @@ smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
 	struct mbuf *m, *m0;
 	int len;
 
-	m0 = m_split(mtop, offset, M_WAIT);
+	m0 = m_split(mtop, offset, M_TRYWAIT);
 	if (m0 == NULL)
 		return EBADRPC;
 	for(len = 0, m = m0; m->m_next; m = m->m_next)
