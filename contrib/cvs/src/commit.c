@@ -155,7 +155,7 @@ find_dirent_proc (callerdat, dir, repository, update_dir, entries)
        is that it (or some variant thereof) should go in all the
        dirent procs.  Unless someone has some better idea...  */
     if (!isdir (dir))
-	return (R_SKIP_ALL);
+	return R_SKIP_ALL;
 
     /* initialize the ignore list for this directory */
     find_data->ignlist = getlist ();
@@ -224,6 +224,8 @@ find_filesdoneproc (callerdat, err, repository, update_dir, entries)
 
     return err;
 }
+
+
 
 static int find_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 
@@ -341,6 +343,8 @@ find_fileproc (callerdat, finfo)
     return 0;
 }
 
+
+
 static int copy_ulist PROTO ((Node *, void *));
 
 static int
@@ -389,15 +393,16 @@ commit (argc, argv)
 	struct passwd *pw;
 
 	if ((pw = (struct passwd *) getpwnam (getcaller ())) == NULL)
-	    error (1, 0, "your apparent username (%s) is unknown to this system",
-			 getcaller ());
+	    error (1, 0,
+                   "your apparent username (%s) is unknown to this system",
+                   getcaller ());
 	if (pw->pw_uid == (uid_t) 0)
 	    error (1, 0, "'root' is not allowed to commit files");
     }
 #endif /* CVS_BADROOT */
 
     optind = 0;
-    while( ( c = getopt( argc, argv, COMMIT_OPTIONS ) ) != -1 )
+    while ((c = getopt (argc, argv, COMMIT_OPTIONS)) != -1)
     {
 	switch (c)
 	{
@@ -518,7 +523,12 @@ commit (argc, argv)
 	   operate on, and only work with those files in the future.
 	   This saves time--we don't want to search the file system
 	   of the working directory twice.  */
-	find_args.argv = (char **) xmalloc (find_args.argc * sizeof (char **));
+	if (size_overflow_p (xtimes (find_args.argc, sizeof (char **))))
+	{
+	    find_args.argc = 0;
+	    return 0;
+	}
+	find_args.argv = xmalloc (xtimes (find_args.argc, sizeof (char **)));
 	find_args.argc = 0;
 	walklist (find_args.ulist, copy_ulist, &find_args);
 
@@ -713,8 +723,10 @@ commit (argc, argv)
 	sleep_past (last_register_time);
     }
 
-    return (err);
+    return err;
 }
+
+
 
 /* This routine determines the status of a given file and retrieves
    the version information that is associated with that file. */
@@ -803,6 +815,8 @@ classify_file_internal (finfo, vers)
     return status;
 }
 
+
+
 /*
  * Check to see if a file is ok to commit and make sure all files are
  * up-to-date
@@ -826,10 +840,11 @@ check_fileproc (callerdat, finfo)
     if (!finfo->repository)
     {
 	error (0, 0, "nothing known about `%s'", finfo->fullname);
-	return (1);
+	return 1;
     }
 
-    if (strncmp (finfo->repository, current_parsed_root->directory, cvsroot_len) == 0
+    if (strncmp (finfo->repository, current_parsed_root->directory,
+                 cvsroot_len) == 0
 	&& ISDIRSEP (finfo->repository[cvsroot_len])
 	&& strncmp (finfo->repository + cvsroot_len + 1,
 		    CVSROOTADM,
@@ -859,7 +874,7 @@ check_fileproc (callerdat, finfo)
 	case T_REMOVE_ENTRY:
 	    error (0, 0, "Up-to-date check failed for `%s'", finfo->fullname);
 	    freevers_ts (&vers);
-	    return (1);
+	    return 1;
 	case T_MODIFIED:
 	case T_ADDED:
 	case T_REMOVED:
@@ -885,7 +900,7 @@ check_fileproc (callerdat, finfo)
 			   "cannot commit with sticky date for file `%s'",
 			   finfo->fullname);
 		    freevers_ts (&vers);
-		    return (1);
+		    return 1;
 		}
 		if (status == T_MODIFIED && vers->tag &&
 		    !RCS_isbranch (finfo->rcs, vers->tag))
@@ -894,7 +909,7 @@ check_fileproc (callerdat, finfo)
 			   "sticky tag `%s' for file `%s' is not a branch",
 			   vers->tag, finfo->fullname);
 		    freevers_ts (&vers);
-		    return (1);
+		    return 1;
 		}
 	    }
 	    if (status == T_MODIFIED && !force_ci && vers->ts_conflict)
@@ -911,7 +926,7 @@ check_fileproc (callerdat, finfo)
 			  "file `%s' had a conflict and has not been modified",
 			   finfo->fullname);
 		    freevers_ts (&vers);
-		    return (1);
+		    return 1;
 		}
 
 		if (file_has_markers (finfo))
@@ -955,7 +970,7 @@ warning: file `%s' seems to still contain conflict indicators",
 			   "cannot remove file `%s' which has a numeric sticky"
 			   " tag of `%s'", finfo->fullname, vers->tag);
 		    freevers_ts (&vers);
-		    return (1);
+		    return 1;
 		}
 	    }
 	    if (status == T_ADDED)
@@ -969,7 +984,7 @@ warning: file `%s' seems to still contain conflict indicators",
 		    "cannot add file `%s' when RCS file `%s' already exists",
 			       finfo->fullname, finfo->rcs->path);
 			freevers_ts (&vers);
-			return (1);
+			return 1;
 		    }
 		}
 		else if (isdigit ((unsigned char) *vers->tag) &&
@@ -979,7 +994,7 @@ warning: file `%s' seems to still contain conflict indicators",
 		"cannot add file `%s' with revision `%s'; must be on trunk",
 			       finfo->fullname, vers->tag);
 		    freevers_ts (&vers);
-		    return (1);
+		    return 1;
 		}
 	    }
 
@@ -1082,7 +1097,7 @@ warning: file `%s' seems to still contain conflict indicators",
 	case T_UNKNOWN:
 	    error (0, 0, "nothing known about `%s'", finfo->fullname);
 	    freevers_ts (&vers);
-	    return (1);
+	    return 1;
 	case T_UPTODATE:
 	    break;
 	default:
@@ -1091,7 +1106,7 @@ warning: file `%s' seems to still contain conflict indicators",
     }
 
     freevers_ts (&vers);
-    return (0);
+    return 0;
 }
 
 
@@ -1110,13 +1125,15 @@ check_direntproc (callerdat, dir, repos, update_dir, entries)
     List *entries;
 {
     if (!isdir (dir))
-	return (R_SKIP_ALL);
+	return R_SKIP_ALL;
 
     if (!quiet)
 	error (0, 0, "Examining %s", update_dir);
 
-    return (R_PROCESS);
+    return R_PROCESS;
 }
+
+
 
 /*
  * Walklist proc to run pre-commit checks
@@ -1133,8 +1150,10 @@ precommit_list_proc (p, closure)
     {
 	run_arg (p->key);
     }
-    return (0);
+    return 0;
 }
+
+
 
 /*
  * Callback proc for pre-commit checking
@@ -1160,7 +1179,7 @@ precommit_proc (repository, filter)
 	{
 	    error (0, errno, "cannot find pre-commit filter `%s'", s);
 	    free (s);
-	    return (1);			/* so it fails! */
+	    return 1;			/* so it fails! */
 	}
 	free (s);
     }
@@ -1168,8 +1187,10 @@ precommit_proc (repository, filter)
     run_setup (filter);
     run_arg (repository);
     (void) walklist (saved_ulist, precommit_list_proc, NULL);
-    return (run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY));
+    return run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY);
 }
+
+
 
 /*
  * Run the pre-commit checks for the dir
@@ -1195,7 +1216,7 @@ check_filesdoneproc (callerdat, err, repos, update_dir, entries)
 
     /* skip the checks if there's nothing to do */
     if (saved_ulist == NULL || saved_ulist->list->next == saved_ulist->list)
-	return (err);
+	return err;
 
     /* run any pre-commit checks */
     if ((n = Parse_Info (CVSROOTADM_COMMITINFO, repos, precommit_proc, 1)) > 0)
@@ -1204,8 +1225,10 @@ check_filesdoneproc (callerdat, err, repos, update_dir, entries)
 	err += n;
     }
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * Do the work of committing a file
@@ -1249,7 +1272,7 @@ commit_fileproc (callerdat, finfo)
      * all up-to-date so nothing really needs to be done
      */
     if (p == NULL)
-	return (0);
+	return 0;
     ulist = ((struct master_lists *) p->data)->ulist;
     cilist = ((struct master_lists *) p->data)->cilist;
 
@@ -1273,7 +1296,7 @@ commit_fileproc (callerdat, finfo)
 
     p = findnode (cilist, finfo->file);
     if (p == NULL)
-	return (0);
+	return 0;
 
     ci = p->data;
     if (ci->status == T_MODIFIED)
@@ -1431,8 +1454,10 @@ out:
     if (SIG_inCrSect ())
 	SIG_endCrSect ();
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * Log the commit and clean up the update list
@@ -1451,7 +1476,7 @@ commit_filesdoneproc (callerdat, err, repository, update_dir, entries)
 
     p = findnode (mulist, update_dir);
     if (p == NULL)
-	return (err);
+	return err;
 
     ulist = ((struct master_lists *) p->data)->ulist;
 
@@ -1501,8 +1526,10 @@ commit_filesdoneproc (callerdat, err, repository, update_dir, entries)
 	}
     }
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * Get the log message for a dir
@@ -1521,7 +1548,7 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
     char *real_repos;
 
     if (!isdir (dir))
-	return (R_SKIP_ALL);
+	return R_SKIP_ALL;
 
     /* find the update list for this dir */
     p = findnode (mulist, update_dir);
@@ -1532,7 +1559,7 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
 
     /* skip the files as an optimization */
     if (ulist == NULL || ulist->list->next == ulist->list)
-	return (R_SKIP_FILES);
+	return R_SKIP_FILES;
 
     /* get commit message */
     real_repos = Name_Repository (dir, update_dir);
@@ -1545,8 +1572,10 @@ commit_direntproc (callerdat, dir, repos, update_dir, entries)
 	do_editor (update_dir, &saved_message, real_repos, ulist);
     do_verify (&saved_message, real_repos);
     free (real_repos);
-    return (R_PROCESS);
+    return R_PROCESS;
 }
+
+
 
 /*
  * Process the post-commit proc if necessary
@@ -1572,8 +1601,10 @@ commit_dirleaveproc (callerdat, dir, err, update_dir, entries)
 	free (repos);
     }
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * find the maximum major rev number in an entries file
@@ -1661,7 +1692,7 @@ remove_file (finfo, tag, message)
 	if (rev == NULL)
 	{
 	    error (0, 0, "cannot find branch \"%s\".", tag);
-	    return (1);
+	    return 1;
 	}
 
 	branchname = RCS_getbranch (finfo->rcs, rev, 1);
@@ -1693,7 +1724,7 @@ remove_file (finfo, tag, message)
 	{
 	    error (0, 0, "cannot change branch to default for %s",
 		   finfo->fullname);
-	    return (1);
+	    return 1;
 	}
 	RCS_rewrite (finfo->rcs, NULL, NULL);
     }
@@ -1707,7 +1738,7 @@ remove_file (finfo, tag, message)
     {
 	error (0, 0,
 	       "failed to check out `%s'", finfo->fullname);
-	return (1);
+	return 1;
     }
 
     /* Except when we are creating a branch, lock the revision so that
@@ -1728,7 +1759,7 @@ remove_file (finfo, tag, message)
 	if (!quiet)
 	    error (0, retcode == -1 ? errno : 0,
 		   "failed to commit dead revision for `%s'", finfo->fullname);
-	return (1);
+	return 1;
     }
     /* At this point, the file has been committed as removed.  We should
        probably tell the history file about it  */
@@ -1753,8 +1784,10 @@ remove_file (finfo, tag, message)
     free (old_path);
 
     Scratch_Entry (finfo->entries, finfo->file);
-    return (0);
+    return 0;
 }
+
+
 
 /*
  * Do the actual checkin for added files
@@ -1784,8 +1817,10 @@ finaladd (finfo, rev, tag, options)
 
     (void) time (&last_register_time);
 
-    return (ret);
+    return ret;
 }
+
+
 
 /*
  * Unlock an rcs file
@@ -1851,6 +1886,8 @@ fixbranch (rcs, branch)
 	RCS_rewrite (rcs, NULL, NULL);
     }
 }
+
+
 
 /*
  * do the initial part of a file add for the named file.  if adding
@@ -2189,6 +2226,8 @@ checkaddfile (file, repository, tag, options, rcsnode)
     return retval;
 }
 
+
+
 /*
  * Attempt to place a lock on the RCS file; returns 0 if it could and 1 if it
  * couldn't.  If the RCS file currently has a branch as the head, we must
@@ -2226,7 +2265,7 @@ lock_RCS (user, rcs, rev, repository)
 		       rcs->path);
 		if (branch)
 		    free (branch);
-		return (1);
+		return 1;
 	    }
 	}
 	err = RCS_lock (rcs, NULL, 1);
@@ -2260,7 +2299,7 @@ lock_RCS (user, rcs, rev, repository)
 	if (sbranch != NULL)
 	    free (sbranch);
 	sbranch = branch;
-	return (0);
+	return 0;
     }
 
     /* try to restore the branch if we can on error */
@@ -2269,8 +2308,10 @@ lock_RCS (user, rcs, rev, repository)
 
     if (branch)
 	free (branch);
-    return (1);
+    return 1;
 }
+
+
 
 /*
  * free an UPDATE node's data
