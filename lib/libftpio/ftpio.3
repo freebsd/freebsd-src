@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: ftpio.3,v 1.11 1996/10/05 22:26:51 wosch Exp $
 .\"
 .Dd June 17, 1996
 .Dt ftpio 3
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Fd #include <ftpio.h>
 .Ft FILE *
-.Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose"
+.Fn ftpLogin "char *host" "char *user" "char *passwd" "int ftp_port" "int verbose" "int *retcode"
 .Ft int
 .Fn ftpChdir "FILE *stream, char *dirname"
 .Ft int
@@ -68,9 +68,9 @@
 .Ft void
 .Fn ftpVerbose "FILE *stream, int status"
 .Ft FILE *
-.Fn ftpGetURL "char *url, char *user, char *passwd"
+.Fn ftpGetURL "char *url, char *user, char *passwd, int *retcode"
 .Ft FILE *
-.Fn ftpPutURL "char *url, char *user, char *passwd"
+.Fn ftpPutURL "char *url, char *user, char *passwd, int *retcode"
 
 .Sh DESCRIPTION
 These functions implement a high-level library for managing FTP connections.
@@ -87,8 +87,8 @@ defaults to the standard ftp port of 21) and
 fields.  If it is successful, a
 standard stream descriptor is returned which should be passed to
 subsequent FTP operations. On failure, NULL is returned and
-.Fn ftpErrno
-will return the error code returned by the foreign server.
+.Fa retcode
+will have the error code returned by the foreign server.
 .Pp
 .Fn ftpChdir
 attempts to issue a server CD command to the directory named in
