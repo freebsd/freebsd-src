@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <machine/bootinfo.h>
 #include <machine/bus.h>
 #include <machine/dig64.h>
+#include <machine/md_var.h>
 #include <machine/vmparam.h>
 
 #include <dev/uart/uart.h>
@@ -60,13 +60,15 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct dig64_hcdp_table *tbl;
 	struct dig64_hcdp_entry *ent;
 	bus_addr_t addr;
+	uint64_t hcdp;
 	unsigned int i;
 
 	/*
 	 * Use the DIG64 HCDP table if present.
 	 */
-	if (bootinfo.bi_hcdp != 0) {
-		tbl = (void*)IA64_PHYS_TO_RR7(bootinfo.bi_hcdp);
+	hcdp = ia64_get_hcdp();
+	if (hcdp != 0) {
+		tbl = (void*)IA64_PHYS_TO_RR7(hcdp);
 		for (i = 0; i < tbl->entries; i++) {
 			ent = tbl->entry + i;
 
