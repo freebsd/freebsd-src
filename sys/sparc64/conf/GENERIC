@@ -199,10 +199,3 @@ device		bpf		#Berkeley packet filter
 device		firewire	# FireWire bus code
 device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
-
-options 	KTR
-options 	KTR_COMPILE=0xffffffff
-options 	KTR_ENTRIES=8192
-options 	KTR_MASK=KTR_TRAP
-
-options 	OFW_PCI_DEBUG
