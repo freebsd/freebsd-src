@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.97 1996/05/16 11:47:30 jkh Exp $
+ * $Id: install.c,v 1.98 1996/05/29 01:35:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -388,11 +388,12 @@ installNovice(dialogMenuItem *self)
 		   "may do so by typing: /stand/sysinstall.");
 
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
+	if (!msgYesNo("Does this system have a network interface card?")) {
 	    Device *save = mediaDevice;
 
 	    /* This will also set the media device, which we don't want */
 	    tcpDeviceSelect();
+	    /* so we restore our saved value below */
 	    mediaDevice = save;
 	    dialog_clear();
 	}
