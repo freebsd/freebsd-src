@@ -466,7 +466,7 @@ case ${cron_enable} in
 [Nn][Oo])
 	;;
 *)
-	echo -n ' cron';	cron
+	echo -n ' cron';	${cron_program:-/usr/sbin/cron} ${cron_flags}
 	;;
 esac
 

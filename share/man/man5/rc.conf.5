@@ -1302,6 +1302,18 @@ is set to
 then run the
 .Xr cron 8
 daemon at system boot time.
+.It Ar cron_program
+(str) path to
+.Xr cron 8
+(default
+.Pa /usr/sbin/cron ) .
+.It Ar cron_flags
+(str) if
+.Ar cron_enable
+is set to
+.Ar YES ,
+these are the flags to pass to
+.Xr cron 8 .
 .It Ar lpd_program
 (str) path to
 .Xr lpd 8
