@@ -1,9 +1,9 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $Id: de_DE.DIS_8859-15.src,v 1.1 1999/01/21 19:41:38 imp Exp $
+# $Id: de_DE.DIS_8859-15.src,v 1.2 1999/02/12 21:14:41 ache Exp $
 #
 charmap map.DIS_8859-15
-substitute "\xdf" with "ss"
+substitute <ss> with "ss"
 order \
 # controls
 	<NU>;...;<US>;<PA>;...;<AC>;\
