@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.57 1998/03/24 09:51:58 jkh Exp $
+ * $Id: installUpgrade.c,v 1.58 1998/05/24 02:49:54 steve Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -276,7 +276,7 @@ installUpgrade(dialogMenuItem *self)
 	}
 
 	msgNotify("chflags'ing old binaries - please wait.");
-	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /kernel*");
+	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /usr/lib /kernel*");
 
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
