@@ -14,7 +14,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	pam.conf phones pim6dd.conf pim6sd.conf \
 	printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
-	rc.isdn rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
+	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
 	rc.syscons rc.sysctl remote rpc security services shells sysctl.conf \
 	syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
@@ -23,6 +23,10 @@ BIN1=   amd.map apmd.conf auth.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+
+.if !defined(NO_I4B)
+BIN1+=	rc.isdn
+.endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
@@ -76,8 +80,10 @@ distribution:
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	( cd ${.CURDIR}/isdn; ${MAKE} install ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; )
+.if !defined(NO_I4B)
+	( cd ${.CURDIR}/isdn; ${MAKE} install )
+.endif
 .if !defined(NO_SENDMAIL)
 	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
 .endif

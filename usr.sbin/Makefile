@@ -163,7 +163,6 @@ SUBDIR+=acpi \
 	apm \
 	apmd \
 	btxld \
-	i4b \
 	kgmon \
 	kgzip \
 	lptcontrol \
@@ -174,6 +173,9 @@ SUBDIR+=acpi \
 	spkrtest \
 	stallion \
 	wlconfig
+.if !defined(NO_I4B)
+SUBDIR+=i4b
+.endif
 .endif
 
 .if ${MACHINE} == "i386"
