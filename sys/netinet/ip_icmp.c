@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.14 1995/12/06 23:37:29 bde Exp $
+ * $Id: ip_icmp.c,v 1.15 1995/12/08 16:46:06 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@
  * host table maintenance routines.
  */
 
-struct	icmpstat icmpstat;
+static struct	icmpstat icmpstat;
 SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RD,
 	&icmpstat, icmpstat, "");
 
@@ -76,6 +76,7 @@ int	icmpprintfs = 0;
 
 static void	icmp_reflect __P((struct mbuf *));
 static void	icmp_send __P((struct mbuf *, struct mbuf *));
+static int	ip_next_mtu __P((int, int));
 
 extern	struct protosw inetsw[];
 
@@ -645,7 +646,7 @@ iptime()
  * given current value MTU.  If DIR is less than zero, a larger plateau
  * is returned; otherwise, a smaller value is returned.
  */
-int
+static int
 ip_next_mtu(mtu, dir)
 	int mtu;
 	int dir;

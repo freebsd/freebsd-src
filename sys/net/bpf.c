@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.19 1995/12/08 11:18:01 julian Exp $
+ * $Id: bpf.c,v 1.20 1995/12/08 23:21:46 phk Exp $
  */
 
 #include "bpfilter.h"
@@ -80,6 +80,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -105,27 +106,16 @@ static caddr_t bpf_alloc();
 /*
  * The default read buffer size is patchable.
  */
-int bpf_bufsize = BPF_BUFSIZE;
+static int bpf_bufsize = BPF_BUFSIZE;
+SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW, 
+	&bpf_bufsize, 0, "");
 
 /*
  *  bpf_iflist is the list of interfaces; each corresponds to an ifnet
  *  bpf_dtab holds the descriptors, indexed by minor device #
  */
-struct bpf_if	*bpf_iflist;
-struct bpf_d	bpf_dtab[NBPFILTER];
-
-#if BSD >= 199207
-/*
- * bpfilterattach() is called at boot time in new systems.  We do
- * nothing here since old systems will not call this.
- */
-/* ARGSUSED */
-void
-bpfilterattach(n)
-	int n;
-{
-}
-#endif
+static struct bpf_if	*bpf_iflist;
+static struct bpf_d	bpf_dtab[NBPFILTER];
 
 static int	bpf_allocbufs __P((struct bpf_d *));
 static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
@@ -141,6 +131,7 @@ static inline void
 static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
 		    u_int, void (*)(const void *, void *, u_int)));
 static void	reset_d __P((struct bpf_d *));
+static int	 bpf_setf __P((struct bpf_d *, struct bpf_program *));
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -875,7 +866,7 @@ bpfioctl(dev, cmd, addr, flags, p)
  * Set d's packet filter program to fp.  If this file already has a filter,
  * free it and replace it.  Returns EINVAL for bogus requests.
  */
-int
+static int
 bpf_setf(d, fp)
 	struct bpf_d *d;
 	struct bpf_program *fp;

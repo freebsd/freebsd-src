@@ -132,7 +132,7 @@ struct cisco_packet {
 };
 #define CISCO_PACKET_LEN 18
 
-struct sppp *spppq;
+static struct sppp *spppq;
 
 /*
  * The following disgusting hack gets around the problem that IP TOS
@@ -156,21 +156,23 @@ static u_short interactive_ports[8] = {
 			untimeout (sppp_cp_timeout, (void*) (p)); \
 			(p)->pp_flags &= ~PP_TIMO; }
 
-void sppp_keepalive (void *dummy);
-void sppp_cp_send (struct sppp *sp, u_short proto, u_char type,
+static void sppp_keepalive (void *dummy);
+static void sppp_cp_send (struct sppp *sp, u_short proto, u_char type,
 	u_char ident, u_short len, void *data);
-void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2);
-void sppp_lcp_input (struct sppp *sp, struct mbuf *m);
-void sppp_cisco_input (struct sppp *sp, struct mbuf *m);
-void sppp_ipcp_input (struct sppp *sp, struct mbuf *m);
-void sppp_lcp_open (struct sppp *sp);
-void sppp_ipcp_open (struct sppp *sp);
-int sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
+static void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2);
+static void sppp_lcp_input (struct sppp *sp, struct mbuf *m);
+static void sppp_cisco_input (struct sppp *sp, struct mbuf *m);
+static void sppp_ipcp_input (struct sppp *sp, struct mbuf *m);
+static void sppp_lcp_open (struct sppp *sp);
+static void sppp_ipcp_open (struct sppp *sp);
+static int sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
 	int len, u_long *magic);
-void sppp_cp_timeout (void *arg);
-char *sppp_lcp_type_name (u_char type);
-char *sppp_ipcp_type_name (u_char type);
-void sppp_print_bytes (u_char *p, u_short len);
+static void sppp_cp_timeout (void *arg);
+static char *sppp_lcp_type_name (u_char type);
+static char *sppp_ipcp_type_name (u_char type);
+static void sppp_print_bytes (u_char *p, u_short len);
+static int sppp_output (struct ifnet *ifp, struct mbuf *m, 
+	struct sockaddr *dst, struct rtentry *rt);
 
 /*
  * Flush interface queue.
@@ -354,7 +356,8 @@ invalid:        if (ifp->if_flags & IFF_DEBUG)
 /*
  * Enqueue transmit packet.
  */
-int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt)
+static int
+sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt)
 {
 	struct sppp *sp = (struct sppp*) ifp;
 	struct ppp_header *h;
@@ -439,8 +442,8 @@ int sppp_output (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct
 			goto nosupport;
 		h->protocol = htons (PPP_ISO);
 		break;
-#endif
 nosupport:
+#endif
 	default:
 		m_freem (m);
 		splx (s);
@@ -496,7 +499,8 @@ void sppp_attach (struct ifnet *ifp)
 	sp->ipcp.state = IPCP_STATE_CLOSED;
 }
 
-void sppp_detach (struct ifnet *ifp)
+void 
+sppp_detach (struct ifnet *ifp)
 {
 	struct sppp **q, *p, *sp = (struct sppp*) ifp;
 
@@ -527,7 +531,8 @@ void sppp_flush (struct ifnet *ifp)
 /*
  * Check if the output queue is empty.
  */
-int sppp_isempty (struct ifnet *ifp)
+int
+sppp_isempty (struct ifnet *ifp)
 {
 	struct sppp *sp = (struct sppp*) ifp;
 	int empty, s = splimp ();
@@ -836,7 +841,8 @@ badreq:
 /*
  * Handle incoming Cisco keepalive protocol packets.
  */
-void sppp_cisco_input (struct sppp *sp, struct mbuf *m)
+static void 
+sppp_cisco_input (struct sppp *sp, struct mbuf *m)
 {
 	struct cisco_packet *h;
 	struct ifaddr *ifa;
@@ -911,7 +917,8 @@ void sppp_cisco_input (struct sppp *sp, struct mbuf *m)
 /*
  * Send PPP LCP packet.
  */
-void sppp_cp_send (struct sppp *sp, u_short proto, u_char type,
+static void
+sppp_cp_send (struct sppp *sp, u_short proto, u_char type,
 	u_char ident, u_short len, void *data)
 {
 	struct ppp_header *h;
@@ -963,7 +970,8 @@ void sppp_cp_send (struct sppp *sp, u_short proto, u_char type,
 /*
  * Send Cisco keepalive packet.
  */
-void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
+static void
+sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
 {
 	struct ppp_header *h;
 	struct cisco_packet *ch;
@@ -1008,7 +1016,8 @@ void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
 /*
  * Process an ioctl request.  Called on low priority level.
  */
-int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
+int
+sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
 {
 	struct ifreq *ifr = (struct ifreq*) data;
 	struct sppp *sp = (struct sppp*) ifp;
@@ -1090,7 +1099,8 @@ int sppp_ioctl (struct ifnet *ifp, int cmd, void *data)
  * If the request contains unknown options, build and
  * send Configure-reject packet, containing only unknown options.
  */
-int sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
+static int
+sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
 	int len, u_long *magic)
 {
 	u_char *buf, *r, *p;
@@ -1136,7 +1146,8 @@ int sppp_lcp_conf_parse_options (struct sppp *sp, struct lcp_header *h,
 	return (rlen == 0);
 }
 
-void sppp_ipcp_input (struct sppp *sp, struct mbuf *m)
+static void
+sppp_ipcp_input (struct sppp *sp, struct mbuf *m)
 {
 	struct lcp_header *h;
 	struct ifnet *ifp = &sp->pp_if;
@@ -1236,7 +1247,8 @@ void sppp_ipcp_input (struct sppp *sp, struct mbuf *m)
 	}
 }
 
-void sppp_lcp_open (struct sppp *sp)
+static void
+sppp_lcp_open (struct sppp *sp)
 {
 	char opt[6];
 
@@ -1254,7 +1266,8 @@ void sppp_lcp_open (struct sppp *sp)
 	TIMO (sp, 2);
 }
 
-void sppp_ipcp_open (struct sppp *sp)
+static void
+sppp_ipcp_open (struct sppp *sp)
 {
 	sp->ipcp.confid = ++sp->pp_seq;
 	sppp_cp_send (sp, PPP_IPCP, IPCP_CONF_REQ, sp->ipcp.confid, 0, 0);
@@ -1264,7 +1277,8 @@ void sppp_ipcp_open (struct sppp *sp)
 /*
  * Process PPP control protocol timeouts.
  */
-void sppp_cp_timeout (void *arg)
+static void
+sppp_cp_timeout (void *arg)
 {
 	struct sppp *sp = (struct sppp*) arg;
 	int s = splimp ();
@@ -1313,7 +1327,8 @@ void sppp_cp_timeout (void *arg)
 	splx (s);
 }
 
-char *sppp_lcp_type_name (u_char type)
+static char
+*sppp_lcp_type_name (u_char type)
 {
 	static char buf [8];
 	switch (type) {
@@ -1333,7 +1348,8 @@ char *sppp_lcp_type_name (u_char type)
 	return (buf);
 }
 
-char *sppp_ipcp_type_name (u_char type)
+static char
+*sppp_ipcp_type_name (u_char type)
 {
 	static char buf [8];
 	switch (type) {
@@ -1349,7 +1365,8 @@ char *sppp_ipcp_type_name (u_char type)
 	return (buf);
 }
 
-void sppp_print_bytes (u_char *p, u_short len)
+static void
+sppp_print_bytes (u_char *p, u_short len)
 {
 	printf (" %x", *p++);
 	while (--len > 0)

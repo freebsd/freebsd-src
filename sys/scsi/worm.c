@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.14 1995/12/08 11:19:07 julian Exp $
+ *      $Id: worm.c,v 1.15 1995/12/08 23:22:33 phk Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -87,7 +87,7 @@ static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
 static	d_open_t	wormopen;
 static	d_close_t	wormclose;
 static	d_ioctl_t	wormioctl;
-d_strategy_t	wormstrategy;
+static	d_strategy_t	wormstrategy;
 
 #define CDEV_MAJOR 62
 static struct cdevsw worm_cdevsw = 
@@ -273,7 +273,6 @@ badnews:
 static void
 worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf **dp;
 	unsigned char unit;
 	u_int32 opri;
 	struct scsi_data *worm;

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.40 1995/12/13 15:13:37 julian Exp $
+ *      $Id: scsiconf.c,v 1.41 1995/12/13 20:08:53 peter Exp $
  */
 
 #include <sys/types.h>
@@ -46,9 +46,9 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
-extern struct extend_array *extend_new __P((void));
-extern void extend_release __P((struct extend_array *ea, int index));
-extern void *extend_set __P((struct extend_array *ea, int index, void *value));
+static struct extend_array *extend_new __P((void));
+static void extend_release __P((struct extend_array *ea, int index));
+static void *extend_set __P((struct extend_array *ea, int index, void *value));
 
 /*
  * XXX SCSI_DEVICE_ENTRIES() generates extern switches but it should
@@ -90,7 +90,7 @@ extend_free(void *p) { free(p, M_DEVBUF); }
 	#define EXTEND_CHUNK 8
 #endif
 
-struct extend_array *
+static struct extend_array *
 extend_new(void)
 {
 	struct extend_array *p = extend_alloc(sizeof(*p));
@@ -102,7 +102,7 @@ extend_new(void)
 	return p;
 }
 
-void *
+static void *
 extend_set(struct extend_array *ea, int index, void *value)
 {
 	if (index >= ea->nelem) {
@@ -137,7 +137,7 @@ extend_get(struct extend_array *ea, int index)
 	return ea->ps[index];
 }
 
-void
+static void
 extend_release(struct extend_array *ea, int index)
 {
 	void *p = extend_get(ea, index);
@@ -156,7 +156,7 @@ extend_release(struct extend_array *ea, int index)
  * the others, before they have the rest of the fields filled in
  */
 
-struct extend_array *scbusses;
+static struct extend_array *scbusses;
 
 /*
  * The structure of known drivers for autoconfiguration
@@ -315,9 +315,9 @@ static struct scsidevs knowndevs[] =
 /*
  * Declarations
  */
-struct scsidevs *scsi_probedev __P((struct scsi_link *sc_link,
+static struct scsidevs *scsi_probedev __P((struct scsi_link *sc_link,
 				    boolean *maybe_more, int *type_p));
-struct scsidevs *scsi_selectdev __P((u_int32 qualifier, u_int32 type,
+static struct scsidevs *scsi_selectdev __P((u_int32 qualifier, u_int32 type,
 				     boolean remov, char *manu, char *model,
 				     char *rev));
 
@@ -325,7 +325,7 @@ struct scsidevs *scsi_selectdev __P((u_int32 qualifier, u_int32 type,
  * This scsi_device doesn't have the scsi_data_size.
  * This is used during probe.
  */
-struct scsi_device probe_switch =
+static struct scsi_device probe_switch =
 {
     NULL,
     NULL,
@@ -1020,7 +1020,7 @@ make_readable(to, from, n)
  * it is, and find the correct driver table
  * entry.
  */
-struct scsidevs *
+static struct scsidevs *
 scsi_probedev(sc_link, maybe_more, type_p)
 	boolean *maybe_more;
 	struct scsi_link *sc_link;
@@ -1212,7 +1212,7 @@ scsi_dev_lookup(d_open)
  * Short pattern matches trailing blanks in name,
  * wildcard '*' in pattern matches rest of name
  */
-int
+static int
 match(pattern, name)
 	char *pattern;
 	char *name;
@@ -1235,7 +1235,7 @@ match(pattern, name)
  * Try make as good a match as possible with
  * available sub drivers
  */
-struct scsidevs *
+static struct scsidevs *
 scsi_selectdev(qualifier, type, remov, manu, model, rev)
 	u_int32 qualifier, type;
 	boolean remov;

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_aux.c,v 1.2 1994/04/29 21:16:19 gclarkii Exp $
+ *     $Id: fpu_aux.c,v 1.3 1994/06/10 07:44:17 rich Exp $
  *
  */
 
@@ -72,8 +72,7 @@
 #include "status_w.h"
 
 
-
-void
+static void
 fclex(void)
 {
 	status_word &= ~(SW_Backward | SW_Summary | SW_Stack_Fault | SW_Precision |
@@ -135,7 +134,7 @@ fnop(void)
 {
 }
 
-FUNC    fp_nop_table[] = {
+static FUNC    fp_nop_table[] = {
 	fnop, Un_impl, Un_impl, Un_impl, Un_impl, Un_impl, Un_impl, Un_impl
 };
 

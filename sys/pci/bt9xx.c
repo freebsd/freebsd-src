@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: bt9xx.c,v 1.1 1995/12/12 08:58:04 gibbs Exp $
  */
 
 #include <pci.h>
@@ -42,7 +42,7 @@ static char* bt_pci_probe __P((pcici_t tag, pcidi_t type));
 static void bt_pci_attach __P((pcici_t config_id, int unit));
 static int bt_pci_intr __P((void *arg));
 
-struct  pci_device bt_pci_driver = {
+static struct  pci_device bt_pci_driver = {
 	"bt",
         bt_pci_probe,
         bt_pci_attach,
@@ -72,7 +72,6 @@ bt_pci_attach(config_id, unit)
 	int	unit;
 {
 	u_long io_port;
-	u_long id;
 	unsigned opri = 0;
 	struct bt_data *bt;
 

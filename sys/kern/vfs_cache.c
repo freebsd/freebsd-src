@@ -33,11 +33,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.16 1995/07/29 11:40:19 bde Exp $
+ * $Id: vfs_cache.c,v 1.17 1995/10/29 15:31:18 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -70,14 +72,15 @@
 /*
  * Structures associated with name cacheing.
  */
-LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
-TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
-u_long	nchash;				/* size of hash table */
+static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
+static TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
+static u_long	nchash;			/* size of hash table */
 struct nchstats nchstats;		/* cache effectiveness statistics */
-struct vnode nchENOENT;			/* our own "novnode" */
-int doingcache = 1;			/* 1 => enable the cache */
+static struct vnode nchENOENT;		/* our own "novnode" */
+static int doingcache = 1;		/* 1 => enable the cache */
+SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
 u_long	nextvnodeid;
-u_long	numcache;
+static u_long	numcache;
 u_long	numvnodes;
 
 #ifdef NCH_STATISTICS

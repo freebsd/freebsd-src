@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.24 1995/12/07 12:48:22 davidg Exp $
+ * $Id: vm_object.h,v 1.25 1995/12/11 04:58:23 dyson Exp $
  */
 
 /*
@@ -163,11 +163,9 @@ vm_object_pip_wakeup(vm_object_t object)
 
 vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
 void vm_object_cache_clear __P((void));
-void vm_object_cache_trim __P((void));
 boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
 void vm_object_collapse __P((vm_object_t));
 void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
-void vm_object_deactivate_pages __P((vm_object_t));
 void vm_object_deallocate __P((vm_object_t));
 void vm_object_init __P((void));
 void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t, boolean_t));
@@ -176,7 +174,6 @@ void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_reference __P((vm_object_t));
 void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
-void vm_object_terminate __P((vm_object_t));
 #endif				/* KERNEL */
 
 #endif				/* _VM_OBJECT_ */

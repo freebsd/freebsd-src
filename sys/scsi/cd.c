@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.51 1995/12/10 19:52:51 bde Exp $
+ *      $Id: cd.c,v 1.52 1995/12/10 20:02:47 bde Exp $
  */
 
 #define SPLCD splbio
@@ -80,7 +80,7 @@ static struct cdevsw cd_cdevsw =
 	  &cd_bdevsw,	-1 };
 
 
-int32   cdstrats, cdqueues;
+static int32   cdstrats, cdqueues;
 
 #define CDUNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
 #define CDSETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.11 1995/12/07 12:48:18 davidg Exp $
+ * $Id: vm_meter.c,v 1.12 1995/12/10 14:52:10 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,13 +56,13 @@ struct loadavg averunnable =
 
 struct vmmeter cnt;
 
-int maxslp = MAXSLP;
+static int maxslp = MAXSLP;
 
 /*
  * Constants for averages over 1, 5, and 15 minutes
  * when sampling at 5 second intervals.
  */
-fixpt_t cexp[3] = {
+static fixpt_t cexp[3] = {
 	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
 	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
 	0.9944598480048967 * FSCALE,	/* exp(-1/180) */

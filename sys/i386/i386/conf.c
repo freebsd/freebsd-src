@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.113 1995/12/08 11:13:18 julian Exp $
+ *	$Id: conf.c,v 1.114 1995/12/13 15:12:18 julian Exp $
  */
 
 #include <sys/param.h>
@@ -82,12 +82,6 @@ int	nchrdev = NUMCDEV;
  * provided as a character (raw) device.
  */
 dev_t	swapdev = makedev(1, 0);
-
-/*
- * The tunnel device's LKM wants to know where to install itself in the
- * cdevsw table.  Sigh.
- */
-dev_t	tuncdev = makedev(52, 0);
 
 /*
  * Routine that identifies /dev/mem and /dev/kmem.

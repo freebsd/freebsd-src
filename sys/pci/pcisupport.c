@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.22 1995/09/14 17:26:24 se Exp $
+**  $Id: pcisupport.c,v 1.23 1995/12/05 20:40:10 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -63,7 +63,7 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
-struct pci_device chipset_device = {
+static struct pci_device chipset_device = {
 	"chip",
 	chipset_probe,
 	chipset_attach,
@@ -448,7 +448,7 @@ static	char*	vga_probe  (pcici_t tag, pcidi_t type);
 static	void	vga_attach (pcici_t tag, int unit);
 static	u_long	vga_count;
 
-struct pci_device vga_device = {
+static struct pci_device vga_device = {
 	"vga",
 	vga_probe,
 	vga_attach,
@@ -505,7 +505,7 @@ static	char*	lkm_probe  (pcici_t tag, pcidi_t type);
 static	void	lkm_attach (pcici_t tag, int unit);
 static	u_long	lkm_count;
 
-struct pci_device lkm_device = {
+static struct pci_device lkm_device = {
 	"lkm",
 	lkm_probe,
 	lkm_attach,
@@ -540,7 +540,7 @@ static	char*	ign_probe  (pcici_t tag, pcidi_t type);
 static	void	ign_attach (pcici_t tag, int unit);
 static	u_long	ign_count;
 
-struct pci_device ign_device = {
+static struct pci_device ign_device = {
 	NULL,
 	ign_probe,
 	ign_attach,

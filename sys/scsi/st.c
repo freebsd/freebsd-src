@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.53 1995/12/10 10:58:30 julian Exp $
+ * $Id: st.c,v 1.54 1995/12/10 19:52:59 bde Exp $
  */
 
 /*
@@ -167,10 +167,10 @@ static errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 static void st_strategy(struct buf *bp, struct scsi_link *sc_link);
 
-d_open_t	stopen;
-d_close_t	stclose;
-d_ioctl_t	stioctl;
-d_strategy_t	ststrategy;
+static d_open_t		stopen;
+static d_close_t	stclose;
+static d_ioctl_t	stioctl;
+static d_strategy_t	ststrategy;
 
 #define CDEV_MAJOR 14
 #define BDEV_MAJOR 5
@@ -314,76 +314,76 @@ stattach(struct scsi_link *sc_link)
 #ifdef	DEVFS
 #define ST_GID 13
 #define ST_UID 0
-	sprintf(name,"rst%d.0",unit);
+	sprintf(name,"rst%ld.0",unit);
 	st->devfs_token.rst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 0,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%d.0",unit);
+	sprintf(name,"nrst%ld.0",unit);
 	st->devfs_token.nrst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 1,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%d.0",unit);
+	sprintf(name,"enrst%ld.0",unit);
 	st->devfs_token.enrst_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 2,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%dctl.0",unit);
+	sprintf(name,"st%ldctl.0",unit);
 	st->devfs_token.ctl_0 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 3,
 					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%d.1",unit);
+	sprintf(name,"rst%ld.1",unit);
 	st->devfs_token.rst_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 4,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%d.1",unit);
+	sprintf(name,"nrst%ld.1",unit);
 	st->devfs_token.nrst_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 5,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%d.1",unit);
+	sprintf(name,"enrst%ld.1",unit);
 	st->devfs_token.enrst_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 6,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%dctl.1",unit);
+	sprintf(name,"st%ldctl.1",unit);
 	st->devfs_token.ctl_1 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 7,
 					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%d.2",unit);
+	sprintf(name,"rst%ld.2",unit);
 	st->devfs_token.rst_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 8,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%d.2",unit);
+	sprintf(name,"nrst%ld.2",unit);
 	st->devfs_token.nrst_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 9,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%d.2",unit);
+	sprintf(name,"enrst%ld.2",unit);
 	st->devfs_token.enrst_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 10,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%dctl.2",unit);
+	sprintf(name,"st%ldctl.2",unit);
 	st->devfs_token.ctl_2 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 11,
 					DV_CHR,	ST_UID, ST_GID, 0600 );
-	sprintf(name,"rst%d.3",unit);
+	sprintf(name,"rst%ld.3",unit);
 	st->devfs_token.rst_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 12,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"nrst%d.3",unit);
+	sprintf(name,"nrst%ld.3",unit);
 	st->devfs_token.nrst_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 13,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"enrst%d.3",unit);
+	sprintf(name,"enrst%ld.3",unit);
 	st->devfs_token.enrst_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 14,
 					DV_CHR,	ST_UID, ST_GID, 0660 );
-	sprintf(name,"st%dctl.3",unit);
+	sprintf(name,"st%ldctl.3",unit);
 	st->devfs_token.ctl_3 = devfs_add_devsw( "/tape", name,
 					&st_cdevsw, (unit << 4 ) + 15,
 					DV_CHR,	ST_UID, ST_GID, 0600 );
 	/** add links **/
-	sprintf(name,"rst%d",unit);
+	sprintf(name,"rst%ld",unit);
 	st->devfs_token.rst = dev_link( "/", name, st->devfs_token.rst_0);
-	sprintf(name,"nrst%d",unit);
+	sprintf(name,"nrst%ld",unit);
 	st->devfs_token.nrst = dev_link( "/", name, st->devfs_token.nrst_0);
-	sprintf(name,"enrst%d",unit);
+	sprintf(name,"enrst%ld",unit);
 	st->devfs_token.enrst = dev_link( "/", name, st->devfs_token.enrst_0);
 #endif
 	return 0;

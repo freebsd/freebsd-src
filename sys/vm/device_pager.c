@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.17 1995/12/11 04:57:59 dyson Exp $
+ * $Id: device_pager.c,v 1.18 1995/12/13 15:13:54 julian Exp $
  */
 
 #include <sys/param.h>
@@ -56,8 +56,21 @@
 #include <vm/vm_pager.h>
 #include <vm/device_pager.h>
 
-struct pagerlst dev_pager_object_list;	/* list of device pager objects */
-TAILQ_HEAD(, vm_page) dev_pager_fakelist;	/* list of available vm_page_t's */
+static void dev_pager_init __P((void));
+static vm_object_t dev_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+		vm_ooffset_t));
+static void dev_pager_dealloc __P((vm_object_t));
+static int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
+static int dev_pager_putpages __P((vm_object_t, vm_page_t *, int, 
+		boolean_t, int *));
+static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
+		int *));
+
+/* list of device pager objects */
+static struct pagerlst dev_pager_object_list;
+
+/* list of available vm_page_t's */
+static TAILQ_HEAD(, vm_page) dev_pager_fakelist;
 
 static vm_page_t dev_pager_getfake __P((vm_offset_t));
 static void dev_pager_putfake __P((vm_page_t));
@@ -74,14 +87,14 @@ struct pagerops devicepagerops = {
 	NULL
 };
 
-void
+static void
 dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
 	TAILQ_INIT(&dev_pager_fakelist);
 }
 
-vm_object_t
+static vm_object_t
 dev_pager_alloc(handle, size, prot, foff)
 	void *handle;
 	vm_size_t size;
@@ -159,7 +172,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	return (object);
 }
 
-void
+static void
 dev_pager_dealloc(object)
 	vm_object_t object;
 {
@@ -175,7 +188,7 @@ dev_pager_dealloc(object)
 	}
 }
 
-int
+static int
 dev_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
 	vm_page_t *m;
@@ -220,7 +233,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	return (VM_PAGER_OK);
 }
 
-int
+static int
 dev_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -231,7 +244,7 @@ dev_pager_putpages(object, m, count, sync, rtvals)
 	panic("dev_pager_putpage called");
 }
 
-boolean_t
+static boolean_t
 dev_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
 	vm_pindex_t pindex;

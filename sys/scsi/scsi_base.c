@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.31 1995/10/09 15:14:58 joerg Exp $
+ *      $Id: scsi_base.c,v 1.32 1995/12/07 12:47:46 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -31,8 +31,18 @@
 
 static errval sc_err1(struct scsi_xfer *);
 static errval scsi_interpret_sense(struct scsi_xfer *);
+static struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
+static void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,
+		u_int32 flags);
+static void show_mem(unsigned char *address, u_int32 num);
+static void show_scsi_xs (struct scsi_xfer *);
 
-struct scsi_xfer *next_free_xs;
+#ifdef notyet
+static int scsi_sense_qualifiers (struct scsi_xfer *, int *, int *);
+static errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
+#endif
+
+static struct scsi_xfer *next_free_xs;
 
 /*
  * Get a scsi transfer structure for the caller. Charge the structure
@@ -45,7 +55,7 @@ struct scsi_xfer *next_free_xs;
  * Note in the link structure, that we are waiting on it.
  */
 
-struct scsi_xfer *
+static struct scsi_xfer *
 get_xs(sc_link, flags)
 	struct	scsi_link *sc_link;	/* who to charge the xs to */
 	u_int32	flags;			/* if this call can sleep */
@@ -90,7 +100,7 @@ get_xs(sc_link, flags)
  * return the struct to the free pool and credit the device with it
  * If another process is waiting for an xs, do a wakeup, let it proceed
  */
-void
+static void
 free_xs(xs, sc_link, flags)
 	struct scsi_xfer *xs;
 	struct scsi_link *sc_link;	/* who to credit for returning it */
@@ -221,10 +231,11 @@ scsi_test_unit_ready(sc_link, flags)
 		flags));
 }
 
+#ifdef notyet
 /*
  * Do a scsi operation, asking a device to run as SCSI-II if it can.
  */
-errval
+static errval
 scsi_change_def(sc_link, flags)
 	struct scsi_link *sc_link;
 	u_int32 flags;
@@ -245,6 +256,7 @@ scsi_change_def(sc_link, flags)
 		NULL,
 		flags));
 }
+#endif
 
 /*
  * Do a scsi operation asking a device what it is
@@ -752,7 +764,8 @@ sc_err1(xs)
 	}
 }
 
-int
+#ifdef notyet
+static int
 scsi_sense_qualifiers(xs, asc, ascq)
 	struct scsi_xfer *xs;
 	int *asc;
@@ -773,6 +786,8 @@ scsi_sense_qualifiers(xs, asc, ascq)
 
 	return 1;
 }
+
+#endif
 
 /*
  * scsi_sense_print will decode the sense data into human
@@ -1236,7 +1251,7 @@ sc_print_addr(sc_link)
 /*
  * Given a scsi_xfer, dump the request, in all it's glory
  */
-void
+static void
 show_scsi_xs(xs)
 	struct scsi_xfer *xs;
 {
@@ -1278,7 +1293,7 @@ show_scsi_cmd(struct scsi_xfer *xs)
 	}
 }
 
-void
+static void
 show_mem(address, num)
 	unsigned char *address;
 	u_int32 num;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.20 1995/12/07 12:48:08 davidg Exp $
+ * $Id: vm_extern.h,v 1.21 1995/12/11 04:58:04 dyson Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -82,9 +82,7 @@ vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t, b
 void munmapfd __P((struct proc *, int));
 int pager_cache __P((vm_object_t, boolean_t));
 int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
-void swapout __P((struct proc *));
 void swapout_procs __P((void));
-void swstrategy __P((struct buf *));
 int useracc __P((caddr_t, int, int));
 int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
