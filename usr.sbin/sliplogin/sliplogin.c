@@ -133,7 +133,9 @@ findid(name)
 
 	environ = restricted_environ; /* minimal protection for system() */
 
-	(void)strcpy(loginname, name);
+	(void)strncpy(loginname, name, sizeof(loginname)-1);
+	loginname[sizeof(loginname)-1] = '\0';
+
 	if ((fp = fopen(_PATH_ACCESS, "r")) == NULL) {
 	accfile_err:
 		syslog(LOG_ERR, "%s: %m\n", _PATH_ACCESS);
@@ -174,9 +176,10 @@ findid(name)
 		 * one specific to this host.  If none found, try for
 		 * a generic one.
 		 */
-		(void)sprintf(loginfile, "%s.%s", _PATH_LOGIN, name);
+		(void)snprintf(loginfile, sizeof(loginfile), "%s.%s", _PATH_LOGIN, name);
 		if (access(loginfile, R_OK|X_OK) != 0) {
-			(void)strcpy(loginfile, _PATH_LOGIN);
+			(void)strncpy(loginfile, _PATH_LOGIN, sizeof(loginfile)-1);
+			loginfile[sizeof(loginfile)-1] = '\0';
 			if (access(loginfile, R_OK|X_OK)) {
 				syslog(LOG_ERR,
 				       "access denied for %s - no %s\n",
@@ -184,9 +187,10 @@ findid(name)
 				exit(5);
 			}
 		}
-		(void)sprintf(slparmsfile, "%s.%s", _PATH_SLPARMS, name);
+		(void)snprintf(slparmsfile, sizeof(slparmsfile), "%s.%s", _PATH_SLPARMS, name);
 		if (access(slparmsfile, R_OK|X_OK) != 0) {
-			(void)strcpy(slparmsfile, _PATH_SLPARMS);
+			(void)strncpy(slparmsfile, _PATH_SLPARMS, sizeof(slparmsfile)-1);
+			slparmsfile[sizeof(slparmsfile)-1] = '\0';
 			if (access(slparmsfile, R_OK|X_OK))
 				*slparmsfile = '\0';
 		}
@@ -265,7 +269,7 @@ sigstr(s)
 	case SIGUSR1:	return("USR1");
 	case SIGUSR2:	return("USR2");
 	}
-	(void)sprintf(buf, "sig %d", s);
+	(void)snprintf(buf, sizeof(buf), "sig %d", s);
 	return(buf);
 }
 
@@ -277,14 +281,15 @@ hup_handler(s)
 
 	(void) close(0);
 	seteuid(0);
-	(void)sprintf(logoutfile, "%s.%s", _PATH_LOGOUT, loginname);
-	if (access(logoutfile, R_OK|X_OK) != 0)
-		(void)strcpy(logoutfile, _PATH_LOGOUT);
+	(void)snprintf(logoutfile, sizeof(logoutfile), "%s.%s", _PATH_LOGOUT, loginname);
+	if (access(logoutfile, R_OK|X_OK) != 0) {
+		(void)strncpy(logoutfile, _PATH_LOGOUT, sizeof(logoutfile)-1);
+		logoutfile[sizeof(logoutfile)-1] = '\0';
+	}
 	if (access(logoutfile, R_OK|X_OK) == 0) {
 		char logincmd[2*MAXPATHLEN+32];
 
-		(void) sprintf(logincmd, "%s %d %ld %s", logoutfile, unit, speed,
-			      loginargs);
+		(void) snprintf(logincmd, sizeof(logincmd), "%s %d %ld %s", logoutfile, unit, speed, loginargs);
 		(void) system(logincmd);
 	}
 	syslog(LOG_INFO, "closed %s slip unit %d (%s)\n", loginname, unit,
@@ -425,7 +430,7 @@ main(argc, argv)
 	}
 
 	syslog(LOG_INFO, "attaching slip unit %d for %s\n", unit, loginname);
-	(void)sprintf(logincmd, "%s %d %ld %s", loginfile, unit, speed,
+	(void)snprintf(logincmd, sizeof(logincmd), "%s %d %ld %s", loginfile, unit, speed,
 		      loginargs);
 	/*
 	 * aim stdout and errout at /dev/null so logincmd output won't
