@@ -593,10 +593,6 @@ sbappendstream(struct sockbuf *sb, struct mbuf *m)
 
 	SBLASTMBUFCHK(sb);
 
-#ifdef MBUFTRACE
-	m_claim(m, sb->sb_mowner);
-#endif
-
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
