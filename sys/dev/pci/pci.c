@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.80 1997/11/07 08:53:28 phk Exp $
+ * $Id: pci.c,v 1.81 1998/01/24 02:54:47 eivind Exp $
  *
  */
 
@@ -340,9 +340,25 @@ pci_readcfg(pcicfgregs *probe)
 			int airq;
 
 			airq = pci_apic_pin(cfg->bus, cfg->slot, cfg->intpin);
-			if ((airq >= 0) && (airq != cfg->intline)) {
-				undirect_pci_irq(cfg->intline);
-				cfg->intline = airq;
+			if (airq >= 0) {
+				/* PCI specific entry found in MP table */
+				if (airq != cfg->intline) {
+					undirect_pci_irq(cfg->intline);
+					cfg->intline = airq;
+				}
+			} else {
+				/* 
+				 * PCI interrupts might be redirected to the
+				 * ISA bus according to some MP tables. Use the
+				 * same methods as used by the ISA devices
+				 * devices to find the proper IOAPIC int pin.
+				 */
+				airq = isa_apic_pin(cfg->intline);
+				if ((airq >= 0) && (airq != cfg->intline)) {
+					/* XXX: undirect_pci_irq() ? */
+					undirect_isa_irq(cfg->intline);
+					cfg->intline = airq;
+				}
 			}
 		}
 #endif /* APIC_IO */
