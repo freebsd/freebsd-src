@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.82 1999/01/08 16:29:57 bde Exp $
+ *	$Id: cpufunc.h,v 1.83 1999/01/08 19:17:45 bde Exp $
  */
 
 /*
@@ -220,11 +220,11 @@ invd(void)
 	__asm __volatile("invd");
 }
 
-#ifdef KERNEL
-#ifdef SMP
+#if defined(SMP) && defined(KERNEL)
 
 /*
- * When using APIC IPI's, the inlining cost is prohibitive since the call
+ * When using APIC IPI's, invlpg() is not simply the invlpg instruction
+ * (this is a bug) and the inlining cost is prohibitive since the call
  * executes into the IPI transmission system.
  */
 void	invlpg		__P((u_int addr));
@@ -233,7 +233,7 @@ void	invltlb		__P((void));
 static __inline void
 cpu_invlpg(void *addr)
 {
-	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
+	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
 static __inline void
@@ -250,14 +250,14 @@ cpu_invltlb(void)
 	++tlb_flush_count;
 #endif
 }
-#else  /* !SMP */
+
+#else /* !(SMP && KERNEL) */
 
 static __inline void
 invlpg(u_int addr)
 {
-	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
+	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
-
 
 static __inline void
 invltlb(void)
@@ -269,13 +269,12 @@ invltlb(void)
 	 */
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
 			 : : "memory");
-#if defined(SWTCH_OPTIM_STATS)
+#ifdef SWTCH_OPTIM_STATS
 	++tlb_flush_count;
 #endif
 }
 
-#endif	/* SMP */
-#endif  /* KERNEL */
+#endif /* SMP && KERNEL */
 
 static __inline u_short
 inw(u_int port)
@@ -397,7 +396,7 @@ rdtsc(void)
 }
 
 static __inline void
-setbits(volatile unsigned *addr, u_int bits)
+setbits(volatile u_int *addr, u_int bits)
 {
 	__asm __volatile(
 #ifdef SMP
@@ -450,7 +449,7 @@ u_int64_t rdmsr		__P((u_int msr));
 u_int64_t rdpmc		__P((u_int pmc));
 u_int64_t rdtsc		__P((void));
 u_int	read_eflags	__P((void));
-void	setbits		__P((volatile unsigned *addr, u_int bits));
+void	setbits		__P((volatile u_int *addr, u_int bits));
 void	wbinvd		__P((void));
 void	write_eflags	__P((u_int ef));
 void	wrmsr		__P((u_int msr, u_int64_t newval));
