@@ -1,4 +1,5 @@
-#	@(#)bsd.subdir.mk	8.1 (Berkeley) 6/8/93
+#	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
+#	$Id: bsd.subdir.mk,v 1.5 1994/01/31 06:10:40 rgrimes Exp $
 
 .MAIN: all
 
@@ -11,13 +12,15 @@ BINMODE?=	555
 _SUBDIRUSE: .USE
 	@for entry in ${SUBDIR}; do \
 		(if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			echo "===> $${entry}.${MACHINE}"; \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
+			echo "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
+			edir=$${entry}.${MACHINE}; \
+			cd ${.CURDIR}/$${edir}; \
 		else \
-			echo "===> $$entry"; \
-			cd ${.CURDIR}/$${entry}; \
+			echo "===> ${DIRPRFX}$$entry"; \
+			edir=$${entry}; \
+			cd ${.CURDIR}/$${edir}; \
 		fi; \
-		${MAKE} ${.TARGET:realinstall=install}); \
+		${MAKE} ${.TARGET:realinstall=install} DIRPRFX=${DIRPRFX}$$edir/); \
 	done
 
 ${SUBDIR}::
@@ -44,8 +47,8 @@ cleandir: _SUBDIRUSE
 depend: _SUBDIRUSE
 .endif
 
-.if !target(manpages)
-manpages: _SUBDIRUSE
+.if !target (maninstall)
+maninstall: _SUBDIRUSE
 .endif
 
 .if !target(install)
@@ -59,9 +62,6 @@ install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
 .endif
-.if !target(maninstall)
-maninstall: _SUBDIRUSE
-.endif
 
 .if !target(lint)
 lint: _SUBDIRUSE
@@ -69,10 +69,6 @@ lint: _SUBDIRUSE
 
 .if !target(obj)
 obj: _SUBDIRUSE
-.endif
-
-.if !target(objdir)
-objdir: _SUBDIRUSE
 .endif
 
 .if !target(tags)
