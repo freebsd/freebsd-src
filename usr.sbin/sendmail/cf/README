@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.80 (Berkeley) 11/19/95
+		@(#)README	8.81 (Berkeley) 12/3/95
 
 
 This document describes the sendmail configuration files being used
@@ -1349,28 +1349,30 @@ confMIN_FREE_BLOCKS	MinFreeBlocks	[100] Minimum number of free blocks on
 					blocks and maxsize was the maximum
 					message size.  Use confMAX_MESSAGE_SIZE
 					for the second value now.)
-confMAX_MESSAGE_SIZE	MaxMessageSize	The maximum size of messages that will
-					be accepted (in bytes).
-confBLANK_SUB		BlankSub	[.] Blank (space) substitution
+confMAX_MESSAGE_SIZE	MaxMessageSize	[infinite] The maximum size of messages
+					that will be accepted (in bytes).
+confBLANK_SUB		BlankSub	[ ] Blank (space) substitution
 					character.
 confCON_EXPENSIVE	HoldExpensive	[False] Avoid connecting immediately
 					to mailers marked expensive?
 confCHECKPOINT_INTERVAL	CheckpointInterval
-					Checkpoint queue files every N
+					[10] Checkpoint queue files every N
 					recipients.
 confDELIVERY_MODE	DeliveryMode	[background] Default delivery mode.
 confAUTO_REBUILD	AutoRebuildAliases
-					Automatically rebuild alias
+					[False] Automatically rebuild alias
 					file if needed.
-confERROR_MODE		ErrorMode	Error message mode.
-confERROR_MESSAGE	ErrorHeader	Error message header/file.
+confERROR_MODE		ErrorMode	[print] Error message mode.
+confERROR_MESSAGE	ErrorHeader	[undefined] Error message header/file.
 confSAVE_FROM_LINES	SafeFromLine	Save extra leading From_ lines.
 confTEMP_FILE_MODE	TempFileMode	[0600] Temporary file mode.
-confMATCH_GECOS		MatchGECOS	Match GECOS field.
-confMAX_HOP		MaxHopCount	Maximum hop count.
-confIGNORE_DOTS*	IgnoreDots	Ignore dot as terminator for incoming
+confMATCH_GECOS		MatchGECOS	[True] Match GECOS field.
+confMAX_HOP		MaxHopCount	[25] Maximum hop count.
+confIGNORE_DOTS*	IgnoreDots	[False; always False in -bs or -bd mode]
+					Ignore dot as terminator for incoming
 					messages?
-confBIND_OPTS		ResolverOptions	Default options for DNS resolver.
+confBIND_OPTS		ResolverOptions	[undefined] Default options for DNS
+					resolver.
 confMIME_FORMAT_ERRORS*	SendMimeErrors	[True] Send error messages as MIME-
 					encapsulated messages per RFC 1344.
 confFORWARD_PATH	ForwardPath	[$z/.forward.$w:$z/.forward]
@@ -1381,12 +1383,14 @@ confMCI_CACHE_SIZE	ConnectionCacheSize
 					[2] Size of open connection cache.
 confMCI_CACHE_TIMEOUT	ConnectionCacheTimeout
 					[5m] Open connection cache timeout.
-confUSE_ERRORS_TO*	UserErrorsTo	[False] Use the Errors-To: header to deliver
-					error messages.  This should not be
-					necessary because of general acceptance
-					of the envelope/header distinction.
+confUSE_ERRORS_TO*	UserErrorsTo	[False] Use the Errors-To: header to
+					deliver error messages.  This should
+					not be necessary because of general
+					acceptance of the envelope/header
+					distinction.
 confLOG_LEVEL		LogLevel	[9] Log level.
-confME_TOO		MeToo		Include sender in group expansions.
+confME_TOO		MeToo		[False] Include sender in group
+					expansions.
 confCHECK_ALIASES	CheckAliases	[False] Check RHS of aliases when
 					running newaliases.  Since this does
 					DNS lookups on every address, it can
@@ -1395,13 +1399,14 @@ confCHECK_ALIASES	CheckAliases	[False] Check RHS of aliases when
 confOLD_STYLE_HEADERS*	OldStyleHeaders	[True] Assume that headers without
 					special chars are old style.
 confDAEMON_OPTIONS	DaemonPortOptions
-					SMTP daemon options.
+					[none] SMTP daemon options.
 confPRIVACY_FLAGS	PrivacyOptions	[authwarnings] Privacy flags.
-confCOPY_ERRORS_TO	PostmasterCopy	Address for additional copies of all
-					error messages.
-confQUEUE_FACTOR	QueueFactor	Slope of queue-only function.
-confDONT_PRUNE_ROUTES	DontPruneRoutes	Don't prune down route-addr syntax
-					addresses to the minimum possible.
+confCOPY_ERRORS_TO	PostmasterCopy	[undefined] Address for additional
+					copies of all error messages.
+confQUEUE_FACTOR	QueueFactor	[600000] Slope of queue-only function.
+confDONT_PRUNE_ROUTES	DontPruneRoutes	[False] Don't prune down route-addr
+					syntax addresses to the minimum
+					possible.
 confSAFE_QUEUE*		SuperSafe	[True] Commit all messages to disk
 					before forking.
 confTO_INITIAL		Timeout.initial	[5m] The timeout waiting for a response
@@ -1470,42 +1475,47 @@ confTIME_ZONE		TimeZoneSpec	[USE_SYSTEM] Time zone info -- can be
 					or something else to force that value.
 confDEF_USER_ID		DefaultUser	[1:1] Default user id.
 confUSERDB_SPEC		UserDatabaseSpec
-					User database specification.
-confFALLBACK_MX		FallbackMXhost	Fallback MX host.
-confTRY_NULL_MX_LIST	TryNullMXList	If we are the best MX for a host and
-					haven't made other arrangements, try
-					connecting to the host directly;
-					normally this would be a config error.
-confQUEUE_LA		QueueLA		Load average at which queue-only
+					[undefined] User database specification.
+confFALLBACK_MX		FallbackMXhost	[undefined] Fallback MX host.
+confTRY_NULL_MX_LIST	TryNullMXList	[False] If we are the best MX for a
+					host and haven't made other
+					arrangements, try connecting to the
+					host directly; normally this would be
+					a config error.
+confQUEUE_LA		QueueLA		[8] Load average at which queue-only
 					function kicks in.
-confREFUSE_LA		RefuseLA	Load average at which incoming
+confREFUSE_LA		RefuseLA	[12] Load average at which incoming
 					SMTP connections are refused.
 confWORK_RECIPIENT_FACTOR
-			RecipientFactor	Cost of each recipient.
-confSEPARATE_PROC	ForkEachJob	Run all deliveries in a separate
+			RecipientFactor	[30000] Cost of each recipient.
+confSEPARATE_PROC	ForkEachJob	[False] Run all deliveries in a separate
 					process.
-confWORK_CLASS_FACTOR	ClassFactor	Priority multiplier for class.
-confWORK_TIME_FACTOR	RetryFactor	Cost of each delivery attempt.
-confQUEUE_SORT_ORDER	QueueSortOrder	Queue sort algorithm: Priority or Host.
-confMIN_QUEUE_AGE	MinQueueAge	The minimum amount of time a job
+confWORK_CLASS_FACTOR	ClassFactor	[1800] Priority multiplier for class.
+confWORK_TIME_FACTOR	RetryFactor	[90000] Cost of each delivery attempt.
+confQUEUE_SORT_ORDER	QueueSortOrder	[Priority] Queue sort algorithm:
+					Priority or Host.
+confMIN_QUEUE_AGE	MinQueueAge	[0] The minimum amount of time a job
 					must sit in the queue between queue
 					runs.  This allows you to set the
 					queue run interval low for better
 					resposiveness without trying all
 					jobs in each run.
-confDEF_CHAR_SET	DefaultCharSet	When converting unlabelled 8 bit
-					input to MIME, the character set to
-					use by default.
+confDEF_CHAR_SET	DefaultCharSet	[unknown-8bit] When converting
+					unlabelled 8 bit input to MIME, the
+					character set to use by default.
 confSERVICE_SWITCH_FILE	ServiceSwitchFile
-					The file to use for the service switch
-					on systems that do not have a system-
-					defined switch.
-confDIAL_DELAY		DialDelay	If a connection fails, wait this long
-					and try again.  This is to allow
-					"dial on demand" connections to have
-					enough time to complete a connection.
+					[/etc/service.switch] The file to use
+					for the service switch on systems that
+					do not have a system-defined switch.
+confHOSTS_FILE		HostsFile	[/etc/hosts] The file to use when doing
+					"file" type access of hosts names.
+confDIAL_DELAY		DialDelay	[0s] If a connection fails, wait this
+					long and try again.  Zero means "don't
+					retry".  This is to allow "dial on
+					demand" connections to have enough time
+					to complete a connection.
 confNO_RCPT_ACTION	NoRecipientAction
-					What to do if there are no legal
+					[none] What to do if there are no legal
 					recipient fields (To:, Cc: or Bcc:)
 					in the message.  Legal values can
 					be "none" to just leave the
@@ -1518,20 +1528,20 @@ confNO_RCPT_ACTION	NoRecipientAction
 					empty Bcc: header, or
 					"add-to-undisclosed" to add the header
 					``To: undisclosed-recipients:;''.
-					Default is "none".
 confSAFE_FILE_ENV	SafeFileEnvironment
-					If set, sendmail will do a chroot()
-					into this directory before writing
-					files.
-confCOLON_OK_IN_ADDR	ColonOkInAddr	If set, colons are treated as a regular
+					[undefined] If set, sendmail will do a
+					chroot() into this directory before
+					writing files.
+confCOLON_OK_IN_ADDR	ColonOkInAddr	[True unless Configuration Level > 6]
+					If set, colons are treated as a regular
 					character in addresses.  If not set,
 					they are treated as the introducer to
 					the RFC 822 "group" syntax.  Colons are
 					handled properly in route-addrs.  This
 					option defaults on for V5 and lower
 					configuration files.
-confMAX_QUEUE_RUN_SIZE	MaxQueueRunSize	If set, limit the maximum size of any
-					given queue run to this number of
+confMAX_QUEUE_RUN_SIZE	MaxQueueRunSize	[0] If set, limit the maximum size of
+					any given queue run to this number of
 					entries.  Essentially, this will stop
 					reading the queue directory after this
 					number of entries are reached; it does
@@ -1540,10 +1550,10 @@ confMAX_QUEUE_RUN_SIZE	MaxQueueRunSize	If set, limit the maximum size of any
 					system can tolerate.  If not set, there
 					is no limit.
 confDONT_EXPAND_CNAMES	DontExpandCnames
-					If set, $[ ... $] lookups that do DNS
-					based lookups do not expand CNAME
-					records.  This currently violates the
-					published standards, but the IETF
+					[False] If set, $[ ... $] lookups that
+					do DNS based lookups do not expand
+					CNAME records.  This currently violates
+					the published standards, but the IETF
 					seems to be moving toward legalizing
 					this.  For example, if "FTP.Foo.ORG"
 					is a CNAME for "Cruft.Foo.ORG", then
@@ -1564,15 +1574,16 @@ confSMTP_LOGIN_MSG	SmtpGreetingMessage
 					will be inserted between the first and
 					second words to convince other
 					sendmails to try to speak ESMTP.
-confDONT_INIT_GROUPS	DontInitGroups	If set, the initgroups(3) routine will
-					never be invoked.  You might want to
-					do this if you are running NIS and you
-					have a large group map, since this
-					call does a sequential scan of the map;
-					in a large site this can cause your
-					ypserv to run essentially full time.
-					If you set this, agents run on behalf
-					of users will only have their primary
+confDONT_INIT_GROUPS	DontInitGroups	[False] If set, the initgroups(3)
+					routine will never be invoked.  You
+					might want to do this if you are
+					running NIS and you have a large group
+					map, since this call does a sequential
+					scan of the map; in a large site this
+					can cause your ypserv to run
+					essentially full time.  If you set
+					this, agents run on behalf of users
+					will only have their primary
 					(/etc/passwd) group permissions.
 
 See also the description of OSTYPE for some parameters that can be
