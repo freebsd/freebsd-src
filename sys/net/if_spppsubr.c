@@ -2214,17 +2214,21 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			break;
 
 		case LCP_OPT_ASYNC_MAP:
-			/* Async control character map -- check to be zero. */
-			if (! p[2] && ! p[3] && ! p[4] && ! p[5]) {
-				if (debug)
-					log(-1, "[empty] ");
-				continue;
-			}
-			if (debug)
-				log(-1, "[non-empty] ");
-			/* suggest a zero one */
-			p[2] = p[3] = p[4] = p[5] = 0;
-			break;
+			/*
+			 * Async control character map -- just ignore it.
+			 *
+			 * Quote from RFC 1662, chapter 6:
+			 * To enable this functionality, synchronous PPP
+			 * implementations MUST always respond to the
+			 * Async-Control-Character-Map Configuration
+			 * Option with the LCP Configure-Ack.  However,
+			 * acceptance of the Configuration Option does
+			 * not imply that the synchronous implementation
+			 * will do any ACCM mapping.  Instead, all such
+			 * octet mapping will be performed by the
+			 * asynchronous-to-synchronous converter.
+			 */
+			continue;
 
 		case LCP_OPT_MRU:
 			/*
