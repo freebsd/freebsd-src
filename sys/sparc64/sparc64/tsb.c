@@ -189,7 +189,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 			pmap_cache_remove(om, ova);
 			pv_remove(pm, om, ova);
 		}
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm->pm_context, ova);
+		tlb_tte_demap(*tp, ova);
 	}
 
 	*tp = tte;

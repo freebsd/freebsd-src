@@ -125,6 +125,7 @@
 #include <machine/bus.h>
 #include <machine/cache.h>
 #include <machine/pmap.h>
+#include <machine/tlb.h>
 
 /* ASI's for bus access. */
 int bus_type_asi[] = {
@@ -500,8 +501,10 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t size, int flags, vm_offset_t vaddr, void **hp)
 {
 	vm_offset_t addr;
-	vm_offset_t v;
+	vm_offset_t sva;
+	vm_offset_t va;
 	vm_offset_t pa;
+	vm_size_t vsz;
 	u_long pm_flags;
 
 	addr = (vm_offset_t)handle;
@@ -525,38 +528,43 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 		pm_flags |= TD_E;
 
 	if (vaddr != NULL)
-		v = trunc_page(vaddr);
+		sva = trunc_page(vaddr);
 	else {
-		if ((v = kmem_alloc_nofault(kernel_map, size)) == NULL)
+		if ((sva = kmem_alloc_nofault(kernel_map, size)) == NULL)
 			panic("sparc64_bus_map: cannot allocate virtual "
 			    "memory");
 	}
 
 	/* note: preserve page offset */
-	*hp = (void *)(v | ((u_long)addr & PAGE_MASK));
+	*hp = (void *)(sva | ((u_long)addr & PAGE_MASK));
 
 	pa = trunc_page(addr);
 	if ((flags & BUS_SPACE_MAP_READONLY) == 0)
 		pm_flags |= TD_W;
 
+	va = sva;
+	vsz = size;
 	do {
-		pmap_kenter_flags(v, pa, pm_flags);
-		v += PAGE_SIZE;
+		pmap_kenter_flags(va, pa, pm_flags);
+		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
-	} while ((size -= PAGE_SIZE) > 0);
+	} while ((vsz -= PAGE_SIZE) > 0);
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + size - 1);
 	return (0);
 }
 
 int
 sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 {
-	vm_offset_t va ;
+	vm_offset_t sva;
+	vm_offset_t va;
 	vm_offset_t endva;
 
-	va = trunc_page((vm_offset_t)bh);
-	endva = va + round_page(size);
-	for (; va < endva; va += PAGE_SIZE)
+	sva = trunc_page((vm_offset_t)bh);
+	endva = sva + round_page(size);
+	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove(va);
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + size - 1);
 	kmem_free(kernel_map, va, size);
 	return (0);
 }
