@@ -71,8 +71,7 @@ OBJCOPY?=	objcopy
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 .if ${CC} == "icc"
-_ICC_CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
-CFLAGS=		${_ICC_CFLAGS}
+CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .endif
 CFLAGS+=	${COPTS} -D_KERNEL
 CFLAGS+=	-DKLD_MODULE

@@ -39,7 +39,7 @@ NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
 
-# This hack lets us use the Intel ACPICA code without spamming a new 
+# This hack lets us use the Intel ACPICA code without spamming a new
 # include path into 100+ source files.
 INCLUDES+= -I$S/contrib/dev/acpica
 
@@ -66,11 +66,11 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-. if ${CC} == "icc"
-CFLAGS+=	-DGPROF
-. else
+.if ${CC} == "icc"
+.error Profiling doesn't work with ICC yet.
+.else
 CFLAGS+=	-DGPROF -falign-functions=16
-. endif
+.endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
 . if ${CC} == "icc"

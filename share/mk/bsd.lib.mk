@@ -54,9 +54,6 @@ PO_FLAG=-p
 PO_FLAG=-pg
 .endif
 
-.c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
 .c.po:
 	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
@@ -166,7 +163,7 @@ ${LINTLIB}: ${LINTOBJS}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.endif #!defined(INTERNALLIB)
+.endif !defined(INTERNALLIB)
 
 all: ${_LIBS}
 
