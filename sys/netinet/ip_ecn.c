@@ -115,6 +115,7 @@ ip6_ecn_ingress(mode, outer, inner)
 	if (!outer || !inner)
 		panic("NULL pointer passed to ip6_ecn_ingress");
 
+	outer8 = (ntohl(*outer) >> 20) & 0xff;
 	inner8 = (ntohl(*inner) >> 20) & 0xff;
 	ip_ecn_ingress(mode, &outer8, &inner8);
 	*outer &= ~htonl(0xff << 20);
@@ -133,6 +134,7 @@ ip6_ecn_egress(mode, outer, inner)
 		panic("NULL pointer passed to ip6_ecn_egress");
 
 	outer8 = (ntohl(*outer) >> 20) & 0xff;
+	inner8 = (ntohl(*inner) >> 20) & 0xff;
 	ip_ecn_egress(mode, &outer8, &inner8);
 	*inner &= ~htonl(0xff << 20);
 	*inner |= htonl((u_int32_t)inner8 << 20);
