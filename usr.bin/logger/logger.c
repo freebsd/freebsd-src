@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -143,7 +144,7 @@ main(argc, argv)
 	/* log input line if appropriate */
 	if (argc > 0) {
 		register char *p, *endp;
-		int len;
+		size_t len;
 
 		for (p = buf, endp = buf + sizeof(buf) - 2; *argv;) {
 			len = strlen(*argv);
@@ -226,11 +227,12 @@ logmessage(int pri, char *host, char *buf)
 		if (lsent == len && !send_to_all)
 			break;
 	}
-	if (lsent != len)
+	if (lsent != len) {
 		if (lsent == -1)
 			warn ("sendto");
 		else
 			warnx ("sendto: short send - %d bytes", lsent);
+	}
 
 	free(line);
 }
