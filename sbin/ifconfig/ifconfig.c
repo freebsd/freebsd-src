@@ -1849,7 +1849,8 @@ ifmaybeload(char *name)
 				cp = mstat.name;
 			}
 			/* already loaded? */
-			if (!strncmp(name, cp, strlen(cp)))
+			if (strncmp(name, cp, strlen(cp)) == 0 ||
+			    strncmp(ifkind, cp, strlen(cp)) == 0)
 				return;
 		}
 	}
