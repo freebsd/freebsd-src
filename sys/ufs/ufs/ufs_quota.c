@@ -666,7 +666,7 @@ qsync(mp)
 	 * Search vnodes associated with this mount point,
 	 * synchronizing any modified dquot structures.
 	 */
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 again:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
@@ -675,10 +675,10 @@ again:
 		if (vp->v_type == VNON)
 			continue;
 		mtx_enter(&vp->v_interlock, MTX_DEF);
-		simple_unlock(&mntvnode_slock);
+		mtx_exit(&mntvnode_mtx, MTX_DEF);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 			if (error == ENOENT)
 				goto again;
 			continue;
@@ -689,11 +689,11 @@ again:
 				dqsync(vp, dq);
 		}
 		vput(vp);
-		simple_lock(&mntvnode_slock);
+		mtx_enter(&mntvnode_mtx, MTX_DEF);
 		if (vp->v_mntvnodes.le_next != nextvp)
 			goto again;
 	}
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 	return (0);
 }
 

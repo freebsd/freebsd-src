@@ -47,8 +47,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
-
-#include <machine/mutex.h>
+#include <sys/mutex.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
@@ -60,9 +59,7 @@
 static struct iso_node **isohashtbl;
 static u_long isohash;
 #define	INOHASH(device, inum)	((minor(device) + ((inum)>>12)) & isohash)
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock cd9660_ihash_slock;
-#endif
+static struct mtx cd9660_ihash_mtx;
 
 static void cd9660_ihashrem __P((struct iso_node *));
 static unsigned	cd9660_chars2ui __P((unsigned char *begin, int len));
@@ -76,7 +73,7 @@ cd9660_init(vfsp)
 {
 
 	isohashtbl = hashinit(desiredvnodes, M_ISOFSMNT, &isohash);
-	simple_lock_init(&cd9660_ihash_slock);
+	mtx_init(&cd9660_ihash_mtx, "cd9660_ihash", MTX_DEF);
 	return (0);
 }
 
@@ -105,18 +102,18 @@ cd9660_ihashget(dev, inum)
 	struct vnode *vp;
 
 loop:
-	simple_lock(&cd9660_ihash_slock);
+	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
 	for (ip = isohashtbl[INOHASH(dev, inum)]; ip; ip = ip->i_next) {
 		if (inum == ip->i_number && dev == ip->i_dev) {
 			vp = ITOV(ip);
 			mtx_enter(&vp->v_interlock, MTX_DEF);
-			simple_unlock(&cd9660_ihash_slock);
+			mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (vp);
 		}
 	}
-	simple_unlock(&cd9660_ihash_slock);
+	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
 	return (NULL);
 }
 
@@ -130,14 +127,14 @@ cd9660_ihashins(ip)
 	struct proc *p = curproc;		/* XXX */
 	struct iso_node **ipp, *iq;
 
-	simple_lock(&cd9660_ihash_slock);
+	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
 	ipp = &isohashtbl[INOHASH(ip->i_dev, ip->i_number)];
 	if ((iq = *ipp) != NULL)
 		iq->i_prev = &ip->i_next;
 	ip->i_next = iq;
 	ip->i_prev = ipp;
 	*ipp = ip;
-	simple_unlock(&cd9660_ihash_slock);
+	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
 
 	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, p);
 }
@@ -151,7 +148,7 @@ cd9660_ihashrem(ip)
 {
 	register struct iso_node *iq;
 
-	simple_lock(&cd9660_ihash_slock);
+	mtx_enter(&cd9660_ihash_mtx, MTX_DEF);
 	if ((iq = ip->i_next) != NULL)
 		iq->i_prev = ip->i_prev;
 	*ip->i_prev = iq;
@@ -159,7 +156,7 @@ cd9660_ihashrem(ip)
 	ip->i_next = NULL;
 	ip->i_prev = NULL;
 #endif
-	simple_unlock(&cd9660_ihash_slock);
+	mtx_exit(&cd9660_ihash_mtx, MTX_DEF);
 }
 
 /*
@@ -188,7 +185,7 @@ cd9660_inactive(ap)
 	 * so that it can be reused immediately.
 	 */
 	if (ip->inode.iso_mode == 0)
-		vrecycle(vp, (struct simplelock *)0, p);
+		vrecycle(vp, NULL, p);
 	return error;
 }
 

@@ -75,6 +75,7 @@
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -118,9 +119,7 @@ static void	vm_object_qcollapse __P((vm_object_t object));
  */
 
 struct object_q vm_object_list;
-#ifndef NULL_SIMPLELOCKS
-static struct simplelock vm_object_list_lock;
-#endif
+static struct mtx vm_object_list_mtx;
 static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
@@ -189,7 +188,7 @@ void
 vm_object_init()
 {
 	TAILQ_INIT(&vm_object_list);
-	simple_lock_init(&vm_object_list_lock);
+	mtx_init(&vm_object_list_mtx, "vm object_list", MTX_DEF);
 	vm_object_count = 0;
 	
 	kernel_object = &kernel_object_store;
@@ -459,9 +458,9 @@ vm_object_terminate(object)
 	/*
 	 * Remove the object from the global object list.
 	 */
-	simple_lock(&vm_object_list_lock);
+	mtx_enter(&vm_object_list_mtx, MTX_DEF);
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
-	simple_unlock(&vm_object_list_lock);
+	mtx_exit(&vm_object_list_mtx, MTX_DEF);
 
 	wakeup(object);
 

@@ -54,12 +54,6 @@
  * Locks provide shared/exclusive sychronization.
  */
 
-#ifdef SIMPLELOCK_DEBUG
-#define COUNT(p, x) if (p) (p)->p_locks += (x)
-#else
-#define COUNT(p, x)
-#endif
-
 #define LOCK_WAIT_TIME 100
 #define LOCK_SAMPLE_WAIT 7
 
@@ -137,9 +131,7 @@ shareunlock(struct lock *lkp, int decr) {
 }
 
 /*
- * This is the waitloop optimization, and note for this to work
- * simple_lock and simple_unlock should be subroutines to avoid
- * optimization troubles.
+ * This is the waitloop optimization.
  */
 static int
 apause(struct lock *lkp, int flags)
@@ -280,7 +272,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			if (error)
 				break;
 			sharelock(lkp, 1);
-			COUNT(p, 1);
 			break;
 		}
 		/*
@@ -288,7 +279,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * An alternative would be to fail with EDEADLK.
 		 */
 		sharelock(lkp, 1);
-		COUNT(p, 1);
 		/* fall into downgrade */
 
 	case LK_DOWNGRADE:
@@ -310,7 +300,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 */
 		if (lkp->lk_flags & LK_WANT_UPGRADE) {
 			shareunlock(lkp, 1);
-			COUNT(p, -1);
 			error = EBUSY;
 			break;
 		}
@@ -328,7 +317,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		if ((lkp->lk_lockholder == pid) || (lkp->lk_sharecount <= 0))
 			panic("lockmgr: upgrade exclusive lock");
 		shareunlock(lkp, 1);
-		COUNT(p, -1);
 		/*
 		 * If we are just polling, check to see if we will block.
 		 */
@@ -360,7 +348,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			lkp->lk_lineno = line;
 			lkp->lk_lockername = name;
 #endif
-			COUNT(p, 1);
 			break;
 		}
 		/*
@@ -382,7 +369,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 				panic("lockmgr: locking against myself");
 			if ((extflags & LK_CANRECURSE) != 0) {
 				lkp->lk_exclusivecount++;
-				COUNT(p, 1);
 				break;
 			}
 		}
@@ -418,7 +404,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			lkp->lk_lineno = line;
 			lkp->lk_lockername = name;
 #endif
-		COUNT(p, 1);
 		break;
 
 	case LK_RELEASE:
@@ -429,9 +414,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 				    pid, "exclusive lock holder",
 				    lkp->lk_lockholder);
 			}
-			if (lkp->lk_lockholder != LK_KERNPROC) {
-				COUNT(p, -1);
-			}
 			if (lkp->lk_exclusivecount == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
@@ -439,10 +421,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			} else {
 				lkp->lk_exclusivecount--;
 			}
-		} else if (lkp->lk_flags & LK_SHARE_NONZERO) {
+		} else if (lkp->lk_flags & LK_SHARE_NONZERO)
 			shareunlock(lkp, 1);
-			COUNT(p, -1);
-		}
 		if (lkp->lk_flags & LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		break;
@@ -468,7 +448,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			lkp->lk_lineno = line;
 			lkp->lk_lockername = name;
 #endif
-		COUNT(p, 1);
 		break;
 
 	default:
@@ -627,100 +606,3 @@ lockmgr_printinfo(lkp)
 	if (lkp->lk_waitcount > 0)
 		printf(" with %d pending", lkp->lk_waitcount);
 }
-
-#if defined(SIMPLELOCK_DEBUG) && (MAXCPU == 1 || defined(COMPILING_LINT))
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-
-static int lockpausetime = 0;
-SYSCTL_INT(_debug, OID_AUTO, lockpausetime, CTLFLAG_RW, &lockpausetime, 0, "");
-
-static int simplelockrecurse;
-
-/*
- * Simple lock functions so that the debugger can see from whence
- * they are being called.
- */
-void
-simple_lock_init(alp)
-	struct simplelock *alp;
-{
-
-	alp->lock_data = 0;
-}
-
-void
-_simple_lock(alp, id, l)
-	struct simplelock *alp;
-	const char *id;
-	int l;
-{
-
-	if (simplelockrecurse)
-		return;
-	if (alp->lock_data == 1) {
-		if (lockpausetime == -1)
-			panic("%s:%d: simple_lock: lock held", id, l);
-		printf("%s:%d: simple_lock: lock held\n", id, l);
-		if (lockpausetime == 1) {
-			Debugger("simple_lock");
-			/*BACKTRACE(curproc); */
-		} else if (lockpausetime > 1) {
-			printf("%s:%d: simple_lock: lock held...", id, l);
-			tsleep(&lockpausetime, PCATCH | PPAUSE, "slock",
-			    lockpausetime * hz);
-			printf(" continuing\n");
-		}
-	}
-	alp->lock_data = 1;
-	if (curproc)
-		curproc->p_simple_locks++;
-}
-
-int
-_simple_lock_try(alp, id, l)
-	struct simplelock *alp;
-	const char *id;
-	int l;
-{
-
-	if (alp->lock_data)
-		return (0);
-	if (simplelockrecurse)
-		return (1);
-	alp->lock_data = 1;
-	if (curproc)
-		curproc->p_simple_locks++;
-	return (1);
-}
-
-void
-_simple_unlock(alp, id, l)
-	struct simplelock *alp;
-	const char *id;
-	int l;
-{
-
-	if (simplelockrecurse)
-		return;
-	if (alp->lock_data == 0) {
-		if (lockpausetime == -1)
-			panic("%s:%d: simple_unlock: lock not held", id, l);
-		printf("%s:%d: simple_unlock: lock not held\n", id, l);
-		if (lockpausetime == 1) {
-			Debugger("simple_unlock");
-			/* BACKTRACE(curproc); */
-		} else if (lockpausetime > 1) {
-			printf("%s:%d: simple_unlock: lock not held...", id, l);
-			tsleep(&lockpausetime, PCATCH | PPAUSE, "sunlock",
-			    lockpausetime * hz);
-			printf(" continuing\n");
-		}
-	}
-	alp->lock_data = 0;
-	if (curproc)
-		curproc->p_simple_locks--;
-}
-#elif defined(SIMPLELOCK_DEBUG)
-#error "SIMPLELOCK_DEBUG is not compatible with SMP!"
-#endif /* SIMPLELOCK_DEBUG && MAXCPU == 1 */

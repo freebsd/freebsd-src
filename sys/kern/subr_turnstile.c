@@ -1099,6 +1099,12 @@ static char *spin_order_list[] = {
 	/*
 	 * leaf locks
 	 */
+#ifdef __i386__
+	"ap boot",
+	"imen",
+#endif
+	"com",
+	"smp rendezvous",
 	NULL
 };
 
