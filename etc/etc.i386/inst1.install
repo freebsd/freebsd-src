@@ -754,8 +754,8 @@ while [ $part_used -lt $partition ]; do
 		part_used=partition
 	fi
 done
-if [ "$have_dos_part" != "$opsys_part" -a "$RUN_FDISK" != "overwrite" -a \
-    ! "$hname" ]; then
+if [ "$have_dos_part" -a "$have_dos_part" != "$opsys_part" -a \
+    "$RUN_FDISK" != "overwrite" -a ! "$hname" ]; then
 	echo
 	echo	"There appears to be a MS-DOS filesystem on the hard disk."
 	echo -n "Make this be accessible from ${OPSYSTEM}? [y] "
