@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.20 1994/03/24 23:12:34 davidg Exp $
+ *	$Id: trap.c,v 1.21 1994/04/02 07:00:31 davidg Exp $
  */
 
 /*
@@ -400,6 +400,12 @@ nogo:
 	we_re_toast:
 
 		fault_type = type & ~T_USER;
+#if NDDB > 0
+		if ((fault_type == T_BPTFLT) || (fault_type == T_TRCTRAP)) {
+			if (kdb_trap (type, 0, &frame))
+				return;
+		}
+#endif
 		if (fault_type <= MAX_TRAP_MSG)
 			printf("\n\nFatal trap %d: %s while in %s mode\n",
 				fault_type, trap_msg[fault_type],
@@ -462,6 +468,18 @@ nogo:
 	trapsignal(p, i, ucode);
 	if ((type & T_USER) == 0)
 		return;
+
+#ifdef DIAGNOSTIC
+	fault_type = type & ~T_USER;
+	if (fault_type <= MAX_TRAP_MSG) {
+		uprintf("fatal process exception: %s", 
+			trap_msg[fault_type]);
+		if ((fault_type == T_PAGEFLT) || (fault_type == T_PROTFLT))
+			uprintf(", fault VA = 0x%x", eva);
+		uprintf("\n");
+	}
+#endif
+
 out:
 	while (i = CURSIG(p))
 		psig(i);
