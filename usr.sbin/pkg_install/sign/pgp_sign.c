@@ -232,7 +232,7 @@ handle_pgp_passphrase()
 	int fd[2];
 	char *p;
 
-printf("Short-circuiting %s\n", __FUNCTION__);
+printf("Short-circuiting %s\n", __func__);
 return;
 
 		/* Retrieve the pgp passphrase */

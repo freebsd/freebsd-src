@@ -77,14 +77,14 @@ pkg_perform(char **pkgs)
 		 */
 		rbtmp = rb = alloca((errcode + 1) * sizeof(*rb));
 		if (rb == NULL) {
-		    warnx("%s(): alloca() failed", __FUNCTION__);
+		    warnx("%s(): alloca() failed", __func__);
 		    err_cnt++;
 		    continue;
 		}
 		STAILQ_FOREACH(rb_entry, rb_list, link) {
 		    *rbtmp = alloca(strlen(rb_entry->pkgname) + 1);
 		    if (*rbtmp == NULL) {
-			warnx("%s(): alloca() failed", __FUNCTION__);
+			warnx("%s(): alloca() failed", __func__);
 			err_cnt++;
 			continue;
 		    }
@@ -140,7 +140,7 @@ pkg_do(char *pkg)
 
     if (!getcwd(home, FILENAME_MAX)) {
 	cleanup(0);
-	errx(2, "%s: unable to get current working directory!", __FUNCTION__);
+	errx(2, "%s: unable to get current working directory!", __func__);
     }
 
     if (chdir(LogDir) == FAIL) {
@@ -240,7 +240,7 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
 	cleanup(0);
-	errx(2, "%s: unable to return to working directory %s!", __FUNCTION__,
+	errx(2, "%s: unable to return to working directory %s!", __func__,
 	    home);
     }
 
@@ -273,7 +273,7 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
  	cleanup(0);
-	errx(2, "%s: unable to return to working directory %s!", __FUNCTION__,
+	errx(2, "%s: unable to return to working directory %s!", __func__,
 	    home);
     }
 
@@ -301,7 +301,7 @@ sanity_check(char *pkg)
 {
     if (!fexists(CONTENTS_FNAME)) {
 	cleanup(0);
-	errx(2, "%s: installed package %s has no %s file!", __FUNCTION__,
+	errx(2, "%s: installed package %s has no %s file!", __func__,
 	    pkg, CONTENTS_FNAME);
     }
 }
