@@ -32,11 +32,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 /*
  *	Controller data - Specific to each slot controller.
  */
-struct slot_cont
-	{
+struct slot_ctrl {
 	int	(*mapmem)();	/* Map memory */
 	int	(*mapio)();	/* Map io */
 	void	(*reset)();	/* init */
@@ -49,13 +49,14 @@ struct slot_cont
 	int	maxio;		/* Number of allowed I/O windows */
 	int	irqs;		/* IRQ's that are allowed */
 	char	*name;		/* controller name */
-/*
- *	The rest is maintained by the mainline PC-CARD code.
- */
+	/*
+	 *	The rest is maintained by the mainline PC-CARD code.
+	 */
 
-	struct slot_cont *next;	/* Allows linked list of controllers */
+	struct slot_ctrl *next;	/* Allows linked list of controllers */
 	int	slots;		/* Slots available */
-	};
+};
+
 /*
  *	Driver structure - each driver registers itself
  *	with the mainline PC-CARD code. These drivers are
@@ -63,8 +64,7 @@ struct slot_cont
  */
 struct pccard_dev;
 
-struct pccard_drv
-	{
+struct pccard_drv {
 	char	*name;				/* Driver name */
 	int (*handler)(struct pccard_dev *);	/* Interrupt handler */
 	void (*unload)(struct pccard_dev *);	/* Disable driver */
@@ -74,7 +74,8 @@ struct pccard_drv
 	unsigned int *imask;			/* Interrupt mask ptr */
 
 	struct pccard_drv *next;
-	};
+};
+
 /*
  *	Device structure for cards. Each card may have one
  *	or more drivers attached to it; each driver is assumed
@@ -82,8 +83,7 @@ struct pccard_drv
  *	and one memory block. This structure is used to link the different
  *	devices together.
  */
-struct pccard_dev
-	{
+struct pccard_dev {
 	struct pccard_dev *next;	/* List of drivers */
 	struct isa_device isahd;	/* Device details */
 	struct pccard_drv *drv;
@@ -91,13 +91,12 @@ struct pccard_dev
 	struct slot *sp;		/* Back pointer to slot */
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
-	};
+};
 
 /*
  *	Per-slot structure.
  */
-struct slot
-	{
+struct slot {
 	struct slot *next;		/* Master list */
 	int slot;			/* Slot number */
 	int flags;			/* Slot flags (see below) */
@@ -106,24 +105,24 @@ struct slot
 	int irq;			/* IRQ allocated (0 = none) */
 	int irqref;			/* Reference count of driver IRQs */
 	struct pccard_dev *devices;	/* List of drivers attached */
-/*
- *	flags.
- */
-	unsigned int insert_timeout:1;	/* Insert timeout active */
+	/*
+	 *	flags.
+	 */
+	unsigned int 	insert_seq;	/* Firing up under the card */
 
-	enum cardstate state, laststate; /* Current/last card states */
-	struct selinfo selp;		/* Info for select */
-	struct mem_desc mem[NUM_MEM_WINDOWS];	/* Memory windows */
-	struct io_desc io[NUM_IO_WINDOWS];	/* I/O windows */
-	struct power pwr;		/* Power values */
-	struct slot_cont *cinfo;	/* Per-controller data */
-	void	*cdata;		/* Controller specific data */
-	};
+	enum cardstate 	state, laststate; /* Current/last card states */
+	struct selinfo	selp;		/* Info for select */
+	struct mem_desc	mem[NUM_MEM_WINDOWS];	/* Memory windows */
+	struct io_desc	io[NUM_IO_WINDOWS];	/* I/O windows */
+	struct power	pwr;		/* Power values */
+	struct slot_ctrl *ctrl;		/* Per-controller data */
+	void		*cdata;		/* Controller specific data */
+};
 
 enum card_event { card_removed, card_inserted };
 
-struct slot *pccard_alloc_slot(struct slot_cont *);
-void pccard_event(struct slot *, enum card_event);
-void pccard_remove_controller(struct slot_cont *);
-int pccard_alloc_intr();
-void pccard_add_driver(struct pccard_drv *);
+struct slot	*pccard_alloc_slot(struct slot_ctrl *);
+void		pccard_event(struct slot *, enum card_event);
+void		pccard_remove_controller(struct slot_ctrl *);
+int		pccard_alloc_intr();
+void		pccard_add_driver(struct pccard_drv *);

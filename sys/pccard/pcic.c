@@ -46,17 +46,18 @@
 #include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/lkm.h>
+#include <sys/devconf.h>
 
 #include <machine/clock.h>
+
+#include <pccard/i82365.h>
+#include <pccard/card.h>
+#include <pccard/slot.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
-#include <pccard/i82365.h>
-#include <pccard/card.h>
-#include <pccard/slot.h>
-#include <sys/devconf.h>
 
 extern struct kern_devconf kdc_pccard0;
 
@@ -76,34 +77,34 @@ struct kern_devconf kdc_pcic[PCIC_MAX_SLOTS] = {
 /*
  *	Prototypes for interrupt handler.
  */
-static void pcicintr	__P((int unit));
-static int pcic_ioctl __P((struct slot *, int, caddr_t));
-static int pcic_power __P((struct slot *));
-static void pcic_reset __P((struct slot *));
-static void pcic_disable __P((struct slot *));
-static void pcic_mapirq __P((struct slot *, int));
-static timeout_t pcictimeout;
+static void		pcicintr	__P((int unit));
+static int		pcic_ioctl __P((struct slot *, int, caddr_t));
+static int		pcic_power __P((struct slot *));
+static void		pcic_reset __P((struct slot *));
+static void		pcic_disable __P((struct slot *));
+static void		pcic_mapirq __P((struct slot *, int));
+static timeout_t 	pcictimeout;
+static int		pcic_memory(struct slot *, int);
+static int		pcic_io(struct slot *, int);
+       int		pcic_probe();
 
 /*
  *	Per-slot data table.
  */
-static struct pcic_slot
-	{
+static struct pcic_slot {
 	int slot;			/* My slot number */
 	int index;			/* Index register */
 	int data;			/* Data register */
 	int offset;			/* Offset value for index */
-	char	controller;		/* Device type */
-	char	revision;		/* Device Revision */
-	struct slot *sp;		/* Back ptr to slot */
-	} pcic_slots[PCIC_MAX_SLOTS];
-static int pcic_irq;
-static unsigned pcic_imask;
-static struct slot_cont cinfo;
+	char controller;		/* Device type */
+	char revision;			/* Device Revision */
+	struct slot *slotp;		/* Back ptr to slot */
+} pcic_slots[PCIC_MAX_SLOTS];
 
-static int pcic_memory(struct slot *, int);
-static int pcic_io(struct slot *, int);
-int pcic_probe();
+static int		pcic_irq;
+static unsigned		pcic_imask;
+static struct slot_ctrl cinfo;
+
 
 /*
  *	Internal inline functions for accessing the PCIC.
@@ -174,11 +175,9 @@ static int pcic_unload();
  */
 
 static int
-pcic_handle( lkmtp, cmd)
-struct lkm_table	*lkmtp;
-int			cmd;
+pcic_handle(struct lkm_table *lkmtp, int cmd)
 {
-	int			err = 0;	/* default = success*/
+	int err = 0;	/* default = success*/
 
 	switch( cmd) {
 	case LKM_E_LOAD:
@@ -188,16 +187,16 @@ int			cmd;
 		 */
 		if( lkmexists( lkmtp))
 			return( EEXIST);
-/*
- *	Call the probe routine to find the slots. If
- *	no slots exist, then don't bother loading the module.
- */
+		/*
+		 *	Call the probe routine to find the slots. If
+		 *	no slots exist, then don't bother loading the module.
+		 */
 		if (pcic_probe() == 0)
 			return(ENODEV);
 		break;		/* Success*/
-/*
- *	Attempt to unload the slot driver.
- */
+	/*
+	 *	Attempt to unload the slot driver.
+	 */
 	case LKM_E_UNLOAD:
 		printf("Unloading PCIC driver\n");
 		err = pcic_unload();
@@ -231,13 +230,11 @@ int			cmd;
  * case it should return an errno from errno.h).
  */
 int
-pcic_mod(lkmtp, cmd, ver)
-struct lkm_table	*lkmtp;	
-int			cmd;
-int			ver;
+pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp,cmd,ver,pcic_handle,pcic_handle,nosys)
 }
+
 /*
  *	pcic_unload - Called when unloading a LKM.
  *	Disables interrupts and resets PCIC.
@@ -245,23 +242,23 @@ int			ver;
 static int
 pcic_unload()
 {
-int	slot;
-struct pcic_slot *cp = pcic_slots;
+	int	slot;
+	struct pcic_slot *sp = pcic_slots;
 
 	untimeout(pcictimeout,0);
-	if (pcic_irq)
-		{
-		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++) {
-			if (cp->sp)
-				putb(cp, PCIC_STAT_INT, 0);
+	if (pcic_irq) {
+		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
+			if (sp->slotp)
+				putb(sp, PCIC_STAT_INT, 0);
 			kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
 		}
 		unregister_intr(pcic_irq, pcicintr);
-		}
+	}
 	pccard_remove_controller(&cinfo);
 	return(0);
 }
-#endif LKM
+
+#endif /* LKM */
 
 #if 0
 static void
@@ -271,19 +268,18 @@ pcic_dump_attributes (unsigned char *scratch, int maxlen)
 
 	i = 0;
 	while (scratch[i] != 0xff && i < maxlen) {
-	unsigned char link = scratch[i+2];
+		unsigned char link = scratch[i+2];
 
-/*
- *	Dump attribute memory
- */
-	if (scratch[i])
-		{
-		printf ("[%02x] ", i);
-		for (j = 0; j < 2 * link + 4 && j < 128; j += 2)
-			printf ("%02x ", scratch[j + i]);
-		printf ("\n");
+		/*
+		 *	Dump attribute memory
+		 */
+		if (scratch[i]) {
+			printf ("[%02x] ", i);
+			for (j = 0; j < 2 * link + 4 && j < 128; j += 2)
+				printf ("%02x ", scratch[j + i]);
+			printf ("\n");
 		}
-	i += 4 + 2 * link;
+		i += 4 + 2 * link;
 	}
 }
 #endif
@@ -292,58 +288,58 @@ pcic_dump_attributes (unsigned char *scratch, int maxlen)
  *	entry point from main code to map/unmap memory context.
  */
 static int
-pcic_memory(struct slot *sp, int win)
+pcic_memory(struct slot *slotp, int win)
 {
-struct pcic_slot *cp = sp->cdata;
-struct mem_desc *mp = &sp->mem[win];
-int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
+	struct pcic_slot *sp = slotp->cdata;
+	struct mem_desc *mp = &slotp->mem[win];
+	int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
 
 	if (mp->flags & MDF_ACTIVE)
 		{
 		unsigned long sys_addr = (unsigned long)mp->start >> 12;
-/*
- *	Write the addresses, card offsets and length.
- *	The values are all stored as the upper 12 bits of the
- *	24 bit address i.e everything is allocated as 4 Kb chunks.
- */
-		putw (cp, reg, sys_addr & 0xFFF);
-		putw (cp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
-		putw (cp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
+		/*
+		 * Write the addresses, card offsets and length.
+		 * The values are all stored as the upper 12 bits of the
+		 * 24 bit address i.e everything is allocated as 4 Kb chunks.
+		 */
+		putw (sp, reg, sys_addr & 0xFFF);
+		putw (sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
+		putw (sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
 #if 0
 		printf("card offs = card_adr = 0x%x 0x%x, sys_addr = 0x%x\n", 
 			mp->card, ((mp->card >> 12) - sys_addr) & 0x3FFF,
 			sys_addr);
 #endif
-/*
- *	Each 16 bit register has some flags in the upper bits.
- */
+		/*
+		 *	Each 16 bit register has some flags in the upper bits.
+		 */
 		if (mp->flags & MDF_16BITS)
-			setb(cp, reg+1, PCIC_DATA16);
+			setb(sp, reg+1, PCIC_DATA16);
 		if (mp->flags & MDF_ZEROWS)
-			setb(cp, reg+1, PCIC_ZEROWS);
+			setb(sp, reg+1, PCIC_ZEROWS);
 		if (mp->flags & MDF_WS0)
-			setb(cp, reg+3, PCIC_MW0);
+			setb(sp, reg+3, PCIC_MW0);
 		if (mp->flags & MDF_WS1)
-			setb(cp, reg+3, PCIC_MW1);
+			setb(sp, reg+3, PCIC_MW1);
 		if (mp->flags & MDF_ATTR)
-			setb(cp, reg+5, PCIC_REG);
+			setb(sp, reg+5, PCIC_REG);
 		if (mp->flags & MDF_WP)
-			setb(cp, reg+5, PCIC_WP);
+			setb(sp, reg+5, PCIC_WP);
 #if 0
 	printf("Slot number %d, reg 0x%x, offs 0x%x\n",
-		cp->slot, reg, cp->offset);
+		sp->slot, reg, sp->offset);
 	printf("Map window to sys addr 0x%x for %d bytes, card 0x%x\n",
 		mp->start, mp->size, mp->card);
 	printf("regs are: 0x%02x%02x 0x%02x%02x 0x%02x%02x flags 0x%x\n",
-		getb(cp, reg), getb(cp, reg+1),
-		getb(cp, reg+2), getb(cp, reg+3),
-		getb(cp, reg+4), getb(cp, reg+5),
+		getb(sp, reg), getb(sp, reg+1),
+		getb(sp, reg+2), getb(sp, reg+3),
+		getb(sp, reg+4), getb(sp, reg+5),
 		mp->flags);
 #endif
-/*
- *	Enable the memory window. By experiment, we need a delay.
- */
-		setb (cp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
+		/*
+		 * Enable the memory window. By experiment, we need a delay.
+		 */
+		setb (sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
 		DELAY(50);
 		}
 	else
@@ -351,39 +347,36 @@ int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
 #if 0
 		printf("Unmapping window %d\n", win);
 #endif
-		clrb (cp, PCIC_ADDRWINE, 1<<win);
-		putw (cp, reg, 0);
-		putw (cp, reg+2, 0);
-		putw (cp, reg+4, 0);
+		clrb (sp, PCIC_ADDRWINE, 1<<win);
+		putw (sp, reg, 0);
+		putw (sp, reg+2, 0);
+		putw (sp, reg+4, 0);
 		}
 	return(0);
 }
+
 /*
  *	pcic_io - map or unmap I/O context
  */
 static int
-pcic_io(struct slot *sp, int win)
+pcic_io(struct slot *slotp, int win)
 {
-int	mask, reg;
-struct pcic_slot *cp = sp->cdata;
-struct io_desc *ip = &sp->io[win];
+	int	mask, reg;
+	struct pcic_slot *sp = slotp->cdata;
+	struct io_desc *ip = &slotp->io[win];
 
-	if (win)
-		{
+	if (win) {
 		mask = PCIC_IO0_EN;
 		reg = PCIC_IO0;
-		}
-	else
-		{
+	} else {
 		mask = PCIC_IO1_EN;
 		reg = PCIC_IO1;
-		}
-	if (ip->flags & IODF_ACTIVE)
-		{
+	}
+	if (ip->flags & IODF_ACTIVE) {
 		unsigned char x = 0;
 
-		putw (cp, reg, ip->start);
-		putw (cp, reg+2, ip->start+ip->size-1);
+		putw (sp, reg, ip->start);
+		putw (sp, reg+2, ip->start+ip->size-1);
 		if (ip->flags & IODF_ZEROWS)
 			x = PCIC_IO_0WS;
 		if (ip->flags & IODF_WS)
@@ -392,27 +385,26 @@ struct io_desc *ip = &sp->io[win];
 			x |= PCIC_IO_CS16;
 		else if (ip->flags & IODF_16BIT)
 			x |= PCIC_IO_16BIT;
-/*
- *	Extract the current flags and merge with new flags.
- *	Flags for window 0 in lower nybble, and in upper nybble
- *	for window 1.
- */
+		/*
+		 * Extract the current flags and merge with new flags.
+		 * Flags for window 0 in lower nybble, and in upper nybble
+		 * for window 1.
+		 */
 		if (win)
-			putb(cp, PCIC_IOCTL, (x << 4) |
-				(getb(cp, PCIC_IOCTL) & 0xF));
+			putb(sp, PCIC_IOCTL, (x << 4) |
+				(getb(sp, PCIC_IOCTL) & 0xF));
 		else
-			putb(cp, PCIC_IOCTL, x | (getb(cp, PCIC_IOCTL) & 0xF0));
-		setb (cp, PCIC_ADDRWINE, mask);
+			putb(sp, PCIC_IOCTL, x | (getb(sp, PCIC_IOCTL) & 0xF0));
+		setb (sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
-		}
-	else
-		{
-		clrb (cp, PCIC_ADDRWINE, mask);
-		putw (cp, reg, 0);
-		putw (cp, reg + 2, 0);
-		}
+	} else {
+		clrb (sp, PCIC_ADDRWINE, mask);
+		putw (sp, reg, 0);
+		putw (sp, reg + 2, 0);
+	}
 	return(0);
 }
+
 /*
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
@@ -421,14 +413,14 @@ struct io_desc *ip = &sp->io[win];
 int
 pcic_probe ()
 {
-int slot, i, validslots = 0;
-struct slot *sp;
-struct pcic_slot *cp;
-unsigned char c;
+	int slot, i, validslots = 0;
+	struct slot *slotp;
+	struct pcic_slot *sp;
+	unsigned char c;
 
-/*
- *	Initialise controller information structure.
- */
+	/*
+	 *	Initialise controller information structure.
+	 */
 	cinfo.mapmem = pcic_memory;
 	cinfo.mapio = pcic_io;
 	cinfo.ioctl = pcic_ioctl;
@@ -443,187 +435,181 @@ unsigned char c;
 #ifdef	LKM
 	bzero(pcic_slots, sizeof(pcic_slots));
 #endif
-	cp = pcic_slots;
-	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++) {
-/*
- *	Initialise the PCIC slot table.
- */
-	if (slot < 4)
-		{
-		cp->index = PCIC_INDEX_0;
-		cp->data = PCIC_DATA_0;
-		cp->offset = slot * PCIC_SLOT_SIZE;
+	sp = pcic_slots;
+	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
+		/*
+		 *	Initialise the PCIC slot table.
+		 */
+		if (slot < 4) {
+			sp->index = PCIC_INDEX_0;
+			sp->data = PCIC_DATA_0;
+			sp->offset = slot * PCIC_SLOT_SIZE;
+		} else {
+			sp->index = PCIC_INDEX_1;
+			sp->data = PCIC_DATA_1;
+			sp->offset = (slot - 4) * PCIC_SLOT_SIZE;
 		}
-	else
-		{
-		cp->index = PCIC_INDEX_1;
-		cp->data = PCIC_DATA_1;
-		cp->offset = (slot - 4) * PCIC_SLOT_SIZE;
-		}
-	/*
-	 * see if there's a PCMCIA controller here
-	 * Intel PCMCIA controllers use 0x82 and 0x83
-	 * IBM clone chips use 0x88 and 0x89, apparently
-	 */
-	c = getb (cp, PCIC_ID_REV);
-	cp->revision = -1;
-	switch(c)
-		{
-/*
- *	82365 or clones.
- */
-	case 0x82:
-	case 0x83:
-		cp->controller = PCIC_I82365;
-		cp->revision = c & 1;
-/*
- *	Now check for VADEM chips.
- */
-		outb(cp->index, 0x0E);
-		outb(cp->index, 0x37);
-		setb(cp, 0x3A, 0x40);
-		c = getb (cp, PCIC_ID_REV);
-		if (c & 0x08)
-			{
-			cp->controller = PCIC_VG468;
-			cp->revision = c & 7;
-			clrb(cp, 0x3A, 0x40);
+		/*
+		 * see if there's a PCMCIA controller here
+		 * Intel PCMCIA controllers use 0x82 and 0x83
+		 * IBM clone chips use 0x88 and 0x89, apparently
+		 */
+		c = getb (sp, PCIC_ID_REV);
+		sp->revision = -1;
+		switch(c) {
+		/*
+		 *	82365 or clones.
+		 */
+		case 0x82:
+		case 0x83:
+			sp->controller = PCIC_I82365;
+			sp->revision = c & 1;
+			/*
+			 *	Now check for VADEM chips.
+			 */
+			outb(sp->index, 0x0E);
+			outb(sp->index, 0x37);
+			setb(sp, 0x3A, 0x40);
+			c = getb (sp, PCIC_ID_REV);
+			if (c & 0x08) {
+				sp->controller = ((sp->revision = c & 7) == 4) ?	
+					PCIC_VG469 : PCIC_VG468 ;
+				clrb(sp, 0x3A, 0x40);
 			}
-		break;
-/*
- *	VLSI chips.
- */
-	case 0x84:
-		cp->controller = PCIC_VLSI;
-		break;
-	case 0x88:
-	case 0x89:
-		cp->controller = PCIC_IBM;
-		cp->revision = c & 1;
-		break;
-	default:
-		continue;
+			break;
+		/*
+		 *	VLSI chips.
+		 */
+		case 0x84:
+			sp->controller = PCIC_VLSI;
+			break;
+		case 0x88:
+		case 0x89:
+			sp->controller = PCIC_IBM;
+			sp->revision = c & 1;
+			break;
+		default:
+			continue;
 		}
-/*
- *	Check for Cirrus logic chips.
- */
-	putb(cp, 0x1F, 0);
-	c = getb(cp, 0x1F);
-	if ((c & 0xC0) == 0xC0)
-		{
-		c = getb(cp, 0x1F);
-		if ((c & 0xC0) == 0)
-			{
-			if (c & 0x20)
-				cp->controller = PCIC_PD672X;
-			else
-				cp->controller = PCIC_PD6710;
-			cp->revision = 8 - ((c & 0x1F) >> 2);
+		/*
+		 *	Check for Cirrus logic chips.
+		 */
+		putb(sp, 0x1F, 0);
+		c = getb(sp, 0x1F);
+		if ((c & 0xC0) == 0xC0) {
+			c = getb(sp, 0x1F);
+			if ((c & 0xC0) == 0) {
+				if (c & 0x20)
+					sp->controller = PCIC_PD672X;
+				else
+					sp->controller = PCIC_PD6710;
+				sp->revision = 8 - ((c & 0x1F) >> 2);
 			}
 		}
-	switch(cp->controller)
-		{
-	case PCIC_I82365:
-		cinfo.name = "Intel 82365";
-		break;
-	case PCIC_IBM:
-		cinfo.name = "IBM PCIC";
-		break;
-	case PCIC_PD672X:
-		cinfo.name = "Cirrus Logic PD672X";
-		break;
-	case PCIC_PD6710:
-		cinfo.name = "Cirrus Logic PD6710";
-		break;
-	case PCIC_VG468:
-		cinfo.name = "Vadem 468";
-		break;
-	default:
-		cinfo.name = "Unknown!";
-		break;
+		switch(sp->controller) {
+		case PCIC_I82365:
+			cinfo.name = "Intel 82365";
+			break;
+		case PCIC_IBM:
+			cinfo.name = "IBM PCIC";
+			break;
+		case PCIC_PD672X:
+			cinfo.name = "Cirrus Logic PD672X";
+			break;
+		case PCIC_PD6710:
+			cinfo.name = "Cirrus Logic PD6710";
+			break;
+		case PCIC_VG468:
+			cinfo.name = "Vadem 468";
+			break;
+		case PCIC_VG469:
+			cinfo.name = "Vadem 469";
+			break;
+		default:
+			cinfo.name = "Unknown!";
+			break;
 		}
-/*
- *	clear out the registers.
- */
-	for (i = 2; i < 0x40; i++)
-		putb(cp, i, 0);
-/*
- *	OK it seems we have a PCIC or lookalike.
- *	Allocate a slot and initialise the data structures.
- */
-	validslots++;
-	cp->slot = slot;
-	if (kdc_pcic[slot].kdc_state == DC_UNKNOWN) {
-	    if (slot != 0)
-		kdc_pcic[slot] = kdc_pcic[0];
-	    kdc_pcic[slot].kdc_unit = slot;
-	    kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
-	    kdc_pcic[slot].kdc_description = cinfo.name;
-	    dev_attach(kdc_pcic+slot);
-	}
-	sp = pccard_alloc_slot(&cinfo);
-	if (sp == 0)
-		continue;
-	kdc_pcic[slot].kdc_state = DC_IDLE;
-	sp->cdata = cp;
-	cp->sp = sp;
-/*
- *	If we haven't allocated an interrupt for the controller,
- *	then attempt to get one.
- */
-	if (pcic_irq == 0)
-		{
-		pcic_irq = pccard_alloc_intr(PCIC_INT_MASK_ALLOWED,
-			pcicintr, 0, &pcic_imask);
-		if (pcic_irq < 0)
-			printf("pcic: failed to allocate IRQ\n");
+		/*
+		 *	clear out the registers.
+		 */
+		for (i = 2; i < 0x40; i++)
+			putb(sp, i, 0);
+		/*
+		 *	OK it seems we have a PCIC or lookalike.
+		 *	Allocate a slot and initialise the data structures.
+		 */
+		validslots++;
+		sp->slot = slot;
+		if (kdc_pcic[slot].kdc_state == DC_UNKNOWN) {
+		    if (slot != 0)
+			kdc_pcic[slot] = kdc_pcic[0];
+		    kdc_pcic[slot].kdc_unit = slot;
+		    kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
+		    kdc_pcic[slot].kdc_description = cinfo.name;
+		    dev_attach(kdc_pcic+slot);
 		}
-/*
- *	Check for a card in this slot.
- */
-	setb (cp, PCIC_POWER, PCIC_APSENA | PCIC_DISRST);
-	if ((getb (cp, PCIC_STATUS) & PCIC_CD) != PCIC_CD)
-		sp->laststate = sp->state = empty;
-	else
-		{
-		sp->laststate = sp->state = filled;
-		pccard_event(cp->sp, card_inserted);
+		slotp = pccard_alloc_slot(&cinfo);
+		if (slotp == 0)
+			continue;
+		kdc_pcic[slot].kdc_state = DC_IDLE;
+		slotp->cdata = sp;
+		sp->slotp = slotp;
+		/*
+		 *	If we haven't allocated an interrupt for the controller,
+		 *	then attempt to get one.
+		 */
+		if (pcic_irq == 0) {
+			pcic_irq = pccard_alloc_intr(PCIC_INT_MASK_ALLOWED,
+				pcicintr, 0, &pcic_imask);
+			if (pcic_irq < 0)
+				printf("pcic: failed to allocate IRQ\n");
 		}
-/*
- *	Assign IRQ for slot changes
- */
-	if (pcic_irq > 0)
-		putb(cp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+		/*
+		 *	Check for a card in this slot.
+		 */
+		setb (sp, PCIC_POWER, PCIC_APSENA | PCIC_DISRST);
+		if ((getb (sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+			slotp->laststate = slotp->state = empty;
+		} else {
+			slotp->laststate = slotp->state = filled;
+			pccard_event(sp->slotp, card_inserted);
+		}
+		/*
+		 *	Assign IRQ for slot changes
+		 */
+		if (pcic_irq > 0)
+			putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	}
 	if (validslots)
 		timeout(pcictimeout,0,hz/2);
 	return(validslots);
 }
+
 /*
  *	ioctl calls - Controller specific ioctls
  */
 static int
-pcic_ioctl(struct slot *sp, int cmd, caddr_t data)
+pcic_ioctl(struct slot *slotp, int cmd, caddr_t data)
 {
 
-	switch(cmd)
-		{
+	switch(cmd) {
 	default:
 		return(EINVAL);
-/*
- * Get/set PCIC registers
- */
+	/*
+	 * Get/set PCIC registers
+	 */
 	case PIOCGREG:
 		((struct pcic_reg *)data)->value =
-			getb(sp->cdata, ((struct pcic_reg *)data)->reg);
+			getb(slotp->cdata, ((struct pcic_reg *)data)->reg);
 		break;
 	case PIOCSREG:
-		putb(sp->cdata, ((struct pcic_reg *)data)->reg,
+		putb(slotp->cdata, ((struct pcic_reg *)data)->reg,
 			((struct pcic_reg *)data)->value);
 		break;
-		}
+	}
 	return(0);
 }
+
 /*
  *	pcic_power - Enable the power of the slot according to
  *	the parameters in the power structure(s).
@@ -631,15 +617,14 @@ pcic_ioctl(struct slot *sp, int cmd, caddr_t data)
 static int
 pcic_power(struct slot *slotp)
 {
-unsigned char reg = PCIC_DISRST|PCIC_APSENA;
-struct pcic_slot *sp = slotp->cdata;
+	unsigned char reg = PCIC_DISRST|PCIC_APSENA;
+	struct pcic_slot *sp = slotp->cdata;
 
-	switch(sp->controller)
-		{
+	switch(sp->controller) {
 	case PCIC_PD672X:
 	case PCIC_PD6710:
-		switch(slotp->pwr.vpp)
-			{
+	case PCIC_VG469:
+		switch(slotp->pwr.vpp) {
 		default:
 			return(EINVAL);
 		case 0:
@@ -651,31 +636,35 @@ struct pcic_slot *sp = slotp->cdata;
 		case 120:
 			reg |= PCIC_VPP_12V;
 			break;
-			}
-		switch(slotp->pwr.vcc)
-			{
+		}
+		switch(slotp->pwr.vcc) {
 		default:
 			return(EINVAL);
 		case 0:
 			break;
 		case 33:
 			reg |= PCIC_VCC_5V;
-			setb(sp, 0x16, 0x02);
+			if (sp->controller == PCIC_VG469)
+				setb(sp, 0x2f, 0x03) ;
+			else
+				setb(sp, 0x16, 0x02);
 			break;
 		case 50:
 			reg |= PCIC_VCC_5V;
-			clrb(sp, 0x16, 0x02);
+			if (sp->controller == PCIC_VG469)
+				clrb(sp, 0x2f, 0x03) ;
+			else
+				clrb(sp, 0x16, 0x02);
 			break;
-			}
 		}
+	}
 	putb (sp, PCIC_POWER, reg);
 	DELAY(300*1000);
-	if (slotp->pwr.vcc)
-		{
+	if (slotp->pwr.vcc) {
 		reg |= PCIC_OUTENA;
 		putb (sp, PCIC_POWER, reg);
 		DELAY (100*1000);
-		}
+	}
 	return(0);
 }
 
@@ -686,44 +675,65 @@ struct pcic_slot *sp = slotp->cdata;
 static void
 pcic_mapirq (struct slot *slotp, int irq)
 {
-struct pcic_slot *sp = slotp->cdata;
+	struct pcic_slot *sp = slotp->cdata;
 
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
 		putb (sp, PCIC_INT_GEN, (getb (sp, PCIC_INT_GEN) & 0xF0) | irq);
 }
+
 /*
  *	pcic_reset - Reset the card and enable initial power.
- *	Allow
  */
+
 static void
 pcic_reset(struct slot *slotp)
 {
-struct pcic_slot *sp = slotp->cdata;
+	struct pcic_slot *sp = slotp->cdata;
 
-	clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
-	DELAY (200*1000);
-	setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
-	DELAY (200*1000);
-	if (sp->controller == PCIC_PD672X ||
-	    sp->controller == PCIC_PD6710)
-		{
+	switch (slotp->insert_seq) {
+	    case 0: /* Something funny happended on the way to the pub... */
+		return;
+	    case 1: /* Assert reset */
+		printf("R");
+		clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
+		slotp->insert_seq = 2;
+		timeout(pcic_reset, (void*) slotp, hz/4);
+		return;
+	    case 2: /* Deassert it again */
+		printf("r");
+		setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
+		slotp->insert_seq = 3;
+		timeout(pcic_reset, (void*) slotp, hz/4);
+		return;
+	    case 3: /* Wait if card needs more time */
+		if (!getb(sp, PCIC_STATUS) & PCIC_READY) {
+			printf("_");
+			timeout(pcic_reset, (void*) slotp, hz/10);
+			return;
+		}
+	}
+	printf(".\n");
+	slotp->insert_seq = 0;
+	if (sp->controller == PCIC_PD672X || sp->controller == PCIC_PD6710) {
 		putb(sp, PCIC_TIME_SETUP0, 0x1);
 		putb(sp, PCIC_TIME_CMD0, 0x6);
 		putb(sp, PCIC_TIME_RECOV0, 0x0);
 		putb(sp, PCIC_TIME_SETUP1, 1);
 		putb(sp, PCIC_TIME_CMD1, 0x5F);
 		putb(sp, PCIC_TIME_RECOV1, 0);
-		}
+	}
+	selwakeup(&slotp->selp);
 }
+
 /*
  *	pcic_disable - Disable the slot.
  */
 static void
 pcic_disable(struct slot *slotp)
 {
-struct pcic_slot *sp = slotp->cdata;
+	struct pcic_slot *sp = slotp->cdata;
 
 	putb(sp, PCIC_INT_GEN, 0);
 	putb(sp, PCIC_POWER, 0);
@@ -750,21 +760,21 @@ pcictimeout(void *chan)
 static void
 pcicintr(int unit)
 {
-int	slot, s;
-unsigned char chg;
-struct pcic_slot *cp = pcic_slots;
+	int	slot, s;
+	unsigned char chg;
+	struct pcic_slot *sp = pcic_slots;
 
 	s = splhigh();
-	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++)
-		if (cp->sp && (chg = getb(cp, PCIC_STAT_CHG)) != 0)
+	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++)
+		if (sp->slotp && (chg = getb(sp, PCIC_STAT_CHG)) != 0)
 			if (chg & PCIC_CDTCH) {
-				if ((getb(cp, PCIC_STATUS) & PCIC_CD) ==
+				if ((getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
 					kdc_pcic[slot].kdc_state = DC_BUSY;;
-					pccard_event(cp->sp,
+					pccard_event(sp->slotp,
 						card_inserted);
 				} else {
-					pccard_event(cp->sp,
+					pccard_event(sp->slotp,
 						card_removed);
 					kdc_pcic[slot].kdc_state = DC_IDLE;;
 				}
