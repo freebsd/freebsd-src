@@ -40,7 +40,7 @@ struct element_type {
 struct changer_command {
 	const	char *cc_name;	/* command name */
 				/* command handler */
-	int	(*cc_handler) __P((const char *, int, char **));
+	int	(*cc_handler)(const char *, int, char **);
 };
 
 struct special_word {

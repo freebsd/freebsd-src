@@ -56,29 +56,29 @@ static const char rcsid[] =
 
 extern	char *__progname;	/* from crt0.o */
 
-static	void usage __P((void));
-static	void cleanup __P((void));
-static	int parse_element_type __P((char *));
-static	int parse_element_unit __P((char *));
-static	const char * element_type_name __P((int et));
-static	int parse_special __P((char *));
-static	int is_special __P((char *));
-static	const char *bits_to_string __P((ces_status_flags, const char *));
+static	void usage(void);
+static	void cleanup(void);
+static	int parse_element_type(char *);
+static	int parse_element_unit(char *);
+static	const char * element_type_name(int et);
+static	int parse_special(char *);
+static	int is_special(char *);
+static	const char *bits_to_string(ces_status_flags, const char *);
 
-static	void find_element __P((char *, u_int16_t *, u_int16_t *));
+static	void find_element(char *, u_int16_t *, u_int16_t *);
 static	struct changer_element_status *get_element_status
-	    __P((unsigned int, unsigned int));
+	   (unsigned int, unsigned int);
 
-static	int do_move __P((const char *, int, char **));
-static	int do_exchange __P((const char *, int, char **));
-static	int do_position __P((const char *, int, char **));
-static	int do_params __P((const char *, int, char **));
-static	int do_getpicker __P((const char *, int, char **));
-static	int do_setpicker __P((const char *, int, char **));
-static	int do_status __P((const char *, int, char **));
-static	int do_ielem __P((const char *, int, char **));
-static	int do_return __P((const char *, int, char **));
-static	int do_voltag __P((const char *, int, char **));
+static	int do_move(const char *, int, char **);
+static	int do_exchange(const char *, int, char **);
+static	int do_position(const char *, int, char **);
+static	int do_params(const char *, int, char **);
+static	int do_getpicker(const char *, int, char **);
+static	int do_setpicker(const char *, int, char **);
+static	int do_status(const char *, int, char **);
+static	int do_ielem(const char *, int, char **);
+static	int do_return(const char *, int, char **);
+static	int do_voltag(const char *, int, char **);
 
 #ifndef CHET_VT
 #define	CHET_VT		10			/* Completely Arbitrary */
@@ -121,9 +121,7 @@ static	int changer_fd;
 static	const char *changer_name;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, i;
 
@@ -176,10 +174,7 @@ main(argc, argv)
 }
 
 static int
-do_move(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_move(const char *cname, int argc, char **argv)
 {
 	struct changer_move cmd;
 	int val;
@@ -257,10 +252,7 @@ do_move(cname, argc, argv)
 }
 
 static int
-do_exchange(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_exchange(const char *cname, int argc, char **argv)
 {
 	struct changer_exchange cmd;
 	int val;
@@ -369,10 +361,7 @@ do_exchange(cname, argc, argv)
 }
 
 static int
-do_position(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_position(const char *cname, int argc, char **argv)
 {
 	struct changer_position cmd;
 	int val;
@@ -433,10 +422,7 @@ do_position(cname, argc, argv)
 
 /* ARGSUSED */
 static int
-do_params(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_params(const char *cname, int argc, char **argv)
 {
 	struct changer_params data;
 	int picker;
@@ -479,10 +465,7 @@ do_params(cname, argc, argv)
 
 /* ARGSUSED */
 static int
-do_getpicker(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_getpicker(const char *cname, int argc, char **argv)
 {
 	int picker;
 
@@ -509,10 +492,7 @@ do_getpicker(cname, argc, argv)
 }
 
 static int
-do_setpicker(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_setpicker(const char *cname, int argc, char **argv)
 {
 	int picker;
 
@@ -540,10 +520,7 @@ do_setpicker(cname, argc, argv)
 }
 
 static int
-do_status(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_status(const char *cname, int argc, char **argv)
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
@@ -762,10 +739,7 @@ do_status(cname, argc, argv)
 }
 
 static int
-do_ielem(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_ielem(const char *cname, int argc, char **argv)
 {
 	int timeout = 0;
 
@@ -788,10 +762,7 @@ do_ielem(cname, argc, argv)
 }
 
 static int
-do_voltag(cname, argc, argv)
-	const char *cname;
-	int argc;
-	char **argv;
+do_voltag(const char *cname, int argc, char **argv)
 {
 	int force = 0;
 	int clear = 0;
@@ -876,8 +847,7 @@ do_voltag(cname, argc, argv)
 }
 
 static int
-parse_element_type(cp)
-	char *cp;
+parse_element_type(char *cp)
 {
 	int i;
 
@@ -890,8 +860,7 @@ parse_element_type(cp)
 }
 
 static const char *
-element_type_name(et)
-	int et;
+element_type_name(int et)
 {
 	int i;
 
@@ -903,8 +872,7 @@ element_type_name(et)
 }
 
 static int
-parse_element_unit(cp)
-	char *cp;
+parse_element_unit(char *cp)
 {
 	int i;
 	char *p;
@@ -917,8 +885,7 @@ parse_element_unit(cp)
 }
 
 static int
-parse_special(cp)
-	char *cp;
+parse_special(char *cp)
 {
 	int val;
 
@@ -931,8 +898,7 @@ parse_special(cp)
 }
 
 static int
-is_special(cp)
-	char *cp;
+is_special(char *cp)
 {
 	int i;
 
@@ -944,9 +910,7 @@ is_special(cp)
 }
 
 static const char *
-bits_to_string(v, cp)
-	ces_status_flags v;
-	const char *cp;
+bits_to_string(ces_status_flags v, const char *cp)
 {
 	const char *np;
 	char f, sep, *bp;
@@ -977,10 +941,7 @@ bits_to_string(v, cp)
  * element back to its source slot.
  */
 static int
-do_return(cname, argc, argv)
-	const char *cname;
-	int  argc;
-	char **argv;
+do_return(const char *cname, int argc, char **argv)
 {
 	struct changer_element_status *ces;
 	struct changer_move cmd;
@@ -1043,9 +1004,7 @@ usage:
  * should free() it when done.
  */
 static struct changer_element_status *
-get_element_status(type, element)
-	unsigned int	type;
-	unsigned int	element;
+get_element_status(unsigned int type, unsigned int element)
 {
 	struct changer_element_status_request cesr;
 	struct changer_element_status *ces;
@@ -1082,10 +1041,7 @@ get_element_status(type, element)
  * and iterate until we find a match, or crap out.
  */
 static void
-find_element(voltag, et, eu)
-	char *voltag;
-	u_int16_t *et;
-	u_int16_t *eu;
+find_element(char *voltag, u_int16_t *et, u_int16_t *eu)
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
@@ -1205,16 +1161,16 @@ find_element(voltag, et, eu)
 }
 
 static void
-cleanup()
+cleanup(void)
 {
 	/* Simple enough... */
 	(void)close(changer_fd);
 }
 
 static void
-usage()
+usage(void)
 {
-	(void) fprintf(stderr, "usage: %s [-f changer] command [-<flags>] "
+	(void)fprintf(stderr, "usage: %s [-f changer] command [-<flags>] "
 		"arg1 arg2 [arg3 [...]]\n", __progname);
 	exit(1);
 }
