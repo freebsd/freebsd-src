@@ -61,23 +61,23 @@ utility is a filter which displays the specified files, or standard
 input if no files are specified, in a user specified format.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl I , L , l"
 .It Fl A Ar base
 Specify the input address base.
 .Ar base
 may be one of
-.Ql d ,
-.Ql o ,
-.Ql x
+.Cm d ,
+.Cm o ,
+.Cm x
 or
-.Ql n ,
+.Cm n ,
 which specify decimal, octal, hexadecimal
 addresses or no address, respectively.
 .It Fl a
 Output named characters.
 Equivalent to
 .Fl t Ar a .
-.It Fl B , Fl o
+.It Fl B , o
 Output octal shorts.
 Equivalent to
 .Fl t Ar o2 .
@@ -93,7 +93,7 @@ Equivalent to
 Output unsigned decimal ints.
 Equivalent to
 .Fl t Ar u4 .
-.It Fl e , Fl F
+.It Fl e , F
 Output double-precision floating point numbers.
 Equivalent to
 .Fl t Ar fD .
@@ -101,15 +101,15 @@ Equivalent to
 Output single-precision floating point numbers.
 Equivalent to
 .Fl t Ar fF .
-.It Fl H , Fl X
+.It Fl H , X
 Output hexadecimal ints.
 Equivalent to
 .Fl t Ar x4 .
-.It Fl h , Fl x
+.It Fl h , x
 Output hexadecimal shorts.
 Equivalent to
 .Fl t Ar x2 .
-.It Fl I , Fl L , Fl l
+.It Fl I , L , l
 Output signed decimal longs.
 Equivalent to
 .Fl t Ar dL .
@@ -120,12 +120,12 @@ Equivalent to
 .It Fl j Ar skip
 Skip
 .Ar skip
-bytes of the combined input before dumping. The number may be followed by one
+bytes of the combined input before dumping.
+The number may be followed by one
 of
-.Ql b ,
-.Ql k
+.Cm b , k
 or
-.Ql m
+.Cm m
 which specify the units of the number as blocks (512 bytes), kilobytes and
 megabytes, respectively.
 .It Fl N Ar length
@@ -147,59 +147,78 @@ is a string containing one or more of the following kinds of type specifiers:
 .Bl -tag -width indent
 .It Cm a
 Named characters
-.Pq Sq ASCII .
+.Pq Tn ASCII .
 Control characters are displayed using the following names:
-.Bl -column \&000_nu \&001_so \&002_st \&003_et \&004_eo
-.It "\&000\ nul\t001\ soh\t002\ stx\t003\ etx\t004\ eot\t005\ enq
-.It "\&006\ ack\t007\ bel\t008\ bs\t009\ ht\t00A\ nl\t00B\ vt
-.It "\&00C\ ff\t00D\ cr\t00E\ so\t00F\ si\t010\ dle\t011\ dc1
-.It "\&012\ dc2\t013\ dc3\t014\ dc4\t015\ nak\t016\ syn\t017\ etb
-.It "\&018\ can\t019\ em\t01A\ sub\t01B\ esc\t01C\ fs\t01D\ gs
-.It "\&01E\ rs\t01F\ us\t020\ sp\t0FF\ del
+.Bl -column "000 nul" "001 soh" "002 stx" "003 etx" "004 eot" "005 enq"
+.It "000 nul	001 soh	002 stx	003 etx	004 eot	005 enq"
+.It "006 ack	007 bel	008 bs	009 ht	00A nl	00B vt"
+.It "00C ff	00D cr	00E so	00F si	010 dle	011 dc1"
+.It "012 dc2	013 dc3	014 dc4	015 nak	016 syn	017 etb"
+.It "018 can	019 em	01A sub	01B esc	01C fs	01D gs"
+.It "01E rs	01F us	020 sp	0FF del"
 .El
 .It Cm c
-Characters in the default character set. Non-printing characters are
+Characters in the default character set.
+Non-printing characters are
 represented as 3-digit octal character codes, except the following
 characters, which are represented as C escapes:
-.Bl -column carriage-return \er
-.It NUL Ta \e0
-.It alert Ta \ea
-.It backspace Ta \eb
-.It newline Ta \en
-.It carriage-return Ta \er
-.It tab Ta \et
-.It vertical tab Ta \ev
+.Pp
+.Bl -tag -width carriage-return -compact
+.It NUL
+\e0
+.It alert
+\ea
+.It backspace
+\eb
+.It newline
+\en
+.It carriage-return
+\er
+.It tab
+\et
+.It vertical tab
+\ev
 .El
-.It Cm [d|o|u|x][C|S|I|L| Ns Ar n Ns ]
+.It Xo
+.Sm off
+.Op Cm d | o | u | x
+.Op Cm C | S | I | L | Ar n
+.Sm on
+.Xc
 Signed decimal
-.Pq Ql d ,
+.Pq Cm d ,
 octal
-.Pq Ql o ,
+.Pq Cm o ,
 unsigned decimal
-.Pq Ql u
+.Pq Cm u
 or
 hexadecimal
-.Pq Ql x .
+.Pq Cm x .
 Followed by an optional size specifier, which may be either
-.Ql C
-.Pq "char" ,
-.Ql S
-.Pq "short" ,
-.Ql I
-.Pq "int" ,
-.Ql L
-.Pq "long" ,
+.Cm C
+.Pq Vt char ,
+.Cm S
+.Pq Vt short ,
+.Cm I
+.Pq Vt int ,
+.Cm L
+.Pq Vt long ,
 or a byte count as a decimal integer.
-.It Cm f[F|D|L| Ns Ar n Ns ]
+.It Xo
+.Sm off
+.Cm f
+.Op Cm F | D | L | Ar n
+.Sm on
+.Xc
 Floating-point number.
 Followed by an optional size specifier, which may be either
-.Ql F
-.Pq "float" ,
-.Ql D
-.Pq "double"
+.Cm F
+.Pq Vt float ,
+.Cm D
+.Pq Vt double
 or
-.Ql L
-.Pq "long double" .
+.Cm L
+.Pq Vt "long double" .
 .El
 .It Fl v
 Write all input data, instead of replacing lines of duplicate values with a
