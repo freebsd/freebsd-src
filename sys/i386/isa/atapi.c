@@ -105,7 +105,7 @@
 #ifndef ATAPI_MODULE
 # include "wcd.h"
 # include "wfd.h"
-/* # include "wmt.h" -- add your driver here */
+# include "wst.h"
 /* # include "wmd.h" -- add your driver here */
 #endif
 
@@ -169,9 +169,12 @@ static int atapi_io (struct atapi *ata, struct atapicmd *ac);
 static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
+static void atapi_poll_dsc(struct atapi *ata);
+
 extern int wdstart (int ctrlr);
-extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
+extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
+extern int wstattach(struct atapi*, int, struct atapi_params*, int);
 
 /*
  * Probe the ATAPI device at IDE controller `ctlr', drive `unit'.
@@ -295,11 +298,16 @@ int atapi_attach (int ctlr, int unit, int port)
 		break;
 #endif
 
-	case AT_TYPE_TAPE:              /* streaming tape (QIC-121 model) */
-#if NWMT > 0
-		/* Add your driver here */
+	case AT_TYPE_TAPE:              /* streaming tape */
+#if NWST > 0
+		/* ATAPI Streaming Tape */
+		if (wstattach (ata, unit, ap, ata->debug) < 0)
+			break;
+		/* Device attached successfully. */
+		ata->attached[unit] = 1;
+		return (1);
 #else
-		printf ("wdc%d: ATAPI streaming tapes not supported yet\n", ctlr);
+		printf ("wdc%d: ATAPI streaming tapes not configured\n", ctlr);
 #endif
 		break;
 

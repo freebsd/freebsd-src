@@ -73,8 +73,14 @@
 #define AER_SK_ILLEGAL_REQUEST  0x50    /* invalid command parameter(s) */
 #define AER_SK_UNIT_ATTENTION   0x60    /* media changed */
 #define AER_SK_DATA_PROTECT     0x70    /* reading read-protected sector */
+#define AER_SK_BLANK_CHECK  	0x80    /* blank check */
+#define AER_SK_VENDOR_SPECIFIC 	0x90    /* vendor specific skey */
+#define AER_SK_COPY_ABORTED  	0xa0    /* copy aborted */
 #define AER_SK_ABORTED_COMMAND  0xb0    /* command aborted, try again */
-#define AER_SK_MISCOMPARE       0xe0    /* data did not match the medium */
+#define AER_SK_EQUAL		0xc0	/* equal */
+#define AER_SK_VOLUME_OVERFLOW	0xd0	/* volume overflow */
+#define AER_SK_MISCOMPARE	0xe0    /* data did not match the medium */
+#define AER_SK_RESERVED		0xf0
 #define AER_BITS        "\20\4mchg\3abort\2eom\1ili"
 
 /*
@@ -131,6 +137,8 @@
  */
 #define ATAPI_PLAY_TRACK        0x48    /* play by track number */
 #define ATAPI_PLAY_BIG          0xa5    /* play by logical block address */
+
+#define DSC_POLL_INTERVAL	10
 
 /*
  * Drive parameter information
@@ -237,6 +245,9 @@ struct atapi {                          /* ATAPI controller data */
 	u_char           cmd16 : 1;     /* 16-byte command flag */
 	u_char           intrcmd : 1;   /* interrupt before cmd flag */
 	u_char           slow : 1;      /* slow reaction device */
+	u_char           use_dsc : 1;	/* use DSC completition handeling */
+	u_char		 wait_for_dsc : 1;
+	u_int		 dsc_timeout;
 	u_char           attached[2];   /* units are attached to subdrivers */
 	struct atapi_params *params[2]; /* params for units 0,1 */
 	struct atapicmd *queue;         /* queue of commands to perform */
