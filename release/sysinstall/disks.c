@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.7 1995/05/07 22:07:51 jkh Exp $
+ * $Id: disks.c,v 1.9 1995/05/08 00:38:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -548,6 +548,25 @@ partition_disks(struct disk **disks)
 		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs = !((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs;
 	    else
 		msg = MSG_NOT_APPLICABLE;
+	    break;
+
+	case 'W':
+	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nThis is an entirely documented feature which you are not\nexpected to understand!")) {
+		int i;
+
+		clear();
+		dialog_clear();
+		end_dialog();
+		DialogActive = FALSE;
+		for (i = 0; disks[i]; i++)
+		    slice_wizard(disks[i]);
+		clear();
+		dialog_clear();
+		DialogActive = TRUE;
+		record_fbsd_chunks(disks);
+	    }
+	    else
+		msg = "A most prudent choice!";
 	    break;
 
 	case 27:	/* ESC */
