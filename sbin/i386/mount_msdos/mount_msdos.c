@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.12 1998/02/22 15:28:06 ache Exp $";
+	"$Id: mount_msdos.c,v 1.13 1998/02/23 09:41:02 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,8 +66,8 @@ static gid_t	a_gid __P((char *));
 static uid_t	a_uid __P((char *));
 static mode_t	a_mask __P((char *));
 static void	usage __P((void)) __dead2;
-static void     load_u2wtable __P((u_int16_t *, char *));
-static void     load_ultable __P((u_int8_t *, char *));
+static void     load_u2wtable __P((struct msdosfs_args *, char *));
+static void     load_ultable __P((struct msdosfs_args *, char *));
 
 int
 main(argc, argv)
@@ -113,11 +113,11 @@ main(argc, argv)
 			set_mask = 1;
 			break;
 		case 'L':
-			load_ultable(args.ul, optarg);
+			load_ultable(&args, optarg);
 			args.flags |= MSDOSFSMNT_ULTABLE;
 			break;
 		case 'W':
-			load_u2wtable(args.u2w, optarg);
+			load_u2wtable(&args, optarg);
 			args.flags |= MSDOSFSMNT_U2WTABLE;
 			break;
 		case 'o':
@@ -245,8 +245,8 @@ usage()
 }
 
 void
-load_u2wtable (table, name)
-	u_int16_t *table;
+load_u2wtable (pargs, name)
+	struct msdosfs_args *pargs;
 	char *name;
 {
 	FILE *f;
@@ -265,21 +265,33 @@ load_u2wtable (table, name)
 		err(EX_NOINPUT, "%s", fn);
 	for (i = 0; i < 128; i++) {
 		if (fscanf(f, "%i", &code) != 1)
-			errx(EX_DATAERR, "missing item number %d", i);
-		table[i] = code;
+			errx(EX_DATAERR, "u2w: missing item number %d", i);
+		pargs->u2w[i] = code;
+	}
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "d2u: missing item number %d", i);
+		pargs->d2u[i] = code;
+	}
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "u2d: missing item number %d", i);
+		pargs->u2d[i] = code;
 	}
 	fclose(f);
 }
 
 void
-load_ultable (table, name)
-	u_int8_t *table;
+load_ultable (pargs, name)
+	struct msdosfs_args *pargs;
 	char *name;
 {
 	int i;
 
 	if (setlocale(LC_CTYPE, name) == NULL)
 		err(EX_CONFIG, name);
-	for (i = 0; i < 128; i++)
-		table[i] = tolower(i | 0x80);
+	for (i = 0; i < 128; i++) {
+		pargs->ul[i] = tolower(i | 0x80);
+		pargs->lu[i] = toupper(i | 0x80);
+	}
 }
