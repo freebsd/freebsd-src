@@ -719,13 +719,6 @@ SCLASS int    _clock_res_usec		/* Clock resolution in usec.	*/
 ;
 #endif
 
-/* Garbage collector condition variable. */
-SCLASS	pthread_cond_t  _gc_cond
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL
-#endif
-;
-
 /*
  * Array of signal actions for this process.
  */
@@ -791,7 +784,6 @@ void	_thread_sig_wrapper(int sig, siginfo_t *info, void *context);
 void	_thread_printf(int fd, const char *, ...);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
-pthread_addr_t _thread_gc(pthread_addr_t);
 void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
@@ -802,6 +794,7 @@ void	_thread_sigblock();
 void	_thread_sigunblock();
 void	adjust_prio_inheritance(struct pthread *);
 void	adjust_prio_protection(struct pthread *);
+void	deadlist_free_onethread(struct pthread *);
 void	init_td_common(struct pthread *, struct pthread_attr *, int);
 void	init_tdlist(struct pthread *, int);
 void	proc_sigact_copyin(int, const struct sigaction *);

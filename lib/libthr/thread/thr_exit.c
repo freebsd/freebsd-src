@@ -45,6 +45,8 @@ __weak_reference(_pthread_exit, pthread_exit);
 /* thr_exit() */
 extern int _thr_exit(void);
 
+static void	deadlist_free_threads();
+
 void
 _thread_exit(char *fname, int lineno, char *string)
 {
@@ -171,9 +173,11 @@ retry:
 	}
 
 	/*
+	 * Free any memory allocated for dead threads.
 	 * Add this thread to the list of dead threads, and
 	 * also remove it from the active threads list.
 	 */
+	deadlist_free_threads();
 	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 	TAILQ_REMOVE(&_thread_list, curthread, tle);
 	PTHREAD_SET_STATE(curthread, PS_DEAD);
@@ -184,19 +188,10 @@ retry:
 		exitNow = 1;
 
 	THREAD_LIST_UNLOCK;
-
-	/*
-	 * Signal the garbage collector thread that there is something
-	 * to clean up. But don't allow it to free the memory until after
-	 * it is retired by holding on to the dead list lock.
-	 */
-	if (pthread_cond_signal(&_gc_cond) != 0)
-		PANIC("Cannot signal gc cond");
+	DEAD_LIST_UNLOCK;
 
 	if (exitNow)
 		exit(0);
-
-	DEAD_LIST_UNLOCK;
 
 	/*
 	 * This function will not return unless we are the last
@@ -207,4 +202,37 @@ retry:
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");
+}
+
+/*
+ * Note: this function must be called with the dead thread list
+ *	 locked.
+ */
+static void
+deadlist_free_threads()
+{
+	struct pthread *ptd, *ptdTemp;
+
+	TAILQ_FOREACH_SAFE(ptd, &_dead_list, dle, ptdTemp) {
+		/* Don't destroy the initial thread or non-detached threads. */
+		if (ptd == _thread_initial ||
+		    (ptd->attr.flags & PTHREAD_DETACHED) == 0)
+			continue;
+		TAILQ_REMOVE(&_dead_list, ptd, dle);
+		deadlist_free_onethread(ptd);
+	}
+}
+
+void
+deadlist_free_onethread(struct pthread *ptd)
+{
+
+	if (ptd->attr.stackaddr_attr == NULL && ptd->stack != NULL) {
+		STACK_LOCK;
+		_thread_stack_free(ptd->stack, ptd->attr.stacksize_attr,
+		    ptd->attr.guardsize_attr);
+		STACK_UNLOCK;
+	}
+	_retire_thread(ptd->arch_id);
+	free(ptd);
 }

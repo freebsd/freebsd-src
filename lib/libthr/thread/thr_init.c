@@ -224,7 +224,6 @@ init_tdlist(struct pthread *td, int reinit)
 			}
 		}
 		_pthread_mutex_destroy(&dead_list_lock);
-		_pthread_cond_destroy(&_gc_cond);
 	} else {
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INIT(&_dead_list);
@@ -235,11 +234,10 @@ init_tdlist(struct pthread *td, int reinit)
 
 	/*
 	 * Initialize the active thread list lock and the
-	 * dead threads list lock & associated condition variable.
+	 * dead threads list lock.
 	 */
 	memset(&thread_list_lock, 0, sizeof(spinlock_t));
-	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0 ||
-	    _pthread_cond_init(&_gc_cond,NULL) != 0)
+	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0)
 		PANIC("Failed to initialize garbage collector primitives");
 }
 
