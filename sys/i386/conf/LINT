@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.587 1999/04/23 06:30:10 peter Exp $
+#	$Id: LINT,v 1.588 1999/04/24 16:07:51 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -14,7 +14,7 @@
 # configured for; in this case, the 386 family based IBM-PC and
 # compatibles.
 #
-machine		"i386"
+machine		i386
 
 # 
 # This is the ``identification'' of the kernel.  Usually this should
@@ -37,7 +37,7 @@ maxusers	10
 # but that isn't normally necessary as the debug symbols are not loaded
 # by the kernel and are not useful there anyway.
 #
-#makeoptions    DEBUG="-g"              #Build kernel with gdb(1) debug symbols
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 #
 # Certain applications can grow to be larger than the 128M limit
@@ -49,8 +49,8 @@ maxusers	10
 # max, and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
-options		"MAXDSIZ=(256*1024*1024)"
-options		"DFLDSIZ=(256*1024*1024)"
+options		MAXDSIZ="(256*1024*1024)"
+options		DFLDSIZ="(256*1024*1024)"
 
 # When this is set, be extra conservative in various parts of the kernel
 # and choose functionality over speed (on the widest variety of systems).
@@ -91,7 +91,7 @@ config		kernel	root on wd0 dumps on wd0
 #
 #  An SMP kernel will ONLY run on an Intel MP spec. qualified motherboard.
 #
-#  Be sure to disable 'cpu "I386_CPU"' && 'cpu "I486_CPU"' for SMP kernels.
+#  Be sure to disable 'cpu I386_CPU' && 'cpu I486_CPU' for SMP kernels.
 #
 #  Check the 'Rogue SMP hardware' section to see if additional options
 #   are required by your hardware.
@@ -127,10 +127,10 @@ options		NINTR=25		# number of INTs
 # parts of the system run faster.  This is especially true removing
 # I386_CPU.
 #
-cpu		"I386_CPU"
-cpu		"I486_CPU"
-cpu		"I586_CPU"		# aka Pentium(tm)
-cpu		"I686_CPU"		# aka Pentium Pro(tm)
+cpu		I386_CPU
+cpu		I486_CPU
+cpu		I586_CPU		# aka Pentium(tm)
+cpu		I686_CPU		# aka Pentium Pro(tm)
 
 #
 # Options for CPU features.
@@ -204,21 +204,21 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # NOTE 3: This option may cause failures for software that requires
 # locked cycles in order to operate correctly.
 #
-options		"CPU_BLUELIGHTNING_FPU_OP_CACHE"
-options		"CPU_BLUELIGHTNING_3X"
-options		"CPU_BTB_EN"
-options		"CPU_DIRECT_MAPPED_CACHE"
-options		"CPU_DISABLE_5X86_LSSER"
-options		"CPU_FASTER_5X86_FPU"
-options		"CPU_I486_ON_386"
-options		"CPU_IORT"
-options		"CPU_LOOP_EN"
-options		"CPU_RSTK_EN"
-options		"CPU_SUSP_HLT"
-options		"CPU_WT_ALLOC"
-options		"CYRIX_CACHE_WORKS"
-options		"CYRIX_CACHE_REALLY_WORKS"
-#options	"NO_F00F_HACK"
+options		CPU_BLUELIGHTNING_FPU_OP_CACHE
+options		CPU_BLUELIGHTNING_3X
+options		CPU_BTB_EN
+options		CPU_DIRECT_MAPPED_CACHE
+options		CPU_DISABLE_5X86_LSSER
+options		CPU_FASTER_5X86_FPU
+options		CPU_I486_ON_386
+options		CPU_IORT
+options		CPU_LOOP_EN
+options		CPU_RSTK_EN
+options		CPU_SUSP_HLT
+options		CPU_WT_ALLOC
+options		CYRIX_CACHE_WORKS
+options		CYRIX_CACHE_REALLY_WORKS
+#options	NO_F00F_HACK
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
@@ -240,7 +240,7 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # FreeBSD.  You probably do NOT want to remove this as much current code
 # still relies on the 4.3 emulation.
 #
-options		"COMPAT_43"
+options		COMPAT_43
 
 #
 # Allow user-mode programs to manipulate their local descriptor tables.
@@ -262,14 +262,14 @@ options		SYSVMSG
 # This option includes a MD5 routine in the kernel, this is used for
 # various authentication and privacy uses.
 #
-options		"MD5"
+options		MD5
 
 #
 # Allow processes to switch to vm86 mode, as well as enabling direct
 # user-mode access to the I/O port space.  This option is necessary for 
 # the doscmd emulator to run and the VESA modes in syscons to be available.
 #
-options		"VM86"
+options		VM86
 
 
 #####################################################################
@@ -467,13 +467,13 @@ options PPP_FILTER			#enable bpf filtering (needs bpfilter)
 #
 # TCPDEBUG is undocumented.
 #
-options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
+options		TCP_COMPAT_42		#emulate 4.2BSD TCP bugs
 options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options         IPFIREWALL_FORWARD      #enable transparent proxy support
-options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
+options		IPFIREWALL_VERBOSE_LIMIT=100 #limit verbosity
 options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
 options		IPFILTER		#kernel ipfilter support
@@ -486,7 +486,7 @@ options		TCPDEBUG
 # typically want this option as it will help protect the machine from
 # D.O.S. packet attacks.
 #
-options         "ICMP_BANDLIM"
+options         ICMP_BANDLIM
 
 # DUMMYNET enables the "dummynet" bandwidth limiter. You need
 # IPFIREWALL as well. See the dummynet(4) manpage for more info.
@@ -549,7 +549,7 @@ options		NFS			#Network File System
 
 # The rest are optional:
 # options	NFS_NOSERVER		#Disable the NFS-server code.
-options		"CD9660"		#ISO 9660 filesystem
+options		CD9660			#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
 options		MSDOSFS			#MS DOS File System
@@ -560,7 +560,7 @@ options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
-options		"CD9660_ROOT"		#CD-ROM usable as root device
+options		CD9660_ROOT		#CD-ROM usable as root device
 options		FFS_ROOT		#FFS usable as root device
 options		MFS_ROOT		#MFS usable as root device
 options		NFS_ROOT		#NFS usable as root device
@@ -601,7 +601,7 @@ options		QUOTA			#enable disk quotas
 # root f/s, we gotta wait a little.
 #
 # The number is supposed to be in seconds.
-options		"CD9660_ROOTDELAY=20"
+options		CD9660_ROOTDELAY=20
 
 # If you are running a machine just as a fileserver for PC and MAC
 # users, using SAMBA or Netatalk, you may consider setting this option
@@ -625,14 +625,14 @@ options		SUIDDIR
 
 
 # NFS options:
-options		"NFS_MINATTRTIMO=3"	# VREG attrib cache timeout in sec
-options		"NFS_MAXATTRTIMO=60"
-options		"NFS_MINDIRATTRTIMO=30"	# VDIR attrib cache timeout in sec
-options		"NFS_MAXDIRATTRTIMO=60"
-options		"NFS_GATHERDELAY=10"	# Default write gather delay (msec)
-options		"NFS_UIDHASHSIZ=29"	# Tune the size of nfssvc_sock with this
-options		"NFS_WDELAYHASHSIZ=16"	# and with this
-options		"NFS_MUIDHASHSIZ=63"	# Tune the size of nfsmount with this
+options		NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
+options		NFS_MAXATTRTIMO=60
+options		NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
+options		NFS_MAXDIRATTRTIMO=60
+options		NFS_GATHERDELAY=10	# Default write gather delay (msec)
+options		NFS_UIDHASHSIZ=29	# Tune the size of nfssvc_sock with this
+options		NFS_WDELAYHASHSIZ=16	# and with this
+options		NFS_MUIDHASHSIZ=63	# Tune the size of nfsmount with this
 options		NFS_DEBUG		# Enable NFS Debugging
 
 # Coda stuff:
@@ -645,7 +645,7 @@ pseudo-device	vcoda	4		#coda minicache <-> venus comm.
 # changes and not be exercised very much, so mounting read/write could
 # be dangerous (and even mounting read only could result in panics.)
 #
-options		"EXT2FS"
+options		EXT2FS
 
 
 
@@ -657,9 +657,9 @@ options		"EXT2FS"
 # _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
 # _KPOSIX_VERSION:             Version kernel is built for
 
-options		"P1003_1B"
-options		"_KPOSIX_PRIORITY_SCHEDULING"
-options		"_KPOSIX_VERSION=199309L"
+options		P1003_1B
+options		_KPOSIX_PRIORITY_SCHEDULING
+options		_KPOSIX_VERSION=199309L
 
 
 #####################################################################
@@ -742,11 +742,11 @@ device sctarg0 at scbus? # SCSI target
 #             queue after a bus reset, and the number of milliseconds to
 #             freeze the device queue after a bus device reset.
 options		CAMDEBUG
-options		"CAM_DEBUG_BUS=-1"
-options		"CAM_DEBUG_TARGET=-1"
-options		"CAM_DEBUG_LUN=-1"
-options		"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
-options		"CAM_MAX_HIGHPOWER=4"
+options		CAM_DEBUG_BUS=-1
+options		CAM_DEBUG_TARGET=-1
+options		CAM_DEBUG_LUN=-1
+options		CAM_DEBUG_FLAGS="CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
+options		CAM_MAX_HIGHPOWER=4
 options		SCSI_NO_SENSE_STRINGS
 options		SCSI_NO_OP_STRINGS
 options		SCSI_REPORT_GEOMETRY
@@ -763,16 +763,16 @@ options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 # kern.cam.cd.changer.min_busy_seconds
 # kern.cam.cd.changer.max_busy_seconds
 #
-options		"CHANGER_MIN_BUSY_SECONDS=2"
-options		"CHANGER_MAX_BUSY_SECONDS=10"
+options		CHANGER_MIN_BUSY_SECONDS=2
+options		CHANGER_MAX_BUSY_SECONDS=10
 
 # Options for the CAM sequential access driver:
 # SA_SPACE_TIMEOUT: Timeout for space operations, in minutes
 # SA_REWIND_TIMEOUT: Timeout for rewind operations, in minutes
 # SA_ERASE_TIMEOUT: Timeout for erase operations, in minutes
-options		"SA_SPACE_TIMEOUT=(60)"
-options		"SA_REWIND_TIMEOUT=(2*60)"
-options		"SA_ERASE_TIMEOUT=(4*60)"
+options		SA_SPACE_TIMEOUT="(60)"
+options		SA_REWIND_TIMEOUT="(2*60)"
+options		SA_ERASE_TIMEOUT="(4*60)"
 
 
 #####################################################################
@@ -808,7 +808,7 @@ options 	VINUMDEBUG	#enable Vinum debugging hooks
 #pseudo-device	tb
 
 # Size of the kernel message buffer.  Should be N * pagesize.
-options		"MSGBUF_SIZE=40960"
+options		MSGBUF_SIZE=40960
 
 
 #####################################################################
@@ -854,10 +854,10 @@ controller	isa0
 #
 # PAS_JOYSTICK_ENABLE enables the gameport on the ProAudio Spectrum
 
-options		"AUTO_EOI_1"
-#options	"AUTO_EOI_2"
-options		"MAXMEM=(128*1024)"
-options 	"TUNE_1542"
+options		AUTO_EOI_1
+#options	AUTO_EOI_2
+options		MAXMEM="(128*1024)"
+options 	TUNE_1542
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
 
@@ -874,7 +874,7 @@ options		PPS_SYNC
 # is no upper limit but more than a couple of hundred are not productive.
 # A better strategy may be to sysctl -w kern.timecounter.method=1
 
-options		"NTIMECOUNTER=20"
+options		NTIMECOUNTER=20
 
 # Enable PnP support in the kernel.  This allows you to automaticly
 # attach to PnP cards for drivers that support it and allows you to
@@ -938,7 +938,7 @@ options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 # Other PCVT options are documented in pcvt(4).
-options		"PCVT_24LINESDEF"
+options		PCVT_24LINESDEF
 options		PCVT_CTRL_ALT_DEL
 options		PCVT_EMU_MOUSE
 options		PCVT_FREEBSD=211
@@ -947,13 +947,13 @@ options		PCVT_NSCREENS=9
 options		PCVT_PRETTYSCRNS
 options		PCVT_SCREENSAVER
 options		PCVT_USEKBDSEC
-options		"PCVT_VT220KEYB"
+options		PCVT_VT220KEYB
 
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa?
 options		MAXCONS=16		# number of virtual consoles
-options		"STD8X16FONT"		# Compile font in
-makeoptions	"STD8X16FONT"="cp850"
+options		STD8X16FONT		# Compile font in
+makeoptions	STD8X16FONT=cp850
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
 
@@ -980,7 +980,7 @@ device		npx0	at nexus? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 #	0x04	don't use the npx registers to optimize copyin or copyout.
 # The npx registers are normally used to optimize copying and zeroing when
 # all of the following conditions are satisfied:
-#	"I586_CPU" is an option
+#	I586_CPU is an option
 #	the cpu is an i586 (perhaps not a Pentium)
 #	the probe for npx0 succeeds
 #	INT 16 exception handling works.
@@ -1017,7 +1017,7 @@ device		npx0	at nexus? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" irq ?
+controller	bt0	at isa? port IO_BT0 irq ?
 controller	adv0	at isa? port ? irq ?
 controller	adw0
 controller      aha0    at isa? port ? irq ?
@@ -1036,8 +1036,8 @@ controller      aha0    at isa? port ? irq ?
 #device		atapist0	# ATAPI tape drives
 #
 # If you need ISA only devices, this is the lines to add:
-#controller	ata1	at isa? port "IO_WD1" irq 14
-#controller	ata2	at isa? port "IO_WD2" irq 15
+#controller	ata1	at isa? port IO_WD1 irq 14
+#controller	ata2	at isa? port IO_WD2 irq 15
 # 
 # All the controller lines can coexist, the driver will
 # find out which ones are there.
@@ -1064,7 +1064,7 @@ controller      aha0    at isa? port ? irq ?
 # specification with the low 16 bits for drive 0, and the high 16 bits
 # for drive 1.
 # e.g.:
-#controller	wdc0	at isa? port "IO_WD1" irq 14 flags 0x00ff8004
+#controller	wdc0	at isa? port IO_WD1 irq 14 flags 0x00ff8004
 #
 # specifies that drive 0 will be allowed to probe for 32 bit transfers and
 # a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
@@ -1075,11 +1075,11 @@ controller      aha0    at isa? port ? irq ?
 # mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
 # such as:
 #
-#controller	wdc2	at isa? port "0" irq ? flags 0xa0ffa0ff
+#controller	wdc2	at isa? port 0 irq ? flags 0xa0ffa0ff
 #disk		wd4	at wdc2 drive 0
 #disk		wd5	at wdc2 drive 1
 #
-#controller	wdc3	at isa? port "0" irq ? flags 0xa0ffa0ff
+#controller	wdc3	at isa? port 0 irq ? flags 0xa0ffa0ff
 #disk		wd6	at wdc3 drive 0
 #disk		wd7	at wdc3 drive 1
 #
@@ -1088,10 +1088,10 @@ controller      aha0    at isa? port ? irq ?
 # entries.  These are automatically filled in by the IDE/PCI support.
 #
 
-controller	wdc0	at isa? port "IO_WD1" irq 14
+controller	wdc0	at isa? port IO_WD1 irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
-controller	wdc1	at isa? port "IO_WD2" irq 15
+controller	wdc1	at isa? port IO_WD2 irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
@@ -1116,7 +1116,7 @@ device          wst0
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
 #
-controller	fdc0	at isa? port "IO_FD1" irq 6 drq 2
+controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
@@ -1128,13 +1128,11 @@ options		FDC_DEBUG
 #        config 0x4 "fdc0" 10
 # to your pccard.conf file.
 options		FDC_YE		#XXX newbus broken
-# This option is undocumented on purpose.
-options		FDC_PRINT_BOGUS_CHIPTYPE
 #
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
 # for people with floppy disks only, so it's "hidden" behind a flag:
-#controller fdc0 at isa? port "IO_FD1" flags 1 irq 6 drq 2
+#controller fdc0 at isa? port IO_FD1 flags 1 irq 6 drq 2
 
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
@@ -1147,7 +1145,7 @@ disk		fd1	at fdc0 drive 1
 
 device		mse0	at isa? port 0x23c irq 5
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 irq 4
+device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
 
 #
 # `flags' for serial drivers that support consoles (only for sio now):
@@ -1176,7 +1174,7 @@ options		CONSPEED=9600		#default speed for serial console (default 9600)
 # Options for sio:
 options		COM_ESP			#code for Hayes ESP
 options		COM_MULTIPORT		#code for some cards with shared IRQs
-options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
+options		EXTRA_SIO=2		#number of extra sio ports to allocate
 
 # Other flags for sio that aren't documented in the man page.
 #	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
@@ -1344,7 +1342,7 @@ device uart0 at isa? port 0x330 irq 5
 #device pcm0 at isa? port ? irq 10 drq 1 flags 0x0
 
 # Not controlled by `snd'
-device pca0 at isa? port "IO_TIMER1"
+device pca0 at isa? port IO_TIMER1
 
 #
 # Miscellaneous hardware:
@@ -1460,12 +1458,12 @@ device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
 device		apm0	at nexus? 
 device		gp0	at isa? port 0x2c0
-device		gsc0	at isa? port "IO_GSC1" drq 3
+device		gsc0	at isa? port IO_GSC1 drq 3
 device		joy0	at isa? port IO_GAME
 device		cy0	at isa? irq 10 iomem 0xd4000 iosiz 0x2000
 options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		dgb0	at isa? port 0x220 iomem 0xfc000 iosiz ?
-options		"NDGBPORTS=16"		# Defaults to 16*NDGB
+options		NDGBPORTS=16		# Defaults to 16*NDGB
 device		dgm0	at isa? port 0x104 iomem 0xd0000 iosiz ?
 device		labpc0	at isa? port 0x260 irq 5
 device          rc0     at isa? port 0x220 irq 12
@@ -1473,7 +1471,7 @@ device          rp0     at isa? port 0x280
 # the port and irq for tw0 are fictitious
 device          tw0     at isa? port 0x380 irq 11
 device		si0	at isa? iomem 0xd0000 irq 12
-device		asc0	at isa? port "IO_ASC1" drq 3 irq 10
+device		asc0	at isa? port IO_ASC1 drq 3 irq 10
 device		stl0	at isa? port 0x2a0 irq 10
 device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
@@ -1511,7 +1509,7 @@ options AHC_ALLOW_MEMIO
 # for most machines, but in particular the HP NetServer LC series comes
 # with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
 # thus you need to bump this figure to 12 for them.
-options	"EISA_SLOTS=12"
+options	EISA_SLOTS=12
 
 #
 # PCI devices & PCI options:
@@ -1623,7 +1621,7 @@ options	"EISA_SLOTS=12"
 #
 # Using sysctl(8) run-time overrides on a per-card basis can be made
 #
-# The "oltr" driver supports the following Olicom PCI token-ring adapters
+# The oltr driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
 controller	pci0
@@ -1659,12 +1657,12 @@ controller	isp0
 #	ISP_DISABLE_2100_SUPPORT	Disable support for 2100 cards
 #	(these really just to save code space)
 #	(use of all three will cause the driver to not compile)
-options	SCSI_ISP_NO_FWLOAD_MASK="0x12"	# disable FW load for isp1 and isp4
-options SCSI_ISP_NO_NVRAM_MASK="0x1"	# disable NVRAM for isp0
-options SCSI_ISP_PREFER_MEM_MAP="0"	# prefer I/O mapping
-#options	"ISP_DISABLE_1020_SUPPORT"
-#options	"ISP_DISABLE_1080_SUPPORT"
-#options	"ISP_DISABLE_2100_SUPPORT"
+options	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1 and isp4
+options SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
+options SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
+#options	ISP_DISABLE_1020_SUPPORT
+#options	ISP_DISABLE_1080_SUPPORT
+#options	ISP_DISABLE_2100_SUPPORT
 
 device		ax0
 device		de0
@@ -1774,68 +1772,68 @@ controller pcf0	at isa? port 0x320 irq 5
 # --------------
 #
 # Teles S0/8 or Niccy 1008
-options "TEL_S0_8"
+options TEL_S0_8
 #device	isic0 at isa? iomem 0xd0000 irq 5 flags 1
 #
 # Teles S0/16 or Creatix ISDN-S0 or Niccy 1016
-options "TEL_S0_16"
+options TEL_S0_16
 #device	isic0 at isa? port 0xd80 iomem 0xd0000 irq 5 flags 2
 #
 # Teles S0/16.3 
-options "TEL_S0_16_3"
+options TEL_S0_16_3
 #device	isic0 at isa? port 0xd80 irq 5 flags 3
 #
 # AVM A1 or AVM Fritz!Card
-options "AVM_A1"
+options AVM_A1
 #device	isic0 at isa? port 0x340 irq 5 flags 4
 #
 # USRobotics Sportster ISDN TA intern
-options "USR_STI"
+options USR_STI
 #device isic0 at isa? port 0x268 irq 5 flags 7
 #
 # ITK ix1 Micro
-options "ITKIX1"
+options ITKIX1
 #device isic0 at isa? port 0x398 irq 10 flags 18
 #
 # PnP-Cards:
 # ----------
 #
 # Teles S0/16.3 PnP
-options "TEL_S0_16_3_P"
+options TEL_S0_16_3_P
 #device	isic0 at isa? port ? irq ?
 #
 # Creatix ISDN-S0 P&P
-options "CRTX_S0_P"
+options CRTX_S0_P
 #device	isic0 at isa? port ? irq ?
 #
 # Dr. Neuhaus Niccy Go@
-options "DRN_NGO"
+options DRN_NGO
 #device	isic0 at isa? port ? irq ?
 #
 # Sedlbauer Win Speed
-options "SEDLBAUER"
+options SEDLBAUER
 #device	isic0 at isa? port ? irq ?
 #
 # Dynalink IS64PH
-options "DYNALINK"
+options DYNALINK
 #device	isic0 at isa? port ? irq ?
 #
 # ELSA QuickStep 1000pro ISA
-options "ELSA_QS1ISA"
+options ELSA_QS1ISA
 #device	isic0 at isa? port ? irq ?
 #
 # PCI-Cards:
 # ----------
 #
 # ELSA QuickStep 1000pro PCI
-options "ELSA_QS1PCI"
+options ELSA_QS1PCI
 #device  isic0
 #
 # PCMCIA-Cards:
 # -------------
 #
 # AVM PCMCIA Fritz!Card
-options "AVM_A1_PCMCIA"
+options AVM_A1_PCMCIA
 device	isic0 at isa? port 0x340 irq 5 flags 10
 #
 # Active Cards:
@@ -1900,14 +1898,14 @@ pseudo-device	"i4bisppp"	4
 # ppc	ISA-bus parallel port interfaces.  
 #
 
-options		"DEBUG_1284"	# IEEE1284 signaling protocol debug
-options		"PERIPH_1284"	# Makes your computer act as a IEEE1284
+options		DEBUG_1284	# IEEE1284 signaling protocol debug
+options		PERIPH_1284	# Makes your computer act as a IEEE1284
 				# compliant peripheral
-options		"DONTPROBE_1284"# Avoid boot detection of PnP parallel devices
-options		"VP0_DEBUG"	# ZIP/ZIP+ debug
-options		"LPT_DEBUG"	# Printer driver debug
-options		"PPC_DEBUG"	# Parallel chipset level debug
-options		"PLIP_DEBUG"	# Parallel network IP interface debug
+options		DONTPROBE_1284	# Avoid boot detection of PnP parallel devices
+options		VP0_DEBUG	# ZIP/ZIP+ debug
+options		LPT_DEBUG	# Printer driver debug
+options		PPC_DEBUG	# Parallel chipset level debug
+options		PLIP_DEBUG	# Parallel network IP interface debug
 
 controller	ppbus0
 controller	vpo0	at ppbus?
@@ -1923,9 +1921,9 @@ device		ppc0	at isa? port? irq 7
 
 options		BOOTP		# Use BOOTP to obtain IP address/hostname
 options		BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
-options		"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
+options		BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
-options		"BOOTP_WIRED_TO=fxp0" # Use interface fxp0 for BOOTP
+options		BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 
 #
 # Add tie-ins for a hardware watchdog.  This only enable the hooks;
@@ -1944,7 +1942,7 @@ options		HW_WDOG
 #
 # The value below is the one more than the default.
 #
-options         "PMAP_SHPGPERPROC=201"
+options         PMAP_SHPGPERPROC=201
 
 #
 # Disable swapping. This option removes all code which actually performs
@@ -1961,7 +1959,7 @@ options         "PMAP_SHPGPERPROC=201"
 # default to a quantity that is roughly 16*MAXUSERS+512. You would
 # typically want about 4 of these for each simultaneous file send.
 #
-options		"NSFBUFS=1024"
+options		NSFBUFS=1024
 
 #
 # Enable extra debugging code for locks.  This stores the filename and
@@ -1976,17 +1974,17 @@ options		DEBUG_LOCKS
 # More undocumented options for linting.
 
 options		CLK_CALIBRATION_LOOP
-options		"CLK_USE_I8254_CALIBRATION"
+options		CLK_USE_I8254_CALIBRATION
 options		CLK_USE_TSC_CALIBRATION
-options		"TIMER_FREQ=((14318182+6)/12)"
+options		TIMER_FREQ="((14318182+6)/12)"
 options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
 options		DEBUG_VFS_LOCKS
 #options	DISABLE_PSE
-options		"I586_PMC_GUPROF=0x70000"
-options		"IBCS2"
+options		I586_PMC_GUPROF=0x70000
+options		IBCS2
 options		KEY
 options		KEY_DEBUG
 options		LOCKF_DEBUG
@@ -2020,7 +2018,7 @@ options		SEMOPM=101
 options		SEMUME=11
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options		SHMALL=1025
-options		"SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)"
+options		SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
 options		SHMMAXPGS=1025
 options		SHMMIN=2
 options		SHMMNI=33
