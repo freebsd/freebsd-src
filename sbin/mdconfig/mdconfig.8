@@ -57,6 +57,7 @@
 .Oc
 .Op Fl s Ar size
 .Op Fl f Ar file
+.Op Fl S Ar sectorsize
 .Op Fl u Ar unit
 .Nm
 .Fl d
@@ -111,6 +112,8 @@ or
 .Cm g
 which
 denotes kilobyte, megabyte and gigabyte respectively.
+.It Fl S Ar sectorsize
+Sectorsize to use for malloc backed device.
 .It Fl o Oo Cm no Oc Ns Ar option
 Set or reset options.
 .Bl -tag -width indent
