@@ -755,7 +755,10 @@ finish()
 		tcsetattr (0, TCSANOW, &ts);
 	}
 
-	exit(0);
+	if (nreceived) 
+		exit(0);
+	else
+		exit(2);
 }
 
 #ifdef notdef
