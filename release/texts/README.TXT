@@ -23,6 +23,10 @@ ROAD MAP:
 
   Most files here are also in the Documentation menu of the boot floppy:
 
+  ERRATA.TXT    Please read this file!  It will tell you where to look
+                for the latest information on problems which have been
+                found and fixed in this release.
+
   README.TXT    This file
 
   ABOUT.TXT     All about FreeBSD, including contact information
@@ -35,11 +39,6 @@ ROAD MAP:
                 it is especially important that you
                 *read this section!*
 
-  ERRATA.TXT    Any late-breaking errata information for this
-                release.  On FTP sites, this file may be frequently
-                updated so it's a good idea to check it first
-                (the master copy is always on ftp.freebsd.org)
-                before reporting problems
 
   HARDWARE.TXT  Information about the configuration of the
                 GENERIC kernel and supported hardware
