@@ -104,6 +104,7 @@ static int sysvshm_modload __P((struct module *, int, void *));
 static int shmunload __P((void));
 static void shmexit_myhook __P((struct proc *p));
 static void shmfork_myhook __P((struct proc *p1, struct proc *p2));
+static int sysctl_shmsegs __P((SYSCTL_HANDLER_ARGS));
 
 /*
  * Tuneable values.
@@ -145,6 +146,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RD, &shminfo.shmseg, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
     &shm_use_phys, 0, "");
+SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLFLAG_RD,
+    NULL, 0, sysctl_shmsegs, "", "");
 
 static int
 shm_find_segment_by_key(key)
@@ -740,6 +743,13 @@ shmunload()
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
 	return (0);
+}
+
+static int
+sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
+{
+
+	return (SYSCTL_OUT(req, shmsegs, shmalloced * sizeof(shmsegs[0])));
 }
 
 static int
