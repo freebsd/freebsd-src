@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -46,7 +46,7 @@
 # if NAMED_BIND
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.32 2003/03/22 22:57:26 ca Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 8.33 2004/08/04 21:17:57 ca Exp $")
 
 static struct stot
 {
@@ -69,6 +69,8 @@ static struct stot
 	{	"SRV",		T_SRV		},
 	{	NULL,		0		}
 };
+
+static DNS_REPLY_T *parse_dns_reply __P((unsigned char *, int));
 
 /*
 **  DNS_STRING_TO_TYPE -- convert resource record name into type

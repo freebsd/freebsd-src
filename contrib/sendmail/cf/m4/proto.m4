@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.710 2004/07/27 17:32:48 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.711 2004/08/04 21:29:55 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -511,7 +511,7 @@ _OPTION(ClassFactor, `confWORK_CLASS_FACTOR', `1800')
 _OPTION(RetryFactor, `confWORK_TIME_FACTOR', `90000')
 
 # default character set
-_OPTION(DefaultCharSet, `confDEF_CHAR_SET', `iso-8859-1')
+_OPTION(DefaultCharSet, `confDEF_CHAR_SET', `unknown-8bit')
 
 # service switch file (name hardwired on Solaris, Ultrix, OSF/1, others)
 _OPTION(ServiceSwitchFile, `confSERVICE_SWITCH_FILE', `MAIL_SETTINGS_DIR`'service.switch')

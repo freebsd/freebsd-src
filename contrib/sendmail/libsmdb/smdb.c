@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb.c,v 8.57 2002/05/24 23:09:11 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb.c,v 8.58 2004/08/03 20:58:38 ca Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -17,6 +17,8 @@ SM_RCSID("@(#)$Id: smdb.c,v 8.57 2002/05/24 23:09:11 gshapiro Exp $")
 
 #include <sendmail/sendmail.h>
 #include <libsmdb/smdb.h>
+
+static bool	smdb_lockfile __P((int, int));
 
 /*
 ** SMDB_MALLOC_DATABASE -- Allocates a database structure.

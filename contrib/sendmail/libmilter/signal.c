@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2003 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: signal.c,v 8.41 2003/11/19 00:25:20 ca Exp $")
+SM_RCSID("@(#)$Id: signal.c,v 8.42 2004/08/20 21:10:30 ca Exp $")
 
 #include "libmilter.h"
 
@@ -20,6 +20,9 @@ SM_RCSID("@(#)$Id: signal.c,v 8.41 2003/11/19 00:25:20 ca Exp $")
 static smutex_t M_Mutex;
 
 static int MilterStop = MILTER_CONT;
+
+static void	*mi_signal_thread __P((void *));
+static int	 mi_spawn_signal_thread __P((char *));
 
 /*
 **  MI_STOP -- return value of MilterStop

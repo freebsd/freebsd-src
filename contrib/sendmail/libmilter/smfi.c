@@ -9,11 +9,12 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.72 2004/05/05 00:07:21 msk Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.73 2004/09/20 21:26:57 ca Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
 static int smfi_header __P((SMFICTX *, int, int, char *, char *));
+static int myisenhsc __P((const char *, int));
 
 /* for smfi_set{ml}reply, let's be generous. 256/16 should be sufficient */
 #define MAXREPLYLEN	980	/* max. length of a reply string */

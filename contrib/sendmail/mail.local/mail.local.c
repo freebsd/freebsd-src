@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -13,12 +13,12 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.251 2003/11/03 18:38:29 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.253 2004/11/01 20:42:42 ca Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -144,6 +144,7 @@ int	ExitVal = EX_OK;		/* sysexits.h error value. */
 bool	HoldErrs = false;		/* Hold errors in ErrBuf */
 bool	LMTPMode = false;
 bool	BounceQuota = false;		/* permanent error when over quota */
+bool	CloseMBDB = false;
 char	*HomeMailFile = NULL;		/* store mail in homedir */
 
 #if HASHSPOOL
@@ -155,6 +156,9 @@ bool	StripRcptDomain = true;
 #endif /* HASHSPOOL */
 char	SpoolPath[MAXPATHLEN];
 
+char	*parseaddr __P((char *, bool));
+char	*process_recipient __P((char *));
+void	dolmtp __P((void));
 void	deliver __P((int, char *));
 int	e_to_sys __P((int));
 void	notifybiff __P((char *));
@@ -168,6 +172,18 @@ void	flush_error __P((void));
 const char	*hashname __P((char *));
 #endif /* HASHSPOOL */
 
+
+static void
+sm_exit(status)
+	int status;
+{
+	if (CloseMBDB)
+	{
+		sm_mbdb_terminate();
+		CloseMBDB = false;	/* not really necessary, but ... */
+	}
+	exit(status);
+}
 
 int
 main(argc, argv)
@@ -198,11 +214,13 @@ main(argc, argv)
 # endif /* LOG_MAIL */
 
 	from = NULL;
+
+	/* XXX can this be converted to a compile time check? */
 	if (sm_strlcpy(SpoolPath, _PATH_MAILDIR, sizeof(SpoolPath)) >=
 	    sizeof(SpoolPath))
 	{
 		mailerr("421", "Configuration error: _PATH_MAILDIR too large");
-		exit(EX_CONFIG);
+		sm_exit(EX_CONFIG);
 	}
 #if HASHSPOOL
 	while ((ch = getopt(argc, argv, "7bdD:f:h:r:lH:p:n")) != -1)
@@ -328,22 +346,21 @@ main(argc, argv)
 
 		mailerr(errcode, "Can not open mailbox database %s: %s",
 			mbdbname, sm_strexit(err));
-		exit(err);
+		sm_exit(err);
 	}
+	CloseMBDB = true;
 
 	if (LMTPMode)
 	{
-		extern void dolmtp __P((void));
-
 		if (argc > 0)
 		{
 			mailerr("421", "Users should not be specified in command line if LMTP required");
-			exit(EX_TEMPFAIL);
+			sm_exit(EX_TEMPFAIL);
 		}
 
 		dolmtp();
 		/* NOTREACHED */
-		exit(EX_OK);
+		sm_exit(EX_OK);
 	}
 
 	/* Non-LMTP from here on out */
@@ -378,11 +395,11 @@ main(argc, argv)
 	if (fd < 0)
 	{
 		flush_error();
-		exit(ExitVal);
+		sm_exit(ExitVal);
 	}
 	for (; *argv != NULL; ++argv)
 		deliver(fd, *argv);
-	exit(ExitVal);
+	sm_exit(ExitVal);
 	/* NOTREACHED */
 	return ExitVal;
 }
@@ -472,7 +489,7 @@ parseaddr(s, rcpt)
 	if (p == NULL)
 	{
 		mailerr("421 4.3.0", "Memory exhausted");
-		exit(EX_TEMPFAIL);
+		sm_exit(EX_TEMPFAIL);
 	}
 
 	(void) sm_strlcpy(p, s, l);
@@ -528,7 +545,7 @@ dolmtp()
 	{
 		(void) fflush(stdout);
 		if (fgets(buf, sizeof(buf) - 1, stdin) == NULL)
-			exit(EX_OK);
+			sm_exit(EX_OK);
 		p = buf + strlen(buf) - 1;
 		if (p >= buf && *p == '\n')
 			*p-- = '\0';
@@ -642,7 +659,7 @@ dolmtp()
 			if (sm_strcasecmp(buf, "quit") == 0)
 			{
 				printf("221 2.0.0 Bye\r\n");
-				exit(EX_OK);
+				sm_exit(EX_OK);
 			}
 			goto syntaxerr;
 			/* NOTREACHED */
@@ -669,7 +686,7 @@ dolmtp()
 					{
 						mailerr("421 4.3.0",
 							"Memory exhausted");
-						exit(EX_TEMPFAIL);
+						sm_exit(EX_TEMPFAIL);
 					}
 				}
 				if (sm_strncasecmp(buf + 5, "to:", 3) != 0 ||
@@ -888,7 +905,7 @@ store(from, inbody)
 	if (LMTPMode)
 	{
 		/* Got a premature EOF -- toss message and exit */
-		exit(EX_OK);
+		sm_exit(EX_OK);
 	}
 
 	/* If message not newline terminated, need an extra. */
@@ -1548,7 +1565,7 @@ usage()
 {
 	ExitVal = EX_USAGE;
 	mailerr(NULL, "usage: mail.local [-7] [-b] [-d] [-l] [-f from|-r from] [-h filename] user ...");
-	exit(ExitVal);
+	sm_exit(ExitVal);
 }
 
 void

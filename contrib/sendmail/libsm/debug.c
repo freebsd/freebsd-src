@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000, 2001, 2003, 2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: debug.c,v 1.29 2003/01/10 00:26:06 ca Exp $")
+SM_RCSID("@(#)$Id: debug.c,v 1.30 2004/08/03 20:10:26 ca Exp $")
 
 /*
 **  libsm debugging and tracing
@@ -25,6 +25,9 @@ SM_RCSID("@(#)$Id: debug.c,v 1.29 2003/01/10 00:26:06 ca Exp $")
 #include <sm/string.h>
 #include <sm/varargs.h>
 #include <sm/heap.h>
+
+static void		 sm_debug_reset __P((void));
+static const char	*parse_named_setting_x __P((const char *));
 
 /*
 **  Abstractions for printing trace messages.
@@ -187,7 +190,7 @@ const char SmDebugMagic[] = "sm_debug";
 **		none.
 */
 
-void
+static void
 sm_debug_reset()
 {
 	SM_DEBUG_T *debug;
@@ -254,7 +257,7 @@ sm_debug_addsetting_x(pattern, level)
 
 static const char *
 parse_named_setting_x(s)
-	register const char *s;
+	const char *s;
 {
 	const char *pat, *endpat;
 	int level;
@@ -315,7 +318,7 @@ parse_named_setting_x(s)
 
 void
 sm_debug_addsettings_x(s)
-	register const char *s;
+	const char *s;
 {
 	for (;;)
 	{

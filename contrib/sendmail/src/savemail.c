@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.303 2004/01/14 02:56:51 ca Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.304 2004/10/06 21:36:06 ca Exp $")
 
 static void	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -1182,6 +1182,9 @@ errbody(mci, e, separator)
 			/* X-Actual-Recipient: -- the real problem address */
 			if (actual[0] != '\0' &&
 			    q->q_finalrcpt != NULL &&
+#if _FFR_PRIV_NOACTUALRECIPIENT
+			    !bitset(PRIV_NOACTUALRECIPIENT, PrivacyFlags) &&
+#endif /* _FFR_PRIV_NOACTUALRECIPIENT */
 			    strcmp(actual, q->q_finalrcpt) != 0)
 			{
 				(void) sm_snprintf(buf, sizeof buf,

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.938 2004/06/03 19:02:10 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.939 2004/08/03 19:57:23 ca Exp $")
 
 #include <dirent.h>
 
@@ -2399,7 +2399,8 @@ doqueuerun()
 */
 
 void
-runqueueevent()
+runqueueevent(ignore)
+	int ignore;
 {
 	int save_errno = errno;
 
