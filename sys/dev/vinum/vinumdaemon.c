@@ -37,7 +37,6 @@
  * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
  */
 
-#define REALLYKERNEL
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
