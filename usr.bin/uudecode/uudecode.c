@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 const char *filename;
 char *outfile;
+FILE *infp, *outfp;
 int cflag, iflag, oflag, pflag, sflag;
 
 static void usage(void);
@@ -117,15 +118,18 @@ main(int argc, char *argv[])
 	if (*argv) {
 		rval = 0;
 		do {
-			if (freopen(filename = *argv, "r", stdin) == NULL) {
+			infp = fopen(filename = *argv, "r");
+			if (infp == NULL) {
 				warn("%s", *argv);
 				rval = 1;
 				continue;
 			}
 			rval |= decode();
+			fclose(infp);
 		} while (*++argv);
 	} else {
 		filename = "stdin";
+		infp = stdin;
 		rval = decode();
 	}
 	exit(rval);
@@ -164,7 +168,7 @@ decode2(void)
 	base64 = 0;
 	/* search for header line */
 	for (;;) {
-		if (fgets(buf, sizeof(buf), stdin) == NULL)
+		if (fgets(buf, sizeof(buf), infp) == NULL)
 			return (EOF);
 		p = buf;
 		if (strncmp(p, "begin-base64 ", 13) == 0) {
@@ -232,9 +236,9 @@ decode2(void)
 			warnx("not overwritten: %s", buffn);
 			return (0);
 		}
-		if (freopen(buffn, "w", stdout) == NULL ||
+		if ((outfp = fopen(buffn, "w")) == NULL ||
 		    stat(buffn, &st) < 0 || (S_ISREG(st.st_mode) &&
-		    fchmod(fileno(stdout), getmode(mode, 0) & 0666) < 0)) {
+		    fchmod(fileno(outfp), getmode(mode, 0) & 0666) < 0)) {
 			warn("%s: %s", filename, buffn);
 			return (1);
 		}
@@ -246,7 +250,7 @@ decode2(void)
 
 	/* for each input line */
 	for (;;) {
-		if (fgets(p = buf, sizeof(buf), stdin) == NULL) {
+		if (fgets(p = buf, sizeof(buf), infp) == NULL) {
 			warnx("%s: short file", filename);
 			return (1);
 		}
@@ -273,18 +277,18 @@ decode2(void)
                                 	OUT_OF_RANGE;
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-				putchar(ch);
+				putc(ch, outfp);
 				ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-				putchar(ch);
+				putc(ch, outfp);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
-				putchar(ch);
+				putc(ch, outfp);
 			}
 			else {
 				if (i >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
 	                                	OUT_OF_RANGE;
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-					putchar(ch);
+					putc(ch, outfp);
 				}
 				if (i >= 2) {
 					if (!(IS_DEC(*(p + 1)) &&
@@ -292,21 +296,25 @@ decode2(void)
 		                                OUT_OF_RANGE;
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-					putchar(ch);
+					putc(ch, outfp);
 				}
 				if (i >= 3) {
 					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
 		                                OUT_OF_RANGE;
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
-					putchar(ch);
+					putc(ch, outfp);
 				}
 			}
 	}
-	if (fgets(buf, sizeof(buf), stdin) == NULL ||
+	if (fgets(buf, sizeof(buf), infp) == NULL ||
 	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
 	     strcmp(buf, "end\r\n"))) {
 		warnx("%s: no \"end\" line", filename);
+		return (1);
+	}
+	if (fclose(outfp) != 0) {
+		warnx("%s: %s", filename, buffn);
 		return (1);
 	}
 	return (0);
@@ -320,7 +328,7 @@ base64_decode(const char *outname)
 	unsigned char out[MAXPATHLEN * 4];
 
 	for (;;) {
-		if (fgets(buf, sizeof(buf), stdin) == NULL) {
+		if (fgets(buf, sizeof(buf), infp) == NULL) {
 			warnx("%s: short file", filename);
 			return (1);
 		}
@@ -336,7 +344,7 @@ base64_decode(const char *outname)
 			warnx("%s: %s: error decoding base64 input stream", filename, outname);
 			return (1);
 		}
-		fwrite(out, 1, n, stdout);
+		fwrite(out, 1, n, outfp);
 	}
 }
 
