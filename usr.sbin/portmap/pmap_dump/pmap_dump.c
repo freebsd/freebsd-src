@@ -6,7 +6,11 @@
   */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#) pmap_dump.c 1.1 92/06/11 22:53:15";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 #include <stdio.h>
@@ -23,6 +27,7 @@ static char sccsid[] = "@(#) pmap_dump.c 1.1 92/06/11 22:53:15";
 
 static char *protoname();
 
+int
 main(argc, argv)
 int     argc;
 char  **argv;
