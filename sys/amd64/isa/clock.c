@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.55 1996/04/05 03:36:31 ache Exp $
+ *	$Id: clock.c,v 1.56 1996/04/05 18:56:10 ache Exp $
  */
 
 /*
@@ -103,6 +103,7 @@ long long	i586_ctr_bias;
 long long	i586_last_tick;
 unsigned long	i586_avg_tick;
 #endif
+int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 int 	timer0_max_count;
 u_int 	timer0_overflow_threshold;
@@ -123,6 +124,7 @@ static 	u_int	hardclock_max_count;
 static 	void	(*new_function) __P((struct clockframe *frame));
 static 	u_int	new_rate;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 static 	char	timer0_state = 0;
 static	char	timer2_state = 0;
 static 	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
@@ -559,7 +561,7 @@ resettodr()
 	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
 
 	/* Reenable RTC updates and interrupts. */
-	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
+	writertc(RTC_STATUSB, rtc_statusb);
 }
 
 /*
@@ -570,8 +572,20 @@ cpu_initclocks()
 {
 	int diag;
 
-	stathz = RTC_NOPROFRATE;
-	profhz = RTC_PROFRATE;
+	if (statclock_disable) {
+		/*
+		 * The stat interrupt mask is different without the
+		 * statistics clock.  Also, don't set the interrupt
+		 * flag which would normally cause the RTC to generate
+		 * interrupts.
+		 */
+		stat_imask = HWI_MASK | SWI_MASK;
+		rtc_statusb = RTCSB_24HR;
+	} else {
+	        /* Setting stathz to nonzero early helps avoid races. */
+		stathz = RTC_NOPROFRATE;
+		profhz = RTC_PROFRATE;
+        }
 
 	/* Finish initializing 8253 timer 0. */
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
@@ -591,6 +605,10 @@ cpu_initclocks()
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
+
+	/* Don't bother enabling the statistics clock. */
+	if (statclock_disable)
+		return;
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
@@ -598,7 +616,7 @@ cpu_initclocks()
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
 	INTREN(IRQ8);
-	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
+	writertc(RTC_STATUSB, rtc_statusb);
 }
 
 void
