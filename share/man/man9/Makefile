@@ -609,10 +609,14 @@ MLINKS+=mdchain.9 md_append_record.9 \
 	mdchain.9 md_get_uio.9 \
 	mdchain.9 md_initm.9 \
 	mdchain.9 md_next_record.9
-MLINKS+=microtime.9 getmicrotime.9 \
+MLINKS+=microtime.9 bintime.9 \
+	microtime.9 getbintime.9 \
+	microtime.9 getmicrotime.9 \
 	microtime.9 getnanotime.9 \
 	microtime.9 nanotime.9
-MLINKS+=microuptime.9 getmicrouptime.9 \
+MLINKS+=microuptime.9 binuptime.9 \
+	microuptime.9 getbinuptime.9 \
+	microuptime.9 getmicrouptime.9 \
 	microuptime.9 getnanouptime.9 \
 	microuptime.9 nanouptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
@@ -854,8 +858,8 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_run.9
 MLINKS+=time.9 boottime.9 \
-	time.9 mono_time.9 \
-	time.9 runtime.9
+	time.9 time_second.9 \
+	time.9 time_uptime.9
 MLINKS+=timeout.9 callout_drain.9 \
 	timeout.9 callout_handle_init.9 \
 	timeout.9 callout_init.9 \
