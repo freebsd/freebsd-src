@@ -143,7 +143,7 @@ struct kinfo_proc {
 	long	ki_kiflag;		/* KI_* flags (below) */
 	int	ki_traceflag;		/* Kernel trace points */
 	char	ki_stat;		/* S* process status */
-	char	ki_nice;		/* Process "nice" value */
+	signed char ki_nice;		/* Process "nice" value */
 	char	ki_lock;		/* Process lock (prevent swap) count */
 	char	ki_rqindex;		/* Run queue index */
 	u_char	ki_oncpu;		/* Which cpu we are on */

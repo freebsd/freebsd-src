@@ -510,7 +510,7 @@ struct ksegrp {
 #define	kg_startcopy	kg_endzero
 	u_char		kg_pri_class;	/* (j) Scheduling class. */
 	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
-	char		kg_nice;	/* (c + j) Process "nice" value. */
+	signed char	kg_nice;	/* (c + j) Process "nice" value. */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* (j) Num threads in total. */
 	int		kg_kses;	/* (j) Num KSEs in group. */
