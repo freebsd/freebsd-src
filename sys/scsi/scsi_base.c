@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.50 1997/09/02 20:06:33 bde Exp $
+ *      $Id: scsi_base.c,v 1.51 1997/09/21 22:03:07 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -331,7 +331,7 @@ scsi_start_unit(sc_link, flags)
 		0,
 		0,
 		2,
-		10000,
+		30000,
 		NULL,
 		flags));
 }
