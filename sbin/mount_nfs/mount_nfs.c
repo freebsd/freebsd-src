@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.14 1996/09/14 02:58:13 bde Exp $";
+	"$Id: mount_nfs.c,v 1.14.2.1 1997/05/14 08:19:20 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -568,6 +568,14 @@ main(argc, argv)
 			    kverf.verf.t2 = kout.t2;
 			    kverf.verf.w2 = kout.w2;
 			    nfssvc_flag = NFSSVC_MNTD | NFSSVC_GOTAUTH;
+			}
+			setreuid(0, 0);
+#endif /* NFSKERB */
+		}
+	}
+	exit(0);
+}
+
 /*
  * Return RPC_SUCCESS if server responds.
  */
@@ -612,14 +620,6 @@ pingnfsserver(addr, version, sotype)
 	clnt_destroy(clp);
 
 	return stat;
-}
-
-			}
-			setreuid(0, 0);
-#endif /* NFSKERB */
-		}
-	}
-	exit(0);
 }
 
 int
