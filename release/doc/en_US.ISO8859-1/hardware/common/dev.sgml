@@ -645,11 +645,9 @@
     <para arch="i386,pc98,amd64">Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
     (&man.kue.4; driver)</para>
 
-    <para arch="i386,pc98,amd64">ASIX Electronics AX88172-based USB Ethernet NICs
-      (&man.axe.4; driver)</para>
+    &hwlist.axe;
 
-    <para arch="i386,pc98,amd64">RealTek RTL8150-based USB Ethernet NICs
-      (&man.rue.4; driver)</para>
+    &hwlist.rue;
 
     &hwlist.udav;
 
