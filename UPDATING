@@ -18,12 +18,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20031031:
-        The API and ABI of struct ifnet have been changed by removing
-        the if_name and if_unit members and replacing them with
-        if_xname, if_dname, and if_dunit.  All network drivers and most
-        userland programs which include net/if_var.h must be updated
-        and recompiled.  __FreeBSD_version has been bumped to 501113 to
-        reflect this change.
+	The API and ABI of struct ifnet have been changed by removing
+	the if_name and if_unit members and replacing them with
+	if_xname, if_dname, and if_dunit.  All network drivers and most
+	userland programs which include net/if_var.h must be updated
+	and recompiled.  __FreeBSD_version has been bumped to 501113 to
+	reflect this change.
 
 20030928:
 	Changes to the cdevsw default functions have been made to remove
