@@ -67,7 +67,7 @@ usage(void)
 	    "usage: %s create [-v] name dev1 dev2 [dev3 [...]]\n"
 	    "       %s destroy [-fv] name\n"
 	    "       %s label [-v] name dev1 dev2 [dev3 [...]]\n"
-	    "       %s clear [-v] dev1 dev2 [dev3 [...]]\n"
+	    "       %s clear [-v] dev1 [dev2 [...]]\n"
 	    "       %s list\n",
 	    comm, comm, comm, comm, comm);
 	exit(EXIT_FAILURE);
