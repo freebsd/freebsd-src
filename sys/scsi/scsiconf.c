@@ -16,8 +16,10 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.54 1996/02/17 23:59:24 se Exp $
+ *      $Id: scsiconf.c,v 1.55 1996/02/19 09:26:07 julian Exp $
  */
+
+#include "opt_scsi.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
