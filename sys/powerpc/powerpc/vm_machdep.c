@@ -237,34 +237,42 @@ cpu_throw(void)
  * to be mapped.  b_bcount might be modified by the driver.
  */
 void
-vmapbuf(bp)
-	register struct buf *bp;
+vmapbuf(struct buf *bp)
 {
-	register caddr_t addr, v, kva;
+	caddr_t addr, kva;
 	vm_offset_t pa;
+	int pidx;
+	struct vm_page *m;
+	pmap_t pmap;
 
 	GIANT_REQUIRED;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
-	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page(bp->b_data);
+        pmap = &curproc->p_vmspace->vm_pmap;
+	for (addr = (caddr_t)trunc_page(bp->b_data), pidx = 0;
 	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE, v += PAGE_SIZE) {
+	    addr += PAGE_SIZE, pidx++) {
 		/*
 		 * Do the vm_fault if needed; do the copy-on-write thing
 		 * when reading stuff off device into memory.
 		 */
 		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
 			(bp->b_iocmd == BIO_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
+		pa = trunc_page(pmap_extract(pmap, (vm_offset_t) addr));
 		if (pa == 0)
 			panic("vmapbuf: page not present");
-		vm_page_hold(PHYS_TO_VM_PAGE(pa));
-		pmap_kenter((vm_offset_t) v, pa);
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_hold(m);
+		bp->b_pages[pidx] = m;
 	}
+	if (pidx > btoc(MAXPHYS))
+		panic("vmapbuf: mapped more than MAXPHYS");
+	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
 
 	kva = bp->b_saveaddr;
+	bp->b_npages = pidx;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
 }
@@ -274,24 +282,21 @@ vmapbuf(bp)
  * We also invalidate the TLB entries and restore the original b_addr.
  */
 void
-vunmapbuf(bp)
-	register struct buf *bp;
+vunmapbuf(struct buf *bp)
 {
-	register caddr_t addr;
-	vm_offset_t pa;
+	int pidx;
+	int npages;
 
 	GIANT_REQUIRED;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
-	for (addr = (caddr_t)trunc_page(bp->b_data);
-	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE) {
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
-		pmap_kremove((vm_offset_t) addr);
-		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-	}
+	npages = bp->b_npages;
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
+	    npages);
+	for (pidx = 0; pidx < npages; pidx++)
+		vm_page_unhold(bp->b_pages[pidx]);
 
 	bp->b_data = bp->b_saveaddr;
 }
@@ -355,37 +360,15 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_save_upcall(struct thread *td, struct kse *newkse)
-{
-
-	return;
-}
-
-void
 cpu_set_upcall(struct thread *td, void *pcb)
 {
 
 	return;
 }
- 
+
 void
-cpu_set_args(struct thread *td, struct kse *ke)
+cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 {
 
 	return;
 }
- 
-void
-cpu_free_kse_mdstorage(struct kse *ke)
-{
-
-	return;
-}
- 
-int
-cpu_export_context(struct thread *td)
-{
-
-	return (0);
-}
-
