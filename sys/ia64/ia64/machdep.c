@@ -1034,36 +1034,41 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	save_callee_saved_fp(&pcb->pcb_preserved_fp);
 }
 
+void
+ia64_flush_dirty(struct thread *td, struct _special *r)
+{
+	uint64_t bspst, kstk, rnat;
+
+	if (r->ndirty == 0)
+		return;
+
+	kstk = td->td_kstack + (r->bspstore & 0x1ffUL);
+	__asm __volatile("mov	ar.rsc=0;;");
+	__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+	/* Make sure we have all the user registers written out. */
+	if (bspst - kstk < r->ndirty) {
+		__asm __volatile("flushrs;;");
+		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+	}
+	__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
+	__asm __volatile("mov	ar.rsc=3");
+	copyout((void*)kstk, (void*)r->bspstore, r->ndirty);
+	kstk += r->ndirty;
+	r->rnat = (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
+	    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
+	r->bspstore += r->ndirty;
+	r->ndirty = 0;
+}
+
 int
 get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 {
 	struct trapframe *tf;
-	uint64_t bspst, kstk, rnat;
 
 	tf = td->td_frame;
 	bzero(mc, sizeof(*mc));
-	if (tf->tf_special.ndirty != 0) {
-		kstk = td->td_kstack + (tf->tf_special.bspstore & 0x1ffUL);
-		__asm __volatile("mov	ar.rsc=0;;");
-		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		/* Make sure we have all the user registers written out. */
-		if (bspst - kstk < tf->tf_special.ndirty) {
-			__asm __volatile("flushrs;;");
-			__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		}
-		__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
-		__asm __volatile("mov	ar.rsc=3");
-		copyout((void*)kstk, (void*)tf->tf_special.bspstore,
-		    tf->tf_special.ndirty);
-		kstk += tf->tf_special.ndirty;
-		mc->mc_special = tf->tf_special;
-		mc->mc_special.rnat =
-		    (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
-		    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
-		mc->mc_special.bspstore += mc->mc_special.ndirty;
-		mc->mc_special.ndirty = 0;
-	} else
-		mc->mc_special = tf->tf_special;
+	mc->mc_special = tf->tf_special;
+	ia64_flush_dirty(td, &mc->mc_special);
 	if (tf->tf_flags & FRAME_SYSCALL) {
 		mc->mc_flags |= _MC_FLAGS_SYSCALL_CONTEXT;
 		mc->mc_scratch = tf->tf_scratch;
