@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 static void	 display(FTSENT *, FTSENT *);
 static u_quad_t	 makenines(u_long);
-static int	 mastercmp(const FTSENT **, const FTSENT **);
+static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void	 traverse(int, char **, int);
 
 static void (*printfcn)(DISPLAY *);
@@ -759,7 +759,7 @@ display(FTSENT *p, FTSENT *list)
  * All other levels use the sort function.  Error entries remain unsorted.
  */
 static int
-mastercmp(const FTSENT **a, const FTSENT **b)
+mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 {
 	int a_info, b_info;
 

@@ -81,7 +81,7 @@ FTS *
 fts_open(argv, options, compar)
 	char * const *argv;
 	int options;
-	int (*compar)(const FTSENT **, const FTSENT **);
+	int (*compar)(const FTSENT * const *, const FTSENT * const *);
 {
 	FTS *sp;
 	FTSENT *p, *root;
@@ -96,7 +96,7 @@ fts_open(argv, options, compar)
 	}
 
 	/* Allocate/initialize the stream */
-	if ((sp = malloc((u_int)sizeof(FTS))) == NULL)
+	if ((sp = malloc(sizeof(FTS))) == NULL)
 		return (NULL);
 	memset(sp, 0, sizeof(FTS));
 	sp->fts_compar = compar;
@@ -547,6 +547,34 @@ fts_children(sp, instr)
 	return (sp->fts_child);
 }
 
+#ifndef fts_get_clientptr
+#error "fts_get_clientptr not defined"
+#endif
+
+void *
+(fts_get_clientptr)(FTS *sp)
+{
+
+	return (fts_get_clientptr(sp));
+}
+
+#ifndef fts_get_stream
+#error "fts_get_stream not defined"
+#endif
+
+FTS *
+(fts_get_stream)(FTSENT *p)
+{
+	return (fts_get_stream(p));
+}
+
+void
+fts_set_clientptr(FTS *sp, void *clientptr)
+{
+
+	sp->fts_clientptr = clientptr;
+}
+
 /*
  * This is the tricky part -- do not casually change *anything* in here.  The
  * idea is to build the linked list of entries that are used by fts_children
@@ -907,6 +935,21 @@ err:		memset(sbp, 0, sizeof(struct stat));
 	return (FTS_DEFAULT);
 }
 
+/*
+ * The comparison function takes pointers to pointers to FTSENT structures.
+ * Qsort wants a comparison function that takes pointers to void.
+ * (Both with appropriate levels of const-poisoning, of course!)
+ * Use a trampoline function to deal with the difference.
+ */
+static int
+fts_compar(const void *a, const void *b)
+{
+	FTS *parent;
+
+	parent = (*(const FTSENT * const *)a)->fts_fts;
+	return (*parent->fts_compar)(a, b);
+}
+
 static FTSENT *
 fts_sort(sp, head, nitems)
 	FTS *sp;
@@ -932,7 +975,7 @@ fts_sort(sp, head, nitems)
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
-	qsort((void *)sp->fts_array, nitems, sizeof(FTSENT *), sp->fts_compar);
+	qsort(sp->fts_array, nitems, sizeof(FTSENT *), fts_compar);
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
 		ap[0]->fts_link = ap[1];
 	ap[0]->fts_link = NULL;
@@ -948,26 +991,36 @@ fts_alloc(sp, name, namelen)
 	FTSENT *p;
 	size_t len;
 
+	struct ftsent_withstat {
+		FTSENT	ent;
+		struct	stat statbuf;
+	};
+
 	/*
 	 * The file name is a variable length array and no stat structure is
 	 * necessary if the user has set the nostat bit.  Allocate the FTSENT
 	 * structure, the file name and the stat structure in one chunk, but
-	 * be careful that the stat structure is reasonably aligned.  Since the
-	 * fts_name field is declared to be of size 1, the fts_name pointer is
-	 * namelen + 2 before the first possible address of the stat structure.
+	 * be careful that the stat structure is reasonably aligned.
 	 */
-	len = sizeof(FTSENT) + namelen;
-	if (!ISSET(FTS_NOSTAT))
-		len += sizeof(struct stat) + ALIGNBYTES;
+	if (ISSET(FTS_NOSTAT))
+		len = sizeof(FTSENT) + namelen + 1;
+	else
+		len = sizeof(struct ftsent_withstat) + namelen + 1;
+
 	if ((p = malloc(len)) == NULL)
 		return (NULL);
 
-	/* Copy the name and guarantee NUL termination. */
-	memmove(p->fts_name, name, namelen);
-	p->fts_name[namelen] = '\0';
+	if (ISSET(FTS_NOSTAT)) {
+		p->fts_name = (char *)(p + 1);
+		p->fts_statp = NULL;
+	} else {
+		p->fts_name = (char *)((struct ftsent_withstat *)p + 1);
+		p->fts_statp = &((struct ftsent_withstat *)p)->statbuf;
+	}
 
-	if (!ISSET(FTS_NOSTAT))
-		p->fts_statp = (struct stat *)ALIGN(p->fts_name + namelen + 2);
+	/* Copy the name and guarantee NUL termination. */
+	memcpy(p->fts_name, name, namelen);
+	p->fts_name[namelen] = '\0';
 	p->fts_namelen = namelen;
 	p->fts_path = sp->fts_path;
 	p->fts_errno = 0;
@@ -975,6 +1028,7 @@ fts_alloc(sp, name, namelen)
 	p->fts_instr = FTS_NOINSTR;
 	p->fts_number = 0;
 	p->fts_pointer = NULL;
+	p->fts_fts = sp;
 	return (p);
 }
 

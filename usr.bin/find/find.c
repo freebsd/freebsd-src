@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include "find.h"
 
-static int	find_compare(const FTSENT **s1, const FTSENT **s2);
+static int find_compare(const FTSENT * const *s1, const FTSENT * const *s2);
 
 /*
  * find_compare --
@@ -66,7 +66,7 @@ static int	find_compare(const FTSENT **s1, const FTSENT **s2);
  */
 static int
 find_compare(s1, s2)
-	const FTSENT **s1, **s2;
+	const FTSENT * const *s1, * const *s2;
 {
 
 	return (strcoll((*s1)->fts_name, (*s2)->fts_name));
