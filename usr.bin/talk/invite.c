@@ -122,7 +122,9 @@ re_invite()
 {
 
 	message("Ringing your party again");
-	current_line++;
+	waddch(my_win.x_win, '\n');
+	if (current_line < my_win.x_nlines - 1)
+		current_line++;
 	/* force a re-announce */
 	msg.id_num = htonl(remote_id + 1);
 	announce_invite();
