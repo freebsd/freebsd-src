@@ -283,7 +283,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    usr/bin usr/games usr/include/c++/3.3 usr/include/sys usr/lib \
+    usr/bin usr/games usr/include/c++/3.4 usr/include/sys usr/lib \
     usr/libexec usr/sbin usr/share/dict \
     usr/share/groff_font/devX100 \
     usr/share/groff_font/devX100-12 \
