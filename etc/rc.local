@@ -1,7 +1,7 @@
 #
 # site-specific startup actions, daemons
 #
-#	$FreeBSD$
+#	$Id$
 #
 
 T=/tmp/_motd

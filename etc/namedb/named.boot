@@ -1,4 +1,4 @@
-;	$FreeBSD$
+;	$Id$
 ;	From: @(#)named.boot	5.1 (Berkeley) 6/30/90
 
 ; boot file for secondary name server
