@@ -6,7 +6,7 @@
 .if ${MACHINE_ARCH} == "i386"
 CPUTYPE ?= i386
 .elif ${MACHINE_ARCH} == "alpha"
-CPUTYPE ?= ev4
+CPUTYPE ?= ev5
 .elif ${MACHINE_ARCH} == "ia64"
 CPUTYPE ?= itanium
 .elif ${MACHINE_ARCH} == "sparc64"
