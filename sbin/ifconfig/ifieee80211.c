@@ -103,7 +103,7 @@ set80211ssid(const char *val, int d, int s, const struct afswtch *rafp)
 	u_int8_t	data[33];
 
 	ssid = 0;
-	len = sizeof(val);
+	len = strlen(val);
 	if (len > 2 && isdigit(val[0]) && val[1] == ':') {
 		ssid = atoi(val)-1;
 		val += 2;
