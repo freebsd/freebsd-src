@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.11 1998/12/09 02:18:53 eivind Exp $
+ * $Id: if_fea.c,v 1.12 1999/01/01 12:35:47 bde Exp $
  */
 
 /*
@@ -207,7 +207,7 @@ pdq_eisa_attach(
 
     sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
     if (sc == NULL) {
-	printf("fea%d: malloc failed!\n", ed->unit);
+	printf("fea%ld: malloc failed!\n", ed->unit);
 	return -1;
     }
     pdqs_eisa[ed->unit] = sc;

@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.12 1998/09/15 18:16:38 sos Exp $
+ *	$Id: wst.c,v 1.13 1998/12/07 21:58:24 archie Exp $
  */
 
 #include "wdc.h"
 #include "wst.h"
 #include "opt_atapi.h"
+#include "opt_ddb.h"
 #include "opt_devfs.h"
 
 #if NWST > 0 && NWDC > 0 && defined(ATAPI)
@@ -211,7 +212,8 @@ static int wst_load_unload(struct wst *t, u_char finction);
 static int wst_rewind(struct wst *t);
 static void wst_reset(struct wst *t);
 
-static void 
+#ifdef DDB
+void 
 wst_dump(int lun, char *label, void *data, int len)
 {
     u_char *p = data;
@@ -221,6 +223,7 @@ wst_dump(int lun, char *label, void *data, int len)
         printf("-%x", *p++);
     printf("\n");
 }
+#endif
 
 #ifndef ATAPI_STATIC
 static

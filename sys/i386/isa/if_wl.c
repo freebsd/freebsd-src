@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.18 1998/12/07 21:58:21 archie Exp $ */
+/* $Id: if_wl.c,v 1.19 1998/12/09 03:30:51 eivind Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2549,7 +2549,7 @@ static
 void wl_cache_store (int unit, int base, struct ether_header *eh,
       		     struct mbuf *m)
 {
-	struct ip *ip; 
+	struct ip *ip = NULL;	/* Avoid GCC warning */
 	int i;
 	int signal, silence;
 	int w_insertcache;   /* computed index for cache entry storage */

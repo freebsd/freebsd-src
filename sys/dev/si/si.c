@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.76 1998/08/23 08:26:40 bde Exp $
+ *	$Id: si.c,v 1.77 1998/08/23 10:12:12 bde Exp $
  */
 
 #ifndef lint
@@ -133,7 +133,7 @@ static u_long sipcieisacount = 0;
 
 #if NPCI > 0
 
-static char *sipciprobe __P((pcici_t, pcidi_t));
+static const char *sipciprobe __P((pcici_t, pcidi_t));
 static void sipciattach __P((pcici_t, int));
 
 static struct pci_device sipcidev = {
@@ -316,7 +316,7 @@ static char *si_type[] = {
 
 #if NPCI > 0
 
-static char *
+static const char *
 sipciprobe(configid, deviceid)
 pcici_t configid;
 pcidi_t deviceid;
