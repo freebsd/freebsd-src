@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 KMOD=	fade_saver_mod
 SRCS= 	fade_saver.c

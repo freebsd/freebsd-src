@@ -1,4 +1,4 @@
-#       $FreeBSD$
+#       $Id$
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_disc_mod

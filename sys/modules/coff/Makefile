@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_coff_mod

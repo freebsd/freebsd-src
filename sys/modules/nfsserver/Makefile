@@ -1,4 +1,4 @@
-#       $FreeBSD$
+#       $Id$
 
 .PATH:  ${.CURDIR}/../../sys/nfs
 KMOD=   nfs_mod

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod

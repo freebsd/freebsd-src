@@ -1,4 +1,4 @@
-#       $FreeBSD$ 
+#       $Id$ 
 
 .PATH:  ${.CURDIR}/../../sys/dev/ccd
 KMOD=   ccd_mod

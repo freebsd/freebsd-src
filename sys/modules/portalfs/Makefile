@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/miscfs/portal
 KMOD=	portal_mod
