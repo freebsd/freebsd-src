@@ -125,20 +125,20 @@ acpi_snc_attach(device_t dev)
 		    acpi_snc_oids[i].comment);
 	}
 	
-	return_VALUE(0);
+	return (0);
 }
 
 static int 
 acpi_snc_detach(device_t dev)
 {
-	return_VALUE(0);
+	return (0);
 }
 #if 0
 static int
 acpi_snc_suspend(device_t dev)
 {
 	struct acpi_snc_softc *sc = device_get_softc(dev);
-	return_VALUE(0);
+	return (0);
 }
 
 static int
