@@ -25,6 +25,7 @@ CFLAGS+= -DHAVE_CONFIG_H -I${.CURDIR} -I${TARDIR}/lib -I${TARDIR}/src
 
 # "Rename" tar.1 to gtar.1 so that we can install gtar.1 with
 # tar.1 as an optional link (rather than vice versa)
+CLEANFILES= gtar.1
 gtar.1: tar.1
 	cat ${.CURDIR}/tar.1 > ${.TARGET}
 
