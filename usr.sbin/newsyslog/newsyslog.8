@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.13 1998/05/10 19:04:05 hoek Exp $
+.\"	$Id: newsyslog.8,v 1.14 1998/06/09 18:24:04 ache Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd January 12, 1989
+.Dd January 22, 1999
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -34,25 +34,41 @@ is a program that should be scheduled to run periodically by
 When it is executed it archives log files if necessary.  If a log file
 is determined to require archiving, 
 .Nm
-rearranges the files so that ``logfile'' is empty, ``logfile.0'' has
-the last period's logs in it, ``logfile.1'' has the next to last
+rearranges the files so that
+.Dq Va logfile
+is empty,
+.Dq Va logfile Ns Li \&.0
+has
+the last period's logs in it,
+.Dq Va logfile Ns Li \&.1
+has the next to last
 period's logs in it, and so on, up to a user-specified number of
 archived logs.  Optionally the archived logs can be compressed to save
 space. 
 .Pp
-A log can be archived because of two reasons.  The log file can have
-grown bigger than a preset size in kilobytes, or a preset number of
-hours may have elapsed since the last log archive.  The granularity of
+A log can be archived for three reasons:
+.Bl -enum -offset indent
+.It
+It is larger than the configured size (in kilobytes).
+.It
+A configured number of hours have elapsed since the log was last
+archived.
+.It
+This is the specific configured hour for rotation of the log.
+.El
+The granularity of
 .Nm
 is dependent on how often it is scheduled to run by
 .Xr cron 8 .
 Since the program is quite fast, it may be scheduled to run every hour
-without any ill effects.
+without any ill effects,
+and mode three (above) assumes that this is so.
 .Pp
 When starting up, 
 .Nm
-reads in a configuration file to determine which logs should be looked
-at.  By default, this configuration file is 
+reads in a configuration file to determine which logs may potentially
+be archived.
+By default, this configuration file is 
 .Pa /etc/newsyslog.conf .
 Each line of the file contains information about a particular log file
 that should be handled by
@@ -85,18 +101,98 @@ besides the log file itself.
 When the size of the log file reaches
 .Ar size ,
 the log file will be trimmed as described above.  If this field
-is replaced by a
-.Ar * ,
+is replaced by an asterisk
+.Pq Ql \&* ,
 then the size of the log file is not taken into account
 when determining when to trim the log file.
-.It Ar interval
-When 
-.Ar interval
-hours have passed, the log file will be trimmed.  If this field is
-replaced by a
-.Ar * ,
-then the number of hours since the last time the log was
-trimmed will not be taken into consideration.
+.It Ar when
+The
+.Ar when
+field can consist of an interval, a specific time, or both.  If
+the
+.Ar when
+field is an asterisk
+.Pq Ql \&*
+log rotation will depend only on the contents of the
+.Ar size
+field.
+Otherwise, the
+.Ar when
+field consists of an optional interval in hours, optionally followed
+by an
+.So Li \&@ Sc Ns No -sign
+and a time in a restricted
+.Tn ISO 8601
+format.  If a time is specified, the log file will only be trimmed
+if
+.Nm newsyslog
+is run within one hour of the specified time.  If an 
+interval is specified, the log file will be trimmed if that many hours have
+passed since the last rotation.  When both a time and an interval are
+specified, both conditions must be satisfied for the rotation to take
+place.
+.Pp
+The particular format of the time is
+.Sm off
+.Oo
+.Oo
+.Oo
+.Oo
+.Oo
+.Va \&cc
+.Oc
+.Va \&yy
+.Oc
+.Va \&mm
+.Oc
+.Va \&dd
+.Oc
+.Oo
+.Li \&T
+.Oo
+.Va \&hh
+.Oo
+.Va \&mm
+.Oo
+.Va \&ss
+.Oc
+.Oc
+.Oc
+.Oc
+.Oc .
+.Sm on
+Optional date fields default to the appropriate component of the
+current date; optional time fields default to midnight; hence if today
+is January 22, 1999, the following date specifications are all
+equivalent:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Sq Li 19990122T000000
+.It
+.Sq Li 990122T000000
+.It
+.Sq Li 0122T000000
+.It
+.Sq Li 22T000000
+.It
+.Sq Li T000000
+.It
+.Sq Li T0000
+.It
+.Sq Li T00
+.It
+.Sq Li 22T
+.It
+.Sq Li \&T
+.It
+.Sq Li \&
+.El
+.Pp
+There is no provision for specification of a timezone.  There is
+little point in specifying an explicit minutes or seconds component in
+the current implementation, since the only comparison is `within the
+hour'.
 .It Ar flags
 This optional field specifies if the archive should have any
 special processing done to the archived log files.
