@@ -38,6 +38,7 @@ static void skip_padding ();
 static void defer_copyin ();
 static void create_defered_links ();
 static void create_final_defers ();
+static int check_for_deferments ();
 
 /* Return 16-bit integer I with the bytes swapped.  */
 #define swab_short(i) ((((i) << 8) & 0xff00) | (((i) >> 8) & 0x00ff))
@@ -381,6 +382,7 @@ process_copy_in ()
   int out_file_des;		/* Output file descriptor.  */
   int in_file_des;		/* Input file descriptor.  */
   char skip_file;		/* Flag for use with patterns.  */
+  char deferred;		/* Deferred file creation, don't print name. */
   int existing_dir;		/* True if file is a dir & already exists.  */
   int i;			/* Loop index variable.  */
   char *link_name = NULL;	/* Name of hard and symbolic links.  */
@@ -472,6 +474,7 @@ process_copy_in ()
 	  break;
 	}
 
+      deferred = FALSE;
       /* Does the file name match one of the given patterns?  */
       if (num_patterns <= 0)
 	skip_file = FALSE;
@@ -483,6 +486,11 @@ process_copy_in ()
 	    {
 	      if (fnmatch (save_patterns[i], file_hdr.c_name, 0) == 0)
 		skip_file = !copy_matching_files;
+	    }
+	    if (skip_file) {
+		skip_file = check_for_deferments(&file_hdr);
+		if (!skip_file)
+		    deferred = TRUE;	/* don't print this name */
 	    }
 	}
 
@@ -921,9 +929,9 @@ process_copy_in ()
 	      skip_padding (in_file_des, file_hdr.c_filesize);
 	    }
 
-	  if (verbose_flag)
+	  if (verbose_flag && !deferred)
 	    fprintf (stderr, "%s\n", file_hdr.c_name);
-	  if (dot_flag)
+	  if (dot_flag && !deferred)
 	    fputc ('.', stderr);
 	}
     }
@@ -1226,7 +1234,6 @@ create_final_defers ()
 
   for (d = deferments; d != NULL; d = d->next)
     {
-      d = deferments;
       link_res = link_to_maj_min_ino (d->header.c_name,
 		    d->header.c_dev_maj, d->header.c_dev_maj,
 		    d->header.c_ino);
@@ -1269,4 +1276,28 @@ create_final_defers ()
 	    error (0, errno, "%s", d->header.c_name);
 	}
     }
+}
+
+static int
+check_for_deferments(struct new_cpio_header *file_hdr)
+{
+    struct deferment *d;
+    struct deferment *prev = NULL;
+
+    for (d = deferments; d != NULL; d = d->next) {
+	if (file_hdr->c_ino == d->header.c_ino &&
+	    file_hdr->c_dev_maj == d->header.c_dev_maj &&
+	    file_hdr->c_dev_min == d->header.c_dev_min) {
+		free(file_hdr->c_name);
+		if (prev != NULL)
+		    prev->next = d->next;
+		else
+		    deferments = d->next;
+		file_hdr->c_name = strdup(d->header.c_name);
+		free_deferment(d);
+		return FALSE;
+	    }
+	    prev = d;
+    }
+    return TRUE;
 }
