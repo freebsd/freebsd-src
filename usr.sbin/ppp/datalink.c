@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.8 1998/06/12 17:45:09 brian Exp $
+ *	$Id: datalink.c,v 1.9 1998/06/15 19:05:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -394,11 +394,11 @@ datalink_ComeDown(struct datalink *dl, int how)
   if (how != CLOSE_NORMAL) {
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
-    if (how == CLOSE_LCP)
+    if (dl->state >= DATALINK_READY && how == CLOSE_LCP)
       dl->stayonline = 1;
   }
 
-  if (dl->stayonline) {
+  if (dl->state >= DATALINK_READY && dl->stayonline) {
     dl->stayonline = 0;
     datalink_NewState(dl, DATALINK_READY);
   } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
@@ -796,7 +796,8 @@ datalink_StayDown(struct datalink *dl)
 void
 datalink_DontHangup(struct datalink *dl)
 {
-  dl->stayonline = 1;
+  if (dl->state >= DATALINK_LCP)
+    dl->stayonline = 1;
 }
 
 int
