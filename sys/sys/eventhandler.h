@@ -179,5 +179,9 @@ typedef void (*idle_eventhandler_t)(void *, int);
 #define IDLE_PRI_LAST		20000
 EVENTHANDLER_FAST_DECLARE(idle_event, idle_eventhandler_t);
 
+/* Low memory event */
+typedef void (*vm_lowmem_handler_t)(void *, int);
+#define	LOWMEM_PRI_DEFAULT	0
+EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 
 #endif /* SYS_EVENTHANDLER_H */
