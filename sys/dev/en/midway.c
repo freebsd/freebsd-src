@@ -1,5 +1,5 @@
-/*	$NetBSD: midway.c,v 1.25 1997/03/20 21:34:42 chuck Exp $	*/
-/*	(sync'd to midway.c 1.67)	*/
+/*	$NetBSD: midway.c,v 1.30 1997/09/29 17:40:38 chuck Exp $	*/
+/*	(sync'd to midway.c 1.68)	*/
 
 /*
  *
@@ -46,7 +46,32 @@
  *   I would also like to thank Werner for promptly answering email and being
  *   generally helpful.
  */
-
+/*
+ *  1997/12/02 kjc
+ *    new features added:
+ *	- support vc/vp shaping
+ *	- integrate IPv6 support.
+ *	- support pvc shadow interface
+ *	  (initial work on per-pvc-interface for ipv6 was done
+ *	  by Katsushi Kobayashi <ikob@cc.uec.ac.jp> of the WIDE Project,
+ *	  extensively modified by kjc.)
+ *    code cleanup:
+ *	- remove WMAYBE related code.  ENI WMAYBE DMA doen't work.
+ *	- drop support of FreeBSD-2.1.x and FreeBSD-3.0-SNAP-970124.
+ *	- remove updating if_lastchange for every packet.
+ *	- BPF related code is moved to midway.c as it should be.
+ *	  (bpfwrite should work if atm_pseudohdr and LLC/SNAP are
+ *	  prepended.)
+ *	- BPF link type is changed to DLT_ATM_RFC1483.
+ *	  BPF now understands only LLC/SNAP!! (because bpf can't
+ *	  handle variable link header length.)
+ *	  It is recommended to use LLC/SNAP instead of NULL
+ *	  encapsulation for various reasons.  (BPF, IPv6,
+ *	  interoperability, etc.)
+ *	- altq queue implementation is moved from the driver internal
+ *	  queue to if_snd.
+ *	- AFMAP related code cleanup.
+ */
 
 #undef	EN_DEBUG
 #undef	EN_DEBUG_RANGE		/* check ranges on en_read/en_write's? */
@@ -58,15 +83,34 @@
 #endif
 #define EN_NOTXDMA	0	/* hook to disable tx dma only */
 #define EN_NORXDMA	0	/* hook to disable rx dma only */
-#define EN_NOWMAYBE	1	/* hook to disable word maybe DMA */
-				/* XXX: WMAYBE doesn't work, needs debugging */
 #define EN_DDBHOOK	1	/* compile in ddb functions */
-#ifdef __FreeBSD__
-/* somehow, misaligned DMA doesn't work on FreeBSD with ENI card.
- * not sure if this is specific to FreeBSD.
- * anyway, always fix unaligned or word fragmented mbufs.  --kjc */
-#define EN_FIXMBUF
+#if defined(MIDWAY_ADPONLY)
+#define EN_ENIDMAFIX	0	/* no ENI cards to worry about */
+#else
+#define EN_ENIDMAFIX	1	/* avoid byte DMA on the ENI card (see below) */
 #endif
+
+/*
+ * note on EN_ENIDMAFIX: the byte aligner on the ENI version of the card
+ * appears to be broken.   it works just fine if there is no load... however
+ * when the card is loaded the data get corrupted.   to see this, one only
+ * has to use "telnet" over ATM.   do the following command in "telnet":
+ * 	cat /usr/share/misc/termcap
+ * "telnet" seems to generate lots of 1023 byte mbufs (which make great
+ * use of the byte aligner).   watch "netstat -s" for checksum errors.
+ * 
+ * I further tested this by adding a function that compared the transmit 
+ * data on the card's SRAM with the data in the mbuf chain _after_ the 
+ * "transmit DMA complete" interrupt.   using the "telnet" test I got data
+ * mismatches where the byte-aligned data should have been.   using ddb
+ * and en_dumpmem() I verified that the DTQs fed into the card were 
+ * absolutely correct.   thus, we are forced to concluded that the ENI
+ * hardware is buggy.   note that the Adaptec version of the card works
+ * just fine with byte DMA.
+ *
+ * bottom line: we set EN_ENIDMAFIX to 1 to avoid byte DMAs on the ENI
+ * card.
+ */
 
 #if defined(DIAGNOSTIC) && !defined(EN_DIAG)
 #define EN_DIAG			/* link in with master DIAG option */
@@ -97,27 +141,28 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
 #include <sys/device.h>
 #endif
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_atm.h>
 
 #include <vm/vm.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
+#include <netinet/in.h>
 #include <netinet/if_atm.h>
 #endif
 
 #ifdef NATM
-#include <netinet/in.h>
 #include <netnatm/natm.h>
 #endif
-
 
 #if !defined(sparc) && !defined(__FreeBSD__)
 #include <machine/bus.h>
@@ -137,17 +182,23 @@
 #include <dev/en/midwayvar.h>
 #include <vm/pmap.h>			/* for vtophys proto */
 
-/* 
- * 2.1.x does not have if_softc.   detect this by seeing if IFF_NOTRAILERS
- * is defined, as per kjc.
- */
-#ifdef IFF_NOTRAILERS
-#define MISSING_IF_SOFTC
-#else
+#ifndef IFF_NOTRAILERS
 #define IFF_NOTRAILERS 0
 #endif
 
 #endif	/* __FreeBSD__ */
+
+#include "bpfilter.h"
+#if NBPFILTER > 0
+#include <net/bpf.h>
+#ifdef __FreeBSD__
+#define BPFATTACH(ifp, dlt, hlen)	bpfattach((ifp), (dlt), (hlen))
+#define BPF_MTAP(ifp, m)		bpf_mtap((ifp), (m))
+#else
+#define BPFATTACH(ifp, dlt, hlen)	bpfattach(&(ifp)->if_bpf, (ifp), (dlt), (hlen))
+#define BPF_MTAP(ifp, m)		bpf_mtap((ifp)->if_bpf, (m))
+#endif
+#endif /* NBPFILTER > 0 */
 
 /*
  * params
@@ -206,25 +257,13 @@ struct en_launch {
 /*
  * dma table (index by # of words)
  *
- * plan A: use WMAYBE
+ * plan A: use WMAYBE (obsolete)
  * plan B: avoid WMAYBE
  */
 
 struct en_dmatab {
   u_int8_t bcode;		/* code */
   u_int8_t divshift;		/* byte divisor */
-};
-
-static struct en_dmatab en_dma_planA[] = {
-  { 0, 0 },		/* 0 */		{ MIDDMA_WORD, 2 },	/* 1 */
-  { MIDDMA_2WORD, 3},	/* 2 */		{ MIDDMA_4WMAYBE, 2},	/* 3 */
-  { MIDDMA_4WORD, 4},	/* 4 */		{ MIDDMA_8WMAYBE, 2},	/* 5 */
-  { MIDDMA_8WMAYBE, 2},	/* 6 */		{ MIDDMA_8WMAYBE, 2},	/* 7 */
-  { MIDDMA_8WORD, 5},   /* 8 */		{ MIDDMA_16WMAYBE, 2},	/* 9 */
-  { MIDDMA_16WMAYBE,2},	/* 10 */	{ MIDDMA_16WMAYBE, 2},	/* 11 */
-  { MIDDMA_16WMAYBE,2},	/* 12 */	{ MIDDMA_16WMAYBE, 2},	/* 13 */
-  { MIDDMA_16WMAYBE,2},	/* 14 */	{ MIDDMA_16WMAYBE, 2},	/* 15 */
-  { MIDDMA_16WORD, 6},  /* 16 */
 };
 
 static struct en_dmatab en_dma_planB[] = {
@@ -239,35 +278,50 @@ static struct en_dmatab en_dma_planB[] = {
   { MIDDMA_16WORD, 6},  /* 16 */
 };
 
-static struct en_dmatab *en_dmaplan = en_dma_planA;
-  
+static struct en_dmatab *en_dmaplan = en_dma_planB;
+
 /*
  * prototypes
  */
 
-STATIC	int en_b2sz __P((int));
+STATIC INLINE	int en_b2sz __P((int)) __attribute__ ((unused));
 #ifdef EN_DDBHOOK
-int	en_dump __P((int,int));
-int	en_dumpmem __P((int,int,int));
+		int en_dump __P((int,int));
+		int en_dumpmem __P((int,int,int));
 #endif
-STATIC	void en_dmaprobe __P((struct en_softc *));
-STATIC	int en_dmaprobe_doit __P((struct en_softc *, u_int8_t *, 
-							u_int8_t *, int));
-STATIC	int en_dqneed __P((struct en_softc *, caddr_t, u_int, u_int));
-STATIC	void en_init __P((struct en_softc *));
-STATIC	int en_ioctl __P((struct ifnet *, EN_IOCTL_CMDT, caddr_t));
-STATIC	int en_k2sz __P((int));
-STATIC	void en_loadvc __P((struct en_softc *, int));
-STATIC	int en_mfix __P((struct en_softc *, struct mbuf **, struct mbuf *));
-STATIC	struct mbuf *en_mget __P((struct en_softc *, u_int, u_int *));
-STATIC	u_int32_t en_read __P((struct en_softc *, u_int32_t));
-STATIC	int en_rxctl __P((struct en_softc *, struct atm_pseudoioctl *, int));
-STATIC	void en_txdma __P((struct en_softc *, int));
-STATIC	void en_txlaunch __P((struct en_softc *, int, struct en_launch *));
-STATIC	void en_service __P((struct en_softc *));
-STATIC	void en_start __P((struct ifnet *));
-STATIC	int en_sz2b __P((int));
-STATIC	void en_write __P((struct en_softc *, u_int32_t, u_int32_t));
+STATIC		void en_dmaprobe __P((struct en_softc *));
+STATIC		int en_dmaprobe_doit __P((struct en_softc *, u_int8_t *, 
+		    u_int8_t *, int));
+STATIC INLINE	int en_dqneed __P((struct en_softc *, caddr_t, u_int,
+		    u_int)) __attribute__ ((unused));
+STATIC		void en_init __P((struct en_softc *));
+STATIC		int en_ioctl __P((struct ifnet *, EN_IOCTL_CMDT, caddr_t));
+STATIC INLINE	int en_k2sz __P((int)) __attribute__ ((unused));
+STATIC		void en_loadvc __P((struct en_softc *, int));
+STATIC		int en_mfix __P((struct en_softc *, struct mbuf **,
+		    struct mbuf *));
+STATIC INLINE	struct mbuf *en_mget __P((struct en_softc *, u_int,
+		    u_int *)) __attribute__ ((unused));
+STATIC INLINE	u_int32_t en_read __P((struct en_softc *,
+		    u_int32_t)) __attribute__ ((unused));
+STATIC		int en_rxctl __P((struct en_softc *, struct atm_pseudoioctl *,
+		    int));
+STATIC		void en_txdma __P((struct en_softc *, int));
+STATIC		void en_txlaunch __P((struct en_softc *, int,
+		    struct en_launch *));
+STATIC		void en_service __P((struct en_softc *));
+STATIC		void en_start __P((struct ifnet *));
+STATIC INLINE	int en_sz2b __P((int)) __attribute__ ((unused));
+STATIC INLINE	void en_write __P((struct en_softc *, u_int32_t,
+		    u_int32_t)) __attribute__ ((unused));
+
+#ifdef ATM_PVCEXT
+static int en_txctl __P((struct en_softc *, int, int, int));
+static int en_pvctx __P((struct en_softc *, struct pvctxreq *));
+static int en_pvctxget __P((struct en_softc *, struct pvctxreq *));
+static int en_pcr2txspeed __P((int));
+static int en_txspeed2pcr __P((int));
+#endif
 
 /*
  * macros/inline
@@ -596,10 +650,14 @@ u_int totlen, *drqneed;
       }
       m->m_len = MLEN;
     }
-    if (top && totlen >= MINCLSIZE) {
+    if (totlen >= MINCLSIZE) {
       MCLGET(m, M_DONTWAIT);
-      if (m->m_flags & M_EXT)
-	m->m_len = MCLBYTES;
+      if ((m->m_flags & M_EXT) == 0) {
+	m_free(m);
+	m_freem(top);
+	return(NULL);	  /* out of mbuf clusters */
+      }
+      m->m_len = MCLBYTES;
     }
     m->m_len = min(totlen, m->m_len);
     totlen -= m->m_len;
@@ -687,12 +745,6 @@ done_probe:
 	  sc->bestburstlen, (sc->alburst) ? " (must align)" : "");
   }
 
-#if 0		/* WMAYBE doesn't work, don't complain about it */
-  /* check if en_dmaprobe disabled wmaybe */
-  if (en_dmaplan == en_dma_planB)
-    printf("%s: note: WMAYBE DMA has been disabled\n", sc->sc_dev.dv_xname);
-#endif
-
   /*
    * link into network subsystem and prepare card
    */
@@ -700,9 +752,7 @@ done_probe:
 #if defined(__NetBSD__) || defined(__OpenBSD__)
   bcopy(sc->sc_dev.dv_xname, sc->enif.if_xname, IFNAMSIZ);
 #endif
-#if !defined(MISSING_IF_SOFTC)
   sc->enif.if_softc = sc;
-#endif
   ifp->if_flags = IFF_SIMPLEX|IFF_NOTRAILERS;
   ifp->if_ioctl = en_ioctl;
   ifp->if_output = atm_output;
@@ -749,11 +799,14 @@ done_probe:
     printf("%s: EN_NTX/EN_TXSZ/EN_RXSZ too big\n", sc->sc_dev.dv_xname);
     return;
   }
-#if 1
-  /* leave one entry in the ringbuf unused to avoid wraparound */
+
+  /* 
+   * ensure that there is always one VC slot on the service list free
+   * so that we can tell the difference between a full and empty list.
+   */
   if (sc->en_nrx >= MID_N_VC)
-      sc->en_nrx = MID_N_VC - 1;
-#endif
+    sc->en_nrx = MID_N_VC - 1;
+
   for (lcv = 0 ; lcv < sc->en_nrx ; lcv++) {
     sc->rxslot[lcv].rxhand = NULL;
     sc->rxslot[lcv].oth_flags = ENOTHER_FREE;
@@ -788,6 +841,9 @@ done_probe:
   printf("%s: %d %dKB receive buffers, %d %dKB transmit buffers allocated\n",
 	sc->sc_dev.dv_xname, sc->en_nrx, EN_RXSZ, EN_NTX, EN_TXSZ);
 
+  printf("%s: End Station Identifier (mac address) %6D\n",
+	 sc->sc_dev.dv_xname, sc->macaddr, ":");
+
   /*
    * final commit
    */
@@ -795,6 +851,9 @@ done_probe:
   if_attach(ifp);
   atm_ifattach(ifp); 
 
+#if NBPFILTER > 0 
+  BPFATTACH(ifp, DLT_ATM_RFC1483, sizeof(struct atmllc));
+#endif
 }
 
 
@@ -812,30 +871,67 @@ done_probe:
  * p166:   bestburstlen=64, alburst=0 
  */
 
+#if 1 /* __FreeBSD__ */
+#define NBURSTS	3	/* number of bursts to use for dmaprobe */
+#define BOUNDARY 1024	/* test misaligned dma crossing the bounday.
+			   should be n * 64.  at least 64*(NBURSTS+1).
+			   dell P6 with EDO DRAM has 1K bounday problem */
+#endif
+
 STATIC void en_dmaprobe(sc)
 
 struct en_softc *sc;
 
 {
+#ifdef NBURSTS
+  /* be careful. kernel stack is only 8K */
+  u_int8_t buffer[BOUNDARY * 2 + 64 * (NBURSTS + 1)]; 
+#else
   u_int32_t srcbuf[64], dstbuf[64];
+#endif
   u_int8_t *sp, *dp;
-  int bestalgn, bestnotalgn, lcv, try, fail;
+  int bestalgn, bestnotalgn, lcv, try;
 
   sc->alburst = 0;
 
+#ifdef NBURSTS
+  /* setup src and dst buf at the end of the boundary */
+  sp = (u_int8_t *)roundup((unsigned long)buffer, 64);
+  while (((unsigned long)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
+      sp += 64;
+  dp = sp + BOUNDARY;
+
+  /*
+   * we can't dma across page boundary so that, if buf is at a page
+   * boundary, move it to the next page.  but still either src or dst
+   * will be at the boundary, which should be ok.
+   */
+  if ((((unsigned long)sp + 64) & PAGE_MASK) == 0)
+      sp += 64;
+  if ((((unsigned long)dp + 64) & PAGE_MASK) == 0)
+      dp += 64;
+#else /* !NBURSTS */
   sp = (u_int8_t *) srcbuf;
   while ((((unsigned long) sp) % MIDDMA_MAXBURST) != 0)
     sp += 4;
   dp = (u_int8_t *) dstbuf;
   while ((((unsigned long) dp) % MIDDMA_MAXBURST) != 0)
     dp += 4;
+#endif /* !NBURSTS */
 
   bestalgn = bestnotalgn = en_dmaprobe_doit(sc, sp, dp, 0);
 
   for (lcv = 4 ; lcv < MIDDMA_MAXBURST ; lcv += 4) {
     try = en_dmaprobe_doit(sc, sp+lcv, dp+lcv, 0);
+#ifdef NBURSTS
+    if (try < bestnotalgn) {
+      bestnotalgn = try;
+      break;
+    }
+#else
     if (try < bestnotalgn)
       bestnotalgn = try;
+#endif
   }
 
   if (bestalgn != bestnotalgn) 		/* need bursts aligned */
@@ -846,39 +942,21 @@ struct en_softc *sc;
   sc->bestburstmask = sc->bestburstlen - 1; /* must be power of 2 */
   sc->bestburstcode = en_sz2b(bestalgn);
 
-  if (sc->bestburstlen <= 2*sizeof(u_int32_t))
-    return;				/* won't be using WMAYBE */
-
+#if 1 /* __FreeBSD__ */
   /*
-   * adaptec does not have (or need) wmaybe.   do not bother testing
-   * for it.
+   * correct pci chipsets should be able to handle misaligned-64-byte DMA.
+   * but there are too many broken chipsets around.  we try to work around
+   * by finding the best workable dma size, but still some broken machines
+   * exhibit the problem later. so warn it here.
    */
-  if (sc->is_adaptec) {
-    /* XXX, actually don't need a DMA plan: adaptec is smarter than that */
-    en_dmaplan = en_dma_planB; 
+  if (bestalgn != 64 || sc->alburst != 0) {
+    printf("%s: WARNING: DMA test detects a broken PCI chipset!\n", 
+	   sc->sc_dev.dv_xname);
+    printf("     trying to work around the problem...  but if this doesn't\n");
+    printf("     work for you, you'd better switch to a newer motherboard.\n");
+  }
+#endif /* 1 */
     return;
-  }
-
-  /*
-   * test that WMAYBE dma works like we think it should 
-   * (i.e. no alignment restrictions on host address other than alburst)
-   */
-
-  try = sc->bestburstlen - 4;
-  fail = 0;
-  fail += en_dmaprobe_doit(sc, sp, dp, try);
-  for (lcv = 4 ; lcv < sc->bestburstlen ; lcv += 4) {
-    fail += en_dmaprobe_doit(sc, sp+lcv, dp+lcv, try);
-    if (sc->alburst)
-      try -= 4;
-  }
-  if (EN_NOWMAYBE || fail) {
-    if (fail)
-      printf("%s: WARNING: WMAYBE DMA test failed %d time(s)\n", 
-	sc->sc_dev.dv_xname, fail);
-    en_dmaplan = en_dma_planB;		/* fall back to plan B */
-  }
-
 }
 
 
@@ -912,7 +990,11 @@ int wmtry;
   EN_WRITE(sc, MID_DST_RP(0), 0);
   EN_WRITE(sc, MID_WP_ST_CNT(0), 0);
 
+#ifdef NBURSTS
+  for (lcv = 0 ; lcv < 64*NBURSTS; lcv++) 	/* set up sample data */
+#else
   for (lcv = 0 ; lcv < 68 ; lcv++) 		/* set up sample data */
+#endif
     sp[lcv] = lcv+1;
   EN_WRITE(sc, MID_MAST_CSR, MID_MCSR_ENDMA);	/* enable DMA (only) */
 
@@ -934,10 +1016,19 @@ int wmtry;
 
   for (lcv = 8 ; lcv <= MIDDMA_MAXBURST ; lcv = lcv * 2) {
 
+#ifdef EN_DEBUG
+    printf("DMA test lcv=%d, sp=0x%x, dp=0x%x, wmtry=%d\n",
+	   lcv, sp, dp, wmtry);
+#endif
+
     /* zero SRAM and dest buffer */
     for (cnt = 0 ; cnt < 1024; cnt += 4) 
       EN_WRITE(sc, MID_BUFOFF+cnt, 0);	/* zero memory */
+#ifdef NBURSTS
+    for (cnt = 0 ; cnt < 64*NBURSTS; cnt++) 
+#else
     for (cnt = 0 ; cnt < 68  ; cnt++) 
+#endif
       dp[cnt] = 0;
 
     if (wmtry) {
@@ -948,6 +1039,29 @@ int wmtry;
       bcode = en_sz2b(lcv);
       count = 1;
     }
+#ifdef NBURSTS
+    /* build lcv-byte-DMA x NBURSTS */
+    if (sc->is_adaptec)
+      EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ADP(lcv*NBURSTS, 0, MID_DMA_END, 0));
+    else
+      EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ENI(count*NBURSTS, 0, MID_DMA_END, bcode));
+    EN_WRITE(sc, sc->dtq_chip+4, vtophys(sp));
+    EN_WRAPADD(MID_DTQOFF, MID_DTQEND, sc->dtq_chip, 8);
+    EN_WRITE(sc, MID_DMA_WRTX, MID_DTQ_A2REG(sc->dtq_chip));
+    cnt = 1000;
+    while (EN_READ(sc, MID_DMA_RDTX) != MID_DTQ_A2REG(sc->dtq_chip)) {
+      DELAY(1);
+      cnt--;
+      if (cnt == 0) {
+	printf("%s: unexpected timeout in tx DMA test\n", sc->sc_dev.dv_xname);
+/*
+	printf("  alignment=0x%x, burst size=%d, dma addr reg=0x%x\n",
+	       (u_long)sp & 63, lcv, EN_READ(sc, MID_DMA_ADDR));
+*/	       
+	return(retval);		/* timeout, give up */
+      }
+    }
+#else /* !NBURSTS */
     if (sc->is_adaptec)
       EN_WRITE(sc, sc->dtq_chip, MID_MK_TXQ_ADP(lcv, 0, MID_DMA_END, 0));
     else
@@ -964,6 +1078,7 @@ int wmtry;
       }
     }
     EN_WRAPADD(MID_DTQOFF, MID_DTQEND, sc->dtq_chip, 8);
+#endif /* !NBURSTS */
     reg = EN_READ(sc, MID_INTACK); 
     if ((reg & MID_INT_DMA_TX) != MID_INT_DMA_TX) {
       printf("%s: unexpected status in tx DMA test: 0x%x\n", 
@@ -974,6 +1089,25 @@ int wmtry;
 
     /* "return to sender..."  address is known ... */
 
+#ifdef NBURSTS
+    /* build lcv-byte-DMA x NBURSTS */
+    if (sc->is_adaptec)
+      EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ADP(lcv*NBURSTS, 0, MID_DMA_END, 0));
+    else
+      EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ENI(count*NBURSTS, 0, MID_DMA_END, bcode));
+    EN_WRITE(sc, sc->drq_chip+4, vtophys(dp));
+    EN_WRAPADD(MID_DRQOFF, MID_DRQEND, sc->drq_chip, 8);
+    EN_WRITE(sc, MID_DMA_WRRX, MID_DRQ_A2REG(sc->drq_chip));
+    cnt = 1000;
+    while (EN_READ(sc, MID_DMA_RDRX) != MID_DRQ_A2REG(sc->drq_chip)) {
+      DELAY(1);
+      cnt--;
+      if (cnt == 0) {
+	printf("%s: unexpected timeout in rx DMA test\n", sc->sc_dev.dv_xname);
+	return(retval);		/* timeout, give up */
+      }
+    }
+#else /* !NBURSTS */
     if (sc->is_adaptec)
       EN_WRITE(sc, sc->drq_chip, MID_MK_RXQ_ADP(lcv, 0, MID_DMA_END, 0));
     else
@@ -990,6 +1124,7 @@ int wmtry;
       }
     }
     EN_WRAPADD(MID_DRQOFF, MID_DRQEND, sc->drq_chip, 8);
+#endif /* !NBURSTS */
     reg = EN_READ(sc, MID_INTACK); 
     if ((reg & MID_INT_DMA_RX) != MID_INT_DMA_RX) {
       printf("%s: unexpected status in rx DMA test: 0x%x\n", 
@@ -1002,8 +1137,15 @@ int wmtry;
       return(bcmp(sp, dp, wmtry));  /* wmtry always exits here, no looping */
     }
   
+#ifdef NBURSTS
+    if (bcmp(sp, dp, lcv * NBURSTS)) {
+/*      printf("DMA test failed! lcv=%d, sp=0x%x, dp=0x%x\n", lcv, sp, dp); */
+      return(retval);		/* failed, use last value */
+    }
+#else
     if (bcmp(sp, dp, lcv))
       return(retval);		/* failed, use last value */
+#endif
 
     retval = lcv;
 
@@ -1030,11 +1172,7 @@ EN_IOCTL_CMDT cmd;
 caddr_t data;
 
 {
-#ifdef MISSING_IF_SOFTC
-    struct en_softc *sc = (struct en_softc *) en_cd.cd_devs[ifp->if_unit];
-#else
     struct en_softc *sc = (struct en_softc *) ifp->if_softc;
-#endif
     struct ifaddr *ifa = (struct ifaddr *) data;
     struct ifreq *ifr = (struct ifreq *) data;
     struct atm_pseudoioctl *api = (struct atm_pseudoioctl *)data;
@@ -1079,8 +1217,9 @@ caddr_t data;
 #endif
 	case SIOCSIFADDR: 
 		ifp->if_flags |= IFF_UP;
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
+#if defined(INET) || defined(INET6)
+		if (ifa->ifa_addr->sa_family == AF_INET
+		    || ifa->ifa_addr->sa_family == AF_INET6) {
 			en_reset(sc);
 			en_init(sc);
 			ifa->ifa_rtrequest = atm_rtrequest; /* ??? */
@@ -1120,6 +1259,34 @@ caddr_t data;
 	    en_init(sc);
 	    break;
 #endif /* SIOCSIFMTU */
+
+#ifdef ATM_PVCEXT
+	case SIOCSPVCTX:
+		if ((error = suser(curproc->p_ucred, &curproc->p_acflag)) == 0)
+			error = en_pvctx(sc, (struct pvctxreq *)data);
+		break;
+
+	case SIOCGPVCTX:
+		error = en_pvctxget(sc, (struct pvctxreq *)data);
+		break;
+
+	case SIOCSPVCSIF:
+		do {
+			struct ifnet *shadow;
+		    
+			if (error = suser(curproc->p_ucred, &curproc->p_acflag))
+				break;
+		    
+			if ((shadow = pvc_attach(ifp)) != NULL) {
+				sprintf(ifr->ifr_name, "%s%d",
+					shadow->if_name, shadow->if_unit);
+			}
+			else
+				error = ENOBUFS;
+		} while (0);
+		break;
+
+#endif /* ATM_PVCEXT */
 
 	default: 
 	    error = EINVAL;
@@ -1296,6 +1463,7 @@ struct en_softc *sc;
 	break;		/* >>> exit 'while(1)' here <<< */
       m_freem(m);
     }
+
     sc->txslot[lcv].mbsize = 0;
   }
 
@@ -1335,30 +1503,30 @@ struct en_softc *sc;
 
   /*
    * init obmem data structures: vc tab, dma q's, slist.
+   *
+   * note that we set drq_free/dtq_free to one less than the total number
+   * of DTQ/DRQs present.   we do this because the card uses the condition
+   * (drq_chip == drq_us) to mean "list is empty"... but if you allow the
+   * circular list to be completely full then (drq_chip == drq_us) [i.e.
+   * the drq_us pointer will wrap all the way around].   by restricting
+   * the number of active requests to (N - 1) we prevent the list from
+   * becoming completely full.    note that the card will sometimes give
+   * us an interrupt for a DTQ/DRQ we have already processes... this helps
+   * keep that interrupt from messing us up.
    */
 
   for (vc = 0 ; vc < MID_N_VC ; vc++) 
     en_loadvc(sc, vc);
 
   bzero(&sc->drq, sizeof(sc->drq));
-#if 1
-  /* leave one entry in the ringbuf unused to avoid wraparound */
-  sc->drq_free = MID_DRQ_N - 1;
-#else
-  sc->drq_free = MID_DRQ_N;
-#endif
+  sc->drq_free = MID_DRQ_N - 1;		/* N - 1 */
   sc->drq_chip = MID_DRQ_REG2A(EN_READ(sc, MID_DMA_RDRX));
   EN_WRITE(sc, MID_DMA_WRRX, MID_DRQ_A2REG(sc->drq_chip)); 
 						/* ensure zero queue */
   sc->drq_us = sc->drq_chip;
 
   bzero(&sc->dtq, sizeof(sc->dtq));
-#if 1
-  /* leave one entry in the ringbuf unused to avoid wraparound */
-  sc->dtq_free = MID_DTQ_N - 1;
-#else
-  sc->dtq_free = MID_DTQ_N;
-#endif
+  sc->dtq_free = MID_DTQ_N - 1;		/* N - 1 */
   sc->dtq_chip = MID_DTQ_REG2A(EN_READ(sc, MID_DMA_RDTX));
   EN_WRITE(sc, MID_DMA_WRTX, MID_DRQ_A2REG(sc->dtq_chip)); 
 						/* ensure zero queue */
@@ -1443,11 +1611,7 @@ STATIC void en_start(ifp)
 struct ifnet *ifp;
 
 {
-#ifdef MISSING_IF_SOFTC
-    struct en_softc *sc = (struct en_softc *) en_cd.cd_devs[ifp->if_unit];
-#else
     struct en_softc *sc = (struct en_softc *) ifp->if_softc;
-#endif
     struct ifqueue *ifq = &ifp->if_snd; /* if INPUT QUEUE */
     struct mbuf *m, *lastm, *prev;
     struct atm_pseudohdr *ap, *new_ap;
@@ -1483,12 +1647,8 @@ struct ifnet *ifp;
       mlen = 0;
       prev = NULL;
       while (1) {
-#ifdef EN_FIXMBUF
-	/* if eni, always fix misaligned mbuf */
-	if (!sc->is_adaptec || EN_NOTXDMA || !en_dma) {
-#else
-        if (EN_NOTXDMA || !en_dma) {		/* no DMA? */
-#endif
+	/* no DMA? */
+        if ((!sc->is_adaptec && EN_ENIDMAFIX) || EN_NOTXDMA || !en_dma) {
 	  if ( (mtod(lastm, unsigned long) % sizeof(u_int32_t)) != 0 ||
 	    ((lastm->m_len % sizeof(u_int32_t)) != 0 && lastm->m_next)) {
 	    first = (lastm == m);
@@ -1502,6 +1662,7 @@ struct ifnet *ifp;
           }
           prev = lastm;
         }
+
 	mlen += lastm->m_len;
 	if (lastm->m_next == NULL)
 	  break;
@@ -1624,6 +1785,7 @@ struct ifnet *ifp;
 #endif
 
       IF_ENQUEUE(&sc->txslot[txchan].q, m);
+
       en_txdma(sc, txchan);
 
   }
@@ -1634,6 +1796,85 @@ struct ifnet *ifp;
 /*
  * en_mfix: fix a stupid mbuf
  */
+
+#ifndef __FreeBSD__
+
+STATIC int en_mfix(sc, mm, prev)
+
+struct en_softc *sc;
+struct mbuf **mm, *prev;
+
+{
+  struct mbuf *m, *new;
+  u_char *d, *cp;
+  int off;
+  struct mbuf *nxt;
+
+  m = *mm;
+
+  EN_COUNT(sc->mfix);			/* count # of calls */
+#ifdef EN_DEBUG
+  printf("%s: mfix mbuf m_data=%p, m_len=%d\n", sc->sc_dev.dv_xname,
+	m->m_data, m->m_len);
+#endif
+
+  d = mtod(m, u_char *);
+  off = ((unsigned long) d) % sizeof(u_int32_t);
+
+  if (off) {
+    if ((m->m_flags & M_EXT) == 0) {
+      bcopy(d, d - off, m->m_len);   /* ALIGN! (with costly data copy...) */
+      d -= off;
+      m->m_data = (caddr_t)d;
+    } else {
+      /* can't write to an M_EXT mbuf since it may be shared */
+      MGET(new, M_DONTWAIT, MT_DATA);
+      if (!new) {
+        EN_COUNT(sc->mfixfail);
+        return(0);
+      }
+      MCLGET(new, M_DONTWAIT);
+      if ((new->m_flags & M_EXT) == 0) {
+        m_free(new);
+        EN_COUNT(sc->mfixfail);
+        return(0);
+      }
+      bcopy(d, new->m_data, m->m_len);	/* ALIGN! (with costly data copy...) */
+      new->m_len = m->m_len;
+      new->m_next = m->m_next;
+      if (prev)
+        prev->m_next = new;
+      m_free(m);
+      *mm = m = new;	/* note: 'd' now invalid */
+    }
+  }
+
+  off = m->m_len % sizeof(u_int32_t);
+  if (off == 0)
+    return(1);
+
+  d = mtod(m, u_char *) + m->m_len;
+  off = sizeof(u_int32_t) - off;
+  
+  nxt = m->m_next;
+  while (off--) {
+    for ( ; nxt != NULL && nxt->m_len == 0 ; nxt = nxt->m_next)
+      /*null*/;
+    if (nxt == NULL) {		/* out of data, zero fill */
+      *d++ = 0;
+      continue;			/* next "off" */
+    }
+    cp = mtod(nxt, u_char *);
+    *d++ = *cp++;
+    m->m_len++;
+    nxt->m_len--; 
+    nxt->m_data = (caddr_t)cp;
+  }
+  return(1);
+}
+
+#else /* __FreeBSD__ */
+
 STATIC int en_makeexclusive(struct en_softc *, struct mbuf **, struct mbuf *);
 
 STATIC int en_makeexclusive(sc, mm, prev)
@@ -1761,6 +2002,7 @@ struct mbuf **mm, *prev;
   return(1);
 }
 
+#endif /* __FreeBSD__ */
 
 /*
  * en_txdma: start trasmit DMA, if possible
@@ -1929,7 +2171,27 @@ again:
   }
 
   en_txlaunch(sc, chan, &launch);
-  
+
+#if NBPFILTER > 0
+  if (sc->enif.if_bpf) {
+      /*
+       * adjust the top of the mbuf to skip the pseudo atm header
+       * (and TBD, if present) before passing the packet to bpf,
+       * restore it afterwards.
+       */
+      int size = sizeof(struct atm_pseudohdr);
+      if (launch.atm_flags & EN_OBHDR)
+	  size += MID_TBD_SIZE;
+
+      launch.t->m_data += size;
+      launch.t->m_len -= size;
+
+      BPF_MTAP(&sc->enif, launch.t);
+
+      launch.t->m_data -= size;
+      launch.t->m_len += size;
+  }
+#endif /* NBPFILTER > 0 */
   /*
    * do some housekeeping and get the next packet
    */
@@ -2418,7 +2680,7 @@ void *arg;
 	m_freem(m);
       }
       EN_WRAPADD(0, MID_DTQ_N, idx, 1);
-    }
+    };
     sc->dtq_chip = MID_DTQ_REG2A(val);	/* sync softc */
   }
 
@@ -2490,6 +2752,11 @@ void *arg;
 		sc->sc_dev.dv_xname, slot, sc->rxslot[slot].atm_vci, m,
 		EN_DQ_LEN(drq), sc->rxslot[slot].rxhand);
 #endif
+#if NBPFILTER > 0
+	  if (sc->enif.if_bpf)
+	    BPF_MTAP(&sc->enif, m);
+#endif /* NBPFILTER > 0 */
+
 	  sc->enif.if_ipackets++;
 
 	  atm_input(&sc->enif, &ah, m, sc->rxslot[slot].rxhand);
@@ -2497,7 +2764,7 @@ void *arg;
 
       }
       EN_WRAPADD(0, MID_DRQ_N, idx, 1);
-    }
+    };
     sc->drq_chip = MID_DRQ_REG2A(val);	/* sync softc */
 
     if (sc->need_drqs) {	/* true if we had a DRQ shortage */
@@ -2549,7 +2816,7 @@ void *arg;
       printf("%s: added VCI %d to swslist\n", sc->sc_dev.dv_xname, vci);
 #endif
       }
-    }
+    };
   }
 
   /*
@@ -2688,6 +2955,9 @@ defer:					/* defer processing */
       mlen = 0;			/* we've got trash */
       fill = MID_RBD_SIZE;
       EN_COUNT(sc->ttrash);
+#ifdef EN_DEBUG
+      printf("RX overflow lost %d cells!\n", MID_RBD_CNT(rbd));
+#endif
     } else if (!aal5) {
       mlen = MID_RBD_SIZE + MID_CHDR_SIZE + MID_ATMDATASZ; /* 1 cell (ick!) */
       fill = 0;
@@ -2699,11 +2969,11 @@ defer:					/* defer processing */
       pdu = EN_READ(sc, pdu);	/* get PDU in correct byte order */
       fill = tlen - MID_RBD_SIZE - MID_PDU_LEN(pdu);
       if (fill < 0 || (rbd & MID_RBD_CRCERR) != 0) {
-        printf("%s: invalid AAL5 PDU length or CRC detected, dropping frame\n", 
-						sc->sc_dev.dv_xname);
-        printf("%s: got %d cells (%d bytes), AAL5 len is %d bytes (pdu=0x%x) CRCERR=%d\n",
-	  sc->sc_dev.dv_xname, MID_RBD_CNT(rbd), tlen - MID_RBD_SIZE,
-		MID_PDU_LEN(pdu), pdu, (rbd & MID_RBD_CRCERR)?1:0);
+        printf("%s: %s, dropping frame\n", sc->sc_dev.dv_xname,
+	    (rbd & MID_RBD_CRCERR) ? "CRC error" : "invalid AAL5 PDU length");
+        printf("%s: got %d cells (%d bytes), AAL5 len is %d bytes (pdu=0x%x)\n",
+ 	  sc->sc_dev.dv_xname, MID_RBD_CNT(rbd), tlen - MID_RBD_SIZE,
+ 		MID_PDU_LEN(pdu), pdu);
 	fill = tlen;
       }
       mlen = tlen - fill;
@@ -3162,7 +3432,6 @@ int unit, level;
         printf("0x%x ", sc->swslist[cnt]);
       printf("\n");
     }
-
   }
   return(0);
 }
@@ -3199,5 +3468,234 @@ int unit, addr, len;
 }
 #endif
 
+#ifdef ATM_PVCEXT
+/*
+ * ATM PVC extention: shaper control and pvc shadow interfaces
+ */
+
+/* txspeed conversion derived from linux drivers/atm/eni.c
+   by Werner Almesberger, EPFL LRC */
+static const int pre_div[] = { 4,16,128,2048 };
+
+static int en_pcr2txspeed(pcr)
+	int pcr;
+{
+	int pre, res, div;
+
+	if (pcr == 0 || pcr > 347222)
+		pre = res = 0;	/* max rate */
+	else {
+		for (pre = 0; pre < 3; pre++)
+			if (25000000/pre_div[pre]/64 <= pcr)
+				break;
+		div = pre_div[pre]*(pcr);
+#if 1
+		/*
+		 * the shaper value should be rounded down,
+		 * instead of rounded up.
+		 * (which means "res" should be rounded up.)
+		 */
+		res = (25000000 + div -1)/div - 1;
+#else
+		res = 25000000/div-1;
+#endif
+		if (res < 0)
+			res = 0;
+		if (res > 63)
+			res = 63;
+	}
+	return ((pre << 6) + res);
+}
+
+static int en_txspeed2pcr(txspeed)
+	int txspeed;
+{
+	int pre, res, pcr;
+
+	pre = (txspeed >> 6) & 0x3;
+	res = txspeed & 0x3f;
+	pcr = 25000000 / pre_div[pre] / (res+1);
+	return (pcr);
+}
+
+/*
+ * en_txctl selects a hardware transmit channel and sets the shaper value.
+ * en_txctl should be called after enabling the vc by en_rxctl
+ * since it assumes a transmit channel is already assigned by en_rxctl
+ * to the vc.
+ */
+static int en_txctl(sc, vci, joint_vci, pcr)
+	struct en_softc *sc;
+	int vci;
+	int joint_vci;
+	int pcr;
+{
+	int txspeed, txchan, c, s;
+
+	if (pcr)
+		txspeed = en_pcr2txspeed(pcr);
+	else
+		txspeed = 0;
+
+	s = splimp();
+	txchan = sc->txvc2slot[vci];
+	sc->txslot[txchan].nref--;
+    
+	/* select a slot */
+	if (joint_vci != 0)
+		/* use the same channel */
+		txchan = sc->txvc2slot[joint_vci];
+	if (pcr == 0)
+		txchan = 0;
+	else {
+		for (c = 1, txchan = 1; c < EN_NTX; c++) {
+			if (sc->txslot[c].nref < sc->txslot[txchan].nref)
+				txchan = c;
+			if (sc->txslot[txchan].nref == 0)
+				break;
+		}
+	}
+	sc->txvc2slot[vci] = txchan;
+	sc->txslot[txchan].nref++;
+
+	/* set the shaper parameter */
+	sc->txspeed[vci] = (u_int8_t)txspeed;
+
+	splx(s);
+#ifdef EN_DEBUG
+	printf("VCI:%d PCR set to %d, tx channel %d\n", vci, pcr, txchan);
+	if (joint_vci != 0)
+		printf("  slot shared with VCI:%d\n", joint_vci);
+#endif
+	return (0);
+}
+
+static int en_pvctx(sc, pvcreq)
+	struct en_softc *sc;
+	struct pvctxreq *pvcreq;
+{
+	struct ifnet *ifp;
+	struct atm_pseudoioctl api;
+	struct atm_pseudohdr *pvc_aph, *pvc_joint;
+	int vci, joint_vci, pcr;
+	int error = 0;
+
+	/* check vpi:vci values */
+	pvc_aph = &pvcreq->pvc_aph;
+	pvc_joint = &pvcreq->pvc_joint;
+
+	vci = ATM_PH_VCI(pvc_aph);
+	joint_vci = ATM_PH_VCI(pvc_joint);
+	pcr = pvcreq->pvc_pcr;
+
+	if (ATM_PH_VPI(pvc_aph) != 0 || vci >= MID_N_VC ||
+	    ATM_PH_VPI(pvc_joint) != 0 || joint_vci >= MID_N_VC)
+		return (EADDRNOTAVAIL);
+
+	if ((ifp = ifunit(pvcreq->pvc_ifname)) == NULL)
+		return (ENXIO);
+
+	if (pcr < 0) {
+		/* negative pcr means disable the vc. */
+		if (sc->rxvc2slot[vci] == RX_NONE)
+			/* already disabled */
+			return 0;
+
+		ATM_PH_FLAGS(&api.aph) = 0;
+		ATM_PH_VPI(&api.aph) = 0;
+		ATM_PH_SETVCI(&api.aph, vci);
+		api.rxhand = NULL;
+
+		error = en_rxctl(sc, &api, 0);
+		
+		if (error == 0 && &sc->enif != ifp) {
+			/* clear vc info of shadow interface */
+			ATM_PH_SETVCI(&api.aph, 0);
+			pvc_setaph(ifp, &api.aph);
+		}
+		return (error);
+	}
+
+	if (&sc->enif == ifp) {
+		/* called for an en interface */
+		if (sc->rxvc2slot[vci] == RX_NONE) {
+			/* vc is not active */
+			printf("%s%d: en_pvctx: rx not active! vci=%d\n",
+			       ifp->if_name, ifp->if_unit, vci);
+			return (EINVAL);
+		}
+	}
+	else {
+		/* called for a shadow interface */
+		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
+			printf("en_pvctx: if %s is not point-to-point!\n",
+			       pvcreq->pvc_ifname);
+			return (EINVAL);
+		}
+    		sprintf(pvcreq->pvc_ifname, "%s%d",
+			sc->enif.if_name, sc->enif.if_unit);
+		
+		ATM_PH_FLAGS(&api.aph) = ATM_PH_PVCSIF |
+			(ATM_PH_FLAGS(pvc_aph) & (ATM_PH_AAL5|ATM_PH_LLCSNAP));
+		ATM_PH_VPI(&api.aph) = 0;
+		ATM_PH_SETVCI(&api.aph, vci);
+		api.rxhand = ifp;
+		pvc_setaph(ifp, &api.aph);
+
+		if (sc->rxvc2slot[vci] == RX_NONE) {
+			/* vc is not active, enable rx */
+			error = en_rxctl(sc, &api, 1);
+			if (error)
+				return error;
+		}
+		else {
+			/* vc is already active, update aph in softc */
+			sc->rxslot[sc->rxvc2slot[vci]].atm_flags =
+				ATM_PH_FLAGS(&api.aph);
+		}
+
+	}
+
+	error = en_txctl(sc, vci, joint_vci, pcr);
+
+	if (error == 0) {
+		if (sc->txspeed[vci] != 0)
+			pvcreq->pvc_pcr = en_txspeed2pcr(sc->txspeed[vci]);
+		else
+			pvcreq->pvc_pcr = 0;
+	}
+
+	return error;
+}
+
+static int en_pvctxget(sc, pvcreq)
+	struct en_softc *sc;
+	struct pvctxreq *pvcreq;
+{
+	struct atm_pseudohdr *pvc_aph;
+	int vci, slot;
+
+	pvc_aph = &pvcreq->pvc_aph;
+	vci = ATM_PH_VCI(pvc_aph);
+
+	if ((slot = sc->rxvc2slot[vci]) == RX_NONE) {
+		/* vc is not active */
+		ATM_PH_FLAGS(pvc_aph) = 0;
+		pvcreq->pvc_pcr = -1;
+	}
+	else {
+		ATM_PH_FLAGS(pvc_aph) = sc->rxslot[slot].atm_flags;
+		ATM_PH_VPI(pvc_aph) = 0;
+		ATM_PH_SETVCI(pvc_aph, vci);
+		if (sc->txspeed[vci])
+			pvcreq->pvc_pcr = en_txspeed2pcr(sc->txspeed[vci]);
+		else
+			pvcreq->pvc_pcr = 0;
+	}
+
+	return (0);
+}
+
+#endif /* ATM_PVCEXT */
 
 #endif /* NEN > 0 || !defined(__FreeBSD__) */

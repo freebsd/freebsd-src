@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.38 1998/02/20 13:46:57 bde Exp $
+ * $Id: bpf.c,v 1.39 1998/06/07 17:12:01 dfr Exp $
  */
 
 #include "bpfilter.h"
@@ -196,6 +196,18 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 		sockp->sa_family = AF_UNSPEC;
 		hlen = 0;
 		break;
+
+#ifdef __FreeBSD__
+	case DLT_ATM_RFC1483:
+		/*
+		 * en atm driver requires 4-byte atm pseudo header.
+		 * though it isn't standard, vpi:vci needs to be
+		 * specified anyway.
+		 */
+		sockp->sa_family = AF_UNSPEC;
+		hlen = 12; 	/* XXX 4(ATM_PH) + 3(LLC) + 5(SNAP) */
+		break;
+#endif
 
 	default:
 		return (EIO);
