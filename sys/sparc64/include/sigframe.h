@@ -25,22 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: FreeBSD: src/sys/alpha/include/ucontext.h,v 1.3 1999/10/08
+ *	from:	FreeBSD: src/sys/alpha/include/sigframe.h,v 1.1 1999/09/29
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_UCONTEXT_H_
-#define	_MACHINE_UCONTEXT_H_
+#ifndef _MACHINE_SIGFRAME_H_
+#define _MACHINE_SIGFRAME_H_ 1
 
-typedef struct __mcontext {
-	u_long	mc_global[8];
-	u_long	mc_out[8];
-	long	mc_onstack;
-	long	mc_sp;
-	long	mc_tpc;
-	long	mc_tnpc;
-	long	mc_tstate;
-	long	mc_spare[11];
-} mcontext_t;
+struct sigframe {
+	ucontext_t	sf_uc;
+	siginfo_t	sf_si;
+};
 
-#endif /* !_MACHINE_UCONTEXT_H_ */
+#endif /* _MACHINE_SIGFRAME_H_ */
