@@ -32,7 +32,7 @@ struct at_ifaddr {
 # define aa_ifp			aa_ifa.ifa_ifp
     struct sockaddr_at	aa_addr;
     struct sockaddr_at	aa_broadaddr;
-# define aa_dstaddr		aa_netmask
+# define aa_dstaddr		aa_broadaddr;
     struct sockaddr_at	aa_netmask;
     int			aa_flags;
     u_short		aa_firstnet, aa_lastnet;

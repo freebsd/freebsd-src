@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.9 1996/07/09 19:02:28 julian Exp $";
+	"$Id: route.c,v 1.10 1996/07/23 01:18:47 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -891,7 +891,8 @@ getaddr(which, s, hpp)
 	case AF_APPLETALK:
 		if (!atalk_aton(s, &su->sat.sat_addr))
 			errx(EX_NOHOST, "bad address: %s", s);
-		return(su->sat.sat_addr.s_node != 0);
+		rtm_addrs |= RTA_NETMASK;
+		return(forcehost || su->sat.sat_addr.s_node != 0);
 
 	case AF_LINK:
 		link_addr(s, &su->sdl);
