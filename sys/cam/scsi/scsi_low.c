@@ -192,7 +192,7 @@ static struct scsi_low_softc_tab sl_tab = LIST_HEAD_INITIALIZER(sl_tab);
 #endif	/* !SCSI_LOW_INFO_DETAIL */
 
 #ifdef	SCSI_LOW_STATICS
-struct scsi_low_statics {
+static struct scsi_low_statics {
 	int nexus_win;
 	int nexus_fail;
 	int nexus_disconnected;
