@@ -852,10 +852,13 @@ dointr(void)
 		kread(X_INTRCNT, intrcnt, intrcntlen);
 		kread(X_INTRNAMES, intrname, inamlen);
 	} else {
-		mysysctl("hw.intrcnt", NULL, &intrcntlen, NULL, 0);
-		if ((intrcnt = malloc(intrcntlen)) == NULL)
-			err(1, "calloc()");
-		mysysctl("hw.intrcnt", intrcnt, &intrcntlen, NULL, 0);
+		for (intrcnt = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
+			if ((intrcnt = reallocf(intrcnt, intrcntlen)) == NULL)
+				err(1, "reallocf()");
+			if (mysysctl("hw.intrcnt",
+			    intrcnt, &intrcntlen, NULL, 0) == 0)
+				break;
+		}
 		for (intrname = NULL, inamlen = 1024; ; inamlen *= 2) {
 			if ((intrname = reallocf(intrname, inamlen)) == NULL)
 				err(1, "reallocf()");
