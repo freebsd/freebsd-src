@@ -81,8 +81,14 @@ mbinit(dummy)
 	s = splimp();
 	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
 		goto bad;
+#if MCLBYTES <= PAGE_SIZE
 	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
 		goto bad;
+#else
+	/* It's OK to call contigmalloc in this context. */
+	if (m_clalloc(16, 0) == 0)
+		goto bad;
+#endif
 	splx(s);
 	return;
 bad:
@@ -130,6 +136,34 @@ m_mballoc(nmb, nowait)
 	return (1);
 }
 
+#if MCLBYTES > PAGE_SIZE
+int i_want_my_mcl;
+
+void
+kproc_mclalloc(void)
+{
+	int status;
+
+	while (1) {
+		tsleep(&i_want_my_mcl, PVM, "mclalloc", 0);
+
+		for (; i_want_my_mcl; i_want_my_mcl--) {
+			if (m_clalloc(1, 0) == 0)
+				printf("m_clalloc failed even in process context!\n");
+		}
+	}
+}
+
+static struct proc *mclallocproc;
+static struct kproc_desc mclalloc_kp = {
+	"mclalloc",
+	kproc_mclalloc,
+	&mclallocproc
+};
+SYSINIT_KT(mclallocproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
+	   &mclalloc_kp);
+#endif
+
 /*
  * Allocate some number of mbuf clusters
  * and place on cluster free list.
@@ -153,9 +187,21 @@ m_clalloc(ncl, nowait)
 	if (mb_map_full)
 		return (0);
 
+#if MCLBYTES > PAGE_SIZE
+	if (nowait) {
+		i_want_my_mcl += ncl;
+		wakeup(&i_want_my_mcl);
+		p = 0;
+	} else {
+		p = contigmalloc1(MCLBYTES * ncl, M_DEVBUF, M_WAITOK, 0ul,
+				  ~0ul, PAGE_SIZE, 0, mb_map);
+	}
+#else
 	npg = ncl;
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 nowait ? M_NOWAIT : M_WAITOK);
+	ncl = ncl * PAGE_SIZE / MCLBYTES;
+#endif
 	/*
 	 * Either the map is now full, or this is nowait and there
 	 * are no pages left.
@@ -163,7 +209,6 @@ m_clalloc(ncl, nowait)
 	if (p == NULL)
 		return (0);
 
-	ncl = ncl * PAGE_SIZE / MCLBYTES;
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
 		mclfree = (union mcluster *)p;
