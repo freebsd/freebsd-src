@@ -203,6 +203,87 @@ struct wxmdvar {
 #define	WRITE_CSR(sc, reg, val)						\
 	bus_space_write_4((sc)->w.st, (sc)->w.sh, (reg), (val))
 
+#elif defined(__OpenBSD__)
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/device.h>
+
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/if_media.h>
+
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#endif
+#ifdef NS
+#include <netns/ns.h>
+#include <netns/ns_if.h>
+#endif
+
+#include "bpfilter.h"
+#if NBPFILTER > 0
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
+#endif
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <machine/bus.h>
+#include <machine/intr.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcidevs.h>
+#include <dev/pci/if_wxreg.h>
+
+struct wxmdvar {
+	struct device 		dev;		/* generic device structures */
+	void *			ih;		/* interrupt handler cookie */
+	struct arpcom		arpcom;		/* ethernet common part */
+	pci_chipset_tag_t	pci_pc;
+	pcitag_t		pci_tag;
+	u_int32_t		cmdw;
+	bus_space_tag_t		st;		/* bus space tag */
+	bus_space_handle_t	sh;		/* bus space handle */
+	struct ifmedia 		ifm;
+	struct wx_softc *	next;
+};
+#define	wx_dev		w.dev
+#define	wx_enaddr	w.arpcom.ac_enaddr
+#define	wx_cmdw		w.cmdw
+#define	wx_media	w.ifm
+#define	wx_next		w.next
+
+#define	wx_if		w.arpcom.ac_if
+#define	wx_name		w.dev.dv_xname
+
+#define	IOCTL_CMD_TYPE			u_long
+#define	WXMALLOC(len)			malloc(len, M_DEVBUF, M_NOWAIT)
+#define	WXFREE(ptr)			free(ptr, M_DEVBUF)
+#define	SOFTC_IFP(ifp)			ifp->if_softc
+#define	WX_BPFTAP_ARG(ifp)		(ifp)->if_bpf
+#define	TIMEOUT(sc, func, arg, time)	timeout(func, arg, time)
+#define	VTIMEOUT(sc, func, arg, time)	timeout(func, arg, time)
+#define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg)
+#define	INLINE				inline
+
+#define	vm_offset_t		vaddr_t
+#define	READ_CSR	_read_csr
+#define	WRITE_CSR	_write_csr
+
 #endif
 
 
@@ -235,16 +316,15 @@ typedef struct wx_softc {
 	/*
 	 * misc goodies
 	 */
-	u_int32_t		:	17,
+	u_int32_t		:	25,
 		wx_no_flow 	:	1,
 		wx_ilos		:	1,
 		wx_no_ilos	:	1,
 		wx_debug	:	1,
 		ane_failed	:	1,
 		linkup		:	1,
-		all_mcasts	:	1,
-		revision	:	8;	/* chip revision */
-
+		all_mcasts	:	1;
+	u_int32_t wx_idnrev;		/* chip revision && PCI ID */
 	u_int16_t wx_cfg1;
 	u_int16_t wx_txint_delay;
 	u_int32_t wx_ienable;		/* current ienable to use */
