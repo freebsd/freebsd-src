@@ -508,7 +508,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	if (src == NULL)
 	    goto forward ; /* do not apply to packets from ether_output */
 	if (canfree == 0 ) /* need to make a copy */
-	    m = m_copypacket(*m0, M_DONTWAIT); /* ??? ticks on a P90 */
+	    m = m_copypacket(*m0, M_DONTWAIT);
 	if (m == NULL) {
 	    /* fail... */
 	    return 0 ;
@@ -522,8 +522,11 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 		*m0 = NULL ;
 	    return 0 ;
 	}
-	if (off == 0)
+	if (off == 0) {
+	    if (canfree == 0)
+		m_freem(m);
 	    goto forward ;
+	}
 #ifdef DUMMYNET
 	if (off & 0x10000) {  
 	    /*
