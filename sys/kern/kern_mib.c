@@ -46,10 +46,7 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
-
-#if defined(SMP)
 #include <machine/smp.h>
-#endif
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
