@@ -108,16 +108,12 @@ mainboard_probe(device_t dev)
 		return (ENXIO);
 
 	idstring = (char *)malloc(8 + sizeof(" (System Board)") + 1,
-				  M_DEVBUF, M_NOWAIT);
-	if (idstring == NULL) {
+	    M_DEVBUF, M_NOWAIT);
+	if (idstring == NULL)
 		panic("Eisa probe unable to malloc");
-	}
 	sprintf(idstring, "%c%c%c%03x%01x (System Board)",
-		EISA_MFCTR_CHAR0(id),
-		EISA_MFCTR_CHAR1(id),
-		EISA_MFCTR_CHAR2(id),
-		EISA_PRODUCT_ID(id),
-		EISA_REVISION_ID(id));
+	    EISA_MFCTR_CHAR0(id), EISA_MFCTR_CHAR1(id), EISA_MFCTR_CHAR2(id),
+	    EISA_PRODUCT_ID(id), EISA_REVISION_ID(id));
 	device_set_desc(dev, idstring);
 
 	return (0);
@@ -183,7 +179,7 @@ eisa_probe(device_t dev)
 
 		/* Prepare an eisa_device_node for this slot */
 		e_dev = (struct eisa_device *)malloc(sizeof(*e_dev),
-						     M_DEVBUF, M_NOWAIT|M_ZERO);
+		    M_DEVBUF, M_NOWAIT|M_ZERO);
 		if (!e_dev) {
 			device_printf(dev, "cannot malloc eisa_device");
 			break; /* Try to attach what we have already */
@@ -206,7 +202,7 @@ eisa_probe(device_t dev)
 	 * to tell if there is an eisa bus is if we found something - there
 	 * should be a motherboard "card" there somewhere.
 	 */
-	return devices_found ? 0 : ENXIO;
+	return (devices_found ? 0 : ENXIO);
 }
 
 static int
@@ -238,23 +234,14 @@ eisa_probe_nomatch(device_t dev, device_t child)
 	u_int8_t	slot = eisa_get_slot(child);
 
 	device_printf(dev, "unknown card %c%c%c%03x%01x (0x%08x) at slot %d\n",
-		EISA_MFCTR_CHAR0(eisa_id),
-		EISA_MFCTR_CHAR1(eisa_id),
-		EISA_MFCTR_CHAR2(eisa_id),
-		EISA_PRODUCT_ID(eisa_id),
-		EISA_REVISION_ID(eisa_id),
-		eisa_id,
-		slot);
-
+	    EISA_MFCTR_CHAR0(eisa_id), EISA_MFCTR_CHAR1(eisa_id),
+	    EISA_MFCTR_CHAR2(eisa_id), EISA_PRODUCT_ID(eisa_id),
+	    EISA_REVISION_ID(eisa_id), eisa_id, slot);
 	return;
 }
 
 static void
-eisa_reg_print (dev, string, separator, column)
-	device_t	dev;
-	char *		string;
-	char *		separator;
-	int *		column;
+eisa_reg_print (device_t dev, char *string, char *separator, int *column)
 {
 	int length = strlen(string);
 
@@ -272,11 +259,10 @@ eisa_reg_print (dev, string, separator, column)
 		(*column)++;
 	}
 
-	if ((*column) == 0) {
+	if ((*column) == 0)
 		(*column) += device_printf(dev, "%s", string);
-	} else {
+	else
 		(*column) += printf("%s", string);
-	}
 
 	return;
 }
@@ -300,48 +286,40 @@ eisa_print_child(device_t dev, device_t child)
 
 	rid = 0;
 	while ((resv = eisa_find_ioaddr(e_dev, rid++))) {
-		if ((resv->size == 1) ||
-		    (resv->flags & RESVADDR_BITMASK)) {
+		if (resv->size == 1 || (resv->flags & RESVADDR_BITMASK))
 			snprintf(buf, sizeof(buf), "%s%lx",
-				((rid == 1) ? "at 0x" : "0x"),
-				resv->addr);
-		} else {
+			    rid == 1 ? "at 0x" : "0x", resv->addr);
+		else
 			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
-				((rid == 1) ? "at 0x" : "0x"),
-				resv->addr,
-				(resv->addr + (resv->size - 1)));
-		}
-		eisa_reg_print(child, buf, 
-			((rid == 2) ? &separator : NULL), &column);
+			    rid == 1 ? "at 0x" : "0x", resv->addr,
+			    resv->addr + resv->size - 1);
+		eisa_reg_print(child, buf, rid == 2 ? &separator : NULL,
+		    &column);
 	}
 
 	rid = 0;
 	while ((resv = eisa_find_maddr(e_dev, rid++))) {
-		if ((resv->size == 1) ||
-		    (resv->flags & RESVADDR_BITMASK)) {
+		if (resv->size == 1 || (resv->flags & RESVADDR_BITMASK))
 			snprintf(buf, sizeof(buf), "%s%lx",
-				((rid == 1) ? "at 0x" : "0x"),
-				resv->addr);
-		} else {
+			    rid == 1 ? "at 0x" : "0x", resv->addr);
+		else
 			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
-				((rid == 1) ? "at 0x" : "0x"),
-				resv->addr,
-				(resv->addr + (resv->size - 1)));
-		}
-		eisa_reg_print(child, buf, 
-			((rid == 2) ? &separator : NULL), &column);
+			    rid == 1 ? "at 0x" : "0x",
+				resv->addr, resv->addr + resv->size - 1);
+		eisa_reg_print(child, buf, rid == 2 ? &separator : NULL,
+		    &column);
 	}
 
 	rid = 0;
 	while ((irq = eisa_find_irq(e_dev, rid++)) != NULL) {
 		snprintf(buf, sizeof(buf), "irq %d (%s)", irq->irq_no,
-			 (irq->irq_trigger ? "level" : "edge"));
-		eisa_reg_print(child, buf, 
-			((rid == 1) ? &separator : NULL), &column);
+			 irq->irq_trigger ? "level" : "edge");
+		eisa_reg_print(child, buf, rid == 1 ? &separator : NULL,
+		    &column);
 	}
 
 	snprintf(buf, sizeof(buf), "on %s slot %d\n",
-		device_get_nameunit(dev), eisa_get_slot(child));
+	    device_get_nameunit(dev), eisa_get_slot(child));
 	eisa_reg_print(child, buf, NULL, &column);
 
 	return (retval);
@@ -354,14 +332,10 @@ eisa_find_irq(struct eisa_device *e_dev, int rid)
 	struct irq_node *irq;
 
 	for (i = 0, irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
-	     i < rid && irq;
-	     i++, irq = TAILQ_NEXT(irq, links))
-		;
+	     i < rid && irq != NULL; i++, irq = TAILQ_NEXT(irq, links))
+		continue;
 	
-	if (irq)
-		return (irq);
-	else
-		return (NULL);
+	return (irq);
 }
 
 static struct resvaddr *
@@ -371,11 +345,10 @@ eisa_find_maddr(struct eisa_device *e_dev, int rid)
 	struct resvaddr *resv;
 
 	for (i = 0, resv = LIST_FIRST(&e_dev->ioconf.maddrs);
-	     i < rid && resv;
-	     i++, resv = LIST_NEXT(resv, links))
-		;
+	     i < rid && resv != NULL; i++, resv = LIST_NEXT(resv, links))
+		continue;
 
-	return resv;
+	return (resv);
 }
 
 static struct resvaddr *
@@ -385,11 +358,10 @@ eisa_find_ioaddr(struct eisa_device *e_dev, int rid)
 	struct resvaddr *resv;
 
 	for (i = 0, resv = LIST_FIRST(&e_dev->ioconf.ioaddrs);
-	     i < rid && resv;
-	     i++, resv = LIST_NEXT(resv, links))
-		;
+	     i < rid && resv != NULL; i++, resv = LIST_NEXT(resv, links))
+		continue;
 
-	return resv;
+	return (resv);
 }
 
 static int
@@ -409,11 +381,10 @@ eisa_read_ivar(device_t dev, device_t child, int which, u_long *result)
 
 	case EISA_IVAR_IRQ:
 		/* XXX only first irq */
-		if ((irq = eisa_find_irq(e_dev, 0)) != NULL) {
+		if ((irq = eisa_find_irq(e_dev, 0)) != NULL)
 			*result = irq->irq_no;
-		} else {
+		else
 			*result = -1;
-		}
 		break;
 
 	default:
@@ -431,28 +402,27 @@ eisa_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static struct resource *
 eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
 	int isdefault;
 	struct eisa_device *e_dev = device_get_ivars(child);
 	struct resource *rv, **rvp = 0;
 
-	isdefault = (device_get_parent(child) == dev
-		     && start == 0UL && end == ~0UL && count == 1);
+	isdefault = (device_get_parent(child) == dev &&
+	     start == 0UL && end == ~0UL && count == 1);
 
 	switch (type) {
 	case SYS_RES_IRQ:
 		if (isdefault) {
 			struct irq_node * irq = eisa_find_irq(e_dev, *rid);
 			if (irq == NULL)
-				return 0;
+				return (NULL);
 			start = end = irq->irq_no;
 			count = 1;
-			if (irq->irq_trigger == EISA_TRIGGER_LEVEL) {
+			if (irq->irq_trigger == EISA_TRIGGER_LEVEL)
 				flags |= RF_SHAREABLE;
-			} else {
+			else
 				flags &= ~RF_SHAREABLE;
-			}
 		}
 		break;
 
@@ -461,8 +431,8 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			struct resvaddr *resv;
 
 			resv = eisa_find_maddr(e_dev, *rid);
-			if (!resv)
-				return 0;
+			if (resv == NULL)
+				return (NULL);
 
 			start = resv->addr;
 			end = resv->addr + (resv->size - 1);
@@ -476,8 +446,8 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			struct resvaddr *resv;
 
 			resv = eisa_find_ioaddr(e_dev, *rid);
-			if (!resv)
-				return 0;
+			if (resv == NULL)
+				return (NULL);
 
 			start = resv->addr;
 			end = resv->addr + (resv->size - 1);
@@ -491,11 +461,11 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 
 	rv = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				 type, rid, start, end, count, flags);
+	     type, rid, start, end, count, flags);
 	if (rvp)
 		*rvp = rv;
 
-	return rv;
+	return (rv);
 }
 
 static int
@@ -509,7 +479,7 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 	switch (type) {
 	case SYS_RES_IRQ:
 		if (eisa_find_irq(e_dev, rid) == NULL)
-			return EINVAL;
+			return (EINVAL);
 		break;
 
 	case SYS_RES_MEMORY:
@@ -530,11 +500,11 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 	rv = BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type, rid, r);
 
 	if (rv == 0) {
-		if (resv)
+		if (resv != NULL)
 			resv->res = 0;
 	}
 
-	return rv;
+	return (rv);
 }
 
 static int
@@ -552,7 +522,7 @@ eisa_add_intr_m(device_t eisa, device_t dev, int irq, int trigger)
 	irq_info->irq_trigger = trigger;
 	irq_info->idesc = NULL;
 	TAILQ_INSERT_TAIL(&e_dev->ioconf.irqs, irq_info, links);
-	return 0;
+	return (0);
 }
 
 static int
@@ -610,8 +580,8 @@ eisa_add_mspace_m(device_t eisa, device_t dev, u_long mbase, u_long msize,
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 
-	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.maddrs), mbase, msize,
-				  flags);
+	return (eisa_add_resvaddr(e_dev, &(e_dev->ioconf.maddrs), mbase, msize,
+	    flags));
 }
 
 static int
@@ -620,8 +590,8 @@ eisa_add_iospace_m(device_t eisa, device_t dev, u_long iobase, u_long iosize,
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 
-	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), iobase,
-				  iosize, flags);
+	return (eisa_add_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), iobase,
+	    iosize, flags));
 }
 
 static device_method_t eisa_methods[] = {
