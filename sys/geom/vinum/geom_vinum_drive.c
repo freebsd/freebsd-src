@@ -278,7 +278,6 @@ gv_drive_orphan(struct g_consumer *cp)
 	g_destroy_consumer(cp);	
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
-	g_free(gp->softc);
 	g_wither_geom(gp, error);
 }
 
