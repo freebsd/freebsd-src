@@ -1,6 +1,11 @@
                                  RELEASE NOTES
                           FreeBSD Release 2.2 SNAPSHOT
 
+0. What's new since 2.2-961014-SNAP?
+------------------------------------
+
+Support for the SDL RISCom N2pci sync serial card.
+
 0. What's new since 2.2-961006-SNAP?
 ------------------------------------
 
@@ -302,6 +307,7 @@ Cyclades Cyclom-y Serial Board.
 STB 4 port card using shared IRQ.
 
 SDL Communications Riscom/8 Serial Board.
+SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
@@ -476,6 +482,7 @@ The FreeBSD Development Team, excluding core team members
         Thomas Gellekum <tg@FreeBSD.org>
         Thomas Graichen <graichen@FreeBSD.org>
         Rod Grimes <rgrimes@FreeBSD.org>
+        John Hay <jhay@FreeBSD.org>
         Jeffrey Hsu <hsu@FreeBSD.org>
         Ugen J.S. Antsilevich <ugen@FreeBSD.org>
         Gary Jennejohn <gj@FreeBSD.org>
@@ -508,9 +515,8 @@ The FreeBSD Development Team, excluding core team members
 Additional FreeBSD helpers and beta testers:
 
         Coranth Gryphon            Dave Rivers 
-        John Hay                   Kaleb S. Keithley
-        Michael Smith              Terry Lambert
-        David Dawes
+        Kaleb S. Keithley          Michael Smith
+        Terry Lambert              David Dawes
 
 Special mention to:
 
@@ -538,4 +544,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.15 1996/10/13 01:53:24 jkh Exp $
+$Id: relnotes.hlp,v 1.16 1996/10/23 22:28:56 wosch Exp $
