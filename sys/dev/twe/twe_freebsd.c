@@ -741,8 +741,10 @@ twed_dump(dev_t dev)
 	count -= blkcnt * dumppages;
 	addr += PAGE_SIZE * dumppages;
 	
-	if (cncheckc() != -1)
+	if (cncheckc() == 0x03)
 	    return(EINTR);
+	else
+	    printf("[CTRL-C to abort] ");
     }
     return(0);
 }
