@@ -1460,14 +1460,10 @@ atm_cm_cleared(cvp)
 	Atm_connection	*cop, *cop2;
 	int		s;
 
-#ifdef DIAGNOSTIC
-	if ((cvp->cvc_state == CVCS_FREE) ||
-	    (cvp->cvc_state >= CVCS_CLEAR))
-		panic("atm_cm_cleared");
-#endif
+	KASSERT((cvp->cvc_state != CVCS_FREE) && (cvp->cvc_state < CVCS_CLEAR),
+	    ("atm_cm_cleared: state sanity check failed"));
 
 	cvp->cvc_state = CVCS_CLEAR;
-
 	s = splnet();
 
 	/*
