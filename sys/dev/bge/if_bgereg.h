@@ -1055,7 +1055,7 @@
 #define BGE_HCC_RX_COAL_TICKS_INT	0x3C18 /* ticks during interrupt */
 #define BGE_HCC_TX_COAL_TICKS_INT	0x3C1C /* ticks during interrupt */
 #define BGE_HCC_RX_MAX_COAL_BDS_INT	0x3C20 /* BDs during interrupt */
-#define BGE_HCC_TX_MAX_COAL_BDS_INT	0x3C34 /* BDs during interrupt */
+#define BGE_HCC_TX_MAX_COAL_BDS_INT	0x3C24 /* BDs during interrupt */
 #define BGE_HCC_STATS_TICKS		0x3C28
 #define BGE_HCC_STATS_ADDR_HI		0x3C30
 #define BGE_HCC_STATS_ADDR_LO		0x3C34
