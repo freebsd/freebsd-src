@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.8 1995/12/14 18:13:14 bde Exp $
+#	$Id: bsd.man.mk,v 1.9 1996/03/24 00:08:02 wosch Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -12,10 +12,12 @@ ZEXTENSION=	.gz
 
 SECTIONS=	1 2 3 3f 4 5 6 7 8 9
 
+.undef _MANPAGES
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
 .SUFFIXES: .${sect}
 .PATH.${sect}: ${MANSRC}
+_MANPAGES+= ${MAN${sect}}
 .endif
 .endfor
 
