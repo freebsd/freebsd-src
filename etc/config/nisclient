@@ -1,0 +1,4 @@
+# $Id$
+# This file determines whether the Yellow Pages/NIS client software
+# is automatically started at boot time.  The default is off.
+off
