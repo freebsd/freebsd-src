@@ -298,6 +298,7 @@ struct aac_softc
 	struct resource		*aac_irq;		/* interrupt */
 	int			aac_irq_rid;
 	void			*aac_intr;		/* interrupt handle */
+	eventhandler_tag	eh;
 
 	/* controller features, limits and status */
 	int			aac_state;
