@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.73 1998/09/05 14:13:12 phk Exp $
+ * $Id: spec_vnops.c,v 1.74 1998/09/12 20:21:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -257,7 +257,7 @@ spec_read(ap)
 	daddr_t bn, nextbn;
 	long bsize, bscale;
 	struct partinfo dpart;
-	int n, on, majordev;
+	int n, on;
 	d_ioctl_t *ioctl;
 	int error = 0;
 	dev_t dev;
@@ -285,8 +285,7 @@ spec_read(ap)
 			return (EINVAL);
 		bsize = BLKDEV_IOSIZE;
 		dev = vp->v_rdev;
-		if ((majordev = major(dev)) < nblkdev &&
-		    (ioctl = bdevsw[majordev]->d_ioctl) != NULL &&
+		if ((ioctl = bdevsw[major(dev)]->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
