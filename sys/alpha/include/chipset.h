@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.6 1998/11/15 18:25:16 dfr Exp $
+ *	$Id: chipset.h,v 1.7 1999/04/16 21:21:35 peter Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -44,14 +44,14 @@ typedef void		alpha_chipset_writew_t(u_int32_t pa, u_int16_t data);
 typedef void		alpha_chipset_writel_t(u_int32_t pa, u_int32_t data);
 
 typedef int		alpha_chipset_maxdevs_t(u_int bus);
-typedef u_int8_t	alpha_chipset_cfgreadb_t(u_int, u_int, u_int, u_int);
-typedef u_int16_t	alpha_chipset_cfgreadw_t(u_int, u_int, u_int, u_int);
-typedef u_int32_t	alpha_chipset_cfgreadl_t(u_int, u_int, u_int, u_int);
-typedef void		alpha_chipset_cfgwriteb_t(u_int, u_int, u_int, u_int,
+typedef u_int8_t	alpha_chipset_cfgreadb_t(u_int, u_int, u_int, u_int, u_int);
+typedef u_int16_t	alpha_chipset_cfgreadw_t(u_int, u_int, u_int, u_int, u_int);
+typedef u_int32_t	alpha_chipset_cfgreadl_t(u_int, u_int, u_int, u_int, u_int);
+typedef void		alpha_chipset_cfgwriteb_t(u_int, u_int, u_int, u_int, u_int,
 						  u_int8_t);
-typedef void		alpha_chipset_cfgwritew_t(u_int, u_int, u_int, u_int,
+typedef void		alpha_chipset_cfgwritew_t(u_int, u_int, u_int, u_int, u_int,
 						  u_int16_t);
-typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int,
+typedef void		alpha_chipset_cfgwritel_t(u_int, u_int, u_int, u_int, u_int,
 						  u_int32_t);
 typedef vm_offset_t     alpha_chipset_addrcvt_t(vm_offset_t);
 typedef u_int64_t	alpha_chipset_read_hae_t(void);

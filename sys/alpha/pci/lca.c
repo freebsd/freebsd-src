@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.7 1999/05/08 21:58:43 dfr Exp $
+ *	$Id: lca.c,v 1.8 1999/05/10 15:46:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -276,37 +276,37 @@ lca_maxdevs(u_int b)
 	return
 
 static u_int8_t
-lca_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+lca_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, BYTE, u_int8_t);
 }
 
 static u_int16_t
-lca_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+lca_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, WORD, u_int16_t);
 }
 
 static u_int32_t
-lca_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+lca_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, LONG, u_int32_t);
 }
 
 static void
-lca_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+lca_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
 }
 
 static void
-lca_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+lca_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
 }
 
 static void
-lca_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+lca_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	CFGWRITE(b, s, f, r, data, LONG, u_int16_t);
 }

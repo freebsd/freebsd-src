@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.6 1999/04/16 21:21:38 peter Exp $
+ *	$Id: apecs.c,v 1.7 1999/05/08 21:58:40 dfr Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -323,44 +323,44 @@ apecs_swiz_writel(u_int32_t pa, u_int32_t data)
 
 #if 1
 static u_int8_t
-apecs_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, BYTE, u_int8_t);
 }
 
 static u_int16_t
-apecs_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, WORD, u_int16_t);
 }
 
 static u_int32_t
-apecs_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, LONG, u_int32_t);
 }
 
 static void
-apecs_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+apecs_swiz_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
 }
 
 static void
-apecs_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+apecs_swiz_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
 }
 
 static void
-apecs_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+apecs_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
 }
 
 #else
 static u_int8_t
-apecs_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
@@ -370,7 +370,7 @@ apecs_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 }
 
 static u_int16_t
-apecs_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
@@ -380,7 +380,7 @@ apecs_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 }
 
 static u_int32_t
-apecs_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+apecs_swiz_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
@@ -390,7 +390,7 @@ apecs_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 }
 
 static void
-apecs_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+apecs_swiz_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
@@ -400,7 +400,7 @@ apecs_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 }
 
 static void
-apecs_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+apecs_swiz_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);
@@ -410,7 +410,7 @@ apecs_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 }
 
 static void
-apecs_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+apecs_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	struct apecs_softc* sc = APECS_SOFTC(apecs0);
 	vm_offset_t off = APECS_SWIZ_CFGOFF(b, s, f, r);

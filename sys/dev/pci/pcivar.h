@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.31 1999/05/11 07:55:32 peter Exp $
+ * $Id: pcivar.h,v 1.32 1999/05/18 20:48:38 peter Exp $
  *
  */
 
@@ -104,6 +104,7 @@ typedef struct pcicfg {
     u_int8_t	mfdev;		/* multi-function device (from hdrtype reg) */
     u_int8_t	nummaps;	/* actual number of PCI maps used */
 
+    u_int8_t    hose;           /* hose which bus is attached to */
     u_int8_t	bus;		/* config space bus address */
     u_int8_t	slot;		/* config space slot address */
     u_int8_t	func;		/* config space function number */
@@ -205,6 +206,7 @@ enum pci_device_ivars {
 	PCI_IVAR_FUNCTION,
 	PCI_IVAR_SECONDARYBUS,
 	PCI_IVAR_SUBORDINATEBUS,
+	PCI_IVAR_HOSE,
 };
 
 /*
@@ -241,6 +243,7 @@ PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
 PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
 PCI_ACCESSOR(secondarybus,	SECONDARYBUS,	u_int8_t)
 PCI_ACCESSOR(subordinatebus,	SUBORDINATEBUS,	u_int8_t)
+PCI_ACCESSOR(hose,		HOSE,		u_int32_t)
 
 static __inline u_int32_t
 pci_read_config(device_t dev, int reg, int width)
@@ -253,6 +256,32 @@ pci_write_config(device_t dev, int reg, u_int32_t val, int width)
 {
     PCI_WRITE_CONFIG(device_get_parent(dev), dev, reg, val, width);
 }
+
+/*
+ * Ivars for pci bridges.
+ */
+
+/*typedef enum pci_device_ivars pcib_device_ivars;*/
+enum pcib_device_ivars {
+	PCIB_IVAR_HOSE,
+};
+
+#define PCIB_ACCESSOR(A, B, T)						 \
+									 \
+static __inline T pcib_get_ ## A(device_t dev)				 \
+{									 \
+	uintptr_t v;							 \
+	BUS_READ_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, &v); \
+	return (T) v;							 \
+}									 \
+									 \
+static __inline void pcib_set_ ## A(device_t dev, T t)			 \
+{									 \
+	u_long v = (u_long) t;						 \
+	BUS_WRITE_IVAR(device_get_parent(dev), dev, PCIB_IVAR_ ## B, v); \
+}
+
+PCIB_ACCESSOR(hose,		HOSE,		u_int32_t)
 
 #endif
 
