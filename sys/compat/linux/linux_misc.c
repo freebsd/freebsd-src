@@ -1019,7 +1019,7 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
-	cred = td->td_proc->p_ucred;
+	cred = td->td_ucred;
 	bsd_gidset = cred->cr_groups;
 	bsd_gidsetsz = cred->cr_ngroups - 1;
 
@@ -1310,7 +1310,7 @@ int
 linux_getgid(struct thread *td, struct linux_getgid_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_rgid;
+	td->td_retval[0] = td->td_ucred->cr_rgid;
 	return (0);
 }
 
@@ -1318,7 +1318,7 @@ int
 linux_getuid(struct thread *td, struct linux_getuid_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_ruid;
+	td->td_retval[0] = td->td_ucred->cr_ruid;
 	return (0);
 }
 
