@@ -126,6 +126,7 @@ struct mii_softc {
 	int mii_capabilities;		/* capabilities from BMSR */
 	int mii_ticks;			/* MII_TICK counter */
 	int mii_active;			/* last active media */
+	int mii_status;			/* last active status */
 };
 typedef struct mii_softc mii_softc_t;
 
@@ -173,6 +174,8 @@ int	mii_media_from_bmcr __P((int));
 int	mii_phy_auto __P((struct mii_softc *, int));
 void	mii_phy_auto_stop __P((struct mii_softc *));
 void	mii_phy_reset __P((struct mii_softc *));
+void	mii_phy_update __P((struct mii_softc *, int));
+int	mii_phy_tick __P((struct mii_softc *));
 
 void	ukphy_status __P((struct mii_softc *));
 #endif /* _KERNEL */
