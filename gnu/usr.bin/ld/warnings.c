@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.3 1993/11/01 16:26:20 pk Exp $
+ * $Id: warnings.c,v 1.4 1993/11/05 12:45:25 pk Exp $
  */
 
 #include <sys/param.h>
@@ -685,7 +685,7 @@ do_file_warnings (entry, outfile)
 
 		} else if (BIT_SET_P (nlist_bitvector, i))
 			continue;
-		else if (list_unresolved_refs && !g->defined) {
+		else if (list_unresolved_refs && !g->defined && !g->so_defined) {
 			if (g->undef_refs >= MAX_UREFS_PRINTED)
 				continue;
 
