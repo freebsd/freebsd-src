@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.h,v 1.3 1997/02/22 09:28:47 peter Exp $
+ *      $Id: advlib.h,v 1.4 1998/09/15 07:03:33 gibbs Exp $
  */
 /*
  * Ported from:
@@ -824,6 +824,7 @@ u_int8_t  adv_period_offset_to_sdtr(struct adv_softc *adv, u_int *period,
 				    u_int *offset, int tid);
 
 /* Error recovery */
+union ccb;
 int	  adv_abort_ccb(struct adv_softc *adv, int target, int lun,
 			union ccb *ccb, u_int32_t status, int queued_only);
 int	  adv_reset_bus(struct adv_softc *adv);
