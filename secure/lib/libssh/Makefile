@@ -28,8 +28,8 @@ LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 
 NOLINT=	true
 
-DPADD=	${LIBCRYPTO} ${LIBCRYPT} ${LIBZ}
-LDADD=	-lcrypto -lcrypt -lz
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBZ}
+LDADD+=	-lcrypto -lcrypt -lz
 
 .include <bsd.lib.mk>
 
