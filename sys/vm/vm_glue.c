@@ -696,14 +696,10 @@ int action;
 	struct proc *p;
 	struct thread *td;
 	struct ksegrp *kg;
-	struct proc *outp, *outp2;
-	int outpri, outpri2;
 	int didswap = 0;
 
 	GIANT_REQUIRED;
 
-	outp = outp2 = NULL;
-	outpri = outpri2 = INT_MIN;
 retry:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
