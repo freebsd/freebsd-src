@@ -12,26 +12,21 @@ MLINKS=		groff_mm.7 mm.7 groff_mmse.7 mmse.7
 MANDEPEND=	${MAN7}
 CLEANFILES+=	${MANDEPEND}
 
-afterinstall:
-	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-		${DIST_DIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.m
-	${INSTALL} -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-		${DIST_DIR}/tmac.m $(DESTDIR)$(TMACDIR)/tmac.mse
-
-	test -d $(DESTDIR)$(TMACDIR)/mm || mkdir $(DESTDIR)$(TMACDIR)/mm
-	chown $(TMACOWN).$(TMACGRP) $(DESTDIR)$(TMACDIR)/mm
-	chmod 755 $(DESTDIR)$(TMACDIR)/mm
-
-	for f in $(FILES); do \
-		$(INSTALL) -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
-			${DIST_DIR}/mm/$$f $(DESTDIR)$(TMACDIR)/mm/$$f; \
-	done
-	for f in $(LOCALE); do \
-		test -f $(DESTDIR)$(TMACDIR)/mm/$$f || \
-			touch $(DESTDIR)$(TMACDIR)/mm/$$f; \
-		chown $(TMACOWN).$(TMACGRP) $(DESTDIR)$(TMACDIR)/mm/$$f; \
-		chmod $(TMACMODE) $(DESTDIR)$(TMACDIR)/mm/$$f; \
-	done
+beforeinstall:
+	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${DIST_DIR}/tmac.m ${DESTDIR}${TMACDIR}/
+	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${DIST_DIR}/tmac.m ${DESTDIR}${TMACDIR}/tmac.mse
+.for file in ${FILES}
+	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${DIST_DIR}/mm/${file} ${DESTDIR}${TMACDIR}/mm/
+.endfor
+.for locale in ${LOCALE}
+.if !exists(${locale}) || empty(${locale})
+	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		/dev/null ${DESTDIR}${TMACDIR}/mm/${locale}
+.endif
+.endfor
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
