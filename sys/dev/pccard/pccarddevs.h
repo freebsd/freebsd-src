@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.57 2003/07/15 03:27:53 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.58 2003/07/15 07:21:40 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -110,7 +110,7 @@
 #define	PCMCIA_VENDOR_LASAT	0x3401	/* Lasat Communications A/S */
 #define	PCMCIA_VENDOR_BONDWELL	0x3b01	/* Bondwell */
 #define	PCMCIA_VENDOR_LEXARMEDIA	0x4e01	/* Lexar Media */
-#define	PCMCIA_VENDOR_OEM1	0x50c2	/* Mystery OEM #1 */
+#define	PCMCIA_VENDOR_AIRVAST	0x50c2	/* AirVast Technology */
 #define	PCMCIA_VENDOR_ARCHOS	0x5241	/* Archos */
 #define	PCMCIA_VENDOR_DUAL	0x890f	/* Dual */
 #define	PCMCIA_VENDOR_EDIMAX	0x890f	/* Edimax Technology Inc. */
@@ -191,6 +191,11 @@
 #define	PCMCIA_CIS_AIRONET_350	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_AIRONET_350	0x000a
 #define	PCMCIA_STR_AIRONET_350	"Aironet 350 Wireless LAN Adapter"
+
+/* AirVast */
+#define	PCMCIA_CIS_AIRVAST_WN_100	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_AIRVAST_WN_100	0x7300
+#define	PCMCIA_STR_AIRVAST_WN_100	"AirVast WN-100"
 
 /* Allied Telesis K.K. */
 #define	PCMCIA_CIS_ALLIEDTELESIS_LA_PCM	{ NULL, NULL, NULL, NULL }
@@ -553,11 +558,6 @@
 #define	PCMCIA_CIS_NWN_WLAN_1148	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NWN_WLAN_1148	0x0003
 #define	PCMCIA_STR_NWN_WLAN_1148	"NWN 1148 WLAN"
-
-/* Mystery OEM #1 */
-#define	PCMCIA_CIS_OEM1_PRISM3	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_OEM1_PRISM3	0x7300
-#define	PCMCIA_STR_OEM1_PRISM3	"Prism 3 37300P"
 
 /* Olicom Products */
 #define	PCMCIA_CIS_OLICOM_TR	{ NULL, NULL, NULL, NULL }
