@@ -1390,7 +1390,7 @@ m3_config(struct sc_info *sc)
 		hv_cfg = HV_BUTTON_FROM_GD;
 
 	data = pci_read_config(sc->dev, PCI_ALLEGRO_CONFIG, 4);
-	data &= HV_BUTTON_FROM_GD;
+	data &= ~HV_BUTTON_FROM_GD;
 	data |= REDUCED_DEBOUNCE | HV_CTRL_ENABLE | hv_cfg;
 	data |= PM_CTRL_ENABLE | CLK_DIV_BY_49 | USE_PCI_TIMING;
 	pci_write_config(sc->dev, PCI_ALLEGRO_CONFIG, data, 4);
