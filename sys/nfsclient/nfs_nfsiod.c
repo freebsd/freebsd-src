@@ -427,12 +427,11 @@ nfssvc_nfsd(nsd, argp, p)
 	caddr_t argp;
 	struct proc *p;
 {
-	register struct mbuf *m;
 	register int siz;
 	register struct nfssvc_sock *slp;
 	struct nfsd *nfsd = nsd->nsd_nfsd;
 	struct nfsrv_descript *nd = NULL;
-	struct mbuf *mreq;
+	struct mbuf *m, *mreq;
 	int error = 0, cacherep, s, sotype, writes_todo;
 	int procrastinate;
 	u_quad_t cur_usec;
