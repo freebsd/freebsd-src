@@ -355,7 +355,7 @@ int psmread(dev_t dev, struct uio *uio, int flag)
 	return(error);
 }
 
-int psmioctl(dev_t dev, caddr_t addr, int cmd, int flag, struct proc *p)
+int psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc;
 	struct mouseinfo info;
