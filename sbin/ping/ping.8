@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.7 1997/02/22 14:33:06 peter Exp $
+.\"	$Id: ping.8,v 1.8 1997/03/01 20:19:18 wollman Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -42,15 +42,20 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm ping
-.Op Fl adfnqrvLRQ
+.Op Fl QRadfnqrv
 .Op Fl c Ar count
 .Op Fl i Ar wait
-.Op Fl I Ar interface
 .Op Fl l Ar preload
 .Op Fl p Ar pattern
 .Op Fl s Ar packetsize
-.Op Fl T Ar ttl
+[
 .Ar host
+|
+.Op Fl L
+.Op Fl I Ar interface
+.Op Fl T Ar ttl
+.Ar mcast-group
+]
 .Sh DESCRIPTION
 .Nm Ping
 uses the

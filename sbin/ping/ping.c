@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ping.c,v 1.17 1997/03/01 20:19:18 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -205,7 +205,7 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "I:LQRT:c:adfh:i:l:np:qrs:v")) != -1) {
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1) {
 		switch(ch) {
 		case 'a':
 			options |= F_AUDIBLE;
@@ -249,6 +249,11 @@ main(argc, argv)
 			if (*ep || ep == optarg || ultmp > INT_MAX)
 				errx(EX_USAGE, 
 				     "invalid preload value: `%s'", optarg);
+			if (getuid()) {
+				errno = EPERM;
+				err(EX_NOPERM, "-l flag");
+			}
+			options |= F_FLOOD;
 			preload = ultmp;
 			break;
 		case 'L':
@@ -465,6 +470,7 @@ main(argc, argv)
 	}
 	finish(0);
 	/* NOTREACHED */
+	exit(0);	/* Make the compiler happy */
 }
 
 /*
@@ -653,6 +659,10 @@ pr_pack(buf, cc, from)
 		 * See if it's a reply to something that we sent.
 		 * We can compare IP destination, protocol,
 		 * and ICMP type and ID.
+		 *
+		 * Only print all the error messages if we are running
+		 * as root to avoid leaking information not normally 
+		 * available to those not running as root.
 		 */
 #ifndef icmp_data
 		struct ip *oip = &icp->icmp_ip;
@@ -661,7 +671,7 @@ pr_pack(buf, cc, from)
 #endif
 		struct icmp *oicmp = (struct icmp *)(oip + 1);
 
-		if ((options & F_VERBOSE) ||
+		if (((options & F_VERBOSE) && getuid() == 0) ||
 		    (!(options & F_QUIET2) &&
 		     (oip->ip_dst.s_addr ==
 			 ((struct sockaddr_in *)&whereto)->sin_addr.s_addr) &&
@@ -1085,7 +1095,7 @@ pr_addr(ina)
 	struct in_addr ina;
 {
 	struct hostent *hp;
-	static char buf[80];
+	static char buf[16 + 3 + MAXHOSTNAMELEN];
 
 	if ((options & F_NUMERIC) ||
 	    !(hp = gethostbyaddr((char *)&ina, 4, AF_INET)))
@@ -1157,9 +1167,10 @@ static void
 usage(argv0)
 	const char *argv0;
 {
-	warnx("usage:");
+	if (strrchr(argv0,'/'))
+		argv0 = strrchr(argv0,'/') + 1;
 	fprintf(stderr,
-		"\t%s [-QRadfnqrv] [-c count] [-i wait] [-l preload] "
+		"usage: %s [-QRadfnqrv] [-c count] [-i wait] [-l preload] "
 		"[-p pattern]\n\t\t[-s packetsize] "
 		"[host | [-L] [-I iface] [-T ttl] mcast-group]\n",
 		argv0);
