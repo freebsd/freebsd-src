@@ -71,6 +71,7 @@ nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
 rl	i386,pc98,alpha,sparc64,amd64
 sf	i386,pc98,alpha,amd64
+sk	i386,pc98,alpha,amd64
 stg	i386,pc98
 sym	i386,pc98,alpha,sparc64,amd64
 trm	i386,amd64
