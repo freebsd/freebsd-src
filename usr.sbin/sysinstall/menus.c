@@ -825,7 +825,7 @@ DMenu MenuSubDistributions = {
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, '<', '<', '<' },
+	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { "All",		"All system sources, binaries and X Window System",
 	NULL, distSetEverything },
       { "Reset",	"Reset all of the below",
