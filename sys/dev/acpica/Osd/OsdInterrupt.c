@@ -44,9 +44,6 @@
 #define _COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("INTERRUPT")
 
-static void		InterruptWrapper(void *arg);
-
-static OSD_HANDLER	InterruptHandler;
 static UINT32		InterruptOverride = 0;
 
 ACPI_STATUS
@@ -66,11 +63,6 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
-    if (InterruptHandler != NULL) {
-	device_printf(sc->acpi_dev, "interrupt handler already installed\n");
-	return_ACPI_STATUS (AE_ALREADY_EXISTS);
-    }
-    InterruptHandler = ServiceRoutine;
 
     /*
      * If the MADT contained an interrupt override directive for the SCI,
@@ -92,8 +84,8 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 	device_printf(sc->acpi_dev, "could not allocate interrupt\n");
 	goto error;
     }
-    if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC,
-	InterruptWrapper, Context, &sc->acpi_irq_handle)) {
+    if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC|INTR_MPSAFE,
+	(driver_intr_t *)ServiceRoutine, Context, &sc->acpi_irq_handle)) {
 	device_printf(sc->acpi_dev, "could not set up interrupt\n");
 	goto error;
     }
@@ -108,7 +100,6 @@ error:
 	bus_release_resource(sc->acpi_dev, SYS_RES_IRQ, 0, sc->acpi_irq);
     sc->acpi_irq = NULL;
     bus_delete_resource(sc->acpi_dev, SYS_RES_IRQ, 0);
-    InterruptHandler = NULL;
 
     return_ACPI_STATUS (AE_ALREADY_EXISTS);
 }
@@ -136,7 +127,6 @@ AcpiOsRemoveInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine)
     bus_delete_resource(sc->acpi_dev, SYS_RES_IRQ, 0);
 
     sc->acpi_irq = NULL;
-    InterruptHandler = NULL;
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -151,14 +141,4 @@ acpi_OverrideInterruptLevel(UINT32 InterruptNumber)
 	return_ACPI_STATUS (AE_ALREADY_EXISTS);
     InterruptOverride = InterruptNumber;
     return_ACPI_STATUS (AE_OK);
-}
-
-static void
-InterruptWrapper(void *arg)
-{
-    ACPI_LOCK_DECL;
-
-    ACPI_LOCK;
-    InterruptHandler(arg);
-    ACPI_UNLOCK;
 }
