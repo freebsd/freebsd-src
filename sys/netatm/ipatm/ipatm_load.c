@@ -65,6 +65,8 @@
 #include <netatm/ipatm/ipatm.h>
 #include <netatm/ipatm/ipatm_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -103,20 +105,8 @@ Atm_endpoint	ipatm_endpt = {
 	NULL
 };
 
-struct sp_info	ipatm_vcpool = {
-	"ipatm vcc pool",		/* si_name */
-	sizeof(struct ipvcc),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
-struct sp_info	ipatm_nifpool = {
-	"ipatm nif pool",		/* si_name */
-	sizeof(struct ip_nif),		/* si_blksiz */
-	5,				/* si_blkcnt */
-	52				/* si_maxallow */
-};
-
+uma_zone_t	ipatm_vc_zone;
+uma_zone_t	ipatm_nif_zone;
 
 /*
  * Local functions
@@ -415,6 +405,18 @@ ipatm_start()
 		return (EINVAL);
 	}
 
+	ipatm_vc_zone = uma_zcreate("ipatm vc", sizeof(struct ipvcc), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, M_ZERO|M_WAITOK);
+	if (ipatm_vc_zone == NULL)
+		panic("ipatm_start: unable to create ipatm_vc_zone");
+	uma_zone_set_max(ipatm_vc_zone, 100);
+		
+	ipatm_nif_zone = uma_zcreate("ipatm nif", sizeof(struct ip_nif), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, M_ZERO|M_WAITOK);
+	if (ipatm_nif_zone == NULL)
+		panic("ipatm_start: unable to create ipatm_nif_zone");
+	uma_zone_set_max(ipatm_nif_zone, 52);
+
 	/*
 	 * Register ourselves as a network convergence module
 	 */
@@ -602,9 +604,8 @@ ipatm_stop()
 	/*
 	 * Free up our storage pools
 	 */
-	atm_release_pool(&ipatm_vcpool);
-	atm_release_pool(&ipatm_nifpool);
-
+	uma_zdestroy(ipatm_vc_zone);
+	uma_zdestroy(ipatm_nif_zone);
 done:
 	(void) splx(s);
 	return (err);
