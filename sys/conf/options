@@ -1,4 +1,4 @@
-#	$Id: options,v 1.122 1999/01/21 08:29:03 dillon Exp $
+#	$Id: options,v 1.123 1999/01/23 17:07:49 nsouch Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -57,7 +57,6 @@ MFS_ROOT	opt_mfs.h
 MFS_ROOT_SIZE	opt_mfs.h
 NTIMECOUNTER	opt_ntp.h
 EXPORTMFS	opt_mfs.h
-NO_LKM
 NSWAPDEV	opt_swap.h
 PPS_SYNC	opt_ntp.h
 QUOTA
