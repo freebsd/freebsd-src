@@ -32,7 +32,7 @@
  *
  *	@(#)scanc.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: scanc.c,v 1.2 1994/08/02 07:44:27 davidg Exp $
+ * $Id: scanc.c,v 1.3 1995/03/17 06:15:39 phk Exp $
  */
 
 #include <sys/libkern.h>
@@ -47,6 +47,14 @@ scanc(size, cp, table, mask0)
 	register u_char mask;
 
 	mask = mask0;
-	for (end = &cp[size]; cp < end && (table[*cp] & mask) == 0; ++cp);
+	for (end = &cp[size]; cp < end; ++cp) {
+		/*
+		 * gcc-2.6.3 generates poor (un)sign extension code on i386's.
+		 * The cast to volatile should have no effect, but in fact it
+		 * improves the code on i386's.
+		 */
+		if (table[*(volatile u_char *)cp] & mask)
+			break;
+	}
 	return (end - cp);
 }
