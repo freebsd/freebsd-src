@@ -150,6 +150,9 @@ struct hme_softc {
 extern devclass_t hme_devclass;
 
 int	hme_config(struct hme_softc *);
+void	hme_detach(struct hme_softc *);
+void	hme_suspend(struct hme_softc *);
+void	hme_resume(struct hme_softc *);
 void	hme_intr(void *);
 
 /* MII methods & callbacks */

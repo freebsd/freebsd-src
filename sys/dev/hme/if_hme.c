@@ -90,9 +90,6 @@ static void	hme_stop(struct hme_softc *);
 static int	hme_ioctl(struct ifnet *, u_long, caddr_t);
 static void	hme_tick(void *);
 static void	hme_watchdog(struct ifnet *);
-#if 0
-static void	hme_shutdown(void *);
-#endif
 static void	hme_init(void *);
 static int	hme_add_rxbuf(struct hme_softc *, unsigned int, int);
 static int	hme_meminit(struct hme_softc *);
@@ -343,6 +340,49 @@ fail_ctag:
 fail_ptag:
 	bus_dma_tag_destroy(sc->sc_pdmatag);
 	return (error);
+}
+
+void
+hme_detach(struct hme_softc *sc)
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	int i;
+
+	ether_ifdetach(ifp);
+	hme_stop(sc);
+	device_delete_child(sc->sc_dev, sc->sc_miibus);
+
+	for (i = 0; i < HME_NTXQ; i++) {
+		bus_dmamap_destroy(sc->sc_tdmatag,
+		    sc->sc_rb.rb_txdesc[i].htx_dmamap);
+	}
+	bus_dmamap_destroy(sc->sc_rdmatag, sc->sc_rb.rb_spare_dmamap);
+	for (i = 0; i < HME_NRXDESC; i++) {
+		bus_dmamap_destroy(sc->sc_rdmatag,
+		    sc->sc_rb.rb_rxdesc[i].hrx_dmamap);
+	}
+	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cdmamap);
+	bus_dmamem_free(sc->sc_cdmatag, sc->sc_rb.rb_membase, sc->sc_cdmamap);
+	bus_dma_tag_destroy(sc->sc_tdmatag);
+	bus_dma_tag_destroy(sc->sc_rdmatag);
+	bus_dma_tag_destroy(sc->sc_cdmatag);
+	bus_dma_tag_destroy(sc->sc_pdmatag);
+}
+
+void
+hme_suspend(struct hme_softc *sc)
+{
+
+	hme_stop(sc);
+}
+
+void
+hme_resume(struct hme_softc *sc)
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+
+	if ((ifp->if_flags & IFF_UP) != 0)
+		hme_init(ifp);
 }
 
 static void
@@ -1341,15 +1381,6 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	splx(s);
 	return (error);
 }
-
-#if 0
-static void
-hme_shutdown(void *arg)
-{
-
-	hme_stop((struct hme_softc *)arg);
-}
-#endif
 
 /*
  * Set up the logical address filter.
