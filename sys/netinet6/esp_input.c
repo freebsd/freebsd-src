@@ -827,10 +827,10 @@ noreplaycheck:
 				m_freem(m);
 			} else {
 				m_copydata(m, 0, maxlen, mtod(n, caddr_t));
-				m_adj(m, maxlen);
 				n->m_len = maxlen;
 				n->m_pkthdr.len = m->m_pkthdr.len;
 				n->m_next = m;
+				m_adj(m, maxlen);
 				m->m_flags &= ~M_PKTHDR;
 			}
 			m = n;
