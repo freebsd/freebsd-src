@@ -1,8 +1,0 @@
-[1mecho[m	write arguments to the standard output
-
-	Usage:
-
-	echo [-n] [string...]
-
-	Optional parameter -n tells echo not to end the output with new
-	line character.
