@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.18 1996/06/11 23:52:27 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.19 1996/07/02 01:40:52 dyson Exp $
  */
 
 /*
@@ -222,13 +222,10 @@ procfs_rwmem(p, uio)
 		 * Fault the page in...
 		 */
 		if (writing && object->backing_object) {
-			vm_page_t m;
-			m = vm_page_lookup(object, pindex);
-			if (m == 0) {
-				error = vm_fault(map, pageno,
-					VM_PROT_WRITE, FALSE);
+			error = vm_fault(map, pageno,
+				VM_PROT_WRITE, FALSE);
+			if (error)
 				break;
-			}
 		}
 
 		/* Find space in kernel_map for the page we're interested in */
