@@ -2584,10 +2584,14 @@ renamecmd(char *from, char *to)
 static void
 dolog(struct sockaddr *who)
 {
-	int error;
+	char who_name[NI_MAXHOST];
 
 	realhostname_sa(remotehost, sizeof(remotehost) - 1, who, who->sa_len);
 	remotehost[sizeof(remotehost) - 1] = 0;
+	if (getnameinfo(who, who->sa_len,
+		who_name, sizeof(who_name) - 1, NULL, 0, NI_NUMERICHOST))
+			*who_name = 0;
+	who_name[sizeof(who_name) - 1] = 0;
 
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING
@@ -2604,20 +2608,12 @@ dolog(struct sockaddr *who)
 	if (logging) {
 #ifdef VIRTUAL_HOSTING
 		if (thishost != firsthost)
-			syslog(LOG_INFO, "connection from %s (to %s)",
-			       remotehost, hostname);
+			syslog(LOG_INFO, "connection from %s (%s) to %s",
+			       remotehost, who_name, hostname);
 		else
 #endif
-		{
-			char	who_name[NI_MAXHOST];
-
-			error = getnameinfo(who, who->sa_len,
-					    who_name, sizeof(who_name) - 1,
-					    NULL, 0, NI_NUMERICHOST);
-			who_name[sizeof(who_name) - 1] = 0;
-			syslog(LOG_INFO, "connection from %s (%s)", remotehost,
-			       error == 0 ? who_name : "");
-		}
+			syslog(LOG_INFO, "connection from %s (%s)",
+			       remotehost, who_name);
 	}
 }
 
