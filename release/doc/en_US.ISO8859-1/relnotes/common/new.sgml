@@ -162,6 +162,12 @@
       performance improvement in the forwarding rate under heavy
       load.</para>
 
+      <para>The &man.fxp.4; driver now supports Intel's loadable
+      microcode to implement receive-side interrupt coalescing and
+      packet bundling, on NICs that support these features.  This
+      support can be activated by the use of the
+      <option>link0</option> option to &man.ifconfig.8;.</para>
+
       <para>The dgm driver has been updated from &os; -CURRENT.</para>
 
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
@@ -259,6 +265,9 @@
     <para>&man.ipfw.8; has a new <literal>limit</literal> type of
     firewall rule, which limits the number of sessions between address
     pairs.</para>
+
+    <para>&man.keyinfo.1; is now a C program, rather than a Perl
+    script.</para>
 
     <para><filename>libstand</filename> now has support for
     filesystems containing <application>bzip2</application>-compressed
