@@ -144,7 +144,7 @@ struct {
 		"FBSD",			/* ASL compiler Id. */
 		0			/* ASL revision. */
 	},
-	NULL				/* XXX APIC table address. */
+	0UL				/* XXX APIC table address. */
 };
 
 RSDP_DESCRIPTOR acpi_root = {
@@ -152,9 +152,9 @@ RSDP_DESCRIPTOR acpi_root = {
 	0,				/* XXX checksum. */
 	"FBSD",
 	2,				/* ACPI Rev 2.0. */
-	NULL,
+	0UL,
 	sizeof(xsdt),			/* XSDT length. */
-	NULL,				/* XXX PA of XSDT. */
+	0UL,				/* XXX PA of XSDT. */
 	0,				/* XXX Extended checksum. */
 };
 
