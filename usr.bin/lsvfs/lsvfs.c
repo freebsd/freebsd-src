@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.3 1995/03/16 18:37:47 wollman Exp $
+ * $Id: lsvfs.c,v 1.4 1995/03/16 20:29:11 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,7 @@ main(int argc, char **argv)
   } else {
     while(vfc = getvfsent()) {
       printf(FMT, vfc->vfc_name, vfc->vfc_index, vfc->vfc_refcount,
-             vfc->vfc_flags);
+             fmt_flags(vfc->vfc_flags));
     }
   }
 
