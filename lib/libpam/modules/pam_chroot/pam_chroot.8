@@ -54,10 +54,13 @@ structure returned by
 contains the string
 .Dq /./ ,
 the portion of the directory name to the left of that string is used
-as the chroot directory.
-Otherwise, the directory specified by the
+as the chroot directory, and the portion to the right will be the
+current working directory inside the chroot tree.
+Otherwise, the directories specified by the
 .Cm dir
-option (see below) is used.
+and
+.Cm cwd
+options (see below) are used.
 .Bl -tag -width ".Cm also_root"
 .It Cm also_root
 Do not hold user id 0 exempt from the chroot requirement.
@@ -66,6 +69,12 @@ Report a failure if a chroot directory could not be derived from the
 user's home directory, and the
 .Cm dir
 option was not specified.
+.It Cm cwd Ns = Ns Ar directory
+Specify the directory to
+.Xr chdir 2
+into after a successful
+.Xr chroot 2
+call.
 .It Cm dir Ns = Ns Ar directory
 Specify the chroot directory to use if one could not be derived from
 the user's home directory.
