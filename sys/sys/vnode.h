@@ -82,6 +82,7 @@ struct vpollinfo {
  * Lock reference:
  *	c - namecache mutex
  *	f - freelist mutex
+ *	G - Giant
  *	i - interlock
  *	m - mntvnodes mutex
  *	p - pollinfo lock
@@ -147,7 +148,7 @@ struct vnode {
 	u_long	v_id;				/* c capability identifier */
 	struct	vnode *v_dd;			/* c .. vnode */
 	u_long	v_ddid;				/* c .. capability identifier */
-	struct vpollinfo *v_pollinfo;		/* p Poll events */
+	struct vpollinfo *v_pollinfo;		/* G Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
