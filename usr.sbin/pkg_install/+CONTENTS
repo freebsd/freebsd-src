@@ -1,0 +1,2 @@
+@cwd /usr/ports
+pkg_install
