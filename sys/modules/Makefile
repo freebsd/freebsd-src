@@ -99,7 +99,6 @@ SUBDIR=	3dfx \
 	vr \
 	vx \
 	wb \
-	wx \
 	xl
 
 #removed while KSE settles in:
