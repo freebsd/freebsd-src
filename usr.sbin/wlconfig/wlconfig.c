@@ -66,7 +66,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <machine/if_wl_wavelan.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
