@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.10 1995/10/22 09:32:25 davidg Exp $
+ * $Id: vfs_lookup.c,v 1.11 1996/01/03 21:42:22 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -112,6 +112,13 @@ namei(ndp)
 	else
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
+
+	/*
+	 * Don't allow empty pathnames.
+	 */
+	if (!error && *cnp->cn_pnbuf == '\0')
+		error = ENOENT;
+
 	if (error) {
 		free(cnp->cn_pnbuf, M_NAMEI);
 		ndp->ni_vp = NULL;
