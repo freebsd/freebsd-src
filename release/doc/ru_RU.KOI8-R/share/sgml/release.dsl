@@ -1,10 +1,10 @@
 <!--
   The FreeBSD Russian Documentation Project
 
-  $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.3 2004/05/20 11:30:04 den Exp $
+  $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/release.dsl,v 1.4 2004/07/06 12:53:46 den Exp $
   $FreeBSD$
   
-  Original revision: 1.7
+  Original revision: 1.8
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -43,7 +43,7 @@
 		(create-link
 		  (list (list "HREF" "mailto:questions@FreeBSD.org"))
                   (literal "questions@FreeBSD.org"))
-                (literal ">.")
+                (literal ">.")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
@@ -57,11 +57,12 @@
 
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
+              (make element gi: "small"
 	      (literal "Вопросы, касающиеся этого документа, Вы можете
 	      направить по адресу <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
-	      (literal ">."))))))
+	      (literal ">.")))))
       ]]>
 
     </style-specification-body>
