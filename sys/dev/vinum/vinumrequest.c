@@ -724,7 +724,6 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     ubp = rqe->rqg->rq->bp;				    /* pointer to user buffer header */
 
     /* Initialize the buf struct */
-    bzero(&rqe->b, sizeof(struct buf));
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
     /*
@@ -824,12 +823,21 @@ sdio(struct buf *bp)
 	biodone(bp);
 	return;
     }
-    bcopy(bp, &sbp->b, sizeof(struct buf));		    /* start with the user's buffer */
-    sbp->b.b_flags |= B_CALL;				    /* tell us when it's done */
-    sbp->b.b_iodone = sdio_done;			    /* here */
+    bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
+    /*
+     * XXX Should we check for reviving plexes here, and
+     * set B_ORDERED if so?
+     */
+    sbp->b.b_flags = bp->b_flags | B_CALL;		    /* inform us when it's done */
+    sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
+    sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
+    sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
     sbp->b.b_dev = DRIVE[sd->driveno].vp->v_rdev;	    /* device */
+    sbp->b.b_data = bp->b_data;				    /* data buffer */
+    sbp->b.b_blkno = bp->b_blkno + sd->driveoffset;
+    sbp->b.b_iodone = sdio_done;			    /* come here on completion */
+
     sbp->b.b_vp = DRIVE[sd->driveno].vp;		    /* vnode */
-    sbp->b.b_blkno += sd->driveoffset;
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
