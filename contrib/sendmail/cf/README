@@ -433,7 +433,7 @@ DECNET_RELAY	The host that will accept DECNET-addressed email.
 FAX_RELAY	The host that will accept mail to the .FAX pseudo-domain.
 		The "fax" mailer overrides this value.
 LOCAL_RELAY	The site that will handle unqualified names -- that
-		is, names with out an @domain extension.
+		is, names without an @domain extension.
 		Normally MAIL_HUB is preferred for this function.
 		LOCAL_RELAY is mostly useful in conjunction with
 		FEATURE(stickyhost) -- see the discussion of
@@ -2148,7 +2148,7 @@ If a certain level of encryption is required, then it might also be
 possible that this level is provided by the security layer from a SASL
 algorithm, e.g., DIGEST-MD5.
 
-Example: e-mail send to secure.example.com should only use an encrypted
+Example: e-mail sent to secure.example.com should only use an encrypted
 connection. e-mail received from hosts within the laptop.example.com domain
 should only be accepted if they have been authenticated.
 TLS_Srv:secure.example.com      ENCR:112
@@ -3313,4 +3313,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.47 $, Last updated $Date: 2001/07/13 22:31:49 $
+$Revision: 8.383.2.1.2.49 $, Last updated $Date: 2001/08/14 15:25:36 $

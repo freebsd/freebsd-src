@@ -1,10 +1,25 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.254 2001/07/31 22:42:46 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.261 2001/08/20 14:45:32 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.6/8.11.6	2001/08/20
+	SECURITY: Fix a possible memory access violation when specifying
+		out-of-bounds debug parameters.  Problem detected by
+		Cade Cairns of SecurityFocus.
+	Avoid leaking recipient information in unrelated DSNs.  This could
+		happen if a connection is aborted, several mails had been
+		scheduled for delivery via that connection, and the timeout
+		is reached such that several DSNs are sent next.  Problem
+		noted by Dileepan Moorkanat of Hewlett-Packard.
+	Fix a possible segmentation violation when specifying too many
+		wildcard operators in a rule.  Problem detected by
+		Werner Wiethege.
+	Avoid a segmentation fault on non-matching Hesiod lookups.  Problem
+		noted by Russell McOrmond of flora.ca
 
 8.11.5/8.11.5	2001/07/31
 	Fix a possible race condition when sending a HUP signal to restart
