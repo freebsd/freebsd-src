@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.h,v 1.7 1998/12/28 19:22:26 mjacob Exp $ */
+/* $Id: isp_freebsd.h,v 1.8 1999/01/10 02:51:06 mjacob Exp $ */
 /* release_12_28_98_A+ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
@@ -81,6 +81,7 @@ struct isposinfo {
 #define	DFLT_DBLEVEL		1
 
 #define	MEMZERO			BZERO
+#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
 
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL

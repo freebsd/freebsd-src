@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd_cam.h,v 1.10 1998/12/28 19:22:26 mjacob Exp $ */
+/* $Id: isp_freebsd_cam.h,v 1.11 1999/01/10 02:51:06 mjacob Exp $ */
 /* release_12_28_98_A+ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
@@ -90,6 +90,7 @@ struct isposinfo {
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 
 #define	MEMZERO			bzero
+#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
 
 #ifdef	CAMDEBUG
 #define	DFLT_DBLEVEL		2
