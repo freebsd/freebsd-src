@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.53 1995/10/22 15:07:43 bde Exp $
+ *	$Id: isa.c,v 1.54 1995/10/31 21:03:57 peter Exp $
  */
 
 /*
@@ -241,10 +241,6 @@ haveseen(dvp, tmpdvp, checkbits)
  * Search through all the isa_devtab_* tables looking for anything that
  * conflicts with the current device.
  */
-#include "eisa.h"
-#if NEISA > 0
-extern struct isa_device isa_devtab_eisa[];
-#endif
 
 int
 haveseen_isadev(dvp, checkbits)
@@ -274,13 +270,6 @@ haveseen_isadev(dvp, checkbits)
 		if (status)
 			return status;
 	}
-#if NEISA > 0
-	for (tmpdvp = isa_devtab_eisa; tmpdvp->id_driver; tmpdvp++) {
-		status |= haveseen(dvp, tmpdvp, checkbits);
-		if (status)
-			return status;
-	}
-#endif
 	return(status);
 }
 
@@ -530,27 +519,6 @@ isa_externalize(struct isa_device *id, void *userp, size_t *maxlen)
 }
 
 /*
- * Do the same thing for EISA information.  EISA information is currently
- * the same as ISA information plus a slot number, but could be extended in
- * the future.
- */
-int
-eisa_externalize(struct isa_device *id, int slot, void *userp, size_t *maxlen)
-{
-	int rv;
-
-	if(*maxlen < (sizeof *id) + (sizeof slot)) {
-		return ENOMEM;
-	}
-	*maxlen -= (sizeof *id) + (sizeof slot);
-
-	rv = copyout(id, userp, sizeof *id);
-	if(rv) return rv;
-
-	return copyout(&slot, (char *)userp + sizeof *id, sizeof slot);
-}
-
-/*
  * This is used to forcibly reconfigure an ISA device.  It currently just
  * returns an error 'cos you can't do that yet.  It is here to demonstrate
  * what the `internalize' routine is supposed to do.
@@ -582,13 +550,6 @@ isa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
 			void *userp, size_t l)
 {
 	return isa_externalize(kdc->kdc_isa, userp, &l);
-}
-
-int
-eisa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
-			 void *userp, size_t l)
-{
-	return eisa_externalize(kdc->kdc_isa, -1, userp, &l);
 }
 
 /*
