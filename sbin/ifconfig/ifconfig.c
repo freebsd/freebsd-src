@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ifconfig.c,v 1.36 1998/07/06 06:53:43 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -219,8 +219,8 @@ struct	afswtch {
 	short af_af;
 	af_status *af_status;
 	af_getaddr *af_getaddr;
-	int af_difaddr;
-	int af_aifaddr;
+	u_long af_difaddr;
+	u_long af_aifaddr;
 	caddr_t af_ridreq;
 	caddr_t af_addreq;
 } afs[] = {
