@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.37.4.1 1995/08/23 09:40:21 davidg Exp $
+ *	$Id: cpufunc.h,v 1.37.4.2 1995/09/12 05:48:43 davidg Exp $
  */
 
 /*
@@ -307,7 +307,8 @@ struct quehead {
 static __inline void
 insque(void *a, void *b)
 {
-	struct quehead *element = a, *head = b;
+	struct quehead *element = (struct quehead *)a,
+			*head = (struct quehead *)b;
 
 	element->qh_link = head->qh_link;
 	element->qh_rlink = head;
@@ -318,7 +319,7 @@ insque(void *a, void *b)
 static __inline void
 remque(void *a)
 {
-	struct quehead *element = a;
+	struct quehead *element = (struct quehead *)a;
 
 	element->qh_link->qh_rlink = element->qh_rlink;
 	element->qh_rlink->qh_link = element->qh_link;
