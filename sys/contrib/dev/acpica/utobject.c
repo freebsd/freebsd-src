@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 79 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -148,7 +148,7 @@
 
 ACPI_OPERAND_OBJECT  *
 AcpiUtCreateInternalObjectDbg (
-    NATIVE_CHAR             *ModuleName,
+    char                    *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     ACPI_OBJECT_TYPE        Type)
@@ -246,7 +246,7 @@ AcpiUtCreateBufferObject (
     Buffer = ACPI_MEM_CALLOCATE (BufferSize);
     if (!Buffer)
     {
-        ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n", 
+        ACPI_REPORT_ERROR (("CreateBuffer: could not allocate size %X\n",
             (UINT32) BufferSize));
         AcpiUtRemoveReference (BufferDesc);
         return_PTR (NULL);
@@ -347,7 +347,7 @@ AcpiUtValidInternalObject (
 
 void *
 AcpiUtAllocateObjectDescDbg (
-    NATIVE_CHAR             *ModuleName,
+    char                    *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId)
 {

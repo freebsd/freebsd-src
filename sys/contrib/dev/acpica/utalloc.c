@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local cache and memory allocation routines
- *              $Revision: 127 $
+ *              $Revision: 131 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -413,10 +413,6 @@ AcpiUtInitializeBuffer (
         {
             Status = AE_BUFFER_OVERFLOW;
         }
-
-        /* Clear the buffer */
-
-        ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
         break;
     }
 
@@ -444,7 +440,7 @@ void *
 AcpiUtAllocate (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     void                    *Allocation;
@@ -496,7 +492,7 @@ void *
 AcpiUtCallocate (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     void                    *Allocation;
@@ -563,7 +559,7 @@ void *
 AcpiUtAllocateAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *Allocation;
@@ -611,7 +607,7 @@ void *
 AcpiUtCallocateAndTrack (
     ACPI_SIZE               Size,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *Allocation;
@@ -663,7 +659,7 @@ void
 AcpiUtFreeAndTrack (
     void                    *Allocation,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     ACPI_DEBUG_MEM_BLOCK    *DebugBlock;
@@ -773,7 +769,7 @@ AcpiUtTrackAllocation (
     ACPI_SIZE               Size,
     UINT8                   AllocType,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     ACPI_MEMORY_LIST        *MemList;
@@ -860,7 +856,7 @@ AcpiUtRemoveAllocation (
     UINT32                  ListId,
     ACPI_DEBUG_MEM_BLOCK    *Allocation,
     UINT32                  Component,
-    NATIVE_CHAR             *Module,
+    char                    *Module,
     UINT32                  Line)
 {
     ACPI_MEMORY_LIST        *MemList;
@@ -994,7 +990,7 @@ AcpiUtDumpAllocationInfo (
 void
 AcpiUtDumpAllocations (
     UINT32                  Component,
-    NATIVE_CHAR             *Module)
+    char                    *Module)
 {
     ACPI_DEBUG_MEM_BLOCK    *Element;
     ACPI_DESCRIPTOR         *Descriptor;
@@ -1105,12 +1101,12 @@ AcpiUtDumpAllocations (
 
     if (!NumOutstanding)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK,
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "No outstanding allocations.\n"));
     }
     else
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK,
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "%d(%X) Outstanding allocations\n",
             NumOutstanding, NumOutstanding));
     }

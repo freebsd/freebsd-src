@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acenv.h - Generation environment specific items
- *       $Revision: 101 $
+ *       $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -189,7 +189,7 @@
 
 /*! [Begin] no source code translation */
 
-#if defined(_LINUX)
+#if defined(__linux__)
 #include "aclinux.h"
 
 #elif defined(_AED_EFI)
@@ -343,8 +343,8 @@ typedef char *va_list;
  * Storage alignment properties
  */
 
-#define  _AUPBND                (sizeof (NATIVE_INT) - 1)
-#define  _ADNBND                (sizeof (NATIVE_INT) - 1)
+#define  _AUPBND                (sizeof (ACPI_NATIVE_INT) - 1)
+#define  _ADNBND                (sizeof (ACPI_NATIVE_INT) - 1)
 
 /*
  * Variable argument list macro definitions

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrcl.c - "Large" Resource Descriptor disassembly
- *              $Revision: 7 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -544,17 +544,31 @@ AcpiDmInterruptDescriptor (
     UINT32                  Level)
 {
     UINT32                  i;
+    UINT8                   *Rover;
 
 
     AcpiDmIndent (Level);
-    AcpiOsPrintf ("Interrupt (%s, %s, %s, %s)\n",
+    AcpiOsPrintf ("Interrupt (%s, %s, %s, %s",
         AcpiGbl_ConsumeDecode [(Resource->Flags & 1)],
         AcpiGbl_HEDecode [(Resource->Flags >> 1) & 1],
         AcpiGbl_LLDecode [(Resource->Flags >> 2) & 1],
         AcpiGbl_SHRDecode [(Resource->Flags >> 3) & 1]);
 
-    /* TBD "Resource Source, optional */
+    /* Resource Index/Source, optional -- at end of descriptor */
 
+    if (Resource->Length > (UINT16) (4 * Resource->TableLength) + 2)
+    {
+        /* Get a pointer past the interrupt values */
+
+        Rover = ((UINT8 *) Resource) + ((4 * Resource->TableLength) + 5);
+
+        /* Resource Index */
+        /* Resource Source */
+
+        AcpiOsPrintf (", 0x%X, \"%s\"", (UINT32) Rover[0], (char *) &Rover[1]);
+    }
+
+    AcpiOsPrintf (")\n");
     AcpiDmIndent (Level);
     AcpiOsPrintf ("{\n");
     for (i = 0; i < Resource->TableLength; i++)

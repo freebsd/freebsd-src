@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 64 $
+ *              $Revision: 69 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -120,6 +120,7 @@
 #include "acdispat.h"
 #include "amlcode.h"
 #include "acnamesp.h"
+#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_DISPATCHER
@@ -159,7 +160,7 @@ AcpiDsMethodDataInit (
 
     /* Init the method arguments */
 
-    for (i = 0; i < MTH_NUM_ARGS; i++)
+    for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
     {
         ACPI_MOVE_UNALIGNED32_TO_32 (&WalkState->Arguments[i].Name,
                                 NAMEOF_ARG_NTE);
@@ -171,7 +172,7 @@ AcpiDsMethodDataInit (
 
     /* Init the method locals */
 
-    for (i = 0; i < MTH_NUM_LOCALS; i++)
+    for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
     {
         ACPI_MOVE_UNALIGNED32_TO_32 (&WalkState->LocalVariables[i].Name,
                                 NAMEOF_LOCAL_NTE);
@@ -211,7 +212,7 @@ AcpiDsMethodDataDeleteAll (
 
     /* Detach the locals */
 
-    for (Index = 0; Index < MTH_NUM_LOCALS; Index++)
+    for (Index = 0; Index < ACPI_METHOD_NUM_LOCALS; Index++)
     {
         if (WalkState->LocalVariables[Index].Object)
         {
@@ -226,7 +227,7 @@ AcpiDsMethodDataDeleteAll (
 
     /* Detach the arguments */
 
-    for (Index = 0; Index < MTH_NUM_ARGS; Index++)
+    for (Index = 0; Index < ACPI_METHOD_NUM_ARGS; Index++)
     {
         if (WalkState->Arguments[Index].Object)
         {
@@ -280,7 +281,7 @@ AcpiDsMethodDataInitArgs (
 
     /* Copy passed parameters into the new method stack frame  */
 
-    while ((Index < MTH_NUM_ARGS) && (Index < MaxParamCount) && Params[Index])
+    while ((Index < ACPI_METHOD_NUM_ARGS) && (Index < MaxParamCount) && Params[Index])
     {
         /*
          * A valid parameter.
@@ -331,10 +332,10 @@ AcpiDsMethodDataGetNode (
     {
     case AML_LOCAL_OP:
 
-        if (Index > MTH_MAX_LOCAL)
+        if (Index > ACPI_METHOD_MAX_LOCAL)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Local index %d is invalid (max %d)\n",
-                Index, MTH_MAX_LOCAL));
+                Index, ACPI_METHOD_MAX_LOCAL));
             return_ACPI_STATUS (AE_AML_INVALID_INDEX);
         }
 
@@ -345,10 +346,10 @@ AcpiDsMethodDataGetNode (
 
     case AML_ARG_OP:
 
-        if (Index > MTH_MAX_ARG)
+        if (Index > ACPI_METHOD_MAX_ARG)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Arg index %d is invalid (max %d)\n",
-                Index, MTH_MAX_ARG));
+                Index, ACPI_METHOD_MAX_ARG));
             return_ACPI_STATUS (AE_AML_INVALID_INDEX);
         }
 
@@ -378,6 +379,7 @@ AcpiDsMethodDataGetNode (
  * RETURN:      Status
  *
  * DESCRIPTION: Insert an object onto the method stack at entry Opcode:Index.
+ *              Note: There is no "implicit conversion" for locals.
  *
  ******************************************************************************/
 
@@ -390,10 +392,16 @@ AcpiDsMethodDataSetValue (
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *NewDesc = Object;
 
 
     ACPI_FUNCTION_TRACE ("DsMethodDataSetValue");
 
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+        "obj %p op %X, ref count = %d [%s]\n", Object,
+        Opcode, Object->Common.ReferenceCount,
+        AcpiUtGetTypeName (Object->Common.Type)));
 
     /* Get the namespace node for the arg/local */
 
@@ -403,14 +411,33 @@ AcpiDsMethodDataSetValue (
         return_ACPI_STATUS (Status);
     }
 
-    /* Increment ref count so object can't be deleted while installed */
+    /*
+     * If the object has just been created and is not attached to anything,
+     * (the reference count is 1), then we can just store it directly into
+     * the arg/local.  Otherwise, we must copy it.
+     */
+    if (Object->Common.ReferenceCount > 1)
+    {
+        Status = AcpiUtCopyIobjectToIobject (Object, &NewDesc, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
-    AcpiUtAddReference (Object);
+       ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object Copied %p, new %p\n",
+           Object, NewDesc));
+    }
+    else
+    {
+        /* Increment ref count so object can't be deleted while installed */
 
-    /* Install the object into the stack entry */
+        AcpiUtAddReference (NewDesc);
+    }
 
-    Node->Object = Object;
-    return_ACPI_STATUS (AE_OK);
+    /* Install the object */
+
+    Node->Object = NewDesc;
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -676,7 +703,8 @@ AcpiDsStoreObjectToLocal (
     CurrentObjDesc = AcpiNsGetAttachedObject (Node);
     if (CurrentObjDesc == ObjDesc)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p already installed!\n", ObjDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p already installed!\n",
+            ObjDesc));
         return_ACPI_STATUS (Status);
     }
 
@@ -706,19 +734,19 @@ AcpiDsStoreObjectToLocal (
          */
         if (Opcode == AML_ARG_OP)
         {
-            /* 
+            /*
              * Make sure that the object is the correct type.  This may be overkill, but
              * it is here because references were NS nodes in the past.  Now they are
              * operand objects of type Reference.
              */
             if (ACPI_GET_DESCRIPTOR_TYPE (CurrentObjDesc) != ACPI_DESC_TYPE_OPERAND)
             {
-                ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: %X\n", 
+                ACPI_REPORT_ERROR (("Invalid descriptor type while storing to method arg: %X\n",
                     CurrentObjDesc->Common.Type));
                 return_ACPI_STATUS (AE_AML_INTERNAL);
             }
 
-            /* 
+            /*
              * If we have a valid reference object that came from RefOf(), do the
              * indirect store
              */
@@ -729,16 +757,12 @@ AcpiDsStoreObjectToLocal (
                     "Arg (%p) is an ObjRef(Node), storing in node %p\n",
                     ObjDesc, CurrentObjDesc));
 
-                /* Detach an existing object from the referenced Node */
-
-                AcpiNsDetachObject (CurrentObjDesc->Reference.Object);
-
                 /*
-                 * Store this object into the Node
+                 * Store this object to the Node
                  * (perform the indirect store)
                  */
-                Status = AcpiNsAttachObject (CurrentObjDesc->Reference.Object,
-                                ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc));
+                Status = AcpiExStoreObjectToNode (ObjDesc,
+                            CurrentObjDesc->Reference.Object, WalkState);
                 return_ACPI_STATUS (Status);
             }
         }

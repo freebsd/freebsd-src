@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 85 $
+ *              $Revision: 87 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -280,7 +280,7 @@ AcpiNsAttachObject (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Detach/delete an object associated with a namespace node.  
+ * DESCRIPTION: Detach/delete an object associated with a namespace node.
  *              if the object is an allocated object, it is freed.
  *              Otherwise, the field is simply cleared.
  *

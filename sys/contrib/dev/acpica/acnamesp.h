@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 129 $
+ *       $Revision: 133 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -237,7 +237,7 @@ AcpiNsRootInitialize (
 ACPI_STATUS
 AcpiNsLookup (
     ACPI_GENERIC_STATE      *ScopeInfo,
-    NATIVE_CHAR             *Name,
+    char                    *Name,
     ACPI_OBJECT_TYPE        Type,
     ACPI_INTERPRETER_MODE   InterpreterMode,
     UINT32                  Flags,
@@ -301,10 +301,10 @@ AcpiNsDumpEntry (
     ACPI_HANDLE             Handle,
     UINT32                  DebugLevel);
 
-ACPI_STATUS
+void
 AcpiNsDumpPathname (
     ACPI_HANDLE             Handle,
-    NATIVE_CHAR             *Msg,
+    char                    *Msg,
     UINT32                  Level,
     UINT32                  Component);
 
@@ -352,14 +352,14 @@ AcpiNsEvaluateByHandle (
 
 ACPI_STATUS
 AcpiNsEvaluateByName (
-    NATIVE_CHAR             *Pathname,
+    char                    *Pathname,
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObject);
 
 ACPI_STATUS
 AcpiNsEvaluateRelative (
     ACPI_NAMESPACE_NODE     *PrefixNode,
-    NATIVE_CHAR             *Pathname,
+    char                    *Pathname,
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObject);
 
@@ -396,13 +396,13 @@ void
 AcpiNsBuildExternalPath (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_SIZE               Size,
-    NATIVE_CHAR             *NameBuffer);
+    char                    *NameBuffer);
 
-NATIVE_CHAR *
+char *
 AcpiNsGetExternalPathname (
     ACPI_NAMESPACE_NODE     *Node);
 
-NATIVE_CHAR *
+char *
 AcpiNsNameOfCurrentScope (
     ACPI_WALK_STATE         *WalkState);
 
@@ -414,11 +414,11 @@ AcpiNsHandleToPathname (
 BOOLEAN
 AcpiNsPatternMatch (
     ACPI_NAMESPACE_NODE     *ObjNode,
-    NATIVE_CHAR             *SearchFor);
+    char                    *SearchFor);
 
 ACPI_STATUS
 AcpiNsGetNodeByPath (
-    NATIVE_CHAR             *ExternalPathname,
+    char                    *ExternalPathname,
     ACPI_NAMESPACE_NODE     *InPrefixNode,
     UINT32                  Flags,
     ACPI_NAMESPACE_NODE     **OutNode);
@@ -499,11 +499,11 @@ AcpiNsInstallNode (
 
 BOOLEAN
 AcpiNsValidRootPrefix (
-    NATIVE_CHAR             Prefix);
+    char                    Prefix);
 
 BOOLEAN
 AcpiNsValidPathSeparator (
-    NATIVE_CHAR             Sep);
+    char                    Sep);
 
 ACPI_OBJECT_TYPE
 AcpiNsGetType (
@@ -515,11 +515,26 @@ AcpiNsLocal (
 
 void
 AcpiNsReportError (
-    NATIVE_CHAR             *ModuleName,
+    char                    *ModuleName,
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     char                    *InternalName,
     ACPI_STATUS             LookupStatus);
+
+void
+AcpiNsReportMethodError (
+    char                    *ModuleName,
+    UINT32                  LineNumber,
+    UINT32                  ComponentId,
+    char                    *Message,
+    ACPI_NAMESPACE_NODE     *Node,
+    char                    *Path,
+    ACPI_STATUS             LookupStatus);
+
+void
+AcpiNsPrintNodePathname (
+    ACPI_NAMESPACE_NODE     *Node,
+    char                    *Msg);
 
 ACPI_STATUS
 AcpiNsBuildInternalName (
@@ -531,15 +546,15 @@ AcpiNsGetInternalNameLength (
 
 ACPI_STATUS
 AcpiNsInternalizeName (
-    NATIVE_CHAR             *DottedName,
-    NATIVE_CHAR             **ConvertedName);
+    char                    *DottedName,
+    char                    **ConvertedName);
 
 ACPI_STATUS
 AcpiNsExternalizeName (
     UINT32                  InternalNameLength,
-    NATIVE_CHAR             *InternalName,
+    char                    *InternalName,
     UINT32                  *ConvertedNameLength,
-    NATIVE_CHAR             **ConvertedName);
+    char                    **ConvertedName);
 
 ACPI_NAMESPACE_NODE *
 AcpiNsMapHandleToNode (

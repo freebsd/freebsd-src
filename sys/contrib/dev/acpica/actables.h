@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actables.h - ACPI table management
- *       $Revision: 42 $
+ *       $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -223,7 +223,7 @@ AcpiTbInstallTable (
 
 ACPI_STATUS
 AcpiTbMatchSignature (
-    NATIVE_CHAR             *Signature,
+    char                    *Signature,
     ACPI_TABLE_DESC         *TableInfo,
     UINT8                   SearchType);
 
@@ -288,9 +288,9 @@ AcpiTbFindRsdp (
 
 ACPI_STATUS
 AcpiTbFindTable (
-    NATIVE_CHAR             *Signature,
-    NATIVE_CHAR             *OemId,
-    NATIVE_CHAR             *OemTableId,
+    char                    *Signature,
+    char                    *OemId,
+    char                    *OemTableId,
     ACPI_TABLE_HEADER       **TablePtr);
 
 ACPI_STATUS

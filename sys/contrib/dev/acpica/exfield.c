@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 115 $
+ *              $Revision: 118 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,7 +149,7 @@ AcpiExReadDataFromField (
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *BufferDesc;
-    UINT32                  Length;
+    ACPI_SIZE               Length;
     void                    *Buffer;
     BOOLEAN                 Locked;
 
@@ -200,7 +200,7 @@ AcpiExReadDataFromField (
          * Perform the read.
          * Note: Smbus protocol value is passed in upper 16-bits of Function
          */
-        Status = AcpiExAccessRegion (ObjDesc, 0, 
+        Status = AcpiExAccessRegion (ObjDesc, 0,
                         ACPI_CAST_PTR (ACPI_INTEGER, BufferDesc->Buffer.Pointer),
                         ACPI_READ | (ObjDesc->Field.Attribute << 16));
         AcpiExReleaseGlobalLock (Locked);
@@ -217,7 +217,7 @@ AcpiExReadDataFromField (
      *
      * Note: Field.length is in bits.
      */
-    Length = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
+    Length = (ACPI_SIZE) ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
     if (Length > AcpiGbl_IntegerByteWidth)
     {
         /* Field is too large for an Integer, create a Buffer instead */
@@ -246,7 +246,7 @@ AcpiExReadDataFromField (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "Obj=%p Type=%X Buf=%p Len=%X\n",
-        ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, Length));
+        ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, (UINT32) Length));
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "FieldWrite: BitLen=%X BitOff=%X ByteOff=%X\n",
         ObjDesc->CommonField.BitLength,
@@ -259,7 +259,7 @@ AcpiExReadDataFromField (
 
     /* Read from the field */
 
-    Status = AcpiExExtractFromField (ObjDesc, Buffer, Length);
+    Status = AcpiExExtractFromField (ObjDesc, Buffer, (UINT32) Length);
     AcpiExReleaseGlobalLock (Locked);
 
 
@@ -366,11 +366,11 @@ AcpiExWriteDataToField (
 
         Locked = AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
 
-        /* 
+        /*
          * Perform the write (returns status and perhaps data in the same buffer)
          * Note: SMBus protocol type is passed in upper 16-bits of Function.
          */
-        Status = AcpiExAccessRegion (ObjDesc, 0, 
+        Status = AcpiExAccessRegion (ObjDesc, 0,
                         (ACPI_INTEGER *) Buffer,
                         ACPI_WRITE | (ObjDesc->Field.Attribute << 16));
         AcpiExReleaseGlobalLock (Locked);
