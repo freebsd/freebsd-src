@@ -39,10 +39,13 @@ extern "C" {
 
 Regex::~Regex()
 {
-  if (buf->buffer) free(buf->buffer);
-  if (buf->fastmap) free(buf->fastmap);
-  delete(buf);
-  delete(reg);
+  if (buf) {
+  	if (buf->buffer) free(buf->buffer);
+  	if (buf->fastmap) free(buf->fastmap);
+  	delete(buf);
+  }
+  if (reg)
+  	delete(reg);
 }
 
 Regex::Regex(const char* t, int fast, int bufsize, 
