@@ -90,21 +90,14 @@ long cp_time[CPUSTATES];
 SYSCTL_OPAQUE(_kern, OID_AUTO, cp_time, CTLFLAG_RD, &cp_time, sizeof(cp_time),
     "LU", "CPU time statistics");
 
-#ifdef WATCHDOG
-static int sysctl_watchdog_reset(SYSCTL_HANDLER_ARGS);
-static void watchdog_fire(void);
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
 
+static int watchdog_ticks;
 static int watchdog_enabled;
-static unsigned int watchdog_ticks;
-static int watchdog_timeout = 20;
-
-SYSCTL_NODE(_debug, OID_AUTO, watchdog, CTLFLAG_RW, 0, "System watchdog");
-SYSCTL_INT(_debug_watchdog, OID_AUTO, enabled, CTLFLAG_RW, &watchdog_enabled,
-	0, "Enable the watchdog");
-SYSCTL_INT(_debug_watchdog, OID_AUTO, timeout, CTLFLAG_RW, &watchdog_timeout,
-	0, "Timeout for watchdog checkins");
-
-#endif /* WATCHDOG */
+static void watchdog_fire(void);
+static void watchdog_config(void *, u_int, int *);
+#endif /* SW_WATCHDOG */
 
 /*
  * Clock handling routines.
@@ -167,6 +160,9 @@ initclocks(dummy)
 	if (profhz == 0)
 		profhz = i;
 	psratio = profhz / i;
+#ifdef SW_WATCHDOG
+	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
+#endif
 }
 
 /*
@@ -251,11 +247,10 @@ hardclock(frame)
 	if (need_softclock)
 		swi_sched(softclock_ih, 0);
 
-#ifdef WATCHDOG
-	if (watchdog_enabled > 0 &&
-	    (int)(ticks - watchdog_ticks) >= (hz * watchdog_timeout))
+#ifdef SW_WATCHDOG
+	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
 		watchdog_fire();
-#endif /* WATCHDOG */
+#endif /* SW_WATCHDOG */
 }
 
 /*
@@ -508,23 +503,24 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo",
 	"Rate and period of various kernel clocks");
 
-#ifdef WATCHDOG
-/*
- * Reset the watchdog timer to ticks, thus preventing the watchdog
- * from firing for another watchdog timeout period.
- */
-static int
-sysctl_watchdog_reset(SYSCTL_HANDLER_ARGS)
+#ifdef SW_WATCHDOG
+
+static void
+watchdog_config(void *unused __unused, u_int cmd, int *err)
 {
-	int ret;
+	u_int u;
 
-	ret = 0;
-	watchdog_ticks = ticks;
-	return sysctl_handle_int(oidp, &ret, 0, req);
+	if (cmd) {
+		u = cmd & WD_INTERVAL;
+		if (u < WD_TO_1SEC)
+			return;
+		watchdog_ticks = (1 << (u - WD_TO_1SEC)) * hz;
+		watchdog_enabled = 1;
+		*err = 0;
+	} else {
+		watchdog_enabled = 0;
+	}
 }
-
-SYSCTL_PROC(_debug_watchdog, OID_AUTO, reset, CTLFLAG_RW, 0, 0,
-    sysctl_watchdog_reset, "I", "Reset the watchdog");
 
 /*
  * Handle a watchdog timeout by dumping interrupt information and
@@ -560,4 +556,4 @@ watchdog_fire(void)
 #endif /* DDB */
 }
 
-#endif /* WATCHDOG */
+#endif /* SW_WATCHDOG */
