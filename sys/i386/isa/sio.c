@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.34 1994/03/14 18:52:14 ache Exp $
+ *	$Id: sio.c,v 1.35 1994/03/18 23:35:37 ache Exp $
  */
 
 #include "sio.h"
@@ -426,7 +426,7 @@ sioattach(isdp)
 	com = &com_structs[unit];
 	com->cfcr_image = CFCR_8BITS;
 	com->mcr_image = MCR_IENABLE;
-	com->dtr_wait = 200;
+	com->dtr_wait = 300;
 	com->tx_fifo_size = 1;
 	com->iptr = com->ibuf = com->ibuf1;
 	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
