@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	disklabel
-SRCS=	disklabel.c dkcksum.c
+SRCS=	disklabel.c 
 MAN8=	disklabel.8
 MAN5=	disklabel.5
 
