@@ -71,6 +71,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1371_PCI_ID 0x13711274
 #define ES1371_PCI_ID2 0x13713274
 #define CT5880_PCI_ID 0x58801274
+#define CT4730_PCI_ID 0x89381102
 
 #define ES1371REV_ES1371_A  0x02
 #define ES1371REV_ES1371_B  0x09
@@ -84,6 +85,8 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define CT5880REV_CT5880_C  0x02
 #define CT5880REV_CT5880_D  0x03
 #define CT5880REV_CT5880_E  0x04
+
+#define CT4730REV_CT4730_A  0x00
 
 #define ES_DEFAULT_BUFSZ 4096
 
@@ -505,7 +508,8 @@ es1371_init(struct es_info *es, device_t dev)
 	    (devid == ES1371_PCI_ID && revid == ES1371REV_CT5880_A) ||
 	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
 	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D) ||
-	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E)) {
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E) ||
+	    (devid == CT4730_PCI_ID)) {
 		bus_space_write_4(es->st, es->sh, ES1370_REG_STATUS, 0x20000000);
 		DELAY(20000);
 		if (debug > 0) device_printf(dev, "ac97 2.1 enabled\n");
@@ -791,6 +795,17 @@ es_pci_probe(device_t dev)
 		device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
 		return 0;
 
+	case CT4730_PCI_ID:
+		switch(pci_get_revid(dev)) {
+		case CT4730REV_CT4730_A:
+			device_set_desc(dev, "Creative SB AudioPCI CT4730");
+			return 0;
+		default:
+			device_set_desc(dev, "Creative SB AudioPCI CT4730-?");
+			device_printf(dev, "unknown revision %d -- please report to cg@freebsd.org\n", pci_get_revid(dev));
+			return 0;
+		}
+
 	case CT5880_PCI_ID:
 		switch(pci_get_revid(dev)) {
 		case CT5880REV_CT5880_C:
@@ -868,7 +883,8 @@ es_pci_attach(device_t dev)
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
 	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
-	    pci_get_devid(dev) == CT5880_PCI_ID) {
+	    pci_get_devid(dev) == CT5880_PCI_ID ||
+	    pci_get_devid(dev) == CT4730_PCI_ID) {
 		if(-1 == es1371_init(es, dev)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
