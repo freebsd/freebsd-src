@@ -1,3 +1,132 @@
+Fri Apr 17 10:40:59 1998  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/main.c: Enable readline only if interactive.
+
+Thu Apr 16 16:49:22 1998  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/configure.in: Tweeking of AM_PROG_LEX and associated 
+	  special case goo for solaris.
+
+Sat Mar 28 21:43:18 1998  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/Makefile.am: Added "YFLAGS = -d" to get bc.h to build properly.
+
+Mon Mar  9 12:54:42 PST 1998  Ken Pizzini <ken@halcyon.com>
+
+	* doc/dc.texi, doc/dc.1: correct some documentation bugs.
+
+Sun Mar  8 23:56:24 PST 1998  Ken Pizzini <ken@halcyon.com>
+
+	* dc/numeric.c: eliminate superfluous variable from dc_dump_num();
+	  annotate unused parameters in dc_add() and dc_sub().
+
+	* h/version.h: change dc version number to 1.2 for release.
+
+Sun Mar  8 21:13:50 1998  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/main.c: Applied patch from Ken Pizzini to force line
+	  mode buffering on stdout.
+
+Tue Jan  6 09:15:04 PST 1998  Ken Pizzini <ken@halcyon.com>
+
+	* h/version.h: dc is now up to version 1.1.5.
+
+	* dc/eval.c, dc/numeric.c, doc/dc.texi, doc/dc.1: once again
+	  changed the behavior of the 'P' command with a numeric argument
+	  to make it more general.  It now dumps out the *whole* number
+	  (or rather, the whole of its positive integer portion) as a
+	  byte stream.  (For small values this is still the same as 'aP'.)
+
+	* dc/dc-proto.h, dc/dc.h, dc/eval.c, dc/misc.c, dc/numeric.c,
+	  dc/stack.c, dc/string.c: Changed most uses of dc_boolean to
+	  either dc_discard or dc_newline, and instances of DC_TRUE and
+	  DC_FALSE to appropriate instances of DC_TOSS, DC_KEEP, DC_NONL,
+	  or DC_WITHNL so that the code self-documents a little better.
+
+Sun Jan  4 15:39:46 PST 1998  Ken Pizzini <ken@halcyon.com>
+
+	* dc/eval.c, doc/dc.texi, doc/dc.1: Changed the functionality
+	  of the 'P' command, and added the 'n' command.  Due to
+	  a quirk of the implementation of traditional dc, some
+	  people have come to expect that the 'P' command on a
+	  numeric argument in the range of 1 to 99 should output
+	  the corresponding character, despite the fact that this
+	  usage can have very weird results for numbers outside
+	  that range.  This functionality is why the 'a' command
+	  was introduced last March, but people really want it to
+	  "just work" without needing to use the 'a' command.
+	  Bowing to this demand, the 'P' command now does the
+	  equivalent of "aP" if the argument is numeric, and the
+	  'n' command has been added to support the previous
+	  functionality of the 'P' command.
+
+	* dc/misc.c, dc/eval.c, dc/stack.c, dc/dc-proto.h:
+	  Changed prototype for dc_print().  It now additionally
+	  takes two flags, newline_p and discard_p, which it
+	  passes through to dc_out_num() and dc_out_str() as
+	  needed.
+
+	* h/version.h: dc is now up to version 1.1.4.
+
+Sat Sep 27 13:48:53 1997  Ken Pizzini <ken@halcyon.com>
+
+	* h/version.h: dc is now up to version 1.1.3.
+
+	* dc/stack.c, dc/array.c, dc/dc-proto.h, doc/dc.texi, doc/dc.1:
+	  It has come to my attention that, though undocumented,
+	  traditional dc stacked its arrays in parallel with the
+	  stacking of simple registers.  I have now duplicated
+	  this functionality.
+
+	* dc/dc.c, configure.in: line-buffer dc's output if setvbuf()
+	  is supported.  This was requested to simplify using dc as
+	  an inferior process under emacs.
+
+Fri Sep 26 19:56:15 1997  Ken Pizzini <ken@halcyon.com>
+
+	* dc/dc.c: fixed bug reporting address for --help.
+
+	* doc/dc.1, doc/dc.texi: corrected documentation of the maximum
+	  admissible input base.
+
+	* doc/dc.texi: corrected sample code equivalence for the | command.
+
+	* lib/number.c: added a warning for non-zero scale in the base
+	  for bc_raisemod().
+
+Fri Sep 26 18:15:31 1997  Ken Pizzini <ken@halcyon.com>
+
+	* dc/eval.c, doc/dc.1, doc/dc.texi: added !=, !<, and !> commands.
+
+	* dc/eval.c: eliminated double-free in 'a' command.
+
+	* dc/dc.c: changed placment of check for filename "-" so that
+	 "-f -" will work.
+
+	* h/version.h: updated dc version to 1.1.2.
+
+Thu Sep 18 17:41:10 1997  Ken Pizzini <ken@halcyon.com>
+
+	* dc/eval.c: fixed off-by-one error for Q and q commands.
+
+	* dc/dc.c: added missing f: to third argument of getopt().
+
+	* h/version.h: updated dc version to 1.1.1.
+
+Thu May 22 08:24:08 1997  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/number.c(bc_sqrt): Fixed a bug that computed 0 for sqrt
+	  of most numbers less than .000001.
+
+Thu May  1 10:41:38 1997  Phil Nelson  <phil@cs.wwu.edu>
+
+	* Test/timetest: change path to bc executable.
+
+Wed Apr 30 12:00:00 1997  Phil Nelson  <phil@cs.wwu.edu>
+
+	* Froze bc-1.04, started new directory for bc-1.05.
+	  Fixes to bc-1.04 will be distributed as bc-1.05.
+
 Mon Apr 21 14:57:14 1997  Phil Nelson  <phil@cs.wwu.edu>
 
 	* bc/scan.l: Changed rules for single line comment to work

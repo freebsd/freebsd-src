@@ -1,4 +1,26 @@
-This is GNU bc version 1.04.  (And dc version 1.0.4)
+This is GNU bc version 1.05.  (And dc version 1.2)
+
+Changes in dc from 1.1 to 1.2:
+    added !< != !> commands
+    arrays now stack
+    output is now line buffered, provided setvbuf() is available
+    fixed known bugs in 'q', 'Q', 'a' commands, '-f' command-line option,
+      and documentation
+	changed the 'P' command's behavior on a numeric argument:
+	  due to popular demand it now does the equivalent of 'aP'
+	  (for small values)
+	added new 'n' command to do what the old 'P' command did
+
+Changes in bc from 1.04 to 1.05:
+    Solaris makes work better.
+    bug fixes
+	stdout now always does line buffering.
+	sqrt bug fixed for small numbers.
+	readline (if support is compiled in) is enabled only for
+		interactive executions of bc.
+
+
+This is GNU bc version 1.04.  (And dc version 1.1)
 
 Changes from 1.03
 

@@ -14,6 +14,8 @@ datadir = $(prefix)/@DATADIRNAME@
 INCLUDES = -I$(srcdir) -I$(srcdir)/../h
 LDADD = ../lib/libbc.a @LEXLIB@
 
+YFLAGS = -d
+
 $(PROGRAMS): $(LDADD)
 
 scan.o: bc.h
