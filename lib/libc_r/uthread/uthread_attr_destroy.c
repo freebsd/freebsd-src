@@ -39,11 +39,19 @@
 int pthread_attr_destroy(pthread_attr_t *attr)
 {
 	int	ret;
-	if (attr == NULL || *attr == NULL) {
-		errno = EINVAL;
-		ret = -1;
-	} else {
+
+	/* Check for invalid arguments: */
+	if (attr == NULL || *attr == NULL)
+		/* Invalid argument: */
+		ret = EINVAL;
+	else {
+		/* Free the memory allocated to the attribute object: */
 		free(*attr);
+
+		/*
+		 * Leave the attribute pointer NULL now that the memory
+		 * has been freed:
+		 */
 		*attr = NULL;
 		ret = 0;
 	}

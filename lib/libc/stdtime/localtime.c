@@ -1109,12 +1109,10 @@ const time_t * const	timep;
 		}
 	}
 	pthread_mutex_unlock(&localtime_mutex);
-	if ((p_tm = pthread_getspecific(localtime_key)) != 0) {
-		return(NULL);
-	} else if (p_tm == NULL) {
-		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
+	p_tm = pthread_getspecific(localtime_key);
+	if (p_tm == NULL) {
+		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL)
 			return(NULL);
-		}
 		pthread_setspecific(localtime_key, p_tm);
 	}
 	pthread_mutex_lock(&lcl_mutex);

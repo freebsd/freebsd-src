@@ -38,10 +38,12 @@
 int pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 {
 	int	ret;
-	if (attr == NULL || *attr == NULL || stacksize < PTHREAD_STACK_MIN) {
-		errno = EINVAL;
-		ret = -1;
-	} else {
+
+	/* Check for invalid arguments: */
+	if (attr == NULL || *attr == NULL || stacksize < PTHREAD_STACK_MIN)
+		ret = EINVAL;
+	else {
+		/* Save the stack size: */
 		(*attr)->stacksize_attr = stacksize;
 		ret = 0;
 	}

@@ -293,7 +293,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 					 * Change the threads state to allow
 					 * it to be restarted: 
 					 */
-					pthread->state = PS_RUNNING;
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 				}
 			}
 		}
@@ -823,14 +823,21 @@ __asm__("fnsave %0": :"m"(*fdata));
 static void
 _thread_signal(pthread_t pthread, int sig)
 {
+	int		done;
 	long            l;
 	pthread_t       new_pthread;
 	struct sigaction act;
 	void           *arg;
 
+	/*
+	 * Assume that the signal will not be dealt with according
+	 * to the thread state:
+	 */
+	done = 0;
+
 	/* Process according to thread state: */
 	switch (pthread->state) {
-		/* States which do not change when a signal is trapped: */
+	/* States which do not change when a signal is trapped: */
 	case PS_COND_WAIT:
 	case PS_DEAD:
 	case PS_FDLR_WAIT:
@@ -844,7 +851,7 @@ _thread_signal(pthread_t pthread, int sig)
 		/* Nothing to do here. */
 		break;
 
-		/* Wait for child: */
+	/* Wait for child: */
 	case PS_WAIT_WAIT:
 		/* Check if the signal is from a child exiting: */
 		if (sig == SIGCHLD) {
@@ -852,42 +859,72 @@ _thread_signal(pthread_t pthread, int sig)
 			_thread_seterrno(pthread, 0);
 
 			/* Change the state of the thread to run: */
-			pthread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 		} else {
 			/* Return the 'interrupted' error: */
 			_thread_seterrno(pthread, EINTR);
 
 			/* Change the state of the thread to run: */
-			pthread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 		}
+		pthread->interrupted = 1;
 		break;
 
-		/*
-		 * States that are interrupted by the occurrence of a signal
-		 * other than the scheduling alarm: 
-		 */
-	case PS_FDR_WAIT:
-	case PS_FDW_WAIT:
+	/* Waiting on I/O for zero or more file descriptors: */
 	case PS_SELECT_WAIT:
-	case PS_SLEEP_WAIT:
-	case PS_SIGWAIT:
+		pthread->data.select_data->nfds = -1;
+
 		/* Return the 'interrupted' error: */
 		_thread_seterrno(pthread, EINTR);
+		pthread->interrupted = 1;
 
 		/* Change the state of the thread to run: */
-		pthread->state = PS_RUNNING;
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+		break;
+
+	/*
+	 * States that are interrupted by the occurrence of a signal
+	 * other than the scheduling alarm: 
+	 */
+	case PS_FDR_WAIT:
+	case PS_FDW_WAIT:
+	case PS_SLEEP_WAIT:
+		/* Return the 'interrupted' error: */
+		_thread_seterrno(pthread, EINTR);
+		pthread->interrupted = 1;
+
+		/* Change the state of the thread to run: */
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+		/* Return the signal number: */
+		pthread->signo = sig;
+		break;
+
+	/* Waiting on a signal: */
+	case PS_SIGWAIT:
+		/* Change the state of the thread to run: */
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+		/* Return the signal number: */
+		pthread->signo = sig;
+
+		/* Flag the signal as dealt with: */
+		done = 1;
 		break;
 	}
 
-	/* Check if this signal is being ignored: */
-	if (pthread->act[sig - 1].sa_handler == SIG_IGN) {
+	/*
+	 * Check if this signal has been dealt with, or is being
+	 * ignored:
+	 */
+	if (done || pthread->act[sig - 1].sa_handler == SIG_IGN) {
 		/* Ignore the signal for this thread. */
 	}
 	/* Check if this signal is to use the default handler: */
 	else if (pthread->act[sig - 1].sa_handler == SIG_DFL) {
 		/* Process according to signal type: */
 		switch (sig) {
-			/* Signals which cause core dumps: */
+		/* Signals which cause core dumps: */
 		case SIGQUIT:
 		case SIGILL:
 		case SIGTRAP:
@@ -910,7 +947,7 @@ _thread_signal(pthread_t pthread, int sig)
 			_thread_sys_sigreturn(&pthread->saved_sigcontext);
 			break;
 
-			/* Default processing for other signals: */
+		/* Default processing for other signals: */
 		default:
 			/*
 			 * ### Default processing is a problem to resolve!     
@@ -983,6 +1020,8 @@ _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 {
 	/* Change the state of the current thread: */
 	_thread_run->state = state;
+	_thread_run->fname = fname;
+	_thread_run->lineno = lineno;
 
 	/* Schedule the next thread that is ready: */
 	_thread_kern_sched(NULL);

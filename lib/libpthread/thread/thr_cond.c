@@ -272,7 +272,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 			/* Bring the next thread off the condition queue: */
 			if ((pthread = _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
 				/* Allow the thread to run: */
-				pthread->state = PS_RUNNING;
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 			}
 			break;
 
@@ -309,7 +309,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 		/* Enter a loop to bring all threads off the condition queue: */
 		while ((pthread = _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
 			/* Allow the thread to run: */
-			pthread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 		}
 		break;
 
