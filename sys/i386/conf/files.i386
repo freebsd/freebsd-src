@@ -57,9 +57,3 @@ i386/isa/tw.c			optional	tw	device-driver
 i386/isa/ultra14f.c		optional	uha	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/wt.c			optional	wt	device-driver
-scsi/cd.c			optional	cd
-scsi/ch.c			optional	ch
-scsi/scsiconf.c			optional	scbus
-scsi/sd.c			optional	sd
-scsi/st.c			optional	st
-
