@@ -616,10 +616,10 @@ ex_start(struct ifnet *ifp)
 				    XMT_HEADER_LEN) {
 					dest = sc->tx_lower_limit;
 					next = dest + len;
+				} else {
+					next = sc->tx_lower_limit +
+						next - sc->tx_upper_limit - 2;
 				}
-			} else {
-				next = sc->tx_lower_limit +
-				       next - sc->tx_upper_limit - 2;
 			}
 
 			/*
@@ -655,60 +655,61 @@ ex_start(struct ifnet *ifp)
 			}
 			if (i) {
 				outsw(iobase + IO_PORT_REG, tmp16, 1);
-	
-				/*
-				 * If there were other frames chained, update the
-				 * chain in the last one.
-				 */
-				if (sc->tx_head != sc->tx_tail) {
-					if (sc->tx_tail != dest) {
-						outw(iobase + HOST_ADDR_REG,
-						     sc->tx_last + XMT_Chain_Point);
-						outw(iobase + IO_PORT_REG, dest);
-					}
-					outw(iobase + HOST_ADDR_REG,
-					     sc->tx_last + XMT_Byte_Count);
-					i = inw(iobase + IO_PORT_REG);
-					outw(iobase + HOST_ADDR_REG,
-					     sc->tx_last + XMT_Byte_Count);
-					outw(iobase + IO_PORT_REG, i | Ch_bit);
-				}
-		
-				/*
-				 * Resume normal operation of the card:
-				 * - Make a dummy read to flush the DRAM write
-				 *   pipeline.
-				 * - Enable receive and transmit interrupts.
-				 * - Send Transmit or Resume_XMT command, as
-				 *   appropriate.
-				 */
-				inw(iobase + IO_PORT_REG);
-#ifdef EX_PSA_INTR
-				outb(iobase + MASK_REG, All_Int & ~(Rx_Int | Tx_Int));
-#endif
-				if (sc->tx_head == sc->tx_tail) {
-					outw(iobase + XMT_BAR, dest);
-					outb(iobase + CMD_REG, Transmit_CMD);
-					sc->tx_head = dest;
-					DODEBUG(Sent_Pkts, printf("Transmit\n"););
-				} else {
-					outb(iobase + CMD_REG, Resume_XMT_List_CMD);
-					DODEBUG(Sent_Pkts, printf("Resume\n"););
-				}
-		
-				sc->tx_last = dest;
-				sc->tx_tail = next;
-     		 
-				if (ifp->if_bpf != NULL) {
-					bpf_mtap(ifp, opkt);
-				}
-				ifp->if_timer = 2;
-				ifp->if_opackets++;
-				m_freem(opkt);
-			} else {
-				ifp->if_flags |= IFF_OACTIVE;
-				DODEBUG(Status, printf("OACTIVE start\n"););
 			}
+	
+			/*
+			 * If there were other frames chained, update the
+			 * chain in the last one.
+			 */
+			if (sc->tx_head != sc->tx_tail) {
+				if (sc->tx_tail != dest) {
+					outw(iobase + HOST_ADDR_REG,
+					     sc->tx_last + XMT_Chain_Point);
+					outw(iobase + IO_PORT_REG, dest);
+				}
+				outw(iobase + HOST_ADDR_REG,
+				     sc->tx_last + XMT_Byte_Count);
+				i = inw(iobase + IO_PORT_REG);
+				outw(iobase + HOST_ADDR_REG,
+				     sc->tx_last + XMT_Byte_Count);
+				outw(iobase + IO_PORT_REG, i | Ch_bit);
+			}
+	
+			/*
+			 * Resume normal operation of the card:
+			 * - Make a dummy read to flush the DRAM write
+			 *   pipeline.
+			 * - Enable receive and transmit interrupts.
+			 * - Send Transmit or Resume_XMT command, as
+			 *   appropriate.
+			 */
+			inw(iobase + IO_PORT_REG);
+#ifdef EX_PSA_INTR
+			outb(iobase + MASK_REG, All_Int & ~(Rx_Int | Tx_Int));
+#endif
+			if (sc->tx_head == sc->tx_tail) {
+				outw(iobase + XMT_BAR, dest);
+				outb(iobase + CMD_REG, Transmit_CMD);
+				sc->tx_head = dest;
+				DODEBUG(Sent_Pkts, printf("Transmit\n"););
+			} else {
+				outb(iobase + CMD_REG, Resume_XMT_List_CMD);
+				DODEBUG(Sent_Pkts, printf("Resume\n"););
+			}
+	
+			sc->tx_last = dest;
+			sc->tx_tail = next;
+     	 
+			if (ifp->if_bpf != NULL) {
+				bpf_mtap(ifp, opkt);
+			}
+
+			ifp->if_timer = 2;
+			ifp->if_opackets++;
+			m_freem(opkt);
+		} else {
+			ifp->if_flags |= IFF_OACTIVE;
+			DODEBUG(Status, printf("OACTIVE start\n"););
 		}
 	}
 
