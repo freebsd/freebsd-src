@@ -44,21 +44,9 @@ register struct globaldata *globalp __asm__("r13");
 #define	PCPU_PTR(name)		(&GLOBALP->gd_##name)
 #define PCPU_SET(name,value)	(GLOBALP->gd_##name = (value))
 
-/*
- * The following set of macros works for UP kernel as well, but for maximum
- * performance we allow the global variables to be accessed directly. On the
- * other hand, kernel modules should always use these macros to maintain
- * portability between UP and SMP kernels.
- */
 #define	CURPROC		PCPU_GET(curproc)
 #define	CURTHD		PCPU_GET(curproc)	/* temporary */
 #define	curproc		PCPU_GET(curproc)
-#define	idleproc	PCPU_GET(idleproc)
-#define	curpcb		PCPU_GET(curpcb)
-#define	switchtime	PCPU_GET(switchtime)
-#define	switchticks	PCPU_GET(switchticks)
-#define cpuid		PCPU_GET(cpuno)
-#define	prevproc	PCPU_GET(curproc)	/* XXX - until ithreads */
 
 #endif	/* _KERNEL */
 
