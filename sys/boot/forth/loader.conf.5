@@ -147,9 +147,12 @@ Name of the bitmap to be loaded. Any other name can be used.
 .It Va console
 .Pq Dq vidconsole
 .Dq comconsole
-selects serial console, and
+selects serial console,
 .Dq vidconsole
-selects the video console.
+selects the video console, and
+.Dq nullconsole
+selects a mute console
+(useful for systems with neither a video console nor a serial port).
 .It Va kernel
 .Pq Dq /kernel
 .It Va loader_conf_files
