@@ -52,7 +52,8 @@ int
 main(int argc, char **argv)
 {
 	int c, fd, ret;
-	char *tmpdir, *prefix;
+	char *tmpdir;
+	const char *prefix;
 	char *name;
 	int dflag, qflag, tflag, uflag;
 

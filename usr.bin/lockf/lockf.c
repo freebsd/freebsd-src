@@ -193,7 +193,7 @@ killed(int sig)
  * Signal handler for SIGALRM.
  */
 static void
-timeout(int sig)
+timeout(int sig __unused)
 {
     timed_out = 1;
 }

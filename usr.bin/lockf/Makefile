@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	lockf
-CFLAGS+=-Wall
+WARNS?=	2
 
 .include <bsd.prog.mk>
