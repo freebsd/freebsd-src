@@ -317,7 +317,7 @@ int baud_rate = -1;
 
 /* Timeout limit for response from target. */
 
-int remote_timeout = 20;	/* Set default to 20 */
+int remote_timeout = 1;		/* Set default to 1 second */
 
 /* Non-zero tells remote* modules to output debugging info.  */
 
