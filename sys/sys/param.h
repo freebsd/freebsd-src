@@ -48,7 +48,7 @@
 
 /* 
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
- * If you bump the version for any reason, you should update the documenation
+ * If you bump the version for any reason, you should update the documentation
  * there.
  */
 #undef __FreeBSD_version
