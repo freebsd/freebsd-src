@@ -1,0 +1,112 @@
+.\" Copyright (c) 2002
+.\"	Thomas Quinot <thomas@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THe AUTHOR OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.\"
+.Dd October 23, 2002
+.Dt ATAPICAM 4
+.Os
+.Sh NAME
+.Nm atapicam
+.Nd CAM XPT (transport) module for ATAPI devices
+.Sh SYNOPSIS
+.Cd "device atapicam"
+.Sh DESCRIPTION
+The ATAPI/CAM module allows ATAPI devices (CD-ROM, CD-RW, DVD drives,
+floppy drives such as Iomega Zip, tape drives) to be accessed through
+the SCSI subsystem (CAM). 
+.Pp
+.Nm ata
+and
+.Nm scbus
+must be configured in the kernel as well.
+The SCSI target drivers
+.Pq Nm cd , Nm da , No or Nm st
+can then be used to access the devices.
+The generic passthrough device
+.Nm pass
+can also be used to send SCSI commands directly
+to the devices through the CAM API.
+.Pp
+A separate CAM bus is created for each ATA bus in the system.
+On each of these buses, target id 0 is assigned to the master
+device, and id 1 is assigned to the slave
+.Pq provided they are ATAPI devices .
+.Sh IMPLEMENTATION NOTES
+Some SCSI commands are intercepted by the driver, and undergo special
+processing in order to work around limitations of ATAPI devices.
+Such limitations can be consequences of the ATAPI specification.
+For example, ATAPI devices do not implement the 6-byte versions
+of
+.Nm MODE_SELECT ,
+.Nm MODE_SENSE ,
+.Nm READ ,
+or
+.Nm WRITE .
+They can also be common bugs, such as hanging when queried for
+extended
+.Nm INQUIRY
+information.
+.Sh EXAMPLES
+.Dl device atapicam
+.Dl device scbus
+.Dl device cd
+.Dl device pass
+.Pp
+Add the
+.Nm
+driver to the kernel.
+.Pp
+.Dl camcontrol devlist
+.Pp
+Print the list of all devices available through CAM.
+.Pp
+.Dl mount -t cd9660 /dev/cd0c /mnt
+.Pp
+Mount a CD-ROM from an ATAPI CD-ROM drive
+.Pq the command above assumes that the ATAPI drive is the only CD-ROM unit .
+.Sh SEE ALSO
+.Xr ata 4 ,
+.Xr scsi 4 ,
+.Xr atacontrol 8 ,
+.Xr camcontrol 8
+.Sh HISTORY
+The ATAPI/CAM driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An -nosplit
+The ATAPI/CAM driver was written by
+.An Thomas Quinot Aq thomas@FreeBSD.org .
+.Sh BUGS
+.Pp
+.Nm
+and ATAPI-specific target drivers
+.Pq Nm acd , Nm ast , No and Nm afd
+can be configured in the same kernel.
+Simultaneous access to the same device through the SCSI generic drivers
+and the ATAPI-specific drivers may cause problems and is strongly discouraged.
+
