@@ -34,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)kvm_getprocs.3	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: kvm_getprocs.3,v 1.2 1995/06/24 18:53:09 joerg Exp $
 .\"
 .Dd June 4, 1993
 .Dt KVM_GETPROCS 3
@@ -46,6 +46,7 @@
 .Nd access user process state
 .Sh SYNOPSIS
 .Fd #include <kvm.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/sysctl.h>
 .\" .Fa kvm_t *kd
 .br
