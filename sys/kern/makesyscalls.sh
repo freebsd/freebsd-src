@@ -208,7 +208,7 @@ s/\$//g
 		}
 		if ($2 == "NODEF") {
 			funcname=$4
-			argssize = "AS(" $4 "_args)"
+			argssize = "AS(" $6 ")"
 			return
 		}
 		if ($f != "{")
@@ -316,12 +316,15 @@ s/\$//g
 					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
 			}
-			else if($2 != "NOARGS" && $2 != "NOPROTO")
+			else if ($2 != "NOARGS" && $2 != "NOPROTO" && \
+			    $2 != "NODEF")
 				printf("struct %s {\n\tregister_t dummy;\n};\n",
 				    argalias) > sysarg
 		}
-		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
-		    (!lkmnosys || funcname != "lkmnosys") && $2 != "NODEF") {
+		if (($2 != "NOPROTO" && $2 != "NODEF" && \
+		    (funcname != "nosys" || !nosys)) || \
+		    (funcname == "lkmnosys" && !lkmnosys) || \
+		    funcname == "lkmressys") {
 			printf("%s\t%s __P((struct thread *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
@@ -337,7 +340,7 @@ s/\$//g
 			column = column + length("nosys") + 3
 		} else if ($2 == "NOSTD") {
 			printf("%s },", "lkmressys") > sysent
-			column = column + length("lkmnosys") + 3
+			column = column + length("lkmressys") + 3
 		} else {
 			printf("%s },", funcname) > sysent
 			column = column + length(funcname) + 3
