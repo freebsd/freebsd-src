@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 17, 2000
+.Dd September 17, 2003
 .Dt LINUX 4 i386
 .Os
 .Sh NAME
@@ -39,13 +39,12 @@ To load the Linux ABI support kernel module:
 The
 .Nm
 module provides limited
-Linux ABI (application binary interface) compatibility
+Linux ABI (Application Binary Interface) compatibility
 for userland applications.
 The module provides the following significant facilities:
 .Bl -bullet
 .It
-An image activator
-for correctly branded
+An image activator for correctly branded
 .Xr elf 5
 executable images
 .It
@@ -55,8 +54,8 @@ Linux to native system call translation
 .El
 .Pp
 It is important to note that the Linux ABI support
-it not provided through an emulator.
-Rather, a true (albeit limited) ABI implementation is provided.
+is not provided through an emulator, instead,
+a true (albeit limited) ABI implementation is provided.
 .Pp
 The following
 .Xr sysctl 8
