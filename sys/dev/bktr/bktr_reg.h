@@ -449,7 +449,6 @@ struct bktr_i2c_softc {
 	int bus_owned;
 
 	device_t iicbb;
-	device_t iicbus;
 	device_t smbus;
 };
 #endif

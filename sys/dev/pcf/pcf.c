@@ -197,10 +197,10 @@ pcf_attach(device_t pcfdev)
 			return (error);
 	}
 
-	pcf->iicbus = iicbus_alloc_bus(pcfdev);
+	pcf->iicbus = device_add_child(pcfdev, "iicbus", -1);
 
 	/* probe and attach the iicbus */
-	device_probe_and_attach(pcf->iicbus);
+	bus_generic_attach(pcfdev);
 
 	return (0);
 }
