@@ -98,28 +98,33 @@
 /*
  * the top three bits -- where appropriate -- are set as follows:
  *
- * 0x80 - MT  multi-track; allow both sides to be handled in single cmd
- * 0x40 - MFM modified frequency modulation; use MFM encoding
- * 0x20 - SK  skip; skip sectors marked as "deleted"
+ * MT  - multi-track; allow both sides to be handled in single cmd
+ * MFM - modified frequency modulation; use MFM encoding
+ * SK  - skip; skip sectors marked as "deleted"
  */
-#define NE7CMD_READTRK	0x42	/*  read whole track */
+
+#define NE7CMD_MT	0x80	/* READ, WRITE, WRITEDEL, READDEL, SCAN* */
+#define NE7CMD_MFM	0x40	/* same as MT, plus READTRK, READID, FORMAT */
+#define NE7CMD_SK	0x20	/* READ, READDEL, SCAN* */
+
+#define NE7CMD_READTRK	2	/*  read whole track */
 #define NE7CMD_SPECIFY	3	/*  specify drive parameters - requires unit
-					parameters byte */
+				 *  parameters byte */
 #define NE7CMD_SENSED	4	/*  sense drive - requires unit select byte */
-#define NE7CMD_WRITE	0xc5	/*  write - requires eight additional bytes */
-#define NE7CMD_READ	0xe6	/*  read - requires eight additional bytes */
+#define NE7CMD_WRITE	5	/*  write - requires eight additional bytes */
+#define NE7CMD_READ	6	/*  read - requires eight additional bytes */
 #define NE7CMD_RECAL	7	/*  recalibrate drive - requires
-					unit select byte */
+				 *  unit select byte */
 #define NE7CMD_SENSEI	8	/*  sense controller interrupt status */
-#define NE7CMD_WRITEDEL	0xc9	/*  write deleted data */
-#define NE7CMD_READID	0x4a	/*  read ID field */
-#define NE7CMD_READDEL	0xec	/*  read deleted data */
-#define NE7CMD_FORMAT	0x4d	/*  format - requires five additional bytes */
-#define NE7CMD_SEEK	0x0f	/*  seek drive - requires unit select byte
-					and new cyl byte */
-#define NE7CMD_SCNEQU	0xf1	/*  scan equal */
-#define NE7CMD_SCNLE	0xf9	/*  scan less or equal */
-#define NE7CMD_SCNGE	0xfd	/*  scan greater or equal */
+#define NE7CMD_WRITEDEL	9	/*  write deleted data */
+#define NE7CMD_READID	0xa	/*  read ID field */
+#define NE7CMD_READDEL	0xc	/*  read deleted data */
+#define NE7CMD_FORMAT	0xd	/*  format - requires five additional bytes */
+#define NE7CMD_SEEK	0xf	/*  seek drive - requires unit select byte
+				 *  and new cyl byte */
+#define NE7CMD_SCNEQU	0x11	/*  scan equal */
+#define NE7CMD_SCNLE	0x19	/*  scan less or equal */
+#define NE7CMD_SCNGE	0x1d	/*  scan greater or equal */
 
 /*
  * Enhanced controller commands:
