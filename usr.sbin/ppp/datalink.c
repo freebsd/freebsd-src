@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.13 1998/02/23 00:38:26 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.14 1998/02/26 17:53:15 brian Exp $
  */
 
 #include <sys/param.h>
@@ -313,8 +313,57 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   }
 }
 
+static void
+datalink_LayerStart(void *v, struct fsm *fp)
+{
+  /* The given FSM is about to start up ! */
+  struct datalink *dl = (struct datalink *)v;
+  return (*dl->parent->LayerStart)(dl->parent->object, fp);
+}
+
+static void
+datalink_LayerUp(void *v, struct fsm *fp)
+{
+  /* The given fsm is now up */
+  struct datalink *dl = (struct datalink *)v;
+
+  if (fp == &LcpInfo.fsm) {
+    (*dl->parent->LayerUp)(dl->parent->object, fp);
+    FsmUp(&dl->ccp.fsm);
+    FsmOpen(&dl->ccp.fsm);
+  }
+}
+
+static void
+datalink_LayerDown(void *v, struct fsm *fp)
+{
+  /* The given FSM has been told to come down */
+  struct datalink *dl = (struct datalink *)v;
+  if (fp == &LcpInfo.fsm) {
+    FsmDown(fp);
+    FsmClose(fp);
+  }
+  return (*dl->parent->LayerDown)(dl->parent->object, fp);
+}
+
+static void
+datalink_LayerFinish(void *v, struct fsm *fp)
+{
+  /* The given fsm is now down */
+  struct datalink *dl = (struct datalink *)v;
+
+  if (fp == &LcpInfo.fsm) {
+    (*dl->parent->LayerFinish)(dl->parent->object, fp);
+
+    if (link_IsActive(fp->link)) 
+      link_Close(fp->link, dl->bundle, 0, 0);	/* clean shutdown */
+      /* And wait for the LinkLost() */
+  }
+}
+
 struct datalink *
-datalink_Create(const char *name, struct bundle *bundle)
+datalink_Create(const char *name, struct bundle *bundle,
+                const struct fsm_parent *parent)
 {
   struct datalink *dl;
 
@@ -359,9 +408,15 @@ datalink_Create(const char *name, struct bundle *bundle)
   }
   chat_Init(&dl->chat, dl->physical, NULL, 1);
 
-  ipcp_Init(&IpcpInfo, dl->bundle, &dl->physical->link);
-  lcp_Init(&LcpInfo, dl->bundle, dl->physical);
-  ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link);
+  dl->parent = parent;
+  dl->fsm.LayerStart = datalink_LayerStart;
+  dl->fsm.LayerUp = datalink_LayerUp;
+  dl->fsm.LayerDown = datalink_LayerDown;
+  dl->fsm.LayerFinish = datalink_LayerFinish;
+  dl->fsm.object = dl;
+
+  lcp_Init(&LcpInfo, dl->bundle, dl->physical, &dl->fsm);
+  ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link, &dl->fsm);
 
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 

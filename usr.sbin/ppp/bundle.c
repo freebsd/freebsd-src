@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.15 1998/02/21 01:44:58 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.16 1998/02/23 00:38:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -92,8 +92,6 @@ bundle_PhaseName(struct bundle *bundle)
 void
 bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
 {
-  struct datalink *dl;
-
   if (new == bundle->phase)
     return;
 
@@ -129,14 +127,8 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
   case PHASE_NETWORK:
     tun_configure(bundle, LcpInfo.his_mru, modem_Speed(physical));
     ipcp_Setup(&IpcpInfo);
-    IpcpUp();
-    IpcpOpen();
-    /* XXX: The datalink should be doing this ... */
-    for (dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_OPEN) {
-        CcpUp(&dl->ccp);
-        CcpOpen(&dl->ccp);
-      }
+    FsmUp(&IpcpInfo.fsm);
+    FsmOpen(&IpcpInfo.fsm);
     /* Fall through */
 
   case PHASE_TERMINATE:
@@ -188,23 +180,27 @@ bundle_CleanInterface(const struct bundle *bundle)
   return 1;
 }
 
-void
-bundle_LayerStart(struct bundle *bundle, struct fsm *fp)
+static void
+bundle_LayerStart(void *v, struct fsm *fp)
 {
   /* The given FSM is about to start up ! */
+  struct bundle *bundle = (struct bundle *)v;
+
   if (fp == &LcpInfo.fsm)
     bundle_NewPhase(bundle, link2physical(fp->link), PHASE_ESTABLISH);
 }
 
-void
-bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
+static void
+bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's an lcp, tell the datalink
-   * If it's the first datalink, bring all NCPs up.
+   * If it's a datalink, authenticate.
    * If it's an NCP, tell our background mode parent to go away.
    */
+
+  struct bundle *bundle = (struct bundle *)v;
+
   if (fp == &LcpInfo.fsm)
     bundle_NewPhase(bundle, link2physical(fp->link), PHASE_AUTHENTICATE);
 
@@ -219,6 +215,40 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
       close(BGFiledes[1]);
       BGFiledes[1] = -1;
     }
+}
+
+static void
+bundle_LayerDown(void *v, struct fsm *fp)
+{
+  /*
+   * The given FSM has been told to come down.
+   * We don't do anything here, as the FSM will eventually
+   * come up or down and will call LayerUp or LayerFinish.
+   */
+}
+
+static void
+bundle_LayerFinish(void *v, struct fsm *fp)
+{
+  /* The given fsm is now down (fp cannot be NULL)
+   *
+   * If it's the last LCP, FsmDown all NCPs
+   * If it's the last NCP, FsmClose all LCPs and enter TERMINATE phase.
+   */
+
+  struct bundle *bundle = (struct bundle *)v;
+
+  if (fp == &LcpInfo.fsm) {
+    FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
+    FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
+  } else if (fp == &IpcpInfo.fsm) {
+    struct datalink *dl;
+
+    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+
+    for (dl = bundle->links; dl; dl = dl->next)
+      datalink_Close(dl, 1);
+  }
 }
 
 int
@@ -355,14 +385,24 @@ bundle_Create(const char *prefix)
   bundle.routing_seq = 0;
   bundle.phase = 0;
 
-  /* Clean out any leftover crud */
-  bundle_CleanInterface(&bundle);
+  bundle.fsm.LayerStart = bundle_LayerStart;
+  bundle.fsm.LayerUp = bundle_LayerUp;
+  bundle.fsm.LayerDown = bundle_LayerDown;
+  bundle.fsm.LayerFinish = bundle_LayerFinish;
+  bundle.fsm.object = &bundle;
 
-  bundle.links = datalink_Create("Modem", &bundle);
+  bundle.links = datalink_Create("Modem", &bundle, &bundle.fsm);
   if (bundle.links == NULL) {
     LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
+    close(bundle.tun_fd);
+    bundle.ifname = NULL;
     return NULL;
   }
+
+  ipcp_Init(&IpcpInfo, &bundle, &bundle.links->physical->link, &bundle.fsm);
+
+  /* Clean out any leftover crud */
+  bundle_CleanInterface(&bundle);
 
   return &bundle;
 }
@@ -575,55 +615,6 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   if (mode & MODE_INTER)
     prompt_Display(&prompt, bundle);
     
-}
-
-void
-bundle_LayerDown(struct bundle *bundle, struct fsm *fp)
-{
-  /*
-   * The given FSM has been told to come down.
-   * We don't do anything here, as the FSM will eventually
-   * come up or down and will call LayerUp or LayerFinish.
-   */
-}
-
-void
-bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
-{
-  /* The given fsm is now down (fp cannot be NULL)
-   *
-   * If it's a CCP, just bring it back to STARTING in case we get more REQs
-   *
-   * If it's an LCP, FsmDown the corresponding CCP and Close the link if
-   * it's open.  The link_Close causes the LCP to be FsmDown()d,
-   * via bundle_LinkLost() causing re-entry.
-   *
-   * If it's the last LCP, FsmDown all NCPs
-   *
-   * If it's the last NCP, FsmClose all LCPs and enter TERMINATE phase.
-   */
-
-  if (fp->proto == PROTO_CCP) {
-    FsmDown(fp);
-    FsmOpen(fp);
-  } else if (fp == &LcpInfo.fsm) {
-    /* XXX fix me */
-    FsmDown(&bundle->links->ccp.fsm);
-
-    FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
-    FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
-
-    if (link_IsActive(fp->link)) 
-      link_Close(fp->link, bundle, 0, 0);	/* clean shutdown */
-      /* And wait for the LinkLost() */
-  } else if (fp == &IpcpInfo.fsm) {
-    struct datalink *dl;
-
-    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
-
-    for (dl = bundle->links; dl; dl = dl->next)
-      datalink_Close(dl, 1);
-  }
 }
 
 void

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.7 1998/02/17 19:28:35 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.8 1998/02/23 00:38:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -40,10 +40,10 @@
 #include "timer.h"
 #include "command.h"
 #include "log.h"
-#include "bundle.h"
 #include "descriptor.h"
 #include "prompt.h"
 #include "fsm.h"
+#include "bundle.h"
 #include "lcp.h"
 #include "auth.h"
 #include "loadalias.h"

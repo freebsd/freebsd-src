@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.13 1998/02/23 00:38:17 brian Exp $
+ * $Id: ccp.c,v 1.30.2.14 1998/02/24 03:36:45 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -64,12 +64,10 @@ static void CcpRecvResetReq(struct fsm *);
 static void CcpRecvResetAck(struct fsm *, u_char);
 
 static struct fsm_callbacks ccp_Callbacks = {
-  {
-    CcpLayerUp,
-    CcpLayerDown,
-    CcpLayerStart,
-    CcpLayerFinish
-  },
+  CcpLayerUp,
+  CcpLayerDown,
+  CcpLayerStart,
+  CcpLayerFinish,
   CcpInitRestartCounter,
   CcpSendConfigReq,
   CcpSendTerminateReq,
@@ -136,11 +134,12 @@ ccp_ReportStatus(struct cmdargs const *arg)
 }
 
 void
-ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l)
+ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
+         const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
   fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
-           bundle, l, &ccp_Callbacks);
+           bundle, l, parent, &ccp_Callbacks);
   ccp_Setup(ccp);
 }
 
@@ -287,36 +286,6 @@ CcpLayerUp(struct fsm *fp)
   LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
             protoname(ccp->my_proto), ccp->my_proto,
             protoname(ccp->his_proto), ccp->his_proto);
-}
-
-void
-CcpUp(struct ccp *ccp)
-{
-  /* Lower layers are ready.... go */
-  LogPrintf(LogCCP, "CCP Up event!!\n");
-  FsmUp(&ccp->fsm);
-}
-
-void
-CcpOpen(struct ccp *ccp)
-{
-  /* Start CCP please */
-  int f;
-
-  for (f = 0; f < NALGORITHMS; f++)
-    if (Enabled(algorithm[f]->Conf)) {
-      ccp->fsm.open_mode = 0;
-      FsmOpen(&ccp->fsm);
-      break;
-    }
-
-  if (f == NALGORITHMS)
-    for (f = 0; f < NALGORITHMS; f++)
-      if (Acceptable(algorithm[f]->Conf)) {
-        ccp->fsm.open_mode = OPEN_PASSIVE;
-        FsmOpen(&ccp->fsm);
-        break;
-      }
 }
 
 static void

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.7 1998/02/17 19:28:46 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.8 1998/02/23 00:38:27 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -66,20 +66,23 @@ struct datalink {
 
   char *name;			/* Our name */
 
+  struct fsm_parent fsm;	   /* Our callback functions */
+  const struct fsm_parent *parent; /* Our parent */
 #ifdef soon
-  struct lcp lcp;		/* Our line control FSM */
+  struct lcp lcp;		   /* Our line control FSM */
 #endif
-  struct ccp ccp;		/* Our compression FSM */
+  struct ccp ccp;		   /* Our compression FSM */
 
-  struct bundle *bundle;	/* for the moment */
-  struct datalink *next;	/* Next in the list */
+  struct bundle *bundle;	   /* for the moment */
+  struct datalink *next;	   /* Next in the list */
 };
 
 #define datalink2descriptor(dl) (&(dl)->desc)
 #define descriptor2datalink(d) \
   ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
 
-extern struct datalink *datalink_Create(const char *name, struct bundle *);
+extern struct datalink *datalink_Create(const char *name, struct bundle *,
+                                        const struct fsm_parent *);
 extern struct datalink *datalink_Destroy(struct datalink *);
 extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.7 1998/02/21 01:45:08 brian Exp $
+ * $Id: fsm.h,v 1.16.2.8 1998/02/24 03:36:47 brian Exp $
  *
  *	TODO:
  */
@@ -47,15 +47,11 @@
 
 struct fsm;
 
-struct fsm_events {
+struct fsm_callbacks {
   void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
   void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
   void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
   void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
-};
-
-struct fsm_callbacks {
-  struct fsm_events notify;
   void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
   void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
   void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
@@ -64,6 +60,14 @@ struct fsm_callbacks {
                                              /* Deal with incoming data */
   void (*RecvResetReq) (struct fsm *fp);         /* Reset output */
   void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
+};
+
+struct fsm_parent {
+  void (*LayerStart) (void *, struct fsm *);         /* tls */
+  void (*LayerUp) (void *, struct fsm *);            /* tlu */
+  void (*LayerDown) (void *, struct fsm *);          /* tld */
+  void (*LayerFinish) (void *, struct fsm *);        /* tlf */
+  void *object;
 };
 
 struct fsm {
@@ -97,6 +101,7 @@ struct fsm {
   /* Our high-level link */
   struct bundle *bundle;
 
+  const struct fsm_parent *parent;
   const struct fsm_callbacks *fn;
 };
 
@@ -139,7 +144,8 @@ extern u_char *rejp;
 extern char const *StateNames[];
 
 extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
-                     struct bundle *, struct link *, struct fsm_callbacks *);
+                     struct bundle *, struct link *, const  struct fsm_parent *,
+                     struct fsm_callbacks *);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);

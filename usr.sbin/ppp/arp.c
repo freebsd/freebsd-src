@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.27.2.3 1998/02/08 11:04:37 brian Exp $
+ * $Id: arp.c,v 1.27.2.4 1998/02/21 01:44:55 brian Exp $
  *
  */
 
@@ -51,9 +51,9 @@
 #include "log.h"
 #include "id.h"
 #include "route.h"
-#include "bundle.h"
 #include "timer.h"
 #include "fsm.h"
+#include "bundle.h"
 #include "throughput.h"
 #include "defs.h"
 #include "iplist.h"

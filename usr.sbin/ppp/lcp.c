@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.19 1998/02/21 01:45:14 brian Exp $
+ * $Id: lcp.c,v 1.55.2.20 1998/02/24 03:36:50 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -88,12 +88,10 @@ static void LcpSendTerminateAck(struct fsm *);
 static void LcpDecodeConfig(struct fsm *, u_char *, int, int);
 
 static struct fsm_callbacks lcp_Callbacks = {
-  {
-    LcpLayerUp,
-    LcpLayerDown,
-    LcpLayerStart,
-    LcpLayerFinish
-  },
+  LcpLayerUp,
+  LcpLayerDown,
+  LcpLayerStart,
+  LcpLayerFinish,
   LcpInitRestartCounter,
   LcpSendConfigReq,
   LcpSendTerminateReq,
@@ -103,23 +101,7 @@ static struct fsm_callbacks lcp_Callbacks = {
   NullRecvResetAck
 };
 
-struct lcp LcpInfo = {
-  {
-    "LCP",				/* Name of protocol */
-    PROTO_LCP,				/* Protocol Number */
-    LCP_MAXCODE,
-    1,					/* Open mode delay */
-    ST_INITIAL,				/* State of machine */
-    0, 0, 0,
-    {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-    {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-    {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-    LogLCP,
-    NULL,				/* link */
-    NULL,				/* bundle */
-    &lcp_Callbacks
-  }
-};
+struct lcp LcpInfo;
 
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -187,11 +169,12 @@ GenerateMagic(void)
 }
 
 void
-lcp_Init(struct lcp *lcp, struct bundle *bundle, struct physical *physical)
+lcp_Init(struct lcp *lcp, struct bundle *bundle, struct physical *physical,
+         const struct fsm_parent *parent)
 {
   /* Initialise ourselves */
   fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, LCP_MAXCODE, 10, LogLCP, bundle,
-           &physical->link, &lcp_Callbacks);
+           &physical->link, parent, &lcp_Callbacks);
   lcp_Setup(lcp, 1);
 }
 

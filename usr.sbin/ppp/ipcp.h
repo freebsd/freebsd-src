@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.12 1998/02/08 19:29:44 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.13 1998/02/21 01:45:12 brian Exp $
  *
  *	TODO:
  */
@@ -80,11 +80,10 @@ extern struct ipcp IpcpInfo;
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
 
-extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *l);
+extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *l,
+                      const struct fsm_parent *);
 extern void ipcp_Setup(struct ipcp *);
 
-extern void IpcpUp(void);
-extern void IpcpOpen(void);
 extern int  ReportIpcpStatus(struct cmdargs const *);
 extern void IpcpInput(struct mbuf *);
 extern void IpcpAddInOctets(int);

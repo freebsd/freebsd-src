@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.9 1998/02/17 19:27:49 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.10 1998/02/21 01:44:59 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -35,7 +35,6 @@
 struct datalink;
 struct physical;
 struct link;
-struct fsm;
 
 struct bundle {
   int unit;                   /* The tun number */
@@ -46,6 +45,7 @@ struct bundle {
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
 
+  struct fsm_parent fsm;      /* Our callback functions */
   struct datalink *links;     /* Our data links */
 };
 
@@ -54,16 +54,12 @@ extern void bundle_Destroy(struct bundle *);
 extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
 extern void bundle_NewPhase(struct bundle *, struct physical *, u_int);
-extern void bundle_LayerStart(struct bundle *, struct fsm *);
-extern void bundle_LayerUp(struct bundle *, struct fsm *);
 extern int  bundle_LinkIsUp(const struct bundle *);
 extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
                             struct in_addr, struct in_addr, int);
 extern void bundle_LinkLost(struct bundle *, struct link *, int);
 extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Open(struct bundle *, const char *name);
-extern void bundle_LayerDown(struct bundle *, struct fsm *);
-extern void bundle_LayerFinish(struct bundle *, struct fsm *);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
 extern int bundle_UpdateSet(struct bundle *, fd_set *, fd_set *, fd_set *,

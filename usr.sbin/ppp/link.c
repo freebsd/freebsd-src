@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.7 1998/02/18 19:35:51 brian Exp $
+ *  $Id: link.c,v 1.1.2.8 1998/02/23 00:38:33 brian Exp $
  *
  */
 
@@ -44,6 +44,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "link.h"
+#include "fsm.h"
 #include "bundle.h"
 #include "descriptor.h"
 #include "prompt.h"

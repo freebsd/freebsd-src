@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.15 1998/02/21 01:45:11 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.16 1998/02/24 03:36:49 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -89,12 +89,10 @@ static void IpcpSendTerminateAck(struct fsm *);
 static void IpcpDecodeConfig(struct fsm *, u_char *, int, int);
 
 static struct fsm_callbacks ipcp_Callbacks = {
-  {
-    IpcpLayerUp,
-    IpcpLayerDown,
-    IpcpLayerStart,
-    IpcpLayerFinish
-  },
+  IpcpLayerUp,
+  IpcpLayerDown,
+  IpcpLayerStart,
+  IpcpLayerFinish,
   IpcpInitRestartCounter,
   IpcpSendConfigReq,
   IpcpSendTerminateReq,
@@ -203,13 +201,14 @@ SetInitVJ(struct cmdargs const *args)
 }
 
 void
-ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l)
+ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
+          const struct fsm_parent *parent)
 {
   struct hostent *hp;
   char name[MAXHOSTNAMELEN];
 
   fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, IPCP_MAXCODE, 10, LogIPCP,
-           bundle, l, &ipcp_Callbacks);
+           bundle, l, parent, &ipcp_Callbacks);
 
   ipcp->cfg.VJInitSlots = DEF_VJ_STATES;
   ipcp->cfg.VJInitComp = 1;
@@ -569,21 +568,6 @@ IpcpLayerUp(struct fsm *fp)
   throughput_start(&ipcp->throughput);
   StartIdleTimer();
   prompt_Display(&prompt, fp->bundle);
-}
-
-void
-IpcpUp()
-{
-  /* Lower layers are ready.... go */
-  FsmUp(&IpcpInfo.fsm);
-  LogPrintf(LogIPCP, "IPCP Up event!!\n");
-}
-
-void
-IpcpOpen()
-{
-  /* Start IPCP please */
-  FsmOpen(&IpcpInfo.fsm);
 }
 
 static int

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.14 1998/02/23 00:38:29 brian Exp $
+ * $Id: fsm.c,v 1.27.2.15 1998/02/24 03:36:46 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -86,7 +86,7 @@ StoppedTimeout(void *v)
 void
 fsm_Init(struct fsm *fp, const char *name, u_short proto, int maxcode,
          int maxcfg, int LogLevel, struct bundle *bundle, struct link *l,
-         struct fsm_callbacks *fn)
+         const struct fsm_parent *parent, struct fsm_callbacks *fn)
 {
   fp->name = name;
   fp->proto = proto;
@@ -101,6 +101,7 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int maxcode,
   fp->LogLevel = LogLevel;
   fp->link = l;
   fp->bundle = bundle;
+  fp->parent = parent;
   fp->fn = fn;
 }
 
@@ -161,8 +162,8 @@ FsmOpen(struct fsm * fp)
   switch (fp->state) {
   case ST_INITIAL:
     NewState(fp, ST_STARTING);
-    (*fp->fn->notify.LayerStart)(fp);
-    bundle_LayerStart(fp->bundle, fp);
+    (*fp->fn->LayerStart)(fp);
+    (*fp->parent->LayerStart)(fp->parent->object, fp);
     break;
   case ST_CLOSED:
     if (fp->open_mode == OPEN_PASSIVE) {
@@ -219,14 +220,14 @@ FsmDown(struct fsm *fp)
     NewState(fp, ST_INITIAL);
     break;
   case ST_CLOSING:
-    (*fp->fn->notify.LayerFinish)(fp);
+    (*fp->fn->LayerFinish)(fp);
     NewState(fp, ST_INITIAL);
-    bundle_LayerFinish(fp->bundle, fp);
+    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   case ST_STOPPED:
     NewState(fp, ST_STARTING);
-    (*fp->fn->notify.LayerStart)(fp);
-    bundle_LayerStart(fp->bundle, fp);
+    (*fp->fn->LayerStart)(fp);
+    (*fp->parent->LayerStart)(fp->parent->object, fp);
     break;
   case ST_STOPPING:
   case ST_REQSENT:
@@ -235,9 +236,9 @@ FsmDown(struct fsm *fp)
     NewState(fp, ST_STARTING);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     NewState(fp, ST_STARTING);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   }
 }
@@ -247,9 +248,9 @@ FsmClose(struct fsm *fp)
 {
   switch (fp->state) {
   case ST_STARTING:
-    (*fp->fn->notify.LayerFinish)(fp);
+    (*fp->fn->LayerFinish)(fp);
     NewState(fp, ST_INITIAL);
-    bundle_LayerFinish(fp->bundle, fp);
+    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   case ST_STOPPED:
     NewState(fp, ST_CLOSED);
@@ -258,11 +259,11 @@ FsmClose(struct fsm *fp)
     NewState(fp, ST_CLOSING);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmInitRestartCounter(fp);
     FsmSendTerminateReq(fp);
     NewState(fp, ST_CLOSING);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   case ST_REQSENT:
   case ST_ACKRCVD:
@@ -353,21 +354,21 @@ FsmTimeout(void *v)
   } else {
     switch (fp->state) {
     case ST_CLOSING:
-      (*fp->fn->notify.LayerFinish)(fp);
+      (*fp->fn->LayerFinish)(fp);
       NewState(fp, ST_CLOSED);
-      bundle_LayerFinish(fp->bundle, fp);
+      (*fp->parent->LayerFinish)(fp->parent->object, fp);
       break;
     case ST_STOPPING:
-      (*fp->fn->notify.LayerFinish)(fp);
+      (*fp->fn->LayerFinish)(fp);
       NewState(fp, ST_STOPPED);
-      bundle_LayerFinish(fp->bundle, fp);
+      (*fp->parent->LayerFinish)(fp->parent->object, fp);
       break;
     case ST_REQSENT:		/* XXX: 3p */
     case ST_ACKSENT:
     case ST_ACKRCVD:
-      (*fp->fn->notify.LayerFinish)(fp);
+      (*fp->fn->LayerFinish)(fp);
       NewState(fp, ST_STOPPED);
-      bundle_LayerFinish(fp->bundle, fp);
+      (*fp->parent->LayerFinish)(fp->parent->object, fp);
       break;
     }
   }
@@ -430,9 +431,9 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 
   switch (fp->state) {
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   case ST_STOPPED:
     FsmInitRestartCounter(fp);
@@ -462,8 +463,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_ACKRCVD:
     if (ackaction) {
       NewState(fp, ST_OPENED);
-      (*fp->fn->notify.LayerUp)(fp);
-      bundle_LayerUp(fp->bundle, fp);
+      (*fp->fn->LayerUp)(fp);
+      (*fp->parent->LayerUp)(fp->parent->object, fp);
     }
     break;
   case ST_ACKSENT:
@@ -497,14 +498,14 @@ FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   case ST_ACKSENT:
     FsmInitRestartCounter(fp);
     NewState(fp, ST_OPENED);
-    (*fp->fn->notify.LayerUp)(fp);
-    bundle_LayerUp(fp->bundle, fp);
+    (*fp->fn->LayerUp)(fp);
+    (*fp->parent->LayerUp)(fp->parent->object, fp);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   }
   pfree(bp);
@@ -552,10 +553,10 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   case ST_ACKRCVD:
     FsmSendConfigReq(fp);
@@ -588,12 +589,12 @@ FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
     NewState(fp, ST_REQSENT);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     (*fp->fn->SendTerminateAck)(fp);
     StartTimer(&fp->FsmTimer);	/* Start restart timer */
     fp->restart = 0;
     NewState(fp, ST_STOPPING);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   }
   pfree(bp);
@@ -605,23 +606,23 @@ FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   switch (fp->state) {
   case ST_CLOSING:
-    (*fp->fn->notify.LayerFinish)(fp);
+    (*fp->fn->LayerFinish)(fp);
     NewState(fp, ST_CLOSED);
-    bundle_LayerFinish(fp->bundle, fp);
+    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   case ST_STOPPING:
-    (*fp->fn->notify.LayerFinish)(fp);
+    (*fp->fn->LayerFinish)(fp);
     NewState(fp, ST_STOPPED);
-    bundle_LayerFinish(fp->bundle, fp);
+    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   case ST_ACKRCVD:
     NewState(fp, ST_REQSENT);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   }
   pfree(bp);
@@ -670,10 +671,10 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
-    (*fp->fn->notify.LayerDown)(fp);
+    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
-    bundle_LayerDown(fp->bundle, fp);
+    (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   case ST_ACKRCVD:
     FsmSendConfigReq(fp);
@@ -710,7 +711,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     break;
   case PROTO_CCP:
     fp = &bundle2ccp(fp->bundle, fp->link->name)->fsm;
-    (*fp->fn->notify.LayerFinish)(fp);
+    (*fp->fn->LayerFinish)(fp);
     switch (fp->state) {
     case ST_CLOSED:
     case ST_CLOSING:
@@ -719,7 +720,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       NewState(fp, ST_STOPPED);
       break;
     }
-    bundle_LayerFinish(fp->bundle, fp);
+    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   }
   pfree(bp);
