@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: map.c,v 1.6.2.3 2001/01/10 03:23:07 ezk Exp $
+ * $Id: map.c,v 1.6.2.7 2002/12/27 22:44:38 ezk Exp $
  *
  */
 
@@ -875,7 +875,7 @@ unmount_node_wrap(voidp vp)
    * There is still a race condition here...
    * if another process is trying to access the same
    * filesystem at the time we get here, then
-   * it will block, since the MF_UNMOUNTING flag will
+   * it will block, since the MFF_UNMOUNTING flag will
    * be set.  That may, or may not, cause the entire
    * system to deadlock.  Hmmm...
    */
@@ -926,7 +926,7 @@ free_map_if_success(int rc, int term, voidp closure)
   }
 
   /*
-   * Wakeup anything waiting for this mount
+   * Wakeup anything waiting for this unmount
    */
   wakeup((voidp) mf);
 }
@@ -944,13 +944,13 @@ unmount_mp(am_node *mp)
      * values cache.  It forces the last-modified time of the symlink to be
      * current.  It is not needed if the O/S has an nfs flag to turn off the
      * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
+     *
+     * Additionally, Linux currently ignores the nt_useconds field,
+     * so we must update the nt_seconds field every time.
      */
-  if (mp->am_parent) {
+  if (mp->am_parent)
     /* defensive programming... can't we assert the above condition? */
-    nfsattrstat *attrp = &mp->am_parent->am_attr;
-    if (++attrp->ns_u.ns_attr_u.na_mtime.nt_useconds == 0)
-      ++attrp->ns_u.ns_attr_u.na_mtime.nt_seconds;
-  }
+    mp->am_parent->am_attr.ns_u.ns_attr_u.na_mtime.nt_seconds++;
 #endif /* not MNT2_NFS_OPT_SYMTTL */
 
 #ifdef notdef

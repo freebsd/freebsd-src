@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mapc.c,v 1.7.2.3 2001/04/14 21:08:22 ezk Exp $
+ * $Id: mapc.c,v 1.7.2.6 2002/12/27 22:44:38 ezk Exp $
  *
  */
 
@@ -1007,8 +1007,7 @@ root_newmap(const char *dir, const char *opts, const char *map, const cf_map_t *
 
   if (cfm) {
     if (map) {
-      sprintf(str, "cache:=mapdefault;type:=%s;fs:=\"%s\"",
-	      cfm->cfm_flags & CFM_MOUNT_TYPE_AUTOFS ? "autofs" : "toplvl",
+      sprintf(str, "cache:=mapdefault;type:=toplvl;fs:=\"%s\"",
 	      get_full_path(map, cfm->cfm_search_path, cfm->cfm_type));
       if (opts && opts[0] != '\0') {
 	strcat(str, ";");

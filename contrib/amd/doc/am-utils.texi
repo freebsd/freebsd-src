@@ -1,6 +1,6 @@
 \input texinfo          @c -*-texinfo-*-
 @c
-@c Copyright (c) 1997-2001 Erez Zadok
+@c Copyright (c) 1997-2003 Erez Zadok
 @c Copyright (c) 1989 Jan-Simon Pendry
 @c Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 @c Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
 @c
 @c      %W% (Berkeley) %G%
 @c
-@c $Id: am-utils.texi,v 1.21.2.17 2001/07/03 23:50:31 ezk Exp $
+@c $Id: am-utils.texi,v 1.21.2.28 2003/04/14 01:23:10 ezk Exp $
 @c
 @setfilename am-utils.info
 
@@ -49,7 +49,7 @@
 * Am-utils: (am-utils).          The Amd automounter suite of utilities
 @end direntry
 
-@settitle
+@settitle Am-utils (4.4BSD Automounter Utilities)
 @setchapternewpage odd
 
 @titlepage
@@ -60,7 +60,7 @@
 (Originally by Jan-Simon Pendry and Nick Williams)
 
 @page
-Copyright @copyright{} 1997-2001 Erez Zadok
+Copyright @copyright{} 1997-2003 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
@@ -84,8 +84,28 @@ copyright notice and statement of permission are included.
 
 @c ################################################################
 @node Top, License, , (DIR)
-Am-utils - The 4.4BSD Automounter Tool Suite
-*********************************************
+
+@b{Am-utils (4.4BSD Automounter Utilities) User Manual}
+@*
+For version @value{VERSION}, @value{UPDATED}
+
+@b{Erez Zadok}
+@*
+(Originally by Jan-Simon Pendry and Nick Williams)
+
+Copyright @copyright{} 1997-2003 Erez Zadok
+@*
+Copyright @copyright{} 1989 Jan-Simon Pendry
+@*
+Copyright @copyright{} 1989 Imperial College of Science, Technology & Medicine
+@*
+Copyright @copyright{} 1989 The Regents of the University of California.
+@*
+All Rights Reserved.
+
+Permission to copy this document, or any portion of it, as
+necessary for use of this software is granted provided this
+copyright notice and statement of permission are included.
 
 Am-utils is the 4.4BSD Automounter Tool Suite, which includes the Amd
 automounter, the Amq query and control program, the Hlfsd daemon, and
@@ -339,14 +359,14 @@ on am-utils.
 Am-utils version 6.0 was numbered with a major new release number to
 distinguish it from the last official release of @i{Amd} (5.x).  Many
 new features have been added such as a GNU @code{configure} system, NFS
-Version 3, Autofs support, a run-time configuration file (`amd.conf'),
-many new ports, more scripts and programs, as well as numerous bug
-fixes.  Another reason for the new major release number was to alert
-users of am-utils that user-visible interfaces may have changed.  In
-order to make @i{Amd} work well for the next 10 years, and be easier to
-maintain, it was necessary to remove old or unused features, change
-various syntax files, etc.  However, great care was taken to ensure the
-maximum possible backwards compatibility.
+Version 3, a run-time configuration file (`amd.conf'), many new ports,
+more scripts and programs, as well as numerous bug fixes.  Another
+reason for the new major release number was to alert users of am-utils
+that user-visible interfaces may have changed.  In order to make @i{Amd}
+work well for the next 10 years, and be easier to maintain, it was
+necessary to remove old or unused features, change various syntax files,
+etc.  However, great care was taken to ensure the maximum possible
+backwards compatibility.
 
 @c ################################################################
 @node Overview, Supported Platforms, History, Top
@@ -630,9 +650,6 @@ Although this action does not protect user files, which are unique on
 the network, or processes which do not access files via @i{Amd} or
 already have open files on the hung filesystem, it can prevent most new
 processes from hanging.
-
-By default, fileserver state is not maintained for NFS/TCP mounts.  The
-remote fileserver is always assumed to be up.
 @c
 @c With a suitable combination of filesystem management and mount-maps,
 @c machines can be protected against most server downtime.  This can be
@@ -777,6 +794,10 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
+@item @b{i386-pc-linux-rh7.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
 @item @b{i386-pc-solaris2.5.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
@@ -814,6 +835,10 @@ features.
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
 @item @b{i386-unknown-freebsd4.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{i386-unknown-freebsd4.4}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
@@ -965,6 +990,26 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
+@item @b{ia64-hp-hpux11.20}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{ia64-unknown-linux-rh2.1AS}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
+@item @b{ia64-unknown-linux-rh2.1AW}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
+@item @b{ia64-unknown-linux-rh7.1}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
+@item @b{ia64-unknown-linux-rh7.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab yes
+
 @item @b{m68k-hp-hpux9.00}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab ?    @tab ?
@@ -1096,6 +1141,10 @@ features.
 @item @b{sparc64-unknown-linux-gnu}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{sparc64-unknown-linux-suse7.3}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
 @end multitable
 
@@ -2117,9 +2166,18 @@ function (@pxref{netgrp Selector Function}) uses short host names
 @cindex Mount selector; in_network
 @cindex Selector; in_network
 
-If the current host has any network interface that is locally attached
-to the network specified in @i{ARG} (either via name or number), this
-selector evaluates to true.  Otherwise it evaluates to false.
+This selector matches against any network name or number with an
+optional netmask.  First, if the current host has any network interface that is
+locally attached to the network specified in @i{ARG} (either via name or
+number), this selector evaluates to true. 
+
+Second, @samp{in_network} supports a network/netmask syntax such as
+@samp{128.59.16.0/255.255.255.0}, @samp{128.59.16.0/24},
+@samp{128.59.16.0/0xffffff00}, or @samp{128.59.16.0/}.  Using the last
+form, @i{Amd} will match the specified network number against the
+default netmasks of each of the locally attached interfaces.
+
+If the selector does not match, it evaluates to false.
 
 For example, suppose you have two servers that have an exportable
 @file{/opt} that smaller clients can NFS mount.  The two servers are
@@ -2576,8 +2634,10 @@ passed to the kernel.
 
 @item nounmount
 @cindex Mount flags; nounmount
-Configures the mount so that its time-to-live will
-never expire.  This is also the default for some filesystem types.
+Configures the mount so that its time-to-live will never expire.  This
+is the default for non-network based filesystem types (such as
+mounting local disks, floppies, and CD-ROMs).  See also the related
+@i{unmount} option.
 @c
 @c Implementation broken:
 
@@ -2592,6 +2652,16 @@ up.  By default, pings are not sent for an NFS/TCP mount.
 @item retry=@var{n}
 @cindex Mount flags; retry=@var{n}
 The number of times to retry the mount system call.
+
+@item unmount
+@cindex Mount flags; unmount
+Configures the mount so that its time-to-live will indeed expire (and
+thus may be automatically unmounted).  This is also the default for
+network-based filesystem types (e.g., NFS).  This option is useful for
+removable local media such as CD-ROMs, USB drives, etc. so they can
+expire when not in use, and get unmounted (such drives can get work
+out when they keep spinning).  See also the related @i{nounmount}
+option.
 
 @item utimeout=@var{n}
 @cindex Mount flags; utimeout=@var{n}
@@ -2959,7 +3029,7 @@ full_os=solaris2.5.1, os=sos5, osver=5.5.1, vendor=sun.
 Map support for: root, passwd, union, nisplus, nis, ndbm, file, error.
 AMFS: nfs, link, nfsx, nfsl, host, linkx, program, union, inherit, 
       ufs, lofs, hsfs, pcfs, auto, direct, toplvl, error.
-FS: autofs, cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, ufs.
+FS: cachefs, cdfs, lofs, nfs, nfs3, pcfs, tfs, tmpfs, ufs.
 Network 1: wire="mcl-lab-net.cs.columbia.edu" (netnumber=128.59.13).
 Network 2: wire="14-net.cs.columbia.edu" (netnumber=128.59.14).
 Network 3: wire="old-net.cs.columbia.edu" (netnumber=128.59.16).
@@ -3138,7 +3208,7 @@ program trace
 print high resolution time stamps (only if @b{syslog}(3) is not used)
 @item info
 @cindex debugging hesiod resolver service
-@cindex Hesiod: turning on RES_DEBUG
+@cindex Hesiod; turning on RES_DEBUG
 info service specific debugging (hesiod, nis, etc.)  In the case of
 hesiod maps, turns on the hesiod RES_DEBUG internal debugging option.
 @item mem
@@ -3277,7 +3347,6 @@ effect visible to the user.@refill
 * Union Filesystem::
 * Error Filesystem::
 * Top-level Filesystem::
-* Autofs Filesystem::           Sun's kernel-based automounter filesystem.
 * Root Filesystem::
 * Inheritance Filesystem::
 @end menu
@@ -4104,7 +4173,7 @@ directory''.  All other operations trivially succeed.
 The error filesystem is not directly accessible.
 
 @c ----------------------------------------------------------------
-@node Top-level Filesystem, Autofs Filesystem, Error Filesystem, Filesystem Types
+@node Top-level Filesystem, Root Filesystem, Error Filesystem, Filesystem Types
 @comment  node-name,  next,  previous,  up
 @section Top-level Filesystem (@samp{toplvl})
 @cindex Top level filesystem
@@ -4116,7 +4185,7 @@ and is used to mount the top-level automount nodes.  Requests of this
 type are automatically generated from the command line arguments.
 
 @c ----------------------------------------------------------------
-@node Root Filesystem, Inheritance Filesystem, Autofs Filesystem, Filesystem Types
+@node Root Filesystem, Inheritance Filesystem, Top-level Filesystem, Filesystem Types
 @comment  node-name,  next,  previous,  up
 @section Root Filesystem (@samp{root})
 @cindex Root filesystem
@@ -4130,24 +4199,6 @@ during startup.  The effect of having more than one root node is
 undefined.
 
 The root filesystem is not directly accessible.
-
-@c ----------------------------------------------------------------
-@node Autofs Filesystem, Root Filesystem, Top-level Filesystem, Filesystem Types
-@comment  node-name,  next,  previous,  up
-@section Autofs Filesystem (@samp{autofs})
-@cindex Autofs filesystem
-@cindex autofs, filesystem type
-@cindex Filesystem type; autofs
-
-The @dfn{autofs} (@samp{type:=autofs}) filesystem uses Sun's kernel-based automounter
-supporting filesystem for @i{Amd}'s mount points.  Hence it is another
-type of top level filesystem.
-
-The autofs filesystem is not directly accessible from @i{Amd} maps, but
-only from the @file{amd.conf} file (@pxref{mount_type Parameter}).
-
-Note that Autofs support is still very early.  See the distribution file
-@file{README.autofs} for detail of what works and what does not.
 
 @c ----------------------------------------------------------------
 @node Inheritance Filesystem, , Root Filesystem, Filesystem Types
@@ -4337,10 +4388,10 @@ union maps
 @subsection @t{mount_type} Parameter
 @cindex mount_type Parameter
 
-(type=string, default=@samp{nfs}).  All @i{Amd} mount types default to NFS.
+(type=string, default=@samp{nfs}).  All @i{Amd} mount types must be NFS.
 That is, @i{Amd} is an NFS server on the map mount points, for the local
-host it is running on.  If @samp{autofs} is specified, @i{Amd} will be
-an autofs server for those mount points.
+host it is running on.  If @samp{autofs} is specified, @i{Amd} will log
+an error message and forcibly convert it to NFS.
 
 @c ----------------------------------------------------------------
 @node search_path Parameter, , mount_type Parameter, Common Parameters
@@ -7183,6 +7234,7 @@ am-utils, and get installed.
 * lostaltmail.conf-sample::
 * mk-amd-map::        
 * pawd::              
+* redhat-ctl-amd::              
 * wait4amd::          
 * wait4amd2die::      
 * wire-test::         
@@ -7277,8 +7329,8 @@ If you wish to generate Amd maps using the @i{hostd} (@pxref{hostd
 Selector Variable}) @i{Amd} map syntax, then define the environment
 variable @b{$DOMAIN} or modify the script.
 
-Note that automount2amd does not understand newer Sun Automount map
-syntax, those used by autofs.
+Note that automount2amd does not understand the syntax in newer Sun
+Automount maps, those used with autofs.
 
 @c ----------------------------------------------------------------
 @node ctl-amd, ctl-hlfsd, automount2amd, Assorted Tools
@@ -7440,7 +7492,7 @@ mk-amd-map @i{mapname}
 @end example
 
 @c ----------------------------------------------------------------
-@node pawd, wait4amd, mk-amd-map, Assorted Tools
+@node pawd, redhat-ctl-amd, mk-amd-map, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section pawd
 @pindex pawd
@@ -7458,7 +7510,20 @@ current working directory.  With any number of arguments, it will print
 the adjusted path of each one of the arguments.
 
 @c ----------------------------------------------------------------
-@node wait4amd, wait4amd2die, pawd, Assorted Tools
+@node redhat-ctl-amd, wait4amd, pawd, Assorted Tools
+@comment  node-name,  next,  previous,  up
+@section redhat-ctl-amd
+@pindex redhat-ctl-amd
+
+This script is similar to @i{ctl-amd} (@pxref{ctl-amd}) but is intended
+for Red Hat Linux systems.  You can safely copy @i{redhat-ctl-amd} onto
+@file{/etc/rc.d/init.d/amd}.  The script supplied by @i{Am-utils} is
+usually better than the one provided by Red Hat, because the Red Hat
+script does not correctly kill @i{Amd} processes: it is too quick to
+kill the wrong processes, leaving stale or hung mount points behind.
+
+@c ----------------------------------------------------------------
+@node wait4amd, wait4amd2die, redhat-ctl-amd, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section wait4amd
 @pindex wait4amd
@@ -7908,7 +7973,7 @@ file service performance.
 @comment  node-name,  next,  previous,  up
 @section @samp{/tftpboot} in a chroot-ed environment
 @cindex /tftpboot in a chroot-ed environment
-@cindex chroot: /tftpboot example
+@cindex chroot; /tftpboot example
 
 In this complex example, we attempt to run an @i{Amd} process
 @emph{inside} a chroot-ed environment.  @samp{tftpd} (Trivial FTP) is
@@ -8311,4 +8376,4 @@ All other registered trademarks are owned by their respective owners.
 @c LocalWords:  nointr extatt setchapternewpage columnfractions alphaev gnulibc
 @c LocalWords:  freebsdelf gnuoldld ifhtml defperm nodefperm norrip RRIP rrip
 @c LocalWords:  noversion attr XXXXXX netgrpd rh mkstemp uid gid noexec mntfs
-@c LocalWords:  nomnttab optionstr hrtime xdrtrace getpwd proplist
+@c LocalWords:  nomnttab optionstr hrtime xdrtrace getpwd proplist redhat ctl

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_cdfs.c,v 1.4.2.1 2001/01/10 03:23:09 ezk Exp $
+ * $Id: ops_cdfs.c,v 1.4.2.4 2002/12/27 22:44:40 ezk Exp $
  *
  */
 
@@ -164,31 +164,31 @@ mount_cdfs(char *dir, char *fs_name, char *opts)
 
   genflags = compute_mount_flags(&mnt);
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_FLAGS
+#ifdef HAVE_CDFS_ARGS_T_FLAGS
   cdfs_args.flags = cdfs_flags;
-#endif /* HAVE_FIELD_CDFS_ARGS_T_FLAGS */
+#endif /* HAVE_CDFS_ARGS_T_FLAGS */
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_ISO_FLAGS
+#ifdef HAVE_CDFS_ARGS_T_ISO_FLAGS
   cdfs_args.iso_flags = genflags | cdfs_flags;
-#endif /* HAVE_FIELD_CDFS_ARGS_T_ISO_FLAGS */
+#endif /* HAVE_CDFS_ARGS_T_ISO_FLAGS */
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_ISO_PGTHRESH
+#ifdef HAVE_CDFS_ARGS_T_ISO_PGTHRESH
   cdfs_args.iso_pgthresh = hasmntval(&mnt, MNTTAB_OPT_PGTHRESH);
-#endif /* HAVE_FIELD_CDFS_ARGS_T_ISO_PGTHRESH */
+#endif /* HAVE_CDFS_ARGS_T_ISO_PGTHRESH */
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_FSPEC
+#ifdef HAVE_CDFS_ARGS_T_FSPEC
   cdfs_args.fspec = fs_name;
-#endif /* HAVE_FIELD_CDFS_ARGS_T_FSPEC */
+#endif /* HAVE_CDFS_ARGS_T_FSPEC */
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_NORRIP
+#ifdef HAVE_CDFS_ARGS_T_NORRIP
   /* XXX: need to provide norrip mount opt */
   cdfs_args.norrip = 0;		/* use Rock-Ridge Protocol extensions */
-#endif /* HAVE_FIELD_CDFS_ARGS_T_NORRIP */
+#endif /* HAVE_CDFS_ARGS_T_NORRIP */
 
-#ifdef HAVE_FIELD_CDFS_ARGS_T_SSECTOR
+#ifdef HAVE_CDFS_ARGS_T_SSECTOR
   /* XXX: need to provide ssector mount option */
   cdfs_args.ssector = 0;	/* use 1st session on disk */
-#endif /* HAVE_FIELD_CDFS_ARGS_T_SSECTOR */
+#endif /* HAVE_CDFS_ARGS_T_SSECTOR */
 
   /*
    * Call generic mount routine
