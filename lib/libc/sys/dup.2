@@ -48,7 +48,9 @@
 .Ft int
 .Fn dup2 "int oldd" "int newd"
 .Sh DESCRIPTION
-.Fn Dup
+The
+.Fn dup
+function
 duplicates an existing object descriptor and returns its value to
 the calling process
 .Fa ( newd
@@ -121,10 +123,11 @@ The external variable
 .Va errno
 indicates the cause of the error.
 .Sh ERRORS
-.Fn Dup
+The
+.Fn dup
 and
 .Fn dup2
-fail if:
+functions fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa Oldd

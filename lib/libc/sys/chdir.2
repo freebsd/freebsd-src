@@ -75,7 +75,9 @@ a process must have execute (search) access to the directory.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Chdir
+The
+.Fn chdir
+function
 will fail and the current working directory will be unchanged if
 one or more of the following are true:
 .Bl -tag -width Er
@@ -98,7 +100,9 @@ points outside the process's allocated address space.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Pp
-.Fn Fchdir
+The
+.Fn fchdir
+function
 will fail and the current working directory will be unchanged if
 one or more of the following are true:
 .Bl -tag -width Er
