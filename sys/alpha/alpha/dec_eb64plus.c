@@ -48,9 +48,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-#include "opt_dev_sc.h"
-
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
@@ -67,17 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
-
-#ifndef NO_SIO
-#ifndef	CONSPEED
-#define	CONSPEED TTYDEF_SPEED
-#endif
-static int comcnrate = CONSPEED;
-extern int comconsole;
-extern int siocnattach(int, int);
-#endif
-
-extern int sccnattach(void);
 
 void dec_eb64plus_init(void);
 static void dec_eb64plus_cons_init(void);
@@ -132,34 +118,11 @@ dec_eb64plus_cons_init()
 
 	switch (ctb->ctb_term_type) {
 	case 2:
-#ifndef NO_SIO
-		/* serial console ... */
-		/*
-		 * Delay to allow PROM putchars to complete.
-		 * FIFO depth * character time,
-		 * character time = (1000000 / (defaultrate / 10))
-		 */
-		DELAY(160000000 / comcnrate);
-
-		/*
-		 * force a comconsole on com1 if the SRM has a serial
-		 * console.
-		 */
-		comconsole = 0;
-		if (siocnattach(0x3f8, comcnrate))
-			panic("can't init serial console");
-
 		boothowto |= RB_SERIAL;
-#endif
 		break;
 
 	case 3:
-#ifdef DEV_SC
-		/* graphics adapter console */
-		sccnattach();
-#else
-		panic("not configured to use display && keyboard console");
-#endif
+		boothowto &= ~RB_SERIAL;
 		break;
 
 	default:

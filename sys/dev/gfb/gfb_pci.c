@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_fb.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -66,22 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/fb/gfb.h>
 #include <dev/gfb/gfb_pci.h>
 
-#ifdef __alpha__
-
-#include <machine/rpb.h>
-#include <machine/cpu.h>
-
-#endif /* __alpha__ */
-
 #if 0
 static devclass_t gfb_devclass;
 #endif
-
-#ifdef __alpha__
-
-extern void sccnattach(void);
-
-#endif /* __alpha__ */
 
 extern struct gfb_font bold8x16;
 extern struct gfb_softc *gfb_device_softcs[2][16];
@@ -93,9 +77,6 @@ pcigfb_attach(device_t dev)
 	gfb_softc_t sc;
 	video_adapter_t *adp;
 	int unit, flags, error, rid, va_index;
-#ifdef __alpha__
-	struct ctb *ctb;
-#endif /* __alpha__ */
 
 	s = splimp();
 	error = 0;
@@ -136,7 +117,7 @@ pcigfb_attach(device_t dev)
 		adp->va_mem_base = (vm_offset_t)rman_get_virtual(sc->res);
 		adp->va_mem_size = rman_get_end(sc->res) -
 		    rman_get_start(sc->res);
-		adp->va_io_base = 0;
+		adp->va_io_base = (vm_offset_t)sc->res;	/* XXX */
 		adp->va_io_size = 0;
 		adp->va_crtc_addr = 0;
 		gfb_device_softcs[sc->model][unit] = sc;
@@ -190,19 +171,6 @@ pcigfb_attach(device_t dev)
 		sc->gfbc = gfb_device_softcs[sc->model][unit]->gfbc;
 		gfb_device_softcs[sc->model][unit] = sc;
 	}
-
-	/*
-	   This is a back-door for PCI devices--since FreeBSD no longer supports
-	   PCI configuration-space accesses during the *configure() phase for
-	   video adapters, we cannot identify a PCI device as the console during
-	   the first call to sccnattach(). There must be a second chance for PCI
-	   adapters to be recognized as the console, and this is it...
-	*/
-#ifdef __alpha__
-	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
-	if (ctb->ctb_term_type == 3) /* Display adapter */
-		sccnattach();
-#endif /* __alpha__ */
 
 	device_printf(dev, "Board type %s\n", sc->gfbc->name);
 	device_printf(dev, "%d x %d, %dbpp, %s RAMDAC\n",
