@@ -58,6 +58,7 @@ struct pcpu {
 	struct thread	*pc_curthread;		/* Current thread */
 	struct thread	*pc_idlethread;		/* Idle thread */
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
+	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
 	struct pcb	*pc_curpcb;		/* Current pcb */
 	struct bintime	pc_switchtime;	
 	int		pc_switchticks;
