@@ -104,7 +104,7 @@ login_cap_t *login_getpwclass(const struct passwd *);
 login_cap_t *login_getuserclass(const struct passwd *);
 
 const char *login_getcapstr(login_cap_t*, const char *, const char *, const char *);
-char **login_getcaplist(login_cap_t *, const char *, const char *);
+const char **login_getcaplist(login_cap_t *, const char *, const char *);
 const char *login_getstyle(login_cap_t *, const char *, const char *);
 rlim_t login_getcaptime(login_cap_t *, const char *, rlim_t, rlim_t);
 rlim_t login_getcapnum(login_cap_t *, const char *, rlim_t, rlim_t);
@@ -147,8 +147,8 @@ int in_ltms(const login_time_t *, struct tm *, time_t *);
 
 /* helper functions */
 
-int login_strinlist(char **, char const *, int);
-int login_str2inlist(char **, const char *, const char *, int);
+int login_strinlist(const char **, char const *, int);
+int login_str2inlist(const char **, const char *, const char *, int);
 login_time_t * login_timelist(login_cap_t *, char const *, int *, login_time_t **);
 int login_ttyok(login_cap_t *, const char *, const char *, const char *);
 int login_hostok(login_cap_t *, const char *, const char *, const char *, const char *);

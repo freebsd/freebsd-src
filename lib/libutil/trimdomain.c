@@ -75,7 +75,7 @@ trimdomain(char *fullhost, int hostsize)
 
 	s = fullhost;
 	end = s + hostsize + 1;
-	for (; (s = memchr(s, '.', end - s)) != NULL; s++) {
+	for (; (s = memchr(s, '.', (size_t)(end - s))) != NULL; s++) {
 		if (strncasecmp(s + 1, domain, dlen) == 0) {
 			if (s[dlen + 1] == '\0') {
 				/* Found -- lose the domain. */
@@ -83,7 +83,7 @@ trimdomain(char *fullhost, int hostsize)
 				break;
 			} else if (s[dlen + 1] == ':' &&
 			    isDISP(s + dlen + 2) &&
-			    (len = strlen(s + dlen + 1)) < end - s) {
+			    (len = strlen(s + dlen + 1)) < (size_t)(end - s)) {
 				/* Found -- shuffle the DISPLAY back. */
 				memmove(s, s + dlen + 1, len + 1);
 				break;
@@ -98,7 +98,8 @@ trimdomain(char *fullhost, int hostsize)
 static int
 isDISP(const char *disp)
 {
-	int res, w;
+	size_t w;
+	int res;
 
 	w = strspn(disp, "0123456789");
 	res = 0;
