@@ -320,18 +320,6 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 
 	device_get_children(cbdev, &devlist, &numdevs);
 
-	cardattached = 0;
-	for (tmp = 0; tmp < numdevs; tmp++) {
-		if (device_get_state(devlist[tmp]) != DS_NOTPRESENT)
-			cardattached++;
-	}
-
-	if (cardattached == 0) {
-		free(devlist, M_TEMP);
-		CARD_REPROBE_CARD(device_get_parent(cbdev), cbdev);
-		return;
-	}
-
 	DEVICE_IDENTIFY(driver, cbdev);
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		if (device_get_state(devlist[tmp]) == DS_NOTPRESENT) {
@@ -342,8 +330,7 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
 			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0) {
 				cardbus_release_all_resources(cbdev, dinfo);
-			} else
-				cardattached++;
+			}
 		}
 	}
 
