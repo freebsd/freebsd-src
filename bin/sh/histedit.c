@@ -43,6 +43,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <limits.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -179,7 +180,7 @@ histcmd(argc, argv)
 	static int active = 0;
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler;
-	char editfile[MAXPATHLEN + 1];
+	char editfile[PATH_MAX];
 	FILE *efp;
 #ifdef __GNUC__
 	/* Avoid longjmp clobbering */
