@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$FreeBSD$
  */
 
 /*
@@ -59,7 +59,7 @@
 #define	SXFRCTL0		0x001
 #define		DFON		0x80
 #define		DFPEXP		0x40
-#define		ULTRAEN		0x20
+#define		FAST20		0x20
 #define		CLRSTCNT	0x10
 #define		SPIOEN		0x08
 #define		SCAMEN		0x04
