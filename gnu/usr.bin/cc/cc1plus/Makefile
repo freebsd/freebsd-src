@@ -25,10 +25,7 @@ parse.h: y.tab.h parse.c
 CLEANFILES+=	parse.h
 
 CPPHDRS=	exception new new.h typeinfo
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CPPHDRS:S;^;${GCCDIR}/cp/inc/;} \
-	    ${DESTDIR}/usr/include/g++
+INCS=		${CPPHDRS:S;^;${GCCDIR}/cp/inc/;}
+INCSDIR=	${INCLUDEDIR}/g++
 
 .include <bsd.prog.mk>

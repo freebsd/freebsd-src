@@ -2,7 +2,7 @@
 
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
 
-.PATH: ${SRCDIR} ${SRCDIR}/stl ${SRCDIR}/../libio
+.PATH: ${SRCDIR} ${SRCDIR}/stl ${SRCDIR}/../libio ${SRCDIR}/std
 
 SUBDIR=	doc
 
@@ -69,16 +69,11 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 	iovfprintf.c iovfscanf.c iovsprintf.c iovsscanf.c outfloat.c \
 	peekc.c strops.c
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/_G_config.h \
-	    ${HDRS:S;^;${SRCDIR}/;} \
-	    ${IHDRS:S;^;${SRCDIR}/../libio/;} \
-	    ${STLHDRS:S;^;${SRCDIR}/stl/;} \
-	    ${DESTDIR}/usr/include/g++
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${STDHDRS:S;^;${SRCDIR}/std/;} \
-	    ${DESTDIR}/usr/include/g++/std
+INCS=		_G_config.h ${HDRS:S;^;${SRCDIR}/;} ${IHDRS} ${STLHDRS}
+
+INCSGROUPS=	INCS STDHDRS
+INCSDIR=	${INCLUDEDIR}/g++
+STDHDRSDIR=	${INCLUDEDIR}/g++/std
 
 CLEANFILES+=	dummy.h dummy.c dummy.C
 
