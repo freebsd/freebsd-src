@@ -806,6 +806,8 @@ vn_ioctl(fp, com, data, active_cred, td)
 	case VCHR:
 	case VBLK:
 		if (com == FIODTYPE) {
+			if (vp->v_rdev == NULL)
+				return (EOPNOTSUPP);
 			if (vp->v_type != VCHR && vp->v_type != VBLK)
 				return (ENOTTY);
 			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
