@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.12 1997/08/26 07:32:38 phk Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.13 1997/09/02 20:06:17 bde Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -72,7 +72,7 @@ static int	markdeleted __P((struct msdosfsmount *pmp, u_long dirclust,
  * an inode).  This can cause problems if we are searching while some other
  * process is modifying a directory.  To prevent one process from accessing
  * incompletely modified directory information we depend upon being the
- * soul owner of a directory block.  bread/brelse provide this service.
+ * sole owner of a directory block.  bread/brelse provide this service.
  * This being the case, when a process modifies a directory it must first
  * acquire the disk block that contains the directory entry to be modified.
  * Then update the disk block and the denode, and then write the disk block
@@ -130,14 +130,6 @@ msdosfs_lookup(ap)
 	printf("msdosfs_lookup(): vdp %08x, dp %08x, Attr %02x\n",
 	       vdp, dp, dp->de_Attributes);
 #endif
-
-	/*
-	 * Be sure vdp is a directory.  Since dos filesystems don't have
-	 * the concept of execute permission anybody can search a
-	 * directory.
-	 */
-	if ((dp->de_Attributes & ATTR_DIRECTORY) == 0)
-		return ENOTDIR;
 
 	/*
 	 * If they are going after the . or .. entry in the root directory,
