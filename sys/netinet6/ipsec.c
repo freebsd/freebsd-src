@@ -3148,8 +3148,6 @@ ipsec4_tunnel_validate(ip, nxt0, sav)
 
 	if (nxt != IPPROTO_IPV4)
 		return 0;
-	if (sav->sah->saidx.mode != IPSEC_MODE_TUNNEL)
-		return 0;
 #ifdef _IP_VHL
 	hlen = _IP_VHL_HL(ip->ip_vhl) << 2;
 #else
@@ -3187,8 +3185,6 @@ ipsec6_tunnel_validate(ip6, nxt0, sav)
 	struct sockaddr_in6 *sin6;
 
 	if (nxt != IPPROTO_IPV6)
-		return 0;
-	if (sav->sah->saidx.mode != IPSEC_MODE_TUNNEL)
 		return 0;
 	switch (((struct sockaddr *)&sav->sah->saidx.dst)->sa_family) {
 	case AF_INET6:
