@@ -306,98 +306,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">BusLogic MultiMaster <quote>W</quote> Series Host Adapters
-    (&man.bt.4; driver):
-      <itemizedlist>
-	<listitem>
-	  <para>BT-948</para>
-	</listitem>
-	<listitem>
-	  <para>BT-958</para>
-	</listitem>
-	<listitem>
-	  <para>BT-958D</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">BusLogic MultiMaster <quote>C</quote> Series Host Adapters
-    (&man.bt.4; driver):
-      <itemizedlist>
-        <listitem>
-	  <para>BT-946C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-956C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-956CD</para>
-	</listitem>
-	<listitem>
-	  <para>BT-445C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757CD</para>
-	</listitem>
-	<listitem>
-	  <para>BT-545C</para>
-	</listitem>
-	<listitem>
-	  <para>BT-540CF</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-
-    <para arch="i386">BusLogic MultiMaster <quote>S</quote> Series Host Adapters
-    (&man.bt.4; driver):
-      <itemizedlist>
-	<listitem>
-	  <para>BT-445S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-747D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-757D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-545S</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542D</para>
-	</listitem>
-	<listitem>
-	  <para>BT-742A</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542B</para>
-	</listitem>
-      </itemizedlist>
-    </para>
-    
-    <para arch="i386">BusLogic MultiMaster <quote>A</quote> Series Host Adapters
-    (&man.bt.4; driver):
-      <itemizedlist>
-        <listitem>
-	  <para>BT-742A</para>
-	</listitem>
-	<listitem>
-	  <para>BT-542B</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386">BusLogic MultiMaster <quote>W</quote>,
+      <quote>C</quote>, <quote>S</quote>, and <quote>A</quote> Series
+      Host Adapters (&man.bt.4; driver)
 
     <note arch="i386">
       <para>BusLogic/Mylex <quote>Flashpoint</quote> adapters are not yet
@@ -413,6 +324,8 @@
       and SDC3211F Microchannel (MCA) bus adapters are also
       supported.</para>
     </note>
+
+    </para>
 
     <para arch="i386">DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
     SmartRAID IV SCSI/RAID controllers (&man.dpt.4; driver)</para>
