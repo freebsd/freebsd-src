@@ -157,30 +157,11 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 {
 	struct g_consumer *cp2;
 	struct g_provider *pp2;
-	struct g_magicspace *gsp;
-	u_int u;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
 	sbuf_printf(sb, "      <name>%s</name>\n", gp->name);
 	sbuf_printf(sb, "      <rank>%d</rank>\n", gp->rank);
-	if (gp->magicspaces) {
-		for (u = 0; u < gp->magicspaces->nmagic; u++) {
-			gsp = &gp->magicspaces->magicspace[u];
-			if (gsp->len == 0 || gsp->name == NULL)
-				continue;
-			sbuf_printf(sb, "      <magicspace>\n");
-			sbuf_printf(sb, "        <name>%.8s</name>\n",
-			    gsp->name);
-			sbuf_printf(sb, "        <offset>%lld</offset>\n",
-			    (long long)gsp->offset);
-			sbuf_printf(sb, "        <length>%u</length>\n",
-			    gsp->len);
-			sbuf_printf(sb, "        <flags>%u</flags>\n",
-			    gsp->flags);
-			sbuf_printf(sb, "      </magicspace>\n");
-		}
-	}
 	if (gp->dumpconf) {
 		sbuf_printf(sb, "      <config>\n");
 		gp->dumpconf(sb, "\t", gp, NULL, NULL);

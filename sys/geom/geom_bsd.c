@@ -338,20 +338,8 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			    error, (long long)mediasize);
 		}
 		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
-		if (!error) {
-			g_add_magicspace(gp, "boot1",     0, 512, 0);
-			g_add_magicspace(gp, "label",   512, 276, 0);
-			g_add_magicspace(gp, "fill0",   748, 236, 0);
-			g_add_magicspace(gp, "boot2", 1024, 7168, 0);
-		}
-		if (error) {
+		if (error)
 			error = g_bsd_try(gsp, cp, secsize, ms, 64);
-			if (!error) {
-				g_add_magicspace(gp, "fill0",     0,  64, 0);
-				g_add_magicspace(gp, "label",    64, 276, 0);
-				g_add_magicspace(gp, "fill1",   340, 172, 0);
-			}
-		}
 		if (error)
 			break;
 		dl = &ms->ondisk;
