@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.20 1999/01/20 21:48:56 jdp Exp $
+#	$Id: bsd.libnames.mk,v 1.21 1999/03/14 20:45:05 markm Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -34,6 +34,7 @@ LIBGCC?=	${DESTDIR}${LIBDIR}/libgcc.a
 LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGMP?=	${DESTDIR}${LIBDIR}/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
+LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
 LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX in secure dist, not base
 LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX in secure dist, not base
