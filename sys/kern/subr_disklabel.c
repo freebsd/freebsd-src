@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.39 1998/12/14 05:37:37 dillon Exp $
+ * $Id: ufs_disksubr.c,v 1.40 1999/06/26 02:46:44 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -168,9 +168,8 @@ bufqdisksort(bufq, bp)
  * Returns NULL on success and an error string on failure.
  */
 char *
-readdisklabel(dev, strat, lp)
+readdisklabel(dev, lp)
 	dev_t dev;
-	d_strategy_t *strat;
 	register struct disklabel *lp;
 {
 	register struct buf *bp;
@@ -183,7 +182,7 @@ readdisklabel(dev, strat, lp)
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp))
 		msg = "I/O error";
 	else for (dlp = (struct disklabel *)bp->b_data;
@@ -262,9 +261,8 @@ setdisklabel(olp, nlp, openmask)
  * Write disk label back to device after modification.
  */
 int
-writedisklabel(dev, strat, lp)
+writedisklabel(dev, lp)
 	dev_t dev;
-	d_strategy_t *strat;
 	register struct disklabel *lp;
 {
 	struct buf *bp;
@@ -287,7 +285,7 @@ writedisklabel(dev, strat, lp)
 	 */
 	bp->b_flags &= ~B_INVAL;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	error = biowait(bp);
 	if (error)
 		goto done;
@@ -303,7 +301,7 @@ writedisklabel(dev, strat, lp)
 #ifdef __alpha__
 			alpha_fix_srm_checksum(bp);
 #endif
-			(*strat)(bp);
+			BUF_STRATEGY(bp, 1);
 			error = biowait(bp);
 			goto done;
 		}
@@ -316,7 +314,7 @@ done:
 	*dlp = *lp;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_flags |= B_WRITE;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	error = biowait(bp);
 #endif
 	bp->b_flags |= B_INVAL | B_AGE;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.10 1999/05/31 11:24:29 phk Exp $
+ *	$Id: atapi-fd.c,v 1.11 1999/06/25 09:03:05 sos Exp $
  */
 
 #include "ata.h"
@@ -95,7 +95,6 @@ static int32_t afdnlun = 0;             /* number of config'd drives */
 int32_t afdattach(struct atapi_softc *);
 static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
-static void afd_strategy(struct buf *);
 static void afd_start(struct afd_softc *);
 static void afd_partial_done(struct atapi_request *);
 static void afd_done(struct atapi_request *);
@@ -244,8 +243,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     label.d_secperunit = fdp->cap.heads * fdp->cap.sectors * fdp->cap.cylinders;
 
     /* initialize slice tables. */
-    return dsopen("afd", dev, fmt, 0, &fdp->slices, &label, afd_strategy,
-		  (ds_setgeom_t *)NULL, &afd_cdevsw);
+    return dsopen("afd", dev, fmt, 0, &fdp->slices, &label);
 }
 
 static int 
@@ -273,8 +271,7 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     if (lun >= afdnlun || !(fdp = afdtab[lun]))
         return ENXIO;
 
-    error = dsioctl("sd", dev, cmd, addr, flag, &fdp->slices,
-                    afd_strategy, (ds_setgeom_t *)NULL);
+    error = dsioctl("sd", dev, cmd, addr, flag, &fdp->slices);
 
     if (error != ENOIOCTL)
         return error;
@@ -315,12 +312,6 @@ afdstrategy(struct buf *bp)
     bufq_insert_tail(&fdp->buf_queue, bp);
     afd_start(fdp);
     splx(x);
-}
-
-static void 
-afd_strategy(struct buf *bp)
-{
-    afdstrategy(bp);
 }
 
 static void 

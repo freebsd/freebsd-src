@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.22 1999/05/30 16:51:00 phk Exp $
+ *      $Id: scsi_cd.c,v 1.23 1999/05/31 11:23:58 phk Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -180,7 +180,6 @@ static	d_open_t	cdopen;
 static	d_close_t	cdclose;
 static	d_ioctl_t	cdioctl;
 static	d_strategy_t	cdstrategy;
-static	d_strategy_t	cdstrategy1;
 
 static	periph_init_t	cdinit;
 static	periph_ctor_t	cdregister;
@@ -958,8 +957,7 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Initialize slice tables. */
 	error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
-		       &softc->cd_slices, &label, cdstrategy1,
-		       (ds_setgeom_t *)NULL, &cd_cdevsw);
+		       &softc->cd_slices, &label);
 
 	if (error == 0) {
 		/*
@@ -1428,16 +1426,6 @@ done:
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
 	return;
-}
-
-static void
-cdstrategy1(struct buf *bp)
-{
-	/*
-	 * XXX - do something to make cdstrategy() but not this block while
-	 * we're doing dsopen() and dsioctl().
-	 */
-	cdstrategy(bp);
 }
 
 static void
@@ -2464,8 +2452,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		 * Check to see whether we've got a disk-type ioctl.  If we
 		 * don't, dsioctl will pass back an error code of ENOIOCTL.
 		 */
-		error = dsioctl("cd", dev, cmd, addr, flag, &softc->cd_slices,
-				cdstrategy1, (ds_setgeom_t *)NULL);
+		error = dsioctl("cd", dev, cmd, addr, flag, &softc->cd_slices);
 
 		if (error != ENOIOCTL)
 			break;

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.25 1999/05/31 11:26:38 phk Exp $
+ *      $Id: wfd.c,v 1.26 1999/06/24 03:09:11 msmith Exp $
  */
 
 /*
@@ -167,7 +167,6 @@ static int wfd_request_wait (struct wfd *t, u_char cmd, u_char a1, u_char a2,
 	u_char a9, char *addr, int count);
 static void wfd_describe (struct wfd *t);
 static int wfd_eject (struct wfd *t, int closeit);
-static void wfdstrategy1(struct buf *bp);
 
 /*
  * Dump the array in hexadecimal format for debugging purposes.
@@ -392,8 +391,7 @@ int wfdopen (dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secperunit = label.d_secpercyl * t->cap.cyls;
 
 	/* Initialize slice tables. */
-	errcode = dsopen("wfd", dev, fmt, 0, &t->dk_slices, &label,
-			 wfdstrategy1, (ds_setgeom_t *)NULL, &wfd_cdevsw);
+	errcode = dsopen("wfd", dev, fmt, 0, &t->dk_slices, &label);
 	if (errcode != 0)
 		return errcode;
 
@@ -419,16 +417,6 @@ int wfdclose (dev_t dev, int flags, int fmt, struct proc *p)
 		t->flags &= ~F_BOPEN;
 	}
 	return (0);
-}
-
-static void
-wfdstrategy1(struct buf *bp)
-{
-	/*
-	 * XXX - do something to make wdstrategy() but not this block while
-	 * we're doing dsinit() and dsioctl().
-	 */
-	wfdstrategy(bp);
 }
 
 /*
@@ -656,8 +644,7 @@ int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct wfd *t = wfdtab[lun];
 	int error = 0;
 
-	error = dsioctl("wfd", dev, cmd, addr, flag, &t->dk_slices,
-			wfdstrategy1, (ds_setgeom_t *)NULL);
+	error = dsioctl("wfd", dev, cmd, addr, flag, &t->dk_slices);
 	if (error != ENOIOCTL)
 		return (error);
 

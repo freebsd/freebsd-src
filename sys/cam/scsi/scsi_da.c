@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.30 1999/07/07 18:14:01 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.31 1999/08/09 10:34:30 phk Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -379,9 +379,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		}
 	
 		/* Initialize slice tables. */
-		error = dsopen("da", dev, fmt, 0, &softc->dk_slices, &label,
-			       dastrategy, (ds_setgeom_t *)NULL,
-			       &da_cdevsw);
+		error = dsopen("da", dev, fmt, 0, &softc->dk_slices, &label);
 
 		/*
 		 * Check to see whether or not the blocksize is set yet.
@@ -600,8 +598,7 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		return (error); /* error code from tsleep */
 	}	
 
-	error = dsioctl("da", dev, cmd, addr, flag, &softc->dk_slices,
-			dastrategy, (ds_setgeom_t *)NULL);
+	error = dsioctl("da", dev, cmd, addr, flag, &softc->dk_slices);
 
 	if (error == ENOIOCTL)
 		error = cam_periph_ioctl(periph, cmd, addr, daerror);
@@ -775,7 +772,7 @@ dasize(dev_t dev)
 	
 	softc = (struct da_softc *)periph->softc;
 	
-	return (dssize(dev, &softc->dk_slices, daopen, daclose));	
+	return (dssize(dev, &softc->dk_slices));
 }
 
 static void

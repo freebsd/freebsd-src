@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.55 1999/08/08 18:42:48 phk Exp $
+ * $Id: vfs_aio.c,v 1.56 1999/08/13 10:10:01 phk Exp $
  */
 
 /*
@@ -927,11 +927,8 @@ aio_qphysio(p, aiocbe)
 	int fd;
 	int s;
 	int cnt;
-	dev_t dev;
 	int rw;
-	d_strategy_t *fstrategy;
 	struct cdevsw *cdev;
-	struct cdevsw *bdev;
 
 	cb = &aiocbe->uaiocb;
 	fdp = p->p_fd;
@@ -967,7 +964,6 @@ aio_qphysio(p, aiocbe)
 	if (cdev->d_bmaj == -1) {
 		return -1;
 	}
-	bdev = cdev;
 
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) {
@@ -978,8 +974,6 @@ aio_qphysio(p, aiocbe)
 	if (cnt > MAXPHYS) {
 		return -1;
 	}
-
-	dev = makebdev(bdev->d_bmaj, minor(vp->v_rdev));
 
 	/*
 	 * Physical I/O is charged directly to the process, so we don't have
@@ -1002,7 +996,7 @@ aio_qphysio(p, aiocbe)
 	 * get a copy of the kva from the physical buffer
 	 */
 	bp->b_caller1 = p;
-	bp->b_dev = dev;
+	bp->b_dev = vp->v_rdev;
 	error = bp->b_error = 0;
 
 	if (cb->aio_lio_opcode == LIO_WRITE) {
@@ -1041,12 +1035,11 @@ aio_qphysio(p, aiocbe)
 	aiocbe->jobstate = JOBST_JOBQBUF;
 	cb->_aiocb_private.status = cb->aio_nbytes;
 	num_buf_aio++;
-	fstrategy = bdev->d_strategy;
 	bp->b_error = 0;
 
 	splx(s);
 	/* perform transfer */
-	(*fstrategy)(bp);
+	BUF_STRATEGY(bp, 0);
 
 	s = splbio();
 	/*
