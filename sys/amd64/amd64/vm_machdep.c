@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.35 1995/03/19 14:28:41 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.36 1995/04/26 07:38:35 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -699,7 +699,7 @@ vmapbuf(bp)
 	register caddr_t addr;
 	int off;
 	vm_offset_t kva;
-	vm_offset_t pa, lastv, v;
+	vm_offset_t pa, v;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
@@ -710,21 +710,9 @@ vmapbuf(bp)
 	 */
 	kva = (vm_offset_t) bp->b_saveaddr;
 
-	lastv = 0;
 	for (addr = (caddr_t)trunc_page(bp->b_data);
 		addr < bp->b_data + bp->b_bufsize;
 		addr += PAGE_SIZE) {
-
-/*
- * make sure that the pde is valid and held
- */
-		v = trunc_page(((vm_offset_t)vtopte(addr)));
-		if (v != lastv) {
-			vm_fault_quick(v, VM_PROT_READ);
-			pa = pmap_kextract( v);
-			vm_page_hold(PHYS_TO_VM_PAGE(pa));
-			lastv = v;
-		}
 
 /*
  * do the vm_fault if needed, do the copy-on-write thing when
@@ -733,9 +721,15 @@ vmapbuf(bp)
 		vm_fault_quick(addr,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
 		pa = pmap_kextract((vm_offset_t) addr);
+		if (pa == 0)
+			panic("vmapbuf: page not present");
 /*
  * hold the data page
  */
+#ifdef DIAGNOSTIC
+		if( VM_PAGE_TO_PHYS(PHYS_TO_VM_PAGE(pa)) != pa)
+			panic("vmapbuf: confused PHYS_TO_VM_PAGE mapping");
+#endif
 		vm_page_hold(PHYS_TO_VM_PAGE(pa));
 	}
 
@@ -762,7 +756,7 @@ vunmapbuf(bp)
 	register struct buf *bp;
 {
 	register caddr_t addr;
-	vm_offset_t v,lastv,pa;
+	vm_offset_t v,pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
@@ -778,26 +772,14 @@ vunmapbuf(bp)
 /*
  * unhold the pde, and data pages
  */
-	lastv = 0;
 	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
 		addr < bp->b_data + bp->b_bufsize;
 		addr += NBPG) {
-
 	/*
 	 * release the data page
 	 */
 		pa = pmap_kextract((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-
-	/*
-	 * and unhold the page table
-	 */
-		v = trunc_page(((vm_offset_t)vtopte(addr)));
-		if (v != lastv) {
-			pa = pmap_kextract(v);
-			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-			lastv = v;
-		}
 	}
 }
 
