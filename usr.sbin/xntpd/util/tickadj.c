@@ -421,13 +421,15 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	};
 #endif
 	static char *kernels[] = {
+#ifdef _PATH_UNIX
+		_PATH_UNIX,
+#endif
 		"/vmunix",
 		"/unix",
 		"/mach",
 		"/kernel/unix",
 		"/386bsd",
 		"/netbsd",
-		"/hp-ux",
 		NULL
 	};
 	struct stat stbuf;
