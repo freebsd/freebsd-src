@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.64 1995/01/06 15:03:41 bde Exp $
+ *	$Id: sio.c,v 1.65 1995/01/20 07:34:15 wpaul Exp $
  */
 
 #include "sio.h"
@@ -71,7 +71,6 @@
 /*
  * XXX temporary kludges for 2.0 (XXX TK2.0).
  */
-#define	TS_RTS_IFLOW	0
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
 #define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
@@ -1488,7 +1487,7 @@ repeat:
 			 */
 			if ((com->state & CS_RTS_IFLOW)
 			    && !(com->mcr_image & MCR_RTS)
-			    && !(tp->t_state & TS_RTS_IFLOW))
+			    && !(tp->t_state & TS_TBLOCK))
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
 			enable_intr();
@@ -1519,16 +1518,21 @@ repeat:
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
-		if (com->state & CS_RTS_IFLOW
+		if (((com->state & CS_RTS_IFLOW) || (tp->t_iflag & IXOFF))
+		    && !(tp->t_state & TS_TBLOCK)
 		    && tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
-		    && !(tp->t_state & TS_RTS_IFLOW)
 		    /*
-		     * XXX - need RTS flow control for all line disciplines.
+		     * XXX - need flow control for all line disciplines.
 		     * Only have it in standard one now.
 		     */
 		    && linesw[tp->t_line].l_rint == ttyinput) {
-			tp->t_state |= TS_RTS_IFLOW;
-			ttstart(tp);
+			if ((tp->t_iflag & IXOFF) &&
+			    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
+			    putc(tp->t_cc[VSTOP], &tp->t_outq) == 0 ||
+			    (com->state & CS_RTS_IFLOW)) {
+				tp->t_state |= TS_TBLOCK;
+				ttstart(tp);
+			}
 		}
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
@@ -1747,7 +1751,7 @@ comstart(tp)
 		com->state &= ~CS_TTGO;
 	else
 		com->state |= CS_TTGO;
-	if (tp->t_state & TS_RTS_IFLOW) {
+	if (tp->t_state & TS_TBLOCK) {
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	} else {
