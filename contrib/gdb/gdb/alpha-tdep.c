@@ -1,5 +1,5 @@
 /* Target-dependent code for the ALPHA architecture, for GDB, the GNU Debugger.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -20,7 +20,11 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
+#include "doublest.h"
 #include "frame.h"
+#include "frame-unwind.h"
+#include "frame-base.h"
+#include "dwarf2-frame.h"
 #include "inferior.h"
 #include "symtab.h"
 #include "value.h"
@@ -32,253 +36,20 @@
 #include "gdb_string.h"
 #include "linespec.h"
 #include "regcache.h"
-#include "doublest.h"
+#include "reggroups.h"
+#include "arch-utils.h"
+#include "osabi.h"
+#include "block.h"
 
-struct frame_extra_info
-  {
-    alpha_extra_func_info_t proc_desc;
-    int localoff;
-    int pc_reg;
-  };
+#include "elf-bfd.h"
 
-/* FIXME: Some of this code should perhaps be merged with mips-tdep.c.  */
+#include "alpha-tdep.h"
 
-/* Prototypes for local functions. */
-
-static void alpha_find_saved_regs (struct frame_info *);
-
-static alpha_extra_func_info_t push_sigtramp_desc (CORE_ADDR low_addr);
-
-static CORE_ADDR read_next_frame_reg (struct frame_info *, int);
-
-static CORE_ADDR heuristic_proc_start (CORE_ADDR);
-
-static alpha_extra_func_info_t heuristic_proc_desc (CORE_ADDR,
-						    CORE_ADDR,
-						    struct frame_info *);
-
-static alpha_extra_func_info_t find_proc_desc (CORE_ADDR,
-					       struct frame_info *);
-
-#if 0
-static int alpha_in_lenient_prologue (CORE_ADDR, CORE_ADDR);
-#endif
-
-static void reinit_frame_cache_sfunc (char *, int, struct cmd_list_element *);
-
-static CORE_ADDR after_prologue (CORE_ADDR pc,
-				 alpha_extra_func_info_t proc_desc);
-
-static int alpha_in_prologue (CORE_ADDR pc,
-			      alpha_extra_func_info_t proc_desc);
-
-static int alpha_about_to_return (CORE_ADDR pc);
-
-void _initialize_alpha_tdep (void);
-
-/* Heuristic_proc_start may hunt through the text section for a long
-   time across a 2400 baud serial line.  Allows the user to limit this
-   search.  */
-static unsigned int heuristic_fence_post = 0;
-/* *INDENT-OFF* */
-/* Layout of a stack frame on the alpha:
-
-                |				|
- pdr members:	|  7th ... nth arg,		|
-                |  `pushed' by caller.		|
-                |				|
-----------------|-------------------------------|<--  old_sp == vfp
-   ^  ^  ^  ^	|				|
-   |  |  |  |	|				|
-   |  |localoff	|  Copies of 1st .. 6th		|
-   |  |  |  |	|  argument if necessary.	|
-   |  |  |  v	|				|
-   |  |  |  ---	|-------------------------------|<-- FRAME_LOCALS_ADDRESS
-   |  |  |      |				|
-   |  |  |      |  Locals and temporaries.	|
-   |  |  |      |				|
-   |  |  |      |-------------------------------|
-   |  |  |      |				|
-   |-fregoffset	|  Saved float registers.	|
-   |  |  |      |  F9				|
-   |  |  |      |   .				|
-   |  |  |      |   .				|
-   |  |  |      |  F2				|
-   |  |  v      |				|
-   |  |  -------|-------------------------------|
-   |  |         |				|
-   |  |         |  Saved registers.		|
-   |  |         |  S6				|
-   |-regoffset	|   .				|
-   |  |         |   .				|
-   |  |         |  S0				|
-   |  |         |  pdr.pcreg			|
-   |  v         |				|
-   |  ----------|-------------------------------|
-   |            |				|
- frameoffset    |  Argument build area, gets	|
-   |            |  7th ... nth arg for any	|
-   |            |  called procedure.		|
-   v            |  				|
-   -------------|-------------------------------|<-- sp
-                |				|
-*/
-/* *INDENT-ON* */
-
-
-
-#define PROC_LOW_ADDR(proc) ((proc)->pdr.adr)	/* least address */
-/* These next two fields are kind of being hijacked.  I wonder if
-   iline is too small for the values it needs to hold, if GDB is
-   running on a 32-bit host.  */
-#define PROC_HIGH_ADDR(proc) ((proc)->pdr.iline)	/* upper address bound */
-#define PROC_DUMMY_FRAME(proc) ((proc)->pdr.cbLineOffset)	/*CALL_DUMMY frame */
-#define PROC_FRAME_OFFSET(proc) ((proc)->pdr.frameoffset)
-#define PROC_FRAME_REG(proc) ((proc)->pdr.framereg)
-#define PROC_REG_MASK(proc) ((proc)->pdr.regmask)
-#define PROC_FREG_MASK(proc) ((proc)->pdr.fregmask)
-#define PROC_REG_OFFSET(proc) ((proc)->pdr.regoffset)
-#define PROC_FREG_OFFSET(proc) ((proc)->pdr.fregoffset)
-#define PROC_PC_REG(proc) ((proc)->pdr.pcreg)
-#define PROC_LOCALOFF(proc) ((proc)->pdr.localoff)
-#define PROC_SYMBOL(proc) (*(struct symbol**)&(proc)->pdr.isym)
-#define _PROC_MAGIC_ 0x0F0F0F0F
-#define PROC_DESC_IS_DUMMY(proc) ((proc)->pdr.isym == _PROC_MAGIC_)
-#define SET_PROC_DESC_IS_DUMMY(proc) ((proc)->pdr.isym = _PROC_MAGIC_)
-
-struct linked_proc_info
-  {
-    struct alpha_extra_func_info info;
-    struct linked_proc_info *next;
-  }
- *linked_proc_desc_table = NULL;
 
-int
-alpha_osf_in_sigtramp (CORE_ADDR pc, char *func_name)
-{
-  return (func_name != NULL && STREQ ("__sigtramp", func_name));
-}
-
-/* Under GNU/Linux, signal handler invocations can be identified by the
-   designated code sequence that is used to return from a signal
-   handler.  In particular, the return address of a signal handler
-   points to the following sequence (the first instruction is quadword
-   aligned):
-
-   bis $30,$30,$16
-   addq $31,0x67,$0
-   call_pal callsys
-
-   Each instruction has a unique encoding, so we simply attempt to
-   match the instruction the pc is pointing to with any of the above
-   instructions.  If there is a hit, we know the offset to the start
-   of the designated sequence and can then check whether we really are
-   executing in a designated sequence.  If not, -1 is returned,
-   otherwise the offset from the start of the desingated sequence is
-   returned.
-
-   There is a slight chance of false hits: code could jump into the
-   middle of the designated sequence, in which case there is no
-   guarantee that we are in the middle of a sigreturn syscall.  Don't
-   think this will be a problem in praxis, though.
- */
-
-#ifndef TM_LINUXALPHA_H
-/* HACK: Provide a prototype when compiling this file for non
-   linuxalpha targets. */
-long alpha_linux_sigtramp_offset (CORE_ADDR pc);
-#endif
-long
-alpha_linux_sigtramp_offset (CORE_ADDR pc)
-{
-  unsigned int i[3], w;
-  long off;
-
-  if (read_memory_nobpt (pc, (char *) &w, 4) != 0)
-    return -1;
-
-  off = -1;
-  switch (w)
-    {
-    case 0x47de0410:
-      off = 0;
-      break;			/* bis $30,$30,$16 */
-    case 0x43ecf400:
-      off = 4;
-      break;			/* addq $31,0x67,$0 */
-    case 0x00000083:
-      off = 8;
-      break;			/* call_pal callsys */
-    default:
-      return -1;
-    }
-  pc -= off;
-  if (pc & 0x7)
-    {
-      /* designated sequence is not quadword aligned */
-      return -1;
-    }
-
-  if (read_memory_nobpt (pc, (char *) i, sizeof (i)) != 0)
-    return -1;
-
-  if (i[0] == 0x47de0410 && i[1] == 0x43ecf400 && i[2] == 0x00000083)
-    return off;
-
-  return -1;
-}
-
-
-/* Under OSF/1, the __sigtramp routine is frameless and has a frame
-   size of zero, but we are able to backtrace through it.  */
-CORE_ADDR
-alpha_osf_skip_sigtramp_frame (struct frame_info *frame, CORE_ADDR pc)
-{
-  char *name;
-  find_pc_partial_function (pc, &name, (CORE_ADDR *) NULL, (CORE_ADDR *) NULL);
-  if (IN_SIGTRAMP (pc, name))
-    return frame->frame;
-  else
-    return 0;
-}
-
-
-/* Dynamically create a signal-handler caller procedure descriptor for
-   the signal-handler return code starting at address LOW_ADDR.  The
-   descriptor is added to the linked_proc_desc_table.  */
-
-static alpha_extra_func_info_t
-push_sigtramp_desc (CORE_ADDR low_addr)
-{
-  struct linked_proc_info *link;
-  alpha_extra_func_info_t proc_desc;
-
-  link = (struct linked_proc_info *)
-    xmalloc (sizeof (struct linked_proc_info));
-  link->next = linked_proc_desc_table;
-  linked_proc_desc_table = link;
-
-  proc_desc = &link->info;
-
-  proc_desc->numargs = 0;
-  PROC_LOW_ADDR (proc_desc) = low_addr;
-  PROC_HIGH_ADDR (proc_desc) = low_addr + 3 * 4;
-  PROC_DUMMY_FRAME (proc_desc) = 0;
-  PROC_FRAME_OFFSET (proc_desc) = 0x298;	/* sizeof(struct sigcontext_struct) */
-  PROC_FRAME_REG (proc_desc) = SP_REGNUM;
-  PROC_REG_MASK (proc_desc) = 0xffff;
-  PROC_FREG_MASK (proc_desc) = 0xffff;
-  PROC_PC_REG (proc_desc) = 26;
-  PROC_LOCALOFF (proc_desc) = 0;
-  SET_PROC_DESC_IS_DYN_SIGTRAMP (proc_desc);
-  return (proc_desc);
-}
-
-
-char *
+static const char *
 alpha_register_name (int regno)
 {
-  static char *register_names[] =
+  static const char * const register_names[] =
   {
     "v0",   "t0",   "t1",   "t2",   "t3",   "t4",   "t5",   "t6",
     "t7",   "s0",   "s1",   "s2",   "s3",   "s4",   "s5",   "fp",
@@ -288,768 +59,242 @@ alpha_register_name (int regno)
     "f8",   "f9",   "f10",  "f11",  "f12",  "f13",  "f14",  "f15",
     "f16",  "f17",  "f18",  "f19",  "f20",  "f21",  "f22",  "f23",
     "f24",  "f25",  "f26",  "f27",  "f28",  "f29",  "f30",  "fpcr",
-    "pc",   "vfp",
+    "pc",   "",     "unique"
   };
 
   if (regno < 0)
-    return (NULL);
+    return NULL;
   if (regno >= (sizeof(register_names) / sizeof(*register_names)))
-    return (NULL);
-  return (register_names[regno]);
+    return NULL;
+  return register_names[regno];
 }
 
-int
+static int
 alpha_cannot_fetch_register (int regno)
 {
-  return (regno == FP_REGNUM || regno == ZERO_REGNUM);
+  return regno == ALPHA_ZERO_REGNUM;
 }
 
-int
+static int
 alpha_cannot_store_register (int regno)
 {
-  return (regno == FP_REGNUM || regno == ZERO_REGNUM);
+  return regno == ALPHA_ZERO_REGNUM;
 }
 
-int
-alpha_register_convertible (int regno)
+static struct type *
+alpha_register_type (struct gdbarch *gdbarch, int regno)
 {
-  return (regno >= FP0_REGNUM && regno <= FP0_REGNUM + 31);
+  if (regno == ALPHA_SP_REGNUM || regno == ALPHA_GP_REGNUM)
+    return builtin_type_void_data_ptr;
+  if (regno == ALPHA_PC_REGNUM)
+    return builtin_type_void_func_ptr;
+
+  /* Don't need to worry about little vs big endian until 
+     some jerk tries to port to alpha-unicosmk.  */
+  if (regno >= ALPHA_FP0_REGNUM && regno < ALPHA_FP0_REGNUM + 31)
+    return builtin_type_ieee_double_little;
+
+  return builtin_type_int64;
 }
 
-struct type *
-alpha_register_virtual_type (int regno)
+/* Is REGNUM a member of REGGROUP?  */
+
+static int
+alpha_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
+			   struct reggroup *group)
 {
-  return ((regno >= FP0_REGNUM && regno < (FP0_REGNUM+31))
-	  ? builtin_type_double : builtin_type_long);
+  /* Filter out any registers eliminated, but whose regnum is 
+     reserved for backward compatibility, e.g. the vfp.  */
+  if (REGISTER_NAME (regnum) == NULL || *REGISTER_NAME (regnum) == '\0')
+    return 0;
+
+  if (group == all_reggroup)
+    return 1;
+
+  /* Zero should not be saved or restored.  Technically it is a general
+     register (just as $f31 would be a float if we represented it), but
+     there's no point displaying it during "info regs", so leave it out
+     of all groups except for "all".  */
+  if (regnum == ALPHA_ZERO_REGNUM)
+    return 0;
+
+  /* All other registers are saved and restored.  */
+  if (group == save_reggroup || group == restore_reggroup)
+    return 1;
+
+  /* All other groups are non-overlapping.  */
+
+  /* Since this is really a PALcode memory slot...  */
+  if (regnum == ALPHA_UNIQUE_REGNUM)
+    return group == system_reggroup;
+
+  /* Force the FPCR to be considered part of the floating point state.  */
+  if (regnum == ALPHA_FPCR_REGNUM)
+    return group == float_reggroup;
+
+  if (regnum >= ALPHA_FP0_REGNUM && regnum < ALPHA_FP0_REGNUM + 31)
+    return group == float_reggroup;
+  else
+    return group == general_reggroup;
 }
 
-int
+static int
 alpha_register_byte (int regno)
 {
   return (regno * 8);
 }
 
-int
+static int
 alpha_register_raw_size (int regno)
 {
   return 8;
 }
 
-int
+static int
 alpha_register_virtual_size (int regno)
 {
   return 8;
 }
-
 
-/* Guaranteed to set frame->saved_regs to some values (it never leaves it
-   NULL).  */
+/* The following represents exactly the conversion performed by
+   the LDS instruction.  This applies to both single-precision
+   floating point and 32-bit integers.  */
 
 static void
-alpha_find_saved_regs (struct frame_info *frame)
+alpha_lds (void *out, const void *in)
 {
-  int ireg;
-  CORE_ADDR reg_position;
-  unsigned long mask;
-  alpha_extra_func_info_t proc_desc;
-  int returnreg;
+  ULONGEST mem     = extract_unsigned_integer (in, 4);
+  ULONGEST frac    = (mem >>  0) & 0x7fffff;
+  ULONGEST sign    = (mem >> 31) & 1;
+  ULONGEST exp_msb = (mem >> 30) & 1;
+  ULONGEST exp_low = (mem >> 23) & 0x7f;
+  ULONGEST exp, reg;
 
-  frame_saved_regs_zalloc (frame);
-
-  /* If it is the frame for __sigtramp, the saved registers are located
-     in a sigcontext structure somewhere on the stack. __sigtramp
-     passes a pointer to the sigcontext structure on the stack.
-     If the stack layout for __sigtramp changes, or if sigcontext offsets
-     change, we might have to update this code.  */
-#ifndef SIGFRAME_PC_OFF
-#define SIGFRAME_PC_OFF		(2 * 8)
-#define SIGFRAME_REGSAVE_OFF	(4 * 8)
-#define SIGFRAME_FPREGSAVE_OFF	(SIGFRAME_REGSAVE_OFF + 32 * 8 + 8)
-#endif
-  if (frame->signal_handler_caller)
+  exp = (exp_msb << 10) | exp_low;
+  if (exp_msb)
     {
-      CORE_ADDR sigcontext_addr;
-
-      sigcontext_addr = SIGCONTEXT_ADDR (frame);
-      for (ireg = 0; ireg < 32; ireg++)
-	{
-	  reg_position = sigcontext_addr + SIGFRAME_REGSAVE_OFF + ireg * 8;
-	  frame->saved_regs[ireg] = reg_position;
-	}
-      for (ireg = 0; ireg < 32; ireg++)
-	{
-	  reg_position = sigcontext_addr + SIGFRAME_FPREGSAVE_OFF + ireg * 8;
-	  frame->saved_regs[FP0_REGNUM + ireg] = reg_position;
-	}
-      frame->saved_regs[PC_REGNUM] = sigcontext_addr + SIGFRAME_PC_OFF;
-      return;
+      if (exp_low == 0x7f)
+	exp = 0x7ff;
     }
-
-  proc_desc = frame->extra_info->proc_desc;
-  if (proc_desc == NULL)
-    /* I'm not sure how/whether this can happen.  Normally when we can't
-       find a proc_desc, we "synthesize" one using heuristic_proc_desc
-       and set the saved_regs right away.  */
-    return;
-
-  /* Fill in the offsets for the registers which gen_mask says
-     were saved.  */
-
-  reg_position = frame->frame + PROC_REG_OFFSET (proc_desc);
-  mask = PROC_REG_MASK (proc_desc);
-
-  returnreg = PROC_PC_REG (proc_desc);
-
-  /* Note that RA is always saved first, regardless of its actual
-     register number.  */
-  if (mask & (1 << returnreg))
-    {
-      frame->saved_regs[returnreg] = reg_position;
-      reg_position += 8;
-      mask &= ~(1 << returnreg);	/* Clear bit for RA so we
-					   don't save again later. */
-    }
-
-  for (ireg = 0; ireg <= 31; ++ireg)
-    if (mask & (1 << ireg))
-      {
-	frame->saved_regs[ireg] = reg_position;
-	reg_position += 8;
-      }
-
-  /* Fill in the offsets for the registers which float_mask says
-     were saved.  */
-
-  reg_position = frame->frame + PROC_FREG_OFFSET (proc_desc);
-  mask = PROC_FREG_MASK (proc_desc);
-
-  for (ireg = 0; ireg <= 31; ++ireg)
-    if (mask & (1 << ireg))
-      {
-	frame->saved_regs[FP0_REGNUM + ireg] = reg_position;
-	reg_position += 8;
-      }
-
-  frame->saved_regs[PC_REGNUM] = frame->saved_regs[returnreg];
-}
-
-void
-alpha_frame_init_saved_regs (struct frame_info *fi)
-{
-  if (fi->saved_regs == NULL)
-    alpha_find_saved_regs (fi);
-  fi->saved_regs[SP_REGNUM] = fi->frame;
-}
-
-void
-alpha_init_frame_pc_first (int fromleaf, struct frame_info *prev)
-{
-  prev->pc = (fromleaf ? SAVED_PC_AFTER_CALL (prev->next) :
-	      prev->next ? FRAME_SAVED_PC (prev->next) : read_pc ());
-}
-
-static CORE_ADDR
-read_next_frame_reg (struct frame_info *fi, int regno)
-{
-  for (; fi; fi = fi->next)
-    {
-      /* We have to get the saved sp from the sigcontext
-         if it is a signal handler frame.  */
-      if (regno == SP_REGNUM && !fi->signal_handler_caller)
-	return fi->frame;
-      else
-	{
-	  if (fi->saved_regs == NULL)
-	    alpha_find_saved_regs (fi);
-	  if (fi->saved_regs[regno])
-	    return read_memory_integer (fi->saved_regs[regno], 8);
-	}
-    }
-  return read_register (regno);
-}
-
-CORE_ADDR
-alpha_frame_saved_pc (struct frame_info *frame)
-{
-  alpha_extra_func_info_t proc_desc = frame->extra_info->proc_desc;
-  /* We have to get the saved pc from the sigcontext
-     if it is a signal handler frame.  */
-  int pcreg = frame->signal_handler_caller ? PC_REGNUM
-                                           : frame->extra_info->pc_reg;
-
-  if (proc_desc && PROC_DESC_IS_DUMMY (proc_desc))
-    return read_memory_integer (frame->frame - 8, 8);
-
-  return read_next_frame_reg (frame, pcreg);
-}
-
-CORE_ADDR
-alpha_saved_pc_after_call (struct frame_info *frame)
-{
-  CORE_ADDR pc = frame->pc;
-  CORE_ADDR tmp;
-  alpha_extra_func_info_t proc_desc;
-  int pcreg;
-
-  /* Skip over shared library trampoline if necessary.  */
-  tmp = SKIP_TRAMPOLINE_CODE (pc);
-  if (tmp != 0)
-    pc = tmp;
-
-  proc_desc = find_proc_desc (pc, frame->next);
-  pcreg = proc_desc ? PROC_PC_REG (proc_desc) : RA_REGNUM;
-
-  if (frame->signal_handler_caller)
-    return alpha_frame_saved_pc (frame);
   else
-    return read_register (pcreg);
+    {
+      if (exp_low != 0x00)
+	exp |= 0x380;
+    }
+
+  reg = (sign << 63) | (exp << 52) | (frac << 29);
+  store_unsigned_integer (out, 8, reg);
 }
 
+/* Similarly, this represents exactly the conversion performed by
+   the STS instruction.  */
 
-static struct alpha_extra_func_info temp_proc_desc;
-static CORE_ADDR temp_saved_regs[NUM_REGS];
+static void
+alpha_sts (void *out, const void *in)
+{
+  ULONGEST reg, mem;
 
-/* Nonzero if instruction at PC is a return instruction.  "ret
-   $zero,($ra),1" on alpha. */
+  reg = extract_unsigned_integer (in, 8);
+  mem = ((reg >> 32) & 0xc0000000) | ((reg >> 29) & 0x3fffffff);
+  store_unsigned_integer (out, 4, mem);
+}
+
+/* The alpha needs a conversion between register and memory format if the
+   register is a floating point register and memory format is float, as the
+   register format must be double or memory format is an integer with 4
+   bytes or less, as the representation of integers in floating point
+   registers is different. */
 
 static int
-alpha_about_to_return (CORE_ADDR pc)
+alpha_convert_register_p (int regno, struct type *type)
 {
-  return read_memory_integer (pc, 4) == 0x6bfa8001;
+  return (regno >= ALPHA_FP0_REGNUM && regno < ALPHA_FP0_REGNUM + 31);
 }
 
-
-
-/* This fencepost looks highly suspicious to me.  Removing it also
-   seems suspicious as it could affect remote debugging across serial
-   lines.  */
-
-static CORE_ADDR
-heuristic_proc_start (CORE_ADDR pc)
+static void
+alpha_register_to_value (struct frame_info *frame, int regnum,
+			 struct type *valtype, void *out)
 {
-  CORE_ADDR start_pc = pc;
-  CORE_ADDR fence = start_pc - heuristic_fence_post;
-
-  if (start_pc == 0)
-    return 0;
-
-  if (heuristic_fence_post == UINT_MAX
-      || fence < VM_MIN_ADDRESS)
-    fence = VM_MIN_ADDRESS;
-
-  /* search back for previous return */
-  for (start_pc -= 4;; start_pc -= 4)
-    if (start_pc < fence)
-      {
-	/* It's not clear to me why we reach this point when
-	   stop_soon_quietly, but with this test, at least we
-	   don't print out warnings for every child forked (eg, on
-	   decstation).  22apr93 rich@cygnus.com.  */
-	if (!stop_soon_quietly)
-	  {
-	    static int blurb_printed = 0;
-
-	    if (fence == VM_MIN_ADDRESS)
-	      warning ("Hit beginning of text section without finding");
-	    else
-	      warning ("Hit heuristic-fence-post without finding");
-
-	    warning ("enclosing function for address 0x%s", paddr_nz (pc));
-	    if (!blurb_printed)
-	      {
-		printf_filtered ("\
-This warning occurs if you are debugging a function without any symbols\n\
-(for example, in a stripped executable).  In that case, you may wish to\n\
-increase the size of the search with the `set heuristic-fence-post' command.\n\
-\n\
-Otherwise, you told GDB there was a function where there isn't one, or\n\
-(more likely) you have encountered a bug in GDB.\n");
-		blurb_printed = 1;
-	      }
-	  }
-
-	return 0;
-      }
-    else if (alpha_about_to_return (start_pc))
+  char in[MAX_REGISTER_SIZE];
+  frame_register_read (frame, regnum, in);
+  switch (TYPE_LENGTH (valtype))
+    {
+    case 4:
+      alpha_sts (out, in);
       break;
-
-  start_pc += 4;		/* skip return */
-  return start_pc;
-}
-
-static alpha_extra_func_info_t
-heuristic_proc_desc (CORE_ADDR start_pc, CORE_ADDR limit_pc,
-		     struct frame_info *next_frame)
-{
-  CORE_ADDR sp = read_next_frame_reg (next_frame, SP_REGNUM);
-  CORE_ADDR cur_pc;
-  int frame_size;
-  int has_frame_reg = 0;
-  unsigned long reg_mask = 0;
-  int pcreg = -1;
-
-  if (start_pc == 0)
-    return NULL;
-  memset (&temp_proc_desc, '\0', sizeof (temp_proc_desc));
-  memset (&temp_saved_regs, '\0', SIZEOF_FRAME_SAVED_REGS);
-  PROC_LOW_ADDR (&temp_proc_desc) = start_pc;
-
-  if (start_pc + 200 < limit_pc)
-    limit_pc = start_pc + 200;
-  frame_size = 0;
-  for (cur_pc = start_pc; cur_pc < limit_pc; cur_pc += 4)
-    {
-      char buf[4];
-      unsigned long word;
-      int status;
-
-      status = read_memory_nobpt (cur_pc, buf, 4);
-      if (status)
-	memory_error (status, cur_pc);
-      word = extract_unsigned_integer (buf, 4);
-
-      if ((word & 0xffff0000) == 0x23de0000)	/* lda $sp,n($sp) */
-	{
-	  if (word & 0x8000)
-	    frame_size += (-word) & 0xffff;
-	  else
-	    /* Exit loop if a positive stack adjustment is found, which
-	       usually means that the stack cleanup code in the function
-	       epilogue is reached.  */
-	    break;
-	}
-      else if ((word & 0xfc1f0000) == 0xb41e0000	/* stq reg,n($sp) */
-	       && (word & 0xffff0000) != 0xb7fe0000)	/* reg != $zero */
-	{
-	  int reg = (word & 0x03e00000) >> 21;
-	  reg_mask |= 1 << reg;
-	  temp_saved_regs[reg] = sp + (short) word;
-
-	  /* Starting with OSF/1-3.2C, the system libraries are shipped
-	     without local symbols, but they still contain procedure
-	     descriptors without a symbol reference. GDB is currently
-	     unable to find these procedure descriptors and uses
-	     heuristic_proc_desc instead.
-	     As some low level compiler support routines (__div*, __add*)
-	     use a non-standard return address register, we have to
-	     add some heuristics to determine the return address register,
-	     or stepping over these routines will fail.
-	     Usually the return address register is the first register
-	     saved on the stack, but assembler optimization might
-	     rearrange the register saves.
-	     So we recognize only a few registers (t7, t9, ra) within
-	     the procedure prologue as valid return address registers.
-	     If we encounter a return instruction, we extract the
-	     the return address register from it.
-
-	     FIXME: Rewriting GDB to access the procedure descriptors,
-	     e.g. via the minimal symbol table, might obviate this hack.  */
-	  if (pcreg == -1
-	      && cur_pc < (start_pc + 80)
-	      && (reg == T7_REGNUM || reg == T9_REGNUM || reg == RA_REGNUM))
-	    pcreg = reg;
-	}
-      else if ((word & 0xffe0ffff) == 0x6be08001)	/* ret zero,reg,1 */
-	pcreg = (word >> 16) & 0x1f;
-      else if (word == 0x47de040f)	/* bis sp,sp fp */
-	has_frame_reg = 1;
-    }
-  if (pcreg == -1)
-    {
-      /* If we haven't found a valid return address register yet,
-         keep searching in the procedure prologue.  */
-      while (cur_pc < (limit_pc + 80) && cur_pc < (start_pc + 80))
-	{
-	  char buf[4];
-	  unsigned long word;
-
-	  if (read_memory_nobpt (cur_pc, buf, 4))
-	    break;
-	  cur_pc += 4;
-	  word = extract_unsigned_integer (buf, 4);
-
-	  if ((word & 0xfc1f0000) == 0xb41e0000		/* stq reg,n($sp) */
-	      && (word & 0xffff0000) != 0xb7fe0000)	/* reg != $zero */
-	    {
-	      int reg = (word & 0x03e00000) >> 21;
-	      if (reg == T7_REGNUM || reg == T9_REGNUM || reg == RA_REGNUM)
-		{
-		  pcreg = reg;
-		  break;
-		}
-	    }
-	  else if ((word & 0xffe0ffff) == 0x6be08001)	/* ret zero,reg,1 */
-	    {
-	      pcreg = (word >> 16) & 0x1f;
-	      break;
-	    }
-	}
-    }
-
-  if (has_frame_reg)
-    PROC_FRAME_REG (&temp_proc_desc) = GCC_FP_REGNUM;
-  else
-    PROC_FRAME_REG (&temp_proc_desc) = SP_REGNUM;
-  PROC_FRAME_OFFSET (&temp_proc_desc) = frame_size;
-  PROC_REG_MASK (&temp_proc_desc) = reg_mask;
-  PROC_PC_REG (&temp_proc_desc) = (pcreg == -1) ? RA_REGNUM : pcreg;
-  PROC_LOCALOFF (&temp_proc_desc) = 0;	/* XXX - bogus */
-  return &temp_proc_desc;
-}
-
-/* This returns the PC of the first inst after the prologue.  If we can't
-   find the prologue, then return 0.  */
-
-static CORE_ADDR
-after_prologue (CORE_ADDR pc, alpha_extra_func_info_t proc_desc)
-{
-  struct symtab_and_line sal;
-  CORE_ADDR func_addr, func_end;
-
-  if (!proc_desc)
-    proc_desc = find_proc_desc (pc, NULL);
-
-  if (proc_desc)
-    {
-      if (PROC_DESC_IS_DYN_SIGTRAMP (proc_desc))
-	return PROC_LOW_ADDR (proc_desc);	/* "prologue" is in kernel */
-
-      /* If function is frameless, then we need to do it the hard way.  I
-         strongly suspect that frameless always means prologueless... */
-      if (PROC_FRAME_REG (proc_desc) == SP_REGNUM
-	  && PROC_FRAME_OFFSET (proc_desc) == 0)
-	return 0;
-    }
-
-  if (!find_pc_partial_function (pc, NULL, &func_addr, &func_end))
-    return 0;			/* Unknown */
-
-  sal = find_pc_line (func_addr, 0);
-
-  if (sal.end < func_end)
-    return sal.end;
-
-  /* The line after the prologue is after the end of the function.  In this
-     case, tell the caller to find the prologue the hard way.  */
-
-  return 0;
-}
-
-/* Return non-zero if we *might* be in a function prologue.  Return zero if we
-   are definitively *not* in a function prologue.  */
-
-static int
-alpha_in_prologue (CORE_ADDR pc, alpha_extra_func_info_t proc_desc)
-{
-  CORE_ADDR after_prologue_pc;
-
-  after_prologue_pc = after_prologue (pc, proc_desc);
-
-  if (after_prologue_pc == 0
-      || pc < after_prologue_pc)
-    return 1;
-  else
-    return 0;
-}
-
-static alpha_extra_func_info_t
-find_proc_desc (CORE_ADDR pc, struct frame_info *next_frame)
-{
-  alpha_extra_func_info_t proc_desc;
-  struct block *b;
-  struct symbol *sym;
-  CORE_ADDR startaddr;
-
-  /* Try to get the proc_desc from the linked call dummy proc_descs
-     if the pc is in the call dummy.
-     This is hairy. In the case of nested dummy calls we have to find the
-     right proc_desc, but we might not yet know the frame for the dummy
-     as it will be contained in the proc_desc we are searching for.
-     So we have to find the proc_desc whose frame is closest to the current
-     stack pointer.  */
-
-  if (PC_IN_CALL_DUMMY (pc, 0, 0))
-    {
-      struct linked_proc_info *link;
-      CORE_ADDR sp = read_next_frame_reg (next_frame, SP_REGNUM);
-      alpha_extra_func_info_t found_proc_desc = NULL;
-      long min_distance = LONG_MAX;
-
-      for (link = linked_proc_desc_table; link; link = link->next)
-	{
-	  long distance = (CORE_ADDR) PROC_DUMMY_FRAME (&link->info) - sp;
-	  if (distance > 0 && distance < min_distance)
-	    {
-	      min_distance = distance;
-	      found_proc_desc = &link->info;
-	    }
-	}
-      if (found_proc_desc != NULL)
-	return found_proc_desc;
-    }
-
-  b = block_for_pc (pc);
-
-  find_pc_partial_function (pc, NULL, &startaddr, NULL);
-  if (b == NULL)
-    sym = NULL;
-  else
-    {
-      if (startaddr > BLOCK_START (b))
-	/* This is the "pathological" case referred to in a comment in
-	   print_frame_info.  It might be better to move this check into
-	   symbol reading.  */
-	sym = NULL;
-      else
-	sym = lookup_symbol (MIPS_EFI_SYMBOL_NAME, b, LABEL_NAMESPACE,
-			     0, NULL);
-    }
-
-  /* If we never found a PDR for this function in symbol reading, then
-     examine prologues to find the information.  */
-  if (sym && ((mips_extra_func_info_t) SYMBOL_VALUE (sym))->pdr.framereg == -1)
-    sym = NULL;
-
-  if (sym)
-    {
-      /* IF this is the topmost frame AND
-       * (this proc does not have debugging information OR
-       * the PC is in the procedure prologue)
-       * THEN create a "heuristic" proc_desc (by analyzing
-       * the actual code) to replace the "official" proc_desc.
-       */
-      proc_desc = (alpha_extra_func_info_t) SYMBOL_VALUE (sym);
-      if (next_frame == NULL)
-	{
-	  if (PROC_DESC_IS_DUMMY (proc_desc) || alpha_in_prologue (pc, proc_desc))
-	    {
-	      alpha_extra_func_info_t found_heuristic =
-	      heuristic_proc_desc (PROC_LOW_ADDR (proc_desc),
-				   pc, next_frame);
-	      if (found_heuristic)
-		{
-		  PROC_LOCALOFF (found_heuristic) =
-		    PROC_LOCALOFF (proc_desc);
-		  PROC_PC_REG (found_heuristic) = PROC_PC_REG (proc_desc);
-		  proc_desc = found_heuristic;
-		}
-	    }
-	}
-    }
-  else
-    {
-      long offset;
-
-      /* Is linked_proc_desc_table really necessary?  It only seems to be used
-         by procedure call dummys.  However, the procedures being called ought
-         to have their own proc_descs, and even if they don't,
-         heuristic_proc_desc knows how to create them! */
-
-      register struct linked_proc_info *link;
-      for (link = linked_proc_desc_table; link; link = link->next)
-	if (PROC_LOW_ADDR (&link->info) <= pc
-	    && PROC_HIGH_ADDR (&link->info) > pc)
-	  return &link->info;
-
-      /* If PC is inside a dynamically generated sigtramp handler,
-         create and push a procedure descriptor for that code: */
-      offset = DYNAMIC_SIGTRAMP_OFFSET (pc);
-      if (offset >= 0)
-	return push_sigtramp_desc (pc - offset);
-
-      /* If heuristic_fence_post is non-zero, determine the procedure
-         start address by examining the instructions.
-         This allows us to find the start address of static functions which
-         have no symbolic information, as startaddr would have been set to
-         the preceding global function start address by the
-         find_pc_partial_function call above.  */
-      if (startaddr == 0 || heuristic_fence_post != 0)
-	startaddr = heuristic_proc_start (pc);
-
-      proc_desc =
-	heuristic_proc_desc (startaddr, pc, next_frame);
-    }
-  return proc_desc;
-}
-
-alpha_extra_func_info_t cached_proc_desc;
-
-CORE_ADDR
-alpha_frame_chain (struct frame_info *frame)
-{
-  alpha_extra_func_info_t proc_desc;
-  CORE_ADDR saved_pc = FRAME_SAVED_PC (frame);
-
-  if (saved_pc == 0 || inside_entry_file (saved_pc))
-    return 0;
-
-  proc_desc = find_proc_desc (saved_pc, frame);
-  if (!proc_desc)
-    return 0;
-
-  cached_proc_desc = proc_desc;
-
-  /* Fetch the frame pointer for a dummy frame from the procedure
-     descriptor.  */
-  if (PROC_DESC_IS_DUMMY (proc_desc))
-    return (CORE_ADDR) PROC_DUMMY_FRAME (proc_desc);
-
-  /* If no frame pointer and frame size is zero, we must be at end
-     of stack (or otherwise hosed).  If we don't check frame size,
-     we loop forever if we see a zero size frame.  */
-  if (PROC_FRAME_REG (proc_desc) == SP_REGNUM
-      && PROC_FRAME_OFFSET (proc_desc) == 0
-  /* The previous frame from a sigtramp frame might be frameless
-     and have frame size zero.  */
-      && !frame->signal_handler_caller)
-    return FRAME_PAST_SIGTRAMP_FRAME (frame, saved_pc);
-  else
-    return read_next_frame_reg (frame, PROC_FRAME_REG (proc_desc))
-      + PROC_FRAME_OFFSET (proc_desc);
-}
-
-void
-alpha_print_extra_frame_info (struct frame_info *fi)
-{
-  if (fi
-      && fi->extra_info
-      && fi->extra_info->proc_desc
-      && fi->extra_info->proc_desc->pdr.framereg < NUM_REGS)
-    printf_filtered (" frame pointer is at %s+%s\n",
-		     REGISTER_NAME (fi->extra_info->proc_desc->pdr.framereg),
-		     paddr_d (fi->extra_info->proc_desc->pdr.frameoffset));
-}
-
-void
-alpha_init_extra_frame_info (int fromleaf, struct frame_info *frame)
-{
-  /* Use proc_desc calculated in frame_chain */
-  alpha_extra_func_info_t proc_desc =
-  frame->next ? cached_proc_desc : find_proc_desc (frame->pc, frame->next);
-
-  frame->extra_info = (struct frame_extra_info *)
-    frame_obstack_alloc (sizeof (struct frame_extra_info));
-
-  frame->saved_regs = NULL;
-  frame->extra_info->localoff = 0;
-  frame->extra_info->pc_reg = RA_REGNUM;
-  frame->extra_info->proc_desc = proc_desc == &temp_proc_desc ? 0 : proc_desc;
-  if (proc_desc)
-    {
-      /* Get the locals offset and the saved pc register from the
-         procedure descriptor, they are valid even if we are in the
-         middle of the prologue.  */
-      frame->extra_info->localoff = PROC_LOCALOFF (proc_desc);
-      frame->extra_info->pc_reg = PROC_PC_REG (proc_desc);
-
-      /* Fixup frame-pointer - only needed for top frame */
-
-      /* Fetch the frame pointer for a dummy frame from the procedure
-         descriptor.  */
-      if (PROC_DESC_IS_DUMMY (proc_desc))
-	frame->frame = (CORE_ADDR) PROC_DUMMY_FRAME (proc_desc);
-
-      /* This may not be quite right, if proc has a real frame register.
-         Get the value of the frame relative sp, procedure might have been
-         interrupted by a signal at it's very start.  */
-      else if (frame->pc == PROC_LOW_ADDR (proc_desc)
-	       && !PROC_DESC_IS_DYN_SIGTRAMP (proc_desc))
-	frame->frame = read_next_frame_reg (frame->next, SP_REGNUM);
-      else
-	frame->frame = read_next_frame_reg (frame->next, PROC_FRAME_REG (proc_desc))
-	  + PROC_FRAME_OFFSET (proc_desc);
-
-      if (proc_desc == &temp_proc_desc)
-	{
-	  char *name;
-
-	  /* Do not set the saved registers for a sigtramp frame,
-	     alpha_find_saved_registers will do that for us.
-	     We can't use frame->signal_handler_caller, it is not yet set.  */
-	  find_pc_partial_function (frame->pc, &name,
-				    (CORE_ADDR *) NULL, (CORE_ADDR *) NULL);
-	  if (!IN_SIGTRAMP (frame->pc, name))
-	    {
-	      frame->saved_regs = (CORE_ADDR *)
-		frame_obstack_alloc (SIZEOF_FRAME_SAVED_REGS);
-	      memcpy (frame->saved_regs, temp_saved_regs,
-	              SIZEOF_FRAME_SAVED_REGS);
-	      frame->saved_regs[PC_REGNUM]
-		= frame->saved_regs[RA_REGNUM];
-	    }
-	}
+    case 8:
+      memcpy (out, in, 8);
+      break;
+    default:
+      error ("Cannot retrieve value from floating point register");
     }
 }
 
-CORE_ADDR
-alpha_frame_locals_address (struct frame_info *fi)
+static void
+alpha_value_to_register (struct frame_info *frame, int regnum,
+			 struct type *valtype, const void *in)
 {
-  return (fi->frame - fi->extra_info->localoff);
+  char out[MAX_REGISTER_SIZE];
+  switch (TYPE_LENGTH (valtype))
+    {
+    case 4:
+      alpha_lds (out, in);
+      break;
+    case 8:
+      memcpy (out, in, 8);
+      break;
+    default:
+      error ("Cannot store value in floating point register");
+    }
+  put_frame_register (frame, regnum, out);
 }
 
-CORE_ADDR
-alpha_frame_args_address (struct frame_info *fi)
-{
-  return (fi->frame - (ALPHA_NUM_ARG_REGS * 8));
-}
-
-/* ALPHA stack frames are almost impenetrable.  When execution stops,
-   we basically have to look at symbol information for the function
-   that we stopped in, which tells us *which* register (if any) is
-   the base of the frame pointer, and what offset from that register
-   the frame itself is at.  
-
-   This presents a problem when trying to examine a stack in memory
-   (that isn't executing at the moment), using the "frame" command.  We
-   don't have a PC, nor do we have any registers except SP.
-
-   This routine takes two arguments, SP and PC, and tries to make the
-   cached frames look as if these two arguments defined a frame on the
-   cache.  This allows the rest of info frame to extract the important
-   arguments without difficulty.  */
-
-struct frame_info *
-setup_arbitrary_frame (int argc, CORE_ADDR *argv)
-{
-  if (argc != 2)
-    error ("ALPHA frame specifications require two arguments: sp and pc");
-
-  return create_new_frame (argv[0], argv[1]);
-}
-
+
 /* The alpha passes the first six arguments in the registers, the rest on
-   the stack. The register arguments are eventually transferred to the
-   argument transfer area immediately below the stack by the called function
-   anyway. So we `push' at least six arguments on the stack, `reload' the
-   argument registers and then adjust the stack pointer to point past the
-   sixth argument. This algorithm simplifies the passing of a large struct
-   which extends from the registers to the stack.
+   the stack.  The register arguments are stored in ARG_REG_BUFFER, and
+   then moved into the register file; this simplifies the passing of a
+   large struct which extends from the registers to the stack, plus avoids
+   three ptrace invocations per word.
+
+   We don't bother tracking which register values should go in integer
+   regs or fp regs; we load the same values into both.
+
    If the called function is returning a structure, the address of the
    structure to be returned is passed as a hidden first argument.  */
 
-CORE_ADDR
-alpha_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
-		      int struct_return, CORE_ADDR struct_addr)
+static CORE_ADDR
+alpha_push_dummy_call (struct gdbarch *gdbarch, CORE_ADDR func_addr,
+		       struct regcache *regcache, CORE_ADDR bp_addr,
+		       int nargs, struct value **args, CORE_ADDR sp,
+		       int struct_return, CORE_ADDR struct_addr)
 {
   int i;
   int accumulate_size = struct_return ? 8 : 0;
-  int arg_regs_size = ALPHA_NUM_ARG_REGS * 8;
   struct alpha_arg
     {
       char *contents;
       int len;
       int offset;
     };
-  struct alpha_arg *alpha_args =
-  (struct alpha_arg *) alloca (nargs * sizeof (struct alpha_arg));
-  register struct alpha_arg *m_arg;
-  char raw_buffer[sizeof (CORE_ADDR)];
+  struct alpha_arg *alpha_args
+    = (struct alpha_arg *) alloca (nargs * sizeof (struct alpha_arg));
+  struct alpha_arg *m_arg;
+  char arg_reg_buffer[ALPHA_REGISTER_SIZE * ALPHA_NUM_ARG_REGS];
   int required_arg_regs;
 
+  /* The ABI places the address of the called function in T12.  */
+  regcache_cooked_write_signed (regcache, ALPHA_T12_REGNUM, func_addr);
+
+  /* Set the return address register to point to the entry point
+     of the program, where a breakpoint lies in wait.  */
+  regcache_cooked_write_signed (regcache, ALPHA_RA_REGNUM, bp_addr);
+
+  /* Lay out the arguments in memory.  */
   for (i = 0, m_arg = alpha_args; i < nargs; i++, m_arg++)
     {
       struct value *arg = args[i];
       struct type *arg_type = check_typedef (VALUE_TYPE (arg));
+
       /* Cast argument to long if necessary as the compiler does it too.  */
       switch (TYPE_CODE (arg_type))
 	{
@@ -1058,12 +303,66 @@ alpha_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
 	case TYPE_CODE_CHAR:
 	case TYPE_CODE_RANGE:
 	case TYPE_CODE_ENUM:
-	  if (TYPE_LENGTH (arg_type) < TYPE_LENGTH (builtin_type_long))
+	  if (TYPE_LENGTH (arg_type) == 4)
 	    {
-	      arg_type = builtin_type_long;
+	      /* 32-bit values must be sign-extended to 64 bits
+		 even if the base data type is unsigned.  */
+	      arg_type = builtin_type_int32;
+	      arg = value_cast (arg_type, arg);
+	    }
+	  if (TYPE_LENGTH (arg_type) < ALPHA_REGISTER_SIZE)
+	    {
+	      arg_type = builtin_type_int64;
 	      arg = value_cast (arg_type, arg);
 	    }
 	  break;
+
+	case TYPE_CODE_FLT:
+	  /* "float" arguments loaded in registers must be passed in
+	     register format, aka "double".  */
+	  if (accumulate_size < sizeof (arg_reg_buffer)
+	      && TYPE_LENGTH (arg_type) == 4)
+	    {
+	      arg_type = builtin_type_ieee_double_little;
+	      arg = value_cast (arg_type, arg);
+	    }
+	  /* Tru64 5.1 has a 128-bit long double, and passes this by
+	     invisible reference.  No one else uses this data type.  */
+	  else if (TYPE_LENGTH (arg_type) == 16)
+	    {
+	      /* Allocate aligned storage.  */
+	      sp = (sp & -16) - 16;
+
+	      /* Write the real data into the stack.  */
+	      write_memory (sp, VALUE_CONTENTS (arg), 16);
+
+	      /* Construct the indirection.  */
+	      arg_type = lookup_pointer_type (arg_type);
+	      arg = value_from_pointer (arg_type, sp);
+	    }
+	  break;
+
+	case TYPE_CODE_COMPLEX:
+	  /* ??? The ABI says that complex values are passed as two
+	     separate scalar values.  This distinction only matters
+	     for complex float.  However, GCC does not implement this.  */
+
+	  /* Tru64 5.1 has a 128-bit long double, and passes this by
+	     invisible reference.  */
+	  if (TYPE_LENGTH (arg_type) == 32)
+	    {
+	      /* Allocate aligned storage.  */
+	      sp = (sp & -16) - 16;
+
+	      /* Write the real data into the stack.  */
+	      write_memory (sp, VALUE_CONTENTS (arg), 32);
+
+	      /* Construct the indirection.  */
+	      arg_type = lookup_pointer_type (arg_type);
+	      arg = value_from_pointer (arg_type, sp);
+	    }
+	  break;
+
 	default:
 	  break;
 	}
@@ -1080,246 +379,289 @@ alpha_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
     required_arg_regs = ALPHA_NUM_ARG_REGS;
 
   /* Make room for the arguments on the stack.  */
-  if (accumulate_size < arg_regs_size)
-    accumulate_size = arg_regs_size;
+  if (accumulate_size < sizeof(arg_reg_buffer))
+    accumulate_size = 0;
+  else
+    accumulate_size -= sizeof(arg_reg_buffer);
   sp -= accumulate_size;
 
-  /* Keep sp aligned to a multiple of 16 as the compiler does it too.  */
+  /* Keep sp aligned to a multiple of 16 as the ABI requires.  */
   sp &= ~15;
 
   /* `Push' arguments on the stack.  */
   for (i = nargs; m_arg--, --i >= 0;)
-    write_memory (sp + m_arg->offset, m_arg->contents, m_arg->len);
-  if (struct_return)
     {
-      store_address (raw_buffer, sizeof (CORE_ADDR), struct_addr);
-      write_memory (sp, raw_buffer, sizeof (CORE_ADDR));
+      char *contents = m_arg->contents;
+      int offset = m_arg->offset;
+      int len = m_arg->len;
+
+      /* Copy the bytes destined for registers into arg_reg_buffer.  */
+      if (offset < sizeof(arg_reg_buffer))
+	{
+	  if (offset + len <= sizeof(arg_reg_buffer))
+	    {
+	      memcpy (arg_reg_buffer + offset, contents, len);
+	      continue;
+	    }
+	  else
+	    {
+	      int tlen = sizeof(arg_reg_buffer) - offset;
+	      memcpy (arg_reg_buffer + offset, contents, tlen);
+	      offset += tlen;
+	      contents += tlen;
+	      len -= tlen;
+	    }
+	}
+
+      /* Everything else goes to the stack.  */
+      write_memory (sp + offset - sizeof(arg_reg_buffer), contents, len);
     }
+  if (struct_return)
+    store_unsigned_integer (arg_reg_buffer, ALPHA_REGISTER_SIZE, struct_addr);
 
   /* Load the argument registers.  */
   for (i = 0; i < required_arg_regs; i++)
     {
-      LONGEST val;
-
-      val = read_memory_integer (sp + i * 8, 8);
-      write_register (A0_REGNUM + i, val);
-      write_register (FPA0_REGNUM + i, val);
+      regcache_cooked_write (regcache, ALPHA_A0_REGNUM + i,
+			     arg_reg_buffer + i*ALPHA_REGISTER_SIZE);
+      regcache_cooked_write (regcache, ALPHA_FPA0_REGNUM + i,
+			     arg_reg_buffer + i*ALPHA_REGISTER_SIZE);
     }
 
-  return sp + arg_regs_size;
+  /* Finally, update the stack pointer.  */
+  regcache_cooked_write_signed (regcache, ALPHA_SP_REGNUM, sp);
+
+  return sp;
 }
 
-void
-alpha_push_dummy_frame (void)
+/* Extract from REGCACHE the value about to be returned from a function
+   and copy it into VALBUF.  */
+
+static void
+alpha_extract_return_value (struct type *valtype, struct regcache *regcache,
+			    void *valbuf)
 {
-  int ireg;
-  struct linked_proc_info *link;
-  alpha_extra_func_info_t proc_desc;
-  CORE_ADDR sp = read_register (SP_REGNUM);
-  CORE_ADDR save_address;
-  char raw_buffer[MAX_REGISTER_RAW_SIZE];
-  unsigned long mask;
+  int length = TYPE_LENGTH (valtype);
+  char raw_buffer[ALPHA_REGISTER_SIZE];
+  ULONGEST l;
 
-  link = (struct linked_proc_info *) xmalloc (sizeof (struct linked_proc_info));
-  link->next = linked_proc_desc_table;
-  linked_proc_desc_table = link;
-
-  proc_desc = &link->info;
-
-  /*
-   * The registers we must save are all those not preserved across
-   * procedure calls.
-   * In addition, we must save the PC and RA.
-   *
-   * Dummy frame layout:
-   *  (high memory)
-   *    Saved PC
-   *    Saved F30
-   *    ...
-   *    Saved F0
-   *    Saved R29
-   *    ...
-   *    Saved R0
-   *    Saved R26 (RA)
-   *    Parameter build area
-   *  (low memory)
-   */
-
-/* MASK(i,j) == (1<<i) + (1<<(i+1)) + ... + (1<<j)). Assume i<=j<31. */
-#define MASK(i,j) ((((LONGEST)1 << ((j)+1)) - 1) ^ (((LONGEST)1 << (i)) - 1))
-#define GEN_REG_SAVE_MASK (MASK(0,8) | MASK(16,29))
-#define GEN_REG_SAVE_COUNT 24
-#define FLOAT_REG_SAVE_MASK (MASK(0,1) | MASK(10,30))
-#define FLOAT_REG_SAVE_COUNT 23
-  /* The special register is the PC as we have no bit for it in the save masks.
-     alpha_frame_saved_pc knows where the pc is saved in a dummy frame.  */
-#define SPECIAL_REG_SAVE_COUNT 1
-
-  PROC_REG_MASK (proc_desc) = GEN_REG_SAVE_MASK;
-  PROC_FREG_MASK (proc_desc) = FLOAT_REG_SAVE_MASK;
-  /* PROC_REG_OFFSET is the offset from the dummy frame to the saved RA,
-     but keep SP aligned to a multiple of 16.  */
-  PROC_REG_OFFSET (proc_desc) =
-    -((8 * (SPECIAL_REG_SAVE_COUNT
-	    + GEN_REG_SAVE_COUNT
-	    + FLOAT_REG_SAVE_COUNT)
-       + 15) & ~15);
-  PROC_FREG_OFFSET (proc_desc) =
-    PROC_REG_OFFSET (proc_desc) + 8 * GEN_REG_SAVE_COUNT;
-
-  /* Save general registers.
-     The return address register is the first saved register, all other
-     registers follow in ascending order.
-     The PC is saved immediately below the SP.  */
-  save_address = sp + PROC_REG_OFFSET (proc_desc);
-  store_address (raw_buffer, 8, read_register (RA_REGNUM));
-  write_memory (save_address, raw_buffer, 8);
-  save_address += 8;
-  mask = PROC_REG_MASK (proc_desc) & 0xffffffffL;
-  for (ireg = 0; mask; ireg++, mask >>= 1)
-    if (mask & 1)
-      {
-	if (ireg == RA_REGNUM)
-	  continue;
-	store_address (raw_buffer, 8, read_register (ireg));
-	write_memory (save_address, raw_buffer, 8);
-	save_address += 8;
-      }
-
-  store_address (raw_buffer, 8, read_register (PC_REGNUM));
-  write_memory (sp - 8, raw_buffer, 8);
-
-  /* Save floating point registers.  */
-  save_address = sp + PROC_FREG_OFFSET (proc_desc);
-  mask = PROC_FREG_MASK (proc_desc) & 0xffffffffL;
-  for (ireg = 0; mask; ireg++, mask >>= 1)
-    if (mask & 1)
-      {
-	store_address (raw_buffer, 8, read_register (ireg + FP0_REGNUM));
-	write_memory (save_address, raw_buffer, 8);
-	save_address += 8;
-      }
-
-  /* Set and save the frame address for the dummy.  
-     This is tricky. The only registers that are suitable for a frame save
-     are those that are preserved across procedure calls (s0-s6). But if
-     a read system call is interrupted and then a dummy call is made
-     (see testsuite/gdb.t17/interrupt.exp) the dummy call hangs till the read
-     is satisfied. Then it returns with the s0-s6 registers set to the values
-     on entry to the read system call and our dummy frame pointer would be
-     destroyed. So we save the dummy frame in the proc_desc and handle the
-     retrieval of the frame pointer of a dummy specifically. The frame register
-     is set to the virtual frame (pseudo) register, it's value will always
-     be read as zero and will help us to catch any errors in the dummy frame
-     retrieval code.  */
-  PROC_DUMMY_FRAME (proc_desc) = sp;
-  PROC_FRAME_REG (proc_desc) = FP_REGNUM;
-  PROC_FRAME_OFFSET (proc_desc) = 0;
-  sp += PROC_REG_OFFSET (proc_desc);
-  write_register (SP_REGNUM, sp);
-
-  PROC_LOW_ADDR (proc_desc) = CALL_DUMMY_ADDRESS ();
-  PROC_HIGH_ADDR (proc_desc) = PROC_LOW_ADDR (proc_desc) + 4;
-
-  SET_PROC_DESC_IS_DUMMY (proc_desc);
-  PROC_PC_REG (proc_desc) = RA_REGNUM;
-}
-
-void
-alpha_pop_frame (void)
-{
-  register int regnum;
-  struct frame_info *frame = get_current_frame ();
-  CORE_ADDR new_sp = frame->frame;
-
-  alpha_extra_func_info_t proc_desc = frame->extra_info->proc_desc;
-
-  /* we need proc_desc to know how to restore the registers;
-     if it is NULL, construct (a temporary) one */
-  if (proc_desc == NULL)
-    proc_desc = find_proc_desc (frame->pc, frame->next);
-
-  /* Question: should we copy this proc_desc and save it in
-     frame->proc_desc?  If we do, who will free it?
-     For now, we don't save a copy... */
-
-  write_register (PC_REGNUM, FRAME_SAVED_PC (frame));
-  if (frame->saved_regs == NULL)
-    alpha_find_saved_regs (frame);
-  if (proc_desc)
+  switch (TYPE_CODE (valtype))
     {
-      for (regnum = 32; --regnum >= 0;)
-	if (PROC_REG_MASK (proc_desc) & (1 << regnum))
-	  write_register (regnum,
-			  read_memory_integer (frame->saved_regs[regnum],
-					       8));
-      for (regnum = 32; --regnum >= 0;)
-	if (PROC_FREG_MASK (proc_desc) & (1 << regnum))
-	  write_register (regnum + FP0_REGNUM,
-	   read_memory_integer (frame->saved_regs[regnum + FP0_REGNUM], 8));
-    }
-  write_register (SP_REGNUM, new_sp);
-  flush_cached_frames ();
-
-  if (proc_desc && (PROC_DESC_IS_DUMMY (proc_desc)
-		    || PROC_DESC_IS_DYN_SIGTRAMP (proc_desc)))
-    {
-      struct linked_proc_info *pi_ptr, *prev_ptr;
-
-      for (pi_ptr = linked_proc_desc_table, prev_ptr = NULL;
-	   pi_ptr != NULL;
-	   prev_ptr = pi_ptr, pi_ptr = pi_ptr->next)
+    case TYPE_CODE_FLT:
+      switch (length)
 	{
-	  if (&pi_ptr->info == proc_desc)
-	    break;
+	case 4:
+	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, raw_buffer);
+	  alpha_sts (valbuf, raw_buffer);
+	  break;
+
+	case 8:
+	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  break;
+
+	case 16:
+	  regcache_cooked_read_unsigned (regcache, ALPHA_V0_REGNUM, &l);
+	  read_memory (l, valbuf, 16);
+	  break;
+
+	default:
+	  internal_error (__FILE__, __LINE__, "unknown floating point width");
 	}
+      break;
 
-      if (pi_ptr == NULL)
-	error ("Can't locate dummy extra frame info\n");
+    case TYPE_CODE_COMPLEX:
+      switch (length)
+	{
+	case 8:
+	  /* ??? This isn't correct wrt the ABI, but it's what GCC does.  */
+	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  break;
 
-      if (prev_ptr != NULL)
-	prev_ptr->next = pi_ptr->next;
-      else
-	linked_proc_desc_table = pi_ptr->next;
+	case 16:
+	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM+1,
+				(char *)valbuf + 8);
+	  break;
 
-      xfree (pi_ptr);
+	case 32:
+	  regcache_cooked_read_signed (regcache, ALPHA_V0_REGNUM, &l);
+	  read_memory (l, valbuf, 32);
+	  break;
+
+	default:
+	  internal_error (__FILE__, __LINE__, "unknown floating point width");
+	}
+      break;
+
+    default:
+      /* Assume everything else degenerates to an integer.  */
+      regcache_cooked_read_unsigned (regcache, ALPHA_V0_REGNUM, &l);
+      store_unsigned_integer (valbuf, length, l);
+      break;
     }
 }
+
+/* Extract from REGCACHE the address of a structure about to be returned
+   from a function.  */
+
+static CORE_ADDR
+alpha_extract_struct_value_address (struct regcache *regcache)
+{
+  ULONGEST addr;
+  regcache_cooked_read_unsigned (regcache, ALPHA_V0_REGNUM, &addr);
+  return addr;
+}
+
+/* Insert the given value into REGCACHE as if it was being 
+   returned by a function.  */
+
+static void
+alpha_store_return_value (struct type *valtype, struct regcache *regcache,
+			  const void *valbuf)
+{
+  int length = TYPE_LENGTH (valtype);
+  char raw_buffer[ALPHA_REGISTER_SIZE];
+  ULONGEST l;
+
+  switch (TYPE_CODE (valtype))
+    {
+    case TYPE_CODE_FLT:
+      switch (length)
+	{
+	case 4:
+	  alpha_lds (raw_buffer, valbuf);
+	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, raw_buffer);
+	  break;
+
+	case 8:
+	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  break;
+
+	case 16:
+	  /* FIXME: 128-bit long doubles are returned like structures:
+	     by writing into indirect storage provided by the caller
+	     as the first argument.  */
+	  error ("Cannot set a 128-bit long double return value.");
+
+	default:
+	  internal_error (__FILE__, __LINE__, "unknown floating point width");
+	}
+      break;
+
+    case TYPE_CODE_COMPLEX:
+      switch (length)
+	{
+	case 8:
+	  /* ??? This isn't correct wrt the ABI, but it's what GCC does.  */
+	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  break;
+
+	case 16:
+	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM+1,
+				 (const char *)valbuf + 8);
+	  break;
+
+	case 32:
+	  /* FIXME: 128-bit long doubles are returned like structures:
+	     by writing into indirect storage provided by the caller
+	     as the first argument.  */
+	  error ("Cannot set a 128-bit long double return value.");
+
+	default:
+	  internal_error (__FILE__, __LINE__, "unknown floating point width");
+	}
+      break;
+
+    default:
+      /* Assume everything else degenerates to an integer.  */
+      /* 32-bit values must be sign-extended to 64 bits
+	 even if the base data type is unsigned.  */
+      if (length == 4)
+	valtype = builtin_type_int32;
+      l = unpack_long (valtype, valbuf);
+      regcache_cooked_write_unsigned (regcache, ALPHA_V0_REGNUM, l);
+      break;
+    }
+}
+
 
+static const unsigned char *
+alpha_breakpoint_from_pc (CORE_ADDR *pcptr, int *lenptr)
+{
+  static const unsigned char alpha_breakpoint[] =
+    { 0x80, 0, 0, 0 };	/* call_pal bpt */
+
+  *lenptr = sizeof(alpha_breakpoint);
+  return (alpha_breakpoint);
+}
+
+
+/* This returns the PC of the first insn after the prologue.
+   If we can't find the prologue, then return 0.  */
+
+CORE_ADDR
+alpha_after_prologue (CORE_ADDR pc)
+{
+  struct symtab_and_line sal;
+  CORE_ADDR func_addr, func_end;
+
+  if (!find_pc_partial_function (pc, NULL, &func_addr, &func_end))
+    return 0;
+
+  sal = find_pc_line (func_addr, 0);
+  if (sal.end < func_end)
+    return sal.end;
+
+  /* The line after the prologue is after the end of the function.  In this
+     case, tell the caller to find the prologue the hard way.  */
+  return 0;
+}
+
+/* Read an instruction from memory at PC, looking through breakpoints.  */
+
+unsigned int
+alpha_read_insn (CORE_ADDR pc)
+{
+  char buf[4];
+  int status;
+
+  status = read_memory_nobpt (pc, buf, 4);
+  if (status)
+    memory_error (status, pc);
+  return extract_unsigned_integer (buf, 4);
+}
+
 /* To skip prologues, I use this predicate.  Returns either PC itself
    if the code at PC does not look like a function prologue; otherwise
    returns an address that (if we're lucky) follows the prologue.  If
    LENIENT, then we must skip everything which is involved in setting
    up the frame (it's OK to skip more, just so long as we don't skip
-   anything which might clobber the registers which are being saved.
-   Currently we must not skip more on the alpha, but we might need the
-   lenient stuff some day.  */
+   anything which might clobber the registers which are being saved.  */
 
 static CORE_ADDR
-alpha_skip_prologue_internal (CORE_ADDR pc, int lenient)
+alpha_skip_prologue (CORE_ADDR pc)
 {
   unsigned long inst;
   int offset;
   CORE_ADDR post_prologue_pc;
   char buf[4];
 
-#ifdef GDB_TARGET_HAS_SHARED_LIBS
   /* Silently return the unaltered pc upon memory errors.
      This could happen on OSF/1 if decode_line_1 tries to skip the
      prologue for quickstarted shared library functions when the
      shared library is not yet mapped in.
      Reading target memory is slow over serial lines, so we perform
-     this check only if the target has shared libraries.  */
+     this check only if the target has shared libraries (which all
+     Alpha targets do).  */
   if (target_read_memory (pc, buf, 4))
     return pc;
-#endif
 
   /* See if we can determine the end of the prologue via the symbol table.
      If so, then return either PC, or the PC after the prologue, whichever
      is greater.  */
 
-  post_prologue_pc = after_prologue (pc, NULL);
-
+  post_prologue_pc = alpha_after_prologue (pc);
   if (post_prologue_pc != 0)
     return max (pc, post_prologue_pc);
 
@@ -1331,17 +673,7 @@ alpha_skip_prologue_internal (CORE_ADDR pc, int lenient)
      or in the gcc frame.  */
   for (offset = 0; offset < 100; offset += 4)
     {
-      int status;
-
-      status = read_memory_nobpt (pc + offset, buf, 4);
-      if (status)
-	memory_error (status, pc + offset);
-      inst = extract_unsigned_integer (buf, 4);
-
-      /* The alpha has no delay slots. But let's keep the lenient stuff,
-         we might need it for something else in the future.  */
-      if (lenient && 0)
-	continue;
+      inst = alpha_read_insn (pc + offset);
 
       if ((inst & 0xffff0000) == 0x27bb0000)	/* ldah $gp,n($t12) */
 	continue;
@@ -1352,15 +684,14 @@ alpha_skip_prologue_internal (CORE_ADDR pc, int lenient)
       if ((inst & 0xffe01fff) == 0x43c0153e)	/* subq $sp,n,$sp */
 	continue;
 
-      if ((inst & 0xfc1f0000) == 0xb41e0000
-	  && (inst & 0xffff0000) != 0xb7fe0000)
-	continue;		/* stq reg,n($sp) */
-      /* reg != $zero */
-      if ((inst & 0xfc1f0000) == 0x9c1e0000
-	  && (inst & 0xffff0000) != 0x9ffe0000)
-	continue;		/* stt reg,n($sp) */
-      /* reg != $zero */
-      if (inst == 0x47de040f)	/* bis sp,sp,fp */
+      if (((inst & 0xfc1f0000) == 0xb41e0000		/* stq reg,n($sp) */
+	   || (inst & 0xfc1f0000) == 0x9c1e0000)	/* stt reg,n($sp) */
+	  && (inst & 0x03e00000) != 0x03e00000)		/* reg != $zero */
+	continue;
+
+      if (inst == 0x47de040f)			/* bis sp,sp,fp */
+	continue;
+      if (inst == 0x47fe040f)			/* bis zero,sp,fp */
 	continue;
 
       break;
@@ -1368,124 +699,536 @@ alpha_skip_prologue_internal (CORE_ADDR pc, int lenient)
   return pc + offset;
 }
 
-CORE_ADDR
-alpha_skip_prologue (CORE_ADDR addr)
-{
-  return (alpha_skip_prologue_internal (addr, 0));
-}
-
-#if 0
-/* Is address PC in the prologue (loosely defined) for function at
-   STARTADDR?  */
+
+/* Figure out where the longjmp will land.
+   We expect the first arg to be a pointer to the jmp_buf structure from
+   which we extract the PC (JB_PC) that we will land at.  The PC is copied
+   into the "pc".  This routine returns true on success.  */
 
 static int
-alpha_in_lenient_prologue (CORE_ADDR startaddr, CORE_ADDR pc)
+alpha_get_longjmp_target (CORE_ADDR *pc)
 {
-  CORE_ADDR end_prologue = alpha_skip_prologue_internal (startaddr, 1);
-  return pc >= startaddr && pc < end_prologue;
-}
-#endif
+  struct gdbarch_tdep *tdep = gdbarch_tdep (current_gdbarch);
+  CORE_ADDR jb_addr;
+  char raw_buffer[ALPHA_REGISTER_SIZE];
 
-/* The alpha needs a conversion between register and memory format if
-   the register is a floating point register and
-   memory format is float, as the register format must be double
-   or
-   memory format is an integer with 4 bytes or less, as the representation
-   of integers in floating point registers is different. */
-void
-alpha_register_convert_to_virtual (int regnum, struct type *valtype,
-				   char *raw_buffer, char *virtual_buffer)
-{
-  if (TYPE_LENGTH (valtype) >= REGISTER_RAW_SIZE (regnum))
-    {
-      memcpy (virtual_buffer, raw_buffer, REGISTER_VIRTUAL_SIZE (regnum));
-      return;
-    }
+  jb_addr = read_register (ALPHA_A0_REGNUM);
 
-  if (TYPE_CODE (valtype) == TYPE_CODE_FLT)
-    {
-      double d = extract_floating (raw_buffer, REGISTER_RAW_SIZE (regnum));
-      store_floating (virtual_buffer, TYPE_LENGTH (valtype), d);
-    }
-  else if (TYPE_CODE (valtype) == TYPE_CODE_INT && TYPE_LENGTH (valtype) <= 4)
-    {
-      ULONGEST l;
-      l = extract_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum));
-      l = ((l >> 32) & 0xc0000000) | ((l >> 29) & 0x3fffffff);
-      store_unsigned_integer (virtual_buffer, TYPE_LENGTH (valtype), l);
-    }
-  else
-    error ("Cannot retrieve value from floating point register");
+  if (target_read_memory (jb_addr + (tdep->jb_pc * tdep->jb_elt_size),
+			  raw_buffer, tdep->jb_elt_size))
+    return 0;
+
+  *pc = extract_unsigned_integer (raw_buffer, tdep->jb_elt_size);
+  return 1;
 }
 
-void
-alpha_register_convert_to_raw (struct type *valtype, int regnum,
-			       char *virtual_buffer, char *raw_buffer)
-{
-  if (TYPE_LENGTH (valtype) >= REGISTER_RAW_SIZE (regnum))
-    {
-      memcpy (raw_buffer, virtual_buffer, REGISTER_RAW_SIZE (regnum));
-      return;
-    }
+
+/* Frame unwinder for signal trampolines.  We use alpha tdep bits that
+   describe the location and shape of the sigcontext structure.  After
+   that, all registers are in memory, so it's easy.  */
+/* ??? Shouldn't we be able to do this generically, rather than with
+   OSABI data specific to Alpha?  */
 
-  if (TYPE_CODE (valtype) == TYPE_CODE_FLT)
+struct alpha_sigtramp_unwind_cache
+{
+  CORE_ADDR sigcontext_addr;
+};
+
+static struct alpha_sigtramp_unwind_cache *
+alpha_sigtramp_frame_unwind_cache (struct frame_info *next_frame,
+				   void **this_prologue_cache)
+{
+  struct alpha_sigtramp_unwind_cache *info;
+  struct gdbarch_tdep *tdep;
+
+  if (*this_prologue_cache)
+    return *this_prologue_cache;
+
+  info = FRAME_OBSTACK_ZALLOC (struct alpha_sigtramp_unwind_cache);
+  *this_prologue_cache = info;
+
+  tdep = gdbarch_tdep (current_gdbarch);
+  info->sigcontext_addr = tdep->sigcontext_addr (next_frame);
+
+  return info;
+}
+
+/* Return the address of REGNUM in a sigtramp frame.  Since this is
+   all arithmetic, it doesn't seem worthwhile to cache it.  */
+
+static CORE_ADDR
+alpha_sigtramp_register_address (CORE_ADDR sigcontext_addr, int regnum)
+{ 
+  struct gdbarch_tdep *tdep = gdbarch_tdep (current_gdbarch);
+
+  if (regnum >= 0 && regnum < 32)
+    return sigcontext_addr + tdep->sc_regs_offset + regnum * 8;
+  else if (regnum >= ALPHA_FP0_REGNUM && regnum < ALPHA_FP0_REGNUM + 32)
+    return sigcontext_addr + tdep->sc_fpregs_offset + regnum * 8;
+  else if (regnum == ALPHA_PC_REGNUM)
+    return sigcontext_addr + tdep->sc_pc_offset; 
+
+  return 0;
+}
+
+/* Given a GDB frame, determine the address of the calling function's
+   frame.  This will be used to create a new GDB frame struct.  */
+
+static void
+alpha_sigtramp_frame_this_id (struct frame_info *next_frame,
+			      void **this_prologue_cache,
+			      struct frame_id *this_id)
+{
+  struct alpha_sigtramp_unwind_cache *info
+    = alpha_sigtramp_frame_unwind_cache (next_frame, this_prologue_cache);
+  struct gdbarch_tdep *tdep;
+  CORE_ADDR stack_addr, code_addr;
+
+  /* If the OSABI couldn't locate the sigcontext, give up.  */
+  if (info->sigcontext_addr == 0)
+    return;
+
+  /* If we have dynamic signal trampolines, find their start.
+     If we do not, then we must assume there is a symbol record
+     that can provide the start address.  */
+  tdep = gdbarch_tdep (current_gdbarch);
+  if (tdep->dynamic_sigtramp_offset)
     {
-      double d = extract_floating (virtual_buffer, TYPE_LENGTH (valtype));
-      store_floating (raw_buffer, REGISTER_RAW_SIZE (regnum), d);
-    }
-  else if (TYPE_CODE (valtype) == TYPE_CODE_INT && TYPE_LENGTH (valtype) <= 4)
-    {
-      ULONGEST l;
-      if (TYPE_UNSIGNED (valtype))
-	l = extract_unsigned_integer (virtual_buffer, TYPE_LENGTH (valtype));
+      int offset;
+      code_addr = frame_pc_unwind (next_frame);
+      offset = tdep->dynamic_sigtramp_offset (code_addr);
+      if (offset >= 0)
+	code_addr -= offset;
       else
-	l = extract_signed_integer (virtual_buffer, TYPE_LENGTH (valtype));
-      l = ((l & 0xc0000000) << 32) | ((l & 0x3fffffff) << 29);
-      store_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum), l);
+	code_addr = 0;
     }
   else
-    error ("Cannot store value in floating point register");
+    code_addr = frame_func_unwind (next_frame);
+
+  /* The stack address is trivially read from the sigcontext.  */
+  stack_addr = alpha_sigtramp_register_address (info->sigcontext_addr,
+						ALPHA_SP_REGNUM);
+  stack_addr = get_frame_memory_unsigned (next_frame, stack_addr,
+					  ALPHA_REGISTER_SIZE);
+
+  *this_id = frame_id_build (stack_addr, code_addr);
 }
 
-/* Given a return value in `regbuf' with a type `valtype', 
-   extract and copy its value into `valbuf'.  */
+/* Retrieve the value of REGNUM in FRAME.  Don't give up!  */
 
-void
-alpha_extract_return_value (struct type *valtype,
-			    char regbuf[REGISTER_BYTES], char *valbuf)
+static void
+alpha_sigtramp_frame_prev_register (struct frame_info *next_frame,
+				    void **this_prologue_cache,
+				    int regnum, int *optimizedp,
+				    enum lval_type *lvalp, CORE_ADDR *addrp,
+				    int *realnump, void *bufferp)
 {
-  if (TYPE_CODE (valtype) == TYPE_CODE_FLT)
-    alpha_register_convert_to_virtual (FP0_REGNUM, valtype,
-				       regbuf + REGISTER_BYTE (FP0_REGNUM),
-				       valbuf);
-  else
-    memcpy (valbuf, regbuf + REGISTER_BYTE (V0_REGNUM), TYPE_LENGTH (valtype));
-}
+  struct alpha_sigtramp_unwind_cache *info
+    = alpha_sigtramp_frame_unwind_cache (next_frame, this_prologue_cache);
+  CORE_ADDR addr;
 
-/* Given a return value in `regbuf' with a type `valtype', 
-   write its value into the appropriate register.  */
-
-void
-alpha_store_return_value (struct type *valtype, char *valbuf)
-{
-  char raw_buffer[MAX_REGISTER_RAW_SIZE];
-  int regnum = V0_REGNUM;
-  int length = TYPE_LENGTH (valtype);
-
-  if (TYPE_CODE (valtype) == TYPE_CODE_FLT)
+  if (info->sigcontext_addr != 0)
     {
-      regnum = FP0_REGNUM;
-      length = REGISTER_RAW_SIZE (regnum);
-      alpha_register_convert_to_raw (valtype, regnum, valbuf, raw_buffer);
+      /* All integer and fp registers are stored in memory.  */
+      addr = alpha_sigtramp_register_address (info->sigcontext_addr, regnum);
+      if (addr != 0)
+	{
+	  *optimizedp = 0;
+	  *lvalp = lval_memory;
+	  *addrp = addr;
+	  *realnump = -1;
+	  if (bufferp != NULL)
+	    get_frame_memory (next_frame, addr, bufferp, ALPHA_REGISTER_SIZE);
+	  return;
+	}
     }
-  else
-    memcpy (raw_buffer, valbuf, length);
 
-  write_register_bytes (REGISTER_BYTE (regnum), raw_buffer, length);
+  /* This extra register may actually be in the sigcontext, but our
+     current description of it in alpha_sigtramp_frame_unwind_cache
+     doesn't include it.  Too bad.  Fall back on whatever's in the
+     outer frame.  */
+  frame_register (next_frame, regnum, optimizedp, lvalp, addrp,
+		  realnump, bufferp);
 }
+
+static const struct frame_unwind alpha_sigtramp_frame_unwind = {
+  SIGTRAMP_FRAME,
+  alpha_sigtramp_frame_this_id,
+  alpha_sigtramp_frame_prev_register
+};
+
+static const struct frame_unwind *
+alpha_sigtramp_frame_sniffer (struct frame_info *next_frame)
+{
+  CORE_ADDR pc = frame_pc_unwind (next_frame);
+  char *name;
+
+  /* We shouldn't even bother to try if the OSABI didn't register
+     a sigcontext_addr handler.  */
+  if (!gdbarch_tdep (current_gdbarch)->sigcontext_addr)
+    return NULL;
+
+  /* Otherwise we should be in a signal frame.  */
+  find_pc_partial_function (pc, &name, NULL, NULL);
+  if (PC_IN_SIGTRAMP (pc, name))
+    return &alpha_sigtramp_frame_unwind;
+
+  return NULL;
+}
+
+/* Fallback alpha frame unwinder.  Uses instruction scanning and knows
+   something about the traditional layout of alpha stack frames.  */
+
+struct alpha_heuristic_unwind_cache
+{
+  CORE_ADDR *saved_regs;
+  CORE_ADDR vfp;
+  CORE_ADDR start_pc;
+  int return_reg;
+};
+
+/* Heuristic_proc_start may hunt through the text section for a long
+   time across a 2400 baud serial line.  Allows the user to limit this
+   search.  */
+static unsigned int heuristic_fence_post = 0;
+
+/* Attempt to locate the start of the function containing PC.  We assume that
+   the previous function ends with an about_to_return insn.  Not foolproof by
+   any means, since gcc is happy to put the epilogue in the middle of a
+   function.  But we're guessing anyway...  */
+
+static CORE_ADDR
+alpha_heuristic_proc_start (CORE_ADDR pc)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (current_gdbarch);
+  CORE_ADDR last_non_nop = pc;
+  CORE_ADDR fence = pc - heuristic_fence_post;
+  CORE_ADDR orig_pc = pc;
+  CORE_ADDR func;
+
+  if (pc == 0)
+    return 0;
+
+  /* First see if we can find the start of the function from minimal
+     symbol information.  This can succeed with a binary that doesn't
+     have debug info, but hasn't been stripped.  */
+  func = get_pc_function_start (pc);
+  if (func)
+    return func;
+
+  if (heuristic_fence_post == UINT_MAX
+      || fence < tdep->vm_min_address)
+    fence = tdep->vm_min_address;
+
+  /* Search back for previous return; also stop at a 0, which might be
+     seen for instance before the start of a code section.  Don't include
+     nops, since this usually indicates padding between functions.  */
+  for (pc -= 4; pc >= fence; pc -= 4)
+    {
+      unsigned int insn = alpha_read_insn (pc);
+      switch (insn)
+	{
+	case 0:			/* invalid insn */
+	case 0x6bfa8001:	/* ret $31,($26),1 */
+	  return last_non_nop;
+
+	case 0x2ffe0000:	/* unop: ldq_u $31,0($30) */
+	case 0x47ff041f:	/* nop: bis $31,$31,$31 */
+	  break;
+
+	default:
+	  last_non_nop = pc;
+	  break;
+	}
+    }
+
+  /* It's not clear to me why we reach this point when stopping quietly,
+     but with this test, at least we don't print out warnings for every
+     child forked (eg, on decstation).  22apr93 rich@cygnus.com.  */
+  if (stop_soon == NO_STOP_QUIETLY)
+    {
+      static int blurb_printed = 0;
+
+      if (fence == tdep->vm_min_address)
+	warning ("Hit beginning of text section without finding");
+      else
+	warning ("Hit heuristic-fence-post without finding");
+      warning ("enclosing function for address 0x%s", paddr_nz (orig_pc));
+
+      if (!blurb_printed)
+	{
+	  printf_filtered ("\
+This warning occurs if you are debugging a function without any symbols\n\
+(for example, in a stripped executable).  In that case, you may wish to\n\
+increase the size of the search with the `set heuristic-fence-post' command.\n\
+\n\
+Otherwise, you told GDB there was a function where there isn't one, or\n\
+(more likely) you have encountered a bug in GDB.\n");
+	  blurb_printed = 1;
+	}
+    }
+
+  return 0;
+}
+
+static struct alpha_heuristic_unwind_cache *
+alpha_heuristic_frame_unwind_cache (struct frame_info *next_frame,
+				    void **this_prologue_cache,
+				    CORE_ADDR start_pc)
+{
+  struct alpha_heuristic_unwind_cache *info;
+  ULONGEST val;
+  CORE_ADDR limit_pc, cur_pc;
+  int frame_reg, frame_size, return_reg, reg;
+
+  if (*this_prologue_cache)
+    return *this_prologue_cache;
+
+  info = FRAME_OBSTACK_ZALLOC (struct alpha_heuristic_unwind_cache);
+  *this_prologue_cache = info;
+  info->saved_regs = frame_obstack_zalloc (SIZEOF_FRAME_SAVED_REGS);
+
+  limit_pc = frame_pc_unwind (next_frame);
+  if (start_pc == 0)
+    start_pc = alpha_heuristic_proc_start (limit_pc);
+  info->start_pc = start_pc;
+
+  frame_reg = ALPHA_SP_REGNUM;
+  frame_size = 0;
+  return_reg = -1;
+
+  /* If we've identified a likely place to start, do code scanning.  */
+  if (start_pc != 0)
+    {
+      /* Limit the forward search to 50 instructions.  */
+      if (start_pc + 200 < limit_pc)
+	limit_pc = start_pc + 200;
+
+      for (cur_pc = start_pc; cur_pc < limit_pc; cur_pc += 4)
+	{
+	  unsigned int word = alpha_read_insn (cur_pc);
+
+	  if ((word & 0xffff0000) == 0x23de0000)	/* lda $sp,n($sp) */
+	    {
+	      if (word & 0x8000)
+		{
+		  /* Consider only the first stack allocation instruction
+		     to contain the static size of the frame. */
+		  if (frame_size == 0)
+		    frame_size = (-word) & 0xffff;
+		}
+	      else
+		{
+		  /* Exit loop if a positive stack adjustment is found, which
+		     usually means that the stack cleanup code in the function
+		     epilogue is reached.  */
+		  break;
+		}
+	    }
+	  else if ((word & 0xfc1f0000) == 0xb41e0000)	/* stq reg,n($sp) */
+	    {
+	      reg = (word & 0x03e00000) >> 21;
+
+              /* Ignore this instruction if we have already encountered
+                 an instruction saving the same register earlier in the
+                 function code.  The current instruction does not tell
+                 us where the original value upon function entry is saved.
+                 All it says is that the function we are scanning reused
+                 that register for some computation of its own, and is now
+                 saving its result.  */
+              if (info->saved_regs[reg])
+                continue;
+
+	      if (reg == 31)
+		continue;
+
+	      /* Do not compute the address where the register was saved yet,
+		 because we don't know yet if the offset will need to be
+		 relative to $sp or $fp (we can not compute the address
+		 relative to $sp if $sp is updated during the execution of
+		 the current subroutine, for instance when doing some alloca).
+		 So just store the offset for the moment, and compute the
+		 address later when we know whether this frame has a frame
+		 pointer or not.  */
+	      /* Hack: temporarily add one, so that the offset is non-zero
+		 and we can tell which registers have save offsets below.  */
+	      info->saved_regs[reg] = (word & 0xffff) + 1;
+
+	      /* Starting with OSF/1-3.2C, the system libraries are shipped
+		 without local symbols, but they still contain procedure
+		 descriptors without a symbol reference. GDB is currently
+		 unable to find these procedure descriptors and uses
+		 heuristic_proc_desc instead.
+		 As some low level compiler support routines (__div*, __add*)
+		 use a non-standard return address register, we have to
+		 add some heuristics to determine the return address register,
+		 or stepping over these routines will fail.
+		 Usually the return address register is the first register
+		 saved on the stack, but assembler optimization might
+		 rearrange the register saves.
+		 So we recognize only a few registers (t7, t9, ra) within
+		 the procedure prologue as valid return address registers.
+		 If we encounter a return instruction, we extract the
+		 the return address register from it.
+
+		 FIXME: Rewriting GDB to access the procedure descriptors,
+		 e.g. via the minimal symbol table, might obviate this hack.  */
+	      if (return_reg == -1
+		  && cur_pc < (start_pc + 80)
+		  && (reg == ALPHA_T7_REGNUM
+		      || reg == ALPHA_T9_REGNUM
+		      || reg == ALPHA_RA_REGNUM))
+		return_reg = reg;
+	    }
+	  else if ((word & 0xffe0ffff) == 0x6be08001)	/* ret zero,reg,1 */
+	    return_reg = (word >> 16) & 0x1f;
+	  else if (word == 0x47de040f)			/* bis sp,sp,fp */
+	    frame_reg = ALPHA_GCC_FP_REGNUM;
+	  else if (word == 0x47fe040f)			/* bis zero,sp,fp */
+	    frame_reg = ALPHA_GCC_FP_REGNUM;
+	}
+
+      /* If we haven't found a valid return address register yet, keep
+	 searching in the procedure prologue.  */
+      if (return_reg == -1)
+	{
+	  while (cur_pc < (limit_pc + 80) && cur_pc < (start_pc + 80))
+	    {
+	      unsigned int word = alpha_read_insn (cur_pc);
+
+	      if ((word & 0xfc1f0000) == 0xb41e0000)	/* stq reg,n($sp) */
+		{
+		  reg = (word & 0x03e00000) >> 21;
+		  if (reg == ALPHA_T7_REGNUM
+		      || reg == ALPHA_T9_REGNUM
+		      || reg == ALPHA_RA_REGNUM)
+		    {
+		      return_reg = reg;
+		      break;
+		    }
+		}
+	      else if ((word & 0xffe0ffff) == 0x6be08001) /* ret zero,reg,1 */
+		{
+		  return_reg = (word >> 16) & 0x1f;
+		  break;
+		}
+
+	      cur_pc += 4;
+	    }
+	}
+    }
+
+  /* Failing that, do default to the customary RA.  */
+  if (return_reg == -1)
+    return_reg = ALPHA_RA_REGNUM;
+  info->return_reg = return_reg;
+
+  frame_unwind_unsigned_register (next_frame, frame_reg, &val);
+  info->vfp = val + frame_size;
+
+  /* Convert offsets to absolute addresses.  See above about adding
+     one to the offsets to make all detected offsets non-zero.  */
+  for (reg = 0; reg < ALPHA_NUM_REGS; ++reg)
+    if (info->saved_regs[reg])
+      info->saved_regs[reg] += val - 1;
+
+  return info;
+}
+
+/* Given a GDB frame, determine the address of the calling function's
+   frame.  This will be used to create a new GDB frame struct.  */
+
+static void
+alpha_heuristic_frame_this_id (struct frame_info *next_frame,
+				 void **this_prologue_cache,
+				 struct frame_id *this_id)
+{
+  struct alpha_heuristic_unwind_cache *info
+    = alpha_heuristic_frame_unwind_cache (next_frame, this_prologue_cache, 0);
+
+  *this_id = frame_id_build (info->vfp, info->start_pc);
+}
+
+/* Retrieve the value of REGNUM in FRAME.  Don't give up!  */
+
+static void
+alpha_heuristic_frame_prev_register (struct frame_info *next_frame,
+				     void **this_prologue_cache,
+				     int regnum, int *optimizedp,
+				     enum lval_type *lvalp, CORE_ADDR *addrp,
+				     int *realnump, void *bufferp)
+{
+  struct alpha_heuristic_unwind_cache *info
+    = alpha_heuristic_frame_unwind_cache (next_frame, this_prologue_cache, 0);
+
+  /* The PC of the previous frame is stored in the link register of
+     the current frame.  Frob regnum so that we pull the value from
+     the correct place.  */
+  if (regnum == ALPHA_PC_REGNUM)
+    regnum = info->return_reg;
+  
+  /* For all registers known to be saved in the current frame, 
+     do the obvious and pull the value out.  */
+  if (info->saved_regs[regnum])
+    {
+      *optimizedp = 0;
+      *lvalp = lval_memory;
+      *addrp = info->saved_regs[regnum];
+      *realnump = -1;
+      if (bufferp != NULL)
+	get_frame_memory (next_frame, *addrp, bufferp, ALPHA_REGISTER_SIZE);
+      return;
+    }
+
+  /* The stack pointer of the previous frame is computed by popping
+     the current stack frame.  */
+  if (regnum == ALPHA_SP_REGNUM)
+    {
+      *optimizedp = 0;
+      *lvalp = not_lval;
+      *addrp = 0;
+      *realnump = -1;
+      if (bufferp != NULL)
+	store_unsigned_integer (bufferp, ALPHA_REGISTER_SIZE, info->vfp);
+      return;
+    }
+
+  /* Otherwise assume the next frame has the same register value.  */
+  frame_register (next_frame, regnum, optimizedp, lvalp, addrp,
+		  realnump, bufferp);
+}
+
+static const struct frame_unwind alpha_heuristic_frame_unwind = {
+  NORMAL_FRAME,
+  alpha_heuristic_frame_this_id,
+  alpha_heuristic_frame_prev_register
+};
+
+static const struct frame_unwind *
+alpha_heuristic_frame_sniffer (struct frame_info *next_frame)
+{
+  return &alpha_heuristic_frame_unwind;
+}
+
+static CORE_ADDR
+alpha_heuristic_frame_base_address (struct frame_info *next_frame,
+				    void **this_prologue_cache)
+{
+  struct alpha_heuristic_unwind_cache *info
+    = alpha_heuristic_frame_unwind_cache (next_frame, this_prologue_cache, 0);
+
+  return info->vfp;
+}
+
+static const struct frame_base alpha_heuristic_frame_base = {
+  &alpha_heuristic_frame_unwind,
+  alpha_heuristic_frame_base_address,
+  alpha_heuristic_frame_base_address,
+  alpha_heuristic_frame_base_address
+};
 
 /* Just like reinit_frame_cache, but with the right arguments to be
-   callable as an sfunc.  */
+   callable as an sfunc.  Used by the "set heuristic-fence-post" command.  */
 
 static void
 reinit_frame_cache_sfunc (char *args, int from_tty, struct cmd_list_element *c)
@@ -1493,68 +1236,120 @@ reinit_frame_cache_sfunc (char *args, int from_tty, struct cmd_list_element *c)
   reinit_frame_cache ();
 }
 
-/* This is the definition of CALL_DUMMY_ADDRESS.  It's a heuristic that is used
-   to find a convenient place in the text segment to stick a breakpoint to
-   detect the completion of a target function call (ala call_function_by_hand).
- */
+
+/* ALPHA stack frames are almost impenetrable.  When execution stops,
+   we basically have to look at symbol information for the function
+   that we stopped in, which tells us *which* register (if any) is
+   the base of the frame pointer, and what offset from that register
+   the frame itself is at.  
 
-CORE_ADDR
-alpha_call_dummy_address (void)
+   This presents a problem when trying to examine a stack in memory
+   (that isn't executing at the moment), using the "frame" command.  We
+   don't have a PC, nor do we have any registers except SP.
+
+   This routine takes two arguments, SP and PC, and tries to make the
+   cached frames look as if these two arguments defined a frame on the
+   cache.  This allows the rest of info frame to extract the important
+   arguments without difficulty.  */
+
+struct frame_info *
+alpha_setup_arbitrary_frame (int argc, CORE_ADDR *argv)
 {
-  CORE_ADDR entry;
-  struct minimal_symbol *sym;
+  if (argc != 2)
+    error ("ALPHA frame specifications require two arguments: sp and pc");
 
-  entry = entry_point_address ();
+  return create_new_frame (argv[0], argv[1]);
+}
 
-  if (entry != 0)
-    return entry;
+/* Assuming NEXT_FRAME->prev is a dummy, return the frame ID of that
+   dummy frame.  The frame ID's base needs to match the TOS value
+   saved by save_dummy_frame_tos(), and the PC match the dummy frame's
+   breakpoint.  */
 
-  sym = lookup_minimal_symbol ("_Prelude", NULL, symfile_objfile);
+static struct frame_id
+alpha_unwind_dummy_id (struct gdbarch *gdbarch, struct frame_info *next_frame)
+{
+  ULONGEST base;
+  frame_unwind_unsigned_register (next_frame, ALPHA_SP_REGNUM, &base);
+  return frame_id_build (base, frame_pc_unwind (next_frame));
+}
 
-  if (!sym || MSYMBOL_TYPE (sym) != mst_text)
-    return 0;
-  else
-    return SYMBOL_VALUE_ADDRESS (sym) + 4;
+static CORE_ADDR
+alpha_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
+{
+  ULONGEST pc;
+  frame_unwind_unsigned_register (next_frame, ALPHA_PC_REGNUM, &pc);
+  return pc;
+}
+
+
+/* Helper routines for alpha*-nat.c files to move register sets to and
+   from core files.  The UNIQUE pointer is allowed to be NULL, as most
+   targets don't supply this value in their core files.  */
+
+void
+alpha_supply_int_regs (int regno, const void *r0_r30,
+		       const void *pc, const void *unique)
+{
+  int i;
+
+  for (i = 0; i < 31; ++i)
+    if (regno == i || regno == -1)
+      supply_register (i, (const char *)r0_r30 + i*8);
+
+  if (regno == ALPHA_ZERO_REGNUM || regno == -1)
+    supply_register (ALPHA_ZERO_REGNUM, NULL);
+
+  if (regno == ALPHA_PC_REGNUM || regno == -1)
+    supply_register (ALPHA_PC_REGNUM, pc);
+
+  if (regno == ALPHA_UNIQUE_REGNUM || regno == -1)
+    supply_register (ALPHA_UNIQUE_REGNUM, unique);
 }
 
 void
-alpha_fix_call_dummy (char *dummy, CORE_ADDR pc, CORE_ADDR fun, int nargs,
-                      struct value **args, struct type *type, int gcc_p)
+alpha_fill_int_regs (int regno, void *r0_r30, void *pc, void *unique)
 {
-  CORE_ADDR bp_address = CALL_DUMMY_ADDRESS ();
+  int i;
 
-  if (bp_address == 0)
-    error ("no place to put call");
-  write_register (RA_REGNUM, bp_address);
-  write_register (T12_REGNUM, fun);
-}
+  for (i = 0; i < 31; ++i)
+    if (regno == i || regno == -1)
+      regcache_collect (i, (char *)r0_r30 + i*8);
 
-/* On the Alpha, the call dummy code is nevery copied to user space
-   (see alpha_fix_call_dummy() above).  The contents of this do not
-   matter.  */
-LONGEST alpha_call_dummy_words[] = { 0 };
+  if (regno == ALPHA_PC_REGNUM || regno == -1)
+    regcache_collect (ALPHA_PC_REGNUM, pc);
 
-int
-alpha_use_struct_convention (int gcc_p, struct type *type)
-{
-  /* Structures are returned by ref in extra arg0.  */
-  return 1;
+  if (unique && (regno == ALPHA_UNIQUE_REGNUM || regno == -1))
+    regcache_collect (ALPHA_UNIQUE_REGNUM, unique);
 }
 
 void
-alpha_store_struct_return (CORE_ADDR addr, CORE_ADDR sp)
+alpha_supply_fp_regs (int regno, const void *f0_f30, const void *fpcr)
 {
-  /* Store the address of the place in which to copy the structure the
-     subroutine will return.  Handled by alpha_push_arguments.  */
+  int i;
+
+  for (i = ALPHA_FP0_REGNUM; i < ALPHA_FP0_REGNUM + 31; ++i)
+    if (regno == i || regno == -1)
+      supply_register (i, (const char *)f0_f30 + (i - ALPHA_FP0_REGNUM) * 8);
+
+  if (regno == ALPHA_FPCR_REGNUM || regno == -1)
+    supply_register (ALPHA_FPCR_REGNUM, fpcr);
 }
 
-CORE_ADDR
-alpha_extract_struct_value_address (char *regbuf)
+void
+alpha_fill_fp_regs (int regno, void *f0_f30, void *fpcr)
 {
-  return (extract_address (regbuf + REGISTER_BYTE (V0_REGNUM),
-			   REGISTER_RAW_SIZE (V0_REGNUM)));
+  int i;
+
+  for (i = ALPHA_FP0_REGNUM; i < ALPHA_FP0_REGNUM + 31; ++i)
+    if (regno == i || regno == -1)
+      regcache_collect (i, (char *)f0_f30 + (i - ALPHA_FP0_REGNUM) * 8);
+
+  if (regno == ALPHA_FPCR_REGNUM || regno == -1)
+    regcache_collect (ALPHA_FPCR_REGNUM, fpcr);
 }
 
+
 /* alpha_software_single_step() is called just before we want to resume
    the inferior, if we want to single-step it but there is no hardware
    or kernel single-step support (NetBSD on Alpha, for example).  We find
@@ -1571,7 +1366,7 @@ alpha_next_pc (CORE_ADDR pc)
   int offset;
   LONGEST rav;
 
-  insn = read_memory_unsigned_integer (pc, sizeof (insn));
+  insn = alpha_read_insn (pc);
 
   /* Opcode is top 6 bits. */
   op = (insn >> 26) & 0x3f;
@@ -1634,6 +1429,8 @@ alpha_next_pc (CORE_ADDR pc)
 	  if (rav >= 0)
 	    goto branch_taken;
 	  break;
+
+	/* ??? Missing floating-point branches.  */
 	}
     }
 
@@ -1664,12 +1461,139 @@ alpha_software_single_step (enum target_signal sig, int insert_breakpoints_p)
     }
 }
 
+
+/* Initialize the current architecture based on INFO.  If possible, re-use an
+   architecture from ARCHES, which is a list of architectures already created
+   during this debugging session.
+
+   Called e.g. at program startup, when reading a core file, and when reading
+   a binary file.  */
+
+static struct gdbarch *
+alpha_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
+{
+  struct gdbarch_tdep *tdep;
+  struct gdbarch *gdbarch;
+
+  /* Try to determine the ABI of the object we are loading.  */
+  if (info.abfd != NULL && info.osabi == GDB_OSABI_UNKNOWN)
+    {
+      /* If it's an ECOFF file, assume it's OSF/1.  */
+      if (bfd_get_flavour (info.abfd) == bfd_target_ecoff_flavour)
+	info.osabi = GDB_OSABI_OSF1;
+    }
+
+  /* Find a candidate among extant architectures.  */
+  arches = gdbarch_list_lookup_by_info (arches, &info);
+  if (arches != NULL)
+    return arches->gdbarch;
+
+  tdep = xmalloc (sizeof (struct gdbarch_tdep));
+  gdbarch = gdbarch_alloc (&info, tdep);
+
+  /* Lowest text address.  This is used by heuristic_proc_start()
+     to decide when to stop looking.  */
+  tdep->vm_min_address = (CORE_ADDR) 0x120000000;
+
+  tdep->dynamic_sigtramp_offset = NULL;
+  tdep->sigcontext_addr = NULL;
+  tdep->sc_pc_offset = 2 * 8;
+  tdep->sc_regs_offset = 4 * 8;
+  tdep->sc_fpregs_offset = tdep->sc_regs_offset + 32 * 8 + 8;
+
+  tdep->jb_pc = -1;	/* longjmp support not enabled by default  */
+
+  /* Type sizes */
+  set_gdbarch_short_bit (gdbarch, 16);
+  set_gdbarch_int_bit (gdbarch, 32);
+  set_gdbarch_long_bit (gdbarch, 64);
+  set_gdbarch_long_long_bit (gdbarch, 64);
+  set_gdbarch_float_bit (gdbarch, 32);
+  set_gdbarch_double_bit (gdbarch, 64);
+  set_gdbarch_long_double_bit (gdbarch, 64);
+  set_gdbarch_ptr_bit (gdbarch, 64);
+
+  /* Register info */
+  set_gdbarch_num_regs (gdbarch, ALPHA_NUM_REGS);
+  set_gdbarch_sp_regnum (gdbarch, ALPHA_SP_REGNUM);
+  set_gdbarch_pc_regnum (gdbarch, ALPHA_PC_REGNUM);
+  set_gdbarch_fp0_regnum (gdbarch, ALPHA_FP0_REGNUM);
+
+  set_gdbarch_register_name (gdbarch, alpha_register_name);
+  set_gdbarch_deprecated_register_byte (gdbarch, alpha_register_byte);
+  set_gdbarch_deprecated_register_raw_size (gdbarch, alpha_register_raw_size);
+  set_gdbarch_deprecated_register_virtual_size (gdbarch, alpha_register_virtual_size);
+  set_gdbarch_register_type (gdbarch, alpha_register_type);
+
+  set_gdbarch_cannot_fetch_register (gdbarch, alpha_cannot_fetch_register);
+  set_gdbarch_cannot_store_register (gdbarch, alpha_cannot_store_register);
+
+  set_gdbarch_convert_register_p (gdbarch, alpha_convert_register_p);
+  set_gdbarch_register_to_value (gdbarch, alpha_register_to_value);
+  set_gdbarch_value_to_register (gdbarch, alpha_value_to_register);
+
+  set_gdbarch_register_reggroup_p (gdbarch, alpha_register_reggroup_p);
+
+  /* Prologue heuristics.  */
+  set_gdbarch_skip_prologue (gdbarch, alpha_skip_prologue);
+
+  /* Disassembler.  */
+  set_gdbarch_print_insn (gdbarch, print_insn_alpha);
+
+  /* Call info.  */
+
+  set_gdbarch_use_struct_convention (gdbarch, always_use_struct_convention);
+  set_gdbarch_extract_return_value (gdbarch, alpha_extract_return_value);
+  set_gdbarch_store_return_value (gdbarch, alpha_store_return_value);
+  set_gdbarch_deprecated_extract_struct_value_address (gdbarch, alpha_extract_struct_value_address);
+
+  /* Settings for calling functions in the inferior.  */
+  set_gdbarch_push_dummy_call (gdbarch, alpha_push_dummy_call);
+
+  /* Methods for saving / extracting a dummy frame's ID.  */
+  set_gdbarch_unwind_dummy_id (gdbarch, alpha_unwind_dummy_id);
+
+  /* Return the unwound PC value.  */
+  set_gdbarch_unwind_pc (gdbarch, alpha_unwind_pc);
+
+  set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
+  set_gdbarch_skip_trampoline_code (gdbarch, find_solib_trampoline_target);
+
+  set_gdbarch_breakpoint_from_pc (gdbarch, alpha_breakpoint_from_pc);
+  set_gdbarch_decr_pc_after_break (gdbarch, 4);
+
+  /* Hook in ABI-specific overrides, if they have been registered.  */
+  gdbarch_init_osabi (info, gdbarch);
+
+  /* Now that we have tuned the configuration, set a few final things
+     based on what the OS ABI has told us.  */
+
+  if (tdep->jb_pc >= 0)
+    set_gdbarch_get_longjmp_target (gdbarch, alpha_get_longjmp_target);
+
+  frame_unwind_append_sniffer (gdbarch, alpha_sigtramp_frame_sniffer);
+  frame_unwind_append_sniffer (gdbarch, alpha_heuristic_frame_sniffer);
+
+  frame_base_set_default (gdbarch, &alpha_heuristic_frame_base);
+
+  return gdbarch;
+}
+
+void
+alpha_dwarf2_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  frame_unwind_append_sniffer (gdbarch, dwarf2_frame_sniffer);
+  frame_base_append_sniffer (gdbarch, dwarf2_frame_base_sniffer);
+}
+
+extern initialize_file_ftype _initialize_alpha_tdep; /* -Wmissing-prototypes */
+
 void
 _initialize_alpha_tdep (void)
 {
   struct cmd_list_element *c;
 
-  tm_print_insn = print_insn_alpha;
+  gdbarch_register (bfd_arch_alpha, alpha_gdbarch_init, NULL);
 
   /* Let the user set the fence post for heuristic_proc_start.  */
 
