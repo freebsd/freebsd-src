@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_media.h>
+#include <net/route.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -230,6 +231,8 @@ miibus_statchg(dev)
 	return;
 }
 
+void	(*vlan_link_state_p)(struct ifnet *, int);	/* XXX: private from if_vlan */
+
 static void
 miibus_linkchg(dev)
 	device_t dev;
@@ -237,7 +240,7 @@ miibus_linkchg(dev)
 	struct mii_data *mii;
 	struct ifnet *ifp;
 	device_t parent;
-	int link;
+	int link, link_state;
 
 	parent = device_get_parent(dev);
 	MIIBUS_LINKCHG(parent);
@@ -249,15 +252,26 @@ miibus_linkchg(dev)
 	ifp = device_get_softc(parent);
 	
 	if (mii->mii_media_status & IFM_AVALID) {
-		if (mii->mii_media_status & IFM_ACTIVE)
+		if (mii->mii_media_status & IFM_ACTIVE) {
 			link = NOTE_LINKUP;
-		else
+			link_state = LINK_STATE_UP;
+		} else {
 			link = NOTE_LINKDOWN;
+			link_state = LINK_STATE_DOWN;
+		}
 	} else {
 		link = NOTE_LINKINV;
+		link_state = LINK_STATE_UNKNOWN;
 	}
 
-	KNOTE(&ifp->if_klist, link);
+	/* Notify that the link state has changed. */
+	if (ifp->if_link_state != link_state) {
+		ifp->if_link_state = link_state;
+		rt_ifmsg(ifp);
+		KNOTE(&ifp->if_klist, link);
+		if (ifp->if_nvlans != 0)
+			(*vlan_link_state_p)(ifp, link);
+	}
 }
 
 static void

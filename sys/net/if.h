@@ -104,6 +104,7 @@ struct if_data {
 	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
 	u_char	ifi_addrlen;		/* media address length */
 	u_char	ifi_hdrlen;		/* media header length */
+	u_char	ifi_link_state;		/* current link state */
 	u_char	ifi_recvquota;		/* polling quota for receive intrs */
 	u_char	ifi_xmitquota;		/* polling quota for xmit intrs */
 	u_long	ifi_mtu;		/* maximum transmission unit */
@@ -153,6 +154,13 @@ struct if_data {
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
 	    IFF_POLLING)
+
+/*
+ * Values for if_link_state.
+ */
+#define	LINK_STATE_UNKNOWN	0	/* link invalid/unknown */
+#define	LINK_STATE_DOWN		1	/* link is down */
+#define	LINK_STATE_UP		2	/* link is up */
 
 /*
  * Some convenience macros used for setting ifi_baudrate.
