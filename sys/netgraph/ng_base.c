@@ -439,12 +439,16 @@ ng_cutlinks(node_p node)
 void
 ng_unref(node_p node)
 {
+	int	s;
+
+	s = splhigh();
 	if (--node->refs <= 0) {
 		node->type->refs--;
 		LIST_REMOVE(node, nodes);
 		LIST_REMOVE(node, idnodes);
 		FREE(node, M_NETGRAPH);
 	}
+	splx(s);
 }
 
 /*
@@ -649,8 +653,12 @@ ng_unname(node_p node)
 static void
 ng_unref_hook(hook_p hook)
 {
+	int	s;
+
+	s = splhigh();
 	if (--hook->refs == 0)
 		FREE(hook, M_NETGRAPH);
+	splx(s);
 }
 
 /*
@@ -1128,6 +1136,9 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp,
  * It is up to the message handler to free the message.
  * If it's a generic message, handle it generically, otherwise
  * call the type's message handler (if it exists)
+ * XXX (race). Remember that a queued message may reference a node
+ * or hook that has just been invalidated. It will exist
+ * as the queue code is holding a reference, but..
  */
 
 #define CALL_MSG_HANDLER(error, node, msg, retaddr, resp, hook)		\
@@ -1896,10 +1907,10 @@ ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta)
 	q->body.data.da_hook = hook;
 	q->body.data.da_m = m;
 	q->body.data.da_meta = meta;
+	s = splhigh();		/* protect refs and queue */
 	hook->refs++;		/* don't let it go away while on the queue */
 
 	/* Put it on the queue */
-	s = splhigh();
 	if (ngqbase) {
 		ngqlast->next = q;
 	} else {
@@ -1948,12 +1959,12 @@ ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
 	q->body.msg.msg_msg = msg;
 	q->body.msg.msg_retaddr = retaddr;
 	q->body.msg.msg_lasthook = lasthook;
+	s = splhigh();		/* protect refs and queue */
 	dest->refs++;		/* don't let it go away while on the queue */
 	if (lasthook)
 		lasthook->refs++; /* same for the hook */
 
 	/* Put it on the queue */
-	s = splhigh();
 	if (ngqbase) {
 		ngqlast->next = q;
 	} else {
@@ -2010,14 +2021,11 @@ ngintr(void)
 			hook = ngq->body.msg.msg_lasthook;
 			RETURN_QBLK(ngq);
 			if (hook) {
-				if ((hook->refs == 1)
-		    		|| (hook->flags & HK_INVALID) != 0) {
-				/* If the hook only has one ref left
+				if ((hook->flags & HK_INVALID) != 0) {
+				/* If the hook has been zapped
 					then we can't use it */
 					ng_unref_hook(hook);
 					hook = NULL;
-				} else {
-					ng_unref_hook(hook);
 				}
 			}
 			/* similarly, if the node is a zombie.. */
@@ -2027,6 +2035,8 @@ ngintr(void)
 				CALL_MSG_HANDLER(error, node, msg,
 						 retaddr, NULL, hook);
 			}
+			if (hook)
+				ng_unref_hook(hook);
 			ng_unref(node);
 			if (retaddr)
 				FREE(retaddr, M_NETGRAPH);
