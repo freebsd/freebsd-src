@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.7 1994/11/15 20:30:56 jkh Exp $
+ * $Id: kernfs_vnops.c,v 1.8 1995/05/25 01:35:16 davidg Exp $
  */
 
 /*
@@ -78,26 +78,27 @@ struct kern_target {
 	int kt_tag;
 	int kt_rw;
 	int kt_vtype;
+	struct vnode **kt_vp;
 } kern_targets[] = {
 /* NOTE: The name must be less than UIO_MX-16 chars in length */
-	/* name		data		tag		ro/rw */
-	{ ".",		0,		KTT_NULL,	VREAD,		VDIR },
-	{ "..",		0,		KTT_NULL,	VREAD,		VDIR },
-	{ "boottime",	&boottime.tv_sec, KTT_INT,	VREAD,		VREG },
-	{ "copyright",	copyright,	KTT_STRING,	VREAD,		VREG },
-	{ "hostname",	0,		KTT_HOSTNAME,	VREAD|VWRITE,	VREG },
-	{ "bootfile",	0,		KTT_BOOTFILE,	VREAD,		VREG },
-	{ "hz",		&hz,		KTT_INT,	VREAD,		VREG },
-	{ "loadavg",	0,		KTT_AVENRUN,	VREAD,		VREG },
-	{ "pagesize",	&cnt.v_page_size, KTT_INT,	VREAD,		VREG },
-	{ "physmem",	&physmem,	KTT_INT,	VREAD,		VREG },
+	/* name		data		tag		ro/rw 	type	vnodep*/
+	{ ".",		0,		KTT_NULL,	VREAD,	VDIR,	NULL },
+	{ "..",		0,		KTT_NULL,	VREAD,	VDIR,	NULL },
+	{ "boottime",	&boottime.tv_sec, KTT_INT,	VREAD,	VREG,	NULL },
+	{ "copyright",	copyright,	KTT_STRING,	VREAD,	VREG,	NULL },
+	{ "hostname",	0,		KTT_HOSTNAME,VREAD|VWRITE,VREG, NULL },
+	{ "bootfile",	0,		KTT_BOOTFILE,	VREAD,	VREG,	NULL },
+	{ "hz",		&hz,		KTT_INT,	VREAD,	VREG,	NULL },
+	{ "loadavg",	0,		KTT_AVENRUN,	VREAD,	VREG,	NULL },
+	{ "pagesize",	&cnt.v_page_size, KTT_INT,	VREAD,	VREG,	NULL },
+	{ "physmem",	&physmem,	KTT_INT,	VREAD,	VREG,	NULL },
 #if 0
-	{ "root",	0,		KTT_NULL,	VREAD,		VDIR },
+	{ "root",	0,		KTT_NULL,	VREAD,	VDIR, &rootdir},
 #endif
-	{ "rootdev",	0,		KTT_NULL,	VREAD,		VBLK },
-	{ "rrootdev",	0,		KTT_NULL,	VREAD,		VCHR },
-	{ "time",	0,		KTT_TIME,	VREAD,		VREG },
-	{ "version",	version,	KTT_STRING,	VREAD,		VREG },
+	{ "rootdev",	0,		KTT_NULL,	VREAD,	VBLK, &rootvp },
+	{ "rrootdev",	0,		KTT_NULL,	VREAD,	VCHR, &rrootvp},
+	{ "time",	0,		KTT_TIME,	VREAD,	VREG,	NULL },
+	{ "version",	version,	KTT_STRING,	VREAD,	VREG,	NULL },
 };
 
 static int nkern_targets = sizeof(kern_targets) / sizeof(kern_targets[0]);
@@ -214,6 +215,7 @@ kernfs_lookup(ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *fvp;
+	int nameiop = cnp->cn_nameiop;
 	int error, i;
 	char *pname;
 
@@ -241,30 +243,6 @@ kernfs_lookup(ap)
 	}
 #endif
 
-	/*
-	 * /kern/rootdev is the root device
-	 */
-	if (cnp->cn_namelen == 7 && bcmp(pname, "rootdev", 7) == 0) {
-		*vpp = rootvp;
-		VREF(rootvp);
-		VOP_LOCK(rootvp);
-		return (0);
-	}
-
-	/*
-	 * /kern/rrootdev is the raw root device
-	 */
-	if (cnp->cn_namelen == 8 && bcmp(pname, "rrootdev", 8) == 0) {
-		if (rrootvp) {
-			*vpp = rrootvp;
-			VREF(rrootvp);
-			VOP_LOCK(rrootvp);
-			return (0);
-		}
-		error = ENXIO;
-		goto bad;
-	}
-
 	error = ENOENT;
 
 	for (i = 0; i < nkern_targets; i++) {
@@ -280,8 +258,49 @@ kernfs_lookup(ap)
 	printf("kernfs_lookup: i = %d, error = %d\n", i, error);
 #endif
 
-	if (error)
+	/*
+	 * If the name wasn't found, and this is not a LOOKUP
+	 * request, we return EOPNOTSUPP so that the initial namei()
+	 * fails and the higher level routines will not try to call 
+	 * our VOP_* functions.
+	 */
+	if (error) {
+		if (nameiop != LOOKUP)
+			error = EOPNOTSUPP;
 		goto bad;
+	}
+
+	/*
+	 * DELETE requests are not supported.
+	 */
+	if (nameiop == DELETE) {
+		error = EOPNOTSUPP;
+		goto bad;
+	}
+
+	/*
+	 * Allow CREATE requests if the name in question can
+	 * be written to.  This allows open(name, O_RDWR | O_CREAT)
+	 * to work.  Otherwise CREATE requests are not supported.
+	 */
+	if (nameiop == CREATE && (kern_targets[i].kt_rw & VWRITE == 0)) {
+		error = EOPNOTSUPP;
+		goto bad;
+	}
+
+	/*
+	 * Check if this name has already has a vnode associated with it.
+	 */
+	if (kern_targets[i].kt_vp) {
+		if (*kern_targets[i].kt_vp) {
+			*vpp = *kern_targets[i].kt_vp;
+			VREF(*vpp);
+			VOP_LOCK(*vpp);
+			return (0);
+		}
+		error = ENXIO;
+		goto bad;
+	}
 
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_lookup: allocate new vnode\n");
