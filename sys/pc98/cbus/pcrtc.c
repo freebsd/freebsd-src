@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.52 1998/04/06 03:38:18 kato Exp $
+ *	$Id: clock.c,v 1.53 1998/05/04 07:47:24 kato Exp $
  */
 
 /*
@@ -194,15 +194,13 @@ static void rtc_outb __P((int));
 #endif
 static	u_int	tsc_present;
 
-static	u_int64_t i8254_get_timecount __P((void));
+static	unsigned i8254_get_timecount __P((void));
+static	unsigned tsc_get_timecount __P((void));
 static	void	set_timer_freq(u_int freq, int intr_freq);
-static	u_int64_t tsc_get_timecount __P((void));
-static	u_int32_t tsc_get_timedelta __P((struct timecounter *tc));
 
 static struct timecounter tsc_timecounter[3] = {
-	tsc_get_timedelta,	/* get_timedelta */
 	tsc_get_timecount,	/* get_timecount */
- 	~0,			/* counter_mask */
+ 	~0u,			/* counter_mask */
 	0,			/* frequency */
 	 "TSC"			/* name */
 };
@@ -211,9 +209,8 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD,
 	tsc_timecounter, sizeof(tsc_timecounter), "S,timecounter", "");
 
 static struct timecounter i8254_timecounter[3] = {
-	0,			/* get_timedelta */
 	i8254_get_timecount,	/* get_timecount */
-	(1ULL << 32) - 1,	/* counter_mask */
+	~0u,			/* counter_mask */
 	0,			/* frequency */
 	"i8254"			/* name */
 };
@@ -1410,10 +1407,10 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
 
-static u_int64_t
+static u_int
 i8254_get_timecount(void)
 {
-	u_int32_t count;
+	u_int count;
 	u_long ef;
 	u_int high, low;
 
@@ -1439,14 +1436,8 @@ i8254_get_timecount(void)
 	return (count);
 }
 
-static u_int64_t
+static u_int
 tsc_get_timecount(void)
 {
-	return ((u_int64_t)rdtsc());
-}
-
-static u_int32_t
-tsc_get_timedelta(struct timecounter *tc)
-{
-	return ((u_int64_t)rdtsc() - tc->offset_count);
+	return (rdtsc());
 }
