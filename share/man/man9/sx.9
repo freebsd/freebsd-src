@@ -39,6 +39,8 @@
 .Nm sx_try_xlock ,
 .Nm sx_sunlock ,
 .Nm sx_xunlock
+.Nm sx_try_upgrade
+.Nm sx_downgrade
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -61,6 +63,10 @@
 .Fn sx_sunlock "struct sx *sx"
 .Ft void
 .Fn sx_xunlock "struct sx *sx"
+.Ft int
+.Fn sx_try_upgrade "struct sx *sx"
+.Ft void
+.Fn sx_downgrade "struct sx *sx"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -91,6 +97,12 @@ or
 .Fn sx_try_xlock
 and
 .Fn sx_xunlock .
+A thread can attempt to upgrade a currently owned shared lock to an exclusive
+lock by calling
+.Fn sx_try_upgrade .
+A thread that owns an exclusive lock can downgrade it to a shared lock by
+calling
+.Fn sx_downgrade .
 .Pp
 .Fn sx_try_slock
 and
@@ -98,6 +110,11 @@ and
 will return 0 if the shared/exclusive lock cannot be acquired immediately;
 otherwise the shared/exclusive lock will be acquired and a non-zero value will
 be returned.
+.Pp
+.Fn sx_try_upgrade
+will return 0 if the shared lock cannot be upgraded to an exclusive lock
+immediately; otherwise the exclusive lock will be acquired and a non-zero value
+will be returned.
 .Pp
 A thread may not own a shared lock and an exclusive lock simultaneously;
 attempting to do so will result in deadlock.
