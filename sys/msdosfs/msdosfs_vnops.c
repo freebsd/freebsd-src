@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.5 1994/10/06 21:06:53 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.6 1994/10/23 00:41:17 martin Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1532,8 +1532,10 @@ msdosfs_readdir(ap)
 		on = (uio->uio_offset - bias) & pmp->pm_crbomask;
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
 		diff = dep->de_FileSize - (uio->uio_offset - bias);
-		if (diff <= 0)
+		if (diff <= 0) {
+			*ap->a_eofflag = 1;
 			return 0;
+		}
 		if (diff < n)
 			n = diff;
 		error = pcbmap(dep, lbn, &bn, &cn);
@@ -1685,12 +1687,10 @@ out:	;
 	}
 
 	/*
-	 * I don't know why we bother setting this eofflag, getdirentries()
-	 * in vfs_syscalls.c doesn't bother to look at it when we return.
-	 * (because NFS uses it in nfs_serv.c -- JMP)
+	 * Set the eofflag (NFS uses it)
 	 */
 	if (ap->a_eofflag)
-		if (dep->de_FileSize - uio->uio_offset - bias <= 0)
+		if (dep->de_FileSize - (uio->uio_offset - bias) <= 0)
 			*ap->a_eofflag = 1;
 		else
 			*ap->a_eofflag = 0;
