@@ -622,6 +622,8 @@ WI_SYMBOL_FIRMWARE	opt_wi.h
 # XXX bogusly global.
 DEVICE_POLLING		opt_global.h
 
+SOCKBUF_DEBUG		opt_global.h
+
 # options for ubsec driver
 UBSEC_DEBUG		opt_ubsec.h
 UBSEC_RNDTEST		opt_ubsec.h
