@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.1.2.2 1996/11/12 09:11:33 phk Exp $
+# $Id: ndcedit.awk,v 1.1.2.3 1997/05/27 07:19:36 jkh Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
@@ -13,8 +13,8 @@ NR == 3 {
 }
 {
 	if ($1 == "named") {
-		printf "\t\t# $namedflags is imported from /etc/rc.conf\n"
-		printf "\t\tif [ \"X${named_flags}\" != X\"NO\" ]; then\n"
+		printf "\t\t# $named_flags is imported from /etc/rc.conf\n"
+		printf "\t\tif [ \"X${named_enable}\" = X\"YES\" ]; then\n"
 		printf "\t\t\tnamed ${named_flags} && {\n"
 		getline
 		printf "\t%s\n", $0
