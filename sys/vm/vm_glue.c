@@ -362,6 +362,7 @@ loop:
 	ppri = INT_MIN;
 	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN &&
 			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
 
@@ -380,6 +381,7 @@ loop:
 				ppri = pri;
 			}
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 
@@ -450,8 +452,10 @@ retry:
 
 		vm = p->p_vmspace;
 
+		mtx_enter(&sched_lock, MTX_SPIN);
 		switch (p->p_stat) {
 		default:
+			mtx_exit(&sched_lock, MTX_SPIN);
 			continue;
 
 		case SSLEEP:
@@ -459,8 +463,10 @@ retry:
 			/*
 			 * do not swapout a realtime process
 			 */
-			if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type))
+			if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type)) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
+			}
 
 			/*
 			 * Do not swapout a process waiting on a critical
@@ -468,8 +474,11 @@ retry:
 			 * time in memory.
 			 */
 			if (((p->p_priority & 0x7f) < PSOCK) ||
-				(p->p_slptime < swap_idle_threshold1))
+				(p->p_slptime < swap_idle_threshold1)) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
+			}
+			mtx_exit(&sched_lock, MTX_SPIN);
 
 			/*
 			 * If the system is under memory stress, or if we are swapping
@@ -531,10 +540,12 @@ swapout(p)
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
 	(void) splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_flag &= ~P_INMEM;
 	p->p_flag |= P_SWAPPING;
 	if (p->p_stat == SRUN)
 		remrunqueue(p);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	(void) spl0();
 
 	pmap_swapout_proc(p);
