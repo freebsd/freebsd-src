@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.21 1997/11/06 02:20:27 fenner Exp $
+#	$Id: bsd.port.subdir.mk,v 1.22 1997/11/10 00:35:25 wosch Exp $
 #
 # The include file <bsd.port.subdir.mk> contains the default targets
 # for building ports subdirectories. 
@@ -95,6 +95,34 @@ afterinstall:
 install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
+.endif
+
+IGNOREDIR=	CVS distfiles packages pkg templates
+
+.if !target(checksubdirs)
+.if defined(PORTSTOP)
+checksubdirs: checksubdir _SUBDIRUSE
+.else
+checksubdirs: checksubdir
+.endif
+.endif
+
+.if !target(checksubdir)
+checksubdir:
+	@for d in *; do \
+	  if [ -d "$$d" ]; then \
+	    found=0; \
+	    for s in ${SUBDIR} ${IGNOREDIR}; do \
+	      if [ "x$$s" = "x$$d" ]; then \
+	        found=1; \
+	        break; \
+	      fi; \
+	    done; \
+	    if [ $$found = 0 ]; then \
+	      ${ECHO} "Warning: directory $$d not in SUBDIR"; \
+	    fi; \
+	  fi; \
+	done
 .endif
 
 .if !target(readmes)
