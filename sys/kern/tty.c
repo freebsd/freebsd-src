@@ -91,7 +91,6 @@
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
-#include <sys/linker.h>
 #if NSNP > 0
 #include <sys/snoop.h>
 #endif
@@ -114,7 +113,6 @@ static void	ttyrub __P((int c, struct tty *tp));
 static void	ttyrubo __P((struct tty *tp, int cnt));
 static void	ttyunblock __P((struct tty *tp));
 static int	ttywflush __P((struct tty *tp));
-static int	tty_load_disc __P((int t));
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -201,23 +199,6 @@ static u_char const char_type[] = {
  * list of struct tty where pstat(8) can pick it up with sysctl
  */
 static SLIST_HEAD(, tty) tty_list;
-
-/*
- * Some line disciplines may exist as external KLD modules.
- * Put them here and they will be automatically loaded
- * whenever someone attempts to install the corresponding
- * line discipline.
- */
-static struct tty_kldinfo {
-	int		discnum;	/* line discipline number, -1 ends */
-	const char	*filename;	/* name of the KLD file */
-	int		loaded;		/* set to 1 if already loaded */
-} tty_ldisc_klds[] = {
-	{ SLIPDISC,	"if_sl.ko"	},
-	{ PPPDISC,	"if_ppp.ko"	},
-	{ NETGRAPHDISC,	"ng_tty.ko"	},
-	{ -1				}
-};
 
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
@@ -979,8 +960,6 @@ ttioctl(tp, cmd, data, flag)
 			s = spltty();
 			(*linesw[tp->t_line].l_close)(tp, flag);
 			error = (*linesw[t].l_open)(device, tp);
-			if (error == ENODEV && tty_load_disc(t)) /* try KLD */
-				error = (*linesw[t].l_open)(device, tp);
 			if (error) {
 				(void)(*linesw[tp->t_line].l_open)(device, tp);
 				splx(s);
@@ -1243,42 +1222,6 @@ again:
 		ttwwakeup(tp);
 	}
 	splx(s);
-}
-
-/*
- * Try to load the KLD for the line discipline, if one exists.
- * Returns 1 on success, zero on failure.
- */
-static int
-tty_load_disc(int t)
-{
-	struct tty_kldinfo *kld;
-	linker_file_t lf;
-	int error;
-	char *path;
-
-	for (kld = &tty_ldisc_klds[0]; kld->discnum != -1; kld++) {
-		if (kld->discnum == t) {
-
-			/* Don't load the same KLD twice */
-			if (kld->loaded)
-				break;
-
-			/* Try loading the KLD */
-			if ((path = linker_search_path(kld->filename)) == NULL)
-				return 0;
-			error = linker_load_file(path, &lf);
-			FREE(path, M_LINKER);
-			if (error != 0)
-				return 0;
-			lf->userrefs++;		/* as if by kldload(2) */
-
-			/* Mark KLD as loaded and return success */
-			kld->loaded = 1;
-			return 1;
-		}
-	}
-	return 0;
 }
 
 /*
