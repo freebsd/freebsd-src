@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.40 1996/01/19 03:59:43 dyson Exp $
+ * $Id: vm_fault.c,v 1.41 1996/03/02 02:54:18 dyson Exp $
  */
 
 /*
@@ -439,7 +439,6 @@ readrest:
 
 			if ((m->flags & PG_ZERO) == 0)
 				vm_page_zero_fill(m);
-			m->valid = VM_PAGE_BITS_ALL;
 			cnt.v_zfod++;
 			break;
 		} else {
@@ -513,7 +512,6 @@ readrest:
 				 */
 				vm_page_rename(m, first_object, first_pindex);
 				first_m = m;
-				m->valid = VM_PAGE_BITS_ALL;
 				m->dirty = VM_PAGE_BITS_ALL;
 				m = NULL;
 				++vm_fault_copy_save_1;
@@ -522,7 +520,6 @@ readrest:
 				 * Oh, well, lets copy it.
 				 */
 				vm_page_copy(m, first_m);
-				first_m->valid = VM_PAGE_BITS_ALL;
 			}
 
 			if (lookup_still_valid &&
@@ -591,7 +588,7 @@ readrest:
 							 */
 							vm_page_rename(m, other_object, other_pindex);
 							m->dirty = VM_PAGE_BITS_ALL;
-							/* m->valid = VM_PAGE_BITS_ALL; */
+							m->valid = VM_PAGE_BITS_ALL;
 							++vm_fault_copy_save_2;
 						}
 					}
@@ -710,6 +707,7 @@ readrest:
 
 	m->flags |= PG_MAPPED|PG_REFERENCED;
 	m->flags &= ~PG_ZERO;
+	m->valid = VM_PAGE_BITS_ALL;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
