@@ -839,6 +839,11 @@ syncache_add(inc, to, th, sop, m)
 		 */
 		if (sc->sc_flags & SCF_TIMESTAMP)
 			sc->sc_tsrecent = to->to_tsval;
+		/*
+		 * PCB may have changed, pick up new values.
+		 */
+		sc->sc_tp = tp;
+		sc->sc_inp_gencnt = tp->t_inpcb->inp_gencnt;
 		if (syncache_respond(sc, m) == 0) {
 		        s = splnet();
 			TAILQ_REMOVE(&tcp_syncache.timerq[sc->sc_rxtslot],
