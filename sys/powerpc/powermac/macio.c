@@ -110,7 +110,6 @@ devclass_t macio_devclass;
 
 DRIVER_MODULE(macio, pci, macio_pci_driver, macio_devclass, 0, 0);
 
-
 /*
  * PCI ID search table
  */
@@ -189,25 +188,20 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 static void
 macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
 {
-        u_int size;
-	u_int start;
-	u_int end;
-	
-        size = OF_getprop(devnode, "reg", dinfo->mdi_reg,
-                          sizeof(dinfo->mdi_reg));
-	
-        if (size != -1) {
+	struct	macio_reg *reg;
+	int	i, nreg;
 
-		/*
-		 * Only do a single range for the moment...
-		 */
-                dinfo->mdi_nregs = 1;
-		start = dinfo->mdi_reg[0];
-		end = start + dinfo->mdi_reg[1] - 1;
-		resource_list_add_next(&dinfo->mdi_resources, SYS_RES_MEMORY,
-				  start, end, end - start + 1);
-        } else {
-		dinfo->mdi_nregs = -1;
+	nreg = OF_getprop_alloc(devnode, "reg", sizeof(*reg), (void **)&reg);
+	if (nreg == -1)
+		return;
+
+	dinfo->mdi_nregs = nreg;
+	dinfo->mdi_regs = reg;
+	
+	for (i = 0; i < nreg; i++) {
+		resource_list_add(&dinfo->mdi_resources, SYS_RES_MEMORY, i,
+		    reg[i].mr_base, reg[i].mr_base + reg[i].mr_size,
+		    reg[i].mr_size);
 	}
 }
 
@@ -263,7 +257,7 @@ macio_attach(device_t dev)
 	sc->sc_size = MACIO_REG_SIZE;
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "IOBus Device Memory";
+	sc->sc_mem_rman.rm_descr = "MacIO Device Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0) {
 		device_printf(dev,
 			      "failed to init mem range resources\n");
@@ -340,14 +334,18 @@ macio_print_child(device_t dev, device_t child)
 static void
 macio_probe_nomatch(device_t dev, device_t child)
 {
-	u_int *regs;
+        struct macio_devinfo *dinfo;
+        struct resource_list *rl;
 
 	if (bootverbose) {
-		regs = macio_get_regs(child);
+		dinfo = device_get_ivars(child);
+		rl = &dinfo->mdi_resources;
 
 		device_printf(dev, "<%s, %s>", macio_get_devtype(child),
-			      macio_get_name(child));
-		printf("at offset 0x%x (no driver attached)\n", regs[0]);
+		    macio_get_name(child));
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+		printf(" (no driver attached)\n");
 	}
 }
 
@@ -374,7 +372,7 @@ macio_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
                 *result = dinfo->mdi_nregs;
                 break;
         case MACIO_IVAR_REGS:
-                *result = (uintptr_t) &dinfo->mdi_reg[0];
+                *result = dinfo->mdi_regs;
                 break;
         default:
                 return (ENOENT);
@@ -395,12 +393,14 @@ static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct macio_softc *sc;
-	int  needactivate;
-	struct  resource *rv;
-	struct  rman *rm;
-	bus_space_tag_t tagval;
-	struct	macio_devinfo *dinfo;
+	struct		macio_softc *sc;
+	int		needactivate;
+	struct		resource *rv;
+	struct		rman *rm;
+	bus_space_tag_t	tagval;
+	u_long		adjstart, adjend, adjcount;
+	struct		macio_devinfo *dinfo;
+	struct		resource_list_entry *rle;
 
 	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
@@ -411,25 +411,55 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
+		rle = resource_list_find(&dinfo->mdi_resources, SYS_RES_MEMORY,
+		    *rid);
+		if (rle == NULL) {
+			device_printf(bus, "no rle for %s memory %d\n",
+			    device_get_nameunit(child), *rid);
+			return (NULL);
+		}
+
+		if (start < rle->start)
+			adjstart = rle->start;
+		else if (start > rle->end)
+			adjstart = rle->end;
+		else
+			adjstart = start;
+
+		if (end < rle->start)
+			adjend = rle->start;
+		else if (end > rle->end)
+			adjend = rle->end;
+		else
+			adjend = end;
+
+		adjcount = adjend - adjstart;
+
 		rm = &sc->sc_mem_rman;
+
 		tagval = PPC_BUS_SPACE_MEM;
 		if (flags & PPC_BUS_SPARSE4)
 			tagval |= 4;
+
 		break;
+
 	case SYS_RES_IRQ:
 		return (resource_list_alloc(&dinfo->mdi_resources, bus, child,
 		    type, rid, start, end, count, flags));
 		break;
+
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
 			      device_get_nameunit(child));
 		return (NULL);
 	}
 
-	rv = rman_reserve_resource(rm, start, end, count, flags, child);
+	rv = rman_reserve_resource(rm, adjstart, adjend, adjcount, flags,
+	    child);
 	if (rv == NULL) {
-		device_printf(bus, "failed to reserve resource for %s\n",
-			      device_get_nameunit(child));
+		device_printf(bus,
+		    "failed to reserve resource %#lx - %#lx (%#lx) for %s\n",
+		    adjstart, adjend, adjcount, device_get_nameunit(child));
 		return (NULL);
 	}
 
@@ -446,7 +476,7 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
                 }
         }
 
-	return (rv);	
+	return (rv);
 }
 
 

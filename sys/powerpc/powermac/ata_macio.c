@@ -46,6 +46,14 @@
 #include <dev/ofw/openfirm.h>
 #include <powerpc/powermac/maciovar.h>
 
+struct ata_macio_softc {
+	struct			resource *sc_memres;
+	int			sc_memrid;
+	bus_space_tag_t		sc_bt;
+	bus_space_handle_t	sc_bh;
+	struct			rman sc_mem_rman;
+};
+
 /*
  * Define the macio ata bus attachment. This creates a pseudo-bus that
  * the ATA device can be attached to
@@ -81,7 +89,7 @@ static device_method_t ata_macio_methods[] = {
 static driver_t ata_macio_driver = {
 	"atamacio",
 	ata_macio_methods,
-	0,
+	sizeof(struct ata_macio_softc),
 };
 
 static devclass_t ata_macio_devclass;
@@ -98,7 +106,7 @@ ata_macio_probe(device_t dev)
 		return (ENXIO);
 
 	/* Print keylargo/pangea ??? */
-	device_set_desc(dev, "Mac-IO ATA Controller");
+	device_set_desc(dev, "MacIO ATA Controller");
 	return (0);	
 }
 
@@ -106,6 +114,31 @@ ata_macio_probe(device_t dev)
 static int
 ata_macio_attach(device_t dev)
 {
+	struct	ata_macio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	sc->sc_memrid = 0;
+	sc->sc_memres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_memrid,
+	    0, ~1, 1, RF_ACTIVE | PPC_BUS_SPARSE4);
+	if (sc->sc_memres == NULL) {
+		device_printf(dev, "could not allocate memory\n");
+		return (ENXIO);
+	}
+
+	sc->sc_bt = rman_get_bustag(sc->sc_memres);
+	sc->sc_bh = rman_get_bushandle(sc->sc_memres);
+
+	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_mem_rman.rm_descr = device_get_nameunit(dev);
+	if (rman_init(&sc->sc_mem_rman) != 0) {
+		device_printf(dev, "failed to init memory rman\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_memrid,
+		    sc->sc_memres);
+		return (ENXIO);
+	}
+	rman_manage_region(&sc->sc_mem_rman, 0, rman_get_size(sc->sc_memres));
+
 	/*
 	 * Add a single child per controller. Should be able
 	 * to add two
@@ -135,11 +168,13 @@ struct resource *
 ata_macio_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			 u_long start, u_long end, u_long count, u_int flags)
 {
-	struct resource *res = NULL;
-	int myrid;
-	u_int *ofw_regs;
+	struct			ata_macio_softc *sc;
+	struct			resource *res;
+	int			myrid;
+	bus_space_handle_t	bh;
 
-	ofw_regs = macio_get_regs(dev);
+	sc = device_get_softc(dev);
+	res = NULL;
 
 	/*
 	 * The offset for the register bank is in the first ofw register,
@@ -149,25 +184,42 @@ ata_macio_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	if (type == SYS_RES_IOPORT) {
 		switch (*rid) {
 		case ATA_IOADDR_RID:
-			myrid = 0;
-			start = ofw_regs[0];
-			end = start + (ATA_IOSIZE << 4) - 1;
+			start = 0;
+			end = (ATA_IOSIZE << 4) - 1;
 			count = ATA_IOSIZE << 4;
-			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_IOPORT, &myrid,
-						 start, end, count,
-						 PPC_BUS_SPARSE4 | flags);
+			res = rman_reserve_resource(&sc->sc_mem_rman, start,
+			    end, count, flags | PPC_BUS_SPARSE4, child);
+			if (res == NULL) {
+				device_printf(dev, "rman_reserve failed\n");
+				return (NULL);
+			}
+
+			rman_set_bustag(res, sc->sc_bt);
+			bus_space_subregion(sc->sc_bt, sc->sc_bh,
+			    rman_get_start(res), rman_get_size(res), &bh);
+			rman_set_bushandle(res, bh);
+			rman_set_rid(res, ATA_IOADDR_RID);
+
 			break;
 
 		case ATA_ALTADDR_RID:		
-			myrid = 0;
-			start = ofw_regs[0] + ATA_MACIO_ALTOFFSET;
+			start = ATA_MACIO_ALTOFFSET;
 			end = start + (ATA_ALTIOSIZE << 4) - 1;
 			count = ATA_ALTIOSIZE << 4;
-			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_IOPORT, &myrid,
-						 start, end, count,
-						 PPC_BUS_SPARSE4 | flags);
+
+			res = rman_reserve_resource(&sc->sc_mem_rman, start,
+			    end, count, flags | PPC_BUS_SPARSE4, child);
+			if (res == NULL) {
+				device_printf(dev, "rman_reserve failed\n");
+				return (NULL);
+			}
+
+			rman_set_bustag(res, sc->sc_bt);
+			bus_space_subregion(sc->sc_bt, sc->sc_bh,
+			    rman_get_start(res), rman_get_size(res), &bh);
+			rman_set_bushandle(res, bh);
+			rman_set_rid(res, ATA_ALTADDR_RID);
+
 			break;
 
 		case ATA_BMADDR_RID:
@@ -196,8 +248,15 @@ static int
 ata_macio_release_resource(device_t dev, device_t child, int type, int rid,
 			   struct resource *r)
 {
-	printf("macio: release resource\n");
-	return (0);
+
+	if (type == SYS_RES_IRQ)
+		return (bus_release_resource(device_get_parent(dev), type,
+		    rid, r));
+
+	if (type == SYS_RES_IOPORT || type == SYS_RES_MEMORY)
+		return (rman_release_resource(r));
+
+	return (ENXIO);
 }
 
 
@@ -242,12 +301,14 @@ ata_macio_locknoop(struct ata_channel *ch, int type)
 static int
 ata_macio_sub_probe(device_t dev)
 {
-	struct ata_channel *ch = device_get_softc(dev);
+	struct	ata_channel *ch;
+
+	ch = device_get_softc(dev);
 
 	ch->unit = 0; 
 	ch->flags = ATA_USE_16BIT;
 	ch->intr_func = ata_macio_intrnoop;
 	ch->lock_func = ata_macio_locknoop;
 
-	return ata_probe(dev);
+	return (ata_probe(dev));
 }
