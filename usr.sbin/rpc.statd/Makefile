@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/04/01 05:36:03 peter Exp $
+#	$Id: Makefile,v 1.3 1996/07/09 22:40:39 nate Exp $
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c statd.c procs.c
@@ -12,7 +12,7 @@ CFLAGS+= -I.
 
 CLEANFILES= sm_inter_svc.c sm_inter.h
 
-RPCSRC= ${.DESTDIR}/usr/include/rpcsvc/sm_inter.x
+RPCSRC= ${DESTDIR}/usr/include/rpcsvc/sm_inter.x
 RPCGEN= rpcgen -L -C
 
 sm_inter_svc.c: ${RPCSRC} sm_inter.h
