@@ -623,7 +623,7 @@ dotrim(char *log, char *pid_file, int numdays, int flags, int perm,
 	}
 	if ((flags & CE_COMPACT)) {
 		if (need_notification && !notified)
-			warnx("log not compressed because daemon not notified");
+			warnx("log %s not compressed because daemon not notified", log);
 		else if (noaction)
 			printf("Compress %s.0\n", log);
 		else {
