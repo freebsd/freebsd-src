@@ -130,8 +130,8 @@ STRIP?=	-s
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
-	    ${.IMPSRC} -o ${.TARGET}
+	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} \
+	    ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
@@ -164,7 +164,8 @@ STRIP?=	-s
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
@@ -297,8 +298,7 @@ _includeinstall:
 .for header in ${INCS}
 	cd ${.CURDIR} && \
 	${INSTALL} -C -o ${INCOWN} -g ${INCGRP} -m ${INCMODE} \
-		${header} ${DESTDIR}${INCDIR}
-
+	    ${header} ${DESTDIR}${INCDIR}
 .endfor
 .endif
 
