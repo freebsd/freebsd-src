@@ -72,7 +72,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for GEOM providers labelization.
+utility is used for GEOM provider labelization.
 A label can be set up on a GEOM provider in two ways:
 .Dq manual
 or
@@ -132,7 +132,7 @@ Set up a label
 for the given provider.
 This is the
 .Dq automatic
-method, where metadata is stored in provider's last sector.
+method, where metadata is stored in a provider's last sector.
 The kernel module
 .Pa geom_label.ko
 will be loaded if it is not loaded already.
@@ -178,9 +178,9 @@ The default value is shown next to each variable.
 Debug level of the
 .Nm LABEL
 GEOM class.
-This can be set to a number between 0 and 2, both included.
+This can be set to a number between 0 and 2 inclusive.
 If set to 0 minimal debug information is printed, and if set to 2 the
-maximum amount of debug information in printed.
+maximum amount of debug information is printed.
 .El
 .Sh EXAMPLES
 The following example shows how to set up a label for disk
