@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.8 1995/02/20 19:42:19 guido Exp $
+ * $Id: param.c,v 1.9 1995/05/25 07:36:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -89,11 +89,7 @@ int	ncallout = 16 + NPROC;			/* maximum # of timer events */
 
 /* maximum # of mbuf clusters */
 #ifndef NMBCLUSTERS
-#ifdef GATEWAY
 int	nmbclusters = 512 + MAXUSERS * 16;
-#else
-int	nmbclusters = 256 + MAXUSERS * 16;
-#endif /* GATEWAY */
 #else
 int	nmbclusters = NMBCLUSTERS;
 #endif
