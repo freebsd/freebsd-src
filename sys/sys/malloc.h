@@ -41,9 +41,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
-#define splmem splhigh
-
-#define MINALLOCSIZE	UMA_SMALLEST_UNIT
+#define	MINALLOCSIZE	UMA_SMALLEST_UNIT
 
 /*
  * flags to malloc.
@@ -52,7 +50,7 @@
 #define	M_NOWAIT	0x0001		/* do not block */
 #define	M_USE_RESERVE	0x0002		/* can alloc out of reserve memory */
 #define	M_ZERO		0x0004		/* bzero the allocation */
-#define	M_NOVM		0x0008		/* Don't ask the VM for pages */
+#define	M_NOVM		0x0008		/* don't ask VM for pages */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
@@ -65,10 +63,8 @@ struct malloc_type {
 	u_long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
-	struct mtx ks_mtx;	/* Lock for stats */
+	struct mtx ks_mtx;	/* lock for stats */
 };
-
-extern struct mtx malloc_mtx;
 
 #ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
@@ -101,6 +97,8 @@ MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
  * has a chance to include <sys/malloc.h> to get MALLOC_DECLARE() defined.
  */
 MALLOC_DECLARE(M_IOV);
+
+extern struct mtx malloc_mtx;
 
 /* XXX struct malloc_type is unused for contig*(). */
 void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
