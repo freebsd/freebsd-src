@@ -178,7 +178,6 @@ struct rndstate_test;
 
 struct ubsec_softc {
 	device_t		sc_dev;		/* device backpointer */
-	struct mtx		sc_mtx;		/* per-driver lock */
 	struct resource		*sc_irq;
 	void			*sc_ih;		/* interrupt handler cookie */
 	bus_space_handle_t	sc_sh;		/* memory handle */
@@ -190,11 +189,14 @@ struct ubsec_softc {
 	int			sc_needwakeup;	/* notify crypto layer */
 	u_int32_t		sc_statmask;	/* interrupt status mask */
 	int32_t			sc_cid;		/* crypto tag */
+	struct mtx		sc_mcr1lock;	/* mcr1 operation lock */
 	SIMPLEQ_HEAD(,ubsec_q)	sc_queue;	/* packet queue, mcr1 */
 	int			sc_nqueue;	/* count enqueued, mcr1 */
 	SIMPLEQ_HEAD(,ubsec_q)	sc_qchip;	/* on chip, mcr1 */
 	int			sc_nqchip;	/* count on chip, mcr1 */
+	struct mtx		sc_freeqlock;	/* freequeue lock */
 	SIMPLEQ_HEAD(,ubsec_q)	sc_freequeue;	/* list of free queue elements */
+	struct mtx		sc_mcr2lock;	/* mcr2 operation lock */
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_queue2;	/* packet queue, mcr2 */
 	int			sc_nqueue2;	/* count enqueued, mcr2 */
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_qchip2;	/* on chip, mcr2 */
@@ -210,9 +212,6 @@ struct ubsec_softc {
 	struct ubsec_q		*sc_queuea[UBS_MAX_NQUEUE];
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_q2free;	/* free list */
 };
-
-#define	UBSEC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	UBSEC_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
 #define	UBSEC_QFLAGS_COPYOUTIV		0x1
 
