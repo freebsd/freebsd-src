@@ -107,6 +107,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 
     switch (scp->chiptype) {
 
+    case 0x244a8086:	/* Intel ICH2 mobile */ 
     case 0x244b8086:	/* Intel ICH2 */
 	if (udmamode >= 5) {
 	    int32_t mask48, new48;
@@ -118,7 +119,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				    ATA_UDMA5,  ATA_C_F_SETXFER,ATA_WAIT_READY);
 	    	if (bootverbose)
 		    ata_printf(scp, device,
-			       "%s setting UDMA5 on ICH2 chip\n",
+			       "%s setting UDMA5 on Intel chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
@@ -148,9 +149,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 				    ATA_UDMA4,  ATA_C_F_SETXFER,ATA_WAIT_READY);
 	    	if (bootverbose)
 		    ata_printf(scp, device,
-			       "%s setting UDMA4 on ICH%s chip\n",
-			       (error) ? "failed" : "success",
-			       (scp->chiptype == 0x244b8086) ? "2" : "");
+			       "%s setting UDMA4 on Intel chip\n",
+			       (error) ? "failed" : "success");
 		if (!error) {
 		    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 		    new48 = (1 << devno) + (2 << (16 + (devno << 2)));
@@ -177,11 +177,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting UDMA2 on %s chip\n",
-			   (error) ? "failed" : "success",
-			   (scp->chiptype == 0x244b8086) ? "ICH2" : 
-			    (scp->chiptype == 0x24118086) ? "ICH" : 
-			     (scp->chiptype == 0x24218086) ? "ICH0" :"PIIX4");
+		ata_printf(scp, device, "%s setting UDMA2 on Intel chip\n",
+			   (error) ? "failed" : "success");
 	    if (!error) {
 		mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 		new48 = (1 << devno) + (2 << (16 + (devno << 2)));
@@ -220,12 +217,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting WDMA2 on %s chip\n",
-			   (error) ? "failed" : "success",
-			   (scp->chiptype == 0x244b8086) ? "ICH2" : 
-			    (scp->chiptype == 0x24118086) ? "ICH" :
-			     (scp->chiptype == 0x24218086) ? "ICH0" :
-			      (scp->chiptype == 0x70108086) ? "PIIX3":"PIIX4");
+		ata_printf(scp, device, "%s setting WDMA2 on Intel chip\n",
+			   (error) ? "failed" : "success");
 	    if (!error) {
 		if (device == ATA_MASTER) {
 		    mask40 = 0x0000330f;
@@ -274,7 +267,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device, 
-			   "%s setting WDMA2 on PIIX chip\n",
+			   "%s setting WDMA2 on Intel chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
@@ -296,7 +289,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA5 on Aladdin chip\n",
+			   "%s setting UDMA5 on Acer chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		int32_t word54 = pci_read_config(parent, 0x54, 4);
@@ -317,7 +310,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA4 on Aladdin chip\n",
+			   "%s setting UDMA4 on Acer chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		int32_t word54 = pci_read_config(parent, 0x54, 4);
@@ -338,7 +331,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA2 on Aladdin chip\n",
+			   "%s setting UDMA2 on Acer chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		int32_t word54 = pci_read_config(parent, 0x54, 4);
@@ -363,7 +356,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device, 
-			   "%s setting WDMA2 on Aladdin chip\n",
+			   "%s setting WDMA2 on Acer chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x53, 
