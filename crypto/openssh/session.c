@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.138 2002/06/20 23:05:55 markus Exp $");
+RCSID("$OpenBSD: session.c,v 1.142 2002/06/26 13:49:26 deraadt Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -253,8 +253,8 @@ do_authenticated1(Authctxt *authctxt)
 	Session *s;
 	char *command;
 	int success, type, screen_flag;
-	int compression_level = 0, enable_compression_after_reply = 0;
-	u_int proto_len, data_len, dlen;
+	int enable_compression_after_reply = 0;
+	u_int proto_len, data_len, dlen, compression_level = 0;
 
 	s = session_new();
 	s->authctxt = authctxt;
@@ -850,6 +850,9 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 	} else {
 		/* New variable.  Expand if necessary. */
 		if (i >= (*envsizep) - 1) {
+			if (*envsizep >= 1000)
+				fatal("child_set_env: too many env vars,"
+				    " skipping: %.100s", name);
 			(*envsizep) += 50;
 			env = (*envp) = xrealloc(env, (*envsizep) * sizeof(char *));
 		}
@@ -875,12 +878,15 @@ read_environment_file(char ***env, u_int *envsize,
 	FILE *f;
 	char buf[4096];
 	char *cp, *value;
+	u_int lineno = 0;
 
 	f = fopen(filename, "r");
 	if (!f)
 		return;
 
 	while (fgets(buf, sizeof(buf), f)) {
+		if (++lineno > 1000)
+			fatal("Too many lines in environment file %s", filename);
 		for (cp = buf; *cp == ' ' || *cp == '\t'; cp++)
 			;
 		if (!*cp || *cp == '#' || *cp == '\n')
@@ -889,7 +895,8 @@ read_environment_file(char ***env, u_int *envsize,
 			*strchr(cp, '\n') = '\0';
 		value = strchr(cp, '=');
 		if (value == NULL) {
-			fprintf(stderr, "Bad line in %.100s: %.200s\n", filename, buf);
+			fprintf(stderr, "Bad line %u in %.100s\n", lineno,
+			    filename);
 			continue;
 		}
 		/*
@@ -1166,6 +1173,8 @@ do_nologin(struct passwd *pw)
 void
 do_setusercontext(struct passwd *pw)
 {
+	char tty='\0';
+
 #ifdef HAVE_CYGWIN
 	if (is_winnt) {
 #else /* HAVE_CYGWIN */
@@ -1175,6 +1184,9 @@ do_setusercontext(struct passwd *pw)
 		setpcred(pw->pw_name);
 #endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
+#ifdef __bsdi__
+		setpgid(0, 0);
+#endif
 		if (setusercontext(lc, pw, pw->pw_uid,
 		    (LOGIN_SETALL & ~(LOGIN_SETENV|LOGIN_SETPATH))) < 0) {
 			perror("unable to set user context");
@@ -1210,6 +1222,10 @@ do_setusercontext(struct passwd *pw)
 # if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
 		irix_setusercontext(pw);
 #  endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
+# ifdef _AIX
+		/* XXX: Disable tty setting.  Enabled if required later */
+		aix_usrinfo(pw, &tty, -1);
+# endif /* _AIX */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
 #endif
@@ -1272,9 +1288,6 @@ do_child(Session *s, const char *command)
 			do_motd();
 #else /* HAVE_OSF_SIA */
 		do_nologin(pw);
-# ifdef _AIX
-		aix_usrinfo(pw, s->tty, s->ttyfd);
-# endif /* _AIX */
 		do_setusercontext(pw);
 #endif /* HAVE_OSF_SIA */
 	}
@@ -1984,9 +1997,9 @@ session_setup_x11fwd(Session *s)
 		debug("X11 display already set.");
 		return 0;
 	}
-	s->display_number = x11_create_display_inet(options.x11_display_offset,
-	    options.x11_use_localhost, s->single_connection);
-	if (s->display_number == -1) {
+	if (x11_create_display_inet(options.x11_display_offset,
+	    options.x11_use_localhost, s->single_connection,
+	    &s->display_number) == -1) {
 		debug("x11_create_display_inet failed.");
 		return 0;
 	}
@@ -2000,9 +2013,9 @@ session_setup_x11fwd(Session *s)
 	 * different than the DISPLAY string for localhost displays.
 	 */
 	if (options.x11_use_localhost) {
-		snprintf(display, sizeof display, "localhost:%d.%d",
+		snprintf(display, sizeof display, "localhost:%u.%u",
 		    s->display_number, s->screen);
-		snprintf(auth_display, sizeof auth_display, "unix:%d.%d",
+		snprintf(auth_display, sizeof auth_display, "unix:%u.%u",
 		    s->display_number, s->screen);
 		s->display = xstrdup(display);
 		s->auth_display = xstrdup(auth_display);
@@ -2018,10 +2031,10 @@ session_setup_x11fwd(Session *s)
 			return 0;
 		}
 		memcpy(&my_addr, he->h_addr_list[0], sizeof(struct in_addr));
-		snprintf(display, sizeof display, "%.50s:%d.%d", inet_ntoa(my_addr),
+		snprintf(display, sizeof display, "%.50s:%u.%u", inet_ntoa(my_addr),
 		    s->display_number, s->screen);
 #else
-		snprintf(display, sizeof display, "%.400s:%d.%d", hostname,
+		snprintf(display, sizeof display, "%.400s:%u.%u", hostname,
 		    s->display_number, s->screen);
 #endif
 		s->display = xstrdup(display);

@@ -35,7 +35,8 @@
 
 #include "includes.h"
 #include "openbsd-compat/fake-queue.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.95 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.97 2002/06/24 14:55:38 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
 #include <openssl/md5.h>
@@ -110,6 +111,7 @@ static void
 idtab_init(void)
 {
 	int i;
+
 	for (i = 0; i <=2; i++) {
 		TAILQ_INIT(&idtable[i].idlist);
 		idtable[i].nentries = 0;
@@ -152,8 +154,8 @@ static void
 process_request_identities(SocketEntry *e, int version)
 {
 	Idtab *tab = idtab_lookup(version);
-	Buffer msg;
 	Identity *id;
+	Buffer msg;
 
 	buffer_init(&msg);
 	buffer_put_char(&msg, (version == 1) ?
@@ -182,21 +184,21 @@ process_request_identities(SocketEntry *e, int version)
 static void
 process_authentication_challenge1(SocketEntry *e)
 {
-	Identity *id;
-	Key *key;
+	u_char buf[32], mdbuf[16], session_id[16];
+	u_int response_type;
 	BIGNUM *challenge;
+	Identity *id;
 	int i, len;
 	Buffer msg;
 	MD5_CTX md;
-	u_char buf[32], mdbuf[16], session_id[16];
-	u_int response_type;
+	Key *key;
 
 	buffer_init(&msg);
 	key = key_new(KEY_RSA1);
 	if ((challenge = BN_new()) == NULL)
 		fatal("process_authentication_challenge1: BN_new failed");
 
-	buffer_get_int(&e->request);				/* ignored */
+	(void) buffer_get_int(&e->request);			/* ignored */
 	buffer_get_bignum(&e->request, key->rsa->e);
 	buffer_get_bignum(&e->request, key->rsa->n);
 	buffer_get_bignum(&e->request, challenge);
@@ -251,13 +253,12 @@ send:
 static void
 process_sign_request2(SocketEntry *e)
 {
-	extern int datafellows;
-	Key *key;
 	u_char *blob, *data, *signature = NULL;
 	u_int blen, dlen, slen = 0;
-	int flags;
+	extern int datafellows;
+	int ok = -1, flags;
 	Buffer msg;
-	int ok = -1;
+	Key *key;
 
 	datafellows = 0;
 
@@ -296,11 +297,10 @@ process_sign_request2(SocketEntry *e)
 static void
 process_remove_identity(SocketEntry *e, int version)
 {
+	u_int blen, bits;
+	int success = 0;
 	Key *key = NULL;
 	u_char *blob;
-	u_int blen;
-	u_int bits;
-	int success = 0;
 
 	switch (version) {
 	case 1:
@@ -310,7 +310,7 @@ process_remove_identity(SocketEntry *e, int version)
 		buffer_get_bignum(&e->request, key->rsa->n);
 
 		if (bits != key_size(key))
-			log("Warning: identity keysize mismatch: actual %d, announced %d",
+			log("Warning: identity keysize mismatch: actual %u, announced %u",
 			    key_size(key), bits);
 		break;
 	case 2:
@@ -370,10 +370,10 @@ process_remove_all_identities(SocketEntry *e, int version)
 static void
 reaper(void)
 {
-	Idtab *tab;
+	u_int now = time(NULL);
 	Identity *id, *nxt;
 	int version;
-	u_int now = time(NULL);
+	Idtab *tab;
 
 	for (version = 1; version < 3; version++) {
 		tab = idtab_lookup(version);
@@ -391,16 +391,15 @@ reaper(void)
 static void
 process_add_identity(SocketEntry *e, int version)
 {
-	Key *k = NULL;
-	char *type_name;
-	char *comment;
-	int type, success = 0, death = 0;
 	Idtab *tab = idtab_lookup(version);
+	int type, success = 0, death = 0;
+	char *type_name, *comment;
+	Key *k = NULL;
 
 	switch (version) {
 	case 1:
 		k = key_new_private(KEY_RSA1);
-		buffer_get_int(&e->request);			/* ignored */
+		(void) buffer_get_int(&e->request);		/* ignored */
 		buffer_get_bignum(&e->request, k->rsa->n);
 		buffer_get_bignum(&e->request, k->rsa->e);
 		buffer_get_bignum(&e->request, k->rsa->d);
@@ -481,8 +480,8 @@ send:
 static void
 process_lock_agent(SocketEntry *e, int lock)
 {
-	char *passwd;
 	int success = 0;
+	char *passwd;
 
 	passwd = buffer_get_string(&e->request, NULL);
 	if (locked && !lock && strcmp(passwd, lock_passwd) == 0) {
@@ -523,11 +522,11 @@ no_identities(SocketEntry *e, u_int type)
 static void
 process_add_smartcard_key (SocketEntry *e)
 {
-	Identity *id;
-	Idtab *tab;
-	Key **keys, *k;
 	char *sc_reader_id = NULL, *pin;
 	int i, version, success = 0;
+	Key **keys, *k;
+	Identity *id;
+	Idtab *tab;
 
 	sc_reader_id = buffer_get_string(&e->request, NULL);
 	pin = buffer_get_string(&e->request, NULL);
@@ -566,11 +565,11 @@ send:
 static void
 process_remove_smartcard_key(SocketEntry *e)
 {
-	Identity *id;
-	Idtab *tab;
-	Key **keys, *k = NULL;
 	char *sc_reader_id = NULL, *pin;
 	int i, version, success = 0;
+	Key **keys, *k = NULL;
+	Identity *id;
+	Idtab *tab;
 
 	sc_reader_id = buffer_get_string(&e->request, NULL);
 	pin = buffer_get_string(&e->request, NULL);
@@ -608,8 +607,7 @@ send:
 static void
 process_message(SocketEntry *e)
 {
-	u_int msg_len;
-	u_int type;
+	u_int msg_len, type;
 	u_char *cp;
 
 	/* kill dead keys */
@@ -622,6 +620,7 @@ process_message(SocketEntry *e)
 	if (msg_len > 256 * 1024) {
 		shutdown(e->fd, SHUT_RDWR);
 		close(e->fd);
+		e->fd = -1;
 		e->type = AUTH_UNUSED;
 		buffer_free(&e->input);
 		buffer_free(&e->output);
@@ -717,6 +716,7 @@ static void
 new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc;
+
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 		error("fcntl O_NONBLOCK: %s", strerror(errno));
 
@@ -801,11 +801,11 @@ prepare_select(fd_set **fdrp, fd_set **fdwp, int *fdl, int *nallocp)
 static void
 after_select(fd_set *readset, fd_set *writeset)
 {
-	u_int i;
-	int len, sock;
+	struct sockaddr_un sunaddr;
 	socklen_t slen;
 	char buf[1024];
-	struct sockaddr_un sunaddr;
+	int len, sock;
+	u_int i;
 
 	for (i = 0; i < sockets_alloc; i++)
 		switch (sockets[i].type) {
@@ -839,6 +839,7 @@ after_select(fd_set *readset, fd_set *writeset)
 				if (len <= 0) {
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
+					sockets[i].fd = -1;
 					sockets[i].type = AUTH_UNUSED;
 					buffer_free(&sockets[i].input);
 					buffer_free(&sockets[i].output);
@@ -858,6 +859,7 @@ after_select(fd_set *readset, fd_set *writeset)
 				if (len <= 0) {
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
+					sockets[i].fd = -1;
 					sockets[i].type = AUTH_UNUSED;
 					buffer_free(&sockets[i].input);
 					buffer_free(&sockets[i].output);
@@ -928,6 +930,8 @@ int
 main(int ac, char **av)
 {
 	int sock, c_flag = 0, d_flag = 0, k_flag = 0, s_flag = 0, ch, nalloc;
+	char *shell, *format, *pidstr, *agentsocket = NULL;
+	fd_set *readsetp = NULL, *writesetp = NULL;
 	struct sockaddr_un sunaddr;
 #ifdef HAVE_SETRLIMIT
 	struct rlimit rlim;
@@ -935,11 +939,10 @@ main(int ac, char **av)
 #ifdef HAVE_CYGWIN
 	int prev_mask;
 #endif
-	pid_t pid;
-	char *shell, *format, *pidstr, pidstrbuf[1 + 3 * sizeof pid];
-	char *agentsocket = NULL;
 	extern int optind;
-	fd_set *readsetp = NULL, *writesetp = NULL;
+	extern char *optarg;
+	pid_t pid;
+	char pidstrbuf[1 + 3 * sizeof pid];
 
 	SSLeay_add_all_algorithms();
 
@@ -947,11 +950,7 @@ main(int ac, char **av)
 	init_rng();
 	seed_rng();
 
-#ifdef __GNU_LIBRARY__
-	while ((ch = getopt(ac, av, "+cdksa:")) != -1) {
-#else /* __GNU_LIBRARY__ */
 	while ((ch = getopt(ac, av, "cdksa:")) != -1) {
-#endif /* __GNU_LIBRARY__ */
 		switch (ch) {
 		case 'c':
 			if (s_flag)
