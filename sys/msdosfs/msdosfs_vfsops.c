@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.36 1998/09/07 13:17:02 bde Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.37 1998/10/25 19:26:18 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -797,8 +797,8 @@ msdosfs_unmount(mp, mntflags, p)
 		    vp->v_freelist.tqe_next, vp->v_freelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
-		    vp->v_cleanblkhd.lh_first,
-		    vp->v_dirtyblkhd.lh_first,
+		    TAILQ_FIRST(&vp->v_cleanblkhd),
+		    TAILQ_FIRST(&vp->v_dirtyblkhd),
 		    vp->v_numoutput, vp->v_type);
 		printf("union %p, tag %d, data[0] %08x, data[1] %08x\n",
 		    vp->v_socket, vp->v_tag,
@@ -913,8 +913,7 @@ loop:
 		if (vp->v_type == VNON ||
 		    (dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
-		    (vp->v_dirtyblkhd.lh_first == NULL || 
-		    waitfor == MNT_LAZY)) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY)) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

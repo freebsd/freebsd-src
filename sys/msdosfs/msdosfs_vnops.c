@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.75 1998/07/11 07:45:50 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.76 1998/09/13 15:39:01 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -835,8 +835,8 @@ msdosfs_fsync(ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -852,7 +852,7 @@ loop:
 		(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "msdosfsn", 0);
 	}
 #ifdef DIAGNOSTIC
-	if (vp->v_dirtyblkhd.lh_first) {
+	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vprint("msdosfs_fsync: dirty", vp);
 		goto loop;
 	}

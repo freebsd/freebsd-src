@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.74 1998/09/12 20:21:54 phk Exp $
+ * $Id: spec_vnops.c,v 1.75 1998/10/26 08:53:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -476,8 +476,8 @@ spec_fsync(ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -499,7 +499,7 @@ loop:
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
 #ifdef DIAGNOSTIC
-		if (vp->v_dirtyblkhd.lh_first) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			vprint("spec_fsync: dirty", vp);
 			splx(s);
 			goto loop;

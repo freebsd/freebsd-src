@@ -919,8 +919,7 @@ loop:
 		if (vp->v_type == VNON ||
 		    (ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    (vp->v_dirtyblkhd.lh_first == NULL ||
-		    waitfor == MNT_LAZY)) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY)) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

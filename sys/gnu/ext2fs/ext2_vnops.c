@@ -197,8 +197,8 @@ ext2_fsync(ap)
 
 loop:
 	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -222,7 +222,7 @@ loop:
 			tsleep(&vp->v_numoutput, PRIBIO + 1, "e2fsyn", 0);
 		}
 #if DIAGNOSTIC
-		if (vp->v_dirtyblkhd.lh_first) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			vprint("ext2_fsync: dirty", vp);
 			goto loop;
 		}

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.108 1998/09/29 23:29:48 mckusick Exp $
+ * $Id: nfs_vnops.c,v 1.109 1998/09/29 23:39:37 mckusick Exp $
  */
 
 
@@ -2755,8 +2755,8 @@ again:
 		 * Count up how many buffers waiting for a commit.
 		 */
 		bveccount = 0;
-		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-			nbp = bp->b_vnbufs.le_next;
+		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 			    == (B_DELWRI | B_NEEDCOMMIT))
 				bveccount++;
@@ -2782,8 +2782,8 @@ again:
 			bvec = bvec_on_stack;
 			bvecsize = NFS_COMMITBVECSIZ;
 		}
-		for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-			nbp = bp->b_vnbufs.le_next;
+		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bvecpos >= bvecsize)
 				break;
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
@@ -2880,8 +2880,8 @@ again:
 	 */
 loop:
 	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if (bp->b_flags & B_BUSY) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2935,7 +2935,7 @@ loop:
 			    }
 			}
 		}
-		if (vp->v_dirtyblkhd.lh_first && commit) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
 			goto loop;
 		}
 	}
