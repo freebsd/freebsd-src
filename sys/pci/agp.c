@@ -448,7 +448,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				for (k = 0; k <= i; k += PAGE_SIZE) {
 					m = vm_page_lookup(mem->am_obj,
 							   OFF_TO_IDX(k));
+					vm_page_lock_queues();
 					vm_page_unwire(m, 0);
+					vm_page_unlock_queues();
 				}
 				lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 				return error;
@@ -499,7 +501,9 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 		AGP_UNBIND_PAGE(dev, mem->am_offset + i);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
+		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
+		vm_page_unlock_queues();
 	}
 		
 	agp_flush_cache();

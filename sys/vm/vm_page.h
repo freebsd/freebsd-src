@@ -216,11 +216,7 @@ struct vpgqueues {
 };
 
 extern struct vpgqueues vm_page_queues[PQ_COUNT];
-extern struct mtx vm_page_queue_mtx;
 extern struct mtx vm_page_queue_free_mtx;
-
-#define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
-#define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
 #endif			/* !defined(KLD_MODULE) */
 
@@ -299,6 +295,9 @@ extern long first_page;			/* first physical page number */
 #define PHYS_TO_VM_PAGE(pa) \
 		(&vm_page_array[atop(pa) - first_page ])
 
+extern struct mtx vm_page_queue_mtx;
+#define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
+#define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
