@@ -544,13 +544,6 @@ typedef struct intrec {
 
 static intrec *intreclist_head[ICU_LEN];
 
-typedef struct isarec {
-	int		id_unit;
-	ointhand2_t	*id_handler;
-} isarec;
-
-static isarec *isareclist[ICU_LEN];
-
 /*
  * The interrupt multiplexer calls each of the handlers in turn.  The
  * ipl is initially quite low.  It is raised as necessary for each call
@@ -570,14 +563,6 @@ intr_mux(void *arg)
 		p->handler(p->argument);
 		splx(oldspl);
 	}
-}
-
-static void
-isa_intr_wrap(void *cookie)
-{
-	isarec *irec = (isarec *)cookie;
-
-	irec->id_handler(irec->id_unit);
 }
 
 static intrec*
@@ -856,55 +841,4 @@ inthand_remove(intrec *idesc)
 	update_masks(idesc->maskptr, irq);
 	free(idesc, M_DEVBUF);
 	return (0);
-}
-
-/*
- * Emulate the register_intr() call previously defined as low level function.
- * That function (now icu_setup()) may no longer be directly called, since 
- * a conflict between an ISA and PCI interrupt might go by unnocticed, else.
- */
-
-int
-register_intr(int intr, int device_id, u_int flags,
-	      ointhand2_t handler, u_int *maskptr, int unit)
-{
-	intrec *idesc;
-	isarec *irec;
-
-	irec = malloc(sizeof *irec, M_DEVBUF, M_WAITOK);
-	if (irec == NULL)
-		return NULL;
-	bzero(irec, sizeof *irec);
-	irec->id_unit = unit;
-	irec->id_handler = handler;
-
-	flags |= INTR_EXCL;
-	idesc = inthand_add("old", intr, isa_intr_wrap, irec, maskptr, flags);
-	if (idesc == NULL) {
-		free(irec, M_DEVBUF);
-		return -1;
-	}
-	isareclist[intr] = irec;
-	return 0;
-}
-
-/*
- * Emulate the old unregister_intr() low level function. 
- * Make sure there is just one interrupt, that it was 
- * registered as non-shared, and that the handlers match.
- */
-
-int
-unregister_intr(int intr, ointhand2_t handler)
-{
-	intrec *p = intreclist_head[intr];
-
-	if (p != NULL && (p->flags & INTR_EXCL) != 0 &&
-	    p->handler == isa_intr_wrap && isareclist[intr] != NULL &&
-	    isareclist[intr]->id_handler == handler) {
-		free(isareclist[intr], M_DEVBUF);
-		isareclist[intr] = NULL;
-		return (inthand_remove(p));
-	}
-	return (EINVAL);
 }
