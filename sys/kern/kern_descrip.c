@@ -467,7 +467,6 @@ done2:
 
 /*
  * Common code for dup, dup2, and fcntl(F_DUPFD).
- * filedesc must be locked, but will be unlocked as a side effect.
  */
 static int
 do_dup(td, type, old, new, retval)
