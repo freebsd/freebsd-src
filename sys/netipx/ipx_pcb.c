@@ -66,6 +66,7 @@ ipx_pcballoc(so, head, td)
 	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
 	if (ipxp == NULL)
 		return (ENOBUFS);
+	IPX_LOCK_INIT(ipxp);
 	ipxp->ipxp_socket = so;
 	if (ipxcksum)
 		ipxp->ipxp_flags |= IPXP_CHECKSUM;
@@ -277,6 +278,7 @@ ipx_pcbdetach(ipxp)
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		RTFREE(ipxp->ipxp_route.ro_rt);
 	LIST_REMOVE(ipxp, ipxp_list);
+	IPX_LOCK_DESTROY(ipxp);
 	FREE(ipxp, M_PCB);
 }
 

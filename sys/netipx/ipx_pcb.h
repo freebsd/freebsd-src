@@ -54,6 +54,7 @@ struct ipxpcb {
 	short	ipxp_flags;
 	u_char	ipxp_dpt;		/* default packet type for ipx_output */
 	u_char	ipxp_rpt;		/* last received packet type by ipx_input() */
+	struct	mtx ipxp_mtx;
 };
 
 /*
@@ -62,6 +63,10 @@ struct ipxpcb {
 LIST_HEAD(ipxpcbhead, ipxpcb);
 extern struct ipxpcbhead ipxpcb_list;
 extern struct ipxpcbhead ipxrawpcb_list;
+
+#ifdef _KERNEL
+extern struct mtx	ipxpcb_list_mtx;
+#endif
 
 /* possible flags */
 
@@ -97,6 +102,19 @@ struct ipxpcb *
 	ipx_pcblookup(struct ipx_addr *faddr, int lport, int wildp);
 void	ipx_setpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 void	ipx_setsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam);
+
+#define	IPX_LIST_LOCK_INIT()	mtx_init(&ipxpcb_list_mtx, "ipx_list_mtx", \
+				    NULL, MTX_DEF | MTX_RECURSE)
+#define	IPX_LIST_LOCK()		mtx_lock(&ipxpcb_list_mtx)
+#define	IPX_LIST_UNLOCK()	mtx_unlock(&ipxpcb_list_mtx)
+#define	IPX_LIST_LOCK_ASSERT()	mtx_assert(&ipxpcb_list_mtx, MA_OWNED)
+
+#define	IPX_LOCK_INIT(ipx)	mtx_init(&(ipx)->ipxp_mtx, "ipx_mtx", NULL, \
+				    MTX_DEF)
+#define	IPX_LOCK_DESTROY(ipx)	mtx_destroy(&(ipx)->ipxp_mtx)
+#define	IPX_LOCK(ipx)		mtx_lock(&(ipx)->ipxp_mtx)
+#define	IPX_UNLOCK(ipx)		mtx_unlock(&(ipx)->ipxp_mtx)
+#define	IPX_LOCK_ASSERT(ipx)	mtx_assert(&(ipx)->ipxp_mtx, MA_OWNED)
 #endif /* _KERNEL */
 
 #endif /* !_NETIPX_IPX_PCB_H_ */
