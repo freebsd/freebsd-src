@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5_locl.h,v 1.63 1999/12/02 17:05:11 joda Exp $ */
+/* $Id: krb5_locl.h,v 1.66 2001/05/10 15:31:34 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __KRB5_LOCL_H__
@@ -136,7 +136,7 @@ struct sockaddr_dl;
 #include <rc4.h>
 #endif
 
-#include <asn1.h>
+#include <krb5_asn1.h>
 #include <der.h>
 
 #include <krb5.h>
@@ -148,7 +148,8 @@ struct sockaddr_dl;
 #define ALLOC_SEQ(X, N) do { (X)->len = (N); ALLOC((X)->val, (N)); } while(0)
 
 /* should this be public? */
-#define KEYTAB_DEFAULT "FILE:/etc/krb5.keytab"
+#define KEYTAB_DEFAULT "ANY:FILE:/etc/krb5.keytab,krb4:/etc/srvtab"
+#define KEYTAB_DEFAULT_MODIFY "FILE:/etc/krb5.keytab"
 
 #ifndef O_BINARY
 #define O_BINARY 0
