@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.28 1996/01/03 10:41:53 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.29 1996/01/03 14:58:04 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -115,6 +115,22 @@ Any entries with a &lt;XXX&gt; are under construction.
           email: <url url="mailto:orders@cdrom.com" name="WC Orders address"> <newline>
           WWW: <url url="http://www.cdrom.com/" name="WC Home page"><newline> 
 
+          In Australia, you may find it at the following:
+
+          Advanced MM Distributors<newline>
+          45 Elstone Ave<newline>
+          Airport West VIC 3042<newline>
+
+          Voice: +61 3 374-1410<newline>
+          Fax:   +61 3 338-7411 fax<newline>
+
+          CDROM Support BBS<newline>
+          17 Irvine St<newline>
+          Peppermint Grove  WA 6011<newline>
+	
+          Voice: +61 9 385-3793<newline>
+          Fax:   +61 9 385-2360<newline>
+
       <sect1>
 	<heading>What are the FreeBSD mailing lists, and how can I get on them?</heading>
         <p>
@@ -140,6 +156,9 @@ Any entries with a &lt;XXX&gt; are under construction.
               FreeBSD.
             <tag/committers/ CVS commit messages for -current users
             <tag/chat/  What does not belong elsewhere, general chat, fun.
+            <tag/hubs/  This the mailing-list for all of the generous
+              people who manage the ``regional'' part of the <tt/freebsd.org/
+              domain.
             <tag/users-groups/ This is the mailing list for the
               coordinators from each of the local area Users Groups to
               dicuss matters with each other and a designated individual
@@ -308,7 +327,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <heading>Installation</heading>
       <p>
       <sect1>
-	<heading>How do I install FreeBSD?</heading>
+        <heading>How do I install FreeBSD?</heading>
         <p>
 
           <bf/IMPORTANT NOTE/ if you  are installing 2.1.0R from tape,  see
@@ -334,7 +353,31 @@ Any entries with a &lt;XXX&gt; are under construction.
           </verb>
 
       <sect1>
-	<heading>Help! I have no space! Do I need to delete everything first?</heading>
+        <heading>I have only 4 MB of memory in this machine. Can I install FreeBSD 2.1.0 ?</heading>
+
+        <p>
+          FreeBSD 2.1.0 does not install with 4 MB.  To be exact: it does
+          not install with 640 kB base + 3 MB extended memory.  If your
+          motherboard can remap some of the ``lost'' memory out of the
+          640kB to 1MB region, then you may still be able to get FreeBSD
+          2.1.0 up.
+
+          Try to go into your BIOS setup and look for a ``remap'' option.
+          Enable it.  You may also have to disable ROM shadowing.
+
+          It may be easier to get 4 more MB just for the install. Build a
+          custom kernel with only the options you need and then get the 4
+          MB out again.
+
+          You may also install 2.0.5 and then upgrade your system to 2.1.0
+          with the ``upgrade'' option of the 2.1.0 installation program.
+
+          After the installation, if you build a custom kernel, it will run
+          in 4 MB. Someone has even succeded in booting with 2 MB (the
+          system was almost unusable though :-))
+
+      <sect1>
+        <heading>Help! I have no space! Do I need to delete everything first?</heading>
 
         <p>
           If your machine is already running DOS and has little or no free
@@ -354,7 +397,15 @@ Any entries with a &lt;XXX&gt; are under construction.
           kind of installation you want.
 
       <sect1>
-	<heading>Can I use compressed DOS filesystems from FreeBSD?</heading>
+        <heading>I have installed Windows 95 on to my home PC, and I want
+        to also install FreeBSD.</heading>
+
+        <p>
+          Install Windows 95 first, after that FreeBSD. FreeBSD's boot
+          manager will then manage to boot Win95 and FreeBSD.
+
+      <sect1>
+        <heading>Can I use compressed DOS filesystems from FreeBSD?</heading>
 
         <p>
           No.  If you are using a utility such as Stacker(tm) or
@@ -421,6 +472,35 @@ Any entries with a &lt;XXX&gt; are under construction.
           called ``<tt/pfdisk/'' (located in the <tt>tools/dos-tools</tt>
           subdirectory) which can be used for this purpose.
 
+      <sect1>
+        <heading>I want to install my laptop with PLIP (Parallel Line IP). How's the cable ?
+
+        <p>
+          Connect the two computers using a Laplink parallel cable to use
+          this feature:
+
+          <verb>
+            +----------------------------------------+
+            |A-name A-End   B-End   Descr.  Port/Bit |
+            +----------------------------------------+
+            |DATA0  2       15      Data    0/0x01   |
+            |-ERROR 15      2               1/0x08   |
+            +----------------------------------------+
+            |DATA1  3       13      Data    0/0x02   |
+            |+SLCT  13      3               1/0x10   |
+            +----------------------------------------+
+            |DATA2  4       12      Data    0/0x04   |
+            |+PE    12      4               1/0x20   |
+            +----------------------------------------+
+            |DATA3  5       10      Strobe  0/0x08   |
+            |-ACK   10      5               1/0x40   |
+            +----------------------------------------+
+            |DATA4  6       11      Data    0/0x10   |
+            |BUSY   11      6               1/0x80   |
+            +----------------------------------------+
+            |GND    18-25   18-25   GND -            |
+            +----------------------------------------+
+          </verb>
 
       <sect1>
 	<heading>When I boot FreeBSD it says ``Missing Operating System''.</heading>
@@ -1114,8 +1194,22 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
     <sect>
       <heading>Miscellaneous Questions</heading>
       <p>
+
       <sect1>
-	<heading>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?</heading>
+        <heading>Why does FreeBSD consume far more swap space than Linux?</heading>
+
+        <p>
+          It doesn't.  You might mean ``why does my swap seem full?''.  If
+          that is what you really meant, it's because putting stuff in swap
+          rather than discarding it makes it faster to recover than if the
+          pager had to go through the file system to pull in clean
+          (unmodified) blocks from an executable.
+
+          The actual amount of dirty pages that you can have in core at
+          once is not reduced; the clean pages are displaced as necessary.
+
+      <sect1>
+        <heading>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?</heading>
         <p>
           You have to use either ``<tt/-H/'' or ``<tt/-L/'' together with
           the ``<tt/-R/'' option to make this work.  See the <tt/chmod(1)/
@@ -1329,7 +1423,17 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
 
           This file describes how to setup sup on your machine.  You may
           also want to look at
-      <sect1><heading>Has anyone done any temperature testing while running FreeBSD? I know linux runs cooler than dos, but have never seen a mention of FreeBSD.  It seems to run really hot</heading>
+
+          <tt>/usr/src/share/examples/sup/*-supfile</tt>, or you may grab
+          updated supfiles from:
+
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras"
+            name="Updated SUP files"> 
+
+          which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
+
+      <sect1>
+        <heading>Has anyone done any temperature testing while running FreeBSD? I know linux runs cooler than dos, but have never seen a mention of FreeBSD.  It seems to run really hot</heading>
         <p>
           No, but we have done numerous taste tests on blindfolded
           volunteers who have also had 250 micrograms of LSD-25
@@ -1343,7 +1447,13 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           now, working on their new ``scratch and sniff'' GUI.  It's a
           funny old business we're in!
 
-      <sect1><heading>Is there anything "odd" that FreeBSD does when compiling the kernel which would cause the memory to make a scratchy sound? When compiling (and for a brief moment after recognizing the floppy drive upon startup, as well), a strange scratchy sound emanates from what appears to be the memory banks.</heading>
+          Seriously, Linux use the ``<tt/HALT/'' instruction when the
+          system is idle thus lowering its energy comsumption and therefore
+          the heat it generates.
+
+      <sect1>
+        <heading>Is there anything "odd" that FreeBSD does when compiling the kernel which would cause the memory to make a scratchy sound? When compiling (and for a brief moment after recognizing the floppy drive upon startup, as well), a strange scratchy sound emanates from what appears to be the memory banks.</heading>
+
         <p>
           Yes!  You'll see frequent references to ``daemons'' in the BSD
           documentation, and what most people don't know is that this
@@ -1362,15 +1472,6 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           control over your machine to the eternal damnation of your soul.
           Given a choice, I think I'd prefer to get used to the scratchy
           noises, myself!
-
-          <tt>/usr/src/share/examples/sup/*-supfile</tt>, or you may grab
-          updated supfiles from:
-
-            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras"
-            name="Updated SUP files"> 
-
-          which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
-
       <sect1>
 	<heading>How do I create customized installation disks that I can give out to other people at my site?</heading>
 
@@ -1619,7 +1720,27 @@ disk        fd1   at fdc0 drive 1
           you'd want to use <tt/131072/
 
       <sect1>
-	<heading>Will FreeBSD ever support other architectures?</heading>
+        <heading>Sometimes my FreeBSD 2.0 reboots saying: ``Panic: kmem_map (or mb_map) too small !''.
+
+        <p>
+          The panic indicates that the system ran out of virtual memory for
+          network buffers (specifically, mbuf clusters). You can increase
+          the amount of VM avaliable for mbuf clusters by adding:
+
+          <code>
+            options "NMBCLUSTERS=<n>"
+          </code>
+
+          ...to your kernel config file, where &lt;n&gt; is a number in the
+          range 512-4096, depending on the number of concurrent TCP
+          connections you need to support. I'd recommend trying 2048 - this
+          should get rid of the panic completely. You can monitor the
+          number of mbuf clusters allocated/in use on the system with
+          <tt/netstat -m/.
+
+
+      <sect1>
+        <heading>Will FreeBSD ever support other architectures?</heading>
 
         <p>
           Several different groups have expressed interest in working on
