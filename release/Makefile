@@ -32,6 +32,8 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
 #RELEASETAG=RELENG_4
+# If you want to add other options to CVS commands, then set
+#CVSCMDARGS="-D '01/01/2002 00:00:00 UTC'"
 #
 # Non-zero if ${RELEASETAG} is in the form "RELENG_ver_RELEASE"; we
 # are building an official release.  Otherwise, we are building for
@@ -279,10 +281,10 @@ rerelease release:
 	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -R -d ${CVSROOT} co -P ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASESRCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -R -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch ${PATCH_FLAGS} < ${LOCAL_PATCHES}
@@ -292,22 +294,22 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 .if defined(PORTSRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .else
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .endif
 .elif defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 .if defined(PORTSRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${PORTSRELEASETAG} ${MINIMALDOCPORTS}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${PORTSRELEASETAG} ${MINIMALDOCPORTS}
 .else
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${MINIMALDOCPORTS}
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${MINIMALDOCPORTS}
 .endif
 .endif
 .if !defined(NODOC)
 .if defined(DOCRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P -r ${DOCRELEASETAG} ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P -r ${DOCRELEASETAG} ${RELEASEDOCMODULE}
 .else
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co ${CVSCMDARGS} -P ${RELEASEDOCMODULE}
 .endif
 	if [ -d ${RELEASEDISTFILES}/ ]; then \
 		cp -rp ${RELEASEDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
@@ -319,20 +321,20 @@ rerelease release:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -A
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update ${CVSCMDARGS} -P -d -A
 .else
-	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -r ${RELEASETAG}
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update ${CVSCMDARGS} -P -d -r ${RELEASETAG}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr/ports && cvs -R -q update -P -d
+	cd ${CHROOTDIR}/usr/ports && cvs -R -q update ${CVSCMDARGS} -P -d
 .endif
 .if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
 	for i in ${MINIMALDOCPORTS}; do \
-		( cd ${CHROOTDIR}/usr/$$i && cvs -R -q update -P -d ) ; \
+		( cd ${CHROOTDIR}/usr/$$i && cvs -R -q update ${CVSCMDARGS} -P -d ) ; \
 	done
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr/doc && cvs -R -q update -P -d
+	cd ${CHROOTDIR}/usr/doc && cvs -R -q update ${CVSCMDARGS} -P -d
 .endif
 .endif
 .endif
