@@ -196,6 +196,7 @@ dev/vinum/vinumioctl.c		optional vinum device-driver
 dev/vinum/vinumlock.c		optional vinum device-driver
 dev/vinum/vinummemory.c		optional vinum device-driver
 dev/vinum/vinumparser.c		optional vinum device-driver
+dev/vinum/vinumraid5.c		optional vinum device-driver
 dev/vinum/vinumrequest.c	optional vinum device-driver
 dev/vinum/vinumrevive.c		optional vinum device-driver
 dev/vinum/vinumstate.c		optional vinum device-driver
