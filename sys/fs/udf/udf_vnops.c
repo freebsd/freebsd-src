@@ -366,7 +366,7 @@ udf_getattr(struct vop_getattr_args *a)
 static int
 udf_ioctl(struct vop_ioctl_args *a)
 {
-	printf("%s called\n", __FUNCTION__);
+	printf("%s called\n", __func__);
 	return (ENOTTY);
 }
 
@@ -814,7 +814,7 @@ udf_readdir(struct vop_readdir_args *a)
 static int
 udf_readlink(struct vop_readlink_args *ap)
 {
-	printf("%s called\n", __FUNCTION__);
+	printf("%s called\n", __func__);
 	return (EOPNOTSUPP);
 }
 
