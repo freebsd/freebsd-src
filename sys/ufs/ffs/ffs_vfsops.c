@@ -1118,30 +1118,6 @@ loop:
 	return (allerror);
 }
 
-/*
- * Look up a FFS dinode number to find its incore vnode, otherwise read it
- * in from disk.  If it is in core, wait for the lock bit to clear, then
- * return the inode locked.  Detection and handling of mount points must be
- * done by the calling routine.
- */
-static int ffs_inode_hash_lock;
-/*
- * ffs_inode_hash_lock is a variable to manage mutual exclusion
- * of vnode allocation and intertion to the hash, especially to
- * avoid holding more than one vnodes for the same inode in the
- * hash table. ffs_inode_hash_lock must hence be tested-and-set
- * or cleared atomically, accomplished by ffs_inode_hash_mtx.
- * 
- * As vnode allocation may block during MALLOC() and zone
- * allocation, we should also do msleep() to give away the CPU
- * if anyone else is allocating a vnode. lockmgr is not suitable
- * here because someone else may insert to the hash table the
- * vnode we are trying to allocate during our sleep, in which
- * case the hash table needs to be examined once again after
- * waking up.
- */
-static struct mtx ffs_inode_hash_mtx;
-
 int
 ffs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
@@ -1149,38 +1125,28 @@ ffs_vget(mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
+	struct thread *td = curthread; 		/* XXX */
 	struct fs *fs;
 	struct inode *ip;
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
 	dev_t dev;
-	int error, want_wakeup;
+	int error;
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
-restart:
+
+	/*
+	 * We do not lock vnode creation as it is beleived to be too
+	 * expensive for such rare case as simultaneous creation of vnode
+	 * for same ino by different processes. We just allow them to race
+	 * and check later to decide who wins. Let the race begin!
+	 */
 	if ((error = ufs_ihashget(dev, ino, flags, vpp)) != 0)
 		return (error);
 	if (*vpp != NULL)
 		return (0);
-
-	/*
-	 * Lock out the creation of new entries in the FFS hash table in
-	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
-	 * may occur!
-	 */
-	mtx_lock(&ffs_inode_hash_mtx);
-	if (ffs_inode_hash_lock) {
-		while (ffs_inode_hash_lock) {
-			ffs_inode_hash_lock = -1;
-			msleep(&ffs_inode_hash_lock, &ffs_inode_hash_mtx, PVM, "ffsvgt", 0);
-		}
-		mtx_unlock(&ffs_inode_hash_mtx);
-		goto restart;
-	}
-	ffs_inode_hash_lock = 1;
-	mtx_unlock(&ffs_inode_hash_mtx);
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -1195,17 +1161,6 @@ restart:
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
 	if (error) {
-		/*
-		 * Do not wake up processes while holding the mutex,
-		 * otherwise the processes waken up immediately hit
-		 * themselves into the mutex.
-		 */
-		mtx_lock(&ffs_inode_hash_mtx);
-		want_wakeup = ffs_inode_hash_lock < 0;
-		ffs_inode_hash_lock = 0;
-		mtx_unlock(&ffs_inode_hash_mtx);
-		if (want_wakeup)
-			wakeup(&ffs_inode_hash_lock);
 		*vpp = NULL;
 		FREE(ip, ump->um_malloctype);
 		return (error);
@@ -1229,24 +1184,28 @@ restart:
 	}
 #endif
 	/*
-	 * Put it onto its hash chain and lock it so that other requests for
-	 * this inode will block if they arrive while we are sleeping waiting
-	 * for old data structures to be purged or for the contents of the
-	 * disk portion of this inode to be read.
+	 * Exclusively lock the vnode before adding to hash. Note, that we
+	 * must not release nor downgrade the lock (despite flags argument
+	 * says) till it is fully initialized.
 	 */
-	ufs_ihashins(ip);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
 
 	/*
-	 * Do not wake up processes while holding the mutex,
-	 * otherwise the processes waken up immediately hit
-	 * themselves into the mutex.
+	 * Atomicaly (in terms of ufs_hash operations) check the hash for
+	 * duplicate of vnode being created and add it to the hash. If a
+	 * duplicate vnode was found, it will be vget()ed from hash for us.
 	 */
-	mtx_lock(&ffs_inode_hash_mtx);
-	want_wakeup = ffs_inode_hash_lock < 0;
-	ffs_inode_hash_lock = 0;
-	mtx_unlock(&ffs_inode_hash_mtx);
-	if (want_wakeup)
-		wakeup(&ffs_inode_hash_lock);
+	if ((error = ufs_ihashins(ip, flags, vpp)) != 0) {
+		vput(vp);
+		*vpp = NULL;
+		return (error);
+	}
+
+	/* We lost the race, then throw away our vnode and return existing */
+	if (*vpp != NULL) {
+		vput(vp);
+		return (0);
+	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
@@ -1363,7 +1322,6 @@ ffs_init(vfsp)
 {
 
 	softdep_initialize();
-	mtx_init(&ffs_inode_hash_mtx, "ifsvgt", NULL, MTX_DEF);
 	return (ufs_init(vfsp));
 }
 
