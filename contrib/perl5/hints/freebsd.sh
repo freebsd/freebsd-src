@@ -23,6 +23,10 @@
 # Andy Dougherty <doughera@lafcol.lafayette.edu>
 # Date: Tue Mar 10 16:07:00 EST 1998
 #
+# Support for FreeBSD/ELF
+# Ollivier Robert <roberto@keltia.freenix.fr>
+# Date: Wed Sep  2 16:22:12 CEST 1998
+#
 # The two flags "-fpic -DPIC" are used to indicate a
 # will-be-shared object.  Configure will guess the -fpic, (and the
 # -DPIC is not used by perl proper) but the full define is included to 
@@ -95,12 +99,20 @@ esac
 case "$osvers" in
 0.*|1.0*) ;;
 
-3.0*)   if [ -e /usr/lib/aout ]; then
-            libpth="/usr/lib/aout /usr/local/lib /usr/lib"
-            glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+3.0*)   objformat=`/usr/bin/objformat`
+        if [ x$objformat = xelf ]; then
+            libpth="/usr/lib /usr/local/lib"
+            glibpth="/usr/lib /usr/local/lib"
+            ldflags="-Wl,-E "
+            lddlflags="-shared "
+        else
+            if [ -e /usr/lib/aout ]; then
+                libpth="/usr/lib/aout /usr/local/lib /usr/lib"
+                glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+            fi
+            lddlflags='-Bshareable'
         fi
         cccdlflags='-DPIC -fpic'
-        lddlflags='-Bshareable'
         ;;
 
 *)	cccdlflags='-DPIC -fpic'
