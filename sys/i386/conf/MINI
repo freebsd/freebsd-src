@@ -1,7 +1,7 @@
 #
 # MINI -- A kernel to get FreeBSD on onto a disk.
 #
-#	$Id: GENERICAH,v 1.52 1994/10/15 22:19:37 phk Exp $
+#	$Id: MINI,v 1.2 1994/10/17 21:10:20 phk Exp $
 #
 
 machine		"i386"
@@ -15,7 +15,7 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		FFS			#Berkeley Fast File System
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
-options		"NCONS=1"		#4 virtual consoles
+options		"NCONS=1"		#1 virtual consoles
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 
 config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
