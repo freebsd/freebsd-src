@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.6 1997/02/22 09:39:21 peter Exp $ */
+/*	$Id: sysv_ipc.c,v 1.7 1997/11/06 19:29:22 phk Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -34,14 +34,8 @@
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/syslog.h>
-#include <sys/sysproto.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
+#include <sys/ucred.h>
 
 #if defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG)
 
@@ -80,6 +74,13 @@ ipcperm(cred, perm, mode)
 
 
 #if !defined(SYSVSEM) || !defined(SYSVSHM) || !defined(SYSVMSG)
+
+#include <sys/proc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
+#include <sys/systm.h>
 
 static void sysv_nosys __P((struct proc *p, char *s));
 
