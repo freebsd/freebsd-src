@@ -124,6 +124,7 @@ tcp_output(struct tcpcb *tp)
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
 	int i, sack_rxmit;
+	int sack_bytes_rxmt;
 	struct sackhole *p;
 #if 0
 	int maxburst = TCP_MAXBURST;
@@ -198,12 +199,16 @@ again:
 	 * Still in sack recovery , reset rxmit flag to zero.
 	 */
 	sack_rxmit = 0;
+	sack_bytes_rxmt = 0;
 	len = 0;
 	p = NULL;
 	if (tp->sack_enable && IN_FASTRECOVERY(tp) &&
-	    (p = tcp_sack_output(tp))) {
-		KASSERT(tp->snd_cwnd >= 0,
-			("%s: CWIN is negative : %ld", __func__, tp->snd_cwnd));
+	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
+		long cwin;
+		
+		cwin = min(tp->snd_wnd, tp->snd_cwnd) - sack_bytes_rxmt;
+		if (cwin < 0)
+			cwin = 0;
 		/* Do not retransmit SACK segments beyond snd_recover */
 		if (SEQ_GT(p->end, tp->snd_recover)) {
 			/*
@@ -222,10 +227,10 @@ again:
 				goto after_sack_rexmit;
 			} else
 				/* Can rexmit part of the current hole */
-				len = ((long)ulmin(tp->snd_cwnd,
-					  tp->snd_recover - p->rxmit));
+				len = ((long)ulmin(cwin,
+						   tp->snd_recover - p->rxmit));
 		} else
-			len = ((long)ulmin(tp->snd_cwnd, p->end - p->rxmit));
+			len = ((long)ulmin(cwin, p->end - p->rxmit));
 		off = p->rxmit - tp->snd_una;
 		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 		    __func__, off));
@@ -296,8 +301,25 @@ after_sack_rexmit:
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
 	 * in which case len is already set.
 	 */
-	if (!sack_rxmit)
-		len = ((long)ulmin(so->so_snd.sb_cc, sendwin) - off);
+	if (sack_rxmit == 0) {
+		if (sack_bytes_rxmt == 0)
+			len = ((long)ulmin(so->so_snd.sb_cc, sendwin) - off);
+		else {
+			long cwin;
+
+                        /*
+			 * We are inside of a SACK recovery episode and are
+			 * sending new data, having retransmitted all the
+			 * data possible in the scoreboard.
+			 */
+			len = so->so_snd.sb_cc - off;
+			cwin = sendwin - (tp->snd_nxt - tp->sack_newdata) -
+				sack_bytes_rxmt;
+			if (cwin < 0)
+				cwin = 0;
+			len = lmin(len, cwin);
+		}
+	}
 
 	/*
 	 * Lop off SYN bit if it has already been sent.  However, if this
@@ -861,12 +883,13 @@ send:
 	 * case, since we know we aren't doing a retransmission.
 	 * (retransmit and persist are mutually exclusive...)
 	 */
-	if (len || (flags & (TH_SYN|TH_FIN))
-	    || callout_active(tp->tt_persist))
-		th->th_seq = htonl(tp->snd_nxt);
-	else
-		th->th_seq = htonl(tp->snd_max);
-	if (sack_rxmit) {
+	if (sack_rxmit == 0) {
+		if (len || (flags & (TH_SYN|TH_FIN))
+		    || callout_active(tp->tt_persist))
+			th->th_seq = htonl(tp->snd_nxt);
+		else
+			th->th_seq = htonl(tp->snd_max);
+	} else {
 		th->th_seq = htonl(p->rxmit);
 		p->rxmit += len;
 	}
@@ -967,7 +990,7 @@ send:
 				tp->t_flags |= TF_SENTFIN;
 			}
 		}
-		if (tp->sack_enable && sack_rxmit)
+		if (sack_rxmit)
 			goto timer;
 		tp->snd_nxt += len;
 		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
@@ -992,18 +1015,9 @@ send:
 		 * of retransmit time.
 		 */
 timer:
-		if (tp->sack_enable && sack_rxmit &&
-		    !callout_active(tp->tt_rexmt) &&
-		    tp->snd_nxt != tp->snd_max) {
-			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
-				      tcp_timer_rexmt, tp);
-			if (callout_active(tp->tt_persist)) {
-				callout_stop(tp->tt_persist);
-				tp->t_rxtshift = 0;
-			}
-		}
 		if (!callout_active(tp->tt_rexmt) &&
-		    tp->snd_nxt != tp->snd_una) {
+		    ((sack_rxmit && tp->snd_nxt != tp->snd_max) ||
+		     (tp->snd_nxt != tp->snd_una))) {
 			if (callout_active(tp->tt_persist)) {
 				callout_stop(tp->tt_persist);
 				tp->t_rxtshift = 0;
