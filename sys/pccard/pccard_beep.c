@@ -13,67 +13,118 @@
 
 #include <pccard/driver.h>
 
-#define	PCCARD_BEEP_PITCH0	1600
-#define	PCCARD_BEEP_DURATION0	20
-#define	PCCARD_BEEP_PITCH1	1200
-#define	PCCARD_BEEP_DURATION1	40
-#define	PCCARD_BEEP_PITCH2	3200
-#define	PCCARD_BEEP_DURATION2	40
-
-static struct callout_handle beeptimeout_ch
-    = CALLOUT_HANDLE_INITIALIZER(&beeptimeout_ch);
-
 static enum beepstate allow_beep = BEEP_OFF;
+static int melody_type = 0;
 
-/*
- * timeout function to keep lots of noise from
- * happening with insertion/removals.
- */
-static void enable_beep(void *dummy)
+#define MAX_TONE_MODE	3
+#define MAX_STATE	4 
+
+struct tone {
+        int pitch;
+        int duration;
+};
+
+
+static struct tone silent_beep[] = {
+	{NULL, NULL}
+};
+
+static struct tone success_beep[] = {
+	{1200,   40}, {NULL, NULL}
+};
+static struct tone failure_beep[] = {
+	{3200,   40}, {NULL, NULL}
+};
+static struct tone insert_remove_beep[] = {
+	{1600,   20}, {NULL, NULL}
+};
+
+static struct tone success_melody_beep[] = {
+	{1200,    7}, {1000,    7}, { 800,   15}, {NULL, NULL}
+};
+static struct tone failure_melody_beep[] = {
+	{2000,    7}, {2400,    7}, {2800,   15}, {NULL, NULL}
+};
+static struct tone insert_melody_beep[] = {
+	{1600,   10}, {1200,    5}, {NULL, NULL}
+};
+static struct tone remove_melody_beep[] = {
+	{1200,   10}, {1600,    5}, {NULL, NULL}
+};
+
+static struct tone *melody_table[MAX_TONE_MODE][MAX_STATE] = {
+	{ /* silent mode */
+		silent_beep, silent_beep, silent_beep, silent_beep,
+	},
+	{ /* simple beep mode */
+		success_beep, failure_beep,
+		insert_remove_beep, insert_remove_beep,
+	},
+	{ /* melody beep mode */
+		success_melody_beep, failure_melody_beep,
+		insert_melody_beep, remove_melody_beep,
+	},
+};
+
+
+static void
+pccard_beep_sub(void *arg)
 {
-	/* Should never be needed */
-	untimeout(enable_beep, (void *)NULL, beeptimeout_ch);
+	struct tone *melody;
+	melody = (struct tone *)arg;
 
-	allow_beep = BEEP_ON;
+	if (melody->duration != NULL) {
+		sysbeep(melody->duration, melody->pitch);
+		timeout(pccard_beep_sub, ++melody, melody->pitch);
+	} else 
+		allow_beep = BEEP_ON;
 }
 
-void pccard_insert_beep(void)
+static void
+pccard_beep_start(void *arg)
 {
-	if (allow_beep == BEEP_ON) {
-		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-		allow_beep = BEEP_OFF;
-		beeptimeout_ch = timeout(enable_beep, (void *)NULL, hz / 5);
-	}
-}
+	struct tone *melody;
+	melody = (struct tone *)arg;
 
-void pccard_remove_beep(void)
-{
-	if (allow_beep == BEEP_ON) {
-		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
+	if (allow_beep == BEEP_ON && melody->duration != NULL) {
 		allow_beep = BEEP_OFF;
-		beeptimeout_ch = timeout(enable_beep, (void *)NULL, hz / 5);
+		sysbeep(melody->duration, melody->pitch);
+		timeout(pccard_beep_sub, ++melody, melody->pitch);
 	}
 }
 
 void pccard_success_beep(void)
 {
-	if (allow_beep == BEEP_ON) {
-		sysbeep(PCCARD_BEEP_PITCH1, PCCARD_BEEP_DURATION1);
-	}
+	pccard_beep_start(melody_table[melody_type][0]);
 }
 
 void pccard_failure_beep(void)
 {
-	if (allow_beep == BEEP_ON) {
-		sysbeep(PCCARD_BEEP_PITCH2, PCCARD_BEEP_DURATION2);
-	}
+	pccard_beep_start(melody_table[melody_type][1]);
 }
 
-int pccard_beep_select(enum beepstate state)
+void pccard_insert_beep(void)
 {
-	if (state == BEEP_ON || state == BEEP_OFF) {
-		allow_beep = state;
-		return 0;
+	pccard_beep_start(melody_table[melody_type][2]);
+}
+
+void pccard_remove_beep(void)
+{
+	pccard_beep_start(melody_table[melody_type][3]);
+}
+
+int pccard_beep_select(int type)
+{
+	int errcode = 0;
+
+	if (type == 0)  {
+		allow_beep = BEEP_OFF;
+		melody_type = 0;
+	} else if (type < 0 || type > MAX_TONE_MODE)
+		errcode = 1;
+	else {
+		allow_beep = BEEP_ON;
+		melody_type = type;
 	}
-	return 1;
+	return errcode;
 }
