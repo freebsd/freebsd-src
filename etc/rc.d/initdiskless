@@ -55,7 +55,7 @@
 #		for group of diskless clients, or even individual features;
 #  ${ip}	where ${ip} is the machine's assigned IP address, typically
 #		used to set host-specific features;
-#		
+#
 # Template directories are scanned in the order they are listed above,
 # with each sucessive directory overriding (merged into) the previous one;
 # non-existing directories are ignored.

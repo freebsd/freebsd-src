@@ -263,7 +263,7 @@ case ${startstop} in
 	case ${removable_route_flush} in
 	[Nn][Oo])
 	        ;;
-	*)	
+	*)
 		# flush beforehand, just in case....
 		route -n flush -inet
 		;;

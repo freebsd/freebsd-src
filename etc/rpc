@@ -30,7 +30,7 @@ bootparamd	100026	bootparam
 ypupdated	100028	ypupdate
 keyserv		100029	keyserver
 sunlink_mapper	100033
-tfsd		100037 
+tfsd		100037
 nsed		100038
 nsemntd		100039
 showfhd		100043	showfh

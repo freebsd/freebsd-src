@@ -7,12 +7,12 @@
 #	See hosts_options(5) for the format of this file.
 #	hosts_access(5) no longer fully applies.
 
-#	 _____                                      _          _ 
+#	 _____                                      _          _
 #	| ____| __  __   __ _   _ __ ___    _ __   | |   ___  | |
 #	|  _|   \ \/ /  / _` | | '_ ` _ \  | '_ \  | |  / _ \ | |
 #	| |___   >  <  | (_| | | | | | | | | |_) | | | |  __/ |_|
 #	|_____| /_/\_\  \__,_| |_| |_| |_| | .__/  |_|  \___| (_)
-#					   |_|                   
+#					   |_|
 # !!! This is an example! You will need to modify it for your specific
 # !!! requirements!
 
@@ -24,7 +24,7 @@ ALL : ALL : allow
 
 # Wrapping sshd(8) is not normally a good idea, but if you
 # need to do it, here's how
-#sshd : .evil.cracker.example.com : deny 
+#sshd : .evil.cracker.example.com : deny
 
 # Protect against simple DNS spoofing attacks by checking that the
 # forward and reverse records for the remote host match. If a mismatch
