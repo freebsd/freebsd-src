@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $Id: Makefile.inc,v 1.2 1998/08/30 19:59:35 gpalmer Exp $
+# $Id: Makefile.inc,v 1.3 1998/09/09 16:11:01 obrien Exp $
 #
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.
@@ -24,6 +24,7 @@ LIBAMUDIR!=	cd ${.CURDIR}/../libamu; \
 		printf 'xwhere: .MAKE\n\t@echo \$${.OBJDIR}\n' | ${MAKE} -Bs -f-
 LIBAMU=		${LIBAMUDIR}/libamu.a
 
+.if !defined(INFO)
 
 SRCS+=		config_local.h
 CLEANFILES+=	config_local.h
@@ -45,6 +46,7 @@ mount.h: ${MOUNT_X}
 nfs_prot.h: ${NFS_PROT_X}
 	${RPCCOM} -h -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
 
+.endif	# !INFO
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"
