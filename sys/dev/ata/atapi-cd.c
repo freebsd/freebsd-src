@@ -1108,7 +1108,7 @@ acd_start(struct acd_softc *cdp)
 	    ccb[0] = ATAPI_READ_BIG;
 	else {
 	    ccb[0] = ATAPI_READ_CD;
-	    ccb[9] = 0xf8;
+	    ccb[9] = 0x10;
 	}
     }
     else
