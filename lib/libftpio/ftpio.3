@@ -213,8 +213,10 @@ from the peer before aborting an
 .Tn FTP
 connection.
 .It Ev FTP_PASSIVE_MODE
-Force the use of passive mode
-.Tn FTP .
+If defined, forces the use of passive mode, unless equal
+to ``NO'' or ``no'' in which case active mode is forced.
+If defined, the setting of this variable always overrides any calls to
+.Fn ftpPassive .
 .El
 .Sh BUGS
 I'm sure you can get this thing's internal state machine confused if
