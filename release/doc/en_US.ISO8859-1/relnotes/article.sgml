@@ -3607,7 +3607,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	8.3.3. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
-	2.12.1 (specifically, a post-release snapshot from 20 July 2002). &merged;</para>
+	a pre-release snapshot of 2.13.1 from 11 October 2002.</para>
 
       <para role="historic"><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
@@ -3622,7 +3622,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>gcc</application> has been updated to
 	a pre-release snapshot of <application>gcc</application>
-	3.2.1, from 16 September 2002.
+	3.2.1, from 9 October 2002.
 	<warning>
 	  <para>The C++ ABI from <application>gcc</application>
 	    3.2.<replaceable>X</replaceable> is not compatible with
@@ -3649,11 +3649,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>gperf</application> has been updated to
 	2.7.2.</para>
 
-      <para role="historic"><application>groff</application> and its related utilities
-	have been updated to FSF version 1.17.2.  This import brings
-	in a new &man.mdoc.7; macro package (sometimes referred to as
-	<literal>mdocNG</literal>), which removes many of the
-	limitations of its predecessor. &merged;</para>
+      <para><application>groff</application> and its related utilities
+	have been updated to FSF version 1.18.1.</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
 	a pre-0.5 snapshot from 16 September 2002.</para>
