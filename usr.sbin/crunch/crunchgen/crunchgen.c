@@ -73,6 +73,7 @@ typedef struct prog {
 	strlst_t *buildopts;
 	strlst_t *keeplist;
 	strlst_t *links;
+	strlst_t *libs;
 	int goterror;
 } prog_t;
 
@@ -406,6 +407,7 @@ void add_prog(char *progname)
 	p2->realsrcdir = NULL;
 	p2->objdir = NULL;
 	p2->links = NULL;
+	p2->libs = NULL;
 	p2->objs = NULL;
 	p2->keeplist = NULL;
 	p2->buildopts = NULL;
@@ -506,6 +508,9 @@ void add_special(int argc, char **argv)
 		p->buildopts = NULL;
 		for (i = 3; i < argc; i++)
 			add_string(&p->buildopts, argv[i]);
+	} else if (!strcmp(argv[2], "lib")) {
+		for (i = 3; i < argc; i++)
+			add_string(&p->libs, argv[i]);
 	} else {
 		warnx("%s:%d: bad parameter name `%s', skipping line",
 		    curfilename, linenum, argv[2]);
@@ -1010,16 +1015,26 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		}
 		fprintf(outmk, "\n");
 	}
+	if (p->libs) {
+		fprintf(outmk, "%s_LIBS=", p->ident);
+		output_strlst(outmk, p->libs);
+	}
 
 	fprintf(outmk, "%s_stub.c:\n", p->name);
 	fprintf(outmk, "\techo \""
 	    "int _crunched_%s_stub(int argc, char **argv, char **envp)"
 	    "{return main(argc,argv,envp);}\" >%s_stub.c\n",
 	    p->ident, p->name);
-	fprintf(outmk, "%s.lo: %s_stub.o $(%s_OBJPATHS)\n",
+	fprintf(outmk, "%s.lo: %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
-	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)\n",
+	if (p->libs)
+		fprintf(outmk, " $(%s_LIBS)", p->ident);
+	fprintf(outmk, "\n");
+	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
+	if (p->libs)
+		fprintf(outmk, " $(%s_LIBS)", p->ident);
+	fprintf(outmk, "\n");
 	fprintf(outmk, "\tcrunchide -k _crunched_%s_stub ", p->ident);
 	for (lst = p->keeplist; lst != NULL; lst = lst->next)
 		fprintf(outmk, "-k _%s ", lst->str);
