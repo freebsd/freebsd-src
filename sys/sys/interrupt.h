@@ -111,6 +111,9 @@ extern char 	eintrnames[];	/* end of intrnames[] */
 extern u_long 	intrcnt[];	/* counts for for each device and stray */
 extern char 	intrnames[];	/* string table containing device names */
 
+#ifdef DDB
+void	db_dump_ithread(struct ithd *ithd, int handlers);
+#endif
 int	ithread_create(struct ithd **ithread, int vector, int flags,
 	    void (*disable)(int), void (*enable)(int), const char *fmt, ...)
 	    __printflike(6, 7);
