@@ -34,12 +34,6 @@
 
 #define MAXSHELLCMDLEN	128
 
-struct label;
-struct sf_buf;
-struct sysentvec;
-struct thread;
-struct vm_object;
-
 struct image_params {
 	struct proc *proc;	/* our process struct */
 	char **userspace_argv;	/* system call argument */
@@ -67,6 +61,9 @@ struct image_params {
 };
 
 #ifdef _KERNEL
+struct sysentvec;
+struct thread;
+
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 int	exec_extract_strings(struct image_params *);
