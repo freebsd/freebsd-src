@@ -47,9 +47,11 @@
 
 #ifdef	ISP_TARGET_MODE
 static const char atiocope[] =
-    "ATIO returned for lun %d because it was in the middle of Bus Device Reset";
+    "ATIO returned for lun %d because it was in the middle of Bus Device Reset "
+    "on bus %d";
 static const char atior[] =
-    "ATIO returned for lun %d from initiator %d because a Bus Reset occurred";
+    "ATIO returned on for lun %d on from IID %d because a Bus Reset occurred "
+    "on bus %d";
 
 static void isp_got_msg(struct ispsoftc *, int, in_entry_t *);
 static void isp_got_msg_fc(struct ispsoftc *, int, in_fcentry_t *);
@@ -172,12 +174,18 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 			status = inotp->in_status & 0xff;
 			seqid = inotp->in_seqid;
 			if (IS_DUALBUS(isp)) {
-				bus = (inotp->in_iid & 0x80) >> 7;
-				inotp->in_iid &= ~0x80;
+				bus = GET_BUS_VAL(inotp->in_iid);
+				SET_BUS_VAL(inotp->in_iid, 0);
 			}
 		}
-		isp_prt(isp, ISP_LOGTDEBUG1,
-		    "Immediate Notify, status=0x%x seqid=0x%x", status, seqid);
+		isp_prt(isp, ISP_LOGTDEBUG0,
+		    "Immediate Notify On Bus %d, status=0x%x seqid=0x%x",
+		    bus, status, seqid);
+
+		/*
+		 * ACK it right away.
+		 */
+		isp_notify_ack(isp, (status == IN_RESET)? NULL : vptr);
 		switch (status) {
 		case IN_RESET:
 			(void) isp_async(isp, ISPASYNC_BUS_RESET, &bus);
@@ -195,8 +203,9 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 			break;
 		case IN_ABORT_TASK:
 			isp_prt(isp, ISP_LOGWARN,
-			    "Abort Task for Initiator %d RX_ID 0x%x",
+			    "Abort Task from IID %d RX_ID 0x%x",
 			    inot_fcp->in_iid, seqid);
+			(void) isp_async(isp, ISPASYNC_TARGET_ACTION, &bus);
 			break;
 		case IN_PORT_LOGOUT:
 			isp_prt(isp, ISP_LOGWARN,
@@ -216,7 +225,6 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 			    "bad status (0x%x) in isp_target_notify", status);
 			break;
 		}
-		isp_notify_ack(isp, vptr);
 		break;
 
 	case RQSTYPE_NOTIFY_ACK:
@@ -301,7 +309,7 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
 	if (IS_SCSI(isp)) {
 		el.le_tgt = tgt;
 		el.le_lun = lun;
-	} else if (isp->isp_maxluns <= 16) {
+	} else if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
 		el.le_lun = lun;
 	}
 	el.le_timeout = 2;
@@ -427,7 +435,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
 		cto->ct_iid = aep->at_iid;
-		if (isp->isp_maxluns <= 16) {
+		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
 			cto->ct_lun = aep->at_lun;
 		}
 		cto->ct_rxid = aep->at_rxid;
@@ -487,15 +495,19 @@ isp_target_async(struct ispsoftc *isp, int bus, int event)
 	 * upstream, but these do not require any immediate notify actions
 	 * so we return when done.
 	 */
+	case ASYNC_LIP_F8:
 	case ASYNC_LIP_OCCURRED:
 	case ASYNC_LOOP_UP:
 	case ASYNC_LOOP_DOWN:
-		evt.ev_bus = bus;
-		evt.ev_event = event;
-		(void) isp_async(isp, ISPASYNC_TARGET_EVENT, &evt);
-		return;
-
 	case ASYNC_LOOP_RESET:
+	case ASYNC_PTPMODE:
+		/*
+		 * These don't require any immediate notify actions. We used
+		 * treat them like SCSI Bus Resets, but that was just plain
+		 * wrong. Let the normal CTIO completion report what occurred.
+		 */
+                return;
+
 	case ASYNC_BUS_RESET:
 	case ASYNC_TIMEOUT_RESET:
 		if (IS_FC(isp)) {
@@ -730,7 +742,8 @@ isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 		 * not increment it. Therefore we should never get
 		 * this status here.
 		 */
-		isp_prt(isp, ISP_LOGERR, atiocope, lun);
+		isp_prt(isp, ISP_LOGERR, atiocope, lun,
+		    GET_BUS_VAL(aep->at_iid));
 		break;
 
 	case AT_CDB:		/* Got a CDB */
@@ -750,7 +763,8 @@ isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 		 * Ignore it because the async event will clear things
 		 * up for us.
 		 */
-		isp_prt(isp, ISP_LOGWARN, atior, lun, aep->at_iid);
+		isp_prt(isp, ISP_LOGWARN, atior, lun,
+		    GET_IID_VAL(aep->at_iid), GET_BUS_VAL(aep->at_iid));
 		break;
 
 
@@ -814,7 +828,7 @@ isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 * not increment it. Therefore we should never get
 		 * this status here.
 		 */
-		isp_prt(isp, ISP_LOGERR, atiocope, lun);
+		isp_prt(isp, ISP_LOGERR, atiocope, lun, 0);
 		break;
 
 	case AT_CDB:		/* Got a CDB */
@@ -833,7 +847,7 @@ isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 		 * Ignore it because the async event will clear things
 		 * up for us.
 		 */
-		isp_prt(isp, ISP_LOGERR, atior, lun, aep->at_iid);
+		isp_prt(isp, ISP_LOGERR, atior, lun, aep->at_iid, 0);
 		break;
 
 
@@ -906,7 +920,7 @@ isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 		 * set, then sends us an Immediate Notify entry.
 		 */
 		if (fmsg == NULL)
-			fmsg = "ABORT TASK sent by Initiator";
+			fmsg = "ABORT TAG message sent by Initiator";
 
 		isp_prt(isp, ISP_LOGWARN, "CTIO destroyed by %s", fmsg);
 		break;
