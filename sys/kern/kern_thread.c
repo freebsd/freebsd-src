@@ -989,7 +989,7 @@ thread_suspend_check(int return_instead)
 			if (p->p_singlethread == td)
 				return (0);	/* Exempt from stopping. */
 		}
-		if (return_instead)
+		if ((p->p_flag & P_SINGLE_EXIT) && return_instead)
 			return (1);
 
 		mtx_lock_spin(&sched_lock);
