@@ -173,7 +173,7 @@ main(argc, argv)
 	argv += optind;
 
 	pid = getpid();
-	uid = getuid();
+	uid = geteuid();
 	if (tflag)
 		s = open(_PATH_DEVNULL, O_WRONLY, 0);
 	else
