@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.49 1998/01/31 14:10:14 kato Exp $
+#	$Id: options.pc98,v 1.50 1998/02/02 07:50:12 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -52,18 +52,18 @@ CLK_USE_TSC_CALIBRATION   opt_clock.h
 NO_F00F_HACK			opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
 CPU_BLUELIGHTNING_3X		opt_cpu.h
-CPU_BTB_EN		 opt_cpu.h
+CPU_BTB_EN			opt_cpu.h
 CPU_DIRECT_MAPPED_CACHE		opt_cpu.h
-CPU_DISABLE_5X86_LSSER	 opt_cpu.h
-CPU_FASTER_5X86_FPU	 opt_cpu.h
-CPU_I486_ON_386		 opt_cpu.h
-CPU_IORT		 opt_cpu.h
-CPU_LOOP_EN		 opt_cpu.h
-CPU_RSTK_EN		 opt_cpu.h
-CPU_SUSP_HLT		 opt_cpu.h
-CPU_UPGRADE_HW_CACHE	 opt_cpu.h
-CYRIX_CACHE_WORKS	 opt_cpu.h
-CYRIX_CACHE_REALLY_WORKS opt_cpu.h
+CPU_DISABLE_5X86_LSSER		opt_cpu.h
+CPU_FASTER_5X86_FPU		opt_cpu.h
+CPU_I486_ON_386			opt_cpu.h
+CPU_IORT			opt_cpu.h
+CPU_LOOP_EN			opt_cpu.h
+CPU_RSTK_EN			opt_cpu.h
+CPU_SUSP_HLT			opt_cpu.h
+CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CYRIX_CACHE_WORKS		opt_cpu.h
+CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
 I386_CPU		opt_global.h
