@@ -72,6 +72,7 @@ static int udf_bmap_internal(struct udf_node *node, off_t offset,
 
 static struct vop_vector udf_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		udf_access,
 	.vop_bmap =		udf_bmap,
 	.vop_cachedlookup =	udf_lookup,
