@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)comm.1	8.1 (Berkeley) 6/6/93
+.\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Os
@@ -42,7 +43,7 @@
 .Nd select or reject lines common to two files
 .Sh SYNOPSIS
 .Nm comm
-.Op Fl 123
+.Op Fl 123i
 .Ar file1 file2
 .Sh DESCRIPTION
 The
@@ -69,6 +70,8 @@ Suppress printing of column 1.
 Suppress printing of column 2.
 .It Fl 3
 Suppress printing of column 3.
+.It Fl i
+Case insensitive comparison of lines.
 .El
 .Pp
 Each column will have a number of tab characters prepended to it
