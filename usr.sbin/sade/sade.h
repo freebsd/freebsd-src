@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.22 1995/05/20 03:49:10 gpalmer Exp $
+ * $Id: sysinstall.h,v 1.23 1995/05/20 10:33:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,6 +137,7 @@ typedef enum {
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
     DEVICE_TYPE_TAPE,
+    DEVICE_TYPE_DOS,
     DEVICE_TYPE_ANY,
 } DeviceType;
 

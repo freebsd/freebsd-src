@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.8 1995/05/20 03:49:09 gpalmer Exp $
+ * $Id: media.c,v 1.9 1995/05/20 10:33:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -150,18 +150,27 @@ mediaSetDOS(char *str)
     Chunk *c1;
     int i;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs)
+    devs = deviceFind(NULL, DEVICE_TYPE_DOS);
+    if (devs) {
+	/* XXX If count > 1 then at some point then we should put up a menu and allow the user to choose XXX */
+	mediaDevice = devs[0];
+	return 1;
+    }
+    else
+	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!devs) {
 	msgConfirm("No disk devices found!");
+	return 0;
+    }
+
+    /* Now go chewing through looking for a DOS FAT partition */
     for (i = 0; devs[i]; i++) {
-	if (!devs[i]->enabled)
-	    continue;
 	d = (Disk *)devs[i]->private;
 	/* Now try to find a DOS partition */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == fat) {
 		/* Got one! */
-		mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DISK, TRUE,
+		mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
 					     mediaInitDOS, mediaGetDOS, mediaCloseDOS, NULL);
 		msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		break;
