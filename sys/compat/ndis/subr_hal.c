@@ -308,7 +308,6 @@ hal_raise_irql(REGARGS1(uint8_t irql))
 	mtx_lock_spin(&sched_lock);
 	oldirql = curthread->td_base_pri;
 	sched_prio(curthread, PI_REALTIME);
-	curthread->td_base_pri = PI_REALTIME;
 	mtx_unlock_spin(&sched_lock);
 
 	return(oldirql);
@@ -324,7 +323,6 @@ hal_lower_irql(REGARGS1(uint8_t oldirql))
 		panic("IRQL_NOT_GREATER_THAN");
 
 	mtx_lock_spin(&sched_lock);
-	curthread->td_base_pri = oldirql;
 	sched_prio(curthread, oldirql);
 	mtx_unlock_spin(&sched_lock);
 

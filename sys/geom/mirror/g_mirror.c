@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/sched.h>
 #include <geom/mirror/g_mirror.h>
 
 
@@ -1478,7 +1479,9 @@ g_mirror_worker(void *arg)
 	u_int nreqs;
 
 	sc = arg;
-	curthread->td_base_pri = PRIBIO;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(curthread, PRIBIO);
+	mtx_unlock_spin(&sched_lock);
 
 	nreqs = 0;
 	for (;;) {

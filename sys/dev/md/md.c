@@ -71,6 +71,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -618,7 +619,9 @@ md_kthread(void *arg)
 	int error, hasgiant;
 
 	sc = arg;
-	curthread->td_base_pri = PRIBIO;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(curthread, PRIBIO);
+	mtx_unlock_spin(&sched_lock);
 
 	switch (sc->type) {
 	case MD_VNODE:
