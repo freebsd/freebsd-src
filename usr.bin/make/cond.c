@@ -1034,16 +1034,14 @@ CondE(Boolean doEval)
  *-----------------------------------------------------------------------
  */
 int
-Cond_Eval(char *line)
+Cond_Eval(char *line, int lineno)
 {
     struct If	    *ifp;
     Boolean 	    isElse;
     Boolean 	    value = FALSE;
     int	    	    level;  	/* Level at which to report errors. */
-    int		    lineno;
 
     level = PARSE_FATAL;
-    lineno = curFile.lineno;
 
     for (line++; *line == ' ' || *line == '\t'; line++) {
 	continue;

@@ -48,7 +48,7 @@
 #define	COND_SKIP	1	/* Skip the next lines */
 #define	COND_INVALID	2	/* Not a conditional statement */
 
-int Cond_Eval(char *);
+int Cond_Eval(char *, int);
 void Cond_End(void);
 
 #endif /* cond_h_6e96ad7c */

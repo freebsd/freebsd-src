@@ -51,7 +51,6 @@
 #include "sprite.h"
 
 struct GNode;
-struct IFile;
 struct Path;
 
 /*
@@ -62,8 +61,6 @@ extern Lst create;
 
 /* The list of directories to search when looking for targets */
 extern struct Path dirSearchPath;
-
-extern struct IFile curFile;	/* current makefile */
 
 /* The list of directories to search when looking for includes */
 extern struct Path parseIncPath;
