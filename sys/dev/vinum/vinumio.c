@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
+ * $Id: vinumio.c,v 1.29 1999/06/24 08:55:02 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -272,7 +272,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	int len = min(length, MAXBSIZE);		    /* maximum block device transfer is MAXBSIZE */
 
 	bp = geteblk(len);				    /* get a buffer header */
-	bp->b_flags = B_BUSY | flag;			    /* get busy */
+	bp->b_flags = flag;			    	    /* get locked */
 	bp->b_dev = drive->vp->v_un.vu_specinfo->si_rdev;   /* device */
 	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
 	bp->b_data = buf;
@@ -907,7 +907,7 @@ write_volume_label(int volno)
     dlp = (struct disklabel *) bp->b_data;
     *dlp = *lp;
     bp->b_flags &= ~B_INVAL;
-    bp->b_flags |= B_BUSY | B_WRITE;
+    bp->b_flags |= B_WRITE;
     vinumstrategy(bp);					    /* write it out */
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.43 1999/04/11 02:28:32 eivind Exp $
+ * $Id: mfs_vnops.c,v 1.44 1999/05/02 23:56:57 alc Exp $
  */
 
 #include <sys/param.h>
@@ -147,11 +147,12 @@ mfs_freeblks(ap)
 		panic("mfs_freeblks: bad dev");
 
 	bp = geteblk(ap->a_length);
-	bp->b_flags |= B_FREEBUF | B_BUSY;
+	bp->b_flags |= B_FREEBUF | B_ASYNC;
 	bp->b_dev = ap->a_vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
+	BUF_KERNPROC(bp);
 	VOP_STRATEGY(vp, bp);
 	return(0);
 }

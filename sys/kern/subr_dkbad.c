@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_dkbad.c,v 1.8 1997/12/02 21:06:43 phk Exp $
+ *	$Id: subr_dkbad.c,v 1.9 1999/05/11 19:54:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ readbad144(dev, strat, lp, bdp)
 		else
 			bp->b_blkno /= DEV_BSIZE / lp->d_secsize;
 		bp->b_bcount = lp->d_secsize;
-		bp->b_flags |= B_BUSY | B_READ;
+		bp->b_flags |= B_READ;
 		bp->b_flags &= ~B_ERROR;
 		(*strat)(bp);
 
