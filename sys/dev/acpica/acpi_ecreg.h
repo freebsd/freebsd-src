@@ -189,8 +189,14 @@ typedef UINT8				EC_EVENT;
 /*
  * Register access primitives
  */
-#define EC_GET_DATA(sc)		bus_space_read_1 (sc->ec_data_tag, sc->ec_data_handle, 0)
-#define EC_SET_DATA(sc, v)	bus_space_write_1(sc->ec_data_tag, sc->ec_data_handle, 0, v)
-#define EC_GET_CSR(sc)		bus_space_read_1 (sc->ec_csr_tag,  sc->ec_csr_handle,  0)
-#define EC_SET_CSR(sc, v)	bus_space_write_1(sc->ec_csr_tag,  sc->ec_csr_handle,  0, v)
+#define EC_GET_DATA(sc)							\
+	bus_space_read_1((sc)->ec_data_tag, (sc)->ec_data_handle, 0)
 
+#define EC_SET_DATA(sc, v)						\
+	bus_space_write_1((sc)->ec_data_tag, (sc)->ec_data_handle, 0, (v))
+
+#define EC_GET_CSR(sc)							\
+	bus_space_read_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0)
+
+#define EC_SET_CSR(sc, v)						\
+	bus_space_write_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0, (v))
