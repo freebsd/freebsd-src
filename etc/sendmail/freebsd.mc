@@ -69,6 +69,9 @@ dnl FEATURE(dnsbl, `relays.mail-abuse.org', `"550 Mail from " $&{client_addr} " 
 dnl MAPS Dial-up User List (DUL): http://maps.vix.com/dul/
 dnl FEATURE(dnsbl, `dialups.mail-abuse.org', `"550 Mail from dial-up rejected; see http://mail-abuse.org/dul/enduser.htm"')
 
+dnl ORBS also offers a multitude of DNS based block hole lists.  For more
+dnl information, visit: http://www.orbs.org/usingindex.html
+
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')
 
