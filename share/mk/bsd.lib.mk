@@ -208,10 +208,15 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
-.if (${LIBDIR} != ${SHLIBDIR})
-	ln -fs ${LIBDIR:C|/[^/]+|/..|g:S|^/||}${SHLIBDIR}/${SHLIB_NAME} \
+.if ${SHLIBDIR} == ${LIBDIR}
+	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.else
+	ln -fs ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
+	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
+	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
+.endif
 .endif
 .endif
 .endif
