@@ -189,6 +189,10 @@ acpi_cmbat_get_bst(void *context)
 	goto end;
     acpi_cmbat_info_updated(&sc->bst_lastupdated);
 
+    /* XXX Should we shut down here? */
+    if (sc->bst.state & ACPI_BATT_STAT_CRITICAL)
+	device_printf(dev, "critically low charge!\n");
+
 end:
     if (bst_buffer.Pointer != NULL)
 	AcpiOsFree(bst_buffer.Pointer);
