@@ -160,7 +160,7 @@ static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel;
-u_int	atdevbase, basemem;
+u_int	basemem;
 
 int cold = 1;
 
@@ -1954,7 +1954,6 @@ init386(first)
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	/*
  	 * This may be done better later if it gets more high level

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <i386/isa/timerreg.h>
 

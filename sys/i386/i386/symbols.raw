@@ -8,7 +8,6 @@
 	_IdlePTD
 	_PTD
 	_panicstr
-	_atdevbase
 #	_version
 #dmesg
 	_msgbufp

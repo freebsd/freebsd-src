@@ -140,7 +140,6 @@ static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel, _ucode32sel;
-u_long	atdevbase;
 
 int cold = 1;
 
@@ -1115,8 +1114,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	physfree += KSTACK_PAGES * PAGE_SIZE;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-
-	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	/*
  	 * This may be done better later if it gets more high level

@@ -64,8 +64,8 @@ extern int		bios32_SDlookup(struct bios32_SDentry *ent);
 extern u_int32_t	bios_sigsearch(u_int32_t start, u_char *sig, int siglen, 
 					 int paralen, int sigofs);
 
-#define BIOS_PADDRTOVADDR(x)	(((x) - ISA_HOLE_START) + atdevbase)
-#define BIOS_VADDRTOPADDR(x)	(((x) - atdevbase) + ISA_HOLE_START)
+#define BIOS_PADDRTOVADDR(x)	((x) + KERNBASE)
+#define BIOS_VADDRTOPADDR(x)	((x) - KERNBASE)
 
 
 /* 
