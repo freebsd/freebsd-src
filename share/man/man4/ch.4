@@ -54,7 +54,9 @@ Any devices found which answer as 'Changer'
 type devices will be 'attached' to the 
 .Nm
 driver.
-In FreeBSD releases prior to 2.1, the first found will be attached as
+In
+.Fx
+releases prior to 2.1, the first found will be attached as
 .Em ch0
 and the next, 
 .Em ch1
@@ -63,8 +65,6 @@ Beginning in 2.1 it is possible to specify what ch unit a device should
 come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
-.Pp
-
 .Sh KERNEL CONFIGURATION
 In configuring, if an optional
 .Ar count
@@ -73,7 +73,6 @@ are configured; Most storage for them is allocated only when found
 so a large number of configured devices is cheap.
 (once the first
 has included the driver).
-
 .Pp
 .Sh IOCTLS
 User mode programs communicate with the changer driver through a
@@ -167,8 +166,8 @@ u_int cp_npickers; /* number of pickers */
 u_int cp_nslots;   /* number of slots */
 u_int cp_nportals; /* number of import/export portals */
 u_int cp_ndrives;  /* number of drives */
-
 .Ed
+.Pp
 This call can be used by applications to query the dimensions of
 the jukebox before using the \fBCHIGSTATUS\fR
 ioctl to query the jukebox' status.
@@ -199,8 +198,8 @@ u_int                          cesr_element_base;
 u_int                          cesr_element_count;
 u_int                          cesr_flags;
 struct changer_element_status *cesr_element_status;
-
 .Ed
+.Pp
 This structure is read by the driver to determine the type, logical
 base address and number of elements for which information is to be
 returned in the array of changer_element_status structures pointed to
@@ -236,8 +235,8 @@ u_char           ces_idvalid;   /* ces_scsi_id is valid */
 u_char           ces_scsi_id;   /* SCSI id of element (if ces_idvalid is nonzero) */
 u_char           ces_lunvalid;  /* ces_scsi_lun is valid */
 u_char           ces_scsi_lun;  /* SCSI lun of elemtne (if ces_lunvalid is nonzero) */
-
 .Ed
+.Pp
 The ces_addr field contains the address of the element in the
 coordinate system of the media changer.  It is not used by the driver,
 and should be used for diagnostic purposes only.

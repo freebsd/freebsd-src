@@ -76,7 +76,9 @@ The communication protocol is selected by the
 flag:
 .Bl -tag -width Fl
 .It Fl link0
-(default) Use FreeBSD mode (LPIP).  This is the simpler of the two modes
+(default) Use
+.Fx
+mode (LPIP).  This is the simpler of the two modes
 and therefore slightly more efficient.
 .It Cm link0
 Use Crynwr/Linux compatible mode (CLPIP).  This mode has a simulated ethernet
@@ -200,7 +202,9 @@ The length includes the 14 header bytes, but not the length bytes themselves
 nor the checksum byte.
 .Pp
 The checksum is a simple arithmetic sum of all the bytes (again, including
-the header but not checksum or length bytes).  FreeBSD calculates
+the header but not checksum or length bytes).
+.Fx
+calculates
 outgoing checksums, but does not validate incoming ones.
 .Pp
 The start of packet has to be signalled specially, since the line chosen

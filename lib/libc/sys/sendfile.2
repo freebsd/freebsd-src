@@ -99,7 +99,9 @@ and the error
 .Er EAGAIN
 is returned.
 .Sh IMPLEMENTATION NOTES
-The FreeBSD implementation of
+The
+.Fx
+implementation of
 .Fn sendfile
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
 .Pp

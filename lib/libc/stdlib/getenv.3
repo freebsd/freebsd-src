@@ -150,7 +150,9 @@ assigning a differently sized
 .Ar value
 to the same
 .Ar name
-will result in a memory leak.  The FreeBSD semantics for these functions
+will result in a memory leak.  The
+.Fx
+semantics for these functions
 (namely, that the contents of
 .Ar value
 are copied and that old values remain accessible indefinitely) make this
