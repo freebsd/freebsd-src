@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.9 1998/09/09 17:30:30 markm Exp $
+#	$Id: Makefile.inc1,v 1.10 1998/09/09 19:30:20 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -807,6 +807,7 @@ build-tools:
 		usr.bin/col		\
 		usr.bin/colldef		\
 		usr.bin/cpp		\
+		usr.bin/cut		\
 		usr.bin/expand		\
 		usr.bin/file2c		\
 		usr.bin/find		\
