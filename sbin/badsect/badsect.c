@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: badsect.c,v 1.5 1998/06/04 06:38:03 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -128,7 +128,7 @@ main(argc, argv)
 	closedir(dirp);
 	if (dp == NULL) {
 		printf("Cannot find dev 0%lo corresponding to %s\n",
-			stbuf.st_rdev, argv[1]);
+		    (u_long)stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
 	/*
@@ -155,7 +155,7 @@ main(argc, argv)
 		diskbn = dbtofsb(fs, number);
 		if ((dev_t)diskbn != diskbn) {
 			printf("sector %ld cannot be represented as a dev_t\n",
-			       number);
+			    (long)number);
 			errs++;
 		}
 		else if (mknod(*argv, IFMT|0600, (dev_t)diskbn) < 0) {
@@ -177,20 +177,20 @@ chkuse(blkno, cnt)
 
 	fsbn = dbtofsb(fs, blkno);
 	if ((unsigned)(fsbn+cnt) > fs->fs_size) {
-		printf("block %ld out of range of file system\n", blkno);
+		printf("block %ld out of range of file system\n", (long)blkno);
 		return (1);
 	}
 	cg = dtog(fs, fsbn);
 	if (fsbn < cgdmin(fs, cg)) {
 		if (cg == 0 || (fsbn+cnt) > cgsblock(fs, cg)) {
 			printf("block %ld in non-data area: cannot attach\n",
-				blkno);
+			    (long)blkno);
 			return (1);
 		}
 	} else {
 		if ((fsbn+cnt) > cgbase(fs, cg+1)) {
 			printf("block %ld in non-data area: cannot attach\n",
-				blkno);
+			    (long)blkno);
 			return (1);
 		}
 	}
@@ -203,7 +203,7 @@ chkuse(blkno, cnt)
 	}
 	bn = dtogd(fs, fsbn);
 	if (isclr(cg_blksfree(&acg), bn))
-		printf("Warning: sector %ld is in use\n", blkno);
+		printf("Warning: sector %ld is in use\n", (long)blkno);
 	return (0);
 }
 
@@ -219,12 +219,12 @@ rdfs(bno, size, bf)
 	int n;
 
 	if (lseek(fsi, (off_t)bno * dev_bsize, SEEK_SET) < 0) {
-		printf("seek error: %ld\n", bno);
+		printf("seek error: %ld\n", (long)bno);
 		err(1, "rdfs");
 	}
 	n = read(fsi, bf, size);
 	if (n != size) {
-		printf("read error: %ld\n", bno);
+		printf("read error: %ld\n", (long)bno);
 		err(1, "rdfs");
 	}
 }
