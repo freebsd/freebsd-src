@@ -55,7 +55,7 @@
 #
 
 #
-#% islocked	vp	= = =
+# islocked	vp	= = =
 #
 vop_islocked {
 	IN struct vnode *vp;
