@@ -1922,6 +1922,7 @@ ahc_update_pending_scbs(struct ahc_softc *ahc)
 	struct	scb *pending_scb;
 	int	pending_scb_count;
 	int	i;
+	int	paused;
 	u_int	saved_scbptr;
 
 	/*
@@ -1956,6 +1957,13 @@ ahc_update_pending_scbs(struct ahc_softc *ahc)
 	if (pending_scb_count == 0)
 		return;
 
+	if (ahc_is_paused(ahc)) {
+		paused = 1;
+	} else {
+		paused = 0;
+		ahc_pause(ahc);
+	}
+
 	saved_scbptr = ahc_inb(ahc, SCBPTR);
 	/* Ensure that the hscbs down on the card match the new information */
 	for (i = 0; i < ahc->scb_data->maxhscbs; i++) {
@@ -1978,6 +1986,9 @@ ahc_update_pending_scbs(struct ahc_softc *ahc)
 		ahc_outb(ahc, SCB_SCSIOFFSET, pending_hscb->scsioffset);
 	}
 	ahc_outb(ahc, SCBPTR, saved_scbptr);
+
+	if (paused == 0)
+		ahc_unpause(ahc);
 }
 
 /**************************** Pathing Information *****************************/
