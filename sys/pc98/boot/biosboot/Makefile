@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4.2.1 1996/11/10 12:12:18 phk Exp $
+#	$Id: Makefile,v 1.4.2.2 1996/12/04 16:00:18 phk Exp $
 #
 
 PROG=	boot
@@ -10,6 +10,7 @@ BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
+		-mno-486 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
