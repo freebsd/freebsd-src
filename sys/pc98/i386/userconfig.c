@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.65.2.7 1999/08/09 14:00:05 nyan Exp $
+ **      $Id: userconfig.c,v 1.65.2.8 1999/08/13 12:56:25 nyan Exp $
  **/
 
 /**
@@ -417,6 +417,9 @@ static DEV_INFO device_info[] = {
 {"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
+#ifdef PC98
+{"olpt",        "Parallel printer port",		0,		CLS_COMMS},
+#endif
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
@@ -434,10 +437,9 @@ static DEV_INFO device_info[] = {
 
 {"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
 #ifdef PC98
-{"pcm",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
-#else
-{"pcm",         "New Luigi audio driver for all supported sound cards",	0,CLS_MMEDIA},
+{"nss",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
 #endif
+{"pcm",         "New Luigi audio driver for all supported sound cards",	0,CLS_MMEDIA},
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
 {"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
@@ -464,6 +466,9 @@ static DEV_INFO device_info[] = {
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_INVISIBLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
+#ifdef PC98
+{"gdc",	        "Graphic Display Controller",		FLG_INVISIBLE,	CLS_MISC},
+#endif
 {"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
 {"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
@@ -2529,7 +2534,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.65.2.7 1999/08/09 14:00:05 nyan Exp $
+ *      $Id: userconfig.c,v 1.65.2.8 1999/08/13 12:56:25 nyan Exp $
  */
 
 #include "scbus.h"
