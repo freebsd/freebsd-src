@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.16 2003/01/28 13:44:34 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.17 2003/12/03 10:01:19 hbb Exp $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
@@ -978,11 +978,15 @@ mib_fetch_rtab(int af, int info, int arg, size_t *lenp)
 	name[4] = info;
 	name[5] = arg;
 
+	*lenp = 0;
+
 	if (sysctl(name, 6, NULL, lenp, NULL, 0) == -1) {
 		syslog(LOG_ERR, "sysctl estimate (%d,%d,%d,%d,%d,%d): %m",
 		    name[0], name[1], name[2], name[3], name[4], name[5]);
 		return (NULL);
 	}
+	if (*lenp == 0)
+		return (NULL);
 
 	if ((buf = malloc(*lenp)) == NULL) {
 		syslog(LOG_ERR, "sysctl buffer: %m");

@@ -1,4 +1,4 @@
-Mon Nov 10 09:50:22 CET 2003
+Fri Dec  5 15:01:16 CET 2003
 
 This is a mini-SNMP daemon. The basic daemon implements the system group
 and a number of private extensions to manage the UDP transport mapping,
@@ -13,16 +13,16 @@ One basic loadable module is provided together with the daemon:
 Installation
 ------------
 
-You need to apply the patch in the patches directory to your system sources.
-This adds a sysctl to retrieve multicast address information from the kernel.
-
 As usual by doing:
 
-	make obj ; make depend ; make ; make install
+	configure [--with-libbegemot[=path]]
+	make
+	make install
 
 This does not install a configuration file. The standard location for the
 configuration is /etc/snmpd.config, but can be overwritten on the command
-line. An example configuration file is provided.
+line. An example configuration file is provided. Use --with-libbegemot
+to use libbegemot instead of libisc.
 
 Running
 -------

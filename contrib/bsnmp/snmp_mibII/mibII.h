@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.11 2002/03/21 10:43:06 hbb Exp $
+ * $Begemot: bsnmp/snmp_mibII/mibII.h,v 1.12 2003/12/03 10:01:19 hbb Exp $
  *
  * Implementation of the interfaces and IP groups of MIB-II.
  */
