@@ -10,9 +10,8 @@
  *
  * Have a party.
  *
- *	$Id: ether_addr.c,v 1.1.1.1 1995/03/02 06:41:40 wpaul Exp $
+ *	$Id: ether_addr.c,v 1.2 1995/03/03 22:20:15 wpaul Exp $
  */
-
 
 #include <stdio.h>
 
@@ -108,14 +107,14 @@ return (-1);
 }
 
 int ether_print(cp)
-        u_char *cp;
+        unsigned char *cp;
 {
         printf("%x:%x:%x:%x:%x:%x", cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
 }
 
 int ether_aton(a, n)
         char *a;
-        u_char *n;
+        unsigned char *n;
 {
         int i, o[6];
 
