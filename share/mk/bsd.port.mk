@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.105 1995/01/22 20:40:48 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.106 1995/01/23 18:22:36 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -505,7 +505,6 @@ fetch: pre-fetch
 makesum: fetch
 	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
 	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
-	
 	@(cd ${DISTDIR}; \
 	for file in ${DISTFILES}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
