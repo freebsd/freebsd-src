@@ -366,7 +366,7 @@ pkg_do(char *pkg)
 	if (Verbose)
 	    printf("mtree -U -f %s -d -e -p %s >%s\n", MTREE_FNAME, p ? p->name : "/", _PATH_DEVNULL);
 	if (!Fake) {
-	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >%s", MTREE_FNAME, p ? p->name : "/"), _PATH_DEVNULL)
+	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >%s", MTREE_FNAME, p ? p->name : "/", _PATH_DEVNULL))
 		warnx("mtree returned a non-zero status - continuing");
 	}
 	unlink(MTREE_FNAME);
