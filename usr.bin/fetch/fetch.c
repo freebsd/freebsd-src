@@ -127,7 +127,7 @@ stat_display(struct xferstat *xs, int force)
     xs->last = now;
     
     fprintf(stderr, "\rReceiving %s", xs->name);
-    if (xs->size == -1)
+    if (xs->size <= 0)
 	fprintf(stderr, ": %lld bytes", xs->rcvd);
     else
 	fprintf(stderr, " (%lld bytes): %d%%", xs->size,
