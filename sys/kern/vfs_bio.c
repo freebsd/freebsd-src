@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.49 1995/07/17 06:26:07 davidg Exp $
+ * $Id: vfs_bio.c,v 1.50 1995/07/21 04:55:45 davidg Exp $
  */
 
 /*
@@ -383,7 +383,7 @@ brelse(struct buf * bp)
 
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
-		bp->b_flags &= ~B_WANTED | B_AGE;
+		bp->b_flags &= ~(B_WANTED | B_AGE);
 		wakeup((caddr_t) bp);
 	} else if (bp->b_flags & B_VMIO) {
 		bp->b_flags &= ~B_WANTED;
@@ -546,7 +546,8 @@ vfs_bio_awrite(struct buf * bp)
 
 		for (i = 1; i < MAXPHYS / size; i++) {
 			if ((bpa = incore(vp, lblkno + i)) &&
-			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_BUSY | B_CLUSTEROK | B_INVAL)) == B_DELWRI | B_CLUSTEROK) &&
+			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
+			    (B_DELWRI | B_CLUSTEROK)) &&
 			    (bpa->b_bufsize == size)) {
 				if ((bpa->b_blkno == bpa->b_lblkno) ||
 				    (bpa->b_blkno != bp->b_blkno + (i * size) / DEV_BSIZE))
@@ -835,7 +836,13 @@ loop:
 		 * check for size inconsistancies
 		 */
 		if (bp->b_bcount != size) {
-			allocbuf(bp, size);
+			if (bp->b_flags & B_VMIO) {
+				allocbuf(bp, size);
+			} else {
+				bp->b_flags |= B_NOCACHE;
+				VOP_BWRITE(bp);
+				goto loop;
+			}
 		}
 		splx(s);
 		return (bp);
@@ -1035,6 +1042,7 @@ allocbuf(struct buf * bp, int size)
 						vm_page_activate(m);
 						m->act_count = 0;
 						m->valid = 0;
+						bp->b_flags &= ~B_CACHE;
 					} else if (m->flags & PG_BUSY) {
 						int j;
 
@@ -1071,20 +1079,10 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
 				}
-				if (bsize >= PAGE_SIZE) {
-					for (i = bp->b_npages; i < curbpnpages; i++) {
-						m = bp->b_pages[i];
-						if (m->valid == 0) {
-							bp->b_flags &= ~B_CACHE;
-						}
-						m->bmapped++;
-						PAGE_WAKEUP(m);
-					}
-				} else {
-					if (!vm_page_is_valid(bp->b_pages[0], off, bsize))
-						bp->b_flags &= ~B_CACHE;
-					bp->b_pages[0]->bmapped++;
-					PAGE_WAKEUP(bp->b_pages[0]);
+				for (i = bp->b_npages; i < curbpnpages; i++) {
+					m = bp->b_pages[i];
+					m->bmapped++;
+					PAGE_WAKEUP(m);
 				}
 				bp->b_npages = curbpnpages;
 				bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
