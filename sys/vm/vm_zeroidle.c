@@ -75,15 +75,18 @@ vm_page_zero_idle(void)
 	vm_page_t m;
 
 	mtx_lock(&Giant);
+	mtx_lock(&vm_page_queue_free_mtx);
 	zero_state = 0;
 	m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
 	if (m != NULL && (m->flags & PG_ZERO) == 0) {
 		vm_page_queues[m->queue].lcnt--;
 		TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 		m->queue = PQ_NONE;
+		mtx_unlock(&vm_page_queue_free_mtx);
 		/* maybe drop out of Giant here */
 		pmap_zero_page(m);
 		/* and return here */
+		mtx_lock(&vm_page_queue_free_mtx);
 		vm_page_flag_set(m, PG_ZERO);
 		m->queue = PQ_FREE + m->pc;
 		vm_page_queues[m->queue].lcnt++;
@@ -95,6 +98,7 @@ vm_page_zero_idle(void)
 			zero_state = 1;
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
+	mtx_unlock(&vm_page_queue_free_mtx);
 	mtx_unlock(&Giant);
 	return 1;
 }
