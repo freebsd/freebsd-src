@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.42 1998/05/27 11:05:17 paul Exp $
+ * $Id: if_lnc.c,v 1.43 1998/06/07 17:10:36 dfr Exp $
  */
 
 /*
@@ -1145,6 +1145,14 @@ pcnet_probe(struct lnc_softc *sc)
 			     * do NOT try to ISA attach the PCI version
 			     */
 				return (0);
+			case HITACHI_Am79C970:
+
+                            /*
+			     * PCI cards that should be attached in
+			     * ISA mode should return this value. -- tvf
+			     */
+
+			        return (PCnet_PCI);
 			default:
 				break;
 			}
@@ -1274,7 +1282,16 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 	if (sc) {
 		bzero (sc, sizeof *sc);
 
-		if ((ne2100_probe(sc, iobase) == 0) 
+		/*
+		 * ne2100_probe sets sc->nic.ic to PCnet_PCI for PCI
+		 * cards that work in ISA emulation mode. The first
+		 * clause this code avoids attaching such a card at
+		 * this time to allow it to be picked up as an ISA
+		 * card later. -- tvf
+		 */
+
+		if (((ne2100_probe(sc, iobase) == 0) ||
+		     sc->nic.ic == PCnet_PCI)
 		    || (lnc_attach_sc(sc, unit) == 0)) {
 			free(sc, M_DEVBUF);
 			sc = NULL;
