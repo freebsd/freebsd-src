@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.1 1998/09/13 18:28:15 nsouch Exp $
+ *	$Id: immio.c,v 1.2 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 
@@ -380,6 +380,7 @@ imm_detect(struct vpoio_data *vpo)
 		if (bootverbose)
 			printf("imm%d: can't disconnect from the drive\n",
 				vpo->vpo_unit);
+		goto error;
 	}
 
 	return (0);
