@@ -299,7 +299,8 @@ copy_ar(cfp, size)
 		error(cfp->rname);
 	}
 
-	if (cfp->flags & RPAD && size & 1 && (nr = read(from, buf, 1)) != 1) {
+	if (cfp->flags & RPAD && (size + chdr.lname) & 1 &&
+	(nr = read(from, buf, 1)) != 1) {
 		if (nr == 0)
 			badfmt();
 		error(cfp->rname);
