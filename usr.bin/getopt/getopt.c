@@ -17,7 +17,7 @@ char *argv[];
 			break;
 		default:
 			if (optarg != NULL)
-				printf(" -%c '%s'", c, optarg);
+				printf(" -%c %s", c, optarg);
 			else
 				printf(" -%c", c);
 			break;
