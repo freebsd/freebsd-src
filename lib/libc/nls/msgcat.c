@@ -144,6 +144,8 @@ catopen( name, type)
 				++nlspath;
 				/* fallthrough */
 			    default:
+				if (pathP - path >= sizeof(path) - 1)
+					goto too_long;
 				*(pathP++) = *nlspath;
 				continue;
 			}
@@ -151,13 +153,17 @@ catopen( name, type)
 		put_tmpptr:
 	        	spcleft = sizeof(path) - (pathP - path) - 1;
 		    	if (strlcpy(pathP, tmpptr, spcleft) >= spcleft) {
+		too_long:
 				free(plang);
 				free(base);
 				NLRETERR(ENAMETOOLONG);
 			}
 		    	pathP += strlen(tmpptr);
-	    	  } else
+		  } else {
+			if (pathP - path >= sizeof(path) - 1)
+				goto too_long;
 			*(pathP++) = *nlspath;
+		  }
 		}
 		*pathP = '\0';
 		if (stat(path, &sbuf) == 0) {
