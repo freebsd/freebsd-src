@@ -1608,7 +1608,7 @@ tcp_twstart(tp)
 	tw->tw_cred = crhold(so->so_cred);
 	tw->tw_so_options = so->so_options;
 	if (acknow)
-		tcp_twrespond(tw, so, NULL, TH_ACK);
+		tcp_twrespond(tw, TH_ACK);
 	sotryfree(so);
 	inp->inp_socket = NULL;
 	inp->inp_ppcb = (caddr_t)tw;
@@ -1671,13 +1671,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	return (NULL);
 }
 
-/*
- * One of so and msrc must be non-NULL for use by the MAC Framework to
- * construct a label for ay resulting packet.
- */
 int
-tcp_twrespond(struct tcptw *tw, struct socket *so, struct mbuf *msrc,
-    int flags)
+tcp_twrespond(struct tcptw *tw, int flags)
 {
 	struct inpcb *inp = tw->tw_inpcb;
 	struct tcphdr *th;
@@ -1690,9 +1685,6 @@ tcp_twrespond(struct tcptw *tw, struct socket *so, struct mbuf *msrc,
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6 = inp->inp_inc.inc_isipv6;
 #endif
-
-	KASSERT(so != NULL || msrc != NULL,
-	    ("tcp_twrespond: so and msrc NULL"));
 
 	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
