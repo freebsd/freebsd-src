@@ -171,6 +171,7 @@ extern vm_object_t kmem_object;
 #endif				/* _KERNEL */
 
 #ifdef _KERNEL
+void vm_freeze_copyopts(vm_object_t, vm_pindex_t, vm_pindex_t);
 
 void vm_object_set_flag(vm_object_t object, u_short bits);
 void vm_object_clear_flag(vm_object_t object, u_short bits);
