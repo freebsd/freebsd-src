@@ -210,6 +210,7 @@ struct udav_softc {
 #if defined(__FreeBSD__)
 	device_t		sc_miibus ;
 	struct mtx		sc_mtx ;
+	struct usb_qdat		sc_qdat;
 #elif defined(__NetBSD__)
 	struct ethercom		sc_ec; /* ethernet common */
 	struct mii_data		sc_mii;

@@ -113,8 +113,6 @@ Static struct axe_type axe_devs[] = {
 	{ 0, 0 }
 };
 
-Static struct usb_qdat axe_qdat;
-
 Static int axe_match(device_ptr_t);
 Static int axe_attach(device_ptr_t);
 Static int axe_detach(device_ptr_t);
@@ -508,8 +506,8 @@ USB_ATTACH(axe)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	axe_qdat.ifp = ifp;
-	axe_qdat.if_rxstart = axe_rxstart;
+	sc->axe_qdat.ifp = ifp;
+	sc->axe_qdat.if_rxstart = axe_rxstart;
 
 	if (mii_phy_probe(self, &sc->axe_miibus,
 	    axe_ifmedia_upd, axe_ifmedia_sts)) {
@@ -711,7 +709,7 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_ipackets++;
-	m->m_pkthdr.rcvif = (struct ifnet *)&axe_qdat;
+	m->m_pkthdr.rcvif = (struct ifnet *)&sc->axe_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */
