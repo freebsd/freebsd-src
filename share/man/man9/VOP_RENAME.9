@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VOP_RENAME.9,v 1.1 1997/03/03 18:00:38 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -47,7 +47,7 @@ Its arguments are:
 .It Ar fdvp
 the vnode of the old parent directory
 .It Ar fvp
-the vnode of the file to be renameed
+the vnode of the file to be renamed
 .It Ar fcnp
 pathname information about the file's current name
 .It Ar tdvp
@@ -161,7 +161,7 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
     /*
      * If ".." must be changed (ie the directory gets a new
      * parent) then the source directory must not be in the
-     * directory heirarchy above the target, as this would
+     * directory hierarchy above the target, as this would
      * orphan everything below the source directory. Also
      * the user must have write permission in the source so
      * as to be able to change "..".
