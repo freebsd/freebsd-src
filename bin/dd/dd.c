@@ -46,12 +46,14 @@ static char const copyright[] =
 static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: dd.c,v 1.18 1999/06/20 14:58:51 green Exp $";
+	"$Id: dd.c,v 1.19 1999/07/13 18:44:56 green Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/conf.h>
 #include <sys/diskslice.h>
+#include <sys/filio.h>
 #include <sys/mtio.h>
 
 #include <ctype.h>
@@ -224,19 +226,22 @@ static void
 getfdtype(io)
 	IO *io;
 {
-	struct mtget mt;
-	struct diskslices ds;
 	struct stat sb;
+	int type;
 
 	if (fstat(io->fd, &sb))
 		err(1, "%s", io->name);
-	if ((S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) &&
-	    ioctl(io->fd, DIOCGSLICEINFO, &ds) != -1)
-		io->flags |= ISDISK;
-	if (S_ISCHR(sb.st_mode))
-		io->flags |= ioctl(io->fd, MTIOCGET, &mt) ? ISCHR : ISTAPE;
-	else if (lseek(io->fd, (off_t)0, SEEK_CUR) == -1 && errno == ESPIPE)
-		io->flags |= ISPIPE;		/* XXX fixed in 4.4BSD */
+	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
+		if (ioctl(io->fd, FIODTYPE, &type) == -1)
+			err(1, "%s", io->name);
+		if (type & D_TAPE)
+			io->flags |= ISTAPE;
+		else if (type & D_DISK)
+			io->flags |= ISDISK;
+		if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
+			io->flags |= ISCHR;
+	} else if (!S_ISREG(sb.st_mode))
+		io->flags |= ISPIPE;
 }
 
 static void
