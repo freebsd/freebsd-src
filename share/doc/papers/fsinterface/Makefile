@@ -4,4 +4,7 @@ DIR=	papers/fsinterface
 SRCS=	fsinterface.ms
 MACROS=	-ms
 
+paper.ps: ${SRCS}
+	${TBL} ${SRCS} | ${ROFF} > ${.TARGET}
+
 .include <bsd.doc.mk>
