@@ -31,14 +31,16 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.60 1999/04/21 07:26:28 peter Exp $
+ *	$Id: isa_device.h,v 1.61 1999/05/08 18:20:05 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
 
 #ifdef KERNEL
+#ifndef _ISA_ISAVAR_H_
 #include <i386/isa/isa_dma.h>
+#endif
 #endif
 
 /*
