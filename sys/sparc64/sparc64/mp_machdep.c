@@ -428,7 +428,7 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 	int i;
 
 	KASSERT((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_BUSY) == 0,
-	    ("ipi_send: outstanding dispatch"));
+	    ("cpu_ipi_send: outstanding dispatch"));
 	for (i = 0; i < IPI_RETRIES; i++) {
 		s = intr_disable();
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
@@ -447,9 +447,9 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 	    kdb_active ||
 #endif
 	    panicstr != NULL)
-		printf("ipi_send: couldn't send ipi to module %u\n", mid);
+		printf("cpu_ipi_send: couldn't send ipi to module %u\n", mid);
 	else
-		panic("ipi_send: couldn't send ipi");
+		panic("cpu_ipi_send: couldn't send ipi");
 }
 
 void
