@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1998-2000 Luigi Rizzo
+ * Copyright (c) 1998-2002 Luigi Rizzo
+ *
+ * Work partly supported by: Cisco Systems, Inc. - NSITE lab, RTP, NC
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,86 +28,45 @@
  */
 
 extern int do_bridge;
-/*
- * the hash table for bridge
- */
-typedef struct hash_table {
-    struct ifnet *name ;
-    unsigned char etheraddr[6] ;
-    unsigned short used ;
-} bdg_hash_table ;
-
-extern bdg_hash_table *bdg_table ;
 
 /*
- * We need additional info for the bridge. The bdg_ifp2sc[] array
- * provides a pointer to this struct using the if_index.   
+ * We need additional per-interface info for the bridge, which is
+ * stored in a struct bdg_softc. The ifp2sc[] array provides a pointer
+ * to this struct using the if_index as a mapping key.
  * bdg_softc has a backpointer to the struct ifnet, the bridge
  * flags, and a cluster (bridging occurs only between port of the
  * same cluster).
  */
+
+struct cluster_softc;	/* opaque here, defined in bridge.c */
+
 struct bdg_softc {
     struct ifnet *ifp ;
     /* also ((struct arpcom *)ifp)->ac_enaddr is the eth. addr */
     int flags ;
-#define IFF_BDG_PROMISC 0x0001  /* set promisc mode on this if.  */
+#define IFF_BDG_PROMISC 0x0001  /* set promisc mode on this if.	*/
 #define IFF_MUTE        0x0002  /* mute this if for bridging.   */
 #define IFF_USED        0x0004  /* use this if for bridging.    */
-    short cluster_id ; /* in network format */
-    u_long magic;
+    struct cluster_softc *cluster;
 } ;
 
 extern struct bdg_softc *ifp2sc;
 
 #define BDG_USED(ifp) (ifp2sc[ifp->if_index].flags & IFF_USED)
-#define BDG_MUTED(ifp) (ifp2sc[ifp->if_index].flags & IFF_MUTE)
-#define BDG_MUTE(ifp) ifp2sc[ifp->if_index].flags |= IFF_MUTE
-#define BDG_UNMUTE(ifp) ifp2sc[ifp->if_index].flags &= ~IFF_MUTE
-#define BDG_CLUSTER(ifp) (ifp2sc[ifp->if_index].cluster_id)
-#define BDG_EH(ifp)	((struct arpcom *)ifp)->ac_enaddr
-
-#define BDG_SAMECLUSTER(ifp,src) \
-	(src == NULL || BDG_CLUSTER(ifp) == BDG_CLUSTER(src) )
-
 /*
- * BDG_ACTIVE(ifp) does all checks to see if bridging is loaded,
- * activated and used on a given interface.
+ * BDG_ACTIVE(ifp) does all checks to see if bridging is enabled, loaded,
+ * and used on a given interface.
  */
 #define	BDG_ACTIVE(ifp)	(do_bridge && BDG_LOADED && BDG_USED(ifp))
 
-#define BDG_MAX_PORTS 128
-typedef struct _bdg_addr {
-    unsigned char etheraddr[6] ;
-    short cluster_id ;
-} bdg_addr ;
-extern bdg_addr bdg_addresses[BDG_MAX_PORTS];
-extern int bdg_ports ;
-
-/*
- * out of the 6 bytes, the last ones are more "variable". Since
- * we are on a little endian machine, we have to do some gimmick...
- */
-#define HASH_SIZE 8192	/* must be a power of 2 */
-#define HASH_FN(addr)   (	\
-	ntohs( ((short *)addr)[1] ^ ((short *)addr)[2] ) & (HASH_SIZE -1))
-
-#ifdef __i386__
-#define BDG_MATCH(a,b) ( \
-    ((unsigned short *)(a))[2] == ((unsigned short *)(b))[2] && \
-    *((unsigned int *)(a)) == *((unsigned int *)(b)) )
-#define IS_ETHER_BROADCAST(a) ( \
-	*((unsigned int *)(a)) == 0xffffffff && \
-	((unsigned short *)(a))[2] == 0xffff )
-#else
-/* for machines that do not support unaligned access */
-#define	BDG_MATCH(a,b)		(!bcmp(a, b, ETHER_ADDR_LEN) )
-#define	IS_ETHER_BROADCAST(a)	(!bcmp(a, "\377\377\377\377\377\377", 6))
-#endif
 /*
  * The following constants are not legal ifnet pointers, and are used
- * as return values from the classifier, bridge_dst_lookup()
+ * as return values from the classifier, bridge_dst_lookup().
  * The same values are used as index in the statistics arrays,
  * with BDG_FORWARD replacing specifically forwarded packets.
+ *
+ * These constants are here because they are used in 'netstat'
+ * to show bridge statistics.
  */
 #define BDG_BCAST	( (struct ifnet *)1 )
 #define BDG_MCAST	( (struct ifnet *)2 )
@@ -116,10 +77,12 @@ extern int bdg_ports ;
 #define BDG_OUT		( (struct ifnet *)8 )
 #define BDG_FORWARD	( (struct ifnet *)9 )
 
-#define PF_BDG 3 /* XXX superhack */
 /*
- * statistics, passed up with sysctl interface and ns -p bdg
+ * Statistics are passed up with the sysctl interface, "netstat -p bdg"
+ * reads them. PF_BDG defines the 'bridge' protocol family.
  */
+
+#define PF_BDG 3 /* XXX superhack */
 
 #define STAT_MAX (int)BDG_FORWARD
 struct bdg_port_stat {
@@ -128,12 +91,14 @@ struct bdg_port_stat {
     u_long p_in[STAT_MAX+1];
 } ;
 
+/* XXX this should be made dynamic */
+#define BDG_MAX_PORTS 128
 struct bdg_stats {
-    struct bdg_port_stat s[16];
+    struct bdg_port_stat s[BDG_MAX_PORTS];
 } ;
 
 
-#define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(int)type]++ 
+#define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(uintptr_t)type]++ 
  
 #ifdef _KERNEL
 typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
