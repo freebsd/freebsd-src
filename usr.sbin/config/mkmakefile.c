@@ -154,7 +154,7 @@ makefile()
 		exit(1);
 	}
 	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
-	fprintf(ofp, "IDENT=-D%s", raise(ident));
+	fprintf(ofp, "IDENT=");
 	if (profiling)
 		fprintf(ofp, " -DGPROF");
 	if (cputype == 0) {
