@@ -67,6 +67,19 @@ IP number assigned to the prison.
 Pathname of the program which is to be executed.
 .El
 .Pp
+Jails are typically set up using one of two philosophies: either to
+constrain a specific application (possibly running with privilege), or
+to create a "virtual system image" running a variety of daemons and
+services.
+In both cases, a fairly complete file system install of FreeBSD is
+required, so as to provide the necessary command line tools, daemons,
+libraries, application configuration files, etc are available.
+However, for a virtual server configuration, a fair amount of
+additional work is required so as to configure the "boot" process.
+This man page documents the configuration steps necessary to support
+either of these steps, althoguh the configuration steps may be
+refined based on local requirements.
+.Pp
 Please see the
 .Xr jail 2
 man page for further details.
@@ -118,7 +131,7 @@ assume you built it in
 named for the jailed IP address.
 Substitute below as needed with your
 own directory, IP address, and hostname.
-.Pp
+.Ss "Setting up the Host Environment"
 First, you will want to set up your real system's environment to be
 .Dq jail-friendly .
 For consistency, we will refer to the parent box as the
@@ -128,6 +141,9 @@ and to the jailed virtual machine as the
 Because jail is implemented using IP aliases, one of the first things to do
 is to disable IP services on the host system that listen on all local
 IP addresses for a service.
+If a network service is present in the host environment that binds all
+available IP addresses rather than specific IP addresses, it may service
+requests sent to jail IP addresses.
 This means changing
 .Xr inetd 8
 to only listen on the
@@ -150,26 +166,39 @@ Other daemons
 will need to be manually configured\(emfor some this is possible through
 the
 .Xr rc.conf 5
-flags entries, for others it is not possible without munging
-the per-application configuration files, or even recompiling.
-For those
-applications that cannot specify the IP they run on, it is better to disable
-them, if possible.
+flags entries, for others it is necessary to modify per-application
+configuration files, or to recompile the application.
+The following frequently deployed services must have their individual
+configuration files modified to limit the application to listening
+to a specific IP address:
 .Pp
-A number of daemons ship with the base system that may have problems when
-run from outside of a jail in a jail-centric environment.
-This includes
+To configure
+.Xr sshd 8 ,
+it is necessary to modify
+.Pa /etc/ssh/sshd_config .
+.Pp
+To configure
 .Xr sendmail 8 ,
+it is necessary to modify
+.Pa /etc/mail/sendmail.cf .
+.Pp
+For
 .Xr named 8 ,
+it is necessary to modify
+.Pa /etc/namedb/named.conf .
+.Pp
+In addition, a number of services must be recompiled in order to run
+them in the host environment.
+This includes most applications providing services using
+.Xr rpc 3 ,
+such as
+.Xr rpcbind 8,
+.Xr nfsd 8 ,
 and
-.Xr rpcbind 8 .
-While
-.Xr sendmail 8
-and
-.Xr named 8
-can be configured to listen only on a specific
-IP using their configuration files, in most cases it is easier to simply
-run the daemons in jails only, and not in the host environment.
+.Xr mountd 8 .
+In general, applications for which it is not possible to specify which
+IP address to bind should not be run in the host environment unless they
+should also service requests sent to jail IP addresses.
 Attempting to serve
 NFS from the host environment may also cause confusion, and cannot be
 easily reconfigured to use only specific IPs, as some NFS services are
@@ -185,12 +214,16 @@ best to reboot so that all daemons are in a known state, to reduce the
 potential for confusion later (such as finding that when you send mail
 to a jail, and its sendmail is down, the mail is delivered to the host,
 etc.)
+.Ss Configuring the Jail
 .Pp
 Start any jails for the first time without configuring the network
 interface so that you can clean it up a little and set up accounts.
 As
 with any machine (virtual or not) you will need to set a root password, time
 zone, etc.
+Some of these steps apply only if you intend to run a full virtual server
+inside the jail; others apply for both constraining a particular application
+or for a virtual server.
 .Pp
 Start a shell in the jail:
 .Pp
@@ -198,7 +231,7 @@ Start a shell in the jail:
 .Pp
 You will end up with a shell prompt, assuming no errors, within the jail.
 You can now run
-.Pa /stand/sysinstall
+.Pa /usr/sbin/sysinstall
 and do the post-install configuration to set various configuration options,
 or perform these actions manually by editing
 .Pa /etc/rc.conf ,
@@ -208,11 +241,12 @@ etc.
 .It
 Create an empty
 .Pa /etc/fstab
-to quell startup warnings about missing fstab
+to quell startup warnings about missing fstab (virtual server only)
 .It
 Disable the port mapper
 .Pa ( /etc/rc.conf :
 .Li rpcbind_enable="NO" )
+(virtual server only)
 .It
 Run
 .Xr newaliases 1
@@ -223,6 +257,7 @@ warnings.
 Disable interface configuration to quell startup warnings about
 .Xr ifconfig 8
 .Pq Li network_interfaces=""
+(virtual server only)
 .It
 Configure
 .Pa /etc/resolv.conf
@@ -234,18 +269,30 @@ Set the timezone
 .It
 Add accounts for users in the jail environment
 .It
-Install any packages that you think the environment requires
+Install any packages the environment requires
 .El
 .Pp
 You may also want to perform any package-specific configuration (web servers,
 SSH servers, etc), patch up
 .Pa /etc/syslog.conf
 so it logs as you would like, etc.
+If you are not using a virtual server, you may wish to modify
+.Xr syslogd 8
+in the host environment to listen on the syslog socket in the jail
+environment; in this example, the syslog socket would be stored in
+.Pa /data/jail/192.168.11.100/var/run/log .
 .Pp
 Exit from the shell, and the jail will be shut down.
 .Ss "Starting the Jail"
 You are now ready to restart the jail and bring up the environment with
 all of its daemons and other programs.
+If you are running a single application in the jail, substitute the
+command used to start the application for
+.Pa /etc/rc
+in the examples below.
+To start a virtual server environment,
+.Pa /etc/rc
+is run to launch various daemons and services.
 To do this, first bring up the
 virtual host interface, and then start the jail's
 .Pa /etc/rc
@@ -254,8 +301,9 @@ script from within the jail.
 NOTE: If you plan to allow untrusted users to have root access inside the
 jail, you may wish to consider setting the
 .Va security.jail.set_hostname_allowed
-to 0.
-Please see the management reasons why this is a good idea.
+sysctl variable to 0.
+Please see the management discussion later in this document as to why this
+is a good idea.
 If you do decide to set this variable,
 it must be set before starting any jails, and once each boot.
 .Bd -literal -offset indent
