@@ -6,7 +6,7 @@ alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
 
-setenv	EDITOR	/stand/ee
+setenv	EDITOR	/usr/bin/ee
 setenv	PAGER	more
 setenv	BLOCKSIZE	K
 
