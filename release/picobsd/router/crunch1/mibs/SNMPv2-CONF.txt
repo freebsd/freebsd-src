@@ -1,7 +1,0 @@
-SNMPv2-CONF DEFINITIONS ::= BEGIN
-
-IMPORTS iso FROM SNMPv2-SMI;
-
-dummy ::= { iso 999 }
-
-END
