@@ -134,7 +134,7 @@ static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
-				struct mbuf *);
+		     struct mbuf *);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 
