@@ -52,24 +52,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/buf.h>
-#include <sys/malloc.h>
-#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#if 0
-#include <sys/syslog.h>		/* For debugging */
-#endif
 
 #include <machine/mouse.h>
 
 #include <i386/isa/isa_device.h>
-
 
 #define DATA	0       /* Offset for data port, read-write */
 #define CNTRL	4       /* Offset for control port, write-only */
