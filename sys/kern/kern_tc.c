@@ -406,15 +406,17 @@ tc_windup(void)
 	 * iterates once, but in extreme situations it might keep NTP sane
 	 * if timeouts are not run for several seconds.  At boot, the
 	 * time step can be large when the TOD hardware has been read, so
-	 * on really large steps, we call ntp_update_second only once.
+	 * on really large steps, we call ntp_update_second only twice.
+	 * We need to call it twice in case we missed a leap second.
 	 */
-	for (i = bt.sec - tho->th_microtime.tv_sec; i > 0; i--) {
+	i = bt.sec - tho->th_microtime.tv_sec;
+	if (i > LARGE_STEP)
+		i = 2;
+	for (; i > 0; i--) {
 		t = bt.sec;
 		ntp_update_second(&th->th_adjustment, &bt.sec);
 		if (bt.sec != t)
 			boottimebin.sec += bt.sec - t;
-		if (i > LARGE_STEP)
-			break;
 	}
 
 	/* Now is a good time to change timecounters. */
