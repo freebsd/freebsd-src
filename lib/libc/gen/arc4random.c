@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <pthread.h>
+
+#include "libc_private.h"
 #include "un-namespace.h"
 
 struct arc4_stream {
@@ -40,10 +43,27 @@ struct arc4_stream {
 	u_int8_t s[256];
 };
 
-static int rs_initialized;
+static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+#define	RANDOMDEV	"/dev/urandom"
+#define	THREAD_LOCK()						\
+	do {							\
+		if (__isthreaded)				\
+			_pthread_mutex_lock(&arc4random_mtx);	\
+	} while (0)
+
+#define	THREAD_UNLOCK()						\
+	do {							\
+		if (__isthreaded)				\
+			_pthread_mutex_unlock(&arc4random_mtx);	\
+	} while (0)
+
 static struct arc4_stream rs;
+static int rs_initialized;
+static int rs_stired;
 
 static inline u_int8_t arc4_getbyte(struct arc4_stream *);
+static void arc4_stir(struct arc4_stream *);
 
 static inline void
 arc4_init(as)
@@ -89,11 +109,11 @@ arc4_stir(as)
 
 	gettimeofday(&rdat.tv, NULL);
 	rdat.pid = getpid();
-	fd = _open("/dev/urandom", O_RDONLY, 0);
+	fd = _open(RANDOMDEV, O_RDONLY, 0);
 	if (fd >= 0) {
 		(void) _read(fd, rdat.rnd, sizeof(rdat.rnd));
 		_close(fd);
-	}
+	} 
 	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
 	 * stack... */
 
@@ -140,14 +160,31 @@ arc4_getword(as)
 	return (val);
 }
 
-void
-arc4random_stir()
+static void
+arc4_check_init(void)
 {
 	if (!rs_initialized) {
 		arc4_init(&rs);
 		rs_initialized = 1;
 	}
+}
+
+static void
+arc4_check_stir(void)
+{
+	if (!rs_stired) {
+		arc4_stir(&rs);
+		rs_stired = 1;
+	}
+}
+
+void
+arc4random_stir()
+{
+	THREAD_LOCK();
+	arc4_check_init();
 	arc4_stir(&rs);
+	THREAD_UNLOCK();
 }
 
 void
@@ -155,18 +192,25 @@ arc4random_addrandom(dat, datlen)
 	u_char *dat;
 	int     datlen;
 {
-	if (!rs_initialized)
-		arc4random_stir();
+	THREAD_LOCK();
+	arc4_check_init();
+	arc4_check_stir();
 	arc4_addrandom(&rs, dat, datlen);
+	THREAD_UNLOCK();
 }
 
 u_int32_t
 arc4random()
 {
-	if (!rs_initialized)
-		arc4random_stir();
+	u_int32_t rnd;
 
-	return (arc4_getword(&rs));
+	THREAD_LOCK();
+	arc4_check_init();
+	arc4_check_stir();
+	rnd = arc4_getword(&rs);
+	THREAD_UNLOCK();
+
+	return (rnd);
 }
 
 #if 0
