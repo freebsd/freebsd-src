@@ -513,6 +513,8 @@ ktrwrite(vp, kth, uio)
  * root previously set the tracing status on the target process, and
  * so, only root may further change it.
  *
+ * XXX: These checks are stronger than for ptrace()
+ *
  * TODO: check groups.  use caller effective gid.
  */
 static int

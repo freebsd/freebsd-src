@@ -217,7 +217,7 @@ ptrace(curp, uap)
 		if ((p = pfind(uap->pid)) == NULL)
 			return ESRCH;
 	}
-	if (!PRISON_CHECK(curp, p))
+	if (p_can(curp, p, P_CAN_SEE, NULL))
 		return (ESRCH);
 
 	/*
@@ -237,16 +237,8 @@ ptrace(curp, uap)
 		if (p->p_flag & P_TRACED)
 			return EBUSY;
 
-		/* not owned by you, has done setuid (unless you're root) */
-		if ((p->p_cred->p_ruid != curp->p_cred->p_ruid) ||
-		     (p->p_flag & P_SUGID)) {
-			if ((error = suser(curp)) != 0)
-				return error;
-		}
-
-		/* can't trace init when securelevel > 0 */
-		if (securelevel > 0 && p->p_pid == 1)
-			return EPERM;
+		if ((error = p_can(curp, p, P_CAN_DEBUG, NULL)))
+			return error;
 
 		/* OK */
 		break;

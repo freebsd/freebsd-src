@@ -55,7 +55,7 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
-static int ps_showallprocs = 1;
+int ps_showallprocs = 1;
 SYSCTL_INT(_kern, OID_AUTO, ps_showallprocs, CTLFLAG_RW,
     &ps_showallprocs, 0, "");
 
@@ -586,7 +586,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		p = pfind((pid_t)name[0]);
 		if (!p)
 			return (0);
-		if (!PRISON_CHECK(curproc, p))
+		if (p_can(curproc, p, P_CAN_SEE, NULL))
 			return (0);
 		error = sysctl_out_proc(p, req, 0);
 		return (error);
@@ -611,9 +611,9 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			p = LIST_FIRST(&zombproc);
 		for (; p != 0; p = LIST_NEXT(p, p_list)) {
 			/*
-			 * Show a user only their processes.
+			 * Show a user only appropriate processes.
 			 */
-			if ((!ps_showallprocs) && p_trespass(curproc, p))
+			if (p_can(curproc, p, P_CAN_SEE, NULL))
 				continue;
 			/*
 			 * Skip embryonic processes.
@@ -655,7 +655,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				break;
 			}
 
-			if (!PRISON_CHECK(curproc, p))
+			if (p_can(curproc, p, P_CAN_SEE, NULL))
 				continue;
 
 			error = sysctl_out_proc(p, req, doingzomb);
@@ -688,7 +688,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (0);
 
-	if ((!ps_argsopen) && p_trespass(curproc, p))
+	if ((!ps_argsopen) && p_can(curproc, p, P_CAN_SEE, NULL))
 		return (0);
 
 	if (req->newptr && curproc != p)
