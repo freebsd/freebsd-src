@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcic.c,v 1.0 1999/05/04 11:11:11 roger Exp $
+ *	$Id: pcic.c,v 1.64.2.3 1999/05/04 10:58:10 roger Exp $
  */
 
 /*
@@ -353,7 +353,7 @@ pcic_memory(struct slot *slt, int win)
 		outb(PCIC98_REG_WINSEL, PCIC98_MAPWIN);
 		
 #if 0
-		if (mp->flags & MDF_16BITS == 1) {	/* 16bit */
+		if ((mp->flags & MDF_16BITS) == 1) {	/* 16bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_8BIT));
 		}else{					/* 8bit */
 		    outb(PCIC98_REG2, inb(PCIC98_REG2) | PCIC98_8BIT);
