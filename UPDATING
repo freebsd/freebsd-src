@@ -69,11 +69,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	compiler upgrade, there are several issues to be aware of. GCC 3.4.x
 	has broken C++ ABI compatibility with previous releases yet again
 	and users will have to rebuild all their C++ programs with the new
-	compiler. A new unit-at-a-time optimization mode, which is default
-	in this compiler release, is more aggressive in removing unused
-	static symbols. This is the likely cause of 'make buildworld'
-	breakages with non-default CFLAGS where optimization level is set
-	to -O2 or higher.
+	compiler. If you are getting run-time error such as
+	/libexec/ld-elf.so.1: Undefined symbol "_ZNSs20_S_empty_rep_storageE"
+	This entry does apply to you.
+	
+	A new unit-at-a-time optimization mode, which is default in this
+	compiler release, is more aggressive in removing unused static
+	symbols. This is the likely cause of 'make buildworld' breakages
+	with non-default CFLAGS where optimization level is set to -O2 or higher.
 
 	With the upgrade of the system compiler, the kernel has been upgraded
 	to match the new system compiler.  This makes it impossible to build
