@@ -729,7 +729,7 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 		 * store to grow upwards. This will do for now.
 		 */
 		vm_offset_t bsaddr;
-		bsaddr = USRSTACK - 2*maxssiz;
+		bsaddr = USRSTACK - 2 * maxssiz;
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
 				    regstkpages * PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
@@ -767,8 +767,8 @@ exec_extract_strings(imgp)
 	argv = imgp->uap->argv;
 
 	if (argv) {
-		argp = (caddr_t) (intptr_t) fuword(argv);
-		if (argp == (caddr_t) -1)
+		argp = (caddr_t)(intptr_t)fuword(argv);
+		if (argp == (caddr_t)-1)
 			return (EFAULT);
 		if (argp)
 			argv++;
@@ -776,7 +776,7 @@ exec_extract_strings(imgp)
 			argp = imgp->argv0;
 		if (argp) {
 			do {
-				if (argp == (caddr_t) -1)
+				if (argp == (caddr_t)-1)
 					return (EFAULT);
 				if ((error = copyinstr(argp, imgp->stringp,
 				    imgp->stringspace, &length))) {
@@ -787,7 +787,7 @@ exec_extract_strings(imgp)
 				imgp->stringspace -= length;
 				imgp->stringp += length;
 				imgp->argc++;
-			} while ((argp = (caddr_t) (intptr_t) fuword(argv++)));
+			} while ((argp = (caddr_t)(intptr_t)fuword(argv++)));
 		}
 	}	
 
@@ -800,8 +800,8 @@ exec_extract_strings(imgp)
 	envv = imgp->uap->envv;
 
 	if (envv) {
-		while ((envp = (caddr_t) (intptr_t) fuword(envv++))) {
-			if (envp == (caddr_t) -1)
+		while ((envp = (caddr_t)(intptr_t)fuword(envv++))) {
+			if (envp == (caddr_t)-1)
 				return (EFAULT);
 			if ((error = copyinstr(envp, imgp->stringp,
 			    imgp->stringspace, &length))) {
@@ -866,7 +866,7 @@ exec_copyout_strings(imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (char **) (destp - (imgp->argc + imgp->envc + 2 +
+		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2 +
 				       imgp->auxarg_size) * sizeof(char *));
 
 	} else 
@@ -1097,4 +1097,3 @@ rm_at_exec(function)
 	}	
 	return (0);
 }
-
