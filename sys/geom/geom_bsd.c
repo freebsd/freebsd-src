@@ -555,6 +555,7 @@ g_bsd_hotwrite(void *arg)
 	struct bio *bp;
 	struct g_geom *gp;
 	struct g_slicer *gsp;
+	struct g_slice *gsl;
 	struct g_bsd_softc *ms;
 	struct g_bsd_softc fake;
 	u_char *p;
@@ -564,7 +565,9 @@ g_bsd_hotwrite(void *arg)
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
-	p = bp->bio_data + ms->labeloffset - bp->bio_offset;
+	gsl = &gsp->slices[bp->bio_to->index];
+	p = bp->bio_data + ms->labeloffset 
+	    - (bp->bio_offset + gsl->offset);
 	g_bsd_ledec_disklabel(p, &fake.ondisk);
 	
 	ondisk2inram(&fake);
