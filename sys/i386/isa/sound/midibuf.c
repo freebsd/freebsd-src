@@ -1,5 +1,5 @@
 /*
- * linux/kernel/chr_drv/sound/midibuf.c
+ * sound/midibuf.c
  * 
  * Device file manager for /dev/midi
  * 

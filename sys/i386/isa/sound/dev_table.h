@@ -46,6 +46,7 @@ struct card_info {
 	long (*attach) (long mem_start, struct address_info *hw_config);
 	int (*probe) (struct address_info *hw_config);
 	struct address_info config;
+	int enabled;
 };
 
 /** UWM -- new  MIDI structure here.. **/
@@ -59,8 +60,10 @@ struct audio_operations {
         char name[32];
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
-	void (*output_block) (int dev, unsigned long buf, int count, int intrflag);
-	void (*start_input) (int dev, unsigned long buf, int count, int intrflag);
+	void (*output_block) (int dev, unsigned long buf, 
+			      int count, int intrflag, int dma_restart);
+	void (*start_input) (int dev, unsigned long buf, 
+			     int count, int intrflag, int dma_restart);
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg, int local);
 	int (*prepare_for_input) (int dev, int bufsize, int nbufs);
 	int (*prepare_for_output) (int dev, int bufsize, int nbufs);
@@ -159,31 +162,42 @@ struct generic_midi_operations {
  */
 
 	struct card_info supported_drivers[] = {
-#ifndef EXCLUDE_MPU401
+#if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
 		{SNDCARD_MPU401,"Roland MPU-401",	attach_mpu401, probe_mpu401,
-			{MPU_BASE, MPU_IRQ, 0}},
-#endif
-
-#ifndef EXCLUDE_GUS
-		{SNDCARD_GUS,	"Gravis Ultrasound",	attach_gus_card, probe_gus,
-			{GUS_BASE, GUS_IRQ, GUS_DMA}},
+			{MPU_BASE, MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_PAS
 		{SNDCARD_PAS,	"ProAudioSpectrum",	attach_pas_card, probe_pas,
-			{PAS_BASE, PAS_IRQ, PAS_DMA}},
+			{PAS_BASE, PAS_IRQ, PAS_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_SB
 		{SNDCARD_SB,	"SoundBlaster",		attach_sb_card, probe_sb,
-			{SBC_BASE, SBC_IRQ, SBC_DMA}},
+			{SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
+#endif
+
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
+#ifndef EXCLUDE_AUDIO
+		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect,
+			{SBC_BASE, SBC_IRQ, SB16_DMA}, SND_DEFAULT_ENABLE},
+#endif
+#ifndef EXCLUDE_MIDI
+		{SNDCARD_SB16MIDI,"SB16 MPU-401",	attach_sb16midi, probe_sb16midi,
+			{SB16MIDI_BASE, SBC_IRQ, 0}, SND_DEFAULT_ENABLE},
+#endif
+#endif
+
+#ifndef EXCLUDE_GUS
+		{SNDCARD_GUS,	"Gravis Ultrasound",	attach_gus_card, probe_gus,
+			{GUS_BASE, GUS_IRQ, GUS_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_YM3812
 		{SNDCARD_ADLIB,	"AdLib",		attach_adlib_card, probe_adlib,
-			{FM_MONO, 0, 0}},
+			{FM_MONO, 0, 0}, SND_DEFAULT_ENABLE},
 #endif
-		{0,			"*?*",			NULL}
+		{0,			"*?*",			NULL, 0}
 	};
 
 	int num_sound_drivers =
@@ -220,6 +234,8 @@ struct generic_midi_operations {
 long sndtable_init(long mem_start);
 int sndtable_get_cardcount (void);
 long CMIDI_init(long mem_start); /* */
+struct address_info *sound_getconf(int card_type);
+void sound_chconf(int card_type, int ioaddr, int irq, int dma);
 #endif
 
 #endif

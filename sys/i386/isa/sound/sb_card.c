@@ -1,6 +1,5 @@
-
 /*
- * linux/kernel/chr_drv/sound/sb_card.c
+ * sound/sb_card.c
  * 
  * Detection routine for the SoundBlaster cards.
  * 
