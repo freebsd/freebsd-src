@@ -7,6 +7,7 @@ COPTS+=	-DSKEY
 .if defined(WHEELSU)
 COPTS+=	-DWHEELSU
 .endif
+CFLAGS+= -Wall
 
 LDADD=	-lskey -lmd -lcrypt
 DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT}
