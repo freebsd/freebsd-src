@@ -6,7 +6,7 @@ SRCS=	login.c
 #klogin.c
 DPADD=	${LIBUTIL}
 #${LIBKRB} ${LIBDES}
-LDADD=	-lutil
+LDADD=	-lutil -lcrypt
 #-lkrb -ldes
 BINOWN=	root
 BINMODE=4555
