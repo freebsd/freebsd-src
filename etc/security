@@ -11,6 +11,8 @@ separator () {
 	echo ''
 }
 
+yesterday=`date -v-1d "+%b %e "`
+
 host=`hostname`
 echo "Subject: ${host} security check output"
 
@@ -110,12 +112,12 @@ fi
 #
 separator
 echo "${host} login failures:"
-grep -i "login failure" ${LOG}/messages
+zcat -f $LOG/messages.0* $LOG/messages | grep -i "^$yesterday.*login failure"
 
 # Show tcp_wrapper warning messages
 #
 separator
 echo "${host} refused connections:"
-grep -i "refused connect" ${LOG}/messages
+zcat -f $LOG/messages.0* $LOG/messages | grep -i "^$yesterday.*refused connect"
 
 rm -f ${TMP}
