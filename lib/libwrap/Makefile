@@ -5,6 +5,8 @@
 MAINTAINER=markm@FreeBSD.org
 
 LIB=	wrap
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 MAN3=   hosts_access.3
 MAN5=	hosts_access.5 hosts_options.5
 
