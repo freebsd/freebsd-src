@@ -42,6 +42,7 @@ int trace = FALSE;
 int noexec = FALSE;
 int logoff = FALSE;
 mode_t cvsumask = UMASK_DFLT;
+char *RCS_citag = NULL;
 
 char *CurDir;
 
@@ -736,6 +737,7 @@ main (argc, argv)
 		    error (1, save_errno, "%s", path);
 		}
 		free (path);
+		parseopts(CVSroot_directory);
 	    }
 
 #ifdef HAVE_PUTENV
@@ -790,6 +792,12 @@ main (argc, argv)
 	    (void) sprintf (env, "%s=%s", TMPDIR_ENV, Tmpdir);
 	    (void) putenv (env);
 	    /* do not free env, as putenv has control of it */
+	}
+	{
+	    char *env;
+	    env = xmalloc (sizeof "CVS_PID=" + 32); /* XXX pid < 10^32 */
+	    (void) sprintf (env, "CVS_PID=%ld", (long) getpid ());
+	    (void) putenv (env);
 	}
 #endif
 
@@ -906,4 +914,78 @@ usage (cpp)
     for (; *cpp; cpp++)
 	(void) fprintf (stderr, *cpp);
     error_exit ();
+}
+
+void
+parseopts(root)
+    const char *root;
+{
+    char path[PATH_MAX];
+    int save_errno;
+    char buf[1024];
+    const char *p;
+    char *q;
+    FILE *fp;
+
+    if (root == NULL) {
+	printf("no CVSROOT in parseopts\n");
+	return;
+    }
+    p = strchr (root, ':');
+    if (p)
+	p++;
+    else
+	p = root;
+    if (p == NULL) {
+	printf("mangled CVSROOT in parseopts\n");
+	return;
+    }
+    (void) sprintf (path, "%s/%s/%s", p, CVSROOTADM, CVSROOTADM_OPTIONS);
+    if ((fp = fopen(path, "r")) != NULL) {
+	while (fgets(buf, sizeof buf, fp) != NULL) {
+	    if (buf[0] == '#')
+		continue;
+	    q = strrchr(buf, '\n');
+	    if (q)
+		*q = '\0';
+
+	    if (!strncmp(buf, "tag=", 4)) {
+		char *what;
+
+		RCS_citag = strdup(buf+4);
+		if (RCS_citag == NULL) {
+			printf("no memory for local tag\n");
+			return;
+		}
+		what = malloc(sizeof("RCSLOCALID")+1+strlen(RCS_citag)+1);
+		if (what == NULL) {
+			printf("no memory for local tag\n");
+			return;
+		}
+		sprintf(what, "RCSLOCALID=%s", RCS_citag);
+		putenv(what);
+	    }
+#if 0	/* not yet.. gotta rethink the implications */
+	    else if (!strncmp(buf, "umask=", 6)) {
+		mode_t mode;
+
+		cvsumask = (mode_t)(strtol(buf+6, NULL, 8) & 0777);
+	    }
+	    else if (!strncmp(buf, "dlimit=", 7)) {
+#ifdef BSD
+#include <sys/resource.h>
+		struct rlimit rl;
+
+		if (getrlimit(RLIMIT_DATA, &rl) != -1) {
+			rl.rlim_cur = atoi(buf+7);
+			rl.rlim_cur *= 1024;
+
+			(void) setrlimit(RLIMIT_DATA, &rl);
+		}
+#endif /* BSD */
+	    }
+#endif /* 0 */
+	}
+	fclose(fp);
+    }
 }
