@@ -927,7 +927,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)))
+	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))
 		return;
 
 	object = entry->object.vm_object;
