@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.11 1997/07/25 22:19:16 smp Exp smp $
+ * $Id: mplock.s,v 1.12 1997/07/30 22:51:11 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -27,52 +27,8 @@
 
 #include <i386/isa/intr_machdep.h>
 
-/*
- * claim LOW PRIO, ie. accept ALL INTerrupts
- */
-#ifdef TEST_LOPRIO
-
-/* location of saved TPR on stack */
-#define TPR_TARGET		20(%esp)
-
-/* we assumme that the 'reserved bits' can be written with zeros */
-#ifdef CHEAP_TPR
-
-/* after 1st acquire of lock we attempt to grab all hardware INTs */
-#define GRAB_HWI \
-	movl	$ALLHWI_LEVEL, TPR_TARGET	/* task prio to 'all HWI' */
-
-#define GRAB_HWI_2 \
-	movl	$ALLHWI_LEVEL, lapic_tpr	/* task prio to 'all HWI' */
-
-/* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
-#define ARB_HWI \
-	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
-
-#else /** CHEAP_TPR */
-
-#define GRAB_HWI \
-	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* task prio to 'all HWI' */
-
-#define GRAB_HWI_2 \
-	andl	$~APIC_TPR_PRIO, lapic_tpr	/* task prio to 'all HWI' */
-
-#define ARB_HWI								\
-	movl	lapic_tpr, %eax ;		/* TPR */		\
-	andl	$~APIC_TPR_PRIO, %eax ;		/* clear TPR field */	\
-	orl	$LOPRIO_LEVEL, %eax ;		/* prio to arbitrate */	\
-	movl	%eax, lapic_tpr ;		/* set it */		\
-  	movl	(%edx), %eax			/* reload %eax with lock */
-
-#endif /** CHEAP_TPR */
-
-#else /** TEST_LOPRIO */
-
-#define GRAB_HWI				/* nop */
-#define GRAB_HWI_2				/* nop */
-#define ARB_HWI					/* nop */
-
-#endif /** TEST_LOPRIO */
+#define	MAYBE_PUSHL_EAX	pushl	%eax
+#define	MAYBE_POPL_EAX	popl	%eax
 
 
 	.text
@@ -83,7 +39,8 @@
  */
 
 NON_GPROF_ENTRY(MPgetlock)
-1:	movl	4(%esp), %edx		/* Get the address of the lock */
+	movl	4(%esp), %edx		/* Get the address of the lock */
+1:
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$COUNT_FIELD, %eax	/* - get count */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
@@ -94,17 +51,19 @@ NON_GPROF_ENTRY(MPgetlock)
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	2f			/* - miss */
 	ret
-2:	movl	$FREE_LOCK, %eax	/* Assume it's free */
+2:
+	movl	$FREE_LOCK, %eax	/* Assume it's free */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
-	jne	3f			/* ...do not collect $200 */
-	GRAB_HWI			/* 1st acquire, grab hw INTs */
-	ret
-3:	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
+	je	4f			/* ...do not collect $200 */
+3:
+	cmpl	$FREE_LOCK, (%edx)	/* Wait for it to become free */
 	jne	3b
 	jmp	2b			/* XXX 1b ? */
+4:
+	ret
 
 /***********************************************************************
  *  int MPtrylock(unsigned int *lock)
@@ -114,7 +73,7 @@ NON_GPROF_ENTRY(MPgetlock)
  */
 
 NON_GPROF_ENTRY(MPtrylock)
-1:	movl	4(%esp), %edx		/* Get the address of the lock */
+	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$COUNT_FIELD, %eax	/* - get count */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
@@ -123,19 +82,20 @@ NON_GPROF_ENTRY(MPtrylock)
 	incl	%ecx			/* - new count is one more */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
-	jne	2f			/* - miss */
+	jne	1f			/* - miss */
 	movl	$1, %eax
 	ret
-2:	movl	$FREE_LOCK, %eax	/* Assume it's free */
+1:
+	movl	$FREE_LOCK, %eax	/* Assume it's free */
 	movl	_cpu_lockid, %ecx	/* - get pre-shifted logical cpu id */
 	incl	%ecx			/* - new count is one */
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
-	jne	3f			/* ...do not collect $200 */
-	GRAB_HWI_2			/* 1st acquire, grab hw INTs */
+	jne	2f			/* ...do not collect $200 */
 	movl	$1, %eax
 	ret
-3:	movl	$0, %eax
+2:
+	movl	$0, %eax
 	ret
 
 /***********************************************************************
@@ -145,57 +105,50 @@ NON_GPROF_ENTRY(MPtrylock)
  */
 
 NON_GPROF_ENTRY(MPrellock)
-1:	movl	4(%esp), %edx		/* Get the address of the lock */
+	movl	4(%esp), %edx		/* Get the address of the lock */
+1:
   	movl	(%edx), %eax		/* - get the value */
-	movl	%eax,%ecx
+	movl	%eax, %ecx
 	decl	%ecx			/* - new count is one less */
 	testl	$COUNT_FIELD, %ecx	/* - Unless it's zero... */
 	jnz	2f
-	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
-2:	lock
+2:
+	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	1b			/* ...do not collect $200 */
 	ret
+
 
 /***********************************************************************
  *  void get_mplock()
  *  -----------------
  *  All registers preserved
  *
- *  Stack (after call to _MPgetlock):
- *	
- *	&mp_lock	 4(%esp)
- *	edx		 8(%esp)
- *	ecx		12(%esp)
- *	EFLAGS		16(%esp)
- *	local APIC TPR	20(%esp)
- *	eax		24(%esp)
  */
 
 NON_GPROF_ENTRY(get_mplock)
-	pushl	%eax
+	MAYBE_PUSHL_EAX
 
 	/* block all HW INTs via Task Priority Register */
 #ifdef CHEAP_TPR
 	pushl	lapic_tpr		/* save current TPR */
 	pushfl				/* save current EFLAGS */
-	btl	$9, (%esp)		/* test EI bit */
-	jc	1f			/* INTs currently enabled */
+	testl	$(1<<9), (%esp)		/* test EI bit */
+	jnz	1f			/* INTs currently enabled */
 	movl	$TPR_BLOCK_HWI, lapic_tpr
 #else
 	movl	lapic_tpr, %eax		/* get current TPR */
 	pushl	%eax			/* save current TPR */
 	pushfl				/* save current EFLAGS */
-	btl	$9, (%esp)		/* test EI bit */
-	jc	1f			/* INTs currently enabled */
+	testl	$(1<<9), (%esp)		/* test EI bit */
+	jnz	1f			/* INTs currently enabled */
 	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
 	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs */
 	movl	%eax, lapic_tpr
 #endif /** CHEAP_TPR */
-	sti				/* allow (IPI and only IPI) INTs */
+	sti				/* allow IPI (and only IPI) INTs */
 1:
-
 	pushl	%ecx
 	pushl	%edx
 	pushl	$_mp_lock
@@ -206,8 +159,41 @@ NON_GPROF_ENTRY(get_mplock)
 
 	popfl				/* restore original EFLAGS */
 	popl	lapic_tpr		/* restore TPR */
-	popl	%eax			/* restore scratch */
+	MAYBE_POPL_EAX
 	ret
+
+/***********************************************************************
+ *  void get_isrlock()
+ *  -----------------
+ *  no registers preserved, assummed the calling ISR does!
+ *
+ */
+
+NON_GPROF_ENTRY(get_isrlock)
+
+	/* block all HW INTs via Task Priority Register */
+#ifdef CHEAP_TPR
+	pushl	lapic_tpr		/* save current TPR */
+	pushfl				/* save current EFLAGS */
+	movl	$TPR_BLOCK_HWI, lapic_tpr
+#else
+	movl	lapic_tpr, %eax		/* get current TPR */
+	pushl	%eax			/* save current TPR */
+	pushfl				/* save current EFLAGS */
+	andl	$~APIC_TPR_PRIO, %eax	/* clear task priority field */
+	orl	$TPR_BLOCK_HWI, %eax	/* only allow IPIs */
+	movl	%eax, lapic_tpr
+#endif /** CHEAP_TPR */
+	sti				/* allow IPI (and only IPI) INTs */
+1:
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+
+	popfl				/* restore original EFLAGS */
+	popl	lapic_tpr		/* restore TPR */
+	ret
+
 
 /***********************************************************************
  *  void try_mplock()
@@ -226,14 +212,27 @@ NON_GPROF_ENTRY(try_mplock)
 	ret
 
 /***********************************************************************
+ *  void try_isrlock()
+ *  -----------------
+ *  no registers preserved, assummed the calling ISR does!
+ *  reg %eax == 1 if success
+ */
+
+NON_GPROF_ENTRY(try_isrlock)
+	pushl	$_mp_lock
+	call	_MPtrylock
+	add	$4, %esp
+	ret
+
+
+/***********************************************************************
  *  void rel_mplock()
  *  -----------------
  *  All registers preserved
  */
 
 NON_GPROF_ENTRY(rel_mplock)
-	pushl	%eax
-
+	MAYBE_PUSHL_EAX
 	pushl	%ecx
 	pushl	%edx
 	pushl	$_mp_lock
@@ -241,10 +240,25 @@ NON_GPROF_ENTRY(rel_mplock)
 	add	$4, %esp
 	popl	%edx
 	popl	%ecx
-
-	popl	%eax
+	MAYBE_POPL_EAX
 	ret
 
+/***********************************************************************
+ *  void rel_isrlock()
+ *  -----------------
+ *  no registers preserved, assummed the calling ISR does!
+ */
+
+NON_GPROF_ENTRY(rel_isrlock)
+	pushl	$_mp_lock
+	call	_MPrellock
+	add	$4, %esp
+	ret
+
+
+/***********************************************************************
+ * 
+ */
 
 	.data
 	.globl _mp_lock
