@@ -490,9 +490,12 @@ case ${dumpdev} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -z "${dumpdir}" ]; then
-		dumpdir="/var/crash"
-	fi
+	case ${dumpdir} in
+	'')
+		dumpdir='/var/crash'
+		;;
+	esac
+
 	if [ -e "${dumpdev}" -a -d "${dumpdir}" ]; then
 		/sbin/dumpon -v ${dumpdev}
 		echo -n 'Checking for core dump: '
