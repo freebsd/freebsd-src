@@ -846,14 +846,15 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_page_t ma[vm_pageout_page_count];
 
 	s = splvm();
+	vm_page_lock_queues();
 	pi = p->pindex;
-	while (vm_page_sleep_busy(p, TRUE, "vpcwai")) {
+	while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
 		if (object->generation != curgeneration) {
 			splx(s);
 			return(0);
 		}
+		vm_page_lock_queues();
 	}
-	vm_page_lock_queues();
 	maxf = 0;
 	for(i = 1; i < vm_pageout_page_count; i++) {
 		vm_page_t tp;
@@ -1248,7 +1249,9 @@ vm_object_split(vm_map_entry_t entry)
 		vm_page_unlock_queues();
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
+		vm_page_lock_queues();
 		vm_page_busy(m);
+		vm_page_unlock_queues();
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		vm_object_pip_add(orig_object, 1);
