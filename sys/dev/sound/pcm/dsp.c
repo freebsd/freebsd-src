@@ -70,16 +70,7 @@ setchns(snddev_info *d, int chan)
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 	d->flags |= SD_F_DIR_SET;
-	if (d->flags & SD_F_EVILSB16) {
-		if ((d->flags & SD_F_PRIO_RD) && (d->aplay[chan])) {
-			pcm_channel *tmp;
-			tmp = d->arec[chan];
-			d->arec[chan] = d->aplay[chan];
-			d->aplay[chan] = tmp;
-		}
-		if (d->aplay[chan]) chn_setdir(d->aplay[chan], PCMDIR_PLAY);
-		if (d->arec[chan]) chn_setdir(d->arec[chan], PCMDIR_REC);
-	}
+	if (d->swap) d->swap(d->devinfo, (d->flags & SD_F_PRIO_WR)? PCMDIR_PLAY : PCMDIR_REC);
 }
 
 int
