@@ -547,6 +547,9 @@ apmprobe(struct isa_device *dvp)
 		printf("apm%d: 32-bit connection error.\n", dvp->id_unit);
 		return 0;
 	}
+	if ((apm_version & 0xff00) != 0x0100) return 0;
+	if ((apm_version & 0x00f0) >= 0x00a0) return 0;
+	if ((apm_version & 0x000f) >= 0x000a) return 0;
 	return -1;
 }
 
@@ -698,9 +701,14 @@ apmattach(struct isa_device *dvp)
 	disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
 	/* print bootstrap messages */
+#ifdef DEBUG
 	printf(" found APM BIOS version %d.%d\n", dvp->id_unit, majorversion, minorversion);
 	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n", dvp->id_unit, cs32_base, cs16_base, ds_base);
 	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n", dvp->id_unit, cs_entry, is_enabled(idle_cpu), is_enabled(!disabled));
+#else
+	printf(" found APM BIOS version %d.%d\n", majorversion, minorversion);
+	printf("apm%d: Idling CPU %s\n", dvp->id_unit, is_enabled(idle_cpu));
+#endif
 
 	/*
 	 * APM 1.0 does not have:
