@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.33 1997/02/22 14:21:28 peter Exp $
+ *	$Id: ftpd.c,v 1.34 1997/03/28 15:48:09 imp Exp $
  */
 
 #if 0
@@ -85,6 +85,9 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <time.h>
 #include <unistd.h>
 #include <libutil.h>
+#ifdef	LOGIN_CAP
+#include <login_cap.h>
+#endif
 
 #ifdef	SKEY
 #include <skey.h>
@@ -689,6 +692,10 @@ end_login()
 	if (logged_in)
 		logwtmp(ttyline, "", "");
 	pw = NULL;
+#ifdef	LOGIN_CAP
+	setusercontext(NULL, getpwuid(0), (uid_t)0,
+		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK);
+#endif
 	logged_in = 0;
 	guest = 0;
 	dochroot = 0;
@@ -700,6 +707,9 @@ pass(passwd)
 {
 	int rval;
 	FILE *fd;
+#ifdef	LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
 	static char homedir[MAXPATHLEN];
 
 	if (logged_in || askpasswd == 0) {
@@ -755,7 +765,34 @@ skip:
 		reply(550, "Can't set gid.");
 		return;
 	}
+	/* May be overridden by login.conf */
+	(void) umask(defumask);
+#ifdef	LOGIN_CAP
+	if ((lc = login_getclass(pw)) != NULL) {
+		char	remote_ip[MAXHOSTNAMELEN];
+
+		strncpy(remote_ip, inet_ntoa(his_addr.sin_addr),
+			sizeof(remote_ip) - 1);
+		remote_ip[sizeof(remote_ip) - 1] = 0;
+		if (!auth_hostok(lc, remotehost, remote_ip)) {
+			syslog(LOG_INFO|LOG_AUTH,
+			    "FTP LOGIN FAILED (HOST) as %s: permission denied.",
+			    pw->pw_name);
+			reply(530, "Permission denied.\n");
+			pw = NULL;
+			return;
+		}
+		if (!auth_timeok(lc, time(NULL))) {
+			reply(530, "Login not available right now.\n");
+			pw = NULL;
+			return;
+		}
+	}
+	setusercontext(lc, pw, (uid_t)0,
+	LOGIN_SETGROUP|LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK);
+#else
 	(void) initgroups(pw->pw_name, pw->pw_gid);
+#endif
 
 	/* open wtmp before chroot */
 	logwtmp(ttyline, pw->pw_name, remotehost);
@@ -765,7 +802,11 @@ skip:
 		if ((statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND)) < 0)
 			stats = 0;
 
-	dochroot = checkuser(_PATH_FTPCHROOT, pw->pw_name);
+	dochroot =
+#ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
+		login_getcapbool(lc, "ftp-chroot", 0) ||
+#endif
+		checkuser(_PATH_FTPCHROOT, pw->pw_name);
 	if (guest) {
 		/*
 		 * We MUST do a chdir() after the chroot. Otherwise
@@ -844,10 +885,15 @@ skip:
 			syslog(LOG_INFO, "FTP LOGIN FROM %s as %s",
 			    remotehost, pw->pw_name);
 	}
-	(void) umask(defumask);
+#ifdef	LOGIN_CAP
+	login_close(lc);
+#endif
 	return;
 bad:
 	/* Forget all about it... */
+#ifdef	LOGIN_CAP
+	login_close(lc);
+#endif
 	end_login();
 }
 

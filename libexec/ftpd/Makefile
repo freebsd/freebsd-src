@@ -1,11 +1,11 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$Id$
+#	$Id: Makefile,v 1.19 1997/02/22 14:21:26 peter Exp $
 
 PROG=	ftpd
 MAN8=	ftpd.8
 SRCS=	ftpd.c ftpcmd.c logwtmp.c popen.c skey-stuff.c
 
-CFLAGS+=-DSETPROCTITLE -DSKEY -Wall
+CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -Wall
 
 LDADD=	-lskey -lmd -lcrypt -lutil
 DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
