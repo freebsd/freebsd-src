@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.10 1994/06/06 14:23:49 davidg Exp $
+ *	$Id: support.s,v 1.13 1994/06/11 05:12:15 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -458,30 +458,6 @@ bcopy:
 	cld
 	ret
 
-ALTENTRY(ntohl)
-ENTRY(htonl)
-	movl	4(%esp),%eax
-#ifdef i486
-/* XXX */
-/* Since Gas 1.38 does not grok bswap this has been coded as the
- * equivalent bytes.  This can be changed back to bswap when we
- * upgrade to a newer version of Gas
- */
-	/* bswap	%eax */
-	.byte	0x0f
-	.byte	0xc8
-#else
-	xchgb	%al,%ah
-	roll	$16,%eax
-	xchgb	%al,%ah
-#endif
-	ret
-
-ALTENTRY(ntohs)
-ENTRY(htons)
-	movzwl	4(%esp),%eax
-	xchgb	%al,%ah
-	ret
 
 /*****************************************************************************/
 /* copyout and fubyte family                                                 */
@@ -1097,6 +1073,71 @@ ENTRY(copystr)
 	popl	%edi
 	popl	%esi
 	ret
+
+/*
+ * Miscellaneous kernel support functions
+ */
+ALTENTRY(ntohl)
+ENTRY(htonl)
+	movl	4(%esp),%eax
+#ifndef I386_CPU
+/* XXX */
+/* Since Gas 1.38 does not grok bswap this has been coded as the
+ * equivalent bytes.  This can be changed back to bswap when we
+ * upgrade to a newer version of Gas
+ */
+	/* bswap	%eax */
+	.byte	0x0f
+	.byte	0xc8
+#else
+	xchgb	%al,%ah
+	roll	$16,%eax
+	xchgb	%al,%ah
+#endif
+	ret
+
+ALTENTRY(ntohs)
+ENTRY(htons)
+	movzwl	4(%esp),%eax
+	xchgb	%al,%ah
+	ret
+
+ENTRY(ffs)
+	bsfl	4(%esp),%eax
+	jz	1f
+	incl	%eax
+	ret
+1:
+	xorl	%eax,%eax
+	ret
+
+ENTRY(bcmp)
+	pushl	%edi
+	pushl	%esi
+	movl	12(%esp),%edi
+	movl	16(%esp),%esi
+	movl	20(%esp),%edx
+	xorl	%eax,%eax
+
+	movl	%edx,%ecx
+	shrl	$2,%ecx
+	cld					/* compare forwards */
+	repe
+	cmpsl
+	jne	1f
+
+	movl	%edx,%ecx
+	andl	$3,%ecx
+	repe
+	cmpsb
+	je	2f
+1:
+	incl	%eax
+2:
+	popl	%esi
+	popl	%edi
+	ret
+
 
 /*
  * Handling of special 386 registers and descriptor tables etc
