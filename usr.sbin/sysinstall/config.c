@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.56 1996/11/07 16:34:12 jkh Exp $
+ * $Id: config.c,v 1.57 1996/11/08 05:38:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -542,6 +542,7 @@ configPackages(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
+#ifdef NETCON_EXTENTIONS
 /* Load novell client/server package */
 int
 configNovell(dialogMenuItem *self)
@@ -561,6 +562,7 @@ configNovell(dialogMenuItem *self)
     }
     return ret | DITEM_RESTORE;
 }
+#endif
 
 /* Load pcnfsd package */
 int
