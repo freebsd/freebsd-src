@@ -2723,7 +2723,7 @@ cdcheckmedia(struct cam_periph *periph)
 
 	cdprevent(periph, PR_PREVENT);
 	softc->disk->d_maxsize = DFLTPHYS;
-	softc->disk->d_sectorsize = 0;
+	softc->disk->d_sectorsize = 2048;
 	softc->disk->d_mediasize = 0;
 
 	/*
