@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,7 +92,7 @@ static int efcount;
 
 extern int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
 extern int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		struct sockaddr *dst, short *tp);
+		struct sockaddr *dst, short *tp, int *hlen);
 
 /*
 static void ef_reset (struct ifnet *);
@@ -104,7 +104,7 @@ static int ef_ioctl(struct ifnet *, u_long, caddr_t);
 static void ef_start(struct ifnet *);
 static int ef_input(struct ifnet*, struct ether_header *, struct mbuf *);
 static int ef_output(struct ifnet *ifp, struct mbuf **mp,
-		struct sockaddr *dst, short *tp);
+		struct sockaddr *dst, short *tp, int *hlen);
 
 static int ef_load(void);
 static int ef_unload(void);
@@ -430,7 +430,8 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 }
 
 static int
-ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp)
+ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp,
+	int *hlen)
 {
 	struct mbuf *m = *mp;
 	u_char *cp;
@@ -470,6 +471,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp)
 		*cp++ = 0xE0;
 		*cp++ = 0xE0;
 		*cp++ = 0x03;
+		*hlen += 3;
 		break;
 	    case ETHER_FT_SNAP:
 		M_PREPEND(m, 8, M_WAIT);
@@ -480,6 +482,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp)
 		type = htons(m->m_pkthdr.len);
 		cp = mtod(m, u_char *);
 		bcopy("\xAA\xAA\x03\x00\x00\x00\x81\x37", cp, 8);
+		*hlen += 8;
 		break;
 	    default:
 		return EPFNOSUPPORT;
