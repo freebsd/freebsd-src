@@ -205,10 +205,6 @@ showuid(u_long uid)
 	else
 		name = pwd->pw_name;
 	myuid = getuid();
-	if (uid != myuid && myuid != 0) {
-		printf("quota: %s (uid %lu): permission denied\n", name, uid);
-		return;
-	}
 	showquotas(USRQUOTA, uid, name);
 }
 
@@ -226,10 +222,6 @@ showusrname(char *name)
 		return;
 	}
 	myuid = getuid();
-	if (pwd->pw_uid != myuid && myuid != 0) {
-		warnx("%s (uid %u): permission denied", name, pwd->pw_uid);
-		return;
-	}
 	showquotas(USRQUOTA, pwd->pw_uid, name);
 }
 
@@ -259,10 +251,6 @@ showgid(u_long gid)
 		for (i = 0; i < ngroups; i++)
 			if (gid == gidset[i])
 				break;
-		if (i >= ngroups && getuid() != 0) {
-			warnx("%s (gid %lu): permission denied", name, gid);
-			return;
-		}
 	}
 	showquotas(GRPQUOTA, gid, name);
 }
@@ -292,11 +280,6 @@ showgrpname(char *name)
 		for (i = 0; i < ngroups; i++)
 			if (grp->gr_gid == gidset[i])
 				break;
-		if (i >= ngroups && getuid() != 0) {
-			warnx("%s (gid %u): permission denied", name,
-						grp->gr_gid);
-			return;
-		}
 	}
 	showquotas(GRPQUOTA, grp->gr_gid, name);
 }
