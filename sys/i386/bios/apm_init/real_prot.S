@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.2 1993/10/16 19:11:27 rgrimes Exp $
+ *	$Id: real_prot.S,v 1.1 1994/10/01 02:55:51 davidg Exp $
  */
 
 
@@ -69,18 +69,19 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 /*
  * Modified for APM BIOS initializer by HOSOKAWA Tatsumi
  *
- * See also locore.s. It supports these functions works correctly.
+ * See also locore.s.
+ * (This file is based directly on /sys/i386/boot/biosboot/asm.S)
  */
 
 	.file "real_prot.S"
 
 #include "real_prot.h"
 #include "apm_segments.h"
+#include "apm_bios.h"
 
 CR0_PE_ON	=	0x1
 CR0_PE_OFF	=	0xfffffffe
 
-.globl	_ouraddr
 	.text
 
 /*
@@ -117,19 +118,21 @@ ENTRY(real_to_prot)
 	 */
 	data32
 	ljmp	$(APM_INIT_CS_SEL), $xprot
-
 xprot:
+
 	/*
 	 * we are in USE32 mode now
 	 * set up the protected mode segment registers : DS, SS, ES
 	 */
-	mov	$(APM_INIT_DS_SEL), %eax
-	movw	%ax, %ds
-	movw	%ax, %ss
-	movw	%ax, %es
+	movw	$(APM_INIT_DS_SEL), %ax		/* data segment */
+	mov	%ax, %ds	/* gas would waste a prefix byte for movw */
+	mov	%ax, %ss
+	mov	%ax, %es
 
+#ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
 	lidt	EXT(Idtr_prot)
+#endif
 
 	ret
 
@@ -142,17 +145,17 @@ xprot:
 
 ENTRY(prot_to_real)
 
-	/* set up a dummy stack frame for the second seg change. */
-	movl 	_ouraddr, %eax
-	sarl	$4, %eax
-	pushw	%ax
-	movw	$xreal, %ax	/* gas botches pushw $xreal - extra bytes 0, 0*/
-	pushw	%ax		/* decode to add %al, (%eax) (%al usually 0) */
+	/* Prepare %ax while we're still in a mode that gas understands. */
+	movw	$(APM_INIT_DS16_SEL), %ax
 
 	/* Change to use16 mode. */
 	ljmp	$(APM_INIT_CS16_SEL), $x16
-
 x16:
+
+	mov	%ax, %ds
+	mov	%ax, %ss
+	mov	%ax, %es
+
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
 	data32
@@ -161,25 +164,27 @@ x16:
 
 	/*
 	 * make intersegment jmp to flush the processor pipeline
-	 * using the fake stack frame set up earlier
 	 * and reload CS register
 	 */
-	lret
-
+	data32
+	ljmp	$(APM_OURADDR>>4), $xreal
 xreal:
+
 	/*
 	 * we are in real mode now
 	 * set up the real mode segment registers : DS, SS, ES
 	 */
-	movw	%cs, %ax
-	movw	%ax, %ds
-	movw	%ax, %ss
-	movw	%ax, %es
+	mov	%cs, %ax
+	mov	%ax, %ds
+	mov	%ax, %ss
+	mov	%ax, %es
 
+#ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
 	addr32
 	data32
 	lidt	EXT(Idtr_real)
+#endif
 
 	data32
 	ret
