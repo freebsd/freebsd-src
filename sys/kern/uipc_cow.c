@@ -72,20 +72,24 @@ static void socow_iodone(void *addr, void *args);
 static void
 socow_iodone(void *addr, void *args)
 {	
-	int s;
 	struct sf_buf *sf;
 	vm_page_t pp;
 
 	sf = args;
 	pp = sf_buf_page(sf);
-	s = splvm();
+	sf_buf_free(sf);
 	/* remove COW mapping  */
 	vm_page_lock_queues();
 	vm_page_cowclear(pp);
+	vm_page_unwire(pp, 0);
+	/*
+	 * Check for the object going away on us. This can
+	 * happen since we don't hold a reference to it.
+	 * If so, we're responsible for freeing the page.
+	 */
+	if (pp->wire_count == 0 && pp->object == NULL)
+		vm_page_free(pp);
 	vm_page_unlock_queues();
-	splx(s);
-	/* note that sf_buf_free() unwires the page for us*/
-	sf_buf_mext(addr, args);
 	socow_stats.iodone++;
 }
 
