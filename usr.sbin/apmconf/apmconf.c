@@ -23,9 +23,7 @@
 #define CONFIGFILE	"/etc/apm.conf"
 #define APMDEV		"/dev/apm"
 
-static const char	*config_file = CONFIGFILE;
-static int		init = 0;
-static int		flush = 0, verbose = 0;
+static int		verbose = 0;
 static int		enable = 0, disable = 0;
 static int		haltcpu = 0, nothaltcpu = 0;
 static int		main_argc;
@@ -36,7 +34,7 @@ parse_option(void)
 {
 	int	i, option;
 	char	*optarg;
-	enum {OPT_NONE, OPT_INIT, OPT_CONFFILE, OPT_FLUSH, OPT_VERBOSE, 
+	enum {OPT_NONE,  OPT_VERBOSE, 
 		OPT_ENABLE, OPT_DISABLE, OPT_HALTCPU, OPT_NOTHALTCPU} mode;
 
 	for (i = 1; i < main_argc; i++) {
@@ -44,18 +42,6 @@ parse_option(void)
 		mode = OPT_NONE;
 		if (main_argv[i][0] == '-') {
 			switch (main_argv[i][1]) {
-			case 'f':
-				mode = OPT_CONFFILE;
-				option = 1;
-				break;
-			case 'i':
-				mode = OPT_INIT;
-				option = 0;
-				break;
-			case 'x':
-				mode = OPT_FLUSH;
-				option = 0;
-				break;
 			case 'v':
 				mode = OPT_VERBOSE;
 				option = 0;
@@ -90,15 +76,6 @@ parse_option(void)
 		}
 
 		switch (mode) {
-		case OPT_CONFFILE:
-			config_file = optarg;
-			break;
-		case OPT_INIT:
-			init = 1;
-			break;
-		case OPT_FLUSH:
-			flush = 1;
-			break;
 		case OPT_VERBOSE:
 			verbose = 1;
 			break;
@@ -118,21 +95,8 @@ parse_option(void)
 	}
 }
 
-static struct apm_eqv_event eqv_event[APM_MAX_EQUIV_EVENTS];
 static int eqv_num = 0;
 
-static apm_eqv_event_t
-get_eqv_event(int id)
-{
-	int	i;
-
-	for (i = 0; i < eqv_num; i++) {
-		if (id == eqv_event[i].aee_event) {
-			return &eqv_event[i];
-		}
-	}
-	return NULL;
-}
 
 #define PMEV_SYMBOL(name)	{#name, name}
 #define ARRAY_SIZEOF(array)	(sizeof(array) / sizeof(array[0]))
@@ -169,106 +133,6 @@ pmev(char *name, int *id)
 		}
 	}
 	return 1;
-}
-
-static void 
-parse_config_file(FILE *fp)
-{
-	int		i, id, id_eqv, n;
-	char		*bufp, *lastp;
-	char		buffer[1024];
-	char		mode[64], event[64], equiv[64];
-	apm_eqv_event_t	table;
-	enum {MODE_DEFAULT, MODE_RESUME} mode_type;
-
-	for (i = 1; fgets(buffer, sizeof(buffer), fp); i++) {
-		if (*buffer == '#') {
-			continue;
-		}
-		n = sscanf(buffer, "%s %s %s", mode, event, equiv);
-		if (n != 3) {
-			if (n == EOF) {
-				continue; /* Empty line */
-			}
-			fprintf(stderr, "%s:%d: Syntax error\n", config_file,  i);
-			exit(1);
-		}
-		if (pmev(event, &id)) {
-			id = strtol(event, NULL, 0);
-		}
-		if (pmev(equiv, &id_eqv)) {
-			id_eqv = strtol(equiv, NULL, 0);
-		}
-		if (!(table = get_eqv_event(id))) {
-			if (eqv_num == APM_MAX_EQUIV_EVENTS - 1) {
-				fprintf(stderr, "%s: Too many rules\n", main_argv[0]);
-				exit(1);
-			}
-			table = &eqv_event[eqv_num++];
-			table->aee_event = id;
-			table->aee_equiv = PMEV_DEFAULT;
-			table->aee_resume = PMEV_DEFAULT;
-		}
-		if (strcasecmp(mode, "default") == 0) {
-			mode_type = MODE_DEFAULT;
-		}
-		else if (strcasecmp(mode, "resume") == 0) {
-			mode_type = MODE_RESUME;
-		}
-		else {
-			fprintf(stderr, "%s: %d : Unknown keyword '%s'\n", config_file, i, mode);
-			exit(1);
-		}
-		switch (mode_type) {
-		case MODE_DEFAULT:
-			table->aee_equiv = table->aee_resume = id_eqv;
-			break;
-		case MODE_RESUME:
-			table->aee_resume = id_eqv;
-			break;
-		}
-	}
-	if (verbose) {
-		printf("%-14s%-14s%-14s\n", "   Original   ", "  Equivalent  ", " After Resume ");
-		for (i = 0; i < eqv_num; i++) {
-			printf("    0x%04x    ", eqv_event[i].aee_event);
-			if (eqv_event[i].aee_equiv != PMEV_DEFAULT) {
-				printf("    0x%04x    ", eqv_event[i].aee_equiv);
-			}
-			else {
-				printf("  default    ");
-			}
-			if (eqv_event[i].aee_resume != PMEV_DEFAULT) {
-				printf("    0x%04x    ", eqv_event[i].aee_resume);
-			}
-			else {
-				printf("  default    ");
-			}
-			printf("\n");
-		}
-	}
-}
-
-static void
-entry_eqv(int dh)
-{
-	int	i;
-
-	for (i = 0; i < eqv_num; i++) {
-		if (ioctl(dh, APMIO_DEFEQV, &eqv_event[i]) == -1) {
-			fprintf(stderr, "%s: Can't ioctl APMIO_DEFEQV.\n", main_argv[0]);
-			exit(1);
-		}
-	}
-}
-
-static void
-flush_eqv(int dh)
-{
-	if (ioctl(dh, APMIO_FLUSHEQV, NULL) == -1) {
-		fprintf(stderr, "%s: Can't ioctl APMIO_FLUSHBUF.\n", main_argv[0]);
-		exit(1);
-	}
 }
 
 static void
@@ -323,17 +187,6 @@ main(int argc, char *argv[])
 	/* disable operation is executed first */
 	if (disable) {
 		disable_apm(dh);
-	}
-	if (init) {
-		if (!(fp = fopen(config_file, "r"))) {
-			fprintf(stderr, "%s: Can't open config file\n", CONFIGFILE);
-			exit(1);
-		}
-		parse_config_file(fp);
-		entry_eqv(dh);
-	}
-	if (flush) {
-		flush_eqv(dh);
 	}
 	if (haltcpu) {
 		haltcpu_apm(dh);
