@@ -133,12 +133,13 @@ an I/O operation is attempted on a portion of the virtual drive
 beyond the actual capacity available.
 .It amr%d: polled command timeout
 .Pp
-An initialisation command timed out.  The initialisation process may fail as a result.
+An initialisation command timed out.
+The initialisation process may fail as a result.
 .It amr%d: bad slot %d completed
 .Pp
-The controller reported completion of a command that the driver did not issue.  This
-may result in data corruption, and suggests a hardware or firmware problem with the
-system or controller.
+The controller reported completion of a command that the driver did not issue.
+This may result in data corruption,
+and suggests a hardware or firmware problem with the system or controller.
 .It amr%d: I/O error - %x
 .Pp
 An I/O error has occurred.
