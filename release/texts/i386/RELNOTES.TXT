@@ -193,6 +193,8 @@ where large memory dumps could take up to an hour to complete.
 The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs 
 when unloading and reloading, and syncs with some NetBSD changes.
 
+Extremely large swap areas (>67 GB) no longer panic the system.
+
 
 1.2. SECURITY FIXES
 -------------------
