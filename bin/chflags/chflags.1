@@ -79,12 +79,14 @@ in the files instead of just the files themselves.
 Flags are a comma separated list of keywords.
 The following keywords are currently defined:
 .Bd -literal -offset indent compact
-.\"arch	nothing yet.
+arch	set the archived flag (super-user only)
 dump	set the dump flag
 sappnd	set the system append-only flag (super-user only)
 schg	set the system immutable flag (super-user only)
 uappnd	set the user append-only flag (owner or super-user only)
 uchg	set the user immutable flag (owner or super-user only)
+archived, sappend, schange, simmutable, uappend, uchange, uimmutable
+	aliases for the above
 .Ed
 .Pp
 Putting the letters
