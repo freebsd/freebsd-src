@@ -22,7 +22,7 @@
 #define	LINUX_SYS_linux_brk	17
 #define	LINUX_SYS_linux_lseek	19
 #define	LINUX_SYS_getpid	20
-#define	LINUX_SYS_linux_umount	22
+#define	LINUX_SYS_linux_umount2	22
 #define	LINUX_SYS_setuid	23
 #define	LINUX_SYS_getuid	24
 #define	LINUX_SYS_linux_ptrace	26
@@ -36,7 +36,6 @@
 #define	LINUX_SYS_getgid	47
 #define	LINUX_SYS_osf1_sigprocmask	48
 #define	LINUX_SYS_acct	51
-#define	LINUX_SYS_linux_umount2	52
 #define	LINUX_SYS_linux_ioctl	54
 #define	LINUX_SYS_linux_symlink	57
 #define	LINUX_SYS_linux_readlink	58
@@ -140,6 +139,7 @@
 #define	LINUX_SYS_linux_sysinfo	318
 #define	LINUX_SYS_linux_sysctl	319
 #define	LINUX_SYS_linux_idle	320
+#define	LINUX_SYS_linux_umount	321
 #define	LINUX_SYS_swapon	322
 #define	LINUX_SYS_linux_times	323
 #define	LINUX_SYS_linux_personality	324

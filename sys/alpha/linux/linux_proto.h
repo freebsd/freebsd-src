@@ -59,8 +59,9 @@ struct	linux_lseek_args {
 	long	off;	char off_[PAD_(long)];
 	int	whence;	char whence_[PAD_(int)];
 };
-struct	linux_umount_args {
+struct	linux_umount2_args {
 	char *	path;	char path_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
 };
 struct	linux_ptrace_args {
 	register_t dummy;
@@ -81,10 +82,6 @@ struct	linux_open_args {
 struct	osf1_sigprocmask_args {
 	int	how;	char how_[PAD_(int)];
 	u_long	mask;	char mask_[PAD_(u_long)];
-};
-struct	linux_umount2_args {
-	char *	path;	char path_[PAD_(char *)];
-	int	flags;	char flags_[PAD_(int)];
 };
 struct	linux_ioctl_args {
 	int	fd;	char fd_[PAD_(int)];
@@ -387,6 +384,9 @@ struct	linux_sysctl_args {
 struct	linux_idle_args {
 	register_t dummy;
 };
+struct	linux_umount_args {
+	char *	path;	char path_[PAD_(char *)];
+};
 struct	linux_times_args {
 	struct linux_times_argv *	buf;	char buf_[PAD_(struct linux_times_argv *)];
 };
@@ -534,13 +534,12 @@ int	linux_chmod __P((struct proc *, struct linux_chmod_args *));
 int	linux_chown __P((struct proc *, struct linux_chown_args *));
 int	linux_brk __P((struct proc *, struct linux_brk_args *));
 int	linux_lseek __P((struct proc *, struct linux_lseek_args *));
-int	linux_umount __P((struct proc *, struct linux_umount_args *));
+int	linux_umount2 __P((struct proc *, struct linux_umount2_args *));
 int	linux_ptrace __P((struct proc *, struct linux_ptrace_args *));
 int	linux_access __P((struct proc *, struct linux_access_args *));
 int	linux_kill __P((struct proc *, struct linux_kill_args *));
 int	linux_open __P((struct proc *, struct linux_open_args *));
 int	osf1_sigprocmask __P((struct proc *, struct osf1_sigprocmask_args *));
-int	linux_umount2 __P((struct proc *, struct linux_umount2_args *));
 int	linux_ioctl __P((struct proc *, struct linux_ioctl_args *));
 int	linux_symlink __P((struct proc *, struct linux_symlink_args *));
 int	linux_readlink __P((struct proc *, struct linux_readlink_args *));
@@ -609,6 +608,7 @@ int	linux_uselib __P((struct proc *, struct linux_uselib_args *));
 int	linux_sysinfo __P((struct proc *, struct linux_sysinfo_args *));
 int	linux_sysctl __P((struct proc *, struct linux_sysctl_args *));
 int	linux_idle __P((struct proc *, struct linux_idle_args *));
+int	linux_umount __P((struct proc *, struct linux_umount_args *));
 int	linux_times __P((struct proc *, struct linux_times_args *));
 int	linux_personality __P((struct proc *, struct linux_personality_args *));
 int	linux_setfsuid __P((struct proc *, struct linux_setfsuid_args *));
