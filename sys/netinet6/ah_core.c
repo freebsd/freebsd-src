@@ -83,6 +83,7 @@
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
 #include <sys/md5.h>
+#define MD5_RESULTLEN	16
 #include <crypto/sha1.h>
 #include <crypto/sha2/sha2.h>
 #include <crypto/ripemd160/rmd160.h>
@@ -385,7 +386,7 @@ ah_keyed_md5_result(state, addr, l)
 	caddr_t addr;
 	size_t l;
 {
-	u_char digest[16];
+	u_char digest[MD5_RESULTLEN];
 
 	if (!state)
 		panic("ah_keyed_md5_result: what?");
@@ -503,7 +504,7 @@ ah_hmac_md5_init(state, sav)
 {
 	u_char *ipad;
 	u_char *opad;
-	u_char tk[16];
+	u_char tk[MD5_RESULTLEN];
 	u_char *key;
 	size_t keylen;
 	size_t i;
@@ -569,7 +570,7 @@ ah_hmac_md5_result(state, addr, l)
 	caddr_t addr;
 	size_t l;
 {
-	u_char digest[16];
+	u_char digest[MD5_RESULTLEN];
 	u_char *ipad;
 	u_char *opad;
 	MD5_CTX *ctxt;
