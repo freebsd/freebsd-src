@@ -141,10 +141,7 @@ main(int argc, char *argv[])
 	if (nfshost != NULL) {
 		memset(&hints, 0, sizeof hints);
 		error = getaddrinfo(nfshost, NULL, &hints, &nfshost_ai);
-		if (error) {
-			fprintf(stderr, "ndp: %s: %s\n", nfshost,
-			    gai_strerror(error));
-		}
+		errx(1, "%s: %s", nfshost, gai_strerror(error));
 	}
 
 	switch (all) {
@@ -393,7 +390,7 @@ checkname(char *name, char **typelist)
 		return (1);
 	}
 	free(mntfromnamerev);
-	umountfs(mntfromname, mntonname, type);
+	return (umountfs(mntfromname, mntonname, type));
 }
 
 /*
@@ -404,19 +401,19 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 {
 	enum clnt_stat clnt_stat;
 	struct timeval try;
-	struct mtablist *mtab;
 	struct addrinfo *ai, hints;
 	int do_rpc;
 	CLIENT *clp;
 	char *nfsdirname, *orignfsdirname;
 	char *hostp, *delimp;
 
-	mtab = NULL;
 	ai = NULL;
+	do_rpc = 0;
+	hostp = NULL;
 	nfsdirname = delimp = orignfsdirname = NULL;
 	memset(&hints, 0, sizeof hints);
 
-	if (!strcmp(type, "nfs")) {
+	if (strcmp(type, "nfs") == 0) {
 		if ((nfsdirname = strdup(mntfromname)) == NULL)
 			err(1, "strdup");
 		orignfsdirname = nfsdirname;
@@ -429,19 +426,20 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 			}
 			nfsdirname = delimp + 1;
 		}
+
+		/*
+		 * Check if we have to start the rpc-call later.
+		 * If there are still identical nfs-names mounted,
+		 * we skip the rpc-call. Obviously this has to
+		 * happen before unmount(2), but it should happen
+		 * after the previous namecheck.
+		 * A non-NULL return means that this is the last
+		 * mount from mntfromname that is still mounted.
+		 */
+		if (getmntname(mntfromname, NULL, NOTHING, &type, COUNT)
+		     != NULL)
+			do_rpc = 1;
 	}
-	/*
-	 * Check if we have to start the rpc-call later.
-	 * If there are still identical nfs-names mounted,
-	 * we skip the rpc-call. Obviously this has to
-	 * happen before unmount(2), but it should happen
-	 * after the previous namecheck.
-	 */
-	if (strcmp(type, "nfs") == 0 && getmntname(mntfromname, NULL, NOTHING,
-	    &type, COUNT) != NULL)
-		do_rpc = 1;
-	else
-		do_rpc = 0;
 
 	if (!namematch(ai))
 		return (1);
@@ -458,7 +456,8 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 	if (ai != NULL && !(fflag & MNT_FORCE) && do_rpc) {
 		clp = clnt_create(hostp, RPCPROG_MNT, RPCMNT_VER1, "udp");
 		if (clp  == NULL) {
-			clnt_pcreateerror("Cannot MNT PRC");
+			warnx("%s: %s", hostp,
+			    clnt_spcreateerror("RPCPROG_MNT"));
 			return (1);
 		}
 		clp->cl_auth = authsys_create_default();
@@ -467,17 +466,17 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir,
 		    nfsdirname, xdr_void, (caddr_t)0, try);
 		if (clnt_stat != RPC_SUCCESS) {
-			clnt_perror(clp, "Bad MNT RPC");
+			warnx("%s: %s", hostp,
+			    clnt_sperror(clp, "RPCMNT_UMOUNT"));
 			return (1);
 		}
 		/*
 		 * Remove the unmounted entry from /var/db/mounttab.
 		 */
-		if (read_mtab(mtab)) {
-			mtab = mtabhead;
+		if (read_mtab(NULL)) {
 			clean_mtab(hostp, nfsdirname);
 			if(!write_mtab())
-				warnx("cannot remove entry %s:%s",
+				warnx("cannot remove mounttab entry %s:%s",
 				    hostp, nfsdirname);
 			free_mtab();
 		}
