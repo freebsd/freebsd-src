@@ -5171,8 +5171,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 			sp->confflags |= CONF_ENABLE_IPV6;
 		else
 			sp->confflags &= ~CONF_ENABLE_IPV6;
-		break;
 #endif
+		break;
 
 	default:
 		rv = EINVAL;
