@@ -316,7 +316,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Handle ng_ether(4) processing, if any */
-	if (ng_ether_output_p != NULL) {
+	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		if ((error = (*ng_ether_output_p)(ifp, &m)) != 0) {
 bad:			if (m != NULL)
 				m_freem(m);
@@ -560,7 +560,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	ifp->if_ibytes += m->m_pkthdr.len;
 
 	/* Handle ng_ether(4) processing, if any */
-	if (ng_ether_input_p != NULL) {
+	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		(*ng_ether_input_p)(ifp, &m);
 		if (m == NULL)
 			return;
@@ -777,7 +777,7 @@ discard:
 	 * hand the packet to it for last chance processing;
 	 * otherwise dispose of it.
 	 */
-	if (ng_ether_input_orphan_p != NULL) {
+	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		/*
 		 * Put back the ethernet header so netgraph has a
 		 * consistent view of inbound packets.
@@ -862,7 +862,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 void
 ether_ifdetach(struct ifnet *ifp)
 {
-	if (ng_ether_detach_p != NULL)
+	if (IFP2AC(ifp)->ac_netgraph != NULL)
 		(*ng_ether_detach_p)(ifp);
 	bpfdetach(ifp);
 	if_detach(ifp);
