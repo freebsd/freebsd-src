@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: edgroup.c,v 1.5 1997/10/10 06:23:30 charnier Exp $";
+	"$Id: edgroup.c,v 1.6 1998/07/16 17:18:22 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -55,14 +55,18 @@ isingroup(char const * name, char **mem)
 	return -1;
 }
 
-static char     groupfile[] = _PATH_GROUP;
-static char     grouptmp[] = _PATH_GROUP ".new";
-
 int
 editgroups(char *name, char **groups)
 {
 	int             rc = 0;
 	int             infd;
+	char		groupfile[MAXPATHLEN];
+	char		grouptmp[MAXPATHLEN];
+
+	strncpy(groupfile, getgrpath(_GROUP), MAXPATHLEN - 5);
+	groupfile[MAXPATHLEN - 5] = '\0';
+	strcpy(grouptmp, groupfile);
+	strcat(grouptmp, ".new");
 
 	if ((infd = open(groupfile, O_RDWR | O_CREAT, 0644)) != -1) {
 		FILE           *infp;
@@ -172,9 +176,9 @@ editgroups(char *name, char **groups)
 										 */
 										struct passwd  *pwd;
 
-										setpwent();
-										while ((pwd = getpwent()) != NULL && pwd->pw_gid != grp.gr_gid);
-										endpwent();
+										SETPWENT();
+										while ((pwd = GETPWENT()) != NULL && (gid_t)pwd->pw_gid != (gid_t)grp.gr_gid);
+										ENDPWENT();
 										if (pwd == NULL)	/* No members at all */
 											continue;	/* Drop the group */
 									}

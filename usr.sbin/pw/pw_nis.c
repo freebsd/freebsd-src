@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pw_nis.c,v 1.4 1997/10/10 06:23:38 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -34,7 +34,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <sys/types.h>
 
-#include "pwupd.h"
 #include "pw.h"
 
 static int
