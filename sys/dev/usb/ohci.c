@@ -5,6 +5,9 @@
  *	$NetBSD: ohci.c,v 1.141 2003/09/10 20:08:29 mycroft Exp $
  *	$NetBSD: ohci.c,v 1.142 2003/10/11 03:04:26 toshii Exp $
  *	$NetBSD: ohci.c,v 1.143 2003/10/18 04:50:35 simonb Exp $
+ *	$NetBSD: ohci.c,v 1.144 2003/11/23 19:18:06 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.145 2003/11/23 19:20:25 augustss Exp $
+ *	$NetBSD: ohci.c,v 1.146 2003/12/29 08:17:10 toshii Exp $
  */
 
 #include <sys/cdefs.h>
@@ -823,9 +826,9 @@ ohci_init(ohci_softc_t *sc)
  bad4:
 	ohci_free_sed(sc, sc->sc_isoc_head);
  bad3:
-	ohci_free_sed(sc, sc->sc_ctrl_head);
- bad2:
 	ohci_free_sed(sc, sc->sc_bulk_head);
+ bad2:
+	ohci_free_sed(sc, sc->sc_ctrl_head);
  bad1:
 	usb_freemem(&sc->sc_bus, &sc->sc_hccadma);
 	return (err);
@@ -938,8 +941,11 @@ ohci_controller_init(ohci_softc_t *sc)
 	 * The AMD756 requires a delay before re-reading the register,
 	 * otherwise it will occasionally report 0 ports.
 	 */
-	usb_delay_ms(&sc->sc_bus, OHCI_READ_DESC_DELAY);
-	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
+  	sc->sc_noport = 0;
+ 	for (i = 0; i < 10 && sc->sc_noport == 0; i++) {
+ 		usb_delay_ms(&sc->sc_bus, OHCI_READ_DESC_DELAY);
+ 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
+ 	}
 
 #ifdef USB_DEBUG
 	if (ohcidebug > 5)
@@ -2615,7 +2621,7 @@ ohci_root_ctrl_start(usbd_xfer_handle xfer)
 		}
 		break;
 	case C(UR_GET_DESCRIPTOR, UT_READ_CLASS_DEVICE):
-		if (value != 0) {
+		if ((value & 0xff) != 0) {
 			err = USBD_IOERROR;
 			goto ret;
 		}
