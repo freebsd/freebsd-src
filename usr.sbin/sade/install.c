@@ -223,9 +223,10 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	status = FALSE;
     }
     if (!swapdev && whinge) {
-	msgConfirm("No swap devices found - you must create at least one\n"
-		   "swap partition.");
-	status = FALSE;
+	if (msgYesNo("No swap devices found - you should create at least one\n"
+		     "swap partition.  Without swap, the install will fail\n"
+		     "if you do not have enough RAM.  Continue anyway?"))
+	    status = FALSE;
     }
     return status;
 }
