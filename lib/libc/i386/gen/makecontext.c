@@ -150,10 +150,11 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		 * wrapper.  Note that setcontext() pushes the return
 		 * address onto the top of the stack, so allow for this
 		 * by adjusting the stack downward 1 slot.  Also set
-		 * %ebp to point to the base of the stack where ucp
+		 * %esi to point to the base of the stack where ucp
 		 * is stored.
 		 */
-		ucp->uc_mcontext.mc_ebp = (int)argp;
+		ucp->uc_mcontext.mc_esi = (int)argp;
+		ucp->uc_mcontext.mc_ebp = 0;
 		ucp->uc_mcontext.mc_esp = (int)stack_top + sizeof(caddr_t);
 		ucp->uc_mcontext.mc_eip = (int)_ctx_start;
 	}
