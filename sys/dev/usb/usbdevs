@@ -101,6 +101,7 @@ vendor KLSI		0x05e9	Kawasaki LSI
 vendor PIENGINEERING	0x05f3  P.I. Engineering
 vendor CHIC		0x05fe	Chic Technology
 vendor MACALLY		0x0618	Macally
+vendor LINKSYS		0x066B	LinkSys
 vendor MULTITECH	0x06e0	MultiTech
 vendor ADS		0x06e1	ADS Technologies
 vendor SMC		0x0707	Standard Microsystems Corp
@@ -311,6 +312,9 @@ product CHIC MOUSE1		0x0001	mouse
 
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
+
+/* LinkSys products */
+product LINKSYS USB100TX	0x2203	10/100 ethernet adapter
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem

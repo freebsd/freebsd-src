@@ -122,6 +122,8 @@ static struct aue_type aue_devs[] = {
 	    "ADMtek AN986 Pegasus 10/100BaseTX" },
 	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB,
 	    "ADMtek AN986 Pegasus 10/100BaseTX" },
+	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB100TX,
+	    "ADMtek AN986 Pegasus 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
