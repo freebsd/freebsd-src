@@ -107,7 +107,6 @@ static struct sk_type sk_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static unsigned long sk_count = 0;
 static unsigned long skc_count = 0;
 static const char *sk_probe	__P((pcici_t, pcidi_t));
 static void sk_attach		__P((pcici_t, int));
@@ -990,6 +989,7 @@ static int sk_attach_xmac(sc, port)
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
 	int			i;
+	char			ifname[64];
 
 	if (sc == NULL)
 		return(EINVAL);
@@ -1004,9 +1004,20 @@ static int sk_attach_xmac(sc, port)
 	}
 	bzero((char *)sc_if, sizeof(struct sk_if_softc));
 
-	sc_if->sk_unit = sk_count;
+	for (i = 0; i < SK_MAXUNIT; i++) {
+		sprintf(ifname, "sk%d", i);
+		if (ifunit(ifname) == NULL)
+			break;
+	}
+
+	if (i == SK_MAXUNIT) {
+		printf("skc%d: too many sk units\n", sc->sk_unit);
+		free(sc_if, M_DEVBUF);
+		return(ENODEV);
+	}
+
+	sc_if->sk_unit = i;
 	sc_if->sk_port = port;
-	sk_count++;
 	sc_if->sk_softc = sc;
 	sc->sk_if[port] = sc_if;
 	if (port == SK_PORT_A)
@@ -1630,6 +1641,11 @@ static void sk_intr(xsc)
 	}
 
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
+
+	if (ifp0 != NULL && ifp0->if_snd.ifq_head != NULL)
+		sk_start(ifp0);
+	if (ifp1 != NULL && ifp1->if_snd.ifq_head != NULL)
+		sk_start(ifp1);
 
 	return;
 }
