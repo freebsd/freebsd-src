@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.107 1995/03/18 07:01:53 rgrimes Exp $
+#	$Id: Makefile,v 1.108 1995/03/21 16:44:02 wollman Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -36,7 +36,7 @@ NEWFS=		newfs -b 4096 -c 80 -f 512 -m 0 -o space -u 0 -t 0
 ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
-NAMEDB=	PROTO.localhost.rev named.boot root.cache make-localhost
+NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
 PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
 	ppp.linkup.sample ppp.secret.sample
 PCS=	pcs750.bin

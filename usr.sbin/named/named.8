@@ -123,7 +123,7 @@ directory	/usr/local/adm/named
 .ta \w'forwarders\ 'u +\w'6.32.128.IN-ADDR.ARPA\ 'u +\w'128.32.137.8 128.32.137.3\ 'u
 ; type	domain	source host/file				backup file
 
-cache	.							root.cache
+cache	.							named.root
 primary	Berkeley.EDU	berkeley.edu.zone
 primary	32.128.IN-ADDR.ARPA	ucbhosts.rev
 secondary	CC.Berkeley.EDU	128.32.137.8 128.32.137.3	cc.zone.bak
@@ -139,12 +139,12 @@ The ``directory'' line causes the server to change its working directory to
 the directory specified.  This can be important for the correct processing
 of \s-1$INCLUDE\s+1 files in primary zone files.
 .LP
-The ``cache'' line specifies that data in ``root.cache'' is to be placed in
+The ``cache'' line specifies that data in ``named.root'' is to be placed in
 the backup cache.  Its main use is to specify data such as locations of root
 domain servers.  This cache is not used during normal operation, but is used
-as ``hints'' to find the current root servers.  The file ``root.cache'' is
+as ``hints'' to find the current root servers.  The file ``named.root'' is
 in the same format as ``berkeley.edu.zone''.  There can be more than one
-``cache'' file specified.  The ``root.cache'' file should be retrieved
+``cache'' file specified.  The ``named.root'' file should be retrieved
 periodically from \s-1FTP.RS.INTERNIC.NET\s+1 since it contains a list of
 root servers, and this list changes periodically.
 .LP
