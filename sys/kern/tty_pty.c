@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.49 1997/12/16 17:40:28 eivind Exp $
+ * $Id: tty_pty.c,v 1.50 1998/01/24 02:54:35 eivind Exp $
  */
 
 /*
@@ -676,7 +676,7 @@ ptyioctl(dev, cmd, data, flag, p)
 
 		case TIOCGPGRP:
 			/*
-			 * We aviod calling ttioctl on the controller since,
+			 * We avoid calling ttioctl on the controller since,
 			 * in that case, tp must be the controlling terminal.
 			 */
 			*(int *)data = tp->t_pgrp ? tp->t_pgrp->pg_id : 0;
@@ -790,7 +790,7 @@ ptyioctl(dev, cmd, data, flag, p)
 	return (error);
 }
 
-static ptc_devsw_installed = 0;
+static int ptc_devsw_installed;
 
 static void ptc_drvinit __P((void *unused));
 static void
