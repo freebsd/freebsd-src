@@ -259,6 +259,8 @@ __opendir2(name, flags)
 	dirp->dd_loc = 0;
 	dirp->dd_fd = fd;
 	dirp->dd_flags = flags;
+	dirp->dd_loccnt = 0;
+	LIST_INIT(&dirp->dd_locq);
 
 	/*
 	 * Set up seek point for rewinddir.
