@@ -489,7 +489,7 @@ static int ips_send_ffdc_reset_cmd(ips_command_t *command)
 	command_struct->command = IPS_FFDC_CMD;
 	command_struct->id = command->id;
 	command_struct->reset_count = sc->ffdc_resetcount;
-	command_struct->reset_type  = 0x80;
+	command_struct->reset_type  = 0x0;
 	ips_ffdc_settime(command_struct, sc->ffdc_resettime.tv_sec);
 
 	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
