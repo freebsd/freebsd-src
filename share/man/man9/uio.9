@@ -90,14 +90,11 @@ The offset into the device.
 The number of bytes to process.
 .It Va uio_segflg
 One of the following flags:
-.Bl -tag -width ".Dv UIO_USERISPACE"
+.Bl -tag -width ".Dv UIO_USERSPACE"
 .It Dv UIO_USERSPACE
 The I/O vector points into a process's address space.
 .It Dv UIO_SYSSPACE
 The I/O vector points into the kernel address space.
-.It Dv UIO_USERISPACE
-The I/O vector points into the instruction area of a process's address
-space.
 .It Dv UIO_NOCOPY
 Don't copy, already in object.
 .El
