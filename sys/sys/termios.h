@@ -56,8 +56,9 @@
 #define VKILL		5	/* ICANON */
 #ifndef _POSIX_SOURCE
 #define	VREPRINT 	6	/* ICANON together with IEXTEN */
+#define VERASE2 	7	/* ICANON */
 #endif
-/*			7	   spare 1 */
+/*			7	   ex-spare 1 */
 #define VINTR		8	/* ISIG */
 #define VQUIT		9	/* ISIG */
 #define VSUSP		10	/* ISIG */

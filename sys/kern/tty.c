@@ -459,9 +459,9 @@ parmrk:
 		 * processing takes place.
 		 */
 		/*
-		 * erase (^H / ^?)
+		 * erase or erase2 (^H / ^?)
 		 */
-		if (CCEQ(cc[VERASE], c)) {
+		if (CCEQ(cc[VERASE], c) || CCEQ(cc[VERASE2], c) ) {
 			if (tp->t_rawq.c_cc)
 				ttyrub(unputc(&tp->t_rawq), tp);
 			goto endcase;
@@ -2010,8 +2010,17 @@ ttyrub(c, tp)
 			(void)ttyoutput('\\', tp);
 		}
 		ttyecho(c, tp);
-	} else
+	} else {
 		ttyecho(tp->t_cc[VERASE], tp);
+		/*
+		 * This code may be executed not only when an ERASE key
+		 * is pressed, but also when ^U (KILL) or ^W (WERASE) are.
+		 * So, I didn't think it was worthwhile to pass the extra
+		 * information (which would need an extra parameter,
+		 * changing every call) needed to distinguish the ERASE2
+		 * case from the ERASE.
+		 */
+	}
 	--tp->t_rocount;
 }
 
