@@ -58,4 +58,13 @@
 #define	VER_MAXWIN(ver) \
 	(((ver) & VER_MAXWIN_MASK) >> VER_MAXWIN_SHIFT)
 
+extern int cpu_impl;
+
+/* Known implementations. */
+#define	CPU_IMPL_SPARC64	0x01
+#define	CPU_IMPL_ULTRASPARCI	0x10
+#define	CPU_IMPL_ULTRASPARCII	0x11
+#define	CPU_IMPL_ULTRASPARCIIi	0x12
+#define	CPU_IMPL_ULTRASPARCIIe	0x13
+
 #endif /* !_MACHINE_VER_H_ */
