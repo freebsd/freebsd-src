@@ -5,7 +5,7 @@ CFLAGS+=	-I$(.CURDIR)/../diff\
 		-DHAVE_STRERROR=1 -DHAVE_WAITPID=1 -DHAVE_FCNTL_H=1\
 		-DHAVE_STRING_H=1 -DHAVE_SYS_WAIT_H=1 -DHAVE_TIME_H=1\
 		-DHAVE_ST_BLKSIZE=1 -DDIFF_PROGRAM=\"/usr/bin/diff\"
-NOMAN=		noman
+MAN=		sdiff.1
 
 .include <bsd.prog.mk>
 .PATH: $(.CURDIR)/../diff
