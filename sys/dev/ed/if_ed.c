@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.48 1994/09/16 13:33:40 davidg Exp $
+ * $Id: if_ed.c,v 1.49 1994/10/08 09:24:20 davidg Exp $
  */
 
 #include "ed.h"
@@ -2223,9 +2223,8 @@ ed_pio_write_mbufs(sc, m, dst)
 	struct mbuf *m;
 	unsigned short dst;
 {
-	unsigned short len, mb_offset;
+	unsigned short len;
 	struct mbuf *mp;
-	unsigned char residual[2];
 	int     maxwait = 100;	/* about 120us */
 
 	/* First, count up the total number of bytes to copy */
@@ -2249,57 +2248,61 @@ ed_pio_write_mbufs(sc, m, dst)
 	/* set remote DMA write */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
 
-	mb_offset = 0;
+  /*
+   * Transfer the mbuf chain to the NIC memory. 
+   * 16-bit cards require that data be transferred as words, and only words.
+   * So that case requires some extra code to patch over odd-length mbufs.
+   */
 
-	/*
-	 * Transfer the mbuf chain to the NIC memory. The following code isn't
-	 * too pretty. The problem is that we can only transfer words to the
-	 * board, and if an mbuf has an odd number of bytes in it, this is a
-	 * problem. It's not a simple matter of just removing a byte from the
-	 * next mbuf (adjusting data++ and len--) because this will hose-over
-	 * the mbuf chain which might be needed later for BPF. Instead, we
-	 * maintain an offset (mb_offset) which let's us skip over the first
-	 * byte in the following mbuf.
-	 */
-	while (m) {
-		if (m->m_len - mb_offset) {
-			if (sc->isa16bit) {
-				if ((m->m_len - mb_offset) > 1)
-					outsw(sc->asic_addr + ED_NOVELL_DATA,
-					      mtod(m, caddr_t) + mb_offset,
-					      (m->m_len - mb_offset) / 2);
-
-				/*
-				 * if odd number of bytes, get the odd byte
-				 * from the next mbuf with data
-				 */
-				if ((m->m_len - mb_offset) & 1) {
-					/* first the last byte in current mbuf */
-					residual[0] = *(mtod(m, caddr_t) +
-							m->m_len - 1);
-
-					/* advance past any empty mbufs */
-					while (m->m_next && (m->m_next->m_len == 0))
-						m = m->m_next;
-
-					if (m->m_next) {
-
-						/*
-						 * remove first byte in next
-						 * mbuf
-						 */
-						residual[1] = *(mtod(m->m_next, caddr_t));
-						mb_offset = 1;
-					}
-					outw(sc->asic_addr + ED_NOVELL_DATA,
-					     *((unsigned short *) residual));
-				} else
-					mb_offset = 0;
-			} else
-				outsb(sc->asic_addr + ED_NOVELL_DATA, m->m_data, m->m_len);
-
+	if (!sc->isa16bit) {
+		/* NE1000s are easy */
+		while (m) {
+			if (m->m_len) {
+				outsb(sc->asic_addr + ED_NOVELL_DATA, 
+				      m->m_data, m->m_len);
+			}
+			m = m->m_next;
 		}
-		m = m->m_next;
+	} else {
+		/* NE2000s are a pain */
+		unsigned char *data;
+		int len, wantbyte;
+		unsigned char savebyte[2];
+    
+		wantbyte = 0;
+
+		while (m) {
+			data = mtod(m, caddr_t);
+			len = m->m_len;
+			if (len) {
+				/* finish the last word */
+				if (wantbyte) {
+					savebyte[1] = *data;
+					outw(sc->asic_addr + ED_NOVELL_DATA,
+					     *((unsigned short *) savebyte));
+					data++;
+					len--;
+					wantbyte = 0;
+				}
+				/* output contiguous words */
+				if (len > 1) {
+					outsw(sc->asic_addr + ED_NOVELL_DATA, 
+					      data, len >> 1);
+					data += len & ~1;
+					len &= 1;
+				}
+				/* save last byte, if necessary */
+				if (len == 1) {
+					savebyte[0] = *data;
+					wantbyte = 1;
+				}
+			}
+			m = m->m_next;
+		}
+		/* spit last byte */
+		if (wantbyte)
+		  outw(sc->asic_addr + ED_NOVELL_DATA,
+		       *((unsigned short *) savebyte));
 	}
 
 	/*
