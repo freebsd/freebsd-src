@@ -36,6 +36,7 @@ __RCSID("$FreeBSD$");
 __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #endif
 
+#include <sys/types.h>
 #include <err.h>
 #include <pwd.h>
 #include <stdio.h>

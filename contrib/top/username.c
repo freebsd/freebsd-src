@@ -7,6 +7,8 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -28,6 +30,7 @@
  *  This makes the table size independent of the passwd file size.
  */
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <pwd.h>
 #include <utmp.h>
