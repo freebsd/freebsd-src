@@ -23,7 +23,7 @@ afterinstall:
 	chmod 755 $(DESTDIR)$(TMACDIR)/mm
 
 	for f in $(FILES); do \
-		rm -f $(TMACDIR)/mm/$$f; \
+		rm -f $(DESTDIR)$(TMACDIR)/mm/$$f; \
 		install -c -o $(TMACOWN) -g $(TMACGRP) -m $(TMACMODE) \
 			$(.CURDIR)/mm/$$f $(DESTDIR)$(TMACDIR)/mm/$$f; \
 	done
