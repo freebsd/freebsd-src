@@ -125,9 +125,7 @@ int sbwrite(struct uufsd *, int);
 /*
  * type.c
  */
-struct uufsd *ufs_disk_ctor(const char *);
 int ufs_disk_close(struct uufsd *);
-void ufs_disk_dtor(struct uufsd **);
 int ufs_disk_fillout(struct uufsd *, const char *);
 int ufs_disk_fillout_blank(struct uufsd *, const char *);
 int ufs_disk_write(struct uufsd *);
