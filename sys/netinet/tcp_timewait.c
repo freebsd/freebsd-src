@@ -250,8 +250,13 @@ tcp_fillheaders(tp, ip_ptr, tcp_ptr)
 	{
 	struct ip *ip = (struct ip *) ip_ptr;
 
-	bzero(ip, sizeof(struct ip));		/* XXX overkill? */
 	ip->ip_vhl = IP_VHL_BORING;
+	ip->ip_tos = 0;
+	ip->ip_len = 0;
+	ip->ip_id = 0;
+	ip->ip_off = 0;
+	ip->ip_ttl = 0;
+	ip->ip_sum = 0;
 	ip->ip_p = IPPROTO_TCP;
 	ip->ip_src = inp->inp_laddr;
 	ip->ip_dst = inp->inp_faddr;
@@ -1372,7 +1377,6 @@ ipsec_hdrsiz_tcp(tp)
 	th = (struct tcphdr *)(ip + 1);
 	m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
 	tcp_fillheaders(tp, ip, th);
-	ip->ip_vhl = IP_VHL_BORING;
 	hdrsiz = ipsec4_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
       }
 
