@@ -9,9 +9,9 @@ CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DSKEY \
 SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
 		telnet.c terminal.c tn3270.c utilities.c
 
-DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBDES} ${LIBKRB} ${LIBCRYPT} \
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBKRB} ${LIBCRYPT} \
 		${LIBCOM_ERR} ${LIBIPSEC}
-LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -ldes \
+LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto \
 		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp -lipsec
 
 .include <bsd.prog.mk>
