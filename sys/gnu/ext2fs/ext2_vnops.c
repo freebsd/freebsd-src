@@ -52,6 +52,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
 
@@ -236,30 +237,13 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 /*
  * Enabling cluster read/write operations.
  */
-#if defined(__FreeBSD__)
-static int doclusterread = 1;
-static int doclusterwrite = 1;
-#include <sys/sysctl.h>
+static int	ext2_doclusterread = 1;
+static int	ext2_doclusterwrite = 1;
 SYSCTL_NODE(_vfs, MOUNT_EXT2FS, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERREAD, doclusterread,
-		   CTLFLAG_RW, &doclusterread, 0, "");
+		   CTLFLAG_RW, &ext2_doclusterread, 0, "");
 SYSCTL_INT(_vfs_ext2fs, EXT2FS_CLUSTERWRITE, doclusterwrite,
-		   CTLFLAG_RW, &doclusterwrite, 0, "");
-#else /* !FreeBSD */
-#ifdef DEBUG
-static int doclusterread = 0;
-static int doclusterwrite = 1;
-#include <sys/sysctl.h>
-SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
-SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
-#else /* !DEBUG */
-/* doclusterwrite is being tested 
-   note that reallocblks is called when it's on, but this is not implemented */
-#define doclusterwrite 0
-/* doclusterread should work with new pagemove */
-#define doclusterread 1
-#endif /* DEBUG */
-#endif /* FreeBSD */
+		   CTLFLAG_RW, &ext2_doclusterwrite, 0, "");
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
