@@ -164,8 +164,7 @@ The
 function returns \-1 when the argument list is exhausted.
 .Sh EXAMPLES
 .Bd -literal -compact
-extern char *optarg;
-extern int optind;
+#include <unistd.h>
 int bflag, ch, fd;
 
 bflag = 0;
