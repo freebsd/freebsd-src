@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.51 1998/04/06 17:38:42 peter Exp $
+ * $Id: vfs_vnops.c,v 1.52 1998/04/06 18:25:21 peter Exp $
  */
 
 #include <sys/param.h>
@@ -125,7 +125,11 @@ vn_open(ndp, fmode, cmode)
 			return (error);
 		vp = ndp->ni_vp;
 	}
-	if (vp->v_type == VSOCK || vp->v_type == VLNK) {
+	if (vp->v_type == VLNK) {
+		error = ELOOP;
+		goto bad;
+	}
+	if (vp->v_type == VSOCK)
 		error = EOPNOTSUPP;
 		goto bad;
 	}
