@@ -331,8 +331,7 @@ main(argc, argv)
 
 				memmove(&in, hp->h_addr, sizeof(in));
 				p = inet_ntoa(in);
-			} else
-				herror("gethostbyname");
+			}
 		}
 		if (x) {
 			(void)snprintf(buf, sizeof(buf), "%s:%.*s", p,
