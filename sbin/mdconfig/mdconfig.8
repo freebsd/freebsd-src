@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2000
+.Dd March 10, 2004
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -52,12 +52,9 @@
 .Fl a
 .Fl t Ar type
 .Op Fl n
-.Oo
-.Fl o
-.Oo Cm no Oc Ns Ar option
-.Oc
-.Op Fl s Ar size
+.Oo Fl o Oo Cm no Oc Ns Ar option Oc ...
 .Op Fl f Ar file
+.Op Fl s Ar size
 .Op Fl S Ar sectorsize
 .Op Fl u Ar unit
 .Op Fl x Ar sectors/track
@@ -127,11 +124,15 @@ denotes kilobyte, megabyte and gigabyte respectively.
 .It Fl S Ar sectorsize
 Sectorsize to use for malloc backed device.
 .It Fl x Ar sectors/track
-See description of
-.Fl y 
-below.
+See the description of the
+.Fl y
+option below.
 .It Fl y Ar heads/cylinder
-For malloc or vnode backed devices, the
+For
+.Cm malloc
+or
+.Cm vnode
+backed devices, the
 .Fl x
 and
 .Fl y
@@ -142,7 +143,11 @@ other devices.
 Set or reset options.
 .Bl -tag -width indent
 .It Oo Cm no Oc Ns Cm async
-For vnode backed devices:  avoid IO_SYNC for increased performance but
+For
+.Cm vnode
+backed devices: avoid
+.Dv IO_SYNC
+for increased performance but
 at the risk of deadlocking the entire kernel.
 .It Oo Cm no Oc Ns Cm reserve
 Allocate and reserve all needed storage from the start, rather than as needed.

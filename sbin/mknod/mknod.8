@@ -28,7 +28,7 @@
 .\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd December 29, 2003
 .Dt MKNOD 8
 .Os
 .Sh NAME
@@ -102,15 +102,15 @@ will cause the number to be interpreted as octal.
 .Pp
 The
 .Nm
-tool can be used to recreate deleted device nodes under a
-.Xr devfs 5 ,
-mount point by invoking it using dummy arguments.  Example:
-.Bd -literal -offset indent
-mknod cd0 c 0 0
-.Ed
+utility can be used to recreate deleted device nodes under a
+.Xr devfs 5
+mount point by invoking it using dummy arguments.
+Example:
 .Pp
-Where
-.Fa cd0
+.Dl "mknod cd0 c 0 0"
+.Pp
+where
+.Dq Li cd0
 is the name of the deleted device node.
 .Sh COMPATIBILITY
 The

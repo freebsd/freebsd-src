@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2001
+.Dd February 26, 2004
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLMNSUX
+.Op Fl DLlMNSUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
@@ -45,7 +45,6 @@ driver
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
-.Op Fl l
 .Op Fl m Ar percent-free
 .Op Fl n Ar rotational-positions
 .Op Fl O Ar optimization
@@ -58,7 +57,7 @@ driver
 .Ar mount-point
 .Nm
 .Fl C
-.Op Fl NU
+.Op Fl lNU
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
@@ -164,7 +163,7 @@ The fragment size of the file system in bytes.
 .It Fl i Ar bytes
 Number of bytes per inode.
 .It Fl l
-Enables multilabel MAC on the new file system.
+Enable multilabel MAC on the new file system.
 .It Fl L
 Show the output of the helper programs.
 By default,

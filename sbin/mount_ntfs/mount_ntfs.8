@@ -97,9 +97,11 @@ translation table.
 See
 .Xr mount_msdosfs 8
 for the description of this option.
-This option is remained for backward compatibility purpose, so
-please do not use this option. This option will be removed in
-the future.
+.Bf Em
+This option is preserved for backward compatibility purpose only,
+and will be removed in the future.
+Please do not use this option.
+.Ef
 .El
 .Sh FEATURES
 NTFS file attributes are accessed in following way:
@@ -115,28 +117,23 @@ Default is $DATA.
 is an attribute name.
 Default is none.
 .Sh EXAMPLES
-To mount an ntfs volume located in
+To mount an NTFS volume located in
 .Pa /dev/ad1s1 :
-.Bd -literal -offset indent
-# mount_ntfs /dev/ad1s1 /mnt
-.Ed
+.Pp
+.Dl "mount_ntfs /dev/ad1s1 /mnt"
 .Pp
 To get the volume name (in Unicode):
-.Bd -literal -offset indent
-# cat /mnt/\\$Volume:\\$VOLUME_NAME
-.Ed
+.Pp
+.Dl "cat /mnt/\e$Volume:\e$VOLUME_NAME"
 .Pp
 To read directory raw data:
-.Bd -literal -offset indent
-# cat /mnt/foodir:\\$INDEX_ROOT:\\$I30
-.Ed
 .Pp
-To mount a
-.Pa Japanese
-ntfs volume located in /dev/ad0s1:
-.Bd -literal -offset indent
-# mount_ntfs -C eucJP /dev/ad0s1 /mnt
-.Ed
+.Dl "cat /mnt/foodir:\e$INDEX_ROOT:\e$I30"
+.Pp
+To mount a Japanese NTFS volume located in
+.Pa /dev/ad0s1 :
+.Pp
+.Dl "mount_ntfs -C eucJP /dev/ad0s1 /mnt"
 .Sh WRITING
 There is limited writing ability.
 Limitations: file must be nonresident
@@ -160,9 +157,9 @@ The
 utility first appeared in
 .Fx 3.0 .
 .Pp
-The unicode conversion routine was added by
+The Unicode conversion routine was added by
 .An Ryuichiro Imura Aq imura@ryu16.org
-at 2003.
+in 2003.
 .Sh AUTHORS
 The NTFS kernel implementation,
 .Nm
