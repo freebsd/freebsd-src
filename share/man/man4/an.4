@@ -55,15 +55,17 @@ Lucent WaveLAN/IEEE cards, the ISA and PCI cards appear to the
 host as normal ISA and PCI devices and do not require any PCCARD
 support.
 .Pp
-The PCMCIA Aironet cards require pccard support, including the
-kernel pccard driver support and the
+The PCMCIA Aironet cards require PCCARD support, including the
+kernel
+.Xr pccard 4 
+driver support and the
 .Xr pccardd 8
 daemon.
 ISA cards can either be configured to use ISA Plug and Play
 or to use a particular I/O address and IRQ
 by properly setting the DIP switches on the board.
 (The default
-switch setting is for plug and play.)
+switch setting is for Plug and Play.)
 The
 .Nm
 driver has Plug and Play support and will work in either configuration,
@@ -89,11 +91,11 @@ By default, the
 driver configures the Aironet card for infrastructure operation.
 .Pp
 For more information on configuring this device, see
-.Xr ifconfig 8
+.Xr ifconfig 8 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "an%d: init failed"
-The Aironet card failed to come ready after an initialization command was
+The Aironet card failed to become ready after an initialization command was
 issued.
 .It "an%d: failed to allocate %d bytes on NIC"
 The driver was unable to allocate memory for transmit frames in the
