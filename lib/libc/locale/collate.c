@@ -24,14 +24,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.8 1995/01/27 12:51:06 alex Exp alex $
+ * $Id: collate.c,v 1.1 1995/02/16 04:24:28 ache Exp $
  */
 
-#include <err.h>
 #include <rune.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
 
@@ -50,7 +51,9 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 		} \
 	} while(0)
  
- int
+__dead void __collate_err(int ex, const char *f) __dead2;
+
+int
 __collate_load_tables(encoding)
 	char *encoding;
 {
@@ -89,9 +92,9 @@ __collate_substitute(s)
 {
 	int dest_len = 0, len = 0;
 	int delta = strlen(s);
-	u_char *dest_str = 0;
+	u_char *dest_str = NULL;
 
-	if(s == 0 || *s == '\0')
+	if(s == NULL || *s == '\0')
 		return __collate_strdup("");
 	while(*s) {
 		len += strlen(__collate_substitute_table[*s]);
@@ -100,8 +103,8 @@ __collate_substitute(s)
 				dest_str = calloc(dest_len = delta, 1);
 			else
 				dest_str = realloc(dest_str, dest_len += delta);
-			if(!dest_str)
-				err(EX_OSERR, "%s(\"%s\")", __FUNCTION__, s);
+			if(dest_str == NULL)
+				__collate_err(EX_OSERR, __FUNCTION__);
 		}
 		strcat(dest_str, __collate_substitute_table[*s++]);
 	}
@@ -145,11 +148,32 @@ u_char *
 __collate_strdup(s)
 	u_char *s;
 {
-	void *t = strdup(s);
+	u_char *t = strdup(s);
 
-	if (!t)
-		err(EX_OSERR, "__collate_strdup(\"%s\")", s);
+	if (t == NULL)
+		__collate_err(EX_OSERR, __FUNCTION__);
 	return t;
+}
+
+__dead void __collate_err(int ex, const char *f)
+{
+	extern char *__progname;                /* Program name, from crt0. */
+	const char *s;
+	int serrno = errno;
+
+	s = __progname;
+	write(STDERR_FILENO, s, strlen(s));
+	s = ": ";
+	write(STDERR_FILENO, s, strlen(s));
+	s = f;
+	write(STDERR_FILENO, s, strlen(s));
+	s = ": ";
+	write(STDERR_FILENO, s, strlen(s));
+	s = strerror(serrno);
+	write(STDERR_FILENO, s, strlen(s));
+	s = "\n";
+	write(STDERR_FILENO, s, strlen(s));
+	exit(ex);
 }
 
 #ifdef COLLATE_DEBUG
