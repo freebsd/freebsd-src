@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.7 1996/10/25 06:48:29 bde Exp $
+ * $Id: md5.c,v 1.7.2.1 1997/09/03 06:49:48 jkh Exp $
  *
  * Derived from:
  */
@@ -25,8 +25,10 @@
 #include <md5.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "global.h"
 
@@ -40,6 +42,7 @@ static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
 static void MDTestSuite PROTO_LIST((void));
 static void MDFilter PROTO_LIST((int));
+static void usage PROTO_LIST((void));
 
 /* Main driver.
 
@@ -55,28 +58,38 @@ main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
-	int     i;
+	int     ch;
 	char   *p;
 	char	buf[33];
 
-	if (argc > 1)
-		for (i = 1; i < argc; i++)
-			if (argv[i][0] == '-' && argv[i][1] == 's')
-				MDString(argv[i] + 2);
-			else if (strcmp(argv[i], "-t") == 0)
-				MDTimeTrial();
-			else if (strcmp(argv[i], "-p") == 0)
+	if (argc > 1) {
+		while ((ch = getopt(argc, argv, "ps:tx")) != -1) {
+			switch (ch) {
+			case 'p':
 				MDFilter(1);
-			else if (strcmp(argv[i], "-x") == 0)
+				break;
+			case 's':
+				MDString(optarg);
+				break;
+			case 't':
+				MDTimeTrial();
+				break;
+			case 'x':
 				MDTestSuite();
-			else {
-				p = MD5File(argv[i],buf);
-				if (!p)
-					perror(argv[i]);
-				else
-					printf("MD5 (%s) = %s\n", argv[i], p);
+				break;
+			default:
+				usage();
 			}
-	else
+		}
+		while (optind < argc) {
+			p = MD5File(argv[optind], buf);
+			if (!p)
+				perror(argv[optind]);
+			else
+				printf("MD5 (%s) = %s\n", argv[optind], p);
+			optind++;
+		}
+	} else
 		MDFilter(0);
 
 	return (0);
@@ -140,6 +153,7 @@ MDTimeTrial()
 static void
 MDTestSuite()
 {
+
 	printf("MD5 test suite:\n");
 
 	MDString("");
@@ -158,15 +172,16 @@ MDTestSuite()
  * Digests the standard input and prints the result.
  */
 static void
-MDFilter(int pipe)
+MDFilter(pipe)
+	int pipe;
 {
 	MD5_CTX context;
 	int     len;
-	unsigned char buffer[BUFSIZ], digest[16];
+	unsigned char buffer[BUFSIZ];
 	char buf[33];
 
 	MD5Init(&context);
-	while (len = fread(buffer, 1, BUFSIZ, stdin)) {
+	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
 		if(pipe && (len != fwrite(buffer, 1, len, stdout))) {
 			perror("stdout");
 			exit(1);
@@ -174,4 +189,12 @@ MDFilter(int pipe)
 		MD5Update(&context, buffer, len);
 	}
 	printf("%s\n", MD5End(&context,buf));
+}
+
+static void
+usage()
+{
+
+	fprintf(stderr, "usage: md5 [-ptx] [-s string] [files ...]\n");
+	exit(1);
 }
