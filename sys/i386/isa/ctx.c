@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.27 1998/06/07 17:10:15 dfr Exp $
+ *	$Id: ctx.c,v 1.28 1998/06/14 10:52:52 bde Exp $
  */
 
 /*
@@ -196,12 +196,12 @@ ctxattach(struct isa_device * devp)
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
-	return (1);
 #ifdef DEVFS
 	sr->devfs_token = 
 		devfs_add_devswf(&ctx_cdevsw, 0, DV_CHR, 0, 0, 0600,
 				 "ctx%d", devp->id_unit);
 #endif /* DEVFS */
+	return (1);
 }
 
 static int
