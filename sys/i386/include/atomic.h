@@ -99,8 +99,8 @@ static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-			 : "=m" (*p)			\
-			 :  "0" (*p), "ir" (V)); 	\
+			 : "+m" (*p)			\
+			 : "ir" (V));			\
 }
 
 /*
@@ -211,25 +211,25 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 #endif /* KLD_MODULE */
 
 #if !defined(LOCORE)
-ATOMIC_ASM(set,	     char,  "orb %b2,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %b2,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %b2,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %b2,%0",  v)
+ATOMIC_ASM(set,	     char,  "orb %b1,%0",   v)
+ATOMIC_ASM(clear,    char,  "andb %b1,%0", ~v)
+ATOMIC_ASM(add,	     char,  "addb %b1,%0",  v)
+ATOMIC_ASM(subtract, char,  "subb %b1,%0",  v)
 
-ATOMIC_ASM(set,	     short, "orw %w2,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %w2,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %w2,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %w2,%0",  v)
+ATOMIC_ASM(set,	     short, "orw %w1,%0",   v)
+ATOMIC_ASM(clear,    short, "andw %w1,%0", ~v)
+ATOMIC_ASM(add,	     short, "addw %w1,%0",  v)
+ATOMIC_ASM(subtract, short, "subw %w1,%0",  v)
 
-ATOMIC_ASM(set,	     int,   "orl %2,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %2,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %2,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %2,%0",  v)
+ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
+ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
+ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
+ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
 
-ATOMIC_ASM(set,	     long,  "orl %2,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %2,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
+ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
+ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
+ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
+ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
 
 ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0")
 ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0")
