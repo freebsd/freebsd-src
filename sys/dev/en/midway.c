@@ -84,7 +84,7 @@
 #define INLINE /* nothing */
 #else /* EN_DEBUG */
 #define STATIC static
-#define INLINE inline
+#define INLINE __inline
 #endif /* EN_DEBUG */
 
 #ifdef __FreeBSD__

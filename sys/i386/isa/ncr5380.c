@@ -721,7 +721,7 @@ void nca_timeout (void *arg)
 	splx (x);
 }
 
-static inline void nca_sendbyte (adapter_t *z, u_char data)
+static __inline void nca_sendbyte (adapter_t *z, u_char data)
 {
 	outb (z->ODR, data);
 	outb (z->ICR, ICR_ASSERT_DATA_BUS | ICR_ASSERT_ACK);
@@ -729,7 +729,7 @@ static inline void nca_sendbyte (adapter_t *z, u_char data)
 	outb (z->ICR, ICR_ASSERT_DATA_BUS);
 }
 
-static inline u_char nca_recvbyte (adapter_t *z)
+static __inline u_char nca_recvbyte (adapter_t *z)
 {
 	u_char data;
 

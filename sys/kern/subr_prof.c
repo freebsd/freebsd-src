@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.23 1997/10/27 17:23:08 bde Exp $
+ * $Id: subr_prof.c,v 1.24 1997/11/06 19:29:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -161,11 +161,11 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(i386) && __GNUC__ >= 2
-		asm("pushl %0; call __mcount; popl %%ecx"
-		    :
-		    : "i" (profil)
-		    : "ax", "bx", "cx", "dx", "memory");
+#if defined(__i386) && __GNUC__ >= 2
+		__asm("pushl %0; call __mcount; popl %%ecx"
+		      :
+		      : "i" (profil)
+		      : "ax", "bx", "cx", "dx", "memory");
 #else
 #error
 #endif
@@ -173,10 +173,10 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(i386) && __GNUC__ >= 2
-		    asm("call mexitcount; 1:"
-			: : : "ax", "bx", "cx", "dx", "memory");
-	asm("movl $1b,%0" : "=rm" (tmp_addr));
+#if defined(__i386) && __GNUC__ >= 2
+		    __asm("call mexitcount; 1:"
+			  : : : "ax", "bx", "cx", "dx", "memory");
+	__asm("movl $1b,%0" : "=rm" (tmp_addr));
 #else
 #error
 #endif

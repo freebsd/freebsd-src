@@ -143,8 +143,8 @@ static int load__block_bitmap (struct mount * mp,
 	return 0;
 }
 
-static inline int load_block_bitmap (struct mount * mp,
-				     unsigned int block_group)
+static __inline int load_block_bitmap (struct mount * mp,
+				       unsigned int block_group)
 {
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
 	if (sb->s_loaded_block_bitmaps > 0 &&
@@ -484,9 +484,9 @@ static unsigned long ext2_count_free_blocks (struct mount * mp)
 }
 #endif /* unused */
 
-static inline int block_in_use (unsigned long block,
-				struct ext2_sb_info * sb,
-				unsigned char * map)
+static __inline int block_in_use (unsigned long block,
+				  struct ext2_sb_info * sb,
+				  unsigned char * map)
 {
 	return test_bit ((block - sb->s_es->s_first_data_block) %
 			 EXT2_BLOCKS_PER_GROUP(sb), map);

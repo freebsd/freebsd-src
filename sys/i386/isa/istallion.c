@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.16 1998/02/09 06:08:33 eivind Exp $
+ * $Id: istallion.c,v 1.17 1998/02/13 12:45:52 phk Exp $
  */
 
 /*****************************************************************************/
@@ -551,9 +551,10 @@ static int	stli_initonb(stlibrd_t *brdp);
 static int	stli_initports(stlibrd_t *brdp);
 static int	stli_startbrd(stlibrd_t *brdp);
 static void	stli_poll(void *arg);
-static void	stli_brdpoll(stlibrd_t *brdp, volatile cdkhdr_t *hdrp);
-static int	stli_hostcmd(stlibrd_t *brdp, stliport_t *portp);
-static void	stli_dodelaycmd(stliport_t *portp, volatile cdkctrl_t *cp);
+static __inline void	stli_brdpoll(stlibrd_t *brdp, volatile cdkhdr_t *hdrp);
+static __inline int	stli_hostcmd(stlibrd_t *brdp, stliport_t *portp);
+static __inline void	stli_dodelaycmd(stliport_t *portp,
+					volatile cdkctrl_t *cp);
 static void	stli_mkasysigs(asysigs_t *sp, int dtr, int rts);
 static long	stli_mktiocm(unsigned long sigvalue);
 static void	stli_rxprocess(stlibrd_t *brdp, stliport_t *portp);
@@ -2051,7 +2052,7 @@ static void stli_rxprocess(stlibrd_t *brdp, stliport_t *portp)
  *	difficult to deal with them as a special case here.
  */
 
-static inline void stli_dodelaycmd(stliport_t *portp, volatile cdkctrl_t *cp)
+static __inline void stli_dodelaycmd(stliport_t *portp, volatile cdkctrl_t *cp)
 {
 	int	cmd;
 
@@ -2097,7 +2098,7 @@ static inline void stli_dodelaycmd(stliport_t *portp, volatile cdkctrl_t *cp)
  *	returned.
  */
 
-static inline int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
+static __inline int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
 {
 	volatile cdkasy_t	*ap;
 	volatile cdkctrl_t	*cp;
@@ -2244,7 +2245,7 @@ static inline int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
  *	at the cdk header structure.
  */
 
-static inline void stli_brdpoll(stlibrd_t *brdp, volatile cdkhdr_t *hdrp)
+static __inline void stli_brdpoll(stlibrd_t *brdp, volatile cdkhdr_t *hdrp)
 {
 	stliport_t	*portp;
 	unsigned char	hostbits[(STL_MAXCHANS / 8) + 1];

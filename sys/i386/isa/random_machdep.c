@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.23 1998/03/29 11:55:06 phk Exp $
+ * $Id: random_machdep.c,v 1.24 1998/04/06 09:30:32 phk Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -136,7 +136,7 @@ rand_initialize(void)
  * scancodes, for example), the upper bits of the entropy pool don't
  * get affected. --- TYT, 10/11/95
  */
-static inline void
+static __inline void
 add_entropy_word(struct random_bucket *r, const u_int32_t input)
 {
 	u_int i;
@@ -253,7 +253,7 @@ add_blkdev_randomness(int major)
  * bits of entropy are left in the pool, but it does not restrict the
  * number of bytes that are actually obtained.
  */
-static inline int
+static __inline int
 extract_entropy(struct random_bucket *r, char *buf, int nbytes)
 {
 	int ret, i;

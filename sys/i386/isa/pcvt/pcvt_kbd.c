@@ -2097,7 +2097,7 @@ mouse_ioctl(Dev_t dev, int cmd, caddr_t data)
 /*---------------------------------------------------------------------------*
  *	convert ISO-8859 style keycode into IBM 437
  *---------------------------------------------------------------------------*/
-static inline u_char
+static __inline u_char
 iso2ibm(u_char c)
 {
 	if(c < 0x80)

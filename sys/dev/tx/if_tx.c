@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: $
+ *	$Id: if_tx.c,v 1.9 1998/04/13 14:15:40 semenu Exp $
  *
  */
 
@@ -344,7 +344,7 @@ epic_ifwatchdog(
  *
  * splimp() invoked before epic_intr_normal()
  */
-static inline void
+static __inline void
 epic_rx_done __P((
 	epic_softc_t *sc ))
 {
@@ -468,7 +468,7 @@ rxerror:
  *
  * splimp() invoked before epic_intr_normal()
  */
-static inline void
+static __inline void
 epic_tx_done __P(( 
     epic_softc_t *sc ))
 {

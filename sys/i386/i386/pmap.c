@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.190 1998/03/16 01:55:08 dyson Exp $
+ *	$Id: pmap.c,v 1.191 1998/04/06 15:43:29 peter Exp $
  */
 
 /*
@@ -1055,7 +1055,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 	return 0;
 }
 
-__inline static int
+static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 	vm_page_unhold(m);
 	if (m->hold_count == 0)
@@ -1497,7 +1497,7 @@ pmap_reference(pmap)
 /*
  * free the pv_entry back to the free list
  */
-static inline void
+static PMAP_INLINE void
 free_pv_entry(pv)
 	pv_entry_t pv;
 {

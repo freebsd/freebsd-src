@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.19 1998/03/28 07:22:03 ache Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.20 1998/04/06 11:39:04 phk Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-
@@ -92,8 +92,10 @@ static void	fc_lookup __P((struct denode *dep, u_long findcn,
 			       u_long *frcnp, u_long *fsrcnp));
 static void	updatefats __P((struct msdosfsmount *pmp, struct buf *bp,
 				u_long fatbn));
-static void	usemap_alloc __P((struct msdosfsmount *pmp, u_long cn));
-static void	usemap_free __P((struct msdosfsmount *pmp, u_long cn));
+static __inline void
+		usemap_alloc __P((struct msdosfsmount *pmp, u_long cn));
+static __inline void
+		usemap_free __P((struct msdosfsmount *pmp, u_long cn));
 
 static void
 fatblock(pmp, ofs, bnp, sizep, bop)
@@ -434,7 +436,7 @@ updatefats(pmp, bp, fatbn)
  * Where n is even. m = n + (n >> 2)
  *
  */
-static inline void
+static __inline void
 usemap_alloc(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;
@@ -444,7 +446,7 @@ usemap_alloc(pmp, cn)
 	pmp->pm_freeclustercount--;
 }
 
-static inline void
+static __inline void
 usemap_free(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;
