@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.16 1994/09/08 19:18:51 jkh Exp $
+#	$Id: BSD.var.dist,v 1.17 1994/09/09 13:35:59 rgrimes Exp $
 #
 
 .	type=dir uname=root gname=wheel mode=0755
@@ -71,6 +71,7 @@ tmp	mode=01777
 /set type=file uname=games gname=bin mode=0755
 games	type=dir
 	hackdir	type=dir
+	..
 	phantasia type=dir
 	..
 ..
