@@ -587,13 +587,14 @@ unp_bind(unp, nam, p)
 	struct vattr vattr;
 	int error, namelen;
 	struct nameidata nd;
-	char buf[SOCK_MAXADDRLEN];
+	char *buf;
 
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
 	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
 	if (namelen <= 0)
 		return EINVAL;
+	buf = malloc(SOCK_MAXADDRLEN, M_TEMP, M_WAITOK);
 	strncpy(buf, soun->sun_path, namelen);
 	buf[namelen] = 0;	/* null-terminate the string */
 restart:
@@ -601,8 +602,10 @@ restart:
 	    buf, p);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
-	if (error)
+	if (error) {
 		return (error);
+		free(buf, M_TEMP);
+	}
 	vp = nd.ni_vp;
 	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -612,10 +615,14 @@ restart:
 			vput(nd.ni_dvp);
 		if (vp != NULL) {
 			vrele(vp);
+			free(buf, M_TEMP);
 			return (EADDRINUSE);
 		}
-		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
+		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		if (error) {
+			free(buf, M_TEMP);
 			return (error);
+		}
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
@@ -625,14 +632,17 @@ restart:
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
-	if (error)
+	if (error) {
+		free(buf, M_TEMP);
 		return (error);
+	}
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
 	unp->unp_addr = (struct sockaddr_un *)dup_sockaddr(nam, 1);
 	VOP_UNLOCK(vp, 0, p);
 	vn_finished_write(mp);
+	free(buf, M_TEMP);
 	return (0);
 }
 
@@ -807,8 +817,9 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	int error, i, n;
 	struct unpcb *unp, **unp_list;
 	unp_gen_t gencnt;
-	struct xunpgen xug;
+	struct xunpgen *xug;
 	struct unp_head *head;
+	struct xunpcb *xu;
 
 	head = ((intptr_t)arg1 == SOCK_DGRAM ? &unp_dhead : &unp_shead);
 
@@ -818,7 +829,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == 0) {
 		n = unp_count;
-		req->oldidx = 2 * (sizeof xug)
+		req->oldidx = 2 * (sizeof *xug)
 			+ (n + n/8) * sizeof(struct xunpcb);
 		return 0;
 	}
@@ -829,16 +840,19 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
+	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK);
 	gencnt = unp_gencnt;
 	n = unp_count;
 
-	xug.xug_len = sizeof xug;
-	xug.xug_count = n;
-	xug.xug_gen = gencnt;
-	xug.xug_sogen = so_gencnt;
-	error = SYSCTL_OUT(req, &xug, sizeof xug);
-	if (error)
+	xug->xug_len = sizeof *xug;
+	xug->xug_count = n;
+	xug->xug_gen = gencnt;
+	xug->xug_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, xug, sizeof *xug);
+	if (error) {
+		free(xug, M_TEMP);
 		return error;
+	}
 
 	unp_list = malloc(n * sizeof *unp_list, M_TEMP, M_WAITOK);
 	if (unp_list == 0)
@@ -852,28 +866,29 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = i;			/* in case we lost some during malloc */
 
 	error = 0;
+	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK);
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
 		if (unp->unp_gencnt <= gencnt) {
-			struct xunpcb xu;
-			xu.xu_len = sizeof xu;
-			xu.xu_unpp = unp;
+			xu->xu_len = sizeof *xu;
+			xu->xu_unpp = unp;
 			/*
 			 * XXX - need more locking here to protect against
 			 * connect/disconnect races for SMP.
 			 */
 			if (unp->unp_addr)
-				bcopy(unp->unp_addr, &xu.xu_addr, 
+				bcopy(unp->unp_addr, &xu->xu_addr, 
 				      unp->unp_addr->sun_len);
 			if (unp->unp_conn && unp->unp_conn->unp_addr)
 				bcopy(unp->unp_conn->unp_addr,
-				      &xu.xu_caddr,
+				      &xu->xu_caddr,
 				      unp->unp_conn->unp_addr->sun_len);
-			bcopy(unp, &xu.xu_unp, sizeof *unp);
-			sotoxsocket(unp->unp_socket, &xu.xu_socket);
-			error = SYSCTL_OUT(req, &xu, sizeof xu);
+			bcopy(unp, &xu->xu_unp, sizeof *unp);
+			sotoxsocket(unp->unp_socket, &xu->xu_socket);
+			error = SYSCTL_OUT(req, xu, sizeof *xu);
 		}
 	}
+	free(xu, M_TEMP);
 	if (!error) {
 		/*
 		 * Give the user an updated idea of our state.
@@ -882,12 +897,13 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		xug.xug_gen = unp_gencnt;
-		xug.xug_sogen = so_gencnt;
-		xug.xug_count = unp_count;
-		error = SYSCTL_OUT(req, &xug, sizeof xug);
+		xug->xug_gen = unp_gencnt;
+		xug->xug_sogen = so_gencnt;
+		xug->xug_count = unp_count;
+		error = SYSCTL_OUT(req, xug, sizeof *xug);
 	}
 	free(unp_list, M_TEMP);
+	free(xug, M_TEMP);
 	return error;
 }
 
