@@ -57,8 +57,6 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-MODULE_VERSION(agp, 1);
-
 MALLOC_DEFINE(M_AGP, "agp", "AGP data structures");
 
 #define CDEV_MAJOR	148

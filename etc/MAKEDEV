@@ -136,6 +136,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
+#	agpgart	AGP interface
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -257,6 +258,7 @@ all)
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
 	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
 	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
+	sh MAKEDEV agpgart				# cdev, AGP
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1527,6 +1529,10 @@ i4btrc*)
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 $unit
+	;;
+
+agpgart)
+	mknod agpgart c 148 0
 	;;
 
 twe*)
