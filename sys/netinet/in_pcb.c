@@ -76,6 +76,9 @@
 #if defined(IPSEC) || defined(IPSEC_ESP)
 #error "Bad idea: don't compile with both IPSEC and FAST_IPSEC!"
 #endif
+#if defined(INET6)
+#error "Bad idea: don't use IPv6 with FAST_IPSEC (for the moment)!"
+#endif
 
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
