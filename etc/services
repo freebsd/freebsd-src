@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.46 1998/04/18 10:27:08 brian Exp $
+#	$Id: services,v 1.47 1998/05/08 20:40:15 phk Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1333,7 +1333,6 @@ pciarray	1552/tcp
 pciarray	1552/udp
 issd		1600/tcp
 issd		1600/udp
-radacct		1646/udp
 nkd		1650/tcp
 nkd		1650/udp
 shiva_confsrvr	1651/tcp
@@ -1366,6 +1365,7 @@ netview-aix-12	1672/tcp
 netview-aix-12	1672/udp
 pptp		1723/tcp   #Point-to-point tunnelling protocol
 radius		1812/udp   #RADIUS authentication protocol (RFC 2138)
+radacct		1813/udp   #RADIUS accounting protocol (RFC 2139)
 licensedaemon	1986/tcp   #cisco license management
 licensedaemon	1986/udp   #cisco license management
 tr-rsrb-p1	1987/tcp   #cisco RSRB Priority 1 port
