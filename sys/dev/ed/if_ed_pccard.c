@@ -156,11 +156,6 @@ static const struct ed_product {
 	 * You have to add new entries which contains
 	 * PCMCIA_VENDOR_INVALID and/or PCMCIA_PRODUCT_INVALID 
 	 * in front of this comment.
-	 *
-	 * There are cards which use a generic vendor and product id but needs
-	 * a different handling depending on the cis_info, so ne2000_match
-	 * needs a table where the exceptions comes first and then the normal
-	 * product and vendor entries.
 	 */
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
 	  0x0ff0, { 0x08, 0x00, 0x5a } },
@@ -172,8 +167,12 @@ static const struct ed_product {
 	  -1, { 0, 0, 0 }, 0 },	/* XXX */
 	{ PCMCIA_CARD(LINKSYS, ECARD_1, 0),
 	  -1, { 0x00, 0x80, 0xc8 } },
+#ifdef BOGUS
 	{ PCMCIA_CARD(PLANEX, FNW3600T, 0), 
 	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
+	{ PCMCIA_CARD(PLANEX, FNW3700T, 0), 
+	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
+#endif
 	{ PCMCIA_CARD(SVEC, PN650TX, 0),
 	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
 
