@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vprompt.c#12 $
+ * $P4: //depot/projects/openpam/lib/pam_vprompt.c#13 $
  */
 
 #include <stdarg.h>
@@ -59,13 +59,15 @@ pam_vprompt(pam_handle_t *pamh,
 	struct pam_message msg;
 	const struct pam_message *msgp;
 	struct pam_response *rsp;
-	struct pam_conv *conv;
+	const struct pam_conv *conv;
+	const void *convp;
 	int r;
 
 	ENTER();
-	r = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
+	r = pam_get_item(pamh, PAM_CONV, &convp);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);
+	conv = convp;
 	if (conv == NULL || conv->conv == NULL) {
 		openpam_log(PAM_LOG_ERROR, "no conversation function");
 		RETURNC(PAM_SYSTEM_ERR);

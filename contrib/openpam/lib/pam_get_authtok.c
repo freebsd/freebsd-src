@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#26 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#27 $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,7 @@ pam_get_authtok(pam_handle_t *pamh,
 	const char **authtok,
 	const char *prompt)
 {
-	const void *oldauthtok;
+	const void *oldauthtok, *prevauthtok, *promptp;
 	const char *default_prompt;
 	char *resp, *resp2;
 	int pitem, r, style, twice;
@@ -90,16 +90,20 @@ pam_get_authtok(pam_handle_t *pamh,
 	}
 	if (openpam_get_option(pamh, "try_first_pass") ||
 	    openpam_get_option(pamh, "use_first_pass")) {
-		r = pam_get_item(pamh, item, (const void **)authtok);
-		if (r == PAM_SUCCESS && *authtok != NULL)
+		r = pam_get_item(pamh, item, &prevauthtok);
+		if (r == PAM_SUCCESS && prevauthtok != NULL) {
+			*authtok = prevauthtok;
 			RETURNC(PAM_SUCCESS);
+		}
 		else if (openpam_get_option(pamh, "use_first_pass"))
 			RETURNC(r == PAM_SUCCESS ? PAM_AUTH_ERR : r);
 	}
 	if (prompt == NULL) {
-		r = pam_get_item(pamh, pitem, (const void **)&prompt);
-		if (r != PAM_SUCCESS || prompt == NULL)
+		r = pam_get_item(pamh, pitem, &promptp);
+		if (r != PAM_SUCCESS || promptp == NULL)
 			prompt = default_prompt;
+		else
+			prompt = promptp;
 	}
 	style = openpam_get_option(pamh, "echo_pass") ?
 	    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF;

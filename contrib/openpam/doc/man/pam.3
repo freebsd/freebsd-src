@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd July 15, 2003
+.Dd February 10, 2004
 .Dt PAM 3
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@
 .Ft "int"
 .Fn pam_end "pam_handle_t *pamh" "int status"
 .Ft "int"
-.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "const void **data"
+.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "void **data"
 .Ft "int"
 .Fn pam_get_item "pam_handle_t *pamh" "int item_type" "const void **item"
 .Ft "int"
