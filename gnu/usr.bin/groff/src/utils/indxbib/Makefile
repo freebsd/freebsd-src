@@ -2,8 +2,8 @@
 
 PROG=		indxbib
 SRCS=		indxbib.cc signal.c
-DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
-LDADD=		${LIBBIB} ${LIBGROFF} -lm
+DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
+LDADD=		${LIBBIB} ${LIBGROFF} -lm -lstdc++
 CLEANFILES=	${MAN}
 
 beforeinstall:

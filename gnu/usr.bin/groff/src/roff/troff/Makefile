@@ -3,8 +3,8 @@
 PROG=		troff
 SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \
 		number.cc majorminor.cc
-DPADD=		${LIBGROFF} ${LIBM}
-LDADD=		${LIBGROFF} -lm
+DPADD=		${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
+LDADD=		${LIBGROFF} -lm -lstdc++
 CLEANFILES=	majorminor.cc ${MAN}
 
 .include <bsd.prog.mk>
