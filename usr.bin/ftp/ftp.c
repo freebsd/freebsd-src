@@ -279,7 +279,7 @@ va_dcl
 		fmt = va_arg(ap, char *);
 		if (strncmp("PASS ", fmt, 5) == 0)
 			printf("PASS XXXX");
-		else 
+		else
 			vfprintf(stdout, fmt, ap);
 		va_end(ap);
 		printf("\n");
@@ -605,7 +605,7 @@ sendrequest(cmd, local, remote, printnames)
 		if (c < 0)
 			warn("local: %s", local);
 		if (d < 0) {
-			if (errno != EPIPE) 
+			if (errno != EPIPE)
 				warn("netout");
 			bytes = -1;
 		}
@@ -629,7 +629,7 @@ sendrequest(cmd, local, remote, printnames)
 	/*		if (c == '\r') {			  	*/
 	/*		(void)	putc('\0', dout);  // this violates rfc */
 	/*			bytes++;				*/
-	/*		}                          			*/	
+	/*		}                          			*/
 		}
 		if (hash) {
 			if (bytes < hashbytes)
@@ -1053,7 +1053,7 @@ initconn()
 noport:
 	data_addr = myctladdr;
 	if (sendport)
-		data_addr.sin_port = 0;	/* let system pick one */ 
+		data_addr.sin_port = 0;	/* let system pick one */
 	if (data != -1)
 		(void) close(data);
 	data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1499,7 +1499,7 @@ abort_remote(din)
 	(void) fflush(cout);
 	FD_ZERO(&mask);
 	FD_SET(fileno(cin), &mask);
-	if (din) { 
+	if (din) {
 		FD_SET(fileno(din), &mask);
 	}
 	if ((nfnd = empty(&mask, 10)) <= 0) {

@@ -261,7 +261,7 @@ main(argc, argv)
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				errx(1, 
+				errx(1,
 				     "%s: unknown or uninstrumented protocol",
 				     optarg);
 			}

@@ -71,7 +71,7 @@ tinit()
 		cp[len + 1] = '\0';
 		tmpdir = cp;
 	}
-			
+
 	strcpy(tempMail, tmpdir);
 	mktemp(strcat(tempMail, "RsXXXXXX"));
 	strcpy(tempResid, tmpdir);

@@ -289,7 +289,7 @@ slurp(F)
 				err(1, NULL);
 			memset(F->set + cnt, 0, 50 * sizeof(LINE));
 		}
-			
+
 		/*
 		 * Get any pushed back line, else get the next line.  Allocate
 		 * space as necessary.  If taking the line from the stack swap
@@ -507,7 +507,7 @@ obsolete(argv)
 			return;
 		switch (ap[1]) {
 		case 'a':
-			/* 
+			/*
 			 * The original join allowed "-a", which meant the
 			 * same as -a1 plus -a2.  POSIX 1003.2, Draft 11.2
 			 * only specifies this as "-a 1" and "a -2", so we

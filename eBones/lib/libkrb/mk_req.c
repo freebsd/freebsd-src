@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: der: mk_req.c,v 4.17 89/07/07 15:20:35 jtkohl Exp $
- *	$Id: mk_req.c,v 1.2 1994/07/19 19:25:57 g89r4222 Exp $
+ *	$Id: mk_req.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: mk_req.c,v 1.2 1994/07/19 19:25:57 g89r4222 Exp $";
+"$Id: mk_req.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -95,14 +95,14 @@ krb_mk_req(authent,service,instance,realm,checksum)
     /* Get the ticket and move it into the authenticator */
     if (krb_ap_req_debug)
         printf("Realm: %s\n",realm);
-    /* 
+    /*
      * Determine realm of these tickets.  We will send this to the
      * KDC from which we are requesting tickets so it knows what to
      * with our session key.
      */
     if ((retval = krb_get_tf_realm(TKT_FILE, myrealm)) != KSUCCESS)
 	return(retval);
-    
+
     retval = krb_get_cred(service,instance,realm,&cr);
 
     if (retval == RET_NOTKT) {
@@ -177,10 +177,10 @@ krb_mk_req(authent,service,instance,realm,checksum)
     return(KSUCCESS);
 }
 
-/* 
+/*
  * krb_set_lifetime sets the default lifetime for additional tickets
  * obtained via krb_mk_req().
- * 
+ *
  * It returns the previous value of the default lifetime.
  */
 

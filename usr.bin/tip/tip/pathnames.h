@@ -47,7 +47,7 @@
 /* #define _PATH_LOCKDIRNAME "/etc/locks/LCK..%s" */
 /* #define _PATH_LOCKDIRNAME "/usr/spool/locks/LCK..%s" */
 /* #define _PATH_LOCKDIRNAME "/usr/spool/uucp/LCK/LCK..%s" */
-#define _PATH_LOCKDIRNAME "/var/spool/lock/LCK..%s" 
+#define _PATH_LOCKDIRNAME "/var/spool/lock/LCK..%s"
 
 /*
 	Specify location for system wide databases

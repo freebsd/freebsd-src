@@ -107,7 +107,7 @@ main(argc, argv)
 		case 't':
 			trpoints = getpoints(optarg);
 			if (trpoints < 0) {
-				(void)fprintf(stderr, 
+				(void)fprintf(stderr,
 				    "ktrace: unknown facility in %s\n", optarg);
 				usage();
 			}
@@ -117,10 +117,10 @@ main(argc, argv)
 		}
 	argv += optind;
 	argc -= optind;
-	
+
 	if (pidset && *argv || !pidset && !*argv)
 		usage();
-			
+
 	if (inherit)
 		trpoints |= KTRFAC_INHERIT;
 
@@ -142,7 +142,7 @@ main(argc, argv)
 		error(tracefile);
 	(void)close(fd);
 
-	if (*argv) { 
+	if (*argv) {
 		if (ktrace(tracefile, ops, trpoints, getpid()) < 0)
 			error();
 		execvp(argv[0], &argv[0]);

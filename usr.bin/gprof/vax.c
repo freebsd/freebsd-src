@@ -66,7 +66,7 @@ operandmode( modep )
     struct modebyte	*modep;
 {
     long	usesreg = modep -> regfield;
-    
+
     switch ( modep -> modefield ) {
 	case 0:
 	case 1:
@@ -105,7 +105,7 @@ char *
 operandname( mode )
     operandenum	mode;
 {
-    
+
     switch ( mode ) {
 	case literal:
 	    return "literal";
@@ -157,7 +157,7 @@ long
 operandlength( modep )
     struct modebyte	*modep;
 {
-    
+
     switch ( operandmode( modep ) ) {
 	case literal:
 	case reg:
@@ -297,7 +297,7 @@ findcall( parentp , p_lowpc , p_highpc )
 		case longrel:
 			/*
 			 *	regular pc relative addressing
-			 *	check that this is the address of 
+			 *	check that this is the address of
 			 *	a function.
 			 */
 		    destpc = reladdr( (struct modebyte *) (instructp+length) )

@@ -1,12 +1,12 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  * Include file for password server
  *
- *	from: passwd_server.h,v 4.6 89/01/11 15:12:22 steiner Exp $ 
- *	$Id: passwd_server.h,v 1.2 1994/07/19 19:23:24 g89r4222 Exp $
+ *	from: passwd_server.h,v 4.6 89/01/11 15:12:22 steiner Exp $
+ *	$Id: passwd_server.h,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
  */
 
 #ifndef PASSWD_SERVER_DEFS

@@ -28,7 +28,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 /* Edit History
@@ -96,7 +96,7 @@ char *argv[];
     int		lang = MCLangC;
     int		new = False;
     int		orConsts = False;
-    
+
     for (i = 1; i < argc; ++i) {
 	if (argv[i][0] == '-') {
 	    if (strcmp(argv[i], "-lang") == 0) {
@@ -107,7 +107,7 @@ char *argv[];
 		else {
 		    fprintf(stderr, "gencat: Unrecognized language: %s\n", argv[i]);
 		    exit(1);
-		} 
+		}
 	    } else if (strcmp(argv[i], "-h") == 0) {
 		if (!input) {
 		    fprintf(stderr, "gencat: Can't write to a header before reading something.\n");
@@ -232,7 +232,7 @@ int orConsts;
 	    }
 	}
     }
-done:    
+done:
     if (diff) {
 	if (lseek(tfd, 0L, L_SET) < 0) {
 	    fprintf(stderr, "gencat: Unable to seek in tempfile: %s\n", tmpname);

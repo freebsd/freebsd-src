@@ -152,7 +152,7 @@ process(name)
 			continue;
 		}
 		for (cp = linebuf; c = *cp++;) switch (c) {
-			
+
 		case '"':
 			if (incomm)
 				goto def;
@@ -185,7 +185,7 @@ process(name)
 				continue;
 			}
 			goto def;
-		
+
 def:
 		default:
 			putchar(c);
@@ -219,7 +219,7 @@ yankstr(cpp)
 			if (c == 0)
 				break;
 			if (c == '\n') {
-				if (fgets(linebuf, sizeof linebuf, stdin) 
+				if (fgets(linebuf, sizeof linebuf, stdin)
 				    == NULL) {
 					if (ferror(stdin)) {
 						perror("x.c");

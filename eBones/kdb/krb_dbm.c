@@ -1,15 +1,15 @@
 /*
- * Copyright 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  *	from: krb_dbm.c,v 4.9 89/04/18 16:15:13 wesommer Exp $
- *	$Id: krb_dbm.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
+ *	$Id: krb_dbm.c,v 1.2 1995/01/25 19:45:25 ache Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_dbm.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
+"$Id: krb_dbm.c,v 1.2 1995/01/25 19:45:25 ache Exp $";
 #endif	lint
 
 #if defined(__FreeBSD__)
@@ -69,14 +69,14 @@ static int non_blocking = 0;
 
 /*
  * Locking:
- * 
+ *
  * There are two distinct locking protocols used.  One is designed to
  * lock against processes (the admin_server, for one) which make
  * incremental changes to the database; the other is designed to lock
  * against utilities (kdb_util, kpropd) which replace the entire
  * database in one fell swoop.
  *
- * The first locking protocol is implemented using flock() in the 
+ * The first locking protocol is implemented using flock() in the
  * krb_dbl_lock() and krb_dbl_unlock routines.
  *
  * The second locking protocol is necessary because DBM "files" are
@@ -93,12 +93,12 @@ static int non_blocking = 0;
  * either time, the reader sleeps for a second to let things
  * stabilize, and then tries again; if it does not succeed after
  * KERB_DB_MAX_RETRY attempts, it gives up.
- * 
+ *
  * On update, the semaphore file is deleted (if it exists) before any
  * update takes place; at the end of the update, it is replaced, with
  * a version number strictly greater than the version number which
  * existed at the start of the update.
- * 
+ *
  * If the system crashes in the middle of an update, the semaphore
  * file is not automatically created on reboot; this is a feature, not
  * a bug, since the database may be inconsistant.  Note that the
@@ -140,7 +140,7 @@ static char *gen_dbsuffix(db_name, sfx)
     char *sfx;
 {
     char *dbsuffix;
-    
+
     if (sfx == NULL)
 	sfx = ".ok";
 
@@ -162,7 +162,7 @@ kerb_db_init()
 
 /*
  * gracefully shut down database--must be called by ANY program that does
- * a kerb_db_init 
+ * a kerb_db_init
  */
 
 kerb_db_fini()
@@ -201,7 +201,7 @@ long kerb_get_db_age()
     struct stat st;
     char *okname;
     long age;
-    
+
     okname = gen_dbsuffix(current_db_name, ".ok");
 
     if (stat (okname, &st) < 0)
@@ -226,7 +226,7 @@ static long kerb_start_update(db_name)
 {
     char *okname = gen_dbsuffix(db_name, ".ok");
     long age = kerb_get_db_age();
-    
+
     if (unlink(okname) < 0
 	&& errno != ENOENT) {
 	    age = -1;
@@ -243,7 +243,7 @@ static long kerb_end_update(db_name, age)
     int retval = 0;
     char *new_okname = gen_dbsuffix(db_name, ".ok#");
     char *okname = gen_dbsuffix(db_name, ".ok");
-    
+
     fd = open (new_okname, O_CREAT|O_RDWR|O_TRUNC, 0600);
     if (fd < 0)
 	retval = errno;
@@ -355,7 +355,7 @@ kerb_db_rename(from, to)
     char *fromok = gen_dbsuffix(from, ".ok");
     long trans = kerb_start_update(to);
     int ok;
-    
+
 #ifndef __FreeBSD__
     if ((rename (fromdir, todir) == 0)
 	&& (rename (frompag, topag) == 0)) {
@@ -384,7 +384,7 @@ kerb_db_rename(from, to)
 
 /*
  * look up a principal in the data base returns number of principals
- * found , and whether there were more than requested. 
+ * found , and whether there were more than requested.
  */
 
 kerb_db_get_principal(name, inst, principal, max, more)
@@ -627,7 +627,7 @@ delta_stat(a, b, c)
 
 /*
  * look up a dba in the data base returns number of dbas found , and
- * whether there were more than requested. 
+ * whether there were more than requested.
  */
 
 kerb_db_get_dba(dba_name, dba_inst, dba, max, more)
@@ -650,7 +650,7 @@ kerb_db_iterate (func, arg)
     Principal *principal;
     int code;
     DBM *db;
-    
+
     kerb_db_init();		/* initialize and open the database */
     if ((code = kerb_dbl_lock(KERB_DBL_SHARED)) != 0)
 	return code;
@@ -701,7 +701,7 @@ static int kerb_dbl_lock(mode)
     int     mode;
 {
     int flock_mode;
-    
+
     if (!inited)
 	kerb_dbl_init();
     if (mylock) {		/* Detect lock call when lock already
@@ -723,8 +723,8 @@ static int kerb_dbl_lock(mode)
     }
     if (non_blocking)
 	flock_mode |= LOCK_NB;
-    
-    if (flock(dblfd, flock_mode) < 0) 
+
+    if (flock(dblfd, flock_mode) < 0)
 	return errno;
     mylock++;
     return 0;

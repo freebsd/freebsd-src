@@ -6,7 +6,7 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Vern Paxson.
- * 
+ *
  * The United States Government has rights in this work pursuant
  * to contract no. DE-AC03-76SF00098 between the United States
  * Department of Energy and the University of California.
@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: sym.c,v 1.2 94/01/04 14:33:06 vern Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/sym.c,v 1.1.1.1 1994/08/24 13:10:31 csgr Exp $ */
 
 #include "flexdef.h"
 
@@ -150,7 +150,7 @@ int table_size;
 	return &empty_entry;
 	}
 
-    
+
 /* hashfunct - compute the hash value for "str" and hash size "hash_size" */
 
 int hashfunct( str, hash_size )

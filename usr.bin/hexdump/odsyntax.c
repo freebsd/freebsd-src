@@ -91,7 +91,7 @@ oldsyntax(argc, argvp)
 			odprecede();
 			add("2/8 \"          %21.14e \" \"\\n\"");
 			break;
-			
+
 		case 'f':
 			odprecede();
 			add("4/4 \" %14.7e \" \"\\n\"");

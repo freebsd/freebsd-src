@@ -72,7 +72,7 @@ Lst_Remove (l, ln)
 	!LstNodeValid (ln, l)) {
 	    return (FAILURE);
     }
-    
+
     /*
      * unlink it from the list
      */
@@ -82,7 +82,7 @@ Lst_Remove (l, ln)
     if (lNode->prevPtr != NilListNode) {
 	lNode->prevPtr->nextPtr = lNode->nextPtr;
     }
-    
+
     /*
      * if either the firstPtr or lastPtr of the list point to this node,
      * adjust them accordingly
@@ -115,7 +115,7 @@ Lst_Remove (l, ln)
     if (list->firstPtr == lNode) {
 	list->firstPtr = NilListNode;
     }
-    
+
     /*
      * note that the datum is unmolested. The caller must free it as
      * necessary and as expected.
@@ -125,7 +125,7 @@ Lst_Remove (l, ln)
     } else {
 	lNode->flags |= LN_DELETED;
     }
-    
+
     return (SUCCESS);
 }
 

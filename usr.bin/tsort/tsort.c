@@ -338,7 +338,7 @@ tsort()
 				if (cnt = find_cycle(n, n, 0, 0)) {
 					warnx("cycle in data");
 					for (i = 0; i < cnt; i++)
-						warnx("%s", 
+						warnx("%s",
 						    longest_cycle[i]->n_name);
 					remove_node(n);
 					clear_cycle();

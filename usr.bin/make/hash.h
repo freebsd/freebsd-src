@@ -47,7 +47,7 @@
 #ifndef	_HASH
 #define	_HASH
 
-/* 
+/*
  * The following defines one entry in the hash table.
  */
 
@@ -69,7 +69,7 @@ typedef struct Hash_Table {
     int 	mask;		/* Used to select bits for hashing. */
 } Hash_Table;
 
-/* 
+/*
  * The following structure is used by the searching routines
  * to record where we are in the search.
  */
@@ -85,22 +85,22 @@ typedef struct Hash_Search {
  */
 
 /*
- * ClientData Hash_GetValue(h) 
- *     Hash_Entry *h; 
+ * ClientData Hash_GetValue(h)
+ *     Hash_Entry *h;
  */
 
 #define Hash_GetValue(h) ((h)->clientData)
 
-/* 
- * Hash_SetValue(h, val); 
- *     Hash_Entry *h; 
- *     char *val; 
+/*
+ * Hash_SetValue(h, val);
+ *     Hash_Entry *h;
+ *     char *val;
  */
 
 #define Hash_SetValue(h, val) ((h)->clientData = (ClientData) (val))
 
-/* 
- * Hash_Size(n) returns the number of words in an object of n bytes 
+/*
+ * Hash_Size(n) returns the number of words in an object of n bytes
  */
 
 #define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))

@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: create_auth_reply.c,v 4.10 89/01/13 17:47:38 steiner Exp $
- *	$Id: create_auth_reply.c,v 1.2 1994/07/19 19:24:56 g89r4222 Exp $
+ *	$Id: create_auth_reply.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: create_auth_reply.c,v 1.2 1994/07/19 19:24:56 g89r4222 Exp $";
+"$Id: create_auth_reply.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -30,34 +30,34 @@ static char *rcsid =
  * must copy it elsewhere.
  *
  * The packet is built in the following format:
- * 
+ *
  * 			variable
  * type			or constant	   data
  * ----			-----------	   ----
- * 
+ *
  * unsigned char	KRB_PROT_VERSION   protocol version number
- * 
+ *
  * unsigned char	AUTH_MSG_KDC_REPLY protocol message type
- * 
+ *
  * [least significant	HOST_BYTE_ORDER	   sender's (server's) byte
  *  bit of above field]			   order
- * 
+ *
  * string		pname		   principal's name
- * 
+ *
  * string		pinst		   principal's instance
- * 
+ *
  * string		prealm		   principal's realm
- * 
+ *
  * unsigned long	time_ws		   client's timestamp
- * 
+ *
  * unsigned char	n		   number of tickets
- * 
+ *
  * unsigned long	x_date		   expiration date
- * 
+ *
  * unsigned char	kvno		   master key version
- * 
+ *
  * short		w_1		   cipher length
- * 
+ *
  * ---			cipher->dat	   cipher data
  */
 

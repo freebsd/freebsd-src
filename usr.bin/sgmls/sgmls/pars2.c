@@ -172,10 +172,10 @@ int ch;
 	change the entity, since the entity might be referenced again.
 	So in this case we copy the entity.  This is inefficient, but
 	it will only happen in a case like this:
-	
+
 	<!entity % amp "&">
 	<!entity e "x%amp;#SPACE;">
-	
+
 	Usually character references will have been processed while the
 	entity was being defined.  */
      if (*FPOS != ch) {
@@ -852,7 +852,7 @@ int parmlen;
 {
      int skip = (pcblitt.newstate == 0);
      int i;
-     
+
      for (i = 0; parmlen >= 0 && i < datalen; i++) {
 	  switch (data[i]) {
 	  case RSCHAR:

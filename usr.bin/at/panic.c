@@ -1,4 +1,4 @@
-/* 
+/*
  *  panic.c - terminate fast in case of error
  *  Copyright (C) 1993  Thomas Koenig
  *
@@ -37,7 +37,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: panic.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
+static char rcsid[] = "$Id: panic.c,v 1.2 1995/04/12 02:42:32 ache Exp $";
 
 /* External variables */
 

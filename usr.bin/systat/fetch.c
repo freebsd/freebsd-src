@@ -48,7 +48,7 @@ kvm_ckread(a, b, l)
 		if (verbose)
 			error("error reading kmem at %x\n", a);
 		return (0);
-	} 
+	}
 	else
 		return (1);
 }

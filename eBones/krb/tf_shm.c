@@ -7,12 +7,12 @@
  * contributed by Dan Kolkowitz (kolk@jessica.stanford.edu).
  *
  *	from: tf_shm.c,v 4.2 89/10/25 23:26:46 qjb Exp $
- *	$Id: tf_shm.c,v 1.2 1994/07/19 19:26:26 g89r4222 Exp $
+ *	$Id: tf_shm.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: tf_shm.c,v 1.2 1994/07/19 19:26:26 g89r4222 Exp $";
+"$Id: tf_shm.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -51,15 +51,15 @@ char *file_name;
 					 don't slowly lose memory. */
 
     shmid = shmget((long)IPC_PRIVATE,MAX_BUFF, IPC_CREAT);
-    if (shmid == -1) { 
+    if (shmid == -1) {
 	if (krb_debug)
 	    perror("krb_shm_create shmget");
 	return(KFAILURE);		/* XXX */
     }
     me = getuid();
     metoo = geteuid();
-    /* 
-     * now set up the buffer so that we can modify it 
+    /*
+     * now set up the buffer so that we can modify it
      */
     shm_buf.shm_perm.uid = me;
     shm_buf.shm_perm.gid = getgid();
@@ -89,13 +89,13 @@ char *file_name;
 	    perror("krb_shm_create file");
 	(void) shmctl(shmid, IPC_RMID, 0);
 	return(KFAILURE);		/* XXX */
-    } 
+    }
     if (fchmod(fileno(sfile),0600) < 0) {
 	if (krb_debug)
 	    perror("krb_shm_create fchmod");
 	(void) shmctl(shmid, IPC_RMID, 0);
 	return(KFAILURE);		/* XXX */
-    }	
+    }
     if (me != metoo) {
 	if (setreuid(me, metoo) < 0) {
 	    /* can't switch??? barf! */
@@ -126,11 +126,11 @@ char *file_name;
 int krb_is_diskless()
 {
 	struct stat buf;
-	if (stat("/.diskless",&buf) < 0) 
+	if (stat("/.diskless",&buf) < 0)
 		return(0);
 	else return(1);
 }
-			
+
 /*
  * krb_shm_dest: destroy shared memory segment with session keys, and remove
  * file pointing to it.
@@ -156,7 +156,7 @@ char *file;
 			perror("krb_shm_dest: cannot delete shm segment");
 		    (void) fclose(sfile);
 		    return(KFAILURE);	/* XXX */
-		}		    
+		}
 	} else {
 	    if (krb_debug)
 		fprintf(stderr, "bad format in shmid file\n");
@@ -170,5 +170,5 @@ char *file;
 	return(RET_TKFIL);		/* XXX */
 }
 
-	
+
 

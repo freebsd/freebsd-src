@@ -194,7 +194,7 @@ setpeer(argc, argv)
 				unix_proxy = 0;
 			else
 				unix_server = 0;
-			if (overbose && 
+			if (overbose &&
 			    !strncmp(reply_string, "215 TOPS20", 10))
 				printf(
 "Remember to set tenex mode when transfering binary files from this machine.\n");
@@ -663,15 +663,15 @@ usage:
 					tm->tm_mon++;
 					if (tm->tm_year > yy%100)
 						return (1);
-					if ((tm->tm_year == yy%100 && 
+					if ((tm->tm_year == yy%100 &&
 					    tm->tm_mon > mo) ||
-					   (tm->tm_mon == mo && 
+					   (tm->tm_mon == mo &&
 					    tm->tm_mday > day) ||
-					   (tm->tm_mday == day && 
+					   (tm->tm_mday == day &&
 					    tm->tm_hour > hour) ||
-					   (tm->tm_hour == hour && 
+					   (tm->tm_hour == hour &&
 					    tm->tm_min > min) ||
-					   (tm->tm_min == min && 
+					   (tm->tm_min == min &&
 					    tm->tm_sec > sec))
 						return (1);
 				} else {
@@ -862,7 +862,7 @@ status(argc, argv)
 	}
 	printf("Mode: %s; Type: %s; Form: %s; Structure: %s\n",
 		modename, typename, formname, structname);
-	printf("Verbose: %s; Bell: %s; Prompting: %s; Globbing: %s\n", 
+	printf("Verbose: %s; Bell: %s; Prompting: %s; Globbing: %s\n",
 		onoff(verbose), onoff(bell), onoff(interactive),
 		onoff(doglob));
 	printf("Store unique: %s; Receive unique: %s\n", onoff(sunique),
@@ -995,7 +995,7 @@ setglob(argc, argv)
 	int argc;
 	char *argv[];
 {
-	
+
 	doglob = !doglob;
 	printf("Globbing %s.\n", onoff(doglob));
 	code = doglob;
@@ -1261,7 +1261,7 @@ shell(argc, argv)
 {
 	pid_t pid;
 	sig_t old1, old2;
-	char shellnam[40], *shell, *namep; 
+	char shellnam[40], *shell, *namep;
 	union wait status;
 
 	old1 = signal (SIGINT, SIG_IGN);
@@ -1901,7 +1901,7 @@ domap(name)
 				break;
 			case '[':
 LOOP:
-				if (*++cp2 == '$' && isdigit(*(cp2+1))) { 
+				if (*++cp2 == '$' && isdigit(*(cp2+1))) {
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 
@@ -1920,7 +1920,7 @@ LOOP:
 					}
 				}
 				else {
-					while (*cp2 && *cp2 != ',' && 
+					while (*cp2 && *cp2 != ',' &&
 					    *cp2 != ']') {
 						if (*cp2 == '\\') {
 							cp2++;

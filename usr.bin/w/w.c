@@ -265,7 +265,7 @@ main(argc, argv)
 	/* sort by idle time */
 	if (sortidle && ehead != NULL) {
 		struct entry *from = ehead, *save;
-		
+
 		ehead = NULL;
 		while (from != NULL) {
 			for (nextp = &ehead;
@@ -278,7 +278,7 @@ main(argc, argv)
 			*nextp = save;
 		}
 	}
-			
+
 	if (!nflag)
 		if (gethostname(domain, sizeof(domain) - 1) < 0 ||
 		    (p = strchr(domain, '.')) == 0)

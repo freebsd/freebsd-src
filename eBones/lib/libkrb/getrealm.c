@@ -6,12 +6,12 @@
  * routine to convert hostname into realm name.
  *
  *	from: getrealm.c,v 4.6 90/01/02 13:35:56 jtkohl Exp $
- *	$Id: getrealm.c,v 1.2 1994/07/19 19:25:31 g89r4222 Exp $
+ *	$Id: getrealm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: getrealm.c,v 1.2 1994/07/19 19:25:31 g89r4222 Exp $";
+"$Id: getrealm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif	lint
 
 #include <strings.h>
@@ -92,7 +92,7 @@ char *host;
 			fclose(trans_file);
 			return(ret_realm);
 		}
-		if ((trans_host[0] == '.') && domain) { 
+		if ((trans_host[0] == '.') && domain) {
 			/* this is a domain match */
 			if (!strcasecmp(trans_host, domain)) {
 				/* domain match, save for later */

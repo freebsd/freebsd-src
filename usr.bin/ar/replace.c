@@ -55,7 +55,7 @@ static char sccsid[] = "@(#)replace.c	8.3 (Berkeley) 4/2/94";
 /*
  * replace --
  *	Replace or add named members to archive.  Entries already in the
- *	archive are swapped in place.  Others are added before or after 
+ *	archive are swapped in place.  Others are added before or after
  *	the key entry, based on the a, b and i options.  If the u option
  *	is specified, modification dates select for replacement.
  */
@@ -81,7 +81,7 @@ replace(argv)
 		tfd1 = -1;
 		tfd2 = tmp();
 		goto append;
-	} 
+	}
 
 	tfd1 = tmp();			/* Files before key file. */
 	tfd2 = tmp();			/* Files after key file. */
@@ -156,7 +156,7 @@ append:	while (file = *argv++) {
 		put_arobj(&cf, &sb);
 		(void)close(sfd);
 	}
-	
+
 	(void)lseek(afd, (off_t)SARMAG, SEEK_SET);
 
 	SETCF(tfd1, tname, afd, archive, NOPAD);
@@ -175,4 +175,4 @@ append:	while (file = *argv++) {
 	(void)ftruncate(afd, tsize + SARMAG);
 	close_archive(afd);
 	return (errflg);
-}	
+}

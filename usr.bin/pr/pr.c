@@ -429,7 +429,7 @@ vertcol(argc, argv)
 					if (!i) {
 						ptbf = buf + indy[j];
 						lstdat[j] = ptbf;
-					} else 
+					} else
 						ptbf = lstdat[j];
 					vc[cvc].pt = ptbf;
 
@@ -958,7 +958,7 @@ mulfile(argc, argv)
  *	buf:	buffer
  *	lim:	buffer length
  *	cps:	column positon 1st char in buffer (large line support)
- *	trnc:	throw away data more than lim up to \n 
+ *	trnc:	throw away data more than lim up to \n
  *	mor:	set if more data in line (not truncated)
  */
 int
@@ -1069,7 +1069,7 @@ inln(inf, buf, lim, cps, trnc, mor)
  *	cnt:	number of chars of valid data in buf
  *	svips:	buffer input column position (for large lines)
  *	svops:	buffer output column position (for large lines)
- *	mor:	output line not complete in this buf; more data to come.	
+ *	mor:	output line not complete in this buf; more data to come.
  *		1 is more, 0 is complete, -1 is no \n's
  */
 int
@@ -1341,7 +1341,7 @@ nxtfile(argc, argv, fname, buf, dt)
 				if (fstat(fileno(inf), &statbuf) < 0) {
 					++errcnt;
 					(void)fclose(inf);
-					(void)fprintf(err, 
+					(void)fprintf(err,
 						"pr: Cannot stat %s, %s\n",
 						argv[eoptind], strerror(errno));
 					return(NULL);
@@ -1483,13 +1483,13 @@ prtail(cnt, incomp)
 	 * pad page
 	 */
 	if (formfeed) {
-		if ((incomp && (putchar('\n') == EOF)) || 
+		if ((incomp && (putchar('\n') == EOF)) ||
 		    (putchar('\f') == EOF)) {
 			pfail();
 			return(1);
 		}
 		return(0);
-	} 
+	}
 	cnt += TAILLEN;
 	while (--cnt >= 0) {
 		if (putchar('\n') == EOF) {
@@ -1554,7 +1554,7 @@ usage()
 }
 
 /*
- * setup:	Validate command args, initialize and perform sanity 
+ * setup:	Validate command args, initialize and perform sanity
  *		checks on options
  */
 int
@@ -1781,7 +1781,7 @@ setup(argc, argv)
 	 * make sure long enough for headers. if not disable
 	 */
 	if (lines <= HEADLEN + TAILLEN)
-		++nohead;	
+		++nohead;
 	else if (!nohead)
 		lines -= HEADLEN + TAILLEN;
 

@@ -397,7 +397,7 @@ main(argc, argv)
 
 	if ((pwd = getenv("PWD")) != NULL) {
 	    if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
-		sa.st_dev == sb.st_dev) 
+		sa.st_dev == sb.st_dev)
 		(void) strcpy(curdir, pwd);
 	}
 
@@ -430,7 +430,7 @@ main(argc, argv)
 	}
 	else
 		(void) strncpy(mdpath, path, MAXPATHLEN + 1);
-	
+
 	if (stat(mdpath, &sb) == 0 && S_ISDIR(sb.st_mode)) {
 
 		if (chdir(mdpath)) {
@@ -492,7 +492,7 @@ main(argc, argv)
 #else
 	compatMake = TRUE;		/* No compat mode */
 #endif
-    
+
 
 	/*
 	 * Initialize the parsing, directory and variable modules to prepare
@@ -535,7 +535,7 @@ main(argc, argv)
 #else
 	Main_ParseArgLine(getenv("MAKE"));
 #endif
-    
+
 	MainParseArgs(argc, argv);
 
 	/*
@@ -677,7 +677,7 @@ main(argc, argv)
 		 * well as initializing the module.
 		 */
 		Compat_Run(targs);
-    
+
 	Lst_Destroy(targs, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
 	Lst_Destroy(create, (void (*) __P((ClientData))) free);
@@ -833,7 +833,7 @@ Fatal(va_alist)
  *	a message and exits.
  *
  * Results:
- *	None 
+ *	None
  *
  * Side Effects:
  *	All children are killed indiscriminately and the program Lib_Exits
@@ -889,10 +889,10 @@ DieHorribly()
 /*
  * Finish --
  *	Called when aborting due to errors in child shell to signal
- *	abnormal exit. 
+ *	abnormal exit.
  *
  * Results:
- *	None 
+ *	None
  *
  * Side Effects:
  *	The program exits

@@ -40,7 +40,7 @@ char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";*/
-static char rcsid[] = "$Id: rwall.c,v 1.1 1993/09/16 01:11:04 jtc Exp $";
+static char rcsid[] = "$Id: rwall.c,v 1.1.1.1 1994/08/28 15:11:02 csgr Exp $";
 #endif /* not lint */
 
 /*
@@ -98,7 +98,7 @@ main(argc, argv)
 
 	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void, &res, NULL) != RPC_SUCCESS) {
 		/*
-		 * An error occurred while calling the server. 
+		 * An error occurred while calling the server.
 		 * Print error message and die.
 		 */
 		clnt_perror(cl, wallhost);

@@ -269,7 +269,7 @@ coursync()
 			buf[len] = '\0';
 			printf("coursync: (\"%s\")\n\r", buf);
 #endif
-			if (index(buf, '0') || 
+			if (index(buf, '0') ||
 		   	   (index(buf, 'O') && index(buf, 'K')))
 				return(1);
 		}

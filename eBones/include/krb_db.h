@@ -1,17 +1,17 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
- * spm		Project Athena  8/85 
+ * spm		Project Athena  8/85
  *
  * This file defines data structures for the kerberos
- * authentication/authorization database. 
+ * authentication/authorization database.
  *
- * They MUST correspond to those defined in *.rel 
+ * They MUST correspond to those defined in *.rel
  *
- *	from: krb_db.h,v 4.9 89/01/24 17:55:39 jon Exp $ 
- *	$Id: krb_db.h,v 1.2 1994/07/19 19:23:19 g89r4222 Exp $
+ *	from: krb_db.h,v 4.9 89/01/24 17:55:39 jon Exp $
+ *	$Id: krb_db.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 #ifndef KRB_DB_DEFS

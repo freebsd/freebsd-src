@@ -60,39 +60,39 @@
  * to a list as a whole, the user keeps a pointer to the header; that
  * header is initialized by a call to List_Init(), which creates an empty
  * list given a pointer to a List_Links structure (described below).
- * 
+ *
  * The links are contained in a two-element structure called List_Links.
  * A list joins List_Links records (that is, each List_Links structure
  * points to other List_Links structures), but if the List_Links is the
  * first field within a larger structure, then the larger structures are
  * effectively linked together as follows:
- * 
+ *
  *	      header
  *	  (List_Links)		   first elt.		    second elt.
- *	-----------------	-----------------	----------------- 
+ *	-----------------	-----------------	-----------------
  * ..->	|    nextPtr	| ---->	|  List_Links	| ---->	|  List_Links	|----..
- *	| - - - - - - -	|	|		|	|		| 
+ *	| - - - - - - -	|	|		|	|		|
  * ..--	|    prevPtr	| <----	|		| <----	|		|<---..
  *	-----------------	- ---  ---  ---	-	- ---  ---  ---	-
- *				|    rest of	|	|    rest of	| 
- *				|   structure	|	|   structure	| 
+ *				|    rest of	|	|    rest of	|
+ *				|   structure	|	|   structure	|
  *				|		|	|		|
- *				|      ...	|	|      ...	| 
- *				-----------------	----------------- 
- * 
+ *				|      ...	|	|      ...	|
+ *				-----------------	-----------------
+ *
  * It is possible to link structures through List_Links fields that are
  * not at the beginning of the larger structure, but it is then necessary
  * to perform pointer arithmetic to find the beginning of the larger
  * structure, given a pointer to some point within it.
- * 
+ *
  * A typical structure might be something like:
- * 
+ *
  *      typedef struct {
  *                  List_Links links;
  *                  char ch;
  *                  integer flags;
  *      } EditChar;
- *  
+ *
  * Before an element is inserted in a list for the first time, it must
  * be initialized by calling the macro List_InitElement().
  */
@@ -129,7 +129,7 @@ void 	List_Move();    /* move an element elsewhere in a list */
 #define List_InitElement(elementPtr) \
     (elementPtr)->prevPtr = (List_Links *) NIL; \
     (elementPtr)->nextPtr = (List_Links *) NIL;
-    
+
 /*
  * Macros for stepping through or selecting parts of lists
  */
@@ -142,10 +142,10 @@ void 	List_Move();    /* move an element elsewhere in a list */
  *      Macro to loop through a list and perform an operation on each member.
  *
  *      Usage: LIST_FORALL(headerPtr, itemPtr) {
- *                 / * 
+ *                 / *
  *                   * operation on itemPtr, which points to successive members
  *                   * of the list
- *                   * 
+ *                   *
  *                   * It may be appropriate to first assign
  *                   *          foobarPtr = (Foobar *) itemPtr;
  *                   * to refer to the entire Foobar structure.
@@ -279,7 +279,7 @@ void 	List_Move();    /* move an element elsewhere in a list */
  *      LIST_ATFRONT(headerPtr) --      insert at front of list
  *      LIST_ATREAR(headerPtr)  --      insert at end of list
  *
- *      For example, 
+ *      For example,
  *
  *              List_Insert(itemPtr, LIST_AFTER(otherPtr));
  *

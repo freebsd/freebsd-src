@@ -18,7 +18,7 @@ VOID exclude()
 
      if ((mod->ttype & MKEYWORD) == 0 && exmark(1)) {
 	  int excl;
-	  
+
 	  excktok(mod + 1, 0, &excl);
 	  exmark(0);
      }
@@ -58,7 +58,7 @@ int *excl;			/* Set to 1 if token is excluded. */
      int tnum;
      int optional = 0;
      int hadopt, hadreq;
-     
+
      *excl = 0;
 
      switch (t->ttype & TTMASK) {
@@ -100,7 +100,7 @@ int *excl;			/* Set to 1 if token is excluded. */
      default:
 	  abort();
      }
-     
+
      /* Was required, but exclusions have made it optional.
        eg  <!element foo - - (a | b) -(a, b)> */
 

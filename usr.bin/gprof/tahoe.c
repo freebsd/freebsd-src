@@ -66,7 +66,7 @@ operandmode( modep )
     unsigned char	*modep;
 {
     long	usesreg = ((long)*modep) & 0xf;
-    
+
     switch ( ((long)*modep) >> 4 ) {
 	case 0:
 	case 1:
@@ -105,7 +105,7 @@ char *
 operandname( mode )
     operandenum	mode;
 {
-    
+
     switch ( mode ) {
 	case literal:
 	    return "literal";
@@ -157,7 +157,7 @@ long
 operandlength( modep )
     unsigned char	*modep;
 {
-    
+
     switch ( operandmode( modep ) ) {
 	case literal:
 	case reg:
@@ -300,7 +300,7 @@ findcall( parentp , p_lowpc , p_highpc )
 		case longrel:
 			/*
 			 *	regular pc relative addressing
-			 *	check that this is the address of 
+			 *	check that this is the address of
 			 *	a function.
 			 */
 		    destpc = reladdr( instructp+length )

@@ -13,7 +13,7 @@ static char rcsid_kadm_funcs_c[] =
 "Id: kadm_funcs.c,v 4.3 90/03/20 01:39:51 jon Exp ";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kadm_funcs.c,v 1.1 1995/01/20 03:12:55 wollman Exp $";
 #endif	lint
 
 /*
@@ -40,7 +40,7 @@ enum acl_types acltype;
     extern char *acldir;
 
     (void) sprintf(checkname, "%s.%s@%s", pname, pinst, prealm);
-    
+
     switch (acltype) {
     case ADDACL:
 	(void) sprintf(filename, "%s%s", acldir, ADD_ACL_FILE);
@@ -85,7 +85,7 @@ Kadm_vals *valsout;
 	       rname, rinstance, rrealm, valsin->name, valsin->instance);
     return KADM_UNAUTH;
   }
-  
+
   /* Need to check here for "legal" name and instance */
   if (wildcard(valsin->name) || wildcard(valsin->instance)) {
       failadd(KADM_ILL_WILDCARD);
@@ -93,7 +93,7 @@ Kadm_vals *valsout;
 
   (void) log("request to add an entry for '%s.%s' from '%s.%s@%s'",
 		 valsin->name, valsin->instance, rname, rinstance, rrealm);
-  
+
   numfound = kerb_get_principal(KERB_DEFAULT_NAME, KERB_DEFAULT_INST,
 				&default_princ, 1, &more);
   if (numfound == -1) {
@@ -111,7 +111,7 @@ Kadm_vals *valsout;
   if (!IS_FIELD(KADM_ATTR,valsin->fields))
       data_i.attributes = default_princ.attributes;
   if (!IS_FIELD(KADM_MAXLIFE,valsin->fields))
-      data_i.max_life = default_princ.max_life; 
+      data_i.max_life = default_princ.max_life;
 
   bzero((char *)&default_princ, sizeof(default_princ));
 
@@ -131,7 +131,7 @@ Kadm_vals *valsout;
   bzero((char *)newpw, sizeof(newpw));
 
   data_o = data_i;
-  numfound = kerb_get_principal(valsin->name, valsin->instance, 
+  numfound = kerb_get_principal(valsin->name, valsin->instance,
 				&data_o, 1, &more);
   if (numfound == -1) {
       failadd(KADM_DB_INUSE);
@@ -150,7 +150,7 @@ Kadm_vals *valsout;
     } else if (numfound) {
 	failadd(KADM_UK_SERROR);
     } else {
-      numfound = kerb_get_principal(valsin->name, valsin->instance, 
+      numfound = kerb_get_principal(valsin->name, valsin->instance,
 				    &data_o, 1, &more);
       if ((numfound!=1) || (more!=0)) {
 	  failadd(KADM_UK_RERROR);
@@ -183,22 +183,22 @@ Kadm_vals *valsout;			/* what data is there */
   int more;			/* To point to more name.instances */
   Principal data_o;		/* Data object to hold Principal */
 
-  
+
   if (!check_access(rname, rinstance, rrealm, GETACL)) {
     (void) log("WARNING: '%s.%s@%s' tried to get '%s.%s's entry",
 	    rname, rinstance, rrealm, valsin->name, valsin->instance);
     return KADM_UNAUTH;
   }
-  
+
   if (wildcard(valsin->name) || wildcard(valsin->instance)) {
       failget(KADM_ILL_WILDCARD);
   }
 
   (void) log("retrieve '%s.%s's entry for '%s.%s@%s'",
 	     valsin->name, valsin->instance, rname, rinstance, rrealm);
-  
+
   /* Look up the record in the database */
-  numfound = kerb_get_principal(valsin->name, valsin->instance, 
+  numfound = kerb_get_principal(valsin->name, valsin->instance,
 				&data_o, 1, &more);
   if (numfound == -1) {
       failget(KADM_DB_INUSE);
@@ -231,17 +231,17 @@ Kadm_vals *valsout;		/* the actual record which is returned */
   if (wildcard(valsin1->name) || wildcard(valsin1->instance)) {
       failmod(KADM_ILL_WILDCARD);
   }
-  
+
   if (!check_access(rname, rinstance, rrealm, MODACL)) {
     (void) log("WARNING: '%s.%s@%s' tried to change '%s.%s's entry",
 	       rname, rinstance, rrealm, valsin1->name, valsin1->instance);
     return KADM_UNAUTH;
   }
-  
+
   (void) log("request to modify '%s.%s's entry from '%s.%s@%s' ",
 	     valsin1->name, valsin1->instance, rname, rinstance, rrealm);
-  
-  numfound = kerb_get_principal(valsin1->name, valsin1->instance, 
+
+  numfound = kerb_get_principal(valsin1->name, valsin1->instance,
 				&data_o, 1, &more);
   if (numfound == -1) {
       failmod(KADM_DB_INUSE);
@@ -254,7 +254,7 @@ Kadm_vals *valsout;		/* the actual record which is returned */
       if (IS_FIELD(KADM_ATTR,valsin2->fields))
 	  data_o.attributes = temp_key.attributes;
       if (IS_FIELD(KADM_MAXLIFE,valsin2->fields))
-	  data_o.max_life = temp_key.max_life; 
+	  data_o.max_life = temp_key.max_life;
       if (IS_FIELD(KADM_DESKEY,valsin2->fields)) {
 	  data_o.key_version++;
 	  data_o.kdc_key_ver = server_parm.master_key_version;
@@ -289,7 +289,7 @@ Kadm_vals *valsout;		/* the actual record which is returned */
       } else if (more) {
 	  failmod(KADM_UK_SERROR);
       } else {
-	  numfound = kerb_get_principal(valsin1->name, valsin1->instance, 
+	  numfound = kerb_get_principal(valsin1->name, valsin1->instance,
 					&data_o, 1, &more);
 	  if ((more!=0)||(numfound!=1)) {
 	      failmod(KADM_UK_RERROR);
@@ -335,14 +335,14 @@ des_cblock newpw;
   }
   (void) log("'%s.%s@%s' wants to change its password",
 	     rname, rinstance, rrealm);
-  
+
   bcopy(newpw, local_pw, sizeof(local_pw));
-  
+
   /* encrypt new key in master key */
   kdb_encrypt_key (local_pw, local_pw, server_parm.master_key,
 		     server_parm.master_key_schedule, ENCRYPT);
 
-  numfound = kerb_get_principal(rname, rinstance, 
+  numfound = kerb_get_principal(rname, rinstance,
 				&data_o, 1, &more);
   if (numfound == -1) {
       failchange(KADM_DB_INUSE);

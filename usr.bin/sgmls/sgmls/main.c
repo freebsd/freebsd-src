@@ -178,7 +178,7 @@ char **argv;
 	       abort();
 	  }
      }
-     
+
 #ifdef CANT_REDIRECT_STDERR
      if (errfile) {
 	  FILE *fp;
@@ -285,7 +285,7 @@ char **argv;
 
      for (i = 0; i < argc; i++)
 	  len += strlen(argv[i]) + 1;
-     
+
      res = xmalloc(len);
      ptr = (char *)res;
      for (i = 0; i < argc; i++) {
@@ -455,10 +455,10 @@ UNIV id;
 
      for (p = (char *)id, nfiles = 0; *p; p = strchr(p, '\0') + 1)
 	  nfiles++;
-     
+
      argv = (char **)xmalloc((subargc + 2 + 1 + nfiles + 1)*sizeof(char *));
      memcpy((UNIV)argv, (UNIV)subargv, subargc*sizeof(char *));
-     
+
      i = subargc;
 
      argv[i++] = "-c";
@@ -541,7 +541,7 @@ VOID fatal(int errnum,...)
      int errnum;
 #endif
      va_list ap;
-     
+
 #ifdef VARARGS
      va_start(ap);
      errnum = va_arg(ap, int);
@@ -563,7 +563,7 @@ VOID appl_error(int errnum,...)
      int errnum;
 #endif
      va_list ap;
-     
+
 #ifdef VARARGS
      va_start(ap);
      errnum = va_arg(ap, int);

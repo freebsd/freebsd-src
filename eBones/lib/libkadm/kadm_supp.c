@@ -13,7 +13,7 @@ static char rcsid_kadm_supp_c[] =
 "Header: /afs/athena.mit.edu/astaff/project/kerberos/src/lib/kadm/RCS/kadm_supp.c,v 4.1 89/09/26 09:21:07 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kadm_supp.c,v 1.1 1995/01/20 02:02:54 wollman Exp $";
 #endif	lint
 
 /*
@@ -28,7 +28,7 @@ static const char rcsid[] =
 
 #include "kadm.h"
 #include "krb_db.h"
-    
+
 /*
 prin_vals:
   recieves    : a vals structure
@@ -37,7 +37,7 @@ prin_vals(vals)
 Kadm_vals *vals;
 {
    printf("Info in Database for %s.%s:\n", vals->name, vals->instance);
-   printf("   Max Life: %d   Exp Date: %s\n",vals->max_life, 
+   printf("   Max Life: %d   Exp Date: %s\n",vals->max_life,
 	  asctime(localtime((long *)&vals->exp_date)));
    printf("   Attribs: %.2x  key: %u %u\n",vals->attributes,
 	  vals->key_low, vals->key_high);
@@ -54,7 +54,7 @@ int s;
 #endif
 
 /* kadm_prin_to_vals takes a fields arguments, a Kadm_vals and a Principal,
-   it copies the fields in Principal specified by fields into Kadm_vals, 
+   it copies the fields in Principal specified by fields into Kadm_vals,
    i.e from old to new */
 
 kadm_prin_to_vals(fields, new, old)
@@ -64,28 +64,28 @@ Principal *old;
 {
   bzero((char *)new, sizeof(*new));
   if (IS_FIELD(KADM_NAME,fields)) {
-      (void) strncpy(new->name, old->name, ANAME_SZ); 
+      (void) strncpy(new->name, old->name, ANAME_SZ);
       SET_FIELD(KADM_NAME, new->fields);
   }
   if (IS_FIELD(KADM_INST,fields)) {
-      (void) strncpy(new->instance, old->instance, INST_SZ); 
+      (void) strncpy(new->instance, old->instance, INST_SZ);
       SET_FIELD(KADM_INST, new->fields);
-  }      
+  }
   if (IS_FIELD(KADM_EXPDATE,fields)) {
-      new->exp_date   = old->exp_date; 
+      new->exp_date   = old->exp_date;
       SET_FIELD(KADM_EXPDATE, new->fields);
-  }      
+  }
   if (IS_FIELD(KADM_ATTR,fields)) {
-    new->attributes = old->attributes; 
+    new->attributes = old->attributes;
       SET_FIELD(KADM_MAXLIFE, new->fields);
-  }      
+  }
   if (IS_FIELD(KADM_MAXLIFE,fields)) {
-    new->max_life   = old->max_life; 
+    new->max_life   = old->max_life;
       SET_FIELD(KADM_MAXLIFE, new->fields);
-  }      
+  }
   if (IS_FIELD(KADM_DESKEY,fields)) {
-    new->key_low    = old->key_low; 
-    new->key_high   = old->key_high; 
+    new->key_low    = old->key_low;
+    new->key_high   = old->key_high;
     SET_FIELD(KADM_DESKEY, new->fields);
   }
 }
@@ -98,17 +98,17 @@ Kadm_vals *old;
 
   bzero((char *)new, sizeof(*new));
   if (IS_FIELD(KADM_NAME,fields))
-    (void) strncpy(new->name, old->name, ANAME_SZ); 
+    (void) strncpy(new->name, old->name, ANAME_SZ);
   if (IS_FIELD(KADM_INST,fields))
-    (void) strncpy(new->instance, old->instance, INST_SZ); 
+    (void) strncpy(new->instance, old->instance, INST_SZ);
   if (IS_FIELD(KADM_EXPDATE,fields))
-    new->exp_date   = old->exp_date; 
+    new->exp_date   = old->exp_date;
   if (IS_FIELD(KADM_ATTR,fields))
-    new->attributes = old->attributes; 
+    new->attributes = old->attributes;
   if (IS_FIELD(KADM_MAXLIFE,fields))
-    new->max_life   = old->max_life; 
+    new->max_life   = old->max_life;
   if (IS_FIELD(KADM_DESKEY,fields)) {
-    new->key_low    = old->key_low; 
-    new->key_high   = old->key_high; 
+    new->key_low    = old->key_low;
+    new->key_high   = old->key_high;
   }
 }

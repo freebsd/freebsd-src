@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)lookup.c	8.1 (Berkeley) 6/6/93";
 
     /*
      *	look up an address in a sorted-by-address namelist
-     *	    this deals with misses by mapping them to the next lower 
+     *	    this deals with misses by mapping them to the next lower
      *	    entry point.
      */
 nltype *

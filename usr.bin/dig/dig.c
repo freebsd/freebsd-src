@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
+static char rcsid[] = "$Id: dig.c,v 1.3 1995/05/09 13:13:21 rgrimes Exp $";
 #endif
 
 /*
@@ -7,7 +7,7 @@ static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
  * -
  * Copyright (c) 1989
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -23,7 +23,7 @@ static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -37,14 +37,14 @@ static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -157,7 +157,7 @@ static char rcsid[] = "$Id: dig.c,v 1.2 1994/09/22 21:51:49 pst Exp $";
 #include <netdb.h>
 #include <stdio.h>
 #include <resolv.h>
-#include <ctype.h> 
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <setjmp.h>
@@ -259,7 +259,7 @@ main(argc, argv)
 	char *srv;
 	int anyflag = 0;
 	int sticky = 0;
-	int tmp; 
+	int tmp;
 	int qtype = 1, qclass = 1;
 	int addrflag = 0;
 	int zone = 0;
@@ -340,8 +340,8 @@ main(argc, argv)
  **                while !EOF if batch mode
  */
 	*fileq = '\0';
-	while ((dofile && (fgets(fileq,100,qfp) != NULL)) || 
-	       ((!dofile) && (once--))) 
+	while ((dofile && (fgets(fileq,100,qfp) != NULL)) ||
+	       ((!dofile) && (once--)))
 	{
 		if ((*fileq=='\n') || (*fileq=='#') || (*fileq==';')) {
 			continue; /* ignore blank lines & comments */
@@ -374,7 +374,7 @@ main(argc, argv)
  * More cmd-line options than anyone should ever have to
  * deal with ....
  */
-		while (*(++argv) != NULL && **argv != '\0') { 
+		while (*(++argv) != NULL && **argv != '\0') {
 			strcat(cmd,*argv); strcat(cmd," ");
 			if (**argv == '@') {
 				srv = (*argv+1);
@@ -386,7 +386,7 @@ main(argc, argv)
 				SetOption(*argv+1);
 				continue;
 			}
-	 
+
 			if (strncmp(*argv,"-nost",5) == 0) {
 				sticky = 0;
 				continue;
@@ -402,10 +402,10 @@ main(argc, argv)
 			}
 
 			if (**argv == '-') {
-				switch (argv[0][1]) { 
+				switch (argv[0][1]) {
 				case 'T': wait = atoi(*++argv);
 					break;
-				case 'c': 
+				case 'c':
 					if ((tmp = atoi(*++argv))
 					    || *argv[0]=='0') {
 						qclass = tmp;
@@ -419,7 +419,7 @@ main(argc, argv)
 						       );
 					}
 					break;
-				case 't': 
+				case 't':
 					if ((tmp = atoi(*++argv))
 					    || *argv[0]=='0') {
 						qtype = tmp;
@@ -470,20 +470,20 @@ main(argc, argv)
 				continue;
 			} /* if '-'   */
 
-			if ((tmp = StringToType(*argv, -1, NULL)) != -1) { 
-				if ((T_ANY == tmp) && anyflag++) {  
-					qclass = C_ANY; 	
-					continue; 
+			if ((tmp = StringToType(*argv, -1, NULL)) != -1) {
+				if ((T_ANY == tmp) && anyflag++) {
+					qclass = C_ANY;
+					continue;
 				}
 				if (T_AXFR == tmp) {
 					_res.pfcode = PRF_ZONE;
 					zone++;
 				} else {
-					qtype = tmp; 
+					qtype = tmp;
 				}
 			} else if ((tmp = StringToClass(*argv, -1, NULL))
-				   != -1) { 
-				qclass = tmp; 
+				   != -1) {
+				qclass = tmp;
 			} else {
 				bzero(domain, (sizeof domain));
 				sprintf(domain,"%s",*argv);
@@ -493,7 +493,7 @@ main(argc, argv)
 		if (_res.pfcode & 0x80000)
 			printf("; pfcode: %08x, options: %08x\n",
 			       _res.pfcode, _res.options);
-	  
+
 /*
  * Current env. (after this parse) is to become the
  * new "working environmnet. Used in conj. with sticky.
@@ -531,7 +531,7 @@ main(argc, argv)
 
 /*
  * Find address of server to query. If not dot-notation, then
- * try to resolve domain-name (if so, save and turn off print 
+ * try to resolve domain-name (if so, save and turn off print
  * options, this domain-query is not the one we want. Restore
  * user options when done.
  * Things get a bit wierd since we need to use resolver to be
@@ -665,7 +665,7 @@ main(argc, argv)
 			printf(";; MSG SIZE  sent: %d  rcvd: %d\n",
 			       bytes_out, bytes_in);
 		}
-	  
+
 		fflush(stdout);
 /*
  *   Argh ... not particularly elegant. Should put in *real* ping code.
@@ -741,8 +741,8 @@ SetOption(string)
     if (i != 1) {
 	fprintf(stderr, ";*** Invalid option: %s\n",  option);
 	return(ERROR);
-    } 
-   
+    }
+
     if (strncmp(option, "aa", 2) == 0) {	/* aaonly */
 	    _res.options |= RES_AAONLY;
 	} else if (strncmp(option, "noaa", 4) == 0) {
@@ -825,47 +825,47 @@ SetOption(string)
 	      _res.pfcode &= ~RES_PRF_ANS;
 	} else if (strncmp(option, "qu", 2) == 0) {  /* question section */
 	      _res.pfcode |= RES_PRF_QUES;
-	} else if (strncmp(option, "noqu", 4) == 0) {  
+	} else if (strncmp(option, "noqu", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_QUES;
 	} else if (strncmp(option, "au", 2) == 0) {  /* authority section */
 	      _res.pfcode |= RES_PRF_AUTH;
-	} else if (strncmp(option, "noau", 4) == 0) {  
+	} else if (strncmp(option, "noau", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_AUTH;
 	} else if (strncmp(option, "ad", 2) == 0) {  /* addition section */
 	      _res.pfcode |= RES_PRF_ADD;
-	} else if (strncmp(option, "noad", 4) == 0) {  
+	} else if (strncmp(option, "noad", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_ADD;
 	} else if (strncmp(option, "tt", 2) == 0) {  /* TTL & ID */
 	      _res.pfcode |= RES_PRF_TTLID;
-	} else if (strncmp(option, "nott", 4) == 0) {  
+	} else if (strncmp(option, "nott", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_TTLID;
 	} else if (strncmp(option, "he", 2) == 0) {  /* head flags stats */
 	      _res.pfcode |= RES_PRF_HEAD2;
-	} else if (strncmp(option, "nohe", 4) == 0) {  
+	} else if (strncmp(option, "nohe", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_HEAD2;
 	} else if (strncmp(option, "H", 1) == 0) {  /* header all */
 	      _res.pfcode |= RES_PRF_HEADX;
-	} else if (strncmp(option, "noH", 3) == 0) {  
+	} else if (strncmp(option, "noH", 3) == 0) {
 	      _res.pfcode &= ~(RES_PRF_HEADX);
 	} else if (strncmp(option, "qr", 2) == 0) {  /* query */
 	      _res.pfcode |= RES_PRF_QUERY;
-	} else if (strncmp(option, "noqr", 4) == 0) {  
+	} else if (strncmp(option, "noqr", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_QUERY;
 	} else if (strncmp(option, "rep", 3) == 0) {  /* reply */
 	      _res.pfcode |= RES_PRF_REPLY;
-	} else if (strncmp(option, "norep", 5) == 0) {  
+	} else if (strncmp(option, "norep", 5) == 0) {
 	      _res.pfcode &= ~RES_PRF_REPLY;
 	} else if (strncmp(option, "cm", 2) == 0) {  /* command line */
 	      _res.pfcode |= RES_PRF_CMD;
-	} else if (strncmp(option, "nocm", 4) == 0) {  
+	} else if (strncmp(option, "nocm", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_CMD;
 	} else if (strncmp(option, "cl", 2) == 0) {  /* class mnemonic */
 	      _res.pfcode |= RES_PRF_CLASS;
-	} else if (strncmp(option, "nocl", 4) == 0) {  
+	} else if (strncmp(option, "nocl", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_CLASS;
 	} else if (strncmp(option, "st", 2) == 0) {  /* stats*/
 	      _res.pfcode |= RES_PRF_STATS;
-	} else if (strncmp(option, "nost", 4) == 0) {  
+	} else if (strncmp(option, "nost", 4) == 0) {
 	      _res.pfcode &= ~RES_PRF_STATS;
 	} else {
 	    fprintf(stderr, "; *** Invalid option: %s\n",  option);

@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)hash.c	8.1 (Berkeley) 6/6/93";
 
 static void RebuildTable __P((Hash_Table *));
 
-/* 
+/*
  * The following defines the ratio of # entries to # buckets
  * at which we rebuild the table to make it larger.
  */
@@ -67,12 +67,12 @@ static void RebuildTable __P((Hash_Table *));
 
 /*
  *---------------------------------------------------------
- * 
+ *
  * Hash_InitTable --
  *
  *	This routine just sets up the hash table.
  *
- * Results:	
+ * Results:
  *	None.
  *
  * Side Effects:
@@ -94,7 +94,7 @@ Hash_InitTable(t, numBuckets)
 	register struct Hash_Entry **hp;
 
 	/*
-	 * Round up the size to a power of two. 
+	 * Round up the size to a power of two.
 	 */
 	if (numBuckets <= 0)
 		i = 16;
@@ -119,7 +119,7 @@ Hash_InitTable(t, numBuckets)
  *	and frees up the memory space it occupied (except for
  *	the space in the Hash_Table structure).
  *
- * Results:	
+ * Results:
  *	None.
  *
  * Side Effects:
@@ -145,7 +145,7 @@ Hash_DeleteTable(t)
 
 	/*
 	 * Set up the hash table to cause memory faults on any future access
-	 * attempts until re-initialization. 
+	 * attempts until re-initialization.
 	 */
 	t->bucketPtr = NULL;
 }
@@ -237,7 +237,7 @@ Hash_CreateEntry(t, key, newPtr)
 	/*
 	 * The desired entry isn't there.  Before allocating a new entry,
 	 * expand the table if necessary (and this changes the resulting
-	 * bucket chain). 
+	 * bucket chain).
 	 */
 	if (t->numEntries >= rebuildLimit * t->size)
 		RebuildTable(t);
@@ -301,7 +301,7 @@ Hash_DeleteEntry(t, e)
  *	This procedure sets things up for a complete search
  *	of all entries recorded in the hash table.
  *
- * Results:	
+ * Results:
  *	The return value is the address of the first entry in
  *	the hash table, or NULL if the table is empty.
  *
@@ -316,7 +316,7 @@ Hash_DeleteEntry(t, e)
 Hash_Entry *
 Hash_EnumFirst(t, searchPtr)
 	Hash_Table *t;			/* Table to be searched. */
-	register Hash_Search *searchPtr;/* Area in which to keep state 
+	register Hash_Search *searchPtr;/* Area in which to keep state
 					 * about search.*/
 {
 	searchPtr->tablePtr = t;
@@ -345,7 +345,7 @@ Hash_EnumFirst(t, searchPtr)
 
 Hash_Entry *
 Hash_EnumNext(searchPtr)
-	register Hash_Search *searchPtr; /* Area used to keep state about 
+	register Hash_Search *searchPtr; /* Area used to keep state about
 					    search. */
 {
 	register Hash_Entry *e;
@@ -379,7 +379,7 @@ Hash_EnumNext(searchPtr)
  *	This local routine makes a new hash table that
  *	is larger than the old one.
  *
- * Results:	
+ * Results:
  * 	None.
  *
  * Side Effects:

@@ -2,9 +2,9 @@
  * compress routines:
  *	zmagic() - returns 0 if not recognized, uncompresses and prints
  *		   information if recognized
- *	uncompress(method, old, n, newch) - uncompress old into new, 
+ *	uncompress(method, old, n, newch) - uncompress old into new,
  *					    using method, return sizeof new
- * $Id: compress.c,v 1.8 1994/01/21 01:38:24 christos Exp $
+ * $Id: compress.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@ static struct {
 } compr[] = {
     { "\037\235", 2, { "uncompress", "-c", NULL }, 0 },
     { "\037\213", 2, { "gzip", "-dq", NULL }, 1 },
-    /* 
+    /*
      * XXX pcat does not work, cause I don't know how to make it read stdin,
      * so we use gzip
      */
@@ -74,7 +74,7 @@ int n;
 	int fdin[2], fdout[2];
 
 	if (pipe(fdin) == -1 || pipe(fdout) == -1) {
-		error("cannot create pipe (%s).\n", strerror(errno));	
+		error("cannot create pipe (%s).\n", strerror(errno));
 		/*NOTREACHED*/
 	}
 	switch (fork()) {
@@ -92,7 +92,7 @@ int n;
 		    (void) close(2);
 
 		execvp(compr[method].argv[0], compr[method].argv);
-		error("could not execute `%s' (%s).\n", 
+		error("could not execute `%s' (%s).\n",
 		      compr[method].argv[0], strerror(errno));
 		/*NOTREACHED*/
 	case -1:

@@ -51,7 +51,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	if (!*++argv) 
+	if (!*++argv)
 		search();
 	else do {
 		if (!freopen(*argv, "r", stdin)) {

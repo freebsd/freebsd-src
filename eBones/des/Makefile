@@ -1,10 +1,10 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id: Makefile,v 1.4 1994/09/09 21:43:30 g89r4222 Exp $
+#	$Id: Makefile,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
 
 LIB=	des
 SRCS=	cbc_cksm.c cbc_enc.c ecb_enc.c enc_read.c enc_writ.c pcbc_enc.c \
 	qud_cksm.c rand_key.c read_pwd.c set_key.c str2key.c \
-	cfb_enc.c 3ecb_enc.c ofb_enc.c 3cbc_enc.c 
+	cfb_enc.c 3ecb_enc.c ofb_enc.c 3cbc_enc.c
 #MAN1=	des.1
 #MAN3=	des.3
 

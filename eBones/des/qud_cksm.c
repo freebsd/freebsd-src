@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: qud_cksm.c,v 1.2 1994/07/19 19:22:02 g89r4222 Exp $
+ *	$Id: qud_cksm.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
  */
 
 /* From "Message Authentication"  R.R. Jueneman, S.M. Matyas, C.H. Meyer
@@ -62,7 +62,7 @@ des_cblock *seed;
 			t1=z1;
 			/* square, well sort of square */
 			z0=((((t0*t0)&0xffffffff)+((t1*t1)&0xffffffff))
-				&0xffffffff)%0x7fffffff; 
+				&0xffffffff)%0x7fffffff;
 			z1=((t0*((t1+NOISE)&0xffffffff))&0xffffffff)%0x7fffffff;
 			}
 		if (lp != NULL)

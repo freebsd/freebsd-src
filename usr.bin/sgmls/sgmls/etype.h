@@ -25,7 +25,7 @@
 struct thdr {                 /* Token header or model header. */
      UNCH ttype;              /* Token type attributes or model content. */
      union {
-          int tnum;           /* Group token: tokens in group. 
+          int tnum;           /* Group token: tokens in group.
 				 Model header: content tokens at any level. */
           struct etd *thetd;  /* GI token: ptr to etd. */
      } tu;

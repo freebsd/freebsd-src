@@ -73,7 +73,7 @@ tmp()
 		(void)sprintf(path, "%s/%s", envtmp, _NAME_ARTMP);
 	else
 		strcpy(path, _PATH_ARTMP);
-	
+
 	sigfillset(&set);
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
 	if ((fd = mkstemp(path)) == -1)

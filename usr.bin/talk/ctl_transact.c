@@ -90,7 +90,7 @@ ctl_transact(target, msg, type, rp)
 			}
 		} while (nready == 0);
 		/*
-		 * Keep reading while there are queued messages 
+		 * Keep reading while there are queued messages
 		 * (this is not necessary, it just saves extra
 		 * request/acknowledgements being sent)
 		 */

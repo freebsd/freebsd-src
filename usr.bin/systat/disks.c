@@ -58,7 +58,7 @@ static struct nlist namelist[] = {
 	{ "_dk_wpms" },
 #if defined(hp300) || defined(luna68k)
 #define X_HPDINIT       (X_DK_WPMS+1)
-        { "_hp_dinit" }, 
+        { "_hp_dinit" },
 #endif
 #if defined(i386)
 #define X_DK_NAMES	(X_DK_WPMS+1)

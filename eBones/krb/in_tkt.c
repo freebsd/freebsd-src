@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: kt.c,v 4.9 89/10/25 19:03:35 qjb Exp $
- *	$Id: in_tkt.c,v 1.5 1994/09/24 14:30:09 g89r4222 Exp $
+ *	$Id: in_tkt.c,v 1.1.1.1 1994/09/30 14:50:01 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: in_tkt.c,v 1.5 1994/09/24 14:30:09 g89r4222 Exp $";
+"$Id: in_tkt.c,v 1.1.1.1 1994/09/30 14:50:01 csgr Exp $";
 #endif /* lint */
 
 #include <unistd.h>
@@ -73,7 +73,7 @@ in_tkt(pname,pinst)
 		    (void) close(fd);
 		    goto out;
 		}
-	    
+
 	    (void) fsync(fd);
 	    (void) close(fd);
 	}

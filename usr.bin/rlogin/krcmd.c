@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)krcmd.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- *	$Source: /usr/src/usr.bin/rlogin/RCS/krcmd.c,v $
+ *	$Source: /home/ncvs/src/usr.bin/rlogin/krcmd.c,v $
  *	$Header: /mit/kerberos/ucb/mit/kcmd/RCS/krcmd.c,v 5.1
  *		89/07/25 15:38:44 kfall Exp Locker: kfall $
  * static char *rcsid_kcmd_c =
@@ -65,7 +65,7 @@ int	kcmd __P((int *, char **, u_short, char *, char *, char *, int *,
 
 /*
  * krcmd: simplified version of Athena's "kcmd"
- *	returns a socket attached to the destination, -1 or krb error on error 
+ *	returns a socket attached to the destination, -1 or krb error on error
  *	if fd2p is non-NULL, another socket is filled in for it
  */
 

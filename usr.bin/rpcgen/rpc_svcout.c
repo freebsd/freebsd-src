@@ -6,35 +6,35 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_svcout.c 1.6 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_svcout.c,v 1.1 1994/08/07 18:01:36 wollman Exp $";
+static char rcsid[] = "$Id: rpc_svcout.c,v 1.2 1995/03/04 17:47:50 nate Exp $";
 #endif
 
 /*
  * rpc_svcout.c, Server-skeleton outputter for the RPC protocol compiler
- * Copyright (C) 1987, Sun Microsytsems, Inc. 
+ * Copyright (C) 1987, Sun Microsytsems, Inc.
  */
 #include <stdio.h>
 #include <strings.h>
@@ -49,7 +49,7 @@ static char ROUTINE[] = "local";
 
 static int write_program(), printerr(), printif();
 /*
- * write most of the service, that is, everything but the registrations. 
+ * write most of the service, that is, everything but the registrations.
  */
 void
 write_most()
@@ -86,7 +86,7 @@ write_most()
 
 
 /*
- * write a registration for the given transport 
+ * write a registration for the given transport
  */
 void
 write_register(transp)
@@ -130,7 +130,7 @@ write_register(transp)
 
 
 /*
- * write the rest of the service 
+ * write the rest of the service
  */
 void
 write_rest()
@@ -207,9 +207,9 @@ write_program(def, storage)
 		}
 		for (proc = vp->procs; proc != NULL; proc = proc->next) {
 			f_print(fout, "\tcase %s:\n", proc->proc_name);
-			f_print(fout, "\t\txdr_%s = xdr_%s;\n", ARG, 
+			f_print(fout, "\t\txdr_%s = xdr_%s;\n", ARG,
 				stringfix(proc->arg_type));
-			f_print(fout, "\t\txdr_%s = xdr_%s;\n", RESULT, 
+			f_print(fout, "\t\txdr_%s = xdr_%s;\n", RESULT,
 				stringfix(proc->res_type));
 			f_print(fout, "\t\t%s = (char *(*)()) ", ROUTINE);
 			pvname(proc->proc_name, vp->vers_num);
@@ -229,7 +229,7 @@ write_program(def, storage)
 
 		f_print(fout, "\t%s = (*%s)(&%s, %s);\n", RESULT, ROUTINE, ARG,
 			RQSTP);
-		f_print(fout, 
+		f_print(fout,
 			"\tif (%s != NULL && !svc_sendreply(%s, xdr_%s, %s)) {\n",
 			RESULT, TRANSP, RESULT, RESULT);
 		printerr("systemerr", TRANSP);

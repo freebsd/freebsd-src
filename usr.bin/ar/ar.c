@@ -234,4 +234,4 @@ usage()
 	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -x [-ouTv] archive [file ...]\n");
 	exit(1);
-}	
+}

@@ -49,13 +49,13 @@ static char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
 /*
  * There wasn't an invitation waiting, so send a request containing
  * our sockt address to the remote talk daemon so it can invite
- * him 
+ * him
  */
 
 /*
  * The msg.id's for the invitations
  * on the local and remote machines.
- * These are used to delete the 
+ * These are used to delete the
  * invitations.
  */
 int	local_id, remote_id;

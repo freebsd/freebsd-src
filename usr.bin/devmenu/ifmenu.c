@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -42,7 +42,7 @@
  * network interfaces might be added as well.
  */
 const char *
-devmenu_netif(const char *title, const char *hfile, char **devnames, 
+devmenu_netif(const char *title, const char *hfile, char **devnames,
 	      int states)
 {
 	return devmenu_common(title, hfile, devnames,

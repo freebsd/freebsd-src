@@ -1,16 +1,16 @@
 /*
- * $Source: /home/CVS/src/eBones/kdb/krb_lib.c,v $
- * $Author: g89r4222 $ 
+ * $Source: /home/ncvs/src/eBones/kdb/krb_lib.c,v $
+ * $Author: csgr $
  *
- * Copyright 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1988 by the Massachusetts Institute of Technology.
  *
  * For copying and distribution information, please see the file
- * <mit-copyright.h>. 
+ * <mit-copyright.h>.
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_lib.c,v 1.2 1994/07/19 19:23:39 g89r4222 Exp $";
+"$Id: krb_lib.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -37,7 +37,7 @@ extern char *getenv();
 static  init = 0;
 
 /*
- * initialization routine for data base 
+ * initialization routine for data base
  */
 
 int
@@ -64,7 +64,7 @@ kerb_init()
 /*
  * finalization routine for database -- NOTE: MUST be called by any
  * program using kerb_init.  ALSO will have to be modified to finalize
- * caches, if they're ever really implemented. 
+ * caches, if they're ever really implemented.
  */
 
 int
@@ -75,7 +75,7 @@ kerb_fini()
 
 /*
  * look up a principal in the cache or data base returns number of
- * principals found 
+ * principals found
  */
 
 int
@@ -99,10 +99,10 @@ kerb_get_principal(name, inst, principal, max, more)
 	fprintf(stderr, "\n%s: kerb_get_principal for %s %s max = %d\n",
 	    progname, name, inst, max);
 #endif
-    
+
     /*
      * if this is a request including a wild card, have to go to db
-     * since the cache may not be exhaustive. 
+     * since the cache may not be exhaustive.
      */
 
     /* clear the principal area */
@@ -111,7 +111,7 @@ kerb_get_principal(name, inst, principal, max, more)
 #ifdef CACHE
     /*
      * so check to see if the name contains a wildcard "*" or "?", not
-     * preceeded by a backslash. 
+     * preceeded by a backslash.
      */
     wild = 0;
     if (index(name, '*') || index(name, '?') ||
@@ -206,7 +206,7 @@ kerb_get_dba(name, inst, dba, max, more)
 #endif
     /*
      * if this is a request including a wild card, have to go to db
-     * since the cache may not be exhaustive. 
+     * since the cache may not be exhaustive.
      */
 
     /* clear the dba area */
@@ -215,7 +215,7 @@ kerb_get_dba(name, inst, dba, max, more)
 #ifdef CACHE
     /*
      * so check to see if the name contains a wildcard "*" or "?", not
-     * preceeded by a backslash. 
+     * preceeded by a backslash.
      */
 
     wild = 0;

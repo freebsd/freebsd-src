@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_cred.c,v 4.10 89/05/31 17:46:22 jtkohl Exp $
- *	$Id: get_cred.c,v 1.2 1994/07/19 19:25:14 g89r4222 Exp $
+ *	$Id: get_cred.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: get_cred.c,v 1.2 1994/07/19 19:25:14 g89r4222 Exp $";
+"$Id: get_cred.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif /* lint */
 
 #include <stdio.h>
@@ -44,7 +44,7 @@ krb_get_cred(service,instance,realm,c)
 	return (tf_status);
 
     /* Search for requested service credentials and copy into c */
-       
+
     while ((tf_status = tf_get_cred(c)) == KSUCCESS) {
         /* Is this the right ticket? */
 	if ((strcmp(c->service,service) == 0) &&

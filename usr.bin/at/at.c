@@ -1,4 +1,4 @@
-/* 
+/*
  *  at.c : Put file into atrun queue
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
@@ -61,7 +61,7 @@
 
 /* Macros */
 
-#ifndef ATJOB_DIR 
+#ifndef ATJOB_DIR
 #define ATJOB_DIR "/usr/spool/atjobs/"
 #endif
 
@@ -80,7 +80,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.3 1995/04/15 22:08:08 ache Exp $";
+static char rcsid[] = "$Id: at.c,v 1.4 1995/04/27 19:27:41 ache Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -110,7 +110,7 @@ static void list_jobs(void);
 
 static void sigc(int signo)
 {
-/* If the user presses ^C, remove the spool file and exit 
+/* If the user presses ^C, remove the spool file and exit
  */
     if (fcreated)
     {
@@ -149,10 +149,10 @@ static char *cwdname(void)
 
 	if (getcwd(ptr, size-1) != NULL)
 	    return ptr;
-	
+
 	if (errno != ERANGE)
 	    perr("Cannot get directory");
-	
+
 	free (ptr);
 	size += SIZE;
 	ptr = (char *) mymalloc(size);
@@ -175,7 +175,7 @@ writefile(time_t runtimer, char queue)
     int ch;
     mode_t cmask;
     struct flock lock;
-    
+
 /* Install the signal handler for SIGINT; terminate after removing the
  * spool file if necessary
  */
@@ -215,7 +215,7 @@ writefile(time_t runtimer, char queue)
 
     for(i=0; i<ATJOB_MX; i++)
     {
-	sprintf(ppos, "%c%8lx.%2x", queue, 
+	sprintf(ppos, "%c%8lx.%2x", queue,
 		(unsigned long) (runtimer/60), i);
 	for(ap=ppos; *ap != '\0'; ap ++)
 	    if (*ap == ' ')
@@ -240,7 +240,7 @@ writefile(time_t runtimer, char queue)
      */
     cmask = umask(S_IRUSR | S_IWUSR | S_IXUSR);
     if ((fdes = creat(atfile, O_WRONLY)) == -1)
-	perr("Cannot create atjob file"); 
+	perr("Cannot create atjob file");
 
     if ((fd2 = dup(fdes)) <0)
 	perr("Error in dup() of job file");
@@ -256,7 +256,7 @@ writefile(time_t runtimer, char queue)
 
     REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
-    /* We've successfully created the file; let's set the flag so it 
+    /* We've successfully created the file; let's set the flag so it
      * gets removed in case of an interrupt or error.
      */
     fcreated = 1;
@@ -278,7 +278,7 @@ writefile(time_t runtimer, char queue)
     if (mailname == NULL)
 	mailname = getenv("LOGNAME");
 
-    if ((mailname == NULL) || (mailname[0] == '\0') 
+    if ((mailname == NULL) || (mailname[0] == '\0')
 	|| (strlen(mailname) > 8) || (getpwnam(mailname)==NULL))
     {
 	pass_entry = getpwuid(getuid());
@@ -317,7 +317,7 @@ writefile(time_t runtimer, char queue)
 	    for (i=0; i<sizeof(no_export)/sizeof(no_export[0]); i++)
 	    {
 		export = export
-		    && (strncmp(*atenv, no_export[i], 
+		    && (strncmp(*atenv, no_export[i],
 				(size_t) (eqp-*atenv)) != 0);
 	    }
 	    eqp++;
@@ -334,16 +334,16 @@ writefile(time_t runtimer, char queue)
 		{
 		    if (*ap != '/' && !isalnum(*ap))
 			fputc('\\', fp);
-		    
+
 		    fputc(*ap, fp);
 		}
 	    }
 	    fputs("; export ", fp);
 	    fwrite(*atenv, sizeof(char), eqp-*atenv -1, fp);
 	    fputc('\n', fp);
-	    
+
 	}
-    }	
+    }
     /* Cd to the directory at the time and write out all the
      * commands the user supplies from stdin.
      */
@@ -356,7 +356,7 @@ writefile(time_t runtimer, char queue)
 	{
 	    if (*ap != '/' && !isalnum(*ap))
 		fputc('\\', fp);
-	    
+
 	    fputc(*ap, fp);
 	}
     }
@@ -372,7 +372,7 @@ writefile(time_t runtimer, char queue)
     fprintf(fp, "\n");
     if (ferror(fp))
 	panic("Output error");
-	
+
     if (ferror(stdin))
 	panic("Input error");
 
@@ -391,7 +391,7 @@ writefile(time_t runtimer, char queue)
 static void
 list_jobs()
 {
-    /* List all a user's jobs in the queue, by looping through ATJOB_DIR, 
+    /* List all a user's jobs in the queue, by looping through ATJOB_DIR,
      * or everybody's if we are root
      */
     struct passwd *pw;
@@ -413,12 +413,12 @@ list_jobs()
     if ((spool = opendir(".")) == NULL)
 	perr("Cannot open " ATJOB_DIR);
 
-    /*	Loop over every file in the directory 
+    /*	Loop over every file in the directory
      */
     while((dirent = readdir(spool)) != NULL) {
 	if (stat(dirent->d_name, &buf) != 0)
 	    perr("Cannot stat in " ATJOB_DIR);
-	
+
 	/* See it's a regular file and has its x bit turned on and
          * is the user's
          */
@@ -442,11 +442,11 @@ list_jobs()
 	}
 	pw = getpwuid(buf.st_uid);
 
-	printf("%s\t%s\t%c%s\t%s\n", 
-	       timestr, 
-	       pw ? pw->pw_name : "???", 
-	       queue, 
-	       (S_IXUSR & buf.st_mode) ? "":"(done)", 
+	printf("%s\t%s\t%c%s\t%s\n",
+	       timestr,
+	       pw ? pw->pw_name : "???",
+	       queue,
+	       (S_IXUSR & buf.st_mode) ? "":"(done)",
 	       dirent->d_name);
     }
     PRIV_END
@@ -464,7 +464,7 @@ delete_jobs(int argc, char **argv)
 
     if (chdir(ATJOB_DIR) != 0)
 	perr("Cannot change to " ATJOB_DIR);
-    
+
     for (i=optind; i < argc; i++) {
 	if (stat(argv[i], &buf) != 0) {
 	    perr(argv[i]);
@@ -550,7 +550,7 @@ main(int argc, char **argv)
 	case 'f':
 	    atinput = optarg;
 	    break;
-	    
+
 	case 'q':    /* specify queue */
 	    if (strlen(optarg) > 1)
 		usage();
@@ -643,7 +643,7 @@ main(int argc, char **argv)
 	    timer = parsetime(argc, argv);
 	else
 	    timer = time(NULL);
-	
+
 	if (atverify)
 	{
 	    struct tm *tm = localtime(&timer);

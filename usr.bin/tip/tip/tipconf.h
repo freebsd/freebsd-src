@@ -34,7 +34,7 @@
  */
 
 #ifndef tipconf_h_included
-#define tipconf_h_included 
+#define tipconf_h_included
 
 /*
 	Define constness
@@ -47,7 +47,7 @@
 #define DEFBR 1200
 
 /*
-	Default frame size for file transfer buffering of writes 
+	Default frame size for file transfer buffering of writes
 	on local side
 */
 #ifndef BUFSIZ
@@ -78,7 +78,7 @@
 #define HAVE_HDB_LOCKFILES 1
 
 /*
-	System has a millisecond based sleep function 
+	System has a millisecond based sleep function
 */
 #define HAVE_USLEEP        0
 

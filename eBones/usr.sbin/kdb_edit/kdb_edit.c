@@ -5,19 +5,19 @@
  * <Copyright.MIT>.
  *
  * This routine changes the Kerberos encryption keys for principals,
- * i.e., users or services. 
+ * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$Id: kdb_edit.c,v 1.3 1994/09/09 21:43:46 g89r4222 Exp $
+ *	$Id: kdb_edit.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $
  */
 
 /*
- * exit returns 	 0 ==> success -1 ==> error 
+ * exit returns 	 0 ==> success -1 ==> error
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_edit.c,v 1.3 1994/09/09 21:43:46 g89r4222 Exp $";
+"$Id: kdb_edit.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -158,7 +158,7 @@ main(argc, argv)
 
 #endif
 
-    if (kdb_get_master_key ((nflag == 0), 
+    if (kdb_get_master_key ((nflag == 0),
 			    master_key, master_key_schedule) != 0) {
       fprintf (stdout, "Couldn't read master key.\n");
       fflush (stdout);
@@ -241,7 +241,7 @@ change_principal()
 	    if (!creating) {
 		/*
 		 * copy the existing data so we can use the old values
-		 * for the qualifier clause of the replace 
+		 * for the qualifier clause of the replace
 		 */
 		principal_data[i].old = (char *) &old_principal;
 		bcopy(&principal_data[i], &old_principal,
@@ -310,7 +310,7 @@ change_principal()
 		}
 
 		/* seal it under the kerberos master key */
-		kdb_encrypt_key (new_key, new_key, 
+		kdb_encrypt_key (new_key, new_key,
 				 master_key, master_key_schedule,
 				 ENCRYPT);
 		bcopy(new_key, &principal_data[i].key_low, 4);
@@ -398,7 +398,7 @@ change_principal()
 
 	    /*
 	     * remaining fields -- key versions and mod info, should
-	     * not be directly manipulated 
+	     * not be directly manipulated
 	     */
 	    if (changed) {
 		if (kerb_put_principal(&principal_data[i], 1)) {

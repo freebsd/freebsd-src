@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)position.c	8.1 (Berkeley) 6/6/93";
  * first char on each currently displayed line.
  *
  * {{ The position table is scrolled by moving all the entries.
- *    Would be better to have a circular table 
+ *    Would be better to have a circular table
  *    and just change a couple of pointers. }}
  */
 

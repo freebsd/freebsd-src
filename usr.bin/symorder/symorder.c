@@ -219,7 +219,7 @@ main(argc, argv)
 	(void)lseek(o, sa, SEEK_SET);
 	if (write(o, (void *)symtab, n) != n)
 		error(kfile);
-	if (write(o, (void *)&strtabsize, sizeof(int)) != sizeof(int)) 
+	if (write(o, (void *)&strtabsize, sizeof(int)) != sizeof(int))
 		error(kfile);
 	if (write(o, newstrings, strtabsize - sizeof(int)) !=
 	    strtabsize - sizeof(int))
@@ -248,7 +248,7 @@ reorder(st1, st2, entries)
 
 	for (p = st1, n = entries; --n >= 0; ++p)
 		if (inlist(p) != -1)
-			++symfound; 
+			++symfound;
 	for (p = st2 + symfound, n = entries; --n >= 0; ++st1) {
 		if (excluded(st1))
 			continue;
