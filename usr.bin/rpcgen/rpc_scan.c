@@ -5,41 +5,42 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
- *
- * $FreeBSD$
  */
 
 #ident	"@(#)rpc_scan.c	1.13	93/07/05 SMI"
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rpc_scan.c 1.11 89/02/22 (C) 1987 SMI";
 #endif
 #endif
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- * rpc_scan.c, Scanner for the RPC protocol compiler 
- * Copyright (C) 1987, Sun Microsystems, Inc. 
+ * rpc_scan.c, Scanner for the RPC protocol compiler
+ * Copyright (C) 1987, Sun Microsystems, Inc.
  */
 
 #include <sys/types.h>
@@ -69,7 +70,7 @@ static void printdirective( char * );
 static void docppline( char *, int *, char ** );
 
 /*
- * scan expecting 1 given token 
+ * scan expecting 1 given token
  */
 void
 scan(expect, tokp)
@@ -83,7 +84,7 @@ scan(expect, tokp)
 }
 
 /*
- * scan expecting any of the 2 given tokens 
+ * scan expecting any of the 2 given tokens
  */
 void
 scan2(expect1, expect2, tokp)
@@ -98,7 +99,7 @@ scan2(expect1, expect2, tokp)
 }
 
 /*
- * scan expecting any of the 3 given token 
+ * scan expecting any of the 3 given token
  */
 void
 scan3(expect1, expect2, expect3, tokp)
@@ -115,7 +116,7 @@ scan3(expect1, expect2, expect3, tokp)
 }
 
 /*
- * scan expecting a constant, possibly symbolic 
+ * scan expecting a constant, possibly symbolic
  */
 void
 scan_num(tokp)
@@ -131,7 +132,7 @@ scan_num(tokp)
 }
 
 /*
- * Peek at the next token 
+ * Peek at the next token
  */
 void
 peek(tokp)
@@ -142,7 +143,7 @@ peek(tokp)
 }
 
 /*
- * Peek at the next token and scan it if it matches what you expect 
+ * Peek at the next token and scan it if it matches what you expect
  */
 int
 peekscan(expect, tokp)
@@ -158,7 +159,7 @@ peekscan(expect, tokp)
 }
 
 /*
- * Get the next token, printing out any directive that are encountered. 
+ * Get the next token, printing out any directive that are encountered.
  */
 void
 get_token(tokp)
@@ -192,7 +193,7 @@ get_token(tokp)
 				if (commenting) {
 					break;
 				} else if (cppline(curline)) {
-					docppline(curline, &linenum, 
+					docppline(curline, &linenum,
 						  &infilename);
 				} else if (directive(curline)) {
 					printdirective(curline);
@@ -222,7 +223,7 @@ get_token(tokp)
 	}
 
 	/*
-	 * 'where' is not whitespace, comment or directive Must be a token! 
+	 * 'where' is not whitespace, comment or directive Must be a token!
 	 */
 	switch (*where) {
 	case ':':
@@ -346,7 +347,7 @@ findstrconst(str, val)
 	}
 	p++;
 	size = p - *str;
-	*val = alloc(size + 1);
+	*val = xmalloc(size + 1);
 	(void) strncpy(*val, *str, size);
 	(*val)[size] = 0;
 	*str = p;
@@ -372,7 +373,7 @@ findchrconst(str, val)
 	if (size != 3) {
 		error("empty char string");
 	}
-	*val = alloc(size + 1);
+	*val = xmalloc(size + 1);
 	(void) strncpy(*val, *str, size);
 	(*val)[size] = 0;
 	*str = p;
@@ -398,7 +399,7 @@ findconst(str, val)
 		} while (isdigit(*p));
 	}
 	size = p - *str;
-	*val = alloc(size + 1);
+	*val = xmalloc(size + 1);
 	(void) strncpy(*val, *str, size);
 	(*val)[size] = 0;
 	*str = p;
@@ -454,7 +455,7 @@ findkind(mark, tokp)
 	}
 	tokp->kind = TOK_IDENT;
 	for (len = 0; isalnum(str[len]) || str[len] == '_'; len++);
-	tokp->str = alloc(len + 1);
+	tokp->str = xmalloc(len + 1);
 	(void) strncpy(tokp->str, str, len);
 	tokp->str[len] = 0;
 	*mark = str + len;
@@ -506,7 +507,7 @@ docppline(line, lineno, fname)
 		error("preprocessor error");
 	}
 	line++;
-	p = file = alloc(strlen(line) + 1);
+	p = file = xmalloc(strlen(line) + 1);
 	while (*line && *line != '"') {
 		*p++ = *line++;
 	}

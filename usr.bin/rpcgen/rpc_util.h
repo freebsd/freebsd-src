@@ -8,23 +8,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -50,26 +50,25 @@
 *
 *
 *
-*	Copyright Notice 
+*	Copyright Notice
 *
-* Notice of copyright on this source code product does not indicate 
+* Notice of copyright on this source code product does not indicate
 *  publication.
 *
 *	(c) 1986,1987,1988.1989  Sun Microsystems, Inc
 *	(c) 1983,1984,1985,1986,1987,1988,1989  AT&T.
 *          All rights reserved.
-*/ 
+*/
 
 /*      @(#)rpc_util.h  1.5  90/08/29  (C) 1987 SMI   */
 
 /*
- * rpc_util.h, Useful definitions for the RPC protocol compiler 
+ * rpc_util.h, Useful definitions for the RPC protocol compiler
  */
 #include <sys/types.h>
 #include <stdlib.h>
 
-#define	alloc(size)		malloc((unsigned)(size))
-#define	ALLOC(object)   (object *) malloc(sizeof(object))
+#define	XALLOC(object)   (object *) xmalloc(sizeof(object))
 
 #define	s_print	(void) sprintf
 #define	f_print (void) fprintf
@@ -106,7 +105,7 @@ struct commandline {
 #define	GET 2
 
 /*
- * Global variables 
+ * Global variables
  */
 #define	MAXLINESIZE 1024
 extern char curline[MAXLINESIZE];
@@ -128,7 +127,7 @@ extern xdrfunc *xdrfunc_head, *xdrfunc_tail;
  * All the option flags
  */
 extern int inetdflag;
-extern int pmflag;   
+extern int pmflag;
 extern int tblflag;
 extern int logflag;
 extern int newstyle;
@@ -150,13 +149,15 @@ extern int nonfatalerrors;
 extern pid_t childpid;
 
 /*
- * rpc_util routines 
+ * rpc_util routines
  */
 void reinitialize();
 void crash();
 void add_type(int len, char *type);
-
 void storeval();
+void *xmalloc(size_t size);
+void *xrealloc(void *ptr, size_t size);
+char *xstrdup(const char *str);
 
 #define	STOREVAL(list,item)	\
 	storeval(list,item)
@@ -182,20 +183,20 @@ void tabify();
 void record_open();
 bas_type *find_type();
 /*
- * rpc_cout routines 
+ * rpc_cout routines
  */
 void cprint();
 void emit();
 
 /*
- * rpc_hout routines 
+ * rpc_hout routines
  */
 void print_datadef();
 void print_funcdef();
 void print_xdr_func_def();
 
 /*
- * rpc_svcout routines 
+ * rpc_svcout routines
  */
 void write_most();
 void write_register();

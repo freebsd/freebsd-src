@@ -5,31 +5,32 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
- *
- * $FreeBSD$
  */
 
 /* #pragma ident	"@(#)rpc_sample.c	1.9	94/04/25 SMI" */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpc_sample.c, Sample client-server code outputter for the RPC protocol compiler
@@ -54,7 +55,7 @@ write_sample_svc(def)
      definition *def;
 {
 
-	if (def->def_kind != DEF_PROGRAM) 
+	if (def->def_kind != DEF_PROGRAM)
 	  return;
 	write_sample_server(def);
 }
@@ -67,7 +68,7 @@ write_sample_clnt(def)
         version_list *vp;
 	int count = 0;
 
-	if (def->def_kind != DEF_PROGRAM) 
+	if (def->def_kind != DEF_PROGRAM)
 	  return(0);
 	/* generate sample code for each version */
 	for (vp = def->def.pr.versions; vp != NULL; vp = vp->next) {
@@ -110,7 +111,7 @@ write_sample_client(program_name, vp)
 		if(proc->arg_num < 2 && !newstyle) {
 			f_print(fout, "\t");
 			if(!streq(proc->args.decls->decl.type, "void"))
-				ptype(proc->args.decls->decl.prefix, 
+				ptype(proc->args.decls->decl.prefix,
 				      proc->args.decls->decl.type, 1);
 			else
 				f_print(fout, "char * "); /* cannot have "void" type */
@@ -131,7 +132,7 @@ write_sample_client(program_name, vp)
 
 	/* generate creation of client handle */
 	f_print(fout, "\n#ifndef\tDEBUG\n");
-	f_print(fout, "\tclnt = clnt_create(host, %s, %s, \"%s\");\n", 
+	f_print(fout, "\tclnt = clnt_create(host, %s, %s, \"%s\");\n",
 		program_name, vp->vers_name, tirpcflag? "netpath" : "udp");
 	f_print(fout, "\tif (clnt == (CLIENT *) NULL) {\n");
 	f_print(fout, "\t\tclnt_pcreateerror(host);\n");
@@ -142,13 +143,13 @@ write_sample_client(program_name, vp)
 	i = 0;
 	for (proc = vp->procs; proc != NULL; proc = proc->next) {
 		if (mtflag)
-			f_print(fout, "\tretval_%d = ",++i);      
+			f_print(fout, "\tretval_%d = ",++i);
 		else
-			f_print(fout, "\tresult_%d = ",++i);      
+			f_print(fout, "\tresult_%d = ",++i);
 		pvname(proc->proc_name, vp->vers_num);
 		if (proc->arg_num < 2 && !newstyle) {
 			f_print(fout, "(");
-			if(streq(proc->args.decls->decl.type, "void")) 
+			if(streq(proc->args.decls->decl.type, "void"))
 				/* cast to void * */
 				f_print(fout, "(void *)");
 			f_print(fout, "&");
@@ -227,14 +228,14 @@ write_sample_server(def)
 			}
 			else
 				f_print(fout, "\tbool_t retval;\n");
-			f_print(fout, 
+			f_print(fout,
 				"\n\t/*\n\t * insert server code here\n\t */\n\n");
 
 			if (!mtflag)
 				if(!streq(proc->res_type, "void"))
 					f_print(fout, "\treturn (&result);\n}\n");
 				else /* cast back to void * */
-					f_print(fout, "\treturn((void *) &result);\n}\n"); 
+					f_print(fout, "\treturn((void *) &result);\n}\n");
 			else
 				f_print(fout, "\treturn (retval);\n}\n");
 		}
@@ -242,7 +243,7 @@ write_sample_server(def)
 		if (mtflag) {
 		f_print(fout, "\nint\n");
 		pvname(def->def_name, vp->vers_num);
-		if (Cflag) 
+		if (Cflag)
 			f_print(fout,"_freeresult(SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)\n");
 		else {
 			f_print(fout,"_freeresult(transp, xdr_result, result)\n");
@@ -252,7 +253,7 @@ write_sample_server(def)
 		}
 		f_print(fout, "{\n");
 		f_print(fout, "\t(void) xdr_free(xdr_result, result);\n");
-		f_print(fout, 
+		f_print(fout,
 			"\n\t/*\n\t * Insert additional freeing code here, if needed\n\t */\n");
 		f_print(fout, "\n}\n");
 
