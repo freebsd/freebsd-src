@@ -815,7 +815,7 @@ vr_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	VR_UNLOCK(sc);
 	return(0);
 
@@ -838,7 +838,7 @@ vr_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	vr_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->vr_miibus);
@@ -974,7 +974,6 @@ static void
 vr_rxeof(sc)
 	struct vr_softc		*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct vr_chain_onefrag	*cur_rx;
@@ -1052,11 +1051,7 @@ vr_rxeof(sc)
 		m = m0;
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	return;
@@ -1390,8 +1385,7 @@ vr_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->vr_mbuf);
+		BPF_MTAP(ifp, cur_tx->vr_mbuf);
 
 		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
 		VR_SETBIT16(sc, VR_COMMAND, /*VR_CMD_TX_ON|*/VR_CMD_TX_GO);
@@ -1576,11 +1570,6 @@ vr_ioctl(ifp, command, data)
 	VR_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			vr_init(sc);
@@ -1601,7 +1590,7 @@ vr_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

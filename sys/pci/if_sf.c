@@ -541,11 +541,6 @@ sf_ioctl(ifp, command, data)
 	SF_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -576,7 +571,7 @@ sf_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -834,7 +829,7 @@ sf_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	SF_UNLOCK(sc);
 	return(0);
 
@@ -855,7 +850,7 @@ sf_detach(dev)
 	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	sf_stop(sc);
 
 	bus_generic_detach(dev);
@@ -977,7 +972,6 @@ static void
 sf_rxeof(sc)
 	struct sf_softc		*sc;
 {
-	struct ether_header	*eh;
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	struct sf_rx_bufdesc_type0	*desc;
@@ -1017,12 +1011,8 @@ sf_rxeof(sc)
 		}
 		m = m0;
 
-		eh = mtod(m, struct ether_header *);
 		ifp->if_ipackets++;
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 
 	csr_write_4(sc, SF_CQ_CONSIDX,
@@ -1404,8 +1394,7 @@ sf_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 		SF_INC(i, SF_TX_DLIST_CNT);
 		sc->sf_tx_cnt++;

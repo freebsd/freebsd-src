@@ -3567,8 +3567,7 @@ tulip_rx_intr(
 #if !defined(TULIP_COPY_RXDATA)
 		ms->m_pkthdr.len = total_len;
 		ms->m_pkthdr.rcvif = ifp;
-		m_adj(ms, sizeof(struct ether_header));
-		ether_input(ifp, &eh, ms);
+		(*ifp->if_input)(ifp, ms);
 #else
 #ifdef BIG_PACKET
 #error BIG_PACKET is incompatible with TULIP_COPY_RXDATA
@@ -3577,8 +3576,7 @@ tulip_rx_intr(
 		m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
 		m0->m_len = m0->m_pkthdr.len = total_len;
 		m0->m_pkthdr.rcvif = ifp;
-		m_adj(m0, sizeof(struct ether_header));
-		ether_input(ifp, &eh, m0);
+		(*ifp->if_input)(ifp, m0);
 		m0 = ms;
 #endif /* ! TULIP_COPY_RXDATA */
 	    }
@@ -4334,8 +4332,7 @@ tulip_txput(
     /*
      * bounce a copy to the bpf listener, if any.
      */
-    if (sc->tulip_if.if_bpf != NULL)
-	bpf_mtap(&sc->tulip_if, m);
+    BPF_MTAP(&sc->tulip_if, m);
 
     /*
      * The descriptors have been filled in.  Now get ready
@@ -4558,12 +4555,6 @@ tulip_ifioctl(
     s = splimp();
 #endif
     switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR: {
-	    error = ether_ioctl(ifp, cmd, data);
-	    break;
-	}
-
 	case SIOCSIFFLAGS: {
 	    tulip_addr_filter(sc); /* reinit multicast filter */
 	    tulip_init(sc);
@@ -4621,7 +4612,7 @@ tulip_ifioctl(
 	}
 #endif
 	default: {
-	    error = EINVAL;
+	    error = ether_ioctl(ifp, cmd, data);
 	    break;
 	}
     }
@@ -4813,7 +4804,7 @@ tulip_attach(
 
     tulip_reset(sc);
 
-    ether_ifattach(&(sc)->tulip_if, ETHER_BPF_SUPPORTED);
+    ether_ifattach(&(sc)->tulip_if, sc->tulip_enaddr);
     ifp->if_snd.ifq_maxlen = ifqmaxlen;
 }
 

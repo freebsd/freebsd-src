@@ -978,7 +978,7 @@ wb_attach(dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	WB_UNLOCK(sc);
 	return(0);
 
@@ -1003,7 +1003,7 @@ wb_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	wb_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	/* Delete any miibus and phy devices attached to this interface */
 	bus_generic_detach(dev);
@@ -1143,7 +1143,6 @@ static void
 wb_rxeof(sc)
 	struct wb_softc		*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m = NULL;
         struct ifnet		*ifp;
 	struct wb_chain_onefrag	*cur_rx;
@@ -1204,11 +1203,7 @@ wb_rxeof(sc)
 		m = m0;
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 }
 
@@ -1561,8 +1556,7 @@ wb_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->wb_mbuf);
+		BPF_MTAP(ifp, cur_tx->wb_mbuf);
 	}
 
 	/*
@@ -1785,11 +1779,6 @@ wb_ioctl(ifp, command, data)
 	WB_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			wb_init(sc);
@@ -1810,7 +1799,7 @@ wb_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 

@@ -1633,7 +1633,7 @@ done:
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, eaddr);
 	XL_UNLOCK(sc);
 	return(0);
 
@@ -1657,7 +1657,7 @@ xl_detach(dev)
 
 	xl_reset(sc);
 	xl_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	/* Delete any miibus and phy devices attached to this interface */
 	if (sc->xl_miibus != NULL) {
@@ -1847,7 +1847,6 @@ static void
 xl_rxeof(sc)
 	struct xl_softc		*sc;
 {
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct xl_chain_onefrag	*cur_rx;
@@ -1905,12 +1904,8 @@ again:
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
 
 		if (sc->xl_type == XL_TYPE_905B) {
 			/* Do IP checksum checking. */
@@ -1927,7 +1922,8 @@ again:
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
-		ether_input(ifp, eh, m);
+
+		(*ifp->if_input)(ifp, m);
 	}
 
 	/*
@@ -2364,8 +2360,7 @@ xl_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->xl_mbuf);
+		BPF_MTAP(ifp, cur_tx->xl_mbuf);
 	}
 
 	/*
@@ -2526,8 +2521,7 @@ static void xl_start_90xB(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, cur_tx->xl_mbuf);
+		BPF_MTAP(ifp, cur_tx->xl_mbuf);
 
 		XL_INC(idx, XL_TX_LIST_CNT);
 		sc->xl_cdata.xl_tx_cnt++;
@@ -2895,11 +2889,6 @@ xl_ioctl(ifp, command, data)
 	XL_LOCK(sc);
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		XL_SEL_WIN(5);
 		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
@@ -2947,7 +2936,7 @@ xl_ioctl(ifp, command, data)
 			    &mii->mii_media, command);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
