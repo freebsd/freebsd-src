@@ -2,13 +2,9 @@
 # $FreeBSD$
 
 PROG=	newfs
-SRCS=	getmntopts.c newfs.c mkfs.c
-MAN=	newfs.8
-
-MOUNT=	${.CURDIR}/../mount
-CFLAGS+=-DFSIRAND -I${MOUNT}
+SRCS=	newfs.c mkfs.c
+CFLAGS+=-DFSIRAND
 WARNS?=	2
-
-.PATH:	${MOUNT}
+MAN=	newfs.8
 
 .include <bsd.prog.mk>
