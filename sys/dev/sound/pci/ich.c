@@ -79,6 +79,7 @@ struct sc_info {
 
 	struct ac97_info *codec;
 	struct sc_chinfo ch[3];
+	int ac97rate;
 	struct ich_desc *dtbl;
 };
 
@@ -284,10 +285,16 @@ ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
-	if (ch->spdreg)
-		return ac97_setrate(sc->codec, ch->spdreg, speed);
-	else
+	if (ch->spdreg) {
+		int r;
+		if (sc->ac97rate <= 32000 || sc->ac97rate >= 64000)
+			sc->ac97rate = 48000;
+		r = speed * 48000 / sc->ac97rate;
+		return ac97_setrate(sc->codec, ch->spdreg, r) * 
+			sc->ac97rate / 48000;
+	} else {
 		return 48000;
+	}
 }
 
 static int
@@ -397,6 +404,22 @@ ich_intr(void *p)
 			ich_wr(sc, ch->regbase + ICH_REG_X_SR, st, 2);
 		}
 	}
+}
+
+/* ------------------------------------------------------------------------- */
+/* Sysctl to control ac97 speed (some boards overclocked ac97). */
+
+static int
+ich_initsys(struct sc_info* sc)
+{
+#ifdef SND_DYNSYSCTL
+	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
+		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
+		       OID_AUTO, "ac97rate", CTLFLAG_RW, 
+		       &sc->ac97rate, 48000, 
+		       "AC97 link rate (default = 48000)");
+#endif /* SND_DYNSYSCTL */
+	return 0;
 }
 
 /* -------------------------------------------------------------------- */
@@ -548,6 +571,8 @@ ich_pci_attach(device_t dev)
 		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq), sc->bufsz);
 
 	pcm_setstatus(dev, status);
+
+	ich_initsys(sc);
 
 	return 0;
 
