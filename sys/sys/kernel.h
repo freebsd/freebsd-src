@@ -123,10 +123,10 @@ enum sysinit_sub_id {
 	SI_SUB_SCHED_IDLE	= 0x2600000,	/* required idle procs */
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
 	SI_SUB_SOFTINTR		= 0x2800000,	/* start soft interrupt thread */
+	SI_SUB_CLOCKS		= 0x3000000,	/* real time and stat clocks*/
 	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
-	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
 	SI_SUB_CLIST		= 0x5800000,	/* clists*/
 	SI_SUB_SYSV_SHM		= 0x6400000,	/* System V shared memory*/
 	SI_SUB_SYSV_SEM		= 0x6800000,	/* System V semaphores*/
