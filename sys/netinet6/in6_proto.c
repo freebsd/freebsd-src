@@ -64,6 +64,7 @@
  *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
  */
 
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -143,6 +144,16 @@ struct ip6protosw inet6sw[] = {
   0,
   0,		0,		0,		0,
   &udp6_usrreqs,
+},
+{ SOCK_STREAM,	&inet6domain,	IPPROTO_TCP,	PR_CONNREQUIRED | PR_WANTRCVD,
+  tcp6_input,	0,		tcp6_ctlinput,	tcp_ctloutput,
+  0,
+#ifdef INET	/* don't call timeout routines twice */
+  tcp_init,	0,		0,		tcp_drain,
+#else
+  tcp_init,	0,		tcp_slowtimo,	tcp_drain,
+#endif
+  &tcp6_usrreqs,
 },
 { SOCK_RAW,	&inet6domain,	IPPROTO_RAW,	PR_ATOMIC | PR_ADDR,
   rip6_input,	rip6_output,	0,		rip6_ctloutput,

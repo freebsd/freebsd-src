@@ -42,7 +42,8 @@ struct	tcp_debug {
 	short	td_act;
 	short	td_ostate;
 	caddr_t	td_tcb;
-	struct	tcpiphdr td_ti;
+	u_char	td_ipgen[40]; /* the size must be of max ip header, now IPv6 */
+	struct	tcphdr td_th;
 	short	td_req;
 	struct	tcpcb td_cb;
 };

@@ -69,6 +69,11 @@
 #define	_NETINET_TCP6_VAR_H_
 
 #ifdef _KERNEL
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet6_tcp6);
+#endif
+
+extern	int tcp_v6mssdflt;	/* XXX */
 
 struct	ip6_hdr;
 void	tcp6_ctlinput __P((int, struct sockaddr *, void *));
@@ -78,6 +83,6 @@ struct	rtentry *tcp_rtlookup6 __P((struct inpcb *));
 
 extern struct	pr_usrreqs tcp6_usrreqs;
 
-#endif
+#endif /* _KERNEL */
 
 #endif /* _NETINET_TCP6_VAR_H_ */

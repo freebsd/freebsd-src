@@ -977,13 +977,14 @@ got_match:
 			NTOHL(tip->ti_ack);
 			tip->ti_len = ip->ip_len - hlen - (tip->ti_off << 2);
 			if (tcp->th_flags & TH_ACK) {
-				tcp_respond(NULL, tip, *m,
+				tcp_respond(NULL, (void *)ip, tcp, *m,
 				    (tcp_seq)0, ntohl(tcp->th_ack), TH_RST);
 			} else {
 				if (tcp->th_flags & TH_SYN)
 					tip->ti_len++;
-				tcp_respond(NULL, tip, *m, tip->ti_seq
-				    + tip->ti_len, (tcp_seq)0, TH_RST|TH_ACK);
+				tcp_respond(NULL, (void *)ip, tcp, *m, 
+				    tip->ti_seq + tip->ti_len,
+				    (tcp_seq)0, TH_RST|TH_ACK);
 			}
 			*m = NULL;
 			break;

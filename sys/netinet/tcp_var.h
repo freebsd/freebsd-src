@@ -40,14 +40,33 @@
  * Kernel variables for tcp.
  */
 
+/* TCP segment queue entry */
+struct tseg_qent {
+	LIST_ENTRY(tseg_qent) tqe_q;
+	int	tqe_len;		/* TCP segment data length */
+	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
+	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+};
+LIST_HEAD(tsegqe_head, tseg_qent);
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_TSEGQ);
+#endif
+
+struct tcptemp {
+	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
+	struct	tcphdr tt_t;
+};
+
+#define tcp6cb		tcpcb  /* for KAME src sync over BSD*'s */
+
 /*
  * Tcp control block, one per tcp; fields:
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	mbuf *t_segq;
+	struct	tsegqe_head t_segq;
 	int	t_dupacks;		/* consecutive dup acks recd */
-	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
+	struct	tcptemp	*t_template;	/* skeletal packet for transmit */
 
 	struct	callout *tt_rexmt;	/* retransmit timer */
 	struct	callout *tt_persist;	/* retransmit persistence */
@@ -369,17 +388,18 @@ struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
 int	 tcp_output __P((struct tcpcb *));
 void	 tcp_quench __P((struct inpcb *, int));
-void	 tcp_respond __P((struct tcpcb *,
-	    struct tcpiphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
+void	 tcp_respond __P((struct tcpcb *, void *,
+	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
 struct rtentry *
 	 tcp_rtlookup __P((struct inpcb *));
 void	 tcp_setpersist __P((struct tcpcb *));
 void	 tcp_slowtimo __P((void));
-struct tcpiphdr *
+struct tcptemp *
 	 tcp_template __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_timers __P((struct tcpcb *, int));
-void	 tcp_trace __P((int, int, struct tcpcb *, struct tcpiphdr *, int));
+void	 tcp_trace __P((int, int, struct tcpcb *, void *, struct tcphdr *,
+			int));
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
