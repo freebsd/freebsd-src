@@ -102,8 +102,10 @@
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
+#ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#endif
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -119,8 +121,10 @@ void	fnstcw		__P((caddr_t addr));
 void	fnstsw		__P((caddr_t addr));
 void	fp_divide_by_0	__P((void));
 void	frstor		__P((caddr_t addr));
+#ifdef CPU_ENABLE_SSE
 void	fxsave		__P((caddr_t addr));
 void	fxrstor		__P((caddr_t addr));
+#endif
 void	start_emulating	__P((void));
 void	stop_emulating	__P((void));
 
@@ -971,10 +975,12 @@ fpusave(addr)
       union savefpu *addr;
 {
 
-	if (!cpu_fxsr)
-		fnsave(addr);
-	else
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
 		fxsave(addr);
+	else
+#endif
+		fnsave(addr);
 }
 
 static void
@@ -982,10 +988,12 @@ fpurstor(addr)
       union savefpu *addr;
 {
 
-	if (!cpu_fxsr)
-		frstor(addr);
-	else
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
 		fxrstor(addr);
+	else
+#endif
+		frstor(addr);
 }
 
 #ifdef I586_CPU
