@@ -3,6 +3,8 @@ locations:
 
 Country		Site and Maintainer
 =======		=========================================================
+France		ftp://ftp.ibp.fr:/pub/FreeBSD/FreeBSD-current
+		<Remy.Card@ibp.fr>
 
 USA		ftp://gatekeeper.dec.com:/pub/BSD/FreeBSD/FreeBSD-current
 		<hubbard@gatekeeper.dec.com>
@@ -10,4 +12,4 @@ USA		ftp://gatekeeper.dec.com:/pub/BSD/FreeBSD/FreeBSD-current
 USA		ftp://ftp.cybernetics.net:/pub/FreeBSD
 		<michael@Cybernetics.NET>
 
-$Id: MIRROR.SITES,v 1.16 1994/06/08 13:33:51 sean Exp $
+$Id: MIRROR.SITES,v 1.1 1994/09/13 08:17:52 jkh Exp $
