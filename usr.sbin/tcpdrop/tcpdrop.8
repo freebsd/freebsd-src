@@ -48,9 +48,9 @@ If a connection to
 is causing congestion on a network link, one can drop the TCP session
 in charge:
 .Bd -literal -offset indent
-# fstat | egrep 'httpd.*internet.*<--'
-www      httpd      21307    3* internet stream tcp \e
-	0xd1007ca8 192.168.5.41:80 <-- 192.168.5.1:26747
+# sockstat | grep '.*httpd.*[0-9]$'
+www      httpd      16525 3  tcp4 \e
+	192.168.5.41:80      192.168.5.1:26747
 .Ed
 .Pp
 The following command will drop the connection:
@@ -58,7 +58,7 @@ The following command will drop the connection:
 # tcpdrop 192.168.5.41 80 192.168.5.1 26747
 .Ed
 .Sh SEE ALSO
-.Xr fstat 1 ,
+.Xr sockstat 1 ,
 .Xr netstat 1
 .Sh AUTHORS
 .An Markus Friedl Aq markus@openbsd.org
