@@ -1014,12 +1014,18 @@ ndis_tick(xsc)
 	void			*xsc;
 {
 	struct ndis_softc	*sc;
+
+	mtx_unlock(&Giant);
+
 	sc = xsc;
 
 	ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 	sc->ndis_stat_ch = timeout(ndis_tick, sc, hz *
 	    sc->ndis_block.nmb_checkforhangsecs);
 
+	mtx_lock(&Giant);
+
+	return;
 }
 
 static void
