@@ -223,6 +223,20 @@ If the
 (passive) flag is specified, a passive (rather than active) connection
 will be attempted.
 .Pp
+If the
+.Fa h
+(high) flag is specified, data sockets will be allocated in the high
+port range (see
+.Xr ip 4 ).
+.Pp
+If the
+.Fa d
+(direct) flag is specified,
+.Fn fetchGetFTP
+and
+.Fn fetchPutFTP
+will use a direct connection even if a proxy server is defined.
+.Pp
 If no user name or password is given, the
 .Nm fetch
 library will attempt an anonymous login, with user name "ftp" and
@@ -234,6 +248,14 @@ and
 .Fn fetchPutHTTP
 functions implement the HTTP/1.1 protocol. With a little luck, there's
 even a chance that they comply with RFC2068.
+.Pp
+If the
+.Fa d
+(direct) flag is specified,
+.Fn fetchGetHTTP
+and
+.Fn fetchPutHTTP
+will use a direct connection even if a proxy server is defined.
 .Pp
 Since there seems to be no good way of implementing the HTTP PUT
 method in a manner consistent with the rest of the
@@ -314,7 +336,8 @@ to use for transferring files.
 .Sh SEE ALSO
 .Xr com_err 3 ,
 .Xr fetch 1 ,
-.Xr ftpio 3
+.Xr ftpio 3 ,
+.Xr ip 4 .
 .Rs
 .%A T. Berners-Lee, L. Masinter & M. McCahill
 .%D December 1994
@@ -400,6 +423,11 @@ codes used for FTP and HTTP overlap, as do those used for resolver and
 system errors. For instance, error code 202 means "Command not
 implemented, superfluous at this site" in an FTP context and
 "Accepted" in an HTTP context.
+.Pp
+.Fn fetchStatFTP
+does not check that the result of an MDTM command is a valid date.
+.Pp
+The HTTP code needs a complete rewrite, or at least a serious cleanup.
 .Pp
 The man page is poorly written and produces badly formatted text.
 .Pp
