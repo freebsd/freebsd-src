@@ -7,7 +7,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -113,13 +113,16 @@
 /*--
   Generic 32-bit Unix.
   Also works on 64-bit Unix boxes.
+  This is the default.
 --*/
 #define BZ_UNIX      1
 
 /*--
   Win32, as seen by Jacob Navia's excellent
   port of (Chris Fraser & David Hanson)'s excellent
-  lcc compiler.
+  lcc compiler.  Or with MS Visual C.
+  This is selected automatically if compiled by a compiler which
+  defines _WIN32, not including the Cygwin GCC.
 --*/
 #define BZ_LCCWIN32  0
 
@@ -156,6 +159,7 @@
 --*/
 
 #if BZ_UNIX
+#   include <fcntl.h>
 #   include <sys/types.h>
 #   include <utime.h>
 #   include <unistd.h>
@@ -164,8 +168,9 @@
 
 #   define PATH_SEP    '/'
 #   define MY_LSTAT    lstat
-#   define MY_S_IFREG  S_ISREG
 #   define MY_STAT     stat
+#   define MY_S_ISREG  S_ISREG
+#   define MY_S_ISDIR  S_ISDIR
 
 #   define APPEND_FILESPEC(root, name) \
       root=snocString((root), (name))
@@ -180,19 +185,23 @@
 #   else
 #      define NORETURN /**/
 #   endif
+
 #   ifdef __DJGPP__
 #     include <io.h>
 #     include <fcntl.h>
 #     undef MY_LSTAT
+#     undef MY_STAT
 #     define MY_LSTAT stat
+#     define MY_STAT stat
 #     undef SET_BINARY_MODE
 #     define SET_BINARY_MODE(fd)                        \
         do {                                            \
            int retVal = setmode ( fileno ( fd ),        \
-                                 O_BINARY );            \
+                                  O_BINARY );           \
            ERROR_IF_MINUS_ONE ( retVal );               \
         } while ( 0 )
 #   endif
+
 #   ifdef __CYGWIN__
 #     include <io.h>
 #     include <fcntl.h>
@@ -200,11 +209,11 @@
 #     define SET_BINARY_MODE(fd)                        \
         do {                                            \
            int retVal = setmode ( fileno ( fd ),        \
-                                 O_BINARY );            \
+                                  O_BINARY );           \
            ERROR_IF_MINUS_ONE ( retVal );               \
         } while ( 0 )
 #   endif
-#endif
+#endif /* BZ_UNIX */
 
 
 
@@ -217,46 +226,23 @@
 #   define PATH_SEP       '\\'
 #   define MY_LSTAT       _stat
 #   define MY_STAT        _stat
-#   define MY_S_IFREG(x)  ((x) & _S_IFREG)
+#   define MY_S_ISREG(x)  ((x) & _S_IFREG)
+#   define MY_S_ISDIR(x)  ((x) & _S_IFDIR)
 
 #   define APPEND_FLAG(root, name) \
       root=snocString((root), (name))
 
-#   if 0
-   /*-- lcc-win32 seems to expand wildcards itself --*/
-#   define APPEND_FILESPEC(root, spec)                \
-      do {                                            \
-         if ((spec)[0] == '-') {                      \
-            root = snocString((root), (spec));        \
-         } else {                                     \
-            struct _finddata_t c_file;                \
-            long hFile;                               \
-            hFile = _findfirst((spec), &c_file);      \
-            if ( hFile == -1L ) {                     \
-               root = snocString ((root), (spec));    \
-            } else {                                  \
-               int anInt = 0;                         \
-               while ( anInt == 0 ) {                 \
-                  root = snocString((root),           \
-                            &c_file.name[0]);         \
-                  anInt = _findnext(hFile, &c_file);  \
-               }                                      \
-            }                                         \
-         }                                            \
-      } while ( 0 )
-#   else
 #   define APPEND_FILESPEC(root, name)                \
       root = snocString ((root), (name))
-#   endif
 
 #   define SET_BINARY_MODE(fd)                        \
       do {                                            \
          int retVal = setmode ( fileno ( fd ),        \
-                               O_BINARY );            \
+                                O_BINARY );           \
          ERROR_IF_MINUS_ONE ( retVal );               \
       } while ( 0 )
 
-#endif
+#endif /* BZ_LCCWIN32 */
 
 
 /*---------------------------------------------*/
@@ -338,6 +324,7 @@ typedef
    struct { UChar b[8]; } 
    UInt64;
 
+
 static
 void uInt64_from_UInt32s ( UInt64* n, UInt32 lo32, UInt32 hi32 )
 {
@@ -350,6 +337,7 @@ void uInt64_from_UInt32s ( UInt64* n, UInt32 lo32, UInt32 hi32 )
    n->b[1] = (UChar)((lo32 >> 8)  & 0xFF);
    n->b[0] = (UChar) (lo32        & 0xFF);
 }
+
 
 static
 double uInt64_to_double ( UInt64* n )
@@ -364,77 +352,6 @@ double uInt64_to_double ( UInt64* n )
    return sum;
 }
 
-static
-void uInt64_add ( UInt64* src, UInt64* dst )
-{
-   Int32 i;
-   Int32 carry = 0;
-   for (i = 0; i < 8; i++) {
-      carry += ( ((Int32)src->b[i]) + ((Int32)dst->b[i]) );
-      dst->b[i] = (UChar)(carry & 0xFF);
-      carry >>= 8;
-   }
-}
-
-static
-void uInt64_sub ( UInt64* src, UInt64* dst )
-{
-   Int32 t, i;
-   Int32 borrow = 0;
-   for (i = 0; i < 8; i++) {
-      t = ((Int32)dst->b[i]) - ((Int32)src->b[i]) - borrow;
-      if (t < 0) {
-         dst->b[i] = (UChar)(t + 256);
-         borrow = 1;
-      } else {
-         dst->b[i] = (UChar)t;
-         borrow = 0;
-      }
-   }
-}
-
-static
-void uInt64_mul ( UInt64* a, UInt64* b, UInt64* r_hi, UInt64* r_lo )
-{
-   UChar sum[16];
-   Int32 ia, ib, carry;
-   for (ia = 0; ia < 16; ia++) sum[ia] = 0;
-   for (ia = 0; ia < 8; ia++) {
-      carry = 0;
-      for (ib = 0; ib < 8; ib++) {
-         carry += ( ((Int32)sum[ia+ib]) 
-                    + ((Int32)a->b[ia]) * ((Int32)b->b[ib]) );
-         sum[ia+ib] = (UChar)(carry & 0xFF);
-         carry >>= 8;
-      }
-      sum[ia+8] = (UChar)(carry & 0xFF);
-      if ((carry >>= 8) != 0) panic ( "uInt64_mul" );
-   }
-
-   for (ia = 0; ia < 8; ia++) r_hi->b[ia] = sum[ia+8];
-   for (ia = 0; ia < 8; ia++) r_lo->b[ia] = sum[ia];
-}
-
-
-static
-void uInt64_shr1 ( UInt64* n )
-{
-   Int32 i;
-   for (i = 0; i < 8; i++) {
-      n->b[i] >>= 1;
-      if (i < 7 && (n->b[i+1] & 1)) n->b[i] |= 0x80;
-   }
-}
-
-static
-void uInt64_shl1 ( UInt64* n )
-{
-   Int32 i;
-   for (i = 7; i >= 0; i--) {
-      n->b[i] <<= 1;
-      if (i > 0 && (n->b[i-1] & 0x80)) n->b[i]++;
-   }
-}
 
 static
 Bool uInt64_isZero ( UInt64* n )
@@ -445,48 +362,22 @@ Bool uInt64_isZero ( UInt64* n )
    return 1;
 }
 
-static
+
+/* Divide *n by 10, and return the remainder.  */
+static 
 Int32 uInt64_qrm10 ( UInt64* n )
 {
-   /* Divide *n by 10, and return the remainder.  Long division
-      is difficult, so we cheat and instead multiply by
-      0xCCCC CCCC CCCC CCCD, which is 0.8 (viz, 0.1 << 3).
-   */
+   UInt32 rem, tmp;
    Int32  i;
-   UInt64 tmp1, tmp2, n_orig, zero_point_eight;
-
-   zero_point_eight.b[1] = zero_point_eight.b[2] = 
-   zero_point_eight.b[3] = zero_point_eight.b[4] = 
-   zero_point_eight.b[5] = zero_point_eight.b[6] = 
-   zero_point_eight.b[7] = 0xCC;
-   zero_point_eight.b[0] = 0xCD;
-
-   n_orig = *n;
-
-   /* divide n by 10, 
-      by multiplying by 0.8 and then shifting right 3 times */
-   uInt64_mul ( n, &zero_point_eight, &tmp1, &tmp2 );
-   uInt64_shr1(&tmp1); uInt64_shr1(&tmp1); uInt64_shr1(&tmp1); 
-   *n = tmp1;
-   
-   /* tmp1 = 8*n, tmp2 = 2*n */
-   uInt64_shl1(&tmp1); uInt64_shl1(&tmp1); uInt64_shl1(&tmp1);
-   tmp2 = *n; uInt64_shl1(&tmp2);
-
-   /* tmp1 = 10*n */
-   uInt64_add ( &tmp2, &tmp1 );
-
-   /* n_orig = n_orig - 10*n */
-   uInt64_sub ( &tmp1, &n_orig );
-
-   /* n_orig should now hold quotient, in range 0 .. 9 */
-   for (i = 7; i >= 1; i--) 
-      if (n_orig.b[i] != 0) panic ( "uInt64_qrm10(1)" );
-   if (n_orig.b[0] > 9)
-      panic ( "uInt64_qrm10(2)" );
-
-   return (int)n_orig.b[0];
+   rem = 0;
+   for (i = 7; i >= 0; i--) {
+      tmp = rem * 256 + n->b[i];
+      n->b[i] = tmp / 10;
+      rem = tmp % 10;
+   }
+   return rem;
 }
+
 
 /* ... and the Whole Entire Point of all this UInt64 stuff is
    so that we can supply the following function.
@@ -504,7 +395,8 @@ void uInt64_toAscii ( char* outbuf, UInt64* n )
       nBuf++;
    } while (!uInt64_isZero(&n_copy));
    outbuf[nBuf] = 0;
-   for (i = 0; i < nBuf; i++) outbuf[i] = buf[nBuf-i-1];
+   for (i = 0; i < nBuf; i++) 
+      outbuf[i] = buf[nBuf-i-1];
 }
 
 
@@ -566,35 +458,38 @@ void compressStream ( FILE *stream, FILE *zStream )
    if (ret == EOF) goto errhandler_io;
    if (zStream != stdout) {
       ret = fclose ( zStream );
+      outputHandleJustInCase = NULL;
       if (ret == EOF) goto errhandler_io;
    }
+   outputHandleJustInCase = NULL;
    if (ferror(stream)) goto errhandler_io;
    ret = fclose ( stream );
    if (ret == EOF) goto errhandler_io;
 
-   if (nbytes_in_lo32 == 0 && nbytes_in_hi32 == 0) 
-      nbytes_in_lo32 = 1;
-
    if (verbosity >= 1) {
-      Char   buf_nin[32], buf_nout[32];
-      UInt64 nbytes_in,   nbytes_out;
-      double nbytes_in_d, nbytes_out_d;
-      uInt64_from_UInt32s ( &nbytes_in, 
-                            nbytes_in_lo32, nbytes_in_hi32 );
-      uInt64_from_UInt32s ( &nbytes_out, 
-                            nbytes_out_lo32, nbytes_out_hi32 );
-      nbytes_in_d  = uInt64_to_double ( &nbytes_in );
-      nbytes_out_d = uInt64_to_double ( &nbytes_out );
-      uInt64_toAscii ( buf_nin, &nbytes_in );
-      uInt64_toAscii ( buf_nout, &nbytes_out );
-      fprintf ( stderr, "%6.3f:1, %6.3f bits/byte, "
-                        "%5.2f%% saved, %s in, %s out.\n",
-                nbytes_in_d / nbytes_out_d,
-                (8.0 * nbytes_out_d) / nbytes_in_d,
-                100.0 * (1.0 - nbytes_out_d / nbytes_in_d),
-                buf_nin,
-                buf_nout
-              );
+      if (nbytes_in_lo32 == 0 && nbytes_in_hi32 == 0) {
+	 fprintf ( stderr, " no data compressed.\n");
+      } else {
+	 Char   buf_nin[32], buf_nout[32];
+	 UInt64 nbytes_in,   nbytes_out;
+	 double nbytes_in_d, nbytes_out_d;
+	 uInt64_from_UInt32s ( &nbytes_in, 
+			       nbytes_in_lo32, nbytes_in_hi32 );
+	 uInt64_from_UInt32s ( &nbytes_out, 
+			       nbytes_out_lo32, nbytes_out_hi32 );
+	 nbytes_in_d  = uInt64_to_double ( &nbytes_in );
+	 nbytes_out_d = uInt64_to_double ( &nbytes_out );
+	 uInt64_toAscii ( buf_nin, &nbytes_in );
+	 uInt64_toAscii ( buf_nout, &nbytes_out );
+	 fprintf ( stderr, "%6.3f:1, %6.3f bits/byte, "
+		   "%5.2f%% saved, %s in, %s out.\n",
+		   nbytes_in_d / nbytes_out_d,
+		   (8.0 * nbytes_out_d) / nbytes_in_d,
+		   100.0 * (1.0 - nbytes_out_d / nbytes_in_d),
+		   buf_nin,
+		   buf_nout
+		 );
+      }
    }
 
    return;
@@ -652,7 +547,7 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
 
       while (bzerr == BZ_OK) {
          nread = BZ2_bzRead ( &bzerr, bzf, obuf, 5000 );
-         if (bzerr == BZ_DATA_ERROR_MAGIC) goto errhandler;
+         if (bzerr == BZ_DATA_ERROR_MAGIC) goto trycat;
          if ((bzerr == BZ_OK || bzerr == BZ_STREAM_END) && nread > 0)
             fwrite ( obuf, sizeof(UChar), nread, stream );
          if (ferror(stream)) goto errhandler_io;
@@ -668,9 +563,9 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
       if (bzerr != BZ_OK) panic ( "decompress:bzReadGetUnused" );
 
       if (nUnused == 0 && myfeof(zStream)) break;
-
    }
 
+   closeok:
    if (ferror(zStream)) goto errhandler_io;
    ret = fclose ( zStream );
    if (ret == EOF) goto errhandler_io;
@@ -680,11 +575,26 @@ Bool uncompressStream ( FILE *zStream, FILE *stream )
    if (ret != 0) goto errhandler_io;
    if (stream != stdout) {
       ret = fclose ( stream );
+      outputHandleJustInCase = NULL;
       if (ret == EOF) goto errhandler_io;
    }
+   outputHandleJustInCase = NULL;
    if (verbosity >= 2) fprintf ( stderr, "\n    " );
    return True;
 
+   trycat: 
+   if (forceOverwrite) {
+      rewind(zStream);
+      while (True) {
+      	 if (myfeof(zStream)) break;
+      	 nread = fread ( obuf, sizeof(UChar), 5000, zStream );
+      	 if (ferror(zStream)) goto errhandler_io;
+      	 if (nread > 0) fwrite ( obuf, sizeof(UChar), nread, stream );
+      	 if (ferror(stream)) goto errhandler_io;
+      }
+      goto closeok;
+   }
+  
    errhandler:
    BZ2_bzReadClose ( &bzerr_dummy, bzf );
    switch (bzerr) {
@@ -832,7 +742,7 @@ void cadvise ( void )
       stderr,
       "\nIt is possible that the compressed file(s) have become corrupted.\n"
         "You can use the -tvv option to test integrity of such files.\n\n"
-        "You can use the `bzip2recover' program to *attempt* to recover\n"
+        "You can use the `bzip2recover' program to attempt to recover\n"
         "data from undamaged sections of corrupted files.\n\n"
     );
 }
@@ -855,28 +765,55 @@ void showFileNames ( void )
 static 
 void cleanUpAndFail ( Int32 ec )
 {
-   IntNative retVal;
+   IntNative      retVal;
+   struct MY_STAT statBuf;
 
    if ( srcMode == SM_F2F 
         && opMode != OM_TEST
         && deleteOutputOnInterrupt ) {
-      if (noisy)
-      fprintf ( stderr, "%s: Deleting output file %s, if it exists.\n",
-                progName, outName );
-      if (outputHandleJustInCase != NULL)
-         fclose ( outputHandleJustInCase );
-      retVal = remove ( outName );
-      if (retVal != 0)
+
+      /* Check whether input file still exists.  Delete output file
+         only if input exists to avoid loss of data.  Joerg Prante, 5
+         January 2002.  (JRS 06-Jan-2002: other changes in 1.0.2 mean
+         this is less likely to happen.  But to be ultra-paranoid, we
+         do the check anyway.)  */
+      retVal = MY_STAT ( inName, &statBuf );
+      if (retVal == 0) {
+         if (noisy)
+            fprintf ( stderr, 
+                      "%s: Deleting output file %s, if it exists.\n",
+                      progName, outName );
+         if (outputHandleJustInCase != NULL)
+            fclose ( outputHandleJustInCase );
+         retVal = remove ( outName );
+         if (retVal != 0)
+            fprintf ( stderr,
+                      "%s: WARNING: deletion of output file "
+                      "(apparently) failed.\n",
+                      progName );
+      } else {
          fprintf ( stderr,
-                   "%s: WARNING: deletion of output file (apparently) failed.\n",
+                   "%s: WARNING: deletion of output file suppressed\n",
+                    progName );
+         fprintf ( stderr,
+                   "%s:    since input file no longer exists.  Output file\n",
                    progName );
+         fprintf ( stderr,
+                   "%s:    `%s' may be incomplete.\n",
+                   progName, outName );
+         fprintf ( stderr, 
+                   "%s:    I suggest doing an integrity test (bzip2 -tv)"
+                   " of it.\n",
+                   progName );
+      }
    }
+
    if (noisy && numFileNames > 0 && numFilesProcessed < numFileNames) {
       fprintf ( stderr, 
                 "%s: WARNING: some files have not been processed:\n"
-                "\t%d specified on command line, %d not processed yet.\n\n",
-                progName, numFileNames, 
-                          numFileNames - numFilesProcessed );
+                "%s:    %d specified on command line, %d not processed yet.\n\n",
+                progName, progName,
+                numFileNames, numFileNames - numFilesProcessed );
    }
    setExit(ec);
    exit(exitValue);
@@ -915,14 +852,16 @@ void crcError ( void )
 static 
 void compressedStreamEOF ( void )
 {
-   fprintf ( stderr,
-             "\n%s: Compressed file ends unexpectedly;\n\t"
-             "perhaps it is corrupted?  *Possible* reason follows.\n",
-             progName );
-   perror ( progName );
-   showFileNames();
-   cadvise();
-   cleanUpAndFail( 2 );
+  if (noisy) {
+    fprintf ( stderr,
+	      "\n%s: Compressed file ends unexpectedly;\n\t"
+	      "perhaps it is corrupted?  *Possible* reason follows.\n",
+	      progName );
+    perror ( progName );
+    showFileNames();
+    cadvise();
+  }
+  cleanUpAndFail( 2 );
 }
 
 
@@ -1038,6 +977,11 @@ void configError ( void )
 /*--- The main driver machinery                   ---*/
 /*---------------------------------------------------*/
 
+/* All rather crufty.  The main problem is that input files
+   are stat()d multiple times before use.  This should be
+   cleaned up. 
+*/
+
 /*---------------------------------------------*/
 static 
 void pad ( Char *s )
@@ -1082,6 +1026,32 @@ Bool fileExists ( Char* name )
 
 
 /*---------------------------------------------*/
+/* Open an output file safely with O_EXCL and good permissions.
+   This avoids a race condition in versions < 1.0.2, in which
+   the file was first opened and then had its interim permissions
+   set safely.  We instead use open() to create the file with
+   the interim permissions required. (--- --- rw-).
+
+   For non-Unix platforms, if we are not worrying about
+   security issues, simple this simply behaves like fopen.
+*/
+FILE* fopen_output_safely ( Char* name, const char* mode )
+{
+#  if BZ_UNIX
+   FILE*     fp;
+   IntNative fh;
+   fh = open(name, O_WRONLY|O_CREAT|O_EXCL, S_IWUSR|S_IRUSR);
+   if (fh == -1) return NULL;
+   fp = fdopen(fh, mode);
+   if (fp == NULL) close(fh);
+   return fp;
+#  else
+   return fopen(name, mode);
+#  endif
+}
+
+
+/*---------------------------------------------*/
 /*--
   if in doubt, return True
 --*/
@@ -1093,7 +1063,7 @@ Bool notAStandardFile ( Char* name )
 
    i = MY_LSTAT ( name, &statBuf );
    if (i != 0) return True;
-   if (MY_S_IFREG(statBuf.st_mode)) return False;
+   if (MY_S_ISREG(statBuf.st_mode)) return False;
    return True;
 }
 
@@ -1115,42 +1085,66 @@ Int32 countHardLinks ( Char* name )
 
 
 /*---------------------------------------------*/
-static 
-void copyDatePermissionsAndOwner ( Char *srcName, Char *dstName )
-{
+/* Copy modification date, access date, permissions and owner from the
+   source to destination file.  We have to copy this meta-info off
+   into fileMetaInfo before starting to compress / decompress it,
+   because doing it afterwards means we get the wrong access time.
+
+   To complicate matters, in compress() and decompress() below, the
+   sequence of tests preceding the call to saveInputFileMetaInfo()
+   involves calling fileExists(), which in turn establishes its result
+   by attempting to fopen() the file, and if successful, immediately
+   fclose()ing it again.  So we have to assume that the fopen() call
+   does not cause the access time field to be updated.
+
+   Reading of the man page for stat() (man 2 stat) on RedHat 7.2 seems
+   to imply that merely doing open() will not affect the access time.
+   Therefore we merely need to hope that the C library only does
+   open() as a result of fopen(), and not any kind of read()-ahead
+   cleverness.
+
+   It sounds pretty fragile to me.  Whether this carries across
+   robustly to arbitrary Unix-like platforms (or even works robustly
+   on this one, RedHat 7.2) is unknown to me.  Nevertheless ...  
+*/
 #if BZ_UNIX
+static 
+struct MY_STAT fileMetaInfo;
+#endif
+
+static 
+void saveInputFileMetaInfo ( Char *srcName )
+{
+#  if BZ_UNIX
+   IntNative retVal;
+   /* Note use of stat here, not lstat. */
+   retVal = MY_STAT( srcName, &fileMetaInfo );
+   ERROR_IF_NOT_ZERO ( retVal );
+#  endif
+}
+
+
+static 
+void applySavedMetaInfoToOutputFile ( Char *dstName )
+{
+#  if BZ_UNIX
    IntNative      retVal;
-   struct MY_STAT statBuf;
    struct utimbuf uTimBuf;
 
-   retVal = MY_LSTAT ( srcName, &statBuf );
-   ERROR_IF_NOT_ZERO ( retVal );
-   uTimBuf.actime = statBuf.st_atime;
-   uTimBuf.modtime = statBuf.st_mtime;
+   uTimBuf.actime = fileMetaInfo.st_atime;
+   uTimBuf.modtime = fileMetaInfo.st_mtime;
 
-   retVal = chmod ( dstName, statBuf.st_mode );
+   retVal = chmod ( dstName, fileMetaInfo.st_mode );
    ERROR_IF_NOT_ZERO ( retVal );
 
    retVal = utime ( dstName, &uTimBuf );
    ERROR_IF_NOT_ZERO ( retVal );
 
-   retVal = chown ( dstName, statBuf.st_uid, statBuf.st_gid );
+   retVal = chown ( dstName, fileMetaInfo.st_uid, fileMetaInfo.st_gid );
    /* chown() will in many cases return with EPERM, which can
       be safely ignored.
    */
-#endif
-}
-
-
-/*---------------------------------------------*/
-static 
-void setInterimPermissions ( Char *dstName )
-{
-#if BZ_UNIX
-   IntNative      retVal;
-   retVal = chmod ( dstName, S_IRUSR | S_IWUSR );
-   ERROR_IF_NOT_ZERO ( retVal );
-#endif
+#  endif
 }
 
 
@@ -1158,10 +1152,19 @@ void setInterimPermissions ( Char *dstName )
 static 
 Bool containsDubiousChars ( Char* name )
 {
-   Bool cdc = False;
+#  if BZ_UNIX
+   /* On unix, files can contain any characters and the file expansion
+    * is performed by the shell.
+    */
+   return False;
+#  else /* ! BZ_UNIX */
+   /* On non-unix (Win* platforms), wildcard characters are not allowed in 
+    * filenames.
+    */
    for (; *name != '\0'; name++)
-      if (*name == '?' || *name == '*') cdc = True;
-   return cdc;
+      if (*name == '?' || *name == '*') return True;
+   return False;
+#  endif /* BZ_UNIX */
 }
 
 
@@ -1201,6 +1204,7 @@ void compress ( Char *name )
    FILE  *inStr;
    FILE  *outStr;
    Int32 n, i;
+   struct MY_STAT statBuf;
 
    deleteOutputOnInterrupt = False;
 
@@ -1246,6 +1250,16 @@ void compress ( Char *name )
          return;
       }
    }
+   if ( srcMode == SM_F2F || srcMode == SM_F2O ) {
+      MY_STAT(inName, &statBuf);
+      if ( MY_S_ISDIR(statBuf.st_mode) ) {
+         fprintf( stderr,
+                  "%s: Input file %s is a directory.\n",
+                  progName,inName);
+         setExit(1);
+         return;
+      }
+   }
    if ( srcMode == SM_F2F && !forceOverwrite && notAStandardFile ( inName )) {
       if (noisy)
       fprintf ( stderr, "%s: Input file %s is not a normal file.\n",
@@ -1253,11 +1267,15 @@ void compress ( Char *name )
       setExit(1);
       return;
    }
-   if ( srcMode == SM_F2F && !forceOverwrite && fileExists ( outName ) ) {
-      fprintf ( stderr, "%s: Output file %s already exists.\n",
-                progName, outName );
-      setExit(1);
-      return;
+   if ( srcMode == SM_F2F && fileExists ( outName ) ) {
+      if (forceOverwrite) {
+	 remove(outName);
+      } else {
+	 fprintf ( stderr, "%s: Output file %s already exists.\n",
+		   progName, outName );
+	 setExit(1);
+	 return;
+      }
    }
    if ( srcMode == SM_F2F && !forceOverwrite &&
         (n=countHardLinks ( inName )) > 0) {
@@ -1265,6 +1283,12 @@ void compress ( Char *name )
                 progName, inName, n, n > 1 ? "s" : "" );
       setExit(1);
       return;
+   }
+
+   if ( srcMode == SM_F2F ) {
+      /* Save the file's meta-info before we open it.  Doing it later
+         means we mess up the access times. */
+      saveInputFileMetaInfo ( inName );
    }
 
    switch ( srcMode ) {
@@ -1306,7 +1330,7 @@ void compress ( Char *name )
 
       case SM_F2F:
          inStr = fopen ( inName, "rb" );
-         outStr = fopen ( outName, "wb" );
+         outStr = fopen_output_safely ( outName, "wb" );
          if ( outStr == NULL) {
             fprintf ( stderr, "%s: Can't create output file %s: %s.\n",
                       progName, outName, strerror(errno) );
@@ -1321,7 +1345,6 @@ void compress ( Char *name )
             setExit(1);
             return;
          };
-         setInterimPermissions ( outName );
          break;
 
       default:
@@ -1343,7 +1366,7 @@ void compress ( Char *name )
 
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( srcMode == SM_F2F ) {
-      copyDatePermissionsAndOwner ( inName, outName );
+      applySavedMetaInfoToOutputFile ( outName );
       deleteOutputOnInterrupt = False;
       if ( !keepInputFiles ) {
          IntNative retVal = remove ( inName );
@@ -1364,6 +1387,7 @@ void uncompress ( Char *name )
    Int32 n, i;
    Bool  magicNumberOK;
    Bool  cantGuess;
+   struct MY_STAT statBuf;
 
    deleteOutputOnInterrupt = False;
 
@@ -1405,6 +1429,16 @@ void uncompress ( Char *name )
       setExit(1);
       return;
    }
+   if ( srcMode == SM_F2F || srcMode == SM_F2O ) {
+      MY_STAT(inName, &statBuf);
+      if ( MY_S_ISDIR(statBuf.st_mode) ) {
+         fprintf( stderr,
+                  "%s: Input file %s is a directory.\n",
+                  progName,inName);
+         setExit(1);
+         return;
+      }
+   }
    if ( srcMode == SM_F2F && !forceOverwrite && notAStandardFile ( inName )) {
       if (noisy)
       fprintf ( stderr, "%s: Input file %s is not a normal file.\n",
@@ -1419,11 +1453,15 @@ void uncompress ( Char *name )
                 progName, inName, outName );
       /* just a warning, no return */
    }   
-   if ( srcMode == SM_F2F && !forceOverwrite && fileExists ( outName ) ) {
-      fprintf ( stderr, "%s: Output file %s already exists.\n",
-                progName, outName );
-      setExit(1);
-      return;
+   if ( srcMode == SM_F2F && fileExists ( outName ) ) {
+      if (forceOverwrite) {
+	remove(outName);
+      } else {
+        fprintf ( stderr, "%s: Output file %s already exists.\n",
+                  progName, outName );
+        setExit(1);
+        return;
+      }
    }
    if ( srcMode == SM_F2F && !forceOverwrite &&
         (n=countHardLinks ( inName ) ) > 0) {
@@ -1431,6 +1469,12 @@ void uncompress ( Char *name )
                 progName, inName, n, n > 1 ? "s" : "" );
       setExit(1);
       return;
+   }
+
+   if ( srcMode == SM_F2F ) {
+      /* Save the file's meta-info before we open it.  Doing it later
+         means we mess up the access times. */
+      saveInputFileMetaInfo ( inName );
    }
 
    switch ( srcMode ) {
@@ -1463,7 +1507,7 @@ void uncompress ( Char *name )
 
       case SM_F2F:
          inStr = fopen ( inName, "rb" );
-         outStr = fopen ( outName, "wb" );
+         outStr = fopen_output_safely ( outName, "wb" );
          if ( outStr == NULL) {
             fprintf ( stderr, "%s: Can't create output file %s: %s.\n",
                       progName, outName, strerror(errno) );
@@ -1478,7 +1522,6 @@ void uncompress ( Char *name )
             setExit(1);
             return;
          };
-         setInterimPermissions ( outName );
          break;
 
       default:
@@ -1501,7 +1544,7 @@ void uncompress ( Char *name )
    /*--- If there was an I/O error, we won't get here. ---*/
    if ( magicNumberOK ) {
       if ( srcMode == SM_F2F ) {
-         copyDatePermissionsAndOwner ( inName, outName );
+         applySavedMetaInfoToOutputFile ( outName );
          deleteOutputOnInterrupt = False;
          if ( !keepInputFiles ) {
             IntNative retVal = remove ( inName );
@@ -1539,6 +1582,7 @@ void testf ( Char *name )
 {
    FILE *inStr;
    Bool allOK;
+   struct MY_STAT statBuf;
 
    deleteOutputOnInterrupt = False;
 
@@ -1564,6 +1608,16 @@ void testf ( Char *name )
                 progName, inName, strerror(errno) );
       setExit(1);
       return;
+   }
+   if ( srcMode != SM_I2O ) {
+      MY_STAT(inName, &statBuf);
+      if ( MY_S_ISDIR(statBuf.st_mode) ) {
+         fprintf( stderr,
+                  "%s: Input file %s is a directory.\n",
+                  progName,inName);
+         setExit(1);
+         return;
+      }
    }
 
    switch ( srcMode ) {
@@ -1603,6 +1657,7 @@ void testf ( Char *name )
    }
 
    /*--- Now the input handle is sane.  Do the Biz. ---*/
+   outputHandleJustInCase = NULL;
    allOK = testStream ( inStr );
 
    if (allOK && verbosity >= 1) fprintf ( stderr, "ok\n" );
@@ -1619,7 +1674,7 @@ void license ( void )
     "bzip2, a block-sorting file compressor.  "
     "Version %s.\n"
     "   \n"
-    "   Copyright (C) 1996-2000 by Julian Seward.\n"
+    "   Copyright (C) 1996-2002 by Julian Seward.\n"
     "   \n"
     "   This program is free software; you can redistribute it and/or modify\n"
     "   it under the terms set out in the LICENSE file, which is included\n"
@@ -1658,6 +1713,8 @@ void usage ( Char *fullProgName )
       "   -V --version        display software version & license\n"
       "   -s --small          use less memory (at most 2500k)\n"
       "   -1 .. -9            set block size to 100k .. 900k\n"
+      "   --fast              alias for -1\n"
+      "   --best              alias for -9\n"
       "\n"
       "   If invoked as `bzip2', default action is to compress.\n"
       "              as `bunzip2',  default action is to decompress.\n"
@@ -1666,9 +1723,9 @@ void usage ( Char *fullProgName )
       "   If no file names are given, bzip2 compresses or decompresses\n"
       "   from standard input to standard output.  You can combine\n"
       "   short flags, so `-v -4' means the same as -v4 or -4v, &c.\n"
-#if BZ_UNIX
+#     if BZ_UNIX
       "\n"
-#endif
+#     endif
       ,
 
       BZ2_bzlibVersion(),
@@ -1818,11 +1875,11 @@ IntNative main ( IntNative argc, Char *argv[] )
 
    /*-- Set up signal handlers for mem access errors --*/
    signal (SIGSEGV, mySIGSEGVorSIGBUScatcher);
-#if BZ_UNIX
-#ifndef __DJGPP__
+#  if BZ_UNIX
+#  ifndef __DJGPP__
    signal (SIGBUS,  mySIGSEGVorSIGBUScatcher);
-#endif
-#endif
+#  endif
+#  endif
 
    copyFileName ( inName,  "(none)" );
    copyFileName ( outName, "(none)" );
@@ -1933,6 +1990,8 @@ IntNative main ( IntNative argc, Char *argv[] )
       if (ISFLAG("--exponential"))       workFactor = 1;             else 
       if (ISFLAG("--repetitive-best"))   redundant(aa->name);        else
       if (ISFLAG("--repetitive-fast"))   redundant(aa->name);        else
+      if (ISFLAG("--fast"))              blockSize100k = 1;          else
+      if (ISFLAG("--best"))              blockSize100k = 9;          else
       if (ISFLAG("--verbose"))           verbosity++;                else
       if (ISFLAG("--help"))              { usage ( progName ); exit ( 0 ); }
          else
