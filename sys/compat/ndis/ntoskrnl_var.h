@@ -354,7 +354,7 @@ struct kdpc {
 	uint8_t			k_num;
 	uint8_t			k_importance;
 	list_entry		k_dpclistentry;
-	kdpc_func		k_deferedfunc;
+	void			*k_deferedfunc;
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;

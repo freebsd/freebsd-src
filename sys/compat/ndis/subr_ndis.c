@@ -2881,7 +2881,7 @@ ndis_workfunc(ctx)
 	__stdcall ndis_proc	workfunc;
 
 	work = ctx;
-	workfunc = (__stdcall ndis_proc) work->nwi_func;
+	workfunc = work->nwi_func;
 	workfunc(work, work->nwi_ctx);
 	return;
 }
