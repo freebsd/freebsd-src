@@ -2480,9 +2480,8 @@ pmap_clear_reference(vm_page_t m)
 void
 pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 {
+	pmap_t pmap;
 	pt_entry_t faultoff, *pte;
-	vm_offset_t pa;
-	int user_addr;
 
 	/*
 	 * Convert process and virtual address to physical address.
@@ -2490,12 +2489,14 @@ pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 	if (v >= VM_MIN_KERNEL_ADDRESS) {
 		if (user)
 			panic("pmap_emulate_reference: user ref to kernel");
+		pmap = kernel_pmap;
+		PMAP_LOCK(pmap);
 		pte = vtopte(v);
-		user_addr = 0;
 	} else {
 		KASSERT(vm != NULL, ("pmap_emulate_reference: bad vmspace"));
-		pte = pmap_lev3pte(vm->vm_map.pmap, v);
-		user_addr = 1;
+		pmap = &vm->vm_pmap;
+		PMAP_LOCK(pmap);
+		pte = pmap_lev3pte(pmap, v);
 	}
 #ifdef DEBUG				/* These checks are more expensive */
 	if (!pmap_pte_v(pte))
@@ -2520,11 +2521,9 @@ pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 #endif
 	/* Other diagnostics? */
 #endif
-	pa = pmap_pte_pa(pte);
-
 	KASSERT((*pte & PG_MANAGED) != 0,
 	    ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
-	    curthread, v, user, write, pa));
+	    curthread, v, user, write, pmap_pte_pa(pte)));
 
 	/*
 	 * Twiddle the appropriate bits to reflect the reference
@@ -2542,6 +2541,7 @@ pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 
 	*pte = (*pte & ~faultoff);
 	ALPHA_TBIS(v);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
