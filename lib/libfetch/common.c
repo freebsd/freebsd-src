@@ -33,9 +33,9 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
-#include <com_err.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,31 +58,18 @@ static struct fetcherr _netdb_errlist[] = {
     { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
 
-static int com_err_initialized;
 
 /*** Error-reporting functions ***********************************************/
 
 /*
- * Initialize the common error library
- */
-static void
-_fetch_init_com_err(void)
-{
-    initialize_ftch_error_table();
-    com_err_initialized = 1;
-}
-
-/*
  * Map error code to string
  */
-static int
+static struct fetcherr *
 _fetch_finderr(struct fetcherr *p, int e)
 {
-    int i;
-    for (i = 0; p[i].num != -1; i++)
-	if (p[i].num == e)
-	    break;
-    return i;
+    while (p->num != -1 && p->num != e)
+	p++;
+    return p;
 }
 
 /*
@@ -91,14 +78,9 @@ _fetch_finderr(struct fetcherr *p, int e)
 void
 _fetch_seterr(struct fetcherr *p, int e)
 {
-    int n;
-    
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
-    n = _fetch_finderr(p, e);
-    fetchLastErrCode = p[n].cat;
-    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, p[n].string);
+    p = _fetch_finderr(p, e);
+    fetchLastErrCode = p->cat;
+    snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
 }
 
 /*
@@ -110,9 +92,6 @@ _fetch_syserr(void)
     int e;
     e = errno;
     
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
     switch (errno) {
     case 0:
 	fetchLastErrCode = FETCH_OK;
@@ -163,34 +142,21 @@ _fetch_syserr(void)
     default:
 	fetchLastErrCode = FETCH_UNKNOWN;
     }
-    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, strerror(e));
+    snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(e));
 }
 
 
 /*
  * Emit status message
  */
-int
+void
 _fetch_info(char *fmt, ...)
 {
     va_list ap;
-    char *s;
     
-    if (!com_err_initialized)
-	_fetch_init_com_err();
-
     va_start(ap, fmt);
-    vasprintf(&s, fmt, ap);
+    vfprintf(stderr, fmt, ap);
     va_end(ap);
-
-    if (s == NULL) {
-	com_err("libfetch", FETCH_MEMORY, "");
-	return -1;
-    } else {
-	com_err("libfetch", FETCH_VERBOSE, "%s", s);
-	free(s);
-	return 0;
-    }
 }
 
 
