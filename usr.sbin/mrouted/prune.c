@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: prune.c,v 1.13 1997/02/22 16:07:03 peter Exp $
  */
 
 
@@ -810,7 +810,7 @@ reset_neighbor_state(vifi, addr)
 
 		g->gt_prsent_timer = 0;
 		g->gt_grftsnt = 0;
-		while (st = g->gt_srctbl) {
+		while ((st = g->gt_srctbl)) {
 		    g->gt_srctbl = st->st_next;
 		    k_del_rg(st->st_origin, g);
 		    kroutes--;

@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id$
+ * $Id: mapper.c,v 1.10 1997/02/22 16:06:57 peter Exp $
  */
 
 /*
@@ -21,6 +21,7 @@
  * These notices must be retained in any copies of any part of this software.
  */
 
+#include <err.h>
 #include <string.h>
 #include <netdb.h>
 #include <sys/time.h>
@@ -90,6 +91,7 @@ void			graph_map __P((void));
 int			get_number __P((int *var, int deflt, char ***pargv,
 						int *pargc));
 u_int32			host_addr __P((char *name));
+static void		usage __P((void));
 
 
 Node *find_node(addr, ptr)
@@ -844,10 +846,8 @@ int main(argc, argv)
 {
     int flood = FALSE, graph = FALSE;
     
-    if (geteuid() != 0) {
-	fprintf(stderr, "map-mbone: must be root\n");
-	exit(1);
-    }
+    if (geteuid() != 0)
+	errx(1, "must be root");
 
     init_igmp();
     setuid(getuid());
@@ -859,7 +859,7 @@ int main(argc, argv)
 	switch (argv[0][1]) {
 	  case 'd':
 	    if (!get_number(&debug, DEFAULT_DEBUG, &argv, &argc))
-		goto usage;
+		usage();
 	    break;
 	  case 'f':
 	    flood = TRUE;
@@ -872,32 +872,22 @@ int main(argc, argv)
 	    break;
 	  case 'r':
 	    if (!get_number(&retries, -1, &argv, &argc))
-		goto usage;
+		usage();
 	    break;
 	  case 't':
 	    if (!get_number(&timeout, -1, &argv, &argc))
-		goto usage;
+		usage();
 	    break;
 	  default:
-	    goto usage;
+	    usage();
 	}
 	argv++, argc--;
     }
 
     if (argc > 1) {
-      usage:	
-	fprintf(stderr,
-		"Usage: map-mbone [-f] [-g] [-n] [-t timeout] %s\n\n",
-		"[-r retries] [-d [debug-level]] [router]");
-        fprintf(stderr, "\t-f  Flood the routing graph with queries\n");
-        fprintf(stderr, "\t    (True by default unless `router' is given)\n");
-        fprintf(stderr, "\t-g  Generate output in GraphEd format\n");
-        fprintf(stderr, "\t-n  Don't look up DNS names for routers\n");
-	exit(1);
-    } else if (argc == 1 && !(target_addr = host_addr(argv[0]))) {
-	fprintf(stderr, "Unknown host: %s\n", argv[0]);
-	exit(2);
-    }
+	usage();
+    } else if (argc == 1 && !(target_addr = host_addr(argv[0])))
+	errx(2, "unknown host: %s", argv[0]);
 
     if (debug)
 	fprintf(stderr, "Debug level %u\n", debug);
@@ -915,10 +905,8 @@ int main(argc, argv)
 	addr.sin_port = htons(2000); /* any port over 1024 will do... */
 	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
 	    || connect(udp, (struct sockaddr *) &addr, sizeof(addr)) < 0
-	    || getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0) {
-	    perror("Determining local address");
-	    exit(-1);
-	}
+	    || getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0)
+	    err(-1, "determining local address");
 	close(udp);
 	our_addr = addr.sin_addr.s_addr;
     }
@@ -951,7 +939,7 @@ int main(argc, argv)
 
 	if (count < 0) {
 	    if (errno != EINTR)
-		perror("select");
+		warn("select");
 	    continue;
 	} else if (count == 0) {
 	    log(LOG_DEBUG, 0, "Timed out receiving neighbor lists");
@@ -966,7 +954,7 @@ int main(argc, argv)
 	if (recvlen >= 0)
 	    accept_igmp(recvlen);
 	else if (errno != EINTR)
-	    perror("recvfrom");
+	    warn("recvfrom");
     }
 
     printf("\n");
@@ -980,6 +968,15 @@ int main(argc, argv)
     }
 
     exit(0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n",
+	"usage: map-mbone [-f] [-g] [-n] [-t timeout] [-r retries]",
+	"                 [-d [debug-level]] [router]");
+	exit(1);
 }
 
 /* dummies */
