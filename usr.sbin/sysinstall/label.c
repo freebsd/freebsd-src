@@ -337,7 +337,7 @@ new_part(char *mpoint, Boolean newfs)
     pi->newfs_data.newfs_ufs.acls = FALSE;
     pi->newfs_data.newfs_ufs.multilabel = FALSE;
     pi->newfs_data.newfs_ufs.softupdates = strcmp(mpoint, "/");
-    pi->newfs_data.newfs_ufs.ufs2 = FALSE;
+    pi->newfs_data.newfs_ufs.ufs1 = FALSE;
 
     return pi;
 }
@@ -461,7 +461,7 @@ getNewfsCmd(PartInfo *p)
     case NEWFS_UFS:
 	snprintf(buffer, NEWFS_CMD_ARGS_MAX, "%s %s %s %s",
 	    NEWFS_UFS_CMD, p->newfs_data.newfs_ufs.softupdates ?  "-U" : "",
-	    p->newfs_data.newfs_ufs.ufs2 ? "-O2" : "-O1",
+	    p->newfs_data.newfs_ufs.ufs1 ? "-O1" : "-O2",
 	    p->newfs_data.newfs_ufs.user_options);
 	break;
     case NEWFS_MSDOS:
@@ -686,10 +686,10 @@ print_label_chunks(void)
 		switch (pi->newfs_type) {
 		case NEWFS_UFS:
 			strcpy(newfs, NEWFS_UFS_STRING);
-			if (pi->newfs_data.newfs_ufs.ufs2)
-				strcat(newfs, "2");
-			else
+			if (pi->newfs_data.newfs_ufs.ufs1)
 				strcat(newfs, "1");
+			else
+				strcat(newfs, "2");
 			if (pi->newfs_data.newfs_ufs.softupdates)
 				strcat(newfs, "+S");
 			else
@@ -872,6 +872,21 @@ diskLabel(Device *dev)
 	    clear_wins();
 	    break;
 
+	case '1':
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
+		PartInfo *pi =
+		    ((PartInfo *)label_chunk_info[here].c->private_data);
+
+		if ((pi != NULL) &&
+		    (pi->newfs_type == NEWFS_UFS)) {
+			pi->newfs_data.newfs_ufs.ufs1 = true;
+		} else
+		    msg = MSG_NOT_APPLICABLE;
+	    } else
+		msg = MSG_NOT_APPLICABLE;
+	    break;
+		break;
+
 	case '2':
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		PartInfo *pi =
@@ -879,8 +894,7 @@ diskLabel(Device *dev)
 
 		if ((pi != NULL) &&
 		    (pi->newfs_type == NEWFS_UFS)) {
-			pi->newfs_data.newfs_ufs.ufs2 =
-			    !pi->newfs_data.newfs_ufs.ufs2;
+			pi->newfs_data.newfs_ufs.ufs1 = false;
 		} else
 		    msg = MSG_NOT_APPLICABLE;
 	    } else
