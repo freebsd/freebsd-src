@@ -39,6 +39,8 @@ const.h: const.c
 	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
 	    sort >> $@
 
+./const.h: const.h
+./err.h: err.h
 .depend: const.h err.h 
 
 .include <bsd.prog.mk>
