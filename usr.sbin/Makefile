@@ -170,10 +170,12 @@ SUBDIR+=elf2exe \
 	pnpinfo
 .endif
 
+# Move bluetooth when tested on other architectures
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=acpi \
 	apm \
 	apmd \
+	bluetooth \
 	btxld \
 	kgmon \
 	kgzip \

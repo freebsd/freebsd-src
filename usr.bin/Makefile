@@ -237,7 +237,9 @@ SUBDIR+=vacation
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
+# move bluetooth when tested on other architectures
 SUBDIR+=doscmd \
+	bluetooth \
 	ncplist \
 	ncplogin \
 	sasc \
