@@ -7,6 +7,8 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
 %mlists;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
