@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)rmjob.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -292,7 +292,7 @@ rmremote()
 	register int i, rem;
 	char buf[BUFSIZ];
 
-	if (!sendtorem)
+	if (!remote)
 		return;	/* not sending to a remote machine */
 
 	/*
@@ -313,7 +313,7 @@ rmremote()
 		(void) sprintf(cp, " %d", requ[i]);
 	}
 	strcat(cp, "\n");
-	rem = getport(RM);
+	rem = getport(RM, 0);
 	if (rem < 0) {
 		if (from != host)
 			printf("%s: ", host);
