@@ -1,6 +1,6 @@
 #
 # Makefile for xntpd.
-# $FreeBSD$
+# $Id$
 #
 SUBDIR= pccardc pccardd
 

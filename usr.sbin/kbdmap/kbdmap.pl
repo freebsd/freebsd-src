@@ -26,7 +26,7 @@
 #
 # kbdmap/vidfont - front end for syscons
 #
-# $FreeBSD$
+# $Id$
 
 
 # simple test if syscons works

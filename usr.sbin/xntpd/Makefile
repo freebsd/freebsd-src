@@ -1,6 +1,6 @@
 #
 # Makefile for xntpd.
-# $FreeBSD$
+# $Id$
 #
 SUBDIR= lib parse xntpd xntpdc ntpq ntpdate ntptrace authstuff util
 

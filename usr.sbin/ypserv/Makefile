@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \

@@ -40,7 +40,7 @@
 #
 # Start amd
 #
-# $FreeBSD$
+# $Id$
 #
 PATH=/usr/sbin:/bin:/usr/bin:$PATH export PATH
 

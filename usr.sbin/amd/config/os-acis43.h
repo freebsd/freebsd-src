@@ -37,7 +37,7 @@
  *
  *	@(#)os-acis43.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * IBM RT ACIS4.3 definitions for Amd (automounter)
  */

@@ -37,7 +37,7 @@
  *
  *	@(#)am.h	5.6 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  */
 

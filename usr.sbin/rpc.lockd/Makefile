@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG =	rpc.lockd
 SRCS =	nlm_prot_svc.c lockd.c procs.c

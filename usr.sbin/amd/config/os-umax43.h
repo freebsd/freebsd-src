@@ -37,7 +37,7 @@
  *
  *	@(#)os-umax43.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * UMAX 4.3 definitions for Amd (automounter)
  */

@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $FreeBSD$
+ * $Id$
  *
  */
 #ifndef _CHAT_H_

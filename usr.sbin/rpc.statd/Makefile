@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c statd.c procs.c

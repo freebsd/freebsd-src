@@ -38,7 +38,7 @@
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $Id$
 #
 PATH=/usr/ucb:/bin:/usr/bin:$PATH
 if [ $# -ne 3 ]; then echo "Usage: newvers program arch os" >&2; exit 1; fi

@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "$FreeBSD$";
+    "$Id$";
 #endif
 
 /*

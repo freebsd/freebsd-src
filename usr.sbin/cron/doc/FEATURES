@@ -1,4 +1,4 @@
-$FreeBSD$
+$Id$
 
 Features of Vixie's cron relative to BSD 4.[23] and SysV crons:
 

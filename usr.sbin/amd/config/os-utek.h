@@ -37,7 +37,7 @@
  *
  *	@(#)os-utek.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Utek 4.0  definitions for Amd (automounter)
  *	from Bill Trost <trost%reed@cse.ogi.edu>

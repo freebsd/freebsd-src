@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $Id$
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */

@@ -53,7 +53,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$Id$";
 #endif
 
 extern int debug;

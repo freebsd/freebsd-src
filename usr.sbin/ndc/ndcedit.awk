@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
