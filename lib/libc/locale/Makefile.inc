@@ -4,7 +4,7 @@
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
-SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c frune.c fix_grouping.c \
+SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	isctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrune.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
@@ -18,6 +18,8 @@ MAN+=	ctype.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3
 MAN+=	euc.4 utf2.4
 
+MLINKS+=isdigit.3 isnumber.3
+MLINKS+=isxdigit.3 ishexnumber.3
 MLINKS+=mbrune.3 mbmb.3 mbrune.3 mbrrune.3
 MLINKS+=multibyte.3 mblen.3 multibyte.3 mbstowcs.3 multibyte.3 mbtowc.3 \
 	multibyte.3 wcstombs.3 multibyte.3 wctomb.3
@@ -25,6 +27,4 @@ MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
 	rune.3 sputrune.3
 MLINKS+=setlocale.3 localeconv.3
-MLINKS+=isxdigit.3 ishexnumber.3
-MLINKS+=isdigit.3 isnumber.3
 .endif
