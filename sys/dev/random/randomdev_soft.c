@@ -90,7 +90,7 @@ static struct entropyfifo emptyfifo;
 #define EMPTYBUFFERS	1024
 
 /* Harvested entropy */
-static struct entropyfifo harvestfifo[ENTROPYSOURCE];
+static struct entropyfifo harvestfifo[ENTROPYSOURCE + 1];
 
 /* <0 to end the kthread, 0 to let it run */
 static int random_kthread_control = 0;
