@@ -29,6 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .\"
 .Dd July 17, 2000
 .Dt RCORDER 8
@@ -42,8 +43,9 @@
 .Op Fl s Ar skip
 .Ar
 .Sh DESCRIPTION
+The
 .Nm
-is designed to print out a dependency ordering of a set of
+utility is designed to print out a dependency ordering of a set of
 interdependent files. Typically it is used to find an execution
 sequence for a set of shell scripts in which certain files must be
 executed before others.
@@ -129,8 +131,9 @@ arguments passed to
 .Nm
 in order for it to find a starting place in the dependency ordering.
 .Sh DIAGNOSTICS
+The
 .Nm
-may print one of the following error messages and exit with a non-zero
+utility may print one of the following error messages and exit with a non-zero
 status if it encounters an error while processing the file list.
 .Bl -diag
 .It "Requirement %s has no providers, aborting."
@@ -151,7 +154,7 @@ processing the stated file.
 .Sh HISTORY
 The
 .Nm
-program first appeared in
+utility first appeared in
 .Nx 1.5 .
 .Sh AUTHORS
 Written by Perry E. Metzger (perry@piermont.com) and Matthew R.
