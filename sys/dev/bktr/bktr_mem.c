@@ -48,6 +48,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
 #include <dev/bktr/bktr_mem.h>
 
 struct memory_pointers {
