@@ -175,11 +175,19 @@ vinum_ldi(int driveno, int recurse)
 		    printf("\t\t%9qd\t%9ld\n", freelist.offset, freelist.sectors);
 		}
 	    }
-	} else
-	    printf("D %-21s State: %s\tDevice %s\n",
+	} else {
+	    printf("D %-21s State: %s\tDevice %s\tAvail: %qd/%qd MB",
 		drive.label.name,
 		drive_state(drive.state),
-		drive.devicename);
+		drive.devicename,
+		drive.sectors_available * DEV_BSIZE / MEGABYTE,
+		(drive.label.drive_size / MEGABYTE));
+	    if (drive.label.drive_size == 0)
+		printf("\n");				    /* can't print percentages */
+	    else
+		printf(" (%d%%)\n",
+		    (int) ((drive.sectors_available * 100 * DEV_BSIZE) / drive.label.drive_size));
+	}
 	if (stats) {
 	    printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		drive.reads,
@@ -230,12 +238,12 @@ vinum_lvi(int volno, int recurse)
     if (vol.state != volume_unallocated) {
 	if (verbose) {
 	    printf("Volume %s:\tSize: %qd bytes (%qd MB)\n"
-		"\t\tState: %s\n\t\tOpen by PID: %d\n\t\tFlags: %s%s\n",
+		"\t\tState: %s\n\t\tFlags: %s%s%s\n",
 		vol.name,
 		((long long) vol.size) * DEV_BSIZE,
 		((long long) vol.size) * DEV_BSIZE / MEGABYTE,
 		volume_state(vol.state),
-		vol.pid,
+		vol.flags & VF_OPEN ? "open " : "",
 		(vol.flags & VF_WRITETHROUGH ? "writethrough " : ""),
 		(vol.flags & VF_RAW ? "raw" : ""));
 	    printf("\t\t%d plexes\n\t\tRead policy: ", vol.plexes);
@@ -727,7 +735,6 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     struct utsname uname_s;
     time_t now;
     int i;
-    int j;
     struct volume vol;
     struct plex plex;
     struct sd sd;
@@ -735,6 +742,10 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 
     if (argc != 1) {
 	fprintf(stderr, "Usage: \tprintconfig <outfile>\n");
+	return;
+    }
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
 	return;
     }
     of = fopen(argv[0], "w");
@@ -764,21 +775,20 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	if (vol.state != volume_unallocated) {
 	    if (vol.preferred_plex >= 0)		    /* preferences, */
 		fprintf(of,
-		    "volume %s readpol prefer %s",
+		    "volume %s readpol prefer %s\n",
 		    vol.name,
 		    vinum_conf.plex[vol.preferred_plex].name);
 	    else					    /* default round-robin */
-		fprintf(of, "volume %s", vol.name);
+		fprintf(of, "volume %s\n", vol.name);
 	}
     }
 
     /* Then the plex configuration */
     for (i = 0; i < vinum_conf.plexes_used; i++) {
-	get_volume_info(&vol, i);
+	get_plex_info(&plex, i);
 	if (plex.state != plex_unallocated) {
-	    fprintf(of, "plex name %s state %s org %s ",
+	    fprintf(of, "plex name %s org %s ",
 		plex.name,
-		plex_state(plex.state),
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
 		|| (plex.organization == plex_raid5)) {
@@ -787,10 +797,6 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
-	    }
-	    for (j = 0; j < plex.subdisks; j++) {
-		get_plex_sd_info(&sd, i, j);
-		fprintf(of, " sd %s", sd.name);
 	    }
 	    fprintf(of, "\n");
 	}
