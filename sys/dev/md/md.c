@@ -735,8 +735,6 @@ mdinit(struct md_s *sc)
 	sc->pp = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	if (sc->type != MD_PRELOAD)
-		g_waitidle();
 	PICKUP_GIANT();
 }
 

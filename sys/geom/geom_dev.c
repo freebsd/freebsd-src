@@ -185,7 +185,6 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	else
 		error = g_access(cp, r, w, e);
 	g_topology_unlock();
-	g_waitidle();
 	if (!error)
 		dev->si_bsize_phys = cp->provider->sectorsize;
 	return(error);
@@ -231,7 +230,6 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 		    "Completing close anyway, panic may happen later.");
 	}
 	g_topology_unlock();
-	g_waitidle();
 	return (error);
 }
 
@@ -305,7 +303,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		}
 	}
 
-	g_waitidle();
 	return (error);
 }
 

@@ -95,6 +95,13 @@ userret(td, frame, oticks)
 #endif
 
 	/*
+	 * If this thread tickled GEOM, we need to wait for the giggling to
+	 * stop before we return to userland
+	 */
+	if (td->td_pflags & TDP_GEOM)
+		g_waitidle();
+
+	/*
 	 * We need to check to see if we have to exit or wait due to a
 	 * single threading requirement or some other STOP condition.
 	 * Don't bother doing all the work if the stop bits are not set

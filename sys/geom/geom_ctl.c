@@ -474,7 +474,6 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 		gctl_copyout(req);
 	}
 
-	g_waitidle();
 	nerror = req->nerror;
 	gctl_free(req);
 	return (nerror);

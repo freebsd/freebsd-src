@@ -376,6 +376,7 @@ struct thread {
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
 #define	TDP_SCHED3	0x00004000 /* Reserved for scheduler private use */
 #define	TDP_SCHED4	0x00008000 /* Reserved for scheduler private use */
+#define	TDP_GEOM	0x00010000 /* Settle GEOM before finishing syscall */
 
 /*
  * Reasons that the current thread can not be run yet.

@@ -1158,7 +1158,9 @@ vfs_mountroot(void)
 	/*
 	 * Wait for GEOM to settle down
 	 */
+	DROP_GIANT();
 	g_waitidle();
+	PICKUP_GIANT();
 
 	/*
 	 * We are booted with instructions to prompt for the root filesystem.

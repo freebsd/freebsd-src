@@ -126,6 +126,7 @@ int	ureadc(int, struct uio *);
 void	hashdestroy(void *, struct malloc_type *, u_long);
 void	*hashinit(int count, struct malloc_type *type, u_long *hashmask);
 void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
+void	g_waitidle(void);
 
 #ifdef RESTARTABLE_PANICS
 void	panic(const char *, ...) __printflike(1, 2);

@@ -204,7 +204,6 @@ g_modevent(module_t mod, int type, void *data)
 		if (error == 0)
 			error = hh->error;
 		if (error == 0) {
-			g_waitidle();
 			KASSERT(LIST_EMPTY(&hh->mp->geom),
 			    ("Unloaded class (%s) still has geom", hh->mp->name));
 		}

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <machine/stdarg.h>
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -79,8 +80,12 @@ void
 g_waitidle(void)
 {
 
+	g_topology_assert_not();
+	mtx_assert(&Giant, MA_NOTOWNED);
+
 	while (g_pending_events)
 		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
+	curthread->td_pflags &= ~TDP_GEOM;
 }
 
 void
@@ -279,6 +284,7 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	wakeup(&g_wait_event);
 	if (epp != NULL)
 		*epp = ep;
+	curthread->td_pflags |= TDP_GEOM;
 	return (0);
 }
 
