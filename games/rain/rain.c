@@ -60,13 +60,10 @@ static const char rcsid[] =
 
 volatile sig_atomic_t sig_caught = 0;
 
-int main __P((int argc, char **argv));
 static void onsig __P((int sig));
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int x, y, j;
 	long cols, lines;
@@ -143,8 +140,9 @@ main(argc, argv)
 }
 
 static void
-onsig(sig)
-	int sig;
+onsig(int sig)
 {
-	sig = sig_caught = 1;
+
+	sig = 0;
+	sig_caught = 1;
 }
