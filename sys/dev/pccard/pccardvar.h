@@ -129,9 +129,6 @@ struct pccard_function {
 	int		pf_ccr_window;
 	long		pf_mfc_iobase;
 	long		pf_mfc_iomax;
-	int		(*ih_fct)(void *);
-	void		*ih_arg;
-	int		ih_ipl;
 	int		pf_flags;
 };
 
@@ -299,7 +296,8 @@ enum {
 	PCCARD_IVAR_FUNCTION_NUMBER,
 	PCCARD_IVAR_VENDOR_STR,	/* CIS string for "Manufacturer" */
 	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
-	PCCARD_IVAR_CIS3_STR	/* Some cards need this */
+	PCCARD_IVAR_CIS3_STR,
+	PCCARD_IVAR_CIS4_STR
 };
 
 #define PCCARD_ACCESSOR(A, B, T)					\
