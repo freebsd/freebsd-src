@@ -1112,6 +1112,27 @@ nd6_rtrequest(req, rt, info)
 		return;
 	}
 
+	if (req == RTM_RESOLVE &&
+	    (nd6_need_cache(ifp) == 0 || /* stf case */
+	     !nd6_is_addr_neighbor((struct sockaddr_in6 *)rt_key(rt), ifp))) {
+		/*
+		 * FreeBSD and BSD/OS often make a cloned host route based
+		 * on a less-specific route (e.g. the default route).
+		 * If the less specific route does not have a "gateway"
+		 * (this is the case when the route just goes to a p2p or an
+		 * stf interface), we'll mistakenly make a neighbor cache for
+		 * the host route, and will see strange neighbor solicitation
+		 * for the corresponding destination.  In order to avoid the
+		 * confusion, we check if the destination of the route is
+		 * a neighbor in terms of neighbor discovery, and stop the
+		 * process if not.  Additionally, we remove the LLINFO flag
+		 * so that ndp(8) will not try to get the neighbor information
+		 * of the destination.
+		 */
+		rt->rt_flags &= ~RTF_LLINFO;
+		return;
+	}
+
 	switch (req) {
 	case RTM_ADD:
 		/*
