@@ -131,14 +131,18 @@ ithread_update(struct ithd *ithd)
 	strncpy(p->p_comm, ithd->it_name, sizeof(ithd->it_name));
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
+		mtx_lock_spin(&sched_lock);
 		td->td_priority = PRI_MAX_ITHD;
+		td->td_base_pri = PRI_MAX_ITHD;
+		mtx_unlock_spin(&sched_lock);
 		ithd->it_flags &= ~IT_ENTROPY;
 		return;
 	}
-
 	entropy = 0;
+	mtx_lock_spin(&sched_lock);
 	td->td_priority = ih->ih_pri;
 	td->td_base_pri = ih->ih_pri;
+	mtx_unlock_spin(&sched_lock);
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 		if (strlen(p->p_comm) + strlen(ih->ih_name) + 1 <
 		    sizeof(p->p_comm)) {
@@ -154,12 +158,10 @@ ithread_update(struct ithd *ithd)
 		if (ih->ih_flags & IH_ENTROPY)
 			entropy++;
 	}
-
 	if (entropy)
 		ithd->it_flags |= IT_ENTROPY;
 	else
 		ithd->it_flags &= ~IT_ENTROPY;
-	
 	CTR2(KTR_INTR, "%s: updated %s\n", __func__, p->p_comm);
 }
 
