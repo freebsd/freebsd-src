@@ -60,6 +60,7 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	off_t byte, length, line;
 	int dfound;
 	off_t pagemask, off1, off2;
+	size_t pagesize;
 
 	if (sflag && len1 != len2)
 		exit(1);
@@ -71,7 +72,8 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 		eofmsg(file2);
 	len2 -= skip2;
 
-	pagemask = (off_t)getpagesize() - 1;
+	pagesize = getpagesize();
+	pagemask = (off_t)pagesize - 1;
 	off1 = ROUNDPAGE(skip1);
 	off2 = ROUNDPAGE(skip2);
 
@@ -79,15 +81,15 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	if (length > SIZE_T_MAX)
 		return (c_special(fd1, file1, skip1, fd2, file2, skip2));
 
-	if ((p1 = (u_char *)mmap(NULL,
-	    (size_t)length, PROT_READ, MAP_SHARED, fd1, off1)) == (u_char *)MAP_FAILED)
+	if ((p1 = (u_char *)mmap(NULL, (size_t)len1 + skip1 % pagesize,
+	    PROT_READ, MAP_SHARED, fd1, off1)) == (u_char *)MAP_FAILED)
 		err(ERR_EXIT, "%s", file1);
 
-	madvise(p1, length, MADV_SEQUENTIAL);
-	if ((p2 = (u_char *)mmap(NULL,
-	    (size_t)length, PROT_READ, MAP_SHARED, fd2, off2)) == (u_char *)MAP_FAILED)
+	madvise(p1, len1 + skip1 % pagesize, MADV_SEQUENTIAL);
+	if ((p2 = (u_char *)mmap(NULL, (size_t)len2 + skip2 % pagesize,
+	    PROT_READ, MAP_SHARED, fd2, off2)) == (u_char *)MAP_FAILED)
 		err(ERR_EXIT, "%s", file2);
-	madvise(p2, length, MADV_SEQUENTIAL);
+	madvise(p2, len2 + skip2 % pagesize, MADV_SEQUENTIAL);
 
 	dfound = 0;
 	p1 += skip1 - off1;
