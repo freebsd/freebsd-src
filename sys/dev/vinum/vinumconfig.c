@@ -285,11 +285,12 @@ give_sd_to_plex(int plexno, int sdno)
     }
 
     /*
-     * The plex doesn't have any subdisk with a larger
-     * offset.  Insert it
+     * The plex doesn't have any subdisk with a
+     * larger offset.  Insert it here.
      */
     plex->sdnos[i] = sdno;
     sd->plexsdno = i;					    /* note where we are in the subdisk */
+    sd->plexno = plex->plexno;				    /* and who we belong to */
     return i;
 }
 

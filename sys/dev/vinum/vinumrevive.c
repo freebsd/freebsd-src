@@ -65,8 +65,8 @@ revive_block(int sdno)
     int size;						    /* size of revive block, bytes */
     daddr_t plexblkno;					    /* lblkno in plex */
     int psd;						    /* parity subdisk number */
-    int stripe;						    /* stripe number */
-    int isparity = 0;					    /* set if this is the parity stripe */
+    u_int64_t stripe;					    /* stripe number */
+    int paritysd = 0;					    /* set if this is the parity stripe */
     struct rangelock *lock;				    /* for locking */
     daddr_t stripeoffset;				    /* offset in stripe */
 
@@ -93,19 +93,6 @@ revive_block(int sdno)
     size = min(sd->revive_blocksize >> DEV_BSHIFT, sd->sectors - sd->revived) << DEV_BSHIFT;
     sd->reviver = curproc->p_pid;			    /* note who last had a bash at it */
 
-    s = splbio();
-    bp = geteblk(size);					    /* Get a buffer */
-    splx(s);
-    if (bp == NULL)
-	return ENOMEM;
-
-    /*
-     * Amount to transfer: block size, unless it
-     * would overlap the end
-     */
-    bp->b_bcount = size;
-    bp->b_resid = bp->b_bcount;
-
     /* Now decide where to read from */
     switch (plex->organization) {
     case plex_concat:
@@ -117,7 +104,6 @@ revive_block(int sdno)
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * plex->subdisks /* offset to beginning of stripe */
 	    + sd->revived % plex->stripesize;		    /* offset from beginning of stripe */
-	lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	break;
 
     case plex_raid4:
@@ -127,11 +113,14 @@ revive_block(int sdno)
 	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
 	    +stripeoffset;				    /* offset from beginning of stripe */
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
+
+	/* Make sure we don't go beyond the end of the band. */
+	size = min(size, (plex->stripesize - stripeoffset) << DEV_BSHIFT);
 	if (plex->organization == plex_raid4)
 	    psd = plex->subdisks - 1;			    /* parity subdisk for this stripe */
 	else
 	    psd = plex->subdisks - 1 - stripe % plex->subdisks;	/* parity subdisk for this stripe */
-	isparity = plex->sdnos[psd] == sdno;		    /* note if it's the parity subdisk */
+	paritysd = plex->sdnos[psd] == sdno;		    /* note if it's the parity subdisk */
 
 	/*
 	 * Now adjust for the strangenesses
@@ -139,29 +128,33 @@ revive_block(int sdno)
 	 */
 	if (sd->plexsdno > psd)				    /* beyond the parity stripe, */
 	    plexblkno -= plex->stripesize;		    /* one stripe less */
-	if (!isparity)
-	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
+	else if (paritysd)
+	    plexblkno -= plex->stripesize * sd->plexsdno;   /* go back to the beginning of the band */
 	break;
 
     case plex_disorg:					    /* to keep the compiler happy */
     }
 
-    if (isparity) {					    /* we're reviving a parity block, */
-	/*
-	 * We have calculated plexblkno assuming it
-	 * was a data block.  Go back to the beginning
-	 * of the band.
-	 */
-	plexblkno -= plex->stripesize * sd->plexsdno;
-
-	/* Don't need that bp after all, we'll get a new one. */
-	bp->b_flags |= B_INVAL;
-	brelse(bp);					    /* is this kosher? */
-	bp = parityrebuild(plex, plexblkno, size, rebuildparity, &lock, NULL); /* do the grunt work */
+    if (paritysd) {					    /* we're reviving a parity block, */
+	bp = parityrebuild(plex, sd->revived, size, rebuildparity, &lock, NULL); /* do the grunt work */
 	if (bp == NULL)					    /* no buffer space */
 	    return ENOMEM;				    /* chicken out */
     } else {						    /* data block */
+	s = splbio();
+	bp = geteblk(size);				    /* Get a buffer */
+	splx(s);
+	if (bp == NULL)
+	    return ENOMEM;
+
+	/*
+	 * Amount to transfer: block size, unless it
+	 * would overlap the end.
+	 */
+	bp->b_bcount = size;
+	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = plexblkno;			    /* start here */
+	if (isstriped(plex))				    /* we need to lock striped plexes */
+	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
 	       * First, read the data from the volume.  We
@@ -275,6 +268,10 @@ parityops(struct vinum_ioctl_msg *data)
     if (!isparity(plex)) {				    /* not RAID-4 or RAID-5 */
 	reply->error = EINVAL;
 	return;
+    } else if (plex->state < plex_flaky) {
+	reply->error = EIO;
+	strcpy(reply->msg, "Plex is not completely accessible\n");
+	return;
     }
     pstripe = data->offset;
     stripe = pstripe / plex->stripesize;		    /* stripe number */
@@ -314,7 +311,7 @@ parityops(struct vinum_ioctl_msg *data)
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    plex->checkblock = pstripe + (pbp->b_bcount >> DEV_BSHIFT);	/* moved this much further down */
-	    if (pstripe >= SD[plex->sdnos[0]].sectors) {    /* finished */
+	    if (plex->checkblock >= SD[plex->sdnos[0]].sectors) { /* finished */
 		plex->checkblock = 0;
 		reply->error = 0;
 	    }
@@ -345,6 +342,10 @@ parityops(struct vinum_ioctl_msg *data)
  *     errorloc.  The caller can set the value of
  *     the pointer to NULL if this is called for
  *     rebuilding parity.
+ *
+ * pstripe is the subdisk-relative base address of
+ * the data to be reconstructed, size is the size
+ * of the transfer in bytes.
  */
 struct buf *
 parityrebuild(struct plex *plex,
@@ -357,7 +358,7 @@ parityrebuild(struct plex *plex,
     int error;
     int s;
     int sdno;
-    int stripe;						    /* stripe number */
+    u_int64_t stripe;					    /* stripe number */
     int *parity_buf;					    /* buffer address for current parity block */
     int *newparity_buf;					    /* and for new parity block */
     int mysize;						    /* I/O transfer size for this transfer */
@@ -414,7 +415,7 @@ parityrebuild(struct plex *plex,
 	    else
 		bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	/* device number */
 	    bpp[sdno]->b_flags = B_READ;		    /* either way, read it */
-	    bpp[sdno]->b_bcount = bpp[sdno]->b_bufsize;
+	    bpp[sdno]->b_bcount = mysize;
 	    bpp[sdno]->b_resid = bpp[sdno]->b_bcount;
 	    bpp[sdno]->b_blkno = pstripe;		    /* transfer from here */
 	}
@@ -483,7 +484,7 @@ parityrebuild(struct plex *plex,
 	*errorloc = -1;					    /* no error yet */
 	for (i = 0; i < isize; i++) {
 	    if (parity_buf[i] != newparity_buf[i]) {
-		*errorloc = (u_long) (pstripe << DEV_BSHIFT) * (plex->subdisks - 1)
+		*errorloc = (off_t) (pstripe << DEV_BSHIFT) * (plex->subdisks - 1)
 		    + i * sizeof(int);
 		break;
 	    }
@@ -551,7 +552,7 @@ initsd(int sdno, int verify)
 	if (bp == NULL)
 	    return ENOMEM;
 
-	bp->b_bcount = bp->b_bufsize;
+	bp->b_bcount = size;
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->initialized;			    /* write it to here */
 	bzero(bp->b_data, bp->b_bcount);
@@ -575,7 +576,7 @@ initsd(int sdno, int verify)
 		splx(s);
 		error = ENOMEM;
 	    } else {
-		bp->b_bcount = bp->b_bufsize;
+		bp->b_bcount = size;
 		bp->b_resid = bp->b_bcount;
 		bp->b_blkno = sd->initialized;		    /* read from here */
 		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
