@@ -4,9 +4,9 @@
  * $FreeBSD$
  */
 
-#ifndef _hr_HR_ISO_8859_2_all
-#define _hr_HR_ISO_8859_2_all
+#ifndef _hr_HR_ISO8859_2_all
+#define _hr_HR_ISO8859_2_all
 
-#include <hr_HR.ISO_8859-2/calendar.praznici>
+#include <hr_HR.ISO8859-2/calendar.praznici>
 
-#endif /* !_hr_HR_ISO_8859_2_all */
+#endif /* !_hr_HR_ISO8859_2_all */
