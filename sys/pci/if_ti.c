@@ -324,7 +324,7 @@ static u_int32_t ti_eeprom_putbyte(sc, byte)
 	ack = CSR_READ_4(sc, TI_MISC_LOCAL_CTL) & TI_MLC_EE_DIN;
 	TI_CLRBIT(sc, TI_MISC_LOCAL_CTL, TI_MLC_EE_CLK);
 
-	return(ack);
+	return (ack);
 }
 
 /*
@@ -348,7 +348,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	if (ti_eeprom_putbyte(sc, EEPROM_CTL_WRITE)) {
 		printf("ti%d: failed to send write command, status: %x\n",
 		    sc->ti_unit, CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
-		return(1);
+		return (1);
 	}
 
 	/*
@@ -357,7 +357,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	if (ti_eeprom_putbyte(sc, (addr >> 8) & 0xFF)) {
 		printf("ti%d: failed to send address, status: %x\n",
 		    sc->ti_unit, CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
-		return(1);
+		return (1);
 	}
 	/*
 	 * Send second byte address of byte we want to read.
@@ -365,7 +365,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	if (ti_eeprom_putbyte(sc, addr & 0xFF)) {
 		printf("ti%d: failed to send address, status: %x\n",
 		    sc->ti_unit, CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
-		return(1);
+		return (1);
 	}
 
 	EEPROM_STOP;
@@ -376,7 +376,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 	if (ti_eeprom_putbyte(sc, EEPROM_CTL_READ)) {
 		printf("ti%d: failed to send read command, status: %x\n",
 		    sc->ti_unit, CSR_READ_4(sc, TI_MISC_LOCAL_CTL));
-		return(1);
+		return (1);
 	}
 
 	/*
@@ -400,7 +400,7 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 
 	*dest = byte;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -423,7 +423,7 @@ ti_read_eeprom(sc, dest, off, cnt)
 		*(dest + i) = byte;
 	}
 
-	return(err ? 1 : 0);
+	return (err ? 1 : 0);
 }
 
 /*
@@ -444,7 +444,7 @@ ti_mem(sc, addr, len, buf)
 	ti_winbase = (caddr_t)(sc->ti_vhandle + TI_WINDOW);
 	ptr = buf;
 
-	while(cnt) {
+	while (cnt) {
 		if (cnt < TI_WINLEN)
 			segsize = cnt;
 		else
@@ -487,7 +487,7 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 		       "word-aligned\n", sc->ti_unit, tigon_addr);
 		printf("ti%d: ti_copy_mem: unaligned writes aren't yet "
 		       "supported\n", sc->ti_unit);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	segptr = tigon_addr & ~0x3;
@@ -525,7 +525,7 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 	 */
 	origwin = CSR_READ_4(sc, TI_WINBASE);
 
-	while(cnt) {
+	while (cnt) {
 		bus_size_t ti_offset;
 
 		if (cnt < TI_WINLEN)
@@ -655,7 +655,7 @@ ti_copy_mem(sc, tigon_addr, len, buf, useraddr, readdata)
 
 	TI_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -678,13 +678,13 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 	if (tigon_addr & 0x3) {
 		printf("ti%d: ti_copy_scratch: tigon address %#x isn't "
 		       "word-aligned\n", sc->ti_unit, tigon_addr);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	if (len & 0x3) {
 		printf("ti%d: ti_copy_scratch: transfer length %d isn't "
 		       "word-aligned\n", sc->ti_unit, len);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	segptr = tigon_addr;
@@ -755,7 +755,7 @@ ti_copy_scratch(sc, tigon_addr, len, buf, useraddr, readdata, cpu)
 
 	TI_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -772,7 +772,7 @@ ti_bcopy_swap(src, dst, len, swap_type)
 	if (len & 0x3) {
 		printf("ti_bcopy_swap: length %zd isn't 32-bit aligned\n",
 		       len);
-		return(-1);
+		return (-1);
 	}
 
 	tmpsrc = src;
@@ -792,7 +792,7 @@ ti_bcopy_swap(src, dst, len, swap_type)
 		tmplen -= 4;
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -804,7 +804,7 @@ static void
 ti_loadfw(sc)
 	struct ti_softc		*sc;
 {
-	switch(sc->ti_hwrev) {
+	switch (sc->ti_hwrev) {
 	case TI_HWREV_TIGON:
 		if (tigonFwReleaseMajor != TI_FIRMWARE_MAJOR ||
 		    tigonFwReleaseMinor != TI_FIRMWARE_MINOR ||
@@ -917,7 +917,7 @@ ti_handle_events(sc)
 
 	while (sc->ti_ev_saved_considx != sc->ti_ev_prodidx.ti_idx) {
 		e = &sc->ti_rdata->ti_event_ring[sc->ti_ev_saved_considx];
-		switch(e->ti_event) {
+		switch (e->ti_event) {
 		case TI_EV_LINKSTAT_CHANGED:
 			sc->ti_linkstat = e->ti_code;
 			if (e->ti_code == TI_EV_CODE_LINK_UP)
@@ -995,7 +995,7 @@ ti_alloc_jumbo_mem(sc)
 
 	if (sc->ti_cdata.ti_jumbo_buf == NULL) {
 		printf("ti%d: no memory for jumbo buffers!\n", sc->ti_unit);
-		return(ENOBUFS);
+		return (ENOBUFS);
 	}
 
 	SLIST_INIT(&sc->ti_jfree_listhead);
@@ -1017,13 +1017,13 @@ ti_alloc_jumbo_mem(sc)
 			sc->ti_cdata.ti_jumbo_buf = NULL;
 			printf("ti%d: no memory for jumbo "
 			    "buffer queue!\n", sc->ti_unit);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		entry->slot = i;
 		SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, entry, jpool_entries);
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1038,12 +1038,12 @@ static void *ti_jalloc(sc)
 
 	if (entry == NULL) {
 		printf("ti%d: no free jumbo buffers\n", sc->ti_unit);
-		return(NULL);
+		return (NULL);
 	}
 
 	SLIST_REMOVE_HEAD(&sc->ti_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->ti_jinuse_listhead, entry, jpool_entries);
-	return(sc->ti_cdata.ti_jslots[entry->slot]);
+	return (sc->ti_cdata.ti_jslots[entry->slot]);
 }
 
 /*
@@ -1096,12 +1096,12 @@ ti_newbuf_std(sc, i, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
@@ -1121,7 +1121,7 @@ ti_newbuf_std(sc, i, m)
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1140,7 +1140,7 @@ ti_newbuf_mini(sc, i, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
 	} else {
@@ -1160,7 +1160,7 @@ ti_newbuf_mini(sc, i, m)
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
-	return(0);
+	return (0);
 }
 
 #ifdef TI_PRIVATE_JUMBOS
@@ -1184,7 +1184,7 @@ ti_newbuf_jumbo(sc, i, m)
 		/* Allocate the mbuf. */
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 
 		/* Allocate the jumbo buffer */
@@ -1193,7 +1193,7 @@ ti_newbuf_jumbo(sc, i, m)
 			m_freem(m_new);
 			printf("ti%d: jumbo allocation failed "
 			    "-- packet dropped!\n", sc->ti_unit);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 
 		/* Attach the buffer to the mbuf. */
@@ -1219,7 +1219,7 @@ ti_newbuf_jumbo(sc, i, m)
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
-	return(0);
+	return (0);
 }
 
 #else
@@ -1344,7 +1344,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 
         r->ti_idx = idx;
 
-        return(0);
+        return (0);
 
  nobufs:
 
@@ -1357,7 +1357,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
         if (m_new)
                 m_freem(m_new);
 
-        for(i = 0; i < 3; i++){
+        for (i = 0; i < 3; i++) {
                 if (m[i])
                         m_freem(m[i]);
                 if (buf[i])
@@ -1384,13 +1384,13 @@ ti_init_rx_ring_std(sc)
 
 	for (i = 0; i < TI_SSLOTS; i++) {
 		if (ti_newbuf_std(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	};
 
 	TI_UPDATE_STDPROD(sc, i - 1);
 	sc->ti_std = i - 1;
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -1418,13 +1418,13 @@ ti_init_rx_ring_jumbo(sc)
 
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (ti_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	};
 
 	TI_UPDATE_JUMBOPROD(sc, i - 1);
 	sc->ti_jumbo = i - 1;
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -1451,13 +1451,13 @@ ti_init_rx_ring_mini(sc)
 
 	for (i = 0; i < TI_MSLOTS; i++) {
 		if (ti_newbuf_mini(sc, i, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	};
 
 	TI_UPDATE_MINIPROD(sc, i - 1);
 	sc->ti_mini = i - 1;
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -1502,7 +1502,7 @@ ti_init_tx_ring(sc)
 	sc->ti_txcnt = 0;
 	sc->ti_tx_saved_considx = 0;
 	CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, 0);
-	return(0);
+	return (0);
 }
 
 /*
@@ -1521,7 +1521,7 @@ ti_add_mcast(sc, addr)
 
 	m = (u_int16_t *)&addr->octet[0];
 
-	switch(sc->ti_hwrev) {
+	switch (sc->ti_hwrev) {
 	case TI_HWREV_TIGON:
 		CSR_WRITE_4(sc, TI_GCR_MAR0, htons(m[0]));
 		CSR_WRITE_4(sc, TI_GCR_MAR1, (htons(m[1]) << 16) | htons(m[2]));
@@ -1549,7 +1549,7 @@ ti_del_mcast(sc, addr)
 
 	m = (u_int16_t *)&addr->octet[0];
 
-	switch(sc->ti_hwrev) {
+	switch (sc->ti_hwrev) {
 	case TI_HWREV_TIGON:
 		CSR_WRITE_4(sc, TI_GCR_MAR0, htons(m[0]));
 		CSR_WRITE_4(sc, TI_GCR_MAR1, (htons(m[1]) << 16) | htons(m[2]));
@@ -1641,16 +1641,16 @@ static int ti_64bitslot_war(sc)
 		CSR_WRITE_4(sc, 0x600, 0x5555AAAA);
 		if (CSR_READ_4(sc, 0x604) == 0x5555AAAA) {
 			if (sc->ti_hwrev == TI_HWREV_TIGON)
-				return(EINVAL);
+				return (EINVAL);
 			else {
 				TI_SETBIT(sc, TI_PCI_STATE,
 				    TI_PCISTATE_32BIT_BUS);
-				return(0);
+				return (0);
 			}
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1685,14 +1685,14 @@ ti_chipinit(sc)
 	/* Check the ROM failed bit to see if self-tests passed. */
 	if (CSR_READ_4(sc, TI_CPU_STATE) & TI_CPUSTATE_ROMFAIL) {
 		printf("ti%d: board self-diagnostics failed!\n", sc->ti_unit);
-		return(ENODEV);
+		return (ENODEV);
 	}
 
 	/* Halt the CPU. */
 	TI_SETBIT(sc, TI_CPU_STATE, TI_CPUSTATE_HALT);
 
 	/* Figure out the hardware revision. */
-	switch(CSR_READ_4(sc, TI_MISC_HOST_CTL) & TI_MHC_CHIP_REV_MASK) {
+	switch (CSR_READ_4(sc, TI_MISC_HOST_CTL) & TI_MHC_CHIP_REV_MASK) {
 	case TI_REV_TIGON_I:
 		sc->ti_hwrev = TI_HWREV_TIGON;
 		break;
@@ -1701,7 +1701,7 @@ ti_chipinit(sc)
 		break;
 	default:
 		printf("ti%d: unsupported chip revision\n", sc->ti_unit);
-		return(ENODEV);
+		return (ENODEV);
 	}
 
 	/* Do special setup for Tigon 2. */
@@ -1743,7 +1743,7 @@ ti_chipinit(sc)
 	 * to use MWI with the Tigon 2.
 	 */
 	if (CSR_READ_4(sc, TI_PCI_CMDSTAT) & PCIM_CMD_MWIEN) {
-		switch(cacheline) {
+		switch (cacheline) {
 		case 1:
 		case 4:
 		case 8:
@@ -1812,10 +1812,10 @@ ti_chipinit(sc)
 	if (ti_64bitslot_war(sc)) {
 		printf("ti%d: bios thinks we're in a 64 bit slot, "
 		    "but we aren't", sc->ti_unit);
-		return(EINVAL);
+		return (EINVAL);
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1989,7 +1989,7 @@ ti_gibinit(sc)
 	/* Start CPU. */
 	TI_CLRBIT(sc, TI_CPU_STATE, (TI_CPUSTATE_HALT|TI_CPUSTATE_STEP));
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -2004,16 +2004,16 @@ ti_probe(dev)
 
 	t = ti_devs;
 
-	while(t->ti_name != NULL) {
+	while (t->ti_name != NULL) {
 		if ((pci_get_vendor(dev) == t->ti_vid) &&
 		    (pci_get_device(dev) == t->ti_did)) {
 			device_set_desc(dev, t->ti_name);
-			return(0);
+			return (0);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -2224,7 +2224,7 @@ fail:
 	if (sc && error)
 		ti_detach(dev);
 
-	return(error);
+	return (error);
 }
 
 /*
@@ -2274,7 +2274,7 @@ ti_detach(dev)
 	TI_UNLOCK(sc);
 	mtx_destroy(&sc->ti_mtx);
 
-	return(0);
+	return (0);
 }
 
 #ifdef TI_JUMBO_HDRSPLIT
@@ -2356,7 +2356,7 @@ ti_rxeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	while(sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
+	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc	*cur_rx;
 		u_int32_t		rxidx;
 		struct mbuf		*m = NULL;
@@ -2643,7 +2643,7 @@ ti_encap(sc, m_head, txidx)
 			 * of the end of the ring.
 			 */
 			if ((TI_TX_RING_CNT - (sc->ti_txcnt + cnt)) < 16)
-				return(ENOBUFS);
+				return (ENOBUFS);
 			cur = frag;
 			TI_INC(frag, TI_TX_RING_CNT);
 			cnt++;
@@ -2651,10 +2651,10 @@ ti_encap(sc, m_head, txidx)
 	}
 
 	if (m != NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	if (frag == sc->ti_tx_saved_considx)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		sc->ti_rdata->ti_tx_ring_nic[cur % 128].ti_flags |=
@@ -2666,7 +2666,7 @@ ti_encap(sc, m_head, txidx)
 
 	*txidx = frag;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -2686,7 +2686,7 @@ ti_start(ifp)
 
 	prodidx = CSR_READ_4(sc, TI_MB_SENDPROD_IDX);
 
-	while(sc->ti_cdata.ti_tx_chain[prodidx] == NULL) {
+	while (sc->ti_cdata.ti_tx_chain[prodidx] == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -2856,11 +2856,11 @@ ti_ifmedia_upd(ifp)
 	ifm = &sc->ifmedia;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return(EINVAL);
+		return (EINVAL);
 
 	flowctl = 0;
 
-	switch(IFM_SUBTYPE(ifm->ifm_media)) {
+	switch (IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_AUTO:
 		/*
 		 * Transmit flow control doesn't work on the Tigon 1.
@@ -2939,7 +2939,7 @@ ti_ifmedia_upd(ifp)
 		break;
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -3006,7 +3006,7 @@ ti_ioctl(ifp, command, data)
 
 	TI_LOCK(sc);
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > TI_JUMBO_MTU)
 			error = EINVAL;
@@ -3075,7 +3075,7 @@ ti_ioctl(ifp, command, data)
 
 	TI_UNLOCK(sc);
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -3085,13 +3085,13 @@ ti_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 	if (sc == NULL)
-		return(ENODEV);
+		return (ENODEV);
 
 	TI_LOCK(sc);
 	sc->ti_flags |= TI_FLAG_DEBUGING;
 	TI_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -3101,13 +3101,13 @@ ti_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 	if (sc == NULL)
-		return(ENODEV);
+		return (ENODEV);
 
 	TI_LOCK(sc);
 	sc->ti_flags &= ~TI_FLAG_DEBUGING;
 	TI_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -3121,11 +3121,11 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 
 	sc = dev->si_drv1;
 	if (sc == NULL)
-		return(ENODEV);
+		return (ENODEV);
 
 	error = 0;
 
-	switch(cmd) {
+	switch (cmd) {
 	case TIIOCGETSTATS:
 	{
 		struct ti_stats *outstats;
@@ -3371,7 +3371,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		error = ENOTTY;
 		break;
 	}
-	return(error);
+	return (error);
 }
 
 static void
