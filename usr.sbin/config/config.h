@@ -51,7 +51,6 @@ struct file_list {
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_needs;
-	char	*f_rootdev;
 };
 
 /*
@@ -61,11 +60,8 @@ struct file_list {
 #define NORMAL		2
 #define	INVISIBLE	3
 #define	PROFILING	4
-#define	SYSTEMSPEC	5
-#define	SWAPSPEC	6
-#define COMPDEVICE	7
-#define NODEPEND	8
-#define LOCAL		9
+#define NODEPEND	5
+#define LOCAL		6
 #define DEVDONE		0x80000000
 #define TYPEMASK	0x7fffffff
 
@@ -164,7 +160,6 @@ int	yylex __P((void));
 void	options __P((void));
 void	makefile __P((void));
 void	headers __P((void));
-void	swapconf __P((void));
 
 
 extern int	seen_scbus;
@@ -173,7 +168,7 @@ extern struct	device *dtab;
 extern char	errbuf[80];
 extern int	yyline;
 
-extern struct	file_list *ftab, *conf_list, **confp;
+extern struct	file_list *ftab;
 
 extern int	profiling;
 extern int	debugging;
