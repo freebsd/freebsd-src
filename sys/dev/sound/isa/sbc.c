@@ -88,6 +88,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x0000630e, "CS423x"},
 #endif
 	{0x01008c0e, "Creative ViBRA16C PnP"},
+	{0x41008c0e, "Creative ViBRA16CL PnP"},
 	{0x43008c0e, "Creative ViBRA16X PnP"},
 	{0x31008c0e, "Creative SB16 PnP/SB32"},
 	{0x42008c0e, "Creative SB AWE64"}, /* CTL00c1 */
