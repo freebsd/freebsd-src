@@ -35,11 +35,12 @@
  * EFI fully-qualified device descriptor
  */
 struct efi_devdesc {
-	struct	devsw *d_dev;
-	int	d_type;
+	struct	devsw	*d_dev;
+	int		d_type;
 #define	DEVT_NONE	0
 #define	DEVT_DISK	1
 #define	DEVT_NET	2
+	EFI_HANDLE	d_handle;
 	union {
 		struct {
 			int	unit;
@@ -61,8 +62,12 @@ extern int	efi_setcurrdev(struct env_var *ev, int flags, void *value);
 typedef unsigned long physaddr_t;
 
 /* exported devices XXX rename? */
+extern struct devsw efifs_dev;
 extern struct devsw efi_disk;
 extern struct netif_driver efi_net;
+
+/* Wrapper over EFI filesystems. */
+extern struct fs_ops efi_fsops;
 
 /* this is in startup code */
 extern void		delay(int);
