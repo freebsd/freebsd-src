@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.5 1996/04/06 01:50:39 julian Exp $
+.\"	$Id: install.1,v 1.6 1996/09/24 04:14:58 imp Exp $
 .\"
-.Dd October 9, 1995
+.Dd September 22, 1996
 .Dt INSTALL 1
 .Os BSD 4.2
 .Sh NAME
@@ -40,14 +40,14 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm install
-.Op Fl cs
+.Op Fl CcDps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm install
-.Op Fl Ccdps
+.Op Fl CcDps
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
@@ -55,6 +55,13 @@
 .Ar file1
 \&...
 .Ar fileN directory
+.Nm install
+.Fl d
+.Op Fl g Ar group
+.Op Fl m Ar mode
+.Op Fl o Ar owner
+.Ar directory
+\&...
 .Sh DESCRIPTION
 The file(s) are moved (or copied if the
 .Fl c
@@ -79,18 +86,21 @@ Copy the file.
 This flag turns off the default behavior of
 .Nm install
 where it deletes the original file after creating the target.
-.It Fl D 
+.It Fl D
 Print debugging information.
 If
-.Fl d
+.Fl D
 is specified one or more times,
 then print the renaming steps for
 .Fl C .
 If
-.Fl d
+.Fl D
 is specified two or more times,
 then warn about files that aren't installed with
 .Fl C .
+.It Fl d
+Create directories. 
+Missing parent directories are created as required.
 .It Fl f
 Specify the target's file flags.
 (See
