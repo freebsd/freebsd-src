@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.47 1998/06/12 15:02:02 peter Exp $
+#	$Id: Makefile.inc,v 1.48 1998/07/08 15:42:57 dt Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -79,7 +79,7 @@ MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 innetgr.3 \
 MLINKS+=getpwent.3 endpwent.3 getpwent.3 getpwnam.3 getpwent.3 getpwuid.3 \
 	getpwent.3 setpassent.3 getpwent.3 setpwent.3 getpwent.3 setpwfile.3
 MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
-	getttyent.3 isdialuptty.3 getttyent.3 isnetworktty.3 \
+	getttyent.3 isdialuptty.3 getttyent.3 isnettty.3 \
 	getttyent.3 setttyent.3
 MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
 MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
