@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: radio1.c,v 1.3 1996/04/16 12:17:25 jkh Exp $
  */
 
 #include <stdio.h>
@@ -30,22 +30,22 @@ static int spending;
 static int
 check(dialogMenuItem *self)
 {
-  return ((int)self->data == spending);
+    return ((int)self->data == spending);
 }
 
 static int
 spend(dialogMenuItem *self)
 {
-  spending = (int)self->data;
-  return DITEM_REDRAW;
+    spending = (int)self->data;
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 /* menu5 - Show a simple radiolist menu that inherits the radio appearance by default */
-  /* prompt	title			checked		fire		sel   data */
+/* prompt	title			checked		fire		sel   data */
 static dialogMenuItem menu5[] = {
-  { "1000",	"Spend $1,000",		check,		spend,		NULL, (void *)1000 },
-  { "500",	"Spend $500",		check,		spend,		NULL, (void *)500 },
-  { "100",	"Spend $100",		check,		spend, 		NULL, (void *)100 },
+    { "1000",	"Spend $1,000",		check,		spend,		NULL, (void *)1000 },
+    { "500",	"Spend $500",		check,		spend,		NULL, (void *)500 },
+    { "100",	"Spend $100",		check,		spend, 		NULL, (void *)100 },
 };
 
 /* End of hook functions */
@@ -54,17 +54,17 @@ static dialogMenuItem menu5[] = {
 int
 main(int argc, unsigned char *argv[])
 {
-  int retval;
-
-  init_dialog();
-
-
-  retval = dialog_radiolist("this is dialog_radiolist() in action, test #1",
-			    "this radio menu shows off some of the straight-forward features\n"
-			    "of the new menu system's check & fire dispatch hooks", -1, -1, 3, -3, &menu5, NULL);
-  dialog_clear();
-  fprintf(stderr, "returned value for dialog_radiolist was %d (money set to %d)\n", retval, spending);
-
-  end_dialog();
-  return 0;
+    int retval;
+    
+    init_dialog();
+    
+    
+    retval = dialog_radiolist("this is dialog_radiolist() in action, test #1",
+			      "this radio menu shows off some of the straight-forward features\n"
+			      "of the new menu system's check & fire dispatch hooks", -1, -1, 3, -3, menu5, NULL);
+    dialog_clear();
+    fprintf(stderr, "returned value for dialog_radiolist was %d (money set to %d)\n", retval, spending);
+    
+    end_dialog();
+    return 0;
 }

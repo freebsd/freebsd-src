@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: radio2.c,v 1.3 1996/04/16 12:17:26 jkh Exp $
  */
 
 #include <stdio.h>
@@ -30,39 +30,39 @@ static char bachelor[10], bachelette[10];
 static int
 getBachelor(dialogMenuItem *self)
 {
-  return !strcmp(bachelor, self->prompt);
+    return !strcmp(bachelor, self->prompt);
 }
 
 static int
 setBachelor(dialogMenuItem *self)
 {
-  strcpy(bachelor, self->prompt);
-  return DITEM_REDRAW;
+    strcpy(bachelor, self->prompt);
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 static int
 getBachelette(dialogMenuItem *self)
 {
-  return !strcmp(bachelette, self->prompt);
+    return !strcmp(bachelette, self->prompt);
 }
 
 static int
 setBachelette(dialogMenuItem *self)
 {
-  strcpy(bachelette, self->prompt);
-  return DITEM_REDRAW;
+    strcpy(bachelette, self->prompt);
+    return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
 /* menu6- More complex radiolist menu that creates two groups in a single menu */
-  /* prompt	title								checked		fire */
+/* prompt	title								checked		fire */
 static dialogMenuItem menu6[] = {
-  { "Tom",	"Tom's a dynamic shoe salesman from Tulsa, OK!",		getBachelor,	setBachelor },
-  { "Dick",	"Dick's a retired engine inspector from McDonnell-Douglas!",	getBachelor,	setBachelor },
-  { "Harry",	"Harry's a professional female impersonator from Las Vegas!",	getBachelor,	setBachelor },
-  { "-----",	"----------------------------------",			NULL, NULL, NULL, NULL, ' ', ' ', ' ' },
-  { "Jane",	"Jane's a twice-divorced housewife from Moose, Oregon!",	getBachelette,	setBachelette },
-  { "Sally",	"Sally's a shy Human Resources Manager for IBM!",		getBachelette,	setBachelette },
-  { "Mary",	"Mary's an energetic serial killer on the lam!",		getBachelette,	setBachelette },
+    { "Tom",	"Tom's a dynamic shoe salesman from Tulsa, OK!",		getBachelor,	setBachelor },
+    { "Dick",	"Dick's a retired engine inspector from McDonnell-Douglas!",	getBachelor,	setBachelor },
+    { "Harry",	"Harry's a professional female impersonator from Las Vegas!",	getBachelor,	setBachelor },
+    { "-----",	"----------------------------------",		NULL, NULL, NULL, NULL, ' ', ' ', ' ' },
+    { "Jane",	"Jane's a twice-divorced housewife from Moose, Oregon!",	getBachelette,	setBachelette },
+    { "Sally",	"Sally's a shy Human Resources Manager for IBM!",		getBachelette,	setBachelette },
+    { "Mary",	"Mary's an energetic serial killer on the lam!",		getBachelette,	setBachelette },
 };
 
 /* End of hook functions */
@@ -71,18 +71,18 @@ static dialogMenuItem menu6[] = {
 int
 main(int argc, unsigned char *argv[])
 {
-  int retval;
-
-  init_dialog();
-
-  retval = dialog_radiolist("this is dialog_radiolist() in action, test #2",
-			    "Welcome to \"The Love Blender!\" - America's favorite game show\n"
-			    "where YOU, the contestant, get to choose which of these two\n"
-			    "fine specimens of humanity will go home together, whether they\n"
-			    "like it or not!", -1, -1, 7, -7, &menu6, NULL);
-  dialog_clear();
-  fprintf(stderr, "I'm sure that %s and %s will be very happy together!\n", bachelor, bachelette);
-
-  end_dialog();
-  return 0;
+    int retval;
+    
+    init_dialog();
+    
+    retval = dialog_radiolist("this is dialog_radiolist() in action, test #2",
+			      "Welcome to \"The Love Blender!\" - America's favorite game show\n"
+			      "where YOU, the contestant, get to choose which of these two\n"
+			      "fine specimens of humanity will go home together, whether they\n"
+			      "like it or not!", -1, -1, 7, -7, menu6, NULL);
+    dialog_clear();
+    fprintf(stderr, "I'm sure that %s and %s will be very happy together!\n", bachelor, bachelette);
+    
+    end_dialog();
+    return 0;
 }
