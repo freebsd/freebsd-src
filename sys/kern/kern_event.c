@@ -445,7 +445,7 @@ filt_timerattach(struct knote *kn)
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
 	MALLOC(calloutp, struct callout *, sizeof(*calloutp),
 	    M_KQUEUE, M_WAITOK);
-	callout_init(calloutp, 1);
+	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
 	callout_reset(calloutp, timertoticks(kn->kn_sdata), filt_timerexpire,
 	    kn);
