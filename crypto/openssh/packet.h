@@ -1,20 +1,18 @@
 /*
- *
- * packet.h
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Sat Mar 18 02:02:14 1995 ylo
- *
  * Interface for the packet protocol functions.
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$Id: packet.h,v 1.15 2000/04/14 10:30:32 markus Exp $"); */
+/* RCSID("$OpenBSD: packet.h,v 1.17 2000/09/07 20:27:52 deraadt Exp $"); */
+/* $FreeBSD$ */
 
 #ifndef PACKET_H
 #define PACKET_H
