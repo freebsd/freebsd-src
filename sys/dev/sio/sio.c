@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.145 1996/09/06 23:08:05 phk Exp $
+ *	$Id: sio.c,v 1.146 1996/09/14 04:27:42 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -569,7 +569,7 @@ sioprobe(dev)
 	 * XXX what about the UART bug avoided by waiting in comparam()?
 	 * We don't want to to wait long enough to drain at 2 bps.
 	 */
-	outb(iobase + com_cfcr, CFCR_DLAB);
+	outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
 	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
 	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
 	outb(iobase + com_cfcr, CFCR_8BITS);
@@ -942,7 +942,6 @@ determined_type: ;
 	dev = makedev(CDEV_MAJOR, 0);
 	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-		/* devsw, minor, type, uid, gid, perm, fmt, ... */
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, "ttyd%n", unit);
@@ -1826,6 +1825,8 @@ comparam(tp, t)
 	int		cflag;
 	struct com_s	*com;
 	int		divisor;
+	u_char		dlbh;
+	u_char		dlbl;
 	int		error;
 	Port_t		iobase;
 	int		s;
@@ -1937,8 +1938,18 @@ retry:
 
 	if (divisor != 0) {
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
-		outb(iobase + com_dlbl, divisor & 0xFF);
-		outb(iobase + com_dlbh, (u_int) divisor >> 8);
+		/*
+		 * Only set the divisor registers if they would change,
+		 * since on some 16550 incompatibles (UMC8669F), setting
+		 * them while input is arriving them loses sync until
+		 * data stops arriving.
+		 */
+		dlbl = divisor & 0xFF;
+		if (inb(iobase + com_dlbl) != dlbl)
+			outb(iobase + com_dlbl, dlbl);
+		dlbh = (u_int) divisor >> 8;
+		if (inb(iobase + com_dlbh) != dlbh)
+			outb(iobase + com_dlbh, dlbh);
 	}
 	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
 	if (!(tp->t_state & TS_TTSTOP))
@@ -2322,6 +2333,8 @@ siocnopen(sp)
 	struct siocnstate	*sp;
 {
 	int	divisor;
+	u_char	dlbh;
+	u_char	dlbl;
 	Port_t	iobase;
 
 	/*
@@ -2334,12 +2347,22 @@ siocnopen(sp)
 	outb(iobase + com_ier, 0);	/* spltty() doesn't stop siointr() */
 	siocntxwait();
 	sp->cfcr = inb(iobase + com_cfcr);
-	outb(iobase + com_cfcr, CFCR_DLAB);
+	outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
 	sp->dlbl = inb(iobase + com_dlbl);
 	sp->dlbh = inb(iobase + com_dlbh);
+	/*
+	 * Only set the divisor registers if they would change, since on
+	 * some 16550 incompatibles (Startech), setting them clears the
+	 * data input register.  This also reduces the effects of the
+	 * UMC8669F bug.
+	 */
 	divisor = ttspeedtab(comdefaultrate, comspeedtab);
-	outb(iobase + com_dlbl, divisor & 0xFF);
-	outb(iobase + com_dlbh, (u_int) divisor >> 8);
+	dlbl = divisor & 0xFF;
+	if (sp->dlbl != dlbl)
+		outb(iobase + com_dlbl, dlbl);
+	dlbh = (u_int) divisor >> 8;
+	if (sp->dlbh != dlbh)
+		outb(iobase + com_dlbh, dlbh);
 	outb(iobase + com_cfcr, CFCR_8BITS);
 	sp->mcr = inb(iobase + com_mcr);
 	/*
@@ -2361,9 +2384,11 @@ siocnclose(sp)
 	 */
 	siocntxwait();
 	iobase = siocniobase;
-	outb(iobase + com_cfcr, CFCR_DLAB);
-	outb(iobase + com_dlbl, sp->dlbl);
-	outb(iobase + com_dlbh, sp->dlbh);
+	outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
+	if (sp->dlbl != inb(iobase + com_dlbl))
+		outb(iobase + com_dlbl, sp->dlbl);
+	if (sp->dlbh != inb(iobase + com_dlbh))
+		outb(iobase + com_dlbh, sp->dlbh);
 	outb(iobase + com_cfcr, sp->cfcr);
 	/*
 	 * XXX damp oscillations of MCR_DTR and MCR_RTS by not restoring them.
