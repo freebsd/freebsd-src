@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm shutdown
 .Op Fl 
-.Op Fl fhkrn
+.Op Fl hkrn
 .Ar time
 .Op Ar warning-message ...
 .Sh DESCRIPTION
@@ -52,13 +52,6 @@ would otherwise not bother with such niceties.
 .Pp
 Available friendlinesses:
 .Bl -tag -width time
-.It Fl f
-.Nm Shutdown
-arranges, in the manner of
-.Xr fastboot 8 ,
-for the file systems
-.Em not to be
-checked on reboot.
 .It Fl h
 The system is halted at the specified
 .Ar time
@@ -141,15 +134,10 @@ and why it is going down (or anything else).
 .Bl -tag -width /etc/nologin -compact
 .It Pa /etc/nologin
 tells login not to let anyone log in
-.It Pa /fastboot
-tells
-.Xr rc 8
-not to run fsck when rebooting
 .El
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr wall 1 ,
-.Xr fastboot 8 ,
 .Xr halt 8 ,
 .Xr reboot 8
 .Sh BACKWARD COMPATIBILITY
