@@ -1414,7 +1414,7 @@ smbfs_findopen(struct smbnode *dnp, const char *wildcard, int wclen, int attr,
 	ctx->f_flags = SMBFS_RDD_FINDFIRST;
 	ctx->f_scred = scred;
 	if (SMB_DIALECT(SSTOVC(ctx->f_ssp)) < SMB_DIALECT_LANMAN2_0 ||
-	    (dnp->n_mount->sm_args.flags & SMBFS_MOUNT_NO_LONG)) {
+	    (dnp->n_mount->sm_flags & SMBFS_MOUNT_NO_LONG)) {
 		ctx->f_flags |= SMBFS_RDD_USESEARCH;
 		error = smbfs_findopenLM1(ctx, dnp, wildcard, wclen, attr, scred);
 	} else

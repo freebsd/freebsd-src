@@ -417,15 +417,15 @@ smbfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
 		return ENOENT;
 	va->va_type = vp->v_type;		/* vnode type (for create) */
 	if (vp->v_type == VREG) {
-		va->va_mode = smp->sm_args.file_mode;	/* files access mode and type */
+		va->va_mode = smp->sm_file_mode; /* files access mode and type */
 	} else if (vp->v_type == VDIR) {
-		va->va_mode = smp->sm_args.dir_mode;	/* files access mode and type */
+		va->va_mode = smp->sm_dir_mode;	/* files access mode and type */
 	} else
 		return EINVAL;
 	va->va_size = np->n_size;
 	va->va_nlink = 1;		/* number of references to file */
-	va->va_uid = smp->sm_args.uid;	/* owner user id */
-	va->va_gid = smp->sm_args.gid;	/* owner group id */
+	va->va_uid = smp->sm_uid;	/* owner user id */
+	va->va_gid = smp->sm_gid;	/* owner group id */
 	va->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	va->va_fileid = np->n_ino;	/* file id */
 	if (va->va_fileid == 0)
