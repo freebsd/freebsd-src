@@ -233,7 +233,11 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
       return mem_start;
     }
 
-  printk (" <SoundBlaster MPU-401>");
+#ifdef __FreeBSD__
+  printk ("sbmidi0: <SoundBlaster 16 MPU-401>");
+#else
+  printk (" <SoundBlaster 16 MPU-401>");
+#endif
 
   std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &sb16midi_operations;
