@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.73 1998/05/19 20:59:07 dufault Exp $
+ *	$Id: swtch.s,v 1.74 1998/05/28 09:29:59 phk Exp $
  */
 
 #include "npx.h"
@@ -251,15 +251,12 @@ rem3id:	.asciz	"remrq.id"
  */
 	ALIGN_TEXT
 _idle:
-	xorl	%eax,%eax
-	movl	%eax, _switchtime
-	movl	%eax, _switchtime+4
+	xorl	%ebp,%ebp
+	movl	%ebp,_switchtime
 
 #ifdef SMP
+
 	/* when called, we have the mplock, intr disabled */
-
-	xorl	%ebp,%ebp
-
 	/* use our idleproc's "context" */
 	movl	_my_idlePTD,%ecx
 	movl	%ecx,%cr3
@@ -353,9 +350,7 @@ idle_loop:
 2:
 
 	/* enable intrs for a halt */
-#ifdef SMP
 	movl	$0, lapic_tpr			/* 1st candidate for an INT */
-#endif
 	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	cli
@@ -379,8 +374,8 @@ idle_loop:
 	call	_rel_mplock
 	jmp	idle_loop
 
-#else
-	xorl	%ebp,%ebp
+#else /* !SMP */
+
 	movl	$HIDENAME(tmpstk),%esp
 #if defined(OVERLY_CONSERVATIVE_PTD_MGMT)
 #if defined(SWTCH_OPTIM_STATS)
@@ -443,7 +438,8 @@ idle_loop:
 	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	jmp	idle_loop
-#endif
+
+#endif /* SMP */
 
 CROSSJUMPTARGET(_idle)
 
