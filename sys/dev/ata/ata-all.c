@@ -407,6 +407,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	}
 #endif
 	default:
+	    break;
     }
     return ENOTTY;
 }
@@ -584,6 +585,7 @@ ata_intr(void *data)
 		       intr_count, ch->active, ch->status);
     }
 #endif
+	break;
     }
     ch->active &= ATA_CONTROL;
     if (ch->active & ATA_CONTROL)
