@@ -56,10 +56,10 @@
 #define BIOS_SIZE	0x20000
 
 /* exported lookup results */
-struct bios32_SDentry		PCIbios = {entry : 0};
-struct PnPBIOS_table		*PnPBIOStable = 0;
+struct bios32_SDentry		PCIbios;
+struct PnPBIOS_table		*PnPBIOStable;
 
-static u_int			bios32_SDCI = 0;
+static u_int			bios32_SDCI;
 
 /* start fairly early */
 static void			bios32_init(void *junk);
