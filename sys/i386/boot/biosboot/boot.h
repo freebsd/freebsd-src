@@ -24,14 +24,15 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id$
+ *	$Id: boot.h,v 1.3 1993/10/16 19:11:32 rgrimes Exp $
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <ufs/quota.h>
-#include <ufs/fs.h>
-#include <ufs/inode.h>
+#include <sys/time.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ffs/fs.h>
+#include <ufs/ufs/inode.h>
 
 extern char *devs[], *name, *iodest;
 extern struct fs *fs;
