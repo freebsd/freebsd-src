@@ -1,20 +1,23 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
+#	$Id$
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
-SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
+
+SRCS+=	auth_des.c auth_none.c auth_time.c auth_unix.c \
+	authdes_prot.c authunix_prot.c bindresvport.c \
 	clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c clnt_tcp.c \
-	clnt_udp.c rpc_dtablesize.c get_myaddress.c getrpcent.c getrpcport.c \
+	clnt_udp.c clnt_unix.c crypt_client.c des_crypt.c des_soft.c \
+	get_myaddress.c getpublickey.c getrpcent.c getrpcport.c \
+	key_call.c key_prot_xdr.c netname.c netnamer.c \
 	pmap_clnt.c pmap_getmaps.c pmap_getport.c pmap_prot.c \
-	pmap_prot2.c pmap_rmt.c rpc_prot.c rpc_commondata.c rpc_callmsg.c \
-	svc.c svc_auth.c svc_auth_unix.c svc_raw.c svc_run.c svc_simple.c \
-	svc_tcp.c svc_udp.c
+	pmap_prot2.c pmap_rmt.c rpc_callmsg.c rpc_commondata.c \
+	rpc_dtablesize.c rpc_prot.c rpcdname.c rtime.c \
+	svc.c svc_auth.c svc_auth_des.c svc_auth_unix.c \
+	svc_raw.c svc_run.c svc_simple.c \
+	svc_tcp.c svc_udp.c svc_unix.c
 
-SRCS+=	clnt_unix.c svc_unix.c
-
-SRCS+=	auth_des.c authdes_prot.c auth_time.c des_soft.c des_crypt.c \
-	key_call.c key_prot_xdr.c netname.c netnamer.c rpcdname.c rtime.c \
-	svc_auth_des.c crypt_clnt.c crypt_xdr.c crypt_client.c \
-	getpublickey.c
+# generated sources
+SRCS+=	crypt_clnt.c crypt_xdr.c
 
 CFLAGS+= -DBROKEN_DES
 
@@ -40,17 +43,15 @@ crypt.h: ${RPCDIR}/crypt.x
 # Paul.
 #
 
-# MAN1+= rstat.1
-MAN3+= bindresvport.3 getrpcent.3 getrpcport.3 rpc.3
-MAN5+= rpc.5
-MAN8+= rstat_svc.8
+# MAN1+=	rstat.1
+MAN3+=	bindresvport.3 des_crypt.3 getrpcent.3 getrpcport.3 publickey.3 rpc.3 \
+	rpc_secure.3 rtime.3
+MAN5+=	publickey.5 rpc.5
+MAN8+=	rstat_svc.8
 
-MAN3+= rpc_secure.3 publickey.3 rtime.3 des_crypt.3
-MAN5+= publickey.5
-
-MLINKS+=	getrpcent.3 getrpcbyname.3 \
+MLINKS+=	getrpcent.3 endrpcent.3 \
+		getrpcent.3 getrpcbyname.3 \
 		getrpcent.3 getrpcbynumber.3 \
-		getrpcent.3 endrpcent.3 \
 		getrpcent.3 setrpcent.3 \
 		rpc.3 auth_destroy.3 \
 		rpc.3 authnone_create.3 \
@@ -114,7 +115,5 @@ MLINKS+=	getrpcent.3 getrpcbyname.3 \
 		rpc.3 xdr_rejected_reply.3 \
 		rpc.3 xdr_replymsg.3 \
 		rpc.3 xprt_register.3 \
-		rpc.3 xprt_unregister.3 \
-
-MLINKS+=getrpcent.3 getrpcbyname.3 getrpcent.3 getrpcbynumber.3
+		rpc.3 xprt_unregister.3
 .endif
