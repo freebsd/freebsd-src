@@ -558,3 +558,13 @@ sbuf_delete(struct sbuf *s)
 	if (isdyn)
 		SBFREE(s);
 }
+
+/*
+ * Check if an sbuf has been finished.
+ */
+int
+sbuf_done(struct sbuf *s)
+{
+
+	return(SBUF_ISFINISHED(s));
+}

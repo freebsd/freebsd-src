@@ -46,6 +46,7 @@
 .Nm sbuf_finish ,
 .Nm sbuf_data ,
 .Nm sbuf_len ,
+.Nm sbuf_done ,
 .Nm sbuf_delete
 .Nd safe string formatting
 .Sh SYNOPSIS
@@ -85,6 +86,8 @@
 .Fn sbuf_data "struct sbuf *s"
 .Ft int
 .Fn sbuf_len "struct sbuf *s"
+.Ft int
+.Fn sbuf_done "struct sbuf *s"
 .Ft void
 .Fn sbuf_delete "struct sbuf *s"
 .Sh DESCRIPTION
@@ -279,6 +282,8 @@ functions return the actual string and its length, respectively;
 .Fn sbuf_data
 only works on a finished
 .Fa sbuf .
+.Fn sbuf_done
+returns non-zero if the sbuf is finished.
 .Pp
 Finally, the
 .Fn sbuf_delete
