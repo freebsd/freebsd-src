@@ -279,6 +279,7 @@ struct ata_softc {
 #define		ATA_WDMA2		0x22
 #define		ATA_UDMA2		0x42
 #define		ATA_UDMA4		0x44
+#define		ATA_UDMA5		0x45
 
     int32_t			flags;		/* controller flags */
 #define		ATA_DMA_ACTIVE		0x01

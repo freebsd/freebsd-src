@@ -312,9 +312,6 @@ struct acd_softc {
     int32_t			lun;		/* logical device unit */
     int32_t			flags;		/* device state flags */
 #define 	F_LOCKED		0x0001	/* this unit is locked */
-#define 	F_WRITTEN		0x0002	/* medium has been written to */
-#define 	F_DISK_OPEN		0x0004	/* disk open for writing */
-#define 	F_TRACK_OPEN		0x0008	/* track open for writing */
 
     struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
     struct toc			toc;		/* table of disc contents */

@@ -254,11 +254,14 @@ ata_pci_match(device_t dev)
     case 0x71998086:
 	return "Intel PIIX4 ATA33 controller";
 
+    case 0x24218086:
+	return "Intel ICH0 ATA33 controller";
+
     case 0x24118086:
 	return "Intel ICH ATA66 controller";
 
-    case 0x24218086:
-	return "Intel ICH0 ATA33 controller";
+    case 0x244b8086:
+	return "Intel ICH2 ATA100 controller";
 
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA33 controller";
@@ -267,7 +270,7 @@ ata_pci_match(device_t dev)
 	if (ata_find_dev(dev, 0x05861106, 0))
 	    return "VIA 82C586 ATA33 controller";
 	if (ata_find_dev(dev, 0x05961106, 0x12))
-	    return "VIA 82C596B ATA66 controller";
+	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
@@ -294,8 +297,22 @@ ata_pci_match(device_t dev)
     case 0x4d38105a:
 	return "Promise ATA66 controller";
 
+    case 0x4d30105a:
+	return "Promise ATA100 controller";
+
     case 0x00041103:
-	return "HighPoint HPT366 ATA66 controller";
+	switch (pci_get_revid(dev)) {
+	case 0x00:
+	case 0x01:
+	    return "HighPoint HPT366 ATA66 controller";
+	case 0x02:
+	    return "HighPoint HPT368 ATA66 controller";
+	case 0x03:
+	case 0x04:
+	    return "HighPoint HPT370 ATA100 controller";
+	default:
+	    return "Unknown revision HighPoint ATA controller";
+	}
 
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
@@ -379,8 +396,9 @@ ata_pci_attach(device_t dev)
 	    device_printf(dev, "Busmastering DMA not enabled\n");
     }
     else {
-    	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103) {
-	    /* Promise and HPT366 controllers support busmastering DMA */
+    	if (type == 0x4d33105a || type == 0x4d38105a || 
+	    type == 0x4d30105a || type == 0x00041103) {
+	    /* Promise and HighPoint controllers support busmastering DMA */
 	    rid = 0x20;
 	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					  0, ~0, 1, RF_ACTIVE);
@@ -398,6 +416,7 @@ ata_pci_attach(device_t dev)
 	break;
 
     case 0x4d38105a: /* Promise 66's need their clock changed */
+    case 0x4d30105a: /* Promise 100's too */
 	outb(rman_get_start(sc->bmio) + 0x11, 
 	     inb(rman_get_start(sc->bmio) + 0x11) | 0x0a);
 	/* FALLTHROUGH */
@@ -407,8 +426,25 @@ ata_pci_attach(device_t dev)
 	     inb(rman_get_start(sc->bmio) + 0x1f) | 0x01);
 	break;
 
-    case 0x00041103: /* HPT366 turn of fast interrupt prediction */
-	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
+    case 0x00041103: /* HighPoint's need to turn off interrupt prediction */
+	switch (pci_get_revid(dev)) {
+	case 0x00:
+	case 0x01:
+	    pci_write_config(dev, 0x51, 
+	    		     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
+	    break;
+
+	case 0x02:
+	case 0x03:
+	case 0x04:
+	    pci_write_config(dev, 0x51, 
+	    		     (pci_read_config(dev, 0x51, 1) & ~0x02), 1);
+	    pci_write_config(dev, 0x55, 
+	    		     (pci_read_config(dev, 0x55, 1) & ~0x02), 1);
+	    pci_write_config(dev, 0x5a, 
+	    		     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+
+	}
 	break;
 
     case 0x05711106:
@@ -699,16 +735,7 @@ ata_pcisub_probe(device_t dev)
 
     /* kids of pci ata chipsets has their physical unit number in ivars */
     scp->unit = (uintptr_t) device_get_ivars(dev);
-
-    /* set the chiptype to the hostchip ID, makes life easier */
-    if (ata_find_dev(device_get_parent(dev), 0x05861106, 0))
-	scp->chiptype = 0x05861106;
-    else if (ata_find_dev(device_get_parent(dev), 0x05961106, 0))
-	scp->chiptype = 0x05961106;
-    else if (ata_find_dev(device_get_parent(dev), 0x06861106, 0))
-	scp->chiptype = 0x06861106;
-    else
-	scp->chiptype = pci_get_devid(device_get_parent(dev));
+    scp->chiptype = pci_get_devid(device_get_parent(dev));
     return ata_probe(dev);
 }
 
@@ -801,50 +828,13 @@ ata_probe(device_t dev)
 	goto failure;
 
     ata_reset(scp, &mask);
+
+    if (bootverbose)
+	ata_printf(scp, -1, "devices = 0x%x\n", scp->devices);
+
     if (!mask)
 	goto failure;
 
-    /* 
-     * OK, we have at least one device on the chain, check for ATAPI 
-     * signatures, if none check if its a good old ATA device.
-     */ 
-    outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
-    DELAY(1);
-    if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
-	inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB) {
-	scp->devices |= ATA_ATAPI_MASTER;
-    }
-    outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
-    DELAY(1);
-    if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
-	inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB) {
-	scp->devices |= ATA_ATAPI_SLAVE;
-    }
-    if (status0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
-	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
-	DELAY(1);
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
-	    scp->devices |= ATA_ATA_MASTER;
-	}
-    }
-    if (status1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
-	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
-	DELAY(1);
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
-	    scp->devices |= ATA_ATA_SLAVE;
-	}
-    }
-    if (bootverbose)
-	ata_printf(scp, -1, "devices = 0x%x\n", scp->devices);
-    if (!scp->devices) {
-	goto failure;
-    }
     TAILQ_INIT(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
     return 0;
@@ -1086,7 +1076,7 @@ ata_intr(void *data)
      */
     switch (scp->chiptype) {
 #if NPCI > 0
-    case 0x00041103:    /* HighPoint HPT366 */
+    case 0x00041103:    /* HighPoint HPT366/368/370 */
 	if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
 	    return;
 	outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
@@ -1094,6 +1084,7 @@ ata_intr(void *data)
 
     case 0x4d33105a:	/* Promise 33's */
     case 0x4d38105a:	/* Promise 66's */
+    case 0x4d30105a:	/* Promise 100's */
     {
 	struct ata_pci_softc *sc=device_get_softc(device_get_parent(scp->dev));
 
@@ -1214,7 +1205,7 @@ void
 ata_reset(struct ata_softc *scp, int32_t *mask)
 {
     int32_t timeout;  
-    u_int8_t status0 = 0, status1 = 0;
+    u_int8_t status0 = ATA_S_BUSY, status1 = ATA_S_BUSY;
 
     /* reset channel */
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
@@ -1229,12 +1220,28 @@ ata_reset(struct ata_softc *scp, int32_t *mask)
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310000; timeout++) {
-	outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-	DELAY(1);
-	status0 = inb(scp->ioaddr + ATA_STATUS);
-	outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-	DELAY(1);
-	status1 = inb(scp->ioaddr + ATA_STATUS);
+	if (status0 & ATA_S_BUSY) {
+	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+	    DELAY(1);
+	    status0 = inb(scp->ioaddr + ATA_STATUS);
+	    if (!(status0 & ATA_S_BUSY)) {
+		/* check for ATAPI signature while its still there */
+		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
+		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
+		scp->devices |= ATA_ATAPI_MASTER;
+	    }
+	}
+	if (status1 & ATA_S_BUSY) {
+	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	    DELAY(1);
+	    status1 = inb(scp->ioaddr + ATA_STATUS);
+	    if (!(status1 & ATA_S_BUSY)) {
+		/* check for ATAPI signature while its still there */
+		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
+		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
+		scp->devices |= ATA_ATAPI_SLAVE;
+ 	    }
+	}
 	if (*mask == 0x01)      /* wait for master only */
 	    if (!(status0 & ATA_S_BUSY)) 
 		break;
@@ -1255,6 +1262,34 @@ ata_reset(struct ata_softc *scp, int32_t *mask)
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
+    if (!mask) {
+	scp->devices = 0;
+	return;
+    }
+    /* 
+     * OK, we have at least one device on the chain, checks for ATAPI 
+     * already done, if none check if its a good old ATA device.
+     */ 
+    if (status0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
+	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
+	DELAY(1);
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
+	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
+	    scp->devices |= ATA_ATA_MASTER;
+	}
+    }
+    if (status1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
+	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
+	DELAY(1);
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
+	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
+	    scp->devices |= ATA_ATA_SLAVE;
+	}
+    }
 }
 
 int32_t
@@ -1460,6 +1495,7 @@ ata_mode2str(int32_t mode)
     case ATA_WDMA2: return "WDMA2";
     case ATA_UDMA2: return "UDMA33";
     case ATA_UDMA4: return "UDMA66";
+    case ATA_UDMA5: return "UDMA100";
     case ATA_DMA: return "BIOSDMA";
     default: return "???";
     }
@@ -1512,6 +1548,8 @@ int
 ata_umode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_88) {
+	if (ap->udmamodes & 0x20)
+	    return 5;
 	if (ap->udmamodes & 0x10)
 	    return 4;
 	if (ap->udmamodes & 0x08)
