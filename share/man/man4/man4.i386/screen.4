@@ -28,7 +28,7 @@ To switch between the virtual consoles one uses the sequence
 virtual console with the same number as the function key is then
 selected as the current virtual console, and given exclusive use of
 the keyboard and display. This switch sequence can be changed via
-the keyboard mapping ioctl call (see keyboard.man)
+the keyboard mapping ioctl call (see keyboard.4)
 .Pp
 The number of virtual consoles is changeable in the system config 
 file, and need recompilation of the kernel to take any effect. The
@@ -57,7 +57,7 @@ CUF	E[nC	move cursor right n characters		nd (kr)
 
 CUB	E[nD	move cursor left n characters		bs (kl)
 
-HPA	E[n`	move cursor character position n	--
+HPA	E[n`	move cursor to character position n	--
 
 HPR	E[na	move cursor right n characters 		--
 
@@ -153,5 +153,5 @@ note: the first E in the sequences stands for ESC (0x1b)
 .Ed
 .Pp
 .Sh AUTHOR
- S_ren Schmidt 
- Email: (baukno@login.dkuug.dk -or- sos@kmd-ac.dk)
+ Søren Schmidt 
+ Email: (sos@login.dkuug.dk -or- sos@kmd-ac.dk)
