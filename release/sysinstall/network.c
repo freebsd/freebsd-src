@@ -123,6 +123,8 @@ mediaInitNetwork(Device *dev)
 		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
+    else if (!strcmp(cp, "DHCP"))
+	goto bail;
     msgNotify("ifconfig %s %s", dev->name, cp);
     i = vsystem("ifconfig %s %s", dev->name, cp);
     if (i) {
@@ -140,6 +142,7 @@ mediaInitNetwork(Device *dev)
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route -n add default %s", rp);
     }
+bail:
     if (isDebug())
 	msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;
@@ -325,11 +328,11 @@ startPPP(Device *devp)
     }
     else {
 	dialog_clear_norefresh();
-	msgConfirm("NOTICE: The PPP command is now started on VTY2 (type ALT-F3 to\n"
+	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
            "interact with it, ALT-F1 to switch back here). If you are using\n"
-           "a PAP or CHAP login simply enter \"dial\" otherwise you'll need\n"
-           "need to use is the \"term\" command which starts a terminal\n"
-           "emulator you can use to talk to your modem and dial the service\n"
+           "a PAP or CHAP login simply enter \"dial\", otherwise you'll need\n"
+           "to use the \"term\" command which starts a terminal emulator\n"
+           "which you can use to talk to your modem and dial the service\n"
            "provider.  Once you're connected, come back to this screen and\n"
            "press return.\n\n"
            "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
