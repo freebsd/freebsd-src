@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 # include	<string.h>
 # include       <locale.h>
 # include       <time.h>
+# include       <regex.h>
 # include	"strfile.h"
 # include	"pathnames.h"
 
@@ -109,9 +110,7 @@ bool	Long_only	= FALSE;	/* long fortune desired */
 bool	Offend		= FALSE;	/* offensive fortunes only */
 bool	All_forts	= FALSE;	/* any fortune allowed */
 bool	Equal_probs	= FALSE;	/* scatter un-allocted prob equally */
-#ifndef NO_REGEX
 bool	Match		= FALSE;	/* dump fortunes matching a pattern */
-#endif
 #ifdef DEBUG
 bool	Debug = FALSE;			/* print debug messages */
 #endif
@@ -161,29 +160,12 @@ void	 sum_tbl(STRFILE *, STRFILE *);
 void	 usage(void);
 void	 zero_tbl(STRFILE *);
 
-#ifndef	NO_REGEX
 char	*conv_pat(char *);
 int	 find_matches(void);
 void	 matches_in_list(FILEDESC *);
 int	 maxlen_in_list(FILEDESC *);
-#endif
 
-#ifndef NO_REGEX
-#ifdef REGCMP
-# define	RE_COMP(p)	(Re_pat = regcmp(p, NULL))
-# define	BAD_COMP(f)	((f) == NULL)
-# define	RE_EXEC(p)	regex(Re_pat, (p))
-
-char	*Re_pat;
-
-char	*regcmp(), *regex();
-#else
-# define	RE_COMP(p)	(p = re_comp(p))
-# define	BAD_COMP(f)	((f) != NULL)
-# define	RE_EXEC(p)	re_exec(p)
-
-#endif
-#endif
+static regex_t Re_pat;
 
 int
 main(ac, av)
@@ -198,10 +180,8 @@ char	*av[];
 
 	getargs(ac, av);
 
-#ifndef NO_REGEX
 	if (Match)
 		exit(find_matches() != 0);
-#endif
 
 	init_prob();
 	srandomdev();
@@ -304,17 +284,13 @@ int	argc;
 char	**argv;
 {
 	int	ignore_case;
-# ifndef NO_REGEX
 	char	*pat;
-# endif	/* NO_REGEX */
 	extern char *optarg;
 	extern int optind;
 	int ch;
 
 	ignore_case = FALSE;
-# ifndef NO_REGEX
 	pat = NULL;
-# endif /* NO_REGEX */
 
 # ifdef DEBUG
 	while ((ch = getopt(argc, argv, "aDefilm:osw")) != -1)
@@ -350,13 +326,6 @@ char	**argv;
 		case 'w':		/* give time to read */
 			Wait++;
 			break;
-# ifdef	NO_REGEX
-		case 'i':			/* case-insensitive match */
-		case 'm':			/* dump out the fortunes */
-			(void) fprintf(stderr,
-			    "fortune: can't match fortunes on this system (Sorry)\n");
-			exit(0);
-# else	/* NO_REGEX */
 		case 'm':			/* dump out the fortunes */
 			Match++;
 			pat = optarg;
@@ -364,7 +333,6 @@ char	**argv;
 		case 'i':			/* case-insensitive match */
 			ignore_case++;
 			break;
-# endif	/* NO_REGEX */
 		case '?':
 		default:
 			usage();
@@ -383,19 +351,17 @@ char	**argv;
 		print_file_list();
 #endif /* DEBUG */
 
-# ifndef NO_REGEX
 	if (pat != NULL) {
+		int error;
+
 		if (ignore_case)
 			pat = conv_pat(pat);
-		if (BAD_COMP(RE_COMP(pat))) {
-#ifndef REGCMP
-			fprintf(stderr, "%s\n", pat);
-#else	/* REGCMP */
-			fprintf(stderr, "bad pattern: %s\n", pat);
-#endif	/* REGCMP */
+		error = regcomp(&Re_pat, pat, REG_BASIC);
+		if (error) {
+			fprintf(stderr, "regcomp(%s) fails\n", pat);
+			exit (1);
 		}
 	}
-# endif	/* NO_REGEX */
 }
 
 /*
@@ -1248,7 +1214,6 @@ int			lev;
 	}
 }
 
-#ifndef	NO_REGEX
 /*
  * conv_pat:
  *	Convert the pattern to an ignore-case equivalent.
@@ -1376,7 +1341,7 @@ FILEDESC	*list;
 								*p = 'a' + (ch - 'a' + 13) % 26;
 						}
 					}
-				if (RE_EXEC(Fortbuf)) {
+				if (regexec(&Re_pat, Fortbuf, 0, NULL, 0) != REG_NOMATCH) {
 					printf("%c%c", fp->tbl.str_delim,
 					    fp->tbl.str_delim);
 					if (!in_file) {
@@ -1391,7 +1356,6 @@ FILEDESC	*list;
 			}
 	}
 }
-# endif	/* NO_REGEX */
 
 void
 usage()
@@ -1401,13 +1365,9 @@ usage()
 	(void) fprintf(stderr, "D");
 #endif	/* DEBUG */
 	(void) fprintf(stderr, "f");
-#ifndef	NO_REGEX
 	(void) fprintf(stderr, "i");
-#endif	/* NO_REGEX */
 	(void) fprintf(stderr, "losw]");
-#ifndef	NO_REGEX
 	(void) fprintf(stderr, " [-m pattern]");
-#endif	/* NO_REGEX */
 	(void) fprintf(stderr, "[[#%%] file/directory/all]\n");
 	exit(1);
 }
