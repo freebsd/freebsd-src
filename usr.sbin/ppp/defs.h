@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.17 1997/06/23 23:10:09 brian Exp $
+ * $Id: defs.h,v 1.18 1997/08/25 00:29:10 brian Exp $
  *
  *	TODO:
  */
@@ -23,8 +23,8 @@
 #ifndef _DEFS_H_
 #define	_DEFS_H_
 
-#include <machine/endian.h>
 #include <sys/types.h>
+#include <machine/endian.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,8 +40,13 @@
 #define	MODEM_DEV	"/dev/cuaa1"	/* name of tty device */
 #define	BASE_MODEM_DEV	"cuaa1"	/* name of base tty device */
 #else
+#ifdef __OpenBSD__
+#define	MODEM_DEV	"/dev/cua01"	/* name of tty device */
+#define	BASE_MODEM_DEV	"cua01"	/* name of base tty device */
+#else
 #define	MODEM_DEV	"/dev/tty01"	/* name of tty device */
 #define	BASE_MODEM_DEV	"tty01"	/* name of base tty device */
+#endif
 #endif
 #define MODEM_SPEED	B38400	/* tty speed */
 #define	SERVER_PORT	3000	/* Base server port no. */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.13 1997/08/25 00:29:03 brian Exp $
+ * $Id: arp.c,v 1.14 1997/08/31 22:59:12 brian Exp $
  *
  */
 
@@ -46,12 +46,10 @@
 #endif
 #include <net/if_types.h>
 #include <netinet/in_var.h>
-#include <netinet/if_ether.h>
-#include "log.h"
-
 #if RTM_VERSION >= 3
 #include <netinet/if_ether.h>
 #endif
+#include "log.h"
 
 static int rtm_seq;
 
