@@ -6,12 +6,13 @@ installation attempt into a success.  Please read them carefully.
 
 ---
 
-Summary:	Hardware conflict or misconfiguration.
+Symptom:	Hardware conflict or misconfiguration.
+		Device not being found when it should be.
 
-Problem:	A device is conflicting with another or doesn't match
-		the kernel's compiled-in IRQ or address.
+Problem:	A device is conflicting with another, or its settings
+		don't match the kernel's expected IRQ or address.
 
-Cause:		While most device drivers in FreeBSD are now smart
+Explanation:	While most device drivers in FreeBSD are now smart
 		enough to match themselves to your hardware settings
 		dynamically, there are a few that still require fairly
 		rigid configuration parameters to be compiled in (and
@@ -53,19 +54,20 @@ Solution:	There are several possible solutions.  The first,
 		your original hardware configuration that didn't work.
 
 ---
-Summary:        My floppy-tape drive isn't probed.
+Symptom:       	My floppy-tape drive isn't probed.
 
-Cause:          Last-minute problems with this driver caused it to be disabled
-                by default.
+Problem:	Last-minute problems with this driver caused it to be disabled
+		by default.
 
 Solution:       Boot with -c (described above) and set the flags value of
                 fdc0 to 1. This will re-enable the floppy tape driver.
-                Sorry, but it was causing problems for other people!
+                Sorry, but it was causing problems for people without floppy
+		tape drives!
 ---
 
-Summary:	When I boot for the first time, it still looks for /386bsd!
+Symptom:	When I boot for the first time, it still looks for /386bsd!
 
-Cause:		You still have the old FreeBSD 1.x boot blocks on your
+Problem:	You still have the old FreeBSD 1.x boot blocks on your
 		boot partition.
 
 Solution:	You should re-enter the installation process, invoke
@@ -77,9 +79,9 @@ Solution:	You should re-enter the installation process, invoke
 
 ---
 
-Summary:	I want to boot FreeBSD off the second drive.  It doesn't!
+Symptom:	I want to boot FreeBSD off the second drive.  It doesn't!
 
-Cause:		FreeBSD will actually install just fine on a drive other
+Problem:	FreeBSD will actually install just fine on a drive other
 		than 0 (the first drive), and the boot manager will even
 		allow you to select it, but the boot blocks rather
 		pathologically assume 0.  This should be fixed in 2.1.
@@ -104,7 +106,10 @@ Solution:	Easy - follow these steps:
 		    reboot from the hard disk, enter the following at
 		    the boot prompt:
 
-				hd(1,a)/kernel
+				wd(1,a)/kernel
+
+		    [ If you're using a SCSI drive, substitute
+		      `sd' for `wd' above ]
 
 		    This will ensure that you really boot from the second
 		    drive.  If you've actually installed on a drive other
@@ -122,20 +127,24 @@ Solution:	Easy - follow these steps:
 		    default Do The Right Thing.
 ---
 
-Summary:	Newfs crashes, requesting that blocksize be 32K
+Symptom:	Newfs crashes, requesting that blocksize be 32K
 
-Cause:		You have your SCSI controller configured to translate
-		geometries for disks >1GB in size.
+Problem:	You have your disk controller configured to translate
+		to a some really large cylinder size because you're using
+		a drive with lots of cylinders.
 
 Solution:	Turn such translation OFF in your controller's BIOS
-		setup!  FreeBSD has no problems with disks >1GB just
-		so long as the root partition starts and ends BELOW
-		cylinder 1024.  This is a PC hardware limitation.
+		setup if you can.  If you must share the disk with other
+		Operating Systems, then this may not be possible and
+		you may simply be unable to install FreeBSD until we have
+		support for large translated geometries, sorry!
+		[ Hopefully in 2.1 ].
+
 ---
 
-Summary:	FreeBSD won't boot off the hard disk
+Symptom:	FreeBSD won't boot off the hard disk
 
-Cause:		Root partition does not start and end below cylinder 1024.
+Problem:	Root partition does not start and end below cylinder 1024.
 
 Solution:	See solution for newfs crashes, or move your root
 		partition.  This limitation holds true for ANY operating
@@ -143,11 +152,17 @@ Solution:	See solution for newfs crashes, or move your root
 
 ---
 
-Summary:	FreeBSD still won't boot off the hard disk
+Symptom:	FreeBSD still won't boot off the hard disk
 
-Cause:		No boot code is installed in sector 1.
+Problem:	No boot code is installed in sector 1.
 
-Solution:	Chose the Write MBR (B)oot code in the FDISK editor.
+Solution:	Chose the Write MBR (B)oot code in the FDISK editor and
+		write out the boot manager so that you have a chance to
+		select operating systems.
+
+		[ ** NOTE:  If you are using the entire disk for FreeBSD, or
+		  you have a Connor drive that does cylinder translation
+		  from the MBR boot code, do NOT chose this option! ** ].
 
 ---
 Summary:	Nope, FreeBSD's still not booting from the hard disk.
