@@ -227,19 +227,19 @@ DRIVER_MODULE(miibus, wb, miibus_driver, miibus_devclass, 0, 0);
 
 #define WB_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) | x)
+		CSR_READ_4(sc, reg) | (x))
 
 #define WB_CLRBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) & ~x)
+		CSR_READ_4(sc, reg) & ~(x))
 
 #define SIO_SET(x)					\
 	CSR_WRITE_4(sc, WB_SIO,				\
-		CSR_READ_4(sc, WB_SIO) | x)
+		CSR_READ_4(sc, WB_SIO) | (x))
 
 #define SIO_CLR(x)					\
 	CSR_WRITE_4(sc, WB_SIO,				\
-		CSR_READ_4(sc, WB_SIO) & ~x)
+		CSR_READ_4(sc, WB_SIO) & ~(x))
 
 /*
  * Send a read command and address to the EEPROM, check for ACK.
@@ -1212,7 +1212,7 @@ wb_rxeof(sc)
 	}
 }
 
-void
+static void
 wb_rxeoc(sc)
 	struct wb_softc		*sc;
 {

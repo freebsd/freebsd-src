@@ -201,35 +201,35 @@ DRIVER_MODULE(miibus, vr, miibus_driver, miibus_devclass, 0, 0);
 
 #define VR_SETBIT(sc, reg, x)				\
 	CSR_WRITE_1(sc, reg,				\
-		CSR_READ_1(sc, reg) | x)
+		CSR_READ_1(sc, reg) | (x))
 
 #define VR_CLRBIT(sc, reg, x)				\
 	CSR_WRITE_1(sc, reg,				\
-		CSR_READ_1(sc, reg) & ~x)
+		CSR_READ_1(sc, reg) & ~(x))
 
 #define VR_SETBIT16(sc, reg, x)				\
 	CSR_WRITE_2(sc, reg,				\
-		CSR_READ_2(sc, reg) | x)
+		CSR_READ_2(sc, reg) | (x))
 
 #define VR_CLRBIT16(sc, reg, x)				\
 	CSR_WRITE_2(sc, reg,				\
-		CSR_READ_2(sc, reg) & ~x)
+		CSR_READ_2(sc, reg) & ~(x))
 
 #define VR_SETBIT32(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) | x)
+		CSR_READ_4(sc, reg) | (x))
 
 #define VR_CLRBIT32(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
-		CSR_READ_4(sc, reg) & ~x)
+		CSR_READ_4(sc, reg) & ~(x))
 
 #define SIO_SET(x)					\
 	CSR_WRITE_1(sc, VR_MIICMD,			\
-		CSR_READ_1(sc, VR_MIICMD) | x)
+		CSR_READ_1(sc, VR_MIICMD) | (x))
 
 #define SIO_CLR(x)					\
 	CSR_WRITE_1(sc, VR_MIICMD,			\
-		CSR_READ_1(sc, VR_MIICMD) & ~x)
+		CSR_READ_1(sc, VR_MIICMD) & ~(x))
 
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
@@ -1062,7 +1062,7 @@ vr_rxeof(sc)
 	return;
 }
 
-void
+static void
 vr_rxeoc(sc)
 	struct vr_softc		*sc;
 {
