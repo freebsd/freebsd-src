@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.2 1993/11/09 04:19:02 paul Exp $
+ *	$Id: rrs.c,v 1.3 1993/11/17 01:33:24 ache Exp $
  */
 
 #include <sys/param.h>
@@ -160,19 +160,23 @@ init_rrs()
 
 /*
  * Add NAME to the list of needed run-time objects.
+ * Return 1 if ENTRY was added to the list.
  */
-void
+int
 rrs_add_shobj(entry)
 struct file_entry	*entry;
 {
 	struct shobj	**p;
 
-	for (p = &rrs_shobjs; *p != NULL; p = &(*p)->next);
+	for (p = &rrs_shobjs; *p != NULL; p = &(*p)->next)
+		if (strcmp((*p)->entry->filename, entry->filename) == 0)
+			return 0;
 	*p = (struct shobj *)xmalloc(sizeof(struct shobj));
 	(*p)->next = NULL;
 	(*p)->entry = entry;
 
 	number_of_shobjs++;
+	return 1;
 }
 
 void
@@ -294,11 +298,11 @@ symbol	*sp;
 long	*relocation;
 {
 	struct relocation_info	*r = rrs_next_reloc();
-#ifdef DEBUG
+
 	if (rp->r_address < text_start + text_size)
 		error("RRS text relocation at %#x (symbol %s)",
 				rp->r_address, sp->name);
-#endif
+
 #ifdef DEBUG
 printf("claim_rrs_reloc: %s\n", sp->name);
 #endif
@@ -961,6 +965,31 @@ write_rrs_text()
 			      "internal error: %s defined in mysterious way",
 			      sp->name);
 
+
+		/* Handle auxialiary type qualifiers */
+		switch (sp->aux) {
+		case 0:
+			break;
+		case RRS_FUNC:
+			if (sp->so_defined != (N_TEXT+N_EXT))
+				fatal("internal error: %s: other but not text",
+							      sp->name);
+			if (sp->jmpslot_offset == -1)
+				fatal(
+				  "internal error: %s has no jmpslot but other",
+				      sp->name);
+			nlp->nz_other = sp->aux;
+			nlp->nz_value =
+				rrs_dyn2.ld_plt + sp->jmpslot_offset;
+			break;
+		default:
+			fatal(
+		      "internal error: %s: unsupported other value: %x",
+				      sp->name, sp->aux);
+			break;
+		}
+
+		/* Set symbol's name */
 		nlp->nz_strx = offset;
 		strcpy(rrs_strtab + offset, sp->name);
 		offset += 1 + strlen(sp->name);
