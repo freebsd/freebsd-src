@@ -616,7 +616,8 @@ pipe_build_write_buffer(wpipe, uio)
 		vm_page_t m;
 
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0 ||
-		    (paddr = pmap_kextract(addr)) == 0) {
+		    (paddr = pmap_extract(vmspace_pmap(curproc->p_vmspace),
+		     addr)) == 0) {
 			int j;
 
 			for (j = 0; j < i; j++)
