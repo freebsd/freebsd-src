@@ -28,14 +28,16 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
- *
- * $FreeBSD$
  */
+
 /*
  * This is a set of routines for allocating large-sized mbuf payload
  * areas, and is primarily intended for use in receive side mbuf
  * allocation.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -15,8 +15,6 @@
  *    John S. Dyson.
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
- *
- * $FreeBSD$
  */
 
 /*
@@ -48,6 +46,9 @@
  * its time context switching.  PIPE_SIZE is constrained by the
  * amount of kernel virtual memory.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_mac.h"
 

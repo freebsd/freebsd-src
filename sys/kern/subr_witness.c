@@ -27,7 +27,6 @@
  *
  *	from BSDI $Id: mutex_witness.c,v 1.1.2.20 2000/04/27 03:10:27 cp Exp $
  *	and BSDI $Id: synch_machdep.c,v 2.3.2.39 2000/04/27 03:10:25 cp Exp $
- * $FreeBSD$
  */
 
 /*
@@ -81,6 +80,9 @@
  * execute.  Thus, acquiring Giant both before and after a sleepable lock
  * will not result in a lock order reversal.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_witness.h"

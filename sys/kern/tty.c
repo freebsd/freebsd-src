@@ -44,7 +44,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $FreeBSD$
  */
 
 /*-
@@ -74,6 +73,9 @@
  *	o Restore TS_WOPEN since it is useful in pstat.  It must be cleared
  *	  only when _all_ openers leave open().
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_tty.h"

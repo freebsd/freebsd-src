@@ -1,8 +1,10 @@
 /*-
  * Copyright (c) 2000, All rights reserved.  See /usr/src/COPYRIGHT
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
 
