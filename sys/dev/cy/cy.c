@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.25 1995/12/08 23:20:24 phk Exp $
+ *	$Id: cy.c,v 1.26 1995/12/10 15:54:42 bde Exp $
  */
 
 #include "cy.h"
@@ -374,7 +374,7 @@ static	d_devtotty_t	cydevtotty;
 static struct cdevsw cy_cdevsw = 
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
 	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
-	  ttselect,	nxmmap,		NULL, "cy",	NULL,	-1 };
+	  ttselect,	nommap,		NULL, "cy",	NULL,	-1 };
 
 
 struct isa_driver	siodriver = {
