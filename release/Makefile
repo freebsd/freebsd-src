@@ -24,6 +24,17 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
 #RELEASETAG=RELENG_3
+#
+# Non-zero if ${RELEASETAG} is in the form "RELENG_ver_RELEASE"; we
+# are building an official release.  Otherwise, we are building for
+# a branch.
+.if defined(RELEASETAG)
+ISRELEASE!=	expr ${RELEASETAG} : '^RELENG_.*_RELEASE$$' || true
+.if ${ISRELEASE} != 0
+# Convert "RELENG_ver_RELEASE" to "RELEASE_ver" for ports and doc trees.
+AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEASE$$//'
+.endif
+.endif
 
 KERNCONF=GENERIC
 
@@ -175,10 +186,18 @@ rerelease release:
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 .if !defined(NOPORTS)
+.if defined(AUXRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+.else
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
+.endif
 .if !defined(NODOC)
+.if defined(AUXRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEDOCMODULE}
+.else
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
+.endif
 	if [ -d ${DISTFILES}/ ]; then \
 		cp -rp ${DISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
