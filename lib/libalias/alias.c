@@ -1174,8 +1174,12 @@ PacketAliasIn(char *ptr, int maxpacketsize)
     struct ip *pip;
     int iresult;
 
-    if (packetAliasMode & PKT_ALIAS_REVERSE)
-        return PacketAliasOut(ptr, maxpacketsize);
+    if (packetAliasMode & PKT_ALIAS_REVERSE) {
+        packetAliasMode &= ~PKT_ALIAS_REVERSE;
+        iresult = PacketAliasOut(ptr, maxpacketsize);
+        packetAliasMode |= PKT_ALIAS_REVERSE;
+        return iresult;
+    }
 
     HouseKeeping();
     ClearCheckNewLink();
@@ -1256,8 +1260,12 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
     struct in_addr addr_save;
     struct ip *pip;
 
-    if (packetAliasMode & PKT_ALIAS_REVERSE)
-        return PacketAliasIn(ptr, maxpacketsize);
+    if (packetAliasMode & PKT_ALIAS_REVERSE) {
+        packetAliasMode &= ~PKT_ALIAS_REVERSE;
+        iresult = PacketAliasIn(ptr, maxpacketsize);
+        packetAliasMode |= PKT_ALIAS_REVERSE;
+        return iresult;
+    }
 
     HouseKeeping();
     ClearCheckNewLink();
