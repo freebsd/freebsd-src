@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.174 1996/10/01 07:38:14 jkh Exp $
+ *  $Id: syscons.c,v 1.176 1996/10/02 22:00:38 sos Exp $
  */
 
 #include "sc.h"
@@ -352,6 +352,15 @@ gotack:
     return (IO_KBDSIZE);
 }
 
+#if NAPM > 0
+static int
+scresume(void *dummy)
+{
+	shfts = ctls = alts = agrs = metas = 0; 
+	return 0;
+}
+#endif
+
 static int
 scattach(struct isa_device *dev)
 {
@@ -434,15 +443,6 @@ scattach(struct isa_device *dev)
 #endif
     return 0;
 }
-
-#if NAPM > 0
-static int
-scresume(void *dummy)
-{
-	shfts = ctls = alts = agrs = metas = 0; 
-	return 0;
-}
-#endif
 
 struct tty
 *scdevtotty(dev_t dev)
