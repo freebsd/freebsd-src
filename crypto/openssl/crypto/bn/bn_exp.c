@@ -110,45 +110,13 @@
  */
 
 
-#include <stdio.h>
 #include "cryptlib.h"
 #include "bn_lcl.h"
-#ifdef ATALLA
-# include <alloca.h>
-# include <atasi.h>
-# include <assert.h>
-# include <dlfcn.h>
-#endif
-
 
 #define TABLE_SIZE	32
 
-/* slow but works */
-int BN_mod_mul(BIGNUM *ret, BIGNUM *a, BIGNUM *b, const BIGNUM *m, BN_CTX *ctx)
-	{
-	BIGNUM *t;
-	int r=0;
-
-	bn_check_top(a);
-	bn_check_top(b);
-	bn_check_top(m);
-
-	BN_CTX_start(ctx);
-	if ((t = BN_CTX_get(ctx)) == NULL) goto err;
-	if (a == b)
-		{ if (!BN_sqr(t,a,ctx)) goto err; }
-	else
-		{ if (!BN_mul(t,a,b,ctx)) goto err; }
-	if (!BN_mod(ret,t,m,ctx)) goto err;
-	r=1;
-err:
-	BN_CTX_end(ctx);
-	return(r);
-	}
-
-
 /* this one works - simple but works */
-int BN_exp(BIGNUM *r, BIGNUM *a, BIGNUM *p, BN_CTX *ctx)
+int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 	{
 	int i,bits,ret=0;
 	BIGNUM *v,*rr;
@@ -183,175 +151,7 @@ err:
 	}
 
 
-#ifdef ATALLA
-
-/*
- * This routine will dynamically check for the existance of an Atalla AXL-200
- * SSL accelerator module.  If one is found, the variable
- * asi_accelerator_present is set to 1 and the function pointers
- * ptr_ASI_xxxxxx above will be initialized to corresponding ASI API calls.
- */
-typedef int tfnASI_GetPerformanceStatistics(int reset_flag,
-					    unsigned int *ret_buf);
-typedef int tfnASI_GetHardwareConfig(long card_num, unsigned int *ret_buf);
-typedef int tfnASI_RSAPrivateKeyOpFn(RSAPrivateKey * rsaKey,
-				     unsigned char *output,
-				     unsigned char *input,
-				     unsigned int modulus_len);
-
-static tfnASI_GetHardwareConfig *ptr_ASI_GetHardwareConfig;
-static tfnASI_RSAPrivateKeyOpFn *ptr_ASI_RSAPrivateKeyOpFn;
-static tfnASI_GetPerformanceStatistics *ptr_ASI_GetPerformanceStatistics;
-static int asi_accelerator_present;
-static int tried_atalla;
-
-void atalla_initialize_accelerator_handle(void)
-	{
-	void *dl_handle;
-	int status;
-	unsigned int config_buf[1024]; 
-	static int tested;
-
-	if(tested)
-		return;
-
-	tested=1;
-
-	bzero((void *)config_buf, 1024);
-
-	/*
-	 * Check to see if the library is present on the system
-	 */
-	dl_handle = dlopen("atasi.so", RTLD_NOW);
-	if (dl_handle == (void *) NULL)
-		{
-/*		printf("atasi.so library is not present on the system\n");
-		printf("No HW acceleration available\n");*/
-		return;
-	        }
-
-	/*
-	 * The library is present.  Now we'll check to insure that the
-	 * LDM is up and running. First we'll get the address of the
-	 * function in the atasi library that we need to see if the
-	 * LDM is operating.
-	 */
-
-	ptr_ASI_GetHardwareConfig =
-	  (tfnASI_GetHardwareConfig *)dlsym(dl_handle,"ASI_GetHardwareConfig");
-
-	if (ptr_ASI_GetHardwareConfig)
-		{
-		/*
-		 * We found the call, now we'll get our config
-		 * status.  If we get a non 0 result, the LDM is not
-		 * running and we cannot use the Atalla ASI *
-		 * library.
-		 */
-		status = (*ptr_ASI_GetHardwareConfig)(0L, config_buf);
-		if (status != 0)
-			{
-			printf("atasi.so library is present but not initialized\n");
-			printf("No HW acceleration available\n");
-			return;
-			}    
-	        }
-	else
-		{
-/*		printf("We found the library, but not the function. Very Strange!\n");*/
-		return ;
-	      	}
-
-	/* 
-	 * It looks like we have acceleration capabilities.  Load up the
-	 * pointers to our ASI API calls.
-	 */
-	ptr_ASI_RSAPrivateKeyOpFn=
-	  (tfnASI_RSAPrivateKeyOpFn *)dlsym(dl_handle, "ASI_RSAPrivateKeyOpFn");
-	if (ptr_ASI_RSAPrivateKeyOpFn == NULL)
-		{
-/*		printf("We found the library, but no RSA function. Very Strange!\n");*/
-		return;
-	        }
-
-	ptr_ASI_GetPerformanceStatistics =
-	  (tfnASI_GetPerformanceStatistics *)dlsym(dl_handle, "ASI_GetPerformanceStatistics");
-	if (ptr_ASI_GetPerformanceStatistics == NULL)
-		{
-/*		printf("We found the library, but no stat function. Very Strange!\n");*/
-		return;
-	      }
-
-	/*
-	 * Indicate that acceleration is available
-	 */
-	asi_accelerator_present = 1;
-
-/*	printf("This system has acceleration!\n");*/
-
-	return;
-	}
-
-/* make sure this only gets called once when bn_mod_exp calls bn_mod_exp_mont */
-int BN_mod_exp_atalla(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m)
-	{
-	unsigned char *abin;
-	unsigned char *pbin;
-	unsigned char *mbin;
-	unsigned char *rbin;
-	int an,pn,mn,ret;
-	RSAPrivateKey keydata;
-
-	atalla_initialize_accelerator_handle();
-	if(!asi_accelerator_present)
-		return 0;
-
-
-/* We should be able to run without size testing */
-# define ASIZE	128
-	an=BN_num_bytes(a);
-	pn=BN_num_bytes(p);
-	mn=BN_num_bytes(m);
-
-	if(an <= ASIZE && pn <= ASIZE && mn <= ASIZE)
-	    {
-	    int size=mn;
-
-	    assert(an <= mn);
-	    abin=alloca(size);
-	    memset(abin,'\0',mn);
-	    BN_bn2bin(a,abin+size-an);
-
-	    pbin=alloca(pn);
-	    BN_bn2bin(p,pbin);
-
-	    mbin=alloca(size);
-	    memset(mbin,'\0',mn);
-	    BN_bn2bin(m,mbin+size-mn);
-
-	    rbin=alloca(size);
-
-	    memset(&keydata,'\0',sizeof keydata);
-	    keydata.privateExponent.data=pbin;
-	    keydata.privateExponent.len=pn;
-	    keydata.modulus.data=mbin;
-	    keydata.modulus.len=size;
-
-	    ret=(*ptr_ASI_RSAPrivateKeyOpFn)(&keydata,rbin,abin,keydata.modulus.len);
-/*fprintf(stderr,"!%s\n",BN_bn2hex(a));*/
-	    if(!ret)
-	        {
-		BN_bin2bn(rbin,keydata.modulus.len,r);
-/*fprintf(stderr,"?%s\n",BN_bn2hex(r));*/
-		return 1;
-	        }
-	    }
-	return 0;
-        }
-#endif /* def ATALLA */
-
-
-int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
+int BN_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 	       BN_CTX *ctx)
 	{
 	int ret;
@@ -360,12 +160,39 @@ int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 	bn_check_top(p);
 	bn_check_top(m);
 
-#ifdef ATALLA
-	if(BN_mod_exp_atalla(r,a,p,m))
-	    return 1;
-/* If it fails, try the other methods (but don't try atalla again) */
-	tried_atalla=1;
-#endif
+	/* For even modulus  m = 2^k*m_odd,  it might make sense to compute
+	 * a^p mod m_odd  and  a^p mod 2^k  separately (with Montgomery
+	 * exponentiation for the odd part), using appropriate exponent
+	 * reductions, and combine the results using the CRT.
+	 *
+	 * For now, we use Montgomery only if the modulus is odd; otherwise,
+	 * exponentiation using the reciprocal-based quick remaindering
+	 * algorithm is used.
+	 *
+	 * (Timing obtained with expspeed.c [computations  a^p mod m
+	 * where  a, p, m  are of the same length: 256, 512, 1024, 2048,
+	 * 4096, 8192 bits], compared to the running time of the
+	 * standard algorithm:
+	 *
+	 *   BN_mod_exp_mont   33 .. 40 %  [AMD K6-2, Linux, debug configuration]
+         *                     55 .. 77 %  [UltraSparc processor, but
+	 *                                  debug-solaris-sparcv8-gcc conf.]
+	 * 
+	 *   BN_mod_exp_recp   50 .. 70 %  [AMD K6-2, Linux, debug configuration]
+	 *                     62 .. 118 % [UltraSparc, debug-solaris-sparcv8-gcc]
+	 *
+	 * On the Sparc, BN_mod_exp_recp was faster than BN_mod_exp_mont
+	 * at 2048 and more bits, but at 512 and 1024 bits, it was
+	 * slower even than the standard algorithm!
+	 *
+	 * "Real" timings [linux-elf, solaris-sparcv9-gcc configurations]
+	 * should be obtained when the new Montgomery reduction code
+	 * has been integrated into OpenSSL.)
+	 */
+
+#define MONT_MUL_MOD
+#define MONT_EXP_WORD
+#define RECP_MUL_MOD
 
 #ifdef MONT_MUL_MOD
 	/* I have finally been able to take out this pre-condition of
@@ -376,12 +203,14 @@ int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 
 	if (BN_is_odd(m))
 		{
-		if (a->top == 1)
+#  ifdef MONT_EXP_WORD
+		if (a->top == 1 && !a->neg)
 			{
 			BN_ULONG A = a->d[0];
 			ret=BN_mod_exp_mont_word(r,A,p,m,ctx,NULL);
 			}
 		else
+#  endif
 			ret=BN_mod_exp_mont(r,a,p,m,ctx,NULL);
 		}
 	else
@@ -390,10 +219,6 @@ int BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 		{ ret=BN_mod_exp_recp(r,a,p,m,ctx); }
 #else
 		{ ret=BN_mod_exp_simple(r,a,p,m,ctx); }
-#endif
-
-#ifdef ATALLA
-	tried_atalla=0;
 #endif
 
 	return(ret);
@@ -413,20 +238,35 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 
 	if (bits == 0)
 		{
-		BN_one(r);
-		return(1);
+		ret = BN_one(r);
+		return ret;
 		}
 
 	BN_CTX_start(ctx);
 	if ((aa = BN_CTX_get(ctx)) == NULL) goto err;
 
 	BN_RECP_CTX_init(&recp);
-	if (BN_RECP_CTX_set(&recp,m,ctx) <= 0) goto err;
+	if (m->neg)
+		{
+		/* ignore sign of 'm' */
+		if (!BN_copy(aa, m)) goto err;
+		aa->neg = 0;
+		if (BN_RECP_CTX_set(&recp,aa,ctx) <= 0) goto err;
+		}
+	else
+		{
+		if (BN_RECP_CTX_set(&recp,m,ctx) <= 0) goto err;
+		}
 
 	BN_init(&(val[0]));
 	ts=1;
 
-	if (!BN_mod(&(val[0]),a,m,ctx)) goto err;		/* 1 */
+	if (!BN_nnmod(&(val[0]),a,m,ctx)) goto err;		/* 1 */
+	if (BN_is_zero(&(val[0])))
+		{
+		ret = BN_zero(r);
+		goto err;
+		}
 
 	window = BN_window_bits_for_exponent_size(bits);
 	if (window > 1)
@@ -511,25 +351,19 @@ err:
 	}
 
 
-int BN_mod_exp_mont(BIGNUM *rr, BIGNUM *a, const BIGNUM *p,
+int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 		    const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *in_mont)
 	{
 	int i,j,bits,ret=0,wstart,wend,window,wvalue;
 	int start=1,ts=0;
 	BIGNUM *d,*r;
-	BIGNUM *aa;
+	const BIGNUM *aa;
 	BIGNUM val[TABLE_SIZE];
 	BN_MONT_CTX *mont=NULL;
 
 	bn_check_top(a);
 	bn_check_top(p);
 	bn_check_top(m);
-
-#ifdef ATALLA
-	if(!tried_atalla && BN_mod_exp_atalla(rr,a,p,m))
-	    return 1;
-/* If it fails, try the other methods */
-#endif
 
 	if (!(m->d[0] & 1))
 		{
@@ -539,9 +373,10 @@ int BN_mod_exp_mont(BIGNUM *rr, BIGNUM *a, const BIGNUM *p,
 	bits=BN_num_bits(p);
 	if (bits == 0)
 		{
-		BN_one(rr);
-		return(1);
+		ret = BN_one(rr);
+		return ret;
 		}
+
 	BN_CTX_start(ctx);
 	d = BN_CTX_get(ctx);
 	r = BN_CTX_get(ctx);
@@ -560,14 +395,19 @@ int BN_mod_exp_mont(BIGNUM *rr, BIGNUM *a, const BIGNUM *p,
 
 	BN_init(&val[0]);
 	ts=1;
-	if (BN_ucmp(a,m) >= 0)
+	if (a->neg || BN_ucmp(a,m) >= 0)
 		{
-		if (!BN_mod(&(val[0]),a,m,ctx))
+		if (!BN_nnmod(&(val[0]),a,m,ctx))
 			goto err;
 		aa= &(val[0]);
 		}
 	else
 		aa=a;
+	if (BN_is_zero(aa))
+		{
+		ret = BN_zero(rr);
+		goto err;
+		}
 	if (!BN_to_montgomery(&(val[0]),aa,mont,ctx)) goto err; /* 1 */
 
 	window = BN_window_bits_for_exponent_size(bits);
@@ -667,44 +507,44 @@ int BN_mod_exp_mont_word(BIGNUM *rr, BN_ULONG a, const BIGNUM *p,
 		(/* BN_ucmp(r, (m)) < 0 ? 1 :*/  \
 			(BN_mod(t, r, m, ctx) && (swap_tmp = r, r = t, t = swap_tmp, 1))))
 		/* BN_MOD_MUL_WORD is only used with 'w' large,
-		  * so the BN_ucmp test is probably more overhead
-		  * than always using BN_mod (which uses BN_copy if
-		  * a similar test returns true). */
+		 * so the BN_ucmp test is probably more overhead
+		 * than always using BN_mod (which uses BN_copy if
+		 * a similar test returns true). */
+		/* We can use BN_mod and do not need BN_nnmod because our
+		 * accumulator is never negative (the result of BN_mod does
+		 * not depend on the sign of the modulus).
+		 */
 #define BN_TO_MONTGOMERY_WORD(r, w, mont) \
 		(BN_set_word(r, (w)) && BN_to_montgomery(r, r, (mont), ctx))
 
 	bn_check_top(p);
 	bn_check_top(m);
 
-	if (!(m->d[0] & 1))
+	if (m->top == 0 || !(m->d[0] & 1))
 		{
 		BNerr(BN_F_BN_MOD_EXP_MONT_WORD,BN_R_CALLED_WITH_EVEN_MODULUS);
 		return(0);
 		}
+	if (m->top == 1)
+		a %= m->d[0]; /* make sure that 'a' is reduced */
+
 	bits = BN_num_bits(p);
 	if (bits == 0)
 		{
-		BN_one(rr);
-		return(1);
+		ret = BN_one(rr);
+		return ret;
 		}
+	if (a == 0)
+		{
+		ret = BN_zero(rr);
+		return ret;
+		}
+
 	BN_CTX_start(ctx);
 	d = BN_CTX_get(ctx);
 	r = BN_CTX_get(ctx);
 	t = BN_CTX_get(ctx);
 	if (d == NULL || r == NULL || t == NULL) goto err;
-
-#ifdef ATALLA
-	if (!tried_atalla)
-		{
-		BN_set_word(t, a);
-		if (BN_mod_exp_atalla(rr, t, p, m))
-			{
-			BN_CTX_end(ctx);
-			return 1;
-			}
-		}
-/* If it fails, try the other methods */
-#endif
 
 	if (in_mont != NULL)
 		mont=in_mont;
@@ -795,8 +635,9 @@ err:
 
 
 /* The old fallback, simple version :-) */
-int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, BIGNUM *p, BIGNUM *m,
-	     BN_CTX *ctx)
+int BN_mod_exp_simple(BIGNUM *r,
+	const BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
+	BN_CTX *ctx)
 	{
 	int i,j,bits,ret=0,wstart,wend,window,wvalue,ts=0;
 	int start=1;
@@ -807,8 +648,8 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, BIGNUM *p, BIGNUM *m,
 
 	if (bits == 0)
 		{
-		BN_one(r);
-		return(1);
+		ret = BN_one(r);
+		return ret;
 		}
 
 	BN_CTX_start(ctx);
@@ -816,7 +657,12 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, BIGNUM *p, BIGNUM *m,
 
 	BN_init(&(val[0]));
 	ts=1;
-	if (!BN_mod(&(val[0]),a,m,ctx)) goto err;		/* 1 */
+	if (!BN_nnmod(&(val[0]),a,m,ctx)) goto err;		/* 1 */
+	if (BN_is_zero(&(val[0])))
+		{
+		ret = BN_zero(r);
+		goto err;
+		}
 
 	window = BN_window_bits_for_exponent_size(bits);
 	if (window > 1)

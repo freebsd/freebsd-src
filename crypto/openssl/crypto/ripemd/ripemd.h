@@ -59,17 +59,19 @@
 #ifndef HEADER_RIPEMD_H
 #define HEADER_RIPEMD_H
 
+#include <openssl/e_os2.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#ifdef NO_RIPEMD
+#ifdef OPENSSL_NO_RIPEMD
 #error RIPEMD is disabled.
 #endif
 
-#if defined(WIN16) || defined(__LP32__)
+#if defined(OPENSSL_SYS_WIN16) || defined(__LP32__)
 #define RIPEMD160_LONG unsigned long
-#elif defined(_CRAY) || defined(__ILP64__)
+#elif defined(OPENSSL_SYS_CRAY) || defined(__ILP64__)
 #define RIPEMD160_LONG unsigned long
 #define RIPEMD160_LONG_LOG2 3
 #else
@@ -88,9 +90,9 @@ typedef struct RIPEMD160state_st
 	int num;
 	} RIPEMD160_CTX;
 
-void RIPEMD160_Init(RIPEMD160_CTX *c);
-void RIPEMD160_Update(RIPEMD160_CTX *c, const void *data, unsigned long len);
-void RIPEMD160_Final(unsigned char *md, RIPEMD160_CTX *c);
+int RIPEMD160_Init(RIPEMD160_CTX *c);
+int RIPEMD160_Update(RIPEMD160_CTX *c, const void *data, unsigned long len);
+int RIPEMD160_Final(unsigned char *md, RIPEMD160_CTX *c);
 unsigned char *RIPEMD160(const unsigned char *d, unsigned long n,
 	unsigned char *md);
 void RIPEMD160_Transform(RIPEMD160_CTX *c, const unsigned char *b);

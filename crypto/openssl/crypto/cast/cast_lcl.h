@@ -56,12 +56,18 @@
  * [including the GNU Public Licence.]
  */
 
-#ifdef WIN32
+
+#include "e_os.h"
+
+#ifdef OPENSSL_SYS_WIN32
 #include <stdlib.h>
 #endif
 
 
-#include "openssl/e_os.h" /* OPENSSL_EXTERN */
+#ifdef OPENSSL_BUILD_SHLIBCRYPTO
+# undef OPENSSL_EXTERN
+# define OPENSSL_EXTERN OPENSSL_EXPORT
+#endif
 
 #undef c2l
 #define c2l(c,l)	(l =((unsigned long)(*((c)++)))    , \
@@ -151,7 +157,7 @@
                          *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
                          *((c)++)=(unsigned char)(((l)     )&0xff))
 
-#if defined(WIN32) && defined(_MSC_VER)
+#if defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER)
 #define ROTL(a,n)     (_lrotl(a,n))
 #else
 #define ROTL(a,n)     ((((a)<<(n))&0xffffffffL)|((a)>>(32-(n))))

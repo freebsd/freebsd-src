@@ -58,20 +58,11 @@
 
 #include <stdio.h>
 #include <time.h>
-#ifdef VMS
-#include <descrip.h>
-#include <lnmdef.h>
-#include <starlet.h>
-#endif
 #include "cryptlib.h"
+#include "o_time.h"
 #include <openssl/asn1.h>
 
-ASN1_UTCTIME *ASN1_UTCTIME_new(void)
-{ return M_ASN1_UTCTIME_new(); }
-
-void ASN1_UTCTIME_free(ASN1_UTCTIME *x)
-{ M_ASN1_UTCTIME_free(x); }
-
+#if 0
 int i2d_ASN1_UTCTIME(ASN1_UTCTIME *a, unsigned char **pp)
 	{
 #ifndef CHARSET_EBCDIC
@@ -118,6 +109,8 @@ err:
 		M_ASN1_UTCTIME_free(ret);
 	return(NULL);
 	}
+
+#endif
 
 int ASN1_UTCTIME_check(ASN1_UTCTIME *d)
 	{
@@ -182,6 +175,7 @@ int ASN1_UTCTIME_set_string(ASN1_UTCTIME *s, char *str)
 			{
 			ASN1_STRING_set((ASN1_STRING *)s,
 				(unsigned char *)str,t.length);
+			s->type = V_ASN1_UTCTIME;
 			}
 		return(1);
 		}
@@ -193,59 +187,17 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 	{
 	char *p;
 	struct tm *ts;
-#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__)
-
 	struct tm data;
-#endif
 
 	if (s == NULL)
 		s=M_ASN1_UTCTIME_new();
 	if (s == NULL)
 		return(NULL);
 
-#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__) && !defined(_DARWIN)
-	gmtime_r(&t,&data); /* should return &data, but doesn't on some systems, so we don't even look at the return value */
-	ts=&data;
-#else
-	ts=gmtime(&t);
-#endif
-#ifdef VMS
+	ts=OPENSSL_gmtime(&t, &data);
 	if (ts == NULL)
-		{
-		static $DESCRIPTOR(tabnam,"LNM$DCL_LOGICAL");
-		static $DESCRIPTOR(lognam,"SYS$TIMEZONE_DIFFERENTIAL");
-		char result[256];
-		unsigned int reslen = 0;
-		struct {
-			short buflen;
-			short code;
-			void *bufaddr;
-			unsigned int *reslen;
-		} itemlist[] = {
-			{ 0, LNM$_STRING, 0, 0 },
-			{ 0, 0, 0, 0 },
-		};
-		int status;
+		return(NULL);
 
-		/* Get the value for SYS$TIMEZONE_DIFFERENTIAL */
-		itemlist[0].buflen = sizeof(result);
-		itemlist[0].bufaddr = result;
-		itemlist[0].reslen = &reslen;
-		status = sys$trnlnm(0, &tabnam, &lognam, 0, itemlist);
-		if (!(status & 1))
-			return NULL;
-		result[reslen] = '\0';
-
-		/* Get the numerical value of the equivalence string */
-		status = atoi(result);
-
-		/* and use it to move time to GMT */
-		t -= status;
-
-		/* then convert the result to the time structure */
-		ts=(struct tm *)localtime(&t);
-		}
-#endif
 	p=(char *)s->data;
 	if ((p == NULL) || (s->length < 14))
 		{
@@ -270,9 +222,7 @@ ASN1_UTCTIME *ASN1_UTCTIME_set(ASN1_UTCTIME *s, time_t t)
 int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
 	{
 	struct tm *tm;
-#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__) && !defined(_DARWIN)
 	struct tm data;
-#endif
 	int offset;
 	int year;
 
@@ -289,12 +239,7 @@ int ASN1_UTCTIME_cmp_time_t(const ASN1_UTCTIME *s, time_t t)
 
 	t -= offset*60; /* FIXME: may overflow in extreme cases */
 
-#if defined(THREADS) && !defined(WIN32) && !defined(__CYGWIN32__) && !defined(_DARWIN)
-	gmtime_r(&t, &data);
-	tm = &data;
-#else
-	tm = gmtime(&t);
-#endif
+	tm = OPENSSL_gmtime(&t, &data);
 	
 #define return_cmp(a,b) if ((a)<(b)) return -1; else if ((a)>(b)) return 1
 	year = g2(s->data);

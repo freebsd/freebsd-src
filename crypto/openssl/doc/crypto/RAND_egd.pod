@@ -11,6 +11,8 @@ RAND_egd - query entropy gathering daemon
  int RAND_egd(const char *path);
  int RAND_egd_bytes(const char *path, int bytes);
 
+ int RAND_query_egd_bytes(const char *path, unsigned char *buf, int bytes);
+
 =head1 DESCRIPTION
 
 RAND_egd() queries the entropy gathering daemon EGD on socket B<path>.
@@ -26,6 +28,11 @@ When only one secret key must
 be generated, it is not necessary to request the full amount 255 bytes from
 the EGD socket. This can be advantageous, since the amount of entropy
 that can be retrieved from EGD over time is limited.
+
+RAND_query_egd_bytes() performs the actual query of the EGD daemon on socket
+B<path>. If B<buf> is given, B<bytes> bytes are queried and written into
+B<buf>. If B<buf> is NULL, B<bytes> bytes are queried and used to seed the
+OpenSSL built-in PRNG using L<RAND_add(3)|RAND_add(3)>.
 
 =head1 NOTES
 
@@ -47,11 +54,18 @@ http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html .
 PRNGD does employ an internal PRNG itself and can therefore never run
 out of entropy.
 
+OpenSSL automatically queries EGD when entropy is requested via RAND_bytes()
+or the status is checked via RAND_status() for the first time, if the socket
+is located at /var/run/egd-pool, /dev/egd-pool or /etc/egd-pool.
+
 =head1 RETURN VALUE
 
 RAND_egd() and RAND_egd_bytes() return the number of bytes read from the
 daemon on success, and -1 if the connection failed or the daemon did not
 return enough data to fully seed the PRNG.
+
+RAND_query_egd_bytes() returns the number of bytes read from the daemon on
+success, and -1 if the connection failed. The PRNG state is not considered.
 
 =head1 SEE ALSO
 
@@ -63,5 +77,9 @@ L<RAND_cleanup(3)|RAND_cleanup(3)>
 RAND_egd() is available since OpenSSL 0.9.5.
 
 RAND_egd_bytes() is available since OpenSSL 0.9.6.
+
+RAND_query_egd_bytes() is available since OpenSSL 0.9.7.
+
+The automatic query of /var/run/egd-pool et al was added in OpenSSL 0.9.7.
 
 =cut

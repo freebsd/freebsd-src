@@ -67,22 +67,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef NO_STDIO
+#define USE_SOCKETS
+#include "apps.h"
+#ifdef OPENSSL_NO_STDIO
 #define APPS_WIN16
 #endif
-#define USE_SOCKETS
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
 #include <openssl/pem.h>
-#include "apps.h"
 #include "s_apps.h"
 #include <openssl/err.h>
 #ifdef WIN32_STUFF
 #include "winmain.h"
 #include "wintext.h"
 #endif
+#if !defined(OPENSSL_SYS_MSDOS)
+#include OPENSSL_UNISTD
+#endif
 
-#if !defined(MSDOS) && !defined(VXWORKS) && (!defined(VMS) || defined(__DECC)) || defined (_DARWIN)
+#if !defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_VXWORKS) && (!defined(OPENSSL_SYS_VMS) || defined(__DECC))
 #define TIMES
 #endif
 
@@ -98,16 +101,12 @@
    The __TMS macro will show if it was.  If it wasn't defined, we should
    undefine TIMES, since that tells the rest of the program how things
    should be handled.				-- Richard Levitte */
-#if defined(VMS) && defined(__DECC) && !defined(__TMS)
+#if defined(OPENSSL_SYS_VMS_DECC) && !defined(__TMS)
 #undef TIMES
 #endif
 
-#if !defined(TIMES) && !defined(VXWORKS)
+#if !defined(TIMES) && !defined(OPENSSL_SYS_VXWORKS)
 #include <sys/timeb.h>
-#endif
-
-#ifdef _AIX
-#include <sys/select.h>
 #endif
 
 #if defined(sun) || defined(__ultrix)
@@ -119,11 +118,19 @@
 /* The following if from times(3) man page.  It may need to be changed
 */
 #ifndef HZ
-#ifndef CLK_TCK
-#define HZ      100.0
-#else /* CLK_TCK */
-#define HZ ((double)CLK_TCK)
-#endif
+# ifdef _SC_CLK_TCK
+#  define HZ ((double)sysconf(_SC_CLK_TCK))
+# else
+#  ifndef CLK_TCK
+#   ifndef _BSD_CLK_TCK_ /* FreeBSD hack */
+#    define HZ	100.0
+#   else /* _BSD_CLK_TCK_ */
+#    define HZ ((double)_BSD_CLK_TCK_)
+#   endif
+#  else /* CLK_TCK */
+#   define HZ ((double)CLK_TCK)
+#  endif
+# endif
 #endif
 
 #undef PROG
@@ -138,6 +145,8 @@
 
 #undef BUFSIZZ
 #define BUFSIZZ 1024*10
+
+#define MYBUFSIZ 1024*8
 
 #undef min
 #undef max
@@ -176,7 +185,7 @@ static int perform=0;
 #ifdef FIONBIO
 static int t_nbio=0;
 #endif
-#ifdef WIN32
+#ifdef OPENSSL_SYS_WIN32
 static int exitNow = 0;		/* Set when it's time to exit main */
 #endif
 
@@ -200,7 +209,7 @@ static void s_time_init(void)
 #ifdef FIONBIO
 	t_nbio=0;
 #endif
-#ifdef WIN32
+#ifdef OPENSSL_SYS_WIN32
 	exitNow = 0;		/* Set when it's time to exit main */
 #endif
 	}
@@ -313,14 +322,19 @@ static int parseArgs(int argc, char **argv)
 		{
 		if (--argc < 1) goto bad;
 		s_www_path= *(++argv);
+		if(strlen(s_www_path) > MYBUFSIZ-100)
+			{
+			BIO_printf(bio_err,"-www option too long\n");
+			badop=1;
+			}
 		}
 	else if(strcmp(*argv,"-bugs") == 0)
 	    st_bugs=1;
-#ifndef NO_SSL2
+#ifndef OPENSSL_NO_SSL2
 	else if(strcmp(*argv,"-ssl2") == 0)
 	    s_time_meth=SSLv2_client_method();
 #endif
-#ifndef NO_SSL3
+#ifndef OPENSSL_NO_SSL3
 	else if(strcmp(*argv,"-ssl3") == 0)
 	    s_time_meth=SSLv3_client_method();
 #endif
@@ -370,7 +384,7 @@ static double tm_Time_F(int s)
 		ret=((double)(tend.tms_utime-tstart.tms_utime))/HZ;
 		return((ret == 0.0)?1e-6:ret);
 	}
-#elif defined(VXWORKS)
+#elif defined(OPENSSL_SYS_VXWORKS)
         {
 	static unsigned long tick_start, tick_end;
 
@@ -424,11 +438,11 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
-#if !defined(NO_SSL2) && !defined(NO_SSL3)
+#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	s_time_meth=SSLv23_client_method();
-#elif !defined(NO_SSL3)
+#elif !defined(OPENSSL_NO_SSL3)
 	s_time_meth=SSLv3_client_method();
-#elif !defined(NO_SSL2)
+#elif !defined(OPENSSL_NO_SSL2)
 	s_time_meth=SSLv2_client_method();
 #endif
 
@@ -461,7 +475,6 @@ int MAIN(int argc, char **argv)
 
 	if (tm_cipher == NULL ) {
 		fprintf( stderr, "No CIPHER specified\n" );
-/*		EXIT(1); */
 	}
 
 	if (!(perform & 1)) goto next;
@@ -474,7 +487,7 @@ int MAIN(int argc, char **argv)
 	tm_Time_F(START);
 	for (;;)
 		{
-		if (finishtime < time(NULL)) break;
+		if (finishtime < (long)time(NULL)) break;
 #ifdef WIN32_STUFF
 
 		if( flushWinMsgs(0) == -1 )
@@ -525,9 +538,9 @@ int MAIN(int argc, char **argv)
 		}
 	totalTime += tm_Time_F(STOP); /* Add the time for this iteration */
 
-	i=(int)(time(NULL)-finishtime+maxTime);
+	i=(int)((long)time(NULL)-finishtime+maxTime);
 	printf( "\n\n%d connections in %.2fs; %.2f connections/user sec, bytes read %ld\n", nConn, totalTime, ((double)nConn/totalTime),bytes_read);
-	printf( "%d connections in %ld real seconds, %ld bytes read per connection\n",nConn,time(NULL)-finishtime+maxTime,bytes_read/nConn);
+	printf( "%d connections in %ld real seconds, %ld bytes read per connection\n",nConn,(long)time(NULL)-finishtime+maxTime,bytes_read/nConn);
 
 	/* Now loop and time connections using the same session id over and over */
 
@@ -559,7 +572,7 @@ next:
 	nConn = 0;
 	totalTime = 0.0;
 
-	finishtime=time(NULL)+maxTime;
+	finishtime=(long)time(NULL)+maxTime;
 
 	printf( "starting\n" );
 	bytes_read=0;
@@ -567,7 +580,7 @@ next:
 		
 	for (;;)
 		{
-		if (finishtime < time(NULL)) break;
+		if (finishtime < (long)time(NULL)) break;
 
 #ifdef WIN32_STUFF
 		if( flushWinMsgs(0) == -1 )
@@ -617,7 +630,7 @@ next:
 
 
 	printf( "\n\n%d connections in %.2fs; %.2f connections/user sec, bytes read %ld\n", nConn, totalTime, ((double)nConn/totalTime),bytes_read);
-	printf( "%d connections in %ld real seconds, %ld bytes read per connection\n",nConn,time(NULL)-finishtime+maxTime,bytes_read/nConn);
+	printf( "%d connections in %ld real seconds, %ld bytes read per connection\n",nConn,(long)time(NULL)-finishtime+maxTime,bytes_read/nConn);
 
 	ret=0;
 end:
@@ -628,7 +641,8 @@ end:
 		SSL_CTX_free(tm_ctx);
 		tm_ctx=NULL;
 		}
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 
 /***********************************************************************

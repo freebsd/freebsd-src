@@ -61,50 +61,107 @@
 /* Wrapper functions for each cipher mode */
 
 #define BLOCK_CIPHER_ecb_loop() \
-	unsigned int i; \
-	if(inl < 8) return 1;\
-	inl -= 8; \
-	for(i=0; i <= inl; i+=8) \
+	unsigned int i, bl; \
+	bl = ctx->cipher->block_size;\
+	if(inl < bl) return 1;\
+	inl -= bl; \
+	for(i=0; i <= inl; i+=bl) \
 
-#define BLOCK_CIPHER_func_ecb(cname, cprefix, kname) \
+#define BLOCK_CIPHER_func_ecb(cname, cprefix, kstruct, ksched) \
 static int cname##_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl) \
 {\
 	BLOCK_CIPHER_ecb_loop() \
-		cprefix##_ecb_encrypt(in + i, out + i, &ctx->c.kname, ctx->encrypt);\
+		cprefix##_ecb_encrypt(in + i, out + i, &((kstruct *)ctx->cipher_data)->ksched, ctx->encrypt);\
 	return 1;\
 }
 
-#define BLOCK_CIPHER_func_ofb(cname, cprefix, kname) \
+#define BLOCK_CIPHER_func_ofb(cname, cprefix, cbits, kstruct, ksched) \
 static int cname##_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl) \
 {\
-	cprefix##_ofb64_encrypt(in, out, (long)inl, &ctx->c.kname, ctx->iv, &ctx->num);\
+	cprefix##_ofb##cbits##_encrypt(in, out, (long)inl, &((kstruct *)ctx->cipher_data)->ksched, ctx->iv, &ctx->num);\
 	return 1;\
 }
 
-#define BLOCK_CIPHER_func_cbc(cname, cprefix, kname) \
+#define BLOCK_CIPHER_func_cbc(cname, cprefix, kstruct, ksched) \
 static int cname##_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl) \
 {\
-	cprefix##_cbc_encrypt(in, out, (long)inl, &ctx->c.kname, ctx->iv, ctx->encrypt);\
+	cprefix##_cbc_encrypt(in, out, (long)inl, &((kstruct *)ctx->cipher_data)->ksched, ctx->iv, ctx->encrypt);\
 	return 1;\
 }
 
-#define BLOCK_CIPHER_func_cfb(cname, cprefix, kname) \
+#define BLOCK_CIPHER_func_cfb(cname, cprefix, cbits, kstruct, ksched) \
 static int cname##_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl) \
 {\
-	cprefix##_cfb64_encrypt(in, out, (long)inl, &ctx->c.kname, ctx->iv, &ctx->num, ctx->encrypt);\
+	cprefix##_cfb##cbits##_encrypt(in, out, (long)inl, &((kstruct *)ctx->cipher_data)->ksched, ctx->iv, &ctx->num, ctx->encrypt);\
 	return 1;\
 }
 
-#define BLOCK_CIPHER_all_funcs(cname, cprefix, kname) \
-	BLOCK_CIPHER_func_cbc(cname, cprefix, kname) \
-	BLOCK_CIPHER_func_cfb(cname, cprefix, kname) \
-	BLOCK_CIPHER_func_ecb(cname, cprefix, kname) \
-	BLOCK_CIPHER_func_ofb(cname, cprefix, kname)
+#define BLOCK_CIPHER_all_funcs(cname, cprefix, cbits, kstruct, ksched) \
+	BLOCK_CIPHER_func_cbc(cname, cprefix, kstruct, ksched) \
+	BLOCK_CIPHER_func_cfb(cname, cprefix, cbits, kstruct, ksched) \
+	BLOCK_CIPHER_func_ecb(cname, cprefix, kstruct, ksched) \
+	BLOCK_CIPHER_func_ofb(cname, cprefix, cbits, kstruct, ksched)
 
+#define BLOCK_CIPHER_def1(cname, nmode, mode, MODE, kstruct, nid, block_size, \
+			  key_len, iv_len, flags, init_key, cleanup, \
+			  set_asn1, get_asn1, ctrl) \
+static const EVP_CIPHER cname##_##mode = { \
+	nid##_##nmode, block_size, key_len, iv_len, \
+	flags | EVP_CIPH_##MODE##_MODE, \
+	init_key, \
+	cname##_##mode##_cipher, \
+	cleanup, \
+	sizeof(kstruct), \
+	set_asn1, get_asn1,\
+	ctrl, \
+	NULL \
+}; \
+const EVP_CIPHER *EVP_##cname##_##mode(void) { return &cname##_##mode; }
+
+#define BLOCK_CIPHER_def_cbc(cname, kstruct, nid, block_size, key_len, \
+			     iv_len, flags, init_key, cleanup, set_asn1, \
+			     get_asn1, ctrl) \
+BLOCK_CIPHER_def1(cname, cbc, cbc, CBC, kstruct, nid, block_size, key_len, \
+		  iv_len, flags, init_key, cleanup, set_asn1, get_asn1, ctrl)
+
+#define BLOCK_CIPHER_def_cfb(cname, kstruct, nid, key_len, \
+			     iv_len, cbits, flags, init_key, cleanup, \
+			     set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def1(cname, cfb##cbits, cfb, CFB, kstruct, nid, 1, \
+		  key_len, iv_len, flags, init_key, cleanup, set_asn1, \
+		  get_asn1, ctrl)
+
+#define BLOCK_CIPHER_def_ofb(cname, kstruct, nid, key_len, \
+			     iv_len, cbits, flags, init_key, cleanup, \
+			     set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def1(cname, ofb##cbits, ofb, OFB, kstruct, nid, 1, \
+		  key_len, iv_len, flags, init_key, cleanup, set_asn1, \
+		  get_asn1, ctrl)
+
+#define BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, \
+			     iv_len, flags, init_key, cleanup, set_asn1, \
+			     get_asn1, ctrl) \
+BLOCK_CIPHER_def1(cname, ecb, ecb, ECB, kstruct, nid, block_size, key_len, \
+		  iv_len, flags, init_key, cleanup, set_asn1, get_asn1, ctrl)
+
+#define BLOCK_CIPHER_defs(cname, kstruct, \
+			  nid, block_size, key_len, iv_len, cbits, flags, \
+			  init_key, cleanup, set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def_cbc(cname, kstruct, nid, block_size, key_len, iv_len, flags, \
+		     init_key, cleanup, set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def_cfb(cname, kstruct, nid, key_len, iv_len, cbits, \
+		     flags, init_key, cleanup, set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def_ofb(cname, kstruct, nid, key_len, iv_len, cbits, \
+		     flags, init_key, cleanup, set_asn1, get_asn1, ctrl) \
+BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, iv_len, flags, \
+		     init_key, cleanup, set_asn1, get_asn1, ctrl)
+
+
+/*
 #define BLOCK_CIPHER_defs(cname, kstruct, \
 				nid, block_size, key_len, iv_len, flags,\
 				 init_key, cleanup, set_asn1, get_asn1, ctrl)\
-static EVP_CIPHER cname##_cbc = {\
+static const EVP_CIPHER cname##_cbc = {\
 	nid##_cbc, block_size, key_len, iv_len, \
 	flags | EVP_CIPH_CBC_MODE,\
 	init_key,\
@@ -116,8 +173,8 @@ static EVP_CIPHER cname##_cbc = {\
 	ctrl, \
 	NULL \
 };\
-EVP_CIPHER *EVP_##cname##_cbc(void) { return &cname##_cbc; }\
-static EVP_CIPHER cname##_cfb = {\
+const EVP_CIPHER *EVP_##cname##_cbc(void) { return &cname##_cbc; }\
+static const EVP_CIPHER cname##_cfb = {\
 	nid##_cfb64, 1, key_len, iv_len, \
 	flags | EVP_CIPH_CFB_MODE,\
 	init_key,\
@@ -129,8 +186,8 @@ static EVP_CIPHER cname##_cfb = {\
 	ctrl,\
 	NULL \
 };\
-EVP_CIPHER *EVP_##cname##_cfb(void) { return &cname##_cfb; }\
-static EVP_CIPHER cname##_ofb = {\
+const EVP_CIPHER *EVP_##cname##_cfb(void) { return &cname##_cfb; }\
+static const EVP_CIPHER cname##_ofb = {\
 	nid##_ofb64, 1, key_len, iv_len, \
 	flags | EVP_CIPH_OFB_MODE,\
 	init_key,\
@@ -142,8 +199,8 @@ static EVP_CIPHER cname##_ofb = {\
 	ctrl,\
 	NULL \
 };\
-EVP_CIPHER *EVP_##cname##_ofb(void) { return &cname##_ofb; }\
-static EVP_CIPHER cname##_ecb = {\
+const EVP_CIPHER *EVP_##cname##_ofb(void) { return &cname##_ofb; }\
+static const EVP_CIPHER cname##_ecb = {\
 	nid##_ecb, block_size, key_len, iv_len, \
 	flags | EVP_CIPH_ECB_MODE,\
 	init_key,\
@@ -155,14 +212,16 @@ static EVP_CIPHER cname##_ecb = {\
 	ctrl,\
 	NULL \
 };\
-EVP_CIPHER *EVP_##cname##_ecb(void) { return &cname##_ecb; }
+const EVP_CIPHER *EVP_##cname##_ecb(void) { return &cname##_ecb; }
+*/
 
+#define IMPLEMENT_BLOCK_CIPHER(cname, ksched, cprefix, kstruct, nid, \
+			       block_size, key_len, iv_len, cbits, \
+			       flags, init_key, \
+			       cleanup, set_asn1, get_asn1, ctrl) \
+	BLOCK_CIPHER_all_funcs(cname, cprefix, cbits, kstruct, ksched) \
+	BLOCK_CIPHER_defs(cname, kstruct, nid, block_size, key_len, iv_len, \
+			  cbits, flags, init_key, cleanup, set_asn1, \
+			  get_asn1, ctrl)
 
-
-#define IMPLEMENT_BLOCK_CIPHER(cname, kname, cprefix, kstruct, \
-				nid, block_size, key_len, iv_len, flags, \
-				 init_key, cleanup, set_asn1, get_asn1, ctrl) \
-	BLOCK_CIPHER_all_funcs(cname, cprefix, kname) \
-	BLOCK_CIPHER_defs(cname, kstruct, nid, block_size, key_len, iv_len, flags,\
-		 init_key, cleanup, set_asn1, get_asn1, ctrl) 
-
+#define EVP_C_DATA(kstruct, ctx)	((kstruct *)(ctx)->cipher_data)

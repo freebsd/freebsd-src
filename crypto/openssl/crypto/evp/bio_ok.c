@@ -162,7 +162,7 @@ typedef struct ok_struct
 	EVP_MD_CTX md;
 	int blockout;		/* output block is ready */ 
 	int sigio;		/* must process signature */
-	char buf[IOBS];
+	unsigned char buf[IOBS];
 	} BIO_OK_CTX;
 
 static BIO_METHOD methods_ok=
@@ -199,6 +199,8 @@ static int ok_new(BIO *bi)
 	ctx->blockout= 0;
 	ctx->sigio=1;
 
+	EVP_MD_CTX_init(&ctx->md);
+
 	bi->init=0;
 	bi->ptr=(char *)ctx;
 	bi->flags=0;
@@ -208,7 +210,8 @@ static int ok_new(BIO *bi)
 static int ok_free(BIO *a)
 	{
 	if (a == NULL) return(0);
-	memset(a->ptr,0,sizeof(BIO_OK_CTX));
+	EVP_MD_CTX_cleanup(&((BIO_OK_CTX *)a->ptr)->md);
+	OPENSSL_cleanse(a->ptr,sizeof(BIO_OK_CTX));
 	OPENSSL_free(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
@@ -353,7 +356,7 @@ static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
 	long ret=1;
 	int i;
 
-	ctx=(BIO_OK_CTX *)b->ptr;
+	ctx=b->ptr;
 
 	switch (cmd)
 		{
@@ -411,14 +414,14 @@ static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
 		ret=(long)ctx->cont;
 		break;
 	case BIO_C_SET_MD:
-		md=(EVP_MD *)ptr;
-		EVP_DigestInit(&(ctx->md),md);
+		md=ptr;
+		EVP_DigestInit_ex(&ctx->md, md, NULL);
 		b->init=1;
 		break;
 	case BIO_C_GET_MD:
 		if (b->init)
 			{
-			ppmd=(const EVP_MD **)ptr;
+			ppmd=ptr;
 			*ppmd=ctx->md.digest;
 			}
 		else
@@ -462,19 +465,22 @@ static void sig_out(BIO* b)
 	BIO_OK_CTX *ctx;
 	EVP_MD_CTX *md;
 
-	ctx=(BIO_OK_CTX *)b->ptr;
-	md= &(ctx->md);
+	ctx=b->ptr;
+	md=&ctx->md;
 
 	if(ctx->buf_len+ 2* md->digest->md_size > OK_BLOCK_SIZE) return;
 
-	EVP_DigestInit(md, md->digest);
-	RAND_pseudo_bytes(&(md->md.base[0]), md->digest->md_size);
-	memcpy(&(ctx->buf[ctx->buf_len]), &(md->md.base[0]), md->digest->md_size);
+	EVP_DigestInit_ex(md, md->digest, NULL);
+	/* FIXME: there's absolutely no guarantee this makes any sense at all,
+	 * particularly now EVP_MD_CTX has been restructured.
+	 */
+	RAND_pseudo_bytes(md->md_data, md->digest->md_size);
+	memcpy(&(ctx->buf[ctx->buf_len]), md->md_data, md->digest->md_size);
 	longswap(&(ctx->buf[ctx->buf_len]), md->digest->md_size);
 	ctx->buf_len+= md->digest->md_size;
 
 	EVP_DigestUpdate(md, WELLKNOWN, strlen(WELLKNOWN));
-	md->digest->final(&(ctx->buf[ctx->buf_len]), &(md->md.base[0]));
+	EVP_DigestFinal_ex(md, &(ctx->buf[ctx->buf_len]), NULL);
 	ctx->buf_len+= md->digest->md_size;
 	ctx->blockout= 1;
 	ctx->sigio= 0;
@@ -487,18 +493,18 @@ static void sig_in(BIO* b)
 	unsigned char tmp[EVP_MAX_MD_SIZE];
 	int ret= 0;
 
-	ctx=(BIO_OK_CTX *)b->ptr;
-	md= &(ctx->md);
+	ctx=b->ptr;
+	md=&ctx->md;
 
 	if(ctx->buf_len- ctx->buf_off < 2* md->digest->md_size) return;
 
-	EVP_DigestInit(md, md->digest);
-	memcpy(&(md->md.base[0]), &(ctx->buf[ctx->buf_off]), md->digest->md_size);
-	longswap(&(md->md.base[0]), md->digest->md_size);
+	EVP_DigestInit_ex(md, md->digest, NULL);
+	memcpy(md->md_data, &(ctx->buf[ctx->buf_off]), md->digest->md_size);
+	longswap(md->md_data, md->digest->md_size);
 	ctx->buf_off+= md->digest->md_size;
 
 	EVP_DigestUpdate(md, WELLKNOWN, strlen(WELLKNOWN));
-	md->digest->final(tmp, &(md->md.base[0]));
+	EVP_DigestFinal_ex(md, tmp, NULL);
 	ret= memcmp(&(ctx->buf[ctx->buf_off]), tmp, md->digest->md_size) == 0;
 	ctx->buf_off+= md->digest->md_size;
 	if(ret == 1)
@@ -523,15 +529,15 @@ static void block_out(BIO* b)
 	EVP_MD_CTX *md;
 	unsigned long tl;
 
-	ctx=(BIO_OK_CTX *)b->ptr;
-	md= &(ctx->md);
+	ctx=b->ptr;
+	md=&ctx->md;
 
 	tl= ctx->buf_len- OK_BLOCK_BLOCK;
 	tl= swapem(tl);
 	memcpy(ctx->buf, &tl, OK_BLOCK_BLOCK);
 	tl= swapem(tl);
 	EVP_DigestUpdate(md, (unsigned char*) &(ctx->buf[OK_BLOCK_BLOCK]), tl);
-	md->digest->final(&(ctx->buf[ctx->buf_len]), &(md->md.base[0]));
+	EVP_DigestFinal_ex(md, &(ctx->buf[ctx->buf_len]), NULL);
 	ctx->buf_len+= md->digest->md_size;
 	ctx->blockout= 1;
 	}
@@ -543,15 +549,15 @@ static void block_in(BIO* b)
 	long tl= 0;
 	unsigned char tmp[EVP_MAX_MD_SIZE];
 
-	ctx=(BIO_OK_CTX *)b->ptr;
-	md= &(ctx->md);
+	ctx=b->ptr;
+	md=&ctx->md;
 
 	memcpy(&tl, ctx->buf, OK_BLOCK_BLOCK);
 	tl= swapem(tl);
 	if (ctx->buf_len < tl+ OK_BLOCK_BLOCK+ md->digest->md_size) return;
  
 	EVP_DigestUpdate(md, (unsigned char*) &(ctx->buf[OK_BLOCK_BLOCK]), tl);
-	md->digest->final(tmp, &(md->md.base[0]));
+	EVP_DigestFinal_ex(md, tmp, NULL);
 	if(memcmp(&(ctx->buf[tl+ OK_BLOCK_BLOCK]), tmp, md->digest->md_size) == 0)
 		{
 		/* there might be parts from next block lurking around ! */

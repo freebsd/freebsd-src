@@ -60,32 +60,11 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 
-ASN1_INTEGER *ASN1_INTEGER_new(void)
-{ return M_ASN1_INTEGER_new();}
-
-void ASN1_INTEGER_free(ASN1_INTEGER *x)
-{ M_ASN1_INTEGER_free(x);}
-
 ASN1_INTEGER *ASN1_INTEGER_dup(ASN1_INTEGER *x)
 { return M_ASN1_INTEGER_dup(x);}
 
 int ASN1_INTEGER_cmp(ASN1_INTEGER *x, ASN1_INTEGER *y)
 { return M_ASN1_INTEGER_cmp(x,y);}
-
-/* Output ASN1 INTEGER including tag+length */
-
-int i2d_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
-{
-	int len, ret;
-	if(!a) return 0;
-	len = i2c_ASN1_INTEGER(a, NULL);	
-	ret=ASN1_object_size(0,len,V_ASN1_INTEGER);
-	if(pp) {
-		ASN1_put_object(pp,0,len,V_ASN1_INTEGER,V_ASN1_UNIVERSAL);
-		i2c_ASN1_INTEGER(a, pp);	
-	}
-	return ret;
-}
 
 /* 
  * This converts an ASN1 INTEGER into its content encoding.
@@ -173,39 +152,6 @@ int i2c_ASN1_INTEGER(ASN1_INTEGER *a, unsigned char **pp)
 	*pp+=ret;
 	return(ret);
 	}
-
-/* Convert DER encoded ASN1 INTEGER to ASN1_INTEGER structure */
-ASN1_INTEGER *d2i_ASN1_INTEGER(ASN1_INTEGER **a, unsigned char **pp,
-	     long length)
-{
-	unsigned char *p;
-	long len;
-	int i;
-	int inf,tag,xclass;
-	ASN1_INTEGER *ret;
-
-	p= *pp;
-	inf=ASN1_get_object(&p,&len,&tag,&xclass,length);
-	if (inf & 0x80)
-		{
-		i=ASN1_R_BAD_OBJECT_HEADER;
-		goto err;
-		}
-
-	if (tag != V_ASN1_INTEGER)
-		{
-		i=ASN1_R_EXPECTING_AN_INTEGER;
-		goto err;
-		}
-	ret = c2i_ASN1_INTEGER(a, &p, len);
-	if(ret) *pp = p;
-	return ret;
-err:
-	ASN1err(ASN1_F_D2I_ASN1_INTEGER,i);
-	return(NULL);
-
-}
-
 
 /* Convert just ASN1 INTEGER content octets to ASN1_INTEGER structure */
 
@@ -414,7 +360,7 @@ long ASN1_INTEGER_get(ASN1_INTEGER *a)
 	if (i == V_ASN1_NEG_INTEGER)
 		neg=1;
 	else if (i != V_ASN1_INTEGER)
-		return(0);
+		return -1;
 	
 	if (a->length > sizeof(long))
 		{
@@ -422,7 +368,7 @@ long ASN1_INTEGER_get(ASN1_INTEGER *a)
 		return(0xffffffffL);
 		}
 	if (a->data == NULL)
-		return(0);
+		return 0;
 
 	for (i=0; i<a->length; i++)
 		{
@@ -453,7 +399,7 @@ ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
 	len=((j == 0)?0:((j/8)+1));
 	if (ret->length < len+4)
 		{
-		unsigned char *new_data= OPENSSL_realloc(ret->data, len+4);
+		unsigned char *new_data=OPENSSL_realloc(ret->data, len+4);
 		if (!new_data)
 			{
 			ASN1err(ASN1_F_BN_TO_ASN1_INTEGER,ERR_R_MALLOC_FAILURE);
@@ -462,6 +408,12 @@ ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
 		ret->data=new_data;
 		}
 	ret->length=BN_bn2bin(bn,ret->data);
+	/* Correct zero case */
+	if(!ret->length)
+		{
+		ret->data[0] = 0;
+		ret->length = 1;
+		}
 	return(ret);
 err:
 	if (ret != ai) M_ASN1_INTEGER_free(ret);
