@@ -60,8 +60,8 @@ links: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
-	@ln -sf ${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
-		config.sh
+	@sed "s;^optimize=.*$$;optimize=\'${CFLAGS}\';" \
+		${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} > config.sh
 	@touch ${.TARGET}
 
 scripts: links
@@ -92,7 +92,7 @@ MAKEMAKER_ARGS?=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
 
-CFLAGS+=	'-DAPPLLIB_EXP="/usr/libdata/perl/BSDPAN"'
+CFLAGS+=	-DAPPLLIB_EXP=\"/usr/libdata/perl/BSDPAN\"
 
 .if defined(PERL_DEBUGGING) && ${PERL_DEBUGGING} == "true"
 CFLAGS+=        -DDEBUGGING
