@@ -42,7 +42,7 @@
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define __MAKE_SET(set, sym)						\
 	static void const * const __set_##set##_sym_##sym 		\
-	__section("set_" #set) __unused = &sym
+	__section("set_" #set) __used = &sym
 #else /* !(__GNUC__ || __INTEL_COMPILER) */
 #ifndef lint
 #error "This file needs to be compiled by GCC, an Intel compiler or lint"
