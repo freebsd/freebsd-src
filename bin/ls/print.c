@@ -381,6 +381,7 @@ printtype(u_int mode)
 		(void)putchar('%');
 		return (1);
 	default:
+		break;
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
