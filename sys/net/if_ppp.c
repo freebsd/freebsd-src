@@ -78,6 +78,7 @@
 #define VJC
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/buf.h>
@@ -89,6 +90,7 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -109,7 +111,7 @@
 #endif
 
 #ifdef VJC
-#include <net/slcompress.h>
+#include <net/pppcompress.h>
 #define HDROFF	MAX_HDR
 /* HDROFF should really be 128, but other parts of the system will
    panic on TCP+IP headers bigger than MAX_HDR = MHLEN (100). */
@@ -121,7 +123,7 @@
 #include <net/if_ppp.h>
 #include <machine/cpu.h>
 
-/* This is a NetBSD-current kernel. */
+/* This is a FreeBSD-2.x kernel. */
 #define CCOUNT(q)	((q)->c_cc)
 
 #define	PPP_HIWAT	400	/* Don't start a new packet if HIWAT on que */
@@ -135,8 +137,8 @@ int	pppread __P((struct tty *tp, struct uio *uio, int flag));
 int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
 int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag,
 		       struct proc *));
-int	pppoutput __P((struct ifnet *ifp, struct mbuf *m0,
-		       struct sockaddr *dst));
+int	pppoutput __P((struct ifnet *, struct mbuf *,
+		       struct sockaddr *, struct rtentry *));
 void	pppinput __P((int c, struct tty *tp));
 int	pppioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
 void	pppstart __P((struct tty *tp));
@@ -240,8 +242,9 @@ pppalloc(pid)
 /*
  * Deallocate a ppp unit.
  */
+void
 pppdealloc(sc)
-    struct ppp_softc *sc;
+	struct ppp_softc *sc;
 {
     struct mbuf *m;
 
@@ -438,7 +441,7 @@ pppwrite(tp, uio, flag)
     *ph1 = *ph2;
     m0->m_data += PPP_HDRLEN;
     m0->m_len -= PPP_HDRLEN;
-    return (pppoutput(&sc->sc_if, m0, &dst));
+    return (pppoutput(&sc->sc_if, m0, &dst, (struct rtentry *)0));
 }
 
 /*
@@ -612,10 +615,11 @@ pppfcs(fcs, cp, len)
  * Packet is placed in Information field of PPP frame.
  */
 int
-pppoutput(ifp, m0, dst)
-    struct ifnet *ifp;
-    struct mbuf *m0;
-    struct sockaddr *dst;
+pppoutput(ifp, m0, dst, rt)
+	struct ifnet *ifp;
+	struct mbuf *m0;
+	struct sockaddr *dst;
+	struct rtentry *rt;
 {
     register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
     struct ppp_header *ph;
@@ -832,13 +836,14 @@ ppp_dequeue(sc)
  * This gets called from pppoutput when a new packet is
  * put on a queue.
  */
-static
+static int
 pppasyncstart(sc)
     register struct ppp_softc *sc;
 {
     register struct tty *tp = (struct tty *) sc->sc_devp;
 
     pppstart(tp);
+    return 0;
 }
 
 /*
@@ -1446,6 +1451,7 @@ pppinput(c, tp)
 /*
  * Process an ioctl request to interface.
  */
+int
 pppioctl(ifp, cmd, data)
     register struct ifnet *ifp;
     int cmd;
@@ -1571,5 +1577,6 @@ pppdumpb(b, l)
     printf("%s\n", buf);
 }
 
+TEXT_SET(pseudo_set, pppattach);
 
 #endif	/* NPPP > 0 */
