@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.36 1998/07/03 08:36:48 phk Exp $
+ *	$Id: uipc_mbuf.c,v 1.37 1998/07/27 03:59:48 dg Exp $
  */
 
 #include <sys/param.h>
@@ -242,7 +242,7 @@ m_clalloc(ncl, how)
 }
 
 /*
- * When MGET failes, ask protocols to free space when short of memory,
+ * When MGET fails, ask protocols to free space when short of memory,
  * then re-attempt to allocate an mbuf.
  */
 struct mbuf *
