@@ -313,6 +313,10 @@ again:
 		return (FALSE);
 	memcpy(xprt->xp_rtaddr.buf, &addr, len);
 	xprt->xp_rtaddr.len = len;
+	if (addr.ss_family == AF_LOCAL) {
+		xprt->xp_raddr = *(struct sockaddr_in *)xprt->xp_rtaddr.buf;
+		xprt->xp_addrlen = sizeof (struct sockaddr_in);
+	}
 #ifdef PORTMAP
 	if (addr.ss_family == AF_INET) {
 		xprt->xp_raddr = *(struct sockaddr_in *)xprt->xp_rtaddr.buf;
@@ -423,13 +427,15 @@ read_vc(xprtp, buf, len)
 		}
 	} while ((pollfd.revents & POLLIN) == 0);
 
+	cm = NULL;
 	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
 	if (sa->sa_family == AF_LOCAL) {
 		cm = (struct cmessage *)xprt->xp_verf.oa_base;
 		if ((len = __msgread_withcred(sock, buf, len, cm)) > 0) {
 			xprt->xp_p2 = &cm->cmcred;
 			return (len);
-		}
+		} else
+			goto fatal_err;
 	} else {
 		if ((len = _read(sock, buf, (size_t)len)) > 0)
 			return (len);
@@ -656,7 +662,12 @@ __msgread_withcred(sock, buf, cnt, cmp)
 	ret = _recvmsg(sock, &msg, 0);
 	bcopy(&cm.cmsg, &cmp->cmsg, sizeof(cmp->cmsg));
 	bcopy(CMSG_DATA(&cm), &cmp->cmcred, sizeof(cmp->cmcred));
-	return ret;
+
+	if (msg.msg_controllen == 0 ||
+	   (msg.msg_flags & MSG_CTRUNC) != 0)
+		return (-1);
+
+	return (ret);
 }
 
 static int
@@ -696,6 +707,17 @@ int
 __rpc_get_local_uid(SVCXPRT *transp, uid_t *uid)
 {
 	struct cmsgcred *cmcred;
+	struct cmessage *cm;
+	struct cmsghdr *cmp;
+  
+	cm = (struct cmessage *)transp->xp_verf.oa_base;
+	
+	if (cm == NULL)
+		return (-1);
+	cmp = &cm->cmsg;
+	if (cmp == NULL || cmp->cmsg_level != SOL_SOCKET ||
+	   cmp->cmsg_type != SCM_CREDS)
+		return (-1);
  
 	cmcred = __svc_getcallercreds(transp);
 	if (cmcred == NULL)
