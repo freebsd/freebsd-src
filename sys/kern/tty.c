@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.7 1994/10/02 17:35:29 phk Exp $
+ * $Id: tty.c,v 1.8 1994/10/03 01:12:18 ache Exp $
  */
 
 #include <sys/param.h>
@@ -1480,7 +1480,7 @@ ttycheckoutq(tp, wait)
 			timeout((void (*)__P((void *)))wakeup,
 			    (void *)&tp->t_outq, hz);
 			SET(tp->t_state, TS_ASLEEP);
-			sleep((caddr_t)&tp->t_outq, PZERO - 1);
+			(void) tsleep((caddr_t)&tp->t_outq, PZERO - 1, "ttoutq", 0);
 		}
 	splx(s);
 	return (1);

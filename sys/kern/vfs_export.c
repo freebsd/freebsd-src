@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.10 1994/10/02 17:35:38 phk Exp $
+ * $Id: vfs_subr.c,v 1.11 1994/10/05 09:48:22 davidg Exp $
  */
 
 /*
@@ -108,7 +108,7 @@ vfs_lock(mp)
 
 	while(mp->mnt_flag & MNT_MLOCK) {
 		mp->mnt_flag |= MNT_MWAIT;
-		sleep((caddr_t)mp, PVFS);
+		(void) tsleep((caddr_t)mp, PVFS, "vfslck", 0);
 	}
 	mp->mnt_flag |= MNT_MLOCK;
 	return (0);
@@ -143,7 +143,7 @@ vfs_busy(mp)
 
 	while(mp->mnt_flag & MNT_MPBUSY) {
 		mp->mnt_flag |= MNT_MPWANT;
-		sleep((caddr_t)&mp->mnt_flag, PVFS);
+		(void) tsleep((caddr_t)&mp->mnt_flag, PVFS, "vfsbsy", 0);
 	}
 	if (mp->mnt_flag & MNT_UNMOUNT)
 		return (1);
@@ -708,7 +708,7 @@ vget(vp, lockflag)
 	    (vp->v_usecount == 0 &&
 	     vp->v_freelist.tqe_prev == (struct vnode **)0xdeadb)) {
 		vp->v_flag |= VXWANT;
-		sleep((caddr_t)vp, PINOD);
+		(void) tsleep((caddr_t)vp, PINOD, "vget", 0);
 		return (1);
 	}
 	if (vp->v_usecount == 0)
@@ -966,7 +966,7 @@ vgoneall(vp)
 		 */
 		if (vp->v_flag & VXLOCK) {
 			vp->v_flag |= VXWANT;
-			sleep((caddr_t)vp, PINOD);
+			(void) tsleep((caddr_t)vp, PINOD, "vgall", 0);
 			return;
 		}
 		/*
@@ -1010,7 +1010,7 @@ vgone(vp)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		sleep((caddr_t)vp, PINOD);
+		(void) tsleep((caddr_t)vp, PINOD, "vgone", 0);
 		return;
 	}
 	/*

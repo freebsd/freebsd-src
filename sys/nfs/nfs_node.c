@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.4 1994/08/10 19:48:23 davidg Exp $
+ * $Id: nfs_node.c,v 1.5 1994/10/02 17:26:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -254,7 +254,7 @@ nfs_lock(ap)
 	 */
 	while (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		sleep((caddr_t)vp, PINOD);
+		(void) tsleep((caddr_t)vp, PINOD, "nfslck", 0);
 	}
 	if (vp->v_tag == VT_NON)
 		return (ENOENT);

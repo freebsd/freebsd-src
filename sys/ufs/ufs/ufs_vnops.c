@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.6 1994/09/27 20:33:37 phk Exp $
+ * $Id: ufs_vnops.c,v 1.7 1994/09/28 16:45:22 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -1508,7 +1508,7 @@ ufs_lock(ap)
 start:
 	while (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		sleep((caddr_t)vp, PINOD);
+		(void) tsleep((caddr_t)vp, PINOD, "ufslk1", 0);
 	}
 	if (vp->v_tag == VT_NON)
 		return (ENOENT);
@@ -1523,7 +1523,7 @@ start:
 		} else
 			ip->i_lockwaiter = -1;
 #endif
-		(void) sleep((caddr_t)ip, PINOD);
+		(void) tsleep((caddr_t)ip, PINOD, "ufslk2", 0);
 		goto start;
 	}
 #ifdef DIAGNOSTIC
