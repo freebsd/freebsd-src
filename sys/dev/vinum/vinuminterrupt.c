@@ -150,7 +150,7 @@ complete_rqe(struct buf *bp)
 	    length = rqe->datalen << DEV_BSHIFT;	    /* and count involved */
 	    bcopy(src, dst, length);			    /* move it */
 	}
-    } else if ((rqg->flags & (XFR_NORMAL_WRITE | XFR_DEGRADED_WRITE)) /* RAID 5 group write operation  */
+    } else if ((rqg->flags & (XFR_NORMAL_WRITE | XFR_DEGRADED_WRITE)) /* RAID 4/5 group write operation  */
     &&(rqg->active == 0))				    /* and we've finished phase 1 */
 	complete_raid5_write(rqe);
     if (rqg->active == 0) {				    /* request group finished, */
@@ -237,7 +237,7 @@ sdio_done(struct buf *bp)
     Free(sbp);
 }
 
-/* Start the second phase of a RAID5 group write operation. */
+/* Start the second phase of a RAID-4 or RAID-5 group write operation. */
 void
 complete_raid5_write(struct rqelement *rqe)
 {
@@ -348,7 +348,6 @@ complete_raid5_write(struct rqelement *rqe)
 		    rqe->b.b_resid = rqe->b.b_bcount;	    /* nothing transferred */
 		    rqe->b.b_blkno += rqe->dataoffset;	    /* point to the correct block */
 		    rqg->active++;			    /* another active request */
-		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
 		    drive = &DRIVE[rqe->driveno];	    /* drive to access */
 
 							    /* We can't sleep here, so we just increment the counters. */
@@ -369,11 +368,6 @@ complete_raid5_write(struct rqelement *rqe)
 			    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			    rqe->b.b_blkno,
 			    rqe->b.b_bcount);
-		    if (debug & DEBUG_NUMOUTPUT)
-			log(LOG_DEBUG,
-			    "  raid5.2 sd %d numoutput %ld\n",
-			    rqe->sdno,
-			    rqe->b.b_vp->v_numoutput);
 		    if (debug & DEBUG_LASTREQS)
 			logrq(loginfo_raid5_data, (union rqinfou) rqe, bp);
 #endif
@@ -392,7 +386,6 @@ complete_raid5_write(struct rqelement *rqe)
     rqe->b.b_bufsize = rqe->b.b_bcount;			    /* don't claim we have more */
     rqe->b.b_resid = rqe->b.b_bcount;			    /* nothing transferred */
     rqg->active++;					    /* another active request */
-    rqe->b.b_vp->v_numoutput++;				    /* one more output going */
     drive = &DRIVE[rqe->driveno];			    /* drive to access */
 
     /* We can't sleep here, so we just increment the counters. */
@@ -414,11 +407,6 @@ complete_raid5_write(struct rqelement *rqe)
 	    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 	    rqe->b.b_blkno,
 	    rqe->b.b_bcount);
-    if (debug & DEBUG_NUMOUTPUT)
-	log(LOG_DEBUG,
-	    "  raid5.3 sd %d numoutput %ld\n",
-	    rqe->sdno,
-	    rqe->b.b_vp->v_numoutput);
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_raid5_parity, (union rqinfou) rqe, bp);
 #endif
