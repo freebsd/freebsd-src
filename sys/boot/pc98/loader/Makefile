@@ -100,7 +100,7 @@ ${PROG}.bin: ${PROG}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip -R .comment -R .note ${.TARGET}
 
-${PROG}.help: help.common help.i386
+${PROG}.help: help.common help.pc98
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth 
