@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.84 1999/01/14 06:14:15 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.85 1999/02/11 07:10:20 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -68,8 +68,8 @@ reset:
 		clr	CCSCBCTL;
 	}
 
-	call	clear_target_state;
 poll_for_work:
+	call	clear_target_state;
 	and	SXFRCTL0, ~SPIOEN;
 	if ((ahc->features & AHC_QUEUE_REGS) == 0) {
 		mov	A, QINPOS;
@@ -169,6 +169,17 @@ start_selection:
 		mov	SBLKCTL,SINDEX;		/* select channel */
 	}
 initialize_scsiid:
+	mov	SINDEX, SCSISEQ_TEMPLATE;
+	if ((ahc->flags & AHC_TARGETMODE) != 0) {
+		test	SCB_CONTROL, TARGET_SCB jz . + 4;
+		if ((ahc->features & AHC_ULTRA2) != 0) {
+			mov	SCSIID_ULTRA2, SCB_CMDPTR[2];
+		} else {
+			mov	SCSIID, SCB_CMDPTR[2];
+		}
+		or	SINDEX, TEMODE;
+		jmp	initialize_scsiid_fini;
+	}
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		and	A, TID, SCB_TCL;	/* Get target ID */
 		and	SCSIID_ULTRA2, OID;	/* Clear old target */
@@ -178,11 +189,7 @@ initialize_scsiid:
 		and	SCSIID, OID;		/* Clear old target */
 		or	SCSIID, A;
 	}
-	mov	SINDEX, SCSISEQ_TEMPLATE;
-	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		test	SCB_CONTROL, TARGET_SCB jz . + 2;
-		or	SINDEX, TEMODE;
-	}
+initialize_scsiid_fini:
 	mov	SCSISEQ, SINDEX ret;
 
 /*
@@ -230,7 +237,6 @@ select_in:
 		 */
 		or	SEQ_FLAGS, CMDPHASE_PENDING;
 
-		/* XXX If ring buffer is full, return busy or queue full */
 		mov     A, TQINPOS;
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mvi	DINDEX, CCHADDR;
@@ -251,15 +257,19 @@ select_in:
 		}
 
 		/* The Target ID we were selected at */
-		if ((ahc->features & AHC_MULTI_TID) != 0) {
-			if ((ahc->features & AHC_CMD_CHAN) != 0) {
-				and	CCSCBRAM, 0x0f, TARGIDIN;
+		if ((ahc->features & AHC_CMD_CHAN) != 0) {
+			if ((ahc->features & AHC_MULTI_TID) != 0) {
+				and	CCSCBRAM, OID, TARGIDIN;
+			} else if ((ahc->features & AHC_ULTRA2) != 0) {
+				and	CCSCBRAM, OID, SCSIID_ULTRA2;
 			} else {
-				and	DFDAT, 0x0f, TARGIDIN;
+				and	CCSCBRAM, OID, SCSIID;
 			}
 		} else {
-			if ((ahc->features & AHC_CMD_CHAN) != 0) {
-				and	CCSCBRAM, OID, SCSIID;
+			if ((ahc->features & AHC_MULTI_TID) != 0) {
+				and	DFDAT, OID, TARGIDIN;
+			} else if ((ahc->features & AHC_ULTRA2) != 0) {
+				and	DFDAT, OID, SCSIID_ULTRA2;
 			} else {
 				and	DFDAT, OID, SCSIID;
 			}
@@ -349,6 +359,16 @@ host_target_message_loop:
 		jmp	host_target_message_loop;
 
 ident_messages_done:
+		/* If ring buffer is full, return busy or queue full */
+		mov	A, KERNEL_TQINPOS;
+		cmp	TQINPOS, A jne tqinfifo_has_space;
+		mvi	P_STATUS|BSYO call change_phase;
+		cmp	INITIATOR_TAG, SCB_LIST_NULL je . + 3;
+		mvi	STATUS_QUEUE_FULL call target_outb;
+		jmp	target_busfree_wait;
+		mvi	STATUS_BUSY call target_outb;
+		jmp	target_busfree_wait;
+tqinfifo_has_space:	
 		/* Terminate the ident list */
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			mvi	CCSCBRAM, SCB_LIST_NULL;
@@ -450,7 +470,7 @@ target_synccmd:
 target_ITloop:
 		/*
 		 * Start honoring ATN signals now that
-		 * we properly identified ourself.
+		 * we properly identified ourselves.
 		 */
 		test	SCSISIGI, ATNI			jnz target_mesgout;
 		test	SEQ_FLAGS, CMDPHASE_PENDING	jnz target_cmdphase;
@@ -491,7 +511,6 @@ target_busfree_wait:
 target_busfree:
 		clr	SCSISIGO;
 		call	complete_target_cmd;
-		call	clear_target_state;
 		jmp	poll_for_work;
 
 target_cmdphase:
@@ -625,7 +644,6 @@ ITloop:
 
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
-	call	clear_target_state;
 	mov	NONE, SCSIDATL;		/* Ack the last byte */
 	and	SXFRCTL0, ~SPIOEN;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
@@ -1146,14 +1164,12 @@ complete:
 
 complete_queue:
 	mov	SCB_TAG call complete_post;
-
-add_to_free_list:
-	call	add_scb_to_free_list;
 	jmp	await_busfree;
 }
 
 complete_post:
 	/* Post the SCBID in SINDEX and issue an interrupt */
+	call	add_scb_to_free_list;
 	mov	ARG_1, SINDEX;
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		mov	A, SDSCB_QOFF;
