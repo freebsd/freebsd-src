@@ -663,7 +663,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			 * Check the user's buffer to make sure it's readable.
 			 */
 			if (!useracc((caddr_t)cio->patterns,
-				    cio->pat_buf_len, B_READ)) {
+				    cio->pat_buf_len, VM_PROT_READ)) {
 				printf("pci_ioctl: pattern buffer %p, "
 				       "length %u isn't user accessible for"
 				       " READ\n", cio->patterns,
@@ -699,7 +699,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * Make sure we can write to the match buffer.
 		 */
 		if (!useracc((caddr_t)cio->matches,
-			     cio->match_buf_len, B_WRITE)) {
+			     cio->match_buf_len, VM_PROT_WRITE)) {
 			printf("pci_ioctl: match buffer %p, length %u "
 			       "isn't user accessible for WRITE\n",
 			       cio->matches, cio->match_buf_len);

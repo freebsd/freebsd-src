@@ -961,7 +961,7 @@ unaligned_fixup(va, opcode, reg, p)
 	 * Even if it's an unknown opcode, SEGV if the access
 	 * should have failed.
 	 */
-	if (!useracc((caddr_t)va, size ? size : 1, B_WRITE)) {
+	if (!useracc((caddr_t)va, size ? size : 1, VM_PROT_WRITE)) {
 		signal = SIGSEGV;
 		goto out;
 	}

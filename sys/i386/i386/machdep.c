@@ -501,7 +501,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if (grow_stack(p, (int)fp) == FALSE ||
-	    useracc((caddr_t)fp, sizeof(struct osigframe), B_WRITE) == FALSE) {
+	    !useracc((caddr_t)fp, sizeof(struct osigframe), VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -648,7 +648,7 @@ sendsig(catcher, sig, mask, code)
 	 * access is denied.
 	 */
 	if (grow_stack(p, (int)sfp) == FALSE ||
-	    useracc((caddr_t)sfp, sizeof(struct sigframe), B_WRITE) == FALSE) {
+	    !useracc((caddr_t)sfp, sizeof(struct sigframe), VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -769,7 +769,7 @@ osigreturn(p, uap)
 
 	scp = uap->sigcntxp;
 
-	if (useracc((caddr_t)scp, sizeof (struct osigcontext), B_WRITE) == 0)
+	if (!useracc((caddr_t)scp, sizeof (struct osigcontext), VM_PROT_WRITE))
 		return(EFAULT);
 
 	eflags = scp->sc_ps;
@@ -880,7 +880,7 @@ sigreturn(p, uap)
 	ucp = uap->sigcntxp;
 	eflags = ucp->uc_mcontext.mc_eflags;
 
-	if (useracc((caddr_t)ucp, sizeof(ucontext_t), B_WRITE) == 0)
+	if (!useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_WRITE))
 		return(EFAULT);
 
 	if (eflags & PSL_VM) {
