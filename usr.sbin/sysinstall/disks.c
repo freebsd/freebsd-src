@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.42 1996/04/25 17:31:14 jkh Exp $
+ * $Id: disks.c,v 1.43 1996/04/28 00:37:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -352,7 +352,7 @@ diskPartition(Device *dev, Disk *d)
 		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
 
-		if (diskPartitionWrite(NULL) != DITEM_SUCCESS)
+		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");

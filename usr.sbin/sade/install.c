@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.87 1996/04/28 00:37:32 jkh Exp $
+ * $Id: install.c,v 1.88 1996/04/28 01:07:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -174,7 +174,7 @@ installInitial(void)
 		 "We can take no responsibility for lost disk contents!"))
 	return DITEM_FAILURE;
 
-    if (diskLabelCommit(NULL) != DITEM_SUCCESS) {
+    if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return DITEM_FAILURE;
     }
@@ -235,14 +235,14 @@ installFixitFloppy(dialogMenuItem *self)
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     if (!directory_exists("/var/tmp/vi.recover")) {
-	if (Mkdir("/var/tmp/vi.recover", NULL) != DITEM_SUCCESS) {
+	if (DITEM_STATUS(Mkdir("/var/tmp/vi.recover", NULL)) != DITEM_SUCCESS) {
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
 		       "vi will kvetch and moan about it as a result but should still\n"
 		       "be essentially usable.");
 	}
     }
     /* Link the spwd.db file */
-    if (Mkdir("/etc", NULL) != DITEM_SUCCESS)
+    if (DITEM_STATUS(Mkdir("/etc", NULL)) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
     else if (symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1)
 	msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
@@ -282,10 +282,10 @@ int
 installExpress(dialogMenuItem *self)
 {
     variable_set2(SYSTEM_STATE, "express");
-    if (diskPartitionEditor(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
-    if (diskLabelEditor(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
     if (!Dists) {
@@ -298,7 +298,7 @@ installExpress(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
-    if (installCommit(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(installCommit(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 
     return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
@@ -317,7 +317,7 @@ installNovice(dialogMenuItem *self)
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
-    if (diskPartitionEditor(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
     dialog_clear();
@@ -328,7 +328,7 @@ installNovice(dialogMenuItem *self)
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 
-    if (diskLabelEditor(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
     dialog_clear();
@@ -351,7 +351,7 @@ installNovice(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
-    if (installCommit(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(installCommit(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
 
     return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
@@ -378,9 +378,9 @@ installCommit(dialogMenuItem *self)
     str = variable_get(SYSTEM_STATE);
     i = DITEM_LEAVE_MENU;
     if (RunningAsInit) {
-	if (installInitial() == DITEM_FAILURE)
+	if (DITEM_STATUS(installInitial()) == DITEM_FAILURE)
 	    return DITEM_FAILURE;
-	if (configFstab() == DITEM_FAILURE)
+	if (DITEM_STATUS(configFstab()) == DITEM_FAILURE)
 	    return DITEM_FAILURE;
 	if (!rootExtract()) {
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
@@ -389,13 +389,13 @@ installCommit(dialogMenuItem *self)
 	}
     }
 
-    if (distExtractAll(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE)
 	i = DITEM_FAILURE;
 
-    if (installFixup(self) == DITEM_FAILURE)
+    if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE)
 	i = DITEM_FAILURE;
 
-    if (i != DITEM_FAILURE && !strcmp(str, "novice")) {
+    if (DITEM_STATUS(i) != DITEM_FAILURE && !strcmp(str, "novice")) {
 	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
 		   "questions will be asked at this point.  For any option you do not wish\n"
 		   "to configure, select Cancel.");
@@ -479,7 +479,7 @@ installCommit(dialogMenuItem *self)
 
     /* Don't print this if we're express or novice installing */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
-	if (Dists || i == DITEM_FAILURE)
+	if (Dists || DITEM_STATUS(i) == DITEM_FAILURE)
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
 		       "scroll-lock feature.");
@@ -737,7 +737,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(VAR_EDITOR,			"/stand/ee");
+    variable_set2(VAR_EDITOR,			RunningAsInit ? "/stand/ee" : "/usr/bin/ee");
     variable_set2(VAR_FTP_USER,			"ftp");
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4fm");
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.36 1996/04/28 00:37:33 jkh Exp $
+ * $Id: media.c,v 1.37 1996/04/28 01:07:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,6 +364,8 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
     pipe(qfd);
     *zpid = fork();
     if (!*zpid) {
+	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+
 	dup2(qfd[0], 0); close(qfd[0]);
 	dup2(pfd[1], 1); close(pfd[1]);
 	if (DebugFD != -1)
@@ -374,15 +376,17 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	}
 	close(qfd[1]);
 	close(pfd[0]);
-	i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	i = execl(gunzip, gunzip, 0);
 	if (isDebug())
-	    msgDebug("/stand/gunzip command returns %d status\n", i);
+	    msgDebug("%s command returns %d status\n", gunzip, i);
 	exit(i);
     }
     *fd = qfd[1];
     close(qfd[0]);
     *cpid = fork();
     if (!*cpid) {
+	char *cpio = RunningAsInit ? "/stand/cpio" : "/usr/bin/cpio";
+
 	dup2(pfd[0], 0); close(pfd[0]);
 	close(pfd[1]);
 	close(qfd[1]);
@@ -395,11 +399,11 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
-	    i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	else
-	    i = execl("/stand/cpio", "/stand/cpio", "-idum", "--block-size", mediaTapeBlocksize(), 0);
+	    i = execl(cpio, cpio, "-idum", "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
-	    msgDebug("/stand/cpio command returns %d status\n", i);
+	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
     }
     close(pfd[0]);
@@ -413,7 +417,8 @@ mediaExtractDistEnd(int zpid, int cpid)
     int i,j;
 
     i = waitpid(zpid, &j, 0);
-    if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check status - gunzip seems to return a bogus one! */
+    if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
@@ -441,6 +446,8 @@ mediaExtractDist(char *dir, int fd)
     pipe(pfd);
     zpid = fork();
     if (!zpid) {
+	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
+
 	dup2(fd, 0); close(fd);
 	dup2(pfd[1], 1); close(pfd[1]);
 	if (DebugFD != -1)
@@ -450,13 +457,15 @@ mediaExtractDist(char *dir, int fd)
 	    open("/dev/null", O_WRONLY);
 	}
 	close(pfd[0]);
-	i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	i = execl(gunzip, gunzip, 0);
 	if (isDebug())
-	    msgDebug("/stand/gunzip command returns %d status\n", i);
+	    msgDebug("%s command returns %d status\n", gunzip, i);
 	exit(i);
     }
     cpid = fork();
     if (!cpid) {
+	char *cpio = RunningAsInit ? "/stand/cpio" : "/usr/bin/cpio";
+
 	dup2(pfd[0], 0); close(pfd[0]);
 	close(fd);
 	close(pfd[1]);
@@ -469,18 +478,19 @@ mediaExtractDist(char *dir, int fd)
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
-	    i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
+	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	else
-	    i = execl("/stand/cpio", "/stand/cpio", "-idum", "--block-size", mediaTapeBlocksize(), 0);
+	    i = execl(cpio, cpio, "-idum", "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
-	    msgDebug("/stand/cpio command returns %d status\n", i);
+	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
     }
     close(pfd[0]);
     close(pfd[1]);
 
     i = waitpid(zpid, &j, 0);
-    if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
+    /* Don't check status - gunzip seems to return a bogus one! */
+    if (i < 0) {
 	if (isDebug())
 	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
@@ -510,7 +520,7 @@ mediaVerify(void)
     if (!mediaDevice) {
 	msgConfirm("Media type not set!  Please select a media type\n"
 		   "from the Installation menu before proceeding.");
-	return mediaGetType(NULL) == DITEM_SUCCESS;
+	return DITEM_STATUS(mediaGetType(NULL)) == DITEM_SUCCESS;
     }
     return TRUE;
 }

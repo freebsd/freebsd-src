@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.43 1996/04/23 01:29:25 jkh Exp $
+ * $Id: label.c,v 1.44 1996/04/25 17:31:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,11 +97,11 @@ diskLabelEditor(dialogMenuItem *self)
     }
     if (!enabled) {
 	devs[0]->enabled = TRUE;
-	if (diskPartitionEditor(self) == DITEM_FAILURE)
+	if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	    return DITEM_FAILURE;
     }
     i = diskLabel(devs[0]->name);
-    if (i != DITEM_FAILURE)
+    if (DITEM_STATUS(i) != DITEM_FAILURE)
 	variable_set2(DISK_LABELLED, "yes");
     return i;
 }
@@ -122,9 +122,9 @@ diskLabelCommit(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     }
     /* The routine will guard against redundant writes, just as this one does */
-    else if (diskPartitionWrite(self) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(diskPartitionWrite(self)) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
-    else if (installFilesystems(self) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(installFilesystems(self)) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
     else {
 	msgInfo("All filesystem information written successfully.");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.53 1996/04/26 18:19:38 jkh Exp $
+ * $Id: system.c,v 1.54 1996/04/28 01:07:27 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -215,7 +215,14 @@ vsystem(char *fmt, ...)
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
-	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
+	else {
+	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(1, 2);
+	}
+	if (!RunningAsInit)
+	    execl("/bin/sh", "/bin/sh", "-c", cmd, (char *)NULL);
+	else
+	    execl("/stand/sh", "/stand/sh", "-c", cmd, (char *)NULL);
 	exit(1);
     }
     else {

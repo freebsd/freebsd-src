@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.54 1996/04/27 07:04:12 jkh Exp $
+ * $Id: menus.c,v 1.55 1996/04/28 00:37:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,12 +51,6 @@ clearSrc(dialogMenuItem *self)
     Dists &= ~DIST_SRC;
     SrcDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-checkSrc(dialogMenuItem *self)
-{
-    return ((Dists & DIST_SRC) && (SrcDists == DIST_SRC_ALL | DIST_SRC_SMAILCF));
 }
 
 static int
@@ -956,11 +950,11 @@ aspects of your system's network configuration.",
   { "NFS client",	"This machine will be an NFS client",
     dmenuVarCheck, dmenuSetVariable, NULL, "nfs_client=YES" },
   { "NFS server",	"This machine will be an NFS server",
-    NULL, configNFSServer },
+    dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
   { "Gateway",		"This machine will route packets between interfaces",
     dmenuVarCheck, dmenuSetVariable, NULL, "gateway=YES" },
   { "Gated",		"This machine wants to run gated instead of routed",
-    NULL, configGated },
+    dmenuVarCheck, configGated, NULL, "gated" },
   { "Ntpdate",		"Select a clock-syncronization server",
     dmenuVarCheck, dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)"ntpdate" },
   { "Routed",		"Set flags for routed (default: -q)",
@@ -968,20 +962,20 @@ aspects of your system's network configuration.",
   { "Rwhod",		"This machine wants to run the rwho daemon",
     dmenuVarCheck, dmenuSetVariable, NULL, "rwhod=YES" },
   { "Anon FTP",		"This machine wishes to allow anonymous FTP.",
-    NULL, configAnonFTP },
+    dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
   { "WEB Server",	"This machine wishes to be a WWW server.",
-    NULL, configApache },
+    dmenuVarCheck, configApache, NULL, "apache_httpd" },
   { "Samba",		"Install Samba for LanManager (NETBUI) access.",
-    NULL, configSamba },
+    dmenuVarCheck, configSamba, NULL, "samba" },
   { "PCNFSD",		"Run authentication server for clients with PC-NFS.",
-    NULL, configPCNFSD },
+    dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
   { "Exit",	"Exit this menu (returning to previous)",
     checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
 DMenu MenuNTP = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "NTPDATE Server Selection",
     "There are a number of time syncronization servers available\n\
 for public use around the Internet.  Please select one reasonably\n\
