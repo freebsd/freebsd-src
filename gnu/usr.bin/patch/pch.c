@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.9 1997/02/13 21:10:43 jmg Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.10 1997/10/23 02:44:22 ache Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.10  1997/10/23 02:44:22  ache
+ * Add (unsigned char) cast to ctype macros
+ *
  * Revision 1.9  1997/02/13 21:10:43  jmg
  * Fix a problem with patch in that is will always default, even when the
  * controlling terminal is closed.  Now the function ask() will return 1 when th
@@ -16,6 +19,9 @@
  *
  * Revision 1.8  1996/04/12 11:37:32  markm
  * Attempt to break a $Log: pch.c,v $
+ * Attempt to break a Revision 1.10  1997/10/23 02:44:22  ache
+ * Attempt to break a Add (unsigned char) cast to ctype macros
+ * Attempt to break a
  * Attempt to break a Revision 1.9  1997/02/13 21:10:43  jmg
  * Attempt to break a Fix a problem with patch in that is will always default, even when the
  * Attempt to break a controlling terminal is closed.  Now the function ask() will return 1 when th
@@ -405,14 +411,13 @@ intuit_diff_type()
 	    oldname = fetchname(oldtmp, strippath, ok_to_create_file);
 	if (newtmp != Nullch)
 	    newname = fetchname(newtmp, strippath, ok_to_create_file);
-	if (indname)
-	    filearg[0] = savestr(indname);
-	else if (oldname && newname) {
+	if (oldname && newname) {
 	    if (strlen(oldname) < strlen(newname))
 		filearg[0] = savestr(oldname);
 	    else
 		filearg[0] = savestr(newname);
-	}
+	} else if (indname)
+	    filearg[0] = savestr(indname);
 	else if (oldname)
 	    filearg[0] = savestr(oldname);
 	else if (newname)
