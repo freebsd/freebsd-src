@@ -2425,7 +2425,6 @@ loop:
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
 #endif
 			VOP_GETVOBJECT(vp, &bp->b_object);
-			vm_object_reference(bp->b_object);
 		} else {
 			bp->b_flags &= ~B_VMIO;
 			bp->b_object = NULL;
