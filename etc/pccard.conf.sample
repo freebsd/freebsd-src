@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.8 1997/10/23 14:00:40 msmith Exp $
+# $Id: pccard.conf.sample,v 1.9 1997/10/30 01:17:01 nate Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -44,6 +44,14 @@ card "ACCTON" "EN2212"
 	insert	/etc/pccard_ether ed0
 	remove	echo Accton EN2212 removed
 	remove	/sbin/ifconfig ed0 delete
+
+#Accton 2216
+card "ACCTON" "EN2216-PCMCIA-ETHERNET"
+	config 0x20 "ed0" 10
+	insert echo Accton 2216 inserted
+	insert /etc/pccard_ether ed0
+	remove echo Accton 2216 removed
+	remove /sbin/ifconfig ed0 delete
 
 # 3Com Etherlink III 3C589B, 3C589C
 card "3Com Corporation" "3C589"
