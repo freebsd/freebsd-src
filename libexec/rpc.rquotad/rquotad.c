@@ -36,12 +36,12 @@ static const char rcsid[] =
 #include <rpcsvc/rquota.h>
 #include <arpa/inet.h>
 
-void rquota_service __P((struct svc_req *request, SVCXPRT *transp));
-void sendquota __P((struct svc_req *request, SVCXPRT *transp));
-void printerr_reply __P((SVCXPRT *transp));
-void initfs __P((void));
-int getfsquota __P((long id, char *path, struct dqblk *dqblk));
-int hasquota __P((struct fstab *fs, char **qfnamep));
+void rquota_service(struct svc_req *request, SVCXPRT *transp);
+void sendquota(struct svc_req *request, SVCXPRT *transp);
+void printerr_reply(SVCXPRT *transp);
+void initfs(void);
+int getfsquota(long id, char *path, struct dqblk *dqblk);
+int hasquota(struct fstab *fs, char **qfnamep);
 
 /*
  * structure containing informations about ufs filesystems
@@ -58,16 +58,14 @@ struct fs_stat *fs_begin = NULL;
 int from_inetd = 1;
 
 void 
-cleanup()
+cleanup(int sig)
 {
 	(void) pmap_unset(RQUOTAPROG, RQUOTAVERS);
 	exit(0);
 }
 
 int
-main(argc, argv)
-	int     argc;
-	char   *argv[];
+main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
 	int sock = 0;
@@ -112,9 +110,7 @@ main(argc, argv)
 }
 
 void 
-rquota_service(request, transp)
-	struct svc_req *request;
-	SVCXPRT *transp;
+rquota_service(struct svc_req *request, SVCXPRT *transp)
 {
 	switch (request->rq_proc) {
 	case NULLPROC:
@@ -136,9 +132,7 @@ rquota_service(request, transp)
 
 /* read quota for the specified id, and send it */
 void 
-sendquota(request, transp)
-	struct svc_req *request;
-	SVCXPRT *transp;
+sendquota(struct svc_req *request, SVCXPRT *transp)
 {
 	struct getquota_args getq_args;
 	struct getquota_rslt getq_rslt;
@@ -188,8 +182,7 @@ sendquota(request, transp)
 }
 
 void 
-printerr_reply(transp)	/* when a reply to a request failed */
-	SVCXPRT *transp;
+printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 {
 	char   *name;
 	struct sockaddr_in *caller;
@@ -208,7 +201,7 @@ printerr_reply(transp)	/* when a reply to a request failed */
 
 /* initialise the fs_tab list from entries in /etc/fstab */
 void 
-initfs()
+initfs(void)
 {
 	struct fs_stat *fs_current = NULL;
 	struct fs_stat *fs_next = NULL;
@@ -246,10 +239,7 @@ initfs()
  * Return 0 if fail, 1 otherwise
  */
 int
-getfsquota(id, path, dqblk)
-	long id;
-	char   *path;
-	struct dqblk *dqblk;
+getfsquota(long id, char   *path, struct dqblk *dqblk)
 {
 	struct stat st_path;
 	struct fs_stat *fs;
@@ -304,9 +294,7 @@ getfsquota(id, path, dqblk)
  * Comes from quota.c, NetBSD 0.9
  */
 int
-hasquota(fs, qfnamep)
-	struct fstab *fs;
-	char  **qfnamep;
+hasquota(struct fstab *fs, char  **qfnamep)
 {
 	static char initname, usrname[100];
 	static char buf[BUFSIZ];

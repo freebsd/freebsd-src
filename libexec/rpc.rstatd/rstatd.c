@@ -43,13 +43,13 @@ static const char rcsid[] =
 #include <rpc/pmap_clnt.h>
 #include <rpcsvc/rstat.h>
 
-extern void rstat_service();
+extern void rstat_service(struct svc_req *, SVCXPRT *);
 
 int from_inetd = 1;     /* started from inetd ? */
 int closedown = 20;	/* how long to wait before going dormant */
 
 void
-cleanup()
+cleanup(int sig __unused)
 {
         (void) pmap_unset(RSTATPROG, RSTATVERS_TIME);
         (void) pmap_unset(RSTATPROG, RSTATVERS_SWTCH);
@@ -58,9 +58,7 @@ cleanup()
 }
 
 int
-main(argc, argv)
-        int argc;
-        char *argv[];
+main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
         int sock = 0;

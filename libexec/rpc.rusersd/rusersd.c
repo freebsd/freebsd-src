@@ -45,12 +45,12 @@ static const char rcsid[] =
 #include <rpcsvc/rnusers.h>
 #undef utmp
 
-extern void rusers_service();
+extern void rusers_service(struct svc_req *, SVCXPRT *);
 
 int from_inetd = 1;
 
 void
-cleanup()
+cleanup(int sig __unused)
 {
         (void) pmap_unset(RUSERSPROG, RUSERSVERS_IDLE);
         (void) pmap_unset(RUSERSPROG, RUSERSVERS_ORIG);
@@ -58,9 +58,7 @@ cleanup()
 }
 
 int
-main(argc, argv)
-        int argc;
-        char *argv[];
+main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
         int sock = 0;
