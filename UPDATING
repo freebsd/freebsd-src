@@ -21,6 +21,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20050206:
+	NG_VERSION has been increased. Recompiling kernel (or ng_socket.ko)
+	requires recompiling libnetgraph and userland netgraph utilities.
 
 20050114:
 	Support for abbreviated forms of a number of ipfw options is
