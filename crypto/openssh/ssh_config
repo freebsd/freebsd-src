@@ -24,7 +24,7 @@
 #   RSAAuthentication yes
 #   PasswordAuthentication yes
 #   BatchMode no
-#   CheckHostIP yes
+#   CheckHostIP no
 #   StrictHostKeyChecking ask
 #   IdentityFile ~/.ssh/identity
 #   IdentityFile ~/.ssh/id_rsa
