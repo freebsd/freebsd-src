@@ -23,6 +23,7 @@
      </listitem>
    </itemizedlist>
   <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP) configurations are under active
-    development.  At this time, the SMP development branch is the less stable of the two. The
+    development.  At this time, SMP-enabled systems are considered
+    less stable.  The
     current priorities are UP fixes to improve stability.</para>
 </sect1>
