@@ -424,9 +424,9 @@ cbb_probe(device_t brdev)
 static void
 cbb_disable_func_intr(struct cbb_softc *sc)
 {
+#if 0
 	uint8_t reg;
 
-#if 0
 	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) | 
 	    EXCA_INTR_IRQ_RESERVED1;
 	exca_putb(&sc->exca, EXCA_INTR, reg);
