@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char cu_rcsid[] = "$Id: cu.c,v 1.28 1994/01/30 21:01:46 ian Rel $";
+const char cu_rcsid[] = "$Id: cu.c,v 1.2 1994/05/07 18:09:54 ache Exp $";
 #endif
 
 #include "cu.h"
@@ -1895,6 +1895,9 @@ icutake (puuconf, argc, argv, pvar, pinfo)
 	  ucuputs ("[timed out]");
 	  break;
 	}
+
+      if (b == '\r')
+	continue;
 
       if (ceoflen == 0)
 	{
