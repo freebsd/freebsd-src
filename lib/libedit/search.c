@@ -43,13 +43,10 @@ static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
  */
 #include "sys.h"
 #include <stdlib.h>
-#ifdef REGEXEC
-#include <sys/types.h>
+#if defined(REGEX)
 #include <regex.h>
-#else
-#ifdef REGEXP
+#elif defined(REGEXP)
 #include <regexp.h>
-#endif
 #endif
 #include "el.h"
 
@@ -107,39 +104,41 @@ el_match(str, pat)
     const char *str;
     const char *pat;
 {
-#ifdef REGEXEC
+#if defined (REGEX)
     regex_t re;
-#else
-#ifndef REGEXP
+    int rv;
+#elif defined (REGEXP)
+    regexp *rp;
+    int rv;
+#else 
     extern char *re_comp __P((const char *));
     extern int re_exec __P((const char *));
-#else
-    regexp *re;
-    int rv;
-#endif
 #endif
 
     if (strstr(str, pat) != NULL)
 	return 1;
-#ifdef REGEXEC
-    if (regcomp(&re, pat, REG_EXTENDED | REG_NOSUB) != 0)
-	return 0;
-    return (regexec(&re, str, 0, NULL, 0) == 0);
+
+#if defined(REGEX)
+    if (regcomp(&re, pat, 0) == 0) {
+	rv = regexec(&re, str, 0, NULL, 0) == 0;
+	regfree(&re);
+    } else {
+	rv = 0;
+    }
+    return rv;
+#elif defined(REGEXP)
+    if ((re = regcomp(pat)) != NULL) {
+	rv = regexec(re, str);
+	free((ptr_t) re);
+    } else {
+	rv = 0;
+    }
+    return rv;
 #else
-#ifndef REGEXP
     if (re_comp(pat) != NULL)
 	return 0;
     else
     return re_exec(str) == 1;
-#else
-    if ((re = regcomp(pat)) != NULL) {
-	rv = regexec(re, str);
-	free((ptr_t) re);
-    }
-    else
-	rv = 0;
-    return rv;
-#endif
 #endif
 }
 
@@ -462,10 +461,10 @@ cv_search(el, dir)
 	}
 #ifdef ANCHOR
 	if (el->el_search.patbuf[0] != '.' && el->el_search.patbuf[0] != '*') {
-	    (void) strcpy(tmpbuf, el->el_search.patbuf);
+	    (void)strncpy(tmpbuf, el->el_search.patbuf, sizeof(tmpbuf) - 1);
 	    el->el_search.patbuf[0] = '.';
 	    el->el_search.patbuf[1] = '*';
-	    (void) strcpy(&el->el_search.patbuf[2], tmpbuf);
+	    (void)strncpy(&el->el_search.patbuf[2], tmpbuf, EL_BUFSIZ - 3);
 	    el->el_search.patlen++;
 	    el->el_search.patbuf[el->el_search.patlen++] = '.';
 	    el->el_search.patbuf[el->el_search.patlen++] = '*';
@@ -479,7 +478,7 @@ cv_search(el, dir)
 	tmpbuf[tmplen++] = '*';
 #endif
 	tmpbuf[tmplen] = '\0';
-	(void) strcpy(el->el_search.patbuf, tmpbuf);
+	(void)strncpy(el->el_search.patbuf, tmpbuf, EL_BUFSIZ - 1);
 	el->el_search.patlen = tmplen;
     }
     el->el_state.lastcmd = (el_action_t) dir; /* avoid c_setpat */

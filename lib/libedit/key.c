@@ -640,7 +640,7 @@ key__decode_char(buf, cnt, ch)
     char *buf;
     int   cnt, ch;
 {
-    ch &= 0xFF;
+    ch = (unsigned char)ch;
 
     if (ch == 0) {
 	buf[cnt++] = '^';
@@ -650,10 +650,10 @@ key__decode_char(buf, cnt, ch)
 
     if (iscntrl(ch)) {
 	buf[cnt++] = '^';
-	if (ch == '\177')
+	if (ch == 0177)
 	    buf[cnt] = '?';
 	else
-	    buf[cnt] = ch | 0100;
+	    buf[cnt] = toascii(ch) | 0100;
     }
     else if (ch == '^') {
 	buf[cnt++] = '\\';
@@ -704,7 +704,7 @@ key__decode_str(str, buf, sep)
 	    if (*p == '\177')
 		*b++ = '?';
 	    else
-		*b++ = *p | 0100;
+		*b++ = toascii(*p) | 0100;
 	}
 	else if (*p == '^' || *p == '\\') {
 	    *b++ = '\\';

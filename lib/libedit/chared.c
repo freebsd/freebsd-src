@@ -575,8 +575,8 @@ c_gets(el, buf)
 	if (el_getc(el, &ch) != 1)
 	    return ed_end_of_file(el, 0);
 	switch (ch) {
-	case 0010:	/* Delete and backspace */
-	case 0177:
+	case '\010':      /* Delete and backspace */
+	case '\177':
 	    if (len > 1) {
 		*el->el_line.cursor-- = '\0';
 		el->el_line.lastchar = el->el_line.cursor;
@@ -592,7 +592,7 @@ c_gets(el, buf)
 	    ch = 0;
 	    break;
 
-	case 0033:	/* ESC */
+	case '\033':      /* ESC */
 	case '\r':	/* Newline */
 	case '\n':
 	    break;

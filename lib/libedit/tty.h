@@ -145,7 +145,12 @@
 # endif /* IEXTEN != 0 */
 #endif /* convex || __convex__ */
 
-
+/*
+ * So that we don't lose job control.
+ */
+#ifdef __SVR4
+# undef CSWTCH
+#endif
 
 #ifndef _POSIX_VDISABLE
 # define _POSIX_VDISABLE ((unsigned char) -1)
@@ -446,8 +451,8 @@
 
 typedef struct {
     char *t_name;
-    int  t_setmask;
-    int  t_clrmask;
+    u_int t_setmask;
+    u_int t_clrmask;
 } ttyperm_t[NN_IO][M_NN];
 
 typedef unsigned char ttychar_t[NN_IO][C_NCC];

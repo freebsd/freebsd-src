@@ -651,9 +651,7 @@ ed_redisplay(el, c)
     EditLine *el;
     int c;
 {
-    re_clear_lines(el);
-    re_clear_display(el);
-    return CC_REFRESH;
+    return CC_REDISPLAY;
 }
 
 
