@@ -308,7 +308,7 @@ main(int argc, char *argv[])
 	/* XXX - should be cleaner */
 	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
 		if ((uids = malloc(sizeof (*uids))) == NULL)
-			errx(1, "malloc: %s", strerror(errno));
+			err(1, "malloc");
 		nuids = 1;
 		*uids = getuid();
 	}
@@ -421,7 +421,7 @@ getuids(const char *arg, int *nuids)
 			moreuids = realloc(uids, alloc * sizeof (*uids));
 			if (moreuids == NULL) {
 				free(uids);
-				errx(1, "realloc: %s", strerror(errno));
+				err(1, "realloc");
 			}
 			uids = moreuids;
 		}
