@@ -219,12 +219,6 @@
     operations on very large directories at the expense of some
     memory.</para>
 
-    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
-    <command>dhwatch</command>, have been introduced.  Analogous to
-    <command>watch</command> and <command>dwatch</command>, they install
-    hardware watchpoints (as opposed to software watchpoints) if supported
-    by the architecture. &merged;</para>
-
     <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
     Extensions (<acronym>SSE</acronym>) has been introduced.  The
     <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
@@ -667,6 +661,12 @@
 
       <para>pseudofs, a pseudo-filesystem framework, has been added.
       &man.linprocfs.5; has been modified to use pseudofs.</para>
+
+      <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
+      <command>dhwatch</command>, have been introduced.  Analogous to
+      <command>watch</command> and <command>dwatch</command>, they install
+      hardware watchpoints (as opposed to software watchpoints) if
+      supported by the architecture. &merged;</para>
 
     </sect3>
 
