@@ -1227,7 +1227,7 @@ strtod
 	}
 	s0 = s;
 	y = z = 0;
-	for (nd = nf = 0; isdigit(c = (unsigned char)*s) && (n = digitoint(c)) <= 9; nd++, s++)
+	for (nd = nf = 0; isdigit(c = (unsigned char)*s) && (n = digittoint(c)) <= 9; nd++, s++)
 		if (nd < 9)
 			y = 10*y + n;
 		else if (nd < 16)
