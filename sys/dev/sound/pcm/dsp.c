@@ -41,7 +41,7 @@ static d_ioctl_t dsp_ioctl;
 static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
 
-static struct cdevsw dsp_cdevsw = {
+struct cdevsw dsp_cdevsw = {
 	.d_open =	dsp_open,
 	.d_close =	dsp_close,
 	.d_read =	dsp_read,
@@ -1044,101 +1044,23 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	return 0;
 }
 
-int
-dsp_register(int unit, int channel)
-{
-	dev_t dt;
-	int r;
-
-	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP, channel),
-		 UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d", unit, channel);
-	r = pcm_regdevt(dt, unit, SND_DEV_DSP, channel);
-	if (r)
-		return r;
-
-	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16, channel),
-		 UID_ROOT, GID_WHEEL, 0666, "dspW%d.%d", unit, channel);
-	r = pcm_regdevt(dt, unit, SND_DEV_DSP16, channel);
-	if (r)
-		return r;
-
-	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO, channel),
-		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, channel);
-	r = pcm_regdevt(dt, unit, SND_DEV_AUDIO, channel);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-int
-dsp_registerrec(int unit, int channel)
-{
-	dev_t dt;
-	int r;
-
-	dt = make_dev(&dsp_cdevsw, PCMMKMINOR(unit, SND_DEV_DSPREC, channel),
-		 UID_ROOT, GID_WHEEL, 0666, "dspr%d.%d", unit, channel);
-
-	r = pcm_regdevt(dt, unit, SND_DEV_DSPREC, channel);
-
-	return r;
-}
-
-int
-dsp_unregister(int unit, int channel)
-{
-	dev_t pdev;
-	int r;
-
-	pdev = pcm_getdevt(unit, SND_DEV_DSP, channel);
-	if (pdev == NULL)
-		return ENOENT;
-	destroy_dev(pdev);
-	r = pcm_unregdevt(unit, SND_DEV_DSP, channel);
-	if (r)
-		return r;
-
-	pdev = pcm_getdevt(unit, SND_DEV_DSP16, channel);
-	if (pdev == NULL)
-		return ENOENT;
-	destroy_dev(pdev);
-	r = pcm_unregdevt(unit, SND_DEV_DSP16, channel);
-	if (r)
-		return r;
-
-	pdev = pcm_getdevt(unit, SND_DEV_AUDIO, channel);
-	if (pdev == NULL)
-		return ENOENT;
-	destroy_dev(pdev);
-	r = pcm_unregdevt(unit, SND_DEV_AUDIO, channel);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-int
-dsp_unregisterrec(int unit, int channel)
-{
-	dev_t pdev;
-	int r;
-
-	pdev = pcm_getdevt(unit, SND_DEV_DSPREC, channel);
-	if (pdev == NULL)
-		return ENOENT;
-	destroy_dev(pdev);
-	r = pcm_unregdevt(unit, SND_DEV_DSPREC, channel);
-
-	return r;
-}
-
 #ifdef USING_DEVFS
+
+/*
+ * Clone logic is this:
+ * x E X = {dsp, dspW, audio}
+ * x -> x${sysctl("hw.snd.unit")}
+ * xN->
+ *    for i N = 1 to channels of device N
+ *    	if xN.i isn't busy, return its dev_t
+ */
 static void
 dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
 	dev_t pdev;
-	int i, cont, unit, devtype;
+	struct snddev_info *pcm_dev;
+	struct snddev_channel *pcm_chan;
+	int i, unit, devtype;
 	int devtypes[3] = {SND_DEV_DSP, SND_DEV_DSP16, SND_DEV_AUDIO};
 	char *devnames[3] = {"dsp", "dspW", "audio"};
 
@@ -1161,16 +1083,27 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 	if (unit == -1 || unit >= devclass_get_maxunit(pcm_devclass))
 		return;
 
-	cont = 1;
-	for (i = 0; cont; i++) {
-		pdev = pcm_getdevt(unit, devtype, i);
-		if (pdev->si_flags & SI_NAMED) {
-			if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
-				*dev = pdev;
-				return;
-			}
-		} else {
-			cont = 0;
+	pcm_dev = devclass_get_softc(pcm_devclass, unit);
+
+	SLIST_FOREACH(pcm_chan, &pcm_dev->channels, link) {
+
+		switch(devtype) {
+			case SND_DEV_DSP:
+				pdev = pcm_chan->dsp_devt;
+				break;
+			case SND_DEV_DSP16:
+				pdev = pcm_chan->dspW_devt;
+				break;
+			case SND_DEV_AUDIO:
+				pdev = pcm_chan->audio_devt;
+				break;
+			default:
+				panic("Unknown devtype %d", devtype);
+		}
+
+		if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
+			*dev = pdev;
+			return;
 		}
 	}
 }
