@@ -2657,7 +2657,7 @@ SetInquiryData(PINQUIRYDATA inquiryData, PVDevice pVDev)
 			inquiryData->RemovableMedia = 1;
 
 		/* Fill in vendor identification fields. */
-		for (i = 0; i < 20; i += 2) {				
+		for (i = 0; i < 16; i += 2) {				
 			inquiryData->VendorId[i] = 
 			    ((PUCHAR)pIdentify->ModelNumber)[i + 1];
 			inquiryData->VendorId[i+1] =
