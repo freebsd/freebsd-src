@@ -52,7 +52,7 @@ execve(const char *name, char *const * argv, char *const * envp)
 	itimer.it_interval.tv_usec = 0;
 	itimer.it_value.tv_sec     = 0;
 	itimer.it_value.tv_usec    = 0;
-	setitimer(ITIMER_VIRTUAL, &itimer, NULL);
+	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
 	_thread_sys_close(_thread_kern_pipe[0]);

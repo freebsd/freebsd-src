@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.15 1998/11/15 09:58:26 jb Exp $
+ * $Id: uthread_kern.c,v 1.18 1999/05/08 07:50:05 jasone Exp $
  *
  */
 #include <errno.h>
@@ -53,16 +53,18 @@
 static void 
 _thread_kern_select(int wait_reqd);
 
+static inline void
+thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in);
+
 void
 _thread_kern_sched(struct sigcontext * scp)
 {
 #ifndef	__alpha__
 	char           *fdata;
 #endif
-	int             prio = -1;
 	pthread_t       pthread;
 	pthread_t       pthread_h = NULL;
-	pthread_t       pthread_s = NULL;
+	pthread_t	last_thread = NULL;
 	struct itimerval itimer;
 	struct timespec ts;
 	struct timespec ts1;
@@ -105,18 +107,21 @@ __asm__("fnsave %0": :"m"(*fdata));
 		 */
 		_thread_kern_in_sched = 0;
 
-		/*
-		 * There might be pending signals for this thread, so
-		 * dispatch any that aren't blocked:
-		 */
-		_dispatch_signals();
+		if (_sched_switch_hook != NULL) {
+			/* Run the installed switch hook: */
+			thread_run_switch_hook(_last_user_thread, _thread_run);
+		}
 		return;
 	} else
 		/* Flag the jump buffer was the last state saved: */
 		_thread_run->sig_saved = 0;
 
+	/* If the currently running thread is a user thread, save it: */
+	if ((_thread_run->flags & PTHREAD_FLAGS_PRIVATE) == 0)
+		_last_user_thread = _thread_run;
+
 	/*
-	 * Enter a the scheduling loop that finds the next thread that is
+	 * Enter a scheduling loop that finds the next thread that is
 	 * ready to run. This loop completes when there are no more threads
 	 * in the global list or when a thread has its state restored by
 	 * either a sigreturn (if the state was saved as a sigcontext) or a
@@ -134,12 +139,48 @@ __asm__("fnsave %0": :"m"(*fdata));
 		_thread_kern_select(0);
 
 		/*
-		 * Enter a loop to look for sleeping threads that are ready:
+		 * Define the maximum time before a scheduling signal
+		 * is required: 
 		 */
-		for (pthread = _thread_link_list; pthread != NULL;
-		    pthread = pthread->nxt) {
+		itimer.it_value.tv_sec = 0;
+		itimer.it_value.tv_usec = TIMESLICE_USEC;
+
+		/*
+		 * The interval timer is not reloaded when it
+		 * times out. The interval time needs to be
+		 * calculated every time. 
+		 */
+		itimer.it_interval.tv_sec = 0;
+		itimer.it_interval.tv_usec = 0;
+
+		/*
+		 * Enter a loop to look for sleeping threads that are ready
+		 * or timedout.  While we're at it, also find the smallest
+		 * timeout value for threads waiting for a time.
+		 */
+		_waitingq_check_reqd = 0;	/* reset flag before loop */
+		TAILQ_FOREACH(pthread, &_waitingq, pqe) {
+			/* Check if this thread is ready: */
+			if (pthread->state == PS_RUNNING) {
+				PTHREAD_WAITQ_REMOVE(pthread);
+				PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+			}
+
+			/*
+			 * Check if this thread is blocked by an
+			 * atomic lock:
+			 */
+			else if (pthread->state == PS_SPINBLOCK) {
+				/*
+				 * If the lock is available, let
+				 * the thread run.
+				 */
+				if (pthread->data.spinlock->access_lock == 0) {
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				}
+
 			/* Check if this thread is to timeout: */
-			if (pthread->state == PS_COND_WAIT ||
+			} else if (pthread->state == PS_COND_WAIT ||
 			    pthread->state == PS_SLEEP_WAIT ||
 			    pthread->state == PS_FDR_WAIT ||
 			    pthread->state == PS_FDW_WAIT ||
@@ -163,23 +204,14 @@ __asm__("fnsave %0": :"m"(*fdata));
 					 */
 					if (pthread->state == PS_SELECT_WAIT) {
 						/*
-						 * The select has timed out,
-						 * so zero the file
-						 * descriptor sets: 
+						 * The select has timed out, so
+						 * zero the file descriptor
+						 * sets: 
 						 */
 						FD_ZERO(&pthread->data.select_data->readfds);
 						FD_ZERO(&pthread->data.select_data->writefds);
 						FD_ZERO(&pthread->data.select_data->exceptfds);
 						pthread->data.select_data->nfds = 0;
-					} else if (pthread->state == PS_COND_WAIT) {
-						/*
-						 * The pthread_cond_timedwait()
-						 * has timed out, so remove the
-						 * thread from the condition's
-						 * queue.
-						 */
-						_thread_queue_remove(pthread->queue,
-								     pthread);
                                         }
 					/*
 					 * Return an error as an interrupted
@@ -198,12 +230,71 @@ __asm__("fnsave %0": :"m"(*fdata));
 					 * it to be restarted: 
 					 */
 					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				} else {
+					/*
+					 * Calculate the time until this thread
+					 * is ready, allowing for the clock
+					 * resolution: 
+					 */
+					ts1.tv_sec = pthread->wakeup_time.tv_sec
+					    - ts.tv_sec;
+					ts1.tv_nsec = pthread->wakeup_time.tv_nsec
+					    - ts.tv_nsec + CLOCK_RES_NSEC;
+
+					/*
+					 * Check for underflow of the
+					 * nanosecond field: 
+					 */
+					if (ts1.tv_nsec < 0) {
+						/*
+						 * Allow for the underflow
+						 * of the nanosecond field: 
+						 */
+						ts1.tv_sec--;
+						ts1.tv_nsec += 1000000000;
+					}
+					/*
+					 * Check for overflow of the nanosecond
+					 * field: 
+					 */
+					if (ts1.tv_nsec >= 1000000000) {
+						/*
+						 * Allow for the overflow of
+						 * the nanosecond field: 
+						 */
+						ts1.tv_sec++;
+						ts1.tv_nsec -= 1000000000;
+					}
+					/*
+					 * Convert the timespec structure
+					 * to a timeval structure: 
+					 */
+					TIMESPEC_TO_TIMEVAL(&tv1, &ts1);
+
+					/*
+					 * Check if the thread will be ready
+					 * sooner than the earliest ones found
+					 * so far: 
+					 */
+					if (timercmp(&tv1, &itimer.it_value, <)) {
+						/*
+						 * Update the time value: 
+						 */
+						itimer.it_value.tv_sec = tv1.tv_sec;
+						itimer.it_value.tv_usec = tv1.tv_usec;
+					}
 				}
+
 			}
 		}
 
 		/* Check if there is a current thread: */
 		if (_thread_run != &_thread_kern_thread) {
+			/*
+			 * This thread no longer needs to yield the CPU.
+			 */
+			_thread_run->yield_on_sched_undefer = 0;
+
 			/*
 			 * Save the current time as the time that the thread
 			 * became inactive: 
@@ -213,194 +304,64 @@ __asm__("fnsave %0": :"m"(*fdata));
 
 			/*
 			 * Accumulate the number of microseconds that this
-			 * thread has run for: 
+			 * thread has run for:
 			 */
-			if (_thread_run->slice_usec != -1) {
- 			        _thread_run->slice_usec += (_thread_run->last_inactive.tv_sec -
-				        _thread_run->last_active.tv_sec) * 1000000 +
-				        _thread_run->last_inactive.tv_usec -
-				        _thread_run->last_active.tv_usec;
-                        }
+			if ((_thread_run->slice_usec != -1) &&
+			    (_thread_run->attr.sched_policy != SCHED_FIFO)) {
+				_thread_run->slice_usec +=
+				    (_thread_run->last_inactive.tv_sec -
+				    _thread_run->last_active.tv_sec) * 1000000 +
+				    _thread_run->last_inactive.tv_usec -
+				    _thread_run->last_active.tv_usec;
 
-			/*
-			 * Check if this thread has reached its allocated
-			 * time slice period: 
-			 */
-			if (_thread_run->slice_usec > TIMESLICE_USEC) {
+				/* Check for time quantum exceeded: */
+				if (_thread_run->slice_usec > TIMESLICE_USEC)
+					_thread_run->slice_usec = -1;
+			}
+			if (_thread_run->state == PS_RUNNING) {
+				if (_thread_run->slice_usec == -1) {
+					/*
+					 * The thread exceeded its time
+					 * quantum or it yielded the CPU;
+					 * place it at the tail of the
+					 * queue for its priority.
+					 */
+					PTHREAD_PRIOQ_INSERT_TAIL(_thread_run);
+				} else {
+					/*
+					 * The thread hasn't exceeded its
+					 * interval.  Place it at the head
+					 * of the queue for its priority.
+					 */
+					PTHREAD_PRIOQ_INSERT_HEAD(_thread_run);
+				}
+			}
+			else if (_thread_run->state == PS_DEAD) {
 				/*
-				 * Flag the allocated time slice period as
-				 * up: 
+				 * Don't add dead threads to the waiting
+				 * queue, because when they're reaped, it
+				 * will corrupt the queue.
 				 */
+			}
+			else {
+				/*
+				 * This thread has changed state and needs
+				 * to be placed in the waiting queue.
+				 */
+				PTHREAD_WAITQ_INSERT(_thread_run);
+
+				/* Restart the time slice: */
 				_thread_run->slice_usec = -1;
 			}
 		}
-		/* Check if an incremental priority update is required: */
-		if (((tv.tv_sec - kern_inc_prio_time.tv_sec) * 1000000 +
-		 tv.tv_usec - kern_inc_prio_time.tv_usec) > INC_PRIO_USEC) {
-			/*
-			 * Enter a loop to look for run-enabled threads that
-			 * have not run since the last time that an
-			 * incremental priority update was performed: 
-			 */
-			for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-				/* Check if this thread is unable to run: */
-				if (pthread->state != PS_RUNNING) {
-				}
-				/*
-				 * Check if the last time that this thread
-				 * was run (as indicated by the last time it
-				 * became inactive) is before the time that
-				 * the last incremental priority check was
-				 * made: 
-				 */
-				else if (timercmp(&pthread->last_inactive, &kern_inc_prio_time, <)) {
-					/*
-					 * Increment the incremental priority
-					 * for this thread in the hope that
-					 * it will eventually get a chance to
-					 * run: 
-					 */
-					(pthread->inc_prio)++;
-				}
-			}
-
-			/* Save the new incremental priority update time: */
-			kern_inc_prio_time.tv_sec = tv.tv_sec;
-			kern_inc_prio_time.tv_usec = tv.tv_usec;
-		}
-		/*
-		 * Enter a loop to look for the first thread of the highest
-		 * priority that is ready to run: 
-		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Check if the current thread is unable to run: */
-			if (pthread->state != PS_RUNNING) {
-			}
-			/*
-			 * Check if no run-enabled thread has been seen or if
-			 * the current thread has a priority higher than the
-			 * highest seen so far: 
-			 */
-			else if (pthread_h == NULL || (pthread->pthread_priority + pthread->inc_prio) > prio) {
-				/*
-				 * Save this thread as the highest priority
-				 * thread seen so far: 
-				 */
-				pthread_h = pthread;
-				prio = pthread->pthread_priority + pthread->inc_prio;
-			}
-		}
 
 		/*
-		 * Enter a loop to look for a thread that: 1. Is run-enabled.
-		 * 2. Has the required agregate priority. 3. Has not been
-		 * allocated its allocated time slice. 4. Became inactive
-		 * least recently. 
+		 * Get the highest priority thread in the ready queue.
 		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Check if the current thread is unable to run: */
-			if (pthread->state != PS_RUNNING) {
-				/* Ignore threads that are not ready to run. */
-			}
+		pthread_h = PTHREAD_PRIOQ_FIRST;
 
-			/*
-			 * Check if the current thread as an agregate
-			 * priority not equal to the highest priority found
-			 * above: 
-			 */
-			else if ((pthread->pthread_priority + pthread->inc_prio) != prio) {
-				/*
-				 * Ignore threads which have lower agregate
-				 * priority. 
-				 */
-			}
-
-			/*
-			 * Check if the current thread reached its time slice
-			 * allocation last time it ran (or if it has not run
-			 * yet): 
-			 */
-			else if (pthread->slice_usec == -1) {
-			}
-
-			/*
-			 * Check if an eligible thread has not been found
-			 * yet, or if the current thread has an inactive time
-			 * earlier than the last one seen: 
-			 */
-			else if (pthread_s == NULL || timercmp(&pthread->last_inactive, &tv1, <)) {
-				/*
-				 * Save the pointer to the current thread as
-				 * the most eligible thread seen so far: 
-				 */
-				pthread_s = pthread;
-
-				/*
-				 * Save the time that the selected thread
-				 * became inactive: 
-				 */
-				tv1.tv_sec = pthread->last_inactive.tv_sec;
-				tv1.tv_usec = pthread->last_inactive.tv_usec;
-			}
-		}
-
-		/*
-		 * Check if no thread was selected according to incomplete
-		 * time slice allocation: 
-		 */
-		if (pthread_s == NULL) {
-			/*
-			 * Enter a loop to look for any other thread that: 1.
-			 * Is run-enabled. 2. Has the required agregate
-			 * priority. 3. Became inactive least recently. 
-			 */
-			for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-				/*
-				 * Check if the current thread is unable to
-				 * run: 
-				 */
-				if (pthread->state != PS_RUNNING) {
-					/*
-					 * Ignore threads that are not ready
-					 * to run. 
-					 */
-				}
-				/*
-				 * Check if the current thread as an agregate
-				 * priority not equal to the highest priority
-				 * found above: 
-				 */
-				else if ((pthread->pthread_priority + pthread->inc_prio) != prio) {
-					/*
-					 * Ignore threads which have lower
-					 * agregate priority.   
-					 */
-				}
-				/*
-				 * Check if an eligible thread has not been
-				 * found yet, or if the current thread has an
-				 * inactive time earlier than the last one
-				 * seen: 
-				 */
-				else if (pthread_s == NULL || timercmp(&pthread->last_inactive, &tv1, <)) {
-					/*
-					 * Save the pointer to the current
-					 * thread as the most eligible thread
-					 * seen so far: 
-					 */
-					pthread_s = pthread;
-
-					/*
-					 * Save the time that the selected
-					 * thread became inactive: 
-					 */
-					tv1.tv_sec = pthread->last_inactive.tv_sec;
-					tv1.tv_usec = pthread->last_inactive.tv_usec;
-				}
-			}
-		}
 		/* Check if there are no threads ready to run: */
-		if (pthread_s == NULL) {
+		if (pthread_h == NULL) {
 			/*
 			 * Lock the pthread kernel by changing the pointer to
 			 * the running thread to point to the global kernel
@@ -415,7 +376,10 @@ __asm__("fnsave %0": :"m"(*fdata));
 			_thread_kern_select(1);
 		} else {
 			/* Make the selected thread the current thread: */
-			_thread_run = pthread_s;
+			_thread_run = pthread_h;
+
+			/* Remove the thread from the ready queue. */
+			PTHREAD_PRIOQ_REMOVE(_thread_run);
 
 			/*
 			 * Save the current time as the time that the thread
@@ -433,149 +397,22 @@ __asm__("fnsave %0": :"m"(*fdata));
 				/* Reset the accumulated time slice period: */
 				_thread_run->slice_usec = 0;
 			}
-			/*
-			 * Reset the incremental priority now that this
-			 * thread has been given the chance to run: 
-			 */
-			_thread_run->inc_prio = 0;
 
 			/* Check if there is more than one thread: */
 			if (_thread_run != _thread_link_list || _thread_run->nxt != NULL) {
 				/*
-				 * Define the maximum time before a SIGVTALRM
-				 * is required: 
-				 */
-				itimer.it_value.tv_sec = 0;
-				itimer.it_value.tv_usec = TIMESLICE_USEC;
-
-				/*
-				 * The interval timer is not reloaded when it
-				 * times out. The interval time needs to be
-				 * calculated every time. 
-				 */
-				itimer.it_interval.tv_sec = 0;
-				itimer.it_interval.tv_usec = 0;
-
-				/*
-				 * Enter a loop to look for threads waiting
-				 * for a time: 
-				 */
-				for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-					/*
-					 * Check if this thread is to
-					 * timeout: 
-					 */
-					if (pthread->state == PS_COND_WAIT ||
-					  pthread->state == PS_SLEEP_WAIT ||
-					    pthread->state == PS_FDR_WAIT ||
-					    pthread->state == PS_FDW_WAIT ||
-					 pthread->state == PS_SELECT_WAIT) {
-						/*
-						 * Check if this thread is to
-						 * wait forever: 
-						 */
-						if (pthread->wakeup_time.tv_sec == -1) {
-						}
-						/*
-						 * Check if this thread is to
-						 * wakeup immediately: 
-						 */
-						else if (pthread->wakeup_time.tv_sec == 0 &&
-							 pthread->wakeup_time.tv_nsec == 0) {
-						}
-						/*
-						 * Check if the current time
-						 * is after the wakeup time: 
-						 */
-						else if ((ts.tv_sec > pthread->wakeup_time.tv_sec) ||
-							 ((ts.tv_sec == pthread->wakeup_time.tv_sec) &&
-							  (ts.tv_nsec > pthread->wakeup_time.tv_nsec))) {
-						} else {
-							/*
-							 * Calculate the time
-							 * until this thread
-							 * is ready, allowing
-							 * for the clock
-							 * resolution: 
-							 */
-							ts1.tv_sec = pthread->wakeup_time.tv_sec - ts.tv_sec;
-							ts1.tv_nsec = pthread->wakeup_time.tv_nsec - ts.tv_nsec +
-								CLOCK_RES_NSEC;
-
-							/*
-							 * Check for
-							 * underflow of the
-							 * nanosecond field: 
-							 */
-							if (ts1.tv_nsec < 0) {
-								/*
-								 * Allow for
-								 * the
-								 * underflow
-								 * of the
-								 * nanosecond
-								 * field: 
-								 */
-								ts1.tv_sec--;
-								ts1.tv_nsec += 1000000000;
-							}
-							/*
-							 * Check for overflow
-							 * of the nanosecond
-							 * field: 
-							 */
-							if (ts1.tv_nsec >= 1000000000) {
-								/*
-								 * Allow for
-								 * the
-								 * overflow
-								 * of the
-								 * nanosecond
-								 * field: 
-								 */
-								ts1.tv_sec++;
-								ts1.tv_nsec -= 1000000000;
-							}
-							/*
-							 * Convert the
-							 * timespec structure
-							 * to a timeval
-							 * structure: 
-							 */
-							TIMESPEC_TO_TIMEVAL(&tv, &ts1);
-
-							/*
-							 * Check if the
-							 * thread will be
-							 * ready sooner than
-							 * the earliest one
-							 * found so far: 
-							 */
-							if (timercmp(&tv, &itimer.it_value, <)) {
-								/*
-								 * Update the
-								 * time
-								 * value: 
-								 */
-								itimer.it_value.tv_sec = tv.tv_sec;
-								itimer.it_value.tv_usec = tv.tv_usec;
-							}
-						}
-					}
-				}
-
-				/*
 				 * Start the interval timer for the
 				 * calculated time interval: 
 				 */
-				if (setitimer(ITIMER_VIRTUAL, &itimer, NULL) != 0) {
+				if (setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL) != 0) {
 					/*
 					 * Cannot initialise the timer, so
 					 * abort this process: 
 					 */
-					PANIC("Cannot set virtual timer");
+					PANIC("Cannot set scheduling timer");
 				}
 			}
+
 			/* Check if a signal context was saved: */
 			if (_thread_run->sig_saved == 1) {
 #ifndef	__alpha__
@@ -588,20 +425,30 @@ __asm__("fnsave %0": :"m"(*fdata));
 				/* Restore the floating point state: */
 		__asm__("frstor %0": :"m"(*fdata));
 #endif
-
 				/*
 				 * Do a sigreturn to restart the thread that
 				 * was interrupted by a signal: 
 				 */
-		                _thread_kern_in_sched = 0;
+				_thread_kern_in_sched = 0;
+
+				/*
+				 * If we had a context switch, run any
+				 * installed switch hooks.
+				 */
+				if ((_sched_switch_hook != NULL) &&
+				    (_last_user_thread != _thread_run)) {
+					thread_run_switch_hook(_last_user_thread,
+					    _thread_run);
+				}
 				_thread_sys_sigreturn(&_thread_run->saved_sigcontext);
-			} else
+			} else {
 				/*
 				 * Do a longjmp to restart the thread that
 				 * was context switched out (by a longjmp to
 				 * a different thread): 
 				 */
 				longjmp(_thread_run->saved_jmp_buf, 1);
+			}
 
 			/* This point should not be reached. */
 			PANIC("Thread has returned from sigreturn or longjmp");
@@ -688,7 +535,8 @@ _thread_kern_select(int wait_reqd)
 	 * Enter a loop to process threads waiting on either file descriptors
 	 * or times: 
 	 */
-	for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
+	_waitingq_check_reqd = 0;	/* reset flag before loop */
+	TAILQ_FOREACH (pthread, &_waitingq, pqe) {
 		/* Assume that this state does not time out: */
 		settimeout = 0;
 
@@ -699,18 +547,28 @@ _thread_kern_select(int wait_reqd)
 		 * operations or timeouts: 
 		 */
 		case PS_DEAD:
+		case PS_DEADLOCK:
 		case PS_FDLR_WAIT:
 		case PS_FDLW_WAIT:
 		case PS_FILE_WAIT:
 		case PS_JOIN:
 		case PS_MUTEX_WAIT:
-		case PS_RUNNING:
 		case PS_SIGTHREAD:
 		case PS_SIGWAIT:
 		case PS_STATE_MAX:
 		case PS_WAIT_WAIT:
 		case PS_SUSPENDED:
 			/* Nothing to do here. */
+			break;
+
+		case PS_RUNNING:
+			/*
+			 * A signal occurred and made this thread ready
+			 * while in the scheduler or while the scheduling
+			 * queues were protected.
+			 */
+			PTHREAD_WAITQ_REMOVE(pthread);
+			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 			break;
 
 		/* File descriptor read wait: */
@@ -1019,16 +877,16 @@ _thread_kern_select(int wait_reqd)
 		 * descriptors that are flagged as available by the
 		 * _select syscall: 
 		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
+		TAILQ_FOREACH (pthread, &_waitingq, pqe) {
 			/* Process according to thread state: */
 			switch (pthread->state) {
 			/*
 			 * States which do not depend on file
 			 * descriptor I/O operations: 
 			 */
-			case PS_RUNNING:
 			case PS_COND_WAIT:
 			case PS_DEAD:
+			case PS_DEADLOCK:
 			case PS_FDLR_WAIT:
 			case PS_FDLW_WAIT:
 			case PS_FILE_WAIT:
@@ -1041,6 +899,15 @@ _thread_kern_select(int wait_reqd)
 			case PS_STATE_MAX:
 			case PS_SUSPENDED:
 				/* Nothing to do here. */
+				break;
+
+			case PS_RUNNING:
+				/*
+				 * A signal occurred and made this thread
+				 * ready while in the scheduler.
+				 */
+				PTHREAD_WAITQ_REMOVE(pthread);
+				PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 				break;
 
 			/* File descriptor read wait: */
@@ -1056,6 +923,13 @@ _thread_kern_select(int wait_reqd)
 					 * is scheduled next: 
 					 */
 					pthread->state = PS_RUNNING;
+
+					/*
+					 * Remove it from the waiting queue
+					 * and add it to the ready queue:
+					 */
+					PTHREAD_WAITQ_REMOVE(pthread);
+					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 				}
 				break;
 
@@ -1072,6 +946,13 @@ _thread_kern_select(int wait_reqd)
 					 * scheduled next: 
 					 */
 					pthread->state = PS_RUNNING;
+
+					/*
+					 * Remove it from the waiting queue
+					 * and add it to the ready queue:
+					 */
+					PTHREAD_WAITQ_REMOVE(pthread);
+					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 				}
 				break;
 
@@ -1278,6 +1159,13 @@ _thread_kern_select(int wait_reqd)
 					 * thread to run: 
 					 */
 					pthread->state = PS_RUNNING;
+
+					/*
+					 * Remove it from the waiting queue
+					 * and add it to the ready queue:
+					 */
+					PTHREAD_WAITQ_REMOVE(pthread);
+					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 				}
 				break;
 			}
@@ -1328,5 +1216,81 @@ _thread_kern_set_timeout(struct timespec * timeout)
 		}
 	}
 	return;
+}
+
+void
+_thread_kern_sched_defer(void)
+{
+	/* Allow scheduling deferral to be recursive. */
+	_thread_run->sched_defer_count++;
+}
+
+void
+_thread_kern_sched_undefer(void)
+{
+	pthread_t pthread;
+	int need_resched = 0;
+
+	/*
+	 * Perform checks to yield only if we are about to undefer
+	 * scheduling.
+	 */
+	if (_thread_run->sched_defer_count == 1) {
+		/*
+		 * Check if the waiting queue needs to be examined for
+		 * threads that are now ready:
+		 */
+		while (_waitingq_check_reqd != 0) {
+			/* Clear the flag before checking the waiting queue: */
+			_waitingq_check_reqd = 0;
+
+			TAILQ_FOREACH(pthread, &_waitingq, pqe) {
+				if (pthread->state == PS_RUNNING) {
+					PTHREAD_WAITQ_REMOVE(pthread);
+					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+				}
+			}
+		}
+
+		/*
+		 * We need to yield if a thread change of state caused a
+		 * higher priority thread to become ready, or if a
+		 * scheduling signal occurred while preemption was disabled.
+		 */
+		if ((((pthread = PTHREAD_PRIOQ_FIRST) != NULL) &&
+		   (pthread->active_priority > _thread_run->active_priority)) ||
+		   (_thread_run->yield_on_sched_undefer != 0)) {
+			_thread_run->yield_on_sched_undefer = 0;
+			need_resched = 1;
+		}
+	}
+
+	if (_thread_run->sched_defer_count > 0) {
+		/* Decrement the scheduling deferral count. */
+		_thread_run->sched_defer_count--;
+
+		/* Yield the CPU if necessary: */
+		if (need_resched)
+			_thread_kern_sched(NULL);
+	}
+}
+
+static inline void
+thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in)
+{
+	pthread_t tid_out = thread_out;
+	pthread_t tid_in = thread_in;
+
+	if ((tid_out != NULL) &&
+	    (tid_out->flags & PTHREAD_FLAGS_PRIVATE != 0))
+		tid_out = NULL;
+	if ((tid_in != NULL) &&
+	    (tid_in->flags & PTHREAD_FLAGS_PRIVATE != 0))
+		tid_in = NULL;
+
+	if ((_sched_switch_hook != NULL) && (tid_out != tid_in)) {
+		/* Run the scheduler switch hook: */
+		_sched_switch_hook(tid_out, tid_in);
+	}
 }
 #endif

@@ -55,6 +55,7 @@
 #include <sys/time.h>
 #include <sched.h>
 #include <spinlock.h>
+#include <pthread_np.h>
 
 /*
  * Kernel fatal error handler macro.
@@ -65,14 +66,57 @@
 #define	stdout_debug(_x)	_thread_sys_write(1,_x,strlen(_x));
 #define	stderr_debug(_x)	_thread_sys_write(2,_x,strlen(_x));
 
+
 /*
- * State change macro:
+ * Priority queue manipulation macros:
  */
-#define PTHREAD_NEW_STATE(thrd, newstate) {				\
+#define PTHREAD_PRIOQ_INSERT_HEAD(thrd)	_pq_insert_head(&_readyq,thrd)
+#define PTHREAD_PRIOQ_INSERT_TAIL(thrd)	_pq_insert_tail(&_readyq,thrd)
+#define PTHREAD_PRIOQ_REMOVE(thrd)	_pq_remove(&_readyq,thrd)
+#define PTHREAD_PRIOQ_FIRST		_pq_first(&_readyq)
+
+/*
+ * Waiting queue manipulation macros:
+ */
+#define PTHREAD_WAITQ_INSERT(thrd)	TAILQ_INSERT_TAIL(&_waitingq,thrd,pqe)
+#define PTHREAD_WAITQ_REMOVE(thrd)	TAILQ_REMOVE(&_waitingq,thrd,pqe)
+
+/*
+ * State change macro without scheduling queue change:
+ */
+#define PTHREAD_SET_STATE(thrd, newstate) {				\
 	(thrd)->state = newstate;					\
 	(thrd)->fname = __FILE__;					\
 	(thrd)->lineno = __LINE__;					\
 }
+
+/*
+ * State change macro with scheduling queue change - This must be
+ * called with preemption deferred (see thread_kern_sched_[un]defer).
+ */
+#define PTHREAD_NEW_STATE(thrd, newstate) {				\
+	if ((thrd)->state != newstate) {				\
+		if ((thrd)->state == PS_RUNNING) {			\
+			PTHREAD_PRIOQ_REMOVE(thrd);			\
+			PTHREAD_WAITQ_INSERT(thrd);			\
+		} else if (newstate == PS_RUNNING) { 			\
+			PTHREAD_WAITQ_REMOVE(thrd);			\
+			PTHREAD_PRIOQ_INSERT_TAIL(thrd);		\
+		}							\
+	}								\
+	PTHREAD_SET_STATE(thrd, newstate);				\
+}
+
+/*
+ * Define the signals to be used for scheduling.
+ */
+#if defined(_PTHREADS_COMPAT_SCHED)
+#define _ITIMER_SCHED_TIMER	ITIMER_VIRTUAL
+#define _SCHED_SIGNAL		SIGVTALRM
+#else
+#define _ITIMER_SCHED_TIMER	ITIMER_PROF
+#define _SCHED_SIGNAL		SIGPROF
+#endif
 
 /*
  * Queue definitions.
@@ -84,9 +128,33 @@ struct pthread_queue {
 };
 
 /*
+ * Priority queues.
+ *
+ * XXX It'd be nice if these were contained in uthread_priority_queue.[ch].
+ */
+typedef struct pq_list {
+	TAILQ_HEAD(, pthread)	pl_head; /* list of threads at this priority */
+	TAILQ_ENTRY(pq_list)	pl_link; /* link for queue of priority lists */
+	int			pl_prio; /* the priority of this list */
+	int			pl_queued; /* is this in the priority queue */
+} pq_list_t;
+
+typedef struct pq_queue {
+	TAILQ_HEAD(, pq_list)	 pq_queue; /* queue of priority lists */
+	pq_list_t		*pq_lists; /* array of all priority lists */
+	int			 pq_size;  /* number of priority lists */
+} pq_queue_t;
+
+
+/*
  * Static queue initialization values. 
  */
 #define PTHREAD_QUEUE_INITIALIZER { NULL, NULL, NULL }
+
+/*
+ * TailQ initialization values.
+ */
+#define TAILQ_INITIALIZER { NULL, NULL }
 
 /* 
  * Mutex definitions.
@@ -98,10 +166,31 @@ union pthread_mutex_data {
 
 struct pthread_mutex {
 	enum pthread_mutextype		m_type;
-	struct pthread_queue		m_queue;
+	int				m_protocol;
+	TAILQ_HEAD(mutex_head, pthread)	m_queue;
 	struct pthread			*m_owner;
 	union pthread_mutex_data	m_data;
 	long				m_flags;
+	int				m_refcount;
+
+	/*
+	 * Used for priority inheritence and protection.
+	 *
+	 *   m_prio       - For priority inheritence, the highest active
+	 *                  priority (threads locking the mutex inherit
+	 *                  this priority).  For priority protection, the
+	 *                  ceiling priority of this mutex.
+	 *   m_saved_prio - mutex owners inherited priority before
+	 *                  taking the mutex, restored when the owner
+	 *                  unlocks the mutex.
+	 */
+	int				m_prio;
+	int				m_saved_prio;
+
+	/*
+	 * Link for list of all mutexes a thread currently owns.
+	 */
+	TAILQ_ENTRY(pthread_mutex)	m_qe;
 
 	/*
 	 * Lock for accesses to this structure.
@@ -120,11 +209,13 @@ struct pthread_mutex {
  * Static mutex initialization values. 
  */
 #define PTHREAD_MUTEX_STATIC_INITIALIZER   \
-	{ MUTEX_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, \
-	NULL, { NULL }, MUTEX_FLAGS_INITED }
+	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, TAILQ_INITIALIZER, \
+	NULL, { NULL }, MUTEX_FLAGS_INITED, 0, 0, 0, TAILQ_INITIALIZER }
 
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
+	int			m_protocol;
+	int			m_ceiling;
 	long			m_flags;
 };
 
@@ -137,15 +228,16 @@ enum pthread_cond_type {
 };
 
 struct pthread_cond {
-	enum pthread_cond_type	c_type;
-	struct pthread_queue	c_queue;
-	void			*c_data;
-	long			c_flags;
+	enum pthread_cond_type		c_type;
+	TAILQ_HEAD(cond_head, pthread)	c_queue;
+	pthread_mutex_t			c_mutex;
+	void				*c_data;
+	long				c_flags;
 
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	spinlock_t		lock;
+	spinlock_t			lock;
 };
 
 struct pthread_cond_attr {
@@ -164,7 +256,8 @@ struct pthread_cond_attr {
  * Static cond initialization values. 
  */
 #define PTHREAD_COND_STATIC_INITIALIZER    \
-	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, COND_FLAGS_INITED }
+	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, NULL \
+	COND_FLAGS_INITED }
 
 /*
  * Cleanup definitions.
@@ -176,7 +269,9 @@ struct pthread_cleanup {
 };
 
 struct pthread_attr {
-	int	schedparam_policy;
+	int	sched_policy;
+	int	sched_inherit;
+	int	sched_interval;
 	int	prio;
 	int	suspend;
 	int	flags;
@@ -254,9 +349,11 @@ enum pthread_state {
 	PS_WAIT_WAIT,
 	PS_SIGSUSPEND,
 	PS_SIGWAIT,
+	PS_SPINBLOCK,
 	PS_JOIN,
 	PS_SUSPENDED,
 	PS_DEAD,
+	PS_DEADLOCK,
 	PS_STATE_MAX
 };
 
@@ -300,8 +397,8 @@ struct pthread_select_data {
 };
 
 union pthread_wait_data {
-	pthread_mutex_t	*mutex;
-	pthread_cond_t	*cond;
+	pthread_mutex_t	mutex;
+	pthread_cond_t	cond;
 	const sigset_t	*sigwait;	/* Waiting on a signal in sigwait */
 	struct {
 		short	fd;		/* Used when thread waiting on fd */
@@ -309,6 +406,7 @@ union pthread_wait_data {
 		char	*fname;		/* Source file name for debugging.*/
 	} fd;
 	struct pthread_select_data * select_data;
+	spinlock_t	*spinlock;
 };
 
 /*
@@ -419,7 +517,11 @@ struct pthread {
 	struct pthread_queue	join_queue;
 
 	/*
-	 * The current thread can belong to only one queue at a time.
+	 * The current thread can belong to only one scheduling queue
+	 * at a time (ready or waiting queue).  It can also belong to
+	 * a queue of threads waiting on mutexes or condition variables.
+	 * Use pqe for the scheduling queue link (both ready and waiting),
+	 * and qe for other links (mutexes and condition variables).
 	 *
 	 * Pointer to queue (if any) on which the current thread is waiting.
 	 *
@@ -431,8 +533,11 @@ struct pthread {
 	/* Pointer to next element in queue. */
 	struct pthread	*qnxt;
 
+	/* Priority queue entry for this thread: */
+	TAILQ_ENTRY(pthread)	pqe;
+
 	/* Queue entry for this thread: */
-	TAILQ_ENTRY(pthread) qe;
+	TAILQ_ENTRY(pthread)	qe;
 
 	/* Wait data. */
 	union pthread_wait_data data;
@@ -446,10 +551,59 @@ struct pthread {
 	/* Signal number when in state PS_SIGWAIT: */
 	int		signo;
 
+	/*
+	 * Set to non-zero when this thread has deferred thread
+	 * scheduling.  We allow for recursive deferral.
+	 */
+	int		sched_defer_count;
+
+	/*
+	 * Set to TRUE if this thread should yield after undeferring
+	 * thread scheduling.
+	 */
+	int		yield_on_sched_undefer;
+
 	/* Miscellaneous data. */
-	int 		flags;
-#define PTHREAD_EXITING		0x0100
-	char		pthread_priority;
+	int		flags;
+#define PTHREAD_FLAGS_PRIVATE	0x0001
+#define PTHREAD_EXITING		0x0002
+#define PTHREAD_FLAGS_QUEUED	0x0004	/* in queue (qe is used) */
+#define PTHREAD_FLAGS_TRACE	0x0008
+
+	/*
+	 * Base priority is the user setable and retrievable priority
+	 * of the thread.  It is only affected by explicit calls to
+	 * set thread priority and upon thread creation via a thread
+	 * attribute or default priority.
+	 */
+	char		base_priority;
+
+	/*
+	 * Inherited priority is the priority a thread inherits by
+	 * taking a priority inheritence or protection mutex.  It
+	 * is not affected by base priority changes.  Inherited
+	 * priority defaults to and remains 0 until a mutex is taken
+	 * that is being waited on by any other thread whose priority
+	 * is non-zero.
+	 */
+	char		inherited_priority;
+
+	/*
+	 * Active priority is always the maximum of the threads base
+	 * priority and inherited priority.  When there is a change
+	 * in either the real or inherited priority, the active
+	 * priority must be recalculated.
+	 */
+	char		active_priority;
+
+	/* Number of priority ceiling or protection mutexes owned. */
+	int		priority_mutex_count;
+
+	/*
+	 * Queue of currently owned mutexes.
+	 */
+	TAILQ_HEAD(, pthread_mutex)	mutexq;
+
 	void		*ret;
 	const void	**specific_data;
 	int		specific_data_count;
@@ -469,6 +623,14 @@ SCLASS struct pthread   _thread_kern_thread;
 
 /* Ptr to the thread structure for the running thread: */
 SCLASS struct pthread   * volatile _thread_run
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= &_thread_kern_thread;
+#else
+;
+#endif
+
+/* Ptr to the thread structure for the last user thread to run: */
+SCLASS struct pthread   * volatile _last_user_thread
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = &_thread_kern_thread;
 #else
@@ -547,7 +709,7 @@ SCLASS struct pthread *_thread_initial
 /* Default thread attributes: */
 SCLASS struct pthread_attr pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
-= { SCHED_RR, PTHREAD_DEFAULT_PRIORITY, PTHREAD_CREATE_RUNNING,
+= { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY, PTHREAD_CREATE_RUNNING,
 	PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL, PTHREAD_STACK_DEFAULT };
 #else
 ;
@@ -556,7 +718,7 @@ SCLASS struct pthread_attr pthread_attr_default
 /* Default mutex attributes: */
 SCLASS struct pthread_mutex_attr pthread_mutexattr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
-= { MUTEX_TYPE_FAST, 0 };
+= { PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, 0 };
 #else
 ;
 #endif
@@ -614,6 +776,27 @@ SCLASS	pthread_cond_t  _gc_cond
  */
 struct  sigaction _thread_sigact[NSIG];
 
+/*
+ * Scheduling queues:
+ */
+SCLASS pq_queue_t		_readyq;
+SCLASS TAILQ_HEAD(, pthread)	_waitingq;
+
+/* Indicates that the waitingq now has threads ready to run. */
+SCLASS	volatile int	_waitingq_check_reqd
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= 0
+#endif
+;
+
+/* Thread switch hook. */
+SCLASS pthread_switch_routine_t _sched_switch_hook
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL
+#endif
+;
+
+
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
@@ -645,6 +828,14 @@ void    _lock_thread(void);
 void    _lock_thread_list(void);
 void    _unlock_thread(void);
 void    _unlock_thread_list(void);
+int	_mutex_cv_lock(pthread_mutex_t *);
+int	_mutex_cv_unlock(pthread_mutex_t *);
+void	_mutex_notify_priochange(struct pthread *);
+int	_pq_init(struct pq_queue *pq, int, int);
+void	_pq_remove(struct pq_queue *pq, struct pthread *);
+void	_pq_insert_head(struct pq_queue *pq, struct pthread *);
+void	_pq_insert_tail(struct pq_queue *pq, struct pthread *);
+struct pthread *_pq_first(struct pq_queue *pq);
 void    _thread_exit(char *, int, char *);
 void    _thread_fd_unlock(int, int);
 void    _thread_fd_unlock_debug(int, int, char *, int);
@@ -657,6 +848,8 @@ void    _thread_kern_sched_state(enum pthread_state,char *fname,int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
 	    spinlock_t *lock, char *fname, int lineno);
 void    _thread_kern_set_timeout(struct timespec *);
+void    _thread_kern_sched_defer(void);
+void    _thread_kern_sched_undefer(void);
 void    _thread_sig_handler(int, int, struct sigcontext *);
 void    _thread_start(void);
 void    _thread_start_sig_handler(void);

@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -38,17 +38,13 @@
 int
 pthread_setprio(pthread_t pthread, int prio)
 {
-	int ret;
+	int ret, policy;
+	struct sched_param param;
 
-	/* Check if the priority is invalid: */
-	if (prio < PTHREAD_MIN_PRIORITY || prio > PTHREAD_MAX_PRIORITY)
-		/* Return an invalid argument error: */
-		ret = EINVAL;
-
-	/* Find the thread in the list of active threads: */
-	else if ((ret = _find_thread(pthread)) == 0)
-		/* Set the thread priority: */
-		pthread->pthread_priority = prio;
+	if ((ret = pthread_getschedparam(pthread, &policy, &param)) == 0) {
+		param.sched_priority = prio;
+		ret = pthread_setschedparam(pthread, policy, &param);
+	}
 
 	/* Return the error status: */
 	return (ret);
