@@ -210,6 +210,7 @@ static const TL list[] = {
 	"kdl1",		"kL",		/* Delete line. */
 	"ked",		"kS",		/* Delete to end of screen. */
 	"kel",		"kE",		/* Delete to eol. */
+	"kend",		"@7",		/* Go to eol. */
 	"khome",	"kh",		/* Go to sol. */
 	"kich1",	"kI",		/* Insert at cursor. */
 	"kil1",		"kA",		/* Insert line. */
