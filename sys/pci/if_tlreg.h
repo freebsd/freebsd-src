@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.2 1998/05/21 16:24:05 jkh Exp $
+ *	$Id: if_tlreg.h,v 1.20 1998/07/12 14:59:25 wpaul Exp wpaul $
  */
 
 
@@ -90,12 +90,18 @@ struct tl_chain {
 	struct tl_chain		*tl_next;
 };
 
+struct tl_chain_onefrag {
+	struct tl_list_onefrag	*tl_ptr;
+	struct mbuf		*tl_mbuf;
+	struct tl_chain_onefrag	*tl_next;
+};
+
 struct tl_chain_data {
-	struct tl_chain		tl_rx_chain[TL_RX_LIST_CNT];
+	struct tl_chain_onefrag	tl_rx_chain[TL_RX_LIST_CNT];
 	struct tl_chain		tl_tx_chain[TL_TX_LIST_CNT];
 
-	struct tl_chain		*tl_rx_head;
-	struct tl_chain		*tl_rx_tail;
+	struct tl_chain_onefrag	*tl_rx_head;
+	struct tl_chain_onefrag	*tl_rx_tail;
 
 	struct tl_chain		*tl_tx_head;
 	struct tl_chain		*tl_tx_tail;
@@ -107,12 +113,14 @@ struct tl_iflist;
 struct tl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
-	struct tl_csr		*csr;		/* pointer to register map */
+	volatile struct tl_csr	*csr;		/* pointer to register map */
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	struct tl_type		*tl_pinfo;	/* PHY info struct */
 	u_int8_t		tl_ctlr;	/* chip number */
 	u_int8_t		tl_unit;	/* interface number */
 	u_int8_t		tl_phy_addr;	/* PHY address */
+	u_int8_t		tl_tx_pend;	/* TX pending */
+	u_int8_t		tl_want_auto;	/* autoneg scheduled */
 	u_int8_t		tl_autoneg;	/* autoneg in progress */
 	u_int16_t		tl_phy_sts;	/* PHY status */
 	u_int16_t		tl_phy_vid;	/* PHY vendor ID */
@@ -125,7 +133,10 @@ struct tl_softc {
 	struct callout_handle	tl_stat_ch;
 };
 
-#define TX_THR		0x00000007
+/*
+ * Transmit interrupt threshold.
+ */
+#define TX_THR		0x00000001
 
 #define TL_FLAG_FORCEDELAY	1
 #define TL_FLAG_SCHEDDELAY	2
@@ -140,12 +151,13 @@ struct tl_softc {
 #define PHY_UNKNOWN	6
 
 struct tl_iflist {
-	struct tl_csr		*csr;			/* Register map */
+	volatile struct tl_csr	*csr;			/* Register map */
 	struct tl_type		*tl_dinfo;
 	int			tl_active_phy;		/* # of active PHY */
 	int			tlc_unit;		/* TLAN chip # */
 	struct tl_softc		*tl_sc[TL_PHYADDR_MAX];	/* pointers to PHYs */
 	pcici_t			tl_config_id;
+	u_int8_t		tl_eeaddr;
 	struct tl_iflist	*tl_next;
 };
 
@@ -231,9 +243,16 @@ struct tl_iflist {
 #define COMPAQ_DEVICEID_NETFLEX_3P_INTEGRATED	0xAE35
 #define COMPAQ_DEVICEID_NETEL_10_100_DUAL	0xAE40
 #define COMPAQ_DEVICEID_NETEL_10_100_PROLIANT	0xAE43
-#define COMPAQ_DEVICEID_DESKPRO_4000_5233MMX	0xB011
+#define COMPAQ_DEVICEID_NETEL_10_100_EMBEDDED	0xB011
+#define COMPAQ_DEVICEID_NETEL_10_T2_UTP_COAX	0xB012
+#define COMPAQ_DEVICEID_NETEL_10_100_TX_UTP	0xB030
 #define COMPAQ_DEVICEID_NETFLEX_3P		0xF130
 #define COMPAQ_DEVICEID_NETFLEX_3P_BNC		0xF150
+
+#define OLICOM_VENDORID				0x108D
+#define OLICOM_DEVICEID_OC2183			0x0013
+#define OLICOM_DEVICEID_OC2325			0x0012
+#define OLICOM_DEVICEID_OC2326			0x0014
 
 /*
  * PCI low memory base and low I/O base
@@ -380,6 +399,83 @@ struct tl_csr {
 #define DIO_LONG_GET(x)	x = csr->u.tl_dio_data
 #define DIO_LONG_PUT(x)	csr->u.tl_dio_data = (u_int32_t)x
 
+#define CMD_PUT(c, x)	c->tl_host_cmd = (u_int32_t)x
+#define CMD_SET(c, x)	c->tl_host_cmd |= (u_int32_t)x
+#define CMD_CLR(c, x)	c->tl_host_cmd &= ~(u_int32_t)x
+
+/*
+ * ThunderLAN adapters typically have a serial EEPROM containing
+ * configuration information. The main reason we're interested in
+ * it is because it also contains the adapters's station address.
+ *
+ * Access to the EEPROM is a bit goofy since it is a serial device:
+ * you have to do reads and writes one bit at a time. The state of
+ * the DATA bit can only change while the CLOCK line is held low.
+ * Transactions work basically like this:
+ *
+ * 1) Send the EEPROM_START sequence to prepare the EEPROM for
+ *    accepting commands. This pulls the clock high, sets
+ *    the data bit to 0, enables transmission to the EEPROM,
+ *    pulls the data bit up to 1, then pulls the clock low.
+ *    The idea is to do a 0 to 1 transition of the data bit
+ *    while the clock pin is held high.
+ *
+ * 2) To write a bit to the EEPROM, set the TXENABLE bit, then
+ *    set the EDATA bit to send a 1 or clear it to send a 0.
+ *    Finally, set and then clear ECLOK. Strobing the clock
+ *    transmits the bit. After 8 bits have been written, the
+ *    EEPROM should respond with an ACK, which should be read.
+ *
+ * 3) To read a bit from the EEPROM, clear the TXENABLE bit,
+ *    then set ECLOK. The bit can then be read by reading EDATA.
+ *    ECLOCK should then be cleared again. This can be repeated
+ *    8 times to read a whole byte, after which the 
+ *
+ * 4) We need to send the address byte to the EEPROM. For this
+ *    we have to send the write control byte to the EEPROM to
+ *    tell it to accept data. The byte is 0xA0. The EEPROM should
+ *    ack this. The address byte can be send after that.
+ *
+ * 5) Now we have to tell the EEPROM to send us data. For that we
+ *    have to transmit the read control byte, which is 0xA1. This
+ *    byte should also be acked. We can then read the data bits
+ *    from the EEPROM.
+ *
+ * 6) When we're all finished, send the EEPROM_STOP sequence.
+ *
+ * Note that we use the ThunderLAN's NetSio register to access the
+ * EEPROM, however there is an alternate method. There is a PCI NVRAM
+ * register at PCI offset 0xB4 which can also be used with minor changes.
+ * The difference is that access to PCI registers via pci_conf_read()
+ * and pci_conf_write() is done using programmed I/O, which we want to
+ * avoid.
+ */
+
+/*
+ * Note that EEPROM_START leaves transmission enabled.
+ */
+#define EEPROM_START							\
+	DIO_SEL(TL_NETSIO);						\
+	DIO_BYTE1_SET(TL_SIO_ECLOK); /* Pull clock pin high */		\
+	DIO_BYTE1_SET(TL_SIO_EDATA); /* Set DATA bit to 1 */		\
+	DIO_BYTE1_SET(TL_SIO_ETXEN); /* Enable xmit to write bit */	\
+	DIO_BYTE1_CLR(TL_SIO_EDATA); /* Pull DATA bit to 0 again */	\
+	DIO_BYTE1_CLR(TL_SIO_ECLOK); /* Pull clock low again */
+
+/*
+ * EEPROM_STOP ends access to the EEPROM and clears the ETXEN bit so
+ * that no further data can be written to the EEPROM I/O pin.
+ */
+#define EEPROM_STOP							\
+	DIO_SEL(TL_NETSIO);						\
+	DIO_BYTE1_CLR(TL_SIO_ETXEN); /* Disable xmit */			\
+	DIO_BYTE1_CLR(TL_SIO_EDATA); /* Pull DATA to 0 */		\
+	DIO_BYTE1_SET(TL_SIO_ECLOK); /* Pull clock high */		\
+	DIO_BYTE1_SET(TL_SIO_ETXEN); /* Enable xmit */			\
+	DIO_BYTE1_SET(TL_SIO_EDATA); /* Toggle DATA to 1 */		\
+	DIO_BYTE1_CLR(TL_SIO_ETXEN); /* Disable xmit. */		\
+	DIO_BYTE1_CLR(TL_SIO_ECLOK); /* Pull clock low again */
+
 
 #define	TL_DIO_ADDR_INC		0x8000	/* Increment addr on each read */
 #define TL_DIO_RAM_SEL		0x4000	/* RAM address select */
@@ -444,7 +540,8 @@ struct tl_csr {
 #define TL_EEPROM_EADDR		0x83
 #define TL_EEPROM_EADDR2	0x99
 #define TL_EEPROM_EADDR3	0xAF
-
+#define TL_EEPROM_EADDR_OC	0xF8	/* Olicom cards use a different
+					   address than Compaqs. */
 /*
  * ThunderLAN host command register offsets.
  * (Can be accessed either by IO ports or memory map.)
