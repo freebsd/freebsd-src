@@ -41,7 +41,12 @@ __FBSDID("$FreeBSD$");
 void
 db_print_thread(void)
 {
-	db_printf("[thread %ld]\n", (long)kdb_thread->td_tid);
+	pid_t pid;
+
+	pid = -1;
+	if (kdb_thread->td_proc != NULL)
+		pid = kdb_thread->td_proc->p_pid;
+	db_printf("[thread pid %d tid %ld ]\n", pid, (long)kdb_thread->td_tid);
 }
 
 void
