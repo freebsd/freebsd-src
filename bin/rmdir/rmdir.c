@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rmdir.c,v 1.2 1994/09/24 02:57:13 davidg Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <err.h>
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <unistd.h>
 
+int rm_path __P((char *));
 void usage __P((void));
 
 int
@@ -58,9 +59,14 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, errors;
+	int pflag;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	pflag = 0;
+	while ((ch = getopt(argc, argv, "p")) != -1)
 		switch(ch) {
+		case 'p':
+			pflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -71,18 +77,50 @@ main(argc, argv)
 	if (argc == 0)
 		usage();
 
-	for (errors = 0; *argv; ++argv)
+	for (errors = 0; *argv; argv++) {
+		char *p;
+
+		/* Delete trailing slashes, per POSIX. */
+		p = *argv + strlen(*argv);
+		while (--p > *argv && *p == '/')
+			;
+		*++p = '\0';
+
 		if (rmdir(*argv) < 0) {
 			warn("%s", *argv);
 			errors = 1;
-		}
+		} else if (pflag)
+			errors |= rm_path(*argv);
+	}
+
 	exit(errors);
+}
+
+int
+rm_path(path)
+	char *path;
+{
+	char *p;
+
+	while ((p = strrchr(path, '/')) != NULL) {
+		/* Delete trailing slashes. */
+		while (--p > path && *p == '/')
+			;
+		*++p = '\0';
+
+		if (rmdir(path) < 0) {
+			warn("%s", path);
+			return (1);
+		}
+	}
+
+	return (0);
 }
 
 void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: rmdir directory ...\n");
+	(void)fprintf(stderr, "usage: rmdir [-p] directory ...\n");
 	exit(1);
 }
