@@ -1672,13 +1672,13 @@ static int
 int21_4b(regcontext_t *REGS)
 {
     int		fd;
-    char	*fname[PATH_MAX];
     u_short	*param;
     
     debug(D_EXEC, "exec(%s)\n",(u_char *)MAKEPTR(R_DS, R_DX));
 
     if ((fd = open_prog((u_char *)MAKEPTR(R_DS, R_DX))) < 0) {
-	debug(D_EXEC, "%s: command not found\n", fname);
+	debug(D_EXEC, "%s: command not found\n",
+	      (u_char *)MAKEPTR(R_DS, R_DX));
 	return (FILE_NOT_FOUND);
     }
 
@@ -2224,9 +2224,9 @@ int21_fcb(regcontext_t *REGS)
 			      &nbytes);
 	debug(D_FILE_OPS, "%d %s, FCB: %d, %.11s\n",
 	      nbytes,
-	      MAKEPTR(R_DS, R_SI),
+	      (char *)MAKEPTR(R_DS, R_SI),
 	      *(int *)MAKEPTR(R_ES, R_DI),
-	      MAKEPTR(R_ES, R_DI) + 1);
+	      (char *)MAKEPTR(R_ES, R_DI) + 1);
 	
 	R_SI += nbytes;
 	break;

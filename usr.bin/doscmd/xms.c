@@ -810,7 +810,7 @@ xms_entry(regcontext_t *REGS)
 		}
 	    }
 	    memmove((void *)dstptr, (void *)srcptr, n);
-	    debug(D_XMS, "Moved from %08x to %08x, %04x bytes\n",
+	    debug(D_XMS, "Moved from %08lx to %08lx, %04x bytes\n",
 			srcptr, dstptr, n);
 	    R_AX = 0x1;
 	    R_BL = XMS_SUCCESS;

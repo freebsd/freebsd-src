@@ -621,7 +621,7 @@ ems_entry(regcontext_t *REGS)
 		break;
 	    }
 	    newpages = R_BX;
-	    debug(D_EMS, "changed from %d to %d pages\n", 
+	    debug(D_EMS, "changed from %ld to %ld pages\n", 
 		ems_handle[handle]->npages, newpages);
 
 	    /* Case 1: Realloc to zero pages */
