@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.29 1996/04/26 18:30:52 wollman Exp $
+ *	$Id: in_proto.c,v 1.30 1996/05/08 04:34:03 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -156,7 +156,7 @@ struct protosw inetsw[] = {
 #endif
 #ifdef NSIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
-  idpip_input,	rip_output,	nsip_ctlinput,	0,
+  idpip_input,	0,		nsip_ctlinput,	0,
   rip_usrreq,
   0,		0,		0,		0,
 },
