@@ -26,9 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id$
+# $Id: scsiformat.sh,v 1.2 1996/11/04 00:53:12 wosch Exp $
 #
-# scsiformat [-wq] [-p page-control] raw-device-name
+# scsiformat [-qw] [-p page-control] raw-device-name
 #
 
 PATH="/sbin:/usr/sbin:/bin:/usr/bin"; export PATH
@@ -40,7 +40,7 @@ PAGE=0
 
 usage()
 {
-	echo "Usage: scsiformat [-wq] [-p page-control] raw-device-name" 1>&2
+	echo "usage: scsiformat [-qw] [-p page-control] raw-device-name" 1>&2
 	exit 2
 }
 
