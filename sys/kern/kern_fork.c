@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.24 1996/08/19 02:28:24 julian Exp $
+ * $Id: kern_fork.c,v 1.25 1996/08/22 03:50:18 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -50,9 +50,9 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
-#include <sys/file.h>
 #include <sys/acct.h>
 #include <sys/ktrace.h>
+#include <sys/unistd.h>	
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

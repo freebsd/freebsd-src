@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.22 1996/06/17 22:43:36 dyson Exp $
+ *	$Id: procfs_vnops.c,v 1.23 1996/06/18 05:16:00 dyson Exp $
  */
 
 /*
@@ -47,8 +47,9 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.30 1996/07/27 03:50:31 dyson Exp $
+ * $Id: spec_vnops.c,v 1.31 1996/08/21 21:55:33 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -42,11 +42,12 @@
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/vmmeter.h>
 
