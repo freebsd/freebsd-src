@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.42 1997/08/05 20:18:39 ache Exp $ */
+/* $Id: main.c,v 1.43 1997/08/19 01:57:53 asami Exp $ */
 
 #include <sys/types.h>
 
@@ -327,12 +327,12 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	    if (size > 0) 
 		fprintf (stderr, "\r%s: 100%%", s);
 	    else
-		fprintf (stderr, "\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+		fprintf (stderr, "\r%s: %qd Kbytes", s, (long long)bytes/1024);
 	}
 	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
 	fprintf (stderr, "\n%qd bytes transfered in %.1f seconds",
-	    (quad_t)bytes, d); 
+	    (long long)bytes, d); 
 	d = bytes/d;
 	if (d < 1000)
 	    fprintf (stderr, "  (%.0f bytes/s)\n", d);
@@ -352,11 +352,11 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
     pr++;
     if(stdoutatty) {
 	if (size > 1000000) 
-	    fprintf (stderr, "\r%s: %2qd%%", s, (quad_t)bytes/(size/100));
+	    fprintf (stderr, "\r%s: %2qd%%", s, (long long)(bytes/(size/100)));
 	else if (size > 0) 
-	    fprintf (stderr, "\r%s: %2qd%%", s, (quad_t)100*bytes/size);
+	    fprintf (stderr, "\r%s: %2qd%%", s, (long long)(100*bytes/size));
 	else
-	    fprintf (stderr, "\r%s: %qd Kbytes", s, (quad_t)bytes/1024);
+	    fprintf (stderr, "\r%s: %qd Kbytes", s, (long long)(bytes/1024));
     }
 }
 
