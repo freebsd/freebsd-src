@@ -48,7 +48,7 @@
  * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
- 
+
 #define STATIC static
 
 #include <dev/vinum/vinumhdr.h>
@@ -1177,6 +1177,9 @@ config_subdisk(int update)
 		partition = token[parameter][0];
 	    break;
 
+	case kw_retryerrors:
+	    sd->flags |= VF_RETRYERRORS;
+	    break;
 
 	default:
 	    throw_rude_remark(EINVAL, "%s: invalid keyword: %s", sd->name, token[parameter]);
@@ -1224,7 +1227,11 @@ config_subdisk(int update)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
     sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_SD_TYPE),
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/sd/%s", sd->name);
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/sd/%s",
+	sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
 	sd->state = state;				    /* do it now */
     else if (sd->state == sd_unallocated)		    /* no, nothing set yet, */
@@ -1382,9 +1389,6 @@ config_plex(int update)
     if (plex->organization == plex_disorg)
 	throw_rude_remark(EINVAL, "No plex organization specified");
 
-    plex->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/plex/%s", plex->name);
-
     if ((plex->volno < 0)				    /* we don't have a volume */
     &&(!detached))					    /* and we wouldn't object */
 	plex->volno = current_volume;
@@ -1404,17 +1408,24 @@ config_plex(int update)
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
     }
-    if (isstriped (plex)) {
+    if (isstriped(plex)) {
 	plex->lock = (struct rangelock *)
 	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
 	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
 	bzero((char *) plex->lock, PLEX_LOCKS * sizeof(struct rangelock));
-        mtx_init(&plex->lockmtx, plex->name, MTX_DEF);
+	mtx_init(&plex->lockmtx, plex->name, MTX_DEF);
     }
     /* Note the last plex we configured */
     current_plex = plexno;
     plex->state = state;				    /* set whatever state we chose */
     vinum_conf.plexes_used++;				    /* one more in use */
+    plex->dev = make_dev(&vinum_cdevsw,
+	VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/plex/%s",
+	plex->name);
 }
 
 /*
@@ -1542,10 +1553,14 @@ config_volume(int update)
     /* Find out how big our volume is */
     for (i = 0; i < vol->plexes; i++)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
-
     vinum_conf.volumes_used++;				    /* one more in use */
-    vol->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
-	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/vol/%s", vol->name);
+    vol->dev = make_dev(&vinum_cdevsw,
+	VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
+	UID_ROOT,
+	GID_WHEEL,
+	S_IRUSR | S_IWUSR,
+	"vinum/%s",
+	vol->name);
 }
 
 /*
@@ -1562,10 +1577,14 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
     int status;
 
     status = 0;						    /* until proven otherwise */
-    tokens = tokenize(cptr, token);			    /* chop up into tokens */
+    tokens = tokenize(cptr, token, MAXTOKEN);		    /* chop up into tokens */
 
     if (tokens <= 0)					    /* screwed up or empty line */
 	return tokens;					    /* give up */
+    else if (tokens == MAXTOKEN)			    /* too many */
+	throw_rude_remark(E2BIG,
+	    "Configuration error for %s: too many parameters",
+	    token[1]);
 
     if (token[0][0] == '#')				    /* comment line */
 	return 0;
@@ -1697,29 +1716,22 @@ remove_sd_entry(int sdno, int force, int recurse)
     ||(sd->state == sd_unallocated)) {			    /* or nothing there */
 	ioctl_reply->error = EINVAL;
 	strcpy(ioctl_reply->msg, "No such subdisk");
-	return;
-    } else if (sd->flags & VF_OPEN) {			    /* we're open */
+    } else if (sd->flags & VF_OPEN)			    /* we're open */
 	ioctl_reply->error = EBUSY;			    /* no getting around that */
-	return;
-    } else if (sd->plexno >= 0) {			    /* we have a plex */
-	if (!force) {					    /* do it at any cost */
-	    ioctl_reply->error = EBUSY;			    /* can't do that */
-	    return;
-	} else {
+    else if (sd->plexno >= 0) {				    /* we have a plex */
+	if (force) {					    /* do it at any cost */
 	    struct plex *plex = &PLEX[sd->plexno];	    /* point to our plex */
 	    int mysdno;
 
 	    for (mysdno = 0;				    /* look for ourselves */
 		mysdno < plex->subdisks && &SD[plex->sdnos[mysdno]] != sd;
 		mysdno++);
-	    if (mysdno == plex->subdisks) {		    /* didn't find it */
+	    if (mysdno == plex->subdisks)		    /* didn't find it */
 		log(LOG_ERR,
 		    "Error removing subdisk %s: not found in plex %s\n",
 		    SD[mysdno].name,
 		    plex->name);
-		ioctl_reply->error = EINVAL;
-		return;
-	    } else {					    /* remove the subdisk from plex */
+	    else {					    /* remove the subdisk from plex */
 		if (mysdno < (plex->subdisks - 1))	    /* not the last subdisk */
 		    bcopy(&plex->sdnos[mysdno + 1],
 			&plex->sdnos[mysdno],
@@ -1736,10 +1748,14 @@ remove_sd_entry(int sdno, int force, int recurse)
 	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
-	}
+	    log(LOG_INFO, "vinum: removing %s\n", sd->name);
+	    free_sd(sdno);
+	} else
+	    ioctl_reply->error = EBUSY;			    /* can't do that */
+    } else {
+	log(LOG_INFO, "vinum: removing %s\n", sd->name);
+	free_sd(sdno);
     }
-    log(LOG_INFO, "vinum: removing %s\n", sd->name);
-    free_sd(sdno);
 }
 
 /* remove a plex */
@@ -1797,8 +1813,10 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     log(LOG_INFO, "vinum: removing %s\n", plex->name);
+#ifdef FREEBSD5
     if (isstriped(plex))
 	mtx_destroy(&plex->lockmtx);
+#endif
     free_plex(plexno);
     vinum_conf.plexes_used--;				    /* one less plex */
 }
@@ -1881,9 +1899,10 @@ update_plex_config(int plexno, int diskconfig)
     }
     /*
      * Check that our subdisks make sense.  For
-     * striped, RAID-4 and RAID-5 plexes, we need at
-     * least two subdisks, and they must all be the
-     * same size.
+     * striped plexes, we need at least two
+     * subdisks, and for RAID-4 and RAID-5 plexes we
+     * need at least three subdisks.  In each case
+     * they must all be the same size.
      */
     if (plex->organization == plex_striped) {
 	data_sds = plex->subdisks;
