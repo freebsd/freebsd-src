@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.75 1999/05/10 10:10:13 roger Exp $ */
+/* $Id: brooktree848.c,v 1.76 1999/05/13 07:54:24 bde Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -385,6 +385,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     making it easier to compile the driver under 2.2.x.
                     Add GPIO mask for the audio mux to each card type.
                     Add CARD_ZOLTRIX and CARD_KISS from mailing list searches.
+
+1.65    18 May 1999 Roger Hardiman <roger@freebsd.org>
+                    Change Intel GPIO mask to stop turning the Intel Camera off
+                    Fixed tuner selection on Hauppauge card with tuner 0x0a
+                    Replaced none tuner with no tuner for Theo de Raadt.
+                    Ivan Brawley <brawley@internode.com.au> added
+                    the Australian channel frequencies.
 */
 
 #define DDB(x) x
@@ -901,7 +908,7 @@ struct TUNER {
 static const struct TUNER tuners[] = {
 /* XXX FIXME: fill in the band-switch crosspoints */
 	/* NO_TUNER */
-	{ "<none>",				/* the 'name' */
+	{ "<no>",				/* the 'name' */
 	   TTYPE_XXX,				/* input type */
  	   { 0x00,				/* control byte for Tuner PLL */
  	     0x00,
@@ -1132,7 +1139,7 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   0,
 	   { 0, 0, 0, 0, 0 }, 			/* audio MUX values */
-	   0x0f },				/* GPIO mask */
+	   0x00 },				/* GPIO mask */
 
 	{  CARD_IMS_TURBO,			/* the card id */
 	  "IMS TV Turbo",			/* the 'name' */
@@ -4654,7 +4661,7 @@ static int oformat_meteor_to_bt( u_long format )
 
 		if (( pf1->type        == pf2->type        ) &&
 		    ( pf1->Bpp         == pf2->Bpp         ) &&
-		    !bcmp( pf1->masks, pf2->masks, sizeof( pf1->masks )) &&
+		    !memcmp( pf1->masks, pf2->masks, sizeof( pf1->masks )) &&
 		    ( pf1->swap_bytes  == pf2->swap_bytes  ) &&
 		    ( pf1->swap_shorts == pf2->swap_shorts )) 
 			break;
@@ -5577,7 +5584,7 @@ checkTuner:
 	case CARD_HAUPPAUGE:
 	    /* Hauppauge kindly supplied the following Tuner Table */
 	    /* FIXME: I think the tuners the driver selects for types */
-	    /* 0x08, 0xa and 0x15 are incorrect but no one has complained. */
+	    /* 0x08 and 0x15 may be incorrect but no one has complained. */
 	    /*
    	    	ID Tuner Model          Format         	We select Format
 	   	 0 NONE               
@@ -5590,7 +5597,7 @@ checkTuner:
 		 7 Philips FI1256       DK 
 		 8 Philips FI1216 MK2   BG 		PHILIPS_PALI
 		 9 Philips FI1216MF MK2 BGLL' 
-		 a Philips FI1236 MK2   MN 		PHILIPS_FR1236_NTSC
+		 a Philips FI1236 MK2   MN 		PHILIPS_NTSC
 		 b Philips FI1246 MK2   I 		PHILIPS_PALI
 		 c Philips FI1256 MK2   DK 
 		 d Temic 4032FY5        NTSC		TEMIC_NTSC
@@ -5623,11 +5630,11 @@ checkTuner:
 	    switch (tuner_code) {
 
 	       case 0x5:
+               case 0x0a:
 	       case 0x1a:
 		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
 		 goto checkDBX;
 
-               case 0x0a:
                case 0x12:
 	       case 0x17:
 		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
@@ -6152,6 +6159,22 @@ static int xussr[] = {
 };
 #undef IF_FREQ
 
+/*
+ * Australian broadcast channels
+ */
+#define OFFSET	7.00
+static int australia[] = {
+	83,	(int)( 45.75 * FREQFACTOR),	0,
+	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	10,	(int)(201.50 * FREQFACTOR),	(int)(13.00 * FREQFACTOR),
+	 9,	(int)(188.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 0
+};
+#undef OFFSET
+
 static struct {
         int     *ptr;
         char    name[BT848_MAX_CHNLSET_NAME_LEN];
@@ -6164,6 +6187,7 @@ static struct {
         {jpnbcst,       "jpnbcst"},
         {jpncable,      "jpncable"},
         {xussr,         "xussr"},
+        {australia,     "australia"},
  
 };
 
