@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.187 1998/01/26 06:11:14 julian Exp $
+#	$Id: files.i386,v 1.188 1998/01/26 18:31:17 julian Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -161,6 +161,7 @@ i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
 i386/isa/si_code.c		optional	si	device-driver
+i386/isa/si_jet.c		optional	si	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/snd/sound.c		optional	pcm	device-driver
 i386/isa/snd/dmabuf.c		optional	pcm	device-driver

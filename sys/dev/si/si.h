@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.8 1997/02/22 09:35:10 peter Exp $
+ *	$Id: si.h,v 1.9 1997/09/21 21:38:54 gibbs Exp $
  */
 
 #include <sys/callout.h>
@@ -90,6 +90,10 @@
 #define	SI2		2
 #define	SIHOST2		3
 #define	SIEISA		4
+#define SIPCI		5
+#define SIJETPCI	6
+#define SIJETISA	7
+
 
 /* Buffer parameters */
 #define	SI_BUFFERSIZE	256
