@@ -2973,8 +2973,8 @@ ngb_mod_event(module_t mod, int event, void *data)
 		mtx_init(&ngq_mtx, "netgraph free item list mutex", NULL,
 		    MTX_DEF);
 		s = splimp();
-		/* XXX could use NETISR_MPSAFE but need to verify code */
-		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL, 0);
+		netisr_register(NETISR_NETGRAPH, (netisr_t *)ngintr, NULL,
+		    NETISR_MPSAFE);
 		splx(s);
 		break;
 	case MOD_UNLOAD:
