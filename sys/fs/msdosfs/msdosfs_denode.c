@@ -51,8 +51,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>

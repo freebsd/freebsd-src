@@ -42,8 +42,6 @@
 #include <sys/vnode.h>
 
 #define	_KERNEL
-#include <net/radix.h>
-#include <sys/socket.h>
 #include <sys/mount.h>
 #include <msdosfs/bpb.h>
 #include <msdosfs/msdosfsmount.h>
