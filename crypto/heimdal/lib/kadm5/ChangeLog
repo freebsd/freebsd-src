@@ -1,3 +1,7 @@
+2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ipropd_slave.c: pull up 1.27; use a temporary database
+
 2002-08-26  Assar Westerlund  <assar@kth.se>
 
 	* ipropd_slave.c (receive_everything): type-correctness calling

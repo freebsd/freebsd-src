@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.122 2002/09/09 19:17:01 joda Exp $
+# $Id: Makefile.am,v 1.122.4.1 2002/10/21 15:03:04 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 16:0:0
+libroken_la_LDFLAGS = -version-info 16:1:0
 
 noinst_PROGRAMS = make-roken snprintf-test
 
