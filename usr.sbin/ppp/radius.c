@@ -167,6 +167,21 @@ radius_Process(struct radius *r, int got)
         log_Printf(LogPHASE, "        IP %s\n", inet_ntoa(r->ip));
         break;
 
+      case RAD_FILTER_ID:
+        free(r->filterid);
+        if ((r->filterid = rad_cvt_string(data, len)) == NULL) {
+          log_Printf(LogERROR, "rad_cvt_string: %s\n", rad_strerror(r->cx.rad));
+          rad_close(r->cx.rad);
+          return;
+        }
+        log_Printf(LogPHASE, "        Filter \"%s\"\n", r->filterid);
+        break;
+
+      case RAD_SESSION_TIMEOUT:
+        r->sessiontime = rad_cvt_int(data);
+        log_Printf(LogPHASE, "        Session-Timeout %lu\n", r->sessiontime);
+        break;
+
       case RAD_FRAMED_IP_NETMASK:
         r->mask = rad_cvt_addr(data);
         log_Printf(LogPHASE, "        Netmask %s\n", inet_ntoa(r->mask));
@@ -365,6 +380,8 @@ radius_Destroy(struct radius *r)
   log_Printf(LogDEBUG, "Radius: radius_Destroy\n");
   timer_Stop(&r->cx.timer);
   route_DeleteAll(&r->routes);
+  free(r->filterid);
+  r->filterid = NULL;
   if (r->cx.fd != -1) {
     r->cx.fd = -1;
     rad_close(r->cx.rad);
@@ -463,7 +480,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     setttyent();
     for (slot = 1; (ttyp = getttyent()); ++slot)
       if (!strcmp(ttyp->ty_name, authp->physical->name.base)) {
-        if(rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
+        if (rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
           log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                       rad_strerror(r->cx.rad));
           rad_close(r->cx.rad);
@@ -593,7 +610,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     setttyent();
     for (slot = 1; (ttyp = getttyent()); ++slot)
       if (!strcmp(ttyp->ty_name, dl->physical->name.base)) {
-        if(rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
+        if (rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
           log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                       rad_strerror(r->cx.rad));
           rad_close(r->cx.rad);
