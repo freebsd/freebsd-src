@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: quot.c,v 1.7 1997/10/10 06:31:07 charnier Exp $";
+	"$Id: quot.c,v 1.8 1998/01/17 16:45:03 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,11 +66,14 @@ static int headerlen;
  * The new code always counts the number of 512 byte blocks
  * instead of the number of kilobytes and converts them	to
  * kByte when done (on request).
+ *
+ * Due to the size of modern disks, we must cast intermediate
+ * values to 64 bits to prevent potential overflows.
  */
 #ifdef	COMPAT
 #define	SIZE(n)	(n)
 #else
-#define	SIZE(n)	(((n) * 512 + blocksize - 1)/blocksize)
+#define	SIZE(n) ((int)(((quad_t)(n) * 512 + blocksize - 1)/blocksize))
 #endif
 
 #define	INOCNT(fs)	((fs)->fs_ipg)
