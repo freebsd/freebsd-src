@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: sioreg.h,v 1.7 1997/02/22 09:37:10 peter Exp $
  */
 
 
@@ -105,20 +105,6 @@
 #define	MSR_TERI	0x04
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
-
-/*
- * WARNING: Serial console is assumed to be at COM1 address
- * and CONUNIT must be 0.
- *
- * Well, maybe not...
- */
-#ifndef CONADDR
-#define	CONADDR	(0x3F8)
-#endif
-
-#ifndef CONUNIT
-#define	CONUNIT	(0)
-#endif
 
 #ifndef CONSPEED
 #define CONSPEED (9600)
