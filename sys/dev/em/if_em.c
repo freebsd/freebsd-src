@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.5.31";
+char em_driver_version[] = "1.6.6";
 
 
 /*********************************************************************
@@ -87,6 +87,7 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x1018, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1019, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x101A, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, 0x101D, PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, 0x101E, PCI_ANY_ID, PCI_ANY_ID, 0},
         /* required last entry */
         { 0, 0, 0, 0, 0}
@@ -155,6 +156,10 @@ static int  em_82547_fifo_workaround(struct adapter *, int);
 static void em_82547_update_fifo_head(struct adapter *, int);
 static int  em_82547_tx_fifo_reset(struct adapter *);
 static void em_82547_move_tail(void *arg);
+static void em_print_debug_info(struct adapter *);
+static int  em_is_valid_ether_addr(u_int8_t *);
+static int  em_sysctl_stats(SYSCTL_HANDLER_ARGS);
+static int  em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
@@ -244,6 +249,7 @@ em_attach(device_t dev)
 	struct adapter * adapter;
 	int             s;
 	int             tsize, rsize;
+	int             error = 0;
 
 	INIT_DEBUGOUT("em_attach: begin");
 	s = splimp();
@@ -264,6 +270,31 @@ em_attach(device_t dev)
 	adapter->next = em_adapter_list;
 	em_adapter_list = adapter;
 
+	/* SYSCTL stuff */
+        sysctl_ctx_init(&adapter->sysctl_ctx);
+        adapter->sysctl_tree = SYSCTL_ADD_NODE(&adapter->sysctl_ctx,
+					       SYSCTL_STATIC_CHILDREN(_hw),
+					       OID_AUTO, 
+					       device_get_nameunit(dev),
+					       CTLFLAG_RD,
+					       0, "");
+        if (adapter->sysctl_tree == NULL) {
+		error = EIO;
+		goto err_sysctl;
+        }
+ 
+        SYSCTL_ADD_PROC(&adapter->sysctl_ctx,  
+			SYSCTL_CHILDREN(adapter->sysctl_tree),
+			OID_AUTO, "debug_info", CTLTYPE_INT|CTLFLAG_RW, 
+			(void *)adapter, 0,
+                        em_sysctl_debug_info, "I", "Debug Information");
+
+	SYSCTL_ADD_PROC(&adapter->sysctl_ctx,  
+			SYSCTL_CHILDREN(adapter->sysctl_tree),
+			OID_AUTO, "stats", CTLTYPE_INT|CTLFLAG_RW, 
+			(void *)adapter, 0,
+                        em_sysctl_stats, "I", "Statistics");
+
 	callout_handle_init(&adapter->timer_handle);
 	callout_handle_init(&adapter->tx_fifo_timer_handle);
 
@@ -283,7 +314,8 @@ em_attach(device_t dev)
         adapter->hw.tbi_compatibility_en = TRUE;
         adapter->rx_buffer_len = EM_RXBUFFER_2048;
                         
-	/* These parameters control the automatic generation(Tx) and 
+	/* 
+	 * These parameters control the automatic generation(Tx) and 
 	 * response(Rx) to Ethernet PAUSE frames.
 	 */
         adapter->hw.fc_high_water = FC_DEFAULT_HI_THRESH;
@@ -291,7 +323,7 @@ em_attach(device_t dev)
         adapter->hw.fc_pause_time = FC_DEFAULT_TX_TIMER;
         adapter->hw.fc_send_xon   = TRUE;
         adapter->hw.fc = em_fc_full;
-
+	
 	adapter->hw.phy_init_script = 1;
 
 	/* 
@@ -314,13 +346,10 @@ em_attach(device_t dev)
 	if (em_allocate_pci_resources(adapter)) {
 		printf("em%d: Allocation of PCI resources failed\n", 
 		       adapter->unit);
-		em_free_pci_resources(adapter);
-		splx(s);
-		return(ENXIO);
+		error = ENXIO;
+		goto err_pci;
 	}
-  
-	
-	/* Initialize eeprom parameters */
+  	
         em_init_eeprom_params(&adapter->hw);
 
 	tsize = EM_ROUNDUP(adapter->num_tx_desc *
@@ -328,12 +357,12 @@ em_attach(device_t dev)
 
 	/* Allocate Transmit Descriptor ring */
 	if (!(adapter->tx_desc_base = (struct em_tx_desc *)
-	      contigmalloc(tsize, M_DEVBUF, M_NOWAIT, 0, ~0, PAGE_SIZE, 0))) {
+	      contigmalloc(tsize, M_DEVBUF, M_NOWAIT, 0, ~0, 
+			   PAGE_SIZE, 0))) {
 		printf("em%d: Unable to allocate TxDescriptor memory\n", 
 		       adapter->unit);
-		em_free_pci_resources(adapter);
-		splx(s);
-		return(ENOMEM);
+		error = ENOMEM;
+		goto err_tx_desc;
 	}
 
 	rsize = EM_ROUNDUP(adapter->num_rx_desc *
@@ -341,36 +370,36 @@ em_attach(device_t dev)
 
 	/* Allocate Receive Descriptor ring */
 	if (!(adapter->rx_desc_base = (struct em_rx_desc *)
-	      contigmalloc(rsize, M_DEVBUF, M_NOWAIT, 0, ~0, PAGE_SIZE, 0))) {
+	      contigmalloc(rsize, M_DEVBUF, M_NOWAIT, 0, ~0, 
+			   PAGE_SIZE, 0))) {
 		printf("em%d: Unable to allocate rx_desc memory\n", 
 		       adapter->unit);
-		em_free_pci_resources(adapter);
-		contigfree(adapter->tx_desc_base, tsize, M_DEVBUF);
-		splx(s);
-		return(ENOMEM);
+		error = ENOMEM;
+		goto err_rx_desc;
 	}
 
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
 		printf("em%d: Unable to initialize the hardware\n",
 		       adapter->unit);
-		em_free_pci_resources(adapter);
-		contigfree(adapter->tx_desc_base, tsize, M_DEVBUF);
-		contigfree(adapter->rx_desc_base, rsize, M_DEVBUF);
-		splx(s);
-		return(EIO);
+		error = EIO;
+		goto err_hw_init;
 	}
 
 	/* Copy the permanent MAC address out of the EEPROM */
 	if (em_read_mac_addr(&adapter->hw) < 0) {
 		printf("em%d: EEPROM read error while reading mac address\n",
 		       adapter->unit);
-		em_free_pci_resources(adapter);
-		contigfree(adapter->tx_desc_base, tsize, M_DEVBUF);
-		contigfree(adapter->rx_desc_base, rsize, M_DEVBUF);
-		splx(s);
-		return(EIO);
+		error = EIO;
+		goto err_mac_addr;
 	}
+
+	if (!em_is_valid_ether_addr(adapter->hw.mac_addr)) {
+		printf("em%d: Invalid mac address\n", adapter->unit);
+		error = EIO;
+		goto err_mac_addr;
+	}
+
 
 	bcopy(adapter->hw.mac_addr, adapter->interface_data.ac_enaddr,
 	      ETHER_ADDR_LEN);
@@ -397,7 +426,21 @@ em_attach(device_t dev)
 
 	INIT_DEBUGOUT("em_attach: end");
 	splx(s);
-	return(0);
+	return(error);
+
+
+err_mac_addr:
+err_hw_init:
+	contigfree(adapter->rx_desc_base, rsize, M_DEVBUF);
+err_rx_desc:
+	contigfree(adapter->tx_desc_base, tsize, M_DEVBUF);
+err_tx_desc:
+err_pci:
+	em_free_pci_resources(adapter);
+	sysctl_ctx_free(&adapter->sysctl_ctx);
+err_sysctl:
+        splx(s);
+	return(error);
 }
 
 /*********************************************************************
@@ -458,6 +501,9 @@ em_detach(device_t dev)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
+
+	adapter->sysctl_tree = NULL;
+	sysctl_ctx_free(&adapter->sysctl_ctx);
 
 	splx(s);
 	return(0);
@@ -581,9 +627,13 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_RUNNING) {
 			em_disable_intr(adapter);
 			em_set_multi(adapter);
-			if (adapter->hw.mac_type == em_82542_rev2_0)
+			if (adapter->hw.mac_type == em_82542_rev2_0) {
 				em_initialize_receive_unit(adapter);
-			em_enable_intr(adapter);
+			}
+#ifdef DEVICE_POLLING
+			if (!(ifp->if_ipending & IFF_POLLING))
+#endif
+				em_enable_intr(adapter);
 		}
 		break;
 	case SIOCSIFMEDIA:
@@ -788,31 +838,30 @@ em_intr(void *arg)
                 return;
         }
 #endif /* DEVICE_POLLING */
+	
+	reg_icr = E1000_READ_REG(&adapter->hw, ICR);
+	if (!reg_icr) {
+		return;
+	}
 
+	/* Link status change */
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+		untimeout(em_local_timer, adapter,
+			  adapter->timer_handle);
+		adapter->hw.get_link_status = 1;
+		em_check_for_link(&adapter->hw);
+		em_print_link_status(adapter);
+		adapter->timer_handle =
+		timeout(em_local_timer, adapter, 2*hz);
+	}
 
-        em_disable_intr(adapter);
-        while (loop_cnt > 0 &&
-               (reg_icr = E1000_READ_REG(&adapter->hw, ICR)) != 0) {
-
-                /* Link status change */
-                if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-                        untimeout(em_local_timer, adapter,
-                                  adapter->timer_handle);
-                        adapter->hw.get_link_status = 1;
-                        em_check_for_link(&adapter->hw);
-                        em_print_link_status(adapter);
-                        adapter->timer_handle =
-                        timeout(em_local_timer, adapter, 2*hz);
-                }
-
+        while (loop_cnt > 0) {
                 if (ifp->if_flags & IFF_RUNNING) {
                         em_process_receive_interrupts(adapter, -1);
                         em_clean_transmit_interrupts(adapter);
                 }
                 loop_cnt--;
         }
-
-        em_enable_intr(adapter);
 
         if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
                 em_start(ifp);
@@ -1606,11 +1655,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 		ifp->if_capabilities = IFCAP_HWCSUM;
 		ifp->if_capenable = ifp->if_capabilities;
 	}
-                
-        /*
-         * Tell the upper layer(s) we support long frames.
-         */
-        ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
 #if __FreeBSD_version >= 500000
         ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
@@ -1773,11 +1818,12 @@ em_initialize_transmit_unit(struct adapter * adapter)
 {
 	u_int32_t       reg_tctl;
 	u_int32_t       reg_tipg = 0;
+	u_int64_t       tdba = vtophys((vm_offset_t)adapter->tx_desc_base);
 
 	/* Setup the Base and Length of the Tx Descriptor Ring */
-	E1000_WRITE_REG(&adapter->hw, TDBAL, 
-			vtophys((vm_offset_t) adapter->tx_desc_base));
-	E1000_WRITE_REG(&adapter->hw, TDBAH, 0);
+	E1000_WRITE_REG(&adapter->hw, TDBAL,
+			(tdba & 0x00000000ffffffffULL));
+	E1000_WRITE_REG(&adapter->hw, TDBAH, (tdba >> 32));
 	E1000_WRITE_REG(&adapter->hw, TDLEN, 
 			adapter->num_tx_desc *
 			sizeof(struct em_tx_desc));
@@ -1794,20 +1840,6 @@ em_initialize_transmit_unit(struct adapter * adapter)
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
 	switch (adapter->hw.mac_type) {
-	case em_82543:
-	case em_82544:
-	case em_82540:
-	case em_82545:
-	case em_82546:
-	case em_82541:
-	case em_82547:
-		if (adapter->hw.media_type == em_media_type_fiber)
-			reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
-		else
-			reg_tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
-		reg_tipg |= DEFAULT_82543_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-		reg_tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
-		break;
 	case em_82542_rev2_0:
 	case em_82542_rev2_1:
 		reg_tipg = DEFAULT_82542_TIPG_IPGT;
@@ -1815,8 +1847,14 @@ em_initialize_transmit_unit(struct adapter * adapter)
 		reg_tipg |= DEFAULT_82542_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
 		break;
 	default:
-		printf("em%d: Invalid mac type detected\n", adapter->unit);
+		if (adapter->hw.media_type == em_media_type_fiber)
+			reg_tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
+		else
+			reg_tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
+		reg_tipg |= DEFAULT_82543_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
+		reg_tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
 	}
+
 	E1000_WRITE_REG(&adapter->hw, TIPG, reg_tipg);
 	E1000_WRITE_REG(&adapter->hw, TIDV, adapter->tx_int_delay);
 	if(adapter->hw.mac_type >= em_82540)
@@ -1969,6 +2007,7 @@ em_clean_transmit_interrupts(struct adapter * adapter)
         int i, num_avail;
 	struct em_buffer *tx_buffer;
 	struct em_tx_desc   *tx_desc;
+	struct ifnet   *ifp = &adapter->interface_data.ac_if;
 
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
@@ -1986,9 +2025,10 @@ em_clean_transmit_interrupts(struct adapter * adapter)
 	while(tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
 
 		tx_desc->upper.data = 0;
-		num_avail++;
-                        
+		num_avail++;                        
+
 		if (tx_buffer->m_head) {
+			ifp->if_opackets++;
 			m_freem(tx_buffer->m_head);
 			tx_buffer->m_head = NULL;
 		}
@@ -2009,8 +2049,6 @@ em_clean_transmit_interrupts(struct adapter * adapter)
          * if some descriptors have been freed, restart the timeout.
          */
         if (num_avail > EM_TX_CLEANUP_THRESHOLD) {
-                struct ifnet   *ifp = &adapter->interface_data.ac_if;
-
                 ifp->if_flags &= ~IFF_OACTIVE;
                 if (num_avail == adapter->num_tx_desc)
                         ifp->if_timer = 0;
@@ -2132,6 +2170,7 @@ em_initialize_receive_unit(struct adapter * adapter)
 	u_int32_t       reg_rctl;
 	u_int32_t       reg_rxcsum;
 	struct ifnet    *ifp;
+	u_int64_t       rdba = vtophys((vm_offset_t)adapter->rx_desc_base);
 
 	ifp = &adapter->interface_data.ac_if;
 
@@ -2154,9 +2193,10 @@ em_initialize_receive_unit(struct adapter * adapter)
 
 	/* Setup the Base and Length of the Rx Descriptor Ring */
 	E1000_WRITE_REG(&adapter->hw, RDBAL, 
-			vtophys((vm_offset_t) adapter->rx_desc_base));
-	E1000_WRITE_REG(&adapter->hw, RDBAH, 0);
-	E1000_WRITE_REG(&adapter->hw, RDLEN, adapter->num_rx_desc *
+			(rdba & 0x00000000ffffffffULL));
+	E1000_WRITE_REG(&adapter->hw, RDBAH, (rdba >> 32));
+	E1000_WRITE_REG(&adapter->hw, RDLEN, 
+			adapter->num_rx_desc *
 			sizeof(struct em_rx_desc));
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers */
@@ -2337,6 +2377,7 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 
                         if (eop) {
                                 adapter->fmp->m_pkthdr.rcvif = ifp;
+				ifp->if_ipackets++;
 
 #if __FreeBSD_version < 500000
                                 eh = mtod(adapter->fmp, struct ether_header *);
@@ -2466,6 +2507,18 @@ em_disable_intr(struct adapter *adapter)
 	return;
 }
 
+static int
+em_is_valid_ether_addr(u_int8_t *addr)
+{
+	char zero_addr[6] = { 0, 0, 0, 0, 0, 0 };
+
+	if ((addr[0] & 1) || (!bcmp(addr, zero_addr, ETHER_ADDR_LEN))) {
+		return (FALSE);
+	}
+
+	return(TRUE);
+}
+
 void 
 em_write_pci_cfg(struct em_hw *hw,
 		      uint32_t reg,
@@ -2514,6 +2567,7 @@ em_io_write(struct em_hw *hw, uint32_t port, uint32_t value)
 	outl(port, value);
 	return;
 }
+
 
 /**********************************************************************
  *
@@ -2600,8 +2654,6 @@ em_update_stats_counters(struct adapter *adapter)
 	ifp = &adapter->interface_data.ac_if;
 
 	/* Fill out the OS statistics structure */
-	ifp->if_ipackets = adapter->stats.gprc;
-	ifp->if_opackets = adapter->stats.gptc;
 	ifp->if_ibytes = adapter->stats.gorcl;
 	ifp->if_obytes = adapter->stats.gotcl;
 	ifp->if_imcasts = adapter->stats.mprc;
@@ -2630,7 +2682,7 @@ em_update_stats_counters(struct adapter *adapter)
  *
  **********************************************************************/
 static void
-em_print_hw_stats(struct adapter *adapter)
+em_print_debug_info(struct adapter *adapter)
 {
 	int unit = adapter->unit;
 
@@ -2640,20 +2692,35 @@ em_print_hw_stats(struct adapter *adapter)
 	printf("em%d: CleanTxInterrupts = %ld\n", unit, 
 	       adapter->clean_tx_interrupts);
 #endif
-
 	printf("em%d: fifo workaround = %lld, fifo_reset = %lld\n", unit, 
 	       (long long)adapter->tx_fifo_wrk, 
 	       (long long)adapter->tx_fifo_reset);
 	printf("em%d: hw tdh = %d, hw tdt = %d\n", unit,
 	       E1000_READ_REG(&adapter->hw, TDH), 
 	       E1000_READ_REG(&adapter->hw, TDT));
-	printf("em%d: Excessive collisions = %lld\n", unit,
-	       (long long)adapter->stats.ecol);
+	printf("em%d: Num Tx descriptors avail = %d\n", unit,
+	       adapter->num_tx_desc_avail);
 	printf("em%d: Tx Descriptors not avail1 = %ld\n", unit, 
 	       adapter->no_tx_desc_avail1);
 	printf("em%d: Tx Descriptors not avail2 = %ld\n", unit, 
 	       adapter->no_tx_desc_avail2);
+	printf("em%d: Std mbuf failed = %ld\n", unit, 
+	       adapter->mbuf_alloc_failed);
+	printf("em%d: Std mbuf cluster failed = %ld\n", unit, 
+	       adapter->mbuf_cluster_failed);
+	printf("em%d: Driver dropped packets = %ld\n", unit, 
+	       adapter->dropped_pkts);
 
+	return;
+}
+
+static void
+em_print_hw_stats(struct adapter *adapter)
+{
+	int unit = adapter->unit;
+
+	printf("em%d: Excessive collisions = %lld\n", unit,
+	       (long long)adapter->stats.ecol);
 	printf("em%d: Symbol errors = %lld\n", unit, 
 	       (long long)adapter->stats.symerrs);
 	printf("em%d: Sequence errors = %lld\n", unit, 
@@ -2675,8 +2742,6 @@ em_print_hw_stats(struct adapter *adapter)
 	       (long long)adapter->stats.algnerrc);
 	printf("em%d: Carrier extension errors = %lld\n", unit,
 	       (long long)adapter->stats.cexterr);
-	printf("em%d: Driver dropped packets = %ld\n", unit, 
-	       adapter->dropped_pkts);
 
 	printf("em%d: XON Rcvd = %lld\n", unit, 
 	       (long long)adapter->stats.xonrxc);
@@ -2693,5 +2758,48 @@ em_print_hw_stats(struct adapter *adapter)
 	       (long long)adapter->stats.gptc);
 
 	return;
+}
+
+static int
+em_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int result;
+	struct adapter *adapter;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		adapter = (struct adapter *)arg1;
+		em_print_debug_info(adapter);
+	}
+
+	return error;
+}
+
+
+static int
+em_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int result;
+	struct adapter *adapter;
+	
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		adapter = (struct adapter *)arg1;
+		em_print_hw_stats(adapter);
+	}
+
+	return error;
 }
 
