@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.11 1998/12/08 13:00:49 cracauer Exp $
+ *	$Id: ftp.c,v 1.12 1999/02/03 20:43:29 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -367,8 +367,6 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 	} else
 		ftpBinary(ftp);
-	if (getenv("FTP_PASSIVE_MODE"))
-		fs->fs_passive_mode = 1;
 	ftpPassive(ftp, fs->fs_passive_mode);
 	for (i = 0, dp = ftps->ftp_remote_dirs; i < ftps->ftp_remote_ndirs; i++, dp++) {
 		if ((status = ftpChdir(ftp, *dp)) != 0) {
