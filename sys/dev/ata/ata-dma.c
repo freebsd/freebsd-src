@@ -989,7 +989,7 @@ via_82c586:
 	    }
 	}
 	if (!ATAPI_DEVICE(ch, device) && udmamode >= 5 && hpt_cable80(ch) &&
-	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x05) ||
+	    ((ch->chiptype == 0x00041103 && pci_get_revid(parent) >= 0x03) ||
 	     (ch->chiptype == 0x00051103 && pci_get_revid(parent) >= 0x01) ||
 	     (ch->chiptype == 0x00081103 && pci_get_revid(parent) >= 0x07))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
