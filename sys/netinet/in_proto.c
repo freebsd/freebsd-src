@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -118,27 +118,33 @@ struct protosw inetsw[] = {
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
   rip_input,	0,		rip_ctlinput,	rip_ctloutput,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_ICMP,	PR_ATOMIC|PR_ADDR,
   icmp_input,	0,		0,		rip_ctloutput,
-  rip_usrreq
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IGMP,	PR_ATOMIC|PR_ADDR,
   igmp_input,	0,		0,		rip_ctloutput,
-  rip_usrreq,
-  igmp_init,	igmp_fasttimo,	igmp_slowtimo
+  0,
+  igmp_init,	igmp_fasttimo,	igmp_slowtimo,	0,
+  &rip_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RSVP,	PR_ATOMIC|PR_ADDR,
   rsvp_input,	0,		0,		rip_ctloutput,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
   ipip_input,	0,	 	0,		rip_ctloutput,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
@@ -165,22 +171,25 @@ struct protosw inetsw[] = {
 #ifdef IPXIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
   ipxip_input,	0,		ipxip_ctlinput,	0,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 #endif
 #ifdef NSIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
   idpip_input,	0,		nsip_ctlinput,	0,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 #endif
 	/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,
-  rip_usrreq,
+  0,
   rip_init,	0,		0,		0,
+  &rip_usrreqs
 },
 };
 
@@ -202,6 +211,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
 SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
+SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef IPDIVERT
 SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	div,	CTLFLAG_RW, 0,	"DIVERT");
 #endif

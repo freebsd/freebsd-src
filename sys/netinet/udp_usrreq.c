@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id$
+ *	$Id: udp_usrreq.c,v 1.33 1997/02/14 18:15:52 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -479,18 +479,6 @@ udp_abort(struct socket *so)
 	return 0;
 }
 
-/* XXX should be pru_accept_notsupp */
-static int
-udp_accept(struct socket *so, struct mbuf *nam)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	return EOPNOTSUPP;
-}
-
 static int
 udp_attach(struct socket *so, int proto)
 {
@@ -582,54 +570,6 @@ udp_disconnect(struct socket *so)
 	return 0;
 }
 
-/* should be pru_listen_notsupp */
-static int
-udp_listen(struct socket *so)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	return EOPNOTSUPP;
-}
-
-static int
-udp_peeraddr(struct socket *so, struct mbuf *nam)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	in_setpeeraddr(inp, nam);
-	return 0;
-}
-
-/* XXX should be pru_rcvd_notsupp */
-static int
-udp_rcvd(struct socket *so, int flags)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	return EOPNOTSUPP;
-}
-
-/* XXX should be pru_rcvoob_notsupp */
-static int
-udp_rcvoob(struct socket *so, struct mbuf *m, int flags)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	return EOPNOTSUPP;
-}
-
 static int
 udp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
 	    struct mbuf *control)
@@ -645,17 +585,6 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *addr,
 }
 
 static int
-udp_sense(struct socket *so, struct stat *sb)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	return 0;		/* xxx do something useful */
-}
-
-static int
 udp_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
@@ -667,28 +596,10 @@ udp_shutdown(struct socket *so)
 	return 0;
 }
 
-static int
-udp_sockaddr(struct socket *so, struct mbuf *nam)
-{
-	struct inpcb *inp;
-
-	inp = sotoinpcb(so);
-	if (inp == 0)
-		return EINVAL;
-	in_setsockaddr(inp, nam);
-	return 0;
-}
-
-/* XXX - should fix parameter types of in_control or of pru_control... */
-static int
-udp_control(struct socket *so, int cmd, caddr_t data, struct ifnet *ifp)
-{
-	return in_control(so, cmd, data, ifp);
-}
-
 struct pr_usrreqs udp_usrreqs = {
-	udp_abort, udp_accept, udp_attach, udp_bind, udp_connect, 
-	pru_connect2_notsupp, udp_control, udp_detach, udp_disconnect, 
-	udp_listen, udp_peeraddr, udp_rcvd, udp_rcvoob, udp_send,
-	udp_sense, udp_shutdown, udp_sockaddr
+	udp_abort, pru_accept_notsupp, udp_attach, udp_bind, udp_connect, 
+	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect, 
+	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp, 
+	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
+	in_setsockaddr
 };

@@ -454,11 +454,21 @@ in_pcbdetach(inp)
 	FREE(inp, M_PCB);
 }
 
-void
-in_setsockaddr(inp, nam)
-	register struct inpcb *inp;
+/*
+ * The calling convention of in_setsockaddr() and in_setpeeraddr() was
+ * modified to match the pru_sockaddr() and pru_peeraddr() entry points
+ * in struct pr_usrreqs, so that protocols can just reference then directly
+ * without the need for a wrapper function.  The socket must have a valid
+ * (i.e., non-nil) PCB, but it should be impossible to get an invalid one
+ * except through a kernel programming error, so it is acceptable to panic
+ * (or in this case trap) if the PCB is invalid.
+ */
+int
+in_setsockaddr(so, nam)
+	struct socket *so;
 	struct mbuf *nam;
 {
+	register struct inpcb *inp = sotoinpcb(so);
 	register struct sockaddr_in *sin;
 
 	nam->m_len = sizeof (*sin);
@@ -468,13 +478,15 @@ in_setsockaddr(inp, nam)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_lport;
 	sin->sin_addr = inp->inp_laddr;
+	return 0;
 }
 
-void
-in_setpeeraddr(inp, nam)
-	struct inpcb *inp;
+int
+in_setpeeraddr(so, nam)
+	struct socket *so;
 	struct mbuf *nam;
 {
+	struct inpcb *inp = sotoinpcb(so);
 	register struct sockaddr_in *sin;
 
 	nam->m_len = sizeof (*sin);
@@ -484,6 +496,7 @@ in_setpeeraddr(inp, nam)
 	sin->sin_len = sizeof(*sin);
 	sin->sin_port = inp->inp_fport;
 	sin->sin_addr = inp->inp_faddr;
+	return 0;
 }
 
 /*
