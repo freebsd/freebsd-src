@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.4 1994/10/08 06:57:24 phk Exp $
+ * $Id: ufs_inode.c,v 1.5 1994/10/15 04:08:44 ache Exp $
  */
 
 #include <sys/param.h>
@@ -88,7 +88,7 @@ ufs_inactive(ap)
 	int mode, error;
 
 	if (prtactive && vp->v_usecount != 0)
-		vprint("ffs_inactive: pushing active", vp);
+		vprint("ufs_inactive: pushing active", vp);
 
 	/* Get rid of inodes related to stale file handles. */
 	if (ip->i_mode == 0) {
@@ -100,7 +100,7 @@ ufs_inactive(ap)
 	error = 0;
 #ifdef DIAGNOSTIC
 	if (VOP_ISLOCKED(vp))
-		panic("ffs_inactive: locked inode");
+		panic("ufs_inactive: locked inode");
 	if (curproc)
 		ip->i_lockholder = curproc->p_pid;
 	else
