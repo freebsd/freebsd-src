@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.279 (Berkeley) 12/1/96
+ *	@(#)conf.h	8.288 (Berkeley) 1/17/97
  */
 
 /*
@@ -367,14 +367,12 @@ typedef int		pid_t;
 
 #if defined(sun) && !defined(BSD)
 
+# include <sys/time.h>
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASGETUSERSHELL 1	/* DOES have getusershell(3) call in libc */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define IP_SRCROUTE	1	/* can check IP source routing */
-# ifndef LA_TYPE
-#  define LA_TYPE	LA_INT
-# endif
 
 # ifdef SOLARIS_2_3
 #  define SOLARIS	20300	/* for back compat only -- use -DSOLARIS=20300 */
@@ -389,7 +387,6 @@ typedef int		pid_t;
 #  ifndef __svr4__
 #   define __svr4__		/* use all System V Releae 4 defines below */
 #  endif
-#  include <sys/time.h>
 #  define GIDSET_T	gid_t
 #  define USE_SA_SIGACTION	1	/* use sa_sigaction field */
 #  ifndef _PATH_UNIX
@@ -409,15 +406,13 @@ typedef int		pid_t;
 #   define USESETEUID	1		/* seteuid works as of 2.3 */
 #  endif
 #  if SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205)
-#   define HASSNPRINTF	1		/* has snprintf starting in 2.5 */
 #   define HASSETREUID	1		/* setreuid works as of 2.5 */
-#   if SOLARIS == 20500 || SOLARIS == 205
-#    define snprintf	__snprintf	/* but names it oddly in 2.5 */
-#    define vsnprintf	__vsnprintf
-#   endif
 #   ifndef LA_TYPE
 #    define LA_TYPE	LA_KSTAT	/* use kstat(3k) -- may work in < 2.5 */
 #   endif
+#  endif
+#  if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
+#   define HASSNPRINTF	1		/* has snprintf starting in 2.6 */
 #  endif
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps */
@@ -454,7 +449,12 @@ extern char		*getenv();
 
 #  endif
 # endif
-#endif
+
+# ifndef LA_TYPE
+#  define LA_TYPE	LA_INT
+# endif
+
+#endif /* sun && !BSD */
 
 /*
 **  DG/UX
@@ -680,7 +680,7 @@ typedef int		pid_t;
 
 
 /*
-**  FreeBSD / NetBSD (all architectures, all versions)
+**  FreeBSD / NetBSD / OpenBSD (all architectures, all versions)
 **
 **  4.3BSD clone, closer to 4.4BSD	for FreeBSD 1.x and NetBSD 0.9x
 **  4.4BSD-Lite based			for FreeBSD 2.x and NetBSD 1.x
@@ -688,7 +688,7 @@ typedef int		pid_t;
 **	See also BSD defines.
 */
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 # include <paths.h>
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
@@ -722,6 +722,10 @@ typedef int		pid_t;
 #   define SPT_TYPE	SPT_REUSEARGV
 #   define SPT_PADCHAR	'\0'		/* pad process title with nulls */
 #  endif
+# endif
+# if defined(__OpenBSD__)
+#  undef SPT_TYPE
+#  define SPT_TYPE	SPT_BUILTIN	/* setproctitle is in libc */
 # endif
 #endif
 
@@ -832,6 +836,7 @@ extern int		errno;
 # define SYSTEM5	1	/* include all the System V defines */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
 # define NOFTRUNCATE	0	/* has (simulated) ftruncate call */
+# define USE_SIGLONGJMP	1	/* sigsetjmp needed for signal handling */
 # define MAXPATHLEN	PATHSIZE
 # define SFS_TYPE	SFS_4ARGS	/* use <sys/statfs.h> 4-arg impl */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
@@ -904,6 +909,7 @@ extern int		errno;
 # define WAITUNION	1	/* use "union wait" as wait argument type */
 # define NEEDFSYNC	1	/* no fsync(2) in system library */
 # define NEEDSTRSTR	1	/* need emulation of the strstr(3) call */
+# define NOFTRUNCATE	1	/* do not have ftruncate(2) */
 # define MAXPATHLEN	PATH_MAX
 # define LA_TYPE	LA_SHORT
 # define SFS_TYPE	SFS_STATFS	/* use <sys/statfs.h> statfs() impl */
@@ -917,6 +923,7 @@ extern int		errno;
 typedef unsigned short	uid_t;
 typedef unsigned short	gid_t;
 typedef short		pid_t;
+typedef unsigned long	mode_t;
 
 /* some stuff that should have been in the include files */
 # include <grp.h>
@@ -1015,7 +1022,9 @@ extern struct group	*getgrnam();
 
 extern int		errno;
 typedef int		pid_t;
-#define			SIGFUNC_DEFINED
+#define SIGFUNC_DEFINED
+#define SIGFUNC_RETURN	(0)
+#define SIGFUNC_DECL	int
 typedef int		(*sigfunc_t)();
 extern char		*getenv();
 extern void		*malloc();
@@ -1110,6 +1119,8 @@ extern void		*malloc();
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASSETVBUF	1	/* we have setvbuf(3) in libc */
 # define SIGFUNC_DEFINED	/* sigfunc_t already defined */
+# define SIGFUNC_RETURN	(0)	/* XXX this is a guess */
+# define SIGFUNC_DECL	int	/* XXX this is a guess */
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
@@ -1284,6 +1295,9 @@ typedef int		pid_t;
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
 # define RLIMIT_NEEDS_SYS_TIME_H	1
+# if defined(NGROUPS_MAX) && !NGROUPS_MAX
+#  undef NGROUPS_MAX
+# endif
 #endif
 
 
@@ -1494,6 +1508,8 @@ extern struct group	*getgrent(), *getgrnam(), *getgrgid();
 typedef int		pid_t;
 typedef int		(*sigfunc_t)();
 #  define SIGFUNC_DEFINED
+#  define SIGFUNC_RETURN	(0)
+#  define SIGFUNC_DECL		int
 
 # else
 			/* NEWS-OS 6.0.3 with /bin/cc */
@@ -1558,6 +1574,8 @@ typedef int		(*sigfunc_t)();
 typedef int		pid_t;
 typedef int		(*sigfunc_t)();
 # define SIGFUNC_DEFINED
+# define SIGFUNC_RETURN	(0)
+# define SIGFUNC_DECL	int
 extern char	*getenv();
 extern int	errno;
 # define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
@@ -1662,6 +1680,28 @@ extern int	errno;
 
 #endif
 
+/*
+**  Harris Nighthawk PowerUX (nh6000 box)
+**
+**  Contributed by Bob Miorelli, Pratt & Whitney <miorelli@pweh.com>
+*/
+
+#ifdef _PowerUX
+# ifndef __svr4__
+#  define __svr4__
+# endif
+# define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+# ifndef _PATH_SENDMAILPID
+#  define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
+# endif
+# define SYSLOG_BUFSIZE		1024
+# define HASSNPRINTF		1	/* has snprintf(3) and vsnprintf(3) */
+# define LA_TYPE		LA_ZERO
+typedef struct msgb		mblk_t;
+# undef offsetof	/* avoid stddefs.h and sys/sysmacros.h conflict */
+#endif
+
+
 /**********************************************************************
 **  End of Per-Operating System defines
 **********************************************************************/
@@ -1720,10 +1760,7 @@ extern int	errno;
 #  define SFS_TYPE		SFS_STATVFS
 # endif
 
-/* SVr4 uses different routines for setjmp/longjmp with signal support */
-# define jmp_buf		sigjmp_buf
-# define setjmp(env)		sigsetjmp(env, 1)
-# define longjmp(env, val)	siglongjmp(env, val)
+# define USE_SIGLONGJMP	1	/* sigsetjmp needed for signal handling */
 #endif
 
 /* general System V defines */
@@ -1842,6 +1879,10 @@ extern int	errno;
 
 #ifndef SECUREWARE
 # define SECUREWARE	0	/* assume no SecureWare C2 auditing hooks */
+#endif
+
+#ifndef USE_SIGLONGJMP
+# define USE_SIGLONGJMP	0	/* assume setjmp handles signals properly */
 #endif
 
 /*
@@ -2070,6 +2111,12 @@ struct utsname
 #ifndef SIGFUNC_DEFINED
 typedef void		(*sigfunc_t) __P((int));
 #endif
+#ifndef SIGFUNC_RETURN
+# define SIGFUNC_RETURN
+#endif
+#ifndef SIGFUNC_DECL
+# define SIGFUNC_DECL	void
+#endif
 
 /* size of syslog buffer */
 #ifndef SYSLOG_BUFSIZE
@@ -2115,4 +2162,23 @@ typedef void		(*sigfunc_t) __P((int));
 
 #ifndef SCANF
 # define SCANF		1
+#endif
+
+/*
+**  SVr4 and similar systems use different routines for setjmp/longjmp
+**  with signal support
+*/
+
+#if USE_SIGLONGJMP
+/* Silly SCO /usr/include/setjmp.h file has #define setjmp(env) setjmp(env) */
+# ifdef setjmp
+#  undef setjmp
+# endif
+# define jmp_buf		sigjmp_buf
+# define setjmp(env)		sigsetjmp(env, 1)
+# define longjmp(env, val)	siglongjmp(env, val)
+#endif
+
+#if !defined(NGROUPS_MAX) && defined(NGROUPS)
+# define NGROUPS_MAX	NGROUPS		/* POSIX naming convention */
 #endif

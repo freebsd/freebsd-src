@@ -32,8 +32,20 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-VERSIONID(`@(#)version.m4	8.8.5.3 (Berkeley) 1/21/97')
+
 #
-divert(0)
-# Configuration version number
-DZ8.8.5`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+#  This is specific to Eric's home machine.
+#
+
+divert(0)dnl
+VERSIONID(`@(#)knecht.mc	8.4 (Berkeley) 11/24/96')
+OSTYPE(bsd4.4)dnl
+DOMAIN(generic)dnl
+define(`confDEF_USER_ID', `mailnull')dnl
+define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
+define(`confTO_ICONNECT', `10s')dnl
+define(`confCOPY_ERRORS_TO', `Postmaster')dnl
+define(`confTO_QUEUEWARN', `8h')dnl
+FEATURE(virtusertable)dnl
+MAILER(local)dnl
+MAILER(smtp)dnl

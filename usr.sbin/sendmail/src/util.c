@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.113 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)util.c	8.115 (Berkeley) 1/5/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -313,7 +313,7 @@ xputs(s)
 			{
 				if (bitset(0200, *s))
 					printf("{%s}", macname(*s++ & 0377));
-				else
+				else if (*s != '\0')
 					printf("%c", *s++);
 			}
 			if (mp->metaname != '\0')
@@ -670,7 +670,9 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 		return EPERM;
 	}
 
-	if (uid == 0 && !bitset(SFF_ROOTOK, flags))
+	if (uid == 0 && bitset(SFF_OPENASROOT, flags))
+		;
+	else if (uid == 0 && !bitset(SFF_ROOTOK, flags))
 		mode >>= 6;
 	else if (st->st_uid != uid)
 	{
