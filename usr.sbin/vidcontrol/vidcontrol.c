@@ -73,10 +73,10 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
-"                  [-i adapter | mode] [-L] [-M char] [-m on|off]",
-"                  [-f size file] [-s number] [-t N|off] [-x] [-g geometry]",
-"                  [-p] [-P] [mode] [fgcol [bgcol]] [show]");
+"usage: vidcontrol [-b color] [-c appearance] [-d] [-f [size] file] [-g geometry]",
+"                  [-i adapter | mode] [-l screen_map] [-L] [-m on | off]",
+"                  [-M char] [-p] [-P] [-r foreground background] [-s number]",
+"                  [-t N | off] [-x] [mode] [foreground [background]] [show]");
 	exit(1);
 }
 
@@ -722,6 +722,9 @@ main(int argc, char **argv)
 
 
 	info.size = sizeof(info);
+	if (argc == 1)
+		usage();
+		/* Not reached */
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
 	while((opt = getopt(argc, argv, "b:c:df:g:i:l:LM:m:pPr:s:t:x")) != -1)
