@@ -95,6 +95,7 @@ int coda_vnop_print_entry = 0;
 static int coda_lockdebug = 0;
 
 /* Definition of the vfs operation vector */
+static int (**coda_vnodeop_p)(void *);
 
 /*
  * Some NetBSD details:
