@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1993/12/28 07:54:51 ache Exp $
+#       $Id: Makefile,v 1.1.1.1 1994/05/09 15:59:08 ache Exp $
 
 SHLIB_MAJOR=1
 SHLIB_MINOR=0
@@ -17,6 +17,6 @@ beforeinstall:
 	fi
 	cd ${.CURDIR}/readline; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	readline.h keymaps.h chardefs.h ${DESTDIR}/usr/include/readline
+	history.h readline.h keymaps.h chardefs.h ${DESTDIR}/usr/include/readline
 
 .include <bsd.lib.mk>
