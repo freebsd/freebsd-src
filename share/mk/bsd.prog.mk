@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.68 1998/05/04 13:54:41 bde Exp $
+#	$Id: bsd.prog.mk,v 1.69 1998/05/04 17:43:46 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -47,7 +47,7 @@ ${_YC} ${_YH}: ${_YSRC}
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES:= ${CLEANFILES} ${_YC}
 .if ${YFLAGS:M-d} != ""
-y.tab.h:
+y.tab.h: ${_YH}
 	ln -sf ${_YH} ${.TARGET}
 SRCS:=	${SRCS} y.tab.h
 CLEANFILES:= ${CLEANFILES} ${_YH} y.tab.h
