@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.43 1998/12/04 22:54:51 archie Exp $
+ * $Id: kern_shutdown.c,v 1.44 1998/12/28 23:03:00 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -87,6 +87,8 @@ int debugger_on_panic = 1;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "");
 #endif
+
+SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
 
 #ifdef	HW_WDOG
 /*
@@ -470,7 +472,7 @@ at_shutdown(bootlist_fn function, void *arg, int queue)
 int
 at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
 {
-	sle_p ep, ip;
+	sle_p op, ep, ip;
 
 	if (queue < SHUTDOWN_PRE_SYNC
 	 || queue > SHUTDOWN_FINAL) {
@@ -492,7 +494,7 @@ at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
 	if (ip == NULL) {
 		LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
 	} else {
-		for (; LIST_NEXT(ip, links) != NULL; ip = LIST_NEXT(ip, links)) {
+		for (; ip != NULL; op = ip, ip = LIST_NEXT(ip, links)) {
 			if (ep->priority < ip->priority) {
 				LIST_INSERT_BEFORE(ip, ep, links);
 				ep = NULL;
@@ -500,7 +502,7 @@ at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
 			}
 		}
 		if (ep != NULL)
-			LIST_INSERT_AFTER(ip, ep, links);
+			LIST_INSERT_AFTER(op, ep, links);
 	}
 	return (0);
 }
@@ -528,3 +530,27 @@ rm_at_shutdown(bootlist_fn function, void *arg)
 	}
 	return (count);
 }
+
+/*
+ * Support for poweroff delay.
+ */
+static int poweroff_delay = 0;
+SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
+	&poweroff_delay, 0, "");
+
+static void poweroff_wait(int howto, void *unused)
+{
+	if(!(howto & RB_POWEROFF) || poweroff_delay <= 0)
+		return;
+	DELAY(poweroff_delay * 1000);
+}
+
+/*
+ * XXX OK? This implies I know SHUTDOWN_PRI_LAST > SHUTDOWN_PRI_FIRST
+ */
+static void poweroff_conf(void *unused)
+{
+	at_shutdown_pri(poweroff_wait, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_FIRST);
+}
+
+SYSINIT(poweroff_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, poweroff_conf, NULL)
