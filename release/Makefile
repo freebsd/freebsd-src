@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.34 1994/11/11 08:47:32 jkh Exp $
+#	$Id: Makefile,v 1.35 1994/11/11 22:27:11 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -74,7 +74,7 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
-	install -m 400 -c ${.CURDIR}/../README ${MNT}/README
+	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
