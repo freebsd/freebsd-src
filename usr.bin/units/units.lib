@@ -80,6 +80,7 @@ fuzz			1
 pi			3.14159265358979323846
 c			2.99792458e+8 m/sec fuzz
 g			9.80665 m/sec2
+bigG			6.67390e-11 m3/kg/s2
 au			1.49597871e+11 m fuzz
 mole			6.022169e+23 fuzz
 e			1.6021917e-19 coul fuzz
@@ -453,6 +454,9 @@ link			66|100 ft
 longhundredweight	112 lb
 longquarter		28 lb
 lusec			1e-6 mm-hg m3/s
+m_earth			5.97223e24 kg
+m_moon			7.34e22 kg
+m_sun			1.98843e30 kg
 mach			331.46 m/sec
 magnum			2 qt
 marineleague		3 nmile
