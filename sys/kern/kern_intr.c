@@ -184,7 +184,6 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	ithd->it_flags = flags;
 	TAILQ_INIT(&ithd->it_handlers);
 	mtx_init(&ithd->it_lock, "ithread", NULL, MTX_DEF);
-	mtx_lock(&ithd->it_lock);
 
 	va_start(ap, fmt);
 	vsnprintf(ithd->it_name, sizeof(ithd->it_name), fmt, ap);
@@ -205,7 +204,6 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	td->td_ithd = ithd;
 	if (ithread != NULL)
 		*ithread = ithd;
-	mtx_unlock(&ithd->it_lock);
 
 	CTR2(KTR_INTR, "%s: created %s", __func__, ithd->it_name);
 	return (0);
