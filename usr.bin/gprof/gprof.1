@@ -40,7 +40,13 @@
 .Nd display call graph profile data
 .Sh SYNOPSIS
 .Nm
-.Op options
+.Op Fl abcKlLsuz
+.Op Fl C Ar count
+.Op Fl e Ar name
+.Op Fl E Ar name
+.Op Fl f Ar name
+.Op Fl F Ar name
+.Op Fl k Ar fromname Ar toname
 .Op Ar a.out Op Ar a.out.gmon ...
 .Sh DESCRIPTION
 The
@@ -91,11 +97,11 @@ Cycles are discovered, and calls into a cycle are made to share the time
 of the cycle.
 The first listing shows the functions
 sorted according to the time they represent
-including the time of their call graph descendents.
+including the time of their call graph descendants.
 Below each function entry is shown its (direct) call graph children,
 and how their times are propagated to this function.
 A similar display above the function shows how this function's time and the
-time of its descendents is propagated to its (direct) call graph parents.
+time of its descendants is propagated to its (direct) call graph parents.
 .Pp
 Cycles are also shown, with an entry for the cycle as a whole and
 a listing of the members of the cycle and their contributions to the
@@ -107,21 +113,21 @@ similar to that provided by
 This listing gives the total execution times, the call counts,
 the time in msec or usec the call spent in the routine itself, and
 the time in msec or usec the call spent in the routine itself including
-its descendents.
+its descendants.
 .Pp
 Finally, an index of the function names is provided.
 .Pp
 The following options are available:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl a
-Suppresses the printing of statically declared functions.
+Suppress the printing of statically declared functions.
 If this option is given, all relevant information about the static function
 (e.g., time samples, calls to other functions, calls from other functions)
 belongs to the function loaded just before the static function in the
 .Pa a.out
 file.
 .It Fl b
-Suppresses the printing of a description of each field in the profile.
+Suppress the printing of a description of each field in the profile.
 .It Fl c
 The static call graph of the program is discovered by a heuristic
 that examines the text space of the object file.
@@ -137,7 +143,7 @@ so using this option may cause
 .Nm
 to run for a very long time.
 .It Fl e Ar name
-Suppresses the printing of the graph profile entry for routine
+Suppress the printing of the graph profile entry for routine
 .Ar name
 and all its descendants
 (unless they have other ancestors that aren't suppressed).
@@ -150,7 +156,7 @@ may be given with each
 .Fl e
 option.
 .It Fl E Ar name
-Suppresses the printing of the graph profile entry for routine
+Suppress the printing of the graph profile entry for routine
 .Ar name
 (and its descendants) as
 .Fl e  ,
@@ -164,7 +170,7 @@ above, and also excludes the time spent in
 .Ar mcleanup
 is the default.)
 .It Fl f Ar name
-Prints the graph profile entry of only the specified routine
+Print the graph profile entry of only the specified routine
 .Ar name
 and its descendants.
 More than one
@@ -176,7 +182,7 @@ may be given with each
 .Fl f
 option.
 .It Fl F Ar name
-Prints the graph profile entry of only the routine
+Print the graph profile entry of only the routine
 .Ar name
 and its descendants (as
 .Fl f ,
@@ -221,9 +227,9 @@ argument to be ignored, and allows for symbols in
 .Xr kld 4
 modules to be used.
 .It Fl l
-Suppresses the printing of the call-graph profile.
+Suppress the printing of the call-graph profile.
 .It Fl L
-Suppresses the printing of the flat profile.
+Suppress the printing of the flat profile.
 .It Fl s
 A profile file
 .Pa gmon.sum
@@ -236,7 +242,7 @@ to accumulate profile data across several runs of an
 .Pa a.out
 file.
 .It Fl u
-Suppresses the printing of functions whose names are not visible to
+Suppress the printing of functions whose names are not visible to
 C programs.  For the ELF object format, this means names that
 contain the
 .Ql .\&
@@ -249,7 +255,7 @@ All relevant information about such functions belongs to the
 This is useful for eliminating "functions" that are just labels
 inside other functions.
 .It Fl z
-Displays routines that have zero usage (as shown by call counts
+Display routines that have zero usage (as shown by call counts
 and accumulated time).
 This is useful with the
 .Fl c
@@ -258,11 +264,11 @@ option for discovering which routines were never called.
 .Sh FILES
 .Bl -tag -width a.out.gmon -compact
 .It Pa a.out
-The namelist and text space.
+the namelist and text space
 .It Pa a.out.gmon
-Dynamic call graph and profile.
+dynamic call graph and profile
 .It Pa gmon.sum
-Summarized dynamic call graph and profile.
+summarized dynamic call graph and profile
 .El
 .Sh SEE ALSO
 .Xr cc 1 ,
