@@ -101,7 +101,6 @@ static int
 kdb_sysctl_current(SYSCTL_HANDLER_ARGS)
 {
 	char buf[16];
-	struct kdb_dbbe *be, **iter;
 	int error;
 
 	if (kdb_dbbe != NULL) {
@@ -114,14 +113,7 @@ kdb_sysctl_current(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (kdb_active)
 		return (EBUSY);
-	SET_FOREACH(iter, kdb_dbbe_set) {
-		be = *iter;
-		if (be->dbbe_active == 0 && strcmp(be->dbbe_name, buf) == 0) {
-			kdb_dbbe = be;
-			return (0);
-		}
-	}
-	return (EINVAL);
+	return (kdb_dbbe_select(buf));
 }
 
 static int
@@ -196,6 +188,25 @@ kdb_backtrace()
 		printf("KDB: stack backtrace:\n");
 		kdb_dbbe->dbbe_trace();
 	}
+}
+
+/*
+ * Set/change the current backend.
+ */
+
+int
+kdb_dbbe_select(const char *name)
+{
+	struct kdb_dbbe *be, **iter;
+
+	SET_FOREACH(iter, kdb_dbbe_set) {
+		be = *iter;
+		if (be->dbbe_active == 0 && strcmp(be->dbbe_name, name) == 0) {
+			kdb_dbbe = be;
+			return (0);
+		}
+	}
+	return (EINVAL);
 }
 
 /*
