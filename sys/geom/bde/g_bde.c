@@ -68,10 +68,6 @@ g_bde_start(struct bio *bp)
 		break;
 	case BIO_GETATTR:
 	case BIO_SETATTR:
-		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
-			return;
-		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
-			return;
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
 	default:
@@ -213,12 +209,8 @@ g_bde_create(struct g_createargs *ga)
 	}
 	g_topology_unlock();
 	while (1) {
-		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
-		if (error)
-			break;
-		error = g_getattr("GEOM::mediasize", cp, &mediasize);
-		if (error)
-			break;
+		sectorsize = cp->provider->sectorsize;
+		mediasize = cp->provider->mediasize;
 		sc = g_malloc(sizeof(struct g_bde_softc), M_WAITOK | M_ZERO);
 		gp->softc = sc;
 		sc->geom = gp;

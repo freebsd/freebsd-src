@@ -245,13 +245,13 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
-		error = g_io_getattr("GEOM::sectorsize", cp, &i, data);
-		if (error == 0 && *(u_int *)data == 0)
+		*(u_int *)data = cp->provider->sectorsize;
+		if (*(u_int *)data == 0)
 			error = ENOENT;
 		break;
 	case DIOCGMEDIASIZE:
-		error = g_io_getattr("GEOM::mediasize", cp, &i, data);
-		if (error == 0 && *(off_t *)data == 0)
+		*(off_t *)data = cp->provider->mediasize;
+		if (*(off_t *)data == 0)
 			error = ENOENT;
 		break;
 	case DIOCGFWSECTORS:
@@ -329,15 +329,11 @@ static int
 g_dev_psize(dev_t dev)
 {
 	struct g_consumer *cp;
-	int i, error;
 	off_t mediasize;
 
 	cp = dev->si_drv2;
 
-	i = sizeof mediasize;
-	error = g_io_getattr("GEOM::mediasize", cp, &i, &mediasize);
-	if (error)
-		return (-1);
+	mediasize = cp->provider->mediasize;
 	return (mediasize >> DEV_BSHIFT);
 }
 

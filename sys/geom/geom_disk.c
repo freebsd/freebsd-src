@@ -89,6 +89,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		if (error != 0)
 			printf("Opened disk %s -> %d\n", pp->name, error);
 		mtx_unlock(&Giant);
+		pp->mediasize = dp->d_mediasize;
+		pp->sectorsize = dp->d_sectorsize;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		mtx_lock(&Giant);
 		error = devsw(dev)->d_close(dev, 3, 0, NULL);
@@ -98,8 +100,6 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	} else {
 		error = 0;
 	}
-        pp->mediasize = dp->d_mediasize;
-        pp->sectorsize = dp->d_sectorsize;
 	return (error);
 }
 
@@ -166,13 +166,9 @@ g_disk_start(struct bio *bp)
 		mtx_unlock(&Giant);
 		break;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::sectorsize", dp->d_sectorsize))
-			break;
-		else if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
+		if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
 			break;
 		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
-			break;
-		else if (g_handleattr_off_t(bp, "GEOM::mediasize", dp->d_mediasize))
 			break;
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
@@ -236,6 +232,8 @@ g_disk_create(void *arg)
 	gp->dumpconf = g_disk_dumpconf;
 	dev->si_disk->d_softc = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
+	pp->mediasize = dev->si_disk->d_mediasize;
+	pp->sectorsize = dev->si_disk->d_sectorsize;
 	g_error_provider(pp, 0);
 }
 

@@ -113,18 +113,10 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
-		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
-		if (error) {
-			sectorsize = 512;
-			printf("g_pc98_taste: error %d Sectors are %d bytes\n",
-			    error, sectorsize);
-		}
-		error = g_getattr("GEOM::mediasize", cp, &mediasize);
-		if (error) {
-			mediasize = 0;
-			printf("g_error %d Mediasize is %jd bytes\n",
-			    error, (intmax_t)mediasize);
-		}
+		sectorsize = cp->provider->sectorsize;
+		if (sectorsize < 512)
+			break;
+		mediasize = cp->provider->mediasize;
 		error = g_getattr("GEOM::fwsectors", cp, &fwsect);
 		if (error || fwsect == 0) {
 			fwsect = 17;
