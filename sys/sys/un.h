@@ -40,7 +40,7 @@
 /*
  * Definitions for UNIX IPC domain.
  */
-struct	sockaddr_un {
+struct sockaddr_un {
 	u_char	sun_len;		/* sockaddr len including null */
 	u_char	sun_family;		/* AF_UNIX */
 	char	sun_path[104];		/* path name (gag) */

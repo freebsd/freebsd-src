@@ -184,7 +184,7 @@ struct __siginfo;
 /*
  * Signal vector "template" used in sigaction call.
  */
-struct	sigaction {
+struct sigaction {
 	union {
 		void    (*__sa_handler) __P((int));
 		void    (*__sa_sigaction) __P((int, struct __siginfo *,
@@ -254,7 +254,7 @@ typedef struct sigaltstack {
  * 4.3 compatibility:
  * Signal vector "template" used in sigvec call.
  */
-struct	sigvec {
+struct sigvec {
 	__sighandler_t *sv_handler;	/* signal handler */
 	int	sv_mask;		/* signal mask to apply */
 	int	sv_flags;		/* see signal options below */
@@ -271,7 +271,7 @@ struct	sigvec {
 /*
  * Structure used in sigstack call.
  */
-struct	sigstack {
+struct sigstack {
 	char	*ss_sp;			/* signal stack pointer */
 	int	ss_onstack;		/* current status */
 };

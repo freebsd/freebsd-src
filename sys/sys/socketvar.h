@@ -143,7 +143,7 @@ struct socket {
 /*
  * Externalized form of struct socket used by the sysctl(3) interface.
  */
-struct	xsocket {
+struct xsocket {
 	size_t	xso_len;	/* length of this structure */
 	struct	socket *xso_so;	/* makes a convenient handle sometimes */
 	short	so_type;
