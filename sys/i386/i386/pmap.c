@@ -2531,6 +2531,7 @@ pmap_zero_page(vm_page_t m)
 	else
 #endif
 		bzero(CADDR2, PAGE_SIZE);
+	*CMAP2 = 0;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2539,7 +2540,6 @@ pmap_zero_page(vm_page_t m)
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
-	*CMAP2 = 0;
 	mtx_unlock(&CMAPCADDR12_lock);
 }
 
@@ -2566,6 +2566,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	else
 #endif
 		bzero((char *)CADDR2 + off, size);
+	*CMAP2 = 0;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2574,7 +2575,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
-	*CMAP2 = 0;
 	mtx_unlock(&CMAPCADDR12_lock);
 }
 
@@ -2600,6 +2600,7 @@ pmap_zero_page_idle(vm_page_t m)
 	else
 #endif
 		bzero(CADDR3, PAGE_SIZE);
+	*CMAP3 = 0;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2608,7 +2609,6 @@ pmap_zero_page_idle(vm_page_t m)
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
-	*CMAP3 = 0;
 }
 
 /*
@@ -2632,6 +2632,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	*CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
 	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
 	bcopy(CADDR1, CADDR2, PAGE_SIZE);
+	*CMAP1 = 0;
+	*CMAP2 = 0;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2641,8 +2643,6 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #ifdef SMP
 	curthread->td_pcb->pcb_switchout = NULL;
 #endif
-	*CMAP1 = 0;
-	*CMAP2 = 0;
 	mtx_unlock(&CMAPCADDR12_lock);
 }
 
