@@ -182,9 +182,9 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	u_##TYPE res;					\
 							\
 	__asm __volatile(MPLOCKED LOP			\
-	: "+a" (res),			/* 0 (result) */\
+	: "=a" (res),			/* 0 (result) */\
 	  "+m" (*p)			/* 1 */		\
-	: : "memory");				 	\
+	: : "cc", "memory");			 	\
 							\
 	return (res);					\
 }							\
