@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -962,35 +961,23 @@ __elfN(coredump)(td, vp, limit)
 	/* Write the contents of all of the writable segments. */
 	if (error == 0) {
 		Elf_Phdr *php;
-		off_t chunksize, offset, segofs;
+		off_t offset;
 		int i;
 
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = hdrsize;
 		for (i = 0; i < seginfo.count; i++) {
-			/*
-			 * Write the segment in maximally-sized chunks that
-			 * neither exceed vn_rdwr_inchunks()'s INT_MAX
-			 * length limitation nor span a block boundary.
-			 */
-			segofs = 0;
-			while (segofs < php->p_filesz) {
-				chunksize = MIN(php->p_filesz - segofs,
-				    INT_MAX - MAXBSIZE + 1);
-				error = vn_rdwr_inchunks(UIO_WRITE, vp,
-				    (caddr_t)(uintptr_t)php->p_vaddr + segofs,
-				    chunksize, offset + segofs, UIO_USERSPACE,
-				    IO_UNIT | IO_DIRECT, cred, NOCRED,
-				    (int *)NULL, curthread); /* XXXKSE */
-				if (error != 0)
-					goto done;
-				segofs += chunksize;
-			}
+			error = vn_rdwr_inchunks(UIO_WRITE, vp,
+			    (caddr_t)(uintptr_t)php->p_vaddr,
+			    php->p_filesz, offset, UIO_USERSPACE,
+			    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *)NULL,
+			    curthread); /* XXXKSE */
+			if (error != 0)
+				break;
 			offset += php->p_filesz;
 			php++;
 		}
 	}
-done:
 	free(hdr, M_TEMP);
 
 	return (error);
