@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.3 1998/09/28 22:03:01 peter Exp $
+ *	$Id: boot.c,v 1.4 1998/10/02 16:22:26 msmith Exp $
  */
 
 /*
@@ -39,6 +39,8 @@ static char	*getbootfile(int try);
 
 /* List of kernel names to try (may be overwritten by boot.config) XXX should move from here? */
 static char *default_bootfiles = "kernel,kernel.old";
+
+static int autoboot_tried;
 
 /*
  * The user wants us to boot.
@@ -119,9 +121,6 @@ command_boot(int argc, char *argv[])
 
 COMMAND_SET(autoboot, "autoboot", "boot automatically after a delay", command_autoboot);
 
-/*
- * XXX note the 'prompt' argument is not really useful until quoting is implemented
- */
 static int
 command_autoboot(int argc, char *argv[])
 {
@@ -149,15 +148,39 @@ command_autoboot(int argc, char *argv[])
     return(CMD_ERROR);
 }
 
+/*
+ * Called before we go interactive.  If we think we can autoboot, and
+ * we haven't tried already, try now.
+ */
+void
+autoboot_maybe()
+{
+    char	*cp;
+    
+    cp = getenv("autoboot_delay");
+    if ((autoboot_tried == 0) && ((cp == NULL) || strcasecmp(cp, "NO")))
+	autoboot(-1, NULL);		/* try to boot automatically */
+}
+
 int
 autoboot(int delay, char *prompt)
 {
     time_t	when, otime, ntime;
     int		c, yes;
-    char	*argv[2];
+    char	*argv[2], *cp, *ep;
 
-    if (delay == -1)
-	delay = 5;		/* env var?  compile-time define? */
+    autoboot_tried = 1;
+
+    if (delay == -1) {
+	/* try to get a delay from the environment */
+	if ((cp = getenv("autoboot_delay"))) {
+	    delay = strtol(cp, &ep, 0);
+	    if (cp == ep)
+		delay = -1;
+	}
+    }
+    if (delay == -1)		/* all else fails */
+	delay = 10;
 
     otime = time(NULL);
     when = otime + delay;	/* when to boot */
@@ -183,7 +206,6 @@ autoboot(int delay, char *prompt)
 	    otime = ntime;
 	}
     }
-    printf("\n");
     if (yes) {
 	argv[0] = "boot";
 	argv[1] = NULL;
