@@ -3,7 +3,7 @@
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Fri Dec 25 19:59:21 1998]
+                last edit-date: [Sun Feb 14 12:06:23 1999]
 
 --------------------------------------------------------------------------------
 
@@ -22,6 +22,7 @@ Contents:
 	 9. Why it always says "no Space in TX FIFO - State F4 awaiting" ?
 	10. Incoming alert - what does it mean ?
 	11. How do i change irq's on my teles 16.3 card ?
+	12. NL: i'm getting CAUSE 100 or CAUSE 101 when dialling out
 
 
 
@@ -121,6 +122,25 @@ Contents:
   
   B. How to figure out the ISP's IP address
   -----------------------------------------
+
+	======================================================================
+
+	UPDATE NOTE (February 8, 1999):
+
+	Jan Riedinger writes:
+	---------------------
+	>I further think Gary should mention 
+	>in the FAQ in the section "B. How to figure out the ISP's IP address
+	>that it isn't normaly necessary to do it because of the auto 
+	>address negotiation.
+
+	Gary answers:
+	-------------
+	I think you're right. I wrote that stuff before the support for 
+	negotiation of the IPS's address was added to if_spppsubr.c.
+
+	======================================================================
+
   
   I also intentionally configured the interface with the wrong address for
   my ISP, like this:
@@ -515,3 +535,73 @@ for this card (hint: read "man isic") which is currently unused in your
 machine and generate a new kernel.
 
 
+12. NL: i'm getting CAUSE 100 or CAUSE 101 when dialling out
+================================================================================
+
+This one seems to be specific for the Netherlands. (-hm)
+
+Question:
+
+I'm trying to get i4b running on my new FreeBSD 2.2.8 system. The kernel 
+compiles smootly and everything is looking fine until it's time to dial.
+I get the following error:
+
+Feb 10 20:31:00 goofy isdnd[498]: CHD 00018 I4BPPP outgoing call disconnected (remote)
+Feb 10 20:31:00 goofy isdnd[498]: CHD 00018 I4BPPP cause 101: Message not compatible with call state (Q.850)
+Feb 10 20:31:00 goofy isdnd[498]: ERR set_channel_idle: controller [0], invalid channel [-1]!
+Feb 10 20:31:00 goofy isdnd[498]: ERR msg_disconnect_ind: set_channel_idle failed!
+
+The remote site is a Cisco 4000 type router.  I used debug to take a view at 
+the ISDN events on the router but according to that the call doesn't arrive
+over there. 
+
+Same hardware has worked fine with FreeBSD 2.2.6/i4b 0.63. 
+
+Who knows what's wrong?
+
+
+Answer:
+
+This sounds very much like your local phone number or remote phone number
+is configured wrongly... in the Netherlands you need to specify the number
+EXCLUDING the city code... so if you live in Utrecht and your number is
+0301234567 you specify 1234567.
+
+I have seen this in several locations in the Netherlands for years, not
+just with i4b, but also with differentt isdn equipment.. why? guess it
+simply depends on which operator defines your line or what exchange it
+is connected to... :P 
+What I found is that what solved this with other isdn hardware/software,
+also solves it for i4b.. ie.. make sure the local phone number is
+specified, and is specified without the city code.
+The numbering plan should be 'unknown'
+
+Anyway, it would be nice if the Dutch ptt (they are called KPN btw)
+would tell us why this happens... they havent been able to tell me in the
+past so I guess I give up on that, but if everyone finds out whats exactly
+happening here I'd be interested to know... :)
+
+List of number configurations that I have found to almost always work in
+the Netherlands:
+
+1. Local phone number:
+   usually your prefered msn without city code works here.
+   (ie, 1234567 if you would like to use 0201234567 for outgoing calls)
+   on some locations leaving it blank or defining it with the city code,
+   but without the leading 0 works as well here.
+
+2. remote phone number:
+   When this is a 'local' call, don't specify city code.
+   For calling parties in other cities you of cource have to use the city
+   code... in general you can say that KPN only accepts the shortest
+   possible notation where it would still be clear who you want to call.
+
+3. numbers for incomming call recognition:
+   KPN always specifies incoming caller ids with city code, but without
+   leading 0. so 0201234567 will be displayed as 201234567
+
+
+Hope this helps.
+Bart
+
+			(from Bart van Leeuwen bart@ixori.demon.nl)
