@@ -2235,6 +2235,15 @@ filt_ufsread(struct knote *kn, long hint)
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 	struct inode *ip = VTOI(vp);
 
+	/*
+	 * filesystem is gone, so set the EOF flag and schedule 
+	 * the knote for deletion.
+	 */
+	if (hint == NOTE_REVOKE) {
+		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		return (1);
+	}
+
         kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
         return (kn->kn_data != 0);
 }
@@ -2245,6 +2254,10 @@ filt_ufsvnode(struct knote *kn, long hint)
 
 	if (kn->kn_sfflags & hint)
 		kn->kn_fflags |= hint;
+	if (hint == NOTE_REVOKE) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
 	return (kn->kn_fflags != 0);
 }
 

@@ -73,6 +73,7 @@ struct kevent {
 #define	NOTE_ATTRIB	0x0008			/* attributes changed */
 #define	NOTE_LINK	0x0010			/* link count changed */
 #define	NOTE_RENAME	0x0020			/* vnode was renamed */
+#define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
 
 /*
  * data/hint flags for EVFILT_PROC, shared with userspace
