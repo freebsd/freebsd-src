@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rsh
-SRCS=	rsh.c
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 BINOWN=	root

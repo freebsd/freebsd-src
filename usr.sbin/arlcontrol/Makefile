@@ -4,7 +4,6 @@
 #
 
 PROG=	arlcontrol
-SRCS=	arlcontrol.c
 CFLAGS=	-I${.CURDIR}/../../sys -DARLCACHE
 MAN=	arlcontrol.8
 
