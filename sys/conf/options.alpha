@@ -74,9 +74,8 @@ TIMER_FREQ			opt_clock.h
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static file systems
-# (see src/sys/conf/options), except for broken debugging options.
+# (see src/sys/conf/options).
 COMPAT_LINUX		opt_dontuse.h
-DEBUG_LINUX		opt_linux.h
 COMPAT_OSF1		opt_dontuse.h
 
 # Device options

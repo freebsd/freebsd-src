@@ -1926,9 +1926,6 @@ hint.wl.0.port="0x300"
 device		xe
 
 device		oltr
-options 	OLTR_NO_BULLSEYE_MAC
-options 	OLTR_NO_HAWKEYE_MAC
-options 	OLTR_NO_TMS_MAC
 hint.oltr.0.at="isa"
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -2385,9 +2382,6 @@ device		card
 #device		pccard
 #device		cardbus
 
-# You may need to reset all pccards after resuming
-options 	PCIC_RESUME_RESET	# reset after resume
-
 #
 # Laptop/Notebook options:
 #
@@ -2801,9 +2795,6 @@ options 	COMPAT_LINUX
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
 options 	LINPROCFS
-
-# Linux debugging
-options 	DEBUG_LINUX
 
 #
 # SysVR4 ABI emulation
