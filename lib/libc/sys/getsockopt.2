@@ -107,7 +107,7 @@ argument
 and any specified options are passed uninterpreted to the appropriate
 protocol module for interpretation.
 The include file
-.Ao Pa sys/socket.h Ac
+.In sys/socket.h
 contains definitions for
 socket level options, described below.
 Options at other protocol levels vary in format and
@@ -127,7 +127,7 @@ or zero if the option is to be disabled.
 uses a
 .Vt "struct linger"
 argument, defined in
-.Ao Pa sys/socket.h Ac ,
+.In sys/socket.h ,
 which specifies the desired state of the option and the
 linger interval (see below).
 .Dv SO_SNDTIMEO
@@ -136,7 +136,7 @@ and
 use a
 .Vt "struct timeval"
 argument, defined in
-.Ao Pa sys/time.h Ac .
+.In sys/time.h .
 .Pp
 The following options are recognized at the socket level.
 Except as noted, each may be examined with

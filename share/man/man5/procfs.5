@@ -78,7 +78,7 @@ in which case that signal is delivered to the process
 The debug registers as defined by
 .Dv "struct dbregs"
 in
-.Pa <machine/reg.h> .
+.In machine/reg.h .
 .Pa dbregs
 is currently only implemented on the i386 architecture.
 .It Pa etype
@@ -95,7 +95,7 @@ If the file cannot be found, the link target is
 The floating point registers as defined by
 .Dv "struct fpregs"
 in
-.Pa <machine/reg.h> .
+.In machine/reg.h .
 .Pa fpregs
 is only implemented on machines which have distinct general
 purpose and floating point register sets.
@@ -115,7 +115,7 @@ Allows read and write access to the process' register set.
 This file contains a binary data structure
 .Dv "struct regs"
 defined in
-.Pa <machine/reg.h> .
+.In machine/reg.h .
 .Pa regs
 can only be written when the process is stopped.
 .It Pa rlimit

@@ -57,7 +57,7 @@ is a pathname generator that implements the rules for file name pattern
 matching used by the shell.
 .Pp
 The include file
-.Pa glob.h
+.In glob.h
 defines the structure type
 .Fa glob_t ,
 which contains at least the following fields:
@@ -121,7 +121,7 @@ is the bitwise inclusive
 .Tn OR
 of any of the following
 values defined in
-.Pa glob.h :
+.In glob.h :
 .Bl -tag -width GLOB_ALTDIRFUNC
 .It Dv GLOB_APPEND
 Append pathnames generated to the ones from a previous call (or calls)
