@@ -101,6 +101,13 @@ g_dev_print(void)
 	return (1);
 }
 
+/*
+ * XXX: This is disgusting and wrong in every way imaginable:  The only reason
+ * XXX: we have a clone function is because of the root-mount hack we currently
+ * XXX: employ.  An improvment would be to unregister this cloner once we know
+ * XXX: we no longer need it.  Ideally, root-fs would be mounted through DEVFS
+ * XXX: eliminating the need for this hack.
+ */
 static void
 g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
 {
@@ -111,7 +118,6 @@ g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
 
 	g_waitidle();
 
-	/* XXX: can I drop Giant here ??? */
 	/* g_topology_lock(); */
 	LIST_FOREACH(gp, &g_dev_class.geom, geom) {
 		if (strcmp(gp->name, name))
