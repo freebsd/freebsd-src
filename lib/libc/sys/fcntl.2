@@ -70,7 +70,7 @@ share the same file status flags).
 .It
 The close-on-exec flag associated with the new file descriptor
 is set to remain open across
-.Xr execv 2
+.Xr execve 2
 system calls.
 .El
 .It Dv F_GETFD
@@ -424,12 +424,6 @@ is an exclusive lock
 and
 .Fa fildes
 is not a valid file descriptor open for writing.
-.It Bq Er EMFILE
-.Fa Cmd
-is
-.Dv F_DUPFD
-and the maximum allowed number of file descriptors are currently
-open.
 .It Bq Er EDEADLK
 The argument
 .Fa cmd
@@ -468,7 +462,7 @@ refers to a file that does not support locking.
 The argument
 .Fa cmd
 is
-.Dv F_DUPED
+.Dv F_DUPFD
 and the maximum number of file descriptors permitted for the
 process are already in use,
 or no file descriptors greater than or equal to
