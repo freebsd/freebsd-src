@@ -1581,13 +1581,6 @@ video_open( bktr_ptr_t bktr )
 	frame_rate = 30;
 #endif
 
-
-	bt848->iform = BT848_IFORM_M_MUX1 |
-		       BT848_IFORM_X_XT0  |
-		       BT848_IFORM_F_NTSCM;
-	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
-	bktr->format_params = BT848_IFORM_F_NTSCM;
-
 	bktr->max_clip_node = 0;
 
 	bt848->color_ctl_gamma       = 1;
