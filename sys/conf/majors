@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.40 1998/05/09 17:52:26 msmith Exp $
+$Id: majors.i386,v 1.41 1998/05/12 17:03:24 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -85,7 +85,7 @@ chrdev	name		comments
 39	apm		Advanced Power Management
 40	ctx		Cortex
 41	??		was socksys
-42	cx		Cronyx
+42	cx		Cronyx/Sigma serial adapter
 43	vn		vnode "disk" device
 44	gp		GPIB
 45	scd		Sony CDROM interface
@@ -142,4 +142,4 @@ chrdev	name		comments
 96	altq		alternate queueing (including cbq, red, wfq)
 97	myx		Mylex RAID controller (ulf@alameda.net)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
-99	tau		Cronyx/Tau serial adaptor
+99	ct		Cronyx/Tau serial adaptor
