@@ -1000,7 +1000,8 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	size_t i = 0;
 
 	if (req->lock == 1 && req->oldptr)
-		WITNESS_SLEEP(1, NULL);
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "sysctl_old_user()");
 	if (req->oldptr) {
 		i = l;
 		if (req->oldlen <= req->oldidx)
