@@ -421,8 +421,11 @@ enum pthread_susp {
  * Since mmap() makes it possible to specify the maximum growth of a MAP_STACK
  * region, an unmapped gap between thread stacks achieves the same effect as
  * explicitly mapped red zones.
+ * This is declared and initialized in uthread_init.c.
  */
-#define	PTHREAD_GUARD_DEFAULT			PAGE_SIZE
+extern int pthread_guard_default;
+
+extern int pthread_page_size;
 
 /*
  * Maximum size of initial thread's stack.  This perhaps deserves to be larger
@@ -430,9 +433,6 @@ enum pthread_susp {
  * almost entirely on this stack.
  */
 #define PTHREAD_STACK_INITIAL			0x100000
-
-/* Size of the scheduler stack: */
-#define SCHED_STACK_SIZE			PAGE_SIZE
 
 /*
  * Define the different priority ranges.  All applications have thread
@@ -971,7 +971,7 @@ SCLASS struct pthread_attr pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY,
 	PTHREAD_CREATE_RUNNING, PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL,
-	PTHREAD_STACK_DEFAULT, PTHREAD_GUARD_DEFAULT };
+	PTHREAD_STACK_DEFAULT, -1 };
 #else
 ;
 #endif
