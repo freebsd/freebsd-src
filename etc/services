@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.17 1995/12/17 08:27:36 jkh Exp $
+#	$Id: services,v 1.18 1996/01/23 11:14:41 pst Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1400,6 +1400,7 @@ dc		2001/tcp
 wizard		2001/udp   #curry
 globe		2002/tcp
 globe		2002/udp
+cfingerd	2003/tcp    #GNU finger
 mailbox		2004/tcp
 emce		2004/udp    #CCWS mm conf
 berknet		2005/tcp
