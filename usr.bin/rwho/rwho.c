@@ -45,10 +45,11 @@ static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <protocols/rwhod.h>
 #include <dirent.h>
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
 #include <locale.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <utmp.h>
 
 DIR	*dirp;
 
@@ -84,7 +85,6 @@ main(argc, argv)
 	register struct whoent *we;
 	register struct myutmp *mp;
 	int f, n, i;
-	time_t time();
 
 	(void) setlocale(LC_TIME, "");
 
@@ -150,8 +150,9 @@ main(argc, argv)
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
 		strftime(cbuf, sizeof(cbuf), "%c", localtime((time_t *)&mp->myutmp.out_time));
-		(void)sprintf(buf, "%s:%-.8s", mp->myhost, mp->myutmp.out_line);
-		printf("%-8.8s %-*s %.12s",
+		(void)sprintf(buf, "%s:%-.*s", mp->myhost, UT_LINESIZE, mp->myutmp.out_line);
+		printf("%-*.*s %-*s %.12s",
+		   UT_NAMESIZE, UT_NAMESIZE,
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
@@ -180,11 +181,11 @@ utmpcmp(u1, u2)
 {
 	int rc;
 
-	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, 8);
+	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, UT_NAMESIZE);
 	if (rc)
 		return (rc);
-	rc = strncmp(u1->myhost, u2->myhost, 8);
+	rc = strncmp(u1->myhost, u2->myhost, UT_HOSTSIZE);
 	if (rc)
 		return (rc);
-	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, 8));
+	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, UT_LINESIZE));
 }
