@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.5 1996/05/30 22:04:09 smpatel Exp $
+# $Id: killall.pl,v 1.6 1996/08/27 20:04:20 wosch Exp $
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security
@@ -62,48 +62,52 @@ while ($_ = $ARGV[0], /^-/) {
 &usage if $#ARGV < 0;		# no arguments
 die "Maybe $procfs is not mounted\n" unless -e "$procfs/0/status";
 
-while ($program = $ARGV[0]) {
-    shift @ARGV;
-    $thiskill = 0;
+opendir(PROCFS, "$procfs") || die "$procfs $!\n";
+print "  PID  EUID  RUID COMMAND\n" if $debug > 1;
 
-    opendir(PROCFS, "$procfs") || die "$procfs $!\n";
-    print "  PID  EUID  RUID COMMAND\n" if $debug > 1;
+undef %pidu;
+undef %thiskill;
 
-    # quote meta characters
-    ($programMatch = $program) =~ s/(\W)/\\$1/g;
+foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
+    $status = "$procfs/$_/status";
+    $pid = $_;
+    next if $pid == $$;		# don't kill yourself
 
-    foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
-        $status = "$procfs/$_/status";
-        $pid = $_;
-        next if $pid == $$;		# don't kill yourself
+    open(STATUS, "$status") || next; # process maybe already terminated
+    while(<STATUS>) {
+	@proc = split;
 
-        open(STATUS, "$status") || next; # process maybe already terminated
-        while(<STATUS>) {
-	    @proc = split;
+	printf "%5d %5d %5d %s\n", $pid, $proc[$PROC_EUID],
+	       $proc[$PROC_RUID], $proc[$PROC_NAME] if $debug > 1;
 
-	    printf "%5d %5d %5d %s\n", $pid, $proc[$PROC_EUID],
-	    $proc[$PROC_RUID], $proc[$PROC_NAME] if $debug > 1;
+	foreach $program (@ARGV) {
+	    # quote meta characters
+	    ($programMatch = $program) =~ s/(\W)/\\$1/g if $match;
 
 	    if ( # match program name
 	        ($proc[$PROC_NAME] eq $program ||
-	         ($match && $proc[$PROC_NAME] =~ /$programMatch/oi)
+	         ($match && $proc[$PROC_NAME] =~ /$programMatch/i)
 	         ) &&
 	        # id test
 	        ($proc[$PROC_EUID] eq $id || # effective uid
 	         $proc[$PROC_RUID] eq $id || # real uid
 	         !$id))			 # root
 	    {
-	        push(@kill, $pid);
-	        $thiskill++;
+	        push(@kill, $pid) if !$pidu{"$pid"};
+		$pidu{"$pid"} = $pid;
+	        $thiskill{"$program"}++;
 	    }
-        }
-        close STATUS;
+	}
     }
-    closedir PROCFS;
-
-    # nothing found
-    warn "No matching processes ``$program''\n" unless $thiskill;
+    close STATUS;
 }
+closedir PROCFS;
+
+# nothing found
+foreach $program (@ARGV) {
+    warn "No matching processes ``$program''\n" unless $thiskill{"$program"};
+}
+
 
 # nothing found
 exit(1) if $#kill < 0;
