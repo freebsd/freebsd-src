@@ -360,7 +360,16 @@ enum {
 
 #define	IEEE80211_CRC_LEN			4
 
-#define	IEEE80211_MTU				1500
+/*
+ * Maximum acceptable MTU is:
+ *	IEEE80211_MAX_LEN - WEP overhead - CRC -
+ *		QoS overhead - RSN/WPA overhead
+ * Min is arbitrarily chosen > IEEE80211_MIN_LEN.  The default
+ * mtu is Ethernet-compatible; it's set by ether_ifattach.
+ */
+#define	IEEE80211_MTU_MAX			2290
+#define	IEEE80211_MTU_MIN			32
+
 #define	IEEE80211_MAX_LEN			(2300 + IEEE80211_CRC_LEN + \
     (IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN + IEEE80211_WEP_CRCLEN))
 #define	IEEE80211_MIN_LEN \
