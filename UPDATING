@@ -3,13 +3,19 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19991223:
+	Building linux and svr4 compatibility into the kernel now
+	requires /usr/bin/genassym.  Go to /usr/src/usr.bin/genassym,
+	do "make obj ; make clean depend all install" before building
+	your kernel.
+
 19991218:
 	sendmail.cf has moved from /etc/sendmail.cf to
-	/etc/mail/sendmail.cf.  You may need to adjust /etc/rc.conf to
-	cope as well as moving sendmail.cf.
+	/etc/mail/sendmail.cf.  You may need to adjust /etc/rc.conf
+	and /etc/rc to cope as well as moving sendmail.cf.
 
 19991216:
-	ntp 4.0.98 has replaced the ancient xntpd.  The daemon named
+	ntp 4.0.98 has replaced the ancient xntpd.  The daemon name
 	changed from xntpd to ntpd, so you may need to update your
 	/etc/rc.conf file.  The ntp.conf files are compatible with the
 	old release, unless you are using a local reference clock.
@@ -93,6 +99,15 @@ directly to him.  See end of file for further details.
 
 19991113:
 	Gcc 2.95.2 is now the default compiler.
+
+19991030:
+	/etc/radius.conf file format has changed.The format change is
+	as follows.  Each server line in the file should now begin
+	with a new field containing either "auth" for RADIUS
+	authentication, or "acct" for RADIUS accounting.  Formerly
+	only authentication was supported.  If the first field isn't
+	"auth" or "acct" then the code assumes that "auth" is
+	intended.  (That's the compatibility hack.)
 
 19991015:
 	PCCARD has been updated to attach pcic to the isa bus.  Therefore
