@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /*
@@ -33,12 +34,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "files.h"
 #include "gram.h"
 #include "machine.h"
-#include "new.h"
+#include "alloc.h"
 
 
 extern char   **tags;		/* reader.c */
 extern int      verboseflag;	/* getargs.c */
 static int      statisticsflag;	/* XXXXXXX */
+extern int      fixed_outfiles;
 
 #ifndef TRUE
 #define TRUE	(1)
@@ -61,21 +63,22 @@ static int      nuseful_productions, nuseless_productions,
                 nuseful_nonterminals, nuseless_nonterminals;
 
 
-static void useless_nonterminals();
-static void inaccessable_symbols();
-static void reduce_grammar_tables();
-static void print_results();
-static void print_notices();
-void dump_grammar();
+bool bits_equal PARAMS((BSet, BSet, int));
+int nbits PARAMS((unsigned));
+int bits_size PARAMS((BSet, int));
+void reduce_grammar PARAMS((void));
+static void useless_nonterminals PARAMS((void));
+static void inaccessable_symbols PARAMS((void));
+static void reduce_grammar_tables PARAMS((void));
+static void print_results PARAMS((void));
+static void print_notices PARAMS((void));
+void dump_grammar PARAMS((void));
 
-extern void fatals ();
+extern void fatals PARAMS((char *, char *));
 
 
 bool
-bits_equal (L, R, n)
-BSet L;
-BSet R;
-int n;
+bits_equal (BSet L, BSet R, int n)
 {
   int i;
 
@@ -87,13 +90,12 @@ int n;
 
 
 int
-nbits (i)
-unsigned i;
+nbits (unsigned i)
 {
   int count = 0;
 
   while (i != 0) {
-    i ^= (i & -i);
+    i ^= (i & ((unsigned) (- (int) i)));
     ++count;
   }
   return count;
@@ -101,9 +103,7 @@ unsigned i;
 
 
 int
-bits_size (S, n)
-BSet S;
-int n;
+bits_size (BSet S, int n)
 {
   int i, count = 0;
 
@@ -113,7 +113,7 @@ int n;
 }
 
 void
-reduce_grammar ()
+reduce_grammar (void)
 {
   bool reduced;
 
@@ -138,7 +138,7 @@ reduce_grammar ()
   print_notices();
 
   if (!BITISSET(N, start_symbol - ntokens))
-    fatals("Start symbol %s does not derive any sentence",
+    fatals(_("Start symbol %s does not derive any sentence"),
 	   tags[start_symbol]);
 
   reduce_grammar_tables();
@@ -151,8 +151,8 @@ reduce_grammar ()
   /**/ statisticsflag = FALSE; /* someday getopts should handle this */
   if (statisticsflag == TRUE)
     fprintf(stderr,
-	    "reduced %s defines %d terminal%s, %d nonterminal%s\
-, and %d production%s.\n", infile,
+	    _("reduced %s defines %d terminal%s, %d nonterminal%s\
+, and %d production%s.\n"), infile,
 	    ntokens, (ntokens == 1 ? "" : "s"),
 	    nvars,   (nvars   == 1 ? "" : "s"),
 	    nrules,  (nrules  == 1 ? "" : "s"));
@@ -169,14 +169,12 @@ reduce_grammar ()
 
 /*
  * Another way to do this would be with a set for each production and then do
- * subset tests against N, but even for the C grammar the whole reducing
+ * subset tests against N0, but even for the C grammar the whole reducing
  * process takes only 2 seconds on my 8Mhz AT.
  */
 
-static bool 
-useful_production (i, N)
-int  i;
-BSet N;
+static bool
+useful_production (int i, BSet N0)
 {
   rule  r;
   short n;
@@ -188,7 +186,7 @@ BSet N;
 
   for (r = &ritem[rrhs[i]]; *r > 0; r++)
     if (ISVAR(n = *r))
-      if (!BITISSET(N, n - ntokens))
+      if (!BITISSET(N0, n - ntokens))
 	return FALSE;
   return TRUE;
 }
@@ -196,8 +194,8 @@ BSet N;
 
 /* Remember that rules are 1-origin, symbols are 0-origin. */
 
-static void 
-useless_nonterminals ()
+static void
+useless_nonterminals (void)
 {
   BSet Np, Ns;
   int  i, n;
@@ -218,7 +216,7 @@ useless_nonterminals ()
    * set being computed remains unchanged.  Any nonterminals not in the
    * set at that point are useless in that they will never be used in
    * deriving a sentence of the language.
-   * 
+   *
    * This iteration doesn't use any special traversal over the
    * productions.  A set is kept of all productions for which all the
    * nonterminals in the RHS are in useful.  Only productions not in
@@ -253,8 +251,8 @@ useless_nonterminals ()
   N = Np;
 }
 
-static void 
-inaccessable_symbols ()
+static void
+inaccessable_symbols (void)
 {
   BSet  Vp, Vs, Pp;
   int   i, n;
@@ -270,13 +268,13 @@ inaccessable_symbols ()
    * reachable symbols, add the production to the set of reachable
    * productions, and add all of the nonterminals in the RHS of the
    * production to the set of reachable symbols.
-   * 
+   *
    * Consider only the (partially) reduced grammar which has only
    * nonterminals in N and productions in P.
-   * 
+   *
    * The result is the set P of productions in the reduced grammar, and
    * the set V of symbols in the reduced grammar.
-   * 
+   *
    * Although this algorithm also computes the set of terminals which are
    * reachable, no terminal will be deleted from the grammar. Some
    * terminals might not be in the grammar but might be generated by
@@ -302,7 +300,7 @@ inaccessable_symbols ()
 	Vp[i] = V[i];
       for (i = 1; i <= nrules; i++)
 	{
-	  if (!BITISSET(Pp, i) && BITISSET(P, i) && 
+	  if (!BITISSET(Pp, i) && BITISSET(P, i) &&
 	      BITISSET(V, rlhs[i]))
 	    {
 	      for (r = &ritem[rrhs[i]]; *r >= 0; r++)
@@ -352,8 +350,8 @@ inaccessable_symbols ()
       SETBIT(V1, rprecsym[i]);
 }
 
-static void 
-reduce_grammar_tables ()
+static void
+reduce_grammar_tables (void)
 {
 /* This is turned off because we would need to change the numbers
    in the case statements in the actions file.  */
@@ -481,8 +479,8 @@ reduce_grammar_tables ()
     }
 }
 
-static void 
-print_results ()
+static void
+print_results (void)
 {
   int   i;
 /*  short j; JF unused */
@@ -491,7 +489,7 @@ print_results ()
 
   if (nuseless_nonterminals > 0)
     {
-      fprintf(foutput, "Useless nonterminals:\n\n");
+      fprintf(foutput, _("Useless nonterminals:\n\n"));
       for (i = ntokens; i < nsyms; i++)
 	if (!BITISSET(V, i))
 	  fprintf(foutput, "   %s\n", tags[i]);
@@ -503,7 +501,7 @@ print_results ()
 	{
 	  if (!b)
 	    {
-	      fprintf(foutput, "\n\nTerminals which are not used:\n\n");
+	      fprintf(foutput, _("\n\nTerminals which are not used:\n\n"));
 	      b = TRUE;
 	    }
 	  fprintf(foutput, "   %s\n", tags[i]);
@@ -512,7 +510,7 @@ print_results ()
 
   if (nuseless_productions > 0)
     {
-      fprintf(foutput, "\n\nUseless rules:\n\n");
+      fprintf(foutput, _("\n\nUseless rules:\n\n"));
       for (i = 1; i <= nrules; i++)
 	{
 	  if (!BITISSET(P, i))
@@ -531,8 +529,8 @@ print_results ()
     fprintf(foutput, "\n\n");
 }
 
-void 
-dump_grammar ()
+void
+dump_grammar (void)
 {
   int i;
   rule r;
@@ -540,23 +538,23 @@ dump_grammar ()
   fprintf(foutput,
 	  "ntokens = %d, nvars = %d, nsyms = %d, nrules = %d, nitems = %d\n\n",
 	  ntokens, nvars, nsyms, nrules, nitems);
-  fprintf(foutput, "Variables\n---------\n\n");
-  fprintf(foutput, "Value  Sprec    Sassoc    Tag\n");
+  fprintf(foutput, _("Variables\n---------\n\n"));
+  fprintf(foutput, _("Value  Sprec    Sassoc    Tag\n"));
   for (i = ntokens; i < nsyms; i++)
     fprintf(foutput, "%5d  %5d  %5d  %s\n",
 	    i, sprec[i], sassoc[i], tags[i]);
   fprintf(foutput, "\n\n");
-  fprintf(foutput, "Rules\n-----\n\n");
+  fprintf(foutput, _("Rules\n-----\n\n"));
   for (i = 1; i <= nrules; i++)
     {
-      fprintf(foutput, "%-5d(%5d%5d)%5d : (@%-5d)", 
+      fprintf(foutput, "%-5d(%5d%5d)%5d : (@%-5d)",
 	      i, rprec[i], rassoc[i], rlhs[i], rrhs[i]);
       for (r = &ritem[rrhs[i]]; *r > 0; r++)
 	fprintf(foutput, "%5d", *r);
       fprintf(foutput, " [%d]\n", -(*r));
     }
   fprintf(foutput, "\n\n");
-  fprintf(foutput, "Rules interpreted\n-----------------\n\n");
+  fprintf(foutput, _("Rules interpreted\n-----------------\n\n"));
   for (i = 1; i <= nrules; i++)
     {
       fprintf(foutput, "%-5d  %s :", i, tags[rlhs[i]]);
@@ -568,28 +566,26 @@ dump_grammar ()
 }
 
 
-static void 
-print_notices ()
+static void
+print_notices (void)
 {
-  extern int fixed_outfiles;
-
   if (fixed_outfiles && nuseless_productions)
-    fprintf(stderr, "%d rules never reduced\n", nuseless_productions);
+    fprintf(stderr, _("%d rules never reduced\n"), nuseless_productions);
 
-  fprintf(stderr, "%s contains ", infile);
+  fprintf(stderr, _("%s contains "), infile);
 
   if (nuseless_nonterminals > 0)
     {
-      fprintf(stderr, "%d useless nonterminal%s",
+      fprintf(stderr, _("%d useless nonterminal%s"),
 	      nuseless_nonterminals,
 	      (nuseless_nonterminals == 1 ? "" : "s"));
     }
   if (nuseless_nonterminals > 0 && nuseless_productions > 0)
-    fprintf(stderr, " and ");
+    fprintf(stderr, _(" and "));
 
   if (nuseless_productions > 0)
     {
-      fprintf(stderr, "%d useless rule%s",
+      fprintf(stderr, _("%d useless rule%s"),
 	      nuseless_productions,
 	      (nuseless_productions == 1 ? "" : "s"));
     }

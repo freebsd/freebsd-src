@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 #include <stdio.h>
@@ -34,10 +35,12 @@ char *spec_name_prefix; /* for -p.  */
 char *spec_file_prefix; /* for -b. */
 extern int fixed_outfiles;/* for -y */
   
-extern char *program_name;
-extern char *version_string;
+void usage PARAMS((FILE *));
+void getargs PARAMS((int, char *[]));
 
-extern void warns();	/* main.c */
+extern char *program_name;
+
+extern void warns PARAMS((char *, char *));	/* main.c */
 
 struct option longopts[] =
 {
@@ -60,23 +63,21 @@ struct option longopts[] =
 };
 
 void
-usage (stream)
-     FILE *stream;
+usage (FILE *stream)
 {
-  fprintf (stream, "\
+  fprintf (stream, _("\
 Usage: %s [-dhklntvyV] [-b file-prefix] [-o outfile] [-p name-prefix]\n\
        [--debug] [--defines] [--fixed-output-files] [--no-lines]\n\
        [--verbose] [--version] [--help] [--yacc]\n\
        [--no-parser] [--token-table]\n\
        [--file-prefix=prefix] [--name-prefix=prefix]\n\
-       [--output=outfile] grammar-file\n",
+       [--output=outfile] grammar-file\n\n\
+Report bugs to bug-bison@gnu.org\n"),
 	   program_name);
 }
 
 void
-getargs(argc, argv)
-     int argc;
-     char *argv[];
+getargs (int argc, char *argv[])
 {
   register int c;
 
@@ -106,7 +107,7 @@ getargs(argc, argv)
 	  exit (0);
 
 	case 'V':
-	  printf ("%s", version_string);
+	  printf ("%s\n", VERSION_STRING);
 	  exit (0);
 	  
 	case 'v':
@@ -157,11 +158,11 @@ getargs(argc, argv)
 
   if (optind == argc)
     {
-      fprintf(stderr, "%s: no grammar file given\n", program_name);
+      fprintf(stderr, _("%s: no grammar file given\n"), program_name);
       exit(1);
     }
   if (optind < argc - 1)
-    fprintf(stderr, "%s: extra arguments ignored after '%s'\n", 
+    fprintf(stderr, _("%s: extra arguments ignored after '%s'\n"),
 		program_name, argv[optind]);
 
   infile = argv[optind];

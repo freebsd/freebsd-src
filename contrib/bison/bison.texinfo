@@ -1,7 +1,8 @@
 \input texinfo @c -*-texinfo-*-
 @comment %**start of header
 @setfilename bison.info
-@settitle Bison 1.25
+@include version.texi
+@settitle Bison @value{VERSION}
 @setchapternewpage odd
 
 @iftex
@@ -12,8 +13,6 @@
 @c This edition has been formatted so that you can format and print it in
 @c the smallbook format. 
 @c @smallbook
-
-@c next time, consider using @set for edition number, etc...
 
 @c Set following if you have the new `shorttitlepage' command
 @c @clear shorttitlepage-enabled
@@ -37,9 +36,17 @@
 @comment %**end of header
 
 @ifinfo
+@format
+START-INFO-DIR-ENTRY
+* bison: (bison).	GNU Project parser generator (yacc replacement).
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@ifinfo
 This file documents the Bison parser generator.
 
-Copyright (C) 1988, 89, 90, 91, 92, 93, 1995 Free Software Foundation, Inc.
+Copyright (C) 1988, 89, 90, 91, 92, 93, 95, 98, 1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -73,13 +80,13 @@ instead of in the original English.
 @titlepage
 @title Bison
 @subtitle The YACC-compatible Parser Generator
-@subtitle November 1995, Bison Version 1.25
+@subtitle @value{UPDATED}, Bison Version @value{VERSION}
 
 @author by Charles Donnelly and Richard Stallman
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1988, 89, 90, 91, 92, 93, 1995 Free Software
+Copyright @copyright{} 1988, 89, 90, 91, 92, 93, 95, 98, 1999 Free Software
 Foundation 
 
 @sp 2
@@ -121,7 +128,7 @@ Cover art by Etienne Suvasa.
 @node Top, Introduction, (dir), (dir)
 
 @ifinfo
-This manual documents version 1.25 of Bison.
+This manual documents version @value{VERSION} of Bison.
 @end ifinfo
 
 @menu
@@ -310,7 +317,7 @@ Bison was written primarily by Robert Corbett; Richard Stallman made it
 Yacc-compatible.  Wilfred Hansen of Carnegie Mellon University added
 multicharacter string literals and other features.
 
-This edition corresponds to version 1.25 of Bison.
+This edition corresponds to version @value{VERSION} of Bison.
 
 @node Conditions, Copying, Introduction, Top
 @unnumbered Conditions for Using Bison
@@ -346,7 +353,7 @@ using the other GNU tools.
 
 @display
 Copyright @copyright{} 1989, 1991 Free Software Foundation, Inc.
-675 Mass Ave, Cambridge, MA 02139, USA
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 Everyone is permitted to copy and distribute verbatim copies
 of this license document, but changing it is not allowed.
@@ -692,7 +699,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.
 @end smallexample
 
 Also add information on how to contact you by electronic and paper mail.
@@ -3098,24 +3106,32 @@ for example, a nonreentrant program may not be safe to call from a signal
 handler.  In systems with multiple threads of control, a nonreentrant
 program must be called only within interlocks.
 
-The Bison parser is not normally a reentrant program, because it uses
-statically allocated variables for communication with @code{yylex}.  These
-variables include @code{yylval} and @code{yylloc}.
+Normally, Bison generates a parser which is not reentrant.  This is
+suitable for most uses, and it permits compatibility with YACC.  (The
+standard YACC interfaces are inherently nonreentrant, because they use
+statically allocated variables for communication with @code{yylex},
+including @code{yylval} and @code{yylloc}.)
 
-The Bison declaration @code{%pure_parser} says that you want the parser
-to be reentrant.  It looks like this:
+Alternatively, you can generate a pure, reentrant parser.  The Bison
+declaration @code{%pure_parser} says that you want the parser to be
+reentrant.  It looks like this:
 
 @example
 %pure_parser
 @end example
 
-The effect is that the two communication variables become local
-variables in @code{yyparse}, and a different calling convention is used
-for the lexical analyzer function @code{yylex}.  @xref{Pure Calling,
-,Calling Conventions for Pure Parsers}, for the details of this.  The
-variable @code{yynerrs} also becomes local in @code{yyparse}
-(@pxref{Error Reporting, ,The Error Reporting Function @code{yyerror}}).
-The convention for calling @code{yyparse} itself is unchanged.
+The result is that the communication variables @code{yylval} and
+@code{yylloc} become local variables in @code{yyparse}, and a different
+calling convention is used for the lexical analyzer function
+@code{yylex}.  @xref{Pure Calling, ,Calling Conventions for Pure
+Parsers}, for the details of this.  The variable @code{yynerrs} also
+becomes local in @code{yyparse} (@pxref{Error Reporting, ,The Error
+Reporting Function @code{yyerror}}).  The convention for calling
+@code{yyparse} itself is unchanged.
+
+Whether the parser is pure has nothing to do with the grammar rules.
+You can generate either a pure parser or a nonreentrant parser from any
+valid grammar.
 
 @node Decl Summary,  , Pure Decl, Declarations
 @subsection Bison Declaration Summary
@@ -3383,7 +3399,8 @@ for (i = 0; i < YYNTOKENS; i++)
   @{
     if (yytname[i] != 0
         && yytname[i][0] == '"'
-        && strncmp (yytname[i] + 1, token_buffer, strlen (token_buffer))
+        && strncmp (yytname[i] + 1, token_buffer,
+                    strlen (token_buffer))
         && yytname[i][strlen (token_buffer) + 1] == '"'
         && yytname[i][strlen (token_buffer) + 2] == 0)
       break;
@@ -3718,8 +3735,8 @@ struct @{
 @};
 @end example
 
-Thus, to get the starting line number of the third component, use
-@samp{@@3.first_line}.
+Thus, to get the starting line number of the third component, you would
+use @samp{@@3.first_line}.
 
 In order for the members of this structure to contain valid information,
 you must make @code{yylex} supply this information about each token.

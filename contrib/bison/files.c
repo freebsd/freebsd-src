@@ -15,8 +15,11 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
+
+#include "system.h"
 
 #if defined (VMS) & !defined (__VMS_POSIX)
 #include <ssdef.h>
@@ -29,10 +32,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
+#if defined (_MSC_VER)
+#ifndef XPFILE
+#define XPFILE "c:/usr/local/lib/bison.simple"
+#endif
+#ifndef XPFILE1
+#define XPFILE1 "c:/usr/local/lib/bison.hairy"
+#endif
+#endif
+
 #include <stdio.h>
-#include "system.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "files.h"
-#include "new.h"
+#include "alloc.h"
 #include "gram.h"
 
 FILE *finput = NULL;
@@ -63,8 +79,13 @@ extern int noparserflag;
 extern char	*mktemp();	/* So the compiler won't complain */
 extern char	*getenv();
 extern void	perror();
-FILE	*tryopen();	/* This might be a good idea */
-void done();
+
+char *stringappend PARAMS((char *, int, char *));
+void openfiles PARAMS((void));
+void open_extra_files PARAMS((void));
+FILE *tryopen PARAMS((char *, char *));	/* This might be a good idea */
+int tryclose PARAMS((FILE *));
+void done PARAMS((int));
 
 extern char *program_name;
 extern int verboseflag;
@@ -72,11 +93,8 @@ extern int definesflag;
 int fixed_outfiles = 0;
 
 
-char*
-stringappend(string1, end1, string2)
-char *string1;
-int end1;
-char *string2;
+char *
+stringappend (char *string1, int end1, char *string2)
 {
   register char *ostring;
   register char *cp, *cp1;
@@ -93,7 +111,8 @@ char *string2;
     *cp++ = *cp1++;
 
   cp1 = string2;
-  while (*cp++ = *cp1++) ;
+  while ((*cp++ = *cp1++))
+    ;
 
   return ostring;
 }
@@ -102,10 +121,12 @@ char *string2;
 /* JF this has been hacked to death.  Nowaday it sets up the file names for
    the output files, and opens the tmp files and the parser */
 void
-openfiles()
+openfiles (void)
 {
   char *name_base;
+#ifdef MSDOS
   register char *cp;
+#endif
   char *filename;
   int base_length;
   int short_base_length;
@@ -123,6 +144,24 @@ openfiles()
     tmp_base = "";
   strlwr (infile);
 #endif /* MSDOS */
+
+#if (defined(_WIN32) && !defined(__CYGWIN32__))
+  tmp_base = getenv ("TEMP");		/* Windows95 defines this ... */
+  if (tmp_base == 0)
+    tmp_base = getenv ("Temp");		/* ... while NT prefers this */
+  if (tmp_base == 0)
+    tmp_base = "";
+  strlwr (infile);
+#endif /* _WIN32 && !__CYGWIN32__ */
+
+#if (defined(unix) || defined(__unix) || defined(__unix__))
+  {
+    char *tmp_ptr = getenv("TMPDIR");
+
+    if (tmp_ptr != 0)
+      tmp_base = stringappend (tmp_ptr, strlen (tmp_ptr), "/b.");
+  }
+#endif  /* unix || __unix || __unix__ */
 
   tmp_len = strlen (tmp_base);
 
@@ -254,13 +293,13 @@ openfiles()
       fdefines = tryopen(tmpdefsfile, "w+");
     }
 
-#ifndef MSDOS
+#if !(defined (MSDOS) || (defined(_WIN32) && !defined(__CYGWIN32__)))
   if (! noparserflag)
     unlink(actfile);
   unlink(tmpattrsfile);
   unlink(tmptabfile);
   unlink(tmpdefsfile);
-#endif
+#endif /* MSDOS || (_WIN32 && !__CYGWIN32__) */
 
 	/* These are opened by `done' or `open_extra_files', if at all */
   if (spec_outfile)
@@ -288,14 +327,16 @@ openfiles()
 This is done when %semantic_parser is seen in the declarations section.  */
 
 void
-open_extra_files()
+open_extra_files (void)
 {
   FILE *ftmp;
   int c;
-  char *filename, *cp;
+  char *filename;
+#ifdef MSDOS
+  char *cp;
+#endif
 
-  if (fparser)
-    fclose(fparser);
+  tryclose(fparser);
 
   if (! noparserflag) 
     {
@@ -320,7 +361,7 @@ open_extra_files()
   rewind(fattrs);
   while((c=getc(fattrs))!=EOF)	/* Thank god for buffering */
     putc(c,ftmp);
-  fclose(fattrs);
+  tryclose(fattrs);
   fattrs=ftmp;
 
   fguard = tryopen(guardfile, "w");
@@ -330,9 +371,7 @@ open_extra_files()
 	/* JF to make file opening easier.  This func tries to open file
 	   NAME with mode MODE, and prints an error message if it fails. */
 FILE *
-tryopen(name, mode)
-char *name;
-char *mode;
+tryopen (char *name, char *mode)
 {
   FILE	*ptr;
 
@@ -346,27 +385,33 @@ char *mode;
   return ptr;
 }
 
-void
-done(k)
-int k;
+int
+tryclose (FILE *ptr)
 {
-  if (faction)
-    fclose(faction);
+  int result;
 
-  if (fattrs)
-    fclose(fattrs);
+  if (ptr == NULL)
+    return 0;
 
-  if (fguard)
-    fclose(fguard);
+  result = fclose (ptr);
+  if (result == EOF)
+    {
+      fprintf (stderr, "%s: ", program_name);
+      perror ("fclose");
+      done (2);
+    }
+  return result;
+}
 
-  if (finput)
-    fclose(finput);
-
-  if (fparser)
-    fclose(fparser);
-
-  if (foutput)
-    fclose(foutput);
+void
+done (int k)
+{
+  tryclose(faction);
+  tryclose(fattrs);
+  tryclose(fguard);
+  tryclose(finput);
+  tryclose(fparser);
+  tryclose(foutput);
 
 	/* JF write out the output file */
   if (k == 0 && ftable)
@@ -378,8 +423,8 @@ int k;
       rewind(ftable);
       while((c=getc(ftable)) != EOF)
         putc(c,ftmp);
-      fclose(ftmp);
-      fclose(ftable);
+      tryclose(ftmp);
+      tryclose(ftable);
 
       if (definesflag)
         {
@@ -388,8 +433,8 @@ int k;
           rewind(fdefines);
           while((c=getc(fdefines)) != EOF)
             putc(c,ftmp);
-          fclose(ftmp);
-          fclose(fdefines);
+          tryclose(ftmp);
+          tryclose(fdefines);
         }
     }
 
@@ -403,12 +448,12 @@ int k;
   if (k==0) sys$exit(SS$_NORMAL);
   sys$exit(SS$_ABORT);
 #else
-#ifdef MSDOS
+#if (defined (MSDOS) || (defined(_WIN32) && !defined(__CYGWIN32__)))
   if (actfile && ! noparserflag) unlink(actfile);
   if (tmpattrsfile) unlink(tmpattrsfile);
   if (tmptabfile) unlink(tmptabfile);
   if (tmpdefsfile) unlink(tmpdefsfile);
-#endif /* MSDOS */
+#endif /* MSDOS || (_WIN32 && !__CYGWIN32__) */
   exit(k);
 #endif /* not VMS, or __VMS_POSIX */
 }
