@@ -146,6 +146,7 @@ struct uart_softc {
 	union {
 		/* TTY specific data. */
 		struct {
+			struct cdev *si[2];	/* We have 2 device special files. */
 			struct tty *tp;
 		} u_tty;
 		/* Keyboard specific data. */
