@@ -74,7 +74,8 @@ ata_dmainit(struct ata_channel *ch)
 	ch->dma->load = ata_dmaload;
 	ch->dma->unload = ata_dmaunload;
 	ch->dma->alignment = 2;
-	ch->dma->max_iosize = 64*1024;
+	ch->dma->max_iosize = 64 * 1024;
+	ch->dma->boundary = 64 * 1024;
     }
 }
 
@@ -106,9 +107,10 @@ ata_dmaalloc(struct ata_channel *ch)
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->cdmatag))
 	goto error;
 
-    if (bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 64*1024,
+    if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
+			   NULL, NULL, ch->dma->max_iosize, 
+			   ATA_DMA_ENTRIES, ch->dma->boundary,
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->ddmatag))
 	goto error;
 
