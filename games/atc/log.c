@@ -51,6 +51,12 @@ static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 5/31/93";
 #include "include.h"
 #include "pathnames.h"
 
+#ifdef SYSV
+#include <sys/utsname.h>
+#endif
+
+static FILE *score_fp;
+
 int
 compar(va, vb)
 	const void *va, *vb;
@@ -95,44 +101,68 @@ timestr(t)
 	return (s);
 }
 
-log_score(list_em)
+void
+open_score_file()
 {
-	register int	i, fd, num_scores = 0, good, changed = 0, found = 0;
+	mode_t old_mask;
+	int score_fd;
+	int flags;
+
+	old_mask = umask(0);
+	score_fd = open(_PATH_SCORE, O_CREAT|O_RDWR, 0664);
+	umask(old_mask);
+	if (score_fd < 0) {
+		warn("open %s", _PATH_SCORE);
+		return;
+	}
+	/* Set the close-on-exec flag.  If this fails for any reason, quit
+	 * rather than leave the score file open to tampering.  */
+	flags = fcntl(score_fd, F_GETFD);
+	if (flags < 0)
+		err(1, "fcntl F_GETFD");
+	flags |= FD_CLOEXEC;
+	if (fcntl(score_fd, F_SETFD, flags) == -1)
+		err(1, "fcntl F_SETFD");
+	/*
+	 * This is done to take advantage of stdio, while still
+	 * allowing a O_CREAT during the open(2) of the log file.
+	 */
+	score_fp = fdopen(score_fd, "r+");
+	if (score_fp == NULL) {
+		warn("fdopen %s", _PATH_SCORE);
+		return;
+	}
+}
+
+int
+log_score(list_em)
+	int list_em;
+{
+	int		i, num_scores = 0, good, changed = 0, found = 0;
 	struct passwd	*pw;
-	FILE		*fp;
-	char		*cp, *index(), *rindex();
+	char		*cp;
 	SCORE		score[100], thisscore;
 #ifdef SYSV
 	struct utsname	name;
 #endif
 
-	umask(0);
-	fd = open(_PATH_SCORE, O_CREAT|O_RDWR, 0664);
-	if (fd < 0) {
-		perror(_PATH_SCORE);
+	if (score_fp == NULL) {
+		warnx("no score file available");
 		return (-1);
 	}
-	/*
-	 * This is done to take advantage of stdio, while still
-	 * allowing a O_CREAT during the open(2) of the log file.
-	 */
-	fp = fdopen(fd, "r+");
-	if (fp == NULL) {
-		perror(_PATH_SCORE);
-		return (-1);
-	}
+
 #ifdef BSD
-	if (flock(fileno(fp), LOCK_EX) < 0)
+	if (flock(fileno(score_fp), LOCK_EX) < 0)
 #endif
 #ifdef SYSV
-	while (lockf(fileno(fp), F_LOCK, 1) < 0)
+	while (lockf(fileno(score_fp), F_LOCK, 1) < 0)
 #endif
 	{
-		perror("flock");
+		warn("flock %s", _PATH_SCORE);
 		return (-1);
 	}
 	for (;;) {
-		good = fscanf(fp, "%s %s %s %d %d %d",
+		good = fscanf(score_fp, SCORE_SCANF_FMT,
 			score[num_scores].name,
 			score[num_scores].host,
 			score[num_scores].game,
@@ -146,7 +176,7 @@ log_score(list_em)
 		if ((pw = (struct passwd *) getpwuid(getuid())) == NULL) {
 			fprintf(stderr,
 				"getpwuid failed for uid %d.  Who are you?\n",
-				getuid());
+				(int)getuid());
 			return (-1);
 		}
 		strcpy(thisscore.name, pw->pw_name);
@@ -216,12 +246,21 @@ log_score(list_em)
 			else
 				puts("You made the top players list!");
 			qsort(score, num_scores, sizeof (*score), compar);
-			rewind(fp);
+			rewind(score_fp);
 			for (i = 0; i < num_scores; i++)
-				fprintf(fp, "%s %s %s %d %d %d\n",
+				fprintf(score_fp, "%s %s %s %d %d %d\n",
 					score[i].name, score[i].host,
 					score[i].game, score[i].planes,
 					score[i].time, score[i].real_time);
+		fflush(score_fp);
+		if (ferror(score_fp))
+			warn("error writing %s", _PATH_SCORE);
+		/* It is just possible that updating an entry could
+		 * have reduced the length of the file, so we
+		 * truncate it.  The lseek is required for stream/fd
+		 * synchronisation by POSIX.1.  */
+		lseek(fileno(score_fp), 0, SEEK_END);
+		ftruncate(fileno(score_fp), ftell(score_fp));
 		} else {
 			if (found)
 				puts("You didn't beat your previous score.");
@@ -231,12 +270,12 @@ log_score(list_em)
 		putchar('\n');
 	}
 #ifdef BSD
-	flock(fileno(fp), LOCK_UN);
+	flock(fileno(score_fp), LOCK_UN);
 #endif
 #ifdef SYSV
 	/* lock will evaporate upon close */
 #endif
-	fclose(fp);
+	fclose(score_fp);
 	printf("%2s:  %-8s  %-8s  %-18s  %4s  %9s  %4s\n", "#", "name", "host",
 		"game", "time", "real time", "planes safe");
 	puts("-------------------------------------------------------------------------------");

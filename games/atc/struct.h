@@ -105,6 +105,8 @@ typedef struct {
 	int	real_time;
 } SCORE;
 
+#define SCORE_SCANF_FMT		"%9s %255s %255s %d %d %d"
+
 typedef struct displacement {
 	int	dx;
 	int	dy;
