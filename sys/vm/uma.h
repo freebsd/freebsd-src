@@ -54,15 +54,17 @@ typedef struct uma_zone * uma_zone_t;
  *	item  A pointer to the memory which has been allocated.
  *	arg   The arg field passed to uma_zalloc_arg
  *	size  The size of the allocated item
+ *	flags See zalloc flags
  * 
  * Returns:
- *	Nothing
+ *	0      on success
+ *      errno  on failure
  *
  * Discussion:
  *	The constructor is called just before the memory is returned
  *	to the user. It may block if necessary.
  */
-typedef void (*uma_ctor)(void *mem, int size, void *arg);
+typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
 
 /*
  * Item destructor
@@ -88,15 +90,17 @@ typedef void (*uma_dtor)(void *mem, int size, void *arg);
  * Arguments:
  *	item  A pointer to the memory which has been allocated.
  *	size  The size of the item being initialized.
+ *	flags See zalloc flags
  * 
  * Returns:
- *	Nothing
+ *	0      on success
+ *      errno  on failure
  *
  * Discussion:
  *	The initializer is called when the memory is cached in the uma zone. 
  *	this should be the same state that the destructor leaves the object in.
  */
-typedef void (*uma_init)(void *mem, int size);
+typedef int (*uma_init)(void *mem, int size, int flags);
 
 /*
  * Item discard function

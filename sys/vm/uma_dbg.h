@@ -37,15 +37,15 @@
 #ifndef VM_UMA_DBG_H
 #define VM_UMA_DBG_H
 
-void trash_ctor(void *mem, int size, void *arg);
+int trash_ctor(void *mem, int size, void *arg, int flags);
 void trash_dtor(void *mem, int size, void *arg);
-void trash_init(void *mem, int size);
+int trash_init(void *mem, int size, int flags);
 void trash_fini(void *mem, int size);
 
 /* For use only by malloc */
-void mtrash_ctor(void *mem, int size, void *arg);
+int mtrash_ctor(void *mem, int size, void *arg, int flags);
 void mtrash_dtor(void *mem, int size, void *arg);
-void mtrash_init(void *mem, int size);
+int mtrash_init(void *mem, int size, int flags);
 void mtrash_fini(void *mem, int size);
 
 void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);

@@ -143,8 +143,8 @@ MTX_SYSINIT(tid_lock, &tid_lock, "TID lock", MTX_DEF);
 /*
  * Prepare a thread for use.
  */
-static void
-thread_ctor(void *mem, int size, void *arg)
+static int
+thread_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct thread	*td;
 
@@ -165,6 +165,7 @@ thread_ctor(void *mem, int size, void *arg)
 	 * next thread.
 	 */
 	td->td_critnest = 1;
+	return (0);
 }
 
 /*
@@ -202,8 +203,8 @@ thread_dtor(void *mem, int size, void *arg)
 /*
  * Initialize type-stable parts of a thread (when newly created).
  */
-static void
-thread_init(void *mem, int size)
+static int
+thread_init(void *mem, int size, int flags)
 {
 	struct thread *td;
 	struct tid_bitmap_part *bmp, *new;
@@ -251,6 +252,7 @@ thread_init(void *mem, int size)
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
+	return (0);
 }
 
 /*
@@ -287,25 +289,27 @@ thread_fini(void *mem, int size)
 /*
  * Initialize type-stable parts of a kse (when newly created).
  */
-static void
-kse_init(void *mem, int size)
+static int
+kse_init(void *mem, int size, int flags)
 {
 	struct kse	*ke;
 
 	ke = (struct kse *)mem;
 	ke->ke_sched = (struct ke_sched *)&ke[1];
+	return (0);
 }
 
 /*
  * Initialize type-stable parts of a ksegrp (when newly created).
  */
-static void
-ksegrp_init(void *mem, int size)
+static int
+ksegrp_init(void *mem, int size, int flags)
 {
 	struct ksegrp	*kg;
 
 	kg = (struct ksegrp *)mem;
 	kg->kg_sched = (struct kg_sched *)&kg[1];
+	return (0);
 }
 
 /*

@@ -149,7 +149,7 @@ static int next_index;
 static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
-static void vm_object_zinit(void *mem, int size);
+static int vm_object_zinit(void *mem, int size, int flags);
 
 #ifdef INVARIANTS
 static void vm_object_zdtor(void *mem, int size, void *arg);
@@ -175,8 +175,8 @@ vm_object_zdtor(void *mem, int size, void *arg)
 }
 #endif
 
-static void
-vm_object_zinit(void *mem, int size)
+static int
+vm_object_zinit(void *mem, int size, int flags)
 {
 	vm_object_t object;
 
@@ -188,6 +188,7 @@ vm_object_zinit(void *mem, int size)
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+	return (0);
 }
 
 void
