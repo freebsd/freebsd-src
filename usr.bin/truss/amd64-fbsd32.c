@@ -236,7 +236,8 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    * parameter?
    */
 
-  if (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit")) {
+  if (fsc.name != NULL &&
+      (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
 
     /* XXX
      * This could be done in a more general
