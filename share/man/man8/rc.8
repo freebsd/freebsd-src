@@ -477,11 +477,13 @@ Following tradition, all startup files reside in
 .It Pa /etc/rc.shutdown
 .It Pa /etc/rc.subr
 .It Pa /var/run/dmesg.boot
-.Xr dmesg 1
+.Xr dmesg 8
 results soon after the
 .Nm
 process begins.
-Useful when dmesg buffer in the kernel no longer has this information.
+Useful when
+.Xr dmesg 8
+buffer in the kernel no longer has this information.
 .El
 .Sh EXAMPLES
 The following is a minimal
