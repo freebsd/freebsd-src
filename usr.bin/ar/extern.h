@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
+ * $FreeBSD$
  */
 
 int	append __P((char **));
@@ -45,7 +46,6 @@ int	move __P((char **));
 void	orphans __P((char **argv));
 int	print __P((char **));
 int	replace __P((char **));
-char   *rname __P((char *));
 int	tmp __P((void));
 
 extern char *archive;
