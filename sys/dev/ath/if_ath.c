@@ -231,10 +231,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	callout_init(&sc->sc_scan_ch, CALLOUT_MPSAFE);
 	callout_init(&sc->sc_cal_ch, CALLOUT_MPSAFE);
 
-	mtx_init(&sc->sc_txbuflock,
-		device_get_nameunit(sc->sc_dev), "xmit buf q", MTX_DEF);
-	mtx_init(&sc->sc_txqlock,
-		device_get_nameunit(sc->sc_dev), "xmit q", MTX_DEF);
+	ATH_TXBUF_LOCK_INIT(sc);
+	ATH_TXQ_LOCK_INIT(sc);
 
 	TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
@@ -335,6 +333,10 @@ ath_detach(struct ath_softc *sc)
 	ath_desc_free(sc);
 	ath_hal_detach(sc->sc_ah);
 	ieee80211_ifdetach(ifp);
+
+ 	ATH_TXBUF_LOCK_DESTROY(sc);
+ 	ATH_TXQ_LOCK_DESTROY(sc);
+
 	return 0;
 }
 
@@ -499,7 +501,7 @@ ath_init(void *arg)
 
 	DPRINTF(("ath_init: if_flags 0x%x\n", ifp->if_flags));
 
-	mtx_lock(&sc->sc_mtx);
+	ATH_LOCK(sc);
 	/*
 	 * Stop anything previously setup.  This is safe
 	 * whether this is the first time through or not.
@@ -561,7 +563,7 @@ ath_init(void *arg)
 	else
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 done:
-	mtx_unlock(&sc->sc_mtx);
+	ATH_UNLOCK(sc);
 }
 
 static void
@@ -574,7 +576,7 @@ ath_stop(struct ifnet *ifp)
 	DPRINTF(("ath_stop: invalid %u if_flags 0x%x\n",
 		sc->sc_invalid, ifp->if_flags));
 
-	mtx_lock(&sc->sc_mtx);
+	ATH_LOCK(sc);
 	if (ifp->if_flags & IFF_RUNNING) {
 		/*
 		 * Shutdown the hardware and driver:
@@ -605,7 +607,7 @@ ath_stop(struct ifnet *ifp)
 		if (!sc->sc_invalid)
 			ath_hal_setpower(ah, HAL_PM_FULL_SLEEP, 0);
 	}
-	mtx_unlock(&sc->sc_mtx);
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -665,11 +667,11 @@ ath_start(struct ifnet *ifp)
 		/*
 		 * Grab a TX buffer and associated resources.
 		 */
-		mtx_lock(&sc->sc_txbuflock);
+		ATH_TXBUF_LOCK(sc);
 		bf = TAILQ_FIRST(&sc->sc_txbuf);
 		if (bf != NULL)
 			TAILQ_REMOVE(&sc->sc_txbuf, bf, bf_list);
-		mtx_unlock(&sc->sc_txbuflock);
+		ATH_TXBUF_UNLOCK(sc);
 		if (bf == NULL) {
 			DPRINTF(("ath_start: out of xmit buffers\n"));
 			sc->sc_stats.ast_tx_qstop++;
@@ -689,16 +691,16 @@ ath_start(struct ifnet *ifp)
 				DPRINTF(("ath_start: ignore data packet, "
 					"state %u\n", ic->ic_state));
 				sc->sc_stats.ast_tx_discard++;
-				mtx_lock(&sc->sc_txbuflock);
+				ATH_TXBUF_LOCK(sc);
 				TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-				mtx_unlock(&sc->sc_txbuflock);
+				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m == NULL) {
-				mtx_lock(&sc->sc_txbuflock);
+				ATH_TXBUF_LOCK(sc);
 				TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-				mtx_unlock(&sc->sc_txbuflock);
+				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
 			ifp->if_opackets++;
@@ -766,9 +768,9 @@ ath_start(struct ifnet *ifp)
 
 		if (ath_tx_start(sc, ni, bf, m)) {
 	bad:
-			mtx_lock(&sc->sc_txbuflock);
+			ATH_TXBUF_LOCK(sc);
 			TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-			mtx_unlock(&sc->sc_txbuflock);
+			ATH_TXBUF_UNLOCK(sc);
 			ifp->if_oerrors++;
 			if (ni && ni != ic->ic_bss)
 				ieee80211_free_node(ic, ni);
@@ -838,7 +840,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
-	mtx_lock(&sc->sc_mtx);
+	ATH_LOCK(sc);
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -888,7 +890,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	}
-	mtx_unlock(&sc->sc_mtx);
+	ATH_UNLOCK(sc);
 	return error;
 }
 
@@ -1988,7 +1990,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * Insert the frame on the outbound list and
 	 * pass it on to the hardware.
 	 */
-	mtx_lock(&sc->sc_txqlock);
+	ATH_TXQ_LOCK(sc);
 	TAILQ_INSERT_TAIL(&sc->sc_txq, bf, bf_list);
 	if (sc->sc_txlink == NULL) {
 		ath_hal_puttxbuf(ah, sc->sc_txhalq, bf->bf_daddr);
@@ -2000,7 +2002,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		    sc->sc_txlink, (caddr_t)bf->bf_daddr, bf->bf_desc));
 	}
 	sc->sc_txlink = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	mtx_unlock(&sc->sc_txqlock);
+	ATH_TXQ_UNLOCK(sc);
 
 	ath_hal_txstart(ah, sc->sc_txhalq);
 	return 0;
@@ -2024,11 +2026,11 @@ ath_tx_proc(void *arg, int npending)
 		npending, (caddr_t) ath_hal_gettxbuf(sc->sc_ah, sc->sc_txhalq),
 		sc->sc_txlink));
 	for (;;) {
-		mtx_lock(&sc->sc_txqlock);
+		ATH_TXQ_LOCK(sc);
 		bf = TAILQ_FIRST(&sc->sc_txq);
 		if (bf == NULL) {
 			sc->sc_txlink = NULL;
-			mtx_unlock(&sc->sc_txqlock);
+			ATH_TXQ_UNLOCK(sc);
 			break;
 		}
 		/* only the last descriptor is needed */
@@ -2039,11 +2041,11 @@ ath_tx_proc(void *arg, int npending)
 			ath_printtxbuf(bf, status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
-			mtx_unlock(&sc->sc_txqlock);
+			ATH_TXQ_UNLOCK(sc);
 			break;
 		}
 		TAILQ_REMOVE(&sc->sc_txq, bf, bf_list);
-		mtx_unlock(&sc->sc_txqlock);
+		ATH_TXQ_UNLOCK(sc);
 
 		ni = bf->bf_node;
 		if (ni != NULL) {
@@ -2085,9 +2087,9 @@ ath_tx_proc(void *arg, int npending)
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
 
-		mtx_lock(&sc->sc_txbuflock);
+		ATH_TXBUF_LOCK(sc);
 		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		mtx_unlock(&sc->sc_txbuflock);
+		ATH_TXBUF_UNLOCK(sc);
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 	sc->sc_tx_timer = 0;
@@ -2117,15 +2119,15 @@ ath_draintxq(struct ath_softc *sc)
 		    (caddr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq)));
 	}
 	for (;;) {
-		mtx_lock(&sc->sc_txqlock);
+		ATH_TXQ_LOCK(sc);
 		bf = TAILQ_FIRST(&sc->sc_txq);
 		if (bf == NULL) {
 			sc->sc_txlink = NULL;
-			mtx_unlock(&sc->sc_txqlock);
+			ATH_TXQ_UNLOCK(sc);
 			break;
 		}
 		TAILQ_REMOVE(&sc->sc_txq, bf, bf_list);
-		mtx_unlock(&sc->sc_txqlock);
+		ATH_TXQ_UNLOCK(sc);
 #ifdef AR_DEBUG
 		if (ath_debug)
 			ath_printtxbuf(bf,
@@ -2135,9 +2137,9 @@ ath_draintxq(struct ath_softc *sc)
 		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
-		mtx_lock(&sc->sc_txbuflock);
+		ATH_TXBUF_LOCK(sc);
 		TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
-		mtx_unlock(&sc->sc_txbuflock);
+		ATH_TXBUF_UNLOCK(sc);
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 	sc->sc_tx_timer = 0;
