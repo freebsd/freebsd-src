@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: perfmon.h,v 1.4 1997/02/22 09:34:57 peter Exp $
  */
 
 /*
@@ -112,13 +112,6 @@ int	perfmon_stop  __P((int));
 int	perfmon_read  __P((int, quad_t *));
 int	perfmon_reset __P((int));
 
-/*
- * We pass the device down this interface because in the future
- * the different counters might be accessed through separate devices.
- */
-int	perfmon_close __P((dev_t, int, int, struct proc *));
-int	perfmon_open  __P((dev_t, int, int, struct proc *));
-int	perfmon_ioctl __P((dev_t, int, caddr_t, int, struct proc *));
 #endif /* KERNEL */
 
 /*
