@@ -117,6 +117,11 @@ login data base
 .Xr lastcomm 1 ,
 .Xr utmp 5 ,
 .Xr ac 8
+.Sh BUGS
+If a login shell should terminate abnormally for some reason, it is likely
+that a logout record won't be written to the wtmp file. In this case,
+.Nm last
+will indicate the logout time as "shutdown".
 .Sh HISTORY
 .Nm Last
 appeared in

@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
+#include <sys/queue.h>
 
 #define	NO	0				/* false/no */
 #define	YES	1				/* true/yes */
@@ -70,23 +71,23 @@ typedef struct arg {
 } ARG;
 ARG	*arglist;				/* head of linked list */
 
-typedef struct ttytab {
+LIST_HEAD(ttylisthead, ttytab) ttylist;
+
+struct ttytab {
 	long	logout;				/* log out time */
 	char	tty[UT_LINESIZE + 1];		/* terminal name */
-	struct ttytab	*next;			/* linked list pointer */
-} TTY;
-TTY	*ttylist;				/* head of linked list */
+	LIST_ENTRY(ttytab) list;
+};
 
 static long	currentout,			/* current logout value */
 		maxrec;				/* records to display */
 static char	*file = _PATH_WTMP;		/* wtmp file */
 
 void	 addarg __P((int, char *));
-TTY	*addtty __P((char *));
 void	 hostconv __P((char *));
 void	 onintr __P((int));
 char	*ttyconv __P((char *));
-int	 want __P((struct utmp *, int));
+int	 want __P((struct utmp *));
 void	 wtmp __P((void));
 
 int
@@ -158,11 +159,13 @@ void
 wtmp()
 {
 	struct utmp	*bp;			/* current structure */
-	TTY	*T;				/* tty list entry */
+	struct ttytab	*tt;				/* ttylist entry */
 	struct stat	stb;			/* stat of file for size */
 	long	bl, delta;			/* time difference */
 	int	bytes, wfd;
 	char	*ct, *crmsg;
+
+	LIST_INIT(&ttylist);
 
 	if ((wfd = open(file, O_RDONLY, 0)) < 0 || fstat(wfd, &stb) == -1)
 		err(1, "%s", file);
@@ -183,14 +186,16 @@ wtmp()
 			 */
 			if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
 				/* everybody just logged out */
-				for (T = ttylist; T; T = T->next)
-					T->logout = -bp->ut_time;
+				for (tt = ttylist.lh_first; tt; tt = tt->list.le_next) {
+					LIST_REMOVE(tt, list);
+					free(tt);
+				}
 				currentout = -bp->ut_time;
 				crmsg = strncmp(bp->ut_name, "shutdown",
 				    UT_NAMESIZE) ? "crash" : "shutdown";
-				if (want(bp, NO)) {
+				if (want(bp)) {
 					ct = ctime(&bp->ut_time);
-				printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
+					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
 					    UT_NAMESIZE, UT_NAMESIZE,
 					    bp->ut_name, UT_LINESIZE,
 					    UT_LINESIZE, bp->ut_line,
@@ -207,58 +212,77 @@ wtmp()
 			 */
 			if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|')
 			    && !bp->ut_line[1]) {
-				if (want(bp, NO)) {
+				if (want(bp)) {
 					ct = ctime(&bp->ut_time);
-				printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
-				    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-				    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-				    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-				    ct, ct + 11);
+					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
+					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
+					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
+					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
+					    ct, ct + 11);
 					if (maxrec && !--maxrec)
 						return;
 				}
 				continue;
 			}
-			/* find associated tty */
-			for (T = ttylist;; T = T->next) {
-				if (!T) {
-					/* add new one */
-					T = addtty(bp->ut_line);
-					break;
-				}
-				if (!strncmp(T->tty, bp->ut_line, UT_LINESIZE))
-					break;
-			}
-			if (bp->ut_name[0] && want(bp, YES)) {
-				ct = ctime(&bp->ut_time);
-				printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s ",
-				UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
-				UT_LINESIZE, UT_LINESIZE, bp->ut_line,
-				UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
-				ct, ct + 11);
-				if (!T->logout)
-					puts("  still logged in");
-				else {
-					if (T->logout < 0) {
-						T->logout = -T->logout;
-						printf("- %s", crmsg);
+			if (bp->ut_name[0] == '\0' || want(bp)) {
+				/* find associated tty */
+				for (tt = ttylist.lh_first; ; tt = tt->list.le_next) {
+					if (tt == NULL) {
+						/* add new one */
+						tt = malloc(sizeof(struct ttytab));
+						if (tt == NULL)
+							err(1, "malloc failure");
+						tt->logout = currentout;
+						strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
+						LIST_INSERT_HEAD(&ttylist, tt, list);
+						break;
 					}
-					else
-						printf("- %5.5s",
-						    ctime(&T->logout)+11);
-					delta = T->logout - bp->ut_time;
-					if (delta < 86400)
-						printf("  (%5.5s)\n",
-						    asctime(gmtime(&delta))+11);
-					else
-						printf(" (%ld+%5.5s)\n",
-						    delta / 86400,
-						    asctime(gmtime(&delta))+11);
+					if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
+						break;
 				}
-				if (maxrec != -1 && !--maxrec)
-					return;
+				if (bp->ut_name[0]) {
+					/*
+					 * when uucp and ftp log in over a network, the entry in
+					 * the utmp file is the name plus their process id.  See
+					 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
+					 */
+					if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
+						bp->ut_line[3] = '\0';
+					else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
+						bp->ut_line[4] = '\0';
+					ct = ctime(&bp->ut_time);
+					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s ",
+					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
+					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
+					    UT_HOSTSIZE, UT_HOSTSIZE, bp->ut_host,
+					    ct, ct + 11);
+					if (!tt->logout)
+						puts("  still logged in");
+					else {
+						if (tt->logout < 0) {
+							tt->logout = -tt->logout;
+							printf("- %s", crmsg);
+						}
+						else
+							printf("- %5.5s",
+							    ctime(&tt->logout)+11);
+						delta = tt->logout - bp->ut_time;
+						if (delta < 86400)
+							printf("  (%5.5s)\n",
+							    asctime(gmtime(&delta))+11);
+						else
+							printf(" (%ld+%5.5s)\n",
+							    delta / 86400,
+							    asctime(gmtime(&delta))+11);
+					}
+					LIST_REMOVE(tt, list);
+					free(tt);
+					if (maxrec != -1 && !--maxrec)
+						return;
+				} else {
+					tt->logout = bp->ut_time;
+				}
 			}
-			T->logout = bp->ut_time;
 		}
 	}
 	ct = ctime(&buf[0].ut_time);
@@ -270,22 +294,11 @@ wtmp()
  *	see if want this entry
  */
 int
-want(bp, check)
+want(bp)
 	struct utmp *bp;
-	int check;
 {
 	ARG *step;
 
-	if (check)
-		/*
-		 * when uucp and ftp log in over a network, the entry in
-		 * the utmp file is the name plus their process id.  See
-		 * etc/ftpd.c and usr.bin/uucp/uucpd.c for more information.
-		 */
-		if (!strncmp(bp->ut_line, "ftp", sizeof("ftp") - 1))
-			bp->ut_line[3] = '\0';
-		else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
-			bp->ut_line[4] = '\0';
 	if (!arglist)
 		return (YES);
 
@@ -324,24 +337,6 @@ addarg(type, arg)
 	cur->type = type;
 	cur->name = arg;
 	arglist = cur;
-}
-
-/*
- * addtty --
- *	add an entry to a linked list of ttys
- */
-TTY *
-addtty(ttyname)
-	char *ttyname;
-{
-	TTY *cur;
-
-	if (!(cur = (TTY *)malloc((u_int)sizeof(TTY))))
-		err(1, "malloc failure");
-	cur->next = ttylist;
-	cur->logout = currentout;
-	memmove(cur->tty, ttyname, UT_LINESIZE);
-	return (ttylist = cur);
 }
 
 /*
