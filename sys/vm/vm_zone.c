@@ -281,7 +281,7 @@ zdestroy(vm_zone_t z)
 	KASSERT(z->ztotal == z->zfreecnt,
 	    ("zdestroy() used with an active zone"));
 	KASSERT((z->zflags & ZONE_BOOT) == 0,
-	    ("zdestroy() used with a zbootinit()'ed zone"))
+	    ("zdestroy() used with a zbootinit()'ed zone"));
 
 	if (z->zflags & ZONE_INTERRUPT) {
 		kmem_free(kernel_map, z->zkva, z->zpagemax * PAGE_SIZE);
