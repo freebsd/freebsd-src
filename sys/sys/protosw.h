@@ -171,7 +171,7 @@ struct protosw {
 #define PRU_NREQ		22
 
 #ifdef PRUREQUESTS
-char *prurequests[] = {
+const char *prurequests[] = {
 	"ATTACH",	"DETACH",	"BIND",		"LISTEN",
 	"CONNECT",	"ACCEPT",	"DISCONNECT",	"SHUTDOWN",
 	"RCVD",		"SEND",		"ABORT",	"CONTROL",
