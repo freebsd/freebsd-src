@@ -87,6 +87,9 @@ struct gettyflags {
 #define LN	gettystrs[23].value
 #define Lo	gettystrs[24].value
 #define PP	gettystrs[25].value
+#define IF	gettystrs[26].value
+#define IC	gettystrs[27].value
+#define AC	gettystrs[28].value
 
 /*
  * Numeric definitions.
@@ -132,6 +135,10 @@ struct gettyflags {
 #define	O2	gettynums[24].value
 #define	O2set	gettynums[24].set
 #define	DE	gettynums[25].value
+#define RTset	gettynums[26].set
+#define RT	gettynums[26].value
+#define CT	gettynums[27].value
+#define DC	gettynums[28].value
 
 /*
  * Boolean values.
@@ -162,4 +169,5 @@ struct gettyflags {
 #define DX	gettyflags[20].value
 #define	NP	gettyflags[21].value
 #define	MB	gettyflags[22].value
+#define HW	gettyflags[23].value
 
