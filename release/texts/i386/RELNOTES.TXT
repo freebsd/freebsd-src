@@ -329,6 +329,13 @@ See condvar(9) for more details.
 A bug in FFS that could cause superblock corruption on very large
 filesystems has been corrected. [MERGED]
 
+The "make buildkernel" target now gets the name of the
+configuration(s) to build from the KERNCONF variable, not KERNEL.  It
+is no longer required, in some cases, for a "buildworld" to precede a
+"buildkernel".  (The buildworld is still required when upgrading across
+major releases, across binutil upgrades and when config changes
+version.)
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -737,6 +744,9 @@ config(8) is now better about converting various warnings that should
 have been errors into actual fatal errors with an exit code.  This
 ensures that that 'make buildkernel' doesn't quitely ignore them and
 build a bogus kernel without a human to read the errors. [MERGED]
+
+pkg_create(1) and pkg_install(1) can now work with packages that have
+been compressed using bzip2(1).
 
 
 2. Supported Configurations
