@@ -866,7 +866,7 @@ typedef struct copr_msg {
 
 #define SOUND_DEVICE_LABELS	{ \
 	"Vol  ", "Bass ", "Trebl", "Synth", "Pcm  ", "Spkr ", "Line ", \
-	 "Mic  ", "CD   ", "Mix  ", "Pcm2 ", "Rec  ", "IGain", "OGain", \
+	"Mic  ", "CD   ", "Mix  ", "Pcm2 ", "Rec  ", "IGain", "OGain", \
 	"Line1", "Line2", "Line3", "Digital1", "Digital2", "Digital3", \
 	"PhoneIn", "PhoneOut", "Video", "Radio", "Monitor"}
 
