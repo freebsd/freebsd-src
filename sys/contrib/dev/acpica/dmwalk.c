@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 11 $
+ *              $Revision: 12 $
  *
  ******************************************************************************/
 
@@ -434,6 +434,7 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_EXTERNAL_LIST      *NextExternal;
 
 
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
@@ -443,6 +444,7 @@ AcpiDmDescendingOp (
         return (AE_CTRL_DEPTH);
     }
 
+    /* Level 0 is at the Definition Block level */
 
     if (Level == 0)
     {
@@ -453,7 +455,30 @@ AcpiDmDescendingOp (
 
         if (Op->Common.AmlOpcode == AML_SCOPE_OP)
         {
+            /* This is the beginning of the Definition Block */
+
             AcpiOsPrintf ("{\n");
+
+            /* Emit all External() declarations here */
+
+            if (AcpiGbl_ExternalList)
+            {
+                AcpiOsPrintf ("    /*\n     * These objects were referenced but not defined in this table\n     */\n");
+
+                /* Walk the list of externals (unresolved references) found during parsing */
+
+                while (AcpiGbl_ExternalList)
+                {
+                    AcpiOsPrintf ("    External (%s)\n", AcpiGbl_ExternalList->Path);
+
+                    NextExternal = AcpiGbl_ExternalList->Next;
+                    ACPI_MEM_FREE (AcpiGbl_ExternalList->Path);
+                    ACPI_MEM_FREE (AcpiGbl_ExternalList);
+                    AcpiGbl_ExternalList = NextExternal; 
+                }
+                AcpiOsPrintf ("\n");
+            }
+
             return (AE_OK);
         }
     }
