@@ -805,7 +805,7 @@ txp_rx_reclaim(sc, r)
 		m_adj(m, sizeof(struct ether_header));
 
 		if (rxd->rx_stat & RX_STAT_VLAN) {
-			VLAN_INPUT_TAG(ifp, eh, m, htons(rxd->rx_vlan >> 16));
+			VLAN_INPUT_TAG(eh, m, htons(rxd->rx_vlan >> 16));
 			goto next;
 		}
 

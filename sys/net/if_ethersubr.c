@@ -570,7 +570,7 @@ ether_demux(ifp, eh, m)
                 return;
 #endif /* NETATALK */
 	case ETHERTYPE_VLAN:
-		VLAN_INPUT(ifp, eh, m);
+		VLAN_INPUT(eh, m);
 		return;
 	default:
 #ifdef IPX

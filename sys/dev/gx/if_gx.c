@@ -1318,7 +1318,7 @@ gx_rxeof(struct gx_softc *gx)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (staterr & GX_RXSTAT_VLAN_PKT) {
-			VLAN_INPUT_TAG(ifp, eh, m, rx->rx_special);
+			VLAN_INPUT_TAG(eh, m, rx->rx_special);
 			continue;
 		}
 		ether_input(ifp, eh, m);
