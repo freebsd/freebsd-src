@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 8.5 1995/06/29 09:26:32 vixie Exp $";
+static char rcsid[] = "$Id: host.c,v 8.7 1995/08/22 05:01:49 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -125,6 +125,7 @@ char *pr_class(), *pr_rr(), *pr_type();
 extern char *hostalias();
 
 main(c, v)
+	int c;
 	char **v;
 {
 	unsigned addr;
@@ -242,6 +243,7 @@ main(c, v)
 		  printf("Too many cnames.  Possible loop.\n");
 		  exit(1);
 		}
+		strcat(cname, ".");
 		oldcname = cname;
 		hp = NULL;
 		h_errno = TRY_AGAIN;
@@ -539,6 +541,7 @@ getdomaininfo(name, domain)
 
 getinfo(name, domain, type)
 	char *name, *domain;
+	int type;
 {
 
 	HEADER *hp;
