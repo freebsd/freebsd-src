@@ -2417,7 +2417,12 @@ void *ipin;
 		ATOMIC_INCL(frstats[out].fr_pull[0]);
 		qf->qf_data = MTOD(m, char *) + ipoff;
 # else
-		m = m_pullup(m, len);
+#  if (__FreeBSD_version >= 490000)
+		if ((len > MHLEN) && ((m->m_flags & M_PKTHDR) != 0))
+			m = m_defrag(m, M_DONTWAIT);
+		else
+#  endif
+			m = m_pullup(m, len);
 		*fin->fin_mp = m;
 		if (m == NULL) {
 			ATOMIC_INCL(frstats[out].fr_pull[1]);
