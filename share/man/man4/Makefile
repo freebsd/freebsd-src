@@ -98,6 +98,9 @@ MAN=	aac.4 \
 	mac_biba.4 \
 	mac_bsdextended.4 \
 	mac_mls.4 \
+	mac_none.4 \
+	mac_seeotheruids.4 \
+	mac_test.4 \
 	mouse.4 \
 	mtio.4 \
 	natm.4 \

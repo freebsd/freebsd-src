@@ -2,10 +2,10 @@
 .\" All rights reserved.
 .\" 
 .\" This software was developed for the FreeBSD Project by Chris
-.\" Costello at Safeport Network Services and NAI Labs, the Security
-.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
-.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
-.\" research program.
+.\" Costello at Safeport Network Services and Network Associates Labs,
+.\" the Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The names of the authors may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\" 
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -32,58 +29,62 @@
 .\" SUCH DAMAGE.
 .\" 
 .\" $FreeBSD$
-.Dd OCTOBER 16, 2002
+.Dd DECEMBER 8, 2002
 .Os
-.Dt MAC_BSDEXTENDED 4
+.Dt MAC_SEEOTHERUIDS 4
 .Sh NAME
-.Nm mac_bsdextended
-.Nd file system firewall policy
+.Nm mac_seeotheruids
+.Nd simple policy controlling whether users see other users
 .Sh SYNOPSIS
-.\" To compile the file system firewall policy into your kernel,
-.\" place the following lines in your kernel configuration file:
-.\" .Cd "options MAC"
-.\" .Cd "options MAC_BSDEXTENDED"
-.\" .Pp
-.\" Alternately, to load the MLS module at boot time, place the following line
-To load the file system firewall policy module at boot time,
-place the following line in your kernel configuration file:
+To compile the mac_seeotheruids
+policy into your kernel, place the following lines in your kernel
+configuration file:
+.Cd "options MAC"
+.Cd "options MAC_SEEOTHERUIDS"
+.Pp
+Alternately, to load the module at boot time, place the following line
+in your kernel configuration file:
 .Cd "options MAC"
 .Pp
 and in
-.Xr loader.conf 5 :
-.Cd mac_bsdextended_load= Ns \&"YES"
+.Xr loader.conf.5 :
+.Cd mac_seeotheruids_load= Ns \&"YES"
 .Sh DESCRIPTION
 The
 .Nm
-interface provides an interface for the system administrator
-to impose mandatory rules regarding users and some system objects.
-Rules are uploaded to the module
-(typically using
-.Xr ugidfw 8 ,
-or some other tool utilizing
-.Xr libugidfw 3 )
-where they are stored internally
-and used to determine whether to allow or deny specific accesses
-(see
-.Xr ugidfw 8 ) .
-.Sh IMPLEMENTATION NOTES
-While the traditional
-.Xr mac 9
-entry points are implemented,
-policy labels are not used;
-instead, access control decisions are made by iterating through the internal
-list of rules until a rule
-which denies the particular access
-is found,
-or the end of the list is reached.
+policy module, when enabled, denies users to see processes or sockets owned
+by other users.
+.Pp
+To enable
+.Nm ,
+set the sysctl OID
+.Va security.mac.seeotheruids.enabled
+to
+.Li 1 .
+.Pp
+To allow users to see processes and sockets owned by the same primary group,
+set the sysctl OID
+.Va security.mac.seeotheruids.primarygroup_enabled
+to
+.Li 1 .
+.Pp
+To allow processes with a specific group ID to be exempt from the policy,
+set the sysctl OID
+.Va security.mac.seeotheruids.specificgid_enabled
+to
+.Li 1 ,
+and
+.Va security.mac.seeotheruids.specificgid
+to the gid to be exempted.
+.Ss Label Format
+No labels are defined for
+.Nm .
 .Sh SEE ALSO
-.Xr libugidfw 3 ,
 .Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
 .Xr mac_mls 4 ,
 .Xr mac_none 4 ,
-.Xr mac_seeotheruids 4 ,
 .Xr mac_test 4 ,
-.Xr ugidfw 8 ,
 .Xr mac 9
 .Sh HISTORY
 The
@@ -94,6 +95,19 @@ and was developed by the TrustedBSD Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
-Project by NAI Labs, the Security Research Division of Network Associates
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
 Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
 as part of the DARPA CHATS research program.
+.Sh BUGS
+See
+.Xr mac 9
+concerning appropriateness for production use.
+The TrustedBSD MAC Framework is considered experimental in
+.Fx .
+.Pp
+While the MAC Framework design is intended to support the containment of
+the root user, not all attack channels are currently protected by entry
+point checks.
+As such, MAC Framework policies should not be relied on, in isolation,
+to protect against a malicious privileged user.
