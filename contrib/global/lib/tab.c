@@ -33,6 +33,8 @@
  */
 #include <stdio.h>
 
+#include "tab.h"
+
 #define TABPOS(i)	((i)%8 == 0)
 /*
  * detab: convert tabs into spaces and print
