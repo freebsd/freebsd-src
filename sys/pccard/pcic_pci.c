@@ -310,17 +310,8 @@ pcic_cd_event(void *arg)
 	u_int32_t stat;
 	
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	printf("State is %x\n", stat);
-	if (stat & CB_SS_5VCARD)
-		device_printf(sp->sc->dev, "5V card\n");
-	if (stat & CB_SS_3VCARD)
-		device_printf(sp->sc->dev, "3V card\n");
-	if (stat & CB_SS_CD)
-		device_printf(sp->sc->dev, "CD %x",
-		    stat & CB_SS_CD);
 	if ((stat & CB_SS_16BIT) == 0) {
-		device_printf(sp->sc->dev,
-		    "Cardbus card inserted.  NOT SUPPORTED\n");
+		device_printf(sp->sc->dev, "Unsupported card type inserted\n");
 	} else {
 		if (stat & CB_SS_CD)
 			pccard_event(sp->slt, card_removed);
@@ -383,8 +374,19 @@ pcic_pci_probe(device_t dev)
 	device_set_desc(dev, desc);
 
 	/*
+	 * Take us out of power down mode.
+	 */
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		/* Reset the power state. */
+		device_printf(dev, "chip is in D%d power mode "
+		    "-- setting to D0\n", pci_get_powerstate(dev));
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	}
+
+	/*
 	 * Allocated/deallocate interrupt.  This forces the PCI BIOS or
 	 * other MD method to route the interrupts to this card.
+	 * This so we get the interrupt number in the probe message.
 	 */
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
