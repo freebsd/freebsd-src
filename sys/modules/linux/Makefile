@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1998/10/16 04:30:47 peter Exp $
+#	$Id: Makefile,v 1.20 1998/11/05 04:22:52 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux
 KMOD=	linux
@@ -27,7 +27,7 @@ linux_genassym.o:	linux_genassym.c linux.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
 
 linux_genassym:	linux_genassym.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
