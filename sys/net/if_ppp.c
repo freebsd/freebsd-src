@@ -99,6 +99,7 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
+#include <net/bpf.h>
 
 #if INET
 #include <netinet/in.h>
@@ -110,13 +111,6 @@
 #if IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
-#endif
-
-#include "bpf.h"
-#include <net/bpf.h>
-
-#if defined(PPP_FILTER) && NBPF == 0
-#error "PPP_FILTER requires bpf"
 #endif
 
 #ifdef VJC
