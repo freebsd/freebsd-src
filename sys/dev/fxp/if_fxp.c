@@ -67,6 +67,13 @@
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
+#ifdef FXP_IP_CSUM_WAR
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <machine/in_cksum.h>
+#endif
+
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
 
@@ -168,6 +175,12 @@ static struct fxp_ident fxp_ident_table[] = {
     { 0x1059,		"Intel Pro/100 M Mobile Connection" },
     { 0,		NULL },
 };
+
+#ifdef FXP_IP_CSUM_WAR
+#define FXP_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
+#else
+#define FXP_CSUM_FEATURES    (CSUM_TCP | CSUM_UDP)
+#endif
 
 static int		fxp_probe(device_t dev);
 static int		fxp_attach(device_t dev);
@@ -593,6 +606,22 @@ fxp_attach(device_t dev)
 	}
 
 	/*
+	 * Enable use of extended RFDs and TCBs for 82550
+	 * and later chips. Note: we need extended TXCB support
+	 * too, but that's already enabled by the code above.
+	 * Be careful to do this only on the right devices.
+	 */
+
+	if (sc->revision == FXP_REV_82550 || sc->revision == FXP_REV_82550_C) {
+		sc->rfa_size = sizeof (struct fxp_rfa);
+		sc->tx_cmd = FXP_CB_COMMAND_IPCBXMIT;
+		sc->flags |= FXP_FLAG_EXT_RFA;
+	} else {
+		sc->rfa_size = sizeof (struct fxp_rfa) - FXP_RFAX_LEN;
+		sc->tx_cmd = FXP_CB_COMMAND_XMIT;
+	}
+
+	/*
 	 * Read MAC address.
 	 */
 	fxp_read_eeprom(sc, (u_int16_t *)sc->arpcom.ac_enaddr, 0, 3);
@@ -643,6 +672,13 @@ fxp_attach(device_t dev)
 	ifp->if_ioctl = fxp_ioctl;
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
+
+	/* Enable checksum offload for 82550 or better chips */
+
+	if (sc->flags & FXP_FLAG_EXT_RFA) {
+		ifp->if_hwassist = FXP_CSUM_FEATURES;
+		ifp->if_capabilities = IFCAP_HWCSUM;
+	}
 
 	/*
 	 * Attach the interface.
@@ -1013,6 +1049,7 @@ fxp_start(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_tx *txp;
+	volatile struct fxp_tbd *bdptr;
 
 	/*
 	 * See if we need to suspend xmit until the multicast filter
@@ -1046,6 +1083,84 @@ fxp_start(struct ifnet *ifp)
 		txp = sc->cbl_last->next;
 
 		/*
+		 * If this is an 82550/82551, then we're using extended
+		 * TxCBs _and_ we're using checksum offload. This means
+		 * that the TxCB is really an IPCB. One major difference
+		 * between the two is that with plain extended TxCBs,
+		 * the bottom half of the TxCB contains two entries from
+		 * the TBD array, whereas IPCBs contain just one entry:
+		 * one entry (8 bytes) has been sacrificed for the TCP/IP
+		 * checksum offload control bits. So to make things work
+		 * right, we have to start filling in the TBD array
+		 * starting from a different place depending on whether
+		 * the chip is an 82550/82551 or not.
+		 */
+
+		bdptr = &txp->tbd[0];
+		if (sc->flags & FXP_FLAG_EXT_RFA)
+			bdptr++;
+
+		/*
+		 * Deal with TCP/IP checksum offload. Note that
+		 * in order for TCP checksum offload to work,
+		 * the pseudo header checksum must have already
+		 * been computed and stored in the checksum field
+		 * in the TCP header. The stack should have
+		 * already done this for us.
+		 */
+
+		if (mb_head->m_pkthdr.csum_flags) {
+			if (mb_head->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				txp->ipcb_ip_activation_high =
+				    FXP_IPCB_HARDWAREPARSING_ENABLE;
+				txp->ipcb_ip_schedule =
+				    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
+				if (mb_head->m_pkthdr.csum_flags & CSUM_TCP)
+					txp->ipcb_ip_schedule |=
+					    FXP_IPCB_TCP_PACKET;
+			}
+#ifdef FXP_IP_CSUM_WAR
+		/*
+		 * XXX The 82550 chip appears to have trouble
+		 * dealing with IP header checksums in very small
+		 * datagrams, namely fragments from 1 to 3 bytes
+		 * in size. For example, say you want to transmit
+		 * a UDP packet of 1473 bytes. The packet will be
+		 * fragmented over two IP datagrams, the latter
+		 * containing only one byte of data. The 82550 will
+		 * botch the header checksum on the 1-byte fragment.
+		 * As long as the datagram contains 4 or more bytes
+		 * of data, you're ok.
+		 *
+                 * The following code attempts to work around this
+		 * problem: if the datagram is less than 38 bytes
+		 * in size (14 bytes ether header, 20 bytes IP header,
+		 * plus 4 bytes of data), we punt and compute the IP
+		 * header checksum by hand. This workaround doesn't
+		 * work very well, however, since it can be fooled
+		 * by things like VLAN tags and IP options that make
+		 * the header sizes/offsets vary.
+		 */
+
+			if (mb_head->m_pkthdr.csum_flags & CSUM_IP) {
+				if (mb_head->m_pkthdr.len < 38) {
+					struct ip *ip;
+					mb_head->m_data += ETHER_HDR_LEN;
+					ip = mtod(mb_head, struct ip *);
+					ip->ip_sum = in_cksum(mb_head,
+					    ip->ip_hl << 2);
+					mb_head->m_data -= ETHER_HDR_LEN;
+				} else {
+					txp->ipcb_ip_activation_high =
+					    FXP_IPCB_HARDWAREPARSING_ENABLE;
+					txp->ipcb_ip_schedule |=
+					    FXP_IPCB_IP_CHECKSUM_ENABLE;
+				}
+			}
+#endif
+		}
+
+		/*
 		 * Go through each of the mbufs in the chain and initialize
 		 * the transmit buffer descriptors with the physical address
 		 * and size of the mbuf.
@@ -1053,11 +1168,11 @@ fxp_start(struct ifnet *ifp)
 tbdinit:
 		for (m = mb_head, segment = 0; m != NULL; m = m->m_next) {
 			if (m->m_len != 0) {
-				if (segment == FXP_NTXSEG)
+				if (segment == (FXP_NTXSEG - 1))
 					break;
-				txp->tbd[segment].tb_addr =
+				bdptr[segment].tb_addr =
 				    vtophys(mtod(m, vm_offset_t));
-				txp->tbd[segment].tb_size = m->m_len;
+				bdptr[segment].tb_size = m->m_len;
 				segment++;
 			}
 		}
@@ -1090,16 +1205,17 @@ tbdinit:
 			goto tbdinit;
 		}
 
+		txp->byte_count = 0;
 		txp->tbd_number = segment;
 		txp->mb_head = mb_head;
 		txp->cb_status = 0;
 		if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
+			    sc->tx_cmd | FXP_CB_COMMAND_SF |
 			    FXP_CB_COMMAND_S;
 		} else {
 			txp->cb_command =
-			    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF |
+			    sc->tx_cmd | FXP_CB_COMMAND_SF |
 			    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 			/*
 			 * Set a 5 second timer just in case we don't hear
@@ -1270,6 +1386,8 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 			if (txp->mb_head != NULL) {
 				m_freem(txp->mb_head);
 				txp->mb_head = NULL;
+				/* clear this to reset csum offload bits */
+				txp->tbd[0].tb_addr = 0;
 			}
 			sc->tx_queued--;
 		}
@@ -1352,6 +1470,26 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 				continue;
 			}
 
+                        /* Do IP checksum checking. */
+			if (rfa->rfa_status & FXP_RFA_STATUS_PARSE) {
+				if (rfa->rfax_csum_sts &
+				    FXP_RFDX_CS_IP_CSUM_BIT_VALID)
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_CHECKED;
+				if (rfa->rfax_csum_sts &
+				    FXP_RFDX_CS_IP_CSUM_VALID)
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_VALID;
+				if ((rfa->rfax_csum_sts &
+				    FXP_RFDX_CS_TCPUDP_CSUM_BIT_VALID) &&
+				    (rfa->rfax_csum_sts &
+				    FXP_RFDX_CS_TCPUDP_CSUM_VALID)) {
+					m->m_pkthdr.csum_flags |=
+					    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+					m->m_pkthdr.csum_data = 0xffff;
+				}
+			}
+
 			m->m_pkthdr.len = m->m_len = total_len;
 			m->m_pkthdr.rcvif = ifp;
 
@@ -1426,6 +1564,8 @@ fxp_tick(void *xsc)
 		if (txp->mb_head != NULL) {
 			m_freem(txp->mb_head);
 			txp->mb_head = NULL;
+			/* clear this to reset csum offload bits */
+			txp->tbd[0].tb_addr = 0;
 		}
 		sc->tx_queued--;
 	}
@@ -1516,6 +1656,8 @@ fxp_stop(struct fxp_softc *sc)
 			if (txp[i].mb_head != NULL) {
 				m_freem(txp[i].mb_head);
 				txp[i].mb_head = NULL;
+				/* clear this to reset csum offload bits */
+				txp[i].tbd[0].tb_addr = 0;
 			}
 		}
 	}
@@ -1636,7 +1778,7 @@ fxp_init(void *xsc)
 	cbp->cb_status =	0;
 	cbp->cb_command =	FXP_CB_COMMAND_CONFIG | FXP_CB_COMMAND_EL;
 	cbp->link_addr =	-1;	/* (no) next command */
-	cbp->byte_count =	22;	/* (22) bytes to config */
+	cbp->byte_count =	sc->flags & FXP_FLAG_EXT_RFA ? 32 : 22;
 	cbp->rx_fifo_limit =	8;	/* rx fifo threshold (32 bytes) */
 	cbp->tx_fifo_limit =	0;	/* tx fifo threshold (0 bytes) */
 	cbp->adaptive_ifs =	0;	/* (no) adaptive interframe spacing */
@@ -1659,6 +1801,7 @@ fxp_init(void *xsc)
 	cbp->underrun_retry =	1;	/* retry mode (once) on DMA underrun */
 	cbp->two_frames =	0;	/* do not limit FIFO to 2 frames */
 	cbp->dyn_tbd =		0;	/* (no) dynamic TBD mode */
+	cbp->ext_rfa =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->mediatype =	sc->flags & FXP_FLAG_SERIAL_MEDIA ? 0 : 1;
 	cbp->csma_dis =		0;	/* (don't) disable link */
 	cbp->tcp_udp_cksum =	0;	/* (don't) enable checksum */
@@ -1690,6 +1833,7 @@ fxp_init(void *xsc)
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
 	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
+	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 
 	if (sc->revision == FXP_REV_82557) {
 		/*
@@ -1892,8 +2036,9 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 	 * data start past it.
 	 */
 	rfa = mtod(m, struct fxp_rfa *);
-	m->m_data += sizeof(struct fxp_rfa);
-	rfa->size = (u_int16_t)(MCLBYTES - sizeof(struct fxp_rfa) - RFA_ALIGNMENT_FUDGE);
+	m->m_data += sc->rfa_size;
+	rfa->size = (u_int16_t)(MCLBYTES - sizeof(struct fxp_rfa) -
+	    RFA_ALIGNMENT_FUDGE);
 
 	/*
 	 * Initialize the rest of the RFA.  Note that since the RFA
