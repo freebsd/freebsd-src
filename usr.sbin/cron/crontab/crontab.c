@@ -31,6 +31,7 @@ static const char rcsid[] =
 #include "cron.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <md5.h>
 #include <paths.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -44,7 +45,7 @@ static const char rcsid[] =
 # include <locale.h>
 #endif
 
-
+#define MD5_SIZE 33
 #define NHEADER_LINES 3
 
 
@@ -312,11 +313,12 @@ edit_cmd() {
 	FILE		*f;
 	int		t;
 	struct stat	statbuf, fsbuf;
-	time_t		mtime;
 	WAIT_T		waiter;
 	PID_T		pid, xpid;
 	mode_t		um;
 	int		syntax_error = 0;
+	char		orig_md5[MD5_SIZE];
+	char		new_md5[MD5_SIZE];
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -365,7 +367,10 @@ edit_cmd() {
 	}
 	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
 		errx(ERROR_EXIT, "temp file must be edited in place");
-	mtime = statbuf.st_mtime;
+	if (MD5File(Filename, orig_md5) == NULL) {
+		warn("MD5");
+		goto fatal;
+	}
 
 	if ((!(editor = getenv("VISUAL")))
 	 && (!(editor = getenv("EDITOR")))
@@ -431,7 +436,11 @@ edit_cmd() {
 	}
 	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
 		errx(ERROR_EXIT, "temp file must be edited in place");
-	if (mtime == statbuf.st_mtime && !syntax_error) {
+	if (MD5File(Filename, new_md5) == NULL) {
+		warn("MD5");
+		goto fatal;
+	}
+	if (strcmp(orig_md5, new_md5) == 0 && !syntax_error) {
 		warnx("no changes made to crontab");
 		goto remove;
 	}
