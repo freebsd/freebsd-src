@@ -40,9 +40,10 @@ int
 dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width,
 		 int list_height, int cnt, void *it, unsigned char *result)
 {
-    int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-	l, k, scroll = 0, max_choice, item_no = 0, *status;
+    int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button, choice,
+	l, k, scroll, max_choice, item_no = 0, *status;
     int redraw_menu = FALSE;
+    int rval = 0;
     char okButton, cancelButton;
     WINDOW *dialog, *list;
     unsigned char **items = NULL;
@@ -56,6 +57,7 @@ dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int wi
     }
     
 draw:
+    choice = scroll = button = 0;
     /* Previous calling syntax, e.g. just a list of strings? */
     if (cnt >= 0) {
 	items = it;
@@ -170,14 +172,14 @@ draw:
     
     /* Print the list */
     for (i = 0; i < max_choice; i++)
-	print_item(list, items[i*3], items[i*3 + 1], status[i], i, i == choice, DREF(ditems, i));
+	print_item(list, items[i * 3], items[i * 3 + 1], status[i], i, i == choice, DREF(ditems, i));
     wnoutrefresh(list);
     print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
     
-    display_helpline(dialog, height-1, width);
+    display_helpline(dialog, height - 1, width);
     
-    x = width/2-11;
-    y = height-2;
+    x = width / 2 - 11;
+    y = height - 2;
     /* Is this a fancy new style argument string where we get to override
      * the buttons, or an old style one where they're fixed?
      */
@@ -225,12 +227,13 @@ draw:
 		    }
 		}
 	    }
-	    delwin(list);
-	    delwin(dialog);
-	    return 0;
+	    rval = 0;
+	    key = ESC;	/* Lemme out! */
+	    break;
 	}
+
 	/* Shortcut to cancel? */
-	else if (toupper(key) == cancelButton) {
+	if (toupper(key) == cancelButton) {
 	    if (ditems && result && ditems[CANCEL_BUTTON].fire) {
 		int st;
 		WINDOW *save;
@@ -244,9 +247,9 @@ draw:
 		}
 		delwin(save);
 	    }
-	    delwin(list);
-	    delwin(dialog);
-	    return 1;
+	    rval = 1;
+	    key = ESC;	/* I gotta go! */
+	    break;
 	}
 	
 	/* Check if key pressed matches first character of any item tag in list */
@@ -254,26 +257,28 @@ draw:
 	    if (key < 0x100 && toupper(key) == toupper(items[(scroll+i)*3][0]))
 		break;
 	
-	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || key == KEY_UP ||
-	    key == KEY_DOWN || key == ' ' || key == '+' || key == '-' || key == '' || key == '') {
+	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
+	    KEY_IS_UP(key) || KEY_IS_DOWN(key) || key == ' ') {
 
 	    if (key >= '1' && key <= MIN('9', '0'+max_choice))
 		i = key - '1';
 	    
-	    else if (key == KEY_UP || key == '-' || key == '') {
+	    else if (KEY_IS_UP(key)) {
 		if (!choice) {
 		    if (scroll) {
 			/* Scroll list down */
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (list_height > 1) {
 			    /* De-highlight current first item before scrolling down */
-			    print_item(list, items[scroll*3], items[scroll*3 + 1], status[scroll], 0, FALSE, DREF(ditems, scroll));
+			    print_item(list, items[scroll * 3], items[scroll * 3 + 1], status[scroll], 0,
+				       FALSE, DREF(ditems, scroll));
 			    scrollok(list, TRUE);
 			    wscrl(list, -1);
 			    scrollok(list, FALSE);
 			}
 			scroll--;
-			print_item(list, items[scroll*3], items[scroll*3 + 1], status[scroll], 0, TRUE, DREF(ditems, scroll));
+			print_item(list, items[scroll*3], items[scroll*3 + 1], status[scroll], 0,
+				   TRUE, DREF(ditems, scroll));
 			wnoutrefresh(list);
 			print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
 			wrefresh(dialog);
@@ -283,22 +288,26 @@ draw:
 		else
 		    i = choice - 1;
 	    }
-	    else if (key == KEY_DOWN || key == '+' || key == '') {
+	    else if (KEY_IS_DOWN(key)) {
 		if (choice == max_choice - 1) {
-		    if (scroll+choice < item_no-1) {
+		    if (scroll + choice < item_no - 1) {
 			/* Scroll list up */
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (list_height > 1) {
 			    /* De-highlight current last item before scrolling up */
-			    print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1],
-				       status[scroll+max_choice-1], max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
+			    print_item(list, items[(scroll + max_choice - 1) * 3],
+				       items[(scroll + max_choice - 1) * 3 + 1],
+				       status[scroll + max_choice - 1], max_choice - 1,
+				       FALSE, DREF(ditems, scroll + max_choice - 1));
 			    scrollok(list, TRUE);
 			    scroll(list);
 			    scrollok(list, FALSE);
 			}
 			scroll++;
-			print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1],
-				   status[scroll+max_choice-1], max_choice-1, TRUE, DREF(ditems, scroll + max_choice - 1));
+			print_item(list, items[(scroll + max_choice - 1) * 3],
+				   items[(scroll + max_choice - 1) * 3 + 1],
+				   status[scroll + max_choice - 1], max_choice - 1, TRUE,
+				   DREF(ditems, scroll + max_choice - 1));
 			wnoutrefresh(list);
 			print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
 			wrefresh(dialog);
@@ -317,13 +326,14 @@ draw:
 			WINDOW *save;
 
 			save = dupwin(newscr);
-			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
+			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);	/* Call "fire" action */
 			if (st & DITEM_RESTORE) {
 			    touchwin(save);
 			    wrefresh(save);
 			}
+			delwin(save);
 			if (st & DITEM_REDRAW) {
-			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
+			    wclear(list);
 			    for (i = 0; i < item_no; i++)
 				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
 			    for (i = 0; i < max_choice; i++) {
@@ -335,10 +345,10 @@ draw:
 					 cur_x, cur_y);
 			    wrefresh(dialog);
 			}
-			delwin(save);
 			if (st & DITEM_LEAVE_MENU) {
 			    /* Allow a fire action to take us out of the menu */
 			    key = ESC;
+			    rval = 0;
 			    break;
 			}
 			else if (st & DITEM_RECREATE) {
@@ -365,7 +375,7 @@ draw:
 		    rbra = ']';
 		if (!mark)
 		    mark = 'X';
-		wprintw(list, "%c%c%c", lbra, status[scroll+choice] ? mark : ' ', rbra);
+		wprintw(list, "%c%c%c", lbra, status[scroll + choice] ? mark : ' ', rbra);
 		wnoutrefresh(list);
 		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 		wrefresh(dialog);
@@ -375,13 +385,13 @@ draw:
 	    if (i != choice) {
 		/* De-highlight current item */
 		getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-		print_item(list, items[(scroll+choice)*3], items[(scroll+choice)*3 + 1], status[scroll+choice], choice, FALSE,
-			   DREF(ditems, scroll + choice));
+		print_item(list, items[(scroll + choice) * 3], items[(scroll + choice) * 3 + 1],
+			   status[scroll + choice], choice, FALSE, DREF(ditems, scroll + choice));
 		
 		/* Highlight new item */
 		choice = i;
-		print_item(list, items[(scroll+choice)*3], items[(scroll+choice)*3 + 1], status[scroll+choice], choice, TRUE,
-			   DREF(ditems, scroll + choice));
+		print_item(list, items[(scroll + choice) * 3], items[(scroll + choice) * 3 + 1],
+			   status[scroll + choice], choice, TRUE, DREF(ditems, scroll + choice));
 		wnoutrefresh(list);
 		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 		wrefresh(dialog);
@@ -469,26 +479,27 @@ draw:
 		    }
 		}
 	    }
-	    delwin(list);
-	    delwin(dialog);
-	    return button;
+	    rval = button;
+	    key = ESC;	/* Bail out! */
 	    break;
 	    
 	    /* Let me outta here! */
 	case ESC:
+	    rval = -1;
 	    break;
 	    
 	    /* Help! */
 	case KEY_F(1):
 	case '?':
 	    display_helpfile();
-	break;
+	    break;
 	}
 	
 	if (redraw_menu) {
+	    wclear(list);
 	    for (i = 0; i < max_choice; i++)
-		print_item(list, items[(scroll+i)*3], items[(scroll+i)*3 + 1], status[scroll+i], i, i == choice,
-			   DREF(ditems, scroll + i));
+		print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1], status[scroll + i],
+			   i, i == choice, DREF(ditems, scroll + i));
 	    wnoutrefresh(list);
 	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
 	    wrefresh(dialog);
@@ -497,9 +508,8 @@ draw:
     }
     delwin(list);
     delwin(dialog);
-    return -1;    /* ESC pressed */
+    return rval;
 }
-/* End of dialog_checklist() */
 
 
 /*
