@@ -287,7 +287,8 @@ hatm_rx_vcc_open(struct hatm_softc *sc, u_int cid)
 			rsr1 |= (1 << HE_REGS_RSR1_GROUP);
 			rsr4 |= (1 << HE_REGS_RSR4_GROUP);
 		}
-		rsr0 |= HE_REGM_RSR0_AAL_RAW;
+		rsr0 |= HE_REGM_RSR0_AAL_RAW | HE_REGM_RSR0_PTI7 |
+		    HE_REGM_RSR0_RM | HE_REGM_RSR0_F5OAM;
 	}
 	rsr0 |= HE_REGM_RSR0_OPEN;
 

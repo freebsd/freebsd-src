@@ -150,7 +150,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		return;
 	}
 	err = bus_dmamap_load(sc->mbuf_tag, pg->hdr.map, pg, MBUF_ALLOC_SIZE,
-	    hatm_extbuf_helper, &pg->hdr.phys, 0);
+	    hatm_extbuf_helper, &pg->hdr.phys, BUS_DMA_NOWAIT);
 	if (err != 0) {
 		if_printf(&sc->ifatm.ifnet, "%s -- mbuf mapping failed %d\n",
 		    __func__, err);
@@ -342,7 +342,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 			if ((error = bus_dmamap_load(sc->mbuf_tag,
 			    sc->rmaps[sc->lbufs_next],
 			    m->m_data, rbp->bsize, hatm_mbuf_helper,
-			    &rbp->rbp[rbp->tail].phys, 0)) != NULL)
+			    &rbp->rbp[rbp->tail].phys, BUS_DMA_NOWAIT)) != NULL)
 				panic("hatm: mbuf mapping failed %d", error);
 
 			bus_dmamap_sync(sc->mbuf_tag,

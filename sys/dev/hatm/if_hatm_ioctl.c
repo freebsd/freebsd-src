@@ -222,7 +222,7 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
 	     (vcc->param.flags & ATMIO_FLAG_PVC))
 		atm_message(&sc->ifatm.ifnet, ATM_MSG_VCC_CHANGED,
-		   (1 << 24) | (arg->vpi << 16) | arg->vci);
+		   (1 << 24) | (arg->param.vpi << 16) | arg->param.vci);
 #endif
 
 	/* don't free below */
