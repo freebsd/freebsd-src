@@ -483,6 +483,9 @@ print_1_line (line_flag, line)
     }
 
   output_1_line (text, limit, flag_format, line_flag);
+
+  if ((!line_flag || line_flag[0]) && limit[-1] != '\n')
+    fputc ('\n', out);
 }
 
 /* Output a line from TEXT up to LIMIT.  Without -t, output verbatim.
