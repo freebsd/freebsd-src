@@ -1,12 +1,12 @@
-#	$Id: dot.profile,v 1.7.2.3 1997/09/27 15:35:54 joerg Exp $
+#	$Id: dot.profile,v 1.7.2.4 1998/03/07 11:42:06 jkh Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
 # see also sh(1), environ(7).
 #
 
-# add /usr/games or /usr/X11R6/bin if you want
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:$HOME/bin; export PATH
+# remove /usr/games or /usr/X11R6/bin if you want
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/bin:/usr/X11R6/bin:$HOME/bin; export PATH
 
 # Setting TERM is normally done through /etc/ttys.  Do only override
 # if you're sure that you'll never log in via telnet or xterm or a
