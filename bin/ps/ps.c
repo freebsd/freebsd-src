@@ -1024,20 +1024,49 @@ saveuser(KINFO *ki)
 static int
 pscomp(const void *a, const void *b)
 {
-	int i;
-#define VSIZE(k) ((k)->ki_p->ki_dsize + (k)->ki_p->ki_ssize + \
-		  (k)->ki_p->ki_tsize)
+	const KINFO *ka, *kb;
+	double cpua, cpub;
+	segsz_t sizea, sizeb;
 
-	if (sortby == SORTCPU)
-		return (getpcpu((const KINFO *)b) - getpcpu((const KINFO *)a));
-	if (sortby == SORTMEM)
-		return (VSIZE((const KINFO *)b) - VSIZE((const KINFO *)a));
-	i =  (int)((const KINFO *)a)->ki_p->ki_tdev -
-	    (int)((const KINFO *)b)->ki_p->ki_tdev;
-	if (i == 0)
-		i = ((const KINFO *)a)->ki_p->ki_pid -
-		    ((const KINFO *)b)->ki_p->ki_pid;
-	return (i);
+	ka = a;
+	kb = b;
+	/* SORTCPU and SORTMEM are sorted in descending order. */
+	if (sortby == SORTCPU) {
+		cpua = getpcpu(ka);
+		cpub = getpcpu(kb);
+		if (cpua < cpub)
+			return (1);
+		if (cpua > cpub)
+			return (-1);
+	}
+	if (sortby == SORTMEM) {
+		sizea = ka->ki_p->ki_tsize + ka->ki_p->ki_dsize +
+		    ka->ki_p->ki_ssize;
+		sizeb = kb->ki_p->ki_tsize + kb->ki_p->ki_dsize +
+		    kb->ki_p->ki_ssize;
+		if (sizea < sizeb)
+			return (1);
+		if (sizea > sizeb)
+			return (-1);
+	}
+	/*
+	 * TTY's are sorted in ascending order, except that all NODEV
+	 * processes come before all processes with a device.
+	 */
+	if (ka->ki_p->ki_tdev == NODEV && kb->ki_p->ki_tdev != NODEV)
+		return (-1);
+	if (ka->ki_p->ki_tdev != NODEV && kb->ki_p->ki_tdev == NODEV)
+		return (1);
+	if (ka->ki_p->ki_tdev < kb->ki_p->ki_tdev)
+		return (-1);
+	if (ka->ki_p->ki_tdev > kb->ki_p->ki_tdev)
+		return (1);
+	/* PID's are sorted in ascending order. */
+	if (ka->ki_p->ki_pid < kb->ki_p->ki_pid)
+		return (-1);
+	if (ka->ki_p->ki_pid > kb->ki_p->ki_pid)
+		return (1);
+	return (0);
 }
 
 /*
