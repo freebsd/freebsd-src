@@ -28,29 +28,35 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
 
 #include <stand.h>
 #include <net.h>
 #include <netif.h>
 
-int ofwn_probe();
-int ofwn_match();
-void ofwn_init();
-int ofwn_get();
-int ofwn_put();
-void ofwn_end();
+#include "openfirm.h"
 
-extern struct netif_stats	prom_stats[];
+static int	ofwn_probe(struct netif *, void *);
+static int	ofwn_match(struct netif *, void *);
+static void	ofwn_init(struct iodesc *, void *);
+static int	ofwn_get(struct iodesc *, void *, int, time_t);
+static int	ofwn_put(struct iodesc *, void *, int);
+static void	ofwn_end(struct netif *);
 
-struct netif_dif prom_ifs[] = {
+extern struct netif_stats	ofwn_stats[];
+
+struct netif_dif ofwn_ifs[] = {
 	/*	dif_unit	dif_nsel	dif_stats	dif_private	*/
-	{	0,		1,		&prom_stats[0],	0,	},
+	{	0,		1,		&ofwn_stats[0],	0,	},
 };
 
-struct netif_stats prom_stats[NENTS(prom_ifs)];
+struct netif_stats ofwn_stats[NENTS(ofwn_ifs)];
 
 struct netif_driver ofwnet = {
 	"net",			/* netif_bname */
@@ -64,132 +70,180 @@ struct netif_driver ofwnet = {
 	NENTS(ofwn_ifs)		/* netif_nifs */
 };
 
-int netfd = 0, broken_firmware;
+static phandle_t	netdevice;
+static ihandle_t	netinstance;
+static ihandle_t	memory;
 
-int
+static void		*dmabuf;
+
+static int
 ofwn_match(struct netif *nif, void *machdep_hint)
 {
-	return (1);
+	return 1;
 }
 
-int
+static int
 ofwn_probe(struct netif *nif, void *machdep_hint)
 {
 	return 0;
 }
 
-int
+static int
 ofwn_put(struct iodesc *desc, void *pkt, int len)
 {
-#if 0
-	prom_write(netfd, len, pkt, 0);
+	struct ether_header	*eh;
+	size_t			sendlen;
+	ssize_t			rv;
 
-	return len;
+#if defined(NETIF_DEBUG)
+	printf("netif_put: desc=0x%x pkt=0x%x len=%d\n", desc, pkt, len);
+	eh = pkt;
+	printf("dst: %s ", ether_sprintf(eh->ether_dhost));
+	printf("src: %s ", ether_sprintf(eh->ether_shost));
+	printf("type: 0x%x\n", eh->ether_type & 0xffff);
 #endif
-	return 0;
+
+	sendlen = len;
+	if (sendlen < 60) {
+		sendlen = 60;
+#if defined(NETIF_DEBUG)
+		printf("netif_put: length padded to %d\n", sendlen);
+#endif
+	}
+
+	if (dmabuf) {
+		bcopy(pkt, dmabuf, sendlen);
+		pkt = dmabuf;
+	}
+
+	rv = OF_write(netinstance, pkt, len);
+
+#if defined(NETIF_DEBUG)
+	printf("netif_put: OF_write returned %d\n", rv);
+#endif
+
+	return rv;
 }
 
-int
+static int
 ofwn_get(struct iodesc *desc, void *pkt, int len, time_t timeout)
 {
-	return 0;
+	time_t	t;
+	int	length;
+
+#if defined(NETIF_DEBUG)
+	printf("netif_get: pkt=%p, maxlen=%d, timeout=%d\n", pkt, len,
+	    timeout);
+#endif
+
+	t = getsecs();
+	do {
+		length = OF_read(netinstance, pkt, len);
+	} while ((length == -2 || length == 0) &&
+		(getsecs() - t < timeout));
+
+#if defined(NETIF_DEBUG)
+	printf("netif_get: received length=%d (%x)\n", length, length);
+#endif
+
+	if (length < 12)
+		return -1;
+
+#if defined(NETIF_VERBOSE_DEBUG)
+	{
+		char *ch = pkt;
+		int i;
+
+		for(i = 0; i < 96; i += 4) {
+			printf("%02x%02x%02x%02x  ", ch[i], ch[i+1],
+			    ch[i+2], ch[i+3]);
+		}
+		printf("\n");
+	}
+#endif
+
+#if defined(NETIF_DEBUG)
+	{
+		struct ether_header *eh = pkt;
+
+		printf("dst: %s ", ether_sprintf(eh->ether_dhost));
+		printf("src: %s ", ether_sprintf(eh->ether_shost));
+		printf("type: 0x%x\n", eh->ether_type & 0xffff);
+	}
+#endif
+
+	return length;
 }
 
 extern char *strchr();
 
-void
-ofw_init(struct iodesc *desc, void *machdep_hint)
+static void
+ofwn_init(struct iodesc *desc, void *machdep_hint)
 {
-	char devname[64];
-	int devlen, i;
-	int netbbinfovalid;
-	char *enet_addr;
-	prom_return_t ret;
-	u_int64_t *qp, csum;
+	phandle_t	chosen, netdev;
+	char		path[64];
+	char		*ch;
+	int		pathlen;
 
-	broken_firmware = 0;
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "memory", &memory, sizeof(memory));
+	pathlen = OF_getprop(chosen, "bootpath", path, 64);
+	ch = index(path, ':');
+	*ch = '\0';
+	netdev = OF_finddevice(path);
+	if (OF_getprop(netdev, "local-mac-address", desc->myea, 6) == -1)
+		goto punt;
 
-	csum = 0;
-	for (i = 0, qp = (u_int64_t *)&netbbinfo;
-	    i < (sizeof netbbinfo / sizeof (u_int64_t)); i++, qp++)
-		csum += *qp;
-	netbbinfovalid = (csum == 0);
-	if (netbbinfovalid)
-		netbbinfovalid = netbbinfo.set;
-
-	ret.bits = prom_getenv(PROM_E_BOOTED_DEV, devname, sizeof(devname));
-	devlen = ret.u.retval;
-
-	/* Ethernet address is the 9th component of the booted_dev string. */
-	enet_addr = devname;
-	for (i = 0; i < 8; i++) {
-		enet_addr = strchr(enet_addr, ' ');
-		if (enet_addr == NULL) {
-			printf(
-		"boot: boot device name does not contain ethernet address.\n");
-			goto punt;
-		}
-		enet_addr++;
-	}
-	if (enet_addr != NULL) {
-		int hv, lv;
-
-#define	dval(c)	(((c) >= '0' && (c) <= '9') ? ((c) - '0') : \
-		(((c) >= 'A' && (c) <= 'F') ? (10 + (c) - 'A') : \
-		(((c) >= 'a' && (c) <= 'f') ? (10 + (c) - 'a') : -1)))
-
-		for (i = 0; i < 6; i++) {
-			hv = dval(*enet_addr); enet_addr++;
-			lv = dval(*enet_addr); enet_addr++;
-			enet_addr++;
-
-			if (hv == -1 || lv == -1) {
-				printf(
-		"boot: boot device name contains bogus ethernet address.\n");
-				goto punt;
-			}
-
-			desc->myea[i] = (hv << 4) | lv;
-		}
-#undef dval
-	}
-
-	if (netbbinfovalid && netbbinfo.force) {
-		printf("boot: using hard-coded ethernet address (forced).\n");
-		bcopy(netbbinfo.ether_addr, desc->myea, sizeof desc->myea);
-	}
-
-gotit:
 	printf("boot: ethernet address: %s\n", ether_sprintf(desc->myea));
 
-	ret.bits = prom_open(devname, devlen + 1);
-	if (ret.u.status) {
-		printf("prom_init: open failed: %d\n", ret.u.status);
-		goto reallypunt;
-	}
-	netfd = ret.u.retval;
+	if ((netinstance = OF_open(path)) == -1)
+		goto punt;
+
+#if defined(NETIF_DEBUG)
+	printf("ofwn_init: OpenFirmware instance handle: %08x\n", netinstance);
+#endif
+
+	if (OF_call_method("dma-alloc", netinstance, 1, 1, MAXPHYS, &dmabuf)
+	    == -1)
+		goto punt;
+
+#if defined(NETIF_DEBUG)
+	printf("ofwn_init: allocated DMA buffer: %08x\n", dmabuf);
+#endif
+
 	return;
 
 punt:
-	broken_firmware = 1;
-	if (netbbinfovalid) {
-		printf("boot: using hard-coded ethernet address.\n");
-		bcopy(netbbinfo.ether_addr, desc->myea, sizeof desc->myea);
-		goto gotit;
-	}
-
-reallypunt:
 	printf("\n");
-	printf("Boot device name was: \"%s\"\n", devname);
-	printf("\n");
-	printf("Your firmware may be too old to network-boot FreeBSD/alpha,\n");
-	printf("or you might have to hard-code an ethernet address into\n");
-	printf("your network boot block with setnetbootinfo(8).\n");
-	halt();
+	printf("Could not boot from %s.\n", path);
+	OF_exit();
 }
 
-void
+static void
 ofwn_end(struct netif *nif)
 {
-    prom_close(netfd);
+	OF_call_method("dma-free", netinstance, 2, 0, dmabuf, MAXPHYS);
+	OF_close(netinstance);
 }
+
+#if 0
+int
+ofwn_getunit(const char *path)
+{
+	int		i;
+	char		newpath[255];
+
+	OF_canon(path, newpath, 254);
+
+	for (i = 0; i < nofwninfo; i++) {
+		printf(">>> test =\t%s\n", ofwninfo[i].ofwn_path);
+		if (strcmp(path, ofwninfo[i].ofwn_path) == 0)
+			return i;
+
+		if (strcmp(newpath, ofwninfo[i].ofwn_path) == 0)
+			return i;
+	}
+
+	return -1;
+}
+#endif

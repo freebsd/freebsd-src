@@ -85,8 +85,8 @@ int		OF_getproplen(phandle_t, char *);
 int		OF_getprop(phandle_t, char *, void *, int);
 int		OF_nextprop(phandle_t, char *, char *);
 int		OF_setprop(phandle_t, char *, void *, int);
-int		OF_canon(char *, char *, int);
-phandle_t	OF_finddevice(char *);
+int		OF_canon(const char *, char *, int);
+phandle_t	OF_finddevice(const char *);
 int		OF_instance_to_path(ihandle_t, char *, int);
 int		OF_package_to_path(phandle_t, char *, int);
 int		OF_call_method(char *, ihandle_t, int, int, ...);
@@ -105,7 +105,7 @@ void		OF_release(void *, u_int);
 /* Control transfer functions */
 void		OF_boot(char *);
 void		OF_enter(void);
-__dead void	OF_exit(void) __attribute__((noreturn));
+void		OF_exit(void) __attribute__((noreturn));
 void		OF_chain(void *, u_int, void (*)(), void *, u_int);
 
 #if 0
