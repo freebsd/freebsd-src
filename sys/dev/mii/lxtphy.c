@@ -96,8 +96,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int lxtphy_probe		(device_t);
-static int lxtphy_attach	(device_t);
+static int lxtphy_probe(device_t);
+static int lxtphy_attach(device_t);
 
 static device_method_t lxtphy_methods[] = {
 	/* device interface */
@@ -123,7 +123,8 @@ static void	lxtphy_status(struct mii_softc *);
 static void	lxtphy_set_tp(struct mii_softc *);
 static void	lxtphy_set_fx(struct mii_softc *);
 
-static int lxtphy_probe(dev)
+static int
+lxtphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -139,7 +140,8 @@ static int lxtphy_probe(dev)
 	return (0);
 }
 
-static int lxtphy_attach(dev)
+static int
+lxtphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;

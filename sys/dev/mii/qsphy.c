@@ -96,8 +96,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int qsphy_probe		(device_t);
-static int qsphy_attach		(device_t);
+static int qsphy_probe(device_t);
+static int qsphy_attach(device_t);
 
 static device_method_t qsphy_methods[] = {
 	/* device interface */
@@ -122,7 +122,8 @@ static int	qsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	qsphy_reset(struct mii_softc *);
 static void	qsphy_status(struct mii_softc *);
 
-static int qsphy_probe(dev)
+static int
+qsphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -138,7 +139,8 @@ static int qsphy_probe(dev)
 	return (0);
 }
 
-static int qsphy_attach(dev)
+static int
+qsphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;

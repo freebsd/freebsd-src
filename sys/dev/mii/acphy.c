@@ -92,8 +92,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int acphy_probe		(device_t);
-static int acphy_attach		(device_t);
+static int acphy_probe(device_t);
+static int acphy_attach(device_t);
 
 static device_method_t acphy_methods[] = {
 	/* device interface */
@@ -118,7 +118,8 @@ static int	acphy_service(struct mii_softc *, struct mii_data *, int);
 static void	acphy_reset(struct mii_softc *);
 static void	acphy_status(struct mii_softc *);
 
-static int acphy_probe(dev)
+static int
+acphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -134,7 +135,8 @@ static int acphy_probe(dev)
 	return (0);
 }
 
-static int acphy_attach(dev)
+static int
+acphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;

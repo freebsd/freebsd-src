@@ -60,8 +60,8 @@ static const char rcsid[] =
    "$FreeBSD$";
 #endif
 
-static int rlphy_probe		(device_t);
-static int rlphy_attach		(device_t);
+static int rlphy_probe(device_t);
+static int rlphy_attach(device_t);
 
 static device_method_t rlphy_methods[] = {
 	/* device interface */
@@ -85,7 +85,8 @@ DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
 static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rlphy_status(struct mii_softc *);
 
-static int rlphy_probe(dev)
+static int
+rlphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -120,7 +121,8 @@ static int rlphy_probe(dev)
 	return (0);
 }
 
-static int rlphy_attach(dev)
+static int
+rlphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc	*sc;

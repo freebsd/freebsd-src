@@ -102,8 +102,8 @@ struct tlphy_softc {
 	int sc_need_acomp;
 };
 
-static int tlphy_probe		(device_t);
-static int tlphy_attach		(device_t);
+static int tlphy_probe(device_t);
+static int tlphy_attach(device_t);
 
 static device_method_t tlphy_methods[] = {
 	/* device interface */
@@ -129,7 +129,8 @@ static int	tlphy_auto(struct tlphy_softc *);
 static void	tlphy_acomp(struct tlphy_softc *);
 static void	tlphy_status(struct tlphy_softc *);
 
-static int tlphy_probe(dev)
+static int
+tlphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;       
@@ -145,7 +146,8 @@ static int tlphy_probe(dev)
 	return (0);
 }
 
-static int tlphy_attach(dev)
+static int
+tlphy_attach(dev)
 	device_t		dev;
 {
 	struct tlphy_softc *sc;
