@@ -477,24 +477,33 @@ via_attach(device_t dev)
 
 	/* Wake up and reset AC97 if necessary */
 	data = pci_read_config(dev, VIA_AC97STATUS, 1);
+
 	if ((data & VIA_AC97STATUS_RDY) == 0) {
 		/* Cold reset per ac97r2.3 spec (page 95) */
-		pci_write_config(dev, VIA_ACLINKCTRL, 0, 1);			/* Assert low */
-		DELAY(100);							/* Wait T_rst_low */
-		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_NRST, 1);	/* Assert high */
-		DELAY(1);							/* Wait T_rst2clk */
-		pci_write_config(dev, VIA_ACLINKCTRL, 0, 1);			/* Assert low */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Assert low */
+		DELAY(100);									/* Wait T_rst_low */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN | VIA_ACLINK_NRST, 1);	/* Assert high */
+		DELAY(5);									/* Wait T_rst2clk */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Assert low */
+	} else {
+		/* Warm reset */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Force no sync */
+		DELAY(100);
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN | VIA_ACLINK_SYNC, 1);	/* Sync */
+		DELAY(5);									/* Wait T_sync_high */
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN, 1);			/* Force no sync */
+		DELAY(5);									/* Wait T_sync2clk */
+	}
 
-		/* Power everything up */
-		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);	
+	/* Power everything up */
+	pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);	
 
-		/* Wait for codec to become ready (largest reported delay here 310ms) */
-		for (cnt = 0; cnt < 2000; cnt++) {
-			data = pci_read_config(dev, VIA_AC97STATUS, 1);
-			if (data & VIA_AC97STATUS_RDY) 
-				break;
-			DELAY(5000);
-		}
+	/* Wait for codec to become ready (largest reported delay here 310ms) */
+	for (cnt = 0; cnt < 2000; cnt++) {
+		data = pci_read_config(dev, VIA_AC97STATUS, 1);
+		if (data & VIA_AC97STATUS_RDY) 
+			break;
+		DELAY(5000);
 	}
 
 	via->regid = PCIR_MAPS;
