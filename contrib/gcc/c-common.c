@@ -1652,7 +1652,7 @@ check_format_info (info, params)
 	  /* There should be an int arg to control the string arg.  */
 	  if (params == 0)
 	    {
-	      warning (tfaff);
+	      tfaff ();
 	      return;
 	    }
 	    if (info->first_arg_num != 0)
@@ -1675,7 +1675,7 @@ check_format_info (info, params)
 	  /* There should be an unsigned char * arg before the string arg.  */
 	  if (params == 0)
 	    {
-	      warning (tfaff);
+	      tfaff ();
 	      return;
 	    }
 	    if (info->first_arg_num != 0)
