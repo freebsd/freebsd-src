@@ -18,13 +18,21 @@ CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 
 FAQS=	README README-2.0 MIRROR.SITES
 
-# define FDFORMAT to format floppies
+# define this to use a vn device instead of the floppy drive
+VNDEVICE=		vn0
+
+# work dir for floppies
+MNT=			/mnt
+# define FDFORMAT to format physical floppies
 #FDFORMAT=		yes
+
 FDDEVICE=		fd0
 FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
-MNT=			/mnt
+
+NEWFSARGS=		-c 80 -b 4096 -f 512 -i 9000 -m 0 -t 0 -u 0 \
+				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
@@ -61,7 +69,6 @@ release:
 .else
 	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
 .endif
-	#cp ${.CURDIR}/Makefile ${CHROOTDIR}/usr/src/release
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -331,7 +338,27 @@ doFLOPPY:
 .if !defined(FLOPPY)
 	@echo "FLOPPY undefined in doFLOPPY" ; exit 1
 .endif
-.if !defined(VNDEVICE)
+	rm -f ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
+.if defined(VNDEVICE)
+	if [ ! -b /dev/${VNDEVICE} -o ! -c /dev/r${VNDEVICE} ] ; then \
+		cd /dev && sh MAKEDEV ${VNDEVICE} ; fi
+	@umount /dev/${VNDEVICE} 2>/dev/null || true
+	@umount ${MNT} 2>/dev/null || true
+	@vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
+	dd of=${RD}/floppies/${FLOPPY}.tmp if=/dev/zero \
+		bs=${FDCYLSIZE} count=${FDCYLS} 2>/dev/null
+	sync && sleep 5
+	vnconfig -c /dev/r${VNDEVICE} ${RD}/floppies/${FLOPPY}.tmp
+	disklabel -w -r -B \
+		-b ${RD}/trees/bin/usr/mdec/fdboot \
+		-s ${RD}/trees/bin/usr/mdec/bootfd \
+		/dev/r${VNDEVICE} ${FDLABEL}
+	newfs ${NEWFSARGS} /dev/r${VNDEVICE}
+	mount /dev/${VNDEVICE} ${MNT}
+	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dump ${MNT}
+	umount ${MNT}
+	fsck  /dev/r${VNDEVICE} < /dev/null
+.else
 	-umount /dev/${FDDEVICE}
 	-umount ${MNT}
 .if !defined(FDFORMAT)
@@ -341,18 +368,16 @@ doFLOPPY:
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
 		/dev/r${FDDEVICE} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 -i 4096 -m 0 -t 0 -u 0 \
-		-o space -T ${FDLABEL} /dev/r${FDDEVICE}
-	mount -o async /dev/${FDDEVICE} ${MNT}
-	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dumpv ${MNT}
-	sync
+	newfs ${NEWFSARGS} /dev/r${FDDEVICE}
+	mount /dev/${FDDEVICE} ${MNT}
+	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dump ${MNT}
 	umount ${MNT}
-	fsck /dev/r${FDDEVICE}
+	fsck -n /dev/r${FDDEVICE} < /dev/null
 	dd if=/dev/r${FDDEVICE} of=${RD}/floppies/${FLOPPY}.tmp \
 		bs=${FDCYLSIZE} count=${FDCYLS}
+.endif
 	mv ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
 	gzip -9 -c < ${RD}/floppies/${FLOPPY}.flp \
 		> ${RD}/floppies/${FLOPPY}.flp.gz
-.endif
 
 .include <bsd.prog.mk>
