@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.17 1994/12/30 12:43:35 bde Exp $
+ *	$Id: icu.s,v 1.18 1995/01/14 11:00:27 bde Exp $
  */
 
 /*
@@ -49,8 +49,6 @@
  * only thing related to the hardware icu is that the h/w interrupt
  * numbers are used without translation in the masks.
  */
-
-#include <net/netisr.h>
 
 	.data
 	.globl	_cpl
@@ -65,10 +63,18 @@ _bio_imask:	.long	0
 _net_imask:	.long	0
 	.globl	_ipending
 _ipending:	.long	0
-	.globl	_astpending
-_astpending:	.long	0		/* tells us an AST needs to be taken */
 	.globl	_netisr
 _netisr:	.long	0		/* set with bits for which queue to service */
+	.globl _netisrs
+_netisrs:
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
+	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
 vec:
 	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
 	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15
@@ -303,43 +309,24 @@ vec/**/irq_num: ; \
 	BUILD_VEC(15)
 
 	ALIGN_TEXT
-	.globl _dummynetisr
-_dummynetisr:
-	MCOUNT
-	ret	
-	
-	
-	.data
-	.globl _netisrs
-_netisrs:
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
-	.text
-	
-#define DONET(s) ; \
-	btrl	$s,_netisr ; \
-	jnc	9f ; \
-	movl	$_netisrs+4*s,%eax ; \
-	call	(%eax) ; \
-9:
-
-	ALIGN_TEXT
 swi_net:
 	MCOUNT
-	DONET(0) ; DONET(1) ; DONET(2) ; DONET(3) ; DONET(4)
-	DONET(5) ; DONET(6) ; DONET(7) ; DONET(8) ; DONET(9)
-	DONET(10) ; DONET(11) ; DONET(12) ; DONET(13) ; DONET(14)
-	DONET(15) ; DONET(16) ; DONET(17) ; DONET(18) ; DONET(19)
-	DONET(20) ; DONET(21) ; DONET(22) ; DONET(23) ; DONET(24)
-	DONET(25) ; DONET(26) ; DONET(27) ; DONET(28) ; DONET(29)
-	DONET(30) ; DONET(31)
+	bsfl	_netisr,%eax
+	je	swi_net_done
+swi_net_more:
+	btrl	%eax,_netisr
+	jnc	swi_net_next
+	call	*_netisrs(,%eax,4)
+swi_net_next:
+	bsfl	_netisr,%eax
+	jne	swi_net_more
+swi_net_done:
 	ret
+
+	ALIGN_TEXT
+dummynetisr:
+	MCOUNT
+	ret	
 
 /*
  * XXX there should be a registration function to put the handler for the
