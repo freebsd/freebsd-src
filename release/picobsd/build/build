@@ -93,7 +93,7 @@ main() {
     echo ""
 
     ./stage1 2>&1 | tee stage1.out
-    if [ "X?" != "X0" ] ; then
+    if [ "X$?" != "X0" ] ; then
 	echo ""
 	echo "-> ERROR in \"${i}\" script. Aborting the build process."
 	echo -n "-> Cleaning temporary files... "
