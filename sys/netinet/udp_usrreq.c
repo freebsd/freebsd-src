@@ -37,6 +37,7 @@
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 
+#include <stddef.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -75,6 +76,8 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
+
+#include <machine/in_cksum.h>
 
 /*
  * UDP protocol implementation.
@@ -208,9 +211,19 @@ udp_input(m, off, proto)
 	 * Checksum extended UDP header and data.
 	 */
 	if (uh->uh_sum) {
-		bzero(((struct ipovly *)ip)->ih_x1, 9);
-		((struct ipovly *)ip)->ih_len = uh->uh_ulen;
-		uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+				uh->uh_sum = m->m_pkthdr.csum_data;
+			else
+	                	uh->uh_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr, htonl(ip->ip_len +
+				    m->m_pkthdr.csum_data + IPPROTO_UDP));
+			uh->uh_sum ^= 0xffff;
+		} else {
+			bzero(((struct ipovly *)ip)->ih_x1, 9);
+			((struct ipovly *)ip)->ih_len = uh->uh_ulen;
+			uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
+		}
 		if (uh->uh_sum) {
 			udpstat.udps_badsum++;
 			m_freem(m);
@@ -679,22 +692,24 @@ udp_output(inp, m, addr, control, p)
 	 * and addresses and length put into network format.
 	 */
 	ui = mtod(m, struct udpiphdr *);
-	bzero(ui->ui_x1, sizeof(ui->ui_x1));
+	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
 	ui->ui_pr = IPPROTO_UDP;
-	ui->ui_len = htons((u_short)len + sizeof (struct udphdr));
 	ui->ui_src = inp->inp_laddr;
 	ui->ui_dst = inp->inp_faddr;
 	ui->ui_sport = inp->inp_lport;
 	ui->ui_dport = inp->inp_fport;
-	ui->ui_ulen = ui->ui_len;
+	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
 	/*
-	 * Stuff checksum and output datagram.
+	 * Set up checksum and output datagram.
 	 */
-	ui->ui_sum = 0;
 	if (udpcksum) {
-	    if ((ui->ui_sum = in_cksum(m, sizeof (struct udpiphdr) + len)) == 0)
-		ui->ui_sum = 0xffff;
+        	ui->ui_sum = in_pseudo(ui->ui_src.s_addr, ui->ui_dst.s_addr,
+		    htons((u_short)len + sizeof(struct udphdr) + IPPROTO_UDP));
+		m->m_pkthdr.csum_flags = CSUM_UDP;
+		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
+	} else {
+		ui->ui_sum = 0;
 	}
 	((struct ip *)ui)->ip_len = sizeof (struct udpiphdr) + len;
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
