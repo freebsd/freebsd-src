@@ -263,7 +263,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	int authenticated;		/* user authenticated? */
 	char *dotdir;			/* .ssh dir name */
 	char *file;			/* current key file */
-	char *keyfiles;			/* list of key files to add */
+	char *kfspec;			/* list of key files to add */
+	char *keyfiles;
 	const char *pass;		/* passphrase */
 	const struct passwd *pwent;	/* user's passwd entry */
 	struct passwd *pwent_keep;	/* our own copy */
@@ -272,8 +273,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	pam_std_option(&options, other_options, argc, argv);
 
-	if (!pam_test_option(&options, PAM_OPT_KEYFILES, &keyfiles)) {
-		keyfiles = DEF_KEYFILES;
+	if (!pam_test_option(&options, PAM_OPT_KEYFILES, &kfspec)) {
+		kfspec = DEF_KEYFILES;
 	}
 
 	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
@@ -299,11 +300,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		return (PAM_SERVICE_ERR);
 	}
 	authenticated = 0;
+	keyfiles = strdup(kfspec);
 	for (file = strtok(keyfiles, SEP_KEYFILES); file;
 	     file = strtok(NULL, SEP_KEYFILES))
 		if (auth_via_key(pamh, file, dotdir, pwent, pass, &options) ==
 		    PAM_SUCCESS)
 			authenticated++;
+	free(keyfiles);
 	free(dotdir);
 	if (!authenticated)
 		return (PAM_AUTH_ERR);
