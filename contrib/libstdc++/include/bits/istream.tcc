@@ -54,13 +54,14 @@ namespace std
 	      __int_type __c = __sb->sgetc();
 
 	      if (__in._M_check_facet(__in._M_fctype))
-		while (__c != __eof
-		       && __in._M_fctype->is(ctype_base::space, __c))
+		while (!traits_type::eq_int_type(__c, __eof)
+		       && __in._M_fctype->is(ctype_base::space, 
+					     traits_type::to_char_type(__c)))
 		  __c = __sb->snextc();
 
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
 //195.  Should basic_istream::sentry's constructor ever set eofbit? 
-	      if (__c == __eof)
+	      if (traits_type::eq_int_type(__c, __eof))
 		__in.setstate(ios_base::eofbit);
 #endif
 	    }
@@ -521,7 +522,7 @@ namespace std
 	    {
 	      __c = this->rdbuf()->sbumpc();
 	      // 27.6.1.1 paragraph 3
-	      if (__c != __eof)
+	      if (!traits_type::eq_int_type(__c, __eof))
 		_M_gcount = 1;
 	      else
 		this->setstate(ios_base::eofbit | ios_base::failbit);
@@ -552,7 +553,7 @@ namespace std
 	      const int_type __eof = traits_type::eof();
 	      int_type __bufval = this->rdbuf()->sbumpc();
 	      // 27.6.1.1 paragraph 3
-	      if (__bufval != __eof)
+	      if (!traits_type::eq_int_type(__bufval, __eof))
 		{
 		  _M_gcount = 1;
 		  __c = traits_type::to_char_type(__bufval);
@@ -588,13 +589,15 @@ namespace std
 	      __streambuf_type* __sb = this->rdbuf();
 	      int_type __c = __sb->sgetc();	
 	      
-	      while (_M_gcount + 1 < __n && __c != __eof && __c != __idelim)
+	      while (_M_gcount + 1 < __n 
+		     && !traits_type::eq_int_type(__c, __eof)
+		     && !traits_type::eq_int_type(__c, __idelim))
 		{
 		  *__s++ = traits_type::to_char_type(__c);
 		  __c = __sb->snextc();
 		  ++_M_gcount;
 		}
-	      if (__c == __eof)
+	      if (traits_type::eq_int_type(__c, __eof))
 		this->setstate(ios_base::eofbit);
 	    }
 	  catch(exception& __fail)
@@ -627,14 +630,17 @@ namespace std
 	      const int_type __eof = traits_type::eof();	      
 	      __streambuf_type* __this_sb = this->rdbuf();
 	      int_type __c = __this_sb->sgetc();
+	      char_type __c2 = traits_type::to_char_type(__c);
 	      
-	      while (__c != __eof && __c != __idelim 
-		     && (__sb.sputc(traits_type::to_char_type(__c)) != __eof))
+	      while (!traits_type::eq_int_type(__c, __eof) 
+		     && !traits_type::eq_int_type(__c, __idelim) 
+		     && !traits_type::eq_int_type(__sb.sputc(__c2), __eof))
 		{
 		  ++_M_gcount;
 		  __c = __this_sb->snextc();
+		  __c2 = traits_type::to_char_type(__c);
 		}
-	      if (__c == __eof)
+	      if (traits_type::eq_int_type(__c, __eof))
 		this->setstate(ios_base::eofbit);
 	    }
 	  catch(exception& __fail)
@@ -667,19 +673,21 @@ namespace std
 	      __streambuf_type* __sb = this->rdbuf();
 	      int_type __c = __sb->sgetc();
 	    
-	      while (_M_gcount + 1 < __n && __c != __eof && __c != __idelim)
+	      while (_M_gcount + 1 < __n 
+		     && !traits_type::eq_int_type(__c, __eof)
+		     && !traits_type::eq_int_type(__c, __idelim))
 		{
 		  *__s++ = traits_type::to_char_type(__c);
 		  __c = __sb->snextc();
 		  ++_M_gcount;
 		}
-	      if (__c == __eof)
+	      if (traits_type::eq_int_type(__c, __eof))
 		this->setstate(ios_base::eofbit);
 	      else
 		{
-		  if (__c == __idelim)
+		  if (traits_type::eq_int_type(__c, __idelim))
 		    {
-		      __sb->snextc();
+		      __sb->sbumpc();
 		      ++_M_gcount;
 		    }
 		  else
@@ -708,27 +716,24 @@ namespace std
     {
       _M_gcount = 0;
       sentry __cerb(*this, true);
-      if (__cerb) 
+      if (__cerb && __n > 0) 
 	{
 	  try 
 	    {
 	      const int_type __eof = traits_type::eof();
 	      __streambuf_type* __sb = this->rdbuf();
-	      int_type __c = __sb->sgetc();	
+	      int_type __c;
 	      
 	      __n = min(__n, numeric_limits<streamsize>::max());
-	      while (_M_gcount < __n  && __c !=__eof && __c != __delim)
+	      while (_M_gcount < __n  
+		     && !traits_type::eq_int_type(__c = __sb->sbumpc(), __eof))
 		{
-		  __c = __sb->snextc();
 		  ++_M_gcount;
+		  if (traits_type::eq_int_type(__c, __delim))
+		    break;
 		}
-	      if (__c == __eof)
+	      if (traits_type::eq_int_type(__c, __eof))
 		this->setstate(ios_base::eofbit);
-	      else if (__c == __delim)
-		{
-		  __sb->snextc();
-		  ++_M_gcount;
-		}
 	    }
 	  catch(exception& __fail)
 	    {
@@ -806,9 +811,8 @@ namespace std
 	{
 	  try 
 	    {
-	      const int_type __eof = traits_type::eof(); 
 	      streamsize __num = this->rdbuf()->in_avail();
-	      if (__num != static_cast<streamsize>(__eof))
+	      if (__num > 0)
 		{
 		  __num = min(__num, __n);
 		  if (__num)
@@ -843,7 +847,8 @@ namespace std
 	    {
 	      const int_type __eof = traits_type::eof();
 	      __streambuf_type* __sb = this->rdbuf();
-	      if (!__sb || __sb->sputbackc(__c) == __eof) 
+	      if (!__sb 
+		  || traits_type::eq_int_type(__sb->sputbackc(__c), __eof))
 		this->setstate(ios_base::badbit);		    
 	    }
 	  catch(exception& __fail)
@@ -873,7 +878,8 @@ namespace std
 	    {
 	      const int_type __eof = traits_type::eof();
 	      __streambuf_type* __sb = this->rdbuf();
-	      if (!__sb || __eof == __sb->sungetc())
+	      if (!__sb 
+		  || traits_type::eq_int_type(__sb->sungetc(), __eof))
 		this->setstate(ios_base::badbit);		    
 	    }
 	  catch(exception& __fail)
@@ -895,7 +901,7 @@ namespace std
     basic_istream<_CharT, _Traits>::
     sync(void)
     {
-      int __ret = traits_type::eof();
+      int __ret = -1;
       _M_gcount = 0;
       sentry __cerb(*this, true);
       if (__cerb) 
@@ -903,10 +909,13 @@ namespace std
 	  try 
 	    {
 	      __streambuf_type* __sb = this->rdbuf();
-	      if (!__sb || __ret == __sb->pubsync())
-		this->setstate(ios_base::badbit);		    
-	      else 
-		__ret = 0;
+	      if (__sb)
+		{
+		  if (__sb->pubsync() == -1)
+		    this->setstate(ios_base::badbit);		    
+		  else 
+		    __ret = 0;
+		}
 	    }
 	  catch(exception& __fail)
 	    {
@@ -1186,16 +1195,18 @@ namespace std
 	  __streambuf_type* __sb = __in.rdbuf();
 	  __int_type __c = __sb->sbumpc();
 	  const __int_type __eof = _Traits::eof();
-	  __testdelim = __c ==  __idelim;
+	  __testdelim = _Traits::eq_int_type(__c, __idelim);
 
-	  while (__extracted <= __n && __c != __eof && !__testdelim)
+	  while (__extracted <= __n 
+		 && !_Traits::eq_int_type(__c, __eof)
+		 && !__testdelim)
 	    {
 	      __str += _Traits::to_char_type(__c);
 	      ++__extracted;
 	      __c = __sb->sbumpc();
-	      __testdelim = __c == __idelim;
+	      __testdelim = _Traits::eq_int_type(__c, __idelim);
 	    }
-	  if (__c == __eof)
+	  if (_Traits::eq_int_type(__c, __eof))
 	    __in.setstate(ios_base::eofbit);
 	}
       if (!__extracted && !__testdelim)
@@ -1221,8 +1232,10 @@ namespace std
   extern template istream& operator>>(istream&, unsigned char*);
   extern template istream& operator>>(istream&, signed char*);
 
+#ifdef _GLIBCPP_USE_WCHAR_T
   extern template class basic_istream<wchar_t>;
   extern template wistream& ws(wistream&);
   extern template wistream& operator>>(wistream&, wchar_t&);
   extern template wistream& operator>>(wistream&, wchar_t*);
+#endif
 } // namespace std
