@@ -33,8 +33,8 @@
 #define	_MACHINE_UCONTEXT_H_
 
 typedef struct __mcontext {
-	u_long	mc_global[8];
-	u_long	mc_out[8];
+	long	mc_global[8];
+	long	mc_out[8];
 	long	mc_onstack;
 	long	mc_sp;
 	long	mc_tpc;
