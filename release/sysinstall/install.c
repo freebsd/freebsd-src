@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.48 1995/10/20 22:48:49 jkh Exp $
+ * $Id: install.c,v 1.71.2.49 1995/10/21 14:06:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -327,14 +327,14 @@ installExpress(char *str)
 	return RET_FAIL;
 
     /* If this is set, we have a power installation setup here.. */
-    cp = variable_get(DIST_SETS);
+    cp = variable_get(VAR_DIST_SETS);
     if (cp) {
 	/* These *ALL* have to be set at once.  Like I said - power installation setup */
 	if (sscanf(cp, "%x %x %x %x %x %x",
 		   &Dists, &DESDists, &SrcDists, &XF86Dists, &XF86ServerDists, &XF86FontDists) != 6)
 	    msgConfirm("Warning:  A %s variable was configured which did not set all\n"
 		       "distributions explicitly.  Some distributions will default to\n"
-		       "unselected as a result.", DIST_SETS);
+		       "unselected as a result.", VAR_DIST_SETS);
     }
     else {
 	msgConfirm("Now it is time to select an installation subset.  There are a number of canned\n"
@@ -630,20 +630,20 @@ int
 installVarDefaults(char *unused)
 {
     /* Set default startup options */
-    variable_set2("routedflags",	"-q");
-    variable_set2(RELNAME,		RELEASE_NAME);
-    variable_set2(CPIO_VERBOSITY_LEVEL, "high");
-    variable_set2(TAPE_BLOCKSIZE,	DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(FTP_USER,		"ftp");
-    variable_set2(BROWSER_PACKAGE,	"lynx-2.4.2");
-    variable_set2(BROWSER_BINARY,	"/usr/local/bin/lynx");
-    variable_set2(CONFIG_FILE,		"freebsd.cfg");
-    variable_set2(OPT_FTP_STATE,	"passive");
-    variable_set2(OPT_FTP_ONERROR,	"abort");
+    variable_set2(VAR_ROUTEDFLAGS,		"-q");
+    variable_set2(VAR_RELNAME,			RELEASE_NAME);
+    variable_set2(VAR_CPIO_VERBOSITY,		"high");
+    variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
+    variable_set2(VAR_FTP_USER,			"ftp");
+    variable_set2(VAR_BROWSER_PACKAGE,		"lynx-2.4.2");
+    variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
+    variable_set2(VAR_CONFIG_FILE,		"freebsd.cfg");
+    variable_set2(VAR_FTP_STATE,		"passive");
+    variable_set2(VAR_FTP_ONERROR,		"abort");
     if (getpid() != 1)
-	variable_set2(SYSTEM_STATE, "update");
+	variable_set2(SYSTEM_STATE,		"update");
     else
-	variable_set2(SYSTEM_STATE, "init");
+	variable_set2(SYSTEM_STATE,		"init");
     return RET_SUCCESS;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.18 1995/10/20 07:02:30 jkh Exp $
+ * $Id: config.c,v 1.16.2.20 1995/10/20 21:56:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -300,14 +300,14 @@ configSysconfig(void)
 int
 configSaverTimeout(char *str)
 {
-    return variable_get_value("blanktime", "Enter time-out period in seconds for screen saver")
+    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
 	? RET_SUCCESS : RET_FAIL;
 }
 
 int
 configNTP(char *str)
 {
-    return variable_get_value("ntpdate", "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
+    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
 }
 
 void
@@ -357,7 +357,7 @@ skip:
 int
 configRoutedFlags(char *str)
 {
-    return variable_get_value("routedflags", 
+    return variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
 			      "a good choice for gateway machines.") ? RET_SUCCESS : RET_FAIL;
 }
@@ -424,10 +424,10 @@ configPorts(char *str)
     char *cp, *dist = NULL; /* Shut up compiler */
 
     if (file_executable("/usr/X11R6/bin/lndir")) {
-	if (!variable_get(PORTS_PATH))
-	    variable_set2(PORTS_PATH, dist = "/cdrom/ports");
+	if (!variable_get(VAR_PORTS_PATH))
+	    variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
 	while (!directoryExists(dist)) {
-	    dist = variable_get_value(PORTS_PATH,
+	    dist = variable_get_value(VAR_PORTS_PATH,
 				      "Unable to locate a ports tree on CDROM.  Please specify the\n"
 				      "location of the master ports directory you wish to create the\n"
 				      "link tree to.");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.19 1995/10/21 18:28:04 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.21 1995/10/21 20:03:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,7 @@ get_new_host(Device *dev, Boolean tentative)
 {
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
-    char *cp = variable_get(OPT_FTP_ONERROR);
+    char *cp = variable_get(VAR_FTP_ONERROR);
 
     if (tentative || (cp && !strcmp(cp, "retry")))
 	return TRUE;
@@ -76,7 +76,7 @@ get_new_host(Device *dev, Boolean tentative)
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i == RET_SUCCESS) {
-	char *cp = variable_get(FTP_USER);
+	char *cp = variable_get(VAR_FTP_USER);
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
@@ -107,7 +107,7 @@ ftpShouldAbort(Device *dev, int retries)
     if (retries >= MAX_FTP_RETRIES)
 	return 1;
 
-    cp = variable_get(OPT_FTP_ONERROR);
+    cp = variable_get(VAR_FTP_ONERROR);
     if (cp && !strcmp(cp, "abort")) {
 	dev->shutdown(dev);
 	reselectCount = 0;
@@ -138,9 +138,9 @@ mediaInitFTP(Device *dev)
     if (isDebug())
 	msgDebug("Initialized FTP library.\n");
 
-    cp = variable_get(FTP_PATH);
+    cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	msgConfirm("%s is not set!", FTP_PATH);
+	msgConfirm("%s is not set!", VAR_FTP_PATH);
 	return FALSE;
     }
     if (isDebug())
@@ -173,20 +173,20 @@ mediaInitFTP(Device *dev)
 		   "name server, gateway and network interface are configured?", hostname);
 	goto punt;
     }
-    user = variable_get(FTP_USER);
+    user = variable_get(VAR_FTP_USER);
     if (!user || !*user) {
 	snprintf(password, BUFSIZ, "installer@%s", variable_get(VAR_HOSTNAME));
 	login_name = "anonymous";
     }
     else {
 	login_name = user;
-	strcpy(password, variable_get(FTP_PASS) ? variable_get(FTP_PASS) : login_name);
+	strcpy(password, variable_get(VAR_FTP_PASS) ? variable_get(VAR_FTP_PASS) : login_name);
     }
     retries = 0;
 retry:
     msgNotify("Logging in as %s..", login_name);
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
-	if (variable_get(OPT_NO_CONFIRM))
+	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
@@ -195,7 +195,7 @@ retry:
 	goto retry;
     }
 
-    FtpPassive(ftp, !strcmp(variable_get(OPT_FTP_STATE), "passive"));
+    FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("Attempt to chdir to distribution in %s..", dir);
@@ -209,7 +209,7 @@ retry:
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless we get a hard error back that is! */
-    if (FtpChdir(ftp, getenv(RELNAME)) == -2)
+    if (FtpChdir(ftp, getenv(VAR_RELNAME)) == -2)
 	goto punt;
 
     msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
@@ -232,6 +232,9 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 
     fp = file;
     nretries = 0;
+
+    if (!dev->init(dev))
+	return -2;
     msgDebug("Attempting to get %s from FTP.\n", file);
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
@@ -254,9 +257,9 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 	    if (nretries == 1)
 		sprintf(buf, "dists/%s", file);
 	    else if (nretries == 2)
-		sprintf(buf, "%s/%s", variable_get(RELNAME), file);
+		sprintf(buf, "%s/%s", variable_get(VAR_RELNAME), file);
 	    else if (nretries == 3)
-		sprintf(buf, "%s/dists/%s", variable_get(RELNAME), file);
+		sprintf(buf, "%s/dists/%s", variable_get(VAR_RELNAME), file);
 	    else
 		sprintf(buf, file);
 	    fp = buf;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.17 1995/10/20 14:24:54 jkh Exp $
+ * $Id: label.c,v 1.32.2.19 1995/10/20 21:57:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,9 +60,6 @@
 #define CHUNK_SLICE_START_ROW		2
 #define CHUNK_PART_START_ROW		11
 
-/* One MB worth of blocks */
-#define ONE_MEG				2048
-
 /* The smallest filesystem we're willing to create */
 #define FS_MIN_SIZE			ONE_MEG
 
@@ -86,6 +83,7 @@ static struct {
 static int here;
 
 static int diskLabel(char *str);
+static int scriptLabel(char *str);
 
 static int
 labelHook(char *str)
@@ -125,8 +123,10 @@ diskLabelEditor(char *str)
     Device **devs;
     DMenu *menu;
     int i, cnt;
+    char *cp;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    cp = variable_get(VAR_DISK);
+    devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
@@ -136,7 +136,10 @@ diskLabelEditor(char *str)
     }
     else if (cnt == 1 || variable_get(DISK_PARTITIONED)) {
 	devs[0]->enabled = TRUE;
-	i = diskLabel(str);
+	if (str && !strcmp(str, "script"))
+	    i = scriptLabel(str);
+	else
+	    i = diskLabel(str);
     }
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
@@ -392,6 +395,111 @@ getNewfsCmd(PartInfo *p)
 	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
 
+static int
+scriptLabel(char *str)
+{
+    char *cp;
+    PartType type;
+    PartInfo *p;
+    u_long flags = 0;
+    int i, status;
+    Device **devs;
+    Disk *d;
+
+    status = RET_SUCCESS;
+    cp = variable_get(VAR_DISK);
+    if (!cp) {
+	msgConfirm("scriptLabel:  No disk selected - can't label automatically.");
+	return RET_FAIL;
+    }
+
+    devs = deviceFind(cp, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("scriptLabel: No disk device %s found!", cp);
+	return RET_FAIL;
+    }
+    d = devs[0]->private;
+
+    record_label_chunks(devs);
+    for (i = 0; label_chunk_info[i].c; i++) {
+	Chunk *c1 = label_chunk_info[i].c;
+
+	if (label_chunk_info[i].type == PART_SLICE) {
+	    if ((cp = variable_get(c1->name)) != NULL) {
+		int sz;
+		char typ[10], mpoint[50];
+
+		if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
+		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
+		    status = RET_FAIL;
+		    continue;
+		}
+		else {
+		    if (!sz)
+			sz = space_free(c1);
+		    if (sz < space_free(c1)) {
+			msgConfirm("Not enough free space to create partition: %s", mpoint);
+			status = RET_FAIL;
+			continue;
+		    }
+		    if (!strcmp(typ, "swap"))
+			type = PART_SWAP;
+		    else {
+			type = PART_FILESYSTEM;
+			if (c1->private) {
+			    p = (PartInfo *)c1->private;
+			    strcpy(p->mountpoint, mpoint);
+			}
+			else {
+			    p = c1->private = new_part(mpoint, TRUE, sz);
+			    c1->private_free = safe_free;
+			}
+			if (!strcmp(mpoint, "/"))
+			    flags |= CHUNK_IS_ROOT;
+		    }
+		    if (!Create_Chunk_DWIM(d, c1, sz, part, (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags)) {
+			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
+			status = RET_FAIL;
+			break;
+		    }
+		}
+	    }
+	}
+	else {
+	    /* Must be something we can set a mountpoint */
+	    cp = variable_get(c1->name);
+	    if (cp) {
+		char mpoint[50], nwfs[8];
+		Boolean newfs = FALSE;
+
+		nwfs[0] = '\0';
+		if (sscanf(cp, "%s %s", mpoint, nwfs) != 2) {
+		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
+		    status = RET_FAIL;
+		    continue;
+		}
+		newfs = toupper(nwfs[0]) == 'Y' ? TRUE : FALSE;
+		if (c1->private) {
+		    p = c1->private;
+		    p->newfs = newfs;
+		    strcpy(p->mountpoint, mpoint);
+		}
+		else {
+		    p = c1->private = new_part(mpoint, newfs, 0);
+		    c1->private_free = safe_free;
+		}
+		if (!strcmp(mpoint, "/"))
+		    c1->flags |= CHUNK_IS_ROOT;
+		else
+		    c1->flags &= ~CHUNK_IS_ROOT;
+	    }
+	}
+    }
+    if (status == RET_SUCCESS)
+	variable_set2(DISK_LABELLED, "yes");
+    return status;
+}
+
 #define MAX_MOUNT_NAME	12
 
 #define PART_PART_COL	0
@@ -605,7 +713,7 @@ diskLabel(char *str)
 	    size_t size, swsize;
 	    char *cp;
 
-	    cp = variable_get(ROOT_SIZE);
+	    cp = variable_get(VAR_ROOT_SIZE);
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
 				    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS, 
@@ -619,7 +727,7 @@ diskLabel(char *str)
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
-	    cp = variable_get(SWAP_SIZE);
+	    cp = variable_get(VAR_SWAP_SIZE);
 	    if (cp)
 		swsize = atoi(cp) * ONE_MEG;
 	    else {
@@ -642,7 +750,7 @@ diskLabel(char *str)
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
-	    cp = variable_get(VAR_SIZE);
+	    cp = variable_get(VAR_VAR_SIZE);
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
 				    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
@@ -655,7 +763,7 @@ diskLabel(char *str)
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	    
-	    cp = variable_get(USR_SIZE);
+	    cp = variable_get(VAR_USR_SIZE);
 	    if (cp)
 		sz = atoi(cp) * ONE_MEG;
 	    else

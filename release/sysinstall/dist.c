@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.11 1995/10/20 22:34:55 jkh Exp $
+ * $Id: dist.c,v 1.36.2.12 1995/10/21 14:06:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -358,6 +358,8 @@ distExtract(char *parent, Distribution *me)
 		}
 		mediaDevice->close(mediaDevice, fd);
 	    }
+	    else if (fd == -2)
+		return FALSE;
 	    else {
 		msgNotify("Unable to get information file for distribution %s - skipping..", dist);
 		numchunks = -1;
@@ -389,7 +391,7 @@ distExtract(char *parent, Distribution *me)
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
-		msgDebug("trying for piece %d of %d: %s\n", chunk, numchunks, buf);
+		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
 	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
 	    if (fd < 0) {
 		dialog_clear();
@@ -420,7 +422,7 @@ distExtract(char *parent, Distribution *me)
 
     done:
 	if (!status) {
-	    if (variable_get(OPT_NO_CONFIRM))
+	    if (variable_get(VAR_NO_CONFIRM))
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {

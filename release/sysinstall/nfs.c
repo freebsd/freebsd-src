@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.8 1995/10/18 00:12:34 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.9 1995/10/21 14:06:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,8 +66,8 @@ mediaInitNFS(Device *dev)
 
     msgNotify("Mounting %s over NFS.", dev->name);
     if (vsystem("mount_nfs %s %s %s /dist",
-		variable_get(OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
-		variable_get(OPT_NFS_SECURE) ? "-P" : "", dev->name)) {
+		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
+		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name)) {
 	msgConfirm("Error mounting %s on /dist: %s (%u)\n", dev->name, strerror(errno), errno);
 	return FALSE;
     }
@@ -88,10 +88,10 @@ mediaGetNFS(Device *dev, char *file, Boolean tentative)
     snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
     return open(buf, O_RDONLY);
 }
 

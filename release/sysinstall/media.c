@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.17 1995/10/21 14:06:51 jkh Exp $
+ * $Id: media.c,v 1.25.2.19 1995/10/21 18:28:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -252,19 +252,19 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    if (!(str && !strcmp(str, "script") && (cp = variable_get(FTP_PATH)))) {
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_FTP_PATH)))) {
 	if (!dmenuOpenSimple(&MenuMediaFTP))
 	    return RET_FAIL;
 	else
-	    cp = variable_get(FTP_PATH);
+	    cp = variable_get(VAR_FTP_PATH);
     }
     if (!cp) {
-	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", FTP_PATH);
+	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
 	return RET_FAIL;
     }
     else if (!strcmp(cp, "other")) {
-	variable_set2(FTP_PATH, "ftp://");
-	cp = variable_get_value(FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
+	variable_set2(VAR_FTP_PATH, "ftp://");
+	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
 				"ftp or you should have set an ftp username and password\n"
 				"in the Options screen.\n\n"
@@ -297,14 +297,14 @@ mediaSetFTP(char *str)
 int
 mediaSetFTPActive(char *str)
 {
-    variable_set2(OPT_FTP_STATE, "active");
+    variable_set2(VAR_FTP_STATE, "active");
     return mediaSetFTP(str);
 }
 
 int
 mediaSetFTPPassive(char *str)
 {
-    variable_set2(OPT_FTP_STATE, "passive");
+    variable_set2(VAR_FTP_STATE, "passive");
     return mediaSetFTP(str);
 }
 
@@ -314,8 +314,8 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    if (!(str && !strcmp(str, "script") && (val = variable_get(UFS_PATH)))) {
-	val = variable_get_value(UFS_PATH, "Enter a fully qualified pathname for the directory\n"
+    if (!(str && !strcmp(str, "script") && (val = variable_get(VAR_UFS_PATH)))) {
+	val = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 				 "containing the FreeBSD distribution files:");
 	if (!val)
 	    return RET_FAIL;
@@ -337,8 +337,8 @@ mediaSetNFS(char *str)
     static Device nfsDevice;
     char *cp;
 
-    if (!(str && !strcmp(str, "script") && (cp = variable_get(NFS_PATH)))) {
-	cp = variable_get_value(NFS_PATH, "Please enter the full NFS file specification for the remote\n"
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_NFS_PATH)))) {
+	cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 				"host and directory containing the FreeBSD distribution files.\n"
 				"This should be in the format:  hostname:/some/freebsd/dir");
 	if (!cp)
@@ -401,7 +401,7 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", VAR_CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -474,7 +474,7 @@ mediaExtractDist(char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-idum", CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", VAR_CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -523,7 +523,7 @@ mediaVerify(void)
 int
 mediaSetFtpOnError(char *str)
 {
-    char *cp = variable_get(OPT_FTP_ONERROR);
+    char *cp = variable_get(VAR_FTP_ONERROR);
 
     if (!cp) {
 	msgConfirm("FTP error handling is not set to anything!");
@@ -531,11 +531,11 @@ mediaSetFtpOnError(char *str)
     }
     else {
 	if (!strcmp(cp, "abort"))
-	    variable_set2(OPT_FTP_ONERROR, "retry");
+	    variable_set2(VAR_FTP_ONERROR, "retry");
 	else if (!strcmp(cp, "retry"))
-	    variable_set2(OPT_FTP_ONERROR, "reselect");
+	    variable_set2(VAR_FTP_ONERROR, "reselect");
 	else /* must be "reselect" - wrap around */
-	    variable_set2(OPT_FTP_ONERROR, "abort");
+	    variable_set2(VAR_FTP_ONERROR, "abort");
     }
     return RET_SUCCESS;
 }
@@ -547,8 +547,8 @@ mediaSetFtpUserPass(char *str)
     char *pass;
 
     dialog_clear();
-    if (variable_get_value(FTP_USER, "Please enter the username you wish to login as:"))
-	pass = variable_get_value(FTP_PASS, "Please enter the password for this user:");
+    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:"))
+	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
     else
 	pass = NULL;
     dialog_clear();
@@ -559,7 +559,7 @@ mediaSetFtpUserPass(char *str)
 int
 mediaSetCPIOVerbosity(char *str)
 {
-    char *cp = variable_get(CPIO_VERBOSITY_LEVEL);
+    char *cp = variable_get(VAR_CPIO_VERBOSITY);
 
     if (!cp) {
 	msgConfirm("CPIO Verbosity is not set to anything!");
@@ -567,11 +567,11 @@ mediaSetCPIOVerbosity(char *str)
     }
     else {
 	if (!strcmp(cp, "low"))
-	    variable_set2(CPIO_VERBOSITY_LEVEL, "medium");
+	    variable_set2(VAR_CPIO_VERBOSITY, "medium");
 	else if (!strcmp(cp, "medium"))
-	    variable_set2(CPIO_VERBOSITY_LEVEL, "high");
+	    variable_set2(VAR_CPIO_VERBOSITY, "high");
 	else /* must be "high" - wrap around */
-	    variable_set2(CPIO_VERBOSITY_LEVEL, "low");
+	    variable_set2(VAR_CPIO_VERBOSITY, "low");
     }
     return RET_SUCCESS;
 }
