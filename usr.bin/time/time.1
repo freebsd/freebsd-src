@@ -39,9 +39,9 @@
 .Nd time command execution
 .Sh SYNOPSIS
 .Nm
-.Op Fl a Ar file
-.Op Fl o Ar file
 .Op Fl l
+.Op Fl a
+.Op Fl o Ar file
 .Ar command
 .Sh DESCRIPTION
 The
@@ -68,25 +68,25 @@ process.
 .Pp
 Available options:
 .Bl -tag -width Ds
-.It Fl a Ar file
-Append the output of
-.Nm
-to 
-.Ar file
-instead of writing to stderr.
+.It Fl l
+The contents of the
+.Em rusage
+structure are printed as well.
+.It Fl a
+If the
+.Fl o
+flag is used, append to the specified file rather than overwriting
+it. Otherwise, this option has no effect.
 .It Fl o Ar file
 Write the output to 
 .Ar file
 instead of stderr.  If
 .Ar file
-exists, then 
-.Nm
-will overwrite the file if its permissions allow it.
-.It Fl l
-The contents of the
-.Em rusage
-structure are printed as well.
+exists and the
+.Fl a
+flag is not specified, the file will be overwritten.
 .El
+.Sh NOTES
 .Pp
 The
 .Xr csh 1
@@ -98,7 +98,6 @@ is available as
 to
 .Xr csh
 users.
-.Sh NOTES
 The output of
 .Nm
 can be directed to standard output by specifying
