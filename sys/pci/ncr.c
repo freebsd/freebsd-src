@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.58 1996/01/15 23:16:39 se Exp $
+**  $Id: ncr.c,v 1.59 1996/01/15 23:51:10 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -120,7 +120,7 @@
 **    one lun, so take 1 as the default.
 */
 
-#define MAX_LUN     (1)
+#define MAX_LUN     (8)
 
 /*
 **    The maximum number of jobs scheduled for starting.
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.58 1996/01/15 23:16:39 se Exp $\n";
+	"\n$Id: ncr.c,v 1.59 1996/01/15 23:51:10 se Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
