@@ -1353,7 +1353,10 @@ pipe_stat(fp, ub, active_cred, td)
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
-	ub->st_size = pipe->pipe_buffer.cnt;
+	if (pipe->pipe_state & PIPE_DIRECTW)
+		ub->st_size = pipe->pipe_map.cnt;
+	else
+		ub->st_size = pipe->pipe_buffer.cnt;
 	ub->st_blocks = (ub->st_size + ub->st_blksize - 1) / ub->st_blksize;
 	ub->st_atimespec = pipe->pipe_atime;
 	ub->st_mtimespec = pipe->pipe_mtime;
