@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.18 1996/05/02 15:44:53 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.20 1996/06/01 05:08:31 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -211,7 +211,7 @@ _yp_dobind(dom, ypdb)
 	char *dom;
 	struct dom_binding **ypdb;
 {
-	static int pid = -1;
+	static pid_t pid = -1;
 	char path[MAXPATHLEN];
 	struct dom_binding *ysd, *ysd2;
 	struct ypbind_resp ypbr;
