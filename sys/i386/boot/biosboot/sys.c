@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.10 1995/06/25 14:02:55 joerg Exp $
+ *	$Id: sys.c,v 1.11 1996/04/07 14:28:03 bde Exp $
  */
 
 #include "boot.h"
@@ -100,11 +100,11 @@ find(char *path)
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
 	struct direct *dp;
-	int list_only = 0;
+	char list_only;
 
-	if (strcmp("?", path) == 0)
-		list_only = 1;
-loop:	iodest = iobuf;
+	list_only = (path[0] == '?' && path[1] == '\0');
+loop:
+	iodest = iobuf;
 	cnt = fs->fs_bsize;
 	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
 	devread();
@@ -123,7 +123,7 @@ loop:	iodest = iobuf;
 	do {
 		if (loc >= inode.i_size) {
 			if (list_only) {
-				printf("\n");
+				putchar('\n');
 				return -1;
 			} else {
 				return 0;
@@ -183,11 +183,11 @@ openrd(void)
 		 * Look for a BIOS drive number (a leading digit followed
 		 * by a colon).
 		 */
+		biosdrivedigit = '\0';
 		if (*(name + 1) == ':' && *name >= '0' && *name <= '9') {
 			biosdrivedigit = *name;
 			name += 2;
-		} else
-			biosdrivedigit = '\0';
+		}
 
 		if (cp++ != name)
 		{
@@ -223,9 +223,8 @@ openrd(void)
 		if (!*cp)
 			return 1;
 	}
-	if (biosdrivedigit != '\0')
-		biosdrive = biosdrivedigit - '0';
-	else {
+	biosdrive = biosdrivedigit - '0';
+	if (biosdrivedigit == '\0') {
 		biosdrive = unit;
 #if BOOT_HD_BIAS > 0
 		/* XXX */
@@ -268,8 +267,10 @@ openrd(void)
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
 	ret = find(cp);
-	if (ret <= 0)
-		return (ret == 0) ? 1 : -1;
+	if (ret == 0)
+		return 1;
+	if (ret < 0)
+		return -1;
 	poff = 0;
 	name = cp;
 	return 0;
