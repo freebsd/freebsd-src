@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.28 1996/04/18 15:41:51 wollman Exp $
+ *	$Id: in_proto.c,v 1.29 1996/04/26 18:30:52 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -109,26 +109,26 @@ struct protosw inetsw[] = {
   tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
-  rip_input,	rip_output,	0,		rip_ctloutput,
+  rip_input,	0,		0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_ICMP,	PR_ATOMIC|PR_ADDR,
-  icmp_input,	rip_output,	0,		rip_ctloutput,
+  icmp_input,	0,		0,		rip_ctloutput,
   rip_usrreq
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IGMP,	PR_ATOMIC|PR_ADDR,
-  igmp_input,	rip_output,	0,		rip_ctloutput,
+  igmp_input,	0,		0,		rip_ctloutput,
   rip_usrreq,
   igmp_init,	igmp_fasttimo,	igmp_slowtimo
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RSVP,	PR_ATOMIC|PR_ADDR,
-  rsvp_input,	rip_output,	0,		rip_ctloutput,
+  rsvp_input,	0,		0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
-  ipip_input,	rip_output, 	0,		rip_ctloutput,
+  ipip_input,	0,	 	0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
@@ -149,7 +149,7 @@ struct protosw inetsw[] = {
 #endif
 #ifdef IPXIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
-  ipxip_input,	rip_output,	ipxip_ctlinput,	0,
+  ipxip_input,	0,		ipxip_ctlinput,	0,
   rip_usrreq,
   0,		0,		0,		0,
 },
@@ -163,7 +163,7 @@ struct protosw inetsw[] = {
 #endif
 	/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
-  rip_input,	rip_output,	0,		rip_ctloutput,
+  rip_input,	0,		0,		rip_ctloutput,
   rip_usrreq,
   rip_init,	0,		0,		0,
 },
