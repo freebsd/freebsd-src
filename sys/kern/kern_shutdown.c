@@ -535,7 +535,9 @@ panic(const char *fmt, ...)
 	}
 #endif
 #endif
+	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_INPANIC;
+	mtx_unlock_spin(&sched_lock);
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
 	boot(bootopt);
