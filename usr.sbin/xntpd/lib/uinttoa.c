@@ -1,4 +1,4 @@
-/* uinttoa.c,v 3.1 1993/07/06 01:08:54 jbj Exp
+/*
  * uinttoa - return an asciized unsigned integer
  */
 #include <stdio.h>
@@ -8,12 +8,12 @@
 
 char *
 uinttoa(uval)
-	U_LONG uval;
+	u_long uval;
 {
 	register char *buf;
 
 	LIB_GETBUF(buf);
 
-	(void) sprintf(buf, "%lu", uval);
+	(void) sprintf(buf, "%lu", (u_long)uval);
 	return buf;
 }

@@ -23,10 +23,15 @@ if [ "$rcfg" = "refclocks/rclk.*" ]; then
 else
   config="`egrep '^[ 	]*CLOCKDEFS[ 	]*=' Config.local | sed 's/\([^#]*\)#.*$/\1/g; s/[ 	]*CLOCKDEFS[ 	]*=//g; s/-D//g; s/[ 	][ 	]*/ /g; s/^ *//g; s/ *$//g;'`"
   DEFS="`egrep '^[ 	]*DEFS[ 	]*=' Config | sed 's/\([^#]*\)#.*$/\1/g; s/[ 	]*DEFS[ 	]*=//g; s/-D//g; s/[ 	][ 	]*/ /g; s/^ *//g; s/ *$//g;'`"
+  DEFSLOCAL="`egrep '^[ 	]*DEFS_LOCAL[ 	]*=' Config.local | sed 's/\([^#]*\)#.*$/\1/g; s/[ 	]*DEFS_LOCAL[ 	]*=//g; s/-D//g; s/[ 	][ 	]*/ /g; s/^ *//g; s/ *$//g;'`"
   if [ ! "$REFCONF" ]; then
     echo
     echo "Current configuration"
     echo
+    if check "$DEFSLOCAL" '$0 ~ /MCAST/'; then
+      echo "==> MULTICAST SUPPORT (if available)"
+      echo
+    fi
     for i in $rcfg
     do
       sh $i check "$config" "" "" "$DEFS" "$REFCONF"
@@ -78,6 +83,12 @@ else
 	PPS="-DPPS $PPS"
       fi
     fi
+    if (check "$REFCONF" '$0 ~ /MCAST/' ||
+	( [ ! "$REFCONF" ] && query "Do you want allow for multicast support (if available) ?" y)); then
+	MCAST="-DMCAST"
+      else
+	MCAST=""
+    fi
     for i in $rcfg
     do
       sh $i config "$RCONFIG" "$PPSFEATURES" "$PPSOK" "$DEFS" "$REFCONF"
@@ -98,7 +109,7 @@ else
       fi
     fi
     if sed -e 's/^[ 	]*CLOCKDEFS[ 	]*=.*$/CLOCKDEFS='"$CLOCKDEFS"'/;' \
-        -e 's/^[ 	]*DEFS_LOCAL[ 	]*=.*$/DEFS_LOCAL= $(DEFS_OPT) '"$PPS"'/;' \
+        -e 's/^[ 	]*DEFS_LOCAL[ 	]*=.*$/DEFS_LOCAL= $(DEFS_OPT) '"$PPS $MCAST"'/;' \
 	Config.local > Config.local.new; then
       mv Config.local Config.local.old &&
         mv Config.local.new Config.local &&
@@ -106,7 +117,7 @@ else
       echo
       echo "New configuration defines:"
       echo "	CLOCKDEFS=$CLOCKDEFS"
-      echo "	DEFS_LOCAL="'$(DEFS_OPT)'" $PPS"
+      echo "	DEFS_LOCAL="'$(DEFS_OPT)'" $PPS $MCAST"
       echo
       echo "Configuration updated"
     else

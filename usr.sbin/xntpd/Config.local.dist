@@ -114,17 +114,10 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # by default when using the "make makeconfig" script and greenhorn
 # configuraiton.
 #
-# Define -DTRAK for a 8810 GPS Receiver with Buffered RS-232-C Interface
-# Module. The driver supports both the CLK and PPS modes. It should work
-# in all systems with a serial port.
-#
-# Define -DPST for a PST/Traconex 1020 WWV/H receiver. The driver
-# supports both the CLK and PPS modes. It should work in all systems
-# with a serial port.
-#
-# Define -DWWVB for a Spectracom 8170 or Netclock/2 WWVB receiver. It
-# should work in all systems with a serial port. The driver supports
-# both the CLK and PPS modes if the requisite kernel support is installed.
+# Define -DAS2201 for an Austron 2200A or 2201A GPS receiver. It should
+# work in all systems with a serial port. The driver does not support the
+# CLK mode, but does support the PPS mode. If the radio is connected to
+# more than one machine, the PPS mode is required.
 #
 # Define -DCHU for a special CHU receiver using an ordinary shortwave
 # radio. This requires the chu_clk line discipline or chu_clk_STREAMS
@@ -132,25 +125,6 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # on SunOS4.1.x; operation in other systems has not been confirmed.
 # Construction details for a suitable modem can be found in the ./gadget
 # directory. The driver supports # neither the CLK nor PPS modes.
-#
-# Define -DPARSE for a DCF77/GPS(GENERIC) receiver. For best performance
-# this requires a special parsestreams STREAMS (SunOS 4.x) module in the
-# ./parse directory. Define -DPARSEPPS for PPS support via the
-# DCF77/GPS (GENERIC) receiver; also, define -DPPS in the DEFS above.
-# Define:       -DCLOCK_MEINBERG for Meinberg clocks
-#               -DCLOCK_SCHMID   for Schmid receivers
-#               -DCLOCK_DCF7000  for ELV DCF7000
-#               -DCLOCK_RAWDCF   for simple receivers (100/200ms pulses on Rx)
-#		-DCLOCK_TRIMSV6  for Trimble SV6 GPS receiver
-#
-# Define -DMX4200PPS for a Magnavox 4200 GPS receiver. At present, this
-# driver works only on SunOS4.1.x with CPU serial ports only. The PPS
-# mode is required.
-#
-# Define -DAS2201 for an Austron 2200A or 2201A GPS receiver. It should
-# work in all systems with a serial port. The driver does not support the
-# CLK mode, but does support the PPS mode. If the radio is connected to
-# more than one machine, the PPS mode is required.
 #
 # Define -DGOES for a Kinemetrics/TrueTime 468-DC GOES receiver. This
 # driver is known to work with some other TrueTime products as well,
@@ -161,37 +135,62 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # Define -DGPSTM for a Kinemetrics/TrueTime GPS-TM/TMD receiver. It
 # should work in all systems with a serial port.
 #
-# Define -DOMEGA for a Kinemetrics/TrueTime OM-DC OMEGA receiver. It
-# should work in all systems with a serial port. The driver does not
-# support the CLK mode, but does support the PPS mode.
-#
-# Define -DTPRO for a KSI/Odetics TPRO-S IRIG-B timecode reader. This
-# requires the SunOS interface driver available from KSI. The driver
-# supports neither the CLK nor PPS modes.
-#
-# Define -DLEITCH for a Leitch CSD 5300 Master Clock System Driver for
-# the HP 5061B Cesium Clock. It should work in all systems with a serial
-# port. The driver does not support the CLK mode, but does support the
-# PPS mode.
-#
-# Define -DMSFEESPPS for an EES M201 MSF receiver. It currently only works
-# under SunOS 4.x with the PPSCD (ppsclock) STREAMS module, but the RCS
-# files on cl.cam.ac.uk still has support for CLK and CBREAK modes.
-#
 # Define -DIRIG for a IRIG-B timecode timecode using the audio codec of
 # the Sun SPARCstations. This requires a modified BSD audio driver and
 # exclusive access to the audio port. A memo describing how it works and
 # how to install the driver is in the README.irig file in the ./doc
 # directory.
 #
+# Define -DLEITCH for a Leitch CSD 5300 Master Clock System Driver for
+# the HP 5061B Cesium Clock. It should work in all systems with a serial
+# port. The driver does not support the CLK mode, but does support the
+# PPS mode.
+#
+# Define -DMX4200PPS for a Magnavox 4200 GPS receiver. At present, this
+# driver works only on SunOS4.1.x with CPU serial ports only. The PPS
+# mode is required.
+#
+# Define -DMSFEESPPS for an EES M201 MSF receiver. It currently only works
+# under SunOS 4.x with the PPSCD (ppsclock) STREAMS module, but the RCS
+# files on cl.cam.ac.uk still has support for CLK and CBREAK modes.
+#
+# Define -DOMEGA for a Kinemetrics/TrueTime OM-DC OMEGA receiver. It
+# should work in all systems with a serial port. The driver does not
+# support the CLK mode, but does support the PPS mode.
+#
+# Define -DPARSE for a DCF77/GPS(GENERIC) receiver. For best performance
+# this requires a special parsestreams STREAMS (SunOS 4.x) module in the
+# ./parse directory. Define -DPARSEPPS for PPS support via the
+# DCF77/GPS (GENERIC) receiver; also, define -DPPS in the DEFS above.
+# Define:       -DCLOCK_MEINBERG for Meinberg clocks
+#               -DCLOCK_SCHMID   for Schmid receivers
+#               -DCLOCK_DCF7000  for ELV DCF7000
+#               -DCLOCK_RAWDCF   for simple receivers (100/200ms pulses on Rx)
+#               -DCLOCK_TRIMSV6  for Trimble SV6 GPS receiver
+#
+# Define -DPST for a PST/Traconex 1020 WWV/H receiver. The driver
+# supports both the CLK and PPS modes. It should work in all systems
+# with a serial port.
+#
+# Define -DTPRO for a KSI/Odetics TPRO-S IRIG-B timecode reader. This
+# requires the SunOS interface driver available from KSI. The driver
+# supports neither the CLK nor PPS modes.
+#
+# Define -DTRAK for a 8810 GPS Receiver with Buffered RS-232-C Interface
+# Module. The driver supports both the CLK and PPS modes. It should work
+# in all systems with a serial port.
+#
+# Define -DWWVB for a Spectracom 8170 or Netclock/2 WWVB receiver. It
+# should work in all systems with a serial port. The driver supports
+# both the CLK and PPS modes if the requisite kernel support is installed.
+#
 # Note: The following defines result in compilation of all the above radio
 # clocks. This works on a Sun 4.1.x system which has tty_clk, chu_clk and
 # ppsclock STREAMS modules installed. If the trailing CLK and PPS suffixes
 # are removed and the IRIG, PARSE* and CLOCK* deleted, all of the rest compile
-# under Ultrix 4.2a/3. If the MX4200 is removed, all the rest compile on a DEC
-# OSF/1 Alpha.
+# under Ultrix 4.2a/3 and DEC # OSF/1 Alpha.
 #
-CLOCKDEFS= #GREEN -DLOCAL_CLOCK #TEST -DAS2201PPS -DCHU -DGOES -DIRIG -DMX4200PPS -DOMEGA -DPST -DPSTCLK -DTPRO -DWWVBCLK -DMSFEESPPS -DLEITCH -DPARSE -DPARSEPPS -DCLOCK_MEINBERG -DCLOCK_RAWDCF -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_TRIMSV6
+CLOCKDEFS= #GREEN -DLOCAL_CLOCK #TEST -DAS2201PPS -DCHU -DATUM -DGOES -DGPSTM -DIRIG -DLEITCH -DMSFEES -DMX4200PPS -DOMEGA -DPST -DTPRO -TRAK -DWWVB -DPARSE -DPARSEPPS -DCLOCK_MEINBERG -DCLOCK_RAWDCF -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_TRIMSV6
 
 #
 # Directory into which binaries should be installed (default /usr/local)

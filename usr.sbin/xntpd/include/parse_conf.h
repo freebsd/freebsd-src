@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/parse_conf.h,v 3.6 1994/05/30 10:19:49 kardel Exp
  *
- * parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp
+ * parse_conf.h,v 3.6 1994/05/30 10:19:49 kardel Exp
  *
  * Copyright (c) 1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
@@ -15,7 +15,7 @@
 #ifndef __PARSE_CONF_H__
 #define __PARSE_CONF_H__
 #if	!(defined(lint) || defined(__GNUC__))
-  static char dcfhrcsid[]="parse_conf.h,v 3.5 1994/01/25 19:04:23 kardel Exp FAU";
+  static char dcfhrcsid[]="parse_conf.h,v 3.6 1994/05/30 10:19:49 kardel Exp FAU";
 #endif
 
 /*
@@ -49,6 +49,6 @@ struct format
       char length;		/* length of field */
     } field_offsets[O_COUNT];
   char *fixed_string;		/* string with must be chars (blanks = wildcards) */
-  unsigned LONG flags;
+  u_long flags;
 };
 #endif

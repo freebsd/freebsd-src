@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parsesolaris.c,v 3.16 1994/05/30 09:57:40 kardel Exp
  *  
- * parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp
+ * parsesolaris.c,v 3.16 1994/05/30 09:57:40 kardel Exp
  *
  * STREAMS module for reference clocks
  * (SunOS5.x - not fully tested - buyer beware ! - OS KILLERS may still be
@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "parsesolaris.c,v 3.15 1994/02/15 22:20:51 kardel Exp";
+static char rcsid[] = "parsesolaris.c,v 3.16 1994/05/30 09:57:40 kardel Exp";
 #endif
 
 /*
@@ -139,7 +139,7 @@ int Strcmp(s, t)
 /*ARGSUSED*/
 int _init(void)
 {
-  static char revision[] = "3.15";
+  static char revision[] = "3.16";
   char *s, *S, *t;
   
   /*
@@ -401,6 +401,11 @@ static int parseopen(queue_t *q, dev_t *dev, int flag, int sflag, cred_t *credp)
   parsebusy++;
   
   q->q_ptr = (caddr_t)kmem_alloc(sizeof(parsestream_t), KM_SLEEP);
+  if (q->q_ptr == (caddr_t)0)
+    {
+      return ENOMEM;
+    }
+
   parseprintf(DD_OPEN,("parse: OPEN - parse area q=%x, q->q_ptr=%x\n", q, q->q_ptr)); 
   SAFE_WR(q)->q_ptr = q->q_ptr;
   parseprintf(DD_OPEN,("parse: OPEN - WQ parse area q=%x, q->q_ptr=%x\n", SAFE_WR(q), SAFE_WR(q)->q_ptr)); 
@@ -938,29 +943,38 @@ static int init_zs_linemon(queue_t *q, queue_t *my_q)
        */
       szs = (struct savedzsops *) kmem_alloc(sizeof(struct savedzsops), KM_SLEEP);
 
-      parsestream->parse_data   = (void *)szs;
+      if (szs == (struct savedzsops *)0)
+	{
+          parseprintf(DD_INSTALL, ("init_zs_linemon: CD monitor NOT installed - no memory\n"));
 
-      mutex_enter(zs->zs_excl);
+	  return 0;
+	}
+      else
+	{
+	  parsestream->parse_data   = (void *)szs;
 
-      parsestream->parse_dqueue = q; /* remember driver */
+	  mutex_enter(zs->zs_excl);
 
-      szs->zsops            = *zs->zs_ops;
-      szs->zsops.zsop_xsint = (void (*)())zs_xsisr; /* place our bastard */
-      szs->oldzsops         = zs->zs_ops;
-      emergencyzs           = zs->zs_ops;
-      
-      zs->zs_ops = &szs->zsops; /* hook it up */
-      /*
-       * XXX: this is usually done via zsopinit() 
-       * - have yet to find a way to call that routine
-       */
-      zs->zs_xsint          = (void (*)())zs_xsisr;
-      
-      mutex_exit(zs->zs_excl);
+	  parsestream->parse_dqueue = q; /* remember driver */
 
-      parseprintf(DD_INSTALL, ("init_zs_linemon: CD monitor installed\n"));
+	  szs->zsops            = *zs->zs_ops;
+	  szs->zsops.zsop_xsint = (void (*)())zs_xsisr; /* place our bastard */
+	  szs->oldzsops         = zs->zs_ops;
+	  emergencyzs           = zs->zs_ops;
+	  
+	  zs->zs_ops = &szs->zsops; /* hook it up */
+	  /*
+	   * XXX: this is usually done via zsopinit() 
+	   * - have yet to find a way to call that routine
+	   */
+	  zs->zs_xsint          = (void (*)())zs_xsisr;
+	  
+	  mutex_exit(zs->zs_excl);
 
-      return 1;
+          parseprintf(DD_INSTALL, ("init_zs_linemon: CD monitor installed\n"));
+
+          return 1;
+	}
     }
 }
 
@@ -1190,6 +1204,9 @@ static void zs_xsisr(struct zscom *zs)
  * History:
  *
  * parsesolaris.c,v
+ * Revision 3.16  1994/05/30  09:57:40  kardel
+ * kmem_alloc checking
+ *
  * Revision 3.15  1994/02/15  22:20:51  kardel
  * rcsid fixed
  *

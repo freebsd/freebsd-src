@@ -7,19 +7,18 @@
 #include "ntp_fp.h"
 #include "ntp_stdlib.h"
 
-U_LONG
+u_long
 netof(num)
-	U_LONG num;
+	u_long num;
 {
-	register U_LONG netnum;
+	register u_long netnum;
 
 	netnum = num;
-
 	if(IN_CLASSC(netnum))
 		netnum &= IN_CLASSC_NET;
 	else if (IN_CLASSB(netnum))
 		netnum &= IN_CLASSB_NET;
-	else			/* treat als other like class A */
+	else			/* treat all other like class A */
 		netnum &= IN_CLASSA_NET;
 	return netnum;
 }

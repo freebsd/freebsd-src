@@ -1,4 +1,4 @@
-/* authdecrypt.c,v 3.1 1993/07/06 01:07:44 jbj Exp
+/*
  * authdecrypt - routine to decrypt a packet to see if this guy knows our key.
  */
 #include "ntp_stdlib.h"
@@ -19,7 +19,7 @@
 /*
  * Imported from the key data base module
  */
-extern U_LONG cache_keyid;	/* cached key ID */
+extern u_long cache_keyid;	/* cached key ID */
 extern u_char DEScache_dkeys[];	/* cached decryption keys */
 extern u_char DESzerodkeys[];	/* zero key decryption keys */
 
@@ -28,11 +28,10 @@ extern u_char DESzerodkeys[];	/* zero key decryption keys */
  */
 extern U_LONG authdecryptions;
 extern U_LONG authkeyuncached;
-extern U_LONG authdecryptok;
 
 int
 DESauthdecrypt(keyno, pkt, length)
-	U_LONG keyno;
+	u_long keyno;
 	const U_LONG *pkt;
 	int length;	/* length of variable data in octets */
 {
@@ -77,9 +76,7 @@ DESauthdecrypt(keyno, pkt, length)
 	/*
 	 * Success if the encryption data is zero
 	 */
-	if ((work[0] == 0) && (work[1] == 0)) {
-		authdecryptok++;
+	if ((work[0] == 0) && (work[1] == 0))
 		return 1;
-	}
 	return 0;
 }

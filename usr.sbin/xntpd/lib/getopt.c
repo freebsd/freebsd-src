@@ -1,4 +1,4 @@
-/* getopt.c,v 3.1 1993/07/06 01:08:18 jbj Exp
+/*
  * getopt - get option letter from argv
  *
  * This is a version of the public domain getopt() implementation by

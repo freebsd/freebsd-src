@@ -49,7 +49,7 @@
  *   - Conrad DCF77 receiver module                         (DCF)
  *   - FAU DCF77 NTP receiver (TimeBrick)                   (DCF)
  *   - Meinberg GPS166                                      (GPS)
- *   - Trimble SV6                                          (GPS)
+ *   - Trimble SV6 (TSIP and TAIP protocol)                 (GPS)
  *
  */
 
@@ -474,31 +474,67 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
 #define TIMEBRICK_DESCRIPTION	"RAW DCF77 CODE (TimeBrick)"
 
 /*
- * Trimble SV6 GPS receiver
+ * Trimble SV6 GPS receivers (TAIP and TSIP protocols)
  */
+#define ETX	0x03
+#define DLE	0x10
+
 #define TRIM_POLLRATE	0	/* only true direct polling */
-#define TRIM_POLLCMD	">QTM<"
-#define TRIM_CMDSIZE	5
 
-static poll_info_t trimble_pollinfo = { TRIM_POLLRATE, TRIM_POLLCMD, TRIM_CMDSIZE };
-static	int	trimble_init	P((struct parseunit *));
+#define TRIM_TAIPPOLLCMD	">QTM<"
+#define TRIM_TAIPCMDSIZE	5
+static poll_info_t trimbletaip_pollinfo = { TRIM_POLLRATE, TRIM_TAIPPOLLCMD, TRIM_TAIPCMDSIZE };
+static	int	trimbletaip_init	P((struct parseunit *));
 
-#define TRIMBLESV6_CFLAG            (B4800|CS8|CREAD)
-#define TRIMBLESV6_IFLAG            (BRKINT|IGNPAR|ISTRIP|ICRNL|IXON)
-#define TRIMBLESV6_OFLAG            (OPOST|ONLCR)
-#define TRIMBLESV6_LFLAG            (ICANON|ECHOK)
-#define TRIMBLESV6_FLAGS	    (PARSE_F_PPSPPS|PARSE_F_PPSONSECOND)
-#define TRIMBLESV6_POLL		    poll_dpoll
-#define TRIMBLESV6_INIT		    trimble_init
-#define TRIMBLESV6_END		    poll_end
-#define TRIMBLESV6_DATA		    ((void *)(&trimble_pollinfo))
-#define TRIMBLESV6_ID		    GPS_ID
-#define TRIMBLESV6_FORMAT	    NO_FORMAT
-#define TRIMBLESV6_ROOTDELAY        0x0
-#define TRIMBLESV6_BASEDELAY        0x0
-#define TRIMBLESV6_DESCRIPTION      "Trimble SV6 GPS receiver"
-#define TRIMBLESV6_MAXUNSYNC        0
-#define TRIMBLESV6_EOL		    '<'
+/* query time & UTC correction data */
+static char tsipquery[] = { DLE, 0x21, DLE, ETX, DLE, 0x2F, DLE, ETX };
+
+static poll_info_t trimbletsip_pollinfo = { TRIM_POLLRATE, tsipquery, sizeof(tsipquery) };
+static	int	trimbletsip_init	P((struct parseunit *));
+
+#define TRIMBLETAIP_CFLAG           (B4800|CS8|CREAD)
+#define TRIMBLETAIP_IFLAG           (BRKINT|IGNPAR|ISTRIP|ICRNL|IXON)
+#define TRIMBLETAIP_OFLAG           (OPOST|ONLCR)
+#define TRIMBLETAIP_LFLAG           (ICANON|ECHOK)
+#define TRIMBLETSIP_CFLAG           (B9600|CS8|CLOCAL|CREAD|PARENB|PARODD)
+#define TRIMBLETSIP_IFLAG           (IGNBRK)
+#define TRIMBLETSIP_OFLAG           (0)
+#define TRIMBLETSIP_LFLAG           (0)
+
+#define TRIMBLETAIP_FLAGS	    (PARSE_F_PPSPPS|PARSE_F_PPSONSECOND)
+#define TRIMBLETSIP_FLAGS	    (TRIMBLETAIP_FLAGS|PARSE_F_NOPOLLONLY)
+
+#define TRIMBLETAIP_POLL	    poll_dpoll
+#define TRIMBLETSIP_POLL	    poll_dpoll
+
+#define TRIMBLETAIP_INIT		    trimbletaip_init
+#define TRIMBLETSIP_INIT		    trimbletsip_init
+
+#define TRIMBLETAIP_END		    poll_end
+#define TRIMBLETSIP_END		    poll_end
+
+#define TRIMBLETAIP_DATA	    ((void *)(&trimbletaip_pollinfo))
+#define TRIMBLETSIP_DATA	    ((void *)(&trimbletsip_pollinfo))
+
+#define TRIMBLETAIP_ID		    GPS_ID
+#define TRIMBLETSIP_ID		    GPS_ID
+
+#define TRIMBLETAIP_FORMAT	    NO_FORMAT
+#define TRIMBLETSIP_FORMAT	    "Trimble SV6/TSIP"
+
+#define TRIMBLETAIP_ROOTDELAY        0x0
+#define TRIMBLETSIP_ROOTDELAY        0x0
+
+#define TRIMBLETAIP_BASEDELAY        0x0
+#define TRIMBLETSIP_BASEDELAY        0x51EB852	/* 20 ms as a l_uf - avg GPS time message latency */
+
+#define TRIMBLETAIP_DESCRIPTION      "Trimble GPS (TAIP) receiver"
+#define TRIMBLETSIP_DESCRIPTION      "Trimble GPS (TSIP) receiver"
+
+#define TRIMBLETAIP_MAXUNSYNC        0
+#define TRIMBLETSIP_MAXUNSYNC        0
+
+#define TRIMBLETAIP_EOL		    '<'
 
 static struct clockinfo
 {
@@ -674,23 +710,42 @@ static struct clockinfo
     GPS166_LFLAG
   },
   {				/* 127.127.8.32+<device> */
-    TRIMBLESV6_FLAGS,
-    TRIMBLESV6_POLL,
-    TRIMBLESV6_INIT,
-    TRIMBLESV6_END,
-    TRIMBLESV6_DATA,
-    TRIMBLESV6_ROOTDELAY,
-    TRIMBLESV6_BASEDELAY,
+    TRIMBLETAIP_FLAGS,
+    TRIMBLETAIP_POLL,
+    TRIMBLETAIP_INIT,
+    TRIMBLETAIP_END,
+    TRIMBLETAIP_DATA,
+    TRIMBLETAIP_ROOTDELAY,
+    TRIMBLETAIP_BASEDELAY,
     NO_PPSDELAY,
-    TRIMBLESV6_ID,
-    TRIMBLESV6_DESCRIPTION,
-    TRIMBLESV6_FORMAT,
+    TRIMBLETAIP_ID,
+    TRIMBLETAIP_DESCRIPTION,
+    TRIMBLETAIP_FORMAT,
     GPS_TYPE,
-    TRIMBLESV6_MAXUNSYNC,
-    TRIMBLESV6_CFLAG,
-    TRIMBLESV6_IFLAG,
-    TRIMBLESV6_OFLAG,
-    TRIMBLESV6_LFLAG
+    TRIMBLETAIP_MAXUNSYNC,
+    TRIMBLETAIP_CFLAG,
+    TRIMBLETAIP_IFLAG,
+    TRIMBLETAIP_OFLAG,
+    TRIMBLETAIP_LFLAG
+  },
+  {				/* 127.127.8.36+<device> */
+    TRIMBLETSIP_FLAGS,
+    TRIMBLETSIP_POLL,
+    TRIMBLETSIP_INIT,
+    TRIMBLETSIP_END,
+    TRIMBLETSIP_DATA,
+    TRIMBLETSIP_ROOTDELAY,
+    TRIMBLETSIP_BASEDELAY,
+    NO_PPSDELAY,
+    TRIMBLETSIP_ID,
+    TRIMBLETSIP_DESCRIPTION,
+    TRIMBLETSIP_FORMAT,
+    GPS_TYPE,
+    TRIMBLETSIP_MAXUNSYNC,
+    TRIMBLETSIP_CFLAG,
+    TRIMBLETSIP_IFLAG,
+    TRIMBLETSIP_OFLAG,
+    TRIMBLETSIP_LFLAG
   }
 };
 
@@ -3409,11 +3464,12 @@ poll_end(parse)
  ** special code for special clocks
  **/
 
+
 /*--------------------------------------------------
- * trimble init routine - setup EOL and then do poll_init.
+ * trimble TAIP init routine - setup EOL and then do poll_init.
  */
 static int
-trimble_init(parse)
+trimbletaip_init(parse)
   struct parseunit *parse;
 {
 #ifdef HAVE_TERMIOS
@@ -3427,21 +3483,221 @@ trimble_init(parse)
    */
   if (TTY_GETATTR(parse->fd, &tm) == -1)
     {
-      syslog(LOG_ERR, "PARSE receiver #%d: trimble_init: tcgetattr(fd, &tm): %m", CL_UNIT(parse->unit));
+      syslog(LOG_ERR, "PARSE receiver #%d: trimbletaip_init: tcgetattr(fd, &tm): %m", CL_UNIT(parse->unit));
       return 0;
     }
   else
     {
-      tm.c_cc[VEOL] = TRIMBLESV6_EOL;
+      tm.c_cc[VEOL] = TRIMBLETAIP_EOL;
 	
       if (TTY_SETATTR(parse->fd, &tm) == -1)
 	{
-	  syslog(LOG_ERR, "PARSE receiver #%d: trimble_init: tcsetattr(fd, &tm): %m", CL_UNIT(parse->unit));
+	  syslog(LOG_ERR, "PARSE receiver #%d: trimbletaip_init: tcsetattr(fd, &tm): %m", CL_UNIT(parse->unit));
 	  return 0;
 	}
     }
   return poll_init(parse);
 }
+
+/*
+ * This driver supports the Trimble SVee Six Plus GPS receiver module.
+ * It should support other Trimble receivers which use the Trimble Standard
+ * Interface Protocol (see below).
+ *
+ * The module has a serial I/O port for command/data and a 1 pulse-per-second
+ * output, about 1 microsecond wide. The leading edge of the pulse is
+ * coincident with the change of the GPS second. This is the same as
+ * the change of the UTC second +/- ~1 microsecond. Some other clocks
+ * specifically use a feature in the data message as a timing reference, but
+ * the SVee Six Plus does not do this. In fact there is considerable jitter
+ * on the timing of the messages, so this driver only supports the use
+ * of the PPS pulse for accurate timing. Where it is determined that
+ * the offset is way off, when first starting up xntpd for example,
+ * the timing of the data stream is used until the offset becomes low enough
+ * (|offset| < CLOCK_MAX), at which point the pps offset is used.
+ *
+ * It can use either option for receiving PPS information - the 'ppsclock'
+ * stream pushed onto the serial data interface to timestamp the Carrier
+ * Detect interrupts, where the 1PPS connects to the CD line. This only
+ * works on SunOS 4.1.x currently. To select this, define PPSPPS in
+ * Config.local. The other option is to use a pulse-stretcher/level-converter
+ * to convert the PPS pulse into a RS232 start pulse & feed this into another
+ * tty port. To use this option, define PPSCLK in Config.local. The pps input,
+ * by whichever method, is handled in ntp_loopfilter.c
+ *
+ * The receiver uses a serial message protocol called Trimble Standard
+ * Interface Protocol (it can support others but this driver only supports
+ * TSIP). Messages in this protocol have the following form:
+ *
+ * <DLE><id> ... <data> ... <DLE><ETX>
+ *
+ * Any bytes within the <data> portion of value 10 hex (<DLE>) are doubled
+ * on transmission and compressed back to one on reception. Otherwise
+ * the values of data bytes can be anything. The serial interface is RS-422
+ * asynchronous using 9600 baud, 8 data bits with odd party (**note** 9 bits
+ * in total!), and 1 stop bit. The protocol supports byte, integer, single,
+ * and double datatypes. Integers are two bytes, sent most significant first.
+ * Singles are IEEE754 single precision floating point numbers (4 byte) sent
+ * sign & exponent first. Doubles are IEEE754 double precision floating point
+ * numbers (8 byte) sent sign & exponent first.
+ * The receiver supports a large set of messages, only a small subset of
+ * which are used here. From driver to receiver the following are used:
+ *
+ *  ID    Description
+ *
+ *  21    Request current time
+ *  22    Mode Select
+ *  2C    Set/Request operating parameters
+ *  2F    Request UTC info
+ *  35    Set/Request I/O options
+
+ * From receiver to driver the following are recognised:
+ *
+ *  ID    Description
+ *
+ *  41    GPS Time
+ *  44    Satellite selection, PDOP, mode
+ *  46    Receiver health
+ *  4B    Machine code/status
+ *  4C    Report operating parameters (debug only)
+ *  4F    UTC correction data (used to get leap second warnings)
+ *  55    I/O options (debug only)
+ *
+ * All others are accepted but ignored.
+ *
+ */
+
+#define PI		3.1415926535898	/* lots of sig figs */
+#define D2R		PI/180.0
+
+/*-------------------------------------------------------------------
+ * sendcmd, sendbyte, sendetx, sendflt, sendint implement the command
+ * interface to the receiver.
+ *
+ * CAVEAT: the sendflt, sendint routines are byte order dependend and
+ * float implementation dependend - these must be converted to portable
+ * versions !
+ */
+
+union {
+    u_char  bd[8];
+    int     iv;
+    float   fv;
+    double  dv;
+}  uval;
+  
+struct txbuf
+{
+  short idx;			/* index to first unused byte */
+  u_char *txt;			/* pointer to actual data buffer */
+};
+
+void
+sendcmd(buf, c)
+  struct txbuf *buf;
+  u_char c;
+{
+  buf->txt[0] = DLE;
+  buf->txt[1] = c;
+  buf->idx = 2;
+}
+
+void sendbyte(buf, b)
+  struct txbuf *buf;
+  u_char b;
+{
+  if (b == DLE)
+    buf->txt[buf->idx++] = DLE;
+  buf->txt[buf->idx++] = b;
+}
+
+void
+sendetx(buf, parse)
+  struct txbuf *buf;
+  struct parseunit *parse;
+{
+  buf->txt[buf->idx++] = DLE;
+  buf->txt[buf->idx++] = ETX;
+
+  if (write(parse->fd, buf->txt, buf->idx) != buf->idx)
+    {
+      syslog(LOG_ERR, "PARSE receiver #%d: sendetx: failed to send cmd to clock: %m", CL_UNIT(parse->unit));
+    }
+}
+
+void  
+sendint(buf, a)
+  struct txbuf *buf;
+  int a;
+{
+  uval.iv = a;
+  sendbyte(buf, uval.bd[2]);
+  sendbyte(buf, uval.bd[3]);
+}
+
+void
+sendflt(buf, a)
+  struct txbuf *buf;
+  float a;
+{
+  int i;
+
+  uval.fv = a;
+  for (i=0; i<=3; i++)
+    sendbyte(buf, uval.bd[i]);
+}
+
+/*--------------------------------------------------
+ * trimble TSIP init routine
+ */
+static int
+trimbletsip_init(parse)
+  struct parseunit *parse;
+{
+  u_char buffer[256];
+  struct txbuf buf;
+
+  buf.txt = buffer;
+  
+  if (!poll_init(parse))
+    {
+      sendcmd(&buf, 0x1f);	/* request software versions */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x2c);	/* set operating parameters */
+      sendbyte(&buf, 4);	/* static */
+      sendflt(&buf, 5.0*D2R);	/* elevation angle mask = 10 deg XXX */
+      sendflt(&buf, 4.0);	/* s/n ratio mask = 6 XXX */
+      sendflt(&buf, 12.0);	/* PDOP mask = 12 */
+      sendflt(&buf, 8.0);	/* PDOP switch level = 8 */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x22);	/* fix mode select */
+      sendbyte(&buf, 0);	/* automatic */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x28);	/* request system message */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x8e);	/* superpacket fix */
+      sendbyte(&buf, 0x2);	/* binary mode */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x35);	/* set I/O options */
+      sendbyte(&buf, 0);	/* no position output */
+      sendbyte(&buf, 0);	/* no velocity output */
+      sendbyte(&buf, 7);	/* UTC, compute on seconds, send only on request */
+      sendbyte(&buf, 0);	/* no raw measurements */
+      sendetx(&buf, parse);
+
+      sendcmd(&buf, 0x2f);	/* request UTC correction data */
+      sendetx(&buf, parse);
+      return 0;
+    }
+  else
+    return 1;
+}
+
 #endif	/* defined(REFCLOCK) && defined(PARSE) */
 
 /*

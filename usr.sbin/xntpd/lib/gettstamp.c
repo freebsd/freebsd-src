@@ -1,4 +1,4 @@
-/* gettstamp.c,v 3.1 1993/07/06 01:08:20 jbj Exp
+/*
  * gettstamp - return the system time in timestamp format
  */
 #include <stdio.h>

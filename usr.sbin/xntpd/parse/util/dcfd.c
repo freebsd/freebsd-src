@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.15 1994/01/25 19:05:42 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/util/dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
  *  
- * dcfd.c,v 3.15 1994/01/25 19:05:42 kardel Exp
+ * dcfd.c,v 3.18 1994/05/12 12:49:23 kardel Exp
  *
  * DCF77 100/200ms pulse synchronisation daemon program (via 50Baud serial line)
  *
@@ -703,6 +703,11 @@ static unsigned long cvt_rawdcf(buffer, size, clock)
    * if everything went well so far return the result of the symbolic
    * conversion routine else just the accumulated errors
    */
+  if (rtc != CVT_NONE) 
+    {
+      PRINTF("%-30s", "*** BAD DATA");
+    }
+
   return (rtc == CVT_NONE) ? convert_rawdcf(buffer, size, clock) : rtc;
 }
 
@@ -864,9 +869,9 @@ static char * pr_timeval(val)
   static char buf[20];
 
   if (val->tv_sec == 0)
-    sprintf(buf, "%c0.%06d", (val->tv_usec < 0) ? '-' : '+', abs(val->tv_usec));
+    sprintf(buf, "%c0.%06ld", (val->tv_usec < 0) ? '-' : '+', (long int)abs(val->tv_usec));
   else
-    sprintf(buf, "%d.%06d", val->tv_sec, abs(val->tv_usec));
+    sprintf(buf, "%ld.%06ld", (long int)val->tv_sec, (long int)abs(val->tv_usec));
   return buf;
 }
 
@@ -912,7 +917,7 @@ static void adj_time(offset)
   time_offset.tv_sec  = offset / 1000000;
   time_offset.tv_usec = offset % 1000000;
 
-  LPRINTF("adj_time: %d us ", offset);
+  LPRINTF("adj_time: %ld us ", (long int)offset);
   if (adjtime(&time_offset, 0L) == -1)
     perror("adjtime()");
 }
@@ -937,7 +942,7 @@ static void read_drift(drift_file)
       drift_comp = idrift << USECSCALE;
       fdrift     = (fdrift << USECSCALE) / 1000;
       drift_comp += fdrift & (1<<USECSCALE);
-      LPRINTF("read_drift: drift_comp %d ", drift_comp);
+      LPRINTF("read_drift: drift_comp %ld ", (long int)drift_comp);
     }
 }
 
@@ -957,11 +962,11 @@ static void update_drift(drift_file, offset, reftime)
       int idrift = R_SHIFT(drift_comp, USECSCALE);
       int fdrift = drift_comp & ((1<<USECSCALE)-1);
 
-      LPRINTF("update_drift: drift_comp %d ", drift_comp);
+      LPRINTF("update_drift: drift_comp %ld ", (long int)drift_comp);
       fdrift = (fdrift * 1000) / (1<<USECSCALE);
-      fprintf(df, "%4d.%03d %c%d.%06d %.24s\n", idrift, fdrift,
-	      (offset < 0) ? '-' : '+', abs(offset) / 1000000, abs(offset) % 1000000,
-	      asctime(localtime(&reftime)));
+      fprintf(df, "%4d.%03d %c%ld.%06ld %.24s\n", idrift, fdrift,
+	      (offset < 0) ? '-' : '+', (long int)(abs(offset) / 1000000),
+	      (long int)(abs(offset) % 1000000), asctime(localtime(&reftime)));
       fclose(df);
       LPRINTF("update_drift: %d.%03d ppm ", idrift, fdrift);
     }
@@ -1023,8 +1028,9 @@ static void adjust_clock(offset, drift_file, reftime)
       drift_comp = -MAX_DRIFT;
 
   update_drift(drift_file, usecoffset, reftime);
-  LPRINTF("clock_adjust: %s, clock_adjust %d, drift_comp %d(%d) ",
-		  pr_timeval(offset), R_SHIFT(clock_adjust, USECSCALE) , R_SHIFT(drift_comp, USECSCALE), drift_comp);
+  LPRINTF("clock_adjust: %s, clock_adjust %ld, drift_comp %ld(%ld) ",
+	  pr_timeval(offset),(long int) R_SHIFT(clock_adjust, USECSCALE),
+	  (long int)R_SHIFT(drift_comp, USECSCALE), (long int)drift_comp);
 }
 
 /*-----------------------------------------------------------------------
@@ -1303,8 +1309,8 @@ main(argc, argv)
 
       memset(term.c_cc, 0, sizeof(term.c_cc));
       term.c_cc[VMIN] = 1;
-      term.c_cflag = B50|CS8|CREAD|CLOCAL;
-      term.c_iflag = 0;
+      term.c_cflag = B50|CS8|CREAD|CLOCAL|PARENB;
+      term.c_iflag = IGNPAR;
       term.c_oflag = 0;
       term.c_lflag = 0;
 
@@ -1369,7 +1375,7 @@ main(argc, argv)
       (void) alarm(1<<ADJINTERVAL);
 #endif
 
-      PRINTF("  DCF77 monitor - Copyright 1993, Frank Kardel\n\n");
+      PRINTF("  DCF77 monitor - Copyright 1993,1994, Frank Kardel\n\n");
 
       pbuf[60] = '\0';
       for ( i = 0; i < 60; i++)
@@ -1423,6 +1429,12 @@ main(argc, argv)
 			}
 		      errs++;
 		    }
+		  else
+		    if (trace)
+		      {
+			PRINTF("\r  %.*s ", 59 - offset, &buf[offset]);
+		      }
+
 
 		  buf[0] = c;
 
@@ -1491,11 +1503,6 @@ main(argc, argv)
 
 	      if (rtc == CVT_OK)
 		{
-		  if (trace && (i == 0))
-		    {
-		      PRINTF("\r  %.*s ", 59 - offset, &buf[offset]);
-		    }
-
 		  if (i == 0)
 		    {
 		      /*

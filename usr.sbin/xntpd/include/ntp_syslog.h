@@ -1,4 +1,4 @@
-/* ntp_syslog.h,v 3.1 1993/07/06 01:06:59 jbj Exp
+/*
  * A hack for platforms which require specially built syslog facilities
  */
 #ifdef GIZMO

@@ -1,4 +1,4 @@
-/* ranny.c,v 3.1 1993/07/06 01:08:43 jbj Exp
+/*
  * Random number generator is:
  *
  *	Copyright 1988 by Rayan S. Zachariassen, all rights reserved.
@@ -20,9 +20,9 @@ extern	time_t	time		P((time_t *loc));
  * 55 random numbers, not all even.  Note we don't initialize ran_y
  * directly since I have had thoughts of putting this in an EPROM
  */
-static U_LONG ran_y[55];
+static time_t ran_y[55];
 
-static U_LONG init_ran_y[55] = {
+static time_t init_ran_y[55] = {
 	1860909544, 231033423, 437666411, 1349655137, 2014584962,
 	504613712, 656256107, 1246027206, 573713775, 643466871,
 	540235388, 1630565153, 443649364, 729302839, 1933991552,
@@ -41,38 +41,22 @@ static int ran_k;
 
 
 /*
- * ranp2 - return a random integer in the range 0 .. (1<<m)-1
+ * ranp2 - return a random integer in the range 0 .. (1 << m) - 1
  */
-U_LONG
+u_long
 ranp2(m)
 	int m;
 {
-	U_LONG r;
+	time_t r;
 
 	ran_y[ran_k] += ran_y[ran_j];	/* overflow does a mod */
 	r = ran_y[ran_k];
-	if (ran_k-- == 0) ran_k = 54;
-	if (ran_j-- == 0) ran_j = 54;
-	return (r & ((1<<m)-1));
+	if (ran_k-- == 0)
+		ran_k = 54;
+	if (ran_j-- == 0)
+		ran_j = 54;
+	return (u_long)(r & ((1 << m ) - 1));
 }
-
-#ifdef notdef
-/*
- * ranny - return a random integer in the range 0 .. m-1
- */
-U_LONG
-ranny(m)
-	u_int m;
-{
-	unsigned LONG r;
-
-	ran_y[ran_k] += ran_y[ran_j];	/* overflow does a mod */
-	r = ran_y[ran_k];
-	if (ran_k-- == 0) ran_k = 54;
-	if (ran_j-- == 0) ran_j = 54;
-	return (r % m);
-}
-#endif /* notdef */
 
 /*
  * init_random - do initialization of random number routine
@@ -90,7 +74,7 @@ init_random()
 	 * Randomize the seed array some more.  The time of day
 	 * should be initialized by now.
 	 */
-	now = (time_t)(time((time_t *)0))|01;
+	now = time((time_t *)0) | 01;
 
 	for (i = 0; i < 55; ++i)
 		ran_y[i] = now * init_ran_y[i];	/* overflow does a mod */

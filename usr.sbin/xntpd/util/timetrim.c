@@ -1,5 +1,5 @@
 /*
- * timetrim.c,v 3.1 1993/07/06 01:11:06 jbj Exp
+ * timetrim.c
  * 
  * "timetrim" allows setting and adjustment of the system clock frequency
  * trim parameter on Silicon Graphics machines.  The trim value native

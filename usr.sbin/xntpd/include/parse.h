@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.21 1994/05/30 20:58:34 kardel Exp
  *
- * parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp
+ * parse.h,v 3.21 1994/05/30 20:58:34 kardel Exp
  *
  * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
@@ -15,7 +15,7 @@
 #ifndef __PARSE_H__
 #define __PARSE_H__
 #if	!(defined(lint) || defined(__GNUC__))
-  static char parsehrcsid[]="parse.h,v 3.17 1994/03/03 09:27:20 kardel Exp";
+  static char parsehrcsid[]="parse.h,v 3.21 1994/05/30 20:58:34 kardel Exp";
 #endif
 
 #include "ntp_types.h"
@@ -50,7 +50,6 @@ extern int splhigh();
 #define FREE(_X_, _Y_) kmem_free((caddr_t)_X_, _Y_)
 #endif
 #else
-/* extern char *malloc();		XXX defined elsewhere */
 #define MALLOC(_X_) malloc(_X_)
 #define FREE(_X_, _Y_) free(_X_)
 #endif
@@ -73,6 +72,13 @@ extern int debug;
 #define parseprintf(LEVEL, ARGS)
 #endif	/* DEBUG */
 #endif	/* PARSESTREAM */
+
+#if defined(timercmp) && defined(__GNUC__)
+#undef timercmp
+#define	timercmp(tvp, uvp, cmp)	\
+	((tvp)->tv_sec cmp (uvp)->tv_sec || \
+	 ((tvp)->tv_sec == (uvp)->tv_sec && (tvp)->tv_usec cmp (uvp)->tv_usec))
+#endif
 
 #ifndef TIMES10
 #define TIMES10(_X_)	(((_X_) << 3) + ((_X_) << 1))
@@ -149,6 +155,7 @@ extern int debug;
 #define   PARSE_STAT_FILTER 0x01	/* filter incoming data */
 #define   PARSE_STAT_AVG	  0x02	/* 1:median average / 0: median point */
 #define PARSE_LEAP_DELETE   0x04	/* delete leap */
+#define PARSE_STATISTICS    0x08	/* enable statistics */
 #define PARSE_FIXED_FMT     0x10  /* fixed format */
 #define PARSE_PPSCLOCK      0x20  /* try to get PPS time stamp via ppsclock ioctl */
 
@@ -163,13 +170,13 @@ typedef union timestamp
  */
 struct parsetime
 {
-  unsigned LONG  parse_status;	/* data status - CVT_OK, CVT_NONE, CVT_FAIL ... */
+  u_long  parse_status;	/* data status - CVT_OK, CVT_NONE, CVT_FAIL ... */
   timestamp_t	 parse_time;	/* PARSE timestamp */
   timestamp_t	 parse_stime;	/* telegram sample timestamp */
   timestamp_t	 parse_ptime;	/* PPS time stamp */
-  LONG           parse_usecerror;	/* sampled/filtered usec error */
-  LONG           parse_usecdisp;	/* sampled usecdispersion */
-  unsigned LONG	 parse_state;	/* current receiver state */
+  long           parse_usecerror;	/* sampled/filtered usec error */
+  long           parse_usecdisp;	/* sampled usecdispersion */
+  u_long	 parse_state;	/* current receiver state */
   unsigned short parse_format;	/* format code */
 };
 
@@ -212,13 +219,13 @@ union parsectl
 {
   struct parsestatus
     {
-      unsigned LONG flags;	/* new/old flags */
+      u_long flags;	/* new/old flags */
     } parsestatus;
 
   struct parsegettc
     {
-      unsigned LONG  parse_state;	/* last state */
-      unsigned LONG  parse_badformat; /* number of bad packets since last query */
+      u_long         parse_state;	/* last state */
+      u_long         parse_badformat; /* number of bad packets since last query */
       unsigned short parse_format;/* last decoded format */
       unsigned short parse_count;	/* count of valid time code bytes */
       char           parse_buffer[PARSE_TCMAX+1]; /* timecode buffer */
@@ -233,7 +240,7 @@ union parsectl
 
   struct parsesetcs
     {
-      unsigned LONG  parse_cs;	/* character size (needed for stripping) */
+      u_long         parse_cs;	/* character size (needed for stripping) */
     } parsesetcs;
 };
   
@@ -269,21 +276,27 @@ struct parse			/* parse module local data */
   timestamp_t    parse_lastchar;	/* time stamp of last received character */
 
   /*
+   * private data - fixed format only
+   */
+  unsigned short parse_plen;	/* length of private data */
+  void          *parse_pdata;	/* private data pointer */
+
+  /*
    * time code input buffer (from RS232 or PPS)
    */
   unsigned short parse_index;	/* current buffer index */
   char          *parse_data;    /* data buffer */
   unsigned short parse_dsize;	/* size of data buffer */
   unsigned short parse_lformat;	/* last format used */
-  unsigned LONG  parse_lstate;	/* last state code */
+  u_long         parse_lstate;	/* last state code */
   char          *parse_ldata;	/* last data buffer */
   unsigned short parse_ldsize;	/* last data buffer length */
-  unsigned LONG  parse_badformat;	/* number of unparsable pakets */
+  u_long         parse_badformat;	/* number of unparsable pakets */
   
   /*
    * time stamp filtering
    */
-  LONG           parse_delta[PARSE_DELTA]; /* delta buffer */
+  long           parse_delta[PARSE_DELTA]; /* delta buffer */
   int            parse_dindex;
 
   parsetime_t      parse_dtime;	/* external data prototype */
@@ -293,16 +306,16 @@ typedef struct parse parse_t;
 
 struct clocktime		/* clock time broken up from time code */
 {
-  LONG day;
-  LONG month;
-  LONG year;
-  LONG hour;
-  LONG minute;
-  LONG second;
-  LONG usecond;
-  LONG utcoffset;	/* in seconds */
+  long day;
+  long month;
+  long year;
+  long hour;
+  long minute;
+  long second;
+  long usecond;
+  long utcoffset;	/* in seconds */
   time_t utctime;	/* the actual time - alternative to date/time */
-  LONG flags;		/* current clock status */
+  long flags;		/* current clock status */
 };
 
 typedef struct clocktime clocktime_t;
@@ -335,20 +348,23 @@ typedef struct clocktime clocktime_t;
 #define   CVT_NONE	0x00000001 /* format not applicable */
 #define   CVT_FAIL	0x00000002 /* conversion failed - error code returned */
 #define   CVT_OK	0x00000004 /* conversion succeeded */
+#define   CVT_SKIP	0x00000008 /* conversion succeeded */
 #define CVT_BADFMT	0x00000010 /* general format error - (unparsable) */
 #define CVT_BADDATE     0x00000020 /* date field incorrect */
 #define CVT_BADTIME	0x00000040 /* time field incorrect */
 
 struct clockformat
 {
-  unsigned LONG (*convert)();	/* conversion routine */
+  u_long	(*input)();	/* special input protocol - implies fixed format */
+  u_long        (*convert)();	/* conversion routine */
   void          (*syncevt)();	/* routine for handling RS232 sync events (time stamps) */
-  unsigned LONG (*syncpps)();	/* PPS input routine */
-  unsigned LONG (*synth)();	/* time code synthesizer */
+  u_long        (*syncpps)();	/* PPS input routine */
+  u_long        (*synth)();	/* time code synthesizer */
   void           *data;		/* local parameters */
   char           *name;		/* clock format name */
   unsigned short  length;	/* maximum length of data packet */
-  unsigned LONG   flags;	/* valid start symbols etc. */
+  u_long   flags;	/* valid start symbols etc. */
+  unsigned short  plen;		/* length of private data - implies fixed format */
   struct timeval  timeout;	/* buffer restart after timeout (us) */
   unsigned char   startsym;	/* start symbol */
   unsigned char   endsym;	/* end symbol */
@@ -360,32 +376,44 @@ typedef struct clockformat clockformat_t;
 /*
  * parse interface
  */
-extern int  parse_ioinit(/* parse_t *parseio */);
-extern void parse_ioend(/* parse_t *parseio */);
-extern int  parse_ioread(/* parse_t *parseio, char ch, timestamp_t *ctime */);
-extern int  parse_iopps(/* parse_t *parseio, int status, struct timeval *ptime, parsetime_t *dtime */);
-extern void parse_iodone(/* parse_t *parseio */);
+extern int  parse_ioinit P((parse_t *));
+extern void parse_ioend P((parse_t *));
+extern int  parse_ioread P((parse_t *, unsigned char, timestamp_t *));
+extern int  parse_iopps P((parse_t *, int, timestamp_t *));
+extern void parse_iodone P((parse_t *));
 
-extern int  parse_getstat(/* parsectl_t *dct, parse_t *parse */);
-extern int  parse_setstat(/* parsectl_t *dct, parse_t *parse */);
-extern int  parse_timecode(/* parsectl_t *dct, parse_t *parse */);
-extern int  parse_getfmt(/* parsectl_t *dct, parse_t *parse */);
-extern int  parse_setfmt(/* parsectl_t *dct, parse_t *parse */);
-extern int  parse_setcs(/* parsectl_t *dct, parse_t *parse */);
+extern int  parse_getstat P((parsectl_t *, parse_t *));
+extern int  parse_setstat P((parsectl_t *, parse_t *));
+extern int  parse_timecode P((parsectl_t *, parse_t *));
+extern int  parse_getfmt P((parsectl_t *, parse_t *));
+extern int  parse_setfmt P((parsectl_t *, parse_t *));
+extern int  parse_setcs P((parsectl_t *, parse_t *));
 
 extern int Strok P((char *, char *));
-extern int Stoi P((char *, LONG *, int));
+extern int Stoi P((char *, long *, int));
 
-extern time_t parse_to_unixtime P((clocktime_t *, unsigned LONG *));
-extern unsigned LONG updatetimeinfo P((parse_t *, time_t, unsigned LONG, unsigned LONG));
-extern void syn_simple P((parse_t *, timestamp_t *, struct format *, unsigned LONG));
-extern unsigned LONG pps_simple P((parse_t *, int status, timestamp_t *));
+extern time_t parse_to_unixtime P((clocktime_t *, u_long *));
+extern u_long updatetimeinfo P((parse_t *, time_t, u_long, u_long));
+extern void syn_simple P((parse_t *, timestamp_t *, struct format *, u_long));
+extern u_long pps_simple P((parse_t *, int, timestamp_t *));
 #endif
 
 /*
  * History:
  *
  * parse.h,v
+ * Revision 3.21  1994/05/30  20:58:34  kardel
+ * fix prototypes
+ *
+ * Revision 3.20  1994/05/30  10:19:44  kardel
+ * LONG cleanup
+ *
+ * Revision 3.19  1994/05/15  11:30:33  kardel
+ * documented flag4 as statistics enable flag
+ *
+ * Revision 3.18  1994/05/12  12:40:34  kardel
+ * shut up gcc about broken Sun/BSD code
+ *
  * Revision 3.17  1994/03/03  09:27:20  kardel
  * rcs ids fixed
  *

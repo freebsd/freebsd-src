@@ -1,8 +1,12 @@
-/* clkdefs.h,v 3.1 1993/07/06 01:07:12 jbj Exp
+/*
  * Defines for the "clk" timestamping STREAMS module
  */
 
+#if defined(sun)
 #include <sys/ioccom.h>
+#else
+#include <sys/ioctl.h>
+#endif
 
 /*
  * First, we need to define the maximum size of the set of
@@ -10,6 +14,9 @@
  */
 
 #define CLK_MAXSTRSIZE 32
+struct clk_tstamp_charset {		/* XXX to use _IOW not _IOWN */
+	char	val[CLK_MAXSTRSIZE];
+};
 
 /*
  * ioctl(fd, CLK_SETSTR, (char*)c );
@@ -23,9 +30,9 @@
  * change this file.
  */
 
-#if __STDC__
-#define CLK_SETSTR _IOWN('K',01,CLK_MAXSTRSIZE)
+#if defined(__STDC__)			/* XXX avoid __STDC__=0 on SOLARIS */
+#define CLK_SETSTR _IOW('K', 01, struct clk_tstamp_charset)
 #else
-#define CLK_SETSTR _IOWN(K,01,CLK_MAXSTRSIZE)
+#define CLK_SETSTR _IOW(K, 01, struct clk_tstamp_charset)
 #endif
 

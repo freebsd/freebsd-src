@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.11 1994/02/02 17:45:55 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.13 1994/05/12 12:49:31 kardel Exp
  *  
- * testdcf.c,v 3.11 1994/02/02 17:45:55 kardel Exp
+ * testdcf.c,v 3.13 1994/05/12 12:49:31 kardel Exp
  *
  * simple DCF77 100/200ms pulse test program (via 50Baud serial line)
  *
@@ -354,8 +354,8 @@ main(argc, argv)
 
 	  memset(term.c_cc, 0, sizeof(term.c_cc));
 	  term.c_cc[VMIN] = 1;
-	  term.c_cflag = B50|CS8|CREAD|CLOCAL;
-	  term.c_iflag = 0;
+	  term.c_cflag = B50|CS8|CREAD|CLOCAL|PARENB;
+	  term.c_iflag = IGNPAR;
 	  term.c_oflag = 0;
 	  term.c_lflag = 0;
 
@@ -411,8 +411,8 @@ main(argc, argv)
 		}
 
 	      if (t.tv_sec > 1 ||
-		  t.tv_sec == 1 &&
-		  t.tv_usec > 500000)
+		  (t.tv_sec == 1 &&
+		   t.tv_usec > 500000))
 		{
 	          printf("%c %.*s ", pat[i % (sizeof(pat)-1)], 59 - offset, &buf[offset]);
 
@@ -453,8 +453,8 @@ main(argc, argv)
 		{
 		  printf("%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
 			wday[clock.wday],
-			clock.hour, clock.minute, i, clock.day, clock.month,
-			clock.year,
+			(int)clock.hour, (int)clock.minute, (int)i, (int)clock.day, (int)clock.month,
+			(int)clock.year,
 			(clock.flags & DCFB_ALTERNATE) ? "R" : "_",
 			(clock.flags & DCFB_ANNOUNCE) ? "A" : "_",
 			(clock.flags & DCFB_DST) ? "D" : "_",

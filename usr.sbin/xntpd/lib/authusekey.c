@@ -1,4 +1,4 @@
-/* authusekey.c,v 3.1 1993/07/06 01:07:58 jbj Exp
+/*
  * authusekey - decode a key from ascii and use it
  */
 #include <stdio.h>
@@ -30,7 +30,7 @@
 
 int
 authusekey(keyno, keytype, str)
-	U_LONG keyno;
+	u_long keyno;
 	int keytype;
 	const char *str;
 {

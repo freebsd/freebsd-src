@@ -1,4 +1,4 @@
-/* ntptrace.c,v 3.1 1993/07/06 01:09:38 jbj Exp
+/*
  * ntptrace - show the chain from an NTP host leading back to
  *	its source of time
  *
@@ -56,7 +56,7 @@ char *progname;
  * Systemwide parameters and flags
  */
 int sys_retries = 5;			/* # of retry attempts per server */
-U_LONG sys_timeout = 2;			/* timeout time, in seconds */
+int sys_timeout = 2;			/* timeout time, in seconds */
 struct server **sys_servers;		/* the server list */
 int sys_numservers = 0;			/* number of servers to poll */
 int sys_maxservers = NTP_MAXSTRATUM+1;	/* max number of servers to deal with */
@@ -68,7 +68,7 @@ int sys_version = NTP_OLDVERSION;	/* version to poll with */
 struct recvbuf *freelist;	/* free buffers */
 struct recvbuf *fulllist;	/* buffers with data */
 
-int full_recvbufs;	/* number of full ones */
+int full_recvbufs;		/* number of full ones */
 int free_recvbufs;
 
 /*
@@ -94,8 +94,8 @@ static	struct server *addservbyname	P((char *));
 static	void	setup_io	P((void));
 static	void	freerecvbuf	P((struct recvbuf *));
 static	void	sendpkt	P((struct sockaddr_in *, struct pkt *, int));
-static	int	getipaddr	P((char *, U_LONG *));
-static	int	decodeipaddr	P((char *, U_LONG *));
+static	int	getipaddr	P((char *, long *));
+static	int	decodeipaddr	P((char *, long *));
 static	void	printserver	P((struct server *, FILE *));
 static	void	printrefid	P((FILE *, struct server *));
 
@@ -253,9 +253,9 @@ register struct server *server;
 	xpkt.rootdelay = htonl(NTPTRACE_DISTANCE);
 	xpkt.rootdispersion = htonl(NTPTRACE_DISP);
 	xpkt.refid = htonl(NTPTRACE_REFID);
-	xpkt.reftime.l_ui = xpkt.reftime.l_uf = 0;
-	xpkt.org.l_ui = xpkt.org.l_uf = 0;
-	xpkt.rec.l_ui = xpkt.rec.l_uf = 0;
+	L_CLR(&xpkt.reftime);
+	L_CLR(&xpkt.org);
+	L_CLR(&xpkt.rec);
 
 	/*
 	 * just timestamp packet and send it away.
@@ -351,8 +351,7 @@ ReceiveBuf(server, rbufp)
 {
 	register struct pkt *rpkt;
 	register s_fp di;
-	register U_LONG t10_ui, t10_uf;
-	register U_LONG t23_ui, t23_uf;
+	l_fp t10, t23;
 	l_fp org;
 	l_fp rec;
 	l_fp ci;
@@ -431,7 +430,7 @@ ReceiveBuf(server, rbufp)
 	 * Make sure the server is at least somewhat sane.  If not, try
 	 * again.
 	 */
-	if ((rec.l_ui == 0 && rec.l_uf == 0) || !L_ISHIS(&server->org, &rec)) {
+	if (L_ISZERO(&rec) || !L_ISHIS(&server->org, &rec)) {
 		return(0);
 	}
 
@@ -442,27 +441,23 @@ ReceiveBuf(server, rbufp)
 	 * d = (t2 - t3) - (t1 - t0)
 	 * c = ((t2 - t3) + (t1 - t0)) / 2
 	 */
-	t10_ui = server->org.l_ui;	/* pkt.xmt == t1 */
-	t10_uf = server->org.l_uf;
-	M_SUB(t10_ui, t10_uf, rbufp->recv_time.l_ui,
-	    rbufp->recv_time.l_uf);	/* recv_time == t0*/
+	t10 = server->org;		/* pkt.xmt == t1 */
+	L_SUB(&t10, &rbufp->recv_time);	/* recv_time == t0*/
 
-	t23_ui = rec.l_ui;	/* pkt.rec == t2 */
-	t23_uf = rec.l_uf;
-	M_SUB(t23_ui, t23_uf, org.l_ui, org.l_uf);	/* pkt->org == t3 */
+	t23 = rec;			/* pkt.rec == t2 */
+	L_SUB(&t23, &org);		/* pkt->org == t3 */
 
 	/* now have (t2 - t3) and (t0 - t1).  Calculate (ci) and (di) */
-	ci.l_ui = t10_ui;
-	ci.l_uf = t10_uf;
-	M_ADD(ci.l_ui, ci.l_uf, t23_ui, t23_uf);
-	M_RSHIFT(ci.l_i, ci.l_uf);
+	ci = t10;
+	L_ADD(&ci, &t23);
+	L_RSHIFT(&ci);
 
 	/*
 	 * Calculate di in t23 in full precision, then truncate
 	 * to an s_fp.
 	 */
-	M_SUB(t23_ui, t23_uf, t10_ui, t10_uf);
-	di = MFPTOFP(t23_ui, t23_uf);
+	L_SUB(&t23, &t10);
+	di = LFPTOFP(&t23);
 
 	server->offset = ci;
 	server->delay = di;
@@ -520,7 +515,7 @@ static struct server *
 addservbyname(serv)
 	char *serv;
 {
-	U_LONG ipaddr;
+	long ipaddr;
 	struct in_addr ia;
 
 	if (!getipaddr(serv, &ipaddr)) {
@@ -609,14 +604,14 @@ sendpkt(dest, pkt, len)
 static int
 getipaddr(host, num)
 	char *host;
-	U_LONG *num;
+	long *num;
 {
 	struct hostent *hp;
 
 	if (decodeipaddr(host, num)) {
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(long));
 		return 1;
 	}
 	return 0;
@@ -628,7 +623,7 @@ getipaddr(host, num)
 static int
 decodeipaddr(num, ipaddr)
 	char *num;
-	U_LONG *ipaddr;
+	long *ipaddr;
 {
 	register char *cp;
 	register char *bp;
@@ -682,8 +677,8 @@ printserver(pp, fp)
 	if (!verbose) {
 	    (void) fprintf(fp, "stratum %d, offset %s, synch distance %s",
 			   pp->stratum,
-			   lfptoa(&pp->offset, 7),
-			   ufptoa(synchdist, 7));
+			   lfptoa(&pp->offset, 6),
+			   ufptoa(synchdist, 5));
 	    if (pp->stratum == 1) {
 		(void) fprintf(fp, ", refid ");
 		printrefid(fp, pp);
@@ -705,14 +700,14 @@ printserver(pp, fp)
 
 	(void) fprintf(fp,
 	    " delay %s, dispersion %s ",
-	    fptoa(pp->delay, 7),
-	    ufptoa(pp->dispersion, 4));
+	    fptoa(pp->delay, 5),
+	    ufptoa(pp->dispersion, 5));
 	(void) fprintf(fp, "offset %s\n",
-	    lfptoa(&pp->offset, 7));
+	    lfptoa(&pp->offset, 6));
 	(void) fprintf(fp, "rootdelay %s, rootdispersion %s",
-		fptoa(pp->rootdelay, 7), ufptoa(pp->rootdispersion, 4));
+		fptoa(pp->rootdelay, 5), ufptoa(pp->rootdispersion, 5));
 	(void) fprintf(fp, ", synch dist %s\n",
-		ufptoa(synchdist, 7));
+		ufptoa(synchdist, 5));
 	
 	(void) fprintf(fp, "reference time:      %s\n",
 	    prettydate(&pp->reftime));
