@@ -1,4 +1,4 @@
-/* $Id: ioasic.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $Id: ioasic.c,v 1.2 1999/05/08 21:58:48 dfr Exp $ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-
@@ -176,7 +176,6 @@ ioasic_attach(device_t dev)
 	struct ioasic_softc* sc = IOASIC_SOFTC(dev);
 	struct tc_attach_args *ta = device_get_ivars(dev);
 	device_t parent = device_get_parent(dev);
-	vm_offset_t regs,va;
 	u_long i;
 	ioasic0 = dev;
 	
@@ -244,7 +243,7 @@ static void
 ioasic_print_child(device_t bus, device_t dev)
 {
 	struct ioasic_dev *ioasic = device_get_ivars(dev);
-        printf(" at %s%d, offset 0x%lx",
+        printf(" at %s%d, offset 0x%x",
                device_get_name(bus), device_get_unit(bus),
 	       ioasic->iad_offset);
 }
@@ -286,7 +285,7 @@ ioasic_intr_establish(ioa, cookie, level, func, arg)
 #endif
 
         if (ioasicintrs[dev].iai_func != ioasic_intrnull)
-                panic("ioasic_intr_establish: cookie %d twice", dev);
+                panic("ioasic_intr_establish: cookie %ld twice", dev);
 
         ioasicintrs[dev].iai_func = func;
         ioasicintrs[dev].iai_arg = arg;
@@ -315,7 +314,7 @@ ioasic_intr_disestablish(ioa, cookie)
 #endif
 
         if (ioasicintrs[dev].iai_func == ioasic_intrnull)
-                panic("ioasic_intr_disestablish: cookie %d missing intr", dev);
+                panic("ioasic_intr_disestablish: cookie %ld missing intr", dev);
 
         /* Enable interrupts for the device. */
         for (i = 0; i < ioasic_ndevs; i++)
@@ -343,10 +342,9 @@ ioasic_intr(val)
         void *val;
 {
         register struct ioasic_softc *sc = val;
-        register int i, ifound;
+        register int ifound;
         int gifound;
-        u_int32_t sir, junk;
-        volatile u_int32_t *sirp, *junkp;
+        volatile u_int32_t *sirp;
 
         sirp = (volatile u_int32_t *)IOASIC_REG_INTR(sc->sc_base);
 
