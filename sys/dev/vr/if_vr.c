@@ -1388,6 +1388,7 @@ static void vr_init(xsc)
 	struct vr_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
+	int			i;
 
 	VR_LOCK(sc);
 
@@ -1398,6 +1399,12 @@ static void vr_init(xsc)
 	 */
 	vr_stop(sc);
 	vr_reset(sc);
+
+	/*
+	 * Set our station address.
+	 */
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		CSR_WRITE_1(sc, VR_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 
 	VR_CLRBIT(sc, VR_RXCFG, VR_RXCFG_RX_THRESH);
 	VR_SETBIT(sc, VR_RXCFG, VR_RXTHRESH_STORENFWD);
