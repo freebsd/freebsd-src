@@ -184,7 +184,7 @@
 						/* async audio source  				*/
 #define HCFG_LOCKSOUNDCACHE	0x00000008	/* 1 = Cancel bustmaster accesses to soundcache */
 						/* NOTE: This should generally never be used.  	*/
-#define HCFG_LOCKTANKCACHE	0x00000004	/* 1 = Cancel bustmaster accesses to tankcache	*/
+#define HCFG_LOCKTANKCACHE_MASK	0x00000004	/* 1 = Cancel bustmaster accesses to tankcache	*/
 						/* NOTE: This should generally never be used.  	*/
 #define HCFG_MUTEBUTTONENABLE	0x00000002	/* 1 = Master mute button sets AUDIOENABLE = 0.	*/
 						/* NOTE: This is a 'cheap' way to implement a	*/
@@ -260,7 +260,7 @@
 #define AC97_RECORDSELECT	0x1a
 #define AC97_RECORDGAIN		0x1c
 #define AC97_RECORDGAINMIC	0x1e
-#define AC97_GENERALPUPOSE	0x20
+#define AC97_GENERALPURPOSE	0x20
 #define AC97_3DCONTROL		0x22
 #define AC97_MODEMRATE		0x24
 #define AC97_POWERDOWN		0x26
@@ -371,7 +371,7 @@
 #define MAP_PTI_MASK		0x00001fff	/* The 13 bit index to one of the 8192 PTE dwords      	*/
 
 #define ENVVOL			0x10		/* Volume envelope register				*/
-#define ENVVOL_MASK		0x0000ffff	/* Current value of volume envelope state variable	*/
+#define ENVVOL_MASK		0x0000ffff	/* Current value of volume envelope state variable	*/  
 						/* 0x8000-n == 666*n usec delay	       			*/
 
 #define ATKHLDV 		0x11		/* Volume envelope hold and attack register		*/
