@@ -769,8 +769,8 @@ msdosfs_unmount(mp, mntflags, p)
 		printf("msdosfs_umount(): just before calling VOP_CLOSE()\n");
 		printf("flag %08lx, usecount %d, writecount %d, holdcnt %ld\n",
 		    vp->v_flag, vp->v_usecount, vp->v_writecount, vp->v_holdcnt);
-		printf("lastr %d, id %lu, mount %p, op %p\n",
-		    vp->v_lastr, vp->v_id, vp->v_mount, vp->v_op);
+		printf("id %lu, mount %p, op %p\n",
+		    vp->v_id, vp->v_mount, vp->v_op);
 		printf("freef %p, freeb %p, mount %p\n",
 		    vp->v_freelist.tqe_next, vp->v_freelist.tqe_prev,
 		    vp->v_mount);

@@ -559,6 +559,7 @@ msdosfs_read(ap)
 	daddr_t lbn;
 	daddr_t rablock;
 	int rasize;
+	int seqcount;
 	struct buf *bp;
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
@@ -574,6 +575,8 @@ msdosfs_read(ap)
 	orig_resid = uio->uio_resid;
 	if (orig_resid <= 0)
 		return (0);
+
+	seqcount = ap->a_ioflag >> 16;
 
 	isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	do {
@@ -600,15 +603,15 @@ msdosfs_read(ap)
 			error = bread(pmp->pm_devvp, lbn, blsize, NOCRED, &bp);
 		} else {
 			rablock = lbn + 1;
-			if (vp->v_lastr + 1 == lbn &&
+			if (seqcount > 1 &&
 			    de_cn2off(pmp, rablock) < dep->de_FileSize) {
 				rasize = pmp->pm_bpcluster;
 				error = breadn(vp, lbn, pmp->pm_bpcluster,
 				    &rablock, &rasize, 1, NOCRED, &bp); 
-			} else
+			} else {
 				error = bread(vp, lbn, pmp->pm_bpcluster, 
 				    NOCRED, &bp);
-			vp->v_lastr = lbn;
+			}
 		}
 		n = min(n, pmp->pm_bpcluster - bp->b_resid);
 		if (error) {
