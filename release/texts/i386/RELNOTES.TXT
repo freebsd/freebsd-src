@@ -53,6 +53,10 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+Support for more than 32 signals has been added.
+
+Jail(8) aware sysctl(8) variables have been added for Linux mode.
+
 The VM system's anonymous storage subsystem (the ``swap pager'') has
 been completely revamped.
 
