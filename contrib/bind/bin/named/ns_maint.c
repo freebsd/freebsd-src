@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.103 2000/04/23 02:18:58 vixie Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.105 2000/07/17 07:25:00 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -586,12 +586,12 @@ qserial_answer(struct qinfo *qp) {
 
 			if (qs->serial != zp->z_serial)
 				ns_notice(ns_log_xfer_in,
- "Zone \"%s\" (%s) SOA serial# (%lu) rcvd from [%s] is < ours (%lu)%s",
+	 "Zone \"%s\" (%s) SOA serial# (%lu) rcvd from [%s] is < ours (%lu)%s",
 					  zp->z_origin, p_class(zp->z_class),
-					  qs->serial,
+					  (u_long) qs->serial,
 					  inet_ntoa(qs->ns_addr.sin_addr),
-					  zp->z_serial, qp->q_naddr != 1 ?
-							": skipping" : "");
+					  (u_long) zp->z_serial,
+					  qp->q_naddr!=1 ? ": skipping" : "");
 			qs->serial = 0;
 			continue;
 		}
@@ -834,8 +834,10 @@ startxfer(struct zoneinfo *zp) {
 		return;
 	}
 	
-	if ((pid = spawnxfer(argv, zp)) == -1)
+	if ((pid = spawnxfer(argv, zp)) == -1) {
 		unlink(tsig_name);
+		return;
+	}
 	
 	xferstatus[i].xfer_state = XFER_RUNNING;
 	xferstatus[i].xfer_pid = pid;  /* XXX - small race condition here if we

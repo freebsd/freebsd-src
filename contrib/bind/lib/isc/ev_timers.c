@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_timers.c,v 1.25 1999/10/07 20:44:04 vixie Exp $";
+static const char rcsid[] = "$Id: ev_timers.c,v 1.26 2000/07/17 07:36:54 vixie Exp $";
 #endif
 
 /* Import. */
@@ -30,6 +30,7 @@ static const char rcsid[] = "$Id: ev_timers.c,v 1.25 1999/10/07 20:44:04 vixie E
 
 #include <errno.h>
 
+#include <isc/assertions.h>
 #include <isc/eventlib.h>
 #include "eventlib_p.h"
 
@@ -110,6 +111,7 @@ evNowTime() {
 
 	if (gettimeofday(&now, NULL) < 0)
 		return (evConsTime(0, 0));
+	INSIST(now.tv_usec >= 0 && now.tv_usec < 1000000);
 	return (evTimeSpec(now));
 }
 

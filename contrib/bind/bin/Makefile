@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.27 1999/08/08 17:13:24 vixie Exp $
+# $Id: Makefile,v 8.28 2000/07/11 06:41:26 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -54,11 +54,12 @@ MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"RANLIB=${RANLIB}" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \
 	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" "EXE=${EXE}" \
 	"LIBBIND=../${LIBBIND}" "LIBPORT=../${LIBPORT}" \
-	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}" \
+	"INSTALL=${INSTALL}" "TOP=../${TOP}" \
 	"VER=${VER}" "STRIP=${STRIP}" "PS=${PS}" "INSTALL_LIB=${INSTALL_LIB}" \
 	"INSTALL_EXEC=${INSTALL_EXEC}" "BOUNDS=${BOUNDS}"
 
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 
 SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate \
 	mkservdb irpd dnskeygen named-bootconf
