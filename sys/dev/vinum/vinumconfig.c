@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.31 2001/01/10 01:16:00 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -491,7 +491,7 @@ find_drive(const char *name, int create)
 	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	    drive = &DRIVE[driveno];			    /* point to drive */
 	    if ((drive->label.name[0] != '\0')		    /* it has a name */
-&&(strcmp(drive->label.name, name) == 0)		    /* and it's this one */
+	    &&(strcmp(drive->label.name, name) == 0)	    /* and it's this one */
 	    &&(drive->state > drive_unallocated))	    /* and it's a real one: found */
 		return driveno;
 	}
@@ -644,7 +644,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 	 * with a higher offset than the subdisk, or both.
 	 */
 	if ((fe > 1)					    /* not the first entry */
-&&((fe == drive->freelist_entries)			    /* gone past the end */
+	&&((fe == drive->freelist_entries)		    /* gone past the end */
 	||(drive->freelist[fe].offset > offset)))	    /* or past the block were looking for */
 	    fe--;					    /* point to the block before */
 	dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of the entry */
@@ -1373,6 +1373,9 @@ config_plex(int update)
 		token[parameter]);
 	}
     }
+
+    if (plex->organization == plex_disorg)
+	throw_rude_remark(EINVAL, "No plex organization specified");
 
     if ((plex->volno < 0)				    /* we don't have a volume */
     &&(!detached))					    /* and we wouldn't object */
