@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <string.h>
 #include <security/pam_modules.h>
 #include "pam_mod_misc.h"
 
