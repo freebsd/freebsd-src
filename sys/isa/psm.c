@@ -773,7 +773,7 @@ doopen(int unit, int command_byte)
 
     /* start the watchdog timer */
     sc->watchdog = FALSE;
-    sc->callout = timeout(psmtimeout, (void *)unit, hz*2);
+    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)unit, hz*2);
 
     return (0);
 }
@@ -1088,7 +1088,7 @@ psmprobe(device_t dev)
 				  RF_ACTIVE);
     if (sc->intr == NULL) {
         printf("psm%d: unable to allocate the IRQ resource (%d).\n",
-	       unit, irq);
+	       unit, (int)irq);
         endprobe(ENXIO);
     } else {
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
@@ -1298,7 +1298,7 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
     splx(s);
 
     /* stop the watchdog timer */
-    untimeout(psmtimeout, (void *)unit, sc->callout);
+    untimeout(psmtimeout, (void *)(uintptr_t)unit, sc->callout);
     callout_handle_init(&sc->callout);
 
     /* remove anything left in the output buffer */
@@ -1829,7 +1829,7 @@ psmtimeout(void *arg)
     int unit;
     int s;
 
-    unit = (int)arg;
+    unit = (int)(uintptr_t)arg;
     sc = devclass_get_softc(psm_devclass, unit);
     s = spltty();
     if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
@@ -1840,7 +1840,7 @@ psmtimeout(void *arg)
     }
     sc->watchdog = TRUE;
     splx(s);
-    sc->callout = timeout(psmtimeout, (void *)unit, hz);
+    sc->callout = timeout(psmtimeout, (void *)(uintptr_t)unit, hz);
 }
 
 static void
@@ -2681,7 +2681,7 @@ psmresume(device_t dev)
 
     /* block our watchdog timer */
     sc->watchdog = FALSE;
-    untimeout(psmtimeout, (void *)unit, sc->callout);
+    untimeout(psmtimeout, (void *)(uintptr_t)unit, sc->callout);
     callout_handle_init(&sc->callout);
 
     /* save the current controller command byte */
