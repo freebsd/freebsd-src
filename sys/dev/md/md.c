@@ -178,7 +178,6 @@ struct md_s {
 
 	/* MD_SWAP related fields */
 	vm_object_t object;
-	unsigned npage;
 };
 
 static int mddestroy(struct md_s *sc, struct thread *td);
@@ -1002,8 +1001,9 @@ mddestroy(struct md_s *sc, struct thread *td)
 static int
 mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 {
-	int error;
 	struct md_s *sc;
+	vm_ooffset_t npage;
+	int error;
 
 	GIANT_REQUIRED;
 
@@ -1032,23 +1032,23 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	 * Allocate an OBJT_SWAP object.
 	 *
 	 * sc_nsect is in units of DEV_BSIZE.
-	 * sc_npage is in units of PAGE_SIZE.
+	 * npage is in units of PAGE_SIZE.
 	 *
 	 * Note the truncation.
 	 */
 
 	sc->secsize = DEV_BSIZE;
-	sc->npage = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
-	sc->nsect = sc->npage * (PAGE_SIZE / DEV_BSIZE);
+	npage = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
+	sc->nsect = npage * (PAGE_SIZE / DEV_BSIZE);
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * 
-	    (vm_offset_t)sc->npage, VM_PROT_DEFAULT, 0);
+	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * npage,
+	    VM_PROT_DEFAULT, 0);
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
-		if (swap_pager_reserve(sc->object, 0, sc->npage) < 0) {
+		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			vm_object_deallocate(sc->object);
 			sc->object = NULL;
 			mddestroy(sc, td);
