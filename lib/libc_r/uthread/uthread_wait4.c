@@ -65,5 +65,5 @@ _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 	return (ret);
 }
 
-__weak_reference(_wait4, wait4);
+__strong_reference(_wait4, wait4);
 #endif

@@ -54,5 +54,5 @@ _socketpair(int af, int type, int protocol, int pair[2])
 	return (ret);
 }
 
-__weak_reference(_socketpair, socketpair);
+__strong_reference(_socketpair, socketpair);
 #endif

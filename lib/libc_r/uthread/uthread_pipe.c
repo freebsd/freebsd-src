@@ -52,5 +52,5 @@ _pipe(int fds[2])
 	return (ret);
 }
 
-__weak_reference(_pipe, pipe);
+__strong_reference(_pipe, pipe);
 #endif

@@ -50,5 +50,5 @@ _setsockopt(int fd, int level, int optname, const void *optval, socklen_t
 	return ret;
 }
 
-__weak_reference(_setsockopt, setsockopt);
+__strong_reference(_setsockopt, setsockopt);
 #endif

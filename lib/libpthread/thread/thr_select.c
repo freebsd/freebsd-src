@@ -204,5 +204,5 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	return (ret);
 }
 
-__weak_reference(_select, select);
+__strong_reference(_select, select);
 #endif

@@ -70,5 +70,5 @@ _shutdown(int fd, int how)
 	return (ret);
 }
 
-__weak_reference(_shutdown, shutdown);
+__strong_reference(_shutdown, shutdown);
 #endif

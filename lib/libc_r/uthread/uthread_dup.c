@@ -68,5 +68,5 @@ _dup(int fd)
 	return (ret);
 }
 
-__weak_reference(_dup, dup);
+__strong_reference(_dup, dup);
 #endif

@@ -23,5 +23,5 @@ _fchflags(int fd, u_long flags)
 	return (ret);
 }
 
-__weak_reference(_fchflags, fchflags);
+__strong_reference(_fchflags, fchflags);
 #endif
