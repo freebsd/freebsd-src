@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.14 1998/07/15 02:32:26 bde Exp $
+ *	$Id: ide_pci.c,v 1.15 1998/12/04 21:41:18 archie Exp $
  */
 
 #include "pci.h"
@@ -1265,7 +1265,10 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	u_long prd_base, prd_count;
 	u_long nbase, ncount, nend;
 	int iobase_bm;
-	u_long count, checkcount;
+	u_long count;
+#ifdef DIAGNOSTIC
+	u_long checkcount;
+#endif
 
 	prd = cp->prd;
 
