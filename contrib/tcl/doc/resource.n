@@ -3,7 +3,7 @@
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-'\" SCCS: @(#) resource.n 1.3 97/07/25 10:24:23
+'\" SCCS: @(#) resource.n 1.4 97/09/10 15:22:18
 '\" 
 .so man.macros
 .TH resource n 8.0 Tcl "Tcl Built-In Commands"
@@ -31,6 +31,40 @@ are:
 Closes the given resource reference (obtained from \fBresource
 open\fR).  Resources from that resource file will no longer be
 available.
+.TP
+\fBresource delete\fR ?\fIoptions\fR? \fIresourceType\fR
+This command will delete the resource specified by \fIoptions\fR and
+type \fIresourceType\fR (see RESOURCE TYPES below).  The options
+give you several ways to specify the resource to be deleted.
+.RS
+.TP
+\fB\-id\fR \fIresourceId\fR
+If the \fB-id\fR option is given the id \fIresourceId\fR (see RESOURCE
+IDS below) is used to specify the resource to be deleted.  The id must 
+be a number - to specify a name use the \fB\-name\fR option.
+.TP
+\fB\-name\fR \fIresourceName\fR
+If \fB-name\fR is specified, the resource named
+\fIresourceName\fR will be deleted.  If the \fB-id\fR is also
+provided, then there must be a resource with BOTH this name and
+this id.  If no name is provided, then the id will be used regardless
+of the name of the actual resource.
+.TP
+\fB\-file\fR \fIresourceRef\fR
+If the \fB-file\fR option is specified then the resource will be
+deleted from the file pointed to by \fIresourceRef\fR.  Otherwise the
+first resource with the given \fIresourceName\fR and or
+\fIresourceId\fR which is found on the resource file path will be 
+deleted.  To inspect the file path, use the \fIresource files\fB command.
+.RE
+.TP
+\fBresource files ?\fIresourceRef\fR?
+If \fIresourceRef\fRis not provided, this command returns a Tcl list
+of the resource references for all the currently open resource files.
+The list is in the normal Macintosh search order for resources.  If 
+\fIresourceRef\fR is specified, the command will
+return the path to the file whose resource fork is represented by that
+token.
 .TP
 \fBresource list \fIresourceType\fR ?\fIresourceRef\fR?
 List all of the resources ids of type \fIresourceType\fR (see RESOURCE
@@ -88,6 +122,11 @@ name.
 If the \fB-file\fR option is specified then the resource will be
 written in the file pointed to by \fIresourceRef\fR, otherwise the
 most resently open resource will be used.
+.TP
+\fB\-force\fR
+If the target resource already exists, then by default Tcl will not
+overwrite it, but raise an error instead.  Use the -force flag to
+force overwriting the extant resource.
 .RE
 
 .SH "RESOURCE TYPES"

@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) expr-old.test 1.61 97/08/13 10:26:38
+# SCCS: @(#) expr-old.test 1.63 97/10/31 17:23:24
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -78,6 +78,12 @@ test expr-old-1.49 {integer operators} {expr -36%-5} -1
 test expr-old-1.50 {integer operators} {expr +36} 36
 test expr-old-1.51 {integer operators} {expr +--++36} 36
 test expr-old-1.52 {integer operators} {expr +36%+5} 1
+test expr-old-1.53 {integer operators} {
+    catch {unset x}
+    set x yes
+    list [expr {1 && $x}] [expr {$x && 1}] \
+         [expr {0 || $x}] [expr {$x || 0}]
+} {1 1 1 1}
 
 # Check the floating-point operators individually, along with
 # automatic conversion to integers where needed.
@@ -694,9 +700,19 @@ test expr-old-32.23 {math functions in expressions} {
 test expr-old-32.24 {math functions in expressions} {
     format %.6g [expr abs(66)]
 } {66}
-test expr-old-32.25 {math functions in expressions} {nonPortable} {
-    list [catch {expr abs(0x80000000)} msg] $msg
-} {1 {integer value too large to represent}}
+
+# The following test is different for 32-bit versus 64-bit architectures.
+
+if {0x80000000 > 0} {
+    test expr-old-32.25 {math functions in expressions} {nonPortable} {
+	list [catch {expr abs(0x8000000000000000)} msg] $msg
+    } {1 {integer value too large to represent}}
+} else {
+    test expr-old-32.25 {math functions in expressions} {nonPortable} {
+	list [catch {expr abs(0x80000000)} msg] $msg
+    } {1 {integer value too large to represent}}
+}
+
 test expr-old-32.26 {math functions in expressions} {
     expr double(1)
 } {1.0}

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) safe.test 1.31 97/08/14 00:55:56
+# SCCS: @(#) safe.test 1.34 97/11/19 14:59:13
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -38,7 +38,9 @@ test safe-1.2 {safe::interpCreate syntax} {
     ?slave?       name     ()      name of the slave (optional)
     -accessPath   list     ()      access path for the slave
     -noStatics    boolflag (false) prevent loading of statically linked pkgs
+    -statics      boolean  (true)  loading of statically linked pkgs
     -nestedLoadOk boolflag (false) allow nested loading
+    -nested       boolean  (false) nested loading
     -deleteHook   script   ()      delete hook}}
 
 test safe-1.3 {safe::interpInit syntax} {
@@ -186,7 +188,7 @@ test safe-7.1 {tests that everything works at high level} {
 } 1.0
 
 test safe-7.2 {tests specific path and interpFind/AddToAccessPath} {
-    set i [safe::interpCreate -nostat -nested -accessPath [list [info library]]];
+    set i [safe::interpCreate -nostat -nested 1 -accessPath [list [info library]]];
     # should not add anything (p0)
     set token1 [safe::interpAddToAccessPath $i [info library]]
     # should add as p1
@@ -197,7 +199,7 @@ test safe-7.2 {tests specific path and interpFind/AddToAccessPath} {
 	    [catch {interp eval $i {package require http 1}} msg] $msg \
 	    [safe::interpConfigure $i]\
 	    [safe::interpDelete $i]
-} "{\$p(:0:)} {\$p(:1:)} 1 {can't find package http 1} {-accessPath {$tcl_library /dummy/unixlike/test/path} -noStatics -nestedLoadOk -deleteHook {}} {}"
+} "{\$p(:0:)} {\$p(:1:)} 1 {can't find package http 1} {-accessPath {[list $tcl_library /dummy/unixlike/test/path]} -statics 0 -nested 1 -deleteHook {}} {}"
 
 
 # test source control on file name
@@ -349,13 +351,41 @@ test safe-9.2 {safe interps' error in deleteHook} {
 } {{} {arg1 arg2 a} {{NOTICE for slave a : About to delete} {ERROR for slave a : Delete hook error (being catched)} {NOTICE for slave a : Deleted}} {}}
 
 
+test safe-9.3 {dual specification of statics} {
+    list [catch {safe::interpCreate -stat true -nostat} msg] $msg
+} {1 {conflicting values given for -statics and -noStatics}}
 
-# features which still need test cases:
-# -nostatics and -nestedloadok which
-# are not easily tested from tclsh, can be
-# tested in wish though (safetk.test)
-# (we'd need a static package)
-# we have Tcltest !
+test safe-9.4 {dual specification of statics} {
+    # no error shall occur
+    safe::interpDelete [safe::interpCreate -stat false -nostat]
+} {}
+
+test safe-9.5 {dual specification of nested} {
+    list [catch {safe::interpCreate -nested 0 -nestedload} msg] $msg
+} {1 {conflicting values given for -nested and -nestedLoadOk}}
+
+test safe-9.6 {interpConfigure widget like behaviour} {
+   # this test shall work, don't try to "fix it" unless
+   # you *really* know what you are doing (ie you are me :p) -- dl
+   list [set i [safe::interpCreate \
+	                           -noStatics \
+                                   -nestedLoadOk \
+	                           -deleteHook {foo bar}];
+         safe::interpConfigure $i -accessPath /foo/bar ;
+         safe::interpConfigure $i]\
+	[safe::interpConfigure $i -aCCess]\
+	[safe::interpConfigure $i -nested]\
+	[safe::interpConfigure $i -statics]\
+	[safe::interpConfigure $i -DEL]\
+	[safe::interpConfigure $i -accessPath /blah -statics 1;
+	 safe::interpConfigure $i]\
+	[safe::interpConfigure $i -deleteHook toto -nosta -nested 0;
+	 safe::interpConfigure $i]
+} {{-accessPath /foo/bar -statics 0 -nested 1 -deleteHook {foo bar}} {-accessPath /foo/bar} {-nested 1} {-statics 0} {-deleteHook {foo bar}} {-accessPath /blah -statics 1 -nested 1 -deleteHook {foo bar}} {-accessPath /blah -statics 0 -nested 0 -deleteHook toto}}
+
+
+# testing that nested and statics do what is advertised
+# (we use a static package : Tcltest)
 
 if {[catch {package require Tcltest} msg]} {
     puts "This application hasn't been compiled with Tcltest"
@@ -392,7 +422,7 @@ test safe-10.3 {testing nested statics loading / no nested by default} {
 
 
 test safe-10.4 {testing nested statics loading / -nestedloadok} {
-    set i [safe::interpCreate -nested]
+    set i [safe::interpCreate -nestedloadok]
     list \
 	    [catch {interp eval $i {interp create x; load {} Tcltest x}} msg] \
 	    $msg \

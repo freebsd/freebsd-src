@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SetVar.3 1.29 97/05/19 17:35:05
+'\" SCCS: @(#) SetVar.3 1.30 97/10/10 16:10:36
 '\" 
 .so man.macros
 .TH Tcl_SetVar 3 7.4 Tcl "Tcl Library Procedures"
@@ -107,8 +107,9 @@ zero it means that a scalar variable is being referenced.
 .PP
 The \fIflags\fR argument may be used to specify any of several
 options to the procedures.
-It consists of an OR-ed combination of any of the following
-bits:
+It consists of an OR-ed combination of the following bits.
+Note that the flag bit TCL_PARSE_PART1 is only meaningful
+for the procedures Tcl_SetVar2 and Tcl_GetVar2.
 .TP
 \fBTCL_GLOBAL_ONLY\fR
 Under normal circumstances the procedures look up variables as follows:
@@ -152,6 +153,18 @@ A separator space is appended before the new list element unless
 the list element is going to be the first element in a list or
 sublist (i.e. the variable's current value is empty, or contains
 the single character ``{'', or ends in `` }'').
+.TP
+\fBTCL_PARSE_PART1\fR
+If this bit is set when calling \fITcl_SetVar2\fR and \fITcl_GetVar2\fR,
+\fIname1\fR may contain both an array and an element name:
+if the name contains an open parenthesis and ends with a
+close parenthesis, then the value between the parentheses is
+treated as an element name (which can have any string value) and
+the characters before the first open
+parenthesis are treated as the name of an array variable.
+If the flag TCL_PARSE_PART1 is given,
+\fIname2\fR should be NULL since the array and element names
+are taken from \fIname1\fR.
 .PP
 \fBTcl_GetVar\fR and \fBTcl_GetVar2\fR
 return the current value of a variable.
@@ -161,10 +174,12 @@ Under normal circumstances, the return value is a pointer
 to the variable's value (which is stored in Tcl's variable
 structure and will not change before the next call to \fBTcl_SetVar\fR
 or \fBTcl_SetVar2\fR).
-The only bits of \fIflags\fR that are used are TCL_GLOBAL_ONLY
+\fBTcl_GetVar\fR and \fBTcl_GetVar2\fR use the flag bits TCL_GLOBAL_ONLY
 and TCL_LEAVE_ERR_MSG, both of
 which have
 the same meaning as for \fBTcl_SetVar\fR.
+In addition, \fBTcl_GetVar2\fR uses the bit TCL_PARSE_PART1,
+which has the same meaning as for \fBTcl_SetVar2\fR.
 If an error occurs in reading the variable (e.g. the variable
 doesn't exist or an array element is specified for a scalar
 variable), then NULL is returned.

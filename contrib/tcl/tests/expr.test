@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) expr.test 1.33 97/08/07 10:45:57
+# SCCS: @(#) expr.test 1.39 97/11/03 16:04:47
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -292,9 +292,19 @@ test expr-9.1 {CompileRelationalExpr: just shift expr} {expr 3<<2} 12
 test expr-9.2 {CompileRelationalExpr: just shift expr} {expr 0xff>>2} 63
 test expr-9.3 {CompileRelationalExpr: just shift expr} {expr -1>>2} -1
 test expr-9.4 {CompileRelationalExpr: just shift expr} {expr {1<<3}} 8
-test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN} {nonPortable} {
-    expr {1<<31}
-} -2147483648
+
+# The following test is different for 32-bit versus 64-bit
+# architectures because LONG_MIN is different
+
+if {0x80000000 > 0} {
+    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN} {nonPortable} {
+	expr {1<<63}
+    } -9223372036854775808
+} else {
+    test expr-9.5 {CompileRelationalExpr: shift expr producing LONG_MIN} {nonPortable} {
+	expr {1<<31}
+    } -2147483648
+}
 test expr-9.6 {CompileRelationalExpr: error in shift expr} {
     catch {expr x>>3} msg
     set msg
@@ -540,7 +550,11 @@ test expr-14.30 {CompilePrimaryExpr: missing paren in subexpression primary} {
 } {syntax error in expression "2+(3*(4+5)"
     while executing
 "expr 2+(3*(4+5)"}
-test expr-14.31 {CompilePrimaryExpr: unexpected token} {
+test expr-14.31 {CompilePrimaryExpr: just var ref in subexpression primary} {
+    set i "5+10"
+    list "[expr $i] == 15" "[expr ($i)] == 15" "[eval expr ($i)] == 15"
+} {{15 == 15} {15 == 15} {15 == 15}}
+test expr-14.32 {CompilePrimaryExpr: unexpected token} {
     catch {expr @} msg
     set errorInfo
 } {syntax error in expression "@"
@@ -602,9 +616,22 @@ if $gotT1 {
     } -17.5
 }
 
+test expr-16.1 {GetToken: checks whether integer token starting with "0x" (e.g., "0x$") is invalid} {
+    catch {unset a}
+    set a(VALUE) ff15
+    set i 123
+    if {[expr 0x$a(VALUE)] & 16} {
+        set i {}
+    }
+    set i
+} {}
+test expr-16.2 {GetToken: check for string literal in braces} {
+    expr {{1}}
+} {1}
+
 # Check "expr" and computed command names.
 
-test expr-16.1 {expr and computed command names} {
+test expr-17.1 {expr and computed command names} {
     set i 0
     set z expr
     $z 1+2
@@ -614,7 +641,7 @@ test expr-16.1 {expr and computed command names} {
 # an integer, convert to integer. Otherwise, if the string looks like a
 # double, convert to double.
 
-test expr-17.1 {expr and conversion of operands to numbers} {
+test expr-18.1 {expr and conversion of operands to numbers} {
     set x [lindex 11 0]
     catch {expr int($x)}
     expr {$x}
@@ -623,7 +650,7 @@ test expr-17.1 {expr and conversion of operands to numbers} {
 # Check "expr" and interpreter result object resetting before appending
 # an error msg during evaluation of exprs not in {}s
 
-test expr-18.1 {expr and interpreter result object resetting} {
+test expr-19.1 {expr and interpreter result object resetting} {
     proc p {} {
         set t  10.0
         set x  2.0
@@ -639,3 +666,5 @@ test expr-18.1 {expr and interpreter result object resetting} {
     }
     p
 } 3
+
+unset a

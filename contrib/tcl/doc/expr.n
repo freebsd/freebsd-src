@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) expr.n 1.27 97/08/12 11:31:30
+'\" SCCS: @(#) expr.n 1.28 97/09/18 18:21:30
 '\" 
 .so man.macros
 .TH expr n 8.0 Tcl "Tcl Built-In Commands"
@@ -144,12 +144,13 @@ Bit-wise exclusive OR.  Valid for integer operands only.
 Bit-wise OR.  Valid for integer operands only.
 .TP 20
 \fB&&\fR
-Logical AND.  Produces a 1 result if both operands are non-zero, 0 otherwise.
-Valid for numeric operands only (integers or floating-point).
+Logical AND.  Produces a 1 result if both operands are non-zero,
+0 otherwise.
+Valid for boolean and numeric (integers or floating-point) operands only.
 .TP 20
 \fB||\fR
 Logical OR.  Produces a 0 result if both operands are zero, 1 otherwise.
-Valid for numeric operands only (integers or floating-point).
+Valid for boolean and numeric (integers or floating-point) operands only.
 .TP 20
 \fIx\fB?\fIy\fB:\fIz\fR
 If-then-else, as in C.  If \fIx\fR

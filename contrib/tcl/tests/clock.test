@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) clock.test 1.14 97/06/02 10:18:12
+# SCCS: @(#) clock.test 1.17 97/11/24 15:05:38
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -145,3 +145,31 @@ test clock-6.4 {clock roll over dates} {
     set time [clock scan "2/29/2000" -gmt true]
     clock format [expr $time + $day] -format {%b %d,%Y %H:%M GMT} -gmt true
 } {Mar 01,2000 00:00 GMT}
+test clock-6.5 {clock roll over dates} {
+    set time [clock scan "January 1, 2000" -gmt true]
+    clock format $time -format %A -gmt true
+} {Saturday}
+test clock-6.6 {clock roll over dates} {
+    set time [clock scan "January 1, 2000" -gmt true]
+    clock format $time -format %j -gmt true
+} {001}
+test clock-6.7 {clock roll over dates} {
+    set time [clock scan "February 29, 2000" -gmt true]
+    clock format $time -format %A -gmt true
+} {Tuesday}
+test clock-6.8 {clock roll over dates} {
+    set time [clock scan "February 29, 2000" -gmt true]
+    clock format $time -format %j -gmt true
+} {060}
+test clock-6.9 {clock roll over dates} {
+    set time [clock scan "March 1, 2000" -gmt true]
+    clock format $time -format %A -gmt true
+} {Wednesday}
+test clock-6.10 {clock roll over dates} {
+    set time [clock scan "March 1, 2000" -gmt true]
+    clock format $time -format %j -gmt true
+} {061}
+test clock-6.11 {clock roll over dates} {
+    set time [clock scan "March 1, 2001" -gmt true]
+    clock format $time -format %j -gmt true
+} {060}

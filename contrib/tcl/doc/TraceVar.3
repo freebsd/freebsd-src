@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) TraceVar.3 1.26 96/08/26 12:59:52
+'\" SCCS: @(#) TraceVar.3 1.27 97/10/10 15:05:37
 '\" 
 .so man.macros
 .TH Tcl_TraceVar 3 7.4 Tcl "Tcl Library Procedures"
@@ -44,7 +44,8 @@ must be in writable memory:  Tcl will make temporary modifications
 to it while looking up the name.
 .AP int flags in
 OR-ed combination of the values TCL_TRACE_READS, TCL_TRACE_WRITES, and
-TCL_TRACE_UNSETS, and TCL_GLOBAL_ONLY.  Not all flags are used by all
+TCL_TRACE_UNSETS, TCL_PARSE_PART1, and TCL_GLOBAL_ONLY.  
+Not all flags are used by all
 procedures.  See below for more information.
 .AP Tcl_VarTraceProc *proc in
 Procedure to invoke whenever one of the traced operations occurs.
@@ -171,15 +172,23 @@ traces for a given variable that have the same \fIproc\fR.
 The procedures \fBTcl_TraceVar2\fR, \fBTcl_UntraceVar2\fR, and
 \fBTcl_VarTraceInfo2\fR are identical to \fBTcl_TraceVar\fR,
 \fBTcl_UntraceVar\fR, and \fBTcl_VarTraceInfo\fR, respectively,
-except that the name of the variable has already been
-separated by the caller into two parts.
+except that the name of the variable consists of two parts.
 \fIName1\fR gives the name of a scalar variable or array,
-and \fIname2\fR gives the name of an element within an
-array.
+and \fIname2\fR gives the name of an element within an array.
 If \fIname2\fR is NULL it means that either the variable is
 a scalar or the trace is to be set on the entire array rather
 than an individual element (see WHOLE-ARRAY TRACES below for
 more information).
+As a special case, if the flag TCL_PARSE_PART1 is specified,
+\fIname1\fR may contain both an array and an element name:
+if the name contains an open parenthesis and ends with a
+close parenthesis, then the value between the parentheses is
+treated as an element name (which can have any string value) and
+the characters before the first open
+parenthesis are treated as the name of an array variable.
+If the flag TCL_PARSE_PART1 is given,
+\fIname2\fR should be NULL since the array and element names
+are taken from \fIname1\fR.
 
 .SH "ACCESSING VARIABLES DURING TRACES"
 .PP

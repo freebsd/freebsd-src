@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCompile.c 1.76 97/08/12 13:35:43
+ * SCCS: @(#) tclCompile.c 1.80 97/09/18 18:23:30
  */
 
 #include "tclInt.h"
@@ -727,7 +727,7 @@ TclPrintInstruction(codePtr, pc)
 	    if ((i == 0) && ((opCode == INST_JUMP1)
 			     || (opCode == INST_JUMP_TRUE1)
 		             || (opCode == INST_JUMP_FALSE1))) {
-		fprintf(stdout, "%d	# pc %u", opnd, (pcOffset + opnd));
+		fprintf(stdout, "%d  	# pc %u", opnd, (pcOffset + opnd));
 	    } else {
 		fprintf(stdout, "%d", opnd);
 	    }
@@ -737,7 +737,7 @@ TclPrintInstruction(codePtr, pc)
 	    if ((i == 0) && ((opCode == INST_JUMP4)
 			     || (opCode == INST_JUMP_TRUE4)
 		             || (opCode == INST_JUMP_FALSE4))) {
-		fprintf(stdout, "%d	# pc %u", opnd, (pcOffset + opnd));
+		fprintf(stdout, "%d  	# pc %u", opnd, (pcOffset + opnd));
 	    } else {
 		fprintf(stdout, "%d", opnd);
 	    }
@@ -979,18 +979,16 @@ TclCleanupByteCode(codePtr)
  *
  * DupByteCodeInternalRep --
  *
- *	Part of the bytecode Tcl object type implementation. Initializes the
- *	internal representation of a bytecode Tcl_Obj to a copy of the
- *	internal representation of an existing bytecode object.
+ *	Part of the bytecode Tcl object type implementation. However, it
+ *	does not copy the internal representation of a bytecode Tcl_Obj, but
+ *	instead leaves the new object untyped (with a NULL type pointer).
+ *	Code will be compiled for the new object only if necessary.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	"copyPtr"s internal rep is set to the bytecode sequence
- *	corresponding to "srcPtr"s internal rep. Ref counts for objects
- *	in the existing bytecode object's  object array are incremented
- *	the bytecode copy now also refers to them.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -1000,90 +998,7 @@ DupByteCodeInternalRep(srcPtr, copyPtr)
     Tcl_Obj *srcPtr;		/* Object with internal rep to copy. */
     Tcl_Obj *copyPtr;		/* Object with internal rep to set. */
 {
-    ByteCode *codePtr = (ByteCode *) srcPtr->internalRep.otherValuePtr;
-    register ByteCode *dupPtr;
-    register AuxData *srcAuxDataPtr, *dupAuxDataPtr;
-    size_t objArrayBytes, exceptArrayBytes, cmdLocBytes, auxDataBytes;
-    register size_t size;
-    register char *p;
-    int codeBytes, numObjects, i;
-
-    /*
-     * Allocate a single heap object to hold the copied ByteCode structure
-     * and its code, object, command location, and auxiliary data arrays.
-     */
-
-    codeBytes = codePtr->numCodeBytes;
-    numObjects = codePtr->numObjects;
-    objArrayBytes = (numObjects * sizeof(Tcl_Obj *));
-    exceptArrayBytes = (codePtr->numExcRanges * sizeof(ExceptionRange));
-    auxDataBytes = (codePtr->numAuxDataItems * sizeof(AuxData));
-    cmdLocBytes = codePtr->numCmdLocBytes;
-
-    size = sizeof(ByteCode);
-    size += TCL_ALIGN(codeBytes);        /* align object array */
-    size += TCL_ALIGN(objArrayBytes);    /* align exception range array */
-    size += TCL_ALIGN(exceptArrayBytes); /* align AuxData array */
-    size += auxDataBytes;
-    size += cmdLocBytes;
-    
-    p = (char *) ckalloc(size);
-    dupPtr = (ByteCode *) p;
-    memcpy((VOID *) dupPtr, (VOID *) codePtr, size);
-
-    p += sizeof(ByteCode);
-    dupPtr->codeStart = (unsigned char *) p;
-    
-    p += TCL_ALIGN(codeBytes);	      /* object array is aligned */
-    dupPtr->objArrayPtr = (Tcl_Obj **) p;
-    
-    p += TCL_ALIGN(objArrayBytes);    /* exception range array is aligned */
-    dupPtr->excRangeArrayPtr = (ExceptionRange *) p;
-    
-    p += TCL_ALIGN(exceptArrayBytes); /* AuxData array is aligned  */
-    dupPtr->auxDataArrayPtr = (AuxData *) p;
-
-    p += auxDataBytes;
-    dupPtr->codeDeltaStart = ((unsigned char *) dupPtr) + 
-            (codePtr->codeDeltaStart - (unsigned char *) codePtr);
-    dupPtr->srcDeltaStart = ((unsigned char *) dupPtr) +
-            (codePtr->srcDeltaStart - (unsigned char *) codePtr);
-    dupPtr->srcLengthStart = ((unsigned char *) dupPtr) +
-            (codePtr->srcLengthStart - (unsigned char *) codePtr);
-    
-    /*
-     * Increment the ref counts for objects in the object array since we are
-     * creating new references for them in the copied object array.
-     */
-
-    for (i = 0;  i < numObjects;  i++) {
-        Tcl_IncrRefCount(dupPtr->objArrayPtr[i]);
-    }
-
-    /*
-     * Duplicate any auxiliary data items.
-     */
-
-    srcAuxDataPtr = codePtr->auxDataArrayPtr;
-    dupAuxDataPtr = dupPtr->auxDataArrayPtr;
-    for (i = 0;  i < codePtr->numAuxDataItems;  i++) {
-	if (srcAuxDataPtr->dupProc != NULL) {
-	    dupAuxDataPtr->clientData =
-		srcAuxDataPtr->dupProc(srcAuxDataPtr->clientData);
-	} else {
-	    dupAuxDataPtr->clientData = srcAuxDataPtr->clientData;
-	}
-	srcAuxDataPtr++;
-	dupAuxDataPtr++;
-    }
-
-    copyPtr->internalRep.otherValuePtr = (VOID *) dupPtr;
-    copyPtr->typePtr = &tclByteCodeType;
-
-#ifdef TCL_COMPILE_STATS    
-    tclCurrentSourceBytes += (double) codePtr->numSrcChars;
-    tclCurrentCodeBytes += (double) codePtr->totalSize;
-#endif /* TCL_COMPILE_STATS */
+    return;
 }
 
 /*
@@ -1431,6 +1346,7 @@ TclInitByteCodeObj(objPtr, envPtr)
     codePtr->numObjects = numObjects;
     codePtr->numExcRanges = envPtr->excRangeArrayNext;
     codePtr->numAuxDataItems = envPtr->auxDataArrayNext;
+    codePtr->auxDataArrayPtr = NULL;
     codePtr->numCmdLocBytes = cmdLocBytes;
     codePtr->maxExcRangeDepth = envPtr->maxExcRangeDepth;
     codePtr->maxStackDepth = envPtr->maxStackDepth;
@@ -1724,13 +1640,14 @@ TclCompileString(interp, string, lastChar, flags, envPtr)
  				 * warning. */
     int cmdIndex;		/* The index of the current command in the
  				 * compilation environment's command
- 				 * location table. Initialized to avoid
- 				 * compiler warning. */
+ 				 * location table. */
+    int lastTopLevelCmdIndex = -1;
+    				/* Index of most recent toplevel command in
+ 				 * the command location table. Initialized
+				 * to avoid compiler warning. */
     int cmdCodeOffset = -1;	/* Offset of first byte of current command's
  				 * code. Initialized to avoid compiler
  				 * warning. */
-    int cmdCodeBytes;		/* Number of code bytes for current
-				 * command. */
     int cmdWords;		/* Number of words in current command. */
     Tcl_Command cmd;		/* Used to search for commands. */
     Command *cmdPtr;		/* Points to command's Command structure if
@@ -1827,14 +1744,11 @@ TclCompileString(interp, string, lastChar, flags, envPtr)
 		/*
 		 * We are compiling a top level command. Update the number
 		 * of code bytes for the last command to account for the pop
-		 * instruction we just emitted.
+		 * instruction.
 		 */
 		
-		int lastCmdIndex = (envPtr->numCommands - 1);
-		cmdCodeBytes =
-		    (envPtr->codeNext - envPtr->codeStart - cmdCodeOffset);
-	        (envPtr->cmdMapPtr[lastCmdIndex]).numCodeBytes =
-		    cmdCodeBytes;
+	        (envPtr->cmdMapPtr[lastTopLevelCmdIndex]).numCodeBytes =
+		    (envPtr->codeNext-envPtr->codeStart) - cmdCodeOffset;
 	    }
 	}
 
@@ -1848,14 +1762,17 @@ TclCompileString(interp, string, lastChar, flags, envPtr)
 	 * starting source and object information for the command.
 	 */
 
+	envPtr->numCommands++;
+	cmdIndex = (envPtr->numCommands - 1);
+	if (!(flags & TCL_BRACKET_TERM)) {
+	    lastTopLevelCmdIndex = cmdIndex;
+	}
+	
 	cmdSrcStart = src;
 	cmdCodeOffset = (envPtr->codeNext - envPtr->codeStart);
 	cmdWords = 0;
-	
-	envPtr->numCommands++;
-	cmdIndex = (envPtr->numCommands - 1);
-	EnterCmdStartData(envPtr, cmdIndex,
-	        (cmdSrcStart - envPtr->source), cmdCodeOffset);
+	EnterCmdStartData(envPtr, cmdIndex, src-envPtr->source,
+		cmdCodeOffset);
 	    
 	if ((!(flags & TCL_BRACKET_TERM))
 	        && (tclTraceCompile >= 1) && (envPtr->procPtr == NULL)) {
@@ -2131,8 +2048,8 @@ TclCompileString(interp, string, lastChar, flags, envPtr)
 	 */
 
         finishCommand:
-	cmdCodeBytes = envPtr->codeNext - envPtr->codeStart - cmdCodeOffset;
-	EnterCmdExtentData(envPtr, cmdIndex, src-cmdSrcStart, cmdCodeBytes);
+	EnterCmdExtentData(envPtr, cmdIndex, src-cmdSrcStart,
+	        (envPtr->codeNext-envPtr->codeStart) - cmdCodeOffset);
 	
 	isFirstCmd = 0;
 	envPtr->termOffset = (src - string);

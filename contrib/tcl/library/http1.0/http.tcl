@@ -5,7 +5,7 @@
 # These procedures use a callback interface to avoid using vwait,
 # which is not defined in the safe base.
 #
-# SCCS: @(#) http.tcl 1.8 97/07/22 13:37:20
+# SCCS: @(#) http.tcl 1.10 97/10/29 16:12:55
 #
 # See the http.n man page for documentation
 
@@ -279,14 +279,16 @@ proc http_size {token} {
 	httpFinish $token $err
     }
 }
- proc httpCopyDone {token count} {
+ proc httpCopyDone {token count {error {}}} {
     upvar #0 $token state
     set s $state(sock)
     incr state(currentsize) $count
     if [info exists state(-progress)] {
 	eval $state(-progress) {$token $state(totalsize) $state(currentsize)}
     }
-    if [eof $s] {
+    if {([string length $error] != 0)} {
+	httpFinish $token $error
+    } elseif {[eof $s]} {
 	httpEof $token
     } else {
 	httpCopyStart $s $token

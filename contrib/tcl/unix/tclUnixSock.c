@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixSock.c 1.7 97/07/24 17:54:02
+ * SCCS: @(#) tclUnixSock.c 1.9 97/10/09 18:24:49
  */
 
 #include "tcl.h"
@@ -47,11 +47,12 @@ static int  hostnameInited = 0;
  *
  * Tcl_GetHostName --
  *
- *	Get the network name for this machine, in a system dependent way.
+ *	Returns the name of the local host.
  *
  * Results:
  *	A string containing the network name for this machine, or
- *	an empty string if we can't figure out the name.
+ *	an empty string if we can't figure out the name.  The caller 
+ *	must not modify or free this string.
  *
  * Side effects:
  *	None.
@@ -72,6 +73,7 @@ Tcl_GetHostName()
     }
 
 #ifndef NO_UNAME
+    (VOID *) memset((VOID *) &u, (int) 0, sizeof(struct utsname));
     if (uname(&u) > -1) {
         hp = gethostbyname(u.nodename);
         if (hp != NULL) {

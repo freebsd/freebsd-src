@@ -5,7 +5,7 @@
 # "autoconf" program (constructs like "@foo@" will get replaced in the
 # actual Makefile.
 #
-# SCCS: @(#) Makefile.in 1.187 97/08/15 10:23:55
+# SCCS: @(#) Makefile.in 1.190 97/11/05 10:57:38
 
 # Current Tcl version;  used in various names.
 
@@ -73,12 +73,7 @@ MANN_INSTALL_DIR =	$(MAN_INSTALL_DIR)/mann
 
 # To change the compiler switches, for example to change from -O
 # to -g, change the following line:
-# On systems where both getcwd(3) and getwd(3) exist, check the man
-# page and if getcwd, like on Solaris, uses popen to pwd(1)
-# add -DUSEGETWD to the flags so getwd will be used instead.
 CFLAGS = -O
-# Solaris recommended:
-#CFLAGS = -O -DUSEGETWD
 
 # To disable ANSI-C procedure prototypes reverse the comment characters
 # on the following lines:
@@ -890,6 +885,11 @@ dist: $(UNIX_DIR)/configure
 	cp -p $(UNIX_DIR)/dltest/configure.in $(UNIX_DIR)/dltest/configure \
 		$(UNIX_DIR)/dltest/README $(DISTDIR)/unix/dltest
 
+#
+# The following target can only be used for non-patch releases.  Use
+# the "allpatch" target below for patch releases.
+#
+
 alldist: dist
 	rm -f /proj/tcl/dist/$(DISTNAME).tar.Z \
 		/proj/tcl/dist/$(DISTNAME).tar.gz \
@@ -897,6 +897,26 @@ alldist: dist
 	cd /proj/tcl/dist; tar cf $(DISTNAME).tar $(DISTNAME); \
 		gzip -9 -c $(DISTNAME).tar > $(DISTNAME).tar.gz; \
 		compress $(DISTNAME).tar; zip -r8 $(ZIPNAME) $(DISTNAME)
+
+#
+# The target below is similar to "alldist" except it works for patch
+# releases.  It is needed because patch releases are peculiar: the
+# patch designation appears in the name of the compressed file
+# (e.g. tcl8.0p1.tar.gz) but the extracted source directory doesn't
+# include the patch designation (e.g. tcl8.0).
+#
+
+allpatch: dist
+	rm -f /proj/tcl/dist/$(DISTNAME).tar.Z \
+		/proj/tcl/dist/$(DISTNAME).tar.gz \
+		/proj/tcl/dist/$(ZIPNAME)
+	mv /proj/tcl/dist/tcl${VERSION} /proj/tcl/dist/old
+	mv /proj/tcl/dist/$(DISTNAME) /proj/tcl/dist/tcl${VERSION}
+	cd /proj/tcl/dist; tar cf $(DISTNAME).tar tcl${VERSION}; \
+		gzip -9 -c $(DISTNAME).tar > $(DISTNAME).tar.gz; \
+		compress $(DISTNAME).tar; zip -r8 $(ZIPNAME) tcl${VERSION}
+	mv /proj/tcl/dist/tcl${VERSION} /proj/tcl/dist/$(DISTNAME)
+	mv /proj/tcl/dist/old /proj/tcl/dist/tcl${VERSION}
 
 #
 # Target to create a Macintosh version of the distribution.  This will

@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) binary.n 1.5 97/06/10 17:52:46
+'\" SCCS: @(#) binary.n 1.7 97/11/11 19:08:47
 '\" 
 .so man.macros
 .TH binary n 8.0 Tcl "Tcl Built-In Commands"
@@ -206,8 +206,8 @@ representation in the output string.  This representation is not
 portable across architectures, so it should not be used to communicate
 floating point numbers across the network.  The size of a floating
 point number may vary across architectures, so the number of bytes
-that are generated may vary.  If the value is out of range for the
-machine's native representation, then the value of FLT_MIN or FLT_MAX
+that are generated may vary.  If the value overflows the
+machine's native representation, then the value of FLT_MAX
 as defined by the system will be used instead.  Because Tcl uses
 double-precision floating-point numbers internally, there may be some
 loss of precision in the conversion to single-precision.  For example,

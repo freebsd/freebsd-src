@@ -1,21 +1,23 @@
 Tcl
 
-SCCS: @(#) README 1.49 97/08/14 08:47:31
+SCCS: @(#) README 1.52 97/11/20 12:43:16
 
 1. Introduction
 ---------------
 
 This directory and its descendants contain the sources and documentation
 for Tcl, an embeddable scripting language.  The information here
-corresponds to release 8.0. Tcl 8.0 is a major new release that replaces
-the core of the interpreter with an on-the-fly bytecode compiler to
-improve execution speed.  It also includes several other new features
-such as namespaces and binary I/O, plus many bug fixes.  The compiler
-introduces a few incompatibilities that may affect existing Tcl scripts;
-the incompatibilities are relatively obscure but may require
-modifications to some old scripts before they can run with this version.
-The compiler introduces many new C-level APIs, but the old APIs are
-still supported. See below for more details.
+corresponds to release 8.0p2, which is the second patch update for Tcl
+8.0. Tcl 8.0 is a major new release that replaces the core of the
+interpreter with an on-the-fly bytecode compiler to improve execution
+speed.  It also includes several other new features such as namespaces
+and binary I/O, plus many bug fixes.  The compiler introduces a few
+incompatibilities that may affect existing Tcl scripts; the
+incompatibilities are relatively obscure but may require modifications
+to some old scripts before they can run with this version. The compiler
+introduces many new C-level APIs, but the old APIs are still supported.
+See below for more details.  This patch release fixes various bugs in
+Tcl 8.0; there are no feature changes relative to Tcl 8.0.
 
 2. Documentation
 ----------------
@@ -23,11 +25,11 @@ still supported. See below for more details.
 The best way to get started with Tcl is to read one of the introductory
 books on Tcl:
 
+    Practical Programming in Tcl and Tk, 2nd Edition, by Brent Welch,
+    Prentice-Hall, 1997, ISBN 0-13-616830-2
+
     Tcl and the Tk Toolkit, by John Ousterhout,
     Addison-Wesley, 1994, ISBN 0-201-63337-X
-
-    Practical Programming in Tcl and Tk, by Brent Welch,
-    Prentice-Hall, 1995, ISBN 0-13-182007-9
 
     Exploring Expect, by Don Libes,
     O'Reilly and Associates, 1995, ISBN 1-56592-090-2
@@ -80,7 +82,7 @@ Before trying to compile Tcl you should do the following things:
 	without changing any features, so you should normally use the
 	latest patch release for the version of Tcl that you want. 
 	Patch releases are available in two forms.  A file like
-	tcl8.0p1.tar.Z is a complete release for patch level 1 of Tcl
+	tcl8.0p2.tar.Z is a complete release for patch level 2 of Tcl
 	version 8.0.  If there is a file with a higher patch level than
 	this release, just fetch the file with the highest patch level
 	and use it.
