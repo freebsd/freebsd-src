@@ -15,7 +15,7 @@
  * written by julian elischer (julian@tfs.com)
  *
  *	@(#)readMBR.c	8.5 (tfs) 1/21/94
- * $Id: readMBR.c,v 1.1 1994/10/27 20:44:50 jkh Exp $
+ * $Id: readMBR.c,v 1.2 1994/10/28 12:41:55 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -101,8 +101,11 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 		 */
 		if ((*(bp->b_un.b_addr + 510) != (char) 0x55)
 		  ||(*(bp->b_un.b_addr + 511) != (char) 0xaa)) {
-			msg = "Disk has no Fdisk partitions";
-			goto bad;
+                        printf("disk doesn't have an MBR\n");
+                        if(dp)
+                                bzero(bp->b_un.b_addr + DOSPARTOFF,
+                                    NDOSPART * sizeof(*dp));
+                        goto hrumpf;
 		}
 
 		if(dp) { /* if they asked for a copy, give it to them */
@@ -220,6 +223,7 @@ readMBRtolabel(dev, strat, lp, dp, cyl)
 		}
 		lp->d_npartitions = 8;
         }
+hrumpf:
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	return 0;
