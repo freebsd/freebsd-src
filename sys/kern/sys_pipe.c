@@ -16,10 +16,8 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.26 1997/03/23 03:36:24 bde Exp $
+ * $Id: sys_pipe.c,v 1.27 1997/03/24 11:52:26 bde Exp $
  */
-
-#ifndef OLD_PIPE
 
 /*
  * This file contains a high-performance replacement for the socket-based
@@ -1104,4 +1102,3 @@ pipeclose(cpipe)
 		free(cpipe, M_TEMP);
 	}
 }
-#endif

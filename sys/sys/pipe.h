@@ -18,13 +18,11 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: pipe.h,v 1.8 1997/02/22 09:45:40 peter Exp $
  */
 
 #ifndef _SYS_PIPE_H_
 #define _SYS_PIPE_H_
-
-#ifndef OLD_PIPE
 
 #ifndef KERNEL
 #include <sys/time.h>			/* for struct timeval */
@@ -113,7 +111,5 @@ struct pipe {
 #ifdef KERNEL
 int	pipe_stat __P((struct pipe *pipe, struct stat *ub));
 #endif
-
-#endif /* !OLD_PIPE */
 
 #endif /* !_SYS_PIPE_H_ */
