@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.227 1995/12/24 08:13:23 davidg Exp $
+#	$Id: LINT,v 1.228 1995/12/25 07:38:35 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -384,10 +384,6 @@ controller	isa0
 #
 # Options for `isa':
 #
-# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
-# interrupt controller.  This saves about 1.25 usec for each interrupt.
-# No problems are known to be caused by this option.
-#
 # AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
 # interrupt controller.  This saves about 1.25 usec for each interrupt.
 # Automatic EOI is documented not to work for for the slave with the
@@ -408,7 +404,7 @@ controller	isa0
 # BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
-options		"AUTO_EOI_1"
+#
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
 #options	DUMMY_NOPS
