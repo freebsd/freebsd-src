@@ -72,6 +72,59 @@ administrator.
 More information on the format for MAC labels can be found in the
 .Xr maclabel 7
 man page.
+.Ss Policy Enforcement
+MAC can be configured to enforce only specific portions of
+policies
+(see
+.Sx "Runtime Configuration" ) .
+Policy enforcement is divided into the following areas of the system:
+.Bl -ohang
+.It Sy File System
+File system mounts, modifying directories, modifying files, etc.
+.It Sy KLD
+Loading, unloading, and retrieving statistics on loaded kernel modules
+.It Sy Network
+Network interfaces,
+.Xr bpf 4
+.It Sy Pipes
+Creation of and operation on
+.Xr pipe 2
+objects
+.It Sy Processes
+Debugging
+(e.g.
+.Xr ktrace 2 ) ,
+process visibility
+.Xr ( ps 1 ) ,
+process execution
+.Xr ( execve 2 ) ,
+signalling
+.Xr ( kill 2 )
+.It Sy Sockets
+Creation and operation on
+.Xr socket 2
+objects
+.It Sy System
+Kernel environment
+.Xr ( kenv 1 ) ,
+system accounting
+.Xr ( acct 2 ) ,
+.Xr reboot 2 ,
+.Xr settimeofday 2 ,
+.Xr swapon 2 ,
+.Xr sysctl 3 ,
+.Sm off
+.Xr nfsd 8 -
+related
+.Sm on
+operations
+.It Sy VM
+.Sm off
+.Xr mmap 2 -
+ed
+.Sm on
+files
+.El
 .Ss Setting MAC labels
 From the command line, each type of system object has its own means for setting
 and modifying its MAC policy label.
@@ -98,6 +151,53 @@ The interface for retrieving, handling, and setting policy labels
 is documented in the
 .Xr mac 3
 man page.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of MAC policies.
+Unless specifically noted, all MIBs default to
+.Li 1
+(that is, all areas are enforced by default):
+.Bl -tag -width "security.mac.mmap_revocation"
+.It Va security.mac.enforce_fs
+Enforce MAC policies for file system accesses
+.It Va security.mac.enforce_kld
+Enforce MAC policies on
+.Xr kld 4
+.It Va security.mac.enforce_network
+Enforce MAC policies on network interfaces
+.It Va security.mac.enforce_pipe
+Enforce MAC policies on pipes
+.It Va security.mac.enforce_process
+Enforce MAC policies between system processes
+(e.g.
+.Xr ps 1 ,
+.Xr ktrace 2 )
+.It Va security.mac.enforce_socket
+Enforce MAC policies on sockets
+.It Va security.mac.enforce_system
+Enforce MAC policies on system-related items
+(e.g.
+.Xr kenv 1 ,
+.Xr acct 2 ,
+.Xr reboot 2 )
+.It Va security.mac.enforce_vm
+Enforce MAC policies on
+.Xr mmap 2
+and
+.Xr mprotect 2
+.It Va security.mac.mmap_revocation
+Revoke
+.Xr mmap 2
+access to files on subject relabel
+.It Va security.mac.mmap_revocation_via_cow
+Revoke
+.Xr mmap 2
+access to files via copy-on-write semantics;
+mapped regions will still appear writable, but will no longer
+effect a change on the underlying vnode
+(Default: 0)
+.El
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_biba 4 ,
