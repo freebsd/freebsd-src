@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <locale.h>
 #include <nlist.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,14 +58,6 @@ static const char rcsid[] =
 #include "systat.h"
 #include "extern.h"
 
-static struct nlist namelist[] = {
-#define X_FIRST		0
-#define	X_HZ		0
-	{ "_hz" },
-#define	X_STATHZ		1
-	{ "_stathz" },
-	{ "" }
-};
 static int     dellave;
 
 kvm_t *kd;
@@ -73,7 +66,7 @@ double avenrun[3];
 int     col;
 int	naptime = 5;
 int     verbose = 1;                    /* to report kvm read errs */
-int     hz, stathz;
+struct clockinfo	clkinfo;
 double	hertz;
 char    c;
 char    *namp;
@@ -88,7 +81,9 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char errbuf[80];
+	char	errbuf[80];
+	size_t	size;
+	int	err;
 
 	(void) setlocale(LC_TIME, "");
 
@@ -137,16 +132,16 @@ main(argc, argv)
 		warnx("couldn't set up load average window");
 		die(0);
 	}
-	if (kvm_nlist(kd, namelist)) {
-		nlisterr(namelist);
-		exit(1);
-	}
-	if (namelist[X_FIRST].n_type == 0)
-		errx(1, "couldn't read namelist");
 	gethostname(hostname, sizeof (hostname));
-	NREAD(X_HZ, &hz, sizeof(hz));
-	NREAD(X_STATHZ, &stathz, sizeof(stathz));
-	hertz = stathz ? stathz : hz;
+
+	size = sizeof(clkinfo);
+	err = sysctlbyname("kern.clockrate", &clkinfo, &size, NULL, 0);
+	if (err != 0 || size != sizeof(clkinfo)) {
+		perror("kern.clockrate");
+		die(0);
+	}
+
+	hertz = clkinfo.stathz ? clkinfo.stathz : clkinfo.hz;
 	(*curcmd->c_init)();
 	curcmd->c_flags |= CF_INIT;
 	labels();
