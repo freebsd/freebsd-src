@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 1998/04/30 15:59:49 ache Exp $
+# $Id: Makefile,v 1.10 1998/05/01 02:49:40 scrappy Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -29,7 +29,7 @@ scan.o:       bc.h
 
 CLEANFILES+=    ${GENSRCS} y.tab.h bc.h
 
-DPADD+= ${LIBREADLINE}
+DPADD+= ${LIBREADLINE} ${LIBTERMCAP}
 LDADD+= -lreadline -ltermcap
 
 .include <bsd.prog.mk>
