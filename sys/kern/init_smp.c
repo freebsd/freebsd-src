@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.1 1997/04/26 11:46:12 peter Exp $
+ * $Id: init_smp.c,v 1.2 1997/04/28 00:24:00 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -185,6 +185,8 @@ void *dummy;
 		smp_cpus = 1;
 		smp_active = mp_ncpus;	/* XXX */
 		boot_unlock();
+#else
+		printf("You can now activate SMP processing, use: sysctl -w kern.smp_active=%d\n", mp_ncpus);
 #endif /* SMP_AUTOSTART */
 	}
 
