@@ -27,7 +27,7 @@
 .\"
 .\"	$FreeBSD$
 .\"
-.Dd February 10, 2004
+.Dd December 17, 2004
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -40,61 +40,117 @@ The
 .Nm
 driver provides support for Mass Storage devices that attach to the USB
 port.
-Supported are:
 .Pp
-.Bl -item -compact
+To use the
+.Nm
+driver,
+.Xr usb 4
+and one of
+.Xr uhci 4
+or
+.Xr ohci 4
+must be configured in the kernel.
+Also
+.Xr da 4
+has to be included, which provides support for SCSI drives.
+.Sh HARDWARE
+The
+.Nm
+driver supports USB Mass Storage devices, including:
+.Pp
+.Bl -bullet -compact
 .It
-IBM 256MB USB Drive(MSYSTEM DiskOnKey2)
+ADTEC Stick Drive AD-UST32M, 64M, 128M, 256M
 .It
-Iomega USB Zip 100 drive
+Denno FireWire/USB2 Removable 2.5-inch HDD Case MIFU-25CB20
 .It
-Iomega USB Zip 250 drive
+FujiFilm Zip USB Drive ZDR100 USB A
 .It
-Logitec LDR-H443U2 DVD-RAM/-R/+R/-RW/+RW Drive
+GREEN HOUSE USB Flash Memory "PicoDrive" GH-UFD32M, 64M, 128M
+.It
+IBM 32MB USB Memory Key (P/N 22P5296)
+.It
+IBM 256MB USB Drive (MSYSTEM DiskOnKey2)
+.It
+IBM ThinkPad USB Portable CD-ROM Drive (P/N 33L5151)
+.It
+I-O DATA USB CD/CD-R/CD-RW/DVD-R/DVD-RW/DVD-RAM/DVD-ROM Drive DVR-iUH2 (CDROM, DVD-RAM only)
+.It
+I-O DATA USB x6 CD-RW Drive CDRW-i64/USB (CDROM only)
+.It
+I-O DATA USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI
+.It
+Iomega USB Zip 100/250 drive
+.It
+Iomega Zip750 USB2.0 drive
+.It
+Keian USB1.1/2.0 3.5-inch HDD Case KU350A
+.It
+Kurouto Shikou USB 2.5-inch HDD Case GAWAP2.5PS-USB2.0
+.It
+LaCie P3 HardDrive USB 200GB
+.It
+Logitec LDR-H443U2 DVD-RAM/-R/+R/-RW/+RW drive
+.It
+Logitec Mobile USB Memory LMC-256UD
+.It
+Logitec USB1.1/2.0 HDD Unit SHD-E60U2
+.It
+Logitec USB Double-Speed Floppy Drive LFD-31U2
+.It
+Logitec USB/IEEE1394 DVD-RAM/R/RW Unit LDR-N21FU2 (CDROM only)
+.It
+MELCO USB Flash Disk "ClipDrive", RUF-C32M, -C64M, -C128M, -C256M, -C512M
+.It
+MELCO USB Flash Disk "PetitDrive", RUF-32M, -64M, -128M, -256Mm
+.It
+MELCO USB2.0 Flash Disk "PetitDrive2", RUF-256M/U2, -512M/U2
+.It
+MELCO USB2.0 MO Drive MO-CH640U2
+.It
+Matshita CF-VFDU03 floppy drive
 .It
 Microtech International, Inc.\& USB-SCSI-HD 50 USB to SCSI cable
+.It
+NOVAC USB2.0 2.5/3.5-inch HDD Case NV-HD351U
+.It
+PNY Attache Flash Drive
 .It
 Panasonic ("Matshita FDD CF-VFDU03")
 .It
 Panasonic KXL-CB20AN Portable DVD-ROM/CD-R/RW
 .It
-Panasonic KXL-CB35AN(DVD-ROM & CD-R/RW)
+Panasonic KXL-CB35AN (DVD-ROM & CD-R/RW)
 .It
-Trek Thumbdrive 8MB
+Panasonic USB2.0 Portable CD-RW Drive KXL-RW40AN (CDROM only)
 .It
-VAIO floppy drive (includes Y-E Data Flashbuster-U)
-.El
-.Pp
-The driver also supports some USB adapters for removable media.
-Among the supported models are:
-.Pp
-.Bl -item -compact
+Panasonic floppy drive
 .It
-PNY Attache Flash Drive
+RATOC Systems USB2.0 Removable HDD Case U2-MDK1, U2-MDK1B
 .It
 SanDisk SDDR-31 (Compact Flash)
 .It
 SanDisk SDDR-75 (only Compact Flash port works)
 .It
 Sitecom CN-300 MultiFlash (MMC/SD, SmartMedia, CF, MemoryStick)
+.It
+Sony Portable CD-R/RW Drive CRX10U (CDROM only)
+.It
+TEAC Portable USB CD-ROM Unit CD-110PU/210PU
+.It
+Trek Thumbdrive 8MB
+.It
+VAIO floppy drive (includes Y-E Data Flashbuster-U)
+.It
+Y-E Data floppy drive (720/1.44/2.88Mb)
 .El
 .Pp
 Among the supported digital cameras are:
 .Pp
-.Bl -item -compact
+.Bl -bullet -compact
 .It
 Asahi Optical (PENTAX) Optio 230 & 330
 .El
-.Pp
-.Xr usb 4
-and one of
-.Xr uhci 4
-or
-.Xr ohci 4
-must be configured in the kernel as well.
-Last but not least, support for
-SCSI drives,
-.Xr da 4 .
 .Sh EXAMPLES
 .Bd -literal -offset indent
 device umass
@@ -153,6 +209,7 @@ type as
 when using
 .Xr mount 8 .
 .Sh SEE ALSO
+.Xr ehci 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
