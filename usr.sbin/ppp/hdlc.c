@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.2 1995/02/26 12:17:30 amurai Exp $
+ * $Id: hdlc.c,v 1.3 1995/05/30 03:50:33 rgrimes Exp $
  *
  *	TODO:
  */
@@ -292,7 +292,7 @@ HdlcErrorCheck()
   struct hdlcstat *op = &laststat;
 
   if (bcmp(hp, op, sizeof(laststat))) {
-    LogPrintf(LOG_PHASE, "HDLC errros -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
+    LogPrintf(LOG_PHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
 	hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
   }
