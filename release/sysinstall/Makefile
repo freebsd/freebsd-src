@@ -6,20 +6,15 @@ MAN=	sysinstall.8
 BINDIR=/stand
 NOSHARED=YES
 
-CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
-CLEANFILES+=	keymap.tmp keymap.h
-
-.PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
-
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
-	label.c main.c makedevs.c media.c menus.c misc.c modules.c mouse.c \
-	msg.c network.c nfs.c options.c package.c pccard.c \
-	system.c tape.c tcpip.c termcap.c ufs.c usb.c user.c variable.c \
-	wizard.c keymap.h
+	label.c main.c makedevs.c media.c menus.c misc.c modules.c \
+	mouse.c msg.c network.c nfs.c options.c package.c pccard.c \
+	system.c tape.c tcpip.c termcap.c ufs.c usb.c user.c \
+	variable.c wizard.c keymap.h
 
-CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
+CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
@@ -27,56 +22,56 @@ CFLAGS+= -DPC98
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
-makedevs.c:	Makefile rtermcap keymap.h
-	rm -f makedevs.tmp
-	echo '#include <sys/types.h>' > makedevs.tmp
+CLEANFILES=	makedevs.c rtermcap
+CLEANFILES+=	keymap.tmp keymap.h
+
+makedevs.c:	Makefile rtermcap
+	echo '#include <sys/types.h>' > makedevs.c
 	./rtermcap ansi | \
 		file2c 'const char termcap_ansi[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25w | \
 		file2c 'const char termcap_cons25w[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25-m | \
 		file2c 'const char termcap_cons25_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25r | \
 		file2c 'const char termcap_cons25r[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25r-m | \
 		file2c 'const char termcap_cons25r_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25l1 | \
 		file2c 'const char termcap_cons25l1[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap cons25l1-m | \
 		file2c 'const char termcap_cons25l1_m[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 	./rtermcap xterm | \
 		file2c 'const char termcap_xterm[] = {' ',0};' \
-		>> makedevs.tmp
+		>> makedevs.c
 .if ${MACHINE} == "i386"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
-	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.tmp
-	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.tmp
+	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
+	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
+	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.c
+	echo "size_t mbr_size = sizeof(mbr);" >> makedevs.c
 .endif
 .if ${MACHINE} == "pc98"
-	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
-	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.tmp
-	file2c 'u_char boot05[] = {' '};' < /boot/boot0.5 >> makedevs.tmp
-	echo "size_t boot05_size = sizeof(boot05);" >> makedevs.tmp
+	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.c
+	echo "size_t boot0_size = sizeof(boot0);" >> makedevs.c
+	file2c 'u_char boot05[] = {' '};' < /boot/boot0.5 >> makedevs.c
+	echo "size_t boot05_size = sizeof(boot05);" >> makedevs.c
 .endif
-	mv makedevs.tmp makedevs.c
 
-rtermcap:	${.CURDIR}/rtermcap.c
-	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
-
+rtermcap:	rtermcap.c
+	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
 
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso
