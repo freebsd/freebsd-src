@@ -332,6 +332,29 @@ Monitor(void *v)
     return NULL;
 }
 
+static const char *
+sockaddr_ntop(const struct sockaddr *sa)
+{
+    const void *addr;
+    static char addrbuf[INET6_ADDRSTRLEN];
+ 
+    switch (sa->sa_family) {
+    case AF_INET:
+	addr = &((const struct sockaddr_in *)sa)->sin_addr;
+	break;
+    case AF_UNIX:
+	addr = &((const struct sockaddr_un *)sa)->sun_path;                
+	break;
+    case AF_INET6:
+	addr = &((const struct sockaddr_in6 *)sa)->sin6_addr;
+	break;
+    default:
+	return NULL;
+    }
+    inet_ntop(sa->sa_family, addr, addrbuf, sizeof(addrbuf));                
+    return addrbuf;
+}
+
 /*
  * Connect to ppp using either a local domain socket or a tcp socket.
  *
@@ -341,12 +364,8 @@ Monitor(void *v)
 int
 main(int argc, char **argv)
 {
-    struct servent *s;
-    struct hostent *h;
-    struct sockaddr *sock;
-    struct sockaddr_in ifsin;
     struct sockaddr_un ifsun;
-    int n, socksz, arg, fd, len, verbose, save_errno, hide1, hide1off, hide2;
+    int n, arg, fd, len, verbose, save_errno, hide1, hide1off, hide2;
     unsigned TimeoutVal;
     char *DoneWord = "x", *next, *start;
     struct sigaction act, oact;
@@ -424,9 +443,6 @@ main(int argc, char **argv)
     }
 
     if (*argv[arg] == '/') {
-        sock = (struct sockaddr *)&ifsun;
-        socksz = sizeof ifsun;
-
         memset(&ifsun, '\0', sizeof ifsun);
         ifsun.sun_len = strlen(argv[arg]);
         if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
@@ -440,88 +456,98 @@ main(int argc, char **argv)
             warnx("cannot create local domain socket");
             return 2;
         }
+	if (connect(fd, (struct sockaddr *)&ifsun, sizeof(ifsun)) < 0) {
+	    if (errno)
+		warn("cannot connect to socket %s", argv[arg]);
+	    else
+		warnx("cannot connect to socket %s", argv[arg]);
+	    close(fd);
+	    return 3;
+	}
     } else {
-        char *port, *host, *colon;
-        int hlen;
+        char *addr, *p, *port;
+	const char *caddr;
+	struct addrinfo hints, *res, *pai;
+        int gai;
+	char local[] = "localhost";
 
-        colon = strchr(argv[arg], ':');
-        if (colon) {
-            port = colon + 1;
-            *colon = '\0';
-            host = argv[arg];
-        } else {
-            port = argv[arg];
-            host = "127.0.0.1";
-        }
-        sock = (struct sockaddr *)&ifsin;
-        socksz = sizeof ifsin;
-        hlen = strlen(host);
-
-        memset(&ifsin, '\0', sizeof ifsin);
-        if (strspn(host, "0123456789.") == hlen) {
-            if (!inet_aton(host, &ifsin.sin_addr)) {
-                warnx("cannot translate %s", host);
-                return 1;
-            }
-        } else if ((h = gethostbyname(host)) == 0) {
-            warnx("cannot resolve %s", host);
-            return 1;
-        }
-        else
-            ifsin.sin_addr.s_addr = *(u_long *)h->h_addr_list[0];
-
-        if (colon)
-            *colon = ':';
-
-        if (strspn(port, "0123456789") == strlen(port))
-            ifsin.sin_port = htons(atoi(port));
-        else if (s = getservbyname(port, "tcp"), !s) {
-            warnx("%s isn't a valid port or service!", port);
-            usage();
-        }
-        else
-            ifsin.sin_port = s->s_port;
-
-        ifsin.sin_len = sizeof(ifsin);
-        ifsin.sin_family = AF_INET;
-
-        if (fd = socket(AF_INET, SOCK_STREAM, 0), fd < 0) {
-            warnx("cannot create internet socket");
-            return 2;
-        }
-    }
-
-    TimedOut = 0;
-    if (TimeoutVal) {
-        act.sa_handler = Timeout;
-        sigemptyset(&act.sa_mask);
-        act.sa_flags = 0;
-        sigaction(SIGALRM, &act, &oact);
-        alarm(TimeoutVal);
-    }
-
-    if (connect(fd, sock, socksz) < 0) {
-        if (TimeoutVal) {
-            save_errno = errno;
-            alarm(0);
-            sigaction(SIGALRM, &oact, 0);
-            errno = save_errno;
-        }
-        if (TimedOut)
-            warnx("timeout: cannot connect to socket %s", argv[arg]);
-        else {
-            if (errno)
-                warn("cannot connect to socket %s", argv[arg]);
-            else
-                warnx("cannot connect to socket %s", argv[arg]);
-        }
-        close(fd);
-        return 3;
-    }
-
-    if (TimeoutVal) {
-        alarm(0);
-        sigaction(SIGALRM, &oact, 0);
+	addr = argv[arg];
+	if (addr[strspn(addr, "0123456789")] == '\0') {
+	    /* port on local machine */
+	    port = addr;
+	    addr = local;
+	} else if (*addr == '[') {
+	    /* [addr]:port */
+	    if ((p = strchr(addr, ']')) == NULL) {
+		warnx("%s: mismatched '['", addr);
+		return 1;
+	    }
+	    addr++;
+	    *p++ = '\0';
+	    if (*p != ':') {
+		warnx("%s: missing port", addr);
+		return 1;
+	    }
+	    port = ++p;
+	} else {
+	    /* addr:port */
+	    p = addr + strcspn(addr, ":");
+	    if (*p != ':') {
+		warnx("%s: missing port", addr);
+		return 1;
+	    }
+	    *p++ = '\0';
+	    port = p;
+	}
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	gai = getaddrinfo(addr, port, &hints, &res);
+	if (gai != 0) {
+	    warnx("%s: %s", addr, gai_strerror(gai));
+	    return 1;
+	}
+	for (pai = res; pai != NULL; pai = pai->ai_next) {
+	    if (fd = socket(pai->ai_family, pai->ai_socktype,
+		pai->ai_protocol), fd < 0) {
+		warnx("cannot create socket");
+		continue;
+	    }
+	    TimedOut = 0;
+	    if (TimeoutVal) {
+		act.sa_handler = Timeout;
+		sigemptyset(&act.sa_mask);
+		act.sa_flags = 0;
+		sigaction(SIGALRM, &act, &oact);
+		alarm(TimeoutVal);
+	    }
+	    if (connect(fd, pai->ai_addr, pai->ai_addrlen) == 0)
+		break;
+	    if (TimeoutVal) {
+		save_errno = errno;
+		alarm(0);
+		sigaction(SIGALRM, &oact, 0);
+		errno = save_errno;
+	    }
+	    caddr = sockaddr_ntop(pai->ai_addr);
+	    if (caddr == NULL)
+		caddr = argv[arg];
+	    if (TimedOut)
+		warnx("timeout: cannot connect to %s", caddr);
+	    else {
+		if (errno)
+		    warn("cannot connect to %s", caddr);
+		else
+		    warnx("cannot connect to %s", caddr);
+	    }
+	    close(fd);
+	}
+	freeaddrinfo(res);
+	if (pai == NULL)
+	    return 1;
+	if (TimeoutVal) {
+	    alarm(0);
+	    sigaction(SIGALRM, &oact, 0);
+	}
     }
 
     len = 0;
