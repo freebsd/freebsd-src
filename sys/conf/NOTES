@@ -938,8 +938,6 @@ options 	MSGBUF_SIZE=40960
 # ISA bus
 #
 
-options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
-
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
 # More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
