@@ -1182,7 +1182,7 @@ DMenu MenuInstallCustom = {
     "INSTALL",
     { { "X Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { "2 Options",		"View/Set various installation options", NULL, optionsEditor },
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
       { "3 Label",		"Label disk partitions",		NULL, diskLabelEditor },
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
@@ -1320,14 +1320,17 @@ DMenu MenuStartup = {
 	dmenuVarCheck, dmenuToggleVariable, NULL, "accounting_enable=YES" },
       { " lpd",		"This host has a printer and wants to run lpd.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "lpd_enable=YES" },
-#ifdef __i386__
       { " linux",	"This host wants to be able to run linux binaries.",
 	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
-      { " SVR4",	"This host wants to be able to run SVR4 binaries.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
+#ifdef __i386__
       { " SCO",		"This host wants to be able to run IBCS2 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
-#elif __alpha__
+#endif
+#if defined(__i386__) || defined(__sparc64__)
+      { " SVR4",	"This host wants to be able to run SVR4 binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
+#endif
+#ifdef __alpha__
       { " OSF/1",	"This host wants to be able to run DEC OSF/1 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "osf1_enable=YES" },
 #endif
