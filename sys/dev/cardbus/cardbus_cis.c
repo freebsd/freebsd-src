@@ -62,10 +62,7 @@
 #define	DEVPRINTF(x)
 #endif
 
-#if !defined(lint)
-static const char rcsid[] =
-    "$FreeBSD$";
-#endif
+__FBSDID("$FreeBSD$");
 
 #define	DECODE_PARAMS							\
 		(device_t cbdev, device_t child, int id, int len,	\
@@ -165,12 +162,12 @@ DECODE_PROTOTYPE(generic)
 	}
 	printf("\n");
 #endif
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(nothing)
 {
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(copy)
@@ -191,7 +188,7 @@ DECODE_PROTOTYPE(copy)
 	cisread_buf[ncisread_buf].data = malloc(len, M_DEVBUF, M_WAITOK);
 	memcpy(cisread_buf[ncisread_buf].data, tupledata, len);
 	ncisread_buf++;
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(linktarget)
@@ -213,9 +210,9 @@ DECODE_PROTOTYPE(linktarget)
 		printf("Invalid data for CIS Link Target!\n");
 		decode_tuple_generic(cbdev, child, id, len, tupledata,
 		    start, off, info);
-		return EINVAL;
+		return (EINVAL);
 	}
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(vers_1)
@@ -232,7 +229,7 @@ DECODE_PROTOTYPE(vers_1)
 			printf("%c", tupledata[i]);
 	}
 	printf("\n");
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(funcid)
@@ -250,7 +247,7 @@ DECODE_PROTOTYPE(funcid)
 			printf(", ");
 	}
 	printf("\n");
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(manfid)
@@ -260,7 +257,7 @@ DECODE_PROTOTYPE(manfid)
 	for (i = 0; i < len; i++)
 		printf("%02x", tupledata[i]);
 	printf("\n");
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(funce)
@@ -270,14 +267,14 @@ DECODE_PROTOTYPE(funce)
 	for (i = 0; i < len; i++)
 		printf("%02x", tupledata[i]);
 	printf("\n");
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(bar)
 {
 	if (len != 6) {
 		printf("*** ERROR *** BAR length not 6 (%d)\n", len);
-		return EINVAL;
+		return (EINVAL);
 	} else {
 		struct cardbus_devinfo *dinfo = device_get_ivars(child);
 		int type;
@@ -296,7 +293,7 @@ DECODE_PROTOTYPE(bar)
 		    (type == SYS_RES_IOPORT && bar == 5)) {
 			device_printf(cbdev, "Invalid BAR number: %02x(%02x)\n",
 			    reg, bar);
-			return 0;
+			return (0);
 		}
 		bar = CARDBUS_BASE0_REG + bar * 4;
 		if (type == SYS_RES_MEMORY) {
@@ -320,19 +317,19 @@ DECODE_PROTOTYPE(bar)
 
 		resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
 	}
-	return 0;
+	return (0);
 }
 
 DECODE_PROTOTYPE(unhandled)
 {
 	printf("TUPLE: %s [%d] is unhandled! Bailing...", info->name, len);
-	return -1;
+	return (-1);
 }
 
 DECODE_PROTOTYPE(end)
 {
 	printf("CIS reading done\n");
-	return 0;
+	return (0);
 }
 
 /*
@@ -365,7 +362,7 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, u_int32_t start,
 		e >>= 8;
 	}
 	*off += *len + 2;
-	return 0;
+	return (0);
 }
 
 static int
@@ -384,7 +381,7 @@ cardbus_read_tuple_mem(device_t cbdev, struct resource *res, u_int32_t start,
 	bus_space_read_region_1(bt, bh, *off + start + 2, tupledata, *len);
 	ret = 0;
 	*off += *len + 2;
-	return ret;
+	return (ret);
 }
 
 static int
@@ -393,11 +390,11 @@ cardbus_read_tuple(device_t cbdev, device_t child, struct resource *res,
     u_int8_t *tupledata)
 {
 	if (res == (struct resource*)~0UL) {
-		return cardbus_read_tuple_conf(cbdev, child, start, off,
-		    tupleid, len, tupledata);
+		return (cardbus_read_tuple_conf(cbdev, child, start, off,
+		    tupleid, len, tupledata));
 	} else {
-		return cardbus_read_tuple_mem(cbdev, res, start, off,
-		    tupleid, len, tupledata);
+		return (cardbus_read_tuple_mem(cbdev, res, start, off,
+		    tupleid, len, tupledata));
 	}
 }
 
@@ -423,7 +420,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	switch (CARDBUS_CIS_SPACE(*start)) {
 	case CARDBUS_CIS_ASI_TUPLE:
 		/* CIS in tuple space need no initialization */
-		return (struct resource*)~0UL;
+		return (NULL);
 	case CARDBUS_CIS_ASI_BAR0:
 	case CARDBUS_CIS_ASI_BAR1:
 	case CARDBUS_CIS_ASI_BAR2:
@@ -440,14 +437,14 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	default:
 		device_printf(cbdev, "Unable to read CIS: Unknown space: %d\n",
 		    CARDBUS_CIS_SPACE(*start));
-		return NULL;
+		return (NULL);
 	}
 
 	/* figure out how much space we need */
 	testval = pci_read_config(child, *rid, 4);
 	if (testval & 1) {
 		device_printf(cbdev, "CIS Space is IO, expecting memory.\n");
-		return NULL;
+		return (NULL);
 	}
 	size = CARDBUS_MAPREG_MEM_SIZE(testval);
 	if (size < 4096)
@@ -458,7 +455,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	if (res == NULL) {
 		device_printf(cbdev, "Unable to allocate resource "
 		    "to read CIS.\n");
-		return NULL;
+		return (NULL);
 	}
 	pci_write_config(child, *rid,
 	    rman_get_start(res) | ((*rid == CARDBUS_ROM_REG)?
@@ -491,7 +488,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 				bus_release_resource(cbdev, SYS_RES_MEMORY,
 				    *rid, res);
 				*rid = 0;
-				return NULL;
+				return (NULL);
 			}
 			dataptr = mystart + bus_space_read_2(bt, bh,
 			    mystart + CARDBUS_EXROM_DATA_PTR);
@@ -513,7 +510,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) == 0) {
 				device_printf(cbdev, "Cannot read CIS: "
 				    "Not enough images of rom\n");
-				return NULL;
+				return (NULL);
 			}
 			mystart += imagesize;
 		}
@@ -521,7 +518,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	} else {
 		*start = CARDBUS_CIS_SPACE(*start);
 	}
-	return res;
+	return (res);
 }
 
 /*
@@ -536,17 +533,17 @@ decode_tuple(device_t cbdev, device_t child, int tupleid, int len,
 	int i;
 	for (i = 0; callbacks[i].id != CISTPL_GENERIC; i++) {
 		if (tupleid == callbacks[i].id)
-			return callbacks[i].func(cbdev, child, tupleid, len,
-			    tupledata, start, off, &callbacks[i]);
+			return (callbacks[i].func(cbdev, child, tupleid, len,
+			    tupledata, start, off, &callbacks[i]));
 	}
 
 	if (tupleid < CISTPL_CUSTOMSTART) {
 		device_printf(cbdev, "Undefined tuple encountered, "
 		    "CIS parsing terminated\n");
-		return EINVAL;
+		return (EINVAL);
 	}
-	return callbacks[i].func(cbdev, child, tupleid, len,
-	    tupledata, start, off, NULL);
+	return (callbacks[i].func(cbdev, child, tupleid, len,
+	    tupledata, start, off, NULL));
 }
 
 static int
@@ -567,37 +564,37 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	off = 0;
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
 	if (res == NULL)
-		return ENXIO;
+		return (ENXIO);
 	do {
 		if (0 != cardbus_read_tuple(cbdev, child, res, start, &off,
 		    &tupleid, &len, tupledata)) {
 			device_printf(cbdev, "Failed to read CIS.\n");
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
-			return ENXIO;
+			return (ENXIO);
 		}
 
 		if (expect_linktarget && tupleid != CISTPL_LINKTARGET) {
 			device_printf(cbdev, "Expecting link target, got 0x%x\n",
 			    tupleid);
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
-			return EINVAL;
+			return (EINVAL);
 		}
 		expect_linktarget = decode_tuple(cbdev, child, tupleid, len,
 		    tupledata, start, &off, callbacks);
 		if (expect_linktarget != 0) {
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
-			return expect_linktarget;
+			return (expect_linktarget);
 		}
 	} while (tupleid != CISTPL_END);
 	cardbus_read_tuple_finish(cbdev, child, rid, res);
-	return 0;
+	return (0);
 }
 
 static int
 barsort(const void *a, const void *b)
 {
-	return (*(const struct resource_list_entry **)b)->count -
-	    (*(const struct resource_list_entry **)a)->count;
+	return ((*(const struct resource_list_entry **)b)->count -
+	    (*(const struct resource_list_entry **)a)->count);
 }
 
 static int
@@ -617,7 +614,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	SLIST_FOREACH(rle, &dinfo->pci.resources, link)
 		count++;
 	if (count == 0)
-		return 0;
+		return (0);
 	barlist = malloc(sizeof(struct resource_list_entry*) * count, M_DEVBUF,
 	    M_WAITOK);
 	count = 0;
@@ -666,7 +663,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (res == NULL) { /* XXX need cleanup*/
 		    device_printf(cbdev, "Unable to allocate memory for "
 		      "prefetchable memory.\n");
-		    return ENOMEM;
+		    return (ENOMEM);
 		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
@@ -738,7 +735,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		if (res == NULL) { /* XXX need cleanup*/
 		    device_printf(cbdev, "Unable to allocate memory for "
 		      "non-prefetchable memory.\n");
-		    return ENOMEM;
+		    return (ENOMEM);
 		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
@@ -802,7 +799,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		    io_size, flags);
 		if (res == NULL) { /* XXX need cleanup*/
 		    device_printf(cbdev, "Unable to allocate I/O ports\n");
-		    return ENOMEM;
+		    return (ENOMEM);
 		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
@@ -824,7 +821,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 				if (barlist[tmp]->res == NULL) {
 					DEVPRINTF((cbdev, "Cannot pre-allocate "
 					    "IO port for cardbus device\n"));
-					return ENOMEM;
+					return (ENOMEM);
 				}
 				barlist[tmp]->start =
 				    rman_get_start(barlist[tmp]->res);
@@ -848,7 +845,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	    RF_SHAREABLE);
 	if (res == NULL) { /* XXX need cleanup*/
 		device_printf(cbdev, "Unable to allocate IRQ\n");
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid,
 	    rman_get_start(res), rman_get_end(res), 1);
@@ -856,7 +853,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	pci_write_config(child, PCIR_INTLINE, rman_get_start(res), 1);
 	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -983,7 +980,7 @@ cardbus_cis_read(device_t cbdev, device_t child, u_int8_t id,
 
 	*buff = cisread_buf;
 	*nret = ncisread_buf;
-	return ret;
+	return (ret);
 }
 
 void
@@ -1044,7 +1041,7 @@ cardbus_do_cis(device_t cbdev, device_t child)
 
 	ret = cardbus_parse_cis(cbdev, child, init_callbacks);
 	if (ret < 0)
-		return ret;
+		return (ret);
 	cardbus_pickup_maps(cbdev, child);
-	return cardbus_alloc_resources(cbdev, child);
+	return (cardbus_alloc_resources(cbdev, child));
 }
