@@ -77,22 +77,6 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 #include "devs.h"
 
-static struct nlist namelist[] = {
-#define X_CP_TIME	0
-	{ "_cp_time" },
-#ifdef vax
-#define X_MBDINIT	(X_CP_TIME+1)
-	{ "_mbdinit" },
-#define X_UBDINIT	(X_CP_TIME+2)
-	{ "_ubdinit" },
-#endif
-#ifdef tahoe
-#define	X_VBDINIT	(X_CP_TIME+1)
-	{ "_vbdinit" },
-#endif
-	{ "" },
-};
-
 struct statinfo cur, last;
 
 static  int linesperregion;
@@ -141,11 +125,6 @@ initiostat()
 	if (dsinit(100, &cur, &last, NULL) != 1)
 		return(0);
 
-	if (kvm_nlist(kd, namelist)) {
-       		nlisterr(namelist);
-		return(0);
-	}
-
 	return(1);
 }
 
@@ -153,8 +132,15 @@ void
 fetchiostat()
 {
 	struct devinfo *tmp_dinfo;
+	size_t len;
+	int err;
 
-	NREAD(X_CP_TIME, cur.cp_time, sizeof(cur.cp_time));
+	len = sizeof(cur.cp_time);
+	err = sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0);
+	if (err || len != sizeof(cur.cp_time)) {
+		perror("kern.cp_time");
+		exit (1);
+	}
 	tmp_dinfo = last.dinfo;
 	last.dinfo = cur.dinfo;
 	cur.dinfo = tmp_dinfo;
