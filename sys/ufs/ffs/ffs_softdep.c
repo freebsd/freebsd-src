@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.54 (McKusick) 1/16/00
+ *	from: @(#)ffs_softdep.c	9.55 (McKusick) 1/17/00
  * $FreeBSD$
  */
 
@@ -4214,87 +4214,86 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			if (dap != LIST_FIRST(diraddhdp))
 				continue;
 			if (dap->da_state & MKDIR_PARENT)
-				panic("flush_pagedep_deps: MKDIR");
+				panic("flush_pagedep_deps: MKDIR_PARENT");
 		}
 		/*
-		 * Flush the file on which the directory entry depends.
-		 * If the inode has already been pushed out of the cache,
-		 * then all the block dependencies will have been flushed
-		 * leaving only inode dependencies (e.g., bitmaps). Thus,
-		 * we do a ufs_ihashget to check for the vnode in the cache.
-		 * If it is there, we do a full flush. If it is no longer
-		 * there we need only dispose of any remaining bitmap
-		 * dependencies and write the inode to disk.
+		 * A newly allocated directory must have its "." and
+		 * ".." entries written out before its name can be
+		 * committed in its parent. We do not want or need
+		 * the full semantics of a synchronous VOP_FSYNC as
+		 * that may end up here again, once for each directory
+		 * level in the filesystem. Instead, we push the blocks
+		 * and wait for them to clear. We have to fsync twice
+		 * because the first call may choose to defer blocks
+		 * that still have dependencies, but deferral will
+		 * happen at most once.
 		 */
 		inum = dap->da_newinum;
-		FREE_LOCK(&lk);
-		if ((vp = ufs_ihashget(ump->um_dev, inum)) == NULL) {
-			ACQUIRE_LOCK(&lk);
-			if (inodedep_lookup(ump->um_fs, inum, 0, &inodedep) == 0
-			    && dap == LIST_FIRST(diraddhdp))
-				panic("flush_pagedep_deps: flush 1 failed");
-			/*
-			 * If the inode still has bitmap dependencies,
-			 * push them to disk.
-			 */
-			if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-				gotit = getdirtybuf(&inodedep->id_buf,MNT_WAIT);
-				FREE_LOCK(&lk);
-				if (gotit &&
-				    (error = VOP_BWRITE(inodedep->id_buf->b_vp,
-				     inodedep->id_buf)) != 0)
-					break;
-				ACQUIRE_LOCK(&lk);
-			}
-			if (dap != LIST_FIRST(diraddhdp))
-				continue;
-			/*
-			 * If the inode is still sitting in a buffer waiting
-			 * to be written, push it to disk.
-			 */
+		if (dap->da_state & MKDIR_BODY) {
 			FREE_LOCK(&lk);
-			if ((error = bread(ump->um_devvp,
-			    fsbtodb(ump->um_fs, ino_to_fsba(ump->um_fs, inum)),
-			    (int)ump->um_fs->fs_bsize, NOCRED, &bp)) != 0)
+			if ((error = VFS_VGET(mp, inum, &vp)) != 0)
 				break;
-			if ((error = VOP_BWRITE(bp->b_vp, bp)) != 0)
-				break;
-			ACQUIRE_LOCK(&lk);
-			if (dap == LIST_FIRST(diraddhdp))
-				panic("flush_pagedep_deps: flush 2 failed");
-			continue;
-		}
-		if (vp->v_type == VDIR) {
-			/*
-			 * A newly allocated directory must have its "." and
-			 * ".." entries written out before its name can be
-			 * committed in its parent. We do not want or need
-			 * the full semantics of a synchronous VOP_FSYNC as
-			 * that may end up here again, once for each directory
-			 * level in the filesystem. Instead, we push the blocks
-			 * and wait for them to clear. We have to fsync twice
-			 * because the first call may choose to defer blocks
-			 * that still have dependencies, but deferral will
-			 * happen at most once.
-			 */
 			if ((error=VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)) ||
 			    (error=VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p))) {
 				vput(vp);
 				break;
 			}
 			drain_output(vp, 0);
+			vput(vp);
+			ACQUIRE_LOCK(&lk);
+			/*
+			 * If that cleared dependencies, go on to next.
+			 */
+			if (dap != LIST_FIRST(diraddhdp))
+				continue;
+			if (dap->da_state & MKDIR_BODY)
+				panic("flush_pagedep_deps: MKDIR_BODY");
 		}
-		error = UFS_UPDATE(vp, 1);
-		vput(vp);
-		if (error)
+		/*
+		 * Flush the inode on which the directory entry depends.
+		 * Having accounted for MKDIR_PARENT and MKDIR_BODY above,
+		 * the only remaining dependency is that the updated inode
+		 * count must get pushed to disk. The inode has already
+		 * been pushed into its inode buffer (via VOP_UPDATE) at
+		 * the time of the reference count change. So we need only
+		 * locate that buffer, ensure that there will be no rollback
+		 * caused by a bitmap dependency, then write the inode buffer.
+		 */
+		if (inodedep_lookup(ump->um_fs, inum, 0, &inodedep) == 0)
+			panic("flush_pagedep_deps: lost inode");
+		/*
+		 * If the inode still has bitmap dependencies,
+		 * push them to disk.
+		 */
+		if ((inodedep->id_state & DEPCOMPLETE) == 0) {
+			gotit = getdirtybuf(&inodedep->id_buf, MNT_WAIT);
+			FREE_LOCK(&lk);
+			if (gotit &&
+			    (error = VOP_BWRITE(inodedep->id_buf->b_vp,
+			     inodedep->id_buf)) != 0)
+				break;
+			ACQUIRE_LOCK(&lk);
+			if (dap != LIST_FIRST(diraddhdp))
+				continue;
+		}
+		/*
+		 * If the inode is still sitting in a buffer waiting
+		 * to be written, push it to disk.
+		 */
+		FREE_LOCK(&lk);
+		if ((error = bread(ump->um_devvp,
+		    fsbtodb(ump->um_fs, ino_to_fsba(ump->um_fs, inum)),
+		    (int)ump->um_fs->fs_bsize, NOCRED, &bp)) != 0)
 			break;
+		if ((error = VOP_BWRITE(bp->b_vp, bp)) != 0)
+			break;
+		ACQUIRE_LOCK(&lk);
 		/*
 		 * If we have failed to get rid of all the dependencies
 		 * then something is seriously wrong.
 		 */
 		if (dap == LIST_FIRST(diraddhdp))
-			panic("flush_pagedep_deps: flush 3 failed");
-		ACQUIRE_LOCK(&lk);
+			panic("flush_pagedep_deps: flush failed");
 	}
 	if (error)
 		ACQUIRE_LOCK(&lk);
