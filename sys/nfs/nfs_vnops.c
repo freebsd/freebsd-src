@@ -148,6 +148,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
 	{ &vop_putpages_desc,		(vop_t *) nfs_putpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
@@ -168,6 +169,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) nfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) nfs_symlink },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) nfs_write },
 	{ NULL, NULL }
 };
@@ -185,12 +187,14 @@ static struct vnodeopv_entry_desc nfsv2_specop_entries[] = {
 	{ &vop_close_desc,		(vop_t *) nfsspec_close },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) nfsspec_write },
 	{ NULL, NULL }
 };
