@@ -32,12 +32,16 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.23 1997/05/29 05:11:10 peter Exp $
+ *	$Id: microtime.s,v 1.1 1997/07/19 03:13:15 smp Exp smp $
  */
 
 #include "opt_cpu.h"
 
 #include <machine/asmacros.h>
+
+#ifdef APIC_IO
+#include <machine/smptests.h>		/** APIC_PIN0_TIMER */
+#endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -109,11 +113,15 @@ ENTRY(microtime)
 
 	movl	_timer0_max_count, %edx	/* prepare for 2 uses */
 
-#if defined(APIC_IO)
+#ifdef APIC_IO
+#ifdef APIC_PIN0_TIMER
+	testl	$IRQ0, _ipending	/* is soft timer interrupt pending? */
+#else
 	movl	_ipending, %eax
 	testl	%eax, _mask8254		/* is soft timer interrupt pending? */
+#endif /* APIC_PIN0_TIMER */
 #else
-	testb	$IRQ0, _ipending	/* is a soft timer interrupt pending? */
+	testb	$IRQ0, _ipending	/* is soft timer interrupt pending? */
 #endif /* APIC_IO */
 	jne	overflow
 
@@ -121,12 +129,16 @@ ENTRY(microtime)
 	cmpl	_timer0_overflow_threshold, %ecx
 	jbe	1f
 
-#if defined(APIC_IO)
-	movl	lapic_irr1, %eax	/** XXX assumption: IRQ0-24 */
-	testl	%eax, _mask8254	/* is a hard timer interrupt pending? */
+#ifdef APIC_IO
+#ifdef APIC_PIN0_TIMER
+	testl	$IRQ0, lapic_irr1
 #else
-	inb	$IO_ICU1, %al	/* read IRR in ICU */
-	testb	$IRQ0, %al	/* is a hard timer interrupt pending? */
+	movl	lapic_irr1, %eax	/** XXX assumption: IRQ0-24 */
+	testl	%eax, _mask8254		/* is hard timer interrupt pending? */
+#endif /* APIC_PIN0_TIMER */
+#else
+	inb	$IO_ICU1, %al		/* read IRR in ICU */
+	testb	$IRQ0, %al		/* is hard timer interrupt pending? */
 #endif /* APIC_IO */
 	je	1f
 overflow:
