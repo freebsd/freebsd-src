@@ -203,14 +203,10 @@ ad_attach(struct ata_device *atadev)
 
     ata_enclosure_print(atadev);
 
-    /* if this disk belongs to an ATA RAID dont print the probe */
-    if (ata_raiddisk_attach(adp))
-	adp->flags |= AD_F_RAID_SUBDISK;
-    else {
-	if (atadev->driver) {
+    /* only print probe banner if we are not part of a RAID array */
+    if (!ata_raiddisk_attach(adp))
+	if (atadev->driver)
 	    ad_print(adp);
-	}
-    }
 }
 
 void
