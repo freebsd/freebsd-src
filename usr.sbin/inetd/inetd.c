@@ -65,7 +65,7 @@ static const char rcsid[] =
  * Inetd uses a configuration file which is read at startup
  * and, possibly, at some later time in response to a hangup signal.
  * The configuration file is ``free format'' with fields given in the
- * order shown below.  Continuation lines for an entry must being with
+ * order shown below.  Continuation lines for an entry must begin with
  * a space or tab.  All fields must be present in each entry.
  *
  *	service name			must be in /etc/services or must
@@ -191,7 +191,9 @@ static const char rcsid[] =
 					   < 0 = no limit */
 #endif
 
+#ifndef TOOMANY
 #define	TOOMANY		256		/* don't start more than TOOMANY */
+#endif
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 #define MAX_MAXCHLD	32767		/* max allowable max children */
@@ -247,7 +249,7 @@ getvalue(arg, value, whine)
 	char *p;
 
 	tmp = strtol(arg, &p, 0);
-	if (tmp < 1 || *p) {
+	if (tmp < 0 || *p) {
 		syslog(LOG_ERR, whine, arg);
 		return 1;			/* failure */
 	}
@@ -590,7 +592,7 @@ main(argc, argv, envp)
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
-			    else if (sep->se_count >= toomany) {
+			    else if (toomany > 0 && sep->se_count >= toomany) {
 				struct timeval now;
 
 				(void)gettimeofday(&now, (struct timezone *)NULL);
@@ -602,6 +604,9 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 			"%s/%s server failing (looping), service terminated",
 					    sep->se_service, sep->se_proto);
+					if (sep->se_accept &&
+					    sep->se_socktype == SOCK_STREAM)
+						close(ctrl);
 					close_sep(sep);
 					sigsetmask(0L);
 					if (!timingout) {
@@ -663,8 +668,10 @@ main(argc, argv, envp)
 				        eval_client(&req), service, sep->se_proto);
 				    if (sep->se_socktype != SOCK_STREAM)
 					recv(ctrl, buf, sizeof (buf), 0);
-				    if (dofork)
+				    if (dofork) {
+					sleep(1);
 					_exit(0);
+				    }
 				}
 				if (log) {
 				    syslog(allow_severity,
@@ -793,6 +800,8 @@ void flag_signal(c)
 void
 addchild(struct servtab *sep, pid_t pid)
 {
+	if (sep->se_maxchild <= 0)
+		return;
 #ifdef SANITY_CHECK
 	if (sep->se_numchild >= sep->se_maxchild) {
 		syslog(LOG_ERR, "%s: %d >= %d",
@@ -800,8 +809,6 @@ addchild(struct servtab *sep, pid_t pid)
 		exit(EX_SOFTWARE);
 	}
 #endif
-	if (sep->se_maxchild == 0)
-		return;
 	sep->se_pids[sep->se_numchild++] = pid;
 	if (sep->se_numchild == sep->se_maxchild)
 		disable(sep);
@@ -904,7 +911,7 @@ void config()
 				sep->se_reset = 1;
 			}
 			/* copy over outstanding child pids */
-			if (sep->se_maxchild && new->se_maxchild) {
+			if (sep->se_maxchild > 0 && new->se_maxchild > 0) {
 				new->se_numchild = sep->se_numchild;
 				if (new->se_numchild > new->se_maxchild)
 					new->se_numchild = new->se_maxchild;
@@ -915,9 +922,10 @@ void config()
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
 			sep->se_maxcpm = new->se_maxcpm;
+			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
-			      if (sep->se_maxchild
+			      if (sep->se_maxchild > 0
 				  && sep->se_numchild == sep->se_maxchild) {
 				      if (FD_ISSET(sep->se_fd, &allsock))
 					  disable(sep);
@@ -1716,7 +1724,7 @@ more:
 		else
 			sep->se_maxchild = 1;
 	}
-	if (sep->se_maxchild) {
+	if (sep->se_maxchild > 0) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
 		if (sep->se_pids == NULL) {
 			syslog(LOG_ERR, "malloc: %m");

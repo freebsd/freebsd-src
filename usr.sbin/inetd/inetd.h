@@ -73,7 +73,7 @@ struct	servtab {
 #define	MAXARGV 20
 	char	*se_argv[MAXARGV+1];	/* program arguments */
 #ifdef IPSEC
-	char	*se_policy;		/* IPsec poilcy string */
+	char	*se_policy;		/* IPsec policy string */
 #endif
 	int	se_fd;			/* open descriptor */
 	union {				/* bound address */
