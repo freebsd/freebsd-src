@@ -39,6 +39,7 @@ struct tun_softc {
 #define	TUN_LMODE	0x0020
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
+#define	TUN_IFHEAD	0x0100
 
 #define TUN_READY       (TUN_OPEN | TUN_INITED)
 
