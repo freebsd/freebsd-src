@@ -108,11 +108,12 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
 #ifdef KTR
 #ifdef KTR_EXTEND
 void
-ktr_tracepoint(u_int mask, char *filename, u_int line, char *format, ...)
+ktr_tracepoint(u_int mask, const char *filename, u_int line,
+	       const char *format, ...)
 #else
 void
-ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
-	       u_long arg4, u_long arg5)
+ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
+	       u_long arg3, u_long arg4, u_long arg5)
 #endif
 {
 	struct ktr_entry *entry;
@@ -147,8 +148,7 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	else
 		nanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
-	strncpy(entry->ktr_filename, filename, KTRFILENAMESIZE - 1);
-	entry->ktr_filename[KTRFILENAMESIZE - 1] = '\0';
+	entry->ktr_filename = filename;
 	entry->ktr_line = line;
 	entry->ktr_cpu = KTR_CPU;
 	va_start(ap, format);

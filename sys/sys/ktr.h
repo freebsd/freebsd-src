@@ -96,15 +96,12 @@ struct ktr_entry {
 #ifndef KTRDESCSIZE
 #define KTRDESCSIZE 80
 #endif
-#ifndef KTRFILENAMESIZE
-#define KTRFILENAMESIZE 32
-#endif
-	char	ktr_desc [KTRDESCSIZE];
-	char    ktr_filename [KTRFILENAMESIZE];
+	char	ktr_desc[KTRDESCSIZE];
+	const	char *ktr_filename;
 	int	ktr_line;
 	int	ktr_cpu;
 #else
-	char	*ktr_desc;
+	const	char *ktr_desc;
 	u_long	ktr_parm1;
 	u_long	ktr_parm2;
 	u_long	ktr_parm3;
@@ -132,10 +129,10 @@ extern struct ktr_entry ktr_buf[];
 #endif
 
 #ifdef KTR_EXTEND
-void	ktr_tracepoint(u_int mask, char *filename, u_int line,
-		       char *format, ...) __printflike(4, 5);
+void	ktr_tracepoint(u_int mask, const char *filename, u_int line,
+		       const char *format, ...) __printflike(4, 5);
 #else
-void	ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2,
+void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 		       u_long arg3, u_long arg4, u_long arg5);
 #endif
 
