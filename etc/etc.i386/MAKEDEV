@@ -98,7 +98,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.113 1996/02/02 19:25:15 pst Exp $
+#	$Id: MAKEDEV,v 1.114 1996/03/18 20:28:27 nate Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -964,7 +964,7 @@ apm*)
 	;;
 
 card*)
-	unit=`expr $i : 'card\(.*\)'
+	unit=`expr $i : 'card\(.*\)'`
 	chr=50
 	rm -f card$unit
 	mknod card$unit c $chr $unit
