@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.12 1997/07/14 18:29:56 ache Exp $
+# $Id: INDEX.keymaps,v 1.13 1997/09/22 21:44:50 wosch Exp $
 #
 # database for kbdmap(8) 
 #
@@ -54,6 +54,10 @@ fr.iso.kbd:en:French ISO-8859-1
 fr.iso.kbd:de:Französisch ISO-8859-1
 fr.iso.kbd:fr:Français ISO-8859-1
 
+fr.iso.acc.kbd:en:French ISO-8859-1 (accent keys)
+fr.iso.acc.kbd:de:Französisch ISO-8859-1 (accent keys)
+fr.iso.acc.kbd:fr:Français ISO-8859-1 (accent keys)
+
 german.iso.kbd:en:German ISO-8859-1
 german.iso.kbd:de:Deutsch ISO-8859-1
 german.iso.kbd:fr:Allemand ISO-8859-1
@@ -61,6 +65,9 @@ german.iso.kbd:fr:Allemand ISO-8859-1
 german.cp850.kbd:en:German Codepage 850
 german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
+
+icelandic.iso.kbd:en:Icelandic ISO-8859-1
+icelandic.iso.acc.kbd:en:Icelandic ISO-8859-1 (accent keys)
 
 it.iso.kbd:en:Italian ISO-8859-1
 it.iso.kbd:de:Italienisch ISO-8859-1
@@ -97,6 +104,11 @@ ru.koi8-r.shift.kbd:fr:Russe koi8-r (shift)
 
 spanish.iso.kbd:en:Spanish ISO-8859-1
 spanish.iso.kbd:de:Spanisch ISO-8859-1
+
+spanish.iso.acc.kbd:en:Spanish ISO-8859-1 (accent keys)
+spanish.iso.acc.kbd:de:Spanisch ISO-8859-1 (accent keys)
+
+si.iso.kbd:en:Slovenian ISO-8859-2
 
 swedish.iso.kbd:en:Swedish ISO-8859-1
 swedish.iso.kbd:de:Schwedisch ISO-8859-1
