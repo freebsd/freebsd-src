@@ -4017,3 +4017,11 @@ bus_data_generation_update(void)
 {
 	bus_data_generation++;
 }
+
+int
+bus_free_resource(device_t dev, int type, struct resource *r)
+{
+	if (r == NULL)
+		return (0);
+	return (bus_release_resource(dev, type, rman_get_rid(r), r));
+}

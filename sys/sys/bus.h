@@ -301,6 +301,7 @@ int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
+int	bus_free_resource(device_t dev, int type, struct resource *r);
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_intr_t handler, void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
