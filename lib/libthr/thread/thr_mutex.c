@@ -64,20 +64,20 @@
 /*
  * Prototypes
  */
-static int		get_muncontested(pthread_mutex_t, int);
+static void		acquire_mutex(struct pthread_mutex *, struct pthread *);
 static int		get_mcontested(pthread_mutex_t,
 			    const struct timespec *);
+static void		mutex_attach_to_next_pthread(struct pthread_mutex *);
 static int		mutex_init(pthread_mutex_t *, int);
 static int		mutex_lock_common(pthread_mutex_t *, int,
 			    const struct timespec *);
-static inline int	mutex_self_trylock(pthread_mutex_t);
-static inline int	mutex_self_lock(pthread_mutex_t);
+static inline int	mutex_self_lock(pthread_mutex_t, int);
 static inline int	mutex_unlock_common(pthread_mutex_t *, int);
-static void		mutex_priority_adjust(pthread_mutex_t);
-static void		mutex_rescan_owned (pthread_t, pthread_mutex_t);
 static inline pthread_t	mutex_queue_deq(pthread_mutex_t);
 static inline void	mutex_queue_remove(pthread_mutex_t, pthread_t);
 static inline void	mutex_queue_enq(pthread_mutex_t, pthread_t);
+static void		restore_prio_inheritance(struct pthread *);
+static void		restore_prio_protection(struct pthread *);
 
 
 static spinlock_t static_init_lock = _SPINLOCK_INITIALIZER;
@@ -225,6 +225,47 @@ mutex_init(pthread_mutex_t *mutex, int private)
 	return (error);
 }
 
+/*
+ * Acquires a mutex for the current thread. The caller must
+ * lock the mutex before calling this function.
+ */
+static void
+acquire_mutex(struct pthread_mutex *mtx, struct pthread *ptd)
+{
+	mtx->m_owner = ptd;
+	_MUTEX_ASSERT_NOT_OWNED(mtx);
+	_thread_critical_enter(ptd);
+	TAILQ_INSERT_TAIL(&ptd->mutexq, mtx, m_qe);
+	_thread_critical_exit(ptd);
+}
+
+/*
+ * Releases a mutex from the current thread. The owner must
+ * lock the mutex. The next thread on the queue will be returned
+ * locked by the current thread. The caller must take care to
+ * unlock it.
+ */
+static void
+mutex_attach_to_next_pthread(struct pthread_mutex *mtx)
+{
+	struct pthread *ptd;
+
+	_MUTEX_ASSERT_IS_OWNED(mtx);
+	TAILQ_REMOVE(&mtx->m_owner->mutexq, (mtx), m_qe);
+	_MUTEX_INIT_LINK(mtx);
+
+	/*
+	 * Deque next thread waiting for this mutex and attach
+	 * the mutex to it. The thread will already be locked.
+	 */
+	if ((ptd = mutex_queue_deq(mtx)) != NULL) {
+		TAILQ_INSERT_TAIL(&ptd->mutexq, mtx, m_qe);
+		ptd->data.mutex = NULL;
+		PTHREAD_NEW_STATE(ptd, PS_RUNNING);
+	}
+	mtx->m_owner = ptd;
+}
+
 int
 __pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
@@ -275,172 +316,197 @@ static int
 mutex_lock_common(pthread_mutex_t * mutex, int nonblock,
     const struct timespec *abstime)
 {
-	int ret, error, inCancel;
+	int error;
 
-	ret = error = inCancel = 0;
-
+	error = 0;
 	PTHREAD_ASSERT((mutex != NULL) && (*mutex != NULL),
 	    "Uninitialized mutex in mutex_lock_common");
+	PTHREAD_ASSERT(((*mutex)->m_protocol >= PTHREAD_PRIO_NONE &&
+	    (*mutex)->m_protocol <= PTHREAD_PRIO_PROTECT),
+	    "Invalid mutex protocol"); 
+	pthread_testcancel();
+	_SPINLOCK(&(*mutex)->lock);
 
 	/*
-	 * Enter a loop waiting to become the mutex owner.  We need a
-	 * loop in case the waiting thread is interrupted by a signal
-	 * to execute a signal handler.  It is not (currently) possible
-	 * to remain in the waiting queue while running a handler.
-	 * Instead, the thread is interrupted and backed out of the
-	 * waiting queue prior to executing the signal handler.
+	 * If the mutex was statically allocated, properly
+	 * initialize the tail queue.
 	 */
-	do {
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		/* _thread_kern_sig_defer(); */
+	if (((*mutex)->m_flags & MUTEX_FLAGS_INITED) == 0) {
+		TAILQ_INIT(&(*mutex)->m_queue);
+		(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
+		_MUTEX_INIT_LINK(*mutex);
+	}
 
-		/* Lock the mutex structure: */
-		_SPINLOCK(&(*mutex)->lock);
-
-		/*
-		 * If the mutex was statically allocated, properly
-		 * initialize the tail queue.
-		 */
-		if (((*mutex)->m_flags & MUTEX_FLAGS_INITED) == 0) {
-			TAILQ_INIT(&(*mutex)->m_queue);
-			(*mutex)->m_flags |= MUTEX_FLAGS_INITED;
-			_MUTEX_INIT_LINK(*mutex);
-		}
-
-		/* Process according to mutex type: */
-		switch ((*mutex)->m_protocol) {
-		/* Default POSIX mutex: */
-		case PTHREAD_PRIO_NONE:
-			if ((error = get_muncontested(*mutex, nonblock)) == -1)
-				if (nonblock) {
-					ret = EBUSY;
-					break;
-				} else {
-					error = get_mcontested(*mutex, abstime);
-					ret = (error != EINTR) ? error : ret;
-				}
-			else
-				ret = error;
-			break;
-
-		/* POSIX priority inheritence mutex: */
-		case PTHREAD_PRIO_INHERIT:
-			if ((error = get_muncontested(*mutex, nonblock)) == 0) {
-				/* Track number of priority mutexes owned: */
-				curthread->priority_mutex_count++;
-
-				/*
-				 * The mutex takes on attributes of the
-				 * running thread when there are no waiters.
-				 */
-				(*mutex)->m_prio = curthread->active_priority;
-				(*mutex)->m_saved_prio =
-				    curthread->inherited_priority;
-				curthread->inherited_priority =
-				    (*mutex)->m_prio;
-			} else if (error == -1) {
-				if (nonblock) {
-					ret = EBUSY;
-					break;
-				} else {
-					error = get_mcontested(*mutex, abstime);
-					ret = (error != EINTR) ? error : ret;
-				}
-				if (error == 0) {
-					if (curthread->active_priority >
-					    (*mutex)->m_prio)
-						/* Adjust priorities: */
-						mutex_priority_adjust(*mutex);
-				} else if (error == ETIMEDOUT) {
-					/* XXX - mutex priorities don't work */
-				}
-			} else {
-				ret = error;
-			}
-			break;
-
-		/* POSIX priority protection mutex: */
-		case PTHREAD_PRIO_PROTECT:
-			/* Check for a priority ceiling violation: */
-			if (curthread->active_priority > (*mutex)->m_prio)
-				ret = EINVAL;
-
-			if ((error = get_muncontested(*mutex, nonblock)) == 0) {
-				/* Track number of priority mutexes owned: */
-				curthread->priority_mutex_count++;
-
-				/*
-				 * The running thread inherits the ceiling
-				 * priority of the mutex and executes at that
-				 * priority:
-				 */
-				curthread->active_priority = (*mutex)->m_prio;
-				(*mutex)->m_saved_prio =
-				    curthread->inherited_priority;
-				curthread->inherited_priority =
-				    (*mutex)->m_prio;
-			} else if (error == -1) {
-				if (nonblock) {
-					ret = EBUSY;
-					break;
-				}
-
-				/* Clear any previous error: */
-				curthread->error = 0;
-
-				error = get_mcontested(*mutex, abstime);
-				ret = (error != EINTR) ? error : ret;
-
-				/*
-				 * The threads priority may have changed while
-				 * waiting for the mutex causing a ceiling
-				 * violation.
-				 */
-				if (error == 0) {
-					ret = curthread->error;
-					curthread->error = 0;
-				}
-			} else {
-				ret = error;
-			}
-			break;
-
-		/* Trap invalid mutex types: */
-		default:
-			/* Return an invalid argument error: */
-			ret = EINVAL;
-			break;
-		}
-
-		/*
-		 * Check to see if this thread was interrupted and
-		 * is still in the mutex queue of waiting threads:
-		 */
-		if (curthread->cancelflags & PTHREAD_CANCELLING) {
-			if (!nonblock)
-				mutex_queue_remove(*mutex, curthread);
-			inCancel=1;
-		}
-
-		/* Unlock the mutex structure: */
+retry:
+	/*
+	 * If the mutex is a priority protected mutex the thread's
+	 * priority may not be higher than that of the mutex.
+	 */
+	if ((*mutex)->m_protocol == PTHREAD_PRIO_PROTECT &&
+	    curthread->active_priority > (*mutex)->m_prio) {
 		_SPINUNLOCK(&(*mutex)->lock);
+		return (EINVAL);
+	}
+	if ((*mutex)->m_owner == NULL) {
+		/*
+		 * Mutex is currently unowned.
+		 */
+		acquire_mutex(*mutex, curthread);
+	} else if ((*mutex)->m_owner == curthread) {
+		/*
+		 * Mutex is owned by curthread. We must test against
+		 * certain conditions in such a case.
+		 */
+		if ((error = mutex_self_lock((*mutex), nonblock)) != 0) {
+			_SPINUNLOCK(&(*mutex)->lock);
+			return (error);
+		}
+	} else {
+		if (nonblock) {
+			error = EBUSY;
+			goto out;
+		}
 
 		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
+		 * Another thread owns the mutex. This thread must
+		 * wait for that thread to unlock the mutex. This
+		 * thread must not return to the caller if it was
+		 * interrupted by a signal.
 		 */
-		/* _thread_kern_sig_undefer(); */
-		if (inCancel) {
-			pthread_testcancel();
-			PANIC("Canceled thread came back.\n");
-		}
-	} while ((*mutex)->m_owner != curthread && ret == 0);
+		error = get_mcontested(*mutex, abstime);
+		if (error == EINTR)
+			goto retry;
+		else if (error == ETIMEDOUT)
+			goto out;
+	}
 
-	/* Return the completion status: */
-	return (ret);
+	/*
+	 * The mutex is now owned by curthread.
+	 */
+	_thread_critical_enter(curthread);
+
+	/*
+	 * The mutex's priority may have changed while waiting for it.
+ 	 */
+	if ((*mutex)->m_protocol == PTHREAD_PRIO_PROTECT &&
+	    curthread->active_priority > (*mutex)->m_prio) {
+		mutex_attach_to_next_pthread(*mutex);
+		if ((*mutex)->m_owner != NULL)
+			_thread_critical_exit((*mutex)->m_owner);
+		_thread_critical_exit(curthread);
+		_SPINUNLOCK(&(*mutex)->lock);
+		return (EINVAL);
+	}
+
+	switch ((*mutex)->m_protocol) {
+	case PTHREAD_PRIO_INHERIT:
+		curthread->prio_inherit_count++;
+		break;
+	case PTHREAD_PRIO_PROTECT:
+		PTHREAD_ASSERT((curthread->active_priority <=
+		    (*mutex)->m_prio), "priority protection violation");
+		curthread->prio_protect_count++;
+		if ((*mutex)->m_prio > curthread->active_priority) {
+			curthread->inherited_priority = (*mutex)->m_prio;
+			curthread->active_priority = (*mutex)->m_prio;
+		}
+		break;
+	default:
+		/* Nothing */
+		break;
+	}
+	_thread_critical_exit(curthread);
+out:
+	_SPINUNLOCK(&(*mutex)->lock);
+	pthread_testcancel();
+	return (error);
+}
+
+/*
+ * Caller must lock thread.
+ */
+void
+adjust_prio_inheritance(struct pthread *ptd)
+{
+	struct pthread_mutex *tempMtx;
+	struct pthread	     *tempTd;
+
+	/*
+	 * Scan owned mutexes's wait queue and execute at the
+	 * higher of thread's current priority or the priority of
+	 * the highest priority thread waiting on any of the the
+	 * mutexes the thread owns. Note: the highest priority thread
+	 * on a queue is always at the head of the queue.
+	 */
+	TAILQ_FOREACH(tempMtx, &ptd->mutexq, m_qe) {
+		if (tempMtx->m_protocol != PTHREAD_PRIO_INHERIT)
+			continue;
+
+		/*
+		 * XXX LOR with respect to tempMtx and ptd.
+		 * Order should be: 1. mutex
+		 *		    2. pthread
+		 */
+		_SPINLOCK(&tempMtx->lock);
+
+		tempTd = TAILQ_FIRST(&tempMtx->m_queue);
+		if (tempTd != NULL) {
+			UMTX_LOCK(&tempTd->lock);
+			if (tempTd->active_priority > ptd->active_priority) {
+				ptd->inherited_priority =
+				    tempTd->active_priority;
+				ptd->active_priority =
+				    tempTd->active_priority;
+			}
+			UMTX_UNLOCK(&tempTd->lock);
+		}
+		_SPINUNLOCK(&tempMtx->lock);
+	}
+}
+
+/*
+ * Caller must lock thread.
+ */
+static void
+restore_prio_inheritance(struct pthread *ptd)
+{
+	ptd->inherited_priority = PTHREAD_MIN_PRIORITY;
+	ptd->active_priority = ptd->base_priority;
+	adjust_prio_inheritance(ptd);
+}
+
+/*
+ * Caller must lock thread.
+ */
+void
+adjust_prio_protection(struct pthread *ptd)
+{
+	struct pthread_mutex *tempMtx;
+
+	/*
+	 * The thread shall execute at the higher of its priority or
+	 * the highest priority ceiling of all the priority protection
+	 * mutexes it owns.
+	 */
+	TAILQ_FOREACH(tempMtx, &ptd->mutexq, m_qe) {
+		if (tempMtx->m_protocol != PTHREAD_PRIO_PROTECT)
+			continue;
+		if (ptd->active_priority < tempMtx->m_prio) {
+			ptd->inherited_priority = tempMtx->m_prio;
+			ptd->active_priority = tempMtx->m_prio;
+		}
+	}
+}
+
+/*
+ * Caller must lock thread.
+ */
+static void
+restore_prio_protection(struct pthread *ptd)
+{
+	ptd->inherited_priority = PTHREAD_MIN_PRIORITY;
+	ptd->active_priority = ptd->base_priority;
+	adjust_prio_protection(ptd);
 }
 
 int
@@ -550,49 +616,21 @@ _mutex_cv_lock(pthread_mutex_t * mutex)
 	return (ret);
 }
 
+/*
+ * Caller must lock mutex and then disable signals and lock curthread.
+ */
 static inline int
-mutex_self_trylock(pthread_mutex_t mutex)
+mutex_self_lock(pthread_mutex_t mutex, int noblock)
 {
-	int	ret = 0;
-
 	switch (mutex->m_type) {
-
-	/* case PTHREAD_MUTEX_DEFAULT: */
-	case PTHREAD_MUTEX_ERRORCHECK:
-	case PTHREAD_MUTEX_NORMAL:
-		/*
-		 * POSIX specifies that mutexes should return EDEADLK if a
-		 * recursive lock is detected.
-		 */
-		ret = EBUSY; 
-		break;
-
-	case PTHREAD_MUTEX_RECURSIVE:
-		/* Increment the lock count: */
-		mutex->m_data.m_count++;
-		break;
-
-	default:
-		/* Trap invalid mutex types; */
-		ret = EINVAL;
-	}
-
-	return (ret);
-}
-
-static inline int
-mutex_self_lock(pthread_mutex_t mutex)
-{
-	int ret = 0;
-
-	switch (mutex->m_type) {
-	/* case PTHREAD_MUTEX_DEFAULT: */
 	case PTHREAD_MUTEX_ERRORCHECK:
 		/*
 		 * POSIX specifies that mutexes should return EDEADLK if a
 		 * recursive lock is detected.
 		 */
-		ret = EDEADLK; 
+		if (noblock)
+			return (EBUSY);
+		return (EDEADLK); 
 		break;
 
 	case PTHREAD_MUTEX_NORMAL:
@@ -600,7 +638,8 @@ mutex_self_lock(pthread_mutex_t mutex)
 		 * What SS2 define as a 'normal' mutex.  Intentionally
 		 * deadlock on attempts to get a lock you already own.
 		 */
-		/* XXX Sched lock. */
+		if (noblock)
+			return (EBUSY);
 		PTHREAD_SET_STATE(curthread, PS_DEADLOCK);
 		_SPINUNLOCK(&(mutex)->lock);
 		_thread_suspend(curthread, NULL);
@@ -614,631 +653,76 @@ mutex_self_lock(pthread_mutex_t mutex)
 
 	default:
 		/* Trap invalid mutex types; */
-		ret = EINVAL;
+		return (EINVAL);
 	}
-
-	return (ret);
+	return (0);
 }
 
 static inline int
 mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 {
-	int	ret = 0;
+	/*
+	 * Error checking.
+	 */
+	if (*mutex == NULL)
+		return (EINVAL);
+	if ((*mutex)->m_owner != curthread)
+		return (EPERM);
+	PTHREAD_ASSERT(((*mutex)->m_protocol >= PTHREAD_PRIO_NONE &&
+	    (*mutex)->m_protocol <= PTHREAD_PRIO_PROTECT),
+	    "Invalid mutex protocol"); 
 
-	if (mutex == NULL || *mutex == NULL) {
-		ret = EINVAL;
-	} else {
-		/*
-		 * Defer signals to protect the scheduling queues from
-		 * access by the signal handler:
-		 */
-		/* _thread_kern_sig_defer(); */
-
-		/* Lock the mutex structure: */
-		_SPINLOCK(&(*mutex)->lock);
-
-		/* Process according to mutex type: */
-		switch ((*mutex)->m_protocol) {
-		/* Default POSIX mutex: */
-		case PTHREAD_PRIO_NONE:
-			/*
-			 * Check if the running thread is not the owner of the
-			 * mutex:
-			 */
-			if ((*mutex)->m_owner != curthread) {
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
-			}
-			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 0)) {
-				/* Decrement the count: */
-				(*mutex)->m_data.m_count--;
-			} else {
-				/*
-				 * Clear the count in case this is recursive
-				 * mutex.
-				 */
-				(*mutex)->m_data.m_count = 0;
-
-				/* Remove the mutex from the threads queue. */
-				_MUTEX_ASSERT_IS_OWNED(*mutex);
-				TAILQ_REMOVE(&(*mutex)->m_owner->mutexq,
-				    (*mutex), m_qe);
-				_MUTEX_INIT_LINK(*mutex);
-
-				/*
-				 * Get the next thread from the queue of
-				 * threads waiting on the mutex. The deq
-				 * function will have already locked it
-				 * for us.
-				 */
-				if (((*mutex)->m_owner =
-			  	    mutex_queue_deq(*mutex)) != NULL) {
-					/* Make the new owner runnable: */
-					/* XXXTHR sched lock. */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
-
-					/*
-					 * Add the mutex to the threads list of
-					 * owned mutexes:
-					 */
-					TAILQ_INSERT_TAIL(&(*mutex)->m_owner->mutexq,
-					    (*mutex), m_qe);
-
-					/*
-					 * The owner is no longer waiting for
-					 * this mutex:
-					 */
-					(*mutex)->m_owner->data.mutex = NULL;
-					_thread_critical_exit((*mutex)->m_owner);
-				}
-			}
-			break;
-
-		/* POSIX priority inheritence mutex: */
-		case PTHREAD_PRIO_INHERIT:
-			/*
-			 * Check if the running thread is not the owner of the
-			 * mutex:
-			 */
-			if ((*mutex)->m_owner != curthread) {
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
-			}
-			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 0)) {
-				/* Decrement the count: */
-				(*mutex)->m_data.m_count--;
-			} else {
-				/*
-				 * Clear the count in case this is recursive
-				 * mutex.
-				 */
-				(*mutex)->m_data.m_count = 0;
-
-				/*
-				 * Restore the threads inherited priority and
-				 * recompute the active priority (being careful
-				 * not to override changes in the threads base
-				 * priority subsequent to locking the mutex).
-				 */
-				curthread->inherited_priority =
-					(*mutex)->m_saved_prio;
-				curthread->active_priority =
-				    MAX(curthread->inherited_priority,
-				    curthread->base_priority);
-
-				/*
-				 * This thread now owns one less priority mutex.
-				 */
-				curthread->priority_mutex_count--;
-
-				/* Remove the mutex from the threads queue. */
-				_MUTEX_ASSERT_IS_OWNED(*mutex);
-				TAILQ_REMOVE(&(*mutex)->m_owner->mutexq,
-				    (*mutex), m_qe);
-				_MUTEX_INIT_LINK(*mutex);
-
-				/*
-				 * Get the next thread from the queue of threads
-				 * waiting on the mutex. It will already be
-				 * locked for us. 
-				 */
-				if (((*mutex)->m_owner = 
-				    mutex_queue_deq(*mutex)) == NULL)
-					/* This mutex has no priority. */
-					(*mutex)->m_prio = 0;
-				else {
-					/*
-					 * Track number of priority mutexes owned:
-					 */
-					(*mutex)->m_owner->priority_mutex_count++;
-
-					/*
-					 * Add the mutex to the threads list
-					 * of owned mutexes:
-					 */
-					TAILQ_INSERT_TAIL(&(*mutex)->m_owner->mutexq,
-					    (*mutex), m_qe);
-
-					/*
-					 * The owner is no longer waiting for
-					 * this mutex:
-					 */
-					(*mutex)->m_owner->data.mutex = NULL;
-
-					/*
-					 * Set the priority of the mutex.  Since
-					 * our waiting threads are in descending
-					 * priority order, the priority of the
-					 * mutex becomes the active priority of
-					 * the thread we just dequeued.
-					 */
-					(*mutex)->m_prio =
-					    (*mutex)->m_owner->active_priority;
-
-					/*
-					 * Save the owning threads inherited
-					 * priority:
-					 */
-					(*mutex)->m_saved_prio =
-						(*mutex)->m_owner->inherited_priority;
-
-					/*
-					 * The owning threads inherited priority
-					 * now becomes his active priority (the
-					 * priority of the mutex).
-					 */
-					(*mutex)->m_owner->inherited_priority =
-						(*mutex)->m_prio;
-
-					/*
-					 * Make the new owner runnable:
-					 */
-					/* XXXTHR sched lock. */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
-
-					_thread_critical_exit((*mutex)->m_owner);
-				}
-			}
-			break;
-
-		/* POSIX priority ceiling mutex: */
-		case PTHREAD_PRIO_PROTECT:
-			/*
-			 * Check if the running thread is not the owner of the
-			 * mutex:
-			 */
-			if ((*mutex)->m_owner != curthread) {
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*mutex)->m_owner == NULL ? EINVAL : EPERM;
-			}
-			else if (((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
-			    ((*mutex)->m_data.m_count > 0)) {
-				/* Decrement the count: */
-				(*mutex)->m_data.m_count--;
-			} else {
-				/*
-				 * Clear the count in case this is recursive
-				 * mutex.
-				 */
-				(*mutex)->m_data.m_count = 0;
-
-				/*
-				 * Restore the threads inherited priority and
-				 * recompute the active priority (being careful
-				 * not to override changes in the threads base
-				 * priority subsequent to locking the mutex).
-				 */
-				curthread->inherited_priority =
-					(*mutex)->m_saved_prio;
-				curthread->active_priority =
-				    MAX(curthread->inherited_priority,
-				    curthread->base_priority);
-
-				/*
-				 * This thread now owns one less priority mutex.
-				 */
-				curthread->priority_mutex_count--;
-
-				/* Remove the mutex from the threads queue. */
-				_MUTEX_ASSERT_IS_OWNED(*mutex);
-				TAILQ_REMOVE(&(*mutex)->m_owner->mutexq,
-				    (*mutex), m_qe);
-				_MUTEX_INIT_LINK(*mutex);
-
-				/*
-				 * Enter a loop to find a waiting thread whose
-				 * active priority will not cause a ceiling
-				 * violation. It will already be locked for us.
-				 */
-				while ((((*mutex)->m_owner =
-				    mutex_queue_deq(*mutex)) != NULL) &&
-				    ((*mutex)->m_owner->active_priority >
-				     (*mutex)->m_prio)) {
-					/*
-					 * Either the mutex ceiling priority
-					 * been lowered and/or this threads
-					 * priority has been raised subsequent
-					 * to this thread being queued on the
-					 * waiting list.
-					 */
-					(*mutex)->m_owner->error = EINVAL;
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
-					/*
-					 * The thread is no longer waiting for
-					 * this mutex:
-					 */
-					(*mutex)->m_owner->data.mutex = NULL;
-
-					_thread_critical_exit((*mutex)->m_owner);
-				}
-
-				/* Check for a new owner: */
-				if ((*mutex)->m_owner != NULL) {
-					/*
-					 * Track number of priority mutexes owned:
-					 */
-					(*mutex)->m_owner->priority_mutex_count++;
-
-					/*
-					 * Add the mutex to the threads list
-					 * of owned mutexes:
-					 */
-					TAILQ_INSERT_TAIL(&(*mutex)->m_owner->mutexq,
-					    (*mutex), m_qe);
-
-					/*
-					 * The owner is no longer waiting for
-					 * this mutex:
-					 */
-					(*mutex)->m_owner->data.mutex = NULL;
-
-					/*
-					 * Save the owning threads inherited
-					 * priority:
-					 */
-					(*mutex)->m_saved_prio =
-						(*mutex)->m_owner->inherited_priority;
-
-					/*
-					 * The owning thread inherits the
-					 * ceiling priority of the mutex and
-					 * executes at that priority:
-					 */
-					(*mutex)->m_owner->inherited_priority =
-					    (*mutex)->m_prio;
-					(*mutex)->m_owner->active_priority =
-					    (*mutex)->m_prio;
-
-					/*
-					 * Make the new owner runnable:
-					 */
-					/* XXXTHR sched lock. */
-					PTHREAD_NEW_STATE((*mutex)->m_owner,
-					    PS_RUNNING);
-
-					_thread_critical_exit((*mutex)->m_owner);
-				}
-			}
-			break;
-
-		/* Trap invalid mutex types: */
-		default:
-			/* Return an invalid argument error: */
-			ret = EINVAL;
-			break;
+	_SPINLOCK(&(*mutex)->lock);
+	if ((*mutex)->m_type == PTHREAD_MUTEX_RECURSIVE) {
+		(*mutex)->m_data.m_count--;
+		PTHREAD_ASSERT((*mutex)->m_data.m_count >= 0,
+		    "The mutex recurse count cannot be less than zero");
+		if ((*mutex)->m_data.m_count > 0) {
+			_SPINUNLOCK(&(*mutex)->lock);
+			return (0);
 		}
-
-		if ((ret == 0) && (add_reference != 0)) {
-			/* Increment the reference count: */
-			(*mutex)->m_refcount++;
-		}
-
-		/* Unlock the mutex structure: */
-		_SPINUNLOCK(&(*mutex)->lock);
-
-		/*
-		 * Undefer and handle pending signals, yielding if
-		 * necessary:
-		 */
-		/* _thread_kern_sig_undefer(); */
-	}
-
-	/* Return the completion status: */
-	return (ret);
-}
-
-
-/*
- * This function is called when a change in base priority occurs for
- * a thread that is holding or waiting for a priority protection or
- * inheritence mutex.  A change in a threads base priority can effect
- * changes to active priorities of other threads and to the ordering
- * of mutex locking by waiting threads.
- *
- * This must be called while thread scheduling is deferred.
- */
-void
-_mutex_notify_priochange(pthread_t pthread)
-{
-	/* Adjust the priorites of any owned priority mutexes: */
-	if (pthread->priority_mutex_count > 0) {
-		/*
-		 * Rescan the mutexes owned by this thread and correct
-		 * their priorities to account for this threads change
-		 * in priority.  This has the side effect of changing
-		 * the threads active priority.
-		 */
-		mutex_rescan_owned(pthread, /* rescan all owned */ NULL);
 	}
 
 	/*
-	 * If this thread is waiting on a priority inheritence mutex,
-	 * check for priority adjustments.  A change in priority can
-	 * also effect a ceiling violation(*) for a thread waiting on
-	 * a priority protection mutex; we don't perform the check here
-	 * as it is done in pthread_mutex_unlock.
-	 *
-	 * (*) It should be noted that a priority change to a thread
-	 *     _after_ taking and owning a priority ceiling mutex
-	 *     does not affect ownership of that mutex; the ceiling
-	 *     priority is only checked before mutex ownership occurs.
+	 * Release the mutex from this thread and attach it to
+	 * the next thread in the queue, if there is one waiting.
 	 */
-	if (pthread->state == PS_MUTEX_WAIT) {
-		/* Lock the mutex structure: */
-		_SPINLOCK(&pthread->data.mutex->lock);
-
-		/*
-		 * Check to make sure this thread is still in the same state
-		 * (the spinlock above can yield the CPU to another thread):
-		 */
-		if (pthread->state == PS_MUTEX_WAIT) {
-			/*
-			 * Remove and reinsert this thread into the list of
-			 * waiting threads to preserve decreasing priority
-			 * order.
-			 */
-			mutex_queue_remove(pthread->data.mutex, pthread);
-			mutex_queue_enq(pthread->data.mutex, pthread);
-
-			if (pthread->data.mutex->m_protocol ==
-			     PTHREAD_PRIO_INHERIT) {
-				/* Adjust priorities: */
-				mutex_priority_adjust(pthread->data.mutex);
-			}
-		}
-
-		/* Unlock the mutex structure: */
-		_SPINUNLOCK(&pthread->data.mutex->lock);
+	_thread_critical_enter(curthread);
+	mutex_attach_to_next_pthread(*mutex);
+	if ((*mutex)->m_owner != NULL)
+		_thread_critical_exit((*mutex)->m_owner);
+	if (add_reference != 0) {
+		/* Increment the reference count: */
+		(*mutex)->m_refcount++;
 	}
-}
-
-/*
- * Called when a new thread is added to the mutex waiting queue or
- * when a threads priority changes that is already in the mutex
- * waiting queue.
- */
-static void
-mutex_priority_adjust(pthread_mutex_t mutex)
-{
-	pthread_t	pthread_next, pthread = mutex->m_owner;
-	int		temp_prio;
-	pthread_mutex_t	m = mutex;
+	_SPINUNLOCK(&(*mutex)->lock);
 
 	/*
-	 * Calculate the mutex priority as the maximum of the highest
-	 * active priority of any waiting threads and the owning threads
-	 * active priority(*).
-	 *
-	 * (*) Because the owning threads current active priority may
-	 *     reflect priority inherited from this mutex (and the mutex
-	 *     priority may have changed) we must recalculate the active
-	 *     priority based on the threads saved inherited priority
-	 *     and its base priority.
+	 * Fix priority of the thread that just released the mutex.
 	 */
-	pthread_next = TAILQ_FIRST(&m->m_queue);  /* should never be NULL */
-	temp_prio = MAX(pthread_next->active_priority,
-	    MAX(m->m_saved_prio, pthread->base_priority));
-
-	/* See if this mutex really needs adjusting: */
-	if (temp_prio == m->m_prio)
-		/* No need to propagate the priority: */
-		return;
-
-	/* Set new priority of the mutex: */
-	m->m_prio = temp_prio;
-
-	while (m != NULL) {
-		/*
-		 * Save the threads priority before rescanning the
-		 * owned mutexes:
-		 */
-		temp_prio = pthread->active_priority;
-
-		/*
-		 * Fix the priorities for all the mutexes this thread has
-		 * locked since taking this mutex.  This also has a
-		 * potential side-effect of changing the threads priority.
-		 */
-		mutex_rescan_owned(pthread, m);
-
-		/*
-		 * If the thread is currently waiting on a mutex, check
-		 * to see if the threads new priority has affected the
-		 * priority of the mutex.
-		 */
-		if ((temp_prio != pthread->active_priority) &&
-		    (pthread->state == PS_MUTEX_WAIT) &&
-		    (pthread->data.mutex->m_protocol == PTHREAD_PRIO_INHERIT)) {
-			/* Grab the mutex this thread is waiting on: */
-			m = pthread->data.mutex;
-
-			/*
-			 * The priority for this thread has changed.  Remove
-			 * and reinsert this thread into the list of waiting
-			 * threads to preserve decreasing priority order.
-			 */
-			mutex_queue_remove(m, pthread);
-			mutex_queue_enq(m, pthread);
-
-			/* Grab the waiting thread with highest priority: */
-			pthread_next = TAILQ_FIRST(&m->m_queue);
-
-			/*
-			 * Calculate the mutex priority as the maximum of the
-			 * highest active priority of any waiting threads and
-			 * the owning threads active priority.
-			 */
-			temp_prio = MAX(pthread_next->active_priority,
-			    MAX(m->m_saved_prio, m->m_owner->base_priority));
-
-			if (temp_prio != m->m_prio) {
-				/*
-				 * The priority needs to be propagated to the
-				 * mutex this thread is waiting on and up to
-				 * the owner of that mutex.
-				 */
-				m->m_prio = temp_prio;
-				pthread = m->m_owner;
-			}
-			else
-				/* We're done: */
-				m = NULL;
-
-		}
-		else
-			/* We're done: */
-			m = NULL;
+	switch ((*mutex)->m_protocol) {
+	case PTHREAD_PRIO_INHERIT:
+		curthread->prio_inherit_count--;
+		PTHREAD_ASSERT(curthread->prio_inherit_count >= 0,
+		    "priority inheritance counter cannot be less than zero");
+		restore_prio_inheritance(curthread);
+		if (curthread->prio_protect_count > 0)
+			restore_prio_protection(curthread);
+		break;
+	case PTHREAD_PRIO_PROTECT:
+		curthread->prio_protect_count--;
+		PTHREAD_ASSERT(curthread->prio_protect_count >= 0,
+		    "priority protection counter cannot be less than zero");
+		restore_prio_protection(curthread);
+		if (curthread->prio_inherit_count > 0)
+			restore_prio_inheritance(curthread);
+		break;
+	default:
+		/* Nothing */
+		break;
 	}
-}
-
-static void
-mutex_rescan_owned(pthread_t pthread, pthread_mutex_t mutex)
-{
-	int		active_prio, inherited_prio;
-	pthread_mutex_t	m;
-	pthread_t	pthread_next;
-
-	/*
-	 * Start walking the mutexes the thread has taken since
-	 * taking this mutex.
-	 */
-	if (mutex == NULL) {
-		/*
-		 * A null mutex means start at the beginning of the owned
-		 * mutex list.
-		 */
-		m = TAILQ_FIRST(&pthread->mutexq);
-
-		/* There is no inherited priority yet. */
-		inherited_prio = 0;
-	}
-	else {
-		/*
-		 * The caller wants to start after a specific mutex.  It
-		 * is assumed that this mutex is a priority inheritence
-		 * mutex and that its priority has been correctly
-		 * calculated.
-		 */
-		m = TAILQ_NEXT(mutex, m_qe);
-
-		/* Start inheriting priority from the specified mutex. */
-		inherited_prio = mutex->m_prio;
-	}
-	active_prio = MAX(inherited_prio, pthread->base_priority);
-
-	while (m != NULL) {
-		/*
-		 * We only want to deal with priority inheritence
-		 * mutexes.  This might be optimized by only placing
-		 * priority inheritence mutexes into the owned mutex
-		 * list, but it may prove to be useful having all
-		 * owned mutexes in this list.  Consider a thread
-		 * exiting while holding mutexes...
-		 */
-		if (m->m_protocol == PTHREAD_PRIO_INHERIT) {
-			/*
-			 * Fix the owners saved (inherited) priority to
-			 * reflect the priority of the previous mutex.
-			 */
-			m->m_saved_prio = inherited_prio;
-
-			if ((pthread_next = TAILQ_FIRST(&m->m_queue)) != NULL)
-				/* Recalculate the priority of the mutex: */
-				m->m_prio = MAX(active_prio,
-				     pthread_next->active_priority);
-			else
-				m->m_prio = active_prio;
-
-			/* Recalculate new inherited and active priorities: */
-			inherited_prio = m->m_prio;
-			active_prio = MAX(m->m_prio, pthread->base_priority);
-		}
-
-		/* Advance to the next mutex owned by this thread: */
-		m = TAILQ_NEXT(m, m_qe);
-	}
-
-	/*
-	 * Fix the threads inherited priority and recalculate its
-	 * active priority.
-	 */
-	pthread->inherited_priority = inherited_prio;
-	active_prio = MAX(inherited_prio, pthread->base_priority);
-
-	if (active_prio != pthread->active_priority) {
-#if 0
-		/*
-		 * If this thread is in the priority queue, it must be
-		 * removed and reinserted for its new priority.
-	 	 */
-		if (pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) {
-			/*
-			 * Remove the thread from the priority queue
-			 * before changing its priority:
-			 */
-			PTHREAD_PRIOQ_REMOVE(pthread);
-
-			/*
-			 * POSIX states that if the priority is being
-			 * lowered, the thread must be inserted at the
-			 * head of the queue for its priority if it owns
-			 * any priority protection or inheritence mutexes.
-			 */
-			if ((active_prio < pthread->active_priority) &&
-			    (pthread->priority_mutex_count > 0)) {
-				/* Set the new active priority. */
-				pthread->active_priority = active_prio;
-
-				PTHREAD_PRIOQ_INSERT_HEAD(pthread);
-			}
-			else {
-				/* Set the new active priority. */
-				pthread->active_priority = active_prio;
-
-				PTHREAD_PRIOQ_INSERT_TAIL(pthread);
-			}
-		}
-		else {
-			/* Set the new active priority. */
-			pthread->active_priority = active_prio;
-		}
-#endif
-		pthread->active_priority = active_prio;
-	}
+	_thread_critical_exit(curthread);
+	return (0);
 }
 
 void
@@ -1339,34 +823,40 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 			tid = TAILQ_NEXT(tid, sqe);
 		TAILQ_INSERT_BEFORE(tid, pthread, sqe);
 	}
+	if (mutex->m_protocol == PTHREAD_PRIO_INHERIT &&
+	    pthread == TAILQ_FIRST(&mutex->m_queue)) {
+		UMTX_LOCK(&mutex->m_owner->lock);
+		if (pthread->active_priority >
+		    mutex->m_owner->active_priority) {
+			mutex->m_owner->inherited_priority =
+			    pthread->active_priority;
+			mutex->m_owner->active_priority =
+			    pthread->active_priority;
+		}
+		UMTX_UNLOCK(&mutex->m_owner->lock);
+	}
 	pthread->flags |= PTHREAD_FLAGS_IN_MUTEXQ;
 }
 
 /*
- * Returns with the lock owned and on the threads mutexq if
- * it is currently unowned. Returns 1, otherwise.
+ * Caller must lock mutex and pthread.
  */
-static int
-get_muncontested(pthread_mutex_t mutexp, int nonblock)
+void
+readjust_priorities(struct pthread *pthread, struct pthread_mutex *mtx)
 {
-	if (mutexp->m_owner != NULL && mutexp->m_owner != curthread) {
-		return (-1);
-	} else if (mutexp->m_owner == curthread) {
-		if (nonblock)
-			return (mutex_self_trylock(mutexp));
-		else
-			return (mutex_self_lock(mutexp));
+	if (pthread->state == PS_MUTEX_WAIT) {
+		mutex_queue_remove(mtx, pthread);
+		mutex_queue_enq(mtx, pthread);
+		UMTX_LOCK(&mtx->m_owner->lock);
+		adjust_prio_inheritance(mtx->m_owner);
+		if (mtx->m_owner->prio_protect_count > 0)
+			adjust_prio_protection(mtx->m_owner);
+		UMTX_UNLOCK(&mtx->m_owner->lock);
 	}
-
-	/*
-	 * The mutex belongs to this thread now. Mark it as
-	 * such. Add it to the list of mutexes owned by this
-	 * thread.
-	 */
-	mutexp->m_owner = curthread;
-	_MUTEX_ASSERT_NOT_OWNED(mutexp);
-	TAILQ_INSERT_TAIL(&curthread->mutexq, mutexp, m_qe);
-	return (0);
+	if (pthread->prio_inherit_count > 0)
+		adjust_prio_inheritance(pthread);
+	if (pthread->prio_protect_count > 0)
+		adjust_prio_protection(pthread);
 }
 
 /*
