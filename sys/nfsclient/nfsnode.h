@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id$
+ * $Id: nfsnode.h,v 1.19 1997/02/22 09:42:49 peter Exp $
  */
 
 
@@ -169,7 +169,7 @@ int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
 int	nfs_abortop __P((struct vop_abortop_args *));
 int	nfs_inactive __P((struct vop_inactive_args *));
 int	nfs_reclaim __P((struct vop_reclaim_args *));
-#define nfs_lock ((int (*) __P((struct vop_lock_args *)))vop_nolock)
+#define nfs_lock ((int (*) __P((struct vop_lock_args *)))vop_sharedlock)
 #define nfs_unlock ((int (*) __P((struct vop_unlock_args *)))vop_nounlock)
 #define nfs_islocked ((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define nfs_reallocblks \
