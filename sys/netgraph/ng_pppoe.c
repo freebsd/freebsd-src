@@ -41,8 +41,10 @@
  */
 #if 0
 #define AAA printf("pppoe: %s\n", __FUNCTION__ );
+#define BBB printf("-%d-", __LINE__ );
 #else
 #define AAA
+#define BBB
 #endif
 
 #include <sys/param.h>
@@ -790,23 +792,22 @@ AAA
 		 * use them to decide where to send it.
 		 */
 		
-#if 0
-printf("got packet\n");
-LEAVE(0);
-#endif
-
  		privp->packets_in++;
-		m_pullup(m, sizeof(*wh)); /* Checks length */
-		if (m == NULL) {
-			printf("couldn't m_pullup\n");
-			LEAVE(ENOBUFS);
+		if( m->m_len < sizeof(*wh)) {
+			m = m_pullup(m, sizeof(*wh)); /* Checks length */
+			if (m == NULL) {
+				printf("couldn't m_pullup\n");
+				LEAVE(ENOBUFS);
+			}
 		}
+BBB
 		wh = mtod(m, struct pppoe_full_hdr *);
 		ph = &wh->ph;
 		session = ntohs(wh->ph.sid);
 		length = ntohs(wh->ph.length);
 		code = wh->ph.code; 
-		switch(ntohs(wh->eh.ether_type)) {
+BBB
+		switch(wh->eh.ether_type) {
 		case	ETHERTYPE_PPPOE_DISC:
 			/*
 			 * We need to try make sure that the tag area
@@ -814,7 +815,19 @@ LEAVE(0);
 			 * of a buffer and make a mess. 
 			 * (Linux wouldn't have this problem).
 			 */
-			 if (m->m_len != m->m_pkthdr.len) {
+BBB
+/*XXX fix this mess */
+			
+			if (m->m_pkthdr.len <= MHLEN) {
+				if( m->m_len < m->m_pkthdr.len) {
+					m = m_pullup(m, m->m_pkthdr.len);
+					if (m == NULL) {
+						printf("couldn't m_pullup\n");
+						LEAVE(ENOBUFS);
+					}
+				}
+			}
+			if (m->m_len != m->m_pkthdr.len) {
 				/*
 				 * It's not all in one piece.
 				 * We need to do extra work.
@@ -823,8 +836,10 @@ LEAVE(0);
 				LEAVE(EMSGSIZE);
 			 }
 
+BBB
 			switch(code) {
 			case	PADI_CODE:
+BBB
 				/*
 				 * We are a server:
 				 * Look for a hook with the required service
@@ -838,6 +853,7 @@ LEAVE(0);
 					printf("no service tag\n");
 					LEAVE(ENETUNREACH);
 				}
+BBB
 				sendhook = pppoe_match_svc(hook->node,
 			    		tag->tag_data, ntohs(tag->tag_len));
 				if (sendhook) {
@@ -846,6 +862,7 @@ LEAVE(0);
 					printf("no such service\n");
 					LEAVE(ENETUNREACH);
 				}
+BBB
 				break;
 			case	PADO_CODE:
 				/*
@@ -855,18 +872,21 @@ LEAVE(0);
 				 * Received #2, now send #3
 				 * For now simply accept the first we receive.
 				 */
+BBB
 				tag = get_tag(ph, PTT_HOST_UNIQ);
 				if ((tag == NULL)
 				|| (ntohs(tag->tag_len) != sizeof(sp))) {
 					printf("no host unique field\n");
 					LEAVE(ENETUNREACH);
 				}
+BBB
 
 				sendhook = pppoe_finduniq(node, tag);
 				if (sendhook == NULL) {
 					printf("no matching session\n");
 					LEAVE(ENETUNREACH);
 				}
+BBB
 
 				/*
 				 * Check the session is in the right state.
@@ -878,6 +898,7 @@ LEAVE(0);
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
+BBB
 				untimeout(pppoe_ticker, sendhook,
 				    neg->timeout_handle);
 
@@ -887,24 +908,33 @@ LEAVE(0);
 				 * unicast address, replacing the
 				 * broadcast address .
 				 */
+BBB
 				bcopy(wh->eh.ether_shost,
 					neg->pkt->pkt_header.eh.ether_dhost,
 					ETHER_ADDR_LEN);
 				neg->timeout = 0;
 				neg->pkt->pkt_header.ph.code = PADR_CODE;
+BBB
 				init_tags(sp);
+BBB
 				insert_tag(sp, &neg->service.hdr); /* Service */
+BBB
 				insert_tag(sp, tag);	      /* Host Unique */
+BBB
 				tag = get_tag(ph, PTT_AC_COOKIE);
 				if (tag)
 					insert_tag(sp, tag); /* return cookie */
 				scan_tags(sp, ph);
+BBB
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
+BBB
 				sendpacket(sp);
+BBB
 				break;
 			case	PADR_CODE:
 
+BBB
 				/*
 				 * We are a server:
 				 * Use the ac_cookie tag to find the 
@@ -916,11 +946,13 @@ LEAVE(0);
 					LEAVE(ENETUNREACH);
 				}
 
+BBB
 				sendhook = pppoe_finduniq(node, tag);
 				if (sendhook == NULL) {
 					LEAVE(ENETUNREACH);
 				}
 
+BBB
 				/*
 				 * Check the session is in the right state.
 				 * It needs to be in PPPOE_SOFFER
@@ -935,13 +967,16 @@ LEAVE(0);
 					 * PADS packet.
 					 * We should still have a copy of it.
 					 */
+BBB
 					sp->state = PPPOE_SOFFER;
 				}
+BBB
 				if (sp->state != PPPOE_SOFFER) {
 					LEAVE (ENETUNREACH);
 					break;
 				}
 				neg = sp->neg;
+BBB
 				untimeout(pppoe_ticker, sendhook,
 				    neg->timeout_handle);
 				neg->pkt->pkt_header.ph.code = PADS_CODE;
@@ -950,21 +985,27 @@ LEAVE(0);
 					    htons(sp->Session_ID
 						= get_new_sid(node));
 				neg->timeout = 0;
+BBB
 				/*
 				 * start working out the tags to respond with.
 				 */
 				init_tags(sp);
+BBB
 				insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
 				insert_tag(sp, tag);	/* ac_cookie */
 				tag = get_tag(ph, PTT_SRV_NAME);
 				insert_tag(sp, tag);	/* returned service */
 				tag = get_tag(ph, PTT_HOST_UNIQ);
 				insert_tag(sp, tag);    /* returned hostuniq */
+BBB
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
+BBB
 				sendpacket(sp);
+BBB
 				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
+BBB
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to 
@@ -975,6 +1016,7 @@ LEAVE(0);
 				 * from NEWCONNECTED to CONNECTED
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
+BBB
 				sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
 				sp->pkt_hdr.ph.code = 0;
@@ -989,12 +1031,14 @@ LEAVE(0);
 				 * Also make sure the pre-made header is
 				 * correct and set us into Session mode.
 				 */
+BBB
 				tag = get_tag(ph, PTT_HOST_UNIQ);
 				if ((tag == NULL)
 				|| (ntohs(tag->tag_len) != sizeof(sp))) {
 					LEAVE (ENETUNREACH);
 					break;
 				}
+BBB
 
 				sendhook = pppoe_finduniq(node, tag);
 				if (sendhook == NULL) {
@@ -1010,6 +1054,7 @@ LEAVE(0);
 					LEAVE(ENETUNREACH);
 				}
 				neg = sp->neg;
+BBB
 				untimeout(pppoe_ticker, sendhook,
 				    neg->timeout_handle);
 				sp->Session_ID = ntohs(wh->ph.sid);
@@ -1022,6 +1067,7 @@ LEAVE(0);
 				 * negotiation.
 				 * Keep a copy of the header we will be using.
 				 */
+BBB
 				sp->pkt_hdr = neg->pkt->pkt_header;
 				sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_SESS;
@@ -1088,7 +1134,7 @@ LEAVE(0);
 			NG_SEND_DATA( error, sendhook, m, meta);
 			break;
 		default:
-			LEAVE(EPFNOSUPPORT);
+BBB			LEAVE(EPFNOSUPPORT);
 		}
 	} else {
 		/*
