@@ -122,9 +122,7 @@
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
-#define	IPI_HARDCLOCK	1	/* Inter-CPU clock handling. */
-#define	IPI_STATCLOCK	2
-#define IPI_BITMAP_LAST IPI_STATCLOCK
+#define IPI_BITMAP_LAST IPI_AST
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
@@ -171,7 +169,7 @@ struct apic_enumerator {
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(spuriousint);
+	IDTVEC(apic_isr7), IDTVEC(spuriousint), IDTVEC(timerint);
 
 u_int	apic_irq_to_idt(u_int irq);
 u_int	apic_idt_to_irq(u_int vector);
@@ -202,6 +200,7 @@ void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
 void	lapic_handle_intr(struct intrframe frame);
+void	lapic_handle_timer(struct clockframe frame);
 void	lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);
@@ -211,6 +210,7 @@ int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_set_tpr(u_int vector);
 void	lapic_setup(void);
+int	lapic_setup_clock(void);
 
 #endif /* !LOCORE */
 #endif /* _MACHINE_APICVAR_H_ */
