@@ -36,7 +36,7 @@
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\" $FreeBSD$
 .\"
-.Dd October 10, 1995
+.Dd March 31, 2000
 .Dt SIO 4
 .Os FreeBSD
 .Sh NAME
@@ -44,7 +44,7 @@
 .Nd
 fast interrupt driven asynchronous serial communications interface
 .Sh SYNOPSIS
-For standard ports:
+For standard ISA ports:
 .Cd "device sio0 at isa? port IO_COM1 irq 4"
 .Cd "device sio1 at isa? port IO_COM2 irq 3"
 .Cd "device sio2 at isa? port IO_COM3 irq 5"
@@ -66,6 +66,9 @@ For Boca Board compatible multiport cards with 8 ports:
 For Hayes ESP cards:
 .Cd "options COM_ESP"
 .Cd "..."
+.Pp
+For PCI and PCCARD cards:
+.Cd "device sio"
 .Pp
 Meaning of
 .Ar flags :
@@ -139,6 +142,12 @@ of a port in the group.
 Such a port is called a
 .Em master
 port.
+.Pp
+The driver supports controller based PCI modems.
+The 3Com FaxModem PCI and the Advantec 56k Voice Messaging PCI
+FaxModem are the only cards supported.
+WinModems, softmodems, hfc modems and any other modems that aren't
+controller based are not supported.
 .Pp
 The
 .Em flags
