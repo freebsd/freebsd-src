@@ -283,11 +283,8 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			start += base;
 			end += base;
 			if (!INRANGE(start, base, limit) ||
-			    !INRANGE(end, base, limit)) {
-				panic("isa_alloc_resource: resource list entry "
-				    "out of bus range (0x%lx - 0x%lx not in "
-				    "0x%lx - 0x%lx)", start, end, base, limit);
-			}
+			    !INRANGE(end, base, limit))
+				return (NULL);
 			break;
 		case SYS_RES_IRQ:
 			start = end = isa_route_intr_res(bus, start, end);
