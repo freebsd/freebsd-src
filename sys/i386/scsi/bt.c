@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.3.2.2 1996/02/16 17:56:22 gibbs Exp $
+ *      $Id: bt.c,v 1.8 1996/03/10 07:11:45 gibbs Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
  
 #include <machine/clock.h>
+#include <machine/stdarg.h>
  
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -182,7 +183,7 @@ struct bt_ext_info {
 	u_char  bios_addr;	/* Bios Address-Not used */
 	u_short max_seg;	/* Max segment List */
 	u_char  num_mbx;	/* Number of mailbox */
-	int32	mbx_base;	/* mailbox base address */
+	int32_t	mbx_base;	/* mailbox base address */
 	struct	{
 		u_char  resv1:1;	/* ??? */
 		u_char  force:1;	/* ON: force sync */
@@ -217,15 +218,11 @@ struct bt_sync_value {
 #define	BT_SHOWMISC 0x08
 static int		bt_debug = 0;
 
-static u_int32	bt_adapter_info __P((int unit));
+static u_int32_t bt_adapter_info __P((int unit));
 static struct bt_ccb *
 		bt_ccb_phys_kv __P((struct bt_data *bt, physaddr ccb_phys));
-#ifdef notyet
-static int	bt_cmd __P((int unit, int icnt, int ocnt, int wait,
-			    u_char *retval, unsigned opcode, ...));
-#else
-static int	bt_cmd();
-#endif
+static int	bt_cmd __P((struct bt_data *bt, int icnt, int ocnt, int wait,
+			    u_char *retval, u_char opcode, ...));
 static void	bt_done __P((struct bt_data *bt, struct bt_ccb *ccb));
 static void	bt_free_ccb __P((struct bt_data *bt, struct bt_ccb *ccb,
 				 int flags));
@@ -240,14 +237,14 @@ static int	bt_poll __P((struct bt_data *bt, struct scsi_xfer *xs,
 static void	bt_print_active_ccbs __P((int unit));
 static void	bt_print_ccb __P((struct bt_ccb *ccb));
 #endif
-static int32	bt_scsi_cmd __P((struct scsi_xfer *xs));
+static int32_t	bt_scsi_cmd __P((struct scsi_xfer *xs));
 static BT_MBO *	bt_send_mbo __P((struct bt_data *bt, int flags, int cmd,
 				 struct bt_ccb *ccb));
 static timeout_t
 		bt_timeout;
 
 u_long bt_unit = 0;
-static int btprobing = 0;
+static int btprobing = 1;
 
 /*
  * XXX
@@ -297,7 +294,7 @@ static struct scsi_device bt_dev =
 #define BT_RESET_TIMEOUT 1000
 
 /*
- * bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
+ * bt_cmd(bt, icnt, ocnt, wait, retval, opcode, ...)
  *
  * Activate Adapter command
  *    icnt:   number of args (outbound bytes written after opcode)
@@ -305,23 +302,27 @@ static struct scsi_device bt_dev =
  *    wait:   number of seconds to wait for response
  *    retval: buffer where to place returned bytes
  *    opcode: opcode BT_NOP, BT_MBX_INIT, BT_START_SCSI ...
- *    args:   parameters
+ *    ...:    parameters to the command specified by opcode
  *
  * Performs an adapter command through the ports.  Not to be confused with a
  * scsi command, which is read in via the dma; one of the adapter commands
  * tells it to read in a scsi command.
  */
 static int
-bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
-	struct bt_data* bt;
-	int icnt;
-	int ocnt;
-	int wait;
-	u_char		*retval;
-	unsigned	opcode;
-	u_char		args;
+#ifdef __STDC__         
+bt_cmd(struct bt_data *bt, int icnt, int ocnt, int wait, u_char *retval,
+       u_char opcode, ...)
+#else           
+bt_cmd(bt, icnt, ocnt, wait, retval, opcode, va_alist)
+	struct bt_data *bt;
+	int icnt, ocnt, wait;   
+	u_char *retval;
+	u_char opcode;
+	va_dcl  
+#endif
 {
-	unsigned	*ic = &opcode;
+	va_list ap;
+	u_char data;
 	u_char		oc;
 	register	i;
 	int		sts;
@@ -366,9 +367,9 @@ bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
 	 * Output the command and the number of arguments given
 	 * for each byte, first check the port is empty.
 	 */
-	icnt++;
-				/* include the command */
-	while (icnt--) {
+	va_start(ap, opcode);
+	/* test icnt >= 0, to include the command in data sent */
+	for (data = opcode; icnt >= 0; icnt--, data = (u_char)va_arg(ap, int)) {
 		sts = inb(BT_CTRL_STAT_PORT);
 		for (i = wait; i; i--) {
 			sts = inb(BT_CTRL_STAT_PORT);
@@ -383,8 +384,9 @@ bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
 			outb(BT_CTRL_STAT_PORT, BT_SRST);
 			return (ENXIO);
 		}
-		outb(BT_CMD_DATA_PORT, (u_char) (*ic++));
+		outb(BT_CMD_DATA_PORT, data);
 	}
+	va_end(ap);
 	/*
 	 * If we expect input, loop that many times, each time,
 	 * looking for the data register to have valid data
@@ -498,6 +500,7 @@ bt_attach(bt)
 	 */
 	bt->sc_link.adapter_unit = bt->unit;
 	bt->sc_link.adapter_targ = bt->bt_scsi_dev;
+	bt->sc_link.adapter_softc = bt;
 	bt->sc_link.adapter = &bt_switch;
 	bt->sc_link.device = &bt_dev;
 	bt->sc_link.flags = bt->bt_bounce ? SDEV_BOUNCE : 0;
@@ -523,7 +526,7 @@ bt_attach(bt)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-static u_int32
+static u_int32_t
 bt_adapter_info(unit)
 	int	unit;
 {
@@ -861,10 +864,14 @@ bt_done(bt, ccb)
 		if (ccb->host_stat) {
 			switch (ccb->host_stat) {
 			case BT_ABORTED:	/* No response */
-			case BT_SEL_TIMEOUT:	/* No response */
 				SC_DEBUG(xs->sc_link, SDEV_DB3,
 				    ("timeout reported back\n"));
 				xs->error = XS_TIMEOUT;
+				break;
+			case BT_SEL_TIMEOUT:
+				SC_DEBUG(xs->sc_link, SDEV_DB3,
+				    ("selection timeout reported back\n"));
+				xs->error = XS_SELTIMEOUT;
 				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
@@ -938,7 +945,7 @@ bt_init(bt)
          *                                   94/05/18 amurai@spec.co.jp
          */
 	i = bt_cmd(bt, 1, sizeof(binfo),0,
-		&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
+		(u_char *)&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
 	if(i)
 		return i;
 	printf("bt%d: Bt%c%c%c%c/%c%d-", bt->unit,
@@ -956,7 +963,8 @@ bt_init(bt)
          *   in Extended mailbox and ccb structure.
          *                                   94/05/18 amurai@spec.co.jp
          */
-	bt_cmd(bt, 1, sizeof(info),0,&info, BT_INQUIRE_EXTENDED,sizeof(info));
+	bt_cmd(bt, 1, sizeof(info),0, (u_char *)&info, BT_INQUIRE_EXTENDED,
+		sizeof(info));
 	switch (info.bus_type) {
 		case BT_BUS_TYPE_24bit:		/* PC/AT 24 bit address bus */
 			printf("ISA(24bit) bus\n");
@@ -1007,7 +1015,7 @@ bt_init(bt)
 	 */
 	printf("bt%d: reading board settings, ", bt->unit);
 
-	bt_cmd(bt, 0, sizeof(conf), 0, &conf, BT_CONF_GET);
+	bt_cmd(bt, 0, sizeof(conf), 0, (u_char *)&conf, BT_CONF_GET);
 	switch (conf.chan) {
 	case BUSDMA:
 		bt->bt_dma = -1;
@@ -1134,13 +1142,13 @@ bt_inquire_setup_information(bt, info)
         }
 	if ( info->s.sync ) {
         	bt_cmd(bt, 1, sizeof(sync), 100,
-				&sync,BT_GET_SYNC_VALUE,sizeof(sync));
+			(u_char *)&sync,BT_GET_SYNC_VALUE,sizeof(sync));
 	}
 
 	/*
 	 * Inquire Board ID to board for firmware version
 	 */
-	bt_cmd(bt, 0, sizeof(bID), 0, &bID, BT_INQUIRE);
+	bt_cmd(bt, 0, sizeof(bID), 0, (u_char *)&bID, BT_INQUIRE);
 	bt_cmd(bt, 0, 1, 0, &sub_ver[0], BT_INQUIRE_REV_THIRD );
 	i = ((int)(bID.firm_revision-'0')) * 10 + (int)(bID.firm_version-'0');
 	if ( i >= 33 ) {
@@ -1161,7 +1169,8 @@ bt_inquire_setup_information(bt, info)
 	/*
 	 * Obtain setup information from board.
 	 */
-	bt_cmd(bt, 1, sizeof(setup), 0, &setup, BT_SETUP_GET, sizeof(setup));
+	bt_cmd(bt, 1, sizeof(setup), 0, (u_char *)&setup, BT_SETUP_GET,
+		sizeof(setup));
 
 	if (setup.sync_neg && info->s.sync ) {
 		if ( info->s.maxsync ) {
@@ -1234,7 +1243,7 @@ btminphys(bp)
  * start a scsi operation given the command and the data address.  Also needs
  * the unit, target and lu.
  */
-static int32
+static int32_t
 bt_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1243,11 +1252,10 @@ bt_scsi_cmd(xs)
 	int	seg;		/* scatter gather seg being worked on */
 	int	thiskv;
 	physaddr thisphys, nextphys;
-	int	unit = xs->sc_link->adapter_unit;
 	int	bytes_this_seg, bytes_this_page, datalen, flags;
 	struct	bt_data *bt;
 
-	bt = btdata[unit];
+	bt = (struct bt_data *)xs->sc_link->adapter_softc;
 
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("bt_scsi_cmd\n"));
 	/*
@@ -1257,11 +1265,11 @@ bt_scsi_cmd(xs)
 	 */
 	flags = xs->flags;
 	if (flags & ITSDONE) {
-		printf("bt%d: Already done?\n", unit);
+		printf("bt%d: Already done?\n", bt->unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if (!(flags & INUSE)) {
-		printf("bt%d: Not in use?\n", unit);
+		printf("bt%d: Not in use?\n", bt->unit);
 		xs->flags |= INUSE;
 	}
 	if (!(ccb = bt_get_ccb(bt, flags))) {
@@ -1373,7 +1381,7 @@ bt_scsi_cmd(xs)
 			 * there's still data, must have run out of segs!
 			 */
 			printf("bt%d: bt_scsi_cmd, more than %d DMA segs\n",
-			    unit, BT_NSEG);
+			    bt->unit, BT_NSEG);
 			xs->error = XS_DRIVER_STUFFUP;
 			bt_free_ccb(bt, ccb, flags);
 			return (HAD_ERROR);
