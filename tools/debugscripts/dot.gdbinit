@@ -38,5 +38,5 @@ source gdbinit.kernel
 source gdbinit.vinum
 source gdbinit.machine
 
-echo Ready to go.  Enter 'tr' to connect to remote target
-echo and 'getsyms' after connection to load kld symbols.
+echo Ready to go.  Enter 'tr' to connect to remote target\n
+echo and 'getsyms' after connection to load kld symbols.\n
