@@ -451,15 +451,8 @@ static sig_atomic_t interrupted;
 #define	W_SETTERMSIG(st, val) W_SETMASKED(st, val, WTERMSIG)
 #define	W_SETEXITSTATUS(st, val) W_SETMASKED(st, val, WEXITSTATUS)
 
-static void JobPassSig(int);
-static int JobPrintCommand(void *, void *);
-static void JobClose(Job *);
-static void JobFinish(Job *, int *);
-static void JobExec(Job *, char **);
-static void JobMakeArgv(Job *, char **);
 static void JobRestart(Job *);
 static int JobStart(GNode *, int, Job *);
-static char *JobOutput(Job *, char *, char *, int);
 static void JobDoOutput(Job *, Boolean);
 static struct Shell *JobMatchShell(const char *);
 static void JobInterrupt(int, int);
