@@ -92,7 +92,6 @@ ENTRY(dtlb_va_to_pa)
 ENTRY(itlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
-	sllx	%o0, PAGE_SHIFT, %o0
 	mov	AA_IMMU_TAR, %o3
 	stxa	%o0, [%o3] ASI_IMMU
 	stxa	%o1, [%g0] ASI_ITLB_DATA_IN_REG
@@ -103,7 +102,6 @@ ENTRY(itlb_enter)
 ENTRY(dtlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
-	sllx	%o0, PAGE_SHIFT, %o0
 	mov	AA_DMMU_TAR, %o3
 	stxa	%o0, [%o3] ASI_DMMU
 	stxa	%o1, [%g0] ASI_DTLB_DATA_IN_REG
