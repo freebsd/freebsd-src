@@ -146,8 +146,8 @@ size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 size_t	wcsspn(const wchar_t *, const wchar_t *);
 wchar_t	*wcsstr(const wchar_t *, const wchar_t *);
 int	wcswidth(const wchar_t *, size_t);
-int	wcwidth(wchar_t);
 int	wctob(wint_t);
+int	wcwidth(wchar_t);
 wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
 int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
