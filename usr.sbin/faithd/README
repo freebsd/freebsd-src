@@ -1,8 +1,9 @@
 Configuring FAITH IPv6-to-IPv4 TCP relay
 
 Kazu Yamamoto and Jun-ichiro itojun Hagino
-$KAME: README,v 1.8 2001/09/05 03:04:20 itojun Exp $
+$KAME: README,v 1.10 2003/01/06 21:40:33 sumikawa Exp $
 $FreeBSD$
+
 
 Introduction
 ============
@@ -73,8 +74,6 @@ The following example assumes:
 
     More examples:
 
-	# faithd login /usr/libexec/rlogin rlogind
-	# faithd shell /usr/libexec/rshd rshd
 	# faithd ftpd /usr/libexec/ftpd ftpd -l
 	# faithd sshd
 
