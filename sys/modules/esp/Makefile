@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/esp
+.PATH: ${.CURDIR}/../../dev/esp ${.CURDIR}/../../sparc64/sbus
 
 KMOD=	esp
 
