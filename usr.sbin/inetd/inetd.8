@@ -34,7 +34,7 @@
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm inetd
 .Nd internet
@@ -175,22 +175,22 @@ server program
 server program arguments
 .Ed
 .Pp
-There are two types of services that 
+There are two types of services that
 .Nm
 can start: standard and TCPMUX.
 A standard service has a well-known port assigned to it;
 it may be a service that implements an official Internet standard or is a
 BSD-specific service.
-As described in 
+As described in
 .Tn RFC 1078 ,
-TCPMUX services are nonstandard services that do not have a 
+TCPMUX services are nonstandard services that do not have a
 well-known port assigned to them.
 They are invoked from
 .Nm
 when a program connects to the
 .Dq tcpmux
 well-known port and specifies
-the service name.  
+the service name.
 This feature is useful for adding locally-developed servers.
 TCPMUX requests are only accepted when the multiplexor service itself
 is enabled, above and beyond and specific TCPMUX-based servers; see the
@@ -200,7 +200,10 @@ The
 .Em service-name
 entry is the name of a valid service in
 the file
-.Pa /etc/services .
+.Pa /etc/services ,
+or the specification of a
+.Ux
+domain socket (see below).
 For
 .Dq internal
 services (discussed below), the service
@@ -212,23 +215,23 @@ When used to specify an
 .Tn "ONC RPC" Ns -based
 service, this field is a valid RPC service name in
 the file
-.Pa /etc/rpc . 
-The part on the right of the 
+.Pa /etc/rpc .
+The part on the right of the
 .Dq /
 is the RPC version number.
 This
 can simply be a single numeric argument or a range of versions.
-A range is bounded by the low version to the high version - 
+A range is bounded by the low version to the high version -
 .Dq rusers/1-3 .
 For TCPMUX services, the value of the
 .Em service-name
 field consists of the string
 .Dq tcpmux
 followed by a slash and the
-locally-chosen service name. 
-The service names listed in 
+locally-chosen service name.
+The service names listed in
 .Pa /etc/services
-and the name 
+and the name
 .Dq help
 are reserved.
 Try to choose unique names for your TCPMUX services by prefixing them with
@@ -245,12 +248,13 @@ or
 .Dq seqpacket ,
 depending on whether the socket is a stream, datagram, raw,
 reliably delivered message, or sequenced packet socket.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq stream .
 .Pp
 The
 .Em protocol
-must be a valid protocol.
+must be a valid protocol or
+.Dq unix .
 Examples are
 .Dq tcp
 or
@@ -291,12 +295,12 @@ via a wildcard
 socket.
 Rpc based services
 (for which only IPv4 is supported at this time)
-are specified with the 
+are specified with the
 .Dq rpc/tcp
-or 
-.Dq rpc/udp 
+or
+.Dq rpc/udp
 service type.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq tcp ,
 .Dq tcp4 ,
 .Dq tcp6
@@ -358,7 +362,7 @@ are started with the listening service socket, and must accept
 at least one connection request before exiting.
 Such a server would normally accept and process incoming connection
 requests until a timeout.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq nowait .
 .Pp
 The maximum number of outstanding child processes (or
@@ -455,6 +459,21 @@ If the real
 service is disabled,
 return this username for every request.
 This is primarily useful when running this service on a NAT machine.
+.It Fl g
+Instead of returning
+the user's name to the ident requester,
+report a
+username made up of random alphanumeric characters,
+e.g.\&
+.Dq c0c993 .
+The
+.Fl g
+flag overrides not only the user names,
+but also any fallback name,
+.Pa .fakeid
+or
+.Pa .noident
+files.
 .It Fl t Xo
 .Ar sec Ns Op . Ns Ar usec
 .Xc
@@ -465,38 +484,36 @@ Offer a real
 .Dq auth
 service, as per RFC 1413.
 All the remaining flags apply only in this case.
+.It Fl i
+Return numeric user IDs instead of usernames.
 .It Fl f
 If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
-If the the username found in 
+If the username found in
 .Pa .fakeid
 is that of an existing user,
 then the real username is reported.
+If the
+.Fl i
+flag is also given then the username in
+.Pa .fakeid
+is checked against existing user IDs instead.
 .It Fl F
-same as 
+same as
 .Fl f
 but without the restriction that the username in
 .Pa .fakeid
 must not match an existing user.
-.It Fl g
-Instead of returning the user's name to the ident requester, report a
-username made up of random alphanumeric characters, e.g.
-.Dq c0c993 .
-The
-.Fl g
-flag overrides not only the user names, but also any
-.Pa .fakeid
-or
-.Pa .noident
-files.
 .It Fl n
 If the file
 .Pa .noident
 exists in the home directory of the identified user, return
 .Dq ERROR\ : HIDDEN-USER .
-instead.
+This overrides any
+.Pa fakeid
+file which might exist.
 .It Fl o Ar osname
 Use
 .Ar osname
@@ -542,7 +559,7 @@ When given the
 option
 .Nm
 will log an entry to syslog each time a connection is accepted, noting the
-service selected and the IP-number of the remote requestor if available.
+service selected and the IP-number of the remote requester if available.
 Unless otherwise specified in the configuration file,
 and in the absence of the
 .Fl W
@@ -567,6 +584,7 @@ records its process ID in the file
 .Pa /var/run/inetd.pid
 to assist in reconfiguration.
 .Sh IMPLEMENTATION NOTES
+.Ss TCP Wrappers
 When given the
 .Fl w
 option,
@@ -575,7 +593,7 @@ will wrap all services specified as
 .Dq stream nowait
 or
 .Dq dgram
-except for 
+except for
 .Dq internal
 services.
 If the
@@ -602,7 +620,9 @@ only wraps requests for a
 .Dq wait
 service while no servers are available to service requests.
 Once a
-connection to such a service has been allowed, inetd has no control
+connection to such a service has been allowed,
+.Nm
+has no control
 over subsequent connections to the service until no more servers
 are left listening for connection requests.
 .Pp
@@ -621,7 +641,7 @@ should be used as the daemon name for
 .Dq internal
 services.
 .Ss TCPMUX
-.Tn RFC 1078 
+.Tn RFC 1078
 describes the TCPMUX protocol:
 ``A TCP client connects to a foreign host on TCP port 1.  It sends the
 service name followed by a carriage-return line-feed <CRLF>.  The
@@ -668,6 +688,73 @@ If an invalid IPsec policy specifier appears in
 will provide an error message via the
 .Xr syslog 3
 interface and abort execution.
+.Ss Ux Domain Sockets
+In addition to running services on IP sockets,
+.Nm
+can also manage
+.Ux
+domain sockets.
+To do this you specify a
+.Em protocol
+of
+.Dq unix
+and specify the
+.Ux
+domain socket as the
+.Em service-name .
+The
+.Em service-type
+may be
+.Dq stream
+or
+.Dq dgram .
+The specification of the socket must be
+an absolute path name,
+optionally prefixed by an owner and mode
+of the form
+.Em :user:group:mode: .
+The specification:
+.Pp
+.Dl ":news:daemon:220:/var/run/sock"
+.Pp
+creates a socket owned
+by user
+.Dq news
+in group
+.Dq daemon
+with permissions allowing only that user and group to connect.
+The default owner is the user that
+.Nm
+is running as.
+The default mode only allows the socket's owner to connect.
+.Pp
+.Sy WARNING :
+while creating
+.Ux
+domain socket,
+.Nm
+must change the ownership and permissions on the socket.
+This can only be done securely if
+the directory in which the socket is created
+is writable only by root.
+Do
+.Em NOT
+use
+.Nm
+to create sockets in world writable directories,
+such as
+.Pa /tmp ,
+instead use
+.Pa /var/run
+or a similar directory.
+.Pp
+Internal services may be run on
+.Ux
+domain sockets, in the usual way.
+In this case
+the name of the internal service
+is determined using
+the last component of the socket's pathname.
 .Sh "FILES"
 .Bl -tag -width /var/run/inetd.pid -compact
 .It Pa /etc/inetd.conf
@@ -681,7 +768,6 @@ the pid of the currently running
 .Nm
 .El
 .Sh "EXAMPLES"
-.Pp
 Here are several example service entries for the various types of services:
 .Bd -literal
 ftp          stream  tcp   nowait root  /usr/libexec/ftpd        ftpd -l
@@ -691,6 +777,7 @@ shell        stream  tcp46  nowait root  /usr/libexec/rshd rshd
 tcpmux/+date stream  tcp   nowait guest /bin/date                date
 tcpmux/phonebook stream tcp nowait guest /usr/local/bin/phonebook phonebook
 rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
+/var/run/echo stream unix  nowait root	internal
 #@ ipsec ah/require
 chargen      stream  tcp   nowait root  internal
 #@
@@ -745,9 +832,9 @@ reenabled automatically in 10 minutes.
 .Ar user :
 .No \&No such user
 .Xc
-No entry for 
+No entry for
 .Ar user
-exists in the 
+exists in the
 .Xr passwd 5
 database.
 The first message
@@ -767,7 +854,7 @@ service is invoked.
 .No can't set gid
 .Ar gid
 .Xc
-The user or group ID for the entry's 
+The user or group ID for the entry's
 .Ar user
 field is invalid.
 .Pp
@@ -778,9 +865,9 @@ program attempted to renounce the privileged state associated with a
 socket but was unable to.
 .El
 .Sh SEE ALSO
+.Xr ipsec_set_policy 3 ,
 .Xr hosts_access 5 ,
 .Xr hosts_options 5 ,
-.Xr ipsec_set_policy 3 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr rpc 5 ,
@@ -788,9 +875,9 @@ socket but was unable to.
 .Xr comsat 8 ,
 .Xr fingerd 8 ,
 .Xr ftpd 8 ,
-.Xr portmap 8 ,
 .Xr rexecd 8 ,
 .Xr rlogind 8 ,
+.Xr rpcbind 8 ,
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
 .Xr tftpd 8
@@ -814,5 +901,5 @@ provided by
 The IPsec hack was contributed by the KAME project in 1999.
 The
 .Fx
-TCP Wrappers support first appeared in 
+TCP Wrappers support first appeared in
 .Fx 3.2 .
