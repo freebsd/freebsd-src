@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.165 1997/10/25 02:41:51 dyson Exp $
+ *	$Id: pmap.c,v 1.166 1997/10/25 04:49:01 dyson Exp $
  */
 
 /*
@@ -111,6 +111,8 @@
 #define PMAP_DIAGNOSTIC
 #endif
 
+#define MINPV 2048
+
 #if !defined(PMAP_DIAGNOSTIC)
 #define PMAP_INLINE __inline
 #else
@@ -169,11 +171,9 @@ extern vm_offset_t clean_sva, clean_eva;
 vm_zone_t pvzone;
 struct vm_zone pvzone_store;
 struct vm_object pvzone_obj;
-int pv_entry_count=0, pv_entry_max=0,
-	pv_entry_high_water=0;
+int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 int pmap_pagedaemon_waken = 0;
-#define NPVINIT 8192
-struct pv_entry pvinit[NPVINIT];
+struct pv_entry *pvinit;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -500,6 +500,7 @@ pmap_init(phys_start, phys_end)
 	vm_offset_t addr;
 	vm_size_t s;
 	int i;
+	int initial_pvs;
 
 	/*
 	 * calculate the number of pv_entries needed
@@ -528,8 +529,13 @@ pmap_init(phys_start, phys_end)
 	/*
 	 * init the pv free list
 	 */
+	initial_pvs = pv_npg;
+	if (initial_pvs < MINPV)
+		initial_pvs = MINPV;
 	pvzone = &pvzone_store;
-	zbootinit(pvzone, "PV ENTRY", sizeof(pvinit[0]), pvinit, NPVINIT);
+	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
+		initial_pvs * sizeof (struct pv_entry));
+	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit, pv_npg);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -537,6 +543,11 @@ pmap_init(phys_start, phys_end)
 	pmap_initialized = TRUE;
 }
 
+/*
+ * Initialize the address space (zone) for the pv_entries.  Set a
+ * high water mark so that the system can recover from excessive
+ * numbers of pv entries.
+ */
 void
 pmap_init2() {
 	pv_entry_max = PMAP_SHPGPERPROC * maxproc + pv_npg;
@@ -1576,7 +1587,7 @@ pmap_collect() {
 		return;
 
 	if (warningdone < 5) {
-		printf("pmap_collect: collecting pv entries -- increase PMAP_SHPGPERPROC");
+		printf("pmap_collect: collecting pv entries -- suggest increasing PMAP_SHPGPERPROC\n");
 		warningdone++;
 	}
 
