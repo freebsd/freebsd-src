@@ -833,192 +833,192 @@ vinum_info(int argc, char *argv[], char *argv0[])
     struct meminfo meminfo;
     struct mc malloced;
     int i;
-#if VINUMDEBUG
     struct rqinfo rq;
-#endif
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
 	return;
     }
-    printf("Flags: 0x%x\n", vinum_conf.flags);
-    if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
-	perror("Can't get information");
-	return;
-    }
-    printf("Total of %d blocks malloced, total memory: %d\nMaximum allocs: %8d, malloc table at 0x%08x\n",
-	meminfo.mallocs,
-	meminfo.total_malloced,
-	meminfo.highwater,
-	(int) meminfo.malloced);
-
-    printf("%d requests active, maximum %d active\n",
-	vinum_conf.active,
-	vinum_conf.maxactive);
-    if (vflag && (!Verbose))
-	for (i = 0; i < meminfo.mallocs; i++) {
-	    malloced.seq = i;
-	    if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
-		perror("Can't get information");
-		return;
-	    }
-	    if (!(i & 63))
-		printf("Block\tSequence\t  size\t  address\t  line\t\tfile\n\n");
-	    printf("%6d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n",
-		i,
-		malloced.seq,
-		malloced.size,
-		(int) malloced.address,
-		malloced.line,
-		(char *) &malloced.file);
+    if ((vinum_conf.flags & VF_HASDEBUG) == 0)
+	fprintf(stderr, "Kernel module does not have debug support\n");
+    else {
+	printf("Flags: 0x%x\n", vinum_conf.flags);
+	if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
+	    perror("Can't get information");
+	    return;
 	}
-#if VINUMDEBUG
-    if (Verbose) {
-	printf("\nTime\t\t Event\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
-	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
-	    *((int *) &rq) = i;
-	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
-		perror("Can't get information");
-		return;
+	printf("Total of %d blocks malloced, total memory: %d\nMaximum allocs: %8d, malloc table at 0x%08x\n",
+	    meminfo.mallocs,
+	    meminfo.total_malloced,
+	    meminfo.highwater,
+	    (int) meminfo.malloced);
+
+	printf("%d requests active, maximum %d active\n",
+	    vinum_conf.active,
+	    vinum_conf.maxactive);
+	if (vflag && (!Verbose))
+	    for (i = 0; i < meminfo.mallocs; i++) {
+		malloced.seq = i;
+		if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
+		    perror("Can't get information");
+		    return;
+		}
+		if (!(i & 63))
+		    printf("Block\tSequence\t  size\t  address\t  line\t\tfile\n\n");
+		printf("%6d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n",
+		    i,
+		    malloced.seq,
+		    malloced.size,
+		    (int) malloced.address,
+		    malloced.line,
+		    (char *) &malloced.file);
 	    }
-	    /* Compress devminor into something printable. */
-	    rq.devminor = (rq.devminor & 0xff)
-		| ((rq.devminor & 0xfff0000) >> 8);
-	    switch (rq.type) {
-	    case loginfo_unused:			    /* never been used */
-		break;
+	if (Verbose) {
+	    printf("\nTime\t\t Event\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
+	    for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
+		*((int *) &rq) = i;
+		if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
+		    perror("Can't get information");
+		    return;
+		}
+		/* Compress devminor into something printable. */
+		rq.devminor = (rq.devminor & 0xff)
+		    | ((rq.devminor & 0xfff0000) >> 8);
+		switch (rq.type) {
+		case loginfo_unused:			    /* never been used */
+		    break;
 
-	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s %dVS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
-		    timetext(&rq.timestamp),
-		    rq.type,
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.b.b_blkno,
-		    rq.info.b.b_bcount);
-		break;
+		case loginfo_user_bp:			    /* this is the bp when strategy is called */
+		    printf("%s %dVS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
+			timetext(&rq.timestamp),
+			rq.type,
+			rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.b.b_blkno,
+			rq.info.b.b_bcount);
+		    break;
 
-	    case loginfo_sdiol:				    /* subdisk I/O launch */
-	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s %dLR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
-		    timetext(&rq.timestamp),
-		    rq.type,
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.b.b_blkno,
-		    rq.info.b.b_bcount);
-		break;
+		case loginfo_sdiol:			    /* subdisk I/O launch */
+		case loginfo_user_bpl:			    /* and this is the bp at launch time */
+		    printf("%s %dLR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
+			timetext(&rq.timestamp),
+			rq.type,
+			rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.b.b_blkno,
+			rq.info.b.b_bcount);
+		    break;
 
-	    case loginfo_rqe:				    /* user RQE */
-		printf("%s 3RQ %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
-		    timetext(&rq.timestamp),
-		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.rqe.b.b_blkno,
-		    rq.info.rqe.b.b_bcount,
-		    rq.info.rqe.sdno,
-		    rq.info.rqe.sdoffset,
-		    rq.info.rqe.dataoffset,
-		    rq.info.rqe.groupoffset);
-		break;
+		case loginfo_rqe:			    /* user RQE */
+		    printf("%s 3RQ %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+			timetext(&rq.timestamp),
+			rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.rqe.b.b_blkno,
+			rq.info.rqe.b.b_bcount,
+			rq.info.rqe.sdno,
+			rq.info.rqe.sdoffset,
+			rq.info.rqe.dataoffset,
+			rq.info.rqe.groupoffset);
+		    break;
 
-	    case loginfo_iodone:			    /* iodone called */
-		printf("%s 4DN %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
-		    timetext(&rq.timestamp),
-		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.rqe.b.b_blkno,
-		    rq.info.rqe.b.b_bcount,
-		    rq.info.rqe.sdno,
-		    rq.info.rqe.sdoffset,
-		    rq.info.rqe.dataoffset,
-		    rq.info.rqe.groupoffset);
-		break;
+		case loginfo_iodone:			    /* iodone called */
+		    printf("%s 4DN %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+			timetext(&rq.timestamp),
+			rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.rqe.b.b_blkno,
+			rq.info.rqe.b.b_bcount,
+			rq.info.rqe.sdno,
+			rq.info.rqe.sdoffset,
+			rq.info.rqe.dataoffset,
+			rq.info.rqe.groupoffset);
+		    break;
 
-	    case loginfo_raid5_data:			    /* RAID-5 write data block */
-		printf("%s 5RD %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
-		    timetext(&rq.timestamp),
-		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.rqe.b.b_blkno,
-		    rq.info.rqe.b.b_bcount,
-		    rq.info.rqe.sdno,
-		    rq.info.rqe.sdoffset,
-		    rq.info.rqe.dataoffset,
-		    rq.info.rqe.groupoffset);
-		break;
+		case loginfo_raid5_data:		    /* RAID-5 write data block */
+		    printf("%s 5RD %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+			timetext(&rq.timestamp),
+			rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.rqe.b.b_blkno,
+			rq.info.rqe.b.b_bcount,
+			rq.info.rqe.sdno,
+			rq.info.rqe.sdoffset,
+			rq.info.rqe.dataoffset,
+			rq.info.rqe.groupoffset);
+		    break;
 
-	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
-		printf("%s 6RP %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
-		    timetext(&rq.timestamp),
-		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.devmajor,
-		    rq.devminor,
-		    rq.info.rqe.b.b_blkno,
-		    rq.info.rqe.b.b_bcount,
-		    rq.info.rqe.sdno,
-		    rq.info.rqe.sdoffset,
-		    rq.info.rqe.dataoffset,
-		    rq.info.rqe.groupoffset);
-		break;
+		case loginfo_raid5_parity:		    /* RAID-5 write parity block */
+		    printf("%s 6RP %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+			timetext(&rq.timestamp),
+			rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.devmajor,
+			rq.devminor,
+			rq.info.rqe.b.b_blkno,
+			rq.info.rqe.b.b_bcount,
+			rq.info.rqe.sdno,
+			rq.info.rqe.sdoffset,
+			rq.info.rqe.dataoffset,
+			rq.info.rqe.groupoffset);
+		    break;
 
-	    case loginfo_sdio:				    /* subdisk I/O */
-		printf("%s %dVS %s %p\t\t  0x%-9x\t%ld\t%d\n",
-		    timetext(&rq.timestamp),
-		    rq.type,
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.info.b.b_blkno,
-		    rq.info.b.b_bcount,
-		    rq.devminor);
-		break;
+		case loginfo_sdio:			    /* subdisk I/O */
+		    printf("%s %dVS %s %p\t\t  0x%-9x\t%ld\t%d\n",
+			timetext(&rq.timestamp),
+			rq.type,
+			rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.info.b.b_blkno,
+			rq.info.b.b_bcount,
+			rq.devminor);
+		    break;
 
-	    case loginfo_sdiodone:			    /* subdisk I/O done */
-		printf("%s %dSD %s %p\t\t  0x%-9x\t%ld\t%d\n",
-		    timetext(&rq.timestamp),
-		    rq.type,
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
-		    rq.bp,
-		    rq.info.b.b_blkno,
-		    rq.info.b.b_bcount,
-		    rq.devminor);
-		break;
+		case loginfo_sdiodone:			    /* subdisk I/O done */
+		    printf("%s %dSD %s %p\t\t  0x%-9x\t%ld\t%d\n",
+			timetext(&rq.timestamp),
+			rq.type,
+			rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+			rq.bp,
+			rq.info.b.b_blkno,
+			rq.info.b.b_bcount,
+			rq.devminor);
+		    break;
 
-	    case loginfo_lockwait:
-		printf("%s Lockwait  %p\t  0x%x\n",
-		    timetext(&rq.timestamp),
-		    rq.bp,
-		    rq.info.lockinfo.stripe);
-		break;
+		case loginfo_lockwait:
+		    printf("%s Lockwait  %p\t  0x%x\n",
+			timetext(&rq.timestamp),
+			rq.bp,
+			rq.info.lockinfo.stripe);
+		    break;
 
-	    case loginfo_lock:
-		printf("%s Lock      %p\t  0x%x\n",
-		    timetext(&rq.timestamp),
-		    rq.bp,
-		    rq.info.lockinfo.stripe);
-		break;
+		case loginfo_lock:
+		    printf("%s Lock      %p\t  0x%x\n",
+			timetext(&rq.timestamp),
+			rq.bp,
+			rq.info.lockinfo.stripe);
+		    break;
 
-	    case loginfo_unlock:
-		printf("%s Unlock\t  %p\t  0x%x\n",
-		    timetext(&rq.timestamp),
-		    rq.bp,
-		    rq.info.lockinfo.stripe);
-		break;
+		case loginfo_unlock:
+		    printf("%s Unlock\t  %p\t  0x%x\n",
+			timetext(&rq.timestamp),
+			rq.bp,
+			rq.info.lockinfo.stripe);
+		    break;
+		}
 	    }
 	}
     }
-#endif
 }
 
 /*
