@@ -1,0 +1,52 @@
+.\"
+.\" $Id: login_ok.3,v 1.4 1997/02/22 15:08:22 peter Exp $
+.\"
+.Dd August 27, 1997
+.Os FreeBSD
+.Dt LOGIN_PROGOK 3
+.Sh NAME
+.Nm login_progok
+.Nd Check if the given program may be run.
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <libutil.h>
+.Ft int
+.Fn login_progok "uid_t uid" "const char *prog"
+.Pp
+Link with
+.Va -lutil
+on the
+.Xr cc 1
+command line.
+.Sh DESCRIPTION
+This function determines if the user has permission to run the given
+program, returning zero if permission is denied and one if permission
+is granted.  It should be used by programs that are setuid or for some
+reason cannot be easily rebuilt or modified by an ordinary user, allowing
+the system administrator to restrict access to certain programs in a
+generic fashion.
+.Pp
+Access to a program is granted by default.  In order to deny access,
+the users login class entry in
+.Xr login.conf 5
+must be set with a 
+.Em prog.deny
+capability that contains the program name.  Most programs will use an
+absolute path name to avoid conflicts.  No special matching is done.  The
+passed
+.Ar prog
+must match a list entry in
+.Xr login.conf 5
+exactly.
+.Pp
+The
+.Em prog.allow
+capability will override the
+.Em prog.deny
+capability, granting access to the program.  This allows flexability in
+setting up a hierarchical login class structure.
+.Pp
+.Sh RETURN VALUES
+The function returns 1 if the program may be run and 0 if it may not.
+.Sh SEE ALSO
+.Xr login.conf 5
