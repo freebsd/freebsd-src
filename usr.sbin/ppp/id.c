@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -37,6 +37,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#include <sys/linker.h>
+#endif
 #include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
@@ -265,3 +268,17 @@ ID0kill(pid_t pid, int sig)
   ID0setuser();
   return result;
 }
+
+#ifdef KLDSYM_LOOKUP
+int
+ID0kldload(const char *dev)
+{
+  int result;
+
+  ID0set0();
+  result = kldload(dev);
+  log_Printf(LogID0, "%d = kldload(\"%s\")\n", result, dev);
+  ID0setuser();
+  return result;
+}
+#endif
