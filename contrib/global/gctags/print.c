@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)print.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <unistd.h>
 
+#include "die.h"
 #include "ctags.h"
 
 /*
@@ -59,7 +60,7 @@ getline()
 	saveftell = ftell(inf);
 	(void)fseek(inf, lineftell, SEEK_SET);
 	if (xflag)
-		for (cp = lbuf; GETC(!=, '\n'); *cp++ = c)
+		for (cp = lbuf; GETC(!=, EOF) && c != '\n'; *cp++ = c)
 			continue;
 	/*
 	 * do all processing here, so we don't step through the
@@ -89,7 +90,58 @@ getline()
 	*cp = EOS;
 	(void)fseek(inf, saveftell, SEEK_SET);
 }
+#ifdef GLOBAL
+void
+compact_print(entry, lno, file)
+char	*entry;
+int	lno;
+char	*file;
+{
+	static	int first = 1;
+	static	char p_entry[128];
+	static	char p_file[1024];
+	static	int  p_lno;
+	static	char *buf;
+	static	int bufsize = 512;
+	static	char *p;
 
+	if (first) {
+		if (!(buf = (char *)malloc(bufsize)))
+			die("short of memory.");
+		buf[0] = 0;
+		p = buf;
+		first = 0;
+	}
+	if (strcmp(p_entry, entry) || strcmp(p_file, file)) {
+		if (buf[0])
+			printf("%s\n", buf);
+		if (!entry[0])			/* flush */
+			return;
+		strcpy(p_entry, entry);
+		strcpy(p_file, file);
+		p_lno = lno;
+		buf[0] = 0;
+		sprintf(buf, "%s %s %d", entry, file, lno);
+		p = buf;
+		p += strlen(p);
+	} else {
+		if (p_lno > lno)
+			die("impossible!");
+		if (p_lno < lno) {
+			if (buf + bufsize < p + 10) {
+				int offset = p - buf;
+				bufsize *= 2;
+				if (!(buf = (char *)realloc(buf, bufsize)))
+					die("short of memory.");
+				p = buf + offset;
+			}
+			sprintf(p, ",%d", lno);
+			p += strlen(p);
+			p_lno = lno;
+		}
+	}
+}
+#endif
 /*
  * put_entries --
  *	write out the tags
@@ -104,8 +156,12 @@ put_entries(node)
 	if (vflag)
 		printf("%s %s %d\n",
 		    node->entry, node->file, (node->lno + 63) / 64);
+#ifdef GLOBAL
+	else if (xflag && cflag)
+		compact_print(node->entry, node->lno, node->file);
+#endif
 	else if (xflag)
-#ifdef MODIFY
+#ifdef GLOBAL
 		/* separate 'entry' and 'lno' */
 		if (strlen(node->entry) >= 16 && node->lno >= 1000)
 			printf("%-16s %4d %-16s %s\n",

@@ -1,3 +1,3 @@
-SUBDIR= gctags global gtags btreeop htags systags
+SUBDIR= lib global gtags gctags btreeop htags systags
 
 .include <bsd.subdir.mk>

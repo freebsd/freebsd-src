@@ -28,59 +28,71 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 21, 1997
+.Dd Sep 12, 1997
 .Dt GTAGS 1
 .Os BSD 4
 .Sh NAME
 .Nm gtags
-.Nd create GTAGS, GRTAGS file
+.Nd create GTAGS, GRTAGS and GSYMS file
 .Sh SYNOPSIS
 .Nm gtags
-.Op Fl e
-.Op Fl s
+.Op Fl i
+.Op Fl o
+.Op Fl v
 .Op Ar dbpath
 .Sh DESCRIPTION
 .Nm Gtags
-makes GTAGS, GRTAGS files for global(1).
+makes GTAGS, GRTAGS and GSYMS file for
+.Xr global 1 .
 .Nm Gtags
 trace subdirectories, read source files,
-locate the functions and save the information into tag files.
+locate symbols and save the information into tag files.
 C, yacc and assembler source files are supported.
 You should execute this command at the root of the source tree.
 .Pp
 If your source directory is on a read only device like CDROM, specify
 .Ar dbpath
-of the directory on which make tags files.
+of the directory on which make tag files.
 .Pp
 .Bl -tag -width Ds
-.It Fl e
-force a function to end when reach a '}' at the first column in C source file.
-.It Fl s
-treat assembler source file (*.s, *.S).
+.It Fl i
+update tag files incrementally by files which modified after the tag files were
+last updated.
+.It Fl o
+suppress making GSYMS file.
+Use this option if you don't use -s option of
+.Xr global 1 .
+.It Fl v
+verbose mode.
 .Sh FILES
 .Bl -tag -width tags -compact
 .It Pa GTAGS
-tags file for function definitions.
+tag file for function definitions.
 .It Pa GRTAGS
-tags file for function references.
+tag file for function references.
+.It Pa GSYMS
+tag file for other symbols.
 .El
 .Sh DIAGNOSTICS
 .Nm Gtags
-exits with a value of 1 if an error occurred, 0 otherwise.
+exits with a non 0 value if an error occurred, 0 otherwise.
 .Sh SEE ALSO
 .Xr btreeop 1 ,
-.Xr gctags 1 ,
 .Xr global 1 ,
-.Xr htags 1 .
+.Xr htags 1 ,
+.Xr vi 1 .
 .Sh BUG
-GTAGS, GRTAGS are very large. In advance, check the space of your disk.
-
+GTAGS, GRTAGS and GSYMS are very large.
+In advance of using this command, check the space of your disk.
+.br
 Assembler support is far from completeness.  It extracts only ENTRY()
 and ALTENTRY() from source file. Probably valid only for FreeBSD and Linux
 kernel source.
+.br
+There is no concurrency control about tag files.
 .Sh AUTHORS
 Shigio Yamaguchi (shigio@wafu.netgate.net)
 .Sh HISTORY
 The
 .Nm
-command appeared in FreeBSD 2.2.
+command appeared in FreeBSD 2.2.2.

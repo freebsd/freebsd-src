@@ -29,12 +29,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	htags.pl	7-Jul-97
+#	htags.pl				31-Oct-97
 #
 $com = $0;
 $com =~ s/.*\///;
-$usage = "usage: $com [-a][-f][-l][-n][-v][-w][-t title][-d tagdir][dir]";
-$ENV{'PATH'} = '/bin:/usr/bin';
+$usage = "usage: $com [-a][-f][-l][-n][-v][-w][-t title][-d tagdir][dir]\n";
 #-------------------------------------------------------------------------
 # CONFIGURATION
 #-------------------------------------------------------------------------
@@ -95,6 +94,7 @@ $rewrite_href_files =
 #-------------------------------------------------------------------------
 # UTIRITIES
 #-------------------------------------------------------------------------
+$findcom = "find . \\( -type f -o -type l \\) -name '*.[chysS]' -print";
 sub getcwd {
         local($dir) = `/bin/pwd`;
         chop($dir);
@@ -106,9 +106,9 @@ sub date {
 	$date;
 }
 sub error {
-	local($msg) = @_;
 	&clean();
-	die "$com: " . $msg;
+	printf STDERR "$com: $_[0]\n";
+	exit 1;
 }
 sub clean {
 	&anchor'finish();
@@ -120,19 +120,14 @@ sub escape {
 }
 sub usable {
 	local($com) = @_;
-
-	foreach $path (split(/:/, $ENV{'PATH'})) {
-		if (-x "$path/$com") {
-			return 1;
-		}
+	foreach (split(/:/, $ENV{'PATH'})) {
+		return 1 if (-x "$_/$com");
 	}
 	return 0;
 }
 sub copy {
 	local($from, $to) = @_;
-	local($ret);
-
-	$ret = system("cp $from $to");
+	local($ret) = system("cp $from $to");
 	$ret = $ret / 256;
 	$ret = ($ret == 0) ? 1 : 0;
 	$ret;
@@ -141,21 +136,21 @@ sub copy {
 # PROCESS START
 #-------------------------------------------------------------------------
 #
-# options check ($sflag is set internally)
+# options check.
 #
-$aflag = $cflag = $fflag = $lflag = $nflag = $vflag = $wflag = $sflag = '';
+$aflag = $fflag = $lflag = $nflag = $vflag = $wflag = '';
 while ($ARGV[0] =~ /^-/) {
 	$opt = shift;
 	if ($opt =~ /[^-aflnvwtd]/) {
-		print STDERR "$usage\n";
+		print STDERR $usage;
 		exit 1;
 	}
-	if ($opt =~ /a/) { $aflag = 1; }
-	if ($opt =~ /f/) { $fflag = 1; }
-	if ($opt =~ /l/) { $lflag = 1; }
-	if ($opt =~ /n/) { $nflag = 1; }
-	if ($opt =~ /v/) { $vflag = 1; }
-	if ($opt =~ /w/) { $wflag = 1; }
+	if ($opt =~ /a/) { $aflag = 'a'; }
+	if ($opt =~ /f/) { $fflag = 'f'; }
+	if ($opt =~ /l/) { $lflag = 'l'; }
+	if ($opt =~ /n/) { $nflag = 'n'; }
+	if ($opt =~ /v/) { $vflag = 'v'; }
+	if ($opt =~ /w/) { $wflag = 'w'; }
 	if ($opt =~ /t/) {
 		$opt = shift;
 		last if ($opt eq '');
@@ -170,11 +165,9 @@ if (!$title) {
 	@cwd = split('/', &getcwd);
 	$title = $cwd[$#cwd];
 }
-if (!$dbpath) {
-	$dbpath = &getcwd();
-}
+$dbpath = &getcwd() if (!$dbpath);
 unless (-r "$dbpath/GTAGS" && -r "$dbpath/GRTAGS") {
-	&error("GTAGS and GRTAGS not found. please type 'gtags[RET]'\n");
+	&error("GTAGS and GRTAGS not found. please type 'gtags[RET]'");
 }
 #
 # recognize format version
@@ -182,7 +175,7 @@ unless (-r "$dbpath/GTAGS" && -r "$dbpath/GRTAGS") {
 #
 	$support_version = 1;		# I can understand this format version
 #
-open(GTAGS, "btreeop -K ' __.VERSION' $dbpath/GTAGS |") || die "$com: GTAGS not found.\n";
+open(GTAGS, "btreeop -K ' __.VERSION' $dbpath/GTAGS |") || &error("GTAGS not found.");
 $rec = <GTAGS>;
 close(GTAGS);
 if ($rec =~ /^ __\.VERSION[ \t]+([0-9]+)$/) {
@@ -191,7 +184,7 @@ if ($rec =~ /^ __\.VERSION[ \t]+([0-9]+)$/) {
 	$format_version = 1;
 }
 if ($format_version != $support_version) {
-	die "$com: GTAGS format version unmatched. Please remake it.\n";
+	&error("GTAGS format version unmatched. Please remake it.");
 }
 #
 # check directories
@@ -200,36 +193,23 @@ $html = &getcwd() . '/HTML';
 if ($ARGV[0]) {
 	$cwd = &getcwd();
 	unless (-w $ARGV[0]) {
-		 &error("$ARGV[0] is not writable directory.\n");
+		 &error("'$ARGV[0]' is not writable directory.");
 	}
-	chdir($ARGV[0]) || &error("directory $ARGV[0] not found.\n");
+	chdir($ARGV[0]) || &error("directory '$ARGV[0]' not found.");
 	$html = &getcwd() . '/HTML';
-	chdir($cwd) || &error("cannot return directory.\n");
+	chdir($cwd) || &error("cannot return to original directory.");
 }
-#
-# set sflag if *.[sS] are included.
-#
-open(CHECK, "btreeop $dbpath/GTAGS |") || &error("btreeop $dbpath/GTAGS failed.\n");
-while (<CHECK>) {
-	local($tag, $lno, $filename) = split;
-	if ($filename =~ /\.[sS]$/) {
-		$'sflag = 1;
-		last;
-	}
-}
-close(CHECK);
 #
 # check if GTAGS, GRTAGS is the latest.
 #
 $gtags_ctime = (stat("$dbpath/GTAGS"))[10];
-open(FIND, "find . -type f -name '*.[chysS]' -print |") || &error("cannot exec find.\n");
+open(FIND, "$findcom |") || &error("cannot exec find.");
 while (<FIND>) {
 	chop;
 	next if /(y\.tab\.c|y\.tab\.h)$/;
-	next if (!$'sflag && /\.[sS]$/);
 	next if /(\/SCCS\/|\/RCS\/)/;
 	if ($gtags_ctime < (stat($_))[10]) {
-		print STDERR "Caution: GTAGS is not the latest one. You had better make new one.\n";
+		&error("GTAGS is not the latest one. Please remake it.");
 	}
 }
 close(FIND);
@@ -253,24 +233,24 @@ print STDERR "[", &date, "] ", "Htags started\n" if ($vflag);
 #
 # (0) make directories
 #
-print STDERR "[", &date, "] ", "(1) making directories ...\n" if ($vflag);
-mkdir($html, 0777) || &error("cannot make directory <$html>.\n") if (! -d $html);
+print STDERR "[", &date, "] ", "(0) making directories ...\n" if ($vflag);
+mkdir($html, 0777) || &error("cannot make directory '$html'.") if (! -d $html);
 foreach $d ($SRCS, $INCS, $DEFS, $REFS, files, funcs) {
-	mkdir("$html/$d", 0775) || &error("cannot make HTML directory\n") if (! -d "$html/$d");
+	mkdir("$html/$d", 0775) || &error("cannot make HTML directory") if (! -d "$html/$d");
 }
 if ($fflag) {
-	mkdir("$html/cgi-bin", 0775) || &error("cannot make cgi-bin directory\n") if (! -d "$html/cgi-bin");
+	mkdir("$html/cgi-bin", 0775) || &error("cannot make cgi-bin directory") if (! -d "$html/cgi-bin");
 }
 #
 # (1) make CGI program
 #
 if ($fflag) {
 	print STDERR "[", &date, "] ", "(1) making CGI program ...\n" if ($vflag);
-	&makeprogram("$html/cgi-bin/global.cgi") || &error("cannot make CGI program.\n");
-	chmod(0755, "$html/cgi-bin/global.cgi") || &error("cannot chmod CGI program.\n");
+	&makeprogram("$html/cgi-bin/global.cgi") || &error("cannot make CGI program.");
+	chmod(0755, "$html/cgi-bin/global.cgi") || &error("cannot chmod CGI program.");
 	unlink("$html/cgi-bin/GTAGS", "$html/cgi-bin/GRTAGS");
-	link("$dbpath/GTAGS", "$html/cgi-bin/GTAGS") || &copy("$dbpath/GTAGS", "$html/cgi-bin/GTAGS") || &error("cannot copy GTAGS.\n");;
-	link("$dbpath/GRTAGS", "$html/cgi-bin/GRTAGS") || &copy("$dbpath/GRTAGS", "$html/cgi-bin/GRTAGS") || &error("cannot copy GRTAGS.\n");;
+	link("$dbpath/GTAGS", "$html/cgi-bin/GTAGS") || &copy("$dbpath/GTAGS", "$html/cgi-bin/GTAGS") || &error("cannot copy GTAGS.");
+	link("$dbpath/GRTAGS", "$html/cgi-bin/GRTAGS") || &copy("$dbpath/GRTAGS", "$html/cgi-bin/GRTAGS") || &error("cannot copy GRTAGS.");
 }
 #
 # (2) make help file
@@ -342,7 +322,7 @@ exit 0;
 sub makeprogram {
 	local($file) = @_;
 
-	open(PROGRAM, ">$file") || &error("cannot make CGI program.\n");
+	open(PROGRAM, ">$file") || &error("cannot make CGI program.");
 	$program = <<'END_OF_SCRIPT';
 #!/usr/bin/perl
 #------------------------------------------------------------------
@@ -377,6 +357,7 @@ $flag = ($form{'type'} eq 'definition') ? '' : 'r';
 $words = ($form{'type'} eq 'definition') ? 'definitions' : 'referencies';
 print "<H1><FONT COLOR=#cc0000>\"$pattern\"</FONT></H1>\n";
 print "Following $words are matched to above pattern.<HR>\n";
+$pattern =~ s/'//g;			# to shut security hole
 unless (open(PIPE, "/usr/bin/global -x$flag '$pattern' |")) {
 	print "<H3>Cannot execute global. <A HREF=../mains.html>[return]</A></H3>\n";
 	print "</HTML>\n";
@@ -415,7 +396,7 @@ END_OF_SCRIPT
 sub makehelp {
 	local($file) = @_;
 
-	open(HELP, ">$file") || &error("cannot make help file.\n");
+	open(HELP, ">$file") || &error("cannot make help file.");
 	print HELP "<HTML>\n<HEAD><TITLE>HELP</TITLE></HEAD>\n<BODY>\n";
 	print HELP "<H2>Usage of Links</H2>\n";
 	print HELP "<PRE>/* [&lt;][&gt;][^][v] [top][bottom][index][help] */</PRE>\n";
@@ -458,7 +439,7 @@ sub makedupindex {
 		local($writing) = 0;
 
 		$count = 0;
-		open(LIST, "btreeop $dbpath/$db | sort +0 -1 +2 -3 +1n -2|") || &error("btreeop $dbpath/$db | sort +0 -1 +2 -3 +1n -2 failed.\n");
+		open(LIST, "btreeop $dbpath/$db | sort +0 -1 +2 -3 +1n -2|") || &error("btreeop $dbpath/$db | sort +0 -1 +2 -3 +1n -2 failed.");
 		while (<LIST>) {
 			chop;
 			local($tag, $lno, $filename) = split;
@@ -481,7 +462,7 @@ sub makedupindex {
 				if ($first_line) {
 					&cache'put($db, $tag, '');
 					local($type) = ($db eq 'GTAGS') ? $DEFS : $REFS;
-					open(FILE, ">$html/$type/$tag.html") || &error("cannot make file <$html/$type/$tag.html>.\n");
+					open(FILE, ">$html/$type/$tag.html") || &error("cannot make file '$html/$type/$tag.html'.");
 					$writing = 1;
 					print FILE "<HTML>\n<HEAD><TITLE>$tag</TITLE></HEAD>\n<BODY>\n";
 					print FILE "<PRE>\n";
@@ -516,13 +497,13 @@ sub makefuncindex {
 	local($file, $total) = @_;
 	local($count) = 0;
 
-	open(FUNCTIONS, ">$file") || &error("cannot make function index <$file>.\n");
+	open(FUNCTIONS, ">$file") || &error("cannot make function index '$file'.");
 	print FUNCTIONS "<HTML>\n<HEAD><TITLE>FUNCTION INDEX</TITLE>\n";
 	print FUNCTIONS "$begin_script$defaultview$end_script</HEAD>\n<BODY>\n";
 	print FUNCTIONS "<H2>FUNCTION INDEX</H2>\n";
 	print FUNCTIONS "<OL>\n" if (!$aflag);
 	local($old) = select(FUNCTIONS);
-	open(TAGS, "btreeop -L $dbpath/GTAGS |") || &error("btreeop -L $dbpath/GTAGS failed.\n");
+	open(TAGS, "btreeop -L $dbpath/GTAGS |") || &error("btreeop -L $dbpath/GTAGS failed.");
 	local($alpha) = '';
 	@funcs = ();	# [A][B][C]...
 	while (<TAGS>) {
@@ -540,7 +521,7 @@ sub makefuncindex {
 			}
 			$alpha = substr($tag, 0, 1);
 			push(@funcs, "<A HREF=funcs/$alpha.html TARGET=_self>[$alpha]</A>\n");
-			open(ALPHA, ">$html/funcs/$alpha.html") || &error("cannot make alphabetical function index.\n");
+			open(ALPHA, ">$html/funcs/$alpha.html") || &error("cannot make alphabetical function index.");
 			print ALPHA "<HTML>\n<HEAD><TITLE>$alpha</TITLE>\n";
 			print ALPHA "$begin_script$defaultview$end_script";
 			print ALPHA "</HEAD>\n<BODY>\n<H2>[$alpha]</H2>\n";
@@ -586,18 +567,17 @@ sub makefileindex {
 	local($file, $incdir) = @_;
 	local($count) = 0;
 
-	open(FILES, ">$file") || &error("cannot make file <$file>.\n");
+	open(FILES, ">$file") || &error("cannot make file '$file'.");
 	print FILES "<HTML>\n<HEAD><TITLE>FILES</TITLE>\n";
 	print FILES "$begin_script$defaultview$end_script";
 	print FILES "</HEAD>\n<BODY>\n<H2>FILE INDEX</H2>\n";
 	print FILES "<OL>\n";
 	local($old) = select(FILES);
-	open(FIND, "find . -type f -name '*.[chysS]' -print | sort |") || &error("cannot exec find.\n");
+	open(FIND, "$findcom | sort |") || &error("cannot exec find.");
 	local($lastdir) = '';
 	@files = ();
 	while (<FIND>) {
 		next if /(y\.tab\.c|y\.tab\.h)$/;
-		next if (!$'sflag && /\.[sS]$/);
 		next if /(\/SCCS\/|\/RCS\/)/;
 
 		$count++;
@@ -623,7 +603,7 @@ sub makefileindex {
 			}
 			if ($dir) {
 				push(@files, "<LI><A HREF=files/$dir.html TARGET=_self>$dir/</A>\n");
-				open(DIR, ">$html/files/$dir.html") || &error("cannot make directory index.\n");
+				open(DIR, ">$html/files/$dir.html") || &error("cannot make directory index.");
 				print DIR "<HTML>\n<HEAD><TITLE>$dir/</TITLE>\n";
 				print DIR "$begin_script$defaultview$end_script";
 				print DIR "</HEAD>\n<BODY>\n<H2>$dir/</H2>\n";
@@ -668,7 +648,7 @@ sub makefileindex {
 	foreach $last (keys %includes) {
 		local(@incs) = split(/\n/, $includes{$last});
 		if (@incs > 1) {
-			open(INCLUDE, ">$incdir/$last.html") || &error("cannot open file '$incdir/$last.html'.\n");
+			open(INCLUDE, ">$incdir/$last.html") || &error("cannot open file '$incdir/$last.html'.");
 			print INCLUDE "<HTML>\n<HEAD><TITLE>$last</TITLE></HEAD>\n<BODY>\n<PRE>\n";
 			foreach $filename (@incs) {
 				local($path) = $filename;
@@ -715,7 +695,7 @@ sub makecommonpart {
 	}
 	$index .= "<H2>MAINS</H2>\n";
 	$index .= "<PRE>\n";
-	open(PIPE, "btreeop -K main $dbpath/GTAGS | sort +0 -1 +2 -3 +1n -2|") || &error("btreeop -K main $dbpath/GTAGS failed.\n");
+	open(PIPE, "btreeop -K main $dbpath/GTAGS | sort +0 -1 +2 -3 +1n -2|") || &error("btreeop -K main $dbpath/GTAGS failed.");
 	while (<PIPE>) {
 		local($nouse, $lno, $filename) = split;
 		$nouse = '';	# to make perl quiet
@@ -751,7 +731,7 @@ sub makecommonpart {
 sub makeindex {
 	local($file, $title, $index) = @_;
 
-	open(FRAME, ">$file") || &error("cannot open file <$file>.\n");
+	open(FRAME, ">$file") || &error("cannot open file '$file'.");
 	print FRAME "<HTML>\n<HEAD><TITLE>$title</TITLE></HEAD>\n";
 	print FRAME "<FRAMESET COLS='200,*'>\n";
 	print FRAME "<NOFRAME>\n$index</NOFRAME>\n";
@@ -773,7 +753,7 @@ sub makeindex {
 sub makemainindex {
 	local($file, $index) = @_;
 
-	open(INDEX, ">$file") || &error("cannot create file <$file>.\n");
+	open(INDEX, ">$file") || &error("cannot create file '$file'.");
 	print INDEX "<HTML>\n<HEAD><TITLE>MAINS</TITLE></HEAD>\n";
 	print INDEX "<BODY>\n$index</BODY>\n</HTML>\n";
 	close(INDEX);
@@ -787,10 +767,9 @@ sub makehtml {
 	local($total) = @_;
 	local($count) = 0;
 
-	open(FIND, "find . -type f -name '*.[chysS]' -print|") || &error("cannot exec find.\n");
+	open(FIND, "$findcom |") || &error("cannot exec find.");
 	while (<FIND>) {
 		next if /y\.tab\.c|y\.tab\.h/;
-		next if (!$'sflag && /\.[sS]$/);
 		next if /(\/SCCS\/|\/RCS\/)/;
 
 		$count++;
@@ -821,14 +800,14 @@ sub src2html {
 	local($expand) = &'usable('expand') ? 'expand' : 'cat';
 	local(%ctab) = ('&', '&amp;', '<', '&lt;', '>', '&gt;');
 
-	open(HTML, ">$html") || &'error("cannot create file <$html>.\n");
+	open(HTML, ">$html") || &'error("cannot create file '$html'.");
 	local($old) = select(HTML);
 	#
 	# load tags belonging to this file.
 	#
 	$file =~ s/^\.\///;
 	&anchor'load($file);
-	open(C, "$expand '$file' |") || &'error("cannot open file <$file>.\n");
+	open(C, "$expand '$file' |") || &'error("cannot open file '$file'.");
 	#
 	# print the header
 	#
@@ -1053,18 +1032,26 @@ package anchor;
 #
 # create: create anchors temporary database
 #
+#	go)	%PATHLIST
+#
 sub create {
 	$ANCH = "$'tmp/ANCH$$";
-	open(ANCH, ">$ANCH") || &'error("cannot create file $ANCH.\n");
+	open(ANCH, ">$ANCH") || &'error("cannot create file '$ANCH'.");
 	close(ANCH);
 	chmod ($ANCH, 0600);
-	open(ANCH, "| btreeop -C $ANCH") || &'error("btreeop -C $ANCH failed.\n");
+	open(ANCH, "| btreeop -C $ANCH") || &'error("btreeop -C $ANCH failed.");
+	local($fcount) = 1;
+	local($fnumber);
 	foreach $db ('GTAGS', 'GRTAGS') {
 		local($type) = ($db eq 'GTAGS') ? 'D' : 'R';
-		open(PIPE, "btreeop $'dbpath/$db |") || &'error("btreeop $'dbpath/$db failed.\n");
+		open(PIPE, "btreeop $'dbpath/$db |") || &'error("btreeop $'dbpath/$db failed.");
 		while (<PIPE>) {
 			local($tag, $lno, $filename) = split;
-			print ANCH "$filename $lno $tag $type\n";
+			$fnumber = $PATHLIST{$filename};
+			if (!$fnumber) {
+				$PATHLIST{$filename} = $fnumber = $fcount++;
+			}
+			print ANCH "$fnumber $lno $tag $type\n";
 		}
 		close(PIPE);
 	}
@@ -1080,25 +1067,31 @@ sub finish {
 # load: load anchors in a file from database
 #
 #	i)	$file	source file
+#	gi)	%PATHLIST
 #	go)	FIRST	first definition
 #	go)	LAST	last definition
 #
 sub load {
 	local($file) = @_;
-
-	$file = './' . $file if ($file !~ /^\.\//);
+	local($fnumber);
 
 	@ANCHORS = ();
-	open(ANCH, "btreeop -K $file $ANCH |") || &'error("btreeop -K $file $ANCH failed.\n");
+	$FIRST = $LAST = 0;
+
+	$file = './' . $file if ($file !~ /^\.\//);
+	if (!($fnumber = $PATHLIST{$file})) {
+		return;
+	}
+	open(ANCH, "btreeop -K $fnumber $ANCH |") || &'error("btreeop -K $file $ANCH failed.");
 $n = 0;
 	while (<ANCH>) {
-		local($filename, $lno, $tag, $type) = split;
+		local($fnumber, $lno, $tag, $type) = split;
 		local($line);
 		# don't refer to macros which is defined in other C source.
 		if ($type eq 'R' && ($line = &cache'get('GTAGS', $tag))) {
 			local($nouse1, $nouse2, $f, $def) = split(/[ \t]+/, $line);
-			if ($f !~ /\.h$/ && $f !~ $filename && $def =~ /^#/) {
-				print STDERR "Information: $filename $lno $tag($type) skipped, because this is a macro which is defined in other C source.\n" if ($'wflag);
+			if ($f !~ /\.h$/ && $f !~ $file && $def =~ /^#/) {
+				print STDERR "Information: $file $lno $tag($type) skipped, because this is a macro which is defined in other C source.\n" if ($'wflag);
 				next;
 			}
 		}
@@ -1112,7 +1105,6 @@ $n = 0;
 	sub compare { $keys[$a] <=> $keys[$b]; }
 	@ANCHORS = @ANCHORS[sort compare 0 .. $#keys];
 	local($c);
-	$FIRST = $LAST = 0;
 	for ($c = 0; $c < @ANCHORS; $c++) {
 		local($lno, $tag, $type) = split(/,/, $ANCHORS[$c]);
 		if ($type eq 'D') {
@@ -1244,7 +1236,7 @@ sub put {
 	$cachecount++;
 	if ($cachesize >= 0 && $cachecount > $cachesize) {
 		$CACH  = "$'tmp/CACH$$";
-		dbmopen(%CACH, $CACH, 0600) || &'error("make cache database.\n");
+		dbmopen(%CACH, $CACH, 0600) || &'error("make cache database.");
 		$cachesize = -1;
 	}
 	$CACH{$label.$tag} = $line;

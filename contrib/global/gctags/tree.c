@@ -35,12 +35,12 @@
 static char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
 #endif /* LIBC_SCCS and not lint */
 
-#include <err.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "die.h"
 #include "ctags.h"
 
 static void	add_node __P((NODE *, NODE *));
@@ -61,12 +61,12 @@ pfnote(name, ln)
 
 	/*NOSTRICT*/
 	if (!(np = (NODE *)malloc(sizeof(NODE)))) {
-		warnx("too many entries to sort");
+		fprintf(stderr, "too many entries to sort\n");
 		put_entries(head);
 		free_tree(head);
 		/*NOSTRICT*/
 		if (!(head = np = (NODE *)malloc(sizeof(NODE))))
-			errx(1, "out of space");
+			die("out of space");
 	}
 	if (!xflag && !strcmp(name, "main")) {
 		if (!(fp = strrchr(curfile, '/')))
@@ -80,12 +80,12 @@ pfnote(name, ln)
 		name = nbuf;
 	}
 	if (!(np->entry = strdup(name)))
-		errx(1, "out of space");
+		die("out of space");
 	np->file = curfile;
 	np->lno = ln;
 	np->left = np->right = 0;
 	if (!(np->pat = strdup(lbuf)))
-		errx(1, "out of space");
+		die("out of space");
 	if (!head)
 		head = np;
 	else
@@ -100,7 +100,7 @@ add_node(node, cur_node)
 	int	dif;
 
 	dif = strcmp(node->entry, cur_node->entry);
-#ifdef GTAGS
+#ifdef GLOBAL
 	if (!Dflag && !dif)	/* -D option allows duplicate entries. */
 #else
 	if (!dif)
