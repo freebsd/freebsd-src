@@ -926,19 +926,23 @@ run_err(const char *fmt, ...)
 {
 	static FILE *fp;
 	va_list ap;
-	va_start(ap, fmt);
 
 	++errs;
 	if (fp == NULL && !(fp = fdopen(rem, "w")))
 		return;
 	(void)fprintf(fp, "%c", 0x01);
 	(void)fprintf(fp, "rcp: ");
+	va_start(ap, fmt);
 	(void)vfprintf(fp, fmt, ap);
+	va_end(ap);
 	(void)fprintf(fp, "\n");
 	(void)fflush(fp);
 
-	if (!iamremote)
+	if (!iamremote) {
+		va_start(ap, fmt);
 		vwarnx(fmt, ap);
+		va_end(ap);
+	}
 
 	va_end(ap);
 }
