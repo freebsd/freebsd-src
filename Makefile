@@ -1,11 +1,11 @@
 #
-#	$Id: Makefile,v 1.157 1998/02/06 09:52:24 adam Exp $
+#	$Id: Makefile,v 1.158 1998/02/19 00:24:43 nate Exp $
 #
-# While porting to the Alpha architecture include the bootstrap instead
+# While porting to the another architecture include the bootstrap instead
 # of the normal build.
 #
-.if ${MACHINE} == "alpha"
-.include "Makefile.alpha"
+.if exists(${.CURDIR}/Makefile.${MACHINE})
+.include "${.CURDIR}/Makefile.${MACHINE}"
 .else
 #
 # Make command line options:
