@@ -732,7 +732,7 @@ static int sis_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->sis_mtx, "sis", MTX_DEF);
+	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_DEF);
 	SIS_LOCK(sc);
 
 	/* Reset the adapter. */
