@@ -173,6 +173,8 @@ main (argc, argv)
 #ifdef KERNEL_DEBUG
 	{"kernel", no_argument, &kernel_debugging, 1},
 	{"k", no_argument, &kernel_debugging, 1},
+	{"wcore", no_argument, &kernel_writablecore, 1},
+	{"w", no_argument, &kernel_writablecore, 1},
 #endif
 /* Allow machine descriptions to add more options... */
 #ifdef ADDITIONAL_OPTIONS
@@ -268,6 +270,9 @@ main (argc, argv)
 	  case 'k':
 	    kernel_debugging = 1;
 	    break;
+	  case 'w':
+	    kernel_writablecore = 1;
+	    break;
 #endif
 
 #ifdef ADDITIONAL_OPTION_CASES
@@ -350,6 +355,13 @@ Options:\n\
   --mapped           Use mapped symbol files if supported on this system.\n\
   --readnow          Fully read symbol files on first access.\n\
 ", gdb_stdout);
+#ifdef KERNEL_DEBUG
+      fputs_unfiltered ("\
+  --kernel           Enable kernel debugging.\n\
+  --wcore            Make core file writable (only works for /dev/mem).\n\
+                     This option only works while debugging a kernel !!\n\
+", gdb_stdout);
+#endif /* KERNEL_DEBUGGING */
 #ifdef ADDITIONAL_OPTION_HELP
       fputs_unfiltered (ADDITIONAL_OPTION_HELP, gdb_stdout);
 #endif

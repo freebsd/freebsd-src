@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.3 1994/12/31 17:00:09 bde Exp $
+	$Id: freebsd-nat.c,v 1.1.1.1 1995/04/23 18:35:38 garyj Exp $
 */
 
 #include <sys/types.h>
@@ -344,9 +344,9 @@ extern CORE_ADDR ksym_lookup(const char *);
 kvm_open (efile, cfile, sfile, perm, errout)
 char *efile;
 char *cfile;
-void *sfile;
+char *sfile; /* makes this kvm_open more compatible to the one in libkvm */
 int perm;
-int errout;
+char *errout; /* makes this kvm_open more compatible to the one in libkvm */
 {
 	struct stat stb;
 	CORE_ADDR addr;
