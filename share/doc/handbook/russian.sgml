@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.20 1997/04/25 22:58:22 ache Exp $ -->
+<!-- $Id: russian.sgml,v 1.1 1997/05/02 02:20:25 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Russian Language<label id="russian"></heading>
@@ -26,6 +26,8 @@ screen font mapped to koi8-r character set to
 preserve pseudographics, <it>Gray Delete</it> key remapped to match Russian
 termcap entry for console.
 See <tt>rc.conf(5)</tt> for details.
+<p>
+RUS/LAT switch will be <it>CapsLock</it>.
 <p>
 For each <tt>ttyv?</tt> entry in <tt>/etc/ttys</tt>
 change terminal type from <bf>cons25</bf> to
@@ -116,6 +118,15 @@ Alternatively you can add this instructions to
 First off all do
 <ref id="russian:locale" name="locale setup"> as described.
 <p>
+<it>NOTE:</it><label id="russian:note">
+Russian KOI8-R locale may not work with old XFree86 versions
+(lower than 3.2.1 + patches).
+XFree86 port from <tt>/usr/ports/x11/XFree86</tt> already have
+all neccessary patches, so it will work, if you install XFree86
+from this port.
+Basically, XFree86 version shipped with latest FreeBSD distribution should
+work too unless somebody forget to apply port patches to it.
+<p>
 Then go to <tt>/usr/ports/russian/X.language</tt> directory and say
 <tscreen><verb>
 # make all install
@@ -129,12 +140,20 @@ following lines must be before any other <tt>FontPath</tt> entries:
     FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/75dpi"
     FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/100dpi"
 </verb></tscreen>
-<p>If you use high resolution video mode, swap 75 dpi and
+<p>
+If you use high resolution video mode, swap 75 dpi and
 100 dpi lines.
-<p>To activate Russian keyboard add
+<p>
+To activate Russian keyboard add
 <tscreen><verb>
     XkbKeymap   "xfree86(ru)"
 </verb></tscreen>
 line into <tt>"Keyboard"</tt> section in your <tt>/etc/XF86Config</tt>,
 also make sure that <tt>XkbDisable</tt> is turned off (commented out)
 there.
+<p>
+RUS/LAT switch will be <it>CapsLock</it>.
+<p>
+<it>NOTE:</it>
+Russian XKB keyboard may not work with old XFree86 versions,
+see <ref id="russian:note" name="locale note"> for more info.
