@@ -287,9 +287,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
 	    		((snd_sync_parm *)arg)->chan, ((snd_sync_parm *)arg)->pos);
 		break;
-    	/*
-     	* here follow the standard ioctls (filio.h etc.)
-     	*/
+	/*
+	 * here follow the standard ioctls (filio.h etc.)
+	 */
     	case FIONREAD: /* get # bytes to read */
 		if (rdch && rdch->buffer.dl) chn_dmaupdate(rdch);
 		*arg_i = rdch? rdch->buffer.rl : 0;
@@ -310,9 +310,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		break;
 
     	/*
-     	* Finally, here is the linux-compatible ioctl interface
-     	*/
-	#define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
+	 * Finally, here is the linux-compatible ioctl interface
+	 */
+#define THE_REAL_SNDCTL_DSP_GETBLKSIZE _IOWR('P', 4, int)
     	case THE_REAL_SNDCTL_DSP_GETBLKSIZE:
     	case SNDCTL_DSP_GETBLKSIZE:
 		*arg_i = wrch? wrch->blocksize : 0; /* XXX rdch? */
@@ -331,7 +331,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		break;
 
     	case SNDCTL_DSP_SYNC:
-		printf("dsp sync\n");
+		DEB(printf("dsp sync\n"));
 		splx(s);
 		if (wrch) chn_sync(wrch, wrch->buffer.bufsize - 4);
 		break;
