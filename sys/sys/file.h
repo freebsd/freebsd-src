@@ -37,10 +37,6 @@
 #ifndef _SYS_FILE_H_
 #define	_SYS_FILE_H_
 
-#include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 #ifndef _KERNEL
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
@@ -51,6 +47,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/sx.h>
 
 struct stat;
 struct thread;
