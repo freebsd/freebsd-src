@@ -327,11 +327,11 @@ route_output(struct mbuf *m, struct socket *so)
 		struct radix_node *t;
 		t = rn_addmask((caddr_t) info.rti_info[RTAX_GENMASK], 0, 1);
 		if (t != NULL &&
-		    bcmp((caddr_t)info.rti_info[RTAX_GENMASK] + 1,
-		    (caddr_t)t->rn_key + 1,
-		    ((struct sockaddr *)(t->rn_key))->sa_len - 1) == 0)
+		    bcmp((char *)(void *)info.rti_info[RTAX_GENMASK] + 1,
+		    (char *)(void *)t->rn_key + 1,
+		    ((struct sockaddr *)t->rn_key)->sa_len - 1) == 0)
 			info.rti_info[RTAX_GENMASK] =
-				(struct sockaddr *)(t->rn_key);
+			    (struct sockaddr *)t->rn_key;
 		else
 			senderr(ENOBUFS);
 	}
