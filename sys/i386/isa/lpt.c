@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.29 1995/05/09 01:33:16 phk Exp $
+ *	$Id: lpt.c,v 1.30 1995/05/30 08:02:42 rgrimes Exp $
  */
 
 /*
@@ -828,7 +828,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
-	ifp->if_type = IFT_SLIP;
+	ifp->if_type = IFT_PARA;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
