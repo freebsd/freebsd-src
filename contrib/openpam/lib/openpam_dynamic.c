@@ -31,9 +31,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenv.c#5 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#1 $
  */
 
+#include <dlfcn.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -42,36 +44,46 @@
 #include "openpam_impl.h"
 
 /*
- * XSSO 4.2.1
- * XSSO 6 page 44
+ * OpenPAM internal
  *
- * Retrieve the value of a PAM environment variable
+ * Locate a dynamically linked module
  */
 
-char *
-pam_getenv(pam_handle_t *pamh,
-	const char *name)
+pam_module_t *
+openpam_dynamic(const char *path)
 {
+	pam_module_t *module;
+	char *vpath;
+	void *dlh;
 	int i;
 
-	if (pamh == NULL)
-		return (NULL);
+	if ((module = calloc(1, sizeof *module)) == NULL)
+		goto buf_err;
 
-	/* sanity checks */
-	if (name == NULL || strchr(name, '=') != NULL)
-		return (NULL);
-
-	if ((i = openpam_findenv(pamh, name, strlen(name))) == -1)
-		return (NULL);
-	return (strdup(pamh->env[i]));
+	/* try versioned module first, then unversioned module */
+	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) == -1)
+		goto buf_err;
+	if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
+		openpam_log(PAM_LOG_ERROR, "dlopen(): %s", dlerror());
+		*strrchr(vpath, '.') = '\0';
+		if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
+			openpam_log(PAM_LOG_ERROR, "dlopen(): %s", dlerror());
+			free(module);
+			return (NULL);
+		}
+	}
+	module->path = vpath;
+	module->dlh = dlh;
+	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i)
+		module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
+	return (module);
+ buf_err:
+	openpam_log(PAM_LOG_ERROR, "%m");
+	dlclose(dlh);
+	free(module);
+	return (NULL);
 }
 
-/**
- * The =pam_getenv function returns the value of an environment variable.
- * Its semantics are similar to those of =getenv, but it accesses the PAM
- * context's environment list instead of the application's.
- *
- * >pam_getenvlist
- * >pam_putenv
- * >pam_setenv
+/*
+ * NOPARSE
  */

@@ -1,4 +1,27 @@
 ============================================================================
+OpenPAM	Celandine						2002-03-05
+
+ - BUGFIX: PAM_TRY_AGAIN is a valid return value for pam_chauthtok().
+
+ - BUGFIX: Run passwd chain twice, first with the PAM_PRELIM_CHECK
+   flag set, then with the PAM_UPDATE_AUTHTOK flag set.
+
+ - BUGFIX: Failure of a "sufficient" module should not terminate the
+   passwd chain if the PAM_PRELIM_CHECK flag is set.
+
+ - BUGFIX: Clear PAM_AUTHTOK after running the service modules.
+
+ - ENHANCE: Prevent applications from specifying the PAM_PRELIM_CHECK
+   or PAM_UPDATE_AUTHTOK flags themselves.
+
+ - BUGFIX: openpam_set_option() did not support changing the value of
+   an existing option.
+
+ - ENHANCE: Add support for module versioning.  OpenPAM will prefer a
+   module with the same version number as the library itself to one
+   with no version number at all.
+
+============================================================================
 OpenPAM	Cantaloupe						2002-02-22
 
  - BUGFIX: The proper use of PAM_SYMBOL_ERR is to indicate an invalid
@@ -44,4 +67,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$Id$
+$P4: //depot/projects/openpam/HISTORY#5 $
