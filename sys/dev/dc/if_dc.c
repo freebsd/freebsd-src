@@ -1705,20 +1705,37 @@ dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 	struct dc_mediainfo *m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (l->dc_sia_code == DC_SIA_CODE_10BT)
+	switch (l->dc_sia_code & ~DC_SIA_CODE_EXT) {
+	case DC_SIA_CODE_10BT:
 		m->dc_media = IFM_10_T;
-
-	if (l->dc_sia_code == DC_SIA_CODE_10BT_FDX)
+		break;
+	case DC_SIA_CODE_10BT_FDX:
 		m->dc_media = IFM_10_T | IFM_FDX;
-
-	if (l->dc_sia_code == DC_SIA_CODE_10B2)
+		break;
+	case DC_SIA_CODE_10B2:
 		m->dc_media = IFM_10_2;
-
-	if (l->dc_sia_code == DC_SIA_CODE_10B5)
+		break;
+	case DC_SIA_CODE_10B5:
 		m->dc_media = IFM_10_5;
+		break;
+	default:
+		break;
+	}
 
-	m->dc_gp_len = 2;
-	m->dc_gp_ptr = (u_int8_t *)&l->dc_sia_gpio_ctl;
+	/*
+	 * We need to ignore CSR13, CSR14, CSR15 for SIA mode.
+	 * Things apparently already work for cards that do
+	 * supply Media Specific Data.
+	 */
+	if (l->dc_sia_code & DC_SIA_CODE_EXT) {
+		m->dc_gp_len = 2;
+		m->dc_gp_ptr =
+		(u_int8_t *)&l->dc_un.dc_sia_ext.dc_sia_gpio_ctl;
+	} else {
+		m->dc_gp_len = 2;
+		m->dc_gp_ptr =
+		(u_int8_t *)&l->dc_un.dc_sia_noext.dc_sia_gpio_ctl;
+	}
 
 	m->dc_next = sc->dc_mi;
 	sc->dc_mi = m;
