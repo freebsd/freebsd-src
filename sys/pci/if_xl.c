@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22 1998/12/24 17:50:34 wpaul Exp $
+ *	$Id: if_xl.c,v 1.23 1999/02/01 21:25:52 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22 1998/12/24 17:50:34 wpaul Exp $";
+	"$Id: if_xl.c,v 1.23 1999/02/01 21:25:52 wpaul Exp $";
 #endif
 
 /*
@@ -2363,11 +2363,13 @@ static void xl_init(xsc)
 	for (i = 0; i < 3; i++)
 		CSR_WRITE_2(sc, XL_W2_STATION_MASK_LO + (i * 2), 0);
 
+#ifdef notdef
 	/* Reset TX and RX. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
+#endif
 
 	/* Init circular RX list. */
 	if (xl_list_rx_init(sc) == ENOBUFS) {
@@ -2715,10 +2717,12 @@ static void xl_stop(sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
 	DELAY(800);
+#ifdef notdef
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
+#endif
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|XL_STAT_INTLATCH);
 
 	/* Stop the stats updater. */
