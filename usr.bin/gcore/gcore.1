@@ -41,7 +41,8 @@
 .Nm 
 .Op Fl s
 .Op Fl c Ar core
-.Ar exec pid
+.Op Ar exec
+.Ar pid
 .Sh DESCRIPTION
 .Nm Gcore
 creates a core image of the specified process,
@@ -49,11 +50,13 @@ suitable for use with
 .Xr gdb  1 .
 By default, the core is written to the file
 .Dq Pa core.<pid> .
-Both the executable image,
-.Ar exec ,
-and the process identifier,
+The process identifier,
 .Ar pid ,
-must be given on the command line.
+must be given on the command line. If no executable image is
+specified,
+.Nm
+will use
+.Dq Pa /proc/<pid>/file .
 .Pp
 The options are:
 .Bl -tag -width indent
@@ -72,6 +75,8 @@ The same effect can be achieved manually with
 .Bl -tag -width /var/log/messages -compact
 .It Pa core.<pid>
 The core image.
+.It Pa /proc/<pid>/file
+The executable image.
 .EL
 .Dp
 .Sh HISTORY
@@ -90,8 +95,3 @@ to temporarily stop the target process.
 is not compatible with the original
 .Bx 4.2 
 version.
-In particular,
-.Bx 4.4
-requires the 
-.Ar exec
-argument.
