@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -116,11 +115,11 @@ recover(int fd)
 		}
 		memcpy(tpg->map_data, gpt->map_data, secsz);
 		hdr = tpg->map_data;
-		hdr->hdr_lba_self = tpg->map_start;
-		hdr->hdr_lba_alt = gpt->map_start;
-		hdr->hdr_lba_table = lbt->map_start;
+		hdr->hdr_lba_self = htole64(tpg->map_start);
+		hdr->hdr_lba_alt = htole64(gpt->map_start);
+		hdr->hdr_lba_table = htole64(lbt->map_start);
 		hdr->hdr_crc_self = 0;
-		hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+		hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 		gpt_write(fd, tpg);
 		warnx("%s: recovered secondary GPT header from primary",
 		    device_name);
@@ -134,11 +133,11 @@ recover(int fd)
 		}
 		memcpy(gpt->map_data, tpg->map_data, secsz);
 		hdr = gpt->map_data;
-		hdr->hdr_lba_self = gpt->map_start;
-		hdr->hdr_lba_alt = tpg->map_start;
-		hdr->hdr_lba_table = tbl->map_start;
+		hdr->hdr_lba_self = htole64(gpt->map_start);
+		hdr->hdr_lba_alt = htole64(tpg->map_start);
+		hdr->hdr_lba_table = htole64(tbl->map_start);
 		hdr->hdr_crc_self = 0;
-		hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+		hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 		gpt_write(fd, gpt);
 		warnx("%s: recovered primary GPT header from secondary",
 		    device_name);

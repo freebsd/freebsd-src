@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>

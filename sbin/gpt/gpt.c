@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/stat.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <errno.h>
@@ -43,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -127,6 +125,38 @@ unicode16(short *dst, const wchar_t *src, size_t len)
 		*dst = 0;
 }
 
+void
+le_uuid_dec(void const *buf, uuid_t *uuid)
+{
+	u_char const *p;
+	int i;
+
+	p = buf;
+	uuid->time_low = le32dec(p);
+	uuid->time_mid = le16dec(p + 4);
+	uuid->time_hi_and_version = le16dec(p + 6);
+	uuid->clock_seq_hi_and_reserved = p[8];
+	uuid->clock_seq_low = p[9];
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		uuid->node[i] = p[10 + i];
+}
+
+void
+le_uuid_enc(void *buf, uuid_t const *uuid)
+{
+	u_char *p;
+	int i;
+
+	p = buf;
+	le32enc(p, uuid->time_low);
+	le16enc(p + 4, uuid->time_mid);
+	le16enc(p + 6, uuid->time_hi_and_version);
+	p[8] = uuid->clock_seq_hi_and_reserved;
+	p[9] = uuid->clock_seq_low;
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		p[10 + i] = uuid->node[i];
+}
+
 void*
 gpt_read(int fd, off_t lba, size_t count)
 {
@@ -173,7 +203,7 @@ gpt_mbr(int fd, off_t lba)
 	if (mbr == NULL)
 		return (-1);
 
-	if (mbr->mbr_sig != MBR_SIG) {
+	if (mbr->mbr_sig != htole16(MBR_SIG)) {
 		if (verbose)
 			warnx("%s: MBR not found at sector %llu", device_name,
 			    (long long)lba);
@@ -218,10 +248,10 @@ gpt_mbr(int fd, off_t lba)
 		if (mbr->mbr_part[i].part_typ == 0 ||
 		    mbr->mbr_part[i].part_typ == 0xee)
 			continue;
-		start = mbr->mbr_part[i].part_start_hi;
-		start = (start << 16) + mbr->mbr_part[i].part_start_lo;
-		size = mbr->mbr_part[i].part_size_hi;
-		size = (size << 16) + mbr->mbr_part[i].part_size_lo;
+		start = le16toh(mbr->mbr_part[i].part_start_hi);
+		start = (start << 16) + le16toh(mbr->mbr_part[i].part_start_lo);
+		size = le16toh(mbr->mbr_part[i].part_size_hi);
+		size = (size << 16) + le16toh(mbr->mbr_part[i].part_size_lo);
 		if (start == 0 && size == 0) {
 			warnx("%s: Malformed MBR at sector %llu", device_name,
 			    (long long)lba);
@@ -249,6 +279,7 @@ gpt_mbr(int fd, off_t lba)
 static int
 gpt_gpt(int fd, off_t lba)
 {
+	uuid_t type;
 	off_t size;
 	struct gpt_ent *ent;
 	struct gpt_hdr *hdr;
@@ -265,27 +296,28 @@ gpt_gpt(int fd, off_t lba)
 	if (memcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)))
 		goto fail_hdr;
 
-	crc = hdr->hdr_crc_self;
+	crc = le32toh(hdr->hdr_crc_self);
 	hdr->hdr_crc_self = 0;
-	if (crc32(hdr, hdr->hdr_size) != crc) {
+	if (crc32(hdr, le32toh(hdr->hdr_size)) != crc) {
 		if (verbose)
 			warnx("%s: Bad CRC in GPT header at sector %llu",
 			    device_name, (long long)lba);
 		goto fail_hdr;
 	}
 
-	tblsz = hdr->hdr_entries * hdr->hdr_entsz;
+	tblsz = le32toh(hdr->hdr_entries) * le32toh(hdr->hdr_entsz);
 	blocks = tblsz / secsz + ((tblsz % secsz) ? 1 : 0);
 
 	/* Use generic pointer to deal with hdr->hdr_entsz != sizeof(*ent). */
-	p = gpt_read(fd, hdr->hdr_lba_table, blocks);
+	p = gpt_read(fd, le64toh(hdr->hdr_lba_table), blocks);
 	if (p == NULL)
 		return (-1);
 
-	if (crc32(p, tblsz) != hdr->hdr_crc_table) {
+	if (crc32(p, tblsz) != le32toh(hdr->hdr_crc_table)) {
 		if (verbose)
 			warnx("%s: Bad CRC in GPT table at sector %llu",
-			    device_name, (long long)hdr->hdr_lba_table);
+			    device_name,
+			    (long long)le64toh(hdr->hdr_lba_table));
 		goto fail_ent;
 	}
 
@@ -298,7 +330,7 @@ gpt_gpt(int fd, off_t lba)
 	if (m == NULL)
 		return (-1);
 
-	m = map_add(hdr->hdr_lba_table, blocks, (lba == 1)
+	m = map_add(le64toh(hdr->hdr_lba_table), blocks, (lba == 1)
 	    ? MAP_TYPE_PRI_GPT_TBL : MAP_TYPE_SEC_GPT_TBL, p);
 	if (m == NULL)
 		return (-1);
@@ -306,20 +338,24 @@ gpt_gpt(int fd, off_t lba)
 	if (lba != 1)
 		return (0);
 
-	for (i = 0; i < hdr->hdr_entries; i++) {
-		ent = (void*)(p + i * hdr->hdr_entsz);
+	for (i = 0; i < le32toh(hdr->hdr_entries); i++) {
+		ent = (void*)(p + i * le32toh(hdr->hdr_entsz));
 		if (uuid_is_nil(&ent->ent_type, NULL))
 			continue;
 
-		size = ent->ent_lba_end - ent->ent_lba_start + 1LL;
+		size = le64toh(ent->ent_lba_end) - le64toh(ent->ent_lba_start) +
+		    1LL;
 		if (verbose > 2) {
-			uuid_to_string(&ent->ent_type, &s, NULL);
+			le_uuid_dec(&ent->ent_type, &type);
+			uuid_to_string(&type, &s, NULL);
 			warnx(
 	"%s: GPT partition: type=%s, start=%llu, size=%llu", device_name, s,
-			    (long long)ent->ent_lba_start, (long long)size);
+			    (long long)le64toh(ent->ent_lba_start),
+			    (long long)size);
 			free(s);
 		}
-		m = map_add(ent->ent_lba_start, size, MAP_TYPE_GPT_PART, ent);
+		m = map_add(le64toh(ent->ent_lba_start), size,
+		    MAP_TYPE_GPT_PART, ent);
 		if (m == NULL)
 			return (-1);
 		m->map_index = i + 1;
