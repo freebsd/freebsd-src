@@ -352,8 +352,11 @@ END_DEBUG
 
 	device_set_desc(dev, "SBP-2/SCSI over FireWire");
 
+#if 0
 	if (bootverbose)
 		debug = bootverbose;
+#endif
+
 	return (0);
 }
 

@@ -293,7 +293,7 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 	bm = OREAD(sc, OHCI_CSR_DATA);
 	if((bm & 0x3f) == 0x3f)
 		bm = node;
-	if (bootverbose)
+	if (firewire_debug)
 		device_printf(sc->fc.dev,
 			"fw_set_bus_manager: %d->%d (loop=%d)\n", bm, node, i);
 
@@ -319,7 +319,7 @@ again:
 		DELAY(100);
 	}
 	if(i >= MAX_RETRY) {
-		if (bootverbose)
+		if (firewire_debug)
 			device_printf(sc->fc.dev, "phy read failed(1).\n");
 		if (++retry < MAX_RETRY) {
 			DELAY(100);
@@ -330,14 +330,14 @@ again:
 	stat = OREAD(sc, FWOHCI_INTSTAT);
 	if ((stat & OHCI_INT_REG_FAIL) != 0 ||
 			((fun >> PHYDEV_REGADDR) & 0xf) != addr) {
-		if (bootverbose)
+		if (firewire_debug)
 			device_printf(sc->fc.dev, "phy read failed(2).\n");
 		if (++retry < MAX_RETRY) {
 			DELAY(100);
 			goto again;
 		}
 	}
-	if (bootverbose || retry >= MAX_RETRY)
+	if (firewire_debug || retry >= MAX_RETRY)
 		device_printf(sc->fc.dev, 
 		    "fwphy_rddata: 0x%x loop=%d, retry=%d\n", addr, i, retry);
 #undef MAX_RETRY
@@ -458,7 +458,7 @@ fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
 #else	/* XXX force to enable 1394a */
 		if (e1394a) {
 #endif
-			if (bootverbose)
+			if (firewire_debug)
 				device_printf(dev,
 					"Enable 1394a Enhancements\n");
 			/* enable EAA EMC */
@@ -508,14 +508,14 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 
 	/* FLUSH FIFO and reset Transmitter/Reciever */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_RESET);
-	if (bootverbose)
+	if (firewire_debug)
 		device_printf(dev, "resetting OHCI...");
 	i = 0;
 	while(OREAD(sc, OHCI_HCCCTL) & OHCI_HCC_RESET) {
 		if (i++ > 100) break;
 		DELAY(1000);
 	}
-	if (bootverbose)
+	if (firewire_debug)
 		printf("done (loop=%d)\n", i);
 
 	/* Probe phy */
@@ -535,7 +535,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 		device_printf(dev, "max_rec %d -> %d\n",
 				MAXREC(max_rec), MAXREC(sc->fc.maxrec));
 	}
-	if (bootverbose)
+	if (firewire_debug)
 		device_printf(dev, "BUS_OPT 0x%x -> 0x%x\n", reg, reg2);
 	OWRITE(sc,  OHCI_BUS_OPT, reg2);
 
@@ -969,7 +969,7 @@ again:
 	}
 	if (maxdesc < db_tr->dbcnt) {
 		maxdesc = db_tr->dbcnt;
-		if (bootverbose)
+		if (firewire_debug)
 			device_printf(sc->fc.dev, "maxdesc: %d\n", maxdesc);
 	}
 	/* last db */
@@ -1001,7 +1001,7 @@ kick:
 	if(dbch->xferq.flag & FWXFERQ_RUNNING) {
 		OWRITE(sc, OHCI_DMACTL(off), OHCI_CNTL_DMA_WAKE);
 	} else {
-		if (bootverbose)
+		if (firewire_debug)
 			device_printf(sc->fc.dev, "start AT DMA status=%x\n",
 					OREAD(sc, OHCI_DMACTL(off)));
 		OWRITE(sc, OHCI_DMACMD(off), dbch->top->bus_addr | fsegment);
@@ -2095,7 +2095,7 @@ fwohci_set_intr(struct firewire_comm *fc, int enable)
 	struct fwohci_softc *sc;
 
 	sc = (struct fwohci_softc *)fc;
-	if (bootverbose)
+	if (firewire_debug)
 		device_printf(sc->fc.dev, "fwohci_set_intr: %d\n", enable);
 	if (enable) {
 		sc->intmask |= OHCI_INT_EN;
