@@ -42,8 +42,8 @@
  *	$Id: slcompress.h,v 1.5 1994/01/15 20:13:16 deraadt Exp $
  */
 
-#ifndef _SLCOMPRESS_H_
-#define _SLCOMPRESS_H_
+#ifndef _NET_PPPCOMPRESS_H_
+#define _NET_PPPCOMPRESS_H_
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR MLEN		/* XXX 4bsd-ism: should really be 128 */
@@ -136,6 +136,8 @@ struct cstate {
  * all the state data for one serial line (we need one of these
  * per line).
  */
+#define slcompress pppcompress
+
 struct slcompress {
 	struct cstate *last_cs;	/* most recently used tstate */
 	u_char last_recv;	/* last rcvd conn. id */
@@ -157,6 +159,12 @@ struct slcompress {
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
+#define	sl_compress_init	ppp_compress_init
+#define	sl_compress_setup	ppp_compress_setup
+#define	sl_compress_tcp		ppp_compress_tcp
+#define	sl_uncompress_tcp	ppp_uncompress_tcp
+#define sl_uncompress_tcp_part	ppp_uncompress_tcp_part
+
 extern void sl_compress_init __P((struct slcompress *));
 extern void sl_compress_setup __P((struct slcompress *, int maxslot));
 extern u_char sl_compress_tcp __P((struct mbuf *m, struct ip *ip,
@@ -167,4 +175,4 @@ extern int sl_uncompress_tcp_part __P((u_char **bufp, int buflen,
 				       int total_len, u_int type,
 				       struct slcompress *));
 
-#endif /* _SLCOMPRESS_H_ */
+#endif /* _NET_PPPCOMPRESS_H_ */
