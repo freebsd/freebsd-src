@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.24 1998/03/23 14:12:37 bde Exp $
+ * $Id: ffs_extern.h,v 1.25 1999/01/07 16:14:16 bde Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -129,6 +129,7 @@ void	softdep_setup_allocindir_page __P((struct inode *, ufs_lbn_t,
 	    struct buf *, int, ufs_daddr_t, ufs_daddr_t, struct buf *));
 void	softdep_disk_io_initiation __P((struct buf *));
 void	softdep_disk_write_complete __P((struct buf *));
+void	softdep_fsync_mountdev __P((struct vnode *));
 int	softdep_sync_metadata __P((struct vop_fsync_args *));
 
 #endif /* !_UFS_FFS_EXTERN_H */

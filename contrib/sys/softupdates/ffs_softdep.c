@@ -52,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.36 (McKusick) 5/6/99
- *	$Id: ffs_softdep.c,v 1.26 1999/05/07 05:11:31 mckusick Exp $
+ *	from: @(#)ffs_softdep.c	9.38 (McKusick) 5/13/99
+ *	$Id: ffs_softdep.c,v 1.27 1999/05/09 19:39:54 mckusick Exp $
  */
 
 /*
@@ -444,34 +444,49 @@ static struct workhead softdep_workitem_pending;
 static int softdep_worklist_busy;
 static int max_softdeps;	/* maximum number of structs before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
-static int rush_requests;	/* number of times I/O speeded up */
-static int blk_limit_push;	/* number of times block limit neared */
-static int ino_limit_push;	/* number of times inode limit neared */
-static int blk_limit_hit;	/* number of times block slowdown imposed */
-static int ino_limit_hit;	/* number of times inode slowdown imposed */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
 static struct proc *filesys_syncer; /* proc of filesystem syncer process */
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
+/*
+ * runtime statistics
+ */
+static int stat_rush_requests;	/* number of times I/O speeded up */
+static int stat_blk_limit_push;	/* number of times block limit neared */
+static int stat_ino_limit_push;	/* number of times inode limit neared */
+static int stat_blk_limit_hit;	/* number of times block slowdown imposed */
+static int stat_ino_limit_hit;	/* number of times inode slowdown imposed */
+static int stat_indir_blk_ptrs;	/* bufs redirtied as indir ptrs not written */
+static int stat_inode_bitmap;	/* bufs redirtied as inode bitmap not written */
+static int stat_direct_blk_ptrs;/* bufs redirtied as direct ptrs not written */
+static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
 #ifdef DEBUG
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 #if defined(__FreeBSD__)
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &blk_limit_push, 0,"");
-SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &ino_limit_push, 0,"");
-SYSCTL_INT(_debug, OID_AUTO, blk_limit_hit, CTLFLAG_RW, &blk_limit_hit, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, ino_limit_hit, CTLFLAG_RW, &ino_limit_hit, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &rush_requests, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &stat_blk_limit_push, 0,"");
+SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &stat_ino_limit_push, 0,"");
+SYSCTL_INT(_debug, OID_AUTO, blk_limit_hit, CTLFLAG_RW, &stat_blk_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, ino_limit_hit, CTLFLAG_RW, &stat_ino_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, indir_blk_ptrs, CTLFLAG_RW, &stat_indir_blk_ptrs, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, inode_bitmap, CTLFLAG_RW, &stat_inode_bitmap, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, direct_blk_ptrs, CTLFLAG_RW, &stat_direct_blk_ptrs, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, dir_entry, CTLFLAG_RW, &stat_dir_entry, 0, "");
 #else /* !__FreeBSD__ */
-struct ctldebug debug7 = { "max_softdeps", &max_softdeps };
-struct ctldebug debug8 = { "tickdelay", &tickdelay };
-struct ctldebug debug9 = { "rush_requests", &rush_requests };
-struct ctldebug debug10 = { "blk_limit_push", &blk_limit_push };
-struct ctldebug debug11 = { "ino_limit_push", &ino_limit_push };
-struct ctldebug debug12 = { "blk_limit_hit", &blk_limit_hit };
-struct ctldebug debug13 = { "ino_limit_hit", &ino_limit_hit };
+struct ctldebug debug20 = { "max_softdeps", &max_softdeps };
+struct ctldebug debug21 = { "tickdelay", &tickdelay };
+struct ctldebug debug22 = { "rush_requests", &stat_rush_requests };
+struct ctldebug debug23 = { "blk_limit_push", &stat_blk_limit_push };
+struct ctldebug debug24 = { "ino_limit_push", &stat_ino_limit_push };
+struct ctldebug debug25 = { "blk_limit_hit", &stat_blk_limit_hit };
+struct ctldebug debug26 = { "ino_limit_hit", &stat_ino_limit_hit };
+struct ctldebug debug27 = { "indir_blk_ptrs", &stat_indir_blk_ptrs };
+struct ctldebug debug28 = { "inode_bitmap", &stat_inode_bitmap };
+struct ctldebug debug29 = { "direct_blk_ptrs", &stat_direct_blk_ptrs };
+struct ctldebug debug30 = { "dir_entry", &stat_dir_entry };
 #endif	/* !__FreeBSD__ */
 
 #endif /* DEBUG */
@@ -492,11 +507,10 @@ add_to_worklist(wk)
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: already on list");
 	wk->wk_state |= ONWORKLIST;
-	if (LIST_FIRST(&softdep_workitem_pending) == NULL) {
+	if (LIST_FIRST(&softdep_workitem_pending) == NULL)
 		LIST_INSERT_HEAD(&softdep_workitem_pending, wk, wk_list);
-	} else {
+	else
 		LIST_INSERT_AFTER(worklist_tail, wk, wk_list);
-	}
 	worklist_tail = wk;
 }
 
@@ -2972,6 +2986,8 @@ softdep_disk_write_complete(bp)
 					panic("disk_write_complete: not gone");
 			}
 			WORKLIST_INSERT(&reattach, wk);
+			if ((bp->b_flags & B_DELWRI) == 0)
+				stat_indir_blk_ptrs++;
 			bdirty(bp);
 			continue;
 
@@ -3127,6 +3143,8 @@ handle_written_inodeblock(inodedep, bp)
 		*dp = *inodedep->id_savedino;
 		FREE(inodedep->id_savedino, M_INODEDEP);
 		inodedep->id_savedino = NULL;
+		if ((bp->b_flags & B_DELWRI) == 0)
+			stat_inode_bitmap++;
 		bdirty(bp);
 		return (1);
 	}
@@ -3158,6 +3176,8 @@ handle_written_inodeblock(inodedep, bp)
 		adp->ad_state |= ATTACHED;
 		hadchanges = 1;
 	}
+	if (hadchanges && (bp->b_flags & B_DELWRI) == 0)
+		stat_direct_blk_ptrs++;
 	/*
 	 * Reset the file size to its most up-to-date value.
 	 */
@@ -3356,8 +3376,11 @@ handle_written_filepage(pagedep, bp)
 	 * marked dirty so that its will eventually get written back in
 	 * its correct form.
 	 */
-	if (chgs)
+	if (chgs) {
+		if ((bp->b_flags & B_DELWRI) == 0)
+			stat_dir_entry++;
 		bdirty(bp);
+	}
 	/*
 	 * If no dependencies remain, the pagedep will be freed.
 	 * Otherwise it will remain to update the page before it
@@ -3636,6 +3659,52 @@ softdep_fsync(vp)
 	}
 	FREE_LOCK(&lk);
 	return (0);
+}
+
+/*
+ * Flush all the dirty bitmaps associated with the block device
+ * before flushing the rest of the dirty blocks so as to reduce
+ * the number of dependencies that will have to be rolled back.
+ */
+void
+softdep_fsync_mountdev(vp)
+	struct vnode *vp;
+{
+	struct buf *bp, *nbp;
+	struct worklist *wk;
+
+	if (vp->v_type != VBLK)
+		panic("softdep_fsync_mountdev: vnode not VBLK");
+	ACQUIRE_LOCK(&lk);
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		/* 
+		 * If it is already scheduled, skip to the next buffer.
+		 */
+		if (bp->b_flags & B_BUSY)
+			continue;
+		if ((bp->b_flags & B_DELWRI) == 0)
+			panic("softdep_fsync_mountdev: not dirty");
+		/*
+		 * We are only interested in bitmaps with outstanding
+		 * dependencies.
+		 */
+		if ((wk = LIST_FIRST(&bp->b_dep)) == NULL ||
+		    wk->wk_type != D_BMSAFEMAP)
+			continue;
+		bremfree(bp);
+		bp->b_flags |= B_BUSY;
+		FREE_LOCK(&lk);
+		(void) bawrite(bp);
+		ACQUIRE_LOCK(&lk);
+		/*
+		 * Since we may have slept during the I/O, we need 
+		 * to start from a known point.
+		 */
+		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+	}
+	drain_output(vp, 1);
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -4142,7 +4211,7 @@ checklimit(resource, islocked)
 	splx(s);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
-		rush_requests += 1;
+		stat_rush_requests += 1;
 		return (0);
 	}
 	/*
@@ -4156,10 +4225,10 @@ checklimit(resource, islocked)
 	 * started above) to do the cleanup for us.
 	 */
 	if (resource == &num_inodedep) {
-		ino_limit_push += 1;
+		stat_ino_limit_push += 1;
 		req_clear_inodedeps = 1;
 	} else {
-		blk_limit_push += 1;
+		stat_blk_limit_push += 1;
 		req_clear_remove = 1;
 	}
 	/*
@@ -4181,9 +4250,9 @@ checklimit(resource, islocked)
 		proc_waiting = 0;
 	} else {
 		if (resource == &num_inodedep)
-			ino_limit_hit += 1;
+			stat_ino_limit_hit += 1;
 		else
-			blk_limit_hit += 1;
+			stat_blk_limit_hit += 1;
 	}
 	if (islocked == 0)
 		FREE_LOCK(&lk);
