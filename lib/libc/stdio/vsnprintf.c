@@ -39,11 +39,11 @@
 static char sccsid[] = "@(#)vsnprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vsnprintf.c,v 1.9 1997/12/24 23:02:47 ache Exp $";
+		"$Id: vsnprintf.c,v 1.10 1997/12/24 23:54:19 ache Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <stdio.h>
 #include <limits.h>
+#include <stdio.h>
 
 int
 vsnprintf(str, n, fmt, ap)
@@ -52,15 +52,15 @@ vsnprintf(str, n, fmt, ap)
 	const char *fmt;
 	_BSD_VA_LIST_ ap;
 {
+	size_t on;
 	int ret;
 	FILE f;
-	size_t on;
 
 	on = n;
-	if (n > 0)
+	if (n != 0)
 		n--;
 	if (n > INT_MAX)
-		return (EOF);
+		n = INT_MAX;
 	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
