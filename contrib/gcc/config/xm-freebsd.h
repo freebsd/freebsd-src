@@ -23,6 +23,9 @@ Boston, MA 02111-1307, USA.  */
    instead $xm_file should be CPU/xm-freebsd.h, which should include both
    CPU/xm-CPU.h and this file xm-freebsd.h.  */
    
+/* FreeBSD has putenv.  */
+#define HAVE_PUTENV
+
 /* FreeBSD has strerror.  */
 #define HAVE_STRERROR
 
