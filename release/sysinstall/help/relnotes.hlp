@@ -140,12 +140,12 @@ DAT) and CD ROM drives.
 
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
-	SoundBlaster SCSI)
+        SoundBlaster SCSI)
 (mcd)   Mitsumi proprietary interface (all models)
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
-	interface (562/563 models)
+        interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)	ATAPI IDE interface (experimental and should be considered ALPHA
+(wcd)   ATAPI IDE interface (experimental and should be considered ALPHA
         quality!).
 
 
@@ -390,4 +390,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.8 1995/11/04 09:33:17 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.9 1995/11/15 08:32:34 jkh Exp $

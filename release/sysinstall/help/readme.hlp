@@ -99,8 +99,8 @@ searching facilities.  If you wish to use Netscape as your browser,
 you may install the BSDI version from ftp://ftp.mcom.com or simply
 type:
 
-	# cd /usr/ports/net/netscape
-	# make all install
+        # cd /usr/ports/net/netscape
+        # make all install
 
 If you have the Ports collection installed (see the Configuration menu
 or enable the Ports collection when given the chance to do so during
@@ -118,4 +118,4 @@ syntax in any HTML capable browser.
 
 We sincerely hope you enjoy this release of FreeBSD!
 
-	                                The FreeBSD Project
+                                        The FreeBSD Project
