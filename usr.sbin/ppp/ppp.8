@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.118 1998/08/11 18:59:36 brian Exp $
+.\" $Id: ppp.8,v 1.119 1998/08/25 17:48:43 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2590,6 +2590,13 @@ is logged as
 for security reasons.
 .It set authname Ar id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
+.Pp
+If used in
+.Fl direct
+mode with PAP or CHAP enabled,
+.Ar id
+is used in the initial authentication request and is normally set to
+the local machine name.
 .It set autoload Ar max-duration max-load [min-duration min-load]
 These settings apply only in multi-link mode and all default to zero.
 When more than one
