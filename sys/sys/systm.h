@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id$
+ * $Id: systm.h,v 1.50 1997/02/22 09:46:06 peter Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -122,6 +122,7 @@ int	fuword __P((const void *base));
 int	suword __P((void *base, int word));
 int	susword __P((void *base, int word));
 
+struct timeval;
 int	hzto __P((struct timeval *tv));
 void	realitexpire __P((void *));
 
