@@ -1915,7 +1915,7 @@
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
     (&man.el.4; driver)</para>
 
-    <para arch="i386,pc98,alpha">3Com Etherlink XL-based NICs (&man.xl.4; driver)
+    <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL-based NICs (&man.xl.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>3C900/905/905B/905C PCI</para>
