@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.58 1996/06/17 21:57:54 jkh Exp $
+ * $Id: sysinstall.h,v 1.65 1996/06/29 02:22:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,6 +117,7 @@
 #define VAR_NFS_SECURE			"nfsSecure"
 #define VAR_NFS_SERVER			"nfs_server"
 #define VAR_NO_CONFIRM			"noConfirm"
+#define VAR_NOVELL			"novell"
 #define VAR_NTPDATE			"ntpDate"
 #define VAR_PCNFSD			"pcnfsd"
 #define VAR_PKG_TMPDIR			"PKG_TMPDIR"
@@ -364,6 +365,11 @@ extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configXFree86(dialogMenuItem *self);
 extern int	configRoutedFlags(dialogMenuItem *self);
+extern int	configGated(dialogMenuItem *self);
+extern int	configSamba(dialogMenuItem *self);
+extern int	configPCNFSD(dialogMenuItem *self);
+extern int	configNFSServer(dialogMenuItem *self);
+extern int	configNovell(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
@@ -470,11 +476,6 @@ extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern Boolean	copySelf(void);
 
-/* installFinal.c */
-extern int	configGated(dialogMenuItem *self);
-extern int	configSamba(dialogMenuItem *self);
-extern int	configPCNFSD(dialogMenuItem *self);
-extern int	configNFSServer(dialogMenuItem *self);
 
 /* label.c */
 extern int	diskLabelEditor(dialogMenuItem *self);
