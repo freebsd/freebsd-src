@@ -242,7 +242,7 @@ i686_mrstore(struct mem_range_softc *sc)
 {
 #ifdef SMP
     /*
-     * We should use all_but_self_ipi() to call other CPUs into a 
+     * We should use smp_ipi_all_but_self() to call other CPUs into a 
      * locking gate, then call a target function to do this work.
      * The "proper" solution involves a generalised locking gate
      * implementation, not ready yet.
