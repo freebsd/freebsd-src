@@ -251,10 +251,12 @@ do {									\
 #endif	/* INVARIANTS */
 
 #ifdef MUTEX_DEBUG
-#define MPASS(ex) if (!(ex)) panic("Assertion %s failed at %s:%d",	\
-                #ex, __FILE__, __LINE__)
-#define MPASS2(ex, what) if (!(ex)) panic("Assertion %s failed at %s:%d", \
-                what, __FILE__, __LINE__)
+#define MPASS(ex)							\
+	if (!(ex))							\
+		panic("Assertion %s failed at %s:%d", #ex, __FILE__, __LINE__)
+#define MPASS2(ex, what)						\
+	if (!(ex))							\
+		panic("Assertion %s failed at %s:%d", what, __FILE__, __LINE__)
 #define MPASS3(ex, file, line)						\
 	if (!(ex))							\
 		panic("Assertion %s failed at %s:%d", #ex, file, line)
@@ -263,7 +265,7 @@ do {									\
 		panic("Assertion %s failed at %s:%d", what, file, line)
 #else	/* MUTEX_DEBUG */
 #define	MPASS(ex)
-#define	MPASS2(ex, where)
+#define	MPASS2(ex, what)
 #define	MPASS3(ex, file, line)
 #define	MPASS4(ex, what, file, line)
 #endif	/* MUTEX_DEBUG */
@@ -284,13 +286,13 @@ do {									\
 #define	WITNESS_SAVE(m, n) 						\
 do {									\
 	if ((m)->mtx_witness != NULL) 					\
-	    witness_save(m, &__CONCAT(n, __wf), &__CONCAT(n, __wl));	\
+		witness_save(m, &__CONCAT(n, __wf), &__CONCAT(n, __wl));\
 } while (0)
 
 #define	WITNESS_RESTORE(m, n) 						\
 do {									\
 	if ((m)->mtx_witness != NULL)					\
-	    witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl));	\
+		witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl));\
 } while (0)
 
 void	witness_init(struct mtx *, int flag);
@@ -439,7 +441,7 @@ void	witness_restore(struct mtx *, const char *, int);
 /*
  * Return non-zero if a mutex is already owned by the current thread.
  */
-#define	mtx_owned(m)    (((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)CURTHD)
+#define	mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)CURTHD)
 
 /*
  * Return non-zero if a mutex has been recursively acquired.
@@ -535,7 +537,7 @@ _mtx_enter(struct mtx *mtxp, int type, const char *file, int line)
 		else
 			_getlock_norecurse(mpp, CURTHD, (type) & MTX_HARDOPTS);
 	}
-	done:
+done:
 	WITNESS_ENTER(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
 	    mpp->mtx_description, mpp, mpp->mtx_recurse, file, line);
