@@ -224,11 +224,12 @@ struct ata_pci_controller {
 #define ATA_VIA8233C		0x31091106
 #define ATA_VIA8235		0x31771106
 #define ATA_VIA8237		0x32271106
-#define ATA_VIA8237_1		0x31491106
 #define ATA_VIA8361		0x31121106
 #define ATA_VIA8363		0x03051106
 #define ATA_VIA8371		0x03911106
 #define ATA_VIA8662		0x31021106
+#define ATA_VIA6410		0x31641106
+#define ATA_VIA6420		0x31491106
 
 /* chipset setup related defines */
 #define ATPOLD		1
