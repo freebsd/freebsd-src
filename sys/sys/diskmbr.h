@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.20 1996/03/11 02:06:30 hsu Exp $
+ * $Id: disklabel.h,v 1.21 1996/05/03 05:38:34 asami Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -199,6 +199,10 @@ struct disklabel {
 #define	DTYPE_FLOPPY		10		/* floppy */
 #define	DTYPE_CCD		11		/* concatenated disk */
 
+#ifdef PC98
+#define DSTYPE_SEC256		0x80		/* physical sector size=256*/
+#endif
+
 #ifdef DKTYPENAMES
 static char *dktypenames[] = {
 	"unknown",
@@ -312,6 +316,34 @@ struct partinfo {
 
 /* DOS partition table -- located in boot block */
 
+#ifdef PC98
+#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#define DOSLABELSECTOR	1	/* 0: 256b/s, 1: 512b/s */
+#define	DOSPARTOFF	0
+#define NDOSPART	16
+#define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
+#define	MBR_PTYPE_FreeBSD 0x94	/* FreeBSD partition type */
+
+struct dos_partition {
+    	unsigned char	dp_mid;
+#define DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
+	unsigned char	dp_sid;
+#define DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
+	unsigned char	dp_dum1;
+	unsigned char	dp_dum2;
+	unsigned char	dp_ipl_sct;
+	unsigned char	dp_ipl_head;
+	unsigned short	dp_ipl_cyl;
+	unsigned char	dp_ssect;	/* starting sector */
+	unsigned char	dp_shd;		/* starting head */
+	unsigned short	dp_scyl;	/* starting cylinder */
+	unsigned char	dp_esect;	/* end sector */
+	unsigned char	dp_ehd;		/* end head */
+	unsigned short	dp_ecyl;	/* end cylinder */
+	unsigned char	dp_name[16];
+};
+
+#else /* IBMPC */
 #define DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define DOSPARTOFF	446
 #define NDOSPART	4
@@ -329,6 +361,7 @@ struct dos_partition {
 	unsigned long	dp_start;	/* absolute starting sector number */
 	unsigned long	dp_size;	/* partition size in sectors */
 };
+#endif
 
 #define DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */

@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.3 1995/12/29 08:04:13 markm Exp $
+ * $Id: random.h,v 1.4 1996/01/30 22:54:53 mpp Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -51,8 +51,13 @@
 #define _MACHINE_RANDOM_H_ 1
 
 #if defined(KERNEL)
+#ifdef PC98
+#include <pc98/pc98/icu.h>
+#include <pc98/pc98/pc98_device.h>
+#else
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
+#endif
 #endif
 #include <sys/ioctl.h>
 

@@ -47,9 +47,15 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_device.h>
+#include <pc98/pc98/icu.h>
+#else
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#endif /* PC98 */
 
 #include "apm.h"
 #if   NAPM > 0
@@ -480,6 +486,8 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	struct pccard_drv *dp;
 	int err, irq = 0, s;
 
+/* BUCHI */
+
 	dp = find_driver(drvp->name);
 	if (dp == 0)
 		return(ENXIO);
@@ -499,6 +507,12 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	 *	If an interrupt mask has been given, then check it
 	 *	against the slot interrupt (if one has been allocated).
 	 */
+/* BUCHI */
+#if 0
+printf("drvp->irqmask=0x%x, dp->imask=0x%x, sp->irq=0x%x, sp->ctrl->irqs=0x%x\n", drvp->irqmask, dp->imask, sp->irq, sp->ctrl->irqs);
+printf("name=%s, unit=%d, mem=0x%x, memsz=%d, iobase=0x%x, irqmask=0x%x\n", drvp->name, drvp->unit, drvp->mem, drvp->memsize, drvp->iobase, drvp->irqmask);
+#endif
+
 	if (drvp->irqmask && dp->imask) {
 		if ((sp->ctrl->irqs & drvp->irqmask)==0)
 			return(EINVAL);

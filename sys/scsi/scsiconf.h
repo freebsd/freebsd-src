@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.40 1996/03/10 07:13:11 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.41 1996/03/31 03:19:09 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -56,6 +56,9 @@ typedef	int			errval;
 
 struct buf;
 struct scsi_xfer;
+#ifdef PC98
+struct cfdata;
+#endif
 
 /*
  * These entrypoints are called by the high-end drivers to get services from
@@ -66,7 +69,12 @@ struct scsi_adapter
 {
 /* 04*/	int32_t		(*scsi_cmd) __P((struct scsi_xfer *xs));
 /* 08*/	void		(*scsi_minphys) __P((struct buf *bp));
+#ifdef PC98
+/* 12*/	int32_t		(*open_target_lu) __P((struct scsi_link *sc_link,
+										   struct cfdata *cf));
+#else
 /* 12*/	int32_t		(*open_target_lu) __P((void));
+#endif
 /* 16*/	int32_t		(*close_target_lu) __P((void));
 /* 20*/	u_int32_t		(*adapter_info) __P((int unit)); /* see definitions below */
 /* 24*/	char		*name; /* name of scsi bus controller */

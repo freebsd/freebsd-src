@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.29 1995/12/03 16:42:02 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.30 1995/12/07 12:47:20 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -558,6 +558,13 @@ msdosfs_read(ap)
 			    NOCRED, &bp);
 		} else {
 			rablock = lbn + 1;
+#ifdef	PC98
+			/*
+			 * 1024byte/sector support
+			 */
+			if (pmp->pm_BytesPerSec == 1024)
+					vp->v_flag |= 0x10000;
+#endif
 			if (vp->v_lastr + 1 == lbn &&
 			    rablock * pmp->pm_bpcluster < dep->de_FileSize) {
 				rasize = pmp->pm_bpcluster;
@@ -693,6 +700,13 @@ msdosfs_write(ap)
 	osize = dep->de_FileSize;
 
 
+#ifdef	PC98
+	/*
+	 * 1024byte/sector support
+	 */
+	if (pmp->pm_BytesPerSec == 1024)
+		thisvp->v_flag |= 0x10000;
+#endif
 	/*
 	 * If we write beyond the end of the file, extend it to its ultimate
 	 * size ahead of the time to hopefully get a contiguous area.
