@@ -35,7 +35,7 @@ Network Address Translation Daemon
 .Op Fl interface Ar interface
 .Op Fl config Ar configfile
 .Op Fl redirect_port Ar linkspec
-.Op Fl redirect_address Ar localIP publicIP
+.Op Fl redirect_address Ar linkspec
 .Op Fl reverse
 .Op Fl proxy_only
 .Op Fl proxy_rule Ar proxyspec
@@ -163,7 +163,45 @@ the incoming traffic will be directed to the last
 translated local address (192.168.0.4), but outgoing
 traffic to the first two addresses will still be aliased
 to specified public address.
-
+.It Fl redirect_port Ar proto Xo
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar targetIP Ns : Ns Xo
+.Ar targetPORT Ns Oo , Ns
+.Ar ...
+.Oc Oc
+.Xc
+.Xc
+.Op Ar aliasIP Ns : Ns Xo
+.Ar aliasPORT
+.Xc
+.Oo Ar remoteIP Ns
+.Op : Ns Ar remotePORT
+.Oc
+.Xc
+.It Fl redirect_address Xo
+.Ar localIP Ns Oo , Ns
+.Ar localIP Ns Oo , Ns
+.Ar ...
+.Oc Oc
+.Ar publicIP
+.Xc
+These forms of
+.Fl redirect_port
+and
+.Fl redirect_address
+are used to transparently offload network load on a single server and
+distribute the load across a pool of servers.
+This function is known as
+.Em LSNAT
+(RFC 2391).
+For example, the argument
+.Pp
+.Dl Ar tcp www1:http,www2:http,www3:http www:http
+.Pp
+means that incoming HTTP requests for host www will be transparently
+redirected to one of the www1, www2 or www3, where a host is selected
+simply on a round-robin basis, without regard to load on the net.
 .It Fl dynamic
 If the
 .Fl n
