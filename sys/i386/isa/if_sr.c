@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.3 1996/10/29 03:52:51 jhay Exp $
+ * $Id: if_sr.c,v 1.4 1996/10/31 20:22:40 jhay Exp $
  */
 
 /*
@@ -1289,6 +1289,7 @@ srioctl(struct ifnet *ifp, int cmd, caddr_t data)
 		case N2_USE_PPP:
 		default:
 			sppp_detach(ifp);
+			sc->ifsppp.pp_flags &= ~PP_KEEPALIVE;
 		}
 
 		sc->attached = 0;
@@ -1302,7 +1303,7 @@ srioctl(struct ifnet *ifp, int cmd, caddr_t data)
 #endif
 		case N2_USE_PPP:
 		default:
-			sc->ifsppp.pp_flags = PP_KEEPALIVE;
+			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
 		}
 
@@ -1485,7 +1486,7 @@ sr_up(struct sr_softc *sc)
 #endif
 		case N2_USE_PPP:
 		default:
-			sc->ifsppp.pp_flags = PP_KEEPALIVE;
+			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
 		}
 
