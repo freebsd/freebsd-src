@@ -670,6 +670,8 @@ g_sanity(void *ptr)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
+	if (!(g_debugflags & 0x8))
+		return;
 	LIST_FOREACH(mp, &g_classes, class) {
 		KASSERT(mp != ptr, ("Ptr is live class"));
 		KASSERT(mp->protect == 0x20016600,
