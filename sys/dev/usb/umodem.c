@@ -115,6 +115,15 @@ SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
 #endif
 #define DPRINTF(x) DPRINTFN(0, x)
 
+static const struct umodem_product {
+	u_int16_t	vendor;
+	u_int16_t	product;
+} umodem_products[] = {
+	/* Kyocera AH-K3001V*/
+	{ USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V },
+	{ 0, 0 },
+};
+
 /*
  * These are the maximum number of bytes transferred per frame.
  * If some really high speed devices should use this driver they
@@ -213,17 +222,34 @@ USB_MATCH(umodem)
 {
 	USB_MATCH_START(umodem, uaa);
 	usb_interface_descriptor_t *id;
-	int cm, acm;
+	usb_device_descriptor_t *dd;
+	int cm, acm, i, ret;
 
 	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
 
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id == NULL ||
-	    id->bInterfaceClass != UICLASS_CDC ||
-	    id->bInterfaceSubClass != UISUBCLASS_ABSTRACT_CONTROL_MODEL ||
-	    id->bInterfaceProtocol != UIPROTO_CDC_AT)
+	dd = usbd_get_device_descriptor(uaa->device);
+	if (id == NULL || dd == NULL)
 		return (UMATCH_NONE);
+
+	ret = UMATCH_NONE;
+	for (i = 0; umodem_products[i].vendor != 0; i++) {
+		if (umodem_products[i].vendor == UGETW(dd->idVendor) &&
+		    umodem_products[i].product == UGETW(dd->idProduct)) {
+			ret = UMATCH_VENDOR_PRODUCT;
+			break;
+		}
+	}
+
+	if (ret == UMATCH_NONE &&
+	    id->bInterfaceClass == UICLASS_CDC &&
+	    id->bInterfaceSubClass == UISUBCLASS_ABSTRACT_CONTROL_MODEL &&
+	    id->bInterfaceProtocol == UIPROTO_CDC_AT)
+		ret = UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO;
+
+	if (ret == UMATCH_NONE)
+		return (ret);
 
 	umodem_get_caps(uaa->device, &cm, &acm);
 	if (!(cm & USB_CDC_CM_DOES_CM) ||
@@ -231,7 +257,7 @@ USB_MATCH(umodem)
 	    !(acm & USB_CDC_ACM_HAS_LINE))
 		return (UMATCH_NONE);
 
-	return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
+	return ret;
 }
 
 USB_ATTACH(umodem)
