@@ -880,19 +880,19 @@ fxp_detach(device_t dev)
 
 	FXP_LOCK(sc);
 	s = splimp();
+
+	sc->gone = 1;
 	/*
 	 * Close down routes etc.
 	 */
 	ether_ifdetach(&sc->arpcom.ac_if);
 
 	/*
-	 * Stop DMA and drop transmit queue.
+	 * Stop DMA and drop transmit queue, but disable interrupts first.
 	 */
-	if (bus_child_present(dev)) {
-		/* disable interrupts */
-		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
-		fxp_stop(sc);
-	}
+	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
+	fxp_stop(sc);
+	FXP_UNLOCK(sc);
 
 	/*
 	 * Unhook interrupt before dropping lock. This is to prevent
@@ -901,7 +901,6 @@ fxp_detach(device_t dev)
 	bus_teardown_intr(sc->dev, sc->irq, sc->ih);
 	sc->ih = NULL;
 
-	FXP_UNLOCK(sc);
 	splx(s);
 
 	/* Release our allocated resources. */
@@ -1859,7 +1858,7 @@ fxp_stop(struct fxp_softc *sc)
 	txp = sc->fxp_desc.tx_list;
 	if (txp != NULL) {
 		for (i = 0; i < FXP_NTXCB; i++) {
-			if (txp[i].tx_mbuf != NULL) {
+ 			if (txp[i].tx_mbuf != NULL) {
 				bus_dmamap_sync(sc->fxp_mtag, txp[i].tx_map,
 				    BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(sc->fxp_mtag, txp[i].tx_map);
@@ -2359,6 +2358,9 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int s, error = 0;
+
+	if (sc->gone)
+		return (ENODEV);
 
 	FXP_LOCK(sc);
 	s = splimp();
