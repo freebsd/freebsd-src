@@ -31,11 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.13 1996/05/19 07:36:41 dyson Exp $
+ * $Id: mman.h,v 1.14 1996/05/23 00:45:44 dyson Exp $
  */
 
 #ifndef _SYS_MMAN_H_
 #define _SYS_MMAN_H_
+
+/*
+ * Error return from mmap()
+ */
+#define MAP_FAILED	((caddr_t)-1)
 
 /*
  * Protections are chosen from these bits, or-ed together
@@ -99,7 +104,10 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+#ifndef _MMAP_DECLARED
+#define	_MMAP_DECLARED
 caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
+#endif
 int	mprotect __P((caddr_t, size_t, int));
 int	munmap __P((caddr_t, size_t));
 int	msync __P((caddr_t, size_t, int));
