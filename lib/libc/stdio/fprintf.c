@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)fprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 #if __STDC__
-fprintf(FILE *fp, const char *fmt, ...)
+int fprintf(FILE *fp, const char *fmt, ...)
 #else
 fprintf(fp, fmt, va_alist)
 	FILE *fp;
