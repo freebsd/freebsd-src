@@ -67,7 +67,6 @@ See below for conformance to standards and/or internet drafts.
 .\"
 .Ss Plug and Play and protocol stack/interface configuration
 .Xr ndp 8 ,
-.Xr prefix 8 ,
 .Xr rrenumd 8 ,
 .Xr rtadvd 8 ,
 .Xr rtsol 8 ,
@@ -81,8 +80,8 @@ See below for conformance to standards and/or internet drafts.
 .Xr mchat 1
 .Pq - ,
 .Xr ifmcstat 8 ,
-.Xr pim6dd 8 ,
-.Xr pim6sd 8 ,
+.Xr pim6dd 8 [ /usr/ports/net/pim6dd ] ,
+.Xr pim6sd 8 [ /usr/ports/net/pim6sd ] ,
 .Xr pim6stat 8 .
 .\"
 .Ss Transition Tools
@@ -96,12 +95,8 @@ is not yet integrated into
 .Fx .
 .\"
 .Ss IPsec and tunnelling
-.Xr gifconfig 8 ,
 .Xr ipsec 4 ,
-.\" (dtcp and racoon doesn't exist yet.)
-.\" .Xr dtcpc 8 ,
-.\" .Xr dtcps 8 ,
-.\" .Xr racoon 8 ,
+.Xr racoon 8 [ /usr/ports/security/racoon ] ,
 .Xr setkey 8 .
 .Pp
 Dozen of existing tools are modified for IPsec support, like
@@ -123,6 +118,7 @@ and/or
 modified for IPv4/v6 support, or
 IPv6-only
 .Xr inet6d 8
+.Pq -
 is supplied.
 .Pp
 Dozen of existing daemons are modified for IPv6/IPsec support, like
