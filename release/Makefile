@@ -234,7 +234,6 @@ rerelease release:
 	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
 	@exit 1
 .endif
-	-vnconfig 2>/dev/null
 .if make(release)
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
@@ -580,6 +579,7 @@ release.7:
 #
 
 release.8: write_mfs_in_kernel
+	-vnconfig 2>/dev/null
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
@@ -900,7 +900,11 @@ doMFSKERN:
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
+.if ${MACHINE_ARCH} == "i386"
+	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader /boot/loader
+.else
 	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
+.endif
 .if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
