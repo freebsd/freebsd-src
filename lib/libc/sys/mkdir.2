@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mkdir.2	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: mkdir.2,v 1.2 1996/10/05 22:26:41 wosch Exp $
 .\"
 .Dd December 11, 1993
 .Dt MKDIR 2
@@ -109,6 +109,7 @@ points outside the process's allocated address space.
 .Xr stat 2 ,
 .Xr umask 2
 .Sh STANDARDS
-.Fn Mkdir
-conforms to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+The
+.Fn mkdir
+function call is expected to conform to 
+.St -p1003.1-90 .
