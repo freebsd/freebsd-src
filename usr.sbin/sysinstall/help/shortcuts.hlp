@@ -9,6 +9,8 @@ Syntax:
 
 Where "var" can be one or more of:
 
+addUser                 Add a new user to the system
+addGroup                Add a new group to the system
 blanktime               Screen blank time setting in seconds
 bootManager             Select boot manager: booteasy, standard or none
 browserBinary           Which doc browser to use (default: lynx)
