@@ -36,7 +36,7 @@
 #ifndef _DLFCN_H_
 #define	_DLFCN_H_
 
-#include <sys/cdefs.h>
+#include <sys/_types.h>
 
 /*
  * Modes and flags for dlopen().
@@ -49,12 +49,28 @@
 #define	RTLD_TRACE	0x200	/* Trace loaded objects and exit. */
 
 /*
- * Special handle arguments for dlsym().
+ * Request arguments for dlinfo().
+ */
+#define	RTLD_DI_LINKMAP		2	/* Obtain link map. */
+#define	RTLD_DI_SERINFO		4	/* Obtain search path info. */
+#define	RTLD_DI_SERINFOSIZE	5	/*  ... query for required space. */
+#define	RTLD_DI_ORIGIN		6	/* Obtain object origin */
+#define	RTLD_DI_MAX		RTLD_DI_ORIGIN
+
+/*
+ * Special handle arguments for dlsym()/dlinfo().
  */
 #define	RTLD_NEXT	((void *) -1)	/* Search subsequent objects. */
 #define	RTLD_DEFAULT	((void *) -2)	/* Use default search algorithm. */
+#define	RTLD_SELF	((void *) -3)	/* Search the caller itself. */
 
 #if __BSD_VISIBLE
+
+#ifndef	_SIZE_T_DECLARED
+typedef __size_t        size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
 /*
  * Structure filled in by dladdr().
  */
@@ -80,6 +96,20 @@ struct __dlfunc_arg {
 
 typedef	void (*dlfunc_t)(struct __dlfunc_arg);
 
+/*
+ * Structures, returned by the RTLD_DI_SERINFO dlinfo() request.
+ */
+typedef struct dl_serpath {
+	char *		dls_name;	/* single search path entry */
+	unsigned int	dls_flags;	/* path information */
+} Dl_serpath;
+
+typedef struct  dl_serinfo {
+        size_t		dls_size;       /* total buffer size */
+        unsigned int	dls_cnt;        /* number of path entries */
+        Dl_serpath	dls_serpath[1]; /* there may be more than one */
+} Dl_serinfo;
+
 #endif /* __BSD_VISIBLE */
 
 __BEGIN_DECLS
@@ -91,8 +121,9 @@ void	*dlopen(const char *, int);
 void	*dlsym(void * __restrict, const char * __restrict);
 
 #if __BSD_VISIBLE
-int	 dladdr(const void *, Dl_info *);
+int	 dladdr(const void * __restrict, Dl_info * __restrict);
 dlfunc_t dlfunc(void * __restrict, const char * __restrict);
+int	 dlinfo(void * __restrict, int, void * __restrict);
 void	 dllockinit(void *_context,
 	    void *(*_lock_create)(void *_context),
 	    void (*_rlock_acquire)(void *_lock),

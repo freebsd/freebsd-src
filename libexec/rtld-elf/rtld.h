@@ -156,7 +156,7 @@ typedef struct Struct_Obj_Entry {
     bool jmpslots_done;		/* Already have relocated the jump slots */
     bool init_done;		/* Already have added object to init list */
 
-    struct link_map linkmap;	/* for GDB */
+    struct link_map linkmap;	/* for GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
