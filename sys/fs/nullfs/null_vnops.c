@@ -715,7 +715,7 @@ null_inactive(struct vop_inactive_args *ap)
 	 * If this is the last reference, then free up the vnode
 	 * so as not to tie up the lower vnodes.
 	 */
-	vrecycle(vp, NULL, td);
+	vrecycle(vp, td);
 
 	return (0);
 }
