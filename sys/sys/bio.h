@@ -108,6 +108,7 @@ struct bio_queue_head {
 	daddr_t	last_pblkno;
 	struct	bio *insert_point;
 	struct	bio *switch_point;
+	int busy;
 };
 
 static __inline void bioq_init __P((struct bio_queue_head *head));
