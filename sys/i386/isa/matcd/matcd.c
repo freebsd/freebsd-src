@@ -220,10 +220,59 @@ Edit number code marking begins here - earlier edits were during development.
 	under FreeBSD 1.1.5.1 as well as 2.0 and early 2.1.
 	4-Apr-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 
+<17>	The function matcd_toc_entries which is executed in response to
+	the CDIOREADTOCENTRYS ioctl didn't cope with programs that only
+	requested part of the TOC.  This change is based on code submitted
+	by Doug Robson (dfr@render.com).
+	(This change was introduced out of order and exists in FreeBSD
+	 2.0.5 without the version stamp being updated.  I.N.M.F.)
+	1-Jun-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<18>	While working on the TEAC CD-ROM driver (teaccd) that is reusing
+	chunks of code from this driver, I discovered several functions,
+	arrays and other things that should have been declared 'static'.
+	These changes are necessary if the TEAC CD-ROM driver is to be
+	present at the same time as matcd.
+	Also fixed the residual buss vs bus symbols and strings.
+	There are no functional code changes in this edit.
+	2-May-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<19>	Creative has changed the Status port slightly in their
+	sound boards based on the Vibra-16 (and probably the Vibra-16S)
+	chipset.  This change masks some unused bits that were formally
+	on all the time and are doing different things in this design.
+	The changes are transparent to all other supported boards.
+	20-Jun-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<20>	Code was added to detect non-Creative (SoundBlaster) host
+	interfaces, and the driver will  switch to code compatible with the
+	detected host interface.  This should add support for MediaVision,
+	IBM, Reveal, and other compatible adapters with split
+	data/status-ports.  This code allows a mix of SoundBlaster (Type 0)
+	and non-SoundBlaster (Type 1) boards in the same system with no
+	special configuration.  
+
+	I also updated the attach code to display the interface type and
+	changed the host interface probe messages to reflect the "c" for
+	controller in controller-specific messages as the existing messages
+	were confusing when a second card was in place .  The kernel -c
+	tables have been updated accordingly, so you now have a matcdc%d
+	controller to change settings on.
+	24-Jun-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<21>	Added interface handling code in two of those "this should not
+	happen" routines, draincmd and get_stat.   Since these routines are
+	called by functions during probing that may not know what type
+	interface is out there, the code assumes that a given adapter is 
+	both a type 0 and a type 1 adapter at the same time.  Plus,
+	this code gets executed once in a very long time so the cost of
+	assuming both host adapter types is not significant.
+	4-Jul-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
 ---------------------------------------------------------------------------*/
 
 /*Match this format:		Version_dc(d)__dd-mmm-yy	*/
-static char	MATCDVERSION[]="Version  1(16)  4-Apr-95";
+static char	MATCDVERSION[]="Version  1(21)  4-Jul-95";
 
 /*	The following strings may not be changed*/
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
@@ -274,7 +323,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #define DIAGOUT	outb			/*<10>*/
 #endif /*DIAGPORT*/			/*<10>*/
 #ifdef DIAGPORT
-int	diagloop;			/*Used to show looping*/
+static	int	diagloop;		/*<18>Used to show looping*/
 #endif /*DIAGPORT*/
 
 
@@ -309,6 +358,7 @@ struct	matcd_mbx {
 	short	ldrive;
 	short	partition;
 	short	port;
+	short	iftype;			/*<20>Host interface type*/
 	short	retry;
 	short	nblk;
 	int	sz;
@@ -318,14 +368,15 @@ struct	matcd_mbx {
 	short	count;
 };
 
-struct matcd_data {
+static	struct matcd_data {		/*<18>*/
 	short	config;
 	short	drivemode;		/*Last state drive was set to*/
 	short	flags;
 	short	status;			/*Last audio-related function*/
 	int	blksize;
 	u_long	disksize;
-	int	iobase;
+	short	iobase;			/*<20>*/
+	short	iftype;			/*<20>Host interface type*/
 	struct	disklabel dlabel;
 	int	partflags[MAXPARTITIONS];
 	int	openflags;
@@ -357,16 +408,17 @@ struct matcd_data {
 #define ERR_FATAL	3		/*This cannot be recovered from*/
 
 
-struct	buf request_head[NUMCTRLRS];	/*A queue for each host interface*/
-	int	nextcontroller=0;	/*Number of interface units found*/
-	int	drivepresent=0; 	/*Don't change this - see license*/
+static	struct	buf request_head[NUMCTRLRS];	/*<18>A queue for each host interface*/
+static	int	nextcontroller=0;	/*<18>Number of interface units found*/
+static	int	drivepresent=0; 	/*<18>Don't change this - see license*/
+static	int	iftype;			/*<20>Probe/Attach i.f. type relay*/
 
-unsigned char	if_state[4]={0,0,0,0};	/*State of the host I/F and bus*/
+static	unsigned char	if_state[4]={0,0,0,0};	/*<18>State of the host I/F and bus*/
 
 /*	Flags in the if_state array
 */
 
-#define	BUSSBUSY	0x01		/*Buss is already busy*/
+#define	BUSBUSY	0x01			/*<18>Bus is already busy*/
 
 
 struct matcd_read2 {
@@ -382,7 +434,7 @@ struct matcd_read2 {
 #ifdef FREE2
 static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 	0,0,0,				/*Filled in by dev_attach*/
-	"matcd",0,{MDDT_ISA,0,"bio"},	/*<12>*/
+	"matcdc",0,{MDDT_ISA,0,"bio"},	/*<20>*/
 	isa_generic_externalize,0,0,ISA_EXTERNALLEN,	/*<12>*/
 	&kdc_isa0,			/*<12>Parent*/
 	0,				/*<12>Parent Data*/
@@ -434,7 +486,7 @@ extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
 extern	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,	/*<16>*/
-				     "matcd"};	/*<16>*/
+				     "matcdc"};	/*<20>*/
 
 
 /*---------------------------------------------------------------------------
@@ -610,7 +662,7 @@ int	matcdopen(dev_t dev)
 		i=matcdsize(dev);
 		unlockbus(controller, ldrive);	/*Release bus lock*/
 #ifdef DEBUGOPEN
-		printf("matcd%d: Buss unlocked in open\n",ldrive);
+		printf("matcd%d: Bus unlocked in open\n",ldrive);/*<18>*/
 #endif /*DEBUGOPEN*/
 		if (i < 0) {
 			printf("matcd%d: Could not read the disc size\n",ldrive);
@@ -863,7 +915,7 @@ static void matcd_start(struct buf *dp)
 	printf("matcd%d: In start controller %d\n",ldrive,controller);
 #endif	/*DEBUGIO*/
 
-	if (if_state[controller] & BUSSBUSY) {
+	if (if_state[controller] & BUSBUSY) {	/*<18>*/
 #ifdef DEBUGIO
 		printf("matcd%d: Dropping thread in start,  controller %d\n",
 	       		ldrive,controller);
@@ -884,11 +936,12 @@ static void matcd_start(struct buf *dp)
 	part=matcd_partition(bp->b_dev);
 	p=cd->dlabel.d_partitions + part;
 
-	if_state[controller] |= BUSSBUSY;/*Mark bus as busy*/
+	if_state[controller] |= BUSBUSY;/*<18>Mark bus as busy*/
 	cd->mbx.ldrive=ldrive;		/*Save current logical drive*/
 	cd->mbx.controller=controller;	/*and controller*/
 	cd->mbx.partition=part;		/*and partition (2048 vs 2532)*/
 	cd->mbx.port=cd->iobase;	/*and port#*/
+	cd->mbx.iftype=cd->iftype;	/*<20>interface type*/
 	cd->mbx.retry=MATCD_RETRYS;	/*and the retry count*/
 	cd->mbx.bp=bp;			/*and the bp*/
 	cd->mbx.p_offset=p->p_offset;	/*and where the data will go*/
@@ -1185,7 +1238,7 @@ int matcd_probe(struct isa_device *dev)
 	}
 #else /*AUTOHUNT*/
 	if (port==-1) {
-		printf("matcd%d: AUTOHUNT disabled but port? specified in config\n",
+		printf("matcdc%d: AUTOHUNT disabled but port? specified in config\n",
 		       nextcontroller);
 		return(0);
 	}
@@ -1197,11 +1250,17 @@ int matcd_probe(struct isa_device *dev)
 /*---------------------------------------------------------------------------
 	doprobe - Common probe code that actually checks the ports we
 		have decided to test.
+
+<20>	Edit 20 changes adds code to determine if the host interface
+	is one that behaves like the Creative SoundBlaster cards,
+	or whether the host interface like those used by some boards
+	made by Media Vision and a version known as Lasermate.
 ---------------------------------------------------------------------------*/
 
 int doprobe(int port,int cdrive)
 {
 	unsigned char cmd[MAXCMDSIZ];
+	int i;				/*<20>*/
 
 #ifdef RESETONBOOT
 	doreset(port,cdrive);		/*Reset what might be our device*/
@@ -1214,11 +1273,20 @@ int doprobe(int port,int cdrive)
 #ifdef RESETONBOOT
 	if (((inb(port+STATUS) & (DTEN|STEN)) != (DTEN|STEN)) ||  /*<16>*/
 	    (inb(port+DATA) != 0xff))	/*<16>*/
-		return(1);		/*<16>Something detected but it isn't
+		return(-1);		/*<20>Something detected but it isn't
 					      the device we wanted*/
 #endif /*RESETONBOOT*/
 	if (matcd_fastcmd(port,0,0,cmd)==0) {/*Issue command*/
-		inb(port+CMD);		/*Read status byte*/
+		outb(port+PHASE,1);	/*<20>Switch to Creative Data phase*/
+		i=inb(port+CMD);	/*<20>Read a byte in data phase*/
+		outb(port+PHASE,0);	/*<20>Switch to Creative Status phase*/
+		if ((inb(port+STATUS) & (DTEN|STEN))
+		    == (DTEN|STEN)) {	/*<20>Drive went idle*/
+			iftype=1;	/*<20>It is not a Creative interface.*/
+		} else {		/*<20>Status byte still available*/
+			iftype=0;	/*<20>*/
+			inb(port+CMD);	/*<20>Read status byte*/
+		}
 #ifdef DEBUGPROBE
 		printf("matcdc%d: Probe found something\n",nextcontroller);
 #endif /*DEBUGPROBE*/
@@ -1237,7 +1305,7 @@ int doprobe(int port,int cdrive)
 #ifdef DEBUGPROBE
 	printf("matcdc%d: Probe DID NOT find something\n",nextcontroller);
 #endif /*DEBUGPROBE*/
-	return(1);			/*Nothing detected*/
+	return(1);
 }
 
 
@@ -1287,6 +1355,8 @@ int matcd_attach(struct isa_device *dev)
 	printf("matcdc: Attach dev %x id_unit %d\n",
 	       (unsigned int)dev,dev->id_unit);
 #endif /*DEBUGPROBE*/
+	printf("matcdc%d Host interface type %d\n",	/*<20>*/
+		nextcontroller,iftype);			/*<20>*/
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
 		zero_cmd(cmd);
 		cmd[0]=NOP;		/*A reasonably harmless command.
@@ -1317,6 +1387,7 @@ int matcd_attach(struct isa_device *dev)
 			cd=&matcd_data[i];
 			cd->flags |= MATCDINIT;
 			cd->iobase=dev->id_iobase;
+			cd->iftype=iftype;	/*<20>*/
 			cd->openflags=0;
 			cd->volume[0]=cd->volume[1]=DEFVOL;	/*<12>*/
 					/*<12>Match volume drive resets to*/
@@ -1496,7 +1567,7 @@ void draincmd(int port,int cdrive,int ldrive)
 	int i,z;
 
 	i=inb(port+STATUS);
-	if (i==0xff) return;
+	if ((i & (DTEN|STEN)) == (DTEN|STEN)) return;	/*<19>*/
 
 	printf("matcd%d: in draincmd: bus not idle %x - trying to fix\n",
 	       ldrive,inb(port+STATUS));
@@ -1507,7 +1578,8 @@ void draincmd(int port,int cdrive,int ldrive)
 		i=0;
 		outb(port+PHASE,1);	/*<16>Enable data read*/
 		while ((inb(port+STATUS) & (DTEN|STEN)) == STEN) {
-			inb(port+DATA);
+			inb(port+DATA);		/*<21>Ok for Creative*/
+			inb(port+ALTDATA);	/*<21>Ok for others*/
 			i++;
 		}
 		outb(port+PHASE,0);	/*<16>*/
@@ -1523,8 +1595,8 @@ void draincmd(int port,int cdrive,int ldrive)
 #ifdef DEBUGCMD
 	printf("Data byte %x and status is now %x\n",i,z);
 #endif /*DEBUGCMD*/
-	if (z!=0xff) {
-		printf("matcd%d: Buss not idle %x - resetting\n",
+	if ((z & (DTEN|STEN)) != (DTEN|STEN)) {	/*<19>*/
+		printf("matcd%d: Bus not idle %x - resetting\n",/*<18>*/
 		       cdrive,inb(port+STATUS));
 		doreset(port,cdrive);
 	}
@@ -1765,6 +1837,7 @@ static void matcd_blockread(int state)
 	struct	matcd_mbx *mbx;
 	int	ldrive,cdrive;
 	int	port;
+	short	iftype;			/*<20>*/
 	struct	buf *bp;
 	struct	buf *dp;
 	struct	matcd_data *cd;
@@ -1784,6 +1857,7 @@ static void matcd_blockread(int state)
 	ldrive=mbx->ldrive;		/*ldrive is logical drive #*/
 	cdrive=ldrive & 0x03;		/*cdrive is drive # on a controller*/
 	port=mbx->port;			/*port is base port for i/f*/
+	iftype=mbx->iftype;		/*<20>*/
 	bp= mbx->bp;
 	cd=&matcd_data[ldrive];
 
@@ -1883,21 +1957,34 @@ nextblock:
 #ifdef DEBUGIO
 			printf("matcd%d: Data Phase\n",ldrive);
 #endif /*DEBUGIO*/
-			outb(port+PHASE,1);	/*Enable data read*/
 			addr=bp->b_un.b_addr + mbx->skip;
 #ifdef DEBUGIO
 			printf("matcd%d: Xfer Addr %x  size %x",
 			       ldrive,(unsigned int)addr,mbx->sz);
+			i=0;			/*<20>Reset read count*/
 #endif /*DEBUGIO*/
-			i=0;
-			while(inb(port+STATUS)==0xfd) {
-				*addr++=inb(port+DATA);
-				i++;
-			}
+			if (iftype==0) {	/*<20>Creative host I/F*/
+				outb(port+PHASE,1);	/*Enable data read*/
+				while((inb(port+STATUS) &
+				      (DTEN|STEN))==STEN) {/*<19>*/
+					*addr++=inb(port+DATA);
+#ifdef	DEBUGIO
+					i++;
+#endif /*DEBUGIO*/
+				}
+				outb(port+PHASE,0);	/*Disable read*/
+			} else {		/*<20>Not Creative interface*/
+				while((inb(port+STATUS) &	/*<20>*/
+				      (DTEN|STEN))==STEN) {	/*<20>*/
+					*addr++=inb(port+ALTDATA);/*<20>*/
+#ifdef	DEBUGIO
+					i++;	/*<20>*/
+#endif	/*DEBUGIO*/
+				}		/*<20>*/
+			}			/*<20>*/
 #ifdef DEBUGIO
 			printf("matcd%d: Read %d bytes\n",ldrive,i);
 #endif /*DEBUGIO*/
-			outb(port+PHASE,0);	/*Disable data read*/
 
 
 /*	Now, wait for the Status phase to arrive.   This will also
@@ -2102,7 +2189,7 @@ int get_stat(int port,int ldrive)
 	int 	status,busstat;		/*<16>*/
 	status=inb(port+DATA);		/*Read status byte, last step of cmd*/
 	busstat=inb(port+STATUS);	/*<16>Get bus status - should be 0xff*/
-	while (busstat!=0xff) {	/*<16>*/
+	while ((busstat & (DTEN|STEN)) != (DTEN|STEN)) {	/*<19>*/
 		printf("matcd%d: get_stat: After reading status byte, bus didn't go idle %x %x %x\n",ldrive,status,busstat,port);	/*<16>*/
 		if (( busstat & (DTEN|STEN)) == STEN) {	/*<16>*/
 			int k;
@@ -2113,6 +2200,7 @@ int get_stat(int port,int ldrive)
 			outb(port+PHASE,1);	/*Enable data read*/
 			while ((inb(port+STATUS) & (DTEN|STEN)) == STEN) {
 				inb(port+DATA);
+				inb(port+ALTDATA);	/*<21>*/
 /*				printf("%2x ",inb(port+DATA));*/
 				k++;
 			}
@@ -2192,7 +2280,7 @@ static void watchdog(int state, char * foo)
 
 void lockbus(int controller, int ldrive)
 {
-	while ((if_state[controller] & BUSSBUSY)) {
+	while ((if_state[controller] & BUSBUSY)) {	/*<18>*/
 #ifdef DEBUGSLEEP
 		printf("matcd%d: Can't do it now - going to sleep\n",
 		       ldrive);
@@ -2203,12 +2291,12 @@ void lockbus(int controller, int ldrive)
 		tsleep((caddr_t)&matcd_data->status, PRIBIO,
 		       "matcdopen", 0);
 	}
-	if_state[controller] |= BUSSBUSY;	/*It's ours NOW*/
+	if_state[controller] |= BUSBUSY;	/*<18>It's ours NOW*/
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0xF2);		/*Show where we are*/
 #endif /*DIAGPORT*/
 #ifdef DEBUGSLEEP
-	printf("matcd%d: BUSS locked in lockbus\n",ldrive);
+	printf("matcd%d: BUS locked in lockbus\n",ldrive);	/*<18>*/
 #endif /*DEBUGSLEEP*/
 }
 
@@ -2224,9 +2312,9 @@ void unlockbus(int controller, int ldrive)
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0xF4);		/*Show where we are*/
 #endif /*DIAGPORT*/
-	if_state[controller] &= ~BUSSBUSY;
+	if_state[controller] &= ~BUSBUSY;	/*<18>*/
 #ifdef DEBUGSLEEP
-	printf("matcd%d: busunlocked\n",ldrive);
+	printf("matcd%d: bus unlocked\n",ldrive);	/*<18>*/
 #endif /*DEBUGSLEEP*/
 	wakeup((caddr_t)&matcd_data->status);	/*Wakeup other users*/
 	matcd_start(&request_head[controller]);	/*Wake up any block I/O*/
@@ -2349,8 +2437,10 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 			     struct ioc_read_toc_entry * ioc_entry)
 {
 	struct	matcd_data *cd;
-	struct	cd_toc_entry	entries[MAXTRKS];
-	int	trk,i,z,port;
+	struct	cd_toc_entry entries[MAXTRKS];
+	struct	cd_toc_entry *from;		/*<17>*/
+	struct	cd_toc_entry *to;		/*<17>*/
+	int	len,trk,i,z,port;		/*<17>*/
 	unsigned char cmd[MAXCMDSIZ];
 	unsigned char data[5];
 
@@ -2405,22 +2495,21 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 	array from the kernel address space into the user address space
 */
 
-	{
-	    int len = ioc_entry->data_len;
-	    int i = ioc_entry->starting_track - 1;
-	    struct cd_toc_entry* from = &entries[i];
-	    struct cd_toc_entry* to = ioc_entry->data;
+	len=ioc_entry->data_len;	/*<17>*/
+	i=ioc_entry->starting_track - 1;/*<17>*/
+	from = &entries[i];		/*<17>*/
+	to = ioc_entry->data;		/*<17>*/
 
-	    while (i < trk && len >= sizeof(struct cd_toc_entry)) {
-		if (copyout(from, to, sizeof(struct cd_toc_entry)) != 0) {
-		    return (EFAULT);
-		}
-		i++;
-		len -= sizeof(struct cd_toc_entry);
-		from++;
-		to++;
-	    }
-	}
+	while (i < trk && len >= sizeof(struct cd_toc_entry)) {	/*<17>*/
+		if (copyout(from,to,sizeof(struct cd_toc_entry))/*<17>*/
+		    != 0) {		/*<17>*/
+			return (EFAULT);/*<17>*/
+		}			/*<17>*/
+		i++;			/*<17>*/
+		len -= sizeof(struct cd_toc_entry);	/*<17>*/
+		from++;			/*<17>*/
+		to++;			/*<17>*/
+	}				/*<17>*/
 	return(0);
 
 }
