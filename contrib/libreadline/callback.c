@@ -30,6 +30,13 @@
 #if defined (READLINE_CALLBACKS)
 
 #include <sys/types.h>
+
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif
+
 #include <stdio.h>
 
 /* System-specific feature definitions and include files. */

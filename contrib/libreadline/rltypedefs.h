@@ -45,40 +45,40 @@ typedef char **CPPFunction ();
 #  define _RL_FUNCTION_TYPEDEF
 
 /* Bindable functions */
-typedef int rl_command_func_t __P((int, int));
+typedef int rl_command_func_t PARAMS((int, int));
 
 /* Typedefs for the completion system */
-typedef char *rl_compentry_func_t __P((const char *, int));
-typedef char **rl_completion_func_t __P((const char *, int, int));
+typedef char *rl_compentry_func_t PARAMS((const char *, int));
+typedef char **rl_completion_func_t PARAMS((const char *, int, int));
 
-typedef char *rl_quote_func_t __P((char *, int, char *));
-typedef char *rl_dequote_func_t __P((char *, int));
+typedef char *rl_quote_func_t PARAMS((char *, int, char *));
+typedef char *rl_dequote_func_t PARAMS((char *, int));
 
-typedef int rl_compignore_func_t __P((char **));
+typedef int rl_compignore_func_t PARAMS((char **));
 
-typedef void rl_compdisp_func_t __P((char **, int, int));
+typedef void rl_compdisp_func_t PARAMS((char **, int, int));
 
 /* Type for input and pre-read hook functions like rl_event_hook */
-typedef int rl_hook_func_t __P((void));
+typedef int rl_hook_func_t PARAMS((void));
 
 /* Input function type */
-typedef int rl_getc_func_t __P((FILE *));
+typedef int rl_getc_func_t PARAMS((FILE *));
 
 /* Generic function that takes a character buffer (which could be the readline
    line buffer) and an index into it (which could be rl_point) and returns
    an int. */
-typedef int rl_linebuf_func_t __P((char *, int));
+typedef int rl_linebuf_func_t PARAMS((char *, int));
 
 /* `Generic' function pointer typedefs */
-typedef int rl_intfunc_t __P((int));
+typedef int rl_intfunc_t PARAMS((int));
 #define rl_ivoidfunc_t rl_hook_func_t
-typedef int rl_icpfunc_t __P((char *));
-typedef int rl_icppfunc_t __P((char **));
+typedef int rl_icpfunc_t PARAMS((char *));
+typedef int rl_icppfunc_t PARAMS((char **));
 
-typedef void rl_voidfunc_t __P((void));
-typedef void rl_vintfunc_t __P((int));
-typedef void rl_vcpfunc_t __P((char *));
-typedef void rl_vcppfunc_t __P((char **));
+typedef void rl_voidfunc_t PARAMS((void));
+typedef void rl_vintfunc_t PARAMS((int));
+typedef void rl_vcpfunc_t PARAMS((char *));
+typedef void rl_vcppfunc_t PARAMS((char **));
 #endif /* _RL_FUNCTION_TYPEDEF */
 
 #ifdef __cplusplus

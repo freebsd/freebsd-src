@@ -1,6 +1,10 @@
-@set EDITION 4.2-beta
-@set VERSION 4.2-beta
-@set UPDATED 2001 Mar 12
-@set UPDATE-MONTH Mar 2001
+@ignore
+Copyright (C) 1988-2002 Free Software Foundation, Inc. 
+@end ignore
 
-@set LASTCHANGE Mon Mar 12 05:36:44 EST 2001
+@set EDITION 4.3
+@set VERSION 4.3
+@set UPDATED 2002 March 4
+@set UPDATE-MONTH March 2002
+
+@set LASTCHANGE Mon Mar  4 12:00:16 EST 2002

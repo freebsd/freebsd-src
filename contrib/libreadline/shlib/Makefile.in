@@ -47,6 +47,9 @@ exec_prefix = @exec_prefix@
 includedir = @includedir@
 libdir = @libdir@
 
+# Support an alternate destination root directory for package building
+DESTDIR =
+
 CFLAGS = @CFLAGS@
 LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CPPFLAGS = @CPPFLAGS@
@@ -83,7 +86,7 @@ SHLIB_MAJOR=		@SHLIB_MAJOR@
 SHLIB_MINOR=		.@SHLIB_MINOR@
 
 # For libraries which include headers from other libraries.
-INCLUDES = -I. -I.. -I$(topdir) -I$(includedir)
+INCLUDES = -I. -I.. -I$(topdir)
 
 CCFLAGS = $(DEFS) $(LOCAL_DEFS) $(CPPFLAGS) $(INCLUDES) $(LOCAL_CFLAGS) $(CFLAGS)
 
@@ -110,20 +113,23 @@ CSOURCES = $(topdir)/readline.c $(topdir)/funmap.c $(topdir)/keymaps.c \
 	   $(topdir)/callback.c $(topdir)/terminal.c $(topdir)/xmalloc.c \
 	   $(topdir)/history.c $(topdir)/histsearch.c $(topdir)/histexpand.c \
 	   $(topdir)/histfile.c $(topdir)/nls.c $(topdir)/search.c \
-	   $(topdir)/shell.c $(topdir)/savestring.c $(topdir)/compat.c \
-	   $(topdir)/tilde.c
+	   $(topdir)/shell.c $(topdir)/savestring.c $(topdir)/tilde.c \
+	   $(topdir)/text.c $(topdir)/misc.c $(topdir)/compat.c \
+	   $(topdir)/mbutil.c
 
 # The header files for this library.
 HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
 	   posixstat.h posixdir.h posixjmp.h tilde.h rlconf.h rltty.h \
-	   ansi_stdlib.h tcap.h xmalloc.h rlprivate.h rlshell.h
+	   ansi_stdlib.h tcap.h xmalloc.h rlprivate.h rlshell.h rlmbutil.h
 
-SHARED_HISTOBJ = history.so histexpand.so histfile.so histsearch.so shell.so
+SHARED_HISTOBJ = history.so histexpand.so histfile.so histsearch.so shell.so \
+		 mbutil.so
 SHARED_TILDEOBJ = tilde.so
 SHARED_OBJ = readline.so vi_mode.so funmap.so keymaps.so parens.so search.so \
 	  rltty.so complete.so bind.so isearch.so display.so signals.so \
 	  util.so kill.so undo.so macro.so input.so callback.so terminal.so \
-	  nls.so xmalloc.so $(SHARED_HISTOBJ) $(SHARED_TILDEOBJ) compat.so
+	  text.so nls.so misc.so xmalloc.so $(SHARED_HISTOBJ) $(SHARED_TILDEOBJ) \
+	  compat.so
 
 ##########################################################################
 
@@ -147,17 +153,24 @@ $(SHARED_HISTORY):	$(SHARED_HISTOBJ) xmalloc.so
 	$(RM) $@
 	$(SHOBJ_LD) ${SHOBJ_LDFLAGS} ${SHLIB_XLDFLAGS} -o $@ $(SHARED_HISTOBJ) xmalloc.so $(SHLIB_LIBS)
 
+# Since tilde.c is shared between readline and bash, make sure we compile 
+# it with the right flags when it's built as part of readline
+tilde.so:        tilde.c
+	${RM} $@
+	$(SHOBJ_CC) -c $(CCFLAGS) $(SHOBJ_CFLAGS) -DREADLINE_LIBRARY -c -o tilde.o $(topdir)/tilde.c
+	$(MV) tilde.o $@
+
 installdirs: $(topdir)/support/mkdirs
-	-$(SHELL) $(topdir)/support/mkdirs $(libdir)
+	-$(SHELL) $(topdir)/support/mkdirs $(DESTDIR)$(libdir)
 
 install: installdirs $(SHLIB_STATUS)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(libdir) -i "$(INSTALL_DATA)" $(SHARED_HISTORY)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(libdir) -i "$(INSTALL_DATA)" $(SHARED_READLINE)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -i "$(INSTALL_DATA)" $(SHARED_HISTORY)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -i "$(INSTALL_DATA)" $(SHARED_READLINE)
 	@echo install: you may need to run ldconfig
 
 uninstall:
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(libdir) -U $(SHARED_HISTORY)
-	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(libdir) -U $(SHARED_READLINE)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -U $(SHARED_HISTORY)
+	$(SHELL) $(topdir)/support/shlib-install -O $(host_os) -d $(DESTDIR)$(libdir) -U $(SHARED_READLINE)
 	@echo uninstall: you may need to run ldconfig
 
 clean mostlyclean:	force
@@ -233,6 +246,13 @@ macro.so: $(topdir)/ansi_stdlib.h
 macro.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 macro.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 macro.so: $(topdir)/tilde.h $(topdir)/history.h $(topdir)/rltypedefs.h
+mbutil.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
+mbutil.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/rltypedefs.h
+mbutil.so: $(topdir)/chardefs.h $(topdir)/rlstdc.h
+misc.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+misc.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
+misc.so: $(topdir)/rltypedefs.h
+misc.so: $(topdir)/history.h $(topdir)/tilde.h $(topdir)/ansi_stdlib.h
 nls.so: $(topdir)/ansi_stdlib.h
 nls.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 nls.o: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
@@ -242,11 +262,6 @@ parens.so: $(topdir)/rlconf.h ${BUILD_DIR}/config.h
 parens.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 parens.so: $(topdir)/rltypedefs.h
 parens.so: $(topdir)/tilde.h
-readline.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
-readline.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
-readline.so: $(topdir)/rltypedefs.h
-readline.so: $(topdir)/history.h $(topdir)/tilde.h
-readline.so: $(topdir)/posixstat.h $(topdir)/ansi_stdlib.h $(topdir)/posixjmp.h
 rltty.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
 rltty.so: $(topdir)/rltty.h $(topdir)/tilde.h
 rltty.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
@@ -264,6 +279,10 @@ terminal.so: $(topdir)/tcap.h
 terminal.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 terminal.so: $(topdir)/tilde.h $(topdir)/history.h
 terminal.so: $(topdir)/rltypedefs.h
+text.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+text.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
+text.so: $(topdir)/rltypedefs.h
+text.so: $(topdir)/history.h $(topdir)/tilde.h $(topdir)/ansi_stdlib.h
 tilde.so: $(topdir)/ansi_stdlib.h ${BUILD_DIR}/config.h $(topdir)/tilde.h
 undo.so: $(topdir)/ansi_stdlib.h
 undo.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
@@ -297,6 +316,8 @@ input.so: $(topdir)/rlprivate.h
 isearch.so: $(topdir)/rlprivate.h
 kill.so: $(topdir)/rlprivate.h
 macro.so: $(topdir)/rlprivate.h
+mbutil.so: $(topdir)/rlprivate.h
+misc.so: $(topdir)/rlprivate.h
 nls.so: $(topdir)/rlprivate.h   
 parens.so: $(topdir)/rlprivate.h
 readline.so: $(topdir)/rlprivate.h
@@ -304,6 +325,7 @@ rltty.so: $(topdir)/rlprivate.h
 search.so: $(topdir)/rlprivate.h
 signals.so: $(topdir)/rlprivate.h
 terminal.so: $(topdir)/rlprivate.h
+text.so: $(topdir)/rlprivate.h
 undo.so: $(topdir)/rlprivate.h
 util.so: $(topdir)/rlprivate.h
 vi_mode.so: $(topdir)/rlprivate.h
@@ -320,71 +342,96 @@ isearch.so: $(topdir)/xmalloc.h
 keymaps.so: $(topdir)/xmalloc.h
 kill.so: $(topdir)/xmalloc.h
 macro.so: $(topdir)/xmalloc.h
+mbutil.so: $(topdir)/xmalloc.h
+misc.so: $(topdir)/xmalloc.h
 readline.so: $(topdir)/xmalloc.h
 savestring.so: $(topdir)/xmalloc.h
 search.so: $(topdir)/xmalloc.h
 shell.so: $(topdir)/xmalloc.h
+terminal.so: $(topdir)/xmalloc.h
+text.so: $(topdir)/xmalloc.h
 tilde.so: $(topdir)/xmalloc.h
-tilde.so: $(topdir)/xmalloc.h
+undo.so: $(topdir)/xmalloc.h
 util.so: $(topdir)/xmalloc.h
 vi_mode.so: $(topdir)/xmalloc.h
+xmalloc.so: $(topdir)/xmalloc.h
 
-readline.so: $(topdir)/readline.c
-vi_mode.so: $(topdir)/vi_mode.c
-funmap.so: $(topdir)/funmap.c
-keymaps.so: $(topdir)/keymaps.c
-parens.so: $(topdir)/parens.c
-search.so: $(topdir)/search.c
-rltty.so: $(topdir)/rltty.c
+complete.o: $(topdir)/rlmbutil.h
+display.o: $(topdir)/rlmbutil.h
+histexpand.o: $(topdir)/rlmbutil.h
+input.o: $(topdir)/rlmbutil.h
+isearch.o: $(topdir)/rlmbutil.h
+mbutil.o: $(topdir)/rlmbutil.h
+misc.o: $(topdir)/rlmbutil.h
+readline.o: $(topdir)/rlmbutil.h
+search.o: $(topdir)/rlmbutil.h
+text.o: $(topdir)/rlmbutil.h
+vi_mode.o: $(topdir)/rlmbutil.h
+
+bind.so: $(topdir)/bind.c
+callback.so: $(topdir)/callback.c
 compat.so: $(topdir)/compat.c
 complete.so: $(topdir)/complete.c
-bind.so: $(topdir)/bind.c
-isearch.so: $(topdir)/isearch.c
 display.so: $(topdir)/display.c
-signals.so: $(topdir)/signals.c
-util.so: $(topdir)/util.c
-kill.so: $(topdir)/kill.c
-undo.so: $(topdir)/undo.c
-macro.so: $(topdir)/macro.c
+funmap.so: $(topdir)/funmap.c
 input.so: $(topdir)/input.c
-callback.so: $(topdir)/callback.c
-terminal.so: $(topdir)/terminal.c
+isearch.so: $(topdir)/isearch.c
+keymaps.so: $(topdir)/keymaps.c $(topdir)/emacs_keymap.c $(topdir)/vi_keymap.c
+kill.so: $(topdir)/kill.c
+macro.so: $(topdir)/macro.c
+mbutil.so: $(topdir)/mbutil.c
+misc.so: $(topdir)/mbutil.c
 nls.so: $(topdir)/nls.c
+parens.so: $(topdir)/parens.c
+readline.so: $(topdir)/readline.c
+rltty.so: $(topdir)/rltty.c
+savestring.so: $(topdir)/savestring.c
+search.so: $(topdir)/search.c
+shell.so: $(topdir)/shell.c
+signals.so: $(topdir)/signals.c
+terminal.so: $(topdir)/terminal.c
+text.so: $(topdir)/terminal.c
+tilde.so: $(topdir)/tilde.c
+undo.so: $(topdir)/undo.c
+util.so: $(topdir)/util.c
+vi_mode.so: $(topdir)/vi_mode.c
 xmalloc.so: $(topdir)/xmalloc.c
-history.so: $(topdir)/history.c
+
 histexpand.so: $(topdir)/histexpand.c
 histfile.so: $(topdir)/histfile.c
+history.so: $(topdir)/history.c
 histsearch.so: $(topdir)/histsearch.c
-savestring.so: $(topdir)/savestring.c
-shell.so: $(topdir)/shell.c
-tilde.so: $(topdir)/tilde.c
 
-readline.so: readline.c
-vi_mode.so: vi_mode.c
-funmap.so: funmap.c
-keymaps.so: keymaps.c
-parens.so: parens.c
-search.so: search.c
-rltty.so: rltty.c
+bind.so: bind.c
+callback.so: callback.c
 comapt.so: compat.c
 complete.so: complete.c
-bind.so: bind.c
-isearch.so: isearch.c
 display.so: display.c
-signals.so: signals.c
-util.so: util.c
-kill.so: kill.c
-undo.so: undo.c
-macro.so: macro.c
+funmap.so: funmap.c
 input.so: input.c
-callback.so: callback.c
-terminal.so: terminal.c
+isearch.so: isearch.c
+keymaps.so: keymaps.c emacs_keymap.c vi_keymap.c
+kill.so: kill.c
+macro.so: macro.c
+mbutil.so: mbutil.c
+misc.so: misc.c
 nls.so: nls.c
+parens.so: parens.c
+readline.so: readline.c
+rltty.so: rltty.c
+savestring.so: savestring.c
+search.so: search.c
+signals.so: signals.c
+shell.so: shell.c
+terminal.so: terminal.c
+text.so: terminal.c
+tilde.so: tilde.c
+undo.so: undo.c
+util.so: util.c
+vi_mode.so: vi_mode.c
 xmalloc.so: xmalloc.c
-history.so: history.c
+
 histexpand.so: histexpand.c
 histfile.so: histfile.c
+history.so: history.c
 histsearch.so: histsearch.c
-savestring.so: savestring.c
-shell.so: shell.c
-tilde.so: tilde.c

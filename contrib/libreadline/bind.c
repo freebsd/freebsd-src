@@ -68,9 +68,11 @@ extern char *strchr (), *strrchr ();
 /* Variables exported by this file. */
 Keymap rl_binding_keymap;
 
-static int _rl_read_init_file __P((const char *, int));
-static int glean_key_from_name __P((char *));
-static int substring_member_of_array __P((char *, const char **));
+static char *_rl_read_file PARAMS((char *, size_t *));
+static void _rl_init_file_error PARAMS((const char *));
+static int _rl_read_init_file PARAMS((const char *, int));
+static int glean_key_from_name PARAMS((char *));
+static int substring_member_of_array PARAMS((char *, const char **));
 
 static int currently_reading_init_file;
 
@@ -246,6 +248,9 @@ rl_generic_bind (type, keyseq, data, map)
   char *keys;
   int keys_len;
   register int i;
+  KEYMAP_ENTRY k;
+
+  k.function = 0;
 
   /* If no keys to bind to, exit right away. */
   if (!keyseq || !*keyseq)
@@ -255,7 +260,7 @@ rl_generic_bind (type, keyseq, data, map)
       return -1;
     }
 
-  keys = xmalloc (1 + (2 * strlen (keyseq)));
+  keys = (char *)xmalloc (1 + (2 * strlen (keyseq)));
 
   /* Translate the ASCII representation of KEYSEQ into an array of
      characters.  Stuff the characters into KEYS, and the length of
@@ -269,7 +274,12 @@ rl_generic_bind (type, keyseq, data, map)
   /* Bind keys, making new keymaps as necessary. */
   for (i = 0; i < keys_len; i++)
     {
-      int ic = (int) ((unsigned char)keys[i]);
+      unsigned char uc = keys[i];
+      int ic;
+
+      ic = uc;
+      if (ic < 0 || ic >= KEYMAP_SIZE)
+	return -1;
 
       if (_rl_convert_meta_chars_to_ascii && META_CHAR (ic))
 	{
@@ -282,18 +292,40 @@ rl_generic_bind (type, keyseq, data, map)
 	{
 	  if (map[ic].type != ISKMAP)
 	    {
-	      if (map[ic].type == ISMACR)
-		free ((char *)map[ic].function);
+	      /* We allow subsequences of keys.  If a keymap is being
+		 created that will `shadow' an existing function or macro
+		 key binding, we save that keybinding into the ANYOTHERKEY
+		 index in the new map.  The dispatch code will look there
+		 to find the function to execute if the subsequence is not
+		 matched.  ANYOTHERKEY was chosen to be greater than
+		 UCHAR_MAX. */
+	      k = map[ic];
 
 	      map[ic].type = ISKMAP;
 	      map[ic].function = KEYMAP_TO_FUNCTION (rl_make_bare_keymap());
 	    }
 	  map = FUNCTION_TO_KEYMAP (map, ic);
+	  /* The dispatch code will return this function if no matching
+	     key sequence is found in the keymap.  This (with a little
+	     help from the dispatch code in readline.c) allows `a' to be
+	     mapped to something, `abc' to be mapped to something else,
+	     and the function bound  to `a' to be executed when the user
+	     types `abx', leaving `bx' in the input queue. */
+	  if (k.function /* && k.type == ISFUNC */)
+	    {
+	      map[ANYOTHERKEY] = k;
+	      k.function = 0;
+	    }
 	}
       else
 	{
 	  if (map[ic].type == ISMACR)
 	    free ((char *)map[ic].function);
+	  else if (map[ic].type == ISKMAP)
+	    {
+	      map = FUNCTION_TO_KEYMAP (map, ic);
+	      ic = ANYOTHERKEY;
+	    }
 
 	  map[ic].function = KEYMAP_TO_FUNCTION (data);
 	  map[ic].type = type;
@@ -331,7 +363,7 @@ rl_translate_keyseq (seq, array, len)
 	      /* Handle special case of backwards define. */
 	      if (strncmp (&seq[i], "C-\\M-", 5) == 0)
 		{
-		  array[l++] = ESC;
+		  array[l++] = ESC;	/* ESC is meta-prefix */
 		  i += 5;
 		  array[l++] = CTRL (_rl_to_upper (seq[i]));
 		  if (seq[i] == '\0')
@@ -340,7 +372,7 @@ rl_translate_keyseq (seq, array, len)
 	      else if (c == 'M')
 		{
 		  i++;
-		  array[l++] = ESC;	/* XXX */
+		  array[l++] = ESC;	/* ESC is meta-prefix */
 		}
 	      else if (c == 'C')
 		{
@@ -393,16 +425,16 @@ rl_translate_keyseq (seq, array, len)
 	      for (temp = 2, c -= '0'; ISOCTAL (seq[i]) && temp--; i++)
 	        c = (c * 8) + OCTVALUE (seq[i]);
 	      i--;	/* auto-increment in for loop */
-	      array[l++] = c % (largest_char + 1);
+	      array[l++] = c & largest_char;
 	      break;
 	    case 'x':
 	      i++;
-	      for (temp = 3, c = 0; isxdigit (seq[i]) && temp--; i++)
+	      for (temp = 2, c = 0; ISXDIGIT ((unsigned char)seq[i]) && temp--; i++)
 	        c = (c * 16) + HEXVALUE (seq[i]);
-	      if (temp == 3)
+	      if (temp == 2)
 	        c = 'x';
 	      i--;	/* auto-increment in for loop */
-	      array[l++] = c % (largest_char + 1);
+	      array[l++] = c & largest_char;
 	      break;
 	    default:	/* backslashes before non-special chars just add the char */
 	      array[l++] = c;
@@ -472,7 +504,7 @@ _rl_untranslate_macro_value (seq)
   char *ret, *r, *s;
   int c;
 
-  r = ret = xmalloc (7 * strlen (seq) + 1);
+  r = ret = (char *)xmalloc (7 * strlen (seq) + 1);
   for (s = seq; *s; s++)
     {
       c = *s;
@@ -547,7 +579,7 @@ rl_function_of_keyseq (keyseq, map, type)
 
   for (i = 0; keyseq && keyseq[i]; i++)
     {
-      int ic = keyseq[i];
+      unsigned char ic = keyseq[i];
 
       if (META_CHAR (ic) && _rl_convert_meta_chars_to_ascii)
 	{
@@ -632,25 +664,15 @@ _rl_read_file (filename, sizep)
   i = read (file, buffer, file_size);
   close (file);
 
-#if 0
-  if (i < file_size)
-#else
   if (i < 0)
-#endif
     {
       free (buffer);
       return ((char *)NULL);
     }
 
-#if 0
-  buffer[file_size] = '\0';
-  if (sizep)
-    *sizep = file_size;
-#else
   buffer[i] = '\0';
   if (sizep)
     *sizep = i;
-#endif
 
   return (buffer);
 }
@@ -767,7 +789,7 @@ _rl_read_init_file (filename, include_level)
 
 static void
 _rl_init_file_error (msg)
-     char *msg;
+     const char *msg;
 {
   if (currently_reading_init_file)
     fprintf (stderr, "readline: %s: line %d: %s\n", current_readline_init_file,
@@ -782,7 +804,7 @@ _rl_init_file_error (msg)
 /*								    */
 /* **************************************************************** */
 
-typedef int _rl_parser_func_t __P((char *));
+typedef int _rl_parser_func_t PARAMS((char *));
 
 /* Things that mean `Control'. */
 const char *_rl_possible_control_prefixes[] = {
@@ -1075,7 +1097,7 @@ rl_parse_and_bind (string)
       /* Make VAR point to start of variable name. */
       while (*var && whitespace (*var)) var++;
 
-      /* Make value point to start of value string. */
+      /* Make VALUE point to start of value string. */
       value = var;
       while (*value && !whitespace (*value)) value++;
       if (*value)
@@ -1145,7 +1167,7 @@ rl_parse_and_bind (string)
       char *seq;
       register int j, k, passc;
 
-      seq = xmalloc (1 + strlen (string));
+      seq = (char *)xmalloc (1 + strlen (string));
       for (j = 1, k = passc = 0; string[j]; j++)
 	{
 	  /* Allow backslash to quote characters, but leave them in place.
@@ -1203,7 +1225,7 @@ rl_parse_and_bind (string)
   /* Temporary.  Handle old-style keyname with macro-binding. */
   if (*funname == '\'' || *funname == '"')
     {
-      unsigned char useq[2];
+      char useq[2];
       int fl = strlen (funname);
 
       useq[0] = key; useq[1] = '\0';
@@ -1240,17 +1262,22 @@ static struct {
   int flags;
 } boolean_varlist [] = {
   { "blink-matching-paren",	&rl_blink_matching_paren,	V_SPECIAL },
+  { "byte-oriented",		&rl_byte_oriented,		0 },
   { "completion-ignore-case",	&_rl_completion_case_fold,	0 },
   { "convert-meta",		&_rl_convert_meta_chars_to_ascii, 0 },
   { "disable-completion",	&rl_inhibit_completion,		0 },
   { "enable-keypad",		&_rl_enable_keypad,		0 },
   { "expand-tilde",		&rl_complete_with_tilde_expansion, 0 },
+  { "history-preserve-point",	&_rl_history_preserve_point,	0 },
   { "horizontal-scroll-mode",	&_rl_horizontal_scroll_mode,	0 },
   { "input-meta",		&_rl_meta_flag,			0 },
   { "mark-directories",		&_rl_complete_mark_directories,	0 },
   { "mark-modified-lines",	&_rl_mark_modified_lines,	0 },
+  { "mark-symlinked-directories", &_rl_complete_mark_symlink_dirs, 0 },
+  { "match-hidden-files",	&_rl_match_hidden_files,	0 },
   { "meta-flag",		&_rl_meta_flag,			0 },
   { "output-meta",		&_rl_output_meta_chars,		0 },
+  { "page-completions",		&_rl_page_completions,		0 },
   { "prefer-visible-bell",	&_rl_prefer_visible_bell,	V_SPECIAL },
   { "print-completions-horizontally", &_rl_print_completions_horizontally, 0 },
   { "show-all-if-ambiguous",	&_rl_complete_show_all,		0 },
@@ -1262,7 +1289,7 @@ static struct {
 
 static int
 find_boolean_var (name)
-     char *name;
+     const char *name;
 {
   register int i;
 
@@ -1294,7 +1321,7 @@ hack_special_boolean_var (i)
     }
 }
 
-typedef int _rl_sv_func_t __P((const char *));
+typedef int _rl_sv_func_t PARAMS((const char *));
 
 /* These *must* correspond to the array indices for the appropriate
    string variable.  (Though they're not used right now.) */
@@ -1308,12 +1335,12 @@ typedef int _rl_sv_func_t __P((const char *));
 #define V_INT		2
 
 /* Forward declarations */
-static int sv_bell_style __P((const char *));
-static int sv_combegin __P((const char *));
-static int sv_compquery __P((const char *));
-static int sv_editmode __P((const char *));
-static int sv_isrchterm __P((const char *));
-static int sv_keymap __P((const char *));
+static int sv_bell_style PARAMS((const char *));
+static int sv_combegin PARAMS((const char *));
+static int sv_compquery PARAMS((const char *));
+static int sv_editmode PARAMS((const char *));
+static int sv_isrchterm PARAMS((const char *));
+static int sv_keymap PARAMS((const char *));
 
 static struct {
   const char *name;
@@ -1331,7 +1358,7 @@ static struct {
 
 static int
 find_string_var (name)
-     char *name;
+     const char *name;
 {
   register int i;
 
@@ -1446,24 +1473,22 @@ sv_keymap (value)
   return 1;
 }
 
-#define _SET_BELL(v)	do { _rl_bell_preference = v; return 0; } while (0)
-
 static int
 sv_bell_style (value)
      const char *value;
 {
   if (value == 0 || *value == '\0')
-    _SET_BELL (AUDIBLE_BELL);
+    _rl_bell_preference = AUDIBLE_BELL;
   else if (_rl_stricmp (value, "none") == 0 || _rl_stricmp (value, "off") == 0)
-    _SET_BELL (NO_BELL);
+    _rl_bell_preference = NO_BELL;
   else if (_rl_stricmp (value, "audible") == 0 || _rl_stricmp (value, "on") == 0)
-    _SET_BELL (AUDIBLE_BELL);
+    _rl_bell_preference = AUDIBLE_BELL;
   else if (_rl_stricmp (value, "visible") == 0)
-    _SET_BELL (VISIBLE_BELL);
+    _rl_bell_preference = VISIBLE_BELL;
   else
     return 1;
+  return 0;
 }
-#undef _SET_BELL
 
 static int
 sv_isrchterm (value)
@@ -1493,7 +1518,7 @@ sv_isrchterm (value)
   v[end] = '\0';
 
   /* The value starts at v + beg.  Translate it into a character string. */
-  _rl_isearch_terminators = (unsigned char *)xmalloc (2 * strlen (v) + 1);
+  _rl_isearch_terminators = (char *)xmalloc (2 * strlen (v) + 1);
   rl_translate_keyseq (v + beg, _rl_isearch_terminators, &end);
   _rl_isearch_terminators[end] = '\0';
 
@@ -1659,17 +1684,18 @@ _rl_get_keyname (key)
      pairs for possible inclusion in an inputrc file, we don't want to
      do any special meta processing on KEY. */
 
-#if 0
+#if 1
+  /* XXX - Experimental */
   /* We might want to do this, but the old version of the code did not. */
 
   /* If this is an escape character, we don't want to do any more processing.
      Just add the special ESC key sequence and return. */
   if (c == ESC)
     {
-      keyseq[0] = '\\';
-      keyseq[1] = 'e';
-      keyseq[2] = '\0';
-      return keyseq;
+      keyname[0] = '\\';
+      keyname[1] = 'e';
+      keyname[2] = '\0';
+      return keyname;
     }
 #endif
 
@@ -1751,7 +1777,7 @@ rl_invoking_keyseqs_in_map (function, map)
 	      if (result_index + 2 > result_size)
 	        {
 	          result_size += 10;
-		  result = (char **) xrealloc (result, result_size * sizeof (char *));
+		  result = (char **)xrealloc (result, result_size * sizeof (char *));
 	        }
 
 	      result[result_index++] = keyname;
@@ -1780,7 +1806,12 @@ rl_invoking_keyseqs_in_map (function, map)
 		char *keyname = (char *)xmalloc (6 + strlen (seqs[i]));
 
 		if (key == ESC)
+#if 0
 		  sprintf (keyname, "\\e");
+#else
+		/* XXX - experimental */
+		  sprintf (keyname, "\\M-");
+#endif
 		else if (CTRL_CHAR (key))
 		  sprintf (keyname, "\\C-%c", _rl_to_lower (UNCTRL (key)));
 		else if (key == RUBOUT)
@@ -1803,7 +1834,7 @@ rl_invoking_keyseqs_in_map (function, map)
 		if (result_index + 2 > result_size)
 		  {
 		    result_size += 10;
-		    result = (char **) xrealloc (result, result_size * sizeof (char *));
+		    result = (char **)xrealloc (result, result_size * sizeof (char *));
 		  }
 
 		result[result_index++] = keyname;
@@ -1927,11 +1958,8 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 	{
 	case ISMACR:
 	  keyname = _rl_get_keyname (key);
-#if 0
-	  out = (char *)map[key].function;
-#else
 	  out = _rl_untranslate_macro_value ((char *)map[key].function);
-#endif
+
 	  if (print_readably)
 	    fprintf (rl_outstream, "\"%s%s\": \"%s\"\n", prefix ? prefix : "",
 						         keyname,
@@ -1941,9 +1969,7 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 							keyname,
 							out ? out : "");
 	  free (keyname);
-#if 1
 	  free (out);
-#endif
 	  break;
 	case ISFUNC:
 	  break;
@@ -1951,7 +1977,7 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 	  prefix_len = prefix ? strlen (prefix) : 0;
 	  if (key == ESC)
 	    {
-	      keyname = xmalloc (3 + prefix_len);
+	      keyname = (char *)xmalloc (3 + prefix_len);
 	      if (prefix)
 		strcpy (keyname, prefix);
 	      keyname[prefix_len] = '\\';
@@ -1963,7 +1989,7 @@ _rl_macro_dumper_internal (print_readably, map, prefix)
 	      keyname = _rl_get_keyname (key);
 	      if (prefix)
 		{
-		  out = xmalloc (strlen (keyname) + prefix_len + 1);
+		  out = (char *)xmalloc (strlen (keyname) + prefix_len + 1);
 		  strcpy (out, prefix);
 		  strcpy (out + prefix_len, keyname);
 		  free (keyname);
@@ -2033,7 +2059,7 @@ rl_variable_dumper (print_readably)
   if (print_readably)
     fprintf (rl_outstream, "set comment-begin %s\n", _rl_comment_begin ? _rl_comment_begin : RL_COMMENT_BEGIN_DEFAULT);
   else
-    fprintf (rl_outstream, "comment-begin is set to `%s'\n", _rl_comment_begin ? _rl_comment_begin : "");
+    fprintf (rl_outstream, "comment-begin is set to `%s'\n", _rl_comment_begin ? _rl_comment_begin : RL_COMMENT_BEGIN_DEFAULT);
 
   /* completion-query-items */
   if (print_readably)
@@ -2046,15 +2072,6 @@ rl_variable_dumper (print_readably)
     fprintf (rl_outstream, "set editing-mode %s\n", (rl_editing_mode == emacs_mode) ? "emacs" : "vi");
   else
     fprintf (rl_outstream, "editing-mode is set to `%s'\n", (rl_editing_mode == emacs_mode) ? "emacs" : "vi");
-
-  /* keymap */
-  kname = rl_get_keymap_name (_rl_keymap);
-  if (kname == 0)
-    kname = rl_get_keymap_name_from_edit_mode ();
-  if (print_readably)
-    fprintf (rl_outstream, "set keymap %s\n", kname ? kname : "none");
-  else
-    fprintf (rl_outstream, "keymap is set to `%s'\n", kname ? kname : "none");
 
   /* isearch-terminators */
   if (_rl_isearch_terminators)
@@ -2070,6 +2087,15 @@ rl_variable_dumper (print_readably)
 
       free (disp);
     }
+
+  /* keymap */
+  kname = rl_get_keymap_name (_rl_keymap);
+  if (kname == 0)
+    kname = rl_get_keymap_name_from_edit_mode ();
+  if (print_readably)
+    fprintf (rl_outstream, "set keymap %s\n", kname ? kname : "none");
+  else
+    fprintf (rl_outstream, "keymap is set to `%s'\n", kname ? kname : "none");
 }
 
 /* Print all of the current variables and their values to
@@ -2086,7 +2112,9 @@ rl_dump_variables (count, key)
   return (0);
 }
 
-/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound. */
+/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound.  Right
+   now, this is always used to attempt to bind the arrow keys, hence the
+   check for rl_vi_movement_mode. */
 void
 _rl_bind_if_unbound (keyseq, default_func)
      const char *keyseq;
@@ -2097,7 +2125,11 @@ _rl_bind_if_unbound (keyseq, default_func)
   if (keyseq)
     {
       func = rl_function_of_keyseq (keyseq, _rl_keymap, (int *)NULL);
+#if defined (VI_MODE)
+      if (!func || func == rl_do_lowercase_version || func == rl_vi_movement_mode)
+#else
       if (!func || func == rl_do_lowercase_version)
+#endif
 	rl_set_key (keyseq, default_func, _rl_keymap);
     }
 }

@@ -52,6 +52,11 @@ extern int errno;
 rl_vintfunc_t *rl_prep_term_function = rl_prep_terminal;
 rl_voidfunc_t *rl_deprep_term_function = rl_deprep_terminal;
 
+static void block_sigint PARAMS((void));
+static void release_sigint PARAMS((void));
+
+static void set_winsize PARAMS((int));
+
 /* **************************************************************** */
 /*								    */
 /*			   Signal Management			    */
@@ -172,6 +177,14 @@ struct bsdtty {
 #define TIOTYPE struct bsdtty
 
 static TIOTYPE otio;
+
+static void save_tty_chars PARAMS((TIOTYPE *));
+static int _get_tty_settings PARAMS((int, TIOTYPE *));
+static int get_tty_settings PARAMS((int, TIOTYPE *));
+static int _set_tty_settings PARAMS((int, TIOTYPE *));
+static int set_tty_settings PARAMS((int, TIOTYPE *));
+
+static void prepare_terminal_settings PARAMS((int, TIOTYPE, TIOTYPE *));
 
 static void
 save_tty_chars (tiop)
@@ -378,6 +391,14 @@ prepare_terminal_settings (meta_flag, oldtio, tiop)
 #endif /* !TERMIOS_TTY_DRIVER */
 
 static TIOTYPE otio;
+
+static void save_tty_chars PARAMS((TIOTYPE *));
+static int _get_tty_settings PARAMS((int, TIOTYPE *));
+static int get_tty_settings PARAMS((int, TIOTYPE *));
+static int _set_tty_settings PARAMS((int, TIOTYPE *));
+static int set_tty_settings PARAMS((int, TIOTYPE *));
+
+static void prepare_terminal_settings PARAMS((int, TIOTYPE, TIOTYPE *));
 
 #if defined (FLUSHO)
 #  define OUTPUT_BEING_FLUSHED(tp)  (tp->c_lflag & FLUSHO)
@@ -771,8 +792,8 @@ rltty_set_default_bindings (kmap)
     { \
       int ic; \
       ic = sc; \
-      if (ic != -1 && kmap[ic].type == ISFUNC) \
-	kmap[ic].function = func; \
+      if (ic != -1 && kmap[(unsigned char)ic].type == ISFUNC) \
+	kmap[(unsigned char)ic].function = func; \
     } \
   while (0)
 
@@ -861,6 +882,7 @@ _rl_disable_tty_signals ()
   nosigstty = sigstty;
 
   nosigstty.c_lflag &= ~ISIG;
+  nosigstty.c_iflag &= ~IXON;
 
   if (_set_tty_settings (fileno (rl_instream), &nosigstty) < 0)
     return (_set_tty_settings (fileno (rl_instream), &sigstty));
@@ -872,10 +894,17 @@ _rl_disable_tty_signals ()
 int
 _rl_restore_tty_signals ()
 {
+  int r;
+
   if (tty_sigs_disabled == 0)
     return 0;
 
-  return (_set_tty_settings (fileno (rl_instream), &sigstty));
+  r = _set_tty_settings (fileno (rl_instream), &sigstty);
+
+  if (r == 0)
+    tty_sigs_disabled = 0;
+
+  return r;
 }
 #endif /* !NEW_TTY_DRIVER */
 
