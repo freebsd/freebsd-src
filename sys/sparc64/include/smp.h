@@ -84,9 +84,9 @@ void	ipi_all_but_self(u_int ipi);
 
 vm_offset_t mp_tramp_alloc(void);
 
-extern	struct	ipi_cache_args ipi_cache_args;
-extern	struct	ipi_level_args ipi_level_args;
-extern	struct	ipi_tlb_args ipi_tlb_args;
+extern	struct mtx ipi_mtx;
+extern	struct ipi_cache_args ipi_cache_args;
+extern	struct ipi_tlb_args ipi_tlb_args;
 
 extern	vm_offset_t mp_tramp;
 extern	char *mp_tramp_code;
@@ -105,6 +105,8 @@ extern	char tl_ipi_tlb_range_demap[];
 
 #ifdef SMP
 
+#if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
+
 static __inline void *
 ipi_dcache_page_inval(vm_offset_t pa)
 {
@@ -113,6 +115,7 @@ ipi_dcache_page_inval(vm_offset_t pa)
 	if (smp_cpus == 1)
 		return (NULL);
 	ica = &ipi_cache_args;
+	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
 	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
@@ -128,14 +131,13 @@ ipi_icache_page_inval(vm_offset_t pa)
 	if (smp_cpus == 1)
 		return (NULL);
 	ica = &ipi_cache_args;
+	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
 	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
 	    (u_long)tl_ipi_icache_page_inval, (u_long)ica);
 	return (&ica->ica_mask);
 }
-
-#ifdef _MACHINE_PMAP_H_
 
 static __inline void *
 ipi_tlb_context_demap(struct pmap *pm)
@@ -148,6 +150,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
@@ -166,6 +169,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
@@ -184,6 +188,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
@@ -201,10 +206,11 @@ ipi_wait(void *cookie)
 		atomic_clear_int(mask, PCPU_GET(cpumask));
 		while (*mask != 0)
 			;
+		mtx_unlock_spin(&ipi_mtx);
 	}
 }
 
-#endif
+#endif /* _MACHINE_PMAP_H_ && _SYS_MUTEX_H_ */
 
 #else
 
