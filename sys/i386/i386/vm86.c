@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.19 1998/12/07 21:58:19 archie Exp $
+ *	$Id: vm86.c,v 1.20 1999/01/28 01:59:51 dillon Exp $
  */
 
 #include "opt_vm86.h"
@@ -477,35 +477,6 @@ initial_bioscalls(u_int *basemem, u_int *extmem)
 	for (i = *basemem / 4; i < 160; i++) {
 		u_int *pte = (u_int *)vm86paddr;
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
-	}
-
-	/*
-	 * get memory map with INT 15:E820
-	 */
-#define SMAPSIZ 	sizeof(smap)
-#define SMAP_SIG	0x534D4150			/* 'SMAP' */
-	vmf.vmf_ebx = 0;
-	do {
-		vmf.vmf_eax = 0xE820;
-		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = SMAPSIZ;
-		i = vm86_datacall(0x15, &vmf,
-		    (char *)&smap, SMAPSIZ, &vmf.vmf_es, &vmf.vmf_di);
-		if (i || vmf.vmf_eax != SMAP_SIG)
-			break;
-		if (smap.type == 0x01 && smap.base >= highwat) {
-			*extmem += (smap.length / 1024);
-			highwat = smap.base + smap.length;
-		}
-	} while (vmf.vmf_ebx != 0);
-
-	if (*extmem != 0) {
-		if (*extmem > *basemem) {
-			*extmem -= *basemem;
-			method = 0xE820;
-			goto done;
-		}
-		printf("E820: extmem (%d) < basemem (%d)\n", *extmem, *basemem);
 	}
 
 	/*
