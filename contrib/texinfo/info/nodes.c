@@ -1,7 +1,7 @@
 /* nodes.c -- how to get an Info file and node.
-   $Id: nodes.c,v 1.15 2000/11/11 00:40:37 karl Exp $
+   $Id: nodes.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1993, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

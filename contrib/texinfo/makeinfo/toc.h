@@ -1,5 +1,5 @@
 /* toc.h -- table of contents handling.
-   $Id: toc.h,v 1.5 2002/02/09 00:54:51 karl Exp $
+   $Id: toc.h,v 1.1 2002/08/25 23:38:39 karl Exp $
 
    Copyright (C) 1999 Free Software Foundation, Inc.
 
