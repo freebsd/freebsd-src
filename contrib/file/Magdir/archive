@@ -243,9 +243,8 @@
 
 # GTKtalog catalogs 
 # by David Necas (Yeti) <yeti@physics.muni.cz>
-0	lelong	<20
->4	string	gtktalog\ 	GTKtalog catalog data,
->>13	string	3		version 3
->>>14	beshort	0x677a		(gzipped)
->>>14	beshort	!0x677a		(not gzipped)
->>13	string	>3		version %s
+4	string	gtktalog\ 	GTKtalog catalog data,
+>13	string	3		version 3
+>>14	beshort	0x677a		(gzipped)
+>>14	beshort	!0x677a		(not gzipped)
+>13	string	>3		version %s
