@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.6 1998/10/03 08:55:29 dfr Exp $
+ *	$Id: subr_bus.c,v 1.7 1998/10/25 17:44:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -34,10 +34,59 @@
 #include <sys/bus_private.h>
 #include <sys/systm.h>
 
+#include "opt_bus.h"
+
+#ifdef BUS_DEBUG
+#define PDEBUG(a)	(printf(__FUNCTION__ ":%d: ", __LINE__), printf a, printf("\n"))
+#define DEVICENAME(d)	((d)? device_get_name(d): "no device")
+#define DRIVERNAME(d)	((d)? d->name : "no driver")
+#define DEVCLANAME(d)	((d)? d->name : "no devclass")
+
+/* Produce the indenting, indent*2 spaces plus a '.' ahead of that to 
+ * prevent syslog from deleting initial spaces
+ */
+#define indentprintf(p)	do { int iJ; printf("."); for (iJ=0; iJ<indent; iJ++) printf("  "); printf p ; } while(0)
+
+static void print_method_list(device_method_t *m, int indent);
+static void print_device_ops(device_ops_t ops, int indent);
+static void print_device_short(device_t dev, int indent);
+static void print_device(device_t dev, int indent);
+void print_device_tree_short(device_t dev, int indent);
+void print_device_tree(device_t dev, int indent);
+static void print_driver_short(driver_t *driver, int indent);
+static void print_driver(driver_t *driver, int indent);
+static void print_driver_list(driver_list_t drivers, int indent);
+static void print_devclass_short(devclass_t dc, int indent);
+static void print_devclass(devclass_t dc, int indent);
+void print_devclass_list_short(void);
+void print_devclass_list(void);
+
+#else
+/* Make the compiler ignore the function calls */
+#define PDEBUG(a)			/* nop */
+#define DEVICENAME(d)			/* nop */
+#define DRIVERNAME(d)			/* nop */
+#define DEVCLANAME(d)			/* nop */
+
+#define print_method_list(m,i)		/* nop */
+#define print_device_ops(o,i)		/* nop */
+#define print_device_short(d,i)		/* nop */
+#define print_device(d,i)		/* nop */
+#define print_device_tree_short(d,i)	/* nop */
+#define print_device_tree(d,i)		/* nop */
+#define print_driver_short(d,i)		/* nop */
+#define print_driver(d,i)		/* nop */
+#define print_driver_list(d,i)		/* nop */
+#define print_devclass_short(d,i)	/* nop */
+#define print_devclass(d,i)		/* nop */
+#define print_devclass_list_short()	/* nop */
+#define print_devclass_list()		/* nop */
+#endif
+
+
 /*
  * Method table handling
  */
-
 static int next_method_offset = 1;
 static int methods_count = 0;
 static int methods_size = 0;
@@ -58,6 +107,8 @@ register_method(struct device_op_desc *desc)
     for (i = 0; i < methods_count; i++)
 	if (!strcmp(methods[i].name, desc->name)) {
 	    desc->offset = methods[i].offset;
+	    PDEBUG(("methods[%d] has the same name, %s, with offset %d",
+	    		i, desc->name, desc->offset));
 	    return;
 	}
 
@@ -106,6 +157,8 @@ compile_methods(driver_t *driver)
     for (i = 0, m = driver->methods; m->desc; i++, m++)
 	if (!m->desc->offset)
 	    register_method(m->desc);
+	else
+	    PDEBUG(("offset not equal to zero, method desc %d left as is", i));
 
     /*
      * Then allocate the compiled op table.
@@ -114,11 +167,16 @@ compile_methods(driver_t *driver)
 		 M_DEVBUF, M_NOWAIT);
     if (!ops)
 	panic("compile_methods: out of memory");
+
     ops->maxoffset = next_method_offset;
     for (i = 0; i < next_method_offset; i++)
 	ops->methods[i] = error_method;
     for (i = 0, m = driver->methods; m->desc; i++, m++)
 	ops->methods[m->desc->offset] = m->func;
+    PDEBUG(("%s has %d method%s, wasting %d bytes",
+    		DRIVERNAME(driver), i, (i==1?"":"s"),
+		(next_method_offset-i)*sizeof(devop_t)));
+
     driver->ops = ops;
 }
 
@@ -126,23 +184,22 @@ compile_methods(driver_t *driver)
  * Devclass implementation
  */
 
-static devclass_list_t devclasses;
-
-static void
-devclass_init(void)
-{
-    TAILQ_INIT(&devclasses);
-}
+static devclass_list_t devclasses = TAILQ_HEAD_INITIALIZER(devclasses);
 
 static devclass_t
 devclass_find_internal(const char *classname, int create)
 {
     devclass_t dc;
 
+    PDEBUG(("looking for %s", classname));
+    if (!classname)
+	return NULL;
+
     for (dc = TAILQ_FIRST(&devclasses); dc; dc = TAILQ_NEXT(dc, link))
 	if (!strcmp(dc->name, classname))
 	    return dc;
 
+    PDEBUG(("%s not found%s", classname, (create? ", creating": "")));
     if (create) {
 	dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
 		    M_DEVBUF, M_NOWAIT);
@@ -169,6 +226,7 @@ devclass_find(const char *classname)
 int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
+    PDEBUG(("%s", DRIVERNAME(driver)));
     /*
      * Compile the drivers methods.
      */
@@ -185,31 +243,35 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 }
 
 int
-devclass_delete_driver(devclass_t dc, driver_t *driver)
+devclass_delete_driver(devclass_t busclass, driver_t *driver)
 {
-    device_t bus;
+    devclass_t dc = devclass_find(driver->name);
     device_t dev;
     int i;
     int error;
 
+    PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
+
+    if (!dc)
+	return 0;
+
     /*
      * Disassociate from any devices.  We iterate through all the
-     * devices attached to any bus in this class.
+     * devices in the devclass of the driver and detach any which are
+     * using the driver.
      */
     for (i = 0; i < dc->maxunit; i++) {
 	if (dc->devices[i]) {
-	    bus = dc->devices[i]->parent;
-	    for (dev = TAILQ_FIRST(&bus->children); dev;
-		 dev = TAILQ_NEXT(dev, link))
-		if (dev->driver == driver) {
-		    if (error = device_detach(dev))
-			return error;
-		    device_set_driver(dev, NULL);
-		}
+	    dev = dc->devices[i];
+	    if (dev->driver == driver) {
+		if (error = device_detach(dev))
+		    return error;
+		device_set_driver(dev, NULL);
+	    }
 	}
     }
 
-    TAILQ_REMOVE(&dc->drivers, driver, link);
+    TAILQ_REMOVE(&busclass->drivers, driver, link);
     return 0;
 }
 
@@ -218,11 +280,15 @@ devclass_find_driver(devclass_t dc, const char *classname)
 {
     driver_t *driver;
 
+    PDEBUG(("%s in devclass %s", classname, DEVCLANAME(dc)));
+
     for (driver = TAILQ_FIRST(&dc->drivers); driver;
-	 driver = TAILQ_NEXT(driver, link))
+	 driver = TAILQ_NEXT(driver, link)) {
 	if (!strcmp(driver->name, classname))
 	    return driver;
+    }
 
+    PDEBUG(("not found"));
     return NULL;
 }
 
@@ -293,6 +359,8 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 {
     int unit = *unitp;
 
+    PDEBUG(("unit %d in devclass %s", unit, DEVCLANAME(dc)));
+
     /*
      * If we have been given a wired unit number, check for existing
      * device.
@@ -329,6 +397,7 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	dc->devices = newlist;
 	dc->maxunit = newsize;
     }
+    PDEBUG(("now: unit %d in devclass %s", unit, DEVCLANAME(dc)));
 
     *unitp = unit;
     return 0;
@@ -338,6 +407,8 @@ static int
 devclass_add_device(devclass_t dc, device_t dev)
 {
     int error;
+
+    PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
     if (error = devclass_alloc_unit(dc, &dev->unit))
 	return error;
@@ -349,6 +420,8 @@ devclass_add_device(devclass_t dc, device_t dev)
 static int
 devclass_delete_device(devclass_t dc, device_t dev)
 {
+    PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
+
     if (dev->devclass != dc
 	|| dc->devices[dev->unit] != dev)
 	panic("devclass_delete_device: inconsistent device class");
@@ -368,6 +441,9 @@ make_device(device_t parent, const char *name,
     device_t dev;
     devclass_t dc;
     int error;
+
+    PDEBUG(("%s at %s as unit %d with%s ivars",
+    	    name, DEVICENAME(parent), unit, (ivars? "":"out")));
 
     if (name) {
 	dc = devclass_find_internal(name, TRUE);
@@ -427,6 +503,9 @@ device_add_child(device_t dev, const char *name, int unit, void *ivars)
 {
     device_t child;
 
+    PDEBUG(("%s at %s as unit %d with%s ivars",
+    	    name, DEVICENAME(dev), unit, (ivars? "":"out")));
+
     child = make_device(dev, name, unit, ivars);
 
     TAILQ_INSERT_TAIL(&dev->children, child, link);
@@ -439,6 +518,9 @@ device_add_child_after(device_t dev, device_t place, const char *name,
 		       int unit, void *ivars)
 {
     device_t child;
+
+    PDEBUG(("%s at %s after %s as unit %d with%s ivars",
+    	    name, DEVICENAME(dev), DEVICENAME(place), unit, (ivars? "":"out")));
 
     child = make_device(dev, name, unit, ivars);
 
@@ -455,6 +537,8 @@ int
 device_delete_child(device_t dev, device_t child)
 {
     int error;
+
+    PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
     if (error = device_detach(child))
 	return error;
@@ -524,6 +608,7 @@ device_probe_child(device_t dev, device_t child)
     for (driver = first_matching_driver(dc, child);
 	 driver;
 	 driver = next_matching_driver(dc, child, driver)) {
+	PDEBUG(("Trying %s", DRIVERNAME(driver)));
 	device_set_driver(child, driver);
 	if (DEVICE_PROBE(child) == 0) {
 	    if (!child->devclass)
@@ -681,6 +766,11 @@ device_set_driver(device_t dev, driver_t *driver)
     if (driver) {
 	dev->ops = driver->ops;
 	dev->softc = malloc(driver->softc, M_DEVBUF, M_NOWAIT);
+	if (!dev->softc) {
+	    dev->ops = &null_ops;
+	    dev->driver = NULL;
+	    return ENOMEM;
+	}
 	bzero(dev->softc, driver->softc);
     }
     return 0;
@@ -721,6 +811,7 @@ device_detach(device_t dev)
 {
     int error;
 
+    PDEBUG(("%s", DEVICENAME(dev)));
     if (dev->state == DS_BUSY)
 	return EBUSY;
     if (dev->state != DS_ATTACHED)
@@ -887,13 +978,15 @@ int
 bus_generic_detach(device_t dev)
 {
     device_t child;
+    int error;
 
     if (dev->state != DS_ATTACHED)
 	return EBUSY;
 
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
-	device_detach(child);
+	if (error = device_detach(child))
+	    return error;
 
     return 0;
 }
@@ -982,13 +1075,13 @@ root_bus_module_handler(module_t mod, modeventtype_t what, void* arg)
 {
     switch (what) {
     case MOD_LOAD:
-	devclass_init();
 	compile_methods(&root_driver);
 	root_bus = make_device(NULL, "root", 0, NULL);
+	root_bus->desc = "System root bus";
 	root_bus->ops = root_driver.ops;
 	root_bus->driver = &root_driver;
 	root_bus->state = DS_ATTACHED;
-	root_devclass = devclass_find("root");
+	root_devclass = devclass_find_internal("root", FALSE);
 	return 0;
     }
 
@@ -1007,6 +1100,8 @@ root_bus_configure()
 {
     device_t dev;
 
+    PDEBUG(("."));
+
     for (dev = TAILQ_FIRST(&root_bus->children); dev;
 	 dev = TAILQ_NEXT(dev, link)) {
 	device_probe_and_attach(dev);
@@ -1022,6 +1117,8 @@ driver_module_handler(module_t mod, modeventtype_t what, void* arg)
 
     switch (what) {
     case MOD_LOAD:
+    	PDEBUG(("Loading module: driver %s on bus %s",
+		DRIVERNAME(data->driver), data->busname));
 	if (error = devclass_add_driver(bus_devclass,
 					data->driver))
 	    return error;
@@ -1030,6 +1127,8 @@ driver_module_handler(module_t mod, modeventtype_t what, void* arg)
 	break;
 
     case MOD_UNLOAD:
+    	PDEBUG(("Unloading module: driver %s from bus %s",
+		DRIVERNAME(data->driver), data->busname));
 	if (error = devclass_delete_driver(bus_devclass,
 					   data->driver))
 	    return error;
@@ -1041,3 +1140,217 @@ driver_module_handler(module_t mod, modeventtype_t what, void* arg)
     else
 	return 0;
 }
+
+
+
+#ifdef BUS_DEBUG
+
+/* the _short versions avoid iteration by not calling anything that prints
+ * more than oneliners. I love oneliners.
+ */
+
+static void
+print_method_list(device_method_t *m, int indent)
+{
+	int i;
+
+	if (!m)
+		return;
+
+	for (i = 0; m->desc; i++, m++)
+		indentprintf(("method %d: %s, offset=%d\n",
+			i, m->desc->name, m->desc->offset));
+}
+
+static void
+print_device_ops(device_ops_t ops, int indent)
+{
+	int i;
+	int count = 0;
+
+	if (!ops)
+		return;
+
+	/* we present a list of the methods that are pointing to the
+	 * error_method, but ignore the 0'th elements; it is always
+	 * error_method.
+	 */
+	for (i = 1; i < ops->maxoffset; i++) {
+		if (ops->methods[i] == error_method) {
+			if (count == 0)
+				indentprintf(("error_method:"));
+			printf(" %d", i);
+			count++;
+		}
+	}
+	if (count)
+		printf("\n");
+
+	indentprintf(("(%d method%s, %d valid, %d error_method%s)\n",
+		ops->maxoffset-1, (ops->maxoffset-1 == 1? "":"s"),
+		ops->maxoffset-1-count,
+		count, (count == 1? "":"'s")));
+}
+
+static void
+print_device_short(device_t dev, int indent)
+{
+	if (!dev)
+		return;
+
+	indentprintf(("device %d: <%s> %sparent,%schildren,%s%s%s%sivars,%ssoftc,busy=%d\n",
+		dev->unit, dev->desc,
+		(dev->parent? "":"no "),
+		(TAILQ_EMPTY(&dev->children)? "no ":""),
+		(dev->flags&DF_ENABLED? "enabled,":"disabled,"),
+		(dev->flags&DF_FIXEDCLASS? "fixed,":""),
+		(dev->flags&DF_WILDCARD? "wildcard,":""),
+		(dev->ivars? "":"no "),
+		(dev->softc? "":"no "),
+		dev->busy));
+}
+
+static void
+print_device(device_t dev, int indent)
+{
+	if (!dev)
+		return;
+
+	print_device_short(dev, indent);
+
+	indentprintf(("Parent:\n"));
+	print_device_short(dev->parent, indent+1);
+	indentprintf(("Methods:\n"));
+	print_device_ops(dev->ops, indent+1);
+	indentprintf(("Driver:\n"));
+	print_driver_short(dev->driver, indent+1);
+	indentprintf(("Devclass:\n"));
+	print_devclass_short(dev->devclass, indent+1);
+}
+
+void
+print_device_tree_short(device_t dev, int indent)
+/* print the device and all its children (indented) */
+{
+	device_t child;
+
+	if (!dev)
+		return;
+
+	print_device_short(dev, indent);
+
+	for (child = TAILQ_FIRST(&dev->children); child;
+		 child = TAILQ_NEXT(child, link))
+		print_device_tree_short(child, indent+1);
+}
+
+void
+print_device_tree(device_t dev, int indent)
+/* print the device and all its children (indented) */
+{
+	device_t child;
+
+	if (!dev)
+		return;
+
+	print_device(dev, indent);
+
+	for (child = TAILQ_FIRST(&dev->children); child;
+		 child = TAILQ_NEXT(child, link))
+		print_device_tree(child, indent+1);
+}
+
+static void
+print_driver_short(driver_t *driver, int indent)
+{
+	if (!driver)
+		return;
+
+	indentprintf(("driver %s: type = %s%s%s%s, softc size = %d\n",
+		driver->name,
+		/* yes, I know this looks silly, but going to bed at
+		 * two o'clock and having to get up at 7:30 again is silly
+		 * as well. As is sticking your head in a bucket of water.
+		 */
+		(driver->type == DRIVER_TYPE_TTY? "tty":""),
+		(driver->type == DRIVER_TYPE_BIO? "bio":""),
+		(driver->type == DRIVER_TYPE_NET? "net":""),
+		(driver->type == DRIVER_TYPE_MISC? "misc":""),
+		driver->softc));
+}
+
+static void
+print_driver(driver_t *driver, int indent)
+{
+	if (!driver)
+		return;
+
+	print_driver_short(driver, indent);
+	indentprintf(("Methods:\n"));
+	print_method_list(driver->methods, indent+1);
+	indentprintf(("Operations:\n"));
+	print_device_ops(driver->ops, indent+1);
+}
+
+
+static void
+print_driver_list(driver_list_t drivers, int indent)
+{
+	driver_t *driver;
+
+	for (driver = TAILQ_FIRST(&drivers); driver;
+	     driver = TAILQ_NEXT(driver, link))
+		print_driver(driver, indent);
+}
+
+static void
+print_devclass_short(devclass_t dc, int indent)
+{
+	device_t dev;
+
+	if ( !dc )
+		return;
+
+	indentprintf(("devclass %s: max units = %d, next unit = %d\n",
+		dc->name, dc->maxunit, dc->nextunit));
+}
+
+static void
+print_devclass(devclass_t dc, int indent)
+{
+	int i;
+
+	if ( !dc )
+		return;
+
+	print_devclass_short(dc, indent);
+	indentprintf(("Drivers:\n"));
+	print_driver_list(dc->drivers, indent+1);
+
+	indentprintf(("Devices:\n"));
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			print_device(dc->devices[i], indent+1);
+}
+
+void
+print_devclass_list_short(void)
+{
+	devclass_t dc;
+
+	printf("Short listing of devclasses, drivers & devices:\n");
+	for (dc = TAILQ_FIRST(&devclasses); dc; dc = TAILQ_NEXT(dc, link))
+		print_devclass_short(dc, 0);
+}
+
+void
+print_devclass_list(void)
+{
+	devclass_t dc;
+
+	printf("Full listing of devclasses, drivers & devices:\n");
+	for (dc = TAILQ_FIRST(&devclasses); dc; dc = TAILQ_NEXT(dc, link))
+		print_devclass(dc, 0);
+}
+
+#endif
