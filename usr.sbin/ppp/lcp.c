@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.51 1997/12/24 09:29:05 brian Exp $
+ * $Id: lcp.c,v 1.52 1998/01/11 17:50:35 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -30,9 +30,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
-#ifdef __FreeBSD__
-#include <net/if_var.h>
-#endif
 #include <net/if_tun.h>
 
 #include <signal.h>
