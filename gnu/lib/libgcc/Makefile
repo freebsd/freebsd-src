@@ -37,7 +37,6 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCDIR}/config -I${GCCDIR} -I.
-LDFLAGS=	-nostdlib
 
 OBJS=		# added to below in various ways depending on TARGET_ARCH
 
@@ -190,21 +189,15 @@ ${OBJS} beforedepend: ${COMMONHDRS}
 
 ${OBJS_T}: libgcc2.c
 	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
 ${OBJS_S}: libgcc2.c
 	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
 ${OBJS_P}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if defined(LIB1ASMSRC)
@@ -212,23 +205,17 @@ ${OBJS_P}: libgcc2.c
 ${ASM_T}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
 ${ASM_S}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
 ${ASM_P}: ${_lib1asmsrc}
 	${XCC} -x assembler-with-cpp -p -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.TARGET} ${.ALLSRC:N*.h}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 .endfor
 .endif
