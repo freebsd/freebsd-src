@@ -34,12 +34,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
-/* from: static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90"; */
-static char *rcsid = "$Id: str.c,v 1.5 1995/06/18 12:34:12 ache Exp $";
-#endif				/* not lint */
+static char sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
+#endif /* not lint */
 
 #include "make.h"
 
