@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.20 1996/07/10 01:34:36 fenner Exp $
+ *	$Id: rtsock.c,v 1.20.2.1 1997/02/21 17:30:17 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -378,6 +378,11 @@ rt_setmetrics(which, in, out)
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
+/*
+ * extract the addresses of the passed sockaddrs.
+ * Do a little sanity checking so as to avoid bad memory references later
+ * as we have not checked this user-land derived data yet.
+ */
 static void
 rt_xaddrs(cp, cplim, rtinfo)
 	register caddr_t cp, cplim;
@@ -387,9 +392,23 @@ rt_xaddrs(cp, cplim, rtinfo)
 	register int i;
 
 	bzero(rtinfo->rti_info, sizeof(rtinfo->rti_info));
-	for (i = 0; (i < RTAX_MAX) && (cp < cplim); i++) {
+	for (i = 0; i < RTAX_MAX; i++) {
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;
+		/*
+		 * It won't fit. Pretend it doesn't exist.
+		 * Would return EINVAL if not void
+		 */
+		if ( (cp + sa->sa_len) > cplim )
+			return;
+		/*
+		 * there are no more.. quit now
+		 * If there are more bits, they are in error.
+		 * I've seen this. route(1) can evidently generate these. 
+		 * This causes kernel to core dump.
+		 */
+		if (sa->sa_len == 0)
+			return;
 		rtinfo->rti_info[i] = sa = (struct sockaddr *)cp;
 		ADVANCE(cp, sa);
 	}
