@@ -153,9 +153,9 @@ struct md_s {
 	struct mtx queue_mtx;
 	struct cdev *dev;
 	enum md_types type;
-	unsigned nsect;
+	off_t mediasize;
+	unsigned sectorsize;
 	unsigned opencount;
-	unsigned secsize;
 	unsigned fwheads;
 	unsigned fwsectors;
 	unsigned flags;
@@ -170,7 +170,7 @@ struct md_s {
 
 	/* MD_PRELOAD related fields */
 	u_char *pl_ptr;
-	unsigned pl_len;
+	size_t pl_len;
 
 	/* MD_VNODE related fields */
 	struct vnode *vnode;
@@ -386,11 +386,11 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 {
 	int i, error;
 	u_char *dst;
-	unsigned secno, nsec, uc;
+	off_t secno, nsec, uc;
 	uintptr_t sp, osp;
 
-	nsec = bp->bio_length / sc->secsize;
-	secno = bp->bio_offset / sc->secsize;
+	nsec = bp->bio_length / sc->sectorsize;
+	secno = bp->bio_offset / sc->sectorsize;
 	dst = bp->bio_data;
 	error = 0;
 	while (nsec--) {
@@ -400,38 +400,38 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 				error = s_write(sc->indir, secno, 0);
 		} else if (bp->bio_cmd == BIO_READ) {
 			if (osp == 0)
-				bzero(dst, sc->secsize);
+				bzero(dst, sc->sectorsize);
 			else if (osp <= 255)
-				for (i = 0; i < sc->secsize; i++)
+				for (i = 0; i < sc->sectorsize; i++)
 					dst[i] = osp;
 			else
-				bcopy((void *)osp, dst, sc->secsize);
+				bcopy((void *)osp, dst, sc->sectorsize);
 			osp = 0;
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
 				uc = dst[0];
-				for (i = 1; i < sc->secsize; i++)
+				for (i = 1; i < sc->sectorsize; i++)
 					if (dst[i] != uc)
 						break;
 			} else {
 				i = 0;
 				uc = 0;
 			}
-			if (i == sc->secsize) {
+			if (i == sc->sectorsize) {
 				if (osp != uc)
 					error = s_write(sc->indir, secno, uc);
 			} else {
 				if (osp <= 255) {
-					sp = (uintptr_t) uma_zalloc(
-					    sc->uma, M_NOWAIT);
+					sp = (uintptr_t)uma_zalloc(sc->uma,
+					    M_NOWAIT);
 					if (sp == 0) {
 						error = ENOSPC;
 						break;
 					}
-					bcopy(dst, (void *)sp, sc->secsize);
+					bcopy(dst, (void *)sp, sc->sectorsize);
 					error = s_write(sc->indir, secno, sp);
 				} else {
-					bcopy(dst, (void *)osp, sc->secsize);
+					bcopy(dst, (void *)osp, sc->sectorsize);
 					osp = 0;
 				}
 			}
@@ -443,7 +443,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 		if (error)
 			break;
 		secno++;
-		dst += sc->secsize;
+		dst += sc->sectorsize;
 	}
 	bp->bio_resid = 0;
 	return (error);
@@ -726,8 +726,8 @@ mdinit(struct md_s *sc)
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
-	pp->mediasize = (off_t)sc->nsect * sc->secsize;
-	pp->sectorsize = sc->secsize;
+	pp->mediasize = sc->mediasize;
+	pp->sectorsize = sc->sectorsize;
 	sc->gp = gp;
 	sc->pp = pp;
 	g_error_provider(pp, 0);
@@ -743,98 +743,59 @@ mdinit(struct md_s *sc)
  */
 
 static int
-mdcreate_preload(struct md_ioctl *mdio)
+mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
 {
-	struct md_s *sc;
 
-	if (mdio->md_size == 0)
+	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
 		return (EINVAL);
-	if (mdio->md_options & ~(MD_AUTOUNIT))
-		return (EINVAL);
-	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1);
-		if (sc == NULL)
-			return (ENOMEM);
-		mdio->md_unit = sc->unit;
-	} else {
-		sc = mdnew(mdio->md_unit);
-		if (sc == NULL)
-			return (EBUSY);
-	}
-	sc->type = MD_PRELOAD;
-	sc->secsize = DEV_BSIZE;
-	sc->nsect = mdio->md_size;
 	sc->flags = mdio->md_options & MD_FORCE;
 	/* Cast to pointer size, then to pointer to avoid warning */
 	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
-	sc->pl_len = (mdio->md_size << DEV_BSHIFT);
-	mdinit(sc);
+	sc->pl_len = (size_t)sc->mediasize;
 	return (0);
 }
 
 
 static int
-mdcreate_malloc(struct md_ioctl *mdio)
+mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 {
-	struct md_s *sc;
-	off_t u;
 	uintptr_t sp;
 	int error;
+	off_t u;
 
 	error = 0;
-	if (mdio->md_size == 0)
-		return (EINVAL);
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
 		return (EINVAL);
-	if (mdio->md_secsize != 0 && !powerof2(mdio->md_secsize))
+	if (mdio->md_sectorsize != 0 && !powerof2(mdio->md_sectorsize))
 		return (EINVAL);
 	/* Compression doesn't make sense if we have reserved space */
 	if (mdio->md_options & MD_RESERVE)
 		mdio->md_options &= ~MD_COMPRESS;
-	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1);
-		if (sc == NULL)
-			return (ENOMEM);
-		mdio->md_unit = sc->unit;
-	} else {
-		sc = mdnew(mdio->md_unit);
-		if (sc == NULL)
-			return (EBUSY);
-	}
-	sc->type = MD_MALLOC;
-	if (mdio->md_secsize != 0)
-		sc->secsize = mdio->md_secsize;
-	else
-		sc->secsize = DEV_BSIZE;
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->nsect = (mdio->md_size * DEV_BSIZE) / sc->secsize;
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
-	sc->indir = dimension(sc->nsect);
-	sc->uma = uma_zcreate(sc->name, sc->secsize,
-	    NULL, NULL, NULL, NULL, 0x1ff, 0);
+	sc->indir = dimension(sc->mediasize / sc->sectorsize);
+	sc->uma = uma_zcreate(sc->name, sc->sectorsize, NULL, NULL, NULL, NULL,
+	    0x1ff, 0);
 	if (mdio->md_options & MD_RESERVE) {
-		for (u = 0; u < sc->nsect; u++) {
-			sp = (uintptr_t) uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
+		off_t nsectors;
+
+		nsectors = sc->mediasize / sc->sectorsize;
+		for (u = 0; u < nsectors; u++) {
+			sp = (uintptr_t)uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp);
 			else
 				error = ENOMEM;
-			if (error)
+			if (error != 0)
 				break;
 		}
 	}
-	if (error)  {
+	if (error != 0)
 		uma_zdestroy(sc->uma);
-		mddestroy(sc, NULL);
-		return (error);
-	}
-	mdinit(sc);
-	if (!(mdio->md_options & MD_RESERVE))
-		sc->pp->flags |= G_PF_CANDELETE;
-	return (0);
+	return (error);
 }
 
 
@@ -860,11 +821,11 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		struct uio auio;
 		struct iovec aiov;
 
-		tmpbuf = malloc(sc->secsize, M_TEMP, M_WAITOK);
+		tmpbuf = malloc(sc->sectorsize, M_TEMP, M_WAITOK);
 		bzero(&auio, sizeof(auio));
 
 		aiov.iov_base = tmpbuf;
-		aiov.iov_len = sc->secsize;
+		aiov.iov_len = sc->sectorsize;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
@@ -880,9 +841,8 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 }
 
 static int
-mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
+mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
-	struct md_s *sc;
 	struct vattr vattr;
 	struct nameidata nd;
 	int error, flags;
@@ -904,52 +864,25 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
 		VOP_UNLOCK(nd.ni_vp, 0, td);
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
-
-	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1);
-		mdio->md_unit = sc->unit;
-	} else {
-		sc = mdnew(mdio->md_unit);
-	}
-	if (sc == NULL) {
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		return (EBUSY);
-	}
 
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
-	sc->type = MD_VNODE;
 	sc->flags = mdio->md_options & (MD_FORCE | MD_ASYNC);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
-	sc->secsize = DEV_BSIZE;
 	sc->vnode = nd.ni_vp;
 
-	/*
-	 * If the size is specified, override the file attributes.
-	 */
-	if (mdio->md_size)
-		sc->nsect = mdio->md_size;
-	else
-		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
-	if (sc->nsect == 0) {
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		mddestroy(sc, td);
-		return (EINVAL);
-	}
 	error = mdsetcred(sc, td->td_ucred);
-	if (error) {
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		mddestroy(sc, td);
+	if (error != 0) {
+		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		return (error);
 	}
-	mdinit(sc);
 	return (0);
 }
 
@@ -999,47 +932,27 @@ mddestroy(struct md_s *sc, struct thread *td)
 }
 
 static int
-mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
+mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
-	struct md_s *sc;
 	vm_ooffset_t npage;
 	int error;
 
 	GIANT_REQUIRED;
 
-	if (mdio->md_options & MD_AUTOUNIT) {
-		sc = mdnew(-1);
-		mdio->md_unit = sc->unit;
-	} else {
-		sc = mdnew(mdio->md_unit);
-	}
-	if (sc == NULL)
-		return (EBUSY);
-
-	sc->type = MD_SWAP;
-
 	/*
 	 * Range check.  Disallow negative sizes or any size less then the
 	 * size of a page.  Then round to a page.
 	 */
-
-	if (mdio->md_size == 0) {
-		mddestroy(sc, td);
+	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
-	}
 
 	/*
 	 * Allocate an OBJT_SWAP object.
 	 *
-	 * sc_nsect is in units of DEV_BSIZE.
-	 * npage is in units of PAGE_SIZE.
-	 *
 	 * Note the truncation.
 	 */
 
-	sc->secsize = DEV_BSIZE;
-	npage = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
-	sc->nsect = npage * (PAGE_SIZE / DEV_BSIZE);
+	npage = mdio->md_mediasize / PAGE_SIZE;
 	if (mdio->md_fwsectors != 0)
 		sc->fwsectors = mdio->md_fwsectors;
 	if (mdio->md_fwheads != 0)
@@ -1051,7 +964,6 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			vm_object_deallocate(sc->object);
 			sc->object = NULL;
-			mddestroy(sc, td);
 			return (EDOM);
 		}
 	}
@@ -1059,13 +971,8 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	if (error) {
 		vm_object_deallocate(sc->object);
 		sc->object = NULL;
-		mddestroy(sc, td);
-		return (error);
 	}
-	mdinit(sc);
-	if (!(mdio->md_options & MD_RESERVE))
-		sc->pp->flags |= G_PF_CANDELETE;
-	return (0);
+	return (error);
 }
 
 static int
@@ -1094,7 +1001,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 {
 	struct md_ioctl *mdio;
 	struct md_s *sc;
-	int i;
+	int error, i;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1114,20 +1021,52 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 			return (EINVAL);
 		switch (mdio->md_type) {
 		case MD_MALLOC:
-			return (mdcreate_malloc(mdio));
 		case MD_PRELOAD:
-			return (mdcreate_preload(mdio));
 		case MD_VNODE:
-			return (mdcreate_vnode(mdio, td));
 		case MD_SWAP:
-			return (mdcreate_swap(mdio, td));
+			break;
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_options & MD_AUTOUNIT) {
+			sc = mdnew(-1);
+			mdio->md_unit = sc->unit;
+		} else {
+			sc = mdnew(mdio->md_unit);
+			if (sc == NULL)
+				return (EBUSY);
+		}
+		sc->type = mdio->md_type;
+		sc->mediasize = mdio->md_mediasize;
+		if (mdio->md_sectorsize == 0)
+			sc->sectorsize = DEV_BSIZE;
+		else
+			sc->sectorsize = mdio->md_sectorsize;
+		error = EDOOFUS;
+		switch (sc->type) {
+		case MD_MALLOC:
+			error = mdcreate_malloc(sc, mdio);
+			break;
+		case MD_PRELOAD:
+			error = mdcreate_preload(sc, mdio);
+			break;
+		case MD_VNODE:
+			error = mdcreate_vnode(sc, mdio, td);
+			break;
+		case MD_SWAP:
+			error = mdcreate_swap(sc, mdio, td);
+			break;
+		}
+		if (error != 0) {
+			mddestroy(sc, td);
+			return (error);
+		}
+		mdinit(sc);
+		return (0);
 	case MDIOCDETACH:
 		if (mdio->md_version != MDIOVERSION)
 			return (EINVAL);
-		if (mdio->md_file != NULL || mdio->md_size != 0 ||
+		if (mdio->md_file != NULL || mdio->md_mediasize != 0 ||
 		    mdio->md_options != 0)
 			return (EINVAL);
 		return (mddetach(mdio->md_unit, td));
@@ -1139,22 +1078,11 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 			return (ENOENT);
 		mdio->md_type = sc->type;
 		mdio->md_options = sc->flags;
-		switch (sc->type) {
-		case MD_MALLOC:
-			mdio->md_size = sc->nsect;
-			break;
-		case MD_PRELOAD:
-			mdio->md_size = sc->nsect;
-			mdio->md_base = (uint64_t)(intptr_t)sc->pl_ptr;
-			break;
-		case MD_SWAP:
-			mdio->md_size = sc->nsect;
-			break;
-		case MD_VNODE:
-			mdio->md_size = sc->nsect;
+		mdio->md_mediasize = sc->mediasize;
+		mdio->md_sectorsize = sc->sectorsize;
+		if (sc->type == MD_VNODE) {
 			/* XXX fill this in */
 			mdio->md_file = NULL;
-			break;
 		}
 		return (0);
 	case MDIOCLIST:
@@ -1174,7 +1102,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 }
 
 static void
-md_preloaded(u_char *image, unsigned length)
+md_preloaded(u_char *image, size_t length)
 {
 	struct md_s *sc;
 
@@ -1182,8 +1110,8 @@ md_preloaded(u_char *image, unsigned length)
 	if (sc == NULL)
 		return;
 	sc->type = MD_PRELOAD;
-	sc->secsize = DEV_BSIZE;
-	sc->nsect = length / DEV_BSIZE;
+	sc->mediasize = length;
+	sc->sectorsize = DEV_BSIZE;
 	sc->pl_ptr = image;
 	sc->pl_len = length;
 #ifdef MD_ROOT
