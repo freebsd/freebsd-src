@@ -799,8 +799,12 @@ int	check_for_offend;
 	datfile = copy(file, (unsigned int) (strlen(file) + 4)); /* +4 for ".dat" */
 	strcat(datfile, ".dat");
 	if (access(datfile, R_OK) < 0) {
+		DPRINTF(2, (stderr, "FALSE (no readable \".dat\" file)\n"));
+#ifdef DEBUG
+		if (Debug < 2)
+			DPRINTF(0, (stderr, "Warning: file \"%s\" unreadable\n", datfile));
+#endif
 		free(datfile);
-		DPRINTF(2, (stderr, "FALSE (no \".dat\" file)\n"));
 		return FALSE;
 	}
 	if (datp != NULL)
