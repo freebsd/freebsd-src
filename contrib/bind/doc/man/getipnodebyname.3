@@ -43,11 +43,11 @@
 .Fd #include <netdb.h>
 .Pp
 .Ft struct hostent *
-.Fn getipnodebyname "const char *name" "int af" "int flags" "int *error";
+.Fn getipnodebyname "const char *name" "int af" "int flags" "int *error"
 .Ft struct hostent *
-.Fn getipnodebyaddr "const void *addr" "size_t len" "int af" "int *error";
+.Fn getipnodebyaddr "const void *addr" "size_t len" "int af" "int *error"
 .Ft void
-.Fn freehostent "struct hostent *he";
+.Fn freehostent "struct hostent *he"
 .Sh DESCRIPTION
 .Fn Getipnodebyname ,
 and
@@ -166,21 +166,17 @@ should not be passed to
 .Fn freehostent
 as they are pointers to static areas.
 .Sh ENVIRONMENT
-.Bl -tag -width "HOSTALIASES  " -compress
+.Bl -tag -width "HOSTALIASES  " -compact
 .It Ev HOSTALIASES
 Name of file containing 
 .Pq Ar host alias , full hostname
 pairs.
 .El
 .Sh FILES
-.Bl -tag -width "HOSTALIASES  " -compress
+.Bl -tag -width "HOSTALIASES  " -compact
 .It Pa /etc/hosts
 See
 .Xr hosts @FORMAT_EXT@ .
-.It Ev HOSTALIASES
-Name of file containing 
-.Pq Ar host alias , full hostname
-pairs.
 .El
 .Sh DIAGNOSTICS
 .Pp
