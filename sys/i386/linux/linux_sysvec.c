@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.12 1997/03/29 10:50:27 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.13 1997/04/01 08:39:07 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -170,7 +170,7 @@ void
 linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
 	register struct proc *p = curproc;
-	register int *regs;
+	register struct trapframe *regs;
 	struct linux_sigframe *fp, frame;
 	struct sigacts *psp = p->p_sigacts;
 	int oonstack;
@@ -191,7 +191,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 		    psp->ps_sigstk.ss_size - sizeof(struct linux_sigframe));
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
-		fp = (struct linux_sigframe *)regs[tESP] - 1;
+		fp = (struct linux_sigframe *)regs->tf_esp - 1;
 	}
 
 	/*
@@ -233,21 +233,21 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	frame.sf_sc.sc_mask   = mask;
 	__asm("movl %%gs,%w0" : "=r" (frame.sf_sc.sc_gs));
 	__asm("movl %%fs,%w0" : "=r" (frame.sf_sc.sc_fs));
-	frame.sf_sc.sc_es     = regs[tES];
-	frame.sf_sc.sc_ds     = regs[tDS];
-	frame.sf_sc.sc_edi    = regs[tEDI];
-	frame.sf_sc.sc_esi    = regs[tESI];
-	frame.sf_sc.sc_ebp    = regs[tEBP];
-	frame.sf_sc.sc_ebx    = regs[tEBX];
-	frame.sf_sc.sc_edx    = regs[tEDX];
-	frame.sf_sc.sc_ecx    = regs[tECX];
-	frame.sf_sc.sc_eax    = regs[tEAX];
-	frame.sf_sc.sc_eip    = regs[tEIP];
-	frame.sf_sc.sc_cs     = regs[tCS];
-	frame.sf_sc.sc_eflags = regs[tEFLAGS];
-	frame.sf_sc.sc_esp_at_signal = regs[tESP];
-	frame.sf_sc.sc_ss     = regs[tSS];
-	frame.sf_sc.sc_err    = regs[tERR];
+	frame.sf_sc.sc_es     = regs->tf_es;
+	frame.sf_sc.sc_ds     = regs->tf_ds;
+	frame.sf_sc.sc_edi    = regs->tf_edi;
+	frame.sf_sc.sc_esi    = regs->tf_esi;
+	frame.sf_sc.sc_ebp    = regs->tf_ebp;
+	frame.sf_sc.sc_ebx    = regs->tf_ebx;
+	frame.sf_sc.sc_edx    = regs->tf_edx;
+	frame.sf_sc.sc_ecx    = regs->tf_ecx;
+	frame.sf_sc.sc_eax    = regs->tf_eax;
+	frame.sf_sc.sc_eip    = regs->tf_eip;
+	frame.sf_sc.sc_cs     = regs->tf_cs;
+	frame.sf_sc.sc_eflags = regs->tf_eflags;
+	frame.sf_sc.sc_esp_at_signal = regs->tf_esp;
+	frame.sf_sc.sc_ss     = regs->tf_ss;
+	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
@@ -262,13 +262,13 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * Build context to run handler in.
 	 */
-	regs[tESP] = (int)fp;
-	regs[tEIP] = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
-	regs[tEFLAGS] &= ~PSL_VM;
-	regs[tCS] = _ucodesel;
-	regs[tDS] = _udatasel;
-	regs[tES] = _udatasel;
-	regs[tSS] = _udatasel;
+	regs->tf_esp = (int)fp;
+	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	regs->tf_eflags &= ~PSL_VM;
+	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_ss = _udatasel;
 }
 
 /*
@@ -288,7 +288,7 @@ linux_sigreturn(p, args, retval)
 	int *retval;
 {
 	struct linux_sigcontext *scp, context;
-	register int *regs;
+	register struct trapframe *regs;
 	int eflags;
 
 	regs = p->p_md.md_regs;
@@ -320,7 +320,7 @@ linux_sigreturn(p, args, retval)
 	 * bit at worst causes one more or one less debugger trap, so
 	 * allowing it is fairly harmless.
 	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs[tEFLAGS] & ~PSL_RF)) {
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
     		return(EINVAL);
 	}
 
@@ -342,20 +342,20 @@ linux_sigreturn(p, args, retval)
 	 * Restore signal context.
 	 */
 	/* %fs and %gs were restored by the trampoline. */
-	regs[tES]     = context.sc_es;
-	regs[tDS]     = context.sc_ds;
-	regs[tEDI]    = context.sc_edi;
-	regs[tESI]    = context.sc_esi;
-	regs[tEBP]    = context.sc_ebp;
-	regs[tEBX]    = context.sc_ebx;
-	regs[tEDX]    = context.sc_edx;
-	regs[tECX]    = context.sc_ecx;
-	regs[tEAX]    = context.sc_eax;
-	regs[tEIP]    = context.sc_eip;
-	regs[tCS]     = context.sc_cs;
-	regs[tEFLAGS] = eflags;
-	regs[tESP]    = context.sc_esp_at_signal;
-	regs[tSS]     = context.sc_ss;
+	regs->tf_es     = context.sc_es;
+	regs->tf_ds     = context.sc_ds;
+	regs->tf_edi    = context.sc_edi;
+	regs->tf_esi    = context.sc_esi;
+	regs->tf_ebp    = context.sc_ebp;
+	regs->tf_ebx    = context.sc_ebx;
+	regs->tf_edx    = context.sc_edx;
+	regs->tf_ecx    = context.sc_ecx;
+	regs->tf_eax    = context.sc_eax;
+	regs->tf_eip    = context.sc_eip;
+	regs->tf_cs     = context.sc_cs;
+	regs->tf_eflags = eflags;
+	regs->tf_esp    = context.sc_esp_at_signal;
+	regs->tf_ss     = context.sc_ss;
 
 	return (EJUSTRETURN);
 }
