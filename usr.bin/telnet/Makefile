@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$FreeBSD$
+# $FreeBSD$
 #
 
 PROG=	telnet
@@ -47,7 +47,7 @@ LDADD=	-ltermcap -ltelnet
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DIPSEC
-DPADDA+=${LIBIPSEC}
+DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 .endif
 
@@ -63,4 +63,3 @@ NOCRYPT_DIR=${.CURDIR}/Nocrypt
 
 nocrypt:
 	@echo "Encryption code already removed."
-
