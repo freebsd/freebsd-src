@@ -390,11 +390,11 @@ struct aha_softc {
 	char			 model[32];
 	uint8_t			 boardid;
 	struct resource		*irq;
-	int			 irqrid;
 	struct resource		*port;
-	int			 portrid;
 	struct resource		*drq;
-	int			 drqrid;
+	int			irqrid;
+	int			portrid;
+	int			drqrid;
 	void			**ih;
 	device_t		 dev;
 };
