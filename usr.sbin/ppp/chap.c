@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.47 1999/02/20 01:12:45 brian Exp $
+ * $Id: chap.c,v 1.48 1999/04/01 11:05:22 brian Exp $
  *
  *	TODO:
  */
@@ -259,7 +259,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       chap->child.buf.len = 0;
       write(in[1], chap->auth.in.name, strlen(chap->auth.in.name));
       write(in[1], "\n", 1);
-      write(in[1], chap->challenge + 1, *chap->challenge);
+      write(in[1], chap->challenge.peer + 1, *chap->challenge.peer);
       write(in[1], "\n", 1);
       write(in[1], name, strlen(name));
       write(in[1], "\n", 1);
@@ -288,7 +288,7 @@ chap_Cleanup(struct chap *chap, int sig)
     else if (WIFEXITED(status) && WEXITSTATUS(status))
       log_Printf(LogERROR, "Chap: Child exited %d\n", WEXITSTATUS(status));
   }
-  *chap->challenge = 0;
+  *chap->challenge.local = *chap->challenge.peer = '\0';
 #ifdef HAVE_DES
   chap->peertries = 0;
 #endif
@@ -303,7 +303,7 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
 {
   u_char *ans;
 
-  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, type
+  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge.peer, type
 #ifdef HAVE_DES
                          , lm
 #endif
@@ -418,9 +418,9 @@ chap_Challenge(struct authinfo *authp)
 
   len = strlen(authp->physical->dl->bundle->cfg.auth.name);
 
-  if (!*chap->challenge) {
+  if (!*chap->challenge.local) {
     randinit();
-    cp = chap->challenge;
+    cp = chap->challenge.local;
 
 #ifndef NORADIUS
     if (*authp->physical->dl->bundle->radius.cfg.file) {
@@ -437,13 +437,13 @@ chap_Challenge(struct authinfo *authp)
       else
 #endif
         *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
-      for (i = 0; i < *chap->challenge; i++)
+      for (i = 0; i < *chap->challenge.local; i++)
         *cp++ = random() & 0xff;
     }
     memcpy(cp, authp->physical->dl->bundle->cfg.auth.name, len);
   }
-  ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id, chap->challenge,
-	     1 + *chap->challenge + len, NULL);
+  ChapOutput(authp->physical, CHAP_CHALLENGE, authp->id, chap->challenge.local,
+	     1 + *chap->challenge.local + len, NULL);
 }
 
 static void
@@ -499,7 +499,7 @@ chap_HaveAnotherGo(struct chap *chap)
 {
   if (++chap->peertries < 3) {
     /* Give the peer another shot */
-    *chap->challenge = '\0';
+    *chap->challenge.local = '\0';
     chap_Challenge(&chap->auth);
     return 1;
   }
@@ -519,7 +519,7 @@ chap_Init(struct chap *chap, struct physical *p)
   chap->child.pid = 0;
   chap->child.fd = -1;
   auth_Init(&chap->auth, p, chap_Challenge, chap_Success, chap_Failure);
-  *chap->challenge = 0;
+  *chap->challenge.local = *chap->challenge.peer = '\0';
 #ifdef HAVE_DES
   chap->NTRespSent = 0;
   chap->peertries = 0;
@@ -538,7 +538,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
   struct chap *chap = &p->dl->chap;
   char *name, *key, *ans;
   int len, nlen;
-  u_char alen;
+  u_char alen, end;
 #ifdef HAVE_DES
   int lanman;
 #endif
@@ -584,8 +584,8 @@ chap_Input(struct physical *p, struct mbuf *bp)
           mbuf_Free(bp);
           return;
         }
-        *chap->challenge = alen;
-        bp = mbuf_Read(bp, chap->challenge + 1, alen);
+        *chap->challenge.peer = alen;
+        bp = mbuf_Read(bp, chap->challenge.peer + 1, alen);
         bp = auth_ReadName(&chap->auth, bp, len);
 #ifdef HAVE_DES
         lanman = p->link.lcp.his_authtype == 0x80 &&
@@ -682,9 +682,12 @@ chap_Input(struct physical *p, struct mbuf *bp)
         nlen = strlen(name);
 #ifndef NORADIUS
         if (*p->dl->bundle->radius.cfg.file) {
-          chap->challenge[*chap->challenge+1] = '\0';
+          end = chap->challenge.local[*chap->challenge.local+1];
+          chap->challenge.local[*chap->challenge.local+1] = '\0';
           radius_Authenticate(&p->dl->bundle->radius, &chap->auth,
-                              chap->auth.in.name, ans, chap->challenge + 1);
+                              chap->auth.in.name, ans,
+                              chap->challenge.local + 1);
+          chap->challenge.local[*chap->challenge.local+1] = end;
         } else
 #endif
         {
@@ -707,7 +710,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
 #endif
             {
               myans = chap_BuildAnswer(name, key, chap->auth.id,
-                                       chap->challenge,
+                                       chap->challenge.local,
                                        p->link.lcp.want_authtype
 #ifdef HAVE_DES
                                        , lanman
