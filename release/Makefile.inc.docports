@@ -19,10 +19,10 @@ MINIMALDOCPORTS= \
 	ports/devel/libtool \
 	ports/devel/pkgconfig \
 	ports/graphics/gd \
-	ports/graphics/peps \
 	ports/graphics/jbigkit \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
+	ports/graphics/peps \
 	ports/graphics/png \
 	ports/graphics/scr2png \
 	ports/graphics/tiff \
@@ -45,7 +45,7 @@ MINIMALDOCPORTS= \
 	ports/textproc/mkcatalog \
 	ports/textproc/sgmlformat \
 	ports/textproc/xhtml \
-	ports/www/links \
+	ports/www/links1 \
 	ports/www/tidy
 .if ${MACHINE_ARCH} == "alpha"
 MINIMALDOCPORTS+=	ports/textproc/openjade
