@@ -515,7 +515,7 @@ vm_page_splay(vm_pindex_t pindex, vm_page_t root)
  *	enter the page into the kernel's pmap.  We are not allowed to block
  *	here so we *can't* do this anyway.
  *
- *	The object and page must be locked, and must be splhigh.
+ *	The object and page must be locked.
  *	This routine may not block.
  */
 void
@@ -581,7 +581,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
  *	table and the object page list, but do not invalidate/terminate
  *	the backing store.
  *
- *	The object and page must be locked, and at splhigh.
+ *	The object and page must be locked.
  *	The underlying pmap entry (if any) is NOT removed here.
  *	This routine may not block.
  */
@@ -664,8 +664,6 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
  *	The object must be locked.
  *	This routine may not block.
  *
- *	Note: this routine will raise itself to splvm(), the caller need not. 
- *
  *	Note: swap associated with the page must be invalidated by the move.  We
  *	      have to do this for several reasons:  (1) we aren't freeing the
  *	      page, (2) we are dirtying the page, (3) the VM system is probably
@@ -681,15 +679,12 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 void
 vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 {
-	int s;
 
-	s = splvm();
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
 	if (m->queue - m->pc == PQ_CACHE)
 		vm_page_deactivate(m);
 	vm_page_dirty(m);
-	splx(s);
 }
 
 /*
@@ -699,7 +694,6 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	might be found, but not applicable, they are deactivated.  This
  *	keeps us from using potentially busy cached pages.
  *
- *	This routine must be called at splvm().
  *	This routine may not block.
  */
 vm_page_t
@@ -750,7 +744,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 	vm_object_t m_object;
 	vm_page_t m = NULL;
-	int color, flags, page_req, s;
+	int color, flags, page_req;
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
 
@@ -769,7 +763,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		page_req = VM_ALLOC_SYSTEM;
 	};
 
-	s = splvm();
 loop:
 	mtx_lock_spin(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count > cnt.v_free_reserved ||
@@ -792,7 +785,6 @@ loop:
 		vm_page_lock_queues();
 		if ((m = vm_page_select_cache(color)) == NULL) {
 			vm_page_unlock_queues();
-			splx(s);
 #if defined(DIAGNOSTIC)
 			if (cnt.v_cache_count > 0)
 				printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
@@ -814,7 +806,6 @@ loop:
 		 * Not allocatable from cache from interrupt, give up.
 		 */
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
-		splx(s);
 		atomic_add_int(&vm_pageout_deficit, 1);
 		pagedaemon_wakeup();
 		return (NULL);
@@ -826,13 +817,12 @@ loop:
 
 	KASSERT(
 	    m != NULL,
-	    ("vm_page_alloc(): missing page on free queue\n")
+	    ("vm_page_alloc(): missing page on free queue")
 	);
 
 	/*
 	 * Remove from free queue
 	 */
-
 	vm_pageq_remove_nowakeup(m);
 
 	/*
@@ -859,12 +849,6 @@ loop:
 	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
 
-	/*
-	 * vm_page_insert() is safe prior to the splx().  Note also that
-	 * inserting a page here does not insert it into the pmap (which
-	 * could cause us to block allocating memory).  We cannot block 
-	 * anywhere.
-	 */
 	if ((req & VM_ALLOC_NOOBJ) == 0)
 		vm_page_insert(m, object, pindex);
 	else
@@ -877,7 +861,6 @@ loop:
 	if (vm_paging_needed())
 		pagedaemon_wakeup();
 
-	splx(s);
 	return (m);
 }
 
@@ -890,9 +873,7 @@ loop:
 void
 vm_wait(void)
 {
-	int s;
 
-	s = splvm();
 	vm_page_lock_queues();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
@@ -906,7 +887,6 @@ vm_wait(void)
 		msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PVM,
 		    "vmwait", 0);
 	}
-	splx(s);
 }
 
 /*
@@ -922,9 +902,7 @@ vm_wait(void)
 void
 vm_waitpfault(void)
 {
-	int s;
 
-	s = splvm();
 	vm_page_lock_queues();
 	if (!vm_pages_needed) {
 		vm_pages_needed = 1;
@@ -932,7 +910,6 @@ vm_waitpfault(void)
 	}
 	msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PUSER,
 	    "pfault", 0);
-	splx(s);
 }
 
 /*
@@ -948,10 +925,8 @@ vm_waitpfault(void)
 void
 vm_page_activate(vm_page_t m)
 {
-	int s;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	s = splvm();
 	if (m->queue != PQ_ACTIVE) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
@@ -965,7 +940,6 @@ vm_page_activate(vm_page_t m)
 		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
 	}
-	splx(s);
 }
 
 /*
@@ -975,8 +949,8 @@ vm_page_activate(vm_page_t m)
  *	routine is called when a page has been added to the cache or free
  *	queues.
  *
+ *	The page queues must be locked.
  *	This routine may not block.
- *	This routine must be called at splvm()
  */
 static __inline void
 vm_page_free_wakeup(void)
@@ -1016,12 +990,10 @@ vm_page_free_wakeup(void)
 void
 vm_page_free_toq(vm_page_t m)
 {
-	int s;
 	struct vpgqueues *pq;
 	vm_object_t object = m->object;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	s = splvm();
 	cnt.v_tfree++;
 
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE)) {
@@ -1049,7 +1021,6 @@ vm_page_free_toq(vm_page_t m)
 	 * return, otherwise delay object association removal.
 	 */
 	if ((m->flags & PG_FICTITIOUS) != 0) {
-		splx(s);
 		return;
 	}
 
@@ -1061,7 +1032,7 @@ vm_page_free_toq(vm_page_t m)
 			panic("vm_page_free: invalid wire count (%d), pindex: 0x%lx",
 				m->wire_count, (long)m->pindex);
 		}
-		panic("vm_page_free: freeing wired page\n");
+		panic("vm_page_free: freeing wired page");
 	}
 
 	/*
@@ -1111,7 +1082,6 @@ vm_page_free_toq(vm_page_t m)
 	}
 	mtx_unlock_spin(&vm_page_queue_free_mtx);
 	vm_page_free_wakeup();
-	splx(s);
 }
 
 /*
@@ -1135,16 +1105,13 @@ vm_page_free_toq(vm_page_t m)
 void
 vm_page_unmanage(vm_page_t m)
 {
-	int s;
 
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & PG_UNMANAGED) == 0) {
 		if (m->wire_count == 0)
 			vm_pageq_remove(m);
 	}
 	vm_page_flag_set(m, PG_UNMANAGED);
-	splx(s);
 }
 
 /*
@@ -1160,14 +1127,12 @@ vm_page_unmanage(vm_page_t m)
 void
 vm_page_wire(vm_page_t m)
 {
-	int s;
 
 	/*
 	 * Only bump the wire statistics if the page is not already wired,
 	 * and only unqueue the page if it is on some queue (if it is unmanaged
 	 * it is already off the queues).
 	 */
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->flags & PG_FICTITIOUS)
 		return;
@@ -1178,7 +1143,6 @@ vm_page_wire(vm_page_t m)
 	}
 	m->wire_count++;
 	KASSERT(m->wire_count != 0, ("vm_page_wire: wire_count overflow m=%p", m));
-	splx(s);
 }
 
 /*
@@ -1212,9 +1176,7 @@ vm_page_wire(vm_page_t m)
 void
 vm_page_unwire(vm_page_t m, int activate)
 {
-	int s;
 
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->flags & PG_FICTITIOUS)
 		return;
@@ -1232,9 +1194,8 @@ vm_page_unwire(vm_page_t m, int activate)
 			}
 		}
 	} else {
-		panic("vm_page_unwire: invalid wire count: %d\n", m->wire_count);
+		panic("vm_page_unwire: invalid wire count: %d", m->wire_count);
 	}
-	splx(s);
 }
 
 
@@ -1251,16 +1212,14 @@ vm_page_unwire(vm_page_t m, int activate)
 static __inline void
 _vm_page_deactivate(vm_page_t m, int athead)
 {
-	int s;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+
 	/*
 	 * Ignore if already inactive.
 	 */
 	if (m->queue == PQ_INACTIVE)
 		return;
-
-	s = splvm();
 	if (m->wire_count == 0 && (m->flags & PG_UNMANAGED) == 0) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
@@ -1274,7 +1233,6 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		vm_page_queues[PQ_INACTIVE].lcnt++;
 		cnt.v_inactive_count++;
 	}
-	splx(s);
 }
 
 void
@@ -1339,7 +1297,6 @@ vm_page_try_to_free(vm_page_t m)
 void
 vm_page_cache(vm_page_t m)
 {
-	int s;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
@@ -1359,11 +1316,9 @@ vm_page_cache(vm_page_t m)
 		panic("vm_page_cache: caching a dirty page, pindex: %ld",
 			(long)m->pindex);
 	}
-	s = splvm();
 	vm_pageq_remove_nowakeup(m);
 	vm_pageq_enqueue(PQ_CACHE + m->pc, m);
 	vm_page_free_wakeup();
-	splx(s);
 }
 
 /*
