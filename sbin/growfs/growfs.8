@@ -118,12 +118,12 @@ There may be cases on
 .Fx
 3.x only, when
 .Nm
-does not recognize exactly, whether the file system is mounted or not and
+does not recognize properly whether or not the file system is mounted and
 exits with an error message.
 Then please use
 .Nm
 .Fl y
-if you are sure, that the file system is not mounted.
+if you are sure that the file system is not mounted.
 It is also recommended to always use
 .Xr fsck 8
 after enlarging (just to be on the safe side).
@@ -163,9 +163,9 @@ Normally
 .Nm
 writes this critical structure to disk and reads it again later for doing more
 updates.
-This read operation will provide unexpected data, when using
+This read operation will provide unexpected data when using
 .Fl N .
-Therefore, this part can not really be simulated and will be skiped in test
+Therefore, this part can not really be simulated and will be skipped in test
 mode.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
