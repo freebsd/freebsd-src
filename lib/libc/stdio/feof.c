@@ -42,16 +42,24 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 /*
- * A subroutine version of the macro feof.
+ * feof has traditionally been a macro in <stdio.h>.  That is no
+ * longer true because it needs to be thread-safe.
+ *
+ * #undef feof
  */
-#undef feof
-
 int
-feof(fp)
-	FILE *fp;
+feof(FILE *fp)
 {
-	return (__sfeof(fp));
+	int	ret;
+
+	FLOCKFILE(fp);
+	ret= __sfeof(fp);
+	FUNLOCKFILE(fp);
+	return (ret);
 }

@@ -70,6 +70,7 @@
 #define		pthread_mutexattr_destroy	_pthread_mutexattr_destroy
 #define		pthread_mutexattr_settype	_pthread_mutexattr_settype
 #define		pthread_once			_pthread_once
+#define		pthread_self			_pthread_self
 #define		pthread_setspecific		_pthread_setspecific
 #define		read				_read
 #define		readv				_readv
@@ -115,7 +116,6 @@
 #define		pthread_rwlock_wrlock		_pthread_rwlock_wrlock
 #define		pthread_rwlockattr_init		_pthread_rwlockattr_init
 #define		pthread_rwlockattr_destroy	_pthread_rwlockattr_destroy
-#define		pthread_self			_pthread_self
 #define		sched_yield			_sched_yield
 #define		sendfile			_sendfile
 #define		shutdown			_shutdown

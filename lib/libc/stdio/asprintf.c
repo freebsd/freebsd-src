@@ -40,6 +40,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <varargs.h>
 #endif
 
+#include "local.h"
+
 int
 #if __STDC__
 asprintf(char **str, char const *fmt, ...)
@@ -68,7 +70,7 @@ asprintf(str, fmt, va_alist)
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NULL */
-	ret = vfprintf(&f, fmt, ap);
+	ret = __vfprintf(&f, fmt, ap);		/* Use unlocked __vfprintf */
 	*f._p = '\0';
 	va_end(ap);
 	f._bf._base = reallocf(f._bf._base, f._bf._size + 1);
