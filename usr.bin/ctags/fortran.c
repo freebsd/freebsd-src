@@ -140,8 +140,7 @@ PF_funcs()
  *	do case-independent strcmp
  */
 int
-cicmp(cp)
-	const char	*cp;
+cicmp(const char *cp)
 {
 	int	len;
 	char	*bp;
@@ -157,7 +156,7 @@ cicmp(cp)
 }
 
 static void
-takeprec()
+takeprec(void)
 {
 	for (; isspace(*lbp); ++lbp)
 		continue;
