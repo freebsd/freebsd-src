@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/file.h>
-#include <sys/time.h>
+#include <time.h>
 #include <pwd.h>
 #include <utmp.h>
 #include <stdio.h>
@@ -60,7 +60,6 @@ main(argc, argv)
 	struct passwd *pw;
 	FILE *ufp, *file();
 	char *t, *rindex(), *strcpy(), *strncpy(), *ttyname();
-	time_t time();
 
 	switch (argc) {
 	case 1:					/* who */
@@ -109,11 +108,12 @@ main(argc, argv)
 output(up)
 	struct utmp *up;
 {
-	char *ctime();
+	char buf[80];
 
 	(void)printf("%-*.*s %-*.*s", UT_NAMESIZE, UT_NAMESIZE, up->ut_name,
 	    UT_LINESIZE, UT_LINESIZE, up->ut_line);
-	(void)printf("%.12s", ctime(&up->ut_time) + 4);
+	(void)strftime(buf, sizeof(buf), "%c", localtime(&up->ut_time));
+	(void)printf("%.12s", buf + 4);
 	if (*up->ut_host)
 		printf("\t(%.*s)", UT_HOSTSIZE, up->ut_host);
 	(void)putchar('\n');
