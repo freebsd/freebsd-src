@@ -78,8 +78,8 @@ fdopen(fd, mode)
 	fp->_flags = flags;
 	/*
 	 * If opened for appending, but underlying descriptor does not have
-	 * O_APPEND bit set, assert __SAPP so that __swrite() will lseek to
-	 * end before each write.
+	 * O_APPEND bit set, assert __SAPP so that __swrite() caller
+	 * will _sseek() to the end before write.
 	 */
 	if ((oflags & O_APPEND) && !(fdflags & O_APPEND))
 		fp->_flags |= __SAPP;
