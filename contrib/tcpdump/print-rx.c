@@ -580,14 +580,16 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			printf(" fid %d/%d/%d", (int) n1, (int) n2, (int) n3); \
 		}
 
-#define STROUT(MAX) { int i; \
+#define STROUT(MAX) { unsigned int i; \
 			TRUNC(sizeof(int32_t)); \
-			i = (int) ntohl(*((int *) bp)); \
+			i = ntohl(*((int *) bp)); \
+			if (i > MAX) \
+				goto trunc; \
 			bp += sizeof(int32_t); \
-			TRUNC(i); \
-			strncpy(s, bp, min(MAX, i)); \
-			s[i] = '\0'; \
-			printf(" \"%s\"", s); \
+			printf(" \""); \
+			if (fn_printn(bp, i, snapend)) \
+				goto trunc; \
+			printf("\""); \
 			bp += ((i + sizeof(int32_t) - 1) / sizeof(int32_t)) * sizeof(int32_t); \
 		}
 
@@ -672,7 +674,9 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 				bp += sizeof(int32_t); \
 			} \
 			s[MAX] = '\0'; \
-			printf(" \"%s\"", s); \
+			printf(" \""); \
+			fn_print(s, NULL); \
+			printf("\""); \
 		}
 
 /*
@@ -954,7 +958,9 @@ acl_print(u_char *s, int maxsize, u_char *end)
 		if (sscanf((char *) s, "%s %d\n%n", user, &acl, &n) != 2)
 			goto finish;
 		s += n;
-		printf(" +{%s ", user);
+		printf(" +{");
+		fn_print(user, NULL);
+		printf(" ");
 		ACLOUT(acl);
 		printf("}");
 		if (s > end)
@@ -965,7 +971,9 @@ acl_print(u_char *s, int maxsize, u_char *end)
 		if (sscanf((char *) s, "%s %d\n%n", user, &acl, &n) != 2)
 			goto finish;
 		s += n;
-		printf(" -{%s ", user);
+		printf(" -{");
+		fn_print(user, NULL);
+		printf(" ");
 		ACLOUT(acl);
 		printf("}");
 		if (s > end)
