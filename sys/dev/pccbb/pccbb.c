@@ -911,11 +911,11 @@ pccbb_intr(void *arg)
 		mtx_unlock(&sc->sc_mtx);
 	} else {
 		if (sockevent & PCCBB_SOCKET_EVENT_CSTS) {
-			DPRINTF((" cstsevent occures, 0x%08x\n",
+			DPRINTF(("csts event occurred, state = 0x%08x\n",
 			    pccbb_get(sc, PCCBB_SOCKET_STATE)));
 		}
 		if (sockevent & PCCBB_SOCKET_EVENT_POWER) {
-			DPRINTF((" pwrevent occures, 0x%08x\n",
+			DPRINTF(("power event occurred, state = 0x%08x\n",
 			    pccbb_get(sc, PCCBB_SOCKET_STATE)));
 		}
 	}
