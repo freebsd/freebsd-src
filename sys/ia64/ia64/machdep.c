@@ -175,7 +175,6 @@ cpu_startup(dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	mtx_lock(&vm_mtx);
 	identifycpu();
 
 	/* startrtclock(); */
@@ -284,7 +283,6 @@ again:
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
-	mtx_unlock(&vm_mtx);
 
 	/*
 	 * Finally, allocate mbuf pool.
