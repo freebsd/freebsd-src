@@ -104,6 +104,12 @@ struct bpf_d {
 #define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_mtx)
 #define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_mtx)
 
+/* Test whether a BPF is ready for read(). */
+#define	bpf_ready(bd)						 \
+	((bd)->bd_hlen != 0 ||					 \
+	 (((bd)->bd_immediate || (bd)->bd_state == BPF_TIMED_OUT) && \
+	  (bd)->bd_slen != 0))
+
 /*
  * Descriptor associated with each attached hardware interface.
  */
