@@ -55,6 +55,7 @@ typedef	u_quad_t so_gen_t;
  * (e) locked by ACCEPT_LOCK().
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
+ * (h) locked by global mutex so_global_mtx.
  */
 struct socket {
 	int	so_count;		/* (b) reference count */
@@ -134,7 +135,7 @@ struct socket {
 	struct	label *so_label;	/* (b) MAC label for socket */
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
 	/* NB: generation count must not be first; easiest to make it last. */
-	so_gen_t so_gencnt;		/* generation count */
+	so_gen_t so_gencnt;		/* (h) generation count */
 	void	*so_emuldata;		/* private data for emulators */
  	struct so_accf {
 		struct	accept_filter *so_accept_filter;
