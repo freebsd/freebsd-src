@@ -30,8 +30,8 @@ extern int do_bridge;
  */
 typedef struct hash_table {
     struct ifnet *name ;
-    unsigned char etheraddr[6] ;
-    unsigned short used ;
+    u_char etheraddr[6] ;
+    u_short used ;
 } bdg_hash_table ;
 
 extern bdg_hash_table *bdg_table ;
