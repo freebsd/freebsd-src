@@ -931,12 +931,6 @@ wi_start(struct ifnet *ifp)
 				m_freem(m0);
 				continue;
 			}
-			if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
-			    (m0->m_flags & M_PWR_SAV) == 0) {
-				ieee80211_pwrsave(ic, ni, m0);
-				ieee80211_free_node(ni);
-				continue;
-			}
 			ifp->if_opackets++;
 			m_copydata(m0, 0, ETHER_HDR_LEN, 
 			    (caddr_t)&frmhdr.wi_ehdr);
