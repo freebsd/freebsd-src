@@ -199,7 +199,6 @@ SUBDIR+=3dfx \
 	em \
 	ep \
 	fe \
-	hea \
 	hfa \
 	i2c \
 	ibcs2 \
