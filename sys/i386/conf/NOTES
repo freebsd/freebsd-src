@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.350 1997/07/08 15:39:29 ache Exp $
+#	$Id: LINT,v 1.351 1997/07/17 06:01:10 dyson Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -103,8 +103,6 @@ options		NINTR=25		# number of INTs
 
 # SuperMicro P6DNE:
 #options                SMP_TIMER_NC            # 8254 NOT connected to APIC
-
-options		SMP_TIMER_NC
 
 # Bridged PCI cards:
 #
@@ -834,7 +832,6 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 #	0x20	force this unit to be the console (unless there is another
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
-#	0x20000	supports 16650 type devices with hardware RTS/CTS && larger buffers.
 #
 
 # Options for serial drivers that support consoles (only for sio now):
@@ -846,6 +843,10 @@ options		CONSPEED=9600		#default speed for serial console (default 9600)
 options		COM_ESP			#code for Hayes ESP
 options		COM_MULTIPORT		#code for some cards with shared IRQs
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
+
+# Other flags for sio that aren't documented in the man page.
+#	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
+#		ST16650A-compatible UARTs.
 
 #
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
@@ -1203,6 +1204,7 @@ options		"CLK_USE_I8254_CALIBRATION"
 options		"CLK_USE_I586_CALIBRATION"
 options		CLUSTERDEBUG
 options		COMPAT_LINUX
+options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
 options		DEVFS_ROOT
 options		"EXT2FS"
@@ -1249,3 +1251,4 @@ options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
+options		WLDEBUG
