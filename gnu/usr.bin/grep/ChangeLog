@@ -1,0 +1,897 @@
+1999-02-14 Alain Magloire
+
+	* m4/gettext.m4 : Guard [] with changequote.
+	From Elie Zaretskii.
+
+	* djgpp/config.bat : Makefile.in.in --> Makefile.in-in
+	From Elie Zaretskii.
+
+	* src/dosbuf: k&r function parameter.
+
+	* release of 2.3.
+
+1999-02-10 Alain Magloire
+
+	* bootstrap/{Makefile{try,am},REAMDE} : skeleton
+	provided for system lacking the tools to autoconfigure.
+
+	* src/{e,f,}grepmat.c: added guard [HAVE_CONFIG_H]
+
+1999-02-10 Alain Magloire
+
+	* PATCHES-AC, PATCHES-AM: updated.
+
+	* m4/regex.m4 : updated.
+
+1999-02-05 Eli Zaretskii
+
+	* m4/gettext.m4 : Support DOS-style D:/foo/bar absolute file
+	names.
+
+	* aclocal.m4 (DJGPP) : Use $DJ_GPP instead, since changing the
+	latter prevents GCC from finding headers and libraries.
+
+	* djgpp/config.bat: Make building from another directory work
+
+	* djgpp/config.sed: Remove redundant command wich edited path
+	separator: now done by configure.
+
+	* src/grep.c [O_BINARY]: Add prototype for undossify_input.
+
+	* doc/grep.texi (Introduction): Typo fixed.
+
+1999-02-03 Alain Magloire
+
+	* grep-2.2f beta release.
+
+1999-02-02 Alain Magloire
+
+	* m4/{djgpp,envsep,glibc,regex,dosfile,isc-posix}.m4 :
+	New files to aid configuration and unload configure.in.
+	* m4/Makefile.am : updated.
+	* src/btowc.c : protect for wchar.h
+
+1999-01-28 Alain Magloire
+
+	* intl/Makefile.in: Replace .o with .${ac_objext} where necessary.
+	Work around a limitation of Visual C++ on Cygwin32.
+	* acconfig.h configure.in: Define `alloca' as `_alloca' when CC=cl.
+	This little hack was suggested by Ian Roxborough <irox@cygnus.com>.
+	Patch forwarded by Ben Elliston.
+
+1999-01-28 Alain Magloire
+
+	* PATCHES-AM: New file. A small patch for automake-1.4, use $(sep)
+	as the path separator base on @SEP@.
+	* PATCHES-AC configure.in : updated for autoconf-13.
+ 
+1999-01-27 Volker Borchert
+
+	* grep.c: fgrep -NUM not working correctly.
+	add the argument number to digit_args_val.
+
+1999-01-22 Paul Eggert
+
+	Prevent grep -r from recursing infinitely through directory loops via
+	symbolic links.
+
+	* grep.c (struct stats): New type.
+	(stats_base): New var.
+	(bufstat): Remove; subsumed by stats->stat.
+	(reset, fillbuf, grep, grepdir, grepfile): Pass struct stats * arg,
+	for directory loop checking; use this instead of the bufstat global.
+	All callers changed.
+	(grepfile): Stat the file before invoking grepdir.
+	(grepdir): Assume that the argument has already been statted.
+	No longer a need for a directory size argument, since it
+	can be gotten from the struct stats * argument.
+	Check for directory loops.
+	Create linked list of directories currently being visited,
+	to detect loops.
+
+1998-12-29 Kaveh R. Ghazi
+
+	intl/localealias.c: When building grep-2.2e using cc on Irix4,
+	I needed the following patch to intl/localealias.c.
+	(Its the same patch used by fileutils-4.0.) The patch resolves
+	conflicts between char* and unsigned char* in the i18n code.
+
+1998-12-10 Alain Magloire
+
+	* src/grep.c : Typo in contex -->context
+	Noted by  Vladimir Michl.
+
+1998-12-01  Alain Magloire
+
+	* doc/Makefile.am djgpp/Makefile.am m4/Makefile.am vms/Makefile.am:
+	New files.
+
+	* m4/progtest.m4: proctect '[]' from m4.
+	Noted by Eli Z.
+
+	* PATCHES-AC: New file, add the patch for autoconf in the dist.
+
+	* acconfig.h: (HAVE_DOS_FILENAME)
+
+	* TODO: updated.
+
+	* src/search.c: remove obsolete 'gegrep,ggrep,gnugrep'
+	matchers. grep no longer depend on argv[0].
+
+	* grep-2.2e beta to test DJGPP port.
+
+1998-11-28  Paul Eggert
+
+	Various portability enhancements:
+	- Don't assume that O_BINARY implies DOS.  Use separate
+	macros D_OK (for DOS-like directory access) and
+	HAVE_DOS_FILE_NAMES (for DOS-like file names).
+	- Don't assume that off_t fits into long; it doesn't on Solaris 2.6.
+	- Have is_EISDIR set errno properly on hosts with screwed-up EISDIR.
+	- Treat ':' specially in DOS file names only if it's the end of a
+	drive specifier.
+	- Protect against errno < 0.
+
+	* src/grep.c (is_EISDIR): Move defn to system.h.
+	(print_offset_sep): New function.
+	(fillbuf): Remove redundant test of O_BINARY.
+	(totalcc, totalnl): Now of type off_t.
+	(prline): Use print_offset_sep to print file offsets.
+	(grepfile): Don't set e to EISDIR; that's is_EISDIR's responsibility
+	on machines that don't work properly with EISDIR.
+	(grepdir): Don't assume ':' means slash on all DOS filenames;
+	it means it only in the file prefix.
+
+	* src/system.h (strerror): Check for negative error numbers.
+	(is_EISDIR): Depend on D_OK, not O_BINARY.
+	(SET_BINARY): Depend on HAVE_SETMODE, not __DJGPP__.
+	(IS_SLASH, FILESYSTEM_PREFIX_LEN): Depend on HAVE_DOS_FILE_NAMES,
+	not O_BINARY.
+	(CHAR_BIT): New macro.
+
+	* src/dosbuf.c (struct dos_map):
+	pos and add members are now of type off_t.
+	(dos_stripped_crs): Now of type off_t.
+	(dossified_pos): Now accepts arg and returns value of type off_t.
+
+	* configure.in (AC_CHECK_FUNCS): Add setmode.
+	(HAVE_DOS_FILENAMES): New macro
+
+1998-11-27  Eli Zaretskii
+
+	* djgpp/config.sed: New file, a Sed script to edit configure
+	script before running it on DOS/Windows.
+	* djgpp/config.bat: Updated to handle po2tbl.sed.in and
+	po/Makefile.in.in on DOS filesystems, and to run config.sed.
+
+1998-11-24  Jim Meyering
+
+	* src/grep.c : Typo s/infalid/invalid/
+	Also noted by Stanislav Brabec.
+
+1998-11-24  Eli Zaretskii
+
+	* doc/grep.texi: I found and corrected several typos.
+	I believe the GNU standards require the section that describes the
+	options to the programs to be called ``Invoking'' or ``Invoking
+	<program-name>''.  This is so users and programs can easily find
+	that node in any Info file.  So I changed the name of the
+	`Options' chapter to `Invoking', and corrected the
+	cross-references accordingly.
+	I added some markup to things like file names and options.
+	I added some additional index entries where that seemed useful.
+	I also corrected some index entries, such as "@cindex [:alnum:]",
+	which used a colon in them (the colons confuse Info readers).
+
+1998-11-24  Alain Magloire
+
+	* grep/doc/grep.texi : -h is not use for help.
+	Nit spotted by Jim Meyering.
+
+1998-11-23  Alain Magloire
+
+	* doc: New directory, grep.1, {e,f}grep.man move here
+	* doc/grep.texi: New info manual
+	* doc/version.texi: New
+	* doc/Makefile.am: New
+	* tests/{ere,bre}.*: New files. The spencer2 test is split
+	in two ere/bre.
+	* config.hin: New, config.h.in rename to config.hin for OS
+	with limited file system aka DOS.
+
+	* grep-2.2d release for beta.
+
+1998-11-18  Alain Magloire
+
+	* src/regex.[ch] : Updated from GLibc, previous patches were
+	integrate by Ulrich Drepper and some added ones.
+
+1998-11-16  Paul Eggert
+
+	* grep.h (__attribute__): New macro, if not GCC.
+	(fatal): Add __attribute__((noreturn)).
+	* grep.c (usage): Add __attribute__((noreturn)).
+
+1998-11-16  Paul Eggert
+
+	Remove memory leak with valloced buffers, by invoking malloc instead.
+
+	* configure.in (AC_CHECK_FUNCS), src/system.h (valloc): Remove.
+	* src/grep.c (page_alloc): New function.
+	(ubuffer, pagesize): New vars.
+	(ALIGN_TO): New macro.
+	(reset): Initialize new vars.  Check for overflow in buffer size calc.
+	Use page_alloc instead of valloc.
+	(fillbuf): Likewise.  Use memcpy to copy saved area.
+
+1998-11-15  Paul Eggert
+
+	* dfa.c (dfacomp), search.c (EGexecute): Don't assume char is unsigned.
+
+1998-11-14  Paul Eggert
+
+	* src/grep.c (grepdir): Fix bug: memory freed twice.
+
+	* src/search.c (Gcompile, Ecompile): Don't invoke dfainit,
+	since dfacomp does it for us, and if we also do it then we
+	leak memory.
+
+1998-11-13  Eli Zaretskii
+
+	* djgpp/config.bat: Rewrite to run the configure script via Bash.
+	* djgpp/config.site, djgpp/getconf: New files.
+	* djgpp/config.h, djgpp/*.mak, djgpp/po2tbl.sed: Remove.
+	* djgpp/README: Update instructions.
+
+	* Makefile.am (EXTRA_DIST): Update the list of DJGPP files.
+
+	* src/system.h (IS_SLASH): New macro.
+	(is_EISDIR): Define it here for DOS and Windows.
+
+	* src/grep.c (main) [O_BINARY]: Set stdout to binary mode, so the
+	EOL formats of the input and output files match, unless stdout is
+	the console device.
+	(is_EISDIR): Don't define if already defined.  Accept a second
+	argument, the file name; all callers changed.
+	(grepdir): Don't free `file', inside the loop.  Use IS_SLASH to
+	check whether `dir' needs a slash.
+	(grepfile): If file is a directory, set e to EISDIR.
+
+1998-11-10  Alain Magloire
+
+	* src/vms_fab.{c,h}: New file for VMS wildcard expansion
+	Written by Phillip C. Brisco.
+
+	* vms/make.com : add line to compile vms_fab.c and
+	{e,f,}grepmat.c with link for each grep/fgrep/egrep.
+	Base on patch send by Phillib C. Brisco.
+
+1998-11-09  Alain Magloire
+
+	* grep-2.2c on alpha for testing.
+
+1998-11-09  Paul Eggert
+
+	* src/grep.1: Fix `Last Change' of output by generating the date
+	from the RCS Id.
+
+	* src/grep.c (is_EISDIR): New macro.
+	(grep): If -s, suppress errors from trying to read directories.
+	(grepfile): Use is_EISDIR to simplify code.
+	(grepdir): If -s, suppress errors from trying to read directories.
+
+	* src/grep.1: Fix -q -r -s problems; describe BSD grep better.
+
+	* src/grep.c (main): Update copyright.
+
+	Specify default matcher with default_matcher extern var, not
+	DEFAULT_MATCHER macro.  This is more straightforward and means
+	we need to compile grep.c just once.
+
+	* src/egrepmat.c, src/fgrepmat.c, src/grepmat.c: New files.
+
+	* src/Makefile.am (base_sources): New macro.
+	(egrep_SOURCES, fgrep_SOURCES, grep_SOURCES): Now consist of
+	$(base_sources) plus the single tailoring file.
+	(grep_LDADD, egrep_LDADD, fgrep_LDADD): Remove.
+	(EXTRA_DIST): Remove grep.c, regex.c.
+	(fgrep.o, egrep.o): Remove.
+
+	* src/grep.h (matcher): Now char const *.
+	(default_matcher): New decl.
+
+	* src/grep.c (matcher): Now char const *.
+	(setmatcher): Now accepts char const *.
+	(main): Default the matcher from default_matcher (linked externally)
+	rather than DEFAULT_MATCHER (a macro).
+
+1998-11-08 Alain Magloire
+
+	* src/grep.1: `prep.ai.mit.edu' should be replaced with `gnu.org'.
+	Nit from Paul Eggert.
+
+1998-11-06 Alain Magloire
+
+	* src/grep.c: The Matcher is not set to argv[0] but
+	explicitly by a #define MATCHER at compile time default is "grep".
+
+	* aclocal/: NEW dir. provides our own *.m4
+
+	* configure.in: Move Paul's Large Files to AC_LFS.(aclocal/lfs.m4)
+	Taken from Jim Meyering fileutils.
+
+1998-11-05 Alain Magloire
+
+	* src/grep.1: update the man pages according to the
+	changes make by Miles.
+
+	* po/*.po: updated.
+
+	* first beta release for 2.3 (2.2a).
+
+1998-11-04 Miles Bader
+
+	* src/grep.c (main): Rationalize interaction of -C/-NUM/-A/-B
+	options, and allow -C to have an optional argument. -NUM can
+	now be mixed with -C, and -A, -B always take precedence over
+	-C/-NUM, regardless of order.
+	(long_options): Let -C/--context take an optional argument.
+
+1998-11-03 Alain Magloire
+
+	* src/dfa.c: HP-UX define clrbit/setbit as macros in <sys/param.h>
+	#undef if defined.
+	Fixed by Andreas Ley and Philippe Defert.
+
+	* src/grep.1 : mention that -s follows POSIX.2 behavior.
+	Noted by Paul Eggert and others.
+
+	* tests/khadafy.sh: a typo in failure(s).
+	Spotted By Sotiris Vassilopoulos.
+
+1998-11-01  Paul Eggert
+
+	* src/system.h (IN_CTYPE_DOMAIN): New macro.
+	(ISALPHA, ISUPPER, ISLOWER, ISDIGIT, ISXDIGIT, ISSPACE,
+	ISPUNCT, ISALNUM, ISPRINT, ISGRAPH, ISCNTRL): Use
+	IN_CTYPE_DOMAIN instead of isascii.
+
+1998-08-18  Paul Eggert
+
+	Add support for new -r or --recursive (or -d recurse or
+	--directories=recurse) option.
+
+	* src/Makefile.am (grep_SOURCES): Add savedir.c, savedir.h, stpcpy.c.
+
+	* src/grep.1: Describe new options.
+
+	* src/grep.c: Include "savedir.h".
+	(long_options): Add -r or --recursive.
+	(RECURSE_DIRECTORIES): New enum value.
+	(IS_DIRECTORY_ERRNO): Remove.
+	(reset, grep): Add file name arg.
+	(grepdir, grepfile): New functions.
+	(initial_bufoffset): New var.
+	(reset): Initialize it.
+	(fillbuf): Use it.
+	(count_matches, list_files, no_filenames, suppress_errors): New static
+	vars; formerly were local to `main'.
+	(grep): Recurse through directories if the user asks for this.
+	(usage, main): Add new options.
+	(main): Change some local vars to be static, as described above.
+	Move most of the guts into grepfile function.
+	so that it can be recursed through.
+
+	* configure.in (AC_HEADER_DIRENT, AC_FUNC_CLOSEDIR_VOID): Add.
+	(AC_REPLACE_FUNCS): Add stpcpy.
+
+	* src/savedir.c, src/savedir.h, src/stpcpy.c: New files;
+	taken from fileutils 3.16u.
+
+1998-08-11  Paul Eggert
+
+	* src/system.h (initialize_main): New macro.
+	* src/grep.c (main): Invoke initialize_main first thing.
+
+1998-04-29  Paul Eggert
+
+	* NEWS, src/grep.1: Describe new -a and -d options.
+
+	* src/grep.c (long_options, usage, main):
+	New options -d or --directories and -a or --text.
+	(directories, always_text): New variables.
+	(IS_DIRECTORY_ERRNO): New macro.
+	(reset): Now returns value specifying whether to skip this file.
+	Stat the file if either mmap or directory-skipping is possible.
+	Skip the file if it's a directory and we're skipping directories.
+	(grep): Skip the file if `reset' tells us to.
+	(main): If open fails because the file is a directory, and if we're
+	skipping directories, don't report an error.
+	Remove special case for DOS and Windows.
+
+	* src/dosbuf.c (guess_type): Use the same method for guessing whether a
+	file is binary as grep.c's grep does.
+	There's no longer any need to declare `bp' to be unsigned.
+
+1998-04-26 Alain Magloire
+
+	* grep-2.2 release.
+
+	* src/dfa.c: Wrong revision was pulled out
+	for beta 2.1.1d.
+	* src/search.c: Wrong revision was pulled out
+	for beta 2.1.1d.
+
+	* src/grep.c: ck_atoi () added instead of atoi ().
+	Suggestion from Jim Meyering.
+	ck_atoi () pulled from diffutils-2.7, maintained by Paul Eggert.
+
+	* AUTHORS: Rephrase of some sentences.
+	* README:  Rewording.
+	Noted and patched by Joel N. Weber II.
+
+1998-04-17 Kaveh R. Ghazi
+
+	* src/dfa.h: Don't define `const', trust autoconf to handle it.
+
+1998-04-16 Alain Magloire
+
+	* tests/{status,empty}.sh: wrong return status.
+
+	* src/grep.c: Remove the REGEX part in usage (), it was
+	consider overkill by most.
+
+1998-04-14  Eli Zaretskii
+
+	* djgpp/config.bat: Support file names with multiple dots on all
+	platforms.
+
+	* djgpp/README: Add instructions about file names illegal on
+	MS-DOS.
+
+1998-04-13 Alain Magloire
+
+	* src/dfa.c: by "popular" demand reverse
+	back to '_' not word-constituent.
+
+	* grep-2.1.1c available for testing.
+
+1998-04-13  Karl Heuer
+
+	* src/grep.c: (a) The directory check is done too early:
+	logically, if the argument is "-", then it refers to standard
+	input, regardless of whether there's something in the file
+	system answering to "-".
+	(b) The sh command "grep -l root /etc/passwd /etc/group 0<&-"
+	prints "(standard input)" instead of "/etc/passwd", because it
+	mistakenly believes that a named file will never be opened on fd
+	0.  The string "(standard input)" should be based on the file
+	having been originally specified as "-", rather than making
+	assumptions about the fd.
+	(c) the code that calls close(fd) is being done outside of the
+	test for a bad fd.  Thus, if the open failed, this code will
+	attempt to close(-1).  It should be done inside the "fd != -1"
+	branch.
+	This patch addresses all three of these problems.
+
+1998-04-13 Alain Magloire
+
+	* configure.in: remove the deprecated AC_ISC_POSIX macro.
+	Spotted by Karl Heuer.
+
+1998-04-03  Eli Zaretskii
+
+	* djgpp/main.mak, djgpp/src.mak, djgpp/tests.mak: Updated from the
+	relevant Makefile.in files.
+
+	* djgpp/config.bat: Create files in intl directory like the
+	configure script does.
+
+1998-03-28  Eli Zaretskii
+
+	* djgpp/main.mak, djgpp/src.mak, djgpp/tests.mak: Updated to track
+	changes in respective Makefile.in files.
+
+	* src/dosbuf.c (guess_type): Avoid running off the end of the
+	buffer.  Spotted by Paul Eggert.
+
+1998-03-27  Alain Magloire
+
+	* grep-2.1.1b.tar.gz available.
+
+	* src/regex.c: CLASS_CHAR_MAX set to 256 instead of 6
+	when WCTYPE and WCHAR are not defined. When class names
+	where bigger then 6, it will not detect an error.
+	example '[[:alphabet:]]'.
+
+	* Updated the copyright of the files with emacs.
+	With emacs Jim :).
+
+1998-03-26 Jim Meyering
+
+	* src/dfa.c (IS_WORD_CONSTITUENT): Define.
+	(lex): Use IS_WORD_CONSTITUENT, not ISALNUM.
+	Don't special-case '_'.
+	(dfastate): Use IS_WORD_CONSTITUENT, not ISALNUM.
+	(dfaexec): Likewise.
+
+1998-03-25  Alain Magloire
+
+	* tests/warning.sh: typos and replace the echos with
+	a simple cat.
+	Noted By Jim Meyering.
+
+	* src/regex.c: #undef ISASCII and ISPRINT before defining
+	them(On Solaris it was define).
+	Pattern 'a[[:]:]]b' is an invalid char class and the error
+	from regex was 1(REG_NOMATCH) instead of 2 (REG_ECTYPE).
+	Fix with help from Ulrich Drepper.
+
+	* src/grep.c (usage): Ulrich wrote: "A single printf should
+	not have more than 900 bytes. For translation reasons the
+	text shouldn't be split in too many pieces since this is
+	tiresome and also does not help to generate a consistent picture."
+	Noted by Ulrich Drepper.
+	* src/grep.c (usage): Dig out and old patch from
+	Franc,ois to explain the regex in usage().
+	Ideas from Franc,ois Pinard.
+
+1998-03-23 Alain Magloire
+
+	* testing: grep-2.1.1a for testing.
+
+	* configure.in: Solaris needs '-lw' if we use wchar/wctype
+	functions.
+	* src/btowc.c: New file from GNU libc. Solaris 2.5 don't
+	have it define.
+	* configure.in : check for btowc ().
+
+	* regex.c: Include <wchar.h> before <wctype.h>, to work around
+	a Solaris 2.5 bug.
+	Patch provided by Paul Eggert.
+
+	* tests/status.sh: new file to check return status code.
+	* tests/empty.sh: new file to check for empty pattern.
+	* tests/warning.sh: new file to tell where to report errors.
+
+	* configure.in: If available, prefer support for large files
+	unless the user specified one of the CPPFLAGS, LDFLAGS, or LIBS
+	variables.
+	Done by Paul Eggert.
+
+	* src/grep.c (usage): change prep.ai.mit.edu for gnu.org.
+
+1998-03-18 Alain Magloire
+
+	* src/grep.c (usage): Formating the --help message a bit off.
+	Noted by William Bader.
+
+	* src/grep.c (main): When checking conflicting matcher for option -E the
+	matcher was to "egrep" instead of "posix-egrep".
+	Reported by kwzh@gnu.org.
+
+	* src/grep.c: Typos and rewording the --help message.
+	Reported by Karl Heuer.
+
+	* src/grep.1: The man page wording :
+	  A regular expression matching a single character may be
+	  followed by one of several repetition operators:
+	is unclear since 'x(yz)*z' is a valid regex.
+	Remove the "matching a single character".
+	Suggested by Harald Hanche-Olsen.
+
+	* src/grep.c (main): `-f /dev/null' now specifies no patterns
+	and therfore matches nothing.
+	Reported by Jorge Stolfi.
+	Patched by Paul Eggert.
+
+1998-03-10 Alain Magloire
+
+	* Ice storm 98(el nino). Lost grep repository disk,
+	and my $HOME directory, etc ..
+	Trying to get the emails/patch from dejanews.com
+	and start from grep-2.1.
+	sigh ....
+
+1997-11-01 Alain Magloire
+
+	* src/grep.c: For the long options, the problems are:
+	--file appears in the option table as 'no_argument'
+	instead of 'required_argument'.
+	--files-with-matches is missing from the option table.
+	The help lists '--fixed-strings' as the long option for -F,
+	the table has '--fixed-regexp'.
+	--regexp appears in the option table as 'no_argument'
+	instead of 'required_argument'.
+	--with-filename is missing from the option table.
+	Reported by Grant McDorman and Krishna Sethuraman.
+
+1997-10-19 Alain Magloire
+
+	* src/grep.c: the option "with-filename was not in the arg table.
+	Corrected by Jim Hand.
+
+	* GNU gettext library from gettext-0.10.32.
+
+	* src/grep.c: reverse back to greping directories,
+	One could skip the error message by defining
+	SKIP_DIR_ERROR. There is no clear way of doing
+	things, I hope to setle this on the next majore release
+	Thanks Paul Eggert, Eli Zaretskii and gnits for the
+	exchange.
+
+	* tests/status.sh: add this check to make sure
+	That the return status code is ok.
+
+1997-10-10 Andreas Schwab
+
+	* src/grep.1: Fix formatting.
+
+	* configure.in: Check for wctype.h, wchar.h, libintl.h and
+	isascii, which are needed for regex.c.
+
+1997-10-01 Paul Eggert
+
+	* src/grep.c (fillbuf): Don't warn about mmap failures.
+
+1997-09-7 Alain Magloire
+
+	* src/grep.c: added code for -H --with-filename.
+
+	* djgpp/*: patch wrongly apply
+	duplication of text in djgpp/{README,config.h}.
+	Filter djgpp/config.bat with unix2dos.
+
+	* djgpp/make.mak: beautify
+	From Eli Zaretskii.
+
+	* grep-2.1 release.
+
+1997-09-01 Alain Magloire
+
+	* grep-2.0f out for testing.
+
+	* update to GNU gettext library from gettext-0.10.31
+
+	* grep.c : have a nicer format for --version.
+	Noted by Ulrich Drepper.
+
+	* obstack.[ch]: updated from GNU C library
+	* configure.in: look for stdlib.h [HAVE_STDLIB_H]
+	Comments from Ulrich Drepper.
+
+1997-08-25 Philippe De Muyter  <phdm@info.ucl.ac.be>
+
+	* src/dfa.c (sys/types.h): File included unconditionnaly.
+
+1997-08-16  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* grep.c (long_options) [O_BINARY]: Add DOS-specific options.
+	(fillbuf) [O_BINARY]: For DOS-style text files, strip CR
+	characters at end of line.
+	(prline) [O_BINARY]: Report correct byte offsets, even though CR
+	characters were stripped when reading the file.
+	(usage) [O_BINARY]: Add DOS-specific options.
+	(setmatcher) [HAVE_SETRLIMIT]: Set re_max_failures so that the
+	matcher won't ever overflow the stack.
+	(main) [__MSDOS__, _WIN32]: Handle backslashes and drive letters
+	in argv[0], remove the .exe suffix, and downcase the prgram name.
+	[O_BINARY]: Pass additional DOS-specific options to getopt_long
+	and handle them.  Call stat before attempting to open the file, in
+	case it is a directory (DOS will fail the open call for
+	directories).  Switch the input descriptor to binary mode, unless
+	it is a terminal device.
+
+	* system.h [O_BINARY]: Define macros to switch a handle to binary
+	mode, so binary files could be grep'ed on MS-DOS and MS-Windows.
+	[HAVE_SETLOCALE]: Test for HAVE_SETLOCALE instead of
+	HAVE_LC_MESSAGES, to prevent compilation error in grep.c on
+	systems which don't define HAVE_LC_MESSAGES, but have setlocale.
+
+	* dosbuf.c: New file, functions specific for MS-DOS/MS-Windows.
+	(guess_type, undossify_input, dossified_pos): New functions.
+
+	* djgpp/config.h, djgpp/config.bat, djgpp/main.mak, djgpp/src.mak,
+	djgpp/po.mak, djgpp/intl.mak, djgpp/tests.mak, djgpp/po2tbl.sed:
+	New files, for building Grep with DJGPP tools for MS-DOS and
+	MS-Windows.
+
+	* grep.1: Document DOS-specific switches.
+
+1997-08-08 Alain Magloire
+
+	* grep-2.0e: available for testing
+
+	* grep.c: change LC_MESSAGE to LC_ALL for (LC_CTYPE).
+	Suggested by Jochen Hein.
+
+	* ABOUT-NLS: updated.
+	* grep.c: --version: more verbosity (COPYRIGHT).
+	* grep.c: --help: PATTERN, FILE instead of <pattern>, <file>.
+	* INSTALL.grep: not necessary removed.
+	* configure.in: --disable-regex rename --without-include-regex.
+	* THANKS: format: first row name, second email.
+	* ChangeLog: format ISO 8601.
+	Reported by Franc,ois Pinard.
+
+	* grep.c: move dcl of struct stat st into "else" where it's used.
+	Reported by Jim Meyering.
+
+	* grep.c: totalnl should be %u in printf.
+	Reported by Michael Aichlmay
+	Corrected with guidance from Ulrich Drepper
+
+1997-07-24 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* Makefile.am: corrected an error when installing {f,e}grep.1.
+	From Kaveh R. Ghazi <ghazi@caip.rutgers.edu>.
+	From Ulrich Drepper <drepper@cygnus.com>.
+
+	* Many files: use PARAMS instead of __STDC__ for prototypes.
+	From Jim Meyering <meyering@eng.ascend.com>.
+	Patch provided by Kaveh R. Ghazi <ghazi@caip.rutgers.edu>.
+
+	* dfa.[ch]: uses the one in gawk-3.0.3 with the patch from
+	Arnold (see Changelog: July 12 1997)
+
+	* grep.1: a note to say -l, -L, -q stop on first match.
+	Noted by Andrew Beattie <gaffer@tug.com>.
+
+	* grep.c: refuse to scan if the file is a directory.
+	This was causing problems on SUNs. If the directory contains
+	a file that could match the pattern, garbage was display.
+
+	* tests directory: added new set of tests from Henry Spencer
+	regex package. Change the way the tests were done to be more
+	conformant to automake.
+
+	* configure.in: added --disable-regex for folks with their own fuctions.
+
+	* grep-20d : available for testing
+
+1997-07-18 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* grep-2.0c: available for testing
+
+1997-07-17 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* src/grep.c: Cause grep to fail if `fclose (stdout)' fails.
+	From Jim Meyering <meyering@eng.ascend.com>.
+
+	* grep.c:usage() more consistency in the --help.
+
+	* egrep, fgrep were links This is in violation of GNU standards:
+	"Please don't make the behavior of a utility depend on the name used
+	to invoke it.  It is useful sometimes to make a link to a utility with
+	a different name, and that should not change what it does."
+	For now egrep and fgrep will be copies of grep. A better scheme
+	should be found later.
+	After discussion with Tom Tromey <tromey@cygnus.com>.
+
+	* fgrep.man and egrep.man included: They are stubs that call grep.1.
+	* Makefile.am: modified to install {f,e,}grep[,.1].
+
+	* speed hack for -l, -L: bail out on first match.
+	From Scott Weikart <scott@igc.apc.org>.
+
+	* *.[ch]: provided prototypes for strict argument checking
+	With the help of Stewart Levin <stew@sep.stanford.edu>.
+
+1997-07-16 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* configure.in: typo in the creation of po/Makefile
+	Noted by Volker Borchert bt@teknon.de.
+
+	* grep-2.0b: make it available for testing.
+
+1997-07-15 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* src/grep.c usage(): cut the --help in smaller printf()'s
+	Noted by Ulrich Drepper <drepper@cygnus.com>.
+
+1997-07-14 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* grep-2.0a: make an alpha available for testing.
+
+1997-07-12 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* run gettextize: added the po directory filled with *.po files.
+
+	* check.sh, scriptgen.awk: fix grep paths.
+
+	* change the directory strucure: grep is now in src to comply with
+	gettext.m4.
+
+	* grep.c version.c [VERSION]: got rid of version.c,
+	it is now define via config.h.
+
+	* dfa.c: patch to speed up initialization.
+	Arnold Robbins (arnold@gnu.ai.mit.edu).
+
+1997-07-09 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* *.c [HAVE_CONFIG_H]: Macro defined.
+
+	* support for I18N in Makefile.am and configure.in.
+
+	* update all the string to use gettext(I18N).
+	Help from Franc,ois Pinard previous patch <pinard@IRO.UMontreal.CA>.
+
+1997-07-04 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* obstack.[ch]: updated from glibc.
+	Work of Ulrich Drepper <drepper@cygnus.com>.
+
+	* regex.[ch]: updated from glibc.
+	Work of Ulrich Drepper <drepper@cygnus.com>.
+
+	* grep.c: for option -e not counting '\n' for new keys.
+	From Mark Waite <markw@mddmew.fc.hp.com>.
+
+	* grep.c: for option -f allocating the right count.
+	From Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>.
+	Mike Heartel (mike@cs.uoregon.edu).
+
+	* kwset.c (bmexec): Cast tp[-2] to unsigned char before comparing.
+	From Jim Meyering <meyering@asic.sc.ti.com>.
+
+	* grep.1: various typos.
+	From Keith Bostic <bostic@bsdi.com>.
+	Mike Heartel (mike@cs.uoregon.edu).
+
+1997-06-17 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* grep.c: support for long options.
+	patch done by Franc,ois Pinard <pinard@IRO.UMontreal.CA>.
+
+	* add getopt1.c in Makefile.am.
+	Noted by Franc,ois Pinard <pinard@IRO.UMontreal.CA>
+
+	* replace getopt.[ch] and add getopt1.c.
+
+	* kwset.c: undef malloc before define it.
+	Franc,ois Pinard <pinard@IRO.UMontreal.CA>.
+
+1997-06-07 Alain Magloire <alainm@rcsm.ee.mcgill.ca>
+
+	* grep.c: format incorrect in
+	fprintf("%s: warning: %s: %s...", filename, strerror(errno)).
+	Mike Heartel (mike@cs.uoregon.edu).
+
+1996-11-19  David J MacKenzie  <djm@catapult.va.pubnix.com>
+
+	* make.com: Set the logical SYS. From rdb@cocamrd.oz.au (Rodney Brown).
+
+	* grep.c (S_ISREG): Define if not defined already, for e.g.
+	SunOS 4.0.3.
+
+	* dfa.c (test_bit, set_bit, clear_bit): Renamed from tstbit,
+	setbit, clrbit to avoid conflict with HP-UX sys/param.h macros.
+
+	* memchr.c: New file, from GNU libc.
+	* grep.c (memchr): Remove definition.
+	* configure.in: Use AC_REPLACE_FUNCS for memchr.
+
+	* configure.in: Remove unused checks for memalign and unsigned char.
+	* grep.c: HAVE_WORKING_MMAP -> HAVE_MMAP.
+
+	* system.h: New file.
+	* dfa.c, kwset.c, grep.c, search.c: Use it instead of duplicating
+	portability boilerplate.
+
+	* grep.c: Include sys/types.h once, instead of three times
+	conditionally.
+	* dfa.c, kwset.c, search.c: Include sys/types.h unconditionally,
+	to always try to get size_t (needed on some old SysV's).
+
+	* dfa.c: Define strchr in terms of index, not the other way around.
+	* search.c: Use memcpy instead of bcopy.
+
+1996-11-15  David J MacKenzie  <djm@catapult.va.pubnix.com>
+
+	* Many files: Update FSF address.
+	Update configuration to use autoconf v2 and automake.
+
+1993-05-22  Mike Haertel  <mike@cs.uoregon.edu>
+
+	* Version 2.0 released.
