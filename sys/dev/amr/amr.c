@@ -343,7 +343,7 @@ int
 amr_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
-    struct amr_softc	*sc = devclass_get_softc(amr_devclass, unit);
+    struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
 
     debug_called(1);
 
@@ -358,7 +358,7 @@ int
 amr_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
-    struct amr_softc	*sc = devclass_get_softc(amr_devclass, unit);
+    struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
 
     debug_called(1);
 

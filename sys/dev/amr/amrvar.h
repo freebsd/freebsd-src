@@ -199,8 +199,6 @@ extern int		amr_flush(struct amr_softc *sc);
 extern int		amr_done(struct amr_softc *sc);
 extern void		amr_startio(struct amr_softc *sc);
 
-extern devclass_t	amr_devclass;
-
 /*
  * Command buffer allocation.
  */
