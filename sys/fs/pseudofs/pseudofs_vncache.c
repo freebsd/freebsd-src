@@ -226,6 +226,8 @@ pfs_exit(void *arg, struct proc *p)
 	struct pfs_vdata *pvd;
 	struct vnode *vnp;
 
+	if (pfs_vncache == NULL)
+		return;
 	mtx_lock(&Giant);
 	/*
 	 * This is extremely inefficient due to the fact that vgone() not
