@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.28 1995/12/02 19:28:24 bde Exp $
+ *	$Id: route.c,v 1.29 1995/12/14 09:53:27 phk Exp $
  */
 
 #include <sys/param.h>
@@ -489,6 +489,8 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 				rn = rnh->rnh_addaddr((caddr_t)ndst,
 						      (caddr_t)netmask,
 						      rnh, rt->rt_nodes);
+			} else if (rt2) {
+				RTFREE(rt2);
 			}
 		}
 
