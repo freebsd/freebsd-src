@@ -331,8 +331,8 @@ filt_timerattach(struct knote *kn)
 	MALLOC(calloutp, struct callout *, sizeof(*calloutp),
 	    M_KQUEUE, M_WAITOK);
 	callout_init(calloutp);
-	callout_reset(calloutp, tticks, filt_timerexpire, kn);
 	kn->kn_hook = (caddr_t)calloutp;
+	callout_reset(calloutp, tticks, filt_timerexpire, kn);
 
 	return (0);
 }
