@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	env
-NOMAN=	noman
 
 .include <bsd.prog.mk>
