@@ -71,6 +71,9 @@
 #ifndef ETHERTYPE_AARP
 #define ETHERTYPE_AARP		0x80f3
 #endif
+#ifndef ETHERTYPE_IPX
+#define ETHERTYPE_IPX		0x8137
+#endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
 #endif
