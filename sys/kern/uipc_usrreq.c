@@ -1420,7 +1420,7 @@ unp_scan(m0, op)
 
 	while (m0) {
 		for (m = m0; m; m = m->m_next) {
-			if (m->m_type == MT_CONTROL)
+			if (m->m_type != MT_CONTROL)
 				continue;
 
 			cm = mtod(m, struct cmsghdr *);
