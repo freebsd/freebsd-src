@@ -47,8 +47,8 @@ options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	UCONSOLE		#Allow users to grab the console
-options 	USERCONFIG		#boot -c editor
-options 	VISUAL_USERCONFIG	#visual boot -c editor
+#options 	USERCONFIG		#boot -c editor
+#options 	VISUAL_USERCONFIG	#visual boot -c editor
 options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
@@ -56,6 +56,12 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
+# Debugging for use in -current
+options 	DDB
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -143,9 +149,6 @@ device		apm
 # Add suspend/resume support for the i8254.
 device		pmtimer
 
-# Audio support
-device		pcm
-
 # Pcmcia and cardbus bridge support
 #device		pcic			# pcmcia bridge
 device		pccbb			# cardbus (yenta) bridge
@@ -165,7 +168,6 @@ device		ppi		# Parallel port interface device
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
-device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -181,6 +183,7 @@ device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
+device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.  pccard nics included.
@@ -237,9 +240,3 @@ device		uscanner	# Scanners
 device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
-
-# This is an experimental kernel, so include DDB, INVARIANTS and WITNESS
-options 	DDB
-options 	INVARIANTS
-options 	INVARIANT_SUPPORT
-options 	WITNESS
