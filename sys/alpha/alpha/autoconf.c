@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.6 1998/08/10 07:53:58 dfr Exp $
+ *	$Id: autoconf.c,v 1.7 1998/08/20 08:27:10 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -44,9 +44,6 @@
 #include <machine/rpb.h>
 
 #include "scbus.h"
-#if NSCBUS > 0
-#include <scsi/scsiconf.h>
-#endif
 
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
@@ -55,20 +52,19 @@ static void	configure_finish __P((void));
 static void	configure_start __P((void));
 device_t isa_bus_device = 0;
 
+extern void xpt_init __P((void));
+
 static void
 configure_start()
 {
 #if NSCBUS > 0
-	scsi_configure_start();
+	xpt_init();
 #endif
 }
 
 static void
 configure_finish()
 {
-#if NSCBUS > 0
-	scsi_configure_finish();
-#endif
 }
 
 extern void pci_configure(void);
@@ -110,7 +106,7 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
-    static char rootname[] = "sd0a";
+    static char rootname[] = "da0a";
     mountrootfsname = "ufs";
 
     rootdevs[0] = rootdev;
@@ -118,7 +114,7 @@ cpu_rootconf()
     rootdevnames[0] = rootname;
 
     rootdevs[1] = makedev(4, dkmakeminor(0, COMPATIBILITY_SLICE, 0));
-    rootdevnames[1] = "sd0a";
+    rootdevnames[1] = "da0a";
 }
 
 void
