@@ -213,10 +213,9 @@ nfs_dolock(struct vop_advlock_args *ap)
 		break;
 	}
 
-	if ((error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td)) && error == 0)
-		return (error1);
-
-	return (error);
+	error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td);
+	/* prefer any previous 'error' to our vn_close 'error1'. */
+	return (error != 0 ? error : error1);
 }
 
 /*
