@@ -413,7 +413,7 @@ ip6_input(m)
 			int deliverifid;
 
 			/*
-			 * Get a "real" delivered interface, which should be
+			 * Get the "real" delivered interface, which should be
 			 * embedded in the second 16 bits of the destination
 			 * address.  We can probably trust the value, but we
 			 * add validation for the value just for safety.
