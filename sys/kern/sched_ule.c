@@ -1292,6 +1292,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		}
 	}
 	if (newtd != NULL) {
+		newtd->td_kse->ke_flags |= KEF_DIDRUN;
+        	TD_SET_RUNNING(newtd);
 		SLOT_USE(newtd->td_ksegrp);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	} else
