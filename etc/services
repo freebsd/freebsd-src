@@ -465,7 +465,6 @@ link		245/tcp
 link		245/udp
 dsp3270		246/tcp	   #Display Systems Protocol
 dsp3270		246/udp	   #Display Systems Protocol
-
 subntbcst_tftp	247/tcp	   #subntbcst_tftp
 subntbcst_tftp	247/udp	   #subntbcst_tftp
 bhfhs		248/tcp
@@ -531,8 +530,6 @@ fatserv		347/tcp	   #Fatmen Server
 fatserv		347/udp	   #Fatmen Server
 csi-sgwp	348/tcp	   #Cabletron Management Protocol
 csi-sgwp	348/udp	   #Cabletron Management Protocol
-
-
 mftp		349/tcp
 mftp		349/udp
 matip-type-a	350/tcp	   #MATIP Type A
@@ -1016,9 +1013,6 @@ meter		570/tcp	   #demon
 meter		570/udp	   #demon
 umeter		571/tcp	   #udemon
 umeter		571/udp	   #udemon
-
-
-
 sonar		572/tcp
 sonar		572/udp
 banyan-vip	573/tcp
@@ -1091,6 +1085,8 @@ npmp-gui	611/tcp
 npmp-gui	611/udp
 sshell		614/tcp	   #SSLshell
 sshell		614/udp
+ipp		631/tcp    #IPP (Internet Printing Protocol)
+ipp		631/udp    #IPP (Internet Printing Protocol)
 ginad		634/tcp
 ginad		634/udp
 ldaps		636/tcp    sldap #ldap protocol over TLS/SSL
