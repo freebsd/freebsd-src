@@ -131,7 +131,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
 		case 'a':
-			/* ignored for compatability */
+			/* ignored for compatibility */
 			break;
 		case 'l':
 			__check_rhosts_file = 0;
