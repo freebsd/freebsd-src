@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.19 1999/01/13 03:11:42 julian Exp $
+ * $Id: user.h,v 1.20 1999/01/26 02:38:11 julian Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -74,7 +74,7 @@ struct kinfo_proc {
 		pid_t	e_ppid;			/* parent process id */
 		pid_t	e_pgid;			/* process group id */
 		short	e_jobc;			/* job control counter */
-		dev_t	e_tdev;			/* controlling tty dev */
+		udev_t	e_tdev;			/* controlling tty dev */
 		pid_t	e_tpgid;		/* tty process group id */
 		struct	session *e_tsess;	/* tty session pointer */
 #define	WMESGLEN	7
