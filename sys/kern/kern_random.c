@@ -1,7 +1,7 @@
 /*
- * random.c -- A strong random number generator
+ * random_machdep.c -- A strong random number generator
  *
- * $Id: random.c,v 1.3 1995/11/20 12:12:02 phk Exp $
+ * $Id$
  *
  * Version 0.92, last modified 21-Sep-95
  * 
