@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.10 1997/08/02 00:22:48 davidn Exp $
+.\"	$Id: init.8,v 1.11 1998/06/19 08:34:52 jkoshy Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -45,18 +45,18 @@
 .Nm init
 .Sh DESCRIPTION
 The
-.Nm init
+.Nm
 program
 is the last stage of the boot process.
 It normally runs the automatic reboot sequence as described in
 .Xr reboot 8 ,
 and if this succeeds, begins multi-user operation.
 If the reboot scripts fail,
-.Nm init
+.Nm
 commences single user operation by giving
 the super-user a shell on the console.
 The
-.Nm init
+.Nm
 program may be passed parameters
 from the boot program to
 prevent the system from going multi-user and to instead execute
@@ -66,27 +66,27 @@ later be made to go to multi-user by exiting the
 single-user shell (with ^D).
 This
 causes
-.Nm init
+.Nm
 to run the
 .Pa /etc/rc
 start up command file in fastboot mode (skipping disk checks).
 .Pp
 If the
-.Nm console
+.Em console
 entry in the
 .Xr ttys 5
 file is marked ``insecure'',
 then
-.Nm init
+.Nm
 will require that the superuser password be
 entered before the system will start a single-user shell.
 The password check is skipped if the 
-.Nm console
+.Em console
 is marked as ``secure''.
 .Pp
 The kernel runs with four different levels of security.
 Any superuser process can raise the security level, but only 
-.Nm init
+.Nm
 can lower it.
 The security levels are:
 .Bl -tag -width flag
@@ -116,10 +116,10 @@ while the system is multi-user.
 .El
 .Pp
 If the security level is initially -1, then
-.Nm init
+.Nm
 leaves it unchanged.
 Otherwise,
-.Nm init
+.Nm
 arranges to run the system in level 0 mode while single user
 and in level 1 mode while multiuser.
 If level 2 mode is desired while running multiuser,
@@ -132,7 +132,7 @@ to set the
 variable to the required security level.  
 .Pp
 In multi-user operation, 
-.Nm init
+.Nm
 maintains
 processes for the terminal ports found in the file
 .Xr ttys 5 .
@@ -153,7 +153,7 @@ executes a shell for that user.  When this shell
 dies, either because the user logged out
 or an abnormal termination occurred (a signal),
 the
-.Nm init
+.Nm
 program wakes up, deletes the user
 from the
 .Xr utmp 5
@@ -162,7 +162,7 @@ file of current users and records the logout in the
 file.
 The cycle is
 then restarted by
-.Nm init
+.Nm
 executing a new
 .Nm getty
 for the line.
@@ -173,34 +173,34 @@ may be changed in the
 file without a reboot by sending the signal
 .Dv SIGHUP
 to
-.Nm init
+.Nm
 with the command
 .Dq Li "kill -HUP 1" .
 On receipt of this signal,
-.Nm init
+.Nm
 re-reads the
 .Xr ttys 5
 file.
 When a line is turned off in
 .Xr ttys 5 ,
-.Nm init
+.Nm
 will send a SIGHUP signal to the controlling process
 for the session associated with the line.
 For any lines that were previously turned off in the
 .Xr ttys 5
 file and are now on,
-.Nm init
+.Nm
 executes a new
 .Nm getty
 to enable a new login.
 If the getty or window field for a line is changed,
 the change takes effect at the end of the current
 login session (e.g., the next time 
-.Nm init
+.Nm
 starts a process on the line).
 If a line is commented out or deleted from
 .Xr ttys 5 ,
-.Nm init
+.Nm
 will not do anything at all to that line.
 However, it will complain that the relationship between lines
 in the
@@ -218,7 +218,7 @@ signal, for example,
 .Dq Li "kill \-TERM 1" .
 If there are processes outstanding that are deadlocked (because of
 hardware or software failure),
-.Nm init
+.Nm
 will not wait for them all to die (which might take forever), but
 will time out after 30 seconds and print a warning message.
 .Pp
@@ -246,7 +246,7 @@ This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
 When shutting down the machine,
-.Nm init
+.Nm
 will try to run the
 .Pa /etc/rc.shutdown
 script. This script can be used to cleanly terminate specific programs such
@@ -255,11 +255,11 @@ as
 (the InterNetNews server).
 .Pp
 The role of
-.Nm init
+.Nm
 is so critical that if it dies, the system will reboot itself
 automatically.
 If, at bootstrap time, the
-.Nm init
+.Nm
 process cannot be located, the system will panic with the message
 ``panic: "init died (signal %d, exit %d)''.
 .Sh DIAGNOSTICS
@@ -281,20 +281,20 @@ a persistent device error condition.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa /dev/console
-System console device.
+system console device
 .It Pa /dev/tty*
-Terminal ports found in
-.Xr ttys 5 .
+terminal ports found in
+.Xr ttys 5
 .It Pa /var/run/utmp
-Record of Current users on the system.
+record of current users on the system
 .It Pa /var/log/wtmp
-Record of all logins and logouts.
+record of all logins and logouts
 .It Pa /etc/ttys
-The terminal initialization information file.
+the terminal initialization information file
 .It Pa /etc/rc
-System startup commands.
+system startup commands
 .It Pa /etc/rc.shutdown
-System shutdown commands.
+system shutdown commands
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,
