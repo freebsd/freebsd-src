@@ -198,6 +198,7 @@ void
 ieee80211_node_authorize(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 	ni->ni_flags |= IEEE80211_NODE_AUTH;
+	ni->ni_inact_reload = ic->ic_inact_run;
 }
 
 void
@@ -911,7 +912,8 @@ ieee80211_setup_node(struct ieee80211_node_table *nt,
 	ni->ni_authmode = IEEE80211_AUTH_OPEN;
 	ni->ni_txpower = ic->ic_txpowlimit;	/* max power */
 	ieee80211_crypto_resetkey(ic, &ni->ni_ucastkey, IEEE80211_KEYIX_NONE);
-	ni->ni_inact = ni->ni_inact_reload = nt->nt_inact_init;
+	ni->ni_inact_reload = nt->nt_inact_init;
+	ni->ni_inact = ni->ni_inact_reload;
 	IEEE80211_NODE_SAVEQ_INIT(ni, "unknown");
 
 	IEEE80211_NODE_LOCK(nt);
@@ -1411,7 +1413,8 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 			 * universally supported by drivers (need it
 			 * for ps-poll support so it should be...).
 			 */
-			if (ni->ni_inact == ic->ic_inact_probe) {
+			if (0 < ni->ni_inact &&
+			    ni->ni_inact <= ic->ic_inact_probe) {
 				IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
 				    "[%s] probe station due to inactivity\n",
 				    ether_sprintf(ni->ni_macaddr));
@@ -1619,7 +1622,8 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ic, ni, newassoc);
-	ni->ni_inact_reload = ic->ic_inact_run;
+	ni->ni_inact_reload = ic->ic_inact_auth;
+	ni->ni_inact = ni->ni_inact_reload;
 	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_SUCCESS);
 	/* tell the authenticator about new station */
 	if (ic->ic_auth->ia_node_join != NULL)

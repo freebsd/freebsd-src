@@ -878,7 +878,6 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 				return;
 		} else
 			(void) ieee80211_ref_node(ni);
-		ni->ni_inact_reload = ic->ic_inact_auth;
 		IEEE80211_SEND_MGMT(ic, ni,
 			IEEE80211_FC0_SUBTYPE_AUTH, seq + 1);
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_DEBUG | IEEE80211_MSG_AUTH,
@@ -1070,7 +1069,6 @@ ieee80211_auth_shared(struct ieee80211com *ic, struct ieee80211_frame *wh,
 				estatus = IEEE80211_STATUS_CHALLENGE;
 				goto bad;
 			}
-			ni->ni_inact_reload = ic->ic_inact_auth;
 			IEEE80211_DPRINTF(ic,
 			    IEEE80211_MSG_DEBUG | IEEE80211_MSG_AUTH,
 			    "[%s] station authenticated (shared key)\n",
