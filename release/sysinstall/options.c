@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.37 1996/06/08 08:01:52 jkh Exp $
+ * $Id: options.c,v 1.38 1996/06/08 09:08:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,7 +45,7 @@ varCheck(Option opt)
     if (opt.aux)
 	cp = variable_get((char *)opt.aux);
     if (!cp)
-	return "<default setting>";
+	return "NO";
     return cp;
 }
 
@@ -131,7 +131,7 @@ static Option Options[] = {
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
-      OPT_IS_VAR,	PKG_PROMPT,		"PKG_TMPDIR",		varCheck	},
+      OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },
@@ -209,8 +209,8 @@ optionsEditor(dialogMenuItem *self)
 	    mvaddstr(OPT_START_ROW - 1, OPT_VALUE_COL + (i * GROUP_OFFSET), "-----");
 	}
 	/* And the footer */
-	mvprintw(OPT_END_ROW + 0, 0, "Use SPACE to select/toggle an option, arrow keys to move,");
-	mvprintw(OPT_END_ROW + 1, 0, "? or F1 for more help.  When you're done, type Q to Quit.");
+	mvprintw(OPT_END_ROW + 1, 0, "Use SPACE to select/toggle an option, arrow keys to move,");
+	mvprintw(OPT_END_ROW + 2, 0, "? or F1 for more help.  When you're done, type Q to Quit.");
 
 	optrow = OPT_START_ROW;
 	optcol = OPT_NAME_COL;
@@ -228,8 +228,8 @@ optionsEditor(dialogMenuItem *self)
 	    }
 	    clrtoeol();
 	}
-	attrset(item_attr);
-	mvaddstr(OPT_END_ROW + 3, 0, Options[currOpt].desc);
+	attrset(ATTR_TITLE);
+	mvaddstr(OPT_END_ROW + 4, 0, Options[currOpt].desc);
 	attrset(A_NORMAL);
 	clrtoeol();
 	move(0, 14);
@@ -247,14 +247,14 @@ optionsEditor(dialogMenuItem *self)
 	    if (currOpt)
 		--currOpt;
 	    else
-		beep();
+		for (currOpt = 0; Options[currOpt + 1].name; currOpt++);
 	    continue;
 
 	case KEY_DOWN:
 	    if (Options[currOpt + 1].name)
 		++currOpt;
 	    else
-		beep();
+		currOpt = 0;
 	    continue;
 
 	case KEY_HOME:
