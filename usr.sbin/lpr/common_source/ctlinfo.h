@@ -67,5 +67,7 @@ struct cjobinfo {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+void		 ctl_freeinf(struct cjobinfo *_cjinf);
+struct cjobinfo	*ctl_readcf(const char *_ptrname, const char *_cfname);
 char		*ctl_renametf(const char *_ptrname, const char *_tfname);
 __END_DECLS
