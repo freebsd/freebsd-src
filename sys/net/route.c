@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.7 1994/09/14 03:10:05 wollman Exp $
+ * $Id: route.c,v 1.8 1994/10/02 17:48:26 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -297,8 +298,9 @@ ifa_ifwithroute(flags, dst, gateway)
 		 * we can use the local address.
 		 */
 		ifa = 0;
-		if (flags & RTF_HOST) 
+		if (flags & RTF_HOST) {
 			ifa = ifa_ifwithdstaddr(dst);
+		}
 		if (ifa == 0)
 			ifa = ifa_ifwithaddr(gateway);
 	} else {
@@ -342,6 +344,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
+	int doexpire = 0;
 #define senderr(x) { error = x ; goto bad; }
 
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
@@ -379,11 +382,33 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		gateway = rt->rt_gateway;
 		if ((netmask = rt->rt_genmask) == 0)
 			flags |= RTF_HOST;
+		if (flags & RTF_STATIC) {
+			/*
+			 * We make a few assumptions here which are not
+			 * necessarily valid for everybody.
+			 * 1) static cloning routes want this treatment
+			 * 2) somebody's link layer out there is
+			 *    timing these things out
+			 *
+			 * (2) in particular is not presently true for any
+			 * p2p links, but we hope that this will not cause
+			 * problems.  (I believe that these extra routes
+			 * can never cause incorrect operation, but they
+			 * really should get timed out to free the memory.)
+			 */
+			flags &= ~RTF_STATIC;
+			doexpire = 1;
+		}
+			
 		goto makeroute;
 
 	case RTM_ADD:
+		if ((flags & RTF_GATEWAY) && !gateway)
+			panic("rtrequest: GATEWAY but no gateway");
+
 		if ((ifa = ifa_ifwithroute(flags, dst, gateway)) == 0)
 			senderr(ENETUNREACH);
+
 	makeroute:
 		R_Malloc(rt, struct rtentry *, sizeof(*rt));
 		if (rt == 0)
@@ -413,6 +438,9 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		rt->rt_ifp = ifa->ifa_ifp;
 		if (req == RTM_RESOLVE)
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
+		if (doexpire)
+			rt->rt_rmx.rmx_expire = 
+				time.tv_sec + 1200; /* XXX MAGIC CONSTANT */
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
 		if (ret_nrt) {
