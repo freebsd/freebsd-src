@@ -159,6 +159,10 @@ atkbdc_configure(void)
 	tag = I386_BUS_SPACE_IO;
 #elif defined(__alpha__)
 	tag = busspace_isa_io;
+#elif defined(__ia64__)
+	tag = IA64_BUS_SPACE_IO;
+#else
+#error "define tag!"
 #endif
 
 #if notyet
