@@ -20,7 +20,8 @@ VERSION=        1.05
 owner=		uucp
 group=          uucp
 bindir=		/usr/bin
-sbindir=	/usr/libexec/uucp
+sbindir=        /usr/sbin
+libxdir=        /usr/libexec/uucp
 
 # The directory to look in for new style configuration files (when
 # using HAVE_TAYLOR_CONFIG).
