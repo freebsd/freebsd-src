@@ -1,9 +1,14 @@
 #
-#	$Id: Makefile.upgrade,v 1.12 1999/01/27 08:49:53 jkh Exp $
+#	$Id: Makefile.upgrade,v 1.13 1999/01/27 15:08:05 jkh Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
 #
+
+#
+# Make sure the PATH is set correctly
+#
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 #
 # Build things relative to the user's preferred object directory,
