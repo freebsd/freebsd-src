@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
- *	$Id: ed.h,v 1.10 1997/02/22 14:03:14 peter Exp $
+ *	$Id: ed.h,v 1.11 1997/12/10 22:18:23 eivind Exp $
  */
 
 #include <sys/param.h>		/* for MAXPATHLEN */
@@ -214,7 +214,7 @@ long exec_global __P((int, int));
 void expand_des_key __P((char *, char *));
 int extract_addr_range __P((void));
 char *extract_pattern __P((int));
-int extract_subst_tail __P((int *, int *));
+int extract_subst_tail __P((int *, long *));
 char *extract_subst_template __P((void));
 int filter_lines __P((long, long, char *));
 int flush_des_file __P((FILE *));
