@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.2 1995/12/05 11:49:55 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.2.2.1 1996/04/08 01:32:00 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -46,6 +46,11 @@ struct fxp_csr {
 	volatile u_int16_t	eeprom_control;
 	volatile u_int32_t	mdi_control;
 };
+
+#define FXP_PORT_SOFTWARE_RESET		0
+#define FXP_PORT_SELFTEST		1
+#define FXP_PORT_SELECTIVE_RESET	2
+#define FXP_PORT_DUMP			3
 
 #define FXP_SCB_RUS_IDLE		0
 #define FXP_SCB_RUS_SUSPENDED		1

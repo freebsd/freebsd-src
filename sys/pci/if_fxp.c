@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8.2.9 1996/09/22 11:50:19 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8.2.10 1996/09/29 10:21:38 davidg Exp $
  */
 
 /*
@@ -247,9 +247,9 @@ fxp_attach(config_id, unit)
 	}
 
 	/*
-	 * Issue a software reset.
+	 * Reset to a stable state.
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
@@ -460,7 +460,7 @@ tbdinit:
 			segment++;
 		}
 	}
-	if (m != NULL && segment == FXP_NTXSEG) {
+	if (m != NULL) {
 		struct mbuf *mn;
 
 		/*
@@ -554,11 +554,9 @@ fxp_intr(arg)
 	struct fxp_softc *sc = arg;
 	struct fxp_csr *csr = sc->csr;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int found = 0;
 	u_int8_t statack;
 
 	while ((statack = csr->scb_statack) != 0) {
-		found = 1;
 		/*
 		 * First ACK all the interrupts in this pass.
 		 */
@@ -650,7 +648,7 @@ rcvloop:
 		}
 	}
 
-	return found;
+	return 0;
 }
 
 /*
@@ -679,8 +677,7 @@ fxp_stats_update(arg)
 	    sp->rx_crc_errors +
 	    sp->rx_alignment_errors +
 	    sp->rx_rnr_errors +
-	    sp->rx_overrun_errors +
-	    sp->rx_shortframes;
+	    sp->rx_overrun_errors;
 	/*
 	 * If any transmit underruns occured, bump up the transmit
 	 * threshold by another 512 bytes (64 * 8).
@@ -717,7 +714,6 @@ fxp_stats_update(arg)
 		sp->rx_alignment_errors = 0;
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
-		sp->rx_shortframes = 0;;
 	}
 	/*
 	 * Schedule another timeout one second from now.
@@ -745,7 +741,7 @@ fxp_stop(sc)
 	/*
 	 * Issue software reset
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
@@ -859,15 +855,15 @@ fxp_init(ifp)
 	cbp->cb_command =	FXP_CB_COMMAND_CONFIG | FXP_CB_COMMAND_EL;
 	cbp->link_addr =	-1;	/* (no) next command */
 	cbp->byte_count =	22;	/* (22) bytes to config */
-	cbp->rx_fifo_limit =	8;	/* rx fifo threshold */
-	cbp->tx_fifo_limit =	0;	/* tx fifo threshold */
+	cbp->rx_fifo_limit =	8;	/* rx fifo threshold (32 bytes) */
+	cbp->tx_fifo_limit =	0;	/* tx fifo threshold (0 bytes) */
 	cbp->adaptive_ifs =	0;	/* (no) adaptive interframe spacing */
-	cbp->rx_dma_bytecount =	16;	/* (no) rx DMA max */
-	cbp->tx_dma_bytecount =	16;	/* (no) tx DMA max */
-	cbp->dma_bce =		1;	/* (enable) dma max counters */
+	cbp->rx_dma_bytecount =	0;	/* (no) rx DMA max */
+	cbp->tx_dma_bytecount =	0;	/* (no) tx DMA max */
+	cbp->dma_bce =		0;	/* (disable) dma max counters */
 	cbp->late_scb =		0;	/* (don't) defer SCB update */
 	cbp->tno_int =		0;	/* (disable) tx not okay interrupt */
-	cbp->ci_int =		0;	/* (do) interrupt on CU not active */
+	cbp->ci_int =		0;	/* interrupt on CU not active */
 	cbp->save_bf =		prm;	/* save bad frames */
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (1) on DMA underrun */
@@ -880,7 +876,7 @@ fxp_init(ifp)
 	cbp->interfrm_spacing =	6;	/* (96 bits of) interframe spacing */
 	cbp->promiscuous =	prm;	/* promiscuous mode */
 	cbp->bcast_disable =	0;	/* (don't) disable broadcasts */
-	cbp->crscdt =		1;	/* (CRS only) */
+	cbp->crscdt =		0;	/* (CRS only) */
 	cbp->stripping =	!prm;	/* truncate rx packet to byte count */
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
