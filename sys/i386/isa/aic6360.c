@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.30 1997/07/20 14:09:50 bde Exp $
+ * $Id: aic6360.c,v 1.31 1997/09/21 21:40:51 gibbs Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -666,6 +666,9 @@ void	aic_print_active_acb	__P((void));
 void	aic_dump6360		__P((void));
 void	aic_dump_driver		__P((void));
 #endif
+#ifdef SCSI_DETACH
+static void	aicdetach	__P((struct isa_device *dev));
+#endif
 
 /* Linkup to the rest of the kernel */
 struct isa_driver aicdriver = {
@@ -694,6 +697,115 @@ static struct scsi_device aic_dev = {
 };
 
 
+/* PCCARD suport */
+#include "crd.h"
+#if NCRD > 0
+#include <sys/select.h>
+#include <pccard/card.h>
+#include <pccard/driver.h>
+#include <pccard/slot.h>
+
+static int aic_card_intr(struct pccard_dev *); /* Interrupt handler */
+void aicunload(struct pccard_dev *);           /* Disable driver */
+void aicsuspend(struct pccard_dev *);          /* Suspend driver */
+static int aicinit(struct pccard_dev *, int);  /* init device */
+
+static struct pccard_drv aic_info = {
+	"aic",
+	aic_card_intr,
+	aicunload,
+	aicsuspend,
+	aicinit,
+	0,			/* Attributes - presently unused */
+	&bio_imask		/* Interrupt mask for device */
+};
+
+/*
+ * Called when a power down is wanted. Shuts down the
+ * device and configures the device as unavailable (but
+ * still loaded...). A resume is done by calling
+ * feinit with first=0. This is called when the user suspends
+ * the system, or the APM code suspends the system.
+ */
+void
+aicsuspend(struct pccard_dev *dp)
+{
+	printf("aic%d: suspending\n", dp->isahd.id_unit);
+}
+
+/*
+ * Initialize the device - called from Slot manager.
+ * if first is set, then initially check for
+ * the device's existence before initialising it.
+ * Once initialised, the device table may be set up.
+ */
+int
+aicinit(struct pccard_dev *dp, int first)
+{
+	static int already_aicinit[NAIC];
+	/* validate unit number */
+	if (first) {
+		if (dp->isahd.id_unit >= NAIC)
+			return(ENODEV);
+		/* Make sure it isn't already initialised */
+		if (already_aicinit[dp->isahd.id_unit] == 1) {
+			if (aicattach(&dp->isahd) == 0)
+				return(ENXIO);
+			return(0);
+               }
+		/*
+		 * Probe the device. If a value is returned, the
+		 * device was found at the location.
+		 */
+		if (aicprobe(&dp->isahd) == 0)
+			return(ENXIO);
+
+		if (aicattach(&dp->isahd) == 0)
+			return(ENXIO);
+	}
+	/*
+	 * XXX TODO:
+	 * If it was already inited before, the device structure
+	 * should be already initialised. Here we should
+	 * reset (and possibly restart) the hardware, but
+	 * I am not sure of the best way to do this...
+	 */
+	already_aicinit[dp->isahd.id_unit] = 1;
+	return(0);
+}
+
+/*
+ * aicunload - unload the driver and clear the table.
+ * XXX TODO:
+ * This is called usually when the card is ejected, but
+ * can be caused by the modunload of a controller driver.
+ * The idea is reset the driver's view of the device
+ * and ensure that any driver entry points such as
+ * read and write do not hang.
+ */
+void
+aicunload(struct pccard_dev *dp)
+{
+	printf("aic%d: unload\n", dp->isahd.id_unit);
+#if 0
+	aicstop(dp->isahd.id_unit);
+#endif
+#ifdef SCSI_DETACH
+	aicdetach(&dp->isahd);
+#endif
+}
+
+/*
+ * card_intr - Shared interrupt called from front end of PC-Card handler.
+ */
+static int
+aic_card_intr(struct pccard_dev *dp)
+{
+	aicintr(dp->isahd.id_unit);
+	return(1);
+}
+#endif /* NCRD > 0 */ 
+
 /*
  * INITIALIZATION ROUTINES (probe, attach ++)
  */
@@ -706,17 +818,35 @@ static int
 aicprobe(dev)
 	struct isa_device *dev;
 {
-	int	unit = aicunit;
 	struct aic_data *aic;
+#if NCRD > 0
+	int     unit = dev->id_unit;
+	int     aic_reg_drv[NAIC];
+	static int aic_already_init;
+#else
+	int	unit = aicunit;
+#endif
 
 	if (unit >= NAIC) {
 		printf("aic%d: unit number too high\n", unit);
 		return 0;
 	}
 	dev->id_unit = unit;
+
+#if NCRD > 0
+	if (!aic_reg_drv[unit])
+		aic_reg_drv[unit] = 1;
+
+	/* If PC-Card probe required, then register with  slot manager. */
+	if (!aic_already_init) {
+		pccard_add_driver(&aic_info);
+		aic_already_init = 1;
+	}
+#endif
+
 	/*
-	* Allocate a storage area for us
-	*/
+	 * Allocate a storage area for us
+	 */
 	if (aicdata[unit]) {
 	       printf("aic%d: memory already allocated\n", unit);
 	       return 0;
@@ -802,6 +932,20 @@ aic_find(aic)
 	return 0;
 }
 
+#ifdef SCSI_DETACH
+static void
+aicdetach(dev)
+	struct isa_device *dev;
+{
+	int unit = dev->id_unit;
+	struct aic_data *aic = aicdata[unit];
+	struct scsibus_data *scbus;
+
+	scbus =
+         (struct scsibus_data *)scsi_extend_get(aicdata[unit]->sc_link.scsibus);
+	scsi_detachdev(scbus);
+}
+#endif /* SCSI_DETACH */
 
 /*
  * Attach the AIC6360, fill out some high and low level data structures
@@ -1283,6 +1427,10 @@ aic_done(acb)
 	 * longer busy.  This code is sickening, but it works.
 	 */
 	if (acb == aic->nexus) {
+#if NAPM > 0 && NCRD > 0
+		/* SlimSCSI dies without this when it resumes from suspend */
+		aic->nexus = NULL;
+#endif
 		aic->state = AIC_IDLE;
 		aic->tinfo[sc->target].lubusy &= ~(1<<sc->lun);
 		aic_sched(aic);
