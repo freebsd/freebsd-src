@@ -60,6 +60,17 @@ typedef	struct {
 __ElfType(Auxinfo);
 
 /*
+ * Types of dynamic symbol hash table bucket and chain elements.
+ *
+ * This is inconsistent among 64 bit architectures, so a machine dependent
+ * typedef is required.
+ */
+
+typedef Elf64_Half Elf64_Hashelt;
+
+__ElfType(Hashelt);
+
+/*
  * Values for a_type.
  */
 
