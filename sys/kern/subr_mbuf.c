@@ -1422,39 +1422,9 @@ m_free(struct mbuf *mb)
 void
 m_freem(struct mbuf *mb)
 {
-	struct mbuf *m;
-	int cchnum;
-	short persist;
 
-	while (mb != NULL) {
-#ifdef INVARIANTS
-		if (mb->m_flags & M_FREELIST)
-			panic("m_freem detected a mbuf double-free");
-		mb->m_flags |= M_FREELIST;
-#endif
-		if ((mb->m_flags & M_PKTHDR) != 0)
-			m_tag_delete_chain(mb, NULL);
-		persist = 0;
-		m = mb;
-		mb = mb->m_next;
-		if ((m->m_flags & M_EXT) != 0) {
-			MEXT_REM_REF(m);
-			if (atomic_cmpset_int(m->m_ext.ref_cnt, 0, 1)) {
-				if (m->m_ext.ext_type == EXT_CLUSTER) {
-					mb_free(&mb_list_clust,
-					    (caddr_t)m->m_ext.ext_buf,
-					    MT_NOTMBUF, MBP_PERSIST, &cchnum);
-					persist = MBP_PERSISTENT;
-				} else {
-					(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
-					    m->m_ext.ext_args);
-					_mext_dealloc_ref(m);
-					persist = 0;
-				}
-			}
-		}
-		mb_free(&mb_list_mbuf, m, m->m_type, persist, &cchnum);
-	}
+	while (mb != NULL)
+		mb = m_free(mb);
 }
 
 /*
