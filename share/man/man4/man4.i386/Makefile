@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN4=	adv.4 adw.4 aha.4 ahb.4 aic.4 alpm.4 apm.4 ar.4 asc.4 \
+MAN4=	adv.4 adw.4 aha.4 ahb.4 aic.4 alpm.4 apm.4 ar.4 asc.4 ata.4 \
 	bktr.4 bt.4 cs.4 cx.4 cy.4 \
 	dgb.4 dpt.4 ed.4 el.4 en.4 ep.4 ex.4 fe.4 gsc.4 \
 	ie.4 io.4 joy.4 labpc.4 le.4 lnc.4 matcd.4 mcd.4 \
@@ -20,6 +20,7 @@ MLINKS+=	alpm.4 ../alpm.4
 MLINKS+=	apm.4 ../apm.4
 MLINKS+=	ar.4 ../ar.4
 MLINKS+=	asc.4 ../asc.4
+MLINKS+=	ata.4 ../ata.4
 MLINKS+=	bktr.4 ../bktr.4
 MLINKS+=	bt.4 ../bt.4
 MLINKS+=	cs.4 ../cs.4
