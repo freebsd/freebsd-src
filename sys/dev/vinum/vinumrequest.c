@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.7.2.3 1999/02/11 05:50:30 grog Exp $
+ * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -335,7 +335,8 @@ launch_requests(struct request *rq, int reviveok)
 
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
-	    printf("Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	    log(LOG_DEBUG,
+		"Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 		rq->sdno,
 		(u_int) rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
@@ -348,13 +349,14 @@ launch_requests(struct request *rq, int reviveok)
     rq->active = 0;					    /* nothing yet */
     /* XXX This is probably due to a bug */
     if (rq->rqg == NULL) {				    /* no request */
-	printf("vinum: null rqg");
+	log(LOG_ERR, "vinum: null rqg");
 	abortrequest(rq, EINVAL);
 	return -1;
     }
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
-	printf("Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	log(LOG_DEBUG,
+	    "Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
 	    (u_int) rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
 	    rq->bp->b_dev,
@@ -378,7 +380,8 @@ launch_requests(struct request *rq, int reviveok)
 		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
-		    printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+		    log(LOG_DEBUG,
+			"  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 			rqe->b.b_flags & B_READ ? "Read" : "Write",
 			rqe->b.b_dev,
 			rqe->sdno,
@@ -386,7 +389,8 @@ launch_requests(struct request *rq, int reviveok)
 			rqe->b.b_blkno,
 			rqe->b.b_bcount);		    /* XXX */
 		if (debug & DEBUG_NUMOUTPUT)
-		    printf("  vinumstart sd %d numoutput %ld\n",
+		    log(LOG_DEBUG,
+			"  vinumstart sd %d numoutput %ld\n",
 			rqe->sdno,
 			rqe->b.b_vp->v_numoutput);
 		if (debug & DEBUG_LASTREQS)
@@ -578,7 +582,7 @@ bre(struct request *rq,
 
 
     default:
-	printf("vinum: invalid plex type in bre");
+	log(LOG_ERR, "vinum: invalid plex type %d in bre", plex->organization);
     }
 
     return status;
@@ -840,7 +844,8 @@ sdio(struct buf *bp)
 	sbp->b.b_vp->v_numoutput++;			    /* one more output going */
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
-	printf("  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+	log(LOG_DEBUG,
+	    "  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 	    sbp->b.b_flags & B_READ ? "Read" : "Write",
 	    sbp->b.b_dev,
 	    sbp->sdno,
@@ -848,7 +853,8 @@ sdio(struct buf *bp)
 	    (int) sbp->b.b_blkno,
 	    sbp->b.b_bcount);				    /* XXX */
     if (debug & DEBUG_NUMOUTPUT)
-	printf("  vinumstart sd %d numoutput %ld\n",
+	log(LOG_DEBUG,
+	    "  vinumstart sd %d numoutput %ld\n",
 	    sbp->sdno,
 	    sbp->b.b_vp->v_numoutput);
 #endif
