@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.44 1998/02/20 05:11:42 jb Exp $ */
+/* $Id: main.c,v 1.45 1998/05/09 08:41:23 des Exp $ */
 
 #include <sys/types.h>
 
@@ -181,8 +181,11 @@ main(int argc, char *const *argv)
 	    strcpy(uri, "ftp://");
 	    strcat(uri, hostname);
 	    strcat(uri, "/");
-	    if (change_to_dir[0] == '/') strcat(uri, "%2f");
-	    strcat(uri, change_to_dir);
+	    if (change_to_dir[0] == '/') {
+	            strcat(uri, "%2f");
+		    strcat(uri, change_to_dir+1);
+	    }
+	    else strcat(uri, change_to_dir);
 	    if (file_to_get[0] != '/' && uri[strlen(uri) - 1] != '/')
 		    strcat(uri, "/");
 	    strcat(uri, file_to_get);
