@@ -51,6 +51,17 @@ SUBDIR+= include
 SUBDIR+= lib
 .endif
 
+# When upgrading to a dynamically linked root, install the runtime
+# linker early into its new location before make(1) has a chance
+# to run the dynamically linked /bin/sh.
+.if defined(WITH_DYNAMICROOT) && !defined(NOPIC) && \
+    (!defined(TARGET_ARCH) || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
+    !defined(DISTDIR) && \
+    (!defined(DESTDIR) || empty(DESTDIR) || ${DESTDIR} == "/") && \
+    !exists(/libexec/ld-elf.so.1)
+SUBDIR+= libexec/rtld-elf
+.endif
+
 .if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
