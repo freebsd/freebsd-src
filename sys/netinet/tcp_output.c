@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.32 1999/01/20 17:31:59 fenner Exp $
+ *	$Id: tcp_output.c,v 1.33 1999/04/07 22:22:06 julian Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -40,6 +40,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -66,6 +68,10 @@
 #ifdef notyet
 extern struct mbuf *m_copypack();
 #endif
+
+static int path_mtu_discovery = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
+	&path_mtu_discovery, 1, "Enable Path MTU Discovery");
 
 
 /*
@@ -673,13 +679,10 @@ send:
 	 */
 	m->m_pkthdr.len = hdrlen + len;
     {
-#if 1
 	struct rtentry *rt;
-#endif
 	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
 	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
 	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
-#if 1
 	/*
 	 * See if we should do MTU discovery.  We do it only if the following
 	 * are true:
@@ -687,12 +690,12 @@ send:
 	 *	2) the MTU is not locked (if it is, then discovery has been
 	 *	   disabled)
 	 */
-	if ((rt = tp->t_inpcb->inp_route.ro_rt)
+	if (path_mtu_discovery
+	    && (rt = tp->t_inpcb->inp_route.ro_rt)
 	    && rt->rt_flags & RTF_UP
 	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
 		((struct ip *)ti)->ip_off |= IP_DF;
 	}
-#endif
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE, 0);
     }
@@ -702,7 +705,6 @@ out:
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
-#if 1
 		if (error == EMSGSIZE) {
 			/*
 			 * ip_output() will have already fixed the route
@@ -713,7 +715,6 @@ out:
 			tcp_mtudisc(tp->t_inpcb, 0);
 			return 0;
 		}
-#endif
 		if ((error == EHOSTUNREACH || error == ENETDOWN)
 		    && TCPS_HAVERCVDSYN(tp->t_state)) {
 			tp->t_softerror = error;
