@@ -35,3 +35,9 @@ PRECIOUSLIB=	yes
 .include "${.CURDIR}/thread/Makefile.inc"
 
 .include <bsd.lib.mk>
+
+# Can't put thr_support.c in SRCS but want it in .depend.
+${DEPENDFILE}: thr_support.c
+
+# LIBC_PIC is defined only after <bsd.lib.mk> is included.
+thr_libc.So: ${LIBC_PIC}
