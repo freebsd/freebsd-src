@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf32.h,v 1.1 1997/05/21 23:07:30 jdp Exp $
+ *      $Id: elf32.h,v 1.2 1997/08/30 18:58:31 peter Exp $
  */
 
 #ifndef _SYS_ELF32_H_
@@ -195,6 +195,9 @@ typedef struct {
 #define PT_PHDR		6	/* Location of program header itself. */
 
 #define PT_COUNT	7	/* Number of defined p_type values. */
+
+#define PT_LOPROC	0x70000000	/* First processor-specific type. */
+#define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
 /* Values for p_flags. */
 #define PF_X		0x1	/* Executable. */
