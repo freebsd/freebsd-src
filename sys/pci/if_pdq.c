@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.8 1995/10/29 15:33:28 phk Exp $
+ * $Id: if_pdq.c,v 1.9 1995/11/04 15:05:52 bde Exp $
  *
  */
 
@@ -119,6 +119,7 @@ typedef struct {
     struct atshutdown sc_ats;		/* shutdown routine */
 #endif
     struct arpcom sc_ac;
+    void (*if_init) __P((int unit));
     pdq_t *sc_pdq;
 #if NBPFILTER > 0 && !defined(__FreeBSD__) && !defined(__bsdi__)
     caddr_t sc_bpf;
@@ -325,7 +326,7 @@ pdq_ifioctl(
 #ifdef INET
 		case AF_INET: {
 		    ((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 #ifdef __FreeBSD__
 		    arp_ifinit((struct arpcom *)ifp, ifa);
 #else
@@ -351,13 +352,13 @@ pdq_ifioctl(
 			      sizeof sc->sc_ac.ac_enaddr);
 		    }
 
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    break;
 		}
 #endif /* NS */
 
 		default: {
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    break;
 		}
 	    }
@@ -365,7 +366,7 @@ pdq_ifioctl(
 	}
 
 	case SIOCSIFFLAGS: {
-	    (*ifp->if_init)(ifp->if_unit);
+	    (*sc->if_init)(ifp->if_unit);
 	    break;
 	}
 
@@ -402,16 +403,13 @@ pdq_ifattach(
     pdq_softc_t *sc,
     ifnet_ret_t (*ifinit)(int unit),
     ifnet_ret_t (*ifreset)(int unit),
-    ifnet_ret_t (*ifwatchdog)(int unit))
+    ifnet_ret_t (*ifwatchdog)(struct ifnet *ifp))
 {
     struct ifnet *ifp = &sc->sc_if;
 
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 
-    ifp->if_init = ifinit;
-#ifndef __bsdi__
-    ifp->if_reset = ifreset;
-#endif
+    sc->if_init = ifinit;
     ifp->if_watchdog = ifwatchdog;
 
     ifp->if_ioctl = pdq_ifioctl;
@@ -470,10 +468,9 @@ pdq_pci_ifinit(
 }
 
 static ifnet_ret_t
-pdq_pci_ifwatchdog(
-    int unit)
+pdq_pci_ifwatchdog(struct ifnet *ifp)
 {
-    pdq_ifwatchdog(PDQ_PCI_UNIT_TO_SOFTC(unit));
+    pdq_ifwatchdog(PDQ_PCI_UNIT_TO_SOFTC(ifp->if_unit));
 }
 
 static int
@@ -564,10 +561,9 @@ pdq_eisa_ifinit(
 }
 
 static ifnet_ret_t
-pdq_eisa_ifwatchdog(
-    int unit)
+pdq_eisa_ifwatchdog(struct ifnet *ifp)
 {
-    pdq_ifwatchdog(PDQ_EISA_UNIT_TO_SOFTC(unit));
+    pdq_ifwatchdog(PDQ_EISA_UNIT_TO_SOFTC(ifp->if_unit));
 }
 
 #ifdef __FreeBSD__

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.21 1995/09/27 15:00:49 wollman Exp $
+ * $Id: if.c,v 1.22 1995/11/18 13:01:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -83,22 +83,6 @@ ifinit(dummy)
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_slowtimo(0);
 }
-
-#ifdef vax
-/*
- * Call each interface on a Unibus reset.
- */
-void
-ifubareset(uban)
-	int uban;
-{
-	register struct ifnet *ifp;
-
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
-		if (ifp->if_reset)
-			(*ifp->if_reset)(ifp->if_unit, uban);
-}
-#endif
 
 int if_index = 0;
 struct ifaddr **ifnet_addrs;
@@ -440,7 +424,7 @@ if_slowtimo(arg)
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
-			(*ifp->if_watchdog)(ifp->if_unit);
+			(*ifp->if_watchdog)(ifp);
 	}
 	splx(s);
 	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.17 1995/10/28 15:39:02 phk Exp $
+ * $Id: if_el.c,v 1.18 1995/11/04 17:07:24 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -91,7 +91,7 @@ int el_ioctl(struct ifnet *,int,caddr_t);
 int el_probe(struct isa_device *);
 void el_start(struct ifnet *);
 void el_reset(int);
-void el_watchdog(int);
+void el_watchdog(struct ifnet *);
 
 static void el_stop(int);
 static int el_xmit(struct el_softc *,int);
@@ -209,11 +209,9 @@ int el_attach(struct isa_device *idev)
 	ifp->if_unit = idev->id_unit;
 	ifp->if_name = "el";
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_init = el_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = el_start;
 	ifp->if_ioctl = el_ioctl;
-	ifp->if_reset = el_reset;
 	ifp->if_watchdog = el_watchdog;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
 
@@ -819,14 +817,10 @@ el_ioctl(ifp, command, data)
 }
 
 /* Device timeout routine */
-void el_watchdog(int unit)
+void el_watchdog(struct ifnet *ifp)
 {
-	struct el_softc *sc;
-
-	sc = &el_softc[unit];
-
-	log(LOG_ERR,"el%d: device timeout\n",unit);
-	sc->arpcom.ac_if.if_oerrors++;
-	el_reset(unit);
+	log(LOG_ERR,"el%d: device timeout\n",ifp->if_unit);
+	ifp->if_oerrors++;
+	el_reset(ifp->if_unit);
 }
 #endif

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.7 1995/11/16 20:16:34 jhay Exp $
+ * $Id: if_ar.c,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
  */
 
 /*
@@ -201,8 +201,7 @@ static struct kern_devconf kdc_arc_template = {
 
 void arstart(struct ifnet *ifp);
 int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
-void arwatchdog(int port_number);
-void arinit(int port_number);
+void arwatchdog(struct ifnet *ifp);
 
 static void ar_up(struct ar_softc *sc);
 static void ar_down(struct ar_softc *sc);
@@ -397,7 +396,6 @@ int arattach(struct isa_device *id)
 		ifp->if_ioctl = arioctl;
 		ifp->if_start = arstart;
 		ifp->if_watchdog = arwatchdog;
-		ifp->if_init = arinit;
 
 		sc->ifsppp.pp_flags = PP_KEEPALIVE;
 
@@ -666,15 +664,15 @@ int arioctl(struct ifnet *ifp, int cmd, caddr_t data)
 /*
  * This is to catch lost tx interrupts.
  */
-void arwatchdog(int unit)
+void arwatchdog(struct ifnet *ifp)
 {
-	struct ar_softc *sc = ARUNIT2SC(unit);
+	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
 
-	if(!(sc->ifsppp.pp_if.if_flags & IFF_RUNNING))
+	if(!(ifp->if_flags & IFF_RUNNING))
 		return;
 
 	/* XXX if(sc->ifsppp.pp_if.if_flags & IFF_DEBUG) */
-		printf("ar%d: transmit failed.\n", unit);
+		printf("ar%d: transmit failed.\n", ifp->if_unit);
 
 	ARC_SET_SCA(sc->hc->iobase, sc->scano);
 	sc->hc->sca->msci[sc->scachan].cmd = SCA_CMD_TXABORT;
@@ -682,9 +680,9 @@ void arwatchdog(int unit)
 	ar_down(sc);
 	ar_up(sc);
 
-	sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
+	ifp->if_flags &= ~IFF_OACTIVE;
 
-	arstart(&sc->ifsppp.pp_if);
+	arstart(ifp);
 }
 
 static void ar_up(struct ar_softc *sc)
@@ -767,22 +765,6 @@ static void ar_down(struct ar_softc *sc)
 
 	ARC_SET_OFF(sc->hc->iobase);
 }
-
-/*
- * I don't think anything ever calls this function.
- */
-void arinit(int unit)
-  {
-  int s;
-  struct ar_softc *sc = ARUNIT2SC(unit);
-
-  printf("ar%d: OOPS, so somebody do call arinit!\n", unit);
-
-  s = splimp();
-  ar_down(sc);
-  ar_up(sc);
-  splx(s);
-  }
 
 /*
  * Initialize the card, allocate memory for the ar_softc structures
