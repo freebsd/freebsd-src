@@ -359,6 +359,8 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 	struct hostent *hp;
+	struct addrinfo hints, *res;
+	int error;
 	int ch, i, on, probe, seq, hops;
 	static u_char rcvcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))
 				+ CMSG_SPACE(sizeof(int))];
@@ -444,22 +446,25 @@ main(argc, argv)
 
 	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-	(void) bzero((char *)dst, sizeof(Dst));
-	Dst.sin6_family = AF_INET6;
-
-	hp = (struct hostent *)gethostbyname2(*argv, AF_INET6);
-	if (hp == NULL) {
-		if (inet_pton(AF_INET6, *argv, &Dst.sin6_addr) != 1) {
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_INET6;
+	hints.ai_socktype = SOCK_RAW;
+	hints.ai_protocol = IPPROTO_ICMPV6;
+	hints.ai_flags = AI_CANONNAME;
+	error = getaddrinfo(*argv, NULL, &hints, &res);
+	if (error) {
+		(void)fprintf(stderr,
+			      "traceroute6: %s\n", gai_strerror(error));
+		if (error == EAI_SYSTEM)
 			(void)fprintf(stderr,
-				      "traceroute6: unknown host %s\n", *argv);
-			exit(1);
-		}
-		hostname = *argv;
-	} else {
-		bcopy(hp->h_addr, (caddr_t)&Dst.sin6_addr, hp->h_length);
-		hostname = strdup(hp->h_name);
+				      "traceroute6: %s\n", strerror(errno));
+		exit(1);
 	}
-	freehostent(hp);
+	if (!res->ai_addr)
+		errx(1, "getaddrinfo failed");
+	memcpy(&Dst, res->ai_addr, res->ai_addrlen);
+	hostname = res->ai_canonname ? strdup(res->ai_canonname) : *argv;
+	freeaddrinfo(res);
 
 	if (*++argv)
 		datalen = atoi(*argv);
@@ -1017,6 +1022,7 @@ inetname(in)
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
+	int herr;
 
 	if (first && !nflag) {
 		first = 0;
@@ -1029,13 +1035,16 @@ inetname(in)
 	cp = 0;
 	if (!nflag) {
 		/* hp = (struct hostent *)addr2hostname(in, sizeof(*in), AF_INET6, &herr); */
-	  hp = (struct hostent *)gethostbyaddr((const char *)in, sizeof(*in), AF_INET6);
+	  hp = (struct hostent *)getipnodebyaddr((const char *)in, sizeof(*in),
+						 AF_INET6, &herr);
 		if (hp) {
 			if ((cp = index(hp->h_name, '.')) &&
 			    !strcmp(cp + 1, domain))
 				*cp = 0;
 			cp = hp->h_name;
+#undef freehostent(hp)
 			freehostent(hp);
+#define	freehostent(hp)
 		}
 	}
 	if (cp)
