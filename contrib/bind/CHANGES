@@ -1,3 +1,23 @@
+1469.	[bug]		buffer length calculation for PX was wrong.
+
+1468.	[bug]		ns_name_ntol() could overwite a zero length buffer.
+
+1467.	[bug]		off by one bug in ns_makecannon().
+
+1466.	[bug]		large ENDS UDP buffer size could trigger a assertion.
+
+1465.	[bug]		possible NULL pointer dereference in db_sec.c
+
+1464.	[bug]      	the buffer used to construct the -ve record was not
+			big enough for all possible SOA records.  use pointer
+			arithmetic to calculate the remaining size in this
+			buffer.
+
+1463.	[bug]		use serial space arithmetic to determine if a SIG is
+			too old, in the future or has internally constistant
+			times.
+
+1462.	[bug]		write buffer overflow in make_rr().
 
 	--- 8.3.3-REL released --- (Wed Jun 26 21:15:43 PDT 2002)
 
