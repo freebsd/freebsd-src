@@ -62,6 +62,7 @@ ACPI_MODULE_NAME("POWERRES")
 /* Return values from _STA on a power resource */
 #define ACPI_PWR_OFF	0
 #define ACPI_PWR_ON	1
+#define ACPI_PWR_UNK	(-1)
 
 /* A relationship between a power resource and a consumer. */
 struct acpi_powerreference {
@@ -87,6 +88,7 @@ struct acpi_powerresource {
     ACPI_HANDLE				ap_resource;
     ACPI_INTEGER			ap_systemlevel;
     ACPI_INTEGER			ap_order;
+    int					ap_state;
 };
 
 static TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)
@@ -169,6 +171,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     }
     rp->ap_systemlevel = obj->PowerResource.SystemLevel;
     rp->ap_order = obj->PowerResource.ResourceOrder;
+    rp->ap_state = ACPI_PWR_UNK;
     
     /* Sort the resource into the list */
     status = AE_OK;
@@ -640,17 +643,17 @@ acpi_pwr_switch_power(void)
 	if (ACPI_FAILURE(status)) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
-
 	    /* XXX is this correct?  Always switch if in doubt? */
 	    continue;
-	}
+	} else if (rp->ap_state == ACPI_PWR_UNK)
+	    rp->ap_state = cur;
 
 	/*
 	 * Switch if required.  Note that we ignore the result of the switch
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (cur != ACPI_PWR_ON) {
+	if (rp->ap_state != ACPI_PWR_ON) {
 	    status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
@@ -658,6 +661,7 @@ acpi_pwr_switch_power(void)
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
+		rp->ap_state = ACPI_PWR_ON;
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s on\n",
 				 acpi_name(rp->ap_resource)));
 	    }
@@ -685,14 +689,15 @@ acpi_pwr_switch_power(void)
 			      acpi_name(rp->ap_resource), status));
 	    /* XXX is this correct?  Always switch if in doubt? */
 	    continue;
-	}
+	} else if (rp->ap_state == ACPI_PWR_UNK)
+	    rp->ap_state = cur;
 
 	/*
 	 * Switch if required.  Note that we ignore the result of the switch
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (cur != ACPI_PWR_OFF) {
+	if (rp->ap_state != ACPI_PWR_OFF) {
 	    status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
@@ -700,6 +705,7 @@ acpi_pwr_switch_power(void)
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
+		rp->ap_state = ACPI_PWR_OFF;
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "switched %s off\n",
 				 acpi_name(rp->ap_resource)));
 	    }
