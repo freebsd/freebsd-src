@@ -145,45 +145,6 @@ static int	acpi_child_location_str_method(device_t acdev, device_t child,
 static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 					      char *buf, size_t buflen);
 
-int
-acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
-{
-	struct acpi_device *dinfo= device_get_ivars(child);
-	
-	dinfo = device_get_ivars(child);
-	if(dinfo->ad_handle)
-		snprintf(buf, buflen, "path=%s", acpi_name(dinfo->ad_handle));
-	else
-		snprintf(buf, buflen, "magic=unknown");
-	return (0);
-}
-
-int
-acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
-{
-	struct acpi_device *dinfo = device_get_ivars(child);
-	ACPI_DEVICE_INFO adinfo;
-	ACPI_BUFFER adbuf = {sizeof(adinfo), &adinfo}; 
-	char * end;
-	int error;
-
-	dinfo = device_get_ivars(child);
-	error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
-
-	if(error)
-		snprintf(buf, buflen, "Unknown");
-	else
-		snprintf(buf, buflen, "_HID=%s _UID=%u", 
-			 (adinfo.Valid & ACPI_VALID_HID)?
-			 adinfo.HardwareId.Value : "UNKNOWN",
-			 (unsigned int)((adinfo.Valid & ACPI_VALID_UID)?
-			strtoul(adinfo.UniqueId.Value, &end, 10):0 ));
-
-	return (0);
-}
-
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -736,6 +697,55 @@ acpi_print_child(device_t bus, device_t child)
     retval += bus_print_child_footer(bus, child);
 
     return (retval);
+}
+
+/*
+ * Location hint for devctl(8)
+ */
+ 
+int
+acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+    struct acpi_device *dinfo = device_get_ivars(child);
+	
+    if (dinfo->ad_handle)
+	snprintf(buf, buflen, "path=%s", acpi_name(dinfo->ad_handle));
+    else
+	snprintf(buf, buflen, "magic=unknown");
+    return (0);
+}
+
+/*
+ * PnP information for devctl(8)
+ */
+
+int
+acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+    struct acpi_device *dinfo = device_get_ivars(child);
+    ACPI_DEVICE_INFO *adinfo;
+    ACPI_BUFFER adbuf = {ACPI_ALLOCATE_BUFFER, NULL}; 
+    char *end;
+    int error;
+
+    error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
+    adinfo = (ACPI_DEVICE_INFO *) adbuf.Pointer;
+    
+    if (error)
+	snprintf(buf, buflen, "Unknown");
+    else
+	snprintf(buf, buflen, "_HID=%s _UID=%lu", 
+		 (adinfo->Valid & ACPI_VALID_HID)?
+		 adinfo->HardwareId.Value : "UNKNOWN",
+		 ((adinfo->Valid & ACPI_VALID_UID)?
+		  strtoul(adinfo->UniqueId.Value, &end, 10):0 ));
+
+    if (adinfo)
+	AcpiOsFree(adinfo);
+
+    return (0);
 }
 
 /*
