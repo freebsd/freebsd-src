@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 1998
+.Dd September 26, 2004
 .Dt ULPT 4
 .Os
 .Sh NAME
@@ -58,6 +58,30 @@ The bits in the minor number select various features of the driver.
 Some printers cannot handle the reset on open; in case of problems try the
 .Pa unlpt
 device.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for USB printers and parallel printer
+conversion cables, including the following:
+.Pp
+.Bl -bullet -compact
+.It
+ATen parallel printer adapter
+.It
+Belkin F5U002 parallel printer adapter
+.It
+Canon BJ F850, S600
+.It
+Canon LBP-1310, 350
+.It
+Entrega USB-to-parallel printer adapter
+.It
+Hewlett-Packard HP Deskjet 3420 (P/N: C8947A #ABJ)
+.It
+Oki Data MICROLINE ML660PS
+.It
+Seiko Epson PM-900C, 880C, 820C, 730C
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/unlpt?" -compact
 .It Pa /dev/ulpt?
