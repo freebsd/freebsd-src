@@ -312,6 +312,7 @@ dev_t dev2udev(struct cdev *x);
 struct cdev *findcdev(dev_t x);
 int uminor(dev_t dev);
 int umajor(dev_t dev);
+const char *devtoname(struct cdev *cdev);
 
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);
