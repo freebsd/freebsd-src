@@ -2171,31 +2171,22 @@ filt_sordetach(struct knote *kn)
 static int
 filt_soread(struct knote *kn, long hint)
 {
-	struct socket *so = kn->kn_fp->f_data;
-	int need_lock, result;
+	struct socket *so;
 
-	/*
-	 * XXXRW: Conditional locking because filt_soread() can be called
-	 * either from KNOTE() in the socket context where the socket buffer
-	 * lock is already held, or from kqueue() itself.
-	 */
-	need_lock = !SOCKBUF_OWNED(&so->so_rcv);
-	if (need_lock)
-		SOCKBUF_LOCK(&so->so_rcv);
+	so = kn->kn_fp->f_data;
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
 	kn->kn_data = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
-		result = 1;
+		return (1);
 	} else if (so->so_error)	/* temporary udp error */
-		result = 1;
+		return (1);
 	else if (kn->kn_sfflags & NOTE_LOWAT)
-		result = (kn->kn_data >= kn->kn_sdata);
+		return (kn->kn_data >= kn->kn_sdata);
 	else
-		result = (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
-	if (need_lock)
-		SOCKBUF_UNLOCK(&so->so_rcv);
-	return (result);
+		return (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
 }
 
 static void
@@ -2214,34 +2205,24 @@ filt_sowdetach(struct knote *kn)
 static int
 filt_sowrite(struct knote *kn, long hint)
 {
-	struct socket *so = kn->kn_fp->f_data;
-	int need_lock, result;
+	struct socket *so;
 
-	/*
-	 * XXXRW: Conditional locking because filt_soread() can be called
-	 * either from KNOTE() in the socket context where the socket buffer
-	 * lock is already held, or from kqueue() itself.
-	 */
-	need_lock = !SOCKBUF_OWNED(&so->so_snd);
-	if (need_lock)
-		SOCKBUF_LOCK(&so->so_snd);
+	so = kn->kn_fp->f_data;
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
-		result = 1;
+		return (1);
 	} else if (so->so_error)	/* temporary udp error */
-		result = 1;
+		return (1);
 	else if (((so->so_state & SS_ISCONNECTED) == 0) &&
 	    (so->so_proto->pr_flags & PR_CONNREQUIRED))
-		result = 0;
+		return (0);
 	else if (kn->kn_sfflags & NOTE_LOWAT)
-		result = (kn->kn_data >= kn->kn_sdata);
+		return (kn->kn_data >= kn->kn_sdata);
 	else
-		result = (kn->kn_data >= so->so_snd.sb_lowat);
-	if (need_lock)
-		SOCKBUF_UNLOCK(&so->so_snd);
-	return (result);
+		return (kn->kn_data >= so->so_snd.sb_lowat);
 }
 
 /*ARGSUSED*/
