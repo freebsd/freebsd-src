@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modstat.c,v 1.5 1994/05/23 05:44:08 cgd Exp $
+ *	$Id: modstat.c,v 1.1 1994/08/19 12:14:06 davidg Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,8 @@ static char *type_names[] = {
 	"DEV",
 	"STRMOD",
 	"EXEC",
-	"MISC"
+	"MISC",
+	"UNKNOWN"
 };
 
 int
@@ -157,7 +158,7 @@ main(argc, argv)
 
 	atexit(cleanup);
 
-	printf("Type    Id  Off Loadaddr Size Info     Rev Module Name\n");
+	printf("Type     Id Off Loadaddr Size Info     Rev Module Name\n");
 
 	/*
 	 * Oneshot?
