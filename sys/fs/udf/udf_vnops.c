@@ -1153,7 +1153,7 @@ udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
 				printf("File offset out of bounds\n");
 				return (EINVAL);
 			}
-			icb = GETICB(long_ad, fentry,
+			icb = GETICB(short_ad, fentry,
 			    le32toh(fentry->l_ea) + ad_offset);
 			icblen = GETICBLEN(short_ad, icb);
 			ad_num++;
