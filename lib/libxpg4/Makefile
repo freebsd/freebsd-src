@@ -1,8 +1,7 @@
+# $FreeBSD$
+
 LIB=    xpg4
-SRCS=   setlocale.c setrunelocale.c big5.c euc.c mskanji.c utf2.c runetype.c \
-	tolower.c toupper.c
-CFLAGS+= -Wall -DXPG4 -I${.CURDIR}/../libc/locale
-.PATH: ${.CURDIR}/../libc/locale
+SRCS=	fakelib.c
 
 NOMAN= YES
 
