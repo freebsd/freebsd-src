@@ -1131,8 +1131,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
 		cnt.v_intrans++;
 		if (msleep(mreq, &vm_page_queue_mtx, PSWP, "swread", hz*20)) {
-			printf("swap_pager: indefinite wait buffer: device: "
-			    "%s, blkno: %jd, size: %ld\n",
+			printf(
+"swap_pager: indefinite wait buffer: device: %s, blkno: %jd, size: %ld\n",
 			    bp->b_dev == NULL ? "[NULL]" : devtoname(bp->b_dev),
 			    (intmax_t)bp->b_blkno, bp->b_bcount);
 		}
