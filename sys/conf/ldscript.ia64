@@ -74,6 +74,8 @@ SECTIONS
     *(.dtors)
     *(SORT(.dtors.*))
   }
+  . = ALIGN(16);
+  __gp = . + 0x200000;
   .got            : { *(.got.plt) *(.got) }
   .IA_64.pltoff   : { *(.IA_64.pltoff) }
   /* We want the small data sections together, so single-instruction offsets
