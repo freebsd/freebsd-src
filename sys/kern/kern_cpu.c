@@ -51,9 +51,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Number of levels we can handle.  Levels are synthesized from settings
- * so for N settings there may be N^2 levels.
+ * so for M settings and N drivers, there may be M*N levels.
  */
-#define CF_MAX_LEVELS	32
+#define CF_MAX_LEVELS	64
 
 struct cpufreq_softc {
 	struct cf_level			curr_level;
@@ -321,8 +321,11 @@ cf_get_method(device_t dev, struct cf_level *level)
 	if (levels == NULL)
 		return (ENOMEM);
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
-	if (error)
+	if (error) {
+		if (error == E2BIG)
+			printf("cpufreq: need to increase CF_MAX_LEVELS\n");
 		goto out;
+	}
 	error = device_get_children(device_get_parent(dev), &devs, &numdevs);
 	if (error)
 		goto out;
@@ -686,8 +689,12 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 	for (n = 0; n < devcount; n++) {
 		count = CF_MAX_LEVELS;
 		error = CPUFREQ_LEVELS(devs[n], levels, &count);
-		if (error)
+		if (error) {
+			if (error == E2BIG)
+				printf(
+			"cpufreq: need to increase CF_MAX_LEVELS\n");
 			break;
+		}
 		for (i = 0; i < count; i++) {
 			if (CPUFREQ_CMP(levels[i].total_set.freq, freq)) {
 				error = CPUFREQ_SET(devs[n], &levels[i],
@@ -727,8 +734,11 @@ cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 	if (levels == NULL)
 		return (ENOMEM);
 	error = CPUFREQ_LEVELS(sc->dev, levels, &count);
-	if (error)
+	if (error) {
+		if (error == E2BIG)
+			printf("cpufreq: need to increase CF_MAX_LEVELS\n");
 		goto out;
+	}
 	if (count) {
 		for (i = 0; i < count; i++) {
 			set = &levels[i].total_set;
