@@ -54,8 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 
-#include <stddef.h>     /* For offsetof */
-
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
