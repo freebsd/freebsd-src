@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.4 (Berkeley) 1/4/94
- * $Id: queue.h,v 1.4 1995/12/03 13:45:34 bde Exp $
+ * $Id: queue.h,v 1.5 1996/01/29 03:20:41 gibbs Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -166,7 +166,7 @@ struct {								\
 	(elm)->field.tqe_prev = &(listelm)->field.tqe_next;		\
 }
 
-#define TAILQ_INSERT_BEFORE(head, listelm, elm, field) {		\
+#define TAILQ_INSERT_BEFORE(listelm, elm, field) {			\
 	(elm)->field.tqe_prev = (listelm)->field.tqe_prev;		\
 	(elm)->field.tqe_next = (listelm);				\
 	*(listelm)->field.tqe_prev = (elm);				\
