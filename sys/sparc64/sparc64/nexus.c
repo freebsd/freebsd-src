@@ -288,7 +288,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	if (res == NULL)
 		panic("nexus_setup_intr: NULL interrupt resource!");
 
-	if ((res->r_flags & RF_SHAREABLE) == 0)
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	/* We depend here on rman_activate_resource() being idempotent. */
@@ -296,7 +296,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), res->r_start,
+	error = inthand_add(device_get_nameunit(child), rman_get_start(res),
 	    intr, arg, flags, cookiep);
 
 	return (error);
@@ -305,7 +305,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
-	inthand_remove(r->r_start, ih);
+	inthand_remove(rman_get_start(r), ih);
 	return (0);
 }
 
