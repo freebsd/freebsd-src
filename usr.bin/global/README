@@ -3,13 +3,13 @@
 	 @-       @-
 	@-                                          @-
 	@-            @-    @@@@@- @@@@@@-     @@-  @-
-	@-  F o r   a l l   h a c h e r s.    version 1.8
+	@-  F o r   a l l   h a c h e r s.    version 1.9
 	@-     @@@@@@-@-   @-    @- @@@@@-   @- @-  @-
 	@-        @-  @-   @-    @- @-   @- @@@@@-  @-
 	 @-       @-  @-   @-    @- @-   @-@-   @-  @-
 	  @@@@@@@@-   @@@@- @@@@@- @@@@@@-@@@- @@@@- @@@@@@-
 
-					Shigio Yamaguchi	5-Apr-97
+					Shigio Yamaguchi	21-Apr-97
 
 		Copyright 1996, 1997 Shigio Yamaguchi All right resereved.
 
@@ -387,7 +387,7 @@ All the functions for GLOBAL are enabled only in 'gtagsmode'.
 	set gtagsmode
 	set leftright
 
-     [Extended vi based 1.76 nvi]
+     [Extended vi based 1.79 nvi]
 
      Vi goes to the first tag.
      Then you can go to next tag by ':tagnext' or back by ':tagprev'.
@@ -399,7 +399,7 @@ All the functions for GLOBAL are enabled only in 'gtagsmode'.
 
      == WHY TWO STYLE EXIST ? ==
      1.34 nvi cannot treat duplicate tag entries, so I made 'GTAGS SELECT MODE'
-     in it. But 1.76 nvi (1.61 and later) can treat them, so I adapted GLOBAL
+     in it. But 1.79 nvi (1.61 and later) can treat them, so I adapted GLOBAL
      tags to nvi's tag structure.
 
    o <control-]> command is available.
@@ -481,7 +481,7 @@ All the functions for GLOBAL are enabled only in 'gtagsmode'.
 
 	source code(/usr/src/sys)		14MB
 	tag database(GTAGS,GRTAGS)		 9MB(!)
-	hypertext(HTML/*)			42MB(!!!)
+	hypertext(HTML/*)			45MB(!!!)
 
    Please do the followings.
 
@@ -519,7 +519,7 @@ All the functions for GLOBAL are enabled only in 'gtagsmode'.
    You can use one level nested index and browse assembler source file too.
 
 Thank you for your reading of my poor english.
-And of course, thank you Keith Bostic (the author of nvi(1) and db(3)).
+And of course, I'm grateful to Keith Bostic for his excellent nvi(1) and db(3).
 ----------------------------------------------------------------------------
 E-Mail: <shigio@wafu.netgate.net>
 WWW: <http://wafu.netgate.net/tama/unix/indexe.html>

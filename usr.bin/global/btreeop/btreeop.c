@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	btreeop.c				5-Apr-97
+ *	btreeop.c				21-Apr-97
  *
  */
 #include <stdio.h>
@@ -56,9 +56,12 @@ void	die __P((char *));
 void	usage __P((void));
 void	entab __P((char *));
 void	main __P((int, char **));
-int	dbcreate __P((DB *));
+int	dbwrite __P((DB *));
 int	dbkey __P((DB *, char *));
 int	dbscan __P((DB *));
+int	dbdel __P((DB *, char *));
+DB	*db;
+char	*key;
 
 #ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN   1234
@@ -78,7 +81,7 @@ char	*s;
 void
 usage() {
 	fprintf(stderr,
-		"usage: %s [-C][-K key][-b][-c cachesize][-l][-p psize][dbname]\n",
+		"usage: %s [-A][-C][-D key][-K key][-b][-c cachesize][-l][-p psize][dbname]\n",
 		progname);
 	exit(1);
 }
@@ -126,11 +129,14 @@ main(argc, argv)
 int	argc;
 char	*argv[];
 {
-	char	command = 0;
+	char	command = 'R';
 	char	*key = NULL;
 	DB	*db;
 	BTREEINFO info;
 	int	c;
+	int	flags;
+	extern	char *optarg;
+	extern	int optind;
 
 	info.flags = R_DUP;		/* allow duplicate entries */
 	info.cachesize = 500000;
@@ -141,11 +147,15 @@ char	*argv[];
 	info.prefix = NULL;
 	info.lorder = LITTLE_ENDIAN;
 
-	while ((c = getopt(argc, argv, "CK:bc:lp:")) != EOF) {
+	while ((c = getopt(argc, argv, "ACD:K:bc:lp:")) != EOF) {
 		switch (c) {
 		case 'K':
+		case 'D':
 			key = optarg;
+		case 'A':
 		case 'C':
+			if (command != 'R')
+				usage();
 			command = c;
 			break;
 		case 'b':
@@ -166,21 +176,35 @@ char	*argv[];
 	}
 
 	dbname = (optind < argc) ? argv[optind] : dbdefault;
-	db = dbopen(dbname, command == 'C' ? 
-			O_RDWR|O_CREAT|O_TRUNC : O_RDONLY,
-			0644, DB_BTREE, &info);
-
+	switch (command) {
+	case 'A':
+	case 'D':
+		flags = O_RDWR|O_CREAT;
+		break;
+	case 'C':
+		flags = O_RDWR|O_CREAT|O_TRUNC;
+		break;
+	case 'K':
+	case 'R':
+		flags = O_RDONLY;
+		break;
+	}
+	db = dbopen(dbname, flags, 0644, DB_BTREE, &info);
 	if (db == NULL) {
 		die("dbopen failed.");
 	}
 	switch (command) {
+	case 'A':			/* Append records */
 	case 'C':			/* Create database */
-		dbcreate(db);
+		dbwrite(db);
 		break;
-	case 'K':			/* Keyed search */
+	case 'D':			/* Delete records */
+		dbdel(db, key);
+		break;
+	case 'K':			/* Keyed (indexed) read */
 		dbkey(db, key);
 		break;
-	default:			/* Scan all data */
+	case 'R':			/* sequencial Read */
 		dbscan(db);
 		break;
 	}
@@ -190,13 +214,13 @@ char	*argv[];
 	exit(0);
 }
 /*
- * dbcreate: create database
+ * dbwrite: write to database
  *
  *	i)	db
  *	r)		0: normal
  */
 int
-dbcreate(db)
+dbwrite(db)
 DB	*db;
 {
 	DBT     key, dat;
@@ -216,6 +240,12 @@ DB	*db;
 	 * - Key cannot include blank.
 	 * - Data can include blank.
 	 * - Null Data not allowed.
+	 *
+	 * META record:
+	 * You can write meta record by making key start with a ' '.
+	 * You can read this record only by indexed read ('-K' option).
+	 * +------------------
+	 * | __.VERSION 2
 	 */
 	while (fgets(buf, BUFSIZ, stdin)) {
 		if (buf[strlen(buf)-1] == '\n')		/* chop(buf) */
@@ -223,7 +253,12 @@ DB	*db;
 		else
 			while (fgetc(stdin) != '\n')
 				;
-		for (c = buf; *c && !isspace(*c); c++)	/* skip key part */
+		c = buf;
+		if (*c == ' ') {			/* META record */
+			if (*++c == ' ')
+				die("illegal format.");
+		}
+		for (; *c && !isspace(*c); c++)		/* skip key part */
 			;
 		if (*c == 0)
 			die("data part not found.");
@@ -277,14 +312,13 @@ char	*skey;
 		status = (*db->seq)(db, &key, &dat, R_NEXT)) {
 		(void)fprintf(stdout, "%s\n", (char *)dat.data);
 	}
-		
 	if (status == RET_ERROR)
 		die("db->seq failed.");
 	return (0);
 }
 
 /*
- * dbscan: Scan all data
+ * dbscan: Scan all records
  *
  *	i)	db
  *	r)		0: normal
@@ -300,9 +334,37 @@ DB	*db;
 	for (status = (*db->seq)(db, &key, &dat, R_FIRST);
 		status == RET_SUCCESS;
 		status = (*db->seq)(db, &key, &dat, R_NEXT)) {
+		/* skip META record */
+		if (*(char *)key.data == ' ')
+			continue;
 		(void)fprintf(stdout, "%s\n", (char *)dat.data);
 	}
 	if (status == RET_ERROR)
 		die("db->seq failed.");
+	return (0);
+}
+
+/*
+ * dbdel: Delete records
+ *
+ *	i)	db
+ *	i)	key	key
+ *	r)		0: normal
+ *			1: not found
+ */
+int
+dbdel(db, skey)
+DB	*db;
+char	*skey;
+{
+	DBT	key;
+	int	status;
+
+	key.data = skey;
+	key.size = strlen(skey)+1;
+
+	status = (*db->del)(db, &key, 0);
+	if (status == RET_ERROR)
+		die("db->del failed.");
 	return (0);
 }
