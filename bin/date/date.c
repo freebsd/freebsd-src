@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.10 1997/02/22 14:02:33 peter Exp $
+ *	$Id: date.c,v 1.11 1997/03/28 15:24:16 imp Exp $
  */
 
 #ifndef lint
@@ -117,7 +117,7 @@ main(argc, argv)
 
 	/*
 	 * If -d or -t, set the timezone or daylight savings time; this
-	 * doesn't belong here, there kernel should not know about either.
+	 * doesn't belong here; the kernel should not know about either.
 	 */
 	if (set_timezone && settimeofday((struct timeval *)NULL, &tz))
 		err(1, "settimeofday (timezone)");
