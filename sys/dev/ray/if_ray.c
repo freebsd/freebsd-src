@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.23 2000/04/24 15:19:40 dmlb Exp $
+ * $Id: if_ray.c,v 1.24 2000/04/24 15:49:20 dmlb Exp $
  *
  */
 
@@ -205,6 +205,8 @@
  * make all printfs RAY_PRINTF - done
  * faster TX routine - done
  *	see comments but OACTIVE is gone
+ * __P to die - done
+ *	the rest is ansi anyway
  *
  * ***stop/unload needs to drain comq
  * ***stop/unload checks in more routines
@@ -216,8 +218,10 @@
  * ***should the desired nw parameters move into the comq entry to maintain
  *    correct sequencing?
  * why can't download use sc_promisc?
+ * macro for gone and check is at head of all externally called routines
  * for ALLMULTI must go into PROMISC and filter unicast packets
  * mcast code resurrection
+ * softc and ifp in variable definition block
  * UPDATE_PARAMS seems to return an interrupt - maybe the timeout
  *     is needed for wrong values?
  *	remember it must be serialised as it uses the HCF-ECF area
@@ -229,6 +233,7 @@
  * _reset - check where needed
  * splimp or splnet?
  * more translations
+ * tidy #includes - we cant need all of these
  * infrastructure mode
  *	needs handling of basic rate set
  *	all ray_sj, ray_assoc sequencues need a "nicer" solution as we
@@ -284,7 +289,6 @@
 
 #include "ray.h"
 #include "card.h"
-#include "apm.h"
 #include "bpfilter.h"
 
 #if NRAY > 0
@@ -327,29 +331,15 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
-#include <i386/isa/if_ieee80211.h>
-#include <i386/isa/if_rayreg.h>
-#include <i386/isa/if_raymib.h>
-#include <i386/isa/if_raydbg.h>
-
-#if NCARD > 0
 #include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
-#endif /* NCARD */
 
-#if NAPM > 0
-#include <machine/apm_bios.h>
-#endif /* NAPM */
-
-/*
- * Sysctl knobs
- */
-static int ray_debug = RAY_DEBUG;
-
-SYSCTL_NODE(_hw, OID_AUTO, ray, CTLFLAG_RW, 0, "Raylink Driver");
-SYSCTL_INT(_hw_ray, OID_AUTO, debug, CTLFLAG_RW, &ray_debug, RAY_DEBUG, "");
+#include <i386/isa/if_ieee80211.h>
+#include <i386/isa/if_rayreg.h>
+#include <i386/isa/if_raymib.h>
+#include <i386/isa/if_raydbg.h>
 
 /*
  * Network parameters, used twice in sotfc to store what we want and what
@@ -469,84 +459,79 @@ struct ray_comq_entry {
 /*
  * Prototyping
  */
-static int	ray_attach		__P((struct isa_device *dev));
-static int	ray_ccs_alloc		__P((struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo));
-static u_int8_t	ray_ccs_free 		__P((struct ray_softc *sc, size_t ccs));
-static void	ray_com_ecf		__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_com_ecf_done	__P((struct ray_softc *sc));
-static void	ray_com_ecf_timo	__P((void *xsc));
+static int	ray_attach		(struct isa_device *dev);
+static int	ray_attr_read		(struct ray_softc *sc, off_t offset, u_int8_t *buf, int size);
+static int	ray_attr_write		(struct ray_softc *sc, off_t offset, u_int8_t byte);
+static int	ray_ccs_alloc		(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo);
+static u_int8_t	ray_ccs_free 		(struct ray_softc *sc, size_t ccs);
+static void	ray_com_ecf		(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_com_ecf_done	(struct ray_softc *sc);
+static void	ray_com_ecf_timo	(void *xsc);
 #if RAY_DEBUG & RAY_DBG_COM
 static struct ray_comq_entry *
-		ray_com_malloc		__P((ray_comqfn_t function, int flags, char *mesg));
+		ray_com_malloc		(ray_comqfn_t function, int flags, char *mesg);
 #else
 static struct ray_comq_entry *
-		ray_com_malloc		__P((ray_comqfn_t function, int flags));
+		ray_com_malloc		(ray_comqfn_t function, int flags);
 #endif /* RAY_DEBUG & RAY_DBG_COM */
-static void	ray_com_runq		__P((struct ray_softc *sc));
-static void	ray_com_runq_add	__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_com_runq_arr	__P((struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg));
-static void	ray_com_runq_done	__P((struct ray_softc *sc));
-static void	ray_init_user		__P((void *xsc));
-static void	ray_init_assoc		__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_init_assoc_done	__P((struct ray_softc *sc, size_t ccs));
-static void	ray_init_download	__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_init_download_done	__P((struct ray_softc *sc, size_t ccs));
-static void	ray_init_sj		__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_init_sj_done	__P((struct ray_softc *sc, size_t ccs));
-static int	ray_intr		__P((struct pccard_devinfo *dev_p));
-static void	ray_intr_ccs		__P((struct ray_softc *sc, u_int8_t cmd, size_t ccs));
-static void	ray_intr_rcs		__P((struct ray_softc *sc, u_int8_t cmd, size_t ccs));
-static void	ray_intr_updt_errcntrs	__P((struct ray_softc *sc));
-static int	ray_ioctl		__P((struct ifnet *ifp, u_long command, caddr_t data));
-static void	ray_mcast		__P((struct ray_softc *sc, struct ray_comq_entry *com)); 
-static void	ray_mcast_done		__P((struct ray_softc *sc, size_t ccs)); 
-static int	ray_mcast_user		__P((struct ray_softc *sc)); 
-static int	ray_pccard_init		__P((struct pccard_devinfo *dev_p));
-static int	ray_pccard_intr		__P((struct pccard_devinfo *dev_p));
-static void	ray_pccard_unload	__P((struct pccard_devinfo *dev_p));
-static int	ray_probe		__P((struct isa_device *dev));
-static void	ray_promisc		__P((struct ray_softc *sc, struct ray_comq_entry *com)); 
-static int	ray_promisc_user	__P((struct ray_softc *sc)); 
-static void	ray_repparams		__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_repparams_done	__P((struct ray_softc *sc, size_t ccs));
-static int	ray_repparams_user	__P((struct ray_softc *sc, struct ray_param_req *pr));
-static int	ray_repstats_user	__P((struct ray_softc *sc, struct ray_stats_req *sr));
-static void	ray_reset		__P((struct ray_softc *sc));
-static void	ray_reset_timo		__P((void *xsc));
-static void	ray_rx			__P((struct ray_softc *sc, size_t rcs));
-static void	ray_rx_update_cache	__P((struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna));
-static void	ray_stop		__P((struct ray_softc *sc));
-static void	ray_tx		__P((struct ifnet *ifp));
-static void	ray_tx_done		__P((struct ray_softc *sc, size_t ccs));
-static void	ray_tx_timo		__P((void *xsc));
-static size_t	ray_tx_wrhdr		__P((struct ray_softc *sc, struct ether_header *eh, size_t bufp));
-static void	ray_upparams		__P((struct ray_softc *sc, struct ray_comq_entry *com));
-static void	ray_upparams_done	__P((struct ray_softc *sc, size_t ccs));
-static int	ray_upparams_user	__P((struct ray_softc *sc, struct ray_param_req *pr));
-static void	ray_watchdog		__P((struct ifnet *ifp));
-static u_int8_t ray_tx_best_antenna	__P((struct ray_softc *sc, u_int8_t *dst));
+static void	ray_com_runq		(struct ray_softc *sc);
+static void	ray_com_runq_add	(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_com_runq_arr	(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg);
+static void	ray_com_runq_done	(struct ray_softc *sc);
+static void	ray_detach		(struct pccard_devinfo *dev_p);
+static void	ray_init_user		(void *xsc);
+static void	ray_init_assoc		(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_init_assoc_done	(struct ray_softc *sc, size_t ccs);
+static void	ray_init_download	(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_init_download_done	(struct ray_softc *sc, size_t ccs);
+static void	ray_init_sj		(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_init_sj_done	(struct ray_softc *sc, size_t ccs);
+static int	ray_intr		(struct pccard_devinfo *dev_p);
+static void	ray_intr_ccs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
+static void	ray_intr_rcs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
+static void	ray_intr_updt_errcntrs	(struct ray_softc *sc);
+static int	ray_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
+static void	ray_mcast		(struct ray_softc *sc, struct ray_comq_entry *com); 
+static void	ray_mcast_done		(struct ray_softc *sc, size_t ccs); 
+static int	ray_mcast_user		(struct ray_softc *sc); 
+static int	ray_probe		(struct pccard_devinfo *dev_p);
+static void	ray_promisc		(struct ray_softc *sc, struct ray_comq_entry *com); 
+static int	ray_promisc_user	(struct ray_softc *sc); 
+static u_int8_t	ray_read_reg		(struct ray_softc *sc, off_t reg);
+static void	ray_repparams		(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_repparams_done	(struct ray_softc *sc, size_t ccs);
+static int	ray_repparams_user	(struct ray_softc *sc, struct ray_param_req *pr);
+static int	ray_repstats_user	(struct ray_softc *sc, struct ray_stats_req *sr);
+static void	ray_reset		(struct ray_softc *sc);
+static void	ray_reset_timo		(void *xsc);
+static void	ray_rx			(struct ray_softc *sc, size_t rcs);
+static void	ray_rx_update_cache	(struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna);
+static void	ray_stop		(struct ray_softc *sc);
+static void	ray_tx			(struct ifnet *ifp);
+static void	ray_tx_done		(struct ray_softc *sc, size_t ccs);
+static void	ray_tx_timo		(void *xsc);
+static size_t	ray_tx_wrhdr		(struct ray_softc *sc, struct ether_header *eh, size_t bufp);
+static void	ray_upparams		(struct ray_softc *sc, struct ray_comq_entry *com);
+static void	ray_upparams_done	(struct ray_softc *sc, size_t ccs);
+static int	ray_upparams_user	(struct ray_softc *sc, struct ray_param_req *pr);
+static void	ray_watchdog		(struct ifnet *ifp);
+static u_int8_t ray_tx_best_antenna	(struct ray_softc *sc, u_int8_t *dst);
 
 #if RAY_DEBUG & RAY_DBG_COM
-static void	ray_com_ecf_check	__P((struct ray_softc *sc, size_t ccs, char *mesg));
+static void	ray_com_ecf_check	(struct ray_softc *sc, size_t ccs, char *mesg);
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 #if RAY_DEBUG & RAY_DBG_MBUF
-static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
+static void	ray_dump_mbuf		(struct ray_softc *sc, struct mbuf *m, char *s);
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
+#if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
+static void	ray_attr_getmap		(struct ray_softc *sc);
+static void	ray_attr_mapcm		(struct ray_softc *sc);
+#endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
 
 /*
- * PCMCIA driver definition
+ * PC-Card (PCMCIA) driver definition
  */
-PCCARD_MODULE(ray, ray_pccard_init, ray_pccard_unload, ray_pccard_intr, 0, net_imask);
-
-/*
- * ISA driver definition
- */
-struct isa_driver raydriver = {
-    ray_probe,
-    ray_attach,
-    "ray",
-    1
-};
+PCCARD_MODULE(ray, ray_probe, ray_detach, ray_intr, 0, net_imask);
 
 /*
  * Macro's and constants
@@ -644,23 +629,19 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
  * Horrid stuff for accessing CIS tuples and remapping common memory...
  */
 #define CARD_MAJOR		50
-static int	ray_attr_write	__P((struct ray_softc *sc, off_t offset, u_int8_t byte));
-static int	ray_attr_read	__P((struct ray_softc *sc, off_t offset, u_int8_t *buf, int size));
-static u_int8_t	ray_read_reg	__P((struct ray_softc *sc, off_t reg));
-
 #if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
-static void	ray_attr_getmap	__P((struct ray_softc *sc));
-static void	ray_attr_mapcm	__P((struct ray_softc *sc));
 #define	RAY_MAP_CM(sc)		ray_attr_mapcm(sc)
 #else
 #define RAY_MAP_CM(sc)
 #endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
 
 /*
- * PCCard initialise.
+ * Probe for the card by checking its startup results.
+ *
+ * Fixup any bugs/quirks for different firmware.
  */
 static int
-ray_pccard_init(struct pccard_devinfo *dev_p)
+ray_probe(struct pccard_devinfo *dev_p)
 {
 	struct ray_softc *sc;
 	int doRemap;
@@ -733,7 +714,7 @@ ray_pccard_init(struct pccard_devinfo *dev_p)
  * PCCard unload.
  */
 static void
-ray_pccard_unload(struct pccard_devinfo *dev_p)
+ray_detach(struct pccard_devinfo *dev_p)
 {
 	struct ray_softc *sc;
 	struct ifnet *ifp;
@@ -784,25 +765,7 @@ ray_pccard_unload(struct pccard_devinfo *dev_p)
 }
 
 /*
- * Process an interrupt
- */
-static int
-ray_pccard_intr(struct pccard_devinfo *dev_p)
-{
-	return (ray_intr(dev_p));
-}
-
-/*
- * ISA probe routine.
- */
-static int
-ray_probe(struct isa_device *dev_p)
-{
-	return (0);
-}
-
-/*
- * ISA/PCCard attach.
+ * PCCard attach.
  */
 static int
 ray_attach(struct isa_device *dev_p)
@@ -1103,7 +1066,7 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 static void
 ray_init_user(void *xsc)
 {
-	struct ray_softc *sc = xsc;
+	struct ray_softc *sc = (struct ray_softc *)xsc;
 	struct ray_comq_entry *com[5];
 	struct ifnet *ifp;
 	int i, ncom;
@@ -1577,7 +1540,7 @@ ray_reset(struct ray_softc *sc)
 static void
 ray_reset_timo(void *xsc)
 {
-	struct ray_softc *sc = xsc;
+	struct ray_softc *sc = (struct ray_softc *)xsc;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -1894,7 +1857,7 @@ ray_tx(struct ifnet *ifp)
 static void
 ray_tx_timo(void *xsc)
 {
-	struct ray_softc *sc = xsc;
+	struct ray_softc *sc = (struct ray_softc *)xsc;
 	struct ifnet *ifp;
 	int s;
 
@@ -2372,7 +2335,6 @@ ray_intr(struct pccard_devinfo *dev_p)
 
 /*
  * Read the error counters.
- *
  */
 static void
 ray_intr_updt_errcntrs(struct ray_softc *sc)
@@ -3303,7 +3265,7 @@ ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_com_ecf_timo(void *xsc)
 {
-	struct ray_softc *sc = xsc;
+	struct ray_softc *sc = (struct ray_softc *)xsc;
     	struct ray_comq_entry *com;
 	u_int8_t cmd;
 	int s;
