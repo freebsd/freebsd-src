@@ -51,7 +51,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <poll.h>
-#define COMPAT_SUNOS
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -593,7 +592,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       const char *h;
 #define SA_KNOWN_FLAGS \
 	(SA_ONSTACK | SA_RESTART | SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | \
-	 SA_NOCLDWAIT | SA_SIGINFO | SA_USERTRAMP)
+	 SA_NOCLDWAIT | SA_SIGINFO)
 
 
       if (get_struct(fd, (void *)args[sc->offset], &sa, sizeof(sa)) != -1) {
@@ -605,7 +604,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	  h = "SIG_IGN";
 	else
 	  h = hand;
-	asprintf(&tmp, "{ %s 0x%x%s%s%s%s%s%s%s%s ss_t }",
+	asprintf(&tmp, "{ %s 0x%x%s%s%s%s%s%s%s ss_t }",
 	    h,
 	    sa.sa_flags & ~SA_KNOWN_FLAGS,
 	    sa.sa_flags & SA_ONSTACK ? "" : "|ONSTACK",
@@ -614,8 +613,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	    sa.sa_flags & SA_NOCLDSTOP ? "" : "|NOCLDSTOP",
 	    sa.sa_flags & SA_NODEFER ? "" : "|NODEFER",
 	    sa.sa_flags & SA_NOCLDWAIT ? "" : "|NOCLDWAIT",
-	    sa.sa_flags & SA_SIGINFO ? "" : "|SIGINFO",
-	    sa.sa_flags & SA_USERTRAMP ? "" : "|USERTRAMP");
+	    sa.sa_flags & SA_SIGINFO ? "" : "|SIGINFO");
 	free(hand);
       } else
 	asprintf(&tmp, "0x%lx", args[sc->offset]);
