@@ -305,15 +305,13 @@ sbc_attach(device_t dev)
     		f |= BD_F_SB16 | BD_F_MIX_CT1745;
 		if (scp->drq[0]) dl = rman_get_start(scp->drq[0]); else dl = -1;
 		if (scp->drq[1]) dh = rman_get_start(scp->drq[1]); else dh = dl;
-		if (!logical_id) {
-			if (dh < dl) {
-				struct resource *r;
-				r = scp->drq[0];
-				scp->drq[0] = scp->drq[1];
-				scp->drq[1] = r;
-				dl = rman_get_start(scp->drq[0]);
-				dh = rman_get_start(scp->drq[1]);
-			}
+		if (!logical_id && (dh < dl)) {
+			struct resource *r;
+			r = scp->drq[0];
+			scp->drq[0] = scp->drq[1];
+			scp->drq[1] = r;
+			dl = rman_get_start(scp->drq[0]);
+			dh = rman_get_start(scp->drq[1]);
 		}
 		/* soft irq/dma configuration */
 		x = -1;
@@ -335,7 +333,6 @@ sbc_attach(device_t dev)
     	}
 
 	switch (logical_id) {
-    	case 0x01008c0e: /* CTL0001 */
     	case 0x43008c0e: /* CTL0043 */
 		f |= BD_F_SB16X;
 		break;
