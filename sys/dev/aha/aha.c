@@ -134,7 +134,8 @@ static __inline struct aha_ccb *
 ahaccbptov(struct aha_softc *aha, u_int32_t ccb_addr)
 {
 	return (aha->aha_ccb_array +
-	      + ((struct aha_ccb*)ccb_addr-(struct aha_ccb*)aha->aha_ccb_physbase));
+	      + ((struct aha_ccb*)(uintptr_t)ccb_addr -
+	         (struct aha_ccb*)(uintptr_t)aha->aha_ccb_physbase));
 }
 
 static struct aha_ccb*	ahagetccb(struct aha_softc *aha);
