@@ -38,14 +38,14 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_macro_scan.l#6 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_macro_scan.l#7 $
  *
  * $FreeBSD$
  */
 
-#include <inttypes.h>
 #include <sys/types.h>
 
+#include <inttypes.h>
 #include <limits.h>
 #include <regex.h>
 #include <stdio.h>

@@ -37,12 +37,11 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_symbol.c#22 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_symbol.c#23 $
  *
  * $FreeBSD$
  */
 
-#include <inttypes.h>
 #include <sys/types.h>
 
 #ifdef __linux__
@@ -51,6 +50,7 @@
 #include <db.h>
 #endif
 #include <fcntl.h>
+#include <inttypes.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
