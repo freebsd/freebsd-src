@@ -167,7 +167,7 @@
     <para>A new digi driver has been added to support PCI Xr-based and ISA
     Xem Digiboard cards.  A new digictl program is (mainly) used to
     re-initialise cards that have external port modules attached such as
-    the PC/Xem.<para>
+    the PC/Xem.</para>
 
     <para>The <literal>O_DIRECT</literal> flag has been added to
     &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
@@ -1422,7 +1422,7 @@
     rather than <literal>rsh</literal>. &merged;</para>
 
     <para>&man.ipfstat.8; now supports the <option>-t</option> option
-    to turn on a &man.top.1;-like display. &merged;<para>
+    to turn on a &man.top.1;-like display. &merged;</para>
 
     <para><filename>/usr/src/share/examples/BSD_daemon/</filename> now
     contains a scalable Beastie graphic. &merged;</para>
@@ -1490,7 +1490,7 @@
     behavior. &merged;</para>
 
     <para><filename>libfetch</filename> now has support for an
-    authentication callback.
+    authentication callback.</para>
 
     <para><filename>libfetch</filename> now has support for a
     <varname>HTTP_USER_AGENT</varname> environment variable. &merged;</para>
@@ -1729,7 +1729,7 @@
       <filename>pam_nologin</filename>,
       <filename>pam_rootok</filename>,
       <filename>pam_securetty</filename>,
-      <filename>pam_wheel</filename>.
+      <filename>pam_wheel</filename>.</para>
 
       <para><application>ncurses</application> has been updated to
       5.2-20010512.</para>
