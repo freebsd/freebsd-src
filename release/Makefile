@@ -643,18 +643,6 @@ release.9:
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
 	@cp ${RD}/trees/base/boot/loader.help ${RD}/mfsfd/boot
-	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
-	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
-	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
-		${.CURDIR}/${TARGET}/drivers.conf \
-		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
-	@mkdir -p ${RD}/mfsfd/stand/modules
-	@awk -f ${.CURDIR}/scripts/driver-copy2.awk \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
-.endif
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
@@ -662,6 +650,12 @@ release.9:
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 .if ${TARGET_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
+.endif
+.if exists(${.CURDIR}/${TARGET}/drivers.conf)
+	@mkdir -p ${RD}/mfsfd/stand/modules
+	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk \
+	    ${.CURDIR}/${TARGET}/drivers.conf \
+	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -927,6 +921,14 @@ installCRUNCH:
 doMFSKERN:
 	@echo "Running ${.TARGET} for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
+	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
+	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
+.if exists(${.CURDIR}/${TARGET}/drivers.conf)
+	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
+		${.CURDIR}/${TARGET}/drivers.conf \
+		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
+.endif
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
 	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES -DNO_KERNELCLEAN \
