@@ -46,6 +46,7 @@
 #include <netatm/atm_sap.h>
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
+#include <netinet/in.h>
 #include <dev/hfa/fore.h>
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>
@@ -79,38 +80,36 @@ extern int pca200e_microcode_size;
 
 #define	MAX_CHECK	60
 
-int	comm_mode = 0;
-char	*progname;
+static int	comm_mode = 0;
+static const char *progname;
 
-int	tty;
-cc_t	vmin, vtime;
+static int	tty;
+static cc_t	vmin, vtime;
 #if (defined(BSD) && (BSD >= 199103))
-struct termios sgtty;
+static struct termios sgtty;
 #define	TCSETA	TIOCSETA
 #define	TCGETA	TIOCGETA
 #else
-struct termio sgtty;
+static struct termio sgtty;
 #endif	/* !BSD */
 
-int	endian = 0;
-int	verbose = 0;
-int	reset = 0;
+static int	endian = 0;
+static int	verbose = 0;
+static int	reset = 0;
 
-char	line[132];
-int	lineptr = 0;
+static char	line[132];
+static u_int	lineptr;
 
-Mon960 *Uart;
+static Mon960 *Uart;
 
-void
-delay(cnt)
-	int	cnt;
+static void
+delay(int cnt)
 {
 	usleep(cnt);
 }
 
-unsigned long
-CP_READ ( val )
-unsigned long val;
+static unsigned long
+CP_READ(unsigned long val)
 {
 	if ( endian )
 		return ( ntohl ( val ) );
@@ -118,9 +117,8 @@ unsigned long val;
 		return ( val );
 }
 
-unsigned long
-CP_WRITE ( val )
-unsigned long val;
+static unsigned long
+CP_WRITE(unsigned long val)
 {
 	if ( endian )
 		return ( htonl ( val ) );
@@ -137,9 +135,8 @@ unsigned long val;
  * Returns:
  *	none
  */
-void
-error ( msg )
-char *msg;
+static void
+error(const char *msg)
 {
 	printf ( "%s\n", msg );
 	exit (1);
@@ -148,15 +145,11 @@ char *msg;
 /*
  * Get a byte for the uart and if printing, display it.
  *
- * Arguments:
- *	prn				Are we displaying characters
- *
  * Returns:
  *	c				Character from uart
  */
-char
-getbyte ( prn )
-int prn;
+static char
+getbyte(void)
 {
 	int	c;
 
@@ -196,16 +189,15 @@ int prn;
  * Returns:
  *	none				Line in global string 'line[]'
  */
-void
-getline ( prn )
-int prn;
+static void
+getline(int prn)
 {
 	char	c = '\0';
-	int	i = 0;
+	u_int	i = 0;
 
 	while ( c != '>' && c != '\n' && c != '\r' )
 	{
-		c = getbyte(0);
+		c = getbyte();
 		if ( ++i >= sizeof(line) )
 		{
 			if ( prn )
@@ -231,24 +223,22 @@ int prn;
  * Returns:
  *	none
  */
-void
-xmit_byte ( c, dn )
-unsigned char c;
-int dn;
+static void
+xmit_byte(u_char c, int dn)
 {
 	int	val;
 
 	while ( CP_READ(Uart->mon_xmitmon) != UART_READY )
 	{
 		if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
-			getbyte ( 0 );
+			getbyte();
 		if ( !dn ) delay ( 10000 );
 	}
 	val = ( c | UART_VALID );
 	Uart->mon_xmitmon = CP_WRITE( val );
 	if ( !dn ) delay ( 10000 );
 	if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
-		getbyte ( 0 );
+		getbyte();
 
 }
 
@@ -256,23 +246,20 @@ int dn;
  * Transmit a line to the i960. Eol must be included as part of text to transmit.
  *
  * Arguments:
- *	line			Character string to transmit
+ *	msg			Character string to transmit
  *	len			len of string. This allows us to include NULL's
  *					in the string/block to be transmitted.
  *
  * Returns:
  *	none
  */
-void
-xmit_to_i960 ( line, len, dn )
-char *line;
-int len;
-int dn;
+static void
+xmit_to_i960(const char *msg, int len, int dn)
 {
-	int	i;
+	int i;
 
-        for ( i = 0; i < len; i++ )
-		xmit_byte ( line[i], dn );
+        for (i = 0; i < len; i++)
+		xmit_byte(msg[i], dn);
 }
 
 /*
@@ -284,8 +271,8 @@ int dn;
  * Returns:
  *	none
  */
-void
-autobaud()
+static void
+autobaud(void)
 {
 	if ( strncmp ( line, "Mon960", 6 ) == 0 )
 		xmit_to_i960 ( "\r\n\r\n\r\n\r\n", 8, 0 );
@@ -301,8 +288,8 @@ autobaud()
  *	none
  *
  */
-void
-finish ( ret )
+static void
+finish(int ret)
 {
 	sgtty.c_lflag |= ( ICANON | ECHO );
 	sgtty.c_cc[VMIN] = vmin;
@@ -321,11 +308,10 @@ finish ( ret )
  *	fname		striped filename
  *
  */
-char *
-basename ( path )
-	char *path;
+static const char *
+basename(const char *path)
 {
-	char *fname;
+	const char *fname;
 
 	if ( ( fname = strrchr ( path, '/' ) ) != NULL )
 		fname++;
@@ -368,7 +354,7 @@ basename ( path )
  *     from Usenet contribution by Mark G. Mendel, Network Systems Corp.
  *     (ihnp4!umn-cs!hyper!mark)
  */
-unsigned short crctab[1<<B] = {
+static unsigned short crctab[1<<B] = {
     0x0000,  0x1021,  0x2042,  0x3063,  0x4084,  0x50a5,  0x60c6,  0x70e7,
     0x8108,  0x9129,  0xa14a,  0xb16b,  0xc18c,  0xd1ad,  0xe1ce,  0xf1ef,
     0x1231,  0x0210,  0x3273,  0x2252,  0x52b5,  0x4294,  0x72f7,  0x62d6,
@@ -414,9 +400,8 @@ unsigned short crctab[1<<B] = {
  *	0				file transmitted
  *	-1				unable to send file
  */
-int
-xmitfile ( filename )
-char *filename;
+static int
+xmitfile(const char *filename)
 {
 	int	fd;
 	int	numsect;
@@ -469,7 +454,7 @@ char *filename;
 	 * Get startup character from i960
 	 */
 	do {
-		while ( ( c = getbyte(0) ) != NAK && c != CRCCHR )
+		while ((c = getbyte()) != NAK && c != CRCCHR)
 			if ( ++attempts > NAKMAX )
 				error ( "Remote system not responding" );
 
@@ -576,7 +561,7 @@ char *filename;
 			/*
 			 * Get response from i960
 			 */
-			sendresp = getbyte(0);
+			sendresp = getbyte();
 
 			/*
 			 * If i960 didn't like the sector
@@ -589,7 +574,7 @@ char *filename;
 				 * Are we supposed to cancel the transfer?
 				 */
 				if ( ( sendresp & 0x7f ) == CAN )
-					if ( getbyte(0) == CAN )
+					if (getbyte() == CAN)
 						error ( "Send canceled at user's request" );
 			}
 
@@ -630,7 +615,7 @@ char *filename;
 	/*
 	 * Wait until i960 acknowledges us
 	 */
-	while ( ( c = getbyte(0) ) != ACK && ( ++attempts < RETRYMAX ) )
+	while ((c = getbyte()) != ACK && (++attempts < RETRYMAX))
 		xmit_byte ( EOT, 1 );
 
 	if ( attempts >= RETRYMAX )
@@ -667,11 +652,8 @@ char *filename;
 }
 
 
-int
-loadmicrocode ( ucode, size, ram )
-u_char *ucode;
-int size;
-u_char *ram;
+static int
+loadmicrocode(u_char *ucode, int size, u_char *ram)
 {
 	struct {
 		u_long	Id;
@@ -687,7 +669,7 @@ u_char *ram;
 	int	n;
 #endif
 	u_char	*bufp;
-	u_long	*lp;
+	u_long *lp;
 
 
 	/*
@@ -727,9 +709,9 @@ u_char *ram;
 	 * Load file
 	 */
 	if ( endian ) {
-		int	i;
+		u_int	i;
 
-		lp = (u_long *) ucode;
+		lp = (u_long *)(void *)ucode;
 		/* Swap buffer */
 		for ( i = 0; i < size / sizeof(long); i++ )
 #ifndef	sun
@@ -767,10 +749,8 @@ u_char *ram;
 	return ( 0 );
 }
 
-int
-sendbinfile ( fname, ram )
-char *fname;
-u_char *ram;
+static int
+sendbinfile(const char *fname, u_char *ram)
 {
 	struct {
 		u_long	Id;
@@ -852,7 +832,7 @@ u_char *ram;
 		 */
 		while ( ( n = read ( fd, (char *)buffer, sizeof(buffer))) > 0 )
 		{
-			int	i;
+			u_int i;
 
 			/* Swap buffer */
 			for ( i = 0; i < sizeof(buffer) / sizeof(long); i++ )
@@ -915,9 +895,7 @@ u_char *ram;
  * Program to download previously processed microcode to series-200 host adapter
  */
 int
-main( argc, argv )
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
 	int	fd;			/* mmap for Uart */
 	u_char	*ram;			/* pointer to RAM */
@@ -931,7 +909,7 @@ char *argv[];
 	struct atminfreq req;
 	struct air_cfg_rsp *air;	/* Config info response structure */
 	int	buf_len;		/* Size of ioctl buffer */
-	char	*devname = "\0";	/* Device to download */
+	const char *dev = "\0";		/* Device to download */
 	char	*dirname = NULL;	/* Directory path to objd files */
 	char	*objfile = NULL;	/* Command line object filename */
 	u_char	*ucode = NULL;		/* Pointer to microcode */
@@ -941,9 +919,8 @@ char *argv[];
 	char	base[64];		/* sba200/sba200e/pca200e basename */
 	int	ext = 0;		/* 0 == bin 1 == objd */
 	struct stat sbuf;		/* Used to find if .bin or .objd */
-	extern char *optarg;
 
-	progname = (char *)basename(argv[0]);
+	progname = basename(argv[0]);
 	comm_mode = strcmp ( progname, "fore_comm" ) == 0;
 
 	while ( ( c = getopt ( argc, argv, "i:d:f:berv" ) ) != -1 )
@@ -958,7 +935,7 @@ char *argv[];
 			endian++;
 			break;
 		case 'i':
-			devname = (char *)strdup ( optarg );
+			dev = (char *)strdup(optarg);
 			break;
 		case 'f':
 			objfile = (char *)strdup ( optarg );
@@ -1004,7 +981,7 @@ char *argv[];
 	/*
 	 * Copy interface name into ioctl request
 	 */
-	strcpy ( req.air_cfg_intf, devname );
+	strcpy(req.air_cfg_intf, dev);
 
 	/*
 	 * Issue ioctl
@@ -1033,7 +1010,7 @@ char *argv[];
 		/*
 		 * Point to vendor info
 		 */
-		air = (struct air_cfg_rsp *)buf;
+		air = (struct air_cfg_rsp *)(void *)buf;
 
 		if (air->acp_vendapi == VENDAPI_FORE_1 && air->acp_ram != 0)
 		{
@@ -1094,8 +1071,8 @@ char *argv[];
 				(void) close(fd);
 				continue;
 			}
-			Mon = (Mon960 *)(ram + MON960_BASE);
-			Uart = (Mon960 *)&(Mon->mon_xmitmon);
+			Mon = (Mon960 *)(volatile void *)(ram + MON960_BASE);
+			Uart = (Mon960 *)(volatile void *)&(Mon->mon_xmitmon);
 
 			/*
 			 * Determine endianess
@@ -1127,7 +1104,7 @@ char *argv[];
 
 #ifdef __FreeBSD__
 			if (reset) {
-				u_int	*hcr = (u_int *)(ram + PCA200E_HCR_OFFSET);
+				u_int	*hcr = (u_int *)(void *)(ram + PCA200E_HCR_OFFSET);
 				PCA200E_HCR_INIT(*hcr, PCA200E_RESET_BD);
 				delay(10000);
 				PCA200E_HCR_CLR(*hcr, PCA200E_RESET_BD);
@@ -1163,24 +1140,24 @@ char *argv[];
 				}
 
 				if ( ns ) {
-					int	c;
+					int c1;
 					int	nr;
 
-					nr = read ( fileno(stdin), &c, 1 );
-					c &= 0xff;
+					nr = read ( fileno(stdin), &c1, 1 );
+					c1 &= 0xff;
 					if ( !esc_seen ) {
-					    if ( c == 27 )
+					    if ( c1 == 27 )
 						esc_seen++;
 					    else
-						xmit_byte ( c, 0 );
+						xmit_byte ( c1, 0 );
 					} else {
-					    if ( c == 27 ) 
+					    if ( c1 == 27 ) 
 						finish( -1 );
 					    else {
 						xmit_byte ( 27, 0 );
 						esc_seen = 0;
 					    }
-					    xmit_byte ( c, 0 );
+					    xmit_byte ( c1, 0 );
 					}
 				}
 
@@ -1188,7 +1165,7 @@ char *argv[];
 				 * Check for data from the i960
 				 */
 				if ( CP_READ(Uart->mon_xmithost) & UART_VALID ) {
-					c = getbyte(0);
+					c = getbyte();
 					putchar ( c );
 				}
 				if ( strcmp ( line, "Mon960" )  == 0 )
@@ -1330,7 +1307,7 @@ char *argv[];
 			     * Download completed - wait around a while for
 			     * the driver to initialize the adapter
 			     */
-			     aap = (Aali *)(ram + CP_READ(Mon->mon_appl));
+			     aap = (Aali *)(void *)(ram + CP_READ(Mon->mon_appl));
 			     for (i = 0; i < MAX_CHECK; i++, sleep(1)) {
 				u_long	hb1, hb2, hb3;
 
@@ -1361,4 +1338,3 @@ char *argv[];
 	exit (0);
 
 }
-
