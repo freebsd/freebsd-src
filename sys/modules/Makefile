@@ -27,6 +27,7 @@ SUBDIR=	${_3dfx} \
 	ath \
 	${_ath_hal} \
 	aue \
+	autofs \
 	${_awi} \
 	axe \
 	bfe \
