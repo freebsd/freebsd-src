@@ -1240,7 +1240,9 @@ psignal(p, sig)
 				psignal(p->p_pptr, SIGCHLD);
 				PROC_UNLOCK(p->p_pptr);
 			}
+			mtx_lock_spin(&sched_lock);
 			stop(p);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		} else
 			goto runfast;
@@ -1396,8 +1398,8 @@ issignal(p)
 			psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
 			do {
-				stop(p);
 				mtx_lock_spin(&sched_lock);
+				stop(p);
 				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
@@ -1474,8 +1476,8 @@ issignal(p)
 					psignal(p->p_pptr, SIGCHLD);
 					PROC_UNLOCK(p->p_pptr);
 				}
-				stop(p);
 				mtx_lock_spin(&sched_lock);
+				stop(p);
 				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
@@ -1519,19 +1521,19 @@ issignal(p)
 /*
  * Put the argument process into the stopped state and notify the parent
  * via wakeup.  Signals are handled elsewhere.  The process must not be
- * on the run queue.  Must be called with the proc p locked.
+ * on the run queue.  Must be called with the proc p locked and the scheduler
+ * lock held.
  */
-void
+static void
 stop(p)
 	register struct proc *p;
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;
 	wakeup((caddr_t)p->p_pptr);
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
