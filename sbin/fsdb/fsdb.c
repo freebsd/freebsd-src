@@ -26,10 +26,12 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: fsdb.c,v 1.7 1997/03/13 12:44:51 peter Exp $";
+static char rcsid[] = "$Id: fsdb.c,v 1.8 1997/04/15 09:02:45 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,6 +49,7 @@ static char rcsid[] = "$Id: fsdb.c,v 1.7 1997/03/13 12:44:51 peter Exp $";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -55,15 +58,14 @@ static char rcsid[] = "$Id: fsdb.c,v 1.7 1997/03/13 12:44:51 peter Exp $";
 #include "fsdb.h"
 #include "fsck.h"
 
-extern char *__progname;	/* from crt0.o */
-
-void usage __P((void));
+static void usage __P((void));
 int cmdloop __P((void));
 
-void 
+static void 
 usage()
 {
-	errx(1, "usage: %s [-d] [-r] -f <fsname>", __progname);
+	fprintf(stderr, "usage: fsdb [-d] [-f] [-r] fsname\n");
+	exit(1);
 }
 
 int returntosingle = 0;
@@ -82,12 +84,13 @@ main(argc, argv)
 {
 	int ch, rval;
 	char *fsys = NULL;
-	struct stat stb;
 
-	while (-1 != (ch = getopt(argc, argv, "f:dr"))) {
+	while (-1 != (ch = getopt(argc, argv, "fdr"))) {
 		switch (ch) {
 		case 'f':
-			fsys = optarg;
+			/* The -f option is left for historical
+			 * reasons and has no meaning.
+			 */
 			break;
 		case 'd':
 			debug++;
@@ -101,12 +104,10 @@ main(argc, argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (fsys == NULL) { 
-		if (argc != 1)
-			usage();
-		else
-			fsys = argv[0];
-	}
+	if (argc != 1)
+		usage();
+	else
+		fsys = argv[0];
 
 	if (!setup(fsys))
 		errx(1, "cannot set up file system `%s'", fsys);
@@ -235,7 +236,7 @@ cmdloop()
     hist = history_init();
     history(hist, H_EVENT, 100);	/* 100 elt history buffer */
 
-    elptr = el_init(__progname, stdin, stdout);
+    elptr = el_init("fsdb", stdin, stdout);
     el_set(elptr, EL_EDITOR, "emacs");
     el_set(elptr, EL_PROMPT, prompt);
     el_set(elptr, EL_HIST, history, hist);
@@ -473,7 +474,6 @@ CMDFUNCSTART(focusname)
 CMDFUNCSTART(ln)
 {
     ino_t inum;
-    struct dinode *dp;
     int rval;
     char *cp;
 
@@ -523,7 +523,6 @@ chinumfunc(idesc)
 
 CMDFUNCSTART(chinum)
 {
-    int rval;
     char *cp;
     ino_t inum;
     struct inodesc idesc;
@@ -577,7 +576,6 @@ CMDFUNCSTART(chname)
 {
     int rval;
     char *cp;
-    ino_t inum;
     struct inodesc idesc;
     
     slotcount = 0;
@@ -620,7 +618,6 @@ struct typemap {
 
 CMDFUNCSTART(newtype)
 {
-    int rval = 1;
     int type;
     struct typemap *tp;
 
