@@ -20,14 +20,14 @@ svr4_genassym.o			optional	compat_svr4		   \
 	clean		"svr4_genassym.o"
 #
 linux_assym.h			optional	compat_linux		   \
-	dependency 	"linux_genassym.o"				   \
-	compile-with	"genassym linux_genassym.o > ${.TARGET}"	   \
+	dependency 	"$S/kern/genassym.sh linux_genassym.o"		   \
+	compile-with	"sh $S/kern/genassym.sh linux_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
 #
 svr4_assym.h			optional	compat_svr4		   \
-	dependency 	"svr4_genassym.o"			   	   \
-	compile-with	"genassym svr4_genassym.o > ${.TARGET}"		   \
+	dependency 	"$S/kern/genassym.sh svr4_genassym.o"	   	   \
+	compile-with	"sh $S/kern/genassym.sh svr4_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"svr4_assym.h"
 #
