@@ -63,6 +63,9 @@ memsize()
     return total;
 }
 
+/* #define	XTRA_PAGES	32 */
+#define	XTRA_PAGES	64
+
 static void
 extend_heap()
 {
@@ -87,19 +90,18 @@ extend_heap()
     }
 
     /*
-     * We want to extend the heap from 256k to 512k.  With 8k pages
-     * (assumed), we need 32 pages.  We take pages from the end of the
-     * last usable memory region, taking care to avoid the memory used
-     * by the kernel's message buffer.  We allow 4 pages for the
-     * message buffer.
+     * We want to extend the heap from 256k up to XTRA_PAGES more pages.
+     * We take pages from the end of the last usable memory region,
+     * taking care to avoid the memory used by the kernel's message
+     * buffer.  We allow 4 pages for the message buffer.
      */
-    startpfn = memc->mddt_pfn + memc->mddt_pg_cnt - 4 - 32;
+    startpfn = memc->mddt_pfn + memc->mddt_pg_cnt - 4 - XTRA_PAGES;
     startva = 0x20040000;
     startpte = 0x40000000
 	+ (((startva >> 23) & 0x3ff) << PAGE_SHIFT)
 	+ (((startva >> 13) & 0x3ff) << 3);
 
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < XTRA_PAGES; i++) {
 	u_int64_t pte;
 	pte = ((startpfn + i) << 32) | 0x1101;
 	*(u_int64_t *) (startpte + 8 * i) = pte;
@@ -118,9 +120,9 @@ main(void)
      * safe.
      */
     extend_heap();
-    setheap((void *)end, (void *)0x20080000);
+    setheap((void *)end, (void *)(0x20040000 + XTRA_PAGES * 8192));
 
-#ifdef LOADER
+#ifdef	LOADER
     /*
      * If this is the two stage disk loader, add the memory used by
      * the first stage to the heap.
