@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: telnetd.c,v 1.11 1997/03/28 15:48:18 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -54,6 +56,9 @@ static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
  */
 # undef _SC_CRAY_SECURE_SYS
 #endif
+
+#include <err.h>
+#include <arpa/inet.h>
 
 #if	defined(_SC_CRAY_SECURE_SYS)
 #include <sys/sysv.h>
@@ -125,9 +130,11 @@ int	lowpty = 0, highpty;	/* low, high pty numbers */
 
 int debug = 0;
 int keepalive = 1;
-char *progname;
 char *altlogin;
 
+void doit __P((struct sockaddr_in *));
+int terminaltypeok __P((char *));
+void startslave __P((char *, int, char *));
 extern void usage P((void));
 
 /*
@@ -161,14 +168,13 @@ char valid_opts[] = {
 	'\0'
 };
 
+	int
 main(argc, argv)
 	char *argv[];
 {
 	struct sockaddr_in from;
 	int on = 1, fromlen;
 	register int ch;
-	extern char *optarg;
-	extern int optind;
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 	int tos = -1;
 #endif
@@ -176,8 +182,6 @@ main(argc, argv)
 	pfrontp = pbackp = ptyobuf;
 	netip = netibuf;
 	nfrontp = nbackp = netobuf;
-
-	progname = *argv;
 
 	/*
 	 * This initialization causes linemode to default to a configuration
@@ -228,8 +232,7 @@ main(argc, argv)
 				 */
 				auth_level = -1;
 			} else {
-				fprintf(stderr,
-			    "telnetd: unknown authorization level for -a\n");
+				warnx("unknown authorization level for -a");
 			}
 			break;
 #endif	/* AUTHENTICATION */
@@ -344,12 +347,11 @@ main(argc, argv)
 		case 'S':
 #ifdef	HAS_GETTOS
 			if ((tos = parsetos(optarg, "tcp")) < 0)
-				fprintf(stderr, "%s%s%s\n",
-					"telnetd: Bad TOS argument '", optarg,
+				warnx("%s%s%s",
+					"bad TOS argument '", optarg,
 					"'; will try to use default TOS");
 #else
-			fprintf(stderr, "%s%s\n", "TOS option unavailable; ",
-						"-S flag not supported\n");
+			warnx("TOS option unavailable; -S flag not supported");
 #endif
 			break;
 
@@ -371,7 +373,7 @@ main(argc, argv)
 #endif	/* AUTHENTICATION */
 
 		default:
-			fprintf(stderr, "telnetd: %c: unknown option\n", ch);
+			warnx("%c: unknown option", ch);
 			/* FALLTHROUGH */
 		case '?':
 			usage();
@@ -391,12 +393,12 @@ main(argc, argv)
 		usage();
 		/* NOT REACHED */
 	    } else if (argc == 1) {
-		    if (sp = getservbyname(*argv, "tcp")) {
+		    if ((sp = getservbyname(*argv, "tcp"))) {
 			sin.sin_port = sp->s_port;
 		    } else {
 			sin.sin_port = atoi(*argv);
 			if ((int)sin.sin_port <= 0) {
-			    fprintf(stderr, "telnetd: %s: bad port #\n", *argv);
+			    warnx("%s: bad port #", *argv);
 			    usage();
 			    /* NOT REACHED */
 			}
@@ -404,34 +406,24 @@ main(argc, argv)
 		   }
 	    } else {
 		sp = getservbyname("telnet", "tcp");
-		if (sp == 0) {
-		    fprintf(stderr, "telnetd: tcp/telnet: unknown service\n");
-		    exit(1);
-		}
+		if (sp == 0)
+		    errx(1, "tcp/telnet: unknown service");
 		sin.sin_port = sp->s_port;
 	    }
 
 	    s = socket(AF_INET, SOCK_STREAM, 0);
-	    if (s < 0) {
-		    perror("telnetd: socket");;
-		    exit(1);
-	    }
+	    if (s < 0)
+		    err(1, "socket");
 	    (void) setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
 				(char *)&on, sizeof(on));
-	    if (bind(s, (struct sockaddr *)&sin, sizeof sin) < 0) {
-		perror("bind");
-		exit(1);
-	    }
-	    if (listen(s, 1) < 0) {
-		perror("listen");
-		exit(1);
-	    }
+	    if (bind(s, (struct sockaddr *)&sin, sizeof sin) < 0)
+		err(1, "bind");
+	    if (listen(s, 1) < 0)
+		err(1, "listen");
 	    foo = sizeof sin;
 	    ns = accept(s, (struct sockaddr *)&sin, &foo);
-	    if (ns < 0) {
-		perror("accept");
-		exit(1);
-	    }
+	    if (ns < 0)
+		err(1, "accept");
 	    (void) dup2(ns, 0);
 	    (void) close(ns);
 	    (void) close(s);
@@ -459,10 +451,8 @@ main(argc, argv)
 
 		bzero((char *)&dv, sizeof(dv));
 
-		if (getsysv(&sysv, sizeof(struct sysv)) != 0) {
-			perror("getsysv");
-			exit(1);
-		}
+		if (getsysv(&sysv, sizeof(struct sysv)) != 0)
+			err(1, "getsysv");
 
 		/*
 		 *	Get socket security label and set device values
@@ -473,8 +463,7 @@ main(argc, argv)
 			       (char *)&ss, &szss) < 0) ||
 		    (getsockopt(0, SOL_SOCKET, SO_SEC_MULTI,
 				(char *)&sock_multi, &szi) < 0)) {
-			perror("getsockopt");
-			exit(1);
+			err(1, "getsockopt");
 		} else {
 			dv.dv_actlvl = ss.ss_actlabel.lt_level;
 			dv.dv_actcmp = ss.ss_actlabel.lt_compart;
@@ -504,8 +493,7 @@ main(argc, argv)
 	openlog("telnetd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
-		fprintf(stderr, "%s: ", progname);
-		perror("getpeername");
+		warn("getpeername");
 		_exit(1);
 	}
 	if (keepalive &&
@@ -533,12 +521,13 @@ main(argc, argv)
 	net = 0;
 	doit(&from);
 	/* NOTREACHED */
+	return(0);
 }  /* end of main */
 
 	void
 usage()
 {
-	fprintf(stderr, "Usage: telnetd");
+	fprintf(stderr, "usage: telnetd");
 #ifdef	AUTHENTICATION
 	fprintf(stderr, " [-a (debug|other|user|valid|off|none)]\n\t");
 #endif
@@ -774,11 +763,11 @@ char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
+	void
 doit(who)
 	struct sockaddr_in *who;
 {
-	char *host, *inet_ntoa();
-	int t;
+	char *host = NULL;
 	struct hostent *hp;
 	int ptynum;
 
@@ -1056,9 +1045,9 @@ telnet(f, p, host)
 	 * side.  Set up signal handler now.
 	 */
 	if ((int)signal(SIGUSR1, termstat) < 0)
-		perror("signal");
+		warn("signal");
 	else if (ioctl(p, TCSIGME, (char *)SIGUSR1) < 0)
-		perror("ioctl:TCSIGME");
+		warn("ioctl:TCSIGME");
 	/*
 	 * Make processing loop check terminal characteristics early on.
 	 */
