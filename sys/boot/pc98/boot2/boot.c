@@ -118,11 +118,16 @@ boot(int drive)
 	dosdev = drive;
 #ifdef PC98
 	maj = (drive&0x70) >> 3;		/* a good first bet */
-	if (maj == 4) {		/* sd */
+	if (maj == 4) {	/* da */
 		disk_equips = *(unsigned char *)V(0xA1482);
 		unit = 0;
 		for (i=0; i<(drive&0x0f); i++) {
-			unit += (disk_equips >> i) & 1;
+			int media = ((unsigned *)V(0xA1460))[i] & 0x1F;
+
+			if ((disk_equips >> i) & 1)	/* HD */
+				unit++;
+			else if (media == 7)		/* MO */
+				unit++;
 		}
 	} else {
 		unit = drive & 0x0f;
