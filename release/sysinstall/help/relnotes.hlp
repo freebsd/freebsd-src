@@ -184,6 +184,8 @@ o Added support for ATAPI floppy drives (LS-120).
 
 o Added support for Texas Instruments TNET100 'ThunderLAN' PCI NIC.
 
+o Added full bus master DMA support for 3c900 and 3c905 adapters and
+  added support for the 3c905B.
 
 SECURITY CHANGES:
 
@@ -397,7 +399,7 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
 (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards
