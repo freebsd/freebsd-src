@@ -1,10 +1,6 @@
-#	$Id: Makefile,v 1.16 1998/01/10 22:50:00 jb Exp $
+#	$Id: Makefile,v 1.17 1998/02/19 07:30:06 jb Exp $
 
-SUBDIR= libdialog libg++ libgmp libmp
-
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+= libstdc++
-.endif
+SUBDIR= libdialog libg++ libgmp libmp libstdc++
 
 SUBDIR+= libobjc libregex libreadline
 
