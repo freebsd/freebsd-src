@@ -304,14 +304,13 @@ __sem_trywait(sem_t *sem)
  		retval = ksem_trywait((*sem)->semid);
 	else {
 		_pthread_mutex_lock(&(*sem)->lock);
-		if ((*sem)->count != 0) {
+		if ((*sem)->count > 0) {
 			(*sem)->count--;
 			retval = 0;
 		} else {
 			errno = EAGAIN;
 			retval = -1;
 		}
-		(*sem)->count--;
 		_pthread_mutex_unlock(&(*sem)->lock);
 	}
 	return (retval);
