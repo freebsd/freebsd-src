@@ -117,7 +117,7 @@ agile|agiles|sri agiles:\
 	:if=/usr/share/tabset/xerox1730:\
 	:us=\EE:ue=\ER:so=\EW:se=\E&:tc=1620:
 1640-lm|1740-lm|630-lm|1730-lm|x1700-lm|diablo-lm|xerox-lm|\
-	diablo 1640 with idented left margin:\
+	diablo 1640 with indented left margin:\
 	:if=/usr/share/tabset/xerox1730-lm:\
 	:co#124:us=\EE:ue=\ER:so=\EW:se=\E&:tc=1620:
 # DTC 382 with VDU.  Has no cd so we fake it with ce.  Standout works but
@@ -394,7 +394,7 @@ esprit-am|hazeltine esprit auto-margin:\
 # 3161 only opens a new line if a null line exists on the screen.
 # To ensure a null line exists, an SBA is performed, positioning the
 # Buffer Address in column 0 of the last line.  The last line is then
-# cleared to nulls, BA mode is cancelled, and the new line is opened
+# cleared to nulls, BA mode is canceled, and the new line is opened
 # at the cursor position.
 ibm61|ibm3161|3161|IBM 3161-11:\
 	:am:bs:bw:cl=\EL:li#24:co#80:cd=\EJ:al=\EX7 \EI\E Z\EN:\
@@ -846,7 +846,7 @@ omron|Omron 8025AG:\
 	:so=\Ef:sr=\ET:up=\EA:ve=:vs=\EN:
 plasma|plasma panel:\
 	:am:le=^H:bs:cl=^L:co#85:ho=^^:li#45:nd=\030:up=\026:do=^J:
-pty|psuedo teletype:\
+pty|pseudo teletype:\
 	:do=^J:co#80:li#24:am:cl=\EJ:le=^H:bs:cm=\EG%+ %+ :nd=\EC:\
 	:up=\EA:ce=\EK:cd=\EL:al=\EP:dl=\EN:ic=\EO:\
 	:so=\Ea$:se=\Eb$:us=\Ea!:ue=\Eb!:
@@ -1033,7 +1033,7 @@ iris-ansi|iris-ansi-net|IRIS emulating ANSI terminal:\
 #	Briefly, the settings are for the following modes:
 #	   (values are for bit set/clear with * indicating our preference
 #	    and the value used to test these termcaps)
-#	Note that many of these settings are irelevent to the termcap
+#	Note that many of these settings are irrelevant to the termcap
 #	and are just set to the default mode of the terminal as shipped
 #	by the factory.
 #
@@ -1074,7 +1074,7 @@ iris-ansi|iris-ansi-net|IRIS emulating ANSI terminal:\
 #	transmit all characters/transmit only selected characters*
 #	transmit all selected areas/transmit only 1 selected area*
 #
-#	transmit/do not transmit line seperators to host*
+#	transmit/do not transmit line separators to host*
 #	transmit/do not transmit page tab stops tabs to host*
 #	transmit/do not transmit column tab stop tabs to host*
 #	transmit/do not transmit graphics control (underline,inverse..)*
@@ -1412,7 +1412,7 @@ ansi.sys|ansisys|PC-DOS 3.1 ANSI.SYS:\
 # (^U and ^D are already defined for tn3270).  The ESC is safe for vi but it
 # does "beep".  ESC ESC i is used for Ins to avoid tn3270 ESC i for coltab.
 # Left arrow is always BS, because PC-dos can tolerate this change.
-# Caution: vi is limited to 256 string bytes, longer crashes or wierds vi.
+# Caution: vi is limited to 256 string bytes, longer crashes or weirds vi.
 # Consequently the End keypad key could not be set (it is relatively safe and
 # actually useful because it sends ^@ O, which beeps and opens a line above).
 ansi.sysk|ansisysk|PC-DOS 3.1 ANSI.SYS with keypad redefined for vi:\
@@ -1856,7 +1856,7 @@ tek4107|tek4207|4107|4207|Tektronix 4107 graphics terminal with memory:\
 	:es:hs:i2=\E7\E[?6l\E[2K\E[?6h\E8:ts=\E7\E[?6l\E[2K\E[;%i%df:\
 	:fs=\E[?6h\E8:ds=\E7\E[?6l\E[2K\E[?6h\E8:tc=4107:
 # From cbosg!teklabs!davem Wed Sep 16 21:11:41 1981
-# Here's the comamnd file that I use to get rogue to work on the 4025.
+# Here's the command file that I use to get rogue to work on the 4025.
 # It should work with any program using the old curses (e.g. it better
 # not try to scroll, or cursor addressing won't work.  Also, you can't
 # see the cursor.)
@@ -1987,7 +1987,7 @@ regent60na|regent 60 w/no arrow keys:\
 #        insert mode. This unfortunately puts the viewpoint90 IN insert
 #        mode.  A hack to get around this is:  ic=\EF \EF^U.  (Also,
 #   -    ei=:im=: must be present.)
-#   -    xs indicates glich that attributes stick to location
+#   -    xs indicates glitch that attributes stick to location
 #   -    bs save to move in standout mode
 #   -    cl=\EG\Ek clears screen and visual attributes without affecting
 #               the status line
@@ -2360,7 +2360,7 @@ dosansi|ANSI.SYS standard crt:\
 # it in the list of terminals in reorder, since the first vt100 in
 # /etc/termcap is the one that it will find.  The choice is between
 # nam (no automatic margins) and am (automatic margins), as determined
-# by the wrapline switch (group 3 #2).  I presonally recommend turning
+# by the wrapline switch (group 3 #2).  I personally recommend turning
 # on the bit and using vt100-am, since having stuff hammer on the right
 # margin is sort of hard to read.  However, the xn glitch does not occur
 # if you turn the bit off.
@@ -2500,7 +2500,7 @@ vt102-w-nam|dec-vt102-w-nam|dec vt102 132 cols (w/advanced video), no am:\
 	:is=\E>\E[?1;4;5;7l\E[?3;8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;4;5;7l\E[?3;8h:\
 	:co#132:vt@:tc=vt102-nam:
-vt102-nac|dec-vt102-nac|vt102 without pseugraphics:\
+vt102-nac|dec-vt102-nac|vt102 without pseudographics:\
 	:as@:ae@:ac@:tc=vt102:
 vt52|dec-vt52|dec vt52:\
 	:do=^J:le=^H:bs:cd=\EJ:ce=\EK:cl=\EH\EJ:cm=\EY%+ %+ :co#80:li#24:\
@@ -3724,7 +3724,7 @@ wy75ap|wyse75ap|wy-75ap|wyse-75ap|Wyse WY-75 Applications and Cursor keypad:\
 #		24 line screen with status line.
 #
 #	The vt220 mode permits more function keys but it wipes out
-#	the escape key.  I strongly reccomend that f11 be set to
+#	the escape key.  I strongly recommend that f11 be set to
 #	escape (esc).
 #	The terminal may have to be set for 8 data bits and 2 stop
 #	bits for the arrow keys to work.
@@ -3813,7 +3813,7 @@ t1061|teleray 1061:\
 	:li#24:nd=\EC:pt:se=\ER@:so= \ERD:\
 	:is=\Ee\EU01^Z1\EV\EU02^Z2\EV\EU03^Z3\EV\EU04^Z4\EV\EU05^Z5\EV\EU06^Z6\EV\EU07^Z7\EV\EU08^Z8\EV\Ef:\
 	:up=\EA:us=\ERH:ue=\ER@:xs:xt:sg#2:ug#1:
-# "Teleray Arpa Special", offically designated as
+# "Teleray Arpa Special", officially designated as
 # "Teleray Arpa network model 10" with "Special feature 720".
 # This is the new (1981) fast microcode updating the older "arpa" proms
 # (which gave meta-key and pgmmable-fxn keys).  720 is much much faster,

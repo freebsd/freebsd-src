@@ -286,7 +286,7 @@ arg2:
 					/*
 					 * If this string is not zero
 					 * length, append a space for
-					 * seperation before the next
+					 * separation before the next
 					 * argument.
 					 */
 					if ((curlen = strlen(inpline)))
@@ -421,7 +421,7 @@ prerun(int argc, char *argv[])
 	/*
 	 * For each argument to utility, if we have not used up
 	 * the number of replacements we are allowed to do, and
-	 * if the argument contains at least one occurance of
+	 * if the argument contains at least one occurrence of
 	 * replstr, call strnsubst(), else just save the string.
 	 * Iterations over elements of avj and tmp are done
 	 * where appropriate.

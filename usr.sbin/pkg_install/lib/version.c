@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
  * Following is the PLIST_FMT_VER history:
  * 1.0 - Initial revision;
  * 1.1 - When recording/checking checksum of symlink use hash of readlink()
- *	 value insted of the hash of an object this links points to.
+ *	 value instead of the hash of an object this links points to.
  *
  */
 int
@@ -82,17 +82,17 @@ version_of(const char *pkgname, int *epoch, int *revision)
 /*
  * version_cmp(pkg1, pkg2) returns -1, 0 or 1 depending on if the version
  * components of pkg1 is less than, equal to or greater than pkg2. No
- * comparision of the basenames is done.
+ * comparison of the basenames is done.
  *
- * The port verison is defined by:
+ * The port version is defined by:
  * ${PORTVERSION}[_${PORTREVISION}][,${PORTEPOCH}]
- * ${PORTEPOCH} supercedes ${PORTVERSION} supercedes ${PORTREVISION}.
+ * ${PORTEPOCH} supersedes ${PORTVERSION} supersedes ${PORTREVISION}.
  * See the commit log for revision 1.349 of ports/Mk/bsd.port.mk
  * for more information.
  *
  * The epoch and revision are defined to be a single number, while the rest
  * of the version should conform to the porting guidelines. It can contain
- * multiple components, seperated by a period, including letters.
+ * multiple components, separated by a period, including letters.
  *
  * The tests below allow for significantly more latitude in the version
  * numbers than is allowed in the guidelines. No point in wasting user's
