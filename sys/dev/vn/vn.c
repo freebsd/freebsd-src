@@ -424,7 +424,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	/*
 	 * XXX test is unnecessary?
 	 */
-	if (unit >= numvnd)
+	if (unit >= NVN)
 		return (ENXIO);
 	vn = vn_softc[unit];
 	if (vn->sc_slices != NULL) {
