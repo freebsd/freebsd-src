@@ -43,11 +43,14 @@
 #include <net/ethernet.h>
 #include <net/if_ieee80211.h>
 
-
 #include <dev/awi/am79c930reg.h>
 #include <dev/awi/am79c930var.h>
 #include <dev/awi/awireg.h>
 #include <dev/awi/awivar.h>
+
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+#include "card_if.h"
 
 struct awi_pccard_softc {
 	struct awi_softc	sc_awi;
@@ -62,6 +65,31 @@ struct awi_pccard_softc {
 	struct resource	*sc_mem_res;
 	int		sc_mem_rid;
 };
+
+static const struct pccard_product awi_pccard_products[] = {
+	PCMCIA_CARD(AMD, AM79C930, 0),
+	PCMCIA_CARD(BAY, STACK_650, 0),
+	PCMCIA_CARD(BAY, STACK_660, 0),
+	PCMCIA_CARD(BAY, SURFER_PRO, 0),
+	PCMCIA_CARD(ICOM, SL200, 0),
+	PCMCIA_CARD(NOKIA, C020_WLAN, 0),
+	PCMCIA_CARD(FARALLON, SKYLINE, 0),
+	PCMCIA_CARD(ZOOM, AIR_4000, 0),
+	{ NULL }
+};
+
+static int
+awi_pccard_match(device_t dev)
+{
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, awi_pccard_products,
+	    sizeof(awi_pccard_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
+	return ENXIO;
+}
 
 /*
  * Initialize the device - called from Slot manager.
@@ -232,9 +260,14 @@ awi_pccard_detach(device_t dev)
 
 static device_method_t awi_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		awi_pccard_probe),
-	DEVMETHOD(device_attach,	awi_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	awi_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	awi_pccard_match),
+	DEVMETHOD(card_compat_probe,	awi_pccard_probe),
+	DEVMETHOD(card_compat_attach,	awi_pccard_attach),
 
 	{ 0, 0 }
 };
