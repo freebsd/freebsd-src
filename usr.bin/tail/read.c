@@ -140,14 +140,13 @@ lines(fp, off)
 	off_t off;
 {
 	struct {
-		u_int blen;
+		int blen;
 		u_int len;
 		char *l;
 	} *llines;
 	int ch;
 	char *p, *sp;
-	int recno, wrap;
-	u_int cnt, blen;
+	int blen, cnt, recno, wrap;
 
 	if ((llines = malloc(off * sizeof(*llines))) == NULL)
 		err(1, "malloc");
@@ -163,7 +162,7 @@ lines(fp, off)
 		}
 		*p++ = ch;
 		if (ch == '\n') {
-			if (llines[recno].blen < cnt) {
+			if ((int)llines[recno].blen < cnt) {
 				llines[recno].blen = cnt + 256;
 				if ((llines[recno].l = realloc(llines[recno].l,
 				    llines[recno].blen)) == NULL)
@@ -192,16 +191,16 @@ lines(fp, off)
 	}
 
 	if (rflag) {
-		for (cnt = recno - 1; cnt != 0; --cnt)
+		for (cnt = recno - 1; cnt >= 0; --cnt)
 			WR(llines[cnt].l, llines[cnt].len);
 		if (wrap)
-			for (cnt = off - 1; cnt >= (u_int)recno; --cnt)
+			for (cnt = off - 1; cnt >= recno; --cnt)
 				WR(llines[cnt].l, llines[cnt].len);
 	} else {
 		if (wrap)
-			for (cnt = recno; cnt < (u_int)off; ++cnt)
+			for (cnt = recno; cnt < off; ++cnt)
 				WR(llines[cnt].l, llines[cnt].len);
-		for (cnt = 0; cnt < (u_int)recno; ++cnt)
+		for (cnt = 0; cnt < recno; ++cnt)
 			WR(llines[cnt].l, llines[cnt].len);
 	}
 	return 0;
