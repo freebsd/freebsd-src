@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2004
+.Dd February 24, 2005
 .Dt SND_SBC 4
 .Os
 .Sh NAME
@@ -47,21 +47,28 @@ The
 .Nm
 bridge driver allows the generic audio drivers including
 .Xr sound 4
-to attach to the following ISA sound cards:
-.Bl -bullet -width 2m
-.It
-Creative SB16, SB32, SB AWE64 (including Gold) and ViBRA16
-.It
-Advance Asound 100, 110 and Logic ALS120
-.It
-ESS ES1868, ES1869, ES1879 and ES1888
-.El
+to attach to Creative Sound Blaster ISA compatible audio cards.
 .Pp
 The value of flags specifies the secondary DMA channel.
 If the secondary
 DMA channel is C, set the flags to (C | 0x10).
 For a sound card without the
 secondary DMA channel, the flags should be set to zero.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following soundcards:
+.Pp
+.Bl -bullet -compact
+.It
+Advance Asound 100 and 110
+.It
+Creative SB16, SB32, SB AWE64 (including Gold) and ViBRA16
+.It
+ESS ES1868, ES1869, ES1879 and ES1888
+.It
+Logic ALS120
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It sb_dspwr(XX) timed out.
