@@ -2,8 +2,7 @@ define rq
 rqq rq
 end
 document rq
-Show information about the request pointed to by the variable 
-rq in the current frame.
+Show information about the request pointed to by the variable rq in the current frame.
 end
 define rqq
 set $rq = (struct request *) $arg0
@@ -48,12 +47,10 @@ set $rqe = (struct rqelement *) $arg0
     bpp &$rqe->b
 end
 document rqe
-Show information about the request element pointed to by the
-variable rqe in the current frame.
+Show information about the request element pointed to by the variable rqe in the current frame.
 end
 document rrqe
-Show information about the request element (struct rqe) pointed
-at by the parameter.
+Show information about the request element (struct rqe) pointed at by the parameter.
 end
 define rqq0
 printf "rq->prq [0].rqe[0].sdno: " 
@@ -171,7 +168,7 @@ define rqi
       end
    end
 end
-define rrqi
+define rqinfo
    set $rqipe = rqip
    set $rqip = $rqipe + 1
    set $rqend  = rqinfo + 128
@@ -179,6 +176,7 @@ define rrqi
       set $rqip = rqinfo
    end
    set $done = 0
+   printf "\nTime\t\t\t Event\t\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n"
    while ($done == 0)
      if ($rqip->bp != 0)
         printf "%d.%06d\t", $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec
@@ -188,7 +186,7 @@ define rrqi
 	  else
 	    printf "1VS Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
 	end
 	
       if ($rqip->type == loginfo_user_bpl)
@@ -197,7 +195,7 @@ define rrqi
 	  else
 	    printf "2LR Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
 	end
 	 
       if ($rqip->type == loginfo_rqe)
@@ -206,7 +204,7 @@ define rrqi
 	  else
 	    printf "3RQ Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
 	end
 	
       if ($rqip->type == loginfo_iodone)
@@ -215,7 +213,7 @@ define rrqi
 	  else
 	    printf "4DN Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
 	end
 	
       if ($rqip->type == loginfo_raid5_data)
@@ -224,7 +222,7 @@ define rrqi
 	  else
 	    printf "5RD Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
 	end
 	
       if ($rqip->type == loginfo_raid5_parity)
@@ -233,8 +231,48 @@ define rrqi
 	  else
 	    printf "6RP Write"
 	  end
-	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
 	end
+
+      if ($rqip->type == loginfo_sdio)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "7VS Read"
+	  else
+	    printf "7VS Write"
+	  end
+	printf "\t%p\t\t  0x%-9x\t%ld\t%d\n", $rqip->bp, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount, $rqip->devminor & 0xff
+	end
+
+      if ($rqip->type == loginfo_sdiol)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "8LR Read"
+	  else
+	    printf "8LR Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor & 0xff, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	 
+      if ($rqip->type == loginfo_lockwait)
+	printf "Lockwait  %p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+      if ($rqip->type == loginfo_lock)
+	printf "Lock      \t%p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+      if ($rqip->type == loginfo_unlock)
+	printf "Unlock    \t%p\t%d\t  0x%x\n", $rqip->bp, $rqip->info.lockinfo.plexno, $rqip->info.lockinfo.stripe
+	end
+
+	if ($rqip->type == loginfo_sdiodone)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "9DN Read"
+	  else
+	    printf "9DN Write"
+	  end
+	printf "\t%p\t\t  0x%-9x\t%ld\t%d\n", $rqip->bp, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount, $rqip->devminor
+	end
+
 	end
       set $rqip = $rqip + 1
       if ($rqip == $rqipe)
@@ -245,3 +283,17 @@ define rrqi
       end
    end
 end 
+document rqinfo
+Show the Vinum request log buffer, like 'vinum info -V'
+end
+define meminfo
+printf "Block\tSequence\t  size\t  address\t  line\t\tfile\n"
+set $i = 0
+while $i < malloccount
+  printf "%6d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n", $i, malloced [$i].seq, malloced[$i].size, malloced[$i].address, malloced[$i].line, &malloced[$i].file
+  set $i = $i + 1
+end
+end
+document meminfo
+Equivalent of 'vinum info -v' command
+end
