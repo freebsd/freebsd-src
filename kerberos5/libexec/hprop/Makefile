@@ -24,7 +24,7 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${KAFS5OBJDIR} -lkafs5 \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} ${_krb4deps} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
-MAN8=		hprop.8
+MAN=		hprop.8
 
 .include <bsd.prog.mk>
 
