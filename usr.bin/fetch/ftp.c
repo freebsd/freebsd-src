@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3 1997/02/10 18:49:40 wollman Exp $
+ *	$Id: ftp.c,v 1.4 1997/03/05 18:57:16 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -95,7 +95,7 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 	strncat(hostname, p, q - p);
 	p = slash;
 
-	if (colon && colon + 1 != slash) {
+	if (colon && colon < slash && colon + 1 != slash) {
 		unsigned long ul;
 		char *ep;
 
@@ -103,7 +103,10 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 		ul = strtoul(colon + 1, &ep, 10);
 		if (ep != slash || ep == colon + 1 || errno != 0
 		    || ul < 1 || ul > 65534) {
-			warn("`%s': invalid port in URL", uri);
+			if (errno)
+				warn("`%s': invalid port in URL", uri);
+			else
+				warnx("`%s': invalid port in URL", uri);
 			return EX_USAGE;
 		}
 
