@@ -1,10 +1,13 @@
-#	$Id: BSD.root.dist,v 1.13 1994/06/12 16:20:36 csgr Exp $
+#	$Id: BSD.root.dist,v 1.14 1994/08/29 01:35:53 paul Exp $
 #
 
 # top-level files are owned by root.wheel
 # (else too easy to get root by compromising these)
 
 /set type=file uname=root gname=wheel mode=0755
+
+.	type=dir
+..
 
 sys	type=link size=12 link=usr/src/sys
 
