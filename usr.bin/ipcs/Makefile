@@ -1,9 +1,9 @@
-#	@(#)Makefile	5.2 (Berkeley) 5/11/90
+#	$Id: Makefile,v 1.6 1994/06/18 21:09:40 cgd Exp $
 
 PROG=	ipcs
-NOMAN=	noman
-BINMODE = 2555
-BINGRP = kmem
-CFLAGS=-g
+BINGRP=	kmem
+BINMODE= 2555
+DPADD+=	${LIBKVM}
+LDADD+=	-lkvm
 
 .include <bsd.prog.mk>
