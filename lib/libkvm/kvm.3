@@ -72,7 +72,9 @@ Accordingly, the generic portion of the interface (i.e.,
 .Fn kvm_write ,
 and
 .Fn kvm_nlist )
-has been incorporated into the BSD interface.  Indeed, many kvm
+has been incorporated into the
+.Bx
+interface.  Indeed, many kvm
 applications (i.e., debuggers and statistical monitors) use only
 this subset of the interface.
 .Pp
@@ -84,7 +86,9 @@ Finally, the Sun kvm error reporting semantics are poorly defined.
 The library can be configured either to print errors to stderr automatically,
 or to print no error messages at all.
 In the latter case, the nature of the error cannot be determined.
-To overcome this, the BSD interface includes a
+To overcome this, the
+.Bx
+interface includes a
 routine,
 .Xr kvm_geterr 3 ,
 to return (not print out) the error message

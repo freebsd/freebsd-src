@@ -35,7 +35,9 @@
 .Sh DESCRIPTION
 .Nm
 provides a set of supporting functions for standalone
-applications, mimicking where possible the standard BSD programming
+applications, mimicking where possible the standard
+.Bx
+programming
 environment.  The following sections group these functions by kind.
 Unless specifically described here, see the corresponding section 3
 manpages for the given functions.
@@ -573,7 +575,9 @@ structures.  The following filesystem handlers are supplied by
 the consumer may supply other filesystems of their own:
 .Bl -hang -width "cd9660_fsops "
 .It ufs_fsops
-The BSD UFS.
+The
+.Bx
+UFS.
 .It ext2fs_fsops
 Linux ext2fs filesystem.
 .It tftp_fsops
