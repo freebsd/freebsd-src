@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.1 1995/08/08 12:28:59 jkh Exp $
+ *  $Id: syscons.c,v 1.117.4.2 1995/08/20 00:17:12 davidg Exp $
  */
 
 #include "sc.h"
@@ -546,7 +546,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		scp->history_size *= scp->xsize;
 		scp->history_head = scp->history_pos = scp->history =
 		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_NOWAIT);
+				      M_DEVBUF, M_WAITOK);
 		bzero(scp->history_head, scp->history_size*sizeof(u_short));
 	    }
 	    return 0;
@@ -705,7 +705,7 @@ set_mouse_pos:
 	scp->status &= ~UNKNOWN_MODE;   /* text mode */
 	free(scp->scr_buf, M_DEVBUF);
 	scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-					 M_DEVBUF, M_NOWAIT);
+					 M_DEVBUF, M_WAITOK);
 	if (scp == cur_console)
 	    set_mode(scp);
 	clear_screen(scp);
