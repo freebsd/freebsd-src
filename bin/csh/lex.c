@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lex.c,v 1.2 1994/09/24 02:54:09 davidg Exp $
+ *	$Id: lex.c,v 1.3 1995/05/30 00:06:35 rgrimes Exp $
  */
 
 #ifndef lint
@@ -1187,7 +1187,7 @@ gethent(sc)
 	    }
 	    np = lhsb;
 	    event = 0;
-	    while (!cmap(c, _ESC | _META | _QF | _QB) && !any("${}:", c)) {
+	    while (!cmap(c, _ESC | _META | _QF | _QB) && !any("^$*-%{}:", c)) {
 		if (event != -1 && Isdigit(c))
 		    event = event * 10 + c - '0';
 		else
