@@ -297,6 +297,8 @@ vm_page_flag_clear(vm_page_t m, unsigned short bits)
 void
 vm_page_busy(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->flags & PG_BUSY) == 0,
 	    ("vm_page_busy: page already busy!!!"));
 	vm_page_flag_set(m, PG_BUSY);
@@ -310,6 +312,8 @@ vm_page_busy(vm_page_t m)
 void
 vm_page_flash(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->flags & PG_WANTED) {
 		vm_page_flag_clear(m, PG_WANTED);
 		wakeup(m);
@@ -326,6 +330,8 @@ vm_page_flash(vm_page_t m)
 void
 vm_page_wakeup(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT(m->flags & PG_BUSY, ("vm_page_wakeup: page not busy!!!"));
 	vm_page_flag_clear(m, PG_BUSY);
 	vm_page_flash(m);
@@ -335,7 +341,7 @@ void
 vm_page_io_start(vm_page_t m)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	m->busy++;
 }
 
@@ -343,6 +349,7 @@ void
 vm_page_io_finish(vm_page_t m)
 {
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->busy--;
 	if (m->busy == 0)
@@ -1251,6 +1258,7 @@ vm_page_try_to_cache(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return (0);
@@ -1298,6 +1306,7 @@ vm_page_cache(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
 	    m->hold_count || m->wire_count) {
 		printf("vm_page_cache: attempting to cache busy page\n");
