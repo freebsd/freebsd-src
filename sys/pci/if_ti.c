@@ -122,7 +122,19 @@
 #include <pci/ti_fw.h>
 #include <pci/ti_fw2.h>
 
+/*
+ * Temporarily disable the checksum offload support for now.
+ * Tests with ftp.freesoftware.com show that after about 12 hours,
+ * the firmware will begin calculating completely bogus TX checksums
+ * and refuse to stop until the interface is reset. Unfortunately,
+ * there isn't enough time to fully debug this before the 4.1
+ * release, so this will need to stay off for now.
+ */
+#ifdef notdef
 #define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
+#else
+#define TI_CSUM_FEATURES	0
+#endif
 
 #if !defined(lint)
 static const char rcsid[] =
