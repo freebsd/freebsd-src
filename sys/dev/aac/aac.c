@@ -434,6 +434,9 @@ aac_free(struct aac_softc *sc)
 	if (sc->aac_regs_resource != NULL)
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY,
 				     sc->aac_regs_rid, sc->aac_regs_resource);
+#if __FreeBSD_version >= 500005
+	TASK_DESTROY(&sc->aac_task_complete);
+#endif
 }
 
 /*

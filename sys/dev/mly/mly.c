@@ -732,6 +732,10 @@ mly_free(struct mly_softc *sc)
     /* release the register window mapping */
     if (sc->mly_regs_resource != NULL)
 	bus_release_resource(sc->mly_dev, SYS_RES_MEMORY, sc->mly_regs_rid, sc->mly_regs_resource);
+
+#if __FreeBSD_version >= 500005
+    TASK_DESTROY(&sc->mly_task_complete);
+#endif
 }
 
 /********************************************************************************
