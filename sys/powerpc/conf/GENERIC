@@ -30,19 +30,19 @@ maxusers	0
 makeoptions	WERROR=-Wno-error	#XXX: We don't want -Werror just now
 
 options 	FFS
-options		NFSCLIENT
-options		NFS_ROOT
-options		BOOTP
-options		BOOTP_NFSROOT
+options 	NFSCLIENT
+options 	NFS_ROOT
+options 	BOOTP
+options 	BOOTP_NFSROOT
 options 	COMPAT_43
-options		INET
+options 	INET
 options         MD_ROOT
 options         MD_ROOT_SIZE=1024
-options		INVARIANTS
-options		INVARIANT_SUPPORT
-options		WITNESS
+options 	INVARIANTS
+options 	INVARIANT_SUPPORT
+options 	WITNESS
 
-options		POWERMAC
+options 	POWERMAC
 
 device		pci
 device		loop

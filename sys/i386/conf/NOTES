@@ -210,7 +210,7 @@ options 	PERFMON
 # Only the "dc" "fxp" and "sis" devices support this mode of operation at
 # the time of this writing.
 
-options		DEVICE_POLLING
+options 	DEVICE_POLLING
 
 
 #####################################################################
@@ -940,7 +940,7 @@ device		streams		# STREAMS network driver (required for svr4).
 # switches less expensive.  You should only disable this feature as a
 # temporary workaround if you are having problems with it enabled.
 #
-#options	DISABLE_PG_G
+#options 	DISABLE_PG_G
 
 # KSTACK_PAGES is the number of memory pages to assign to the kernel
 # stack of each thread.
