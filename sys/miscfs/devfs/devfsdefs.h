@@ -1,3 +1,4 @@
+#define DEVFS_DEBUG 1
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
 #else
@@ -7,10 +8,12 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.3 1995/05/03 23:06:31 julian Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.4 1995/05/30 08:06:55 rgrimes Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
+
+#define M_DEVFSNAME M_DEVFSBACK
 
 #define	ISUID		04000		/* set user identifier when exec'ing */
 #define	ISGID		02000		/* set group identifier when exec'ing */
@@ -132,21 +135,18 @@ struct	dev_name
 	union {
 		struct {
 			devnm_p	aliases;	/* aliase chain (kill with us)*/
-			int	alias_count;	/* # 'alias' nodes for us. */
 		} back;
 		struct {
 			devnm_p	realthing;	/* ptr to the backing node */
-			devnm_p	file_node;	/* our file node */
-
 		} front;
 	} as;
 	/*-----------------------the front-back chain-------------*/
 	devnm_p	next_front;	/* the linked list of all our front nodes */
 	devnm_p	*prev_frontp;	/* the end of the front node chain */
-	int	frontcount;	/* number of front nodes that reference us*/
 };
 
 typedef struct dev_name devnm_t;
+extern int devfs_up_and_going;
 extern devnm_p dev_root;
 
 
