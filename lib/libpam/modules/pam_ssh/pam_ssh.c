@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
+#include <security/openpam.h>
 
 #include <openssl/dsa.h>
 #include <openssl/evp.h>
@@ -114,7 +115,6 @@ auth_via_key(pam_handle_t *pamh, const char *file, const char *dir,
 	Key *key;		/* user's key */
 	char *path;		/* to key files */
 	int retval;		/* from calls */
-	uid_t saved_uid;	/* caller's uid */
 
 	/* locate the user's private key file */
 
@@ -123,15 +123,14 @@ auth_via_key(pam_handle_t *pamh, const char *file, const char *dir,
 		return PAM_SERVICE_ERR;
 	}
 
-	saved_uid = getuid();
-
 	/* Try to decrypt the private key with the passphrase provided.  If
 	   success, the user is authenticated. */
 
 	comment = NULL;
-	(void) setreuid(user->pw_uid, saved_uid);
+	if ((retval = openpam_borrow_cred(pamh, user)) != PAM_SUCCESS)
+		return retval;
 	key = key_load_private(path, pass, &comment);
-	(void) setuid(saved_uid);
+	openpam_restore_cred(pamh);
 	free(path);
 	if (!comment)
 		comment = strdup(file);
@@ -354,7 +353,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	char *agent_pid;		/* agent pid */
 	const struct passwd *pwent;	/* user's passwd entry */
 	int retval;			/* from calls */
-	uid_t saved_uid;		/* caller's uid */
 	int start_agent;		/* start agent? */
 	const char *tty;		/* tty or display name */
 
@@ -397,8 +395,9 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	/* take on the user's privileges for writing files and starting the
 	   agent */
 
-	saved_uid = geteuid();
-	(void) seteuid(pwent->pw_uid);
+	if ((retval = openpam_borrow_cred(pamh, pwent)) != PAM_SUCCESS)
+		return retval;
+	fprintf(stderr, "ruid %d, euid %d\n", getuid(), geteuid());
 
 	/* Try to create the per-agent file or open it for reading if it
 	   exists.  If we can't do either, we won't try to link a
@@ -412,11 +411,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		no_link = 1;
 	if (env_read) {
 		start_agent = 0;
-		(void) seteuid(saved_uid);
+		openpam_restore_cred(pamh);
 	} else {
 		start_agent = 1;
 		env_read = popen(SSH_AGENT, "r");
-		(void) seteuid(saved_uid);
+		openpam_restore_cred(pamh);
 		if (!env_read) {
 			openpam_log(PAM_LOG_ERROR, "%s: %s: %m", MODULE_NAME,
 			    SSH_AGENT);
