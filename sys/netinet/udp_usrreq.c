@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.19 1995/12/16 02:14:22 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.20 1996/03/11 15:13:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/stat.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -71,6 +72,10 @@ static int	udpcksum = 0;		/* XXX */
 #endif
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
+
+static int log_in_vain = 1;
+SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
+	&log_in_vain, 0, "");
 
 static struct	inpcbhead udb;		/* from udp_var.h */
 static struct	inpcbinfo udbinfo;
@@ -274,6 +279,11 @@ udp_input(m, iphlen)
 		    uh->uh_dport, INPLOOKUP_WILDCARD);
 	}
 	if (inp == NULL) {
+		if (log_in_vain)
+			log(LOG_INFO, "Connection attempt to UDP %s:%d"
+			    " from %s:%d\n",
+				inet_ntoa(ip->ip_dst), ntohs(uh->uh_dport),
+				inet_ntoa(ip->ip_src), ntohs(uh->uh_sport));
 		udpstat.udps_noport++;
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			udpstat.udps_noportbcast++;
