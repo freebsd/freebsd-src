@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: fsm.c,v 1.2 1994/09/25 02:31:57 wollman Exp $";
+static char rcsid[] = "$Id: fsm.c,v 1.8 1994/11/10 01:52:05 paulus Exp $";
 #endif
 
 /*
@@ -28,27 +28,27 @@ static char rcsid[] = "$Id: fsm.c,v 1.2 1994/09/25 02:31:57 wollman Exp $";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <syslog.h>
 
-#include "ppp.h"
 #include "pppd.h"
 #include "fsm.h"
 
 extern char *proto_name();
 
-static void fsm_timeout __ARGS((caddr_t));
-static void fsm_rconfreq __ARGS((fsm *, int, u_char *, int));
-static void fsm_rconfack __ARGS((fsm *, int, u_char *, int));
-static void fsm_rconfnakrej __ARGS((fsm *, int, int, u_char *, int));
-static void fsm_rtermreq __ARGS((fsm *, int));
-static void fsm_rtermack __ARGS((fsm *));
-static void fsm_rcoderej __ARGS((fsm *, u_char *, int));
-static void fsm_sconfreq __ARGS((fsm *, int));
+static void fsm_timeout __P((caddr_t));
+static void fsm_rconfreq __P((fsm *, int, u_char *, int));
+static void fsm_rconfack __P((fsm *, int, u_char *, int));
+static void fsm_rconfnakrej __P((fsm *, int, int, u_char *, int));
+static void fsm_rtermreq __P((fsm *, int));
+static void fsm_rtermack __P((fsm *));
+static void fsm_rcoderej __P((fsm *, u_char *, int));
+static void fsm_sconfreq __P((fsm *, int));
 
 #define PROTO_NAME(f)	((f)->callbacks->proto_name)
 
-int peer_mru[NPPP];
+int peer_mru[NUM_PPP];
 
 
 /*
@@ -330,28 +330,28 @@ fsm_input(f, inpacket, l)
     case CONFREQ:
 	fsm_rconfreq(f, id, inp, len);
 	break;
-
+    
     case CONFACK:
 	fsm_rconfack(f, id, inp, len);
 	break;
-
+    
     case CONFNAK:
     case CONFREJ:
 	fsm_rconfnakrej(f, code, id, inp, len);
 	break;
-
+    
     case TERMREQ:
 	fsm_rtermreq(f, id);
 	break;
-
+    
     case TERMACK:
 	fsm_rtermack(f);
 	break;
-
+    
     case CODEREJ:
 	fsm_rcoderej(f, inp, len);
 	break;
-
+    
     default:
 	if( !f->callbacks->extcode
 	   || !(*f->callbacks->extcode)(f, code, id, inp, len) )
@@ -446,15 +446,16 @@ fsm_rconfack(f, id, inp, len)
     FSMDEBUG((LOG_INFO, "fsm_rconfack(%s): Rcvd id %d.",
 	      PROTO_NAME(f), id));
 
-    if (id != f->reqid)		/* Expected id? */
-	return;			/* Nope, toss... */
-    if( !(f->callbacks->ackci? (*f->callbacks->ackci)(f, inp, len): (len == 0)) ){
+    if (id != f->reqid || f->seen_ack)		/* Expected id? */
+	return;					/* Nope, toss... */
+    if( !(f->callbacks->ackci? (*f->callbacks->ackci)(f, inp, len):
+	  (len == 0)) ){
 	/* Ack is bad - ignore it */
 	FSMDEBUG((LOG_INFO, "%s: received bad Ack (length %d)",
 		  PROTO_NAME(f), len));
 	return;
     }
-    f->reqid = -1;
+    f->seen_ack = 1;
 
     switch (f->state) {
     case CLOSED:
@@ -468,7 +469,8 @@ fsm_rconfack(f, id, inp, len)
 	break;
 
     case ACKRCVD:
-	/* Huh? an extra Ack? oh well... */
+	/* Huh? an extra valid Ack? oh well... */
+	UNTIMEOUT(fsm_timeout, (caddr_t) f);	/* Cancel timeout */
 	fsm_sconfreq(f, 0);
 	f->state = REQSENT;
 	break;
@@ -507,16 +509,16 @@ fsm_rconfnakrej(f, code, id, inp, len)
     FSMDEBUG((LOG_INFO, "fsm_rconfnakrej(%s): Rcvd id %d.",
 	      PROTO_NAME(f), id));
 
-    if (id != f->reqid)		/* Expected id? */
-	return;			/* Nope, toss... */
+    if (id != f->reqid || f->seen_ack)	/* Expected id? */
+	return;				/* Nope, toss... */
     proc = (code == CONFNAK)? f->callbacks->nakci: f->callbacks->rejci;
-    if( !proc || !proc(f, inp, len) ){
+    if (!proc || !proc(f, inp, len)) {
 	/* Nak/reject is bad - ignore it */
 	FSMDEBUG((LOG_INFO, "%s: received bad %s (length %d)",
 		  PROTO_NAME(f), (code==CONFNAK? "Nak": "reject"), len));
 	return;
     }
-    f->reqid = -1;
+    f->seen_ack = 1;
 
     switch (f->state) {
     case CLOSED:
@@ -533,6 +535,7 @@ fsm_rconfnakrej(f, code, id, inp, len)
 
     case ACKRCVD:
 	/* Got a Nak/reject when we had already had an Ack?? oh well... */
+	UNTIMEOUT(fsm_timeout, (caddr_t) f);	/* Cancel timeout */
 	fsm_sconfreq(f, 0);
 	f->state = REQSENT;
 	break;
@@ -590,11 +593,13 @@ fsm_rtermack(f)
 
     switch (f->state) {
     case CLOSING:
+	UNTIMEOUT(fsm_timeout, (caddr_t) f);
 	f->state = CLOSED;
 	if( f->callbacks->finished )
 	    (*f->callbacks->finished)(f);
 	break;
     case STOPPING:
+	UNTIMEOUT(fsm_timeout, (caddr_t) f);
 	f->state = STOPPED;
 	if( f->callbacks->finished )
 	    (*f->callbacks->finished)(f);
@@ -715,10 +720,12 @@ fsm_sconfreq(f, retransmit)
 	f->reqid = ++f->id;
     }
 
+    f->seen_ack = 0;
+
     /*
      * Make up the request packet
      */
-    outp = outpacket_buf + DLLHEADERLEN + HEADERLEN;
+    outp = outpacket_buf + PPP_HDRLEN + HEADERLEN;
     if( f->callbacks->cilen && f->callbacks->addci ){
 	cilen = (*f->callbacks->cilen)(f);
 	if( cilen > peer_mru[f->unit] - HEADERLEN )
@@ -759,14 +766,14 @@ fsm_sdata(f, code, id, data, datalen)
     outp = outpacket_buf;
     if (datalen > peer_mru[f->unit] - HEADERLEN)
 	datalen = peer_mru[f->unit] - HEADERLEN;
-    if (datalen && data != outp + DLLHEADERLEN + HEADERLEN)
-	BCOPY(data, outp + DLLHEADERLEN + HEADERLEN, datalen);
+    if (datalen && data != outp + PPP_HDRLEN + HEADERLEN)
+	BCOPY(data, outp + PPP_HDRLEN + HEADERLEN, datalen);
     outlen = datalen + HEADERLEN;
     MAKEHEADER(outp, f->protocol);
     PUTCHAR(code, outp);
     PUTCHAR(id, outp);
     PUTSHORT(outlen, outp);
-    output(f->unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(f->unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     FSMDEBUG((LOG_INFO, "fsm_sdata(%s): Sent code %d, id %d.",
 	      PROTO_NAME(f), code, id));

@@ -16,9 +16,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: magic.h,v 1.1 1993/11/11 03:54:25 paulus Exp $
+ * $Id: magic.h,v 1.3 1994/09/21 06:47:37 paulus Exp $
  */
-#include "args.h"
 
-void magic_init __ARGS((void));	/* Initialize the magic number generator */
-u_long magic __ARGS((void));	/* Returns the next magic number */
+void magic_init __P((void));	/* Initialize the magic number generator */
+u_int32_t magic __P((void));	/* Returns the next magic number */

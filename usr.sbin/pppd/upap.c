@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: upap.c,v 1.2 1994/09/25 02:32:16 wollman Exp $";
+static char rcsid[] = "$Id: upap.c,v 1.6 1995/06/12 12:02:24 paulus Exp $";
 #endif
 
 /*
@@ -26,24 +26,25 @@ static char rcsid[] = "$Id: upap.c,v 1.2 1994/09/25 02:32:16 wollman Exp $";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <syslog.h>
 
-#include "ppp.h"
 #include "pppd.h"
 #include "upap.h"
 
 
-upap_state upap[NPPP];		/* UPAP state; one for each unit */
+upap_state upap[NUM_PPP];		/* UPAP state; one for each unit */
 
 
-static void upap_timeout __ARGS((caddr_t));
-static void upap_rauthreq __ARGS((upap_state *, u_char *, int, int));
-static void upap_rauthack __ARGS((upap_state *, u_char *, int, int));
-static void upap_rauthnak __ARGS((upap_state *, u_char *, int, int));
-static void upap_sauthreq __ARGS((upap_state *));
-static void upap_sresp __ARGS((upap_state *, int, int, char *, int));
+static void upap_timeout __P((caddr_t));
+static void upap_reqtimeout __P((caddr_t));
+static void upap_rauthreq __P((upap_state *, u_char *, int, int));
+static void upap_rauthack __P((upap_state *, u_char *, int, int));
+static void upap_rauthnak __P((upap_state *, u_char *, int, int));
+static void upap_sauthreq __P((upap_state *));
+static void upap_sresp __P((upap_state *, int, int, char *, int));
 
 
 /*
@@ -65,6 +66,7 @@ upap_init(unit)
     u->us_id = 0;
     u->us_timeouttime = UPAP_DEFTIMEOUT;
     u->us_maxtransmits = 10;
+    u->us_reqtimeout = UPAP_DEFREQTIME;
 }
 
 
@@ -117,11 +119,13 @@ upap_authpeer(unit)
     }
 
     u->us_serverstate = UPAPSS_LISTEN;
+    if (u->us_reqtimeout > 0)
+	TIMEOUT(upap_reqtimeout, (caddr_t) u, u->us_reqtimeout);
 }
 
 
 /*
- * upap_timeout - Timeout expired.
+ * upap_timeout - Retransmission timer for sending auth-reqs expired.
  */
 static void
 upap_timeout(arg)
@@ -136,11 +140,28 @@ upap_timeout(arg)
 	/* give up in disgust */
 	syslog(LOG_ERR, "No response to PAP authenticate-requests");
 	u->us_clientstate = UPAPCS_BADAUTH;
-	auth_withpeer_fail(u->us_unit, UPAP);
+	auth_withpeer_fail(u->us_unit, PPP_PAP);
 	return;
     }
 
     upap_sauthreq(u);		/* Send Authenticate-Request */
+}
+
+
+/*
+ * upap_reqtimeout - Give up waiting for the peer to send an auth-req.
+ */
+static void
+upap_reqtimeout(arg)
+    caddr_t arg;
+{
+    upap_state *u = (upap_state *) arg;
+
+    if (u->us_serverstate != UPAPSS_LISTEN)
+	return;			/* huh?? */
+
+    auth_peer_fail(u->us_unit, PPP_PAP);
+    u->us_serverstate = UPAPSS_BADAUTH;
 }
 
 
@@ -163,8 +184,11 @@ upap_lowerup(unit)
 
     if (u->us_serverstate == UPAPSS_INITIAL)
 	u->us_serverstate = UPAPSS_CLOSED;
-    else if (u->us_serverstate == UPAPSS_PENDING)
+    else if (u->us_serverstate == UPAPSS_PENDING) {
 	u->us_serverstate = UPAPSS_LISTEN;
+	if (u->us_reqtimeout > 0)
+	    TIMEOUT(upap_reqtimeout, (caddr_t) u, u->us_reqtimeout);
+    }
 }
 
 
@@ -179,8 +203,10 @@ upap_lowerdown(unit)
 {
     upap_state *u = &upap[unit];
 
-    if (u->us_clientstate == UPAPCS_AUTHREQ) /* Timeout pending? */
+    if (u->us_clientstate == UPAPCS_AUTHREQ)	/* Timeout pending? */
 	UNTIMEOUT(upap_timeout, (caddr_t) u);	/* Cancel timeout */
+    if (u->us_serverstate == UPAPSS_LISTEN && u->us_reqtimeout > 0)
+	UNTIMEOUT(upap_reqtimeout, (caddr_t) u);
 
     u->us_clientstate = UPAPCS_INITIAL;
     u->us_serverstate = UPAPSS_INITIAL;
@@ -200,11 +226,11 @@ upap_protrej(unit)
 
     if (u->us_clientstate == UPAPCS_AUTHREQ) {
 	syslog(LOG_ERR, "PAP authentication failed due to protocol-reject");
-	auth_withpeer_fail(unit, UPAP);
+	auth_withpeer_fail(unit, PPP_PAP);
     }
     if (u->us_serverstate == UPAPSS_LISTEN) {
 	syslog(LOG_ERR, "PAP authentication of peer failed (protocol-reject)");
-	auth_peer_fail(unit, UPAP);
+	auth_peer_fail(unit, PPP_PAP);
     }
     upap_lowerdown(unit);
 }
@@ -334,11 +360,14 @@ upap_rauthreq(u, inp, id, len)
 
     if (retcode == UPAP_AUTHACK) {
 	u->us_serverstate = UPAPSS_OPEN;
-	auth_peer_success(u->us_unit, UPAP);
+	auth_peer_success(u->us_unit, PPP_PAP);
     } else {
 	u->us_serverstate = UPAPSS_BADAUTH;
-	auth_peer_fail(u->us_unit, UPAP);
+	auth_peer_fail(u->us_unit, PPP_PAP);
     }
+
+    if (u->us_reqtimeout > 0)
+	UNTIMEOUT(upap_reqtimeout, (caddr_t) u);
 }
 
 
@@ -377,7 +406,7 @@ upap_rauthack(u, inp, id, len)
 
     u->us_clientstate = UPAPCS_OPEN;
 
-    auth_withpeer_success(u->us_unit, UPAP);
+    auth_withpeer_success(u->us_unit, PPP_PAP);
 }
 
 
@@ -417,7 +446,7 @@ upap_rauthnak(u, inp, id, len)
     u->us_clientstate = UPAPCS_BADAUTH;
 
     syslog(LOG_ERR, "PAP authentication failed");
-    auth_withpeer_fail(u->us_unit, UPAP);
+    auth_withpeer_fail(u->us_unit, PPP_PAP);
 }
 
 
@@ -434,8 +463,8 @@ upap_sauthreq(u)
     outlen = UPAP_HEADERLEN + 2 * sizeof (u_char) +
 	u->us_userlen + u->us_passwdlen;
     outp = outpacket_buf;
-
-    MAKEHEADER(outp, UPAP);
+    
+    MAKEHEADER(outp, PPP_PAP);
 
     PUTCHAR(UPAP_AUTHREQ, outp);
     PUTCHAR(++u->us_id, outp);
@@ -446,7 +475,7 @@ upap_sauthreq(u)
     PUTCHAR(u->us_passwdlen, outp);
     BCOPY(u->us_passwd, outp, u->us_passwdlen);
 
-    output(u->us_unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(u->us_unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     UPAPDEBUG((LOG_INFO, "upap_sauth: Sent id %d.", u->us_id));
 
@@ -471,14 +500,14 @@ upap_sresp(u, code, id, msg, msglen)
 
     outlen = UPAP_HEADERLEN + sizeof (u_char) + msglen;
     outp = outpacket_buf;
-    MAKEHEADER(outp, UPAP);
+    MAKEHEADER(outp, PPP_PAP);
 
     PUTCHAR(code, outp);
     PUTCHAR(id, outp);
     PUTSHORT(outlen, outp);
     PUTCHAR(msglen, outp);
     BCOPY(msg, outp, msglen);
-    output(u->us_unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(u->us_unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     UPAPDEBUG((LOG_INFO, "upap_sresp: Sent code %d, id %d.", code, id));
 }
@@ -494,7 +523,7 @@ int
 upap_printpkt(p, plen, printer, arg)
     u_char *p;
     int plen;
-    void (*printer) __ARGS((void *, char *, ...));
+    void (*printer) __P((void *, char *, ...));
     void *arg;
 {
     int code, id, len;
