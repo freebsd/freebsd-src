@@ -1392,18 +1392,17 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 }
 
 /*
- * Scan relevant portions of the ACPI namespace and attach child devices.
+ * Scan all of the ACPI namespace and attach child devices.
  *
- * Note that we only expect to find devices in the \_PR_, \_TZ_, \_SI_ and
- * \_SB_ scopes, and \_PR_ and \_TZ_ become obsolete in the ACPI 2.0 spec.
+ * We should only expect to find devices in the \_PR, \_TZ, \_SI, and
+ * \_SB scopes, and \_PR and \_TZ became obsolete in the ACPI 2.0 spec.
+ * However, in violation of the spec, some systems place their PCI link
+ * devices in \, so we have to walk the whole namespace.  We check the
+ * type of namespace nodes, so this should be ok.
  */
 static void
 acpi_probe_children(device_t bus)
 {
-    ACPI_HANDLE	parent;
-    ACPI_STATUS	status;
-    int		i;
-    static char	*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1417,13 +1416,8 @@ acpi_probe_children(device_t bus)
      * devices as they appear, which might be smarter.)
      */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "namespace scan\n"));
-    for (i = 0; scopes[i] != NULL; i++) {
-	status = AcpiGetHandle(ACPI_ROOT_OBJECT, scopes[i], &parent);
-	if (ACPI_SUCCESS(status)) {
-	    AcpiWalkNamespace(ACPI_TYPE_ANY, parent, 100, acpi_probe_child,
-			      bus, NULL);
-	}
-    }
+    AcpiWalkNamespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, 100, acpi_probe_child,
+	bus, NULL);
 
     /* Pre-allocate resources for our rman from any sysresource devices. */
     acpi_sysres_alloc(bus);
@@ -1482,9 +1476,11 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
-    ACPI_OBJECT_TYPE	type;
-    device_t		child, bus;
-    int			order, probe_now;
+    ACPI_OBJECT_TYPE type;
+    device_t bus, child;
+    int order, probe_now;
+    char *handle_str, **search;
+    static char *scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI_", "\\_SB_", NULL};
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1502,14 +1498,25 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    if (acpi_disabled("children"))
 		break;
 
+	    /*
+	     * Since we scan from \, be sure to skip system scope objects.
+	     * At least \_SB and \_TZ are detected as devices (ACPI-CA bug?)
+	     */
+	    handle_str = acpi_name(handle);
+	    for (search = scopes; *search != NULL; search++) {
+		if (strcmp(handle_str, *search) == 0)
+		    break;
+	    }
+	    if (*search != NULL)
+		break;
+
 	    /* 
 	     * Create a placeholder device for this node.  Sort the placeholder
 	     * so that the probe/attach passes will run breadth-first.  Orders
 	     * less than 10 are reserved for special objects (i.e., system
 	     * resources).  Larger values are used for all other devices.
 	     */
-	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n",
-			     acpi_name(handle)));
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = (level + 1) * 10;
 	    probe_now = acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
