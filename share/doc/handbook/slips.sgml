@@ -54,7 +54,7 @@ configured the appropriate system files to allow logins through your
 modems.  If you haven't prepared your system for this yet, please see
 the tutorial for configuring dialup services; if you have a World-Wide
 Web browser available, browse the list of tutorials at
-<tt>http://www.freebsd.org/How</tt>; otherwise, check the place
+<tt>http://www.freebsd.org/</tt>; otherwise, check the place
 where you found this document for a document named <tt/dialup.txt/ or
 something similar.  You may also want to check the manual pages for
 <tt/sio(4)/ for information on the serial port device driver and
