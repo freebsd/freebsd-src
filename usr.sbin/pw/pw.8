@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.8,v 1.10 1997/03/04 07:55:43 danny Exp $
+.\"	$Id: pw.8,v 1.11 1997/10/10 06:23:33 charnier Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW 8
@@ -165,7 +165,7 @@ files, allowing the superuser an easy to use and standardized way of adding,
 modifying and removing users and groups.
 Note that
 .Nm
-only operates on the local user and group files; NIS users and groups must be
+only operates on the local user and group files.  NIS users and groups must be
 maintained on the NIS server.
 .Nm Pw
 handles updating the 
@@ -175,25 +175,29 @@ handles updating the
 and the secure and insecure
 password database files, and must be run as root.
 .Pp
-The first one or two keywords provided on
-.Xr pw 8 's
-command line provide the context for the remainder of the arguments.
-One of the keywords
+The first one or two keywords provided to
+.Nm 
+on the command line provide the context for the remainder of the arguments.
+The keywords
 .Ar user
 and
 .Ar group
-may be combined or provided separately with
+may be combined with
 .Ar add ,
 .Ar del ,
 .Ar mod ,
 .Ar show ,
 or
-.Ar next ,
-and may be specified in either order (ie. showuser, usershow, show user and user show
-are all considered to be the same thing).
-This flexibility is useful for interactive scripts which call
+.Ar next
+in any order. (For example,
+.Ar showuser , 
+.Ar usershow , 
+.Ar show user , and
+.Ar user show
+all mean the same thing.)
+This flexibility is useful for interactive scripts calling
 .Nm
-for the actual user and group database manipulation.
+for user and group database manipulation.
 Following these keywords, you may optionally specify the user or group name or numeric
 id as an alternative to using the
 .Fl n Ar name ,
@@ -201,7 +205,7 @@ id as an alternative to using the
 .Fl g Ar gid
 options.
 .Pp
-The following flags are common to all or most modes of operation:
+The following flags are common to most modes of operation;
 .Pp
 .Bl -tag -width "-G grouplist"
 .It Fl C Ar config
@@ -209,13 +213,13 @@ By default,
 .Nm
 reads the file
 .Pa /etc/pw.conf
-to obtain policy information on how new user accounts and groups are to be created,
-and the
+to obtain policy information on how new user accounts and groups are to be created.
+The
 .Fl C
 option specifies a different configuration file.
-Most of the contents in the configuration file may be overridden via command line
-options, but it may be more useful to set up standard information for addition of
-new accounts in the configuration file.
+While most of the contents of the configuration file may be overridden via
+command-line options, it may be more convenient to keep standard information in a
+configuration file.
 .It Fl q
 Use of this option causes
 .Nm
@@ -224,10 +228,14 @@ is preferable to interpret status codes returned by
 .Nm
 rather than messing up a carefully formatted display.
 .It Fl N
-This option is available in add and modify operations, and causes
+This option is available in 
+.Ar add 
+and 
+.Ar modify 
+operations, and tells
 .Nm
-to skip updating the user/group databases and instead print the result
-of the operation without actually performing it.
+to output the result of the operation without updating the user or group
+databases.
 You may use the
 .Fl P
 option to switch between standard passwd and readable formats.
@@ -238,19 +246,20 @@ to run
 .Xr make 1
 after changing to the directory
 .Pa /var/yp .
-This is intended to allow automatic updating of the NIS database files.
+This is intended to allow automatic updating of NIS database files.
 If separate passwd and group files are being used by NIS, then use the
 .Fl y Ar path
-option to specify the location of the NIS passwd database so that pw
-will automatically update it concurrently with the system password
+option to specify the location of the NIS passwd database so that 
+.Nm
+will concurrently update it with the system password
 databases.
 .El
 .Pp
 .Sh USER OPTIONS
 The following options apply to the
-.Ar useradd ,
+.Ar useradd
 and
-.Ar usermod ,
+.Ar usermod
 commands:
 .Pp
 .Bl -tag -width "-G grouplist"
@@ -259,43 +268,39 @@ Specify the user/account name.
 .It Fl u Ar uid
 Specify the user/account numeric id.
 .Pp
-Usually, you need only to provide one or the other of these options, as the account
-name will imply the uid, and vice versa.
-Also, you may provide either the account or userid immediately after the
-.Ar useradd ,
-.Ar userdel ,
-.Ar usermod
-or
-.Ar usershow
-keyword on the command line without the need to use
-.Ql Fl n
-or
-.Ql Fl u .
-There are times, however, were you need to provide both.
+Usually, you only need to provide one or the other of these options, as the account
+name will imply the uid, or vice versa.
+However, there are times when you need to provide both.
 For example, when changing the uid of an existing user with
 .Ar usermod ,
 or overriding the default uid when creating a new account.
 If you wish
 .Nm
-to automatically allocate the uid to a new user on
+to automatically allocate the uid to a new user with
 .Ar useradd ,
 then you should
 .Em not
 use the
 .Ql Fl u
 option.
+You may also provide either the account or userid immediately after the
+.Ar useradd ,
+.Ar userdel ,
+.Ar usermod
+or
+.Ar usershow
+keywords on the command line without using the
+.Ql Fl n
+or
+.Ql Fl u 
+options.
 .El
 .Pp
-Options available with both
-.Ar useradd
-and
-.Ar usermod
-are:
 .Bl -tag -width "-G grouplist"
 .It Fl c Ar comment
 This field sets the contents of the passwd GECOS field, which normally contains up
 to four comma-separated fields containing the user's full name, office or location,
-work and home phone numbers.
+and work and home phone numbers.
 These sub-fields are used by convention only, however, and are optional.
 If this field is to contain spaces, you need to quote the comment itself with double
 quotes
@@ -303,18 +308,20 @@ quotes
 Avoid using commas in this field as these are used as sub-field separators, and the
 colon
 .Ql \&:
-character also cannot be used as this is the field separator in the passwd file.
+character also cannot be used as this is the field separator for the passwd
+file itself.
 .It Fl d Ar dir
 This option sets the account's home directory.
 Normally, you will only use this if the home directory is to be different from the
-default (which is determined from pw.conf, which specifies the base home directory
+default determined from 
+.Pa /etc/pw.conf
 - normally
 .Pa /home
-- with the account name as a subdirectory).
+with the account name as a subdirectory.
 .It Fl e Ar date
 Set the account's expiration date. 
 Format of the date is either a UNIX time in decimal, or a date in
-.Ql \& dd-mmm-yy[yy]
+.Ql dd-mmm-yy[yy]
 format, where dd is the day, mmm is the month, either in numeric or alphabetic format
 ('Jan', 'Feb', etc) and year is either a two or four digit year.
 This option also accepts a relative date in the form
@@ -323,34 +330,36 @@ where
 .Ql \&n
 is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by the
 number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
-which the expiry date is to be set.
+which the expiration date is to be set.
 .It Fl p Ar date
 Set the account's password expiration date.
-This field is identical to the account expiration date option, except that it
+This field is similar to the account expiration date option, except that it
 applies to forced password changes.
-The same formats are accepted as with the account expiration option.
+This is set in the same manner as the
+.Ql Fl e
+option.
 .It Fl g Ar group
 Set the account's primary group to the given group.
 .Ar group
-may be either the group name or its corresponding group id number.
+may be defined by either its name or group number.
 .It Fl G Ar grouplist
-Sets the additional groups to which an account belongs.
+Sets additional group memberships for an account.
 .Ar grouplist
-is a comma-separated list or group names or group ids.
-When adding a user, the user's name is added to the group lists in
+is a comma-separated list of group names or group numbers.
+The user's name is added to the group lists in
 .Pa /etc/group ,
-and when editing a user, the user's name is also added to the group lists, and
+and
 removed from any groups not specified in
 .Ar grouplist .
-Note: a user should not be added to their primary group in
-.Pa /etc/group .
-Also, group membership changes do not take effect immediately for current logins,
-only logins subsequent to the change.
+Note: a user should not be added to their primary group with
+.Ar grouplist .
+Also, group membership changes do not take effect for current user login
+sessions, requiring the user to reconnect to be affected by the changes.
 .It Fl L Ar class
 This option sets the login class for the user being created.
 See
 .Xr login.conf 5
-for more information on user classes.
+for more information on user login classes.
 .It Fl m
 This option instructs
 .Nm
@@ -367,27 +376,28 @@ When
 .Ql Fl m
 is used on an account with
 .Ar usermod ,
-any existing configuration files in the user's home directory are
+existing configuration files in the user's home directory are
 .Em not
-overwritten with the prototype files.
+overwritten from the skeleton files.
 .Pp
-When a user's home directory is created, it will be default be as a subdirectory of the
+When a user's home directory is created, it will by default be a subdirectory of the
 .Ar basehome
-directory specified with the
-.Ql Fl b Ar dir
-option (see below), and will be named the same as the account.
-This may be overridden with the
-.Ql Fl d Ar dir
+directory as specified by the
+.Ql Fl b 
+option (see below), bearing the name of the new account.
+This can be overridden by the
+.Ql Fl d 
 option on the command line, if desired.
 .It Fl k Ar dir
 Set the
 .Ar skeleton
-subdirectory, from which the basic startup and configuration files are copied when
+directory, from which basic startup and configuration files are copied when
 the user's home directory is created.
-This option only has meaning when used with
-.Ql Fl D
-(see below) or
-.Ql Fl m .
+This option only has meaning when used with the
+.Ql Fl d
+or
+.Ql Fl m 
+flags.
 .It Fl s Ar shell
 Set or changes the user's login shell to
 .Ar shell .
@@ -410,16 +420,16 @@ that should be set for accounts not intended for interactive login.
 Set the
 .Em class
 field in the user's passwd record.
-This field is not currently used, but will be in the future used to specify a
+This field is not currently used, but will be used in the future to specify a
 .Em termcap
-entry like tag (see
+entry like tag. See
 .Xr passwd 5
-for details).
+for details.
 .It Fl h Ar fd
 This option provides a special interface by which interactive scripts can
 set an account password using
 .Nm pw .
-Because the command line and environment are fundamental insecure mechanisms
+Because the command line and environment are fundamentally insecure mechanisms
 by which programs can accept information,
 .Nm
 will only allow setting of account and group passwords via a file descriptor
@@ -429,7 +439,7 @@ will only allow setting of account and group passwords via a file descriptor
 .Ar ksh
 and
 .Ar perl
-all posses mechanisms by which this can be done.
+all possess mechanisms by which this can be done.
 Alternatively,
 .Nm pw
 will prompt for the user's password if
@@ -437,11 +447,11 @@ will prompt for the user's password if
 is given, nominating
 .Em stdin
 as the file descriptor on which to read the password.
-Note that this password will be read once and once only and is intended
-for use by a script or similar rather than interactive use.
+Note that this password will be read only once and is intended
+for use by a script rather than for interactive use.
 If you wish to have new password confirmation along the lines of
 .Xr passwd 1 ,
-this must be implemented as part of the interactive script that calls
+this must be implemented as part of an interactive script that calls
 .Nm pw .
 .Pp
 If a value of
@@ -450,7 +460,7 @@ is given as the argument
 .Ar fd ,
 then the password will be set to
 .Ql \&* ,
-rendering the account inaccessible via passworded login.
+rendering the account inaccessible via password-based login.
 .El
 .Pp
 It is possible to use
@@ -512,18 +522,18 @@ Set the default password expiration period in days.
 Set the default group for new users.
 If a blank group is specified using
 .Ql Fl g Ar \&"" ,
-then new users will be allocated their own private primary group (a new group created
-with the same name as their login name).
+then new users will be allocated their own private primary group
+with the same name as their login name.
 If a group is supplied, either its name or uid may be given as an argument.
 .It Fl G Ar grouplist
-Set the default groups in which new users are made members.
+Set the default groups in which new users are granted membership.
 This is a separate set of groups from the primary group, and you should avoid
-nominating the same group as both the primary and in extra groups.
+nominating the same group as both primary and extra groups.
 In other words, these extra groups determine membership in groups
 .Em other than
 the primary group.
 .Ar grouplist
-is a comma-separated list of group names or ids, or a mixture of both, and are always
+is a comma-separated list of group names or ids, and are always
 stored in
 .Pa /etc/pw.conf
 by their symbolic names.
@@ -585,7 +595,7 @@ This sets the pathname of the database used by NIS if you are not sharing
 the information from
 .Pa /etc/master.passwd
 directly with NIS.
-You should only set this option on NIS servers.
+You should only set this option for NIS servers.
 .El
 .Pp
 The
@@ -618,8 +628,8 @@ Mail spool files and crontabs are always removed when an account is deleted as t
 are unconditionally attached to the user name.
 Jobs queued for processing by
 .Ar at
-are also removed if the user's uid is unique (not also used by another account on the
-system).
+are also removed if the user's uid is unique and not also used by another account on the
+system.
 .Pp
 The
 .Ar usershow
@@ -646,7 +656,7 @@ that use
 .Pp
 .Sh GROUP OPTIONS
 The
-.Ql Fl C Ar config
+.Ql Fl C 
 and
 .Ql Fl q
 options (explained at the start of the previous section) are available
@@ -663,7 +673,7 @@ to supply one of these, as the group name implies the uid and vice
 versa.
 You will only need to use both when setting a specific group id
 against a new group or when changing the uid of an existing group.
-.It Fl M Ar memberlist
+.Ql Fl M Ar memberlist
 This option provides an alternative way to add existing users to a
 new group (in groupadd) or replace an existing membership list (in
 groupmod).
@@ -671,26 +681,26 @@ groupmod).
 is a comma separated list of valid and existing user names or uids.
 .It Fl m Ar newmembers
 Similar to
-.Op M ,
+.Ql Fl M ,
 this option allows the
 .Em addition
-of existing users to a group without first replacing the existing list of
+of existing users to a group without replacing the existing list of
 members.
-Login names or user ids may be used, and duplicated users are automatically
-and silently eliminated.
+Login names or user ids may be used, and duplicate users are
+silently eliminated.
 .El
 .Pp
 .Ar groupadd
 also has a
 .Ql Fl o
-option that allows allocation of an existing group id to new group.
+option that allows allocation of an existing group id to a new group.
 The default action is to reject an attempt to add a group, and this option overrides
 the check for duplicate group ids.
 There is rarely any need to duplicate a group id.
 .Pp
 The
 .Ar groupmod
-command adds one additonal option:
+command adds one additional option:
 .Pp
 .Bl -tag -width "-m newmembers"
 .It Fl l Ar name
@@ -715,7 +725,9 @@ The command
 returns the next available group id on standard output.
 .Sh DIAGNOSTICS
 .Nm Pw
-returns EXIT_SUCCESS on successful operation, otherwise one of the
+returns EXIT_SUCCESS on successful operation, otherwise 
+.Nm
+returns one of the
 following exit codes defined by
 .Xr sysexits 3
 as follows:
@@ -741,7 +753,7 @@ Read error from password file descriptor.
 .Bl -bullet -compact
 .It
 Bad or invalid data provided or missing on the command line or
-via the password flie descriptor.
+via the password file descriptor.
 .It
 Attempted to remove, rename root account or change its uid.
 .El
@@ -752,14 +764,14 @@ Skeleton directory is invalid or does not exist.
 .It
 Base home directory is invalid or does not exist.
 .It
-Invalid or non-existant shell specified.
+Invalid or non-existent shell specified.
 .El
 .It EX_NOUSER
 .Bl -bullet -compact
 .It
 User, user id, group or group id specified does not exist.
 .It
-User or group recorded added or modified unexpectedly disappeared.
+User or group recorded, added, or modified unexpectedly disappeared.
 .El
 .It EX_SOFTWARE
 .Bl -bullet -compact
@@ -790,23 +802,23 @@ For example,
 lists all available options for the useradd operation.
 .Pp
 .Nm Pw
-allows 8-bit characters in the passwd gecos field (user's full name,
+allows 8-bit characters in the passwd GECOS field (user's full name,
 office, work and home phone number subfields), but disallows them in
 user login and group names.
-Use 8-bit characters with caution, as connection to the internet will
+Use 8-bit characters with caution, as connection to the Internet will
 require that your mail transport program supports 8BITMIME, and will
 convert headers containing 8-bit characters to 7-bit quoted-printable
 format.
 .Xr sendmail 8
 does support this.
-Use of 8-bit characters in the gecos field should be used in
+Use of 8-bit characters in the GECOS field should be used in
 conjunction with the user's default locale and character set
 and should not be implemented without their use.
 Using 8-bit characters may also affect other
-programs that transmit the contents of the gecos field over the
-internet, such as
+programs that transmit the contents of the GECOS field over the
+Internet, such as
 .Xr fingerd 8 ,
-and a small number of tcpip clients, such as irc, where fullnames
+and a small number of TCP/IP clients, such as IRC, where full names
 specified in the passwd file may be used by default.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd.new -compact
