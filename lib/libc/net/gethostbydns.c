@@ -103,11 +103,7 @@ static void addrsort(char **, int);
 static void dprintf(char *, int) __printflike(1, 0);
 #endif
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define	MAXPACKET	65536
 
 typedef union {
     HEADER hdr;
