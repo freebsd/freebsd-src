@@ -1108,6 +1108,16 @@ device		nsp
 device		stg0	at isa? port 0x140 irq 11
 
 #
+# Adaptec FSA RAID controllers, including integrated DELL controller,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+#
+# AAC_COMPAT_LINUX	Include code to support Linux-binary management
+#			utilities (requires Linux compatibility
+#			support).
+#
+device		aac
+
+#
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
 # controllers.
