@@ -653,7 +653,7 @@ init_md(argc, argv)
 # if defined(SYSTEM5)
 #  define _PATH_UNIX	"/unix"
 # else
-#  define _PATH_UNIX	"/vmunix"
+#  define _PATH_UNIX	"/kernel"
 # endif
 #endif
 

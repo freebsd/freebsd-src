@@ -294,7 +294,7 @@ ftpwelcome
 fts
 funopen
 gcc
-genvmunix
+genkernel
 getcap
 gettytab
 gid
@@ -411,7 +411,7 @@ netx25
 newdev
 newlfs
 news3400
-newvmunix
+newkernel
 nfs
 nfsd
 nfsiod
@@ -590,9 +590,9 @@ vax
 ventel
 vfs
 vm
-vmunix
-vmunix.net
-vmunix.tape
+kernel
+kernel.net
+kernel.tape
 vnode
 vnodes
 vol

@@ -226,7 +226,7 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 		}
 		/*
 		 * Open kvm nlist database.  We go ahead and do this
-		 * here so that we don't have to hold on to the vmunix
+		 * here so that we don't have to hold on to the kernel
 		 * path name.  Since a kvm application will surely do
 		 * a kvm_nlist(), this probably won't be a wasted effort.
 		 * If the database cannot be opened, open the namelist

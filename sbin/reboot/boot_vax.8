@@ -199,7 +199,7 @@ On any processor, the
 .Em boot
 program
 finds the corresponding file on the given device 
-.Pf ( Pa vmunix
+.Pf ( Pa kernel
 by default), loads that file
 into memory location zero, and starts the program at the entry address
 specified in the program header (after clearing off the high bit
@@ -257,26 +257,26 @@ to boot from a file system which starts at cylinder 0
 of unit 0 of a
 .Tn MASSBUS
 disk, type
-.Ql hp(0,0)vmunix
+.Ql hp(0,0)kernel
 to the boot prompt;
-.Ql hp(2,0,1,0)vmunix
+.Ql hp(2,0,1,0)kernel
 would specify drive 1 on
 .Tn MASSBUS
 adaptor 2;
-.Ql up(0,0)vmunix
+.Ql up(0,0)kernel
 would specify a
 .Tn UNIBUS
 drive,
-.Ql hk(0,0)vmunix
+.Ql hk(0,0)kernel
 would specify
 an RK07 disk drive,
-.Ql ra(1,0,0,0)vmunix
+.Ql ra(1,0,0,0)kernel
 would specify a
 .Tn UDA50
 disk drive on a second
 .Tn UNIBUS ,
 and
-.Ql rb(0,0)vmunix
+.Ql rb(0,0)kernel
 would specify a
 disk on a 730
 .Tn IDC .
@@ -299,7 +299,7 @@ In an emergency, the bootstrap methods described in the paper
 can be used to boot from a distribution tape.
 .Sh FILES
 .Bl -tag -width /usr/mdec/xxboot -compact
-.It Pa /vmunix
+.It Pa /kernel
 system code
 .It Pa /boot
 system bootstrap

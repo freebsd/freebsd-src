@@ -73,7 +73,7 @@ int	kmem;
 int	supplier;		/* process should supply updates */
 int	install;		/* if 1 call kernel */
 int	lookforinterfaces;	/* if 1 probe kernel for new up interfaces */
-int	performnlist;		/* if 1 check if /vmunix has changed */
+int	performnlist;		/* if 1 check if /kernel has changed */
 int	externalinterfaces;	/* # of remote and local interfaces */
 int	timeval;		/* local idea of time */
 int	noteremoterequests;	/* squawk on requests from non-local nets */
