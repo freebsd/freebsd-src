@@ -212,7 +212,7 @@ g_disk_start(struct bio *bp)
 		do {
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
-			bp2->bio_data -= off;
+			bp2->bio_data += off;
 			if (bp2->bio_length > dp->d_maxsize) {
 				/*
 				 * XXX: If we have a stripesize we should really
