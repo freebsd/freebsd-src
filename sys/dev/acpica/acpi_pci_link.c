@@ -53,9 +53,9 @@ struct acpi_pci_link_entry {
 	UINT8		initial_irq;
 	ACPI_RESOURCE	possible_resources;
 	UINT8		number_of_interrupts;
-	UINT8		interrupts[MAX_POSSIBLE_INTERRUPTS];;
+	UINT8		interrupts[MAX_POSSIBLE_INTERRUPTS];
 
-	UINT8		sorted_irq[MAX_POSSIBLE_INTERRUPTS];;
+	UINT8		sorted_irq[MAX_POSSIBLE_INTERRUPTS];
 	int		references;
 	int		priority;
 };
@@ -370,7 +370,6 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 		    "couldn't get current IRQ from PCI interrupt link %s - %s\n",
 		    acpi_name(handle), AcpiFormatException(error)));
-		goto out;
 	}
 
 	link->initial_irq = link->current_irq;
@@ -461,9 +460,9 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		return_ACPI_STATUS (error);
 	}
 
-	if (!(sta & ACPI_STA_ENABLE)) {
+	if (!(sta & (ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL))) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "PCI interrupt link is disabled - %s\n",
+		    "PCI interrupt link is not functional - %s\n",
 		    acpi_name(handle)));
 		return_ACPI_STATUS (AE_ERROR);
 	}
