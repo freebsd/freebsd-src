@@ -1400,9 +1400,9 @@ a Slot B module. It is normally housed in a ATX [mini]tower enclosure.
 
 Features:
 - 21264a Alpha CPU at 600 or 700 MHz in a Slot B module (includes cooling fans)
-- memory bus: 128 bits
+- memory bus: 128 bits to the L2 cache, 64 bits from Slot B to the AMD-751
 - on-board Bcache / L2 cache: 2Mb (600Mhz) or 4Mb (700Mhz) cache
-- AMD AMD-751 system controller chip
+- AMD AMD-751 ('Irongate') system controller chip
 - Acer Labs M1543C PCI-ISA bridge controller / super-IO chip
 - PS/2 mouse & keyboard port 
 - memory: 168-pin PC100 unbuffered SDRAM DIMMS
