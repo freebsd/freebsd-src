@@ -251,7 +251,7 @@ dec_axppci_33_intr_route(device_t pcib, device_t dev, int pin)
 			break;
 #ifdef DIAGNOSTIC
 		default:			/* XXX gcc -Wuninitialized */
-			panic("dec_axppci_33_intr_route bogus: PCI pin %d\n",
+			panic("dec_axppci_33_intr_route: bogus PCI pin %d\n",
 			    pin);
 #endif
 		};
