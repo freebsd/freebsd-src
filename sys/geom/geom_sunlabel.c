@@ -75,26 +75,22 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 	for (i = 0; i < SUN_NPART; i++) {
 		v = sl.sl_part[i].sdkp_cyloffset;
 		u = sl.sl_part[i].sdkp_nsectors;
-		g_topology_lock();
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
 		    ((off_t)v * csize) << 9ULL,
 		    ((off_t)u) << 9ULL,
 		    ms->sectorsize,
 		    "%s%c", gp->name, 'a' + i);
-		g_topology_unlock();
 		if (error)
 			return (error);
 	}
 	for (i = 0; i < SUN_NPART; i++) {
 		v = sl.sl_part[i].sdkp_cyloffset;
 		u = sl.sl_part[i].sdkp_nsectors;
-		g_topology_lock();
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 		    ((off_t)v * csize) << 9ULL,
 		    ((off_t)u) << 9ULL,
 		    ms->sectorsize,
 		    "%s%c", gp->name, 'a' + i);
-		g_topology_unlock();
 	}
 	ms->nalt = sl.sl_acylinders;
 	ms->nheads = sl.sl_ntracks;
@@ -128,9 +124,7 @@ g_sunlabel_hotwrite(void *arg, int flag)
 	 */
 	p = (u_char *)bp->bio_data - (bp->bio_offset + gsl->offset);
 
-	g_topology_unlock();
 	error = g_sunlabel_modify(gp, ms, p);
-	g_topology_lock();
 	if (error) {
 		g_io_deliver(bp, EPERM);
 		return;
@@ -173,7 +167,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
-	g_topology_unlock();
 	gp->dumpconf = g_sunlabel_dumpconf;
 	npart = 0;
 	do {
@@ -183,7 +176,9 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		if (ms->sectorsize < 512)
 			break;
 		mediasize = cp->provider->mediasize;
+		g_topology_unlock();
 		buf = g_read_data(cp, 0, ms->sectorsize, &error);
+		g_topology_lock();
 		if (buf == NULL || error != 0)
 			break;
 		
@@ -191,7 +186,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 		break;
 	} while (0);
-	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
 		g_std_spoiled(cp);
