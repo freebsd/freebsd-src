@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.7 2000/09/20 17:02:16 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.9 2000/10/12 00:15:52 imp Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -67,6 +67,7 @@
 #define	MII_OUI_QUALSEMI	0x006051	/* Quality Semiconductor */
 #define	MII_OUI_SEEQ	0x00a07d	/* Seeq */
 #define	MII_OUI_SIS	0x00e006	/* Silicon Integrated Systems */
+#define	MII_OUI_TDK	0x00c039	/* TDK */
 #define	MII_OUI_TI	0x080028	/* Texas Instruments */
 #define	MII_OUI_XAQTI	0x00e0ae	/* XaQti Corp. */
 
@@ -148,6 +149,10 @@
 /* Silicon Integrated Systems PHYs */
 #define	MII_MODEL_xxSIS_900	0x0000
 #define	MII_STR_xxSIS_900	"SiS 900 10/100 media interface"
+
+/* TDK */
+#define	MII_MODEL_TDK_78Q2120	0x0014
+#define	MII_STR_TDK_78Q2120	"TDK 78Q2120 media interface"
 
 /* Texas Instruments PHYs */
 #define	MII_MODEL_xxTI_TLAN10T	0x0001
