@@ -800,8 +800,7 @@ sched_nice(struct ksegrp *kg, int nice)
 	 */
 	if (kg->kg_pri_class == PRI_TIMESHARE)
 		FOREACH_KSE_IN_GROUP(kg, ke) {
-			if (ke->ke_state != KES_ONRUNQ &&
-			    ke->ke_state != KES_THREAD)
+			if (ke->ke_runq == NULL)
 				continue;
 			kseq = KSEQ_CPU(ke->ke_cpu);
 			kseq_nice_rem(kseq, kg->kg_nice);
