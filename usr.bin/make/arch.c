@@ -336,7 +336,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 
 			nameBuf = emalloc(sz);
 
-			Dir_Expand(memName, &dirSearchPath, &members);
+			Path_Expand(memName, &dirSearchPath, &members);
 			while (!Lst_IsEmpty(&members)) {
 				member = Lst_DeQueue(&members);
 				nsz = strlen(libName) + strlen(member) + 3;
@@ -1054,7 +1054,7 @@ Arch_MemMTime(GNode *gn)
  *-----------------------------------------------------------------------
  */
 void
-Arch_FindLib(GNode *gn, Lst *path)
+Arch_FindLib(GNode *gn, struct Path *path)
 {
 	char	*libName;	/* file name for archive */
 	size_t	sz;
@@ -1063,7 +1063,7 @@ Arch_FindLib(GNode *gn, Lst *path)
 	libName = emalloc(sz);
 	snprintf(libName, sz, "lib%s.a", &gn->name[2]);
 
-	gn->path = Dir_FindFile(libName, path);
+	gn->path = Path_FindFile(libName, path);
 
 	free(libName);
 
