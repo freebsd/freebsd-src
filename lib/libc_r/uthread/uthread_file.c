@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_file.c,v 1.4 1998/06/09 23:20:44 jb Exp $
+ * $Id: uthread_file.c,v 1.5 1998/09/07 21:55:01 alex Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor
@@ -82,7 +82,7 @@ struct	file_lock {
  * structures. If there is a collision, a linear search of the
  * dynamic list of locks linked to each static lock is perfomed.
  */
-#define file_idx(_p)	((((long) _p) >> sizeof(void *)) % NUM_HEADS)
+#define file_idx(_p)	((((u_long) _p) >> sizeof(void *)) % NUM_HEADS)
 
 /*
  * Global array of file locks. The first lock for each hash bucket is
@@ -122,7 +122,7 @@ find_lock(int idx, FILE *fp)
 		 * Loop through the dynamic locks looking for the
 		 * target file:
 		 */
-		while (p != NULL && p->fp != fp && p->owner != NULL)
+		while (p != NULL && (p->fp != fp || p->owner == NULL))
 			/* Not this file, try the next: */
 			p = p->entry.le_next;
 	}
