@@ -94,17 +94,17 @@ set_sysctl()
 jail_umount_fs()
 {
 	if checkyesno jail_fdescfs; then
-		if [ -d ${jail_fdescdir} ] ; then
+		if [ -d "${jail_fdescdir}" ] ; then
 			umount -f ${jail_fdescdir} >/dev/null 2>&1
 		fi
 	fi
 	if checkyesno jail_devfs; then
-		if [ -d ${jail_devdir} ] ; then
+		if [ -d "${jail_devdir}" ] ; then
 			umount -f ${jail_devdir} >/dev/null 2>&1
 		fi
 	fi
 	if checkyesno jail_procfs; then
-		if [ -d ${jail_procdir} ] ; then
+		if [ -d "${jail_procdir}" ] ; then
 			umount -f ${jail_procdir} >/dev/null 2>&1
 		fi
 	fi
@@ -132,7 +132,7 @@ jail_start()
 			devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
 
 			# Transitional symlink for old binaries
-			if [ ! -L ${jail_devdir}/log ]; then
+			if [ ! -L "${jail_devdir}/log" ]; then
 				__pwd="`pwd`"
 				cd "${jail_devdir}"
 				ln -sf ../var/run/log log
@@ -153,7 +153,7 @@ jail_start()
 		fi
 		if checkyesno jail_procfs; then
 			info "Mounting procfs onto ${jail_procdir}"
-			if [ -d ${jail_procdir} ] ; then
+			if [ -d "${jail_procdir}" ] ; then
 				mount -t procfs proc "${jail_procdir}"
 			fi
 		fi
@@ -175,9 +175,9 @@ jail_stop()
 	echo -n 'Stopping jails:'
 	for _jail in ${jail_list}
 	do
-		if [ -f /var/run/jail_${_jail}.id ]; then
+		if [ -f "/var/run/jail_${_jail}.id" ]; then
 			_jail_id=$(cat /var/run/jail_${_jail}.id)
-			if [ ! -z ${_jail_id} ]; then
+			if [ ! -z "${_jail_id}" ]; then
 				init_variables $_jail
 				killall -j ${_jail_id} -TERM > /dev/null 2>&1
 				jail_umount_fs
