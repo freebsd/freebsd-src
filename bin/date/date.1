@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.11 1997/02/22 14:02:31 peter Exp $
+.\"	$Id: date.1,v 1.8.2.1 1997/02/28 07:54:32 mpp Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -48,7 +48,7 @@
 .Op Fl t Ar minutes_west
 .Op Fl nu
 .Op Cm + Ns Ar format
-.Op [yy[mm[dd[hh]]]]mm[\&.ss]
+.Op [[[[yy]mm]dd]HH]MM[\&.ss]
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
@@ -124,9 +124,9 @@ Numeric month.
 A number from 1 to 12.
 .It Ar dd
 Day, a number from 1 to 31.
-.It Ar hh
+.It Ar HH
 Hour, a number from 0 to 23.
-.It Ar mm
+.It Ar MM
 Minutes, a number from 0 to 59.
 .It Ar .ss
 Seconds, a number from 0 to 61 (59 plus a maximum of two leap seconds).
