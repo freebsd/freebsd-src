@@ -1012,6 +1012,7 @@ pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
 	vm_page_t pml4pg;
+	static vm_pindex_t color;
 
 	/*
 	 * allocate object for the ptes
@@ -1022,14 +1023,13 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	VM_OBJECT_LOCK(pmap->pm_pteobj);
-	pml4pg = vm_page_grab(pmap->pm_pteobj, NUPDE + NUPDPE + NUPML4E,
-	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	while ((pml4pg = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+		VM_WAIT;
 	vm_page_lock_queues();
 	vm_page_flag_clear(pml4pg, PG_BUSY);
 	pml4pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
 
