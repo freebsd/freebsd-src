@@ -52,44 +52,35 @@
 #include <isofs/cd9660/cd9660_rrip.h>
 #include <isofs/cd9660/iso_rrip.h>
 
-typedef int	rrt_func_t __P((void *, ISO_RRIP_ANALYZE *ana));
+typedef int	rrt_func_t(void *, ISO_RRIP_ANALYZE *ana);
 
 typedef struct {
 	char type[2];
 	rrt_func_t *func;
-	void (*func2) __P((struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana));
+	void (*func2)(struct iso_directory_record *isodir, ISO_RRIP_ANALYZE *ana);
 	int result;
 } RRIP_TABLE;
 
-static int	cd9660_rrip_altname __P((ISO_RRIP_ALTNAME *p,
-					 ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_attr __P((ISO_RRIP_ATTR *p, ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_cont __P((ISO_RRIP_CONT *p, ISO_RRIP_ANALYZE *ana));
-static void	cd9660_rrip_defattr __P((struct iso_directory_record *isodir,
-					 ISO_RRIP_ANALYZE *ana));
-static void	cd9660_rrip_defname __P((struct iso_directory_record *isodir,
-					 ISO_RRIP_ANALYZE *ana));
-static void	cd9660_rrip_deftstamp __P((struct iso_directory_record *isodir,
-					   ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_device __P((ISO_RRIP_DEVICE *p,
-					ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_extref __P((ISO_RRIP_EXTREF *p,
-					ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_idflag __P((ISO_RRIP_IDFLAG *p,
-					ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_loop __P((struct iso_directory_record *isodir,
+static int	cd9660_rrip_altname(ISO_RRIP_ALTNAME *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_attr(ISO_RRIP_ATTR *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_cont(ISO_RRIP_CONT *p, ISO_RRIP_ANALYZE *ana);
+static void	cd9660_rrip_defattr(struct iso_directory_record *isodir,
+					 ISO_RRIP_ANALYZE *ana);
+static void	cd9660_rrip_defname(struct iso_directory_record *isodir,
+					 ISO_RRIP_ANALYZE *ana);
+static void	cd9660_rrip_deftstamp(struct iso_directory_record *isodir,
+					   ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_device(ISO_RRIP_DEVICE *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_extref(ISO_RRIP_EXTREF *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_idflag(ISO_RRIP_IDFLAG *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_loop(struct iso_directory_record *isodir,
 				      ISO_RRIP_ANALYZE *ana,
-				      RRIP_TABLE *table));
-static int	cd9660_rrip_pclink __P((ISO_RRIP_CLINK *p,
-					ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_reldir __P((ISO_RRIP_RELDIR *p,
-					ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_slink __P((ISO_RRIP_SLINK *p,
-				       ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_stop __P((ISO_SUSP_HEADER *p,
-				      ISO_RRIP_ANALYZE *ana));
-static int	cd9660_rrip_tstamp __P((ISO_RRIP_TSTAMP *p,
-					ISO_RRIP_ANALYZE *ana));
+				      RRIP_TABLE *table);
+static int	cd9660_rrip_pclink(ISO_RRIP_CLINK *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_reldir(ISO_RRIP_RELDIR *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_slink(ISO_RRIP_SLINK *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_stop(ISO_SUSP_HEADER *p, ISO_RRIP_ANALYZE *ana);
+static int	cd9660_rrip_tstamp(ISO_RRIP_TSTAMP *p, ISO_RRIP_ANALYZE *ana);
 
 /*
  * POSIX file attribute

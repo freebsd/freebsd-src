@@ -51,7 +51,7 @@ static struct bs_softc *gbsc;
 /**************************************************
  * DECLARATION
  **************************************************/
-static void bshw_force_bsmode __P((struct bs_softc *));
+static void bshw_force_bsmode(struct bs_softc *);
 
 /**************************************************
  * STATIC VAL
@@ -183,7 +183,7 @@ twiddle_wait(void)
 	delay(TWIDDLEWAIT);
 }
 
-static void bshw_set_vsp __P((struct bs_softc *, u_int, u_int8_t));
+static void bshw_set_vsp(struct bs_softc *, u_int, u_int8_t);
 
 static void
 bshw_set_vsp(bsc, chan, spva)

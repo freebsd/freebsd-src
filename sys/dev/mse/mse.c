@@ -79,13 +79,13 @@ typedef struct mse_softc {
 	bus_space_tag_t	sc_iot;
 	bus_space_handle_t sc_ioh;
 	void		*sc_ih;
-	void		(*sc_enablemouse) __P((bus_space_tag_t t,
-					       bus_space_handle_t h));
-	void		(*sc_disablemouse) __P((bus_space_tag_t t,
-						bus_space_handle_t h));
-	void		(*sc_getmouse) __P((bus_space_tag_t t,
+	void		(*sc_enablemouse)(bus_space_tag_t t,
+					       bus_space_handle_t h);
+	void		(*sc_disablemouse)(bus_space_tag_t t,
+						bus_space_handle_t h);
+	void		(*sc_getmouse)(bus_space_tag_t t,
 					    bus_space_handle_t h,
-					    int *dx, int *dy, int *but));
+					    int *dx, int *dy, int *but);
 	int		sc_deltax;
 	int		sc_deltay;
 	int		sc_obuttons;
@@ -103,9 +103,9 @@ typedef struct mse_softc {
 
 static	devclass_t	mse_devclass;
 
-static	int		mse_probe __P((device_t dev));
-static	int		mse_attach __P((device_t dev));
-static	int		mse_detach __P((device_t dev));
+static	int		mse_probe(device_t dev);
+static	int		mse_attach(device_t dev);
+static	int		mse_detach(device_t dev);
 
 static	device_method_t	mse_methods[] = {
 	DEVMETHOD(device_probe,		mse_probe),
@@ -155,7 +155,7 @@ static struct cdevsw mse_cdevsw = {
 	/* flags */	0,
 };
 
-static	void		mseintr __P((void *));
+static	void		mseintr(void *);
 static	timeout_t	msetimeout;
 
 /* Flags */
@@ -214,14 +214,14 @@ static	timeout_t	msetimeout;
 #define	MSE_DISINTR	0x10
 #define MSE_INTREN	0x00
 
-static	int		mse_probelogi __P((device_t dev, mse_softc_t *sc));
-static	void		mse_disablelogi __P((bus_space_tag_t t,
-					     bus_space_handle_t h));
-static	void		mse_getlogi __P((bus_space_tag_t t,
+static	int		mse_probelogi(device_t dev, mse_softc_t *sc);
+static	void		mse_disablelogi(bus_space_tag_t t,
+					     bus_space_handle_t h);
+static	void		mse_getlogi(bus_space_tag_t t,
 					 bus_space_handle_t h,
-					 int *dx, int *dy, int *but));
-static	void		mse_enablelogi __P((bus_space_tag_t t,
-					    bus_space_handle_t h));
+					 int *dx, int *dy, int *but);
+static	void		mse_enablelogi(bus_space_tag_t t,
+					    bus_space_handle_t h);
 
 /*
  * ATI Inport mouse definitions
@@ -234,14 +234,14 @@ static	void		mse_enablelogi __P((bus_space_tag_t t,
 #define	MSE_INPORT_HOLD		0x20
 #define	MSE_INPORT_INTREN	0x09
 
-static	int		mse_probeati __P((device_t dev, mse_softc_t *sc));
-static	void		mse_enableati __P((bus_space_tag_t t,
-					   bus_space_handle_t h));
-static	void		mse_disableati __P((bus_space_tag_t t,
-					    bus_space_handle_t h));
-static	void		mse_getati __P((bus_space_tag_t t,
+static	int		mse_probeati(device_t dev, mse_softc_t *sc);
+static	void		mse_enableati(bus_space_tag_t t,
+					   bus_space_handle_t h);
+static	void		mse_disableati(bus_space_tag_t t,
+					    bus_space_handle_t h);
+static	void		mse_getati(bus_space_tag_t t,
 					bus_space_handle_t h,
-					int *dx, int *dy, int *but));
+					int *dx, int *dy, int *but);
 
 #define	MSEPRI	(PZERO + 3)
 
@@ -252,14 +252,14 @@ static	void		mse_getati __P((bus_space_tag_t t,
  */
 static struct mse_types {
 	int	m_type;		/* Type of bus mouse */
-	int	(*m_probe) __P((device_t dev, mse_softc_t *sc));
+	int	(*m_probe)(device_t dev, mse_softc_t *sc);
 				/* Probe routine to test for it */
-	void	(*m_enable) __P((bus_space_tag_t t, bus_space_handle_t h));
+	void	(*m_enable)(bus_space_tag_t t, bus_space_handle_t h);
 				/* Start routine */
-	void	(*m_disable) __P((bus_space_tag_t t, bus_space_handle_t h));
+	void	(*m_disable)(bus_space_tag_t t, bus_space_handle_t h);
 				/* Disable interrupts routine */
-	void	(*m_get) __P((bus_space_tag_t t, bus_space_handle_t h,
-			      int *dx, int *dy, int *but));
+	void	(*m_get)(bus_space_tag_t t, bus_space_handle_t h,
+			      int *dx, int *dy, int *but);
 				/* and get mouse status */
 	mousehw_t   m_hw;	/* buttons iftype type model hwid */
 	mousemode_t m_mode;	/* proto rate res accel level size mask */

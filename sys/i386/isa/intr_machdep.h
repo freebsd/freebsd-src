@@ -139,7 +139,7 @@
 /*
  * Type of the first (asm) part of an interrupt handler.
  */
-typedef void inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
+typedef void inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
@@ -213,11 +213,10 @@ inthand_t
 
 #define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
 
-void	isa_defaultirq __P((void));
-int	isa_nmi __P((int cd));
-int	icu_setup __P((int intr, driver_intr_t *func, void *arg, 
-		       int flags));
-int	icu_unset __P((int intr, driver_intr_t *handler));
+void	isa_defaultirq(void);
+int	isa_nmi(int cd);
+int	icu_setup(int intr, driver_intr_t *func, void *arg, int flags);
+int	icu_unset(int intr, driver_intr_t *handler);
 void	icu_reinit(void);
 
 /*

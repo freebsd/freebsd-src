@@ -53,25 +53,25 @@
  * Inline phase funcs
  *****************************************************************/
 /* static inline declare */
-static BS_INLINE struct targ_info *bs_reselect __P((struct bs_softc *));
-static BS_INLINE void bs_sat_continue __P((struct bs_softc *, struct targ_info *, struct bsccb *));
-static BS_INLINE struct targ_info *bs_selected __P((struct bs_softc *, struct targ_info *, struct bsccb *));
-static BS_INLINE u_int8_t bs_read_1byte __P((struct bs_softc *));
-static BS_INLINE void bs_write_1byte __P((struct bs_softc *, u_int8_t));
-static BS_INLINE void bs_commandout __P((struct bs_softc *, struct targ_info *, struct bsccb *));
-static BS_INLINE void bs_status_check __P((struct bs_softc *, struct targ_info *));
-static BS_INLINE void bs_msgin __P((struct bs_softc *, struct targ_info *));
-static BS_INLINE void bs_msgout __P((struct bs_softc *, struct targ_info *, struct bsccb *));
-static BS_INLINE void bs_disconnect_phase __P((struct bs_softc *, struct targ_info *, struct bsccb *));
-static void bs_phase_error __P((struct targ_info *, struct bsccb *));
-static int bs_scsi_cmd_poll_internal __P((struct targ_info *));
-static int bs_xfer __P((struct bs_softc *, char *, int));
-static void bs_io_xfer __P((struct targ_info *));
-static void bs_quick_abort __P((struct targ_info *, u_int));
-static void bs_msgin_error __P((struct targ_info *, u_int));
-static void bs_msgin_ext __P((struct targ_info *));
-static void bs_msg_reject __P((struct targ_info *));
-static void bshoststart __P((struct bs_softc *, struct targ_info *));
+static BS_INLINE struct targ_info *bs_reselect(struct bs_softc *);
+static BS_INLINE void bs_sat_continue(struct bs_softc *, struct targ_info *, struct bsccb *);
+static BS_INLINE struct targ_info *bs_selected(struct bs_softc *, struct targ_info *, struct bsccb *);
+static BS_INLINE u_int8_t bs_read_1byte(struct bs_softc *);
+static BS_INLINE void bs_write_1byte(struct bs_softc *, u_int8_t);
+static BS_INLINE void bs_commandout(struct bs_softc *, struct targ_info *, struct bsccb *);
+static BS_INLINE void bs_status_check(struct bs_softc *, struct targ_info *);
+static BS_INLINE void bs_msgin(struct bs_softc *, struct targ_info *);
+static BS_INLINE void bs_msgout(struct bs_softc *, struct targ_info *, struct bsccb *);
+static BS_INLINE void bs_disconnect_phase(struct bs_softc *, struct targ_info *, struct bsccb *);
+static void bs_phase_error(struct targ_info *, struct bsccb *);
+static int bs_scsi_cmd_poll_internal(struct targ_info *);
+static int bs_xfer(struct bs_softc *, char *, int);
+static void bs_io_xfer(struct targ_info *);
+static void bs_quick_abort(struct targ_info *, u_int);
+static void bs_msgin_error(struct targ_info *, u_int);
+static void bs_msgin_ext(struct targ_info *);
+static void bs_msg_reject(struct targ_info *);
+static void bshoststart(struct bs_softc *, struct targ_info *);
 
 /*****************************************************************
  * SIM interface
@@ -1294,7 +1294,7 @@ bs_phase_error(ti, cb)
 /**************************************************
  * ### SCSI PHASE SEQUENCER ###
  **************************************************/
-static BS_INLINE void bs_ack_wait __P((struct bs_softc *, struct targ_info *, struct bsccb *));
+static BS_INLINE void bs_ack_wait(struct bs_softc *, struct targ_info *, struct bsccb *);
 
 static BS_INLINE void
 bs_ack_wait(bsc, ti, cb)

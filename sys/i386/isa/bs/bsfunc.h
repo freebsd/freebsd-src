@@ -27,6 +27,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
@@ -36,50 +38,50 @@
  * FUNC
  **************************************************/
 /* timeout */
-void bstimeout __P((void *));
+void bstimeout(void *);
 
 /* ctrl setup */
-void bs_setup_ctrl __P((struct targ_info *, u_int, u_int));
-struct targ_info *bs_init_target_info __P((struct bs_softc *, int));
+void bs_setup_ctrl(struct targ_info *, u_int, u_int);
+struct targ_info *bs_init_target_info(struct bs_softc *, int);
 
 /* msg op */
-int bs_send_msg __P((struct targ_info *, u_int, struct msgbase *, int));
-struct bsccb *bs_request_sense __P((struct targ_info *));
+int bs_send_msg(struct targ_info *, u_int, struct msgbase *, int);
+struct bsccb *bs_request_sense(struct targ_info *);
 
 /* sync msg op */
-int bs_start_syncmsg __P((struct targ_info *, struct bsccb *, int));
-int bs_send_syncmsg __P((struct targ_info *));
-int bs_analyze_syncmsg __P((struct targ_info *, struct bsccb *));
+int bs_start_syncmsg(struct targ_info *, struct bsccb *, int);
+int bs_send_syncmsg(struct targ_info *);
+int bs_analyze_syncmsg(struct targ_info *, struct bsccb *);
 
 /* reset device */
-void bs_scsibus_start __P((struct bs_softc *));
-void bs_reset_nexus __P((struct bs_softc *));
-struct bsccb *bs_force_abort __P((struct targ_info *));
-void bs_reset_device __P((struct targ_info *));
+void bs_scsibus_start(struct bs_softc *);
+void bs_reset_nexus(struct bs_softc *);
+struct bsccb *bs_force_abort(struct targ_info *);
+void bs_reset_device(struct targ_info *);
 
 /* ccb */
-struct bsccb *bs_make_internal_ccb __P((struct targ_info *, u_int, u_int8_t *, u_int, u_int8_t *, u_int, u_int, int));
-struct bsccb *bs_make_msg_ccb __P((struct targ_info *, u_int, struct bsccb *, struct msgbase *, u_int));
+struct bsccb *bs_make_internal_ccb(struct targ_info *, u_int, u_int8_t *, u_int, u_int8_t *, u_int, u_int, int);
+struct bsccb *bs_make_msg_ccb(struct targ_info *, u_int, struct bsccb *, struct msgbase *, u_int);
 
 /* misc funcs */
-void bs_printf __P((struct targ_info *, char *, char *));
-void bs_panic __P((struct bs_softc *, u_char *));
+void bs_printf(struct targ_info *, char *, char *);
+void bs_panic(struct bs_softc *, u_char *);
 
 /* misc debug */
-u_int bsr __P((u_int));
-u_int bsw __P((u_int, int));
-void bs_debug_print_all __P((struct bs_softc *));
-void bs_debug_print __P((struct bs_softc *, struct targ_info *));
+u_int bsr(u_int);
+u_int bsw(u_int, int);
+void bs_debug_print_all(struct bs_softc *);
+void bs_debug_print(struct bs_softc *, struct targ_info *);
 
 /**************************************************
  * TARG FLAGS
  *************************************************/
-static BS_INLINE int bs_check_sat __P((struct targ_info *));
-static BS_INLINE int bs_check_smit __P((struct targ_info *));
-static BS_INLINE int bs_check_disc __P((struct targ_info *));
-static BS_INLINE int bs_check_link __P((struct targ_info *, struct bsccb *));
-static BS_INLINE u_int8_t bs_identify_msg __P((struct targ_info *));
-static BS_INLINE void bs_targ_flags __P((struct targ_info *, struct bsccb *));
+static BS_INLINE int bs_check_sat(struct targ_info *);
+static BS_INLINE int bs_check_smit(struct targ_info *);
+static BS_INLINE int bs_check_disc(struct targ_info *);
+static BS_INLINE int bs_check_link(struct targ_info *, struct bsccb *);
+static BS_INLINE u_int8_t bs_identify_msg(struct targ_info *);
+static BS_INLINE void bs_targ_flags(struct targ_info *, struct bsccb *);
 
 static BS_INLINE int
 bs_check_disc(ti)
@@ -144,10 +146,10 @@ bs_targ_flags(ti, cb)
 /**************************************************
  * QUEUE OP
  **************************************************/
-static BS_INLINE void bs_hostque_init __P((struct bs_softc *));
-static BS_INLINE void bs_hostque_head __P((struct bs_softc *, struct targ_info *));
-static BS_INLINE void bs_hostque_tail __P((struct bs_softc *, struct targ_info *));
-static BS_INLINE void bs_hostque_delete __P((struct bs_softc *, struct targ_info *));
+static BS_INLINE void bs_hostque_init(struct bs_softc *);
+static BS_INLINE void bs_hostque_head(struct bs_softc *, struct targ_info *);
+static BS_INLINE void bs_hostque_tail(struct bs_softc *, struct targ_info *);
+static BS_INLINE void bs_hostque_delete(struct bs_softc *, struct targ_info *);
 
 static BS_INLINE void
 bs_hostque_init(bsc)
@@ -202,8 +204,8 @@ bs_hostque_delete(bsc, ti)
 /*************************************************************
  * TIMEOUT
  ************************************************************/
-static BS_INLINE void bs_start_timeout __P((struct bs_softc *));
-static BS_INLINE void bs_terminate_timeout __P((struct bs_softc *));
+static BS_INLINE void bs_start_timeout(struct bs_softc *);
+static BS_INLINE void bs_terminate_timeout(struct bs_softc *);
 
 static BS_INLINE void
 bs_start_timeout(bsc)

@@ -60,7 +60,7 @@
  * DEVICE DECLARE
  **************************************************/
 #ifdef __NetBSD__
-static void bs_scsi_minphys __P((struct buf *));
+static void bs_scsi_minphys(struct buf *);
 
 struct cfdriver bs_cd = {
 	NULL, "bs", DV_DULL
@@ -82,11 +82,11 @@ struct scsi_adapter pc98texa55bs = {
 #endif	/* __NetBSD__ */
 
 #ifdef __FreeBSD__
-static int bsprobe __P((struct isa_device *));
+static int bsprobe(struct isa_device *);
 static void bs_poll(struct cam_sim *sim);
 static int bsattach(struct isa_device *);
 static ointhand2_t bsintr;
-static int bs_dmarangecheck __P((caddr_t, unsigned));
+static int bs_dmarangecheck(caddr_t, unsigned);
 
 struct isa_driver bsdriver = {
 	INTR_TYPE_CAM,

@@ -68,12 +68,12 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 #define SPKRPRI PSOCK
 static char endtone, endrest;
 
-static void tone __P((unsigned int thz, unsigned int ticks));
-static void rest __P((int ticks));
-static void playinit __P((void));
-static void playtone __P((int pitch, int value, int sustain));
-static int abs __P((int n));
-static void playstring __P((char *cp, size_t slen));
+static void tone(unsigned int thz, unsigned int ticks);
+static void rest(int ticks);
+static void playinit(void);
+static void playtone(int pitch, int value, int sustain);
+static int abs(int n);
+static void playstring(char *cp, size_t slen);
 
 /* emit tone of frequency thz for given number of ticks */
 static void

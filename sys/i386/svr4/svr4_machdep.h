@@ -74,9 +74,8 @@ typedef struct {
 struct thread;
 struct svr4_ucontext;
 
-void svr4_getcontext __P((struct thread *, struct svr4_ucontext *,
-			  sigset_t *, int));
-int svr4_setcontext __P((struct thread *p, struct svr4_ucontext *));
+void svr4_getcontext(struct thread *, struct svr4_ucontext *, sigset_t *, int);
+int svr4_setcontext(struct thread *p, struct svr4_ucontext *);
 
 typedef struct {
 	svr4_gregset_t	greg;

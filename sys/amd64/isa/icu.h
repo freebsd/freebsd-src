@@ -55,8 +55,8 @@
  *	DO NOT access imen directly, use INTREN()/INTRDIS().
  */
 
-void	INTREN			__P((u_int));
-void	INTRDIS			__P((u_int));
+void	INTREN			(u_int);
+void	INTRDIS			(u_int);
 
 #ifdef APIC_IO
 extern	unsigned apic_imen;	/* APIC interrupt mask enable */

@@ -36,8 +36,8 @@
 /*********************************************************
  * static declare.
  *********************************************************/
-static void bshw_dmastart __P((struct bs_softc *));
-static void bshw_dmadone __P((struct bs_softc *));
+static void bshw_dmastart(struct bs_softc *);
+static void bshw_dmadone(struct bs_softc *);
 
 /**********************************************
  * UPPER INTERFACE FUNCS (all funcs exported)

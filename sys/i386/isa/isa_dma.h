@@ -43,14 +43,14 @@
 #define ISADMA_WRITE	0
 #define ISADMA_RAW	0x00080000
 
-void	isa_dmacascade __P((int chan));
-void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
-void	isa_dmainit __P((int chan, u_int bouncebufsize));
-void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
-int	isa_dma_acquire __P((int chan));
-void	isa_dma_release __P((int chan));
-int	isa_dmastatus __P((int chan));
-int	isa_dmastop __P((int chan));
+void	isa_dmacascade(int chan);
+void	isa_dmadone(int flags, caddr_t addr, int nbytes, int chan);
+void	isa_dmainit(int chan, u_int bouncebufsize);
+void	isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan);
+int	isa_dma_acquire(int chan);
+void	isa_dma_release(int chan);
+int	isa_dmastatus(int chan);
+int	isa_dmastop(int chan);
 #endif
 
 #endif /* !_I386_ISA_ISA_DMA_H_ */
