@@ -142,12 +142,8 @@ READ(ap)
 				break;
 			xfersize = size;
 		}
-		if (uio->uio_segflg != UIO_NOCOPY)
-			ip->i_flag |= IN_RECURSE;
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if (uio->uio_segflg != UIO_NOCOPY)
-			ip->i_flag &= ~IN_RECURSE;
 		if (error)
 			break;
 #if !defined(__FreeBSD__)
@@ -273,12 +269,8 @@ WRITE(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		if (uio->uio_segflg != UIO_NOCOPY)
-			ip->i_flag |= IN_RECURSE;
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if (uio->uio_segflg != UIO_NOCOPY)
-			ip->i_flag &= ~IN_RECURSE;
 		if (ioflag & IO_VMIO)
 			bp->b_flags |= B_RELBUF;
 
