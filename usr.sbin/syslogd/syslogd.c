@@ -371,6 +371,8 @@ main(int argc, char *argv[])
 			KeepKernFac = 1;
 			break;
 		case 'l':
+			if (strlen(optarg) >= sizeof(sunx.sun_path))
+				errx(1, "%s path too long, exiting", optarg);
 			if (nfunix < MAXFUNIX)
 				funixn[nfunix++] = optarg;
 			else
@@ -387,6 +389,8 @@ main(int argc, char *argv[])
 			use_bootfile = 1;
 			break;
 		case 'p':		/* path */
+			if (strlen(optarg) >= sizeof(sunx.sun_path))
+				errx(1, "%s path too long, exiting", optarg);
 			funixn[0] = optarg;
 			break;
 		case 'P':		/* path for alt. PID */
