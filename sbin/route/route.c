@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.16.2.5 1997/07/18 09:14:10 julian Exp $";
+	"$Id: route.c,v 1.16.2.6 1997/12/04 07:36:18 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ usage(cp)
 	if (cp)
 		warnx("bad keyword: %s", cp);
 	(void) fprintf(stderr,
-	    "usage: route [ -nqv ] cmd [[ -<qualifers> ] args ]\n");
+	    "usage: route [ -dnqtv ] cmd [[ -<qualifers> ] args ]\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
@@ -247,7 +247,7 @@ bad:			usage(*argv);
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		err(EX_OSERR, "malloc");
+		errx(EX_OSERR, "malloc failed");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-get");
 	lim = buf + needed;
@@ -820,7 +820,7 @@ getaddr(which, s, hpp)
 		su = &so_ifa;
 		break;
 	default:
-		usage("Internal Error");
+		usage("internal Error");
 		/*NOTREACHED*/
 	}
 	su->sa.sa_len = aflen;
@@ -991,7 +991,7 @@ interfaces()
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		err(EX_OSERR, "malloc");
+		errx(EX_OSERR, "malloc failed");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "actual retrieval of interface table");
 	lim = buf + needed;
@@ -1214,7 +1214,7 @@ print_getmsg(rtm, msglen)
 		return;
 	}
 	if (rtm->rtm_msglen > msglen) {
-		warnx("message length mismatch, in packet %d, returned %d\n",
+		warnx("message length mismatch, in packet %d, returned %d",
 		      rtm->rtm_msglen, msglen);
 	}
 	if (rtm->rtm_errno)  {
