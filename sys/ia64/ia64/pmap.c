@@ -972,11 +972,11 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv->pv_pmap = pmap;
 	pv->pv_va = va;
 
-	vm_page_lock_queues();
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1064,8 +1064,9 @@ pmap_find_pte(vm_offset_t va)
 
 	pte = pmap_find_vhpt(va);
 	if (!pte) {
-		pte = uma_zalloc(ptezone, M_WAITOK);
-		pte->pte_p = 0;
+		pte = uma_zalloc(ptezone, M_NOWAIT);
+		if (pte != NULL)
+			pte->pte_p = 0;
 	}
 	return pte;
 }
@@ -1530,6 +1531,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap == NULL)
 		return;
 
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 
 	va &= ~PAGE_MASK;
@@ -1541,7 +1544,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Find (or create) a pte for the given mapping.
 	 */
-	pte = pmap_find_pte(va);
+	while ((pte = pmap_find_pte(va)) == NULL) {
+		pmap_install(oldpmap);
+		PMAP_UNLOCK(pmap);
+		vm_page_unlock_queues();
+		VM_WAIT;
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
+		oldpmap = pmap_install(pmap);
+	}
 	origpte = *pte;
 
 	if (origpte.pte_p)
@@ -1588,9 +1599,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int error;
-		vm_page_lock_queues();
 		error = pmap_remove_pte(pmap, pte, va, 0, 0);
-		vm_page_unlock_queues();
 		if (error)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	}
@@ -1627,7 +1636,9 @@ validate:
 	if (!pmap_equal_pte(&origpte, pte))
 		pmap_invalidate_page(pmap, va);
 
+	vm_page_unlock_queues();
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -1648,9 +1659,19 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	pmap_t oldpmap;
 	int managed;
 
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 	oldpmap = pmap_install(pmap);
 
-	pte = pmap_find_pte(va);
+	while ((pte = pmap_find_pte(va)) == NULL) {
+		pmap_install(oldpmap);
+		PMAP_UNLOCK(pmap);
+		vm_page_unlock_queues();
+		VM_WAIT;
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
+		oldpmap = pmap_install(pmap);
+	}
 	if (pte->pte_p)
 		goto reinstall;
 	managed = 0;
@@ -1675,7 +1696,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), managed,
 		     PTE_PL_USER, PTE_AR_R);
 reinstall:
+	vm_page_unlock_queues();
 	pmap_install(oldpmap);
+	PMAP_UNLOCK(pmap);
 	return (NULL);
 }
 
