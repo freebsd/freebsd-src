@@ -20,14 +20,8 @@
 #define _DIST_DEVELOPER \
 	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_SRC)
 
-#define _DIST_XDEVELOPER \
-	(_DIST_DEVELOPER | DIST_XF86)
-
 #define _DIST_USER \
 	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_COMPAT1X | DIST_COMPAT20)
-
-#define _DIST_XUSER \
-	(_DIST_USER | DIST_XF86)
 
 
 /* Subtypes for SRC distribution */
@@ -45,8 +39,7 @@
 #define DIST_SRC_SYS		0x0800
 #define DIST_SRC_UBIN		0x1000
 #define DIST_SRC_USBIN		0x2000
-#define DIST_SRC_XF86		0x4000
-#define DIST_SRC_ALL		0x3FFF	/* Don't include XFree86 source by default */
+#define DIST_SRC_ALL		0xFFFF
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001
@@ -77,6 +70,7 @@
 #define DIST_XF86_FONTS_SCALE		0x0004
 #define DIST_XF86_FONTS_NON		0x0008
 #define DIST_XF86_FONTS_SERVER		0x0010
+#define DIST_XF86_SRC		0x2000
 #define DIST_XF86_ALL		0xFFFF
 
 #endif

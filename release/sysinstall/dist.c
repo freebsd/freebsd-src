@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.34 1995/05/29 14:38:31 jkh Exp $
+ * $Id: dist.c,v 1.35 1995/05/30 08:28:31 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,7 +73,7 @@ distSetDeveloper(char *str)
 int
 distSetXDeveloper(char *str)
 {
-    Dists = _DIST_XDEVELOPER;
+    Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     distSetXF86(NULL);
     return 0;
@@ -89,7 +89,7 @@ distSetUser(char *str)
 int
 distSetXUser(char *str)
 {
-    Dists = _DIST_XUSER;
+    Dists = _DIST_USER;
     distSetXF86(NULL);
     return 0;
 }
@@ -123,6 +123,12 @@ static int
 distSetXF86(char *str)
 {
     dmenuOpenSimple(&MenuXF86Select);
+    if (XF86ServerDists)
+	XF86Dists |= DIST_XF86_FONTS;
+    if (XF86FontDists)
+	XF86Dists |= DIST_XF86_FONTS
+    if (XF86Dists)
+	Dists |= DIST_XF86;
     return 0;
 }
 
@@ -171,8 +177,6 @@ static Distribution SrcDistTable[] = {
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
 { "subin",	"/usr/src",		&SrcDists,	DIST_SRC_UBIN,		NULL		},
 { "susbin",	"/usr/src",		&SrcDists,	DIST_SRC_USBIN,		NULL		},
-{ "XF86-xc",	"/usr/X11R6/src",	&SrcDists,	DIST_SRC_XF86,		NULL		},
-{ "XF86-co",	"/usr/X11R6/src",	&SrcDists,	DIST_SRC_XF86,		NULL		},
 { NULL },
 };
 
@@ -181,7 +185,7 @@ static Distribution XF86DistTable[] = {
 { "X311bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "X311lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
 { "X311doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
-{ "Xf86311",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "X311man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
 { "X311prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
 { "X311link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
@@ -189,7 +193,9 @@ static Distribution XF86DistTable[] = {
 { "X311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
 { "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
 { "X311xdmcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
-{ "Xf86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
+{ "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
 { NULL },
 };
 
