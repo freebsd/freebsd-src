@@ -261,20 +261,28 @@ close_locked_drive(struct drive *drive)
 
 /*
  * Remove drive from the configuration.
- * Caller must ensure that it isn't active
+ * Caller must ensure that it isn't active.
  */
 void
 remove_drive(int driveno)
 {
     struct drive *drive = &vinum_conf.drive[driveno];
-    int64_t nomagic = VINUM_NOMAGIC;			    /* no magic number */
+    struct vinum_hdr *vhdr;				    /* buffer for header */
+    int error;
 
     if (drive->state > drive_referenced) {		    /* real drive */
-	if (drive->state == drive_up)
-	    write_drive(drive,				    /* obliterate the magic, but leave a hint */
-		(char *) &nomagic,
-		8,
-		VINUM_LABEL_OFFSET);
+	if (drive->state == drive_up) {
+	    vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	/* allocate buffer */
+	    CHECKALLOC(vhdr, "Can't allocate memory");
+	    error = read_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+	    if (error)
+		drive->lasterror = error;
+	    else {
+		vhdr->magic = VINUM_NOMAGIC;		    /* obliterate the magic, but leave the rest */
+		write_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+	    }
+	    Free(vhdr);
+	}
 	free_drive(drive);				    /* close it and free resources */
 	save_config();					    /* and save the updated configuration */
     }
