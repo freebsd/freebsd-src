@@ -445,6 +445,9 @@
 /* asynchronous filesystem access */
 #define MNT2_GEN_OPT_ASYNC 0x40
 
+/* automounter filesystem (ignore) flag, used in bsdi-4.1 */
+/* #undef MNT2_GEN_OPT_AUTOMNTFS */
+
 /* cache (what?) */
 /* #undef MNT2_GEN_OPT_CACHE */
 
@@ -954,9 +957,9 @@
 #define PACKAGE "am-utils"
 
 /* Define version of package (must be defined by configure.in) */
-#define VERSION "6.0.1"
+#define VERSION "6.0.2s2"
 
-/* We pick some parameters from our local config file */
+/* We [FREEBSD-NATIVE] pick some parameters from our local config file */
 #include "config_local.h"
 
 /* Define name of host machine's cpu (eg. sparc) */
@@ -1246,6 +1249,9 @@
 /* Define if you have the seteuid function.  */
 #define HAVE_SETEUID 1
 
+/* Define if you have the setitimer function.  */
+#define HAVE_SETITIMER 1
+
 /* Define if you have the setresuid function.  */
 /* #undef HAVE_SETRESUID */
 
@@ -1317,6 +1323,9 @@
 
 /* Define if you have the vmount function.  */
 /* #undef HAVE_VMOUNT */
+
+/* Define if you have the vsnprintf function.  */
+#define HAVE_VSNPRINTF 1
 
 /* Define if you have the wait3 function.  */
 #define HAVE_WAIT3 1
@@ -1977,6 +1986,9 @@
 
 /* does seteuid() exist? */
 #define HAVE_EXTERN_SETEUID 1
+
+/* does setitimer() exist? */
+#define HAVE_EXTERN_SETITIMER 1
 
 /* does strcasecmp() exist? */
 #define HAVE_EXTERN_STRCASECMP 1
