@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.16 1995/03/16 18:12:30 bde Exp $
+ *	$Id: kern_exec.c,v 1.17 1995/03/19 23:08:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,15 +138,16 @@ interpret:
 	}
 
 	/*
-	 * Lose the lock on the vnode. It isn't needed, and must not
+	 * Check file permissions (also 'opens' file)
+	 */
+	error = exec_check_permissions(iparams);
+
+	/*
+	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
 	VOP_UNLOCK(vnodep);
 
-	/*
-	 * Check file permissions (also 'opens' file)
-	 */
-	error = exec_check_permissions(iparams);
 	if (error)
 		goto exec_fail_dealloc;
 
