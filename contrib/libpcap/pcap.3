@@ -685,16 +685,6 @@ to the type specified by
 .B \-1
 is returned on failure.
 .PP
-.B pcap_datalink_name_to_val()
-translates a data link type name, which is a
-.B DLT_
-name with the
-.B DLT_
-removed, to the corresponding data link type value.  The translation
-is case-insensitive.  
-is used to set the current data link type of the pcap descriptor
-NULL is returned on failure.
-.PP
 .B pcap_snapshot()
 returns the snapshot length specified when
 .B pcap_open_live
