@@ -588,7 +588,8 @@ validate_access(char **filep, int mode)
 		return (errno + 100);
 	file = fdopen(fd, (mode == RRQ)? "r":"w");
 	if (file == NULL) {
-		return errno+100;
+		close(fd);
+		return (errno + 100);
 	}
 	return (0);
 }
