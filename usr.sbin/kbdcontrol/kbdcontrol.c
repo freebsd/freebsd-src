@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.12 1998/01/07 08:43:27 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.13 1998/01/12 23:53:26 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -650,8 +650,8 @@ load_keymap(char *opt, int dumponly)
 	FILE	*fd;
 	int	i;
 	char	*name, *cp;
-	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
-	char	*postfix[] = {"", ".kbd", ".kbd"};
+	char	*prefix[]  = {"", "", KEYMAP_PATH, KEYMAP_PATH, NULL};
+	char	*postfix[] = {"", ".kbd", "", ".kbd"};
 
 	for (i=0; prefix[i]; i++) {
 		name = mkfullname(prefix[i], opt, postfix[i]);
