@@ -48,6 +48,7 @@
 
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
+#include <dev/mlx/mlxreg.h>
 
 #if 0
 #define debug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
