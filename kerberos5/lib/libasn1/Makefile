@@ -71,8 +71,6 @@ INCLUDES=krb5_asn1.h asn1_err.h
 .PATH:		${KRB5DIR}/lib/vers
 .PATH:		${KRB5DIR}/lib/roken
 
-build-tools:	make-print-version asn1_compile
-
 beforedepend all: roken.h
 
 .for I in ${GEN}
@@ -114,7 +112,7 @@ parse.h parse.c:	parse.y
 	mv y.tab.c parse.c
 	mv y.tab.h parse.h
 
-lex.o:		lex.l parse.h
+lex.o:		lex.l parse.h roken.h
 
 print_version.o: print_version.h print_version.c roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
