@@ -13,7 +13,7 @@
 .\"     @(#)kbdcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2001
+.Dd January 7, 2005
 .Dt KBDCONTROL 1
 .Os
 .Sh NAME
@@ -214,7 +214,7 @@ for example the first USB keyboard (see
 .Xr ukbd 4 ) ,
 use the following commands.
 .Pp
-.Dl kbdcontrol -k /dev/kbd1 < /dev/console
+.Dl kbdcontrol -k /dev/ukbd0 < /dev/console
 .Pp
 To switch back to the default keyboard, use this command.
 .Pp
