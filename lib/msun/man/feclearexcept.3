@@ -58,7 +58,9 @@ whereas
 .Fn feraiseexcept
 raises the specified exceptions.
 Raising an exception causes the corresponding flag to be set,
-and a SIGFPE is delivered to the process if the exception is unmasked.
+and a
+.Dv SIGFPE
+is delivered to the process if the exception is unmasked.
 .Pp
 The
 .Fn fetestexcept
