@@ -2123,6 +2123,8 @@ device		ukbd
 device		ulpt
 # USB Iomega Zip 100 Drive (Requires scbus and da)
 device		umass
+# USB support for Belkin F5U109 and Magic Control Technology serial adapters
+device		umct
 # USB modem support
 device		umodem
 # USB mouse

@@ -794,6 +794,7 @@ dev/usb/uhub.c		optional usb
 dev/usb/ukbd.c		optional ukbd
 dev/usb/ulpt.c		optional ulpt
 dev/usb/umass.c		optional umass
+dev/usb/umct.c		optional umct
 dev/usb/umodem.c	optional umodem
 dev/usb/ums.c		optional ums
 dev/usb/uplcom.c	optional uplcom ucom
