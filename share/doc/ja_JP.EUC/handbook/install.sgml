@@ -1,6 +1,6 @@
-<!-- $Id: install.sgml,v 1.2 1996/12/06 10:10:40 max Exp $ -->
+<!-- $Id: install.sgml,v 1.3 1996/12/19 16:49:23 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.42 -->
+<!-- Original revision: 1.44 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -321,11 +321,23 @@ Boot:
 
 	<item> Digiboard Sync/570i high-speed 同期シリアルカード
 
+	<item>Decision-Computer Intl. "Eight-Serial" 8 ポートシリアルカード
+		(シェアード IRQ 使用)
+
 	<item> Adlib, SoundBlaster, SoundBlaster Pro,
 	ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
 	 Roland MPU-401 などのサウンドカード
-	  </itemize>
 
+	<item>Matrox Meteor video フレームグラバー
+
+	<item>Creative Labs Video spigot フレームグラバー
+
+	<item>Omnimedia Talisman フレームグラバー
+
+	<item>X-10 power コントローラ
+
+	<item>PC ジョイスティックおよびスピーカ
+	  </itemize>
 	FreeBSD は今のところ, IBM社のマイクロチャネルアーキテクチャ (MCA) バスには
 	対応していません. 
 
@@ -463,15 +475,7 @@ C> XCOPY /S E:\MANPAGES C:\FREEBSD\MANPAGES\
 	MS-DOS からたくさんの `配布ファイル (DISTS)' をインストールしたい 
 	 (そしてディスクの余裕がある) 場合は, それぞれ <tt>C:&bsol;FREEBSD</tt> 
 	ディレクトリにコピーします - <tt>BIN</tt> 配布ファイルは, 
-	最低限必要なものです. 配布されているすべてのファイルをコピーするのに
-	十分な容量が MS-DOS パーティションにある場合は, 最後の行をこのようにします. 
-
-<tscreen><verb>
-C> XCOPY /S E:\DISTS C:\FREEBSD\
-</verb></tscreen>
-	こうすることで, <tt>E:&bsol;DISTS</tt> の下のディレクトリ構造が
-	まるごと <tt>C:&bsol;FREEBSD</tt> にコピーされます. 
-
+	最低限必要なものです.
 
       <sect1><heading>QIC/SCSI テープからのインストールの前に</heading>
 
