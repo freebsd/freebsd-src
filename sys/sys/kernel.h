@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.31 1997/05/29 04:50:23 peter Exp $
+ * $Id: kernel.h,v 1.32 1997/06/22 16:04:20 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -66,6 +66,7 @@ extern struct timeval time;		/* nonvolatile at ipl >= splclock() */
 extern struct timezone tz;			/* XXX */
 
 extern int tick;			/* usec per tick (1000000 / hz) */
+extern int tickadj;			/* "standard" clock skew, us./tick */
 extern int hz;				/* system clock's frequency */
 extern int psratio;			/* ratio: prof / stat */
 extern int stathz;			/* statistics clock's frequency */
