@@ -37,7 +37,12 @@ static const char rcsid[] =
 
 static FILE *in;
 static int includes = 0;
-static FILE *files[MAXINCLUDES] = {NULL, };
+static struct {
+	FILE	*filep;
+	char	*filename;
+	int	lineno;
+} configfiles[MAXINCLUDES] = {{NULL, NULL, 0}, };
+
 static int pushc, pusht;
 static int lineno;
 static char *filename;
@@ -114,12 +119,15 @@ readfile(char *name)
 		die("readfile");
 	}
 	for (i = 0; i < MAXINCLUDES; i++) {
-		if (files[i]) {
-			fclose(files[i]);
-			files[i] = NULL;
+		if (configfiles[i].filep) {
+			fclose(configfiles[i].filep);
+			configfiles[i].filep = NULL;
 		}
 	}
-	files[includes = 0] = in;
+	includes = 0;
+	configfiles[includes].filep = in;
+	filename = configfiles[includes].filename = name;
+
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
@@ -132,50 +140,54 @@ static void
 parsefile(void)
 {
 	int     i;
-	int     irq_init = 0;
-	int     io_init = 0;
-	struct allocblk *bp;
+	int     errors = 0;
+	struct allocblk *bp, *next;
 	char	*incl;
 
 	pushc = 0;
 	lineno = 1;
-	for (i = 0; i < 16 ; i++) 
-		if (pool_irq[i]) {
-			irq_init = 1;
-			break;
-		}
 	for (;;)
 		switch (keyword(next_tok())) {
 		case KWD_EOF:
 			/* EOF */
 			return;
 		case KWD_IO:
-			/* reserved I/O blocks */
-			while ((bp = ioblk_tok(0)) != 0) {
-				if (!io_init) {
-					if (bp->size == 0 || bp->addr == 0) {
-						free(bp);
-						continue;
-					}
-					bit_nset(io_avail, bp->addr,
-						 bp->addr + bp->size - 1);
-					bp->next = pool_ioblks;
-					pool_ioblks = bp;
-				}
+			/* override reserved I/O blocks */
+			bit_nclear(io_avail, 0, IOPORTS-1);
+			for (bp = pool_ioblks; bp; bp = next) {
+				next = bp->next;
+				free(bp);
 			}
-			io_init = 1;
+			pool_ioblks = NULL;
+
+			while ((bp = ioblk_tok(0)) != 0) {
+				if (bp->size == 0 || bp->addr == 0) {
+					free(bp);
+					continue;
+				}
+				bit_nset(io_avail, bp->addr,
+					 bp->addr + bp->size - 1);
+				bp->next = pool_ioblks;
+				pool_ioblks = bp;
+			}
 			pusht = 1;
 			break;
 		case KWD_IRQ:
-			/* reserved irqs */
+			/* override reserved irqs */
+			bzero(pool_irq, sizeof(pool_irq));
 			while ((i = irq_tok(0)) > 0)
-				if (!irq_init)
-					pool_irq[i] = 1;
-			irq_init = 1;
+				pool_irq[i] = 1;
 			pusht = 1;
 			break;
 		case KWD_MEMORY:
-			/* reserved memory blocks. */
+			/* override reserved memory blocks. */
+			bit_nclear(mem_avail, 0, MEMBLKS-1);
+			for (bp = pool_mem; bp; bp = next) {
+				next = bp->next;
+				free(bp);
+			}
+			pool_mem = NULL;
+
 			while ((bp = memblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
 					free(bp);
@@ -204,6 +216,10 @@ parsefile(void)
 		default:
 			error("syntax error");
 			pusht = 0;
+			if (errors++ >= MAXERRORS) {
+				error("too many errors, giving up");
+				return;
+			}
 			break;
 		}
 }
@@ -228,8 +244,13 @@ parse_card(void)
 	cp->manuf = man;
 	cp->version = vers;
 	cp->reset_time = 50;
-	cp->next = cards;
-	cards = cp;
+	cp->next = 0;
+	if (!last_card) {
+		cards = last_card = cp;
+	} else {
+		last_card->next = cp;
+		last_card = cp;
+	}
 	for (;;) {
 		switch (keyword(next_tok())) {
 		case KWD_CONFIG:
@@ -367,6 +388,11 @@ ioblk_tok(int force)
 	struct allocblk *io;
 	int     i, j;
 
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_IO) {
+		pusht = 1;
+	}
+
 	if ((i = num_tok()) >= 0) {
 		if (strcmp("-", next_tok()) || (j = num_tok()) < 0 || j < i) {
 			error("I/O block format error");
@@ -399,6 +425,11 @@ memblk_tok(int force)
 	struct allocblk *mem;
 	int     i, j;
 
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_MEMORY) {
+		pusht = 1;
+	}
+
 	if ((i = num_tok()) >= 0) {
 		if ((j = num_tok()) < 0)
 			error("illegal memory block");
@@ -430,6 +461,11 @@ static int
 irq_tok(int force)
 {
 	int     i;
+
+	/* ignore the keyword to allow separete blocks in multiple lines */
+	if (keyword(next_tok()) != KWD_IRQ) {
+		pusht = 1;
+	}
 
 	if (strcmp("?", next_tok()) == 0 && force)
 		return (0);
@@ -731,8 +767,11 @@ _next_tok(void)
 		case EOF:
 			if (includes) {
 				fclose(in);
+				/* go back to previous config file */
 				includes--;
-				in = files[includes];
+				in = configfiles[includes].filep;
+				filename = configfiles[includes].filename;
+				lineno = configfiles[includes].lineno;
 				return _next_tok();	/* recursive */
 			}
 			if (p != buf) {
@@ -773,17 +812,53 @@ getline(void)
  *	Include configuration file
  */
 static void
-file_include(char *filename)
+file_include(char *incl)
 {
-	FILE *fp;
+	int	i, included;
+	FILE	*fp;
 
-	includes++;
+	/* check nesting overflow */
 	if (includes >= MAXINCLUDES) {
-		error("include nesting overflow");
+		if (debug_level >= 1) {
+			logmsg("%s: include nesting overflow "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
 	}
-	if (!(fp = fopen(filename, "r"))) {
-		error("can't open include file");
-		includes--;
+
+	/* check recursive inclusion */
+	for (i = 0, included = 0; i <= includes; i++) {
+		if (strcmp(incl, configfiles[i].filename) == 0) {
+			included = 1;
+			break;
+		}
 	}
-	in = files[includes] = fp;
+	if (included == 1) {
+		if (debug_level >= 1) {
+			logmsg("%s: can't include the same file twice "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
+	}
+
+	if (!(fp = fopen(incl, "r"))) {
+		if (debug_level >= 1) {
+			logmsg("%s: can't open include file "
+			    "at line %d, near %s\n", filename, lineno, incl);
+		}
+		free(incl);
+		goto out;
+	}
+
+	/* save line number of the current config file */
+	configfiles[includes].lineno = lineno;
+
+	/* now we start parsing new config file */
+	includes++;
+	in = configfiles[includes].filep = fp;
+	filename = configfiles[includes].filename = incl;
+out:
+	return;
 }
