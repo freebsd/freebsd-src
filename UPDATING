@@ -51,7 +51,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjcla
 
 20011126:
 	You need to remove /usr/obj/.../usr.bin/tip before rebuilding
-	after this date.
+	after this date.  You need to do this only once.
 
 20011103:
 	Most of the awk issues have been resolved.  Some rough
