@@ -1029,7 +1029,12 @@ spewerror:
 		goto out;
 
 	status = errno;		/* save errno for warn(), below, if needed */
-	display(fs, total_length, -1); /* do here in case we have to warn */
+	if (display(fs, total_length, -1) != 0) {
+		/* Check for truncated file */
+		errno = status;
+		status = EX_PROTOCOL;
+		goto out;
+	}
 	errno = status;
 
 	if (ferror(remote)) {

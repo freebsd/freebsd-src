@@ -314,8 +314,11 @@ catchsig(int sig)
 	siglongjmp(sigbuf, sig);
 }
 
-/* Used to generate the progress display when not in quiet mode. */
-void
+/* 
+ * Used to generate the progress display when not in quiet mode.
+ * Return != 0 when the file appears to be truncated.
+ */
+int
 display(struct fetch_state *fs, off_t size, ssize_t n)
 {
     static off_t bytes;
@@ -326,9 +329,12 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
     struct timezone tz;
     struct timeval t;
     float d;
-    
-    if (!fs->fs_verbose)
-	return;
+    int truncated;
+
+    if (size != -1 && n == -1 && bytes != size) {
+	    truncated = 1;
+    } else
+	    truncated = 0;
     if (init == 0) {
 	init = 1;
 	gettimeofday(&t0, &tz);
@@ -341,13 +347,14 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 		     size ? "" : " [appending]");
 	else
 	    asprintf (&s, "Receiving %s", fs->fs_outputfile);
-	fprintf (stderr, "%s", s);
+	if (fs->fs_verbose)
+	    fprintf (stderr, "%s", s);
 	bytestart = bytes = n;
-	return;
+	goto out;
     }
     gettimeofday(&t, &tz);
     if (n == -1) {
-	if(stdoutatty) {
+	if(stdoutatty && fs->fs_verbose) {
 	    if (size > 0) 
 		fprintf (stderr, "\r%s: 100%%", s);
 	    else
@@ -355,26 +362,29 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	}
 	bytes -= bytestart;
 	d = t.tv_sec + t.tv_usec/1.e6 - t_start.tv_sec - t_start.tv_usec/1.e6;
-	fprintf (stderr, "\n%qd bytes transferred in %.1f seconds",
-	    (long long)bytes, d); 
+	if (fs->fs_verbose)
+		fprintf (stderr, "\n%qd bytes transferred in %.1f seconds",
+		    (long long)bytes, d); 
 	d = bytes/d;
-	if (d < 1000)
-	    fprintf (stderr, "  (%.0f bytes/s)\n", d);
-	else {
-	    d /=1024;
-	    fprintf (stderr, "  (%.2f Kbytes/s)\n", d);
+	if (fs->fs_verbose) {
+		if (d < 1000)
+		    fprintf (stderr, "  (%.0f bytes/s)\n", d);
+		else {
+		    d /=1024;
+		    fprintf (stderr, "  (%.2f Kbytes/s)\n", d);
+		}
 	}
 	free(s);
 	init = 0;
-	return;
+	goto out;
     }
     bytes += n;
     d = t.tv_sec + t.tv_usec/1.e6 - t0.tv_sec - t0.tv_usec/1.e6;
     if (d < 5)		/* display every 5 sec. */
-	return;
+	goto out;
     t0 = t;
     pr++;
-    if(stdoutatty) {
+    if(stdoutatty && fs->fs_verbose) {
 	if (size > 1000000) 
 	    fprintf (stderr, "\r%s: %2qd%%", s, (long long)(bytes/(size/100)));
 	else if (size > 0) 
@@ -382,5 +392,11 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	else
 	    fprintf (stderr, "\r%s: %qd Kbytes", s, (long long)(bytes/1024));
     }
+out:
+    if (truncated != 0)
+	fprintf(stderr, "WARNING: File %s appears to be truncated: "
+			"%qd/%qd bytes\n", 
+			fs->fs_outputfile,
+			(quad_t)bytes, (quad_t)size);
+    return truncated;
 }
-
