@@ -341,6 +341,7 @@ all)
 	sh MAKEDEV agpgart				# cdev, AGP
 	sh MAKEDEV nsmb0				# cdev, SMB/CIFS
 	sh MAKEDEV crypto				# cdev, crypto
+	sh MAKEDEV fw0 fw1 fw2 fw3 fwmem0		# cdev, firewire
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
