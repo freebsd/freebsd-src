@@ -831,8 +831,7 @@ struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 void	adjustrunqueue(struct thread *, int newpri);
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
-int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum,
-	    int pedantic);
+int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
 int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 	    struct session *sess);
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
@@ -849,8 +848,7 @@ void	mi_switch(int flags, struct thread *newtd);
 int	p_candebug(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
 int	p_cansched(struct thread *td, struct proc *p);
-int	p_cansignal(struct thread *td, struct proc *p, int signum,
-	    int pedantic);
+int	p_cansignal(struct thread *td, struct proc *p, int signum);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_free(struct pargs *pa);

@@ -1427,7 +1427,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, conservative_signals, CTLFLAG_RW,
  * References: cred and proc must be valid for the lifetime of the call.
  */
 int
-cr_cansignal(struct ucred *cred, struct proc *proc, int signum, int pedantic)
+cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 {
 	int error;
 
@@ -1453,7 +1453,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum, int pedantic)
 	 * bit on the target process.  If the bit is set, then additional
 	 * restrictions are placed on the set of available signals.
 	 */
-	if (conservative_signals && (proc->p_flag & P_SUGID) && pedantic) {
+	if (conservative_signals && (proc->p_flag & P_SUGID)) {
 		switch (signum) {
 		case 0:
 		case SIGKILL:
@@ -1467,6 +1467,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum, int pedantic)
 		case SIGHUP:
 		case SIGUSR1:
 		case SIGUSR2:
+		case SIGTHR:
 			/*
 			 * Generally, permit job and terminal control
 			 * signals.
@@ -1507,7 +1508,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum, int pedantic)
  * References: td and p must be valid for the lifetime of the call
  */
 int
-p_cansignal(struct thread *td, struct proc *p, int signum, int pedantic)
+p_cansignal(struct thread *td, struct proc *p, int signum)
 {
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
@@ -1524,7 +1525,7 @@ p_cansignal(struct thread *td, struct proc *p, int signum, int pedantic)
 	if (signum == SIGCONT && td->td_proc->p_session == p->p_session)
 		return (0);
 
-	return (cr_cansignal(td->td_ucred, p, signum, pedantic));
+	return (cr_cansignal(td->td_ucred, p, signum));
 }
 
 /*-

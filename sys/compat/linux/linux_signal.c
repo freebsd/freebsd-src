@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD$")
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -435,5 +435,5 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 		tmp.signum = args->signum;
 
 	tmp.pid = args->pid;
-	return (kern_kill(td, &tmp, 0));
+	return (kill(td, &tmp));
 }
