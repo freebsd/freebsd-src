@@ -67,7 +67,7 @@ his/her identity to the remote machine using one of several methods.
 First, if the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
-.Pa /etc/shosts.equiv
+.Pa /etc/ssh/shosts.equiv
 on the remote machine, and the user names are
 the same on both sides, the user is immediately permitted to log in.
 Second, if 
@@ -90,10 +90,10 @@ means that if the login would be permitted by
 .Pa \&.shosts ,
 .Pa /etc/hosts.equiv ,
 or
-.Pa /etc/shosts.equiv ,
+.Pa /etc/ssh/shosts.equiv ,
 and if additionally the server can verify the client's
 host key (see 
-.Pa /etc/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts
 and
 .Pa $HOME/.ssh/known_hosts
 in the
@@ -251,7 +251,7 @@ identifications for all hosts it has ever been used with.  The
 database is stored in 
 .Pa \&.ssh/known_hosts
 in the user's home directory.  Additionally, the file 
-.Pa /etc/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts
 is automatically checked for known hosts.  Any new hosts are
 automatically added to the user's file.  If a host's identification
 ever changes,
@@ -435,7 +435,7 @@ obtains configuration data from the following sources (in this order):
 command line options, user's configuration file
 .Pq Pa $HOME/.ssh/config ,
 and system-wide configuration file
-.Pq Pa /etc/ssh_config .
+.Pq Pa /etc/ssh/ssh_config .
 For each parameter, the first obtained value
 will be used.  The configuration files contain sections bracketed by
 "Host" specifications, and that section is only applied for hosts that
@@ -571,7 +571,7 @@ The default is
 .Dq no .
 .It Cm GlobalKnownHostsFile
 Specifies a file to use instead of 
-.Pa /etc/ssh_known_hosts .
+.Pa /etc/ssh/ssh_known_hosts .
 .It Cm HostName
 Specifies the real host name to log into.  This can be used to specify
 nicnames or abbreviations for hosts.  Default is the name given on the
@@ -713,7 +713,7 @@ ssh will never automatically add host keys to the
 file, and refuses to connect hosts whose host key has changed.  This
 provides maximum protection against trojan horse attacks.  However, it
 can be somewhat annoying if you don't have good
-.Pa /etc/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts
 files installed and frequently
 connect new hosts.  Basically this option forces the user to manually
 add any new hosts.  Normally this option is disabled, and new hosts
@@ -820,7 +820,7 @@ to the environment.
 .It Pa $HOME/.ssh/known_hosts
 Records host keys for all hosts the user has logged into (that are not
 in
-.Pa /etc/ssh_known_hosts ) .
+.Pa /etc/ssh/ssh_known_hosts ) .
 See
 .Xr sshd 8 .
 .It Pa $HOME/.ssh/identity
@@ -859,7 +859,7 @@ identity files (that is, each line contains the number of bits in
 modulus, public exponent, modulus, and comment fields, separated by
 spaces).  This file is not highly sensitive, but the recommended
 permissions are read/write for the user, and not accessible by others.
-.It Pa /etc/ssh_known_hosts
+.It Pa /etc/ssh/ssh_known_hosts
 Systemwide list of known host keys.  This file should be prepared by the
 system administrator to contain the public host keys of all machines in the
 organization.  This file should be world-readable.  This file contains
@@ -878,7 +878,7 @@ to verify the client host when logging in; other names are needed because
 does not convert the user-supplied name to a canonical name before
 checking the key, because someone with access to the name servers
 would then be able to fool host authentication.
-.It Pa /etc/ssh_config
+.It Pa /etc/ssh/ssh_config
 Systemwide configuration file.  This file provides defaults for those
 values that are not specified in the user's configuration file, and
 for those users who do not have a configuration file.  This file must
@@ -905,7 +905,7 @@ Note that by default
 will be installed so that it requires successful RSA host
 authentication before permitting \s+2.\s0rhosts authentication.  If your
 server machine does not have the client's host key in
-.Pa /etc/ssh_known_hosts ,
+.Pa /etc/ssh/ssh_known_hosts ,
 you can store it in
 .Pa $HOME/.ssh/known_hosts .
 The easiest way to do this is to
@@ -932,13 +932,13 @@ manual page).  If the client host is found in this file, login is
 automatically permitted provided client and server user names are the
 same.  Additionally, successful RSA host authentication is normally
 required.  This file should only be writable by root.
-.It Pa /etc/shosts.equiv
+.It Pa /etc/ssh/shosts.equiv
 This file is processed exactly as 
 .Pa /etc/hosts.equiv .
 This file may be useful to permit logins using
 .Nm
 but not using rsh/rlogin.
-.It Pa /etc/sshrc
+.It Pa /etc/ssh/sshrc
 Commands in this file are executed by
 .Nm
 when the user logs in just before the user's shell (or command) is started.
