@@ -431,27 +431,28 @@ static struct {
     int s[A_TIMEOUT + 1];
     int buttons;
     int mask;
+    int timeout;
 } states[10] = {
     /* S0 */
-    { { S0, S2, S1, S3, S0 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN) },
+    { { S0, S2, S1, S3, S0 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN), FALSE },
     /* S1 */
-    { { S4, S2, S1, S3, S5 }, 0, ~MOUSE_BUTTON1DOWN },
+    { { S4, S2, S1, S3, S5 }, 0, ~MOUSE_BUTTON1DOWN, FALSE },
     /* S2 */
-    { { S8, S2, S1, S3, S6 }, 0, ~MOUSE_BUTTON3DOWN },
+    { { S8, S2, S1, S3, S6 }, 0, ~MOUSE_BUTTON3DOWN, FALSE },
     /* S3 */
-    { { S0, S9, S9, S3, S3 }, MOUSE_BUTTON2DOWN, ~0 },
+    { { S0, S9, S9, S3, S3 }, MOUSE_BUTTON2DOWN, ~0, FALSE },
     /* S4 */
-    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON1DOWN, ~0 },
+    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON1DOWN, ~0, TRUE },
     /* S5 */
-    { { S0, S2, S5, S7, S5 }, MOUSE_BUTTON1DOWN, ~0 },
+    { { S0, S2, S5, S7, S5 }, MOUSE_BUTTON1DOWN, ~0, FALSE },
     /* S6 */
-    { { S0, S6, S1, S7, S6 }, MOUSE_BUTTON3DOWN, ~0 },
+    { { S0, S6, S1, S7, S6 }, MOUSE_BUTTON3DOWN, ~0, FALSE },
     /* S7 */
-    { { S0, S6, S5, S7, S7 }, MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, ~0 },
+    { { S0, S6, S5, S7, S7 }, MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, ~0, FALSE },
     /* S8 */
-    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON3DOWN, ~0 },
+    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON3DOWN, ~0, TRUE },
     /* S9 */
-    { { S0, S9, S9, S3, S9 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN) },
+    { { S0, S9, S9, S3, S9 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN), FALSE },
 };
 static int		mouse_button_state;
 static struct timeval	mouse_button_state_tv;
@@ -618,8 +619,6 @@ main(int argc, char *argv[])
 		}
 		rodent.zmap[0] = i;
 		rodent.zmap[1] = i + 1;
-		mstate[i - 1] = &zstate[0];
-		mstate[i] = &zstate[1];
 		debug("optind: %d, optarg: '%s'", optind, optarg);
 		for (j = 1; j < 4; ++j) {
 		    if ((optind >= argc) || !isdigit(*argv[optind]))
@@ -630,17 +629,10 @@ main(int argc, char *argv[])
 			usage();
 		    }
 		    rodent.zmap[j] = i;
-		    mstate[i - 1] = &zstate[j];
 		    ++optind;
 		}
-		if ((rodent.zmap[2] != 0) && (rodent.zmap[3] == 0)) {
+		if ((rodent.zmap[2] != 0) && (rodent.zmap[3] == 0))
 		    rodent.zmap[3] = rodent.zmap[2] + 1;
-		    mstate[rodent.zmap[3] - 1] = &zstate[3];
-		}
-		for (i = 0; i < 4; ++i) {
-		    if (rodent.zmap[i] != 0)
-			rodent.zmap[i] = 1 << (rodent.zmap[i] - 1);
-		}
 	    }
 	    break;
 
@@ -710,6 +702,17 @@ main(int argc, char *argv[])
 	default:
 	    usage();
 	}
+
+    /* fix Z axis mapping */
+    for (i = 0; i < 4; ++i) {
+	if (rodent.zmap[i] > 0) {
+	    for (j = 0; j < MOUSE_MAXBUTTON; ++j) {
+		if (mstate[j] == &bstate[rodent.zmap[i] - 1])
+		    mstate[j] = &zstate[i];
+	    }
+	    rodent.zmap[i] = 1 << (rodent.zmap[i] - 1);
+	}
+    }
 
     /* the default port name */
     switch(rodent.rtype) {
@@ -2167,6 +2170,8 @@ r_timeout(void)
     struct timeval tv1;
     struct timeval tv2;
 
+    if (states[mouse_button_state].timeout)
+	return TRUE;
     gettimeofday(&tv1, NULL);
     tv2.tv_sec = rodent.button2timeout/1000;
     tv2.tv_usec = (rodent.button2timeout%1000)*1000;
