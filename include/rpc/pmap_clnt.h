@@ -1,4 +1,3 @@
-/* @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC; from 1.11 88/02/08 SMI */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,6 +25,10 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI 
+ *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
+ *	$Id: pmap_clnt.h,v 1.1 1993/10/27 05:40:33 paul Exp $
  */
 
 /*
@@ -57,9 +60,25 @@
  *		address if the responder to the broadcast.
  */
 
-extern bool_t		pmap_set();
-extern bool_t		pmap_unset();
-extern struct pmaplist	*pmap_getmaps();
-enum clnt_stat		pmap_rmtcall();
-enum clnt_stat		clnt_broadcast();
-extern u_short		pmap_getport();
+#ifndef _RPC_PMAPCLNT_H
+#define _RPC_PMAPCLNT_H
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+extern bool_t		pmap_set	__P((u_long, u_long, int, int));
+extern bool_t		pmap_unset	__P((u_long, u_long));
+extern struct pmaplist	*pmap_getmaps	__P((struct sockaddr_in *));
+extern enum clnt_stat	pmap_rmtcall	__P((struct sockaddr_in *,
+					     u_long, u_long, u_long,
+					     xdrproc_t, caddr_t,
+					     xdrproc_t, caddr_t,
+					     struct timeval, u_long *));
+extern enum clnt_stat	clnt_broadcast	__P((u_long, u_long, u_long,
+					     xdrproc_t, char *,
+					     xdrproc_t, char *,
+					     bool_t (*)()));
+extern u_short		pmap_getport	__P((struct sockaddr_in *,
+					     u_long, u_long, u_int));
+__END_DECLS
+
+#endif /* !_RPC_PMAPCLNT_H */
