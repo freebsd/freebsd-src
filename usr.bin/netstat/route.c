@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -513,20 +514,12 @@ p_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags, int width)
 			switch (sdl->sdl_type) {
 
 			case IFT_ETHER:
-			    {
-				register int i;
-				register u_char *lla = (u_char *)sdl->sdl_data +
-				    sdl->sdl_nlen;
-
-				cplim = "";
-				for (i = 0; i < sdl->sdl_alen; i++, lla++) {
-					cp += sprintf(cp, "%s%x", cplim, *lla);
-					cplim = ":";
+				if (sdl->sdl_alen == ETHER_ADDR_LEN) {
+					cp = ether_ntoa((struct ether_addr *)
+					    sdl->sdl_data + sdl->sdl_nlen);
+					break;
 				}
-				cp = workbuf;
-				break;
-			    }
-
+				/* FALLTHROUGH */
 			default:
 				cp = link_ntoa(sdl);
 				break;
