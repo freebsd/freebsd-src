@@ -285,7 +285,15 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	/* bump refcounts, reset and unlock any channels that we just opened */
 	if (rdch) {
 		if (flags & FREAD) {
-	        	chn_reset(rdch, fmt);
+	        	if (chn_reset(rdch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(rdch);
+				if (wrch && (flags & FWRITE))
+					pcm_chnrelease(wrch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
 			if (flags & O_NONBLOCK)
 				rdch->flags |= CHN_F_NBIO;
 		} else
@@ -296,7 +304,15 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	}
 	if (wrch) {
 		if (flags & FWRITE) {
-	        	chn_reset(wrch, fmt);
+	        	if (chn_reset(wrch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(wrch);
+				if (rdch && (flags & FREAD))
+					pcm_chnrelease(rdch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
 			if (flags & O_NONBLOCK)
 				wrch->flags |= CHN_F_NBIO;
 		} else
