@@ -57,9 +57,7 @@ init_vars() {	# OK
     START_DIR=`pwd`
 
     # Various temporary files and directories.
-    # The script will build a list of available images in $IMAGE_LIST
     # User replies will be put in $RISU
-    IMAGE_LIST=${IMAGE_LIST:-`mktemp "/tmp/image_list.XXXXXXXXXX"`}
     RISU=${RISU:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
     MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
 
@@ -126,8 +124,8 @@ set_type() {		# OK
 
 clean_tree() {
     if [ "${name}" = "" ] ; then
-       echo "-> wrong floppy type"
-       exit 10
+	echo "---> wrong floppy type"
+	exit 3
     fi
     rm -rf ${BUILDDIR}
 }
@@ -145,8 +143,9 @@ set_msgs() {		# OK
 # Main build procedure.
 build_image() {
     if [ "${name}" = "" ] ; then
-       echo "-> wrong floppy type"
-       exit 10
+	echo "-> wrong floppy type"
+	final_cleanup
+	exit 1
     fi
     clear
     set_msgs
@@ -405,7 +404,7 @@ populate_floppy_fs() {		# OK
 
     srcdir=${MY_TREE}/floppy.tree
     if [ -d ${srcdir} ] ; then
-	log "-> update with type-specific files:"
+	log "---> update with type-specific files:"
 	(cd ${srcdir} ; tar -cf - --exclude CVS . ) | \
 	    (cd ${dst} ; tar x${TAR_VERBOSE}f - )
 	log "---> Copied from type floppy-tree `echo; ls -laR ${dst}`"
@@ -437,18 +436,19 @@ create_mfs() {		# OK
     init_fs_image ${BUILDDIR}/${MFS_NAME} ${MFS_SIZE}
 
     log "---> Labeling MFS image"
-    # This command does weird things on 2.2.x systems.
+    # Disklabel "auto" behaves strangely for sizes < 1024K. Basically
+    # it fails to install a label on the system. On the other hand,
+    # if you provide a specific disk type, the boot code is not
+    # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw /dev/rvn${VNUM} fd${MFS_SIZE} || fail $? disklabel
+	disklabel -rw /dev/rvn${VNUM} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
-	disklabel -rw vn${VNUM} auto || fail $? disklabel
+	disklabel -rw vn${VNUM} auto || fail $? mfs_disklabel
     fi
-
     newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c > /dev/null
     mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT} || fail $? no_mount
-
-    pwd=`pwd`
+    log "`df /dev/vn${VNUM}c`"
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -539,7 +539,7 @@ free_vnode() {
 
 final_cleanup() {
     free_vnode
-    rm -rf ${MFS_MOUNTPOINT} ${IMAGE_LIST} ${RISU} 2> /dev/null || true
+    rm -rf ${MFS_MOUNTPOINT} ${RISU} 2> /dev/null || true
 }
 
 # fail errno errcode
@@ -548,13 +548,13 @@ final_cleanup() {
 fail() {
     errno=$1
     errcode=$2
-    log "---> fail: Error <$errno> error code <$errcode>"
+    echo "---> fail: Error <$errno> error code <$errcode>"
     case $errcode in
     no_vnconfig)
 	echo "Error while doing vnconfig of ${imgname} on /dev/rvn${VNUM}..."
 	echo "   Most probably your running kernel doesn't have the vn(4) device."
 	;;
-    disklabel)
+    mfs_disklabel)
 	echo "Error while labeling ${MFS_NAME} size ${MFS_SIZE}"
 	;;
     no_mount)
@@ -567,12 +567,12 @@ fail() {
 	echo "Error while making devices in ${MFS_MOUNTPOINT}"
 	;;
     crunch)
-	echo "Error while building ../${TYPE}/crunch1..."
+	echo "Error while building ${name}."
 	;;
     vnconfig2)
 	echo "Error while doing vnconfig of floppy.img on /dev/rvn${VNUM}..."
 	;;
-    disklabel)
+    floppy_disklabel)
 	echo "Error while doing disklabel on of floppy.img size $FLOPPY_SIZE"
 	;;
     kernel_compress)
@@ -595,7 +595,7 @@ fail() {
     echo "---> Aborting $0"
     # try to cleanup the vnode.
     final_cleanup
-    exit 10
+    exit 2
 }
 
 #
@@ -626,21 +626,26 @@ fill_floppy_image() {
 
     log "---> Labeling floppy image"
     disklabel -Brw -b ${boot1} -s ${boot2} /dev/vn${VNUM}c fd${FLOPPY_SIZE} || \
-	fail $?  disklabel
+	fail $?  floppy_disklabel
 
     newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c > /dev/null
 
     mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT}
 
     # preload kernel, compress with kgzip and copy to floppy image
-    cc -o ${BUILDDIR}/wmk ${PICO_TREE}/../write_mfs_in_kernel.c
-    ${BUILDDIR}/wmk ${BUILDDIR}/kernel ${BUILDDIR}/${MFS_NAME}
-    rm ${BUILDDIR}/wmk
-    kgzip -o ${BUILDDIR}/kernel.gz ${BUILDDIR}/kernel
-    cp -p ${BUILDDIR}/kernel.gz ${MFS_MOUNTPOINT}/kernel
+    (
+    cd ${BUILDDIR}
+    cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
+    ./wmk kernel ${MFS_NAME}
+    rm wmk
+    kgzip -o kernel.gz kernel
+    cp -p kernel.gz ${MFS_MOUNTPOINT}/kernel
 
-    # now transfer the floppy tree
-    cp -Rp ${BUILDDIR}/floppy.tree/* ${MFS_MOUNTPOINT}
+    # now transfer the floppy tree. If it is already in mfs, dont bother.
+    if [ "${INCLUDE_FLOPPY_IN_MFS}" != "yes" ]; then
+	cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
+    fi
+    )
     (log "---> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
 
@@ -669,7 +674,6 @@ while [ true ]; do
 	interactive="NO"
 	;;
     -v)
-	echo "verbose"
 	verbose="YES"
 	TAR_VERBOSE="v"
 	;;
