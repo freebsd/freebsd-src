@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003,2004 Marcel Moolenaar
  * Copyright (c) 2000,2001 Doug Rabson
  * All rights reserved.
  *
@@ -146,14 +146,16 @@ void mi_startup(void);		/* XXX should be in a MI header */
 
 struct kva_md_info kmi;
 
+#define	Mhz	1000000L
+#define	Ghz	(1000L*Mhz)
+
 static void
 identifycpu(void)
 {
 	char vendor[17];
 	char *family_name, *model_name;
-	u_int64_t t;
+	u_int64_t features, tmp;
 	int number, revision, model, family, archrev;
-	u_int64_t features;
 
 	/*
 	 * Assumes little-endian.
@@ -162,12 +164,12 @@ identifycpu(void)
 	*(u_int64_t *) &vendor[8] = ia64_get_cpuid(1);
 	vendor[16] = '\0';
 
-	t = ia64_get_cpuid(3);
-	number = (t >> 0) & 0xff;
-	revision = (t >> 8) & 0xff;
-	model = (t >> 16) & 0xff;
-	family = (t >> 24) & 0xff;
-	archrev = (t >> 32) & 0xff;
+	tmp = ia64_get_cpuid(3);
+	number = (tmp >> 0) & 0xff;
+	revision = (tmp >> 8) & 0xff;
+	model = (tmp >> 16) & 0xff;
+	family = (tmp >> 24) & 0xff;
+	archrev = (tmp >> 32) & 0xff;
 
 	family_name = model_name = "unknown";
 	switch (family) {
@@ -182,7 +184,18 @@ identifycpu(void)
 			model_name = "McKinley";
 			break;
 		case 0x01:
-			model_name = "Madison";
+			/*
+			 * Deerfield is a low-voltage variant based on the
+			 * Madison core. We need circumstantial evidence
+			 * (i.e. the clock frequency) to identify those.
+			 * Allow for roughly 1% error margin.
+			 */
+			tmp = processor_frequency >> 7;
+			if ((processor_frequency - tmp) < 1*Ghz &&
+			    (processor_frequency + tmp) >= 1*Ghz)
+				model_name = "Deerfield";
+			else
+				model_name = "Madison";
 			break;
 		}
 		break;
@@ -195,8 +208,8 @@ identifycpu(void)
 	printf("CPU: %s (", model_name);
 	if (processor_frequency) {
 		printf("%ld.%02ld-Mhz ",
-		    (processor_frequency + 4999) / 1000000,
-		    ((processor_frequency + 4999) / 10000) % 100);
+		    (processor_frequency + 4999) / Mhz,
+		    ((processor_frequency + 4999) / (Mhz/100)) % 100);
 	}
 	printf("%s)\n", family_name);
 	printf("  Origin = \"%s\"  Revision = %d\n", vendor, revision);
