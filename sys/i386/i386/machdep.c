@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.27 1994/01/20 17:49:57 davidg Exp $
+ *	$Id: machdep.c,v 1.28 1994/01/20 23:17:39 davidg Exp $
  */
 
 #include "npx.h"
@@ -62,6 +62,14 @@
 
 #ifdef SYSVSHM
 #include "sys/shm.h"
+#endif
+
+#ifdef SYSVMSG
+#include "msg.h"
+#endif
+
+#ifdef SYSVSEM
+#include "sem.h"
 #endif
 
 #include "vm/vm.h"
@@ -186,6 +194,18 @@ again:
 	valloc(callout, struct callout, ncallout);
 #ifdef SYSVSHM
 	valloc(shmsegs, struct shmid_ds, shminfo.shmmni);
+#endif
+#ifdef SYSVSEM
+	valloc(sema, struct semid_ds, seminfo.semmni);
+	valloc(sem, struct sem, seminfo.semmns);
+	/* This is pretty disgusting! */
+	valloc(semu, int, (seminfo.semmnu * seminfo.semusz) / sizeof(int));
+#endif
+#ifdef SYSVMSG
+	valloc(msgpool, char, msginfo.msgmax);
+	valloc(msgmaps, struct msgmap, msginfo.msgseg);
+	valloc(msghdrs, struct msg, msginfo.msgtql);
+	valloc(msqids, struct msqid_ds, msginfo.msgmni);
 #endif
 	/*
 	 * Determine how many buffers to allocate.
