@@ -175,9 +175,9 @@ static int pmap_pagedaemon_waken = 0;
  * All those kernel PT submaps that BSD is so fond of
  */
 pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP2, *ptmmap;
+static pt_entry_t *CMAP2, *CMAP3, *ptmmap;
 caddr_t CADDR1 = 0, ptvmmap = 0;
-static caddr_t CADDR2;
+static caddr_t CADDR2, CADDR3;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp = 0;
 
@@ -326,9 +326,11 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	/*
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
+	 * CMAP3 is used for the idle process page zeroing.
 	 */
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
+	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 
 	/*
 	 * Crashdump maps.
@@ -2683,6 +2685,38 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 #endif
 		bzero((char *)CADDR2 + off, size);
 	*CMAP2 = 0;
+}
+
+/*
+ *	pmap_zero_page_idle zeros the specified hardware page by mapping 
+ *	the page into KVM and using bzero to clear its contents.  This
+ *	is intended to be called from the vm_pagezero process only and
+ *	outside of Giant.
+ */
+void
+pmap_zero_page_idle(vm_page_t m)
+{
+	vm_offset_t phys = VM_PAGE_TO_PHYS(m);
+
+	if (*CMAP3)
+		panic("pmap_zero_page: CMAP3 busy");
+
+	*CMAP3 = PG_V | PG_RW | phys | PG_A | PG_M;
+#ifdef SMP
+	mtx_lock(&Giant);	/* IPI sender not MPSAFE */
+#endif
+	invltlb_1pg((vm_offset_t)CADDR3);
+#ifdef SMP
+	mtx_unlock(&Giant);
+#endif
+
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686)
+		i686_pagezero(CADDR3);
+	else
+#endif
+		bzero(CADDR3, PAGE_SIZE);
+	*CMAP3 = 0;
 }
 
 /*
