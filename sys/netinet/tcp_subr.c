@@ -145,7 +145,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
 static void	tcp_cleartaocache(void);
-static void	tcp_notify(struct inpcb *, int);
+static struct inpcb *tcp_notify(struct inpcb *, int);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -774,7 +774,7 @@ tcp_drain()
  * Do not wake up user since there currently is no mechanism for
  * reporting soft errors (yet - a kqueue filter may be added).
  */
-static void
+static struct inpcb *
 tcp_notify(inp, error)
 	struct inpcb *inp;
 	int error;
@@ -791,12 +791,15 @@ tcp_notify(inp, error)
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	     (error == EHOSTUNREACH || error == ENETUNREACH ||
 	      error == EHOSTDOWN)) {
-		return;
+		return inp;
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
-	    tp->t_softerror)
+	    tp->t_softerror) {
 		tcp_drop(tp, error);
-	else
+		return (struct inpcb *)0;
+	} else {
 		tp->t_softerror = error;
+		return inp;
+	}
 #if 0
 	wakeup((caddr_t) &so->so_timeo);
 	sorwakeup(so);
@@ -1028,7 +1031,7 @@ tcp_ctlinput(cmd, sa, vip)
 	struct in_addr faddr;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	void (*notify)(struct inpcb *, int) = tcp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	tcp_seq icmp_seq;
 	int s;
 
@@ -1064,9 +1067,10 @@ tcp_ctlinput(cmd, sa, vip)
 				tp = intotcpcb(inp);
 				if (SEQ_GEQ(icmp_seq, tp->snd_una) &&
 			    		SEQ_LT(icmp_seq, tp->snd_max))
-					(*notify)(inp, inetctlerrmap[cmd]);
+					inp = (*notify)(inp, inetctlerrmap[cmd]);
 			}
-			INP_UNLOCK(inp);
+			if (inp)
+				INP_UNLOCK(inp);
 		} else {
 			struct in_conninfo inc;
 
@@ -1093,7 +1097,7 @@ tcp6_ctlinput(cmd, sa, d)
 	void *d;
 {
 	struct tcphdr th;
-	void (*notify)(struct inpcb *, int) = tcp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	struct ip6ctlparam *ip6cp = NULL;
@@ -1240,7 +1244,7 @@ tcp_new_isn(tp)
  * When a source quench is received, close congestion window
  * to one segment.  We will gradually open it again as we proceed.
  */
-void
+struct inpcb *
 tcp_quench(inp, errno)
 	struct inpcb *inp;
 	int errno;
@@ -1249,6 +1253,7 @@ tcp_quench(inp, errno)
 
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
+	return (inp);
 }
 
 /*
@@ -1256,15 +1261,18 @@ tcp_quench(inp, errno)
  * connection state is SYN-SENT, drop the connection.  This behavior
  * is controlled by the icmp_may_rst sysctl.
  */
-void
+struct inpcb *
 tcp_drop_syn_sent(inp, errno)
 	struct inpcb *inp;
 	int errno;
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
-	if (tp && tp->t_state == TCPS_SYN_SENT)
+	if (tp && tp->t_state == TCPS_SYN_SENT) {
 		tcp_drop(tp, errno);
+		return (struct inpcb *)0;
+	}
+	return inp;
 }
 
 /*
@@ -1273,7 +1281,7 @@ tcp_drop_syn_sent(inp, errno)
  * since we know the packet we just sent was dropped.
  * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
-void
+struct inpcb *
 tcp_mtudisc(inp, errno)
 	struct inpcb *inp;
 	int errno;
@@ -1301,7 +1309,7 @@ tcp_mtudisc(inp, errno)
 				isipv6 ? tcp_v6mssdflt :
 #endif /* INET6 */
 				tcp_mssdflt;
-			return;
+			return inp;
 		}
 		taop = rmx_taop(rt->rt_rmx);
 		offered = taop->tao_mssopt;
@@ -1336,7 +1344,7 @@ tcp_mtudisc(inp, errno)
 		 * recomputed.  For Further Study.
 		 */
 		if (tp->t_maxopd <= mss)
-			return;
+			return inp;
 		tp->t_maxopd = mss;
 
 		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
@@ -1362,6 +1370,7 @@ tcp_mtudisc(inp, errno)
 		tp->snd_nxt = tp->snd_una;
 		tcp_output(tp);
 	}
+	return inp;
 }
 
 /*

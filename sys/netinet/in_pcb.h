@@ -324,7 +324,8 @@ extern int	ipport_hilastauto;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in_losing(struct inpcb *);
-void	in_rtchange(struct inpcb *, int);
+struct inpcb *
+	in_rtchange(struct inpcb *, int);
 int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct thread *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct thread *);
@@ -340,7 +341,7 @@ struct inpcb *
 	in_pcblookup_hash(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);
 void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
-	    int, void (*)(struct inpcb *, int));
+	    int, struct inpcb *(*)(struct inpcb *, int));
 void	in_pcbrehash(struct inpcb *);
 int	in_setpeeraddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
 int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);;
