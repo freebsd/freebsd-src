@@ -214,7 +214,7 @@ mrt6_stats(u_long mstaddr)
 	p(mrt6s_mfc_lookups, "\t%llu multicast forwarding cache lookup%s\n");
 	p2(mrt6s_mfc_misses, "\t%llu multicast forwarding cache miss%s\n");
 	p(mrt6s_upcalls, "\t%llu upcall%s to mrouted\n");
-	p(mrt6s_upq_ovflw, "\t%llu upcall llueue overflow%s\n");
+	p(mrt6s_upq_ovflw, "\t%llu upcall queue overflow%s\n");
 	p(mrt6s_upq_sockfull,
 	    "\t%llu upcall%s dropped due to full socket buffer\n");
 	p(mrt6s_cache_cleanups, "\t%llu cache cleanup%s\n");
@@ -224,7 +224,7 @@ mrt6_stats(u_long mstaddr)
 	p(mrt6s_wrong_if, "\t%llu datagram%s arrived on wrong interface\n");
 	p(mrt6s_drop_sel, "\t%llu datagram%s selectively dropped\n");
 	p(mrt6s_q_overflow,
-	    "\t%llu datagram%s dropped due to llueue overflow\n");
+	    "\t%llu datagram%s dropped due to queue overflow\n");
 	p(mrt6s_pkt2large, "\t%llu datagram%s dropped for being too large\n");
 
 #undef	p2
