@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.153 1999/01/20 12:31:43 jkh Exp $
+ * $Id: sysinstall.h,v 1.154 1999/01/27 02:32:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -299,6 +299,8 @@ typedef struct _indexEntry {	/* A single entry in an INDEX file */
     char *comment;		/* one line description		*/
     char *descrfile;		/* path to description file	*/
     char *deps;			/* packages this depends on	*/
+    int  depc;			/* how many depend on me	*/
+    int  installed;		/* indicates if it is installed */
     char *maintainer;		/* maintainer			*/
 } IndexEntry;
 typedef IndexEntry *IndexEntryPtr;
@@ -515,7 +517,7 @@ extern void	globalsInit(void);
 
 /* index.c */
 int		index_read(FILE *fp, PkgNodePtr papa);
-int		index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
+int		index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
 void		index_init(PkgNodePtr top, PkgNodePtr plist);
 void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
 void		index_sort(PkgNodePtr top);
