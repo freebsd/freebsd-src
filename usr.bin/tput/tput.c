@@ -41,14 +41,15 @@ static char copyright[] =
 static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #endif /* not lint */
 
-#include <sys/termios.h>
+#include <termios.h>
 
 #include <err.h>
-#include <curses.h>
+#include <termcap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#undef putchar
 #define outc putchar
 
 static void   prlongname __P((char *));
@@ -95,9 +96,11 @@ errx(2, "no terminal type specified and no TERM environmental variable.");
 				p = "is";
 			break;
 		case 'l':
-			if (!strcmp(p, "longname"))
+			if (!strcmp(p, "longname")) {
 				prlongname(tbuf);
-			continue;
+				continue;
+			}
+			break;
 		case 'r':
 			if (!strcmp(p, "reset"))
 				p = "rs";
@@ -202,14 +205,39 @@ process(cap, str, argv)
 static void
 setospeed()
 {
-#undef ospeed
-	extern short ospeed;
 	struct termios t;
 
 	if (tcgetattr(STDOUT_FILENO, &t) != -1)
 		ospeed = 0;
 	else
-		ospeed = cfgetospeed(&t);
+		switch(cfgetospeed(&t)) {
+			case B0: ospeed = 0; break;
+			case B50: ospeed = 1; break;
+			case B75: ospeed = 2; break;
+			case B110: ospeed = 3; break;
+			case B134: ospeed = 4; break;
+			case B150: ospeed = 5; break;
+			case B200: ospeed = 6; break;
+			case B300: ospeed = 7; break;
+			case B600: ospeed = 8; break;
+			case B1200: ospeed = 9; break;
+			case B1800: ospeed = 10; break;
+			case B2400: ospeed = 11; break;
+			case B4800: ospeed = 12; break;
+			case B9600: ospeed = 13; break;
+#ifdef EXTA
+			case EXTA: ospeed = 14; break;
+#endif
+#ifdef EXTB
+			case EXTB: ospeed = 15; break;
+#endif
+#ifdef B57600
+			case B57600: ospeed = 16; break;
+#endif
+#ifdef B115200
+			case B115200: ospeed = 17; break;
+#endif
+		}
 }
 
 static void
