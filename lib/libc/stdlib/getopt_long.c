@@ -94,9 +94,9 @@ __weak_alias(getopt_long,_getopt_long)
 
 #define	EMSG	""
 
-static int getopt_internal __P((int, char * const *, const char *));
-static int gcd __P((int, int));
-static void permute_args __P((int, int, int, char * const *));
+static int getopt_internal(int, char * const *, const char *);
+static int gcd(int, int);
+static void permute_args(int, int, int, char * const *);
 
 static char *place = EMSG; /* option letter processing */
 
