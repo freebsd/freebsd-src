@@ -201,7 +201,7 @@ SYSCTL_ULONG(_hw_pccbb, OID_AUTO, start_mem, CTLFLAG_RD,
     &pccbb_start_mem, PCCBB_START_MEM,
     "Starting address for memory allocations");
 
-static int	cb_chipset(uint32_t pci_id, const char **namep, int *flagp);
+static int	pccbb_chipset(uint32_t pci_id, const char **namep, int *flagp);
 static int	pccbb_probe(device_t brdev);
 static void	pccbb_chipinit(struct pccbb_softc *sc);
 static int	pccbb_attach(device_t brdev);
@@ -331,13 +331,14 @@ pccbb_pcic_write(struct pccbb_softc *sc, uint32_t reg, uint8_t val)
 /************************************************************************/
 
 static int
-cb_chipset(uint32_t pci_id, const char **namep, int *flagp)
+pccbb_chipset(uint32_t pci_id, const char **namep, int *flagp)
 {
 	int loopend = sizeof(yc_chipsets)/sizeof(yc_chipsets[0]);
 	struct yenta_chipinfo *ycp, *ycend;
 	ycend = yc_chipsets + loopend;
 
-	for (ycp = yc_chipsets; ycp < ycend && pci_id != ycp->yc_id; ++ycp);
+	for (ycp = yc_chipsets; ycp < ycend && pci_id != ycp->yc_id; ++ycp)
+	    continue;
 	if (ycp == ycend) {
 		/* not found */
 		ycp = yc_chipsets + loopend - 1; /* to point the sentinel */
@@ -356,7 +357,7 @@ pccbb_probe(device_t brdev)
 {
 	const char *name;
 
-	if (cb_chipset(pci_get_devid(brdev), &name, NULL) == CB_UNKNOWN)
+	if (pccbb_chipset(pci_get_devid(brdev), &name, NULL) == CB_UNKNOWN)
 		return (ENXIO);
 	device_set_desc(brdev, name);
 	return (0);
@@ -457,7 +458,7 @@ pccbb_attach(device_t brdev)
 		STAILQ_INIT(&softcs);
 	}
 	mtx_init(&sc->sc_mtx, device_get_nameunit(brdev), MTX_DEF);
-	sc->sc_chipset = cb_chipset(pci_get_devid(brdev), NULL, &sc->sc_flags);
+	sc->sc_chipset = pccbb_chipset(pci_get_devid(brdev), NULL, &sc->sc_flags);
 	sc->sc_dev = brdev;
 	sc->sc_cbdev = NULL;
 	sc->sc_pccarddev = NULL;
@@ -1145,6 +1146,9 @@ pccbb_cardbus_mem_open(device_t brdev, int win, uint32_t start, uint32_t end)
 	return (0);
 }
 
+/*
+ * XXX The following function belongs in the pci bus layer.
+ */
 static void
 pccbb_cardbus_auto_open(struct pccbb_softc *sc, int type)
 {
