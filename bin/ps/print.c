@@ -785,7 +785,7 @@ label(KINFO *k, VARENT *ve)
 	v = ve->var;
 	string = NULL;
 	if (mac_prepare_process_label(&proclabel) == -1) {
-		perror("mac_prepare_process_label");
+		warn("mac_prepare_process_label");
 		goto out;
 	}
 	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
@@ -811,7 +811,7 @@ s_label(KINFO *k)
 	int error, size = 0;
 
 	if (mac_prepare_process_label(&proclabel) == -1) {
-		perror("mac_prepare_process_label");
+		warn("mac_prepare_process_label");
 		return (0);
 	}
 	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
