@@ -321,15 +321,12 @@ Parse_Error(int type, const char *fmt, ...)
 /*-
  *---------------------------------------------------------------------
  * ParseLinkSrc  --
- *	Link the parent node to its new child. Used in a Lst_ForEach by
+ *	Link the parent nodes to their new child. Used by
  *	ParseDoDependency. If the specType isn't 'Not', the parent
  *	isn't linked as a parent of the child.
  *
- * Results:
- *	Always = 0
- *
  * Side Effects:
- *	New elements are added to the parents list of cgn and the
+ *	New elements are added to the parents lists of cgn and the
  *	children list of cgn. the unmade field of pgn is updated
  *	to reflect the additional child.
  *---------------------------------------------------------------------
