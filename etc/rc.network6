@@ -125,9 +125,6 @@ network6_pass1() {
 		;;
 	esac
 
-	# gifconfig
-	network6_gif_setup
-
 	# setting up interfaces
 	network6_interface_setup $ipv6_network_interfaces
 
@@ -337,26 +334,6 @@ network6_interface_setup() {
 		ifconfig $1 up
 		rtsol $1
 	fi
-}
-
-network6_gif_setup() {
-	case ${gif_interfaces} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		for i in ${gif_interfaces}; do
-			eval peers=\$gifconfig_$i
-			case ${peers} in
-			'')
-				continue
-				;;
-			*)
-				gifconfig $i ${peers}
-				;;
-			esac
-		done
-		;;
-	esac
 }
 
 network6_stf_setup() {
