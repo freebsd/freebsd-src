@@ -50,7 +50,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <fs/nullfs/null.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -74,7 +73,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct null_args args;
+	struct iovec iov[6];
 	int ch, mntflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
@@ -105,8 +104,6 @@ main(argc, argv)
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
-	args.target = target;
-
 	error = getvfsbyname("nullfs", &vfc);
 	if (error && vfsisloadable("nullfs")) {
 		if(vfsload("nullfs"))
@@ -117,7 +114,20 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "null/loopback filesystem is not available");
 
-	if (mount(vfc.vfc_name, source, mntflags, &args))
+	iov[0].iov_base = "fstype";
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = vfc.vfc_name;
+	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[2].iov_base = "fspath";
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = source;
+	iov[3].iov_len = strlen(source) + 1;
+	iov[4].iov_base = "target";
+	iov[4].iov_len = sizeof("target");
+	iov[5].iov_base = target;
+	iov[5].iov_len = strlen(target) + 1;
+
+	if (nmount(iov, 6, mntflags))
 		err(1, NULL);
 	exit(0);
 }
