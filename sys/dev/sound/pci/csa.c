@@ -275,7 +275,7 @@ csa_attach(device_t dev)
 		goto err_mem;
 
 	/* Enable interrupt. */
-	if (snd_setup_intr(dev, resp->irq, INTR_MPSAFE, csa_intr, scp, &scp->ih))
+	if (snd_setup_intr(dev, resp->irq, 0, csa_intr, scp, &scp->ih))
 		goto err_intr;
 #if 0
 	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)

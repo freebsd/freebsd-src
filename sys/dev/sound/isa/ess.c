@@ -841,7 +841,7 @@ ess_attach(device_t dev)
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x22);
 
-	snd_setup_intr(dev, sc->irq, INTR_MPSAFE, ess_intr, sc, &sc->ih);
+	snd_setup_intr(dev, sc->irq, 0, ess_intr, sc, &sc->ih);
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
