@@ -56,22 +56,11 @@ extern unsigned char reserved_majors[256];
  */
 #define DEVT_HASH 83
 
-/* The number of struct cdev *'s we can create before malloc(9) kick in.  */
-#define DEVT_STASH 50
-
-static struct cdev devt_stash[DEVT_STASH];
-
 static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
-
-static LIST_HEAD(, cdev) dev_free;
-
-static int free_devt;
-SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
 static struct cdev *newdev(int x, int y);
-
 
 void
 dev_lock(void)
@@ -288,21 +277,9 @@ unit2minor(int unit)
 static struct cdev *
 allocdev(void)
 {
-	static int stashed;
 	struct cdev *si;
 
-	if (LIST_FIRST(&dev_free)) {
-		si = LIST_FIRST(&dev_free);
-		LIST_REMOVE(si, si_hash);
-	} else if (stashed >= DEVT_STASH) {
-		MALLOC(si, struct cdev *, sizeof(*si), M_DEVT,
-		    M_USE_RESERVE | M_ZERO | M_WAITOK);
-	} else {
-		si = devt_stash + stashed++;
-		bzero(si, sizeof *si);
-		si->si_flags |= SI_STASHED;
-	}
-	si->__si_namebuf[0] = '\0';
+	si = malloc(sizeof *si, M_DEVT, M_USE_RESERVE | M_ZERO | M_WAITOK);
 	si->si_name = si->__si_namebuf;
 	LIST_INIT(&si->si_children);
 	return (si);
@@ -333,13 +310,7 @@ static void
 freedev(struct cdev *dev)
 {
 
-	if (dev->si_flags & SI_STASHED) {
-		bzero(dev, sizeof(*dev));
-		dev->si_flags |= SI_STASHED;
-		LIST_INSERT_HEAD(&dev_free, dev, si_hash);
-	} else {
-		FREE(dev, M_DEVT);
-	}
+	free(dev, M_DEVT);
 }
 
 dev_t
@@ -501,6 +472,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		    dev->__si_namebuf);
 	}
 	va_end(ap);
+		
 	dev->si_devsw = devsw;
 	dev->si_uid = uid;
 	dev->si_gid = gid;
