@@ -579,7 +579,7 @@ int	debug_vn_lock __P((struct vnode *vp, int flags, struct proc *p,
 	    const char *filename, int line));
 #define vn_lock(vp,flags,p) debug_vn_lock(vp,flags,p,__FILE__,__LINE__)
 #endif
-int 	vn_open __P((struct nameidata *ndp, int fmode, int cmode));
+int 	vn_open __P((struct nameidata *ndp, int *flagp, int cmode));
 void	vn_pollevent __P((struct vnode *vp, int events));
 void	vn_pollgone __P((struct vnode *vp));
 int	vn_pollrecord __P((struct vnode *vp, struct proc *p, int events));

@@ -504,7 +504,7 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
     int error = 0;
-    int resid;
+    int resid, flags;
     elf_file_t ef;
     linker_file_t lf;
     Elf_Shdr *shdr;
@@ -517,7 +517,8 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     lf = NULL;
 
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
-    error = vn_open(&nd, FREAD, 0);
+    flags = FREAD;
+    error = vn_open(&nd, &flags, 0);
     if (error)
 	return error;
     NDFREE(&nd, NDF_ONLY_PNBUF);

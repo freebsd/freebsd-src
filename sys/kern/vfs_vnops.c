@@ -98,25 +98,25 @@ struct filterops vn_rwfiltops[] = {
  * due to the NDINIT being done elsewhere.
  */
 int
-vn_open(ndp, fmode, cmode)
+vn_open(ndp, flagp, cmode)
 	register struct nameidata *ndp;
-	int fmode, cmode;
+	int *flagp, cmode;
 {
-	register struct vnode *vp;
-	register struct proc *p = ndp->ni_cnd.cn_proc;
-	register struct ucred *cred = p->p_ucred;
+	struct vnode *vp;
+	struct proc *p = ndp->ni_cnd.cn_proc;
+	struct ucred *cred = p->p_ucred;
 	struct vattr vat;
 	struct vattr *vap = &vat;
-	int mode, error;
+	int mode, fmode, error;
 
+	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		bwillwrite();
-		error = namei(ndp);
-		if (error)
+		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (ndp->ni_vp == NULL) {
 			VATTR_NULL(vap);
@@ -127,12 +127,11 @@ vn_open(ndp, fmode, cmode)
 			VOP_LEASE(ndp->ni_dvp, p, cred, LEASE_WRITE);
 			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 					   &ndp->ni_cnd, vap);
+			vput(ndp->ni_dvp);
 			if (error) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);
-				vput(ndp->ni_dvp);
 				return (error);
 			}
-			vput(ndp->ni_dvp);
 			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "create");
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
@@ -154,8 +153,7 @@ vn_open(ndp, fmode, cmode)
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags =
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) | LOCKLEAF;
-		error = namei(ndp);
-		if (error)
+		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
 	}
@@ -187,18 +185,7 @@ vn_open(ndp, fmode, cmode)
 				goto bad;
 		}
 	}
-	if (fmode & O_TRUNC) {
-		VOP_UNLOCK(vp, 0, p);				/* XXX */
-		VOP_LEASE(vp, p, cred, LEASE_WRITE);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);	/* XXX */
-		VATTR_NULL(vap);
-		vap->va_size = 0;
-		error = VOP_SETATTR(vp, vap, cred, p);
-		if (error)
-			goto bad;
-	}
-	error = VOP_OPEN(vp, fmode, cred, p);
-	if (error)
+	if ((error = VOP_OPEN(vp, fmode, cred, p)) != 0)
 		goto bad;
 	/*
 	 * Make sure that a VM object is created for VMIO support.
@@ -210,10 +197,12 @@ vn_open(ndp, fmode, cmode)
 
 	if (fmode & FWRITE)
 		vp->v_writecount++;
+	*flagp = fmode;
 	return (0);
 bad:
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	vput(vp);
+	*flagp = fmode;
 	return (error);
 }
 
