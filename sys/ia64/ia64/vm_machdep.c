@@ -248,6 +248,7 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_bspstore =
 			(u_int64_t)p2bs + p1->p_md.md_tf->tf_ndirty;
 		up->u_pcb.pcb_rnat = rnat;
+		up->u_pcb.pcb_pfs = 0;
 
 		/*
 		 * Arrange for continuation at child_return(), which
