@@ -195,6 +195,18 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
+	struct trapframe *tf;
+	uint64_t sp;
+
+	tf = td->td_frame;
+	sp = (uint64_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size;
+	tf->tf_out[0] = (uint64_t)ku->ku_mailbox;
+	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
+	tf->tf_tpc = (uint64_t)ku->ku_func;
+	tf->tf_tnpc = tf->tf_tpc + 4;
+
+	td->td_retval[0] = tf->tf_out[0];
+	td->td_retval[1] = tf->tf_out[1];
 }
 
 /*
