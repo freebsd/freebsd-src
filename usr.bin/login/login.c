@@ -78,11 +78,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-#ifdef USE_PAM
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
 #include <sys/wait.h>
-#endif /* USE_PAM */
 
 #include "pathnames.h"
 
@@ -92,7 +90,6 @@ static const char rcsid[] =
 #endif
 
 void	 badlogin __P((char *));
-void	 checknologin __P((void));
 void	 dolastlog __P((int));
 void	 getloginname __P((void));
 void	 motd __P((char *));
@@ -105,7 +102,6 @@ void	 timedout __P((int));
 int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
 
-#ifdef USE_PAM
 static int auth_pam __P((void));
 static int export_pam_environment __P((void));
 static int ok_to_export __P((const char *));
@@ -121,7 +117,7 @@ static char **environ_pam;
 	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) \
 		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e)); \
 }
-#endif /* USE_PAM */
+
 static int auth_traditional __P((void));
 extern void login __P((struct utmp *));
 static void usage __P((void));
@@ -158,7 +154,6 @@ main(argc, argv)
 	struct utmp utmp;
 	int rootok, retries, backoff;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
-	int changepass;
 	time_t warntime;
 	uid_t uid, euid;
 	gid_t egid;
@@ -167,10 +162,8 @@ main(argc, argv)
 	char tname[sizeof(_PATH_TTY) + 10];
 	char *shell = NULL;
 	login_cap_t *lc = NULL;
-#ifdef USE_PAM
 	pid_t pid;
 	int e;
-#endif /* USE_PAM */
 
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINT, SIG_IGN);
@@ -343,19 +336,16 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifdef USE_PAM
 		/*
 		 * Try to authenticate using PAM.  If a PAM system error
 		 * occurs, perhaps because of a botched configuration,
 		 * then fall back to using traditional Unix authentication.
 		 */
 		if ((rval = auth_pam()) == -1)
-#endif /* USE_PAM */
 			rval = auth_traditional();
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
-#ifdef USE_PAM
 		/*
 		 * PAM authentication may have changed "pwd" to the
 		 * entry for the template user.  Check again to see if
@@ -363,7 +353,6 @@ main(argc, argv)
 		 */
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
-#endif /* USE_PAM */
 
 	ttycheck:
 		/*
@@ -404,10 +393,6 @@ main(argc, argv)
 	 */
 	lc = login_getpwclass(pwd);
 
-	/* if user not super-user, check for disabled logins */
-	if (!rootlogin)
-		auth_checknologin(lc);
-
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
 	/* Switching needed for NFS with root access disabled */
 	(void)setegid(pwd->pw_gid);
@@ -441,21 +426,6 @@ main(argc, argv)
 		} else if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
 			(void)printf("Warning: your account expires on %s",
 			    ctime(&pwd->pw_expire));
-	}
-
-	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
-	    DEFAULT_WARN);
-
-	changepass = 0;
-	if (pwd->pw_change) {
-		if (tp.tv_sec >= pwd->pw_change) {
-			(void)printf("Sorry -- your password has expired.\n");
-			changepass = 1;
-			syslog(LOG_INFO, "%s Password expired - forcing change",
-			    pwd->pw_name);
-		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
-			(void)printf("Warning: your password expires on %s",
-			    ctime(&pwd->pw_change));
 	}
 
 	if (lc != NULL) {
@@ -598,7 +568,6 @@ main(argc, argv)
 		exit(1);
 	}
 
-#ifdef USE_PAM
 	if (pamh) {
 		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
 			syslog(LOG_ERR, "pam_open_session: %s",
@@ -641,7 +610,6 @@ main(argc, argv)
 				    pam_strerror(pamh, e));
 		}
 	}
-#endif /* USE_PAM */
 
 	/*
 	 * We don't need to be root anymore, so
@@ -705,11 +673,6 @@ main(argc, argv)
 	(void)signal(SIGINT, SIG_DFL);
 	(void)signal(SIGTSTP, SIG_IGN);
 
-	if (changepass) {
-		if (system(_PATH_CHPASS) != 0)
-			sleepexit(1);
-	}
-
 	/*
 	 * Login shells have a leading '-' in front of argv[0]
 	 */
@@ -751,7 +714,6 @@ auth_traditional()
 	return rval;
 }
 
-#ifdef USE_PAM
 /*
  * Attempt to authenticate the user using PAM.  Returns 0 if the user is
  * authenticated, or 1 if not authenticated.  If some sort of PAM system
@@ -892,7 +854,6 @@ ok_to_export(s)
 	}
 	return 1;
 }
-#endif /* USE_PAM */
 
 static void
 usage()
