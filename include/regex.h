@@ -75,7 +75,7 @@ typedef struct {
 #define	REG_DUMP	0200
 
 /* regerror() flags */
-#define REG_ENOSYS	-1	/* Reserved */
+#define	REG_ENOSYS	-1	/* Reserved */
 #define	REG_NOMATCH	 1
 #define	REG_BADPAT	 2
 #define	REG_ECOLLATE	 3
