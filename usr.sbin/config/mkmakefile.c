@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -41,9 +45,10 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
  * additional files for the machine being compiled to.
  */
 
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include "y.tab.h"
 #include "config.h"
 
@@ -67,6 +72,18 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 static	struct file_list *fcur;
 char *tail();
 extern int old_config_present;
+
+void do_swapspec __P((FILE *, char *));
+void do_clean __P((FILE *));
+void do_load __P((FILE *));
+void do_rules __P((FILE *));
+void do_sfiles __P((FILE *));
+void do_cfiles __P((FILE *));
+void do_objs __P((FILE *));
+void do_before_depend __P((FILE *));
+int opteq __P((char *, char *));
+void read_files __P((void));
+void makefile __P((void));
 
 /*
  * Lookup a file, by name.
@@ -137,6 +154,7 @@ static	struct users {
 /*
  * Build the makefile from the skeleton
  */
+void
 makefile()
 {
 	FILE *ifp, *ofp;
@@ -149,15 +167,11 @@ makefile()
 	strcpy(line, "Makefile.");
 	(void) strcat(line, machinename);
 	ifp = fopen(line, "r");
-	if (ifp == 0) {
-		perror(line);
-		exit(1);
-	}
+	if (ifp == 0)
+		err(1, "%s", line);
 	ofp = fopen(path("Makefile.new"), "w");
-	if (ofp == 0) {
-		perror(path("Makefile.new"));
-		exit(1);
-	}
+	if (ofp == 0)
+		err(1, "%s", path("Makefile.new"));
 	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
 	fprintf(ofp, "IDENT=");
 	if (profiling)
@@ -251,6 +265,7 @@ makefile()
  * Read in the information about files used in making the system.
  * Store it in the ftab linked list.
  */
+void
 read_files()
 {
 	FILE *fp;
@@ -267,10 +282,8 @@ read_files()
 	(void) snprintf(fname, sizeof fname, "../../conf/files");
 openit:
 	fp = fopen(fname, "r");
-	if (fp == 0) {
-		perror(fname);
-		exit(1);
-	}
+	if (fp == 0)
+		err(1, "%s", fname);
 	if(ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
@@ -491,6 +504,7 @@ save:
 	goto next;
 }
 
+int
 opteq(cp, dp)
 	char *cp, *dp;
 {
@@ -508,12 +522,12 @@ opteq(cp, dp)
 	}
 }
 
+void
 do_before_depend(fp)
 	FILE *fp;
 {
-	register struct file_list *tp, *fl;
+	register struct file_list *tp;
 	register int lpos, len;
-	char swapname[32];
 
 	fputs("BEFORE_DEPEND=", fp);
 	lpos = 15;
@@ -534,6 +548,7 @@ do_before_depend(fp)
 		putc('\n', fp);
 }
 
+void
 do_objs(fp)
 	FILE *fp;
 {
@@ -572,6 +587,7 @@ cont:
 		putc('\n', fp);
 }
 
+void
 do_cfiles(fp)
 	FILE *fp;
 {
@@ -611,6 +627,7 @@ do_cfiles(fp)
 		putc('\n', fp);
 }
 
+void
 do_sfiles(fp)
 	FILE *fp;
 {
@@ -655,6 +672,7 @@ tail(fn)
  * which avoids any problem areas with i/o addressing
  * (e.g. for the VAX); assembler files are processed by as.
  */
+void
 do_rules(f)
 	FILE *f;
 {
@@ -725,6 +743,7 @@ do_rules(f)
 /*
  * Create the load strings
  */
+void
 do_load(f)
 	register FILE *f;
 {
@@ -742,12 +761,12 @@ do_load(f)
 	putc('\n', f);
 }
 
+void
 do_clean(fp)
 	FILE *fp;
 {
-	register struct file_list *tp, *fl;
+	register struct file_list *tp;
 	register int lpos, len;
-	char swapname[32];
 
 	fputs("CLEAN=", fp);
 	lpos = 7;
@@ -785,6 +804,7 @@ do_systemspec(f, fl, first)
 	return (fl);
 }
 
+void
 do_swapspec(f, name)
 	FILE *f;
 	register char *name;

@@ -32,21 +32,30 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Make all the .h files for the optional entries
  */
 
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include "config.h"
 #include "y.tab.h"
 
 #define ns(s) strdup(s)
 
+void do_header __P((char *, char *, int));
+void do_count __P((char *, char *, int));
+
+void
 headers()
 {
 	register struct file_list *fl;
@@ -60,6 +69,7 @@ headers()
  * count all the devices of a certain type and recurse to count
  * whatever the device is connected to
  */
+void
 do_count(dev, hname, search)
 	register char *dev, *hname;
 	int search;
@@ -99,6 +109,7 @@ do_count(dev, hname, search)
 	do_header(dev, hname, count > hicount ? count : hicount);
 }
 
+void
 do_header(dev, hname, count)
 	char *dev, *hname;
 	int count;
@@ -114,10 +125,8 @@ do_header(dev, hname, count)
 	oldcount = -1;
 	if (inf == 0) {
 		outf = fopen(file, "w");
-		if (outf == 0) {
-			perror(file);
-			exit(1);
-		}
+		if (outf == 0)
+			err(1, "%s", file);
 		fprintf(outf, "#define %s %d\n", name, count);
 		(void) fclose(outf);
 		return;
@@ -166,10 +175,8 @@ do_header(dev, hname, count)
 		fl_head = fl;
 	}
 	outf = fopen(file, "w");
-	if (outf == 0) {
-		perror(file);
-		exit(1);
-	}
+	if (outf == 0)
+		err(1, "%s", file);
 	for (fl = fl_head; fl != NULL; fl = tflp) {
 		fprintf(outf,
 		    "#define %s %u\n", fl->f_fn, count ? fl->f_type : 0);

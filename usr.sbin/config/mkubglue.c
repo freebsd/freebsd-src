@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkubglue.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -48,10 +52,8 @@ ubglue()
 	register struct device *dp, *mp;
 
 	fp = fopen(path("ubglue.s"), "w");
-	if (fp == 0) {
-		perror(path("ubglue.s"));
-		exit(1);
-	}
+	if (fp == 0)
+		err(1, "%s", path("ubglue.s"));
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (mp != 0 && mp != (struct device *)-1 &&

@@ -32,12 +32,18 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Build a swap configuration file.
  */
+#include <err.h>
+#include <unistd.h>
 #include "config.h"
 
 #include <sys/disklabel.h>
@@ -49,6 +55,9 @@ static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 
 #define ns(s) strdup(s)
 
+void initdevtable __P((void));
+
+void
 swapconf()
 {
 	register struct file_list *fl;
@@ -72,7 +81,6 @@ do_swap(fl)
 	char  newswapname[80];
 	char  swapname[80];
 	register struct file_list *swap;
-	dev_t dev;
 
 	if (eq(fl->f_fn, "generic")) {
 		fl = fl->f_next;
@@ -81,10 +89,8 @@ do_swap(fl)
 	(void) sprintf(swapname, "swap%s.c", fl->f_fn);
 	(void) sprintf(newswapname, "swap%s.c.new", fl->f_fn);
 	fp = fopen(path(newswapname), "w");
-	if (fp == 0) {
-		perror(path(newswapname));
-		exit(1);
-	}
+	if (fp == 0)
+		err(1, "%s", path(newswapname));
 	fprintf(fp, "#include <sys/param.h>\n");
 	fprintf(fp, "#include <sys/conf.h>\n");
 	fprintf(fp, "\n");
@@ -144,16 +150,13 @@ nametodev(name, defunit, defslice, defpartition)
 	register struct devdescription *dp;
 
 	cp = name;
-	if (cp == 0) {
-		fprintf(stderr, "config: internal error, nametodev\n");
-		exit(1);
-	}
+	if (cp == 0)
+		errx(1, "internal error, nametodev");
 	while (*cp && !isdigit(*cp))
 		cp++;
 	unit = *cp ? atoi(cp) : defunit;
 	if (unit < 0 || unit > 31) {
-		fprintf(stderr,
-"config: %s: invalid device specification, unit out of range\n", name);
+		warnx("%s: invalid device specification, unit out of range", name);
 		unit = defunit;			/* carry on more checking */
 	}
 	if (*cp) {
@@ -167,8 +170,8 @@ nametodev(name, defunit, defslice, defpartition)
 		if (*cp) {
 			slice = atoi(cp);
 			if (slice < 0 || slice >= MAX_SLICES - 1) {
-				fprintf(stderr,
-"config: %s: invalid device specification, slice out of range\n", cp);
+				warnx("%s: invalid device specification, slice out of range",
+					cp);
 				slice = defslice;
 			}
 			if (slice != COMPATIBILITY_SLICE)
@@ -180,8 +183,7 @@ nametodev(name, defunit, defslice, defpartition)
 	}
 	partition = *cp ? *cp : defpartition;
 	if (partition < 'a' || partition > 'h') {
-		fprintf(stderr,
-"config: %c: invalid device specification, bad partition\n", *cp);
+		warnx("%c: invalid device specification, bad partition", *cp);
 		partition = defpartition;	/* carry on */
 	}
 	if (devtablenotread)
@@ -190,7 +192,7 @@ nametodev(name, defunit, defslice, defpartition)
 		if (eq(name, dp->dev_name))
 			break;
 	if (dp == 0) {
-		fprintf(stderr, "config: %s: unknown device\n", name);
+		warnx("%s: unknown device", name);
 		return (NODEV);
 	}
 	return (makedev(dp->dev_major,
@@ -229,6 +231,7 @@ devtoname(dev)
 	return (ns(buf));
 }
 
+void
 initdevtable()
 {
 	char linebuf[256];
@@ -239,10 +242,8 @@ initdevtable()
 
 	(void) sprintf(buf, "../conf/devices.%s", machinename);
 	fp = fopen(buf, "r");
-	if (fp == NULL) {
-		fprintf(stderr, "config: can't open %s\n", buf);
-		exit(1);
-	}
+	if (fp == NULL)
+		errx(1, "can't open %s", buf);
 	while(fgets(linebuf,256,fp)) {
 		/*******************************\
 		* Allow a comment		*
