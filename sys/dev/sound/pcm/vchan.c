@@ -31,7 +31,7 @@
 #include "feeder_if.h"
 
 struct vchinfo {
-	u_int32_t spd, fmt, blksz, run;
+	u_int32_t spd, fmt, blksz, bps, run;
 	struct pcm_channel *channel, *parent;
 	struct pcmchan_caps caps;
 };
@@ -94,8 +94,10 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 	bzero(tmp, count);
 	SLIST_FOREACH(cce, &c->children, link) {
 		ch = cce->channel;
-		cnt = FEEDER_FEED(ch->feeder, ch, (u_int8_t *)tmp, count, ch->bufsoft);
-		vchan_mix_s16(dst, tmp, cnt / 2);
+		if (ch->flags & CHN_F_TRIGGERED) {
+			cnt = FEEDER_FEED(ch->feeder, ch, (u_int8_t *)tmp, count, ch->bufsoft);
+			vchan_mix_s16(dst, tmp, cnt / 2);
+		}
 	}
 
 	return count;
@@ -146,6 +148,10 @@ vchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	struct pcm_channel *parent = ch->parent;
 
 	ch->fmt = format;
+	ch->bps = 1;
+	ch->bps <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ch->bps <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
+	ch->bps <<= (ch->fmt & AFMT_32BIT)? 2 : 0;
 	chn_notify(parent, CHN_N_FORMAT);
 	return 0;
 }
@@ -166,9 +172,17 @@ vchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct vchinfo *ch = data;
 	struct pcm_channel *parent = ch->parent;
+	int prate, crate;
 
 	ch->blksz = blocksize;
 	chn_notify(parent, CHN_N_BLOCKSIZE);
+
+	crate = ch->spd * ch->bps;
+	prate = sndbuf_getspd(parent->bufhard) * sndbuf_getbps(parent->bufhard);
+	blocksize = sndbuf_getblksz(parent->bufhard);
+	blocksize *= prate;
+	blocksize /= crate;
+
 	return blocksize;
 }
 
@@ -222,17 +236,23 @@ vchan_create(struct pcm_channel *parent)
 	struct pcm_channel *child;
 	int err, first;
 
-	if (!(parent->flags & CHN_F_BUSY))
+	CHN_LOCK(parent);
+	if (!(parent->flags & CHN_F_BUSY)) {
+		CHN_UNLOCK(parent);
 		return EBUSY;
+	}
 
 	pce = malloc(sizeof(*pce), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!pce)
+	if (!pce) {
+		CHN_UNLOCK(parent);
 		return ENOMEM;
+	}
 
 	/* create a new playback channel */
 	child = pcm_chn_create(d, parent, &vchan_class, PCMDIR_VIRTUAL, parent);
 	if (!child) {
 		free(pce, M_DEVBUF);
+		CHN_UNLOCK(parent);
 		return ENODEV;
 	}
 
@@ -240,6 +260,7 @@ vchan_create(struct pcm_channel *parent)
 	/* add us to our parent channel's children */
 	pce->channel = child;
 	SLIST_INSERT_HEAD(&parent->children, pce, link);
+	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
 	err = pcm_chn_add(d, child);
@@ -269,21 +290,27 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcmchan_children *pce;
 	int err;
 
-	if (!(parent->flags & CHN_F_BUSY))
-		return EBUSY;
-	if (SLIST_EMPTY(&parent->children))
-		return EINVAL;
-
 	/* remove us from our grantparent's channel list */
 	err = pcm_chn_remove(d, c);
 	if (err)
 		return err;
+
+	CHN_LOCK(parent);
+	if (!(parent->flags & CHN_F_BUSY)) {
+		CHN_UNLOCK(parent);
+		return EBUSY;
+	}
+	if (SLIST_EMPTY(&parent->children)) {
+		CHN_UNLOCK(parent);
+		return EINVAL;
+	}
 
 	/* remove us from our parent's children list */
 	SLIST_FOREACH(pce, &parent->children, link) {
 		if (pce->channel == c)
 			goto gotch;
 	}
+	CHN_UNLOCK(parent);
 	return EINVAL;
 gotch:
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
@@ -291,6 +318,7 @@ gotch:
 
 	if (SLIST_EMPTY(&parent->children))
 		parent->flags &= ~CHN_F_BUSY;
+	CHN_UNLOCK(parent);
 	/* destroy ourselves */
 	err = pcm_chn_destroy(c);
 
@@ -308,6 +336,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 
 	d = oidp->oid_arg1;
 
+	snd_mtxlock(d->lock);
 	cnt = 0;
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
@@ -341,6 +370,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 				goto addok;
 addskip:
 			}
+			snd_mtxunlock(d->lock);
 			return EBUSY;
 addok:
 			c->flags |= CHN_F_BUSY;
@@ -356,6 +386,7 @@ addok:
 					if ((c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
 						goto remok;
 				}
+				snd_mtxunlock(d->lock);
 				return EINVAL;
 remok:
 				err = vchan_destroy(c);
@@ -365,6 +396,7 @@ remok:
 		}
 	}
 
+	snd_mtxunlock(d->lock);
 	return err;
 }
 #endif
