@@ -249,10 +249,6 @@ pk_decode(char *in, char *out, DesData *key)
 	memset(&i,0,sizeof(i));
 	memset(buf,0,sizeof(buf));
 	for (l=0,op=0;l<strlen(in)/2;l++,op+=2) {
-		if(in[op] == '0' && in[op+1] == '0') {
-			buf[l] = '\0';
-			break;
-		}
 		if (in[op] > '9')
 			n1 = in[op] - 'A' + 10;
 		else
