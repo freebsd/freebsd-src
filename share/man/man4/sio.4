@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.14 1994/12/05 00:02:38 ache Exp $
+.\"	$Id: sio.4,v 1.15 1994/12/06 20:14:30 bde Exp $
 .\"
 .Dd June 3, 1994
 .Dt SIO 4 i386
@@ -70,6 +70,8 @@ Meaning of \fBflags\fR:
 \fB0x0002\fR disable FIFO
 .br
 \fB0x0004\fR no AST/4 compatible IRQ control register
+.br
+\fB0x0008\fR recover sooner from lost output interrupts
 .br
 \fB0x0080\fR enable diagnostics in probe
 .br
@@ -218,14 +220,17 @@ may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
 .sp
 Correct programs talking to correctly wired external devices
-work with arbitrary initial states and almost no locking,
+work with almost arbitrary initial states and almost no locking,
 but other setups may benefit from changing some of the default
 initial state and locking the state.
+In particular, the initial states for non (POSIX) standard flags
+should be set to suit the devices attached and may need to be
+locked to prevent buggy programs from changing them.
 E.g., CRTSCTS should be locked on for devices that support
 RTS/CTS handshaking at all times and off for devices that don't
 support it at all.  CLOCAL should be locked on for devices
 that don't support carrier.  HUPCL may be locked off if you don't
-want to hang up for reason.  In general, very bad things happen
+want to hang up for some reason.  In general, very bad things happen
 if something is locked to the wrong state, and things should not
 be locked for devices that support more than one setting.  The
 CLOCAL flag on callin ports should be locked off for logins
@@ -287,9 +292,9 @@ driver is derived from the
 driver and is
 .Ud
 .Sh BUGS
-Data loss is not nearly as likely on busy systems as it is with the
-.Xr com 4
-driver but it can still occur at very high baud rates on slow systems.
+Data loss may occur at very high baud rates on slow systems,
+or with too many ports on any system,
+or on heavily loaded systems when crtscts cannot be used.
 The use of NS16550A's reduces system load and helps to avoid data loss.
 .Pp
 Stay away from plain NS16550's. These are early
@@ -306,7 +311,5 @@ be set to use interrupt sharing. AST/4-like interrupt sharing is only used when
 .Nm multiple
 AST/4 cards are installed in the same system.  The sio driver does not
 support more than 1 AST/4 on one IRQ.
-.Pp
-Hardwired terminals should not have different device names.
 .Pp
 The examples in the synopsis are too vendor-specific.
