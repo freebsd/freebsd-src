@@ -153,11 +153,22 @@ vfs_hang_addrlist(mp, nep, argp)
 			goto out;
 		}
 	}
-	rn = (*rnh->rnh_addaddr) (saddr, smask, rnh,
-	    np->netc_rnodes);
-	if (rn == 0 || np != (struct netcred *) rn) {	/* already exists */
-		error = EPERM;
-		goto out;
+	rn = (*rnh->rnh_addaddr)(saddr, smask, rnh, np->netc_rnodes);
+	if (rn == 0) {
+		/*
+		 * One of the reasons that rnh_addaddr may fail is that
+		 * the entry already exists. To check for this case, we
+		 * look up the entry to see if it is there. If so, we
+		 * do not need to make a new entry but do return success.
+		 */
+		free(np, M_NETADDR);
+		rn = (*rnh->rnh_matchaddr)(saddr, rnh);
+		if (rn != 0 && (rn->rn_flags & RNF_ROOT) == 0 &&
+		    ((struct netcred *)rn)->netc_exflags == argp->ex_flags &&
+		    !bcmp(&((struct netcred *)rn)->netc_anon,
+		    &argp->ex_anon, sizeof(struct ucred)))
+			return (0);
+		return (EPERM);
 	}
 	np->netc_exflags = argp->ex_flags;
 	bzero(&np->netc_anon, sizeof(np->netc_anon));
@@ -357,8 +368,7 @@ vfs_export_lookup(mp, nam)
 			rnh = nep->ne_rtable[saddr->sa_family];
 			if (rnh != NULL) {
 				np = (struct netcred *)
-					(*rnh->rnh_matchaddr)(saddr,
-							      rnh);
+				    (*rnh->rnh_matchaddr)(saddr, rnh);
 				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
 					np = NULL;
 			}
