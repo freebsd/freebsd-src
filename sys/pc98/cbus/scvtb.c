@@ -1,5 +1,5 @@
 /*-
- * $Id:$
+ * $Id: scvtbpc98.c,v 1.1 1999/06/24 10:51:34 kato Exp $
  */
 
 #include "sc.h"
@@ -285,6 +285,28 @@ sc_vtb_erase(sc_vtb_t *vtb, int at, int count, int c, int attr)
 	} else {
 		fillw(c, (void *)sc_vtb_pointer(vtb, at), count);
 		fillw(at2pc98(attr), (void *)sc_vtb_attr_pointer(vtb, at), count);
+	}
+}
+
+void
+sc_vtb_move(sc_vtb_t *vtb, int from, int to, int count)
+{
+	if (from + count > vtb->vtb_size)
+		count = vtb->vtb_size - from;
+	if (to + count > vtb->vtb_size)
+		count = vtb->vtb_size - to;
+	if (count <= 0)
+		return;
+	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
+		bcopy_io(sc_vtb_pointer(vtb, from),
+			 sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t)); 
+		bcopy_io(sc_vtb_attr_pointer(vtb, from),
+			 sc_vtb_attr_pointer(vtb, to), count*sizeof(u_int16_t));
+	} else {
+		bcopy((void *)sc_vtb_pointer(vtb, from),
+		      (void *)sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t));
+		bcopy((void *)sc_vtb_attr_pointer(vtb, from),
+		      (void *)sc_vtb_attr_pointer(vtb, to), count*sizeof(u_int16_t));
 	}
 }
 
