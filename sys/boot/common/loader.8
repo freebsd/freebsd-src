@@ -38,22 +38,24 @@ The program called
 is the final stage of FreeBSD's kernel bootstrapping process.
 On IA32 (i386) architectures, it is a
 .Pa BTX
-client. It is linked statically to
+client.
+It is linked statically to
 .Xr libstand 3
 and usually located in the directory
 .Pa /boot .
 .Pp
 It provides a scripting language that can be used to
 automate tasks, do pre-configuration or assist in recovery
-procedures. This scripting language is roughly divided in
-two main components. The smaller one is a set of commands
+procedures.
+This scripting language is roughly divided in
+two main components.
+The smaller one is a set of commands
 designed for direct use by the casual user, called "builtin
-commands" for historical reasons. The main drive behind
-these commands is user-friendlyness. The bigger component
-is an
+commands" for historical reasons.
+The main drive behind these commands is user-friendlyness.
+The bigger component is an
 .Tn ANS
-Forth compatible Forth interpreter based on
-ficl, by
+Forth compatible Forth interpreter based on ficl, by
 .An John Sadler .
 .Pp
 During initialization,
@@ -62,18 +64,21 @@ will probe for a console and set the
 .Va console
 variable, or set it to serial console
 .Pq Dq comconsole
-if the previous boot stage used that. Then, devices are probed,
+if the previous boot stage used that.
+Then, devices are probed,
 .Va currdev
 and
 .Va loaddev
 are set, and
 .Va LINES
-is set to 24 . Next, 
+is set to 24.
+Next, 
 .Tn FICL
 is initialized, the builtin words are added to its vocabulary, and
 .Pa /boot/boot.4th
-will be processed if it exists. No disk switching is possible while
-that file is being read. The inner interpreter
+will be processed if it exists.
+No disk switching is possible while that file is being read.
+The inner interpreter
 .Nm
 will use with
 .Tn FICL
@@ -81,12 +86,13 @@ is then set to
 .Ic interpret ,
 which is
 .Tn FICL Ns 's
-default. After that,
+default.
+After that,
 .Pa /boot/loader.rc
 is processed if available, and, failing that,
 .Pa /boot/boot.conf
-will be read for historical reasons. These files are processed
-through the
+will be read for historical reasons.
+These files are processed through the
 .Ic include
 command, which read all of them into memory before processing them,
 making disk changes possible.
@@ -99,21 +105,25 @@ is not set to
 .Dq NO
 (not case sensitive), then an
 .Ic autoboot
-will be tried. If the system gets past this point,
+will be tried.
+If the system gets past this point,
 .Va prompt
 will be set and
 .Nm
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
 .Nm Loader Ns No 's
-builtin commands take its parameters from the command line. Presently,
+builtin commands take its parameters from the command line.
+Presently,
 the only way to call them from a script is by using
 .Pa evaluate
-on a string. If an error condition occurs, an exception will be
-generated, which can be intercepted using
+on a string.
+If an error condition occurs, an exception will be generated,
+which can be intercepted using
 .Tn ANS
 Forth exception handling
-words. If not intercepted, an error message will be displayed and
+words.
+If not intercepted, an error message will be displayed and
 the interpreter's state will be reset, emptying the stack and restoring
 interpreting mode.
 .Pp
@@ -122,31 +132,37 @@ The builtin commands available are:
 .Bl -tag -width Ds -compact -offset indent
 .It Ic autoboot Op Ar seconds
 Proceeds to bootstrap the system after a number of seconds, if not
-interrupted by the user. Displays a countdown prompt warning the
-user the system is about to be booted, unless interrupted by a key
-press. The kernel will be loaded first if necessary. Defaults to
-10 seconds.
+interrupted by the user.
+Displays a countdown prompt
+warning the user the system is about to be booted,
+unless interrupted by a key press.
+The kernel will be loaded first if necessary.
+Defaults to 10 seconds.
 .Pp
 .It Ic bcachestat
-Displays statistics about disk cache usage. For depuration only.
+Displays statistics about disk cache usage.
+For depuration only.
 .Pp
 .It Ic boot
 .It Ic boot Ar kernelname Op Cm ...
 .It Ic boot Fl flag Cm ...
 Immediately proceeds to bootstrap the system, loading the kernel
-if necessary. Any flags or arguments are passed to the kernel, but they
+if necessary.
+Any flags or arguments are passed to the kernel, but they
 must precede the kernel name, if a kernel name is provided.
 .Pp
 .It Ic echo Xo
 .Op Fl n
 .Op Aq message
 .Xc
-Displays a text on the screen. A new line will be printed unless
+Displays a text on the screen.
+A new line will be printed unless
 .Fl n
 is specified.
 .Pp
 .It Ic heap
-Displays memory usage statistics. For debugging purposes only.
+Displays memory usage statistics.
+For debugging purposes only.
 .Pp
 .It Ic help Op topic Op subtopic
 Shows help messages read from
@@ -156,9 +172,10 @@ The special topic
 will list the topics available.
 .Pp
 .It Ic include Ar file Op Ar
-Process script files. Each file is, at a turn, completely read into
-memory, and then have each of its lines passed to the command line
-interpreter. If any error is returned by the interpreter, the include
+Process script files.
+Each file is, at a turn, completely read into memory,
+and then have each of its lines passed to the command line interpreter.
+If any error is returned by the interpreter, the include
 commands aborts immediately, without reading any other files, and
 returns an error itself (see
 .Sx ERRORS ) .
@@ -170,10 +187,10 @@ returns an error itself (see
 Loads a kernel, kernel loadable module (kld), or a file of opaque
 contents tagged as being of the type
 .Ar type .
-Kernel and modules can be either in a.out or elf format. Any arguments
-passed after the name of the file to be loaded will be passed as
-arguments to that file. Notice, though, that, at the present, this does
-not work for the kernel.
+Kernel and modules can be either in a.out or elf format.
+Any arguments passed after the name of the file to be loaded
+will be passed as arguments to that file.
+Notice, though, that, at the present, this does not work for the kernel.
 .Pp
 .It Ic ls Xo
 .Op Fl l
@@ -183,17 +200,20 @@ Displays a listing of files in the directory
 .Ar path ,
 or the root directory if 
 .Ar path
-is not specified. If
+is not specified.
+If
 .Fl l
 is specified, file sizes will be shown too.
 .Pp
 .It Ic lsdev Op Fl v
-Lists all of the devices from which it may be possible to load modules. If
+Lists all of the devices from which it may be possible to load modules.
+If
 .Fl v
 is specified, more details are printed.
 .Pp
 .It Ic lsmod Op Fl v
-Displays loaded modules. If
+Displays loaded modules.
+If
 .Fl v
 is specified, more details are shown.
 .Pp
@@ -203,7 +223,8 @@ Display the files specified, with a pause at each
 displayed.
 .Pp
 .It Ic pnpscan Op Fl v
-Scans for Plug-and-Play devices. This is not functional at the present.
+Scans for Plug-and-Play devices.
+This is not functional at the present.
 .Pp
 .It Ic read Xo
 .Op Fl t Ar seconds
@@ -212,10 +233,11 @@ Scans for Plug-and-Play devices. This is not functional at the present.
 .Xc
 Reads a line of input from the terminal, storing it in
 .Va variable
-if specified. A timeout can be specified with
+if specified.
+A timeout can be specified with
 .Fl t ,
-though it will be canceled at the first key pressed. A prompt may
-also be displayed through the
+though it will be canceled at the first key pressed.
+A prompt may also be displayed through the
 .Fl p
 flag.
 .Pp
@@ -250,11 +272,12 @@ The
 .Nm
 has actually two different kinds of
 .Sq environment
-variables. There are ANS Forth's
+variables.
+There are ANS Forth's
 .Em environmental queries ,
 and a separate space of environment variables used by builtins, which
-are not directly available to Forth words. It is the later ones that
-this session covers.
+are not directly available to Forth words.
+It is the later ones that this session covers.
 .Pp
 Environment variables can be set and unset through the use of the
 .Ic set
@@ -263,7 +286,8 @@ and
 builtins, and have their value interactively examined through the
 use of the
 .Ic show
-builtin. Their values can also be accessed as described in
+builtin.
+Their values can also be accessed as described in
 .Sx BUILTIN PARSER .
 .Pp
 Notice that this environment variables are not inherited by any shell
@@ -273,13 +297,16 @@ A few variables are set automatically by
 .Nm loader .
 Others can affect either
 .Nm
-or kernel's behavior at boot. While some of these may require a value,
-others define behavior just by being set. These are described below.
+or kernel's behavior at boot.
+While some of these may require a value,
+others define behavior just by being set.
+These are described below.
 .Bl -tag -width bootfile -offset indent
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
-will wait before booting. If this variable is not defined,
+will wait before booting.
+If this variable is not defined,
 .Ic autoboot
 will default to 10 seconds.
 .Pp
@@ -310,16 +337,18 @@ be run when the kernel is booted.
 Setting this variable causes extra debugging information to be printed
 by the kernel during the boot phase.
 .It Va bootfile
-List of semicolon-separated search path for bootable kernels. The default
-is
+List of semicolon-separated search path for bootable kernels.
+The default is
 .Li Dq kernel;kernel.old .
 .It Va console
 Defines the current console.
 .It Va currdev
-Selects the default device.  Syntax for devices is odd.
+Selects the default device.
+Syntax for devices is odd.
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as initial
-process. The default is
+process.
+The default is
 .Li Dq /sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall .
 .It Va interpret
 Has the value 
@@ -329,17 +358,19 @@ if the Forth's current state is interpreting.
 Define the number of lines on the screen, to be used by the pager.
 .It Va module_path
 Sets the list of directories which will be searched in for modules
-named in a load command or implicitly required by a dependancy. The
-default value for this variable is
+named in a load command or implicitly required by a dependancy.
+The default value for this variable is
 .Li Dq /;/boot;/modules .
 .It Va num_ide_disks
 Sets the number of IDE disks as a work around for some problems in
-finding the root disk at boot. This has been deprecated in favour of
+finding the root disk at boot.
+This has been deprecated in favour of
 .Va root_disk_unit .
 .It Va prompt
 Value of
 .Nm Ns No 's
-prompt. Defaults to
+prompt.
+Defaults to
 .Li Dq "${currdev}>" .
 .It Va root_disk_unit
 If the code which detects the disk unit number for the root disk is
@@ -350,7 +381,8 @@ be forced by setting this variable.
 By default the value of
 .Va currdev
 is used to set the root filesystem
-when the kernel is booted.  This can be overridden by setting
+when the kernel is booted.
+This can be overridden by setting
 .Va rootdev
 explicitly.
 .El
@@ -359,25 +391,29 @@ Other variables are used to override kernel tunnable parameters.
 The following tunables are available:
 .Bl -tag -width Va -offset indent
 .It Va kern.ipc.nmbclusters
-Set the number of mbuf clusters to be allocated.  The value
-cannot be set below the default determined when the kernel
-was compiled. Modifies
+Set the number of mbuf clusters to be allocated.
+The value cannot be set below the default
+determined when the kernel was compiled.
+Modifies
 .Va NMBCLUSTERS .
 .It Va kern.vm.kmem.size
-Sets the size of kernel memory (bytes).  This overrides
-completely the value determined when the kernel was
-compiled. Modifies
+Sets the size of kernel memory (bytes).
+This overrides completely the value
+determined when the kernel was compiled.
+Modifies
 .Va VM_KMEM_SIZE .
 .It Va machdep.pccard.pcic_irq
 Overrides the IRQ normally assigned to a PCCARD controller.
 Typically the first available interrupt will be allocated,
-which may conflict with other hardware.  If this value is
-set to 0, an interrupt will not be assigned and the
-controller will operate in polled mode only.
+which may conflict with other hardware.
+If this value is set to 0,
+an interrupt will not be assigned
+and the controller will operate in polled mode only.
 .It Va net.inet.tcp.tcbhashsize
 Overrides the compile-time set value of
 .Va TCBHASHSIZE
-or the preset default of 512.  Must be a power of 2.
+or the preset default of 512.
+Must be a power of 2.
 .El
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
@@ -400,7 +436,8 @@ All backslash characters are preprocessed.
 .Tn ASCII
 11.
 .It
-\ez is just skipped. Useful for things like
+\ez is just skipped.
+Useful for things like
 .Dq \e0xf\ez\e0xf .
 .It
 \e0xN and \e0xNN are replaced by the hex N or NN.
@@ -434,8 +471,9 @@ Spaces can also be escaped through the use of \e\e .
 An exception to this parsing rule exists, and is described in
 .Sx BUILTINS AND FORTH .
 .Ss BUILTINS AND FORTH
-All builtin words are state-smart, immediate words. If interpreted, they
-behave exactly as described previously. If they are compiled, though,
+All builtin words are state-smart, immediate words.
+If interpreted, they behave exactly as described previously.
+If they are compiled, though,
 they extract their arguments from the stack instead of the command line.
 .Pp
 If compiled, the builtin words expect to find, at execution time, the
@@ -444,15 +482,16 @@ following parameters on the stack:
 where
 .Ar addrX lenX
 are strings which will compose the command line that will be parsed
-into the builtin's arguments. Internally, these strings are
-concatenated in from 1 to N, with a space put between each one.
+into the builtin's arguments.
+Internally, these strings are concatenated in from 1 to N,
+with a space put between each one.
 .Pp
 If no arguments are passed, a 0
 .Em must
 be passed, even if the builtin accepts no arguments.
 .Pp
-While this behavior has benefits, it has its trade-offs. If the
-execution token of a builtin is acquired (through
+While this behavior has benefits, it has its trade-offs.
+If the execution token of a builtin is acquired (through
 .Ic No '
 or
 .Ic No ['] ) ,
@@ -469,7 +508,8 @@ or
 is processed
 .Ef
 \&! This is particular annoying for programs that want or need to
-treat exceptions. In this case, it is recommended the use of a proxy.
+treat exceptions.
+In this case, it is recommended the use of a proxy.
 For example:
 .Dl : (boot) boot ;
 .Sh FICL
@@ -484,7 +524,8 @@ each line read interactively is then fed to
 .Tn FICL ,
 which may call
 .Nm
-back to execute the builtin words. The builtin
+back to execute the builtin words.
+The builtin
 .Ic include
 will also feed
 .Tn FICL ,
@@ -492,17 +533,21 @@ one line at a time.
 .Pp
 The words available to
 .Tn FICL
-can be classified in four groups. The
+can be classified in four groups.
+The
 .Tn ANS
 Forth standard words, extra
 .Tn FICL
 words, extra
 .Os
-words, and the builtin commands. The later were already described. The
+words, and the builtin commands.
+The later were already described.
+The
 .Tn ANS
 Forth standard words are listed in the
 .Sx STANDARDS
-section. The words falling in the two other groups are described in the
+section.
+The words falling in the two other groups are described in the
 following subsections.
 .Ss FICL EXTRA WORDS
 .Bl -tag -width wid-set-super -offset indent
@@ -550,7 +595,8 @@ Reads a single character from a file.
 Process file
 .Em fd .
 .It Ic fopen Pq Ar addr len -- fd
-Open a file. Returns a file descriptor, or -1 in case of failure.
+Open a file.
+Returns a file descriptor, or -1 in case of failure.
 .It Xo
 .Ic fread
 .Pq Ar fd addr len -- len'
@@ -585,7 +631,8 @@ Returns the number of seconds since midnight.
 .It Ic tib> Pq -- Ar addr len
 Returns the remainder of the input buffer as a string on the stack.
 .It Ic trace! Pq Ar flag --
-Activates or deactivates tracing. Does not work with
+Activates or deactivates tracing.
+Does not work with
 .Ic catch .
 .El
 .Ss FREEBSD DEFINED ENVIRONMENTAL QUERIES
@@ -615,7 +662,8 @@ Additional
 initialization.
 .It Pa /boot/boot.conf
 .Nm
-bootstrapping script. Deprecated.
+bootstrapping script.
+Deprecated.
 .It Pa /boot/loader.rc
 .Nm
 bootstrapping script.
@@ -629,8 +677,8 @@ Boot in single user mode:
 .Pp
 .Dl boot -s
 .Pp
-Loads kernel's user configuration file. Notice that a kernel must be
-loaded before any other
+Loads kernel's user configuration file.
+Notice that a kernel must be loaded before any other
 .Ic load
 command is attempted.
 .Pp
@@ -648,9 +696,9 @@ load -t splash_image_data /boot/chuckrulez.bmp
 autoboot 5
 .Ed
 .Pp
-Sets the disk unit of the root device to 2, and then boots. This would
-be needed in the case of a two IDE disks system, with the second IDE
-hardwired to wd2 instead of wd1.
+Sets the disk unit of the root device to 2, and then boots.
+This would be needed in the case of a two IDE disks system,
+with the second IDE hardwired to wd2 instead of wd1.
 .Pp
 .Bd -literal -offset indent -compact
 set root_disk_unit=2
@@ -750,6 +798,5 @@ The
 .Ic expect
 and
 .Ic accept
-words will read from the input buffer instead of the console. The latter
-will be fixed, but the former will not.
-
+words will read from the input buffer instead of the console.
+The latter will be fixed, but the former will not.
