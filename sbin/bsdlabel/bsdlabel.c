@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.20 1998/08/21 23:44:16 gpalmer Exp $";
+	"$Id: disklabel.c,v 1.21 1998/08/23 07:32:37 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -75,12 +75,6 @@ static const char rcsid[] =
  * The bootstrap source must leave space at the proper offset
  * for the label on such machines.
  */
-
-#ifdef tahoe
-#define RAWPARTITION	'a'
-#else
-#define RAWPARTITION	'c'
-#endif
 
 #ifndef BBSIZE
 #define	BBSIZE	8192			/* size of boot area, with label */
@@ -232,7 +226,7 @@ main(argc, argv)
 
 	dkname = argv[0];
 	if (dkname[0] != '/') {
-		(void)sprintf(np, "%sr%s%c", _PATH_DEV, dkname, RAWPARTITION);
+		(void)sprintf(np, "%sr%s%c", _PATH_DEV, dkname, RAW_PART);
 		specname = np;
 		np += strlen(specname) + 1;
 	} else
@@ -483,7 +477,7 @@ l_perror(s)
 	case ESRCH:
 		warnx("%s: no disk label on disk;", s);
 		fprintf(stderr,
-			"use \"disklabel -r\" to install initial label\n");
+		    "use \"disklabel -r\" to install initial label\n");
 		break;
 
 	case EINVAL:
@@ -496,8 +490,8 @@ l_perror(s)
 		break;
 
 	case EXDEV:
-		warnx(
- "%s: labeled partition or 'a' partition must start at beginning of disk", s);
+		warnx("%s: '%c' partition must start at beginning of disk",
+		    s, 'a' + RAW_PART);
 		break;
 
 	default:
