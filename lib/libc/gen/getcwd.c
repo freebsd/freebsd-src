@@ -222,7 +222,7 @@ getcwd(pt, size)
 			}
 			off = bpt - pt;
 			len = ept - bpt;
-			if ((pt = realloc(pt, ptsize *= 2)) == NULL)
+			if ((pt = reallocf(pt, ptsize *= 2)) == NULL)
 				goto err;
 			bpt = pt + off;
 			ept = pt + ptsize;
