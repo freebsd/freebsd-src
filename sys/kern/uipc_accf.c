@@ -1,5 +1,6 @@
-/*-
- * Copyright (c) 2000 Alfred Perlstein <alfred@FreeBSD.org>
+/*
+ * Copyright (c) 2000 Paycounter, Inc.
+ * Author: Alfred Perlstein <alfred@paycounter.com>, <alfred@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/queue.h>
@@ -45,6 +47,13 @@ static SLIST_HEAD(, accept_filter) accept_filtlsthd =
 	SLIST_HEAD_INITIALIZER(&accept_filtlsthd);
 
 MALLOC_DEFINE(M_ACCF, "accf", "accept filter data");
+
+static int unloadable = 0;
+
+SYSCTL_DECL(_net_inet);	/* XXX: some header should do this for me */
+SYSCTL_NODE(_net_inet, OID_AUTO, accf, CTLFLAG_RW, 0, "Accept filters");
+SYSCTL_INT(_net_inet_accf, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
+	"Allow unload of accept filters (not recommended)");
 
 /*
  * must be passed a malloc'd structure so we don't explode if the kld
@@ -121,12 +130,12 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 		 * is a bad thing.  A simple fix would be to track the refcount
 		 * in the struct accept_filter.
 		 */
-#if 0
-		s = splnet();
-		error = accept_filt_del(accfp->accf_name);
-		splx(s);
-#endif
-		error = EOPNOTSUPP;
+		if (unloadable != 0) {
+			s = splnet();
+			error = accept_filt_del(accfp->accf_name);
+			splx(s);
+		} else
+			error = EOPNOTSUPP;
 		break;
 
 	case MOD_SHUTDOWN:
