@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.18 1997/05/24 17:34:54 brian Exp $
+ * $Id: main.c,v 1.22.2.19 1997/05/26 00:52:23 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -818,7 +818,7 @@ DoLoop()
 		    VarDialTries);
         else
 	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
-	if (DialModem()) {
+	if (DialModem() == EX_DONE) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
 	  PacketMode();
