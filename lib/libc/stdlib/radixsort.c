@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)radixsort.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)radixsort.c	8.2 (Berkeley) 4/28/95";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -132,7 +132,7 @@ sradixsort(a, n, tab, endch)
 #define swap(a, b, t)	t = a, a = b, b = t
 
 /* Unstable, in-place sort. */
-void
+static void
 r_sort_a(a, n, i, tr, endch)
 	const u_char **a;
 	int n, i;
@@ -223,7 +223,7 @@ r_sort_a(a, n, i, tr, endch)
 }
 
 /* Stable sort, requiring additional memory. */
-void
+static void
 r_sort_b(a, ta, n, i, tr, endch)
 	const u_char **a, **ta;
 	int n, i;
