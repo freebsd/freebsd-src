@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acenv.h - Generation environment specific items
- *       $Revision: 83 $
+ *       $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -202,6 +202,9 @@
 #elif defined(_AED_EFI)
 #include "acefi.h"
 
+#elif defined(MSDOS)
+#include "acdos16.h"
+
 #elif defined(WIN32)
 #include "acwin.h"
 
@@ -355,7 +358,21 @@ typedef char *va_list;
  */
 
 /* Unrecognized compiler, use defaults */
+
 #ifndef ACPI_ASM_MACROS
+
+/*
+ * Calling conventions:
+ *
+ * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
+ * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
+ */
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
 
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
@@ -382,12 +399,8 @@ typedef char *va_list;
 
 /******************************************************************************
  *
- * Compiler-specific
+ * Compiler-specific information is contained in the compiler-specific
+ * headers.
  *
  *****************************************************************************/
-
-/* this has been moved to compiler-specific headers, which are included from the
-   platform header. */
-
-
 #endif /* __ACENV_H__ */

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 82 $
+ *              $Revision: 83 $
  *
  ******************************************************************************/
 
@@ -220,8 +220,8 @@ AcpiNsSearchNode (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Name %4.4s (actual type %X) found at %p\n",
-                (char *) &TargetName, NextNode->Type, NextNode));
+                "Name %4.4s Type [%s] found at %p\n",
+                (char *) &TargetName, AcpiUtGetTypeName (NextNode->Type), NextNode));
 
             *ReturnNode = NextNode;
             return_ACPI_STATUS (AE_OK);
