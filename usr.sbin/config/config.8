@@ -40,7 +40,7 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm
-.Op Fl gpr
+.Op Fl gp
 .Op Fl d Ar destdir
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
@@ -93,8 +93,6 @@ If two or more
 options are supplied,
 .Nm
 configures a system for high resolution profiling.
-.It Fl r
-Remove the old compile directory (see below).
 .It Ar SYSTEM_NAME
 Specify the name of the system configuration file
 containing device specifications, configuration options
@@ -117,9 +115,6 @@ or the one given with the
 .Fl d
 option 
 as necessary and places all output files there.
-If the output directory already exists and the
-.Fl r
-flag was specified, it will be removed first.
 The output of
 .Nm
 consists of a number of files; for the
