@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2004
+.Dd August 9, 2004
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -48,8 +48,7 @@ This command is aptly named
 Before attempting to build a release, the user is expected to be
 familiar with the contents of
 .Xr build 7 ,
-and should have experience upgrading systems from source with
-.Dq Li "make world" .
+and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
@@ -82,7 +81,7 @@ to install a clean system into a
 environment on the file system.
 Checks out the specified version of the source code and then rebuilds
 the entire system in the clean environment with
-.Dq Li "make world" .
+.Dq Li "make buildworld" .
 The detailed steps that follow are then executed to package up the
 different distributions, build the installation floppy disks, build
 release documentation, and so on.
