@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.3 1994/08/02 07:53:17 davidg Exp $
+ * $Id: mtio.h,v 1.4 1994/10/28 13:19:42 jkh Exp $
  */
 
 #ifndef _SYS_MTIO_H_
@@ -68,7 +68,7 @@ struct mtop {
 
 #define MTSETBSIZ	10
 
-/* Set density values for device. Thye aredefined in  the SCSI II spec	*/
+/* Set density values for device. They are defined in the SCSI II spec	*/
 /* and range from 0 to 0x17. Sets the value for the openned mode only	*/
 
 #define MTSETDNSTY	11
@@ -76,7 +76,9 @@ struct mtop {
 /*
 ** Tape erase function - AKL: Andreas Klemm <andreas@knobel.gun.de>
 */
-#define MTERASE		12
+#define MTERASE		12	/* erase to EOM */
+#define MTEOD		13	/* Space to EOM *//* lost the code for this */
+#define MTCOMP		14	/* select compression mode 0=off, 1=def */
 
 #endif
 
@@ -90,8 +92,9 @@ struct mtget {
 /* end device-dependent registers */
 	short	mt_resid;	/* residual count */
 #if defined (__FreeBSD__)
-	daddr_t mt_blksiz;	/* presently operatin blocksize */
-	daddr_t mt_density;	/* presently operatin density */
+	daddr_t mt_blksiz;	/* presently operating blocksize */
+	daddr_t mt_density;	/* presently operating density */
+	daddr_t mt_comp;	/* presently operating compresion */
 	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
 	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
 	daddr_t mt_blksiz2;	/* blocksize for mode 2 */
@@ -100,8 +103,12 @@ struct mtget {
 	daddr_t mt_density1;	/* density for mode 1 */
 	daddr_t mt_density2;	/* density for mode 2 */
 	daddr_t mt_density3;	/* density for mode 3 */
+/* the following are not yet implemented */
+	u_char	mt_comp0;	/* compression type for mode 0 */
+	u_char	mt_comp1;	/* compression type for mode 1 */
+	u_char	mt_comp2;	/* compression type for mode 2 */
+	u_char	mt_comp3;	/* compression type for mode 3 */
 #endif
-/* the following two are not yet implemented */
 	daddr_t	mt_fileno;	/* file number of current position */
 	daddr_t	mt_blkno;	/* block number of current position */
 /* end not yet implemented */
