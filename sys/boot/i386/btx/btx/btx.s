@@ -155,6 +155,7 @@ init.4: 	movbi1(_ESP0H,TSS_ESP0+1,_di_)	# Set ESP0
 		movbi1(SEL_SDATA,TSS_SS0,_di_)	# Set SS0
 		movbi1(_ESP1H,TSS_ESP1+1,_di_)	# Set ESP1
 		movbi1(_TSSIO,TSS_MAP,_di_)	# Set I/O bit map base
+ifdef(`PAGING',`
 #
 # Create page directory.
 #
@@ -187,20 +188,28 @@ init.6: 	movb $0x7,%al			# Set U:W:P flags
 init.7: 	stosw				# Set entry
 		addw %dx,%ax			# Next address
 		loop init.6			# Till done
+')
 #
 # Bring up the system.
 #
 		movwir(0x2820,_bx)		# Set protected mode
 		callwi(setpic)			#  IRQ offsets
 		lidtwm(idtdesc) 		# Set IDT
+ifdef(`PAGING',`
 		xorw %ax,%ax			# Set base
 		movb $MEM_DIR>>0x8,%ah		#  of page
 		movl %eax,%cr3			#  directory
+')
 		lgdtwm(gdtdesc) 		# Set GDT
 		movl %cr0,%eax			# Switch to
+ifdef(`PAGING',`
 		o16				#  protected mode
-		orl $0x80000001,%eax		#  and enable
-		movl %eax,%cr0			#  paging
+		orl $0x80000001,%eax            #  and enable paging
+',`
+		o16				#  protected mode
+		orl $0x01,%eax			# 
+')
+		movl %eax,%cr0			#  
 		jmpfwi(SEL_SCODE,init.8)	# To 32-bit code
 init.8: 	xorl %ecx,%ecx			# Zero
 		movb $SEL_SDATA,%cl		# To 32-bit
@@ -240,14 +249,18 @@ init.9:		pushb $0x0			#  general
 #
 exit:		cli				# Disable interrupts
 		movl $MEM_ESP0,%esp		# Clear stack
+ifdef(`PAGING',`
 #
 # Turn off paging.
 #
 		movl %cr0,%eax			# Get CR0
 		andl $~0x80000000,%eax		# Disable
 		movl %eax,%cr0			#  paging
+')
 		xorl %ecx,%ecx			# Zero
+ifdef(`PAGING',`
 		movl %ecx,%cr3			# Flush TLB
+')
 #
 # To 16 bits.
 #
@@ -545,10 +558,64 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
 		orl %eax,%edx			#  flags
 		jmp v86mon.5			# Finish up
 #
-# Emulate INT imm8.
+# trap int 15, function 87
+# reads %es:%si from saved registers on stack to find a GDT containing
+# source and destination locations
+# reads count of words from saved %cx
+# returns success by setting %ah to 0
+#
+int15_87:	pushl %eax			# Save 
+		pushl %ebx			#  some information 
+		pushl %esi			#  onto the stack.
+		pushl %edi
+		xorl %eax,%eax			# clean EAX 
+		xorl %ebx,%ebx			# clean EBX 
+		movl 0x4(%ebp),%esi		# Get user's ESI
+		movl 0x3C(%ebp),%ebx		# store ES
+		movw %si,%ax			# store SI
+		shll $0x4,%ebx			# Make it a seg.
+		addl %eax,%ebx			# ebx=(es<<4)+si
+		movb 0x14(%ebx),%al		# Grab the
+		movb 0x17(%ebx),%ah		#  necessary
+		shll $0x10,%eax			#  information
+		movw 0x12(%ebx),%ax		#  from
+		movl %eax,%esi			#  the
+		movb 0x1c(%ebx),%al		#  GDT in order to
+		movb 0x1f(%ebx),%ah		#  have %esi offset
+		shll $0x10,%eax			#  of source and %edi
+		movw 0x1a(%ebx),%ax		#  of destination.
+		movl %eax,%edi
+		pushl %ds			# Make:
+		popl %es			# es = ds
+		pushl %ecx			# stash ECX
+		xorl %ecx,%ecx			# highw of ECX is clear
+		movw 0x18(%ebp),%cx		# Get user's ECX
+		rep				# repeat...
+		movsb				#  perform copy.
+		popl %ecx			# Restore
+		popl %edi
+		popl %esi			#  previous
+		popl %ebx			#  register
+		popl %eax			#  values.
+		movb $0x0,0x1d(%ebp)		# set ah = 0 to indicate
+						#  success
+		andb $0xfe,%dl			# clear CF
+		jmp v86mon.5			# Finish up
+
+#
+# Emulate INT imm8... also make sure to check if it's int 15/87
 #
 v86intn:	lodsb				# Get int no
-		subl %edi,%esi			# From
+		cmpb $0x15,%al			# is it int 15?
+		jne v86intn.2			#  no, skip parse
+		pushl %eax                      # stash EAX
+		movl 0x1c(%ebp),%eax		# user's saved EAX
+		cmpb $0x87,%ah			# is it our sub function?
+		jne v86intn.1			#  no, don't handle it
+		popl %eax			# get the stack straight
+		jmp int15_87			# it's our cue
+v86intn.1:	popl %eax			# restore EAX
+v86intn.2:	subl %edi,%esi			# From
 		shrl $0x4,%edi			#  linear
 		movw %dx,-0x2(%ebx)		# Save flags
 		movw %di,-0x4(%ebx)		# Save CS
