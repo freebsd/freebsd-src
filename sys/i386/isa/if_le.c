@@ -605,8 +605,7 @@ le_ioctl(
 #ifdef INET
 		case AF_INET: {
 		    (*ifp->if_init)(ifp->if_unit);
-		    ((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-		    arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+		    arp_ifinit((struct arpcom *)ifp, ifa);
 		    break;
 		}
 #endif /* INET */
@@ -834,7 +833,7 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-/* static int lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize); */
+static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
 static void lemac_reset(IF_RESET_ARGS);
@@ -847,10 +846,10 @@ static int  lemac_read_eeprom(le_softc_t *sc);
 static void lemac_init_adapmem(le_softc_t *sc);
 
 static const le_mcbits_t lemac_allmulti_mctbl[16] =  {
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
-    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
 };
 /*
  * An IRQ mapping table.  Less space than switch statement.
@@ -1354,7 +1353,7 @@ lemac_init_adapmem(
  * Start of DEPCA (DE200/DE201/DE202/DE422 etal) support.
  *
  */
-/* static int depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize); */
+static int  depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void depca_intr(le_softc_t *sc);
 static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
