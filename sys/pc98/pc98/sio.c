@@ -4083,8 +4083,8 @@ static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
 #ifdef __i386__
-CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc, siocnputc);
-
+CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc,
+	    siocnputc, NULL);
 #endif
 
 /* To get the GDB related variables */
@@ -4324,7 +4324,7 @@ siocnprobe(cp)
 
 #ifdef __alpha__
 
-CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc);
+CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc, NULL);
 
 int
 siocnattach(port, speed)
