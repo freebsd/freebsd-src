@@ -952,7 +952,8 @@ loop:
 			}
 			if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
 				allerror = error;
-			vput(vp);
+			VOP_UNLOCK(vp, 0, p);
+			vrele(vp);
 			simple_lock(&mntvnode_slock);
 		} else {
 			simple_unlock(&mntvnode_slock);
