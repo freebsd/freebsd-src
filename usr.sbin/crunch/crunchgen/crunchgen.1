@@ -48,7 +48,7 @@ as many programs as possible onto an installation or system recovery
 floppy.
 
 .Pp
-.Nm Crunchgen
+.Nm
 reads in the specifications in
 .Ar conf-file
 for a crunched binary, and generates a Makefile and accompanying
@@ -63,6 +63,27 @@ uses the companion program
 .Nm crunchide
 to eliminate link-time conflicts between the component programs by
 hiding all unnecessary symbols.
+
+.Pp
+.Nm 
+places specific requirements on package
+.Pa Makefiles
+which make it unsuitable for use with non-BSD sources.  In particular, the
+.Nm Makefile
+must contain the target
+.Ar depend ,
+and it must define all object files in the variable
+.Ar OBJS .
+In some cases, you can use a fake
+.Pa Makefile :
+before looking for
+.Pa Makefile
+in the source directory
+.Pa foo ,
+.Nm
+looks for the file
+.Pa Makefile.foo
+in the current directory.
 
 .Pp
 After
