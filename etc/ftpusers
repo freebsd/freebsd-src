@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: ftpusers,v 1.5 1999/04/01 15:14:09 brian Exp $
 #
 # list of users disallowed any ftp access.
 # read by ftpd(8).
@@ -7,9 +7,13 @@ toor
 daemon
 operator
 bin
+tty
+kmem
 games
 news
 man
+bind
 uucp
 xten
+pop
 nobody
