@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.68 1999/01/27 23:49:45 dillon Exp $
+ *	$Id: devfs_vnops.c,v 1.69 1999/01/28 00:57:49 dillon Exp $
  */
 
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/namei.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
