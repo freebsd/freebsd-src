@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.20 1997/10/15 09:21:26 phk Exp $
+ * $Id: umap_vnops.c,v 1.21 1997/10/15 10:04:48 phk Exp $
  */
 
 /*
@@ -386,6 +386,9 @@ umap_inactive(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct umap_node *xp = VTOUMAP(vp);
+	struct vnode *lowervp = xp->umap_lowervp;
 	/*
 	 * Do nothing (and _don't_ bypass).
 	 * Wait to vrele lowervp until reclaim,
@@ -393,6 +396,7 @@ umap_inactive(ap)
 	 * cache and reusable.
 	 *
 	 */
+	VOP_INACTIVE(lowervp, ap->a_p);
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
