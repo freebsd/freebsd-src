@@ -245,16 +245,8 @@ m_mballoc(int nmb, int how)
 	 * Also, once we run out of map space, it will be impossible to
 	 * get any more (nothing is ever freed back to the map).
 	 */
-	if (mb_map_full || ((nmb + mbstat.m_mbufs) > nmbufs)) {
-		/* 
-		 * Needs to be atomic as we may be incrementing it
-		 * while holding another mutex, like mclfree. In other
-		 * words, m_drops is not reserved solely for mbufs,
-		 * but is also available for clusters.
-		 */ 
-		atomic_add_long(&mbstat.m_drops, 1);
+	if (mb_map_full || ((nmb + mbstat.m_mbufs) > nmbufs))
 		return (0);
-	}
 
 	mtx_unlock(&mmbfree.m_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
@@ -343,8 +335,7 @@ m_mballoc_wait(void)
 		atomic_add_long(&mbstat.m_wait, 1);
 		if (mmbfree.m_head != NULL)
 			MBWAKEUP(m_mballoc_wid);
-	} else
-		atomic_add_long(&mbstat.m_drops, 1);
+	}
 
 	return (p);
 }
@@ -370,10 +361,8 @@ m_clalloc(int ncl, int how)
 	 * If we've hit the mcluster number limit, stop allocating from
 	 * mb_map.
 	 */
-	if (mb_map_full || ((ncl + mbstat.m_clusters) > nmbclusters)) {
-		atomic_add_long(&mbstat.m_drops, 1);
+	if (mb_map_full || ((ncl + mbstat.m_clusters) > nmbclusters))
 		return (0);
-	}
 
 	mtx_unlock(&mclfree.m_mtx);
 	p = (caddr_t)kmem_malloc(mb_map, npg_sz,
@@ -384,10 +373,8 @@ m_clalloc(int ncl, int how)
 	 * Either the map is now full, or `how' is M_DONTWAIT and there
 	 * are no pages left.
 	 */
-	if (p == NULL) {
-		atomic_add_long(&mbstat.m_drops, 1);
+	if (p == NULL)
 		return (0);
-	}
 
 	/*
 	 * We don't let go of the mutex in order to avoid a race.
@@ -429,8 +416,7 @@ m_clalloc_wait(void)
 		atomic_add_long(&mbstat.m_wait, 1);
 		if (mclfree.m_head != NULL)
 			MBWAKEUP(m_clalloc_wid);
-	} else
-		atomic_add_long(&mbstat.m_drops, 1);
+	}
 
 	return (p);
 }

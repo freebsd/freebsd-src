@@ -377,8 +377,10 @@ struct mcntfree_lst {
 		mbtypes[_mtype]++;					\
 		mtx_unlock(&mmbfree.m_mtx);				\
 		_MGET_SETUP(_mm, _mtype);				\
-	} else								\
+	} else {							\
 		mtx_unlock(&mmbfree.m_mtx);				\
+		atomic_add_long(&mbstat.m_drops, 1);			\
+	}								\
 	(m) = _mm;							\
 } while (0)
 
@@ -404,8 +406,10 @@ struct mcntfree_lst {
 		mbtypes[_mtype]++;					\
 		mtx_unlock(&mmbfree.m_mtx);				\
 		_MGETHDR_SETUP(_mm, _mtype);				\
-	} else								\
+	} else {							\
 		mtx_unlock(&mmbfree.m_mtx);				\
+		atomic_add_long(&mbstat.m_drops, 1);			\
+	}								\
 	(m) = _mm;							\
 } while (0)
 
@@ -453,7 +457,8 @@ struct mcntfree_lst {
 			_mm->m_ext.ext_size = MCLBYTES;			\
 			_mm->m_ext.ext_type = EXT_CLUSTER;		\
 		}							\
-	}								\
+	} else								\
+		atomic_add_long(&mbstat.m_drops, 1);			\
 } while (0)
 
 #define MEXTADD(m, buf, size, free, args, flags, type) do {		\
