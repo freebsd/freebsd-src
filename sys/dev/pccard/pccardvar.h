@@ -184,9 +184,6 @@ struct pccard_card {
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
 
-#define	PCCARD_MEM_ATTR		1
-#define	PCCARD_MEM_COMMON	2
-
 #define	PCCARD_WIDTH_AUTO	0
 #define	PCCARD_WIDTH_IO8	1
 #define	PCCARD_WIDTH_IO16	2
