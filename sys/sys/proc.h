@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.74 1999/03/05 16:38:12 bde Exp $
+ * $Id: proc.h,v 1.75 1999/03/12 02:24:55 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -252,8 +252,8 @@ struct	proc {
 #define	P_EXEC		0x04000	/* Process called exec. */
 
 /* Should probably be changed into a hold count. */
-#define	P_NOSWAP	0x08000	/* Another flag to prevent swap out. */
-#define	P_PHYSIO	0x10000	/* Doing physical I/O. */
+/* was	P_NOSWAP	0x08000	was: Do not swap upages; p->p_hold */
+/* was	P_PHYSIO	0x10000	was: Doing physical I/O; use p->p_hold */
 
 /* Should be moved to machine-dependent areas. */
 #define	P_OWEUPC	0x20000	/* Owe process an addupc() call at next ast. */
