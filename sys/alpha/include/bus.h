@@ -91,6 +91,20 @@ typedef u_int32_t		bus_space_handle_t;
 #define BUS_SPACE_UNRESTRICTED	(~0UL)
 
 /*
+ * Unmap a region of device bus space.
+ */
+
+static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+				     bus_size_t size);
+
+static __inline void
+bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
+		bus_size_t size __unused)
+{
+}
+
+
+/*
  * Get a new handle for a subregion of an already-mapped area of bus space.
  */
 
