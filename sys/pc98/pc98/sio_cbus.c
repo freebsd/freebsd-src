@@ -42,8 +42,8 @@
 
 #include <isa/isavar.h>
 
-static	int	sio_isa_attach	__P((device_t dev));
-static	int	sio_isa_probe	__P((device_t dev));
+static	int	sio_isa_attach(device_t dev);
+static	int	sio_isa_probe(device_t dev);
 
 static device_method_t sio_isa_methods[] = {
 	/* Device interface */

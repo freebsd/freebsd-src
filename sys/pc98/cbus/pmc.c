@@ -51,11 +51,11 @@ struct pmc_isa_softc {
 	int			flags;
 };
 
-static int	pmc_isa_alloc_resources __P((device_t));
-static void	pmc_isa_release_resources __P((device_t));
-static int	pmc_isa_probe __P((device_t));
-static int	pmc_isa_attach __P((device_t));
-static int	pmc_isa_detach __P((device_t));
+static int	pmc_isa_alloc_resources(device_t);
+static void	pmc_isa_release_resources(device_t);
+static int	pmc_isa_probe(device_t);
+static int	pmc_isa_attach(device_t);
+static int	pmc_isa_detach(device_t);
 
 #define	PMC_ISA_PORT		0x8f0
 #define	PMC_ISA_PORTSIZE	4

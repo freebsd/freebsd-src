@@ -174,9 +174,9 @@ static struct cdevsw pca_cdevsw = {
 	/* flags */	0,
 };
 
-static void pca_continue __P((void));
-static void pca_init __P((void));
-static void pca_pause __P((void));
+static void pca_continue(void);
+static void pca_init(void);
+static void pca_pause(void);
 
 static void
 conv(const unsigned char *table, unsigned char *buff, unsigned n)

@@ -369,26 +369,26 @@ struct com_s {
 };
 
 #ifdef COM_ESP
-static	int	espattach	__P((struct com_s *com, Port_t esp_port));
+static	int	espattach(struct com_s *com, Port_t esp_port);
 #endif
 
 static	timeout_t siobusycheck;
-static	u_int	siodivisor	__P((u_long rclk, speed_t speed));
+static	u_int	siodivisor(u_long rclk, speed_t speed);
 static	timeout_t siodtrwakeup;
-static	void	comhardclose	__P((struct com_s *com));
-static	void	sioinput	__P((struct com_s *com));
-static	void	siointr1	__P((struct com_s *com));
-static	void	siointr		__P((void *arg));
-static	int	commctl		__P((struct com_s *com, int bits, int how));
-static	int	comparam	__P((struct tty *tp, struct termios *t));
-static	void	siopoll		__P((void *));
-static	void	siosettimeout	__P((void));
-static	int	siosetwater	__P((struct com_s *com, speed_t speed));
-static	void	comstart	__P((struct tty *tp));
-static	void	comstop		__P((struct tty *tp, int rw));
+static	void	comhardclose(struct com_s *com);
+static	void	sioinput(struct com_s *com);
+static	void	siointr1(struct com_s *com);
+static	void	siointr(void *arg);
+static	int	commctl(struct com_s *com, int bits, int how);
+static	int	comparam(struct tty *tp, struct termios *t);
+static	void	siopoll(void *);
+static	void	siosettimeout(void);
+static	int	siosetwater(struct com_s *com, speed_t speed);
+static	void	comstart(struct tty *tp);
+static	void	comstop(struct tty *tp, int rw);
 static	timeout_t comwakeup;
-static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
-				     struct com_s *com));
+static	void	disc_optim(struct tty	*tp, struct termios *t,
+				     struct com_s *com);
 
 char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
@@ -464,33 +464,33 @@ static	int	sysclock;
 #define IS_8251(if_type)		(!(if_type & 0x10))
 #define COM1_EXT_CLOCK			0x40000
 
-static	void	commint		__P((dev_t dev));
-static	void	com_tiocm_set	__P((struct com_s *com, int msr));
-static	void	com_tiocm_bis	__P((struct com_s *com, int msr));
-static	void	com_tiocm_bic	__P((struct com_s *com, int msr));
-static	int	com_tiocm_get	__P((struct com_s *com));
-static	int	com_tiocm_get_delta	__P((struct com_s *com));
-static	void	pc98_msrint_start	__P((dev_t dev));
-static	void	com_cflag_and_speed_set	__P((struct com_s *com, int cflag, int speed));
-static	int	pc98_ttspeedtab		__P((struct com_s *com, int speed, u_int *divisor));
-static	int	pc98_get_modem_status	__P((struct com_s *com));
+static	void	commint(dev_t dev);
+static	void	com_tiocm_set(struct com_s *com, int msr);
+static	void	com_tiocm_bis(struct com_s *com, int msr);
+static	void	com_tiocm_bic(struct com_s *com, int msr);
+static	int	com_tiocm_get(struct com_s *com);
+static	int	com_tiocm_get_delta(struct com_s *com);
+static	void	pc98_msrint_start(dev_t dev);
+static	void	com_cflag_and_speed_set(struct com_s *com, int cflag, int speed);
+static	int	pc98_ttspeedtab(struct com_s *com, int speed, u_int *divisor);
+static	int	pc98_get_modem_status(struct com_s *com);
 static	timeout_t	pc98_check_msr;
-static	void	pc98_set_baud_rate	__P((struct com_s *com, u_int count));
-static	void	pc98_i8251_reset	__P((struct com_s *com, int mode, int command));
-static	void	pc98_disable_i8251_interrupt	__P((struct com_s *com, int mod));
-static	void	pc98_enable_i8251_interrupt	__P((struct com_s *com, int mod));
-static	int	pc98_check_i8251_interrupt	__P((struct com_s *com));
-static	int	pc98_i8251_get_cmd	__P((struct com_s *com));
-static	int	pc98_i8251_get_mod	__P((struct com_s *com));
-static	void	pc98_i8251_set_cmd	__P((struct com_s *com, int x));
-static	void	pc98_i8251_or_cmd	__P((struct com_s *com, int x));
-static	void	pc98_i8251_clear_cmd	__P((struct com_s *com, int x));
-static	void	pc98_i8251_clear_or_cmd	__P((struct com_s *com, int clr, int x));
-static	int	pc98_check_if_type	__P((device_t dev, struct siodev *iod));
-static	int	pc98_check_8251vfast	__P((void));
-static	int	pc98_check_8251fifo	__P((void));
-static	void	pc98_check_sysclock	__P((void));
-static	void	pc98_set_ioport		__P((struct com_s *com));
+static	void	pc98_set_baud_rate(struct com_s *com, u_int count);
+static	void	pc98_i8251_reset(struct com_s *com, int mode, int command);
+static	void	pc98_disable_i8251_interrupt(struct com_s *com, int mod);
+static	void	pc98_enable_i8251_interrupt(struct com_s *com, int mod);
+static	int	pc98_check_i8251_interrupt(struct com_s *com);
+static	int	pc98_i8251_get_cmd(struct com_s *com);
+static	int	pc98_i8251_get_mod(struct com_s *com);
+static	void	pc98_i8251_set_cmd(struct com_s *com, int x);
+static	void	pc98_i8251_or_cmd(struct com_s *com, int x);
+static	void	pc98_i8251_clear_cmd(struct com_s *com, int x);
+static	void	pc98_i8251_clear_or_cmd(struct com_s *com, int clr, int x);
+static	int	pc98_check_if_type(device_t dev, struct siodev *iod);
+static	int	pc98_check_8251vfast(void);
+static	int	pc98_check_8251fifo(void);
+static	void	pc98_check_sysclock(void);
+static	void	pc98_set_ioport(struct com_s *com);
 
 #define com_int_Tx_disable(com) \
 		pc98_disable_i8251_interrupt(com,IEN_Tx|IEN_TxEMP)
@@ -3929,17 +3929,17 @@ struct siocnstate {
 };
 
 #ifndef __alpha__
-static speed_t siocngetspeed __P((Port_t, u_long rclk));
+static speed_t siocngetspeed(Port_t, u_long rclk);
 #endif
-static void siocnclose	__P((struct siocnstate *sp, Port_t iobase));
-static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
-static void siocntxwait	__P((Port_t iobase));
+static void siocnclose(struct siocnstate *sp, Port_t iobase);
+static void siocnopen(struct siocnstate *sp, Port_t iobase, int speed);
+static void siocntxwait(Port_t iobase);
 
 #ifdef __alpha__
-int siocnattach __P((int port, int speed));
-int siogdbattach __P((int port, int speed));
-int siogdbgetc __P((void));
-void siogdbputc __P((int c));
+int siocnattach(int port, int speed);
+int siogdbattach(int port, int speed);
+int siogdbgetc(void);
+void siogdbputc(int c);
 #else
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
