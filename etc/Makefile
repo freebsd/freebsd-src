@@ -89,7 +89,7 @@ distribution: distrib-dirs
 	    ${DESTDIR}/)
 .endif
 .if ${MACHINE} == "i386"
-	(cd ../sys.386bsd/i386/boot; make depend all install; \
+	(cd ../sys/i386/boot; make depend all install; \
 	 cd /usr/mdec; find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
 	(cd ..; make install)
 	(cd ../include; make copies)
@@ -105,6 +105,6 @@ distrib-dirs:
 	mtree -u -f mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -u -f mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	(cd ${DESTDIR}; rm -f ${DESTDIR}/sys; \
-	    ln -s usr/src/sys.386bsd sys )
+	    ln -s usr/src/sys sys )
 
 .include <bsd.prog.mk>

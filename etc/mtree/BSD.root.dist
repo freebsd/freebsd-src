@@ -8,7 +8,7 @@
 
 /set type=file owner=root group=wheel mode=0775
 
-sys	type=link size=18 link=usr/src/sys.386bsd
+sys	type=link size=18 link=usr/src/sys
 
 dev	type=dir
 	fd	type=dir owner=bin group=bin mode=555
