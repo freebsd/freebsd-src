@@ -41,6 +41,7 @@
 #include <paths.h> /* For _PATH_DEFTAPE */
 
 #define	HAVE_CHFLAGS		1
+#define ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 
 #if __FreeBSD__ > 4
 #define HAVE_GETOPT_LONG	1
@@ -70,6 +71,7 @@
 
 /* Linux */
 #ifdef LINUX
+#define _FILE_OFFSET_BITS	64	/* For a 64-bit off_t */
 #include <stdint.h> /* for uintmax_t */
 #define	BSDTAR_FILESIZE_TYPE	uintmax_t
 #define	BSDTAR_FILESIZE_PRINTF	"%ju"
@@ -78,9 +80,15 @@
 #define _GNU_SOURCE
 #define	_PATH_DEFTAPE	"/dev/st0"
 #define HAVE_GETOPT_LONG	1
-#define st_atimespec st_atim
-#define st_mtimespec st_mtim
-#define st_ctimespec st_ctim
+
+#ifdef HAVE_STRUCT_STAT_TIMESPEC
+/* Fetch the nanosecond portion of the timestamp from a struct stat pointer. */
+#define ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
+#else
+/* High-res timestamps aren't available, so just use stubs here. */
+#define ARCHIVE_STAT_MTIME_NANOS(pstat)	0
+#endif
+
 #endif
 
 /*
