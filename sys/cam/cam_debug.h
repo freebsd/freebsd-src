@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_debug.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
@@ -42,6 +42,7 @@ typedef enum {
 	CAM_DEBUG_INFO		= 0x01,	/* scsi commands, errors, data */ 
 	CAM_DEBUG_TRACE		= 0x02,	/* routine flow tracking */
 	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
+	CAM_DEBUG_CDB		= 0x08  /* print out SCSI CDBs only */
 } cam_debug_flags;
 
 #if defined(CAMDEBUG) && defined(KERNEL)

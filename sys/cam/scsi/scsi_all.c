@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.3 1998/09/19 01:23:04 ken Exp $
+ *	$Id: scsi_all.c,v 1.4 1998/09/29 22:11:30 ken Exp $
  */
 
 #include <sys/param.h>
@@ -1677,7 +1677,7 @@ scsi_sense_print(struct ccb_scsiio *csio)
 			printf("%s. CDB: %s\n",
 				scsi_op_desc(csio->cdb_io.cdb_bytes[0], 
 				&cgd.inq_data), scsi_cdb_string(
-				(u_int8_t *)&csio->cdb_io.cdb_bytes, cdb_str));
+				csio->cdb_io.cdb_bytes, cdb_str));
 		}
 	}
 
