@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: usbdevs,v 1.388 2004/11/05 13:51:16 scw Exp $ */
+/* $NetBSD: usbdevs,v 1.392 2004/12/29 08:38:44 imp Exp $ */
 
 /*
  * Copyright (c) 1998-2004 The NetBSD Foundation, Inc.
@@ -411,8 +411,10 @@ vendor BILLIONTON	0x08dd	Billionton Systems
 vendor EXTENDED		0x08e9	Extended Systems
 vendor MSYSTEMS		0x08ec	M-Systems
 vendor AUTHENTEC	0x08ff	AuthenTec
+vendor AUDIOTECHNICA	0x0909	Audio-Technica
 vendor TRUMPION		0x090a	Trumpion Microelectronics
 vendor ALATION		0x0910	Alation Systems
+vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor TOSHIBA		0x0930	Toshiba Corporation
@@ -423,8 +425,11 @@ vendor KINGSTON		0x0951	Kingston Technology
 vendor BLUEWATER	0x0956	BlueWater Systems
 vendor AGILENT		0x0957	Agilent Technologies
 vendor PORTSMITH	0x095a	Portsmith
+vendor ACERW		0x0967	Acer
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
 vendor BECKHOFF		0x0978	Beckhoff
+vendor MINDSATWORK	0x097a	Minds At Work
+vendor POINTCHIPS	0x09a6	PointChips
 vendor INTERSIL		0x09aa	Intersil
 vendor ALTIUS		0x09b3	Altius Solutions
 vendor ARRIS		0x09c1	Arris Interactive
@@ -437,10 +442,11 @@ vendor AKAI		0x09e8	AKAI professional M.I.
 vendor ARESCOM		0x09f5	ARESCOM
 vendor BAY		0x09f9	Bay Associates
 vendor ALTERA		0x09fb	Altera
-vendor CSR		0x0a12	Cambridge Silicon Radio Ltd.
+vendor CSR		0x0a12	Cambridge Silicon Radio
 vendor TREK		0x0a16	Trek Technology
 vendor ASAHIOPTICAL	0x0a17	Asahi Optical
 vendor BOCASYSTEMS	0x0a43	Boca Systems
+vendor MEDIAGEAR	0x0a48	MediaGear
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
@@ -448,33 +454,52 @@ vendor NEODIO		0x0aec	Neodio
 vendor VODAFONE		0x0af0	Vodafone
 vendor TODOS		0x0b0c	Todos Data System
 vendor SIIG2		0x0b39	SIIG
+vendor TEKRAM		0x0b3b	Tekram Technology
 vendor HAL		0x0b41	HAL Corporation
-vendor EMS		0x0b43	EMS Production Ltd.
+vendor EMS		0x0b43	EMS Production
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
+vendor ZEEVO		0x0b7a	Zeevo, Inc.
+vendor KURUSUGAWA	0x0b7e	Kurusugawa Electronics, Inc.
 vendor ASIX		0x0b95	ASIX Electronics
+vendor USR		0x0baf	U.S. Robotics
 vendor REALTEK		0x0bda	RealTek
+vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
+vendor CHICONY2		0x0c45	Chicony Electronics
+vendor SEALEVEL		0x0c52	Sealevel System
 vendor LUWEN		0x0c76	Luwen
+vendor ZCOM		0x0cde	Z-Com
+vendor TANGTOP		0x0d3d	Tangtop
 vendor SMC3		0x0d5c	Standard Microsystems
 vendor PNY		0x0d7d	PNY
+vendor ACDC		0x0d7e	American Computer & Digital Components
+vendor ABC		0x0d8c	ABC
 vendor MSI		0x0db0	Micro Star International
-vendor HAWKING		0x0e66	Hawking Technologies
+vendor HAWKING		0x0e66	Hawking
+vendor OTI		0x0ea0	Ours Technology
+vendor PILOTECH		0x0eaf	Pilotech
+vendor EGALAX		0x0eef	eGalax
 vendor MICROTUNE	0x0f4d	Microtune, Inc.
 vendor QUALCOMM2	0x1004	Qualcomm
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
+vendor CCYU		0x1065	CCYU Technology
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor JRC		0x1145	Japan Radio Company
 vendor DELORME		0x1163	DeLorme Publishing
-vendor ACERCM		0x1189	Acer Communications & Multimedia Inc.
+vendor SERVERWORKS	0x1166	ServerWorks
+vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor TWINMOS		0x126f	TwinMOS
+vendor TSUNAMI		0x1241	Tsunami
+vendor CREATIVE2	0x1292	Creative Labs
 vendor BELKIN2		0x1293	Belkin Components
-vendor AINCOMM		0x12fd	Ain Communication Technology
+vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor SHARK		0x13d2	Shark
+vendor SILICOM		0x1485	Silicom
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
@@ -483,9 +508,23 @@ vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics
 vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
+vendor ERICSSON		0x2282	Ericsson
+vendor MOTOROLA2	0x22b8	Motorola
+vendor TRIPPLITE	0x2478	Tripp-Lite
+vendor HIROSE		0x2631	Hirose Electric
+vendor NHJ		0x2770	NHJ
+vendor PLANEX		0x2c02	Planex Communications
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
+vendor AEI		0x3334	AEI
+vendor PQI		0x3538	PQI
 vendor DAISY		0x3579	Daisy Technology
+vendor NI		0x3923	National Instruments
+vendor MICRONET		0x3980	Micronet Communications
+vendor IODATA2		0x40bb	I-O Data
+vendor IRIVER		0x4102	iRiver
 vendor DELL		0x413c	Dell
+vendor AVERATEC		0x50c2	Averatec
+vendor ONSPEC2		0x55aa	OnSpec Electronic Inc.
 vendor SITECOM		0x6189	Sitecom
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
