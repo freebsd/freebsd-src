@@ -4,6 +4,7 @@
 PROG=	xinstall
 SRCS=	xinstall.c
 MAN1=	install.1
+DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 install: maninstall
