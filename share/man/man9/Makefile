@@ -45,6 +45,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	getnewvnode.9 \
 	groupmember.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
+	jumbo.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
 	lock.9 \
 	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
@@ -77,7 +78,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	vm_page_wire.9 vm_page_zero_fill.9 vm_set_page_size.9 \
 	vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
 	vslock.9 \
-	zone.9
+	zero_copy.9 zone.9
 
 MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
@@ -148,6 +149,9 @@ MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=ithread.9 ithread_add_handler.9 ithread.9 ithread_create.9
 MLINKS+=ithread.9 ithread_destroy.9 ithread.9 ithread_priority.9
 MLINKS+=ithread.9 ithread_remove_handler.9 ithread.9 ithread_schedule.9
+MLINKS+=jumbo.9 jumbo_vm_init.9 jumbo.9 jumbo_pg_alloc.9
+MLINKS+=jumbo.9 jumbo_pg_free.9 jumbo.9 jumbo_freem.9
+MLINKS+=jumbo.9 jumbo_pg_steal.9 jumbo.9 jumbo_phys_to_kva.9
 MLINKS+=kernacc.9 useracc.9
 MLINKS+=kthread.9 kproc_start.9 kthread.9 kproc_shutdown.9
 MLINKS+=kthread.9 kthread_create.9 kthread.9 kthread_exit.9
@@ -250,6 +254,7 @@ MLINKS+=vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
+MLINKS+=zero_copy.9 zero_copy_sockets.9
 
 MLINKS+=device_add_child.9 device_add_child_ordered.9
 MLINKS+=device_enable.9 device_disable.9

@@ -533,6 +533,13 @@ options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 options 	DUMMYNET
 options 	BRIDGE
 
+# Zero copy sockets support.  This enables "zero copy" for sending and
+# receving data via a socket.  The send side works for any type of NIC,
+# the receive side only works for NICs that support MTUs greater than the
+# page size of your architecture and that support header splitting.  See
+# zero_copy(9) for more details.
+options 	ZERO_COPY_SOCKETS
+
 #
 # ATM (HARP version) options
 #
@@ -1670,6 +1677,13 @@ device		sk
 device		ti
 device		fpa	1
 
+# Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
+# This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
+#options 	TI_PRIVATE_JUMBOS
+# Turn on the header splitting option for the ti(4) driver firmware.  This
+# only works for Tigon II chips, and has no effect for Tigon I chips.
+options 	TI_JUMBO_HDRSPLIT
+
 #
 # ATM related options (Cranor version)
 # (note: this driver cannot be used with the HARP ATM stack)
@@ -2255,6 +2269,8 @@ options 	MSGTQL=41	# Max number of messages in system
 
 options 	NBUF=512	# Number of buffer headers
 
+options 	MSIZE=256	# mbuf size in bytes
+options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	NMBCLUSTERS=1024	# Number of mbuf clusters
 
 options 	SCSI_NCR_DEBUG

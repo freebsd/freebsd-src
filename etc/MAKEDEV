@@ -339,6 +339,7 @@ all)
 	sh $0 i4brbch0 i4brbch1				# ISDN
 	sh $0 agpgart					# AGP
  	sh $0 nsmb0					# SMB/CIFS
+	sh $0 ti0 ti1					# ti(4)
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1524,6 +1525,12 @@ card*)
 	chr=50
 	mknod card$unit c $chr `unit2minor $unit`
 	chmod 644 card$unit
+	;;
+
+ti*)	unit=`expr $i : 'ti\(.*\)'`
+	chr=153
+	mknod ti$unit c $chr `unit2minor $unit`
+	chmod 600 ti$unit
 	;;
 
 ttyx?|ttyy?|ttyz?)
