@@ -39,8 +39,8 @@
 .Nm mpool
 .Nd "shared memory buffer pool"
 .Sh SYNOPSIS
-.Fd "#include <db.h>"
-.Fd "#include <mpool.h>"
+.In db.h
+.In mpool.h
 .Ft MPOOL *
 .Fn mpool_open "void *key" "int fd" "pgno_t pagesize" "pgno_t maxcache"
 .Ft void

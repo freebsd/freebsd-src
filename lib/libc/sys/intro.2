@@ -41,7 +41,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <errno.h>
+.In errno.h
 .Sh DESCRIPTION
 This section provides an overview of the system calls,
 their error returns, and other common definitions and concepts.
@@ -199,8 +199,9 @@ until at least one has been closed.
 .It Er 24 EMFILE Em "Too many open files" .
 <As released, the limit on the number of
 open files per process is 64.>
-.Xr Getdtablesize 2
-will obtain the current limit.
+The
+.Xr getdtablesize 2
+function will obtain the current limit.
 .It Er 25 ENOTTY Em "Inappropriate ioctl for device" .
 A control function (see
 .Xr ioctl 2 )
@@ -233,7 +234,6 @@ function was issued on a socket, pipe or
 .Tn FIFO .
 .It Er 30 EROFS Em "Read-only file system" .
 An attempt was made to modify a file or directory
-was made
 on a file system that was read-only at the time.
 .It Er 31 EMLINK Em "Too many links" .
 Maximum allowable hard links to a single file has been exceeded (limit

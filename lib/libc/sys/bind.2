@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
+.In sys/types.h
+.In sys/socket.h
 .Ft int
 .Fn bind "int s" "const struct sockaddr *addr" "socklen_t addrlen"
 .Sh DESCRIPTION
@@ -65,30 +65,9 @@ needed (using
 The rules used in address binding vary between communication domains.
 Consult the manual entries in section 4 for detailed information.
 .Pp
-For maximum portability, you should always zero-out the socket structure
-before populating it, before passing it to
+For maximum portability, you should always zero the socket address structure
+before populating it and passing it to
 .Fn bind .
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn bind
-is implemented as the
-.Va bind
-syscall.
-.Pp
-In the threaded library, the
-.Va bind
-syscall is assembled to
-.Fn _thread_sys_bind
-and
-.Fn bind
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_bind .
-Before returning,
-.Fn bind
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std bind
 .Sh ERRORS

@@ -41,7 +41,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <signal.h>
+.In signal.h
 .Pp
 .Bd -literal
 struct	sigcontext {
@@ -84,8 +84,8 @@ This system call is used by the trampoline code and
 .Xr longjmp 3
 when returning from a signal to the previously executing program.
 .Sh NOTES
-This system call is not available in 4.2
-.Bx
+This system call is not available in
+.Bx 4.2
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
 If successful, the system call does not return.

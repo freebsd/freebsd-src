@@ -41,9 +41,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/stat.h>
-.Fd #include <fts.h>
+.In sys/types.h
+.In sys/stat.h
+.In fts.h
 .Ft FTS *
 .Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT **, const FTSENT **)"
 .Ft FTSENT *
@@ -233,10 +233,14 @@ was found.
 The
 .Fa FTSENT
 structure representing the parent of the starting point (or root)
-of the traversal is numbered \-1, and the
+of the traversal is numbered
+.Dv FTS_ROOTPARENTLEVEL
+(\-1), and the
 .Fa FTSENT
 structure for the root
-itself is numbered 0.
+itself is numbered
+.Dv FTS_ROOTLEVEL
+(0).
 .It Fa fts_errno
 Upon return of a
 .Fa FTSENT

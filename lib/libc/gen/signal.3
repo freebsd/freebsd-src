@@ -41,7 +41,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <signal.h>
+.In signal.h
 .\" The following is Quite Ugly, but syntactically correct.  Don't try to
 .\" fix it.
 .Ft void \*(lp*
@@ -200,6 +200,11 @@ to the
 .Xr execve 2
 function;
 ignored signals remain ignored.
+.Pp
+See
+.Xr sigaction 2
+for a list of functions
+that are considered safe for use in signal handler.
 .Sh RETURN VALUES
 The previous action is returned on a successful call.
 Otherwise, SIG_ERR is returned and  the global variable

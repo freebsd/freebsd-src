@@ -42,8 +42,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/mman.h>
+.In sys/types.h
+.In sys/mman.h
 .Ft int
 .Fn minherit "void *addr" "size_t len" "int inherit"
 .Sh DESCRIPTION
@@ -61,31 +61,38 @@ Inheritance only effects children created by
 .Fn fork .
 It has no effect on
 .Fn exec .
-exec'd processes replace their address space entirely.  This function also
-has no effect on the parent's address space (other then to potentially
+exec'd processes replace their address space entirely.
+This function also
+has no effect on the parent's address space (other than to potentially
 share the address space with its children).
 .Pp
-Inheritance is a rather esoteric feature largely superceeded by the
-MAP_SHARED feature of
+Inheritance is a rather esoteric feature largely superseded by the
+.Dv MAP_SHARED
+feature of
 .Fn mmap .
 However, it is possible to use
 .Fn minherit
 to share a block of memory between parent and child that has been mapped
-MAP_PRIVATE.  That is, modifications made by parent or child are shared but
+.Dv MAP_PRIVATE .
+That is, modifications made by parent or child are shared but
 the original underlying file is left untouched.
-.Bl -tag -width MAP_HASSEMAPHORE
+.Bl -tag -width ".Dv INHERIT_SHARE"
 .It Dv INHERIT_SHARE
 This option causes the address space in question to be shared between
-parent and child.  It has no effect on how the original underlying backing
+parent and child.
+It has no effect on how the original underlying backing
 store was mapped.
 .It Dv INHERIT_NONE
 This option prevents the address space in question from being inherited
-at all.  The address space will be unmapped in the child.
+at all.
+The address space will be unmapped in the child.
 .It Dv INHERIT_COPY
 This option causes the child to inherit the address space as copy-on-write.
 This option also has an unfortunate side effect of causing the parent
-address space to become copy-on-write when the parent forks.  If the
-original mapping was MAP_SHARED, it will no longer be shared in the parent
+address space to become copy-on-write when the parent forks.
+If the original mapping was
+.Dv MAP_SHARED ,
+it will no longer be shared in the parent
 after the parent forks and there is no way to get the previous
 shared-backing-store mapping without unmapping and remapping the address
 space in the parent.

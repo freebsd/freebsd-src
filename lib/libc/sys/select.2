@@ -41,9 +41,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/time.h>
-.Fd #include <unistd.h>
+.In sys/types.h
+.In sys/time.h
+.In unistd.h
 .Ft int
 .Fn select "int nfds" "fd_set *readfds" "fd_set *writefds" "fd_set *exceptfds" "struct timeval *timeout"
 .Fn FD_SET fd &fdset

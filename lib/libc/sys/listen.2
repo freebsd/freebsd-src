@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
+.In sys/types.h
+.In sys/socket.h
 .Ft int
 .Fn listen "int s" "int backlog"
 .Sh DESCRIPTION
@@ -85,27 +85,6 @@ or less than zero is specified,
 .Fa backlog
 is silently forced to
 .Va kern.ipc.somaxconn .
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn listen
-is implemented as the
-.Va listen
-syscall.
-.Pp
-In the threaded library, the
-.Va listen
-syscall is assembled to
-.Fn _thread_sys_listen
-and
-.Fn listen
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_listen .
-Before returning,
-.Fn listen
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std listen
 .Sh ERRORS

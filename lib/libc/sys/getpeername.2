@@ -41,8 +41,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
+.In sys/types.h
+.In sys/socket.h
 .Ft int
 .Fn getpeername "int s" "struct sockaddr *name" "socklen_t *namelen"
 .Sh DESCRIPTION
@@ -58,27 +58,6 @@ the amount of space pointed to by
 On return it contains the actual size of the name
 returned (in bytes).
 The name is truncated if the buffer provided is too small.
-.Sh IMPLEMENTATION NOTES
-In the non-threaded library
-.Fn getpeername
-is implemented as the
-.Va getpeername
-syscall.
-.Pp
-In the threaded library, the
-.Va getpeername
-syscall is assembled to
-.Fn _thread_sys_getpeername
-and
-.Fn getpeername
-is implemented as a function which locks
-.Fa s
-for read and write, then calls
-.Fn _thread_sys_getpeername .
-Before returning,
-.Fn getpeername
-unlocks
-.Fa s .
 .Sh RETURN VALUES
 .Rv -std getpeername
 .Sh ERRORS
