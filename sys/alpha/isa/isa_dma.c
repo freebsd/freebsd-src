@@ -244,7 +244,7 @@ static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		/* we bounced */
 		dma_bounced |= (1 << chan);
                 /* copy bounce buffer on write */
-                if (!(flags & B_READ)) 
+                if (!(flags & ISADMA_READ)) 
                         bus_dmamap_sync(dma_tag[chan], dma_map[chan], 
 			                  BUS_DMASYNC_PREWRITE);
 	}
@@ -386,7 +386,7 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
-		if (flags & B_READ) {
+		if (flags & ISADMA_READ) {
 			bus_dmamap_sync(dma_tag[chan], dma_map[chan],
 			                  BUS_DMASYNC_POSTREAD);
 		}
