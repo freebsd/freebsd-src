@@ -1,5 +1,5 @@
 # $FreeBSD$
 
 BINDIR?=/sbin
-LIBDIR?=/lib/geom
+CLASSDIR?=/lib/geom
 WARNS?=	6
