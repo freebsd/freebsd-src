@@ -33,15 +33,21 @@ __FBSDID("$FreeBSD$");
 
 /* System Headers */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef __FreeBSD__
+#include <getopt.h>
+#endif
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include <pwd.h>
 #include <signal.h>
 #include <stddef.h>
@@ -51,11 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
-#ifndef __FreeBSD__
-#include <getopt.h>
-#else
-#include <locale.h>
-#endif
 
 #if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
