@@ -2004,6 +2004,8 @@ hacl-test	5305/tcp
 hacl-test	5305/udp
 cfengine	5308/tcp
 cfengine	5308/udp
+mdns		5353/tcp   #Multicast DNS
+mdns		5353/udp   #Multicast DNS
 postgresql	5432/tcp   #PostgreSQL Database
 postgresql	5432/udp   #PostgreSQL Database
 rplay		5555/udp
