@@ -42,7 +42,7 @@
 #include "pthread_private.h"
 
 int
-_libc_fstat(int fd, struct stat * buf)
+_fstat(int fd, struct stat * buf)
 {
 	int             ret;
 
@@ -56,5 +56,5 @@ _libc_fstat(int fd, struct stat * buf)
 	return (ret);
 }
 
-__weak_reference(_libc_fstat, fstat);
+__weak_reference(_fstat, fstat);
 #endif

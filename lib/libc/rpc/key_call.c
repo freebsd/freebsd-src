@@ -369,7 +369,7 @@ int	vers;
 	(void) clnt_control(kcp->client, CLSET_RETRY_TIMEOUT,
 		(char *)&wait_time);
 	if (clnt_control(kcp->client, CLGET_FD, (char *)&fd))
-		_libc_fcntl(fd, F_SETFD, 1);	/* make it "close on exec" */
+		_fcntl(fd, F_SETFD, 1);	/* make it "close on exec" */
 
 	return (kcp->client);
 }

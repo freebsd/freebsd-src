@@ -84,7 +84,7 @@ __system(command)
 		_exit(127);
 	default:			/* parent */
 		do {
-			pid = _libc_waitpid(pid, &pstat, 0);
+			pid = _wait4(pid, &pstat, 0, (struct rusage *)0);
 		} while (pid == -1 && errno == EINTR);
 		break;
 	}
@@ -94,5 +94,4 @@ __system(command)
 	return(pid == -1 ? -1 : pstat);
 }
 
-__weak_reference(__system, _libc_system);
-__weak_reference(_libc_system, system);
+__weak_reference(__system, system);

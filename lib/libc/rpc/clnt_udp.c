@@ -559,7 +559,7 @@ clntudp_destroy(cl)
 	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
 
 	if (cu->cu_closeit) {
-		(void)_libc_close(cu->cu_sock);
+		(void)_close(cu->cu_sock);
 	}
 	XDR_DESTROY(&(cu->cu_outxdrs));
 	mem_free((caddr_t)cu, (sizeof(*cu) + cu->cu_sendsz + cu->cu_recvsz));

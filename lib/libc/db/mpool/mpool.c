@@ -207,7 +207,7 @@ mpool_get(mp, pgno, flags)
 	off = mp->pagesize * pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (NULL);
-	if ((nr = _libc_read(mp->fd, bp->page, mp->pagesize)) != mp->pagesize) {
+	if ((nr = _read(mp->fd, bp->page, mp->pagesize)) != mp->pagesize) {
 		if (nr >= 0)
 			errno = EFTYPE;
 		return (NULL);
@@ -299,7 +299,7 @@ mpool_sync(mp)
 			return (RET_ERROR);
 
 	/* Sync the file descriptor. */
-	return (_libc_fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
+	return (_fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
 }
 
 /*
@@ -382,7 +382,7 @@ mpool_write(mp, bp)
 	off = mp->pagesize * bp->pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (RET_ERROR);
-	if (_libc_write(mp->fd, bp->page, mp->pagesize) != mp->pagesize)
+	if (_write(mp->fd, bp->page, mp->pagesize) != mp->pagesize)
 		return (RET_ERROR);
 
 	bp->flags &= ~MPOOL_DIRTY;

@@ -167,7 +167,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
 			if (*sockp != -1)
-				(void)_libc_close(*sockp);
+				(void)_close(*sockp);
 			goto fooy;
 		}
 		ct->ct_closeit = TRUE;
@@ -200,7 +200,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	    XDR_ENCODE);
 	if (! xdr_callhdr(&(ct->ct_xdrs), &call_msg)) {
 		if (ct->ct_closeit) {
-			(void)_libc_close(*sockp);
+			(void)_close(*sockp);
 		}
 		goto fooy;
 	}
@@ -474,7 +474,7 @@ clnttcp_destroy(h)
 	    (struct ct_data *) h->cl_private;
 
 	if (ct->ct_closeit) {
-		(void)_libc_close(ct->ct_sock);
+		(void)_close(ct->ct_sock);
 	}
 	XDR_DESTROY(&(ct->ct_xdrs));
 	mem_free((caddr_t)ct, sizeof(struct ct_data));
@@ -544,7 +544,7 @@ readtcp(ct, buf, len)
 		}
 		break;
 	}
-	switch (len = _libc_read(ct->ct_sock, buf, len)) {
+	switch (len = _read(ct->ct_sock, buf, len)) {
 
 	case 0:
 		/* premature eof */
@@ -570,7 +570,7 @@ writetcp(ct, buf, len)
 	register int i, cnt;
 
 	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
-		if ((i = _libc_write(ct->ct_sock, buf, cnt)) == -1) {
+		if ((i = _write(ct->ct_sock, buf, cnt)) == -1) {
 			ct->ct_error.re_errno = errno;
 			ct->ct_error.re_status = RPC_CANTSEND;
 			return (-1);

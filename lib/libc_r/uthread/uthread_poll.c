@@ -44,7 +44,7 @@
 
 
 int 
-_libc_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
 	struct timespec	ts;
 	int		numfds = nfds;
@@ -97,5 +97,5 @@ _libc_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 	return (ret);
 }
 
-__weak_reference(_libc_poll, poll);
+__weak_reference(_poll, poll);
 #endif

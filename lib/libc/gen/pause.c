@@ -49,5 +49,4 @@ __pause()
 	return sigpause(sigblock(0L));
 }
 
-__weak_reference(__pause, _libc_pause);
-__weak_reference(_libc_pause, pause);
+__weak_reference(__pause, pause);

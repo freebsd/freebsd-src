@@ -268,7 +268,7 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 				*cap = cbuf;
 				return (retval);
 			} else {
-				fd = _libc_open(*db_p, O_RDONLY, 0);
+				fd = _open(*db_p, O_RDONLY, 0);
 				if (fd < 0)
 					continue;
 				myfd = 1;
@@ -303,10 +303,10 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 				if (bp >= b_end) {
 					int n;
 
-					n = _libc_read(fd, buf, sizeof(buf));
+					n = _read(fd, buf, sizeof(buf));
 					if (n <= 0) {
 						if (myfd)
-							(void)_libc_close(fd);
+							(void)_close(fd);
 						if (n < 0) {
 							free(record);
 							return (-2);
@@ -345,7 +345,7 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 					if (record == NULL) {
 						errno = ENOMEM;
 						if (myfd)
-							(void)_libc_close(fd);
+							(void)_close(fd);
 						return (-2);
 					}
 					r_end = record + newsize;
@@ -435,7 +435,7 @@ tc_exp:	{
 				/* an error */
 				if (iret < -1) {
 					if (myfd)
-						(void)_libc_close(fd);
+						(void)_close(fd);
 					free(record);
 					return (iret);
 				}
@@ -485,7 +485,7 @@ tc_exp:	{
 				if (record == NULL) {
 					errno = ENOMEM;
 					if (myfd)
-						(void)_libc_close(fd);
+						(void)_close(fd);
 					free(icap);
 					return (-2);
 				}
@@ -517,7 +517,7 @@ tc_exp:	{
 	 * return capability, length and success.
 	 */
 	if (myfd)
-		(void)_libc_close(fd);
+		(void)_close(fd);
 	*len = rp - record - 1;	/* don't count NUL */
 	if (r_end > rp)
 		if ((record =

@@ -37,18 +37,26 @@
 #include "pthread_private.h"
 
 int
-_libc_fsync(int fd)
+_fsync(int fd)
 {
-	int             ret;
+	int	ret;
 
-	_thread_enter_cancellation_point();
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		ret = _thread_sys_fsync(fd);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
-	_thread_leave_cancellation_point();
 	return (ret);
 }
 
-__weak_reference(_libc_fsync, fsync);
+int
+fsync(int fd)
+{
+	int	ret;
+
+	_thread_enter_cancellation_point();
+	ret = _fsync(fd);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

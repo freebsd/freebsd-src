@@ -253,12 +253,12 @@ error(err)
 	char *p;
 	char num[30];
 
-	(void)_libc_write(STDERR_FILENO, "fstab: ", 7);
-	(void)_libc_write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
-	(void)_libc_write(STDERR_FILENO, ":", 1);
+	(void)_write(STDERR_FILENO, "fstab: ", 7);
+	(void)_write(STDERR_FILENO, _PATH_FSTAB, sizeof(_PATH_FSTAB) - 1);
+	(void)_write(STDERR_FILENO, ":", 1);
 	sprintf(num, "%d: ", LineNo);
-	(void)_libc_write(STDERR_FILENO, num, strlen(num));
+	(void)_write(STDERR_FILENO, num, strlen(num));
 	p = strerror(err);
-	(void)_libc_write(STDERR_FILENO, p, strlen(p));
-	(void)_libc_write(STDERR_FILENO, "\n", 1);
+	(void)_write(STDERR_FILENO, p, strlen(p));
+	(void)_write(STDERR_FILENO, "\n", 1);
 }

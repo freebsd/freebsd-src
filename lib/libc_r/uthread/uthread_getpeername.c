@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
+_getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
 {
 	int             ret;
 
@@ -49,5 +49,5 @@ _libc_getpeername(int fd, struct sockaddr * peer, socklen_t *paddrlen)
 	return ret;
 }
 
-__weak_reference(_libc_getpeername, getpeername);
+__weak_reference(_getpeername, getpeername);
 #endif

@@ -73,7 +73,7 @@ get_myaddress(addr)
 	ifc.ifc_len = sizeof (buf);
 	ifc.ifc_buf = buf;
 	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
-		_libc_close(s);
+		_close(s);
 		return(-1);
 	}
 again:
@@ -83,7 +83,7 @@ again:
 	while (ifr < end) {
 		ifreq = *ifr;
 		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
-			_libc_close(s);
+			_close(s);
 			return(-1);
 		}
 		if (((ifreq.ifr_flags & IFF_UP) &&
@@ -107,6 +107,6 @@ again:
 		loopback = 1;
 		goto again;
 	}
-	(void)_libc_close(s);
+	(void)_close(s);
 	return (gotit ? 0 : -1);
 }

@@ -123,7 +123,7 @@ svcudp_bufcreate(sock, sendsz, recvsz)
 	if (getsockname(sock, (struct sockaddr *)&addr, &len) != 0) {
 		perror("svcudp_create - cannot getsockname");
 		if (madesock)
-			(void)_libc_close(sock);
+			(void)_close(sock);
 		return ((SVCXPRT *)NULL);
 	}
 	xprt = (SVCXPRT *)mem_alloc(sizeof(SVCXPRT));
@@ -259,7 +259,7 @@ svcudp_destroy(xprt)
 	register struct svcudp_data *su = su_data(xprt);
 
 	xprt_unregister(xprt);
-	(void)_libc_close(xprt->xp_sock);
+	(void)_close(xprt->xp_sock);
 	XDR_DESTROY(&(su->su_xdrs));
 	mem_free(rpc_buffer(xprt), su->su_iosz);
 	mem_free((caddr_t)su, sizeof(struct svcudp_data));

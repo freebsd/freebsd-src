@@ -428,7 +428,7 @@ res_send(buf, buflen, ans, anssiz)
 read_len:
 			cp = ans;
 			len = INT16SZ;
-			while ((n = _libc_read(s, (char *)cp, (int)len)) > 0) {
+			while ((n = _read(s, (char *)cp, (int)len)) > 0) {
 				cp += n;
 				if ((len -= n) <= 0)
 					break;
@@ -476,7 +476,7 @@ read_len:
 			}
 			cp = ans;
 			while (len != 0 &&
-			       (n = _libc_read(s, (char *)cp, (int)len)) > 0) {
+			       (n = _read(s, (char *)cp, (int)len)) > 0) {
 				cp += n;
 				len -= n;
 			}
@@ -499,7 +499,7 @@ read_len:
 					n = (len > sizeof(junk)
 					     ? sizeof(junk)
 					     : len);
-					if ((n = _libc_read(s, junk, n)) > 0)
+					if ((n = _read(s, junk, n)) > 0)
 						len -= n;
 					else
 						break;
@@ -608,7 +608,7 @@ read_len:
 					if (s1 < 0)
 						goto bad_dg_sock;
 					(void)dup2(s1, s);
-					(void)_libc_close(s1);
+					(void)_close(s1);
 					Dprint(_res.options & RES_DEBUG,
 						(stdout, ";; new DG socket\n"))
 #endif /* CAN_RECONNECT */
@@ -893,7 +893,7 @@ void
 res_close()
 {
 	if (s >= 0) {
-		(void)_libc_close(s);
+		(void)_close(s);
 		s = -1;
 		connected = 0;
 		vc = 0;

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_listen(int fd, int backlog)
+_listen(int fd, int backlog)
 {
 	int             ret;
 
@@ -49,5 +49,5 @@ _libc_listen(int fd, int backlog)
 	return (ret);
 }
 
-__weak_reference(_libc_listen, listen);
+__weak_reference(_listen, listen);
 #endif

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_pipe(int fds[2])
+_pipe(int fds[2])
 {
 	int             ret;
 	if ((ret = _thread_sys_pipe(fds)) >= 0) {
@@ -52,5 +52,5 @@ _libc_pipe(int fds[2])
 	return (ret);
 }
 
-__weak_reference(_libc_pipe, pipe);
+__weak_reference(_pipe, pipe);
 #endif

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
+_sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
 	int ret = 0;
 	struct sigaction gact;
@@ -106,5 +106,5 @@ _libc_sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 	return (ret);
 }
 
-__weak_reference(_libc_sigaction, sigaction);
+__weak_reference(_sigaction, sigaction);
 #endif

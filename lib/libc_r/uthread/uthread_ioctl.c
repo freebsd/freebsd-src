@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int
-_libc_ioctl(int fd, unsigned long request,...)
+_ioctl(int fd, unsigned long request,...)
 {
 	int             ret;
 	int		*op;
@@ -77,5 +77,5 @@ _libc_ioctl(int fd, unsigned long request,...)
 	return (ret);
 }
 
-__weak_reference(_libc_ioctl, ioctl);
+__weak_reference(_ioctl, ioctl);
 #endif

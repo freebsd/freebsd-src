@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 pid_t
-_libc_fork(void)
+_fork(void)
 {
 	int             i, flags;
 	pid_t           ret;
@@ -221,5 +221,5 @@ _libc_fork(void)
 	return (ret);
 }
 
-__weak_reference(_libc_fork, fork);
+__weak_reference(_fork, fork);
 #endif

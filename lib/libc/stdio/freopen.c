@@ -100,13 +100,13 @@ freopen(file, mode, fp)
 	}
 
 	/* Get a new descriptor to refer to the new file. */
-	f = _libc_open(file, oflags, DEFFILEMODE);
+	f = _open(file, oflags, DEFFILEMODE);
 	if (f < 0 && isopen) {
 		/* If out of fd's close the old one and try again. */
 		if (errno == ENFILE || errno == EMFILE) {
 			(void) (*fp->_close)(fp->_cookie);
 			isopen = 0;
-			f = _libc_open(file, oflags, DEFFILEMODE);
+			f = _open(file, oflags, DEFFILEMODE);
 		}
 	}
 	sverrno = errno;
@@ -147,7 +147,7 @@ freopen(file, mode, fp)
 	 */
 	if (wantfd >= 0 && f != wantfd) {
 		if (dup2(f, wantfd) >= 0) {
-			(void)_libc_close(f);
+			(void)_close(f);
 			f = wantfd;
 		}
 	}
