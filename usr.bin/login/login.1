@@ -29,28 +29,28 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)login.1	8.1 (Berkeley) 6/9/93
-.\"	$Id: login.1,v 1.4.2.1 1997/01/02 17:48:02 mpp Exp $
+.\"	@(#)login.1	8.2 (Berkeley) 5/5/94
+.\"	$Id: login.1,v 1.4.2.2 1997/05/10 21:20:14 davidn Exp $
 .\"
-.Dd June 9, 1993
+.Dd May 5, 1994
 .Dt LOGIN 1
 .Os BSD 4
 .Sh NAME
 .Nm login
 .Nd log into the computer
 .Sh SYNOPSIS
-.Nm login
+.Nm
 .Op Fl fp
 .Op Fl h Ar hostname
 .Op Ar user
 .Sh DESCRIPTION
 The
-.Nm login
+.Nm
 utility logs users (and pseudo-users) into the computer system.
 .Pp
 If no user is specified, or if a user is specified and authentication
 of the user fails,
-.Nm login
+.Nm
 prompts for a user name.
 Authentication of users is done via passwords.
 .Pp
@@ -73,7 +73,7 @@ It is used by various daemons such as
 This option may only be used by the super-user.
 .It Fl p
 By default,
-.Nm login
+.Nm
 discards any previous environment.
 The
 .Fl p
@@ -83,7 +83,7 @@ option disables this behavior.
 If the file
 .Pa /etc/nologin
 exists,
-.Nm login
+.Nm
 displays its contents to the user and exits.
 This is used by
 .Xr shutdown  8
@@ -92,7 +92,7 @@ to prevent users from logging in when the system is about to go down.
 If the file
 .Pa /etc/login.access
 exists,
-.Nm login
+.Nm
 checks to see if the user and host pair are specifically allowed or denied
 access.
 Login access may also be controlled via the login class, which provides
@@ -101,12 +101,12 @@ allow and deny records based on time, tty and remote host name.
 If the file
 .Pa /etc/fbtab
 exists,
-.Nm login
+.Nm
 changes the protection and ownership of certain devices specified in this
 file.
 .Pp
 Immediately after logging a user in,
-.Nm login
+.Nm
 displays the system copyright notice, the date and time the user last
 logged in, the message of the day as well as other information.
 If the file
@@ -119,9 +119,10 @@ then records an entry in the
 .Xr wtmp 5
 and
 .Xr utmp 5
-files and executes the user's command interpretor.
+files and executes the user's command interpreter.
 .Pp
-Login enters information into the environment (see
+.Nm Login
+enters information into the environment (see
 .Xr environ 7 )
 specifying the user's home directory (HOME), command interpreter (SHELL),
 search path (PATH), terminal type (TERM) and user name (both LOGNAME and
@@ -138,7 +139,7 @@ The standard shells,
 and
 .Xr sh 1 ,
 do not fork before executing the
-.Nm login
+.Nm
 utility.
 .Sh FILES
 .Bl -tag -width /var/mail/userXXX -compact
@@ -154,6 +155,8 @@ disallows logins
 login access control table
 .It Pa /var/run/utmp
 current logins
+.It Pa /var/log/lastlog
+last login account records
 .It Pa /var/log/wtmp
 login account records
 .It Pa /var/mail/user
@@ -174,6 +177,6 @@ makes login quieter
 .Xr nologin 8
 .Sh HISTORY
 A
-.Nm login
-appeared in
+.Nm
+utility appeared in
 .At v6 .
