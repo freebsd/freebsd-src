@@ -20,7 +20,7 @@
 #	PHONES environment variable)
 # tc	to continue a capability
 
-# Example systems 
+# Example systems
 unixshell|Unix Access:\
 	:pn=\@:tc=unix57600:
 dosbbs|DOS-based BBS:\

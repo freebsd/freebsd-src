@@ -1,18 +1,18 @@
 # $FreeBSD$
 #
 # Login access control table.
-# 
+#
 # When someone logs in, the table is scanned for the first entry that
 # matches the (user, host) combination, or, in case of non-networked
 # logins, the first entry that matches the (user, tty) combination.  The
-# permissions field of that table entry determines whether the login will 
+# permissions field of that table entry determines whether the login will
 # be accepted or refused.
-# 
+#
 # Format of the login access control table is three fields separated by a
 # ":" character:
-# 
+#
 # 	permission : users : origins
-# 
+#
 # The first field should be a "+" (access granted) or "-" (access denied)
 # character. The second field should be a list of one or more login names,
 # group names, or ALL (always matches).  The third field should be a list
@@ -29,7 +29,7 @@
 # listed: the program does not look at a user's primary group id value.
 #
 ##############################################################################
-# 
+#
 # Disallow console logins to all but a few accounts.
 #
 #-:ALL EXCEPT wheel shutdown sync:console

@@ -7,7 +7,7 @@
 ;       (e.g. reference this file in the "cache  .  <file>"
 ;       configuration file of BIND domain name servers).
 ;
-;       This file is made available by InterNIC 
+;       This file is made available by InterNIC
 ;       under anonymous FTP as
 ;           file                /domain/named.root
 ;           on server           FTP.INTERNIC.NET
@@ -70,7 +70,7 @@ J.ROOT-SERVERS.NET.      3600000      A     192.58.128.30
 ; operated by RIPE NCC
 ;
 .                        3600000      NS    K.ROOT-SERVERS.NET.
-K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129 
+K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129
 ;
 ; operated by ICANN
 ;

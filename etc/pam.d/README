@@ -20,7 +20,7 @@ Comments are introduced with a hash mark ('#').  Blank lines and lines
 consisting entirely of comments are ignored.
 
 The meanings of the different fields are as follows:
- 
+
  module-type:
    auth:      prompt for a password to authenticate that the user is
               who they say they are, and set any credentials.
@@ -28,7 +28,7 @@ The meanings of the different fields are as follows:
               resources, etc.
    session:   housekeeping before and/or after login.
    password:  update authentication tokens.
- 
+
  control-flag: How libpam handles success or failure of the module.
    required:   success is required; on failure all remaining
                modules are run, but the request will be denied.
@@ -39,7 +39,7 @@ The meanings of the different fields are as follows:
    binding:    success is sufficient; on failure all remaining
                modules are run, but the request will be denied.
    optional:   ignored unless the other modules return PAM_IGNORE.
- 
+
  arguments: Module-specific options, plus some generic ones:
    debug:           syslog debug info.
    no_warn:         return no warning messages to the application.
@@ -53,7 +53,7 @@ The meanings of the different fields are as follows:
    use_mapped_pass: convert cleartext password to a crypto key.
    expose_account:  allow printing more info about the user when
                     prompting.
- 
+
 Note that having a "sufficient" module as the last entry for a
 particular service and module type may result in surprising behaviour.
 To get the intended semantics, add a "required" entry listing the

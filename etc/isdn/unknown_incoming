@@ -8,8 +8,8 @@
 #
 #	last edit-date: [Wed Jan 10 13:40:36 2001]
 #
-#	This script may be configured to be called by isdnd when an 
-#	unknown incoming call is received. In case the destination 
+#	This script may be configured to be called by isdnd when an
+#	unknown incoming call is received. In case the destination
 #	telephone number is available, it sends mail with the time,
 #	source and destination numbers to a configurable address.
 #
@@ -75,5 +75,5 @@ Unknown incoming telephone call recognized:
                    the isdnd on $mach
 
 ENDOFDATA
- 
+
 exit 0
