@@ -79,22 +79,77 @@ static void	 startpr(struct printer *_pp, int _chgenable);
 static int	 touch(struct jobqueue *_jq);
 static void	 unlinkf(char *_name);
 static void	 upstat(struct printer *_pp, const char *_msg);
+static void	 wrapup_clean(int _laststatus);
 
 /*
  * generic framework for commands which operate on all or a specified
  * set of printers
  */
+enum	qsel_val {			/* how a given ptr was selected */
+	QSEL_UNKNOWN = -1,		/* ... not selected yet */
+	QSEL_BYNAME = 0,		/* ... user specifed it by name */
+	QSEL_ALL = 1			/* ... user wants "all" printers */
+					/*     (with more to come)    */
+};
+
+static enum qsel_val generic_qselect;	/* indicates how ptr was selected */
+static int generic_initerr;		/* result of initrtn processing */
+static char *generic_nullarg;
+static void (*generic_wrapup)(int _last_status);   /* perform rtn wrap-up */
+
 void
-generic(void (*specificrtn)(struct printer *_pp), int argc, char *argv[])
+generic(void (*specificrtn)(struct printer *_pp),
+    void (*initrtn)(int _argc, char *_argv[]), int argc, char *argv[])
 {
-	int cmdstatus, more;
-	struct printer myprinter, *pp = &myprinter;
+	int cmdstatus, more, targc;
+	struct printer myprinter, *pp;
+	char **targv;
 
 	if (argc == 1) {
 		printf("Usage: %s {all | printer ...}\n", argv[0]);
 		return;
 	}
+
+	/*
+	 * The initialization routine for a command might set a generic
+	 * "wrapup" routine, which should be called after processing all
+	 * the printers in the command.  This might print summary info.
+	 *
+	 * Note that the initialization routine may also parse (and
+	 * nullify) some of the parameters given on the command, leaving
+	 * only the parameters which have to do with printer names.
+	 */
+	pp = &myprinter;
+	generic_wrapup = NULL;
+	generic_qselect = QSEL_UNKNOWN;
+	cmdstatus = 0;
+	/* this just needs to be a distinct value of type 'char *' */
+	if (generic_nullarg == NULL)
+		generic_nullarg = strdup("");
+
+	/* call initialization routine, if there is one for this cmd */
+	if (initrtn != NULL) {
+		generic_initerr = 0;
+		(*initrtn)(argc, argv);
+		if (generic_initerr)
+			return;
+		/* skip any initial arguments null-ified by initrtn */
+		targc = argc;
+		targv = argv;
+		while (--targc) {
+			if (targv[1] != generic_nullarg)
+				break;
+			++targv;
+		}
+		if (targv != argv) {
+			targv[0] = argv[0];	/* copy the command-name */
+			argv = targv;
+			argc = targc + 1;
+		}
+	}
+
 	if (argc == 2 && strcmp(argv[1], "all") == 0) {
+		generic_qselect = QSEL_ALL;
 		more = firstprinter(pp, &cmdstatus);
 		if (cmdstatus)
 			goto looperr;
@@ -115,10 +170,14 @@ looperr:
 				}
 			} while (more && cmdstatus);
 		}
-		return;
+		goto wrapup;
 	}
+
+	generic_qselect = QSEL_BYNAME;		/* specifically-named ptrs */
 	while (--argc) {
 		++argv;
+		if (*argv == generic_nullarg)
+			continue;
 		init_printer(pp);
 		cmdstatus = getprintcap(*argv, pp);
 		switch (cmdstatus) {
@@ -136,6 +195,12 @@ looperr:
 		}
 		(*specificrtn)(pp);
 	}
+
+wrapup:
+	if (generic_wrapup) {
+		(*generic_wrapup)(cmdstatus);
+	}
+
 }
 
 /*
@@ -236,14 +301,34 @@ upstat(struct printer *pp, const char *msg)
 	(void) close(fd);
 }
 
+/*
+ * "global" variables for all the routines related to 'clean' and 'tclean'
+ */
+static time_t	 cln_now;		/* current time */
+static double	 cln_minage;		/* minimum age before file is removed */
+static long	 cln_sizecnt;		/* amount of space freed up */
+static int 	 cln_debug;		/* print extra debugging msgs */
+static int	 cln_filecnt;		/* number of files destroyed */
+static int	 cln_foundcore;		/* found a core file! */
+static int	 cln_queuecnt;		/* number of queues checked */
+static int 	 cln_testonly;		/* remove-files vs just-print-info */
+
 static int
 doselect(struct dirent *d)
 {
 	int c = d->d_name[0];
 
 	if ((c == 't' || c == 'c' || c == 'd') && d->d_name[1] == 'f')
-		return(1);
-	return(0);
+		return 1;
+	if (c == 'c') {
+		if (!strcmp(d->d_name, "core"))
+			cln_foundcore = 1;
+	}
+	if (c == 'e') {
+		if (!strncmp(d->d_name, "errs.", 5))
+			return 1;
+	}
+	return 0;
 }
 
 /*
@@ -276,15 +361,66 @@ sortq(const void *a, const void *b)
  * Or, perhaps:
  * Remove incomplete jobs from spooling area.
  */
-void
-clean(struct printer *pp)
-{
-	register int i, n;
-	register char *cp, *cp1, *lp;
-	struct dirent **queue;
-	int nitems;
 
-	printf("%s:\n", pp->printer);
+void
+init_clean(int argc, char *argv[])
+{
+
+	/* init some fields before 'clean' is called for each queue */
+	cln_queuecnt = 0;
+	cln_now = time(NULL);
+	cln_minage = 3600.0;		/* only delete files >1h old */
+	cln_filecnt = 0;
+	cln_sizecnt = 0;
+	cln_debug = 0;
+	cln_testonly = 0;
+	generic_wrapup = &wrapup_clean;
+
+	/* see if there are any options specified before the ptr list */
+	while (--argc) {
+		++argv;
+		if (**argv != '-')
+			break;
+		if (strcmp(*argv, "-d") == 0) {
+			/* just an example of an option... */
+			cln_debug = 1;
+			*argv = generic_nullarg;	/* "erase" it */
+		} else {
+			printf("Invalid option '%s'\n", *argv);
+			generic_initerr = 1;
+		}
+	}
+
+	return;
+}
+
+void
+init_tclean(int argc, char *argv[])
+{
+
+	/* only difference between 'clean' and 'tclean' is one value */
+	/* (...and the fact that 'clean' is priv and 'tclean' is not) */
+	init_clean(argc, argv);
+	cln_testonly = 1;
+
+	return;
+}
+
+void
+clean_q(struct printer *pp)
+{
+	char *cp, *cp1, *lp;
+	struct dirent **queue;
+	size_t linerem;
+	int didhead, i, n, nitems, rmcp;
+
+	cln_queuecnt++;
+
+	didhead = 0;
+	if (generic_qselect == QSEL_BYNAME) {
+		printf("%s:\n", pp->printer);
+		didhead = 1;
+	}
 
 	lp = line;
 	cp = pp->spool_dir;
@@ -293,20 +429,46 @@ clean(struct printer *pp)
 			break;
 	}
 	lp[-1] = '/';
+	linerem = sizeof(line) - (lp - line);
 
+	cln_foundcore = 0;
 	seteuid(euid);
 	nitems = scandir(pp->spool_dir, &queue, doselect, sortq);
 	seteuid(uid);
 	if (nitems < 0) {
+		if (!didhead) {
+			printf("%s:\n", pp->printer);
+			didhead = 1;
+		}
 		printf("\tcannot examine spool directory\n");
 		return;
 	}
+	if (cln_foundcore) {
+		if (!didhead) {
+			printf("%s:\n", pp->printer);
+			didhead = 1;
+		}
+		printf("\t** found a core file in %s !\n", pp->spool_dir);
+	}
 	if (nitems == 0)
 		return;
+	if (!didhead)
+		printf("%s:\n", pp->printer);
 	i = 0;
 	do {
 		cp = queue[i]->d_name;
+		rmcp = 0;
 		if (*cp == 'c') {
+			/*
+			 * A control file.  Look for matching data-files.
+			 */
+			/* XXX
+			 *  Note the logic here assumes that the hostname
+			 *  part of cf-filenames match the hostname part
+			 *  in df-filenames, and that is not necessarily
+			 *  true (eg: for multi-homed hosts).  This needs
+			 *  some further thought...
+			 */
 			n = 0;
 			while (i + 1 < nitems) {
 				cp1 = queue[i + 1]->d_name;
@@ -316,32 +478,134 @@ clean(struct printer *pp)
 				n++;
 			}
 			if (n == 0) {
-				strncpy(lp, cp, sizeof(line) - strlen(line) - 1);
-				line[sizeof(line) - 1] = '\0';
-				unlinkf(line);
+				rmcp = 1;
 			}
+		} else if (*cp == 'e') {
+			/*
+			 * Must be an errrs or email temp file.
+			 */
+			rmcp = 1;
 		} else {
 			/*
 			 * Must be a df with no cf (otherwise, it would have
 			 * been skipped above) or a tf file (which can always
-			 * be removed).
+			 * be removed if it's old enough).
 			 */
-			strncpy(lp, cp, sizeof(line) - strlen(line) - 1);
-			line[sizeof(line) - 1] = '\0';
+			rmcp = 1;
+		}
+		if (rmcp) {
+			if (strlen(cp) >= linerem) {
+				printf("\t** internal error: 'line' overflow!\n");
+				printf("\t**   spooldir = %s\n", pp->spool_dir);
+				printf("\t**   cp = %s\n", cp);
+				return;
+			}
+			strlcpy(lp, cp, linerem);
 			unlinkf(line);
 		}
      	} while (++i < nitems);
+}
+
+static void
+wrapup_clean(int laststatus __unused)
+{
+
+	printf("Checked %d queues, and ", cln_queuecnt);
+	if (cln_filecnt < 1) {
+		printf("no cruft was found\n");
+		return;
+	}
+	if (cln_testonly) {
+		printf("would have ");
+	}
+	printf("removed %d files (%ld bytes).\n", cln_filecnt, cln_sizecnt);	
 }
  
 static void
 unlinkf(char *name)
 {
+	struct stat stbuf;
+	double agemod, agestat;
+	int res;
+	char linkbuf[BUFSIZ];
+
+	/*
+	 * We have to use lstat() instead of stat(), in case this is a df*
+	 * "file" which is really a symlink due to 'lpr -s' processing.  In
+	 * that case, we need to check the last-mod time of the symlink, and
+	 * not the file that the symlink is pointed at.
+	 */
 	seteuid(euid);
-	if (unlink(name) < 0)
-		printf("\tcannot remove %s\n", name);
-	else
-		printf("\tremoved %s\n", name);
+	res = lstat(name, &stbuf);
 	seteuid(uid);
+	if (res < 0) {
+		printf("\terror return from stat(%s):\n", name);
+		printf("\t      %s\n", strerror(errno));
+		return;
+	}
+
+	agemod = difftime(cln_now, stbuf.st_mtime);
+	agestat = difftime(cln_now,  stbuf.st_ctime);
+	if (cln_debug) {
+		/* this debugging-aid probably is not needed any more... */
+		printf("\t\t  modify age=%g secs, stat age=%g secs\n",
+		    agemod, agestat);
+	}
+	if ((agemod <= cln_minage) && (agestat <= cln_minage))
+		return;
+
+	/*
+	 * if this file is a symlink, then find out the target of the
+	 * symlink before unlink-ing the file itself
+	 */
+	if (S_ISLNK(stbuf.st_mode)) {
+		seteuid(euid);
+		res = readlink(name, linkbuf, sizeof(linkbuf));
+		seteuid(uid);
+		if (res < 0) {
+			printf("\terror return from readlink(%s):\n", name);
+			printf("\t      %s\n", strerror(errno));
+			return;
+		}
+		if (res == sizeof(linkbuf))
+			res--;
+		linkbuf[res] = '\0';
+	}
+
+	cln_filecnt++;
+	cln_sizecnt += stbuf.st_size;
+
+	if (cln_testonly) {
+		printf("\twould remove %s\n", name);
+		if (S_ISLNK(stbuf.st_mode)) {
+			printf("\t    (which is a symlink to %s)\n", linkbuf);
+		}
+	} else {
+		seteuid(euid);
+		res = unlink(name);
+		seteuid(uid);
+		if (res < 0)
+			printf("\tcannot remove %s (!)\n", name);
+		else
+			printf("\tremoved %s\n", name);
+		/* XXX
+		 *  Note that for a df* file, this code should also check to see
+		 *  if it is a symlink to some other file, and if the original
+		 *  lpr command included '-r' ("remove file").  Of course, this
+		 *  code would not be removing the df* file unless there was no
+		 *  matching cf* file, and without the cf* file it is currently
+		 *  impossible to determine if '-r' had been specified...
+		 *
+		 *  As a result of this quandry, we may be leaving behind a
+		 *  user's file that was supposed to have been removed after
+		 *  being printed.  This may effect services such as CAP or
+		 *  samba, if they were configured to use 'lpr -r', and if
+		 *  datafiles are not being properly removed.
+		*/
+		if (S_ISLNK(stbuf.st_mode)) {
+			printf("\t    (which was a symlink to %s)\n", linkbuf);
+		}
+	}
 }
 
 /*

@@ -36,15 +36,17 @@
  */
 
 /*
- * Line printer control program.
+ * Line Printer Control (lpc) program.
  */
 struct	printer;
 
 struct	cmd {
 	const char	*c_name;	/* command name */
 	const char	*c_help;	/* help message */
-					/* routine to do the work */
+	const int	 c_priv;	/* privileged command */
+		/* routine to do all the work for plain cmds, or
+		 * initialization work for generic-printer cmds: */
 	void	(*c_handler)(int, char *[]);
-	int	c_priv;			/* privileged command */
-	void	(*c_generic)(struct printer *); /* generic command */
+		/* routine to do the work for generic-printer cmds: */
+	void	(*c_generic)(struct printer *);
 };
