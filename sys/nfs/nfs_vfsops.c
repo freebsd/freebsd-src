@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.65 1998/05/31 17:27:54 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.66 1998/05/31 18:19:43 peter Exp $
  */
 
 #include <sys/param.h>
@@ -344,7 +344,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 	if (!error) {
 		nfsm_dissect(fsp, struct nfsv3_fsinfo *, NFSX_V3FSINFO);
 		pref = fxdr_unsigned(u_long, fsp->fs_wtpref);
-		if (pref < nmp->nm_wsize)
+		if (pref < nmp->nm_wsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_wsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
 		max = fxdr_unsigned(u_long, fsp->fs_wtmax);
@@ -354,7 +354,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 				nmp->nm_wsize = max;
 		}
 		pref = fxdr_unsigned(u_long, fsp->fs_rtpref);
-		if (pref < nmp->nm_rsize)
+		if (pref < nmp->nm_rsize && pref >= NFS_FABLKSIZE)
 			nmp->nm_rsize = (pref + NFS_FABLKSIZE - 1) &
 				~(NFS_FABLKSIZE - 1);
 		max = fxdr_unsigned(u_long, fsp->fs_rtmax);
