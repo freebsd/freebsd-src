@@ -215,6 +215,7 @@ SUBDIR=	${_3dfx} \
 	ubsec \
 	ubser \
 	ucom \
+	ucycom \
 	udav \
 	udbp \
 	udf \
