@@ -11,9 +11,6 @@
 .if !defined(NO_WARNS)
 . if defined(WARNS)
 .  if ${WARNS} > 0
-.   if !defined(NO_WERROR)
-CFLAGS		+=	-Werror
-.   endif
 .  endif
 .  if ${WARNS} > 1
 CFLAGS		+=	-Wall -Wno-format-y2k
@@ -45,9 +42,6 @@ WFORMAT		=	1
 .  if ${WFORMAT} > 0
 #CFLAGS		+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CFLAGS		+=	-Wformat=2 -Wno-format-extra-args
-.   if !defined(NO_WERROR)
-CFLAGS		+=	-Werror
-.   endif
 .  endif
 . endif
 .endif
