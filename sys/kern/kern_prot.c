@@ -500,10 +500,10 @@ setuid(td, uap)
 	uid_t uid;
 	int error;
 
-	oldcred = p->p_ucred;
 	uid = uap->uid;
 	mtx_lock(&Giant);
 	error = 0;
+	oldcred = p->p_ucred;
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
