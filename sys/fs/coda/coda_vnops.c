@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.7 1998/10/25 17:44:41 phk Exp $
+ *  $Id: coda_vnops.c,v 1.8 1998/10/28 20:31:13 rvb Exp $
  * 
  */
 
@@ -48,6 +48,13 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.8  1998/10/28 20:31:13  rvb
+ * Change the way unmounting happens to guarantee that the
+ * client programs are allowed to finish up (coda_call is
+ * forced to complete) and release their locks.  Thus there
+ * is a reasonable chance that the vflush implicit in the
+ * unmount will not get hung on held locks.
+ *
  * Revision 1.7  1998/10/25 17:44:41  phk
  * Nitpicking and dusting performed on a train.  Removes trivial warnings
  * about unused variables, labels and other lint.
@@ -369,10 +376,12 @@ int
 coda_vop_error(void *anon) {
     struct vnodeop_desc **desc = (struct vnodeop_desc **)anon;
 
-    myprintf(("Vnode operation %s called, but not defined\n",
+    myprintf(("coda_vop_error: Vnode operation %s called, but not defined.\n",
 	      (*desc)->vdesc_name));
+    /*
     panic("coda_vop_error");
-    return 0;
+    */
+    return EIO;
 }
 
 /* A generic do-nothing.  For lease_check, advlock */

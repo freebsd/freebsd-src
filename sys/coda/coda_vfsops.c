@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.8 1998/11/03 08:55:06 peter Exp $
  * 
  */
 
@@ -47,6 +47,15 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.8  1998/11/03 08:55:06  peter
+ * Support KLD.  We register and unregister two modules. "coda" (the vfs)
+ * via VFS_SET(), and "codadev" for the cdevsw entry.  From kldstat -v:
+ *  3    1 0xf02c5000 115d8    coda.ko
+ *         Contains modules:
+ *                 Id Name
+ *                  2 codadev
+ *                  3 coda
+ *
  * Revision 1.7  1998/09/29 20:19:45  rvb
  * Fixes for lkm:
  * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
@@ -427,6 +436,7 @@ coda_unmount(vfsp, mntflags, p)
 	vrele(mi->mi_rootvp);
 
 	active = coda_kill(vfsp, NOT_DOWNCALL);
+	mi->mi_rootvp->v_flag &= ~VROOT;
 	error = vflush(mi->mi_vfsp, NULLVP, FORCECLOSE);
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
 	error = 0;
@@ -506,7 +516,7 @@ coda_root(vfsp, vpp)
 
 	MARK_INT_SAT(CODA_ROOT_STATS);
 	goto exit;
-    } else if (error == ENODEV) {
+    } else if (error == ENODEV || error == EINTR) {
 	/* Gross hack here! */
 	/*
 	 * If Venus fails to respond to the CODA_ROOT call, coda_call returns
