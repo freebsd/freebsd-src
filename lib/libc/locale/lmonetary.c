@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001 Alexey Zelkin
+ * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,29 +36,29 @@ extern const char * __fix_locale_grouping_str(const char *);
 #define LCMONETARY_SIZE (sizeof(struct lc_monetary_T) / sizeof(char *))
 
 static char	empty[] = "";
-static char     numempty[] = { CHAR_MAX, '\0'};
+static char	numempty[] = { CHAR_MAX, '\0'};
 
 static const struct lc_monetary_T _C_monetary_locale = {
-	empty ,		/* int_curr_symbol */
-	empty ,		/* currency_symbol */
-	empty ,		/* mon_decimal_point */
-	empty ,		/* mon_thousands_sep */
-	numempty ,	/* mon_grouping */
-	empty ,		/* positive_sign */
-	empty ,		/* negative_sign */
-	numempty ,	/* int_frac_digits */
-	numempty ,	/* frac_digits */
-	numempty ,	/* p_cs_precedes */
-	numempty ,	/* p_sep_by_space */
-	numempty ,	/* n_cs_precedes */
-	numempty ,	/* n_sep_by_space */
-	numempty ,	/* p_sign_posn */
+	empty,		/* int_curr_symbol */
+	empty,		/* currency_symbol */
+	empty,		/* mon_decimal_point */
+	empty,		/* mon_thousands_sep */
+	numempty,	/* mon_grouping */
+	empty,		/* positive_sign */
+	empty,		/* negative_sign */
+	numempty,	/* int_frac_digits */
+	numempty,	/* frac_digits */
+	numempty,	/* p_cs_precedes */
+	numempty,	/* p_sep_by_space */
+	numempty,	/* n_cs_precedes */
+	numempty,	/* n_sep_by_space */
+	numempty,	/* p_sign_posn */
 	numempty	/* n_sign_posn */
 };
 
 static struct lc_monetary_T _monetary_locale;
 static int	_monetary_using_locale;
-static char *	monetary_locale_buf;
+static char	*_monetary_locale_buf;
 
 int
 __monetary_load_locale(const char *name) {
@@ -66,7 +66,7 @@ __monetary_load_locale(const char *name) {
 	int ret;
 	__mlocale_changed = 1;
 	ret = __part_load_locale(name, &_monetary_using_locale,
-		monetary_locale_buf, "LC_MONETARY",
+		_monetary_locale_buf, "LC_MONETARY",
 		LCMONETARY_SIZE, LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
 	if (ret == 0 && _monetary_using_locale)

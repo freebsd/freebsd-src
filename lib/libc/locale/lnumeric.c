@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001 Alexey Zelkin
+ * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,21 @@
 #include "ldpart.h"
 
 extern int __nlocale_changed;
-extern const char * __fix_locale_grouping_str(const char *);
+extern const char *__fix_locale_grouping_str(const char *);
 
 #define LCNUMERIC_SIZE (sizeof(struct lc_numeric_T) / sizeof(char *))
 
-static char     numempty[] = { CHAR_MAX, '\0' };
+static char	numempty[] = { CHAR_MAX, '\0' };
 
 static const struct lc_numeric_T _C_numeric_locale = {
-	".",     /* decimal_point */
-	"",      /* thousands_sep */
-	numempty /* grouping */
+	".",     	/* decimal_point */
+	"",     	/* thousands_sep */
+	numempty	/* grouping */
 };
 
 static struct lc_numeric_T _numeric_locale;
-static int _numeric_using_locale;
-static char *	numeric_locale_buf;
+static int	_numeric_using_locale;
+static char	*_numeric_locale_buf;
 
 int
 __numeric_load_locale(const char *name) {
@@ -54,7 +54,7 @@ __numeric_load_locale(const char *name) {
 
 	__nlocale_changed = 1;
 	ret = __part_load_locale(name, &_numeric_using_locale,
-		numeric_locale_buf, "LC_NUMERIC",
+		_numeric_locale_buf, "LC_NUMERIC",
 		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
 		(const char **)&_numeric_locale);
 	if (ret == 0 && _numeric_using_locale)

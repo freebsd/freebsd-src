@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Alexey Zelkin
+ * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../stdtime/timelocal.h"
 #include "lnumeric.h"
 #include "lmonetary.h"
@@ -152,7 +153,8 @@ nl_langinfo(nl_item item) {
 	case NOEXPR:
 		ret = (char*) __get_current_messages_locale()->noexpr;
 		break;
-	/* All items marked with LEGACY are available, but not recomended
+	/*
+	 * All items marked with LEGACY are available, but not recomended
 	 * by SUSv2 to be used in portable applications since they're subject
 	 * to remove in future specification editions
 	 */
