@@ -680,9 +680,9 @@ static	char *icmp6names[] = {
 	"multicast listener report",
 	"multicast listener done",
 	"router solicitation",
-	"router advertisment",
+	"router advertisement",
 	"neighbor solicitation",
-	"neighbor advertisment",
+	"neighbor advertisement",
 	"redirect",
 	"router renumbering",
 	"node information request",
@@ -851,7 +851,7 @@ icmp6_stats(off, name)
 			printf("\t\t%s: %llu\n", icmp6names[i],
 			    (unsigned long long)icmp6stat.icp6s_inhist[i]);
 		}
-	printf("\tHistgram of error messages to be generated:\n");
+	printf("\tHistogram of error messages to be generated:\n");
 	p_5(icp6s_odst_unreach_noroute, "\t\t%llu no route\n");
 	p_5(icp6s_odst_unreach_admin, "\t\t%llu administratively prohibited\n");
 	p_5(icp6s_odst_unreach_beyondscope, "\t\t%llu beyond scope\n");
