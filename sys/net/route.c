@@ -165,6 +165,17 @@ rtalloc1(dst, report, ignflags)
 				msgtype = RTM_RESOLVE;
 				goto miss;
 			}
+			/* Inform listeners of the new route. */
+			bzero(&info, sizeof(info));
+			info.rti_info[RTAX_DST] = rt_key(rt);
+			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+			if (rt->rt_ifp != NULL) {
+				info.rti_info[RTAX_IFP] =
+				    TAILQ_FIRST(&rt->rt_ifp->if_addrhead)->ifa_addr;
+				info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
+			}
+			rt_missmsg(RTM_ADD, &info, rt->rt_flags, 0);
 		} else
 			rt->rt_refcnt++;
 	} else {
@@ -288,7 +299,7 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 	int flags;
 	struct rtentry **rtp;
 {
-	register struct rtentry *rt;
+	struct rtentry *rt;
 	int error = 0;
 	short *stat = 0;
 	struct rt_addrinfo info;
@@ -333,10 +344,19 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 			 * Create new route, rather than smashing route to net.
 			 */
 		create:
+			if (rt)
+				rtfree(rt);
 			flags |=  RTF_GATEWAY | RTF_DYNAMIC;
-			error = rtrequest((int)RTM_ADD, dst, gateway,
-				    netmask, flags,
-				    (struct rtentry **)0);
+			bzero((caddr_t)&info, sizeof(info));
+			info.rti_info[RTAX_DST] = dst;
+			info.rti_info[RTAX_GATEWAY] = gateway;
+			info.rti_info[RTAX_NETMASK] = netmask;
+			info.rti_ifa = ifa;
+			info.rti_flags = flags;
+			rt = NULL;
+			error = rtrequest1(RTM_ADD, &info, &rt);
+			if (rt != NULL)
+				flags = rt->rt_flags;
 			stat = &rtstat.rts_dynamic;
 		} else {
 			/*
@@ -436,8 +456,6 @@ ifa_ifwithroute(flags, dst, gateway)
 	return (ifa);
 }
 
-#define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-
 static int rt_fixdelete __P((struct radix_node *, void *));
 static int rt_fixchange __P((struct radix_node *, void *));
 
@@ -456,6 +474,70 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	struct sockaddr *dst, *gateway, *netmask;
 	struct rtentry **ret_nrt;
 {
+	struct rt_addrinfo info;
+
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_flags = flags;
+	info.rti_info[RTAX_DST] = dst;
+	info.rti_info[RTAX_GATEWAY] = gateway;
+	info.rti_info[RTAX_NETMASK] = netmask;
+	return rtrequest1(req, &info, ret_nrt);
+}
+
+/*
+ * These (questionable) definitions of apparent local variables apply
+ * to the next two functions.  XXXXXX!!!
+ */
+#define	dst	info->rti_info[RTAX_DST]
+#define	gateway	info->rti_info[RTAX_GATEWAY]
+#define	netmask	info->rti_info[RTAX_NETMASK]
+#define	ifaaddr	info->rti_info[RTAX_IFA]
+#define	ifpaddr	info->rti_info[RTAX_IFP]
+#define	flags	info->rti_flags
+
+int
+rt_getifa(info)
+	struct rt_addrinfo *info;
+{
+	struct ifaddr *ifa;
+	int error = 0;
+
+	/*
+	 * ifp may be specified by sockaddr_dl
+	 * when protocol address is ambiguous.
+	 */
+	if (info->rti_ifp == NULL && ifpaddr != NULL &&
+	    ifpaddr->sa_family == AF_LINK &&
+	    (ifa = ifa_ifwithnet(ifpaddr)) != NULL)
+		info->rti_ifp = ifa->ifa_ifp;
+	if (info->rti_ifa == NULL && ifaaddr != NULL)
+		info->rti_ifa = ifa_ifwithaddr(ifaaddr);
+	if (info->rti_ifa == NULL) {
+		struct sockaddr *sa;
+
+		sa = ifaaddr != NULL ? ifaaddr :
+		    (gateway != NULL ? gateway : dst);
+		if (sa != NULL && info->rti_ifp != NULL)
+			info->rti_ifa = ifaof_ifpforaddr(sa, info->rti_ifp);
+		else if (dst != NULL && gateway != NULL)
+			info->rti_ifa = ifa_ifwithroute(flags, dst, gateway);
+		else if (sa != NULL)
+			info->rti_ifa = ifa_ifwithroute(flags, sa, sa);
+	}
+	if ((ifa = info->rti_ifa) != NULL) {
+		if (info->rti_ifp == NULL)
+			info->rti_ifp = ifa->ifa_ifp;
+	} else
+		error = ENETUNREACH;
+	return (error);
+}
+
+int
+rtrequest1(req, info, ret_nrt)
+	int req;
+	struct rt_addrinfo *info;
+	struct rtentry **ret_nrt;
+{
 	int s = splnet(); int error = 0;
 	register struct rtentry *rt;
 	register struct radix_node *rn;
@@ -468,7 +550,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	 * Find the correct routing tree to use for this Address Family
 	 */
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
-		senderr(ESRCH);
+		senderr(EAFNOSUPPORT);
 	/*
 	 * If we are adding a host route then we don't want to put
 	 * a netmask in the tree, nor do we want to clone it.
@@ -523,7 +605,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * give the protocol a chance to keep things in sync.
 		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
-			ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
+			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 
 		/*
 		 * one more rtentry floating around that is not
@@ -560,8 +642,9 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if ((flags & RTF_GATEWAY) && !gateway)
 			panic("rtrequest: GATEWAY but no gateway");
 
-		if ((ifa = ifa_ifwithroute(flags, dst, gateway)) == 0)
-			senderr(ENETUNREACH);
+		if (info->rti_ifa == NULL && (error = rt_getifa(info)))
+			senderr(error);
+		ifa = info->rti_ifa;
 
 	makeroute:
 		R_Malloc(rt, struct rtentry *, sizeof(*rt));
@@ -663,7 +746,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 * allow it to do that as well.
 		 */
 		if (ifa->ifa_rtrequest)
-			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
+			ifa->ifa_rtrequest(req, rt, info);
 
 		/*
 		 * We repeat the same procedure from rt_setgate() here because
@@ -687,10 +770,18 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			rt->rt_refcnt++;
 		}
 		break;
+	default:
+		error = EOPNOTSUPP;
 	}
 bad:
 	splx(s);
 	return (error);
+#undef dst
+#undef gateway
+#undef netmask
+#undef ifaaddr
+#undef ifpaddr
+#undef flags
 }
 
 /*
@@ -819,6 +910,8 @@ rt_fixchange(rn, vp)
 			 rt_mask(rt), rt->rt_flags, (struct rtentry **)0);
 }
 
+#define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+
 int
 rt_setgate(rt0, dst, gate)
 	struct rtentry *rt0;
@@ -886,9 +979,9 @@ rt_setgate(rt0, dst, gate)
 	 * If there is already a gwroute, it's now almost definitly wrong
 	 * so drop it.
 	 */
-	if (rt->rt_gwroute) {
-		rt = rt->rt_gwroute; RTFREE(rt);
-		rt = rt0; rt->rt_gwroute = 0;
+	if (rt->rt_gwroute != NULL) {
+		RTFREE(rt->rt_gwroute);
+		rt->rt_gwroute = NULL;
 	}
 	/*
 	 * Cloning loop avoidance:
@@ -957,11 +1050,21 @@ rtinit(ifa, cmd, flags)
 	register struct rtentry *rt;
 	register struct sockaddr *dst;
 	register struct sockaddr *deldst;
+	struct sockaddr *netmask;
 	struct mbuf *m = 0;
 	struct rtentry *nrt = 0;
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
 	int error;
+	struct rt_addrinfo info;
 
-	dst = flags & RTF_HOST ? ifa->ifa_dstaddr : ifa->ifa_addr;
+	if (flags & RTF_HOST) {
+		dst = ifa->ifa_dstaddr;
+		netmask = NULL;
+	} else {
+		dst = ifa->ifa_addr;
+		netmask = ifa->ifa_netmask;
+	}
 	/*
 	 * If it's a delete, check that if it exists, it's on the correct
 	 * interface or we might scrub a route to another ifa which would
@@ -973,41 +1076,26 @@ rtinit(ifa, cmd, flags)
 		 * If it's a net, mask off the host bits
 		 * (Assuming we have a mask)
 		 */
-		if ((flags & RTF_HOST) == 0 && ifa->ifa_netmask) {
+		if (netmask != NULL) {
 			m = m_get(M_DONTWAIT, MT_SONAME);
 			if (m == NULL)
 				return(ENOBUFS);
 			deldst = mtod(m, struct sockaddr *);
-			rt_maskedcopy(dst, deldst, ifa->ifa_netmask);
+			rt_maskedcopy(dst, deldst, netmask);
 			dst = deldst;
 		}
 		/*
-		 * Get an rtentry that is in the routing tree and
-		 * contains the correct info. (if this fails, can't get there).
-		 * We set "report" to FALSE so that if it doesn't exist,
-		 * it doesn't report an error or clone a route, etc. etc.
+		 * Look up an rtentry that is in the routing tree and
+		 * contains the correct info.
 		 */
-		rt = rtalloc1(dst, 0, 0UL);
-		if (rt) {
-			/*
-			 * Ok so we found the rtentry. it has an extra reference
-			 * for us at this stage. we won't need that so
-			 * lop that off now.
-			 */
-			rt->rt_refcnt--;
-			if (rt->rt_ifa != ifa) {
-				/*
-				 * If the interface in the rtentry doesn't match
-				 * the interface we are using, then we don't
-				 * want to delete it, so return an error.
-				 * This seems to be the only point of
-				 * this whole RTM_DELETE clause.
-				 */
-				if (m)
-					(void) m_free(m);
-				return (flags & RTF_HOST ? EHOSTUNREACH
-							: ENETUNREACH);
-			}
+		if ((rnh = rt_tables[dst->sa_family]) == NULL ||
+		    (rn = rnh->rnh_lookup(dst, netmask, rnh)) == NULL ||
+		    (rn->rn_flags & RNF_ROOT) ||
+		    ((struct rtentry *)rn)->rt_ifa != ifa ||
+		    !equal(SA(rn->rn_key), dst)) {
+			if (m)
+				(void) m_free(m);
+			return (flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 		}
 		/* XXX */
 #if 0
@@ -1017,82 +1105,44 @@ rtinit(ifa, cmd, flags)
 			 * it doesn't exist, we could just return at this point
 			 * with an "ELSE" clause, but apparently not..
 			 */
-			return (flags & RTF_HOST ? EHOSTUNREACH
-							: ENETUNREACH);
+			return (flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 		}
 #endif
 	}
 	/*
 	 * Do the actual request
 	 */
-	error = rtrequest(cmd, dst, ifa->ifa_addr, ifa->ifa_netmask,
-			flags | ifa->ifa_flags, &nrt);
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_ifa = ifa;
+	info.rti_flags = flags | ifa->ifa_flags;
+	info.rti_info[RTAX_DST] = dst;
+	info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
+	info.rti_info[RTAX_NETMASK] = netmask;
+	error = rtrequest1(cmd, &info, &nrt);
+	if (error == 0 && (rt = nrt) != NULL) {
+		/*
+		 * notify any listenning routing agents of the change
+		 */
+		rt_newaddrmsg(cmd, ifa, error, rt);
+		if (cmd == RTM_DELETE) {
+			/*
+			 * If we are deleting, and we found an entry, then
+			 * it's been removed from the tree.. now throw it away.
+			 */
+			if (rt->rt_refcnt <= 0) {
+				rt->rt_refcnt++; /* make a 1->0 transition */
+				rtfree(rt);
+			}
+		} else if (cmd == RTM_ADD) {
+			/*
+			 * We just wanted to add it.. we don't actually
+			 * need a reference.
+			 */
+			rt->rt_refcnt--;
+		}
+	}
 	if (m)
 		(void) m_free(m);
-	/*
-	 * If we are deleting, and we found an entry, then
-	 * it's been removed from the tree.. now throw it away.
-	 */
-	if (cmd == RTM_DELETE && error == 0 && (rt = nrt)) {
-		/*
-		 * notify any listenning routing agents of the change
-		 */
-		rt_newaddrmsg(cmd, ifa, error, nrt);
-		if (rt->rt_refcnt <= 0) {
-			rt->rt_refcnt++; /* need a 1->0 transition to free */
-			rtfree(rt);
-		}
-	}
-
-	/*
-	 * We are adding, and we have a returned routing entry.
-	 * We need to sanity check the result.
-	 */
-	if (cmd == RTM_ADD && error == 0 && (rt = nrt)) {
-		/*
-		 * We just wanted to add it.. we don't actually need a reference
-		 */
-		rt->rt_refcnt--;
-		/*
-		 * If it came back with an unexpected interface, then it must
-		 * have already existed or something. (XXX)
-		 */
-		if (rt->rt_ifa != ifa) {
-			if (!(rt->rt_ifa->ifa_ifp->if_flags &
-			    (IFF_POINTOPOINT|IFF_LOOPBACK)))
-				printf("rtinit: wrong ifa (%p) was (%p)\n",
-				    ifa, rt->rt_ifa);
-			/*
-			 * Ask that the protocol in question
-			 * remove anything it has associated with
-			 * this route and ifaddr.
-			 */
-			if (rt->rt_ifa->ifa_rtrequest)
-			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
-			/*
-			 * Remove the reference to its ifaddr.
-			 */
-			IFAFREE(rt->rt_ifa);
-			/*
-			 * And substitute in references to the ifaddr
-			 * we are adding.
-			 */
-			rt->rt_ifa = ifa;
-			rt->rt_ifp = ifa->ifa_ifp;
-			rt->rt_rmx.rmx_mtu = ifa->ifa_ifp->if_mtu;	/*XXX*/
-			ifa->ifa_refcnt++;
-			/*
-			 * Now ask the protocol to check if it needs
-			 * any special processing in its new form.
-			 */
-			if (ifa->ifa_rtrequest)
-			    ifa->ifa_rtrequest(RTM_ADD, rt, SA(0));
-		}
-		/*
-		 * notify any listenning routing agents of the change
-		 */
-		rt_newaddrmsg(cmd, ifa, error, nrt);
-	}
 	return (error);
 }
 
