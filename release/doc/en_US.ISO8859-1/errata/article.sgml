@@ -113,7 +113,13 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No active security advisories.</para>
+    <para>A buffer overflow in the resolver could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages.  This could potentially be used to force arbitrary
+      code to run on a client machine with the privileges of a
+      resolver-using application.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more information and a fix.</para>
 ]]>
   </sect1>
 
