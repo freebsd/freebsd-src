@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/mac.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
@@ -323,7 +324,10 @@ mmap(td, uap)
 		 * credentials do we use for determination? What if
 		 * proc does a setuid?
 		 */
-		maxprot = VM_PROT_EXECUTE;	/* ??? */
+		if (vp->v_mount->mnt_flag & MNT_NOEXEC)
+			maxprot = VM_PROT_NONE;
+		else
+			maxprot = VM_PROT_EXECUTE;
 		if (fp->f_flag & FREAD) {
 			maxprot |= VM_PROT_READ;
 		} else if (prot & PROT_READ) {
