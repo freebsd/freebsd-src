@@ -82,7 +82,7 @@ typedef	__socklen_t	socklen_t;
 #define	_PATH_PROTOCOLS	"/etc/protocols"
 #define	_PATH_SERVICES	"/etc/services"
 
-extern int h_errno;
+#define	h_errno (*__h_error())
 
 /*
  * Structures returned by network data base library.  All addresses are
@@ -135,7 +135,7 @@ struct addrinfo {
 
 /*
  * Error return codes from gethostbyname() and gethostbyaddr()
- * (left in extern int h_errno).
+ * (left in h_errno).
  */
 
 #define	NETDB_INTERNAL	-1	/* see errno */
@@ -254,6 +254,7 @@ void		setservent(int);
  */
 
 /* DO NOT USE THESE, THEY ARE SUBJECT TO CHANGE AND ARE NOT PORTABLE!!! */
+int	* __h_error(void);
 void	_sethosthtent(int);
 void	_endhosthtent(void);
 void	_sethostdnsent(int);
