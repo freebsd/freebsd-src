@@ -249,7 +249,6 @@ ucomopen(struct tty *tp, struct cdev *dev)
 {
 	struct ucom_softc *sc;
 	usbd_status err;
-	int s;
 	int error;
 
 	sc = tp->t_sc;
@@ -270,7 +269,6 @@ ucomopen(struct tty *tp, struct cdev *dev)
 						   sc->sc_portno);
 		if (error) {
 			ucom_cleanup(sc);
-			splx(s);
 			return (error);
 		}
 	}
@@ -336,7 +334,6 @@ ucomopen(struct tty *tp, struct cdev *dev)
 	return (0);
 
 fail:
-	splx(s);
 	ucom_cleanup(sc);
 	return (error);
 }
