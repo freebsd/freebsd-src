@@ -94,7 +94,7 @@ char fwohcicode[32][0x20]={
 
 #define MAX_SPEED 3
 extern char *linkspeed[];
-u_int32_t tagbit[4] = { 1 << 28, 1 << 29, 1 << 30, 1 << 31};
+uint32_t tagbit[4] = { 1 << 28, 1 << 29, 1 << 30, 1 << 31};
 
 static struct tcode_info tinfo[] = {
 /*		hdr_len block 	flag*/
@@ -130,14 +130,14 @@ static void fwohci_txd (struct fwohci_softc *, struct fwohci_dbch *);
 static void fwohci_start_atq (struct firewire_comm *);
 static void fwohci_start_ats (struct firewire_comm *);
 static void fwohci_start (struct fwohci_softc *, struct fwohci_dbch *);
-static u_int32_t fwphy_wrdata ( struct fwohci_softc *, u_int32_t, u_int32_t);
-static u_int32_t fwphy_rddata ( struct fwohci_softc *, u_int32_t);
+static uint32_t fwphy_wrdata ( struct fwohci_softc *, uint32_t, uint32_t);
+static uint32_t fwphy_rddata ( struct fwohci_softc *, uint32_t);
 static int fwohci_rx_enable (struct fwohci_softc *, struct fwohci_dbch *);
 static int fwohci_tx_enable (struct fwohci_softc *, struct fwohci_dbch *);
 static int fwohci_irx_enable (struct firewire_comm *, int);
 static int fwohci_irx_disable (struct firewire_comm *, int);
 #if BYTE_ORDER == BIG_ENDIAN
-static void fwohci_irx_post (struct firewire_comm *, u_int32_t *);
+static void fwohci_irx_post (struct firewire_comm *, uint32_t *);
 #endif
 static int fwohci_itxbuf_enable (struct firewire_comm *, int);
 static int fwohci_itx_disable (struct firewire_comm *, int);
@@ -146,10 +146,10 @@ static void fwohci_set_intr (struct firewire_comm *, int);
 
 static int fwohci_add_rx_buf (struct fwohci_dbch *, struct fwohcidb_tr *, int, struct fwdma_alloc *);
 static int fwohci_add_tx_buf (struct fwohci_dbch *, struct fwohcidb_tr *, int);
-static void	dump_db (struct fwohci_softc *, u_int32_t);
-static void 	print_db (struct fwohcidb_tr *, struct fwohcidb *, u_int32_t , u_int32_t);
-static void	dump_dma (struct fwohci_softc *, u_int32_t);
-static u_int32_t fwohci_cyctimer (struct firewire_comm *);
+static void	dump_db (struct fwohci_softc *, uint32_t);
+static void 	print_db (struct fwohcidb_tr *, struct fwohcidb *, uint32_t , uint32_t);
+static void	dump_dma (struct fwohci_softc *, uint32_t);
+static uint32_t fwohci_cyctimer (struct firewire_comm *);
 static void fwohci_rbuf_update (struct fwohci_softc *, int);
 static void fwohci_tbuf_update (struct fwohci_softc *, int);
 void fwohci_txbufdb (struct fwohci_softc *, int , struct fw_bulkxfer *);
@@ -258,10 +258,10 @@ d_ioctl_t fwohci_ioctl;
 /*
  * Communication with PHY device
  */
-static u_int32_t
-fwphy_wrdata( struct fwohci_softc *sc, u_int32_t addr, u_int32_t data)
+static uint32_t
+fwphy_wrdata( struct fwohci_softc *sc, uint32_t addr, uint32_t data)
 {
-	u_int32_t fun;
+	uint32_t fun;
 
 	addr &= 0xf;
 	data &= 0xff;
@@ -273,12 +273,12 @@ fwphy_wrdata( struct fwohci_softc *sc, u_int32_t addr, u_int32_t data)
 	return(fwphy_rddata( sc, addr));
 }
 
-static u_int32_t
+static uint32_t
 fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
 	int i;
-	u_int32_t bm;
+	uint32_t bm;
 
 #define OHCI_CSR_DATA	0x0c
 #define OHCI_CSR_COMP	0x10
@@ -300,10 +300,10 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 	return(bm);
 }
 
-static u_int32_t
+static uint32_t
 fwphy_rddata(struct fwohci_softc *sc,  u_int addr)
 {
-	u_int32_t fun, stat;
+	uint32_t fun, stat;
 	u_int i, retry = 0;
 
 	addr &= 0xf;
@@ -352,7 +352,7 @@ fwohci_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	int unit = DEV2UNIT(dev);
 	int err = 0;
 	struct fw_reg_req_t *reg  = (struct fw_reg_req_t *) data;
-	u_int32_t *dmach = (u_int32_t *) data;
+	uint32_t *dmach = (uint32_t *) data;
 
 	sc = devclass_get_softc(firewire_devclass, unit);
 	if(sc == NULL){
@@ -413,7 +413,7 @@ fwohci_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 static int
 fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
 {
-	u_int32_t reg, reg2;
+	uint32_t reg, reg2;
 	int e1394a = 1;
 /*
  * probe PHY parameters
@@ -488,7 +488,7 @@ void
 fwohci_reset(struct fwohci_softc *sc, device_t dev)
 {
 	int i, max_rec, speed;
-	u_int32_t reg, reg2;
+	uint32_t reg, reg2;
 	struct fwohcidb_tr *db_tr;
 
 	/* Disable interrupts */ 
@@ -594,8 +594,8 @@ int
 fwohci_init(struct fwohci_softc *sc, device_t dev)
 {
 	int i, mver;
-	u_int32_t reg;
-	u_int8_t ui[8];
+	uint32_t reg;
+	uint8_t ui[8];
 
 #if FWOHCI_TASKQUEUE
 	TASK_INIT(&sc->fwohci_task_complete, 0, fwohci_complete, sc);
@@ -701,7 +701,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		return ENOMEM;
 	}
 
-	fwdma_malloc(&sc->fc, sizeof(u_int32_t), sizeof(u_int32_t),
+	fwdma_malloc(&sc->fc, sizeof(uint32_t), sizeof(uint32_t),
 					&sc->dummy_dma, BUS_DMA_WAITOK);
 
 	if (sc->dummy_dma.v_addr == NULL) {
@@ -767,7 +767,7 @@ fwohci_timeout(void *arg)
 	sc = (struct fwohci_softc *)arg;
 }
 
-u_int32_t
+uint32_t
 fwohci_cyctimer(struct firewire_comm *fc)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
@@ -842,13 +842,13 @@ fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	int i, s;
 	int tcode, hdr_len, pl_off;
 	int fsegment = -1;
-	u_int32_t off;
+	uint32_t off;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 	struct fwohci_txpkthdr *ohcifp;
 	struct fwohcidb_tr *db_tr;
 	struct fwohcidb *db;
-	u_int32_t *ld;
+	uint32_t *ld;
 	struct tcode_info *info;
 	static int maxdesc=0;
 
@@ -1037,7 +1037,7 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	struct fwohcidb_tr *tr;
 	struct fwohcidb *db;
 	struct fw_xfer *xfer;
-	u_int32_t off;
+	uint32_t off;
 	u_int stat, status;
 	int	packets;
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
@@ -1311,7 +1311,7 @@ fwohci_irx_disable(struct firewire_comm *fc, int dmach)
 
 #if BYTE_ORDER == BIG_ENDIAN
 static void
-fwohci_irx_post (struct firewire_comm *fc , u_int32_t *qld)
+fwohci_irx_post (struct firewire_comm *fc , uint32_t *qld)
 {
 	qld[0] = FWOHCI_DMA_READ(qld[0]);
 	return;
@@ -1323,7 +1323,7 @@ fwohci_tx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
 	int err = 0;
 	int idb, z, i, dmach = 0, ldesc;
-	u_int32_t off = 0;
+	uint32_t off = 0;
 	struct fwohcidb_tr *db_tr;
 	struct fwohcidb *db;
 
@@ -1382,7 +1382,7 @@ fwohci_rx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
 	int err = 0;
 	int idb, z, i, dmach = 0, ldesc;
-	u_int32_t off = 0;
+	uint32_t off = 0;
 	struct fwohcidb_tr *db_tr;
 	struct fwohcidb *db;
 
@@ -1491,7 +1491,7 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 	unsigned short tag, ich;
 	struct fwohci_dbch *dbch;
 	int cycle_match, cycle_now, s, ldesc;
-	u_int32_t stat;
+	uint32_t stat;
 	struct fw_bulkxfer *first, *chunk, *prev;
 	struct fw_xferq *it;
 
@@ -1607,7 +1607,7 @@ fwohci_irx_enable(struct firewire_comm *fc, int dmach)
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
 	int err = 0, s, ldesc;
 	unsigned short tag, ich;
-	u_int32_t stat;
+	uint32_t stat;
 	struct fwohci_dbch *dbch;
 	struct fwohcidb_tr *db_tr;
 	struct fw_bulkxfer *first, *prev, *chunk;
@@ -1762,9 +1762,9 @@ fwohci_resume(struct fwohci_softc *sc, device_t dev)
 
 #define ACK_ALL
 static void
-fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
+fwohci_intr_body(struct fwohci_softc *sc, uint32_t stat, int count)
 {
-	u_int32_t irstat, itstat;
+	uint32_t irstat, itstat;
 	u_int i;
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
 
@@ -1880,7 +1880,7 @@ busresetout:
 		fwohci_arcv(sc, &sc->arrq, count);
 	}
 	if(stat & OHCI_INT_PHY_SID){
-		u_int32_t *buf, node_id;
+		uint32_t *buf, node_id;
 		int plen;
 
 #ifndef ACK_ALL
@@ -1930,7 +1930,7 @@ busresetout:
 			goto sidout;
 		}
 		plen -= 4; /* chop control info */
-		buf = (u_int32_t *)malloc(OHCI_SIDSIZE, M_FW, M_NOWAIT);
+		buf = (uint32_t *)malloc(OHCI_SIDSIZE, M_FW, M_NOWAIT);
 		if (buf == NULL) {
 			device_printf(fc->dev, "malloc failed\n");
 			goto sidout;
@@ -1988,7 +1988,7 @@ static void
 fwohci_complete(void *arg, int pending)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)arg;
-	u_int32_t stat;
+	uint32_t stat;
 
 again:
 	stat = atomic_readandclear_int(&sc->intstat);
@@ -2000,10 +2000,10 @@ again:
 }
 #endif
 
-static u_int32_t
+static uint32_t
 fwochi_check_stat(struct fwohci_softc *sc)
 {
-	u_int32_t stat, irstat, itstat;
+	uint32_t stat, irstat, itstat;
 
 	stat = OREAD(sc, FWOHCI_INTSTAT);
 	if (stat == 0xffffffff) {
@@ -2032,9 +2032,9 @@ void
 fwohci_intr(void *arg)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)arg;
-	u_int32_t stat;
+	uint32_t stat;
 #if !FWOHCI_TASKQUEUE
-	u_int32_t bus_reset = 0;
+	uint32_t bus_reset = 0;
 #endif
 
 	if (!(sc->intmask & OHCI_INT_EN)) {
@@ -2067,7 +2067,7 @@ void
 fwohci_poll(struct firewire_comm *fc, int quick, int count)
 {
 	int s;
-	u_int32_t stat;
+	uint32_t stat;
 	struct fwohci_softc *sc;
 
 
@@ -2113,7 +2113,7 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 	struct fwohcidb *db;
 	struct fw_bulkxfer *chunk;
 	struct fw_xferq *it;
-	u_int32_t stat, count;
+	uint32_t stat, count;
 	int s, w=0, ldesc;
 
 	it = fc->it[dmach];
@@ -2159,7 +2159,7 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 	struct fwohcidb_tr *db_tr;
 	struct fw_bulkxfer *chunk;
 	struct fw_xferq *ir;
-	u_int32_t stat;
+	uint32_t stat;
 	int s, w=0, ldesc;
 
 	ir = fc->ir[dmach];
@@ -2212,9 +2212,9 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 }
 
 void
-dump_dma(struct fwohci_softc *sc, u_int32_t ch)
+dump_dma(struct fwohci_softc *sc, uint32_t ch)
 {
-	u_int32_t off, cntl, stat, cmd, match;
+	uint32_t off, cntl, stat, cmd, match;
 
 	if(ch == 0){
 		off = OHCI_ATQOFF;
@@ -2257,13 +2257,13 @@ dump_dma(struct fwohci_softc *sc, u_int32_t ch)
 }
 
 void
-dump_db(struct fwohci_softc *sc, u_int32_t ch)
+dump_db(struct fwohci_softc *sc, uint32_t ch)
 {
 	struct fwohci_dbch *dbch;
 	struct fwohcidb_tr *cp = NULL, *pp, *np = NULL;
 	struct fwohcidb *curr = NULL, *prev, *next = NULL;
 	int idb, jdb;
-	u_int32_t cmd, off;
+	uint32_t cmd, off;
 	if(ch == 0){
 		off = OHCI_ATQOFF;
 		dbch = &sc->atrq;
@@ -2336,11 +2336,11 @@ outdb:
 
 void
 print_db(struct fwohcidb_tr *db_tr, struct fwohcidb *db,
-		u_int32_t ch, u_int32_t max)
+		uint32_t ch, uint32_t max)
 {
 	fwohcireg_t stat;
 	int i, key;
-	u_int32_t cmd, res;
+	uint32_t cmd, res;
 
 	if(db == NULL){
 		printf("No Descriptor is found\n");
@@ -2427,7 +2427,7 @@ void
 fwohci_ibr(struct firewire_comm *fc)
 {
 	struct fwohci_softc *sc;
-	u_int32_t fun;
+	uint32_t fun;
 
 	device_printf(fc->dev, "Initiate bus reset\n");
 	sc = (struct fwohci_softc *)fc;
@@ -2534,7 +2534,7 @@ fwohci_add_tx_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr,
 	FWOHCI_DMA_WRITE(db[0].db.desc.addr, 0);
 	bzero((void *)&db[1].db.immed[0], sizeof(db[1].db.immed));
 	FWOHCI_DMA_WRITE(db[2].db.desc.addr,
-	fwdma_bus_addr(it->buf, poffset) + sizeof(u_int32_t));
+	fwdma_bus_addr(it->buf, poffset) + sizeof(uint32_t));
 
 	FWOHCI_DMA_WRITE(db[2].db.desc.cmd,
 		OHCI_OUTPUT_LAST | OHCI_UPDATE | OHCI_BRANCH_ALWAYS);
@@ -2568,7 +2568,7 @@ fwohci_add_rx_buf(struct fwohci_dbch *dbch, struct fwohcidb_tr *db_tr,
 	} else {
 		db_tr->dbcnt = 0;
 		if (dummy_dma != NULL) {
-			dsiz[db_tr->dbcnt] = sizeof(u_int32_t);
+			dsiz[db_tr->dbcnt] = sizeof(uint32_t);
 			dbuf[db_tr->dbcnt++] = dummy_dma->bus_addr;
 		}
 		dsiz[db_tr->dbcnt] = ir->psize;
@@ -2599,7 +2599,7 @@ static int
 fwohci_arcv_swap(struct fw_pkt *fp, int len)
 {
 	struct fw_pkt *fp0;
-	u_int32_t ld0;
+	uint32_t ld0;
 	int slen, hlen;
 #if BYTE_ORDER == BIG_ENDIAN
 	int i;
@@ -2650,11 +2650,11 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fwohci_dbch *dbch, struct fw_pkt
 	int r;
 
 	info = &tinfo[fp->mode.common.tcode];
-	r = info->hdr_len + sizeof(u_int32_t);
+	r = info->hdr_len + sizeof(uint32_t);
 	if ((info->flag & FWTI_BLOCK_ASY) != 0)
-		r += roundup2(fp->mode.wreqb.len, sizeof(u_int32_t));
+		r += roundup2(fp->mode.wreqb.len, sizeof(uint32_t));
 
-	if (r == sizeof(u_int32_t))
+	if (r == sizeof(uint32_t))
 		/* XXX */
 		device_printf(sc->fc.dev, "Unknown tcode %d\n",
 						fp->mode.common.tcode);
@@ -2687,8 +2687,8 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 	struct fw_pkt pktbuf;
 	int nvec;
 	struct fw_pkt *fp;
-	u_int8_t *ld;
-	u_int32_t stat, off, status;
+	uint8_t *ld;
+	uint32_t stat, off, status;
 	u_int spd;
 	int len, plen, hlen, pcnt, offset;
 	int s;
@@ -2716,7 +2716,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 #endif
 	while (status & OHCI_CNTL_DMA_ACTIVE) {
 		len = dbch->xferq.psize - resCount;
-		ld = (u_int8_t *)db_tr->buf;
+		ld = (uint8_t *)db_tr->buf;
 		if (dbch->pdb_tr == NULL) {
 			len -= dbch->buf_offset;
 			ld += dbch->buf_offset;
@@ -2815,7 +2815,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				nvec ++;
 				ld += plen;
 			}
-			dbch->buf_offset = ld - (u_int8_t *)db_tr->buf;
+			dbch->buf_offset = ld - (uint8_t *)db_tr->buf;
 			if (nvec == 0)
 				printf("nvec == 0\n");
 

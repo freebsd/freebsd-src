@@ -55,8 +55,8 @@ struct fw_isobufreq {
 };
 
 struct fw_addr {
-	unsigned long hi;
-	unsigned long lo;
+	uint32_t hi;
+	uint32_t lo;
 };
 
 struct fw_asybindreq {
@@ -65,8 +65,8 @@ struct fw_asybindreq {
 };
 
 struct fw_reg_req_t {
-	unsigned long addr;
-	unsigned long data;
+	uint32_t addr;
+	uint32_t data;
 };
 
 #define MAXREC(x)	(2 << (x))
@@ -106,39 +106,39 @@ struct fw_reg_req_t {
 #define	FWP_TL_VALID (1 << 7)
 
 struct fw_isohdr {
-	u_int32_t hdr[1];
+	uint32_t hdr[1];
 };
 
 struct fw_asyhdr {
-	u_int32_t hdr[4];
+	uint32_t hdr[4];
 };
 
 #if BYTE_ORDER == BIG_ENDIAN
-#define BIT4x2(x,y)	 u_int8_t  x:4, y:4
-#define BIT16x2(x,y)	u_int32_t x:16, y:16
+#define BIT4x2(x,y)	 uint8_t  x:4, y:4
+#define BIT16x2(x,y)	uint32_t x:16, y:16
 #else
-#define BIT4x2(x,y)	 u_int8_t  y:4, x:4
-#define BIT16x2(x,y)	u_int32_t y:16, x:16
+#define BIT4x2(x,y)	 uint8_t  y:4, x:4
+#define BIT16x2(x,y)	uint32_t y:16, x:16
 #endif
 
 
 #if BYTE_ORDER == BIG_ENDIAN
-#define COMMON_HDR(a,b,c,d)	u_int32_t a:16,b:8,c:4,d:4
-#define COMMON_RES(a,b,c,d)	u_int32_t a:16,b:4,c:4,d:8
+#define COMMON_HDR(a,b,c,d)	uint32_t a:16,b:8,c:4,d:4
+#define COMMON_RES(a,b,c,d)	uint32_t a:16,b:4,c:4,d:8
 #else
-#define COMMON_HDR(a,b,c,d)	u_int32_t d:4,c:4,b:8,a:16
-#define COMMON_RES(a,b,c,d)	u_int32_t d:8,c:4,b:4,a:16
+#define COMMON_HDR(a,b,c,d)	uint32_t d:4,c:4,b:8,a:16
+#define COMMON_RES(a,b,c,d)	uint32_t d:8,c:4,b:4,a:16
 #endif
 
 struct fw_pkt {
 	union {
-		u_int32_t ld[0];
+		uint32_t ld[0];
 		struct {
 			COMMON_HDR(, , tcode, );
 		} common;
 		struct {
 			COMMON_HDR(len, chtag, tcode, sy);
-			u_int32_t payload[0];
+			uint32_t payload[0];
 		} stream;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
@@ -147,64 +147,64 @@ struct fw_pkt {
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
+			uint32_t dest_lo;
 		} rreqq;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			COMMON_RES(src, rtcode, , );
-			u_int32_t :32;
+			uint32_t :32;
 		} wres;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
+			uint32_t dest_lo;
 			BIT16x2(len, extcode);
 		} rreqb;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
-			u_int32_t data;
+			uint32_t dest_lo;
+			uint32_t data;
 		} wreqq;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
-			u_int32_t data;
+			uint32_t dest_lo;
+			uint32_t data;
 		} cyc;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			COMMON_RES(src, rtcode, , );
-			u_int32_t :32;
-			u_int32_t data;
+			uint32_t :32;
+			uint32_t data;
 		} rresq;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
+			uint32_t dest_lo;
 			BIT16x2(len, extcode);
-			u_int32_t payload[0];
+			uint32_t payload[0];
 		} wreqb;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			BIT16x2(src, dest_hi);
-			u_int32_t dest_lo;
+			uint32_t dest_lo;
 			BIT16x2(len, extcode);
-			u_int32_t payload[0];
+			uint32_t payload[0];
 		} lreq;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			COMMON_RES(src, rtcode, , );
-			u_int32_t :32;
+			uint32_t :32;
 			BIT16x2(len, extcode);
-			u_int32_t payload[0];
+			uint32_t payload[0];
 		} rresb;
 		struct {
 			COMMON_HDR(dst, tlrt, tcode, pri);
 			COMMON_RES(src, rtcode, , );
-			u_int32_t :32;
+			uint32_t :32;
 			BIT16x2(len, extcode);
-			u_int32_t payload[0];
+			uint32_t payload[0];
 		} lres;
 	} mode;
 };
@@ -237,7 +237,7 @@ struct fw_pkt {
 #define EXTCODE_WRAP_ADD	6
 
 struct fw_eui64 {
-	u_int32_t hi, lo;
+	uint32_t hi, lo;
 };
 #define FW_EUI64_BYTE(eui, x) \
 	((((x)<4)?				\
@@ -261,19 +261,19 @@ struct fw_asyreq {
 		}dst;
 	}req;
 	struct fw_pkt pkt;
-	u_int32_t data[512];
+	uint32_t data[512];
 };
 
 struct fw_devinfo {
 	struct fw_eui64 eui;
-	u_int16_t dst;
-	u_int16_t status;
+	uint16_t dst;
+	uint16_t status;
 };
 
 #define FW_MAX_DEVLST 70
 struct fw_devlstreq {
-	u_int16_t n;
-	u_int16_t info_len;
+	uint16_t n;
+	uint16_t info_len;
 	struct fw_devinfo dev[FW_MAX_DEVLST];
 };
 
@@ -284,7 +284,7 @@ struct fw_devlstreq {
 #if BYTE_ORDER == BIG_ENDIAN
 union fw_self_id {
 	struct {
-		u_int32_t id:2,
+		uint32_t  id:2,
 			  phy_id:6,
 			  sequel:1,
 			  link_active:1,
@@ -300,7 +300,7 @@ union fw_self_id {
 			  more_packets:1;
 	} p0;
 	struct {
-		u_int32_t
+		uint32_t
 			  id:2,
 			  phy_id:6,
 			  sequel:1,
@@ -321,7 +321,7 @@ union fw_self_id {
 #else
 union fw_self_id {
 	struct {
-		u_int32_t more_packets:1,
+		uint32_t  more_packets:1,
 			  initiated_reset:1,
 			  port2:2,
 			  port1:2,
@@ -337,7 +337,7 @@ union fw_self_id {
 			  id:2;
 	} p0;
 	struct {
-		u_int32_t more_packets:1,
+		uint32_t  more_packets:1,
 			  reserved1:1,
 			  porth:2,
 			  portg:2,
@@ -358,19 +358,19 @@ union fw_self_id {
 
 
 struct fw_topology_map {
-	u_int32_t crc:16,
-		  crc_len:16;
-	u_int32_t generation;
-	u_int32_t self_id_count:16,
-		  node_count:16;
+	uint32_t crc:16,
+		 crc_len:16;
+	uint32_t generation;
+	uint32_t self_id_count:16,
+		 node_count:16;
 	union fw_self_id self_id[4*64];
 };
 
 struct fw_speed_map {
-	u_int32_t crc:16,
-		  crc_len:16;
-	u_int32_t generation;
-	u_int8_t  speed[64][64];
+	uint32_t crc:16,
+		 crc_len:16;
+	uint32_t generation;
+	uint8_t  speed[64][64];
 };
 
 struct fw_crom_buf {
@@ -405,7 +405,7 @@ struct fw_crom_buf {
 #define FWOHCI_RDPHYREG	_IOWR('S', 82, struct fw_reg_req_t)
 #define FWOHCI_WRPHYREG	_IOWR('S', 83, struct fw_reg_req_t)
 
-#define DUMPDMA		_IOWR('S', 82, u_int32_t)
+#define DUMPDMA		_IOWR('S', 82, uint32_t)
 
 #ifdef _KERNEL
 

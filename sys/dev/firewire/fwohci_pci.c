@@ -92,7 +92,7 @@ static int
 fwohci_pci_probe( device_t dev )
 {
 #if 1
-	u_int32_t id;
+	uint32_t id;
 
 	id = pci_get_devid(dev);
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
@@ -208,7 +208,7 @@ static int
 fwohci_pci_init(device_t self)
 {
 	int olatency, latency, ocache_line, cache_line;
-	u_int16_t cmd;
+	uint16_t cmd;
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN |

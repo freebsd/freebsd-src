@@ -550,7 +550,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		/* keep ip packet alignment for alpha */
 		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
 		fp = &xfer->send.hdr;
-		*(u_int32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
+		*(uint32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
 		fp->mode.stream.len = m->m_pkthdr.len;
 		xfer->mbuf = m;
 		xfer->send.pay_len = m->m_pkthdr.len;

@@ -77,7 +77,7 @@
 #define		OHCI_MAX_DMA_CH		(0x4 + OHCI_DMA_ITCH + OHCI_DMA_IRCH)
 
 
-typedef u_int32_t 	fwohcireg_t;
+typedef uint32_t 	fwohcireg_t;
 
 /* for PCI */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -95,12 +95,12 @@ typedef u_int32_t 	fwohcireg_t;
 struct fwohcidb {
 	union {
 		struct {
-			u_int32_t cmd;
-			u_int32_t addr;
-			u_int32_t depend;
-			u_int32_t res;
+			uint32_t cmd;
+			uint32_t addr;
+			uint32_t depend;
+			uint32_t res;
 		} desc;
-		u_int32_t immed[4];
+		uint32_t immed[4];
 	} db;
 #define OHCI_STATUS_SHIFT	16
 #define OHCI_COUNT_MASK		0xffff
@@ -331,60 +331,60 @@ struct fwohcidb_tr{
  */
 struct fwohci_txpkthdr{
 	union{
-		u_int32_t ld[4];
+		uint32_t ld[4];
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
-			u_int32_t spd:16, /* XXX include reserved field */
-				  :8,
-				  tcode:4,
-				  :4;
+			uint32_t spd:16, /* XXX include reserved field */
+				 :8,
+				 tcode:4,
+				 :4;
 #else
-			u_int32_t :4,
-				  tcode:4,
-				  :8,
-				  spd:16; /* XXX include reserved fields */
+			uint32_t :4,
+				 tcode:4,
+				 :8,
+				 spd:16; /* XXX include reserved fields */
 #endif
 		}common;
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
-			u_int32_t :8,
-				  srcbus:1,
-				  :4,
-				  spd:3,
-				  tlrt:8,
-				  tcode:4,
-				  :4;
+			uint32_t :8,
+				 srcbus:1,
+				 :4,
+				 spd:3,
+				 tlrt:8,
+				 tcode:4,
+				 :4;
 #else
-			u_int32_t :4,
-				  tcode:4,
-				  tlrt:8,
-				  spd:3,
-				  :4,
-				  srcbus:1,
-				  :8;
+			uint32_t :4,
+				 tcode:4,
+				 tlrt:8,
+				 spd:3,
+				 :4,
+				 srcbus:1,
+				 :8;
 #endif
 			BIT16x2(dst, );
 		}asycomm;
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
-			u_int32_t :13,
-			          spd:3,
-				  chtag:8,
-				  tcode:4,
-				  sy:4;
+			uint32_t :13,
+			         spd:3,
+				 chtag:8,
+				 tcode:4,
+				 sy:4;
 #else
-			u_int32_t sy:4,
-				  tcode:4,
-				  chtag:8,
-			          spd:3,
-				  :13;
+			uint32_t sy:4,
+				 tcode:4,
+				 chtag:8,
+			         spd:3,
+				 :13;
 #endif
 			BIT16x2(len, );
 		}stream;
 	}mode;
 };
 struct fwohci_trailer{
-	u_int32_t time:16,
+	uint32_t time:16,
 		  stat:16;
 };
 
