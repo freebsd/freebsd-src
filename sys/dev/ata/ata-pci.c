@@ -723,7 +723,7 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
     if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	return alpha_platform_setup_ide_intr(child, irq, intr, arg, cookiep);
+	return alpha_platform_setup_ide_intr(irq, intr, arg, cookiep);
 #else
 	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
 			      flags, intr, arg, cookiep);
@@ -740,7 +740,7 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 {
     if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	return alpha_platform_teardown_ide_intr(child, irq, cookie);
+	return alpha_platform_teardown_ide_intr(irq, cookie);
 #else
 	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
 #endif
