@@ -621,7 +621,7 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 	/* We need to get the damn hostname back for netgroup matching. */
 	if (getnameinfo(raddr, salen, hname, sizeof(hname), NULL, 0,
 			NI_NAMEREQD) != 0)
-		return (-1);
+		hname[0] = '\0';
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
@@ -660,16 +660,16 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 				break;
 			}
 			if (buf[1] == '@')  /* match a host by netgroup */
-				hostok = innetgr((char *)&buf[2],
-					(char *)&hname, NULL, ypdomain);
+				hostok = hname[0] != '\0' &&
+				    innetgr(&buf[2], hname, NULL, ypdomain);
 			else		/* match a host by addr */
 				hostok = __icheckhost(raddr, salen,
 						      (char *)&buf[1]);
 			break;
 		case '-':     /* reject '-' hosts and all their users */
 			if (buf[1] == '@') {
-				if (innetgr((char *)&buf[2],
-					      (char *)&hname, NULL, ypdomain))
+				if (hname[0] == '\0' ||
+				    innetgr(&buf[2], hname, NULL, ypdomain))
 					return(-1);
 			} else {
 				if (__icheckhost(raddr, salen,
