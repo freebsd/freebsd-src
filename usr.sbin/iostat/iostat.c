@@ -1,3 +1,36 @@
+/*
+ * Copyright (c) 1997, 1998  Kenneth D. Merry.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id$
+ */
+/*
+ * Parts of this program are derived from the original FreeBSD iostat
+ * program:
+ */
 /*-
  * Copyright (c) 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,146 +63,185 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * Ideas for the new iostat statistics output modes taken from the NetBSD
+ * version of iostat:
+ */
+/*
+ * Copyright (c) 1996 John M. Vinopal
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed for the NetBSD Project
+ *      by John M. Vinopal.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1986, 1991, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)iostat.c	8.2 (Berkeley) 1/26/94";
-#endif
-static const char rcsid[] =
-	"$Id$";
-#endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/buf.h>
+#include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/dkstat.h>
 
 #include <err.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <kvm.h>
-#include <limits.h>
-#include <nlist.h>
-#include <paths.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
+#include <devstat.h>
 
 struct nlist namelist[] = {
-#define	X_DK_TIME	0
-	{ "_dk_time" },
-#define	X_DK_XFER	1
-	{ "_dk_xfer" },
-#define	X_DK_WDS	2
-	{ "_dk_wds" },
-#define	X_TK_NIN	3
+#define X_TK_NIN	0
 	{ "_tk_nin" },
-#define	X_TK_NOUT	4
+#define X_TK_NOUT	1
 	{ "_tk_nout" },
-#define	X_DK_SEEK	5
-	{ "_dk_seek" },
-#define	X_CP_TIME	6
+#define X_CP_TIME	2
 	{ "_cp_time" },
-#define	X_DK_WPMS	7
-	{ "_dk_wpms" },
-#define	X_HZ		8
+#define X_HZ		3
 	{ "_hz" },
-#define	X_STATHZ	9
+#define X_STATHZ	4
 	{ "_stathz" },
-#define	X_DK_NDRIVE	10
-	{ "_dk_ndrive" },
-#define	X_END		10
-#if defined(hp300) || defined(luna68k)
-#define	X_HPDINIT	(X_END+1)
-	{ "_hp_dinit" },
-#endif
-#if defined(i386)
-#define X_DK_NAMES	(X_END+1)
-	{ "_dk_names" },
-#endif
-#ifdef mips
-#define	X_SCSI_DINIT	(X_END+1)
-	{ "_scsi_dinit" },
-#endif
-#ifdef tahoe
-#define	X_VBDINIT	(X_END+1)
-	{ "_vbdinit" },
-#endif
-#ifdef vax
-	{ "_mbdinit" },
-#define X_MBDINIT	(X_END+1)
-	{ "_ubdinit" },
-#define X_UBDINIT	(X_END+2)
-#endif
+#define X_END		4
 	{ NULL },
 };
 
-struct _disk {
-	long	cp_time[CPUSTATES];
-	long	*dk_time;
-	long	*dk_wds;
-	long	*dk_seek;
-	long	*dk_xfer;
-	long	tk_nin;
-	long	tk_nout;
-} cur, last;
-
-kvm_t	 *kd;
-double	  etime;
-long	 *dk_wpms;
-int	  dk_ndrive, *dr_select, hz, kmemfd, ndrives;
-char	**dr_name;
+struct statinfo cur, last;
+int num_devices;
+struct device_selection *dev_select;
+int maxshowdevs;
+int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0;
 
 #define nlread(x, v) \
 	kvm_read(kd, namelist[x].n_value, &(v), sizeof(v))
 
-#include "names.c"				/* XXX */
+/* local function declarations */
+static void usage(void);
+static void phdr(int signo);
+static void devstats(int perf_select);
+static void cpustats(void);
 
-void cpustats __P((void));
-void dkstats __P((void));
-void phdr __P((int));
-static void usage __P((void));
+static void
+usage(void)
+{
+	/*
+	 * We also support the following 'traditional' syntax:
+	 * iostat [drives] [wait [count]]
+	 * This isn't mentioned in the man page, or the usage statement,
+	 * but it is supported.
+	 */
+	fprintf(stderr, "usage: iostat [-CdhIoT?] [-c count] [-M core]"
+		" [-n devs] [-N system]\n"
+		"\t      [-t type,if,pass] [-w wait] [drives]\n");
+}
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
+	int c;
 	register int i;
-	long tmp;
-	int ch, hdrcnt, reps, interval, stathz, ndrives;
-	char **cp, *memf, *nlistf, buf[30];
+	int tflag = 0, hflag = 0, cflag = 0, wflag = 0, nflag = 0;
+	int count = 0, waittime = 0;
+	char *memf = NULL, *nlistf = NULL;
+	struct devstat_match *matches;
+	int num_matches = 0;
         char errbuf[_POSIX2_LINE_MAX];
+	char *err_str;
+	kvm_t	 *kd;
+	int hz, stathz;
+	int headercount;
+	int generation;
+	int num_devices_specified;
+	int num_selected, num_selections, select_generation;
+	char **specified_devices;
+	devstat_select_mode select_mode;
 
-	interval = reps = 0;
-	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "c:M:N:w:")) != -1)
-		switch(ch) {
-		case 'c':
-			if ((reps = atoi(optarg)) <= 0)
-				errx(1, "repetition count <= 0");
-			break;
-		case 'M':
-			memf = optarg;
-			break;
-		case 'N':
-			nlistf = optarg;
-			break;
-		case 'w':
-			if ((interval = atoi(optarg)) <= 0)
-				errx(1, "interval <= 0");
-			break;
-		case '?':
-		default:
-			usage();
+	matches = NULL;
+	maxshowdevs = 3;
+
+	while ((c = getopt(argc, argv, "c:CdhIM:n:N:ot:Tw:?")) != -1) {
+		switch(c) {
+			case 'c':
+				cflag++;
+				count = atoi(optarg);
+				if (count < 1)
+					errx(1, "count %d is < 1", count);
+				break;
+			case 'C':
+				Cflag++;
+				break;
+			case 'd':
+				dflag++;
+				break;
+			case 'h':
+				hflag++;
+				break;
+			case 'I':
+				Iflag++;
+				break;
+			case 'M':
+				memf = optarg;
+				break;
+			case 'n':
+				nflag++;
+				maxshowdevs = atoi(optarg);
+				if (maxshowdevs < 0)
+					errx(1, "number of devcies %d is < 0",
+					     maxshowdevs);
+				break;
+			case 'N':
+				nlistf = optarg;
+				break;
+			case 'o':
+				oflag++;
+				break;
+			case 't':
+				tflag++;
+				if (buildmatch(optarg, &matches, 
+					       &num_matches) != 0)
+					errx(1, "%s", devstat_errbuf);
+				break;
+			case 'T':
+				Tflag++;
+				break;
+			case 'w':
+				wflag++;
+				waittime = atoi(optarg);
+				if (waittime < 1)
+					errx(1, "wait time is < 1");
+				break;
+			default:
+				usage();
+				exit(1);
+				break;
 		}
+	}
+
 	argc -= optind;
 	argv += optind;
 
@@ -180,133 +252,248 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-        kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+	/*
+	 * Make sure that the userland devstat version matches the kernel
+	 * devstat version.  If not, exit and print a message informing 
+	 * the user of his mistake.
+	 */
+	if (checkversion() < 0)
+		errx(1, "%s", devstat_errbuf);
+
+	/*
+	 * Figure out how many devices we should display.
+	 */
+	if (nflag == 0) {
+		if (oflag > 0) {
+			if ((dflag > 0) && (Cflag == 0) && (Tflag == 0))
+				maxshowdevs = 5;
+			else if ((dflag > 0) && (Tflag > 0) && (Cflag == 0))
+				maxshowdevs = 5;
+			else
+				maxshowdevs = 4;
+		} else {
+			if ((dflag > 0) && (Cflag == 0))
+				maxshowdevs = 4;		
+			else
+				maxshowdevs = 3;
+		}
+	}
+
+	/* find out how many devices we have */
+	if ((num_devices = getnumdevs()) < 0)
+		err(1, "can't get number of devices");
+
+	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(cur.dinfo, sizeof(struct devinfo));
+	bzero(last.dinfo, sizeof(struct devinfo));
+
+	/*
+	 * Grab all the devices.  We don't look to see if the list has
+	 * changed here, since it almost certainly has.  We only look for
+	 * errors.
+	 */
+	if (getdevs(&cur) == -1)
+		errx(1, "%s", devstat_errbuf);
+
+	num_devices = cur.dinfo->numdevs;
+	generation = cur.dinfo->generation;
+
+	/*
+	 * If the user specified any devices on the command line, see if
+	 * they are in the list of devices we have now.
+	 */
+	specified_devices = (char **)malloc(sizeof(char *));
+	for (num_devices_specified = 0; *argv; ++argv) {
+		if (isdigit(**argv))
+			break;
+		num_devices_specified++;
+		specified_devices = (char **)realloc(specified_devices,
+						     sizeof(char *) *
+						     num_devices_specified);
+		specified_devices[num_devices_specified - 1] = *argv;
+
+	}
+
+	dev_select = NULL;
+
+	if ((num_devices_specified == 0) && (num_matches == 0))
+		select_mode = DS_SELECT_ADD;
+	else
+		select_mode = DS_SELECT_ONLY;
+
+	/*
+	 * At this point, selectdevs will almost surely indicate that the
+	 * device list has changed, so we don't look for return values of 0
+	 * or 1.  If we get back -1, though, there is an error.
+	 */
+	if (selectdevs(&dev_select, &num_selected,
+		       &num_selections, &select_generation,
+		       generation, cur.dinfo->devices, num_devices,
+		       matches, num_matches,
+		       specified_devices, num_devices_specified,
+		       select_mode, maxshowdevs, hflag) == -1)
+		errx(1, "%s", devstat_errbuf);
+
+	free(specified_devices);
+
+	/*
+	 * Look for the traditional wait time and count arguments.
+	 */
+	if (*argv) {
+		waittime = atoi(*argv);
+
+		/* Let the user know he goofed, but keep going anyway */
+		if (wflag != 0) 
+			warnx("discarding previous wait interval, using"
+			      " %d instead", waittime);
+		wflag++;
+
+		if (*++argv) {
+			count = atoi(*argv);
+			if (cflag != 0)
+				warnx("discarding previous count, using %d"
+				      " instead", count);
+			cflag++;
+		} else
+			count = -1;
+	}
+
+	/*
+	 * If the user specified a count, but not an interval, we default
+	 * to an interval of 1 second.
+	 */
+	if ((wflag == 0) && (cflag > 0))
+		waittime = 1;
+
+	/*
+	 * If the user specified a wait time, but not a count, we want to
+	 * go on ad infinitum.  This can be redundant if the user uses the
+	 * traditional method of specifying the wait, since in that case we
+	 * already set count = -1 above.  Oh well.
+	 */
+	if ((wflag > 0) && (cflag == 0))
+		count = -1;
+
+	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+
 	if (kd == 0)
 		errx(1, "kvm_openfiles: %s", errbuf);
+
 	if (kvm_nlist(kd, namelist) == -1)
 		errx(1, "kvm_nlist: %s", kvm_geterr(kd));
-	if (namelist[X_DK_NDRIVE].n_type == 0)
-		errx(1, "dk_ndrive not found in namelist");
-	(void)nlread(X_DK_NDRIVE, dk_ndrive);
-	if (dk_ndrive < 0)
-		errx(1, "invalid dk_ndrive %d", dk_ndrive);
 
-	cur.dk_time = calloc(dk_ndrive, sizeof(long));
-	cur.dk_wds = calloc(dk_ndrive, sizeof(long));
-	cur.dk_seek = calloc(dk_ndrive, sizeof(long));
-	cur.dk_xfer = calloc(dk_ndrive, sizeof(long));
-	last.dk_time = calloc(dk_ndrive, sizeof(long));
-	last.dk_wds = calloc(dk_ndrive, sizeof(long));
-	last.dk_seek = calloc(dk_ndrive, sizeof(long));
-	last.dk_xfer = calloc(dk_ndrive, sizeof(long));
-	dr_select = calloc(dk_ndrive, sizeof(int));
-	dr_name = calloc(dk_ndrive, sizeof(char *));
-	dk_wpms = calloc(dk_ndrive, sizeof(long));
-
-	for (i = 0; i < dk_ndrive; i++) {
-		(void)sprintf(buf, "dk%d", i);
-		dr_name[i] = strdup(buf);
-	}
-	if (!read_names())
-		exit(1);
 	(void)nlread(X_HZ, hz);
 	(void)nlread(X_STATHZ, stathz);
 	if (stathz)
 		hz = stathz;
-	(void)kvm_read(kd, namelist[X_DK_WPMS].n_value, dk_wpms,
-		dk_ndrive * sizeof(dk_wpms));
 
 	/*
-	 * Choose drives to be displayed.  Priority goes to (in order) drives
-	 * supplied as arguments and default drives.  If everything isn't
-	 * filled in and there are drives not taken care of, display the first
-	 * few that fit.
-	 *
-	 * The backward compatibility #ifdefs permit the syntax:
-	 *	iostat [ drives ] [ interval [ count ] ]
+	 * If the user stops the program (control-Z) and then resumes it,
+	 * print out the header again.
 	 */
-#define	BACKWARD_COMPATIBILITY
-	for (ndrives = 0; *argv; ++argv) {
-#ifdef	BACKWARD_COMPATIBILITY
-		if (isdigit(**argv))
-			break;
-#endif
-		for (i = 0; i < dk_ndrive; i++) {
-			if (strcmp(dr_name[i], *argv))
-				continue;
-			dr_select[i] = 1;
-			++ndrives;
-		}
-	}
-#ifdef	BACKWARD_COMPATIBILITY
-	if (*argv) {
-		interval = atoi(*argv);
-		if (*++argv)
-			reps = atoi(*argv);
-	}
-#endif
-
-	if (interval) {
-		if (!reps)
-			reps = -1;
-	} else
-		if (reps)
-			interval = 1;
-
-	for (i = 0; i < dk_ndrive && ndrives < 4; i++) {
-		if (dr_select[i] || dk_wpms[i] == 0)
-			continue;
-		for (cp = defdrives; *cp; cp++)
-			if (strcmp(dr_name[i], *cp) == 0) {
-				dr_select[i] = 1;
-				++ndrives;
-				break;
-			}
-	}
-	for (i = 0; i < dk_ndrive && ndrives < 4; i++) {
-		if (dr_select[i])
-			continue;
-		dr_select[i] = 1;
-		++ndrives;
-	}
-
 	(void)signal(SIGCONT, phdr);
 
-	for (hdrcnt = 1;;) {
-		if (!--hdrcnt) {
+	for (headercount = 1;;) {
+		struct devinfo *tmp_dinfo;
+		long tmp;
+		double etime;
+
+		if (!--headercount) {
 			phdr(0);
-			hdrcnt = 20;
+			headercount = 20;
 		}
-		(void)kvm_read(kd, namelist[X_DK_TIME].n_value,
-		    cur.dk_time, dk_ndrive * sizeof(long));
-		(void)kvm_read(kd, namelist[X_DK_XFER].n_value,
-		    cur.dk_xfer, dk_ndrive * sizeof(long));
-		(void)kvm_read(kd, namelist[X_DK_WDS].n_value,
-		    cur.dk_wds, dk_ndrive * sizeof(long));
-		(void)kvm_read(kd, namelist[X_DK_SEEK].n_value,
-		    cur.dk_seek, dk_ndrive * sizeof(long));
 		(void)kvm_read(kd, namelist[X_TK_NIN].n_value,
 		    &cur.tk_nin, sizeof(cur.tk_nin));
 		(void)kvm_read(kd, namelist[X_TK_NOUT].n_value,
 		    &cur.tk_nout, sizeof(cur.tk_nout));
 		(void)kvm_read(kd, namelist[X_CP_TIME].n_value,
 		    cur.cp_time, sizeof(cur.cp_time));
-		for (i = 0; i < dk_ndrive; i++) {
-			if (!dr_select[i])
-				continue;
-#define X(fld)	tmp = cur.fld[i]; cur.fld[i] -= last.fld[i]; last.fld[i] = tmp
-			X(dk_xfer);
-			X(dk_seek);
-			X(dk_wds);
-			X(dk_time);
+
+		tmp_dinfo = last.dinfo;
+		last.dinfo = cur.dinfo;
+		cur.dinfo = tmp_dinfo;
+
+		last.busy_time = cur.busy_time;
+
+		/*
+		 * Here what we want to do is refresh our device stats.
+		 * getdevs() returns 1 when the device list has changed.
+		 * If the device list has changed, we want to go through
+		 * the selection process again, in case a device that we
+		 * were previously displaying has gone away.
+		 */
+		switch (getdevs(&cur)) {
+		case -1:
+			errx(1, "%s", devstat_errbuf);
+			break;
+		case 1: {
+			int retval;
+
+			num_devices = cur.dinfo->numdevs;
+			generation = cur.dinfo->generation;
+			retval = selectdevs(&dev_select, &num_selected,
+					    &num_selections, &select_generation,
+					    generation, cur.dinfo->devices,
+					    num_devices, matches, num_matches,
+					    specified_devices,
+					    num_devices_specified,
+					    select_mode, maxshowdevs, hflag);
+			switch(retval) {
+			case -1:
+				errx(1, "%s", devstat_errbuf);
+				break;
+			case 1:
+				phdr(0);
+				headercount = 20;
+				break;
+			default:
+				break;
+			}
+			break;
 		}
+		default:
+			break;
+		}
+
+		/*
+		 * We only want to re-select devices if we're in 'top'
+		 * mode.  This is the only mode where the devices selected
+		 * could actually change.
+		 */
+		if (hflag > 0) {
+			int retval;
+			retval = selectdevs(&dev_select, &num_selected,
+					    &num_selections, &select_generation,
+					    generation, cur.dinfo->devices,
+					    num_devices, matches, num_matches,
+					    specified_devices,
+					    num_devices_specified,
+					    select_mode, maxshowdevs, hflag);
+			switch(retval) {
+			case -1:
+				errx(1,"%s", devstat_errbuf);
+				break;
+			case 1:
+				phdr(0);
+				headercount = 20;
+				break;
+			default:
+				break;
+			}
+		}
+
 		tmp = cur.tk_nin;
 		cur.tk_nin -= last.tk_nin;
 		last.tk_nin = tmp;
 		tmp = cur.tk_nout;
 		cur.tk_nout -= last.tk_nout;
 		last.tk_nout = tmp;
-		etime = 0;
+
+		etime = 0.0;
+
+#define X(fld)	tmp = cur.fld[i]; cur.fld[i] -= last.fld[i]; last.fld[i] = tmp
+
 		for (i = 0; i < CPUSTATES; i++) {
 			X(cp_time);
 			etime += cur.cp_time[i];
@@ -314,86 +501,164 @@ main(argc, argv)
 		if (etime == 0.0)
 			etime = 1.0;
 		etime /= (float)hz;
-		(void)printf("%4.0f%5.0f",
-		    cur.tk_nin / etime, cur.tk_nout / etime);
-		dkstats();
-		cpustats();
-		(void)printf("\n");
-		(void)fflush(stdout);
+		if ((dflag == 0) || (Tflag > 0))
+			printf("%4.0f%5.0f", cur.tk_nin / etime, 
+				cur.tk_nout/etime);
+		devstats(hflag);
+		if ((dflag == 0) || (Cflag > 0))
+			cpustats();
+		printf("\n");
+		fflush(stdout);
 
-		if (reps >= 0 && --reps <= 0)
+		if (count >= 0 && --count <= 0)
 			break;
-		(void)sleep(interval);
+
+		sleep(waittime);
 	}
+
 	exit(0);
 }
 
-/* ARGUSED */
-void
-phdr(signo)
-	int signo;
+static void
+phdr(int signo)
 {
 	register int i;
+	int printed;
 
-	(void)printf("      tty");
-	for (i = 0; i < dk_ndrive; i++)
-		if (dr_select[i])
-			(void)printf("         %4.4s ", dr_name[i]);
-	(void)printf("         cpu\n tin tout");
-	for (i = 0; i < dk_ndrive; i++)
-		if (dr_select[i])
-			(void)printf(" sps tps msps ");
-	(void)printf(" us ni sy in id\n");
+	if ((dflag == 0) || (Tflag > 0))
+		(void)printf("      tty");
+	for (i = 0, printed=0;(i < num_devices) && (printed < maxshowdevs);i++){
+		int di;
+		if ((dev_select[i].selected != 0)
+		 && (dev_select[i].selected <= maxshowdevs)) {
+			di = dev_select[i].position;
+			if (oflag > 0)
+				(void)printf("%12.6s%d ", 
+					    cur.dinfo->devices[di].device_name,
+					    cur.dinfo->devices[di].unit_number);
+			else
+				printf("%15.6s%d ",
+					    cur.dinfo->devices[di].device_name,
+					    cur.dinfo->devices[di].unit_number);
+			printed++;
+		}
+	}
+	if ((dflag == 0) || (Cflag > 0))
+		(void)printf("            cpu\n");
+	else
+		(void)printf("\n");
+
+	if ((dflag == 0) || (Tflag > 0))
+		(void)printf(" tin tout");
+
+	for (i=0, printed = 0;(i < num_devices) && (printed < maxshowdevs);i++){
+		if ((dev_select[i].selected != 0)
+		 && (dev_select[i].selected <= maxshowdevs)) {
+			if (oflag > 0)
+				if (Iflag == 0)
+					(void)printf(" sps tps msps ");
+				else
+					(void)printf(" blk xfr msps ");
+					
+			else
+				if (Iflag == 0)
+					printf("  KB/t tps  MB/s ");
+				else
+					printf("  KB/t xfrs   MB ");
+			printed++;
+		}
+	}
+	if ((dflag == 0) || (Cflag > 0))
+		(void)printf(" us ni sy in id\n");
+	else
+		printf("\n");
+
 }
 
-void
-dkstats()
+static void
+devstats(int perf_select)
 {
 	register int dn;
-	double atime, itime, msps, words, xtime;
+	long double transfers_per_second;
+	long double kb_per_transfer, mb_per_second;
+	u_int64_t total_bytes, total_transfers, total_blocks;
+	long double busy_seconds;
+	long double total_mb;
+	long double blocks_per_second, ms_per_transaction;
+	
+	/*
+	 * Calculate elapsed time up front, since it's the same for all
+	 * devices.
+	 */
+	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
 
-	for (dn = 0; dn < dk_ndrive; ++dn) {
-		if (!dr_select[dn])
+	for (dn = 0; dn < num_devices; dn++) {
+		int di;
+
+		if (((perf_select == 0) && (dev_select[dn].selected == 0))
+		 || (dev_select[dn].selected > maxshowdevs))
 			continue;
-		words = (double)cur.dk_wds[dn] * 32;	/* words xfer'd */
-		(void)printf("%4.0f",			/* sectors */
-		    words / (DEV_BSIZE / 2) / etime);
 
-		(void)printf("%4.0f", cur.dk_xfer[dn] / etime);
+		di = dev_select[dn].position;
 
-		if (dk_wpms[dn] && cur.dk_xfer[dn]) {
-			atime = cur.dk_time[dn];	/* ticks disk busy */
-			atime /= (float)hz;		/* ticks to seconds */
-			xtime = words / dk_wpms[dn];	/* transfer time */
-			itime = atime - xtime;		/* time not xfer'ing */
-			if (itime < 0)
-				msps = 0;
-			else
-				msps = itime * 1000 / cur.dk_xfer[dn];
-		} else
-			msps = 0;
-		(void)printf("%5.1f ", msps);
+		if (compute_stats(&cur.dinfo->devices[di],
+				  &last.dinfo->devices[di], busy_seconds,
+				  &total_bytes, &total_transfers,
+				  &total_blocks, &kb_per_transfer,
+				  &transfers_per_second, &mb_per_second, 
+				  &blocks_per_second, &ms_per_transaction)!= 0)
+			errx(1, "%s", devstat_errbuf);
+
+		if (perf_select != 0) {
+			dev_select[dn].bytes = total_bytes;
+			if ((dev_select[dn].selected == 0)
+			 || (dev_select[dn].selected > maxshowdevs))
+				continue;
+		}
+
+		if (oflag > 0) {
+
+			if (Iflag == 0)
+				printf("%4.0Lf%4.0Lf%5.1Lf ",
+				       blocks_per_second,
+				       transfers_per_second,
+				       ms_per_transaction);
+			else 
+				printf("%4.1qu%4.1qu%5.1Lf ",
+				       total_blocks,
+				       total_transfers,
+				       ms_per_transaction);
+		} else {
+
+			if (Iflag == 0)
+				printf(" %5.2Lf %3.0Lf %5.2Lf ", 
+				       kb_per_transfer,
+				       transfers_per_second,
+				       mb_per_second);
+			else {
+				total_mb = total_bytes;
+				total_mb /= 1024 * 1024;
+
+				printf(" %5.2Lf %3.1qu %5.2Lf ", 
+				       kb_per_transfer,
+				       total_transfers,
+				       total_mb);
+			}
+		}
 	}
 }
 
-void
-cpustats()
+static void
+cpustats(void)
 {
 	register int state;
 	double time;
 
-	time = 0;
+	time = 0.0;
+
 	for (state = 0; state < CPUSTATES; ++state)
 		time += cur.cp_time[state];
 	for (state = 0; state < CPUSTATES; ++state)
-		(void)printf("%3.0f",
-		    100. * cur.cp_time[state] / (time ? time : 1));
-}
-
-static void
-usage()
-{
-	(void)fprintf(stderr,
-"usage: iostat [-c count] [-M core] [-N system] [-w wait] [drives]\n");
-	exit(1);
+		printf("%3.0f",
+		       100. * cur.cp_time[state] / (time ? time : 1));
 }
