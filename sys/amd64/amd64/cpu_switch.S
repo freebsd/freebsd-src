@@ -131,7 +131,7 @@ ENTRY(cpu_switch)
 	pushq	%rsi
 	addq	$PCB_SAVEFPU,%r8		/* h/w bugs make saving complicated */
 	movq	%r8, %rdi
-	call	npxsave				/* do it in a big C function */
+	call	fpusave				/* do it in a big C function */
 	popq	%rsi
 	popq	%rdi
 1:
@@ -301,16 +301,16 @@ ENTRY(savectx)
 	popq	PCB_RFLAGS(%rcx)
 
 	/*
-	 * If fpcurthread == NULL, then the npx h/w state is irrelevant and the
+	 * If fpcurthread == NULL, then the fpu h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
 	 * but not for dumps (the old book-keeping with FP flags in the pcb
 	 * always lost for dumps because the dump pcb has 0 flags).
 	 *
-	 * If fpcurthread != NULL, then we have to save the npx h/w state to
+	 * If fpcurthread != NULL, then we have to save the fpu h/w state to
 	 * fpcurthread's pcb and copy it to the requested pcb, or save to the
 	 * requested pcb and reload.  Copying is easier because we would
 	 * have to handle h/w bugs for reloading.  We used to lose the
-	 * parent's npx state for forks by forgetting to reload.
+	 * parent's fpu state for forks by forgetting to reload.
 	 */
 	pushfq
 	cli
@@ -322,7 +322,7 @@ ENTRY(savectx)
 	pushq	%rax
 	movq	TD_PCB(%rax),%rdi
 	leaq	PCB_SAVEFPU(%rdi),%rdi
-	call	npxsave
+	call	fpusave
 	popq	%rax
 	popq	%rcx
 

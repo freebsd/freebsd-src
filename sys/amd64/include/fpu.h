@@ -38,12 +38,12 @@
  */
 
 /*
- * 287/387 NPX Coprocessor Data Structures and Constants
+ * Floating Point Data Structures and Constants
  * W. Jolitz 1/90
  */
 
-#ifndef _MACHINE_NPX_H_
-#define	_MACHINE_NPX_H_
+#ifndef _MACHINE_FPU_H_
+#define	_MACHINE_FPU_H_
 
 /* Contents of each x87 floating point accumulator */
 struct fpacc87 {
@@ -95,20 +95,20 @@ struct  savefpu {
  * This is mostly academic for AMD64, because the ABI prefers the use
  * SSE2 based math.  For FreeBSD/amd64, we go with the default settings.
  */
-#define	__INITIAL_NPXCW__	0x037F
+#define	__INITIAL_FPUCW__	0x037F
 #define	__INITIAL_MXCSR__	0x1F80
 #define	__INITIAL_MXCSR_MASK__	0xFFBF
 
 #ifdef _KERNEL
-int	npxdna(void);
-void	npxdrop(void);
-void	npxexit(struct thread *td);
-int	npxformat(void);
-int	npxgetregs(struct thread *td, struct savefpu *addr);
-void	npxinit(u_short control);
-void	npxsave(struct savefpu *addr);
-void	npxsetregs(struct thread *td, struct savefpu *addr);
-int	npxtrap(void);
+int	fpudna(void);
+void	fpudrop(void);
+void	fpuexit(struct thread *td);
+int	fpuformat(void);
+int	fpugetregs(struct thread *td, struct savefpu *addr);
+void	fpuinit(u_short control);
+void	fpusave(struct savefpu *addr);
+void	fpusetregs(struct thread *td, struct savefpu *addr);
+int	fputrap(void);
 #endif
 
-#endif /* !_MACHINE_NPX_H_ */
+#endif /* !_MACHINE_FPU_H_ */
