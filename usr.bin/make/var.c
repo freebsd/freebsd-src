@@ -2283,7 +2283,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    str[*lengthPtr] = '\0';
 	    *freePtr = TRUE;
 	} else {
-	    str = var_Error;
+	    str = err ? var_Error : varNoError;
 	}
     }
     return (str);
