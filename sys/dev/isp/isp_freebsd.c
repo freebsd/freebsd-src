@@ -572,52 +572,6 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 	}
 
 	/*
-	 * If Fibre Channel, stop and drain all activity to this bus.
-	 */
-#if	0
-	if (IS_FC(isp)) {
-		ISP_LOCK(isp);
-		frozen = 1;
-		xpt_freeze_simq(isp->isp_sim, 1);
-		isp->isp_osinfo.drain = 1;
-		while (isp->isp_osinfo.drain) {
-			(void) msleep(&isp->isp_osinfo.drain, &isp->isp_lock,
-			    PRIBIO, "ispdrain", 10 * hz);
-		}
-		ISP_UNLOCK(isp);
-	}
-#endif
-
-#if	0	/* we don't need this */
-	/*
-	 * Check to see if we're enabling on fibre channel and
-	 * don't yet have a notion of who the heck we are (no
-	 * loop yet).
-	 */
-	if (IS_FC(isp) && cel->enable &&
-	    (isp->isp_osinfo.tmflags & TM_TMODE_ENABLED) == 0) {
-		fcparam *fcp = isp->isp_param;
-		int rv;
-
-		rv = isp_fc_runstate(isp, 2 * 1000000);
-		if (fcp->isp_fwstate != FW_READY ||
-		    fcp->isp_loopstate != LOOP_READY) {
-			xpt_print_path(ccb->ccb_h.path);
-			isp_prt(isp, ISP_LOGWARN,
-			    "could not get a good port database read");
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			if (frozen) {
-				ISPLOCK_2_CAMLOCK(isp);
-				xpt_release_simq(isp->isp_sim, 1);
-				CAMLOCK_2_ISPLOCK(isp);
-			}
-			return;
-		}
-	}
-#endif
-
-
-	/*
 	 * Next check to see whether this is a target/lun wildcard action.
 	 *
 	 * If so, we enable/disable target mode but don't do any lun enabling.
@@ -1529,24 +1483,21 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			tgt = xpt_path_target_id(path);
 			ISP_LOCK(isp);
 			sdp += cam_sim_bus(sim);
+			nflags = sdp->isp_devparam[tgt].nvrm_flags;
 #ifndef	ISP_TARGET_MODE
-			if (tgt == sdp->isp_initiator_id) {
-				nflags = DPARM_DEFAULT;
-			} else {
-				nflags = DPARM_SAFE_DFLT;
-				if (isp->isp_loaded_fw) {
-					nflags |= DPARM_NARROW | DPARM_ASYNC;
-				}
+			nflags &= DPARM_SAFE_DFLT;
+			if (isp->isp_loaded_fw) {
+				nflags |= DPARM_NARROW | DPARM_ASYNC;
 			}
 #else
 			nflags = DPARM_DEFAULT;
 #endif
-			oflags = sdp->isp_devparam[tgt].dev_flags;
-			sdp->isp_devparam[tgt].dev_flags = nflags;
+			oflags = sdp->isp_devparam[tgt].goal_flags;
+			sdp->isp_devparam[tgt].goal_flags = nflags;
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << cam_sim_bus(sim));
 			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			sdp->isp_devparam[tgt].dev_flags = oflags;
+			sdp->isp_devparam[tgt].goal_flags = oflags;
 			ISP_UNLOCK(isp);
 		}
 		break;
@@ -1656,6 +1607,8 @@ isp_watchdog(void *arg)
 	ISP_UNLOCK(isp);
 }
 
+static int isp_ktmature = 0;
+
 static void
 isp_kthread(void *arg)
 {
@@ -1672,10 +1625,23 @@ isp_kthread(void *arg)
 		iok = isp->isp_osinfo.intsok;
 		isp->isp_osinfo.intsok = 1;
 		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
+			if (FCPARAM(isp)->isp_fwstate != FW_READY ||
+			    FCPARAM(isp)->isp_loopstate < LOOP_PDB_RCVD) {
+				if (FCPARAM(isp)->loop_seen_once == 0 ||
+				    isp_ktmature == 0) {
+					break;
+				}
+			}
 			isp->isp_osinfo.intsok = iok;
 			tsleep(isp_kthread, PRIBIO, "isp_fcthrd", hz);
 			isp->isp_osinfo.intsok = iok;
 		}
+		/*
+		 * Even if we didn't get good loop state we may be
+		 * unfreezing the SIMQ so that we can kill off
+		 * commands (if we've never seen loop before, e.g.)
+		 */
+		isp_ktmature = 1;
 		isp->isp_osinfo.intsok = iok;
 		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
@@ -1773,6 +1739,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISPLOCK_2_CAMLOCK(isp);
 			break;
 		case CMD_RQLATER:
+			/*
+			 * This can only happen for Fibre Channel
+			 */
+			KASSERT((IS_FC(isp)), ("CMD_RQLATER for FC only"));
+			if (FCPARAM(isp)->loop_seen_once == 0 && isp_ktmature) {
+				XS_SETERR(ccb, CAM_SEL_TIMEOUT);
+				xpt_done(ccb);
+				break;
+			}
 			wakeup(&isp->isp_osinfo.kproc);
 			if (isp->isp_osinfo.simqfrozen == 0) {
 				isp_prt(isp, ISP_LOGDEBUG2,
@@ -1917,6 +1892,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 		cts = &ccb->cts;
+		if (!IS_CURRENT_SETTINGS(cts)) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 		tgt = cts->ccb_h.target_id;
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_SCSI(isp)) {
@@ -1927,15 +1907,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 			sdp += bus;
 			/*
-			 * We always update (internally) from dev_flags
+			 * We always update (internally) from goal_flags
 			 * so any request to change settings just gets
 			 * vectored to that location.
 			 */
-			dptr = &sdp->isp_devparam[tgt].dev_flags;
+			dptr = &sdp->isp_devparam[tgt].goal_flags;
 
 			/*
 			 * Note that these operations affect the
-			 * the goal flags (dev_flags)- not
+			 * the goal flags (goal_flags)- not
 			 * the current state flags. Then we mark
 			 * things so that the next operation to
 			 * this HBA will cause the update to occur.
@@ -1979,17 +1959,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			}
 			*dptr |= DPARM_SAFE_DFLT;
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, IS_CURRENT_SETTINGS(cts)?  "current" :
-			    "user", sdp->isp_devparam[tgt].sync_period,
-			    sdp->isp_devparam[tgt].sync_offset,
-			    sdp->isp_devparam[tgt].dev_flags);
+			    "SET bus %d targ %d to flags %x off %x per %x",
+			    bus, tgt, sdp->isp_devparam[tgt].goal_flags,
+			    sdp->isp_devparam[tgt].goal_offset,
+			    sdp->isp_devparam[tgt].goal_period);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
-		} else {
-			/*
-			 * What, if anything, are we supposed to do?
-			 */
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2025,13 +2000,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				isp->isp_update |= (1 << bus);
 				(void) isp_control(isp, ISPCTL_UPDATE_PARAMS,
 				    NULL);
-				dval = sdp->isp_devparam[tgt].cur_dflags;
-				oval = sdp->isp_devparam[tgt].cur_offset;
-				pval = sdp->isp_devparam[tgt].cur_period;
+				dval = sdp->isp_devparam[tgt].actv_flags;
+				oval = sdp->isp_devparam[tgt].actv_offset;
+				pval = sdp->isp_devparam[tgt].actv_period;
 			} else {
-				dval = sdp->isp_devparam[tgt].dev_flags;
-				oval = sdp->isp_devparam[tgt].sync_offset;
-				pval = sdp->isp_devparam[tgt].sync_period;
+				dval = sdp->isp_devparam[tgt].nvrm_flags;
+				oval = sdp->isp_devparam[tgt].nvrm_offset;
+				pval = sdp->isp_devparam[tgt].nvrm_period;
 			}
 
 			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
@@ -2058,9 +2033,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, IS_CURRENT_SETTINGS(cts)? "current" :
-			    "user", pval, oval, dval);
+			    "GET %s bus %d targ %d to flags %x off %x per %x",
+			    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
+			    bus, tgt, dval, oval, pval);
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2267,16 +2242,19 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		bus = (tgt >> 16) & 0xffff;
 		tgt &= 0xffff;
 		sdp += bus;
+		ISPLOCK_2_CAMLOCK(isp);
 		if (xpt_create_path(&tmppath, NULL,
 		    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
 		    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			CAMLOCK_2_ISPLOCK(isp);
 			isp_prt(isp, ISP_LOGWARN,
 			    "isp_async cannot make temp path for %d.%d",
 			    tgt, bus);
 			rv = -1;
 			break;
 		}
-		flags = sdp->isp_devparam[tgt].cur_dflags;
+		CAMLOCK_2_ISPLOCK(isp);
+		flags = sdp->isp_devparam[tgt].actv_flags;
 		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
 		cts.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
 		if (flags & DPARM_DISC) {
@@ -2288,8 +2266,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
 		cts.bus_width = (flags & DPARM_WIDE)?
 		    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
-		cts.sync_period = sdp->isp_devparam[tgt].cur_period;
-		cts.sync_offset = sdp->isp_devparam[tgt].cur_offset;
+		cts.sync_period = sdp->isp_devparam[tgt].actv_period;
+		cts.sync_offset = sdp->isp_devparam[tgt].actv_offset;
 		if (flags & DPARM_SYNC) {
 			cts.valid |=
 			    CCB_TRANS_SYNC_RATE_VALID |
@@ -2297,13 +2275,13 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		}
 		isp_prt(isp, ISP_LOGDEBUG2,
 		    "NEW_TGT_PARAMS bus %d tgt %d period %x offset %x flags %x",
-		    bus, tgt, sdp->isp_devparam[tgt].cur_period,
-		    sdp->isp_devparam[tgt].cur_offset, flags);
+		    bus, tgt, sdp->isp_devparam[tgt].actv_period,
+		    sdp->isp_devparam[tgt].actv_offset, flags);
 		xpt_setup_ccb(&cts.ccb_h, tmppath, 1);
 		ISPLOCK_2_CAMLOCK(isp);
 		xpt_async(AC_TRANSFER_NEG, tmppath, &cts);
-		CAMLOCK_2_ISPLOCK(isp);
 		xpt_free_path(tmppath);
+		CAMLOCK_2_ISPLOCK(isp);
 		break;
 	}
 	case ISPASYNC_BUS_RESET:
@@ -2385,13 +2363,14 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		    (u_int32_t) (lp->port_wwn & 0xffffffffLL),
 		    (u_int32_t) (lp->node_wwn >> 32),
 		    (u_int32_t) (lp->node_wwn & 0xffffffffLL));
+
 		break;
 	}
 	case ISPASYNC_CHANGE_NOTIFY:
-		if (arg == (void *) 1) {
+		if (arg == ISPASYNC_CHANGE_PDB) {
 			isp_prt(isp, ISP_LOGINFO,
-			    "Name Server Database Changed");
-		} else {
+			    "Port Database Changed");
+		} else if (arg == ISPASYNC_CHANGE_SNS) {
 			isp_prt(isp, ISP_LOGINFO,
 			    "Name Server Database Changed");
 		}
