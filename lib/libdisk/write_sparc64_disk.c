@@ -24,6 +24,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include "libdisk.h"
 
+#include "geom_sunlabel_enc.c"
+
 int
 Write_Disk(const struct disk *d1)
 {
@@ -34,6 +36,7 @@ Write_Disk(const struct disk *d1)
 	u_long secpercyl;
 	u_short *sp1, *sp2, cksum;
 	char device[64];
+	u_char buf[SUN_SIZE];
 	int fd;
 
 	strcpy(device, _PATH_DEV);
@@ -74,9 +77,11 @@ Write_Disk(const struct disk *d1)
 		p = c1->name;
 		p += strlen(p);
 		p--;
-		if (*p < 'a' || *p > 'h')
+		if (*p < 'a')
 			continue;
 		i = *p - 'a';
+		if (i >= SUN_NPART)
+			continue;
 		sl->sl_part[i].sdkp_cyloffset = c1->offset / secpercyl;
 		sl->sl_part[i].sdkp_nsectors = c1->size;
 		for (i = 1; i < 16; i++) {
@@ -90,17 +95,12 @@ Write_Disk(const struct disk *d1)
 	 * seems to indicate that this covers the "obviously" visible part
 	 * of the disk, ie: sl->sl_ncylinders.
 	 */
-	sl->sl_part[2].sdkp_cyloffset = 0;
-	sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders * secpercyl;
+	sl->sl_part[SUN_RAWPART].sdkp_cyloffset = 0;
+	sl->sl_part[SUN_RAWPART].sdkp_nsectors = sl->sl_ncylinders * secpercyl;
 
-	sp1 = (u_short *)sl;
-	sp2 = (u_short *)(sl + 1);
-	sl->sl_cksum = cksum = 0;
-	while (sp1 < sp2)
-		cksum ^= *sp1++;
-	sl->sl_cksum = cksum;
-
-	write_block(fd, 0, sl, sizeof *sl);
+	memset(buf, 0, sizeof buf);
+	sunlabel_enc(buf, &sl);
+	write_block(fd, 0, buf, sizeof buf);
 
 	close(fd);
 	return 0;
