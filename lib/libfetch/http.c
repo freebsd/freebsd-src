@@ -985,10 +985,6 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			}
 		} while (h > hdr_end);
 
-		/* we have a hit or an error */
-		if (conn->err == HTTP_OK || conn->err == HTTP_PARTIAL || HTTP_ERROR(conn->err))
-			break;
-
 		/* we need to provide authentication */
 		if (conn->err == HTTP_NEED_AUTH) {
 			e = conn->err;
@@ -997,6 +993,10 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			conn = NULL;
 			continue;
 		}
+
+		/* we have a hit or an error */
+		if (conn->err == HTTP_OK || conn->err == HTTP_PARTIAL || HTTP_ERROR(conn->err))
+			break;
 
 		/* all other cases: we got a redirect */
 		e = conn->err;
