@@ -133,9 +133,6 @@
 #endif
 #endif
 
-/* XXX get fnmatch GNU extensions (FNM_LEADING_DIR)
- * (should probably use AC_FUNC_FNMATCH_GNU once using autoconf...) */
-
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 #else
@@ -145,6 +142,5 @@
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(0)
 #endif
 #endif
-
 
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */
