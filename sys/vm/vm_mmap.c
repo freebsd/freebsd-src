@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.17 1995/03/21 10:15:52 davidg Exp $
+ * $Id: vm_mmap.c,v 1.18 1995/03/22 05:08:41 davidg Exp $
  */
 
 /*
@@ -304,6 +304,7 @@ ommap(p, uap, retval)
 struct msync_args {
 	caddr_t addr;
 	int len;
+	int flags;
 };
 int
 msync(p, uap, retval)
@@ -313,9 +314,9 @@ msync(p, uap, retval)
 {
 	vm_offset_t addr;
 	vm_size_t size;
+	int flags;
 	vm_map_t map;
 	int rv;
-	boolean_t syncio, invalidate;
 
 #ifdef DEBUG
 	if (mmapdebug & (MDB_FOLLOW | MDB_SYNC))
@@ -327,6 +328,8 @@ msync(p, uap, retval)
 	map = &p->p_vmspace->vm_map;
 	addr = (vm_offset_t) uap->addr;
 	size = (vm_size_t) uap->len;
+	flags = uap->flags;
+
 	/*
 	 * XXX Gak!  If size is zero we are supposed to sync "all modified
 	 * pages with the region containing addr".  Unfortunately, we don't
@@ -345,26 +348,19 @@ msync(p, uap, retval)
 		addr = entry->start;
 		size = entry->end - entry->start;
 	}
+
 #ifdef DEBUG
 	if (mmapdebug & MDB_SYNC)
 		printf("msync: cleaning/flushing address range [%x-%x)\n",
 		    addr, addr + size);
 #endif
-	/*
-	 * Could pass this in as a third flag argument to implement Sun's
-	 * MS_ASYNC.
-	 */
-	syncio = TRUE;
-	/*
-	 * XXX bummer, gotta flush all cached pages to ensure consistency with
-	 * the file system cache.  Otherwise, we could pass this in to
-	 * implement Sun's MS_INVALIDATE.
-	 */
-	invalidate = TRUE;
+
 	/*
 	 * Clean the pages and interpret the return value.
 	 */
-	rv = vm_map_clean(map, addr, addr + size, syncio, invalidate);
+	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) != 0,
+	    (flags & MS_INVALIDATE) != 0);
+
 	switch (rv) {
 	case KERN_SUCCESS:
 		break;
@@ -375,6 +371,7 @@ msync(p, uap, retval)
 	default:
 		return (EINVAL);
 	}
+
 	return (0);
 }
 
