@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.37 1997/05/13 19:41:32 dfr Exp $
+ * $Id: nfs_bio.c,v 1.38 1997/05/19 14:36:47 dfr Exp $
  */
 
 
@@ -109,8 +109,8 @@ nfs_getpages(ap)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = 0;
-	aiov.iov_len = MAXBSIZE;
-	auio.uio_resid = MAXBSIZE;
+	aiov.iov_len = PAGE_SIZE;
+	auio.uio_resid = PAGE_SIZE;
 	auio.uio_offset = IDX_TO_OFF(m->pindex);
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_READ;
@@ -120,7 +120,7 @@ nfs_getpages(ap)
 	m->flags |= PG_BUSY;
 	m->busy--;
 
-	if (error && (auio.uio_resid == MAXBSIZE))
+	if (error && (auio.uio_resid == PAGE_SIZE))
 		return VM_PAGER_ERROR;
 	return 0;
 }
