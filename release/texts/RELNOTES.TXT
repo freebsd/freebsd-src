@@ -333,6 +333,8 @@ SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
 
+Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
+
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards. (snd driver)
 
