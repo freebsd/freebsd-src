@@ -33,9 +33,6 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/cons.h>
-#include <sys/ktr.h>
-#include <sys/linker_set.h>
-#include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -49,9 +46,6 @@
 #include <vm/pmap.h>
 
 #include <ddb/ddb.h>
-#include <ddb/db_access.h>
-#include <ddb/db_sym.h>
-#include <ddb/db_variables.h>
 
 #include <machine/setjmp.h>
 
@@ -311,8 +305,7 @@ void
 Debugger(msg)
 	const char *msg;
 {
-	static volatile	u_int in_Debugger;
-	critical_t	savecrit;
+	static volatile u_int in_Debugger;
 
 	/*
 	 * XXX
@@ -324,10 +317,8 @@ Debugger(msg)
 	    return;
 
 	if (atomic_cmpset_acq_int(&in_Debugger, 0, 1)) {
-	    savecrit = cpu_critical_enter();
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
-	    cpu_critical_exit(savecrit);
 	    atomic_store_rel_int(&in_Debugger, 0);
 	}
 }
