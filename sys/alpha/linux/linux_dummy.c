@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.10 1999/08/15 18:59:44 marcel Exp $
+ *  $Id: linux_dummy.c,v 1.11 1999/08/25 11:19:01 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,7 @@ struct __hack
 static int
 unsupported_msg(struct proc *p, const char *fname)
 {
-	printf("linux: syscall %s is not implemented or obsoleted (pid=%ld)\n",
+	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
 	       fname, (long)p->p_pid);
 	return (ENOSYS);
 }
