@@ -1085,7 +1085,9 @@ diskLabel(Device *dev)
 		    else if ((d = Open_Disk(devs[i]->name)) != NULL) {
 			Free_Disk(devs[i]->private);
 			devs[i]->private = d;
+#ifdef WITH_SLICES
 			diskPartition(devs[i]);
+#endif
 		    }
 		}
 		record_label_chunks(devs, dev);
