@@ -4,6 +4,6 @@
 PROG=	route6d
 MAN=	route6d.8
 
-CFLAGS+= -DINET6 -DHAVE_GETIFADDRS
+CFLAGS+= -DINET6
 
 .include <bsd.prog.mk>
