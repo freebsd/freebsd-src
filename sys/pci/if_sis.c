@@ -2012,7 +2012,7 @@ sis_initl(struct sis_softc *sc)
 		SIS_SETBIT(sc, SIS_TX_CFG, SIS_TXCFG_MPII03D);
 	}
 
-	if (sc->sis_type == SIS_TYPE_83815 &&
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr < NS_SRR_16A &&
 	     IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 		uint32_t reg;
 
