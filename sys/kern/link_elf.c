@@ -118,6 +118,7 @@ static int	link_elf_each_function_name(linker_file_t,
 				int (*)(const char *, void *),
 				void *);
 static void	link_elf_reloc_local(linker_file_t);
+static Elf_Addr	elf_lookup(linker_file_t lf, Elf_Word symidx, int deps);
 
 static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -928,7 +929,8 @@ relocate_file(elf_file_t ef)
     if (rel) {
 	rellim = (const Elf_Rel *)((const char *)ef->rel + ef->relsize);
 	while (rel < rellim) {
-	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL)) {
+	    if (elf_reloc(&ef->lf, (Elf_Addr)ef->address, rel, ELF_RELOC_REL,
+			  elf_lookup)) {
 		symname = symbol_name(ef, rel->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
@@ -942,7 +944,8 @@ relocate_file(elf_file_t ef)
     if (rela) {
 	relalim = (const Elf_Rela *)((const char *)ef->rela + ef->relasize);
 	while (rela < relalim) {
-	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA)) {
+	    if (elf_reloc(&ef->lf, (Elf_Addr)ef->address, rela, ELF_RELOC_RELA,
+			  elf_lookup)) {
 		symname = symbol_name(ef, rela->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
@@ -956,7 +959,8 @@ relocate_file(elf_file_t ef)
     if (rel) {
 	rellim = (const Elf_Rel *)((const char *)ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
-	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL)) {
+	    if (elf_reloc(&ef->lf, (Elf_Addr)ef->address, rel, ELF_RELOC_REL,
+			  elf_lookup)) {
 		symname = symbol_name(ef, rel->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
@@ -970,7 +974,8 @@ relocate_file(elf_file_t ef)
     if (rela) {
 	relalim = (const Elf_Rela *)((const char *)ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
-	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA)) {
+	    if (elf_reloc(&ef->lf, (Elf_Addr)ef->address, rela, ELF_RELOC_RELA,
+			  elf_lookup)) {
 		symname = symbol_name(ef, rela->r_info);
 		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
@@ -1244,7 +1249,7 @@ elf_get_symname(linker_file_t lf, Elf_Word symidx)
  * This is not only more efficient, it's also more correct. It's not always
  * the case that the symbol can be found through the hash table.
  */
-Elf_Addr
+static Elf_Addr
 elf_lookup(linker_file_t lf, Elf_Word symidx, int deps)
 {
 	elf_file_t ef = (elf_file_t)lf;
@@ -1297,7 +1302,8 @@ link_elf_reloc_local(linker_file_t lf)
     if ((rel = ef->rel) != NULL) {
 	rellim = (const Elf_Rel *)((const char *)ef->rel + ef->relsize);
 	while (rel < rellim) {
-	    elf_reloc_local(lf, rel, ELF_RELOC_REL);
+	    elf_reloc_local(lf, (Elf_Addr)ef->address, rel, ELF_RELOC_REL,
+			    elf_lookup);
 	    rel++;
 	}
     }
@@ -1306,7 +1312,8 @@ link_elf_reloc_local(linker_file_t lf)
     if ((rela = ef->rela) != NULL) {
 	relalim = (const Elf_Rela *)((const char *)ef->rela + ef->relasize);
 	while (rela < relalim) {
-	    elf_reloc_local(lf, rela, ELF_RELOC_RELA);
+	    elf_reloc_local(lf, (Elf_Addr)ef->address, rela, ELF_RELOC_RELA,
+			    elf_lookup);
 	    rela++;
 	}
     }
