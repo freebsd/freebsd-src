@@ -47,13 +47,18 @@ __FBSDID("$FreeBSD$");
 
 #include "stand.h"
 
+static int	buf_read_file(struct open_file *f, char **buf_p,
+		    size_t *size_p);
 static int	cd9660_open(const char *path, struct open_file *f);
 static int	cd9660_close(struct open_file *f);
-static int	cd9660_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-static int	cd9660_write(struct open_file *f, void *buf, size_t size, size_t *resid);
+static int	cd9660_read(struct open_file *f, void *buf, size_t size,
+		    size_t *resid);
+static int	cd9660_write(struct open_file *f, void *buf, size_t size,
+		    size_t *resid);
 static off_t	cd9660_seek(struct open_file *f, off_t offset, int where);
 static int	cd9660_stat(struct open_file *f, struct stat *sb);
 static int	cd9660_readdir(struct open_file *f, struct dirent *d);
+static int	dirmatch(const char *path, struct iso_directory_record *dp);
 
 struct fs_ops cd9660_fsops = {
 	"cd9660",
@@ -103,9 +108,7 @@ isonum_732(p)
 }
 
 static int
-dirmatch(path, dp)
-	const char *path;
-	struct iso_directory_record *dp;
+dirmatch(const char *path, struct iso_directory_record *dp)
 {
 	char *cp;
 	int i;
@@ -137,9 +140,7 @@ dirmatch(path, dp)
 }
 
 static int
-cd9660_open(path, f)
-	const char *path;
-	struct open_file *f;
+cd9660_open(const char *path, struct open_file *f)
 {
 	struct file *fp = 0;
 	void *buf;
@@ -246,8 +247,7 @@ out:
 }
 
 static int
-cd9660_close(f)
-	struct open_file *f;
+cd9660_close(struct open_file *f)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -258,10 +258,7 @@ cd9660_close(f)
 }
 
 static int
-buf_read_file(f, buf_p, size_p)
-	struct open_file *f;
-	char **buf_p;
-	size_t *size_p;
+buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	daddr_t blkno, blkoff;
@@ -295,11 +292,7 @@ buf_read_file(f, buf_p, size_p)
 }
 
 static int
-cd9660_read(f, start, size, resid)
-	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;
+cd9660_read(struct open_file *f, void *start, size_t size, size_t *resid)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	char *buf, *addr;
@@ -380,20 +373,13 @@ again:
 }
 
 static int
-cd9660_write(f, start, size, resid)
-	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;
+cd9660_write(struct open_file *f, void *start, size_t size, size_t *resid)
 {
 	return EROFS;
 }
 
 static off_t
-cd9660_seek(f, offset, where)
-	struct open_file *f;
-	off_t offset;
-	int where;
+cd9660_seek(struct open_file *f, off_t offset, int where)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -414,9 +400,7 @@ cd9660_seek(f, offset, where)
 }
 
 static int
-cd9660_stat(f, sb)
-	struct open_file *f;
-	struct stat *sb;
+cd9660_stat(struct open_file *f, struct stat *sb)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
