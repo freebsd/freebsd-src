@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.7.4.5 1998/09/04 10:16:43 yokota Exp $";
+	"$Id: kbdcontrol.c,v 1.19 1998/09/10 12:20:09 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -45,7 +45,7 @@ char ctrl_names[32][4] = {
 	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
 	"dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
-	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "ns "
+	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "us "
 	};
 
 char acc_names[15][5] = {
@@ -385,7 +385,7 @@ print_entry(FILE *fp, int value)
 		fprintf(fp, " susp  ");
 		break;
 	case SPSC | 0x100:
-		fprintf(fp, " splash");
+		fprintf(fp, " saver ");
 		break;
 	default:
 		if (value & 0x100) {
@@ -776,10 +776,15 @@ set_bell_values(char *opt)
 {
 	int bell, duration, pitch;
 
+	bell = 0;
+	if (!strncmp(opt, "quiet.", 6)) {
+		bell = 2;
+		opt += 6;
+	}
 	if (!strcmp(opt, "visual"))
-		bell = 1, duration = 1, pitch = 800;
+		bell |= 1;
 	else if (!strcmp(opt, "normal"))
-		bell = 0, duration = 1, pitch = 800;
+		duration = 5, pitch = 800;
 	else {
 		char		*v1;
 
@@ -794,10 +799,13 @@ badopt:
 			warnx("argument to -b must be DURATION.PITCH");
 			return;
 		}
+		if (pitch != 0)
+			pitch = 1193182 / pitch;	/* in Hz */
+		duration /= 10;	/* in 10 m sec */
 	}
 
 	ioctl(0, CONS_BELLTYPE, &bell);
-	if (!bell)
+	if ((bell & ~2) == 0)
 		fprintf(stderr, "[=%d;%dB", pitch, duration);
 }
 
@@ -862,7 +870,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFx] [-b  duration.pitch | belltype]",
+"usage: kbdcontrol [-dFx] [-b  duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-L mapfile]");
 	exit(1);
