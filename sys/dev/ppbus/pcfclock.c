@@ -301,7 +301,7 @@ pcfclock_read_dev(dev_t dev, char *buf, int maxretries)
 	return (error);
 }
 
-static ssize_t
+static int
 pcfclock_read(dev_t dev, struct uio *uio, int ioflag)
 {
 	u_int unit = minor(dev);
