@@ -1,0 +1,11 @@
+
+# $FreeBSD$
+
+.PATH:	${.CURDIR}/../../dev/ppbus
+KMOD=	plip
+SRCS=	bus_if.h device_if.h ppbus_if.h \
+	opt_plip.h \
+	if_plip.c
+NOMAN=
+
+.include <bsd.kmod.mk>
