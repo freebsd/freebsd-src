@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.24 1997/09/12 16:25:24 jlemon Exp $";
+	"$Id: mountd.c,v 1.25 1997/12/09 18:43:44 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -273,7 +273,7 @@ main(argc, argv)
 		errx(1, "NFS support is not available in the running kernel");
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "2dnrl")) != -1)
+	while ((c = getopt(argc, argv, "2dlnr")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -291,7 +291,8 @@ main(argc, argv)
 			log = 1;
 			break;
 		default:
-			fprintf(stderr, "Usage: mountd [-d] [-r] [-n] [-l] [export_file]\n");
+			fprintf(stderr,
+"Usage: mountd [-d] [-l] [-r] [-n] [export_file]\n");
 			exit(1);
 		};
 	argc -= optind;
