@@ -19,7 +19,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: read.c,v 1.7.2.1 1997/04/18 17:10:45 jdp Exp $";
+static char rcsid[] = "$Id: read.c,v 1.7.2.2 1997/04/29 02:16:51 jdp Exp $";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will
@@ -1446,6 +1446,7 @@ symbolS *	symbolP;
 
 		    S_SET_VALUE(symbolP, exp.X_add_number + S_GET_VALUE(exp.X_add_symbol));
 		    symbolP->sy_frag = exp.X_add_symbol->sy_frag;
+		    symbolP->sy_aux = exp.X_add_symbol->sy_aux;
 		    break;
 
 	    case SEG_PASS1:		/* Not an error. Just try another pass. */
