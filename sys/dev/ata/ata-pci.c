@@ -535,7 +535,8 @@ ata_channel_attach(device_t dev)
     ch->locking = ctlr->locking;
     ch->reset = ctlr->reset;
 
-    ctlr->dmainit(ch);
+    if (ctlr->r_res1)
+	ctlr->dmainit(ch);
     if (ch->dma)
 	ch->dma->alloc(ch);
 
