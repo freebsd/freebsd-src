@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.64 1999/02/27 03:18:10 jkh Exp $
+#	$Id: Makefile.inc1,v 1.65 1999/03/01 01:09:06 imp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -599,7 +599,17 @@ lib-tools:
 		usr.bin/tsort		\
 		${_aout_as}		\
 		gnu/usr.bin/bison	\
-		gnu/usr.bin/cc		\
+		gnu/usr.bin/cc
+	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
+		${MAKE} ${MK_FLAGS} -B install; \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
+.endfor
+	cd ${.CURDIR}/gnu/lib/libgcc; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
+		${MAKE} ${MK_FLAGS} -B install; \
+		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
+.for d in				\
 		${_aout_ar}		\
 		usr.bin/env		\
 		usr.bin/lex/lib		\
@@ -673,8 +683,8 @@ _libperl=		gnu/usr.bin/perl/libperl
 # bootstrap-libraries - build just enough libraries for the bootstrap
 # tools, and install them under ${WORLDTMP}.
 #
-# Build csu and libgcc early so that some tools get linked to the new
-# versions (too late for the main tools, however).  Then build the
+# Build csu early so that some tools get linked to the new
+# version (too late for the main tools, however).  Then build the
 # necessary prerequisite libraries (libtermcap just needs to be before
 # libcurses, and this only matters for the NOCLEAN case when NOPIC is
 # not set).
@@ -685,7 +695,7 @@ _libperl=		gnu/usr.bin/perl/libperl
 # host.
 #
 bootstrap-libraries:
-.for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
+.for _lib in ${_csu} lib/libtermcap \
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
     lib/libcrypt lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib \
