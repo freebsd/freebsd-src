@@ -46,6 +46,8 @@
  * in particular, macros and private variables.
  */
 
+extern int	_sread __P((FILE *, char *, int));
+extern int	_swrite __P((FILE *, char const *, int));
 extern fpos_t	_sseek __P((FILE *, fpos_t, int));
 extern int	_ftello __P((FILE *, fpos_t *));
 extern int	_fseeko __P((FILE *, off_t, int, int));

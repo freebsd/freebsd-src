@@ -44,7 +44,6 @@ static const char rcsid[] =
 
 #include "namespace.h"
 #include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -136,7 +135,7 @@ __srefill(FILE *fp)
 			__sflush(fp);
 	}
 	fp->_p = fp->_bf._base;
-	fp->_r = (*fp->_read)(fp->_cookie, (char *)fp->_p, fp->_bf._size);
+	fp->_r = _sread(fp, (char *)fp->_p, fp->_bf._size);
 	fp->_flags &= ~__SMOD;	/* buffer contents are again pristine */
 	if (fp->_r <= 0) {
 		if (fp->_r == 0)
@@ -144,14 +143,8 @@ __srefill(FILE *fp)
 		else {
 			fp->_r = 0;
 			fp->_flags |= __SERR;
-			fp->_flags &= ~__SOFF;
 		}
 		return (EOF);
-	} else if (fp->_flags & __SOFF) {
-		if (fp->_offset > OFF_MAX - fp->_r)
-			fp->_flags &= ~__SOFF;
-		else
-			fp->_offset += fp->_r;
 	}
 	return (0);
 }
