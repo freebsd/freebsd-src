@@ -21,7 +21,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dFx
-.Op Fl b Ar duration.pitch | Ar belltype
+.Op Fl b Ar duration.pitch | Ar [quiet.]belltype
 .Op Fl r Ar delay.repeat | Ar speed
 .Op Fl l Ar mapfile
 .Op Fl f Ar # Ar string
@@ -45,6 +45,11 @@ argument is specified, it may be one of
 which set sound parameters back to normal values, or 
 .Ar visual
 which set the bell to visual mode, i.e. flashes the screen instead.
+If 
+.Ar belltype
+is proceeded by the word
+.Ar quiet. ,
+the bell will not be rung when the ringing process is in the background vty.
 .It Fl r Ar delay.repeat | Ar speed
 Set keyboard
 .Ar delay (250, 500, 750, 1000)
