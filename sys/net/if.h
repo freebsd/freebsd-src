@@ -37,7 +37,9 @@
 #ifndef _NET_IF_H_
 #define	_NET_IF_H_
 
+#ifdef _KERNEL
 #include <sys/queue.h>
+#endif
 
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -57,6 +59,7 @@ struct ifnet;
 #define		IF_NAMESIZE	IFNAMSIZ
 #define		IF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
+#ifdef _KERNEL
 /*
  * Structure describing a `cloning' interface.
  */
@@ -74,6 +77,7 @@ struct if_clone {
 
 #define IF_CLONE_INITIALIZER(name, create, destroy, maxunit)		\
 	{ { 0 }, name, sizeof(name) - 1, maxunit, NULL, 0, create, destroy }
+#endif
 
 /*
  * Structure used to query names of interface cloners.
