@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
-static char rcsid[] =
-	"$Id: vacation.c,v 1.10 1997/08/28 04:40:51 imp Exp $";
+#if 0
+static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
