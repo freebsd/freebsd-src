@@ -104,6 +104,7 @@ sign(filename, type, userid, envp)
 	struct signature *sign;
 	int success;
 
+	sign = NULL;
 	switch(type) {
 	case TAG_PGP:
 		success = retrieve_pgp_signature(filename, &sign, userid, envp);
