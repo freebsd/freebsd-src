@@ -48,7 +48,12 @@ efifs_open(const char *upath, struct open_file *f)
 	CHAR16 *cp;
 	CHAR16 *path;
 
-	if (!dev->d_handle)
+	/*
+	 * We cannot blindly assume that f->f_devdata points to a
+	 * efi_devdesc structure. Before we dereference 'dev', make
+	 * sure that the underlying device is ours.
+	 */
+	if (f->f_dev != &efifs_dev || dev->d_handle == NULL)
 		return ENOENT;
 
 	status = BS->HandleProtocol(dev->d_handle, &sfsid, (VOID **)&sfs);
