@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.63 1994/12/17 12:38:09 jkh Exp $
+#	$Id: Makefile,v 1.64 1994/12/18 12:15:13 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -68,7 +68,7 @@ boot_144.flp:
 
 boot.flp: 
 	crunchgen ${.CURDIR}/boot_flp.conf
-	${MAKE} -f boot_flp.mk objs exe
+	${MAKE} -f boot_flp.mk objs exe NOCRYPT=yes
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
 	# echo y | fdformat ${FLOPPY}
@@ -110,7 +110,7 @@ boot.flp:
 
 cpio.flp:
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
-	${MAKE} -f cpio_flp_1.mk objs exe
+	${MAKE} -f cpio_flp_1.mk objs exe NOCRYPT=yes
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
@@ -121,13 +121,7 @@ cpio.flp:
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
-crunch:
-	crunchgen ${.CURDIR}/boot_flp.conf
-	${MAKE} -f boot_flp.mk objs exe
-	crunchgen ${.CURDIR}/cpio_flp_1.conf
-	${MAKE} -f cpio_flp_1.mk objs exe
-
-floppies: crunch boot_144.flp boot_12.flp cpio.flp
+floppies: boot_144.flp boot_12.flp cpio.flp
 
 release20: 
 .if !defined(RELEASEDIR)
@@ -140,7 +134,7 @@ release20:
 	chflags -R noschg ${RELEASEDIR}/.
 	rm -rf ${RELEASEDIR}/*
 	( cd ${.CURDIR}/.. ;  \
-		${MAKE} world NOCRYPT=yes)
+		${MAKE} all distribute NOCRYPT=yes)
 	( cd ${.CURDIR}/../etc ;  \
 		${MAKE} release-dirs )
 	( cd ${.CURDIR} ; ${MAKE} obj)
@@ -172,7 +166,7 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-EXTRADISTRIBUTIONS=	secrdist games manpages proflibs dict krb srcdist
+EXTRADISTRIBUTIONS=	secrdist games manpages proflibs dict 
 DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
