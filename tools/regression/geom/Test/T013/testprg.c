@@ -61,6 +61,8 @@ thread_sim(void *ptr __unused)
 
 
 	g_simdisk_xml_load("da0", "../../Data/disk.beast.da0.xml");
+	g_simdisk_xml_load("da1", "../../Data/disk.alpha.da0.xml");
+	g_simdisk_xml_load("da2", "../../Data/disk.alpha2.da0.xml");
 	rattle();
 	conff("1");
 	printf("Done\n");
