@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.94 1998/03/01 04:18:24 dyson Exp $
+ *	$Id: vm_page.c,v 1.95 1998/03/07 21:37:13 dyson Exp $
  */
 
 /*
@@ -1066,11 +1066,6 @@ vm_page_activate(m)
 			m->act_count = ACT_INIT;
 	}
 
-	object = m->object;
-	TAILQ_REMOVE(&object->memq, m, listq);
-	TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	object->generation++;
-
 	splx(s);
 }
 
@@ -1323,7 +1318,7 @@ vm_page_deactivate(m)
 		return;
 
 	s = splvm();
-	if (m->wire_count == 0 && m->hold_count == 0) {
+	if (m->wire_count == 0) {
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
 		vm_page_unqueue(m);
