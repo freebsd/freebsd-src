@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.66 1996/09/28 17:53:18 bde Exp $
+ *	$Id: vm_page.c,v 1.67 1996/10/06 18:27:39 dyson Exp $
  */
 
 /*
@@ -159,8 +159,7 @@ static u_short vm_page_dev_bsize_chunks[] = {
 	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
-static inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex))
-			       __pure2;
+static inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
 static int vm_page_freechk_and_unqueue __P((vm_page_t m));
 static void vm_page_free_wakeup __P((void));
 
