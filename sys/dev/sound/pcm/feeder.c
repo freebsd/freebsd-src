@@ -28,12 +28,16 @@
 
 #include <dev/sound/pcm/sound.h>
 
+#include "feeder_if.h"
+
+MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
+
 #define MAXFEEDERS 	256
 #undef FEEDER_DEBUG
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
-	pcm_feeder *feeder;
+	struct feeder_class *feederclass;
 	struct pcm_feederdesc *desc;
 
 	int idx;
@@ -45,17 +49,17 @@ static SLIST_HEAD(, feedertab_entry) feedertab;
 void
 feeder_register(void *p)
 {
-	pcm_feeder *f = p;
+	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
 	static int feedercnt = 0;
 	int i;
 
 	if (feedercnt == 0) {
-		if (f->desc)
-			panic("FIRST FEEDER NOT ROOT: %s\n", f->name);
+		if (fc->desc)
+			panic("FIRST FEEDER NOT ROOT: %s\n", fc->name);
 		SLIST_INIT(&feedertab);
-		fte = malloc(sizeof(*fte), M_DEVBUF, M_NOWAIT);
-		fte->feeder = f;
+		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+		fte->feederclass = fc;
 		fte->desc = NULL;
 		fte->idx = feedercnt;
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
@@ -65,10 +69,10 @@ feeder_register(void *p)
 	/* printf("installing feeder: %s\n", f->name); */
 
 	i = 0;
-	while ((feedercnt < MAXFEEDERS) && (f->desc[i].type > 0)) {
-		fte = malloc(sizeof(*fte), M_DEVBUF, M_NOWAIT);
-		fte->feeder = f;
-		fte->desc = &f->desc[i];
+	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
+		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+		fte->feederclass = fc;
+		fte->desc = &fc->desc[i];
 		fte->idx = feedercnt;
 		fte->desc->idx = feedercnt;
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
@@ -88,53 +92,67 @@ cmpdesc(struct pcm_feederdesc *n, struct pcm_feederdesc *m)
 		(n->flags == m->flags));
 }
 
-pcm_feeder *
-feeder_get(struct pcm_feederdesc *desc)
+static void
+feeder_destroy(pcm_feeder *f)
 {
-	struct feedertab_entry *fte;
-
-	SLIST_FOREACH(fte, &feedertab, link) {
-		if ((fte->desc != NULL) && cmpdesc(desc, fte->desc))
-			return fte->feeder;
-	}
-	return NULL;
+	FEEDER_FREE(f);
+	free(f->desc, M_FEEDER);
+	kobj_delete((kobj_t)f, M_FEEDER);
 }
 
-pcm_feeder *
-feeder_getroot()
+static pcm_feeder *
+feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
+{
+	pcm_feeder *f;
+	int err;
+
+	f = (pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_WAITOK | M_ZERO);
+	f->align = fc->align;
+	f->desc = malloc(sizeof(*(f->desc)), M_FEEDER, M_WAITOK | M_ZERO);
+	if (desc)
+		*(f->desc) = *desc;
+	else {
+		f->desc->type = FEEDER_ROOT;
+		f->desc->in = 0;
+		f->desc->out = 0;
+		f->desc->flags = 0;
+		f->desc->idx = 0;
+	}
+	f->data = fc->data;
+	f->source = NULL;
+	err = FEEDER_INIT(f);
+	if (err) {
+		feeder_destroy(f);
+		return NULL;
+	} else
+		return f;
+}
+
+struct feeder_class *
+feeder_getclass(struct pcm_feederdesc *desc)
 {
 	struct feedertab_entry *fte;
 
 	SLIST_FOREACH(fte, &feedertab, link) {
-		if (fte->desc == NULL)
-			return fte->feeder;
+		if ((desc == NULL) && (fte->desc == NULL))
+			return fte->feederclass;
+		if ((fte->desc != NULL) && (desc != NULL) && cmpdesc(desc, fte->desc))
+			return fte->feederclass;
 	}
 	return NULL;
 }
 
 int
-feeder_set(pcm_feeder *feeder, int what, int value)
-{
-	if (feeder->set)
-		return feeder->set(feeder, what, value);
-	else
-		return -1;
-}
-
-int
-chn_addfeeder(pcm_channel *c, pcm_feeder *f)
+chn_addfeeder(pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
 	pcm_feeder *nf;
-	struct pcm_feederdesc *nfdesc;
 
-	nf = malloc(sizeof(*nf), M_DEVBUF, M_NOWAIT);
-	nfdesc = malloc(sizeof(*nfdesc), M_DEVBUF, M_NOWAIT);
-        *nfdesc = *(f->desc);
-	*nf = *f;
-	nf->desc = nfdesc;
+	nf = feeder_create(fc, desc);
+	if (nf == NULL)
+		return -1;
+
 	nf->source = c->feeder;
-	if (nf->init)
-		nf->init(nf);
+
 	if (nf->align > 0)
 		c->align += nf->align;
 	else if (nf->align < 0 && c->align < -nf->align)
@@ -150,14 +168,11 @@ chn_removefeeder(pcm_channel *c)
 {
 	pcm_feeder *f;
 
-	if (c->feeder->source == NULL)
+	if (c->feeder == NULL)
 		return -1;
-	f = c->feeder->source;
-	if (c->feeder->free)
-		c->feeder->free(c->feeder);
-	free(c->feeder->desc, M_DEVBUF);
-	free(c->feeder, M_DEVBUF);
-	c->feeder = f;
+	f = c->feeder;
+	c->feeder = c->feeder->source;
+	feeder_destroy(f);
 	return 0;
 }
 
@@ -203,7 +218,7 @@ feeder_fmtchain(u_int32_t *to, pcm_feeder *source, pcm_feeder *stop, int maxdept
 {
 	struct feedertab_entry *fte;
 	pcm_feeder *try, *ret;
-	struct pcm_feederdesc *trydesc;
+	struct pcm_feederdesc trydesc;
 
 	/* printf("trying %s...\n", source->name); */
 	if (fmtvalid(source->desc->out, to)) {
@@ -214,28 +229,26 @@ feeder_fmtchain(u_int32_t *to, pcm_feeder *source, pcm_feeder *stop, int maxdept
 	if (maxdepth < 0)
 		return NULL;
 
-	try = malloc(sizeof(*try), M_DEVBUF, M_NOWAIT);
-	trydesc = malloc(sizeof(*trydesc), M_DEVBUF, M_NOWAIT);
-	trydesc->type = FEEDER_FMT;
-	trydesc->in = source->desc->out;
-	trydesc->out = 0;
-	trydesc->flags = 0;
-	trydesc->idx = -1;
+	trydesc.type = FEEDER_FMT;
+	trydesc.in = source->desc->out;
+	trydesc.out = 0;
+	trydesc.flags = 0;
+	trydesc.idx = -1;
 
 	SLIST_FOREACH(fte, &feedertab, link) {
 		if ((fte->desc) && (fte->desc->in == source->desc->out)) {
-			*try = *(fte->feeder);
+			trydesc.out = fte->desc->out;
+			trydesc.idx = fte->idx;
+			try = feeder_create(fte->feederclass, &trydesc);
+			if (try == NULL)
+				return NULL;
 			try->source = source;
-			try->desc = trydesc;
-			trydesc->out = fte->desc->out;
-			trydesc->idx = fte->idx;
 			ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
 			if (ret != NULL)
 				return ret;
+			feeder_destroy(try);
 		}
 	}
-	free(try, M_DEVBUF);
-	free(trydesc, M_DEVBUF);
 	/* printf("giving up %s...\n", source->name); */
 	return NULL;
 }
@@ -266,8 +279,6 @@ chn_fmtchain(pcm_channel *c, u_int32_t *to)
 		if (try->source)
 			printf(" -> ");
 #endif
-		if (try->init)
-			try->init(try);
 		if (try->align > 0)
 			c->align += try->align;
 		else if (try->align < 0 && c->align < -try->align)
@@ -295,22 +306,27 @@ feed_root(pcm_feeder *feeder, pcm_channel *ch, u_int8_t *buffer, u_int32_t count
 	count = min(count, stream->uio_resid);
 	if (count) {
 		ret = uiomove(buffer, count, stream);
-		KASSERT(ret == 0, ("feed_root: uiomove failed"));
+		KASSERT(ret == 0, ("feed_root: uiomove failed (%d)", ret));
 	}
 	splx(s);
 
 	return count;
 }
-static pcm_feeder feeder_root = {
-	"root",
-	0,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	feed_root,
+
+static kobj_method_t feeder_root_methods[] = {
+    	KOBJMETHOD(feeder_feed,		feed_root),
+	{ 0, 0 }
 };
-SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root);
+static struct feeder_class feeder_root_class = {
+	name:		"feeder_root",
+	methods:	feeder_root_methods,
+	size:		sizeof(pcm_feeder),
+	align:		0,
+	desc:		NULL,
+	data:		NULL,
+};
+SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root_class);
+
 
 
 

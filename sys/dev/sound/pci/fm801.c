@@ -101,15 +101,6 @@
 /* debug purposes */
 #define DPRINT	 if(0) printf
 
-
-/* channel interface */
-static void *fm801ch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int fm801ch_setformat(void *data, u_int32_t format);
-static int fm801ch_setspeed(void *data, u_int32_t speed);
-static int fm801ch_setblocksize(void *data, u_int32_t blocksize);
-static int fm801ch_trigger(void *data, int go);
-static int fm801ch_getptr(void *data);
-static pcmchan_caps *fm801ch_getcaps(void *data);
 /*
 static int fm801ch_setup(pcm_channel *c);
 */
@@ -125,25 +116,6 @@ static u_int32_t fmts[] = {
 static pcmchan_caps fm801ch_caps = {
 	4000, 48000,
 	fmts, 0
-};
-
-static pcm_channel fm801_chantemplate = {
-	fm801ch_init,
-	NULL, 			/* setdir */
-	fm801ch_setformat,
-	fm801ch_setspeed,
-	fm801ch_setblocksize,
-	fm801ch_trigger,
-	fm801ch_getptr,
-	fm801ch_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
 };
 
 struct fm801_info;
@@ -220,12 +192,13 @@ fm801_wr(struct fm801_info *fm801, int regno, u_int32_t data, int size)
 	}
 }
 
+/* -------------------------------------------------------------------- */
 /*
  *  ac97 codec routines
  */
 #define TIMO 50
-static u_int32_t
-fm801_rdcd(void *devinfo, int regno)
+static int
+fm801_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct fm801_info *fm801 = (struct fm801_info *)devinfo;
 	int i;
@@ -254,8 +227,8 @@ fm801_rdcd(void *devinfo, int regno)
 	return fm801_rd(fm801,FM_CODEC_DATA,2);
 }
 
-static void
-fm801_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+fm801_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct fm801_info *fm801 = (struct fm801_info *)devinfo;
 	int i;
@@ -271,7 +244,7 @@ fm801_wrcd(void *devinfo, int regno, u_int32_t data)
 	}
 	if (i >= TIMO) {
 		printf("fm801 wrcd: read codec busy\n");
-		return;
+		return -1;
 	}
 
 	fm801_wr(fm801,FM_CODEC_DATA,data, 2);
@@ -284,11 +257,20 @@ fm801_wrcd(void *devinfo, int regno, u_int32_t data)
 	}
 	if (i >= TIMO) {
 		printf("fm801 wrcd: read codec busy\n");
-		return;
+		return -1;
 	}
 	DPRINT("fm801 wrcd release reg 0x%x val 0x%x\n",regno, data);
-	return;
+	return 0;
 }
+
+static kobj_method_t fm801_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		fm801_rdcd),
+    	KOBJMETHOD(ac97_write,		fm801_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(fm801_ac97);
+
+/* -------------------------------------------------------------------- */
 
 /*
  * The interrupt handler
@@ -336,6 +318,223 @@ fm801_intr(void *p)
 	DPRINT("fm801_intr clear\n\n");
 	fm801_wr(fm801, FM_INTSTATUS, intsrc & (FM_INTSTATUS_PLAY | FM_INTSTATUS_REC), 2);
 }
+
+/* -------------------------------------------------------------------- */
+/* channel interface */
+static void *
+fm801ch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct fm801_info *fm801 = (struct fm801_info *)devinfo;
+	struct fm801_chinfo *ch = (dir == PCMDIR_PLAY)? &fm801->pch : &fm801->rch;
+
+	DPRINT("fm801ch_init, direction = %d\n", dir);
+	ch->parent = fm801;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->buffer->bufsize = FM801_BUFFSIZE;
+	ch->dir = dir;
+	if( chn_allocbuf(ch->buffer, fm801->parent_dmat) == -1) return NULL;
+	return (void *)ch;
+}
+
+static int
+fm801ch_setformat(kobj_t obj, void *data, u_int32_t format)
+{
+	struct fm801_chinfo *ch = data;
+	struct fm801_info *fm801 = ch->parent;
+
+	DPRINT("fm801ch_setformat 0x%x : %s, %s, %s, %s\n", format,
+		(format & AFMT_STEREO)?"stereo":"mono",
+		(format & (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)) ? "16bit":"8bit",
+		(format & AFMT_SIGNED)? "signed":"unsigned",
+		(format & AFMT_BIGENDIAN)?"bigendiah":"littleendian" );
+
+	if(ch->dir == PCMDIR_PLAY) {
+		fm801->play_fmt =  (format & AFMT_STEREO)? FM_PLAY_STEREO : 0;
+		fm801->play_fmt |= (format & AFMT_16BIT) ? FM_PLAY_16BIT : 0;
+		return 0;
+	}
+
+	if(ch->dir == PCMDIR_REC ) {
+		fm801->rec_fmt = (format & AFMT_STEREO)? FM_REC_STEREO:0;
+		fm801->rec_fmt |= (format & AFMT_16BIT) ? FM_PLAY_16BIT : 0;
+		return 0;
+	}
+
+	return 0;
+}
+
+struct {
+	int limit;
+	int rate;
+} fm801_rates[11] = {
+	{  6600,  5500 },
+	{  8750,  8000 },
+	{ 10250,  9600 },
+	{ 13200, 11025 },
+	{ 17500, 16000 },
+	{ 20500, 19200 },
+	{ 26500, 22050 },
+	{ 35000, 32000 },
+	{ 41000, 38400 },
+	{ 46000, 44100 },
+	{ 48000, 48000 },
+/* anything above -> 48000 */
+};
+
+static int
+fm801ch_setspeed(kobj_t obj, void *data, u_int32_t speed)
+{
+	struct fm801_chinfo *ch = data;
+	struct fm801_info *fm801 = ch->parent;
+	register int i;
+
+
+	for (i = 0; i < 10 && fm801_rates[i].limit <= speed; i++) ;
+
+	if(ch->dir == PCMDIR_PLAY) {
+		fm801->pch.spd = fm801_rates[i].rate;
+		fm801->play_shift = (i<<8);
+		fm801->play_shift &= FM_PLAY_RATE_MASK;
+	}
+
+	if(ch->dir == PCMDIR_REC ) {
+		fm801->rch.spd = fm801_rates[i].rate;
+		fm801->rec_shift = (i<<8);
+		fm801->rec_shift &= FM_REC_RATE_MASK;
+	}
+
+	ch->spd = fm801_rates[i].rate;
+
+	return fm801_rates[i].rate;
+}
+
+static int
+fm801ch_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+{
+	struct fm801_chinfo *ch = data;
+	struct fm801_info *fm801 = ch->parent;
+
+	if(ch->dir == PCMDIR_PLAY) {
+		if(fm801->play_flip) return fm801->play_blksize;
+		fm801->play_blksize = blocksize;
+	}
+
+	if(ch->dir == PCMDIR_REC) {
+		if(fm801->rec_flip) return fm801->rec_blksize;
+		fm801->rec_blksize = blocksize;
+	}
+
+	DPRINT("fm801ch_setblocksize %d (dir %d)\n",blocksize, ch->dir);
+
+	return blocksize;
+}
+
+static int
+fm801ch_trigger(kobj_t obj, void *data, int go)
+{
+	struct fm801_chinfo *ch = data;
+	struct fm801_info *fm801 = ch->parent;
+	u_int32_t baseaddr = vtophys(ch->buffer->buf);
+	snd_dbuf *b = ch->buffer;
+	u_int32_t k1;
+
+	DPRINT("fm801ch_trigger go %d , ", go);
+	DPRINT("rp %d, rl %d, fp %d fl %d, dl %d, blksize=%d\n",
+		b->rp,b->rl, b->fp,b->fl, b->dl, b->blksz);
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD) {
+		return 0;
+	}
+
+	if (ch->dir == PCMDIR_PLAY) {
+		if (go == PCMTRIG_START) {
+
+			fm801->play_start = baseaddr;
+			fm801->play_nextblk = fm801->play_start + fm801->play_blksize;
+			fm801->play_flip = 0;
+			fm801_wr(fm801, FM_PLAY_DMALEN, fm801->play_blksize - 1, 2);
+			fm801_wr(fm801, FM_PLAY_DMABUF1,fm801->play_start,4);
+			fm801_wr(fm801, FM_PLAY_DMABUF2,fm801->play_nextblk,4);
+			fm801_wr(fm801, FM_PLAY_CTL,
+					FM_PLAY_START | FM_PLAY_STOPNOW | fm801->play_fmt | fm801->play_shift,
+					2 );
+			} else {
+			fm801->play_flip = 0;
+			k1 = fm801_rd(fm801, FM_PLAY_CTL,2);
+			fm801_wr(fm801, FM_PLAY_CTL,
+				(k1 & ~(FM_PLAY_STOPNOW | FM_PLAY_START)) |
+				FM_PLAY_BUF1_LAST | FM_PLAY_BUF2_LAST, 2 );
+		}
+	} else if(ch->dir == PCMDIR_REC) {
+		if (go == PCMTRIG_START) {
+			fm801->rec_start = baseaddr;
+			fm801->rec_nextblk = fm801->rec_start + fm801->rec_blksize;
+			fm801->rec_flip = 0;
+			fm801_wr(fm801, FM_REC_DMALEN, fm801->rec_blksize - 1, 2);
+			fm801_wr(fm801, FM_REC_DMABUF1,fm801->rec_start,4);
+			fm801_wr(fm801, FM_REC_DMABUF2,fm801->rec_nextblk,4);
+			fm801_wr(fm801, FM_REC_CTL,
+					FM_REC_START | FM_REC_STOPNOW | fm801->rec_fmt | fm801->rec_shift,
+					2 );
+			} else {
+			fm801->rec_flip = 0;
+			k1 = fm801_rd(fm801, FM_REC_CTL,2);
+			fm801_wr(fm801, FM_REC_CTL,
+				(k1 & ~(FM_REC_STOPNOW | FM_REC_START)) |
+				FM_REC_BUF1_LAST | FM_REC_BUF2_LAST, 2);
+		}
+	}
+
+	return 0;
+}
+
+/* Almost ALSA copy */
+static int
+fm801ch_getptr(kobj_t obj, void *data)
+{
+	struct fm801_chinfo *ch = data;
+	struct fm801_info *fm801 = ch->parent;
+	int result = 0;
+	snd_dbuf *b = ch->buffer;
+
+	if (ch->dir == PCMDIR_PLAY) {
+		result = fm801_rd(fm801,
+			(fm801->play_flip&1) ?
+			FM_PLAY_DMABUF2:FM_PLAY_DMABUF1, 4) - fm801->play_start;
+	}
+
+	if (ch->dir == PCMDIR_REC) {
+		result = fm801_rd(fm801,
+			(fm801->rec_flip&1) ?
+			FM_REC_DMABUF2:FM_REC_DMABUF1, 4) - fm801->rec_start;
+	}
+
+	DPRINT("fm801ch_getptr:%d,  rp %d, rl %d, fp %d fl %d\n",
+	                result, b->rp,b->rl, b->fp,b->fl);
+
+	return result;
+}
+
+static pcmchan_caps *
+fm801ch_getcaps(kobj_t obj, void *data)
+{
+	return &fm801ch_caps;
+}
+
+static kobj_method_t fm801ch_methods[] = {
+    	KOBJMETHOD(channel_init,		fm801ch_init),
+    	KOBJMETHOD(channel_setformat,		fm801ch_setformat),
+    	KOBJMETHOD(channel_setspeed,		fm801ch_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	fm801ch_setblocksize),
+    	KOBJMETHOD(channel_trigger,		fm801ch_trigger),
+    	KOBJMETHOD(channel_getptr,		fm801ch_getptr),
+    	KOBJMETHOD(channel_getcaps,		fm801ch_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(fm801ch);
+
+/* -------------------------------------------------------------------- */
 
 /*
  *  Init routine is taken from an original NetBSD driver
@@ -420,10 +619,10 @@ fm801_pci_attach(device_t dev)
 
 	fm801_init(fm801);
 
-	codec = ac97_create(dev, (void *)fm801, NULL, fm801_rdcd, fm801_wrcd);
+	codec = AC97_CREATE(dev, fm801, fm801_ac97);
 	if (codec == NULL) goto oops;
 
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto oops;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto oops;
 
 	fm801->irqid = 0;
 	fm801->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &fm801->irqid,
@@ -451,8 +650,8 @@ fm801_pci_attach(device_t dev)
 
 #define FM801_MAXPLAYCH	1
 	if (pcm_register(dev, fm801, FM801_MAXPLAYCH, 1)) goto oops;
-	pcm_addchan(dev, PCMDIR_PLAY, &fm801_chantemplate, fm801);
-	pcm_addchan(dev, PCMDIR_REC, &fm801_chantemplate, fm801);
+	pcm_addchan(dev, PCMDIR_PLAY, &fm801ch_class, fm801);
+	pcm_addchan(dev, PCMDIR_REC, &fm801ch_class, fm801);
 	pcm_setstatus(dev, status);
 
 	return 0;
@@ -503,210 +702,6 @@ fm801_pci_probe( device_t dev )
 	}
 */
 	return ENXIO;
-}
-
-
-
-/* channel interface */
-static void *
-fm801ch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
-{
-	struct fm801_info *fm801 = (struct fm801_info *)devinfo;
-	struct fm801_chinfo *ch = (dir == PCMDIR_PLAY)? &fm801->pch : &fm801->rch;
-
-	DPRINT("fm801ch_init, direction = %d\n", dir);
-	ch->parent = fm801;
-	ch->channel = c;
-	ch->buffer = b;
-	ch->buffer->bufsize = FM801_BUFFSIZE;
-	ch->dir = dir;
-	if( chn_allocbuf(ch->buffer, fm801->parent_dmat) == -1) return NULL;
-	return (void *)ch;
-}
-
-static int
-fm801ch_setformat(void *data, u_int32_t format)
-{
-	struct fm801_chinfo *ch = data;
-	struct fm801_info *fm801 = ch->parent;
-
-	DPRINT("fm801ch_setformat 0x%x : %s, %s, %s, %s\n", format,
-		(format & AFMT_STEREO)?"stereo":"mono",
-		(format & (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)) ? "16bit":"8bit",
-		(format & AFMT_SIGNED)? "signed":"unsigned",
-		(format & AFMT_BIGENDIAN)?"bigendiah":"littleendian" );
-
-	if(ch->dir == PCMDIR_PLAY) {
-		fm801->play_fmt =  (format & AFMT_STEREO)? FM_PLAY_STEREO : 0;
-		fm801->play_fmt |= (format & AFMT_16BIT) ? FM_PLAY_16BIT : 0;
-		return 0;
-	}
-
-	if(ch->dir == PCMDIR_REC ) {
-		fm801->rec_fmt = (format & AFMT_STEREO)? FM_REC_STEREO:0;
-		fm801->rec_fmt |= (format & AFMT_16BIT) ? FM_PLAY_16BIT : 0;
-		return 0;
-	}
-
-	return 0;
-}
-
-struct {
-	int limit;
-	int rate;
-} fm801_rates[11] = {
-	{  6600,  5500 },
-	{  8750,  8000 },
-	{ 10250,  9600 },
-	{ 13200, 11025 },
-	{ 17500, 16000 },
-	{ 20500, 19200 },
-	{ 26500, 22050 },
-	{ 35000, 32000 },
-	{ 41000, 38400 },
-	{ 46000, 44100 },
-	{ 48000, 48000 },
-/* anything above -> 48000 */
-};
-
-static int
-fm801ch_setspeed(void *data, u_int32_t speed)
-{
-	struct fm801_chinfo *ch = data;
-	struct fm801_info *fm801 = ch->parent;
-	register int i;
-
-
-	for (i = 0; i < 10 && fm801_rates[i].limit <= speed; i++) ;
-
-	if(ch->dir == PCMDIR_PLAY) {
-		fm801->pch.spd = fm801_rates[i].rate;
-		fm801->play_shift = (i<<8);
-		fm801->play_shift &= FM_PLAY_RATE_MASK;
-	}
-
-	if(ch->dir == PCMDIR_REC ) {
-		fm801->rch.spd = fm801_rates[i].rate;
-		fm801->rec_shift = (i<<8);
-		fm801->rec_shift &= FM_REC_RATE_MASK;
-	}
-
-	ch->spd = fm801_rates[i].rate;
-
-	return fm801_rates[i].rate;
-}
-
-static int
-fm801ch_setblocksize(void *data, u_int32_t blocksize)
-{
-	struct fm801_chinfo *ch = data;
-	struct fm801_info *fm801 = ch->parent;
-
-	if(ch->dir == PCMDIR_PLAY) {
-		if(fm801->play_flip) return fm801->play_blksize;
-		fm801->play_blksize = blocksize;
-	}
-
-	if(ch->dir == PCMDIR_REC) {
-		if(fm801->rec_flip) return fm801->rec_blksize;
-		fm801->rec_blksize = blocksize;
-	}
-
-	DPRINT("fm801ch_setblocksize %d (dir %d)\n",blocksize, ch->dir);
-
-	return blocksize;
-}
-
-static int
-fm801ch_trigger(void *data, int go)
-{
-	struct fm801_chinfo *ch = data;
-	struct fm801_info *fm801 = ch->parent;
-	u_int32_t baseaddr = vtophys(ch->buffer->buf);
-	snd_dbuf *b = ch->buffer;
-	u_int32_t k1;
-
-	DPRINT("fm801ch_trigger go %d , ", go);
-	DPRINT("rp %d, rl %d, fp %d fl %d, dl %d, blksize=%d\n",
-		b->rp,b->rl, b->fp,b->fl, b->dl, b->blksz);
-
-	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD) {
-		return 0;
-	}
-
-	if (ch->dir == PCMDIR_PLAY) {
-		if (go == PCMTRIG_START) {
-
-			fm801->play_start = baseaddr;
-			fm801->play_nextblk = fm801->play_start + fm801->play_blksize;
-			fm801->play_flip = 0;
-			fm801_wr(fm801, FM_PLAY_DMALEN, fm801->play_blksize - 1, 2);
-			fm801_wr(fm801, FM_PLAY_DMABUF1,fm801->play_start,4);
-			fm801_wr(fm801, FM_PLAY_DMABUF2,fm801->play_nextblk,4);
-			fm801_wr(fm801, FM_PLAY_CTL,
-					FM_PLAY_START | FM_PLAY_STOPNOW | fm801->play_fmt | fm801->play_shift,
-					2 );
-			} else {
-			fm801->play_flip = 0;
-			k1 = fm801_rd(fm801, FM_PLAY_CTL,2);
-			fm801_wr(fm801, FM_PLAY_CTL,
-				(k1 & ~(FM_PLAY_STOPNOW | FM_PLAY_START)) |
-				FM_PLAY_BUF1_LAST | FM_PLAY_BUF2_LAST, 2 );
-		}
-	} else if(ch->dir == PCMDIR_REC) {
-		if (go == PCMTRIG_START) {
-			fm801->rec_start = baseaddr;
-			fm801->rec_nextblk = fm801->rec_start + fm801->rec_blksize;
-			fm801->rec_flip = 0;
-			fm801_wr(fm801, FM_REC_DMALEN, fm801->rec_blksize - 1, 2);
-			fm801_wr(fm801, FM_REC_DMABUF1,fm801->rec_start,4);
-			fm801_wr(fm801, FM_REC_DMABUF2,fm801->rec_nextblk,4);
-			fm801_wr(fm801, FM_REC_CTL,
-					FM_REC_START | FM_REC_STOPNOW | fm801->rec_fmt | fm801->rec_shift,
-					2 );
-			} else {
-			fm801->rec_flip = 0;
-			k1 = fm801_rd(fm801, FM_REC_CTL,2);
-			fm801_wr(fm801, FM_REC_CTL,
-				(k1 & ~(FM_REC_STOPNOW | FM_REC_START)) |
-				FM_REC_BUF1_LAST | FM_REC_BUF2_LAST, 2);
-		}
-	}
-
-	return 0;
-}
-
-/* Almost ALSA copy */
-static int
-fm801ch_getptr(void *data)
-{
-	struct fm801_chinfo *ch = data;
-	struct fm801_info *fm801 = ch->parent;
-	int result = 0;
-	snd_dbuf *b = ch->buffer;
-
-	if (ch->dir == PCMDIR_PLAY) {
-		result = fm801_rd(fm801,
-			(fm801->play_flip&1) ?
-			FM_PLAY_DMABUF2:FM_PLAY_DMABUF1, 4) - fm801->play_start;
-	}
-
-	if (ch->dir == PCMDIR_REC) {
-		result = fm801_rd(fm801,
-			(fm801->rec_flip&1) ?
-			FM_REC_DMABUF2:FM_REC_DMABUF1, 4) - fm801->rec_start;
-	}
-
-	DPRINT("fm801ch_getptr:%d,  rp %d, rl %d, fp %d fl %d\n",
-	                result, b->rp,b->rl, b->fp,b->fl);
-
-	return result;
-}
-
-static pcmchan_caps *
-fm801ch_getcaps(void *data)
-{
-	return &fm801ch_caps;
 }
 
 static device_method_t fm801_methods[] = {

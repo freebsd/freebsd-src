@@ -37,15 +37,6 @@
 #define AU8820_PCI_ID 0x000112eb
 
 /* channel interface */
-static void *auchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int auchan_setdir(void *data, int dir);
-static int auchan_setformat(void *data, u_int32_t format);
-static int auchan_setspeed(void *data, u_int32_t speed);
-static int auchan_setblocksize(void *data, u_int32_t blocksize);
-static int auchan_trigger(void *data, int go);
-static int auchan_getptr(void *data);
-static pcmchan_caps *auchan_getcaps(void *data);
-
 static u_int32_t au_playfmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -64,29 +55,7 @@ static u_int32_t au_recfmt[] = {
 };
 static pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
 
-static pcm_channel au_chantemplate = {
-	auchan_init,
-	auchan_setdir,
-	auchan_setformat,
-	auchan_setspeed,
-	auchan_setblocksize,
-	auchan_trigger,
-	auchan_getptr,
-	auchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
 /* -------------------------------------------------------------------- */
-
-static u_int32_t au_rdcd(void *arg, int regno);
-static void au_wrcd(void *arg, int regno, u_int32_t data);
 
 struct au_info;
 
@@ -147,8 +116,10 @@ au_wr(struct au_info *au, int mapno, int regno, u_int32_t data, int size)
 	}
 }
 
-static u_int32_t
-au_rdcd(void *arg, int regno)
+/* -------------------------------------------------------------------- */
+
+static int
+au_rdcd(kobj_t obj, void *arg, int regno)
 {
 	struct au_info *au = (struct au_info *)arg;
 	int i=0, j=0;
@@ -166,8 +137,8 @@ au_rdcd(void *arg, int regno)
 	return i & AU_CDC_DATAMASK;
 }
 
-static void
-au_wrcd(void *arg, int regno, u_int32_t data)
+static int
+au_wrcd(kobj_t obj, void *arg, int regno, u_int32_t data)
 {
 	struct au_info *au = (struct au_info *)arg;
 	int i, j, tries;
@@ -188,7 +159,18 @@ au_wrcd(void *arg, int regno, u_int32_t data)
 	/*
 	if (tries == 3) printf("giving up writing 0x%4x to codec reg %2x\n", data, regno);
 	*/
+
+	return 0;
 }
+
+static kobj_method_t au_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		au_rdcd),
+    	KOBJMETHOD(ac97_write,		au_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(au_ac97);
+
+/* -------------------------------------------------------------------- */
 
 static void
 au_setbit(u_int32_t *p, char bit, u_int32_t value)
@@ -308,9 +290,10 @@ au_prepareoutput(struct au_chinfo *ch, u_int32_t format)
 	au_addroute(au, 0x11, stereo? 0 : 1, 0x59);
 }
 
+/* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-auchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+auchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct au_info *au = devinfo;
 	struct au_chinfo *ch = (dir == PCMDIR_PLAY)? &au->pch : NULL;
@@ -319,23 +302,13 @@ auchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->channel = c;
 	ch->buffer = b;
 	ch->buffer->bufsize = AU_BUFFSIZE;
+	ch->dir = dir;
 	if (chn_allocbuf(ch->buffer, au->parent_dmat) == -1) return NULL;
 	return ch;
 }
 
 static int
-auchan_setdir(void *data, int dir)
-{
-	struct au_chinfo *ch = data;
-	if (dir == PCMDIR_PLAY) {
-	} else {
-	}
-	ch->dir = dir;
-	return 0;
-}
-
-static int
-auchan_setformat(void *data, u_int32_t format)
+auchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct au_chinfo *ch = data;
 
@@ -344,7 +317,7 @@ auchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-auchan_setspeed(void *data, u_int32_t speed)
+auchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct au_chinfo *ch = data;
 	if (ch->dir == PCMDIR_PLAY) {
@@ -354,13 +327,13 @@ auchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-auchan_setblocksize(void *data, u_int32_t blocksize)
+auchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-auchan_trigger(void *data, int go)
+auchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct au_chinfo *ch = data;
 	struct au_info *au = ch->parent;
@@ -382,7 +355,7 @@ auchan_trigger(void *data, int go)
 }
 
 static int
-auchan_getptr(void *data)
+auchan_getptr(kobj_t obj, void *data)
 {
 	struct au_chinfo *ch = data;
 	struct au_info *au = ch->parent;
@@ -394,12 +367,25 @@ auchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-auchan_getcaps(void *data)
+auchan_getcaps(kobj_t obj, void *data)
 {
 	struct au_chinfo *ch = data;
 	return (ch->dir == PCMDIR_PLAY)? &au_playcaps : &au_reccaps;
 }
 
+static kobj_method_t auchan_methods[] = {
+    	KOBJMETHOD(channel_init,		auchan_init),
+    	KOBJMETHOD(channel_setformat,		auchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		auchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	auchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		auchan_trigger),
+    	KOBJMETHOD(channel_getptr,		auchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		auchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(auchan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
 au_intr (void *p)
@@ -571,7 +557,6 @@ au_pci_attach(device_t dev)
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
-	d = device_get_softc(dev);
 	if ((au = malloc(sizeof(*au), M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
@@ -649,9 +634,9 @@ au_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, au, NULL, au_rdcd, au_wrcd);
+	codec = AC97_CREATE(dev, au, au_ac97);
 	if (codec == NULL) goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
@@ -669,7 +654,7 @@ au_pci_attach(device_t dev)
 
 	if (pcm_register(dev, au, 1, 1)) goto bad;
 	/* pcm_addchan(dev, PCMDIR_REC, &au_chantemplate, au); */
-	pcm_addchan(dev, PCMDIR_PLAY, &au_chantemplate, au);
+	pcm_addchan(dev, PCMDIR_PLAY, &auchan_class, au);
 	pcm_setstatus(dev, status);
 
 	return 0;

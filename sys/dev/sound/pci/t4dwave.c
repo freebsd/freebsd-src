@@ -81,20 +81,6 @@ struct tr_info {
  * prototypes
  */
 
-/* channel interface */
-static void *trchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int trchan_setdir(void *data, int dir);
-static int trchan_setformat(void *data, u_int32_t format);
-static int trchan_setspeed(void *data, u_int32_t speed);
-static int trchan_setblocksize(void *data, u_int32_t blocksize);
-static int trchan_trigger(void *data, int go);
-static int trchan_getptr(void *data);
-static pcmchan_caps *trchan_getcaps(void *data);
-
-/* talk to the codec - called from ac97.c */
-static u_int32_t tr_rdcd(void *, int);
-static void  	 tr_wrcd(void *, int, u_int32_t);
-
 /* stuff */
 static int       tr_init(struct tr_info *);
 static void      tr_intr(void *);
@@ -141,25 +127,6 @@ static u_int32_t tr_playfmt[] = {
 };
 static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
-static pcm_channel tr_chantemplate = {
-	trchan_init,
-	trchan_setdir,
-	trchan_setformat,
-	trchan_setspeed,
-	trchan_setblocksize,
-	trchan_trigger,
-	trchan_getptr,
-	trchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
 /* -------------------------------------------------------------------- */
 
 static u_int32_t
@@ -205,10 +172,11 @@ tr_wr(struct tr_info *tr, int regno, u_int32_t data, int size)
 	}
 }
 
+/* -------------------------------------------------------------------- */
 /* ac97 codec */
 
-static u_int32_t
-tr_rdcd(void *devinfo, int regno)
+static int
+tr_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct tr_info *tr = (struct tr_info *)devinfo;
 	int i, j, treg, trw;
@@ -224,7 +192,7 @@ tr_rdcd(void *devinfo, int regno)
 		break;
 	default:
 		printf("!!! tr_rdcd defaulted !!!\n");
-		return 0xffffffff;
+		return -1;
 	}
 
 	regno &= 0x7f;
@@ -235,8 +203,8 @@ tr_rdcd(void *devinfo, int regno)
 	return (j >> TR_CDC_DATA) & 0xffff;
 }
 
-static void
-tr_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct tr_info *tr = (struct tr_info *)devinfo;
 	int i, j, treg, trw;
@@ -252,7 +220,7 @@ tr_wrcd(void *devinfo, int regno, u_int32_t data)
 		break;
 	default:
 		printf("!!! tr_wrcd defaulted !!!");
-		return;
+		return -1;
 	}
 
 	regno &= 0x7f;
@@ -266,8 +234,17 @@ tr_wrcd(void *devinfo, int regno, u_int32_t data)
 	printf(" - wrote %x, now %x\n", data, tr_rdcd(devinfo, regno));
 #endif
 	if (i==0) printf("codec timeout writing %x, data %x\n", regno, data);
+	return (i > 0)? 0 : -1;
 }
 
+static kobj_method_t tr_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		tr_rdcd),
+    	KOBJMETHOD(ac97_write,		tr_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(tr_ac97);
+
+/* -------------------------------------------------------------------- */
 /* playback channel interrupts */
 
 static u_int32_t
@@ -398,10 +375,11 @@ tr_rdch(struct tr_info *tr, char channel, struct tr_chinfo *ch)
 	}
 }
 
+/* -------------------------------------------------------------------- */
 /* channel interface */
 
-void *
-trchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+static void *
+trchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct tr_info *tr = devinfo;
 	struct tr_chinfo *ch;
@@ -421,7 +399,7 @@ trchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-trchan_setdir(void *data, int dir)
+trchan_setdir(kobj_t obj, void *data, int dir)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -454,7 +432,7 @@ trchan_setdir(void *data, int dir)
 }
 
 static int
-trchan_setformat(void *data, u_int32_t format)
+trchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -481,7 +459,7 @@ trchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-trchan_setspeed(void *data, u_int32_t speed)
+trchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -501,14 +479,14 @@ trchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-trchan_setblocksize(void *data, u_int32_t blocksize)
+trchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
 	return ch->buffer->bufsize / 2;
 }
 
 static int
-trchan_trigger(void *data, int go)
+trchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -531,7 +509,7 @@ trchan_trigger(void *data, int go)
 }
 
 static int
-trchan_getptr(void *data)
+trchan_getptr(kobj_t obj, void *data)
 {
 	struct tr_chinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -543,12 +521,26 @@ trchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-trchan_getcaps(void *data)
+trchan_getcaps(kobj_t obj, void *data)
 {
 	struct tr_chinfo *ch = data;
 	return (ch->index >= 0)? &tr_playcaps : &tr_reccaps;
 }
 
+static kobj_method_t trchan_methods[] = {
+    	KOBJMETHOD(channel_init,		trchan_init),
+    	KOBJMETHOD(channel_setdir,		trchan_setdir),
+    	KOBJMETHOD(channel_setformat,		trchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		trchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	trchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		trchan_trigger),
+    	KOBJMETHOD(channel_getptr,		trchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		trchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(trchan);
+
+/* -------------------------------------------------------------------- */
 /* The interrupt handler */
 
 static void
@@ -659,9 +651,9 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, tr, NULL, tr_rdcd, tr_wrcd);
+	codec = AC97_CREATE(dev, tr, tr_ac97);
 	if (codec == NULL) goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	tr->irqid = 0;
 	tr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &tr->irqid,
@@ -687,9 +679,9 @@ tr_pci_attach(device_t dev)
 		 rman_get_start(tr->reg), rman_get_start(tr->irq));
 
 	if (pcm_register(dev, tr, TR_MAXPLAYCH, 1)) goto bad;
-	pcm_addchan(dev, PCMDIR_REC, &tr_chantemplate, tr);
+	pcm_addchan(dev, PCMDIR_REC, &trchan_class, tr);
 	for (i = 0; i < TR_MAXPLAYCH; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &tr_chantemplate, tr);
+		pcm_addchan(dev, PCMDIR_PLAY, &trchan_class, tr);
 	pcm_setstatus(dev, status);
 
 	return 0;
