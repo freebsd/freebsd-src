@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.12 1995/11/03 18:33:43 wollman Exp $
+ * $Id: uipc_socket.c,v 1.13 1995/12/14 22:51:01 bde Exp $
  */
 
 #include <sys/param.h>
@@ -944,6 +944,11 @@ sosetopt(so, level, optname, m0)
 			break;
 		    }
 
+		case SO_PRIVSTATE:
+			/* we don't care what the parameter is... */
+			so->so_state &= ~SS_PRIV;
+			break;
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -996,6 +1001,10 @@ sogetopt(so, level, optname, mp)
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
 			*mtod(m, int *) = so->so_options & optname;
+			break;
+
+		case SO_PRIVSTATE:
+			*mtod(m, int *) = so->so_state & SS_PRIV;
 			break;
 
 		case SO_TYPE:
