@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.37 1998/03/03 20:55:23 tegge Exp $
+ * $Id: smp.h,v 1.38 1998/03/03 22:56:26 tegge Exp $
  *
  */
 
@@ -75,20 +75,13 @@ int	try_mpintrlock		__P((void));
 #endif /*  RECURSIVE_MPINTRLOCK */
 
 /* global data in apic_vector.s */
-extern u_int			ivectors[];
 extern volatile u_int		stopped_cpus;
 extern volatile u_int		started_cpus;
 
 extern unsigned int		checkstate_probed_cpus;
 extern unsigned int		checkstate_need_ast;
 
-/* global data in apic_ipl.s */
-extern u_int			vec[];
-extern u_int			Xintr8254;
-extern u_int			mask8254;
-
 /* functions in apic_ipl.s */
-void	vec8254			__P((void));
 void	apic_eoi		__P((void));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
