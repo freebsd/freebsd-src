@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.19 1994/09/18 23:08:55 bde Exp $
+ *	$Id: clock.c,v 1.20 1994/09/20 00:31:05 ache Exp $
  */
 
  /*
@@ -514,7 +514,7 @@ void resettodr()
 	writertc(RTC_DAY, int2bcd(tm+1));		/* Write back Day     */
 
 	/* enable time updates */
-	writertc(RTC_STATUSB, RTCSB_24HR);
+	writertc(RTC_STATUSB, RTCSB_PINTR | RTCSB_24HR);
 }
 
 
