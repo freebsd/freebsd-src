@@ -31,9 +31,6 @@
  *
  * $FreeBSD$
  */
-#ifndef _NETINET_IN_H_
-#include <netinet/in.h>
-#endif
 
 /*
  * Two levels of connection hierarchy
