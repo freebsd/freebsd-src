@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id:$
+ *	$Id: boot2.c,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,14 @@
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
 
+#define DRV_HARD	0x80
+#define DRV_MASK	0x7f
+
+#define MAJ_WD		0
+#define MAJ_WFD		1
+#define MAJ_FD		2
+#define MAJ_DA		4
+
 extern uint32_t _end;
 
 static const char optstr[NOPT] = "aCcdgrsv";
@@ -71,9 +79,7 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[] = {"fd", "wd", "da"};
-static const uint8_t dev_bios[] = {0, 0x80, 0x82};
-static const uint8_t dev_bsd[] = {2, 0, 4};
+static const char *const dev_nm[] = {"wd", "  ", "fd", "  ", "da"};
 
 static struct dsk {
     unsigned drive;
@@ -81,6 +87,8 @@ static struct dsk {
     unsigned unit;
     unsigned slice;
     unsigned part;
+    unsigned start;
+    int init;
     int meta;
 } dsk;
 static char cmd[512];
@@ -119,10 +127,8 @@ main(void)
     int autoboot, helpon, i;
 
     dsk.drive = *(uint8_t *)PTOV(ARGS);
-    for (dsk.type = NDEV - 1;
-	 (i = dsk.drive - dev_bios[dsk.type]) < 0;
-	 dsk.type--);
-    dsk.unit = i;
+    dsk.type = dsk.drive & DRV_HARD ? MAJ_WD : MAJ_FD;
+    dsk.unit = dsk.drive & DRV_MASK;
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
@@ -153,7 +159,7 @@ main(void)
 	       "Default: %u:%s(%u,%c)%s\n"
 	       "%s"
 	       "boot: ",
-	       dsk.drive & 0x7f, dev_nm[dsk.type], dsk.unit,
+	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
 	       'a' + dsk.part, kname, helpon ? help : "");
 	if (!autoboot || keyhit(0x5a))
 	    getstr(cmd, sizeof(cmd));
@@ -271,8 +277,8 @@ load(const char *fname)
     printf("]\nentry=0x%x\n", addr);
     bootinfo.bi_kernelname = VTOP(fname);
     __exec((caddr_t)addr, RB_BOOTINFO | opts,
-	   MAKEBOOTDEV(dev_bsd[dsk.type], 0, dsk.slice, dsk.unit,
-		       dsk.part), 0, 0, 0, VTOP(&bootinfo));
+	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
+	   0, 0, 0, VTOP(&bootinfo));
 }
 
 static int
@@ -328,10 +334,11 @@ parse(char *arg)
 		dsk.part = *arg - 'a';
 		arg += 2;
 		if (drv == -1)
-		    dsk.drive = dev_bios[dsk.type] + dsk.unit;
-		else
-		    dsk.drive = (dsk.type ? 0x80 : 0) + drv;
+		    drv = dsk.unit;
+		dsk.drive = (dsk.type == MAJ_WD ||
+			     dsk.type == MAJ_DA ? DRV_HARD : 0) + drv;
 		dsk.meta = 0;
+		fsread(0, NULL, 0);
 	    }
 	    if ((i = p - arg - !*(p - 1))) {
 		if (i >= sizeof(kname))
@@ -435,6 +442,8 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	fsblks = fs.fs_bsize >> DEV_BSHIFT;
 	dsk.meta = 1;
     }
+    if (!inode)
+	return 0;
     if (inomap != inode) {
 	if (dskread(blkbuf, fsbtodb(&fs, ino_to_fsba(&fs, inode)),
 		    fsblks))
@@ -485,7 +494,6 @@ static int
 dskread(void *buf, unsigned lba, unsigned nblk)
 {
     static char *sec;
-    static unsigned hidden;
     struct dos_partition *dp;
     struct disklabel *d;
     unsigned sl, i;
@@ -493,7 +501,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     if (!dsk.meta) {
 	if (!sec)
 	    sec = malloc(DEV_BSIZE);
-	hidden = 0;
+	dsk.start = 0;
 	sl = dsk.slice;
 	if (sl != WHOLE_DISK_SLICE) {
 	    if (drvread(sec, DOSBBSECTOR, 1))
@@ -511,24 +519,30 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 		printf("Invalid %s\n", "slice");
 		return -1;
 	    }
-	    hidden = dp->dp_start;
+	    dsk.start = dp->dp_start;
 	}
-	if (dsk.part != RAW_PART) {
-	    if (drvread(sec, hidden + LABELSECTOR, 1))
+        if (drvread(sec, dsk.start + LABELSECTOR, 1))
 		return -1;
-	    d = (void *)(sec + LABELOFFSET);
-	    if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
-		printf("Invalid %s\n", "label");
-		return -1;
+	d = (void *)(sec + LABELOFFSET);
+	if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
+	    if (dsk.part != RAW_PART) {
+	        printf("Invalid %s\n", "label");
+	        return -1;
+	    }
+	} else {
+	    if (!dsk.init) {
+	        if (d->d_type == DTYPE_SCSI)
+		    dsk.type = MAJ_DA;
+		dsk.init++;
 	    }
 	    if (dsk.part >= d->d_npartitions) {
 		printf("Invalid %s\n", "partition");
 		return -1;
 	    }
-	    hidden = d->d_partitions[dsk.part].p_offset;
+	    dsk.start = d->d_partitions[dsk.part].p_offset;
 	}
     }
-    return drvread(buf, hidden + lba, nblk);
+    return drvread(buf, dsk.start + lba, nblk);
 }
 
 static int
@@ -661,7 +675,7 @@ drvinfo(int drive)
 {
     v86.addr = 0x13;
     v86.eax = 0x800;
-    v86.edx = 0x80 + drive;
+    v86.edx = DRV_HARD + drive;
     v86int();
     if (V86_CY(v86.efl))
 	return 0x4f010f;
