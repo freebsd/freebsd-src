@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.10 1996/04/13 13:32:03 jkh Exp $
+ * $Id: network.c,v 1.11 1996/04/23 01:29:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -177,7 +177,7 @@ startPPP(Device *devp)
     int fd2;
     FILE *fp;
     char *val;
-    pid_t pid;
+    pid_t pid = 0;
     char myaddr[16], provider[16], speed[16];
 
     /* These are needed to make ppp work */
@@ -233,7 +233,8 @@ startPPP(Device *devp)
 	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
 	return 0;
     }
-    if (!(pid = fork())) {
+
+    if (!Fake && !(pid = fork())) {
 	int i, fd;
 	struct termios foo;
 	extern int login_tty(int);

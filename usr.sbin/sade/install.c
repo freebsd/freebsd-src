@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.88 1996/04/28 01:07:22 jkh Exp $
+ * $Id: install.c,v 1.89 1996/04/28 03:27:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,7 +159,8 @@ installInitial(void)
 	return DITEM_SUCCESS;
 
     if (!variable_get(DISK_LABELLED)) {
-	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
+	msgConfirm("You need to assign disk labels before you can proceed with\n"
+		   "the installation.");
 	return DITEM_FAILURE;
     }
     /* If it's labelled, assume it's also partitioned */
@@ -518,7 +519,7 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
-	    if (system("cp -p /kernel.GENERIC /kernel")) {
+	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
 	    }
@@ -567,8 +568,8 @@ installFixup(dialogMenuItem *self)
 	msgNotify("Fixing permissions..");
 	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
 	if (directory_exists("/usr/X11R6")) {
-	    system("chmod -R a+r /usr/X11R6");
-	    system("find /usr/X11R6 -type d | xargs chmod a+x");
+	    vsystem("chmod -R a+r /usr/X11R6");
+	    vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
 	}
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
@@ -729,6 +730,7 @@ installFilesystems(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+/* Initialize various user-settable values to their defaults */
 int
 installVarDefaults(dialogMenuItem *self)
 {
