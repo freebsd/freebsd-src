@@ -51,6 +51,10 @@
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
+/* XXX */
+#ifdef KTR_PERCPU
+#include <sys/ktr.h>
+#endif
 #include <machine/frame.h>
 #include <machine/bootinfo.h>
 #include <machine/tss.h>
@@ -73,6 +77,7 @@
 #include <machine/sigframe.h>
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
+#include <machine/mutex.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -127,9 +132,7 @@ ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
-#ifdef SMP
-ASSYM(PCB_MPNEST, offsetof(struct pcb, pcb_mpnest));
-#endif
+ASSYM(PCB_SCHEDNEST, offsetof(struct pcb, pcb_schednest));
 
 ASSYM(PCB_SPARE, offsetof(struct pcb, __pcb_spare));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
@@ -170,7 +173,9 @@ ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
 ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(GD_SIZEOF, sizeof(struct globaldata));
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_PREVPROC, offsetof(struct globaldata, gd_prevproc));
 ASSYM(GD_NPXPROC, offsetof(struct globaldata, gd_npxproc));
+ASSYM(GD_IDLEPROC, offsetof(struct globaldata, gd_idleproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_COMMON_TSS, offsetof(struct globaldata, gd_common_tss));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
@@ -178,9 +183,19 @@ ASSYM(GD_SWITCHTICKS, offsetof(struct globaldata, gd_switchticks));
 ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
 ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
 ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
+ASSYM(GD_INTR_NESTING_LEVEL, offsetof(struct globaldata, gd_intr_nesting_level));
 
 #ifdef USER_LDT
 ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));
+#endif
+
+ASSYM(GD_WITNESS_SPIN_CHECK, offsetof(struct globaldata, gd_witness_spin_check));
+
+/* XXX */
+#ifdef KTR_PERCPU
+ASSYM(GD_KTR_IDX, offsetof(struct globaldata, gd_ktr_idx));
+ASSYM(GD_KTR_BUF, offsetof(struct globaldata, gd_ktr_buf));
+ASSYM(GD_KTR_BUF_DATA, offsetof(struct globaldata, gd_ktr_buf_data));
 #endif
 
 #ifdef SMP
@@ -211,3 +226,9 @@ ASSYM(KPSEL, GSEL(GPRIV_SEL, SEL_KPL));
 ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
 ASSYM(GPROC0_SEL, GPROC0_SEL);
 ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
+
+ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
+ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
+ASSYM(MTX_SAVEFL, offsetof(struct mtx, mtx_savefl));
+
+ASSYM(MTX_UNOWNED, MTX_UNOWNED);

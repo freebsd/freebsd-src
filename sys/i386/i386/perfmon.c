@@ -118,16 +118,19 @@ perfmon_avail(void)
 int
 perfmon_setup(int pmc, unsigned int control)
 {
+	int	intrstate;
+
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
 
 	perfmon_inuse |= (1 << pmc);
 	control &= ~(PMCF_SYS_FLAGS << 16);
+	intrstate = save_intr();
 	disable_intr();
 	ctl_shadow[pmc] = control;
 	writectl(pmc);
 	wrmsr(msr_pmc[pmc], pmc_shadow[pmc] = 0);
-	enable_intr();
+	restore_intr(intrstate);
 	return 0;
 }
 
@@ -162,15 +165,18 @@ perfmon_fini(int pmc)
 int
 perfmon_start(int pmc)
 {
+	int	intrstate;
+
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
 
 	if (perfmon_inuse & (1 << pmc)) {
+		intrstate = save_intr();
 		disable_intr();
 		ctl_shadow[pmc] |= (PMCF_EN << 16);
 		wrmsr(msr_pmc[pmc], pmc_shadow[pmc]);
 		writectl(pmc);
-		enable_intr();
+		restore_intr(intrstate);
 		return 0;
 	}
 	return EBUSY;
@@ -179,15 +185,18 @@ perfmon_start(int pmc)
 int
 perfmon_stop(int pmc)
 {
+	int	intrstate;
+
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
 
 	if (perfmon_inuse & (1 << pmc)) {
+		intrstate = save_intr();
 		disable_intr();
 		pmc_shadow[pmc] = rdmsr(msr_pmc[pmc]) & 0xffffffffffULL;
 		ctl_shadow[pmc] &= ~(PMCF_EN << 16);
 		writectl(pmc);
-		enable_intr();
+		restore_intr(intrstate);
 		return 0;
 	}
 	return EBUSY;

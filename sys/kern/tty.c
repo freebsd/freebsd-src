@@ -2266,7 +2266,8 @@ ttyinfo(tp)
 		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
 		ttyprintf(tp, "%d%% %ldk\n",
 		    tmp / 100,
-		    pick->p_stat == SIDL || pick->p_stat == SZOMB ? 0 :
+		    pick->p_stat == SIDL || pick->p_stat == SWAIT ||
+		    pick->p_stat == SZOMB ? 0 :
 		    (long)pgtok(vmspace_resident_count(pick->p_vmspace)));
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */

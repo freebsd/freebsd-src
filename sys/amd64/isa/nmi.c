@@ -36,12 +36,6 @@
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  * $FreeBSD$
  */
-/*
- * This file contains an aggregated module marked:
- * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
- * All rights reserved.
- * See the notice for details.
- */
 
 #include "opt_auto_eoi.h"
 
@@ -51,11 +45,14 @@
 #ifndef SMP
 #include <machine/lock.h>
 #endif
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/unistd.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
 #include <machine/ipl.h>
@@ -91,30 +88,14 @@
 #include <i386/isa/mca_machdep.h>
 #endif
 
-/* XXX should be in suitable include files */
-#ifdef PC98
-#define	ICU_IMR_OFFSET		2		/* IO_ICU{1,2} + 2 */
-#define	ICU_SLAVEID			7
-#else
-#define	ICU_IMR_OFFSET		1		/* IO_ICU{1,2} + 1 */
-#define	ICU_SLAVEID			2
-#endif
-
-#ifdef APIC_IO
 /*
- * This is to accommodate "mixed-mode" programming for 
- * motherboards that don't connect the 8254 to the IO APIC.
+ * Per-interrupt data.  We consider the soft interrupt to be a special
+ * case, so these arrays have NHWI + NSWI entries, not ICU_LEN.
  */
-#define	AUTO_EOI_1	1
-#endif
-
-#define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
-
-u_long	*intr_countp[ICU_LEN];
-inthand2_t *intr_handler[ICU_LEN];
-u_int	intr_mask[ICU_LEN];
-static u_int*	intr_mptr[ICU_LEN];
-void	*intr_unit[ICU_LEN];
+u_long	*intr_countp[NHWI + NSWI];	/* pointers to interrupt counters */
+inthand2_t *intr_handler[NHWI + NSWI];	/* first level interrupt handler */
+ithd	*ithds[NHWI + NSWI];		/* real interrupt handler */
+void	*intr_unit[NHWI + NSWI];
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -292,8 +273,9 @@ isa_nmi(cd)
 }
 
 /*
- * Fill in default interrupt table (in case of spuruious interrupt
- * during configuration of kernel, setup interrupt control unit
+ * Create a default interrupt table to avoid problems caused by
+ * spurious interrupts during configuration of kernel, then setup
+ * interrupt control unit.
  */
 void
 isa_defaultirq()
@@ -364,16 +346,6 @@ isa_strayintr(vcookiep)
 {
 	int intr = (void **)vcookiep - &intr_unit[0];
 
-	/* DON'T BOTHER FOR NOW! */
-	/* for some reason, we get bursts of intr #7, even if not enabled! */
-	/*
-	 * Well the reason you got bursts of intr #7 is because someone
-	 * raised an interrupt line and dropped it before the 8259 could
-	 * prioritize it.  This is documented in the intel data book.  This
-	 * means you have BAD hardware!  I have changed this so that only
-	 * the first 5 get logged, then it quits logging them, and puts
-	 * out a special message. rgrimes 3/25/1993
-	 */
 	/*
 	 * XXX TODO print a different message for #7 if it is for a
 	 * glitch.  Glitches can be distinguished from real #7's by
@@ -405,36 +377,10 @@ isa_irq_pending()
 }
 #endif
 
-int
-update_intr_masks(void)
-{
-	int intr, n=0;
-	u_int mask,*maskptr;
-
-	for (intr=0; intr < ICU_LEN; intr ++) {
-#if defined(APIC_IO)
-		/* no 8259 SLAVE to ignore */
-#else
-		if (intr==ICU_SLAVEID) continue;	/* ignore 8259 SLAVE output */
-#endif /* APIC_IO */
-		maskptr = intr_mptr[intr];
-		if (!maskptr)
-			continue;
-		*maskptr |= SWI_LOW_MASK | (1 << intr);
-		mask = *maskptr;
-		if (mask != intr_mask[intr]) {
-#if 0
-			printf ("intr_mask[%2d] old=%08x new=%08x ptr=%p.\n",
-				intr, intr_mask[intr], mask, maskptr);
-#endif
-			intr_mask[intr]=mask;
-			n++;
-		}
-
-	}
-	return (n);
-}
-
+/*
+ * Update intrnames array with the specified name.  This is used by
+ * vmstat(8) and the like.
+ */
 static void
 update_intrname(int intr, char *name)
 {
@@ -485,7 +431,7 @@ found:
 }
 
 int
-icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
+icu_setup(int intr, inthand2_t *handler, void *arg, int flags)
 {
 #ifdef FAST_HI
 	int		select;		/* the select register is 8 bits */
@@ -493,7 +439,6 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	u_int32_t	value;		/* the window register is 32 bits */
 #endif /* FAST_HI */
 	u_long	ef;
-	u_int	mask = (maskptr ? *maskptr : 0);
 
 #if defined(APIC_IO)
 	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
@@ -506,8 +451,6 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	ef = read_eflags();
 	disable_intr();
 	intr_handler[intr] = handler;
-	intr_mptr[intr] = maskptr;
-	intr_mask[intr] = mask | SWI_LOW_MASK | (1 << intr);
 	intr_unit[intr] = arg;
 #ifdef FAST_HI
 	if (flags & INTR_FAST) {
@@ -547,11 +490,15 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
 	INTREN(1 << intr);
-	MPINTR_UNLOCK();
 	write_eflags(ef);
 	return (0);
 }
 
+/*
+ * Dissociate an interrupt handler from an IRQ and set the handler to
+ * the stray interrupt handler.  The 'handler' parameter is used only
+ * for consistency checking.
+ */
 int
 icu_unset(intr, handler)
 	int	intr;
@@ -567,8 +514,6 @@ icu_unset(intr, handler)
 	disable_intr();
 	intr_countp[intr] = &intrcnt[1 + intr];
 	intr_handler[intr] = isa_strayintr;
-	intr_mptr[intr] = NULL;
-	intr_mask[intr] = HWI_MASK | SWI_MASK;
 	intr_unit[intr] = &intr_unit[intr];
 #ifdef FAST_HI_XXX
 	/* XXX how do I re-create dvp here? */
@@ -581,353 +526,172 @@ icu_unset(intr, handler)
 	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */
-	MPINTR_UNLOCK();
 	write_eflags(ef);
 	return (0);
 }
 
-/* The following notice applies beyond this point in the file */
-
-/*
- * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice unmodified, this list of conditions, and the following
- *    disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
- *
- */
-
-typedef struct intrec {
-	intrmask_t	mask;
-	inthand2_t	*handler;
-	void		*argument;
-	struct intrec	*next;
-	char		*name;
-	int		intr;
-	intrmask_t	*maskptr;
-	int		flags;
-} intrec;
-
-static intrec *intreclist_head[ICU_LEN];
-
-/*
- * The interrupt multiplexer calls each of the handlers in turn.  The
- * ipl is initially quite low.  It is raised as necessary for each call
- * and lowered after the call.  Thus out of order handling is possible
- * even for interrupts of the same type.  This is probably no more
- * harmful than out of order handling in general (not harmful except
- * for real time response which we don't support anyway).
- */
-static void
-intr_mux(void *arg)
-{
-	intrec *p;
-	intrmask_t oldspl;
-
-	for (p = arg; p != NULL; p = p->next) {
-		oldspl = splq(p->mask);
-		p->handler(p->argument);
-		splx(oldspl);
-	}
-}
-
-static intrec*
-find_idesc(unsigned *maskptr, int irq)
-{
-	intrec *p = intreclist_head[irq];
-
-	while (p && p->maskptr != maskptr)
-		p = p->next;
-
-	return (p);
-}
-
-static intrec**
-find_pred(intrec *idesc, int irq)
-{
-	intrec **pp = &intreclist_head[irq];
-	intrec *p = *pp;
-
-	while (p != idesc) {
-		if (p == NULL)
-			return (NULL);
-		pp = &p->next;
-		p = *pp;
-	}
-	return (pp);
-}
-
-/*
- * Both the low level handler and the shared interrupt multiplexer
- * block out further interrupts as set in the handlers "mask", while
- * the handler is running. In fact *maskptr should be used for this
- * purpose, but since this requires one more pointer dereference on
- * each interrupt, we rather bother update "mask" whenever *maskptr
- * changes. The function "update_masks" should be called **after**
- * all manipulation of the linked list of interrupt handlers hung
- * off of intrdec_head[irq] is complete, since the chain of handlers
- * will both determine the *maskptr values and the instances of mask
- * that are fixed. This function should be called with the irq for
- * which a new handler has been add blocked, since the masks may not
- * yet know about the use of this irq for a device of a certain class.
- */
-
-static void
-update_mux_masks(void)
-{
-	int irq;
-	for (irq = 0; irq < ICU_LEN; irq++) {
-		intrec *idesc = intreclist_head[irq];
-		while (idesc != NULL) {
-			if (idesc->maskptr != NULL) {
-				/* our copy of *maskptr may be stale, refresh */
-				idesc->mask = *idesc->maskptr;
-			}
-			idesc = idesc->next;
-		}
-	}
-}
-
-static void
-update_masks(intrmask_t *maskptr, int irq)
-{
-	intrmask_t mask = 1 << irq;
-
-	if (maskptr == NULL)
-		return;
-
-	if (find_idesc(maskptr, irq) == NULL) {
-		/* no reference to this maskptr was found in this irq's chain */
-		if ((*maskptr & mask) == 0)
-			return;
-		/* the irq was included in the classes mask, remove it */
-		*maskptr &= ~mask;
-	} else {
-		/* a reference to this maskptr was found in this irq's chain */
-		if ((*maskptr & mask) != 0)
-			return;
-		/* put the irq into the classes mask */
-		*maskptr |= mask;
-	}
-	/* we need to update all values in the intr_mask[irq] array */
-	update_intr_masks();
-	/* update mask in chains of the interrupt multiplex handler as well */
-	update_mux_masks();
-}
-
-/*
- * Add interrupt handler to linked list hung off of intreclist_head[irq]
- * and install shared interrupt multiplex handler, if necessary
- */
-
-static int
-add_intrdesc(intrec *idesc)
-{
-	int irq = idesc->intr;
-
-	intrec *head = intreclist_head[irq];
-
-	if (head == NULL) {
-		/* first handler for this irq, just install it */
-		if (icu_setup(irq, idesc->handler, idesc->argument, 
-			      idesc->maskptr, idesc->flags) != 0)
-			return (-1);
-
-		update_intrname(irq, idesc->name);
-		/* keep reference */
-		intreclist_head[irq] = idesc;
-	} else {
-		if ((idesc->flags & INTR_EXCL) != 0
-		    || (head->flags & INTR_EXCL) != 0) {
-			/*
-			 * can't append new handler, if either list head or
-			 * new handler do not allow interrupts to be shared
-			 */
-			if (bootverbose)
-				printf("\tdevice combination doesn't support "
-				       "shared irq%d\n", irq);
-			return (-1);
-		}
-		if (head->next == NULL) {
-			/*
-			 * second handler for this irq, replace device driver's
-			 * handler by shared interrupt multiplexer function
-			 */
-			icu_unset(irq, head->handler);
-			if (icu_setup(irq, intr_mux, head, 0, 0) != 0)
-				return (-1);
-			if (bootverbose)
-				printf("\tusing shared irq%d.\n", irq);
-			update_intrname(irq, "mux");
-		}
-		/* just append to the end of the chain */
-		while (head->next != NULL)
-			head = head->next;
-		head->next = idesc;
-	}
-	update_masks(idesc->maskptr, irq);
-	return (0);
-}
-
-/*
- * Create and activate an interrupt handler descriptor data structure.
- *
- * The dev_instance pointer is required for resource management, and will
- * only be passed through to resource_claim().
- *
- * There will be functions that derive a driver and unit name from a
- * dev_instance variable, and those functions will be used to maintain the
- * interrupt counter label array referenced by systat and vmstat to report
- * device interrupt rates (->update_intrlabels).
- *
- * Add the interrupt handler descriptor data structure created by an
- * earlier call of create_intr() to the linked list for its irq and
- * adjust the interrupt masks if necessary.
- *
- * WARNING: This is an internal function and not to be used by device
- * drivers.  It is subject to change without notice.
- */
-
 intrec *
 inthand_add(const char *name, int irq, inthand2_t handler, void *arg,
-	     intrmask_t *maskptr, int flags)
+	     int pri, int flags)
 {
-	intrec *idesc;
-	int errcode = -1;
-	intrmask_t oldspl;
+	ithd *ithd = ithds[irq];	/* descriptor for the IRQ */
+	intrec *head;			/* chain of handlers for IRQ */
+	intrec *idesc;			/* descriptor for this handler */
+	struct proc *p;			/* interrupt thread */
+	int errcode = 0;
 
-	if (ICU_LEN > 8 * sizeof *maskptr) {
-		printf("create_intr: ICU_LEN of %d too high for %d bit intrmask\n",
-		       ICU_LEN, 8 * sizeof *maskptr);
-		return (NULL);
-	}
-	if ((unsigned)irq >= ICU_LEN) {
-		printf("create_intr: requested irq%d too high, limit is %d\n",
-		       irq, ICU_LEN -1);
-		return (NULL);
-	}
+	if (name == NULL)		/* no name? */
+		panic ("anonymous interrupt");
+	if (ithd == NULL || ithd->it_ih == NULL) {
+		/* first handler for this irq. */
+		if (ithd == NULL) {
+			ithd = malloc(sizeof (struct ithd), M_DEVBUF, M_WAITOK);
+			if (ithd == NULL)
+				return (NULL);
+			bzero(ithd, sizeof(struct ithd));	
+			ithd->irq = irq;
+			ithds[irq] = ithd;
+		}
+		/*
+		 * If we have a fast interrupt, we need to set the
+		 * handler address directly.  Do that below.  For a
+		 * slow interrupt, we don't need to know more details,
+		 * so do it here because it's tidier.
+		 */
+		if ((flags & INTR_FAST)	== 0) {
+			/*
+			 * Only create a kernel thread if we don't already
+			 * have one.
+			 */
+			if (ithd->it_proc == NULL) {
+				errcode = kthread_create(ithd_loop, NULL, &p,
+				    RFSTOPPED | RFHIGHPID, "irq%d: %s", irq,
+				    name);
+				if (errcode)
+					panic("inthand_add: Can't create "
+					      "interrupt thread");
+				p->p_rtprio.type = RTP_PRIO_ITHREAD;
+				p->p_stat = SWAIT; /* we're idle */
 
-	idesc = malloc(sizeof *idesc, M_DEVBUF, M_WAITOK);
+				/* Put in linkages. */
+				ithd->it_proc = p;
+				p->p_ithd = ithd;
+			} else
+				snprintf(ithd->it_proc->p_comm, MAXCOMLEN,
+				    "irq%d: %s", irq, name);
+			p->p_rtprio.prio = pri;
+
+			/*
+			 * The interrupt process must be in place, but
+			 * not necessarily schedulable, before we
+			 * initialize the ICU, since it may cause an
+			 * immediate interrupt.
+			 */
+			if (icu_setup(irq, &sched_ithd, arg, flags) != 0)
+				panic("inthand_add: Can't initialize ICU");
+		}
+	} else if ((flags & INTR_EXCL) != 0
+		   || (ithd->it_ih->flags & INTR_EXCL) != 0) {
+		/*
+		 * We can't append the new handler if either
+		 * list ithd or new handler do not allow
+		 * interrupts to be shared.
+		 */
+		if (bootverbose)
+			printf("\tdevice combination %s and %s "
+			       "doesn't support shared irq%d\n",
+			       ithd->it_ih->name, name, irq);
+		return(NULL);
+	} else if (flags & INTR_FAST) {
+		 /* We can only have one fast interrupt by itself. */
+		if (bootverbose)
+			printf("\tCan't add fast interrupt %s"
+ 			       " to normal interrupt %s on irq%d",
+			       name, ithd->it_ih->name, irq);
+		return (NULL);
+	} else {			/* update p_comm */
+		p = ithd->it_proc;
+		if (strlen(p->p_comm) + strlen(name) < MAXCOMLEN) {
+			strcat(p->p_comm, " ");
+			strcat(p->p_comm, name);
+		} else if (strlen(p->p_comm) == MAXCOMLEN)
+			p->p_comm[MAXCOMLEN - 1] = '+';
+		else
+			strcat(p->p_comm, "+");
+	}
+	idesc = malloc(sizeof (struct intrec), M_DEVBUF, M_WAITOK);
 	if (idesc == NULL)
-		return NULL;
-	bzero(idesc, sizeof *idesc);
+		return (NULL);
+	bzero(idesc, sizeof (struct intrec));
 
-	if (name == NULL)
-		name = "???";
+	idesc->handler	= handler;
+	idesc->argument = arg;
+	idesc->flags    = flags;
+	idesc->ithd     = ithd;
+
 	idesc->name     = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
 	if (idesc->name == NULL) {
 		free(idesc, M_DEVBUF);
-		return NULL;
+		return (NULL);
 	}
 	strcpy(idesc->name, name);
 
-	idesc->handler  = handler;
-	idesc->argument = arg;
-	idesc->maskptr  = maskptr;
-	idesc->intr     = irq;
-	idesc->flags    = flags;
-
-	/* block this irq */
-	oldspl = splq(1 << irq);
-
-	/* add irq to class selected by maskptr */
-	errcode = add_intrdesc(idesc);
-	splx(oldspl);
-
-	if (errcode != 0) {
+	/* Slow interrupts got set up above. */
+	if ((flags & INTR_FAST)
+		&& (icu_setup(irq, idesc->handler, idesc->argument,
+			      idesc->flags) != 0) ) {
 		if (bootverbose)
-			printf("\tintr_connect(irq%d) failed, result=%d\n", 
+				printf("\tinthand_add(irq%d) failed, result=%d\n", 
 			       irq, errcode);
 		free(idesc->name, M_DEVBUF);
 		free(idesc, M_DEVBUF);
-		idesc = NULL;
+			return NULL;
 	}
-
+	head = ithd->it_ih;		/* look at chain of handlers */
+	if (head) {
+		while (head->next != NULL)
+			head = head->next; /* find the end */
+		head->next = idesc;	/* hook it in there */
+	} else
+		ithd->it_ih = idesc;	/* put it up front */
+	update_intrname(irq, idesc->name);
 	return (idesc);
 }
 
 /*
- * Deactivate and remove the interrupt handler descriptor data connected
- * created by an earlier call of intr_connect() from the linked list and
- * adjust theinterrupt masks if necessary.
+ * Deactivate and remove linked list the interrupt handler descriptor
+ * data connected created by an earlier call of inthand_add(), then
+ * adjust the interrupt masks if necessary.
  *
- * Return the memory held by the interrupt handler descriptor data structure
- * to the system. Make sure, the handler is not actively used anymore, before.
+ * Return the memory held by the interrupt handler descriptor data
+ * structure to the system.  First ensure the handler is not actively
+ * in use.
  */
 
 int
 inthand_remove(intrec *idesc)
 {
-	intrec **hook, *head;
-	int irq;
-	int errcode = 0;
-	intrmask_t oldspl;
+	ithd *ithd;			/* descriptor for the IRQ */
+	intrec *ih;			/* chain of handlers */
 
 	if (idesc == NULL)
 		return (-1);
+	ithd = idesc->ithd;
+	ih = ithd->it_ih;
 
-	irq = idesc->intr;
-
-	/* find pointer that keeps the reference to this interrupt descriptor */
-	hook = find_pred(idesc, irq);
-	if (hook == NULL)
+	if (ih == idesc)		/* first in the chain */
+		ithd->it_ih = idesc->next; /* unhook it */
+	else {
+		while ((ih != NULL)
+			&& (ih->next != idesc) )
+			ih = ih->next;
+		if (ih->next != idesc)
 		return (-1);
-
-	/* make copy of original list head, the line after may overwrite it */
-	head = intreclist_head[irq];
-
-	/* unlink: make predecessor point to idesc->next instead of to idesc */
-	*hook = idesc->next;
-
-	/* now check whether the element we removed was the list head */
-	if (idesc == head) {
-
-		oldspl = splq(1 << irq);
-
-		/* check whether the new list head is the only element on list */
-		head = intreclist_head[irq];
-		if (head != NULL) {
-			icu_unset(irq, intr_mux);
-			if (head->next != NULL) {
-				/* install the multiplex handler with new list head as argument */
-				errcode = icu_setup(irq, intr_mux, head, 0, 0);
-				if (errcode == 0)
-					update_intrname(irq, NULL);
-			} else {
-				/* install the one remaining handler for this irq */
-				errcode = icu_setup(irq, head->handler,
-						    head->argument,
-						    head->maskptr, head->flags);
-				if (errcode == 0)
-					update_intrname(irq, head->name);
+		ih->next = ih->next->next;
 			}
-		} else {
-			/* revert to old handler, eg: strayintr */
-			icu_unset(irq, idesc->handler);
-		}
-		splx(oldspl);
-	}
-	update_masks(idesc->maskptr, irq);
+	
+	if (ithd->it_ih == NULL)	/* no handlers left, */
+		icu_unset(ithd->irq, idesc->handler);
 	free(idesc, M_DEVBUF);
 	return (0);
 }

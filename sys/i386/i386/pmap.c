@@ -668,7 +668,7 @@ pmap_pte_quick(pmap, va)
 			* (unsigned *) prv_PMAP1 = newpf | PG_RW | PG_V;
 			cpu_invlpg(prv_PADDR1);
 		}
-		return prv_PADDR1 + ((unsigned) index & (NPTEPG - 1));
+		return (unsigned *)(prv_PADDR1 + (index & (NPTEPG - 1)));
 #else
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;

@@ -862,9 +862,6 @@ map_read_write:
 	movl	$(NPTEPG-1), %ebx	/* pte offset = NTEPG-1 */
 	movl	$1, %ecx		/* one private pt coming right up */
 	fillkpt(R(SMPptpa), $PG_RW)
-
-/* Initialize mp lock to allow early traps */
-	movl	$1, R(_mp_lock)
 #endif	/* SMP */
 
 /* install a pde for temporary double map of bottom of VA */

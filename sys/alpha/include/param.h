@@ -70,7 +70,11 @@
 #define OBJFORMAT_NAMES		"elf"
 #define OBJFORMAT_DEFAULT	"elf"
 
+#ifdef SMP
+#define NCPUS		32
+#else
 #define NCPUS		1
+#endif
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all

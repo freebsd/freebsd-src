@@ -48,6 +48,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
@@ -64,6 +65,8 @@
 #include <sys/conf.h>
 
 #include <machine/cpu.h>
+#include <machine/globals.h>
+#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -260,6 +263,11 @@ proc0_init(void *dummy __unused)
 	p = &proc0;
 
 	/*
+	 * Initialize magic number.
+	 */
+	p->p_magic = P_MAGIC;
+
+	/*
 	 * Initialize process and pgrp structures.
 	 */
 	procinit();
@@ -364,11 +372,20 @@ proc0_init(void *dummy __unused)
 	 */
 	(void)chgproccnt(cred0.p_uidinfo, 1, 0);
 
+	LIST_INIT(&p->p_heldmtx);
+	LIST_INIT(&p->p_contested);
+
 	/*
 	 * Initialize the current process pointer (curproc) before
 	 * any possible traps/probes to simplify trap processing.
 	 */
-	SET_CURPROC(p);
+	PCPU_SET(curproc, p);
+
+	/*
+	 * Enter the Giant mutex.
+	 * XXX This should be done BEFORE cpu_startup().
+	 */
+	mtx_enter(&Giant, MTX_DEF);
 
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
@@ -389,7 +406,7 @@ proc0_post(void *dummy __unused)
 		p->p_runtime = 0;
 	}
 	microuptime(&switchtime);
-	switchticks = ticks;
+	PCPU_SET(switchticks, ticks);
 
 	/*
 	 * Give the ``random'' number generator a thump.
@@ -418,7 +435,6 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 
-
 /*
  * List of paths to try when searching for "init".
  */
@@ -443,6 +459,8 @@ start_init(void *dummy)
 	char *var, *path, *next, *s;
 	char *ucp, **uap, *arg0, *arg1;
 	struct proc *p;
+
+	mtx_enter(&Giant, MTX_DEF);
 
 	p = curproc;
 
@@ -562,16 +580,12 @@ static void
 create_init(const void *udata __unused)
 {
 	int error;
-	int s;
 
-	s = splhigh();
-	error = fork1(&proc0, RFFDG | RFPROC, &initproc);
+	error = fork1(&proc0, RFFDG | RFPROC | RFSTOPPED, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	initproc->p_flag |= P_INMEM | P_SYSTEM;
 	cpu_set_fork_handler(initproc, start_init, NULL);
-	remrunqueue(initproc);
-	splx(s);
 }
 SYSINIT(init,SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 
@@ -581,6 +595,9 @@ SYSINIT(init,SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 static void
 kick_init(const void *udata __unused)
 {
+	mtx_enter(&sched_lock, MTX_SPIN);
+	initproc->p_stat = SRUN;
 	setrunqueue(initproc);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 SYSINIT(kickinit,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

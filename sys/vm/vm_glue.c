@@ -74,9 +74,11 @@
 #include <sys/sysctl.h>
 
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/unistd.h>
 
 #include <machine/limits.h>
+#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -316,8 +318,11 @@ faultin(p)
 
 		s = splhigh();
 
-		if (p->p_stat == SRUN)
+		if (p->p_stat == SRUN) {
+			mtx_enter(&sched_lock, MTX_SPIN);
 			setrunqueue(p);
+			mtx_exit(&sched_lock, MTX_SPIN);
+		}
 
 		p->p_flag |= P_INMEM;
 
@@ -332,6 +337,8 @@ faultin(p)
  * This swapin algorithm attempts to swap-in processes only if there
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
+ *
+ * Giant is still held at this point, to be released in tsleep.
  */
 /* ARGSUSED*/
 static void
@@ -342,6 +349,8 @@ scheduler(dummy)
 	register int pri;
 	struct proc *pp;
 	int ppri;
+
+	mtx_assert(&Giant, MA_OWNED);
 
 loop:
 	if (vm_page_count_min()) {

@@ -97,6 +97,8 @@
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/sysproto.h>
+#include <machine/mutex.h>
+#include <sys/ktr.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -127,6 +129,8 @@
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
+#include <machine/smp.h>
+#include <machine/globaldata.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
 #include <machine/rpb.h>
@@ -140,18 +144,17 @@
 #include <miscfs/procfs/procfs.h>
 #include <machine/sigframe.h>
 
-struct proc* curproc;
-struct proc* fpcurproc;
-struct pcb* curpcb;
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
-int whichqs, whichrtqs, whichidqs;
 int cold = 1;
 struct platform platform;
 alpha_chipset_t chipset;
 struct bootinfo_kernel bootinfo;
-struct timeval switchtime;
-int switchticks;
+
+struct cpuhead cpuhead;
+
+mtx_t	sched_lock;
+mtx_t	Giant;
 
 struct	user *proc0paddr;
 
@@ -419,6 +422,14 @@ again:
 	vm_pager_bufferinit();
 	EVENTHANDLER_REGISTER(shutdown_final, alpha_srm_shutdown, 0,
 			      SHUTDOWN_PRI_LAST);
+
+#ifdef SMP
+	/*
+	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
+	 */
+	mp_start();			/* fire up the secondaries */
+	mp_announce();
+#endif  /* SMP */
 }
 
 int
@@ -978,11 +989,25 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (struct user *)pmap_steal_memory(UPAGES * PAGE_SIZE);
 
 	/*
+	 * Setup the global data for the bootstrap cpu.
+	 */
+	{
+		size_t sz = round_page(UPAGES * PAGE_SIZE);
+		globalp = (struct globaldata *) pmap_steal_memory(sz);
+		globaldata_init(globalp, alpha_pal_whami(), sz);
+		alpha_pal_wrval((u_int64_t) globalp);
+		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
+	}
+
+	/*
 	 * Initialize the virtual memory system, and set the
 	 * page table base register in proc 0's PCB.
 	 */
 	pmap_bootstrap(ALPHA_PHYS_TO_K0SEG(alpha_ptob(ptb)),
 	    hwrpb->rpb_max_asn);
+	hwrpb->rpb_vptb = VPTBASE;
+	hwrpb->rpb_checksum = hwrpb_checksum();
+
 
 	/*
 	 * Initialize the rest of proc 0's PCB, and cache its physical
@@ -999,6 +1024,29 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
 	proc0.p_md.md_tf =
 	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
+	PCPU_SET(curproc, &proc0);
+
+	/*
+	 * Get the right value for the boot cpu's idle ptbr.
+	 */
+	globalp->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
+
+	/*
+	 * Record all cpus in a list.
+	 */
+	SLIST_INIT(&cpuhead);
+	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
+
+	/*
+	 * Initialise the kernel lock.
+	 */
+	mtx_init(&Giant, "Giant", MTX_DEF);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN);
+
+	/*
+	 * Enable interrupts on first release (in switch_trampoline).
+	 */
+	sched_lock.mtx_saveipl = ALPHA_PSL_IPL_0;
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
@@ -1117,6 +1165,8 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			hwrpb->rpb_intr_freq, hz);
 #endif
 	}
+
+	hwrpb_restart_setup();
 
 	alpha_pal_wrfen(0);
 }
@@ -2034,9 +2084,14 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 void
 alpha_fpstate_check(struct proc *p)
 {
+	/*
+	 * For SMP, we should check the fpcurproc of each cpu.
+	 */
+#ifndef SMP
 	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
 		if (p != fpcurproc)
 			panic("alpha_check_fpcurproc: bogus");
+#endif
 }
 
 #define SET_FEN(p) \

@@ -114,42 +114,8 @@ mp_begin:	/* now running relocated at KERNBASE */
 
 	CHECKPOINT(0x39, 6)
 
-	/* wait till we can get into the kernel */
-	call	_boot_get_mplock
-
-	/* Now, let's prepare for some REAL WORK :-) */
+	/* Now, let's prepare for some REAL WORK :-)  This doesn't return. */
 	call	_ap_init
-
-	call	_rel_mplock
-	lock				/* Avoid livelock (PIII Errata 39) */
-	addl	$0,-4(%esp)
-2:	
-	cmpl	$0, CNAME(smp_started)	/* Wait for last AP to be ready */
-	jz	2b
-	call _get_mplock
-	
-	/* let her rip! (loads new stack) */
-	jmp 	_cpu_switch
-
-NON_GPROF_ENTRY(wait_ap)
-	pushl	%ebp
-	movl	%esp, %ebp
-	call	_rel_mplock
-	lock				/* Avoid livelock (PIII Errata 39) */
-	addl	$0,0(%esp)
-	movl	%eax, 8(%ebp)
-1:		
-	cmpl	$0, CNAME(smp_started)
-	jnz	2f
-	decl	%eax
-	cmpl	$0, %eax
-	jge	1b
-2:
-	call	_get_mplock
-	movl	%ebp, %esp
-	popl	%ebp
-	ret
-	
 
 /*
  * This is the embedded trampoline or bootstrap that is

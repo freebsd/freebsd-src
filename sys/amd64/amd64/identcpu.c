@@ -42,6 +42,7 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -53,6 +54,8 @@
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
+#include <sys/proc.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
 #define	IDENTBLUE_CYRIX486	0

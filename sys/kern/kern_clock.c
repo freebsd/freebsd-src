@@ -70,11 +70,7 @@ static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
-#if defined(SMP) && defined(BETTER_CLOCK)
 long cp_time[CPUSTATES];
-#else
-static long cp_time[CPUSTATES];
-#endif
 
 long tk_cancc;
 long tk_nin;
@@ -156,7 +152,7 @@ hardclock(frame)
 	register struct proc *p;
 
 	p = curproc;
-	if (p) {
+	if (p != idleproc) {
 		register struct pstats *pstats;
 
 		/*
@@ -325,12 +321,12 @@ statclock(frame)
 	struct rusage *ru;
 	struct vmspace *vm;
 
-	if (curproc != NULL && CLKF_USERMODE(frame)) {
+	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
 		 */
-		p = curproc;
+		p = prevproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
 #if defined(SMP) && defined(BETTER_CLOCK)
@@ -379,20 +375,21 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		p = curproc;
-		if (CLKF_INTR(frame)) {
-			if (p != NULL)
-				p->p_iticks++;
+		p = prevproc;
+		if (p->p_ithd) {
+			p->p_iticks++;
 			cp_time[CP_INTR]++;
-		} else if (p != NULL) {
+		} else {
 			p->p_sticks++;
-			cp_time[CP_SYS]++;
-		} else
-			cp_time[CP_IDLE]++;
+			if (p != idleproc)
+				cp_time[CP_SYS]++;
+			else
+				cp_time[CP_IDLE]++;
+		}
 	}
 	pscnt = psdiv;
 
-	if (p != NULL) {
+	if (p != idleproc) {
 		schedclock(p);
 
 		/* Update resource usage integrals and maximums. */

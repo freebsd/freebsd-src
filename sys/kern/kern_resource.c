@@ -530,7 +530,7 @@ calcru(p, up, sp, ip)
 		microuptime(&tv);
 		if (timevalcmp(&tv, &switchtime, <))
 			printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    switchtime.tv_sec, switchtime.tv_usec, 
+			    switchtime.tv_sec, switchtime.tv_usec,
 			    tv.tv_sec, tv.tv_usec);
 		else
 			tu += (tv.tv_usec - switchtime.tv_usec) +

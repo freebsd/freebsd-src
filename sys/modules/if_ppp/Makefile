@@ -2,8 +2,8 @@
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp
-SRCS=	if_ppp.c ppp_tty.c slcompress.c \
-	ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
+SRCS=	bus_if.h device_if.h if_ppp.c ppp_tty.c slcompress.c \
+	ppp.h opt_bus.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
 NOMAN=
 
 NPPP?=		2

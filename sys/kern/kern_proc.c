@@ -73,6 +73,7 @@ u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
 vm_zone_t proc_zone;
+vm_zone_t ithread_zone;
 
 /*
  * Initialize global process hashing structures.

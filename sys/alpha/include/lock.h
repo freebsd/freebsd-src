@@ -35,10 +35,40 @@
  * It is an error to hold one of these locks while a process is sleeping.
  */
 struct simplelock {
-	volatile int	lock_data;
+	volatile u_int	lock_data;
 };
+
+/* functions in mp_machdep.c */
+void	s_lock_init		__P((struct simplelock *));
+void	s_lock			__P((struct simplelock *));
+int	s_lock_try		__P((struct simplelock *));
+void	ss_lock			__P((struct simplelock *));
+void	ss_unlock		__P((struct simplelock *));
+void	s_lock_np		__P((struct simplelock *));
+void	s_unlock_np		__P((struct simplelock *));
+
+/* inline simplelock functions */
+static __inline void
+s_unlock(struct simplelock *lkp)
+{
+	alpha_mb();
+	lkp->lock_data = 0;
+}
+
+#if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
+/*
+ * This set of defines turns on the real functions in i386/isa/apic_ipl.s.
+ */
+#define	simple_lock_init(alp)	s_lock_init(alp)
+#define	simple_lock(alp)	s_lock(alp)
+#define	simple_lock_try(alp)	s_lock_try(alp)
+#define	simple_unlock(alp)	s_unlock(alp)
+
+#endif /* !SIMPLELOCK_DEBUG && NCPUS > 1 */
 
 #define COM_LOCK()
 #define COM_UNLOCK()
+#define COM_DISABLE_INTR()	COM_LOCK()
+#define COM_ENABLE_INTR()	COM_UNLOCK()
 
 #endif /* !_MACHINE_LOCK_H_ */

@@ -89,6 +89,8 @@
 #include <sys/vnode.h>
 
 #ifdef __i386__
+#include <sys/bus.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #endif
 
@@ -160,27 +162,6 @@ void
 pppasyncattach(dummy)
     void *dummy;
 {
-#ifdef __i386__
-    int s;
-
-    s = splhigh();
-
-    /*
-     * Make sure that the soft net "engine" cannot run while spltty code is
-     * active.  The if_ppp.c code can walk down into b_to_q etc, and it is
-     * bad if the tty system was in the middle of another b_to_q...
-     */
-    tty_imask |= softnet_imask;	/* spltty() block spl[soft]net() */
-    net_imask |= softtty_imask;	/* splimp() block splsofttty() */
-    net_imask |= tty_imask;	/* splimp() block spltty() */
-    update_intr_masks();
-
-    splx(s);
-    if ( bootverbose )
-        printf("new masks: bio %x, tty %x, net %x\n",
-                bio_imask, tty_imask, net_imask);
-#endif
-
     /* register line discipline */
     linesw[PPPDISC] = pppdisc;
 }

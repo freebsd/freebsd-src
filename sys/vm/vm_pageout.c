@@ -78,6 +78,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
@@ -94,6 +95,8 @@
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
+
+#include <machine/mutex.h>
 
 /*
  * System initialization
@@ -1280,6 +1283,9 @@ vm_size_t count;
 static void
 vm_pageout()
 {
+
+	mtx_enter(&Giant, MTX_DEF);
+
 	/*
 	 * Initialize some paging parameters.
 	 */
@@ -1398,6 +1404,8 @@ static void
 vm_daemon()
 {
 	struct proc *p;
+
+	mtx_enter(&Giant, MTX_DEF);
 
 	while (TRUE) {
 		tsleep(&vm_daemon_needed, PPAUSE, "psleep", 0);

@@ -51,8 +51,11 @@
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/ktr.h>
 #include <machine/frame.h>
 #include <machine/chipset.h>
+#include <machine/globaldata.h>
+#include <machine/mutex.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -65,6 +68,21 @@
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
+
+#include "opt_smp.h"
+
+ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
+ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
+ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
+ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
+ASSYM(GD_CPUNO, offsetof(struct globaldata, gd_cpuno));
+ASSYM(GD_IDLEPCBPHYS, offsetof(struct globaldata, gd_idlepcbphys));
+ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
+
+ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
+ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
+ASSYM(MTX_SAVEIPL, offsetof(struct mtx, mtx_saveipl));
+ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
 ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
@@ -81,6 +99,7 @@ ASSYM(PTESIZE, PTESIZE);
 ASSYM(U_PCB_ONFAULT, offsetof(struct user, u_pcb.pcb_onfault));
 ASSYM(U_PCB_HWPCB_KSP, offsetof(struct user, u_pcb.pcb_hw.apcb_ksp));
 ASSYM(U_PCB_CONTEXT, offsetof(struct user, u_pcb.pcb_context));
+ASSYM(U_PCB_SCHEDNEST, offsetof(struct user, u_pcb.pcb_schednest));
 
 ASSYM(PCB_HW, offsetof(struct pcb, pcb_hw));
 

@@ -43,9 +43,19 @@
 #endif
 
 /*
+ * Software interrupt level.  We treat the software interrupt as a
+ * single interrupt at a fictive hardware interrupt level.
+ */
+#define SOFTINTR	(NHWI + 0)
+
+/*
  * Software interrupt bit numbers in priority order.  The priority only
  * determines which swi will be dispatched next; a higher priority swi
  * may be dispatched when a nested h/w interrupt handler returns.
+ *
+ * XXX FIXME: There's no longer a relation between the SWIs and the
+ * HWIs, so it makes more sense for these values to start at 0, but
+ * there's lots of code which expects them to start at NHWI.
  */
 #define	SWI_TTY		(NHWI + 0)
 #define	SWI_NET		(NHWI + 1)
@@ -104,12 +114,9 @@
 #ifdef notyet /* in <sys/interrupt.h> until pci drivers stop hacking on them */
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 #endif
-extern	unsigned cpl;		/* current priority level mask */
-#ifdef SMP
-extern	unsigned cil;		/* current INTerrupt level mask */
-#endif
+
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
-extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
+extern	volatile unsigned spending;	/* pending software interrupts */
 #ifdef notyet /* in <sys/systm.h> until pci drivers stop hacking on them */
 extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
