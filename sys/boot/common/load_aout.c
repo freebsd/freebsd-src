@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.8 1998/10/02 16:22:26 msmith Exp $
+ *	$Id: load_aout.c,v 1.9 1998/10/09 23:15:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -149,7 +149,8 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	addr += pad;
     }
     mp->m_addr = addr;					/* save the aligned load address */
-    printf("%s at %p\n", filename, (void *) addr);
+    if (kernel)
+	printf("%s at %p\n", filename, (void *) addr);
 
     mp->m_size = aout_loadimage(mp, fd, addr, &ehdr, kernel);
     if (mp->m_size == 0)
