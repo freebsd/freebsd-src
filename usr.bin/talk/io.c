@@ -46,9 +46,12 @@ static const char rcsid[] =
  */
 
 #include <errno.h>
+#include <netdb.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/filio.h>
 #include "talk.h"
+#include "talk_ctl.h"
 
 #define A_LONG_TIME 10000000
 
@@ -58,12 +61,32 @@ static const char rcsid[] =
 void
 talk()
 {
+	struct hostent *hp, *hp2;
 	int nb;
 	fd_set read_set, read_template;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ], **addr, *his_machine_name;
 	struct timeval wait;
 
-	message("Connection established");
+	his_machine_name = NULL;
+	hp = gethostbyaddr((const char *)&his_machine_addr.s_addr,
+	    sizeof(his_machine_addr.s_addr), AF_INET);
+	if (hp != NULL) {
+		hp2 = gethostbyname(hp->h_name);
+		if (hp2 != NULL && hp2->h_addrtype == AF_INET &&
+		    hp2->h_length == sizeof(his_machine_addr))
+			for (addr = hp2->h_addr_list; *addr != NULL; addr++)
+				if (memcmp(*addr, &his_machine_addr,
+				    sizeof(his_machine_addr)) == 0) {
+					his_machine_name = strdup(hp->h_name);
+					break;
+				}
+	}
+	if (his_machine_name == NULL)
+		his_machine_name = strdup(inet_ntoa(his_machine_addr));
+	snprintf(buf, sizeof(buf), "Connection established with %s@%s.",
+	    msg.r_name, his_machine_name);
+	free(his_machine_name);
+	message(buf);
 	write(STDOUT_FILENO, "\007\007\007", 3);
 	
 	current_line = 0;
