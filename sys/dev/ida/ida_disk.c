@@ -258,7 +258,7 @@ idattach(device_t dev)
 	    &id_cdevsw, &iddisk_cdevsw);
 
 	dsk->si_drv1 = drv;
-	dsk->si_iosize_max = 256 * drv->secsize;	/* XXX guess? */
+	dsk->si_iosize_max = DFLTPHYS;		/* XXX guess? */
 	disks_registered++;
 
 	return (0);
