@@ -174,9 +174,7 @@ static symtab_t rifs[] = {
     { "inport",		MOUSE_IF_INPORT },
     { "ps/2",		MOUSE_IF_PS2 },
     { "sysmouse",	MOUSE_IF_SYSMOUSE },
-#ifdef __i386__
     { "usb",		MOUSE_IF_USB },
-#endif /* __i386__ */
     { NULL,		MOUSE_IF_UNKNOWN },
 };
 
@@ -748,7 +746,9 @@ moused(void)
 	}
 
 	/*  mouse event  */
-	read(rodent.mfd, &b, 1);
+	if (read(rodent.mfd, &b, 1) == -1);
+		return;		/* file seems to be closed on us */
+
 	if (r_protocol(b, &action)) {	/* handler detected action */
 	    r_map(&action, &action2);
 	    debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
