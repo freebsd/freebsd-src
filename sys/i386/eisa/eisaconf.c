@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: eisaconf.c,v 1.3 1995/11/05 04:42:49 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,24 +74,41 @@ static struct eisa_driver mainboard_drv = {
 void
 eisa_configure()
 {
-    int i,j,slot;
+    int i,slot;
     char *id_string;
-    unsigned int checkthese;
     struct eisa_device_node *dev_node;
     struct eisa_driver **e_drvp = (struct eisa_driver**)eisadriver_set.ls_items;
     struct eisa_driver *e_drv;
     struct eisa_device *e_dev;
     int eisaBase = 0xC80;
+    int first_slot = 0;
     eisa_id_t eisa_id;
 
     outb(eisaBase,0xFF);
     eisa_id = inb(eisaBase);
     if (eisa_id & 0x80) {
-	/* Not an EISA machine */
-	return;
+	/* 
+	 * Not an EISA machine.  We still want to find boards like the
+	 * Adaptec 284x that respond to EISA probes, so we "fake" the
+	 * system board entry which the rest of the code uses as the 
+	 * sentinal node in the eisa_dev_list.
+	 */
+	first_slot = 1;		/* Start at slot 1 just to be safe */
+	eisaBase+=0x1000;
+	dev_node = (struct eisa_device_node *)malloc(sizeof(*dev_node),
+						     M_DEVBUF, M_NOWAIT);
+	if (!dev_node) {
+		printf("eisa0: cannot malloc eisa_device_node");
+		return;	
+	}
+	bzero(dev_node, sizeof(*dev_node));
+	e_dev = &(dev_node->dev);
+	e_dev->ioconf.slot = 0; 
+	*eisa_dev_list_tail = dev_node;
+	eisa_dev_list_tail = &dev_node->next;
     }
 
-    for (slot = 0; slot < EISA_SLOTS; eisaBase+=0x1000, slot++) {
+    for (slot = first_slot; slot < EISA_SLOTS; eisaBase+=0x1000, slot++) {
 	int id_size = sizeof(eisa_id);
 	eisa_id = 0;
     	for( i = 0; i < id_size; i++ ) {
@@ -122,7 +139,7 @@ eisa_configure()
 	if (!e_dev->full_name) {
 	    panic("Eisa probe unable to malloc");
 	}
-	sprintf(e_dev->full_name, "%c%c%c%lx rev %lx",
+	sprintf(e_dev->full_name, "%c%c%c%x rev %x",
 		EISA_MFCTR_CHAR0(e_dev->id),
 		EISA_MFCTR_CHAR1(e_dev->id),
 		EISA_MFCTR_CHAR2(e_dev->id),
@@ -148,32 +165,47 @@ eisa_configure()
     e_dev = &dev_node->dev;
     e_dev->driver = &mainboard_drv;
     e_dev->unit = (*e_dev->driver->unit)++; 
-    id_string = e_dev->full_name;
-    e_dev->full_name = (char *)malloc(strlen(e_dev->full_name)
-				     + sizeof(" (System Board)")
-				     + 1, M_DEVBUF, M_NOWAIT);
-    if (!e_dev->full_name) {
-	panic("Eisa probe unable to malloc");
+
+    if (e_dev->full_name) { /* This is a real EISA system */
+	id_string = e_dev->full_name;
+	e_dev->full_name = (char *)malloc(strlen(e_dev->full_name)
+					  + sizeof(" (System Board)")
+					  + 1, M_DEVBUF, M_NOWAIT);
+	if (!e_dev->full_name) {
+	    panic("Eisa probe unable to malloc");
+	}
+	sprintf(e_dev->full_name, "%s (System Board)", id_string);
+	free(id_string, M_DEVBUF);
+
+	printf("%s%ld: <%s>\n",
+	       e_dev->driver->name,
+	       e_dev->unit,
+	       e_dev->full_name);
+
+	/* Should set the iosize, but I don't have a spec handy */
+
+	dev_attach(&kdc_eisa0); /*
+				 * Hmm. Do I need to do this attach always
+				 * in case I attach a 284x in an otherwise
+				 * non-EISA machine?
+				 */
+	printf("Probing for devices on the EISA bus\n");
     }
-    sprintf(e_dev->full_name, "%s (System Board)", id_string);
-    free(id_string, M_DEVBUF);
 
-    printf("%s%d: <%s>\n",
-	   e_dev->driver->name,
-	   e_dev->unit,
-	   e_dev->full_name);
-
-    /* Should set the iosize, but I don't have a spec handy */
-
-    dev_attach(&kdc_eisa0);
-
-    printf("Probing for devices on the EISA bus\n");
-
+    if (!eisa_dev_list->next) {
+	/*
+	 * No devices.
+	 * We may be able to remove the sentinal node in the non-EISA
+	 * system case here depending on whether we had to do the
+	 * dev_attach(&kdc_eisa0) up above.
+	 */
+	return;
+    }
     /*
      * See what devices we recognize.
      */
-    while(e_drv = *e_drvp++) {
-	   (*e_drv->probe)();
+    while((e_drv = *e_drvp++)) {
+	(*e_drv->probe)();
     }
 
     /*
@@ -202,7 +234,7 @@ eisa_configure()
 	}
 	else {
 	    /* Announce unattached device */
-	    printf("%s%d:%d <%s> unknown device\n",
+	    printf("%s%ld:%d <%s> unknown device\n",
 		   eisa_dev_list->dev.driver->name, /* Mainboard */
 		   eisa_dev_list->dev.unit,
 		   e_dev->ioconf.slot,
@@ -216,30 +248,32 @@ eisa_match_dev(e_dev, match_func)
 	struct eisa_device *e_dev;
 	char* (*match_func)(eisa_id_t);
 {
-	struct eisa_device_node *e_node = eisa_dev_list;
+    struct eisa_device_node *e_node = eisa_dev_list;
 
-	if(e_dev)
-	    /* Start our search from the last successful match */
-	    e_node = (struct eisa_device_node *)e_dev;
+    if(e_dev) {
+	/* Start our search from the last successful match */
+	 e_node = (struct eisa_device_node *)e_dev;
+    }
 
-	/*
-	 * The first node in the list is the motherboard, so don't bother
-	 * to look at it.
-	 */
-	while (e_node->next != NULL) {
-		char *result;
-		e_node = e_node->next;
-		if (e_node->dev.driver)
-			/* Already claimed */
-			continue;
-		result = (*match_func)(e_node->dev.id);
-		if (result) {
-			free(e_node->dev.full_name, M_DEVBUF);
-			e_node->dev.full_name = result;
-			return (&(e_node->dev));
-		}
+    /*
+     * The first node in the list is the motherboard, so don't bother
+     * to look at it.
+     */
+    while (e_node->next != NULL) {
+	char *result;
+	e_node = e_node->next;
+	if (e_node->dev.driver) {
+	     /* Already claimed */
+	    continue;
 	}
-	return NULL;
+	result = (*match_func)(e_node->dev.id);
+	if (result) {
+	    free(e_node->dev.full_name, M_DEVBUF);
+	    e_node->dev.full_name = result;
+	    return (&(e_node->dev));
+	}
+    }
+    return NULL;
 }
 
 /* Interrupt and I/O space registration facitlities */
@@ -250,7 +284,7 @@ eisa_reg_start(e_dev)
     /*
      * Announce the device.
      */
-    printf("%s%d: <%s>",
+    printf("%s%ld: <%s>",
 	   e_dev->driver->name,
 	   e_dev->unit,
 	   e_dev->full_name);
@@ -261,10 +295,10 @@ void
 eisa_reg_end(e_dev)
 	struct eisa_device *e_dev;
 {
-	printf(" on %s%d slot %d\n",
-		eisa_dev_list->dev.driver->name, /* Mainboard */
-		eisa_dev_list->dev.unit,
-		e_dev->ioconf.slot);
+    printf(" on %s%ld slot %d\n",
+	   eisa_dev_list->dev.driver->name, /* Mainboard */
+	   eisa_dev_list->dev.unit,
+	   e_dev->ioconf.slot);
 }
 
 int
@@ -333,7 +367,7 @@ eisa_release_intr(e_dev, irq, func)
     int s;
         
     if (!(e_dev->ioconf.irq & (1ul << irq))) {
-	printf("%s%d: Attempted to release an interrupt (%d) it doesn't own\n",
+	printf("%s%ld: Attempted to release an interrupt (%d) it doesn't own\n",
 		e_dev->driver->name, e_dev->unit, irq);
 	return (-1);
     }
@@ -360,7 +394,7 @@ eisa_enable_intr(e_dev, irq)
     int s;
 
     if (!(e_dev->ioconf.irq & (1ul << irq))) {
-	printf("%s%d: Attempted to enable an interrupt (%d) it doesn't own\n",
+	printf("%s%ld: Attempted to enable an interrupt (%d) it doesn't own\n",
 		e_dev->driver->name, e_dev->unit, irq);
 	return (-1);
     }
@@ -418,18 +452,18 @@ eisa_registerdev(e_dev, driver, kdc_template)
 	struct eisa_driver *driver;
 	struct kern_devconf *kdc_template;
 {
-	e_dev->driver = driver;	/* Driver now owns this device */
-	e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
+    e_dev->driver = driver;	/* Driver now owns this device */
+    e_dev->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
 						   M_DEVBUF, M_NOWAIT);
-	if (!e_dev->kdc) {
-		printf("WARNING: eisa_registerdev unable to malloc! "
-		       "Device kdc will not be registerd\n");
-		return 1;
-	}
-	bcopy(kdc_template, e_dev->kdc, sizeof(*kdc_template));
-	e_dev->kdc->kdc_description = e_dev->full_name;
-	dev_attach(e_dev->kdc);
-	return (0);
+    if (!e_dev->kdc) {
+	printf("WARNING: eisa_registerdev unable to malloc! "
+	       "Device kdc will not be registerd\n");
+	return 1;
+    }
+    bcopy(kdc_template, e_dev->kdc, sizeof(*kdc_template));
+    e_dev->kdc->kdc_description = e_dev->full_name;
+    dev_attach(e_dev->kdc);
+    return (0);
 }
 
 /*
@@ -439,13 +473,11 @@ eisa_registerdev(e_dev, driver, kdc_template)
 int
 eisa_externalize(struct eisa_device *id, void *userp, size_t *maxlen)
 {
-	int rv;
-
-	if(*maxlen < (sizeof *id)) {
-		return ENOMEM;
-	}
-	*maxlen -= (sizeof *id);
-	return (copyout(id, userp, sizeof *id));
+    if(*maxlen < (sizeof *id)) {
+	return ENOMEM;
+    }
+    *maxlen -= (sizeof *id);
+    return (copyout(id, userp, sizeof *id));
 }
 
 
@@ -453,5 +485,5 @@ int
 eisa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
 			 void *userp, size_t l)
 {
-	return eisa_externalize(kdc->kdc_eisa, userp, &l);
+    return eisa_externalize(kdc->kdc_eisa, userp, &l);
 }
