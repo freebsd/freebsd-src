@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.102 1997/11/13 14:43:14 brian Exp $
+ * $Id: command.c,v 1.103 1997/11/18 00:19:28 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1013,7 +1013,7 @@ SetLogLevel(struct cmdtab const * list, int argc, char **argv)
   void (*DiscardAll)(void);
 
   res = 0;
-  if (strcasecmp(argv[0], "local")) {
+  if (argc == 0 || strcasecmp(argv[0], "local")) {
     Discard = LogDiscard;
     Keep = LogKeep;
     DiscardAll = LogDiscardAll;
