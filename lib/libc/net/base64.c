@@ -206,7 +206,7 @@ b64_pton(src, target, targsize)
 	tarindex = 0;
 
 	while ((ch = *src++) != '\0') {
-		if (isspace(ch))	/* Skip whitespace anywhere. */
+		if (isspace((unsigned char)ch))        /* Skip whitespace anywhere. */
 			continue;
 
 		if (ch == Pad64)
@@ -276,7 +276,7 @@ b64_pton(src, target, targsize)
 		case 2:		/* Valid, means one byte of info */
 			/* Skip any number of spaces. */
 			for ((void)NULL; ch != '\0'; ch = *src++)
-				if (!isspace(ch))
+				if (!isspace((unsigned char)ch))
 					break;
 			/* Make sure there is another trailing = sign. */
 			if (ch != Pad64)
@@ -291,7 +291,7 @@ b64_pton(src, target, targsize)
 			 * whitespace after it?
 			 */
 			for ((void)NULL; ch != '\0'; ch = *src++)
-				if (!isspace(ch))
+				if (!isspace((unsigned char)ch))
 					return (-1);
 
 			/*
