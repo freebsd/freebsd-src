@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.88 1999/01/09 18:12:06 wpaul Exp $
+ * $Id: devices.c,v 1.89 1999/04/06 08:25:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -100,6 +100,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"pn",		"Lite-On 82168/82169 PNIC PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},
+    { DEVICE_TYPE_NETWORK,	"ti",		"Alteon Networks PCI gigabit ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"tl",		"Texas Instruments ThunderLAN PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"vr",		"VIA VT3043/VT86C100A Rhine PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},

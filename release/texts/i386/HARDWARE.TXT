@@ -109,6 +109,7 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
+ti0     dyn     dyn     n/a     dyn     Alteon Networks gigabit ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
@@ -421,6 +422,15 @@ Unmaintained drivers, they might or might not work for your hardware:
 ----    -------------
 
 Allied-Telesis AT1700 and RE2000 cards
+
+Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+chipsets, including the following:
+  Alteon AceNIC (Tigon 1 and 2)
+  3Com 3c985-SX (Tigon 1 and 2)
+  Netgear GA620 (Tigon 2)
+  Silicon Graphics Gigabit Ethernet
+  DEC/Compaq EtherWORKS 1000
+  NEC Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
