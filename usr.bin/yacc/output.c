@@ -69,7 +69,9 @@ static int pack_vector __P((int));
 static void save_column __P((int, int));
 static void sort_actions __P((void));
 static void token_actions __P((void));
+static int increase_maxtable __P((int));
 
+static const char line_format[] = "#line %d \"%s\"\n";
 static int nvectors;
 static int nentries;
 static short **froms;
@@ -166,6 +168,10 @@ output_prefix()
 	fprintf(code_file, "#define yyname %sname\n", symbol_prefix);
 	++outline;
 	fprintf(code_file, "#define yyrule %srule\n", symbol_prefix);
+	++outline;
+	fprintf(code_file, "#define yysslim %ssslim\n", symbol_prefix);
+	++outline;
+	fprintf(code_file, "#define yystacksize %sstacksize\n", symbol_prefix);
     }
     ++outline;
     fprintf(code_file, "#define YYPREFIX \"%s\"\n", symbol_prefix);
@@ -625,7 +631,6 @@ int vector;
     register int ok;
     register short *from;
     register short *to;
-    int newmax;
 
     i = order[vector];
     t = tally[i];
@@ -650,19 +655,7 @@ int vector;
 	    {
 		if (loc >= MAXTABLE)
 		    fatal("maximum table size exceeded");
-
-		newmax = maxtable;
-		do { newmax += 200; } while (newmax <= loc);
-		table = (short *) REALLOC(table, newmax*sizeof(short));
-		if (table == 0) no_space();
-		check = (short *) REALLOC(check, newmax*sizeof(short));
-		if (check == 0) no_space();
-		for (l  = maxtable; l < newmax; ++l)
-		{
-		    table[l] = 0;
-		    check[l] = -1;
-		}
-		maxtable = newmax;
+		maxtable = increase_maxtable(loc);
 	    }
 
 	    if (check[loc] != -1)
@@ -684,7 +677,19 @@ int vector;
 	    }
 
 	    while (check[lowzero] != -1)
+	    {
+		if (lowzero >= maxtable)
+		{
+		    if (lowzero >= MAXTABLE)
+		    {
+		      fatal("maximum table size exceeded in check\n");
+		    }
+
+		    maxtable = increase_maxtable(loc);
+		}
+
 		++lowzero;
+	    }
 
 	    return (j);
 	}
@@ -1307,4 +1312,34 @@ free_reductions()
 	next = rp->next;
 	FREE(rp);
     }
+}
+
+/*
+ * increase_maxtable
+ *
+ * inputs	- loc location in table
+ * output	- size increased to
+ * side effects	- table is increase by at least 200 short words
+ */
+
+int
+increase_maxtable(int loc)
+{
+    int newmax;
+    int l;
+
+    newmax = maxtable;
+
+    do { newmax += 200; } while (newmax <= loc);
+    table = (short *) REALLOC(table, newmax*sizeof(short));
+	if (table == 0) no_space();
+	check = (short *) REALLOC(check, newmax*sizeof(short));
+	if (check == 0) no_space();
+	for (l  = maxtable; l < newmax; ++l)
+	{
+	    table[l] = 0;
+	    check[l] = -1;
+	}
+
+    return(newmax);
 }
