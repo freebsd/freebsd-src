@@ -617,6 +617,7 @@ if test $ac_cv_func_mmap = yes ; then
 AC_MSG_CHECKING([for mmap anon shared])
 AC_TRY_RUN(
 	[
+#include <sys/types.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
