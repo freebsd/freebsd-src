@@ -1084,8 +1084,8 @@ ttyA*)
 	nports=`expr $i : 'ttyA\(.*\)$'`
 	port=1
 	while [ $port -le $nports ]; do
-		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4`
+		minor=$(expr $port - 1)
+		name=$(printf %02d $port)
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major `expr $minor + 65536`
 		mknod ttylA$name c $major `expr $minor + 131072`
@@ -1101,8 +1101,8 @@ cuaA*)
 	nports=`expr $i : 'cuaA\(.*\)$'`
 	port=1
 	while [ $port -le $nports ]; do
-		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4`
+		minor=$(expr $port - 1)
+		name=$(printf %02d $port)
 		mknod cuaA$name c $major `expr $minor + 128` uucp:dialer
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536` \
 		    uucp:dialer
