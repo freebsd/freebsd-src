@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.7 1994/10/02 17:26:58 phk Exp $
+ * $Id: nfs_serv.c,v 1.8 1995/01/09 16:05:07 davidg Exp $
  */
 
 /*
@@ -477,13 +477,13 @@ nfsrv_read(nfsd, mrep, md, dpos, cred, nam, mrq)
 		nfsm_reply(0);
 	if (vp->v_type != VREG) {
 		error = (vp->v_type == VDIR) ? EISDIR : EACCES;
-		vput(vp);
+		nfsrv_vput(vp);
 		nfsm_reply(0);
 	}
 	nqsrv_getl(vp, NQL_READ);
 	if ((error = nfsrv_access(vp, VREAD, cred, rdonly, nfsd->nd_procp)) &&
 	    (error = nfsrv_access(vp, VEXEC, cred, rdonly, nfsd->nd_procp))) {
-		vput(vp);
+		nfsrv_vput(vp);
 		nfsm_reply(0);
 	}
 	error = VOP_GETATTR(vp, vap, cred, nfsd->nd_procp);
@@ -1118,7 +1118,7 @@ out:
 			nfsrv_vrele(nd.ni_vp);
 	}
 out1:
-	nfsrv_vrele(vp);
+	nfsrv_vput(vp);
 	nfsm_reply(0);
 	nfsm_srvdone;
 }
