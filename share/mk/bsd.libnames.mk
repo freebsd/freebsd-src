@@ -66,10 +66,10 @@ LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explictly.
+# so we have to specify them explicitly.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM?=	-lpam
-.if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
+.if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
 .if defined(MAKE_KERBEROS4) || defined(MAKE_KERBEROS5)
 .ifdef MAKE_KERBEROS4
 LIBPAM+=	${LIBKRB}
