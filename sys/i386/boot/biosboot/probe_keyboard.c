@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.3 1995/03/02 21:00:14 wpaul Exp $
+ *	$Id: probe_keyboard.c,v 1.4 1995/04/14 21:26:52 joerg Exp $
  */
 
 #ifndef FORCE_COMCONSOLE
@@ -64,9 +64,7 @@ probe_keyboard(void)
 	}
 
 	/* Try to reset keyboard hardware */
-#ifdef DEBUG
-	printf("kbd reset\n");
-#endif
+  again:
 	while (--retries) {
 #ifdef DEBUG
 		printf("%d ", retries);
@@ -84,11 +82,17 @@ probe_keyboard(void)
 	}
 gotres:
 #ifdef DEBUG
-	printf("%d after loop.\n", retries);
+	printf("gotres\n");
 #endif
-	if (!retries)
+	if (!retries) {
+		if (val == KB_RESEND) {
+#ifdef DEBUG
+			printf("gave up\n");
+#endif
+			return(0);
+		}
 		return(1);
-	else {
+	}
 gotack:
 	delay1ms();
 	while ((inb(KB_STAT) & KB_BUF_FULL) == 0) delay1ms();
@@ -99,12 +103,13 @@ gotack:
 	val = inb(KB_DATA);
 	if (val == KB_ACK)
 		goto gotack;
+	if (val == KB_RESEND)
+		goto again;
 	if (val != KB_RESET_DONE) {
 #ifdef DEBUG
 		printf("stray val %d\n", val);
 #endif
-		return(1);
-	}
+		return(0);
 	}
 #ifdef DEBUG
 	printf("ok\n");
