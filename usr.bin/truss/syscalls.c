@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: syscalls.c,v 1.6 1998/10/15 04:31:44 sef Exp $";
+	"$Id: syscalls.c,v 1.7 1999/08/05 12:03:50 des Exp $";
 #endif /* not lint */
 
 /*
@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <signal.h>
 #include "syscall.h"
 
 /*
@@ -80,6 +81,8 @@ struct syscall syscalls[] = {
 	{ "break", 1, 1, { { Hex, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
 	{ "access", 1, 2, { { String | IN, 0 }, { Int, 1 }}},
+	{ "sigaction", 1, 3,
+	  { { Signal, 0 }, { Ptr | IN, 1 }, { Ptr | OUT, 2 }}},
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
@@ -217,6 +220,23 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	sprintf(tmp, "0x%lx", args[sc->offset]);
       }
     }
+    break;
+  case Signal:
+    {
+      long sig;
+
+      sig = args[sc->offset];
+      tmp = malloc(12);
+      if (sig > 0 && sig < NSIG) {
+	int i;
+	sprintf(tmp, "sig%s", sys_signame[sig]);
+	for (i = 0; tmp[i] != '\0'; ++i)
+	  tmp[i] = toupper(tmp[i]);
+      } else {
+        sprintf(tmp, "%ld", sig);
+      }
+    }
+    break;
   }
   return tmp;
 }
