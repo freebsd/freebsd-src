@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VOP_ATTRIB.9,v 1.1 1997/03/03 18:00:07 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -134,7 +134,7 @@ vop_setattr(struct vnode *vp, struct vattr *vpp,
 }
 .Ed
 .Sh ERRORS
-.Bl -tag -width EACCES
+.Bl -tag -width [EACCES]
 .It Bq Er EPERM
 The file is immutable
 .It Bq Er EACCES
