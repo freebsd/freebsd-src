@@ -458,7 +458,7 @@ putf(cp)
 			break;
 
 		case 'd': {
-			static char fmt[] = "%l:% %P on %A, %d %B %Y";
+			static char fmt[] = "%l:% %p on %A, %d %B %Y";
 
 			fmt[4] = 'M';		/* I *hate* SCCS... */
 			(void)time(&t);
