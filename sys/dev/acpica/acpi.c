@@ -1590,17 +1590,18 @@ acpi_avoid(ACPI_HANDLE handle)
 int
 acpi_disabled(char *subsys)
 {
-    char	*cp;
+    char	*cp, *env;
     int		len;
 
-    if ((cp = getenv("debug.acpi.disable")) == NULL)
+    if ((env = getenv("debug.acpi.disable")) == NULL)
 	return(0);
-    if (!strcmp(cp, "all")) {
-	freeenv(cp);
+    if (!strcmp(env, "all")) {
+	freeenv(env);
 	return(1);
     }
 
     /* scan the disable list checking for a match */
+    cp = env;
     for (;;) {
 	while ((*cp != 0) && isspace(*cp))
 	    cp++;
@@ -1610,12 +1611,12 @@ acpi_disabled(char *subsys)
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
 	if (!strncmp(cp, subsys, len)) {
-	    freeenv(cp);
+	    freeenv(env);
 	    return(1);
 	}
 	cp += len;
     }
-    freeenv(cp);
+    freeenv(env);
     return(0);
 }
 
