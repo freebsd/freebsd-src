@@ -207,6 +207,7 @@ int	ed_probe_HP_pclanp(device_t, int, int);
 int	ed_attach(device_t);
 int	ed_detach(device_t);
 int	ed_clear_memory(device_t);
+int	ed_isa_mem_ok(device_t, u_long, u_int); /* XXX isa specific */
 void	ed_stop(struct ed_softc *);
 void	ed_pio_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
 void	ed_pio_writemem(struct ed_softc *, uint8_t *, uint16_t, uint16_t);
@@ -217,6 +218,11 @@ int	ed_ifmedia_upd(struct ifnet *);
 void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 void	ed_child_detached(device_t, device_t);
 #endif
+
+/* The following is unsatisfying XXX */
+void	ed_hpp_set_physical_link(struct ed_softc *);
+void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
+u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
 driver_intr_t	edintr;
 

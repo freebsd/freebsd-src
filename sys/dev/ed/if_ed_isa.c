@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ed.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -89,26 +91,30 @@ ed_isa_probe(dev)
 		goto end;
 	ed_release_resources(dev);
 
+#ifdef ED_3C503
 	error = ed_probe_3Com(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
+#endif
 
+#ifdef ED_SIC
 	error = ed_probe_SIC(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
-
+#endif
 	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
+#ifdef ED_HPP
 	error = ed_probe_HP_pclanp(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
-
+#endif
 end:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);

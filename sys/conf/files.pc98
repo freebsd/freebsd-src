@@ -108,6 +108,7 @@ dev/ct/bshw_machdep.c		optional ct
 dev/ct/ct.c			optional ct
 dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
+dev/ed/wd80x3.c			optional ed isa
 dev/ed/if_ed_pccard.c		optional ed card
 dev/ep/if_ep_pccard.c		optional ep card
 dev/ex/if_ex_pccard.c		optional ex card
