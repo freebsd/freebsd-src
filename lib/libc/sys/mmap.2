@@ -136,7 +136,7 @@ for further information.
 Region is not included in a core file.
 .It Dv MAP_NOSYNC
 Causes data dirtied via this VM map to be flushed to physical media
-only when necessary (usually by the pager) rather then gratuitously.
+only when necessary (usually by the pager) rather than gratuitously.
 Typically this prevents the update daemons from flushing pages dirtied
 through such maps and thus allows efficient sharing of memory across
 unassociated processes using a file-backed shared memory map.
@@ -175,7 +175,7 @@ The same applies when using
 to implement a file-based shared memory store.
 It is recommended that you create the backing store by
 .Fn write Ns ing
-zero's to the backing file rather then
+zero's to the backing file rather than
 .Fn ftruncate Ns ing
 it.
 You can test file fragmentation by observing the KB/t (kilobytes per
@@ -200,7 +200,7 @@ system call is obsolete since
 implements a coherent file system buffer cache.
 However, it may be
 used to associate dirty VM pages with file system buffers and thus cause
-them to be flushed to physical media sooner rather then later.
+them to be flushed to physical media sooner rather than later.
 .It Dv MAP_PRIVATE
 Modifications are private.
 .It Dv MAP_SHARED

@@ -74,7 +74,7 @@ nearly impossible to stop short of cutting your system off from the Internet.
 It may not be able to take your machine down, but it can fill up Internet
 pipe.
 .Pp
-A user account compromise is even more common then a D.O.S. attack.  Many
+A user account compromise is even more common than a D.O.S. attack.  Many
 sysadmins still run standard telnetd, rlogind, rshd, and ftpd servers on their
 machines.  These servers, by default, do not operate over encrypted
 connections.  The result is that if you have any moderate-sized user base,
@@ -174,7 +174,7 @@ to root without having to place anyone at all in the wheel group.  This
 may be the better solution since the wheel mechanism still allows an
 intruder to break root if the intruder has gotten hold of your password
 file and can break into a staff account.  While having the wheel mechanism
-is better then having nothing at all, it isn't necessarily the safest
+is better than having nothing at all, it isn't necessarily the safest
 option.
 .Pp
 An indirect way to secure the root account is to secure your staff accounts
@@ -276,7 +276,7 @@ Still, root holes are occasionally found in these binaries.  A root hole
 was found in Xlib in 1998 that made xterm
 (which is typically suid)
 vulnerable.
-It is better to be safe then sorry and the prudent sysadmin will restrict suid
+It is better to be safe than sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
 access, and get rid of
 .Pq Li "chmod 000"
@@ -369,7 +369,7 @@ while it may protect the files, it also closes a detection window.  The
 last layer of your security onion is perhaps the most important - detection.
 The rest of your security is pretty much useless (or, worse, presents you with
 a false sense of safety) if you cannot detect potential incursions.  Half
-the job of the onion is to slow down the attacker rather then stop him
+the job of the onion is to slow down the attacker rather than stop him
 in order to give the detection side of the equation a chance to catch him in
 the act.
 .Pp
@@ -413,7 +413,7 @@ such as
 and
 .Pa /usr
 .Pp
-When using ssh rather then NFS, writing the security script is much more
+When using ssh rather than NFS, writing the security script is much more
 difficult.   You essentially have to
 .Pa scp
 the scripts to the client box in order to run them, making them visible, and
@@ -608,7 +608,7 @@ with
 These routes typically timeout in 1600
 seconds or so.  If the kernel detects that the cached route table has gotten
 too big it will dynamically reduce the rtexpire but will never decrease it to
-less then rtminexpire.  There are two problems:  (1) The kernel does not react
+less than rtminexpire.  There are two problems:  (1) The kernel does not react
 quickly enough when a lightly loaded server is suddenly attacked, and (2) The
 rtminexpire is not low enough for the kernel to survive a sustained attack.
 If your servers are connected to the internet via a T3 or better it may be
