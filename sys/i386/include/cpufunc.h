@@ -357,6 +357,12 @@ outw(u_int port, u_short data)
 	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
 }
 
+static __inline void
+pause(void)
+{
+	__asm __volatile("pause");
+}
+
 static __inline u_int
 rcr2(void)
 {
@@ -560,12 +566,6 @@ load_dr7(u_int sel)
 	__asm __volatile("movl %0,%%dr7" : : "r" (sel));
 }
 
-static __inline void
-pause(void)
-{
-	__asm __volatile("pause");
-}
-
 static __inline register_t
 intr_disable(void)
 {
@@ -605,6 +605,7 @@ void	outsb(u_int port, void *addr, size_t cnt);
 void	outsl(u_int port, void *addr, size_t cnt);
 void	outsw(u_int port, void *addr, size_t cnt);
 void	outw(u_int port, u_short data);
+void	pause(void);
 u_int	rcr2(void);
 u_int64_t rdmsr(u_int msr);
 u_int64_t rdpmc(u_int pmc);
@@ -617,6 +618,24 @@ u_int	rfs(void);
 u_int	rgs(void);
 void	load_fs(u_int sel);
 void	load_gs(u_int sel);
+u_int	rdr0(void);
+void	load_dr0(u_int sel);
+u_int	rdr1(void);
+void	load_dr1(u_int sel);
+u_int	rdr2(void);
+void	load_dr2(u_int sel);
+u_int	rdr3(void);
+void	load_dr3(u_int sel);
+u_int	rdr4(void);
+void	load_dr4(u_int sel);
+u_int	rdr5(void);
+void	load_dr5(u_int sel);
+u_int	rdr6(void);
+void	load_dr6(u_int sel);
+u_int	rdr7(void);
+void	load_dr7(u_int sel);
+register_t	intr_disable(void);
+void	intr_restore(register_t ef);
 
 #endif	/* __GNUC__ */
 
