@@ -34,6 +34,7 @@ SUBDIR=	async \
 	pptpgre \
 	rfc1490 \
 	socket \
+	source \
 	split \
 	sppp \
 	${_sync_ar} \
