@@ -1019,7 +1019,7 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 	/* In normal situations, we jump to RESEL_TAG or RESEL_NO_TAG */
 }/*-------------------------< RESEL_TAG >------------------------*/,{
 	/*
-	 *  ACK the IDENTIFY or TAG previously received.
+	 *  ACK the IDENTIFY previously received.
 	 */
 	SCR_CLR (SCR_ACK),
 		0,
