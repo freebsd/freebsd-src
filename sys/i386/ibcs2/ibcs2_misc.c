@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.18 1997/03/24 11:23:31 bde Exp $
+ * $Id: ibcs2_misc.c,v 1.19 1997/04/06 14:10:50 dfr Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ ibcs2_wait(p, uap, retval)
 {
 	int error, status;
 	struct wait_args w4;
-        struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
+        struct trapframe *tf = p->p_md.md_regs;
 	
 	SCARG(&w4, rusage) = NULL;
         if ((tf->tf_eflags & (PSL_Z|PSL_PF|PSL_N|PSL_V))
