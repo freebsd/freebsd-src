@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.378 1998/09/05 07:43:13 jkh Exp $
+#	$Id: Makefile,v 1.379 1998/09/07 23:55:22 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -41,7 +41,7 @@ OBJFORMAT?=		elf
 # Comment the following if you want the release documentation to be
 # in English only.
 ALLLANG= yes
-DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
+DOCPORTS= archivers/unzip textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
 # Things which without too much trouble can be considered variables
