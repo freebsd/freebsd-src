@@ -806,7 +806,10 @@ bwrite(struct buf * bp)
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_xflags |= BX_BKGRDMARKER;
+		/* XXX The BX_ flags need to be protected as well */
+		VI_LOCK(bp->b_vp);
 		bgetvp(bp->b_vp, newbp);
+		VI_UNLOCK(bp->b_vp);
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
 		newbp->b_iodone = vfs_backgroundwritedone;
@@ -2554,7 +2557,6 @@ loop:
 			brelse(bp);
 			goto loop;
 		}
-		VI_UNLOCK(vp);
 
 		/*
 		 * Insert the buffer into the hash, so that it can
@@ -2564,6 +2566,7 @@ loop:
 		bp->b_offset = offset;
 
 		bgetvp(vp, bp);
+		VI_UNLOCK(vp);
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the
