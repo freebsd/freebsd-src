@@ -37,14 +37,6 @@
 #ifndef _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
 #define _SYS_GNU_EXT2FS_EXT2_MOUNT_H_
 
-/*
- * Arguments to mount ext2fs filesystems
- */
-struct ext2_args {
-	char	*fspec;			/* block special device to mount */
-	struct	export_args export;	/* network export information */
-};
-
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
