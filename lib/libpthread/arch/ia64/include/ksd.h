@@ -26,19 +26,66 @@
  * $FreeBSD$
  */
 
-#ifndef _PTHREAD_MD_H_
-#define	_PTHREAD_MD_H_
+#ifndef	_KSD_H_
+#define	_KSD_H_
 
-#define	THR_GETCONTEXT(ucp)	getcontext(ucp)
-#define	THR_SETCONTEXT(ucp)	setcontext(ucp)
+struct kse;
+struct pthread;
 
-#define	THR_ALIGNBYTES	15
-#define	THR_ALIGN(td)	(((uintptr_t)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
+register struct kse *_tp __asm("%r13");
 
-/* KSE Specific Data. */
-struct ksd {
-	void	*ksd_base;
-	int	ksd_size;
-};
+static __inline int
+_ksd_create(struct ksd *ksd, void *base, int size)
+{
+	ksd->ksd_base = base;
+	ksd->ksd_size = size;
+	return (0);
+}
 
-#endif /* _PTHREAD_MD_H_ */
+static __inline struct kse *
+_ksd_curkse()
+{
+	/* XXX why not simply return _tp? */
+	return ((struct kse *)_tp->k_mbx.km_udata);
+}
+
+static __inline struct pthread *
+_ksd_curthread()
+{
+	return (_tp->k_curthread);
+}
+
+static __inline void
+_ksd_destroy(struct ksd *ksd)
+{
+}
+
+static __inline kse_critical_t
+_ksd_get_tmbx()
+{
+	return (_tp->k_mbx.km_curthread);
+}
+
+static __inline kse_critical_t
+_ksd_readandclear_tmbx()
+{
+	kse_critical_t crit;
+	__asm("xchg8    %0=[%1],r0" : "=r"(crit)
+	    : "r"(&_tp->k_mbx.km_curthread));
+	return (crit);
+}
+
+static __inline void
+_ksd_set_tmbx(kse_critical_t crit)
+{
+	_tp->k_mbx.km_curthread = crit;
+}
+
+static __inline int
+_ksd_setprivate(struct ksd *ksd)
+{
+	_tp = (struct kse *)ksd->ksd_base;
+	return (0);
+}
+
+#endif /* _KSD_H_ */

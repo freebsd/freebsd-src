@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include "atomic_ops.h"
 #include "thr_private.h"
-#include "pthread_md.h"
 #include "libc_private.h"
+#include "ksd.h"
 
 /*#define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN
