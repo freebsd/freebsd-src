@@ -46,7 +46,17 @@ init=true
 kernels="LINT GENERIC GENERIC98"
 
 # Which includes you want to check
-includes="*/*.h i386/*/*.h dev/*/*.h cam/scsi/*.h ufs/*/*.h pc98/*/*.h netatm/*/*.h i4b/*/*.h"
+(
+find */include -name '*.h' -ls | sed 's;.*include;machine;' 
+find * -name '*.h' -print
+) | sed '
+/compile/d
+/modules/d
+/boot/d
+' | sort -u > _includes
+
+# Insert some filtering here if you want to...
+includes=`cat _includes`
 
 NO_MODULES=yes
 export NO_MODULES
@@ -79,7 +89,7 @@ check_it ()
 			exit 0
 		fi
 	fi
-	rm ../../$1
+	rm ../../$3
 	rm -f $2
 	if [ -f /usr/include/$1 ] ; then
 		mv /usr/include/$1 /usr/include/${1}_
@@ -88,16 +98,16 @@ check_it ()
 	else
 		make $2 > _0 2>&1 || true
 	fi
-	echo > ../../$1
+	echo > ../../$3
 	if [ -f $2 ] ; then
 		echo " no read"
-		cp ../../${1}_ ../../$1
+		cp ../../${3}_ ../../$3
 		exit 0
 	fi
 
 	make $2 > _1 2>&1 || true
 
-	cp ../../${1}_ ../../$1
+	cp ../../${3}_ ../../$3
 	
 	if [ ! -f $2 ] ; then
 		echo " compile error"
@@ -168,6 +178,10 @@ if $init ; then
 		rm -f ::*
 		make -k > x.0 2>&1
 		tail -4 x.0
+		if [ ! -f kernel ] ; then
+			echo "Error: No $i kernel built"
+			exit 1
+		fi
 		)
 	done
 
@@ -210,11 +224,12 @@ find . -name '*.h_' -print | xargs rm -f
 
 for incl in $includes
 do
-	if [ ! -f ${incl} ] ; then
+	inclf=`echo $incl | sed 's/machine/i386\/include/'`
+	if [ ! -f ${inclf} ] ; then
 		continue
 	fi
-	if [ ! -f ${incl}_ ] ; then
-		cp $incl ${incl}_
+	if [ ! -f ${inclf}_ ] ; then
+		cp $inclf ${inclf}_
 	fi
 	for obj in $objlist
 	do
@@ -232,7 +247,7 @@ do
 				continue
 			fi
 			echo -n " [$i]"
-			check_it $incl $obj
+			check_it $incl $obj $inclf
 			cd ..
 		done
 		cd ..
@@ -245,7 +260,7 @@ do
 			b=`dirname $d`
 			echo -n " [$b]"
 			cd $b
-			check_it $incl $obj 
+			check_it $incl $obj $inclf
 			cd ..
 		done
 		cd ..
