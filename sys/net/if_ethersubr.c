@@ -416,7 +416,7 @@ no_bridge:
 		if (ether_ipfw_chk(&m, ifp, &rule, eh, 0) == 0) {
 			if (m) {
 				m_freem(m);
-				return ENOBUFS;	/* pkt dropped */
+				return EACCES;	/* pkt dropped */
 			} else
 				return 0;	/* consumed e.g. in a pipe */
 		}
