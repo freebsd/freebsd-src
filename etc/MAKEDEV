@@ -39,6 +39,8 @@
 #	sd*	"scsi disks"
 #	cd*	"scsi cdrom disks"
 #	mcd*	"mitsumi cdrom disks"
+#	scd*	"sony cdrom disks"
+#	pcd*	"panasonic cdrom disks"
 #	vn*	"vnode disks"
 #
 # Console ports:
@@ -70,7 +72,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.59 1994/12/08 00:44:55 ache Exp $
+#	$Id: MAKEDEV,v 1.60 1994/12/16 15:59:44 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -120,7 +122,7 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
-	sh MAKEDEV cd0 mcd0					# bdev, cdrom
+	sh MAKEDEV cd0 mcd0 scd0 pcd0				# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
@@ -467,11 +469,13 @@ ch*)
 	umask 77
 	;;
 
-cd*|mcd*)
+cd*|mcd*|scd*|pcd*)
 	umask 2 ;
 	case $i in
 	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
+	scd*) unit=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
+	pcd*) unit=`expr $i : '...\(.*\)'`; name=pcd; blk=17; chr=46;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
