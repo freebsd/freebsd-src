@@ -3058,19 +3058,18 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 	 * at least 7 bytes for the option.
 	 */
 	if (cpp == NULL || lenp == NULL)
-		return((unsigned long)-1);
+		return -1;
 	if (*cpp != NULL) {
 		switch (res->ai_family) {
 		case AF_INET:
 			if (*lenp < 7)
-				return((unsigned long)-1);
+				return -1;
 			break;
 #ifdef INET6
 		case AF_INET6:
-			if (*lenp < (sizeof(struct cmsghdr) +
-				     sizeof(struct ip6_rthdr) +
-				     sizeof(struct in6_addr)))
-				return((unsigned long)-1);
+			if (*lenp < CMSG_SPACE(sizeof(struct ip6_rthdr) +
+				               sizeof(struct in6_addr)))
+				return -1;
 			break;
 #endif
 		}
@@ -3083,7 +3082,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 		lsrp = *cpp;
 		ep = lsrp + *lenp;
 	} else {
-		*cpp = lsrp = buf;
+		*cpp = lsrp = ALIGN(buf);
 		ep = lsrp + 1024;
 	}
 
@@ -3119,7 +3118,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 #endif
 
 	if (*cp != '@')
-		return((unsigned long)-1);
+		return -1;
 
 #ifndef	sysV88
 	lsrp++;		/* skip over length, we'll fill it in later */
@@ -3195,16 +3194,15 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 		 */
 #ifdef INET6
 		if (res->ai_family == AF_INET6) {
-			if (((char *)cmsg +
-			     sizeof(struct cmsghdr) +
+			if (((char *)CMSG_DATA(cmsg) +
 			     sizeof(struct ip6_rthdr) +
 			     ((inet6_rthdr_segments(cmsg) + 1) *
 			      sizeof(struct in6_addr))) > ep)
-			return((unsigned long)-1);
+			return -1;
 		} else
 #endif
 		if (lsrp + 4 > ep)
-			return((unsigned long)-1);
+			return -1;
 		freeaddrinfo(res);
 	}
 #ifdef INET6
@@ -3218,7 +3216,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 	if ((*(*cpp+IPOPT_OLEN) = lsrp - *cpp) <= 7) {
 		*cpp = 0;
 		*lenp = 0;
-		return((unsigned long)-1);
+		return -1;
 	}
 	*lsrp++ = IPOPT_NOP; /* 32 bit word align it */
 	*lenp = lsrp - *cpp;
@@ -3227,7 +3225,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 	if (ipopt.io_len <= 5) {		/* Is 3 better ? */
 		*cpp = 0;
 		*lenp = 0;
-		return((unsigned long)-1);
+		return -1;
 	}
 	*lenp = sizeof(ipopt);
 	*cpp = (char *) &ipopt;
