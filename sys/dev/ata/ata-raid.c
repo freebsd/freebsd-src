@@ -184,7 +184,7 @@ ar_attach_raid(struct ar_softc *rdp, int update)
     rdp->disk.d_fwheads = rdp->heads;
     rdp->disk.d_maxsize = 128 * DEV_BSIZE;
     rdp->disk.d_drv1 = rdp;
-    disk_create(rdp->lun, &rdp->disk, DISKFLAG_NOGIANT, NULL, NULL);
+    disk_create(rdp->lun, &rdp->disk, 0, NULL, NULL);
 
     printf("ar%d: %lluMB <ATA ", rdp->lun, (unsigned long long)
 	   (rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE)));
