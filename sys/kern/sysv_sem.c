@@ -261,17 +261,12 @@ semsys(td, uap)
 {
 	int error;
 
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
+	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
+		return (EINVAL);
 	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
-	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0])) {
-		error = EINVAL;
-		goto done2;
-	}
 	error = (*semcalls[uap->which])(td, &uap->a2);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -485,12 +480,10 @@ __semctl(td, uap)
 #ifdef SEM_DEBUG
 	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
 #endif
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	switch(cmd) {
 	case SEM_STAT:
 		if (semid < 0 || semid >= seminfo.semmsl)
@@ -693,17 +686,15 @@ semget(td, uap)
 	int key = uap->key;
 	int nsems = uap->nsems;
 	int semflg = uap->semflg;
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 
 #ifdef SEM_DEBUG
 	printf("semget(0x%x, %d, 0%o)\n", key, nsems, semflg);
 #endif
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	if (key != IPC_PRIVATE) {
 		for (semid = 0; semid < seminfo.semmni; semid++) {
 			if ((sema[semid].sem_perm.mode & SEM_ALLOC) &&
@@ -834,12 +825,10 @@ semop(td, uap)
 	printf("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops);
 #endif
 
-	mtx_lock(&Giant);
-	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
-		error = ENOSYS;
-		goto done2;
-	}
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
 
+	mtx_lock(&Giant);
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
 
 	if (semid < 0 || semid >= seminfo.semmsl) {
