@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.32 1997/02/22 09:38:51 peter Exp $
+ * $Id: cd9660_vnops.c,v 1.33 1997/04/10 15:05:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -92,48 +92,10 @@ cd9660_mknod(ndp, vap, cred, p)
 	struct vattr *vap;
 	struct proc *p;
 {
-#ifndef	ISODEVMAP
 	free(ndp->ni_pnbuf, M_NAMEI);
 	vput(ndp->ni_dvp);
 	vput(ndp->ni_vp);
 	return (EINVAL);
-#else
-	register struct vnode *vp;
-	struct iso_node *ip;
-	struct iso_dnode *dp;
-	int error;
-
-	vp = ndp->ni_vp;
-	ip = VTOI(vp);
-
-	if (ip->i_mnt->iso_ftype != ISO_FTYPE_RRIP
-	    || vap->va_type != vp->v_type
-	    || (vap->va_type != VCHR && vap->va_type != VBLK)) {
-		free(ndp->ni_pnbuf, M_NAMEI);
-		vput(ndp->ni_dvp);
-		vput(ndp->ni_vp);
-		return (EINVAL);
-	}
-
-	dp = iso_dmap(ip->i_dev,ip->i_number,1);
-	if (ip->inode.iso_rdev == vap->va_rdev || vap->va_rdev == VNOVAL) {
-		/* same as the unmapped one, delete the mapping */
-		remque(dp);
-		FREE(dp,M_CACHE);
-	} else
-		/* enter new mapping */
-		dp->d_dev = vap->va_rdev;
-
-	/*
-	 * Remove inode so that it will be reloaded by iget and
-	 * checked to see if it is an alias of an existing entry
-	 * in the inode cache.
-	 */
-	vput(vp);
-	vp->v_type = VNON;
-	vgone(vp);
-	return (0);
-#endif
 }
 #endif
 
