@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_subs.c,v 1.8 1997/08/29 16:12:19 sos Exp $
+ *	$Id: ar_subs.c,v 1.9 1997/12/10 22:18:25 eivind Exp $
  */
 
 #ifndef lint
@@ -742,7 +742,7 @@ copy()
 	 * set up the destination dir path and make sure it is a directory. We
 	 * make sure we have a trailing / on the destination
 	 */
-	dlen = l_strncpy(dirbuf, dirptr, PAXPATHLEN);
+	dlen = l_strncpy(dirbuf, dirptr, sizeof(dirbuf) - 1);
 	dest_pt = dirbuf + dlen;
 	if (*(dest_pt-1) != '/') {
 		*dest_pt++ = '/';
