@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.10 1996/06/27 10:15:40 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.11 1996/06/27 10:29:09 davidg Exp $
  */
 
 /*
@@ -475,7 +475,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 			break;
 		if ((tmpe->is_sub_map == 0) && (tmpe->is_a_map == 0)) {
 			obj = tmpe->object.vm_object;
-			vm_pageout_object_deactivate_pages(map, obj, desired, 0);
+			if (obj)
+				vm_pageout_object_deactivate_pages(map, obj, desired, 0);
 		}
 		tmpe = tmpe->next;
 	};
