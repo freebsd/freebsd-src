@@ -13,6 +13,7 @@ SHLIB_MAJOR=	4
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
+CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
 
