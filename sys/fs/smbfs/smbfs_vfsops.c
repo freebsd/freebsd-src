@@ -140,7 +140,7 @@ smbfs_cmount(struct mntarg *ma, void * data, int flags, struct thread *td)
 }
 
 static const char *smbfs_opts[] = {
-	"dev", "soft", "intr", "strongs", "have_nls", "long",
+	"dev", "soft", "intr", "strong", "have_nls", "long",
 	"mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
 	"caseopt", NULL
 };
