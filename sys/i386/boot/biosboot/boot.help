@@ -15,4 +15,4 @@ Examples:
                        drive/unit/partition, and set the default bios_drive,
                        interface, unit and partition
     -cv                boot with the defaults, then run UserConfig to modify
-                       hardware parameters (v), and print verbose messages (c)
+                       hardware parameters (c), and print verbose messages (v)
