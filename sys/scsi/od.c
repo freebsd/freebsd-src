@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.16 1996/05/19 19:26:21 joerg Exp $
+ *	$Id: od.c,v 1.15.1.3 1996/05/06 15:14:57 shun Exp $
  */
 
 /*
@@ -39,13 +39,25 @@
  * If drive returns sense key as 0x02 with vendor specific additional
  * sense code (ASC) and additional sense code qualifier (ASCQ), or
  * illegal ASC and ASCQ. This cause an error (NOT READY) and retrying.
- * To suppress this, uncomment this.
+ * To suppress this, uncomment following.
+ * Or put "options OD_BOGUS_NOT_READY" entry into your kernel
+ * configuration file.
  *
 #define OD_BOGUS_NOT_READY
  */
 
+/*
+ * For an automatic spindown, try this.  Again, preferrably as an
+ * option in your config file.
+ * WARNING!  Use at your own risk.  Joerg's ancient SONY SMO drive
+ * groks it fine, while Shunsuke's Fujitsu chokes on it and times
+ * out.
+#define OD_AUTO_TURNOFF
+ */
+
 #include "opt_bounce.h"
 #include "opt_scsi.h"
+#include "opt_od.h"
 
 #define SPLOD splbio
 #include <sys/types.h>
@@ -94,10 +106,11 @@ struct scsi_data {
 #define	ODINIT		0x04	/* device has been init'd */
 	struct disk_parms {
 		u_char    heads;	/* Number of heads */
-		u_int16_t cyls;	/* Number of cylinders */
-		u_char    sectors; /* dubious *//* Number of sectors/track */
+		u_int16_t cyls;		/* Number of cylinders (ficticous) */
+		u_int16_t sectors;	/* Number of sectors/track */
 		u_int16_t secsiz;	/* Number of bytes/sector */
 		u_int32_t disksize;	/* total number sectors */
+		u_int16_t rpm;		/* medium rotation rate */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
@@ -110,8 +123,6 @@ struct scsi_data {
 #endif
 };
 
-static void	od_get_geometry __P((u_int32_t, u_int16_t *,
-				     u_char *, u_char *));
 static errval	od_get_parms __P((int unit, int flags));
 #ifdef notyet
 static errval	od_reassign_blocks __P((int unit, int block));
@@ -242,6 +253,8 @@ odattach(struct scsi_link *sc_link)
 	 * the drive. We cannot use interrupts yet, so the
 	 * request must specify this.
 	 */
+	scsi_start_unit(sc_link, SCSI_NOSLEEP | SCSI_NOMASK
+				 | SCSI_ERR_OK | SCSI_SILENT);
 	od_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT);
 	/*
 	 * if we don't have actual parameters, assume 512 bytes/sec
@@ -263,9 +276,12 @@ odattach(struct scsi_link *sc_link)
 #endif
 	{
 		sc_print_addr(sc_link);
-		printf("with %d cyls, %d heads, and an average %d sectors/track",
+		printf("with approximate %d cyls, %d heads, and %d sectors/track",
 	   	dp->cyls, dp->heads, dp->sectors);
 	}
+#ifdef OD_AUTO_TURNOFF
+	scsi_stop_unit(sc_link, 0, SCSI_ERR_OK | SCSI_SILENT);
+#endif /* OD_AUTO_TURNOFF */
 
 	od->flags |= ODINIT;
 	od_registerdev(unit);
@@ -322,18 +338,25 @@ od_open(dev, mode, fmt, p, sc_link)
 		dev, unit, PARTITION(dev)));
 
 	/*
-	 * Check that it is still responding and ok.  if the media has
-	 * been changed this will result in a "unit attention" error
-	 * which the error code will disregard because the SDEV_OPEN
-	 * or SDEV_MEDIA_LOADED flag is not yet set.  Makes sure that
-	 * we know it if the media has been changed..
+	 * Try to clear "Unit Attention" condition, when media had
+	 * been changed	before.
+	 * This operation also clears the SDEV_MEDIA_LOADED flag in its
+	 * error handling routine.
 	 */
 	scsi_test_unit_ready(sc_link, SCSI_SILENT);
 
 	/*
-	 * If it's been invalidated, then forget the label
+	 * Try to start the drive (ignore failure).
 	 */
+	scsi_start_unit(sc_link, SCSI_ERR_OK | SCSI_SILENT);
+	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
+
+	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
+
 	sc_link->flags |= SDEV_OPEN;	/* unit attn becomes an err now */
+	/*
+	 * If it's been invalidated, then forget the label.
+	 */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED)) {
 		/*
 		 * If somebody still has it open, then forbid re-entry.
@@ -356,14 +379,6 @@ od_open(dev, mode, fmt, p, sc_link)
 		goto bad;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("device present\n"));
-
-	/*
-	 * In case it is a funny one, tell it to start
-	 * not needed for  most hard drives (ignore failure)
-	 */
-	scsi_start_unit(sc_link, SCSI_ERR_OK | SCSI_SILENT);
-	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
-	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 
 	/*
 	 * Load the physical device parameters
@@ -395,6 +410,7 @@ od_open(dev, mode, fmt, p, sc_link)
 	label.d_ntracks = od->params.heads;
 	label.d_ncylinders = od->params.cyls;
 	label.d_secpercyl = od->params.heads * od->params.sectors;
+	label.d_rpm = od->params.rpm;	/* maybe wrong */
 	if (label.d_secpercyl == 0)
 		label.d_secpercyl = 64*32;
 		/* XXX as long as it's not 0
@@ -416,6 +432,9 @@ od_open(dev, mode, fmt, p, sc_link)
 bad:
 	if (!dsisopen(od->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_ERR_OK | SCSI_SILENT);
+#ifdef OD_AUTO_TURNOFF
+		scsi_stop_unit(sc_link, 0, SCSI_ERR_OK | SCSI_SILENT);
+#endif /* OD_AUTO_TURNOFF */
 		sc_link->flags &= ~SDEV_OPEN;
 	}
 	return errcode;
@@ -439,6 +458,9 @@ od_close(dev, fflag, fmt, p, sc_link)
 	dsclose(dev, fmt, od->dk_slices);
 	if (!dsisopen(od->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
+#ifdef OD_AUTO_TURNOFF
+		scsi_stop_unit(sc_link, 0, SCSI_ERR_OK | SCSI_SILENT);
+#endif /* OD_AUTO_TURNOFF */
 		sc_link->flags &= ~SDEV_OPEN;
 	}
 	return 0;
@@ -600,12 +622,8 @@ odstart(u_int32_t unit, u_int32_t flags)
 		 */
 		cmd.op_code = (bp->b_flags & B_READ)
 		    ? READ_BIG : WRITE_BIG;
-		cmd.addr_3 = (blkno & 0xff000000UL) >> 24;
-		cmd.addr_2 = (blkno & 0xff0000) >> 16;
-		cmd.addr_1 = (blkno & 0xff00) >> 8;
-		cmd.addr_0 = blkno & 0xff;
-		cmd.length2 = (nblk & 0xff00) >> 8;
-		cmd.length1 = (nblk & 0xff);
+		scsi_uto4b(blkno, &cmd.addr_3);
+		scsi_uto2b(nblk, &cmd.length2);
 		cmd.byte2 = cmd.reserved = cmd.control = 0;
 		/*
 		 * Call the routine that chats with the adapter.
@@ -668,6 +686,7 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		break;
 	case CDIOCEJECT:
 		error = scsi_stop_unit(sc_link, 1, 0);
+		sc_link->flags &= ~SDEV_MEDIA_LOADED;
 		break;
 	case CDIOCALLOW:
 		error = scsi_prevent(sc_link, PR_ALLOW, 0);
@@ -699,47 +718,114 @@ od_size(unit, flags)
 	int	unit, flags;
 {
 	struct scsi_read_cap_data rdcap;
-	struct scsi_read_capacity scsi_cmd;
-	u_int32_t size;
-	u_int32_t secsize;
+	struct scsi_read_capacity rdcap_cmd;
 	struct scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 	struct scsi_data *od = sc_link->sd;
+	struct scsi_mode_sense mdsense_cmd;
+	struct scsi_mode_sense_data {
+		struct scsi_mode_header header;
+		struct blk_desc blk_desc;
+		union disk_pages pages;
+	} scsi_sense;
 
 	/*
 	 * make up a scsi command and ask the scsi driver to do
 	 * it for you.
 	 */
-	bzero(&scsi_cmd, sizeof(scsi_cmd));
-	scsi_cmd.op_code = READ_CAPACITY;
+	bzero(&rdcap_cmd, sizeof(rdcap_cmd));
+	rdcap_cmd.op_code = READ_CAPACITY;
 
 	/*
 	 * If the command works, interpret the result as a 4 byte
 	 * number of blocks
 	 */
 	if (scsi_scsi_cmd(sc_link,
-		(struct scsi_generic *) &scsi_cmd,
-		sizeof(scsi_cmd),
+		(struct scsi_generic *) &rdcap_cmd,
+		sizeof(rdcap_cmd),
 		(u_char *) & rdcap,
 		sizeof(rdcap),
 		OD_RETRIES,
-		20000,
+		10000,
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
 		return 0;
 	} else {
-		size = rdcap.addr_0;
-		size += rdcap.addr_1 << 8;
-		size += rdcap.addr_2 << 16;
-		size += rdcap.addr_3 << 24;
-		size += 1;
-		secsize = rdcap.length_0;
-		secsize += rdcap.length_1 << 8;
-		secsize += rdcap.length_2 << 16;
-		secsize += rdcap.length_3 << 24;
+		od->params.disksize = scsi_4btou(&rdcap.addr_3) + 1;
+		od->params.secsiz = scsi_4btou(&rdcap.length_3);
 	}
-	od->params.disksize = size;
-	od->params.secsiz = secsize;
-	return size;
+
+	/*
+	 * do a "mode sense page 4" (rigid disk drive geometry)
+	 */
+	bzero(&mdsense_cmd, sizeof(mdsense_cmd));
+	mdsense_cmd.op_code = MODE_SENSE;
+	mdsense_cmd.page = 4;
+	mdsense_cmd.length = 0x20;
+	/*
+	 * If the command worked, use the results to fill out
+	 * the parameter structure
+	 */
+	if (scsi_scsi_cmd(sc_link,
+		(struct scsi_generic *) &mdsense_cmd,
+		sizeof(mdsense_cmd),
+		(u_char *) & scsi_sense,
+		sizeof(scsi_sense),
+		OD_RETRIES,
+		10000,
+		NULL,
+		flags | SCSI_SILENT | SCSI_DATA_IN) != 0) {
+
+		/* default to a ficticous geometry */
+		od->params.heads = 64;
+	} else {
+		SC_DEBUG(sc_link, SDEV_DB3,
+			 ("%ld cyls, %d heads, %d rpm\n",
+			scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
+			scsi_sense.pages.rigid_geometry.nheads,
+			scsi_2btou(&scsi_sense.pages.rigid_geometry.medium_rot_rate_1)));
+
+		od->params.heads = scsi_sense.pages.rigid_geometry.nheads;
+		if (od->params.heads == 0)
+			od->params.heads = 64; /* ficticous */
+		od->params.rpm =
+			scsi_2btou(&scsi_sense.pages.rigid_geometry.medium_rot_rate_1);
+	}
+
+	/*
+	 * do a "mode sense page 3" (format device)
+	 */
+	bzero(&mdsense_cmd, sizeof(mdsense_cmd));
+	mdsense_cmd.op_code = MODE_SENSE;
+	mdsense_cmd.page = 3;
+	mdsense_cmd.length = 0x20;
+	/*
+	 * If the command worked, use the results to fill out
+	 * the parameter structure
+	 */
+	if (scsi_scsi_cmd(sc_link,
+		(struct scsi_generic *) &mdsense_cmd,
+		sizeof(mdsense_cmd),
+		(u_char *) & scsi_sense,
+		sizeof(scsi_sense),
+		OD_RETRIES,
+		10000,
+		NULL,
+		flags | SCSI_SILENT | SCSI_DATA_IN) != 0) {
+
+		/* default to a ficticous geometry */
+		od->params.sectors = 32;
+	} else {
+		SC_DEBUG(sc_link, SDEV_DB3,
+			 ("%d secs\n",
+			scsi_2btou(&scsi_sense.pages.disk_format.ph_sec_t_1)));
+
+		od->params.sectors =
+			scsi_2btou(&scsi_sense.pages.disk_format.ph_sec_t_1);
+		if (od->params.sectors == 0)
+			od->params.sectors = 32; /* ficticous */
+	}
+
+	return od->params.disksize;
 }
 
 #ifdef notyet
@@ -760,10 +846,7 @@ od_reassign_blocks(unit, block)
 
 	rbdata.length_msb = 0;
 	rbdata.length_lsb = sizeof(rbdata.defect_descriptor[0]);
-	rbdata.defect_descriptor[0].dlbaddr_3 = ((block >> 24) & 0xff);
-	rbdata.defect_descriptor[0].dlbaddr_2 = ((block >> 16) & 0xff);
-	rbdata.defect_descriptor[0].dlbaddr_1 = ((block >> 8) & 0xff);
-	rbdata.defect_descriptor[0].dlbaddr_0 = ((block) & 0xff);
+	scsi_uto4b(block, &rbdata.defect_descriptor[0].dlbaddr_3);
 
 	return scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
@@ -776,47 +859,6 @@ od_reassign_blocks(unit, block)
 		SCSI_DATA_OUT);
 }
 #endif
-#define b2tol(a)	(((unsigned)(a##_1) << 8) + (unsigned)a##_0 )
-
-/*
- * Get ficticious geometry from total sectors.
- */
-static void
-od_get_geometry(total, cp, hp, sp)
-	u_int32_t total;
-	u_int16_t *cp;
-	u_char *hp;
-	u_char *sp;
-{
-	u_int16_t cyls;
-	u_char heads;
-	u_char sectors;
-
-	heads = 64;
-	sectors = 32;
-
-	if (total != 0) {
-		cyls = total / (64 * 32);
-		while (cyls >= 1024) {
-			if (heads < 128) {
-				heads *= 2;
-			} else {
-				heads = 255;
-				sectors = 63;
-				cyls = total / (heads * sectors);
-				break;
-			}
-			cyls = total / (heads * sectors);
-		}
-		if (total > (cyls * heads * sectors))
-			cyls++;
-	} else
-		cyls = 0;
-
-	*cp = cyls;
-	*hp = heads;
-	*sp = sectors;
-}
 
 /*
  * Get the scsi driver to send a full inquiry to the
@@ -843,10 +885,15 @@ od_get_parms(unit, flags)
 	 * Use ficticious geometry, this depends on the size of medium.
 	 */
 	sectors = od_size(unit, flags);
-	/* od_size() sets secsiz and disksize */
+	/* od_size() sets secsiz, disksize, sectors, and heads */
 
-	od_get_geometry(sectors, &disk_parms->cyls, &disk_parms->heads,
-			&disk_parms->sectors);
+	/* ficticous number of cylinders, so that C*H*S <= total */
+	if (disk_parms->sectors != 0 && disk_parms->heads != 0) {
+		disk_parms->cyls =
+		  sectors / (disk_parms->sectors * disk_parms->heads);
+	} else {
+		disk_parms->cyls = 0;
+	}
 
 	if (sectors != 0) {
 		sc_link->flags |= SDEV_MEDIA_LOADED;
