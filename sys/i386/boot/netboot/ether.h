@@ -16,6 +16,7 @@ Author: Martin Renters
 #define VENDOR_WD	1
 #define VENDOR_NOVELL	2
 #define VENDOR_3COM	3
+#define VENDOR_3C509 4
 
 #define FLAG_PIO	0x01
 #define FLAG_16BIT	0x02
