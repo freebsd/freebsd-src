@@ -415,6 +415,7 @@ dev/fxp/if_fxp.c	optional fxp
 dev/gem/if_gem.c	optional gem
 dev/gem/if_gem_pci.c	optional gem pci
 dev/gx/if_gx.c		optional gx
+dev/harp/if_harp.c	optional harp pci
 dev/hatm/if_hatm.c	optional hatm pci
 dev/hatm/if_hatm_intr.c	optional hatm pci
 dev/hatm/if_hatm_ioctl.c	optional hatm pci
