@@ -1322,7 +1322,7 @@ free_reductions()
  * side effects	- table is increase by at least 200 short words
  */
 
-int
+static int
 increase_maxtable(int loc)
 {
     int newmax;
