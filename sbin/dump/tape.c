@@ -109,8 +109,8 @@ char	(*nextblock)[TP_BSIZE];
 
 int master;		/* pid of master, for sending error signals */
 int tenths;		/* length of tape used per block written */
-static int caught;	/* have we caught the signal to proceed? */
-static int ready;	/* have we reached the lock point without having */
+static volatile sig_atomic_t caught; /* have we caught the signal to proceed? */
+static volatile sig_atomic_t ready; /* reached the lock point without having */
 			/* received the SIGUSR2 signal from the prev slave? */
 static jmp_buf jmpbuf;	/* where to jump to if we are ready when the */
 			/* SIGUSR2 arrives from the previous slave */
