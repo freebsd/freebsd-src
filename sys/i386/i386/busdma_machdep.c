@@ -277,7 +277,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	}
 
 	if (newtag->lowaddr < ptoa((vm_paddr_t)Maxmem)
-	 || newtag->alignment > 1 || newtag->boundary > 0)
+	 || newtag->alignment > 1)
 		newtag->flags |= BUS_DMA_COULD_BOUNCE;
 
 	if (((newtag->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
