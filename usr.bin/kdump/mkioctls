@@ -30,4 +30,4 @@ END {
 	print "\n\treturn(NULL);"
 	print "}"
 }
-' /usr/include/sys/ioctl.h /usr/include/sys/ioctl_compat.h
+' $DESTDIR/usr/include/sys/ioctl.h $DESTDIR/usr/include/sys/ioctl_compat.h
