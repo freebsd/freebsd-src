@@ -151,6 +151,7 @@ static int malloc_nowait_count;
 static int malloc_failure_count;
 SYSCTL_INT(_debug_malloc, OID_AUTO, failure_rate, CTLFLAG_RW,
     &malloc_failure_rate, 0, "Every (n) mallocs with M_NOWAIT will fail");
+TUNABLE_INT("debug.malloc.failure_rate", &malloc_failure_rate);
 SYSCTL_INT(_debug_malloc, OID_AUTO, failure_count, CTLFLAG_RD,
     &malloc_failure_count, 0, "Number of imposed M_NOWAIT malloc failures");
 #endif
