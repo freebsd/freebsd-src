@@ -386,6 +386,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 
 	if (chain->fw_flg & IP_FW_F_KEEP_S) {
 		struct _s_x *p = limit_masks;
+
 		switch(chain->dyn_type) {
 		default:
 			printf(" *** unknown type ***");
@@ -1921,18 +1922,14 @@ add(int ac, char *av[])
 			av++; ac--;
 			for (; ac >1 ;) {
 			    struct _s_x *p = limit_masks;
-			    int found = 0;
 			    for ( ; p->s != NULL ; p++)
 				if (!strncmp(*av, p->s, strlen(*av))) {
 				    rule.limit_mask |= p->x ;
 				    av++; ac-- ;
-				    found = 1 ;
+				    break ;
 				}
-			    if (found == 0) {
-				if (rule.limit_mask == 0)
-				    errx(EX_USAGE, "missing limit mask");
+			    if (p->s == NULL)
 				break ;
-			    }
 			}
 			if (ac < 1)
 			    errx(EX_USAGE,
@@ -1940,6 +1937,8 @@ add(int ac, char *av[])
 			rule.conn_limit = atoi(*av);
 			if (rule.conn_limit == 0)
 			    errx(EX_USAGE, "limit: limit must be >0");
+			if (rule.limit_mask == 0)
+			    errx(EX_USAGE, "missing limit mask");
 			av++; ac--;
 		} else if (!strncmp(*av, "keep-state", strlen(*av))) {
 			u_long type;
