@@ -209,7 +209,6 @@ int Maxmem = 0;
 #ifdef PC98
 int Maxmem_under16M = 0;
 #endif
-long dumplo;
 
 vm_offset_t phys_avail[10];
 
