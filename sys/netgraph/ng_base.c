@@ -3017,8 +3017,18 @@ SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
 
 
 static int			allocated;	/* number of items malloc'd */
+
 static int			maxalloc = 128;	/* limit the damage of a leak */
-static const int		ngqfreemax = 64;/* cache at most this many */
+static int			ngqfreemax = 64;/* cache at most this many */
+
+TUNABLE_INT("net.graph.maxalloc", &maxalloc);
+SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RD, &maxalloc,
+    0, "Maximum number of queue items to allocate");
+
+TUNABLE_INT("net.graph.ngqfreemax", &ngqfreemax);
+SYSCTL_INT(_net_graph, OID_AUTO, ngqfreemax, CTLFLAG_RD, &ngqfreemax,
+    0, "Maximum number of free queue items to cache");
+
 static const int		ngqfreelow = 4; /* try malloc if free < this */
 static volatile int		ngqfreesize;	/* number of cached entries */
 #ifdef	NETGRAPH_DEBUG
