@@ -202,7 +202,7 @@ static void		ahc_handle_devreset(struct ahc_softc *ahc,
 					    struct ahc_devinfo *devinfo,
 					    cam_status status, char *message,
 					    int verbose_level);
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 static void		ahc_setup_target_msgin(struct ahc_softc *ahc,
 					       struct ahc_devinfo *devinfo,
 					       struct scb *scb);
@@ -705,7 +705,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 					ahc->msgin_index = 0;
 				}
 			}
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 			else {
 				if (bus_phase == P_MESGOUT) {
 					ahc->msg_type =
@@ -3992,7 +3992,7 @@ ahc_free(struct ahc_softc *ahc)
 
 		tstate = ahc->enabled_targets[i];
 		if (tstate != NULL) {
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 			int j;
 
 			for (j = 0; j < AHC_NUM_LUNS; j++) {
@@ -4008,7 +4008,7 @@ ahc_free(struct ahc_softc *ahc)
 			free(tstate, M_DEVBUF);
 		}
 	}
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 	if (ahc->black_hole != NULL) {
 		xpt_free_path(ahc->black_hole->path);
 		free(ahc->black_hole, M_DEVBUF);
@@ -5126,7 +5126,7 @@ ahc_suspend(struct ahc_softc *ahc)
 		return (EBUSY);
 	}
 
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 	/*
 	 * XXX What about ATIOs that have not yet been serviced?
 	 * Perhaps we should just refuse to be suspended if we
@@ -5227,7 +5227,7 @@ ahc_match_scb(struct ahc_softc *ahc, struct scb *scb, int target,
 	if (match != 0)
 		match = ((lun == slun) || (lun == CAM_LUN_WILDCARD));
 	if (match != 0) {
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 		int group;
 
 		group = XPT_FC_GROUP(scb->io_ctx->ccb_h.func_code);
@@ -5970,7 +5970,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	 * before the reset occurred.
 	 */
 	ahc_run_qoutfifo(ahc);
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 	/*
 	 * XXX - In Twin mode, the tqinfifo may have commands
 	 *	 for an unaffected channel in it.  However, if
@@ -6002,7 +6002,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		 */
 		ahc_outb(ahc, SBLKCTL, sblkctl ^ SELBUSB);
 		simode1 = ahc_inb(ahc, SIMODE1) & ~(ENBUSFREE|ENSCSIRST);
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 		/*
 		 * Bus resets clear ENSELI, so we cannot
 		 * defer re-enabling bus reset interrupts
@@ -6021,7 +6021,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	} else {
 		/* Case 2: A command from this bus is active or we're idle */
 		simode1 = ahc_inb(ahc, SIMODE1) & ~(ENBUSFREE|ENSCSIRST);
-#if AHC_TARGET_MODE
+#ifdef AHC_TARGET_MODE
 		/*
 		 * Bus resets clear ENSELI, so we cannot
 		 * defer re-enabling bus reset interrupts
