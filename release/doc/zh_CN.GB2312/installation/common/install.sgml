@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.27
+Original Revision: 1.27.2.2
 $FreeBSD$
 
 install.sgml
@@ -66,11 +66,11 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- i386/pc98 text starts here -->
 
-    <para arch="i386,pc98">&arch.print; 体系的 &os; 需要 486 或者更高的处理器来安装运行
-    (虽然 &os; 可以用定制的内核运行在 386 处理器上)，
-    至少 8 兆内存来安装、7 兆内存来运行。
-    最小安装您需要有至少 150MB 的剩余磁盘空间。继续阅读查找压缩存在的
-    DOS 分区用来安装 &os; 的方法。</para>
+    <para arch="i386,pc98">&os; 在 &arch.print; 系统上需要 486
+    或更高的处理器 (尽管通过定制内核， 可以让 &os;
+    运行在 386 处理器上)， 以及至少 24&nbsp;MB 的 RAM。
+    最小安装需要至少 150MB 的剩余硬盘空间。 请阅读下面的部分，
+    来了解如何缩小现有的 DOS 分区以便安装 &os; 的方法。</para>
 
 <!-- alpha text starts here -->
 

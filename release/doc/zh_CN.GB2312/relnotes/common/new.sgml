@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.11
+     Original revision: 1.761.2.37
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -16,15 +16,25 @@
     <year>2002</year>
     <year>2003</year>
     <year>2004</year>
+    <year>2005</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
   <abstract>
-    <para>&os; &release.current; 的发行说明包括了自 &release.prev; 以来
-      &os; 基本系统所进行的改动的总结。
-      这份文档列举了对上一发行版本适用的所有安全公告，以及
-      &os; 内核和用户程序所作的重要修改。
-      对于升级时需要注意的一些问题，也进行了简略的介绍。</para>
+    <para>这份 &os; &release.current; 的发行说明， 概括了 &os;
+      基本系统自 &release.prev; 以来所做的改动。
+      本文档同时列举了自前一发行版发布以来所有适用的安全公告， 以及对于 &os;
+      内核以及系统附带的应用程序所做的重要修改。
+      在升级时所需要注意的一些问题， 也进行了简略的介绍。</para>
   </abstract>
 </articleinfo>
 
@@ -37,10 +47,10 @@
 
 <![ %release.type.snapshot [
 
-  <para>这份 &release.type; 版本是正在进行开发的 &release.branch;
-    分支在 &release.prev; 和未来的 &release.next; 之间的一个快照。
-    预先编译好的 &release.type; 安装包可以在
-    <ulink url="&release.url;"></ulink> 找到。</para>
+  <para>这份说明所说的 &release.type; 版本，
+    是在 &release.branch; 开发分支上 &release.prev; 到未来的 &release.next;
+    上的一点。 这一开发分支上预编译的二进制形式的 &release.type;
+    安装包， 可以在 <ulink url="&release.url;"></ulink> 找到。</para>
 
 ]]>
 
@@ -84,1562 +94,510 @@
   <sect2 id="security">
     <title>安全公告</title>
 
-    <para>在 &man.mksnap.ffs.8; 中的一处缺陷被改正；
-      这一缺陷会导致创建快照时将文件系统的权限标记值 (flags) 恢复到默认状态。
-      上述问题可能引发的后果与如何利用这一缺陷有关，但它至少可以被用来绕过基于扩展访问控制表的安全机制，
-      以及在不应受信任的文件系统上启用 setuid 支持。
-      这一问题也会影响 &man.dump.8; 的
-      <option>-L</option> 选项，因为它也会使用 &man.mksnap.ffs.8;。
-      需要说明的是， &man.mksnap.ffs.8; 在通常情况下只有超级用户和
-      <groupname>operator</groupname> 组的成员才能够使用。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>。</para>
+    <para>在 &man.fetch.1; 工具中发现了一处问题，
+      它可能导致恶意的 HTTP 服务器覆盖客户程序任意部分的内存，
+      这一问题已经得到修复。 要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16.fetch</ulink>。
+      </para>
 
-    <para>修正了一个 System V 共享内存接口
-      (特指 &man.shmat.2; 系统调用) 的问题。
-      这一问题会导致共享内存段引用到未分配的内核内存。
-      于是，这将导致本地的攻击者在没有得到授权的情况下访问一部分内核内存，
-      其结果是可能会泄露一些敏感信息，绕过访问控制机制，或导致特权提升。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>。
-      &merged;</para>
+    <para>在 &man.procfs.5; 和 &man.linprocfs.5;
+      中发现了一处问题， 它能够允许恶意的本地用户读取部分内核内存，
+      或通过造成系统 panic 来实施本地拒绝服务攻击，
+      这一问题已经得到修复。 要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>。
+      </para>
 
-    <para>修正了 &man.jail.attach.2; 系统调用中的一处编码失误。
-      这个失误有可能允许在 &man.jail.8; 环境中以超级用户身份运行的进程修改其根目录到另一个
-      jail 中，进而获得在那个 jail 中的完全读写权限。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>。</para>
-
-    <para>通过限制同一时间段内允许的错位分片数目，一种潜在的针对 &os;
-      TCP 协议栈的非对称带宽拒绝服务攻击得以避免。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>。
-      &merged;</para>
-
-    <para>在 <application>OpenSSL</application> 的 SSL/TLS
-      ChangeCipherSpec 消息处理过程中的一个问题可能导致对零指针的操作，
-      现在已经得到纠正。 这一问题可能引致远程攻击者发动攻击并导致采用
-      <application>OpenSSL</application> 的应用程序崩溃，从而完成拒绝服务攻击。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>。
-      &merged;</para>
-
-    <para>修正了一处 &man.setsockopt.2; 系统调用在处理某些 IPv6 socket
-      选项时的编程疏忽。 这一问题使得本地的攻击者能够引发系统 panic，
-      并且，还有可能在未经授权的情况下访问内核内存的某些部分，
-      这可能造成敏感信息的泄漏、绕过访问控制机制，或导致特权提升。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:06.ipv6.asc">FreeBSD-SA-04:06</ulink>。</para>
-
-    <para>修正了 <application>CVS</application> 中的两处程序设计缺陷。
-      这些缺陷能够导致服务器覆盖客户机上的任意文件，以及允许客户机在访问远程代码库的过程中读取服务器上的任意文件。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:07.cvs.asc">FreeBSD-SA-04:07</ulink>。 &merged;</para>
-
-    <para>修正了 <application>Heimdal</application> 中对于默认的跨域验证没有实施有效的检查的问题。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>。 &merged;</para>
-
-    <para>修正了 <application>CVS</application> 允许恶意的客户覆盖服务器任意部分的问题。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>。 &merged;</para>
-
-    <para>修正了 &man.msync.2; 系统调用中的一个潜在的与
-      <literal>MS_INVALIDATE</literal> 操作有关的缓存一致性破坏问题。
-      不过，修复这一安全问题的负面影响是， <literal>MS_INVALIDATE</literal>
-      不再保证该范围内所有页都失效。
-      对于不担心这一安全问题， 且希望保持原先的 <literal>MS_INVALIDATE</literal>
-      语义的用户可以考虑将 <varname>vm.old_msync</varname> sysctl 设置为 1
-      来还原先前的 (同时也是不安全的) 行为。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:11.msync.asc">FreeBSD-SA-04:11</ulink>。 &merged;</para>
-
-    <para>修正了 &man.jail.2; 系统调用中的一处程序设计失误。
-      这一问题可能导致 jail 外面的进程修改 jail 中的路由表。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:12.jail.asc">FreeBSD-SA-04:12</ulink>。 &merged;</para>
-
-    <para>修正了在处理某些 Linux 系统调用时没有进行有效的验证而导致的访问任意内存范围的问题。
-      关于这一问题的详情，请参考安全公告 <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:13.linux.asc">FreeBSD-SA-04:13</ulink>。 &merged;</para>
-
-    <para>通过将 <application>CVS</application> 升级到 1.11.17，
-      修正了 <application>CVS</application> 中可能导致信息泄露、
-      拒绝服务， 或执行任意代码的一系列程序设计问题。
-      要了解更详细的信息， 请参见安全公告 <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:14.cvs.asc">FreeBSD-SA-04:14</ulink>。</para>
-
-    <para>修正了 <literal>CONS_SCRSHOT</literal> &man.ioctl.2;
-      中的一处问题； 这个问题可能导致未授权的对内核内存的访问，
-      而这种访问可能会导致泄露敏感信息、 绕过访问控制机制，
-      或导致特权提升。
-      要了解更详细的信息， 请参见安全公告 <ulink
-      url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:15.syscons.asc">FreeBSD-SA-04:15</ulink>。</para>
   </sect2>
 
   <sect2 id="kernel">
     <title>对于内核的改动</title>
 
-    <para>加入并默认启用了 <literal>ADAPTIVE_MUTEXES</literal>。
-      当另一个 CPU 上运行的线程拥有某个 mutex 时，
-      这将让受阻的 mutex 自旋。
-      如果要关闭这个特性， 则需要设置内核选项
-      <varname>NO_ADAPTIVE_MUTEXES</varname>。</para>
+    <para>内核调试器 &man.ddb.4; 现在支持用于显示持有休眠互斥体
+    (以及当前线程所持有的自旋互斥体) 的情况的
+      <command>show alllocks</command> 命令了。</para>
 
-    <para>新增了 <varname>ADAPTIVE_GIANT</varname>，
-      它使得启用了自适应 mutex 时，内核全局锁 (Giant)
-      也以自适应 mutex 的方式处理。 这可以改善 SMP 机器的性能，
-      并在 i386 上默认启用。</para>
+    <para>现在 &man.jail.8; 功能支持一个新的 sysctl
+      <varname>security.jail.chflags_allowed</varname>，
+      用于控制 &man.chflags.1; 在 jail 中的行为。
+      如果设置为 <literal>0</literal> (默认值)， jail 中的 <username>root</username>
+      用户将被认为是非特权用户； 如果设置为 <literal>1</literal>，
+      则 jail 中的 root 用户会被视为与未 jail 的 <username>root</username>
+      用户一样。</para>
 
-    <para>&man.bus.dma.9; 接口新增了加载缓冲时对于 DMA tag
-      中的对齐和边界限制的透明识别支持，
-      而 <function>bus_dmamap_load()</function>
-      将在需要时自动使用弹回缓冲。
-      此外， 还增加了一组用于 &man.bus.dma.9; 统计的
-      sysctl <varname>hw.busdma.*</varname>。</para>
-
-    <para>重新实现了 &man.contigmalloc.9;
-      并采用了一种在执行程序时无论压力大小都能更好地工作的算法。
-      原先的算法可以通过设置 sysctl <varname>vm.old_contigmalloc</varname>
-      来启用， 具体情况在 &man.contigmalloc.9; 联机手册中有所介绍。</para>
-
-    <para>&man.devfs.5; 路径规则现在可以在目录中正常工作了。</para>
-
-    <para>删去了 &man.getvfsent.3; API。</para>
-
-    <para>去掉了 loader 变量 <varname>hw.pci.allow_unsupported_io_range</varname>。</para>
-
-    <para>&man.jail.2; 目前可以支持从 jail 中使用 raw sockets 了。
-      默认情况下，这一功能处于关闭的状态，可以通过
-      <varname>security.jail.allow_raw_sockets</varname> sysctl 来控制。</para>
-
-    <para>&man.kqueue.2; 新增了一种叫做
-      <literal>EVFILT_FS</literal> 的过滤器支持，
-      它可以用信号将一般的文件系统事件传达给用户进程空间。
-      目前， mount, unmount, 以及 NFS 的 up/down
-      可以使用信号传递。</para>
-
-    <para>KDB， 一个新的调试器框架， 被加入进来。
-      这包括一个被重写以支持线程、 RLE 压缩等功能的全新 GDB 后端， 
-      而前端则提供了可以配置多个不同调试器后端的框架，
-      并为这些后端提供基本服务。 此外修改了下述选项：</para>
-
-    <itemizedlist>
-      <listitem>
-	<para>KDB 可以通过内核选项 <literal>options KDB</literal>、
-	  <literal>options GDB</literal> 以及 <literal>options DDB</literal>
-	  来默认地启用。
-	  <literal>DDB</literal> 和
-	  <literal>GDB</literal> 用于指定使用哪一个 KDB 后端。</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>WITNESS_DDB</literal> 改名为
-	  <literal>WITNESS_KDB</literal>。</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>DDB_TRACE</literal> 改名为
-	  <literal>KDB_TRACE</literal>。</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>DDB_UNATTENDED</literal> 改名为
-	  <literal>KDB_UNATTENDED</literal>。</para>
-      </listitem>
-
-      <listitem>
-	<para><literal>SC_HISTORY_DDBKEY</literal> 改名为
-	  <literal>SC_HISTORY_KDBKEY</literal>。</para>
-      </listitem>
-
-      <listitem>
-	<para>去掉了 <literal>DDB_NOKLDSYM</literal>。
-	  新的 DDB 后端支持连接前符号的查找，
-	  并能够查找 KLD 的符号。</para>
-      </listitem>
-
-      <listitem>
-	<para>去掉了 <literal>GDB_REMOTE_CHAT</literal>。
-	  修改了 GDB 协议以适应 &os; 的需要。
-	  同时， GDB 也包括了控制台输出。</para>
-      </listitem>
-    </itemizedlist>
-
-    <para>KDB 同时还作为任何需要使用调试功能代码的统一枢纽，
-      例如进入调试器， 或处理后备的 break 序列。
-      基于这样的原因， 前端不再是可选的。
-      只要可能， 所有的调试器请求都会被转发或交给当前的后端来进行处理。
-      可以通过
-      <varname>debug.kdb.current</varname> sysctl 来选择当前使用的后端。
-      已经配置好的后端列表可以通过
-      <varname>debug.kdb.available</varname> sysctl 得到。
-      另外， 可以通过写
-      <varname>debug.kdb.enter</varname> sysctl 来进入调试器。</para>
-
-    <para>增加了新的 sysctl <varname>debug.kdb.stop_cpus</varname>。
-      这可以控制在进入调试器时是否发出 IPI (处理器间中断)，
-      以便在调试时停止它们的运行。</para>
-
-    <para arch="amd64">amd64 上的动态内核模块已处于可用状态，
-      在编译时默认开启。</para>
-
-    <para arch="amd64">增加了初步的用于在 amd64 上运行 32-位
-      Linux 程序的支持。 这可以通过
-      <literal>COMPAT_LINUX32</literal> 内核选项来启用。</para>
-
-    <para>增加了 <literal>MAC_STATIC</literal>， 这一内核选项用于在动态加载和卸载 MAC
-      规则时禁止内部 MAC Framework 同步保护。</para>
-
-    <para>&man.mac.bsdextended.4; 策略现在支持只有在全部规则匹配时才匹配并应用第一个策略。
-      这一特性可以通过新的 sysctl
-      <varname>mac_bsdextended_firstmatch_enabled</varname> 来启用。</para>
-
-    <para>&man.mac.bsdextended.4; 策略能够在 syslog 的
-      <literal>AUTHPRIV</literal> facility 中记录失败尝试了。
-      这一特性可以通过新的 sysctl
-      <varname>mac_bsdextended_logging</varname> 来启用。</para>
-
-    <para>mbuma 取代了 mballoc， 这是一个基于 UMA 框架之上的扩展 Mbuf 和 Cluster 分配系统。
-      这一变动使得不再需要 <literal>NMBCLUSTERS</literal> 。
-      clusters 的最大数目依然取决于 <literal>maxusers</literal>，
-      但如果在启动时将 <varname>kern.ipc.nmbclusters</varname> 设置为零，
-      则可以让其不受限制。</para>
-
-    <para><filename>/dev/kmem</filename>、 <filename>/dev/mem</filename>、
-      以及 <filename>/dev/io</filename>
-      现在可以作为内核可加载模块来使用了。</para>
-
-    <para>修正了 &man.mmap.2; 在将内存页标记为 <literal>PROT_NONE</literal>
-      时仍然可能在特定情况下被读取的问题。 &merged;</para>
-
-    <para arch="i386,pc98">增加了新的内核选项 <literal>MP_WATCHDOG</literal>，
-      它可以将系统中的一个逻辑 CPU 作为一个专用的
-      watchdog 来使用。 一旦内核停止响应， 它将进入调试器或产生一个
-      NMI (不可屏蔽中断)。
-      提供了许多 sysctl 用于在处理器的 idle 线程中启用 watchdog;
-      而一个 callout 将在 watchdog 中复位计数器。
-      如果十秒之内 callout 仍然没有复位计数器，
-      则超时进程将启动。
-      <varname>debug.watchdog_cpu</varname>
-      sysctl 可以用来选择执行 watchdog 的 CPU。</para>
-
-    <para arch="i386,pc98">增加了 <varname>debug.leak_schedlock</varname>
-      sysctl。 这将让泄漏了 sched 锁的 sysctl 处理过程在锁上自旋以触发
-      <literal>MP_WATCHDOG</literal> 选项所提供的 watchdog。</para>
-
-    <para>增加了加载器选项 <varname>debug.mpsafenet</varname> 并默认开启。
-      这将使 &os; 的网络协议栈在不使用
-      Giant 的条件下执行，
-      从而通过提高并行度和减少网络处理延迟来达到提高性能的目的。
-      请注意如果启用了 &man.ng.tty.4;
-      Netgraph 节点类型、 KAME IPsec、 以及 IPX/SPX
-      子系统中的任何一个都将导致启动时使用采用 Giant 的网络操作，
-      如果在运行时加载它们则将会有警告说明这些组件需要 Giant
-      锁才能够正常工作。</para>
-
-    <para>增加了新的内核选项 <varname>NET_WITH_GIANT</varname>。
-      这将还原 debug.mpsafenet 的默认值
-      <literal>0</literal>， 它主要用于编译已知的非线程安全的组件，
-      或需要更为保守的配置的情形。</para>
-
-    <para>增加了新的加载器变量 <varname>debug.mpsafevm</varname>。
-      目前设置它将使填零缺页在绝大多数时候以无 Giant 的形式运行。</para>
-
-    <para arch="alpha,amd64,i386">增加了新的内核选项
-      <literal>PREEMPTION</literal>。
-      它使得内核中的线程能够被优先级更高的线程抢占。
-      这有助于改善交互性， 并允许中断线程更早地执行而不是等待。</para>
-
-    <para>在 dev sysctl 中加入了一层 devclass 以支持按分层可变的设备变量。
-      这样， <varname>dev.foo0.bar</varname> 现在应改作 <varname>dev.foo.0.bar</varname>，
-      同时，使用 <varname>dev.foo.bar</varname> 也成为可能。</para>
-
-    <para>新增了 sysctl， <varname>kern.always_console_output</varname>
-      可以用来控制内核是否把所有输出放到
-      <varname>TIOCCONS</varname>。</para>
-
-    <para>加入了一个用于检测当前使用的调度器名称的 <varname>kern.sched.name</varname>
-      sysctl。 考虑到一致性， <varname>kern.quantum</varname> sysctl
-      被改名为 <varname>kern.sched.quantum</varname>。</para>
-
-    <para>&man.pci.4; 总线资源和电源管理进行了更新。
-
-      <note>
-	<para>虽然 &man.pci.4; 总线电源状态管理默认启用，
-	  它可能在一些系统上引发问题。 可以通过将
-	  <varname>hw.pci.do_powerstate</varname> 设置为
-	  <literal>0</literal> 来禁止它。</para>
-      </note>
-    </para>
-
-    <para>加入了作为附加调度器的 ULE 调度器。
-      请注意被称为 4BSD 的那个传统的调度器仍然是 <filename>GENERIC</filename>
-      内核的默认调度器。 对于一般用户来说， 
-      已经有很多反馈认为在很多情况下操作系统的交互性得到了改善。
-      这意味着系统忙时交互式应用程序中 <quote>跳跃</quote> 和 <quote>颠簸</quote>
-      的现象变得更少。 这并不是说在磁盘子系统超载时的问题得以避免，
-      但在 CPU 超载时确实有很大的改善。 对于 SMP 的机器，
-      ULE 提供了 CPU 独立运行队列来支持 CPU 附着、 CPU 绑定，
-      以及高级的超线程支持， 同时也提供了未来进行进一步优化的框架。
-      随着内核细粒度上锁的持续进行， 这个调度器将能够更有效地利用可用的并行资源。</para>
-
-    <para>&man.vm.map.findspace.9; 中使用的线性查找算法已经为映射项
-      splay 树上的 O(log n) 算法所取代。
-      这显著地减少了 &man.vm.map.findspace.9; 在使用了成百或上千个
-      &man.mmap.2; 区域的应用程序中所需要的开销。</para>
-
-    <para>加载器变量 <varname>debug.witness_*</varname>
-      的名字被改为 <varname>debug.witness.*</varname>。</para>
+    <para arch="alpha,amd64,i386">加载器变量 <varname>debug.mpsafevm</varname>
+      默认置为启用了。</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para>&os; 的动态和静态连接器加入了线程本地存储 (TLS) 的支持，
-      这是一个 <application>GCC</application> 特性，
-      通过加入 <literal>__thread</literal> 修饰符来声明全局和静态变量。
-      这个修饰符表示那个变量的值是线程本地的；
-      一个线程改变它的值时， 不会影响到其他任何一个线程。</para>
+    <para>一系列 ULE 的问题得到了修正。</para>
 
-    <para>内核中的文件描述符分配代码进行了更新，它派生于与 OpenBSD 类似的代码。</para>
+    <para arch="i386">一个关于在对处理器间中断 (IPI) 进行处理时的问题得以修正，
+      这一问题可能导致 SMP 系统在重载时崩溃。 更多细节， 可以在勘误说明
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>
+      中找到。</para>
 
-    <para arch="sparc64">在 &os;/sparc64 上， <varname>time_t</varname>
-      由 32-位 改为 64-位。
-
-      <note>
-	<para>由于这一变动不是向前兼容的，因此旧有系统上使用 32-位
-	  <varname>time_t</varname> 构建的，或调用了处理
-	  <varname>time_t</varname> 值的系统调用的程序，都必须重新编译。
-	  关于如何从源代码完成升级的更详细信息在
-	  <filename>/usr/src/UPDATING.64BTT</filename> 中有所说明。</para>
-      </note>
-    </para>
-
-    <para arch="i386">现在可以使用 Intel C/C++ Compiler (可以通过 <filename
-      role="package">lang/icc</filename> port 安装) 来编译 &os;/i386
-      内核了。</para>
+    <para arch="i386">将传统 PCI 桥的内存分配范围，
+      限制到了 RAM 顶部的 32MB。 许多较早的、 旧的桥硬件，
+      只允许分配这一范围的内存。 这一修改只被应用于那些没有通过 BIOS
+      指定内存范围的设备。 它修正了 CardBus 桥 (&man.pccbb.4;)
+      的 <quote>bad Vcc</quote> 错误。</para>
 
     <sect3 id="boot">
       <title>引导区和 loader 的变化</title>
 
-      <para arch="i386">加入了支持串口控制台的
-	<filename>boot0</filename> 版本。 可以通过 &man.boot0cfg.8;
-	并使用 <option>-b</option> <filename>/boot/boot0sio</filename>
-	将其写入磁盘。</para>
-
-      <para arch="i386"><filename>cdboot</filename> 绕过了由于 BIOS
-  问题导致某些系统无法从 USB 光驱启动的问题。</para>
-
-      <!-- Above this line, order boot loader changes by keyword-->
-
+      <para></para>
     </sect3>
 
     <sect3 id="proc">
       <title>硬件支持</title>
 
-      <para arch="i386">增加了用于利用由 ACPI 控制的、类似热键和 LED 等硬件功能的驱动程序
-	&man.acpi.asus.4; 以配合 ASUSTek 笔记本。</para>
+      <para arch="sparc64">加入了用于驱动 SBus/EBus &ultrasparc;
+	型号上的某些辅助 I/O 功能的 &man.auxio.4; 驱动。</para>
 
-      <para arch="i386">增加了用于支持 Panasonic 笔记本电脑热键的
-	&man.acpi.panasonic.4; 驱动。 目前它支持
-	Let's note (在日本以外的地区是 Toughbook) CF-R1N、 CF-R2A、 以及
-	CF-R3。</para>
+      <para>加入了用于灵活控制处理器速度的框架。
+	这为许多驱动程序通过调整 CPU 的速度来控制功耗提供了手段。
+	更多细节， 可以在 &man.cpufreq.4; 联机手册中找到。</para>
 
-      <para arch="i386">增加了使用 Toshiba 的硬件控制接口以利用其硬件功能的 &man.acpi.toshiba.4;
-	驱动程序以配合 Toshiba 笔记本， 例如视频输出切换。</para>
+      <para>加入了用于支持 GPIB-PCIIA IEEE-488 卡的 pcii 驱动。</para>
 
-      <para>增加了 &man.acpi.video.4; 驱动程序，以便通过 ACPI 视频扩展来控制视频切换以及背光亮度。</para>
+      <para arch="sparc64">加入了用于支持许多 &ultrasparc; II
+	和 III 型号上的 MC146818 兼容时钟的 rtc 驱动。</para>
 
-      <para arch="i386">新的 &man.acpi.4; 驱动程序能够支持设备相关的 sysctl
-(例如， <varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>)
-	以便让用户设置是否允许某一个具体的设备唤醒系统。</para>
+      <para arch="sparc64">&man.uart.4; 驱动，
+	在 <filename>GENERIC</filename> 内核中默认启用，
+	并成为了串口的默认驱动。 ofw_console 和
+	&man.sab.4; 驱动在
+	<filename>GENERIC</filename> 内核中被禁用。</para>
 
-      <para arch="i386">更新了 &man.acpi.4; 驱动，在已知有问题的 BIOS 上自动禁止 ACPI。
-	可以通过调整 loader 参数
-	<varname>hint.acpi.0.disabled</varname> 为 <literal>0</literal>
-	来关闭这一变化。</para>
-
-      <para arch="amd64">&man.agp.4; 驱动增加了对 AMD64 图形
-      aperture 重定位表 (GART) 的支持。</para>
-
-      <para arch="i386">增加了用于 Cronyx Tau 同步串行适配器的 &man.ctau.4; 驱动。
-      &os; 正式接纳它之前， <quote>ct</quote> 已经为人们所熟知。 &merged;
-
-	<note>
-	  <para>这一驱动的名字发生了变化，但网络接口仍然沿用了
-	    <devicename>ct</devicename> 的名字。</para>
-	</note>
-      </para>
-
-      <para arch="i386,pc98">加入了用于 Cronyx Tau-PCI 同步串行适配器的 &man.cp.4; 驱动。</para>
-
-      <para arch="i386,pc98">由于无法适应新的系统，这一版本中删去了 <devicename>dgb</devicename>
-	(DigiBoard 智能串行卡) 驱动。
-	取代它的是 &man.digi.4; 驱动。</para>
-
-      <para>重写了 &man.nmdm.4; 以提高其可靠性。</para>
-
-      <para>删去了 <devicename>raid(4)</devicename> 驱动
-	(来自 NetBSD 的 RAIDframe 磁盘驱动)。
-	它目前无法正常运行， 而且需要大量的工作使其能够与
-	5-STABLE 的 &man.geom.4; API 协调工作。</para>
-
-      <para><filename>GENERIC</filename> 内核删去了
-	&man.pcic.4; 驱动， 因为它已经不再维护了。
-	这一选项已经被注释掉很久了。</para>
-
-      <para arch="i386">&man.psm.4; 和 &man.moused.8; 驱动现在支持
-	Synaptics TouchPad 了。</para>
-
-      <para arch="i386">随机数生成设备 &man.random.4; 现在支持
-	VIA C3 Nehemiah (Stepping 3 或更高) CPU 上的硬件随机数发生器 (RNG) 了。</para>
-
-      <para arch="sparc64">&man.sab.4; 可以支持
-	<literal>BREAK_TO_DEBUGGER</literal> 内核选项了。</para>
-
-      <para arch="i386,pc98">加入了用于支持 Specialix I/O8+ 和 I/O4+ 智能多口串行控制器的
-	<devicename>sx</devicename> 驱动。</para>
-
-      <para arch="alpha">从 GENERIC 中删除了 <devicename>tga</devicename>
-	驱动， 因为它需要大量的修改才能在启动时不到止内核崩溃。
-	建议使用串口控制台或普通的
-	<devicename>vga</devicename> 卡来临时替代它。</para>
-
-      <para arch="alpha">Support for TurboLaser class machines has been
-	removed.</para>
-
-      <para arch="alpha,amd64,i386">加入了针对 &man.uart.4; 设备
-	<varname>hw.uart.console</varname> 以及
-	<varname>hw.uart.dbgport</varname> 的内核环境变量。
-	他们可以被用来选择串行控制台和调试所使用的端口及其属性。</para>
-
-      <para>增加了 &man.ubser.4; 设备驱动以支持
-	BWCT 控制台管理串行适配器。</para>
-
-      <para>增加了用于 Cypress CY7C637xx 和 CY7C640/1xx 系列 USB 到 RS232
-	桥的 &man.ucycom.4; 驱动， 使用它们的硬件包括 DeLorme Earthmate USB GPS
-	接收器 (这是这个驱动目前支持的唯一设备)。 这一驱动程序目前并不完整，
-	目前它还没有提供流量和输出控制。</para>
-
-      <para arch="i386">删除了很多用于旧的 ISA 卡的驱动程序，
-	这其中包括，
-	用于支持基于 GI1904 的手持式扫描仪的 <devicename>asc</devicename> 驱动，
-	用于支持 CORTEX-I Frame Grabber 的 <devicename>ctx</devicename> 驱动，
-	用于支持 National Instruments AT-GPIB 和 AT-GPIB/TNT 板的 <devicename>gp</devicename> 驱动，
-	用于支持 Genius GS-4500 手持式扫描仪的 <devicename>gsc</devicename> 驱动，
-	用于支持 DEC EtherWORKS II 和 III 以太网控制器的 <devicename>le</devicename> 驱动，
-	用于支持基于 RealTek RTL 8002 的便携式以太网适配器的 <devicename>rdp</devicename> 驱动，
-	用于支持  Creative Labs Video Spigot 视频采集卡的 <devicename>spigot</devicename> 驱动，
-	用于支持 Stallion Technologies 多口串行控制器的 <devicename>stl</devicename> 和 <devicename>stli</devicename> 驱动，
-	以及用于支持 Archive/Wangtek 磁带机的 <devicename>wt</devicename> 驱动。
-	这些驱动程序目前都无法正常工作，而且需要相当多的改动才能够让它们在
-	5-CURRENT 新的 API 中正常工作。
-	用于支持它们的 ioctl 以及工具如
-	<devicename>sasc</devicename> 和 <devicename>sgsc</devicename>
-	也一并删去了。</para>
-
-      <para>设备驱动的基础结构 (以及许多驱动程序) 进行了改进。
-	这些改进中最重要的部分包括： 更多的驱动程序现在使用自动分配的 major numbers
-	(过去是静态的)。 此外，对于伪-设备克隆的功能也进行了加强。
-	另外，还有一些对于驱动程序 API 的修改，这包括在 <varname>struct
-	  cdevsw</varname> 中增加 <varname>d_version</varname> 字段。
-	需要注意的是，第三方驱动程序需要重新编译才能够使用。</para>
 
       <sect4 id="mm">
 	<title>多媒体支持</title>
 
-	<para><devicename>meteor</devicename> (视频捕捉卡)
-	  驱动由于无法使用以及无人维护而被删去。</para>
+	<para arch="sparc64">加入了用于支持 &ultrasparc; 工作站上的
+	  Crystal Semiconductor CS4231 音效控制器的 &man.snd.audiocs.4;
+	  驱动。</para>
 
-	<para>直接渲染管理器 (DRM) 代码进行了更新，
-	  目前的版本是来自 the DRI Project CVS 2004 年 5 月 26 日的快照版本。
-	  这一更新包含了新的 PCI ID， 以及用以支持 Radeon 的套件。</para>
-
-	<para>用于支持各式声卡的驱动程序进行了重新组织；
-	  <literal>device sound</literal> 是通用的声卡驱动，
-	  而 <literal>device snd_*</literal> 则提供具体设备的声音驱动。
-	  删除了用于支持串口和其他声卡的 <devicename>midi</devicename>
-	  驱动。 更多细节请参考相应的联机手册：
-	  &man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	  &man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	  &man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
-	  &man.snd.sbc.4;, &man.snd.solo.4;, 以及 &man.snd.uaudio.4;。</para>
-
-	<para>修改了 &man.sound.4; (之前的 &man.pcm.4;) 驱动， 在启动时读取
-	  <filename>/boot/device.hints</filename>
-	  从而允许设置混音器通道的默认值。
-	  需要注意的是目前设备驱动在
-	  <filename>/boot/device.hints</filename> 中使用的名字仍然是
-	  <literal>pcm</literal>。 更多信息和例子可以在 &man.sound.4;
-	  联机手册中找到。</para>
       </sect4>
 
       <sect4 id="net-if">
 	<title>网络接口设备支持</title>
 
-	<para arch="i386">增加了用于支持 Aironet Arlan 655 网卡的
-	  &man.arl.4; 驱动。 &merged;</para>
+	<para>&man.cp.4; 驱动现在 MPSAFE 了。</para>
 
-	<para arch="sparc64">&man.dc.4; 驱动现在支持将 MAC 地址保存在
-	  OpenFirmware 的 sparc64 Davicom 网卡了。</para>
+	<para>&man.ctau.4; 驱动现在 MPSAFE 了。</para>
 
-	<para>修正了重新配置 &man.em.4; 时造成网络停顿的驱动程序错误。 &merged;</para>
+	<para>&man.cx.4; 驱动现在 MPSAFE 了。</para>
 
-	<para>增加了用于在 FireWire 上支持 IP 的 &man.fwip.4; 驱动。
-	  需要说明的是， 目前广播通道号是硬编码的， 并且多播通道分配的
-	  MCAP 目前还不被支持。
-	  这一驱动的目标是符合 RFC 2734 和 RFC 3146 标准，并最终取代 &man.fwe.4;
-	  驱动。</para>
+	<para>&man.ed.4; 驱动现在支持 &man.altq.4; 框架了。</para>
 
-	<para>&man.fxp.4; 采用类似 
-	  <varname>dev.fxp0</varname> 这样的 sysctl 变量名，因此可以为不同的设备设置不同的参数。</para>
+	<para>在 &man.em.4; 驱动程序中， 对于 VLAN 标记 (tagging)
+	  的硬件支持， 由于其和混杂模式之间的一些冲突被默认地禁用。
+	  </para>
 
-	<para>&man.fxp.4; 提供了对其接收扩展以太网帧容量，
-	  <literal>VLAN_MTU</literal> 的控制能力。
-	  用户可以通过使用 &man.ifconfig.8;
-	  <option>vlanmtu</option> 以及 <option>-vlanmtu</option>
-	  来改变默认设置。</para>
+	<para>默认地禁用了 &man.fxp.4; 驱动的以太网流控制功能，
+	  以避免系统崩溃或进入内核调试器。</para>
 
-	<para arch="i386,pc98"><devicename>hea</devicename>
-	  (Efficient Networks, Inc. ENI-155p ATM 适配器)
-	  驱动由于无法使用而被删除。 其功能目前已经集成到了
-	  &man.en.4; 驱动中。</para>
+	<para>The &man.hme.4; 驱动现在 MPSAFE 了。</para>
 
-	<para>改进的 &man.hme.4; 驱动现在内建了长帧支持，
-	  在和 &man.vlan.4; 联用时可以使用与 Ethernet 同样的 MTU 了。</para>
+	<para arch="amd64">现在 &man.ndis.4; 设备驱动 wrapper
+	  在 amd64 系统上能够支持 &windows;/x86-64 的二进制驱动了。
+	  </para>
 
-	<para>&man.hme.4; 驱动现在能够支持
-	  TCP/UDP 发送/接收 校验和下载了。
-	  由于 &man.hme.4; 不会对 UDP 数据报进行校验和补偿，
-	  因此可能会让它取 <literal>0x0</literal>。
-	  UDP 发送校验和下载在默认时是禁用的。
-	  可以通过使用 &man.ifconfig.8; 来设置特殊的连接选项
-	  <option>link0</option> 重新激活它。</para>
+	<para>现在 &man.sf.4; 驱动支持设备混合轮询 (device polling)
+	  和 &man.altq.4; 了。</para>
 
-	<para>加入了用于支持 Intel PRO/10GBE 万兆以太网卡的 &man.ixgb.4;
-	  驱动程序。 &merged;</para>
+	<para>修正了 &man.sk.4; 驱动中的多处程序设计错误。
+	  这些问题主要影响 SMP 系统， 可能导致系统崩溃、 内核缺页、
+	  SSH 连接中断， 或文件传输问题。
+	  更多细节， 可以在勘误公告
+	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>
+	  上找到。</para>
 
-	<para arch="i386">由于无人维护和无法使用， 删去了 lmc
-	  (LAN Media Corp. PCI WAN adapter) 驱动。</para>
+	<para>现在， &man.sk.4; 驱动支持 &man.altq.4; 了。
+	  同时， 此驱动支持基于 Yukon 的网卡的巨型帧能力了。
+	  </para>
 
-	<para arch="i386">由于无法适应新系统而且无人维护，
-	  这一版本不再包含 <devicename>loran</devicename>
-	  (Loran-C 接收器) 驱动。</para>
-
-	<para arch="i386">&os; 现在提供了能够用来在 &os;/i386 上使用 &microsoft.windows;
-	  NDIS 网络设备驱动的二进制仿真层。 它包括了一个 &windows; <filename>.SYS</filename>
-	  文件的重定位/连接器， 以便在 &os; 内核和 NDIS API 之间建立接口，
-	  使用 &os; 内建的内核和功能来模拟它。
-	  这一系统支持 PCI (&man.pci.4;) 和 CardBus(&man.cardbus.4;) 网络设备，
-	  原则上也能适应一般的以太网和无线网卡。
-	  详情请参考 &man.ndis.4; 和 &man.ndiscvt.8;。</para>
-
-	<para>修正了导致 &man.nge.4; 驱动的 VLAN 支持不能正常工作的问题。  &merged;</para>
-
-	<para>修正了 &man.rl.4; 驱动中许多与 &man.polling.4; 支持有关的问题。  &merged;</para>
-
-	<para>修正了 &man.sk.4; 驱动中许多与多播和混杂模式处理有关的问题。</para>
-
-	<para>改进的 &man.ste.4; 提供了 &man.polling.4; 支持。 &merged;</para>
-
-	<para>增加了 &man.udav.4; 驱动。 它提供了 Davicom DM9601
-	  芯片组上的 USB 以太网适配器支持。</para>
-
-	<para>增加了用以支持 VIA Networking Technologies VT6122 千兆以太网芯片和
-	  集成 10/100/1000 copper PHY 的 &man.vge.4; 驱动。</para>
-
-	<para>改进的 &man.vr.4; 提供了 &man.polling.4; 支持。 &merged;</para>
-
-	<para>禁用了 &man.xl.4; 驱动中的 TX 校验和支持，
-	  因为它无法正确地工作， 并降低了传输速率。 &merged;</para>
-
-	<para>接口的 &man.polling.4; 支持现在能够以接口为单位启用和禁用了。
-	  以下这些驱动能够支持 &man.polling.4;： &man.dc.4;, &man.fxp.4;,
-	  &man.em.4;, &man.ixgb.4;,
-          &man.nge.4;, &man.re.4;, &man.rl.4;, &man.sis.4;, &man.ste.4;, &man.vge.4;,
-          以及 &man.vr.4;。 除了 &man.ixgb.4; 之外， 其他驱动都具有通过
-          &man.ifconfig.8; 来控制的能力。 &merged;</para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>网络协议</title>
 
-      <para>&man.gre.4; 隧道驱动现在支持了 WCCP 版本
-	2。</para>
+      <para>当发送方写的数据必须分片时， 关闭了 IPv6 中的 MTU
+	反馈。</para>
 
-      <para>&man.ipfw.4; 规则增加了 <literal>versrcreach</literal>
-        选项， 该选项用于验证到包源地址的路由确实已经存在。
-	这个选项对于在路由表中包含整个 Internet 的路由器
-	(BGP) 非常有用， 它能够帮助路由器拒绝伪造的或无法路由的源地址。
-	例如，
+      <para>实现了共用地址冗余协议 (CARP)。
+	CARP 来自 OpenBSD， 允许多个主机共享同一个
+	IP 地址， 从而提供了高可用性和负载均衡。
+	要了解更多细节， 请参考 &man.carp.4; 联机手册。</para>
 
-	<programlisting>deny ip from any to any not versrcreach</programlisting>
+      <para>&man.ipfw.4; 可以与
+	<varname>debug.mpsafenet</varname>=<literal>1</literal>
+	(默认情况下是 <literal>1</literal>)，
+	当使用了 <literal>gid</literal>, <literal>jail</literal>,
+	和/或 <literal>uid</literal> 规则选项时正常工作了。</para>
 
-	等价于 Cisco IOS 的：
+      <para>&man.ipfw.8; <literal>ipfw fwd</literal> 规则现在支持完整的包目的地管理了，
+	其前提是启用了内核选项 <literal>options IPFIRWALL_FORWARD</literal>
+	的基础上打开了
+	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal>。
+	这个内核选项将禁用所有的限制， 以保证本地生成的包，
+	和发到配置在本地的 IP 地址的包能够正常地发出和转发。
+	请注意， 必须细心地编写 &man.ipfw.8; 规则，
+	以确保类似 PMTU 发现这类应用不致发生异常。</para>
 
-	<programlisting>ip verify unicast source reachable-via any</programlisting>
-      </para>
+      <para>&man.ipnat.8; 允许在非 TCP/UDP 包上使用重定向规则了。</para>
 
-      <para>&man.ipfw.4; 规则增加了 <literal>antispoof</literal>
-        选项， 该选项用以验证进入的包是否属于直接联结的网络。
-	如果包来自直接联结的网络， 则会比较包是否来自那个网络所在的接口。
-	如果包来自的接口不是连接它的接口， 则不匹配这个规则。
-	例如：
+      <para>目前正在进行的工作， 在逐步去掉网络协议栈中的全局锁，
+	并改进锁的策略。</para>
 
-	<programlisting>deny ip from any to any not antispoof in</programlisting>
-      </para>
+      <para>新的 &man.ng.netflow.4; NetGraph 节点，
+	使得采用 &os; 的路由器能够运行 NetFlow version 5 的导出。</para>
 
-      <para>&man.ipfw.4; 规则增加了 <literal>jail</literal>
-        选项， 用以将规则与特定的 prison ID 匹配。
-	例如：
+      <para>现在 &man.sppp.4; 驱动程序包含了帧转发 (Frame Relay)
+	支持。</para>
 
-	<programlisting>count ip from any to any jail 2</programlisting>
+      <para>修正了 TCP 的一处问题， 这一问题有时会导致当接收窗口大小为零时，
+	RST 包被忽略的问题。</para>
 
-	需要说明的是， 这一规则目前只能与 TCP 和 UDP 包联用。
-      </para>
+      <para>改进了 &os; TCP 协议栈中对 <literal>RST</literal>
+	的处理， 使得这类攻击变得尽可能地困难，
+	同时最大限度地保障了和其他 TCP 协议栈的兼容性。
+	算法如下： 对于所有在
+	<literal>ESTABLISHED</literal>
+	状态的连接， 只有当包的顺序号与
+	<varname>last_ack_sent</varname> 精确匹配时才将连接复位；
+	所有不符合的分片都将被直接丢弃。 对于所有其他状态的连接，
+	则对窗口内的复位请求进行处理。 其它的复位分片则被直接丢弃。
+	需要说明的是， 这一行为和 RFC 793 标准抵触， 传统的 (但安全性较差)
+	行为， 可以通过将新增的 sysctl <varname>net.inet.tcp.insecure_rst</varname>
+	设置为 <literal>1</literal> 来还原。</para>
 
-      <para>&man.ipfw.4; 增加了查找表支持。 这一特性对于处理大的松散地址集很有用。
-        &merged;</para>
+      <para>在 TCP SACK 实现中的许多错误得到了修正。</para>
 
-      <para>&man.ipfw.4; 的 <literal>forward</literal> 规则现在必须通过内核选项
-	<literal>IPFIREWALL_FORWARD</literal> 编译到内核中才能启用了。</para>
+      <para>将 KAME IPv4 IPsec 实现集成到了 &os; 中，
+	现在支持 TCP-MD5 了。</para>
 
-      <para>加入了新的 sysctl <varname>net.inet.ip.process_options</varname>
-	以控制 IP 选项的处理。 当设置为
-	<literal>0</literal> 时， 将忽略 IP 选项并不加修改地传递它们，
-	设置为 <literal>1</literal> 则所有的 IP 都会被处理 (这是默认值)，
-	而设置为 <literal>2</literal> 时所有包含 IP 选项都会用对应的
-	ICMP 过滤器禁止消息来拒绝。</para>
+      <para>短期使用端口的随机分配导致了在高连接速率时的端口重用问题。
+        这一功能现在在短期内发生大量连接， 即新端口的创建速率快于每秒
+        <varname>net.inet.ip.portrange.randomcps</varname> 时，
+        被自动禁用
+        <varname>net.inet.ip.portrange.randomtime</varname>
+        秒。 这两个 sysctl 变量的默认值，
+        分别是 <literal>10</literal> 和 <literal>45</literal>。</para>
 
-      <para>修正了一些来自 KAME 的 IPsec 实现中的 bug。
-	这些 bug 与内存对象在全部引用被移除之前实施释放有关，
-	可能导致在清除安全策略数据库 (SPD) 时产生一些不正确的行为或内核崩溃。</para>
-
-      <para>&man.natd.8; 通过新增的 <option>globalports</option> 选项支持运行多个实例。
-	这使得能够把 &man.natd.8; 绑定到不同的网络接口上， 并分享负荷。</para>
-
-      <para>新增了 &man.ng.atmllc.4; Netgraph 节点， 用以处理
-        RFC 1483 ATM LLC 封包。</para>
-
-      <para>新增了 &man.ng.hub.4; Netgraph 节点，
-	用以支持类似以太网集线器所完成的包分发工作。 &merged;</para>
-
-      <para>改进的 &man.ng.rfc1490.4; Netgraph 节点现在支持通常用于同 RFC 1940
-	帧转发链路联用的 Cisco 风格的封装了。</para>
-
-      <para>新增了 &man.ng.sppp.4; Netgraph 节点， 这是一个 &man.netgraph.4
-	到原先的 &man.sppp.4 网络模块的接口，可以用于同步线路。</para>
-
-      <para>提供了新的 Netgraph 方法， 从而允许恢复某些消失的
-	4.<replaceable>X</replaceable> 风格的 &man.ng.tee.4; Netgraph 节点的特性。</para>
-
-      <para>增加了 &man.ng.vlan.4; Netgraph 节点， 用以支持
-        IEEE 802.1Q VLAN 标记。  &merged;</para>
-
-      <para><literal>PFIL_HOOKS</literal> 总被编入内核，
-	因此删去了相关的选项。 目前所有 &os; 支持的包过滤器子系统都使用
-	<literal>PFIL_HOOKS</literal> 框架了。</para>
-
-      <para>路由 socket 加入了以太网介质的状态的变更通知支持。</para>
-
-      <para>重新实现了 &man.ppp.8; 的链路质量监视 (LQM) 支持。
-	由 RFC 1989 描述的 LQM 允许 PPP
-	监视正在运行的连接的品质。 &merged;</para>
-
-      <para>更新了虚拟网络接口的克隆功能以及相关的函数，以支持创建 &man.stf.4;
-	的叫做 <devicename>stf0</devicename> ，
-	<devicename>stf</devicename>，或者 <devicename>6to4</devicename>
-	这样的接口。 这一改动将破坏向前兼容性； 例如，
-	<command>ifconfig stf</command> 现在会创建名为 <devicename>stf</devicename>
-	而不是 <devicename>stf0</devicename> 的接口，也不会在 stdout 输出
-	<devicename>stf0</devicename>。</para>
-
-      <para>下列 TCP 特性被默认开启： RFC
-	3042 (受限重传), RFC 3390 (增大的初始拥塞窗口尺寸),
-	TCP 带宽-延迟积限制。 同时加入的还有一组 sysctl
-	<varname>net.inet.tcp.rfc3042</varname>、
-	<varname>net.inet.tcp.rfc3390</varname>、 以及
-	<varname>net.inet.tcp.inflight.enable</varname>
-	用于控制这些特性。 &man.tcp.4; 提供了更多的细节。</para>
-
-      <para>&os; 的 TCP 现在加入了最小 MSS 支持
-	(可以通过
-	<varname>net.inet.tcp.minmss</varname> sysctl 来设置)
-	并可以限制单个连接发送大量小 TCP 分片的速率
-	(通过设置
-	<varname>net.inet.tcp.minmssoverload</varname> sysctl)。
-	超过这一限制的连接将被复位并丢弃。
-	这一特性能够帮助保护系统免受一种耗竭资源的攻击。</para>
-
-      <para>TCP 实现增加了部分的 (仅限于输出)
-	RFC 2385 (TCP-MD5) 摘要支持。 可以通过
-	<literal>TCP_SIGNATURE</literal> 和
-	<literal>FAST_IPSEC</literal> 这两个内核选项来启用这一特性，
-	它是一个用于验证 TCP 会话的选项。
-	&man.setkey.8; 现在包含了用于 TCP-MD5 安全关联类的支持。
-	&merged;</para>
-
-      <para>对 TCP 连接复位的处理进行了改进，
-        在保持与最广泛范围的 TCP 协议栈兼容性的前提下尽可能地提高了复位攻击的难度。</para>
-
-      <para>改进了 RFC 1948 的实现。
-	初始序号 (ISN) 的时间偏移部分现在包含了随机的正增量，
-	因此 ISN 将总是增加， 无论端口的回收有多快。</para>
-
-      <para>增加了来自 OpenBSD
-	的随机的临时端口分配实现。 这一选项默认打开， 并可以使用
-	<varname>net.inet.ip.portrange.randomized</varname>
-	sysctl 来关闭。 &merged;</para>
-
-      <para>增加了 RFC 2018 所描述的 TCP 选择性确认 (SACK)。
-        它能够改进在大量丢包的连接上的 TCP 性能。
-        SACK 可以通过 sysctl <varname>net.inet.tcp.sack.enable</varname>
-        来启用。</para>
     </sect3>
 
     <sect3 id="disks">
       <title>磁盘及存储</title>
 
-      <para>&man.ata.4; 驱动现在支持 &man.cardbus.4; ATA/SATA
-        控制器。</para>
+      <para>现在 &man.amr.4; 可以安全地在使用了
+	&man.pae.4; 的系统上使用了。</para>
 
-      <para>修正了 &man.ata.4; 驱动的许多 bug。
-	其中最显著的是主/从设备的检测， 以及一些与超时有关的问题上的改进。</para>
+      <para>加入了 SHSEC GEOM 类。 它提供了在多个 GEOM
+	提供者之间实现秘密分享的能力。 所有提供者必须都存在，
+	才能够解开保存的秘密信息。 这一特性可以通过 &man.gshsec.8;
+	工具来控制。</para>
 
-      <para>&man.ata.4; 驱动增加了对于 Promise 命令序列的支持，
-	用于所有新的 Promise 控制器 (PDC203** PDC206**)。
+      <para>加入了用于支持 HighPoint
+	RocketRAID 182x 系列硬件的 &man.hptmv.4; 驱动。</para>
 
-	<note>
-	  <para>同时这也加入了对于将
-	    Promise SX4/SX4000 作为 <quote>普通的</quote> Promise ATA
-	    控制器的支持； 能够支持 ATA RAID， 尽管只限于
-	    RAID0、RAID1 和 RAID0+1。</para>
-	</note>
-      </para>
+      <para>现在 &man.ips.4; 驱动在较新的 ServeRAID 型号上，
+	能够支持内核崩溃的转储操作了。</para>
 
-      <para>用于 CAM SCSI 磁盘驱动器 (&man.cam.4;) 的
-	<literal>DA_OLD_QUIRKS</literal>
-	内核选项已经被移除了。 &merged;</para>
+      <para>删去了 &man.matcd.4; 驱动。</para>
 
-      <para arch="pc98">修正了 &man.fd.4; 驱动中的一处自动密度检测 bug。</para>
-
-      <para>修正了 &man.geom.4; 中的一个可能导致 I/O 在某些罕见条件下挂起的问题。</para>
-
-      <para>新增了 <literal>GEOM_CONCAT</literal>
-	&man.geom.4; 类以支持将多个磁盘作为一个单独的大磁盘来使用。</para>
-
-      <para>新增了 <literal>GEOM_NOP</literal> &man.geom.4;
-	类， 可以用于多种测试目的。</para>
-
-      <para>新增了 <literal>GEOM_RAID3</literal> &man.geom.4; 类来完成
-	RAID3 变形， 以及配套的 &man.graid3.8; 工具。</para>
-
-      <para>新增了 <literal>GEOM_STRIPE</literal>
-	&man.geom.4; 类， 它实现了 RAID0 变形。
-	这个类提供了两个模式： <quote>fast</quote>(高速) 和
-	<quote>economic</quote>(经济)。 在高速模式下，
-	当使用很小的分条尺寸时， 只会向同一分条的磁盘发送一次
-	I/O 请求； 这样做在同样情形下比经济模式，
-	以及其他 RAID0 实现要快十倍；
-	尽管默认情况下会使用高速模式，
-	它会消耗比经济模式更多的内存，
-	因为后者每次都会发送请求。
-	可以通过将加载器变量
-	<varname>kern.geom.stripe.fast</varname> 设置为 0
-	来启用经济模式。 此外， 也可以用
-	<varname>kern.geom.stripe.maxmem</varname>
-	来指定高速模式允许使用的最大内存。</para>
-
-      <para>新增了 GEOM Gate， 包扩新的 <literal>GEOM_GATE</literal>
-	&man.geom.4; 类， 以及一些 GEOM Gate 用户级实用工具
-	(&man.ggatel.8;、&man.ggatec.8;，
-	以及 &man.ggated.8;)。 它支持通过网络导出设备，
-	包括那些非 &man.geom.4; 的设备。</para>
-
-      <para>新增了 <literal>GEOM_LABEL</literal>
-	&man.geom.4; 类， 用来检测各种文件系统的卷标，
-	例如 UFS, MSDOSFS (FAT12, FAT16, FAT32), 以及 ISO9660。</para>
-
-      <para>新增了 <literal>GEOM_GPT</literal> &man.geom.4; 类，
-	它用于支持 GUID 分区表 (GPT) 分区， 并能够在单个磁盘上支持大量的分区。
-	它已经加入到了 <filename>GENERIC</filename> 的默认选项中。</para>
-
-      <para>新增了 <literal>GEOM_MIRROR</literal> &man.geom.4; 类以支持
-	RAID1 功能。 &man.gmirror.8; 可以用来控制这个类。</para>
-
-      <para>新增了 <literal>GEOM_UZIP</literal> &man.geom.4; 类以实现只读的压缩磁盘。
-	目前， 它已经能够支持 cloop V2.0 磁盘压缩格式了。</para>
-
-      <para>新增了 <literal>GEOM_VINUM</literal> &man.geom.4; 类以支持
-	&man.vinum.4; 和 &man.geom.4;
-	之间的互操作。</para>
-
-      <para>&man.ips.4; 能够支持最新的
-	Adaptec ServeRAID 系列 SCSI 控制卡了。</para>
-
-      <para arch="sparc64">修正了 &man.isp.4; 驱动的一处 bug，
-        这个问题会导致在 SBus 上的卡无法正常工作。</para>
-
-      <para arch="i386">增加了用于支持 3ware 的 9000 系列 PATA/SATA RAID
-	控制器的 &man.twa.4; 驱动。 &merged;</para>
-
-      <para>&man.umass.4; 驱动现在支持缺少
-	ATAPI MMC 命令的设备， 并能够正确处理超时了。 &merged;</para>
-
-      <para>对 &man.vinum.4; 卷管理器进行了更新， 以利用
-        &man.geom.4;， 5.x 的磁盘 I/O 请求变换框架。
-	同时增加了一个 <command>gvinum</command> 工具。</para>
-
-      <para arch="sparc64">从 NetBSD 移植了 &man.esp.4; 设备驱动以支持
-        Sun Ultra 1e 和 2 上的 SBus SCSI 卡。</para>
-
-      <para>加入了 LSI-类型的软件 RAID 支持。</para>
+      <para>关于新挂接的 cd9660 文件系统的信息 (例如，
+	存在 RockRidge 扩展) 现在只有在内核以详细 (verbose)
+	模式启动时才会显示了。 这一修改主要是减少 (一般来说不必要的)
+	内核日志消息的数量。</para>
 
     </sect3>
 
     <sect3 id="fs">
-      <title>File Systems</title>
+      <title>文件系统</title>
 
-      <para>EXT2FS 文件系统的代码现在包括了部分的大文件
-	(&gt; 4GB) 支持。 这个支持目前尚不完整，
-	例如它会拒绝在没有升级到 <literal>EXT2_DYN_REV</literal>
-	或者没有设置
-	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal>
-	超级块标记的文件系统上创建这样的文件。</para>
+      <para>原先在挂接时进行的， 重新计算
+	<quote>脏</quote> (即， 上次停机时没有正常卸下) 的 UFS 和 UFS2
+	文件系统摘要信息的工作， 现在转由后台
+	&man.fsck.8; 进行。
+	这一修改将极大地改善系统崩溃后挂接大文件系统时的速度。
+	如果希望还原原先的行为， 可以通过将
+	<varname>vfs.ffs.compute_summary_at_mount</varname> sysctl
+	变量设置为非零值来实现。</para>
 
-      <para>修正了在 NFSv4 客户端中的一处 panic；
-	在对只支持 NFSv3/NFSv2 的服务进行操作时可能发生这样的情况。</para>
+      <para>修正了由于 NFS 服务器可能导致的一个内核崩溃。
+	更多细节， 可以在勘误公告
+	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
+	中找到。</para>
 
-      <para>增加了 <literal>MSDOSFS_LARGE</literal> 内核选项用以支持超过
-	128GB 的 FAT32 文件系统。 此选项在默认时并不开启。
-	磁盘上的每个文件将使用至少 32 字节的内核内存；
-	此外， 只有在可控的几种特定情况下，
-	例如挂接少于一百万文件的只读文件时，等等，
-	它才是安全的。 使用 NFS 导出这样的大文件系统目前尚未支持。</para>
-
-      <para>SMBFS 客户端现在增加了 SMB 请求签名的支持，
-	这可以防止 <quote>中间人</quote> 攻击， 并且是默认配置下连接
-	Windows 2003 服务所需要的。
-	由于对每个消息进行签名会带来显著的性能下降，
-	这一特性只有在服务器需要它时才会启用；
-	它可能会最终成为 &man.mount.smbfs.8; 的一个选项。</para>
     </sect3>
 
     <sect3>
       <title>基本系统附带的第三方软件</title>
 
-      <para>从 KAME 2004 年 6 月 7 日的快照导入了 <application>ALTQ 框架</application>。
-	这次导入破坏了 <varname>struct ifnet</varname>
-	的 ABI 兼容性， 并需要重新编译所有的网络驱动。
-	另外修改了一些网络设备驱动以支持 ALTQ 框架。
-	更新的驱动包括 &man.bfe.4;、&man.em.4;、&man.fxp.4;、
-	&man.em.4;、&man.lnc.4;、&man.tun.4;、&man.de.4;、
-	&man.rl.4;、&man.sis.4;，以及 &man.xl.4;。</para>
+      <para><application>ACPI-CA</application> 由
+	20040527 更新到了 20041119。</para>
 
-      <para><application>IPFilter</application> 从
-	3.4.31 升级到了 3.4.35 版 &merged;。</para>
-
-      <para arch="ia64">来自 Hewlett-Packard 用于 ia64 的 stack unwinder，
-	<application>Unwind Express (libuwx)</application>
-	引入了内核。</para>
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>应用程序变动</title>
 
-    <para>&man.acpidump.8; 现在支持 SSDT 表了。 转存或反汇编
-      DSDT 会包括存在的任何 SSDT 表。</para>
-
-    <para>&man.bsdlabel.8; 可以支持 <option>-f</option> 参数， 指定在文件而不是磁盘分区上进行操作。</para>
-
-    <para>&man.bsdtar.1; 成为了 &os; 基本系统中默认的 &man.tar.1; 工具。
-      <filename>/usr/bin/tar</filename>
-      默认时是一个指向
-      <filename>/usr/bin/bsdtar</filename> 的符号连接。
-      如果要恢复默认使用 <filename>/usr/bin/gtar</filename>，
-      则可以用 <varname>WITH_GTAR</varname>
-      make 变量来指定。</para>
-
-    <para>加入了用于支持蓝牙 HID (Human Interface Device) 的 <command>bthidcontrol</command>
-      和 <command>bthidd</command> 两个命令。</para>
-
-    <para>&man.col.1;, &man.colcrt.1;, &man.colrm.1;,
-      &man.column.1;, &man.fmt.1;, &man.join.1;, &man.rev.1;,
-      &man.tr.1;, 以及 &man.ul.1; 能够支持多字节字符了。</para>
-
-    <para>&man.conscontrol.8; 现在支持
-      <literal>set</literal> 和 <literal>unset</literal>
-      来设定和取消虚拟控制台。
-      <literal>unset</literal> 将使来自系统的输出， 例如内核的
-      &man.printf.9; 总是输出到真正的主控制台。
-      另外还提供了一个 tty ioctl 接口
-      <literal>TIOCCONS</literal>。</para>
+    <para>现在 &man.ftpd.8; 程序会正确地为目录和文件的状态使用 <literal>212</literal>
+      和 <literal>213</literal> 状态代码了 (过去的版本，
+      曾经长期使用 <literal>211</literal>)。
+      这一行为在 RFC 959 中进行了描述。
+      </para>
+
+    <para>如果指定了 <literal>AF_UNSPEC</literal>，
+      现在 &man.getaddrinfo.3; 函数会在查询 <literal>AAAA</literal>
+      记录之前， 首先查询 <literal>A</literal>
+      DNS 资源记录。 一些有问题的 DNS 服务器会在 <literal>AAAA</literal>
+      记录不存在时返回 <literal>NXDOMAIN</literal>，
+      而根据标准， 它应该返回 <literal>NOERROR</literal>
+      和一条空记录。 这类服务器会在 IPv4/IPv6 双栈节点上导致查询停止，
+      因为对于 <literal>AAAA</literal> 的查询时返回的 <literal>NXDOMAIN</literal>
+      会导致服务器停止解析 <literal>A</literal> 记录的尝试。
+      另外， 这一行为也被视为一种潜在的拒绝服务攻击
+      (参见 <ulink url="http://www.kb.cert.org/vuls/id/714121"></ulink>
+      以了解更多细节)。 请注意， 虽然改变了查询顺序，
+      返回的结果仍然是
+      <literal>AF_INET6</literal> 记录先于
+      <literal>AF_INET</literal> 记录。</para>
+
+    <para>&man.gpt.8; 的 <literal>create</literal> 命令，
+      现在支持一个 <option>-f</option> 命令行标志，
+      以强制创建 GPT， 即使磁盘上原先已经存在了 MBR 记录。
+      </para>
+
+    <para>gvinum(8) 工具现在支持
+      <command>checkparity</command>、
+      <command>rebuildparity</command>， 以及
+      <command>setstate</command>
+      这三个子命令了。</para>
+
+    <para><filename>libarchive</filename> 库 (以及使用它的
+      &man.tar.1; 命令) 现在能够读取 ISO
+      镜像文件 (包括可选的 RockRidge 扩展) 和 ZIP 压缩文件
+      (采用 <literal>deflate</literal> 和 <literal>none</literal>
+      的压缩) 了。</para>
+
+    <para>加入了用于访问 GPIB 设备 (通过使用 pcii 驱动程序) 的
+      <function>ib<replaceable>foo</replaceable></function> API 的
+      <filename>libgpib</filename> 库。</para>
+
+    <para>从 HEAD 合并了一系列 <filename>libpthread</filename>
+      的错误修正。</para>
+
+    <para>为 &man.math.3; 函数库实现了一系列新的函数。
+      其中包括 &man.ceill.3;、
+      &man.floorl.3;、 &man.ilogbl.3;、 &man.fma.3; 及其变体，
+      &man.lrint.3; 及其变体， 以及 &man.lround.3; 及其变体。</para>
+
+    <para arch="i386">加入了用于为
+      <literal>GEOM_UZIP</literal> &man.geom.4; 模块提供压缩的文件系统的
+      &man.mkuzip.8; 工具。</para>
+
+    <para>现在 &man.moused.8; 服务能够支持 <quote>虚拟滚轮</quote> 了，
+      这一模式下， 按住鼠标中键时移动鼠标将被解释为滚轮操作。
+      这一功能可以通过 <option>-V</option> 标志来启用。</para>
+
+    <para>为 &man.named.8; 加入了属主为 <username>bind</username> 用户
+      (用于创建区域的日志文件) 的用于动态域的隔离目录。 要了解进一步的情况，
+      请参见示范的 &man.named.conf.5; 中动态域的例子。</para>
+
+    <para>现在 &man.ncal.1; 工具提供了一个 <option>-m</option> 选项，
+      用以生成当前年份指定月份的日历。</para>
+
+    <para>现在 &man.newfs.8; 提供了一个 <option>-n</option>
+      标志， 来禁止在新文件系统上创建 <filename>.snap</filename>
+      目录。 这一特性主要是为那些不需要快照支持的文件系统，
+      如内存或 vnode 文件系统准备的。</para>
+
+    <para>现在 &man.newfs.8; 会在创建 UFS 或 UFS2 文件系统，
+      而无法在其上产生快照时给出警告。
+      这一情况会在很大的文件系统使用很小尺寸的块时发生。</para>
+
+    <para>加入了编译用户应用时的 <literal>NO_NIS</literal> 开关。
+      如其名称所暗示的， 启用这个
+      <filename>Makefile</filename> 变量将使许多程序中不再包含 NIS
+      支持， 并不再勾践 NIS 工具。</para>
+
+    <para>现在 &man.periodic.8; 安全检查输出， 能够支持显示由
+      &man.pf.4; 所阻止的包的统计数据了。</para>
+
+    <para>&man.ppp.8; 程序实现了
+      <option>echo</option> 参数， 这使得分别地启用 LCP ECHO 和 LQR
+      报告成为可能。 较早版本的
+      &man.ppp.8; 会在协商失败时返回到 LCP ECHO 模式。
+      现在需要指定 <command>enable
+      echo</command> 来获得这一行为。</para>
+
+    <para>在 &man.pppd.8; 程序中的两个问题得以修正。
+      这些错误可能会导致不正确的 CBCP 响应，
+      而违反了 微软 PPP 回呼控制协议的 3.2 节。</para>
+
+    <para>现在 &man.rm.1; 工具提供了一个 <option>-I</option>
+      选项。 如果选择递归地删除目录，
+      或者在命令行上指定一次删除超过 3 个文件，
+      这个选项会提供一次确认的机会。</para>
+
+    <para>&man.rtld.1; 动态连接器现在支持通过
+      <varname>LD_LIBMAP</varname> 环境变量来指定库映射关系了。
+      这一选项能够覆盖 &man.libmap.conf.5; 的设置。</para>
 
-    <para>&man.cron.8 服务程序提供了两个新的选项，
-      <option>-j</option> 和 <option>-J</option>，
-      用以为普通用户和超级用户的任务启用时钟抖动。
-      时钟抖动表示 &man.cron.8 将休眠所指定范围内的一个随机的时间，
-      然后再执行任务。 这一特性主要是用于使计划执行得大量任务能够不增加过多的负载而设计的。
-      &merged;</para>
+    <para>&man.syslog.3; 函数现在是线程安全的了。</para>
 
-    <para>&man.cut.1; <option>-c</option>,
-      <option>-d</option>, 以及 <option>-f</option>
-      能够正确工作于多字节字符的 locale 了。</para>
+    <para>&man.syslogd.8; 工具现在会打开一个额外的域 socket
+      (默认为 <filename>/var/run/logpriv</filename>)，
+      其权限是 <literal>0600</literal>， 作为和特权程序的接口。
+      者避免了发生本地的拒绝服务攻击时，
+      特权程序由于域 socket 的缓冲区耗尽而死锁。</para>
 
-    <para>&man.cvs.1; 增加了 <option>iso8601</option>
-      选项关键字， 用以显示 ISO 8601 格式的日期。</para>
-
-    <para>&man.daemon.8; 增加了 <option>-p</option>
-      选项用于创建 PID 文件。</para>
+    <para>现在 &man.systat.1; <option>-netstat</option> 的显示也包括了
+      IPv6 的数据。</para>
 
-    <para>&man.dd.1; 增加了 <option>fillchar</option> 选项用在转化模式或
-      <option>noerror</option> 配合
-      <option>sync</option> 且发生错误时指定占位符。</para>
+    <para>&man.tail.1; 的 <option>-f</option>
+      选项能够支持同时查看多个文件了。</para>
 
-    <para>&man.df.1; 增加了 <option>-c</option> 选项，
-      用以显示文件系统统计数据的总和。</para>
+    <para>增加了用于关闭选定的 TCp 连接的 &man.tcpdrop.8; 命令。
+      它来自 OpenBSD。</para>
 
-    <para>修正了 &man.df.1; 的一个当指定 <option>-t</option>
-      选项而且调用它的用户无权访问某个挂接点时可能显示出无效信息的
-      bug。</para>
-
-    <para>从 &os; 基本系统中删除了 <command>doscmd</command> 工具。
-      可以通过 &os; Ports Collection 中的
-      <filename role="package">emulators/doscmd</filename>
-      来安装它。</para>
-
-    <para>&man.dump.8; 和 &man.restore.8; 增加了
-      <option>-P</option> 选项用以指定文件和磁带以外的备份方式。
-      这一选项通过一个普通的 &man.sh.1; 管道经由
-      <varname>$DUMP_VOLUME</varname> 或 <varname>$RESTORE_VOLUME</varname>
-      传递给应用程序。
-      更多信息请参考 &man.dump.8; 和 &man.restore.8;。</para>
-
-    <para>增加了用以修改系统保存在 EEPROM 或 NVRAM 中配置信息的
-      &man.eeprom.8; 工具。 目前的实现能够支持装备了
-      Open Firmware 的设备。</para>
-
-    <para arch="pc98">&man.fdcontrol.8;, &man.fdformat.1;, 以及
-      &man.fdread.1; 这些工具现在能够在 &os;/pc98 上使用了。</para>
-
-    <para>加入了 &man.fgetln.3; 函数的宽字符版本 &man.fgetwln.3;。</para>
-
-    <para>&man.find.1; 工具增加了 <option>-acl</option>
-      选项用以查找包含 &man.acl.3; 的文件。</para>
-
-    <para>&man.find.1; 工具增加了新的
-      <option>-depth <replaceable>n</replaceable></option>，
-      用以测试当前文件从起点算起的遍历层数是否是 <replaceable>n</replaceable>。
-      &merged;</para>
-
-    <para>&man.ftpd.8; 使用当前用户的身份， 而不是
-      <username>root</username> 开启数据 socket。
-      使用一条 &man.ipfw.8; 的 <literal>uid</literal>
-      规则可以用来匹配 FTP 通讯数据了。</para>
-
-    <para>实现了 &man.ftw.3; 和 &man.nftw.3; 两个函数。
-      他们用来遍历目录结构。</para>
-
-    <para>增加了用于操作 &man.geom.4; 的 &man.geom.8; 工具。</para>
-
-    <para>GUID 分区表维护工具 &man.gpt.8;
-      增加了 <option>remove</option> 命令。 它的
-      <option>add</option> 命令增加了 <option>-i</option> 选项，
-      允许用户指定新分区的分区号。</para>
-
-    <para>&man.id.1; 增加了 <option>-M</option> 选项以显示当前进程的
-      MAC 标签。</para>
-
-    <para>&man.ifconfig.8; 增加了通过 <option>name</option>
-      参数在运行时重命名接口名称的支持。</para>
-
-    <para>&man.ifconfig.8; 会显示网络接口的 &man.polling.4; 状态了。 &merged;</para>
-
-    <para>&man.ifconfig.8; 提供了
-      <option>vlanmtu</option> 和 <option>-vlanmtu</option> 选项，
-      用于控制某些以太网卡接受扩展帧的能力
-      (例如包含了超过 1500 字节数据的帧)。</para>
-
-    <para>&man.ifconfig.8; 新增了
-      <option>vlanhwtag</option> 和 <option>-vlanhwtag</option>
-      选项， 用以控制某些以太网卡在硬件上处理 VLAN 标记的能力。</para>
-
-    <para>&man.indent.1; 新增了 <option>-ldi</option>
-      选项用于控制局部变量的缩进。 此外还进行了许多其他的调整。</para>
-
-    <para>&man.indent.1; 新增了 <option>-fbs</option> 和
-      <option>-ut</option> 选项用于在同一行上的参数使用空格而不是制表符进行缩进，
-      以修正使用的制表符不是 8 个空格的情形。</para>
-
-    <para>&man.ip6fw.8; 新增了 <option>-n</option> 选项，
-      以阻止它修改内核中的规则。</para>
-
-    <para>&man.ipcs.1; 新增了 <option>-u</option> 选项以显示关于 IPC
-      机制与指定用户有关的信息。</para>
-
-    <para>&man.ipfw.8; 新增了 <option>-b</option> 标志，
-      指定后将只显示动作和说明， 而忽略规则实体。</para>
-
-    <para>&man.jail.8; 新增了 <option>-U</option> 选项，
-      用于以只在 &man.jail.2; 环境中存在的用户身份执行命令。</para>
-
-    <para>&man.jail.8; 新增了 <option>-l</option> 选项以清除环境。
-      除了 <varname>HOME</varname>、<varname>SHELL</varname>、
-      <varname>PATH</varname>、<varname>TERM</varname>，以及
-      <varname>USER</varname> 之外的环境变量在以指定用户的身份执行时，
-      都会像 &man.su.1; 的 <option>-l</option> 选项一样清除掉。</para>
-
-    <para>新增了一个 &man.kgdb.1; 内核调试工具， 它使用
-      <application>libgdb</application> 并了解内核线程、
-      内核模块和 &man.kvm.3;。</para>
-
-    <para>&man.killall.1; 新增了 <option>-e</option> 标志以便使
-      <option>-u</option> 以现行的 (effective) 而非真实的用户
-      ID 操作。 &merged;</para>
-
-    <para>&man.libalias.3; 增加了 (通过增加新的 API)
-      对在一个进程中的多个变形实例的支持。
-      现有的 API 被以新的 API 重新实现， 以保持兼容性。</para>
-
-    <para>增加了用于处理压缩和未压缩的归档文件的
-      <application>libarchive</application> 库。
-      更多细节请参考 &man.libarchive.3;。</para>
-
-    <para arch="pc98"><application>libdisk</application> 现在使用了
-      &os; 中 PC98 的正确磁盘分区数值。 这使得
-      &man.sysinstall.8; 的磁盘分区编辑器能够正确地创建覆盖整个磁盘的
-      &os; 分区。 &merged;</para>
-
-    <para><application>libdisk</application> 使用
-      <varname>d_addr_t</varname> 来表达磁盘地址。
-      这使得 &man.sysinstall.8; 能够正确处理超过 1TB 的磁盘和文件系统。</para>
-
-    <para arch="i386,pc98,amd64,ia64">为人们熟知的
-      <application>libkse</application> 被命名为
-      <application>libpthread</application>， 并成为了
-      i386, amd64, 以及 ia64 平台上的默认线程库。
-      <application>GCC</application> 的 <option>-pthread</option>
-      选项被修改以利用 <application>libpthread</application>
-      而不是原先的 <application>libc_r</application>。
-
-      <note>
-	<para>使用较早的编译好的程序 (例如， 在这个修改之前编译的
-	  ports) 应该使用 &man.libmap.conf.5;
-	  将 <application>libc_r</application> 和/或
-	  <application>libkse</application> 映射到
-	  <application>libpthread</application>。</para>
-      </note>
-
-      <note>
-	<para>使用由 NVIDIA 提供的驱动和程序库的用户需要使用
-	  &man.libmap.conf.5; 来把对
-	  <application>libpthread</application> 的引用映射到
-	  <application>libc_r</application>， 因为这些工具无法同
-	  <application>libpthread</application> 一起正确地运行。</para>
-      </note>
-    </para>
-
-    <para><application>libpthread</application> 现在支持
-      <varname>LIBPTHREAD_SYSTEM_SCOPE</varname> 环境变量以强制
-      1:1 模式 (使用系统可见的线程)。 需要说明的是在编译
-      <application>libpthread</application> 时使用
-      <option>-DSYSTEM_SCOPE_ONLY</option> 参数也可以强制 1:1 模式，
-      这也是在目前尚不支持 M:N 模式的架构上的默认设置。
-      另外， 也可以用 <varname>LIBPTHREAD_PROCESS_SCOPE</varname>
-      环境变量来强制 M:N 模式 (使用进程可见的线程)。
-      例如：</para>
-
-    <screen>&prompt.user; <userinput>LIBPTHREAD_SYSTEM_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
-
-    <para>将强制应用程序 <replaceable>threaded_app</replaceable> 使用系统可见的线程， 而</para>
-
-    <screen>&prompt.user; <userinput>LIBPTHREAD_PROCESS_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
-
-    <para>则相应地强制它使用进程可见的线程。</para>
-
-    <para>修正了 &man.look.1; 的 <option>-d</option> 选项的一处问题。
-      同时， &man.look.1; 也能够正确地工作在多字节字符上了。</para>
-
-    <para>更新的 &man.ls.1; 会根据当前的 <varname>LC_CTYPE</varname>
-      处理多字节字符， 以判断它们是否是可显示的。</para>
-
-    <para>&man.make.1; 新增了 <literal>.warning</literal>
-      命令。</para>
-
-    <para>&man.make.1; 新增了 <filename>Makefile</filename>
-      命令行中符合 POSIX 的 <literal>+</literal> 标志，
-      它使得即时在指定了 <option>-n</option> 时也执行那一行。
-      举例来说， 在子 make 中这就非常有用。</para>
-
-    <para>&man.make.1; 按照 POSIX 的要求将命令行中的变量赋值
-      放到 <varname>MAKEFLAGS</varname> 变量中。
-      这使得这样的变量被放入 &man.make.1; 所调用的所有子 make
-      (除非在子 make 环境中显式地修改 <varname>MAKEFLAGS</varname>
-      变量)。 这也使得子 make 除了使用自身的命令行之外几乎不能覆盖这些变量。</para>
-
-    <para>实现了 &man.nearbyint.3; 和
-      &man.nearbyintf.3; 两个 C99 函数。</para>
-
-    <para>实现了 <filename>tgmath.h</filename> C99 头。
-      这为 <filename>math.h</filename>
-      和 <filename>complex.h</filename>
-      中包含浮点数、双精度数和长双精度数的函数实现提供了范型的宏。</para>
-
-    <para>实现了 GNU 扩展中的 &man.mbsnrtowcs.3;
-      和 &man.wcsnrtombs.3;。</para>
-
-    <para>&man.newsyslog.8; 新增了一个功能，
-      允许用户通过 <filename>newsyslog.conf</filename>
-      文件来指定调试选项。</para>
-
-    <para>&man.newsyslog.8; 在处理文件轮转时采用了新的顺序。
-      它首先轮转所有需要轮转的文件， 随后向每一个需要通知的进程发送一次信号，
-      最后压缩轮转过的文件。</para>
-
-    <para>加入了 &man.nextwctype.3; 函数用于在给定的字符类上执行遍历式迭代。</para>
-
-    <para>增加了目前系统所支持的字符集初步的 UTF-8 支持版本。
-      这个初步的支持受益于
-      <filename role="package">misc/utf8locale</filename>
-      port。</para>
-
-    <para>增加了用于以色列希伯莱文的 <literal>he_IL.UTF-8</literal>
-      支持。</para>
-
-    <para>增加了 &man.logins.1; 工具， 用以显示关于用户和系统帐户的附加信息。</para>
-
-    <para>&man.mountd.8; 增加了 <option>-p</option> 选项，
-       允许用户指定一个端口用于防火墙规则集。</para>
-
-    <para>&man.netstat.1; 增加了显示当前系统中多播组成员的功能。</para>
-
-    <para>&man.newfs.8; 和 &man.mdmfs.8; 增加了
-      <option>-l</option> 标志来在新文件系统上直接启用 MAC
-      multilabel 标志， 而无需使用
-      &man.tunefs.8;。</para>
-
-    <para>&man.nologin.8; 通过
-       &man.syslogd.8; 报告不良登录企图。</para>
-
-    <para>&man.nologin.8; 从 <filename>/sbin/nologin</filename>
-       挪到了 <filename>/usr/sbin/nologin</filename>。
-       保留了一个 <filename>/sbin/nologin</filename> 符号连接，
-       以保持向前兼容性。</para>
-
-    <para>对 NSS 支持实施了一处修正。 者解决了当使用第三方
-      NSS 模块 (例如 <filename
-      role="package">net/nss_ldap</filename>) 并对大的成员表实施分组时的问题。</para>
-
-    <para>&man.od.1; 新增了 POSIX 风格的多字节字符支持。</para>
-
-    <para>&man.patch.1; 替换成了来自 OpenBSD 的 BSD 授权的版本。
-      它包含了 <option>--posix</option> 选项以严格地支持
-      POSIX。</para>
-
-    <para>增加了 &man.pgrep.1; 和 &man.pkill.1; 命令， 它们来自 NetBSD。
-      它支持 <option>-M</option> 选项，
-      用以从指定的 core 文件而不是默认的 <filename>/dev/kmem</filename>
-      中进行搜索， 而
-      <option>-N</option> 选项则可以从指定的系统而不是默认内核中提取列表。</para>
-
-    <para>&man.ppp.8; 增加了 <quote>set rad_alive
-	<replaceable>N</replaceable></quote> 命令用以支持周期性地将
-      RADIUS 记账信息发送给 RADIUS 服务器。 &merged;</para>
-
-    <para>&man.ppp.8; 增加了
-      <quote>set pppoe [standard|3Com]</quote> 命令用以配置下层的
-      &man.ng.pppoe.4; Netgraph 节点。</para>
-
-    <para>&man.ps.1; 的 POSIX/SUSv3 兼容性得到了改善。
-      改变包括列出进程 ID 的 <option>-p</option>、
-      列出终端名的 <option>-t</option>、
-      相当于 <option>-ax</option> 的 <option>-A</option>、
-      列出组 ID 的 <option>-G</option>、
-      与 <option>-x</option> 功能相反的 <option>-X</option>，
-      以及一些小改进。 要获得进一步的详情， 请参考 &man.ps.1;。
-      &merged;</para>
-
-    <para>&man.ps.1; 增加了 <option>-O emul</option>
-      格式选项， 它将显示进程所在的系统调用模拟环境。</para>
-
-    <para>&man.pw.8; 增加了 <option>-H</option> 选项，
-      用以从文件描述符收取加密的口令。 &merged;</para>
-
-    <para>在 &man.rarpd.8; 中的一个导致单个网络接口上绑定了多个
-      IP 地址情形下无法正常工作的问题被修正。
-      &merged;</para>
-
-    <para>&man.regex.3; 增加了支持多字节字符的正则表达式匹配功能。</para>
-
-    <para>&man.resolver.3; 使用的配置文件增加了
-      <literal>timeout:</literal> 和
-      <literal>attempts:</literal> 两个关键字。</para>
-
-    <para>改进了 &man.resolver.3; 以及相关的接口的可重入和线程安全性。
-      能够同时执行多个 DNS 查找，
-      从而大幅度地提高了一些多线程应用程序的运行速度。
-      一些多线程的程序需要重新编译； 来自
-      Ports Collection 的例子包括 <filename
-      role="package">www/mozilla</filename> 及其变体、<filename
-      role="package">mail/evolution</filename>、 <filename
-      role="package">devel/gnomevfs</filename>， 以及<filename
-      role="package">devel/gnomevfs2</filename>。</para>
-
-    <para>&man.rmdir.1; 增加了 <option>-v</option> 标志，
-      提供更详细的输出。</para>
-
-    <para>&man.savecore.8; 能够在大于 2GB 的转储文件上正常工作了。</para>
-
-    <para>修正了 &man.script.1; 中的一处问题， 使其在标准输入关闭时能够正常工作。
-      这个修正避免了在 <filename
-      role="package">sysutils/portupgrade</filename>
-      软件包在非交互的模式下执行时的一种危险的交互，
-      这种情况下它可能会卸载所有的旧 port 而不重新安装它们。</para>
-
-    <para>加入了 &man.sdpd.8; 蓝牙服务发现协议服务。</para>
-
-    <para>&man.sed.1; <literal>y</literal> (翻译) 命令增加了多字节字符支持。</para>
-
-    <para>增加了 &man.sha1.1; 和 &man.rmd160.1; 两个工具。
-      类似 &man.md5.1;， 它们用于计算输入的消息摘要。
-      &merged;</para>
-
-    <para>增加了 &man.smbmsg.8;， 一个用于收发 SMBus 消息的小工具。</para>
-
-    <para arch="sparc64">&man.sunlabel.8; 新增了两个标志：
-      <option>-c</option> 用于以柱面而非扇区计算分区大小， 而
-      <option>-h</option> 用于显示以便于阅读的格式显示尺寸/偏移量。</para>
-
-    <para>&man.talk.1; 改为使用 <hostid>localhost</hostid>
-      作为 &man.talkd.8; 中请求包发往的默认机器名，
-      当目的和源都是本地时。
-      这使得 &man.talk.1; 需要在 <filename>/etc/hosts</filename>
-      或 DNS 中有有效的 <hostid>localhost</hostid> 主机项。</para>
-
-    <para>&man.tftpd.8; 新增了两个选项：
-      用以允许创建新文件的 <option>-w</option>，
-      以及用于设置 umask 的 <option>-U</option>。</para>
-
-    <para>&man.top.1; 支持显示当前的 I/O 数量了。
-      这一特性可以通过在显示列表时按 <quote>m</quote>
-      或使用命令行选项 <option>-m io</option> 来使用。</para>
-
-    <para arch="amd64">&man.truss.1; 包括了对
-      &os;/amd64 的初步支持。</para>
-
-    <para>基本系统中的一些工具 (主要是 GNU
-      的工具) 现在使用系统版本的
-      &man.getopt.long.3; 而不再是 GNU 的版本。</para>
+    <para>&man.whois.1; 现在支持 <option>-k</option> 标志，
+      用以查询 <hostid role="fqdn">whois.krnic.net</hostid>
+      (韩国国家 Internet 开发局)， 它提供了在韩国境内的 IP
+      地址分配的详细资料。</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
-      <para><filename>diskless</filename> 脚本被分割为
-	<filename>hostname</filename>、
-        <filename>resolve</filename>、<filename>tmp</filename>，以及
-        <filename>var</filename> 四个脚本。</para>
+      <para>&man.rc.conf.5; 现在支持在引导时修改网络接口的名字了。
+	例如：</para>
 
-      <para>加入了用以支持启用了 gdbe 的交换设备的 <filename>gbde_swap</filename> 脚本。
-	当在 &man.rc.conf.5; 中指定
-	<varname>gbde_swap_enable</varname> 变量时， 在 &man.fstab.5;
-	中的一个名为
-	<filename>/dev/<replaceable>foo.bde</replaceable></filename>
-	将在启动时自动挂接到
-	<filename>/dev/<replaceable>foo</replaceable></filename>
-	并使用一个以 <filename>/dev/random</filename> 中读到的前
-	512 字节的 MD5 散列作为随机密钥。
-	注意这样做将无法恢复内核的转储文件。</para>
+      <programlisting>ifconfig_fxp0_name="net0"
+ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
-      <para>增加了 <varname>ip6addrctl_enable</varname> 和
-	<varname>ip6addrctl_verbose</varname> 两个变量。
-	当 <varname>ip6addrctl_enable</varname> 默认设置为
-	<literal>YES</literal>， 将自动安装地址选择策略。
-	如果 <filename>/etc/ip6addrctl.conf</filename> 存在则将使用其中的设置，
-	否则使用默认设置。 <varname>ipv6_enable</varname> 设置为
-	<literal>YES</literal> 则默认策略将是 RFC 3484。
-	否则， IPv4 地址的优先策略将成为默认策略。</para>
+      <para>&man.rc.conf.5; 现在支持 <varname>tmpmfs_flags</varname>
+	和 <varname>varmfs_flags</varname> 两个变量了。 这些变量，
+	可以用来向 &man.mdmfs.8; 工具提供额外的选项， 从而更好地定制
+	&man.md.4; 文件系统的创建过程， 包括是否打开 softupdates，
+	指定文件系统的默认属主， 等等。</para>
 
-      <para>加入了 <filename>mixer</filename> 脚本。
-	它能在系统关闭时保存当前系统中所有混音器的配置，
-	并在下次启动时恢复它。</para>
-
-      <para>对 <filename>named</filename> 脚本进行了更新， 以支持基本系统中的
-	<application>BIND 9</application>。 这些变化包括：</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>&man.named.8; 默认在 &man.chroot.2; 目录
-	    <filename>/var/named</filename> 中运行了。 这一行为可以通过
-	    <varname>named_chrootdir</varname> 变量来控制， 相应地，
-	    &man.chroot.2; 目录则可以通过 <filename>rc.conf</filename> 中的
-	    <varname>named_chrootdir</varname> 变量来改变。</para>
-	</listitem>
-
-	<listitem>
-	  <para>当 <varname>named_chroot_autoupdate</varname>
-	    变量设置为 <literal>YES</literal> (这是默认的) 时，
-	    chroot 目录会在启动时自动地配置。 指向
-	    <filename>/var/named/etc/namedb</filename> 的符号连接将作为
-	    <filename>/etc/namedb</filename> 自动建立， 另外还有一个指向
-	    <filename>/var/named/var/run/named/pid</filename> 的符号连接
-	    <filename>/var/run/named/pid</filename>。 后者可以通过
-	    <filename>rc.conf</filename> 中的
-	    <varname>named_symlink_enable</varname> 变量来禁止。</para>
-	</listitem>
-
-	<listitem>
-	  <para>如果不存在 <filename>rndc.key</filename> 文件，
-	    则会自动地创建它。</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>增加了 <filename>pf</filename> 和 <filename>pflog</filename>
-        两个 &man.pf.4; 的脚本。</para>
     </sect3>
   </sect2>
 
   <sect2 id="contrib">
     <title>基本系统包含的第三方软件</title>
 
-    <para><application>ACPI-CA</application> 代码从
-      20030619 快照升级到了 20040527 快照。</para>
-
-    <para><application>AMD (am-utils)</application>
-      从 6.0.9 升级到了 6.0.10p1。</para>
-
-    <para>来自贝尔实验室的 <application>awk</application>
-      从 2003年7月29日的发行版升级到了2004年2月的发行版。</para>
-
     <para><application>BIND</application> 从
-      8.3.1-REL 版升级到了 9.3.0 版。</para>
+      9.3.0 升级到了 9.3.1。</para>
 
-    <para><application>Binutils</application> 升级到了
-      FSF 2.15 版本分支 2004 年 5 月 23 日 的快照。</para>
+    <para><application>Heimdal</application> 从
+      0.6.1 升级到了 0.6.3。</para>
 
-    <para><application>CVS</application> 从
-      1.11.15 升级到了 1.11.17.  &merged;</para>
-
-    <para><application>FILE</application> 从
-      3.41 升级到了 4.10.</para>
-
-    <para><application>gdtoa</application> (一个用于进行二进制和十进制形式的数进行相互转换的函数库)
-      从 20030324 升级到了 20040118.</para>
-
-    <para><application>GDB</application> 升级到了
-      6.1.1.</para>
-
-    <para><application>GNU GCC</application> 从
-      2003 年 11 月 6 日的 3.3.3-prerelease 升级到了
-      2004 年 6 月 28 日的 3.4.2-prerelease.</para>
-
-    <para><application>GNU grep</application> 从
-      version 2.4d 升级到了 2.5.1.</para>
-
-    <para><application>less</application> 从
-      version 371 升级到了 381.</para>
-
-    <para><application>GNU readline</application> 4.3 加入了官方补丁
-      001 到 005。</para>
-
-    <para><application>GNU regex</application> 库更新到了
-      <application>GNU grep</application> 2.5.1 中附带的版本。</para>
-
-    <para><application>GNU sort</application> 从
-      textutils 2.1 升级到了 2004 年 8 月 12 日的快照。</para>
-
-    <para>基本系统中的 <application>GNU tar</application>
-      实现现在叫做 <filename>gtar</filename>。</para>
-
-    <para><application>Heimdal Kerberos</application>
-       从 0.6 升级到了 0.6.1。</para>
-
-    <para>The <application>ISC DHCP</application> 客户端程序从
-       3.0.1 RC10 升级到了 3.0.1。</para>
-
-    <para><application>libpcap</application> 从
-      0.7.1 升级到了 0.8.3。</para>
-
-    <para><application>lukemftpd</application>
-      从 2003 年 11 月 3 日的快照升级到了 2004 年 8 月 9 日的。</para>
-
-    <para><application>NTP</application>
-      从 4.1.1a 升级到了 4.2.0。</para>
-
-    <para><application>OpenPAM</application> 从
-      Dogwood 版本升级到了 Eelgrass 版本。</para>
-
-    <para><application>OpenSSH</application> 从
-      3.6.1p1 升级到了 3.8.1p1。
-
-      <note>
-	<para>&man.sshd.8; 的默认配置发生了变化。
-	  第1版的 SSH 协议默认不再启用。
-	  另外， 如果启用了 PAM，
-	  则通过 SSH 进行口令认证将默认禁用。</para>
-      </note>
-      </para>
+    <para>引入了来自 OpenBSD 的 2005 年 2 月 4 日快照的
+      <application>netcat</application>。 更多信息，
+      可以在 &man.nc.1; 联机手册中找到。</para>
 
     <para><application>OpenSSL</application> 从
-      0.9.7c 升级到了 0.9.7d。 &merged;</para>
-
-    <para>从 <application>OpenSSL</application>
-      的一个预发布版本中导入了用于加速 Advanced Encryption
-      Standard (AES) 加密的
-      <application>OpenSSL</application> VIA C3 Nehemiah
-      PadLock ACE (先进密码学引擎) 加密支持。</para>
-
-    <para>来自 OpenBSD 3.5-stable 的 <application>pf</application>
-      OpenBSD 的包过滤器导入了 &os; 基本系统的源代码， 并默认安装。
-      为此新增了两个用户 (<username>proxy</username> 和
-      <username>_pflogd</username>) 以及三个组
-      (<username>authpf</username>， <username>proxy</username>,
-      以及 <username>_pflogd</username>)。 这些是
-      <application>pf</application> 所需要的。</para>
-
-      <note>
-	<para>从源代码升级时， 必须首先建立这些用户。
-	  <literal>mergemaster -p</literal> 可以帮助用户来完成需要在
-	  &man.passwd.5; 和 &man.group.5; 文件上需要完成的操作。
-	  可以通过在 <filename>make.conf</filename> 中设置
-	  <varname>NO_PF</varname> 来阻止编译
-	  <application>pf</application>。</para>
-      </note>
-
-    <para>来自 OpenBSD
-      <application>pf</application> 的许多命令行工具被导入。
-      &man.ftp-proxy.8; 是一个用于和 &man.pf.4; 配合的 FTP 代理，
-      &man.pfctl.8; 等价于 &man.ipf.8;，
-      &man.pflogd.8; 是一个通过 <literal>if_pflog</literal>
-      以 &man.pcap.3; 格式的日志服务程序， 而
-      &man.authpf.8; 则是一个用于修改
-      &man.pf.4; 规则集的工具。</para>
-
-    <para><application>routed</application> 从
-      2.22 升级到了来自 rhyolite.com 的 2.27。
-      对于依赖 RIP 的 MD5 验证功能的用户来说，
-      &man.routed.8; routed 现在和先前版本的
-      &os; 不再兼容； 然而， 它现在与
-      Sun, Cisco 以及一些其他制造商的实现兼容了。</para>
+      0.9.7d 升级到了 0.9.7e。</para>
 
     <para><application>sendmail</application> 从
-      8.12.10 升级到了 8.13.1。 &merged;</para>
-
-    <para><application>tcpdump</application> 从
-      3.7.1 升级到了 3.8.3。</para>
-
-    <para><application>tcsh</application> 从
-      6.11 升级到了 6.13.00。</para>
+      8.13.1 升级到了 version 8.13.3。</para>
 
     <para>时区数据库从
-      <filename>tzdata2003a</filename> 升级到了
-      <filename>tzdata2004e</filename>。</para>
+      <application>tzdata2004e</application> 版升级到了
+      <application>tzdata2004g</application> 版。</para>
 
-    <para><application>zlib</application> 从
-      1.1.4 升级到了 1.2.1。</para>
+    <para></para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection 基础结构</title>
 
-    <para>绝大多数由 ports 安装的启动和关机脚本采用了新的 &man.rc.8;
-      框架， 这一框架从 &os; 5.<replaceable>X</replaceable>
-      开始引入， 而一些 ports 仍然在使用旧式的脚本。
-      启动时， 新的 &man.rc.8; 风格的脚本将首先执行，
-      然后是旧式脚本。 关机时顺序正好相反。</para>
+    <para>从 CVS 库中删去了用于保存 Ports Collection 中所有项的
+      <filename>ports/INDEX<replaceable>*</replaceable></filename>。
+      这些文件过去并不经常性地重新生成， 因此可能会过时和不再准确。
+      需要使用 INDEX 文件的用户 (例如用于 &man.portupgrade.1;)
+      可以使用两种方法来获取一份副本：</para>
 
-    <para>增加了 distfiles 的 <literal>SIZE</literal> 属性， 并默认启用。
-      这一属性可以在下载前观察文件大小。
-      <varname>DISABLE_SIZE</varname> 是一个用户可控的开关，
-      用以禁制 distfiles 大小检查。 这对 &man.fetch.1; 不支持这一特性的旧版
-      &os; 系统，
-      以及某些无法正确汇报文件大小的 FTP 代理来说非常实用。</para>
+    <itemizedlist>
+      <listitem>
+	<para>使用 <command>make index</command> 在
+	  <filename>ports/</filename> tree 的顶部构建一份当前 ports
+	  tree 的索引。</para>
+      </listitem>
 
-    <para>增加了两个新文件到 ports tree 中， 以向用户说明比较有价值的修改：
-      <filename>ports/CHANGES</filename> 列出了
-      Ports Collection 及其基础结构的重要修改， 而
-      <filename>ports/UPDATING</filename> 则描述了一些在升级时可能遇到的问题，
-      类似基本系统中的 <filename>src/UPDATING</filename>。</para>
+      <listitem>
+	<para>在 <filename>ports/</filename> tree 顶部执行
+	  <command>make fetchindex</command> 来从网上下载。
+	  这个索引文件 (通常) 在一天之内是准确的。</para>
+      </listitem>
+    </itemizedlist>
 
-    <para><filename>pkg_*</filename> 中用于分析版本号的代码进行了重写，
-      从而恢复了与 4.x 的兼容性， 以及
-      <filename role="package">sysutils/portupgrade</filename>
-      的支持。</para>
-
-    <para>包工具现在可以通过关系运算符以及
-      csh 风格的 <literal>{...}</literal>
-      来进行匹配了。 例如：</para>
-
-    <screen>&prompt.root; <userinput>pkg_info -I 'docbook>=3.0'</userinput></screen>
-
-    <para>将列出 (所有的) 版本号至少是 3.0 的 docbook DTD。
-      还加入了一些其他的命令行选项以支持模式匹配。</para>
-
-    <para>对包支持工具处理损坏的包数据库方面进行了改进。</para>
-
-    <para>&man.pkg.create.1; 新增了 <option>-S</option>
-      选项， 使所有的 <literal>@cwd</literal> 在创建包时附上前缀。</para>
-
-    <para>&man.pkg.info.1; 新增了 <option>-j</option>
-      选项以显示每个包所需要的脚本。</para>
   </sect2>
 
   <sect2 id="releng">
     <title>发行版建造工程和功能集成</title>
 
-    <para arch="i386,pc98">对启动软盘镜像的制作过程进行了全面的调整。
-      最显著的改变是加载器现在能够从分割到多张软盘 (目前的发行版中是两张)
-      的 <filename>GENERIC</filename> 内核启动了。
-      这极大地改善了从软盘启动的安装过程， 因为现在可以使用与
-      CDROM 完全一样的内核 (因此也支持同样多的硬件) 了。
-      不再需要切开的 <filename>MFSROOT</filename> 内核，
-      而 <filename>mfsroot</filename>
-      也不再需要内核模块。
-      <filename>boot.flp</filename> 以及
-      <filename>driver.flp</filename> 两个软盘镜像已经过时，
-      并不再被构建。</para>
+    <para>在先前的 &os; 版本中， <filename>disc1</filename>
+      CD-ROM (或 ISO 镜像文件) 是一张包含基本系统、 ports tree
+      和常用 package 的可以引导的光盘。
+      而 <filename>disc2</filename> CD-ROM (或 ISO 镜像文件)
+      则是可以引导的 <quote>fix it</quote> 盘， 它提供了现场 (live)
+      文件系统， 用于进行紧急修复操作。 这一格局发生了变化。
+      对于除了 ia64 以外的所有平台， 现在
+      <filename>disc1</filename> 包含了基本系统的安装包文件、
+      ports tree， 以及现场文件系统， 使得它适合于初始安装，
+      以及修复工作。 (在 ia64 上， 由于现场文件系统的尺寸太大，
+      以至于不得不将其放到另一张盘上。)
+      第三方 package 都在另一张盘上。</para>
 
-    <para>&os; 的密码学支持在这个版本中不再是可选的组件，
-      而 <literal>crypto</literal> 也成为了
-      <literal>base</literal> 的一部分。
-      需要注意的是 <option>-DNOCRYPT</option> 编译选项仍然存在，
-      那些确实不需要密码学执行文件的用户仍然可以使用它。</para>
-
-    <para>受支持的 <application>GNOME</application>
-      版本从 2.4 升级到了 2.6.2。
+    <para>受支持的
+      <application>GNOME</application> 桌面环境的版本， 由 2.6.2
+      升级到了 2.10。 更多关于在 &os; 上运行 <application>GNOME</application>
+      的详细资料， 可以在
+      the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
+      Web 页面上找到。
 
       <note>
-	<para>如果您过去使用了较早版本的 <application>GNOME</application>
-	  桌面系统 (<filename role="package">x11/gnome2</filename>)，
-	  则简单地使用
-	  &man.portupgrade.1;
+	<para>使用较早版本的
+	  <application>GNOME</application> 桌面
+	  (<filename role="package">x11/gnome2</filename>)
+	  的用户在升级时需要特别小心。 简单地使用 &man.portupgrade.1;
 	  (<filename role="package">sysutils/portupgrade</filename>)
-	  在 &os; Ports Collection 中升级将导致非常严重的问题。
-	  如果您是 <application>GNOME</application> 桌面的用户，
-	  请仔细阅读
-	  <ulink url="&url.base;/gnome/docs/faq26.html"></ulink>
-	  这里的说明，
-	  并使用 <filename>gnome_upgrade.sh</filename> 脚本来升级到
-	  <application>GNOME</application> 2.6。</para>
+	  配合 &os; Ports Collection 进行升级可能会造成严重的问题。
+	  <application>GNOME</application> 桌面的用户， 应仔细阅读
+	  <ulink url="&url.base;/gnome/docs/faq210.html"></ulink>
+	  给出的说明， 并使用
+	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
+	  脚本来正确地升级到
+	  <application>GNOME</application> 2.10。</para>
+	</note>
+      </para>
 
-	<para>请注意如果您只是
-	  <application>GNOME</application> 函数库的普通用户， 则
-	  &man.portupgrade.1; 应该足以升级您的 ports。</para>
-      </note>
-    </para>
+    <para>受支持的 <application>KDE</application>
+      桌面环境的版本， 从 3.3.0 升级到了
+      3.4.0。 更多关于在 &os; 上运行
+      <application>KDE</application> 的信息， 可以在
+      <ulink url="http://freebsd.kde.org/">FreeBSD 上的 KDE</ulink> Web
+      页面上找到。
 
-    <para>受支持的 <application>KDE</application> 版本从
-      3.1.4 更新到了 3.3.0。</para>
+      <note>
+	<para>使用较早版本的
+	  <application>KDE</application> 的用户，
+	  应使用
+	  <ulink url="http://freebsd.kde.org/">FreeBSD 上的 KDE</ulink> Web
+	  页面或 <filename>ports/UPDATING</filename>
+	  中给出的方法升级。</para>
+	</note>
+      </para>
 
-    <para>新增了 <filename role="package">security/portaudit</filename> 工具到
-      &os; 的 Ports Collection。 这个工具能够读取包含已知的 ports 漏洞的数据库，
-      并向管理员报告。</para>
+    <para>受支持的 <application>Xorg</application>
+      从 6.7.0 升级到了 6.8.2。</para>
 
-    <para>&os; 采用 <application>Xorg</application> 代替了
-      <application>XFree86</application> 作为默认的 X Window 系统。
-      官方支持的版本是 <application>Xorg</application> X11R6.7.0。
-      需要说明的是， <application>XFree86</application> 也依然在 &os;
-      的 Ports Collection 中 (<filename role="package">x11/XFree86-4</filename>)。</para>
   </sect2>
 
   <sect2 id="doc">
@@ -1653,14 +611,13 @@
 <sect1 id="upgrade">
   <title>从先前版本的 &os; 升级</title>
 
-  <para><emphasis>强烈建议</emphasis>现有的 &os; 系统用户阅读
-    <quote>Early Adopter's Guide to &os; &release.current;</quote>。
-    这份文档的名字通常是 <filename>EARLY.TXT</filename>，
-    一般也可以随发行说明找到。
-    它提供了一些关于升级的说明，但更重要的是，
-    它同时讨论了 &os;
-    5.<replaceable>X</replaceable> 和运行 &os;
-    4.<replaceable>X</replaceable> 时的不同点。</para>
+  <para>使用现有的 &os; 系统的用户
+    <emphasis>强烈</emphasis> 推荐首先阅读 <quote>到 &os; &release.current;
+    的迁移指南</quote>。 这份文档应该可以在光盘或这份发行版本说明所在的地方找到，
+    其文件名为 <filename>EARLY.TXT</filename>。 它提供了一些关于升级的说明，
+    更重要的是， 升级到 &os;
+    5.<replaceable>X</replaceable> 和继续运行 &os;
+    4.<replaceable>X</replaceable> 的优缺点对比。</para>
 
   <important>
     <para>很显然，升级 &os; 时，应该首先备份
