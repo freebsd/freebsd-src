@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.19 1999/01/09 14:07:37 bde Exp $
+ *	$Id: cons.h,v 1.20 1999/06/22 14:12:55 yokota Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -77,6 +77,7 @@ struct consdev {
 #ifdef KERNEL
 extern	struct linker_set cons_set;
 extern	int cons_unavail;
+extern	struct consdev *cn_tab;
 
 #define CONS_DRIVER(name, probe, init, term, getc, checkc, putc)	\
 	static struct consdev name##_consdev = {			\

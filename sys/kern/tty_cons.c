@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: tty_cons.c,v 1.70 1999/07/24 09:41:06 yokota Exp $
+ *	$Id: tty_cons.c,v 1.71 1999/08/09 10:34:58 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -104,7 +104,7 @@ static int openmode, openflag;		/* how /dev/console was openned */
 static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;		/* physical device open function */
-static struct consdev *cn_tab;		/* physical console device info */
+struct consdev *cn_tab;		/* physical console device info */
 static struct tty *cn_tp;		/* physical console tty struct */
 #ifdef DEVFS
 static void *cn_devfs_token;		/* represents the devfs entry */
