@@ -45,6 +45,8 @@
     ..
     netipx
     ..
+    netnatm
+    ..
     netkey
     ..
     netncp
