@@ -209,7 +209,7 @@ network_pass1() {
 
 	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
-		if ifconfig ${interface} | grep -s UP,; then
+		if ifconfig ${ifn} | grep -s UP, > /dev/null 2>&1; then
 			# Interface is already up, so ignore it.
 			continue;
 		fi
