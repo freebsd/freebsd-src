@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.7.4.4 1998/05/06 11:09:54 des Exp $";
+	"$Id: kbdcontrol.c,v 1.7.4.5 1998/09/04 10:16:43 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -805,21 +805,17 @@ badopt:
 void
 set_keyrates(char *opt)
 {
-struct	{
-	int	rep:5;
-	int	del:2;
-	int	pad:1;
-	}rate;
+	int repeat;
+	int delay;
 
 	if (!strcmp(opt, "slow"))
-		rate.del = 3, rate.rep = 31;
+		delay = 3, repeat = 31;
 	else if (!strcmp(opt, "normal"))
-		rate.del = 1, rate.rep = 15;
+		delay = 1, repeat = 15;
 	else if (!strcmp(opt, "fast"))
-		rate.del = rate.rep = 0;
+		delay = repeat = 0;
 	else {
 		int		n;
-		int		delay, repeat;
 		char		*v1;
 
 		delay = strtol(opt, &v1, 0);
@@ -835,15 +831,14 @@ badopt:
 		for (n = 0; n < ndelays - 1; n++)
 			if (delay <= delays[n])
 				break;
-		rate.del = n;
+		delay = n;
 		for (n = 0; n < nrepeats - 1; n++)
 			if (repeat <= repeats[n])
 				break;
-		rate.rep = n;
+		repeat = n;
 	}
 
-	rate.pad = 0;
-	if (ioctl(0, KDSETRAD, rate) < 0)
+	if (ioctl(0, KDSETRAD, (delay << 5) | repeat) < 0)
 		warn("setting keyboard rate");
 }
 
