@@ -166,7 +166,7 @@ struct fdc_data
 	void	(*fdctl_wr)(struct fdc_data *fdc, u_int8_t v);
 };
 
-#define BIO_FORMAT	BIO_CMD2
+#define FDBIO_FORMAT	BIO_CMD2
 
 typedef int	fdu_t;
 typedef int	fdcu_t;
@@ -236,7 +236,7 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
  */
 #define NUMDENS		16
 
-#define BIO_RDSECTID	BIO_CMD1
+#define FDBIO_RDSECTID	BIO_CMD1
 
 /*
  * List of native drive densities.  Order must match enum fd_drivetype
@@ -1679,7 +1679,7 @@ fdstrategy(struct bio *bp)
 		goto bad;
 	}
 	fdblk = 128 << (fd->ft->secsize);
-	if (bp->bio_cmd != BIO_FORMAT && bp->bio_cmd != BIO_RDSECTID) {
+	if (bp->bio_cmd != FDBIO_FORMAT && bp->bio_cmd != FDBIO_RDSECTID) {
 		if (fd->flags & FD_NONBLOCK) {
 			bp->bio_error = EAGAIN;
 			bp->bio_flags |= BIO_ERROR;
@@ -1918,7 +1918,7 @@ fdautoselect(dev_t dev)
 		fd->ft = fdtp;
 
 		id.cyl = id.head = 0;
-		rv = fdmisccmd(dev, BIO_RDSECTID, &id);
+		rv = fdmisccmd(dev, FDBIO_RDSECTID, &id);
 		if (rv != 0)
 			continue;
 		if (id.cyl != 0 || id.head != 0 ||
@@ -1926,7 +1926,7 @@ fdautoselect(dev_t dev)
 			continue;
 		id.cyl = 2;
 		id.head = fd->ft->heads - 1;
-		rv = fdmisccmd(dev, BIO_RDSECTID, &id);
+		rv = fdmisccmd(dev, FDBIO_RDSECTID, &id);
 		if (id.cyl != 2 || id.head != fdtp->heads - 1 ||
 		    id.secshift != fdtp->secsize)
 			continue;
@@ -2002,8 +2002,8 @@ fdstate(fdc_p fdc)
 		idf = ISADMA_READ;
 	else
 		idf = ISADMA_WRITE;
-	format = bp->bio_cmd == BIO_FORMAT;
-	rdsectid = bp->bio_cmd == BIO_RDSECTID;
+	format = bp->bio_cmd == FDBIO_FORMAT;
+	rdsectid = bp->bio_cmd == FDBIO_RDSECTID;
 	if (format)
 		finfo = (struct fd_formb *)bp->bio_data;
 	TRACE1("fd%d", fdu);
@@ -2578,14 +2578,14 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	 * cylinder, and use the desired head.
 	 */
 	bp->bio_cmd = cmd;
-	if (cmd == BIO_FORMAT) {
+	if (cmd == FDBIO_FORMAT) {
 		bp->bio_blkno =
 		    (finfo->cyl * (fd->ft->sectrac * fd->ft->heads) +
 		     finfo->head * fd->ft->sectrac) *
 		    fdblk / DEV_BSIZE;
 		bp->bio_bcount = sizeof(struct fd_idfield_data) *
 		    finfo->fd_formb_nsecs;
-	} else if (cmd == BIO_RDSECTID) {
+	} else if (cmd == FDBIO_RDSECTID) {
 		bp->bio_blkno =
 		    (idfield->cyl * (fd->ft->sectrac * fd->ft->heads) +
 		     idfield->head * fd->ft->sectrac) *
@@ -2769,7 +2769,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		if (((struct fd_formb *)addr)->format_version !=
 		    FD_FORMAT_VERSION)
 			return (EINVAL); /* wrong version of formatting prog */
-		error = fdmisccmd(dev, BIO_FORMAT, addr);
+		error = fdmisccmd(dev, FDBIO_FORMAT, addr);
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
@@ -2818,7 +2818,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		rid = (struct fdc_readid *)addr;
 		if (rid->cyl > MAX_CYLINDER || rid->head > MAX_HEAD)
 			return (EINVAL);
-		error = fdmisccmd(dev, BIO_RDSECTID, addr);
+		error = fdmisccmd(dev, FDBIO_RDSECTID, addr);
 		break;
 
 	default:
