@@ -986,11 +986,6 @@ bktr_attach( pcici_t tag, int unit )
 #endif
 	pci_conf_write(tag, 0x40, fun);
 
-#if defined(BKTR_USE_FREEBSD_SMBUS)
-	if (bt848_i2c_attach(dev))
-		printf("bktr%d: i2c_attach: can't attach\n", unit);
-#endif
-
 /*
  * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
  * you have more than four, then 16 would probably be a better value.
