@@ -394,13 +394,22 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		s = "OPTi 82C822 host to PCI Bridge";
 		break;
 
-		/* Ross (?) -- vendor 0x1166 */
+		/* RCC -- vendor 0x1166 */
 	case 0x00051166:
-		s = "Ross (?) host to PCI bridge";
-		/* just guessing the secondary bus register number ... */
-#if 0
-		*busnum = pci_cfgread(cfg, 0x45, 1);
-#endif
+		s = "RCC HE host to PCI bridge";
+		*busnum = pci_cfgread(cfg, 0x44, 1);
+		break;
+	
+	case 0x00061166:
+		/* FALLTHROUGH */
+	case 0x00081166:
+		s = "RCC host to PCI bridge";
+		*busnum = pci_cfgread(cfg, 0x44, 1);
+		break;
+
+	case 0x00091166:
+		s = "RCC LE host to PCI bridge";
+		*busnum = pci_cfgread(cfg, 0x44, 1);
 		break;
 
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
@@ -425,14 +434,20 @@ static void
 nexus_pcib_identify(driver_t *driver, device_t parent)
 {
 	pcicfgregs probe;
+	u_int8_t  hdrtype;
 	int found = 0;
+	int pcifunchigh;
 
 	if (pci_cfgopen() == 0)
 		return;
 	probe.hose = 0;
 	probe.bus = 0;
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
-		int pcifunchigh = 0;
+		hdrtype = pci_cfgread(&probe, PCIR_HEADERTYPE, 1);
+		if (hdrtype & PCIM_MFDEV)
+			pcifunchigh = 7;
+		else
+			pcifunchigh = 0;
 		for (probe.func = 0;
 		     probe.func <= pcifunchigh;
 		     probe.func++) {
