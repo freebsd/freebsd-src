@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.30.4.1 1996/06/25 17:38:19 joerg Exp $
+#	$Id: Makefile,v 1.51 1996/11/02 02:24:30 pst Exp $
 #
 
 PROG=	boot
@@ -8,12 +8,37 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
+CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
+CFLAGS+=	${CWARNFLAGS}
 
-# force usage of serial console instead of keyboard probing
-#CFLAGS+=	-DFORCE_COMCONSOLE
+# Probe the keyboard and use the serial console if the keyboard isn't found.
+.if defined(BOOT_PROBE_KEYBOARD)
+CFLAGS+=	-DPROBE_KEYBOARD
+.endif
+
+# Probe the keyboard lock and use the serial console if the keyboard is locked.
+.if defined(BOOT_PROBE_KEYBOARD_LOCK)
+CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+.endif
+
+# Force use of the serial console.
+.if defined(BOOT_FORCE_COMCONSOLE)
+CFLAGS+=	-DFORCE_COMCONSOLE
+.endif
+
+# By default, if a serial port is going to be used as console, use COM1
+# (aka /dev/ttyd0).
+BOOT_COMCONSOLE_PORT?=0x3F8
+CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
+
+BOOT_COMCONSOLE_SPEED?=9600
+CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
+
+# Enable code to take the default boot string from a fixed location on the
+# disk.  See nextboot(8) and README.386BSD for more info.
+#CFLAGS+=	-DNAMEBLOCK
+#CFLAGS+=	-DNAMEBLOCK_WRITEBACK
 
 # Bias the conversion from the BIOS drive number to the FreeBSD unit number
 # for hard disks.  This may be useful for people booting in a mixed IDE/SCSI
@@ -40,8 +65,10 @@ NOSHARED=	YES
 NOMAN=
 STRIP=
 
-# tunable timeout parameter, waiting for keypress, calibrated in mS
+# tunable timeout parameter, waiting for keypress, calibrated in ms
 BOOTWAIT?=	5000
+# tunable timeout during string input, calibrated in ms
+#TIMEOUT?=	30000
 
 # Location that boot2 is loaded at
 BOOTSEG=	0x1000
@@ -65,21 +92,24 @@ boot2:		boot.nohdr
 	dd if=boot.nohdr of=boot2 bs=512 skip=1
 	@dd if=boot2 skip=14 of=sizetest 2> /dev/null
 	@if [ -s sizetest ] ; then \
-		echo "*** Boot2 is too BIG ***" ; exit 2 ; \
+		echo "boot2 is too big" >&2 ; \
+		rm boot2 ; \
+		exit 2 ; \
 	fi
 
 all:		boot1 boot2
 
 install:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot1 ${DESTDIR}${BINDIR}/boot1
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot2 ${DESTDIR}${BINDIR}/boot2
-	for i in sd fd wd od ; do \
+	for i in sd fd wd od vn ; do \
 		( cd ${DESTDIR}${BINDIR} ; \
 		rm -f boot$${i} $${i}boot ; \
 		ln -s boot1 $${i}boot ; \
 		ln -s boot2 boot$${i} ; ) \
 	done
 
+.include <bsd.kern.mk>
 .include <bsd.prog.mk>

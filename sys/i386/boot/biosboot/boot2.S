@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.5 1994/08/30 01:38:03 bde Exp $
+ *	$Id: boot2.S,v 1.9 1996/09/04 18:28:36 julian Exp $
  */
 
 #include	"asm.h"
@@ -47,6 +47,7 @@
 
 /*
  * boot2() -- second stage boot
+ * SP points to default string if found
  */
 
 ENTRY(boot2)
@@ -163,6 +164,10 @@ ENTRY(boot2)
 	subb	%al, %al
 	rep
 	stosb
+
+#ifdef NAMEBLOCK
+	movl	%esp, EXT(dflt_name)
+#endif
 
 	movzbl	%dl, %edx	/* discard head (%dh) and random high bits */
 	pushl	%edx

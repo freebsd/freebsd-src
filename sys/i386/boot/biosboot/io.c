@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.14 1995/05/30 07:58:33 rgrimes Exp $
+ *	$Id: io.c,v 1.19 1996/04/30 23:43:25 bde Exp $
  */
 
 #include "boot.h"
@@ -153,6 +153,7 @@ loop:
 	return(c);
 }
 
+#ifdef PROBE_KEYBOARD
 /*
  * This routine uses an inb to an unused port, the time to execute that
  * inb is approximately 1.25uS.  This value is pretty constant across
@@ -161,8 +162,7 @@ loop:
  * is not a valid ISA bus address, those machines execute this inb in
  * 60 nS :-(.
  *
- * XXX we need to use BIOS timer calls or something more reliable to
- * produce timeouts in the boot code.
+ * XXX this should be converted to use bios_tick.
  */
 void
 delay1ms(void)
@@ -171,18 +171,54 @@ delay1ms(void)
 	while (--i >= 0)
 		(void)inb(0x84);
 }
+#endif /* PROBE_KEYBOARD */
+
+static __inline int
+isch(void)
+{
+	int isc;
+
+	/*
+	 * Checking the keyboard has the side effect of enabling clock
+	 * interrupts so that bios_tick works.  Check the keyboard to
+	 * get this side effect even if we only want the serial status.
+	 */
+	isc = ischar();
+
+	if (!(loadflags & RB_SERIAL))
+		return (isc);
+	return (serial_ischar());
+
+}
+
+static __inline unsigned
+pword(unsigned physaddr)
+{
+	unsigned result;
+
+	/*
+	 * Give the fs prefix separately because gas omits it for
+	 * "movl %fs:0x46c, %eax".
+	 */
+	__asm __volatile("fs; movl %1, %0" : "=r" (result)
+			 : "m" (*(unsigned *)physaddr));
+	return (result);
+}
 
 int
 gets(char *buf)
 {
-	int	i;
+#define bios_tick		pword(0x46c)
+#define BIOS_TICK_MS		55
+	unsigned initial_bios_tick;
 	char *ptr=buf;
 
 #if BOOTWAIT
-	for (i = BOOTWAIT; i>0; delay1ms(),i--)
+	for (initial_bios_tick = bios_tick;
+	     bios_tick - initial_bios_tick < BOOTWAIT / BIOS_TICK_MS;)
 #endif
-		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
-			for (;;)
+		if (isch())
+			for (;;) {
 				switch(*ptr = getchar(ptr - buf) & 0xff) {
 				      case '\n':
 				      case '\r':
@@ -194,6 +230,19 @@ gets(char *buf)
 				      default:
 					ptr++;
 				}
+#if TIMEOUT + 0
+#if !BOOTWAIT
+#error "TIMEOUT without BOOTWAIT"
+#endif
+				for (initial_bios_tick = bios_tick;;) {
+					if (isch())
+						break;
+					if (bios_tick - initial_bios_tick >=
+					    TIMEOUT / BIOS_TICK_MS)
+					return 0;
+				}
+#endif
+			}
 	return 0;
 }
 

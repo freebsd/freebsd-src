@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.2 1995/03/19 06:10:32 phk Exp $
+ *	$Id: serial.S,v 1.4 1996/11/02 02:24:39 pst Exp $
  */
 
 /*
@@ -68,6 +68,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 	.file	"serial.s"
 
 #include "asm.h"
+#include "../../isa/sioreg.h"
 	.text
 
 /*
@@ -79,7 +80,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  * The base address for the i/o port is passed from the Makefile in
  * the COMCONSOLE preprocessor macro.  Console parameters are currently
- * hard-coded to 9600 Bd, 8 bit.  This can be changed in the
+ * hard-coded to CONSPEED (9600) Bd, 8 bit.  This can be changed in the
  * init_serial() function.
  */
 
@@ -169,7 +170,7 @@ ENTRY(init_serial)
 	outb	%al, %dx	# enable DLAB
 
 	sub	$3, %edx	# divisor latch, low byte
-	mov	$12, %ax	# divisor 12: 9600 Bd
+	mov	$12, %ax        # divisor 12: 9600 Bd
 	outb	%al, %dx
 	inc	%edx		# divisor latch, high byte
 	movb	%ah, %al
