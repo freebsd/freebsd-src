@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.41.2.3 1997/06/29 08:48:50 julian Exp $
+ * $Id: ufs_vnops.c,v 1.41.2.4 1998/10/30 03:47:37 jkoshy Exp $
  */
 
 #include "opt_quota.h"
@@ -906,6 +906,11 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
+	if (ip->i_nlink >= LINK_MAX) {
+		VOP_UNLOCK(fvp);
+		error = EMLINK;
+		goto abortit;
+	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp);
