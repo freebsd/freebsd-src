@@ -50,8 +50,8 @@ The
 utility prints
 out the mail header lines from the invoker's mailbox.
 .Pp
-Options:
-.Bl -tag -width Fl
+The following options are available:
+.Bl -tag -width indent
 .It Fl c
 Just print a count of messages and exit.
 .It Fl f Ar file
@@ -80,8 +80,9 @@ mailbox is examined instead of the invoker's own mailbox.
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It Ev MAIL
-If set, the location of the invoker's mailbox.  Otherwise, the default
-in /var/mail is used.
+If set, the location of the invoker's mailbox.  Otherwise, the default in
+.Pa /var/mail
+is used.
 .El
 .Sh FILES
 .Bl -tag -width /var/mail/* -compact
