@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
+ * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	5
-#define	ISP_PLATFORM_VERSION_MINOR	8
-
-/*
- * We're not ready for primetime yet
- */
-#define	ISP_SMPLOCK	1
+#define	ISP_PLATFORM_VERSION_MINOR	9
 
 #include <sys/param.h>
 #include <sys/param.h>
@@ -123,19 +118,12 @@ struct isposinfo {
  * Locking macros...
  */
 
-#ifdef	ISP_SMPLOCK
 #define	ISP_LOCK(x)		mtx_lock(&(x)->isp_lock)
 #define	ISP_UNLOCK(x)		mtx_unlock(&(x)->isp_lock)
 #define	ISPLOCK_2_CAMLOCK(isp)	\
 	mtx_unlock(&(isp)->isp_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_ISPLOCK(isp)	\
 	mtx_unlock(&Giant); mtx_lock(&(isp)->isp_lock)
-#else
-#define	ISP_LOCK(x)
-#define	ISP_UNLOCK(x)
-#define	ISPLOCK_2_CAMLOCK(x)
-#define	CAMLOCK_2_ISPLOCK(x)
-#endif
 
 /*
  * Required Macros/Defines
@@ -328,13 +316,8 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 {
 	if (isp->isp_osinfo.intsok) {
 		isp->isp_osinfo.mboxwaiting = 1;
-#ifdef	ISP_SMPLOCK
 		(void) msleep(&isp->isp_osinfo.mboxwaiting,
 		    &isp->isp_lock, PRIBIO, "isp_mboxwaiting", 10 * hz);
-#else
-		(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO,
-		    "isp_mboxwaiting", 10 * hz);
-#endif
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Interrupting Mailbox Command (0x%x) Timeout",
