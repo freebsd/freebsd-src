@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.12 1998/10/22 04:02:37 jdp Exp $";
+	"$Id: gcore.c,v 1.13 1998/11/01 06:35:36 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -281,11 +281,12 @@ datadump(efd, fd, p, addr, npage)
 			if (lseek(efd, (off_t)addr + delta, SEEK_SET) == -1)
 				err(1, "seek executable: %s", strerror(errno));
 			cc = read(efd, buffer, sizeof(buffer));
-			if (cc != sizeof(buffer))
+			if (cc != sizeof(buffer)) {
 				if (cc < 0)
 					err(1, "read executable");
 				else	/* Assume untouched bss page. */
 					bzero(buffer, sizeof(buffer));
+			}
 		}
 		cc = write(fd, buffer, PAGE_SIZE);
 		if (cc != PAGE_SIZE)
