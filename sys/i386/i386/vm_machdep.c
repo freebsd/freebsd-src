@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.105 1998/03/23 19:52:42 jlemon Exp $
+ *	$Id: vm_machdep.c,v 1.106 1998/05/16 14:44:11 kato Exp $
  */
 
 #include "npx.h"
@@ -85,6 +85,13 @@
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
+#endif
+
+static void	cpu_reset_real __P((void));
+#ifdef SMP
+static void	cpu_reset_proxy __P((void));
+static u_int	cpu_reset_proxyid;
+static volatile u_int	cpu_reset_proxy_active;
 #endif
 
 #ifdef BOUNCE_BUFFERS
@@ -838,8 +845,88 @@ vunmapbuf(bp)
 /*
  * Force reset the processor by invalidating the entire address space!
  */
+
+#ifdef SMP
+static void
+cpu_reset_proxy()
+{
+	u_int saved_mp_lock;
+
+	cpu_reset_proxy_active = 1;
+	while (cpu_reset_proxy_active == 1)
+		;	 /* Wait for other cpu to disable interupts */
+	saved_mp_lock = mp_lock;
+	mp_lock = 1;
+	printf("cpu_reset_proxy: Grabbed mp lock for BSP\n");
+	cpu_reset_proxy_active = 3;
+	while (cpu_reset_proxy_active == 3)
+		;	/* Wait for other cpu to enable interrupts */
+	stop_cpus((1<<cpu_reset_proxyid));
+	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
+	DELAY(1000000);
+	cpu_reset_real();
+}
+#endif
+
 void
 cpu_reset()
+{
+#ifdef SMP
+	if (smp_active == 0) {
+		cpu_reset_real();
+		/* NOTREACHED */
+	} else {
+
+		u_int map;
+		int cnt;
+		printf("cpu_reset called on cpu#%d\n",cpuid);
+
+		map = other_cpus & ~ stopped_cpus;
+
+		if (map != 0) {
+			printf("cpu_reset: Stopping other CPUs\n");
+			stop_cpus(map);		/* Stop all other CPUs */
+		}
+
+		if (cpuid == 0) {
+			DELAY(1000000);
+			cpu_reset_real();
+			/* NOTREACHED */
+		} else {
+			/* We are not BSP (CPU #0) */
+
+			cpu_reset_proxyid = cpuid;
+			cpustop_restartfunc = cpu_reset_proxy;
+			printf("cpu_reset: Restarting BSP\n");
+			started_cpus = (1<<0);		/* Restart CPU #0 */
+
+			cnt = 0;
+			while (cpu_reset_proxy_active == 0 && cnt < 10000000)
+				cnt++;	/* Wait for BSP to announce restart */
+			if (cpu_reset_proxy_active == 0)
+				printf("cpu_reset: Failed to restart BSP\n");
+			__asm __volatile("cli" : : : "memory");
+			cpu_reset_proxy_active = 2;
+			cnt = 0;
+			while (cpu_reset_proxy_active == 2 && cnt < 10000000)
+				cnt++;	/* Do nothing */
+			if (cpu_reset_proxy_active == 2) {
+				printf("cpu_reset: BSP did not grab mp lock\n");
+				cpu_reset_real();	/* XXX: Bogus ? */
+			}
+			cpu_reset_proxy_active = 4;
+			__asm __volatile("sti" : : : "memory");
+			while (1);
+			/* NOTREACHED */
+		}
+	}
+#else
+	cpu_reset_real();
+#endif
+}
+
+static void
+cpu_reset_real()
 {
 
 #ifdef PC98
