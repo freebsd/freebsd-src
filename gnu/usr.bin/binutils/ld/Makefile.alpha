@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.2 1998/05/04 21:29:54 jb Exp $
+# $FreeBSD$
 #
 
 .if	${MACHINE_ARCH} == "alpha"

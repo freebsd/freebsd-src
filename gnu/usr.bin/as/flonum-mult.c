@@ -19,7 +19,7 @@
    notice and this notice must be preserved on all copies.  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "flonum.h"

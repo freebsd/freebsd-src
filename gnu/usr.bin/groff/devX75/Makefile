@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/02/22 15:45:46 peter Exp $
+# $FreeBSD$
 #
 # Generic groff font makefile
 

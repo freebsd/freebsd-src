@@ -9,7 +9,7 @@
 # necessary) and fed to cmp or diff.  The exit status from cmp
 # or diff is preserved.
 #
-# $Id$
+# $FreeBSD$
 
 prog=`echo $0 | sed 's|.*/||'`
 case "$prog" in

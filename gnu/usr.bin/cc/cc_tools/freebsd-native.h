@@ -1,4 +1,4 @@
-/* $Id: freebsd-native.h,v 1.1 1999/04/28 18:48:05 obrien Exp $ */
+/* $FreeBSD$ */
 
 /* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
    source tree so it can be configured appropriately without using

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1999/01/14 20:00:46 markm Exp $
+# $FreeBSD$
 
 PROG=	makeinfo
 NOMAN=	yes

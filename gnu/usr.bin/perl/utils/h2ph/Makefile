@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1999/03/18 19:39:07 julian Exp $
+# $FreeBSD$
 #
 
 PROG=	h2ph

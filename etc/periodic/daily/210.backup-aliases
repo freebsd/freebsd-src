@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 210.backup-aliases,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+# $FreeBSD$
 #
 bak=/var/backups
 

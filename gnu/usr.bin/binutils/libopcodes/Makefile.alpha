@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.1 1998/03/12 13:02:46 jb Exp $
+# $FreeBSD$
 #
 
 SRCS+=		alpha-dis.c alpha-opc.c

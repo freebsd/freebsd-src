@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 SRCS+=		i386-dis.c

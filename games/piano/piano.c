@@ -1,7 +1,8 @@
 /*
  * piano.c - a piano emulator
  */
-static char rcsid[] = "$Id: piano.c,v 1.4 1997/02/22 14:46:57 peter Exp $";
+static char rcsid[] =
+  "$FreeBSD$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tsys_rcsid[] = "$Id$";
+const char _uuconf_tsys_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get system information from the Taylor UUCP configuration files.

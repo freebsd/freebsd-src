@@ -1,6 +1,6 @@
 
 /*
- *	$Id$
+ * $FreeBSD$
  *
  * Simple SPARC relocations for the benefit of self-relocation of ld.so
  * avoiding the use of global variables (ie. reloc_bitshift[] et. al.).

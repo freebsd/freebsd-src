@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 #
 # List of acceptable shells for pppd(8).
 # Pppd will not accept a system password login

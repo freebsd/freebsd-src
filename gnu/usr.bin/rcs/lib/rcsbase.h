@@ -1,6 +1,6 @@
 /* RCS common definitions and data structures */
 
-#define RCSBASE "$Id: rcsbase.h,v 1.8 1997/02/22 15:47:33 peter Exp $"
+#define RCSBASE "$FreeBSD$"
 
 /* Copyright 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

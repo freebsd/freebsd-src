@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char proti_rcsid[] = "$Id$";
+const char proti_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

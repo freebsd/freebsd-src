@@ -12,7 +12,7 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.\" $Id$
+.\" $FreeBSD$
 .Dd Aug 16, 1999
 .Dt MANPATH 1
 .Os

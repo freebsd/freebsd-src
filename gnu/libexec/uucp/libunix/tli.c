@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tli_rcsid[] = "$Id$";
+const char tli_rcsid[] = "$FreeBSD$";
 #endif
 
 #if HAVE_TLI

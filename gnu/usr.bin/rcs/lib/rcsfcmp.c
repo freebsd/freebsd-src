@@ -118,7 +118,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(fcmpId, "$Id$")
+libId(fcmpId, "$FreeBSD$")
 
 	static int discardkeyval P((int,RILE*));
 	static int

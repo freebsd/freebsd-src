@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1999/05/23 10:02:46 obrien Exp $
+# $FreeBSD$
 
 SRCDIR=	${.CURDIR}/../../../contrib/egcs/libf2c
 

@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.17 1998/09/13 23:05:47 brian Exp $
+# $FreeBSD$
 #
 # csh .login file
 #

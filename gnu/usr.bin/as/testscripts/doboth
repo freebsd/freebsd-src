@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $FreeBSD$
 
 x=$1 ; shift
 y=$1 ; shift

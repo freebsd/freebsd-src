@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.2 1998/05/31 11:38:25 bde Exp $
+# $FreeBSD$
 
 BINDIR=	/etc/periodic/${.CURDIR:T}
 NOOBJ=
