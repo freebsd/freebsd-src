@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.53 1999/02/16 10:49:51 dfr Exp $
+ * $Id: if_ether.c,v 1.54 1999/02/20 11:18:00 julian Exp $
  */
 
 /*
@@ -292,6 +292,7 @@ arprequest(ac, sip, tip, enaddr)
 		return;
 	m->m_len = sizeof(*ea);
 	m->m_pkthdr.len = sizeof(*ea);
+	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	MH_ALIGN(m, sizeof(*ea));
 	ea = mtod(m, struct ether_arp *);
 	eh = (struct ether_header *)sa.sa_data;
