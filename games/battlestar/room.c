@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)room.c	8.1 (Berkeley) 5/31/93";
 writedes()
 {
 	int compass;
-	register char *p;
+	const char *p;
 	register c;
 
 	printf("\n\t%s\n", location[position].name);
@@ -104,7 +104,7 @@ struct room here;
 	}
 }
 
-char *
+const char *
 truedirec(way, option)
 int way;
 char option;

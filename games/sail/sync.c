@@ -70,6 +70,7 @@ makesignal(from, fmt, ship, a, b, c)
 #include <sys/types.h>
 #include <sys/stat.h>
 sync_exists(game)
+int game;
 {
 	char buf[sizeof sync_file];
 	struct stat s;

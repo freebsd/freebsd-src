@@ -39,12 +39,13 @@ static char sccsid[] = "@(#)tutor.c	8.1 (Berkeley) 5/31/93";
 #include "tutor.h"
 
 extern int	maxmoves;
-extern char	*finis[];
+extern const char	*const finis[];
 
-extern struct situatn	test[];
+extern const struct situatn	test[];
 
-static char	better[] = "That is a legal move, but there is a better one.\n";
+static const char	better[] = "That is a legal move, but there is a better one.\n";
 
+void
 tutor ()  {
 	register int	i, j;
 
@@ -141,11 +142,12 @@ clrest ()  {
 	curmove (r,c);
 }
 
+int
 brdeq (b1,b2)
-register int  *b1, *b2;
+const int  *b1, *b2;
 
 {
-	register int  *e;
+	const int  *e;
 
 	e = b1+26;
 	while (b1 < e)

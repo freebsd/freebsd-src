@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)dayobjs.c	8.1 (Berkeley) 5/31/93";
 
 #include "externs.h"
 
-struct objs dayobjs[] = {
+const struct objs dayobjs[] = {
 	{ 236,	HORSE },
 	{ 237,	CAR },
 	{ 275,	POT },

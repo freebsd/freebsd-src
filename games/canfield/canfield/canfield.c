@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)canfield.c	8.1 (Berkeley) 5/31/93";
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "pathnames.h"
 
@@ -1325,7 +1326,7 @@ suspend()
 	move(21, 0);
 	refresh();
 	if (dbfd != -1) {
-		lseek(dbfd, uid * sizeof(struct betinfo), 0);
+		lseek(dbfd, uid * sizeof(struct betinfo), SEEK_SET);
 		write(dbfd, (char *)&total, sizeof(total));
 	}
 	kill(getpid(), SIGTSTP);
@@ -1577,7 +1578,7 @@ initall()
 	initdeck(deck);
 	uid = getuid();
 
-	i = lseek(dbfd, uid * sizeof(struct betinfo), 0);
+	i = lseek(dbfd, uid * sizeof(struct betinfo), SEEK_SET);
 	if (i < 0) {
 		close(dbfd);
 		dbfd = -1;
@@ -1640,7 +1641,7 @@ cleanup()
 	status = NOBOX;
 	updatebettinginfo();
 	if (dbfd != -1) {
-		lseek(dbfd, uid * sizeof(struct betinfo), 0);
+		lseek(dbfd, uid * sizeof(struct betinfo), SEEK_SET);
 		write(dbfd, (char *)&total, sizeof(total));
 		close(dbfd);
 	}
@@ -1672,11 +1673,9 @@ askquit()
 /*
  * Can you tell that this used to be a Pascal program?
  */
-main(argc, argv)
-	int argc;
-	char *argv[];
+main()
 {
-	dbfd = open(_PATH_SCORE, 2);
+	dbfd = open(_PATH_SCORE, O_RDWR);
 
 	/* revoke */
 	setgid(getgid());

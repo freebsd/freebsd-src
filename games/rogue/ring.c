@@ -52,8 +52,8 @@ static char sccsid[] = "@(#)ring.c	8.1 (Berkeley) 5/31/93";
 
 #include "rogue.h"
 
-char *left_or_right = "left or right hand?";
-char *no_ring = "there's no ring on that hand";
+const char *left_or_right = "left or right hand?";
+const char *no_ring = "there's no ring on that hand";
 short stealthy;
 short r_rings;
 short add_strength;

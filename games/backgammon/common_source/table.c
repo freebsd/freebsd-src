@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 5/31/93";
 
 #include "back.h"
 
-char	*help2[] = {
+const char	*const help2[] = {
 	"   Enter moves as <s>-<f> or <s>/<r> where <s> is the starting",
 	"position, <f> is the finishing position, and <r> is the roll.",
 	"Remember, each die roll must be moved separately.",
@@ -50,7 +50,7 @@ struct state	{
 	int	newst;
 };
 
-struct state	atmata[] = {
+static const struct state	atmata[] = {
 
 	'R', 1, 0,	'?', 7, 0,	'Q', 0, -3,	'B', 8, 25,
 	'9', 2, 25,	'8', 2, 25,	'7', 2, 25,	'6', 2, 25,

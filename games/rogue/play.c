@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)play.c	8.1 (Berkeley) 5/31/93";
 #include "rogue.h"
 
 boolean interrupted = 0;
-char *unknown_command = "unknown command";
+const char *unknown_command = "unknown command";
 
 extern short party_room, bear_trap;
 extern char hit_message[];

@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)data.c	8.1 (Berkeley) 5/31/93";
 
 int	maxmoves = 23;
 
-char  *text0[] = {
+const char  *const text0[] = {
 	"To start the game, I roll a 3, and you roll a 1.  This means",
 	"that I get to start first.  I move 8-5,6-5 since this makes a",
 	"new point and helps to trap your back men on 1.  You should be",
@@ -47,7 +47,7 @@ char  *text0[] = {
 	0
 };
 
-char  *text1[] = {
+const char  *const text1[] = {
 	"Now you shall see a move using doubles.  I just rolled double",
 	"5's.  I will move two men from position 13 to position 3.  The",
 	"notation for this is 13-8,13-8,8-3,8-3.  You will also roll dou-",
@@ -55,7 +55,7 @@ char  *text1[] = {
 	0
 };
 
-char  *text2[] = {
+const char  *const text2[] = {
 	"Excellent!  As you can see, you are beginning to develop a wall",
 	"which is trapping my men on position 24.  Also, moving your back",
 	"men forward not only improves your board position safely, but it",
@@ -68,7 +68,7 @@ char  *text2[] = {
 	0
 };
 
-char  *text3[] = {
+const char  *const text3[] = {
 	"As you can see, although you left a man open, it is a rela-",
 	"tively safe move to an advantageous position, which might help",
 	"you make a point later.  Only two rolls (4 5 or 5 4) will allow",
@@ -77,13 +77,13 @@ char  *text3[] = {
 	0
 };
 
-char  *text4[] = {
+const char  *const text4[] = {
 	"You're pretty lucky yourself, you know.  I follow by rolling 2 3",
 	"and moving 25-22,24-22, forming a new point.",
 	0
 };
 
-char  *text5[] = {
+const char  *const text5[] = {
 	"Not a spectacular move, but a safe one.  I follow by rolling 6 1.",
 	"I decide to use this roll to move 22-16,16-15.  It leaves me with",
 	"one man still open, but the blot is farther back on the board, and",
@@ -91,7 +91,7 @@ char  *text5[] = {
 	0
 };
 
-char  *text6[] = {
+const char  *const text6[] = {
 	"By moving your two men from 17 to 20, you lessen my chance of",
 	"getting my man off the board.  In fact, the odds are 5 to 4",
 	"against me getting off.  I roll with the odds and helplessly",
@@ -99,7 +99,7 @@ char  *text6[] = {
 	0
 };
 
-char  *text7[] = {
+const char  *const text7[] = {
 	"Note that the blot on 7 cannot be hit unless I get off the bar",
 	"and have a 1 or a 6 left over, and doing so will leave two of",
 	"my men open.  Also, the blot on 16 cannot be hit at all!  With",
@@ -107,27 +107,27 @@ char  *text7[] = {
 	0
 };
 
-char  *text8[] = {
+const char  *const text8[] = {
 	"See, you did not get hit and, you got to 'cover up' your open men.",
 	"Quite an accomplishment.  Finally, I get off the bar by rolling",
 	"6 2 and moving 25-23,23-17.",
 	0
 };
 
-char  *text9[] = {
+const char  *const text9[] = {
 	"My venture off the bar did not last long.  However, I got lucky",
 	"and rolled double 1's, allowing me to move 25-24,24-23,15-14,15-14.",
 	0
 };
 
-char  *text10[] = {
+const char  *const text10[] = {
 	"You are improving your position greatly and safely, and are well",
 	"on the way to winning the game.  I roll a 6 2 and squeak past",
 	"your back man.  Now the game becomes a race to the finish.",
 	0
 };
 
-char  *text11[] = {
+const char  *const text11[] = {
 	"Now that it is merely a race, you are trying to get as many men",
 	"as possible into the inner table, so you can start removing them.",
 	"I roll a 3 4 and move my two men farthest back to position 11",
@@ -135,20 +135,20 @@ char  *text11[] = {
 	0
 };
 
-char  *text12[] = {
+const char  *const text12[] = {
 	"The race is still on, and you have seem to be doing all right.",
 	"I roll 6 1 and move 14-8,13-12.",
 	0
 };
 
-char  *text13[] = {
+const char  *const text13[] = {
 	"Notice that you get to remove men the instant you have all of",
 	"them at your inner table, even if it is the middle of a turn.",
 	"I roll 1 2 and move 13-11,12-11.",
 	0
 };
 
-char  *text14[] = {
+const char  *const text14[] = {
 	"Although you could have removed a man, this move illustrates two",
 	"points:  1) You never have to remove men, and 2) You should try",
 	"to spread out your men on your inner table.  Since you have one",
@@ -157,25 +157,25 @@ char  *text14[] = {
 	0
 };
 
-char  *text15[] = {
+const char  *const text15[] = {
 	"This time you were able to remove men.  I roll 3 4 and move",
 	"11-7,11-8.  The race continues.",
 	0
 };
 
-char  *text16[] = {
+const char  *const text16[] = {
 	"More holes are opening up in your inner table, but you are",
 	"still very much ahead.  If we were doubling, you would have",
 	"doubled long ago.  I roll 2 6 and move 8-6,11-5.",
 	0
 };
 
-char  *text17[] = {
+const char  *const text17[] = {
 	"It pays to spread out your men.  I roll 3 5 and move 7-4,8-3.",
 	0
 };
 
-char  *text18[] = {
+const char  *const text18[] = {
 	"You can only remove some men, but you spread out more and",
 	"more, in order to be able to remove men more efficiently.",
 	"I roll double 3's, which help, but not that much.  I move",
@@ -183,30 +183,30 @@ char  *text18[] = {
 	0
 };
 
-char  *text19[] = {
+const char  *const text19[] = {
 	"I roll 1 4 and move 5-4,4-0.",
 	0
 };
 
-char  *text20[] = {
+const char  *const text20[] = {
 	"You are now nicely spread out to win a game.  I roll 5 6 and",
 	"move 5-0,6-0.",
 	0
 };
 
-char  *text21[] = {
+const char  *const text21[] = {
 	"Any minute now.  Just a few short steps from victory.  I roll",
 	"2 4 and move 6-4,4-0.",
 	0
 };
 
-char  *text22[] = {
+const char  *const text22[] = {
 	"It looks pretty hopeless for me, but I play on, rolling 1 3 and",
 	"moving 4-3,3-0.",
 	0
 };
 
-char  *text23[] = {
+const char  *const text23[] = {
 	"Congratulations!  You just won a game of backgammon against the",
 	"computer!  You will now be able to play a game, but remember,",
 	"when you start playing, that doubling will be enabled, which",
@@ -215,7 +215,7 @@ char  *text23[] = {
 	0
 };
 
-struct situatn  test[] = {
+const struct situatn  test[] = {
 	{
 		{0,2,0,0,0,0,-5,0,-3,0,0,0,5,-5,0,0,0,3,0,5,0,0,0,0,-2,0},
 		3, 1, {8,6,0,0}, {5,5,0,0}, 4, 2, text0

@@ -91,6 +91,6 @@ run:
 		case 0:
 			goto start;
 		default:
-			exit(0);
+			exit(1); /* Shouldn't happen */
 	}
 }

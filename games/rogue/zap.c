@@ -275,7 +275,8 @@ bounce(ball, dir, row, col, r)
 short ball, dir, row, col, r;
 {
 	short orow, ocol;
-	char buf[DCOLS], *s;
+	char buf[DCOLS];
+	const char *s;
 	short i, ch, new_dir = -1, damage;
 	static short btime;
 

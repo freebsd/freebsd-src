@@ -41,5 +41,23 @@ struct situatn  {
 	int	mg[4];
 	int	new1;
 	int	new2;
-	char	*(*com[8]);
+	const char	*const (*com[8]);
 };
+
+extern	const char	*const doubl[];
+extern	const char	*const endgame[];
+extern	const char	*const finis[];
+extern	const char	*const hello[];
+extern	const char	*const hits[];
+extern	const char	*const intro1[];
+extern	const char	*const intro2[];
+extern	const char	*const lastch[];
+extern	const char	*const list[];
+extern	int	 maxmoves;
+extern	const char	*const moves[];
+extern	const char	*const opts;
+extern	const char	*const prog[];
+extern	const char	*const prompt;
+extern	const char	*const removepiece[];
+extern	const char	*const stragy[];
+extern	const struct situatn	test[];

@@ -591,9 +591,6 @@ clear ()  {
 	tputs (CL,CO,addbuf);		/* put CL in buffer */
 }
 
-tos ()  {				/* home cursor */
-	curmove (0,0);
-}
 
 fancyc (c)
 register char	c;			/* character to output */
@@ -703,8 +700,9 @@ newline ()  {
 		curmove (curr+1,0);
 }
 
+int
 getcaps (s)
-register char	*s;
+const char	*s;
 
 {
 	register char	*code;		/* two letter code */
@@ -712,7 +710,7 @@ register char	*s;
 	char		*bufp;		/* pointer to cap buffer */
 	char		tentry[1024];	/* temporary uncoded caps buffer */
 
-	tgetent (tentry,s);		/* get uncoded termcap entry */
+	tgetent (tentry, (char *)s);		/* get uncoded termcap entry */
 
 	LI = tgetnum ("li");		/* get number of lines */
 	if (LI == -1)

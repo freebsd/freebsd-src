@@ -140,6 +140,7 @@ use()
 		else
 			position = 229;
 		gtime++;
+		notes[CANTSEE] = 0;
 		return(0);
 	}
 	else if (position == FINAL)
