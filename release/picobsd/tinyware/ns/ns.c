@@ -682,8 +682,8 @@ main(int argc, char *argv[])
 		case 'w':
 			wflag = atoi(optarg) ;
 			break;
-		case 'n' /* ignored, just for compatibility with std netstat */
-			break ;
+		case 'n': /* ignored, just for compatibility with std netstat */
+			break;
 		case 'r':
 			rflag++;
 			break;
