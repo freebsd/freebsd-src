@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/file.h>
 #if __FreeBSD_version >= 500014
@@ -799,9 +800,9 @@ uplcom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	sc->sc_lsr = sc->sc_msr = 0;
 	pstatus = buf[8];
 	if (ISSET(pstatus, RSAQ_STATUS_DSR))
-		sc->sc_msr |= UMSR_DSR;
+		sc->sc_msr |= SER_DSR;
 	if (ISSET(pstatus, RSAQ_STATUS_DCD))
-		sc->sc_msr |= UMSR_DCD;
+		sc->sc_msr |= SER_DCD;
 	ucom_status_change(&sc->sc_ucom);
 }
 

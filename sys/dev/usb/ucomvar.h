@@ -104,10 +104,6 @@ struct ucom_callback {
 	void (*ucom_write)(void *, int, u_char *, u_char *, u_int32_t *);
 };
 
-/* modem control register */
-#define UMCR_RTS	0x02	/* Request To Send */
-#define UMCR_DTR	0x01	/* Data Terminal Ready */
-
 /* line status register */
 #define ULSR_RCV_FIFO	0x80
 #define ULSR_TSRE	0x40	/* Transmitter empty: byte sent */
@@ -118,17 +114,6 @@ struct ucom_callback {
 #define ULSR_OE		0x02	/* Overrun, lost incoming byte */
 #define ULSR_RXRDY	0x01	/* Byte ready in Receive Buffer */
 #define ULSR_RCV_MASK	0x1f	/* Mask for incoming data or error */
-
-/* modem status register */
-/* All deltas are from the last read of the MSR. */
-#define UMSR_DCD	0x80	/* Current Data Carrier Detect */
-#define UMSR_RI		0x40	/* Current Ring Indicator */
-#define UMSR_DSR	0x20	/* Current Data Set Ready */
-#define UMSR_CTS	0x10	/* Current Clear to Send */
-#define UMSR_DDCD	0x08	/* DCD has changed state */
-#define UMSR_TERI	0x04	/* RI has toggled low to high */
-#define UMSR_DDSR	0x02	/* DSR has changed state */
-#define UMSR_DCTS	0x01	/* CTS has changed state */
 
 /* ucom state declarations */
 #define UCS_RXSTOP	0x0001	/* Rx stopped */
@@ -168,7 +153,6 @@ struct ucom_softc {
 	u_char			sc_msr;
 	u_char			sc_mcr;
 
-	u_char			sc_opening;	/* lock during open */
 	int			sc_refcnt;
 	u_char			sc_dying;	/* disconnecting */
 
