@@ -79,9 +79,9 @@ compare(name, s, p)
 	register NODE *s;
 	register FTSENT *p;
 {
-	extern int uflag;
-	u_long len, val;
+	uint32_t val;
 	int fd, label;
+	off_t len;
 	char *cp;
 	const char *tab = "";
 	char *fflags;
@@ -211,7 +211,7 @@ typeerr:		LABEL;
 			if (s->cksum != val) {
 				LABEL;
 				(void)printf("%scksum expected %lu found %lu\n",
-				    tab, s->cksum, val);
+				    tab, s->cksum, (unsigned long)val);
 				tab = "\t";
 			}
 		}
