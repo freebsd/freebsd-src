@@ -161,6 +161,7 @@ MAN=	aac.4 \
 	ng_device.4 \
 	nge.4 \
 	ng_echo.4 \
+	ng_eiface.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_frame_relay.4 \
