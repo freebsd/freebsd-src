@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.35 1999/01/07 01:11:24 ken Exp $
+ *      $Id: cam_xpt.c,v 1.36 1999/01/14 06:03:59 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -530,8 +530,9 @@ u_int32_t cam_dflags;
 #endif /* CAMDEBUG */
 #endif /* CAM_DEBUG_BUS || CAM_DEBUG_TARGET || CAM_DEBUG_LUN */
 
-/* Forward declarations for private functions */
-void	xpt_init(void);
+/* Our boot-time initialization hook */
+static void	xpt_init(void *);
+SYSINIT(cam, SI_SUB_CONFIGURE, SI_ORDER_SECOND, xpt_init, NULL);
 
 static cam_status	xpt_compile_path(struct cam_path *new_path,
 					 struct cam_periph *perph,
@@ -1138,8 +1139,9 @@ ptstartover:
 }
 
 /* Functions accessed by the peripheral drivers */
-void
-xpt_init()
+static void
+xpt_init(dummy)
+	void *dummy;
 {
 	struct cam_sim *xpt_sim;
 	struct cam_path *path;
