@@ -514,7 +514,6 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->system_map = 0;
 	map->min_offset = min;
 	map->max_offset = max;
-	map->first_free = &map->header;
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
@@ -573,59 +572,129 @@ vm_map_entry_set_behavior(vm_map_entry_t entry, u_char behavior)
 }
 
 /*
+ *	vm_map_entry_set_max_free:
+ *
+ *	Set the max_free field in a vm_map_entry.
+ */
+static __inline void
+vm_map_entry_set_max_free(vm_map_entry_t entry)
+{
+
+	entry->max_free = entry->adj_free;
+	if (entry->left != NULL && entry->left->max_free > entry->max_free)
+		entry->max_free = entry->left->max_free;
+	if (entry->right != NULL && entry->right->max_free > entry->max_free)
+		entry->max_free = entry->right->max_free;
+}
+
+/*
  *	vm_map_entry_splay:
  *
- *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
- *	the vm_map_entry containing the given address.  If, however, that
- *	address is not found in the vm_map, returns a vm_map_entry that is
- *	adjacent to the address, coming before or after it.
+ *	The Sleator and Tarjan top-down splay algorithm with the
+ *	following variation.  Max_free must be computed bottom-up, so
+ *	on the downward pass, maintain the left and right spines in
+ *	reverse order.  Then, make a second pass up each side to fix
+ *	the pointers and compute max_free.  The time bound is O(log n)
+ *	amortized.
+ *
+ *	The new root is the vm_map_entry containing "addr", or else an
+ *	adjacent entry (lower or higher) if addr is not in the tree.
+ *
+ *	The map must be locked, and leaves it so.
+ *
+ *	Returns: the new root.
  */
 static vm_map_entry_t
-vm_map_entry_splay(vm_offset_t address, vm_map_entry_t root)
+vm_map_entry_splay(vm_offset_t addr, vm_map_entry_t root)
 {
-	struct vm_map_entry dummy;
-	vm_map_entry_t lefttreemax, righttreemin, y;
+	vm_map_entry_t llist, rlist;
+	vm_map_entry_t ltree, rtree;
+	vm_map_entry_t y;
 
+	/* Special case of empty tree. */
 	if (root == NULL)
 		return (root);
-	lefttreemax = righttreemin = &dummy;
-	for (;; root = y) {
-		if (address < root->start) {
-			if ((y = root->left) == NULL)
+
+	/*
+	 * Pass One: Splay down the tree until we find addr or a NULL
+	 * pointer where addr would go.  llist and rlist are the two
+	 * sides in reverse order (bottom-up), with llist linked by
+	 * the right pointer and rlist linked by the left pointer in
+	 * the vm_map_entry.  Wait until Pass Two to set max_free on
+	 * the two spines.
+	 */
+	llist = NULL;
+	rlist = NULL;
+	for (;;) {
+		/* root is never NULL in here. */
+		if (addr < root->start) {
+			y = root->left;
+			if (y == NULL)
 				break;
-			if (address < y->start) {
-				/* Rotate right. */
+			if (addr < y->start && y->left != NULL) {
+				/* Rotate right and put y on rlist. */
 				root->left = y->right;
 				y->right = root;
+				vm_map_entry_set_max_free(root);
+				root = y->left;
+				y->left = rlist;
+				rlist = y;
+			} else {
+				/* Put root on rlist. */
+				root->left = rlist;
+				rlist = root;
 				root = y;
-				if ((y = root->left) == NULL)
-					break;
 			}
-			/* Link into the new root's right tree. */
-			righttreemin->left = root;
-			righttreemin = root;
-		} else if (address >= root->end) {
-			if ((y = root->right) == NULL)
+		} else {
+			y = root->right;
+			if (addr < root->end || y == NULL)
 				break;
-			if (address >= y->end) {
-				/* Rotate left. */
+			if (addr >= y->end && y->right != NULL) {
+				/* Rotate left and put y on llist. */
 				root->right = y->left;
 				y->left = root;
+				vm_map_entry_set_max_free(root);
+				root = y->right;
+				y->right = llist;
+				llist = y;
+			} else {
+				/* Put root on llist. */
+				root->right = llist;
+				llist = root;
 				root = y;
-				if ((y = root->right) == NULL)
-					break;
 			}
-			/* Link into the new root's left tree. */
-			lefttreemax->right = root;
-			lefttreemax = root;
-		} else
-			break;
+		}
 	}
-	/* Assemble the new root. */
-	lefttreemax->right = root->left;
-	righttreemin->left = root->right;
-	root->left = dummy.right;
-	root->right = dummy.left;
+
+	/*
+	 * Pass Two: Walk back up the two spines, flip the pointers
+	 * and set max_free.  The subtrees of the root go at the
+	 * bottom of llist and rlist.
+	 */
+	ltree = root->left;
+	while (llist != NULL) {
+		y = llist->right;
+		llist->right = ltree;
+		vm_map_entry_set_max_free(llist);
+		ltree = llist;
+		llist = y;
+	}
+	rtree = root->right;
+	while (rlist != NULL) {
+		y = rlist->left;
+		rlist->left = rtree;
+		vm_map_entry_set_max_free(rlist);
+		rtree = rlist;
+		rlist = y;
+	}
+
+	/*
+	 * Final assembly: add ltree and rtree as subtrees of root.
+	 */
+	root->left = ltree;
+	root->right = rtree;
+	vm_map_entry_set_max_free(root);
+
 	return (root);
 }
 
@@ -655,10 +724,15 @@ vm_map_entry_link(vm_map_t map,
 		entry->right = after_where->right;
 		entry->left = after_where;
 		after_where->right = NULL;
+		after_where->adj_free = entry->start - after_where->end;
+		vm_map_entry_set_max_free(after_where);
 	} else {
 		entry->right = map->root;
 		entry->left = NULL;
 	}
+	entry->adj_free = (entry->next == &map->header ? map->max_offset :
+	    entry->next->start) - entry->end;
+	vm_map_entry_set_max_free(entry);
 	map->root = entry;
 }
 
@@ -675,6 +749,9 @@ vm_map_entry_unlink(vm_map_t map,
 	else {
 		root = vm_map_entry_splay(entry->start, entry->left);
 		root->right = entry->right;
+		root->adj_free = (entry->next == &map->header ? map->max_offset :
+		    entry->next->start) - root->end;
+		vm_map_entry_set_max_free(root);
 	}
 	map->root = root;
 
@@ -685,6 +762,33 @@ vm_map_entry_unlink(vm_map_t map,
 	map->nentries--;
 	CTR3(KTR_VM, "vm_map_entry_unlink: map %p, nentries %d, entry %p", map,
 	    map->nentries, entry);
+}
+
+/*
+ *	vm_map_entry_resize_free:
+ *
+ *	Recompute the amount of free space following a vm_map_entry
+ *	and propagate that value up the tree.  Call this function after
+ *	resizing a map entry in-place, that is, without a call to
+ *	vm_map_entry_link() or _unlink().
+ *
+ *	The map must be locked, and leaves it so.
+ */
+static void
+vm_map_entry_resize_free(vm_map_t map, vm_map_entry_t entry)
+{
+
+	/*
+	 * Using splay trees without parent pointers, propagating
+	 * max_free up the tree is done by moving the entry to the
+	 * root and making the change there.
+	 */
+	if (entry != map->root)
+		map->root = vm_map_entry_splay(entry->start, map->root);
+
+	entry->adj_free = (entry->next == &map->header ? map->max_offset :
+	    entry->next->start) - entry->end;
+	vm_map_entry_set_max_free(entry);
 }
 
 /*
@@ -814,6 +918,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    (prev_entry->max_protection == max)) {
 			map->size += (end - prev_entry->end);
 			prev_entry->end = end;
+			vm_map_entry_resize_free(map, prev_entry);
 			vm_map_simplify_entry(map, prev_entry);
 			return (KERN_SUCCESS);
 		}
@@ -859,14 +964,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
 
-	/*
-	 * Update the free space hint
-	 */
-	if ((map->first_free == prev_entry) &&
-	    (prev_entry->end >= new_entry->start)) {
-		map->first_free = new_entry;
-	}
-
 #if 0
 	/*
 	 * Temporarily removed to avoid MAP_STACK panic, due to
@@ -889,64 +986,90 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 }
 
 /*
- * Find sufficient space for `length' bytes in the given map, starting at
- * `start'.  The map must be locked.  Returns 0 on success, 1 on no space.
+ *	vm_map_findspace:
+ *
+ *	Find the first fit (lowest VM address) for "length" free bytes
+ *	beginning at address >= start in the given map.
+ *
+ *	In a vm_map_entry, "adj_free" is the amount of free space
+ *	adjacent (higher address) to this entry, and "max_free" is the
+ *	maximum amount of contiguous free space in its subtree.  This
+ *	allows finding a free region in one path down the tree, so
+ *	O(log n) amortized with splay trees.
+ *
+ *	The map must be locked, and leaves it so.
+ *
+ *	Returns: 0 on success, and starting address in *addr,
+ *		 1 if insufficient space.
  */
 int
-vm_map_findspace(
-	vm_map_t map,
-	vm_offset_t start,
-	vm_size_t length,
-	vm_offset_t *addr)
+vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
+    vm_offset_t *addr)	/* OUT */
 {
-	vm_map_entry_t entry, next;
-	vm_offset_t end;
+	vm_map_entry_t entry;
+	vm_offset_t end, st;
 
+	/* Request must fit within min/max VM address. */
 	if (start < map->min_offset)
 		start = map->min_offset;
-	if (start > map->max_offset)
+	if (start + length > map->max_offset)
+		return (1);
+
+	/* Empty tree means wide open address space. */
+	if (map->root == NULL) {
+		*addr = start;
+		goto found;
+	}
+
+	/*
+	 * After splay, if start comes before root node, then there
+	 * must be a gap from start to the root.
+	 */
+	map->root = vm_map_entry_splay(start, map->root);
+	if (start + length <= map->root->start) {
+		*addr = start;
+		goto found;
+	}
+
+	/*
+	 * Root is the last node that might begin its gap before
+	 * start.
+	 */
+	st = (start > map->root->end) ? start : map->root->end;
+	if (st + length <= map->root->end + map->root->adj_free) {
+		*addr = st;
+		goto found;
+	}
+
+	/* With max_free, can immediately tell if no solution. */
+	entry = map->root->right;
+	if (entry == NULL || length > entry->max_free)
 		return (1);
 
 	/*
-	 * Look for the first possible address; if there's already something
-	 * at this address, we have to start after it.
+	 * Search the right subtree in the order: left subtree, root,
+	 * right subtree (first fit).  The previous splay implies that
+	 * all regions in the right subtree have addresses > start.
 	 */
-	if (start == map->min_offset) {
-		if ((entry = map->first_free) != &map->header)
-			start = entry->end;
-	} else {
-		vm_map_entry_t tmp;
-
-		if (vm_map_lookup_entry(map, start, &tmp))
-			start = tmp->end;
-		entry = tmp;
+	while (entry != NULL) {
+		if (entry->left != NULL && entry->left->max_free >= length)
+			entry = entry->left;
+		else if (entry->adj_free >= length) {
+			*addr = entry->end;
+			goto found;
+		} else
+			entry = entry->right;
 	}
 
-	/*
-	 * Look through the rest of the map, trying to fit a new region in the
-	 * gap between existing regions, or after the very last region.
-	 */
-	for (;; start = (entry = next)->end) {
-		/*
-		 * Find the end of the proposed new region.  Be sure we didn't
-		 * go beyond the end of the map, or wrap around the address;
-		 * if so, we lose.  Otherwise, if this is the last entry, or
-		 * if the proposed new region fits before the next entry, we
-		 * win.
-		 */
-		end = start + length;
-		if (end > map->max_offset || end < start)
-			return (1);
-		next = entry->next;
-		if (next == &map->header || next->start >= end)
-			break;
-	}
-	*addr = start;
+	/* Can't get here, so panic if we do. */
+	panic("vm_map_findspace: max_free corrupt");
+
+found:
+	/* Expand the kernel pmap, if necessary. */
 	if (map == kernel_map) {
-		vm_offset_t ksize;
-		if ((ksize = round_page(start + length)) > kernel_vm_end) {
-			pmap_growkernel(ksize);
-		}
+		end = round_page(*addr + length);
+		if (end > kernel_vm_end)
+			pmap_growkernel(end);
 	}
 	return (0);
 }
@@ -1027,11 +1150,11 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		     (prev->max_protection == entry->max_protection) &&
 		     (prev->inheritance == entry->inheritance) &&
 		     (prev->wired_count == entry->wired_count)) {
-			if (map->first_free == prev)
-				map->first_free = entry;
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
+			if (entry->prev != &map->header)
+				vm_map_entry_resize_free(map, entry->prev);
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
 			vm_map_entry_dispose(map, prev);
@@ -1050,10 +1173,9 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		    (next->max_protection == entry->max_protection) &&
 		    (next->inheritance == entry->inheritance) &&
 		    (next->wired_count == entry->wired_count)) {
-			if (map->first_free == next)
-				map->first_free = entry;
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
+			vm_map_entry_resize_free(map, entry);
 			if (next->object.vm_object)
 				vm_object_deallocate(next->object.vm_object);
 			vm_map_entry_dispose(map, next);
@@ -2117,15 +2239,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	}
 
 	/*
-	 * Save the free space hint
-	 */
-	if (entry == &map->header) {
-		map->first_free = &map->header;
-	} else if (map->first_free->start >= start) {
-		map->first_free = entry->prev;
-	}
-
-	/*
 	 * Step through all entries in this region
 	 */
 	while ((entry != &map->header) && (entry->start < end)) {
@@ -2777,6 +2890,7 @@ Retry:
 			/* Update the current entry. */
 			stack_entry->end = addr;
 			stack_entry->avail_ssize -= grow_amount;
+			vm_map_entry_resize_free(map, stack_entry);
 			rv = KERN_SUCCESS;
 
 			if (next_entry != &map->header)
