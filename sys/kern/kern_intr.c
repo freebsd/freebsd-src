@@ -154,6 +154,8 @@ ithread_update(struct ithd *ithd)
 		ithd->it_flags |= IT_ENTROPY;
 	else
 		ithd->it_flags &= ~IT_ENTROPY;
+	
+	CTR1(KTR_INTR, __func__ ": updated %s\n", p->p_comm);
 }
 
 int
@@ -194,6 +196,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	if (ithread != NULL)
 		*ithread = ithd;
 
+	CTR1(KTR_INTR, __func__ ": created %s", ithd->it_name);
 	return (0);
 }
 
@@ -211,6 +214,7 @@ ithread_destroy(struct ithd *ithread)
 		setrunqueue(ithread->it_proc);
 	}
 	mtx_unlock_spin(&sched_lock);
+	CTR1(KTR_INTR, __func__ ": killing %s", ithread->it_name);
 	return (0);
 }
 
@@ -260,6 +264,8 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 
 	if (cookiep != NULL)
 		*cookiep = ih;
+	CTR2(KTR_INTR, __func__ ": added %s to %s", ih->ih_name,
+	    ithread->it_name);
 	return (0);
 
 fail:
@@ -283,6 +289,8 @@ ithread_remove_handler(void *cookie)
 	KASSERT(ithread != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt thread",
 		handler->ih_name));
+	CTR2(KTR_INTR, __func__ ": removing %s from %s", handler->ih_name,
+	    ithread->it_name);
 	mtx_lock_spin(&ithread_list_lock);
 #ifdef INVARIANTS
 	TAILQ_FOREACH(ih, &ithread->it_handlers, ih_next)
