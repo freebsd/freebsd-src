@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: timer.c,v 1.2 1995/02/26 12:18:01 amurai Exp $
  * 
  *  TODO:
  */
@@ -85,8 +85,10 @@ struct pppTimer *tp;
   tp->next = t;
   if (pt) {
     pt->next = tp;
-  } else
+  } else {
+    InitTimerService();
     TimerList = tp;
+  }
   if (t)
     t->rest -= tp->rest;
 
@@ -120,10 +122,13 @@ struct pppTimer *tp;
   for (t = TimerList; t != tp && t !=NULL ; t = t->next)
     pt = t;
   if (t) {
-    if (pt)
+    if (pt) {
       pt->next = t->next;
-    else
+    } else {
       TimerList = t->next;
+      if ( TimerList == NULL )			/* Last one ? */
+	 TermTimerService();			/* Terminate Timer Service */
+    }
     if (t->next)
       t->next->rest += tp->rest;
   } else {
@@ -160,6 +165,8 @@ TimerService()
       } while (tp && (tp->rest == 0));
 
       TimerList = tp;
+      if ( TimerList == NULL )			/* No timers ? */
+	 TermTimerService();			/* Terminate Timer Service */
 #ifdef DEBUG
       logprintf("TimerService: next is %x(%d)\n",
 		TimerList, TimerList? TimerList->rest : 0);
@@ -222,9 +229,6 @@ u_int sleep( u_int sec )
        /* Calculate timeout value for select */
        to.tv_sec  = sld / 1000000;
        to.tv_usec = sld % 1000000;
-
-       /* Forwarding signal as normal */
-       kill(getpid(), SIGALRM);
     }
   }
 }
@@ -255,9 +259,29 @@ void usleep( u_int usec)
        to.tv_sec  = sld / 1000000;
        to.tv_usec = sld % 1000000;
 
-       /* Forwarding signal as normal */
-       kill(getpid(), SIGALRM);
     }
   }
+}
+
+void InitTimerService( void ) {
+  struct itimerval itimer;
+
+  signal(SIGALRM, (void (*)(int))TimerService);
+  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
+  itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
+  setitimer(ITIMER_REAL, &itimer, NULL);
+}
+
+void TermTimerService( void ) {
+  struct itimerval itimer;
+
+  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
+  itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
+  setitimer(ITIMER_REAL, &itimer, NULL);
+  /*
+   * Notes: after disabling timer here, we will get one
+   *        SIGALRM will be got.
+   */
+  signal(SIGALRM, SIG_IGN);
 }
 #endif

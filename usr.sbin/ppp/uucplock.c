@@ -87,7 +87,7 @@ uu_lock(ttyname)
 		 * The process that locked the file isn't running, so
 		 * we'll lock it ourselves
 		 */
-		if (lseek(fd, 0L, L_SET) < 0) {
+		if (lseek(fd, (off_t) 0, L_SET) < 0) {
 			(void)close(fd);
 			perror("lock lseek");
 			return(-1);

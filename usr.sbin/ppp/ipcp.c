@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: ipcp.c,v 1.2 1995/02/26 12:17:33 amurai Exp $
  * 
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -53,7 +53,7 @@ static void IpcpLayerUp __P((struct fsm *));
 static void IpcpLayerDown __P((struct fsm *));
 static void IpcpInitRestartCounter __P((struct fsm *));
 
-static struct pppTimer IpcpReportTimer;
+struct pppTimer IpcpReportTimer;
 
 static int lastInOctets, lastOutOctets;
 

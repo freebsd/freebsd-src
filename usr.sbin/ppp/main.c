@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.2 1995/02/26 12:17:41 amurai Exp $
+ * $Id: main.c,v 1.3 1995/02/27 10:57:50 amurai Exp $
  * 
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -40,6 +40,7 @@
 #include "ipcp.h"
 #include "vars.h"
 #include "auth.h"
+#include "filter.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in a world\n"
@@ -551,7 +552,7 @@ DoLoop()
   int ssize = sizeof(hisaddr);
   u_char *cp;
   u_char rbuff[MAX_MRU];
-  struct itimerval itimer;
+  int dial_up;
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
@@ -564,20 +565,50 @@ DoLoop()
 
   fflush(stdout);
 
-  timeout.tv_sec = 0;;
 #ifdef SIGALRM
-  signal(SIGALRM, (void (*)(int))TimerService);
-  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
-  itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
-  setitimer(ITIMER_REAL, &itimer, NULL);
+  timeout.tv_sec = 0;
 #else
   timeout.tv_usec = 0;
 #endif
 
+  dial_up = FALSE;			/* XXXX */
   for (;;) {
-    IpStartOutput();
+    if ( modem ) 
+	IpStartOutput();
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
-    FD_SET(tun_in, &rfds);
+
+   /*
+    * If Ip packet for output is enqueued and require dial up,
+    * Just do it!
+    */
+    if ( dial_up && RedialTimer.state != TIMER_RUNNING ) { /* XXX */
+#ifdef DEBUG
+      logprintf("going to dial: modem = %d\n", modem);
+#endif
+       modem = OpenModem(mode);
+       if (modem < 0) {
+         modem = 0;	       /* Set intial value for next OpenModem */
+         StartRedialTimer();
+       } else {
+         if (DialModem()) {
+           sleep(1);	       /* little pause to allow peer starts */
+           ModemTimeout();
+           PacketMode();
+           dial_up = FALSE;
+         } else {
+           CloseModem();
+           /* Dial failed. Keep quite during redial wait period. */
+           StartRedialTimer();
+         }
+       }
+    }
+    if (modem) {
+      FD_SET(modem, &rfds);
+      FD_SET(modem, &efds);
+      if (ModemQlen() > 0) {
+	FD_SET(modem, &wfds);
+      }
+    }
     if (server > 0) FD_SET(server, &rfds);
 
     /*  *** IMPORTANT ***
@@ -592,38 +623,40 @@ DoLoop()
     TimerService();
 #endif
 
-    if (modem) {
-      FD_SET(modem, &rfds);
-      FD_SET(modem, &efds);
-      if (ModemQlen() > 0) {
-	FD_SET(modem, &wfds);
-      }
-    }
+    FD_SET(tun_in, &rfds);
     if (netfd > -1) {
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
+
+
 #ifndef SIGALRM
     /*
-     *  Normally, slect() will not block because modem is writable.
-     *  In AUTO mode, select will block until we find packet from tun.
-     *  However, we have to run ourselves while we are in redial wait state.
+     *  Normally, select() will not block because modem is writable.
+     *  In AUTO mode, select will block until we find packet from tun
      */
     tp = (RedialTimer.state == TIMER_RUNNING)? &timeout : NULL;
     i = select(tun_in+10, &rfds, &wfds, &efds, tp);
 #else
+    /* 
+     * When SIGALRM timer is running, a select function will be
+     * return -1 and EINTR after a Time Service signal hundler 
+     * is done. 
+     */
     i = select(tun_in+10, &rfds, &wfds, &efds, NULL);
 #endif
-    if (i == 0) {
-      continue;
+    if ( i == 0 ) {
+        continue;
     }
 
-    if (i < 0) {
-      if (errno == EINTR)
-	continue;
-      perror("select");
-      break;
-    }
+    if ( i < 0 ) {
+       if ( errno == EINTR ) {
+          continue;            /* Got SIGALRM, Do check a queue for dailing */
+       }
+       perror("select");
+       break;
+    } 
+
     if ((netfd > 0 && FD_ISSET(netfd, &efds)) || FD_ISSET(modem, &efds)) {
       logprintf("Exception detected.\n");
       break;
@@ -707,13 +740,14 @@ DoLoop()
 	}
       }
     }
+
     if (FD_ISSET(tun_in, &rfds)) {	/* something to read from tun */
       /*
        *  If there are many packets queued, wait until they are drained.
        */
       if (ModemQlen() > 5)
 	continue;
-
+      
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
 	perror("read from tun");
@@ -724,47 +758,17 @@ DoLoop()
        *  device until IPCP is opened.
        */
       if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO)) {
-	pri = PacketCheck(rbuff, n, 2);
+	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
-	  if (RedialTimer.state == TIMER_RUNNING) {
-	    /*
-	     * We are in redial wait state. Ignore packet.
-	     */
-	    continue;
-	  }
-	  modem = OpenModem(mode);
-#ifdef DEBUG
-	  logprintf("going to dial: modem = %d\n", modem);
-#endif
-	  if (modem < 0) {
-	    printf("failed to open modem.\n");
-	    Cleanup(EX_MODEM);
-	  }
-
-	  if (DialModem()) {
-	    sleep(1);		/* little pause to allow peer starts */
- 	    ModemTimeout();
-	    PacketMode();
-	  } else {
-	    CloseModem();
-	    /* Dial failed. Keep quite during redial wait period. */
-	    /* XXX: We shoud implement re-dial */
-	    StartRedialTimer();
-	    continue;
-	  }
 	  IpEnqueue(pri, rbuff, n);
+          dial_up = TRUE;		/* XXX */
 	}
 	continue;
       }
-      pri = PacketCheck(rbuff, n, 1);
+      pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0)
 	IpEnqueue(pri, rbuff, n);
     }
   }
-#ifdef SIGALRM
-  itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
-  setitimer(ITIMER_REAL, &itimer, NULL);
-  signal(SIGALRM, SIG_DFL);
-#endif
   logprintf("job done.\n");
 }
