@@ -254,8 +254,10 @@ reread_mbr:
 		 sizeof historical_bogus_partition_table) == 0 ||
 	    bcmp(dp0, historical_bogus_partition_table_fixed,
 		 sizeof historical_bogus_partition_table_fixed) == 0) {
-		printf(
-    "%s: invalid primary partition table: Dangerously Dedicated (ignored)\n", sname);
+		if (bootverbose)
+			printf(
+    "%s: invalid primary partition table: Dangerously Dedicated (ignored)\n",
+    sname);
 		error = EINVAL;
 		goto done;
 	}
