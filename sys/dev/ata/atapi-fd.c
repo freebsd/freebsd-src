@@ -25,12 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.11 1999/06/25 09:03:05 sos Exp $
+ *	$Id: atapi-fd.c,v 1.12 1999/08/14 11:40:33 phk Exp $
  */
 
 #include "ata.h"
 #include "atapifd.h"
-#include "opt_devfs.h"
 
 #if NATA > 0 && NATAPIFD > 0
 
@@ -48,9 +47,6 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <pci/pcivar.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
@@ -137,14 +133,10 @@ afdattach(struct atapi_softc *atp)
                       DEVSTAT_NO_ORDERED_TAGS,
                       DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
                       0x174);
-#ifdef DEVFS 
-    fdp->cdevs_token = devfs_add_devswf(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
-					DV_CHR, UID_ROOT, GID_OPERATOR, 
-					0640, "rafd%d", fdp->lun);
-    fdp->bdevs_token = devfs_add_devswf(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
-					DV_BLK, UID_ROOT, GID_OPERATOR, 
-					0640, "afd%d", fdp->lun);
-#endif
+    make_dev(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
+	UID_ROOT, GID_OPERATOR, 0640, "rafd%d", fdp->lun);
+    make_dev(&afd_cdevsw, dkmakeminor(fdp->lun, 0,0),
+	UID_ROOT, GID_OPERATOR, 0640, "afd%d", fdp->lun);
     return 0;
 }
 

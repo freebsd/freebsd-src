@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.h,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: atapi-cd.h,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 /* CDROM Table Of Contents */
@@ -334,12 +334,6 @@ struct acd_softc {
     u_int32_t			next_writeable_lba; /* next writable position */
     struct wormio_prepare_track	preptrack;	/* scratch region */
     struct devstat 		*stats;		/* devstat entry */
-#ifdef	DEVFS
-    void 			*a_cdevfs_token;
-    void 			*c_cdevfs_token;
-    void 			*a_bdevfs_token;
-    void 			*c_bdevfs_token;
-#endif
 };
 
 #define CDRIOCBLANK     	_IO('c',100)    /* blank a CDRW disc */

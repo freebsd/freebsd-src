@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.14 1999/05/30 16:51:58 phk Exp $
+ *	$Id: dgm.c,v 1.15 1999/05/31 11:25:33 phk Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -32,7 +32,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
 
 #include "dgm.h"
 
@@ -59,9 +58,6 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -150,16 +146,6 @@ struct dgm_p {
 	u_char draining; /* port is being drained now */
 	u_char used;	/* port is being used now */
 	u_char mustdrain; /* data must be waited to drain in dgmparam() */
-#ifdef	DEVFS
-	struct	{
-		void	*tty;
-		void	*ttyi;
-		void	*ttyl;
-		void	*cua;
-		void	*cuai;
-		void	*cual;
-	} devfs_token;
-#endif
 };
 
 /* Digiboard per-board structure */
@@ -726,37 +712,18 @@ dgmattach(dev)
 		termioschars(&port->it_in);
 		port->it_in.c_ispeed = port->it_in.c_ospeed = dgmdefaultrate;
 		port->it_out = port->it_in;
-#ifdef	DEVFS
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttyM%d%x", unit, i + 0xa0);
-
-		port->devfs_token.ttyi = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+64,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttyiM%d%x", unit, i + 0xa0);
-
-		port->devfs_token.ttyl = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+128,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttylM%d%x", unit, i + 0xa0);
-
-		port->devfs_token.cua = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262144,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cuaM%d%x", unit, i + 0xa0);
-
-		port->devfs_token.cuai = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262208,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cuaiM%d%x", unit, i + 0xa0);
-
-		port->devfs_token.cual = 
-			devfs_add_devswf(&dgm_cdevsw, (unit*65536)+i+262272,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cualM%d%x", unit, i + 0xa0);
-#endif
+		make_dev(&dgm_cdevsw, (unit*65536)+i,
+		    UID_ROOT, GID_WHEEL, 0600, "ttyM%d%x", unit, i + 0xa0);
+		make_dev(&dgm_cdevsw, (unit*65536)+i+64,
+		    UID_ROOT, GID_WHEEL, 0600, "ttyiM%d%x", unit, i + 0xa0);
+		make_dev(&dgm_cdevsw, (unit*65536)+i+128,
+		    UID_ROOT, GID_WHEEL, 0600, "ttylM%d%x", unit, i + 0xa0);
+		make_dev(&dgm_cdevsw, (unit*65536)+i+262144,
+		    UID_UUCP, GID_DIALER, 0660, "cuaM%d%x", unit, i + 0xa0);
+		make_dev(&dgm_cdevsw, (unit*65536)+i+262208,
+		    UID_UUCP, GID_DIALER, 0660, "cuaiM%d%x", unit, i + 0xa0);
+		make_dev(&dgm_cdevsw, (unit*65536)+i+262272,
+		    UID_UUCP, GID_DIALER, 0660, "cualM%d%x", unit, i + 0xa0);
 	}
 
 	hidewin(sc);

@@ -149,10 +149,6 @@ struct slot {
 	struct slot_ctrl *ctrl;		/* Per-controller data */
 	void		*cdata;		/* Controller specific data */
 	int		pwr_off_pending;/* Power status of slot */
-#ifdef DEVFS
-	void		*devfs_token;
-#endif /* DEVFS*/
-
 	struct slot *next;		/* Master list */
 };
 

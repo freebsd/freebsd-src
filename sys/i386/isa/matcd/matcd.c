@@ -337,14 +337,13 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.41 1999/05/31 11:26:55 phk Exp $ */
+/* $Id: matcd.c,v 1.42 1999/07/03 21:02:09 peter Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
 ---------------------------------------------------------------------------*/
 
 #include	"matcd.h"
-#include	"opt_devfs.h"
 
 #include	<sys/param.h>
 #include	<sys/systm.h>
@@ -362,9 +361,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 
 #include	<sys/conf.h>
 #include	<sys/kernel.h>
-#ifdef DEVFS
-#include	<sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include	<i386/isa/isa_device.h>
 
@@ -428,16 +424,6 @@ static	struct matcd_data {
 	struct	matcd_mbx mbx;
 	u_char	patch[2];		/*<12>Last known audio routing*/
 	u_char	volume[2];		/*<12>Last known volume setting*/
-#ifdef DEVFS
-	void	*ra_devfs_token;	/* handle for devfs entry */
-	void	*rc_devfs_token;
-	void	*a_devfs_token;
-	void	*c_devfs_token;
-	void	*rla_devfs_token;
-	void	*rlc_devfs_token;
-	void	*la_devfs_token;
-	void	*lc_devfs_token;
-#endif /* DEVFS */
 } matcd_data[TOTALDRIVES];
 
 
@@ -1414,32 +1400,15 @@ matcd_attach(struct isa_device *dev)
 			for (i=0; i<MAXPARTITIONS; i++) {
 				cd->partflags[i]=0;
 			}
-#ifdef DEVFS
-			cd->ra_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				dkmakeminor(i, 0, 0), DV_CHR,
+			make_dev(&matcd_cdevsw, dkmakeminor(i, 0, 0),
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%da", i);
-			cd->rc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				dkmakeminor(i, 0, RAW_PART), DV_CHR,
+			make_dev(&matcd_cdevsw, dkmakeminor(i, 0, RAW_PART),
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
-			cd->a_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				dkmakeminor(i, 0, 0), DV_BLK,
-				UID_ROOT, GID_OPERATOR, 0640, "matcd%da", i);
-			cd->c_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				dkmakeminor(i, 0, RAW_PART), DV_BLK,
-				UID_ROOT, GID_OPERATOR, 0640, "matcd%dc", i);
-			cd->rla_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				0x80 | dkmakeminor(i, 0, 0), DV_CHR,
+			make_dev(&matcd_cdevsw, 0x80 | dkmakeminor(i, 0, 0),
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dla", i);
-			cd->rlc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				0x80 | dkmakeminor(i, 0, RAW_PART), DV_CHR,
+			make_dev(&matcd_cdevsw,
+				0x80 | dkmakeminor(i, 0, RAW_PART),
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
-			cd->la_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				0x80 | dkmakeminor(i, 0, 0), DV_BLK,
-				UID_ROOT, GID_OPERATOR, 0640, "matcd%dla", i);
-			cd->lc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
-				0x80 | dkmakeminor(i, 0, RAW_PART), DV_BLK,
-				UID_ROOT, GID_OPERATOR, 0640, "matcd%dlc", i);
-#endif
 		}
 	}
 	nextcontroller++;		/*Bump ctlr assign to next number*/

@@ -33,8 +33,6 @@
 #include "rc.h"
 
 #if NRC > 0
-#include "opt_devfs.h"
-
 /*#define RCDEBUG*/
 
 #include <sys/param.h>
@@ -46,10 +44,6 @@
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-
 #include <machine/clock.h>
 #include <machine/ipl.h>
 
@@ -148,9 +142,6 @@ static struct rc_chans  {
 	u_char          *rc_obufend;            /* end of output buf    */
 	u_char           rc_ibuf[4 * RC_IBUFSIZE];  /* input buffer         */
 	u_char           rc_obuf[RC_OBUFSIZE];  /* output buffer        */
-#ifdef	DEVFS
-	void	*devfs_token;
-#endif
 } rc_chans[NRC * CD180_NCHAN];
 
 static int rc_scheduled_event = 0;
@@ -274,14 +265,6 @@ rcattach(dvp)
 		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-#ifdef DEVFS
-/* FIX THIS to reflect real devices */
-		rc->devfs_token = 
-			devfs_add_devswf(&rc_cdevsw,
-					 (dvp->id_unit * CD180_NCHAN) + chan,
-					 DV_CHR, 0, 0, 0600, "rc%d.%d", 
-					 dvp->id_unit, chan);
-#endif
 	}
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_started) {

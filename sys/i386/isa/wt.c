@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.51 1999/05/30 16:52:31 phk Exp $
+ * $Id: wt.c,v 1.52 1999/05/31 11:26:40 phk Exp $
  *
  */
 
@@ -60,7 +60,6 @@
 #include "wt.h"
 #if NWT > 0
 
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,9 +69,6 @@
 #include <sys/malloc.h>
 #include <sys/mtio.h>
 #include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -162,9 +158,6 @@ typedef struct {
 	unsigned short DATAPORT, CMDPORT, STATPORT, CTLPORT, SDMAPORT, RDMAPORT;
 	unsigned char BUSY, NOEXCEP, RESETMASK, RESETVAL;
 	unsigned char ONLINE, RESET, REQUEST, IEN;
-#ifdef	DEVFS
-	void	*devfs_token_r;
-#endif
 } wtinfo_t;
 
 static wtinfo_t wttab[NWT];                    /* tape info by unit number */
@@ -283,11 +276,7 @@ wtattach (struct isa_device *id)
 	t->dens = -1;                           /* unknown density */
 	isa_dmainit(t->chan, 1024);
 
-#ifdef DEVFS
-	t->devfs_token_r = 
-		devfs_add_devswf(&wt_cdevsw, id->id_unit, DV_CHR, 0, 0, 
-				 0600, "rwt%d", id->id_unit);
-#endif
+	make_dev(&wt_cdevsw, id->id_unit, 0, 0, 0600, "rwt%d", id->id_unit);
 	return (1);
 }
 

@@ -41,8 +41,6 @@
 
 #include "labpc.h"
 #include "opt_debug_outb.h"
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 
 #include <sys/systm.h>
@@ -53,9 +51,6 @@
 #define b_actf	b_act.tqe_next
 #include <sys/dataacq.h>
 #include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #ifdef LOUTB
 #include <machine/clock.h>
@@ -151,9 +146,6 @@ struct ctlr
 
 	/* Device configuration structure:
 	 */
-#ifdef DEVFS
-	void *devfs_token;
-#endif
 };
 
 #ifdef LOUTB
@@ -503,13 +495,7 @@ labpcattach(struct isa_device *dev)
 	ctlr->dcr_is = 0x80;
 	loutb(DCR(ctlr), ctlr->dcr_val);
 
-#ifdef DEVFS
-	ctlr->devfs_token = 
-		devfs_add_devswf(&labpc_cdevsw, 0, DV_CHR, 
-                                 /* what  UID GID PERM */
-				 0, 0, 0600, 
-				 "labpc%d", dev->id_unit);
-#endif
+	make_dev(&labpc_cdevsw, 0, 0, 0, 0600, "labpc%d", dev->id_unit);
 	return 1;
 }
 

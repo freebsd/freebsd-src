@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.66 1999/08/16 17:47:39 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.67 1999/08/16 22:22:41 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -207,10 +207,6 @@ typedef enum {
 struct xpt_softc {
 	xpt_flags	flags;
 	u_int32_t	generation;
-#ifdef DEVFS
-	void		*xpt_devfs_token;
-	void		*ctl_devfs_token;
-#endif
 };
 
 static const char quantum[] = "QUANTUM";

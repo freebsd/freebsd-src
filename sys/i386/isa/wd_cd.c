@@ -25,12 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.19 1999/05/30 16:52:08 phk Exp $
+ *	$Id: atapi-cd.c,v 1.20 1999/05/31 11:25:51 phk Exp $
  */
 
 #include "wdc.h"
 #include "wcd.h"
-#include "opt_devfs.h"
 
 #if NWCD > 0 && NWDC > 0
 
@@ -47,9 +46,6 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <i386/isa/atapi.h>
 #include <i386/isa/atapi-cd.h>
 
@@ -144,24 +140,14 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     }
     else
 	ptr->device_stats = device_stats;
-#ifdef DEVFS
-    ptr->ra_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-        DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "rwcd%da", lun);
-    ptr->rc_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "rwcd%dc", lun);
-    ptr->a_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-        DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "wcd%da", lun);
-    ptr->c_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "wcd%dc", lun);
-#endif
+    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+        UID_ROOT, GID_OPERATOR, 0640, "rwcd%da", lun);
+    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        UID_ROOT, GID_OPERATOR, 0640, "rwcd%dc", lun);
+    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+        UID_ROOT, GID_OPERATOR, 0640, "wcd%da", lun);
+    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        UID_ROOT, GID_OPERATOR, 0640, "wcd%dc", lun);
     return ptr;
 }
 

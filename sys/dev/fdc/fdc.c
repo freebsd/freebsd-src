@@ -47,12 +47,11 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.151 1999/07/29 11:27:33 joerg Exp $
+ *	$Id: fd.c,v 1.152 1999/08/14 11:40:41 phk Exp $
  *
  */
 
 #include "fd.h"
-#include "opt_devfs.h"
 #include "opt_fdc.h"
 
 #if NFDC > 0
@@ -79,10 +78,6 @@
 #include <machine/ioctl_fd.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
-
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif	/* DEVFS */
 
 #include <isa/isavar.h>
 #include <isa/isareg.h>
@@ -184,10 +179,6 @@ struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 	struct	devstat device_stats;
-#ifdef DEVFS
-	void	*bdevs[1 + NUMDENS + MAXPARTITIONS];
-	void	*cdevs[1 + NUMDENS + MAXPARTITIONS];
-#endif
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -915,78 +906,9 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-#ifdef DEVFS
-	int	i;
-	int     mynor;
-	int     typemynor;
-	int     typesize;
-#endif
 
 	fd = device_get_softc(dev);
 
-#ifdef DEVFS			/* XXX bitrot */
-	mynor = fd->fdu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
-					UID_ROOT, GID_OPERATOR, 0640,
-					"fd%d", fd->fdu);
-	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-					UID_ROOT, GID_OPERATOR, 0640,
-					"rfd%d", fd->fdu);
-	for (i = 1; i < 1 + NUMDENS; i++) {
-		/*
-		 * XXX this and the lookup in Fdopen() should be
-		 * data driven.
-		 */
-		switch (fd->type) {
-		case FD_360:
-			if (i != FD_360)
-				continue;
-			break;
-		case FD_720:
-			if (i != FD_720 && i != FD_800 && i != FD_820)
-				continue;
-			break;
-		case FD_1200:
-			if (i != FD_360 && i != FD_720 && i != FD_800
-			    && i != FD_820 && i != FD_1200
-			    && i != FD_1440 && i != FD_1480)
-				continue;
-			break;
-		case FD_1440:
-			if (i != FD_720 && i != FD_800 && i != FD_820
-			    && i != FD_1200 && i != FD_1440
-			    && i != FD_1480 && i != FD_1720)
-				continue;
-			break;
-		}
-		typesize = fd_types[i - 1].size / 2;
-		/*
-		 * XXX all these conversions give bloated code and
-		 * confusing names.
-		 */
-		if (typesize == 1476)
-			typesize = 1480;
-		if (typesize == 1722)
-			typesize = 1720;
-		typemynor = mynor | i;
-		fd->bdevs[i] =
-			devfs_add_devswf(&fd_cdevsw, typemynor, DV_BLK,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "fd%d.%d", fd->fdu, typesize);
-		fd->cdevs[i] =
-			devfs_add_devswf(&fd_cdevsw, typemynor, DV_CHR,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "rfd%d.%d", fd->fdu, typesize);
-	}
-
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-						"fd%d%c", fd->fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] =
-			devfs_makelink(fd->cdevs[0],
-				   "rfd%d%c", fd->fdu, 'a' + i);
-	}
-#endif /* DEVFS */
 	/*
 	 * Export the drive to the devstat interface.
 	 */
@@ -1010,11 +932,6 @@ static int yeattach(struct isa_device *dev)
 	fdu_t   fdu;
 	fd_p    fd;
 	int     st0, st3, i;
-#ifdef DEVFS
-	int     mynor;
-	int     typemynor;
-	int     typesize;
-#endif
 	fdc->fdcu = fdcu;
 	/*
 	 * the FDC_PCMCIA flag is used to to indicate special PIO is used
@@ -1090,41 +1007,6 @@ static int yeattach(struct isa_device *dev)
 	printf("fdc%d: 1.44MB 3.5in PCMCIA\n", fdcu);
 	fd->type = FD_1440;
 
-#ifdef DEVFS
-	mynor = fdcu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"fd%d", fdu);
-	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"rfd%d", fdu);
-	/*
-	 * XXX this and the lookup in Fdopen() should be
-	 * data driven.
-	 */
-	typemynor = mynor | FD_1440;
-	typesize = fd_types[FD_1440 - 1].size / 2;
-	/*
-	 * XXX all these conversions give bloated code and
-	 * confusing names.
-	 */
-	if (typesize == 1476)
-		typesize = 1480;
-	if (typesize == 1722)
-		typesize = 1720;
-	fd->bdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_BLK, UID_ROOT, GID_OPERATOR,
-		0640, "fd%d.%d", fdu, typesize);
-	fd->cdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_CHR, UID_ROOT, GID_OPERATOR,
-		0640,"rfd%d.%d", fdu, typesize);
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-			"fd%d%c", fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] = devfs_makelink(fd->cdevs[0],
-			"rfd%d%c", fdu, 'a' + i);
-	}
-#endif /* DEVFS */
 	return (1);
 }
 #endif

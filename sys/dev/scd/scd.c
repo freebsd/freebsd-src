@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.46 1999/05/30 16:52:24 phk Exp $ */
+/* $Id: scd.c,v 1.47 1999/05/31 11:26:26 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -49,7 +49,6 @@
 
 #include "scd.h"
 #if NSCD > 0
-#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -58,9 +57,6 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 #include <machine/stdarg.h>
@@ -136,12 +132,6 @@ static struct scd_data {
 	short	audio_status;
 	struct buf_queue_head head;		/* head of buf queue */
 	struct scd_mbx mbx;
-#ifdef	DEVFS
-	void	*ra_devfs_token;
-	void	*rc_devfs_token;
-	void	*a_devfs_token;
-	void	*c_devfs_token;
-#endif
 } scd_data[NSCD];
 
 /* prototypes */
@@ -232,24 +222,14 @@ scd_attach(struct isa_device *dev)
 	cd->audio_status = CD_AS_AUDIO_INVALID;
 	bufq_init(&cd->head);
 
-#ifdef DEVFS
-	cd->ra_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, 0),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rscd%da", unit);
-	cd->rc_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rscd%dc", unit);
-	cd->a_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, 0),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "scd%da", unit);
-	cd->c_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "scd%dc", unit);
-#endif
+	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, 0),
+	    UID_ROOT, GID_OPERATOR, 0640, "rscd%da", unit);
+	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
+	    UID_ROOT, GID_OPERATOR, 0640, "rscd%dc", unit);
+	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, 0),
+	    UID_ROOT, GID_OPERATOR, 0640, "scd%da", unit);
+	make_dev(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
+	    UID_ROOT, GID_OPERATOR, 0640, "scd%dc", unit);
 	return 1;
 }
 

@@ -27,12 +27,11 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.14 1999/05/30 16:51:10 phk Exp $
+ *  $Id: coda_fbsd.c,v 1.15 1999/05/31 11:24:16 phk Exp $
  * 
  */
 
 #include "vcoda.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,13 +50,6 @@
 #include <coda/cnode.h>
 #include <coda/coda_vnops.h>
 #include <coda/coda_psdev.h>
-
-#ifdef DEVFS
-#include <sys/devfsext.h>
-
-static	void	*cfs_devfs_token[NVCODA];
-static	void	*coda_devfs_token[NVCODA];
-#endif
 
 /* 
    From: "Jordan K. Hubbard" <jkh@time.cdrom.com>
@@ -101,38 +93,12 @@ int     vcdebug = 1;
 static int
 codadev_modevent(module_t mod, int type, void *data)
 {
-#ifdef DEVFS
-	int i;
-#endif
-	static struct cdevsw *oldcdevsw;
 
 	switch (type) {
 	case MOD_LOAD:
 		cdevsw_add(&codadevsw);
-#ifdef DEVFS
-		/* tmp */
-#undef	NVCODA
-#define	NVCODA 1
-		for (i = 0; i < NVCODA; i++) {
-			cfs_devfs_token[i] =
-				devfs_add_devswf(&codadevsw, i,
-					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-					"cfs%d", i);
-			coda_devfs_token[i] =
-				devfs_add_devswf(&codadevsw, i,
-					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-					"coda%d", i);
-		}
-#endif
 		break;
 	case MOD_UNLOAD:
-#ifdef DEVFS
-		for (i = 0; i < NVCODA; i++) {
-			devfs_remove_dev(cfs_devfs_token[i]);
-			devfs_remove_dev(coda_devfs_token[i]);
-		}
-#endif
-		cdevsw_add(oldcdevsw);
 		break;
 	default:
 		break;

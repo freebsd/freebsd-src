@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.75 1999/08/17 20:25:48 billf Exp $
+ * $Id: conf.h,v 1.76 1999/08/20 20:24:59 julian Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -50,10 +50,6 @@ struct tty;
 struct vnode;
 
 struct specinfo {
-	struct	mount *si_mountpoint;
-	int		si_bsize_phys;	/* minimum physical block size */
-	int		si_bsize_best;	/* optimal block size / VBLK */
-	int		si_bsize_max;	/* maximum block size */
 
 	udev_t		si_udev;
 	SLIST_ENTRY(specinfo)	si_hash;
@@ -66,10 +62,20 @@ struct specinfo {
 		struct {
 			struct tty *__sit_tty;
 		} __si_tty;
+		struct {
+			struct mount *__sid_mountpoint;
+			int __sid_bsize_phys; /* min physical block size */
+			int __sid_bsize_best; /* optimal block size */
+			int __sid_bsize_max;  /* maximum block size */
+		} __si_disk;
 	} __si_u;
 };
 
 #define si_tty_tty	__si_u.__si_tty.__sit_tty
+#define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
+#define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
+#define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
+#define si_bsize_max	__si_u.__si_disk.__sid_bsize_max
 
 /*
  * Exported shorthand
@@ -117,6 +123,9 @@ typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
+
+/* This is type of the function DEVFS uses to hook into the kernel with */
+typedef void devfs_create_t __P((dev_t dev, uid_t uid, gid_t gid, int perms));
 
 /*
  * XXX: The dummy argument can be used to do what strategy1() never
@@ -271,6 +280,8 @@ dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
 void	setconf __P((void));
+
+extern devfs_create_t *devfs_create_hook;
 
 /*
  * XXX: This included for when DEVFS resurfaces 

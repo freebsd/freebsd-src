@@ -15,19 +15,14 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.101 1999/08/22 14:48:00 iwasaki Exp $
+ *	$Id: apm.c,v 1.102 1999/08/22 19:51:33 peter Exp $
  */
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <sys/bus.h>
@@ -79,9 +74,6 @@ struct apm_softc {
 	int	event_ptr;
 	struct	apm_event_info event_list[APM_NEVENTS];
 	u_char	event_filter[APM_NPMEV];
-#ifdef DEVFS
-	void 	*sc_devfs_token;
-#endif
 };
 #define	SCFLAG_ONORMAL	0x0000001
 #define	SCFLAG_OCTL	0x0000002
@@ -1131,10 +1123,7 @@ apm_attach(device_t dev)
 
 	sc->initialized = 1;
 
-#ifdef DEVFS
-	sc->sc_devfs_token = 
-		devfs_add_devswf(&apm_cdevsw, 0, DV_CHR, 0, 0, 0600, "apm");
-#endif
+	make_dev(&apm_cdevsw, 0, 0, 0, 0600, "apm");
 	return 0;
 }
 

@@ -39,10 +39,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.123 1999/06/30 15:33:32 peter Exp $
+ * $Id: init_main.c,v 1.124 1999/07/01 13:21:36 peter Exp $
  */
 
-#include "opt_devfs.h"
 #include "opt_init_path.h"
 
 #include <sys/param.h>
