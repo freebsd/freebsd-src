@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.15 1998/10/02 21:00:50 ken Exp $
+ *      $Id: cam_xpt.c,v 1.16 1998/10/06 19:27:19 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -267,6 +267,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
         {
 		/* Broken tagged queuing drive */
                 { T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/* Broken tagged queuing drive */ 
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "CONNER", "CFP2107*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
         {
@@ -1324,7 +1329,8 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		}
 
 		printf("\n");
-	} else if (path->device->inq_flags & SID_CmdQue) {
+	} else if (path->device->inq_flags & SID_CmdQue
+   		|| path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
 		printf("%s%d: Tagged Queueing Enabled\n",
 		       periph->periph_name, periph->unit_number);
 	}
@@ -5326,6 +5332,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			 * Can't tag queue without disconnection.
 			 */
 			cts->flags &= ~CCB_TRANS_TAG_ENB;
+			cts->valid |= CCB_TRANS_TQ_VALID;
 		}
 
 		if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0
