@@ -1,6 +1,6 @@
-<!-- $Id: handbook.sgml,v 1.4 1996/12/02 08:00:57 max Exp $ -->
+<!-- $Id: handbook.sgml,v 1.5 1996/12/11 22:08:45 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.63 -->
+<!-- Original revision: 1.64 -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
@@ -159,6 +159,7 @@ PPP 接続には, 2 種類の方法が提供されています:
     &submitters;
     &troubleshooting;
     &kerneldebug;
+    &kernelopts;
     &linuxemu;
     <chapt><heading>FreeBSD の内部</heading>
       &booting;
