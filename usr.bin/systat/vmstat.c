@@ -305,8 +305,8 @@ labelkre()
 	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "daefr");
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "prcfr");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "react");
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "scan");
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "hdrev");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "pdwake");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "pdpgs");
 	if (LINES - 1 > VMSTATROW + 16)
 		mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "intrn");
 
@@ -467,8 +467,8 @@ showkre()
 	PUTRATE(Cnt.v_dfree, VMSTATROW + 11, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_pfree, VMSTATROW + 12, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_reactivated, VMSTATROW + 13, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_scan, VMSTATROW + 14, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_rev, VMSTATROW + 15, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_pdwakeups, VMSTATROW + 14, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_pdpages, VMSTATROW + 15, VMSTATCOL, 9);
 	if (LINES - 1 > VMSTATROW + 16)
 		PUTRATE(Cnt.v_intrans, VMSTATROW + 16, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
