@@ -33,14 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.39 1996/07/31 12:36:11 bde Exp $
+ *	$Id: swtch.s,v 1.40 1996/09/19 08:28:16 phk Exp $
  */
 
 #include "apm.h"
 #include "npx.h"
 #include "opt_user_ldt.h"
 
-#include <sys/errno.h>
 #include <sys/rtprio.h>
 
 #include <machine/asmacros.h>
@@ -224,7 +223,6 @@ rem2:
 rem3:	.asciz	"remrq"
 rem3rt:	.asciz	"remrq.rt"
 rem3id:	.asciz	"remrq.id"
-sw0:	.asciz	"cpu_switch"
 
 /*
  * When no processes are on the runq, cpu_switch() branches to _idle
@@ -232,7 +230,6 @@ sw0:	.asciz	"cpu_switch"
  */
 	ALIGN_TEXT
 _idle:
-	MCOUNT
 	xorl	%ebp,%ebp
 	movl	$tmpstk,%esp
 	movl	_IdlePTD,%ecx
@@ -253,11 +250,11 @@ idle_loop:
 	cli
 	movb	$1,_intr_nesting_level		/* charge Intr if we leave */
 	cmpl	$0,_whichrtqs			/* real-time queue */
-	jne	sw1a
+	CROSSJUMP(jne, sw1a, je)
 	cmpl	$0,_whichqs			/* normal queue */
-	jne	nortqr
+	CROSSJUMP(jne, nortqr, je)
 	cmpl	$0,_whichidqs			/* 'idle' queue */
-	jne	idqr
+	CROSSJUMP(jne, idqr, je)
 	movb	$0,_intr_nesting_level		/* charge Idle for this loop */
 	call	_vm_page_zero_idle
 	testl	%eax, %eax
@@ -271,10 +268,7 @@ idle_loop:
 #endif
 	jmp	idle_loop
 
-badsw:
-	pushl	$sw0
-	call	_panic
-	/*NOTREACHED*/
+CROSSJUMPTARGET(_idle)
 
 /*
  * cpu_switch()
@@ -375,7 +369,7 @@ idqr: /* was sw1a */
 
 	/* XXX - bsf is sloow */
 	bsfl	%edi,%ebx			/* find a full q */
-	jz	_idle				/* no proc, idle */
+	CROSSJUMP(je, _idle, jne)		/* if no proc, idle */
 
 	/* XX update whichqs? */
 	btrl	%ebx,%edi			/* clear q full status */
@@ -442,6 +436,16 @@ swtch_com:
 
 	sti
 	ret
+
+CROSSJUMPTARGET(idqr)
+CROSSJUMPTARGET(nortqr)
+CROSSJUMPTARGET(sw1a)
+
+badsw:
+	pushl	$sw0
+	call	_panic
+
+sw0:	.asciz	"cpu_switch"
 
 /*
  * savectx(pcb)
