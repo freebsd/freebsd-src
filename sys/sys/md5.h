@@ -1,5 +1,5 @@
 /* MD5.H - header file for MD5C.C
- * $FreeBSD$
+ * $Id$
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -24,8 +24,8 @@ These notices must be retained in any copies of any part of this
 documentation and/or software.
  */
 
-#ifndef _MD5_H_
-#define _MD5_H_
+#ifndef _SYS_MD5_H_
+#define _SYS_MD5_H_
 /* MD5 context. */
 typedef struct MD5Context {
   u_int32_t state[4];	/* state (ABCD) */
@@ -39,4 +39,4 @@ void   MD5Final (unsigned char [16], MD5_CTX *);
 char * MD5End(MD5_CTX *, char *);
 char * MD5File(char *, char *);
 char * MD5Data(const unsigned char *, unsigned int, char *);
-#endif /* _MD5_H_ */
+#endif /* _SYS_MD5_H_ */
