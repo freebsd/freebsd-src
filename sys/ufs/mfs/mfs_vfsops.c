@@ -31,10 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.22.2.4 1998/05/07 19:04:15 gibbs Exp $
+ * $Id: mfs_vfsops.c,v 1.22.2.5 1998/05/07 19:04:15 gibbs Exp $
  */
 
-#include "opt_devfs.h"	/* for SLICE */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -106,9 +105,6 @@ struct vfsops mfs_vfsops = {
 
 VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
-#ifdef	SLICE
-	extern struct vnode	*root_device_vnode;
-#endif	/* SLICE */
 #ifdef MFS_ROOT
 
 static u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
@@ -285,13 +281,9 @@ mfs_mount(mp, path, data, ndp, p)
 		       mfs_rootsize/1024);
 
 
-#ifdef SLICE
-		rootvp=root_device_vnode;
-#else	/* !SLICE */
 		/* Get vnode for root device*/
 		if( bdevvp( rootdev, &rootvp))
 			panic("mfs_mountroot: can't setup bdevvp for rootdev");
-#endif	/* !SLICE */
 
 		/*
 		 * FS specific handling
