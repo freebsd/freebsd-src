@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.182 1998/12/24 06:30:21 foxfair Exp $
+ *	$Id: wd.c,v 1.183 1999/01/11 22:14:22 julian Exp $
  */
 
 /* TODO:
@@ -437,7 +437,7 @@ wdattach(struct isa_device *dvp)
 	struct disk *du;
 	struct wdparams *wp;
 
-	dvp->id_ointr = wdintr;
+	dvp->id_intr = wdintr;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
@@ -1047,11 +1047,12 @@ wdstart(int ctrlr)
  */
 
 void
-wdintr(int unit)
+wdintr(void *unitnum)
 {
 	register struct	disk *du;
 	register struct buf *bp;
 	int dmastat = 0;			/* Shut up GCC */
+	int unit = (int)unitnum;
 
 #ifdef CMD640
 	int ctrlr_atapi;
