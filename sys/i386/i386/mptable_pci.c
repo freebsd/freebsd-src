@@ -64,10 +64,18 @@ mptable_hostb_probe(device_t dev)
 	return (0);
 }
 
+static int
+mptable_hostb_attach(device_t dev)
+{
+
+	device_add_child(dev, "pci", pcib_get_bus(dev));
+	return (bus_generic_attach(dev));
+}
+
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mptable_hostb_probe),
-	DEVMETHOD(device_attach,	legacy_pcib_attach),
+	DEVMETHOD(device_attach,	mptable_hostb_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
