@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_lookup.c,v 1.14 1997/02/22 09:38:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -53,8 +53,6 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 #include <isofs/cd9660/cd9660_rrip.h>
-
-struct	nchstats iso_nchstats;
 
 /*
  * Convert a component of a pathname into a pointer to a locked inode.
@@ -238,7 +236,7 @@ cd9660_lookup(ap)
 		    (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
 				return (error);
 		numdirpasses = 2;
-		iso_nchstats.ncs_2passes++;
+		nchstats.ncs_2passes++;
 	}
 	endsearch = dp->i_size;
 	
@@ -386,7 +384,7 @@ notfound:
 
 found:
 	if (numdirpasses == 2)
-		iso_nchstats.ncs_pass2++;
+		nchstats.ncs_pass2++;
 	
 	/*
 	 * Found component in pathname.
