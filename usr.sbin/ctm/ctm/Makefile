@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.3 1994/09/21 04:38:26 phk Exp $
+# $Id$
 #
 
 PROG=		ctm
@@ -15,6 +15,5 @@ SRCS=   	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
 		ctm_syntax.c ctm_ed.c
 LDADD+=		-lmd
 NOMAN=		1
-CFLAGS+=        -Wall
-BINDIR=		/usr/sbin
+CFLAGS+=	-Wall -g
 .include <bsd.prog.mk>

@@ -6,11 +6,10 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.3 1994/09/21 04:38:46 phk Exp $
+# $Id$
 #
 PROG=		ctm_scan
 LDADD+=		-lmd
 NOMAN=		1
 CFLAGS+=	-Wall
-BINDIR=		/usr/sbin
 .include <bsd.prog.mk>

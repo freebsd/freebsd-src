@@ -22,10 +22,6 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
-/*
- * We redefine the names to make it look nice...
- */
-
 #define VERSION "2.0"
 #define MAXSIZE (1024*1024*10)
 
@@ -47,6 +43,7 @@
 #define CTM_Q_MD5_After		0x0100
 #define CTM_Q_MD5_Before	0x0200
 #define CTM_Q_MD5_Chunk		0x0400
+#define CTM_Q_MD5_Force		0x0800
 
 struct CTM_Syntax {
     char	*Key;
@@ -102,12 +99,20 @@ EXTERN int Exit;
 EXTERN int Force;
 EXTERN int CheckIt;
 
+#define Exit_OK		0
+#define Exit_Garbage	1
+#define Exit_Pilot	2
+#define Exit_Broke	4
+#define Exit_NotOK	8
+#define Exit_Forcible	16
+#define Exit_Mess	32
+#define Exit_Done	64
 
 char * String(char *s);
 void Fatal_(int ln, char *fn, char *kind);
 #define Fatal(foo) Fatal_(__LINE__,__FILE__,foo)
 #define Assert() Fatal_(__LINE__,__FILE__,"Assert failed.")
-#define WRONG {Assert(); return 32;}
+#define WRONG {Assert(); return Exit_Mess;}
 
 u_char * Ffield(FILE *fd, MD5_CTX *ctx,u_char term);
 
