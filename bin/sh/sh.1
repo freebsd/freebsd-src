@@ -33,7 +33,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sh.1	8.4 (Berkeley) 4/18/94
-.\"	$Id: sh.1,v 1.2 1994/09/24 02:58:13 davidg Exp $
+.\"	$Id: sh.1,v 1.3 1995/05/05 16:49:15 adam Exp $
+.\"
+.\"
 .\"
 .na
 .TH SH 1
@@ -1276,6 +1278,56 @@ to be taken. When the shell forks off a subshell, it
 resets trapped (but not ignored) signals to the
 default action. The trap command has no effect on
 signals that were ignored on entry to the shell.
+.TP
+ulimit [ -HSacdflmnpst ] [ limit ]
+Set or display resource limits (see getrlimit(2)).
+If ``limit'' is specified, the named resource will be set;
+otherwise the current resource value will be displayed.
+.br
+If ``-H'' is specified, the hard limits will be
+set or displayed.  While everybody is allowed to reduce a
+hard limit, only the superuser can increase it.  Option ``-S''
+specifies the soft limits instead.  When displaying limits,
+only one of ``-S'' or ``-H'' can be given.  The default is
+to display the soft limits, and to set both, the hard and
+the soft limits.
+.br
+Option ``-a'' requests to display all resources.  The parameter
+``limit'' is not acceptable in this mode.
+.br
+The remaining options specify which resource value is to be
+displayed or modified.  They are mutually exclusive.
+.RS +.7i
+.TP 2
+-c coredumpsize
+The maximal size of core dump files, in 512-byte blocks.
+.TP 2
+-d datasize
+The maximal size of the data segment of a process, in kilobytes.
+.TP 2
+-f filesize
+The maximal size of a file, in 512-byte blocks.  This is the
+default.
+.TP 2
+-l lockedmem
+The maximal size of memory that can be locked by a process, in
+kilobytes.
+.TP 2
+-m memoryuse
+The maximal resident set size of a process, in kilobytes.
+.TP 2
+-n nofiles
+The maximal number of descriptors that could be opened by a process.
+.TP 2
+-p procmax
+The maximal number of simultaneous processes for this user ID.
+.TP 2
+-s stacksize
+The maximal size of the stack segment, in kilobytes.
+.TP 2
+-t time
+The maximal amount of CPU time to be used by each process, in seconds.
+.RE
 .TP
 umask [ mask ]
 Set the value of umask (see umask(2)) to the specified octal value.
