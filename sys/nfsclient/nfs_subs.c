@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_subs.c,v 1.37 1997/02/22 09:42:41 peter Exp $
  */
 
 /*
@@ -1280,14 +1280,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	 */
 	np = VTONFS(vp);
 	if (vp->v_type != vtyp) {
-		/*
-		 * If we had a lock and it turns out that the vnode
-		 * is an object which we don't want to lock (e.g. VDIR)
-		 * to avoid nasty hanging problems on a server crash,
-		 * then release it here.
-		 */
-		if (vtyp != VREG && VOP_ISLOCKED(vp))
-			VOP_UNLOCK(vp, 0, p);
 		vp->v_type = vtyp;
 		if (vp->v_type == VFIFO) {
 			vp->v_op = fifo_nfsv2nodeop_p;
