@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_mkdb.c,v 1.8 1997/10/27 12:29:25 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -60,7 +60,7 @@ static void usage()
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	"usage: yp_mkdb -c",
 	"       yp_mkdb -u dbname",
-	"       yp_mkdb [-c] [-b] [-s] [-i inputfile] [-o outputfile]",
+	"       yp_mkdb [-c] [-b] [-s] [-f] [-i inputfile] [-o outputfile]",
 	"               [-d domainname ] [-m mastername] inputfile dbname");
 	exit(1);
 }
@@ -102,6 +102,7 @@ int main (argc, argv)
 	int ch;
 	int un = 0;
 	int clear = 0;
+	int filter_plusminus = 0;
 	char *infile = NULL;
 	char *map = NULL;
 	char *domain = NULL;
@@ -117,8 +118,11 @@ int main (argc, argv)
 	FILE *ifp;
 	char hname[MAXHOSTNAMELEN + 2];
 
-	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) != -1) {
+	while ((ch = getopt(argc, argv, "uhcbsdf:i:o:m:")) != -1) {
 		switch(ch) {
+		case 'f':
+			filter_plusminus++;
+			break;
 		case 'u':
 			un++;
 			break;
@@ -278,10 +282,13 @@ int main (argc, argv)
 			datbuf++;
 
 		/* Check for silliness. */
-		if  (*keybuf == '+' || *keybuf == '-' ||
-		     *datbuf == '+' || *datbuf == '-') {
-			warnx("bad character at start of line: %s", buf);
-			continue;
+		if (filter_plusminus) {
+			if  (*keybuf == '+' || *keybuf == '-' ||
+			     *datbuf == '+' || *datbuf == '-') {
+				warnx("bad character at "
+				    "start of line: %s", buf);
+				continue;
+			}
 		}
 
 		if (strlen(keybuf) > YPMAXRECORD) {
