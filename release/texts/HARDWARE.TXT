@@ -741,7 +741,7 @@ including the following:
     IBM Creditcard Ethernet I/II
     IC-CARD Ethernet/IC-CARD+ Ethernet
     Linksys EC2T/PCMPC100
-    Melco LPC-T/LPC2-T/LPC3-TX
+    Melco LPC-T/LPC2-T/LPC3-TX/LPC3-CLX
     NDC Ethernet Instant-Link
     National Semiconductor InfoMover NE4100
     Network Everywhere Ethernet 10BaseT PC Card
@@ -765,6 +765,7 @@ Xircom CreditCard adapters(16bit) and workalikes
     Accton EN2226/Fast EtherCard (16-bit verison)
     Compaq Netelligent 10/100 PC Card
     Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
+    Xircom 10/100 Network PC Card adapter.
     Xircom Realport card + modem(Ethernet part)
     Xircom CreditCard Ethernet 10/100
     Xircom CreditCard 10Base-T "CreditCard Ethernet Adaptor IIps" (PS-CE2-10)
