@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  * 
- * $Id$
+ * $Id: jail.c,v 1.2 1999/05/04 18:20:53 phk Exp $
  * 
  */
 
@@ -24,7 +24,8 @@ main(int argc, char **argv)
 	struct in_addr in;
 
 	if (argc < 5) 
-		errx(1, "Usage: %s path hostname ip command ...\n", argv[0]);
+		errx(1, "Usage: %s path hostname ip-number command ...\n",
+		    argv[0]);
 	i = chdir(argv[1]);
 	if (i)
 		err(1, "chdir %s", argv[1]);
@@ -32,7 +33,7 @@ main(int argc, char **argv)
 	j.hostname = argv[2];
 	i = inet_aton(argv[3], &in);
 	if (!i)
-		errx(1, "Couldn't make sense if ip number\n");
+		errx(1, "Couldn't make sense of ip-number\n");
 	j.ip_number = ntohl(in.s_addr);
 	i = jail(&j);
 	if (i)
