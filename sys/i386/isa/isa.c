@@ -187,8 +187,8 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 		}
 	}
 
-	re->r_bushandle.bsh_res = bsre;
-	re->r_bushandle.bsh_ressz = ressz;
+	re->r_bushandle->bsh_res = bsre;
+	re->r_bushandle->bsh_ressz = ressz;
 
 	return re;
 }
@@ -207,8 +207,8 @@ isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count)
 		addr[i] = rman_get_start(re) + res[i];
 
 	rman_set_bustag(re, I386_BUS_SPACE_IO_IND);
-	re->r_bushandle.bsh_iat = addr;
-	re->r_bushandle.bsh_iatsz = count;
+	re->r_bushandle->bsh_iat = addr;
+	re->r_bushandle->bsh_iatsz = count;
 
 	return 0;
 }
@@ -227,13 +227,13 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	 */
 	int	i;
 
-	for (i = 1; i < r->r_bushandle.bsh_ressz; i++)
+	for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
 		resource_list_release(rl, bus, child, type, rid + i,
-				      r->r_bushandle.bsh_res[i]);
-	if (r->r_bushandle.bsh_res != NULL)
-		free(r->r_bushandle.bsh_res, M_DEVBUF);
-	if (r->r_bushandle.bsh_iat != NULL)
-		free(r->r_bushandle.bsh_iat, M_DEVBUF);
+				      r->r_bushandle->bsh_res[i]);
+	if (r->r_bushandle->bsh_res != NULL)
+		free(r->r_bushandle->bsh_res, M_DEVBUF);
+	if (r->r_bushandle->bsh_iat != NULL)
+		free(r->r_bushandle->bsh_iat, M_DEVBUF);
 #endif
 	return resource_list_release(rl, bus, child, type, rid, r);
 }

@@ -119,7 +119,7 @@ typedef	struct {
     size_t		bsh_iatsz;
     struct resource	**bsh_res;
     size_t		bsh_ressz;
-} bus_space_handle_t;
+}* bus_space_handle_t;
 
 /*
  * Allocate discontinuous resources for ISA bus.
@@ -197,19 +197,19 @@ bus_space_read_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		return (inb(bsh.bsh_base + offset));
+		return (inb(bsh->bsh_base + offset));
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		return (inb(bsh.bsh_iat[offset]));
+		return (inb(bsh->bsh_iat[offset]));
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	else
 #endif
-		return (*(volatile u_int8_t *)(bsh.bsh_base + offset));
+		return (*(volatile u_int8_t *)(bsh->bsh_base + offset));
 #endif
 }
 
@@ -221,19 +221,19 @@ bus_space_read_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		return (inw(bsh.bsh_base + offset));
+		return (inw(bsh->bsh_base + offset));
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		return (inw(bsh.bsh_iat[offset]));
+		return (inw(bsh->bsh_iat[offset]));
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	else
 #endif
-		return (*(volatile u_int16_t *)(bsh.bsh_base + offset));
+		return (*(volatile u_int16_t *)(bsh->bsh_base + offset));
 #endif
 }
 
@@ -245,19 +245,19 @@ bus_space_read_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		return (inl(bsh.bsh_base + offset));
+		return (inl(bsh->bsh_base + offset));
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		return (inl(bsh.bsh_iat[offset]));
+		return (inl(bsh->bsh_iat[offset]));
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	else
 #endif
-		return (*(volatile u_int32_t *)(bsh.bsh_base + offset));
+		return (*(volatile u_int32_t *)(bsh->bsh_base + offset));
 #endif
 }
 
@@ -292,13 +292,13 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		insb(bsh.bsh_base + offset, addr, count);
+		insb(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		insb(bsh.bsh_iat[offset], addr, count);
+		insb(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -311,7 +311,7 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			stosb					\n\
 			loop 1b"				:
 		    "=D" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory");
 	}
 #endif
@@ -325,13 +325,13 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		insw(bsh.bsh_base + offset, addr, count);
+		insw(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		insw(bsh.bsh_iat[offset], addr, count);
+		insw(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -344,7 +344,7 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			stosw					\n\
 			loop 1b"				:
 		    "=D" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory");
 	}
 #endif
@@ -358,13 +358,13 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		insl(bsh.bsh_base + offset, addr, count);
+		insl(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		insl(bsh.bsh_iat[offset], addr, count);
+		insl(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -377,7 +377,7 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			stosl					\n\
 			loop 1b"				:
 		    "=D" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory");
 	}
 #endif
@@ -417,7 +417,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inb %w2,%%al				\n\
@@ -436,7 +436,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i++)
-			addr[i] = inb(bsh.bsh_iat[offset + i]);
+			addr[i] = inb(bsh->bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -444,7 +444,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -465,7 +465,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inw %w2,%%ax				\n\
@@ -484,7 +484,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i += 2)
-			addr[i] = inw(bsh.bsh_iat[offset + i]);
+			addr[i] = inw(bsh->bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -492,7 +492,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -513,7 +513,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inl %w2,%%eax				\n\
@@ -532,7 +532,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i += 4)
-			addr[i] = inl(bsh.bsh_iat[offset + i]);
+			addr[i] = inl(bsh->bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -540,7 +540,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -581,19 +581,19 @@ bus_space_write_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outb(bsh.bsh_base + offset, value);
+		outb(bsh->bsh_base + offset, value);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outb(bsh.bsh_iat[offset], value);
+		outb(bsh->bsh_iat[offset], value);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
-		*(volatile u_int8_t *)(bsh.bsh_base + offset) = value;
+		*(volatile u_int8_t *)(bsh->bsh_base + offset) = value;
 #endif
 }
 
@@ -605,19 +605,19 @@ bus_space_write_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outw(bsh.bsh_base + offset, value);
+		outw(bsh->bsh_base + offset, value);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outw(bsh.bsh_iat[offset], value);
+		outw(bsh->bsh_iat[offset], value);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
-		*(volatile u_int16_t *)(bsh.bsh_base + offset) = value;
+		*(volatile u_int16_t *)(bsh->bsh_base + offset) = value;
 #endif
 }
 
@@ -629,19 +629,19 @@ bus_space_write_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outl(bsh.bsh_base + offset, value);
+		outl(bsh->bsh_base + offset, value);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outl(bsh.bsh_iat[offset], value);
+		outl(bsh->bsh_iat[offset], value);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
-		*(volatile u_int32_t *)(bsh.bsh_base + offset) = value;
+		*(volatile u_int32_t *)(bsh->bsh_base + offset) = value;
 #endif
 }
 
@@ -679,13 +679,13 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outsb(bsh.bsh_base + offset, addr, count);
+		outsb(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outsb(bsh.bsh_iat[offset], addr, count);
+		outsb(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -698,7 +698,7 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			movb %%al,(%2)				\n\
 			loop 1b"				:
 		    "=S" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory", "cc");
 	}
 #endif
@@ -712,13 +712,13 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outsw(bsh.bsh_base + offset, addr, count);
+		outsw(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outsw(bsh.bsh_iat[offset], addr, count);
+		outsw(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -732,7 +732,7 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			movw %%ax,(%2)				\n\
 			loop 1b"				:
 		    "=S" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory", "cc");
 	}
 #endif
@@ -746,13 +746,13 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #if defined(_I386_BUS_PIO_IND_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO)
 #endif
-		outsl(bsh.bsh_base + offset, addr, count);
+		outsl(bsh->bsh_base + offset, addr, count);
 #endif
 #if defined(_I386_BUS_PIO_IND_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
-		outsl(bsh.bsh_iat[offset], addr, count);
+		outsl(bsh->bsh_iat[offset], addr, count);
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_PIO_IND_H_)
@@ -765,7 +765,7 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			movl %%eax,(%2)				\n\
 			loop 1b"				:
 		    "=S" (addr), "=c" (count)			:
-		    "r" (bsh.bsh_base + offset), "0" (addr), "1" (count) :
+		    "r" (bsh->bsh_base + offset), "0" (addr), "1" (count) :
 		    "%eax", "memory", "cc");
 	}
 #endif
@@ -806,7 +806,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsb					\n\
@@ -825,7 +825,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i++)
-			outb(bsh.bsh_iat[offset + i], addr[i]);
+			outb(bsh->bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -833,7 +833,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -854,7 +854,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
@@ -873,7 +873,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i += 2)
-			outw(bsh.bsh_iat[offset + i], addr[i]);
+			outw(bsh->bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -881,7 +881,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -902,7 +902,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsl					\n\
@@ -921,7 +921,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	{
 		int	i;
 		for (i = 0; i < count; i += 4)
-			outl(bsh.bsh_iat[offset + i], addr[i]);
+			outl(bsh->bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -929,7 +929,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		int _port_ = bsh.bsh_base + offset;		\
+		int _port_ = bsh->bsh_base + offset;		\
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -973,7 +973,7 @@ bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			outb(addr, value);
 	}
@@ -983,7 +983,7 @@ bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_iat[offset];
+		bus_addr_t addr = bsh->bsh_iat[offset];
 		while (count--)
 			outb(addr, value);
 	}
@@ -993,7 +993,7 @@ bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			*(volatile u_int8_t *)(addr) = value;
 	}
@@ -1009,7 +1009,7 @@ bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			outw(addr, value);
 	}
@@ -1019,7 +1019,7 @@ bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_iat[offset];
+		bus_addr_t addr = bsh->bsh_iat[offset];
 		while (count--)
 			outw(addr, value);
 	}
@@ -1029,7 +1029,7 @@ bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			*(volatile u_int16_t *)(addr) = value;
 	}
@@ -1045,7 +1045,7 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			outl(addr, value);
 	}
@@ -1055,7 +1055,7 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_iat[offset];
+		bus_addr_t addr = bsh->bsh_iat[offset];
 		while (count--)
 			outl(addr, value);
 	}
@@ -1065,7 +1065,7 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		while (count--)
 			*(volatile u_int32_t *)(addr) = value;
 	}
@@ -1103,7 +1103,7 @@ bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr++)
 			outb(addr, value);
 	}
@@ -1114,7 +1114,7 @@ bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		for (; count != 0; count--, offset++)
-			outb(bsh.bsh_iat[offset], value);
+			outb(bsh->bsh_iat[offset], value);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -1122,7 +1122,7 @@ bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr++)
 			*(volatile u_int8_t *)(addr) = value;
 	}
@@ -1138,7 +1138,7 @@ bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr += 2)
 			outw(addr, value);
 	}
@@ -1149,7 +1149,7 @@ bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		for (; count != 0; count--, offset += 2)
-			outw(bsh.bsh_iat[offset], value);
+			outw(bsh->bsh_iat[offset], value);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -1157,7 +1157,7 @@ bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr += 2)
 			*(volatile u_int16_t *)(addr) = value;
 	}
@@ -1173,7 +1173,7 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr += 4)
 			outl(addr, value);
 	}
@@ -1184,7 +1184,7 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		for (; count != 0; count--, offset += 4)
-			outl(bsh.bsh_iat[offset], value);
+			outl(bsh->bsh_iat[offset], value);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -1192,7 +1192,7 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr = bsh.bsh_base + offset;
+		bus_addr_t addr = bsh->bsh_base + offset;
 		for (; count != 0; count--, addr += 4)
 			*(volatile u_int32_t *)(addr) = value;
 	}
@@ -1236,8 +1236,8 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1++, addr2++)
@@ -1255,17 +1255,17 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		if (bsh1.bsh_iat[off1] >= bsh2.bsh_iat[off2]) {
+		if (bsh1->bsh_iat[off1] >= bsh2->bsh_iat[off2]) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, off1++, off2++)
-				outb(bsh2.bsh_iat[off2],
-				     inb(bsh1.bsh_iat[off1]));
+				outb(bsh2->bsh_iat[off2],
+				     inb(bsh1->bsh_iat[off1]));
 		} else {
 			/* dest after src: copy backwards */
 			for (off1 += (count - 1), off2 += (count - 1);
 			     count != 0; count--, off1--, off2--)
-				outb(bsh2.bsh_iat[off2],
-				     inb(bsh1.bsh_iat[off1]));
+				outb(bsh2->bsh_iat[off2],
+				     inb(bsh1->bsh_iat[off1]));
 		}
 	}
 #endif
@@ -1274,8 +1274,8 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1++, addr2++)
@@ -1302,8 +1302,8 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1 += 2, addr2 += 2)
@@ -1321,17 +1321,17 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		if (bsh1.bsh_iat[off1] >= bsh2.bsh_iat[off2]) {
+		if (bsh1->bsh_iat[off1] >= bsh2->bsh_iat[off2]) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, off1 += 2, off2 += 2)
-				outw(bsh2.bsh_iat[off2],
-				     inw(bsh1.bsh_iat[off1]));
+				outw(bsh2->bsh_iat[off2],
+				     inw(bsh1->bsh_iat[off1]));
 		} else {
 			/* dest after src: copy backwards */
 			for (off1 += 2 * (count - 1), off2 += 2 * (count - 1);
 			     count != 0; count--, off1 -= 2, off2 -= 2)
-				outw(bsh2.bsh_iat[off2],
-				     inw(bsh1.bsh_iat[off1]));
+				outw(bsh2->bsh_iat[off2],
+				     inw(bsh1->bsh_iat[off1]));
 		}
 	}
 #endif
@@ -1340,8 +1340,8 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1 += 2, addr2 += 2)
@@ -1368,8 +1368,8 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1 += 4, addr2 += 4)
@@ -1387,17 +1387,17 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		if (bsh1.bsh_iat[off1] >= bsh2.bsh_iat[off2]) {
+		if (bsh1->bsh_iat[off1] >= bsh2->bsh_iat[off2]) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, off1 += 4, off2 += 4)
-				outl(bsh2.bsh_iat[off2],
-				     inl(bsh1.bsh_iat[off1]));
+				outl(bsh2->bsh_iat[off2],
+				     inl(bsh1->bsh_iat[off1]));
 		} else {
 			/* dest after src: copy backwards */
 			for (off1 += 4 * (count - 1), off2 += 4 * (count - 1);
 			     count != 0; count--, off1 -= 4, off2 -= 4)
-				outl(bsh2.bsh_iat[off2],
-				     inl(bsh1.bsh_iat[off1]));
+				outl(bsh2->bsh_iat[off2],
+				     inl(bsh1->bsh_iat[off1]));
 		}
 	}
 #endif
@@ -1406,8 +1406,8 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	if (tag == I386_BUS_SPACE_MEM)
 #endif
 	{
-		bus_addr_t addr1 = bsh1.bsh_base + off1;
-		bus_addr_t addr2 = bsh2.bsh_base + off2;
+		bus_addr_t addr1 = bsh1->bsh_base + off1;
+		bus_addr_t addr2 = bsh2->bsh_base + off2;
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
 			for (; count != 0; count--, addr1 += 4, addr2 += 4)

@@ -73,8 +73,10 @@
 #include <i386/isa/intr_machdep.h>
 #include <sys/rtprio.h>
 
+#ifdef PC98
+MALLOC_DEFINE(M_BUSSPACEHANDLE, "busspacehandle", "Bus space handle");
+#endif
 MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
-
 struct nexus_device {
 	struct resource_list	nx_resources;
 	int			nx_pcibus;
@@ -434,6 +436,15 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
 		return 0;
+#ifdef PC98
+	/* Allocate bushandle. */
+	rv->r_bushandle =
+	    malloc(sizeof *rv->r_bushandle, M_BUSSPACEHANDLE, M_NOWAIT);
+	if (rv->r_bushandle == 0) {
+		rman_release_resource(rv);
+		return 0;
+	}
+#endif
 
 	if (type == SYS_RES_MEMORY) {
 		rman_set_bustag(rv, I386_BUS_SPACE_MEM);
@@ -441,11 +452,11 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rman_set_bustag(rv, I386_BUS_SPACE_IO);
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
-		rv->r_bushandle.bsh_base = rv->r_start;
-		rv->r_bushandle.bsh_iat = NULL;
-		rv->r_bushandle.bsh_iatsz = 0;
-		rv->r_bushandle.bsh_res = NULL;
-		rv->r_bushandle.bsh_ressz = 0;
+		rv->r_bushandle->bsh_base = rv->r_start;
+		rv->r_bushandle->bsh_iat = NULL;
+		rv->r_bushandle->bsh_iatsz = 0;
+		rv->r_bushandle->bsh_res = NULL;
+		rv->r_bushandle->bsh_ressz = 0;
 #else
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(rv, rv->r_start);
@@ -454,6 +465,9 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
+#ifdef PC98
+			free(rv->r_bushandle, M_BUSSPACEHANDLE);
+#endif
 			rman_release_resource(rv);
 			return 0;
 		}
@@ -491,11 +505,11 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_virtual(r, vaddr);
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
-		r->r_bushandle.bsh_base = (bus_addr_t) vaddr;
-		r->r_bushandle.bsh_iat = NULL;
-		r->r_bushandle.bsh_iatsz = 0;
-		r->r_bushandle.bsh_res = NULL;
-		r->r_bushandle.bsh_ressz = 0;
+		r->r_bushandle->bsh_base = (bus_addr_t) vaddr;
+		r->r_bushandle->bsh_iat = NULL;
+		r->r_bushandle->bsh_iatsz = 0;
+		r->r_bushandle->bsh_res = NULL;
+		r->r_bushandle->bsh_ressz = 0;
 #else
 		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
@@ -531,6 +545,9 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 		if (error)
 			return error;
 	}
+#ifdef PC98
+	free(r->r_bushandle, M_BUSSPACEHANDLE);
+#endif
 	return (rman_release_resource(r));
 }
 
