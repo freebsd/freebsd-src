@@ -92,7 +92,7 @@ mp_probe(void *dummy)
 {
 	mp_probe_status = cpu_mp_probe();
 }
-SYSINIT(cpu_mp_probe, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_probe, NULL);
+SYSINIT(cpu_mp_probe, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_probe, NULL)
 
 /*
  * Call the MD SMP initialization code.
