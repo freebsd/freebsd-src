@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.63 1997/09/20 17:11:09 joerg Exp $
+#	$Id: Makefile,v 1.246.2.64 1997/10/03 14:18:02 jkh Exp $
 #
 # How to roll a release:
 #
@@ -439,7 +439,7 @@ release.9:
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
 		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
-		usr/share/misc
+		usr/share/misc usr/mdec
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
@@ -450,6 +450,11 @@ release.9:
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
 		${RD}/fixitfd/usr/share/misc
+	cp ${RD}/trees/bin/usr/mdec/boot[12] ${RD}/fixitfd/usr/mdec
+	for type in fd od sd wd ; do \
+		( cd ${RD}/fixitfd/usr/mdec && ln -s boot1 $${type}boot && \
+			ln -s boot2 boot$${type} ) ; \
+	done
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
