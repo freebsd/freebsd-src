@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -31,6 +31,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "reg.h"
 #include "charinfo.h"
 #include "macropath.h"
+#include "input.h"
 #include <math.h>
 
 symbol default_family("T");
@@ -299,7 +300,8 @@ node *environment::make_char_node(charinfo *ci)
 
 void environment::add_node(node *n)
 {
-  assert(n != 0);
+  if (n == 0)
+    return;
   if (current_tab || current_field)
     n->freeze_space();
   if (interrupted) {
@@ -392,7 +394,7 @@ void environment::space_newline()
     width_total += x;
     return;
   }
-  add_node(new word_space_node(x, w));
+  add_node(new word_space_node(x, get_fill_color(), w));
   possibly_break_line(0, spread_flag);
   spread_flag = 0;
 }
@@ -426,6 +428,7 @@ void environment::space(hunits space_width, hunits sentence_space_width)
     return;
   }
   add_node(new word_space_node(x,
+			       get_fill_color(),
 			       new width_list(space_width,
 					      sentence_space_width)));
   possibly_break_line(0, spread_flag);
@@ -438,7 +441,7 @@ void environment::set_font(symbol nm)
 {
   if (interrupted)
     return;
-  if (nm == symbol("P")) {
+  if (nm == symbol("P") || nm.is_empty()) {
     if (family->make_definite(prev_fontno) < 0)
       return;
     int tem = fontno;
@@ -479,7 +482,9 @@ void environment::set_font(int n)
 
 void environment::set_family(symbol fam)
 {
-  if (fam.is_null()) {
+  if (interrupted)
+    return;
+  if (fam.is_null() || fam.is_empty()) {
     if (prev_family->make_definite(fontno) < 0)
       return;
     font_family *tem = family;
@@ -532,6 +537,42 @@ void environment::set_char_slant(int n)
   char_slant = n;
 }
 
+color *environment::get_prev_glyph_color()
+{
+  return prev_glyph_color;
+}
+
+color *environment::get_glyph_color()
+{
+  return glyph_color;
+}
+
+color *environment::get_prev_fill_color()
+{
+  return prev_fill_color;
+}
+
+color *environment::get_fill_color()
+{
+  return fill_color;
+}
+
+void environment::set_glyph_color(color *c)
+{
+  if (interrupted)
+    return;
+  curenv->prev_glyph_color = curenv->glyph_color;
+  curenv->glyph_color = c;
+}
+
+void environment::set_fill_color(color *c)
+{
+  if (interrupted)
+    return;
+  curenv->prev_fill_color = curenv->fill_color;
+  curenv->fill_color = c;
+}
+
 environment::environment(symbol nm)
 : dummy(0),
   prev_line_length((units_per_inch*13)/2),
@@ -565,6 +606,7 @@ environment::environment(symbol nm)
   underline_lines(0),
   underline_spaces(0),
   input_trap_count(0),
+  continued_input_trap(0),
   line(0),
   prev_text_length(0),
   width_total(0),
@@ -597,9 +639,12 @@ environment::environment(symbol nm)
 #ifdef WIDOW_CONTROL
   widow_control(0),
 #endif /* WIDOW_CONTROL */
-  need_eol(0),
   ignore_next_eol(0),
   emitted_node(0),
+  glyph_color(&default_color),
+  prev_glyph_color(&default_color),
+  fill_color(&default_color),
+  prev_fill_color(&default_color),
   name(nm),
   control_char('.'),
   no_break_control_char('\''),
@@ -651,6 +696,7 @@ environment::environment(const environment *e)
   underline_lines(0),
   underline_spaces(0),
   input_trap_count(0),
+  continued_input_trap(0),
   line(0),
   prev_text_length(e->prev_text_length),
   width_total(0),
@@ -683,8 +729,12 @@ environment::environment(const environment *e)
 #ifdef WIDOW_CONTROL
   widow_control(e->widow_control),
 #endif /* WIDOW_CONTROL */
-  need_eol(0),
   ignore_next_eol(0),
+  emitted_node(0),
+  glyph_color(e->glyph_color),
+  prev_glyph_color(e->prev_glyph_color),
+  fill_color(e->fill_color),
+  prev_fill_color(e->prev_fill_color),
   name(e->name),		// so that eg `.if "\n[.ev]"0"' works
   control_char(e->control_char),
   no_break_control_char(e->no_break_control_char),
@@ -725,6 +775,7 @@ void environment::copy(const environment *e)
   underline_lines = 0;
   underline_spaces = 0;
   input_trap_count = 0;
+  continued_input_trap = 0;
   prev_text_length = e->prev_text_length;
   width_total = 0;
   space_total = 0;
@@ -765,6 +816,12 @@ void environment::copy(const environment *e)
   hyphenation_space = e->hyphenation_space;
   hyphenation_margin = e->hyphenation_margin;
   composite = 0;
+  ignore_next_eol = e->ignore_next_eol;
+  emitted_node = e->emitted_node;
+  glyph_color= e->glyph_color;
+  prev_glyph_color = e->prev_glyph_color;
+  fill_color = e->fill_color;
+  prev_fill_color = e->prev_fill_color;
 }
 
 environment::~environment()
@@ -1107,11 +1164,52 @@ void point_size()
     if (n <= 0)
       n = 1;
     curenv->set_size(n);
-    curenv->add_html_tag(".ps", n);
+    curenv->add_html_tag(1, ".ps", n);
   }
   else
     curenv->set_size(0);
   skip_line();
+}
+
+void override_sizes()
+{
+  int n = 16;
+  int *sizes = new int[n];
+  int i = 0;
+  char *buf = read_string();
+  if (!buf)
+    return;
+  char *p = strtok(buf, " \t");
+  for (;;) {
+    if (!p)
+      break;
+    int lower, upper;
+    switch (sscanf(p, "%d-%d", &lower, &upper)) {
+    case 1:
+      upper = lower;
+      // fall through
+    case 2:
+      if (lower <= upper && lower >= 0)
+	break;
+      // fall through
+    default:
+      warning(WARN_RANGE, "bad size range `%1'", p);
+      return;
+    }
+    if (i + 2 > n) {
+      int *old_sizes = sizes;
+      sizes = new int[n*2];
+      memcpy(sizes, old_sizes, n*sizeof(int));
+      n *= 2;
+      a_delete old_sizes;
+    }
+    sizes[i++] = lower;
+    if (lower == 0)
+      break;
+    sizes[i++] = upper;
+    p = strtok(0, " \t");
+  }
+  font_size::init_size_table(sizes);
 }
 
 void space_size()
@@ -1134,7 +1232,8 @@ void fill()
   if (break_flag)
     curenv->do_break();
   curenv->fill = 1;
-  curenv->add_html_tag(".fi");
+  curenv->add_html_tag(1, ".fi");
+  curenv->add_html_tag(0, ".br");
   tok.next();
 }
 
@@ -1144,11 +1243,10 @@ void no_fill()
     tok.next();
   if (break_flag)
     curenv->do_break();
-
   curenv->fill = 0;
-  curenv->add_html_tag(".nf");
-  curenv->ignore_next_eol = 1;
-  curenv->add_html_tag(".po", topdiv->get_page_offset().to_units());
+  curenv->add_html_tag(1, ".nf");
+  curenv->add_html_tag(0, ".br");
+  curenv->add_html_tag(0, ".po", topdiv->get_page_offset().to_units());
   tok.next();
 }
 
@@ -1165,7 +1263,7 @@ void center()
     curenv->do_break();
   curenv->right_justify_lines = 0;
   curenv->center_lines = n;
-  curenv->add_html_tag(".ce", n);
+  curenv->add_html_tag(1, ".ce", n);
   tok.next();
 }
 
@@ -1182,7 +1280,7 @@ void right_justify()
     curenv->do_break();
   curenv->center_lines = 0;
   curenv->right_justify_lines = n;
-  curenv->add_html_tag(".rj", n);
+  curenv->add_html_tag(1, ".rj", n);
   tok.next();
 }
 
@@ -1199,7 +1297,7 @@ void line_length()
     temp = curenv->prev_line_length;
   curenv->prev_line_length = curenv->line_length;
   curenv->line_length = temp;
-  curenv->add_html_tag(".ll", temp.to_units());
+  curenv->add_html_tag(1, ".ll", temp.to_units());
   skip_line();
 }
 
@@ -1286,7 +1384,8 @@ void indent()
   curenv->have_temporary_indent = 0;
   curenv->prev_indent = curenv->indent;
   curenv->indent = temp;
-  curenv->add_html_tag(".in", temp.to_units());
+  if (break_flag)
+    curenv->add_html_tag(1, ".in", temp.to_units());
   tok.next();
 }
 
@@ -1307,7 +1406,7 @@ void temporary_indent()
   if (!err) {
     curenv->temporary_indent = temp;
     curenv->have_temporary_indent = 1;
-    curenv->add_html_tag(".ti", temp.to_units());
+    curenv->add_html_tag(1, ".ti", temp.to_units());
   }
   tok.next();
 }
@@ -1562,6 +1661,11 @@ void environment::newline()
     if (x > H0)
       saved_indent += x/2;
     to_be_output = line;
+    if (is_html) {
+      node *n = make_html_tag("eol.ce");
+      n->next = to_be_output;
+      to_be_output = n;
+    }
     to_be_output_width = width_total;
     line = 0;
   }
@@ -1583,12 +1687,21 @@ void environment::newline()
   }
   input_line_start = line == 0 ? H0 : width_total;
   if (to_be_output) {
+    if (is_html && !fill) {
+      if (curdiv == topdiv) {
+	node *n = make_html_tag("eol");
+
+	n->next = to_be_output;
+	to_be_output = n;
+      }
+    }
     output_line(to_be_output, to_be_output_width);
     hyphen_line_count = 0;
   }
   if (input_trap_count > 0) {
-    if (--input_trap_count == 0)
-      spring_trap(input_trap);
+    if (!(continued_input_trap && prev_line_interrupted))
+      if (--input_trap_count == 0)
+	spring_trap(input_trap);
   }
 }
 
@@ -1598,7 +1711,7 @@ void environment::output_line(node *n, hunits width)
   if (margin_character_flags) {
     hunits d = line_length + margin_character_distance - saved_indent - width;
     if (d > 0) {
-      n = new hmotion_node(d, n);
+      n = new hmotion_node(d, get_fill_color(), n);
       width += d;
     }
     margin_character_flags &= ~MARGIN_CHARACTER_NEXT;
@@ -1621,7 +1734,7 @@ void environment::output_line(node *n, hunits width)
     n = tem;
   }
   if (!saved_indent.is_zero())
-    nn = new hmotion_node(saved_indent, nn);
+    nn = new hmotion_node(saved_indent, get_fill_color(), nn);
   width += saved_indent;
   if (no_number_count > 0)
     --no_number_count;
@@ -1629,11 +1742,11 @@ void environment::output_line(node *n, hunits width)
     hunits w = (line_number_digit_width
 		*(3+line_number_indent+number_text_separation));
     if (next_line_number % line_number_multiple != 0)
-      nn = new hmotion_node(w, nn);
+      nn = new hmotion_node(w, get_fill_color(), nn);
     else {
       hunits x = w;
-      nn = new hmotion_node(number_text_separation*line_number_digit_width,
-			    nn);
+      nn = new hmotion_node(number_text_separation * line_number_digit_width,
+			    get_fill_color(), nn);
       x -= number_text_separation*line_number_digit_width;
       char buf[30];
       sprintf(buf, "%3d", next_line_number);
@@ -1646,7 +1759,7 @@ void environment::output_line(node *n, hunits width)
 	gn->next = nn;
 	nn = gn;
       }
-      nn = new hmotion_node(x, nn);
+      nn = new hmotion_node(x, get_fill_color(), nn);
     }
     width += w;
     ++next_line_number;
@@ -1789,7 +1902,7 @@ breakpoint *environment::choose_breakpoint()
   }
   if (best_bp) {
     if (!best_bp_fits)
-      warning(WARN_BREAK, "can't break line");
+      output_warning(WARN_BREAK, "can't break line");
     return best_bp;
   }
   return 0;
@@ -1875,6 +1988,14 @@ static void distribute_space(node *n, int nspaces, hunits desired_space,
   static int reverse = 0;
   if (force_reverse || reverse)
     n = node_list_reverse(n);
+  if (!force_reverse && nspaces > 0 && spread_limit >= 0
+      && desired_space.to_units() > 0) {
+    hunits em = curenv->get_size();
+    double Ems = (double)desired_space.to_units() / nspaces
+		 / (em.is_zero() ? hresolution : em.to_units());
+    if (Ems > spread_limit)
+      output_warning(WARN_BREAK, "spreading %1m per space", Ems);
+  }
   for (node *tem = n; tem; tem = tem->next)
     tem->spread_space(&nspaces, &desired_space);
   if (force_reverse || reverse)
@@ -1909,6 +2030,9 @@ void environment::possibly_break_line(int start_here, int forced)
     case ADJUST_BOTH:
       if (bp->nspaces != 0)
 	extra_space_width = target_text_length - bp->width;
+      else if (bp->width > 0 && target_text_length > 0
+	       && target_text_length > bp->width)
+	output_warning(WARN_BREAK, "cannot adjust line");
       break;
     case ADJUST_CENTER:
       saved_indent += (target_text_length - bp->width)/2;
@@ -2013,32 +2137,15 @@ void environment::final_break()
 }
 
 /*
- *  add_html_tag_eol - add an end of line tag if appropriate.
- */
-
-void environment::add_html_tag_eol()
-{
-  if (is_html) {
-    if (ignore_next_eol > 0)
-      ignore_next_eol--;
-    else if (need_eol > 0) {
-      need_eol--;
-      add_html_tag("eol");
-    }
-    else if (!fill && emitted_node) {
-      add_html_tag("eol");
-      emitted_node = 0;
-    }
-  }
-}
-
-/*
  *  add_html_tag - emits a special html-tag: to help post-grohtml understand
  *                 the key troff commands
  */
 
-void environment::add_html_tag(const char *name)
+void environment::add_html_tag(int force, const char *name)
 {
+  if (!force && (curdiv != topdiv))
+    return;
+
   if (is_html) {
     /*
      * need to emit tag for post-grohtml
@@ -2049,9 +2156,11 @@ void environment::add_html_tag(const char *name)
     macro *m = new macro;
     m->append_str("html-tag:");
     for (const char *p = name; *p; p++)
-      if (!illegal_input_char((unsigned char)*p))
+      if (!invalid_input_char((unsigned char)*p))
 	m->append(*p);
-    add_node(new special_node(*m));
+    curdiv->output(new special_node(*m), 1, 0, 0, 0);
+    if (strcmp(name, ".nf") == 0)
+      curenv->ignore_next_eol = 1;
   }
 }
 
@@ -2061,18 +2170,12 @@ void environment::add_html_tag(const char *name)
  *                 of i.
  */
 
-void environment::add_html_tag(const char *name, int i)
+void environment::add_html_tag(int force, const char *name, int i)
 {
-  if (is_html) {
-    if (strcmp(name, ".ce") == 0) {
-      if (i == 0)
-	need_eol = 0;
-      else {
-	need_eol = i;
-	ignore_next_eol = 1;  // since the .ce creates an eol
-      }
-    }
+  if (!force && (curdiv != topdiv))
+    return;
 
+  if (is_html) {
     /*
      * need to emit tag for post-grohtml
      * but we check to see whether we can emit specials
@@ -2082,13 +2185,12 @@ void environment::add_html_tag(const char *name, int i)
     macro *m = new macro;
     m->append_str("html-tag:");
     for (const char *p = name; *p; p++)
-      if (!illegal_input_char((unsigned char)*p))
+      if (!invalid_input_char((unsigned char)*p))
 	m->append(*p);
     m->append(' ');
     m->append_int(i);
-    // output_pending_lines();
-    output(new special_node(*m), !fill, 0, 0, 0);
-    // output_pending_lines();
+    node *n = new special_node(*m);
+    curdiv->output(n, 1, 0, 0, 0);
   }
 }
 
@@ -2096,8 +2198,11 @@ void environment::add_html_tag(const char *name, int i)
  *  add_html_tag_tabs - emits the tab settings for post-grohtml
  */
 
-void environment::add_html_tag_tabs()
+void environment::add_html_tag_tabs(int force)
 {
+  if (!force && (curdiv != topdiv))
+    return;
+
   if (is_html) {
     /*
      * need to emit tag for post-grohtml
@@ -2115,24 +2220,62 @@ void environment::add_html_tag_tabs()
       switch (t) {
       case TAB_LEFT:
 	m->append_str(" L ");
-	m->append_int(d.to_units());
+	m->append_int(l.to_units());
 	break;
       case TAB_CENTER:
 	m->append_str(" C ");
-	m->append_int(d.to_units());
+	m->append_int(l.to_units());
 	break;
       case TAB_RIGHT:
 	m->append_str(" R ");
-	m->append_int(d.to_units());
+	m->append_int(l.to_units());
 	break;
       case TAB_NONE:
 	break;
       }
     } while ((t != TAB_NONE) && (l < get_line_length()));
-    output_pending_lines();
-    output(new special_node(*m), !fill, 0, 0, 0);
-    output_pending_lines();
+    curdiv->output(new special_node(*m), 1, 0, 0, 0);
   }
+}
+
+node *environment::make_html_tag(const char *name, int i)
+{
+  if (is_html) {
+    /*
+     * need to emit tag for post-grohtml
+     * but we check to see whether we can emit specials
+     */
+    if (curdiv == topdiv && topdiv->before_first_page)
+      topdiv->begin_page();
+    macro *m = new macro;
+    m->append_str("html-tag:");
+    for (const char *p = name; *p; p++)
+      if (!invalid_input_char((unsigned char)*p))
+	m->append(*p);
+    m->append(' ');
+    m->append_int(i);
+    return new special_node(*m);
+  }
+  return 0;
+}
+
+node *environment::make_html_tag(const char *name)
+{
+  if (is_html) {
+    /*
+     * need to emit tag for post-grohtml
+     * but we check to see whether we can emit specials
+     */
+    if (curdiv == topdiv && topdiv->before_first_page)
+      topdiv->begin_page();
+    macro *m = new macro;
+    m->append_str("html-tag:");
+    for (const char *p = name; *p; p++)
+      if (!invalid_input_char((unsigned char)*p))
+	m->append(*p);
+    return new special_node(*m);
+  }
+  return 0;
 }
 
 void environment::do_break(int spread)
@@ -2144,7 +2287,8 @@ void environment::do_break(int spread)
   if (current_tab)
     wrap_up_tab();
   if (line) {
-    line = new space_node(H0, line); // this is so that hyphenation works
+    // this is so that hyphenation works
+    line = new space_node(H0, get_fill_color(), line);
     space_total++;
     possibly_break_line(0, spread);
   }
@@ -2191,7 +2335,7 @@ void do_break_request(int spread)
     tok.next();
   if (break_flag) {
     curenv->do_break(spread);
-    curenv->add_html_tag(".br");
+    curenv->add_html_tag(0, ".br");
   }
   tok.next();
 }
@@ -2228,6 +2372,10 @@ void title()
   curenv->char_slant = env.char_slant;
   curenv->fontno = env.fontno;
   curenv->prev_fontno = env.prev_fontno;
+  curenv->glyph_color = env.glyph_color;
+  curenv->prev_glyph_color = env.prev_glyph_color;
+  curenv->fill_color = env.fill_color;
+  curenv->prev_fill_color = env.prev_fill_color;
   node *n = 0;
   node *p = part[2];
   while (p != 0) {
@@ -2239,7 +2387,7 @@ void title()
   hunits title_length(curenv->title_length);
   hunits f = title_length - part_width[1];
   hunits f2 = f/2;
-  n = new hmotion_node(f2 - part_width[2], n);
+  n = new hmotion_node(f2 - part_width[2], curenv->get_fill_color(), n);
   p = part[1];
   while (p != 0) {
     node *tem = p;
@@ -2247,7 +2395,7 @@ void title()
     tem->next = n;
     n = tem;
   }
-  n = new hmotion_node(f - f2 - part_width[0], n);
+  n = new hmotion_node(f - f2 - part_width[0], curenv->get_fill_color(), n);
   p = part[0];
   while (p != 0) {
     node *tem = p;
@@ -2302,9 +2450,11 @@ void no_adjust()
   skip_line();
 }
 
-void input_trap()
+void do_input_trap(int continued)
 {
   curenv->input_trap_count = 0;
+  if (continued)
+    curenv->continued_input_trap = 1;
   int n;
   if (has_arg() && get_integer(&n)) {
     if (n <= 0)
@@ -2319,6 +2469,16 @@ void input_trap()
     }
   }
   skip_line();
+}
+
+void input_trap()
+{
+  do_input_trap(0);
+}
+
+void input_trap_continued()
+{
+  do_input_trap(1);
 }
 
 /* tabs */
@@ -2371,7 +2531,7 @@ tab::tab(hunits x, tab_type t) : next(0), pos(x), type(t)
 }
 
 tab_stops::tab_stops(hunits distance, tab_type type) 
-     : initial_list(0)
+: initial_list(0)
 {
   repeated_list = new tab(distance, type);
 }
@@ -2383,12 +2543,21 @@ tab_stops::~tab_stops()
 
 tab_type tab_stops::distance_to_next_tab(hunits curpos, hunits *distance)
 {
+  hunits nextpos;
+
+  return distance_to_next_tab(curpos, distance, &nextpos);
+}
+
+tab_type tab_stops::distance_to_next_tab(hunits curpos, hunits *distance,
+					 hunits *nextpos)
+{
   hunits lastpos = 0;
   tab *tem;
   for (tem = initial_list; tem && tem->pos <= curpos; tem = tem->next)
     lastpos = tem->pos;
   if (tem) {
     *distance = tem->pos - curpos;
+    *nextpos  = tem->pos;
     return tem->type;
   }
   if (repeated_list == 0)
@@ -2399,6 +2568,7 @@ tab_type tab_stops::distance_to_next_tab(hunits curpos, hunits *distance)
       lastpos = tem->pos;
     if (tem) {
       *distance = tem->pos + base - curpos;
+      *nextpos  = tem->pos + base;
       return tem->type;
     }
     assert(lastpos > 0);
@@ -2476,7 +2646,7 @@ tab_stops::tab_stops() : initial_list(0), repeated_list(0)
 }
 
 tab_stops::tab_stops(const tab_stops &ts) 
-     : initial_list(0), repeated_list(0)
+: initial_list(0), repeated_list(0)
 {
   tab **p = &initial_list;
   tab *t = ts.initial_list;
@@ -2573,7 +2743,7 @@ void set_tabs()
     }
   }
   curenv->tabs = tabs;
-  curenv->add_html_tag_tabs();
+  curenv->add_html_tag_tabs(1);
   skip_line();
 }
 
@@ -2603,6 +2773,14 @@ tab_type environment::distance_to_next_tab(hunits *distance)
   return line_tabs
     ? curenv->tabs.distance_to_next_tab(get_text_length(), distance)
     : curenv->tabs.distance_to_next_tab(get_input_line_position(), distance);
+}
+
+tab_type environment::distance_to_next_tab(hunits *distance, hunits *leftpos)
+{
+  return line_tabs
+    ? curenv->tabs.distance_to_next_tab(get_text_length(), distance, leftpos)
+    : curenv->tabs.distance_to_next_tab(get_input_line_position(), distance,
+					leftpos);
 }
 
 void field_characters()
@@ -2683,7 +2861,7 @@ node *environment::make_tab_node(hunits d, node *next)
     leader_node = 0;
   }
   if (!leader_node)
-    return new hmotion_node(d, 1, 0, next);
+    return new hmotion_node(d, 1, 0, get_fill_color(), next);
   node *n = new hline_node(d, leader_node, next);
   leader_node = 0;
   return n;
@@ -2692,31 +2870,34 @@ node *environment::make_tab_node(hunits d, node *next)
 void environment::handle_tab(int is_leader)
 {
   hunits d;
+  hunits abs;
   if (current_tab)
     wrap_up_tab();
   charinfo *ci = is_leader ? leader_char : tab_char;
   delete leader_node;
   leader_node = ci ? make_char_node(ci) : 0;
-  tab_type t = distance_to_next_tab(&d);
+  tab_type t = distance_to_next_tab(&d, &abs);
   switch (t) {
   case TAB_NONE:
     return;
   case TAB_LEFT:
-    add_html_tag("tab left");
     add_node(make_tab_node(d));
+    add_node(make_html_tag("tab L", abs.to_units()));
     return;
   case TAB_RIGHT:
+    add_node(make_html_tag("tab R", abs.to_units()));
+    break;
   case TAB_CENTER:
-    add_html_tag("tab center");
-    tab_width = 0;
-    tab_distance = d;
-    tab_contents = 0;
-    current_tab = t;
-    tab_field_spaces = 0;
-    return;
+    add_node(make_html_tag("tab C", abs.to_units()));
+    break;
   default:
     assert(0);
   }
+  tab_width = 0;
+  tab_distance = d;
+  tab_contents = 0;
+  current_tab = t;
+  tab_field_spaces = 0;
 }
 
 void environment::start_field()
@@ -2792,13 +2973,13 @@ void environment::wrap_up_field()
 void environment::add_padding()
 {
   if (current_tab) {
-    tab_contents = new space_node(H0, tab_contents);
+    tab_contents = new space_node(H0, get_fill_color(), tab_contents);
     tab_field_spaces++;
   }
   else {
     if (line == 0)
       start_line();
-    line = new space_node(H0, line);
+    line = new space_node(H0, get_fill_color(), line);
     field_spaces++;
   }
 }
@@ -2921,6 +3102,12 @@ const char *environment::get_font_family_string()
   return family->nm.contents();
 }
 
+const char *environment::get_font_name_string()
+{
+  symbol f = get_font_name(fontno, this);
+  return f.contents();
+}
+
 const char *environment::get_name_string()
 {
   return name.contents();
@@ -3001,12 +3188,14 @@ const char *environment::get_requested_point_size_string()
 void init_env_requests()
 {
   init_request("it", input_trap);
+  init_request("itc", input_trap_continued);
   init_request("ad", adjust);
   init_request("na", no_adjust);
   init_request("ev", environment_switch);
   init_request("evc", environment_copy);
   init_request("lt", title_length);
   init_request("ps", point_size);
+  init_request("sizes", override_sizes);
   init_request("ft", font_change);
   init_request("fam", family_change);
   init_request("ss", space_size);
@@ -3070,6 +3259,7 @@ void init_env_requests()
   init_int_env_reg(".ss", get_space_size);
   init_int_env_reg(".sss", get_sentence_space_size);
   init_string_env_reg(".fam", get_font_family_string);
+  init_string_env_reg(".fn", get_font_name_string);
   init_string_env_reg(".ev", get_name_string);
   init_int_env_reg(".hy", get_hyphenation_flags);
   init_int_env_reg(".hlm", get_hyphen_line_max);
@@ -3118,13 +3308,14 @@ class hyphen_trie : private trie {
   void do_match(int i, void *v);
   void do_delete(void *v);
   void insert_pattern(const char *pat, int patlen, int *num);
+  void insert_hyphenation(dictionary ex, const char *pat, int patlen);
+  int hpf_getc(FILE *f);
 public:
   hyphen_trie() {}
   ~hyphen_trie() {}
   void hyphenate(const char *word, int len, int *hyphens);
-  void read_patterns_file(const char *name);
+  void read_patterns_file(const char *name, int append, dictionary ex);
 };
-
 
 struct hyphenation_language {
   symbol name;
@@ -3150,7 +3341,8 @@ static void set_hyphenation_language()
   skip_line();
 }
 
-const int WORD_MAX = 1024;
+const int WORD_MAX = 256;	// we use unsigned char for offsets in
+				// hyphenation exceptions
 
 static void hyphen_word()
 {
@@ -3189,7 +3381,7 @@ static void hyphen_word()
       pos[npos] = 0;
       buf[i] = 0;
       unsigned char *tem = new unsigned char[npos + 1];
-      memcpy(tem, pos, npos+1);
+      memcpy(tem, pos, npos + 1);
       tem = (unsigned char *)current_language->exceptions.lookup(symbol(buf),
 								 tem);
       if (tem)
@@ -3290,6 +3482,33 @@ void hyphen_trie::insert_pattern(const char *pat, int patlen, int *num)
   insert(pat, patlen, op);
 }
 
+void hyphen_trie::insert_hyphenation(dictionary ex, const char *pat,
+				     int patlen)
+{
+  char buf[WORD_MAX + 1];
+  unsigned char pos[WORD_MAX + 2];
+  int i = 0, j = 0;
+  int npos = 0;
+  while (j < patlen) {
+    unsigned char c = pat[j++];
+    if (c == '-') {
+      if (i > 0 && (npos == 0 || pos[npos - 1] != i))
+	pos[npos++] = i;
+    }
+    else
+      buf[i++] = hpf_code_table[c];
+  }
+  if (i > 0) {
+    pos[npos] = 0;
+    buf[i] = 0;
+    unsigned char *tem = new unsigned char[npos + 1];
+    memcpy(tem, pos, npos + 1);
+    tem = (unsigned char *)ex.lookup(symbol(buf), tem);
+    if (tem)
+      a_delete tem;
+  }
+}
+
 void hyphen_trie::hyphenate(const char *word, int len, int *hyphens)
 {
   int j;
@@ -3324,10 +3543,78 @@ void hyphen_trie::do_delete(void *v)
     delete tem;
   }
 }
-  
-void hyphen_trie::read_patterns_file(const char *name)
+
+/* We use very simple rules to parse TeX's hyphenation patterns.
+
+   . `%' starts a comment even if preceded by `\'.
+
+   . No support for digraphs and like `\$'.
+
+   . `^^xx' (`x' is 0-9 or a-f), and `^^x' (character code of `x' in the
+     range 0-127) are recognized; other use of `^' causes an error.
+
+   . No macro expansion.
+
+   . We check for the expression `\patterns{...}' (possibly with
+     whitespace before and after the braces).  Everything between the
+     braces is taken as hyphenation patterns.  Consequently, `{' and `}'
+     are not allowed in patterns.
+
+   . Similarly, `\hyphenation{...}' gives a list of hyphenation
+     exceptions.
+
+   . `\endinput' is recognized also.
+
+   . For backwards compatibility, if `\patterns' is missing, the
+     whole file is treated as a list of hyphenation patterns (only
+     recognizing `%' as the start of a comment.
+
+*/
+
+int hyphen_trie::hpf_getc(FILE *f)
 {
-  clear();
+  int c = getc(f);
+  int c1;
+  int cc = 0;
+  if (c != '^')
+    return c;
+  c = getc(f);
+  if (c != '^')
+    goto fail;
+  c = getc(f);
+  c1 = getc(f);
+  if (((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+      && ((c1 >= '0' && c1 <= '9') || (c1 >= 'a' && c1 <= 'f'))) {
+    if (c >= '0' && c <= '9')
+      c -= '0';
+    else
+      c = c - 'a' + 10;
+    if (c1 >= '0' && c1 <= '9')
+      c1 -= '0';
+    else
+      c1 = c1 - 'a' + 10;
+    cc = c * 16 + c1;
+  }
+  else {
+    ungetc(c1, f);
+    if (c >= 0 && c <= 63)
+      cc = c + 64;
+    else if (c >= 64 && c <= 127)
+      cc = c - 64;
+    else
+      goto fail;
+  }
+  return cc;
+fail:
+  error("invalid ^, ^^x, or ^^xx character in hyphenation patterns file");
+  return c;
+}
+
+void hyphen_trie::read_patterns_file(const char *name, int append,
+				     dictionary ex)
+{
+  if (!append)
+    clear();
   char buf[WORD_MAX];
   int num[WORD_MAX+1];
   errno = 0;
@@ -3337,32 +3624,111 @@ void hyphen_trie::read_patterns_file(const char *name)
     error("can't find hyphenation patterns file `%1'", name);
     return;
   }
-  int c = getc(fp);
+  int c = hpf_getc(fp);
+  int have_patterns = 0;	// we've seen \patterns
+  int final_pattern = 0;	// 1 if we have a trailing closing brace
+  int have_hyphenation = 0;	// we've seen \hyphenation
+  int final_hyphenation = 0;	// 1 if we have a trailing closing brace
+  int have_keyword = 0;		// we've seen either \patterns or \hyphenation
+  int traditional = 0;		// don't handle \patterns
   for (;;) {
     for (;;) {
-      if (c == '%') {
+      if (c == '%') {		// skip comments
 	do {
 	  c = getc(fp);
 	} while (c != EOF && c != '\n');
       }
       if (c == EOF || !csspace(c))
 	break;
-      c = getc(fp);
+      c = hpf_getc(fp);
     }
-    if (c == EOF)
-      break;
+    if (c == EOF) {
+      if (have_keyword || traditional)	// we are done
+	break;
+      else {				// rescan file in `traditional' mode
+	rewind(fp);
+	traditional = 1;
+	c = hpf_getc(fp);
+	continue;
+      }
+    }
     int i = 0;
     num[0] = 0;
-    do {
-      if (csdigit(c))
-	num[i] = c - '0';
-      else {
-	buf[i++] = c;
-	num[i] = 0;
+    if (!(c == '{' || c == '}')) {	// skip braces at line start
+      do {				// scan patterns
+	if (csdigit(c))
+	  num[i] = c - '0';
+	else {
+	  buf[i++] = c;
+	  num[i] = 0;
+	}
+	c = hpf_getc(fp);
+      } while (i < WORD_MAX && c != EOF && !csspace(c)
+	       && c != '%' && c != '{' && c != '}');
+    }
+    if (!traditional) {
+      if (i >= 9 && !strncmp(buf + i - 9, "\\patterns", 9)) {
+	while (csspace(c))
+	  c = hpf_getc(fp);
+	if (c == '{') {
+	  if (have_patterns || have_hyphenation)
+	    error("`{' not allowed inside of \\patterns or \\hyphenation");
+	  else {
+	    have_patterns = 1;
+	    have_keyword = 1;
+	  }
+	  c = hpf_getc(fp);
+	  continue;
+	}
       }
-      c = getc(fp);
-    } while (i < WORD_MAX && c != EOF && !csspace(c) && c != '%');
-    insert_pattern(buf, i, num);
+      else if (i >= 12 && !strncmp(buf + i - 12, "\\hyphenation", 12)) {
+	while (csspace(c))
+	  c = hpf_getc(fp);
+	if (c == '{') {
+	  if (have_patterns || have_hyphenation)
+	    error("`{' not allowed inside of \\patterns or \\hyphenation");
+	  else {
+	    have_hyphenation = 1;
+	    have_keyword = 1;
+	  }
+	  c = hpf_getc(fp);
+	  continue;
+	}
+      }
+      else if (strstr(buf, "\\endinput")) {
+	if (have_patterns || have_hyphenation)
+	  error("found \\endinput inside of %1 group",
+		have_patterns ? "\\patterns" : "\\hyphenation");
+	break;
+      }
+      else if (c == '}') {
+	if (have_patterns) {
+	  have_patterns = 0;
+	  if (i > 0)
+	    final_pattern = 1;
+	}
+	else if (have_hyphenation) {
+	  have_hyphenation = 0;
+	  if (i > 0)
+	    final_hyphenation = 1;
+	}
+	c = hpf_getc(fp);
+      }
+      else if (c == '{')		// skipped if not starting \patterns
+	c = hpf_getc(fp);		// or \hyphenation
+    }
+    if (i > 0) {
+      if (have_patterns || final_pattern || traditional) {
+	for (int j = 0; j < i; j++)
+	  buf[j] = hpf_code_table[buf[j]];
+	insert_pattern(buf, i, num);
+	final_pattern = 0;
+      }
+      else if (have_hyphenation || final_hyphenation) {
+	insert_hyphenation(ex, buf, i);
+	final_hyphenation = 0;
+      }
+    }
   }
   fclose(fp);
   a_delete path;
@@ -3419,16 +3785,28 @@ void hyphenate(hyphen_list *h, unsigned flags)
   }
 }
 
-static void hyphenation_patterns_file()
+static void do_hyphenation_patterns_file(int append)
 {
   symbol name = get_long_name(1);
   if (!name.is_null()) {
     if (!current_language)
       error("no current hyphenation language");
     else
-      current_language->patterns.read_patterns_file(name.contents());
+      current_language->patterns.read_patterns_file(
+			  name.contents(), append,
+			  current_language->exceptions);
   }
   skip_line();
+}
+
+static void hyphenation_patterns_file()
+{
+  do_hyphenation_patterns_file(0);
+}
+
+static void hyphenation_patterns_file_append()
+{
+  do_hyphenation_patterns_file(1);
 }
 
 class hyphenation_language_reg : public reg {
@@ -3446,5 +3824,6 @@ void init_hyphen_requests()
   init_request("hw", hyphen_word);
   init_request("hla", set_hyphenation_language);
   init_request("hpf", hyphenation_patterns_file);
+  init_request("hpfa", hyphenation_patterns_file_append);
   number_reg_dictionary.define(".hla", new hyphenation_language_reg);
 }

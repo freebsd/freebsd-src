@@ -1,150 +1,385 @@
-.ig
-Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
-
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
-
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided that the
-entire resulting derived work is distributed under the terms of a
-permission notice identical to this one.
-
-Permission is granted to copy and distribute translations of this
-manual into another language, under the above conditions for modified
-versions, except that this permission notice may be included in
-translations approved by the Free Software Foundation instead of in
-the original English.
-..
-.\" For best results, print this with groff.
-.ds aq \(aq
-.ie !\n(.g .if '\(aq'' .ds aq \'
-.el \{\
-.	tr \(aq\(aq
-.	if !c\(aq .ds aq \'
-.\}
-.if !\n(.g .ig
-.\" .Ac accented-char accent char
-.de Ac
-.char \\$1 \\$3\
-\k[acc]\
-\h'(u;-\w'\\$2'-\w'\\$3'/2+\\\\n[skw]+(\w'x'*0)-\\\\n[skw])'\
-\v'(u;\w'x'*0+\\\\n[rst]+(\w'\\$3'*0)-\\\\n[rst])'\
-\\$2\
-\v'(u;\w'x'*0-\\\\n[rst]+(\w'\\$3'*0)+\\\\n[rst])'\
-\h'|\\\\n[acc]u'
-.hcode \\$1\\$3
-..
-.Ac \(vc \(ah c
-.Ac \(vC \(ah C
 .TH GROFF_CHAR @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 groff_char \- groff character names
 .SH DESCRIPTION
-This manual page lists the standard
-.B groff
-input characters.
-Only the characters that are available for the device that
-is being used to print or view this manual page will be
-.ie \n(.g displayed (the device currently used is `\*(.T').
-.el displayed.
-The
-.I "Input code"
-column applies to characters which can be
-input with a single character, and gives the ISO Latin-1 code
-of that input character.
-The
-.I "PostScript name\"
-column gives the usual PostScript name of the output character.
-.LP
-The ISO Latin-1 no-break space (code 0240 octal) is equivalent to
-.BR \e (space).
-All other ISO Latin-1 characters print as themselves with the following
-exceptions:
-.B \`
-prints as `,
-.B \*(aq
-prints as ';
-the corresponding ISO Latin-1 characters can be obtained with
-.B \e`
-and
-.BR \e(aq .
-The ISO Latin-1 `Hyphen, Minus Sign' (code 45) prints as a hyphen;
-a minus sign can be obtained with
-.BR \e- .
-The ISO Latin-1 `Tilde' (code 126) prints as ~;
-the larger glyph can be obtained with
-.BR \e(ti .
-The ISO Latin-1 `Circumflex Accent' (code 94) prints as ^;
-a larger glyph can be obtained with
-.BR \e(ha .
-.sp
-'nf
+.\" The lines above were designed to satisfy `apropos'.
+.
+.\" For best results, format this document with `groff' (GNU roff).
+.
+.
+.\" --------------------------------------------------------------------
+.\" Legalize
+.\" --------------------------------------------------------------------
+.
+.ig
+groff_char(7)
+
+This file is part of groff (GNU roff).
+
+File position: <groff_src_top>/man/groff_char.man
+Last update: 20 July 2002
+
+Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+written by Werner Lemberg <wl@gnu.org>
+with additions by Bernd Warken <bwarken@mayn.de>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being this .ig-section and AUTHOR, with no
+Front-Cover Texts, and with no Back-Cover Texts.
+
+A copy of the Free Documentation License is included as a file called
+FDL in the main directory of the groff source package.
+..
+.
+.\" --------------------------------------------------------------------
+.\" Setup Part 1
+.\" --------------------------------------------------------------------
+.
+.\" groff only
+.if \n(.g .mso www.tmac
+.\".if \n(.g .ne 2v
+.\".if \n(.g .sv 2v
+.
+.ds aq \(aq
+.
+.\" non-groff
+.if !\n(.g .if '\(aq'' .ds aq \'
+.
+.\" groff
+.if !\n(.g .ig
+.	tr \[aq]\[aq]
+.	if !c\[aq] \
+.		ds aq \'
+.	\" This is very special.  The standard devdvi fonts don't have a
+.	\" real `aq' glyph; it is defined with .char to be ' instead.
+.	\" The .tr request below in the definition of the C macro maps
+.	\" the apostrophe ' onto the `aq' glyph which would cause a
+.	\" recursive loop.  gtroff prevents this within the .char
+.	\" request, trying to access glyph `aq' directly from the font.
+.	\" Consequently, we get a warning, and nothing is printed.
+.	\"
+.	\" The following line prevents this.
+.	if '\*[.T]'dvi' \
+.		if !r ECFONTS \
+.			ds aq \'
+.	\" The same is true for X
+.	ds dev \*[.T]
+.	substring dev 0 0
+.	if '\*[dev]'X' .ds aq \'
+.	ig
+..
+.\" --------------------------------------------------------------------
+.\" .Ac accented-char accent char (groff)
+.if !\n(.g .ig
+.de Ac
+.	char \\$1 \\$3\
+\k[acc]\h'(u;-\w'\\$2'-\w'\\$3'/2+\\\\n[skw]+(\w'x'*0)-\\\\n[skw])'\
+\v'(u;\w'x'*0+\\\\n[rst]+(\w'\\$3'*0)-\\\\n[rst])'\\$2\
+\v'(u;\w'x'*0-\\\\n[rst]+(\w'\\$3'*0)+\\\\n[rst])'\h'|\\\\n[acc]u'
+.	hcode \\$1 \\$3
+..
+.Ac \(vc \(ah c
+.Ac \(vC \(ah C
+.
+.
+.\" --------------------------------------------------------------------
+.\" Setup Part 2
+.\" --------------------------------------------------------------------
+.
 .nr Sp 3n
-.ta \w'\fIOutput'u+\n(Spu +\w'\fIInput'u+\n(Spu +\w'\fIInput'u+\n(Spu \
-+\w'periodcentered'u+\n(Spu
+.ta \w'\fIOutput'u+\n(Spu \
+    +\w'\fIInput'u+\n(Spu \
+    +\w'\fIInput'u+\n(Spu \
+    +\w'periodcentered'u+\n(Spu
+.
+.\" --------------------------------------------------------------------
 .de C0
-.C \\$1 "" \\$1 \\$2 "\\$3"
+.	C \\$1 "" \\$1 \\$2 "\\$3"
 ..
+.
+.\" --------------------------------------------------------------------
 .de C1
-.C \e\\$1 "" \\\\\\$1 \\$2 "\\$3"
+.	C \e\\$1 "" \\\\\\$1 \\$2 "\\$3"
 ..
+.
+.\" --------------------------------------------------------------------
+.\" .C2/.CN (groff)
+.if !\n(.g .ig
+.de CN
+.	C \e[\\$1] "" \[\\$1] \\$2 "\\$3"
+..
+.if \n(.g .als C2 CN
+.
+.\" --------------------------------------------------------------------
+.\" .C2 (non-groff)
+.if \n(.g .ig
 .de C2
-.C \e(\\$1 "" \\(\\$1 \\$2 "\\$3"
+.	C \e(\\$1 "" \\(\\$1 \\$2 "\\$3"
 ..
+.
+.\" --------------------------------------------------------------------
+.\" .CD (groff)
 .if !\n(.g .ig
 .de CD
-.C \[char\\$1] \\$1 \[char\\$1] \\$2 "\\$3"
+.	C \[char\\$1] \\$1 \[char\\$1] \\$2 "\\$3"
 ..
-.do fspecial CR R
+.
+.\" --------------------------------------------------------------------
+.do if !r ECFONTS .do fspecial CR R
+.
+.\" --------------------------------------------------------------------
 .\" input-name decimal-code output-name ps-name description
+.\" .C (groff)
 .if !\n(.g .ig
 .de C
-.if c\\$3 \{\
-.ft CR
-.tr `\`'\*(aq
-.in 0
-.di CH
-\&\\$1
-.br
-.di
-.in
-.ft
-.ds CH \\*(CH\
-.tr ``''
-\&\\$3\t\\*(CH\t\\$2\t\\$4\t\\$5
-.\}
+.	if c\\$3 \{\
+.		ft CR
+.		tr `\`'\*[aq]
+.		in 0
+.		di CH
+.		nop \&\\$1
+.		br
+.		di
+.		in
+.		ft
+.		ds CH \\*[CH]\
+.		tr ``''
+.		nop \&\\$3\t\\*[CH]\t\\$2\t\\$4\t\\$5
+.	\}
 ..
+.
+.\" --------------------------------------------------------------------
+.\" .C (non-groff)
 .if \n(.g .ig
 .de C
-.if !'\\$3'' \{\
-.ft B
-.tr `\`'\*(aq
-.in 0
-.di CH
+.	if !'\\$3'' \{\
+.		ft B
+.		tr `\`'\*(aq
+.		in 0
+.		di CH
 \&\\$1
-.br
-.di
-.in
-.ft
-.ds CH \\*(CH\
-.tr ``''
+.		br
+.		di
+.		in
+.		ft
+.		ds CH \\*(CH\
+.		tr ``''
 \&\\$3\t\\*(CH\t\\$2\t\\$4\t\\$5
-.\}
+.	\}
 ..
-.if !\n[cR] .wh \n(nlu+\n(.tu-\n(.Vu Fo
+.
+.\" --------------------------------------------------------------------
 .de Fo
 'bp
 .He
 ..
+.
+.\" --------------------------------------------------------------------
 .de He
+.P
+'nf
 .ft I
 Output	Input	Input	PostScript	Notes
 	name	code	name
 .ft
-.LP
-'nf
+.P
 ..
+.
+.\" --------------------------------------------------------------------
+.\" .SH DESCRIPTION
+.\" --------------------------------------------------------------------
+.
+This manual page lists the standard
+.B groff
+input characters.
+.
+The output characters in this document will look different depending
+on which output device was chosen (with option
+.B \-T
+for the
+.BR man (1)
+program or the roff formatter).
+.
+Only the characters that are available for the device that
+is being used to print or view this manual page will be
+.ie \n(.g displayed (the device currently used is `\*(.T').
+.el displayed.
+.
+.
+.P
+In the actual version, 
+.B groff
+provides only 8-bit characters for direct input and named characters
+for further glyphs.
+.
+On ASCII platforms, character codes in the range 0 to 127 (decimal)
+represent the usual 7-bit ASCII characters, while codes between 127
+and 255 are interpreted as the corresponding characters in the
+.I Latin-1
+.RI ( ISO-8859-1 )
+code set.
+.
+On EBCDIC platforms, only the code page
+.B cp1047
+is supported (which contains the same characters as Latin-1).
+.
+It is rather straightforward (for the experienced user) to set up other
+8bit encodings like
+.IR Latin-2 ;
+since
+.B groff
+will use Unicode in the next major version, no additional encodings
+are provided.
+.
+.
+.P
+All roff systems provide the concept of named characters.
+.
+In traditional roff systems, only names of length\ 2 were used, while
+groff also provides support for longer names.
+.
+It is strongly suggested that only named characters are used for all
+characters outside of the 7-bit ASCII range.
+.
+.
+.P
+Some of the predefined groff escape sequences (with names of length\ 1)
+also produce single characters; these exist for historical reasons or
+are printable versions of syntactical characters.
+.
+They include
+.BR \e\e ,
+.BR \e' ,
+.BR \e` ,
+.BR \e- ,
+.BR \e. ,
+and
+.BR \ee ;
+see
+.BR groff (@MAN7EXT@).
+.
+.
+.P
+In groff, all of these different types of characters can be tested
+positively with the
+.B .if\ c
+conditional.
+.
+.
+.\" --------------------------------------------------------------------
+.SH REFERENCE
+.\" --------------------------------------------------------------------
+.
+In this section, the characters in groff are specified in tabular
+form.
+.
+The meaning of the columns is as follows.
+.
+.
+.TP
+.I "Output"
+shows how the character is printed for the current device; although
+this can have quite a different shape on other devices, it always
+represents the same glyph.
+.
+.
+.TP
+.I "Input name"
+specifies how the character is input either directly by a key on the
+keyboard, or by a groff escape sequence.
+.
+.
+.TP
+.I "Input code"
+applies to characters which can be input with a single character, and
+gives the ISO Latin-1 decimal code of that input character.
+.
+Note that this code is equivalent to the lowest 256 Unicode characters;
+(including 7-bit ASCII in the range 0 to\ 127).
+.
+.
+.TP
+.I "PostScript name"
+gives the usual PostScript name of the output character.
+.
+.
+.\" --------------------------------------------------------------------
+.SS "ASCII Characters"
+.\" --------------------------------------------------------------------
+.
+These are the basic characters having 7-bit ASCII code values.
+.
+These are identical to the first 127 characters of the character
+standards ISO-8859-1 (Latin-1) and Unicode (range
+.IR "C0 Controls and Basic Latin" ).
+.
+To save space, not every code has an entry in the following because
+the following code ranges are well known.
+.
+.TP
+0\-32
+Control characters (print as themselves).
+.
+.TP
+48\-57
+Decimal digits 0 to 9 (print as themselves).
+.
+.TP
+65\-90
+Upper case letters A\-Z (print as themselves).
+.
+.TP
+97\-122
+Lower case letters a\-z (print as themselves).
+.
+.TP
+127
+Control character (prints as itself).
+.
+.P
+The remaining ranges constitute the printable, non-alphanumeric ASCII
+characters; only these are listed below.
+.
+As can be seen in the table below, most of these characters print as
+themselves; the only exceptions are the following characters:
+.
+.TP
+.B \`
+the ISO Latin-1 `Grave Accent' (code\ 96) prints as `, a left single
+quotation mark,
+.
+.TP
+.B \*(aq
+the ISO Latin-1 `Apostrophe' (code\ 39) prints as ', a right single
+quotation mark; the corresponding ISO Latin-1 characters can be obtained
+with
+.B \e`
+and
+.BR \e(aq .
+.
+.TP
+.B -
+the ISO Latin-1 `Hyphen, Minus Sign' (code\ 45) prints as a hyphen; a
+minus sign can be obtained with
+.BR \e- .
+.
+.TP
+.B ~
+the ISO Latin-1 `Tilde' (code\ 126); a larger glyph can be obtained
+with
+.BR \e(ti .
+.
+.TP
+.B ^
+the ISO Latin-1 `Circumflex Accent' (code\ 94); a larger glyph can be
+obtained with
+.BR \e(ha .
+.
+.
+.P
+.if !\n[cR] .wh \n(nlu+\n(.tu-\n(.Vu Fo
 .He
 .CD 33 exclam
 .CD 34 quotedbl
@@ -178,7 +413,60 @@ Output	Input	Input	PostScript	Notes
 .CD 124 bar
 .CD 125 braceright
 .CD 126 tilde "tilde accent"
-.CD 161 exclamdown
+.ch Fo
+.
+.
+.\" --------------------------------------------------------------------
+.SS "Latin-1 Special Characters"
+.\" --------------------------------------------------------------------
+.
+These characters have character codes between 128 and\ 255.
+.
+They are interpreted as characters according to the
+.I Latin-1
+.RI ( iso-8859-1 )
+code set, being identical to the Unicode range
+.IR "C1 Controls and Latin-1 Supplement" .
+.
+.TP
+128\-159
+.
+the C1 Controls; they print as themselves, but the effect is mostly
+undefined.
+.
+.TP
+160
+.
+the ISO Latin-1
+.I no-break space
+is mapped to
+.BR `\e\ ' ,
+the escaped space character.
+.
+.TP
+173
+.
+the soft hyphen control character (prints as itself).
+.
+groff never use this character for output (thus it is omitted in the table
+below); the input character\ 173 is mapped onto
+.BR \e% .
+.
+.
+.P
+The remaining ranges (161\-172, 174\-255), called the
+.I Latin-1 Supplement
+in Unicode, are printable characters that print as themselves.
+.
+Although they can be specified directly with the keyboard on systems
+with a Latin-1 code page, it is better to use their named character
+equivalent; see next section.
+.
+.
+.P
+.if !\n[cR] .wh \n(nlu+\n(.tu-\n(.Vu Fo
+.He
+.CD 161 exclamdown "inverted exclamation mark"
 .CD 162 cent
 .CD 163 sterling
 .CD 164 currency
@@ -190,7 +478,6 @@ Output	Input	Input	PostScript	Notes
 .CD 170 ordfeminine
 .CD 171 guillemotleft
 .CD 172 logicalnot
-.CD 173 hyphen
 .CD 174 registered
 .CD 175 macron
 .CD 176 degree
@@ -198,7 +485,7 @@ Output	Input	Input	PostScript	Notes
 .CD 178 twosuperior
 .CD 179 threesuperior
 .CD 180 acute "acute accent"
-.CD 181 mu
+.CD 181 mu "micro sign"
 .CD 182 paragraph
 .CD 183 periodcentered
 .CD 184 cedilla
@@ -273,17 +560,103 @@ Output	Input	Input	PostScript	Notes
 .CD 253 yacute
 .CD 254 thorn
 .CD 255 ydieresis
+.ch Fo
+.
+.
+.\" --------------------------------------------------------------------
+.SS "Named Characters"
+.\" --------------------------------------------------------------------
+.
+The named character idiom is the standard way to specify special
+characters in roff systems.
+.
+They can be embedded into the document text by using escape sequences.
+.
+.BR groff (@MAN7EXT@)
+describes how these escape sequences look.
+.
+The character names can consist of quite arbitrary characters from the
+ASCII or Latin-1 code set, not only alphanumeric characters.
+.
+Here some examples:
+.
+.TP
+.BI \e c
+named character having the name
+.IR c ,
+which consists of a single character (length\ 1).
+.
+.TP
+.BI \e( ch
+named character having the 2-character name
+.IR ch .
+.
+.TP
+.BI \e[ char_name ]
+named character having the name
+.I char_name
+(having length 1, 2, 3, .\|.\|.).
+.
+.
+.P
+In groff, each 8bit input character can also referred to by the construct
+.BI \en[char n ]
+where
+.I n
+is the decimal code of the character, a number between 0 and\ 255
+without leading zeros.
+.
+They are mapped onto glyph entities using the
+.B .trin
+request.
+.
+Moreover, new character names can be created by the
+.B .char
+request; see
+.BR groff (@MAN7EXT@).
+.
+.
+.P
+.\" we don't use the third column
+.ta \w'\fIOutput'u+\n(Spu \
+    +\w'\fIInput'u+\n(Spu-1n \
+    +1n \
+    +\w'periodcentered'u+\n(Spu
+.if !\n[cR] .wh \n(nlu+\n(.tu-\n(.Vu Fo
+.de He
+.P
+'nf
+.ft I
+Output	Input		PostScript	Notes
+	name		name
+.ft
+.P
+..
+.He
 .C2 -D Eth "Icelandic uppercase eth"
 .C2 Sd eth "Icelandic lowercase eth"
 .C2 TP Thorn "Icelandic uppercase thorn"
 .C2 Tp thorn "Icelandic lowercase thorn"
+.C2 ss germandbls "German sharp s"
+.
+.P
+.I Ligatures
+.C2 ff ff "ff ligature"
+.C2 fi fi "fi ligature"
+.C2 fl fl "fl ligature"
+.C2 Fi ffi "ffi ligature"
+.C2 Fl ffl "ffl ligature"
 .C2 AE AE
 .C2 ae ae
 .C2 OE OE
 .C2 oe oe
 .C2 IJ IJ "Dutch IJ ligature"
 .C2 ij ij "Dutch ij ligature"
-.C2 ss germandbls
+.C2 .i dotlessi "i without a dot (Turkish)"
+.C2 .j dotlessj "j without a dot"
+.
+.P
+.I Accented Characters
 .C2 'A Aacute
 .C2 'C Cacute
 .C2 'E Eacute
@@ -298,7 +671,7 @@ Output	Input	Input	PostScript	Notes
 .C2 'o oacute
 .C2 'u uacute
 .C2 'y yacute
-.C2 :A Adieresis
+.C2 :A Adieresis "A with umlaut"
 .C2 :E Edieresis
 .C2 :I Idieresis
 .C2 :O Odieresis
@@ -344,11 +717,14 @@ Output	Input	Input	PostScript	Notes
 .C2 ,c ccedilla
 .C2 /L Lslash "Polish L with a slash"
 .C2 /l lslash "Polish l with a slash"
-.C2 /O Oslash
-.C2 /o oslash
+.C2 /O Oslash "Scandinavic slashed O"
+.C2 /o oslash "Scandinavic slashed o"
 .C2 oA Aring
 .C2 oa aring
-.C2 a" hungarumlaut "Hungarian umlaut"
+.
+.P
+.I Accents
+.C2 a" hungarumlaut "Hungarian umlaut"\""
 .C2 a- macron "macron or bar accent"
 .C2 a. dotaccent "dot accent"
 .C2 a^ circumflex "circumflex accent"
@@ -361,81 +737,11 @@ Output	Input	Input	PostScript	Notes
 .C2 ao ring "ring or circle accent"
 .C2 a~ tilde "tilde accent"
 .C2 ho ogonek "hook or ogonek accent"
-.C2 .i dotlessi "i without a dot"
-.C2 .j dotlessj "j without a dot"
-.C2 Cs currency "Scandinavian currency sign"
-.C2 Do dollar
-.C2 Po sterling
-.C2 Ye yen
-.C2 Fn florin
-.C2 ct cent
-.C2 Fo guillemotleft
-.C2 Fc guillemotright
-.C2 fo guilsinglleft
-.C2 fc guilsinglright
-.C2 r! exclamdown
-.C2 r? questiondown
-.C2 ff ff "ff ligature"
-.C2 fi fi "fi ligature"
-.C2 fl fl "fl ligature"
-.C2 Fi ffi "ffi ligature"
-.C2 Fl ffl "ffl ligature"
-.C2 OK \& "check mark, tick"
-.C2 Of ordfeminine
-.C2 Om ordmasculine
-.C2 pc periodcentered
-.C2 S1 onesuperior
-.C2 S2 twosuperior
-.C2 S3 threesuperior
-.C2 <- arrowleft
-.C2 -> arrowright
-.C2 <> arrowboth "horizontal double-headed arrow"
-.C2 da arrowdown
-.C2 ua arrowup
-.C2 va \& "vertical double-headed arrow"
-.C2 lA arrowdblleft
-.C2 rA arrowdblright
-.C2 hA arrowdblboth "horizontal double-headed double arrow"
-.C2 dA arrowdbldown
-.C2 uA arrowdblup
-.C2 vA \& "vertical double-headed double arrow"
-.C2 ba bar
-.C2 bb brokenbar
-.C2 br br "box rule with traditional troff metrics"
-.C2 ru ru "baseline rule"
-.C2 ul ul "underline with traditional troff metrics"
-.C2 bv bv "bar vertical"
-.C2 bs bell
-.C2 ci circle
-.C2 bu bullet
-.C2 co copyright
-.C2 rg registered
-.C2 tm trademark
-.C2 dd daggerdbl "double dagger sign"
-.C2 dg dagger
-.C2 ps paragraph
-.C2 sc section
-.C2 de degree
-.C2 em emdash "em dash"
-.C2 en endash "en dash"
-.C2 %0 perthousand "per thousand, per mille sign"
-.C2 12 onehalf
-.C2 14 onequarter
-.C2 34 threequarters
-.C2 f/ fraction "bar for fractions"
-.C2 fm minute "footmark, prime"
-.C2 sd second
 .C2 ha asciicircum "\s-2ASCII\s+2 circumflex, hat, caret"
 .C2 ti asciitilde "\s-2ASCII\s0 tilde, large tilde"
-.C2 hy hyphen
-.C2 lB bracketleft
-.C2 rB bracketright
-.C2 lC braceleft
-.C2 rC braceright
-.C2 la angleleft "left angle bracket"
-.C2 ra angleright "right angle bracket"
-.C2 lh handleft
-.C2 rh handright
+.
+.P
+.I Quotes
 .C2 Bq quotedblbase "low double comma quote"
 .C2 bq quotesinglbase "low single comma quote"
 .C2 lq quotedblleft
@@ -444,15 +750,182 @@ Output	Input	Input	PostScript	Notes
 .C2 cq quoteright "single closing quote (ASCII 39)"
 .C2 aq quotesingle "apostrophe quote"
 .C2 dq quotedbl "double quote (ASCII 34)"
+.C2 Fo guillemotleft
+.C2 Fc guillemotright
+.C2 fo guilsinglleft
+.C2 fc guilsinglright
+.
+.P
+.I Punctuation
+.C2 r! exclamdown
+.C2 r? questiondown
+.C2 em emdash "em dash"
+.C2 en endash "en dash"
+.C2 hy hyphen
+.
+.P
+.I Brackets
+.C2 lB bracketleft
+.C2 rB bracketright
+.C2 lC braceleft
+.C2 rC braceright
+.C2 la angleleft "left angle bracket"
+.C2 ra angleright "right angle bracket"
+.
+.P
+.I Arrows
+.C2 <- arrowleft
+.C2 -> arrowright
+.C2 <> arrowboth "horizontal double-headed arrow"
+.C2 da arrowdown
+.C2 ua arrowup
+.C2 va arrowupdn "vertical double-headed arrow"
+.C2 lA arrowdblleft
+.C2 rA arrowdblright
+.C2 hA arrowdblboth "horizontal double-headed double arrow"
+.C2 dA arrowdbldown
+.C2 uA arrowdblup
+.C2 vA \& "vertical double-headed double arrow"
+.C2 an arrowhorizex "horizontal arrow extension"
+.
+.P
+.I Lines
+.C2 -h hbar
 .C2 or bar
-.C2 at at
-.C1 - minus "minus sign from current font"
-.C2 sh numbersign
+.C2 ba bar
+.C2 br br "box rule with traditional troff metrics"
+.C2 ru ru "baseline rule"
+.C2 ul ul "underline with traditional troff metrics"
+.C2 bv bv "bar vertical"
+.C2 bb brokenbar
 .C2 sl slash
 .C2 rs backslash
+.
+.P
+.I Text markers
+.C2 ci circle
+.C2 bu bullet
+.C2 dd daggerdbl "double dagger sign"
+.C2 dg dagger
+.C2 lz lozenge
 .C2 sq square
+.C2 ps paragraph
+.C2 sc section
+.C2 lh handleft
+.C2 rh handright
+.C2 at at
+.C2 sh numbersign
+.C2 CR carriagereturn "carriage return symbol"
+.C2 OK a19 "check mark, tick"
+.
+.P
+.I Legalize
+.C2 co copyright
+.C2 rg registered
+.C2 tm trademark
+.C2 bs bell "AT&T Bell Labs logo (not used in groff)"
+.
+.P
+.I Currency symbols
+.C2 Do dollar
+.C2 ct cent
+.C2 eu \& "official Euro symbol"
+.C2 Eu Euro "font-specific Euro glyph variant"
+.C2 Ye yen
+.C2 Po sterling "British currency sign"
+.C2 Cs currency "Scandinavian currency sign"
+.C2 Fn florin "Dutch currency sign"
+.
+.P
+.I Units
+.C2 de degree
+.C2 %0 perthousand "per thousand, per mille sign"
+.C2 fm minute "footmark, prime"
+.C2 sd second
+.C2 mc mu "micro sign"
+.C2 Of ordfeminine
+.C2 Om ordmasculine
+.
+.P
+.I Logical Symbols
+.C2 AN logicaland
+.C2 OR logicalor
+.C2 no logicalnot
+.C2 te existential "there exists, existential quantifier"
+.C2 fa universal "for all, universal quantifier"
+.C2 st suchthat
 .C2 3d therefore
 .C2 tf therefore
+.
+.P
+.I Mathematical Symbols
+.C2 12 onehalf
+.C2 14 onequarter
+.C2 34 threequarters
+.C2 S1 onesuperior
+.C2 S2 twosuperior
+.C2 S3 threesuperior
+.
+.C2 pl plusmath "plus sign in special font"
+.C1 - minus "minus sign from current font"
+.C2 -+ minusplus
+.C2 +- plusminus
+.CN t+- plusminus "text variant of `+-'"
+.C2 pc periodcentered "multiplication dot"
+.C2 md dotmath
+.C2 mu multiply
+.CN tmu multiply "text variant of `mu'"
+.C2 c* circlemultiply "multiply sign in a circle"
+.C2 c+ circleplus "plus sign in a circle"
+.C2 di divide "division sign"
+.CN tdi divide "text variant of `di'"
+.C2 f/ fraction "bar for fractions"
+.C2 ** asteriskmath
+.
+.C2 <= lessequal
+.C2 >= greaterequal
+.C2 << \& "much less"
+.C2 >> \& "much greater"
+.C2 != notequal
+.C2 eq equalmath "equals sign in special font"
+.C2 == equivalence
+.C2 =~ congruent
+.C2 ap similar
+.C2 ~~ approxequal
+.C2 ~= approxequal
+.C2 pt proportional
+.
+.C2 es emptyset
+.C2 mo element
+.C2 nm notelement
+.C2 nb notsubset
+.C2 nc notpropersuperset
+.C2 ne notequivalence
+.C2 sb propersubset
+.C2 sp propersuperset
+.C2 ib reflexsubset
+.C2 ip reflexsuperset
+.C2 ca intersection "intersection, cap"
+.C2 cu union "union, cup"
+.
+.C2 /_ angle
+.C2 pp perpendicular
+.C2 is integral
+.CN sum sum
+.CN product product
+.C2 gr gradient
+.C2 sr radical "square root"
+.C2 rn \& overline "continuation of square root"
+.
+.C2 if infinity
+.C2 Ah aleph
+.C2 Im Ifraktur "Gothic I, imaginary"
+.C2 Re Rfraktur "Gothic R, real"
+.C2 wp weierstrass "Weierstrass p"
+.C2 pd partialdiff "partial differentiation sign"
+.
+.P
+.I Greek characters
 .C2 *A Alpha
 .C2 *B Beta
 .C2 *C Xi
@@ -505,73 +978,77 @@ Output	Input	Input	PostScript	Notes
 .C2 *y eta
 .C2 *z zeta
 .C2 ts sigma1 "terminal sigma"
-.C2 ~~ approxequal
-.C2 ~= approxequal
-.C2 != notequal
-.C2 ** asteriskmath
-.C2 -+ minusplus
-.C2 +- plusminus
-.C2 <= lessequal
-.C2 == equivalence
-.C2 =~ congruent
-.C2 >= greaterequal
-.C2 AN logicaland
-.C2 OR logicalor
-.C2 no logicalnot
-.C2 te existential "there exists, existential quantifier"
-.C2 fa universal "for all, universal quantifier"
-.C2 Ah aleph
-.C2 Im Ifraktur "Fraktur I, imaginary"
-.C2 Re Rfraktur "Fraktur R, real"
-.C2 if infinity
-.C2 md dotmath
-.C2 mo element
-.C2 mu multiply
-.C2 nb notsubset
-.C2 nc notpropersuperset
-.C2 ne notequivalence
-.C2 nm notelement
-.C2 pl plusmath "plus sign in special font"
-.C2 eq equalmath "equals sign in special font"
-.C2 pt proportional
-.C2 pp perpendicular
-.C2 sb propersubset
-.C2 sp propersuperset
-.C2 ib reflexsubset
-.C2 ip reflexsuperset
-.C2 ap similar
-.C2 is integral
-.C2 sr radical "square root"
-.C2 rn \& overline
-.C2 pd partialdiff "partial differentiation sign"
-.C2 c* circlemultiply "multiply sign in a circle"
-.C2 c+ circleplus "plus sign in a circle"
-.C2 ca intersection "intersection, cap"
-.C2 cu union "union, cup"
-.C2 di divide "division sign"
-.C2 -h hbar
-.C2 gr gradient
-.C2 es emptyset
+.
+.P
+.I Card symbols
 .C2 CL club "club suit"
 .C2 SP spade "spade suit"
 .C2 HE heart "heart suit"
 .C2 DI diamond "diamond suit"
-.C2 CR carriagereturn "carriage return symbol"
-.C2 st suchthat
-.C2 /_ angle
-.C2 << \& "much less"
-.C2 >> \& "much greater"
-.C2 wp weierstrass "Weierstrass p"
-.C2 lz lozenge
-.C2 an arrowhorizex "horizontal arrow extension"
 .ch Fo
-.SH "SEE ALSO"
-.BR groff (@MAN1EXT@)
-.br
-.IR "An extension to the troff character set for Europe" ,
-E.G. Keizer, K.J. Simonsen, J. Akkerhuis,
-EUUG Newsletter, Volume 9, No. 2, Summer 1989
 .
+.
+.\" --------------------------------------------------------------------
+.SH "AUTHOR"
+.\" --------------------------------------------------------------------
+.
+Copyright \(co 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+.
+.P
+This document is distributed under the terms of the FDL (GNU Free
+Documentation License) version 1.1 or later.
+.
+You should have received a copy of the FDL on your system, it is also
+available on-line at the
+.ie \n(.g \
+.  URL http://\:www.gnu.org/\:copyleft/\:fdl.html "GNU copyleft site" .
+.el GNU copyleft site <http://www.gnu.org/copyleft/fdl.html>.
+.
+.P
+This document is part of
+.IR groff ,
+the GNU roff distribution.
+.
+It was written by
+.ie \n(.g \
+.  MTO jjc@jclark.com "James Clark"
+.el James Clark <jjc@jclark.com>
+with additions by 
+.ie \n(.g \
+.  MTO wl@gnu.org  "Werner Lemberg"
+.el Werner Lemberg <wl@gnu.org>
+and
+.ie \n(.g \
+.  MTO bwarken@mayn.de "Bernd Warken" .
+.el Bernd Warken <bwarken@mayn.de>.
+.
+.
+.\" --------------------------------------------------------------------
+.SH "SEE ALSO"
+.\" --------------------------------------------------------------------
+.
+.TP
+.BR groff (@MAN1EXT@)
+the GNU roff formatter.
+.
+.TP
+.BR groff (@MAN7EXT@)
+a short reference of the groff formatting language.
+.
+.
+.P
+.IR "An extension to the troff character set for Europe" ,
+E.G. Keizer, K.J. Simonsen, J. Akkerhuis; EUUG Newsletter, Volume 9,
+No. 2, Summer 1989
+.
+.
+.P
+.ie \n(.g .URL http://\:www.unicode.org "The Unicode Standard"
+.el The Unicode Standard <http://www.unicode.org>
+.
+.\" --------------------------------------------------------------------
+.\" Emacs settings
+.\" --------------------------------------------------------------------
 .\" Local Variables:
 .\" mode: nroff
 .\" End:

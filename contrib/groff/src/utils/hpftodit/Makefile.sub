@@ -1,6 +1,6 @@
-PROG=hpftodit
+PROG=hpftodit$(EXEEXT)
 MAN1=hpftodit.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=hpftodit.o
+OBJS=hpftodit.$(OBJEXT)
 CCSRCS=$(srcdir)/hpftodit.cc

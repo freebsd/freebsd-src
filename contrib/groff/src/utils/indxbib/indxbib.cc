@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989-1992, 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989-1992, 2000, 2001, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -18,14 +18,13 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <errno.h>
 
 #include "posix.h"
-#include "lib.h"
 #include "errarg.h"
 #include "error.h"
 #include "stringclass.h"
@@ -38,12 +37,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "nonposix.h"
 
 extern "C" const char *Version_string;
-
-#ifndef HAVE_MKSTEMP_PROTO
-extern "C" {
-  extern int mkstemp(char *);
-}
-#endif
 
 #define DEFAULT_HASH_TABLE_SIZE 997
 #define TEMP_INDEX_TEMPLATE "indxbibXXXXXX"
@@ -229,7 +222,7 @@ int main(int argc, char **argv)
     name_max = file_name_max(".");
   const char *filename = p ? p + 1 : basename;
   if (name_max >= 0 &&
-      long(strlen(filename) + sizeof(INDEX_SUFFIX) - 1) > name_max)
+      (strlen(filename) + sizeof(INDEX_SUFFIX) - 1) > name_max)
     fatal("`%1.%2' is too long for a filename", filename, INDEX_SUFFIX);
   if (p) {
     p++;
@@ -240,16 +233,8 @@ int main(int argc, char **argv)
   else {
     temp_index_file = strsave(TEMP_INDEX_TEMPLATE);
   }
-#ifndef HAVE_MKSTEMP
-  if (!mktemp(temp_index_file) || !temp_index_file[0])
-    fatal("cannot create file name for temporary file");
-#endif
   catch_fatal_signals();
-#ifdef HAVE_MKSTEMP
   int fd = mkstemp(temp_index_file);
-#else
-  int fd = creat(temp_index_file, S_IRUSR|S_IRGRP|S_IROTH);
-#endif
   if (fd < 0)
     fatal("can't create temporary index file: %1", strerror(errno));
   indxfp = fdopen(fd, FOPEN_WB);
@@ -300,6 +285,9 @@ int main(int argc, char **argv)
   strcpy(index_file, basename);
   strcat(index_file, INDEX_SUFFIX);
 #ifdef HAVE_RENAME
+#ifdef __EMX__
+  unline(index_file);
+#endif /* __EMX__ */
   if (rename(temp_index_file, index_file) < 0) {
 #ifdef __MSDOS__
     // RENAME could fail on plain MSDOS filesystems because

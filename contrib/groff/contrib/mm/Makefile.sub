@@ -1,14 +1,15 @@
 #
-# $Id: Makefile.sub,v 2.1 2000/11/17 04:26:02 jhaegg Exp $
+# $Id: Makefile.sub,v 2.3 2002/05/22 06:26:12 jhaegg Exp $
 #
 PROG=mmroff
+MAN1=\
+  mmroff.n
 MAN7=\
   groff_mm.n \
-  groff_mmse.n \
-  mmroff.n
+  groff_mmse.n
 FILES=0.MT 5.MT 4.MT ms.cov se_ms.cov 
 # Local configuration files with default values.
-LOCALE = locale se_locale
+LOCALE=locale se_locale
 CLEANADD=temp
 
 all: mmroff
@@ -32,7 +33,12 @@ install_m:
 	$(INSTALL_DATA) $(srcdir)/m.tmac $(tmacdir)/$(tmac_m_prefix)m.tmac
 	@sed -e "s;^.mso m.tmac;.mso $(tmac_m_prefix)m.tmac;g" \
 		$(srcdir)/mse.tmac > $(tmacdir)/$(tmac_m_prefix)mse.tmac
-install_mmroff : mmroff
+	@sed -e "s;^.mso mse.tmac;.mso $(tmac_m_prefix)mse.tmac;g" \
+		$(srcdir)/mmse.tmac > $(tmacdir)/$(tmac_m_prefix)mmse.tmac
+	@sed -e "s;^.mso m.tmac;.mso $(tmac_m_prefix)m.tmac;g" \
+		$(srcdir)/mm.tmac > $(tmacdir)/$(tmac_m_prefix)mm.tmac
+
+install_mmroff: mmroff
 	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
 	-rm -f $(bindir)/mmroff
 	$(INSTALL_SCRIPT) mmroff $(bindir)/mmroff
@@ -42,7 +48,6 @@ mmroff: mmroff.pl
 	-sed -e 's;/usr/bin/perl;$(PERLPATH);' $(srcdir)/mmroff.pl >$@
 	-chmod +x $@
 
-
 uninstall_sub:
 	-for f in $(FILES); do rm -f $(tmacdir)/mm/$$f; done
 	-for f in $(LOCALE); do \
@@ -50,6 +55,8 @@ uninstall_sub:
 	done
 	-rm -f $(tmacdir)/tmac.$(tmac_m_prefix)m
 	-rm -f $(tmacdir)/$(tmac_m_prefix)m.tmac
+	-rm -f $(tmacdir)/$(tmac_m_prefix)mm.tmac
 	-rm -f $(tmacdir)/$(tmac_m_prefix)mse.tmac
+	-rm -f $(tmacdir)/$(tmac_m_prefix)mmse.tmac
 	-rmdir $(tmacdir)/mm
 	-rm -f $(bindir)/mmroff

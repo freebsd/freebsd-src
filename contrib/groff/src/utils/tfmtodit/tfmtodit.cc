@@ -47,12 +47,11 @@ This need only be done for a font for which math_fitting is false;
 When it's true, the left_correction and subscript_correction should
 both be zero. */
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include <errno.h>
-#include "lib.h"
 #include "errarg.h"
 #include "error.h"
 #include "assert.h"

@@ -1,10 +1,10 @@
-PROG=grops
+PROG=grops$(EXEEXT)
 MAN1=grops.n
 XLIBS=$(LIBDRIVER) $(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
-  ps.o \
-  psrm.o
+  ps.$(OBJEXT) \
+  psrm.$(OBJEXT)
 CCSRCS=\
   $(srcdir)/ps.cc \
   $(srcdir)/psrm.cc

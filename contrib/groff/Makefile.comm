@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2002 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -25,7 +25,7 @@ INCLUDES=-I. -I$(srcdir) \
 ALL_CCFLAGS=$(INCLUDES) $(CCDEFINES) $(CCFLAGS) $(CPPFLAGS)
 COMPILE.cc=$(CCC) $(ALL_CCFLAGS) -c
 ALL_CFLAGS=$(INCLUDES) $(CDEFINES) $(CFLAGS) $(CPPFLAGS)
-COMPILE.c=$(CC) $(ALL_CFLAGS)  -c
+COMPILE.c=$(CC) $(ALL_CFLAGS) -c
 LINK.cc=$(CCC) $(CCFLAGS) $(LDFLAGS)
 LINK.c=$(CC) $(CFLAGS) $(LDFLAGS)
 LIBGROFF=$(top_builddir)/src/libs/libgroff/libgroff.a
@@ -38,6 +38,8 @@ YTABC=
 GRAM=
 LIBCLEAN=
 CLEANADD=
+CLEANDIRADD=
+CLEANNOTSRCDIRADD=
 MOSTLYCLEANFILES=$(MANCLEAN) $(PROG) $(OBJS) $(GENSRCS) $(GENHDRS) \
   depend.temp core y.output $(CLEANADD)
 CLEANFILES=$(LIBCLEAN)
@@ -69,28 +71,43 @@ prefix_must_exist:
 
 mostlyclean:
 	-rm -f $(MOSTLYCLEANFILES)
+	-rm -rf $(CLEANDIRADD)
+	-@if test `cd $(srcdir); pwd` = `pwd`; then \
+	  :; \
+	else \
+	  rm -f $(CLEANNOTSRCDIRADD); \
+	fi
 
-clean:
-	-rm -f $(CLEANFILES) $(MOSTLYCLEANFILES)
+clean: mostlyclean
+	-rm -f $(CLEANFILES)
 
-distclean:
-	-rm -f $(DISTCLEANFILES) $(CLEANFILES) $(MOSTLYCLEANFILES)
+distclean: clean
+	-rm -f $(DISTCLEANFILES)
+	-@if test `cd $(srcdir); pwd` = `pwd`; then \
+	  :; \
+	else \
+	  rm -f $(YTABC) $(YTABH); \
+	fi
 
-realclean:
-	-rm -f $(REALCLEANFILES) $(DISTCLEANFILES) $(CLEANFILES) \
-	  $(MOSTLYCLEANFILES)
+realclean: distclean
+	-rm -f $(REALCLEANFILES)
 
-extraclean:
-	-rm -f $(DISTCLEANFILES) $(CLEANFILES) $(MOSTLYCLEANFILES) \
-	  \#* *~ =* core junk grot old temp tmp tem
+extraclean: distclean
+	-rm -f \#* *~ =* core junk grot old temp tmp tem
 
 .SUFFIXES:
-.SUFFIXES: .o .cc .c .y .man .n
+.SUFFIXES: .o .obj .cc .c .y .man .n
 
 .cc.o:
 	$(COMPILE.cc) $<
 
 .c.o:
+	$(COMPILE.c) $<
+
+.cc.obj:
+	$(COMPILE.cc) $<
+
+.c.obj:
 	$(COMPILE.c) $<
 
 .y.cc:
@@ -101,31 +118,36 @@ extraclean:
 	fi
 	-test -f y.tab.h && mv y.tab.h y_tab.h
 	-test -f y.tab.c && mv y.tab.c y_tab.c
-	mv y_tab.c $@
-# Avoid ending up with two versions of $(YTABH).
-	if test -n "$(YTABH)"; then \
-	  if test -f $(srcdir)/$(YTABH); then \
-	    rm -f $(YTABH); \
-	    mv y_tab.h $(srcdir)/$(YTABH); \
-	  else \
-	    mv y_tab.h $(YTABH); \
-	  fi; \
-	fi
+	mv y_tab.c $(YTABC)
+	if test -n "$(YTABH)"; then mv y_tab.h $(YTABH); fi
 
-version=`cat $(top_srcdir)/VERSION`
-# No additional number for the groff archive if revision is zero
-revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(top_srcdir)/REVISION`
+# The next rule is needed for make of Solaris 2.5.1 to override its
+# built-in .y.o rule (which takes precedence over the .y.cc rule above).
+.y.o:
+	if test -n "$(YTABH)"; then \
+	  $(YACC) $(YACCFLAGS) -d $<; \
+	else \
+	  $(YACC) $(YACCFLAGS) $<; \
+	fi
+	-test -f y.tab.h && mv y.tab.h y_tab.h
+	-test -f y.tab.c && mv y.tab.c y_tab.c
+	mv y_tab.c $(YTABC)
+	if test -n "$(YTABH)"; then mv y_tab.h $(YTABH); fi
+	$(COMPILE.cc) $(YTABC)
 
 .man.n:
 	@echo Making $@ from $<
 	@-rm -f $@
 	@sed -e "s|@BINDIR@|$(bindir)|g" \
 	-e "s|@FONTDIR@|$(fontdir)|g" \
-	-e "s|@FONTPATH@|$(fontpath)|g" \
+	-e "s|@LOCALFONTDIR@|$(localfontdir)|g" \
+	-e "s|@LEGACYFONTDIR@|$(legacyfontdir)|g" \
 	-e "s|@MACRODIR@|$(tmacdir)|g" \
 	-e "s|@SYSTEMMACRODIR@|$(systemtmacdir)|g" \
 	-e "s|@LOCALMACRODIR@|$(localtmacdir)|g" \
-	-e "s|@MACROPATH@|$(tmacpath)|g" \
+	-e "s|@DOCDIR@|$(docdir)|g" \
+	-e "s|@EXAMPLEDIR@|$(exampledir)|g" \
+	-e "s|@HTMLDOCDIR@|$(htmldocdir)|g" \
 	-e "s|@DEVICE@|$(DEVICE)|g" \
 	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
 	-e "s|@DEFAULT_INDEX_NAME@|$(indexname)|g" \
@@ -239,7 +261,7 @@ depend_src: depend.temp
 
 depend.temp: FORCE
 	> depend.temp;
-	test -z "$(CCSRCS)$(YTABC)"  \
+	test -z "$(CCSRCS)$(YTABC)" \
 	  || $(CCC) $(ALL_CCFLAGS) -MM $(CCSRCS) $(YTABC) >>depend.temp
 	test -z "$(CSRCS)" \
 	  || $(CC) $(ALL_CFLAGS) -MM $(CSRCS) >>depend.temp
@@ -254,6 +276,7 @@ TAGS_src:
 	test -z "$(GRAM)$(HDRS)" \
 	  || $(ETAGS) $(ETAGSFLAGS) -a $(ETAGSCCFLAG) $(GRAM) $(HDRS)
 
+# This rule is only considered for the subdir_Makefile target.
 Makefile:
 	-rm -f Makefile
 	echo srcdir=$(srcdir) >>Makefile

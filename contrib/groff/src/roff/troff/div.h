@@ -152,5 +152,7 @@ void push_page_ejector();
 void continue_page_eject();
 void handle_first_page_transition();
 void blank_line();
+void begin_page();
+void end_diversions();
 
 extern void cleanup_and_exit(int);

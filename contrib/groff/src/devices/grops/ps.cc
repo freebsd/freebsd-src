@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -23,6 +23,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "stringclass.h"
 #include "cset.h"
 #include "nonposix.h"
+#include "paper.h"
 
 #include "ps.h"
 #include <time.h>
@@ -42,6 +43,7 @@ static int linewidth = -1;
 // Non-zero means generate PostScript code that guesses the paper
 // length using the imageable area.
 static int guess_flag = 0;
+static double user_paper_length = 0;
 
 // Non-zero if -b was specified on the command line.
 static int bflag = 0;
@@ -319,7 +321,7 @@ ps_output &ps_output::put_fix_number(int i)
 ps_output &ps_output::put_float(double d)
 {
   char buf[128];
-  sprintf(buf, "%.4f", d);
+  sprintf(buf, "%.3g", d);
   int len = strlen(buf);
   if (col > 0 && col + len + need_space > max_line_length) {
     putc('\n', fp);
@@ -349,6 +351,26 @@ ps_output &ps_output::put_symbol(const char *s)
     col++;
   }
   fputs(s, fp);
+  col += len;
+  need_space = 1;
+  return *this;
+}
+
+ps_output &ps_output::put_color(unsigned int c)
+{
+  char buf[128];
+  sprintf(buf, "%.3g", double(c) / color::MAX_COLOR_VAL);
+  int len = strlen(buf);
+  if (col > 0 && col + len + need_space > max_line_length) {
+    putc('\n', fp);
+    col = 0;
+    need_space = 0;
+  }
+  if (need_space) {
+    putc(' ', fp);
+    col++;
+  }
+  fputs(buf, fp);
   col += len;
   need_space = 1;
   return *this;
@@ -476,13 +498,13 @@ class ps_printer : public printer {
   int sbuf_space_code;
   int sbuf_kern;
   style sbuf_style;
+  color sbuf_color;		// the current PS color
   style output_style;
   int output_hpos;
   int output_vpos;
   int output_draw_point_size;
   int line_thickness;
   int output_line_thickness;
-  int fill;
   unsigned char output_space_code;
   enum { MAX_DEFINED_STYLES = 50 };
   style defined_styles[MAX_DEFINED_STYLES];
@@ -504,13 +526,15 @@ class ps_printer : public printer {
   void do_file(char *, const environment *);
   void do_invis(char *, const environment *);
   void do_endinvis(char *, const environment *);
-  void set_line_thickness(const environment *);
-  void fill_path();
+  void set_line_thickness_and_color(const environment *);
+  void fill_path(const environment *);
   void encode_fonts();
   void define_encoding(const char *, int);
   void reencode_font(ps_font *);
+  void set_color(color *c, int fill = 0);
+
 public:
-  ps_printer();
+  ps_printer(double);
   ~ps_printer();
   void set_char(int i, font *f, const environment *env, int w, const char *name);
   void draw(int code, int *p, int np, const environment *env);
@@ -521,14 +545,14 @@ public:
   void end_of_line();
 };
 
-ps_printer::ps_printer()
+// `pl' is in inches
+ps_printer::ps_printer(double pl)
 : out(0, MAX_LINE_LENGTH),
   pages_output(0),
   sbuf_len(0),
   output_hpos(-1),
   output_vpos(-1),
   line_thickness(-1),
-  fill(FILL_MAX + 1),
   ndefined_styles(0),
   next_encoding_index(0),
   ndefs(0),
@@ -553,9 +577,12 @@ ps_printer::ps_printer()
   res = r;
   out.set_fixed_point(point);
   space_char_index = font::name_to_index("space");
-  paper_length = font::paperlength;
+  if (pl == 0)
+    paper_length = font::paperlength;
+  else
+    paper_length = int(pl * font::res + 0.5);
   if (paper_length == 0)
-    paper_length = 11*font::res;
+    paper_length = 11 * font::res;
   equalise_spaces = font::res >= 72000;
 }
 
@@ -590,7 +617,8 @@ void ps_printer::set_char(int i, font *f, const environment *env, int w, const c
   if (sbuf_len > 0) {
     if (sbuf_len < SBUF_SIZE
 	&& sty == sbuf_style
-	&& sbuf_vpos == env->vpos) {
+	&& sbuf_vpos == env->vpos
+	&& sbuf_color == *env->col) {
       if (sbuf_end_hpos == env->hpos) {
 	sbuf[sbuf_len++] = code;
 	sbuf_end_hpos += w + sbuf_kern;
@@ -645,6 +673,8 @@ void ps_printer::set_char(int i, font *f, const environment *env, int w, const c
   sbuf_space_width = 0;
   sbuf_space_count = sbuf_space_diff_count = 0;
   sbuf_kern = 0;
+  if (sbuf_color != *env->col)
+    set_color(env->col);
 }
 
 static char *make_encoding_name(int encoding_index)
@@ -693,7 +723,8 @@ void ps_printer::define_encoding(const char *encoding, int encoding_index)
       a_delete vec[i];
     }
   }
-  out.put_delimiter(']').put_symbol("def");
+  out.put_delimiter(']')
+     .put_symbol("def");
 }
 
 void ps_printer::reencode_font(ps_font *f)
@@ -759,18 +790,60 @@ void ps_printer::set_style(const style &sty)
     int h = sty.height == 0 ? sty.point_size : sty.height;
     h *= font::res/(72*font::sizescale);
     int c = int(h*tan(radians(sty.slant)) + .5);
-    out.put_fix_number(c).put_fix_number(h).put_literal_symbol(psname)
+    out.put_fix_number(c)
+       .put_fix_number(h)
+       .put_literal_symbol(psname)
        .put_symbol("MF");
   }
   else {
-    out.put_literal_symbol(psname).put_symbol("SF");
+    out.put_literal_symbol(psname)
+       .put_symbol("SF");
   }
   defined_styles[ndefined_styles++] = sty;
 }
 
+void ps_printer::set_color(color *col, int fill)
+{
+  sbuf_color = *col;
+  unsigned int components[4];
+  char s[3];
+  color_scheme cs = col->get_components(components);
+  s[0] = fill ? 'F' : 'C';
+  s[2] = 0;
+  switch (cs) {
+  case DEFAULT:			// black
+    out.put_symbol("0");
+    s[1] = 'g';
+    break;
+  case RGB:
+    out.put_color(Red)
+       .put_color(Green)
+       .put_color(Blue);
+    s[1] = 'r';
+    break;
+  case CMY:
+    col->get_cmyk(&Cyan, &Magenta, &Yellow, &Black);
+    // fall through
+  case CMYK:
+    out.put_color(Cyan)
+       .put_color(Magenta)
+       .put_color(Yellow)
+       .put_color(Black);
+    s[1] = 'k';
+    break;
+  case GRAY:
+    out.put_color(Gray);
+    s[1] = 'g';
+    break;
+  }
+  out.put_symbol(s);
+}
+
 void ps_printer::set_space_code(unsigned char c)
 {
-  out.put_literal_symbol("SC").put_number(c).put_symbol("def");
+  out.put_literal_symbol("SC")
+     .put_number(c)
+     .put_symbol("def");
 }
 
 void ps_printer::end_of_line()
@@ -863,39 +936,43 @@ void ps_printer::flush_sbuf()
   sbuf_len = 0;
 }
 
-
-void ps_printer::set_line_thickness(const environment *env)
+void ps_printer::set_line_thickness_and_color(const environment *env)
 {
   if (line_thickness < 0) {
     if (output_draw_point_size != env->size) {
       // we ought to check for overflow here
       int lw = ((font::res/(72*font::sizescale))*linewidth*env->size)/1000;
-      out.put_fix_number(lw).put_symbol("LW");
+      out.put_fix_number(lw)
+	 .put_symbol("LW");
       output_draw_point_size = env->size;
       output_line_thickness = -1;
     }
   }
   else {
     if (output_line_thickness != line_thickness) {
-      out.put_fix_number(line_thickness).put_symbol("LW");
+      out.put_fix_number(line_thickness)
+	 .put_symbol("LW");
       output_line_thickness = line_thickness;
       output_draw_point_size = -1;
     }
   }
+  if (sbuf_color != *env->col)
+    set_color(env->col);
 }
 
-void ps_printer::fill_path()
+void ps_printer::fill_path(const environment *env)
 {
-  if (fill > FILL_MAX)
-    out.put_symbol("BL");
+  if (sbuf_color == *env->fill)
+    out.put_symbol("FL");
   else
-    out.put_float(transform_fill(fill)).put_symbol("FL");
+    set_color(env->fill, 1);
 }
 
 void ps_printer::draw(int code, int *p, int np, const environment *env)
 {
   if (invis_count > 0)
     return;
+  flush_sbuf();
   int fill_flag = 0;
   switch (code) {
   case 'C':
@@ -911,11 +988,10 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
        .put_fix_number(env->vpos)
        .put_fix_number(p[0]/2)
        .put_symbol("DC");
-    if (fill_flag) {
-      fill_path();
-    }
+    if (fill_flag)
+      fill_path(env);
     else {
-      set_line_thickness(env);
+      set_line_thickness_and_color(env);
       out.put_symbol("ST");
     }
     break;
@@ -924,7 +1000,7 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
       error("2 arguments required for line");
       break;
     }
-    set_line_thickness(env);
+    set_line_thickness_and_color(env);
     out.put_fix_number(p[0] + env->hpos)
        .put_fix_number(p[1] + env->vpos)
        .put_fix_number(env->hpos)
@@ -944,11 +1020,10 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
        .put_fix_number(env->hpos + p[0]/2)
        .put_fix_number(env->vpos)
        .put_symbol("DE");
-    if (fill_flag) {
-      fill_path();
-    }
+    if (fill_flag)
+      fill_path(env);
     else {
-      set_line_thickness(env);
+      set_line_thickness_and_color(env);
       out.put_symbol("ST");
     }
     break;
@@ -973,11 +1048,10 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
 	   .put_fix_number(p[i+1])
 	   .put_symbol("RL");
       out.put_symbol("CL");
-      if (fill_flag) {
-	fill_path();
-      }
+      if (fill_flag)
+	fill_path(env);
       else {
-	set_line_thickness(env);
+	set_line_thickness_and_color(env);
 	out.put_symbol("ST");
       }
       break;
@@ -1015,7 +1089,7 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
       out.put_fix_number(p[np - 2] - p[np - 2]/2)
 	 .put_fix_number(p[np - 1] - p[np - 1]/2)
 	 .put_symbol("RL");
-      set_line_thickness(env);
+      set_line_thickness_and_color(env);
       out.put_symbol("ST");
     }
     break;
@@ -1025,7 +1099,7 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
 	error("4 arguments required for arc");
 	break;
       }
-      set_line_thickness(env);
+      set_line_thickness_and_color(env);
       double c[2];
       if (adjust_arc_center(p, c))
 	out.put_fix_number(env->hpos + int(c[0]))
@@ -1043,60 +1117,47 @@ void ps_printer::draw(int code, int *p, int np, const environment *env)
     }
     break;
   case 't':
-    {
-      if (np == 0) {
-	line_thickness = -1;
-      }
-      else {
-	// troff gratuitously adds an extra 0
-	if (np != 1 && np != 2) {
-	  error("0 or 1 argument required for thickness");
-	  break;
-	}
-	line_thickness = p[0];
-      }
-      break;
-    }
-  case 'f':
-    {
+    if (np == 0)
+      line_thickness = -1;
+    else {
+      // troff gratuitously adds an extra 0
       if (np != 1 && np != 2) {
-	error("1 argument required for fill");
+	error("0 or 1 argument required for thickness");
 	break;
       }
-      fill = p[0];
-      if (fill < 0 || fill > FILL_MAX) {
-	// This means fill with the current color.
-	fill = FILL_MAX + 1;
-      }
-      break;
-    }      
+      line_thickness = p[0];
+    }
+    break;
   default:
     error("unrecognised drawing command `%1'", char(code));
     break;
   }
-
   output_hpos = output_vpos = -1;
 }
 
-
 void ps_printer::begin_page(int n)
 {
-  out.begin_comment("Page:").comment_arg(i_to_a(n));
-  out.comment_arg(i_to_a(++pages_output)).end_comment();
+  out.begin_comment("Page:")
+     .comment_arg(i_to_a(n));
+  out.comment_arg(i_to_a(++pages_output))
+     .end_comment();
   output_style.f = 0;
   output_space_code = 32;
   output_draw_point_size = -1;
   output_line_thickness = -1;
   output_hpos = output_vpos = -1;
   ndefined_styles = 0;
-  out.simple_comment("BeginPageSetup");
-  out.put_symbol("BP");
-  out.simple_comment("EndPageSetup");
+  out.simple_comment("BeginPageSetup")
+     .put_symbol("BP")
+     .simple_comment("EndPageSetup");
+  if (sbuf_color != default_color)
+    set_color(&sbuf_color);
 }
 
 void ps_printer::end_page(int)
 {
   flush_sbuf();
+  set_color(&default_color);
   out.put_symbol("EP");
   if (invis_count != 0) {
     error("missing `endinvis' command");
@@ -1111,9 +1172,9 @@ font *ps_printer::make_font(const char *nm)
 
 ps_printer::~ps_printer()
 {
-  out.simple_comment("Trailer");
-  out.put_symbol("end");
-  out.simple_comment("EOF");
+  out.simple_comment("Trailer")
+     .put_symbol("end")
+     .simple_comment("EOF");
   if (fseek(tempfp, 0L, 0) < 0)
     fatal("fseek on temporary file failed");
   fputs("%!PS-Adobe-", stdout);
@@ -1142,8 +1203,12 @@ ps_printer::~ps_printer()
     rm.need_font(psf->get_internal_name());
   }
   rm.print_header_comments(out);
-  out.begin_comment("Pages:").comment_arg(i_to_a(pages_output)).end_comment();
-  out.begin_comment("PageOrder:").comment_arg("Ascend").end_comment();
+  out.begin_comment("Pages:")
+     .comment_arg(i_to_a(pages_output))
+     .end_comment();
+  out.begin_comment("PageOrder:")
+     .comment_arg("Ascend")
+     .end_comment();
 #if 0
   fprintf(out.get_file(), "%%%%DocumentMedia: () %g %g 0 () ()\n",
 	  font::paperwidth*72.0/font::res,
@@ -1164,7 +1229,8 @@ ps_printer::~ps_printer()
     out.simple_comment("BeginSetup");
   }
   rm.document_setup(out);
-  out.put_symbol(dict_name).put_symbol("begin");
+  out.put_symbol(dict_name)
+     .put_symbol("begin");
   if (ndefs > 0)
     ndefs += DEFS_DICT_SPARE;
   out.put_literal_symbol(defs_dict_name)
@@ -1184,8 +1250,12 @@ ps_printer::~ps_printer()
   out.special(defs.contents());
   out.put_symbol("end");
   if (ncopies != 1)
-    out.put_literal_symbol("#copies").put_number(ncopies).put_symbol("def");
-  out.put_literal_symbol("RES").put_number(res).put_symbol("def");
+    out.put_literal_symbol("#copies")
+       .put_number(ncopies)
+       .put_symbol("def");
+  out.put_literal_symbol("RES")
+     .put_number(res)
+     .put_symbol("def");
   out.put_literal_symbol("PL");
   if (guess_flag)
     out.put_symbol("PLG");
@@ -1246,7 +1316,7 @@ void ps_printer::special(char *arg, const environment *env, char type)
   for (; *p != '\0' && *p != ' ' && *p != '\n'; p++)
     ;
   if (*command == '\0') {
-    error("X command without `ps:' tag ignored");
+    error("empty X command ignored");
     return;
   }
   for (unsigned int i = 0; i < sizeof(proc_table)/sizeof(proc_table[0]); i++)
@@ -1474,7 +1544,7 @@ void ps_printer::do_endinvis(char *, const environment *)
 
 printer *make_printer()
 {
-  return new ps_printer;
+  return new ps_printer(user_paper_length);
 }
 
 static void usage(FILE *stream);
@@ -1491,20 +1561,22 @@ int main(int argc, char **argv)
     { "version", no_argument, 0, 'v' },
     { NULL, 0, 0, 0 }
   };
-  while ((c = getopt_long(argc, argv, "F:P:glmc:w:vb:", long_options, NULL))
+  while ((c = getopt_long(argc, argv, "b:c:F:glmp:P:vw:", long_options, NULL))
 	 != EOF)
     switch(c) {
-    case 'v':
-      {
-	printf("GNU grops (groff) version %s\n", Version_string);
-	exit(0);
-	break;
-      }
+    case 'b':
+      // XXX check this
+      broken_flags = atoi(optarg);
+      bflag = 1;
+      break;
     case 'c':
       if (sscanf(optarg, "%d", &ncopies) != 1 || ncopies <= 0) {
 	error("bad number of copies `%s'", optarg);
 	ncopies = 1;
       }
+      break;
+    case 'F':
+      font::command_line_font_dir(optarg);
       break;
     case 'g':
       guess_flag = 1;
@@ -1515,8 +1587,9 @@ int main(int argc, char **argv)
     case 'm':
       manual_feed_flag = 1;
       break;
-    case 'F':
-      font::command_line_font_dir(optarg);
+    case 'p':
+      if (!font::scan_papersize(optarg, 0, &user_paper_length, 0))
+	error("invalid custom paper size `%1' ignored", optarg);
       break;
     case 'P':
       env = "GROPS_PROLOGUE";
@@ -1526,16 +1599,15 @@ int main(int argc, char **argv)
       if (putenv(strsave(env.contents())))
 	fatal("putenv failed");
       break;
+    case 'v':
+      printf("GNU grops (groff) version %s\n", Version_string);
+      exit(0);
+      break;
     case 'w':
       if (sscanf(optarg, "%d", &linewidth) != 1 || linewidth < 0) {
 	error("bad linewidth `%1'", optarg);
 	linewidth = -1;
       }
-      break;
-    case 'b':
-      // XXX check this
-      broken_flags = atoi(optarg);
-      bflag = 1;
       break;
     case CHAR_MAX + 1: // --help
       usage(stdout);

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -20,16 +20,16 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <ctype.h>
-#include <string.h>
 #include <time.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <errno.h>
 
-#include "lib.h"
 #include "assert.h"
+#include "color.h"
 #include "device.h"
 #include "searchpath.h"
 
@@ -43,6 +43,7 @@ extern units units_per_inch;
 
 extern int ascii_output_flag;
 extern int suppress_output_flag;
+extern int color_flag;
 extern int is_html;
 
 extern int tcommand_flag;
@@ -76,13 +77,18 @@ enum warning_type {
   WARN_ESCAPE = 0100000,
   WARN_SPACE = 0200000,
   WARN_FONT = 0400000,
-  WARN_IG =  01000000
+  WARN_IG =  01000000,
+  WARN_COLOR = 02000000
   // change WARN_TOTAL if you add more warning types
 };
 
-const int WARN_TOTAL = 01777777;
+const int WARN_TOTAL = 02777777;
 
 int warning(warning_type, const char *,
 	    const errarg & = empty_errarg,
 	    const errarg & = empty_errarg,
 	    const errarg & = empty_errarg);
+int output_warning(warning_type, const char *,
+		   const errarg & = empty_errarg,
+		   const errarg & = empty_errarg,
+		   const errarg & = empty_errarg);

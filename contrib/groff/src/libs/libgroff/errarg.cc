@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2002
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -31,17 +32,22 @@ errarg::errarg() : type(EMPTY)
 {
 }
 
-errarg::errarg(unsigned char cc) : type(CHAR)
-{
-  c = cc;
-}
-
 errarg::errarg(int nn) : type(INTEGER)
 {
   n = nn;
 }
 
+errarg::errarg(unsigned int uu) : type(UNSIGNED_INTEGER)
+{
+  u = uu;
+}
+
 errarg::errarg(char cc) : type(CHAR)
+{
+  c = cc;
+}
+
+errarg::errarg(unsigned char cc) : type(CHAR)
 {
   c = cc;
 }
@@ -58,6 +64,7 @@ int errarg::empty() const
 
 extern "C" {
   const char *i_to_a(int);
+  const char *ui_to_a(unsigned int);
 }
 	    
 void errarg::print() const
@@ -65,6 +72,9 @@ void errarg::print() const
   switch (type) {
   case INTEGER:
     fputs(i_to_a(n), stderr);
+    break;
+  case UNSIGNED_INTEGER:
+    fputs(ui_to_a(u), stderr);
     break;
   case CHAR:
     putc(c, stderr);
