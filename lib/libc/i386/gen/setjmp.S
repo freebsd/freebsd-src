@@ -36,7 +36,6 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 	.asciz "@(#)setjmp.s	5.1 (Berkeley) 4/23/90"
-	.align	2,0x90
 #endif /* LIBC_SCCS and not lint */
 
 /*
