@@ -6,7 +6,7 @@
  * compile, and copying as an aid for testing and porting.  xoxorich.
  */
 /*
- * $FreeBSD$
+ * $Id$
  */
 
 

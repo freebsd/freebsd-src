@@ -1,5 +1,5 @@
 # Makefile for libobjc
-# $FreeBSD$
+# $Id$
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 

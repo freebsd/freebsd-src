@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SUBDIR = lib cvs contrib cvsbug doc tools
 

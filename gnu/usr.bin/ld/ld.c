@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$FreeBSD$
+ *	$Id$
  */
 
 /* Define how to initialize system-dependent header fields.  */

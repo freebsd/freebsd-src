@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SUBDIR= libdialog libg++ libgmp libmp libobjc libregex libreadline libstdc++
 

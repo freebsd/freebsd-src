@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 INFO = gcc cpp reno gxxint
 

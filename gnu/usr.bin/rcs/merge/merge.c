@@ -41,7 +41,7 @@ badoption(a)
 }
 
 
-mainProg(mergeId, "merge", "$FreeBSD$")
+mainProg(mergeId, "merge", "$Id$")
 {
 	register char const *a;
 	char const *arg[3], *label[3], *edarg = 0;

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 #First, so that we get cp/tree.c and cp/expr.c instead of the C version

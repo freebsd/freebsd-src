@@ -18,7 +18,7 @@
 .de Id
 .ND \\$4
 ..
-.Id $FreeBSD$
+.Id $Id$
 .RP
 .TL
 RCS\*-A System for Version Control
