@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.58 1998/03/04 10:26:42 dufault Exp $
+ * $Id: sysctl.h,v 1.59 1998/03/28 11:50:55 dufault Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -302,6 +302,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KIPC_MAX_HDR		6	/* int: max total length of headers */
 #define	KIPC_MAX_DATALEN	7	/* int: max length of data? */
 #define	KIPC_MBSTAT		8	/* struct: mbuf usage statistics */
+#define	KIPC_NMBCLUSTERS	9	/* int: maximum mbuf clusters */
 
 /*
  * CTL_HW identifiers
