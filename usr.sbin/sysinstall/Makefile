@@ -6,7 +6,7 @@ CLEANFILES=	makedevs.c rtermcap
 
 SRCS =	globals.c	main.c		dmenu.c		menus.c	\
 	misc.c		msg.c		system.c	install.c \
-	termcap.c	makedevs.c
+	termcap.c	makedevs.c	media.c
 
 CFLAGS += -Wall -g -static
 LDADD =  -ldialog -lncurses -lmytinfo
@@ -19,11 +19,11 @@ BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
 .endif
 
 makedevs.c:	dev2c.sh Makefile rtermcap
-	mkdir -p dev
-	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
-	( cd dev; sh ./MAKEDEV all )
-	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
-	rm -rf dev
+#	mkdir -p dev
+#	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
+#	( cd dev; sh ./MAKEDEV all )
+#	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
+#	rm -rf dev
 	uudecode < ${.CURDIR}/bteasy17.uu
 	file2c 'const unsigned char boot0[] = {' '};' \
 		< bteasy17 >> makedevs.tmp
