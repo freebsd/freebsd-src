@@ -95,7 +95,7 @@ An example follows:
 		end: cyl 197/ sector 33/ head 14
 .Ed
 .Pp
-The disk is divided into three parititions that happen to fill the disk.
+The disk is divided into three partitions that happen to fill the disk.
 The second partition overlaps the end of the first.
 (Used for debugging purposes)
 .Bl -tag -width "cyl, sector and head"
@@ -104,12 +104,12 @@ is used to label the partition.  FreeBSD reserves the
 magic number 165 decimal (A5 in hex).
 .It Em "start and size"
 fields provide the start address
-and size of a parition in sectors.
+and size of a partition in sectors.
 .It Em "flag 80"
 specifies that this is the active partition.
 .It Em "cyl, sector and head"
 fields are used to specify the beginning address
-and end address for the parititon.
+and end address for the partition.
 .It Em "Note:"
 these numbers are calculated using BIOS's understanding of the disk geometry
 and saved in the bootblock.
@@ -119,7 +119,7 @@ The flags
 .Fl i
 or
 .Fl u
-are used to indicate that the paritition data is to be updated.
+are used to indicate that the partition data is to be updated.
 The
 .Nm
 program will enter a conversational mode.
