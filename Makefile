@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.12 1994/08/25 14:45:46 paul Exp $
+#	$Id: Makefile,v 1.13 1994/08/26 20:16:58 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -98,7 +98,6 @@ directories:
 	@echo "--------------------------------------------------------------"
 	@echo " Making directories"
 	@echo "--------------------------------------------------------------"
-	@echo " XXX Not yet ready in 2.0.0"
 	cd ${.CURDIR}/etc &&			${MAKE} distrib-dirs
 
 update:
