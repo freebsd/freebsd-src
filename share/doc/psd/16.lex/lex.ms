@@ -1,10 +1,45 @@
-.\" This module is believed to contain source code proprietary to AT&T.
-.\" Use and redistribution is subject to the Berkeley Software License
-.\" Agreement and your Software Agreement with AT&T (Western Electric).
-.\"
+.\" Copyright (C) Caldera International Inc. 2001-2002.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 
+.\" Redistributions of source code and documentation must retain the above
+.\" copyright notice, this list of conditions and the following
+.\" disclaimer.
+.\" 
+.\" Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\" 
+.\" All advertising materials mentioning features or use of this software
+.\" must display the following acknowledgement:
+.\" 
+.\" This product includes software developed or owned by Caldera
+.\" International, Inc.  Neither the name of Caldera International, Inc.
+.\" nor the names of other contributors may be used to endorse or promote
+.\" products derived from this software without specific prior written
+.\" permission.
+.\" 
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC.  AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) RISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
 .\"	@(#)lex.ms	8.1 (Berkeley) 6/8/93
 .\"
 .\" $FreeBSD$
+.de MH
+Bell Laboratories, Murray Hill, NJ 07974.
+..
 .EH 'PSD:16-%''Lex \- A Lexical Analyzer Generator'
 .OH 'Lex \- A Lexical Analyzer Generator''PSD:16-%'
 .hc ~
@@ -12,11 +47,11 @@
 .de TS
 .br
 .nf
-.SP 1v
+.sp 1v
 .ul 0
 ..
 .de TE
-.SP 1v
+.sp 1v
 .fi
 ..
 .\".de PT
@@ -108,9 +143,6 @@ program fragments.
 As each expression appears in the input to the program written by Lex,
 the corresponding fragment is executed.
 .PP
-.de MH
-Bell Laboratories, Murray Hill, NJ 07974.
-..
 The user supplies the additional code
 beyond expression matching
 needed to complete his tasks, possibly
@@ -169,7 +201,7 @@ input
 in this memo)
 and perform the specified actions for each expression as it is detected.
 See Figure 1.
-.GS
+.\" .GS
 .TS
 center;
 l _ r
@@ -191,7 +223,7 @@ Input \(->	yylex	\(-> Output
 An overview of Lex
 Figure 1
 .TE
-.GE
+.\" .GE
 .PP
 For a trivial example, consider a program to delete
 from the input
@@ -257,7 +289,7 @@ Additional programs,
 written by other generators
 or by hand, can
 be added easily to programs written by Lex.
-.BS 2
+.\" .BS 2
 .ps 9
 .vs 11
 .TS
@@ -290,7 +322,7 @@ Input \(->	yylex	\(->	yyparse	\(-> Parsed input
 .TE
 .ps 10
 .vs 12
-.BE
+.\" .BE
 Yacc users
 will realize that the name
 .ul
@@ -857,11 +889,11 @@ Another easy way to avoid writing actions is the action character
 for the next rule.
 The previous example could also have been written
 .TS
-center;
+center, tab(#);
 l l.
-" "		|
-"\et"		|
-"\en"		;
+" "#|
+"\et"#|
+"\en"#;
 .TE
 with the same result, although in different style.
 The quotes around \en and \et are not required.
@@ -1505,15 +1537,15 @@ by the {name} syntax in a rule.
 Using {D} for the digits and {E} for an exponent field,
 for example, might abbreviate rules to recognize numbers:
 .TS
-center;
+center, tab(#);
 l l.
-D	[0\-9]
-E	[DEde][\-+]?{D}+
+D#[0\-9]
+E#[DEde][\-+]?{D}+
 %%
-{D}+	printf("integer");
-{D}+"."{D}\(**({E})?	|
-{D}\(**"."{D}+({E})?	|
-{D}+{E}		printf("real");
+{D}+#printf("integer");
+{D}+"."{D}\(**({E})?#|
+{D}\(**"."{D}+({E})?#|
+{D}+{E}#printf("real");
 .TE
 Note the first two rules for real numbers;
 both require a decimal point and contain
@@ -1833,7 +1865,7 @@ to find the letter
 .I d
 or
 .I D .
-The program than adds
+The program then adds
 .c
 .I \(fme\(fm\-\(fmd\(fm ,
 which converts
@@ -1874,11 +1906,11 @@ l l.
 And one routine
 must have initial \fId\fR changed to initial \fIr\fR:
 .TS
-center;
+center, tab(#);
 l l.
-{d}1{m}{a}{c}{h}	{yytext[0] =+ \(fmr\(fm  \- \(fmd\(fm;
-		ECHO;
-		}
+{d}1{m}{a}{c}{h}#{yytext[0] =+ \(fmr\(fm  \- \(fmd\(fm;
+#ECHO;
+#}
 .TE
 To avoid such names as \fIdsinx\fR being detected as instances
 of \fIdsin\fR, some final rules pick up longer words as identifiers
@@ -1969,7 +2001,7 @@ magic	{
 	{
 	case \(fma\(fm: printf("first"); break;
 	case \(fmb\(fm: printf("second"); break;
-	case \(fmc\(fm: printf("third"); break;
+	case \(fmc\(fm: printf("third"); break;
 	default: ECHO; break;
 	}
 	}
@@ -2083,7 +2115,7 @@ l.
 .TE
 which indicate the value associated with each character.
 Thus the next example
-.GS 2
+.\" .GS 2
 .TS
 center;
 l l.
@@ -2104,7 +2136,7 @@ l l.
 .sp
 .ce 1
 Sample character table.
-.GE
+.\" .GE
 maps the lower and upper case letters together into the integers 1 through 26,
 newline into 27, + and \- into 28 and 29, and the
 digits into 30 through 39.
@@ -2256,7 +2288,7 @@ and debugged by Eric Schmidt.
 .2C
 .NH
 References.
-.SP 1v
+.sp 1v
 .IP 1.
 B. W. Kernighan and D. M. Ritchie,
 .I
