@@ -206,7 +206,11 @@ typedef struct callout ahd_timer_t;
 #include <dev/aic7xxx/aic79xx.h>
 
 /***************************** Timer Facilities *******************************/
+#if __FreeBSD_version >= 500000
+#define ahd_timer_init(timer) callout_init(timer, /*mpsafe*/0)
+#else
 #define ahd_timer_init callout_init
+#endif
 #define ahd_timer_stop callout_stop
 
 static __inline void

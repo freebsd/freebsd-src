@@ -52,6 +52,12 @@ AHC_DUMP_EEPROM		opt_aic7xxx.h	# Dump the contents of our
 
 AHC_DEBUG_SEQUENCER	opt_aic7xxx.h	# Enable diagnostic sequencer code
 
+# Adaptec aic79xx SCSI controller options
+AHD_DEBUG		opt_aic79xx.h	# Compile in aic79xx debugging code.
+
+AHD_DEBUG_OPTS		opt_aic79xx.h	# Aic79xx driver debugging options.
+					# See sys/dev/aic79xx/aic79xx.h
+
 ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
