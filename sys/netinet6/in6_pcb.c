@@ -624,7 +624,7 @@ in6_pcbdetach(inp)
 	ip_freemoptions(inp->inp_moptions);
 
 	inp->inp_vflag = 0;
-	zfreei(ipi->ipi_zone, inp);
+	zfree(ipi->ipi_zone, inp);
 }
 
 /*

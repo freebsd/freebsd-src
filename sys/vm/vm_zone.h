@@ -51,10 +51,7 @@ int		zinitna __P((vm_zone_t z, struct vm_object *obj, char *name,
 			     int size, int nentries, int flags, int zalloc));
 void *		zalloc __P((vm_zone_t z));
 void		zfree __P((vm_zone_t z, void *item));
-void *		zalloci __P((vm_zone_t z));
-void		zfreei __P((vm_zone_t z, void *item));
 void		zbootinit __P((vm_zone_t z, char *name, int size, void *item,
 			       int nitems));
-void *		_zget __P((vm_zone_t z));
 
 #endif /* _SYS_ZONE_H */

@@ -1450,7 +1450,7 @@ free_pv_entry(pv)
 	pv_entry_t pv;
 {
 	pv_entry_count--;
-	zfreei(pvzone, pv);
+	zfree(pvzone, pv);
 }
 
 /*
@@ -1469,7 +1469,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return zalloci(pvzone);
+	return zalloc(pvzone);
 }
 
 /*
