@@ -120,8 +120,9 @@ be attached by the sym_hipd.c driver.
 
 Installation:
   1) Untar SYM-0.9.0-19991024.tar.gz
+  2) Create the /usr/src/sys/dev/sym directory
   2) Copy README.sym, sym_conf.h, sym_defs.h and sym_hipd.c to 
-     /usr/src/sys/pci/
+     /usr/src/sys/dev/sym/
   3) Change to /usr/src/sys/ directory
   4) If FreeBSD-4, apply the unified patch sym_sys.patch
          (patch -p0 <sym_sys.patch)
@@ -129,7 +130,7 @@ Installation:
      If FreeBSD-3, apply the unified patch sym_sys_3.patch
          (patch -p0 <sym_sys_3.patch)
      Otherwise, leave here. ;)
-  5) Change to /usr/src/sys/pci directory
+  5) Change to /usr/src/sys/dev/sym directory
   6) Update to SYM-0.11.0-19991120
      gzip -d <PATCH-SYM-0.10.0-19991111.gz | patch -p0
      gzip -d <PATCH-SYM-0.11.0-19991120.gz | patch -p0
@@ -141,10 +142,10 @@ installation should proceed as follow (modulo mistakes from me:)):
 
 cd /tmp
 tar zxvf SYM-0.9.0-19991024.tar.gz
-cp SYM-0.9.0-19991024/* /usr/src/sys/pci
+cp SYM-0.9.0-19991024/* /usr/src/sys/dev/sym
 cd /usr/src/sys
-patch -p0 <pci/sym_sys.patch    # use sym_sys_3.patch if FreeBSD-3.X
-cd pci
+patch -p0 <dev/sym/sym_sys.patch    # use sym_sys_3.patch if FreeBSD-3.X
+cd dev/sym
 gzip -d </tmp/PATCH-SYM-0.10.0-19991111.gz | patch -p0
 gzip -d </tmp/PATCH-SYM-0.11.0-19991120.gz | patch -p0
 
@@ -159,7 +160,7 @@ Versionning:
   quick fixes.
 - Incremental diff files are of the following pattern:
             PATCH-SYM-X.Y.Z-YYYYMMDD
-  They must be applied from directory: /usr/src/sys/pci/
+  They must be applied from directory: /usr/src/sys/dev/sym/
 - Version 1.0.0 will happen when the driver will be tested enough but this 
   driver version will probably not officially support the C1010 (Ultra-3) 
   since the testing hasn't started yet. Some 1.X.0 version will support the 
