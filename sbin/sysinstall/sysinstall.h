@@ -84,6 +84,8 @@ extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
+int     strheight __P((const char *p));
+int     strwidth __P((const char *p));
 void	Abort __P((void));
 void	ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
