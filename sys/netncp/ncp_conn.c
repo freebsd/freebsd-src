@@ -292,7 +292,7 @@ ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,
 		if ((ncp->flags & NCPFL_LOGGED) != 0 ||
 		    strcmp(ncp->li.server,li->server) != 0 || 
 		    ncp->li.saddr.sa_len != li->saddr.sa_len ||
-		    memcmp(&ncp->li.saddr,&ncp->li.saddr,li->saddr.sa_len) != 0)
+		    bcmp(&ncp->li.saddr,&ncp->li.saddr,li->saddr.sa_len) != 0)
 			continue;
 		if (ncp_suser(cred) == 0 || 
 		    cred->cr_uid == ncp->nc_owner->cr_uid)
