@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.392 1998/09/24 02:01:07 jkh Exp $
+#	$Id: Makefile,v 1.393 1998/09/28 17:17:49 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -632,6 +632,7 @@ fixit.flp:
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
 
+# Add -DDO_SCSI to CFLAGS to enable scsi frobbing support.
 dumpnlist:	${.CURDIR}/dumpnlist.c
 	${CC} ${CFLAGS} -o dumpnlist ${.CURDIR}/dumpnlist.c
 
