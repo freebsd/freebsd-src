@@ -9,13 +9,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
+ *
+ * Where this Software is combined with software released under the terms of 
+ * the GNU Public License ("GPL") and the terms of the GPL would require the 
+ * combined work to also be released under the terms of the GPL, the terms
+ * and conditions of this License will apply in addition to those of the
+ * GPL with the exception of any terms or conditions of this License that
+ * conflict with, or are expressly prohibited by, the GPL.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: sequencer.h,v 1.1 1997/03/16 07:08:18 gibbs Exp $
  */
 
 struct ins_format1 {

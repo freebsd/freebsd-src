@@ -8,8 +8,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx_asm.c,v 1.16 1997/03/18 19:18:39 gibbs Exp $
+ *      $Id: aic7xxx_asm.c,v 1.17 1997/04/10 19:13:07 gibbs Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -56,6 +56,10 @@ int includes_search_curdir;
 char *appname;
 FILE *ofile;
 char *ofilename;
+char *regfilename;
+FILE *regfile;
+char *listfilename;
+FILE *listfile;
 
 static STAILQ_HEAD(,instruction) seq_program;
 static STAILQ_HEAD(, patch) patch_list;
@@ -78,10 +82,6 @@ main(argc, argv)
 	int  ch;
 	int  retval;
 	char *inputfilename;
-	char *regfilename;
-	FILE *regfile;
-	char *listfilename;
-	FILE *listfile;
 	char *options;
 
 	SLIST_INIT(&search_path);
@@ -100,10 +100,15 @@ main(argc, argv)
 		switch(ch) {
 		case 'd':
 #if DEBUG
-			if (strcmp(optarg, "s") == 0)
+			if (strcmp(optarg, "s") == 0) {
 				yy_flex_debug = 1;
-			else if (strcmp(optarg, "p") == 0)
+			} else if (strcmp(optarg, "p") == 0) {
 				yydebug = 1;
+			} else {
+				fprintf(stderr, "%s: -d Requires either an "
+					"'s' or 'p' argument\n", appname);
+				usage();
+			}
 #else
 			stop("-d: Assembler not built with debugging "
 			     "information", EX_SOFTWARE);
@@ -445,6 +450,24 @@ stop(string, err_code)
 			fprintf(stderr, "%s: Removing %s due to error\n",
 				appname, ofilename);
 			unlink(ofilename);
+		}
+	}
+
+	if (regfile != NULL) {
+		fclose(regfile);
+		if (err_code != 0) {
+			fprintf(stderr, "%s: Removing %s due to error\n",
+				appname, regfilename);
+			unlink(regfilename);
+		}
+	}
+
+	if (listfile != NULL) {
+		fclose(listfile);
+		if (err_code != 0) {
+			fprintf(stderr, "%s: Removing %s due to error\n",
+				appname, listfilename);
+			unlink(listfilename);
 		}
 	}
 
