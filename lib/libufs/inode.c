@@ -74,8 +74,8 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 		goto gotit;
 	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inode)), inoblock,
 	    fs->fs_bsize);
-	min = inode - (inode & INOPB(fs));
-	max = min + INOPB(fs);
+	disk->d_inomin = min = inode - (inode & INOPB(fs));
+	disk->d_inomax = max = min + INOPB(fs);
 gotit:	switch (disk->d_ufs) {
 	case 1:
 		dp1 = &((struct ufs1_dinode *)inoblock)[inode - min];
