@@ -358,6 +358,9 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+
 	bzero(link, sizeof(struct acpi_pci_link_entry));
 
 	link->handle = handle;
@@ -372,8 +375,6 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 
 	link->initial_irq = link->current_irq;
 
-	buf.Pointer = NULL;
-	buf.Length = ACPI_ALLOCATE_BUFFER;
 	error = AcpiGetPossibleResources(handle, &buf);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
