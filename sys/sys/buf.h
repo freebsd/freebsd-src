@@ -501,7 +501,6 @@ struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
 struct buf *geteblk(int);
 int	bufwait(struct buf *);
 void	bufdone(struct buf *);
-void	bufdonebio(struct bio *);
 
 void	cluster_callback(struct buf *);
 int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
