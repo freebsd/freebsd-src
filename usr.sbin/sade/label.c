@@ -999,7 +999,11 @@ diskLabel(Device *dev)
 		sprintf(osize, "%d", sz);
 		val = msgGetInput(osize,
 				  "Please specify the partition size in blocks or append a trailing G for\n"
+#ifdef __ia64__
+				  "gigabytes, M for megabytes.\n"
+#else
 				  "gigabytes, M for megabytes, or C for cylinders.\n"
+#endif
 				  "%d blocks (%dMB) are free.",
 				  sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
@@ -1029,14 +1033,21 @@ diskLabel(Device *dev)
 		    break;
 		}
 
-		if (type == PART_FILESYSTEM) {
+		if (type == PART_FILESYSTEM || type == PART_EFI) {
 		    if ((p = get_mountpoint(NULL)) == NULL) {
 			clear_wins();
 			beep();
 			break;
 		    }
-		    else if (!strcmp(p->mountpoint, "/"))
-			flags |= CHUNK_IS_ROOT;
+		    else if (!strcmp(p->mountpoint, "/")) {
+			if (type != PART_FILESYSTEM) {
+			    clear_wins();
+			    beep();
+			    break;
+			}
+			else
+			    flags |= CHUNK_IS_ROOT;
+		    }
 		    else
 			flags &= ~CHUNK_IS_ROOT;
 		}
@@ -1049,10 +1060,14 @@ diskLabel(Device *dev)
 			       "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					size, part,
-					(type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
-					flags);
+		    label_chunk_info[here].c, size,
+#ifdef __ia64__
+		    (type == PART_EFI) ? efi : part,
+		    (type == PART_EFI) ? 0 : (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
+#else
+		    part, (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
+#endif
+		    flags);
 		if (!tmp) {
 		    msgConfirm("Unable to create the partition. Too big?");
 		    clear_wins();
