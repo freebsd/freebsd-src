@@ -219,7 +219,7 @@ parsefmt(p)
 
 		while ((cp = strsep(&p, FMTSEP)) != NULL && *cp == '\0')
 			/* void */;
-		if (!(v = findvar(cp)))
+		if (cp == NULL || !(v = findvar(cp)))
 			continue;
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			err(1, NULL);
