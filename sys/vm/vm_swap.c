@@ -314,7 +314,7 @@ swaponvp(p, vp, dev, nblks)
 	nblks = dbtoc(nblks);
 
 	sp->sw_vp = vp;
-	sp->sw_dev = dev2udev(dev);
+	sp->sw_dev = dev;
 	sp->sw_flags |= SW_FREED;
 	sp->sw_nblks = nblks;
 
