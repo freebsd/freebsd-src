@@ -16,10 +16,10 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
 	resolv.h rune.h runetype.h search.h setjmp.h sgtty.h signal.h stab.h \
 	stdbool.h stddef.h stdio.h stdlib.h strhash.h string.h stringlist.h \
 	strings.h sysexits.h tar.h time.h timeconv.h timers.h ttyent.h \
-	ulimit.h unistd.h utime.h utmp.h uuid.h vis.h wchar.h wctype.h \
-	wordexp.h
+	ulimit.h unistd.h utime.h utmp.h uuid.h varargs.h vis.h wchar.h \
+	wctype.h wordexp.h
 
-MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
+MHDRS=	float.h floatingpoint.h stdarg.h
 
 # posix4/mqueue.h is useless without an implementation and isn't installed:
 PHDRS=	sched.h semaphore.h _semaphore.h # mqueue.h
