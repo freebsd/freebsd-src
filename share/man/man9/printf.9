@@ -25,13 +25,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2001 
+.Dd April 25, 2001
 .Dt PRINTF 9
 .Os
 .Sh NAME
-.Nm printf ,
-.Nm uprintf  ,
-.Nm tprintf
+.Nm printf , uprintf , tprintf
 .Nd formatted output conversion
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -51,9 +49,9 @@ family of functions.
 The three functions each use a different output stream.
 The
 .Fn uprintf
-function outputs to the currect process' controlling tty, while 
+function outputs to the current process' controlling tty, while
 .Fn printf
-writes to the console as well as to the logging facility.  
+writes to the console as well as to the logging facility.
 The
 .Fn tprintf
 function outputs to the tty associated with the process
@@ -61,8 +59,8 @@ function outputs to the tty associated with the process
 and the logging facility if
 .Fa pri
 is not \&-1.
-.Pp 
-Each of these related functions use the 
+.Pp
+Each of these related functions use the
 .Fa fmt
 parameter in the same manner as
 .Xr printf 3 .
@@ -70,14 +68,14 @@ However,
 .Xr printf 9
 adds two other conversion specifiers.
 .Pp
-The 
-.Cm \&%b 
+The
+.Cm \&%b
 identifier expects two arguments: an
-.Ft int
+.Vt int
 and a
-.Ft char * .
+.Vt "char *" .
 These are used as a register value and a print mask for decoding bitmasks.
-The print mask is made up of two parts: the base and the 
+The print mask is made up of two parts: the base and the
 arguments.
 The base value is the output base expressed as an integer value;
 for example, \\10 gives octal and \\20 gives hexadecimal.
@@ -87,15 +85,17 @@ bit this identifier describes.
 The rest of the identifier is a string of characters containing the name of
 the bit.
 The string is terminated by either the bit number at the start of the next
-bit identifier or nul for the last bit identifier.
+bit identifier or
+.Dv NUL
+for the last bit identifier.
 .Pp
-The 
+The
 .Cm \&%D
 identifier is meant to assist in hexdumps.
 It requires two arguments: a
-.Ft u_char *
+.Vt "u_char *"
 pointer and a
-.Ft char *
+.Vt "char *"
 string.
 The memory pointed to be the pointer is output in hexadecimal one byte at
 a time.
