@@ -163,7 +163,6 @@ static void
 configure_final(dummy)
 	void *dummy;
 {
-	int i;
 
 	cninit_finish(); 
 
@@ -173,6 +172,9 @@ configure_final(dummy)
 		imen_dump();
 #endif /* APIC_IO */
 
+#ifdef PC98
+		{
+		int i;
 		/*
 		 * Print out the BIOS's idea of the disk geometries.
 		 */
@@ -202,6 +204,8 @@ configure_final(dummy)
 			       max_sector, max_sector);
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
+		}
+#endif
 
 		printf("Device configuration finished.\n");
 	}
