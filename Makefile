@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.158 1998/02/19 00:24:43 nate Exp $
+#	$Id: Makefile,v 1.159 1998/02/19 07:34:46 jb Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -530,7 +530,7 @@ includes:
 .endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libss &&		${MAKE} hdrs beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
