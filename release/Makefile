@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.453 1999/01/09 19:14:22 gpalmer Exp $
+#	$Id: Makefile,v 1.454 1999/01/10 21:31:37 rnordier Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -71,25 +71,19 @@ MNT=			/mnt
 
 # Various floppy image parameters.
 #
-.if ${MACHINE_ARCH} == "i386"
 BOOTSIZE=		1440
-BOOTMFSSIZE=		1440
+BOOTMFSSIZE=		2880
 FIXITSIZE=		1440
 BOOTINODE=		80000
 MFSINODE=		8000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
-BOOTMFSLABEL=		minimum
-FIXITLABEL=		fd1440
-.else
-BOOTSIZE=		1440
-BOOTMFSSIZE=		2880
-FIXITSIZE=		2880
-BOOTINODE=		80000
-MFSINODE=		40000
-FIXITINODE=		2000
-BOOTLABEL=		fd1440
 BOOTMFSLABEL=		minimum2
+FIXITLABEL=		fd1440
+
+# overrides.
+.if ${MACHINE_ARCH} == "alpha"
+FIXITSIZE=		2880
 FIXITLABEL=		minimum2
 .endif
 
