@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: socket.2,v 1.6 1997/02/22 15:04:28 peter Exp $
+.\"	$Id: socket.2,v 1.7 1997/03/24 01:22:01 jmg Exp $
 .\"
-.Dd February 15, 1995
+.Dd November 24, 1997
 .Dt SOCKET 2
 .Os BSD 4.2
 .Sh NAME
@@ -230,7 +230,7 @@ within this domain.
 The per-process descriptor table is full.
 .It Bq Er ENFILE
 The system file table is full.
-.It Bq Er EACCESS
+.It Bq Er EACCES
 Permission to create a socket of the specified type and/or protocol
 is denied.
 .It Bq Er ENOBUFS
