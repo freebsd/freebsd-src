@@ -96,6 +96,8 @@
 #define PARSE_REDUCE	1
 #define PARSE_NOHASH	2
 
+#define ROUNDUP(x) ((x) ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
+
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
 extern const char *mode2Nam(int);
