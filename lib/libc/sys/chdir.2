@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chdir.2	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
 .Dd December 11, 1993
 .Dt CHDIR 2
@@ -122,6 +123,10 @@ is not a valid file descriptor.
 is expected to conform to IEEE Std 1003.1-1988
 .Pq Dq Tn POSIX .
 .Sh HISTORY
+A
+.Fn chdir
+function call appeared in
+.At v7 .
 The
 .Fn fchdir
 function call
