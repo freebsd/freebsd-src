@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.10 1997/11/06 19:29:00 phk Exp $
+ *  $Id: linux_signal.c,v 1.11 1998/07/29 16:43:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -241,8 +241,8 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
     sigset_t mask;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): sigsetmask(%p)\n",
-	(long)p->p_pid, (void *)args->mask);
+    printf("Linux-emul(%ld): sigsetmask(%08lx)\n",
+	(long)p->p_pid, (unsigned long)args->mask);
 #endif
     p->p_retval[0] = bsd_to_linux_sigset(p->p_sigmask);
 
@@ -276,8 +276,8 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
     struct sigsuspend_args tmp;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): sigsuspend(%p)\n",
-	(long)p->p_pid, (void *)args->mask);
+    printf("Linux-emul(%ld): sigsuspend(%08lx)\n",
+	(long)p->p_pid, (unsigned long)args->mask);
 #endif
     tmp.mask = linux_to_bsd_sigset(args->mask);
     return sigsuspend(p, &tmp);
