@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.14 1997/08/22 12:03:55 peter Exp $";
+static char rcsid[] = "$Id: main.c,v 1.15 1997/10/10 09:28:37 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -40,8 +40,6 @@ static char rcsid[] = "$Id: main.c,v 1.14 1997/08/22 12:03:55 peter Exp $";
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
 
 #include "pppd.h"
 #include "magic.h"
@@ -70,7 +68,7 @@ extern char *strerror();
 #endif
 
 /* interface vars */
-char ifname[IFNAMSIZ];		/* Interface name */
+char ifname[32];		/* Interface name */
 int ifunit;			/* Interface unit number */
 
 char *progname;			/* Name of this program */
@@ -165,7 +163,7 @@ main(argc, argv)
     int argc;
     char *argv[];
 {
-    int i, n, nonblock, fdflags;
+    int i, n, fdflags;
     struct sigaction sa;
     FILE *pidfile;
     FILE *iffile;
@@ -460,7 +458,15 @@ main(argc, argv)
 	if (connector && connector[0]) {
 	    MAINDEBUG((LOG_INFO, "Connecting with <%s>", connector));
 
-	    /* set line speed, flow control, etc.; set CLOCAL for now */
+	    /*
+	     * Set line speed, flow control, etc.
+	     * On most systems we set CLOCAL for now so that we can talk
+	     * to the modem before carrier comes up.  But this has the
+	     * side effect that we might miss it if CD drops before we
+	     * get to clear CLOCAL below.  On systems where we can talk
+	     * successfully to the modem with CLOCAL clear and CD down,
+	     * we can clear CLOCAL at this point.
+	     */
 	    set_up_tty(ttyfd, 1);
 
 	    /* drop dtr to hang up in case modem is off hook */
@@ -476,6 +482,7 @@ main(argc, argv)
 		connect_attempts++;
 		goto fail;
 	    }
+
 
 	    syslog(LOG_INFO, "Serial connection established.");
 	    sleep(1);		/* give it time to set up its terminal */
@@ -613,7 +620,7 @@ main(argc, argv)
 		break;
 
 	if (!persist)
-	    break;
+	    die(1);
 
 	if (demand)
 	    demand_discard();

@@ -19,11 +19,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: chap_ms.h,v 1.3 1997/08/19 17:52:35 peter Exp $
  */
 
 #ifndef __CHAPMS_INCLUDE__
 
+#define MD4_SIGNATURE_SIZE	16	/* 16 bytes in a MD4 message digest */
 #define MAX_NT_PASSWORD	256	/* Maximum number of (Unicode) chars in an NT password */
 
 void ChapMS __P((chap_state *, char *, int, char *, int));
