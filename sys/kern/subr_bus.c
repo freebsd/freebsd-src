@@ -497,8 +497,6 @@ make_device(device_t parent, const char *name, int unit)
 
     dev->state = DS_NOTPRESENT;
 
-    kobj_init((kobj_t) dev, &null_class);
-
     return dev;
 }
 
@@ -2161,7 +2159,12 @@ bus_delete_resource(device_t dev, int type, int rid)
 static int
 root_print_child(device_t dev, device_t child)
 {
-	return (0);
+	int	retval = 0;
+
+	retval += bus_print_child_header(dev, child);
+	retval += printf("\n");
+
+	return (retval);
 }
 
 static int
