@@ -1,81 +1,125 @@
 /* config.h.  Generated automatically by configure.  */
-/* Portability variables.  -*- C -*- */
+/* config.hin.  Generated automatically from configure.in by autoheader.  */
 
-/* Define if the system does not support the `const' keyword.  */
+/* Define if on AIX 3.
+   System headers sometimes define this.
+   We just want to avoid a redefinition error message.  */
+#ifndef _ALL_SOURCE
+/* #undef _ALL_SOURCE */
+#endif
+
+/* Define if the closedir function returns void instead of int.  */
+/* #undef CLOSEDIR_VOID */
+
+/* Define to empty if the keyword does not work.  */
 /* #undef const */
 
-/* Define if the system supports file names longer than 14 characters.  */
-#define HAVE_LONG_FILE_NAMES
+/* Define if you don't have vprintf but do have _doprnt.  */
+/* #undef HAVE_DOPRNT */
 
-/* Define if the system has pathconf().  */
-/* #undef HAVE_PATHCONF */
+/* Define if you support file names longer than 14 characters.  */
+#define HAVE_LONG_FILE_NAMES 1
 
-/* Define if the system has strerror().  */
-#define HAVE_STRERROR 1
+/* Define if you have the vprintf function.  */
+#define HAVE_VPRINTF 1
 
-/* Define if the system has ANSI C header files and library functions.  */
-#define STDC_HEADERS
+/* Define if on MINIX.  */
+/* #undef _MINIX */
 
-/* Define if the system uses strchr instead of index
-   and strrchr instead of rindex.  */
-#define HAVE_STRING_H 1
+/* Define to `int' if <sys/types.h> doesn't define.  */
+/* #undef mode_t */
 
-#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
-#define index strchr
-#define rindex strrchr
-#endif
+/* Define to `long' if <sys/types.h> doesn't define.  */
+/* #undef off_t */
 
-/* Define if the system has unistd.h.  */
-#define HAVE_UNISTD_H 1
+/* Define if the system does not provide POSIX.1 features except
+   with this defined.  */
+/* #undef _POSIX_1_SOURCE */
 
-/* Define if the system has fcntl.h.  */
+/* Define if you need to in order for stat and other things to work.  */
+/* #undef _POSIX_SOURCE */
+
+/* Define as the return type of signal handlers (int or void).  */
+#define RETSIGTYPE void
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+/* #undef size_t */
+
+/* Define if you have the ANSI C header files.  */
+#define STDC_HEADERS 1
+
+/* Define if there is a member named d_ino in the struct describing
+   directory headers.  */
+#define D_INO_IN_DIRENT 1
+
+/* Define if memchr works.  */
+#define HAVE_MEMCHR 1
+
+/* Define if `struct utimbuf' is declared -- usually in <utime.h>.  */
+#define HAVE_STRUCT_UTIMBUF 1
+
+/* Define if you have the _doprintf function.  */
+/* #undef HAVE__DOPRINTF */
+
+/* Define if you have the isascii function.  */
+#define HAVE_ISASCII 1
+
+/* Define if you have the memchr function.  */
+#define HAVE_MEMCHR 1
+
+/* Define if you have the memcmp function.  */
+#define HAVE_MEMCMP 1
+
+/* Define if you have the mkdir function.  */
+#define HAVE_MKDIR 1
+
+/* Define if you have the mktemp function.  */
+#define HAVE_MKTEMP 1
+
+/* Define if you have the pathconf function.  */
+#define HAVE_PATHCONF 1
+
+/* Define if you have the raise function.  */
+#define HAVE_RAISE 1
+
+/* Define if you have the rename function.  */
+#define HAVE_RENAME 1
+
+/* Define if you have the sigaction function.  */
+#define HAVE_SIGACTION 1
+
+/* Define if you have the sigprocmask function.  */
+#define HAVE_SIGPROCMASK 1
+
+/* Define if you have the sigsetmask function.  */
+#define HAVE_SIGSETMASK 1
+
+/* Define if you have the <dirent.h> header file.  */
+#define HAVE_DIRENT_H 1
+
+/* Define if you have the <fcntl.h> header file.  */
 #define HAVE_FCNTL_H 1
 
-/* Define as either int or void -- the type that signal handlers return.  */
-#define RETSIGTYPE void
+/* Define if you have the <limits.h> header file.  */
+#define HAVE_LIMITS_H 1
 
-#ifndef RETSIGTYPE
-#define RETSIGTYPE void
-#endif
+/* Define if you have the <ndir.h> header file.  */
+/* #undef HAVE_NDIR_H */
 
-/*  Which directory library header to use.  */
-#define DIRENT 1			/* dirent.h */
-/* #undef SYSNDIR */			/* sys/ndir.h */
-/* #undef SYSDIR */			/* sys/dir.h */
-/* #undef NDIR */			/* ndir.h */
-/* #undef NODIR */			/* none -- don't make numbered backup files */
+/* Define if you have the <string.h> header file.  */
+#define HAVE_STRING_H 1
 
-/* Define if the system lets you pass fewer arguments to a function
-   than the function actually accepts (in the absence of a prototype).
-   Defining it makes I/O calls slightly more efficient.
-   You need not bother defining it unless your C preprocessor chokes on
-   multi-line arguments to macros.  */
-/* #undef CANVARARG */
+/* Define if you have the <sys/dir.h> header file.  */
+/* #undef HAVE_SYS_DIR_H */
 
-/* Define Reg* as either `register' or nothing, depending on whether
-   the C compiler pays attention to this many register declarations.
-   The intent is that you don't have to order your register declarations
-   in the order of importance, so you can freely declare register variables
-   in sub-blocks of code and as function parameters.
-   Do not use Reg<n> more than once per routine.
+/* Define if you have the <sys/ndir.h> header file.  */
+/* #undef HAVE_SYS_NDIR_H */
 
-   These don't really matter a lot, since most modern C compilers ignore
-   register declarations and often do a better job of allocating
-   registers than people do.  */
+/* Define if you have the <unistd.h> header file.  */
+#define HAVE_UNISTD_H 1
 
-#define Reg1 register
-#define Reg2 register
-#define Reg3 register
-#define Reg4 register
-#define Reg5 register
-#define Reg6 register
-#define Reg7
-#define Reg8
-#define Reg9
-#define Reg10
-#define Reg11
-#define Reg12
-#define Reg13
-#define Reg14
-#define Reg15
-#define Reg16
+/* Define if you have the <utime.h> header file.  */
+#define HAVE_UTIME_H 1
+
+/* Define if you have the <varargs.h> header file.  */
+#define HAVE_VARARGS_H 1
