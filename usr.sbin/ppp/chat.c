@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.44.2.1 1998/01/29 00:49:14 brian Exp $
+ * $Id: chat.c,v 1.44.2.2 1998/02/02 19:33:34 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -667,7 +667,7 @@ DoChat(struct physical *physical, char *script)
   while (*argv) {
     if (strcmp(*argv, "P_ZERO") == 0 ||
 	strcmp(*argv, "P_ODD") == 0 || strcmp(*argv, "P_EVEN") == 0) {
-      ChangeParity(physical, *argv++);
+      modem_SetParity(physical, *argv++);
       continue;
     }
     state = ExpectString(physical, *argv++);

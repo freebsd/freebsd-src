@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.6 1998/02/02 19:32:30 brian Exp $
+ * $Id: command.c,v 1.131.2.7 1998/02/02 19:33:34 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -195,12 +195,12 @@ DialCommand(struct cmdargs const *arg)
     }
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (OpenModem(arg->bundle, pppVars.physical) < 0) {
+    if (modem_Open(pppVars.physical, arg->bundle) < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
-    if ((res = DialModem(arg->bundle, pppVars.physical)) == EX_DONE) {
+    if ((res = modem_Dial(pppVars.physical, arg->bundle)) == EX_DONE) {
       PacketMode(arg->bundle, VarOpenMode);
       break;
     } else if (res == EX_SIG)
@@ -629,7 +629,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
   "Show memory map", "show mem"},
-  {"modem", NULL, ShowModemStatus, LOCAL_AUTH,
+  {"modem", NULL, modem_ShowStatus, LOCAL_AUTH,
   "Show modem setups", "show modem"},
   {"mru", NULL, ShowInitialMRU, LOCAL_AUTH,
   "Show Initial MRU", "show mru"},
@@ -641,7 +641,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show Preferred MTU", "show mtu"},
   {"ofilter", NULL, ShowOfilter, LOCAL_AUTH,
   "Show Output filters", "show ofilter option .."},
-  {"proto", NULL, ReportProtocolStatus, LOCAL_AUTH,
+  {"proto", NULL, Physical_ReportProtocolStatus, LOCAL_AUTH,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH,
   "Show reconnect timer", "show reconnect"},
@@ -847,7 +847,7 @@ TerminalCommand(struct cmdargs const *arg)
   }
   if (!IsInteractive(1))
     return (1);
-  if (OpenModem(arg->bundle, pppVars.physical) < 0) {
+  if (modem_Open(pppVars.physical, arg->bundle) < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);
@@ -896,26 +896,26 @@ SetModemSpeed(struct cmdargs const *arg)
   char *end;
 
   if (arg->argc > 0 && **arg->argv) {
-	if (arg->argc > 1) {
-	  LogPrintf(LogWARN, "SetModemSpeed: Too many arguments");
-	  return -1;
-	}
+    if (arg->argc > 1) {
+      LogPrintf(LogWARN, "SetModemSpeed: Too many arguments");
+      return -1;
+    }
     if (strcasecmp(*arg->argv, "sync") == 0) {
       Physical_SetSync(pppVars.physical);
       return 0;
     }
-	end = NULL;
+    end = NULL;
     speed = strtol(*arg->argv, &end, 10);
-	if (*end) {
-	  LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
-	  return -1;
-	}
-	if (Physical_SetSpeed(pppVars.physical, speed))
-	  return 0;
+    if (*end) {
+      LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
+      return -1;
+    }
+    if (Physical_SetSpeed(pppVars.physical, speed))
+      return 0;
     LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
-  } else {
+  } else
     LogPrintf(LogWARN, "SetModemSpeed: No speed specified\n");
-  }
+
   return -1;
 }
 
@@ -1092,7 +1092,7 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? ChangeParity(pppVars.physical, *arg->argv) : -1;
+  return arg->argc > 0 ? modem_SetParity(pppVars.physical, *arg->argv) : -1;
 }
 
 static int

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.5 1998/02/02 19:32:10 brian Exp $
+ * $Id: main.c,v 1.121.2.6 1998/02/02 19:33:38 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -215,7 +215,7 @@ CloseConnection(int signo)
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
-  DownConnection();
+  LcpDown();
   dial_up = 0;
   pending_signal(SIGINT, CloseConnection);
 }
@@ -527,7 +527,7 @@ main(int argc, char **argv)
     close(STDERR_FILENO);
 
     if (mode & MODE_DIRECT)
-      /* STDIN_FILENO gets used by OpenModem in DIRECT mode */
+      /* STDIN_FILENO gets used by modem_Open in DIRECT mode */
       TtyInit(1);
     else if (mode & MODE_DAEMON) {
       setsid();
@@ -574,7 +574,7 @@ main(int argc, char **argv)
 void
 PacketMode(struct bundle *bundle, int delay)
 {
-  if (RawModem(pppVars.physical) < 0) {
+  if (modem_Raw(pppVars.physical) < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
@@ -772,13 +772,13 @@ DoLoop(struct bundle *bundle)
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (OpenModem(bundle, pppVars.physical) < 0)
+    if (modem_Open(pppVars.physical, bundle) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode(bundle, VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
     if (!link_IsActive(physical2link(pppVars.physical)))
-      while (OpenModem(bundle, pppVars.physical) < 0)
+      while (modem_Open(pppVars.physical, bundle) < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -834,7 +834,7 @@ DoLoop(struct bundle *bundle)
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n",
 		Physical_GetFD(pppVars.physical));
-      if (OpenModem(bundle, pppVars.physical) < 0) {
+      if (modem_Open(pppVars.physical, bundle) < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
@@ -859,7 +859,7 @@ DoLoop(struct bundle *bundle)
 	else
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
-	if ((res = DialModem(bundle, pppVars.physical)) == EX_DONE) {
+	if ((res = modem_Dial(pppVars.physical, bundle)) == EX_DONE) {
 	  PacketMode(bundle, VarOpenMode);
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
@@ -1025,7 +1025,7 @@ DoLoop(struct bundle *bundle)
 	nointr_usleep(10000);
       n = Physical_Read(pppVars.physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
-	DownConnection();
+	LcpDown();
       } else
 	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 

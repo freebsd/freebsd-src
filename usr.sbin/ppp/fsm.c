@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.4 1998/02/02 19:32:05 brian Exp $
+ * $Id: fsm.c,v 1.27.2.5 1998/02/02 19:33:35 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -80,7 +80,7 @@ StoppedTimeout(void *v)
   if (link_IsActive(fp->link))
     FsmDown(fp);
   else
-    DownConnection();
+    LcpDown();
 }
 
 void

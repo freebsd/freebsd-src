@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6.4.5 1998/01/31 02:48:28 brian Exp $
+ *	$Id: phase.c,v 1.6.4.6 1998/02/02 19:32:13 brian Exp $
  */
 
 #include <sys/param.h>
@@ -98,7 +98,7 @@ NewPhase(struct bundle *bundle, struct physical *physical, int new)
     break;
 
   case PHASE_NETWORK:
-    tun_configure(bundle, LcpInfo.his_mru, ModemSpeed(physical));
+    tun_configure(bundle, LcpInfo.his_mru, modem_Speed(physical));
     IpcpUp();
     IpcpOpen();
     CcpUp();

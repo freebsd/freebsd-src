@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.2 1998/01/30 19:46:03 brian Exp $
+ *  $Id: physical.h,v 1.1.2.3 1998/02/02 19:33:39 brian Exp $
  *
  */
 
@@ -75,3 +75,4 @@ int Physical_FD_ISSET(struct physical *, fd_set *);
 void Physical_DupAndClose(struct physical *);
 ssize_t Physical_Read(struct physical *phys, void *buf, size_t nbytes);
 ssize_t Physical_Write(struct physical *phys, const void *buf, size_t nbytes);
+int Physical_ReportProtocolStatus(struct cmdargs const *);

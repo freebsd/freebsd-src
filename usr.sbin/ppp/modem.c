@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.3 1998/02/02 19:32:11 brian Exp $
+ * $Id: modem.c,v 1.77.2.4 1998/02/02 19:33:38 brian Exp $
  *
  *  TODO:
  */
@@ -74,9 +74,9 @@
 #endif
 #endif
 
-static void ModemStartOutput(struct link *);
-static int ModemIsActive(struct link *);
-static void ModemHangup(struct link *, int);
+static void modem_StartOutput(struct link *);
+static int modem_IsActive(struct link *);
+static void modem_Hangup(struct link *, int);
 
 struct physical phys_modem = {
   {
@@ -88,9 +88,9 @@ struct physical phys_modem = {
     { { 0 } },                  /* queues */
     { 0 },                      /* proto_in */
     { 0 },                      /* proto_out */
-    ModemStartOutput,
-    ModemIsActive,
-    ModemHangup
+    modem_StartOutput,
+    modem_IsActive,
+    modem_Hangup
   },
   { 0 },
   -1
@@ -100,13 +100,12 @@ struct physical phys_modem = {
    types of devices */
 #define	Online(modem)	((modem)->mbits & TIOCM_CD)
 
-static void CloseLogicalModem(struct physical *);
+static void modem_LogicalClose(struct physical *);
 
 static struct speeds {
   int nspeed;
   speed_t speed;
-}      speeds[] = {
-
+} speeds[] = {
 #ifdef B50
   { 50, B50, },
 #endif
@@ -210,24 +209,17 @@ IntToSpeed(int nspeed)
   return B0;
 }
 
-void
-DownConnection()
-{
-  LogPrintf(LogPHASE, "Disconnected!\n");
-  LcpDown();
-}
-
 struct timeoutArg {
   struct bundle *bundle;
   struct physical *modem;
 };
 
 /*
- *  ModemTimeout() watches DCD signal and notifies if it's status is changed.
+ *  modem_Timeout() watches DCD signal and notifies if it's status is changed.
  *
  */
 static void
-ModemTimeout(void *data)
+modem_Timeout(void *data)
 {
   struct timeoutArg *to = data;
   int ombits = to->modem->mbits;
@@ -240,7 +232,7 @@ ModemTimeout(void *data)
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-	DownConnection();
+	LcpDown();
 	return;
       }
     } else
@@ -248,7 +240,7 @@ ModemTimeout(void *data)
     change = ombits ^ to->modem->mbits;
     if (change & TIOCM_CD) {
       if (to->modem->mbits & TIOCM_CD) {
-        LogPrintf(LogDEBUG, "ModemTimeout: offline -> online\n");
+        LogPrintf(LogDEBUG, "modem_Timeout: offline -> online\n");
 	/*
 	 * In dedicated mode, start packet mode immediate after we detected
 	 * carrier.
@@ -261,22 +253,22 @@ ModemTimeout(void *data)
 	  PacketMode(to->bundle, VarOpenMode);
 #endif
       } else {
-        LogPrintf(LogDEBUG, "ModemTimeout: online -> offline\n");
+        LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
 	reconnect(RECON_TRUE);
-	DownConnection();
+	LcpDown();
       }
     }
     else
-      LogPrintf(LogDEBUG, "ModemTimeout: Still %sline\n",
+      LogPrintf(LogDEBUG, "modem_Timeout: Still %sline\n",
                 Online(to->modem) ? "on" : "off");
   } else if (!Online(to->modem)) {
-    /* mbits was set to zero in OpenModem() */
+    /* mbits was set to zero in modem_Open() */
     to->modem->mbits = TIOCM_CD;
   }
 }
 
 static void
-StartModemTimer(struct bundle *bundle, struct physical *modem)
+modem_StartTimer(struct bundle *bundle, struct physical *modem)
 {
   struct pppTimer *ModemTimer;
   static struct timeoutArg to;
@@ -288,9 +280,9 @@ StartModemTimer(struct bundle *bundle, struct physical *modem)
   StopTimer(ModemTimer);
   ModemTimer->state = TIMER_STOPPED;
   ModemTimer->load = SECTICKS;
-  ModemTimer->func = ModemTimeout;
+  ModemTimer->func = modem_Timeout;
   ModemTimer->arg = &to;
-  LogPrintf(LogDEBUG, "ModemTimer using ModemTimeout() - %p\n", ModemTimeout);
+  LogPrintf(LogDEBUG, "ModemTimer using modem_Timeout() - %p\n", modem_Timeout);
   StartTimer(ModemTimer);
 }
 
@@ -320,7 +312,7 @@ GetParityValue(const char *str)
 }
 
 int
-ChangeParity(struct physical *modem, const char *str)
+modem_SetParity(struct physical *modem, const char *str)
 {
   struct termios rstio;
   int val;
@@ -334,7 +326,7 @@ ChangeParity(struct physical *modem, const char *str)
     tcsetattr(modem->fd, TCSADRAIN, &rstio);
     return 0;
   }
-  LogPrintf(LogWARN, "ChangeParity: %s: Invalid parity\n", str);
+  LogPrintf(LogWARN, "modem_SetParity: %s: Invalid parity\n", str);
   return -1;
 }
 
@@ -382,7 +374,7 @@ OpenConnection(char *host, char *port)
 }
 
 static int
-LockModem(struct physical *modem)
+modem_lock(struct physical *modem)
 {
   int res;
   FILE *lockfile;
@@ -421,7 +413,7 @@ LockModem(struct physical *modem)
 }
 
 static void
-UnlockModem(struct physical *modem)
+modem_Unlock(struct physical *modem)
 {
   char fn[MAXPATHLEN];
 
@@ -447,7 +439,7 @@ UnlockModem(struct physical *modem)
 }
 
 static void
-HaveModem(struct physical *modem)
+modem_Found(struct physical *modem)
 {
   throughput_start(&modem->link.throughput);
   modem->connect_count++;
@@ -455,7 +447,7 @@ HaveModem(struct physical *modem)
 }
 
 int
-OpenModem(struct bundle *bundle, struct physical *modem)
+modem_Open(struct physical *modem, struct bundle *bundle)
 {
   struct termios rstio;
   int oldflag;
@@ -465,7 +457,7 @@ OpenModem(struct bundle *bundle, struct physical *modem)
   char *tmpDevice;
 
   if (modem->fd >= 0)
-    LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
+    LogPrintf(LogDEBUG, "modem_Open: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (
 #ifdef notyet
@@ -478,24 +470,24 @@ OpenModem(struct bundle *bundle, struct physical *modem)
     arg.cmd = NULL;
     arg.data = (const void *)VAR_DEVICE;
     if (isatty(STDIN_FILENO)) {
-      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
+      LogPrintf(LogDEBUG, "modem_Open(direct): Modem is a tty\n");
       cp = ttyname(STDIN_FILENO);
       arg.argc = 1;
       arg.argv = (char const *const *)&cp;
       SetVariable(&arg);
-      if (LockModem(modem) == -1) {
+      if (modem_lock(modem) == -1) {
         close(STDIN_FILENO);
         return -1;
       }
       modem = STDIN_FILENO;
-      HaveModem(modem);
+      modem_Found(modem);
     } else {
-      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
+      LogPrintf(LogDEBUG, "modem_Open(direct): Modem is not a tty\n");
       arg.argc = 0;
       arg.argv = NULL;
       SetVariable(&arg);
-      /* We don't call ModemTimeout() with this type of connection */
-      HaveModem(modem);
+      /* We don't call modem_Timeout() with this type of connection */
+      modem_Found(modem);
       return modem->fd = STDIN_FILENO;
     }
   } else {
@@ -510,20 +502,20 @@ OpenModem(struct bundle *bundle, struct physical *modem)
       VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
 
       if (strncmp(VarDevice, "/dev/", 5) == 0) {
-	if (LockModem(modem) == -1) {
+	if (modem_lock(modem) == -1) {
 	  modem->fd = -1;
 	}
 	else {
 	  modem->fd = ID0open(VarDevice, O_RDWR | O_NONBLOCK);
 	  if (modem->fd < 0) {
-	    LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
+	    LogPrintf(LogERROR, "modem_Open failed: %s: %s\n", VarDevice,
 		      strerror(errno));
-	    UnlockModem(modem);
+	    modem_Unlock(modem);
 	    modem->fd = -1;
 	  }
 	  else {
-	    HaveModem(modem);
-	    LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
+	    modem_Found(modem);
+	    LogPrintf(LogDEBUG, "modem_Open: Modem is %s\n", VarDevice);
 	  }
 	}
       } else {
@@ -538,8 +530,8 @@ OpenModem(struct bundle *bundle, struct physical *modem)
 	    *cp = ':';		/* Don't destroy VarDevice */
 	    if (modem->fd < 0)
 	      return (-1);
-	    HaveModem(modem);
-	    LogPrintf(LogDEBUG, "OpenModem: Modem is socket %s\n", VarDevice);
+	    modem_Found(modem);
+	    LogPrintf(LogDEBUG, "modem_Open: Modem is socket %s\n", VarDevice);
 	  } else {
 	    *cp = ':';		/* Don't destroy VarDevice */
 	    LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
@@ -570,8 +562,8 @@ OpenModem(struct bundle *bundle, struct physical *modem)
   if (modem->dev_is_modem && !Physical_IsSync(modem)) {
     tcgetattr(modem->fd, &rstio);
     modem->ios = rstio;
-    LogPrintf(LogDEBUG, "OpenModem: modem = %d\n", modem->fd);
-    LogPrintf(LogDEBUG, "OpenModem: modem (get): iflag = %x, oflag = %x,"
+    LogPrintf(LogDEBUG, "modem_Open: modem = %d\n", modem->fd);
+    LogPrintf(LogDEBUG, "modem_Open: modem (get): iflag = %x, oflag = %x,"
 	      " cflag = %x\n", rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
     cfmakeraw(&rstio);
     if (modem->rts_cts)
@@ -619,29 +611,29 @@ OpenModem(struct bundle *bundle, struct physical *modem)
 #endif
 	)
       if (ioctl(modem->fd, TIOCMGET, &modem->mbits)) {
-        LogPrintf(LogERROR, "OpenModem: Cannot get modem status: %s\n",
+        LogPrintf(LogERROR, "modem_Open: Cannot get modem status: %s\n",
 		  strerror(errno));
-        CloseLogicalModem(modem);
+        modem_LogicalClose(modem);
 	return (-1);
       }
-    LogPrintf(LogDEBUG, "OpenModem: modem control = %o\n", modem->mbits);
+    LogPrintf(LogDEBUG, "modem_Open: modem control = %o\n", modem->mbits);
 
     oldflag = fcntl(modem->fd, F_GETFL, 0);
     if (oldflag < 0) {
-      LogPrintf(LogERROR, "OpenModem: Cannot get modem flags: %s\n",
+      LogPrintf(LogERROR, "modem_Open: Cannot get modem flags: %s\n",
 		strerror(errno));
-      CloseLogicalModem(modem);
+      modem_LogicalClose(modem);
       return (-1);
     }
     (void) fcntl(modem->fd, F_SETFL, oldflag & ~O_NONBLOCK);
   }
-  StartModemTimer(bundle, modem);
+  modem_StartTimer(bundle, modem);
 
   return (modem->fd);
 }
 
 int
-ModemSpeed(struct physical *modem)
+modem_Speed(struct physical *modem)
 {
   struct termios rstio;
 
@@ -653,7 +645,7 @@ ModemSpeed(struct physical *modem)
  * Put modem tty line into raw mode which is necessary in packet mode operation
  */
 int
-RawModem(struct physical *modem)
+modem_Raw(struct physical *modem)
 {
   struct termios rstio;
   int oldflag;
@@ -667,7 +659,7 @@ RawModem(struct physical *modem)
       !(mode & MODE_DIRECT) &&
 #endif
       modem->fd >= 0 && !Online(modem)) {
-    LogPrintf(LogDEBUG, "RawModem: modem = %d, mbits = %x\n",
+    LogPrintf(LogDEBUG, "modem_Raw: modem = %d, mbits = %x\n",
 			  modem->fd, modem->mbits);
   }
   tcgetattr(modem->fd, &rstio);
@@ -694,7 +686,7 @@ RawModem(struct physical *modem)
 }
 
 static void
-UnrawModem(struct physical *modem)
+modem_Unraw(struct physical *modem)
 {
   int oldflag;
 
@@ -708,16 +700,16 @@ UnrawModem(struct physical *modem)
 }
 
 static void
-ClosePhysicalModem(struct physical *modem)
+modem_PhysicalClose(struct physical *modem)
 {
-  LogPrintf(LogDEBUG, "ClosePhysicalModem\n");
+  LogPrintf(LogDEBUG, "modem_PhysicalClose\n");
   close(modem->fd);
   modem->fd = -1;
   throughput_log(&modem->link.throughput, LogPHASE, "Modem");
 }
 
 static void
-ModemHangup(struct link *l, int dedicated_force)
+modem_Hangup(struct link *l, int dedicated_force)
 {
   struct termios tio;
   struct physical *modem = (struct physical *)l;
@@ -732,13 +724,13 @@ ModemHangup(struct link *l, int dedicated_force)
   throughput_stop(&modem->link.throughput);
 
   if (TermMode) {
-    LogPrintf(LogDEBUG, "ModemHangup: Not in 'term' mode\n");
+    LogPrintf(LogDEBUG, "modem_Hangup: Not in 'term' mode\n");
     return;
   }
 
   if (!isatty(modem->fd)) {
     modem->mbits &= ~TIOCM_DTR;
-    ClosePhysicalModem(modem);
+    modem_PhysicalClose(modem);
     return;
   }
 
@@ -757,7 +749,7 @@ ModemHangup(struct link *l, int dedicated_force)
 
     strncpy(ScriptBuffer, VarHangupScript, sizeof ScriptBuffer - 1);
     ScriptBuffer[sizeof ScriptBuffer - 1] = '\0';
-    LogPrintf(LogDEBUG, "ModemHangup: Script: %s\n", ScriptBuffer);
+    LogPrintf(LogDEBUG, "modem_Hangup: Script: %s\n", ScriptBuffer);
     if (dedicated_force ||
 #ifdef notyet
 	!modem->is_dedicated
@@ -767,8 +759,8 @@ ModemHangup(struct link *l, int dedicated_force)
 	) {
       DoChat(modem, ScriptBuffer);
       tcflush(modem->fd, TCIOFLUSH);
-      UnrawModem(modem);
-      CloseLogicalModem(modem);
+      modem_Unraw(modem);
+      modem_LogicalClose(modem);
     } else {
       /*
        * If we are working as dedicated mode, never close it until we are
@@ -782,11 +774,11 @@ ModemHangup(struct link *l, int dedicated_force)
 }
 
 static void
-CloseLogicalModem(struct physical *modem)
+modem_LogicalClose(struct physical *modem)
 {
-  LogPrintf(LogDEBUG, "CloseLogicalModem\n");
+  LogPrintf(LogDEBUG, "modem_LogicalClose\n");
   if (modem->fd >= 0) {
-    ClosePhysicalModem(modem);
+    modem_PhysicalClose(modem);
     if (Utmp) {
       struct utmp ut;
       strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
@@ -794,16 +786,16 @@ CloseLogicalModem(struct physical *modem)
       if (logout(ut.ut_line))
         logwtmp(ut.ut_line, "", ""); 
       else
-        LogPrintf(LogERROR, "CloseLogicalModem: No longer logged in on %s\n",
+        LogPrintf(LogERROR, "modem_LogicalClose: No longer logged in on %s\n",
 		  ut.ut_line);
       Utmp = 0;
     }
-    UnlockModem(modem);
+    modem_Unlock(modem);
   }
 }
 
 static void
-ModemStartOutput(struct link *l)
+modem_StartOutput(struct link *l)
 {
   struct physical *modem = (struct physical *)l;
   int nb, nw;
@@ -822,35 +814,35 @@ ModemStartOutput(struct link *l)
       nb = 1600;
 */
     nw = write(modem->fd, MBUF_CTOP(modem->out), nb);
-    LogPrintf(LogDEBUG, "ModemStartOutput: wrote: %d(%d)\n", nw, nb);
-    LogDumpBuff(LogDEBUG, "ModemStartOutput: modem write",
+    LogPrintf(LogDEBUG, "modem_StartOutput: wrote: %d(%d)\n", nw, nb);
+    LogDumpBuff(LogDEBUG, "modem_StartOutput: modem write",
 		MBUF_CTOP(modem->out), nb);
     if (nw > 0) {
       modem->out->cnt -= nw;
       modem->out->offset += nw;
       if (modem->out->cnt == 0) {
 	modem->out = mbfree(modem->out);
-	LogPrintf(LogDEBUG, "ModemStartOutput: mbfree\n");
+	LogPrintf(LogDEBUG, "modem_StartOutput: mbfree\n");
       }
     } else if (nw < 0) {
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
 	reconnect(RECON_TRUE);
-	DownConnection();
+	LcpDown();
       }
     }
   }
 }
 
 static int
-ModemIsActive(struct link *l)
+modem_IsActive(struct link *l)
 {
   return ((struct physical *)l)->fd >= 0;
 }
 
 int
-DialModem(struct bundle *bundle, struct physical *modem)
+modem_Dial(struct physical *modem, struct bundle *bundle)
 {
   char ScriptBuffer[SCRIPT_LEN];
   int excode;
@@ -869,27 +861,27 @@ DialModem(struct bundle *bundle, struct physical *modem)
 	fprintf(VarTerm, "login OK!\n");
       to.modem = pppVars.physical;
       to.bundle = bundle;
-      ModemTimeout(&to);
+      modem_Timeout(&to);
       return EX_DONE;
     } else if (excode == -1)
       excode = EX_SIG;
     else {
-      LogPrintf(LogWARN, "DialModem: login failed.\n");
+      LogPrintf(LogWARN, "modem_Dial: login failed.\n");
       excode = EX_NOLOGIN;
     }
-    ModemTimeout(modem);		/* Dummy call to check modem status */
+    modem_Timeout(modem);		/* Dummy call to check modem status */
   } else if (excode == -1)
     excode = EX_SIG;
   else {
-    LogPrintf(LogWARN, "DialModem: dial failed.\n");
+    LogPrintf(LogWARN, "modem_Dial: dial failed.\n");
     excode = EX_NODIAL;
   }
-  ModemHangup(&modem->link, 0);
+  modem_Hangup(&modem->link, 0);
   return (excode);
 }
 
 int
-ShowModemStatus(struct cmdargs const *arg)
+modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
   struct physical *modem = pppVars.physical;
@@ -944,13 +936,6 @@ ShowModemStatus(struct cmdargs const *arg)
   fprintf(VarTerm, "\n");
   throughput_disp(&modem->link.throughput, VarTerm);
 
-  return 0;
-}
-
-int
-ReportProtocolStatus(struct cmdargs const *arg)
-{
-  link_ReportProtocolStatus(&phys_modem.link);
   return 0;
 }
 

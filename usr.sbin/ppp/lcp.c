@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.7 1998/02/02 19:33:37 brian Exp $
+ * $Id: lcp.c,v 1.55.2.8 1998/02/04 01:03:51 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -477,6 +477,7 @@ LcpUp()
 void
 LcpDown()
 {
+  LogPrintf(LogPHASE, "Disconnected!\n");
   /* Physical link is gone - sudden death */
   CcpDown();	/* CCP must come down */
   IpcpDown();	/* IPCP must come down */
