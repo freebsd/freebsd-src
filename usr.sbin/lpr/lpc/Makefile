@@ -5,7 +5,7 @@
 
 PROG=	lpc
 MAN=	lpc.8
-SRCS=	lpc.c cmds.c cmdtab.c
+SRCS=	lpc.c cmds.c cmdtab.c movejobs.c 
 BINGRP=	daemon
 BINMODE= 2555
 
