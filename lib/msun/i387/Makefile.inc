@@ -7,5 +7,5 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 
 # float counterparts
 ARCH_SRCS+= e_atan2f.S e_log10f.S e_logf.S e_remainderf.S e_scalbf.S \
-	    e_sqrtf.S s_ceilf.S s_copysignf.S s_cosf.S s_floorf.S s_logbf.S \
-	    s_rintf.S s_scalbnf.S s_significandf.S s_sinf.S s_tanf.S
+	    e_sqrtf.S s_ceilf.S s_copysignf.S s_floorf.S s_logbf.S \
+	    s_rintf.S s_scalbnf.S s_significandf.S
