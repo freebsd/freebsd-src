@@ -49,8 +49,8 @@ field.
 .Pp
 .Fn resouce_query_string 
 is called to see enumerate all possible strings.
-It returns the next one after num that is available, or -1
-if nothing further is available.
+It returns the next one after num that is available,
+or -1 if nothing further is available.
 .Fn resource_query_name 
 is passed the return of 
 .Fn resource_query_string 
@@ -59,8 +59,8 @@ and returns its value.
 .It
 .Fa num
 Index to get.
-Set initially to -1 for the first call, and the the
-previous return value of
+Set initially to -1 for the first call,
+and to the previous return value of
 .Fn resource_query_string
 on subsequent calls.
 .It
@@ -74,7 +74,8 @@ is the string to look for.
 resource_query_name().
 .Sh EXAMPLES
 The following example will return all the hints that say they are
-at gerbil0.  An example hint would be:
+at gerbil0.
+An example hint would be:
 .Bd -literal
 hint.habitat.0.at="gerbil0"
 hint.ewheel.0.at="gerbil0"
