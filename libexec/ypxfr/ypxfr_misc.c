@@ -51,7 +51,7 @@ char *ypxfrerr_string(code)
 {
 	switch(code) {
 	case YPXFR_SUCC:
-		return ("Map successfully transfered");
+		return ("Map successfully transferred");
 		break;
 	case YPXFR_AGE:
 		return ("Master's version not newer");
