@@ -734,7 +734,7 @@ void ex_rx_intr(int unit)
     else
       ifp->if_ierrors++;
     outw(iobase + HOST_ADDR_REG, sc->rx_head);
-  rx_another:
+  rx_another: ;
   }
   if (sc->rx_head < sc->rx_lower_limit + 2)
     outw(iobase + RCV_STOP_REG, sc->rx_upper_limit);
