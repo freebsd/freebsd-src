@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.51 2001/10/24 15:30:17 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.52 2001/10/26 17:53:59 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -388,8 +388,14 @@ uhub_explore(usbd_device_handle dev)
 			DPRINTFN(3,("uhub_explore: port=%d !C_CONNECT_"
 				    "STATUS\n", port));
 			/* No status change, just do recursive explore. */
-			if (up->device && up->device->hub)
+			if (up->device != NULL && up->device->hub != NULL)
 				up->device->hub->explore(up->device);
+#if 0 && defined(DIAGNOSTIC)
+			if (up->device == NULL && 
+			    (status & UPS_CURRENT_CONNECT_STATUS))
+				printf("%s: connected, no device\n",
+				       USBDEVNAME(sc->sc_dev));
+#endif
 			continue;
 		}
 
