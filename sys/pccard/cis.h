@@ -28,6 +28,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 /*
@@ -42,8 +45,17 @@
  *	are terminated with a 0xFF for the tuple code or
  *	the tuple length.
  */
+#ifndef	_PCCARD_CIS_H
+#define	_PCCARD_CIS_H
+
 #define	CIS_NULL	0	/* Empty tuple */
 #define	CIS_MEM_COMMON	0x01	/* Device descriptor, common memory */
+#define	CIS_LONGLINK_CB	0x02	/* Long link to next chain for CardBus */
+#define	CIS_INDIRECT	0x03	/* Indirect access */
+#define	CIS_CONF_MAP_CB	0x04	/* Card Configuration map for CardBus */
+#define	CIS_CONFIG_CB	0x05	/* Card Configuration entry for CardBus */
+#define	CIS_LONGLINK_MFC	0x06	/* Long link to next chain for Multi function card */
+#define	CIS_BAR		0x07	/* Base address register for CardBus */
 #define	CIS_CHECKSUM	0x10	/* Checksum */
 #define	CIS_LONGLINK_A	0x11	/* Link to Attribute memory */
 #define	CIS_LONGLINK_C	0x12	/* Link to Common memory */
@@ -247,3 +259,20 @@
 #define	CIS_MEM_LENSZ(x)	(((x) >> 3) & 0x3)
 #define	CIS_MEM_ADDRSZ(x)	(((x) >> 5) & 0x3)
 #define	CIS_MEM_HOST		0x80
+/*
+ *	Misc sub-tuple.
+ *	Byte 1:
+ *	Byte 2:
+ *		0x0c - DMA Request Signal
+ *                      00 - not support DMA
+ *                      01 - use SPKR# line
+ *                      10 - use IOIS16# line
+ *                      11 - use INPACK# line
+ *		0x10 - DMA Width
+ *                      0 - 8 bit DMA
+ *                      1 - 16 bit DMA
+ */
+#define	CIS_MISC_DMA_WIDTH(x)	(((x) & 0x10) >> 4)
+#define	CIS_MISC_DMA_REQ(x)	(((x) >> 2) & 0x3)
+
+#endif	/* _PCCARD_CIS_H */
