@@ -57,6 +57,10 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
+#ifdef notquiteyet
+#include "opt_geom.h"
+#endif
+
 #include "opt_md.h"
 
 #include <sys/param.h>
@@ -79,6 +83,10 @@
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+
+#ifndef NO_GEOM
+#include <geom/geom.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -156,6 +164,10 @@ struct md_s {
 	unsigned flags;
 	char name[20];
 	struct proc *procp;
+#ifndef NO_GEOM
+	struct g_geom *gp;
+	struct g_provider *pp;
+#endif
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
@@ -336,6 +348,60 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 	return (0);
 }
 
+#ifndef NO_GEOM
+
+struct g_class g_md_class = {
+	"MD",
+	NULL,
+	NULL,
+	G_CLASS_INITIALIZER
+
+};
+
+static int
+g_md_access(struct g_provider *pp, int r, int w, int e)
+{
+	struct md_s *sc;
+
+	sc = pp->geom->softc;
+	r += pp->acr;
+	w += pp->acw;
+	e += pp->ace;
+	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
+		sc->opencount = 1;
+	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
+		sc->opencount = 0;
+	}
+	return (0);
+}
+
+static void
+g_md_start(struct bio *bp)
+{
+	struct md_s *sc;
+
+	sc = bp->bio_to->geom->softc;
+
+	switch(bp->bio_cmd) {
+	case BIO_GETATTR:
+	case BIO_SETATTR:
+		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
+	bp->bio_blkno = bp->bio_offset >> DEV_BSHIFT;
+	bp->bio_pblkno = bp->bio_offset / sc->secsize;
+	bp->bio_bcount = bp->bio_length;
+	/* XXX: LOCK(sc->lock) */
+	bioqdisksort(&sc->bio_queue, bp);
+	/* XXX: UNLOCK(sc->lock) */
+
+	wakeup(sc);
+}
+
+DECLARE_GEOM_CLASS(g_md_class, g_md);
+#endif
+
+#ifdef NO_GEOM
 
 static d_strategy_t mdstrategy;
 static d_open_t mdopen;
@@ -421,6 +487,7 @@ mdstrategy(struct bio *bp)
 	wakeup(sc);
 }
 
+#endif /* NO_GEOM */
 
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
@@ -553,10 +620,35 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	return (error);
 }
 
+#ifndef NO_GEOM
+static void
+mddone_swap(struct bio *bp)
+{
+
+	mtx_unlock(&Giant);
+	bp->bio_completed = bp->bio_length - bp->bio_resid;
+	g_std_done(bp);
+	mtx_lock(&Giant);
+}
+#endif
+
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
+#ifndef NO_GEOM
+	{
+	struct bio *bp2;
 
+	bp2 = g_clone_bio(bp);
+	bp2->bio_done = mddone_swap;
+	bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
+	bp2->bio_pblkno = bp2->bio_offset / sc->secsize;
+	bp2->bio_bcount = bp2->bio_length;
+	bp = bp2;
+	}
+#endif
+
+	bp->bio_resid = 0;
 	if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE))
 		biodone(bp);
 	else
@@ -612,8 +704,14 @@ md_kthread(void *arg)
 			break;
 		}
 
-		if (error != -1)
+		if (error != -1) {
+#ifdef NO_GEOM
 			biofinish(bp, &sc->stats, error);
+#else /* !NO_GEOM */
+			bp->bio_completed = bp->bio_length;
+			g_io_deliver(bp, error);
+		}
+#endif
 	}
 }
 
@@ -672,8 +770,30 @@ mdinit(struct md_s *sc)
 		DEVSTAT_NO_ORDERED_TAGS,
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
+#ifdef NO_GEOM
 	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
 	sc->dev->si_drv1 = sc;
+#else /* !NO_GEOM */
+	{
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	DROP_GIANT();
+	g_topology_lock();
+	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
+	gp->start = g_md_start;
+	gp->access = g_md_access;
+	gp->softc = sc;
+	pp = g_new_providerf(gp, "md%d", sc->unit);
+	pp->mediasize = (off_t)sc->nsect * sc->secsize;
+	pp->sectorsize = sc->secsize;
+	sc->gp = gp;
+	sc->pp = pp;
+	g_error_provider(pp, 0);
+	g_topology_unlock();
+	PICKUP_GIANT();
+	}
+#endif /* NO_GEOM */
 }
 
 /*
@@ -879,10 +999,20 @@ mddestroy(struct md_s *sc, struct thread *td)
 
 	GIANT_REQUIRED;
 
-	if (sc->dev != NULL) {
-		devstat_remove_entry(&sc->stats);
+	devstat_remove_entry(&sc->stats);
+#ifdef NO_GEOM
+	if (sc->dev != NULL)
 		disk_destroy(sc->dev);
+#else /* !NO_GEOM */
+	{
+	if (sc->gp) {
+		sc->gp->flags |= G_GEOM_WITHER;
+		sc->gp->softc = NULL;
 	}
+	if (sc->pp)
+		g_orphan_provider(sc->pp, ENXIO);
+	}
+#endif
 	sc->flags |= MD_SHUTDOWN;
 	wakeup(sc);
 	while (sc->procp != NULL)
@@ -1155,4 +1285,4 @@ md_takeroot(void *junk)
 }
 
 SYSINIT(md_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, md_takeroot, NULL);
-#endif
+#endif /* MD_ROOT */
