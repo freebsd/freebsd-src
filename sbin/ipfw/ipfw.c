@@ -15,7 +15,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.15.4.3 1996/04/02 11:43:53 phk Exp $
+ * $Id: ipfw.c,v 1.15.4.4 1996/06/18 02:03:29 alex Exp $
  *
  */
 
@@ -200,7 +200,7 @@ show_ipfw(chain)
 	}
 
 	if (chain->fw_flg & IP_FW_F_FRAG)
-		printf("frag ");
+		printf(" frag ");
 
 	if (chain->fw_ipopt || chain->fw_ipnopt) {
 		int 	_opt_printed = 0;
@@ -321,12 +321,22 @@ fill_ip(ipno, mask, acp, avp)
 
 		if (!inet_aton(*av,ipno))
 			show_usage("ip number\n");
-		if (md == ':' && !inet_aton(p,mask))
-			show_usage("ip number\n");
-		else if (md == '/') 
-			mask->s_addr = htonl(0xffffffff << (32 - atoi(p)));
-		else 
-			mask->s_addr = htonl(0xffffffff);
+		switch (md) {
+			case ':':
+				if (!inet_aton(p,mask))
+					show_usage("ip number\n");
+				break;
+			case '/':
+				if (atoi(p) == 0) {
+					mask->s_addr = 0;
+				} else {
+					mask->s_addr = htonl(0xffffffff << (32 - atoi(p)));
+				}
+				break;
+			default:
+				mask->s_addr = htonl(0xffffffff);
+				break;
+		}
 		av++;
 		ac--;
 	}
@@ -611,10 +621,9 @@ ipfw_main(ac,av)
 			break;
 		case 'N':
 	 		do_resolv=1;
-        		break;
-        	case '?':
-         	default:
-            		show_usage(NULL);
+			break;
+		default:
+			show_usage(NULL);
 	}
 
 	ac -= optind;
@@ -645,7 +654,7 @@ ipfw_main(ac,av)
 	} else {
 		show_usage(NULL);
 	}
-        return 0;
+	return 0;
 }
 
 int 
