@@ -65,6 +65,7 @@ typedef	__size_t	size_t;
  */
 #define	VIS_NOSLASH	0x40	/* inhibit printing '\' */
 #define	VIS_HTTPSTYLE	0x80	/* http-style escape % HEX HEX */
+#define	VIS_GLOB	0x100	/* encode glob(3) magics */
 
 /*
  * unvis return codes
