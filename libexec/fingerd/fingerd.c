@@ -71,7 +71,8 @@ main(int argc, char *argv[])
 	int ch;
 	char *lp;
 	struct sockaddr_storage ss;
-	int p[2], logging, pflag, secure, sval;
+	socklen_t sval;
+	int p[2], logging, pflag, secure;
 #define	ENTRIES	50
 	char **ap, *av[ENTRIES + 1], **comp, line[1024], *prog;
 	char rhost[MAXHOSTNAMELEN];

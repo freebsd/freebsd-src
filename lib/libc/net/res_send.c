@@ -605,7 +605,7 @@ read_len:
 			struct timespec ts;
 			struct timeval timeout, ctv;
 			struct sockaddr_storage from;
-			int fromlen;
+			socklen_t fromlen;
 
 			if (s < 0 || vc || af != nsap->sa_family) {
 				if (vc)

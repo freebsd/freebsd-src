@@ -261,7 +261,7 @@ synchnet(f)
 	int i, j = 0;
 	char rbuf[PKTSIZE];
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 
 	while (1) {
 		(void) ioctl(f, FIONREAD, &i);

@@ -69,7 +69,7 @@ main(int argc, char *argv[])
 	SVCXPRT *transp;
 	int ok;
 	struct sockaddr_storage from;
-	int fromlen;
+	socklen_t fromlen;
 
 	fromlen = sizeof(from);
 	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {

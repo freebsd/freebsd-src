@@ -65,7 +65,8 @@ int
 main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
-	int ok, salen;
+	socklen_t salen;
+	int ok;
 	struct sockaddr_storage sa;
 
 	if (argc == 2 && !strcmp(argv[1], "-n"))
