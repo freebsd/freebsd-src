@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.58 1995/07/29 13:35:33 bde Exp $
+ * $Id: tty.c,v 1.59 1995/07/30 12:39:16 bde Exp $
  */
 
 /*-
@@ -840,21 +840,30 @@ ttioctl(tp, cmd, data, flag)
 			}
 			ttsetwater(tp);
 		}
-		if (cmd != TIOCSETAF) {
-			if (ISSET(t->c_lflag, ICANON) !=
-			    ISSET(tp->t_lflag, ICANON))
-				if (ISSET(t->c_lflag, ICANON)) {
-					SET(tp->t_lflag, PENDIN);
-					ttwakeup(tp);
-				} else {
-					struct clist tq;
-
+		if (ISSET(t->c_lflag, ICANON) != ISSET(tp->t_lflag, ICANON) &&
+		    cmd != TIOCSETAF) {
+			if (ISSET(t->c_lflag, ICANON))
+				SET(tp->t_lflag, PENDIN);
+			else {
+				/*
+				 * XXX we really shouldn't allow toggling
+				 * ICANON while we're in a non-termios line
+				 * discipline.  Now we have to worry about
+				 * panicing for a null queue.
+				 */
+				if (tp->t_canq.c_cbreserved > 0 &&
+				    tp->t_rawq.c_cbreserved > 0) {
 					catq(&tp->t_rawq, &tp->t_canq);
-					tq = tp->t_rawq;
-					tp->t_rawq = tp->t_canq;
-					tp->t_canq = tq;
-					CLR(tp->t_lflag, PENDIN);
+					/*
+					 * XXX the queue limits may be
+					 * different, so the old queue
+					 * swapping method no longer works.
+					 */
+					catq(&tp->t_canq, &tp->t_rawq);
 				}
+				CLR(tp->t_lflag, PENDIN);
+			}
+			ttwakeup(tp);
 		}
 		tp->t_iflag = t->c_iflag;
 		tp->t_oflag = t->c_oflag;
