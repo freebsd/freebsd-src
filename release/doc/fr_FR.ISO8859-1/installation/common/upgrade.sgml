@@ -84,7 +84,6 @@
 <filename>hosts.equiv</filename>,
 <filename>hosts.lpd</filename>,
 <filename>inetd.conf</filename>,
-<filename>kerberosIV</filename>,
 <filename>localtime</filename>,
 <filename>login.access</filename>,
 <filename>login.conf</filename>,
