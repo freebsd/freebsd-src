@@ -202,25 +202,25 @@ SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
 /* There's no way to say TUNEABLE_LONG to get the right types */
 u_long pccbb_start_mem = PCCBB_START_MEM;
 TUNABLE_INT("hw.cbb.start_memory", (int *)&pccbb_start_mem);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_mem, CTLFLAG_RD,
+SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_mem, CTLFLAG_RW,
     &pccbb_start_mem, PCCBB_START_MEM,
     "Starting address for memory allocations");
 
 u_long pccbb_start_16_io = PCCBB_START_16_IO;
 TUNABLE_INT("hw.cbb.start_16_io", (int *)&pccbb_start_16_io);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_16_io, CTLFLAG_RD,
+SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_16_io, CTLFLAG_RW,
     &pccbb_start_16_io, PCCBB_START_16_IO,
     "Starting ioport for 16-bit cards");
 
 u_long pccbb_start_32_io = PCCBB_START_32_IO;
 TUNABLE_INT("hw.cbb.start_32_io", (int *)&pccbb_start_32_io);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_32_io, CTLFLAG_RD,
+SYSCTL_ULONG(_hw_cbb, OID_AUTO, start_32_io, CTLFLAG_RW,
     &pccbb_start_32_io, PCCBB_START_32_IO,
     "Starting ioport for 32-bit cards");
 
 int cbb_debug = 0;
 TUNABLE_INT("hw.cbb.debug", &cbb_debug);
-SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RD, &cbb_debug, 0,
+SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
     "Verbose cardbus bridge debugging");
 
 static int	pccbb_chipset(uint32_t pci_id, const char **namep);
