@@ -527,6 +527,9 @@ cpu	EV4</programlisting>
       <para>Multia has enough Flash ROM to store both SRM and ARC code
       at the same time and allow software selection of one of them.</para>
 
+      <para>The embeded TGA video adapter is <emphasis>not</emphasis> currently
+      usable as a &os; console. You will need to use a serial console.</para>
+
       <para>Multia has only one 32 bit PCI slot for expansion, and it
       is only suitable for a small form factor PCI card. By
       sacrificing the PCI slot space you can mount a 3.5&quot; hard disk
@@ -1706,6 +1709,23 @@ cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
       cards. SIMMs are installed in sets of 8. Both memory daughter cards must 
       be populated identically.</para>
   
+      <para>Note that both AS500 and AS600 are EISA machines. This means
+      you have to run the EISA Configuration Utility (ECU) from floppy
+      after adding EISA cards or to change things like the configuration
+      settings of the onboard I/O. For AS500 which does not have a physical
+      EISA slot the ECU is used to configure the onboard sound interface
+      etc.</para>
+
+      <para>AS500 onboard sound can be used by adding a line like</para>
+
+      <programlisting>device pcm</programlisting> 
+
+      <para>to the kernel configuration file.</para>
+
+      <para>Using the ECU I configured my AS500 to use IRQ10, port 0x530 
+      and drq 0. You will need to specify this in your hints file, and 
+      the uncommon flags 0x10011 as well.</para>
+
       <para>AS600 has a peculiarity for its PCI slots. AS600 (or rather the 
       PCI expansion card containing the SCSI adapters) does not allow I/O port 
       mapping, therefore all devices behind it must use memory mapping. If you 
@@ -3074,6 +3094,11 @@ cpu	EV5</programlisting>
     console driver works just like on a &os;/intel machine. 
     Please note that VESA modes are not supported on Alpha,
     so that leaves you with 80x25 consoles.</para>
+
+    <para>In some Alpha machines you will find video adapters based
+    on TGA chips. The plain TGA adapter does not emulate VGA and is
+    therefore not usable for a &os; console. TGA2 cards have a basic
+    VGA compatibility mode and work fine as &os; consoles.</para>
 
     <para>The <quote>PC standard</quote> serial ports found on most
     Alphas are supported. For TurboChannel machines the serial ports
