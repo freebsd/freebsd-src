@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-# XXX present but broken: ip_mroute_mod
-
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT)
 _random=	random
 .endif
@@ -36,6 +34,7 @@ SUBDIR=	3dfx \
 	if_tap \
 	if_tun \
 	ip6fw \
+	ip_mroute_mod \
 	ipfilter \
 	ipfw \
 	ispfw \
