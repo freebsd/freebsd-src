@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.123 1997/12/30 20:02:32 brian Exp $
+ * $Id: command.c,v 1.124 1997/12/30 23:22:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1215,6 +1215,9 @@ GetIpAddr(const char *cp)
 static int
 SetInterfaceAddr(struct cmdargs const *arg)
 {
+  const char *hisaddr;
+
+  hisaddr = NULL;
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
 
   if (arg->argc > 4)
@@ -1229,11 +1232,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
 		   &DefMyAddress.mask, &DefMyAddress.width))
       return 1;
     if (arg->argc > 1) {
-      if (strpbrk(arg->argv[1], ",-"))
-        iplist_setsrc(&DefHisChoice, arg->argv[1]);
-      else if (!ParseAddr(arg->argc, arg->argv+1, &DefHisAddress.ipaddr,
-		            &DefHisAddress.mask, &DefHisAddress.width))
-	return 2;
+      hisaddr = arg->argv[1];
       if (arg->argc > 2) {
 	ifnetmask = GetIpAddr(arg->argv[2]);
 	if (arg->argc > 3) {
@@ -1251,30 +1250,14 @@ SetInterfaceAddr(struct cmdargs const *arg)
     DefMyAddress.mask.s_addr = 0;
     DefMyAddress.width = 0;
   }
+  IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
   if (DefHisAddress.ipaddr.s_addr == 0) {
     DefHisAddress.mask.s_addr = 0;
     DefHisAddress.width = 0;
   }
-  IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
-  if (iplist_isvalid(&DefHisChoice)) {
-    iplist_setrandpos(&DefHisChoice);
-    IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.want_ipaddr);
-    if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
-      LogPrintf(LogWARN, "%s: None available !\n", DefHisChoice.src);
-      return 3;
-    }
-    DefHisAddress.ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr;
-    DefHisAddress.mask.s_addr = 0xffffffff;
-    DefHisAddress.width = 32;
-  } else {
-    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
 
-    if ((mode & MODE_AUTO) &&
-        OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr) < 0) {
-      DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
-      return 4;
-    }
-  }
+  if (hisaddr && !UseHisaddr(hisaddr, mode & MODE_AUTO))
+    return 4;
 
   return 0;
 }
@@ -1525,6 +1508,8 @@ AddCommand(struct cmdargs const *arg)
   else {
     if (strcasecmp(arg->argv[0], "MYADDR") == 0)
       dest = IpcpInfo.want_ipaddr;
+    else if (strcasecmp(arg->argv[0], "HISADDR") == 0)
+      dest = IpcpInfo.his_ipaddr;
     else
       dest = GetIpAddr(arg->argv[0]);
     netmask = GetIpAddr(arg->argv[1]);
