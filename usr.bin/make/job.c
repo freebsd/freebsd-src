@@ -182,7 +182,7 @@ static Shell    shells[] = {
      */
 {
     "csh",
-    TRUE, "unset verbose", "set verbose", "unset verbose", 10,
+    TRUE, "unset verbose", "set verbose", "unset verbose", 13,
     FALSE, "echo \"%s\"\n", "csh -c \"%s || exit 0\"",
     "v", "e",
 },
