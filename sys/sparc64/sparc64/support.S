@@ -346,11 +346,17 @@ END(ofwstack)
  * void openfirmware(cell_t args[])
  */
 ENTRY(openfirmware)
-	save
-	setx	ofwstack_last - SPOFF, %l0, %l1
-	mov	%l1, %sp	/* XXX race between save and %sp setup */
+	/*
+	 * Disable interrupts. The firmware should not deal with our interrupts
+	 * anyway, and the temporary stack is not large enough to hold the stack
+	 * footprint of the interrrupt handling.
+	 */
+	rdpr	%pstate, %o3
+	andn	%o3, PSTATE_IE, %o1
+	wrpr	%o1, 0, %pstate
+	setx	ofwstack_last - SPOFF, %o1, %o2
+	save	%o2, 0, %sp
 	flushw
-	rdpr	%pstate, %l0
 	rdpr	%tl, %l1
 	rdpr	%tba, %l2
 	mov	AA_DMMU_PCXR, %l3
@@ -368,13 +374,13 @@ ENTRY(openfirmware)
 	wrpr	%g0, 0, %tl
 	call	%l6
 	 mov	%i0, %o0
-	wrpr	%l0, 0, %pstate
 	wrpr	%l1, 0, %tl
 	wrpr	%l2, 0, %tba
 	stxa	%l4, [%l3] ASI_DMMU
 	wrpr	%l7, 0, %pil
 	membar	#Sync
 	flush	%sp
-	ret
-	 restore
+	restore
+	retl
+	 wrpr	%o3, 0, %pstate
 END(openfirmware)
