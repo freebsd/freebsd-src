@@ -268,6 +268,9 @@ setthetime(fmt, p, jflag, nflag)
 		}
 	}
 
+	/* Let mktime() decide whether summer time is in effect. */
+	lt->tm_isdst = -1;
+
 	/* convert broken-down time to GMT clock time */
 	if ((tval = mktime(lt)) == -1)
 		errx(1, "nonexistent time");
