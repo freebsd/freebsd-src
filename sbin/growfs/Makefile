@@ -11,6 +11,7 @@ MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
 
 PROG=   growfs
 SRCS=   growfs.c
+MAN=	growfs.8
 
 .if defined(GFSDBG)
 SRCS+=  debug.c

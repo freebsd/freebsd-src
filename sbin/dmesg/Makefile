@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	dmesg
+MAN=	dmesg.8
 BINGRP=	kmem
 BINMODE=2555
 LDADD=	-lkvm

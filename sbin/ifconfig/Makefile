@@ -15,6 +15,7 @@ SRCS+=	ifvlan.c
 CFLAGS+=-DUSE_VLANS
 .endif
 
+MAN=	ifconfig.8
 DPADD=	${LIBIPX}
 LDADD=	-lipx
 COPTS=	-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \

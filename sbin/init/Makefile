@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	init
+MAN=	init.8
 MLINKS=	init.8 securelevel.8
 BINMODE=500
 INSTALLFLAGS=-fschg

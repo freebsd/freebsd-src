@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	swapon
+MAN=	swapon.8
 
 .include <bsd.prog.mk>

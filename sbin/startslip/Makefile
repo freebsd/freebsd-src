@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	startslip
-MAN1=	${PROG}.1
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	tunefs
+MAN=	tunefs.8
 
 .include <bsd.prog.mk>
