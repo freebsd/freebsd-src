@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: disklabel.8,v 1.8 1998/06/04 06:49:13 charnier Exp $
+.\"	$Id: disklabel.8,v 1.9 1998/11/28 09:43:31 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt DISKLABEL 8
@@ -251,25 +251,19 @@ indicates the primary boot program and
 the secondary boot program.
 If the names are not explicitly given, standard boot programs will be used.
 The boot programs are located in
-.Pa /usr/mdec .
+.Pa /boot .
 The names of the programs are taken from the ``b0'' and ``b1'' parameters
 of the
 .Xr disktab 5
 entry for the disk if
 .Ar disktype
 was given and its disktab entry exists and includes those parameters.
-Otherwise, boot program names are derived from the name of the disk.
-These names are of the form
-.Pa basename Ns boot
-for the primary (or only) bootstrap, and
-.Pf boot Pa basename
-for the secondary bootstrap;
-for example,
-.Pa /usr/mdec/daboot
+Otherwise, the default boot image names are used, these being:
+.Pa /boot/boot1
 and
-.Pa /usr/mdec/bootda
-if the disk device is
-.Em da0 .
+.Pa /boot/boot2
+for the standard stage1 and stage2 boot images (details may vary
+on architectures like the Alpha, where only a single-stage boot is used).
 .Pp
 The first of the three boot-installation forms is used to install
 bootstrap code without changing the existing label.
@@ -281,8 +275,8 @@ except that they will install bootstrap code in addition to a new label.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/disktab
-.It Pa /usr/mdec/ Ns Em xx Ns boot
-.It Pa /usr/mdec/boot Ns Em xx
+.It Pa /boot/
+.It Pa /boot/boot<n>
 .El
 .Sh EXAMPLES
 .Dl disklabel da0
@@ -318,9 +312,9 @@ Existing bootstrap code is unaffected.
 .Pp
 Install a new bootstrap on da0.
 The boot code comes from
-.Pa /usr/mdec/daboot
+.Pa /boot/boot1
 and possibly
-.Pa /usr/mdec/bootda .
+.Pa /boot/boot2 .
 On-disk and in-core labels are unchanged.
 .Pp
 .Dl disklabel -w -B /dev/rda0c -b newboot da2212
@@ -329,7 +323,7 @@ Install a new label and bootstrap.
 The label is derived from disktab information for ``da2212'' and
 installed both in-core and on-disk.
 The bootstrap code comes from the file
-.Pa /usr/mdec/newboot .
+.Pa /boot/newboot .
 .Sh SEE ALSO
 .Xr disklabel 5 ,
 .Xr disktab 5
