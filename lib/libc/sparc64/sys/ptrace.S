@@ -56,4 +56,6 @@ _SYSENTRY(ptrace)
 	stw	%g0, [%o0]
 	restore
 	_SYSCALL(ptrace)
+	retl
+	 nop
 _SYSEND(ptrace)
