@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6 1995/05/30 08:28:53 rgrimes Exp $
+ * $Id: network.c,v 1.6.2.1 1995/06/03 04:16:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,7 +199,7 @@ startPPP(Device *devp)
 	strcpy(myaddr, "0");
     fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
 
-    strcpy(netmask, getenv(VAR_NETMASK) ? getenv(VAR_NETMASK) : "0xffffffff");
+    strcpy(netmask, getenv("netmask") ? getenv("netmask") : "0xffffffff");
     fprintf(fp, "add 0 %s %s\n", netmask, provider);
     fclose(fp);
     if (!fork()) {
