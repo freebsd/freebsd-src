@@ -506,6 +506,8 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 int
 _fetch_putln(conn_t *conn, const char *str, size_t len)
 {
+
+	DEBUG(fprintf(stderr, ">>> %s\n", str));
 	if (_fetch_write(conn, str, len) == -1 ||
 	    _fetch_write(conn, ENDL, sizeof ENDL) == -1)
 		return (-1);
