@@ -41,6 +41,7 @@
 #include <sys/errno.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
+#include <sys/protosw.h>
 
 #include <sys/malloc.h>
 
@@ -59,6 +60,7 @@
 #include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #endif
+#include <netinet6/ip6protosw.h>
 #include <netinet/ip_ecn.h>
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
@@ -67,6 +69,18 @@
 #include <net/if_gif.h>
 
 #include <net/net_osdep.h>
+
+static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
+			 struct ifnet *);
+
+extern  struct domain inet6domain;
+struct ip6protosw in6_gif_protosw =
+{ SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
+  in6_gif_input, rip6_output,	0,		rip6_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip6_usrreqs
+};
 
 int
 in6_gif_output(ifp, family, m, rt)
@@ -281,52 +295,45 @@ int in6_gif_input(mp, offp, proto)
 }
 
 /*
- * we know that we are in IFF_UP, outer address available, and outer family
- * matched the physical addr family.  see gif_encapcheck().
+ * validate outer address.
  */
-int
-gif_encapcheck6(m, off, proto, arg)
-	const struct mbuf *m;
-	int off;
-	int proto;
-	void *arg;
-{
-	struct ip6_hdr ip6;
+static int
+gif_validate6(ip6, sc, ifp)
+	const struct ip6_hdr *ip6;
 	struct gif_softc *sc;
+	struct ifnet *ifp;
+{
 	struct sockaddr_in6 *src, *dst;
-	int addrmatch;
 
-	/* sanity check done in caller */
-	sc = (struct gif_softc *)arg;
 	src = (struct sockaddr_in6 *)sc->gif_psrc;
 	dst = (struct sockaddr_in6 *)sc->gif_pdst;
 
-	m_copydata(m, 0, sizeof(ip6), (caddr_t)&ip6);
-
-	/* check for address match */
-	addrmatch = 0;
-	if (IN6_ARE_ADDR_EQUAL(&src->sin6_addr, &ip6.ip6_dst))
-		addrmatch |= 1;
-	if (IN6_ARE_ADDR_EQUAL(&dst->sin6_addr, &ip6.ip6_src))
-		addrmatch |= 2;
-	if (addrmatch != 3)
+	/*
+	 * Check for address match.  Note that the check is for an incoming
+	 * packet.  We should compare the *source* address in our configuration
+	 * and the *destination* address of the packet, and vice versa.
+	 */
+	if (!IN6_ARE_ADDR_EQUAL(&src->sin6_addr, &ip6->ip6_dst) ||
+	    !IN6_ARE_ADDR_EQUAL(&dst->sin6_addr, &ip6->ip6_src))
 		return 0;
 
 	/* martian filters on outer source - done in ip6_input */
 
 	/* ingress filters on outer source */
-	if ((sc->gif_if.if_flags & IFF_LINK2) == 0 &&
-	    (m->m_flags & M_PKTHDR) != 0 && m->m_pkthdr.rcvif) {
+	if ((sc->gif_if.if_flags & IFF_LINK2) == 0 && ifp) {
 		struct sockaddr_in6 sin6;
 		struct rtentry *rt;
 
 		bzero(&sin6, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_addr = ip6.ip6_src;
-		/* XXX scopeid */
+		sin6.sin6_addr = ip6->ip6_src;
+#ifndef SCOPEDROUTING
+		sin6.sin6_scope_id = 0; /* XXX */
+#endif
+
 		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
-		if (!rt || rt->rt_ifp != m->m_pkthdr.rcvif) {
+		if (!rt || rt->rt_ifp != ifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from %s dropped "
 			    "due to ingress filter\n", if_name(&sc->gif_if),
@@ -340,4 +347,69 @@ gif_encapcheck6(m, off, proto, arg)
 	}
 
 	return 128 * 2;
+}
+
+/*
+ * we know that we are in IFF_UP, outer address available, and outer family
+ * matched the physical addr family.  see gif_encapcheck().
+ * sanity check for arg should have been done in the caller.
+ */
+int
+gif_encapcheck6(m, off, proto, arg)
+	const struct mbuf *m;
+	int off;
+	int proto;
+	void *arg;
+{
+	struct ip6_hdr ip6;
+	struct gif_softc *sc;
+	struct ifnet *ifp;
+
+	/* sanity check done in caller */
+	sc = (struct gif_softc *)arg;
+
+	/* LINTED const cast */
+	m_copydata(m, 0, sizeof(ip6), (caddr_t)&ip6);
+	ifp = ((m->m_flags & M_PKTHDR) != 0) ? m->m_pkthdr.rcvif : NULL;
+
+	return gif_validate6(&ip6, sc, ifp);
+}
+
+int
+in6_gif_attach(sc)
+	struct gif_softc *sc;
+{
+#ifndef USE_ENCAPCHECK
+	struct sockaddr_in6 mask6;
+
+	bzero(&mask6, sizeof(mask6));
+	mask6.sin6_len = sizeof(struct sockaddr_in6);
+	mask6.sin6_addr.s6_addr32[0] = mask6.sin6_addr.s6_addr32[1] =
+	    mask6.sin6_addr.s6_addr32[2] = mask6.sin6_addr.s6_addr32[3] = ~0;
+	mask6.sin6_scope_id = ~0;
+
+	if (!sc->gif_psrc || !sc->gif_pdst)
+		return EINVAL;
+	sc->encap_cookie6 = encap_attach(AF_INET6, -1, sc->gif_psrc,
+	    (struct sockaddr *)&mask6, sc->gif_pdst, (struct sockaddr *)&mask6,
+	    (struct protosw *)&in6_gif_protosw, sc);
+#else
+	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1, gif_encapcheck,
+	    (struct protosw *)&in6_gif_protosw, sc);
+#endif
+	if (sc->encap_cookie6 == NULL)
+		return EEXIST;
+	return 0;
+}
+
+int
+in6_gif_detach(sc)
+	struct gif_softc *sc;
+{
+	int error;
+
+	error = encap_detach(sc->encap_cookie6);
+	if (error == 0)
+		sc->encap_cookie6 = NULL;
+	return error;
 }
