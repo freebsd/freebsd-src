@@ -96,7 +96,7 @@ int file(char *name);
 void getsocket(void);
 int my_ether_aton(char *a, u_char *n);
 int rtmsg(int cmd);
-int get_ether_addr(u_long ipaddr, u_char *hwaddr);
+int get_ether_addr(u_int32_t ipaddr, u_char *hwaddr);
 
 static int pid;
 static int nflag;	/* no reverse dns lookups */
@@ -641,10 +641,10 @@ doit:
 #define MAX_IFS		32
 
 int
-get_ether_addr(u_long ipaddr, u_char *hwaddr)
+get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 {
 	struct ifreq *ifr, *ifend, *ifp;
-	u_long ina, mask;
+	u_int32_t ina, mask;
 	struct sockaddr_dl *dla;
 	struct ifreq ifreq;
 	struct ifconf ifc;
