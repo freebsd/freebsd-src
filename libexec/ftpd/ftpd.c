@@ -1171,13 +1171,15 @@ end_login(void)
 		       LOGIN_SETMAC);
 #endif
 #ifdef USE_PAM
-	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
-	if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e));
-	if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
-	pamh = NULL;
+	if (pamh) {
+		if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, e));
+		if ((e = pam_close_session(pamh,0)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_close_session: %s", pam_strerror(pamh, e));
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS)
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		pamh = NULL;
+	}
 #endif
 	logged_in = 0;
 	guest = 0;
@@ -1247,7 +1249,6 @@ auth_conv(int num_msg, const struct pam_message **msg,
 static int
 auth_pam(struct passwd **ppw, const char *pass)
 {
-	pam_handle_t *pamh = NULL;
 	const char *tmpl_user;
 	const void *item;
 	int rval;
@@ -1257,7 +1258,8 @@ auth_pam(struct passwd **ppw, const char *pass)
 
 	e = pam_start("ftpd", (*ppw)->pw_name, &conv, &pamh);
 	if (e != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
+		/* pamh is NULL, cannot use pam_strerror() */
+		syslog(LOG_ERR, "pam_start failed");
 		return -1;
 	}
 
@@ -1265,6 +1267,10 @@ auth_pam(struct passwd **ppw, const char *pass)
 	if (e != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
 			pam_strerror(pamh, e));
+		if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		}
+		pamh = NULL;
 		return -1;
 	}
 
