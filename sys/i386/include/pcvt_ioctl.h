@@ -44,7 +44,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Thu Jan 26 09:54:14 1995]
+ * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Sun Feb 26 13:15:12 1995]
  *
  */
 
@@ -55,6 +55,7 @@
  *	-hm	------------ Release 3.00 --------------
  *	-hm	some new PCVT_xxx (and CONF_xxx) values
  *	-hm	version definitions moved to begin of file
+ *	-hm	removed PCVT_FAKE_SYSCONS10
  *
  *---------------------------------------------------------------------------*/
 
@@ -63,7 +64,7 @@
 
 /* pcvt version information for VGAPCVTID ioctl */
 
-#define PCVTIDNAME    "pcvt-b19"	/* driver id - string		*/
+#define PCVTIDNAME    "pcvt-b22"	/* driver id - string		*/
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
 #define PCVTIDMINOR   20		/* driver id - minor release	*/
 
@@ -420,7 +421,7 @@ struct pcvtinfo {			/* compile time option values */
 	u_int updatefast;		/* PCVT_UPDATEFAST */
 	u_int updateslow;		/* PCVT_UPDATESLOW */
 	u_int sysbeepf;			/* PCVT_SYSBEEPF */
-	u_int pcburst;			/* PCVT_PCBURST, NetBSD ONLY ! */
+	u_int pcburst;			/* PCVT_PCBURST */
 	u_int kbd_fifo_sz;		/* PCVT_KBD_FIFO_SZ */
 
 /* config booleans */
@@ -447,7 +448,7 @@ struct pcvtinfo {			/* compile time option values */
 #define CONF_WAITRETRACE	0x00020000
 #define CONF_XSERVER		0x00040000
 #define CONF_USL_VT_COMPAT	0x00080000
-#define CONF_FAKE_SYSCONS10	0x00100000
+				/* 0x00100000 was FAKE_SYSCONS10 */
 #define CONF_INHIBIT_NUMLOCK	0x00200000
 #define CONF_META_ESC		0x00400000
 #define CONF_NOFASTSCROLL	0x00800000
@@ -574,17 +575,6 @@ struct keymap {
 };
 
 typedef struct keymap keymap_t;
-
-/*
- * If PCVT_FAKE_SYSCONS10 has been defined, this command is also understood.
- * pcvt then fakes to be syscons 1.0; this should not be taken by any prog-
- * ram since it is a lie (but for at least XFree86 2.0 the only way to make
- * use of the VT_OPENQRY command - this has been broken in syscons prior
- * to 1.0).
- * Once that XFree86 has been fixed, we will cease to support this command
- * anymore.
- */
-#define CONS_GETVERS	_IOR('c', 74, long)
 
 /* end of USL VT compatibility stuff */
 
