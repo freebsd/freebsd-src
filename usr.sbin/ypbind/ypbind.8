@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypbind.8,v 1.8 1997/02/22 16:14:54 peter Exp $
+.\"	$Id: ypbind.8,v 1.9 1997/04/15 07:15:47 jmg Exp $
 .\"
 .Dd April 9, 1995
 .Dt YPBIND 8
@@ -42,6 +42,7 @@
 .Op Fl ypset
 .Op Fl ypsetme
 .Op Fl s
+.Op Fl m
 .Op Fl S Ar domainname,server1,server2,...
 .Sh DESCRIPTION
 .Nm
@@ -134,6 +135,24 @@ Note that
 will consider the domainname specified with the
 .Fl S
 flag to be the system default domain.
+.It Fl m
+The
+.Fl m
+flag can only be used in conjunction with the
+.Fl S
+flag above (if used without the
+.Fl S
+flag, it has no effect). It causes
+.Nm ypbind
+to use a 'many-cast' rather than a broadcast for choosing a server
+from the restricted mode server list. In many-cast mode,
+.Nm ypbind
+will transmit directly to the YPPROC_DOMAIN_NONACK procedure of the
+servers specified in the restricted list and bind to the server that
+responds the fastest.
+This mode of operation is useful for NIS clients on remote subnets
+where no local NIS servers are available.
+.El
 .Sh NOTES
 The
 .Nm
