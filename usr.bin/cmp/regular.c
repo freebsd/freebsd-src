@@ -44,8 +44,11 @@ static char sccsid[] = "@(#)regular.c	8.3 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "extern.h"
+
+#define ROUNDPAGE(i) ((i) & ~pagemask)
 
 void
 c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
@@ -56,6 +59,7 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	u_char ch, *p1, *p2;
 	off_t byte, length, line;
 	int dfound;
+	off_t pagemask, off1, off2;
 
 	if (sflag && len1 != len2)
 		exit(1);
