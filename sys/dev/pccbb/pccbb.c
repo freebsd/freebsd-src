@@ -242,7 +242,7 @@ static int pccbb_pcic_release_resource(device_t self, device_t child, int type,
 static int pccbb_pcic_set_res_flags(device_t self, device_t child, int type,
 				    int rid, u_int32_t flags);
 static int pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
-					u_int32_t offset);
+					u_int32_t offset, u_int32_t *offsetp);
 static int pccbb_power_enable_socket(device_t self, device_t child);
 static void pccbb_power_disable_socket(device_t self, device_t child);
 static int pccbb_activate_resource(device_t self, device_t child, int type,
@@ -378,7 +378,6 @@ static int
 pccbb_attach(device_t dev)
 {
 	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(dev);
-	int flags;
 	int rid;
 	u_int32_t tmp;
 
@@ -387,9 +386,8 @@ pccbb_attach(device_t dev)
 		STAILQ_INIT(&softcs);
 	}
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF);
-	sc->sc_chipset = cb_chipset(pci_get_devid(dev), NULL, &flags);
+	sc->sc_chipset = cb_chipset(pci_get_devid(dev), NULL, &sc->sc_flags);
 	sc->sc_dev = dev;
-	sc->sc_flags = 0;
 	sc->sc_cbdev = NULL;
 	sc->sc_pccarddev = NULL;
 	sc->sc_secbus = pci_read_config(dev, PCIR_SECBUS_2, 1);
@@ -562,7 +560,7 @@ pccbb_driver_added(device_t dev, driver_t *driver)
 	device_t *devlist;
 	int tmp;
 	int numdevs;
-	
+
 	DEVICE_IDENTIFY(driver, dev);
 	device_get_children(dev, &devlist, &numdevs);
 	for (tmp = 0; tmp < numdevs; tmp++) {
@@ -570,12 +568,24 @@ pccbb_driver_added(device_t dev, driver_t *driver)
 		    device_probe_and_attach(devlist[tmp]) == 0) {
 			if (devlist[tmp] == NULL)
 				/* NOTHING */;
-			else if (strcmp(driver->name, "cardbus") == 0)
+			else if (strcmp(driver->name, "cardbus") == 0) {
 				sc->sc_cbdev = devlist[tmp];
-			else if (strcmp(driver->name, "pccard") == 0)
+				if ((sc->sc_socketreg->socket_state
+				     & PCCBB_SOCKET_STAT_CD) == 0) {
+					mtx_enter(&sc->sc_mtx, MTX_DEF);
+					wakeup(sc);
+					mtx_exit(&sc->sc_mtx, MTX_DEF);
+				}
+			} else if (strcmp(driver->name, "pccard") == 0) {
 				sc->sc_pccarddev = devlist[tmp];
-			else
-				device_printf(dev, 
+				if ((sc->sc_socketreg->socket_state
+				     & PCCBB_SOCKET_STAT_CD) == 0) {
+					mtx_enter(&sc->sc_mtx, MTX_DEF);
+					wakeup(sc);
+					mtx_exit(&sc->sc_mtx, MTX_DEF);
+				}
+			} else
+				device_printf(dev,
 					      "Unsupported child bus: %s\n",
 					      driver->name);
 		}
@@ -605,6 +615,7 @@ pccbb_event_thread (void *arg)
 	struct pccbb_softc *sc = arg;
 	u_int32_t status;
 
+	mtx_enter(&Giant, MTX_DEF);
 	for(;;) {
 		if (!(sc->sc_flags & PCCBB_KTHREAD_RUNNING))
 			sc->sc_flags |= PCCBB_KTHREAD_RUNNING;
@@ -623,24 +634,15 @@ pccbb_event_thread (void *arg)
 
 		status = sc->sc_socketreg->socket_state;
 		if ((status & PCCBB_SOCKET_STAT_CD) == 0) {
-			if (!(sc->sc_flags & PCCBB_CARDATTACHED))
-				pccbb_insert(sc);
-			else
-				device_printf(sc->sc_dev,
-					      "duplicate card insert\n");
+			pccbb_insert(sc);
 		} else {
-			if (!(sc->sc_flags & PCCBB_CARDATTACHED))
-				DEVPRINTF((sc->sc_dev,
-					   "removal of nonexistant card!\n"));
-			else
-				pccbb_removal(sc);
+			pccbb_removal(sc);
 		}
 		mtx_exit(&sc->sc_mtx, MTX_DEF);
 	}
 	mtx_exit(&sc->sc_mtx, MTX_DEF);
 	sc->sc_flags &= ~PCCBB_KTHREAD_RUNNING;
 	wakeup(sc);
-	mtx_enter(&Giant, MTX_DEF);
 	kthread_exit(0);
 }
 
@@ -689,18 +691,13 @@ pccbb_insert (struct pccbb_softc *sc)
 		   sockevent, sockstate));
 
 	if (sockstate & PCCBB_SOCKET_STAT_16BIT && sc->sc_pccarddev != NULL) {
-		sc->sc_flags |= PCCBB_CARDATTACHED | PCCBB_16BIT_CARD;
-		if (CARD_ATTACH_CARD(sc->sc_pccarddev) != 0) {
+		sc->sc_flags |= PCCBB_16BIT_CARD;
+		if (CARD_ATTACH_CARD(sc->sc_pccarddev) != 0)
 			device_printf(sc->sc_dev, "card activation failed\n");
-			sc->sc_flags &= ~PCCBB_CARDATTACHED;
-		}
 	} else if (sockstate & PCCBB_SOCKET_STAT_CB && sc->sc_cbdev != NULL) {
-		sc->sc_flags |= PCCBB_CARDATTACHED;
 		sc->sc_flags &= ~PCCBB_16BIT_CARD;
-		if (CARD_ATTACH_CARD(sc->sc_cbdev) != 0) {
+		if (CARD_ATTACH_CARD(sc->sc_cbdev) != 0)
 			device_printf(sc->sc_dev, "card activation failed\n");
-			sc->sc_flags &= ~PCCBB_CARDATTACHED;
-		}
 	} else {
 		device_printf (sc->sc_dev, "Unsupported card type detected\n");
 	}
@@ -714,10 +711,9 @@ pccbb_removal (struct pccbb_softc *sc)
 
 	sockstate = sc->sc_socketreg->socket_state;
 
-	sc->sc_flags &= ~PCCBB_CARDATTACHED;
-	if (sockstate & PCCBB_16BIT_CARD)
+	if (sockstate & PCCBB_16BIT_CARD && sc->sc_pccarddev != NULL)
 		CARD_DETACH_CARD(sc->sc_pccarddev, DETACH_FORCE);
-	else
+	else if ((!(sockstate & PCCBB_16BIT_CARD)) && sc->sc_cbdev != NULL)
 		CARD_DETACH_CARD(sc->sc_cbdev, DETACH_FORCE);
 
 	while (NULL != (rle = SLIST_FIRST(&sc->rl))) {
@@ -862,6 +858,9 @@ pccbb_power(device_t dev, int volts)
 		break;
 	}
 
+	if (sc->sc_socketreg->socket_control == sock_ctrl)
+		return 1; /* no change necessary */
+
 	sc->sc_socketreg->socket_control = sock_ctrl;
 	status = sc->sc_socketreg->socket_state;
 
@@ -926,7 +925,7 @@ pccbb_cardbus_reset(device_t dev)
 	DELAY(delay_us);
 
 	/* If a card exists, unreset it! */
-	if (sc->sc_flags & PCCBB_CARDATTACHED) {
+	if ((sc->sc_socketreg->socket_state & PCCBB_SOCKET_STAT_CD) == 0) {
 		PCI_MASK_CONFIG(dev, PCCBBR_BRIDGECTRL,
 				&~PCCBBM_BRIDGECTRL_RESET, 2);
 		DELAY(delay_us);
@@ -936,8 +935,13 @@ pccbb_cardbus_reset(device_t dev)
 static int
 pccbb_cardbus_power_enable_socket(device_t self, device_t child)
 {
+	struct pccbb_softc *sc = device_get_softc(self);
 	int voltage;
-	
+
+	if ((sc->sc_socketreg->socket_state & PCCBB_SOCKET_STAT_CD)
+	    == PCCBB_SOCKET_STAT_CD)
+		return ENODEV;
+
 	voltage = pccbb_detect_voltage(self);
 
 	pccbb_power(self, CARD_VCC_0V | CARD_VPP_0V);
@@ -1285,6 +1289,7 @@ pccbb_pcic_wait_ready(struct pccbb_softc *sc)
 	PCIC_SYSMEM_ADDR ## NUM ## _START_MSB, \
 	PCIC_SYSMEM_ADDR ## NUM ## _STOP_LSB, \
 	PCIC_SYSMEM_ADDR ## NUM ## _STOP_MSB, \
+	PCIC_SYSMEM_ADDR ## NUM ## _WIN, \
 	PCIC_CARDMEM_ADDR ## NUM ## _LSB, \
 	PCIC_CARDMEM_ADDR ## NUM ## _MSB, \
 	PCIC_ADDRWIN_ENABLE_MEM ## NUM ## , \
@@ -1295,6 +1300,7 @@ static struct mem_map_index_st {
 	int sysmem_start_msb;
 	int sysmem_stop_lsb;
 	int sysmem_stop_msb;
+	int sysmem_win;
 	int cardmem_lsb;
 	int cardmem_msb;
 	int memenable;
@@ -1314,7 +1320,7 @@ pccbb_pcic_do_mem_map(struct pccbb_softc *sc, int win)
 		   (sc->mem[win].addr >> PCIC_SYSMEM_ADDRX_SHIFT) & 0xff);
 	PCIC_WRITE(sc, mem_map_index[win].sysmem_start_msb,
 		   ((sc->mem[win].addr >> (PCIC_SYSMEM_ADDRX_SHIFT + 8)) &
-		    PCIC_SYSMEM_ADDRX_START_MSB_ADDR_MASK));
+		    PCIC_SYSMEM_ADDRX_START_MSB_ADDR_MASK) | 0x80);
 
 	PCIC_WRITE(sc, mem_map_index[win].sysmem_stop_lsb,
 		   ((sc->mem[win].addr + sc->mem[win].realsize - 1) >>
@@ -1324,6 +1330,9 @@ pccbb_pcic_do_mem_map(struct pccbb_softc *sc, int win)
 		     (PCIC_SYSMEM_ADDRX_SHIFT + 8)) &
 		    PCIC_SYSMEM_ADDRX_STOP_MSB_ADDR_MASK) |
 		   PCIC_SYSMEM_ADDRX_STOP_MSB_WAIT2);
+
+	PCIC_WRITE(sc, mem_map_index[win].sysmem_win,
+		   (sc->mem[win].addr >> PCIC_MEMREG_WIN_SHIFT) & 0xff);
 
 	PCIC_WRITE(sc, mem_map_index[win].cardmem_lsb,
 		   (sc->mem[win].offset >> PCIC_CARDMEM_ADDRX_SHIFT) & 0xff);
@@ -1340,15 +1349,17 @@ pccbb_pcic_do_mem_map(struct pccbb_softc *sc, int win)
 
 #ifdef CBB_DEBUG
 	{
-		int r1, r2, r3, r4, r5, r6;
+		int r1, r2, r3, r4, r5, r6, r7;
 		r1 = PCIC_READ(sc, mem_map_index[win].sysmem_start_msb);
 		r2 = PCIC_READ(sc, mem_map_index[win].sysmem_start_lsb);
 		r3 = PCIC_READ(sc, mem_map_index[win].sysmem_stop_msb);
 		r4 = PCIC_READ(sc, mem_map_index[win].sysmem_stop_lsb);
 		r5 = PCIC_READ(sc, mem_map_index[win].cardmem_msb);
 		r6 = PCIC_READ(sc, mem_map_index[win].cardmem_lsb);
+		r7 = PCIC_READ(sc, mem_map_index[win].sysmem_win);
 		DPRINTF(("pccbb_pcic_do_mem_map window %d: %02x%02x %02x%02x "
-			 "%02x%02x\n", win, r1, r2, r3, r4, r5, r6));
+			 "%02x%02x %02x (%08x+%08x.%08x*%08lx)\n", win, r1, r2, r3, r4, r5, r6, r7,
+			 sc->mem[win].addr, sc->mem[win].size, sc->mem[win].realsize, sc->mem[win].offset));
 	}
 #endif
 }
@@ -1371,7 +1382,6 @@ pccbb_pcic_mem_map(struct pccbb_softc *sc, int kind,
 		return (1);
 
 	card_addr = card_addr - card_addr % PCIC_MEM_PAGESIZE;
-
 	sc->mem[*win].memt = rman_get_bustag(r);
 	sc->mem[*win].memh = rman_get_bushandle(r);
 	sc->mem[*win].addr = rman_get_start(r);
@@ -1399,7 +1409,6 @@ pccbb_pcic_mem_unmap(struct pccbb_softc *sc, int window)
 		panic("pccbb_pcic_mem_unmap: window out of range");
 
 	PCIC_MASK(sc, PCIC_ADDRWIN_ENABLE, & ~mem_map_index[window].memenable);
-
 	sc->memalloc &= ~(1 << window);
 }
 
@@ -1452,6 +1461,18 @@ static void pccbb_pcic_do_io_map(struct pccbb_softc *sc, int win)
 		   | io_map_index[win].ioctlbits[sc->io[win].width]);
 
 	PCIC_MASK(sc, PCIC_ADDRWIN_ENABLE, | io_map_index[win].ioenable);
+#ifdef CBB_DEBUG
+	{
+		int r1, r2, r3, r4;
+		r1 = PCIC_READ(sc, io_map_index[win].start_msb);
+		r2 = PCIC_READ(sc, io_map_index[win].start_lsb);
+		r3 = PCIC_READ(sc, io_map_index[win].stop_msb);
+		r4 = PCIC_READ(sc, io_map_index[win].stop_lsb);
+		DPRINTF(("pccbb_pcic_do_io_map window %d: %02x%02x %02x%02x "
+			 "(%08x+%08x)\n", win, r1, r2, r3, r4,
+			 sc->io[win].addr, sc->io[win].size));
+	}
+#endif
 }
 
 static int
@@ -1517,6 +1538,9 @@ pccbb_pcic_activate_resource(device_t self, device_t child, int type, int rid,
 	struct pccbb_reslist *rle;
 	struct pccbb_softc *sc = device_get_softc(self);
 
+	if (rman_get_flags(r) & RF_ACTIVE)
+		return 0;
+
 	switch (type) {
 	case SYS_RES_IOPORT:
 		err = pccbb_pcic_io_map(sc, 0, r, 0, &win);
@@ -1549,7 +1573,6 @@ pccbb_pcic_deactivate_resource(device_t self, device_t child, int type,
 	struct pccbb_softc *sc = device_get_softc(self);
 	int win;
 	struct pccbb_reslist *rle;
-
 	win = -1;
 	SLIST_FOREACH(rle, &sc->rl, entries) {
 		if (type == rle->type && rid == rle->rid &&
@@ -1558,8 +1581,10 @@ pccbb_pcic_deactivate_resource(device_t self, device_t child, int type,
 			break;
 		}
 	}
-	if (win == -1)
+	if (win == -1) {
+		panic("pccbb_pcic: deactivating bogus resoure");
 		return 1;
+	}
 
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -1582,18 +1607,16 @@ pccbb_pcic_alloc_resource(device_t self, device_t child, int type, int* rid,
 	struct pccbb_softc *sc = device_get_softc(self);
 	struct pccbb_reslist *rle;
 
-	/* Nearly default */
-	if (type == SYS_RES_MEMORY && start == 0 && end == ~0 && count != 1) {
-		start = 0xd0000; /* XXX */
-		end = 0xdffff;
+	if ((sc->sc_flags & PCCBB_PCIC_MEM_32) == 0) {
+		panic("PCCBB bridge cannot handle non MEM_32 bridges\n");
 	}
 
 	switch (type) {
 	case SYS_RES_MEMORY:
 		/* Nearly default */
 		if (start == 0 && end == ~0 && count != 1) {
-			start = 0xd0000; /* XXX -- should be tweakable*/
-			end = 0xdffff;
+			start = CARDBUS_SYS_RES_MEMORY_START; /* XXX -- should be tweakable*/
+			end = CARDBUS_SYS_RES_MEMORY_END;
 		}
 		flags = (flags & ~RF_ALIGNMENT_MASK)
 			| rman_make_alignment_flags(PCCBB_MEMALIGN);
@@ -1639,14 +1662,26 @@ pccbb_pcic_release_resource(device_t self, device_t child, int type,
 {
 	struct pccbb_softc *sc = device_get_softc(self);
 	struct pccbb_reslist *rle;
+	int count = 0;
+
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		int error;
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error != 0)
+			return error;
+	}
 
 	SLIST_FOREACH(rle, &sc->rl, entries) {
 		if (type == rle->type && rid == rle->rid &&
 		    child == rle->odev) {
 			SLIST_REMOVE(&sc->rl, rle, pccbb_reslist, entries);
 			free(rle, M_DEVBUF);
+			count++;
 			break;
 		}
+	}
+	if (count == 0) {
+		panic("pccbb_pcic: releasing bogus resource");
 	}
 
 	return bus_generic_release_resource(self, child, type, rid, res);
@@ -1671,13 +1706,14 @@ pccbb_pcic_set_res_flags(device_t self, device_t child, int type, int rid,
 
 static int
 pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
-			     u_int32_t offset)
+			     u_int32_t cardaddr, u_int32_t *offsetp)
 {
 	struct pccbb_softc *sc = device_get_softc(self);
 	int win;
 	struct pccbb_reslist *rle;
 
 	win = -1;
+
 	SLIST_FOREACH(rle, &sc->rl, entries) {
 		if (SYS_RES_MEMORY == rle->type && rid == rle->rid &&
 		    child == rle->odev) {
@@ -1685,13 +1721,17 @@ pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
 			break;
 		}
 	}
-	if (win == -1)
+	if (win == -1) {
+		panic("pccbb_pcic: setting memory offset of bogus resource");
 		return 1;
+	}
 
-	offset = offset - offset % PCIC_MEM_PAGESIZE;
-	sc->mem[win].offset = ((long)offset) -
-			      ((long)(sc->mem[win].addr));
-
+	*offsetp = cardaddr % PCIC_MEM_PAGESIZE;
+	cardaddr -= *offsetp;
+	sc->mem[win].realsize = sc->mem[win].size + *offsetp + PCIC_MEM_PAGESIZE - 1;
+	sc->mem[win].realsize = sc->mem[win].realsize -
+				 (sc->mem[win].realsize % PCIC_MEM_PAGESIZE);
+	sc->mem[win].offset = cardaddr - sc->mem[win].addr;
 	pccbb_pcic_do_mem_map(sc, win);
 
 	return 0;
@@ -1785,7 +1825,7 @@ static int
 pccbb_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct pccbb_softc	*sc = device_get_softc(dev);
-    
+
 	switch (which) {
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_secbus;

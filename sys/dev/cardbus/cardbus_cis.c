@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -47,6 +48,8 @@
 
 #include <dev/cardbus/cardbusreg.h>
 #include <dev/cardbus/cardbus_cis.h>
+
+#include "card_if.h"
 
 #if defined CARDBUS_DEBUG
 #define STATIC
@@ -63,7 +66,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-struct tupleinfo;
+struct tuple_callbacks;
 
 static int cardbus_read_tuple_conf(device_t dev, device_t child,
 				   u_int32_t *start, u_int32_t *off,
@@ -78,13 +81,19 @@ static int cardbus_read_tuple(device_t dev, device_t child, u_int32_t *start,
 			      u_int32_t *off, int *tupleid, int *len,
 			      u_int8_t *tupledata);
 static int decode_tuple(device_t dev, device_t child, int tupleid, int len,
-			u_int8_t *tupledata, u_int32_t *start, u_int32_t *off);
+			u_int8_t *tupledata, u_int32_t *start, u_int32_t *off,
+			struct tuple_callbacks *callbacks);
+static int cardbus_parse_cis(device_t dev, device_t child,
+			     struct tuple_callbacks *callbacks);
 
-#define DECODE_PROTOTYPE(NAME) static int decode_tuple_ ## NAME		\
+#define DECODE_PARAMS							\
 		(device_t dev, device_t child, int id, int len,		\
 		 u_int8_t *tupledata, u_int32_t *start, u_int32_t *off,	\
-		 struct tupleinfo *info)
+		 struct tuple_callbacks *info)
+#define DECODE_PROTOTYPE(NAME) static int decode_tuple_ ## NAME DECODE_PARAMS
 DECODE_PROTOTYPE(generic);
+DECODE_PROTOTYPE(nothing);
+DECODE_PROTOTYPE(copy);
 DECODE_PROTOTYPE(bar);
 DECODE_PROTOTYPE(linktarget);
 DECODE_PROTOTYPE(vers_1);
@@ -94,54 +103,12 @@ DECODE_PROTOTYPE(funce);
 DECODE_PROTOTYPE(end);
 DECODE_PROTOTYPE(unhandled);
 
-static struct tupleinfo {
-	u_int8_t id;
+struct tuple_callbacks {
+	int id;
 	char* name;
-	int (*func)(device_t dev, device_t child, int id, int len,
-		    u_int8_t *tupledata, u_int32_t *start, u_int32_t *off,
-		    struct tupleinfo *info);
-} tupleinfo[] = {
-#define MAKETUPLE(NAME,FUNC) { CISTPL_ ## NAME, #NAME, decode_tuple_ ## FUNC }
-	MAKETUPLE(NULL,			generic),
-	MAKETUPLE(DEVICE,		generic),
-	MAKETUPLE(LONG_LINK_CB,		unhandled),
-	MAKETUPLE(INDIRECT,		unhandled),
-	MAKETUPLE(CONFIG_CB,		generic),
-	MAKETUPLE(CFTABLE_ENTRY_CB,	generic),
-	MAKETUPLE(LONGLINK_MFC,		unhandled),
-	MAKETUPLE(BAR,			bar),
-	MAKETUPLE(PWR_MGMNT,		generic),
-	MAKETUPLE(EXTDEVICE,		generic),
-	MAKETUPLE(CHECKSUM,		generic),
-	MAKETUPLE(LONGLINK_A,		unhandled),
-	MAKETUPLE(LONGLINK_C,		unhandled),
-	MAKETUPLE(LINKTARGET,		linktarget),
-	MAKETUPLE(NO_LINK,		generic),
-	MAKETUPLE(VERS_1,		vers_1),
-	MAKETUPLE(ALTSTR,		generic),
-	MAKETUPLE(DEVICE_A,		generic),
-	MAKETUPLE(JEDEC_C,		generic),
-	MAKETUPLE(JEDEC_A,		generic),
-	MAKETUPLE(CONFIG,		generic),
-	MAKETUPLE(CFTABLE_ENTRY,	generic),
-	MAKETUPLE(DEVICE_OC,		generic),
-	MAKETUPLE(DEVICE_OA,		generic),
-	MAKETUPLE(DEVICE_GEO,		generic),
-	MAKETUPLE(DEVICE_GEO_A,		generic),
-	MAKETUPLE(MANFID,		manfid),
-	MAKETUPLE(FUNCID,		funcid),
-	MAKETUPLE(FUNCE,		funce),
-	MAKETUPLE(SWIL,			generic),
-	MAKETUPLE(VERS_2,		generic),
-	MAKETUPLE(FORMAT,		generic),
-	MAKETUPLE(GEOMETRY,		generic),
-	MAKETUPLE(BYTEORDER,		generic),
-	MAKETUPLE(DATE,			generic),
-	MAKETUPLE(BATTERY,		generic),
-	MAKETUPLE(ORG,			generic),
-	MAKETUPLE(END,			end),
-#undef MAKETUPLE
+	int (*func) DECODE_PARAMS;
 };
+#define MAKETUPLE(NAME,FUNC) { CISTPL_ ## NAME, #NAME, decode_tuple_ ## FUNC }
 
 static char* funcnames[] = {
 	"Multi-Functioned",
@@ -155,6 +122,9 @@ static char* funcnames[] = {
 	"SCSI",
 	"Security"
 };
+
+static struct cis_tupleinfo* cisread_buf;
+static int ncisread_buf;
 
 DECODE_PROTOTYPE(generic)
 {
@@ -173,6 +143,32 @@ DECODE_PROTOTYPE(generic)
 	}
 	printf ("\n");
 #endif
+	return 0;
+}
+
+DECODE_PROTOTYPE(nothing)
+{
+	return 0;
+}
+
+DECODE_PROTOTYPE(copy)
+{
+	struct cis_tupleinfo* tmpbuf;
+
+	tmpbuf = malloc(sizeof(struct cis_tupleinfo)*(ncisread_buf+1),
+			M_DEVBUF, M_WAITOK);
+	if (ncisread_buf > 0) {
+		memcpy(tmpbuf, cisread_buf,
+		       sizeof(struct cis_tupleinfo)*ncisread_buf);
+		free(cisread_buf, M_DEVBUF);
+	}
+	cisread_buf = tmpbuf;
+
+	cisread_buf[ncisread_buf].id = id;
+	cisread_buf[ncisread_buf].len = len;
+	cisread_buf[ncisread_buf].data = malloc(len, M_DEVBUF, M_WAITOK);
+	memcpy (cisread_buf[ncisread_buf].data, tupledata, len);
+	ncisread_buf++;
 	return 0;
 }
 
@@ -277,7 +273,7 @@ DECODE_PROTOTYPE(bar)
 		if (bar < 0 || bar > 5 || (type == SYS_RES_IOPORT && bar == 5)) {
 			device_printf(dev, "Invalid BAR number: %02x(%02x)\n",
 				      reg, bar);
-			return EINVAL;
+			return 0;
 		}
 		bar = CARDBUS_BASE0_REG + bar * 4;
 		DEVPRINTF((dev, "Opening BAR: type=%s, bar=%02x, len=%04x\n",
@@ -299,6 +295,7 @@ DECODE_PROTOTYPE(unhandled)
 
 DECODE_PROTOTYPE(end)
 {
+	printf("CIS reading done\n");
 	return 0;
 }
 
@@ -451,27 +448,29 @@ cardbus_read_tuple(device_t dev, device_t child, u_int32_t *start,
 
 static int
 decode_tuple(device_t dev, device_t child, int tupleid, int len,
-	     u_int8_t *tupledata, u_int32_t *start, u_int32_t *off)
+	     u_int8_t *tupledata, u_int32_t *start, u_int32_t *off,
+	     struct tuple_callbacks *callbacks)
 {
 	int i;
-	int numtupleids = sizeof(tupleinfo)/sizeof(tupleinfo[0]);
-	for (i = 0; i < numtupleids; i++) {
-		if (tupleid == tupleinfo[i].id)
-			return tupleinfo[i].func(dev, child, tupleid, len,
+	for (i = 0; callbacks[i].id != CISTPL_GENERIC; i++) {
+		if (tupleid == callbacks[i].id)
+			return callbacks[i].func(dev, child, tupleid, len,
 						tupledata, start, off,
-						&tupleinfo[i]);
+						&callbacks[i]);
 	}
 
 	if (tupleid < CISTPL_CUSTOMSTART) {
 		device_printf(dev, "Undefined tuple encountered, CIS parsing terminated\n");
 		return EINVAL;
 	}
-	return decode_tuple_generic(dev, child, tupleid, len, tupledata,
-				    start, off, NULL);
+	return callbacks[i].func(dev, child, tupleid, len,
+				 tupledata, start, off,
+				 NULL);
 }
 
-int
-cardbus_do_cis(device_t dev, device_t child)
+static int
+cardbus_parse_cis(device_t dev, device_t child,
+		  struct tuple_callbacks *callbacks)
 {
 	u_int8_t tupledata[MAXTUPLESIZE];
 	int tupleid;
@@ -493,10 +492,128 @@ cardbus_do_cis(device_t dev, device_t child)
 			return EINVAL;
 		}
 		expect_linktarget = decode_tuple(dev, child, tupleid, len,
-						 tupledata, &start, &off);
+						 tupledata, &start, &off,
+						 callbacks);
 		if (expect_linktarget != 0)
 			return expect_linktarget;
 	} while (tupleid != CISTPL_END);
 	return 0;
 }
 
+int
+cardbus_cis_read(device_t dev, device_t child, u_int8_t id,
+		     struct cis_tupleinfo** buff, int* nret)
+{
+	struct tuple_callbacks cisread_callbacks[] = {
+		MAKETUPLE(NULL,			nothing),
+		/* first entry will be overwritten */
+		MAKETUPLE(NULL,			nothing),
+		MAKETUPLE(DEVICE,		nothing),
+		MAKETUPLE(LONG_LINK_CB,		unhandled),
+		MAKETUPLE(INDIRECT,		unhandled),
+		MAKETUPLE(CONFIG_CB,		nothing),
+		MAKETUPLE(CFTABLE_ENTRY_CB,	nothing),
+		MAKETUPLE(LONGLINK_MFC,		unhandled),
+		MAKETUPLE(BAR,			nothing),
+		MAKETUPLE(PWR_MGMNT,		nothing),
+		MAKETUPLE(EXTDEVICE,		nothing),
+		MAKETUPLE(CHECKSUM,		nothing),
+		MAKETUPLE(LONGLINK_A,		unhandled),
+		MAKETUPLE(LONGLINK_C,		unhandled),
+		MAKETUPLE(LINKTARGET,		nothing),
+		MAKETUPLE(NO_LINK,		nothing),
+		MAKETUPLE(VERS_1,		nothing),
+		MAKETUPLE(ALTSTR,		nothing),
+		MAKETUPLE(DEVICE_A,		nothing),
+		MAKETUPLE(JEDEC_C,		nothing),
+		MAKETUPLE(JEDEC_A,		nothing),
+		MAKETUPLE(CONFIG,		nothing),
+		MAKETUPLE(CFTABLE_ENTRY,	nothing),
+		MAKETUPLE(DEVICE_OC,		nothing),
+		MAKETUPLE(DEVICE_OA,		nothing),
+		MAKETUPLE(DEVICE_GEO,		nothing),
+		MAKETUPLE(DEVICE_GEO_A,		nothing),
+		MAKETUPLE(MANFID,		nothing),
+		MAKETUPLE(FUNCID,		nothing),
+		MAKETUPLE(FUNCE,		nothing),
+		MAKETUPLE(SWIL,			nothing),
+		MAKETUPLE(VERS_2,		nothing),
+		MAKETUPLE(FORMAT,		nothing),
+		MAKETUPLE(GEOMETRY,		nothing),
+		MAKETUPLE(BYTEORDER,		nothing),
+		MAKETUPLE(DATE,			nothing),
+		MAKETUPLE(BATTERY,		nothing),
+		MAKETUPLE(ORG,			nothing),
+		MAKETUPLE(END,			end),
+		MAKETUPLE(GENERIC,		nothing),
+	};
+	int ret;
+
+	cisread_callbacks[0].id = id;
+	cisread_callbacks[0].name = "COPY";
+	cisread_callbacks[0].func = decode_tuple_copy;
+	ncisread_buf = 0;
+	cisread_buf = NULL;
+	ret = cardbus_parse_cis(dev, child, cisread_callbacks);
+
+	*buff = cisread_buf;
+	*nret = ncisread_buf;
+	return ret;
+}
+
+void
+cardbus_cis_free(device_t dev, struct cis_tupleinfo *buff, int* nret)
+{
+	int i;
+	for (i = 0; i < nret; i++)
+		free(buff[i].data, M_DEVBUF);
+	if (nret > 0)
+		free(buff, M_DEVBUF);
+}
+
+int
+cardbus_do_cis(device_t dev, device_t child)
+{
+	struct tuple_callbacks init_callbacks[] = {
+		MAKETUPLE(NULL,			generic),
+		MAKETUPLE(DEVICE,		generic),
+		MAKETUPLE(LONG_LINK_CB,		unhandled),
+		MAKETUPLE(INDIRECT,		unhandled),
+		MAKETUPLE(CONFIG_CB,		generic),
+		MAKETUPLE(CFTABLE_ENTRY_CB,	generic),
+		MAKETUPLE(LONGLINK_MFC,		unhandled),
+		MAKETUPLE(BAR,			bar),
+		MAKETUPLE(PWR_MGMNT,		generic),
+		MAKETUPLE(EXTDEVICE,		generic),
+		MAKETUPLE(CHECKSUM,		generic),
+		MAKETUPLE(LONGLINK_A,		unhandled),
+		MAKETUPLE(LONGLINK_C,		unhandled),
+		MAKETUPLE(LINKTARGET,		linktarget),
+		MAKETUPLE(NO_LINK,		generic),
+		MAKETUPLE(VERS_1,		vers_1),
+		MAKETUPLE(ALTSTR,		generic),
+		MAKETUPLE(DEVICE_A,		generic),
+		MAKETUPLE(JEDEC_C,		generic),
+		MAKETUPLE(JEDEC_A,		generic),
+		MAKETUPLE(CONFIG,		generic),
+		MAKETUPLE(CFTABLE_ENTRY,	generic),
+		MAKETUPLE(DEVICE_OC,		generic),
+		MAKETUPLE(DEVICE_OA,		generic),
+		MAKETUPLE(DEVICE_GEO,		generic),
+		MAKETUPLE(DEVICE_GEO_A,		generic),
+		MAKETUPLE(MANFID,		manfid),
+		MAKETUPLE(FUNCID,		funcid),
+		MAKETUPLE(FUNCE,		funce),
+		MAKETUPLE(SWIL,			generic),
+		MAKETUPLE(VERS_2,		generic),
+		MAKETUPLE(FORMAT,		generic),
+		MAKETUPLE(GEOMETRY,		generic),
+		MAKETUPLE(BYTEORDER,		generic),
+		MAKETUPLE(DATE,			generic),
+		MAKETUPLE(BATTERY,		generic),
+		MAKETUPLE(ORG,			generic),
+		MAKETUPLE(END,			end),
+		MAKETUPLE(GENERIC,		generic),
+	};
+	return cardbus_parse_cis(dev, child, init_callbacks);
+}
