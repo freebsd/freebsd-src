@@ -37,9 +37,10 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
 	height = strheight(prompt)+2+4;
   if (width < 0) {
 	i = strwidth(prompt);
-	j = strwidth(title);
+	j = ((title != NULL) ? strwidth(title) : 0);
 	width = MAX(i,j) + 4;
   }
+  width = MAX(width,24);
 
   if (width > COLS)
 	width = COLS;
