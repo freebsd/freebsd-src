@@ -68,7 +68,8 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#define USB_DEV_MINOR 255
+#define USBUNIT(d)	(minor(d))	/* usb_discover device nodes, kthread */
+#define USB_DEV_MINOR	255		/* event queue device */
 
 #if defined(__FreeBSD__)
 MALLOC_DEFINE(M_USB, "USB", "USB");
@@ -126,7 +127,7 @@ int usbpoll __P((dev_t, int, struct proc *));
 struct cdevsw usb_cdevsw = {
 	/* open */      usbopen,
 	/* close */     usbclose,
-	/* read */      noread,
+	/* read */      usbread,
 	/* write */     nowrite,
 	/* ioctl */     usbioctl,
 	/* poll */      usbpoll,
@@ -142,8 +143,10 @@ struct cdevsw usb_cdevsw = {
 #endif
 
 static usbd_status usb_discover __P((struct usb_softc *));
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 static void	usb_create_event_thread __P((void *));
 static void	usb_event_thread __P((void *));
+#endif
 
 #define USB_MAX_EVENTS 50
 struct usb_event_q {
@@ -182,7 +185,8 @@ USB_ATTACH(usb)
 #endif
 	usbd_device_handle dev;
 	usbd_status err;
-	
+	static int global_init_done = 0;
+
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	printf("\n");
 #elif defined(__FreeBSD__)
@@ -229,6 +233,11 @@ USB_ATTACH(usb)
 #if defined(__FreeBSD__)
 	make_dev(&usb_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
 		0644, "usb%d", device_get_unit(self));
+	if (!global_init_done) {
+		make_dev(&usb_cdevsw, USB_DEV_MINOR, UID_ROOT, GID_OPERATOR,
+			0644, "usb");
+		global_init_done = 1;
+	}
 #endif
 
 	USB_ATTACH_SUCCESS_RETURN;
@@ -294,7 +303,7 @@ usbopen(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	int unit = minor(dev);
+	int unit = USBUNIT(dev);
 	struct usb_softc *sc;
 
 	if (unit == USB_DEV_MINOR) {
@@ -303,14 +312,14 @@ usbopen(dev, flag, mode, p)
 		usb_dev_open = 1;
 		usb_async_proc = 0;
 		return (0);
+	} else {
+		USB_GET_SC_OPEN(usb, unit, sc);
+
+		if (sc->sc_dying)
+			return (EIO);
+
+		return (0);
 	}
-
-	USB_GET_SC_OPEN(usb, unit, sc);
-
-	if (sc->sc_dying)
-		return (EIO);
-
-	return (0);
 }
 
 int
@@ -320,10 +329,11 @@ usbread(dev, uio, flag)
 	int flag;
 {
 	struct usb_event ue;
+	int unit = USBUNIT(dev);
 	int s, error, n;
 
-	if (minor(dev) != USB_DEV_MINOR)
-		return (ENXIO);
+	if (unit != USB_DEV_MINOR)
+		return (ENODEV);
 
 	if (uio->uio_resid != sizeof(struct usb_event))
 		return (EINVAL);
@@ -355,7 +365,7 @@ usbclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-	int unit = minor(dev);
+	int unit = USBUNIT(dev);
 
 	if (unit == USB_DEV_MINOR) {
 		usb_async_proc = 0;
@@ -374,7 +384,7 @@ usbioctl(devt, cmd, data, flag, p)
 	struct proc *p;
 {
 	struct usb_softc *sc;
-	int unit = minor(devt);
+	int unit = USBUNIT(devt);
 
 	if (unit == USB_DEV_MINOR) {
 		switch (cmd) {
@@ -504,8 +514,9 @@ usbpoll(dev, events, p)
 	struct proc *p;
 {
 	int revents, mask, s;
+	int unit = USBUNIT(dev);
 
-	if (minor(dev) == USB_DEV_MINOR) {
+	if (unit == USB_DEV_MINOR) {
 		revents = 0;
 		mask = POLLIN | POLLRDNORM;
 
@@ -521,7 +532,6 @@ usbpoll(dev, events, p)
 #if defined(__FreeBSD__)
 		/* This part should be deleted when kthreads is available */
 		struct usb_softc *sc;
-		int unit = minor(dev);
 
 		USB_GET_SC(usb, unit, sc);
 
