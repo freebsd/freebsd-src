@@ -720,8 +720,7 @@ pmap_kenter(va, pa)
 	pte = (unsigned *)vtopte(va);
 	opte = *pte;
 	*pte = npte;
-	/*if (opte)*/
-		invltlb_1pg(va);	/* XXX what about SMP? */
+	invltlb_1pg(va);
 }
 
 /*
@@ -735,7 +734,7 @@ pmap_kremove(va)
 
 	pte = (unsigned *)vtopte(va);
 	*pte = 0;
-	invltlb_1pg(va);	/* XXX what about SMP? */
+	invltlb_1pg(va);
 }
 
 /*
