@@ -555,6 +555,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			slt->ctrl->mapirq(slt, slt->irq);
 		}
 	}
+	devi->running = 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
 	/*
@@ -587,12 +588,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	If the enable functions returns no error, then the
 	 *	device has been successfully installed. If so, then
 	 *	attach it to the slot, otherwise free it and return
-	 *	the error.
+	 *	the error.  We assume that when we free the device,
+	 *	it will also set 'running' to off.
 	 */
 	if (err)
 		remove_device(devi);
-	else
-		devi->running = 1;
 	return(err);
 }
 
