@@ -28,14 +28,14 @@ THIS SOFTWARE.
 
 /* Please send bug reports to
 	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
+	dmg@acm.org
  */
 
 #include "gdtoaimp.h"
+
+#ifdef USE_LOCALE
+#include "locale.h"
+#endif
 
  int
 #ifdef KR_headers
@@ -50,6 +50,11 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	int esign, havedig, irv, k, n, nbits, up;
 	ULong L, lostbits, *x;
 	Long e, e1;
+#ifdef USE_LOCALE
+	char decimalpoint = *localeconv()->decimal_point;
+#else
+#define decimalpoint '.'
+#endif
 
 	if (!hexdig['0'])
 		hexdig_init_D2A();
@@ -61,7 +66,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	s = s0;
 	decpt = 0;
 	if (!hexdig[*s]) {
-		if (*s == '.') {
+		if (*s == decimalpoint) {
 			decpt = ++s;
 			if (!hexdig[*s])
 				goto ret0;
@@ -80,7 +85,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		}
 	while(hexdig[*s])
 		s++;
-	if (*s == '.' && !decpt) {
+	if (*s == decimalpoint && !decpt) {
 		decpt = ++s;
 		while(hexdig[*s])
 			s++;
@@ -120,7 +125,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	n = 0;
 	L = 0;
 	while(s1 > s0) {
-		if (*--s1 == '.')
+		if (*--s1 == decimalpoint)
 			continue;
 		if (n == 32) {
 			*x++ = L;

@@ -28,11 +28,7 @@ THIS SOFTWARE.
 
 /* Please send bug reports to
 	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
+	dmg@acm.org
  */
 
 #include "gdtoaimp.h"
@@ -118,7 +114,7 @@ strtod
 		switch(s[1]) {
 		  case 'x':
 		  case 'X':
-			switch(gethex(&s, &fpi, &exp, &bb, sign)) {
+			switch(i = gethex(&s, &fpi, &exp, &bb, sign)) {
 			  case STRTOG_NoNumber:
 				s = s00;
 				sign = 0;
