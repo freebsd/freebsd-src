@@ -377,7 +377,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * No signal tramoline... kill the process.
 		 */
 		CTR0(KTR_SIG, "sendsig: no sigtramp");
-		PROC_LOCK(p);
+		printf("sendsig: %s is too old, rebuild it\n", p->p_comm);
 		sigexit(td, sig);
 		/* NOTREACHED */
 	}
