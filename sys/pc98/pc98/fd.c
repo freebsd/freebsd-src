@@ -918,7 +918,11 @@ fdc_read_ivar(device_t dev, device_t child, int which, u_long *result)
 static int
 fdc_probe(device_t dev)
 {
+#ifdef PC98
+	int	error;
+#else
 	int	error, ic_type;
+#endif
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
@@ -1105,12 +1109,18 @@ DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
 static int
 fd_probe(device_t dev)
 {
+#ifdef PC98
+	u_int	fdt;
+#else
 	int	i;
 	u_int	fdt, st0, st3;
+#endif
 	struct	fd_data *fd;
 	struct	fdc_data *fdc;
 	fdsu_t	fdsu;
+#ifndef PC98
 	static int fd_fifo = 0;
+#endif
 
 	fdsu = *(int *)device_get_ivars(dev); /* xxx cheat a bit... */
 	fd = device_get_softc(dev);

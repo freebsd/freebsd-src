@@ -1134,6 +1134,8 @@ inittodr(time_t base)
 		  second);
 	/* sec now contains the	number of seconds, since Jan 1 1970,
 	   in the local	time zone */
+
+	s = splhigh();
 #else	/* IBM-PC */
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))

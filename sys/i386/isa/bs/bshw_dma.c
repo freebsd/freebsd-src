@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NecBSD: bshw_dma.c,v 1.3 1997/07/26 06:03:16 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
@@ -35,7 +36,7 @@
 /*********************************************************
  * static declare.
  *********************************************************/
-static BS_INLINE void bshw_dmastart __P((struct bs_softc *));
+static void bshw_dmastart __P((struct bs_softc *));
 static void bshw_dmadone __P((struct bs_softc *));
 
 /**********************************************
@@ -172,7 +173,7 @@ bs_dma_xfer_end(ti)
 /**********************************************
  * GENERIC DMA FUNCS
  **********************************************/
-static short dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
+static u_int8_t dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 
 /* common dma settings */
 #undef	DMA1_SMSK
@@ -186,7 +187,7 @@ static short dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 #undef	DMA1_CHN
 #define DMA1_CHN(c)	(0x01 + ((c) << 2))
 
-static BS_INLINE void
+static void
 bshw_dmastart(bsc)
 	struct bs_softc *bsc;
 {
