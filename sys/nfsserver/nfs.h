@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.22 1997/02/22 09:42:34 peter Exp $
+ * $Id: nfs.h,v 1.23 1997/03/27 20:01:03 guido Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -43,8 +43,6 @@
 /*
  * Tunable constants for nfs
  */
-
-#ifdef KERNEL
 
 #define	NFS_MAXIOVEC	34
 #define NFS_TICKINTVL	5		/* Desired time for a tick (msec) */
@@ -69,12 +67,15 @@
 #define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
 #define	NFS_MAXRAHEAD	4		/* Max. read ahead # blocks */
 #define	NFS_MAXUIDHASH	64		/* Max. # of hashed uid entries/mp */
-#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runable */
+#define	NFS_MAXASYNCDAEMON 	20	/* Max. number async_daemons runnable */
 #define NFS_MAXGATHERDELAY	100	/* Max. write gather delay (msec) */
 #ifndef NFS_GATHERDELAY
 #define NFS_GATHERDELAY		10	/* Default write gather delay (msec) */
 #endif
 #define	NFS_DIRBLKSIZ	4096		/* Must be a multiple of DIRBLKSIZ */
+#ifdef KERNEL
+#define	DIRBLKSIZ	512		/* XXX we used to use ufs's DIRBLKSIZ */
+#endif
 
 /*
  * Oddballs
@@ -128,45 +129,6 @@
 #define NFS_MNTALLOC	512
 #define NFS_SVCALLOC	256
 #define NFS_UIDALLOC	128
-
-#endif /* KERNEL */
-
-/*
- * NFS mount option flags
- */
-#define	NFSMNT_SOFT		0x00000001  /* soft mount (hard is default) */
-#define	NFSMNT_WSIZE		0x00000002  /* set write size */
-#define	NFSMNT_RSIZE		0x00000004  /* set read size */
-#define	NFSMNT_TIMEO		0x00000008  /* set initial timeout */
-#define	NFSMNT_RETRANS		0x00000010  /* set number of request retries */
-#define	NFSMNT_MAXGRPS		0x00000020  /* set maximum grouplist size */
-#define	NFSMNT_INT		0x00000040  /* allow interrupts on hard mount */
-#define	NFSMNT_NOCONN		0x00000080  /* Don't Connect the socket */
-#define	NFSMNT_NQNFS		0x00000100  /* Use Nqnfs protocol */
-#define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
-#define	NFSMNT_KERB		0x00000400  /* Use Kerberos authentication */
-#define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
-#define	NFSMNT_LEASETERM	0x00001000  /* set lease term (nqnfs) */
-#define	NFSMNT_READAHEAD	0x00002000  /* set read ahead */
-#define	NFSMNT_DEADTHRESH	0x00004000  /* set dead server retry thresh */
-#define	NFSMNT_RESVPORT		0x00008000  /* Allocate a reserved port */
-#define	NFSMNT_RDIRPLUS		0x00010000  /* Use Readdirplus for V3 */
-#define	NFSMNT_READDIRSIZE	0x00020000  /* Set readdir size */
-#define	NFSMNT_INTERNAL		0xfffc0000  /* Bits set internally */
-#define NFSMNT_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
-#define NFSMNT_GOTPATHCONF	0x00080000  /* Got the V3 pathconf info */
-#define NFSMNT_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
-#define	NFSMNT_MNTD		0x00200000  /* Mnt server for mnt point */
-#define	NFSMNT_DISMINPROG	0x00400000  /* Dismount in progress */
-#define	NFSMNT_DISMNT		0x00800000  /* Dismounted */
-#define	NFSMNT_SNDLOCK		0x01000000  /* Send socket lock */
-#define	NFSMNT_WANTSND		0x02000000  /* Want above */
-#define	NFSMNT_RCVLOCK		0x04000000  /* Rcv socket lock */
-#define	NFSMNT_WANTRCV		0x08000000  /* Want above */
-#define	NFSMNT_WAITAUTH		0x10000000  /* Wait for authentication */
-#define	NFSMNT_HASAUTH		0x20000000  /* Has authenticator */
-#define	NFSMNT_WANTAUTH		0x40000000  /* Wants an authenticator */
-#define	NFSMNT_AUTHERR		0x80000000  /* Authentication error */
 
 /*
  * Arguments to mount NFS
