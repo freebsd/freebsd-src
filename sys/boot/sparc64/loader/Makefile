@@ -9,7 +9,7 @@ INSTALLFLAGS=	-b
 NOFORTH=	yes
 
 # Architecture-specific loader code
-SRCS=		locore.S main.c metadata.c
+SRCS=		locore.S main.c metadata.c vers.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -54,7 +54,7 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.help
+CLEANFILES+=	vers.c ${BASE}.help
 
 CFLAGS+=	-ffreestanding
 LDFLAGS=	-nostdlib -static
@@ -74,11 +74,10 @@ LIBSTAND=	-lstand
 .endif
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-LDADD=		${LIBSTAND} ${LIBOFW}
+LDADD=		${LIBFICL} ${LIBSTAND} ${LIBOFW}
 
-vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
-	${CC} -c vers.c
 
 ${BASE}.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
