@@ -26,6 +26,7 @@
 #include <sys/snoop.h>
 #include <sys/vnode.h>
 
+static	l_close_t	snplclose;
 static	l_write_t	snplwrite;
 static	d_open_t	snpopen;
 static	d_close_t	snpclose;
@@ -52,7 +53,7 @@ static struct cdevsw snp_cdevsw = {
 };
 
 static struct linesw snpdisc = {
-	ttyopen,	ttylclose,	ttread,		snplwrite,
+	ttyopen,	snplclose,	ttread,		snplwrite,
 	l_nullioctl,	ttyinput,	ttstart,	ttymodem
 };
 
@@ -72,6 +73,22 @@ static int		snp_in __P((struct snoop *snp, char *buf, int n));
 static int		snp_modevent __P((module_t mod, int what, void *arg));
 
 static int
+snplclose(tp, flag)
+	struct tty *tp;
+	int flag;
+{
+	struct snoop *snp;
+	int error;
+
+	snp = tp->t_sc;
+	error = snp_down(snp);
+	if (error != 0)
+		return (error);
+	error = ttylclose(tp, flag);
+	return (error);
+}
+
+static int
 snplwrite(tp, uio, flag)
 	struct tty *tp;
 	struct uio *uio;
@@ -84,12 +101,11 @@ snplwrite(tp, uio, flag)
 	char ibuf[512];
 
 	snp = tp->t_sc;
-	error = 0;
 	while (uio->uio_resid > 0) {
 		ilen = imin(sizeof(ibuf), uio->uio_resid);
 		error = uiomove(ibuf, ilen, uio);
 		if (error != 0)
-			break;
+			return (error);
 		snp_in(snp, ibuf, ilen);
 		/* Hackish, but probably the least of all evils. */
 		iov.iov_base = ibuf;
@@ -103,9 +119,9 @@ snplwrite(tp, uio, flag)
 		uio2.uio_procp = uio->uio_procp;
 		error = ttwrite(tp, &uio2, flag);
 		if (error != 0)
-			break;
+			return (error);
 	}
-	return (error);
+	return (0);
 }
 
 static struct tty *
