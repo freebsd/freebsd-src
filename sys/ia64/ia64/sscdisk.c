@@ -17,7 +17,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
@@ -34,6 +33,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <machine/md_var.h>
+#include <geom/geom_disk.h>
 
 #ifndef SKI_ROOT_FILESYSTEM
 #define SKI_ROOT_FILESYSTEM	"ia64-root.fs"
