@@ -705,7 +705,9 @@ sbcompress(sb, m, n)
 			    (unsigned)m->m_len);
 			n->m_len += m->m_len;
 			sb->sb_cc += m->m_len;
-			if (m->m_type != MT_DATA) /* XXX: Probably don't need.*/
+			if (m->m_type != MT_DATA && m->m_type != MT_HEADER &&
+			    m->m_type != MT_OOBDATA)
+				/* XXX: Probably don't need.*/
 				sb->sb_ctl += m->m_len;
 			m = m_free(m);
 			continue;
@@ -776,7 +778,8 @@ sbdrop(sb, len)
 			m->m_len -= len;
 			m->m_data += len;
 			sb->sb_cc -= len;
-			if (m->m_type != MT_DATA)
+			if (m->m_type != MT_DATA && m->m_type != MT_HEADER &&
+			    m->m_type != MT_OOBDATA)
 				sb->sb_ctl -= len;
 			break;
 		}
