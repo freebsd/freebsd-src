@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.32 1997/02/22 16:10:08 peter Exp $
+ * $Id: command.c,v 1.33 1997/03/10 06:21:00 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -58,6 +58,7 @@ extern struct cmdtab const SetCommands[];
 extern char *IfDevName;
 
 struct in_addr ifnetmask;
+int randinit;
 
 static int ShowCommand(), TerminalCommand(), QuitCommand();
 static int CloseCommand(), DialCommand(), DownCommand();
@@ -653,7 +654,10 @@ char **argv;
     if (strcasecmp(argv[0], "random") == 0) {
       VarRedialTimeout = -1;
       printf("Using random redial timeout.\n");
-      srandom(time(0));
+      if (!randinit) {
+	srandom((unsigned)(time(NULL) ^ getpid()));
+	randinit = 1;
+      }
     }
     else {
       timeout = atoi(argv[0]);

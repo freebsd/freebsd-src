@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: chap.c,v 1.10 1997/02/22 16:10:05 peter Exp $
  *
  *	TODO:
  */
@@ -41,6 +41,7 @@ struct authinfo AuthChapInfo  = {
 };
 
 extern char *AuthGetSecret();
+extern int randinit;
 
 void
 ChapOutput(code, id, ptr, count)
@@ -78,7 +79,10 @@ int chapid;
   int len, i;
   char *cp;
 
-  srandom(time(NULL));
+  if (!randinit) {
+    srandom((unsigned)(time(NULL) ^ getpid()));
+    randinit = 1;
+  }
 
   cp = challenge_data;
   *cp++ = challenge_len = random() % 32 + 16;
