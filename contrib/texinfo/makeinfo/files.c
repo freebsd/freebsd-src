@@ -1,7 +1,7 @@
 /* files.c -- file-related functions for makeinfo.
-   $Id: files.c,v 1.10 2002/01/16 15:52:45 karl Exp $
+   $Id: files.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
-   Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

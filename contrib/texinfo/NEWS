@@ -1,12 +1,12 @@
-Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
-Free Software Foundation, Inc.
-
-Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
-any later version published by the Free Software Foundation; with no
-Invariant Sections, with no Front-Cover Texts, and with no Back-Cover Texts.  
-
+$Id: NEWS,v 1.34 2003/02/05 00:54:07 karl Exp $
 This file records noteworthy changes.
+
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+  2001, 2002, 2003 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
 
 
 *** IMPORTANT NEWS FOR ALL AUTHORS OF TEXINFO MANUALS ***
@@ -20,6 +20,74 @@ formats.  The manual has detailed explanations and examples.  For
 convenience, here's a url to one of the relevant sections:
   http://texinfo.org/manual/Document-Permissions.html
 
+-------------------------------------------------------------------------------
+
+4.5 (4 February 2003)
+* info:
+  . a bug in 4.4 prevented compressed info files from being found.
+* Distribution:
+  . detect sys/ptem.h on Solaris.
+
+
+4.4 (31 January 2003)
+* Language:
+  . The ' (ASCII apostrophe/right quote) character is finally allowed in
+    node and anchor names.  Thus, after installing this texinfo.tex,
+    existing .aux files will cause errors!  Remove them and rerun TeX to
+    generate good ones.
+  . @value constructs are now expanded in the filename arguments to
+    @include and @verbatiminclude.
+* makeinfo:
+  . bug fix: @copying text is now reflected in tag table positions;
+    before, nodes may not have been found with a long-enough @copying.
+  . bug fix: html @verb arg is quoted properly, and does not imply
+    a paragraph break.
+* texinfo.tex:
+  . @smallexample and the like now output in a smaller font (9pt) in all
+    paper formats, not just @smallbook and @afourpaper.
+  . new translation txi-tr.tex.
+  . bug fix: <>| and other characters do not disappear when they are
+    first on a line in @verbatim.
+* install-info:
+  . bug fix: don't translate the `* Menu' info keyword.
+* info:
+  . CTRL-H is treated like DEL in incremental search.
+  . arrow keys once again work in isearch contexts under Solaris.
+* infokey:
+  . use .info key bindings before defaults.
+  . allow prefix keys to be disabled.
+* Distribution:
+  . update to GNU FDL 1.2 (http://www.gnu.org/licenses/fdl.html).
+  . getopt and other common library files updated from gnulib
+    (http://savannah.gnu.org/projects/gnulib/).
+  . autoconf 2.57, automake 1.7.2.
+  
+
+4.3 (14 November 2002)
+* Language:
+  . new command @tie{} to do a real tie (unbreakable interword space).
+* makeinfo:
+  . html output for @defun and friends now has font changes.
+  . html output has some class attributes.
+  . xml and docbook output improved in many details.
+* texinfo.tex:
+  . new Italian translations, txi-it.tex.
+  . pdf bookmarks for unnumbered sections work.
+  . type name for @defun and friends no longer extends into margin.
+* info:
+  . automatic-footnotes now off by default, for emacs compatibility.
+  . crash when MALLOC_CHECK_=2 fixed.
+* install-info:
+  . new option --infodir synonym for --info-dir, for compatibility with
+    the Debian install-info.
+  . support for bzip2-compressed files.
+* texindex:
+  . omit initial if the entire index is under one character.
+* Distribution:
+ . development sources now available under CVS, see
+   http://savannah.gnu.org/projects/texinfo/
+ . Turkish message translation.
+ . gettext 0.11.5, autoconf 2.54, automake 1.7.1.
 
 
 4.2 (1 April 2002)
@@ -42,7 +110,6 @@ convenience, here's a url to one of the relevant sections:
   . the doc.c, funs.h, and key.c files in info/ are no longer generated
     at make time, to appease Automake's make distcheck.
   . gettext 0.11.1, autoconf 2.53, automake 1.6 (with install-info kludge).
-
 
 
 4.1 (4 March 2002)
@@ -100,7 +167,8 @@ convenience, here's a url to one of the relevant sections:
     (rather than in addition to) the url for info and dvi output.
   . @footnote works in an @item for a @table.
 * texinfo.tex:
-  . latest version always at ftp://ftp.gnu.org/gnu/texinfo.tex (and mirrors).
+  . latest version always at ftp://ftp.gnu.org/gnu/texinfo/texinfo.tex
+    (and mirrors).
   . implements @macro.
   . implements @paragraphindent (except asis).
   . @emph and @i use true italic type (cmti) instead of slanted (cmsl).

@@ -1,7 +1,7 @@
 /* info-utils.h -- Exported functions and variables from info-utils.c.
-   $Id: info-utils.h,v 1.5 1998/08/10 18:07:28 karl Exp $   
+   $Id: info-utils.h,v 1.1 2002/08/25 23:38:38 karl Exp $   
 
-   Copyright (C) 1993, 96, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1996, 1998, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

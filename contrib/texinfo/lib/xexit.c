@@ -1,5 +1,5 @@
 /* xexit.c -- exit with attention to return values and closing stdout.
-   $Id: xexit.c,v 1.5 1999/02/19 14:13:51 karl Exp $
+   $Id: xexit.c,v 1.1 2002/08/25 23:38:38 karl Exp $
 
    Copyright (C) 1999 Free Software Foundation, Inc.
 
