@@ -1222,7 +1222,7 @@ filt_pipewrite(struct knote *kn, long hint)
 		return (1);
 	}
 	kn->kn_data = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
-	if ((wpipe->pipe_state & PIPE_DIRECTW) == 0)
+	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 
 	return (kn->kn_data >= PIPE_BUF);
