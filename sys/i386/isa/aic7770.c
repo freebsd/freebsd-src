@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.14 1995/05/30 08:01:15 rgrimes Exp $
+ *	$Id: aic7770.c,v 1.15 1995/07/04 21:14:16 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -125,7 +125,7 @@ aic7770probe(struct isa_device *dev)
 					aic7770_registerdev(dev);
 #endif /* DEV_LKM */
                			        if(ahcprobe(unit, port,
-						  valid_ids[i].type)){
+						valid_ids[i].type, AHC_FNONE)){
 					        /*
 					         * If it's there, put in it's
 						 * interrupt vectors
