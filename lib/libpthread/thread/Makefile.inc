@@ -31,6 +31,7 @@ SRCS+= \
 	thr_cancel.c \
 	thr_clean.c \
 	thr_close.c \
+	thr_concurrency.c \
 	thr_cond.c \
 	thr_condattr_destroy.c \
 	thr_condattr_init.c \
