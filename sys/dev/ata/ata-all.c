@@ -1284,8 +1284,10 @@ ata_reset(struct ata_softc *scp, int *mask)
     ostat0 = inb(scp->ioaddr + ATA_STATUS);
 
     /* in some setups we dont want to test for a slave */
-    if (scp->flags & ATA_NO_SLAVE)
+    if (scp->flags & ATA_NO_SLAVE) {
 	*mask &= ~0x02;
+	status1 = 0x0;
+    }
 
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
