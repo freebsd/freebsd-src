@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.56 1998/06/08 08:55:47 kato Exp $
+ *	$Id: wd.c,v 1.57 1998/07/06 10:09:42 kato Exp $
  */
 
 /* TODO:
@@ -598,7 +598,7 @@ wdattach(struct isa_device *dvp)
 			 */
 			printf("wdc%d: unit %d (wd%d): <%.*s>",
 				dvp->id_unit, unit, lunit,
-				sizeof du->dk_params.wdp_model,
+				(int)sizeof(du->dk_params.wdp_model),
 				du->dk_params.wdp_model);
 			if (du->dk_flags & DKFL_LBA)
 				printf(", LBA");
@@ -2590,8 +2590,8 @@ wddump(void *private, int32_t start, int32_t num)
 				blkcnt = 1;
 				blknext = blknum + blkcnt;
 #if 1 || defined(WDDEBUG)
-				printf("bad block %lu -> %lu\n",
-				       blknum, blknew);
+				printf("bad block %ld -> %ld\n",
+				   (long)blknum, (long)blknew);
 #endif
 				break;
 			}
