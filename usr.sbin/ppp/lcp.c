@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.31 1998/03/20 19:46:55 brian Exp $
+ * $Id: lcp.c,v 1.55.2.32 1998/03/20 19:48:06 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -143,7 +143,7 @@ int
 lcp_ReportStatus(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, "%s [%s]\n", arg->cx->lcp.fsm.name,
-                StateNames[arg->cx->lcp.fsm.state]);
+                State2Nam(arg->cx->lcp.fsm.state));
   prompt_Printf(&prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	        "           MAGIC %08lx, REJECT %04x\n",

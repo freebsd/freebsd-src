@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.11.4.2 1998/02/02 19:32:05 brian Exp $
+ *	$Id: defs.c,v 1.11.4.3 1998/02/10 03:23:15 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,6 @@
 
 int mode = MODE_INTER;
 int BGFiledes[2] = { -1, -1 };
-int modem = -1;
 
 static char dstsystem[50];
 

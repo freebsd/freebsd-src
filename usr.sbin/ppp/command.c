@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.41 1998/03/17 22:29:05 brian Exp $
+ * $Id: command.c,v 1.131.2.42 1998/03/20 19:47:51 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -783,7 +783,7 @@ TerminalCommand(struct cmdargs const *arg)
 {
   if (arg->cx->lcp.fsm.state > ST_CLOSED) {
     prompt_Printf(&prompt, "LCP state is [%s]\n",
-                  StateNames[arg->cx->lcp.fsm.state]);
+                  State2Nam(arg->cx->lcp.fsm.state));
     return 1;
   }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.14 1998/03/16 22:53:51 brian Exp $
+ * $Id: ip.c,v 1.38.2.15 1998/03/20 19:48:02 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -197,8 +197,6 @@ IcmpError(struct ip * pip, int code)
     bp = mballoc(cnt, MB_IPIN);
     memcpy(MBUF_CTOP(bp), ptr, cnt);
     SendPppFrame(bp);
-    if (ipKeepAlive)
-      bundle_StartIdleTimer(bundle);
     ipcp_AddOutOctets(cnt);
   }
 }
@@ -307,15 +305,11 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     return (-1);
   } else {
     /* Check Keep Alive filter */
-    if (FilterCheck(pip, &bundle->filter.alive) & A_DENY) {
-      if (logit)
+    if (logit)
+      if (FilterCheck(pip, &bundle->filter.alive) & A_DENY)
         LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
-      ipKeepAlive = 0;
-    } else {
-      if (logit)
+      else
         LogPrintf(LogTCPIP, "%s\n", logbuf);
-      ipKeepAlive = 1;
-    }
     return (pri);
   }
 }
@@ -327,6 +321,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   struct mbuf *wp;
   int nb, nw;
   struct tun_data tun;
+  struct ip *pip = (struct ip *)tun.data;
 
   tun_fill_header(tun, AF_INET);
   cp = tun.data;
@@ -363,6 +358,10 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 	pfree(bp);
 	return;
       }
+
+      if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
+        bundle_StartIdleTimer(bundle);
+
       ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
 
       nb = ntohs(((struct ip *) tun.data)->ip_len);
@@ -411,7 +410,12 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       pfree(bp);
       return;
     }
+
+    if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
+      bundle_StartIdleTimer(bundle);
+
     ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
+
     nb += sizeof tun - sizeof tun.data;
     nw = write(bundle->tun_fd, &tun, nb);
     if (nw != nb)
@@ -421,9 +425,6 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
         LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
   }
   pfree(bp);
-
-  if (ipKeepAlive)
-    bundle_StartIdleTimer(bundle);
 }
 
 static struct mqueue IpOutputQueues[PRI_FAST + 1];
@@ -459,17 +460,20 @@ IpStartOutput(struct link *l, struct bundle *bundle)
 
   if (bundle->ncp.ipcp.fsm.state != ST_OPENED)
     return;
-  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
+
+  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--)
     if (queue->top) {
       bp = Dequeue(queue);
       if (bp) {
+        struct ip *pip = (struct ip *)MBUF_CTOP(bp);
+
 	cnt = plength(bp);
 	SendPppFrame(l, bp, bundle);
-        if (ipKeepAlive)
-	  bundle_StartIdleTimer(bundle);
+        if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
+          bundle_StartIdleTimer(bundle);
         ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
 	break;
       }
     }
-  }
+
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.25 1998/03/20 19:46:49 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.26 1998/03/20 19:48:04 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -141,7 +141,7 @@ int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, "%s [%s]\n", arg->bundle->ncp.ipcp.fsm.name,
-          StateNames[arg->bundle->ncp.ipcp.fsm.state]);
+          State2Nam(arg->bundle->ncp.ipcp.fsm.state));
   if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
     prompt_Printf(&prompt, " His side:               %s, %s\n",
 	    inet_ntoa(arg->bundle->ncp.ipcp.peer_ip),

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.13 1998/03/10 03:06:07 brian Exp $
+ * $Id: vars.h,v 1.42.2.14 1998/03/20 19:47:10 brian Exp $
  *
  *	TODO:
  */
@@ -117,8 +117,6 @@ struct pppvars {
 extern struct pppvars pppVars;
 extern char VarVersion[];
 extern char VarLocalVersion[];
-
-extern int ipKeepAlive;
 
 extern int EnableCommand(struct cmdargs const *);
 extern int DisableCommand(struct cmdargs const *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.22 1998/03/16 22:53:45 brian Exp $
+ * $Id: fsm.c,v 1.27.2.23 1998/03/20 19:46:43 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -96,17 +96,25 @@ static const struct fsmcodedesc {
   { FsmRecvResetAck,  0, 1, "ResetAck"     }
 };
 
-char const *StateNames[] = {
-  "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
-  "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
-};
-
 static const char *
 Code2Nam(u_int code)
 {
   if (code == 0 || code > sizeof FsmCodes / sizeof FsmCodes[0])
     return "Unknown";
   return FsmCodes[code-1].name;
+}
+
+const char *
+State2Nam(u_int state)
+{
+  static const char *StateNames[] = {
+    "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
+    "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
+  };
+
+  if (state >= sizeof StateNames / sizeof StateNames[0])
+    return "unknown";
+  return StateNames[state];
 }
 
 static void
@@ -150,7 +158,7 @@ static void
 NewState(struct fsm * fp, int new)
 {
   LogPrintf(fp->LogLevel, "State change %s --> %s\n",
-	    StateNames[fp->state], StateNames[new]);
+	    State2Nam(fp->state), State2Nam(new));
   if (fp->state == ST_STOPPED && fp->StoppedTimer.state == TIMER_RUNNING)
     StopTimer(&fp->StoppedTimer);
   fp->state = new;
@@ -174,7 +182,7 @@ FsmOutput(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count)
 
   if (LogIsKept(fp->LogLevel)) {
     LogPrintf(fp->LogLevel, "Send%s(%d) state = %s\n", Code2Nam(code),
-              id, StateNames[fp->state]);
+              id, State2Nam(fp->state));
     switch (code) {
       case CODE_CONFIGREQ:
       case CODE_CONFIGACK:
@@ -263,7 +271,7 @@ FsmUp(struct fsm * fp)
     NewState(fp, ST_REQSENT);
     break;
   default:
-    LogPrintf(fp->LogLevel, "Oops, Up at %s\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, Up at %s\n", State2Nam(fp->state));
     break;
   }
 }
@@ -438,7 +446,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCR in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCR in %s.\n", State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -565,7 +573,7 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCN in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCN in %s.\n", State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -614,7 +622,7 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RTR in %s\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RTR in %s\n", State2Nam(fp->state));
     break;
   case ST_CLOSED:
   case ST_STOPPED:
@@ -688,7 +696,7 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(fp->LogLevel, "Oops, RCJ in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCJ in %s.\n", State2Nam(fp->state));
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -887,7 +895,7 @@ FsmInput(struct fsm *fp, struct mbuf *bp)
   }
 
   LogPrintf(fp->LogLevel, "Recv%s(%d) state = %s\n",
-	    codep->name, lhp->id, StateNames[fp->state]);
+	    codep->name, lhp->id, State2Nam(fp->state));
 
   if (LogIsKept(LogDEBUG))
     LogMemory();
