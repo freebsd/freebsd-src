@@ -8,7 +8,7 @@ CFLAGS+=	-I${SRCDIR}
 NO_WERROR=	yes
 DPADD=		${LIBCRYPT}
 LDADD=		-lcrypt
-MAN=		#pam_passwdqc.8
+MAN=		pam_passwdqc.8
 
 .include <bsd.lib.mk>
 
