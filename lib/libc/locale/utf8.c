@@ -40,8 +40,9 @@ int	_UTF8_mbsinit(const mbstate_t *);
 size_t	_UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
-	int	count;
-	u_char	bytes[6];
+	wchar_t	ch;
+	int	want;
+	wchar_t	lbound;
 } _UTF8State;
 
 int
@@ -61,7 +62,7 @@ int
 _UTF8_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((const _UTF8State *)ps)->count == 0);
+	return (ps == NULL || ((const _UTF8State *)ps)->want == 0);
 }
 
 size_t
@@ -69,13 +70,12 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
     mbstate_t * __restrict ps)
 {
 	_UTF8State *us;
-	int ch, i, len, mask, ocount;
+	int ch, i, mask, want;
 	wchar_t lbound, wch;
-	size_t ncopy;
 
 	us = (_UTF8State *)ps;
 
-	if (us->count < 0 || us->count > sizeof(us->bytes)) {
+	if (us->want < 0 || us->want > 6) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -86,72 +86,69 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		pwc = NULL;
 	}
 
-	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(us->bytes) - us->count);
-	memcpy(us->bytes + us->count, s, ncopy);
-	ocount = us->count;
-	us->count += ncopy;
-	s = (char *)us->bytes;
-	n = us->count;
-
 	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
 
-	/*
-	 * Determine the number of octets that make up this character from
-	 * the first octet, and a mask that extracts the interesting bits of
-	 * the first octet.
-	 *
-	 * We also specify a lower bound for the character code to detect
-	 * redundant, non-"shortest form" encodings. For example, the
-	 * sequence C0 80 is _not_ a legal representation of the null
-	 * character. This enforces a 1-to-1 mapping between character
-	 * codes and their multibyte representations.
-	 */
-	ch = (unsigned char)*s;
-	if ((ch & 0x80) == 0) {
-		mask = 0x7f;
-		len = 1;
-		lbound = 0;
-	} else if ((ch & 0xe0) == 0xc0) {
-		mask = 0x1f;
-		len = 2;
-		lbound = 0x80;
-	} else if ((ch & 0xf0) == 0xe0) {
-		mask = 0x0f;
-		len = 3;
-		lbound = 0x800;
-	} else if ((ch & 0xf8) == 0xf0) {
-		mask = 0x07;
-		len = 4;
-		lbound = 0x10000;
-	} else if ((ch & 0xfc) == 0xf8) {
-		mask = 0x03;
-		len = 5;
-		lbound = 0x200000;
-	} else if ((ch & 0xfc) == 0xfc) {
-		mask = 0x01;
-		len = 6;
-		lbound = 0x4000000;
-	} else {
+	if (us->want == 0) {
 		/*
-		 * Malformed input; input is not UTF-8.
+		 * Determine the number of octets that make up this character
+		 * from the first octet, and a mask that extracts the
+		 * interesting bits of the first octet. We already know
+		 * the character is at least two bytes long.
+		 *
+		 * We also specify a lower bound for the character code to
+		 * detect redundant, non-"shortest form" encodings. For
+		 * example, the sequence C0 80 is _not_ a legal representation
+		 * of the null character. This enforces a 1-to-1 mapping
+		 * between character codes and their multibyte representations.
 		 */
-		errno = EILSEQ;
-		return ((size_t)-1);
+		ch = (unsigned char)*s;
+		if ((ch & 0x80) == 0) {
+			mask = 0x7f;
+			want = 1;
+			lbound = 0;
+		} else if ((ch & 0xe0) == 0xc0) {
+			mask = 0x1f;
+			want = 2;
+			lbound = 0x80;
+		} else if ((ch & 0xf0) == 0xe0) {
+			mask = 0x0f;
+			want = 3;
+			lbound = 0x800;
+		} else if ((ch & 0xf8) == 0xf0) {
+			mask = 0x07;
+			want = 4;
+			lbound = 0x10000;
+		} else if ((ch & 0xfc) == 0xf8) {
+			mask = 0x03;
+			want = 5;
+			lbound = 0x200000;
+		} else if ((ch & 0xfc) == 0xfc) {
+			mask = 0x01;
+			want = 6;
+			lbound = 0x4000000;
+		} else {
+			/*
+			 * Malformed input; input is not UTF-8.
+			 */
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+	} else {
+		want = us->want;
+		lbound = us->lbound;
 	}
-
-	if (n < (size_t)len)
-		/* Incomplete multibyte sequence */
-		return ((size_t)-2);
 
 	/*
 	 * Decode the octet sequence representing the character in chunks
 	 * of 6 bits, most significant first.
 	 */
-	wch = (unsigned char)*s++ & mask;
-	i = len;
-	while (--i != 0) {
+	if (us->want == 0)
+		wch = (unsigned char)*s++ & mask;
+	else
+		wch = us->ch;
+	for (i = (us->want == 0) ? 1 : 0; i < MIN(want, n); i++) {
 		if ((*s & 0xc0) != 0x80) {
 			/*
 			 * Malformed input; bad characters in the middle
@@ -163,6 +160,13 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wch <<= 6;
 		wch |= *s++ & 0x3f;
 	}
+	if (i < want) {
+		/* Incomplete multibyte sequence. */
+		us->want = want - i;
+		us->lbound = lbound;
+		us->ch = wch;
+		return ((size_t)-2);
+	}
 	if (wch < lbound) {
 		/*
 		 * Malformed input; redundant encoding.
@@ -172,8 +176,8 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 	if (pwc != NULL)
 		*pwc = wch;
-	us->count = 0;
-	return (wch == L'\0' ? 0 : len - ocount);
+	us->want = 0;
+	return (wch == L'\0' ? 0 : want);
 }
 
 size_t
@@ -185,7 +189,7 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 
 	us = (_UTF8State *)ps;
 
-	if (us->count < 0 || us->count > sizeof(us->bytes)) {
+	if (us->want != 0) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
