@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.3 1997/04/19 05:25:19 kato Exp $
+ *		$Id: initcpu.c,v 1.4 1997/04/26 04:08:45 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -51,6 +51,10 @@ static void init_i486_on_386(void);
 #endif
 static void init_6x86(void);
 #endif /* I486_CPU */
+
+#ifdef I586_CPU
+static void	init_6x86MX(void);
+#endif
 
 #ifdef I486_CPU
 /*
@@ -345,6 +349,61 @@ init_6x86(void)
 }
 #endif /* I486_CPU */
 
+#ifdef I586_CPU
+/*
+ * Cyrix 6x86MX (code-named M2)
+ *
+ * XXX - What should I do here?  Please let me know.
+ */
+static void
+init_6x86MX(void)
+{
+	u_long	eflags;
+	u_char	ccr3, ccr4;
+
+	eflags = read_eflags();
+	disable_intr();
+
+	load_cr0(rcr0() | CR0_CD | CR0_NW);
+	wbinvd();
+
+	/* Initialize CCR0. */
+	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR0_NC1);
+
+	/* Initialize CCR2. */
+#ifdef CPU_SUSP_HLT
+	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_SUSP_HLT);
+#else
+	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) & ~CCR2_SUSP_HLT);
+#endif
+
+	ccr3 = read_cyrix_reg(CCR3);
+	write_cyrix_reg(CCR3, CCR3_MAPEN0);
+
+	/* Initialize CCR4. */
+	ccr4 = read_cyrix_reg(CCR4);
+	ccr4 &= ~CCR4_IOMASK;
+#ifdef CPU_IORT
+	write_cyrix_reg(CCR4, ccr4 | (CPU_IORT & CCR4_IOMASK));
+#else
+	write_cyrix_reg(CCR4, ccr4 | 7);
+#endif
+
+	/* Restore CCR3. */
+	write_cyrix_reg(CCR3, ccr3);
+
+	/* Unlock NW bit in CR0. */
+	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) & ~CCR2_LOCK_NW);
+
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+
+	/* Lock NW bit in CR0. */
+	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
+
+	write_eflags(eflags);
+}
+#endif /* I586_CPU */
+
 void
 initializecpu(void)
 {
@@ -372,6 +431,11 @@ initializecpu(void)
 		init_6x86();
 		break;
 #endif /* I486_CPU */
+#ifdef I586_CPU
+	case CPU_M2:
+		init_6x86MX();
+		break;
+#endif
 	default:
 		break;
 	}
