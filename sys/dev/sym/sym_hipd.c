@@ -122,8 +122,8 @@ typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
 /* Driver configuration and definitions */
-#include <pci/sym_conf.h>
-#include <pci/sym_defs.h>
+#include <dev/sym/sym_conf.h>
+#include <dev/sym/sym_defs.h>
 
 /*
  *  On x86 architecture, write buffers management does not 
