@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.35 1997/11/18 07:23:40 bde Exp $
+ * $Id: kernel.h,v 1.36 1997/12/12 04:00:47 dyson Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -157,6 +157,7 @@ enum sysinit_sub_id {
 	SI_SUB_SYSV_SHM		= 0x64000000,	/* System V shared memory*/
 	SI_SUB_SYSV_SEM		= 0x68000000,	/* System V semaphores*/
 	SI_SUB_SYSV_MSG		= 0x6C000000,	/* System V message queues*/
+	SI_SUB_P1003_1B		= 0x6E000000,	/* P1003.1B realtime */
 	SI_SUB_PSEUDO		= 0x70000000,	/* pseudo devices*/
 	SI_SUB_PROTO_BEGIN	= 0x80000000,	/* XXX: set splimp (kludge)*/
 	SI_SUB_PROTO_IF		= 0x84000000,	/* interfaces*/

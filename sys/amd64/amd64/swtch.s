@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.68 1998/02/06 12:13:10 eivind Exp $
+ *	$Id: swtch.s,v 1.69 1998/03/04 10:25:03 dufault Exp $
  */
 
 #include "npx.h"
-#include "opt_posix4.h"
+#include "opt_posix.h"
 #include "opt_user_ldt.h"
 #include "opt_vm86.h"
 
@@ -114,7 +114,7 @@ set1:
 	movzwl	P_RTPRIO_PRIO(%eax),%edx
 
 	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* RR realtime priority? */
-#ifdef POSIX4
+#ifdef P1003_1B
 	je	set_rt				/* RT priority */
 	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority? */
 #endif
@@ -170,7 +170,7 @@ ENTRY(remrq)
 	movzwl	P_RTPRIO_PRIO(%eax),%edx
 
 	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* realtime priority process? */
-#ifdef POSIX4
+#ifdef P1003_1B
 	je	rem0rt
 	cmpw	$RTP_PRIO_FIFO,P_RTPRIO_TYPE(%eax) /* FIFO realtime priority process? */
 #endif

@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.57 1997/09/07 16:53:52 bde Exp $
+ * $Id: sysctl.h,v 1.58 1998/03/04 10:26:42 dufault Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
 #define	_SYS_SYSCTL_H_
+
+#include <sys/_posix.h>
 
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
@@ -81,7 +83,7 @@ struct ctlname {
  * USE THIS instead of a hardwired number from the categories below
  * to get dynamically assigned sysctl entries using the linker-set
  * technology. This is the way nearly all new sysctl variables should
- * be implimented.
+ * be implemented.
  * e.g. SYSCTL_INT(_parent, OID_AUTO, name, CTLFLAG_RW, &variable, 0, "");
  */ 
 #define OID_AUTO	(-1)
@@ -180,16 +182,8 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	CTL_HW		6		/* generic cpu/io */
 #define	CTL_MACHDEP	7		/* machine dependent */
 #define	CTL_USER	8		/* user-level */
-
-#ifdef POSIX4
-#define	CTL_POSIX4	9		/* user-level */
+#define	CTL_P1003_1B	9		/* POSIX 1003.1B */
 #define	CTL_MAXID	10		/* number of valid top-level ids */
-
-#define CTL_POSIX4_NAME { "posix4", CTLTYPE_NODE },
-#else
-#define	CTL_MAXID	9		/* number of valid top-level ids */
-#define CTL_POSIX4_NAME
-#endif	/* POSIX4 */
 
 #define CTL_NAMES { \
 	{ 0, 0 }, \
@@ -201,7 +195,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "hw", CTLTYPE_NODE }, \
 	{ "machdep", CTLTYPE_NODE }, \
 	{ "user", CTLTYPE_NODE }, \
-	CTL_POSIX4_NAME \
+	{ "p1003_1b", CTLTYPE_NODE }, \
 }
 
 /*
@@ -386,6 +380,63 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "posix2_upe", CTLTYPE_INT }, \
 	{ "stream_max", CTLTYPE_INT }, \
 	{ "tzname_max", CTLTYPE_INT }, \
+}
+
+#define CTL_P1003_1B_ASYNCHRONOUS_IO		1	/* boolean */
+#define CTL_P1003_1B_MAPPED_FILES		2	/* boolean */
+#define CTL_P1003_1B_MEMLOCK			3	/* boolean */
+#define CTL_P1003_1B_MEMLOCK_RANGE		4	/* boolean */
+#define CTL_P1003_1B_MEMORY_PROTECTION		5	/* boolean */
+#define CTL_P1003_1B_MESSAGE_PASSING		6	/* boolean */
+#define CTL_P1003_1B_PRIORITIZED_IO		7	/* boolean */
+#define CTL_P1003_1B_PRIORITY_SCHEDULING	8	/* boolean */
+#define CTL_P1003_1B_REALTIME_SIGNALS		9	/* boolean */
+#define CTL_P1003_1B_SEMAPHORES			10	/* boolean */
+#define CTL_P1003_1B_FSYNC			11	/* boolean */
+#define CTL_P1003_1B_SHARED_MEMORY_OBJECTS	12	/* boolean */
+#define CTL_P1003_1B_SYNCHRONIZED_IO		13	/* boolean */
+#define CTL_P1003_1B_TIMERS			14	/* boolean */
+#define CTL_P1003_1B_AIO_LISTIO_MAX		15	/* int */
+#define CTL_P1003_1B_AIO_MAX			16	/* int */
+#define CTL_P1003_1B_AIO_PRIO_DELTA_MAX		17	/* int */
+#define CTL_P1003_1B_DELAYTIMER_MAX		18	/* int */
+#define CTL_P1003_1B_MQ_OPEN_MAX		19	/* int */
+#define CTL_P1003_1B_PAGESIZE			20	/* int */
+#define CTL_P1003_1B_RTSIG_MAX			21	/* int */
+#define CTL_P1003_1B_SEM_NSEMS_MAX		22	/* int */
+#define CTL_P1003_1B_SEM_VALUE_MAX		23	/* int */
+#define CTL_P1003_1B_SIGQUEUE_MAX		24	/* int */
+#define CTL_P1003_1B_TIMER_MAX			25	/* int */
+
+#define CTL_P1003_1B_MAXID		26
+
+#define	CTL_P1003_1B_NAMES { \
+	{ 0, 0 }, \
+	{ "asynchronous_io", CTLTYPE_INT }, \
+	{ "mapped_files", CTLTYPE_INT }, \
+	{ "memlock", CTLTYPE_INT }, \
+	{ "memlock_range", CTLTYPE_INT }, \
+	{ "memory_protection", CTLTYPE_INT }, \
+	{ "message_passing", CTLTYPE_INT }, \
+	{ "prioritized_io", CTLTYPE_INT }, \
+	{ "priority_scheduling", CTLTYPE_INT }, \
+	{ "realtime_signals", CTLTYPE_INT }, \
+	{ "semaphores", CTLTYPE_INT }, \
+	{ "fsync", CTLTYPE_INT }, \
+	{ "shared_memory_objects", CTLTYPE_INT }, \
+	{ "synchronized_io", CTLTYPE_INT }, \
+	{ "timers", CTLTYPE_INT }, \
+	{ "aio_listio_max", CTLTYPE_INT }, \
+	{ "aio_max", CTLTYPE_INT }, \
+	{ "aio_prio_delta_max", CTLTYPE_INT }, \
+	{ "delaytimer_max", CTLTYPE_INT }, \
+	{ "mq_open_max", CTLTYPE_INT }, \
+	{ "pagesize", CTLTYPE_INT }, \
+	{ "rtsig_max", CTLTYPE_INT }, \
+	{ "nsems_max", CTLTYPE_INT }, \
+	{ "sem_value_max", CTLTYPE_INT }, \
+	{ "sigqueue_max", CTLTYPE_INT }, \
+	{ "timer_max", CTLTYPE_INT }, \
 }
 
 #ifdef KERNEL

@@ -39,34 +39,38 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <machine/cpu.h>	/* For need_resched */
-#include <fcntl.h>
 
-#include <sys/posix4.h>
+#include <posix4/posix4.h>
 
 /* ksched: Real-time extension to support POSIX priority scheduling.
  */
 
-static struct timespec rr_interval;
+struct ksched {
+	struct timespec rr_interval;
+};
 
-int ksched_attach(int p4_instance, int fac_code, void **p)
+int ksched_attach(struct ksched **p)
 {
-	rr_interval.tv_sec = 0;
-	rr_interval.tv_nsec = 1000000000L / roundrobin_interval();
+	struct ksched *ksched= p31b_malloc(sizeof(*ksched));
 
-	*p = 0;
+	ksched->rr_interval.tv_sec = 0;
+	ksched->rr_interval.tv_nsec = 1000000000L / roundrobin_interval();
 
+	*p = ksched;
 	return 0;
 }
 
-int ksched_detach(void *p)
+int ksched_detach(struct ksched *p)
 {
+	p31b_free(p);
+
 	return 0;
 }
 
 /*
  * XXX About priorities
  *
- *	POSIX4 requires that numerically higher priorities be of
+ *	POSIX 1003.1b requires that numerically higher priorities be of
  *	higher priority.  It also permits sched_setparam to be
  *	implementation defined for SCHED_OTHER.  I don't like
  *	the notion of inverted priorites for normal processes when
@@ -76,14 +80,14 @@ int ksched_detach(void *p)
  */
 
 /* Macros to convert between the unix (lower numerically is higher priority)
- * and POSIX4 (higher numerically is higher priority)
+ * and POSIX 1003.1b (higher numerically is higher priority)
  */
 
 #define p4prio_to_rtpprio(P) (RTP_PRIO_MAX - (P))
 #define rtpprio_to_p4prio(P) (RTP_PRIO_MAX - (P))
 
 static inline int
-getscheduler(int *ret, void *hook, struct proc *p)
+getscheduler(int *ret, struct ksched *ksched, struct proc *p)
 {
 	int e = 0;
 
@@ -105,25 +109,25 @@ getscheduler(int *ret, void *hook, struct proc *p)
 	return e;
 }
 
-int ksched_setparam(int *ret, void *hook,
+int ksched_setparam(int *ret, struct ksched *ksched,
 	struct proc *p, const struct sched_param *param)
 {
 	int e, policy;
 
-	e = getscheduler(&policy, hook, p);
+	e = getscheduler(&policy, ksched, p);
 
 	if (e == 0)
 	{
 		if (policy == SCHED_OTHER)
 			e = EINVAL;
 		else
-			e = ksched_setscheduler(ret, hook, p, policy, param);
+			e = ksched_setscheduler(ret, ksched, p, policy, param);
 	}
 
 	return e;
 }
 
-int ksched_getparam(int *ret, void *hook,
+int ksched_getparam(int *ret, struct ksched *ksched,
 	struct proc *p, struct sched_param *param)
 {
 	if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type))
@@ -136,10 +140,10 @@ int ksched_getparam(int *ret, void *hook,
  * XXX The priority and scheduler modifications should
  *     be moved into published interfaces in kern/kern_sync.
  *
- * The permissions to modify process p were checked in "posix4proc()".
+ * The permissions to modify process p were checked in "p31b_proc()".
  *
  */
-int ksched_setscheduler(int *ret, void *hook,
+int ksched_setscheduler(int *ret, struct ksched *ksched,
 	struct proc *p, int policy, const struct sched_param *param)
 {
 	int e = 0;
@@ -186,20 +190,20 @@ int ksched_setscheduler(int *ret, void *hook,
 	return e;
 }
 
-int ksched_getscheduler(int *ret, void *hook, struct proc *p)
+int ksched_getscheduler(int *ret, struct ksched *ksched, struct proc *p)
 {
-	return getscheduler(ret, hook, p);
+	return getscheduler(ret, ksched, p);
 }
 
 /* ksched_yield: Yield the CPU.
  */
-int ksched_yield(int *ret, void *hook)
+int ksched_yield(int *ret, struct ksched *ksched)
 {
 	need_resched();
 	return 0;
 }
 
-int ksched_get_priority_max(int *ret, void *hook, int policy)
+int ksched_get_priority_max(int *ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -221,7 +225,7 @@ int ksched_get_priority_max(int *ret, void *hook, int policy)
 	return e;
 }
 
-int ksched_get_priority_min(int *ret, void *hook, int policy)
+int ksched_get_priority_min(int *ret, struct ksched *ksched, int policy)
 {
 	int e = 0;
 
@@ -243,10 +247,10 @@ int ksched_get_priority_min(int *ret, void *hook, int policy)
 	return e;
 }
 
-int ksched_rr_get_interval(int *ret, void *hook,
+int ksched_rr_get_interval(int *ret, struct ksched *ksched,
 	struct proc *p, struct timespec *timespec)
 {
-	*timespec = rr_interval;
+	*timespec = ksched->rr_interval;
 
 	return 0;
 }

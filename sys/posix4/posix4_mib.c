@@ -34,44 +34,61 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/unistd.h>
+#include <posix4/posix4.h>
 
-static int facility[CTL_POSIX4_N_CTLS];
+static int facility[CTL_P1003_1B_MAXID - 1];
 
-#define P4_SYSCTL(num, name)  \
- SYSCTL_INT(_posix4, num, name, CTLFLAG_RD, facility + num - 1, 0, "");
-
-P4_SYSCTL(CTL_POSIX4_ASYNCHRONOUS_IO, asynchronous_io);
-P4_SYSCTL(CTL_POSIX4_MAPPED_FILES, mapped_files);
-P4_SYSCTL(CTL_POSIX4_MEMLOCK, memlock);
-P4_SYSCTL(CTL_POSIX4_MEMLOCK_RANGE, memlock_range);
-P4_SYSCTL(CTL_POSIX4_MEMORY_PROTECTION, memory_protection);
-P4_SYSCTL(CTL_POSIX4_MESSAGE_PASSING, message_passing);
-P4_SYSCTL(CTL_POSIX4_PRIORITIZED_IO, prioritized_io);
-P4_SYSCTL(CTL_POSIX4_PRIORITY_SCHEDULING, priority_scheduling);
-P4_SYSCTL(CTL_POSIX4_REALTIME_SIGNALS, realtime_signals);
-P4_SYSCTL(CTL_POSIX4_SEMAPHORES, semaphores);
-P4_SYSCTL(CTL_POSIX4_FSYNC, fsync);
-P4_SYSCTL(CTL_POSIX4_SHARED_MEMORY_OBJECTS, shared_memory_objects);
-P4_SYSCTL(CTL_POSIX4_SYNCHRONIZED_IO, synchronized_io);
-P4_SYSCTL(CTL_POSIX4_TIMERS, timers);
-P4_SYSCTL(CTL_POSIX4_AIO_LISTIO_MAX, aio_listio_max);
-P4_SYSCTL(CTL_POSIX4_AIO_MAX, aio_max);
-P4_SYSCTL(CTL_POSIX4_AIO_PRIO_DELTA_MAX, aio_prio_delta_max);
-P4_SYSCTL(CTL_POSIX4_DELAYTIMER_MAX, delaytimer_max);
-P4_SYSCTL(CTL_POSIX4_MQ_OPEN_MAX, mq_open_max);
-P4_SYSCTL(CTL_POSIX4_PAGESIZE, pagesize);
-P4_SYSCTL(CTL_POSIX4_RTSIG_MAX, rtsig_max);
-P4_SYSCTL(CTL_POSIX4_SEM_NSEMS_MAX, sem_nsems_max);
-P4_SYSCTL(CTL_POSIX4_SEM_VALUE_MAX, sem_value_max);
-P4_SYSCTL(CTL_POSIX4_SIGQUEUE_MAX, sigqueue_max);
-P4_SYSCTL(CTL_POSIX4_TIMER_MAX, timer_max);
-
-/* posix4_facility: Set a facility to a value.  This is
- * probably a temporary measure until the LKM code is combined with this.
+/* OID_AUTO isn't working with sysconf(3).  I guess I'd have to
+ * modify it to do a lookup by name from the index.
+ * For now I've left it a top-level sysctl.
  */
-void posix4_facility(int num, int value)
+
+#if 1
+
+#define P1B_SYSCTL(num, name)  \
+SYSCTL_INT(_p1003_1b, num, \
+	name, CTLFLAG_RD, facility + num - 1, 0, "");
+
+#else
+
+#define P1B_SYSCTL(num, name)  \
+SYSCTL_INT(_kern_p1003_1b, OID_AUTO, \
+	name, CTLFLAG_RD, facility + num - 1, 0, "");
+SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
+
+#endif
+
+
+P1B_SYSCTL(CTL_P1003_1B_ASYNCHRONOUS_IO, asynchronous_io);
+P1B_SYSCTL(CTL_P1003_1B_MAPPED_FILES, mapped_files);
+P1B_SYSCTL(CTL_P1003_1B_MEMLOCK, memlock);
+P1B_SYSCTL(CTL_P1003_1B_MEMLOCK_RANGE, memlock_range);
+P1B_SYSCTL(CTL_P1003_1B_MEMORY_PROTECTION, memory_protection);
+P1B_SYSCTL(CTL_P1003_1B_MESSAGE_PASSING, message_passing);
+P1B_SYSCTL(CTL_P1003_1B_PRIORITIZED_IO, prioritized_io);
+P1B_SYSCTL(CTL_P1003_1B_PRIORITY_SCHEDULING, priority_scheduling);
+P1B_SYSCTL(CTL_P1003_1B_REALTIME_SIGNALS, realtime_signals);
+P1B_SYSCTL(CTL_P1003_1B_SEMAPHORES, semaphores);
+P1B_SYSCTL(CTL_P1003_1B_FSYNC, fsync);
+P1B_SYSCTL(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, shared_memory_objects);
+P1B_SYSCTL(CTL_P1003_1B_SYNCHRONIZED_IO, synchronized_io);
+P1B_SYSCTL(CTL_P1003_1B_TIMERS, timers);
+P1B_SYSCTL(CTL_P1003_1B_AIO_LISTIO_MAX, aio_listio_max);
+P1B_SYSCTL(CTL_P1003_1B_AIO_MAX, aio_max);
+P1B_SYSCTL(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, aio_prio_delta_max);
+P1B_SYSCTL(CTL_P1003_1B_DELAYTIMER_MAX, delaytimer_max);
+P1B_SYSCTL(CTL_P1003_1B_MQ_OPEN_MAX, mq_open_max);
+P1B_SYSCTL(CTL_P1003_1B_PAGESIZE, pagesize);
+P1B_SYSCTL(CTL_P1003_1B_RTSIG_MAX, rtsig_max);
+P1B_SYSCTL(CTL_P1003_1B_SEM_NSEMS_MAX, sem_nsems_max);
+P1B_SYSCTL(CTL_P1003_1B_SEM_VALUE_MAX, sem_value_max);
+P1B_SYSCTL(CTL_P1003_1B_SIGQUEUE_MAX, sigqueue_max);
+P1B_SYSCTL(CTL_P1003_1B_TIMER_MAX, timer_max);
+
+/* p31b_setcfg: Set the configuration
+ */
+void p31b_setcfg(int num, int value)
 {
-	if (num >= 1 && num <= CTL_POSIX4_N_CTLS)
+	if (num >= 1 && num < CTL_P1003_1B_MAXID)
 		facility[num - 1] = value;
 }
