@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.102 1998/06/07 17:11:47 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.103 1998/06/08 18:18:28 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -435,6 +435,7 @@ dounmount(mp, flags, p)
 {
 	struct vnode *coveredvp;
 	int error;
+	int async_flag;
 
 	simple_lock(&mountlist_slock);
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
@@ -444,6 +445,7 @@ dounmount(mp, flags, p)
 		vfs_setpublicfs(NULL, NULL, NULL);
 
 	vfs_msync(mp, MNT_WAIT);
+	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &=~ MNT_ASYNC;
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
@@ -457,6 +459,7 @@ dounmount(mp, flags, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
 		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
+		mp->mnt_flag |= async_flag;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);
 		return (error);
