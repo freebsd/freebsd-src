@@ -55,9 +55,9 @@ tsb_vpntobucket(pmap_t pm, vm_offset_t vpn)
 }
 
 static __inline struct tte *
-tsb_vtobucket(pmap_t pm, vm_offset_t va)
+tsb_vtobucket(pmap_t pm, u_long sz, vm_offset_t va)
 {
-	return (tsb_vpntobucket(pm, va >> PAGE_SHIFT));
+	return (tsb_vpntobucket(pm, va >> TTE_PAGE_SHIFT(sz)));
 }
 
 static __inline struct tte *
@@ -77,7 +77,7 @@ typedef int (tsb_callback_t)(struct pmap *, struct pmap *, struct tte *,
 
 struct	tte *tsb_tte_lookup(pmap_t pm, vm_offset_t va);
 void	tsb_tte_remove(struct tte *stp);
-struct	tte *tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va,
+struct	tte *tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz,
 			   u_long data);
 void	tsb_tte_local_remove(struct tte *tp);
 void	tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,

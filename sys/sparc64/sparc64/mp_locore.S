@@ -48,7 +48,8 @@
 	 nop
 	ldx	[%l2 + TTE_VPN], %l4
 	ldx	[%l2 + TTE_DATA], %l5
-	sllx	%l4, PAGE_SHIFT, %l4
+	srlx	%l4, TV_SIZE_BITS, %l4
+	sllx	%l4, PAGE_SHIFT_4M, %l4
 	wr	%g0, ASI_DMMU, %asi
 	stxa	%l4, [%g0 + AA_DMMU_TAR] %asi
 	stxa	%l5, [%g0] ASI_DTLB_DATA_IN_REG
@@ -145,7 +146,8 @@ ENTRY(mp_startup)
 	ldx	[%l3 + TTE_DATA], %l5
 
 	wr	%g0, ASI_DMMU, %asi
-	sllx	%l4, PAGE_SHIFT, %l4
+	srlx	%l4, TV_SIZE_BITS, %l4
+	sllx	%l4, PAGE_SHIFT_8K, %l4
 	stxa	%l4, [%g0 + AA_DMMU_TAR] %asi
 	stxa	%l5, [%g0] ASI_DTLB_DATA_IN_REG
 	membar	#Sync
