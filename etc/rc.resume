@@ -29,10 +29,18 @@
 
 # sample run command file for APM Resume Event
 
+if [ $# -ne 2 ]; then
+	echo "Usage: $0 [apm|acpi] [resume|1-5]"
+	exit 1
+fi
+
+subsystem=$1
+state=$2
+
 if [ -r /var/run/rc.suspend.pid ]; then
 	kill -9 `cat /var/run/rc.suspend.pid`
 	rm -f /var/run/rc.suspend.pid
-	echo 'rc.suspend is killed'
+	echo 'rc.resume: killed rc.suspend that was still around'
 fi
 
 # Turns on a power supply of a card in the slot inactivated.
@@ -40,7 +48,11 @@ fi
 # pccardq | awk -F '~' '$5 == "inactive" \
 #	{ printf("pccardc power %d 1", $1); }' | sh
 
-logger -t apmd resumed at `date +'%Y%m%d %H:%M:%S'`
+# UHCI has trouble resuming so we just load/unload it.  You
+# should add any other kernel modules you want reloaded here.
+# kldload usb
+
+logger -t $subsystem resumed at `date +'%Y%m%d %H:%M:%S'`
 sync && sync && sync
 
 exit 0

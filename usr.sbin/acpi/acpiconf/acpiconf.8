@@ -58,7 +58,8 @@ Enters the specified sleep mode.
 Recognized types are
 .Cm 1
 (only the CPU clock is stopped),
-.Cm 2 ,
+.Cm 2 
+(not implemented on most systems but similar to S1),
 .Cm 3
 (the CPU context is lost and memory context is preserved),
 .Cm 4
@@ -69,6 +70,12 @@ and
 Sleep states may also be given as S1, S2, etc.
 The supported states depend on BIOS implementation, including ACPI
 byte code (AML).
+If the
+.Pa /etc/rc.suspend
+and
+.Pa /etc/rc.resume
+scripts are executable, they will be run before and after entering
+the given sleep state.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
