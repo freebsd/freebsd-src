@@ -237,14 +237,11 @@ getuid(td, uap)
 	struct thread *td;
 	struct getuid_args *uap;
 {
-	struct proc *p = td->td_proc;
 
-	mtx_lock(&Giant);
-	td->td_retval[0] = p->p_ucred->cr_ruid;
+	td->td_retval[0] = td->td_ucred->cr_ruid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	td->td_retval[1] = p->p_ucred->cr_uid;
+	td->td_retval[1] = td->td_ucred->cr_uid;
 #endif
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -262,9 +259,8 @@ geteuid(td, uap)
 	struct thread *td;
 	struct geteuid_args *uap;
 {
-	mtx_lock(&Giant);
-	td->td_retval[0] = td->td_proc->p_ucred->cr_uid;
-	mtx_unlock(&Giant);
+
+	td->td_retval[0] = td->td_ucred->cr_uid;
 	return (0);
 }
 
@@ -282,14 +278,11 @@ getgid(td, uap)
 	struct thread *td;
 	struct getgid_args *uap;
 {
-	struct proc *p = td->td_proc;
 
-	mtx_lock(&Giant);
-	td->td_retval[0] = p->p_ucred->cr_rgid;
+	td->td_retval[0] = td->td_ucred->cr_rgid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	td->td_retval[1] = p->p_ucred->cr_groups[0];
+	td->td_retval[1] = td->td_ucred->cr_groups[0];
 #endif
-	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -312,11 +305,8 @@ getegid(td, uap)
 	struct thread *td;
 	struct getegid_args *uap;
 {
-	struct proc *p = td->td_proc;
 
-	mtx_lock(&Giant);
-	td->td_retval[0] = p->p_ucred->cr_groups[0];
-	mtx_unlock(&Giant);
+	td->td_retval[0] = td->td_ucred->cr_groups[0];
 	return (0);
 }
 
@@ -335,29 +325,23 @@ getgroups(td, uap)
 	register struct getgroups_args *uap;
 {
 	struct ucred *cred;
-	struct proc *p = td->td_proc;
 	u_int ngrp;
 	int error;
 
-	mtx_lock(&Giant);
-	error = 0;
-	cred = p->p_ucred;
+	cred = td->td_ucred;
 	if ((ngrp = uap->gidsetsize) == 0) {
 		td->td_retval[0] = cred->cr_ngroups;
-		goto done2;
+		return (0);
 	}
-	if (ngrp < cred->cr_ngroups) {
-		error = EINVAL;
-		goto done2;
-	}
+	if (ngrp < cred->cr_ngroups)
+		return (EINVAL);
 	ngrp = cred->cr_ngroups;
-	if ((error = copyout((caddr_t)cred->cr_groups,
-	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t))))
-		goto done2;
+	error = copyout((caddr_t)cred->cr_groups, (caddr_t)uap->gidset,
+	    ngrp * sizeof(gid_t));
+	if (error)
+		return (error);
 	td->td_retval[0] = ngrp;
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
