@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -160,23 +162,12 @@ svr4_sys_stat(p, uap)
 	struct proc *p;
 	struct svr4_sys_stat_args *uap;
 {
-        int *retval;
-#ifdef SVR4_NO_OSTAT
-	struct svr4_sys_xstat_args cup;
-
-	retval = &(p->p_retval[0]);
-	SCARG(&cup, two) = 2;
-	SCARG(&cup, path) = SCARG(uap, path);
-	SCARG(&cup, ub) = (struct svr4_xstat *) SCARG(uap, ub);
-	return svr4_sys_xstat(p, &cup, retval);
-#else
 	struct stat		st;
 	struct svr4_stat	svr4_st;
 	struct stat_args	cup;
 	int			error;
 	caddr_t sg = stackgap_init();
 
-	retval = p->p_retval;
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
@@ -198,7 +189,6 @@ svr4_sys_stat(p, uap)
 		return error;
 
 	return 0;
-#endif
 }
 
 
@@ -207,14 +197,12 @@ svr4_sys_lstat(p, uap)
 	register struct proc *p;
 	struct svr4_sys_lstat_args *uap;
 {
-	int *retval;
 	struct stat		st;
 	struct svr4_stat	svr4_st;
 	struct lstat_args	cup;
 	int			error;
-	caddr_t sg = stackgap_init();
+	caddr_t			sg = stackgap_init();
 
-	retval = p->p_retval;
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
@@ -246,10 +234,9 @@ svr4_sys_fstat(p, uap)
 	struct stat		st;
 	struct svr4_stat	svr4_st;
 	struct fstat_args	cup;
-	int			error, *retval;
-	caddr_t sg = stackgap_init();
+	int			error;
+	caddr_t			sg = stackgap_init();
 
-	retval = p->p_retval;
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
 
@@ -276,12 +263,11 @@ svr4_sys_xstat(p, uap)
 	struct stat		st;
 	struct svr4_xstat	svr4_st;
 	struct stat_args	cup;
-	int			error, *retval;
+	int			error;
 
 	caddr_t sg = stackgap_init();
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 
-	retval = p->p_retval;
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
 
@@ -309,15 +295,12 @@ svr4_sys_lxstat(p, uap)
 	register struct proc *p;
 	struct svr4_sys_lxstat_args *uap;
 {
-        int *retval;
 	struct stat		st;
 	struct svr4_xstat	svr4_st;
 	struct lstat_args	cup;
 	int			error;
 	caddr_t sg = stackgap_init();
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
-
-	retval = p->p_retval;
 
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(struct stat));
@@ -346,7 +329,6 @@ svr4_sys_fxstat(p, uap)
 	register struct proc *p;
 	struct svr4_sys_fxstat_args *uap;
 {
-        int *retval;
 	struct stat		st;
 	struct svr4_xstat	svr4_st;
 	struct fstat_args	cup;
@@ -354,7 +336,6 @@ svr4_sys_fxstat(p, uap)
 
 	caddr_t sg = stackgap_init();
 
-	retval = p->p_retval;
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
 
@@ -380,10 +361,9 @@ svr4_sys_stat64(p, uap)
 	struct stat		st;
 	struct svr4_stat64	svr4_st;
 	struct stat_args	cup;
-	int			error, *retval;
-	caddr_t sg = stackgap_init();
+	int			error;
+	caddr_t			sg = stackgap_init();
 
-	retval = p->p_retval;
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 
 	SCARG(&cup, path) = SCARG(uap, path);
@@ -415,10 +395,8 @@ svr4_sys_lstat64(p, uap)
 	struct stat		st;
 	struct svr4_stat64	svr4_st;
 	struct stat_args	cup;
-	int			error, *retval;
-	caddr_t sg = stackgap_init();
-
-	retval = p->p_retval;
+	int			error;
+	caddr_t			sg = stackgap_init();
 
 	CHECKALTEXIST(p, &sg, (char *) SCARG(uap, path));
 
@@ -451,10 +429,8 @@ svr4_sys_fstat64(p, uap)
 	struct stat		st;
 	struct svr4_stat64	svr4_st;
 	struct fstat_args	cup;
-	int			error, *retval;
+	int			error;
 	caddr_t sg = stackgap_init();
-
-	retval = p->p_retval;
 
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(struct stat));
@@ -530,12 +506,14 @@ svr4_sys_systeminfo(p, uap)
 	struct proc *p;
 	struct svr4_sys_systeminfo_args *uap;
 {
-	char *str = NULL;
-	int error = 0, *retval = p->p_retval;
-	size_t len = 0;
-	char buf[1];   /* XXX NetBSD uses 256, but that seems like awfully
-			  excessive kstack usage for an empty string... */
-	u_int rlen = SCARG(uap, len);
+	char		*str = NULL;
+	int		error = 0;
+	register_t	*retval = p->p_retval;
+	size_t		len = 0;
+	char		buf[1];   /* XXX NetBSD uses 256, but that seems
+				     like awfully excessive kstack usage
+				     for an empty string... */
+	u_int		rlen = SCARG(uap, len);
 
 	switch (SCARG(uap, what)) {
 	case SVR4_SI_SYSNAME:
@@ -761,8 +739,8 @@ svr4_sys_pathconf(p, uap)
 	register struct proc *p;
 	struct svr4_sys_pathconf_args *uap;
 {
-	caddr_t sg = stackgap_init();
-	int *retval = p->p_retval;
+	caddr_t		sg = stackgap_init();
+	register_t	*retval = p->p_retval;
 
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 
@@ -786,7 +764,7 @@ svr4_sys_fpathconf(p, uap)
 	register struct proc *p;
 	struct svr4_sys_fpathconf_args *uap;
 {
-        int *retval = p->p_retval;
+        register_t	*retval = p->p_retval;
 
 	SCARG(uap, name) = svr4_to_bsd_pathconf(SCARG(uap, name));
 
