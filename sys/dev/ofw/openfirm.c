@@ -546,19 +546,8 @@ OF_read(ihandle_t instance, void *addr, int len)
 	args.instance = instance;
 	args.addr = addr;
 	args.len = len;
-
-#if defined(OPENFIRM_DEBUG)
-	printf("OF_read: called with instance=%08x, addr=%p, len=%d\n",
-	    args.instance, args.addr, args.len);
-#endif
-
 	if (openfirmware(&args) == -1)
 		return -1;
-
-#if defined(OPENFIRM_DEBUG)
-	printf("OF_read: returning instance=%d, addr=%p, len=%d, actual=%d\n",
-	    args.instance, args.addr, args.len, args.actual);
-#endif
 
 	return args.actual;
 }
