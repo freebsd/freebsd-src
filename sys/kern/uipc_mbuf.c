@@ -1194,8 +1194,6 @@ nospace:
 #ifdef MBUF_STRESS_TEST
 	m_defragfailure++;
 #endif
-	if (m_new)
-		m_free(m_new);
 	if (m_final)
 		m_freem(m_final);
 	return (NULL);
@@ -1275,8 +1273,6 @@ m_fragment(struct mbuf *m0, int how, int length)
 	m0 = m_final;
 	return (m0);
 nospace:
-	if (m_new)
-		m_free(m_new);
 	if (m_final)
 		m_freem(m_final);
 	/* Return the original chain on failure */
