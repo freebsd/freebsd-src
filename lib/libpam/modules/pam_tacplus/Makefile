@@ -26,16 +26,15 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_tacplus.so
+LIB=		pam_tacplus
+SHLIB_NAME=	pam_tacplus.so
 SRCS=		pam_tacplus.c
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-LDFLAGS+=	-shared
-LDFLAGS+=	-L../../libpam
 DPADD+=		${LIBTACPLUS} ${LIBGCC_PIC}
-LDADD+=		-lpam -ltacplus -lgcc_pic
-NOMAN=		true
+LDADD+=		-ltacplus -lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

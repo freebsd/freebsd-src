@@ -26,16 +26,15 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_unix.so
+LIB=		pam_unix
+SHLIB_NAME=	pam_unix.so
 SRCS=		pam_unix.c
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-LDFLAGS+=	-shared
-LDFLAGS+=	-L../../libpam
 DPADD+=		${LIBGCC_PIC}
-LDADD+=		-lpam -lgcc_pic
-NOMAN=		true
+LDADD+=		-lgcc_pic
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

@@ -26,13 +26,14 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-PROG=		pam_cleartext_pass_ok.so
+LIB=		pam_cleartext_pass_ok
+SHLIB_NAME=	pam_cleartext_pass_ok.so
 SRCS=		pam_cleartext_pass_ok.c
 CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-fpic
 CFLAGS+=	-Wall
-LDFLAGS+=	-shared
+DPADD+=		${LIBSKEY}
 LDADD+=		-lskey -lgcc_pic
-NOMAN=		true
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

@@ -25,23 +25,22 @@
 #	$FreeBSD$
 
 PAMDIR=		${.CURDIR}/../../../contrib/libpam
+MODOBJDIR=	../modules
 
 .PATH:		${PAMDIR}/libpam ${PAMDIR}/libpam_misc ${PAMDIR}/doc/man
 
 LIB=		pam
 CFLAGS+=	-I${PAMDIR}/libpam/include -I.
 CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
-CFLAGS+=	-DPAM_DYNAMIC
-#CFLAGS+=	-DPAM_STATIC
 NOPROFILE=	true
-INTERNALLIB=	true
 CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
 		pam_dispatch.c pam_end.c pam_env.c pam_handlers.c \
 		pam_item.c pam_log.c pam_misc.c pam_password.c \
-		pam_second.c pam_session.c pam_start.c pam_strerror.c
+		pam_second.c pam_session.c pam_start.c pam_static.c \
+		pam_strerror.c
 HDRS1=		_pam_compat.h _pam_macros.h _pam_types.h \
 		pam_appl.h pam_malloc.h pam_modules.h
 MAN3+=		pam_authenticate.3 pam_chauthtok.3 pam_fail_delay.3 \
@@ -59,6 +58,38 @@ HDRS2=		pam_misc.h
 # Files from ${.CURDIR}:
 SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c
 HDRS3=		pam_mod_misc.h
+
+# Static PAM modules:
+STATIC_MODULES+= ${MODOBJDIR}/pam_cleartext_pass_ok/libpam_cleartext_pass_ok.a
+.if defined(MAKE_KERBEROS4)
+STATIC_MODULES+= ${MODOBJDIR}/pam_kerberosIV/libpam_kerberosIV.a
+.endif
+STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_skey/libpam_skey.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
+
+STATICOBJS+=	pam_static_modules.o
+
+.if ${OBJFORMAT} == elf
+CLEANFILES+=	setdef0.o _pam_static_modules.o setdef1.o \
+		setdef0.c setdef1.c setdefs.h
+
+pam_static_modules.o:	setdef0.o _pam_static_modules.o setdef1.o
+	${LD} -o ${.TARGET} -r ${.ALLSRC}
+
+setdef0.o:	setdef0.c setdefs.h
+setdef1.o:	setdef1.c setdefs.h
+
+setdef0.c setdef1.c setdefs.h:	_pam_static_modules.o
+	gensetdefs ${.ALLSRC}
+
+_pam_static_modules.o:	${STATIC_MODULES}
+	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
+.else
+pam_static_modules.o:	${STATIC_MODULES}
+	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
+.endif
 
 all:		security
 
