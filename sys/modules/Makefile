@@ -417,7 +417,7 @@ _twa=		twa
 #	nsp oltr pecoff s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
-_ar=		ar
+#_ar=		ar	not 64-bit clean
 _arcnet=	arcnet
 _asr=		asr
 _bktr=		bktr
