@@ -47,7 +47,7 @@ int	 getfield __P((char *, char **, int *));
 int	 getmonth __P((char *));
 int	 geteaster __P((char *, int));
 int      easter __P((int));
-int	 isnow __P((char *));
+int	 isnow __P((char *, int *, int *, int *));
 FILE	*opencal __P((void));
 void	 settime __P((time_t));
 time_t   Mktime __P((char *));

@@ -1,7 +1,7 @@
 /*
  * Holiday
  *
- * $Id: calendar.holiday,v 1.2 1996/01/29 00:32:59 wosch Exp $
+ * $Id: calendar.holiday,v 1.3 1996/01/31 13:40:39 mpp Exp $
  */
 
 #ifndef _calendar_holiday_
@@ -32,11 +32,10 @@
 01/19	Nameday of Archbishop Makarios in Cyprus
 01/20	Army Day in Mali 
 01/20	National Heroes Day in Guinea-Bissau
-01/20*	Lee-Jackson Day in Virginia (3rd Monday)
-01/20*	Martin Luther King Day in New York (3rd Sunday)
-01/20*	Robert E. Lee's Birthday in Alabama & Mississippi (3rd Monday)
+01/SunThird	Martin Luther King Day in New York (3rd Sunday)
+01/MonThird	Robert E. Lee's Birthday in Alabama & Mississippi (3rd Monday)
+01/MonThird	Lee-Jackson Day in Virginia (3rd Monday)
 01/21	Our Lady of Altagracia in Dominican Republic
-01/21*	Lee-Jackson Day in Virginia (3rd Monday)
 01/23	Feast of St. Ildefonsus
 01/23	National Handwriting Day
 01/24	Economic Liberation Day in Togo
@@ -100,7 +99,7 @@
 03/25	Lady Day (a.k.a. the Feast of the Annunciation)
 03/25	Maryland Day in Maryland
 03/25	National Holiday in Greece
-03/25*	Seward's Day in Alaska (last Monday)
+03/MonLast	Seward's Day in Alaska (last Monday)
 03/26	Independence Day in Bangladesh
 03/26	Prince Jonah Kuhio Kalanianaole Day in Hawaii
 03/27	Armed Forces Day in Burma
@@ -124,7 +123,7 @@
 04/13	Songkron Day in Thailand
 04/14	Day of the Americas in Honduras
 04/15	Bengali New Year in Bangladesh
-04/15*	Patriot's Day in Maine & Massachusetts (3rd Monday)
+04/MonThird	Patriot's Day in Maine & Massachusetts (3rd Monday)
 04/16	De Diego's Birthday (celebrated in Puerto Rico)
 04/16	Holy Week (5 days) in Venezuela
 04/16	Tourist Week (5 days) in Uruguay
@@ -143,8 +142,8 @@
 04/26	Confederate Memorial Day in Florida & Georgia
 04/26	Union Day in Tanzania
 04/27	Independence Day in Togo
-04/28*	Arbor Day in Wyoming (last Monday)
-04/28*	Confederate Memorial Day in Alabama & Mississippi (last Monday)
+04/MonLast	Arbor Day in Wyoming (last Monday)
+04/MonLast	Confederate Memorial Day in Alabama & Mississippi (last Monday)
 04/30	The Workers Day in Uruguay
 05/01	Labor Day in many places
 05/01	Law Day (decl. by Eisenhower)
@@ -174,11 +173,10 @@
 05/18	Flag Day in Haiti
 05/18	Prayer Day in Denmark
 05/19	Youth and Sports Day in Turkey
-05/19*	Memorial Day in Michigan (3rd Monday)
+05/MonThird	Memorial Day in Michigan (3rd Monday)
 05/20	Mecklenburg Independence Day in North Carolina
 05/20	National Day in Cameroon
 05/20	Victoria Day in Canada
-05/20*	Memorial Day in Michigan (3rd Monday)
 05/22	National Heroes Day in Sri Lanka
 05/23	Commonwealth Day in Jamaica, Belize
 05/23	National Labor Day in Jamaica
@@ -295,7 +293,7 @@
 08/15	Independence Day in India
 08/15	Liberation Day in South Korea
 08/15	National Day in Congo
-08/15*	Admission Day in Hawaii, 1984 (3rd Friday)
+08/FriThird	Admission Day in Hawaii, 1984 (3rd Friday)
 08/16	Bennington Battle Day in Vermont
 08/16	Independence Days (3 days) in Gabon
 08/16	Restoration Day in Dominican Republic
@@ -483,8 +481,8 @@
 05/25	Revolution in the Sudan in Libyan Arab Republic
 05/27	Afghanistan attains sovereignty, 1921
 06/02	Corpus Christi in Paraguay
-06/03	Jefferson Davis's Birthday in Alabama & Mississippi (1st Monday)
-06/03	Jefferson Davis's Birthday in Florida, Georgia, & S. Carolina
+06/MonFirst	Jefferson Davis's Birthday in Alabama & Mississippi (1st Monday)
+06/MonFirst	Jefferson Davis's Birthday in Florida, Georgia, & S. Carolina
 06/04	Queen's Birthday in New Zealand
 06/06	His Majesty, Yang Di-Pertuan Agong's Birthday in Malaysia
 06/11	Queen's Birthday
