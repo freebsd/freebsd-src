@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.16 1995/02/24 07:51:13 phk Exp $
+ *	$Id: crt0.c,v 1.16.4.1 1995/08/25 07:08:38 davidg Exp $
  */
 
 
@@ -117,9 +117,9 @@ char			*__progname = empty;
     __syscall(SYS_mmap, (caddr_t)(addr), (size_t)(len), (int)(prot), (int)(flags), (int)(fd), (long)0L, (off_t)(off))
 #endif
 
-#define _FATAL(str) \
-	write(2, str, sizeof(str) - 1), \
-	_exit(1);
+#define _PUTNMSG(str, len)	write(2, (str), (len))
+#define _PUTMSG(str)		_PUTNMSG((str), sizeof (str) - 1)
+#define _FATAL(str)		( _PUTMSG(str), _exit(1) )
 
 
 start()
@@ -262,7 +262,18 @@ __do_dynamic_link ()
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
 	ret = (*entry)(CRT_VERSION_BSD_3, &crt);
 	if (ret == -1) {
-		_FATAL("ld.so failed\n");
+		_PUTMSG("ld.so failed");
+		if(_DYNAMIC.d_entry != NULL) {
+			char *msg = (_DYNAMIC.d_entry->dlerror)();
+			if(msg != NULL) {
+				char *endp;
+				_PUTMSG(": ");
+				for(endp = msg;  *endp != '\0';  ++endp)
+					;	/* Find the end */
+				_PUTNMSG(msg, endp - msg);
+			}
+		}
+		_FATAL("\n");
 	}
 
 	ld_entry = _DYNAMIC.d_entry;
