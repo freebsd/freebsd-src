@@ -14,7 +14,7 @@
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
  *	from:@(#)console.h	1.1 940105
- *	$Id: console.h,v 1.6 1994/02/01 06:18:43 nate Exp $
+ *	$Id: console.h,v 1.7 1994/02/04 10:35:29 chmr Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -55,7 +55,7 @@
 #define GIO_FONT8x14	_IOR('c', 67, fnt14_t)
 #define PIO_FONT8x16	_IOW('c', 68, fnt16_t)
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
-#define CONS_GETINFO	_IOR('c', 73, vid_info_t)
+#define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, long)
 #define CONS_80x25TEXT	_IO('c', 102)
 #define CONS_80x50TEXT	_IO('c', 103)

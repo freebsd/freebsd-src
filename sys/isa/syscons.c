@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.40 1994/03/21 06:37:04 davidg Exp $
+ *	$Id: syscons.c,v 1.41 1994/04/01 18:33:12 ache Exp $
  *
  */
 
@@ -638,8 +638,9 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case CONS_GETINFO:	/* get current (virtual) console info */
-		if (*data == sizeof(struct vid_info)) {
+		{
 			vid_info_t *ptr = (vid_info_t*)data;
+		if (ptr->size == sizeof(struct vid_info)) {
 			ptr->m_num = get_scr_num();
 			ptr->mv_col = scp->xpos;
 			ptr->mv_row = scp->ypos;
@@ -656,6 +657,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return 0;
 		}
 		return EINVAL;
+		}
 
 	case VT_SETMODE:	/* set screen switcher mode */
 		bcopy(data, &scp->smode, sizeof(struct vt_mode));
