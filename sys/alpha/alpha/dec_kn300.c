@@ -63,7 +63,7 @@
 static int comcnrate = CONSPEED;
 
 void dec_kn300_init __P((void));
-static void dec_kn300_cons_init __P((void));
+void dec_kn300_cons_init __P((void));
 
 #define	ALPHASERVER_4100	"AlphaServer 4100"
 
@@ -96,7 +96,6 @@ dec_kn300_init()
 	}
 
 	platform.iobus = "mcbus";
-	platform.cons_init = dec_kn300_cons_init;
 }
 
 extern int comconsole;
@@ -104,10 +103,8 @@ extern int comconsole;
 void
 dec_kn300_cons_init()
 {
-#if	0
 	struct ctb *ctb;
 
-/*	mcpcia_init(); */
 #ifdef	DDB
 	siogdbattach(0x2f8, 57600);
 #endif
@@ -139,9 +136,6 @@ dec_kn300_cons_init()
 	default:
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
-
-		panic("consinit: unknown console type %ld\n",
-		    ctb->ctb_term_type);
+		panic("consinit: unknown cons type %ld\n", ctb->ctb_term_type);
 	}
-#endif
 }
