@@ -620,7 +620,7 @@ dns_group(void *retval, void *mdata, va_list ap)
 		 * pointer for the member list terminator.
 		 */
 		adjsize = bufsize - _ALIGNBYTES - sizeof(char *);
-		linesize = _strlcpy(buffer, hes[0], adjsize);
+		linesize = strlcpy(buffer, hes[0], adjsize);
 		if (linesize >= adjsize) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
@@ -721,7 +721,7 @@ nis_group(void *retval, void *mdata, va_list ap)
 		rv = NS_NOTFOUND;
 		switch (how) {
 		case nss_lt_name:
-			if (_strlcpy(buffer, name, bufsize) >= bufsize)
+			if (strlcpy(buffer, name, bufsize) >= bufsize)
 				goto erange;
 			break;
 		case nss_lt_id:

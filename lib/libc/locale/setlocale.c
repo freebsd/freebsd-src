@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -51,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "un-namespace.h"
 #include "collate.h"
 #include "lmonetary.h"	/* for __monetary_load_locale() */
 #include "lnumeric.h"	/* for __numeric_load_locale() */
@@ -182,7 +180,7 @@ setlocale(category, locale)
 					errno = EINVAL;
 					return (NULL);
 				}
-				(void)_strlcpy(new_categories[i], locale,
+				(void)strlcpy(new_categories[i], locale,
 					      len + 1);
 				i++;
 				locale = r;

@@ -27,12 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <fmtmsg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "un-namespace.h"
 
 /* Default value for MSGVERB. */
 #define	DFLT_MSGVERB	"label:severity:text:action:tag"
@@ -103,13 +101,13 @@ def:
 
 #define INSERT_COLON							\
 	if (*output != '\0')						\
-		_strlcat(output, ": ", size)
+		strlcat(output, ": ", size)
 #define INSERT_NEWLINE							\
 	if (*output != '\0')						\
-		_strlcat(output, "\n", size)
+		strlcat(output, "\n", size)
 #define INSERT_SPACE							\
 	if (*output != '\0')						\
-		_strlcat(output, " ", size)
+		strlcat(output, " ", size)
 
 /*
  * Returns NULL on memory allocation failure, otherwise returns a pointer to
@@ -141,20 +139,20 @@ printfmt(char *msgverb, long class, const char *label, int sev,
 	while ((comp = nextcomp(msgverb)) != NULL) {
 		if (strcmp(comp, "label") == 0 && label != MM_NULLLBL) {
 			INSERT_COLON;
-			_strlcat(output, label, size);
+			strlcat(output, label, size);
 		} else if (strcmp(comp, "severity") == 0 && sevname != NULL) {
 			INSERT_COLON;
-			_strlcat(output, sevinfo(sev), size);
+			strlcat(output, sevinfo(sev), size);
 		} else if (strcmp(comp, "text") == 0 && text != MM_NULLTXT) {
 			INSERT_COLON;
-			_strlcat(output, text, size);
+			strlcat(output, text, size);
 		} else if (strcmp(comp, "action") == 0 && act != MM_NULLACT) {
 			INSERT_NEWLINE;
-			_strlcat(output, "TO FIX: ", size);
-			_strlcat(output, act, size);
+			strlcat(output, "TO FIX: ", size);
+			strlcat(output, act, size);
 		} else if (strcmp(comp, "tag") == 0 && tag != MM_NULLTAG) {
 			INSERT_SPACE;
-			_strlcat(output, tag, size);
+			strlcat(output, tag, size);
 		}
 	}
 	INSERT_NEWLINE;
@@ -173,7 +171,7 @@ nextcomp(const char *msgverb)
 	char *retval;
 	
 	if (*lmsgverb == '\0') {
-		_strlcpy(lmsgverb, msgverb, sizeof(lmsgverb));
+		strlcpy(lmsgverb, msgverb, sizeof(lmsgverb));
 		retval = strtok_r(lmsgverb, ":", &state);
 	} else {
 		retval = strtok_r(NULL, ":", &state);
