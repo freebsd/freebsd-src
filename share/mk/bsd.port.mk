@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.164 1995/05/29 13:46:38 asami Exp $
+# $Id: bsd.port.mk,v 1.165 1995/06/06 10:56:34 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -140,6 +140,9 @@
 # package		- Create a package from an _installed_ port.
 # describe		- Try to generate a one-line description for each port for
 #				  use in INDEX files and the like.
+# checkpatch	- Do a "patch -C" instead of a "patch".  Note that it may
+#				  give incorrect results if multiple patches deal with
+#				  the same file.
 # checksum		- Use files/md5 to ensure that your distfiles are valid
 # makesum		- Generate files/md5 (only do this for your own ports!)
 #
@@ -226,6 +229,11 @@ PATCH_DIST_ARGS?=	-d ${WRKSRC} -E ${PATCH_DIST_STRIP}
 .else
 PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
 PATCH_DIST_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_DIST_STRIP}
+.endif
+
+.if defined(PATCH_CHECK_ONLY)
+PATCH_ARGS+=	-C
+PATCH_DIST_ARGS+=	-C
 .endif
 
 EXTRACT_CMD?=	tar
@@ -518,7 +526,6 @@ do-patch:
 			${PATCH} ${PATCH_ARGS} < $$i; \
 		done; \
 	fi
-	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .else
 	@if [ -d ${PATCHDIR} ]; then \
 		${ECHO_MSG} "===>  Applying FreeBSD patches for ${PKGNAME}" ; \
@@ -526,7 +533,6 @@ do-patch:
 			do ${PATCH} ${PATCH_ARGS} < $$i; \
 		done;\
 	fi
-	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .endif
 .endif
 
@@ -679,7 +685,18 @@ ${PATCH_COOKIE}:
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
 			sh ${SCRIPTDIR}/post-patch; \
 	fi
+.if !defined(PATCH_CHECK_ONLY)
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
+.endif
+.endif
+
+# Checkpatch
+#
+# Special target to verify patches
+
+.if !target(checkpatch)
+checkpatch:
+	@${MAKE} PATCH_CHECK_ONLY=yes ${.MAKEFLAGS} patch
 .endif
 
 # Configure
