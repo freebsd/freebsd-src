@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.86 1996/12/15 16:28:24 se Exp $
+**  $Id: ncr.c,v 1.87 1996/12/15 16:37:17 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -51,7 +51,7 @@
 
 #define NCR_GETCC_WITHMSG
 
-#include "opt_ncr.c"
+#include "opt_ncr.h"
 
 #ifdef	FAILSAFE
 #define	SCSI_NCR_DFLT_TAGS (0)
@@ -1259,7 +1259,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.86 1996/12/15 16:28:24 se Exp $\n";
+	"\n$Id: ncr.c,v 1.87 1996/12/15 16:37:17 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
