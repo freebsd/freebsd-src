@@ -1,0 +1,96 @@
+.\" $FreeBSD$
+.\" $NetBSD: uaudio.4,v 1.15 2002/02/12 19:53:57 jdolecek Exp $
+.\"
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd November 10, 2003
+.Dt UAUDIO 4
+.Os
+.Sh NAME
+.Nm uaudio
+.Nd USB audio device driver
+.Sh SYNOPSIS
+.Cd "device pcm"
+.Cd "device usb"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for
+.Tn USB
+audio class devices.
+.Pp
+A
+.Tn USB
+audio device consists of a number of components:
+input terminals (e.g. USB digital input), output terminals (e.g.
+speakers), and a number of units in between (e.g. volume control).
+.Pp
+Refer to the
+.Ql USB Audio Class Specification
+for more information.
+.Sh SEE ALSO
+.Xr pcm 4 ,
+.Xr usb 4
+.Rs
+.%T "USB Audio Class Specifications"
+.%O http://www.usb.org/developers/devclass_docs/
+.Re
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+appeared in
+.Fx 4.7 .
+.Sh AUTHORS
+This manual page was adopted from
+.Nx 1.6
+and modified for
+.Fx
+by
+.An Hiten Pandya Aq hmp@FreeBSD.org .
+.Sh BUGS
+The
+.Tn PCM
+framework in
+.Fx ,
+as of this writing, does not handle device un-registrations in a properly
+abstracted manner, i.e. a detach request is refused by the
+.Tn PCM
+framework if the device is in use.
+For
+.Tn USB
+and supposedly other detach-able busses, it is necessary to allow the
+device un-registration to complete successfully, otherwise the driver
+leaves wild pointers to invalid data structures and thus leading to a panic.
