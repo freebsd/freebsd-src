@@ -162,6 +162,38 @@ PortMatch(int op, u_short pport, u_short rport)
 }
 
 /*
+ * Return a text string representing the cproto protocol number.
+ *
+ * The purpose of this routine is calculate this result, for
+ * the many times it is needed in FilterCheck, only on demand
+ * (i.e. when the corresponding logging functions are invoked).
+ *
+ * This optimization saves, over the previous implementation, which
+ * calculated prototxt at the beginning of FilterCheck, an
+ * open/read/close system call sequence per packet, approximately
+ * halving the ppp system overhead and reducing the overall (u + s)
+ * time by 38%.
+ *
+ * The caching performed here is just a side effect.
+ */
+static const char *
+prototxt(int cproto)
+{
+  static int oproto = -1;
+  static char protobuff[16] = "-1";
+  struct protoent *pe;
+
+  if (cproto == oproto)
+	return protobuff;
+  if ((pe = getprotobynumber(cproto)) == NULL)
+    snprintf(protobuff, sizeof protobuff, "%d", cproto);
+  else
+    snprintf(protobuff, sizeof protobuff, "%s", pe->p_name);
+  oproto = cproto;
+  return (protobuff);
+}
+
+/*
  * Check a packet against the given filter
  * Returns 0 to accept the packet, non-zero to drop the packet.
  * If psecs is not NULL, populate it with the timeout associated
@@ -187,8 +219,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
   int match;			/* true if condition matched */
   int mindata;			/* minimum data size or zero */
   const struct filterent *fp = filter->rule;
-  char dbuff[100], dstip[16], prototxt[16];
-  struct protoent *pe;
+  char dbuff[100], dstip[16];
   struct ncpaddr srcaddr, dstaddr;
   const char *payload;		/* IP payload */
   int datalen;			/* IP datagram length */
@@ -239,10 +270,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
     cproto = pip->ip_p;
   }
 
-  if ((pe = getprotobynumber(cproto)) == NULL)
-    snprintf(prototxt, sizeof prototxt, "%d", cproto);
-  else
-    snprintf(prototxt, sizeof prototxt, "%s", pe->p_name);
+
   gotinfo = estab = syn = finrst = didname = 0;
   sport = dport = 0;
 
@@ -356,7 +384,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
 
           if (datalen < mindata) {
             log_Printf(LogFILTER, " error: proto %s must be at least"
-                       " %d octets\n", prototxt, mindata);
+                       " %d octets\n", prototxt(cproto), mindata);
             return 1;
           }
 
@@ -367,7 +395,8 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
                        ", estab = %d, syn = %d, finrst = %d",
                        estab, syn, finrst);
             }
-            log_Printf(LogDEBUG, " Filter: proto = %s, %s\n", prototxt, dbuff);
+            log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
+                       prototxt(cproto), dbuff);
           }
           gotinfo = 1;
         }
@@ -424,8 +453,9 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
             if (log_IsKept(LogFILTER)) {
               snprintf(dstip, sizeof dstip, "%s", ncpaddr_ntoa(&dstaddr));
               log_Printf(LogFILTER, "%sbound rule = %d accept %s "
-                         "src = %s:%d dst = %s:%d\n", filter->name, n, prototxt,
-                         ncpaddr_ntoa(&srcaddr), sport, dstip, dport);
+                         "src = %s:%d dst = %s:%d\n", filter->name, n,
+                         prototxt(cproto), ncpaddr_ntoa(&srcaddr), sport,
+                         dstip, dport);
             }
           }
           return 0;
@@ -434,7 +464,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
             snprintf(dstip, sizeof dstip, "%s", ncpaddr_ntoa(&dstaddr));
             log_Printf(LogFILTER,
                        "%sbound rule = %d deny %s src = %s/%d dst = %s/%d\n",
-                       filter->name, n, prototxt,
+                       filter->name, n, prototxt(cproto),
                        ncpaddr_ntoa(&srcaddr), sport, dstip, dport);
           }
           return 1;
@@ -450,8 +480,8 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
     snprintf(dstip, sizeof dstip, "%s", ncpaddr_ntoa(&dstaddr));
     log_Printf(LogFILTER,
                "%sbound rule = implicit deny %s src = %s/%d dst = %s/%d\n",
-               filter->name, prototxt, ncpaddr_ntoa(&srcaddr), sport,
-               dstip, dport);
+               filter->name, prototxt(cproto), ncpaddr_ntoa(&srcaddr),
+               sport, dstip, dport);
   }
 
   return 1;		/* No rule matched, deny this packet */
