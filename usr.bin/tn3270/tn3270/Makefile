@@ -30,11 +30,17 @@ DEPSRCS+= genbsubs.c globals.c system.c termout.c
 DEPSRCS+= commands.c main.c network.c ring.c sys_bsd.c telnet.c terminal.c
 DEPSRCS+= tn3270.c utilities.c
 
+.if exists(${.CURDIR}/../tools/mkastosc/obj)
+MKASTOSCDIR= ${.CURDIR}/../tools/mkastosc/obj
+.else
+MKASTOSCDIR= ${.CURDIR}/../tools/mkastosc
+.endif
+
 astosc.o: astosc.OUT
 CLEANFILES+= astosc.OUT astosc.out
 astosc.OUT: ${.CURDIR}/../ctlr/hostctlr.h ${.CURDIR}/../ctlr/function.h
-astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${.CURDIR}/../tools/mkastosc/obj/mkastosc
-	${.CURDIR}/../tools/mkastosc/obj/mkastosc \
+astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${MKASTOSCDIR}/mkastosc
+	${MKASTOSCDIR}/mkastosc \
 	    ${.CURDIR}/../ctlr/hostctlr.h \
 	    ${.CURDIR}/../ctlr/function.h < ${.CURDIR}/../ctlr/${KBD} \
 	    > ${.TARGET}
@@ -63,7 +69,7 @@ kbd.OUT: ${.CURDIR}/../tools/mkhits/obj/mkhits
 # default.map
 # kbd.out
 
-${.CURDIR}/../tools/mkastosc/obj/mkastosc:
+${MKASTOSCDIR}/mkastosc:
 	cd ${.CURDIR}/../tools/mkastosc; make
 ${.CURDIR}/../tools/mkastods/obj/mkastods:
 	cd ${.CURDIR}/../tools/mkastods; make
