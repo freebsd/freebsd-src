@@ -1738,6 +1738,14 @@ fail_fres:
 		bus_release_resource(dev, SYS_RES_MEMORY, XL_PCI_FUNCMEM,
 		    sc->xl_fres);
 fail_res:
+	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
+		rid = XL_PCI_LOMEM;  
+		res = SYS_RES_MEMORY;
+	} else {
+		rid = XL_PCI_LOIO;   
+		res = SYS_RES_IOPORT;
+	}
+
 	bus_release_resource(dev, res, rid, sc->xl_res);
 fail:
 	XL_UNLOCK(sc);
