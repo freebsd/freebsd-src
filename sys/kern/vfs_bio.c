@@ -839,7 +839,9 @@ bwrite(struct buf * bp)
 	bp->b_flags |= B_WRITEINPROG | B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
+	VI_LOCK(bp->b_vp);
 	bp->b_vp->v_numoutput++;
+	VI_UNLOCK(bp->b_vp);
 	vfs_busy_pages(bp, 1);
 
 	/*
@@ -887,8 +889,10 @@ vfs_backgroundwritedone(bp)
 	/*
 	 * Find the original buffer that we are writing.
 	 */
+	VI_LOCK(bp->b_vp);
 	if ((origbp = gbincore(bp->b_vp, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
+	VI_UNLOCK(bp->b_vp);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
@@ -1585,6 +1589,7 @@ vfs_bio_awrite(struct buf * bp)
 		size = vp->v_mount->mnt_stat.f_iosize;
 		maxcl = MAXPHYS / size;
 
+		VI_LOCK(vp);
 		for (i = 1; i < maxcl; i++) {
 			if ((bpa = gbincore(vp, lblkno + i)) &&
 			    BUF_REFCNT(bpa) == 0 &&
@@ -1613,6 +1618,7 @@ vfs_bio_awrite(struct buf * bp)
 				break;
 			}
 		}
+		VI_UNLOCK(vp);
 		--j;
 		ncl = i + j;
 		/*
@@ -2084,7 +2090,9 @@ incore(struct vnode * vp, daddr_t blkno)
 	struct buf *bp;
 
 	int s = splbio();
+	VI_LOCK(vp);
 	bp = gbincore(vp, blkno);
+	VI_UNLOCK(vp);
 	splx(s);
 	return (bp);
 }
@@ -2104,6 +2112,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 	vm_ooffset_t off;
 
 	GIANT_REQUIRED;
+	ASSERT_VOP_LOCKED(vp, "inmem");
 
 	if (incore(vp, blkno))
 		return 1;
@@ -2271,6 +2280,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 #ifdef USE_BUFHASH
 	struct bufhashhdr *bh;
 #endif
+	ASSERT_VOP_LOCKED(vp, "getblk");
 
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
@@ -2293,7 +2303,9 @@ loop:
 		needsbuffer |= VFS_BIO_NEED_ANY;
 	}
 
+	VI_LOCK(vp);
 	if ((bp = gbincore(vp, blkno))) {
+		VI_UNLOCK(vp);
 		/*
 		 * Buffer is in-core.  If the buffer is not busy, it must
 		 * be on a queue.
@@ -2392,6 +2404,7 @@ loop:
 		splx(s);
 		bp->b_flags &= ~B_DONE;
 	} else {
+		VI_UNLOCK(vp);
 		/*
 		 * Buffer is not in-core, create new buffer.  The buffer
 		 * returned by getnewbuf() is locked.  Note that the returned
@@ -2438,11 +2451,14 @@ loop:
 		 * the splay tree implementation when dealing with duplicate
 		 * lblkno's.
 		 */
+		VI_LOCK(vp);
 		if (gbincore(vp, blkno)) {
+			VI_UNLOCK(vp);
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
 		}
+		VI_UNLOCK(vp);
 
 		/*
 		 * Insert the buffer into the hash, so that it can
