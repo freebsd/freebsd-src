@@ -168,8 +168,10 @@ a
 .Tn struct archive_entry .
 .It Fn archive_read_data
 Read data associated with the header just read.
-Internally, this is a convenience function that uses
-.Fn archive_read_data_block .
+Internally, this is a convenience function that calls
+.Fn archive_read_data_block
+and fills any gaps with nulls so that callers see a single
+continuous stream of data.
 .It Fn archive_read_data_block
 Return the next available block of data for this entry.
 Unlike
@@ -393,4 +395,3 @@ The
 library was written by
 .An Tim Kientzle Aq kientzle@acm.org .
 .Sh BUGS
-The support for GNU tar formats is somewhat limited and should be improved.

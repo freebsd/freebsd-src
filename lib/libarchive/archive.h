@@ -180,12 +180,12 @@ int		 archive_read_data_block(struct archive *a,
  * Some convenience functions that are built on archive_read_data:
  *  'skip': skips entire entry
  *  'into_buffer': writes data into memory buffer that you provide
- *  'into_file': writes data to specified filedes
+ *  'into_fd': writes data to specified filedes
  */
 int		 archive_read_data_skip(struct archive *);
-ssize_t		 archive_read_data_into_buffer(struct archive *, void *buffer,
+int		 archive_read_data_into_buffer(struct archive *, void *buffer,
 		     ssize_t len);
-ssize_t		 archive_read_data_into_fd(struct archive *, int fd);
+int		 archive_read_data_into_fd(struct archive *, int fd);
 
 /*-
  * Convenience function to recreate the current entry (whose header
