@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.4 1999/03/16 03:40:59 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.5 1999/06/23 03:22:01 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -160,6 +160,7 @@ vinum_daemon(void)
 		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
+	    Free(request);				    /* done with the request */
 	}
     }
 }
