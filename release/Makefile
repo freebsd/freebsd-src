@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.350 1998/05/12 08:02:48 jkh Exp $
+#	$Id: Makefile,v 1.351 1998/05/20 01:06:32 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -211,10 +211,17 @@ rerelease release:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	# This eases bootstrapping from a more recent hosting environment:
+.if exists(/usr/lib/aout/)
+	echo "mkdir -p /usr/lib/compat/aout"	>> ${CHROOTDIR}/mk
+	echo "chflags noschg /usr/lib/aout/lib*.so.*" >> ${CHROOTDIR}/mk
+	echo "mv /usr/lib/aout/lib*.so.* /usr/lib/compat/aout" >> ${CHROOTDIR}/mk
+	echo "ldconfig /usr/lib/compat/aout" 	>> ${CHROOTDIR}/mk
+.else
 	echo "mkdir -p /usr/lib/compat"		>> ${CHROOTDIR}/mk
 	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
 	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
 	echo "ldconfig /usr/lib /usr/lib/compat" >> ${CHROOTDIR}/mk
+.endif
 	echo "(cd include; make all install)"   >> ${CHROOTDIR}/mk
 	echo "(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
