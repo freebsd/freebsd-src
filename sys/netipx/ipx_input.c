@@ -162,11 +162,13 @@ ipxintr(struct mbuf *m)
 	/*
 	 * Give any raw listeners a crack at the packet
 	 */
+	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m1 = m_copy(m, 0, (int)M_COPYALL);
 		if (m1 != NULL)
 			ipx_input(m1, ipxp);
 	}
+	IPX_LIST_UNLOCK();
 
 	ipx = mtod(m, struct ipx *);
 	len = ntohs(ipx->ipx_len);
@@ -262,6 +264,7 @@ ours:
 	/*
 	 * Locate pcb for datagram.
 	 */
+	IPX_LIST_LOCK();
 	ipxp = ipx_pcblookup(&ipx->ipx_sna, ipx->ipx_dna.x_port, IPX_WILDCARD);
 	/*
 	 * Switch out to protocol's input routine.
@@ -272,11 +275,13 @@ ours:
 			switch (ipx->ipx_pt) {
 			case IPXPROTO_SPX:
 				spx_input(m, ipxp);
+				IPX_LIST_UNLOCK();
 				return;
 			}
 		ipx_input(m, ipxp);
 	} else
 		m_freem(m);
+	IPX_LIST_UNLOCK();
 }
 
 void
@@ -474,6 +479,7 @@ struct ifnet *ifp;
 	/*
 	 * Give any raw listeners a crack at the packet
 	 */
+	IPX_LIST_LOCK();
 	LIST_FOREACH(ipxp, &ipxrawpcb_list, ipxp_list) {
 		struct mbuf *m0 = m_copy(m, 0, (int)M_COPYALL);
 		if (m0 != NULL) {
@@ -504,4 +510,5 @@ struct ifnet *ifp;
 			ipx_input(m0, ipxp);
 		}
 	}
+	IPX_LIST_UNLOCK();
 }
