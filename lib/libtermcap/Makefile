@@ -13,7 +13,7 @@ MLINKS=	termcap.3 tgetent.3 termcap.3 tgetflag.3 termcap.3 tgetnum.3 \
 
 LINKS=	${LIBDIR}/libtermcap.a ${LIBDIR}/libtermlib.a
 .if !defined(NOPIC)
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	${SHLIBDIR}/libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 .else
@@ -30,7 +30,7 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/termcap.h \
 		${DESTDIR}/usr/include
 
-.if ${BINFORMAT} == aout
+.if ${OBJFORMAT} == aout
 # This is a hack.. Work around a major number bump that should have been
 # done differently.  Back out this delta when it's time to go to 3.0 for real.
 .if !defined(NOPIC)

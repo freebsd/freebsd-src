@@ -28,7 +28,7 @@ DISTRIBUTION=	krb
 .endif
 
 # Do we have to provide an implementation for libskey.so?
-.if ${BINFORMAT} != elf
+.if ${OBJFORMAT} != elf
 LDADD+= -lmd
 DPADD+= ${LIBMD}
 .endif
