@@ -502,19 +502,20 @@ reswitch:	switch (ch) {
 			base = 10;
 			goto number;
 #ifdef FLOATING_POINT
-		case 'e':		/* anomalous precision */
+		case 'e':
 		case 'E':
-			prec = (prec == -1) ?
-				DEFPREC + 1 : prec + 1;
-			/* FALLTHROUGH */
-		case 'f':		/* always print trailing zeroes */
-			if (prec != 0)
-				flags |= ALT;
+		case 'f':
+			goto fp_begin;
 		case 'g':
 		case 'G':
-			if (prec == -1)
+			if (prec == 0)
+				prec = 1;
+fp_begin:		if (prec == -1)
 				prec = DEFPREC;
-fp_begin:		_double = va_arg(ap, double);
+			if (flags & LONGDBL)
+				_double = (double)va_arg(ap, long double);
+			else
+				_double = va_arg(ap, double);
 			/* do this before tricky precision changes */
 			if (isinf(_double)) {
 				if (_double < 0)
@@ -728,9 +729,8 @@ number:			if ((dprec = prec) >= 0)
 		} else {	/* glue together f_p fragments */
 			if (ch >= 'f') {	/* 'f' or 'g' */
 				if (_double == 0) {
-				/* kludge for __dtoa irregularity */
-					if (prec == 0 ||
-					    (flags & ALT) == 0) {
+					/* kludge for __dtoa irregularity */
+					if (prec == 0 && (flags & ALT) == 0) {
 						PRINT("0", 1);
 					} else {
 						PRINT("0.", 2);
@@ -799,9 +799,16 @@ cvt(value, ndigits, flags, sign, decpt, ch, length)
 	char *digits, *bp, *rve;
 
 	if (ch == 'f')
-		mode = 3;
+		mode = 3;		/* ndigits after the decimal point */
 	else {
-		mode = 2;
+		/*
+		 * To obtain ndigits after the decimal point for the 'e' 
+		 * and 'E' formats, round to ndigits + 1 significant 
+		 * figures.
+		 */
+		if (ch == 'e' || ch == 'E')
+			ndigits++;
+		mode = 2;		/* ndigits significant digits */
 	}
 	if (value < 0) {
 		value = -value;
@@ -809,7 +816,8 @@ cvt(value, ndigits, flags, sign, decpt, ch, length)
 	} else
 		*sign = '\000';
 	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve);
-	if (flags & ALT) {	/* Print trailing zeros */
+	if ((ch != 'g' && ch != 'G') || flags & ALT) {
+		/* print trailing zeros */
 		bp = digits + ndigits;
 		if (ch == 'f') {
 			if (*digits == '0' && value)
