@@ -744,7 +744,10 @@
 	a wireless access point.  This functionality can be enabled 
 	using the <literal>mediaopt hostap</literal> option of 
 	&man.ifconfig.8;.  This feature requires a wireless 
-	adapter based on the Prism II chipset.</para>
+	adapter based on the Prism II chipset. &merged;</para>
+
+      <para>The &man.wi.4; driver now has support for
+	<application>bsd-airtools</application>. &merged;</para>
 
       <para>The xe driver can now be built as a
 	module. &merged;</para>
@@ -2586,6 +2589,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       still available from &os; Ports Collection as
       <filename role="package">net/44bsd-rdist</filename>.</para>
 
+    <para>&man.reboot.8; now takes a <option>-k</option> to specify
+      the next kernel to boot. &merged;</para>
+
     <para>The &man.renice.8; command implements a <option>-n</option>
       option, which specifies an increment to be applied to the
       priority of a process.</para>
@@ -2766,6 +2772,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       created; auto-sized partitions can now also recover the space
       that becomes available when other partitions are
       deleted. &merged;</para>
+
+    <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
+      filesystem by default on new installs.</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
       disable DNS queries for every request. &merged;</para>
@@ -3006,8 +3015,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<literal>mdocNG</literal>), which removes many of the
 	limitations of its predecessor. &merged;</para>
 
-      <para><application>Heimdal</application> has been updated to
-	0.3f.</para>
+      <para><application>Heimdal Kerberos</application> has been updated to
+	0.4e. &merged;</para>
 
       <para>The version of <application>IPFilter</application>
 	provided with &os; now includes the &man.ipfs.8; program,
@@ -3478,6 +3487,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<quote>origin</quote> directive, which makes it easier for
 	programs such as &man.pkg.version.1; to determine the
 	directory from which a package was built. &merged;</para>
+
+      <para>The Ports Collection infrastructure now uses
+        <application>XFree86</application> 4.X as the default version
+        of the X Window System for the purposes of satisfying
+        dependencies.  To return to using
+        <application>XFree86</application> 3.X, add the following line
+        to <filename>/etc/make.conf</filename>: &merged;</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+
     </sect3>
   </sect2>
 
@@ -3503,6 +3522,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       packages, so the usual package utilities such as
       &man.pkg.info.1; can be used to examine/manipulate its
       components. &merged;</para>
+
+    <para>It is now possible to make releases of &os;
+      &release.current; on a &os; 4-STABLE host.  Cross-architecture
+      (building a release for a target architecture on a host of a
+      different architecture) releases are also possible.  See
+      &man.release.7; for details.</para>
 
   </sect2>
 </sect1>
