@@ -42,22 +42,14 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.2 1995/02/15 04:17:59 rich Exp $
+ *	$Id: probe_keyboard.c,v 1.3 1995/03/02 21:00:14 wpaul Exp $
  */
+
+#ifndef FORCE_COMCONSOLE
 
 #include <machine/console.h>
 #include <machine/cpufunc.h>
-
-#if BOOTWAIT
-extern int delay1ms(void);
-#else
-int delay1ms()
-{
-        int i = 800;
-        while (--i >= 0)
-                (void)inb(0x84);
-}
-#endif
+#include "boot.h"
 
 int
 probe_keyboard(void)
@@ -72,9 +64,16 @@ probe_keyboard(void)
 	}
 
 	/* Try to reset keyboard hardware */
-	while (retries--) {
+#ifdef DEBUG
+	printf("kbd reset\n");
+#endif
+	while (--retries) {
+#ifdef DEBUG
+		printf("%d ", retries);
+#endif
+		while ((inb(KB_STAT) & KB_READY) == KB_READY) delay1ms();
 		outb(KB_DATA, KB_RESET);
-		for (i=0; i<100000; i++) {
+		for (i=0; i<1000; i++) {
 			delay1ms();
 			val = inb(KB_DATA);
 			if (val == KB_ACK || val == KB_ECHO)
@@ -84,6 +83,9 @@ probe_keyboard(void)
 		}
 	}
 gotres:
+#ifdef DEBUG
+	printf("%d after loop.\n", retries);
+#endif
 	if (!retries)
 		return(1);
 	else {
@@ -91,12 +93,23 @@ gotack:
 	delay1ms();
 	while ((inb(KB_STAT) & KB_BUF_FULL) == 0) delay1ms();
 	delay1ms();
+#ifdef DEBUG
+	printf("ACK ");
+#endif
 	val = inb(KB_DATA);
 	if (val == KB_ACK)
 		goto gotack;
-	if (val != KB_RESET_DONE) 
+	if (val != KB_RESET_DONE) {
+#ifdef DEBUG
+		printf("stray val %d\n", val);
+#endif
 		return(1);
 	}
-
+	}
+#ifdef DEBUG
+	printf("ok\n");
+#endif
 	return(0);
 }
+
+#endif /* !FORCE_COMCONSOLE */

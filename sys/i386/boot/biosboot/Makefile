@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26 1995/01/24 00:41:50 jkh Exp $
+#	$Id: Makefile,v 1.27 1995/03/28 19:22:39 phk Exp $
 #
 
 PROG=	boot
@@ -11,6 +11,10 @@ BINMODE=	444
 CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
+
+# force usage of serial console instead of keyboard probing
+#CFLAGS+=	-DFORCE_COMCONSOLE
+
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib

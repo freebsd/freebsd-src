@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.7 1995/01/25 21:37:41 bde Exp $
+ *	$Id: disk.c,v 1.8 1995/02/16 15:06:09 bde Exp $
  */
 
 /*
@@ -65,10 +65,22 @@ struct inode inode;
 int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
 
 /*#define EMBEDDED_DISKLABEL 1*/
-extern struct disklabel disklabel;
-/*struct	disklabel disklabel;*/
 
-devopen()
+#define I_ADDR		((void *) 0)	/* XXX where all reads go */
+
+/* Read ahead buffer large enough for one track on a 1440K floppy.  For
+ * reading from floppies, the bootstrap has to be loaded on a 64K boundary
+ * to ensure that this buffer doesn't cross a 64K DMA boundary.
+ */
+#define RA_SECTORS	18
+static char ra_buf[RA_SECTORS * BPS];
+static int ra_dev;
+static int ra_end;
+static int ra_first;
+
+
+int
+devopen(void)
 {
 	struct dos_partition *dptr;
 	struct disklabel *dl;
@@ -170,7 +182,8 @@ devopen()
 	return 0;
 }
 
-devread()
+void
+devread(void)
 {
 	int offset, sector = bnum;
 	int dosdev = inode.i_dev;
@@ -181,20 +194,8 @@ devread()
 	}
 }
 
-#define I_ADDR		((void *) 0)	/* XXX where all reads go */
-
-/* Read ahead buffer large enough for one track on a 1440K floppy.  For
- * reading from floppies, the bootstrap has to be loaded on a 64K boundary
- * to ensure that this buffer doesn't cross a 64K DMA boundary.
- */
-#define RA_SECTORS	18
-static char ra_buf[RA_SECTORS * BPS];
-static int ra_dev;
-static int ra_end;
-static int ra_first;
-
-Bread(dosdev,sector)
-     int dosdev,sector;
+void
+Bread(int dosdev, int sector)
 {
 	if (dosdev != ra_dev || sector < ra_first || sector >= ra_end)
 	{
@@ -223,60 +224,60 @@ Bread(dosdev,sector)
 	bcopy(ra_buf + (sector - ra_first) * BPS, I_ADDR, BPS);
 }
 
-badsect(dosdev, sector)
-     int dosdev, sector;
+int
+badsect(int dosdev, int sector)
 {
 	int i;
 #ifdef DO_BAD144
 	if (do_bad144) {
-	    u_short cyl;
-	    u_short head;
-	    u_short sec;
-	    int newsec;
-	    struct disklabel *dl = &disklabel;
+		u_short cyl;
+		u_short head;
+		u_short sec;
+		int newsec;
+		struct disklabel *dl = &disklabel;
 
-	    /* XXX */
-	    /* from wd.c */
-	    /* bt_cyl = cylinder number in sorted order */
-	    /* bt_trksec is actually (head << 8) + sec */
+		/* XXX */
+		/* from wd.c */
+		/* bt_cyl = cylinder number in sorted order */
+		/* bt_trksec is actually (head << 8) + sec */
 
-	    /* only remap sectors in the partition */
-	    if (sector < boff || sector >= boff + bsize) {
-		goto no_remap;
-	    }
-
-	    cyl = sector / dl->d_secpercyl;
-	    head = (sector % dl->d_secpercyl) / dl->d_nsectors;
-	    sec = sector % dl->d_nsectors;
-	    sec = (head<<8) + sec;
-
-	    /* now, look in the table for a possible bad sector */
-	    for (i=0; i<126; i++) {
-		if (dkb.bt_bad[i].bt_cyl == cyl) {
-		    /* found same cylinder */
-		    if (dkb.bt_bad[i].bt_trksec == sec) {
-			/* FOUND! */
-			break;
-		    }
-		} else if (dkb.bt_bad[i].bt_cyl > cyl) {
-		    i = 126;
-		    break;
+		/* only remap sectors in the partition */
+		if (sector < boff || sector >= boff + bsize) {
+			goto no_remap;
 		}
-	    }
-	    if (i == 126) {
-		/* didn't find bad sector */
-		goto no_remap;
-	    }
-	    /* otherwise find replacement sector */
-	    if (dl->d_partitions[BSD_PART].p_offset != 0)
-		    newsec = dl->d_partitions[BAD144_PART].p_offset
-			      + dl->d_partitions[BAD144_PART].p_size;
-	    else
-		    newsec = dl->d_secperunit;
-	    newsec -= dl->d_nsectors + i + 1;
-	    return newsec;
+
+		cyl = sector / dl->d_secpercyl;
+		head = (sector % dl->d_secpercyl) / dl->d_nsectors;
+		sec = sector % dl->d_nsectors;
+		sec = (head<<8) + sec;
+
+		/* now, look in the table for a possible bad sector */
+		for (i=0; i<126; i++) {
+			if (dkb.bt_bad[i].bt_cyl == cyl) {
+				/* found same cylinder */
+				if (dkb.bt_bad[i].bt_trksec == sec) {
+					/* FOUND! */
+					break;
+				}
+			} else if (dkb.bt_bad[i].bt_cyl > cyl) {
+				i = 126;
+				break;
+			}
+		}
+		if (i == 126) {
+			/* didn't find bad sector */
+			goto no_remap;
+		}
+		/* otherwise find replacement sector */
+		if (dl->d_partitions[BSD_PART].p_offset != 0)
+			newsec = dl->d_partitions[BAD144_PART].p_offset
+				+ dl->d_partitions[BAD144_PART].p_size;
+		else
+			newsec = dl->d_secperunit;
+		newsec -= dl->d_nsectors + i + 1;
+		return newsec;
 	}
 #endif DO_BAD144
-      no_remap:
+  no_remap:
 	return sector;
 }
