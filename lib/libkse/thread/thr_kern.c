@@ -1568,6 +1568,8 @@ kse_check_completed(struct kse *kse)
 			    != 0) {
 				if (SIGISMEMBER(thread->sigmask, sig))
 					SIGADDSET(thread->sigpend, sig);
+				else if (THR_IN_CRITICAL(thread))
+					kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
 				else
 					(void)_thr_sig_add(thread, sig,
 					    &thread->tcb->tcb_tmbx.tm_syncsig);
