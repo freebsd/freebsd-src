@@ -8,6 +8,7 @@ OpenSSL  -  Frequently Asked Questions
 * How can I contact the OpenSSL developers?
 * Where can I get a compiled version of OpenSSL?
 * Why aren't tools like 'autoconf' and 'libtool' used?
+* What is an 'engine' version?
 
 [LEGAL] Legal questions
 
@@ -17,6 +18,7 @@ OpenSSL  -  Frequently Asked Questions
 [USER] Questions on using the OpenSSL applications
 
 * Why do I get a "PRNG not seeded" error message?
+* Why do I get an "unable to write 'random state'" error message?
 * How do I create certificates or certificate requests?
 * Why can't I create certificate requests?
 * Why does <SSL program> fail with a certificate verify error?
@@ -26,15 +28,18 @@ OpenSSL  -  Frequently Asked Questions
 * How can I remove the passphrase on a private key?
 * Why can't I use OpenSSL certificates with SSL client authentication?
 * Why does my browser give a warning about a mismatched hostname?
+* How do I install a CA certificate into a browser?
 
 [BUILD] Questions about building and testing OpenSSL
 
 * Why does the linker complain about undefined symbols?
 * Why does the OpenSSL test fail with "bc: command not found"?
 * Why does the OpenSSL test fail with "bc: 1 no implemented"?
-* Why does the OpenSSL compilation fail on Alpha True64 Unix?
+* Why does the OpenSSL compilation fail on Alpha Tru64 Unix?
 * Why does the OpenSSL compilation fail with "ar: command not found"?
 * Why does the OpenSSL compilation fail on Win32 with VC++?
+* What is special about OpenSSL on Redhat?
+* Why does the OpenSSL test suite fail on MacOS X?
 
 [PROG] Questions about programming with OpenSSL
 
@@ -47,6 +52,7 @@ OpenSSL  -  Frequently Asked Questions
 * Why do I get errors about unknown algorithms?
 * Why can't the OpenSSH configure script detect OpenSSL?
 * Can I use OpenSSL's SSL library with non-blocking I/O?
+* Why doesn't my server application receive a client certificate?
 
 ===============================================================================
 
@@ -55,7 +61,7 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 0.9.6a was released on April 5th, 2001.
+OpenSSL 0.9.6e was released on 30 May, 2002.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -119,6 +125,12 @@ A number of Linux and *BSD distributions include OpenSSL.
 autoconf will probably be used in future OpenSSL versions. If it was
 less Unix-centric, it might have been used much earlier.
 
+* What is an 'engine' version?
+
+With version 0.9.6 OpenSSL was extended to interface to external crypto
+hardware. This was realized in a special release '0.9.6-engine'. With
+version 0.9.7 (not yet released) the changes were merged into the main
+development line, so that the special release is no longer necessary.
 
 [LEGAL] =======================================================================
 
@@ -144,7 +156,7 @@ holders claim that you infringe on their rights if you use OpenSSL with
 their software on operating systems that don't normally include OpenSSL.
 
 If you develop open source software that uses OpenSSL, you may find it
-useful to choose an other license than the GPL, or state explicitely that
+useful to choose an other license than the GPL, or state explicitly that
 "This program is released under the GPL with the additional exemption that
 compiling, linking, and/or using OpenSSL is allowed."  If you are using
 GPL software developed by others, you may want to ask the copyright holder
@@ -160,6 +172,7 @@ correctly.  Many open source operating systems provide a "randomness
 device" that serves this purpose.  On other systems, applications have
 to call the RAND_add() or RAND_seed() function with appropriate data
 before generating keys or performing public key encryption.
+(These functions initialize the pseudo-random number generator, PRNG.)
 
 Some broken applications do not do this.  As of version 0.9.5, the
 OpenSSL functions that need randomness report an error if the random
@@ -169,25 +182,58 @@ application you are using.  It is likely that it never worked
 correctly.  OpenSSL 0.9.5 and later make the error visible by refusing
 to perform potentially insecure encryption.
 
-On systems without /dev/urandom, it is a good idea to use the Entropy
-Gathering Demon; see the RAND_egd() manpage for details.
+On systems without /dev/urandom and /dev/random, it is a good idea to
+use the Entropy Gathering Demon (EGD); see the RAND_egd() manpage for
+details.  Starting with version 0.9.7, OpenSSL will automatically look
+for an EGD socket at /var/run/egd-pool, /dev/egd-pool, /etc/egd-pool and
+/etc/entropy.
 
-Most components of the openssl command line tool try to use the
-file $HOME/.rnd (or $RANDFILE, if this environment variable is set)
-for seeding the PRNG.  If this file does not exist or is too short,
-the "PRNG not seeded" error message may occur.
+Most components of the openssl command line utility automatically try
+to seed the random number generator from a file.  The name of the
+default seeding file is determined as follows: If environment variable
+RANDFILE is set, then it names the seeding file.  Otherwise if
+environment variable HOME is set, then the seeding file is $HOME/.rnd.
+If neither RANDFILE nor HOME is set, versions up to OpenSSL 0.9.6 will
+use file .rnd in the current directory while OpenSSL 0.9.6a uses no
+default seeding file at all.  OpenSSL 0.9.6b and later will behave
+similarly to 0.9.6a, but will use a default of "C:\" for HOME on
+Windows systems if the environment variable has not been set.
 
-[Note to OpenSSL 0.9.5 users: The command "openssl rsa" in version
-0.9.5 does not do this and will fail on systems without /dev/urandom
-when trying to password-encrypt an RSA key!  This is a bug in the
-library; try a later version instead.]
+If the default seeding file does not exist or is too short, the "PRNG
+not seeded" error message may occur.
+
+The openssl command line utility will write back a new state to the
+default seeding file (and create this file if necessary) unless
+there was no sufficient seeding.
+
+Pointing $RANDFILE to an Entropy Gathering Daemon socket does not work.
+Use the "-rand" option of the OpenSSL command line tools instead.
+The $RANDFILE environment variable and $HOME/.rnd are only used by the
+OpenSSL command line tools. Applications using the OpenSSL library
+provide their own configuration options to specify the entropy source,
+please check out the documentation coming the with application.
 
 For Solaris 2.6, Tim Nibbe <tnibbe@sprint.net> and others have suggested
 installing the SUNski package from Sun patch 105710-01 (Sparc) which
 adds a /dev/random device and make sure it gets used, usually through
 $RANDFILE.  There are probably similar patches for the other Solaris
-versions.  However, be warned that /dev/random is usually a blocking
-device, which may have some effects on OpenSSL.
+versions.  An official statement from Sun with respect to /dev/random
+support can be found at
+  http://sunsolve.sun.com/pub-cgi/retrieve.pl?doc=fsrdb/27606&zone_32=SUNWski
+However, be warned that /dev/random is usually a blocking device, which
+may have some effects on OpenSSL.
+
+
+* Why do I get an "unable to write 'random state'" error message?
+
+
+Sometimes the openssl command line utility does not abort with
+a "PRNG not seeded" error message, but complains that it is
+"unable to write 'random state'".  This message refers to the
+default seeding file (see previous answer).  A possible reason
+is that no default filename is known because neither RANDFILE
+nor HOME is set.  (Versions up to 0.9.6 used file ".rnd" in the
+current directory in this case, but this has changed with 0.9.6a.)
 
 
 * How do I create certificates or certificate requests?
@@ -264,7 +310,7 @@ there is little point presenting a certificate which the server will
 reject.
 
 The solution is to add the relevant CA certificate to your servers "trusted
-CA list". How you do this depends on the server sofware in uses. You can
+CA list". How you do this depends on the server software in uses. You can
 print out the servers list of acceptable CAs using the OpenSSL s_client tool:
 
 openssl s_client -connect www.some.host:443 -prexit
@@ -281,6 +327,26 @@ If your CA does not appear in the list then this confirms the problem.
 
 Browsers expect the server's hostname to match the value in the commonName
 (CN) field of the certificate. If it does not then you get a warning.
+
+
+* How do I install a CA certificate into a browser?
+
+The usual way is to send the DER encoded certificate to the browser as
+MIME type application/x-x509-ca-cert, for example by clicking on an appropriate
+link. On MSIE certain extensions such as .der or .cacert may also work, or you
+can import the certificate using the certificate import wizard.
+
+You can convert a certificate to DER form using the command:
+
+openssl x509 -in ca.pem -outform DER -out ca.der
+
+Occasionally someone suggests using a command such as:
+
+openssl pkcs12 -export -out cacert.p12 -in cacert.pem -inkey cakey.pem
+
+DO NOT DO THIS! This command will give away your CAs private key and
+reduces its security to zero: allowing anyone to forge certificates in
+whatever name they choose.
 
 
 [BUILD] =======================================================================
@@ -326,9 +392,9 @@ and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
 for download instructions) can be safely used, for example.
 
 
-* Why does the OpenSSL compilation fail on Alpha True64 Unix?
+* Why does the OpenSSL compilation fail on Alpha Tru64 Unix?
 
-On some Alpha installations running True64 Unix and Compaq C, the compilation
+On some Alpha installations running Tru64 Unix and Compaq C, the compilation
 of crypto/sha/sha_dgst.c fails with the message 'Fatal:  Insufficient virtual
 memory to continue compilation.'  As far as the tests have shown, this may be
 a compiler bug.  What happens is that it eats up a lot of resident memory
@@ -390,6 +456,52 @@ under 'Program Files').  This needs to be done prior to running NMAKE,
 and the changes are only valid for the current DOS session.
 
 
+* What is special about OpenSSL on Redhat?
+
+Red Hat Linux (release 7.0 and later) include a preinstalled limited
+version of OpenSSL. For patent reasons, support for IDEA, RC5 and MDC2
+is disabled in this version. The same may apply to other Linux distributions.
+Users may therefore wish to install more or all of the features left out.
+
+To do this you MUST ensure that you do not overwrite the openssl that is in
+/usr/bin on your Red Hat machine. Several packages depend on this file,
+including sendmail and ssh. /usr/local/bin is a good alternative choice. The
+libraries that come with Red Hat 7.0 onwards have different names and so are
+not affected. (eg For Red Hat 7.2 they are /lib/libssl.so.0.9.6b and
+/lib/libcrypto.so.0.9.6b with symlinks /lib/libssl.so.2 and
+/lib/libcrypto.so.2 respectively).
+
+Please note that we have been advised by Red Hat attempting to recompile the
+openssl rpm with all the cryptography enabled will not work. All other
+packages depend on the original Red Hat supplied openssl package. It is also
+worth noting that due to the way Red Hat supplies its packages, updates to
+openssl on each distribution never change the package version, only the
+build number. For example, on Red Hat 7.1, the latest openssl package has
+version number 0.9.6 and build number 9 even though it contains all the
+relevant updates in packages up to and including 0.9.6b.
+
+A possible way around this is to persuade Red Hat to produce a non-US
+version of Red Hat Linux.
+
+FYI: Patent numbers and expiry dates of US patents:
+MDC-2: 4,908,861 13/03/2007
+IDEA:  5,214,703 25/05/2010
+RC5:   5,724,428 03/03/2015
+
+
+* Why does the OpenSSL test suite fail on MacOS X?
+
+If the failure happens when running 'make test' and the RC4 test fails,
+it's very probable that you have OpenSSL 0.9.6b delivered with the
+operating system (you can find out by running '/usr/bin/openssl version')
+and that you were trying to build OpenSSL 0.9.6d.  The problem is that
+the loader ('ld') in MacOS X has a misfeature that's quite difficult to
+go around and has linked the programs "openssl" and the test programs
+with /usr/lib/libcrypto.dylib and /usr/lib/libssl.dylib instead of the
+libraries you just built.
+Look in the file PROBLEMS for a more detailed explanation and for possible
+solutions.
+
 [PROG] ========================================================================
 
 * Is OpenSSL thread-safe?
@@ -406,10 +518,43 @@ OpenSSL.  This is described in the threads(3) manpage.
 
 * I've compiled a program under Windows and it crashes: why?
 
-This is usually because you've missed the comment in INSTALL.W32. You
-must link with the multithreaded DLL version of the VC++ runtime library
-otherwise the conflict will cause a program to crash: typically on the
-first BIO related read or write operation.
+This is usually because you've missed the comment in INSTALL.W32.
+Your application must link against the same version of the Win32
+C-Runtime against which your openssl libraries were linked.  The
+default version for OpenSSL is /MD - "Multithreaded DLL".
+
+If you are using Microsoft Visual C++'s IDE (Visual Studio), in
+many cases, your new project most likely defaulted to "Debug
+Singlethreaded" - /ML.  This is NOT interchangeable with /MD and your
+program will crash, typically on the first BIO related read or write
+operation.
+
+For each of the six possible link stage configurations within Win32,
+your application must link  against the same by which OpenSSL was
+built.  If you are using MS Visual C++ (Studio) this can be changed
+by:
+
+1.  Select Settings... from the Project Menu.
+2.  Select the C/C++ Tab.
+3.  Select "Code Generation from the "Category" drop down list box
+4.  Select the Appropriate library (see table below) from the "Use
+    run-time library" drop down list box.  Perform this step for both
+    your debug and release versions of your application (look at the
+    top left of the settings panel to change between the two)
+
+    Single Threaded           /ML        -  MS VC++ often defaults to
+                                            this for the release
+                                            version of a new project.
+    Debug Single Threaded     /MLd       -  MS VC++ often defaults to
+                                            this for the debug version
+                                            of a new project.
+    Multithreaded             /MT
+    Debug Multithreaded       /MTd
+    Multithreaded DLL         /MD        -  OpenSSL defaults to this.
+    Debug Multithreaded DLL   /MDd
+
+Note that debug and release libraries are NOT interchangeable.  If you
+built OpenSSL with /MD your application must use /MD and cannot use /MDd.
 
 
 * How do I read or write a DER encoded buffer using the ASN1 functions?
@@ -490,44 +635,16 @@ OpenSSL_add_all_algorithms(). See the manual page for more information.
 
 * Why can't the OpenSSH configure script detect OpenSSL?
 
-There is a problem with OpenSSH 1.2.2p1, in that the configure script
-can't find the installed OpenSSL libraries.  The problem is actually
-a small glitch that is easily solved with the following patch to be
-applied to the OpenSSH distribution:
+Several reasons for problems with the automatic detection exist.
+OpenSSH requires at least version 0.9.5a of the OpenSSL libraries.
+Sometimes the distribution has installed an older version in the system
+locations that is detected instead of a new one installed. The OpenSSL
+library might have been compiled for another CPU or another mode (32/64 bits).
+Permissions might be wrong.
 
------ snip:start -----
---- openssh-1.2.2p1/configure.in.orig	Thu Mar 23 18:56:58 2000
-+++ openssh-1.2.2p1/configure.in	Thu Mar 23 18:55:05 2000
-@@ -152,10 +152,10 @@
- AC_MSG_CHECKING([for OpenSSL/SSLeay directory])
- for ssldir in "" $tryssldir /usr /usr/local/openssl /usr/lib/openssl /usr/local/ssl /usr/lib/ssl /usr/local /usr/pkg /opt /opt/openssl ; do
- 	if test ! -z "$ssldir" ; then
--		LIBS="$saved_LIBS -L$ssldir"
-+		LIBS="$saved_LIBS -L$ssldir/lib"
- 		CFLAGS="$CFLAGS -I$ssldir/include"
- 		if test "x$need_dash_r" = "x1" ; then
--			LIBS="$LIBS -R$ssldir"
-+			LIBS="$LIBS -R$ssldir/lib"
- 		fi
- 	fi
- 	LIBS="$LIBS -lcrypto"
---- openssh-1.2.2p1/configure.orig	Thu Mar 23 18:55:02 2000
-+++ openssh-1.2.2p1/configure	Thu Mar 23 18:57:08 2000
-@@ -1890,10 +1890,10 @@
- echo "configure:1891: checking for OpenSSL/SSLeay directory" >&5
- for ssldir in "" $tryssldir /usr /usr/local/openssl /usr/lib/openssl /usr/local/ssl /usr/lib/ssl /usr/local /usr/pkg /opt /opt/openssl ; do
- 	if test ! -z "$ssldir" ; then
--		LIBS="$saved_LIBS -L$ssldir"
-+		LIBS="$saved_LIBS -L$ssldir/lib"
- 		CFLAGS="$CFLAGS -I$ssldir/include"
- 		if test "x$need_dash_r" = "x1" ; then
--			LIBS="$LIBS -R$ssldir"
-+			LIBS="$LIBS -R$ssldir/lib"
- 		fi
- 	fi
- 	LIBS="$LIBS -lcrypto"
------ snip:end -----
-
+The general answer is to check the config.log file generated when running
+the OpenSSH configure script. It should contain the detailed information
+on why the OpenSSL library was not detected or considered incompatible.
 
 * Can I use OpenSSL's SSL library with non-blocking I/O?
 
@@ -541,6 +658,13 @@ is possible to send data.  One reason for this is that the peer may
 request a new TLS/SSL handshake at any time during the protocol,
 requiring a bi-directional message exchange; both SSL_read() and
 SSL_write() will try to continue any pending handshake.
+
+
+* Why doesn't my server application receive a client certificate?
+
+Due to the TLS protocol definition, a client will only send a certificate,
+if explicitly asked by the server. Use the SSL_VERIFY_PEER flag of the
+SSL_CTX_set_verify() function to enable the use of client certificates.
 
 
 ===============================================================================
