@@ -104,6 +104,8 @@ struct nd_prhead nd_prefix = { 0 };
 int nd6_recalc_reachtm_interval = ND6_RECALC_REACHTM_INTERVAL;
 static struct sockaddr_in6 all1_sa;
 
+static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
+	struct ifnet *));
 static void nd6_setmtu0 __P((struct ifnet *, struct nd_ifinfo *));
 static void nd6_slowtimo __P((void *));
 static int regen_tmpaddr __P((struct in6_ifaddr *));
@@ -869,11 +871,12 @@ nd6_lookup(addr6, create, ifp)
 }
 
 /*
- * Detect if a given IPv6 address identifies a neighbor on a given link.
- * XXX: should take care of the destination of a p2p link?
+ * Test whether a given IPv6 address is a neighbor or not, ignoring
+ * the actual neighbor cache.  The neighbor cache is ignored in order
+ * to not reenter the routing code from within itself.
  */
-int
-nd6_is_addr_neighbor(addr, ifp)
+static int
+nd6_is_new_addr_neighbor(addr, ifp)
 	struct sockaddr_in6 *addr;
 	struct ifnet *ifp;
 {
@@ -917,6 +920,23 @@ nd6_is_addr_neighbor(addr, ifp)
 	    nd6_defifindex == ifp->if_index) {
 		return (1);
 	}
+
+	return (0);
+}
+
+
+/*
+ * Detect if a given IPv6 address identifies a neighbor on a given link.
+ * XXX: should take care of the destination of a p2p link?
+ */
+int
+nd6_is_addr_neighbor(addr, ifp)
+	struct sockaddr_in6 *addr;
+	struct ifnet *ifp;
+{
+
+	if (nd6_is_new_addr_neighbor(addr, ifp))
+		return (1);
 
 	/*
 	 * Even if the address matches none of our addresses, it might be
@@ -1101,7 +1121,8 @@ nd6_rtrequest(req, rt, info)
 
 	if (req == RTM_RESOLVE &&
 	    (nd6_need_cache(ifp) == 0 || /* stf case */
-	     !nd6_is_addr_neighbor((struct sockaddr_in6 *)rt_key(rt), ifp))) {
+	     !nd6_is_new_addr_neighbor((struct sockaddr_in6 *)rt_key(rt),
+	     ifp))) {
 		/*
 		 * FreeBSD and BSD/OS often make a cloned host route based
 		 * on a less-specific route (e.g. the default route).
