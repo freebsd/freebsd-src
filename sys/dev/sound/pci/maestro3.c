@@ -1311,9 +1311,9 @@ m3_pci_resume(device_t dev)
 
 	/* Restore the ASSP state */
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		m3_wr_assp_code(sc, i, sc->savemem[++index]);
+		m3_wr_assp_code(sc, i, sc->savemem[index++]);
 	for (i = REV_B_DATA_MEMORY_BEGIN; i <= REV_B_DATA_MEMORY_END; i++)
-		m3_wr_assp_data(sc, i, sc->savemem[++index]);
+		m3_wr_assp_data(sc, i, sc->savemem[index++]);
 
 	/* Restart the DMA engine */
 	m3_wr_assp_data(sc, KDATA_DMA_ACTIVE, 0);
