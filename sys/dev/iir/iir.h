@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 /*
- *       Copyright (c) 2000-03 Intel Corporation
+ *       Copyright (c) 2000-03 ICP vortex GmbH
+ *       Copyright (c) 2002-03 Intel Corporation
+ *       Copyright (c) 2003    Adaptec Inc.
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,23 +35,26 @@
  *
  * iir.h:       Definitions/Constants used by the Intel Integrated RAID driver
  *
- * Written by: 	Achim Leubner <achim.leubner@intel.com>
+ * Written by: 	Achim Leubner <achim_leubner@adaptec.com>
  * Fixes/Additions:	Boji Tony Kannanthanam <boji.t.kannanthanam@intel.com>
  *
  * credits:     Niklas Hallqvist;       OpenBSD driver for the ICP Controllers.
  *              FreeBSD.ORG;            Great O/S to work on and for.
+ *
+ * $Id: iir.h 1.5 2003/08/26 12:28:21 achim Exp $"
  */
-
-
-#ident "$Id: iir.h 1.4 2003/03/21 16:28:57 achim Exp $"
 
 #ifndef _IIR_H
 #define _IIR_H
 
 #define IIR_DRIVER_VERSION      1
-#define IIR_DRIVER_SUBVERSION   3
+#define IIR_DRIVER_SUBVERSION   4
 
 #define IIR_CDEV_MAJOR          164
+
+/* OEM IDs */
+#define OEM_ID_ICP              0x941c
+#define OEM_ID_INTEL            0x8000
 
 #define GDT_VENDOR_ID           0x1119
 #define GDT_DEVICE_ID_MIN       0x100
@@ -149,8 +154,8 @@
 
 /* IOCTLs */
 #define GDT_IOCTL_GENERAL       _IOWR('J', 0, gdt_ucmd_t) /* general IOCTL */
-#define GDT_IOCTL_DRVERS        _IOWR('J', 1, int)      /* get driver version */
-#define GDT_IOCTL_CTRTYPE       _IOR('J', 2, gdt_ctrt_t) /* get ctr. type */
+#define GDT_IOCTL_DRVERS        _IOR('J', 1, int)      /* get driver version */
+#define GDT_IOCTL_CTRTYPE       _IOWR('J', 2, gdt_ctrt_t) /* get ctr. type */
 #define GDT_IOCTL_OSVERS        _IOR('J', 3, gdt_osv_t) /* get OS version */
 #define GDT_IOCTL_CTRCNT        _IOR('J', 5, int)       /* get ctr. count */
 #define GDT_IOCTL_EVENT         _IOWR('J', 8, gdt_event_t) /* get event */
