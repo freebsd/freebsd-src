@@ -1,26 +1,28 @@
 /*
- * 
+ *
  * readconf.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sat Apr 22 00:03:10 1995 ylo
- * 
+ *
  * Functions for reading the configuration files.
- * 
+ *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$Id: readconf.c,v 1.23 2000/02/28 19:51:58 markus Exp $");
+RCSID("$Id: readconf.c,v 1.31 2000/05/08 17:12:15 markus Exp $");
 
 #include "ssh.h"
 #include "cipher.h"
 #include "readconf.h"
+#include "match.h"
 #include "xmalloc.h"
+#include "compat.h"
 
 /* Format of the configuration file:
 
@@ -106,7 +108,8 @@ typedef enum {
 	oGlobalKnownHostsFile, oUserKnownHostsFile, oConnectionAttempts,
 	oBatchMode, oCheckHostIP, oStrictHostKeyChecking, oCompression,
 	oCompressionLevel, oKeepAlives, oNumberOfPasswordPrompts, oTISAuthentication,
-	oUsePrivilegedPort, oLogLevel
+	oUsePrivilegedPort, oLogLevel, oCiphers, oProtocol, oIdentityFile2,
+	oGlobalKnownHostsFile2, oUserKnownHostsFile2, oDSAAuthentication
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -122,6 +125,7 @@ static struct {
 	{ "rhostsauthentication", oRhostsAuthentication },
 	{ "passwordauthentication", oPasswordAuthentication },
 	{ "rsaauthentication", oRSAAuthentication },
+	{ "dsaauthentication", oDSAAuthentication },
 	{ "skeyauthentication", oSkeyAuthentication },
 #ifdef KRB4
 	{ "kerberos4authentication", oKrb4Authentication },
@@ -137,10 +141,13 @@ static struct {
 	{ "fallbacktorsh", oFallBackToRsh },
 	{ "usersh", oUseRsh },
 	{ "identityfile", oIdentityFile },
+	{ "identityfile2", oIdentityFile2 },
 	{ "hostname", oHostName },
 	{ "proxycommand", oProxyCommand },
 	{ "port", oPort },
 	{ "cipher", oCipher },
+	{ "ciphers", oCiphers },
+	{ "protocol", oProtocol },
 	{ "remoteforward", oRemoteForward },
 	{ "localforward", oLocalForward },
 	{ "user", oUser },
@@ -149,6 +156,8 @@ static struct {
 	{ "rhostsrsaauthentication", oRhostsRSAAuthentication },
 	{ "globalknownhostsfile", oGlobalKnownHostsFile },
 	{ "userknownhostsfile", oUserKnownHostsFile },
+	{ "globalknownhostsfile2", oGlobalKnownHostsFile2 },
+	{ "userknownhostsfile2", oUserKnownHostsFile2 },
 	{ "connectionattempts", oConnectionAttempts },
 	{ "batchmode", oBatchMode },
 	{ "checkhostip", oCheckHostIP },
@@ -171,7 +180,7 @@ static struct {
  * error.
  */
 
-void 
+void
 add_local_forward(Options *options, u_short port, const char *host,
 		  u_short host_port)
 {
@@ -192,7 +201,7 @@ add_local_forward(Options *options, u_short port, const char *host,
  * an error.
  */
 
-void 
+void
 add_remote_forward(Options *options, u_short port, const char *host,
 		   u_short host_port)
 {
@@ -211,7 +220,7 @@ add_remote_forward(Options *options, u_short port, const char *host,
  * returns if the token is not known.
  */
 
-static OpCodes 
+static OpCodes
 parse_token(const char *cp, const char *filename, int linenum)
 {
 	unsigned int i;
@@ -288,6 +297,10 @@ parse_flag:
 
 	case oPasswordAuthentication:
 		intptr = &options->password_authentication;
+		goto parse_flag;
+
+	case oDSAAuthentication:
+		intptr = &options->dsa_authentication;
 		goto parse_flag;
 
 	case oRSAAuthentication:
@@ -382,14 +395,22 @@ parse_flag:
 		goto parse_int;
 
 	case oIdentityFile:
+	case oIdentityFile2:
 		cp = strtok(NULL, WHITESPACE);
 		if (!cp)
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
 		if (*activep) {
-			if (options->num_identity_files >= SSH_MAX_IDENTITY_FILES)
+			intptr = (opcode == oIdentityFile) ?
+			    &options->num_identity_files :
+			    &options->num_identity_files2;
+			if (*intptr >= SSH_MAX_IDENTITY_FILES)
 				fatal("%.200s line %d: Too many identity files specified (max %d).",
 				      filename, linenum, SSH_MAX_IDENTITY_FILES);
-			options->identity_files[options->num_identity_files++] = xstrdup(cp);
+			charptr = (opcode == oIdentityFile) ?
+			    &options->identity_files[*intptr] :
+			    &options->identity_files2[*intptr];
+			*charptr = xstrdup(cp);
+			*intptr = *intptr + 1;
 		}
 		break;
 
@@ -409,6 +430,14 @@ parse_string:
 
 	case oUserKnownHostsFile:
 		charptr = &options->user_hostfile;
+		goto parse_string;
+
+	case oGlobalKnownHostsFile2:
+		charptr = &options->system_hostfile2;
+		goto parse_string;
+
+	case oUserKnownHostsFile2:
+		charptr = &options->user_hostfile2;
 		goto parse_string;
 
 	case oHostName:
@@ -458,6 +487,26 @@ parse_int:
 			fatal("%.200s line %d: Bad cipher '%s'.",
 			      filename, linenum, cp ? cp : "<NONE>");
 		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
+
+	case oCiphers:
+		cp = strtok(NULL, WHITESPACE);
+		if (!ciphers_valid(cp))
+			fatal("%.200s line %d: Bad SSH2 cipher spec '%s'.",
+			      filename, linenum, cp ? cp : "<NONE>");
+		if (*activep && options->ciphers == NULL)
+			options->ciphers = xstrdup(cp);
+		break;
+
+	case oProtocol:
+		intptr = &options->protocol;
+		cp = strtok(NULL, WHITESPACE);
+		value = proto_spec(cp);
+		if (value == SSH_PROTO_UNKNOWN)
+			fatal("%.200s line %d: Bad protocol spec '%s'.",
+			      filename, linenum, cp ? cp : "<NONE>");
+		if (*activep && *intptr == SSH_PROTO_UNKNOWN)
 			*intptr = value;
 		break;
 
@@ -561,7 +610,7 @@ parse_int:
  * there is an error.  If the file does not exist, this returns immediately.
  */
 
-void 
+void
 read_config_file(const char *filename, const char *host, Options *options)
 {
 	FILE *f;
@@ -601,7 +650,7 @@ read_config_file(const char *filename, const char *host, Options *options)
  * system config file.  Last, fill_default_options is called.
  */
 
-void 
+void
 initialize_options(Options * options)
 {
 	memset(options, 'X', sizeof(*options));
@@ -611,6 +660,7 @@ initialize_options(Options * options)
 	options->use_privileged_port = -1;
 	options->rhosts_authentication = -1;
 	options->rsa_authentication = -1;
+	options->dsa_authentication = -1;
 	options->skey_authentication = -1;
 #ifdef KRB4
 	options->krb4_authentication = -1;
@@ -637,13 +687,18 @@ initialize_options(Options * options)
 	options->connection_attempts = -1;
 	options->number_of_password_prompts = -1;
 	options->cipher = -1;
+	options->ciphers = NULL;
+	options->protocol = SSH_PROTO_UNKNOWN;
 	options->num_identity_files = 0;
+	options->num_identity_files2 = 0;
 	options->hostname = NULL;
 	options->proxy_command = NULL;
 	options->user = NULL;
 	options->escape_char = -1;
 	options->system_hostfile = NULL;
 	options->user_hostfile = NULL;
+	options->system_hostfile2 = NULL;
+	options->user_hostfile2 = NULL;
 	options->num_local_forwards = 0;
 	options->num_remote_forwards = 0;
 	options->log_level = (LogLevel) - 1;
@@ -654,7 +709,7 @@ initialize_options(Options * options)
  * options for which no value has been specified with their default values.
  */
 
-void 
+void
 fill_default_options(Options * options)
 {
 	if (options->forward_agent == -1)
@@ -669,6 +724,8 @@ fill_default_options(Options * options)
 		options->rhosts_authentication = 1;
 	if (options->rsa_authentication == -1)
 		options->rsa_authentication = 1;
+	if (options->dsa_authentication == -1)
+		options->dsa_authentication = 1;
 	if (options->skey_authentication == -1)
 		options->skey_authentication = 0;
 #ifdef KRB4
@@ -716,11 +773,20 @@ fill_default_options(Options * options)
 	/* Selected in ssh_login(). */
 	if (options->cipher == -1)
 		options->cipher = SSH_CIPHER_NOT_SET;
+	/* options->ciphers, default set in myproposals.h */
+	if (options->protocol == SSH_PROTO_UNKNOWN)
+		options->protocol = SSH_PROTO_1|SSH_PROTO_2|SSH_PROTO_1_PREFERRED;
 	if (options->num_identity_files == 0) {
 		options->identity_files[0] =
 			xmalloc(2 + strlen(SSH_CLIENT_IDENTITY) + 1);
 		sprintf(options->identity_files[0], "~/%.100s", SSH_CLIENT_IDENTITY);
 		options->num_identity_files = 1;
+	}
+	if (options->num_identity_files2 == 0) {
+		options->identity_files2[0] =
+			xmalloc(2 + strlen(SSH_CLIENT_ID_DSA) + 1);
+		sprintf(options->identity_files2[0], "~/%.100s", SSH_CLIENT_ID_DSA);
+		options->num_identity_files2 = 1;
 	}
 	if (options->escape_char == -1)
 		options->escape_char = '~';
@@ -728,6 +794,10 @@ fill_default_options(Options * options)
 		options->system_hostfile = SSH_SYSTEM_HOSTFILE;
 	if (options->user_hostfile == NULL)
 		options->user_hostfile = SSH_USER_HOSTFILE;
+	if (options->system_hostfile2 == NULL)
+		options->system_hostfile2 = SSH_SYSTEM_HOSTFILE2;
+	if (options->user_hostfile2 == NULL)
+		options->user_hostfile2 = SSH_USER_HOSTFILE2;
 	if (options->log_level == (LogLevel) - 1)
 		options->log_level = SYSLOG_LEVEL_INFO;
 	/* options->proxy_command should not be set by default */

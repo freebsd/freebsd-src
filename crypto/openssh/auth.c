@@ -2,6 +2,8 @@
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  * Copyright (c) 2000 Markus Friedl. All rights reserved.
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -106,6 +108,16 @@ allowed_user(struct passwd * pw)
 				return 0;
 		}
 	}
+#ifndef __FreeBSD__     /* FreeBSD handle it later */
+	/* Fail if the account's expiration time has passed. */
+	if (pw->pw_expire != 0) {
+		struct timeval tv;
+
+		(void)gettimeofday(&tv, NULL);
+		if (tv.tv_sec >= pw->pw_expire)
+			return 0;
+	}
+#endif /* !__FreeBSD__ */
 	/* We found no reason not to let this user try to log on... */
 	return 1;
 }
