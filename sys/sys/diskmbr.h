@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.10 1995/02/22 21:24:17 bde Exp $
+ * $Id: disklabel.h,v 1.11 1995/03/16 18:16:14 bde Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -195,8 +195,6 @@ struct disklabel {
 #define	p_cpg	__partition_u1.cpg
 #define	p_sgs	__partition_u1.sgs
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
-};
-struct cpu_disklabel {
 };
 #else /* LOCORE */
 	/*
