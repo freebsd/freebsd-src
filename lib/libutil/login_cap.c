@@ -798,16 +798,3 @@ login_getstyle(login_cap_t *lc, char *style, const char *auth)
 
     return lc->lc_style;
 }
-
-const char *
-login_setcryptfmt(login_cap_t *lc, const char *def, const char *error)
-{
-	const char *cipher;
-
-	cipher = login_getcapstr(lc, "passwd_format", def, NULL);
-	if (cipher == NULL)
-		return (error);
-	if (!crypt_set_format(cipher))
-		return (error);
-	return (cipher);
-}
