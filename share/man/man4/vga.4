@@ -24,10 +24,10 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: $
+.\" $Id: vga.4,v 1.1 1999/02/07 05:40:14 yokota Exp $
 .\"
-.Dd February 6, 1999
-.Dt VGA 4 i386
+.Dd February 9, 1999
+.Dt VGA 4
 .Os FreeBSD
 .Sh NAME
 .Nm vga
@@ -52,41 +52,43 @@ The console driver will call the
 .Nm
 driver to manipulate video hardware (changing video modes, loading font, etc).
 .Pp
+The keyword
+.Em conflicts
+is required, as the video card may use I/O ports in the same range
+as other drivers.
+.Pp
 The
 .Nm
-driver supports the standard video cards: MDA, CGA, EGA and VGA.
-In addition, the driver can utilize the VESA BIOS extension,
-if the video card has one.
-VESA support can either be statically included in the kernel or
-available as a separate module.
+driver supports the standard video cards: MDA, CGA, EGA and VGA. In
+addition, the driver can utilize VESA BIOS extensions if the video card
+supports them. VESA support can either be statically included in the kernel
+or can be loaded as a separate module.
 .Pp
-In order to statically link the support to the kernel, define the
+In order to statically link the support to the kernel, the
 .Em VESA
 option (see below) and the
 .Em VM86
-option in the kernel configuration file.
+option must be defined in the kernel configuration file.
 .Pp
 The
 .Nm vesa
-module can be loaded to the kernel, without static VESA support, by
+module can be dynamically loaded into the kernel using 
 .Xr kldload 8 .
-The
+This requires the
 .Em VM86
-option is required in the kernel configuration file in this case too.
+option to be defined in the kernel configuration file.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
-The following kernel configuration options control the
+The following kernel configuration options 
+.Pq see Xr config 8 
+can be used to control the
 .Nm
 driver.
-They may be set in the kernel configuration file 
-.Pq see Xr config 8 .
-.Pp
-The following options are to provide compatibility with certain VGA
-cards.
+These options provide compatibility with certain VGA cards.
 .Bl -tag -width MOUSE
 .It Em VGA_ALT_SEQACCESS
 You may want to try this option if the mouse pointer is not drawn correctly 
-or font does not seem to be loaded properly on the VGA card. 
+or the font does not seem to be loaded properly on the VGA card. 
 However, it may cause flicker on some systems.
 .It Em VGA_SLOW_IOACCESS
 Older VGA cards may require this option for proper operation.
@@ -105,8 +107,9 @@ This option requires the
 .Em VM86
 option.
 .It Em VESA_DEBUG=N
-Set the VESA support debug level to N.
-The default value is zero (all debugging output is suppressed).
+Set the VESA support debug level to
+.Fa N .
+The default value is zero, which suppresses all debugging output.
 .El
 .Pp
 The following options will remove some features from the
@@ -119,7 +122,7 @@ The
 driver can load software font to EGA and VGA cards.
 This option removes this feature.
 .It Em VGA_NO_MODE_CHANGE
-This option disallows the driver to change video modes.
+This option prevents the driver from changing video modes.
 .El
 .\".Sh FILES
 .Sh EXAMPLE
@@ -134,16 +137,16 @@ in order to enable the VESA BIOS Extension support.
 .Dl "options" \&"VESA\&"
 .Dl "device vga0 at isa? port ? conflicts"
 .Pp
-If you do not want the VESA support always included in the kernel, but
+If you do not want VESA support included in the kernel, but
 want to use occasionally, add the following lines to the kernel configuration
-file.
+file:
 .Pp
 .Dl "options" \&"VM86\&"
 .Dl "device vga0 at isa? port ? conflicts"
 .Pp
-And load the
+Then load the
 .Nm vesa
-module, when desired, as follows.
+module as desired:
 .Pp
 .Dl kldload vesa
 .Pp
@@ -151,6 +154,8 @@ module, when desired, as follows.
 .\".Sh CAVEATS
 .\".Sh BUGS
 .Sh SEE ALSO
+.Xr syscons 4 ,
+.Xr config 8 ,
 .Xr kldload 8 ,
 .Xr kldunload 8 .
 .Sh STANDARD
