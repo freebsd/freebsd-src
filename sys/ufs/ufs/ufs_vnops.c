@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.21 1995/04/24 05:13:17 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.22 1995/04/25 03:32:37 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -1043,7 +1043,7 @@ abortit:
 	 * either case there is no further work to be done. If the source
 	 * is a directory then it cannot have been rmdir'ed; its link
 	 * count of three would cause a rmdir to fail with ENOTEMPTY.
-	 * The IRENAME flag ensures that it cannot be moved by another
+	 * The IN_RENAME flag ensures that it cannot be moved by another
 	 * rename.
 	 */
 	if (xp != ip) {
@@ -1112,6 +1112,7 @@ out:
 	if (VOP_LOCK(fvp) == 0) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
+		ip->i_flag &= ~IN_RENAME;
 		vput(fvp);
 	} else
 		vrele(fvp);
