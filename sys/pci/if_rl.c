@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.7 1998/12/14 06:32:55 dillon Exp $
+ *	$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.7 1998/12/14 06:32:55 dillon Exp $";
+	"$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp $";
 #endif
 
 /*
@@ -1292,7 +1292,7 @@ static void rl_rxeof(sc)
 	else
 		max_bytes = limit - cur_rx;
 
-	while((CSR_READ_1(sc, RL_COMMAND) & 1) == 0) {
+	while((CSR_READ_1(sc, RL_COMMAND) & RL_CMD_EMPTY_RXBUF) == 0) {
 		rxbufpos = sc->rl_cdata.rl_rx_buf + cur_rx;
 		rxstat = *(u_int32_t *)rxbufpos;
 
