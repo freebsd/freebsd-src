@@ -4495,6 +4495,12 @@ The given
 is passed as the service name in the PPPoE Discovery Initiation (PADI)
 packet.
 If no provider is given, an empty value will be used.
+.Pp
+When a PPPoE connection is established,
+.Nm
+will place the name of the Access Concentrator in the environment variable
+.Va ACNAME .
+.Pp
 Refer to
 .Xr netgraph 4
 and
