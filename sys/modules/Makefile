@@ -48,7 +48,6 @@ SUBDIR=	3dfx \
 	kue \
 	lge \
 	libmchain \
-	linux \
 	lnc \
 	md \
 	mii \
@@ -121,8 +120,9 @@ SUBDIR+=aac \
 	fpu \
 	gnufpu \
 	ibcs2 \
-	netgraph \
+	linux \
 	mly \
+	netgraph \
 	oltr \
 	pecoff \
 	ray \
