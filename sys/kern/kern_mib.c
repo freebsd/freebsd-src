@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.19 1999/04/28 11:36:56 phk Exp $
+ * $Id: kern_mib.c,v 1.20 1999/05/03 23:57:21 billf Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,8 @@ SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
 	"Network, (see socket.h)");
 SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0,
 	"Debugging");
+SYSCTL_NODE(_debug, OID_AUTO,  sizeof,  CTLFLAG_RW, 0,
+	"Sizeof various things");
 SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0,
 	"hardware");
 SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
@@ -236,3 +238,10 @@ SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RD,
     0, 0, "Min Maximum number of streams a process may have open at one time");
 SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RD, 
     0, 0, "Min Maximum number of types supported for timezone names");
+
+#include <sys/vnode.h>
+SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD, 
+    0, sizeof(struct vnode), "sizeof(struct vnode)");
+
+SYSCTL_INT(_debug_sizeof, OID_AUTO, proc, CTLFLAG_RD, 
+    0, sizeof(struct proc), "sizeof(struct proc)");
