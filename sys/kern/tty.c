@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.76 1995/12/15 01:01:00 bde Exp $
+ * $Id: tty.c,v 1.77 1995/12/15 02:18:06 bde Exp $
  */
 
 /*-
@@ -1698,7 +1698,7 @@ ttycheckoutq(tp, wait)
 	hiwat = tp->t_hiwat;
 	s = spltty();
 	oldsig = wait ? curproc->p_siglist : 0;
-	if (tp->t_outq.c_cc > hiwat + 200)
+	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
 			if (tp->t_outq.c_cc <= hiwat)
