@@ -92,6 +92,15 @@ static void	vx_unlock(struct vnode *vp);
 
 
 /*
+ * Enable Giant pushdown based on whether or not the vm is mpsafe in this
+ * build.  Without mpsafevm the buffer cache can not run Giant free.
+ */
+int mpsafe_vfs = 0;
+TUNABLE_INT("debug.mpsafevfs", &mpsafe_vfs);
+SYSCTL_INT(_debug, OID_AUTO, mpsafevfs, CTLFLAG_RD, &mpsafe_vfs, 0,
+    "MPSAFE VFS");
+
+/*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
  * allocates a new vnode, never decreased.
  */
@@ -305,9 +314,14 @@ vfs_busy(mp, flags, interlkp, td)
 {
 	int lkflags;
 
+	MNT_ILOCK(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & LK_NOWAIT)
+		if (flags & LK_NOWAIT) {
+			MNT_IUNLOCK(mp);
 			return (ENOENT);
+		}
+		if (interlkp)
+			mtx_unlock(interlkp);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
 		/*
 		 * Since all busy locks are shared except the exclusive
@@ -315,13 +329,15 @@ vfs_busy(mp, flags, interlkp, td)
 		 * wakeup needs to be done is at the release of the
 		 * exclusive lock at the end of dounmount.
 		 */
-		msleep(mp, interlkp, PVFS, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS|PDROP, "vfs_busy", 0);
+		if (interlkp)
+			mtx_lock(interlkp);
 		return (ENOENT);
 	}
-	lkflags = LK_SHARED | LK_NOPAUSE;
 	if (interlkp)
-		lkflags |= LK_INTERLOCK;
-	if (lockmgr(&mp->mnt_lock, lkflags, interlkp, td))
+		mtx_unlock(interlkp);
+	lkflags = LK_SHARED | LK_NOPAUSE | LK_INTERLOCK;
+	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp), td))
 		panic("vfs_busy: unexpected lock failure");
 	return (0);
 }
@@ -572,10 +588,10 @@ vnlru_proc(void)
 		kthread_suspend_check(p);
 		mtx_lock(&vnode_free_list_mtx);
 		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
-			mtx_unlock(&vnode_free_list_mtx);
 			vnlruproc_sig = 0;
 			wakeup(&vnlruproc_sig);
-			tsleep(vnlruproc, PVFS, "vlruwt", hz);
+			msleep(vnlruproc, &vnode_free_list_mtx,
+			    PVFS|PDROP, "vlruwt", hz);
 			continue;
 		}
 		mtx_unlock(&vnode_free_list_mtx);
@@ -633,6 +649,10 @@ vtryrecycle(struct vnode *vp)
 	/* Don't recycle if we can't get the interlock */
 	if (!VI_TRYLOCK(vp))
 		return (EWOULDBLOCK);
+	if (!VCANRECYCLE(vp)) {
+		VI_UNLOCK(vp);
+		return (EBUSY);
+	}
 	/*
 	 * This vnode may found and locked via some other list, if so we
 	 * can't recycle it yet.
@@ -696,7 +716,7 @@ vtryrecycle(struct vnode *vp)
 	 * will skip over it.
 	 */
 	VI_LOCK(vp);
-	if (VSHOULDBUSY(vp) && (vp->v_iflag & VI_XLOCK) == 0) {
+	if (!VCANRECYCLE(vp)) {
 		VI_UNLOCK(vp);
 		error = EBUSY;
 		goto done;
@@ -709,9 +729,8 @@ vtryrecycle(struct vnode *vp)
 	if ((vp->v_type != VBAD) || (vp->v_data != NULL)) {
 		VOP_UNLOCK(vp, 0, td);
 		vgonel(vp, td);
-		VI_LOCK(vp);
 	} else
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, LK_INTERLOCK, td);
 	vn_finished_write(vnmp);
 	return (0);
 done:
@@ -747,9 +766,8 @@ getnewvnode(tag, mp, vops, vpp)
 			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
 			wakeup(vnlruproc);
 		}
-		mtx_unlock(&vnode_free_list_mtx);
-		tsleep(&vnlruproc_sig, PVFS, "vlruwk", hz);
-		mtx_lock(&vnode_free_list_mtx);
+		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
+		    "vlruwk", hz);
 	}
 
 	/*
@@ -764,11 +782,6 @@ getnewvnode(tag, mp, vops, vpp)
 
 		for (count = 0; count < freevnodes; count++) {
 			vp = TAILQ_FIRST(&vnode_free_list);
-
-			KASSERT(vp->v_usecount == 0 &&
-			    (vp->v_iflag & VI_DOINGINACT) == 0,
-			    ("getnewvnode: free vnode isn't"));
-
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			mtx_unlock(&vnode_free_list_mtx);
@@ -826,7 +839,6 @@ getnewvnode(tag, mp, vops, vpp)
 
 		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
-		VI_LOCK(vp);
 		vp->v_dd = vp;
 		bo = &vp->v_bufobj;
 		bo->__bo_vnode = vp;
@@ -848,7 +860,6 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
-	VI_UNLOCK(vp);
 	if (pollinfo != NULL) {
 		knlist_destroy(&pollinfo->vpi_selinfo.si_note);
 		mtx_destroy(&pollinfo->vpi_lock);
@@ -919,8 +930,6 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	int error;
 	vm_object_t object;
 	struct bufobj *bo;
-
-	GIANT_REQUIRED;
 
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
 
@@ -1322,8 +1331,6 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 {
 	struct buf *bp;
 
-	GIANT_REQUIRED;
-
 	ASSERT_BO_LOCKED(bo);
 	if ((bp = bo->bo_clean.bv_root) != NULL &&
 	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
@@ -1350,9 +1357,9 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 void
 bgetvp(struct vnode *vp, struct buf *bp)
 {
-
 	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
 
+	CTR3(KTR_BUF, "bgetvp(%p) vp %p flags %X", bp, vp, bp->b_flags);
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
 	    ("bgetvp: bp already attached! %p", bp));
 
@@ -1375,6 +1382,7 @@ brelvp(struct buf *bp)
 	struct bufobj *bo;
 	struct vnode *vp;
 
+	CTR3(KTR_BUF, "brelvp(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
 
 	/*
@@ -1457,12 +1465,8 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	vp = bo->__bo_vnode; 	/* XXX */
 	if (VOP_ISLOCKED(vp, NULL) != 0)
 		return (1);
-	if (vn_start_write(vp, &mp, V_NOWAIT) != 0)
+	if (VI_TRYLOCK(vp) == 0)
 		return (1);
-	if (VI_TRYLOCK(vp) == 0) {
-		vn_finished_write(mp);
-		return (1);
-	}
 	/*
 	 * We use vhold in case the vnode does not
 	 * successfully sync.  vhold prevents the vnode from
@@ -1471,7 +1475,13 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	 */
 	vholdl(vp);
 	mtx_unlock(&sync_mtx);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+	VI_UNLOCK(vp);
+	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+		vdrop(vp);
+		mtx_lock(&sync_mtx);
+		return (1);
+	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
@@ -1689,6 +1699,8 @@ reassignbuf(struct buf *bp)
 	bo = bp->b_bufobj;
 	++reassignbufcalls;
 
+	CTR3(KTR_BUF, "reassignbuf(%p) vp %p flags %X",
+	    bp, bp->b_vp, bp->b_flags);
 	/*
 	 * B_PAGING flagged buffers cannot be reassigned because their vp
 	 * is not fully linked in.
@@ -1853,8 +1865,6 @@ vrele(vp)
 {
 	struct thread *td = curthread;	/* XXX */
 
-	GIANT_REQUIRED;
-
 	KASSERT(vp != NULL, ("vrele: null vp"));
 
 	VI_LOCK(vp);
@@ -1879,6 +1889,8 @@ vrele(vp)
 		 */
 		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
 			VI_LOCK(vp);
+			KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+			    ("vrele: recursed on VI_DOINGINACT"));
 			vp->v_iflag |= VI_DOINGINACT;
 			VI_UNLOCK(vp);
 			VOP_INACTIVE(vp, td);
@@ -1914,8 +1926,6 @@ vput(vp)
 {
 	struct thread *td = curthread;	/* XXX */
 
-	GIANT_REQUIRED;
-
 	KASSERT(vp != NULL, ("vput: null vp"));
 	VI_LOCK(vp);
 	/* Skip this v_writecount check if we're going to panic below. */
@@ -1936,6 +1946,8 @@ vput(vp)
 		 * we just need to release the vnode mutex. Mark as
 		 * as VI_DOINGINACT to avoid recursion.
 		 */
+		KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+		    ("vput: recursed on VI_DOINGINACT"));
 		vp->v_iflag |= VI_DOINGINACT;
 		VI_UNLOCK(vp);
 		VOP_INACTIVE(vp, td);
@@ -2256,6 +2268,8 @@ vclean(vp, flags, td)
 			VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_DOINGINACT) == 0) {
+			KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+			    ("vclean: recursed on VI_DOINGINACT"));
 			vp->v_iflag |= VI_DOINGINACT;
 			VI_UNLOCK(vp);
 			if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
@@ -2789,8 +2803,6 @@ vfs_msync(struct mount *mp, int flags)
 	struct vnode *vp, *nvp;
 	struct vm_object *obj;
 	int tries;
-
-	GIANT_REQUIRED;
 
 	tries = 5;
 	MNT_ILOCK(mp);
