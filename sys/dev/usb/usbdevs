@@ -1130,6 +1130,10 @@ product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product	YAMAHA UX96		0x1008	UX96 MIDI I/F
+product	YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
+product	YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
+product	YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
+product	YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
