@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
-	mail.local makekey revnetgroup rexecd rlogind rpc.rquotad rpc.rstatd \
-	rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd xtend \
-	ypxfr
+	mail.local makekey mknetid revnetgroup rexecd rlogind rpc.rquotad \
+	rpc.rstatd rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd \
+	xtend ypxfr
 
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+=telnetd
