@@ -1090,11 +1090,14 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		 */
 		scsi_status = cto->ct_scsi_status;
 
+#if	0
+		sflags |= CT_NODATA;
 		/*
 		 * We can't do a status at the same time as a data CTIO, so
 		 * we need to synthesize an extra CTIO at this level.
 		 */
 		nctios++;
+#endif
 	} else {
 		sflags = scsi_status = resid = 0;
 	}
@@ -1169,7 +1172,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 			if (send_status) {
 				cto->ct_scsi_status = scsi_status;
-				cto->ct_flags |= sflags | CT_NO_DATA;;
+				cto->ct_flags |= sflags;
 				cto->ct_resid = resid;
 			}
 			if (send_status) {
