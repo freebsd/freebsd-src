@@ -90,14 +90,16 @@ FreeBSD 2.1 <---------+-*----+-----------------*
  |     |              |   NetBSD 1.2       |
  | FreeBSD 2.1.7      |      |          OpenBSD 2.0
  |     |              |   NetBSD 1.2.1     |
- | FreeBSD 2.1.7.1    |      |             v
- |                    |      v          OpenBSD 2.1
- |                    |                    |
- *-FreeBSD 2.2        |                    v
-    |   |             |
-    |  FreeBSD 2.2.1  |
+ | FreeBSD 2.1.7.1    |      |             |
+ |                    |      |          OpenBSD 2.1
+ |                    |   NetBSD 1.3       |
+ *-FreeBSD 2.2        |      |          OpenBSD 2.2
+    |   |             |      v             |
+    |  FreeBSD 2.2.1  |                    v
     |      |          |
     |  FreeBSD 2.2.2  |
+    |      |          |
+    |  FreeBSD 2.2.5  |
     |      |          |
     |      v          |
     |                 |
@@ -237,15 +239,18 @@ URL: http://www.heise.de
 BSD Release Announcements collection.
 URL: http://www.de.FreeBSD.ORG/de/ftp/releases/
 
+BSD Hypertext Man Pages
+http://www.de.freebsd.org/de/cgi/man.cgi
+
 Acknowledgments
 ---------------
 
 Josh Gilliam for suggestions, bugfixes, and finding very old 
 original BSD announcements from Usenet or tapes.
 
-Steven M. Schultz for providing 2.11 BSD manual pages.
+Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
 Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
-$Date: 1997/06/12 11:15:22 $ $Revision: 1.22 $
+$Date: 1997/12/06 23:36:58 $ $Revision: 1.26 $
