@@ -14,6 +14,7 @@
 #include <sys/protosw.h>
 #include <net/if.h>
 #include <net/route.h>
+#include <net/intrq.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -547,6 +548,8 @@ ddp_init(void )
 {
     atintrq1.ifq_maxlen = IFQ_MAXLEN;
     atintrq2.ifq_maxlen = IFQ_MAXLEN;
+    atintrq1_present = 1;
+    atintrq2_present = 1;
     mtx_init(&atintrq1.ifq_mtx, "at1_inq", MTX_DEF);
     mtx_init(&atintrq2.ifq_mtx, "at2_inq", MTX_DEF);
 }
