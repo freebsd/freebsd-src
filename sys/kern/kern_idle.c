@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/unistd.h>
+#ifdef SMP
+#include <sys/smp.h>
+#endif
 
 static void idle_setup(void *dummy);
 SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
@@ -96,9 +99,18 @@ idle_proc(void *dummy)
 {
 	struct proc *p;
 	struct thread *td;
+#ifdef SMP
+	cpumask_t mycpu;
+#endif
 
 	td = curthread;
 	p = td->td_proc;
+#ifdef SMP
+	mycpu = PCPU_GET(cpumask);
+	mtx_lock_spin(&sched_lock);
+	idle_cpus_mask |= mycpu;
+	mtx_unlock_spin(&sched_lock);
+#endif
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -106,7 +118,13 @@ idle_proc(void *dummy)
 			cpu_idle();
 
 		mtx_lock_spin(&sched_lock);
+#ifdef SMP
+		idle_cpus_mask &= ~mycpu;
+#endif
 		mi_switch(SW_VOL, NULL);
+#ifdef SMP
+		idle_cpus_mask |= mycpu;
+#endif
 		mtx_unlock_spin(&sched_lock);
 	}
 }
