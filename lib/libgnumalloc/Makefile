@@ -1,6 +1,7 @@
-#	$Id: Makefile,v 1.2 1996/02/12 12:40:04 phk Exp $
+#	$Id: Makefile,v 1.3 1996/08/30 01:08:03 peter Exp $
 
 LIB=	fakegnumalloc
+LIBDIR=	/usr/lib/compat
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 SRCS=	fakegnumalloc.c
