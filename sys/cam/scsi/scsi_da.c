@@ -1340,40 +1340,43 @@ cmd6workaround(union ccb *ccb)
 	struct scsi_rw_6 cmd6;
 	struct scsi_rw_10 *cmd10;
 	struct da_softc *softc;
-	struct ccb_scsiio *csio;
-	u_int8_t opcode;
+	u_int8_t *cdb;
+	int frozen;
 
-	csio = &ccb->csio;
- 	opcode = ((struct scsi_rw_6 *)csio->cdb_io.cdb_bytes)->opcode; 
+	cdb = ccb->csio.cdb_io.cdb_bytes;
 
-	if (opcode != READ_6 && opcode != WRITE_6)
+	/* Translation only possible if CDB is an array and cmd is R/W6 */
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0 ||
+	    (*cdb != READ_6 && *cdb != WRITE_6))
 		return 0;
 
 	xpt_print_path(ccb->ccb_h.path);
- 	printf("READ(6)/WRITE(6) failed, "
-		"minimum_cmd_size is increased to 10.\n");
+ 	printf("READ(6)/WRITE(6) not supported, "
+	       "increasing minimum_cmd_size to 10.\n");
  	softc = (struct da_softc *)xpt_path_periph(ccb->ccb_h.path)->softc;
 	softc->minimum_cmd_size = 10;
 
-	bcopy(&csio->cdb_io.cdb_bytes, &cmd6, sizeof(struct scsi_rw_6));
-	cmd10 = (struct scsi_rw_10 *) &csio->cdb_io.cdb_bytes;
+	bcopy(cdb, &cmd6, sizeof(struct scsi_rw_6));
+	cmd10 = (struct scsi_rw_10 *)cdb;
 	cmd10->opcode = (cmd6.opcode == READ_6) ? READ_10 : WRITE_10;
 	cmd10->byte2 = 0;
 	scsi_ulto4b(scsi_3btoul(cmd6.addr), cmd10->addr);
 	cmd10->reserved = 0;
 	scsi_ulto2b(cmd6.length, cmd10->length);
 	cmd10->control = cmd6.control;
-	csio->cdb_len = sizeof(*cmd10);
+	ccb->csio.cdb_len = sizeof(*cmd10);
 
-	/* requeue */
+	/* Requeue request, unfreezing queue if necessary */
+	frozen = (ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
  	ccb->ccb_h.status = CAM_REQUEUE_REQ;
 	xpt_action(ccb);
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+	if (frozen) {
 		cam_release_devq(ccb->ccb_h.path,
 				 /*relsim_flags*/0,
 				 /*reduction*/0,
 				 /*timeout*/0,
 				 /*getcount_only*/0);
+	}
 	return (ERESTART);
 }
 
@@ -1647,14 +1650,14 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
  	 */
 	error = 0;
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR
-			&& ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND) {
+	  && ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND) {
  		scsi_extract_sense(&ccb->csio.sense_data,
-				&error_code, &sense_key, &asc, &ascq);
+				   &error_code, &sense_key, &asc, &ascq);
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
  			error = cmd6workaround(ccb);
 	}
 	if (error == ERESTART)
-		return ERESTART;
+		return (ERESTART);
 
 	/*
 	 * XXX
