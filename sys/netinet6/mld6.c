@@ -78,6 +78,7 @@
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 
@@ -474,4 +475,96 @@ mld6_sendpkt(in6m, type, dst)
 			break;
 		}
 	}
+}
+
+/*
+ * Add an address to the list of IP6 multicast addresses for a given interface.
+ * Add source addresses to the list also, if upstream router is MLDv2 capable
+ * and the number of source is not 0.
+ */
+struct	in6_multi *
+in6_addmulti(maddr6, ifp, errorp)
+	struct in6_addr *maddr6;
+	struct ifnet *ifp;
+	int *errorp;
+{
+	struct in6_multi *in6m;
+	struct ifmultiaddr *ifma;
+	struct sockaddr_in6 sa6;
+	int	s = splnet();
+
+	*errorp = 0;
+
+	/*
+	 * Call generic routine to add membership or increment
+	 * refcount.  It wants addresses in the form of a sockaddr,
+	 * so we build one here (being careful to zero the unused bytes).
+	 */
+	bzero(&sa6, sizeof(sa6));
+	sa6.sin6_family = AF_INET6;
+	sa6.sin6_len = sizeof(struct sockaddr_in6);
+	sa6.sin6_addr = *maddr6;
+	*errorp = if_addmulti(ifp, (struct sockaddr *)&sa6, &ifma);
+	if (*errorp) {
+		splx(s);
+		return 0;
+	}
+
+	/*
+	 * If ifma->ifma_protospec is null, then if_addmulti() created
+	 * a new record.  Otherwise, we are done.
+	 */
+	if (ifma->ifma_protospec != 0) {
+		splx(s);
+		return ifma->ifma_protospec;
+	}
+
+	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
+	   at interrupt time?  If so, need to fix if_addmulti. XXX */
+	in6m = (struct in6_multi *)malloc(sizeof(*in6m), M_IPMADDR, M_NOWAIT);
+	if (in6m == NULL) {
+		splx(s);
+		return (NULL);
+	}
+
+	bzero(in6m, sizeof *in6m);
+	in6m->in6m_addr = *maddr6;
+	in6m->in6m_ifp = ifp;
+	in6m->in6m_refcount = 1;
+	in6m->in6m_ifma = ifma;
+	ifma->ifma_protospec = in6m;
+	LIST_INSERT_HEAD(&in6_multihead, in6m, in6m_entry);
+
+	/*
+	 * Let MLD6 know that we have joined a new IPv6 multicast
+	 * group.
+	 */
+	mld6_start_listening(in6m);
+	splx(s);
+	return (in6m);
+}
+
+/*
+ * Delete a multicast address record.
+ */
+void
+in6_delmulti(in6m)
+	struct in6_multi *in6m;
+{
+	struct ifmultiaddr *ifma = in6m->in6m_ifma;
+	int	s = splnet();
+
+	if (ifma->ifma_refcount == 1) {
+		/*
+		 * No remaining claims to this record; let MLD6 know
+		 * that we are leaving the multicast group.
+		 */
+		mld6_stop_listening(in6m);
+		ifma->ifma_protospec = 0;
+		LIST_REMOVE(in6m, in6m_entry);
+		free(in6m, M_IPMADDR);
+	}
+	/* XXX - should be separate API for when we have an ifma? */
+	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
+	splx(s);
 }
