@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.12 1993/12/22 23:28:35 jkh Exp $
+ *	$Id: rtld.c,v 1.13 1994/01/12 23:16:19 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -242,7 +242,7 @@ struct link_dynamic	*dp;
 		if (link_map_head)
 			ldp->ldd_sym_loaded = 1;
 	}
-	crtp->crt_dp->ld_un.ld_2->ld_loaded = link_map_head;
+	crtp->crt_dp->ld_un.ld_2->ld_loaded = link_map_head->lm_next;
 	/* Close our file descriptor */
 	(void)close(crtp->crt_ldfd);
 }
