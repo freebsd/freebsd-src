@@ -970,25 +970,20 @@ ip_fw_chk(struct ip **pip, int hlen,
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
 				*pip = ip;				\
-				offset = (ip->ip_off & IP_OFFMASK);	\
 			    }						\
 			} while (0)
 
 	/*
 	 * Collect parameters into local variables for faster matching.
 	 */
+	proto = ip->ip_p;
+	src_ip = ip->ip_src;
+	dst_ip = ip->ip_dst;
 	offset = (ip->ip_off & IP_OFFMASK);
-	{
+	if (offset == 0) {
 	    struct tcphdr *tcp;
 	    struct udphdr *udp;
 
-	    dst_ip = ip->ip_dst ;
-	    src_ip = ip->ip_src ;
-	    proto = ip->ip_p ;
-	    /*
-	     * warning - if offset != 0, port values are bogus.
-	     * Not a problem for ipfw, but could be for dummynet.
-	     */
 	    switch (proto) {
 	    case IPPROTO_TCP :
 		PULLUP_TO(hlen + sizeof(struct tcphdr));
@@ -1014,14 +1009,14 @@ ip_fw_chk(struct ip **pip, int hlen,
 	    default :
 		break;
 	    }
-#undef PULLUP_TO
-	    last_pkt.src_ip = ntohl(src_ip.s_addr) ;
-	    last_pkt.dst_ip = ntohl(dst_ip.s_addr) ;
-	    last_pkt.proto = proto ;
-	    last_pkt.src_port = ntohs(src_port) ;
-	    last_pkt.dst_port = ntohs(dst_port) ;
-	    last_pkt.flags = flags ;
 	}
+#undef PULLUP_TO
+	last_pkt.src_ip = ntohl(src_ip.s_addr);
+	last_pkt.dst_ip = ntohl(dst_ip.s_addr);
+	last_pkt.proto = proto;
+	last_pkt.src_port = ntohs(src_port);
+	last_pkt.dst_port = ntohs(dst_port);
+	last_pkt.flags = flags;
 
 	if (*flow_id) {
 		/* Accept if passed first test */
