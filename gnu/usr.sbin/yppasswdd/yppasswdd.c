@@ -30,7 +30,6 @@ extern char *optarg;
 static char *program_name = "";
 static char *version = "yppsswdd " VERSION;
 char *passfile = _PATH_MASTERPASSWD;
-char *opassfile = NULL;
 int allow_chfn = 0, allow_chsh = 0;
 
 #define xprt_addr(xprt)	(svc_getcaller(xprt)->sin_addr)
@@ -84,7 +83,7 @@ yppasswdprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 static void
 usage(FILE *fp, int n)
 {
-    fprintf (fp, "usage: %s [-m master password file] [-o password file]\n [-h] [-f] [-s] [-v]\n", program_name );
+    fprintf (fp, "usage: %s [-m master password file] [-f] [-s] [-h] [-v]\n", program_name );
     exit(n);
 }
 
@@ -121,13 +120,10 @@ main(int argc, char **argv)
 
     /* Parse the command line options and arguments. */
     opterr = 0;
-    while ((c = getopt(argc, argv, "m:o:fshv")) != EOF)
+    while ((c = getopt(argc, argv, "m:fshv")) != EOF)
         switch (c) {
 	case 'm':
 	    passfile = strdup(optarg);
-	    break;
-	case 'o':
-	    opassfile = strdup(optarg);
 	    break;
 	case 'f':
 	    allow_chfn = 1;
