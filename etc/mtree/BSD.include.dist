@@ -22,6 +22,8 @@
         ..
     ..
     fs
+        devfs
+        ..
         fdescfs
         ..
         fifofs
