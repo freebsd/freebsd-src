@@ -66,7 +66,7 @@ stackgap_alloc(sgp, sz)
 
 
 extern const char osf1_emul_path[];
-int osf1_emul_find __P((struct proc *, caddr_t *, const char *, char *,
+int osf1_emul_find __P((struct thread *, caddr_t *, const char *, char *,
 			char **, int));
 
 #define CHECKALT(p, sgp, path, i)					\
