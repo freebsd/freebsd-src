@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.28 1997/06/06 13:09:53 kato Exp $
+ *	$Id: sio.c,v 1.29 1997/07/17 10:35:43 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2789,15 +2789,15 @@ retry:
 			outb(iobase + com_cfcr, 0xbf);
 			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x80);
 		}
+#ifdef PC98
+		}
+#endif
 	} else {
 		if (com->st16650a) {
 			outb(iobase + com_cfcr, 0xbf);
 			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x80);
 		}
 			com->state &= ~CS_ODEVREADY;
-#ifdef PC98
-		}
-#endif
 	}
 
 
