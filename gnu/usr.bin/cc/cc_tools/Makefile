@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.27 1999/04/11 04:32:42 bde Exp $
+# $Id: Makefile,v 1.28 1999/04/18 09:44:36 obrien Exp $
 #
 
 #
@@ -155,9 +155,6 @@ tconfig.h:
 
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"' > ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"' >> ${.TARGET}
-.endif
 	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
