@@ -34,8 +34,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.29 1995/12/03 18:35:17 bde Exp $
+ *	$Id: genassym.c,v 1.30 1995/12/07 12:45:30 davidg Exp $
  */
+
+#include "opt_sysvipc.h"
 
 #include <stdio.h>
 #include <sys/param.h>

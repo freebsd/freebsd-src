@@ -28,8 +28,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.29 1995/12/09 04:29:11 peter Exp $
+ *	$Id: kern_exec.c,v 1.30 1995/12/14 08:31:20 phk Exp $
  */
+
+#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
