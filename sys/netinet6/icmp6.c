@@ -1898,21 +1898,26 @@ icmp6_rip6_input(mp, off)
 	/* KAME hack: recover scopeid */
 	(void)in6_recoverscope(&fromsa, &ip6->ip6_src, m->m_pkthdr.rcvif);
 
+	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		if ((in6p->inp_vflag & INP_IPV6) == 0)
+		INP_LOCK(in6p);
+		if ((in6p->inp_vflag & INP_IPV6) == 0) {
+	docontinue:
+			INP_UNLOCK(in6p);
 			continue;
+		}
 		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
-			continue;
+			goto docontinue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
-			continue;
+			goto docontinue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
-			continue;
+			goto docontinue;
 		if (in6p->in6p_icmp6filt
 		    && ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
 				 in6p->in6p_icmp6filt))
-			continue;
+			goto docontinue;
 		if (last) {
 			struct	mbuf *n = NULL;
 
@@ -1960,6 +1965,7 @@ icmp6_rip6_input(mp, off)
 					sorwakeup(last->in6p_socket);
 				opts = NULL;
 			}
+			INP_UNLOCK(last);
 		}
 		last = in6p;
 	}
@@ -1991,10 +1997,12 @@ icmp6_rip6_input(mp, off)
 				m_freem(opts);
 		} else
 			sorwakeup(last->in6p_socket);
+		INP_UNLOCK(last);
 	} else {
 		m_freem(m);
 		ip6stat.ip6s_delivered--;
 	}
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	return IPPROTO_DONE;
 }
 
