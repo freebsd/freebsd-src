@@ -1628,7 +1628,7 @@ sched_add(struct thread *td)
 	 * Only try to preempt if the thread is unpinned or pinned to the
 	 * current CPU.
 	 */
-	if (KSE_CAN_MIGRATE(ke) || ke->ke_cpu == PCPU_GET(cpuid))
+	if (KSE_CAN_MIGRATE(ke, class) || ke->ke_cpu == PCPU_GET(cpuid))
 #endif
 	if (maybe_preempt(td))
 		return;
