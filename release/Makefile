@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.80 1995/01/14 12:44:23 jkh Exp $
+#	$Id: Makefile,v 1.81 1995/01/14 12:51:40 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -179,6 +179,13 @@ EXTRADISTRIBUTIONS=	secure src games manpages proflibs dict info
 DISTRIBUTIONS=	bin ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
+
+jkhdist:
+	( cd ${.CURDIR}/..; ${MAKE} all )
+	( cd ${.CURDIR}/..; ${MAKE} distribute )
+	( cd ${.CURDIR}; ${MAKE} beforetarballs )
+	( cd ${.CURDIR}; ${MAKE} tarballs )
+	( cd ${.CURDIR}; ${MAKE} floppies )
 
 distribute: 
 	-mkdir ${RELEASEDIR}
