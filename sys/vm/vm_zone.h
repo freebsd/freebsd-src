@@ -21,10 +21,10 @@
 #define ZONE_INTERRUPT 1 /* Use this if you need to allocate at int time */
 #define ZONE_BOOT 16	 /* This is an internal flag used by zbootinit */
 
-#include	<machine/lock.h>
+#include	<sys/mutex.h>
 
 typedef struct vm_zone {
-	struct simplelock zlock;	/* lock for data structure */
+	struct mtx	zmtx;		/* lock for data structure */
 	void		*zitems;	/* linked list of items */
 	int		zfreecnt;	/* free entries */
 	int		zfreemin;	/* minimum number of free entries */
@@ -40,18 +40,21 @@ typedef struct vm_zone {
 	int		zallocflag;	/* flag for allocation */
 	struct vm_object *zobj;		/* object to hold zone */
 	char		*zname;		/* name for diags */
-	struct vm_zone	*znext;		/* list of zones for sysctl */
+	/* NOTE: zent is protected by the subsystem lock, *not* by zmtx */
+	SLIST_ENTRY(vm_zone) zent;	/* singly-linked list of zones */
 } *vm_zone_t;
 
 
-void		zerror __P((int)) __dead2;
-vm_zone_t	zinit __P((char *name, int size, int nentries, int flags,
-			   int zalloc));
-int		zinitna __P((vm_zone_t z, struct vm_object *obj, char *name,
-			     int size, int nentries, int flags, int zalloc));
-void *		zalloc __P((vm_zone_t z));
-void		zfree __P((vm_zone_t z, void *item));
-void		zbootinit __P((vm_zone_t z, char *name, int size, void *item,
-			       int nitems));
+void		 vm_zone_init(void);
+void		 vm_zone_init2(void);
+
+int		 zinitna(vm_zone_t z, struct vm_object *obj, char *name,
+                     int size, int nentries, int flags, int zalloc);
+vm_zone_t	 zinit(char *name, int size, int nentries,
+                     int flags, int zalloc);
+void		 zbootinit(vm_zone_t z, char *name, int size,
+                     void *item, int nitems);
+void		*zalloc(vm_zone_t z);
+void		 zfree(vm_zone_t z, void *item);
 
 #endif /* _SYS_ZONE_H */
