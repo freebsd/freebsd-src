@@ -132,7 +132,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/jumbo.h>
 #endif /* !TI_PRIVATE_JUMBOS */
-#include <sys/vnode.h> /* for vfindev, vgone */
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -282,20 +281,6 @@ static devclass_t ti_devclass;
 DRIVER_MODULE(ti, pci, ti_driver, ti_devclass, 0, 0);
 MODULE_DEPEND(ti, pci, 1, 1, 1);
 MODULE_DEPEND(ti, ether, 1, 1, 1);
-
-/* List of Tigon softcs */
-static STAILQ_HEAD(ti_softc_list, ti_softc) ti_sc_list;
-
-static struct ti_softc *
-ti_lookup_softc(int unit)
-{
-	struct ti_softc *sc;
-	for (sc = STAILQ_FIRST(&ti_sc_list); sc != NULL;
-	     sc = STAILQ_NEXT(sc, ti_links))
-		if (sc->ti_unit == unit)
-			return(sc);
-	return(NULL);
-}
 
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
@@ -2247,18 +2232,11 @@ ti_attach(dev)
 	 * thing.  If it isn't, multiple cards probing at the same time
 	 * could stomp on the list of softcs here.
 	 */
-	/*
-	 * If this is the first card to be initialized, initialize the
-	 * softc queue.
-	 */
-	if (unit == 0)
-		STAILQ_INIT(&ti_sc_list);
-
-	STAILQ_INSERT_TAIL(&ti_sc_list, sc, ti_links);
 
 	/* Register the device */
 	sc->dev = make_dev(&ti_cdevsw, sc->ti_unit, UID_ROOT, GID_OPERATOR,
 			   0600, "ti%d", sc->ti_unit);
+	sc->dev->si_drv1 = sc;
 
 	/*
 	 * Call MI attach routine.
@@ -2283,33 +2261,6 @@ fail:
 }
 
 /*
- * Verify that our character special device is not currently
- * open.  Also track down any cached vnodes & kill them before
- * the module is unloaded
- */
-static int
-ti_unref_special(device_t dev)
-{
-	struct vnode *ti_vn;
-	int count;
-	struct ti_softc *sc = sc = device_get_softc(dev);
-
-	if (!vfinddev(sc->dev, VCHR, &ti_vn)) {
-		return 0;
-	}
-	
-	if ((count = vcount(ti_vn))) {
-		device_printf(dev, "%d refs to special device, "
-			      "denying unload\n", count);
-		return count;
-	}
-	/* now we know that there's a vnode in the cache. We hunt it
-	   down and kill it now, before unloading */
-	vgone(ti_vn);
-	return(0);
-}
-
-/*
  * Shutdown hardware and free up resources. This can be called any
  * time after the mutex has been initialized. It is called in both
  * the error case in attach and the normal detach case so it needs
@@ -2323,10 +2274,8 @@ ti_detach(dev)
 	struct ti_softc		*sc;
 	struct ifnet		*ifp;
 
-	if (ti_unref_special(dev))
-		return EBUSY;
-
 	sc = device_get_softc(dev);
+	destroy_dev(sc->dev);
 	KASSERT(mtx_initialized(&sc->ti_mtx), ("ti mutex not initialized"));
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
@@ -3177,13 +3126,9 @@ ti_ioctl(ifp, command, data)
 static int
 ti_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	int unit;
 	struct ti_softc *sc;
 
-	unit = minor(dev) & 0xff;
-
-	sc = ti_lookup_softc(unit);
-
+	sc = dev->si_drv1;
 	if (sc == NULL)
 		return(ENODEV);
 
@@ -3197,13 +3142,9 @@ ti_open(dev_t dev, int flags, int fmt, struct thread *td)
 static int
 ti_close(dev_t dev, int flag, int fmt, struct thread *td)
 {
-	int unit;
 	struct ti_softc *sc;
 
-	unit = minor(dev) & 0xff;
-
-	sc = ti_lookup_softc(unit);
-
+	sc = dev->si_drv1;
 	if (sc == NULL)
 		return(ENODEV);
 
@@ -3220,13 +3161,10 @@ ti_close(dev_t dev, int flag, int fmt, struct thread *td)
 static int 
 ti_ioctl2(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-	int unit, error;
+	int error;
 	struct ti_softc *sc;
 
-	unit = minor(dev) & 0xff;
-
-	sc = ti_lookup_softc(unit);
-
+	sc = dev->si_drv1;
 	if (sc == NULL)
 		return(ENODEV);
 
