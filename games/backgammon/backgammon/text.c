@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)text.c	8.1 (Berkeley) 5/31/93";
 
 #include "back.h"
 
-char *instr[] = {
+const char *const instr[] = {
     "    If you did not notice by now, this program reacts to things as",
     "soon as you type them, without waiting for a newline.  This means that",
     "the special characters RUBOUT, ESC, and CONTROL-D, will not perform",
@@ -104,12 +104,13 @@ char *instr[] = {
     0};
 
 
+int
 text (t)
-char	**t;
+const char	*const *t;
 
 {
 	register int	i;
-	register char	*s, *a;
+	const char	*s, *a;
 
 	fixtty (noech);
 	while (*t != 0)  {

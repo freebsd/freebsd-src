@@ -157,7 +157,7 @@ char onlytemp;
 	row = fp->row;
 	col = fp->col;
 	drift = fp->drift;
-	move(movement, ship, &fp->dir, &fp->row, &fp->col, &drift);
+	sail_move(movement, ship, &fp->dir, &fp->row, &fp->col, &drift);
 	if (!*movement)
 		(void) strcpy(movement, "d");
 
@@ -176,7 +176,7 @@ char onlytemp;
 	return total;
 }
 
-move(p, ship, dir, row, col, drift)
+sail_move(p, ship, dir, row, col, drift)
 register char *p;
 register struct ship *ship;
 register char *dir;
@@ -222,7 +222,7 @@ register char *drift;
 
 try(command, temp, ma, ta, af, vma, dir, f, t, high, rakeme)
 register struct ship *f, *t;
-int ma, ta, af, *high, rakeme;
+int ma, ta, af, vma, dir, *high, rakeme;
 char command[], temp[];
 {
 	register int new, n;

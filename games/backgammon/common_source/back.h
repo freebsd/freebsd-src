@@ -53,75 +53,75 @@
  *
  */
 
-extern char	EXEC[];		/* object for main program */
-extern char	TEACH[];	/* object for tutorial program */
+extern const char	EXEC[];	/* object for main program */
+extern const char	TEACH[];/* object for tutorial program */
 
-int	pnum;			/* color of player:
+extern int	pnum;		/* color of player:
 					-1 = white
 					 1 = red
 					 0 = both
 					 2 = not yet init'ed */
-char	*args[16];		/* args passed to teachgammon and back */
-int	acnt;			/* number of args */
-int	aflag;			/* flag to ask for rules or instructions */
-int	bflag;			/* flag for automatic board printing */
-int	cflag;			/* case conversion flag */
-int	hflag;			/* flag for cleaning screen */
-int	mflag;			/* backgammon flag */
-int	raflag;			/* 'roll again' flag for recovered game */
-int	rflag;			/* recovered game flag */
-int	tflag;			/* cursor addressing flag */
-int	rfl;			/* saved value of rflag */
-int	iroll;			/* special flag for inputting rolls */
-int	board[26];		/* board:  negative values are white,
+extern char	*args[16];	/* args passed to teachgammon and back */
+extern int	acnt;		/* number of args */
+extern int	aflag;		/* flag to ask for rules or instructions */
+extern int	bflag;		/* flag for automatic board printing */
+extern int	cflag;		/* case conversion flag */
+extern int	hflag;		/* flag for cleaning screen */
+extern int	mflag;		/* backgammon flag */
+extern int	raflag;		/* 'roll again' flag for recovered game */
+extern int	rflag;		/* recovered game flag */
+extern int	tflag;		/* cursor addressing flag */
+extern int	rfl;		/* saved value of rflag */
+extern int	iroll;		/* special flag for inputting rolls */
+extern int	board[26];	/* board:  negative values are white,
 				   positive are red */
-int	dice[2];		/* value of dice */
-int	mvlim;			/* 'move limit':  max. number of moves */
-int	mvl;			/* working copy of mvlim */
-int	p[5];			/* starting position of moves */
-int	g[5];			/* ending position of moves (goals) */
-int	h[4];			/* flag for each move if a man was hit */
-int	cturn;			/* whose turn it currently is:
+extern int	dice[2];	/* value of dice */
+extern int	mvlim;		/* 'move limit':  max. number of moves */
+extern int	mvl;		/* working copy of mvlim */
+extern int	p[5];		/* starting position of moves */
+extern int	g[5];		/* ending position of moves (goals) */
+extern int	h[4];		/* flag for each move if a man was hit */
+extern int	cturn;		/* whose turn it currently is:
 					-1 = white
 					 1 = red
 					 0 = just quitted
 					-2 = white just lost
 					 2 = red just lost */
-int	d0;			/* flag if dice have been reversed from
+extern int	d0;		/* flag if dice have been reversed from
 				   original position */
-int	table[6][6];		/* odds table for possible rolls */
-int	rscore;			/* red's score */
-int	wscore;			/* white's score */
-int	gvalue;			/* value of game (64 max.) */
-int	dlast;			/* who doubled last (0 = neither) */
-int	bar;			/* position of bar for current player */
-int	home;			/* position of home for current player */
-int	off[2];			/* number of men off board */
-int	*offptr;		/* pointer to off for current player */
-int	*offopp;		/* pointer to off for opponent */
-int	in[2];			/* number of men in inner table */
-int	*inptr;			/* pointer to in for current player */
-int	*inopp;			/* pointer to in for opponent */
+extern int	table[6][6];	/* odds table for possible rolls */
+extern int	rscore;		/* red's score */
+extern int	wscore;		/* white's score */
+extern int	gvalue;		/* value of game (64 max.) */
+extern int	dlast;		/* who doubled last (0 = neither) */
+extern int	bar;		/* position of bar for current player */
+extern int	home;		/* position of home for current player */
+extern int	off[2];		/* number of men off board */
+extern int	*offptr;	/* pointer to off for current player */
+extern int	*offopp;	/* pointer to off for opponent */
+extern int	in[2];		/* number of men in inner table */
+extern int	*inptr;		/* pointer to in for current player */
+extern int	*inopp;		/* pointer to in for opponent */
 
-int	ncin;			/* number of characters in cin */
-char	cin[100];		/* input line of current move
+extern int	ncin;		/* number of characters in cin */
+extern char	cin[100];	/* input line of current move
 				   (used for reconstructing input after
 				   a backspace) */
 
-extern char	*color[];
+extern const char	*const color[];
 				/* colors as strings */
-char	**colorptr;		/* color of current player */
-char	**Colorptr;		/* color of current player, capitalized */
-int	colen;			/* length of color of current player */
+extern const char *const *colorptr;	/* color of current player */
+extern const char *const *Colorptr;	/* color of current player, capitalized */
+extern int	colen;		/* length of color of current player */
 
-struct sgttyb	tty;		/* tty information buffer */
-int		old;		/* original tty status */
-int		noech;		/* original tty status without echo */
-int		raw;		/* raw tty status, no echo */
+extern struct sgttyb	tty;	/* tty information buffer */
+extern int		old;	/* original tty status */
+extern int		noech;	/* original tty status without echo */
+extern int		raw;	/* raw tty status, no echo */
 
-int	curr;			/* row position of cursor */
-int	curc;			/* column position of cursor */
-int	begscr;			/* 'beginning' of screen
+extern int	curr;		/* row position of cursor */
+extern int	curc;		/* column position of cursor */
+extern int	begscr;		/* 'beginning' of screen
 				   (not including board) */
 
-int	getout();		/* function to exit backgammon cleanly */
+void	getout();		/* function to exit backgammon cleanly */

@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 #include <sys/param.h>			/* MAXPATHLEN */
 #include <fcntl.h>
 #include <stdlib.h>
+#include <err.h>
 #include "externs.h"
 
 void
@@ -93,7 +94,10 @@ restore()
 	fread(&loved, sizeof loved, 1, fp);
 	fread(&pleasure, sizeof pleasure, 1, fp);
 	fread(&power, sizeof power, 1, fp);
-	fread(&ego, sizeof ego, 1, fp);
+	/* We must check the last read, to catch truncated save files.  */
+	if (fread(&ego, sizeof ego, 1, fp) < 1)
+		errx(1, "save file %s too short", home1);
+	fclose(fp);
 }
 
 void

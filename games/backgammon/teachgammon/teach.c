@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)teach.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 #include "back.h"
 
 extern char	*hello[];
@@ -61,7 +62,7 @@ extern char	*lastch[];
 
 extern char	ospeed;			/* tty output speed for termlib */
 
-char *helpm[] = {
+const char *const helpm[] = {
 	"\nEnter a space or newline to roll, or",
 	"     b   to display the board",
 	"     d   to double",
@@ -69,7 +70,7 @@ char *helpm[] = {
 	0
 };
 
-char *contin[] = {
+const char *const contin[] = {
 	"",
 	0
 };
@@ -85,7 +86,7 @@ char	**argv;
 	setgid(getgid());
 
 	acnt = 1;
-	signal (2,getout);
+	signal (SIGINT,getout);
 	if (gtty (0,&tty) == -1)			/* get old tty mode */
 		errexit ("teachgammon(gtty)");
 	old = tty.sg_flags;

@@ -45,55 +45,48 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include "back.h"
 
 #define MVPAUSE	5				/* time to sleep when stuck */
 #define MAXUSERS 35				/* maximum number of users */
 
-extern char	*instr[];			/* text of instructions */
-extern char	*message[];			/* update message */
+extern const char	*const instr[];		/* text of instructions */
+extern const char	*const message[];	/* update message */
 char	ospeed;					/* tty output speed */
 
-char	*helpm[] = {				/* help message */
+const char	*helpm[] = {			/* help message */
 	"Enter a space or newline to roll, or",
 	"     R   to reprint the board\tD   to double",
 	"     S   to save the game\tQ   to quit",
 	0
 };
 
-char	*contin[] = {				/* pause message */
+const char	*contin[] = {			/* pause message */
 	"(Type a newline to continue.)",
 	"",
 	0
 };
 
-static char user1a[] =
-	"Sorry, you cannot play backgammon when there are more than ";
-static char user1b[] =
-	" users\non the system.";
-static char user2a[] =
-	"\nThere are now more than ";
-static char user2b[] =
-	" users on the system, so you cannot play\nanother game.  ";
-static char	rules[] = "\nDo you want the rules of the game?";
-static char	noteach[] = "Teachgammon not available!\n\007";
-static char	need[] = "Do you need instructions for this program?";
-static char	askcol[] =
+static const char	rules[] = "\nDo you want the rules of the game?";
+static const char	noteach[] = "Teachgammon not available!\n\007";
+static const char	need[] = "Do you need instructions for this program?";
+static const char	askcol[] =
 	"Enter 'r' to play red, 'w' to play white, 'b' to play both:";
-static char	rollr[] = "Red rolls a ";
-static char	rollw[] = ".  White rolls a ";
-static char	rstart[] = ".  Red starts.\n";
-static char	wstart[] = ".  White starts.\n";
-static char	toobad1[] = "Too bad, ";
-static char	unable[] = " is unable to use that roll.\n";
-static char	toobad2[] = ".  Too bad, ";
-static char	cantmv[] = " can't move.\n";
-static char	bgammon[] = "Backgammon!  ";
-static char	gammon[] = "Gammon!  ";
-static char	again[] = ".\nWould you like to play again?";
-static char	svpromt[] = "Would you like to save this game?";
+static const char	rollr[] = "Red rolls a ";
+static const char	rollw[] = ".  White rolls a ";
+static const char	rstart[] = ".  Red starts.\n";
+static const char	wstart[] = ".  White starts.\n";
+static const char	toobad1[] = "Too bad, ";
+static const char	unable[] = " is unable to use that roll.\n";
+static const char	toobad2[] = ".  Too bad, ";
+static const char	cantmv[] = " can't move.\n";
+static const char	bgammon[] = "Backgammon!  ";
+static const char	gammon[] = "Gammon!  ";
+static const char	again[] = ".\nWould you like to play again?";
+static const char	svpromt[] = "Would you like to save this game?";
 
-static char	password[] = "losfurng";
+static const char	password[] = "losfurng";
 static char	pbuf[10];
 
 main (argc,argv)
@@ -111,7 +104,7 @@ char	**argv;
 	/* initialization */
 	bflag = 2;					/* default no board */
 	acnt = 1;                                       /* Nuber of args */
-	signal (2,getout);				/* trap interrupts */
+	signal (SIGINT,getout);				/* trap interrupts */
 	if (gtty (0,&tty) == -1)			/* get old tty mode */
 		errexit ("backgammon(gtty)");
 	old = tty.sg_flags;
@@ -121,16 +114,6 @@ char	**argv;
 	raw = ((noech = old & ~ECHO) | RAW);		/* set up modes */
 #endif
 	ospeed = tty.sg_ospeed;				/* for termlib */
-
-							/* check user count */
-# ifdef CORY
-	if (ucount() > MAXUSERS)  {
-		writel (user1a);
-		wrint (MAXUSERS);
-		writel (user1b);
-		getout();
-	}
-# endif
 
 							/* get terminal
 							 * capabilities, and
@@ -222,7 +205,7 @@ char	**argv;
 					else
 						writec ('\n');
 					writel ("Password:");
-					signal (14,getout);
+					signal (SIGALRM,getout);
 					cflag = 1;
 					alarm (10);
 					for (i = 0; i < 10; i++)  {
@@ -549,17 +532,6 @@ char	**argv;
 
 							/* write score */
 		wrscore();
-
-							/* check user count */
-# ifdef CORY
-		if (ucount() > MAXUSERS)  {
-			writel (user2a);
-			wrint (MAXUSERS);
-			writel (user2b);
-			rfl = 1;
-			break;
-		}
-# endif
 
 							/* see if he wants
 							 * another game */

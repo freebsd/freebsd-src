@@ -218,7 +218,7 @@
 #define MAXCUMBER	10
 
 struct room {
-	char *name;
+	const char *name;
 	int link[8];
 #define north	link[0]
 #define south	link[1]
@@ -228,7 +228,7 @@ struct room {
 #define access	link[5]
 #define down	link[6]
 #define flyhere	link[7]
-	char *desc;
+	const char *desc;
 	int objects[NUMOFWORDS];
 };
 extern struct room dayfile[];
@@ -236,11 +236,11 @@ extern struct room nightfile[];
 struct room *location;
 
 	/* object characteristics */
-char *objdes[NUMOFOBJECTS];
-char *objsht[NUMOFOBJECTS];
-char *ouch[NUMOFINJURIES];
-int objwt[NUMOFOBJECTS];
-int objcumber[NUMOFOBJECTS];
+const char *const objdes[NUMOFOBJECTS];
+const char *const objsht[NUMOFOBJECTS];
+const char *const ouch[NUMOFINJURIES];
+const int objwt[NUMOFOBJECTS];
+const int objcumber[NUMOFOBJECTS];
 
 	/* current input line */
 #define NWORD	20			/* words per line */
@@ -249,7 +249,7 @@ int wordvalue[NWORD];
 int wordtype[NWORD];
 int wordcount, wordnumber;
 
-char *truedirec(), *rate();
+const char *truedirec(), *rate();
 char *getcom(), *getword();
 
 	/* state of the game */
@@ -284,7 +284,7 @@ char injuries[NUMOFINJURIES];
 char uname[MAXLOGNAME];
 
 struct wlist {
-	char *string;
+	const char *string;
 	int value, article;
 	struct wlist *next;
 };
@@ -298,7 +298,7 @@ struct objs {
 	short room;
 	short obj;
 };
-extern struct objs dayobjs[];
-extern struct objs nightobjs[];
+extern const struct objs dayobjs[];
+extern const struct objs nightobjs[];
 
 gid_t	egid;

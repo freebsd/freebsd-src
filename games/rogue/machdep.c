@@ -254,7 +254,7 @@ md_ignore_signals()
 
 int
 md_get_file_id(fname)
-char *fname;
+const char *fname;
 {
 	struct stat sbuf;
 
@@ -274,7 +274,7 @@ char *fname;
 
 int
 md_link_count(fname)
-char *fname;
+const char *fname;
 {
 	struct stat sbuf;
 
@@ -330,7 +330,7 @@ struct rogue_time *rt_buf;
  */
 
 md_gfmt(fname, rt_buf)
-char *fname;
+const char *fname;
 struct rogue_time *rt_buf;
 {
 	struct stat sbuf;
@@ -362,7 +362,7 @@ struct rogue_time *rt_buf;
 
 boolean
 md_df(fname)
-char *fname;
+const char *fname;
 {
 	if (unlink(fname)) {
 		return(0);
@@ -379,7 +379,7 @@ char *fname;
  * function, but then the score file would only have one name in it.
  */
 
-char *
+const char *
 md_gln()
 {
 	struct passwd *p;
@@ -446,7 +446,7 @@ int nsecs;
 
 char *
 md_getenv(name)
-char *name;
+const char *name;
 {
 	char *value;
 
@@ -493,7 +493,10 @@ int n;
 
 md_gseed()
 {
-	return(getpid());
+	time_t seconds;
+
+	time(&seconds);
+	return((int) seconds);
 }
 
 /* md_exit():
@@ -550,7 +553,7 @@ boolean l;
  */
 
 md_shell(shell)
-char *shell;
+const char *shell;
 {
 	long w[2];
 

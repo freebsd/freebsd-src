@@ -51,8 +51,10 @@ static char sccsid[] = "@(#)wump.c	8.1 (Berkeley) 5/31/93";
  * would care to remember.
  */
 
+#include <err.h>
 #include <sys/types.h>
 #include <sys/file.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -679,7 +681,10 @@ int_compare(a, b)
 
 instructions()
 {
-	char buf[120], *p, *getenv();
+	const char *pager;
+	pid_t pid;
+	int status;
+	int fd;
 
 	/*
 	 * read the instructions file, if needed, and show the user how to
@@ -695,12 +700,26 @@ puff of greasy black smoke! (poof)\n");
 		return;
 	}
 
-	if (!(p = getenv("PAGER")) ||
-	    strlen(p) > sizeof(buf) + strlen(_PATH_WUMPINFO) + 5)
-		p = _PATH_PAGER;
-
-	(void)sprintf(buf, "%s %s", p, _PATH_WUMPINFO);
-	(void)system(buf);
+	if (!isatty(1))
+		pager = "cat";
+	else {
+		if (!(pager = getenv("PAGER")) || (*pager == 0))
+			pager = _PATH_PAGER;
+	}
+	switch (pid = fork()) {
+	case 0: /* child */
+		if ((fd = open(_PATH_WUMPINFO, O_RDONLY)) == -1)
+			err(1, "open %s", _PATH_WUMPINFO);
+		if (dup2(fd, 0) == -1)
+			err(1, "dup2");
+		(void)execl("/bin/sh", "sh", "-c", pager, NULL);
+		err(1, "exec sh -c %s", pager);
+	case -1:
+		err(1, "fork");
+	default:
+		(void)waitpid(pid, &status, 0);
+		break;
+	}
 }
 
 usage()

@@ -79,9 +79,9 @@ static char sccsid[] = "@(#)arithmetic.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <stdlib.h>
 
-char keylist[] = "+-x/";
-char defaultkeys[] = "+-";
-char *keys = defaultkeys;
+const char keylist[] = "+-x/";
+const char defaultkeys[] = "+-";
+const char *keys = defaultkeys;
 int nkeys = sizeof(defaultkeys) - 1;
 int rangemax = 10;
 int nright, nwrong;
@@ -105,10 +105,13 @@ main(argc, argv)
 	int ch, cnt;
 	void intr();
 
+	/* Revoke setgid privileges */
+	setgid(getgid());
+
 	while ((ch = getopt(argc, argv, "r:o:")) != -1)
 		switch(ch) {
 		case 'o': {
-			register char *p;
+			register const char *p;
 
 			for (p = keys = optarg; *p; ++p)
 				if (!index(keylist, *p)) {

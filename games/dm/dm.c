@@ -78,6 +78,7 @@ main(argc, argv)
 		exit(0);
 
 	gametty = ttyname(0);
+	unsetenv("TZ");
 	(void)time(&now);
 	read_config();
 #ifdef LOG

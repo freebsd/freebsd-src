@@ -228,6 +228,7 @@ boolean is_maze;
 
 place_at(obj, row, col)
 object *obj;
+int row, col;
 {
 	obj->row = row;
 	obj->col = col;
@@ -257,6 +258,7 @@ short row, col;
 
 object *
 get_letter_object(ch)
+int ch;
 {
 	object *obj;
 
@@ -281,11 +283,11 @@ object *objlist;
 	}
 }
 
-char *
+const char *
 name_of(obj)
-object *obj;
+const object *obj;
 {
-	char *retstring;
+	const char *retstring;
 
 	switch(obj->what_is) {
 	case SCROL:
@@ -602,7 +604,7 @@ put_stairs()
 }
 
 get_armor_class(obj)
-object *obj;
+const object *obj;
 {
 	if (obj) {
 		return(obj->class + obj->d_enchant);

@@ -45,8 +45,9 @@ wordinit()
 		install(w);
 }
 
+int
 hash(s)
-	register char *s;
+	const char *s;
 {
 	register hashval = 0;
 
@@ -60,7 +61,7 @@ hash(s)
 
 struct wlist *
 lookup(s)
-	char *s;
+	const char *s;
 {
 	register struct wlist *wp;
 

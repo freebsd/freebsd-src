@@ -37,6 +37,8 @@
 /
 *************************************************************************/
 
+void Error();
+
 static char *files[] = {		/* all files to create */
 	_SPATH_MONST,
 	_SPATH_PEOPLE,
@@ -221,6 +223,7 @@ main(argc, argv)
 /
 *************************************************************************/
 
+void
 Error(str, file)
 char	*str, *file;
 {
