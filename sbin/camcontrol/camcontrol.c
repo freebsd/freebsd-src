@@ -3033,6 +3033,7 @@ usage(int verbose)
 "-E                have the kernel attempt to perform SCSI error recovery\n"
 "-C count          specify the SCSI command retry count (needs -E to work)\n"
 "modepage arguments:\n"
+"-l                list all available mode pages\n"
 "-m page           specify the mode page to view or edit\n"
 "-e                edit the specified mode page\n"
 "-b                force view to binary mode\n"
