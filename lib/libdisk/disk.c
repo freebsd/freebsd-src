@@ -499,7 +499,7 @@ Disk_Names()
 
     disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
-#ifndef PC98
+#if !defined(PC98) && !defined(KERN_DISKS_BROKEN)
     error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
     if (!error) {
 	    disklist = (char *)malloc(listsize);
