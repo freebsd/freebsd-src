@@ -164,7 +164,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
+		if (!arpresolve(ifp, rt, m, dst, edst))
 			return (0);	/* if not yet resolved */
 		type = htons(ETHERTYPE_IP);
 		break;

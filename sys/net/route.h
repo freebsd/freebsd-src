@@ -107,17 +107,14 @@ struct rtentry {
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
-	long	rt_refcnt;		/* # held references */
 	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface address to use */
+	struct	rt_metrics_lite rt_rmx;	/* metrics used by rx'ing protocols */
+	long	rt_refcnt;		/* # held references */
 	struct	sockaddr *rt_genmask;	/* for generation of cloned routes */
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
-	struct	rt_metrics_lite rt_rmx;	/* metrics used by rx'ing protocols */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
-	int	(*rt_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *);
-					/* output routine for this (rt,if) */
 	struct	rtentry *rt_parent; 	/* cloning parent of this route */
 #ifdef _KERNEL
 	/* XXX ugly, user apps use this definition but don't have a mtx def */
