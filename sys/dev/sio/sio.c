@@ -1152,8 +1152,10 @@ determined_type: ;
 	com->devs[5] = make_dev(&sioc_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
-	for (rid = 0; rid < 6; rid++)
+	for (rid = 0; rid < 6; rid++) {
 		com->devs[rid]->si_drv1 = com;
+		com->devs[rid]->si_tty = tp;
+	}
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 
@@ -1523,7 +1525,7 @@ siowrite(dev, uio, flag)
 	mynor = minor(dev);
 
 	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = dev->si_drv1;
 	if (com == NULL || com->gone)
 		return (ENODEV);
 	/*
@@ -1991,10 +1993,10 @@ siocioctl(dev, cmd, data, flag, td)
 	struct termios	*ct;
 
 	mynor = minor(dev);
-	com = com_addr(MINOR_TO_UNIT(mynor));
-	tp = com->tp;
+	com = dev->si_drv1;
 	if (com == NULL || com->gone)
 		return (ENODEV);
+	tp = com->tp;
 
 	switch (mynor & CONTROL_MASK) {
 	case CONTROL_INIT_STATE:
