@@ -2162,12 +2162,11 @@ ndis_sleep(usecs)
 	uint32_t		usecs;
 {
 	struct timeval		tv;
-	uint32_t		dummy;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = usecs;
 
-	tsleep(&dummy, PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+	ndis_thsuspend(curthread->td_proc, tvtohz(&tv));
 
 	return;
 }
