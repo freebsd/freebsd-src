@@ -58,10 +58,10 @@ This interface is made obsolete by sigaction(2).
 .Pp
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
-the signal is blocked from further occurrence, the current process 
+the signal is blocked from further occurrence, the current process
 context is saved, and a new one is built.  A process may specify a
 .Em handler
-to which a signal is delivered, or specify that a signal is to be 
+to which a signal is delivered, or specify that a signal is to be
 .Em blocked
 or
 .Em ignored .
@@ -78,7 +78,7 @@ Signal routines execute with the signal that caused their
 invocation
 .Em blocked ,
 but other signals may yet occur.
-A global 
+A global
 .Em "signal mask"
 defines the set of signals currently blocked from delivery
 to a process.  The signal mask for a process is initialized
@@ -95,7 +95,7 @@ signals pending for the process.  If the signal is not currently
 .Em blocked
 by the process then it is delivered to the process.  When a signal
 is delivered, the current state of the process is saved,
-a new signal mask is calculated (as described below), 
+a new signal mask is calculated (as described below),
 and the signal handler is invoked.  The call to the handler
 is arranged so that if the signal handling routine returns
 normally the process will resume execution in the context
@@ -111,7 +111,7 @@ or
 .Xr sigsetmask 2
 call is made).
 This mask is formed by taking the current signal mask,
-adding the signal to be delivered, and 
+adding the signal to be delivered, and
 .Em or Ns 'ing
 in the signal mask associated with the handler to be invoked.
 .Pp
@@ -129,7 +129,7 @@ the system will deliver the signal to the process on a
 .Em "signal stack" ,
 specified with
 .Xr sigaltstack 2 .
-If 
+If
 .Fa ovec
 is non-zero, the previous handling information for the signal
 is returned to the user.
@@ -241,7 +241,7 @@ Ignored signals remain ignored;
 the signal mask remains the same;
 signals that interrupt system calls continue to do so.
 .Sh NOTES
-The mask specified in 
+The mask specified in
 .Fa vec
 is not allowed to block
 .Dv SIGKILL
@@ -267,7 +267,7 @@ of the following occurs:
 .It Bq Er EFAULT
 Either
 .Fa vec
-or 
+or
 .Fa ovec
 points to memory that is not a valid part of the process
 address space.
@@ -309,7 +309,7 @@ struct sigcontext *scp;
 Here
 .Fa sig
 is the signal number, into which the hardware faults and traps are
-mapped as defined below. 
+mapped as defined below.
 .Fa Code
 is a parameter that is either a constant
 as given below or, for compatibility mode faults, the code provided by

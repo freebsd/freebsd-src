@@ -122,7 +122,7 @@ and
 signals;
 process groups are specified by supplying
 .Fa arg
-as negative, otherwise 
+as negative, otherwise
 .Fa arg
 is interpreted as a process ID.
 .El
@@ -302,7 +302,7 @@ locks conflicts with the type specified in the request.
 This interface follows the completely stupid semantics of System V and
 .St -p1003.1-88
 that require that all locks associated with a file for a given process are
-removed when 
+removed when
 .Em any
 file descriptor for that file is closed by that process.
 This semantic means that applications must be aware of any files that
@@ -311,7 +311,7 @@ For example if an application for updating the password file locks the
 password file database while making the update, and then calls
 .Xr getpwnam 3
 to retrieve a record,
-the lock will be lost because 
+the lock will be lost because
 .Xr getpwnam 3
 opens, reads, and closes the password database.
 The database close will release all locks that the process has
@@ -329,9 +329,9 @@ allows locks to be inherited by child processes.
 is recommended for applications that want to ensure the integrity
 of their locks when using library routines or wish to pass locks
 to their children.
-Note that 
+Note that
 .Xr flock 2
-and 
+and
 .Xr fcntl 2
 locks may be safely used concurrently.
 .Pp
@@ -497,10 +497,10 @@ or
 and satisfying the lock or unlock request would result in the
 number of locked regions in the system exceeding a system-imposed limit.
 .It Bq Er EPERM
-.Fa Cmd    
-is 
+.Fa Cmd
+is
 .Dv F_SETOWN
-and 
+and
 the process ID or process group given as an argument is in a
 different session than the caller.
 .It Bq Er ESRCH
@@ -511,7 +511,7 @@ and
 the process ID given as argument is not in use.
 .El
 .Pp
-In addition, if 
+In addition, if
 .Fa fd
 refers to a descriptor open on a terminal device (as opposed to a
 descriptor open on a socket), a

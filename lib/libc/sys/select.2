@@ -110,7 +110,7 @@ is a non-nil pointer, it specifies the maximum interval to wait for the
 selection to complete.  System activity can lengthen the interval by
 an indeterminate amount.
 .Pp
-If 
+If
 .Fa timeout
 is a nil pointer, the select blocks indefinitely.
 .Pp
@@ -168,7 +168,7 @@ was invalid.
 The default size of
 .Dv FD_SETSIZE
 is currently 1024.
-In order to accommodate programs which might potentially 
+In order to accommodate programs which might potentially
 use a larger number of open files with
 .Fn select
 , it is possible
@@ -179,14 +179,14 @@ before the inclusion of any header which includes
 .Pp
 If
 .Fa nfds
-is greater than the number of open files, 
+is greater than the number of open files,
 .Fn select
 is not guaranteed to examine the unused file descriptors.   For historical
-reasons, 
+reasons,
 .Fn select
 will always examine the first 256 descriptors.
 .Sh BUGS
-.St -susv2 
+.St -susv2
 allows systems to modify the original timeout in place.
 Thus, it is unwise to assume that the timeout value will be unmodified
 by the

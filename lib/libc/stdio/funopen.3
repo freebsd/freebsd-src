@@ -58,7 +58,7 @@ The
 function
 associates a stream with up to four
 .Dq Tn I/O No functions .
-Either 
+Either
 .Fa readfn
 or
 .Fa writefn
@@ -73,7 +73,7 @@ close the new stream.
 .Pp
 In general, omitting a function means that any attempt to perform the
 associated operation on the resulting stream will fail.
-If the close function is omitted, closing the stream will flush 
+If the close function is omitted, closing the stream will flush
 any buffered output and then succeed.
 .Pp
 The calling conventions of
@@ -90,7 +90,7 @@ and
 .Xr close 2
 with the single exception that they are passed the
 .Fa cookie
-argument specified to 
+argument specified to
 .Fn funopen
 in place of the traditional file descriptor argument.
 .Pp
@@ -112,7 +112,7 @@ Additionally, all of the functions should set the external variable
 .Va errno
 appropriately if an error occurs.
 .Pp
-An error on 
+An error on
 .Fn closefn
 does not keep the stream open.
 .Pp
@@ -126,7 +126,7 @@ as calls to
 .Fn funopen
 with only a read or write function specified.
 .Sh RETURN VALUES
-Upon successful completion, 
+Upon successful completion,
 .Fn funopen
 returns a
 .Dv FILE

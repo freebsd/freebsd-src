@@ -166,25 +166,25 @@ to any value specified by the
 function.
 .Sh NOTES
 A common problem that results in a core dump is that the programmer
-passes in a read-only string to 
+passes in a read-only string to
 .Fn mktemp ,
 .Fn mkstemp ,
 .Fn mkstemps
 or
 .Fn mkdtemp .
-This is common with programs that were developed before 
+This is common with programs that were developed before
 .St -isoC
 compilers were common.
 For example, calling
 .Fn mkstemp
-with an argument of 
+with an argument of
 .Qq /tmp/tempfile.XXXXXX
-will result in a core dump due to 
+will result in a core dump due to
 .Fn mkstemp
 attempting to modify the string constant that was given.
 If the program in question makes heavy use of that type
 of function call, you do have the option of compiling the program
-so that it will store string constants in a writable segment of memory.  
+so that it will store string constants in a writable segment of memory.
 See
 .Xr gcc 1
 for more information.
@@ -196,7 +196,7 @@ are used to
 increase the number of possible temporary filenames.
 This makes the race in
 .Fn mktemp ,
-between testing for a file's existence (in the 
+between testing for a file's existence (in the
 .Fn mktemp
 function call)
 and opening it for use
@@ -232,13 +232,13 @@ The
 .Fn mkstemp
 function appeared in
 .Bx 4.4 .
-The 
+The
 .Fn mkdtemp
 function first appeared in
 .Ox 2.2 ,
 and later in
 .Fx 3.2 .
-The 
+The
 .Fn mkstemps
 function first appeared in
 .Ox 2.4 ,

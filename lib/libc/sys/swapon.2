@@ -46,12 +46,12 @@
 .Fn swapon "const char *special"
 .Sh DESCRIPTION
 .Fn Swapon
-makes the block device 
+makes the block device
 .Fa special
 available to the system for
 allocation for paging and swapping.  The names of potentially
 available devices are known to the system and defined at system
-configuration time.  The size of the swap area on 
+configuration time.  The size of the swap area on
 .Fa special
 is calculated at the time the device is first made available
 for swapping.
@@ -90,7 +90,7 @@ The device configured by
 was not
 configured into the system as a swap device.
 .It Bq Er ENXIO
-The major device number of 
+The major device number of
 .Fa special
 is out of range (this indicates no device driver exists
 for the associated hardware).

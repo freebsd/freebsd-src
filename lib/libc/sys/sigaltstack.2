@@ -70,7 +70,7 @@ call), the system checks to see
 if the process is currently executing on that stack.
 If the process is not currently executing on the signal stack,
 the system arranges a switch to the signal stack for the
-duration of the signal handler's execution. 
+duration of the signal handler's execution.
 .Pp
 If
 .Dv SS_DISABLE
@@ -134,7 +134,7 @@ If the stack overflows and this space is not protected
 unpredictable results may occur.
 .Sh RETURN VALUES
 Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and 
+Otherwise, a value of -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS

@@ -45,20 +45,20 @@
 .Nd IEEE test functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
-.Ft double 
+.Ft double
 .Fn logb "double x"
-.Ft float 
+.Ft float
 .Fn logbf "float x"
-.Ft double 
+.Ft double
 .Fn scalb "double x" "double n"
-.Ft float 
+.Ft float
 .Fn scalbf "float x" "float n"
 .Ft double
 .Fn significand "double x"
 .Ft float
 .Fn significandf "float x"
 .Sh DESCRIPTION
-These functions allow users to test conformance to 
+These functions allow users to test conformance to
 .St -ieee754 .
 Their use is not otherwise recommended.
 .Pp
@@ -81,22 +81,22 @@ return
 .Fa x Ns \(**(2** Ns Fa n )
 computed by exponent manipulation.
 .Pp
-.Fn significand x 
+.Fn significand x
 and
-.Fn significandf x 
+.Fn significandf x
 return
 .Fa sig ,
-where 
-.Fa x 
-:= 
+where
+.Fa x
+:=
 .Fa sig No \(** 2** Ns Fa n
-with 1 \(<= 
+with 1 \(<=
 .Fa sig
 < 2.
 .Fn significand x
 and
 .Fn significandf x
-are not defined when 
+are not defined when
 .Fa x
 is 0, \*(Pm\*(If, or \*(Na.
 .Sh SEE ALSO

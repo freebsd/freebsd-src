@@ -63,9 +63,9 @@ function suspends execution of its calling process until
 .Fa status
 information is available for a terminated child process,
 or a signal is received.
-On return from a successful 
+On return from a successful
 .Fn wait
-call, 
+call,
 the
 .Fa status
 area contains termination information about the process that exited
@@ -131,9 +131,9 @@ for stopped processes).
 When the
 .Dv WNOHANG
 option is specified and no processes
-wish to report status, 
+wish to report status,
 .Fn wait4
-returns a 
+returns a
 process id
 of 0.
 .Pp

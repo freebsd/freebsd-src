@@ -1,6 +1,6 @@
 .\" Copyright (c) 1994, Henrik Vestergaard Draboel
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -26,7 +26,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
 .\"
 .Dd July 23, 1994
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/rtprio.h>
-.Ft int 
+.Ft int
 .Fn rtprio "int function" "pid_t pid" "struct rtprio *rtp"
 .Sh DESCRIPTION
 .Fn rtprio
@@ -48,13 +48,13 @@ is used to lookup or change the realtime or idle priority of a process.
 .Pp
 .Fa function
 specifies the operation to be performed.
-RTP_LOOKUP to lookup the current priority, 
+RTP_LOOKUP to lookup the current priority,
 and RTP_SET to set the priority.
 .Fa pid
 specifies the process to be used, 0 for the current process.
 .Pp
 .Fa *rtp
-is a pointer to a struct rtprio which is used to specify the priority and priority type. 
+is a pointer to a struct rtprio which is used to specify the priority and priority type.
 This structure has the following form:
 .Bd -literal
 struct rtprio {
@@ -69,7 +69,7 @@ field may be RTP_PRIO_REALTIME for realtime priorities,
 RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
 The priority specified by the
 .Nm prio
-field ranges between 0 and  
+field ranges between 0 and
 .Dv RTP_PRIO_MAX (usually 31) .
 0 is the highest possible priority.
 .Pp
@@ -89,7 +89,7 @@ The global variable
 will be set to indicate the error.
 .Sh ERRORS
 .Fn rtprio
-will fail if 
+will fail if
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The specified

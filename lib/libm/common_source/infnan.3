@@ -44,7 +44,7 @@
 .Lb libm
 .Sh SYNOPSIS
 .Fd #include <math.h>
-.Ft double 
+.Ft double
 .Fn infnan "int iarg"
 .Sh DESCRIPTION
 At some time in the future, some of the useful properties of
@@ -67,7 +67,7 @@ in appropriate places in
 .Xr libm 3 .
 When
 better exception\-handling is implemented in
-.Tn UNIX , 
+.Tn UNIX ,
 only
 .Fn infnan
 among the codes in
@@ -115,7 +115,7 @@ when they
 invoke
 .Fn infnan iarg
 under analogous circumstances on a
-.Tn VAX . 
+.Tn VAX .
 Currently
 .Fn infnan
 stops computation under all those
@@ -126,7 +126,7 @@ and a value for a
 revised
 .Fn infnan
 to return.  And a C program to
-implement that suggestion follows. 
+implement that suggestion follows.
 .Bl -column "IEEE Signal" "IEEE Default" XXERANGE ERANGEXXorXXEDOM
 .It "IEEE Signal	IEEE Default	" Fa iarg Ta Va errno Ta Fn infnan
 .It "Invalid	\*(Na	" Er "EDOM	EDOM	0"
@@ -173,5 +173,5 @@ and
 .Sh HISTORY
 The
 .Fn infnan
-function appeared in 
+function appeared in
 .Bx 4.3 .
