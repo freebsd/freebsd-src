@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.83 2004/04/09 17:08:12 rsm Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.84 2004/05/10 02:24:55 emax Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -160,6 +160,9 @@
 #define	PCMCIA_CIS_3COM_3CXEM556INT	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_3COM_3CXEM556INT	0x003d
 #define	PCMCIA_STR_3COM_3CXEM556INT	"3Com/Megahertz 3CXEM556-INT Ethernet/Modem"
+#define	PCMCIA_CIS_3COM_3CRWB609	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_3COM_3CRWB609	0x0400
+#define	PCMCIA_STR_3COM_3CRWB609	"3Com Bluetooth PC Card 3CRWB60-A"
 #define	PCMCIA_CIS_3COM_3CCFEM556BI	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_3COM_3CCFEM556BI	0x0556
 #define	PCMCIA_STR_3COM_3CCFEM556BI	"3Com/Megahertz 3CCFEM556BI Ethernet/Modem"
