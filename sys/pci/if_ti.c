@@ -224,7 +224,7 @@ static driver_t ti_driver = {
 
 static devclass_t ti_devclass;
 
-DRIVER_MODULE(ti, pci, ti_driver, ti_devclass, 0, 0);
+DRIVER_MODULE(if_ti, pci, ti_driver, ti_devclass, 0, 0);
 
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
