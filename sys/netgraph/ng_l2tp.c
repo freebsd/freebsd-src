@@ -130,8 +130,6 @@ struct l2tp_seq {
 	u_int16_t		max_rexmit_to;	/* max retransmit timeout */
 	struct callout		rack_timer;	/* retransmit timer */
 	struct callout		xack_timer;	/* delayed ack timer */
-	u_char			rack_timer_running;	/* xmit timer running */
-	u_char			xack_timer_running;	/* ack timer running */
 	struct mbuf		*xwin[L2TP_MAX_XWIN];	/* transmit window */
 };
 
@@ -180,8 +178,10 @@ static void	ng_l2tp_seq_reset(priv_p priv);
 static void	ng_l2tp_seq_failure(priv_p priv);
 static void	ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr);
 static int	ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns);
-static void	ng_l2tp_seq_xack_timeout(void *arg);
-static void	ng_l2tp_seq_rack_timeout(void *arg);
+static void	ng_l2tp_seq_xack_timeout(node_p node, hook_p hook,
+		    void *arg1, int arg2);
+static void	ng_l2tp_seq_rack_timeout(node_p node, hook_p hook,
+		    void *arg1, int arg2);
 
 static ng_fn_eachhook	ng_l2tp_find_session;
 static ng_fn_eachhook	ng_l2tp_reset_session;
@@ -713,10 +713,10 @@ ng_l2tp_shutdown(node_p node)
 	ng_l2tp_seq_reset(priv);
 
 	/* Free private data if neither timer is running */
-	if (!seq->rack_timer_running && !seq->xack_timer_running) {
-		FREE(priv, M_NETGRAPH_L2TP);
-		NG_NODE_SET_PRIVATE(node, NULL);
-	}
+	ng_uncallout(&seq->rack_timer, node);
+	ng_uncallout(&seq->xack_timer, node);
+
+	FREE(priv, M_NETGRAPH_L2TP);
 
 	/* Unref node */
 	NG_NODE_UNREF(node);
@@ -1048,21 +1048,18 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	seq->xwin[i] = m;
 
 	/* Sanity check receive ack timer state */
-	KASSERT((i == 0) ^ seq->rack_timer_running,
-	    ("%s: xwin %d full but rack timer %srunning",
-	    __FUNCTION__, i, seq->rack_timer_running ? "" : "not "));
+	KASSERT((i == 0) ^ callout_pending(&seq->rack_timer),
+	    ("%s: xwin %d full but rack timer %s running",
+	    __FUNCTION__, i, callout_pending(&seq->rack_timer) ? "" : "not "));
 
 	/* If peer's receive window is already full, nothing else to do */
 	if (i >= seq->cwnd)
 		return (0);
 
 	/* Start retransmit timer if not already running */
-	if (!seq->rack_timer_running) {
-		callout_reset(&seq->rack_timer,
-		    hz, ng_l2tp_seq_rack_timeout, node);
-		seq->rack_timer_running = 1;
-		NG_NODE_REF(node);
-	}
+	if (!callout_pending(&seq->rack_timer))
+		ng_callout(&seq->rack_timer, node, NULL,
+		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/* Copy packet */
 	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL) {
@@ -1168,8 +1165,8 @@ ng_l2tp_seq_init(priv_p priv)
 	seq->ssth = seq->wmax;
 	seq->max_rexmits = priv->conf.rexmit_max;
 	seq->max_rexmit_to = priv->conf.rexmit_max_to;
-	callout_init(&seq->rack_timer, 0);
-	callout_init(&seq->xack_timer, 0);
+	ng_callout_init(&seq->rack_timer);
+	ng_callout_init(&seq->xack_timer);
 	L2TP_SEQ_CHECK(seq);
 }
 
@@ -1245,14 +1242,8 @@ ng_l2tp_seq_reset(priv_p priv)
 	L2TP_SEQ_CHECK(seq);
 
 	/* Stop timers */
-	if (seq->rack_timer_running && callout_stop(&seq->rack_timer) == 1) {
-		seq->rack_timer_running = 0;
-		NG_NODE_UNREF(priv->node);
-	}
-	if (seq->xack_timer_running && callout_stop(&seq->xack_timer) == 1) {
-		seq->xack_timer_running = 0;
-		NG_NODE_UNREF(priv->node);
-	}
+	ng_uncallout(&seq->rack_timer, priv->node);
+	ng_uncallout(&seq->xack_timer, priv->node);
 
 	/* Free retransmit queue */
 	for (i = 0; i < L2TP_MAX_XWIN; i++) {
@@ -1336,20 +1327,16 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	}
 
 	/* Stop xmit timer */
-	if (seq->rack_timer_running && callout_stop(&seq->rack_timer) == 1) {
-		seq->rack_timer_running = 0;
-		NG_NODE_UNREF(priv->node);
-	}
+	if (callout_pending(&seq->rack_timer))
+		ng_uncallout(&seq->rack_timer, priv->node);
 
 	/* If transmit queue is empty, we're done for now */
 	if (seq->xwin[0] == NULL)
 		return;
 
 	/* Start restransmit timer again */
-	callout_reset(&seq->rack_timer,
-	    hz, ng_l2tp_seq_rack_timeout, priv->node);
-	seq->rack_timer_running = 1;
-	NG_NODE_REF(priv->node);
+	ng_callout(&seq->rack_timer, priv->node, NULL,
+	    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/*
 	 * Send more packets, trying to keep peer's receive window full.
@@ -1395,12 +1382,9 @@ ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
 	seq->nr++;
 
 	/* Start receive ack timer, if not already running */
-	if (!seq->xack_timer_running) {
-		callout_reset(&seq->xack_timer,
-		    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout, priv->node);
-		seq->xack_timer_running = 1;
-		NG_NODE_REF(priv->node);
-	}
+	if (!callout_pending(&seq->xack_timer))
+		ng_callout(&seq->xack_timer, priv->node, NULL,
+		    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout, NULL, 0);
 
 	/* Accept packet */
 	return (0);
@@ -1411,25 +1395,10 @@ ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
  * were hoping to piggy-back, but haven't, so send a ZLB.
  */
 static void
-ng_l2tp_seq_xack_timeout(void *arg)
+ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const node_p node = arg;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct l2tp_seq *const seq = &priv->seq;
-	int s;
-
-	/* Check if node is going away */
-	s = splnet();
-	if (NG_NODE_NOT_VALID(node)) {
-		seq->xack_timer_running = 0;
-		if (!seq->rack_timer_running) {
-			FREE(priv, M_NETGRAPH_L2TP);
-			NG_NODE_SET_PRIVATE(node, NULL);
-		}
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
@@ -1439,10 +1408,7 @@ ng_l2tp_seq_xack_timeout(void *arg)
 		ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
 
 	/* Done */
-	seq->xack_timer_running = 0;
-	NG_NODE_UNREF(node);
 	L2TP_SEQ_CHECK(seq);
-	splx(s);
 }
 
 /* 
@@ -1450,37 +1416,20 @@ ng_l2tp_seq_xack_timeout(void *arg)
  * with an ack for our packet, so retransmit it.
  */
 static void
-ng_l2tp_seq_rack_timeout(void *arg)
+ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const node_p node = arg;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct l2tp_seq *const seq = &priv->seq;
 	struct mbuf *m;
 	u_int delay;
-	int s;
-
-	/* Check if node is going away */
-	s = splnet();
-	if (NG_NODE_NOT_VALID(node)) {
-		seq->rack_timer_running = 0;
-		if (!seq->xack_timer_running) {
-			FREE(priv, M_NETGRAPH_L2TP);
-			NG_NODE_SET_PRIVATE(node, NULL);
-		}
-		NG_NODE_UNREF(node);
-		splx(s);
-		return;
-	}
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 
 	/* Make sure peer's ack is still outstanding before doing anything */
-	if (seq->rack == seq->ns) {
-		seq->rack_timer_running = 0;
-		NG_NODE_UNREF(node);
+	if (seq->rack == seq->ns)
 		goto done;
-	}
+
 	priv->stats.xmitRetransmits++;
 
 	/* Have we reached the retransmit limit? If so, notify owner. */
@@ -1491,8 +1440,8 @@ ng_l2tp_seq_rack_timeout(void *arg)
 	delay = (seq->rexmits > 12) ? (1 << 12) : (1 << seq->rexmits);
 	if (delay > seq->max_rexmit_to)
 		delay = seq->max_rexmit_to;
-	callout_reset(&seq->rack_timer,
-	    hz * delay, ng_l2tp_seq_rack_timeout, node);
+	ng_callout(&seq->rack_timer, node, NULL,
+	    hz * delay, ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/* Do slow-start/congestion algorithm windowing algorithm */
 	seq->ssth = (seq->cwnd + 1) / 2;
@@ -1508,7 +1457,6 @@ ng_l2tp_seq_rack_timeout(void *arg)
 done:
 	/* Done */
 	L2TP_SEQ_CHECK(seq);
-	splx(s);
 }
 
 /*
@@ -1565,10 +1513,9 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	priv->stats.xmitOctets += m->m_pkthdr.len;
 
 	/* Stop ack timer: we're sending an ack with this packet */
-	if (seq->xack_timer_running && callout_stop(&seq->xack_timer) == 1) {
-		seq->xack_timer_running = 0;
-		NG_NODE_UNREF(priv->node);
-	}
+	if (callout_pending(&seq->xack_timer))
+		ng_uncallout(&seq->xack_timer, priv->node);
+
 	seq->xack = seq->nr;
 
 	/* Send packet */
@@ -1601,10 +1548,8 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 	CHECK(self_unack >= 0);
 	CHECK(peer_unack >= 0);
 	CHECK(peer_unack <= seq->wmax);
-	CHECK((self_unack == 0) ^ seq->xack_timer_running);
-	CHECK((peer_unack == 0) ^ seq->rack_timer_running);
-	CHECK(seq->rack_timer_running || !callout_pending(&seq->rack_timer));
-	CHECK(seq->xack_timer_running || !callout_pending(&seq->xack_timer));
+	CHECK((self_unack == 0) ^ callout_pending(&seq->xack_timer));
+	CHECK((peer_unack == 0) ^ callout_pending(&seq->rack_timer));
 	for (i = 0; i < peer_unack; i++)
 		CHECK(seq->xwin[i] != NULL);
 	for ( ; i < seq->cwnd; i++)	    /* verify peer's recv window full */
@@ -1613,5 +1558,3 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 #undef CHECK
 }
 #endif	/* INVARIANTS */
-
-
