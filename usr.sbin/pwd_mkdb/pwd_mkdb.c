@@ -115,10 +115,10 @@ main(int argc, char *argv[])
 	char sbuf2[MAXPATHLEN];
 	char *username;
 	u_int method, methoduid;
-	int Cflag;
+	int Cflag, dflag, iflag;
 	int nblock = 0;
 
-	Cflag = 0;
+	iflag = dflag = Cflag = 0;
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
@@ -131,7 +131,11 @@ main(int argc, char *argv[])
 			nblock = LOCK_NB;	/* will fail if locked */
 			break;
 		case 'd':
+			dflag++;
 			strlcpy(prefix, optarg, sizeof(prefix));
+			break;
+		case 'i':
+			iflag++;
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
@@ -184,7 +188,7 @@ main(int argc, char *argv[])
 
 		if (!(fp = fopen(pname, "r")))
 			error(pname);
-		if (flock(fileno(fp), LOCK_EX|nblock) < 0)
+		if (flock(fileno(fp), LOCK_EX|nblock) < 0 && !(dflag && iflag))
 			error("flock");
 		if (fstat(fileno(fp), &st) < 0)
 			error(pname);
@@ -752,6 +756,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: pwd_mkdb [-C] [-N] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
+"usage: pwd_mkdb [-C] [-N] [-i] [-p] [-d <dest dir>] [-s <cachesize>] [-u <local username>] file\n");
 	exit(1);
 }
