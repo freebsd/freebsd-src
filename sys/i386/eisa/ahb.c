@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.5 1999/01/28 01:33:02 dillon Exp $
+ *	$Id: ahb.c,v 1.6 1999/01/28 03:30:02 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -1160,12 +1160,17 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	{
 		int i;
+		int s;
 
+		s = splcam();
 		ahb->immed_cmd = IMMED_RESET;
 		ahbqueuembox(ahb, IMMED_RESET, ATTN_IMMED|ccb->ccb_h.target_id);
 		/* Poll for interrupt completion */
-		for (i = 1000; ahb->immed_cmd != 0 && i != 0; i--)
+		for (i = 1000; ahb->immed_cmd != 0 && i != 0; i--) {
 			DELAY(1000);
+			ahbintr(cam_sim_softc(sim));
+		}
+		splx(s);
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
