@@ -264,7 +264,6 @@ struct	servtab *servtab;
 
 extern struct biltin biltins[];
 
-#define NUMINT	(sizeof(intab) / sizeof(struct inent))
 const char	*CONFIG = _PATH_INETDCONF;
 const char	*pid_file = _PATH_INETDPID;
 
