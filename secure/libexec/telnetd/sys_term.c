@@ -1833,10 +1833,16 @@ scrub_env()
 	register char **cpp, **cpp2;
 
 	for (cpp2 = cpp = environ; *cpp; cpp++) {
-		if (!strncmp(*cpp, "LD_", 3) &&
-		    !strncmp(*cpp, "_RLD_", 5) &&
-		    !strncmp(*cpp, "LIBPATH=", 8) &&
-		    !strncmp(*cpp, "IFS=", 4))
+#ifdef __FreeBSD__
+		if (strncmp(*cpp, "LD_LIBRARY_PATH=", 16) &&
+		    strncmp(*cpp, "LD_NOSTD_PATH=", 14) &&
+		    strncmp(*cpp, "LD_PRELOAD=", 11) &&
+#else
+		if (strncmp(*cpp, "LD_", 3) &&
+		    strncmp(*cpp, "_RLD_", 5) &&
+		    strncmp(*cpp, "LIBPATH=", 8) &&
+#endif
+		    strncmp(*cpp, "IFS=", 4))
 			*cpp2++ = *cpp;
 	}
 	*cpp2 = 0;
