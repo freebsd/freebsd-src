@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.7 1995/07/21 20:52:21 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.8 1995/07/22 01:29:28 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,17 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.7 1995/07/21 20:52:21 bde Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.8  1995/07/22  01:29:28  bde
+ * Move the inline code for waking up writers to a new function
+ * ttwwakeup().  The conditions for doing the wakeup will soon become
+ * more complicated and I don't want them duplicated in all drivers.
+ *
+ * It's probably not worth making ttwwakeup() a macro or an inline
+ * function.  The cost of the function call is relatively small when
+ * there is a process to wake up.  There is usually a process to wake
+ * up for large writes and the system call overhead dwarfs the function
+ * call overhead for small writes.
+ *
  * Revision 1.7  1995/07/21  20:52:21  bde
  * Obtained from:	partly from ancient patches by ache and me via 1.1.5
  *
@@ -153,7 +164,7 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	while ((flag & O_NONBLOCK) == 0 && (tp->t_cflag & CLOCAL) == 0 &&
 	       (tp->t_state & TS_CARR_ON) == 0)
 	{
-		if (error = ttysleep(tp, (caddr_t) & tp->t_rawq, TTIPRI | PCATCH,
+		if (error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
 				     "iidcd", 0))
 			break;
 	}

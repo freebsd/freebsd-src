@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.9 1995/07/21 22:51:31 bde Exp $
+ *	$Id: cy.c,v 1.10 1995/07/22 01:29:58 bde Exp $
  */
 
 #include "cy.h"
@@ -150,11 +150,6 @@
 /* We encode the cyclom unit number (cyu) in spare bits in the IVR's. */
 #define	CD1400_xIVR_CHAN_SHIFT	3
 #define	CD1400_xIVR_CHAN	0x0F	/* XXX reduce to pack Cyclom-8Ys */
-
-/*
- * XXX temporary kludges for 2.0 (XXX TK2.0).
- */
-#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -396,7 +391,7 @@ static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
-#if 0 /* XXX TK2.0 */
+#if 0 /* XXX */
 static struct tty	*sio_tty[NSIO];
 #else
 static struct tty	sio_tty[NSIO];
@@ -622,7 +617,7 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
-#if 0 /* XXX TK2.0 */
+#if 0 /* XXX */
 	tp = com->tp = sio_tty[unit] = ttymalloc(sio_tty[unit]);
 #else
 	tp = com->tp = &sio_tty[unit];

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.13 1995/07/21 20:52:40 bde Exp $
+ * $Id: tty_pty.c,v 1.14 1995/07/22 01:30:32 bde Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ ptsopen(dev, flag, devtype, p)
 	while ((tp->t_state & TS_CARR_ON) == 0) {
 		if (flag&FNONBLOCK)
 			break;
-		error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
+		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
 				 "ptsopn", 0);
 		if (error)
 			return (error);
@@ -191,7 +191,7 @@ again:
 		if (tp->t_canq.c_cc == 0) {
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
-			error = ttysleep(tp, &tp->t_canq, TTIPRI | PCATCH,
+			error = ttysleep(tp, TSA_PTS_READ(tp), TTIPRI | PCATCH,
 					 "ptsin", 0);
 			if (error)
 				return (error);
@@ -260,11 +260,11 @@ ptcwakeup(tp, flag)
 
 	if (flag & FREAD) {
 		selwakeup(&pti->pt_selr);
-		wakeup((caddr_t)&tp->t_outq.c_cf);
+		wakeup(TSA_PTC_READ(tp));
 	}
 	if (flag & FWRITE) {
 		selwakeup(&pti->pt_selw);
-		wakeup((caddr_t)&tp->t_rawq.c_cl);
+		wakeup(TSA_PTC_WRITE(tp));
 	}
 }
 
@@ -361,7 +361,7 @@ ptcread(dev, uio, flag)
 			return (0);	/* EOF */
 		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
-		error = tsleep(&tp->t_outq.c_cf, TTIPRI | PCATCH, "ptcin", 0);
+		error = tsleep(TSA_PTC_READ(tp), TTIPRI | PCATCH, "ptcin", 0);
 		if (error)
 			return (error);
 	}
@@ -494,7 +494,7 @@ again:
 		}
 		(void) putc(0, &tp->t_canq);
 		ttwakeup(tp);
-		wakeup((caddr_t)&tp->t_canq);
+		wakeup(TSA_PTS_READ(tp));
 		return (0);
 	}
 	while (uio->uio_resid > 0) {
@@ -511,7 +511,7 @@ again:
 		while (cc > 0) {
 			if ((tp->t_rawq.c_cc + tp->t_canq.c_cc) >= TTYHOG - 2 &&
 			   (tp->t_canq.c_cc > 0 || !(tp->t_iflag&ICANON))) {
-				wakeup((caddr_t)&tp->t_rawq);
+				wakeup(TSA_CARR_ON(tp));
 				goto block;
 			}
 			(*linesw[tp->t_line].l_rint)(*cp++, tp);
@@ -535,7 +535,7 @@ block:
 			return (EWOULDBLOCK);
 		return (0);
 	}
-	error = tsleep(&tp->t_rawq.c_cl, TTOPRI | PCATCH, "ptcout", 0);
+	error = tsleep(TSA_PTC_WRITE(tp), TTOPRI | PCATCH, "ptcout", 0);
 	if (error) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
