@@ -374,9 +374,7 @@ opentrace(void)
 {
 	char s[100];
 	char *getenv();
-#ifdef O_APPEND
 	int flags;
-#endif
 
 	if (!debug)
 		return;
@@ -399,10 +397,8 @@ opentrace(void)
 		fprintf(stderr, "Can't open %s: %s\n", s, strerror(errno));
 		return;
 	}
-#ifdef O_APPEND
 	if ((flags = fcntl(fileno(tracefile), F_GETFL, 0)) >= 0)
 		fcntl(fileno(tracefile), F_SETFL, flags | O_APPEND);
-#endif
 	fputs("\nTracing started.\n", tracefile);
 	fflush(tracefile);
 }

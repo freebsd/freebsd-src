@@ -189,37 +189,16 @@ movefd:
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
-#ifdef O_CREAT
 		if ((f = open(fname, O_RDWR|O_CREAT, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-#else
-		if ((f = open(fname, O_RDWR, 0666)) < 0) {
-			if (errno != ENOENT)
-				error("cannot create %s: %s", fname, strerror(errno));
-			else if ((f = creat(fname, 0666)) < 0)
-				error("cannot create %s: %s", fname, strerror(errno));
-			else {
-				close(f);
-				if ((f = open(fname, O_RDWR)) < 0) {
-					error("cannot create %s: %s", fname, strerror(errno));
-					remove(fname);
-				}
-			}
-		}
-#endif
 		goto movefd;
 	case NTO:
 		fname = redir->nfile.expfname;
 		if (Cflag && stat(fname, &sb) != -1 && S_ISREG(sb.st_mode))
 			error("cannot create %s: %s", fname,
 			    strerror(EEXIST));
-#ifdef O_CREAT
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-#else
-		if ((f = creat(fname, 0666)) < 0)
-			error("cannot create %s: %s", fname, strerror(errno));
-#endif
 		goto movefd;
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
@@ -228,15 +207,8 @@ movefd:
 		goto movefd;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
-#ifdef O_APPEND
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
 			error("cannot create %s: %s", fname, strerror(errno));
-#else
-		if ((f = open(fname, O_WRONLY)) < 0
-		 && (f = creat(fname, 0666)) < 0)
-			error("cannot create %s: %s", fname, strerror(errno));
-		lseek(f, (off_t)0, 2);
-#endif
 		goto movefd;
 	case NTOFD:
 	case NFROMFD:
@@ -287,9 +259,7 @@ openhere(union node *redir)
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 		signal(SIGHUP, SIG_IGN);
-#ifdef SIGTSTP
 		signal(SIGTSTP, SIG_IGN);
-#endif
 		signal(SIGPIPE, SIG_DFL);
 		if (redir->type == NHERE)
 			xwrite(pip[1], redir->nhere.doc->narg.text, len);
