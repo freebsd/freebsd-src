@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.82 1996/03/28 04:59:34 dyson Exp $
+ *	$Id: pmap.c,v 1.83 1996/03/28 05:40:58 dyson Exp $
  */
 
 /*
@@ -957,10 +957,8 @@ pmap_scan( vm_offset_t sva, vm_offset_t pdnxt, pt_entry_t *ptp) {
 	ptnxt = &ptp[pdnxt];
 	ptt = &ptp[sva];
 
-loop:
-	if ((ptt != ptnxt) && (*ptt == 0)) {
+	while ((ptt != ptnxt) && (*ptt == 0)) {
 		ptt++;
-		goto loop;
 	}
 	return ptt - ptp;
 }
