@@ -459,6 +459,14 @@ sendmail. [MERGED]
 The sendmail(8) configuration building tools are installed in
 /usr/share/sendmail/cf/. [MERGED]
 
+New make.conf options: SENDMAIL_MC and SENDMAIL_ADDITIONAL_MC.  See
+/etc/defaults/make.conf for more information.  [MERGED]
+
+The Makefile in /etc/mail now supports: the new SENDMAIL_MC make.conf
+option; the ability to build .cf files from .mc files; generalized map
+rebuilding; rebuilding the aliases file; and the ability to stop, start,
+and restart sendmail.  [MERGED]
+
 sysinstall(8) now properly preserves /etc/mail during a binary
 upgrade. [MERGED]
 
