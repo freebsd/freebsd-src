@@ -4012,7 +4012,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		sppp_print_bytes((u_char*) (lh+1), len);
 		log(-1, ">\n");
 	}
-	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, NULL, 3))
+	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
 		++ifp->if_oerrors;
 }
 
