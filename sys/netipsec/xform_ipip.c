@@ -41,7 +41,6 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -450,11 +449,7 @@ ipip_output(
 		ipo->ip_src = saidx->src.sin.sin_addr;
 		ipo->ip_dst = saidx->dst.sin.sin_addr;
 
-#ifdef RANDOM_IP_ID
-		ipo->ip_id = ip_randomid();
-#else
-		ipo->ip_id = htons(ip_id++);
-#endif
+		ipo->ip_id = ip_newid();
 
 		/* If the inner protocol is IP... */
 		if (tp == IPVERSION) {

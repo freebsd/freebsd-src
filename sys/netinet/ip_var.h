@@ -142,9 +142,7 @@ struct route;
 struct sockopt;
 
 extern struct	ipstat	ipstat;
-#ifndef RANDOM_IP_ID
 extern u_short	ip_id;				/* ip packet ctr, for ids */
-#endif
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
 extern int	ip_doopts;			/* process or ignore IP options */
@@ -178,10 +176,7 @@ void	 ip_slowtimo(void);
 struct mbuf *
 	 ip_srcroute(void);
 void	 ip_stripoptions(struct mbuf *, struct mbuf *);
-#ifdef RANDOM_IP_ID
-u_int16_t	
-	 ip_randomid(void);
-#endif
+u_int16_t	ip_randomid(void);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
@@ -200,6 +195,18 @@ extern	struct pfil_head inet_pfil_hook;
 #endif
 
 void	in_delayed_cksum(struct mbuf *m);
+
+static __inline uint16_t ip_newid(void);
+extern int ip_do_randomid;
+
+static __inline uint16_t
+ip_newid(void)
+{
+	if (ip_do_randomid)
+		return ip_randomid();
+
+	return htons(ip_id++);
+}
 
 #endif /* _KERNEL */
 
