@@ -141,6 +141,12 @@ char	*LastArgv = NULL;	/* end of argv */
 char	proctitle[LINE_MAX];	/* initial part of title */
 #endif /* SETPROCTITLE */
 
+#ifdef SKEY
+int	pwok = 0;
+char	*skey_challenge();
+char	*skey_crypt();
+#endif
+
 #define LOGCMD(cmd, file) \
 	if (logging > 1) \
 	    syslog(LOG_INFO,"%s %s%s", cmd, \
@@ -198,6 +204,9 @@ main(argc, argv, envp)
 	int addrlen, ch, on = 1, tos;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
+#ifdef SKEY
+	char addr_string[20];   /* XXX */
+#endif
 
 	/*
 	 * LOG_NDELAY sets up the logging connection immediately,
@@ -209,6 +218,10 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 		exit(1);
 	}
+#ifdef SKEY
+	strcpy(addr_string, inet_ntoa(his_addr.sin_addr));
+	pwok = authfile(addr_string);
+#endif
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
@@ -456,7 +469,11 @@ user(name)
 	}
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
+#ifdef SKEY
+	reply(331, "%s", skey_challenge(name, pw, pwok));
+#else
 	reply(331, "Password required for %s.", name);
+#endif
 	askpasswd = 1;
 	/*
 	 * Delay before reading passwd after first failed
@@ -526,7 +543,11 @@ pass(passwd)
 			salt = "xx";
 		else
 			salt = pw->pw_passwd;
+#ifdef SKEY
+		xpasswd = skey_crypt(passwd, salt, pw, pwok);
+#else
 		xpasswd = crypt(passwd, salt);
+#endif
 		/* The strcmp does not catch null passwords! */
 		if (pw == NULL || *pw->pw_passwd == '\0' ||
 		    strcmp(xpasswd, pw->pw_passwd)) {
