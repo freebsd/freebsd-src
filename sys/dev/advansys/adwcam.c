@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: adwcam.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
  */
 /*
  * Ported from:
@@ -252,7 +252,7 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 acb *acb;
 	union	 ccb *ccb;
 	struct	 adw_softc *adw;
-	int	 s, i;
+	int	 s;
 
 	acb = (struct acb *)arg;
 	ccb = acb->ccb;
@@ -366,7 +366,6 @@ static void
 adw_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	adw_softc *adw;
-	int	s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("adw_action\n"));
 	
@@ -558,7 +557,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		
 			if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-				u_int tagenb;
 
 				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
 					adw->tagenb |= target_mask;
