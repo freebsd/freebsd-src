@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.5 1995/03/16 18:12:46 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.6 1995/05/30 08:06:24 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -1003,8 +1003,8 @@ getsockopt(p, uap, retval)
 	int *retval;
 {
 	struct file *fp;
-	struct mbuf *m = NULL;
-	int valsize, error;
+	struct mbuf *m = NULL, *m0;
+	int op, i, valsize, error;
 
 	error = getsock(p->p_fd, uap->s, &fp);
 	if (error)
@@ -1018,9 +1018,16 @@ getsockopt(p, uap, retval)
 		valsize = 0;
 	if ((error = sogetopt((struct socket *)fp->f_data, uap->level,
 	    uap->name, &m)) == 0 && uap->val && valsize && m != NULL) {
-		if (valsize > m->m_len)
-			valsize = m->m_len;
-		error = copyout(mtod(m, caddr_t), uap->val, (u_int)valsize);
+		op = 0;
+		while (m && !error && op < valsize) {
+			i = min(m->m_len, (valsize - op));
+			error = copyout(mtod(m, caddr_t), uap->val, (u_int)i);
+			op += i;
+			uap->val += i;
+			m0 = m;
+			MFREE(m0,m);
+		}
+		valsize = op;
 		if (error == 0)
 			error = copyout((caddr_t)&valsize,
 			    (caddr_t)uap->avalsize, sizeof (valsize));
