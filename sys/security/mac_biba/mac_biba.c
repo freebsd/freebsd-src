@@ -1543,6 +1543,43 @@ mac_biba_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 }
 
 static int
+mac_biba_check_kld_load(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_biba *subj, *obj;
+	int error;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+
+	error = mac_biba_subject_privileged(subj);
+	if (error)
+		return (error);
+
+	obj = SLOT(label);
+	if (!mac_biba_high_single(obj))
+		return (EACCES);
+
+	return (0);
+}
+
+
+static int
+mac_biba_check_kld_unload(struct ucred *cred)
+{
+	struct mac_biba *subj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+
+	return (mac_biba_subject_privileged(subj));
+}
+
+static int
 mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
     struct label *mntlabel)
 {
@@ -2622,6 +2659,8 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_cred_visible = mac_biba_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_biba_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_biba_check_ifnet_transmit,
+	.mpo_check_kld_load = mac_biba_check_kld_load,
+	.mpo_check_kld_unload = mac_biba_check_kld_unload,
 	.mpo_check_mount_stat = mac_biba_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_biba_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_biba_check_pipe_poll,
