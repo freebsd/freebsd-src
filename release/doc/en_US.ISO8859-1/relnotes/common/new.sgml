@@ -365,6 +365,9 @@
 	<para>The &man.bge.4; driver now supports the &man.altq.4;
 	  framework.</para>
 
+	<para>The &man.cdce.4; USB Communication Device Class Ethernet
+	  driver has been added.</para>
+
 	<para>The &man.cp.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.ctau.4; driver is now MPSAFE. &merged;</para>
