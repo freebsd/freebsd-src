@@ -109,7 +109,7 @@ SYSCTL_ULONG(_debug, OID_AUTO, numcachepl, CTLFLAG_RD, &numcachepl, 0, "");
 #endif
 struct	nchstats nchstats;		/* cache effectiveness statistics */
 
-struct mtx cache_lock;
+static struct mtx cache_lock;
 MTX_SYSINIT(vfscache, &cache_lock, "Name Cache", MTX_DEF);
 
 #define	CACHE_LOCK()	mtx_lock(&cache_lock)
@@ -147,7 +147,7 @@ SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), ""
 /*
  * The new name cache statistics
  */
-SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0, "Name cache statistics");
+static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0, "Name cache statistics");
 #define STATNODE(mode, name, var) \
 	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, mode, var, 0, "");
 STATNODE(CTLFLAG_RD, numneg, &numneg);
