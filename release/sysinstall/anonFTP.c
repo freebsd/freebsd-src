@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.2 1995/11/10 04:43:47 jkh Exp $
+ * $Id: anonFTP.c,v 1.3 1995/11/11 10:59:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -471,9 +471,9 @@ configAnonFTP(char *unused)
 
     if (createFtpUser() == RET_SUCCESS)
      {
-      vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db",tconf.homedir);
-      vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir);
-      vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir);
+      vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
+      vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
+      vsystem("cp /etc/group %s/etc && chmod 444 %s/etc/group", tconf.homedir, tconf.homedir);
       vsystem("chown -R %s.%s %s/pub", FTP_NAME, tconf.group, tconf.homedir);
      }
     else
@@ -486,7 +486,7 @@ configAnonFTP(char *unused)
     if (!msgYesNo("Create a welcome message file for anonymous FTP users?"))
      {
       vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
-      vsystem("ee %s/etc/%s", tconf.homedir, MOTD_FILE);
+      vsystem("/stand/ee %s/etc/%s", tconf.homedir, MOTD_FILE);
      }
    }
   else {
