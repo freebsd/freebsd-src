@@ -162,17 +162,24 @@ install the port on other machines with
 .Xr pkg_add 1 .
 If the directory specified by
 .Ev PACKAGES
-does not exist
-.Po
-usually
-.Pa /usr/ports/packages
-or
-.Pa /usr/pkgsrc/packages
-.Pc
-you must define either
+does not exist the package will be put into the current directory.
+See
 .Ev PKGREPOSITORY
-or
+and
 .Ev PKGFILE .
+.It Ar readmes
+Create a port's
+.Pa README.html .
+You may need to
+.Xr fetch 1
+ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/templates/README.port
+and set
+.Ev TEMPLATES
+to its directory.  This is intended for would-be release engineers -- most
+people can just read
+.Pa pkg/COMMENT
+and
+.Pa pkg/DESCR .
 .El
 .Sh ENVIRONMENT VARIABLES
 You can change all of these.
@@ -203,11 +210,11 @@ target; the base directory for the packages tree, normally
 in
 .Ev PORTSDIR .
 If this directory exists, the package tree will be (partially) constructed.
-This directory does not have to exist; if it doesn't, however, you will have
-to define one of
+This directory does not have to exist; if it doesn't packages will be
+placed into the current directory, or you can define one of
 .Bl -tag -width PKGREPOSITORY
 .It Ev PKGREPOSITORY
-What directory to put the package in.
+Directory to put the package in.
 .It Ev PKGFILE
 The full path to the package.
 .El
