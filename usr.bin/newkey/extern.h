@@ -44,3 +44,4 @@ int setpublicmap(char *, char *, char *);
 int mapupdate(char *, char *, u_int, u_int, char *, u_int, char *);
 void xencrypt(char *, char *);
 void xdecrypt(char *, char *);
+int localupdate(char *, char *, u_int, u_int, char *, u_int, char *);
