@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.23 1998/07/25 15:52:44 alex Exp $
+ *	$Id: procfs_vfsops.c,v 1.24 1998/07/27 01:07:01 alex Exp $
  */
 
 /*
@@ -87,7 +87,7 @@ procfs_mount(mp, path, data, ndp, p)
 		return (EOPNOTSUPP);
 
 	if (mp->mnt_vfc->vfc_refcount == 1 && (error = at_exit(procfs_exit))) {
-		printf("procfs:  cannot register procfs_exit with at_exit -- error %d\n", error);
+		printf("procfs:  cannot register procfs_exit with at_exit\n");
 		return(error);
 	}
 
@@ -118,15 +118,15 @@ procfs_unmount(mp, mntflags, p)
 	int error;
 	int flags = 0;
 
-	if (mp->mnt_vfc->vfc_refcount == 1)
-		rm_at_exit(procfs_exit);
-
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
 	error = vflush(mp, 0, flags);
 	if (error)
 		return (error);
+
+	if (mp->mnt_vfc->vfc_refcount == 1)
+		rm_at_exit(procfs_exit);
 
 	return (0);
 }
@@ -182,6 +182,7 @@ static int
 procfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+
 	return (0);
 }
 
