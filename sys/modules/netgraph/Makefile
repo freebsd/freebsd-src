@@ -7,6 +7,7 @@ SUBDIR=	UI \
 	bridge \
 	cisco \
 	echo \
+	eiface \
 	etf \
 	ether \
 	frame_relay \
