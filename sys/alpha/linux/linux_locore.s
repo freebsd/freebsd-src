@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 	
 #include <machine/asm.h>
-#include <alpha/linux/linux_syscall.h>
+#include <linux_syscall.h>
 
 
 /*

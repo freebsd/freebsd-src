@@ -55,7 +55,7 @@
 #include <machine/md_var.h>
 
 #include <alpha/linux/linux.h>
-#include <alpha/linux/linux_proto.h>
+#include <linux_proto.h>
 #include <compat/linux/linux_util.h>
 #undef szsigcode
 
