@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.27 1995/05/24 09:00:51 jkh Exp $
+ * $Id: menus.c,v 1.28 1995/05/24 17:49:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,7 +279,7 @@ service provider using a special utility we provide for that purpose.\n\
 You can also install over a parallel port using a special \"laplink\"\n\
 cable, though this only works if you have another FreeBSD machine running\n\
 a fairly recent (2.0R or later) release to talk to.\n\n\
-To use PPP, select one of the serial devices, otherwise select lp0 for\n\
+To use PPP select one of the serial devices, otherwise select lp0 for\n\
 the parallel port or one of the ethernet controllers (if you have one)\n\
 for an ethernet installation.",
     "Press F1 to read network configuration manual",

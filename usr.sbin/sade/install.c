@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.51 1995/05/24 09:00:28 jkh Exp $
+ * $Id: install.c,v 1.52 1995/05/24 17:49:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,7 +117,7 @@ checkLabels(void)
     return TRUE;
 }
 
-static void
+static Boolean
 installInitial(void)
 {
     extern u_char boot1[], boot2[];
@@ -129,18 +129,18 @@ installInitial(void)
     char *cp;
 
     if (alreadyDone)
-	return;
+	return TRUE;
 
     if (!getenv(DISK_PARTITIONED)) {
 	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
-	return;
+	return FALSE;
     }
     if (!getenv(DISK_LABELLED)) {
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
-	return;
+	return FALSE;
     }
     if (!checkLabels())
-	return;
+	return FALSE;
 
     /* Figure out what kind of MBR the user wants */
     dmenuOpenSimple(&MenuMBRType);
@@ -155,7 +155,7 @@ installInitial(void)
 
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
-	return;
+	return FALSE;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
@@ -198,6 +198,7 @@ installInitial(void)
     variable_set2(RUNNING_ON_ROOT, "yes");
     cpio_extract();
     alreadyDone = TRUE;
+    return TRUE;
 }
 
 static void
@@ -230,7 +231,8 @@ installCommit(char *str)
     if (!mediaVerify())
 	return 0;
 
-    installInitial();
+    if (!installInitial())
+	return 0;
     distExtractAll();
     installFinal();
     return 0;
@@ -333,7 +335,7 @@ make_filesystems(void)
 
 		if (!tmp)
 		    continue;
-		command_func_add(tmp->mountpoint, Mount, c1->name);
+		command_func_add(tmp->mountpoint, Mount_DOS, c1->name);
 	    }
 	}
     }
