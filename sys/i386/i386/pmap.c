@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.62 1995/10/22 02:59:48 davidg Exp $
+ *	$Id: pmap.c,v 1.63 1995/10/23 00:47:10 davidg Exp $
  */
 
 /*
@@ -1276,7 +1276,7 @@ pmap_qenter(va, m, count)
 		pte = vtopte(va + i * NBPG);
 		if (*pte)
 			anyvalid++;
-		*pte = (pt_entry_t) ((int) (VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V | PG_W));
+		*pte = (pt_entry_t) ((int) (VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V));
 	}
 	if (anyvalid)
 		pmap_update();
@@ -1318,7 +1318,7 @@ pmap_kenter(va, pa)
 	if (*pte)
 		wasvalid++;
 
-	*pte = (pt_entry_t) ((int) (pa | PG_RW | PG_V | PG_W));
+	*pte = (pt_entry_t) ((int) (pa | PG_RW | PG_V));
 
 	if (wasvalid)
 		pmap_update();
