@@ -1,6 +1,10 @@
-/* $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/pch.c,v 1.2 1994/02/17 22:16:05 jkh Exp $
+/* $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/pch.c,v 1.3 1994/02/17 22:20:36 jkh Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.3  1994/02/17  22:20:36  jkh
+ * Put this back - I was somehow under the erroneous impression that patch was in
+ * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
+ *
  * Revision 1.2  1994/02/17  22:16:05  jkh
  * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
  * a patch before actually applying it.
@@ -184,6 +188,7 @@ there_is_another_patch()
 	if (force || batch) {
 	    say1("No file to patch.  Skipping...\n");
 	    filearg[0] = savestr(bestguess);
+	    skip_rest_of_patch = TRUE;
 	    return TRUE;
 	}
 	ask1("File to patch: ");
