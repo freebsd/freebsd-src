@@ -442,7 +442,9 @@ struct mbd {
  */
 struct eni_unit {
 	Cmn_unit	eu_cmn;		/* Common unit stuff */
+#ifdef COMPAT_OLDPCI
 	pcici_t		eu_pcitag;	/* PCI tag */
+#endif
 	Eni_mem 	eu_base;	/* Adapter memory base */
 	Eni_mem 	eu_ram;		/* Adapter RAM */
 	u_long		eu_ramsize;
