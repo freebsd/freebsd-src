@@ -79,6 +79,8 @@
     ..
     geom
     ..
+    gnu
+    ..
     isc
     ..
     isofs
