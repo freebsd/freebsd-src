@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.4 1995/01/12 11:43:52 sos Exp $
+ *	$Id: vidcontrol.c,v 1.5 1995/01/28 22:18:05 sos Exp $
  */
 
 #include <ctype.h>
@@ -42,7 +42,7 @@ char 	legal_colors[16][16] = {
 	"lightred", "lightmagenta", "yellow", "lightwhite"
 	};
 int 	hex = 0;
-int 	number, verbose = 0;
+int 	number;
 char 	letter;
 struct 	vid_info info;
 
@@ -395,6 +395,7 @@ usage()
 "Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
 "                                                     VGA_80x50, VGA_320x200,\n"
 "                                                     EGA_80x25, EGA_80x43)\n"
+"                                     (experimental)  VGA_80x30, VGA_80x60)\n"
 "                  show               (show available colors)\n"
 "                  fgcol bgcol        (set fore- & background colors)\n"
 "                  -r fgcol bgcol     (set reverse fore- & background colors)\n"
@@ -424,7 +425,7 @@ main(int argc, char **argv)
 		perror("Must be on a vrtual console");
 		exit(1);
 	}
-	while((opt = getopt(argc, argv, "b:c:df:l:Lr:s:t:vx")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:l:Lr:s:t:x")) != -1)
 		switch(opt) {
 			case 'c':
 				set_cursor_type(optarg);
@@ -453,9 +454,6 @@ main(int argc, char **argv)
 				break;
 			case 't':
 				set_screensaver_timeout(optarg);
-				break;
-			case 'v':
-				verbose = 1;
 				break;
 			case 'x':
 				hex = 1;
