@@ -287,54 +287,60 @@ pw_mkdb(const char *user)
 int
 pw_edit(int notsetuid)
 {
+	struct sigaction sa, sa_int, sa_quit;
+	sigset_t sigset, oldsigset;
 	struct stat st1, st2;
 	const char *editor;
-	char *editcmd;
 	int pstat;
 
 	if ((editor = getenv("EDITOR")) == NULL)
 		editor = _PATH_VI;
 	if (stat(tempname, &st1) == -1)
 		return (-1);
+	sa.sa_handler = SIG_IGN;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGINT, &sa, &sa_int);
+	sigaction(SIGQUIT, &sa, &sa_quit);
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &sigset, &oldsigset);
 	switch ((editpid = fork())) {
 	case -1:
 		return (-1);
 	case 0:
-		/* child */
+		sigaction(SIGINT, &sa_int, NULL);
+		sigaction(SIGQUIT,  &sa_quit, NULL);
+		sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 		if (notsetuid) {
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
-		if (asprintf(&editcmd, "exec %s %s", editor, tempname) == NULL)
-			_exit(EXIT_FAILURE);
 		errno = 0;
-		execl(_PATH_BSHELL, "sh", "-c", editcmd, NULL);
-		free(editcmd);
+		execlp(editor, editor, tempname, NULL);
 		_exit(errno);
 	default:
 		/* parent */
 		break;
 	}
-	setpgid(editpid, editpid);
-	tcsetpgrp(1, editpid);
 	for (;;) {
 		if (waitpid(editpid, &pstat, WUNTRACED) == -1) {
 			unlink(tempname);
-			return (-1);
+			break;
 		} else if (WIFSTOPPED(pstat)) {
 			raise(WSTOPSIG(pstat));
-			tcsetpgrp(1, getpgid(editpid));
-			kill(editpid, SIGCONT);
 		} else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0) {
 			editpid = -1;
 			break;
 		} else {
 			unlink(tempname);
-			*tempname = '\0';
 			editpid = -1;
-			return (-1);
+			break;
 		}
 	}
+	sigaction(SIGINT, &sa_int, NULL);
+	sigaction(SIGQUIT,  &sa_quit, NULL);
+	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
 	return (st1.st_mtime != st2.st_mtime);
