@@ -243,8 +243,14 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	resource_list_init(&devi->resources);
 	child = device_add_child(pccarddev, devi->name, desc->unit);
 	if (child == NULL) {
-		device_printf(pccardd,
-		    "device_add_child shouldn't have failed, but did\n");
+		if (desc->unit != -1)
+			device_printf(pccarddev,
+			    "Unit %d failed for %s, try a different unit\n",
+			    desc->unit, devi->name);
+		else
+			device_printf(pccarddev,
+			    "No units available for %s.  Impossible?\n",
+			    devi->name);
 		return (EIO);
 	}
 	device_set_flags(child, desc->flags);
