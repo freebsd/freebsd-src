@@ -85,6 +85,8 @@ printstatus(struct fdc_status *fdcsp, int terse)
 	fputs(msgbuf, stderr);
 }
 
+static struct fd_type fd_types_auto[1];
+
 static struct fd_type fd_types_288m[] =
 {
 #if 0
@@ -321,8 +323,7 @@ parse_fmt(const char *s, enum fd_drivetype type,
 		free(s1);
 	}
 
-	out->size = out->tracks * out->heads * out->sectrac *
-		(128 << out->secsize) / 512;
+	out->size = out->tracks * out->heads * out->sectrac;
 }
 
 /*
@@ -397,6 +398,9 @@ get_fmt(int size, enum fd_drivetype type)
 		n = sizeof fd_types_288m / sizeof(struct fd_type);
 		break;
 	}
+
+	if (size == -1)
+		return fd_types_auto;
 
 	for (i = 0; i < n; i++, fdtp++)
 		if (fdtp->size / 2 == size)
