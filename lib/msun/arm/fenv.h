@@ -53,8 +53,13 @@ extern const fenv_t	__fe_dfl_env;
 #define _FPUSW_SHIFT	16
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
 
-#define	__rfs(__fpsr)	__asm("rfs %0" : "=m" (*(__fpsr)))
-#define	__wfs(__fpsr)	__asm __volatile("wfs %0" : : "m" (__fpsr))
+#ifdef	ARM_HARD_FLOAT
+#define	__rfs(__fpsr)	__asm("rfs %0" : "=r" (*(__fpsr)))
+#define	__wfs(__fpsr)	__asm __volatile("wfs %0" : : "r" (__fpsr))
+#else
+#define __rfs(__fpsr)
+#define __wfs(__fpsr)
+#endif
 
 static __inline int
 feclearexcept(int __excepts)
