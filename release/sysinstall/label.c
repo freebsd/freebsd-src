@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32 1995/06/11 19:29:59 rgrimes Exp $
+ * $Id: label.c,v 1.32.2.1 1995/07/21 10:53:56 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -352,21 +352,20 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
 	    if (label_chunk_info[i].c->private
-		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT)) {
-		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
-		if (label_chunk_info[i].type == PART_FAT)
-		    newfs = "DOS";
-		else
-		    newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "Y" : "N";
-	    }
-	    else if (label_chunk_info[i].type == PART_SWAP) {
-		mountpoint = "swap";
-		newfs = " ";
-	    }
-	    else {
-		mountpoint = "<NONE>";
+		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT))
+	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
+	    else
+	        mountpoint = "<none>";
+
+	    /* Now display the newfs field */
+	    if (label_chunk_info[i].type == PART_FAT)
+	        newfs = "DOS";
+	    else if (label_chunk_info[i].c->private && label_chunk_info[i].type == PART_FILESYSTEM)
+		newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "UFS Y" : "UFS N";
+	    else if (label_chunk_info[i].type == PART_SWAP)
+		newfs = "SWAP";
+	    else
 		newfs = "*";
-	    }
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
 	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
@@ -385,8 +384,8 @@ static void
 print_command_summary()
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create New     D = Delete           M = Set Mountpoint");
-    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs     U = Undo    Q = Finish");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount   W = Write");
+    mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
@@ -639,6 +638,11 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'W':
+	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\nat this time?  You also have the option of doing it later in\none final 'commit' operation, and if you're at all unsure as\nto which option to chose, then chose No."))
+	      diskLabelCommit(NULL);
+	    break;
+
+	case '|':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
 		int i;
 		Device **devs;

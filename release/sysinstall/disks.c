@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31 1995/06/11 19:29:46 rgrimes Exp $
+ * $Id: disks.c,v 1.31.2.1 1995/07/21 10:53:46 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,7 +112,7 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
+    mvprintw(18, 0, "U = Undo All Changes   Q = Finish             W = Write Changes");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
@@ -255,6 +255,11 @@ diskPartition(Disk *d)
 	    break;
 
 	case 'W':
+	    if (!msgYesNo("Are you sure you want to write this now?  You do also\nhave the option of not modifying the disk until *all*\nconfiguration information has been entered, at which\npoint you can do it all at once.  If you're unsure, then\nchoose No at this dialog."))
+	      diskPartitionWrite(NULL);
+	    break;
+
+	case '|':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
 		dialog_clear();
 		end_dialog();

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16 1995/06/11 19:29:43 rgrimes Exp $
+ * $Id: config.c,v 1.16.2.1 1995/07/21 10:53:44 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -366,8 +366,6 @@ configPackages(char *str)
     pid_t pid;
     Boolean onCD;
 
-    msgConfirm("Warning:  This utility (pkg_manage) is still somewhat experimental\nand may not function for all packages.  If it fails to load the\npackages you want, try running it directly once the system is up or use the\npkg_add, pkg_info and pkg_delete utilities directly.");
-    i = -1;
     /* If we're running as init, we know that a CD in the drive is probably ours */
     onCD = file_readable("/cdrom/packages");
     if (!onCD && RunningAsInit) {
@@ -378,7 +376,7 @@ configPackages(char *str)
     }
 
     if (!(pid = fork())) {
-	if (onCD && chdir("/cdrom/packages/All"))
+	if (onCD && chdir("/cdrom/packages"))
 	    exit(1);
 	execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
 	exit(1);
