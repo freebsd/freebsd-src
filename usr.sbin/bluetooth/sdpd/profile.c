@@ -125,7 +125,8 @@ common_profile_create_service_class_id_list(
 
 	for (; datalen > 0; datalen --) {
 		SDP_PUT8(SDP_DATA_UUID16, buf);
-		SDP_PUT16(*((uint16_t const *)data)++, buf);
+		SDP_PUT16(*((uint16_t const *)data), buf);
+		data += sizeof(uint16_t);
 	}
 
 	return (2 + len);
@@ -158,9 +159,11 @@ common_profile_create_bluetooth_profile_descriptor_list(
 		SDP_PUT8(SDP_DATA_SEQ8, buf);
 		SDP_PUT8(6, buf);
 		SDP_PUT8(SDP_DATA_UUID16, buf);
-		SDP_PUT16(*((uint16_t const *)data)++, buf);
+		SDP_PUT16(*((uint16_t const *)data), buf);
+		data += sizeof(uint16_t);
 		SDP_PUT8(SDP_DATA_UINT16, buf);
-		SDP_PUT16(*((uint16_t const *)data)++, buf);
+		SDP_PUT16(*((uint16_t const *)data), buf);
+		data += sizeof(uint16_t);
 	}
 
 	return (2 + len);
