@@ -212,8 +212,9 @@ cp kernel.gz /mnt/kernel.gz || fail $? kernel_compress
 
 gzip -9cv ${MFS_NAME} > /mnt/${MFS_NAME}.gz || fail $? mfs_compress
 
-mkdir /mnt/boot
-mkdir /mnt/boot/defaults
+if [ -d /mnt/boot/defaults ] ; then
+    mkdir -p /mnt/boot/defaults
+fi
 cp /boot/loader .
 # Make sure we have the a.out stubs we need...
 # This is deprecated for 3.X
