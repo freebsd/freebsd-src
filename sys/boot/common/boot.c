@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.2 1998/08/31 21:10:42 msmith Exp $
+ *	$Id: boot.c,v 1.3 1998/09/28 22:03:01 peter Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ autoboot(int delay, char *prompt)
 	    break;
 	}
 	ntime = time(NULL);
-	if (ntime == when) {
+	if (ntime >= when) {
 	    yes = 1;
 	    break;
 	}
@@ -214,8 +214,10 @@ getbootfile(int try)
     if ((spec = getenv("bootfile")) == NULL)
 	spec = default_bootfiles;
 
-    while ((try > 0) && (spec != NULL))
+    while ((try > 0) && (spec != NULL)) {
 	spec = strchr(spec, ',');
+	try--;
+    }
     if (spec != NULL) {
 	if ((ep = strchr(spec, ',')) != NULL) {
 	    len = ep - spec;
@@ -225,6 +227,10 @@ getbootfile(int try)
 	name = malloc(len + 1);
 	strncpy(name, spec, len);
 	name[len] = 0;
+    }
+    if (name[0] == 0) {
+	free(name);
+	name = NULL;
     }
     return(name);
 }
