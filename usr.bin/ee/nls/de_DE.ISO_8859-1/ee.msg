@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.1 1995/10/21 23:47:40 joerg Exp $
+$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.2 1996/05/27 20:59:53 joerg Exp $
 $ 
 $set 1
 $quote "
@@ -88,7 +88,7 @@ $quote "
 79 "Aktuelle Datei ist \"%s\" "
 80 "Benutzung: %s [-i] [-e] [-h] [+zeilennummer] [dateien]\n"
 81 "       -i   Hilfefenster ausschalten\n"
-82 "       -e   Tabulatoren nicht in Leerzeichen wandeln\"
+82 "       -e   Tabulatoren nicht in Leerzeichen wandeln\n"
 83 "       -h   keine Hervorhebungen\n"
 84 "Datei \"%s\" ist ein Verzeichnis"
 85 "Neue Datei \"%s\""
@@ -168,3 +168,15 @@ $quote "
 159 "EMACS"
 160 "[EMACS]"
 161 "       +<zahl>   Zeiger auf Zeile <zahl> setzen"
+162 "Kann die Datei .init.ee nicht schreiben, Konfiguration nicht gespeichert!"
+163 "ee-Konfiguration in Datei %s gespeichert"
+164 "speichere Editor-Konfiguration"
+165 "speichere ee-Konfiguration"
+166 "speichern im aktuellen Verzeichnis"
+167 "speichern im Home-Verzeichnis"
+168 "ee-Konfiguration nicht gespeichert"
+169 "beim Aufruf von ree muß ein Dateiname angegeben werden"
+170 "Esc zum Verlassen"
+180 "Menü zu groß für den Bildschirm"
+181 "^^weiter^^"
+182 "VVweiterVV"
