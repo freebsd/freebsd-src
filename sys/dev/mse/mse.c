@@ -286,7 +286,7 @@ mseread(dev, uio)
 		sc->sc_bytesread = 0;
 	}
 	splx(s);
-	xfer = MIN(uio->uio_resid, PROTOBYTES - sc->sc_bytesread);
+	xfer = min(uio->uio_resid, PROTOBYTES - sc->sc_bytesread);
 	if (error = uiomove(&sc->sc_bytes[sc->sc_bytesread], xfer, uio))
 		return (error);
 	sc->sc_bytesread += xfer;

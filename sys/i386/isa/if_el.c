@@ -359,7 +359,7 @@ void el_start(struct ifnet *ifp)
 		}
 		m_freem(m0);
 
-		len = MAX(len,ETHER_MIN_LEN);
+		len = max(len,ETHER_MIN_LEN);
 
 		/* Give the packet to the bpf, if any */
 #if NBPFILTER > 0
