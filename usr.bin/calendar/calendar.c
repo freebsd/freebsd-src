@@ -285,7 +285,7 @@ opencal()
 	if (!freopen("calendar", "r", stdin)) {
 		if (doall)
 			return (NULL);
-		errx(1, "no calendar file.");
+		errx(1, "no calendar file in current directory.");
 	}
 	if (pipe(pdes) < 0)
 		return (NULL);
