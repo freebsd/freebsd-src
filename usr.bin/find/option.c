@@ -63,6 +63,7 @@ static OPTION const options[] = {
 	{ "-delete",	N_DELETE,	c_delete,	O_ZERO },
 	{ "-depth",	N_DEPTH,	c_depth,	O_ZERO },
 	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
+	{ "-execdir",	N_EXECDIR,	c_execdir,	O_ARGVP },
 	{ "-follow",	N_FOLLOW,	c_follow,	O_ZERO },
 	{ "-fstype",	N_FSTYPE,	c_fstype,	O_ARGV },
 	{ "-group",	N_GROUP,	c_group,	O_ARGV },
