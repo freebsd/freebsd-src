@@ -277,8 +277,8 @@ S_clockinfo(int l2, void *p)
 	struct clockinfo *ci = (struct clockinfo*)p;
 	if (l2 != sizeof(*ci))
 		err(1, "S_clockinfo %d != %d", l2, sizeof(*ci));
-	printf("{ hz = %d, tick = %d, tickadj = %d, profhz = %d, stathz = %d }",
-		ci->hz, ci->tick, ci->tickadj, ci->profhz, ci->stathz);
+	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
+		ci->hz, ci->tick, ci->profhz, ci->stathz);
 	return (0);
 }
 
