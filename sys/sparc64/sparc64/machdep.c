@@ -597,6 +597,20 @@ set_regs(struct thread *td, struct reg *regs)
 }
 
 int
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
+}
+
+int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	struct pcb *pcb;
