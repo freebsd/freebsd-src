@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	des@freebsd.org
 PROG=		fetch
 WARNS?=		5
 DPADD=		${LIBFETCH}
