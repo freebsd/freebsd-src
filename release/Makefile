@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.149 1995/05/10 17:20:20 jkh Exp $
+#	$Id: Makefile,v 1.150 1995/05/10 17:54:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -19,7 +19,7 @@
 # Things which without too much trouble can be considered variables
 
 EXPORT_DISTS=	games manpages proflibs dict info
-EXTRA_DISTS=	DES ${EXPORT_DISTS}
+EXTRA_DISTS=	des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
 CPIO1=	etc/services etc/protocols etc/sysconfig
@@ -342,12 +342,12 @@ release.9:
 		fi ; \
 	done
 	( cd ${RD}/dists/src && \
-	if [ -f sDES.aa ] ; then mv sDES.* ../DES ; fi && \
-	if [ -f sebones.aa ] ; then mv sebones.* ../DES ; fi && \
+	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
+	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
 	sh -e ${.CURDIR}/scripts/mkchecksums.sh )
 	cp ${.CURDIR}/scripts/extract_src.sh ${RD}/dists/src/extract.sh
-	if [ -d ${RD}/dists/DES ] ; then \
-	( cd ${RD}/dists/DES && sh -e ${.CURDIR}/scripts/mkchecksums.sh );\
+	if [ -d ${RD}/dists/des ] ; then \
+	( cd ${RD}/dists/des && sh -e ${.CURDIR}/scripts/mkchecksums.sh );\
 	fi
 	@echo "src distribution is finished."
 	touch release.9
