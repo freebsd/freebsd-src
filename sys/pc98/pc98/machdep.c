@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.41 1997/05/23 10:17:05 kato Exp $
+ *	$Id: machdep.c,v 1.42 1997/05/28 09:16:19 kato Exp $
  */
 
 #include "npx.h"
@@ -117,6 +117,7 @@
 #endif
 
 #include <i386/isa/isa_device.h>
+#include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
 #else
