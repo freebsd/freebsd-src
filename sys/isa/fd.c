@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.87 1996/04/08 19:40:56 smpatel Exp $
+ *	$Id: fd.c,v 1.88 1996/05/03 14:57:21 phk Exp $
  *
  */
 
@@ -1316,7 +1316,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
-	bp = TAILQ_EMPTY(&fdc->head);
+	bp = TAILQ_FIRST(&fdc->head);
 	if(!bp) {
 		/***********************************************\
 		* nothing left for this controller to do	*
