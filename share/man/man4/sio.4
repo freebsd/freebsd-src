@@ -62,6 +62,15 @@ For Boca Board compatible multiport cards with 8 ports:
 .Cd "..."
 .Cd "device sio11 at isa? port 0x138 flags 0xb05 irq 12"
 .Pp
+For Netmos Nm9845 multiport cards with 6 ports:
+.Cd "options COM_MULTIPORT"
+.Cd "device sio4 at isa? port 0xb000 flags 0x901"
+.Cd "device sio5 at isa? port 0xb400 flags 0x901"
+.Cd "device sio6 at isa? port 0xb800 flags 0x901"
+.Cd "device sio7 at isa? port 0xbc00 flags 0x901"
+.Cd "device sio8 at isa? port 0xc000 flags 0x901"
+.Cd "device sio9 at isa? port 0xac00 flags 0x901 irq 12"
+.Pp
 For Hayes ESP cards:
 .Cd "options COM_ESP"
 .Cd "..."
