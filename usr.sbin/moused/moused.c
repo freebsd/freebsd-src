@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.18 1998/03/12 15:00:06 yokota Exp $";
+	"$Id: moused.c,v 1.19 1998/06/14 20:05:27 ahasty Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -389,6 +389,8 @@ static void	r_map(mousestatus_t *act1, mousestatus_t *act2);
 static void	r_click(mousestatus_t *act);
 static void	setmousespeed(int old, int new, unsigned cflag);
 
+static int	pnpwakeup1(void);
+static int	pnpwakeup2(void);
 static int	pnpgets(char *buf);
 static int	pnpparse(pnpid_t *id, char *buf, int len);
 static symtab_t	*pnpproto(pnpid_t *id);
@@ -1844,37 +1846,45 @@ setmousespeed(int old, int new, unsigned cflag)
  * procedure is used. XXX
  */
 static int
-pnpgets(char *buf)
+pnpwakeup1(void)
 {
     struct timeval timeout;
     fd_set fds;
     int i;
-    char c;
 
-#if 0
     /* 
      * This is the procedure described in rev 1.0 of PnP COM device spec.
      * Unfortunately, some devices which comform to earlier revisions of
      * the spec gets confused and do not return the ID string...
      */
+    debug("PnP COM device rev 1.0 probe...");
 
     /* port initialization (2.1.2) */
     ioctl(rodent.mfd, TIOCMGET, &i);
     i |= TIOCM_DTR;		/* DTR = 1 */
     i &= ~TIOCM_RTS;		/* RTS = 0 */
     ioctl(rodent.mfd, TIOCMSET, &i);
-    usleep(200000);
-    if ((ioctl(rodent.mfd, TIOCMGET, &i) == -1) || ((i & TIOCM_DSR) == 0))
-	goto disconnect_idle;
+    usleep(240000);
+
+    /*
+     * The PnP COM device spec. dictates that the mouse must set DSR 
+     * in response to DTR (by hardware or by software) and that if DSR is 
+     * not asserted, the host computer should think that there is no device
+     * at this serial port.  But there are some mice just don't do that...
+     */
+    ioctl(rodent.mfd, TIOCMGET, &i);
+    debug("modem status 0%o", i);
+    if ((i & TIOCM_DSR) == 0)
+	return FALSE;
 
     /* port setup, 1st phase (2.1.3) */
     setmousespeed(1200, 1200, (CS7 | CREAD | CLOCAL | HUPCL));
     i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 0, RTS = 0 */
     ioctl(rodent.mfd, TIOCMBIC, &i);
-    usleep(200000);
+    usleep(240000);
     i = TIOCM_DTR;		/* DTR = 1, RTS = 0 */
     ioctl(rodent.mfd, TIOCMBIS, &i);
-    usleep(200000);
+    usleep(240000);
 
     /* wait for response, 1st phase (2.1.4) */
     i = FREAD;
@@ -1886,13 +1896,16 @@ pnpgets(char *buf)
     FD_ZERO(&fds);
     FD_SET(rodent.mfd, &fds);
     timeout.tv_sec = 0;
-    timeout.tv_usec = 200000;
-    if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0) {
+    timeout.tv_usec = 240000;
+    if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
+	debug("pnpwakeup1(): valid response in first phase.");
+	return TRUE;
+    } else {
 
 	/* port setup, 2nd phase (2.1.5) */
         i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 0, RTS = 0 */
         ioctl(rodent.mfd, TIOCMBIC, &i);
-        usleep(200000);
+        usleep(240000);
 
 	/* wait for respose, 2nd phase (2.1.6) */
         i = FREAD;
@@ -1904,20 +1917,32 @@ pnpgets(char *buf)
         FD_ZERO(&fds);
         FD_SET(rodent.mfd, &fds);
         timeout.tv_sec = 0;
-        timeout.tv_usec = 200000;
-        if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0)
-	    goto connect_idle;
+        timeout.tv_usec = 240000;
+        if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
+	    debug("pnpwakeup1(): valid response in second phase.");
+	    return TRUE;
+	}
     }
-#else
+    return FALSE;
+}
+
+static int
+pnpwakeup2(void)
+{
+    struct timeval timeout;
+    fd_set fds;
+    int i;
+
     /*
      * This is a simplified procedure; it simply toggles RTS.
      */
+    debug("PnP COM device rev 0.9 probe...");
 
     ioctl(rodent.mfd, TIOCMGET, &i);
     i |= TIOCM_DTR;		/* DTR = 1 */
     i &= ~TIOCM_RTS;		/* RTS = 0 */
     ioctl(rodent.mfd, TIOCMSET, &i);
-    usleep(200000);
+    usleep(240000);
 
     setmousespeed(1200, 1200, (CS7 | CREAD | CLOCAL | HUPCL));
 
@@ -1931,23 +1956,53 @@ pnpgets(char *buf)
     FD_ZERO(&fds);
     FD_SET(rodent.mfd, &fds);
     timeout.tv_sec = 0;
-    timeout.tv_usec = 200000;
-    if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0)
-        goto connect_idle;
-#endif
+    timeout.tv_usec = 240000;
+    if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
+	debug("pnpwakeup2(): valid response.");
+	return TRUE;
+    }
+    return FALSE;
+}
+
+static int
+pnpgets(char *buf)
+{
+    struct timeval timeout;
+    fd_set fds;
+    int begin;
+    int i;
+    char c;
+
+    if (!pnpwakeup1() && !pnpwakeup2()) {
+	/*
+	 * According to PnP spec, we should set DTR = 1 and RTS = 0 while 
+	 * in idle state.  But, `moused' shall set DTR = RTS = 1 and proceed, 
+	 * assuming there is something at the port even if it didn't 
+	 * respond to the PnP enumeration procedure.
+	 */
+disconnect_idle:
+	i = TIOCM_DTR | TIOCM_RTS;		/* DTR = 1, RTS = 1 */
+	ioctl(rodent.mfd, TIOCMBIS, &i);
+	return 0;
+    }
 
     /* collect PnP COM device ID (2.1.7) */
+    begin = -1;
     i = 0;
-    usleep(200000);	/* the mouse must send `Begin ID' within 200msec */
+    usleep(240000);	/* the mouse must send `Begin ID' within 200msec */
     while (read(rodent.mfd, &c, 1) == 1) {
 	/* we may see "M", or "M3..." before `Begin ID' */
+	buf[i++] = c;
         if ((c == 0x08) || (c == 0x28)) {	/* Begin ID */
-	    buf[i++] = c;
+	    debug("begin-id %02x", c);
+	    begin = i - 1;
 	    break;
         }
         debug("%c %02x", c, c);
+	if (i >= 256)
+	    break;
     }
-    if (i <= 0) {
+    if (begin < 0) {
 	/* we haven't seen `Begin ID' in time... */
 	goto connect_idle;
     }
@@ -1957,7 +2012,7 @@ pnpgets(char *buf)
         FD_ZERO(&fds);
         FD_SET(rodent.mfd, &fds);
         timeout.tv_sec = 0;
-        timeout.tv_usec = 200000;
+        timeout.tv_usec = 240000;
         if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0)
 	    break;
 
@@ -1967,23 +2022,25 @@ pnpgets(char *buf)
 	if (i >= 256)
 	    break;
     }
+    if (begin > 0) {
+	i -= begin;
+	bcopy(&buf[begin], &buf[0], i);
+    }
     /* string may not be human readable... */
-    debug("'%-*.*s'", i, i, buf);
-    if (buf[i - 1] != c)
-	goto connect_idle;
-    return i;
+    debug("len:%d, '%-*.*s'", i, i, i, buf);
+
+    if (buf[i - 1] == c)
+	return i;		/* a valid PnP string */
 
     /*
      * According to PnP spec, we should set DTR = 1 and RTS = 0 while 
-     * in idle state.  But, `moused' shall set DTR = RTS = 1 and proceed, 
-     * assuming there is something at the port even if it didn't 
-     * respond to the PnP enumeration procedure.
+     * in idle state.  But, `moused' shall leave the modem control lines
+     * as they are. See above.
      */
-disconnect_idle:
-    i = TIOCM_DTR | TIOCM_RTS;		/* DTR = 1, RTS = 1 */
-    ioctl(rodent.mfd, TIOCMBIS, &i);
 connect_idle:
-    return 0;
+
+    /* we may still have something in the buffer */
+    return ((i > 0) ? i : 0);
 }
 
 static int
@@ -2006,6 +2063,26 @@ pnpparse(pnpid_t *id, char *buf, int len)
     id->ncompat = 0;
     id->ndescription = 0;
 
+    if ((buf[0] != 0x28) && (buf[0] != 0x08)) {
+	/* non-PnP mice */
+	switch(buf[0]) {
+	default:
+	    return FALSE;
+	case 'M': /* Microsoft */
+	    id->eisaid = "PNP0F01";
+	    break;
+	case 'H': /* MouseSystems */
+	    id->eisaid = "PNP0F04";
+	    break;
+	}
+	id->neisaid = strlen(id->eisaid);
+	id->class = "MOUSE";
+	id->nclass = strlen(id->class);
+	debug("non-PnP mouse '%c'", buf[0]);
+	return TRUE;
+    }
+
+    /* PnP mice */
     offset = 0x28 - buf[0];
 
     /* calculate checksum */
