@@ -657,6 +657,7 @@ struct	proc *zpfind __P((pid_t));	/* Find zombie process by id. */
 
 void	ast __P((struct trapframe *framep));
 struct	thread *choosethread __P((void));
+int	cr_cansignal __P((struct ucred *cred, struct proc *proc, int signum));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	faultin __P((struct proc *p));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
