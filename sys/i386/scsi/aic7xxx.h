@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.5 1995/03/31 13:54:41 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.6 1995/04/23 22:04:58 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -70,9 +70,7 @@ struct scb {
 #define	SCB_NEEDWDTR 0x80			/* Initiate Wide Negotiation */
 #define SCB_NEEDSDTR 0x40			/* Initiate Sync Negotiation */
 #define	SCB_TE	     0x20			/* Tag enable */
-#define	SCB_NEEDDMA  0x08			/* SCB needs to be DMA'd from
-						 * from host memory
-						 */
+#define	SCB_NEEDDMA  0x08			/* Refresh SCB from host ram */
 #define	SCB_DIS 0x04
 #define	SCB_TAG_TYPE 0x3
 #define		SIMPLE_QUEUE 0x0
@@ -99,12 +97,16 @@ struct scb {
 					 * a request sense.
 					 */
 /*30*/	physaddr host_scb			 __attribute__ ((packed));
+/*31*/	u_char next_waiting;		/* Used to thread SCBs awaiting 
+					 * selection
+					 */
+#define SCB_LIST_NULL 0x10		/* SCB list equivelent to NULL */
 #if 0
 	/*
 	 *  No real point in transferring this to the
 	 *  SCB registers.
 	*/
-	unsigned char RESERVED[2];
+	unsigned char RESERVED[1];
 #endif
 	/*-----------------end of hardware supported fields----------------*/
 	struct scb *next;	/* in free list */
