@@ -204,7 +204,7 @@ pdq_eisa_attach (dev)
 	}
 
 	m_addr = rman_get_start(mspace);
- 	m_size = (rman_get_end(mspace) - rman_get_start(mspace)) + 1;
+ 	m_size = rman_get_size(mspace);
 
 	sc->sc_iobase = (pdq_bus_ioport_t) rman_get_start(io);
 	sc->sc_membase = (pdq_bus_memaddr_t) pmap_mapdev(m_addr, m_size);

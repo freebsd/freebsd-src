@@ -1307,7 +1307,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	bus_addr_t off;
 	struct pcic_handle *h = pcic_get_handle(dev, child);
 
-	sz = rman_get_end(r) - rman_get_start(r) + 1;
+	sz = rman_get_size(r);
 	switch (type) {
 	case SYS_RES_IOPORT:
 		win = rid;
@@ -1416,7 +1416,7 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    count, flags);
 	if (r == NULL)
 		return r;
-	sz = rman_get_end(r) - rman_get_start(r) + 1;
+	sz = rman_get_size(r);
 	switch (type) {
 	case SYS_RES_IOPORT:
 		err = pcic_chip_io_alloc(h, rman_get_start(r), sz, 0,
