@@ -1,71 +1,79 @@
 .\" @(#)rpc_secure.3n	2.1 88/08/08 4.0 RPCSRC; from 1.19 88/06/24 SMI
-.TH RPC 3N "16 February 1988"
-.SH NAME
-rpc_secure \- library routines for secure remote procedure calls
-.SH SYNOPSIS AND DESCRIPTION
-These routines are part of the RPC library.  They implement DES
+.\" $Id$
+.Dd February 16, 1988
+.Dt RPC 3
+.Sh NAME
+.Nm rpc_secure
+.Nd library routines for secure remote procedure calls
+.Sh SYNOPSIS
+.Fd #include <rpc/rpc.h>
+.Ft AUTH *
+.Fo authdes_create
+.Fa "char *name"
+.Fa "unsigned window"
+.Fa "struct sockaddr_in *addr"
+.Fa "des_block *ckey"
+.Fc
+.Fn authdes_getucred "struct authdes_cred *adc" "short *uid" "short *gid" "short *grouplen" "int *groups"
+.Fn getnetname "char name[MAXNETNAMELEN]"
+.Fn host2netname "char *name" "char *host" "char *domain"
+.Fn key_decryptsession "char *remotename" "des_block *deskey"
+.Fn key_encryptsession "char *remotename" "des_block *deskey"
+.Fn key_gendes "des_block *deskey"
+.Fn key_setsecret "char *key"
+.Fn netname2host "char *name" "char *host" "int hostlen"
+.Fn netname2user "char *name" "int *uidp" "int *gidp" "int *gidlenp" "int *gidlist"
+.Fn user2netname "char *name" "int uid" "char *domain"
+.Sh DESCRIPTION
+These routines are part of the
+.Tn RPC
+library.  They implement
+.Tn DES
 Authentication.  See
-.BR rpc (3N)
-for further details about RPC.
-.LP
-.ft B
-.nf
-.sp .5
-#include <rpc/rpc.h>
-.fi
-.ft R
-.br
-.if t .ne 22
-.LP
-.ft B
-.nf
-.sp .5
-\s-1AUTH\s0 *
-authdes_create(name, window, syncaddr, ckey)
-char *name;
-unsigned window;
-struct sockaddr_in *addr;
-des_block *ckey;
-.fi
-.ft R
-.IP
-.B authdes_create(\|)
+.Xr rpc 3
+for further details about
+.Tn RPC .
+.Pp
+The
+.Fn authdes_create
 is the first of two routines which interface to the
-.SM RPC
+.Tn RPC
 secure authentication system, known as
-.SM DES
+.Tn DES
 authentication.
 The second is
-.BR authdes_getucred(\|) ,
-below. Note: the keyserver daemon
-.BR keyserv (8C)
+.Fn authdes_getucred ,
+below.
+.Pp
+Note: the keyserver daemon
+.Xr keyserv 8
 must be running for the
-.SM DES
+.Tn DES
 authentication system to work.
-.IP
-.BR authdes_create(\|) ,
+.Pp
+.Fn Authdes_create ,
 used on the client side, returns an authentication handle that
 will enable the use of the secure authentication system.
 The first parameter
-.I name
+.Fa name
 is the network name, or
-.IR netname ,
+.Fa netname ,
 of the owner of the server process. This field usually
 represents a
-.I hostname
+.Fa hostname
 derived from the utility routine
-.BR host2netname ,
+.Fn host2netname ,
 but could also represent a user name using
-.BR user2netname .
+.Fn user2netname .
 The second field is window on the validity of
 the client credential, given in seconds.  A small
 window is more secure than a large one, but choosing
 too small of a window will increase the frequency of
 resynchronizations because of clock drift. The third
 parameter
-.I syncaddr
+.Fa addr
 is optional.  If it is
-.SM NULL\s0,
+.Dv NULL ,
 then the authentication system will assume
 that the local clock is always in sync with the server's
 clock, and will not attempt resynchronizations. If an address
@@ -74,257 +82,147 @@ for consulting the remote time service whenever
 resynchronization
 is required. This parameter is usually the
 address of the
-.SM RPC
+.Tn RPC
 server itself. The final parameter
-.I ckey
+.Fa ckey
 is also optional.  If it is
-.SM NULL\s0,
+.Dv NULL ,
 then the authentication system will
 generate a random
-.SM DES
+.Tn DES
 key to be used for the encryption of credentials.
 If it is supplied, however, then it will be used instead.
-.br
-.if t .ne 13
-.LP
-.ft B
-.nf
-.sp .5
-authdes_getucred(adc, uid, gid, grouplen, groups)
-struct authdes_cred *adc;
-short *uid;
-short *gid;
-short *grouplen;
-int *groups;
-.fi
-.ft R
-.IP
-.BR authdes_getucred(\|) ,
+.Pp
+.Fn Authdes_getucred ,
 the second of the two
-.SM DES
+.Tn DES
 authentication routines,
 is used on the server side for converting a
-.SM DES
+.Tn DES
 credential, which is
 operating system independent, into a
-.UX
+.Ux
 credential. This routine differs from utility routine
-.B netname2user
+.Fn netname2user
 in that
-.B authdes_getucred(\|)
+.Fn authdes_getucred
 pulls its information from a cache, and does not have to do a
 Yellow Pages lookup every time it is called to get its information.
-.br
-.ft .ne 8
-.LP
-.ft B
-.nf
-.sp .5
-host2netname(name, host, domain)
-char *name;
-char *host;
-char *domain;
-.fi
-.ft R
-.IP
-Convert from a domain-specific hostname to an
-operating-system independent netname. Return
-.SM TRUE
+.Pp
+.Fn Getnetname
+installs the unique, operating-system independent netname of
+the
+caller in the fixed-length array
+.Fa name .
+Returns
+.Dv TRUE
 if it succeeds and
-.SM FALSE
+.Dv FALSE
+if it fails.
+.Pp
+.Fn Host2netname
+converts from a domain-specific hostname to an
+operating-system independent netname. Returns
+.Dv TRUE
+if it succeeds and
+.Dv FALSE
 if it fails. Inverse of
-.BR netname2host(\|) .
-.br
-.if t .ne 9
-.LP
-.ft B
-.nf
-.sp .5
-key_decryptsession(remotename, deskey)
-char *remotename;
-des_block *deskey;
-.fi
-.ft R
-.IP
-.B key_decryptsession(\|)
+.Fn netname2host .
+.Pp
+.Fn Key_decryptsession
 is an interface to the keyserver daemon, which is associated
 with
-.SM RPC\s0's
-secure authentication system (\s-1DES\s0
+.Tn RPC Ns 's
+secure authentication system (
+.Tn DES
 authentication).
 User programs rarely need to call it, or its associated routines
-.BR key_encryptsession(\|) ,
-.B key_gendes(\|)
+.Fn key_encryptsession ,
+.Fn key_gendes
 and
-.BR key_setsecret(\|) .
+.Fn key_setsecret .
 System commands such as
-.B login
+.Xr login 1
 and the
-.SM RPC
+.Tn RPC
 library are the main clients of these four routines.
-.IP
-.B key_decryptsession(\|)
-takes a server netname and a des key, and decrypts the key by
+.Pp
+.Fn Key_decryptsession
+takes a server netname and a
+.Tn DES
+key, and decrypts the key by
 using the the public key of the the server and the secret key
 associated with the effective uid of the calling process.  It
 is the inverse of
-.BR key_encryptsession(\|) .
-.br
-.if t .ne 8
-.LP
-.ft B
-.nf
-.sp .5
-key_encryptsession(remotename, deskey)
-char *remotename;
-des_block *deskey;
-.fi
-.ft R
-.IP
-.B key_encryptsession(\|)
+.Fn key_encryptsession .
+.Pp
+.Fn Key_encryptsession
 is a keyserver interface routine. It
 takes a server netname and a des key, and encrypts
 it using the public key of the the server and the secret key
 associated with the effective uid of the calling process.  It
 is the inverse of
-.BR key_decryptsession(\|) .
-.br
-.if t .ne 7
-.LP
-.ft B
-.nf
-.sp .5
-key_gendes(deskey)
-des_block *deskey;
-.fi
-.ft R
-.IP
-.B key_gendes(\|)
+.Fn key_decryptsession .
+.Pp
+.Fn Key_gendes
 is a keyserver interface routine. It
 is used to ask the keyserver for a secure conversation key.
-Choosing one at \(lqrandom\(rq is usually not good enough,
+Choosing one
+.Qq random
+is usually not good enough,
 because
 the common ways of choosing random numbers, such as using the
 current time, are very easy to guess.
-.br
-.if t .ne 6
-.LP
-.ft B
-.nf
-.sp .5
-key_setsecret(key)
-char *key;
-.fi
-.ft R
-.IP
-.B key_setsecret(\|)
+.Pp
+.Fn Key_setsecret
 is a keyserver interface routine. It is used to set the key for
 the effective
-.I uid
+.Fa uid
 of the calling process.
-.br
-.if t .ne 7
-.LP
-.ft B
-.nf
-.sp .5
-getnetname(name)
-char name[\s-1MAXNETNAMELEN\s0];
-.fi
-.ft R
-.IP
-.B getnetname(\|)
-installs the unique, operating-system independent netname of
-the
-caller in the fixed-length array
-.IR name .
-Returns
-.SM TRUE
-if it succeeds and
-.SM FALSE
-if it fails.
-.br
-.if t .ne 6
-.LP
-.ft B
-.nf
-.sp .5
-netname2host(name, host, hostlen)
-char *name;
-char *host;
-int hostlen;
-.fi
-.ft R
-.IP
-Convert from an operating-system independent netname to a
+.Pp
+.Fn Netname2host
+converts from an operating-system independent netname to a
 domain-specific hostname. Returns
-.SM TRUE
+.Dv TRUE
 if it succeeds and
-.SM FALSE
+.Dv FALSE
 if it fails.  Inverse of
-.BR host2netname(\|) .
-.br
-.if t .ne 9
-.LP
-.ft B
-.nf
-.sp .5
-netname2user(name, uidp, gidp, gidlenp, gidlist)
-char *name;
-int *uidp;
-int *gidp;
-int *gidlenp;
-int *gidlist;
-.fi
-.ft R
-.IP
-Convert from an operating-system independent netname to a
-domain-specific user
-.SM ID.
+.Fn host2netname .
+.Pp
+.Fn Netname2user
+converts from an operating-system independent netname to a
+domain-specific user ID.
 Returns
-.SM TRUE
+.Dv TRUE
 if it succeeds and
-.SM FALSE
+.Dv FALSE
 if it fails. Inverse of
-.BR user2netname(\|) .
-.br
-.if t .ne 8
-.LP
-.ft B
-.nf
-.sp .5
-user2netname(name, uid, domain)
-char *name;
-int uid;
-char *domain;
-.fi
-.ft R
-.IP
-Convert from a domain-specific username to an operating-system
+.Fn user2netname .
+.Pp
+.Fn User2netname
+converts from a domain-specific username to an operating-system
 independent netname. Returns
-.SM TRUE
+.Dv TRUE
 if it succeeds and
-.SM FALSE
+.Dv FALSE
 if it fails. Inverse of
-.BR netname2user(\|) .
-.br
-.SH SEE ALSO
-.BR xdr (3N),
-.BR keyserv (8C),
-.BR rpc (3N)
-.br
+.Fn netname2user .
+.Sh SEE ALSO
+.Xr rpc 3 ,
+.Xr xdr 3 ,
+.Xr keyserv 8
+.Pp
 The following manuals:
-.RS
-.ft I
-Remote Procedure Calls: Protocol Specification
-.br
-Remote Procedure Call Programming Guide
-.br
-rpcgen Programming Guide
-.br
-.ft R
-.RE
-.IR "\s-1RPC\s0: Remote Procedure Call Protocol Specification" ,
-.SM RFC1050, Sun Microsystems, Inc.,
-.SM USC-ISI\s0.
-
+.Rs
+.%B Remote Procedure Calls: Protocol Specification
+.Re
+.Rs
+.%B Remote Procedure Call Programming Guide
+.Re
+.Rs
+.%B Rpcgen Programming Guide
+.Re
+.Rs
+.%B RPC: Remote Procedure Call Protocol Specification
+.%O RFC1050, Sun Microsystems Inc., USC-ISI
+.Re
