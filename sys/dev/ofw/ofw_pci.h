@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: ofw_pci.h,v 1.3 2001/02/16 14:16:30 mrg Exp
+ *	from: NetBSD: ofw_pci.h,v 1.5 2003/10/22 09:04:39 mjl Exp
  *
  * $FreeBSD$
  */
@@ -61,7 +61,7 @@
  *	phys.lo cell:	llllllll llllllll llllllll llllllll
  *
  *	n	nonrelocatable
- *	p	prefectable
+ *	p	prefetchable
  *	t	aliased below 1MB (memory) or 64k (i/o)
  *	ss	space code
  *	b	bus number
