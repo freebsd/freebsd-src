@@ -66,11 +66,11 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
+#ifdef MBUF_STRESS_TEST
 int	m_defragpackets;
 int	m_defragbytes;
 int	m_defraguseless;
 int	m_defragfailure;
-#ifdef MBUF_STRESS_TEST
 int	m_defragrandomfailures;
 #endif
 
@@ -96,6 +96,7 @@ SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD,
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
+#if MBUF_STRESS_TEST
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragpackets, CTLFLAG_RD,
 	   &m_defragpackets, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragbytes, CTLFLAG_RD,
@@ -104,7 +105,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defraguseless, CTLFLAG_RD,
 	   &m_defraguseless, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragfailure, CTLFLAG_RD,
 	   &m_defragfailure, 0, "");
-#ifdef MBUF_STRESS_TEST
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 	   &m_defragrandomfailures, 0, "");
 #endif
@@ -1530,15 +1530,21 @@ m_defrag(struct mbuf *m0, int how)
 			m_cat(m_final, m_new);
 		m_new = NULL;
 	}
+#ifdef MBUF_STRESS_TEST
 	if (m0->m_next == NULL)
 		m_defraguseless++;
+#endif
 	m_freem(m0);
 	m0 = m_final;
+#ifdef MBUF_STRESS_TEST
 	m_defragpackets++;
 	m_defragbytes += m0->m_pkthdr.len;
+#endif
 	return (m0);
 nospace:
+#ifdef MBUF_STRESS_TEST
 	m_defragfailure++;
+#endif
 	if (m_new)
 		m_free(m_new);
 	if (m_final)
