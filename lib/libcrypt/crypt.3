@@ -87,7 +87,7 @@ If it begins with an underscore
 then the
 .Tn DES
 Extended Format
-is used in interpreting both the the key and the salt, as outlined below.
+is used in interpreting both the key and the salt, as outlined below.
 .It Modular
 If it begins with the string
 .Dq $digit$
@@ -108,7 +108,7 @@ a CPU second and MD5 to do about 62 crypts a CPU second.
 The
 .Ar key
 is divided into groups of 8 characters (the last group is null-padded)
-and the low-order 7 bits of each each character (56 bits per group) are
+and the low-order 7 bits of each character (56 bits per group) are
 used to form the
 .Tn DES
 key as follows:
