@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)command.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id: command.c,v 1.11 1999/05/30 18:06:52 hoek Exp $";
+        "$Id: command.c,v 1.12 1999/06/01 20:02:31 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -665,7 +665,7 @@ editfile()
 	static int dolinenumber;
 	static char *editor;
 	char *base;
-	int c;
+	int linenumber;
 	char buf[MAXPATHLEN * 2 + 20], *getenv();
 
 	if (editor == NULL) {
@@ -683,14 +683,37 @@ editfile()
 			base++;
 
 		/* emacs also accepts vi-style +nnnn */
-		if (strcmp(base, "vi") == 0 || strcmp(base, "emacs") == 0)
+		if (strncmp(base, "vi", 2) == 0 || strcmp(base, "emacs") == 0)
 			dolinenumber = 1;
 		else
 			dolinenumber = 0;
 	}
-	if (dolinenumber && (c = currline(MIDDLE)))
+	/*
+	 * XXX Can't just use currline(MIDDLE) since that might be NULL_POSITION
+	 * if we are editting a short file or some kind of search positioned
+	 * us near the last line.  It's not clear what currline() should do
+	 * in those circumstances, but as of this writing, it doesn't do
+	 * anything reasonable from our perspective.  The currline(MIDDLE)
+	 * never had the desired results for an editfile() after a search()
+	 * anyways.  Note, though, that when vi(1) starts its editting, it
+	 * positions the focus line in the middle of the screen, not the top.
+	 *
+	 * I think what is needed is some kind of setfocus() and getfocus()
+	 * function.  This could put the focussed line in the middle, top,
+	 * or wherever as per the user's wishes, and allow things like us
+	 * to getfocus() the correct file-position/line-number.  A search would
+	 * then search forward (or backward) from the current focus position,
+	 * etc.
+	 *
+	 * currline() doesn't belong.
+	 */
+	if (position(MIDDLE) == NULL_POSITION)
+		linenumber = currline(TOP);
+	else
+		linenumber = currline(MIDDLE);
+	if (dolinenumber && linenumber)
 		(void)snprintf(buf, sizeof(buf),
-		    "%s +%d %s", editor, c, current_file);
+		    "%s +%d %s", editor, linenumber, current_file);
 	else
 		(void)snprintf(buf, sizeof(buf), "%s %s", editor, current_file);
 	lsystem(buf);
