@@ -147,6 +147,14 @@ struct vm_page {
 #if !defined(KLD_MODULE)
 
 /*
+ * shared mutex array for vm_page_buckets[] 
+ */
+#ifndef BUCKET_HASH_SIZE
+#define BUCKET_HASH_SIZE	16
+#endif
+#define BUCKET_HASH_MASK	(BUCKET_HASH_SIZE - 1)
+
+/*
  * Page coloring parameters
  */
 /* Each of PQ_FREE, and PQ_CACHE have PQ_HASH_SIZE entries */
@@ -337,6 +345,15 @@ void vm_page_dirty(vm_page_t m);
 void vm_page_undirty(vm_page_t m);
 vm_page_t vm_page_list_find(int basequeue, int index, boolean_t prefer_zero);
 void vm_page_wakeup(vm_page_t m);
+
+void vm_pageq_init(void);
+struct vpgqueues *vm_pageq_aquire(int queue);
+void vm_pageq_release(struct vpgqueues *vpq);
+vm_page_t vm_pageq_add_new_page(vm_offset_t pa);
+void vm_pageq_remove_nowakeup(vm_page_t m);
+void vm_pageq_remove(vm_page_t m);
+vm_page_t vm_pageq_find(int basequeue, int index, boolean_t prefer_zero);
+void vm_pageq_requeue(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);

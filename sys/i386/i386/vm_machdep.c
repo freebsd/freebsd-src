@@ -588,7 +588,7 @@ vm_page_zero_idle()
 
 	if (mtx_trylock(&Giant)) {
 		zero_state = 0;
-		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
+		m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
 			vm_page_queues[m->queue].lcnt--;
 			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
