@@ -40,9 +40,6 @@ Make work-around available for CMD640 chipset (see /sys/i386/conf/LINT).
 
 Better support for Cyrix and AMD processors.
 
-Support for parallel port ZIP drives as well as a new parallel
-port "bus" architecture for devices sharing the printer port.
-
 Newer 3Com 3c589D PCMCIA cards are now supported.
 
 
