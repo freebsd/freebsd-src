@@ -313,7 +313,7 @@ faultin(p)
 	struct proc *p;
 {
 
-	mtx_assert(&p->p_mtx, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) == 0) {
 
@@ -355,7 +355,7 @@ scheduler(dummy)
 	struct proc *pp;
 	int ppri;
 
-	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 
 loop:
 	if (vm_page_count_min()) {
@@ -363,6 +363,7 @@ loop:
 		goto loop;
 	}
 
+	mtx_unlock(&Giant);
 	pp = NULL;
 	ppri = INT_MIN;
 	sx_slock(&allproc_lock);
@@ -395,6 +396,7 @@ loop:
 	 */
 	if ((p = pp) == NULL) {
 		tsleep(&proc0, PVM, "sched", 0);
+		mtx_lock(&Giant);
 		goto loop;
 	}
 	mtx_lock_spin(&sched_lock);
@@ -404,6 +406,7 @@ loop:
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 */
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	faultin(p);
 	PROC_UNLOCK(p);
@@ -523,17 +526,14 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			mtx_lock_spin(&sched_lock);
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (p->p_slptime > swap_idle_threshold2))) {
-				mtx_unlock_spin(&sched_lock);
 				swapout(p);
 				vmspace_free(vm);
 				didswap++;
 				goto retry;
-			} else
-				mtx_unlock_spin(&sched_lock);
+			}
 		}
 	}
 	sx_sunlock(&allproc_lock);
@@ -559,14 +559,12 @@ swapout(p)
 	 */
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
-	(void) splhigh();
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	if (p->p_stat == SRUN)
 		remrunqueue(p);
 	mtx_unlock_spin(&sched_lock);
-	(void) spl0();
 
 	pmap_swapout_proc(p);
 
