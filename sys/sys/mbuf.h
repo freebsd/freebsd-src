@@ -649,7 +649,7 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 }
 
 /*
- * Obtain next_hop information asociated with the mbuf; if any.
+ * Obtain next_hop information associated with the mbuf; if any.
  * If a tag is present devalidate it also.
  */
 static __inline struct sockaddr_in *
