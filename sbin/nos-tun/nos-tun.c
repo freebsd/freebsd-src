@@ -84,7 +84,7 @@ static struct ifreq ifrq;
 int net;                          /* socket descriptor */
 int tun;                          /* tunnel descriptor */
 
-static void usage __P((void));
+static void usage(void);
 
 int Set_address(char *addr, struct sockaddr_in *sin)
 {

@@ -104,10 +104,10 @@ int	debug = 0;
 #endif
 #define	printd	if (debug) printf
 
-int carrier __P((void));
-void down __P((int));
-int getline __P((char *, int, int, time_t));
-static void usage __P((void));
+int carrier(void);
+void down(int);
+int getline(char *, int, int, time_t);
+static void usage(void);
 
 int
 main(argc, argv)

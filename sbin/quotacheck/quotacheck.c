@@ -108,24 +108,24 @@ int	fi;			/* open disk file descriptor */
 u_long	highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 
 struct fileusage *
-	 addid __P((u_long, int, char *));
-char	*blockcheck __P((char *));
-void	 bread __P((daddr_t, char *, long));
-extern int checkfstab __P((int, int, void * (*)(struct fstab *),
-				int (*)(char *, char *, struct quotaname *)));
-int	 chkquota __P((char *, char *, struct quotaname *));
-void	 freeinodebuf __P((void));
+	 addid(u_long, int, char *);
+char	*blockcheck(char *);
+void	 bread(daddr_t, char *, long);
+extern int checkfstab(int, int, void * (*)(struct fstab *),
+				int (*)(char *, char *, struct quotaname *));
+int	 chkquota(char *, char *, struct quotaname *);
+void	 freeinodebuf(void);
 struct dinode *
-	 getnextinode __P((ino_t));
-int	 getquotagid __P((void));
-int	 hasquota __P((struct fstab *, int, char **));
+	 getnextinode(ino_t);
+int	 getquotagid(void);
+int	 hasquota(struct fstab *, int, char **);
 struct fileusage *
-	 lookup __P((u_long, int));
-void	*needchk __P((struct fstab *));
-int	 oneof __P((char *, char*[], int));
-void	 resetinodebuf __P((void));
-int	 update __P((char *, char *, int));
-void	 usage __P((void));
+	 lookup(u_long, int);
+void	*needchk(struct fstab *);
+int	 oneof(char *, char*[], int);
+void	 resetinodebuf(void);
+int	 update(char *, char *, int);
+void	 usage(void);
 
 int
 main(argc, argv)

@@ -69,9 +69,9 @@ int debug = 1;
 int debug = 0;
 #endif
 
-void nonfs __P((int));
-void reapchild __P((int));
-void usage __P((void));
+void nonfs(int);
+void reapchild(int);
+void usage(void);
 
 /*
  * Nfsiod does asynchronous buffered I/O on behalf of the NFS client.
