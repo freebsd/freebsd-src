@@ -466,7 +466,7 @@ malloc_init ()
     page_dir = (struct pginfo **) MMAP(malloc_pagesize);
 
     if (page_dir == (struct pginfo **) -1)
-	wrterror("mmap(2) failed, check limits.\n");
+	wrterror("mmap(2) failed, check limits\n");
 
     /*
      * We need a maximum of malloc_pageshift buckets, steal these from the
@@ -747,12 +747,12 @@ irealloc(void *ptr, size_t size)
     index = ptr2index(ptr);
 
     if (index < malloc_pageshift) {
-	wrtwarning("junk pointer, too low to make sense.\n");
+	wrtwarning("junk pointer, too low to make sense\n");
 	return 0;
     }
 
     if (index > last_index) {
-	wrtwarning("junk pointer, too high to make sense.\n");
+	wrtwarning("junk pointer, too high to make sense\n");
 	return 0;
     }
 
@@ -762,7 +762,7 @@ irealloc(void *ptr, size_t size)
 
 	/* Check the pointer */
 	if ((u_long)ptr & malloc_pagemask) {
-	    wrtwarning("modified (page-) pointer.\n");
+	    wrtwarning("modified (page-) pointer\n");
 	    return 0;
 	}
 
@@ -780,7 +780,7 @@ irealloc(void *ptr, size_t size)
 
 	/* Check the pointer for sane values */
 	if (((u_long)ptr & ((*mp)->size-1))) {
-	    wrtwarning("modified (chunk-) pointer.\n");
+	    wrtwarning("modified (chunk-) pointer\n");
 	    return 0;
 	}
 
@@ -789,7 +789,7 @@ irealloc(void *ptr, size_t size)
 
 	/* Verify that it isn't a free chunk already */
         if ((*mp)->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
-	    wrtwarning("chunk is already free.\n");
+	    wrtwarning("chunk is already free\n");
 	    return 0;
 	}
 
@@ -803,7 +803,7 @@ irealloc(void *ptr, size_t size)
 	}
 
     } else {
-	wrtwarning("pointer to wrong page.\n");
+	wrtwarning("pointer to wrong page\n");
 	return 0;
     }
 
@@ -835,17 +835,17 @@ free_pages(void *ptr, u_long index, struct pginfo *info)
     void *tail;
 
     if (info == MALLOC_FREE) {
-	wrtwarning("page is already free.\n");
+	wrtwarning("page is already free\n");
 	return;
     }
 
     if (info != MALLOC_FIRST) {
-	wrtwarning("pointer to wrong page.\n");
+	wrtwarning("pointer to wrong page\n");
 	return;
     }
 
     if ((u_long)ptr & malloc_pagemask) {
-	wrtwarning("modified (page-) pointer.\n");
+	wrtwarning("modified (page-) pointer\n");
 	return;
     }
 
@@ -920,7 +920,7 @@ free_pages(void *ptr, u_long index, struct pginfo *info)
 	    pf = px;
 	    px = 0;
 	} else {
-	    wrterror("freelist is destroyed.\n");
+	    wrterror("freelist is destroyed\n");
 	}
     }
     
@@ -967,12 +967,12 @@ free_bytes(void *ptr, u_long index, struct pginfo *info)
     i = ((u_long)ptr & malloc_pagemask) >> info->shift;
 
     if (((u_long)ptr & (info->size-1))) {
-	wrtwarning("modified (chunk-) pointer.\n");
+	wrtwarning("modified (chunk-) pointer\n");
 	return;
     }
 
     if (info->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
-	wrtwarning("chunk is already free.\n");
+	wrtwarning("chunk is already free\n");
 	return;
     }
 
@@ -1029,7 +1029,7 @@ ifree(void *ptr)
 	return;
 
     if (!malloc_started) {
-	wrtwarning("malloc() has never been called.\n");
+	wrtwarning("malloc() has never been called\n");
 	return;
     }
 
@@ -1040,12 +1040,12 @@ ifree(void *ptr)
     index = ptr2index(ptr);
 
     if (index < malloc_pageshift) {
-	wrtwarning("junk pointer, too low to make sense.\n");
+	wrtwarning("junk pointer, too low to make sense\n");
 	return;
     }
 
     if (index > last_index) {
-	wrtwarning("junk pointer, too high to make sense.\n");
+	wrtwarning("junk pointer, too high to make sense\n");
 	return;
     }
 
@@ -1071,7 +1071,7 @@ malloc(size_t size)
     THREAD_LOCK();
     malloc_func = " in malloc():";
     if (malloc_active++) {
-	wrtwarning("recursive call.\n");
+	wrtwarning("recursive call\n");
         malloc_active--;
         THREAD_UNLOCK();
 	return (0);
@@ -1086,7 +1086,7 @@ malloc(size_t size)
     malloc_active--;
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
-	wrterror("out of memory.\n");
+	wrterror("out of memory\n");
     return (r);
 }
 
@@ -1096,7 +1096,7 @@ free(void *ptr)
     THREAD_LOCK();
     malloc_func = " in free():";
     if (malloc_active++) {
-	wrtwarning("recursive call.\n");
+	wrtwarning("recursive call\n");
 	malloc_active--;
 	return;
     } else {
@@ -1116,12 +1116,12 @@ realloc(void *ptr, size_t size)
     THREAD_LOCK();
     malloc_func = " in realloc():";
     if (malloc_active++) {
-	wrtwarning("recursive call.\n");
+	wrtwarning("recursive call\n");
         malloc_active--;
 	return (0);
     }
     if (ptr && !malloc_started) {
-	wrtwarning("malloc() has never been called.\n");
+	wrtwarning("malloc() has never been called\n");
 	ptr = 0;
     }		
     if (!malloc_started)
@@ -1138,7 +1138,7 @@ realloc(void *ptr, size_t size)
     malloc_active--;
     THREAD_UNLOCK();
     if (malloc_xmalloc && !r)
-	wrterror("out of memory.\n");
+	wrterror("out of memory\n");
     return (r);
 }
 
