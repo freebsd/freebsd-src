@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.8 1994/08/24 23:53:32 thyagara Exp $
+ * igmp.c,v 1.2 1994/09/08 02:51:15 wollman Exp
  */
 
 
@@ -181,12 +181,12 @@ void accept_igmp(recvlen)
 
 		case DVMRP_PROBE:
 		    accept_probe(src, dst,
-				 (char *)(igmp+1), igmpdatalen, group);
+                               (char *)(igmp+1), igmpdatalen, ntohl(group));
 		    return;
 
 		case DVMRP_REPORT:
  		    accept_report(src, dst,
-				  (char *)(igmp+1), igmpdatalen, group);
+                                (char *)(igmp+1), igmpdatalen, ntohl(group));
 		    return;
 
 		case DVMRP_ASK_NEIGHBORS:

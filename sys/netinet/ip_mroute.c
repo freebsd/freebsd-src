@@ -23,7 +23,6 @@
 #include <sys/syslog.h>
 #include <net/if.h>
 #include <net/route.h>
-#include <net/raw_cb.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -104,7 +103,7 @@ void multiencap_decap(struct mbuf *m) { /* XXX must fixup manually */
 
 int (*legal_vif_num)(int) = 0;
 
-#else
+#else /* MROUTING */
 
 #define INSIZ		sizeof(struct in_addr)
 #define	same(a1, a2) \
@@ -121,7 +120,7 @@ struct socket  *ip_mrouter  = NULL;
 struct mrtstat	mrtstat;
 
 int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
-#else
+#else /* MROUTE_LKM */
 extern struct mrtstat mrtstat;
 extern int ip_mrtproto;
 #endif
@@ -177,6 +176,7 @@ struct ip multicast_encap_iphdr = {
  * Private variables.
  */
 static vifi_t	   numvifs = 0;
+static void (*encap_oldrawip)() = 0;
 
 /*
  * one-back cache used by multiencap_decap to locate a tunnel's vif
@@ -212,6 +212,7 @@ void tbf_send_packet(struct vif *, struct mbuf *, struct ip_moptions *);
 void tbf_update_tokens(struct vif *);
 static int priority(struct vif *, struct ip *);
 static int ip_mrouter_init(struct socket *);
+void multiencap_decap(struct mbuf *m);
 
 /*
  * A simple hash function: returns MFCHASHMOD of the low-order octet of
@@ -580,13 +581,17 @@ add_vif(vifcp)
 
     if (vifcp->vifc_flags & VIFF_TUNNEL) {
 	if ((vifcp->vifc_flags & VIFF_SRCRT) == 0) {
-	    static int inited = 0;
-	    if(!inited) {
+          if (encap_oldrawip == 0) {
+              extern struct protosw inetsw[];
+              extern u_char ip_protox[];
+              register u_char pr = ip_protox[ENCAP_PROTO];
+
+              encap_oldrawip = inetsw[pr].pr_input;
+              inetsw[pr].pr_input = multiencap_decap;
 		for (s = 0; s < MAXVIFS; ++s) {
 		    multicast_decap_if[s].if_name = "mdecap";
 		    multicast_decap_if[s].if_unit = s;
 		}
-		inited = 1;
 	    }
 	    ifp = &multicast_decap_if[vifcp->vifc_vifi];
 	} else {
@@ -931,8 +936,9 @@ X_ip_mforward(ip, ifp, m, imo)
     int s;
 
     if (mrtdebug > 1)
-	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x\n",
-	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), ifp);
+      log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x (%s%d)\n",
+          ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), ifp,
+          ifp->if_name, ifp->if_unit);
 
     if (ip->ip_hl < (IP_HDR_LEN + TUNNEL_LEN) >> 2 ||
 	(ipoptions = (u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
@@ -1119,9 +1125,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	    
 	    mrtstat.mrts_upcalls++;
 
-	    raw_input(mm, &k_igmpproto,
-		      (struct sockaddr *)&k_igmpsrc,
-		      (struct sockaddr *)&k_igmpdst);
+          rip_ip_input(mm, ip_mrouter, (struct sockaddr *)&k_igmpsrc);
 	    
 	    /* set timer to cleanup entry if upcall is lost */
 	    timeout(cleanup_cache, (caddr_t)mb_rt, 100);
@@ -1519,15 +1523,19 @@ multiencap_decap(m)
 	mrtstat.mrts_cant_tunnel++; /*XXX*/
 	m_freem(m);
 	if (mrtdebug)
-	    log(LOG_DEBUG, "ip_mforward: no tunnel with %u\n",
+          log(LOG_DEBUG, "ip_mforward: no tunnel with %x\n",
 		ntohl(ip->ip_src.s_addr));
 	return;
     }
     ifp = vifp->v_ifp;
-    hlen -= sizeof(struct ifnet *);
-    m->m_data += hlen;
-    m->m_len -= hlen;
-    *(mtod(m, struct ifnet **)) = ifp;
+
+    if (hlen > IP_HDR_LEN)
+      ip_stripoptions(m, (struct mbuf *) 0);
+    m->m_data += IP_HDR_LEN;
+    m->m_len -= IP_HDR_LEN;
+    m->m_pkthdr.len -= IP_HDR_LEN;
+    m->m_pkthdr.rcvif = ifp;
+
     ifq = &ipintrq;
     s = splimp();
     if (IF_QFULL(ifq)) {
@@ -1879,8 +1887,8 @@ ip_mroute_mod_handle(struct lkm_table *lkmtp, int cmd)
 		ip_mforward = X_ip_mforward;
 		old_mrt_ioctl = mrt_ioctl;
 		mrt_ioctl = X_mrt_ioctl;
-		old_proto4_input = inetsw[ip_protox[IPPROTO_ENCAP]].pr_input;
-		inetsw[ip_protox[IPPROTO_ENCAP]].pr_input = X_multiencap_decap;
+              old_proto4_input = inetsw[ip_protox[ENCAP_PROTO]].pr_input;
+              inetsw[ip_protox[ENCAP_PROTO]].pr_input = X_multiencap_decap;
 		old_legal_vif_num = legal_vif_num;
 		legal_vif_num = X_legal_vif_num;
 		ip_mrtproto = IGMP_DVMRP;
@@ -1896,7 +1904,7 @@ ip_mroute_mod_handle(struct lkm_table *lkmtp, int cmd)
 		ip_mrouter_done = old_ip_mrouter_done;
 		ip_mforward = old_ip_mforward;
 		mrt_ioctl = old_mrt_ioctl;
-		inetsw[ip_protox[IPPROTO_ENCAP]].pr_input = old_proto4_input;
+              inetsw[ip_protox[ENCAP_PROTO]].pr_input = old_proto4_input;
 		legal_vif_num = old_legal_vif_num;
 		ip_mrtproto = 0;
 		break;

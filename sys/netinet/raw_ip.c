@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.14 1995/02/07 02:53:14 wollman Exp $
+ * $Id: raw_ip.c,v 1.15 1995/02/14 06:24:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -96,10 +96,10 @@ rip_input(m)
 		if (inp->inp_ip.ip_p && inp->inp_ip.ip_p != ip->ip_p)
 			continue;
 		if (inp->inp_laddr.s_addr &&
-		    inp->inp_laddr.s_addr == ip->ip_dst.s_addr)
+                  inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
 			continue;
 		if (inp->inp_faddr.s_addr &&
-		    inp->inp_faddr.s_addr == ip->ip_src.s_addr)
+                  inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
 		if (last) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
@@ -123,6 +123,27 @@ rip_input(m)
 			sorwakeup(last);
 	} else {
 		m_freem(m);
+              ipstat.ips_noproto++;
+              ipstat.ips_delivered--;
+      }
+}
+
+void rip_ip_input(mm, ip_mrouter, src)
+      struct mbuf *mm;
+      register struct socket *ip_mrouter;
+      struct sockaddr *src;
+{
+      if (ip_mrouter)
+      {
+              if (sbappendaddr(&ip_mrouter->so_rcv, src,
+                              mm, (struct mbuf *) 0) == 0)
+                      m_freem(mm);
+              else
+                      sorwakeup(ip_mrouter);
+      }
+      else
+      {
+              m_freem(mm);
 		ipstat.ips_noproto++;
 		ipstat.ips_delivered--;
 	}
