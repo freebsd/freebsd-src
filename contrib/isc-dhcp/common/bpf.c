@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: bpf.c,v 1.19.2.6 1999/02/09 04:46:59 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: bpf.c,v 1.19.2.8 1999/02/23 22:09:56 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -142,13 +142,14 @@ void if_register_send (info)
 	info -> wfdesc = info -> rfdesc;
 #endif
 	if (!quiet_interface_discovery)
-		note ("Sending on   BPF/%s/%s/%s",
+		note ("Sending on   BPF/%s/%s%s%s",
 		      info -> name,
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
 				     info -> hw_address.haddr),
+		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
-		       info -> shared_network -> name : "unattached"));
+		       info -> shared_network -> name : ""));
 }
 #endif /* USE_BPF_SEND */
 
@@ -250,13 +251,14 @@ void if_register_receive (info)
 	if (ioctl (info -> rfdesc, BIOCSETF, &p) < 0)
 		error ("Can't install packet filter program: %m");
 	if (!quiet_interface_discovery)
-		note ("Listening on BPF/%s/%s/%s",
+		note ("Listening on BPF/%s/%s%s%s",
 		      info -> name,
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
 				     info -> hw_address.haddr),
+		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
-		       info -> shared_network -> name : "unattached"));
+		       info -> shared_network -> name : ""));
 }
 #endif /* USE_BPF_RECEIVE */
 
@@ -273,6 +275,7 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	int bufp = 0;
 	unsigned char buf [256];
 	struct iovec iov [2];
+	int result;
 
 	if (!strcmp (interface -> name, "fallback"))
 		return send_fallback (interface, packet, raw,
@@ -290,7 +293,10 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	iov [1].iov_base = (char *)raw;
 	iov [1].iov_len = len;
 
-	return writev(interface -> wfdesc, iov, 2);
+	result = writev(interface -> wfdesc, iov, 2);
+	if (result < 0)
+		warn ("send_packet: %m");
+	return result;
 }
 #endif /* USE_BPF_SEND */
 
