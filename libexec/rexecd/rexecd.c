@@ -48,20 +48,18 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
 #include <err.h>
-#include <netdb.h>
+#ifdef DEBUG
+#include <fcntl.h>
+#endif
 #include <libutil.h>
 #include <paths.h>
-#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <skey.h>
-#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -84,6 +82,13 @@ void error __P(());
 
 int no_uid_0 = 1;
 
+void
+usage(void)
+{
+	syslog(LOG_ERR, "usage: rexecd [-i]");
+	exit(1);
+}
+
 /*
  * remote execute server:
  *	username\0
@@ -99,12 +104,21 @@ main(argc, argv)
 {
 	struct sockaddr_in from;
 	int fromlen;
-	struct hostent *hp;
+	int ch;
 
-	if (argc == 2 && !strcmp(argv[1], "-i"))
+	openlog("rexecd", LOG_PID, LOG_AUTH);
+
+	while ((ch = getopt(argc, argv, "i")) != -1)
+	  switch (ch) {
+	  case 'i':
 		no_uid_0 = 0;
+		break;
+	  default:
+		usage();
+	  }
+	argc -= optind;
+	argv += optind;
 
-	openlog(argv[0], LOG_PID, LOG_AUTH);
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0)
 		err(1, "getpeername");
