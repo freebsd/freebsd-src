@@ -84,9 +84,10 @@ struct diskslices {
 #define	dsgetlabel(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_label)
 
 struct buf;
+struct bio;
 struct disklabel;
 
-int	dscheck __P((struct buf *bp, struct diskslices *ssp));
+int	dscheck __P((struct bio *bp, struct diskslices *ssp));
 void	dsclose __P((dev_t dev, int mode, struct diskslices *ssp));
 void	dsgone __P((struct diskslices **sspp));
 int	dsinit __P((dev_t dev, struct disklabel *lp,

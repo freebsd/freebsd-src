@@ -317,7 +317,7 @@ struct acd {
 	int flags;			/* Device state flags */
 	int refcnt;			/* The number of raw opens */
 	struct atapi *ata;		/* Controller structure */
-	struct buf_queue_head buf_queue;	/* Queue of i/o requests */
+	struct bio_queue_head bio_queue;	/* Queue of i/o requests */
 	struct atapi_params *param;	/* Drive parameters table */
 	struct toc toc;			/* Table of disc contents */
 	struct {

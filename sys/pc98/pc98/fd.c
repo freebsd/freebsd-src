@@ -91,9 +91,6 @@
 #include <isa/rtc.h>
 #endif
 
-/* misuse a flag to identify format operation */
-#define B_FORMAT B_XXX
-
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
@@ -1072,7 +1069,7 @@ fdc_attach(device_t dev)
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	fdout_wr(fdc, ((fdc->fdout = 0)));
 #endif
-	bufq_init(&fdc->head);
+	bioq_init(&fdc->head);
 
 	/*
 	 * Probe and attach any children.  We should probably detect
@@ -1774,7 +1771,7 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 /*                               fdstrategy                                 */
 /****************************************************************************/
 void
-fdstrategy(struct buf *bp)
+fdstrategy(struct bio *bp)
 {
 	unsigned nblocks, blknum, cando;
  	int	s;
@@ -1783,31 +1780,31 @@ fdstrategy(struct buf *bp)
  	fd_p	fd;
 	size_t	fdblk;
 
- 	fdu = FDUNIT(minor(bp->b_dev));
+ 	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
 	if (fd == 0)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
-		      (u_long)major(bp->b_dev), (u_long)minor(bp->b_dev));
+		      (u_long)major(bp->bio_dev), (u_long)minor(bp->bio_dev));
 	fdc = fd->fdc;
 	if (fd->type == NO_TYPE) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = ENXIO;
+		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	};
 
 	fdblk = 128 << (fd->ft->secsize);
-	if (!(bp->b_flags & B_FORMAT)) {
-		if (bp->b_blkno < 0) {
+	if (!(bp->bio_cmd & BIO_FORMAT)) {
+		if (bp->bio_blkno < 0) {
 			printf(
 		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
-			       fdu, (u_long)bp->b_blkno, bp->b_bcount);
-			bp->b_error = EINVAL;
-			bp->b_ioflags |= BIO_ERROR;
+			       fdu, (u_long)bp->bio_blkno, bp->bio_bcount);
+			bp->bio_error = EINVAL;
+			bp->bio_flags |= BIO_ERROR;
 			goto bad;
 		}
-		if ((bp->b_bcount % fdblk) != 0) {
-			bp->b_error = EINVAL;
-			bp->b_ioflags |= BIO_ERROR;
+		if ((bp->bio_bcount % fdblk) != 0) {
+			bp->bio_error = EINVAL;
+			bp->bio_flags |= BIO_ERROR;
 			goto bad;
 		}
 	}
@@ -1815,33 +1812,33 @@ fdstrategy(struct buf *bp)
 	/*
 	 * Set up block calculations.
 	 */
-	if (bp->b_blkno > 20000000) {
+	if (bp->bio_blkno > 20000000) {
 		/*
 		 * Reject unreasonably high block number, prevent the
 		 * multiplication below from overflowing.
 		 */
-		bp->b_error = EINVAL;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
-	blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk;
+	blknum = (unsigned) bp->bio_blkno * DEV_BSIZE/fdblk;
  	nblocks = fd->ft->size;
-	bp->b_resid = 0;
-	if (blknum + (bp->b_bcount / fdblk) > nblocks) {
+	bp->bio_resid = 0;
+	if (blknum + (bp->bio_bcount / fdblk) > nblocks) {
 		if (blknum <= nblocks) {
 			cando = (nblocks - blknum) * fdblk;
-			bp->b_resid = bp->b_bcount - cando;
+			bp->bio_resid = bp->bio_bcount - cando;
 			if (cando == 0)
 				goto bad;	/* not actually bad but EOF */
 		} else {
-			bp->b_error = EINVAL;
-			bp->b_ioflags |= BIO_ERROR;
+			bp->bio_error = EINVAL;
+			bp->bio_flags |= BIO_ERROR;
 			goto bad;
 		}
 	}
- 	bp->b_pblkno = bp->b_blkno;
+ 	bp->bio_pblkno = bp->bio_blkno;
 	s = splbio();
-	bufqdisksort(&fdc->head, bp);
+	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
 
 	/* Tell devstat we are starting on the transaction */
@@ -1974,15 +1971,15 @@ fdstate(fdc_p fdc)
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
-	register struct buf *bp;
+	register struct bio *bp;
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
 	bp = fdc->bp;
 	if (bp == NULL) {
-		bp = bufq_first(&fdc->head);
+		bp = bioq_first(&fdc->head);
 		if (bp != NULL) {
-			bufq_remove(&fdc->head, bp);
+			bioq_remove(&fdc->head, bp);
 			fdc->bp = bp;
 		}
 	}
@@ -2001,24 +1998,24 @@ fdstate(fdc_p fdc)
 		TRACE1("[fdc%d IDLE]", fdc->fdcu);
  		return (0);
 	}
-	fdu = FDUNIT(minor(bp->b_dev));
+	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 		device_printf(fd->dev, "confused fd pointers\n");
-	read = bp->b_iocmd == BIO_READ;
+	read = bp->bio_cmd == BIO_READ;
 	if (read)
 		idf = ISADMA_READ;
 	else
 		idf = ISADMA_WRITE;
-	format = bp->b_flags & B_FORMAT;
+	format = bp->bio_cmd & BIO_FORMAT;
 	if (format) {
-		finfo = (struct fd_formb *)bp->b_data;
+		finfo = (struct fd_formb *)bp->bio_data;
 		fd->skip = (char *)&(finfo->fd_formb_cylno(0))
 			- (char *)finfo;
 	}
 	if (fdc->state == DOSEEK || fdc->state == SEEKCOMPLETE) {
-		blknum = (unsigned) bp->b_pblkno * DEV_BSIZE/fdblk +
+		blknum = (unsigned) bp->bio_pblkno * DEV_BSIZE/fdblk +
 			fd->skip/fdblk;
 		b_cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
 	}
@@ -2205,8 +2202,8 @@ fdstate(fdc_p fdc)
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
 		if (!(fdc->flags & FDC_NODMA))
-			isa_dmastart(idf, bp->b_data+fd->skip,
-				format ? bp->b_bcount : fdblk, fdc->dmachan);
+			isa_dmastart(idf, bp->bio_data+fd->skip,
+				format ? bp->bio_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
 		sec = blknum %  (sectrac * fd->ft->heads);
 		head = sec / sectrac;
@@ -2221,8 +2218,8 @@ fdstate(fdc_p fdc)
 				/* stuck controller? */
 				if (!(fdc->flags & FDC_NODMA))
 					isa_dmadone(idf,
-						    bp->b_data + fd->skip,
-						    format ? bp->b_bcount : fdblk,
+						    bp->bio_data + fd->skip,
+						    format ? bp->bio_bcount : fdblk,
 						    fdc->dmachan);
 				fdc->retry = 6;	/* reset the beast */
 				return (retrier(fdc));
@@ -2262,11 +2259,11 @@ fdstate(fdc_p fdc)
 				 *
 				 * Umpf.
 				 */
-				SET_BCDR(fdc, 1, bp->b_bcount, 0);
+				SET_BCDR(fdc, 1, bp->bio_bcount, 0);
 
-				(void)fdcpio(fdc,bp->b_iocmd,
-					bp->b_data+fd->skip,
-					bp->b_bcount);
+				(void)fdcpio(fdc,bp->bio_cmd,
+					bp->bio_data+fd->skip,
+					bp->bio_bcount);
 
 			}
 			/* formatting */
@@ -2278,8 +2275,8 @@ fdstate(fdc_p fdc)
 				/* controller fell over */
 				if (!(fdc->flags & FDC_NODMA))
 					isa_dmadone(idf,
-						    bp->b_data + fd->skip,
-						    format ? bp->b_bcount : fdblk,
+						    bp->bio_data + fd->skip,
+						    format ? bp->bio_bcount : fdblk,
 						    fdc->dmachan);
 				fdc->retry = 6;
 				return (retrier(fdc));
@@ -2297,8 +2294,8 @@ fdstate(fdc_p fdc)
 				 * the WRITE command is sent
 				 */
 				if (!read)
-					(void)fdcpio(fdc,bp->b_iocmd,
-					    bp->b_data+fd->skip,
+					(void)fdcpio(fdc,bp->bio_cmd,
+					    bp->bio_data+fd->skip,
 					    fdblk);
 			}
 			if (fd_cmd(fdc, 9,
@@ -2315,8 +2312,8 @@ fdstate(fdc_p fdc)
 				/* the beast is sleeping again */
 				if (!(fdc->flags & FDC_NODMA))
 					isa_dmadone(idf,
-						    bp->b_data + fd->skip,
-						    format ? bp->b_bcount : fdblk,
+						    bp->bio_data + fd->skip,
+						    format ? bp->bio_bcount : fdblk,
 						    fdc->dmachan);
 				fdc->retry = 6;
 				return (retrier(fdc));
@@ -2327,8 +2324,8 @@ fdstate(fdc_p fdc)
 			 * if this is a read, then simply await interrupt
 			 * before performing PIO
 			 */
-			if (read && !fdcpio(fdc,bp->b_iocmd,
-			    bp->b_data+fd->skip,fdblk)) {
+			if (read && !fdcpio(fdc,bp->bio_cmd,
+			    bp->bio_data+fd->skip,fdblk)) {
 				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
 			};
@@ -2349,11 +2346,11 @@ fdstate(fdc_p fdc)
 			nrd_addrset(fdblk * nrdblkn);
 			while (!nrd_check_ready()) DELAY(1);
 			if (read) epson_insw(P_NRD_DATA,
-					bp->b_data + fd->skip,
+					bp->bio_data + fd->skip,
 					fdblk / sizeof(short));
 			else epson_outsw(P_NRD_DATA,
-				bp->b_data + fd->skip,
-				(format ? bp->b_bcount : fdblk)
+				bp->bio_data + fd->skip,
+				(format ? bp->bio_bcount : fdblk)
 					/ sizeof(short));
 
 			blknum = (unsigned long)bp->b_blkno*DEV_BSIZE/fdblk
@@ -2375,7 +2372,7 @@ fdstate(fdc_p fdc)
 		 * actually perform the PIO read.  The IOCOMPLETE case
 		 * removes the timeout for us.  
 		 */
-		(void)fdcpio(fdc,bp->b_iocmd,bp->b_data+fd->skip,fdblk);
+		(void)fdcpio(fdc,bp->bio_cmd,bp->bio_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
@@ -2388,8 +2385,8 @@ fdstate(fdc_p fdc)
 
 		if (fd_read_status(fdc, fd->fdsu)) {
 			if (!(fdc->flags & FDC_NODMA))
-				isa_dmadone(idf, bp->b_data + fd->skip,
-					    format ? bp->b_bcount : fdblk,
+				isa_dmadone(idf, bp->bio_data + fd->skip,
+					    format ? bp->bio_bcount : fdblk,
 					    fdc->dmachan);
 			if (fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
@@ -2405,8 +2402,8 @@ fdstate(fdc_p fdc)
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
 		if (!(fdc->flags & FDC_NODMA))
-			isa_dmadone(idf, bp->b_data + fd->skip,
-				format ? bp->b_bcount : fdblk, fdc->dmachan);
+			isa_dmadone(idf, bp->bio_data + fd->skip,
+				format ? bp->bio_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
 		}
 		else nrd_LED_off();
@@ -2435,7 +2432,7 @@ fdstate(fdc_p fdc)
 		}
 		/* All OK */
 		fd->skip += fdblk;
-		if (!format && fd->skip < bp->b_bcount - bp->b_resid) {
+		if (!format && fd->skip < bp->bio_bcount - bp->bio_resid) {
 			/* set up next transfer */
 			fdc->state = DOSEEK;
 		} else {
@@ -2443,7 +2440,7 @@ fdstate(fdc_p fdc)
 			fd->skip = 0;
 			fdc->bp = NULL;
 			device_unbusy(fd->dev);
-			devstat_end_transaction_buf(&fd->device_stats, bp);
+			devstat_end_transaction_bio(&fd->device_stats, bp);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -2563,14 +2560,14 @@ fdstate(fdc_p fdc)
 static int
 retrier(struct fdc_data *fdc)
 {
-	register struct buf *bp;
+	register struct bio *bp;
 	struct fd_data *fd;
 	int fdu;
 
 	bp = fdc->bp;
 
 	/* XXX shouldn't this be cached somewhere?  */
-	fdu = FDUNIT(minor(bp->b_dev));
+	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
 	if (fd->options & FDOPT_NORETRY)
 		goto fail;
@@ -2590,14 +2587,14 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		{
-			dev_t sav_b_dev = bp->b_dev;
+			dev_t sav_b_dev = bp->bio_dev;
 			/* Trick diskerr */
-			bp->b_dev = makedev(major(bp->b_dev),
-				    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
+			bp->bio_dev = makedev(major(bp->bio_dev),
+				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
 			diskerr(bp, "hard error", LOG_PRINTF,
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
-			bp->b_dev = sav_b_dev;
+			bp->bio_dev = sav_b_dev;
 			if (fdc->flags & FDC_STAT_VALID)
 			{
 				printf(
@@ -2611,13 +2608,13 @@ retrier(struct fdc_data *fdc)
 			else
 				printf(" (No status)\n");
 		}
-		bp->b_ioflags |= BIO_ERROR;
-		bp->b_error = EIO;
-		bp->b_resid += bp->b_bcount - fdc->fd->skip;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_error = EIO;
+		bp->bio_resid += bp->bio_bcount - fdc->fd->skip;
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
-		devstat_end_transaction_buf(&fdc->fd->device_stats, bp);
+		devstat_end_transaction_bio(&fdc->fd->device_stats, bp);
 		biodone(bp);
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;
@@ -2647,7 +2644,7 @@ fdformat(dev, finfo, p)
 	fdblk = 128 << fd->ft->secsize;
 
 	/* set up a buffer header for fdstrategy() */
-	bp = (struct buf *)malloc(sizeof(struct buf), M_TEMP, M_NOWAIT);
+	bp = (struct buf *)malloc(sizeof(struct bio), M_TEMP, M_NOWAIT);
 	if(bp == 0)
 		return ENOBUFS;
 	/*
@@ -2657,8 +2654,8 @@ fdformat(dev, finfo, p)
 	bzero((void *)bp, sizeof(struct buf));
 	BUF_LOCKINIT(bp);
 	BUF_LOCK(bp, LK_EXCLUSIVE);
-	bp->b_flags = B_PHYS | B_FORMAT;
-	bp->b_iocmd = BIO_WRITE;
+	bp->b_flags = B_PHYS;
+	bp->b_iocmd = BIO_FORMAT;
 
 	/*
 	 * calculate a fake blkno, so fdstrategy() would initiate a
@@ -2687,9 +2684,9 @@ fdformat(dev, finfo, p)
 		/* timed out */
 		rv = EIO;
 		device_unbusy(fd->dev);
-		biodone(bp);
+		bufdone(bp);
 	}
-	if (bp->b_ioflags & BIO_ERROR)
+	if (bp->b_flags & BIO_ERROR)
 		rv = bp->b_error;
 	/*
 	 * allow the process to be swapped

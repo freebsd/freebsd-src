@@ -105,7 +105,7 @@ swapdev_strategy(ap)
 		if (off + sz > dmmax) {
 			bp->b_error = EINVAL;
 			bp->b_ioflags |= BIO_ERROR;
-			biodone(bp);
+			bufdone(bp);
 			return 0;
 		}
 		seg = bp->b_blkno / dmmax;
@@ -119,14 +119,14 @@ swapdev_strategy(ap)
 	if (bp->b_blkno + sz > sp->sw_nblks) {
 		bp->b_error = EINVAL;
 		bp->b_ioflags |= BIO_ERROR;
-		biodone(bp);
+		bufdone(bp);
 		return 0;
 	}
 	bp->b_dev = sp->sw_device;
 	if (sp->sw_vp == NULL) {
 		bp->b_error = ENODEV;
 		bp->b_ioflags |= BIO_ERROR;
-		biodone(bp);
+		bufdone(bp);
 		return 0;
 	}
 

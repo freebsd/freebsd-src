@@ -76,7 +76,7 @@ typedef enum {
 #define ccb_bp		ppriv_ptr1
 
 struct pt_softc {
-	struct	 buf_queue_head buf_queue;
+	struct	 bio_queue_head bio_queue;
 	struct	 devstat device_stats;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	pt_state state;
@@ -215,17 +215,17 @@ ptclose(dev_t dev, int flag, int fmt, struct proc *p)
  * only one physical transfer.
  */
 static void
-ptstrategy(struct buf *bp)
+ptstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
 	u_int  unit;
 	int    s;
 	
-	unit = minor(bp->b_dev);
+	unit = minor(bp->bio_dev);
 	periph = cam_extend_get(ptperiphs, unit);
 	if (periph == NULL) {
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto bad;		
 	}
 	softc = (struct pt_softc *)periph->softc;
@@ -242,14 +242,14 @@ ptstrategy(struct buf *bp)
 	 */
 	if ((softc->flags & PT_FLAG_DEVICE_INVALID)) {
 		splx(s);
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto bad;
 	}
 	
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	bufq_insert_tail(&softc->buf_queue, bp);
+	bioq_insert_tail(&softc->bio_queue, bp);
 
 	splx(s);
 	
@@ -260,12 +260,12 @@ ptstrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_flags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
 	 */
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 }
 
@@ -339,7 +339,7 @@ ptctor(struct cam_periph *periph, void *arg)
 	bzero(softc, sizeof(*softc));
 	LIST_INIT(&softc->pending_ccbs);
 	softc->state = PT_STATE_NORMAL;
-	bufq_init(&softc->buf_queue);
+	bioq_init(&softc->bio_queue);
 
 	softc->io_timeout = SCSI_PT_DEFAULT_TIMEOUT * 1000;
 
@@ -382,7 +382,7 @@ ptoninvalidate(struct cam_periph *periph)
 {
 	int s;
 	struct pt_softc *softc;
-	struct buf *q_bp;
+	struct bio *q_bp;
 	struct ccb_setasync csa;
 
 	softc = (struct pt_softc *)periph->softc;
@@ -412,11 +412,11 @@ ptoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-		bufq_remove(&softc->buf_queue, q_bp);
-		q_bp->b_resid = q_bp->b_bcount;
-		q_bp->b_error = ENXIO;
-		q_bp->b_ioflags |= BIO_ERROR;
+	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
+		bioq_remove(&softc->bio_queue, q_bp);
+		q_bp->bio_resid = q_bp->bio_bcount;
+		q_bp->bio_error = ENXIO;
+		q_bp->bio_flags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 
@@ -506,7 +506,7 @@ static void
 ptstart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct pt_softc *softc;
-	struct buf *bp;
+	struct bio *bp;
 	int s;
 
 	softc = (struct pt_softc *)periph->softc;
@@ -515,7 +515,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 	 * See if there is a buf with work for us to do..
 	 */
 	s = splbio();
-	bp = bufq_first(&softc->buf_queue);
+	bp = bioq_first(&softc->bio_queue);
 	if (periph->immediate_priority <= periph->pinfo.priority) {
 		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
 				("queuing for immediate ccb\n"));
@@ -531,7 +531,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 	} else {
 		int oldspl;
 
-		bufq_remove(&softc->buf_queue, bp);
+		bioq_remove(&softc->bio_queue, bp);
 
 		devstat_start_transaction(&softc->device_stats);
 
@@ -539,10 +539,10 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 				  /*retries*/4,
 				  ptdone,
 				  MSG_SIMPLE_Q_TAG,
-				  bp->b_iocmd == BIO_READ,
+				  bp->bio_cmd == BIO_READ,
 				  /*byte2*/0,
-				  bp->b_bcount,
-				  bp->b_data,
+				  bp->bio_bcount,
+				  bp->bio_data,
 				  /*sense_len*/SSD_FULL_SIZE,
 				  /*timeout*/softc->io_timeout);
 
@@ -558,7 +558,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		splx(oldspl);
 
 		start_ccb->ccb_h.ccb_bp = bp;
-		bp = bufq_first(&softc->buf_queue);
+		bp = bioq_first(&softc->bio_queue);
 		splx(s);
 
 		xpt_action(start_ccb);
@@ -582,10 +582,10 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 	case PT_CCB_BUFFER_IO:
 	case PT_CCB_BUFFER_IO_UA:
 	{
-		struct buf *bp;
+		struct bio *bp;
 		int    oldspl;
 
-		bp = (struct buf *)done_ccb->ccb_h.ccb_bp;
+		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
 			int s;
@@ -606,7 +606,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
-				struct buf *q_bp;
+				struct bio *q_bp;
 
 				s = splbio();
 
@@ -625,24 +625,24 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * the client can retry these I/Os in the
 				 * proper order should it attempt to recover.
 				 */
-				while ((q_bp = bufq_first(&softc->buf_queue))
+				while ((q_bp = bioq_first(&softc->bio_queue))
 					!= NULL) {
-					bufq_remove(&softc->buf_queue, q_bp);
-					q_bp->b_resid = q_bp->b_bcount;
-					q_bp->b_error = EIO;
-					q_bp->b_ioflags |= BIO_ERROR;
+					bioq_remove(&softc->bio_queue, q_bp);
+					q_bp->bio_resid = q_bp->bio_bcount;
+					q_bp->bio_error = EIO;
+					q_bp->bio_flags |= BIO_ERROR;
 					biodone(q_bp);
 				}
 				splx(s);
-				bp->b_error = error;
-				bp->b_resid = bp->b_bcount;
-				bp->b_ioflags |= BIO_ERROR;
+				bp->bio_error = error;
+				bp->bio_resid = bp->bio_bcount;
+				bp->bio_flags |= BIO_ERROR;
 			} else {
-				bp->b_resid = csio->resid;
-				bp->b_error = 0;
-				if (bp->b_resid != 0) {
+				bp->bio_resid = csio->resid;
+				bp->bio_error = 0;
+				if (bp->bio_resid != 0) {
 					/* Short transfer ??? */
-					bp->b_ioflags |= BIO_ERROR;
+					bp->bio_flags |= BIO_ERROR;
 				}
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -652,9 +652,9 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*timeout*/0,
 						 /*getcount_only*/0);
 		} else {
-			bp->b_resid = csio->resid;
-			if (bp->b_resid != 0)
-				bp->b_ioflags |= BIO_ERROR;
+			bp->bio_resid = csio->resid;
+			if (bp->bio_resid != 0)
+				bp->bio_flags |= BIO_ERROR;
 		}
 
 		/*
@@ -665,7 +665,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		devstat_end_transaction_buf(&softc->device_stats, bp);
+		devstat_end_transaction_bio(&softc->device_stats, bp);
 		biodone(bp);
 		break;
 	}

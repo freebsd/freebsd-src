@@ -1551,7 +1551,7 @@ devfs_inactive(struct vop_inactive_args *ap)
  * Just call the device strategy routine
 	struct vop_strategy_args {
 		struct vnode *a_vp;
-		struct buf *a_bp;
+		struct bio *a_bp;
 	}
  */
 static int
@@ -1574,10 +1574,10 @@ devfs_strategy(struct vop_strategy_args *ap)
 		(*bioops.io_start)(bp);
 	switch (vp->v_type) {
 	case VCHR:
-		(*vp->v_rdev->si_devsw->d_strategy)(bp);
+		(*vp->v_rdev->si_devsw->d_strategy)(&bp->b_io);
 		break;
 	case VBLK:
-		(*vp->v_rdev->si_devsw->d_strategy)(bp);
+		(*vp->v_rdev->si_devsw->d_strategy)(&bp->b_io);
 		break;
 	default:
 		/* XXX set error code? */

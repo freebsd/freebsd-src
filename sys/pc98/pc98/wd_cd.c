@@ -86,7 +86,7 @@ int acdattach(struct atapi *, int, struct atapi_params *, int);
 static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int,
 struct devstat *);
 static void acd_start(struct acd *);
-static void acd_done(struct acd *, struct buf *, int, struct atapires);
+static void acd_done(struct acd *, struct bio *, int, struct atapires);
 static int acd_read_toc(struct acd *);
 static int acd_request_wait(struct acd *, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, u_char, char *, int);
 static void acd_describe(struct acd *);
@@ -111,7 +111,7 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     if (!(ptr = malloc(sizeof(struct acd), M_TEMP, M_NOWAIT)))
         return NULL;
     bzero(ptr, sizeof(struct acd));
-    bufq_init(&ptr->buf_queue);
+    bioq_init(&ptr->bio_queue);
     ptr->ata = ata;
     ptr->unit = unit;
     ptr->lun = lun;
@@ -433,33 +433,33 @@ acdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 void 
-acdstrategy(struct buf *bp)
+acdstrategy(struct bio *bp)
 {
-    int lun = dkunit(bp->b_dev);
+    int lun = dkunit(bp->bio_dev);
     struct acd *cdp = acdtab[lun];
     int x;
 
 #ifdef NOTYET
     /* allow write only on CD-R/RW media */   /* all for now SOS */
-    if ((bp->b_iocmd == BIO_WRITE) && !(writeable_media)) {
-        bp->b_error = EROFS;
-        bp->b_ioflags |= BIO_ERROR;
+    if ((bp->bio_cmd == BIO_WRITE) && !(writeable_media)) {
+        bp->bio_error = EROFS;
+        bp->bio_flags |= BIO_ERROR;
         biodone(bp);
         return;
     }
 #endif
 
-    if (bp->b_bcount == 0) {
-        bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+        bp->bio_resid = 0;
         biodone(bp);
         return;
     }
     
-    bp->b_pblkno = bp->b_blkno;
-    bp->b_resid = bp->b_bcount;
+    bp->bio_pblkno = bp->bio_blkno;
+    bp->bio_resid = bp->bio_bcount;
 
     x = splbio();
-    bufqdisksort(&cdp->buf_queue, bp);
+    bioqdisksort(&cdp->bio_queue, bp);
     acd_start(cdp);
     splx(x);
 }
@@ -467,7 +467,7 @@ acdstrategy(struct buf *bp)
 static void 
 acd_start(struct acd *cdp)
 {
-    struct buf *bp = bufq_first(&cdp->buf_queue);
+    struct bio *bp = bioq_first(&cdp->bio_queue);
     u_long lba, blocks;
     int cmd;
     int count;
@@ -475,24 +475,24 @@ acd_start(struct acd *cdp)
     if (!bp)
         return;
 
-    bufq_remove(&cdp->buf_queue, bp);
+    bioq_remove(&cdp->bio_queue, bp);
 
     /* Should reject all queued entries if media have changed. */
     if (cdp->flags & F_MEDIA_CHANGED) {
-        bp->b_error = EIO;
-        bp->b_ioflags |= BIO_ERROR;
+        bp->bio_error = EIO;
+        bp->bio_flags |= BIO_ERROR;
         biodone(bp);
         return;
     }
 
     acd_select_slot(cdp);
 
-    if (bp->b_iocmd == BIO_WRITE) {
+    if (bp->bio_cmd == BIO_WRITE) {
         if ((cdp->flags & F_TRACK_PREPED) == 0) {
             if ((cdp->flags & F_TRACK_PREP) == 0) {
                 printf("wcd%d: sequence error\n", cdp->lun);
-                bp->b_error = EIO;
-                bp->b_ioflags |= BIO_ERROR;
+                bp->bio_error = EIO;
+                bp->bio_flags |= BIO_ERROR;
                 biodone(bp);
                 return;
             } else {
@@ -505,22 +505,22 @@ acd_start(struct acd *cdp)
         }
     }
 
-    if (bp->b_iocmd == BIO_READ)
+    if (bp->bio_cmd == BIO_READ)
 #ifdef NOTYET
-    	lba = bp->b_offset / cdp->block_size;
+    	lba = bp->bio_offset / cdp->block_size;
 #else
-    	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+    	lba = bp->bio_blkno / (cdp->block_size / DEV_BSIZE);
 #endif
     else 
-	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
-    blocks = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
+	lba = cdp->next_writeable_lba + (bp->bio_offset / cdp->block_size);
+    blocks = (bp->bio_bcount + (cdp->block_size - 1)) / cdp->block_size;
 
-    if (bp->b_iocmd == BIO_WRITE) {
+    if (bp->bio_cmd == BIO_WRITE) {
         cmd = ATAPI_WRITE_BIG;
-        count = -bp->b_bcount;
+        count = -bp->bio_bcount;
     } else {
         cmd = ATAPI_READ_BIG;
-        count = bp->b_bcount;
+        count = bp->bio_bcount;
     }
 
     devstat_start_transaction(cdp->device_stats);
@@ -528,24 +528,24 @@ acd_start(struct acd *cdp)
     atapi_request_callback(cdp->ata, cdp->unit, cmd, 0,
         		   lba>>24, lba>>16, lba>>8, lba, 0, 
 			   blocks>>8, blocks, 0, 0, 0, 0, 0, 0, 0, 
-			   (u_char *)bp->b_data, count, 
+			   (u_char *)bp->bio_data, count, 
 			   (atapi_callback_t *)acd_done, cdp, bp);
 }
 
 static void 
-acd_done(struct acd *cdp, struct buf *bp, int resid, struct atapires result)
+acd_done(struct acd *cdp, struct bio *bp, int resid, struct atapires result)
 {
 
     if (result.code) {
         atapi_error(cdp->ata, cdp->unit, result);
-        bp->b_error = EIO;
-        bp->b_ioflags |= BIO_ERROR;
+        bp->bio_error = EIO;
+        bp->bio_flags |= BIO_ERROR;
     } else {
-        bp->b_resid = resid;
-        if (bp->b_iocmd == BIO_WRITE)
+        bp->bio_resid = resid;
+        if (bp->bio_cmd == BIO_WRITE)
             cdp->flags |= F_WRITTEN;
     }
-    devstat_end_transaction_buf(cdp->device_stats, bp);
+    devstat_end_transaction_bio(cdp->device_stats, bp);
     biodone(bp);
     acd_start(cdp);
 }

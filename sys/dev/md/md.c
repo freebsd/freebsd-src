@@ -81,7 +81,7 @@ static struct cdevsw md_cdevsw = {
 struct md_s {
 	int unit;
 	struct devstat stats;
-	struct buf_queue_head buf_queue;
+	struct bio_queue_head bio_queue;
 	struct disk disk;
 	dev_t dev;
 	int busy;
@@ -135,16 +135,16 @@ mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 }
 
 static void
-mdstrategy(struct buf *bp)
+mdstrategy(struct bio *bp)
 {
 	struct md_s *sc;
 
 	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %lx, %d, %ld, %p)\n",
-		    bp, devtoname(bp->b_dev), bp->b_flags, bp->b_blkno, 
-		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
-	sc = bp->b_dev->si_drv1;
+	sc = bp->bio_dev->si_drv1;
 	if (sc->type == MD_MALLOC) {
 		mdstrategy_malloc(bp);
 	} else {
@@ -155,7 +155,7 @@ mdstrategy(struct buf *bp)
 
 
 static void
-mdstrategy_malloc(struct buf *bp)
+mdstrategy_malloc(struct bio *bp)
 {
 	int s, i;
 	struct md_s *sc;
@@ -164,15 +164,15 @@ mdstrategy_malloc(struct buf *bp)
 	unsigned secno, nsec, secval, uc;
 
 	if (md_debug > 1)
-		printf("mdstrategy_malloc(%p) %s %lx, %d, %ld, %p)\n",
-		    bp, devtoname(bp->b_dev), bp->b_flags, bp->b_blkno, 
-		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+		printf("mdstrategy_malloc(%p) %s %x, %d, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
-	sc = bp->b_dev->si_drv1;
+	sc = bp->bio_dev->si_drv1;
 
 	s = splbio();
 
-	bufqdisksort(&sc->buf_queue, bp);
+	bioqdisksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
 		splx(s);
@@ -182,25 +182,25 @@ mdstrategy_malloc(struct buf *bp)
 	sc->busy++;
 	
 	while (1) {
-		bp = bufq_first(&sc->buf_queue);
+		bp = bioq_first(&sc->bio_queue);
 		if (bp)
-			bufq_remove(&sc->buf_queue, bp);
+			bioq_remove(&sc->bio_queue, bp);
 		splx(s);
 		if (!bp)
 			break;
 
 		devstat_start_transaction(&sc->stats);
 
-		if (bp->b_iocmd == BIO_DELETE)
+		if (bp->bio_cmd == BIO_DELETE)
 			dop = DEVSTAT_NO_DATA;
-		else if (bp->b_iocmd == BIO_READ)
+		else if (bp->bio_cmd == BIO_READ)
 			dop = DEVSTAT_READ;
 		else
 			dop = DEVSTAT_WRITE;
 
-		nsec = bp->b_bcount / DEV_BSIZE;
-		secno = bp->b_pblkno;
-		dst = bp->b_data;
+		nsec = bp->bio_bcount / DEV_BSIZE;
+		secno = bp->bio_pblkno;
+		dst = bp->bio_data;
 		while (nsec--) {
 
 			if (secno < sc->nsecp) {
@@ -218,15 +218,16 @@ mdstrategy_malloc(struct buf *bp)
 				secval = 0;
 			}
 			if (md_debug > 2)
-				printf("%lx %p %p %d\n", bp->b_flags, secpp, secp, secval);
+				printf("%x %p %p %d\n", 
+				    bp->bio_flags, secpp, secp, secval);
 
-			if (bp->b_iocmd == BIO_DELETE) {
+			if (bp->bio_cmd == BIO_DELETE) {
 				if (secpp) {
 					if (secp)
 						FREE(secp, M_MDSECT);
 					*secpp = 0;
 				}
-			} else if (bp->b_iocmd == BIO_READ) {
+			} else if (bp->bio_cmd == BIO_READ) {
 				if (secp) {
 					bcopy(secp, dst, DEV_BSIZE);
 				} else if (secval) {
@@ -271,8 +272,8 @@ mdstrategy_malloc(struct buf *bp)
 			secno++;
 			dst += DEV_BSIZE;
 		}
-		bp->b_resid = 0;
-		devstat_end_transaction_buf(&sc->stats, bp);
+		bp->bio_resid = 0;
+		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
 		s = splbio();
 	}
@@ -282,22 +283,22 @@ mdstrategy_malloc(struct buf *bp)
 
 
 static void
-mdstrategy_preload(struct buf *bp)
+mdstrategy_preload(struct bio *bp)
 {
 	int s;
 	struct md_s *sc;
 	devstat_trans_flags dop;
 
 	if (md_debug > 1)
-		printf("mdstrategy_preload(%p) %s %lx, %d, %ld, %p)\n",
-		    bp, devtoname(bp->b_dev), bp->b_flags, bp->b_blkno, 
-		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+		printf("mdstrategy_preload(%p) %s %x, %d, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
-	sc = bp->b_dev->si_drv1;
+	sc = bp->bio_dev->si_drv1;
 
 	s = splbio();
 
-	bufqdisksort(&sc->buf_queue, bp);
+	bioqdisksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
 		splx(s);
@@ -307,26 +308,26 @@ mdstrategy_preload(struct buf *bp)
 	sc->busy++;
 	
 	while (1) {
-		bp = bufq_first(&sc->buf_queue);
+		bp = bioq_first(&sc->bio_queue);
 		if (bp)
-			bufq_remove(&sc->buf_queue, bp);
+			bioq_remove(&sc->bio_queue, bp);
 		splx(s);
 		if (!bp)
 			break;
 
 		devstat_start_transaction(&sc->stats);
 
-		if (bp->b_iocmd == BIO_DELETE) {
+		if (bp->bio_cmd == BIO_DELETE) {
 			dop = DEVSTAT_NO_DATA;
-		} else if (bp->b_iocmd == BIO_READ) {
+		} else if (bp->bio_cmd == BIO_READ) {
 			dop = DEVSTAT_READ;
-			bcopy(sc->pl_ptr + (bp->b_pblkno << DEV_BSHIFT), bp->b_data, bp->b_bcount);
+			bcopy(sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_data, bp->bio_bcount);
 		} else {
 			dop = DEVSTAT_WRITE;
-			bcopy(bp->b_data, sc->pl_ptr + (bp->b_pblkno << DEV_BSHIFT), bp->b_bcount);
+			bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
 		}
-		bp->b_resid = 0;
-		devstat_end_transaction_buf(&sc->stats, bp);
+		bp->bio_resid = 0;
+		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
 		s = splbio();
 	}
@@ -342,7 +343,7 @@ mdcreate(struct cdevsw *devsw)
 	MALLOC(sc, struct md_s *,sizeof(*sc), M_MD, M_WAITOK);
 	bzero(sc, sizeof(*sc));
 	sc->unit = mdunits++;
-	bufq_init(&sc->buf_queue);
+	bioq_init(&sc->bio_queue);
 	devstat_add_entry(&sc->stats, "md", sc->unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,

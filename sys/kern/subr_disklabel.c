@@ -453,14 +453,14 @@ hp0g: hard error reading fsbn 12345 of 12344-12347 (hp0 bn %d cn %d tn %d sn %d)
  */
 void
 diskerr(bp, what, pri, blkdone, lp)
-	register struct buf *bp;
+	struct bio *bp;
 	char *what;
 	int pri, blkdone;
 	register struct disklabel *lp;
 {
-	int unit = dkunit(bp->b_dev);
-	int slice = dkslice(bp->b_dev);
-	int part = dkpart(bp->b_dev);
+	int unit = dkunit(bp->bio_dev);
+	int slice = dkslice(bp->bio_dev);
+	int part = dkpart(bp->bio_dev);
 	register int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
@@ -471,21 +471,21 @@ diskerr(bp, what, pri, blkdone, lp)
 		pr = addlog;
 	} else
 		pr = printf;
-	sname = dsname(bp->b_dev, unit, slice, part, partname);
+	sname = dsname(bp->bio_dev, unit, slice, part, partname);
 	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
-	      bp->b_iocmd == BIO_READ ? "read" : "writ");
-	sn = bp->b_blkno;
-	if (bp->b_bcount <= DEV_BSIZE)
+	      bp->bio_cmd == BIO_READ ? "read" : "writ");
+	sn = bp->bio_blkno;
+	if (bp->bio_bcount <= DEV_BSIZE)
 		(*pr)("%ld", (long)sn);
 	else {
 		if (blkdone >= 0) {
 			sn += blkdone;
 			(*pr)("%ld of ", (long)sn);
 		}
-		(*pr)("%ld-%ld", (long)bp->b_blkno,
-		    (long)(bp->b_blkno + (bp->b_bcount - 1) / DEV_BSIZE));
+		(*pr)("%ld-%ld", (long)bp->bio_blkno,
+		    (long)(bp->bio_blkno + (bp->bio_bcount - 1) / DEV_BSIZE));
 	}
-	if (lp && (blkdone >= 0 || bp->b_bcount <= lp->d_secsize)) {
+	if (lp && (blkdone >= 0 || bp->bio_bcount <= lp->d_secsize)) {
 #ifdef tahoe
 		sn *= DEV_BSIZE / lp->d_secsize;		/* XXX */
 #endif

@@ -146,7 +146,7 @@ clone_label(lp)
  */
 int
 dscheck(bp, ssp)
-	struct buf *bp;
+	struct bio *bp;
 	struct diskslices *ssp;
 {
 	daddr_t	blkno;
@@ -161,34 +161,34 @@ dscheck(bp, ssp)
 	struct diskslice *sp;
 	int s;
 
-	blkno = bp->b_blkno;
+	blkno = bp->bio_blkno;
 	if (blkno < 0) {
-		printf("dscheck(%s): negative b_blkno %ld\n", 
-		    devtoname(bp->b_dev), (long)blkno);
-		bp->b_error = EINVAL;
+		printf("dscheck(%s): negative bio_blkno %ld\n", 
+		    devtoname(bp->bio_dev), (long)blkno);
+		bp->bio_error = EINVAL;
 		goto bad;
 	}
-	sp = &ssp->dss_slices[dkslice(bp->b_dev)];
+	sp = &ssp->dss_slices[dkslice(bp->bio_dev)];
 	lp = sp->ds_label;
 	if (ssp->dss_secmult == 1) {
-		if (bp->b_bcount % (u_long)DEV_BSIZE)
+		if (bp->bio_bcount % (u_long)DEV_BSIZE)
 			goto bad_bcount;
 		secno = blkno;
-		nsec = bp->b_bcount >> DEV_BSHIFT;
+		nsec = bp->bio_bcount >> DEV_BSHIFT;
 	} else if (ssp->dss_secshift != -1) {
-		if (bp->b_bcount & (ssp->dss_secsize - 1))
+		if (bp->bio_bcount & (ssp->dss_secsize - 1))
 			goto bad_bcount;
 		if (blkno & (ssp->dss_secmult - 1))
 			goto bad_blkno;
 		secno = blkno >> ssp->dss_secshift;
-		nsec = bp->b_bcount >> (DEV_BSHIFT + ssp->dss_secshift);
+		nsec = bp->bio_bcount >> (DEV_BSHIFT + ssp->dss_secshift);
 	} else {
-		if (bp->b_bcount % ssp->dss_secsize)
+		if (bp->bio_bcount % ssp->dss_secsize)
 			goto bad_bcount;
 		if (blkno % ssp->dss_secmult)
 			goto bad_blkno;
 		secno = blkno / ssp->dss_secmult;
-		nsec = bp->b_bcount / ssp->dss_secsize;
+		nsec = bp->bio_bcount / ssp->dss_secsize;
 	}
 	if (lp == NULL) {
 		labelsect = -LABELSECTOR - 1;
@@ -197,7 +197,7 @@ dscheck(bp, ssp)
 	} else {
 		labelsect = lp->d_partitions[LABEL_PART].p_offset;
 if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
-		pp = &lp->d_partitions[dkpart(bp->b_dev)];
+		pp = &lp->d_partitions[dkpart(bp->bio_dev)];
 		endsecno = pp->p_size;
 		slicerel_secno = pp->p_offset + secno;
 	}
@@ -208,16 +208,16 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 #if LABELSECTOR != 0
 	    slicerel_secno + nsec > LABELSECTOR + labelsect &&
 #endif
-	    (bp->b_iocmd == BIO_WRITE) && sp->ds_wlabel == 0) {
-		bp->b_error = EROFS;
+	    (bp->bio_cmd == BIO_WRITE) && sp->ds_wlabel == 0) {
+		bp->bio_error = EROFS;
 		goto bad;
 	}
 
 #if defined(DOSBBSECTOR) && defined(notyet)
 	/* overwriting master boot record? */
-	if (slicerel_secno <= DOSBBSECTOR && (bp->b_iocmd == BIO_WRITE) &&
+	if (slicerel_secno <= DOSBBSECTOR && (bp->bio_cmd == BIO_WRITE) &&
 	    sp->ds_wlabel == 0) {
-		bp->b_error = EROFS;
+		bp->bio_error = EROFS;
 		goto bad;
 	}
 #endif
@@ -226,19 +226,19 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 	if (secno + nsec > endsecno) {
 		/* if exactly at end of disk, return an EOF */
 		if (secno == endsecno) {
-			bp->b_resid = bp->b_bcount;
+			bp->bio_resid = bp->bio_bcount;
 			return (0);
 		}
 		/* or truncate if part of it fits */
 		nsec = endsecno - secno;
 		if (nsec <= 0) {
-			bp->b_error = EINVAL;
+			bp->bio_error = EINVAL;
 			goto bad;
 		}
-		bp->b_bcount = nsec * ssp->dss_secsize;
+		bp->bio_bcount = nsec * ssp->dss_secsize;
 	}
 
-	bp->b_pblkno = sp->ds_offset + slicerel_secno;
+	bp->bio_pblkno = sp->ds_offset + slicerel_secno;
 
 	/*
 	 * Snoop on label accesses if the slice offset is nonzero.  Fudge
@@ -253,15 +253,15 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		struct iodone_chain *ic;
 
 		ic = malloc(sizeof *ic , M_DEVBUF, M_WAITOK);
-		ic->ic_prev_flags = bp->b_flags;
-		ic->ic_prev_iodone = bp->b_iodone;
-		ic->ic_prev_iodone_chain = bp->b_iodone_chain;
+		ic->ic_prev_flags = bp->bio_flags;
+		ic->ic_prev_iodone = bp->bio_done;
+		ic->ic_prev_iodone_chain = bp->bio_done_chain;
 		ic->ic_args[0].ia_long = (LABELSECTOR + labelsect -
 		    slicerel_secno) * ssp->dss_secsize;
 		ic->ic_args[1].ia_ptr = sp;
-		bp->b_iodone = dsiodone;
-		bp->b_iodone_chain = ic;
-		if (!(bp->b_iocmd == BIO_READ)) {
+		bp->bio_done = dsiodone;
+		bp->bio_done_chain = ic;
+		if (!(bp->bio_cmd == BIO_READ)) {
 			/*
 			 * XXX even disklabel(8) writes directly so we need
 			 * to adjust writes.  Perhaps we should drop support
@@ -271,20 +271,22 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 			 * XXX probably need to copy the data to avoid even
 			 * temporarily corrupting the in-core copy.
 			 */
+#ifdef notyet
 			if (bp->b_vp != NULL) {
 				s = splbio();
 				bp->b_vp->v_numoutput++;
 				splx(s);
 			}
+#endif
 			/* XXX need name here. */
 			msg = fixlabel((char *)NULL, sp,
 				       (struct disklabel *)
-				       (bp->b_data + ic->ic_args[0].ia_long),
+				       (bp->bio_data + ic->ic_args[0].ia_long),
 				       TRUE);
 			if (msg != NULL) {
 				printf("dscheck(%s): %s\n", 
-				    devtoname(bp->b_dev), msg);
-				bp->b_error = EROFS;
+				    devtoname(bp->bio_dev), msg);
+				bp->bio_error = EROFS;
 				goto bad;
 			}
 		}
@@ -293,21 +295,21 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 
 bad_bcount:
 	printf(
-	"dscheck(%s): b_bcount %ld is not on a sector boundary (ssize %d)\n",
-	    devtoname(bp->b_dev), bp->b_bcount, ssp->dss_secsize);
-	bp->b_error = EINVAL;
+	"dscheck(%s): bio_bcount %ld is not on a sector boundary (ssize %d)\n",
+	    devtoname(bp->bio_dev), bp->bio_bcount, ssp->dss_secsize);
+	bp->bio_error = EINVAL;
 	goto bad;
 
 bad_blkno:
 	printf(
-	"dscheck(%s): b_blkno %ld is not on a sector boundary (ssize %d)\n",
-	    devtoname(bp->b_dev), (long)blkno, ssp->dss_secsize);
-	bp->b_error = EINVAL;
+	"dscheck(%s): bio_blkno %ld is not on a sector boundary (ssize %d)\n",
+	    devtoname(bp->bio_dev), (long)blkno, ssp->dss_secsize);
+	bp->bio_error = EINVAL;
 	goto bad;
 
 bad:
-	bp->b_resid = bp->b_bcount;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_resid = bp->bio_bcount;
+	bp->bio_flags |= BIO_ERROR;
 	return (-1);
 }
 
@@ -549,7 +551,7 @@ dsiodone(bp)
 			printf("%s\n", msg);
 	}
 	free(ic, M_DEVBUF);
-	biodone(bp);
+	biodone((struct bio *)bp); /* XXX */
 }
 
 int

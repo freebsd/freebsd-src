@@ -275,7 +275,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
  */
 
 static	void
-vnstrategy(struct buf *bp)
+vnstrategy(struct bio *bp)
 {
 	int unit;
 	struct vn_softc *vn;
@@ -284,27 +284,27 @@ vnstrategy(struct buf *bp)
 	struct uio auio;
 	struct iovec aiov;
 
-	unit = dkunit(bp->b_dev);
-	vn = bp->b_dev->si_drv1;
+	unit = dkunit(bp->bio_dev);
+	vn = bp->bio_dev->si_drv1;
 	if (vn == NULL)
-		vn = vnfindvn(bp->b_dev);
+		vn = vnfindvn(bp->bio_dev);
 
 	IFOPT(vn, VN_DEBUG)
 		printf("vnstrategy(%p): unit %d\n", bp, unit);
 
 	if ((vn->sc_flags & VNF_INITED) == 0) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = ENXIO;
+		bp->bio_flags |= BIO_ERROR;
 		biodone(bp);
 		return;
 	}
 
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
 			/* XXX: Normal B_ERROR processing, instead ? */
-			bp->b_flags |= B_INVAL;
+			bp->bio_flags |= B_INVAL;
 			biodone(bp);
 			return;
 		}
@@ -316,17 +316,17 @@ vnstrategy(struct buf *bp)
 		 * Check for required alignment.  Transfers must be a valid
 		 * multiple of the sector size.
 		 */
-		if (bp->b_bcount % vn->sc_secsize != 0 ||
-		    bp->b_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
-			bp->b_error = EINVAL;
-			bp->b_flags |= B_INVAL;
-			bp->b_ioflags |= BIO_ERROR;
+		if (bp->bio_bcount % vn->sc_secsize != 0 ||
+		    bp->bio_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
+			bp->bio_error = EINVAL;
+			/* XXX bp->b_flags |= B_INVAL; */
+			bp->bio_flags |= BIO_ERROR;
 			biodone(bp);
 			return;
 		}
 
-		pbn = bp->b_blkno / (vn->sc_secsize / DEV_BSIZE);
-		sz = howmany(bp->b_bcount, vn->sc_secsize);
+		pbn = bp->bio_blkno / (vn->sc_secsize / DEV_BSIZE);
+		sz = howmany(bp->bio_bcount, vn->sc_secsize);
 
 		/*
 		 * If out of bounds return an error.  If at the EOF point,
@@ -334,9 +334,9 @@ vnstrategy(struct buf *bp)
 		 */
 		if (pbn < 0 || pbn >= vn->sc_size) {
 			if (pbn != vn->sc_size) {
-				bp->b_error = EINVAL;
-				bp->b_flags |= B_INVAL;
-				bp->b_ioflags |= BIO_ERROR;
+				bp->bio_error = EINVAL;
+				/* XXX bp->b_flags |= B_INVAL; */
+				bp->bio_flags |= BIO_ERROR;
 			}
 			biodone(bp);
 			return;
@@ -346,13 +346,13 @@ vnstrategy(struct buf *bp)
 		 * If the request crosses EOF, truncate the request.
 		 */
 		if (pbn + sz > vn->sc_size) {
-			bp->b_bcount = (vn->sc_size - pbn) * vn->sc_secsize;
-			bp->b_resid = bp->b_bcount;
+			bp->bio_bcount = (vn->sc_size - pbn) * vn->sc_secsize;
+			bp->bio_resid = bp->bio_bcount;
 		}
-		bp->b_pblkno = pbn;
+		bp->bio_pblkno = pbn;
 	}
 
-	if (vn->sc_vp && (bp->b_iocmd == BIO_DELETE)) {
+	if (vn->sc_vp && (bp->bio_cmd == BIO_DELETE)) {
 		/*
 		 * Not handled for vnode-backed element yet.
 		 */
@@ -365,23 +365,23 @@ vnstrategy(struct buf *bp)
 		 * B_INVAL because (for a write anyway), the buffer is 
 		 * still valid.
 		 */
-		aiov.iov_base = bp->b_data;
-		aiov.iov_len = bp->b_bcount;
+		aiov.iov_base = bp->bio_data;
+		aiov.iov_len = bp->bio_bcount;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
-		auio.uio_offset = (vm_ooffset_t)bp->b_pblkno * vn->sc_secsize;
+		auio.uio_offset = (vm_ooffset_t)bp->bio_pblkno * vn->sc_secsize;
 		auio.uio_segflg = UIO_SYSSPACE;
-		if(bp->b_iocmd == BIO_READ)
+		if(bp->bio_cmd == BIO_READ)
 			auio.uio_rw = UIO_READ;
 		else
 			auio.uio_rw = UIO_WRITE;
-		auio.uio_resid = bp->b_bcount;
+		auio.uio_resid = bp->bio_bcount;
 		auio.uio_procp = curproc;
 		if (!VOP_ISLOCKED(vn->sc_vp, NULL)) {
 			isvplocked = 1;
 			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		}
-		if(bp->b_iocmd == BIO_READ)
+		if(bp->bio_cmd == BIO_READ)
 			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
 		else
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
@@ -389,11 +389,11 @@ vnstrategy(struct buf *bp)
 			VOP_UNLOCK(vn->sc_vp, 0, curproc);
 			isvplocked = 0;
 		}
-		bp->b_resid = auio.uio_resid;
+		bp->bio_resid = auio.uio_resid;
 
 		if (error) {
-			bp->b_error = error;
-			bp->b_ioflags |= BIO_ERROR;
+			bp->bio_error = error;
+			bp->bio_flags |= BIO_ERROR;
 		}
 		biodone(bp);
 	} else if (vn->sc_object) {
@@ -404,17 +404,19 @@ vnstrategy(struct buf *bp)
 		 *
 		 * Note: if we pre-reserved swap, BIO_DELETE is disabled
 		 */
+#if 0
 		KASSERT((bp->b_bufsize & (vn->sc_secsize - 1)) == 0,
 		    ("vnstrategy: buffer %p too small for physio", bp));
+#endif
 
-		if ((bp->b_iocmd == BIO_DELETE) && TESTOPT(vn, VN_RESERVE)) {
+		if ((bp->bio_cmd == BIO_DELETE) && TESTOPT(vn, VN_RESERVE)) {
 			biodone(bp);
 		} else {
 			vm_pager_strategy(vn->sc_object, bp);
 		}
 	} else {
-		bp->b_ioflags |= BIO_ERROR;
-		bp->b_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_error = EINVAL;
 		biodone(bp);
 	}
 }

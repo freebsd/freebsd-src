@@ -531,6 +531,14 @@ bioq_first(struct bio_queue_head *head)
 	(bp)->b_resid = 0;						\
 }
 
+/*
+ * Zero out the bio's data area.
+ */
+#define	clrbio(bp) {							\
+	bzero((bp)->bio_data, (u_int)(bp)->bio_bcount);			\
+	(bp)->bio_resid = 0;						\
+}
+
 /* Flags to low-level allocation routines. */
 #define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
 #define B_SYNC		0x02	/* Do all allocations synchronously. */
@@ -572,7 +580,8 @@ int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
 int	biowait __P((struct buf *));
-void	biodone __P((struct buf *));
+void	bufdone __P((struct buf *));
+void	biodone __P((struct bio *));
 
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,

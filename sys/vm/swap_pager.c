@@ -826,7 +826,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		bp->b_error = EINVAL;
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_flags |= B_INVAL;
-		biodone(bp);
+		bufdone(bp);
 		printf("swap_pager_strategy: bp %p b_vp %p blk %d size %d, not page bounded\n", bp, bp->b_vp, (int)bp->b_pblkno, (int)bp->b_bcount);
 		return;
 	}
@@ -857,7 +857,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 		swp_pager_meta_free(object, start, count);
 		splx(s);
 		bp->b_resid = 0;
-		biodone(bp);
+		bufdone(bp);
 		return;
 	}
 

@@ -173,25 +173,25 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 }
 
 static void
-diskstrategy(struct buf *bp)
+diskstrategy(struct bio *bp)
 {
 	dev_t pdev;
 	struct disk *dp;
 
-	dp = bp->b_dev->si_disk;
+	dp = bp->bio_dev->si_disk;
 	if (!dp) {
-		pdev = dkmodpart(dkmodslice(bp->b_dev, WHOLE_DISK_SLICE), RAW_PART);
-		dp = bp->b_dev->si_disk = pdev->si_disk;
-		bp->b_dev->si_drv1 = pdev->si_drv1;
-		bp->b_dev->si_drv2 = pdev->si_drv2;
-		bp->b_dev->si_iosize_max = pdev->si_iosize_max;
-		bp->b_dev->si_bsize_phys = pdev->si_bsize_phys;
-		bp->b_dev->si_bsize_best = pdev->si_bsize_best;
+		pdev = dkmodpart(dkmodslice(bp->bio_dev, WHOLE_DISK_SLICE), RAW_PART);
+		dp = bp->bio_dev->si_disk = pdev->si_disk;
+		bp->bio_dev->si_drv1 = pdev->si_drv1;
+		bp->bio_dev->si_drv2 = pdev->si_drv2;
+		bp->bio_dev->si_iosize_max = pdev->si_iosize_max;
+		bp->bio_dev->si_bsize_phys = pdev->si_bsize_phys;
+		bp->bio_dev->si_bsize_best = pdev->si_bsize_best;
 	}
 
 	if (!dp) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = ENXIO;
+		bp->bio_flags |= BIO_ERROR;
 		biodone(bp);
 		return;
 	}

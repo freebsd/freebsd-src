@@ -190,7 +190,7 @@ struct sa_softc {
 	sa_state	state;
 	sa_flags	flags;
 	sa_quirks	quirks;
-	struct		buf_queue_head buf_queue;
+	struct		bio_queue_head bio_queue;
 	int		queue_count;
 	struct		devstat device_stats;
 	struct sa_devs	devs;
@@ -620,21 +620,21 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
  * only one physical transfer.
  */
 static void
-sastrategy(struct buf *bp)
+sastrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
 	u_int  unit;
 	int    s;
 	
-	if (SA_IS_CTRL(bp->b_dev)) {
-		bp->b_error = EINVAL;
+	if (SA_IS_CTRL(bp->bio_dev)) {
+		bp->bio_error = EINVAL;
 		goto bad;
 	}
-	unit = SAUNIT(bp->b_dev);
+	unit = SAUNIT(bp->bio_dev);
 	periph = cam_extend_get(saperiphs, unit);
 	if (periph == NULL) {
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto bad;
 	}
 	softc = (struct sa_softc *)periph->softc;
@@ -643,13 +643,13 @@ sastrategy(struct buf *bp)
 
 	if (softc->flags & SA_FLAG_INVALID) {
 		splx(s);
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto bad;
 	}
 
 	if (softc->flags & SA_FLAG_TAPE_FROZEN) {
 		splx(s);
-		bp->b_error = EPERM;
+		bp->bio_error = EPERM;
 		goto bad;
 	}
 
@@ -658,7 +658,7 @@ sastrategy(struct buf *bp)
 	/*
 	 * If it's a null transfer, return immediatly
 	 */
-	if (bp->b_bcount == 0)
+	if (bp->bio_bcount == 0)
 		goto done;
 
 	/* valid request?  */
@@ -668,19 +668,19 @@ sastrategy(struct buf *bp)
 		 * be a multiple of our block size.
 		 */
 		if (((softc->blk_mask != ~0) &&
-		    ((bp->b_bcount & softc->blk_mask) != 0)) ||
+		    ((bp->bio_bcount & softc->blk_mask) != 0)) ||
 		    ((softc->blk_mask == ~0) &&
-		    ((bp->b_bcount % softc->min_blk) != 0))) {
+		    ((bp->bio_bcount % softc->min_blk) != 0))) {
 			xpt_print_path(periph->path);
 			printf("Invalid request.  Fixed block device "
 			       "requests must be a multiple "
 			       "of %d bytes\n", softc->min_blk);
-			bp->b_error = EINVAL;
+			bp->bio_error = EINVAL;
 			goto bad;
 		}
-	} else if ((bp->b_bcount > softc->max_blk) ||
-		   (bp->b_bcount < softc->min_blk) ||
-		   (bp->b_bcount & softc->blk_mask) != 0) {
+	} else if ((bp->bio_bcount > softc->max_blk) ||
+		   (bp->bio_bcount < softc->min_blk) ||
+		   (bp->bio_bcount & softc->blk_mask) != 0) {
 
 		xpt_print_path(periph->path);
 		printf("Invalid request.  Variable block device "
@@ -690,7 +690,7 @@ sastrategy(struct buf *bp)
 		}
 		printf("between %d and %d bytes\n", softc->min_blk,
 		    softc->max_blk);
-		bp->b_error = EINVAL;
+		bp->bio_error = EINVAL;
 		goto bad;
         }
 	
@@ -704,13 +704,13 @@ sastrategy(struct buf *bp)
 	/*
 	 * Place it at the end of the queue.
 	 */
-	bufq_insert_tail(&softc->buf_queue, bp);
+	bioq_insert_tail(&softc->bio_queue, bp);
 
 	softc->queue_count++;
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastrategy: enqueuing a %d "
-	    "%s byte %s queue count now %d\n", (int) bp->b_bcount,
+	    "%s byte %s queue count now %d\n", (int) bp->bio_bcount,
 	     (softc->flags & SA_FLAG_FIXED)?  "fixed" : "variable",
-	     (bp->b_iocmd == BIO_READ)? "read" : "write", softc->queue_count));
+	     (bp->bio_cmd == BIO_READ)? "read" : "write", softc->queue_count));
 
 	splx(s);
 	
@@ -721,13 +721,13 @@ sastrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_flags |= BIO_ERROR;
 done:
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
 	 */
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 }
 
@@ -1221,7 +1221,7 @@ static void
 saoninvalidate(struct cam_periph *periph)
 {
 	struct sa_softc *softc;
-	struct buf *q_bp;
+	struct bio *q_bp;
 	struct ccb_setasync csa;
 	int s;
 
@@ -1252,11 +1252,11 @@ saoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-		bufq_remove(&softc->buf_queue, q_bp);
-		q_bp->b_resid = q_bp->b_bcount;
-		q_bp->b_error = ENXIO;
-		q_bp->b_ioflags |= BIO_ERROR;
+	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
+		bioq_remove(&softc->bio_queue, q_bp);
+		q_bp->bio_resid = q_bp->bio_bcount;
+		q_bp->bio_error = ENXIO;
+		q_bp->bio_flags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 	softc->queue_count = 0;
@@ -1367,7 +1367,7 @@ saregister(struct cam_periph *periph, void *arg)
 	softc->fileno = (daddr_t) -1;
 	softc->blkno = (daddr_t) -1;
 
-	bufq_init(&softc->buf_queue);
+	bioq_init(&softc->bio_queue);
 	periph->softc = softc;
 	cam_extend_set(saperiphs, periph->unit_number, periph);
 
@@ -1464,14 +1464,14 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 	case SA_STATE_NORMAL:
 	{
 		/* Pull a buffer from the queue and get going on it */		
-		struct buf *bp;
+		struct bio *bp;
 		int s;
 
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
 		s = splbio();
-		bp = bufq_first(&softc->buf_queue);
+		bp = bioq_first(&softc->bio_queue);
 		if (periph->immediate_priority <= periph->pinfo.priority) {
 			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
@@ -1485,25 +1485,25 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			splx(s);
 			xpt_release_ccb(start_ccb);
 		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
-			struct buf *done_bp;
+			struct bio *done_bp;
 			softc->queue_count--;
-			bufq_remove(&softc->buf_queue, bp);
-			bp->b_resid = bp->b_bcount;
-			bp->b_ioflags |= BIO_ERROR;
+			bioq_remove(&softc->bio_queue, bp);
+			bp->bio_resid = bp->bio_bcount;
+			bp->bio_flags |= BIO_ERROR;
 			if ((softc->flags & SA_FLAG_EOM_PENDING) != 0) {
-				if (bp->b_iocmd == BIO_WRITE)
-					bp->b_error = ENOSPC;
+				if (bp->bio_cmd == BIO_WRITE)
+					bp->bio_error = ENOSPC;
 				else
-					bp->b_error = EIO;
+					bp->bio_error = EIO;
 			}
 			if ((softc->flags & SA_FLAG_EOF_PENDING) != 0) {
-				bp->b_error = EIO;
+				bp->bio_error = EIO;
 			}
 			if ((softc->flags & SA_FLAG_EIO_PENDING) != 0) {
-				bp->b_error = EIO;
+				bp->bio_error = EIO;
 			}
 			done_bp = bp;
-			bp = bufq_first(&softc->buf_queue);
+			bp = bioq_first(&softc->bio_queue);
 			/*
 			 * Only if we have no other buffers queued up
 			 * do we clear the pending error flag.
@@ -1521,18 +1521,18 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			u_int32_t length;
 
-			bufq_remove(&softc->buf_queue, bp);
+			bioq_remove(&softc->bio_queue, bp);
 			softc->queue_count--;
 
 			if ((softc->flags & SA_FLAG_FIXED) != 0) {
 				if (softc->blk_shift != 0) {
 					length =
-					    bp->b_bcount >> softc->blk_shift;
+					    bp->bio_bcount >> softc->blk_shift;
 				} else if (softc->media_blksize != 0) {
 					length =
-					    bp->b_bcount / softc->media_blksize;
+					    bp->bio_bcount / softc->media_blksize;
 				} else {
-					bp->b_error = EIO;
+					bp->bio_error = EIO;
 					xpt_print_path(periph->path);
 					printf("zero blocksize for "
 					    "FIXED length writes?\n");
@@ -1543,7 +1543,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 				CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 				    ("Fixed Record Count is %d\n", length));
 			} else {
-				length = bp->b_bcount;
+				length = bp->bio_bcount;
 				CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
 				    ("Variable Record Count is %d\n", length));
 			}
@@ -1568,16 +1568,16 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			 * have to do deal with 512 byte or 1KB intermediate
 			 * records.
 			 */
-			softc->dsreg = (bp->b_iocmd == BIO_READ)?
+			softc->dsreg = (bp->bio_cmd == BIO_READ)?
 			    MTIO_DSREG_RD : MTIO_DSREG_WR;
 			scsi_sa_read_write(&start_ccb->csio, 0, sadone,
-			    MSG_SIMPLE_Q_TAG, (bp->b_iocmd == BIO_READ),
+			    MSG_SIMPLE_Q_TAG, (bp->bio_cmd == BIO_READ),
 			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
-			    length, bp->b_data, bp->b_bcount, SSD_FULL_SIZE,
+			    length, bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
 			    120 * 60 * 1000);
 			start_ccb->ccb_h.ccb_type = SA_CCB_BUFFER_IO;
 			start_ccb->ccb_h.ccb_bp = bp;
-			bp = bufq_first(&softc->buf_queue);
+			bp = bioq_first(&softc->bio_queue);
 			splx(s);
 			xpt_action(start_ccb);
 		}
@@ -1607,11 +1607,11 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (csio->ccb_h.ccb_type) {
 	case SA_CCB_BUFFER_IO:
 	{
-		struct buf *bp;
+		struct bio *bp;
 		int error;
 
 		softc->dsreg = MTIO_DSREG_REST;
-		bp = (struct buf *)done_ccb->ccb_h.ccb_bp;
+		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		error = 0;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
@@ -1624,7 +1624,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if (error == EIO) {
 			int s;			
-			struct buf *q_bp;
+			struct bio *q_bp;
 
 			/*
 			 * Catastrophic error. Mark the tape as frozen
@@ -1639,29 +1639,29 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			s = splbio();
 			softc->flags |= SA_FLAG_TAPE_FROZEN;
-			while ((q_bp = bufq_first(&softc->buf_queue)) != NULL) {
-				bufq_remove(&softc->buf_queue, q_bp);
-				q_bp->b_resid = q_bp->b_bcount;
-				q_bp->b_error = EIO;
-				q_bp->b_ioflags |= BIO_ERROR;
+			while ((q_bp = bioq_first(&softc->bio_queue)) != NULL) {
+				bioq_remove(&softc->bio_queue, q_bp);
+				q_bp->bio_resid = q_bp->bio_bcount;
+				q_bp->bio_error = EIO;
+				q_bp->bio_flags |= BIO_ERROR;
 				biodone(q_bp);
 			}
 			splx(s);
 		}
 		if (error != 0) {
-			bp->b_resid = bp->b_bcount;
-			bp->b_error = error;
-			bp->b_ioflags |= BIO_ERROR;
+			bp->bio_resid = bp->bio_bcount;
+			bp->bio_error = error;
+			bp->bio_flags |= BIO_ERROR;
 			/*
 			 * In the error case, position is updated in saerror.
 			 */
 		} else {
-			bp->b_resid = csio->resid;
-			bp->b_error = 0;
+			bp->bio_resid = csio->resid;
+			bp->bio_error = 0;
 			if (csio->resid != 0) {
-				bp->b_ioflags |= BIO_ERROR;
+				bp->bio_flags |= BIO_ERROR;
 			}
-			if (bp->b_iocmd == BIO_WRITE) {
+			if (bp->bio_cmd == BIO_WRITE) {
 				softc->flags |= SA_FLAG_TAPE_WRITTEN;
 				softc->filemarks = 0;
 			}
@@ -1669,10 +1669,10 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				if ((softc->flags & SA_FLAG_FIXED) != 0) {
 					u_int32_t l;
 					if (softc->blk_shift != 0) {
-						l = bp->b_bcount >>
+						l = bp->bio_bcount >>
 							softc->blk_shift;
 					} else {
-						l = bp->b_bcount /
+						l = bp->bio_bcount /
 							softc->media_blksize;
 					}
 					softc->blkno += (daddr_t) l;
@@ -1688,13 +1688,13 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (error || (softc->flags & SA_FLAG_ERR_PENDING))
 			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
 #ifdef	CAMDEBUG
-		if (error || bp->b_resid) {
+		if (error || bp->bio_resid) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    	  ("error %d resid %ld count %ld\n", error,
-				  bp->b_resid, bp->b_bcount));
+				  bp->bio_resid, bp->bio_bcount));
 		}
 #endif
-		devstat_end_transaction_buf(&softc->device_stats, bp);
+		devstat_end_transaction_bio(&softc->device_stats, bp);
 		biodone(bp);
 		break;
 	}
