@@ -13,8 +13,8 @@
  *
  * Version 1.2, Mon Nov 28 16:12:18 MSK 1994
  */
-#include <string.h>
 #if defined (MSDOS) || defined (__MSDOS__)
+#   include <string.h>
 #   include <dos.h>
 #   define inb(port)    inportb(port)
 #   define inw(port)    inport(port)
@@ -22,6 +22,8 @@
 #   define outw(port,w)	outport(port,w)
 #   define vtophys(a)	(((unsigned long)(a)>>12 & 0xffff0) +\
 			((unsigned)(a) & 0xffff))
+#   include "cronyx.h"
+#   include "cxreg.h"
 #else
 #   include <sys/param.h>
 #   include <sys/socket.h>
@@ -29,17 +31,14 @@
 #   include <vm/vm.h>
 #   ifdef __FreeBSD__
 #      if __FreeBSD__ < 2
-#         include <i386/include/pio.h>
-#      else
-#         include <i386/include/cpufunc.h>
+#         include <machine/pio.h>
 #      endif
 #   else
-#      include <i386/include/inline.h>
+#      include <machine/inline.h>
 #   endif
+#   include <machine/cronyx.h>
+#   include <i386/isa/cxreg.h>
 #endif
-
-#include "cronyx.h"
-#include "cxreg.h"
 
 #define DMA_MASK	0xd4	/* DMA mask register */
 #define DMA_MASK_CLEAR	0x04	/* DMA clear mask */

@@ -21,8 +21,8 @@
 #if NCX > 0
 
 #include <sys/param.h>
-#include <systm.h>
-#include <kernel.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
@@ -36,17 +36,16 @@
 
 #ifdef __FreeBSD__
 #   if __FreeBSD__ < 2
-#      include <i386/include/pio.h>
+#      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
 #   else /* BSD 4.4 Lite */
-#      include <i386/include/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
 #   define oproc_func_t void(*)(struct tty*)
 #endif
 #ifdef __bsdi__
 #   include <sys/ttystats.h>
-#   include <i386/include/inline.h>
+#   include <machine/inline.h>
 #   define tsleep(tp,pri,msg,x) ((tp)->t_state |= TS_WOPEN,\
 		ttysleep (tp, (caddr_t)&tp->t_rawq, pri, msg, x))
 #   define oproc_func_t int(*)()
@@ -60,7 +59,7 @@
 #      define TSA_OLOWAT(q) ((caddr_t)&(q)->t_out)
 #endif
 
-#include <sys/cronyx.h>
+#include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
 #ifdef DEBUG
