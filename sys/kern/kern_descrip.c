@@ -1428,10 +1428,11 @@ fdcopy(fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 	newfdp = fdinit(fdp);
-	FILEDESC_LOCK(newfdp);
 	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
 		FILEDESC_UNLOCK(fdp);
+		FILEDESC_LOCK(newfdp);
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+		FILEDESC_UNLOCK(newfdp);
 		FILEDESC_LOCK(fdp);
 	}
 	/* copy everything except kqueue descriptors */
@@ -1441,7 +1442,6 @@ fdcopy(fdp)
 		    fdp->fd_ofiles[i]->f_type != DTYPE_KQUEUE) {
 			newfdp->fd_ofiles[i] = fdp->fd_ofiles[i];
 			newfdp->fd_ofileflags[i] = fdp->fd_ofileflags[i];
-			fdused(newfdp, i);
 			fhold(newfdp->fd_ofiles[i]);
 			newfdp->fd_lastfile = i;
 		} else {
@@ -1449,10 +1449,16 @@ fdcopy(fdp)
 				newfdp->fd_freefile = i;
 		}
 	}
+	FILEDESC_UNLOCK(fdp);
+	FILEDESC_LOCK(newfdp);
+	for (i = 0; i <= newfdp->fd_lastfile; ++i)
+		if (newfdp->fd_ofiles[i] != NULL)
+			fdused(newfdp, i);
+	FILEDESC_UNLOCK(newfdp);
+	FILEDESC_LOCK(fdp);
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
 	newfdp->fd_cmask = fdp->fd_cmask;
-	FILEDESC_UNLOCK(newfdp);
 	return (newfdp);
 }
 
