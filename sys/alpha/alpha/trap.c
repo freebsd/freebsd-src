@@ -773,7 +773,7 @@ ast(framep)
 	 * acquiring and releasing mutexes in assembly is not fun.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (!(astpending() || resched_wanted())) {
+	if (!(astpending(p) || resched_wanted())) {
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}
@@ -781,7 +781,7 @@ ast(framep)
 	sticks = p->p_sticks;
 	p->p_md.md_tf = framep;
 
-	astoff();
+	astoff(p);
 	cnt.v_soft++;
 	mtx_intr_enable(&sched_lock);
 	if (p->p_sflag & PS_OWEUPC) {
