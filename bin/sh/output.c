@@ -221,7 +221,7 @@ freestdout() {
 
 #ifdef __STDC__
 void
-outfmt(struct output *file, char *fmt, ...) {
+outfmt(struct output *file, const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -231,7 +231,7 @@ outfmt(struct output *file, char *fmt, ...) {
 
 
 void
-out1fmt(char *fmt, ...) {
+out1fmt(const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -240,7 +240,7 @@ out1fmt(char *fmt, ...) {
 }
 
 void
-dprintf(char *fmt, ...) {
+dprintf(const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -250,7 +250,7 @@ dprintf(char *fmt, ...) {
 }
 
 void
-fmtstr(char *outbuf, int length, char *fmt, ...) {
+fmtstr(char *outbuf, int length, const char *fmt, ...) {
 	va_list ap;
 	struct output strout;
 
@@ -273,7 +273,7 @@ outfmt(va_alist)
 	{
 	va_list ap;
 	struct output *file;
-	char *fmt;
+	const char *fmt;
 
 	va_start(ap);
 	file = va_arg(ap, struct output *);
@@ -288,7 +288,7 @@ out1fmt(va_alist)
 	va_dcl
 	{
 	va_list ap;
-	char *fmt;
+	const char *fmt;
 
 	va_start(ap);
 	fmt = va_arg(ap, char *);
@@ -301,7 +301,7 @@ dprintf(va_alist)
 	va_dcl
 	{
 	va_list ap;
-	char *fmt;
+	const char *fmt;
 
 	va_start(ap);
 	fmt = va_arg(ap, char *);
@@ -318,7 +318,7 @@ fmtstr(va_alist)
 	struct output strout;
 	char *outbuf;
 	int length;
-	char *fmt;
+	const char *fmt;
 
 	va_start(ap);
 	outbuf = va_arg(ap, char *);
@@ -357,7 +357,7 @@ static const char digit[] = "0123456789ABCDEF";
 void
 doformat(dest, f, ap)
 	struct output *dest;
-	char *f;		/* format string */
+	const char *f;		/* format string */
 	va_list ap;
 	{
 	char c;

@@ -68,11 +68,11 @@ void emptyoutbuf __P((struct output *));
 void flushall __P((void));
 void flushout __P((struct output *));
 void freestdout __P((void));
-void outfmt __P((struct output *, char *, ...));
-void out1fmt __P((char *, ...));
-void dprintf __P((char *, ...));
-void fmtstr __P((char *, int, char *, ...));
-void doformat __P((struct output *, char *, va_list));
+void outfmt __P((struct output *, const char *, ...)) __printflike(2, 3);
+void out1fmt __P((const char *, ...)) __printflike(1, 2);
+void dprintf __P((const char *, ...)) __printflike(1, 2);
+void fmtstr __P((char *, int, const char *, ...)) __printflike(3, 4);
+void doformat __P((struct output *, const char *, va_list)) __printflike(2, 0);
 int xwrite __P((int, char *, int));
 int xioctl __P((int, unsigned long, char *));
 

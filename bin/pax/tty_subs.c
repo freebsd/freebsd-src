@@ -106,11 +106,11 @@ tty_init()
 
 #if __STDC__
 void
-tty_prnt(char *fmt, ...)
+tty_prnt(const char *fmt, ...)
 #else
 void
 tty_prnt(fmt, va_alist)
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
@@ -167,12 +167,12 @@ tty_read(str, len)
 
 #if __STDC__
 void
-pax_warn(int set, char *fmt, ...)
+pax_warn(int set, const char *fmt, ...)
 #else
 void
 pax_warn(set, fmt, va_alist)
 	int set;
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
@@ -206,13 +206,13 @@ pax_warn(set, fmt, va_alist)
 
 #if __STDC__
 void
-sys_warn(int set, int errnum, char *fmt, ...)
+sys_warn(int set, int errnum, const char *fmt, ...)
 #else
 void
 sys_warn(set, errnum, fmt, va_alist)
 	int set;
 	int errnum;
-	char *fmt;
+	const char *fmt;
 	va_dcl
 #endif
 {
