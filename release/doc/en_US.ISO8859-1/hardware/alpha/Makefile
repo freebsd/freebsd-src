@@ -7,6 +7,8 @@ FORMATS?= html
 INSTALL_COMPRESSED?= gz
 INSTALL_ONLY_COMPRESSED?=
 
+JADEFLAGS+=	-V %generate-article-toc%
+
 # SGML content
 SRCS+=	article.sgml
 SRCS+=	proc-alpha.sgml
