@@ -106,7 +106,7 @@ static void	ng_gif_detach(struct ifnet *ifp);
 /* Other functions */
 static void	ng_gif_input2(node_p node, struct mbuf **mp, int af);
 static int	ng_gif_glue_af(struct mbuf **mp, int af);
-static int	ng_gif_rcv_lower(node_p node, struct mbuf *m, meta_p meta);
+static int	ng_gif_rcv_lower(node_p node, struct mbuf *m);
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_gif_constructor;
@@ -441,13 +441,12 @@ ng_gif_rcvdata(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
-	meta_p meta;
 
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
+
 	if (hook == priv->lower)
-		return ng_gif_rcv_lower(node, m, meta);
+		return ng_gif_rcv_lower(node, m);
 	panic("%s: weird hook", __func__);
 }
 
@@ -455,15 +454,12 @@ ng_gif_rcvdata(hook_p hook, item_p item)
  * Handle an mbuf received on the "lower" hook.
  */
 static int
-ng_gif_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
+ng_gif_rcv_lower(node_p node, struct mbuf *m)
 {
 	struct sockaddr	dst;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	bzero(&dst, sizeof(dst));
-
-	/* We don't process metadata. */
-	NG_FREE_META(meta);
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(sa_family_t)) {

@@ -94,8 +94,8 @@ static void	ng_ether_attach(struct ifnet *ifp);
 static void	ng_ether_detach(struct ifnet *ifp); 
 
 /* Other functions */
-static int	ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta);
-static int	ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta);
+static int	ng_ether_rcv_lower(node_p node, struct mbuf *m);
+static int	ng_ether_rcv_upper(node_p node, struct mbuf *m);
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ether_constructor;
@@ -485,15 +485,14 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct mbuf *m;
-	meta_p meta;
 
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
+
 	if (hook == priv->lower || hook == priv->orphan)
-		return ng_ether_rcv_lower(node, m, meta);
+		return ng_ether_rcv_lower(node, m);
 	if (hook == priv->upper)
-		return ng_ether_rcv_upper(node, m, meta);
+		return ng_ether_rcv_upper(node, m);
 	panic("%s: weird hook", __func__);
 #ifdef RESTARTABLE_PANICS /* so we don't get an error msg in LINT */
 	return NULL;
@@ -504,13 +503,10 @@ ng_ether_rcvdata(hook_p hook, item_p item)
  * Handle an mbuf received on the "lower" or "orphan" hook.
  */
 static int
-ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
+ng_ether_rcv_lower(node_p node, struct mbuf *m)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
  	struct ifnet *const ifp = priv->ifp;
-
-	/* Discard meta info */
-	NG_FREE_META(meta);
 
 	/* Check whether interface is ready for packets */
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
@@ -549,12 +545,9 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
  * Handle an mbuf received on the "upper" hook.
  */
 static int
-ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
+ng_ether_rcv_upper(node_p node, struct mbuf *m)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-
-	/* Discard meta info */
-	NG_FREE_META(meta);
 
 	m->m_pkthdr.rcvif = priv->ifp;
 

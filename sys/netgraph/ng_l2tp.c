@@ -1378,7 +1378,6 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 {
 	struct l2tp_seq *const seq = &priv->seq;
 	u_int16_t session_id = 0;
-	meta_p meta = NULL;
 	int error;
 
 	/* If no mbuf passed, send an empty packet (ZLB) */
@@ -1431,7 +1430,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	seq->xack = seq->nr;
 
 	/* Send packet */
-	NG_SEND_DATA(error, priv->lower, m, meta);
+	NG_SEND_DATA_ONLY(error, priv->lower, m);
 	return (error);
 }
 
