@@ -567,7 +567,7 @@ static void
 usage(void)
 {
 	static const char common[] =
-	    "[-BFdpvlyn] [-T fstype:fsoptions] [-t fstype]";
+	    "[-BFdfnpvy] [-T fstype:fsoptions] [-t fstype]";
 
 	(void)fprintf(stderr, "usage: %s %s [special|node]...\n",
 	    getprogname(), common);
