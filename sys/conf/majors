@@ -189,5 +189,6 @@ chrdev	name		comments
 131	mlxd		Mylex DAC960 RAID (disk device)
 132	amr		AMI MegaRAID (control device)
 133	amrd		AMI MegaRAID (disk device)
+134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
