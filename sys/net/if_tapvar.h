@@ -41,6 +41,10 @@
 #ifndef _NET_IF_TAPVAR_H_
 #define _NET_IF_TAPVAR_H_
 
+/*
+ * tap_mtx locks tap_flags, tap_pid.  tap_next locked with global tapmtx.
+ * Other fields locked by owning subsystems.
+ */
 struct tap_softc {
 	struct arpcom	arpcom;			/* ethernet common data      */
 #define tap_if		arpcom.ac_if
@@ -60,6 +64,7 @@ struct tap_softc {
 
 	SLIST_ENTRY(tap_softc)	tap_next;	/* next device in chain      */
 	dev_t		 tap_dev;
+	struct mtx	 tap_mtx;		/* per-softc mutex */
 };
 
 #endif /* !_NET_IF_TAPVAR_H_ */
