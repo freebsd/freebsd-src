@@ -121,7 +121,7 @@ eni_test_memory ( eup )
 	 * This makes sure we don't leave anything funny in the
 	 * queues.
 	 */
-	KM_ZERO ( eup->eu_ram, ram_size );
+	KM_ZERO ( (uintptr_t)eup->eu_ram, ram_size );
 
 	/*
 	 * If we'd like to claim to have less memory, here's where
