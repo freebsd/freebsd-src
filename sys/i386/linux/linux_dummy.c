@@ -54,8 +54,6 @@ unsupported_msg(struct proc *p, const char *fname)
 DUMMY(setup);
 DUMMY(break);
 DUMMY(stat);
-DUMMY(mount);
-DUMMY(umount);
 DUMMY(stime);
 DUMMY(ptrace);
 DUMMY(fstat);
@@ -63,7 +61,6 @@ DUMMY(stty);
 DUMMY(gtty);
 DUMMY(ftime);
 DUMMY(prof);
-DUMMY(umount2);
 DUMMY(lock);
 DUMMY(mpx);
 DUMMY(ulimit);
