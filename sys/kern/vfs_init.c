@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 
+static int	vfs_register(struct vfsconf *);
+static int	vfs_unregister(struct vfsconf *);
 
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
@@ -138,7 +140,7 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 
 
 /* Register a new filesystem type in the global table */
-int
+static int
 vfs_register(struct vfsconf *vfc)
 {
 	struct sysctl_oid *oidp;
@@ -249,7 +251,7 @@ vfs_register(struct vfsconf *vfc)
 
 
 /* Remove registration of a filesystem type */
-int
+static int
 vfs_unregister(struct vfsconf *vfc)
 {
 	struct vfsconf *vfsp;

@@ -580,7 +580,6 @@ extern	char *mountrootfsname;
 
 int	dounmount(struct mount *, int, struct thread *);
 
-void free_mntarg(struct mntarg *ma);
 int	kernel_mount(struct mntarg *ma, int flags);
 int	kernel_vmount(int flags, ...);
 struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
@@ -604,8 +603,6 @@ void	vfs_unlock(struct mount *);       /* unlock a vfs */
 int	vfs_busy(struct mount *, int, struct mtx *, struct thread *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
-struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
-	    (struct mount *, struct sockaddr *);
 int	vfs_allocate_syncvnode(struct mount *);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);
@@ -613,12 +610,9 @@ struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 int	vfs_modevent(module_t, int, void *);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
-void	vfs_mount_destroy(struct mount *, struct thread *);
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *, struct thread *);
 void	vfs_unmountall(void);
-int	vfs_register(struct vfsconf *);
-int	vfs_unregister(struct vfsconf *);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
