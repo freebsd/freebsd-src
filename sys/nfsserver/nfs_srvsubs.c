@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.21 1995/07/20 09:43:12 davidg Exp $
+ * $Id: nfs_subs.c,v 1.22 1995/07/29 11:42:22 bde Exp $
  */
 
 /*
@@ -1243,7 +1243,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	 * information.
 	 */
 	np = VTONFS(vp);
-	if (vp->v_type == VNON) {
+	if (vp->v_type != vtyp) {
 		/*
 		 * If we had a lock and it turns out that the vnode
 		 * is an object which we don't want to lock (e.g. VDIR)
