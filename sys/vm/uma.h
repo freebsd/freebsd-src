@@ -185,9 +185,9 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
  *		zinit/zfini (unset by default for master zone) with
  *		uma_zone_set_zinit/zfini() (note subtle 'z' prefix).
  *
- *	align A bitmask that corisponds to the requested alignment
- *		eg 4 would be 0x3
- *	flags A set of parameters that control the behavior of the zone
+ *	master  A reference to this zone's Master Zone (Primary Zone),
+ *		which contains the backing Keg for the Secondary Zone
+ *		being added.
  *
  * Returns:
  *	A pointer to a structure which is intended to be opaque to users of
