@@ -1,0 +1,784 @@
+.\" Copyright (c) 1997
+.\"	Jordan Hubbard <jkh@freebsd.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Jordan Hubbard AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Jordan Hubbard OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd August 9, 1997
+.Dt SYSINSTALL 8
+.Os
+.Sh NAME
+.Nm sysinstall
+.Nd system installation and configuration tool
+.Sh SYNOPSIS
+.Nm
+.Op Ar var=value
+.Op Ar sub-function
+.Op Ar ...
+.Sh DESCRIPTION
+.Nm
+is a utility for installing and configuring FreeBSD systems;
+it is the first utility invoked by the FreeBSD installation boot
+floppy and is also copied into
+.Pa /stand
+on newly installed FreeBSD systems so that it may be run
+later to further configure the system.
+.Pp
+The
+.Nm
+program is generally invoked without arguments for the default
+behavior which brings up the main installation/configuration menu.
+
+On those occasions where it is deemed necessary to invoke a subsystem
+of sysinstall directly, however, it is also possible to do so by
+naming the appropriate function entry points on the command line.
+Since this action is essentially identical to running an installation
+script, with each argument corresponding to a line of script, the
+reader is encouraged to read the section on scripting for more
+information on this feature.
+.Pp
+.Sh NOTES
+.Nm
+is essentially nothing more than a monolithic C program with
+the ability to write MBRs and disk labels (through the services
+of the
+.Xr libdisk 3
+library) and install distributions or packages onto new and
+existing FreeBSD systems.  It also contains some extra intelligence
+for running as a replacement for
+.Xr init 8
+when it's invoked by the FreeBSD installation boot procedure.  It
+assumes very little in the way of additional utility support and
+performs most file operations by calling the relevant syscalls
+(such as
+.Xr mount 2 )
+directly.
+.Pp
+.Nm
+currently uses the
+.Xr libdialog 3
+library to do user interaction with simple ANSI line graphics, color
+support for which is enabled by either running on a syscons VTY or some
+other color-capable terminal emulator (newer versions of xterm will support
+color when using the ``xterm-color'' termcap entry).
+.Pp
+This product is currently at the end of its life cycle and will
+be replaced in FreeBSD 3.0 by the
+.Xr setup 1
+utility.
+.Sh RUNNING SCRIPTS
+.Nm
+may be either driven interactively through its various internal menus
+or run in batch mode, driven by an external script.  Such scripts can
+be loaded and executed in one of 3 ways:
+
+.Bl -tag -width Ds -compact
+.It Sy "LOAD_CONFIG_FILE"
+If
+.Nm
+is compiled with LOAD_CONFIG_FILE set in the environment
+(or in the Makefile) to some value, then that value will
+be used as the filename to automatically look for and load
+when
+.Nm
+starts up, no interaction on the part of the user being required.
+This option is aimed primarily at large sites who wish to create a
+single prototype install for multiple machines with largely identical
+configurations and/or installation options.
+
+.It Sy "MAIN MENU"
+If
+.Nm
+is run interactively, that is to say in the default manner, it will
+bring up a main menu which contains a "load config file" option.
+Selecting this option will allow the name of a script file to be
+specified and loaded from a DOS or UFS formatted floppy.
+
+.It Sy "COMMAND LINE"
+In the same fashion that script directives may be specified one
+operation per line in a file, so may each command line argument
+be a directive
+when
+.Nm
+is run in multi-user mode.  Execution ends either by explicit request
+(e.g. calling the
+.Ar shutdown
+directive), upon reaching the end of the argument list or on error.
+.Pp
+For example:
+.nf
+
+/stand/sysinstall ftp=ftp:/ziggy/pub/ mediaSetFTP configPackages
+
+.fi
+Would initialize
+.Nm
+for FTP installation media (using the server `ziggy') and then
+bring up the package installation editor.  When the package editor
+exits, so will
+.Nm
+.El
+.Pp
+.Sh SCRIPT SYNTAX
+A script is given one or more directives, each directive taking
+the form of:
+
+.Ar var=value
+.Ar function
+or
+.Ar #somecomment
+
+Where
+.Ar var=value
+is the assignment of some internal
+.Nm
+variable, e.g. "ftpPass=FuNkYChiKn", and
+.Ar function
+is the name of an internal
+.Nm
+function, e.g. "mediaSetFTP", and
+.Ar #comment
+is a single-line comment for documentation purposes (ignored by
+sysinstall).  Functions take their arguments by examining known
+variable names, requiring that you be sure to assign those values
+first before calling the function.  Where a function in the table
+below takes such arguments, they will be documented there.
+.Pp
+\fBFunction Glossary:\fR
+.Pp
+.Bl -tag -width indent
+.It configAnonFTP
+Invoke the Anonymous FTP configuration menu.
+.Pp
+\fBVariables:\fR None
+.It configRouter
+Select which routing daemon you wish to use, potentially
+loading any required 3rd-party routing daemons as necessary.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It router
+can be set to the name of the desired routing daemon,
+e.g. ``routed'' or ``gated'', otherwise it is prompted for.
+.El
+.It configNFSServer
+Configure host as an NFS server.
+.Pp
+\fBVariables:\fR None
+.It configNTP
+Configure host as a user of the Network Time Protocol.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It ntpdate_flags
+The flags to
+.Xr ntpdate 8 ,
+that is to say the name of the server to sync from.
+.El
+.It configPCNFSD
+Configure host to support PC NFS.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It pcnfsd_pkg
+The name of the PCNFSD package to load if necessary (defaults to hard coded
+version).
+.El
+.It configPackages
+Bring up the interactive package management menu.
+.Pp
+\fBVariables:\fR None
+.It configRegister
+Register the user with the FreeBSD counter.
+.Pp
+\fBVariables:\fR None
+.It configUsers
+Add users and/or groups to the system.
+.Pp
+\fBVariables:\fR None
+.It configXEnvironment
+Configure the X display subsystem.
+.Pp
+\fBVariables:\fR None
+.It diskPartitionEditor
+Invokes the disk partition (MBR) editor.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width findx
+.It geometry
+The disk geometry, as a cyls/heads/sectors formatted string.  Default: no
+change to geometry.
+.It partition
+Set to disk partitioning type or size, its value being
+.Ar free
+in order to use only remaining free space for FreeBSD,
+.Ar all
+to use the entire disk for FreeBSD but maintain a proper partition
+table,
+.Ar existing
+to use an existing FreeBSD partition (first found),
+.Ar exclusive
+to use the disk in ``dangerously dedicated'' mode or, finally,
+.Ar somenumber
+to allocate
+.Ar somenumber
+blocks of available free space to a new FreeBSD partition.
+Default:  Interactive mode.
+.It bootManager
+is set to one of
+.Ar boot
+to signify the installation of a boot manager,
+.Ar standard
+to signify installation of a "standard" non-boot MGR DOS
+MBR or
+.Ar none
+to indicate that no change to the boot manager is desired.
+Default: none.
+.El
+.Pp
+Note: Nothing is actually written to disk by this function, a explicit call to
+.Ar diskPartitionWrite
+being required for that to happen.
+.It diskPartitionWrite
+Causes any pending MBR changes (typically from the
+.Ar diskPartitionEditor )
+to be written out.
+.Pp
+\fBVariables:\fR None
+.It diskLabelEditor
+Invokes the disk label editor.  This is a bit trickier from a script
+since you need to essentially label everything inside each FreeBSD
+(type 0xA5) partition created by the
+.Ar diskPartitionEditor
+function, and that requires knowing a few rules about how things are
+laid out.  When creating a script to automatically allocate disk space
+and partition it up, it is suggested that you first perform the
+installation interactively at least once and take careful notes as to
+what the slice names will be, then and only then hardwiring them into
+the script.
+.Pp
+For example, let's say you have a SCSI disk on which you've created a new
+FreeBSD partition in slice 2 (your DOS partition residing in slice 1).
+The slice name would be
+.Ar sd0s2
+for the whole FreeBSD partition (
+.Ar sd0s1
+being your DOS primary
+partition).  Now let's further assume that you have 500MB in this
+partition and you want to sub-partition that space into root, swap,
+var and usr file systems for FreeBSD.  Your invocation of the
+.Ar diskLabelEditor
+function might involve setting the following variables:
+.Bl -tag -width findx
+.It Li "sd0s2-1=ufs 40960 /"
+A 20MB root file system (all sizes are in 512 byte blocks).
+.It Li "sd0s2-2=swap 131072 /"
+A 64MB swap partition.
+.It Li "sd0s2-3=ufs 204800 /var"
+A 100MB /var file system.
+.It Li "sd0s2-4=ufs 0 /usr"
+With the balance of free space (around 316MB) going to the /usr
+file system.
+.El
+
+One can also use the
+.Ar diskLabelEditor
+for mounting or erasing existing partitions as well as creating new
+ones.  Using the previous example again, let's say that we also wanted
+to mount our DOS partition and make sure that an
+.Pa /etc/fstab
+entry is created for it in the new installation.  Before calling the
+.Ar diskLabelEditor
+function, we simply add an additional line:
+.nf
+	sd0s1=/dos_c N
+
+.fi
+before the call.  This tells the label editor that you want to mount
+the first slice on
+.Pa /dos_c
+and not to attempt to newfs it (not that
+.Nm
+would attempt this for a DOS partition in any case, but it could just
+as easily be an existing UFS partition being named here and the 2nd
+field is non-optional).
+.Pp
+Note:  No file system data is actually written to disk until an
+explicit call to
+.Ar diskLabelCommit
+is made.
+.It diskLabelCommit
+Writes out all pending disklabel information and creates and/or mounts any
+file systems which have requests pending from the
+.Ar diskLabelEditor
+function.
+.Pp
+\fBVariables:\fR None
+.It distReset
+Resets all selected distributions to the empty set (no distributions selected).
+.Pp
+\fBVariables:\fR None
+.It distSetCustom
+Allows the selection of a custom distribution set (e.g. not just on of the
+existing "canned" sets) with no user interaction.
+\fBVariables:\fR
+.Bl -tag -width indent
+.It dists
+List of distributions to load.  Possible distribution values are:
+.Bl -tag -width indent
+.It Li bin
+The base binary distribution.
+.It Li doc
+Miscellaneous documentation
+.It Li games
+Games
+.It Li manpages
+Manual pages (unformatted)
+.It Li catpages
+Pre-formatted manual pages
+.It Li proflibs
+Profiled libraries for developers.
+.It Li dict
+Dictionary information (for tools like spell).
+.It Li info
+GNU info files and other extra docs.
+.It Li des
+DES encryption binaries and libraries.
+.It Li compat1x
+Compatibility with FreeBSD 1.x
+.It Li compat20
+Compatibility with FreeBSD 2.0
+.It Li compat21
+Compatibility with FreeBSD 2.1
+.It Li ports
+The ports collection.
+.It Li krb
+Kerberos binaries.
+.It Li ssecure
+/usr/src/secure
+.It Li sebones
+/usr/src/eBones
+.It Li sbase
+/usr/src/[top level files]
+.It Li scontrib
+/usr/src/contrib
+.It Li sgnu
+/usr/src/gnu
+.It Li setc
+/usr/src/etc
+.It Li sgames
+/usr/src/games
+.It Li sinclude
+/usr/src/include
+.It Li slib
+/usr/src/lib
+.It Li slibexec
+/usr/src/libexec
+.It Li slkm
+/usr/src/lkm
+.It Li srelease
+/usr/src/release
+.It Li sbin
+/usr/src/bin
+.It Li ssbin
+/usr/src/sbin
+.It Li sshare
+/usr/src/share
+.It Li ssys
+/usr/src/sys
+.It Li subin
+/usr/src/usr.bin
+.It Li susbin
+/usr/src/usr.sbin
+.It Li ssmailcf
+/usr/src/usr.sbin/sendmail/cf
+.It Li XF86-xc
+XFree86 official sources.
+.It Li XF86-co
+XFree86 contributed sources.
+.It Li X33bin
+XFree86 3.3 binaries.
+.It Li X33cfg
+XFree86 3.3 configuration files.
+.It Li X33doc
+XFree86 3.3 documentation.
+.It Li X33html
+XFree86 3.3 HTML documentation.
+.It Li X33lib
+XFree86 3.3 libraries.
+.It Li X33lk98
+XFree86 3.3 server link-kit for PC98 machines.
+.It Li X33lkit
+XFree86 3.3 server link-kit for standard machines.
+.It Li X33man
+XFree86 3.3 manual pages.
+.It Li X33prog
+XFree86 3.3 programmer's distribution.
+.It Li X33ps
+XFree86 3.3 postscript documentation.
+.It Li X33set
+XFree86 3.3 graphical setup tool.
+.It Li X338514
+XFree86 3.3 8514 server.
+.It Li X339480
+XFree86 3.3 PC98 8-bit (256 color) PEGC-480 server.
+.It Li X339EGC
+XFree86 3.3 PC98 4-bit (16 color) EGC server.
+.It Li X339GA9
+XFree86 3.3 PC98 GA-968V4/PCI (S3 968) server.
+.It Li X339GAN
+XFree86 3.3 PC98 GANB-WAP (cirrus) server.
+.It Li X339LPW
+XFree86 3.3 PC98 PowerWindowLB (S3) server.
+.It Li X339NKV
+XFree86 3.3 PC98 NKV-NEC (cirrus) server.
+.It Li X339NS3
+XFree86 3.3 PC98 NEC (S3) server.
+.It Li X339SPW
+XFree86 3.3 PC98 SKB-PowerWindow (S3) server.
+.It Li X339TGU
+XFree86 3.3 PC98 Cyber9320 and TGUI9680 server.
+.It Li X339WEP
+XFree86 3.3 PC98 WAB-EP (cirrus) server.
+.It Li X339WS
+XFree86 3.3 PC98 WABS (cirrus) server.
+.It Li X339WSN
+XFree86 3.3 PC98 WSN-A2F (cirrus) server.
+.It Li X33AGX
+XFree86 3.3 8 bit AGX server.
+.It Li X33I128
+XFree86 3.3 #9 Imagine I128 server.
+.It Li X33Ma8
+XFree86 3.3 ATI Mach8 server.
+.It Li X33Ma32
+XFree86 3.3 ATI Mach32 server.
+.It Li X33Ma64
+XFree86 3.3 ATI Mach64 server.
+.It Li X33Mono
+XFree86 3.3 monochrome server.
+.It Li X33P9K
+XFree86 3.3 P9000 server.
+.It Li X33S3
+XFree86 3.3 S3 server.
+.It Li X33S3V
+XFree86 3.3 S3 Virge server.
+.It Li X33SVGA
+XFree86 3.3 SVGA server.
+.It Li X33VG16
+XFree86 3.3 VGA16 server.
+.It Li X33W32
+XFree86 3.3 ET4000/W32, /W32i and /W32p server.
+.It Li X33nest
+XFree86 3.3 nested X server.
+.It Li X33vfb
+XFree86 3.3 virtual frame-buffer X server.
+.It Li X33fnts
+XFree86 3.3 base font set.
+.It Li X33f100
+XFree86 3.3 100DPI font set.
+.It Li X33fcyr
+XFree86 3.3 Cyrillic font set.
+.It Li X33fscl
+XFree86 3.3 scalable font set.
+.It Li X33fnon
+XFree86 3.3 non-english font set.
+.It Li X33fsrv
+XFree86 3.3 font server.
+.El
+.It distSetDeveloper
+Selects the standard Developer's distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetXDeveloper
+Selects the standard X Developer's distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetKernDeveloper
+Selects the standard kernel Developer's distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetUser
+Selects the standard user distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetXUser
+Selects the standard X user's distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetMinimum
+Selects the very minimum distribution set.
+.Pp
+\fBVariables:\fR None
+.It distSetEverything
+Selects the full whack - all available distributions.
+.Pp
+\fBVariables:\fR None
+.It distSetDES
+Interactively select DES subcomponents.
+.Pp
+\fBVariables:\fR None
+.It distSetSrc
+Interactively select source subcomponents.
+.Pp
+\fBVariables:\fR None
+.It distSetXF86
+Interactively select XFree86 3.3 subcomponents.
+.Pp
+\fBVariables:\fR None
+.It distExtractAll
+Install all currently selected distributions (requires that
+media device also be selected).
+.Pp
+\fBVariables:\fR None
+.It docBrowser
+Install (if necessary) an HTML documentation browser and go to the
+HTML documentation submenu.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It browserPackage
+The name of the browser package to try and install as necessary.
+Defaults to latest lynx package.
+.It browserBinary
+The name of the browser binary itself (if overriding the
+.Ar browserPackage
+variable).  Defaults to lynx.
+.El
+.It installCommit
+.Pp
+Commit any and all pending changes to disk.  This function
+is essentially shorthand for a number of more granular "commit"
+functions.
+\fBVariables:\fR None
+.It installExpress
+Start an "express" installation, asking few questions of
+the user.
+.Pp
+\fBVariables:\fR None
+.It installNovice
+Start a "novice" installation, the most user-friendly
+installation type available.
+.Pp
+\fBVariables:\fR None
+.It installUpgrade
+Start an upgrade installation.
+.Pp
+\fBVariables:\fR None
+.It installFixitHoloShell
+Start up the "emergency holographic shell" over on VTY4
+if running as init.
+.Pp
+\fBVariables:\fR None
+.It installFixitCDROM
+Go into "fixit" mode, assuming a live file system CDROM
+currently in the drive.
+.Pp
+\fBVariables:\fR None
+.It installFixitFloppy
+Go into "fixit" mode, assuming an available fixit floppy
+disk (user will be prompted for it).
+.Pp
+\fBVariables:\fR None
+.It installFilesystems
+Do just the file system initialization part of an install.
+.Pp
+\fBVariables:\fR None
+.It installVarDefaults
+Initialize all variables to their defaults, overriding any
+previous settings.
+.Pp
+\fBVariables:\fR None
+.It mediaSetCDROM
+Select a FreeBSD CDROM as the installation media.
+.Pp
+\fBVariables:\fR None
+.It mediaSetFloppy
+Select a pre-made floppy installation set as the installation media.
+.Pp
+\fBVariables:\fR None
+.It mediaSetDOS
+Select an existing DOS primary partition as the installation media.
+The first primary partition found is used (e.g. C:).
+.Pp
+\fBVariables:\fR None
+.It mediaSetTape
+Select a tape device as the installation media.
+.Pp
+\fBVariables:\fR None
+.It mediaSetFTP
+Select an FTP site as the installation media.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It hostname
+The name of the host being installed (optional).
+.It domainname
+The domain name of the host being installed (optional).
+.It defaultrouter
+The default router for this host (non-optional).
+.It netDev
+Which host interface to use (
+.Ar ed0
+or
+.Ar ep0 ,
+for example.  Non-optional).
+.It ipaddr
+The IP address for the selected host interface (non-optional).
+.It netmask
+The netmask for the selected host interface (non-optional).
+.It ftp
+The fully qualified URL of the FTP site containing the FreeBSD
+distribution you're interested in, e.g.
+.Ar ftp://ftp.freebsd.org/pub/FreeBSD/ .
+.El
+.It mediaSetFTPActive
+Alias for
+.Ar mediaSetFTP
+using "active" FTP transfer mode.
+.Pp
+\fBVariables:\fR Same as for
+.Ar mediaSetFTP .
+.It mediaSetFTPPassive
+Alias for
+.Ar mediaSetFTP
+using "passive" FTP transfer mode.
+.Pp
+\fBVariables:\fR Same as for
+.Ar mediaSetFTP .
+.It mediaSetUFS
+Select an existing UFS partition (mounted with the label editor) as
+the installation media.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It ufs
+full /path to directory containing the FreeBSD distribution you're
+interested in.
+.El
+.It mediaSetNFS
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It hostname
+The name of the host being installed (optional).
+.It domainname
+The domain name of the host being installed (optional).
+.It defaultrouter
+The default router for this host (non-optional).
+.It netDev
+Which host interface to use (
+.Ar ed0
+or
+.Ar ep0 ,
+for example.  Non-optional).
+.It ipaddr
+The IP address for the selected host interface (non-optional).
+.It netmask
+The netmask for the selected host interface (non-optional).
+.It nfs
+full hostname:/path specification for directory containing
+the FreeBSD distribution you're interested in.
+.El
+.It mediaSetFTPUserPass
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It ftpUser
+The username to log in as on the ftp server site.
+Default: ftp
+.It ftpPass
+The password to use for this username on the ftp
+server site.
+Default: user@host
+.El
+.It mediaSetCPIOVerbosity
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It cpioVerbose
+Can be used to set the verbosity of cpio extractions to low, medium or
+high.
+.El
+.It mediaGetType
+Interactively get the user to specify some type of media.
+.Pp
+\fBVariables:\fR None
+.It optionsEditor
+Invoke the interactive options editor.
+.Pp
+\fBVariables:\fR None
+.It register
+Bring up the FreeBSD registration form.
+.Pp
+\fBVariables:\fR None
+.It packageAdd
+Try to fetch and add a package to the system (requires
+that a media type be set),
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It package
+The name of the package to add, e.g. bash-1.14.7 or ncftp-2.4.2.
+.El
+.It addGroup
+Invoke the interactive group editor.
+.Pp
+\fBVariables:\fR None
+.It addUser
+Invoke the interactive user editor.
+.Pp
+\fBVariables:\fR None
+.It shutdown
+Stop the script and terminate sysinstall.
+.Pp
+\fBVariables:\fR None
+.It system
+Execute an arbitrary command with
+.Xr system 3
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It command
+The name of the command to execute.  When running
+from a boot floppy, very minimal expectations should
+be made as to what's available until/unless a relatively
+full system installation has just been done.
+.El
+.El
+.Sh FILES
+This utility may edit the contents of
+.Pa /etc/rc.conf ,
+.Pa /etc/hosts ,
+and
+.Pa /etc/resolv.conf
+as necessary to reflect changes in the network configuration.
+.Sh BUGS
+This utility is a prototype which lasted approximately 2 years past
+its expiration date and is greatly in need of death.
+.Sh AUTHOR
+Jordan K. Hubbard <jkh@FreeBSD.org>
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 2.0 .

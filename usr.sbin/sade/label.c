@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.70 1997/03/11 17:51:01 jkh Exp $
+ * $Id: label.c,v 1.71 1997/06/05 09:47:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -972,63 +972,74 @@ diskLabelNonInteractive(char *str)
 	Chunk *c1 = label_chunk_info[i].c;
 
 	if (label_chunk_info[i].type == PART_SLICE) {
-	    if ((cp = variable_get(c1->name)) != NULL) {
-		int sz;
-		char typ[10], mpoint[50];
+	    char name[512];
+	    int entries = 1;
 
-		if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
-		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
-		    status = DITEM_FAILURE;
-		    continue;
-		}
-		else {
-		    Chunk *tmp;
+	    while (entries) {
+		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
+		if ((cp = variable_get(name)) != NULL) {
+		    int sz;
+		    char typ[10], mpoint[50];
 
-		    if (!strcmp(typ, "swap")) {
-			type = PART_SWAP;
-			strcpy(mpoint, "SWAP");
-		    }
-		    else {
-			type = PART_FILESYSTEM;
-			if (!strcmp(mpoint, "/"))
-			    flags |= CHUNK_IS_ROOT;
-		    }
-		    if (!sz)
-			sz = space_free(c1);
-		    if (sz > space_free(c1)) {
-			msgConfirm("Not enough free space to create partition: %s", mpoint);
+		    if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
+			msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
 			status = DITEM_FAILURE;
 			continue;
 		    }
-		    if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
-						  (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
-			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
-			status = DITEM_FAILURE;
-			break;
-		    }
 		    else {
-			tmp->private_data = new_part(mpoint, TRUE, sz);
-			tmp->private_free = safe_free;
-			status = DITEM_SUCCESS;
+			Chunk *tmp;
+
+			if (!strcmp(typ, "swap")) {
+			    type = PART_SWAP;
+			    strcpy(mpoint, "SWAP");
+			}
+			else {
+			    type = PART_FILESYSTEM;
+			    if (!strcmp(mpoint, "/"))
+				flags |= CHUNK_IS_ROOT;
+			}
+			if (!sz)
+			    sz = space_free(c1);
+			if (sz > space_free(c1)) {
+			    msgConfirm("Not enough free space to create partition: %s", mpoint);
+			    status = DITEM_FAILURE;
+			    continue;
+			}
+			if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
+						      (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
+			    msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
+			    status = DITEM_FAILURE;
+			    break;
+			}
+			else {
+			    tmp->private_data = new_part(mpoint, TRUE, sz);
+			    tmp->private_free = safe_free;
+			    status = DITEM_SUCCESS;
+			}
 		    }
+		    entries++;
+		}
+		else {
+		    /* No more matches, leave the loop */
+		    entries = 0;
 		}
 	    }
 	}
 	else {
-	    /* Must be something we can set a mountpoint */
+	    /* Must be something we can set a mountpoint for */
 	    cp = variable_get(c1->name);
 	    if (cp) {
-		char mpoint[50], nwfs[8];
+		char mpoint[50], do_newfs[8];
 		Boolean newfs = FALSE;
 
-		nwfs[0] = '\0';
-		if (sscanf(cp, "%s %s", mpoint, nwfs) != 2) {
+		do_newfs[0] = '\0';
+		if (sscanf(cp, "%s %s", mpoint, do_newfs) != 2) {
 		    dialog_clear();
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
 		    status = DITEM_FAILURE;
 		    continue;
 		}
-		newfs = toupper(nwfs[0]) == 'Y' ? TRUE : FALSE;
+		newfs = toupper(do_newfs[0]) == 'Y' ? TRUE : FALSE;
 		if (c1->private_data) {
 		    p = c1->private_data;
 		    p->newfs = newfs;
