@@ -113,6 +113,10 @@ static void	ttyrub __P((int c, struct tty *tp));
 static void	ttyrubo __P((struct tty *tp, int cnt));
 static void	ttyunblock __P((struct tty *tp));
 static int	ttywflush __P((struct tty *tp));
+static int	filt_ttyread __P((struct knote *kn, long hint));
+static void 	filt_ttyrdetach __P((struct knote *kn));
+static int	filt_ttywrite __P((struct knote *kn, long hint));
+static void 	filt_ttywdetach __P((struct knote *kn));
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -1090,6 +1094,89 @@ ttypoll(dev, events, p)
 	}
 	splx(s);
 	return (revents);
+}
+
+static struct filterops ttyread_filtops =
+	{ 1, NULL, filt_ttyrdetach, filt_ttyread };
+static struct filterops ttywrite_filtops =
+	{ 1, NULL, filt_ttywdetach, filt_ttywrite };
+
+int
+ttykqfilter(dev, kn)
+	dev_t dev;
+	struct knote *kn;
+{
+	struct tty *tp = dev->si_tty;
+	struct klist *klist;
+	int s;
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		klist = &tp->t_rsel.si_note;
+		kn->kn_fop = &ttyread_filtops;
+		break;
+	case EVFILT_WRITE:
+		klist = &tp->t_wsel.si_note;
+		kn->kn_fop = &ttywrite_filtops;
+		break;
+	default:
+		return (1);
+	}
+
+	kn->kn_hook = (caddr_t)dev;
+
+	s = spltty();
+	SLIST_INSERT_HEAD(klist, kn, kn_selnext);
+	splx(s);
+
+	return (0);
+}
+
+static void
+filt_ttyrdetach(struct knote *kn)
+{
+	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	int s = spltty();
+
+	SLIST_REMOVE(&tp->t_rsel.si_note, kn, knote, kn_selnext);
+	splx(s);
+}
+
+static int
+filt_ttyread(struct knote *kn, long hint)
+{
+	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+
+	kn->kn_data = ttnread(tp);
+	if (ISSET(tp->t_state, TS_ZOMBIE)) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	}
+	return (kn->kn_data > 0);
+}
+
+static void
+filt_ttywdetach(struct knote *kn)
+{
+	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+	int s = spltty();
+
+	SLIST_REMOVE(&tp->t_wsel.si_note, kn, knote, kn_selnext);
+	splx(s);
+}
+
+static int
+filt_ttywrite(kn, hint)
+	struct knote *kn;
+	long hint;
+{
+	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
+
+	kn->kn_data = tp->t_outq.c_cc;
+	if (ISSET(tp->t_state, TS_ZOMBIE))
+		return (1);
+	return (kn->kn_data <= tp->t_olowat &&
+	    ISSET(tp->t_state, TS_CONNECTED));
 }
 
 /*
@@ -2118,6 +2205,7 @@ ttwakeup(tp)
 	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
 		pgsigio(tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(TSA_HUP_OR_INPUT(tp));
+        KNOTE(&tp->t_rsel.si_note, 0);
 }
 
 /*
@@ -2142,6 +2230,7 @@ ttwwakeup(tp)
 		CLR(tp->t_state, TS_SO_OLOWAT);
 		wakeup(TSA_OLOWAT(tp));
 	}
+        KNOTE(&tp->t_wsel.si_note, 0);
 }
 
 /*

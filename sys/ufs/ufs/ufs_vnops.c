@@ -61,6 +61,8 @@
 
 #include <machine/mutex.h>
 
+#include <sys/file.h>		/* XXX */
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -103,6 +105,10 @@ static int ufsfifo_write __P((struct vop_write_args *));
 static int ufsspec_close __P((struct vop_close_args *));
 static int ufsspec_read __P((struct vop_read_args *));
 static int ufsspec_write __P((struct vop_write_args *));
+static int filt_ufsread __P((struct knote *kn, long hint));
+static int filt_ufsvnode __P((struct knote *kn, long hint));
+static void filt_ufsdetach __P((struct knote *kn));
+static int ufs_kqfilter __P((struct vop_kqfilter_args *ap));
 
 union _qcvt {
 	int64_t qcvt;
@@ -2176,6 +2182,71 @@ ufs_missingop(ap)
 	return (EOPNOTSUPP);
 }
 
+static struct filterops ufsread_filtops = 
+	{ 1, NULL, filt_ufsdetach, filt_ufsread };
+static struct filterops ufsvnode_filtops = 
+	{ 1, NULL, filt_ufsdetach, filt_ufsvnode };
+
+static int
+ufs_kqfilter(ap)
+	struct vop_kqfilter_args /* {
+		struct vnode *a_vp;
+		struct knote *a_kn;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct knote *kn = ap->a_kn;
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &ufsread_filtops;
+		break;
+	case EVFILT_VNODE:
+		kn->kn_fop = &ufsvnode_filtops;
+		break;
+	default:
+		return (1);
+	}
+
+	kn->kn_hook = (caddr_t)vp;
+
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
+	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+
+	return (0);
+}
+
+static void
+filt_ufsdetach(struct knote *kn)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
+	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note, kn, knote, kn_link);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+}
+
+/*ARGSUSED*/
+static int
+filt_ufsread(struct knote *kn, long hint)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_hook;
+	struct inode *ip = VTOI(vp);
+
+        kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
+        return (kn->kn_data != 0);
+}
+
+static int
+filt_ufsvnode(struct knote *kn, long hint)
+{
+
+	if (kn->kn_sfflags & hint)
+		kn->kn_fflags |= hint;
+	return (kn->kn_fflags != 0);
+}
+
 /* Global vfs data structures for ufs. */
 static vop_t **ufs_vnodeop_p;
 static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
@@ -2201,6 +2272,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) ufs_open },
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
+	{ &vop_kqfilter_desc,		(vop_t *) ufs_kqfilter },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
