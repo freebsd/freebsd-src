@@ -108,13 +108,7 @@ static int
 ed_pccard_probe(device_t dev)
 {
 	int     error;
-	const char *name;
 
-	name = pccard_get_name(dev);
-	printf("ed_pccard_probe: Does %s match?\n", name);
-	if (strcmp(name, "ed"))
-		return ENXIO;
-	  
 	error = ed_probe_WD80x3(dev);
 	if (error == 0)
 		goto end;
