@@ -132,7 +132,7 @@ CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=	-mlongcall
+CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
