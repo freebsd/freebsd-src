@@ -3,11 +3,12 @@
 # beforeinstall.
 
 #	@(#)Makefile	5.17 (Berkeley) 5/11/90
+#	$FreeBSD$
 
 PROG=	gprof4
 NOMAN=	noman
 SRCS=	gprof.c aout.c arcs.c dfn.c elf.c lookup.c ${MACHINE_ARCH}.c hertz.c \
-	printgprof.c printlist.c
+	printgprof.c printlist.c kernel.c
 CFLAGS+=-DGPROF4
 .PATH:	${.CURDIR}/../../usr.bin/gprof
 
