@@ -248,13 +248,13 @@ rlines(fp, off, sbp)
 void
 show(file_info_t *file)
 {
-    int ch, first;
+    int ch;
+    static file_info_t *last;
 
-    first = 1; 
     while ((ch = getc(file->fp)) != EOF) {
-	if (first && no_files > 1) {
+	if (last != file && no_files > 1) {
 		(void)printf("\n==> %s <==\n", file->file_name);
-		first = 0;
+		last = file;
 	}
 	if (putchar(ch) == EOF)
 		oerr();
