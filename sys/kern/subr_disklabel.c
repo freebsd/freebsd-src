@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.25 1996/05/08 04:29:08 gpalmer Exp $
+ * $Id: ufs_disksubr.c,v 1.26 1996/09/20 17:39:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ readdisklabel(dev, strat, lp)
 
 	bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = dev;
-	bp->b_blkno = LABELSECTOR;
+	bp->b_blkno = LABELSECTOR * ((int)lp->d_secsize/DEV_BSIZE);
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_flags |= B_BUSY | B_READ;
@@ -284,7 +284,7 @@ writedisklabel(dev, strat, lp)
 	}
 	bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = dkmodpart(dev, labelpart);
-	bp->b_blkno = LABELSECTOR;
+	bp->b_blkno = LABELSECTOR * ((int)lp->d_secsize/DEV_BSIZE);
 	bp->b_bcount = lp->d_secsize;
 #if 1
 	/*
