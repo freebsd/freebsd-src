@@ -43,7 +43,7 @@
 #		create build directory.
 #
 
-.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
@@ -97,7 +97,7 @@ whereobj:
 .endif
 
 cleanobj:
-	@if [ -d ${CANONICALOBJDIR}/ ]; then \
+	@if [ -n ${MAKEOBJDIRPREFIX} -a -d ${CANONICALOBJDIR}/ ]; then \
 		rm -rf ${CANONICALOBJDIR}; \
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
