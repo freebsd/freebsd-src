@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
-.\"	$Id: math.3,v 1.5 1997/02/22 15:09:39 peter Exp $
+.\"	$Id: math.3,v 1.6 1998/01/15 23:28:18 danny Exp $
 .\"
 .TH MATH 3M "May 6, 1991"
 .UC 4
@@ -623,6 +623,15 @@ IEEE 754 defaults for granted; this means that a decision to
 trap all divisions by zero could disrupt a code that would
 otherwise get correct results despite division by zero.
 .SH SEE ALSO
+\fBfpgetround\fR(3),
+\fBfpsetround\fR(3),
+\fBfpgetprec\fR(3),
+\fBfpsetprec\fR(3),
+\fBfpgetmask\fR(3),
+\fBfpsetmask\fR(3),
+\fBfpgetsticky\fR(3),
+\fBfpresetsticky\fR(3) - IEEE floating point interface
+.SH NOTES
 An explanation of IEEE 754 and its proposed extension p854
 was published in the IEEE magazine MICRO in August 1984 under
 the title "A Proposed Radix\- and Word\-length\-independent
