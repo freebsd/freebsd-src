@@ -73,10 +73,7 @@ extern char	*prog;
  *
  */
 int
-get_hex_atm_addr(in, out, len)
-	char	*in;
-	u_char	*out;
-	int	len;
+get_hex_atm_addr(const char *in, u_char	*out, int len)
 {
 	int	c_type, c_value, i, out_len, state, val = 0;
 
@@ -219,15 +216,14 @@ get_hex_atm_addr(in, out, len)
  *
  */
 char *
-format_atm_addr(addr)
-	Atm_addr *addr;
+format_atm_addr(const Atm_addr *addr)
 {
 	int		i;
 	char		*nsap_format;
-	Atm_addr_nsap	*atm_nsap;
-	Atm_addr_e164	*atm_e164;
-	Atm_addr_spans	*atm_spans;
-	Atm_addr_pvc	*atm_pvc;
+	const Atm_addr_nsap	*atm_nsap;
+	const Atm_addr_e164	*atm_e164;
+	const Atm_addr_spans	*atm_spans;
+	const Atm_addr_pvc	*atm_pvc;
 	static char	str[256];
 	union {
 		int	w;
@@ -249,7 +245,7 @@ format_atm_addr(addr)
 	 */
 	switch (addr->address_format) {
 	case T_ATM_ENDSYS_ADDR:
-		atm_nsap = (Atm_addr_nsap *)addr->address;
+		atm_nsap = (const Atm_addr_nsap *)addr->address;
 		switch(atm_nsap->aan_afi) {
 		default:
 		case AFI_DCC:
@@ -286,7 +282,7 @@ format_atm_addr(addr)
 		break;
 
 	case T_ATM_E164_ADDR:
-		atm_e164 = (Atm_addr_e164 *)addr->address;
+		atm_e164 = (const Atm_addr_e164 *)addr->address;
 		for(i=0; i<addr->address_length; i++) {
 			sprintf(&str[strlen(str)], "%c",
 					atm_e164->aae_addr[i]);
@@ -297,7 +293,7 @@ format_atm_addr(addr)
 		/*
 		 * Print SPANS address as two words, xxxx.yyyy
 		 */
-		atm_spans = (Atm_addr_spans *)addr->address;
+		atm_spans = (const Atm_addr_spans *)addr->address;
 		u1.c[0] = atm_spans->aas_addr[0];
 		u1.c[1] = atm_spans->aas_addr[1];
 		u1.c[2] = atm_spans->aas_addr[2];
@@ -317,7 +313,7 @@ format_atm_addr(addr)
 		/*
 		 * Print PVC as VPI, VCI
 		 */
-		atm_pvc = (Atm_addr_pvc *)addr->address;
+		atm_pvc = (const Atm_addr_pvc *)addr->address;
 		sprintf(str, "%d, %d",
 				ATM_PVC_GET_VPI(atm_pvc),
 				ATM_PVC_GET_VCI(atm_pvc));

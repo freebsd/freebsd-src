@@ -69,8 +69,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 struct sockaddr_in *
-get_ip_addr(p)
-	char	*p;
+get_ip_addr(const char *p)
 {
 	struct hostent			*ip_host;
 	static struct sockaddr_in	s;
@@ -117,8 +116,7 @@ get_ip_addr(p)
  *
  */
 const char *
-format_ip_addr(addr)
-	struct in_addr	*addr;
+format_ip_addr(const struct in_addr *addr)
 {
 	static char	host_name[128];
 	char		*ip_num;
@@ -144,7 +142,7 @@ format_ip_addr(addr)
 	/*
 	 * Look up name in DNS
 	 */
-	ip_host = gethostbyaddr((char *)addr, sizeof(addr), AF_INET);
+	ip_host = gethostbyaddr((const char *)addr, sizeof(addr), AF_INET);
 	if (ip_host && ip_host->h_name &&
 			strlen(ip_host->h_name)) {
 		/*
