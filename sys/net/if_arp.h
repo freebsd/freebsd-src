@@ -100,6 +100,8 @@ struct arpreq {
  * Structure shared between the ethernet driver modules and
  * the address resolution code.  For example, each ec_softc or il_softc
  * begins with this structure.
+ * The code is written so that each *_softc _must_ begin with a
+ * struct arpcom, which in turn _must_ begin with a struct ifnet.
  */
 struct	arpcom {
 	/*
@@ -107,9 +109,11 @@ struct	arpcom {
 	 */
 	struct 	ifnet ac_if;		/* network-visible interface */
 	u_char	ac_enaddr[6];		/* ethernet hardware address */
-	int	ac_multicnt;		/* length of ac_multiaddrs list */
+	int	now_unused;	/* XXX was length of ac_multiaddrs list */
 	void	*ac_netgraph;		/* ng_ether(4) netgraph node info */
 };
+#define IFP2AC(ifp) ((struct arpcom *)(ifp))
+
 #endif
 
 #endif /* !_NET_IF_ARP_H_ */
