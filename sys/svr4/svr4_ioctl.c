@@ -35,6 +35,8 @@
 #include <sys/fcntl.h>
 #include <sys/termios.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/systm.h>
 #include <net/if.h>
 
 
