@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.14 1997/08/02 04:56:43 jdp Exp $
+ *	$Id: link.h,v 1.9.2.1 1997/08/08 02:17:55 jdp Exp $
  */
 
 /*
@@ -175,21 +175,21 @@ struct so_debug {
  * to crt0.
  */
 struct ld_entry {
-	void	*(*dlopen) __P((char *, int));		/* NONE */
+	void	*(*dlopen) __P((const char *, int));	/* NONE */
 	int	(*dlclose) __P((void *));		/* NONE */
-	void	*(*dlsym) __P((void *, char *));	/* NONE */
-	char	*(*dlerror) __P((void));		/* NONE */
+	void	*(*dlsym) __P((void *, const char *));	/* NONE */
+	const char *(*dlerror) __P((void));		/* NONE */
 	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
-	void	*(*dlsym3) __P((void *, char *, void *));  /* HAS_DLSYM3 */
+	void	*(*dlsym3) __P((void *, const char *, void *)); /* HAS_DLSYM3 */
 };
 
 /*
  * dl*() prototypes.
  */
-extern void	*dlopen __P((char *, int));
+extern void	*dlopen __P((const char *, int));
 extern int	dlclose __P((void *));
-extern void	*dlsym __P((void *, char *));
-extern char	*dlerror __P((void));
+extern void	*dlsym __P((void *, const char *));
+extern const char *dlerror __P((void));
 
 
 /*
