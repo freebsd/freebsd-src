@@ -88,6 +88,7 @@ struct ata_pci_controller {
 #define ATA_CYPRESS_82C693	0xc6931080
 
 #define ATA_DEC_21150		0x00221011
+#define ATA_DEC_21150_1		0x00231011
 
 #define ATA_HIGHPOINT_ID	0x1103
 #define ATA_HPT366		0x00041103
