@@ -66,6 +66,10 @@
 .Nd interactive kernel debugger
 .Sh SYNOPSIS
 .Cd options DDB
+.Pp
+To prevent activation of the debugger on kernel
+.Xr panic 9 :
+.Cd options DDB_UNATTENDED
 .Sh DESCRIPTION
 The
 .Nm
@@ -73,6 +77,22 @@ kernel debugger has most of the features of the old kdb,
 but with a more rational syntax
 inspired by
 .Xr gdb 1 .
+If linked into the running kernel,
+it can be invoked locally with the
+.Ql debug
+.Xr keymap 5
+action.
+The debugger is also invoked on kernel
+.Xr panic 9
+if the
+.\" XXX sysctl markup?
+.Li debug.debugger_on_panic
+.Xr sysctl 8
+MIB variable is set non-zero,
+which is the default
+unless the
+.Dv DDB_UNATTENDED
+option is specified.
 .Pp
 The current location is called `dot'.  The `dot' is displayed with
 a hexadecimal format at a prompt.
