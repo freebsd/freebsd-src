@@ -934,7 +934,7 @@ uhci_intr(void *arg)
 #endif
 
 	status = UREAD2(sc, UHCI_STS);
-	if (status == 0)	/* The interrupt was not for us. */
+	if (status == 0)	/* nothing to be done (PCI shared interrupt) */
 		return (0);
 
 #if defined(DIAGNOSTIC) && defined(__NetBSD__)
