@@ -38,36 +38,8 @@
  * library scheme.
  */
 
-#ifndef _LINK_H_
-#define _LINK_H_
-
-#if (defined(FREEBSD_ELF) || defined(__ELF__)) && !defined(FREEBSD_AOUT)
-
-#include <sys/types.h>
-
-struct link_map {
-	caddr_t		l_addr;			/* Base Address of library */
-#ifdef __mips__
-	caddr_t		l_offs;			/* Load Offset of library */
-#endif
-	const char	*l_name;		/* Absolute Path to Library */
-	const void	*l_ld;			/* Pointer to .dynamic in memory */
-	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
-};
-
-struct r_debug {
-	int		r_version;		/* not used */
-	struct link_map *r_map;			/* list of loaded images */
-	void		(*r_brk)(struct r_debug *, struct link_map *);
-						/* pointer to break point */
-	enum {
-	    RT_CONSISTENT,			/* things are stable */
-	    RT_ADD,				/* adding a shared library */
-	    RT_DELETE				/* removing a shared library */
-	}		r_state;
-};
-
-#else /* !__ELF__ */
+#ifndef _SYS_LINK_AOUT_H_
+#define _SYS_LINK_AOUT_H_
 
 struct dl_info;
 
@@ -313,6 +285,4 @@ struct hints_bucket {
 
 #define _PATH_LD_HINTS		"/var/run/ld.so.hints"
 
-#endif /* !__ELF__ */
-
-#endif /* _LINK_H_ */
+#endif /* _SYS_LINK_AOUT_H_ */
