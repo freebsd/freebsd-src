@@ -149,7 +149,7 @@ acpi_pcib_attach(device_t dev)
      */
     if ((status = acpi_EvaluateInteger(sc->ap_handle, "_SEG", &sc->ap_segment)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
-	    device_printf(dev, "could not evaluate _SEG - %s\n", acpi_strerror(status));
+	    device_printf(dev, "could not evaluate _SEG - %s\n", AcpiFormatException(status));
 	    return_VALUE(ENXIO);
 	}
 	/* if it's not found, assume 0 */
@@ -171,7 +171,7 @@ acpi_pcib_attach(device_t dev)
      */
     if ((status = acpi_EvaluateInteger(sc->ap_handle, "_BBN", &sc->ap_bus)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
-	    device_printf(dev, "could not evaluate _BBN - %s\n", acpi_strerror(status));
+	    device_printf(dev, "could not evaluate _BBN - %s\n", AcpiFormatException(status));
 	    return_VALUE(ENXIO);
 	}
 	/* if it's not found, assume 0 */
@@ -189,7 +189,7 @@ acpi_pcib_attach(device_t dev)
      * Get the PCI interrupt routing table.
      */
     if ((status = acpi_GetIntoBuffer(sc->ap_handle, AcpiGetIrqRoutingTable, &sc->ap_prt)) != AE_OK) {
-	device_printf(dev, "could not get PCI interrupt routing table - %s\n", acpi_strerror(status));
+	device_printf(dev, "could not get PCI interrupt routing table - %s\n", AcpiFormatException(status));
 	/* this is not an error, but it may reduce functionality */
     }
 
@@ -385,12 +385,12 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      */
     if (ACPI_FAILURE(status = acpi_GetIntoBuffer(lnkdev, AcpiGetCurrentResources, &crsbuf))) {
 	device_printf(sc->ap_dev, "couldn't get PCI interrupt link device _CRS data - %s\n",
-		      acpi_strerror(status));
+		      AcpiFormatException(status));
 	goto out;	/* this is fatal */
     }
     if ((status = acpi_GetIntoBuffer(lnkdev, AcpiGetPossibleResources, &prsbuf)) != AE_OK) {
 	device_printf(sc->ap_dev, "couldn't get PCI interrupt link device _PRS data - %s\n",
-		      acpi_strerror(status));
+		      AcpiFormatException(status));
 	/* this is not fatal, since it may be hardwired */
     }
     DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes for %s._CRS\n", crsbuf.Length, acpi_name(lnkdev)));
@@ -477,7 +477,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     crsres->Data.Irq.NumberOfInterrupts = 1;
     if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s - %s\n",
-		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), acpi_strerror(status));
+		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
 	goto out;
     }
     
