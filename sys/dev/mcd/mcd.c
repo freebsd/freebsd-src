@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.67 1996/02/02 21:18:02 ache Exp $
+ *	$Id: mcd.c,v 1.68 1996/02/02 22:08:28 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -123,8 +123,9 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define	MCD_TYPE_UNKNOWN	0
 #define	MCD_TYPE_LU002S		1
 #define	MCD_TYPE_LU005S		2
-#define	MCD_TYPE_FX001		3
-#define	MCD_TYPE_FX001D		4
+#define MCD_TYPE_LU006S         3
+#define MCD_TYPE_FX001          4
+#define MCD_TYPE_FX001D         5
 
 struct mcd_mbx {
 	short		unit;
@@ -804,12 +805,15 @@ mcd_probe(struct isa_device *dev)
 	mcd_data[unit].read_command = MCD_CMDSINGLESPEEDREAD;
 	switch (stbytes[1]) {
 	case 'M':
-		if (mcd_data[unit].flags & MCDNEWMODEL)	{
+		if (stbytes[2] <= 2) {
+			mcd_data[unit].type = MCD_TYPE_LU002S;
+			mcd_data[unit].name = "Mitsumi LU002S";
+		} else if (stbytes[2] <= 5) {
 			mcd_data[unit].type = MCD_TYPE_LU005S;
 			mcd_data[unit].name = "Mitsumi LU005S";
 		} else {
-			mcd_data[unit].type = MCD_TYPE_LU002S;
-			mcd_data[unit].name = "Mitsumi LU002S";
+			mcd_data[unit].type = MCD_TYPE_LU006S;
+			mcd_data[unit].name = "Mitsumi LU006S";
 		}
 		break;
 	case 'F':
@@ -1363,9 +1367,9 @@ mcd_toc_header(int unit, struct ioc_toc_header *th)
 
 	th->starting_track = bcd2bin(cd->volinfo.trk_low);
 	th->ending_track = bcd2bin(cd->volinfo.trk_high);
-	th->len = sizeof(struct ioc_toc_header) +
-		  (th->ending_track - th->starting_track + 1) *
-		  sizeof(struct cd_toc_entry) + 6 /* ??? */;
+	th->len = 2 * sizeof(u_char) /* start & end tracks */ +
+		  (th->ending_track + 1 - th->starting_track + 1) *
+		  sizeof(struct cd_toc_entry);
 
 	return 0;
 }
