@@ -106,7 +106,7 @@ interrupt(a0, a1, a2, framep)
 	intr_restore(s);
 #endif
 	atomic_add_int(&td->td_intr_nesting_level, 1);
-#ifndef KSTACK_GUARD
+#if KSTACK_GUARD_PAGES == 0
 #ifndef SMP
 	{
 		if ((caddr_t) framep < (caddr_t) td->td_pcb + 1024) {

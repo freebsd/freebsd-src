@@ -99,7 +99,7 @@
 
 #ifndef KSTACK_UPAGES
 #define	KSTACK_PAGES		4		/* includes pcb */
-#define	KSTACK_GUARD_PAGES	1
+#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #endif
 #define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
 #define	UAREA_PAGES	1		/* holds struct user WITHOUT PCB */

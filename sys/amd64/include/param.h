@@ -118,9 +118,9 @@
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
+#define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 #define UAREA_PAGES	1	/* holds struct user WITHOUT PCB (see def.) */
 
-#define KSTACK_GUARD	1	/* compile in the kstack guard page */
 
 /*
  * Ceiling on amount of swblock kva space, can be changed via
