@@ -39,7 +39,9 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#ifdef _KERNEL
 #include <sys/systm.h>
+#endif
 
 /* BCD conversions. */
 extern u_char const	bcd2bin_data[];
