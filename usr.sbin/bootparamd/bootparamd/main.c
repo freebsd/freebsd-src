@@ -9,7 +9,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.7 1997/09/04 11:49:28 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -26,11 +26,13 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "bootparam_prot.h"
 
 int debug = 0;
 int dolog = 0;
-unsigned long route_addr = -1, inet_addr();
+unsigned long route_addr = -1;
 struct sockaddr_in my_addr;
 char *bootpfile = "/etc/bootparams";
 
