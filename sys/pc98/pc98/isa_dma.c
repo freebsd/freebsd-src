@@ -70,7 +70,7 @@
 #else
 #include <i386/isa/isa.h>
 #endif
-#include <i386/isa/ic/i8237.h>
+#include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 
 /*

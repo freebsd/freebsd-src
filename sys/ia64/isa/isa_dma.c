@@ -57,7 +57,7 @@
 #include <vm/pmap.h>
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#include <i386/isa/ic/i8237.h>
+#include <dev/ic/i8237.h>
 #include <machine/bus.h>
 
 /*

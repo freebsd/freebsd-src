@@ -40,7 +40,7 @@
 #endif
 #ifdef	__FreeBSD__
 #include "opt_pc98.h"
-#include <i386/isa/ic/i8237.h>
+#include <dev/ic/i8237.h>
 #include <i386/isa/bs/bsif.h>
 #include <i386/isa/bs/bshw.lst>
 #include <sys/cons.h>
