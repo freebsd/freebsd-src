@@ -597,9 +597,7 @@ vm_page_zero_idle()
 			vm_page_queues[m->queue].lcnt--;
 			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
-			splx(s);
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-			(void)splvm();
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
 			vm_page_queues[m->queue].lcnt++;
