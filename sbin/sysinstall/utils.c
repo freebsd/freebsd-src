@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.25 1994/11/07 04:53:23 phk Exp $
+ * $Id: utils.c,v 1.26 1994/11/07 13:48:54 jkh Exp $
  *
  */
 
@@ -36,32 +36,6 @@ strip_trailing_newlines(char *p)
 	int len = strlen(p);
 	while (len > 0 && p[len-1] == '\n')
 		p[--len] = '\0';
-}
-
-int strwidth(const char *p)
-{
-	int i = 0, len;
-	const char *start, *s;
-
-	for (start = s = p; (s = strchr(s, '\n')) != NULL; start = ++s) {
-		len = s - start;
-		if (len > i)
-			i = len;
-	}
-	len = strlen(start);
-	if (len > i)
-		i = len;
-	return i;
-}
-
-int strheight(const char *p)
-{
-	int i = 1;
-	const char *s;
-
-	for (s = p; (s = strchr(s, '\n')) != NULL; s++)
-		i++;
-	return i;
 }
 
 void
