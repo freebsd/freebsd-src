@@ -135,7 +135,7 @@ MODULE_DEPEND(xl, pci, 1, 1, 1);
 MODULE_DEPEND(xl, ether, 1, 1, 1);
 MODULE_DEPEND(xl, miibus, 1, 1, 1);
 
-/* "driver miibus" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #include <pci/if_xlreg.h>
