@@ -202,7 +202,7 @@ struct ata_pci_controller {
 #define ATPOLD		1
 
 #define ALIOLD		0x01
-#define ALICABLE	0x02
+#define ALINEW		0x02
 
 #define HPT366		0
 #define HPT370		1
