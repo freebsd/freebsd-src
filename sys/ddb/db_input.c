@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.9 1995/11/29 10:25:21 phk Exp $
+ *	$Id: db_input.c,v 1.10 1995/12/07 12:44:51 davidg Exp $
  */
 
 /*
@@ -48,10 +48,10 @@
  * since input always ends with a new-line.  We just
  * reset the line position at the end.
  */
-char *	db_lbuf_start;	/* start of input line buffer */
-char *	db_lbuf_end;	/* end of input line buffer */
-char *	db_lc;		/* current character */
-char *	db_le;		/* one past last character */
+static char *	db_lbuf_start;	/* start of input line buffer */
+static char *	db_lbuf_end;	/* end of input line buffer */
+static char *	db_lc;		/* current character */
+static char *	db_le;		/* one past last character */
 
 #define	CTRL(c)		((c) & 0x1f)
 #define	isspace(c)	((c) == ' ' || (c) == '\t')

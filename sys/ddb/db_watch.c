@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.8 1995/11/29 10:25:44 phk Exp $
+ *	$Id: db_watch.c,v 1.9 1995/12/07 12:45:05 davidg Exp $
  */
 
 /*
@@ -54,7 +54,7 @@
 static boolean_t	db_watchpoints_inserted = TRUE;
 
 #define	NWATCHPOINTS	100
-struct db_watchpoint	db_watch_table[NWATCHPOINTS];
+static struct db_watchpoint	db_watch_table[NWATCHPOINTS];
 static db_watchpoint_t	db_next_free_watchpoint = &db_watch_table[0];
 static db_watchpoint_t	db_free_watchpoints = 0;
 static db_watchpoint_t	db_watchpoint_list = 0;
