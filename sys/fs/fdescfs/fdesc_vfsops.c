@@ -51,7 +51,6 @@
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/socket.h>
 #include <sys/vnode.h>
 
 #include <fs/fdescfs/fdesc.h>
