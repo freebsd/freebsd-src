@@ -41,6 +41,7 @@
 .Fa "wordexp_t * restrict we"
 .Fa "int flags"
 .Fc
+.Ft void
 .Fo wordfree
 .Fa "wordexp_t *we"
 .Fc
@@ -100,9 +101,9 @@ structure is defined in
 as:
 .Bd -literal -offset indent
 typedef struct {
-        size_t  we_wordc;               /* count of words matched */
-        char    **we_wordv;             /* pointer to list of words */
-        size_t  we_offs;                /* slots to reserve in we_wordv */
+        size_t  we_wordc;       /* count of words matched */
+        char    **we_wordv;     /* pointer to list of words */
+        size_t  we_offs;        /* slots to reserve in we_wordv */
 } wordexp_t;
 .Ed
 .Pp
