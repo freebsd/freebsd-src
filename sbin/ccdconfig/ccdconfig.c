@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -444,9 +445,9 @@ resolve_ccdname(name)
 			free(path);
 			return (NULL);
 		}
-		(void)sprintf(path, "/dev/%s%c", name, 'a' + rawpart);
+		(void)sprintf(path, "%s%s%c", _PATH_DEV, name, 'a' + rawpart);
 	} else
-		(void)sprintf(path, "/dev/%s", name);
+		(void)sprintf(path, "%s%s", _PATH_DEV, name);
 
 	return (path);
 }

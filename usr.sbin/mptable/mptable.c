@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -350,7 +351,7 @@ main( int argc, char *argv[] )
     }
 
     /* open physical memory for access to MP structures */
-    if ( (pfd = open( "/dev/mem", O_RDONLY )) < 0 )
+    if ( (pfd = open( _PATH_MEM, O_RDONLY )) < 0 )
         err( 1, "mem open" );
 
     /* probe for MP structures */
@@ -866,7 +867,7 @@ static void
 seekEntry( vm_offset_t addr )
 {
     if ( lseek( pfd, (off_t)addr, SEEK_SET ) < 0 )
-        err( 1, "/dev/mem seek" );
+        err( 1, "%s seek", _PATH_MEM );
 }
 
 

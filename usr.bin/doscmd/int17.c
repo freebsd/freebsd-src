@@ -33,6 +33,7 @@
  */
 
 #include "doscmd.h"
+#include <paths.h>
 #include <signal.h>
 
 static int	lpt_fd[4] = { -1, -1, -1, -1, };
@@ -138,7 +139,7 @@ open_printer(int printer)
 		return;
 	    }
 	} else {
-	    sprintf(printer_name, "/dev/lpt%d", printer);
+	    sprintf(printer_name, "%slpt%d", _PATH_DEV, printer);
 	    debug(D_PRINTER, "Opening device %s\n", printer_name);
 	    if ((fd = open(printer_name, O_WRONLY)) < 0) {
 		perror(printer_name);

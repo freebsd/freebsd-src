@@ -49,6 +49,7 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/types.h>
 #include <err.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -456,9 +457,9 @@ int	n;
 	int	offset;
 
 #ifdef NEED_DEV_ZERO
-	fd = open("/dev/zero", O_RDWR, 0);
+	fd = open(_PATH_DEVZERO, O_RDWR, 0);
 	if (fd == -1)
-		perror("/dev/zero");
+		perror(_PATH_DEVZERO);
 #endif
 
 	if (pagepool_end - pagepool_start > pagesz) {

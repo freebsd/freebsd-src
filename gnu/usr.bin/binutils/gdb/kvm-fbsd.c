@@ -17,11 +17,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "defs.h"
 
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <sys/sysctl.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -540,7 +543,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
       && stb.st_rdev == makedev (2, 0))
     {
       devmem = 1;
-      kfd = open ("/dev/kmem", perm, 0);
+      kfd = open (_PATH_KMEM, perm, 0);
     }
 
   if (lookup_minimal_symbol("mp_ncpus", NULL, NULL)) {

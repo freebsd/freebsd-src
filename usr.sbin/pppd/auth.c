@@ -41,6 +41,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <paths.h>
 #include <pwd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -965,7 +966,7 @@ plogin(user, passwd, msg, msglen)
     /* Log in wtmp and utmp using login() */
 
     tty = devnam;
-    if (strncmp(tty, "/dev/", 5) == 0)
+    if (strncmp(tty, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 	tty += 5;
 
     if (logout(tty))		/* Already entered (by login?) */
@@ -1031,7 +1032,7 @@ plogout()
     char *tty;
 
     tty = devnam;
-    if (strncmp(tty, "/dev/", 5) == 0)
+    if (strncmp(tty, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 	tty += 5;
     logwtmp(tty, "", "");		/* Wipe out wtmp logout entry */
     logout(tty);			/* Wipe out utmp */

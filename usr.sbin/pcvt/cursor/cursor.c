@@ -34,7 +34,7 @@
  */
 
 static char *id =
-	"@(#)cursor.c, 3.20, Last Edit-Date: [Tue Apr  4 12:27:54 1995]";
+	"@(#)cursor.c, 3.20, Last Edit-Date: [Tue Apr  4 12:27:54 1995]\n$FreeBSD$";
 
 /*---------------------------------------------------------------------------*
  *
@@ -48,6 +48,7 @@ static char *id =
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <machine/pcvt_ioctl.h>
+#include <paths.h>
 
 #define DEFAULTFD 0
 
@@ -148,7 +149,7 @@ usage()
 {
 	fprintf(stderr,"\ncursor - set cursor shape for pcvt video driver\n");
 	fprintf(stderr,"usage: cursor -d [device] -n [no] -s [line] -e [line]\n");
-	fprintf(stderr,"       -d <device>   device to use (/dev/ttyvX), default current\n");
+	fprintf(stderr,"       -d <device>   device to use (%svX), default current\n", _PATH_TTY);
 	fprintf(stderr,"       -n <no>       screen no if specified, else current screen\n");
 	fprintf(stderr,"       -s <line>     start scan line (topmost scan line)\n");
 	fprintf(stderr,"       -e <line>     ending scan line (bottom scan line)\n\n");

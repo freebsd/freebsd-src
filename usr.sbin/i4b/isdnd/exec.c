@@ -42,6 +42,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <paths.h>
 
 #define MAX_PIDS 32
 
@@ -214,7 +215,8 @@ exec_answer(cfg_entry_t *cep)
 	
 	device = bdrivername(cep->usrdevicename);
 
-	snprintf(devicename, sizeof(devicename), "/dev/i4b%s%d", device, cep->usrdeviceunit);
+	snprintf(devicename, sizeof(devicename), "%si4b%s%d", _PATH_DEV, device,
+	    cep->usrdeviceunit);
 
 	argv[0] = cep->answerprog;
 	argv[1] = "-D";

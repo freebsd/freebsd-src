@@ -43,6 +43,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -130,7 +131,7 @@ makename(const char *arg, const char *suffix)
 		return arg;
 	if(*arg == '/')  /* do not convert absolute pathnames */
 		return arg;
-	strcpy(namebuff, "/dev/");
+	strcpy(namebuff, _PATH_DEV);
 	strncat(namebuff, arg, 3);
 	strcat(namebuff, suffix);
 	return namebuff;

@@ -65,6 +65,7 @@ SOFTWARE.
 #include <errno.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <paths.h>
 #include <syslog.h>
 #include <assert.h>
 
@@ -395,7 +396,7 @@ main(argc, argv)
 #ifdef	NO_SETSID
 			setpgrp(0,0);
 #ifdef TIOCNOTTY
-			n = open("/dev/tty", O_RDWR);
+			n = open(_PATH_TTY, O_RDWR);
 			if (n >= 0) {
 				ioctl(n, TIOCNOTTY, (char *) 0);
 				(void) close(n);

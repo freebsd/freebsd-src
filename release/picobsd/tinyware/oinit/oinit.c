@@ -909,15 +909,15 @@ main(int argc, char **argv)
 		}
 	}
 	if(devfs)
-		mount("devfs","/dev",MNT_NOEXEC|MNT_RDONLY,0);
+		mount("devfs",_PATH_DEV,MNT_NOEXEC|MNT_RDONLY,0);
 
 	/* Fill in the sess structures. */
 	/* XXX Really, should be filled based upon config file. */
 	for(i=0;i<MAX_CONS;i++) {
 		if(i==0) {
-			sprintf(ttys[i].tty,"/dev/console");
+			sprintf(ttys[i].tty,_PATH_CONSOLE);
 		} else {
-			sprintf(ttys[i].tty,"/dev/ttyv%c",vty[i]);
+			sprintf(ttys[i].tty,"%sv%c",_PATH_TTY,vty[i]);
 		}
 		ttys[i].pid=0;
 		ttys[i].func=shell;

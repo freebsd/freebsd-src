@@ -26,6 +26,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <locale.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -139,7 +140,7 @@ fatal(err, buf)
 int
 open_snp()
 {
-	char            snp[] = {"/dev/snpX"};
+	char            snp[] = {_PATH_DEV "snpX"};
 	char            c;
 	int             f, mode;
 
@@ -233,14 +234,14 @@ set_dev(name)
 	char            buf[DEV_NAME_LEN];
 	struct stat	sb;
 
-	if (strlen(name) > 5 && !strncmp(name, "/dev/", 5)) {
+	if (strlen(name) > 5 && !strncmp(name, _PATH_DEV, sizeof _PATH_DEV - 1)) {
 		snprintf(buf, sizeof buf, "%s", name);
 	}
 	else {
 		if (strlen(name) == 2)
-			sprintf(buf, "/dev/tty%s", name);
+			sprintf(buf, "%s%s", _PATH_TTY, name);
 		else
-			sprintf(buf, "/dev/%s", name);
+			sprintf(buf, "%s%s", _PATH_DEV, name);
 	}
 
 	if (*name == '\0' || stat(buf, &sb) < 0)

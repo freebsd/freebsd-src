@@ -26,6 +26,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1141,7 +1142,7 @@ int open_cd ()
 	if (*cdname == '/') {
 		snprintf (devbuf, MAXPATHLEN, "%s", cdname);
 	} else {
-		snprintf (devbuf, MAXPATHLEN, "/dev/%s", cdname);
+		snprintf (devbuf, MAXPATHLEN, "%s%s", _PATH_DEV, cdname);
 	}
 
 	fd = open (devbuf, O_RDONLY);
