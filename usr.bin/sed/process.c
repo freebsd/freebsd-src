@@ -63,7 +63,7 @@ static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #include "defs.h"
 #include "extern.h"
 
-static SPACE HS, PS, SS;
+static SPACE HS, PS, SS, YS;
 #define	pd		PS.deleted
 #define	ps		PS.space
 #define	psl		PS.len
@@ -71,6 +71,7 @@ static SPACE HS, PS, SS;
 #define	hsl		HS.len
 
 static __inline int	 applies(struct s_command *);
+static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
 static __inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
@@ -97,6 +98,7 @@ process(void)
 	SPACE tspace;
 	size_t len, oldpsl = 0;
 	char *p;
+	char nc;
 
 	p = NULL;
 
@@ -247,8 +249,7 @@ redirect:
 			case 'y':
 				if (pd || psl == 0)
 					break;
-				for (p = ps, len = psl; len--; ++p)
-					*p = cp->u.y[(unsigned char)*p];
+				do_tr(cp->u.y);
 				break;
 			case ':':
 			case '}':
@@ -423,6 +424,61 @@ substitute(struct s_command *cp)
 			err(1, "%s", cp->u.s->wfile);
 	}
 	return (1);
+}
+
+/*
+ * do_tr --
+ *	Perform translation ('y' command) in the pattern space.
+ */
+static void
+do_tr(struct s_tr *y)
+{
+	SPACE tmp;
+	char c, *p;
+	size_t clen, left;
+	int i;
+
+	if (MB_CUR_MAX == 1) {
+		/*
+		 * Single-byte encoding: perform in-place translation
+		 * of the pattern space.
+		 */
+		for (p = ps; p < &ps[psl]; p++)
+			*p = y->bytetab[(u_char)*p];
+	} else {
+		/*
+		 * Multi-byte encoding: perform translation into the
+		 * translation space, then swap the translation and
+		 * pattern spaces.
+		 */
+		/* Clean translation space. */
+		YS.len = 0;
+		for (p = ps, left = psl; left > 0; p += clen, left -= clen) {
+			if ((c = y->bytetab[(u_char)*p]) != '\0') {
+				cspace(&YS, &c, 1, APPEND);
+				clen = 1;
+				continue;
+			}
+			for (i = 0; i < y->nmultis; i++)
+				if (left >= y->multis[i].fromlen &&
+				    memcmp(p, y->multis[i].from,
+				    y->multis[i].fromlen) == 0)
+					break;
+			if (i < y->nmultis) {
+				cspace(&YS, y->multis[i].to,
+				    y->multis[i].tolen, APPEND);
+				clen = y->multis[i].fromlen;
+			} else {
+				cspace(&YS, p, 1, APPEND);
+				clen = 1;
+			}
+		}
+		/* Swap the translation space and the pattern space. */
+		tmp = PS;
+		PS = YS;
+		YS = tmp;
+		YS.space = YS.back;
+	}
 }
 
 /*
