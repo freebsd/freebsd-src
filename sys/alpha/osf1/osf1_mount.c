@@ -54,9 +54,6 @@
 #include <sys/namei.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 #include <nfs/xdr_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
