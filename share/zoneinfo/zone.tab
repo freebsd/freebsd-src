@@ -69,11 +69,14 @@ BM	+3217-06446	Atlantic/Bermuda
 BN	+0456+11455	Asia/Brunei
 BO	-1630-06809	America/La_Paz
 BR	-0351-03225	America/Noronha	Fernando de Noronha
-BR	-0343-03830	America/Fortaleza	NE Brazil (AP, east PA, MA, PI, CE, RN, PR, PE)
-BR	-0940-03543	America/Maceio	ENE Brazil (AL, SE, TO)
+BR	-0127-04829	America/Belem	Amapa, E Para
+BR	-0343-03830	America/Fortaleza	NE Brazil (MA, PI, CE, RN, PR, PE)
+BR	-0712-04812	America/Araguaina	Tocantins
+BR	-0940-03543	America/Maceio	Alagoas, Sergipe
 BR	-2332-04637	America/Sao_Paulo	S & SE Brazil (BA, GO, DF, MG, ES, RJ, SP, PR, SC, RS)
-BR	-1535-05605	America/Cuiaba	SW Brazil (MT, MS)
-BR	-0308-06001	America/Manaus	NW Brazil (RR, west PA, AM, RO)
+BR	-1535-05605	America/Cuiaba	Mato Grosso, Mato Grosso do Sul
+BR	-0846-06354	America/Porto_Velho	W Para, Rondonia, Roraima
+BR	-0308-06001	America/Manaus	Amazonas
 BR	-0934-06731	America/Porto_Acre	Acre
 BS	+2505-07721	America/Nassau
 BT	+2728+08939	Asia/Thimbu
@@ -188,8 +191,7 @@ IS	+6409-02151	Atlantic/Reykjavik
 IT	+4154+01229	Europe/Rome
 JM	+1800-07648	America/Jamaica
 JO	+3157+03556	Asia/Amman
-JP	+3542+13946	Asia/Tokyo	most locations
-JP	+2420+12409	Asia/Ishigaki	south Ryukyu Islands
+JP	+353916+1394441	Asia/Tokyo
 KE	-0117+03649	Africa/Nairobi
 KG	+4254+07436	Asia/Bishkek
 KH	+1133+10455	Asia/Phnom_Penh

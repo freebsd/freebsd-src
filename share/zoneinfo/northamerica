@@ -1,4 +1,4 @@
-# @(#)northamerica	7.41
+# @(#)northamerica	7.42
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -59,6 +59,9 @@ Rule	US	1974	only	-	Jan	6	2:00	1:00	D
 Rule	US	1975	only	-	Feb	23	2:00	1:00	D
 Rule	US	1976	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+# <a href="http://thomas.loc.gov/cgi-bin/bdquery/z?d106:h.r.00177:">
+# H.R.177
+# </a> (introduced 1999-01-06) would change April to March in the above rule.
 
 # From Bob Devine (1988-01-28):
 # ...Alaska (and Hawaii) had the timezone names changed in 1967.
@@ -440,8 +443,14 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 			-6:00	US	C%sT
 
 # Navassa
-# uninhabited
-
+# claimed by US under the provisions of the 1856 Guano Islands Act
+# also claimed by Haiti
+# occupied 1857/1900 by the Navassa Phosphate Co
+# US lighthouse 1917/1997-01
+# currently uninhabited
+# see Mark Fineman, ``An Isle Rich in Guano and Discord'',
+# _Los Angeles Times_ (1998-11-10), A1, A10; it cites
+# Jimmy Skaggs, _The Great Guano Rush_ (1994).
 
 # Old names, for S5 users
 
@@ -985,6 +994,10 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # ``Diario Oficial: Time Zone Changeover'' (1996-01-04).
 # </a>
 
+# From Rives McDow (1998-10-08):
+# The State of Quintana Roo has reverted back to central STD and DST times
+# (i.e. UTC -0600 and -0500 as of 1998-08-02).
+
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mexico	1939	only	-	Feb	5	0:00	1:00	D
@@ -1006,7 +1019,8 @@ Rule	BajaN	1961	1966	-	Oct	lastSun	2:00	0	S
 Zone America/Cancun	-5:47:04 -	LMT	1922 Jan  1  1:12:42
 			-6:00	-	CST	1996
 			-6:00	Mexico	C%sT	1997 Oct lastSun 2:00
-			-5:00	Mexico	E%sT
+			-5:00	Mexico	E%sT	1998 Aug  2  2:00
+			-6:00	Mexico	C%sT
 # Central Mexico
 Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-7:00	-	MST	1927 Jun 10 23:00
@@ -1251,6 +1265,8 @@ Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 			-6:00	Salv	C%sT
+#
+# Great Swan I ceded by US to Honduras in 1972
 
 # Jamaica
 
@@ -1285,6 +1301,11 @@ Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Olveston
 			-4:00	-	AST
 
 # Nicaragua
+#
+# From Steffen Thorsen (1998-12-29):
+# Nicaragua seems to be back at -6:00 but I have not been able to find when
+# they changed from -5:00.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Nic	1979	1980	-	Mar	Sun>=16	0:00	1:00	D
 Rule	Nic	1979	1980	-	Jun	Mon>=23	0:00	0	S
@@ -1296,7 +1317,8 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 			-6:00	-	CST	1973 May
 			-5:00	-	EST	1975 Feb 16
 			-6:00	Nic	C%sT	1993 Jan 1 4:00
-			-5:00	-	EST
+			-5:00	-	EST	1998 Dec
+			-6:00	-	CST
 
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
