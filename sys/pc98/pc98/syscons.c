@@ -439,7 +439,7 @@ scdevtounit(dev_t dev)
 }
 
 int
-scopen(dev_t dev, int flag, int mode, struct proc *p)
+scopen(dev_t dev, int flag, int mode, struct thread *td)
 {
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
@@ -478,7 +478,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	(*linesw[tp->t_line].l_modem)(tp, 1);
     }
     else
-	if (tp->t_state & TS_XCLUDE && suser(p))
+	if (tp->t_state & TS_XCLUDE && suser_td(td))
 	    return(EBUSY);
 
     error = (*linesw[tp->t_line].l_open)(dev, tp);
@@ -498,7 +498,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 int
-scclose(dev_t dev, int flag, int mode, struct proc *p)
+scclose(dev_t dev, int flag, int mode, struct thread *td)
 {
     struct tty *tp = dev->si_tty;
     scr_stat *scp;
@@ -636,7 +636,7 @@ scparam(struct tty *tp, struct termios *t)
 }
 
 int
-scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     int error;
     int i;
@@ -649,23 +649,23 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     /* If there is a user_ioctl function call that first */
     if (sc_user_ioctl) {
-	error = (*sc_user_ioctl)(dev, cmd, data, flag, p);
+	error = (*sc_user_ioctl)(dev, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 	    return error;
     }
 
-    error = sc_vid_ioctl(tp, cmd, data, flag, p);
+    error = sc_vid_ioctl(tp, cmd, data, flag, td);
     if (error != ENOIOCTL)
 	return error;
 
 #ifndef SC_NO_HISTORY
-    error = sc_hist_ioctl(tp, cmd, data, flag, p);
+    error = sc_hist_ioctl(tp, cmd, data, flag, td);
     if (error != ENOIOCTL)
 	return error;
 #endif
 
 #ifndef SC_NO_SYSMOUSE
-    error = sc_mouse_ioctl(tp, cmd, data, flag, p);
+    error = sc_mouse_ioctl(tp, cmd, data, flag, td);
     if (error != ENOIOCTL)
 	return error;
 #endif
@@ -676,7 +676,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     sc = scp->sc;
 
     if (scp->tsw) {
-	error = (*scp->tsw->te_ioctl)(scp, tp, cmd, data, flag, p);
+	error = (*scp->tsw->te_ioctl)(scp, tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 	    return error;
     }
@@ -857,7 +857,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	DPRINTF(5, ("sc%d: VT_SETMODE ", sc->unit));
 	if (scp->smode.mode == VT_PROCESS) {
 	    p1 = pfind(scp->pid);
-    	    if (scp->proc == p1 && scp->proc != p) {
+    	    if (scp->proc == p1 && scp->proc != td->td_proc) {
 		if (p1)
 		    PROC_UNLOCK(p1);
 		DPRINTF(5, ("error EPERM\n"));
@@ -886,9 +886,9 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		DPRINTF(5, ("error EINVAL\n"));
 		return EINVAL;
 	    }
-	    DPRINTF(5, ("VT_PROCESS %d, ", p->p_pid));
+	    DPRINTF(5, ("VT_PROCESS %d, ", td->td_proc->p_pid));
 	    bcopy(data, &scp->smode, sizeof(struct vt_mode));
-	    scp->proc = p;
+	    scp->proc = td->td_proc;
 	    scp->pid = scp->proc->p_pid;
 	    if ((scp == sc->cur_scp) && (sc->unit == sc_console_unit))
 		cons_unavail = TRUE;
@@ -913,7 +913,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* ...and this process is controlling it. */
-	if (scp->proc != p) {
+	if (scp->proc != td->td_proc) {
 	    splx(s);
 	    return EPERM;
 	}
@@ -979,19 +979,19 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
-	error = suser(p);
+	error = suser_td(td);
 	if (error != 0)
 	    return error;
 	if (securelevel > 0)
 	    return EPERM;
 #ifdef __i386__
-	p->p_frame->tf_eflags |= PSL_IOPL;
+	td->td_frame->tf_eflags |= PSL_IOPL;
 #endif
 	return 0;
 
     case KDDISABIO:     	/* disallow io operations (default) */
 #ifdef __i386__
-	p->p_frame->tf_eflags &= ~PSL_IOPL;
+	td->td_frame->tf_eflags &= ~PSL_IOPL;
 #endif
 	return 0;
 
@@ -1278,7 +1278,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	break;
     }
 
-    error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+    error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
     if (error != ENOIOCTL)
 	return(error);
     error = ttioctl(tp, cmd, data, flag);
