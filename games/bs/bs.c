@@ -821,7 +821,7 @@ static int plyturn()
 	    m = " Glub, glub -- my %s is headed for the bottom!";
 	    break;
 	case 4:
-	    m = " You'll pick up survivors from my my %s, I hope...!";
+	    m = " You'll pick up survivors from my %s, I hope...!";
 	    break;
 	}
 	(void)printw(m, ss->name);
