@@ -81,7 +81,7 @@ extern struct ncp_nlstables ncp_defnls;
 
 void ncp_str_upper(char *name);
 void ncp_str_lower(char *name);
-void ncp_pathcopy(char *src, char *dst, int len, struct ncp_nlstables *nt);
+void ncp_pathcopy(const char *src, char *dst, int len, struct ncp_nlstables *nt);
 int  ncp_pathcheck(char *s, int len, struct ncp_nlstables *nt, int strict);
 void ncp_path2unix(char *src, char *dst, int len, struct ncp_nlstables *nt);
 

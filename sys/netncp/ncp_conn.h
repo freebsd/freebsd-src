@@ -34,16 +34,12 @@
 #ifndef _NETNCP_NCP_CONN_H_
 #define _NETNCP_NCP_CONN_H_
 
-#ifdef INET
 #ifndef _NETINET_IN_H_
 #include <netinet/in.h>
 #endif
-#endif
 
-#ifdef IPX
 #ifndef _NETIPX_IPX_H_
 #include <netipx/ipx.h>
-#endif
 #endif
 
 #ifndef _SYS_SOCKET_H_
@@ -55,14 +51,16 @@
 #define	NCP_ON_TCP	1*/
 
 /* flags field in conn structure */
-#define	NCPFL_SOCONN		0x01	/* socket layer is up */
-#define	NCPFL_ATTACHED		0x02	/* ncp layer is up */
-#define	NCPFL_LOGGED		0x04	/* logged in to server */
-#define NCPFL_INVALID		0x08	/* last request was not completed */
-#define	NCPFL_INTR		0x10	/* interrupted call */
-#define	NCPFL_RESTORING		0x20	/* trying to reconnect */
-#define	NCPFL_PERMANENT		0x40	/* no way to kill conn, when this set */
-#define	NCPFL_PRIMARY		0x80	/* have meaning only for owner */
+#define	NCPFL_SOCONN		0x0001	/* socket layer is up */
+#define	NCPFL_ATTACHED		0x0002	/* ncp layer is up */
+#define	NCPFL_LOGGED		0x0004	/* logged in to server */
+#define NCPFL_INVALID		0x0008	/* last request was not completed */
+#define	NCPFL_INTR		0x0010	/* interrupted call */
+#define	NCPFL_RESTORING		0x0020	/* trying to reconnect */
+#define	NCPFL_PERMANENT		0x0040	/* no way to kill conn, when this set */
+#define	NCPFL_PRIMARY		0x0080	/* have meaning only for owner */
+#define	NCPFL_WASATTACHED	0x0100	/* there was at least one successfull connect */
+#define	NCPFL_WASLOGGED		0x0200	/* there was at least one successfull login */
 #define	NCPFL_SIGNACTIVE	0x1000	/* packet signing active */
 #define	NCPFL_SIGNWANTED	0x2000	/* signing should start */
 
@@ -92,12 +90,8 @@ struct ncp_conn_args {
 	u_int32_t	objtype;
 	union {
 		struct sockaddr	addr;
-#ifdef IPX
 		struct sockaddr_ipx ipxaddr;
-#endif
-#ifdef INET
 		struct sockaddr_in inaddr;
-#endif
 	} addr;
 	int	 	timeout;	/* ncp rq timeout */
 	int	 	retry_count;	/* counts to give an error */
@@ -181,7 +175,6 @@ struct ncp_conn {
 	int		nc_lwant;		/* number of wanted locks */
 	struct proc	*procp;			/* pid currently operates */
 	struct ucred	*ucred;			/* usr currently operates */
-	struct ncp_rq	*nc_rq;			/* current request */
 	/* Fields used to process ncp requests */
 	int 		connid;			/* assigned by server */
 	u_int8_t	seq;
@@ -199,13 +192,10 @@ struct ncp_conn {
 #endif
 };
 
-#define	ncp_conn_signwanted(conn)	((conn)->flags & NCPFL_SIGNWANTED)
-#define ncp_conn_valid(conn) 		((conn->flags & NCPFL_INVALID) == 0)
-#define ncp_conn_invalidate(conn) 	{conn->flags |= NCPFL_INVALID;}
-
 int  ncp_conn_init(void);
 int  ncp_conn_destroy(void);
-int  ncp_conn_alloc(struct proc *p,struct ucred *cred, struct ncp_conn **connid);
+int  ncp_conn_alloc(struct ncp_conn_args *cap,
+	struct proc *p, struct ucred *cred, struct ncp_conn **connid);
 int  ncp_conn_free(struct ncp_conn *conn);
 int  ncp_conn_access(struct ncp_conn *conn,struct ucred *cred,mode_t mode);
 int  ncp_conn_lock(struct ncp_conn *conn,struct proc *p,struct ucred *cred,int mode);
@@ -227,6 +217,8 @@ int  ncp_conn_findhandle(int connHandle, struct proc *p, struct ncp_handle **han
 int  ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int mode, struct ncp_conn **connpp);
 int  ncp_conn_putprochandles(struct proc *p);
 int  ncp_conn_getinfo(struct ncp_conn *ncp, struct ncp_conn_stat *ncs);
+
+int  ncp_conn_reconnect(struct ncp_conn *ncp);
 
 extern struct ncp_conn_head conn_list;
 extern int ncp_burst_enabled;

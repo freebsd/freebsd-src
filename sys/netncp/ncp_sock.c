@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,13 +34,6 @@
  * Low level socket routines
  */
 
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
-#if !defined(INET) && !defined(IPX)
-#error "NCP requeires either INET of IPX protocol family"
-#endif
-
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
@@ -55,10 +48,8 @@
 #include <sys/mbuf.h>
 #include <net/route.h>
 
-#ifdef IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_pcb.h>
-#endif
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
@@ -66,11 +57,9 @@
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_rq.h>
 
-#ifdef IPX
 #define ipx_setnullnet(x) ((x).x_net.s_net[0]=0); ((x).x_net.s_net[1]=0);
 #define ipx_setnullhost(x) ((x).x_host.s_host[0] = 0); \
 	((x).x_host.s_host[1] = 0); ((x).x_host.s_host[2] = 0);
-#endif
 
 /*int ncp_poll(struct socket *so, int events);*/
 /*static int ncp_getsockname(struct socket *so, caddr_t asa, int *alen);*/
@@ -165,7 +154,7 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 {
 	struct proc *p = curproc; /* XXX */
 	struct sockaddr *to = 0;
-	struct ncp_conn *conn = rqp->conn;
+	struct ncp_conn *conn = rqp->nr_conn;
 	struct mbuf *m;
 	int error, flags=0;
 	int sendwait;
@@ -243,12 +232,12 @@ done:
 	return (error);
 }
 
-#ifdef IPX
 /* 
  * Connect to specified server via IPX
  */
-int
-ncp_sock_connect_ipx(struct ncp_conn *conn) {
+static int
+ncp_sock_connect_ipx(struct ncp_conn *conn)
+{
 	struct sockaddr_ipx sipx;
 	struct ipxpcb *npcb;
 	struct proc *p = conn->procp;
@@ -319,25 +308,23 @@ bad:
 }
 
 int
-ncp_sock_checksum(struct ncp_conn *conn, int enable) {
+ncp_sock_checksum(struct ncp_conn *conn, int enable)
+{
 
-#ifdef SO_IPX_CHECKSUM
 	if (enable) {
 		sotoipxpcb(conn->ncp_so)->ipxp_flags |= IPXP_CHECKSUM;
 	} else {
 		sotoipxpcb(conn->ncp_so)->ipxp_flags &= ~IPXP_CHECKSUM;
 	}
-#endif
 	return 0;
 }
-#endif
 
-#ifdef INET
 /* 
  * Connect to specified server via IP
  */
-int
-ncp_sock_connect_in(struct ncp_conn *conn) {
+static int
+ncp_sock_connect_in(struct ncp_conn *conn)
+{
 	struct sockaddr_in sin;
 	struct proc *p=conn->procp;
 	int addrlen=sizeof(sin), error;
@@ -357,8 +344,24 @@ bad:
 	ncp_sock_disconnect(conn);
 	return (error);
 }
-#endif
 
+int
+ncp_sock_connect(struct ncp_conn *ncp)
+{
+	int error;
+
+	switch (ncp->li.saddr.sa_family) {
+	    case AF_IPX:
+		error = ncp_sock_connect_ipx(ncp);
+		break;
+	    case AF_INET:
+		error = ncp_sock_connect_in(ncp);
+		break;
+	    default:
+		return EPROTONOSUPPORT;
+	}
+	return error;
+}
 
 /*
  * Connection expected to be locked
@@ -390,7 +393,6 @@ ncp_sock_disconnect(struct ncp_conn *conn) {
 	return 0;
 }
 
-#ifdef IPX
 static void
 ncp_watchdog(struct ncp_conn *conn) {
 	char *buf;
@@ -422,7 +424,6 @@ ncp_watchdog(struct ncp_conn *conn) {
 	if (sa) FREE(sa, M_SONAME);
 	return;
 }
-#endif /* IPX */
 
 void
 ncp_check_conn(struct ncp_conn *conn) {
@@ -433,7 +434,6 @@ ncp_check_conn(struct ncp_conn *conn) {
 	s = splnet();
 	ncp_check_rq(conn);
 	splx(s);
-#ifdef IPX
-	ncp_watchdog(conn);
-#endif
+	if (conn->li.saddr.sa_family == AF_IPX)
+		ncp_watchdog(conn);
 }
