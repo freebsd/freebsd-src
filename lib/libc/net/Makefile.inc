@@ -10,7 +10,7 @@ SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	inet_makeaddr.c inet_netof.c inet_network.c inet_ntoa.c \
 	iso_addr.c linkaddr.c ns_addr.c ns_ntoa.c rcmd.c recv.c res_comp.c \
 	res_debug.c res_init.c res_mkquery.c res_query.c res_send.c \
-	send.c
+	send.c ether_addr.c
 
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
