@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.42 1996/08/25 05:16:56 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.43 1996/09/05 18:05:06 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -121,7 +121,7 @@ _LIBS+=lib${LIB}_pic.a
 PICFLAG=-fpic
 .endif
 
-all: ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
+all: objwarn ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
