@@ -19,7 +19,10 @@ MLINKS=	editline.3 el_init.3 editline.3 el_end.3 editline.3 el_reset.3 \
 	editline.3 el_resize.3 editline.3 el_line.3 \
 	editline.3 el_insertstr.3 editline.3 el_deletestr.3 \
 	editline.3 history_init.3 editline.3 history_end.3 \
-	editline.3 history.3 editline.3 el_data_get.3 editline.3 el_data_set.3
+	editline.3 el_data_get.3 editline.3 el_data_set.3
+
+# Conflict with libreadline
+#MLINKS=        editline.3 history.3
 
 # For speed and debugging
 #SRCS=   ${OSRCS} tokenizer.c history.c
