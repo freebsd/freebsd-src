@@ -11,6 +11,6 @@ SRCS=	vnode_if.h \
 CLEANFILES=	opt_coda.h
 
 opt_coda.h:
-	echo "#define NVCODA 4" > ${.TARGET}
+	echo > ${.TARGET}
 
 .include <bsd.kmod.mk>
