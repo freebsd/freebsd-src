@@ -95,5 +95,7 @@ void vsunlock(caddr_t, u_int);
 void vm_object_print(/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *);
 int vm_fault_quick(caddr_t v, int prot);
+void vm_proc_new(struct proc *p);
+void vm_proc_dispose(struct proc *p);
 #endif				/* _KERNEL */
 #endif				/* !_VM_EXTERN_H_ */
