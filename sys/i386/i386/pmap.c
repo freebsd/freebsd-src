@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128.2.4 1997/02/01 12:11:03 davidg Exp $
+ *	$Id: pmap.c,v 1.128.2.5 1997/04/23 02:20:06 davidg Exp $
  */
 
 /*
@@ -100,7 +100,9 @@
 #include <machine/specialreg.h>
 
 #define PMAP_KEEP_PDIRS
+#ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
+#endif
 
 #if defined(DIAGNOSTIC)
 #define PMAP_DIAGNOSTIC
