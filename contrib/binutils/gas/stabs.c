@@ -1,5 +1,5 @@
 /* Generic stabs parsing for gas.
-   Copyright (C) 1989, 90, 91, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1989, 90, 91, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@ the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA. */
+02111-1307, USA.  */
 
 #include "as.h"
 #include "obstack.h"
@@ -25,9 +25,14 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ecoff.h"
 
 /* We need this, despite the apparent object format dependency, since
-   it defines stab types, which all object formats can use now. */
+   it defines stab types, which all object formats can use now.  */
 
 #include "aout/stab_gnu.h"
+
+/* Holds whether the assembler is generating stabs line debugging
+   information or not.  Potentially used by md_cleanup function.  */
+
+int outputting_stabs_line_debug = 0;
 
 static void s_stab_generic PARAMS ((int, char *, char *));
 static void generate_asm_file PARAMS ((int, char *));
@@ -112,7 +117,7 @@ get_stab_string_offset (string, stabstr_secname)
     }
 
   if (length > 0)
-    {				/* Ordinary case. */
+    {				/* Ordinary case.  */
       p = frag_more (length + 1);
       strcpy (p, string);
 
@@ -131,9 +136,8 @@ get_stab_string_offset (string, stabstr_secname)
 #define OBJ_PROCESS_STAB(SEG,W,S,T,O,D)	aout_process_stab(W,S,T,O,D)
 #endif
 
-static void aout_process_stab PARAMS ((int, const char *, int, int, int));
-
-static void
+/* Here instead of obj-aout.c because other formats use it too.  */
+void
 aout_process_stab (what, string, type, other, desc)
      int what;
      const char *string;
@@ -172,9 +176,9 @@ aout_process_stab (what, string, type, other, desc)
 #endif
 
 /* This can handle different kinds of stabs (s,n,d) and different
-   kinds of stab sections. */
+   kinds of stab sections.  */
 
-static void 
+static void
 s_stab_generic (what, stab_secname, stabstr_secname)
      int what;
      char *stab_secname;
@@ -384,7 +388,7 @@ s_stab_generic (what, stab_secname, stabstr_secname)
   demand_empty_rest_of_line ();
 }
 
-/* Regular stab directive. */
+/* Regular stab directive.  */
 
 void
 s_stab (what)
@@ -393,7 +397,7 @@ s_stab (what)
   s_stab_generic (what, STAB_SECTION_NAME, STAB_STRING_SECTION_NAME);
 }
 
-/* "Extended stabs", used in Solaris only now. */
+/* "Extended stabs", used in Solaris only now.  */
 
 void
 s_xstab (what)
@@ -439,9 +443,9 @@ s_xstab (what)
 
 /* Frob invented at RMS' request. Set the n_desc of a symbol.  */
 
-void 
+void
 s_desc (ignore)
-     int ignore;
+     int ignore ATTRIBUTE_UNUSED;
 {
   char *name;
   char c;
@@ -498,52 +502,62 @@ generate_asm_file (type, file)
   static char *last_file;
   static int label_count;
   char *hold;
-  char *buf = xmalloc (2 * strlen (file) + 10);
   char sym[30];
+  char *buf;
+  char *tmp = file;
+  char *endp = file + strlen (file);
+  char *bufp = buf;
+
+  if (last_file != NULL
+      && strcmp (last_file, file) == 0)
+    return;
 
   /* Rather than try to do this in some efficient fashion, we just
      generate a string and then parse it again.  That lets us use the
      existing stabs hook, which expect to see a string, rather than
      inventing new ones.  */
-
   hold = input_line_pointer;
 
-  if (last_file == NULL
-      || strcmp (last_file, file) != 0)
+  sprintf (sym, "%sF%d", FAKE_LABEL_NAME, label_count);
+  ++label_count;
+
+  /* Allocate enough space for the file name (possibly extended with
+     doubled up backslashes), the symbol name, and the other characters
+     that make up a stabs file directive.  */
+  bufp = buf = xmalloc (2 * strlen (file) + strlen (sym) + 12);
+
+  *bufp++ = '"';
+
+  while (tmp < endp)
     {
-      char *tmp = file;
-      char *endp = file + strlen(file);
-      char *bufp = buf;
+      char *bslash = strchr (tmp, '\\');
+      int len = (bslash ? (bslash - tmp + 1) : strlen (tmp));
 
-      sprintf (sym, "%sF%d", FAKE_LABEL_NAME, label_count);
-      ++label_count;
+      /* Double all backslashes, since demand_copy_C_string (used by
+	 s_stab to extract the part in quotes) will try to replace them as
+	 escape sequences.  backslash may appear in a filespec.  */
+      strncpy (bufp, tmp, len);
 
-      *bufp++ = '"';
-      while (tmp < endp)
-        {
-          char *bslash = strchr (tmp, '\\');
-          int len = (bslash ? (bslash - tmp + 1) : strlen (tmp));
-          /* double all backslashes, since demand_copy_C_string (used by
-             s_stab to extract the part in quotes) will try to replace them as
-             escape sequences.  backslash may appear in a filespec. */
-          strncpy (bufp, tmp, len);
-          tmp += len;
-          bufp += len;
-          if (bslash != NULL)
-            *bufp++ = '\\';
-        } 
-      sprintf (bufp, "\",%d,0,0,%s\n", type, sym);
-      input_line_pointer = buf;
-      s_stab ('s');
-      colon (sym);
+      tmp += len;
+      bufp += len;
 
-      if (last_file != NULL)
-	free (last_file);
-      last_file = xstrdup (file);
+      if (bslash != NULL)
+	*bufp++ = '\\';
     }
 
-  input_line_pointer = hold;
+  sprintf (bufp, "\",%d,0,0,%s\n", type, sym);
+
+  input_line_pointer = buf;
+  s_stab ('s');
+  colon (sym);
+
+  if (last_file != NULL)
+    free (last_file);
+  last_file = xstrdup (file);
+
   free (buf);
+
+  input_line_pointer = hold;
 }
 
 /* Generate stabs debugging information for the current line.  This is
@@ -558,6 +572,10 @@ stabs_generate_asm_lineno ()
   unsigned int lineno;
   char *buf;
   char sym[30];
+
+  /* Let the world know that we are in the middle of generating a
+     piece of stabs line debugging information.  */
+  outputting_stabs_line_debug = 1;
 
   /* Rather than try to do this in some efficient fashion, we just
      generate a string and then parse it again.  That lets us use the
@@ -589,6 +607,7 @@ stabs_generate_asm_lineno ()
   colon (sym);
 
   input_line_pointer = hold;
+  outputting_stabs_line_debug = 0;
 }
 
 /* Emit a function stab.

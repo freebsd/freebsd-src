@@ -1,5 +1,5 @@
 /* atof_generic.c - turn a string of digits into a Flonum
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1998
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 98, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -15,8 +15,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include <ctype.h>
 #include <string.h>
@@ -78,14 +79,14 @@ atof_generic (address_of_string_pointer,
 	      string_of_decimal_marks,
 	      string_of_decimal_exponent_marks,
 	      address_of_generic_floating_point_number)
-     /* return pointer to just AFTER number we read. */
+     /* return pointer to just AFTER number we read.  */
      char **address_of_string_pointer;
-     /* At most one per number. */
+     /* At most one per number.  */
      const char *string_of_decimal_marks;
      const char *string_of_decimal_exponent_marks;
      FLONUM_TYPE *address_of_generic_floating_point_number;
 {
-  int return_value;		/* 0 means OK. */
+  int return_value;		/* 0 means OK.  */
   char *first_digit;
   unsigned int number_of_digits_before_decimal;
   unsigned int number_of_digits_after_decimal;
@@ -184,9 +185,9 @@ atof_generic (address_of_string_pointer,
 	}
       else
 	{
-	  break;		/* p -> char after pre-decimal digits. */
+	  break;		/* p -> char after pre-decimal digits.  */
 	}
-    }				/* For each digit before decimal mark. */
+    }				/* For each digit before decimal mark.  */
 
 #ifndef OLD_FLOAT_READS
   /* Ignore trailing 0's after the decimal point.  The original code here
@@ -222,7 +223,7 @@ atof_generic (address_of_string_pointer,
 	{
 	  if (isdigit ((unsigned char) c))
 	    {
-	      /* This may be retracted below. */
+	      /* This may be retracted below.  */
 	      number_of_digits_after_decimal++;
 
 	      if ( /* seen_significant_digit || */ c > '0')
@@ -238,7 +239,7 @@ atof_generic (address_of_string_pointer,
 		}
 	      break;
 	    }
-	}			/* For each digit after decimal mark. */
+	}			/* For each digit after decimal mark.  */
     }
 
   while (number_of_digits_after_decimal
@@ -295,8 +296,6 @@ atof_generic (address_of_string_pointer,
 
   *address_of_string_pointer = p;
 
-
-
   number_of_digits_available =
     number_of_digits_before_decimal + number_of_digits_after_decimal;
   return_value = 0;
@@ -311,7 +310,7 @@ atof_generic (address_of_string_pointer,
     }
   else
     {
-      int count;		/* Number of useful digits left to scan. */
+      int count;		/* Number of useful digits left to scan.  */
 
       LITTLENUM_TYPE *digits_binary_low;
       unsigned int precision;
@@ -326,7 +325,7 @@ atof_generic (address_of_string_pointer,
 
       precision = (address_of_generic_floating_point_number->high
 		   - address_of_generic_floating_point_number->low
-		   + 1);	/* Number of destination littlenums. */
+		   + 1);	/* Number of destination littlenums.  */
 
       /* Includes guard bits (two littlenums worth) */
 #if 0 /* The integer version below is very close, and it doesn't
@@ -335,12 +334,12 @@ atof_generic (address_of_string_pointer,
       maximum_useful_digits = (((double) (precision - 2))
 			       * ((double) (LITTLENUM_NUMBER_OF_BITS))
 			       / (LOG_TO_BASE_2_OF_10))
-	+ 2;			/* 2 :: guard digits. */
+	+ 2;			/* 2 :: guard digits.  */
 #else
       maximum_useful_digits = (((precision - 2))
 			       * ( (LITTLENUM_NUMBER_OF_BITS))
 			       * 1000000 / 3321928)
-	+ 2;			/* 2 :: guard digits. */
+	+ 2;			/* 2 :: guard digits.  */
 #endif
 
       if (number_of_digits_available > maximum_useful_digits)
@@ -388,7 +387,7 @@ atof_generic (address_of_string_pointer,
 
       memset ((char *) digits_binary_low, '\0', size_of_digits_in_chars);
 
-      /* Digits_binary_low[] is allocated and zeroed. */
+      /* Digits_binary_low[] is allocated and zeroed.  */
 
       /*
        * Parse the decimal digits as if * digits_low was in the units position.
@@ -440,10 +439,9 @@ atof_generic (address_of_string_pointer,
 	    }
 	  else
 	    {
-	      ++count;		/* '.' doesn't alter digits used count. */
+	      ++count;		/* '.' doesn't alter digits used count.  */
 	    }
 	}
-
 
       /*
        * Digits_binary_low[] properly encodes the value of the digits.
@@ -480,7 +478,7 @@ atof_generic (address_of_string_pointer,
 
 	LITTLENUM_TYPE *power_binary_low;
 	int decimal_exponent_is_negative;
-	/* This refers to the "-56" in "12.34E-56". */
+	/* This refers to the "-56" in "12.34E-56".  */
 	/* FALSE: decimal_exponent is positive (or 0) */
 	/* TRUE:  decimal_exponent is negative */
 	FLONUM_TYPE temporary_flonum;
@@ -489,7 +487,7 @@ atof_generic (address_of_string_pointer,
 	unsigned int size_of_power_in_chars;
 
 	size_of_power_in_littlenums = precision;
-	/* Precision has a built-in fudge factor so we get a few guard bits. */
+	/* Precision has a built-in fudge factor so we get a few guard bits.  */
 
 	decimal_exponent_is_negative = decimal_exponent < 0;
 	if (decimal_exponent_is_negative)
@@ -497,7 +495,7 @@ atof_generic (address_of_string_pointer,
 	    decimal_exponent = -decimal_exponent;
 	  }
 
-	/* From now on: the decimal exponent is > 0. Its sign is separate. */
+	/* From now on: the decimal exponent is > 0. Its sign is separate.  */
 
 	size_of_power_in_chars = size_of_power_in_littlenums
 	  * sizeof (LITTLENUM_TYPE) + 2;
@@ -530,7 +528,7 @@ atof_generic (address_of_string_pointer,
 	  int place_number_limit;
 	  /* Any 10^(2^n) whose "n" exceeds this */
 	  /* value will fall off the end of */
-	  /* flonum_XXXX_powers_of_ten[]. */
+	  /* flonum_XXXX_powers_of_ten[].  */
 	  int place_number;
 	  const FLONUM_TYPE *multiplicand;	/* -> 10^(2^n) */
 
@@ -540,8 +538,8 @@ atof_generic (address_of_string_pointer,
 			  ? flonum_negative_powers_of_ten
 			  : flonum_positive_powers_of_ten);
 
-	  for (place_number = 1;/* Place value of this bit of exponent. */
-	       decimal_exponent;/* Quit when no more 1 bits in exponent. */
+	  for (place_number = 1;/* Place value of this bit of exponent.  */
+	       decimal_exponent;/* Quit when no more 1 bits in exponent.  */
 	       decimal_exponent >>= 1, place_number++)
 	    {
 	      if (decimal_exponent & 1)
@@ -586,7 +584,7 @@ atof_generic (address_of_string_pointer,
 		      (void) putchar ('\n');
 #endif
 		    } /* If this bit of decimal_exponent was computable.*/
-		} /* If this bit of decimal_exponent was set. */
+		} /* If this bit of decimal_exponent was set.  */
 	    } /* For each bit of binary representation of exponent */
 #ifdef TRACE
 	  printf ("after computing power_of_10_flonum:\n");
@@ -605,7 +603,7 @@ atof_generic (address_of_string_pointer,
        */
 
       flonum_multip (&power_of_10_flonum, &digits_flonum, address_of_generic_floating_point_number);
-      /* Assert sign of the number we made is '+'. */
+      /* Assert sign of the number we made is '+'.  */
       address_of_generic_floating_point_number->sign = digits_sign_char;
 
     }

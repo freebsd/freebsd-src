@@ -224,7 +224,7 @@ writeBARRAY (data, ptr, idx, size, file)
      barray data;
      char *ptr;
      int *idx;
-     int size;
+     int size ATTRIBUTE_UNUSED;
      FILE *file;
 {
   int i;
@@ -299,7 +299,7 @@ wr_un (ptr, sfile, first, nsecs)
      struct coff_ofile *ptr;
      struct coff_sfile *sfile;
      int first;
-     int nsecs;
+     int nsecs ATTRIBUTE_UNUSED;
 {
   struct IT_un un;
 
@@ -438,7 +438,7 @@ wr_hd (p)
 
 static void
 wr_sh (p, sec)
-     struct coff_ofile *p;
+     struct coff_ofile *p ATTRIBUTE_UNUSED;
      struct coff_section *sec;
 {
   struct IT_sh sh;
@@ -453,7 +453,7 @@ wr_sh (p, sec)
 
 static void
 wr_ob (p, section)
-     struct coff_ofile *p;
+     struct coff_ofile *p ATTRIBUTE_UNUSED;
      struct coff_section *section;
 {
   bfd_size_type i;
@@ -514,7 +514,7 @@ wr_ob (p, section)
 
 static void
 wr_rl (ptr, sec)
-     struct coff_ofile *ptr;
+     struct coff_ofile *ptr ATTRIBUTE_UNUSED;
      struct coff_section *sec;
 {
   int nr = sec->nrelocs;
@@ -586,7 +586,7 @@ wr_object_body (p)
 static void
 wr_dps_start (sfile, section, scope, type, nest)
      struct coff_sfile *sfile;
-     struct coff_section *section;
+     struct coff_section *section ATTRIBUTE_UNUSED;
      struct coff_scope *scope;
      int type;
      int nest;
@@ -623,8 +623,8 @@ wr_dps_start (sfile, section, scope, type, nest)
 
 static void
 wr_dps_end (section, scope, type)
-     struct coff_section *section;
-     struct coff_scope *scope;
+     struct coff_section *section ATTRIBUTE_UNUSED;
+     struct coff_scope *scope ATTRIBUTE_UNUSED;
      int type;
 {
   struct IT_dps dps;
@@ -960,7 +960,7 @@ walk_tree_type (sfile, symbol, type, nest)
 static void
 walk_tree_symbol (sfile, section, symbol, nest)
      struct coff_sfile *sfile;
-     struct coff_section *section;
+     struct coff_section *section ATTRIBUTE_UNUSED;
      struct coff_symbol *symbol;
      int nest;
 {
@@ -1329,7 +1329,7 @@ wr_du (p, sfile, n)
 
 static void
 wr_dus (p, sfile)
-     struct coff_ofile *p;
+     struct coff_ofile *p ATTRIBUTE_UNUSED;
      struct coff_sfile *sfile;
 {
 
@@ -1373,11 +1373,12 @@ find_base (sfile, section)
 {
   return sfile->section[section->number].low;
 }
+
 static void
 wr_dln (p, sfile, n)
-     struct coff_ofile *p;
+     struct coff_ofile *p ATTRIBUTE_UNUSED;
      struct coff_sfile *sfile;
-     int n;
+     int n ATTRIBUTE_UNUSED;
 
 {
 #if 0
@@ -1517,7 +1518,7 @@ static void
 wr_globals (p, sfile, n)
      struct coff_ofile *p;
      struct coff_sfile *sfile;
-     int n;
+     int n ATTRIBUTE_UNUSED;
 {
   struct coff_symbol *sy;
   for (sy = p->symbol_list_head;
@@ -1734,7 +1735,7 @@ return scount;
 static void
 wr_er (ptr, sfile, first)
      struct coff_ofile *ptr;
-     struct coff_sfile *sfile;
+     struct coff_sfile *sfile ATTRIBUTE_UNUSED;
      int first;
 {
   int idx = 0;
@@ -1760,7 +1761,7 @@ wr_er (ptr, sfile, first)
 static void
 wr_ed (ptr, sfile, first)
      struct coff_ofile *ptr;
-     struct coff_sfile *sfile;
+     struct coff_sfile *sfile ATTRIBUTE_UNUSED;
      int first;
 {
   struct coff_symbol *s;

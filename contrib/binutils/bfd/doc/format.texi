@@ -1,6 +1,6 @@
 @section File formats
 A format is a BFD concept of high level file contents type. The
-formats supported by BFD are: 
+formats supported by BFD are:
 
 @itemize @bullet
 
@@ -43,7 +43,7 @@ matches, it is used.  If not, exactly one target must recognize
 the file, or an error results.
 
 The function returns @code{true} on success, otherwise @code{false}
-with one of the following error codes:  
+with one of the following error codes:
 
 @itemize @bullet
 

@@ -1,5 +1,31 @@
 -*- text -*-
 
+* Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
+
+* Support added for eliminating duplicate DWARF2 debug information by
+  having the compiler generate the information in sections called
+  .gnu.linkonce.wi.XXXX where XXXX is a checksum for the contents.  The
+  linker then merges these sections together into the normal .debug_info
+  section.
+
+* The native ELF linker now searches the directories in DT_RUNPATH or
+  DT_RPATH of a shared library for shared libraries needed by it.
+
+* TI C54x support, by Timothy Wall.
+
+* Added command line switch --section-start to set the start address of any
+  specified section. 
+
+* Added ability to emit full relocation information in linked executables,
+  enabled by --emit-relocs.  Some post-linkage optimization tools need
+  this information in order to be able to correctly identify and perform
+  symbol relative addressing in the event of changes in section contents
+  (instructions being added or deleted, extending data sections, etc.)
+
+* Support for i860, by Jason Eckhardt (preliminary, alpha quality).
+
+* Support for CRIS (Axis Communications ETRAX series).
+
 Changes in version 2.10:
 
 * Added AT> to the linker script language to allow load-time allocation of 
@@ -7,8 +33,8 @@ Changes in version 2.10:
 
 * Added garbage collection of unused sections, enabled by --gc-sections. 
   It does require a bit of backend support; currently implemented are
-  avr-elf, d10v-elf, fr30-elf, i386-elf, m32r-elf, m68k-elf, mcore-elf,
-  mips-elf, mn10300-elf, ppc-elf, sh-elf, sparc-elf, and v850-elf.
+  arm-elf, avr-elf, d10v-elf, fr30-elf, i386-elf, m32r-elf, m68k-elf,
+  mcore-elf, mips-elf, mn10300-elf, ppc-elf, sh-elf, sparc-elf, and v850-elf.
   Others will ignore the option.
 
 * Added SORT to the linker script language to permit sorting sections by file

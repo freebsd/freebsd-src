@@ -1,5 +1,5 @@
 /* dwarf2dbg.h - DWARF2 debug support
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,14 +26,12 @@
 #define DWARF2_FLAG_BEGIN_STMT	(1 << 0)	/* beginning of statement */
 #define DWARF2_FLAG_BEGIN_BLOCK	(1 << 1)	/* beginning of basic block */
 
-struct dwarf2_line_info
-  {
-    char *filename;
-    unsigned int filenum;
-    unsigned int line;
-    unsigned int column;
-    unsigned int flags;
-  };
+struct dwarf2_line_info {
+  unsigned int filenum;
+  unsigned int line;
+  unsigned int column;
+  unsigned int flags;
+};
 
 /* Implements the .file FILENO "FILENAME" directive.  FILENO can be 0
    to indicate that no file number has been assigned.  All real file
@@ -58,12 +56,17 @@ extern void dwarf2_where PARAMS ((struct dwarf2_line_info *l));
    source information passed in the arguments.  ADDR should be the
    frag-relative offset of the instruction the information is for and
    L is the source information that should be associated with that
-   address. */
+   address.  */
 extern void dwarf2_gen_line_info PARAMS ((addressT addr,
 					  struct dwarf2_line_info *l));
 
-/* Must be called after all other input is processed to finish up the
-   .debug_line section.  */
+/* Must be called for each generated instruction.  */
+extern void dwarf2_emit_insn PARAMS ((int));
+
 extern void dwarf2_finish PARAMS ((void));
+
+extern int dwarf2dbg_estimate_size_before_relax PARAMS ((fragS *));
+extern int dwarf2dbg_relax_frag PARAMS ((fragS *));
+extern void dwarf2dbg_convert_frag PARAMS ((fragS *));
 
 #endif /* AS_DWARF2DBG_H */

@@ -53,7 +53,7 @@ struct internal_filehdr
   long f_nsyms;			/* number of symtab entries	*/
   unsigned short f_opthdr;	/* sizeof(optional hdr)		*/
   unsigned short f_flags;	/* flags			*/
-  unsigned short f_target_id;	/* (TIc80 specific)		*/
+  unsigned short f_target_id;	/* (TI COFF specific)		*/
 };
 
 
@@ -100,7 +100,9 @@ typedef struct _IMAGE_DATA_DIRECTORY
 /* Extra stuff in a PE aouthdr */
 
 #define PE_DEF_SECTION_ALIGNMENT 0x1000
-#define PE_DEF_FILE_ALIGNMENT 0x200
+#ifndef PE_DEF_FILE_ALIGNMENT
+# define PE_DEF_FILE_ALIGNMENT 0x200
+#endif
 
 struct internal_extra_pe_aouthdr 
 {
@@ -222,7 +224,7 @@ struct internal_aouthdr
 
 #define C_WEAKEXT	127	/* weak symbol -- GNU extension */
 
-/* New storage classes for TIc80 */
+/* New storage classes for TI COFF */
 #define C_UEXT		19	/* Tentative external definition */
 #define C_STATLAB	20	/* Static load time label */
 #define C_EXTLAB	21	/* External load time label */
@@ -301,6 +303,7 @@ struct internal_scnhdr
   unsigned long s_nlnno;	/* number of line number entries*/
   long s_flags;			/* flags			*/
   long s_align;			/* used on I960			*/
+  unsigned char s_page;         /* TI COFF load page            */
 };
 
 /*

@@ -95,7 +95,7 @@ sparclinux_write_object_contents (abfd)
 #define IS_GOT_SYM(name) \
   (strncmp (name, GOT_REF_PREFIX, sizeof GOT_REF_PREFIX - 1) == 0)
 
-/* See if a symbol name is a reference to the procedure linkage table. */
+/* See if a symbol name is a reference to the procedure linkage table.  */
 
 #ifndef PLT_REF_PREFIX
 #define        PLT_REF_PREFIX  "__PLT_"
@@ -478,7 +478,7 @@ linux_tally_symbols (h, data)
                                   (h->root.root.root.string
                                    + sizeof PLT_REF_PREFIX - 1),
                                   false, false, true);
-      /* h2 does not follow indirect symbols. */
+      /* h2 does not follow indirect symbols.  */
       h2 = linux_link_hash_lookup (linux_hash_table (info),
                                   (h->root.root.root.string
                                    + sizeof PLT_REF_PREFIX - 1),
@@ -535,7 +535,7 @@ linux_tally_symbols (h, data)
        }
 
       /* Quick and dirty way of stripping these symbols from the
-        symtab. */
+        symtab.  */
       if (bfd_is_abs_section (h->root.root.u.def.section))
        h->root.written = true;
     }
@@ -560,7 +560,7 @@ bfd_sparclinux_size_dynamic_sections (output_bfd, info)
   if (output_bfd->xvec != &MY(vec))
     return true;
 
-  /* First find the fixups... */
+  /* First find the fixups...  */
   linux_link_hash_traverse (linux_hash_table (info),
                            linux_tally_symbols,
                            (PTR) info);

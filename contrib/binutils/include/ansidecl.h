@@ -160,6 +160,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #endif	/* ANSI C.  */
 
+
 /* Using MACRO(x,y) in cpp #if conditionals does not work with some
    older preprocessors.  Thus we can't define something like this:
 
@@ -220,5 +221,12 @@ So instead we use the macro below and test it against specific values.  */
 #define ATTRIBUTE_PRINTF_4 ATTRIBUTE_PRINTF(4, 5)
 #define ATTRIBUTE_PRINTF_5 ATTRIBUTE_PRINTF(5, 6)
 #endif /* ATTRIBUTE_PRINTF */
+
+/* We use __extension__ in some places to suppress -pedantic warnings
+   about GCC extensions.  This feature didn't work properly before
+   gcc 2.8.  */
+#if GCC_VERSION < 2008
+#define __extension__
+#endif
 
 #endif	/* ansidecl.h	*/
