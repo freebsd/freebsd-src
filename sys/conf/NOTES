@@ -169,8 +169,9 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
-# CPU.
-options 	ADAPTIVE_MUTEXES
+# CPU.  This behaviour is enabled by default, so this option can be used
+# to disable it.
+options 	NO_ADAPTIVE_MUTEXES
 
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
