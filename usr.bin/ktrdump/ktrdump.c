@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ktr.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -43,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-c] [-f] [-t] [-e execfile] [-m corefile] [-o outfile]"
+	"usage: ktrdump [-c] [-f] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
 
 extern char *optarg;
 extern int optind;
@@ -63,6 +65,7 @@ static int eflag;
 static int fflag;
 static int mflag;
 static int tflag;
+static int iflag;
 
 static char corefile[PATH_MAX];
 static char execfile[PATH_MAX];
@@ -81,6 +84,7 @@ main(int ac, char **av)
 {
 	u_long parms[KTR_PARMS];
 	struct ktr_entry *buf;
+	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
 	char *p;
@@ -88,6 +92,7 @@ main(int ac, char **av)
 	int entries;
 	int index;
 	int parm;
+	int in;
 	int c;
 	int i;
 	int n;
@@ -96,7 +101,7 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfte:m:o:")) != -1)
+	while ((c = getopt(ac, av, "cfte:i:m:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
@@ -107,6 +112,11 @@ main(int ac, char **av)
 			break;
 		case 'f':
 			fflag = 1;
+			break;
+		case 'i':
+			iflag = 1;
+			if ((in = open(optarg, O_RDONLY)) == -1)
+				err(1, "%s", optarg);
 			break;
 		case 'm':
 			strcpy(corefile, optarg);
@@ -140,13 +150,25 @@ main(int ac, char **av)
 		errx(1, "%s", kvm_geterr(kd));
 	if (version != KTR_VERSION)
 		errx(1, "ktr version mismatch");
-	if (kvm_read(kd, nl[1].n_value, &entries, sizeof(entries)) == -1)
-		errx(1, "%s", kvm_geterr(kd));
-	if ((buf = malloc(sizeof(*buf) * entries)) == NULL)
-		err(1, NULL);
-	if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
-	    kvm_read(kd, nl[3].n_value, buf, sizeof(*buf) * entries) == -1)
-		errx(1, "%s", kvm_geterr(kd));
+	if (iflag) {
+		if (fstat(in, &sb) == -1)
+			errx(1, "stat");
+		entries = sb.st_size / sizeof(*buf);
+		index = 0;
+		buf = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, in, 0);
+		if (buf == MAP_FAILED)
+			errx(1, "mmap");
+	} else {
+		if (kvm_read(kd, nl[1].n_value, &entries, sizeof(entries))
+		    == -1)
+			errx(1, "%s", kvm_geterr(kd));
+		if ((buf = malloc(sizeof(*buf) * entries)) == NULL)
+			err(1, NULL);
+		if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
+		    kvm_read(kd, nl[3].n_value, buf, sizeof(*buf) * entries)
+		    == -1)
+			errx(1, "%s", kvm_geterr(kd));
+	}
 
 	/*
 	 * Print a nice header.
@@ -174,7 +196,8 @@ main(int ac, char **av)
 	/*
 	 * Now tear through the trace buffer.
 	 */
-	i = (index - 1) & (entries - 1);
+	if (!iflag)
+		i = (index - 1) & (entries - 1);
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
 			break;
@@ -222,9 +245,14 @@ main(int ac, char **av)
 		fprintf(out, desc, parms[0], parms[1], parms[2], parms[3],
 		    parms[4], parms[5]);
 		fprintf(out, "\n");
-		if (i == index)
-			break;
-		i = (i - 1) & (entries - 1);
+		if (!iflag) {
+			if (i == index)
+				break;
+			i = (i - 1) & (entries - 1);
+		} else {
+			if (++i == entries)
+				break;
+		}
 	}
 
 	return (0);
