@@ -86,7 +86,6 @@ static int fw_permanent_rules = 0;
  */
 
 static u_int64_t counter;	/* counter for ipfw_report(NULL...) */
-struct ipfw_flow_id last_pkt ;
 
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
@@ -567,7 +566,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int ip_off, int ip_len,
 		    snprintf(SNPARGS(action2, 0), "Queue %d",
 			f->fw_skipto_rule);
 		    break;
-#ifdef IPFIREWALL_FORWARD
+
 	    case IP_FW_F_FWD:
 		    if (f->fw_fwd_ip.sin_port)
 			    snprintf(SNPARGS(action2, 0),
@@ -578,7 +577,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int ip_off, int ip_len,
 			    snprintf(SNPARGS(action2, 0), "Forward to %s",
 				inet_ntoa(f->fw_fwd_ip.sin_addr));
 		    break;
-#endif
+
 	    default:	
 		    action = "UNKNOWN";
 		    break;
@@ -954,7 +953,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  * session limitations are enforced.
  */
 static int
-install_state(struct ip_fw *rule)
+install_state(struct ip_fw *rule, struct ip_fw_args *args)
 {
     struct ipfw_dyn_rule *q ;
     static int last_log ;
@@ -963,10 +962,10 @@ install_state(struct ip_fw *rule)
 
     DEB(printf("-- install state type %d 0x%08x %u -> 0x%08x %u\n",
        type,
-       (last_pkt.src_ip), (last_pkt.src_port),
-       (last_pkt.dst_ip), (last_pkt.dst_port) );)
+       (args->f_id.src_ip), (args->f_id.src_port),
+       (args->f_id.dst_ip), (args->f_id.dst_port) );)
 
-    q = lookup_dyn_rule(&last_pkt, NULL) ;
+    q = lookup_dyn_rule(&args->f_id, NULL) ;
     if (q != NULL) { /* should never occur */
 	if (last_log != time_second) {
 	    last_log = time_second ;
@@ -986,7 +985,7 @@ install_state(struct ip_fw *rule)
 
     switch (type) {
     case DYN_KEEP_STATE: /* bidir rule */
-	add_dyn_rule(&last_pkt, DYN_KEEP_STATE, rule);
+	add_dyn_rule(&args->f_id, DYN_KEEP_STATE, rule);
 	break ;
     case DYN_LIMIT: /* limit number of sessions */
 	{
@@ -999,16 +998,16 @@ install_state(struct ip_fw *rule)
 
 	id.dst_ip = id.src_ip = 0;
 	id.dst_port = id.src_port = 0 ;
-	id.proto = last_pkt.proto ;
+	id.proto = args->f_id.proto ;
 
 	if (limit_mask & DYN_SRC_ADDR)
-	    id.src_ip = last_pkt.src_ip;
+	    id.src_ip = args->f_id.src_ip;
 	if (limit_mask & DYN_DST_ADDR)
-	    id.dst_ip = last_pkt.dst_ip;
+	    id.dst_ip = args->f_id.dst_ip;
 	if (limit_mask & DYN_SRC_PORT)
-	    id.src_port = last_pkt.src_port;
+	    id.src_port = args->f_id.src_port;
 	if (limit_mask & DYN_DST_PORT)
-	    id.dst_port = last_pkt.dst_port;
+	    id.dst_port = args->f_id.dst_port;
 	parent = lookup_dyn_parent(&id, rule);
 	if (parent == NULL) {
 	    printf("add parent failed\n");
@@ -1021,14 +1020,14 @@ install_state(struct ip_fw *rule)
 		return 1;
 	    }
 	}
-	add_dyn_rule(&last_pkt, DYN_LIMIT, (struct ip_fw *)parent);
+	add_dyn_rule(&args->f_id, DYN_LIMIT, (struct ip_fw *)parent);
 	}
 	break ;
     default:
 	printf("unknown dynamic rule type %u\n", type);
 	return 1 ;
     }
-    lookup_dyn_rule(&last_pkt, NULL) ; /* XXX just set the lifetime */
+    lookup_dyn_rule(&args->f_id, NULL) ; /* XXX just set the lifetime */
     return 0;
 }
 
@@ -1083,9 +1082,22 @@ lookup_next_rule(struct ip_fw *me)
  */
 
 static int 
-ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
+ip_fw_chk(struct ip_fw_args *args)
+#if 0 /* the old interface was this: */
+	struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
 	struct ip_fw **flow_id, struct sockaddr_in **next_hop)
+#endif
 {
+	/*
+	 * grab things into variables to minimize diffs.
+	 * XXX this has to be cleaned up later.
+	 */
+	struct mbuf **m = &(args->m);
+	struct ifnet *oif = args->oif;
+	u_int16_t *cookie = &(args->divert_rule);
+	struct ip_fw **flow_id = &(args->rule);
+	struct sockaddr_in **next_hop = &(args->next_hop);
+
 	struct ip_fw *f = NULL;		/* matching rule */
 	struct ip *ip = mtod(*m, struct ip *);
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
@@ -1099,18 +1111,16 @@ ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
 	struct in_addr src_ip, dst_ip;
 	u_int8_t proto= 0, flags = 0;
 
-	u_int16_t skipto, bridgeCookie;
+	u_int16_t skipto;
 	u_int16_t ip_len=0;
 
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
 	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
 
-#define BRIDGED	(cookie == &bridgeCookie)
-	if (cookie == NULL) {	/* this is a bridged packet */
-	    bridgeCookie = 0;
-	    cookie = &bridgeCookie;
-	    eh = (struct ether_header *)next_hop;
+#define BRIDGED	(args->eh != NULL)
+	if (BRIDGED) {	/* this is a bridged packet */
+	    eh = args->eh;
 	    if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
 			ntohs(eh->ether_type) == ETHERTYPE_IP)
 		hlen = ip->ip_hl << 2;
@@ -1182,12 +1192,12 @@ ip_fw_chk(struct mbuf **m, struct ifnet *oif, u_int16_t *cookie,
 #undef PULLUP_TO
 	    }
 	}
-	last_pkt.src_ip = ntohl(src_ip.s_addr);
-	last_pkt.dst_ip = ntohl(dst_ip.s_addr);
-	last_pkt.proto = proto;
-	last_pkt.src_port = ntohs(src_port);
-	last_pkt.dst_port = ntohs(dst_port);
-	last_pkt.flags = flags;
+	args->f_id.src_ip = ntohl(src_ip.s_addr);
+	args->f_id.dst_ip = ntohl(dst_ip.s_addr);
+	args->f_id.proto = proto;
+	args->f_id.src_port = ntohs(src_port);
+	args->f_id.dst_port = ntohs(dst_port);
+	args->f_id.flags = flags;
 
 	if (*flow_id) {
 	    /*
@@ -1305,7 +1315,7 @@ again:
 		if (f->fw_flg & (IP_FW_F_KEEP_S|IP_FW_F_CHECK_S) &&
 			 dyn_checked == 0 ) {
 		    dyn_checked = 1 ;
-		    q = lookup_dyn_rule(&last_pkt, &direction);
+		    q = lookup_dyn_rule(&args->f_id, &direction);
 		    if (q != NULL) {
 			DEB(printf("-- dynamic match 0x%08x %d %s 0x%08x %d\n",
 			    (q->id.src_ip), (q->id.src_port),
@@ -1539,7 +1549,7 @@ got_match:
 		 * a new dynamic entry.
 		 */
 		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S) {
-		    if (install_state(f)) /* error or limit violation */
+		    if (install_state(f, args)) /* error or limit violation */
 			goto dropit;
 		}
 		/* Update statistics */
@@ -1577,7 +1587,7 @@ got_match:
 		case IP_FW_F_QUEUE:
 			*flow_id = f; /* XXX set flow id */
 			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
-#ifdef IPFIREWALL_FORWARD
+
 		case IP_FW_F_FWD:
 			/* Change the next-hop address for this packet.
 			 * Initially we'll only worry about directly
@@ -1596,7 +1606,7 @@ got_match:
 			    && (q == NULL || direction == MATCH_FORWARD) )
 				*next_hop = &(f->fw_fwd_ip);
 			return(0); /* Allow the packet */
-#endif
+
 		}
 
 		/* Deny/reject this packet using this rule */
@@ -1970,9 +1980,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 	case IP_FW_F_ACCEPT:
 	case IP_FW_F_COUNT:
 	case IP_FW_F_SKIPTO:
-#ifdef IPFIREWALL_FORWARD
 	case IP_FW_F_FWD:
-#endif
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
@@ -2179,11 +2187,7 @@ ip_fw_init(void)
 #else
 		"divert disabled, "
 #endif
-#ifdef IPFIREWALL_FORWARD
 		"rule-based forwarding enabled, "
-#else
-		"rule-based forwarding disabled, "
-#endif
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 		"default to accept, ");
 #else

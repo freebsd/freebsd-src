@@ -161,9 +161,7 @@ static void rt_unref(struct rtentry *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
-static int dummynet_io(int pipe_nr, int dir, struct mbuf *m, struct ifnet *ifp,
-		struct route *ro, struct sockaddr_in * dst,
-		struct ip_fw *rule, int flags);
+static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
 
 int if_tx_rdy(struct ifnet *ifp);
@@ -423,9 +421,8 @@ transmit_event(struct dn_pipe *pipe)
 	/*
 	 * The actual mbuf is preceded by a struct dn_pkt, resembling an mbuf
 	 * (NOT A REAL one, just a small block of malloc'ed memory) with
-	 *     m_type = MT_DUMMYNET
-	 *     m_next = actual mbuf to be processed by ip_input/output
-	 *     m_data = the matching rule
+	 *     m_type = MT_TAG, m_flags = PACKET_TAG_DUMMYNET
+	 *     dn_m (m_next) = actual mbuf to be processed by ip_input/output
 	 * and some other fields.
 	 * The block IS FREED HERE because it contains parameters passed
 	 * to the called routine.
@@ -862,7 +859,7 @@ create_queue(struct dn_flow_set *fs, int i)
  * so that further searches take less time.
  */
 static struct dn_flow_queue *
-find_queue(struct dn_flow_set *fs)
+find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 {
     int i = 0 ; /* we need i and q for new allocations */
     struct dn_flow_queue *q, *prev;
@@ -871,25 +868,25 @@ find_queue(struct dn_flow_set *fs)
 	q = fs->rq[0] ;
     else {
 	/* first, do the masking */
-	last_pkt.dst_ip &= fs->flow_mask.dst_ip ;
-	last_pkt.src_ip &= fs->flow_mask.src_ip ;
-	last_pkt.dst_port &= fs->flow_mask.dst_port ;
-	last_pkt.src_port &= fs->flow_mask.src_port ;
-	last_pkt.proto &= fs->flow_mask.proto ;
-	last_pkt.flags = 0 ; /* we don't care about this one */
+	id->dst_ip &= fs->flow_mask.dst_ip ;
+	id->src_ip &= fs->flow_mask.src_ip ;
+	id->dst_port &= fs->flow_mask.dst_port ;
+	id->src_port &= fs->flow_mask.src_port ;
+	id->proto &= fs->flow_mask.proto ;
+	id->flags = 0 ; /* we don't care about this one */
 	/* then, hash function */
-	i = ( (last_pkt.dst_ip) & 0xffff ) ^
-	    ( (last_pkt.dst_ip >> 15) & 0xffff ) ^
-	    ( (last_pkt.src_ip << 1) & 0xffff ) ^
-	    ( (last_pkt.src_ip >> 16 ) & 0xffff ) ^
-	    (last_pkt.dst_port << 1) ^ (last_pkt.src_port) ^
-	    (last_pkt.proto );
+	i = ( (id->dst_ip) & 0xffff ) ^
+	    ( (id->dst_ip >> 15) & 0xffff ) ^
+	    ( (id->src_ip << 1) & 0xffff ) ^
+	    ( (id->src_ip >> 16 ) & 0xffff ) ^
+	    (id->dst_port << 1) ^ (id->src_port) ^
+	    (id->proto );
 	i = i % fs->rq_size ;
 	/* finally, scan the current list for a match */
 	searches++ ;
 	for (prev=NULL, q = fs->rq[i] ; q ; ) {
 	    search_steps++;
-	    if (bcmp(&last_pkt, &(q->id), sizeof(q->id) ) == 0)
+	    if (bcmp(id, &(q->id), sizeof(q->id) ) == 0)
 		break ; /* found */
 	    else if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
 		/* entry is idle and not in any heap, expire it */
@@ -915,7 +912,7 @@ find_queue(struct dn_flow_set *fs)
     if (q == NULL) { /* no match, need to allocate a new entry */
 	q = create_queue(fs, i);
 	if (q != NULL)
-	q->id = last_pkt ;
+	q->id = *id ;
     }
     return q ;
 }
@@ -1059,11 +1056,8 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  * flags	flags from the caller, only used in ip_output
  * 
  */
-int
-dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
-	struct mbuf *m, struct ifnet *ifp, struct route *ro,
-	struct sockaddr_in *dst,
-	struct ip_fw *rule, int flags)
+static int
+dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 {
     struct dn_pkt *pkt;
     struct dn_flow_set *fs;
@@ -1076,8 +1070,8 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 
     pipe_nr &= 0xffff ;
 
-    if ( (fs = rule->pipe_ptr) == NULL ) {
-	fs = locate_flowset(pipe_nr, rule);
+    if ( (fs = fwa->rule->pipe_ptr) == NULL ) {
+	fs = locate_flowset(pipe_nr, fwa->rule);
 	if (fs == NULL)
 	    goto dropit ;	/* this queue/pipe does not exist! */
     }
@@ -1094,7 +1088,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	    goto dropit ;
 	}
     }
-    q = find_queue(fs);
+    q = find_queue(fs, &(fwa->f_id));
     if ( q == NULL )
 	goto dropit ;		/* cannot allocate queue		*/
     /*
@@ -1120,27 +1114,28 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
 	goto dropit ;		/* cannot allocate packet header	*/
     /* ok, i can handle the pkt now... */
     /* build and enqueue packet + parameters */
-    pkt->hdr.mh_type = MT_DUMMYNET ;
-    (struct ip_fw *)pkt->hdr.mh_data = rule ;
+    pkt->hdr.mh_type = MT_TAG;
+    pkt->hdr.mh_flags = PACKET_TAG_DUMMYNET;
+    pkt->rule = fwa->rule ;
     DN_NEXT(pkt) = NULL;
     pkt->dn_m = m;
     pkt->dn_dir = dir ;
 
-    pkt->ifp = ifp;
+    pkt->ifp = fwa->oif;
     if (dir == DN_TO_IP_OUT) {
 	/*
 	 * We need to copy *ro because for ICMP pkts (and maybe others)
 	 * the caller passed a pointer into the stack; dst might also be
 	 * a pointer into *ro so it needs to be updated.
 	 */
-	pkt->ro = *ro;
-	if (ro->ro_rt)
-	    ro->ro_rt->rt_refcnt++ ;
-	if (dst == (struct sockaddr_in *)&ro->ro_dst) /* dst points into ro */
-	    dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
+	pkt->ro = *(fwa->ro);
+	if (fwa->ro->ro_rt)
+	    fwa->ro->ro_rt->rt_refcnt++ ;
+	if (fwa->dst == (struct sockaddr_in *)&fwa->ro->ro_dst) /* dst points into ro */
+	    fwa->dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
 
-	pkt->dn_dst = dst;
-	pkt->flags = flags ;
+	pkt->dn_dst = fwa->dst;
+	pkt->flags = fwa->flags;
     }
     if (q->head == NULL)
 	q->head = pkt;
@@ -1157,7 +1152,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
      * to schedule it. This involves different actions for fixed-rate or
      * WF2Q queues.
      */
-    if ( (rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE ) {
+    if ( (fwa->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE ) {
 	/*
 	 * Fixed-rate queue: just insert into the ready_heap.
 	 */
@@ -1355,8 +1350,8 @@ dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is ovflow */
 	for (q = fs->rq[i] ; q ; q = q->next )
 	    for (pkt = q->head ; pkt ; pkt = DN_NEXT(pkt) )
-		if (pkt->hdr.mh_data == r)
-		    pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
+		if (pkt->rule == r)
+		    pkt->rule = ip_fw_default_rule ;
 }
 /*
  * when a firewall rule is deleted, scan all queues and remove the flow-id
@@ -1380,8 +1375,8 @@ dn_rule_delete(void *r)
 	fs = &(p->fs) ;
 	dn_rule_delete_fs(fs, r);
 	for (pkt = p->head ; pkt ; pkt = DN_NEXT(pkt) )
-	    if (pkt->hdr.mh_data == r)
-		pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
+	    if (pkt->rule == r)
+		pkt->rule = ip_fw_default_rule ;
     }
 }
 

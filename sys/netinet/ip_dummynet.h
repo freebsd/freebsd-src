@@ -104,36 +104,33 @@ struct dn_heap {
 } ;
 
 /*
- * MT_DUMMYNET is a new (fake) mbuf type that is prepended to the
- * packet when it comes out of a pipe. The definition
- * ought to go in /sys/sys/mbuf.h but here it is less intrusive.
- */
-
-#define MT_DUMMYNET MT_CONTROL
-
-/*
- * struct dn_pkt identifies a packet in the dummynet queue. The
- * first part is really an m_hdr for implementation purposes, and some
- * fields are saved there. When passing the packet back to the ip_input/
- * ip_output()/bdg_forward, the struct is prepended to the mbuf chain with type
- * MT_DUMMYNET, and contains the pointer to the matching rule.
+ * struct dn_pkt identifies a packet in the dummynet queue, but
+ * is also used to tag packets passed back to the various destinations
+ * (ip_input(), ip_output(), bdg_forward()  and so on).
+ * As such the first part of the structure must be a struct m_hdr,
+ * followed by dummynet-specific parameters. The m_hdr must be
+ * initialized with
+ *   mh_type	= MT_TAG;
+ *   mh_flags	= PACKET_TYPE_DUMMYNET;
+ *   mh_next	= <pointer to the actual mbuf>
  *
- * Note: there is no real need to make this structure contain an m_hdr,
- * in the future this should be changed to a normal data structure.
+ * mh_nextpkt, mh_data are free for dummynet use (mh_nextpkt is used to
+ * build a linked list of packets in a dummynet queue).
  */
 struct dn_pkt {
     struct m_hdr hdr ;
-#define dn_next	hdr.mh_nextpkt	/* next element in queue */
-#define DN_NEXT(x)	(struct dn_pkt *)(x)->dn_next
+#define DN_NEXT(x)	(struct dn_pkt *)(x)->hdr.mh_nextpkt
 #define dn_m	hdr.mh_next	/* packet to be forwarded */
-#define dn_dir	hdr.mh_flags	/* action when pkt extracted from a queue */
+
+    struct ip_fw *rule;		/* matching rule */
+    int dn_dir;			/* action when packet comes out. */
 #define DN_TO_IP_OUT	1
 #define DN_TO_IP_IN	2
 #define DN_TO_BDG_FWD	3
 #define DN_TO_ETH_DEMUX	4
 #define DN_TO_ETH_OUT	5
 
-    dn_key  output_time;	/* when the pkt is due for delivery	*/
+    dn_key output_time;	/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/
     struct sockaddr_in *dn_dst ;
     struct route ro;		/* route, for ip_output. MUST COPY	*/
@@ -351,9 +348,8 @@ struct dn_pipe {		/* a pipe */
 #ifdef _KERNEL
 typedef	int ip_dn_ctl_t(struct sockopt *); /* raw_ip.c */
 typedef	void ip_dn_ruledel_t(void *); /* ip_fw.c */
-typedef	int ip_dn_io_t(int pipe, int dir, struct mbuf *m,
-	struct ifnet *ifp, struct route *ro, struct sockaddr_in * dst,
-	struct ip_fw *rule, int flags); /* ip_{in,out}put.c, bridge.c */
+typedef	int ip_dn_io_t(struct mbuf *m, int pipe_nr, int dir,
+	struct ip_fw_args *fwa);
 extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
 extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
 extern	ip_dn_io_t *ip_dn_io_ptr;

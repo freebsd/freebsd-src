@@ -319,6 +319,27 @@ struct ipfw_dyn_rule {
 #define	IP_FW_PORT_DENY_FLAG	0x40000
 
 /*
+ * arguments for calling ip_fw_chk() and dummynet_io(). We put them
+ * all into a structure because this way it is easier and more
+ * efficient to pass variables around and extend the interface.
+ */
+struct ip_fw_args {
+	struct mbuf	*m;		/* the mbuf chain		*/
+	struct ifnet	*oif;		/* output interface		*/
+	struct sockaddr_in *next_hop;	/* forward address		*/
+	struct ip_fw	*rule;		/* matching rule		*/
+	struct ether_header *eh;	/* for bridged packets		*/
+
+	struct route	*ro;		/* for dummynet			*/
+	struct sockaddr_in *dst;	/* for dummynet			*/
+	int flags;			/* for dummynet			*/
+
+	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
+	u_int16_t	divert_rule;	/* divert cookie		*/
+	u_int32_t	retval;
+};
+
+/*
  * Function definitions.
  */
 void ip_fw_init(void);
@@ -326,14 +347,12 @@ void ip_fw_init(void);
 /* Firewall hooks */
 struct ip;
 struct sockopt;
-typedef int ip_fw_chk_t (struct mbuf **m, struct ifnet *oif,
-    u_int16_t *cookie, struct ip_fw **rule, struct sockaddr_in **next_hop);
+typedef int ip_fw_chk_t (struct ip_fw_args *args);
 typedef int ip_fw_ctl_t (struct sockopt *);
 extern ip_fw_chk_t *ip_fw_chk_ptr;
 extern ip_fw_ctl_t *ip_fw_ctl_ptr;
 extern int fw_one_pass;
 extern int fw_enable;
-extern struct ipfw_flow_id last_pkt;
 #define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 #endif /* _KERNEL */
 
