@@ -1,4 +1,4 @@
-Tue May 19 16:20:27 PDT 1998
+$FreeBSD$
 
 For legal reasons the two active files for using Soft Updates are in
 /usr/src/sys/contrib/softupdates. To enable the feature in your kernel,
@@ -26,9 +26,6 @@ e.g. from single-user mode you'd do something like:
 
 To permanently enable soft updates on the /usr filesystem (or at least
 until a corresponding ``tunefs -n disable'' is done).
-
-IMPORTANT NOTE:  The Soft Updates code is currently in ALPHA test.
-Use at your own risk!
 
 For more general information on soft updates, please see:
 	http://www.ece.cmu.edu/~ganger/papers/CSE-TR-254-95/
