@@ -36,7 +36,7 @@
  *
  */
 
-#ifdef POSIX4_INCLUDE_MAYBES
+#ifdef _POSIX4_INCLUDE_MAYBES
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
@@ -55,8 +55,10 @@ struct mq_attr {
 };
 
 #ifndef KERNEL
+
 #include <sys/cdefs.h>
 
+__BEGIN_DECLS
 mqd_t mq_open __P((const char *, int oflag, ...));
 int mq_close __P((mqd_t));
 int mq_unlink __P((const char *));
@@ -65,6 +67,7 @@ ssize_t mq_receive __P((mqd_t, char *, size_t, unsigned int *));
 int mq_notify __P((mqd_t, const struct sigevent *));
 int mq_setattr __P((mqd_t, const struct mq_attr *, struct mq_attr *));
 int mq_getattr __P((mqd_t, struct mq_attr *));
+__END_DECLS
 
 #endif /* KERNEL */
 
