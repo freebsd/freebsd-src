@@ -184,6 +184,25 @@
       contains more details, as well as information on patching
       existing systems.</para>
 
+    <para>(17 Mar 2004) By performing a specially crafted SSL/TLS
+      handshake with an application that uses OpenSSL a null pointer
+      may be dereferenced.  This may in turn cause the application to
+      crash, resulting in a denial of service attack.  For more information
+      see the Security Advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>
+      which contains more details and instructions on how to patch existing
+      systems.</para>
+
+    <para>(29 Mar 2004) A local attacker may take advantage of a
+      programming error in the handling of certain IPv6 socket options
+      in the &man.setsockopt.2; system call to read portions of kernel
+      memory without proper authorization.  This may result in disclosure
+      of sensitive data, or potentially cause a panic.  See Security
+      Advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:06.ipv6.asc">FreeBSD-SA-04:06</ulink>
+      for a more detailed description and instructions on how to patch
+      existing systems.</para>
+
 ]]>
 
   </sect1>
