@@ -1,3 +1,7 @@
+26.12.2001	1.4.3
+    - Additional cleanups for FreeBSD builds.
+    - Charset specifications now accepted in the [default] section.
+
 20.12.2001	1.4.2 (interim)
     - Various merges (but not all) from Darwin project.
     - Minor man pages corrections.
