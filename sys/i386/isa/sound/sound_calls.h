@@ -16,23 +16,10 @@ int DMAbuf_open_dma (int chan);
 void DMAbuf_close_dma (int chan);
 void DMAbuf_reset_dma (int chan);
 void DMAbuf_inputintr(int dev);
-void DMAbuf_outputintr(int dev);
+void DMAbuf_outputintr(int dev, int underflow_flag);
 
 /*
- *	System calls for the /dev/dsp
- */
-
-int dsp_read (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
-int dsp_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
-int dsp_open (int dev, struct fileinfo *file, int bits);
-void dsp_release (int dev, struct fileinfo *file);
-int dsp_ioctl (int dev, struct fileinfo *file,
-	   unsigned int cmd, unsigned int arg);
-int dsp_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
-long dsp_init (long mem_start);
-
-/*
- *	System calls for the /dev/audio
+ *	System calls for /dev/dsp and /dev/audio
  */
 
 int audio_read (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
@@ -108,11 +95,46 @@ void tenmicrosec(void);
 void request_sound_timer (int count);
 void sound_stop_timer(void);
 int snd_ioctl_return(int *addr, int value);
+int snd_set_irq_handler (int interrupt_level, void(*hndlr)(int));
+void snd_release_irq(int vect);
+void sound_dma_malloc(int dev);
+void sound_dma_free(int dev);
+
+/*	From sound_switch.c	*/
+int sound_read_sw (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
+int sound_write_sw (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
+int sound_open_sw (int dev, struct fileinfo *file);
+void sound_release_sw (int dev, struct fileinfo *file);
+int sound_ioctl_sw (int dev, struct fileinfo *file,
+	     unsigned int cmd, unsigned long arg);
 
 /*	From sb_dsp.c	*/
 int sb_dsp_detect (struct address_info *hw_config);
 long sb_dsp_init (long mem_start, struct address_info *hw_config);
 void sb_dsp_disable_midi(void);
+int sb_get_irq(void);
+void sb_free_irq(void);
+int sb_dsp_command (unsigned char val);
+int sb_reset_dsp (void);
+
+/*	From sb16_dsp.c	*/
+void sb16_dsp_interrupt (int unused);
+long sb16_dsp_init(long mem_start, struct address_info *hw_config);
+int sb16_dsp_detect(struct address_info *hw_config);
+
+/*	From sb16_midi.c	*/
+void sb16midiintr (int unit);
+long attach_sb16midi(long mem_start, struct address_info * hw_config);
+int probe_sb16midi(struct address_info *hw_config);
+
+/*	From sb_midi.c	*/
+void sb_midi_init(int model);
+
+/*	From sb_mixer.c	*/
+void sb_setmixer (unsigned int port, unsigned int value);
+int sb_getmixer (unsigned int port);
+void sb_mixer_set_stereo(int mode);
+void sb_mixer_init(int major_model);
 
 /*	From opl3.c	*/
 int opl3_detect (int ioaddr);
@@ -156,7 +178,7 @@ int gus_wave_detect(int baseaddr);
 long gus_wave_init(long mem_start, int irq, int dma);
 void gus_voice_irq(void);
 unsigned char gus_read8 (int reg);
-void gus_write8(int reg, unsigned char data);
+void gus_write8(int reg, unsigned int data);
 void guswave_dma_irq(void);
 void gus_delay(void);
 

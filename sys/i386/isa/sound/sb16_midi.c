@@ -1,9 +1,7 @@
 /*
- * sound/mpu401.c
+ * sound/sb16_midi.c
  * 
- * The low level driver for Roland MPU-401 compatible Midi cards.
- * 
- * This version supports just the DUMB UART mode.
+ * The low level driver for the MPU-401 UART emulation of the SB16.
  * 
  * Copyright by Hannu Savolainen 1993
  * 
@@ -33,18 +31,18 @@
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
 
-#define	DATAPORT   (mpu401_base)	/* MPU-401 Data I/O Port on IBM */
-#define	COMDPORT   (mpu401_base+1)	/* MPU-401 Command Port on IBM */
-#define	STATPORT   (mpu401_base+1)	/* MPU-401 Status Port on IBM */
+#define	DATAPORT   (sb16midi_base)	/* MPU-401 Data I/O Port on IBM */
+#define	COMDPORT   (sb16midi_base+1)	/* MPU-401 Command Port on IBM */
+#define	STATPORT   (sb16midi_base+1)	/* MPU-401 Status Port on IBM */
 
-#define mpu401_status()		INB(STATPORT)
-#define input_avail()		(!(mpu401_status()&INPUT_AVAIL))
-#define output_ready()		(!(mpu401_status()&OUTPUT_READY))
-#define mpu401_cmd(cmd)		OUTB(cmd, COMDPORT)
-#define mpu401_read()		INB(DATAPORT)
-#define mpu401_write(byte)	OUTB(byte, DATAPORT)
+#define sb16midi_status()		INB(STATPORT)
+#define input_avail()		(!(sb16midi_status()&INPUT_AVAIL))
+#define output_ready()		(!(sb16midi_status()&OUTPUT_READY))
+#define sb16midi_cmd(cmd)		OUTB(cmd, COMDPORT)
+#define sb16midi_read()		INB(DATAPORT)
+#define sb16midi_write(byte)	OUTB(byte, DATAPORT)
 
 #define	OUTPUT_READY	0x40	/* Mask for Data Read Redy Bit */
 #define	INPUT_AVAIL	0x80	/* Mask for Data Send Ready Bit */
@@ -52,17 +50,16 @@
 #define	MPU_RESET	0xFF	/* MPU-401 Total Reset Command */
 #define	UART_MODE_ON	0x3F	/* MPU-401 "Dumb UART Mode" */
 
-static int      mpu401_opened = 0;
-static int      mpu401_base = 0x330;
-static int      mpu401_irq;
-static int      mpu401_detected = 0;
+static int      sb16midi_opened = 0;
+static int      sb16midi_base = 0x330;
+static int      sb16midi_detected = 0;
 static int      my_dev;
 
-static int      reset_mpu401 (void);
+static int      reset_sb16midi (void);
 static void     (*midi_input_intr) (int dev, unsigned char data);
 
 static void
-mpu401_input_loop (void)
+sb16midi_input_loop (void)
 {
   int             count;
 
@@ -71,11 +68,11 @@ mpu401_input_loop (void)
   while (count)			/* Not timed out */
     if (input_avail ())
       {
-	unsigned char   c = mpu401_read ();
+	unsigned char   c = sb16midi_read ();
 
 	count = 100;
 
-	if (mpu401_opened & OPEN_READ)
+	if (sb16midi_opened & OPEN_READ)
 	  midi_input_intr (my_dev, c);
       }
     else
@@ -84,10 +81,10 @@ mpu401_input_loop (void)
 }
 
 void
-mpuintr (int unit)
+sb16midiintr (int unit)
 {
   if (input_avail ())
-    mpu401_input_loop ();
+    sb16midi_input_loop ();
 }
 
 /*
@@ -96,54 +93,53 @@ mpuintr (int unit)
  */
 
 static void
-poll_mpu401 (unsigned long dummy)
+poll_sb16midi (unsigned long dummy)
 {
   unsigned long   flags;
 
-  DEFINE_TIMER (mpu401_timer, poll_mpu401);
+  DEFINE_TIMER (sb16midi_timer, poll_sb16midi);
 
-  if (!(mpu401_opened & OPEN_READ))
+  if (!(sb16midi_opened & OPEN_READ))
     return;			/* No longer required */
 
   DISABLE_INTR (flags);
 
   if (input_avail ())
-    mpu401_input_loop ();
+    sb16midi_input_loop ();
 
-  ACTIVATE_TIMER (mpu401_timer, poll_mpu401, 1);	/* Come back later */
+  ACTIVATE_TIMER (sb16midi_timer, poll_sb16midi, 1);	/* Come back later */
 
   RESTORE_INTR (flags);
 }
 
 static int
-mpu401_open (int dev, int mode,
-	     void            (*input) (int dev, unsigned char data),
-	     void            (*output) (int dev)
+sb16midi_open (int dev, int mode,
+	       void            (*input) (int dev, unsigned char data),
+	       void            (*output) (int dev)
 )
 {
-  if (mpu401_opened)
+  if (sb16midi_opened)
     {
-      printk ("MPU-401: Midi busy\n");
       return RET_ERROR (EBUSY);
     }
 
-  mpu401_input_loop ();
+  sb16midi_input_loop ();
 
   midi_input_intr = input;
-  mpu401_opened = mode;
-  poll_mpu401 (0);		/* Enable input polling */
+  sb16midi_opened = mode;
+  poll_sb16midi (0);		/* Enable input polling */
 
   return 0;
 }
 
 static void
-mpu401_close (int dev)
+sb16midi_close (int dev)
 {
-  mpu401_opened = 0;
+  sb16midi_opened = 0;
 }
 
 static int
-mpu401_out (int dev, unsigned char midi_byte)
+sb16midi_out (int dev, unsigned char midi_byte)
 {
   int             timeout;
   unsigned long   flags;
@@ -155,7 +151,7 @@ mpu401_out (int dev, unsigned char midi_byte)
   DISABLE_INTR (flags);
 
   if (input_avail ())
-    mpu401_input_loop ();
+    sb16midi_input_loop ();
 
   RESTORE_INTR (flags);
 
@@ -172,94 +168,92 @@ mpu401_out (int dev, unsigned char midi_byte)
       return 0;
     }
 
-  mpu401_write (midi_byte);
+  sb16midi_write (midi_byte);
   return 1;
 }
 
 static int
-mpu401_command (int dev, unsigned char midi_byte)
+sb16midi_command (int dev, unsigned char midi_byte)
 {
   return 1;
 }
 
 static int
-mpu401_start_read (int dev)
+sb16midi_start_read (int dev)
 {
   return 0;
 }
 
 static int
-mpu401_end_read (int dev)
+sb16midi_end_read (int dev)
 {
   return 0;
 }
 
 static int
-mpu401_ioctl (int dev, unsigned cmd, unsigned arg)
+sb16midi_ioctl (int dev, unsigned cmd, unsigned arg)
 {
   return RET_ERROR (EINVAL);
 }
 
 static void
-mpu401_kick (int dev)
+sb16midi_kick (int dev)
 {
 }
 
 static int
-mpu401_buffer_status (int dev)
+sb16midi_buffer_status (int dev)
 {
   return 0;			/* No data in buffers */
 }
 
-static struct midi_operations mpu401_operations =
+static struct midi_operations sb16midi_operations =
 {
-  {"MPU-401", 0, 0, SNDCARD_MPU401},
-  mpu401_open,
-  mpu401_close,
-  mpu401_ioctl,
-  mpu401_out,
-  mpu401_start_read,
-  mpu401_end_read,
-  mpu401_kick,
-  mpu401_command,
-  mpu401_buffer_status
+  {"SoundBlaster MPU-401", 0, 0, SNDCARD_SB16MIDI},
+  sb16midi_open,
+  sb16midi_close,
+  sb16midi_ioctl,
+  sb16midi_out,
+  sb16midi_start_read,
+  sb16midi_end_read,
+  sb16midi_kick,
+  sb16midi_command,
+  sb16midi_buffer_status
 };
 
 
 long
-attach_mpu401 (long mem_start, struct address_info *hw_config)
+attach_sb16midi (long mem_start, struct address_info *hw_config)
 {
   int             ok, timeout;
   unsigned long   flags;
 
-  mpu401_base = hw_config->io_base;
-  mpu401_irq = hw_config->irq;
+  sb16midi_base = hw_config->io_base;
 
-  if (!mpu401_detected)
+  if (!sb16midi_detected)
     return RET_ERROR (EIO);
 
   DISABLE_INTR (flags);
   for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/* Wait */
-  mpu401_cmd (UART_MODE_ON);
+  sb16midi_cmd (UART_MODE_ON);
 
   ok = 0;
   for (timeout = 50000; timeout > 0 && !ok; timeout--)
     if (input_avail ())
-      if (mpu401_read () == MPU_ACK)
+      if (sb16midi_read () == MPU_ACK)
 	ok = 1;
 
   RESTORE_INTR (flags);
 
-  printk ("snd5: <Roland MPU-401>");
+  printk ("snd7: <SoundBlaster MPU-401>");
 
   my_dev = num_midis;
-  mpu401_dev = num_midis;
-  midi_devs[num_midis++] = &mpu401_operations;
+  midi_devs[num_midis++] = &sb16midi_operations;
   return mem_start;
 }
 
 static int
-reset_mpu401 (void)
+reset_sb16midi (void)
 {
   unsigned long   flags;
   int             ok, timeout, n;
@@ -275,7 +269,7 @@ reset_mpu401 (void)
   for (n = 0; n < 2 && !ok; n++)
     {
       for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/* Wait */
-      mpu401_cmd (MPU_RESET);	/* Send MPU-401 RESET Command */
+      sb16midi_cmd (MPU_RESET);	/* Send MPU-401 RESET Command */
 
       /*
        * Wait at least 25 msec. This method is not accurate so let's make the
@@ -284,14 +278,14 @@ reset_mpu401 (void)
 
       for (timeout = 50000; timeout > 0 && !ok; timeout--)
 	if (input_avail ())
-	  if (mpu401_read () == MPU_ACK)
+	  if (sb16midi_read () == MPU_ACK)
 	    ok = 1;
 
     }
 
-  mpu401_opened = 0;
+  sb16midi_opened = 0;
   if (ok)
-    mpu401_input_loop ();	/* Flush input before enabling interrupts */
+    sb16midi_input_loop ();	/* Flush input before enabling interrupts */
 
   RESTORE_INTR (flags);
 
@@ -300,19 +294,18 @@ reset_mpu401 (void)
 
 
 int
-probe_mpu401 (struct address_info *hw_config)
+probe_sb16midi (struct address_info *hw_config)
 {
   int             ok = 0;
 
-  mpu401_base = hw_config->io_base;
-  mpu401_irq = hw_config->irq;
+  sb16midi_base = hw_config->io_base;
 
-  if (snd_set_irq_handler (mpu401_irq, mpuintr) < 0)
+  if (sb_get_irq () < 0)
     return 0;
 
-  ok = reset_mpu401 ();
+  ok = reset_sb16midi ();
 
-  mpu401_detected = ok;
+  sb16midi_detected = ok;
   return ok;
 }
 

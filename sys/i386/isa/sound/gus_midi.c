@@ -1,5 +1,5 @@
 /*
- * linux/kernel/chr_drv/sound/gus2_midi.c
+ * sound/gus2_midi.c
  * 
  * The low level driver for the GUS Midi Interface.
  * 
@@ -215,7 +215,7 @@ gus_midi_buffer_status (int dev)
 
 static struct midi_operations gus_midi_operations =
 {
-  {"Gravis UltraSound", 0},
+  {"Gravis UltraSound", 0, 0, SNDCARD_GUS},
   gus_midi_open,
   gus_midi_close,
   gus_midi_ioctl,

@@ -1,35 +1,40 @@
-Release notes for the Linux Sound Driver 1.99.9
------------------------------------------------
+Release notes for the Linux Sound Driver 2.4
+--------------------------------------------
 
-******** THIS IS A BETA TEST RELEASE ********
-which means that there can be some untested things. In theory
-there is a risk that this driver causes some trouble to your system.
-You should not use this driver before backing up your disks.
+NOTE!	The sound driver is a part of the Linux kernel distribution also.
+	Check that your kernel doesn't have more recent version than this
+	when installing a separately distributed sound driver. The
+	version number of this driver is defined in the makefile.
 
+This version contains a driver for the SB16 also.
+The SB16 driver requires separate DMA channels for the 8 and 16 bit
+modes. There should be a way to share the 8 bit DMA channels between
+these modes but this feature is not supported yet.
+The SB16 DSP support is by Joerg Schubert (jsb@sth.ruhr-uni-bochum.de).
 
+The SB16 driver has also the Midi input capability even at the same
+time with the /dev/dsp. Also the WaveBlaster daughter board is supported.
+No support for the ASP chip yet (the ASP chip can be installed but it's
+not used by the driver).
 
+You will need the snd-util-2.4.tar.gz and snd-data-0.1.tar.Z
+packages to use this driver. They should be in the same
+ftp site or BBS from where you got this driver. For
+example at nic.funet.fi:pub/OS/Linux/*.
 
-Welcome to use the Gravis UltraSound driver for Linux. This
-driver still supports the same cards than version 1.0c 
-(SoundBlaster, SB Pro, Pro Audio Spectrum 16 and AdLib). 
-In addition there is rather limited support for MPU-401
+There is a new version of the tracker program available (tracker-3_19.lzh) but
+I don't know where it is available. The tracker 3.10 has bugs and it don't work
+without some fixes. Look at the README of the snd-util-2.3.
+
+If you are looking for the installation instructions, please
+look at linux/Readme.
+
+This version supports the following soundcards:
+GUS, SoundBlaster, SB Pro, SB16, Pro Audio Spectrum 16 and AdLib.
+In addition there is rather limited support for MPU-401.
 (and compatible) midi cards. Also the OPL-3 synthesizer
-of the SB Pro and PAS16 cards is now supported in the 4 OP
-modes.
 Most of the features of the /dev/sequencer device file are
 available just for GUS owners. 
-
-The SoundBlaster 16 and SB 16 ASP cards are not supported.
-They could work in mono mode with speeds < 22 kHz. 
-The OPL-3 chicp of the SB 16 should work (without problems?).
-Is there anybody willing to implement the SB 16 support 
-(have the SB 16 and the SDK for it)?
-
-
-This is the first version of the driver which has almost
-all of the features which I have planned to include into
-version 2.0. Some features are still missing and some ones
-doesn't work.
 
 NOTE!	There are separate driver for CD-ROMS supported by
 	some soundcards. The driver for CDU31A (Fusion 16) is
@@ -37,31 +42,27 @@ NOTE!	There are separate driver for CD-ROMS supported by
 	Linux version 0.99.12. The driver for the CD-ROM of SB Pro
 	is sbpcd0.4.tar.gz (these were the latest versions when I wrote
 	this). These files should be at least at sunsite.unc.edu.
-	As far as I know, there is no driver for the SCSI interface of PAS16
-	(yet).
+	Also the SCSI interface of the PAS16 should be supported by
+	Linux 0.99.13k and later.
 
 	There is also a driver for joystick. Look for file joystick-0.5.tar.gz
 	(sunsite).
 
-	Since this driver is a sound driver, it will not contain support
-	for SCSI/CD-ROM/Joystick -devices.
 
 Compatibility with the earlier versions
 ---------------------------------------
 
-This is just like the version 1.99.7/1.99.8. There is just some minor
-enhancements. Most of them are portability fixes. If you are porting
-this driver to any OS, please look at the 386bsd/os.h. There is some 
-new macros and some macros have more parameters. In addition this file
-contains some usefull comments.
+In this version the ultrasound.h no longer includes the sys/soundcard.h
+You have to change the gmod.c of the snd-util-2.0 package and to add an
+include for it.
 
-**** There is some ISC and 386bsd stuff in this driver. Please stay away ****
-This stuff is here just because I want to be in sync with the porters. These
-ports don't work yet.
+IMPORTANT!!!!!!!!!!!!!!!!!!!!!!
+
+This version is not binary or source compatible with the version 1.0c.
 
 The ioctl() interface has changed completely since version 1.0c. All
 programs using this driver must be at least recompiled. 
-The snd-util-1.99.6 package contains some utilities for this version.
+The snd-util-2.0 package contains some utilities for this version.
 
 The version 1.0c and earlier used a 'nonportable' ioctl calling scheme
 where the input argument was passed by value and the output value was
@@ -78,59 +79,46 @@ After version 1.99.0 this must be done as the following:
 
 If you have an application written for the version 1.0, you should search
 for the strings SNDCTL_ and SOUND_ and to check the parameters. 
+The following ioctl calls have changed:
+
+	SNDCTL_SEQ_GETOUTCOUNT
+	SNDCTL_SEQ_GETINCOUNT
+	SNDCTL_SEQ_TESTMIDI
+	SNDCTL_DSP_SPEED
+	SNDCTL_DSP_STEREO
+	SNDCTL_DSP_GETBLKSIZE
+	SNDCTL_DSP_SAMPLESIZE
+	SOUND_PCM_WRITE_CHANNELS
+	SOUND_PCM_WRITE_FILTER
+	SOUND_PCM_READ_RATE
+	SOUND_PCM_READ_CHANNELS
+	SOUND_PCM_READ_BITS
+	SOUND_PCM_READ_FILTER
+	SOUND_PCM_WRITE_BITS
+	SOUND_PCM_WRITE_RATE
+	SOUND_MIXER_READ_*	(several ones)
+	SOUND_MIXER_WRITE_*	(several ones)
 
 Since the this version will support more than one synthesizer devices
 at the same time, the ioctl(SNDCTL_FM_LOAD_INSTR) is obsolete. In addition
 there is some new fields which must be initialized. Look at the sbiset.c in
-the snd-util-1.99.6 package for further info.
+the snd-util-2.0 package for further info.
 
-The GUS patch format has changed since the version 1.99.3. You have to
-use latest versions of the programs in the sound/gustest directory. In
-addition the version 0.4g of the Adagio package supports this format.
+This version is almost 100% compatible with the alpha test version (1.99.9). The
+difference is in the installation procedure.
 
-New features
+Using this driver with other operating systems than Linux
+---------------------------------------------------------
+
+This package contains just the Linux version. The version 2.3
+for SCO is available at nic.funet.fi:pub/OS/Linux/ALPHA/sound.
+The version 2.3 doesn't work well with xxxxxBSD. Use the version
+2.3 for them.
+
+/dev/sndstat
 ------------
 
-There is also some changes which make this version more usable than
-the version 1.0c.
-
-- /dev/dsp and /dev/audio
-
-The DMA buffering is now little bit more intelligent than earlier. The
-buffer size is selected run-time so that a buffer holds data for 0.5 to
-1.0 seconds of recording or playback. This makes recording more comfortable
-than with version 1.0. With the previous version there was sometimes more
-than 10 seconds of delay before the driver returned the first input byte.
-
-There is also support for more than one digitized voice devices. The device
-files /dev/dsp1 and /dev/audio1 (minor 19 and 20) are available with PAS16. 
-The /dev/dsp (/dev/audio) is connected to the PCM circuit of the PAS16 itself 
-and the /dev/dsp1 (/dev/audio1) to the SB emulation of PAS16 card. Two
-dsp/audio devices are available also if you have combination of SB and GUS.
-With GUS and PAS16 you will have even three dsp/audio devices. These devices
-can be used independently and can be active at the same time (3 channels
-at the same time propably don't work).
-
-The dsp/audio support of PAS16 should be much cleaner now since the
-constant clicking sound between the DMA blocks (about once per second) has
-been eliminated.
-
-The stereo playback of GUS doesn't work perfectly. There is lot of 
-clicking in the output.
-
-- /dev/mixer
-
-No changes.
-
-There is no mixer for the GUS yet.
-
-- /dev/sequencer
-
-This part has the most changes. Mostly to support the rich
-features of the Gravis UltraSound. There is also the support
-for the OPL-3 synthesizer chip.
-
-- /dev/sndstat
+The /dev/sndstat is now available in the SCO and BSD versions also.
 
 This is a new devicefile for debugging purposes. A better place for
 it is in the /proc -directory but I was just too lazy to implement it
@@ -139,11 +127,13 @@ info about the current configuration (see the example below). If you
 send me a error/problem report, please include a printout from this 
 device to your message (cat /dev/sndstat).
 
+Note!	This device file is currently present only in the Linux version
+	of this driver.
+
 ------ cut here --- cat /dev/sndstat example --------
 Sound Driver:1.99.7 (Fri Jul 9 17:01:47 GMT 1993 root@lucifer.savolai.fi)
 Config options: 0x00000d4b
 
-Major number: 14
 HW config: 
 Type 4: Gravis Ultrasound  at 0x210 irq 15 drq 6
 Type 3: ProAudioSpectrum  at 0x388 irq 10 drq 3
@@ -166,12 +156,15 @@ Midi devices:
 Mixer(s) installed
 ------ cut here ---- End of Example -----------
 
+Known bugs/limitations
+----------------------
 
-Known bugs
-----------
-
-- There was clicking during stereo playback to /dev/dsp with GUS.
-  * Fixed in 1.99.9 *
+- High speed recording of long audio samples (>20 second) to disk
+  is not possible. Everything works until next sync() which delays the
+  recording process too much. A delay longer than 0.1 to 0.3 seconds is
+  too much.
+- The SB16 driver sometimes swaps the left and right channels together.
+- Midi input doesn't work with SB and SB Pro (SB16 works).
 - It's not possible to open /dev/dsp (or /dev/audio) while the 
   /dev/sequencer is open for output and GUS is the only soundcard
   installed. It's possible if /dev/dsp is opened before /dev/sequencer
@@ -180,12 +173,70 @@ Known bugs
 - MPU-401 driver hangs the computer on boot if there is no MPU-401 installed.
   It uses by default the I/O port 0x330 whic is used by Adaptec 1542 SCSI
   adapter.
+- There are some problems in midi input with MPU-401 and the SB16 midi
+  (MPU-401 emulation). This makes it impossible to read long sysex dumps
+  using these devices.
 - The /dev/sequencer playback to GUS sounds sometimes rather weird. Hitting
   ^C and playing again should solve this problem. This is propably caused by
-  incompatibilities between GUS and certain VLB motherboards. Try to avoid
+  incompatibilities between GUS and certain VLB motherboards (like mine). 
+  Try to avoid
   switching between VTs while patches are being loaded to the GUS.
-- There was some problems with GUS and Mitsumi CD in version 1.99.8. Fixed
-  in 1.99.9.
-- /dev/audio sounded like stereo with GUS. Fixed in 1.99.9.
+  This problem disappears completely if you define GUS_PATCH_NO_DMA in the
+  local.h (after make config in linux). The drawback is that patch loading
+  without DMA takes several times longer than with DMA.
 - There is a skeleton of the patch manager support. It don't work in
   this version. 
+
+
+Future development
+------------------
+
+- Since this driver is no longer just the Linux Sound Driver, it's time
+  to give it a new name. I have planned to use name VoxWare.
+- I'm writing a Hacker's guide to the VoxWare sound driver. Should
+  be ready within this(/next) year (alpha version).
+- Completion of the ISC, SCO and BSD ports. Port to SVR4.2.
+- I'm interested to implement/include support for new soundcards and 
+  operating systems. 
+
+  Hint for the soundcard and OS manufacturers:
+  I'm collecting soundcards (high end ones) and SDKs for them. In
+  addition I'm collecting PC operating systems. I will be happy if
+  somebody sends me such items. In addition such kind of donation
+  makes it easier to change the VoxWare driver to support your
+  soundcard or operating system. However, please contact me before
+  sending anything.
+
+I will propably release some fix versions within this and next year. At
+least when the non-Linux versions get ready. The next major release (3.0)
+will be quite complete rewrite and released after about a year (end of 94 or
+beginning of 95).
+
+
+Contributors
+------------
+
+This driver contains code by several contributors. In addition several other
+persons have given usefull suggestions. The following is a list of major
+contributors. (I could have forgotten some names.)
+
+	Craig Metz	1/2 of the PAS16 Mixer and PCM support
+	Rob Hooft	Volume computation algorithm for the FM synth.
+	Mika Liljeberg	uLaw encoding and decoding routines
+	Greg Lee	Volume computation algorithm for the GUS and
+			lot's of valuable suggestions.
+	Andy Warner	ISC port
+	Jim Lowe	FreeBSD port
+	Anders Baekgaard 	Bughunting and valuable suggestions.
+	Joerg Schubert	SB16 DSP support.
+	Andrew Robinson Improvements to the GUS driver
+
+Regards,
+
+Hannu Savolainen
+hsavolai@cs.helsinki.fi
+
+Snail mail:	Hannu Savolainen
+		Pallaksentie 4 A 2
+		00970 Helsinki
+		Finland

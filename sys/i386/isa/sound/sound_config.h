@@ -30,6 +30,16 @@
 
 #include "local.h"
 
+
+#undef CONFIGURE_SOUNDCARD
+#undef DYNAMIC_BUFFER
+
+#ifdef KERNEL_SOUNDCARD
+#define CONFIGURE_SOUNDCARD
+#define DYNAMIC_BUFFER
+#undef LOADABLE_SOUNDCARD
+#endif
+
 #ifdef EXCLUDE_SEQUENCER
 #ifndef EXCLUDE_MIDI
 #define EXCLUDE_MIDI
@@ -40,6 +50,10 @@
 #ifndef EXCLUDE_OPL3
 #define EXCLUDE_OPL3
 #endif
+#endif
+
+#ifndef SND_DEFAULT_ENABLE
+#define SND_DEFAULT_ENABLE	1
 #endif
 
 /** UWM - new MIDI stuff **/
@@ -73,6 +87,14 @@ If your card has nonstandard I/O address or IRQ number, change defines
 
 #ifndef SBC_DMA
 #define SBC_DMA		1
+#endif
+
+#ifndef SB16_DMA
+#define SB16_DMA	6
+#endif
+
+#ifndef SB16MIDI_BASE
+#define SB16MIDI_BASE	0x300
 #endif
 
 #ifndef PAS_BASE
@@ -111,6 +133,10 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define MPU_IRQ		6
 #endif
 
+#ifndef MAX_REALTIME_FACTOR
+#define MAX_REALTIME_FACTOR	4
+#endif
+
 /************* PCM DMA buffer sizes *******************/
 
 /* If you are using high playback or recording speeds, the default buffersize
@@ -131,8 +157,6 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #endif
 
 #define DMA_AUTOINIT		0x10
-
-#define SND_MAJOR	14	
 
 #define FM_MONO		0x388	/* This is the I/O address used by AdLib */
 
@@ -178,10 +202,10 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define ON		1
 #define OFF		0
 
-#define MAX_DSP_DEV	3
-#define MAX_MIXER_DEV	1
+#define MAX_DSP_DEV	4
+#define MAX_MIXER_DEV	2
 #define MAX_SYNTH_DEV	3
-#define MAX_MIDI_DEV	3
+#define MAX_MIDI_DEV	4
 
 struct fileinfo {
        	  int mode;	/* Open mode */
@@ -192,6 +216,15 @@ struct address_info {
 	int irq;
 	int dma;
 };
+
+/*
+ * Process wakeup reasons
+ */
+#define WK_NONE		0x00
+#define WK_WAKEUP	0x01
+#define WK_TIMEOUT	0x02
+#define WK_SIGNAL	0x04
+#define WK_SLEEP	0x08
 
 #define OPEN_READ	1
 #define OPEN_WRITE	2
