@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: uucpd.c,v 1.14 1997/12/04 07:20:45 charnier Exp $";
+	"$Id: uucpd.c,v 1.15 1998/06/30 15:19:51 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -150,11 +150,14 @@ void doit(struct sockaddr_in *sinp)
 	int pwdok =0;
 
 	alarm(60);
-	printf("login: "); fflush(stdout);
-	if (readline(user, sizeof user, 0) < 0) {
-		syslog(LOG_WARNING, "login read: %m");
-		_exit(1);
-	}
+	do {
+		printf("login: "); fflush(stdout);
+		errno = 0;
+		if (readline(user, sizeof user, 0) < 0) {
+			syslog(LOG_WARNING, "login read: %m");
+			_exit(1);
+		}
+	} while (user[0] == '\0');
 	/* truncate username to LOGNAMESIZE characters */
 	user[LOGNAMESIZE] = '\0';
 	pw = getpwnam(user);
@@ -171,6 +174,7 @@ void doit(struct sockaddr_in *sinp)
 	/* always ask for passwords to deter account guessing */
 	if (!pwdok || (pw->pw_passwd && *pw->pw_passwd != '\0')) {
 		printf("Password: "); fflush(stdout);
+		errno = 0;
 		if (readline(passwd, sizeof passwd, 1) < 0) {
 			syslog(LOG_WARNING, "passwd read: %m");
 			_exit(1);
