@@ -57,8 +57,6 @@ SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
 #ifdef GUPROF
-#include <machine/asmacros.h>
-
 void
 nullfunc_loop_profiled()
 {
@@ -221,27 +219,13 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(__i386__) && (__GNUC__ >= 2 || defined(__INTEL_COMPILER))
-		__asm("pushl %0; call __mcount; popl %%ecx"
-		      :
-		      : "i" (profil)
-		      : "ax", "bx", "cx", "dx", "memory");
-#elif defined(lint)
-#else
-#error
-#endif
+		MCOUNT_OVERHEAD(profil);
 	mcount_overhead = KCOUNT(p, PC_TO_I(p, profil));
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(__i386__) && (__GNUC__ >= 2 || defined(__INTEL_COMPILER))
-		    __asm("call " __XSTRING(HIDENAME(mexitcount)) "; 1:"
-			  : : : "ax", "bx", "cx", "dx", "memory");
-	__asm("movl $1b,%0" : "=rm" (tmp_addr));
-#elif defined(lint)
-#else
-#error
-#endif
+		MEXITCOUNT_OVERHEAD();
+	MEXITCOUNT_OVERHEAD_GETLABEL(tmp_addr);
 	mexitcount_overhead = KCOUNT(p, PC_TO_I(p, tmp_addr));
 
 	p->state = GMON_PROF_OFF;
