@@ -1,8 +1,6 @@
-#	$Id: dot.profile,v 1.12 1997/02/23 09:21:14 peter Exp $
+#	$Id: dot.profile,v 1.13 1997/03/06 22:24:04 joerg Exp $
 #
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
-echo 'erase ^H, kill ^U, intr ^C'
-stty crt erase ^H kill ^U intr ^C
 export PATH
 HOME=/root
 export HOME
