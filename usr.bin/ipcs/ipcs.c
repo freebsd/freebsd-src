@@ -33,10 +33,12 @@ static const char rcsid[] =
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <kvm.h>
 #include <nlist.h>
 #include <limits.h>
 #include <paths.h>
+#include <pwd.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

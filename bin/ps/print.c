@@ -51,10 +51,12 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #include <sys/sysctl.h>
 
 #include <err.h>
+#include <grp.h>
 #include <langinfo.h>
 #include <locale.h>
 #include <math.h>
 #include <nlist.h>
+#include <pwd.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
