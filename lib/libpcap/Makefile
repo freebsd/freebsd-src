@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.11 1996/08/21 16:50:08 pst Exp $
+# $Id: Makefile,v 1.12 1996/08/30 01:59:46 peter Exp $
 
 LIB=    pcap
 SRCS=	pcap-bpf.c \
@@ -34,6 +34,7 @@ beforeinstall:
 
 scanner.o: tokdefs.h
 
+.ORDER: grammar.c tokdefs.h
 tokdefs.h: grammar.c
 	mv -f y.tab.h tokdefs.h
 

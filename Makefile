@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.18 1997/09/17 23:50:26 rgrimes Exp $
+#	$Id: Makefile,v 1.109.2.19 1997/09/28 16:33:05 mckay Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -146,7 +146,7 @@ world:
 	cd ${.CURDIR} && ${MAKE} pre-world
 .endif
 	cd ${.CURDIR} && ${MAKE} buildworld
-	cd ${.CURDIR} && ${MAKE} installworld
+	cd ${.CURDIR} && ${MAKE} -B installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -214,9 +214,15 @@ buildworld:
 	@echo " Making make"
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/bin
+.if !defined(NOCLEAN) || !defined(NOOBJDIR)
 	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${OBJDIR} clean cleandepend depend && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all install clean cleandepend
+		${IBMAKE} -I${.CURDIR}/share/mk ${CLEANDIR} ${OBJDIR}
+.endif
+	cd ${.CURDIR}/usr.bin/make && \
+		${IBMAKE} -I${.CURDIR}/share/mk depend && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean cleandepend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
@@ -227,14 +233,14 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Cleaning up the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} ${CLEANDIR}
+	cd ${.CURDIR} && ${BMAKE} par-${CLEANDIR}
 .endif
 .if !defined(NOOBJDIR)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} obj
+	cd ${.CURDIR} && ${BMAKE} par-obj
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -270,7 +276,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} depend
+	cd ${.CURDIR} && ${XMAKE} ${.MAKEFLAGS} par-depend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
@@ -413,11 +419,14 @@ bootstrap:
 	cd ${.CURDIR}/include && make symlinks
 .endif
 	cd ${.CURDIR}/usr.bin/make && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} -DNOLIB all install ${CLEANDIR}
+		${MAKE} ${MK_FLAGS} -DNOLIB all && \
+		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 .if !defined(NOOBJDIR)
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} obj
 .endif
@@ -431,8 +440,9 @@ bootstrap:
 # on cleaned away headers in ${WORLDTMP}.
 #
 include-tools:
-	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} cleandepend depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} -B cleandepend depend && \
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 
 #
 # includes - possibly generate and install the include files.
@@ -443,7 +453,7 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} all install
+	cd ${.CURDIR}/include &&		${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
@@ -498,7 +508,8 @@ lib-tools:
 		usr.bin/ranlib		\
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
 
 #
@@ -507,43 +518,53 @@ lib-tools:
 libraries:
 .if exists(lib/csu/i386)
 	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
 	cd ${.CURDIR}/lib/libncurses && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
 	cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
 	cd ${.CURDIR}/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.bin/lex/lib)
 	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
 	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 
 #
@@ -614,7 +635,25 @@ build-tools:
 		usr.sbin/mtree		\
 		usr.sbin/zic
 	cd ${.CURDIR}/$d && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} all && \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.endfor
+
+.for __target in clean cleandir obj depend
+.for entry in ${SUBDIR}
+${entry}.${__target}__D: .PHONY
+	if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
+		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE}"; \
+		edir=${entry}.${MACHINE}; \
+		cd ${.CURDIR}/$${edir}; \
+	else \
+		${ECHODIR} "===> ${DIRPRFX}${entry}"; \
+		edir=${entry}; \
+		cd ${.CURDIR}/$${edir}; \
+	fi; \
+	${MAKE} ${__target} DIRPRFX=${DIRPRFX}$${edir}/
+.endfor
+par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
 .endfor
 
 .include <bsd.subdir.mk>
