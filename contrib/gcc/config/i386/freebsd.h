@@ -63,7 +63,6 @@ Boston, MA 02111-1307, USA.  */
       %{pg:-Bstatic} %{Z}} \
     %{assert*} %{R*}} \
   %{!maout: \
-    -m elf_i386 \
     %{Wl,*:%*} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
     %{shared:-Bshareable %{h*} %{soname*}} \
