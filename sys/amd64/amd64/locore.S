@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.117 1998/11/03 21:07:50 msmith Exp $
+ *	$Id: locore.s,v 1.118 1998/12/08 10:22:31 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -146,6 +146,11 @@ _vm86pa:	.long	0			/* phys addr of vm86 region */
 _bdb_exists:	.long	0
 #endif
 
+#ifdef PC98
+	.globl	_pc98_system_parameter
+_pc98_system_parameter:
+	.space	0x240
+#endif
 
 /**********************************************************************
  *
@@ -205,16 +210,10 @@ _bdb_exists:	.long	0
 NON_GPROF_ENTRY(btext)
 
 #ifdef PC98
-	jmp	1f
-	.globl	CNAME(pc98_system_parameter)
-	.org	0x400
-CNAME(pc98_system_parameter):
-	.space	0x240		/* BIOS parameter block */
-1:
 	/* save SYSTEM PARAMETER for resume (NS/T or other) */
-	movl	$0xa1000,%esi
-	movl	$0x100000,%edi
-	movl	$0x0630,%ecx
+	movl	$0xa1400,%esi
+	movl	$R(_pc98_system_parameter),%edi
+	movl	$0x0240,%ecx
 	cld
 	rep
 	movsb
