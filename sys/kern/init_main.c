@@ -283,7 +283,6 @@ proc0_init(void *dummy __unused)
 	 */
 	p = &proc0;
 	td = thread0;
-	mtx_init(&p->p_mtx, "process lock", MTX_DEF);
 
 	/*
 	 * Initialize magic number.
