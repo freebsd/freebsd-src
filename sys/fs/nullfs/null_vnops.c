@@ -650,7 +650,7 @@ null_lock(ap)
 		 * operation.  When that happens, just back out.
 		 */
 		if (error == 0 && (vp->v_iflag & VI_XLOCK) != 0 &&
-		    td != vp->v_vxproc) {
+		    td != vp->v_vxthread) {
 			lockmgr(vp->v_vnlock,
 				(flags & ~LK_TYPE_MASK) | LK_RELEASE,
 				VI_MTX(vp), td);
@@ -668,7 +668,7 @@ null_lock(ap)
 			wakeup(&nn->null_pending_locks);
 		}
 		if (error == ENOENT && (vp->v_iflag & VI_XLOCK) != 0 &&
-		    vp->v_vxproc != curthread) {
+		    vp->v_vxthread != curthread) {
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD, "nulbo", 0);
 		}
