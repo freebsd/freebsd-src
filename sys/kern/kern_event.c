@@ -746,13 +746,13 @@ findkn:
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 		}
 
+		FILEDESC_UNLOCK(fdp);
 		KQ_LOCK(kq);
 		if (kev->ident < kq->kq_knlistsize) {
 			SLIST_FOREACH(kn, &kq->kq_knlist[kev->ident], kn_link)
 				if (kev->filter == kn->kn_filter)
 					break;
 		}
-		FILEDESC_UNLOCK(fdp);
 	} else {
 		if ((kev->flags & EV_ADD) == EV_ADD)
 			kqueue_expand(kq, fops, kev->ident, waitok);
