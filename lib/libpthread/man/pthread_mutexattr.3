@@ -30,7 +30,14 @@
 .Dt PTHREAD_MUTEXATTR 3
 .Os
 .Sh NAME
-.Nm pthread_mutexattr
+.Nm pthread_mutexattr_init ,
+.Nm pthread_mutexattr_destroy ,
+.Nm pthread_mutexattr_setprioceiling ,
+.Nm pthread_mutexattr_getprioceiling ,
+.Nm pthread_mutexattr_setprotocol ,
+.Nm pthread_mutexattr_getprotocol ,
+.Nm pthread_mutexattr_settype ,
+.Nm pthread_mutexattr_gettype
 .Nd mutex attribute operations
 .Sh LIBRARY
 .Lb libc_r
@@ -58,27 +65,26 @@ Mutex attributes are used to specify parameters to
 One attribute object can be used in multiple calls to
 .Fn pthread_mutex_init ,
 with or without modifications between calls.
-
+.Pp
 The
 .Fn pthread_mutexattr_init
 function initializes
 .Fa attr
 with all the default mutex attributes.
-
+.Pp
 The
 .Fn pthread_mutexattr_destroy
 function destroys
 .Fa attr .
-
+.Pp
 The
 .Fn pthread_mutexattr_set*
 functions set the attribute that corresponds to each function name.
-
+.Pp
 The
 .Fn pthread_mutexattr_get*
 functions copy the value of the attribute that corresponds to each function name
 to the location pointed to by the second function parameter.
-
 .Sh RETURN VALUES
 If successful, these functions return 0.
 Otherwise, an error number is returned to indicacte the error.
@@ -89,7 +95,7 @@ will fail if:
 .It Bq Er ENOMEM
 Out of memory.
 .El
-
+.Pp
 .Fn pthread_mutexattr_destroy
 will fail if:
 .Bl -tag -width Er
@@ -97,7 +103,7 @@ will fail if:
 Invalid value for
 .Fa attr .
 .El
-
+.Pp
 .Fn pthread_mutexattr_setprioceiling
 will fail if:
 .Bl -tag -width Er
@@ -107,7 +113,7 @@ Invalid value for
 or invalid value for
 .Fa prioceiling .
 .El
-
+.Pp
 .Fn pthread_mutexattr_getprioceiling
 will fail if:
 .Bl -tag -width Er
@@ -115,7 +121,7 @@ will fail if:
 Invalid value for
 .Fa attr .
 .El
-
+.Pp
 .Fn pthread_mutexattr_setprotocol
 will fail if:
 .Bl -tag -width Er
@@ -125,7 +131,7 @@ Invalid value for
 or invalid value for
 .Fa protocol .
 .El
-
+.Pp
 .Fn pthread_mutexattr_getprotocol
 will fail if:
 .Bl -tag -width Er
@@ -133,7 +139,7 @@ will fail if:
 Invalid value for
 .Fa attr .
 .El
-
+.Pp
 .Fn pthread_mutexattr_settype
 will fail if:
 .Bl -tag -width Er
@@ -143,7 +149,7 @@ Invalid value for
 or invalid value for
 .Fa type .
 .El
-
+.Pp
 .Fn pthread_mutexattr_gettype
 will fail if:
 .Bl -tag -width Er
@@ -157,10 +163,9 @@ Invalid value for
 .Fn pthread_mutexattr_init
 and
 .Fn pthread_mutexattr_destroy
-conform to ISO/IEC 9945-1 ANSI/IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 1996 Edition.
-
+conform to
+.St -iso9945-1
+.Pp
 .Fn pthread_mutexattr_setprioceiling ,
 .Fn pthread_mutexattr_getprioceiling ,
 .Fn pthread_mutexattr_setprotocol ,
@@ -168,5 +173,5 @@ Std 1003.1 1996 Edition.
 .Fn pthread_mutexattr_settype ,
 and
 .Fn pthread_mutexattr_gettype
-conform to the Single UNIX Specification, Version 2
-.Pq Dq Tn SUSv2 .
+conform to
+.St -susv2
