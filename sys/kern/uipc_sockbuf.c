@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -203,6 +204,16 @@ sonewconn(head, connstatus)
 	register struct socket *head;
 	int connstatus;
 {
+
+	return (sonewconn3(head, connstatus, NULL));
+}
+
+struct socket *
+sonewconn3(head, connstatus, p)
+	register struct socket *head;
+	int connstatus;
+	struct proc *p;
+{
 	register struct socket *so;
 
 	if (head->so_qlen > 3 * head->so_qlimit / 2)
@@ -217,12 +228,10 @@ sonewconn(head, connstatus)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	so->so_cred = head->so_cred;
-	if (so->so_cred)
-		so->so_cred->p_refcnt++;
-	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
-
-	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+	so->so_cred = p ? p->p_ucred : head->so_cred;
+	crhold(so->so_cred);
+	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
+	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sodealloc(so);
 		return ((struct socket *)0);
 	}
@@ -921,7 +930,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->so_oobmark = so->so_oobmark;
 	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
 	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
-	xso->so_uid = so->so_cred ? so->so_cred->pc_ucred->cr_uid : -1;
+	xso->so_uid = so->so_cred->cr_uid;
 }
 
 /*
