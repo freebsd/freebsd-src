@@ -488,7 +488,7 @@ dcons_cnputc(DEV dev, int c)
 static int
 dcons_drv_init(int stage)
 {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	quad_t addr, size;
 #endif
 
@@ -503,9 +503,10 @@ dcons_drv_init(int stage)
 	dg.buf = NULL;
 	dg.size = DCONS_BUF_SIZE;
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	if (getenv_quad("dcons.addr", &addr) > 0 &&
 	    getenv_quad("dcons.size", &size) > 0) {
+#ifdef __i386__
 		vm_paddr_t pa;
 		/*
 		 * Allow read/write access to dcons buffer.
@@ -513,6 +514,7 @@ dcons_drv_init(int stage)
 		for (pa = trunc_page(addr); pa < addr + size; pa += PAGE_SIZE)
 			*vtopte(KERNBASE + pa) |= PG_RW;
 		invltlb();
+#endif
 		/* XXX P to V */
 		dg.buf = (struct dcons_buf *)(vm_offset_t)(KERNBASE + addr);
 		dg.size = size;
