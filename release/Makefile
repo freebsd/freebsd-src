@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.19 1995/10/04 20:28:43 jkh Exp $
+#	$Id: Makefile,v 1.193.2.20 1995/10/04 23:06:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -203,7 +203,7 @@ release.3:
 		fgrep -v SYSV ATAPI | \
 		fgrep -v pty | \
 		fgrep -v PROCFS | \
-		sed 's/ATAPI/BOOTMFS/g' > BOOTMFS_A && \
+		sed 's/ATAPIKERN/BOOTMFS/g' > BOOTMFS_A && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS_A && \
 		echo "options  MFS" >> BOOTMFS_A
 
