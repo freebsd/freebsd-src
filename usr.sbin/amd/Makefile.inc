@@ -18,8 +18,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/amd/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd
 CFLAGS+= -DHAVE_CONFIG_H
 
-TARGET_ARCH?=	${MACHINE_ARCH}
-CFLAGS+= -DHOST_CPU=\"${TARGET_ARCH}\" -DHOST_ARCH=\"${TARGET_ARCH}\"
+CFLAGS+= -DHOST_CPU=\"${MACHINE_ARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
 .if exists(${.OBJDIR}/../libamu)
 LIBAMUDIR=	${.OBJDIR}/../libamu
