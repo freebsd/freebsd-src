@@ -364,8 +364,8 @@ typedef struct {
 #define  USUBCLASS_SCSI		6
 #define  UPROTO_MASS_CBI_I	0
 #define  UPROTO_MASS_CBI	1
-#define  UPROTO_MASS_BULK	2
-#define  UPROTO_MASS_BULK_P	80	/* 'P' for the Iomega Zip drive */
+#define  UPROTO_MASS_BBB	2
+#define  UPROTO_MASS_BBB_P	80	/* 'P' for the Iomega Zip drive */
 #define UCLASS_HUB		9
 #define  USUBCLASS_HUB		0
 #define UCLASS_DATA		10
