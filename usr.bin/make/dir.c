@@ -88,8 +88,9 @@ __RCSID("$FreeBSD$");
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <err.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
