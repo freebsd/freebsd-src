@@ -185,7 +185,6 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
 			ifq = &ipintrq;          /* we are in ip_input */
 			break;
-		break;
 #ifdef NS
 		case ETHERTYPE_NS:
 			ifq = &nsintrq;
