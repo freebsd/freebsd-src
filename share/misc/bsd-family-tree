@@ -69,18 +69,18 @@ Tenth Edition     |                      |
 FreeBSD 1.0          NetBSD 0.8                |             |
    |                    |           ------ 4.4BSD Lite --> BSDI 2.0
 FreeBSD 1.1          NetBSD 0.9    /           |             |
-   |                    |         /        4.4BSD Lite2 -> BSDI 2.1
+   |                    |         /            |           BSDI 2.0.1
 FreeBSD 1.1.5           |        /             |             |
-   |                    |       /              /             |
-FreeBSD 1.1.5.1         |      /              /            BSDI 3.0
-   |                    |     /              /               |
-   |                    |    /              /                v
-FreeBSD 2.0 <---------------+              /
-   |                    |  /              /
-FreeBSD 2.0.5        NetBSD 1.0          /
-   |                    |               /
-   |                    |              /
-FreeBSD 2.1 <---------+-*----+--------*
+   |                    |       /          4.4BSD Lite2 -> BSDI 2.1
+FreeBSD 1.1.5.1         |      /               |             |
+   |                    |     /                |             |
+   |                    |    /                 +---------> BSDI 3.0
+FreeBSD 2.0 <---------------+                  |             |
+   |                    |  /                   |             v
+FreeBSD 2.0.5        NetBSD 1.0                |
+   |                    |                      |
+   |                    |                      |
+FreeBSD 2.1 <---------+-*----+-----------------*
  |   |                | |    |
  | FreeBSD 2.1.5      |   \  |
  |     |              |    | |
@@ -91,11 +91,13 @@ FreeBSD 2.1 <---------+-*----+--------*
  | FreeBSD 2.1.7      |      |          OpenBSD 2.0
  |     |              |   NetBSD 1.2.1     |
  | FreeBSD 2.1.7.1    |      |             v
- |                    |      v
- |                    |
- *-FreeBSD 2.2        |
+ |                    |      v          OpenBSD 2.1
+ |                    |                    |
+ *-FreeBSD 2.2        |                    v
     |   |             |
     |  FreeBSD 2.2.1  |
+    |      |          |
+    |  FreeBSD 2.2.2  |
     |      |          |
     |      v          |
     |                 |
@@ -241,8 +243,9 @@ Acknowledgments
 Josh Gilliam for suggestions, bugfixes, and finding very old 
 original BSD announcements from Usenet or tapes.
 
+Steven M. Schultz for providing 2.11 BSD manual pages.
 
 --
 Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
-$Date: 1997/04/19 17:40:39 $ $Revision: 1.17 $
+$Date: 1997/06/12 11:15:22 $ $Revision: 1.22 $
