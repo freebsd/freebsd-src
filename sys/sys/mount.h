@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.22 1995/08/23 12:59:52 jkh Exp $
+ *	$Id: mount.h,v 1.23 1995/08/23 13:30:52 jkh Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -152,7 +152,6 @@ struct mount {
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
-#define MNT_NOAUTO	0x00000080	/* don't mount with 'mount -a' */
 
 /*
  * exported mount flags.
