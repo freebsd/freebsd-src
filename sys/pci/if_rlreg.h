@@ -481,9 +481,16 @@ struct rl_softc {
 #define COREGA_VENDORID				0x1259
 
 /*
- * Coreaga FEther CB-TXD device ID
+ * Corega FEther CB-TXD device ID
  */
-#define COREGA_DEVICEID_CBTXD			0xa117
+#define COREGA_DEVICEID_FETHERCBTXD			0xa117
+
+/*
+ * Corega FEtherII CB-TXD device ID
+ */
+#define COREGA_DEVICEID_FETHERIICBTXD			0xa11e
+
+
 
 /*
  * PCI low memory base and low I/O base register, and
