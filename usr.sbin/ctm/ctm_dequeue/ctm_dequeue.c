@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ctm_dequeue.c,v 1.3 1996/09/07 18:48:42 peter Exp $
+ *	$Id: ctm_dequeue.c,v 1.4 1996/09/07 19:46:29 peter Exp $
  */
 
 /* 
@@ -75,6 +75,9 @@ main(int argc, char **argv)
 
     if (argc != 2)
 	usage();
+
+    if (log_file)
+	err_set_log(log_file);
 
     queue_dir = argv[1];
     list[0] = queue_dir;
