@@ -192,6 +192,11 @@ indicating the type of the message, i.e., how to interpret it.
 Typically each type defines a unique typecookie for the messages
 that it understands.  However, a node may choose to recognize and
 implement more than one type of message.
+.Pp
+If message is delivered to an address that implies that it arrived
+at that node through a particular hook, that hook is identified to the
+receiving node. This allows a message to be rerouted or passed on, should
+a node decide that this is required.
 .Sh Netgraph is Functional
 In order to minimize latency, most
 .Nm
@@ -204,15 +209,30 @@ generic
 data delivery function. This function in turn locates
 node B and calls B's
 .Dq receive data
-method. While this mode of operation
+method.
+.Pp
+It is allowable for nodes to reject a data packet, or to pass it back to the
+caller in a modified or completely replaced form. The caller can notify the
+node being called that it does not wish to receive any such packets
+by using the
+.Fn NG_SEND_DATA
+macro, in which case, the second node should just discard rejected packets.
+If the sender knows how to handle returned packets, it must use the
+.Fn NG_SEND_DATA_RET
+macro, which will adjust the parameters to point to the returned data
+or NULL if no data was returned to the caller. No packet return is possible
+across a queuing link (though an explicitly sent return is of course possible,
+it doesn't mean quite the same thing).
+.Pp
+While this mode of operation
 results in good performance, it has a few implications for node
 developers:
 .Pp
 .Bl -bullet -compact -offset 2n
 .It
 Whenever a node delivers a data or control message, the node
-may need to allow for the possibility of receiving a returning message
-before the original delivery function call returns.
+may need to allow for the possibility of receiving a returning
+message before the original delivery function call returns.
 .It
 Netgraph nodes and support routines generally run at
 .Fn splnet .
@@ -220,6 +240,12 @@ However, some nodes may want to send data and control messages
 from a different priority level. Netgraph supplies queueing routines which
 utilize the NETISR system to move message delivery to 
 .Fn splnet .
+Nodes that run at other priorities (e.g. interfaces) can be directly
+linked to other nodes so that the combination runs at the other priority,
+however any interaction with nodes running at splnet MUST be achievd via the 
+queueing functions, (which use the
+.Fn netisr 
+feature of the kernel).
 Note that messages are always received at
 .Fn splnet .
 .It
@@ -300,10 +326,15 @@ Three other methods are also supported by all nodes:
 An mbuf chain is passed to the node.
 The node is notified on which hook the data arrived,
 and can use this information in its processing decision.
-The node must always 
+The receiving node must always 
 .Fn m_freem
-the mbuf chain on completion or error, or pass it on to another node
+the mbuf chain on completion or error, pass it back (reject it), or pass
+it on to another node
 (or kernel module) which will then be responsible for freeing it.
+If a node passes a packet back to the caller, it does not have to be the 
+same mbuf, in which case the original must be freed. Passing a packet
+back allows a module to modify the original data (e.g. encrypt it),
+or in some other way filter it (e.g. packet filtering). 
 .Pp
 In addition to the mbuf chain itself there is also a pointer to a 
 structure describing meta-data about the message
@@ -323,6 +354,10 @@ be freed at the same time. If the meta-data is freed but the
 real data on is passed on, then a
 .Dv NULL
 pointer must be substituted.
+Meta-data may be passed back in the same way that mbuf data may be passed back.
+As with mbuf data, the rejected or returned meta-data pointer may point to
+the same or different meta-data as that passed in,
+and if it is different, the original must be freed.
 .Pp
 The receiving node may decide to defer the data by queueing it in the
 .Nm
@@ -365,6 +400,11 @@ allocated with
 .Fn malloc
 type
 .Dv M_NETGRAPH .
+.Pp
+If the message was delivered via a specific hook, that hook will
+also be made known, which allows the use of such things as flow-control
+messages, and status change messages, where the node may want to forward
+the message out another hook to that on which it arrived.
 .El
 .Pp
 Much use has been made of reference counts, so that nodes being
@@ -425,6 +465,9 @@ with RFC-1490 frames on DLCI 16 and PPP frames over DLCI 20:
 One could always send a control message to node C from anywhere
 by using the name
 .Em "Frame1:uplink.dlci16" .
+In this case, node C would also be notified that the message
+reached it via its hook 
+.Dq mux .
 Similarly, 
 .Em "Frame1:uplink.dlci20"
 could reliably be used to reach node D, and node A could refer
@@ -440,10 +483,18 @@ could be used by both nodes C and D to address a message to node A.
 .Pp
 Note that this is only for
 .Em control messages .
-Data messages are routed one hop at a time, by specifying the departing
-hook, with each node making the next routing decision. So when B
-receives a frame on hook
-.Em data
+In each of these cases, where a relative addressing mode is
+used, the recipient is notified of the hook on which the
+message arrived, as well as 
+the originating node.
+This allows the option of hop-by-hop distibution of messages and
+state information.
+Data messages are 
+.Em only
+routed one hop at a time, by specifying the departing
+hook, with each node making
+the next routing decision. So when B receives a frame on hook
+.Dq data
 it decodes the frame relay header to determine the DLCI,
 and then forwards the unwrapped frame to either C or D.
 .Pp
@@ -521,7 +572,8 @@ struct ng_type {
   int    (*rcvmsg)(node_p node,         /* Receive control message */
             struct ng_mesg *msg,                /* The message */
             const char *retaddr,                /* Return address */
-            struct ng_mesg **resp);             /* Synchronous response */
+            struct ng_mesg **resp               /* Synchronous response */
+            hook_p lasthook);                   /* last hook traversed */
   int    (*shutdown)(node_p node);      /* Shutdown this node */
   int    (*newhook)(node_p node,        /* create a new hook */
             hook_p hook,                        /* Pre-allocated struct */
@@ -531,7 +583,9 @@ struct ng_type {
   int    (*connect)(hook_p hook);       /* Confirm new hook attachment */
   int    (*rcvdata)(hook_p hook,        /* Receive data on a hook */
             struct mbuf *m,                     /* The data in an mbuf */
-            meta_p meta);                       /* Meta-data, if any */
+            meta_p meta,                        /* Meta-data, if any */
+            struct mbuf  **ret_m,               /* return data here */
+            meta_p *ret_meta);                  /* return Meta-data here */
   int    (*disconnect)(hook_p hook);    /* Notify disconnection of hook */
 
   /** How to convert control messages binary <-> ASCII */
@@ -955,7 +1009,8 @@ Nodes are responsible for freeing what they allocate.
 There are three exceptions:
 .Bl -tag -width xxxx
 .It 1
-Mbufs sent across a data link are never to be freed by the sender. 
+Mbufs sent across a data link are never to be freed by the sender, 
+unless it is returned from the recipient. 
 .It 2
 Any meta-data information traveling with the data has the same restriction.
 It might be freed by any node the data passes through, and a
@@ -970,7 +1025,7 @@ should be used if possible to free data and meta data (see
 .It 3
 Messages sent using
 .Fn ng_send_message
-are freed by the callee. As in the case above, the addresses
+are freed by the recipient. As in the case above, the addresses
 associated with the message are freed by whatever allocated them so the 
 recipient should copy them if it wants to keep that information.
 .El
