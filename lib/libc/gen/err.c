@@ -29,11 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *	From: @(#)err.c	8.1 (Berkeley) 6/4/93
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)err.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+static const char rcsid[] =
+	"$Id$";
+#endif /* LIBC_RCS and not lint */
 
 #include <err.h>
 #include <errno.h>
@@ -41,17 +43,18 @@ static char sccsid[] = "@(#)err.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 extern char *__progname;		/* Program name, from crt0. */
 
 static FILE *err_file; /* file to use for error output */
 static void (*err_exit)(int);
 
+/*
+ * This is declared to take a `void *' so that the caller is not required
+ * to include <stdio.h> first.  However, it is really a `FILE *', and the
+ * manual page documents it as such.
+ */
 void
 err_set_file(void *fp)
 {
@@ -68,22 +71,11 @@ err_set_exit(void (*ef)(int))
 }
 
 void
-#ifdef __STDC__
 err(int eval, const char *fmt, ...)
-#else
-err(eval, fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	verr(eval, fmt, ap);
+	verrc(eval, errno, fmt, ap);
 	va_end(ap);
 }
 
@@ -93,38 +85,43 @@ verr(eval, fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	int sverrno;
+	verrc(eval, errno, fmt, ap);
+}
 
-	sverrno = errno;
-	if (! err_file)
+void
+errc(int eval, int code, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	verrc(eval, code, fmt, ap);
+	va_end(ap);
+}
+
+void
+verrc(eval, code, fmt, ap)
+	int eval;
+	int code;
+	const char *fmt;
+	va_list ap;
+{
+	if (err_file == 0)
 		err_set_file((FILE *)0);
-	(void)fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL) {
-		(void)vfprintf(err_file, fmt, ap);
-		(void)fprintf(err_file, ": ");
+		vfprintf(err_file, fmt, ap);
+		fprintf(err_file, ": ");
 	}
-	(void)fprintf(err_file, "%s\n", strerror(sverrno));
-	if(err_exit)
+	fprintf(err_file, "%s\n", strerror(code));
+	if (err_exit)
 		err_exit(eval);
 	exit(eval);
 }
 
 void
-#if __STDC__
 errx(int eval, const char *fmt, ...)
-#else
-errx(eval, fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	verrx(eval, fmt, ap);
 	va_end(ap);
 }
@@ -135,33 +132,23 @@ verrx(eval, fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	if (! err_file)
+	if (err_file == 0)
 		err_set_file((FILE *)0);
-	(void)fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL)
-		(void)vfprintf(err_file, fmt, ap);
-	(void)fprintf(err_file, "\n");
+		vfprintf(err_file, fmt, ap);
+	fprintf(err_file, "\n");
 	if (err_exit)
 		err_exit(eval);
 	exit(eval);
 }
 
 void
-#if __STDC__
 warn(const char *fmt, ...)
-#else
-warn(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	vwarn(fmt, ap);
+	vwarnc(errno, fmt, ap);
 	va_end(ap);
 }
 
@@ -170,35 +157,40 @@ vwarn(fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	int sverrno;
-
-	sverrno = errno;
-	if (! err_file)
-		err_set_file((FILE *)0);
-	(void)fprintf(err_file, "%s: ", __progname);
-	if (fmt != NULL) {
-		(void)vfprintf(err_file, fmt, ap);
-		(void)fprintf(err_file, ": ");
-	}
-	(void)fprintf(err_file, "%s\n", strerror(sverrno));
+	vwarnc(errno, fmt, ap);
 }
 
 void
-#ifdef __STDC__
-warnx(const char *fmt, ...)
-#else
-warnx(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
+warnc(int code, const char *fmt, ...)
 {
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	vwarnx(fmt, ap);
+	vwarnc(code, fmt, ap);
+	va_end(ap);
+}
+
+void
+vwarnc(code, fmt, ap)
+	int code;
+	const char *fmt;
+	va_list ap;
+{
+	if (err_file == 0)
+		err_set_file((FILE *)0);
+	fprintf(err_file, "%s: ", __progname);
+	if (fmt != NULL) {
+		vfprintf(err_file, fmt, ap);
+		fprintf(err_file, ": ");
+	}
+	fprintf(err_file, "%s\n", strerror(code));
+}
+
+void
+warnx(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vwarn(fmt, ap);
 	va_end(ap);
 }
 
@@ -207,10 +199,10 @@ vwarnx(fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	if (! err_file)
+	if (err_file == 0)
 		err_set_file((FILE *)0);
-	(void)fprintf(err_file, "%s: ", __progname);
+	fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL)
-		(void)vfprintf(err_file, fmt, ap);
-	(void)fprintf(err_file, "\n");
+		vfprintf(err_file, fmt, ap);
+	fprintf(err_file, "\n");
 }
