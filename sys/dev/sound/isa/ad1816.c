@@ -673,6 +673,7 @@ static driver_t ad1816_driver = {
 };
 
 DRIVER_MODULE(snd_ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_ad1816, acpi, ad1816_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_ad1816, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_ad1816, 1);
 
