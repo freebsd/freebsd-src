@@ -120,11 +120,6 @@ KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
 
-#USERCONFIG		opt_userconfig.h
-#VISUAL_USERCONFIG	opt_userconfig.h
-#INTRO_USERCONFIG	opt_userconfig.h
-#DEV_EISA		opt_userconfig.h
-
 EISA_SLOTS		opt_eisa.h
 
 # pcvt(4) has a bunch of options
