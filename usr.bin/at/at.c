@@ -156,7 +156,8 @@ static char *cwdname(void)
     static size_t size = SIZE;
 
     if (ptr == NULL)
-	ptr = (char *) mymalloc(size);
+	if ((ptr = malloc(size)) == NULL)
+	    errx(EXIT_FAILURE, "virtual memory exhausted");
 
     while (1)
     {
@@ -171,7 +172,8 @@ static char *cwdname(void)
 	
 	free (ptr);
 	size += SIZE;
-	ptr = (char *) mymalloc(size);
+	if ((ptr = malloc(size)) == NULL)
+	    errx(EXIT_FAILURE, "virtual memory exhausted");
     }
 }
 
@@ -585,17 +587,6 @@ process_jobs(int argc, char **argv, int what)
 	}
     }
 } /* delete_jobs */
-
-/* Global functions */
-
-void *
-mymalloc(size_t n)
-{
-    void *p;
-    if ((p=malloc(n))==(void *)0)
-	errx(EXIT_FAILURE, "virtual memory exhausted");
-    return p;
-}
 
 int
 main(int argc, char **argv)
