@@ -1,0 +1,305 @@
+/*
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
+ *	$Id: if.h,v 1.41 1996/12/13 21:28:37 wollman Exp $
+ */
+
+#ifndef	_NET_IF_VAR_H_
+#define	_NET_IF_VAR_H_
+
+/*
+ * Structures defining a network interface, providing a packet
+ * transport mechanism (ala level 0 of the PUP protocols).
+ *
+ * Each interface accepts output datagrams of a specified maximum
+ * length, and provides higher level routines with input datagrams
+ * received from its medium.
+ *
+ * Output occurs when the routine if_output is called, with three parameters:
+ *	(*ifp->if_output)(ifp, m, dst, rt)
+ * Here m is the mbuf chain to be sent and dst is the destination address.
+ * The output routine encapsulates the supplied datagram if necessary,
+ * and then transmits it on its medium.
+ *
+ * On input, each interface unwraps the data received by it, and either
+ * places it on the input queue of a internetwork datagram routine
+ * and posts the associated software interrupt, or passes the datagram to a raw
+ * packet input routine.
+ *
+ * Routines exist for locating interfaces by their addresses
+ * or for locating a interface on a certain network, as well as more general
+ * routing and gateway routines maintaining information used to locate
+ * interfaces.  These routines live in the files if.c and route.c
+ */
+
+#ifdef __STDC__
+/*
+ * Forward structure declarations for function prototypes [sic].
+ */
+struct	mbuf;
+struct	proc;
+struct	rtentry;
+struct	socket;
+struct	ether_header;
+#endif
+
+#include <sys/queue.h>		/* get TAILQ macros */
+
+TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
+TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
+
+/*
+ * Structure defining a queue for a network interface.
+ */
+struct	ifqueue {
+	struct	mbuf *ifq_head;
+	struct	mbuf *ifq_tail;
+	int	ifq_len;
+	int	ifq_maxlen;
+	int	ifq_drops;
+};
+
+/*
+ * Structure defining a network interface.
+ *
+ * (Would like to call this struct ``if'', but C isn't PL/1.)
+ */
+struct ifnet {
+	void	*if_softc;		/* pointer to driver state */
+	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
+	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
+	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
+        int	if_pcount;		/* number of promiscuous listeners */
+	struct	bpf_if *if_bpf;		/* packet filter structure */
+	u_short	if_index;		/* numeric abbreviation for this if  */
+	short	if_unit;		/* sub-unit for lower level driver */
+	short	if_timer;		/* time 'til if_watchdog called */
+	short	if_flags;		/* up/down, broadcast, etc. */
+	int	if_ipending;		/* interrupts pending */
+	void	*if_linkmib;		/* link-type-specific MIB data */
+	size_t	if_linkmiblen;		/* length of above data */
+	struct	if_data if_data;
+/* procedure handles */
+	int	(*if_output)		/* output routine (enqueue) */
+		__P((struct ifnet *, struct mbuf *, struct sockaddr *,
+		     struct rtentry *));
+	void	(*if_start)		/* initiate output routine */
+		__P((struct ifnet *));
+	int	(*if_done)		/* output complete routine */
+		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
+	int	(*if_ioctl)		/* ioctl routine */
+		__P((struct ifnet *, int, caddr_t));
+	void	(*if_watchdog)		/* timer routine */
+		__P((struct ifnet *));
+	int	(*if_poll_recv)		/* polled receive routine */
+		__P((struct ifnet *, int *));
+	int	(*if_poll_xmit)		/* polled transmit routine */
+		__P((struct ifnet *, int *));
+	void	(*if_poll_intren)	/* polled interrupt reenable routine */
+		__P((struct ifnet *));
+	void	(*if_poll_slowinput)	/* input routine for slow devices */
+		__P((struct ifnet *, struct mbuf *));
+	void	(*if_init)		/* Init routine */
+		__P((void *));
+	struct	ifqueue if_snd;		/* output queue */
+	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
+};
+typedef void if_init_f_t __P((void *));
+
+#define	if_mtu		if_data.ifi_mtu
+#define	if_type		if_data.ifi_type
+#define if_physical	if_data.ifi_physical
+#define	if_addrlen	if_data.ifi_addrlen
+#define	if_hdrlen	if_data.ifi_hdrlen
+#define	if_metric	if_data.ifi_metric
+#define	if_baudrate	if_data.ifi_baudrate
+#define	if_ipackets	if_data.ifi_ipackets
+#define	if_ierrors	if_data.ifi_ierrors
+#define	if_opackets	if_data.ifi_opackets
+#define	if_oerrors	if_data.ifi_oerrors
+#define	if_collisions	if_data.ifi_collisions
+#define	if_ibytes	if_data.ifi_ibytes
+#define	if_obytes	if_data.ifi_obytes
+#define	if_imcasts	if_data.ifi_imcasts
+#define	if_omcasts	if_data.ifi_omcasts
+#define	if_iqdrops	if_data.ifi_iqdrops
+#define	if_noproto	if_data.ifi_noproto
+#define	if_lastchange	if_data.ifi_lastchange
+#define if_recvquota	if_data.ifi_recvquota
+#define	if_xmitquota	if_data.ifi_xmitquota
+#define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)0)
+
+/*
+ * Bit values in if_ipending
+ */
+#define	IFI_RECV	1	/* I want to receive */
+#define	IFI_XMIT	2	/* I want to transmit */
+
+/*
+ * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
+ * are queues of messages stored on ifqueue structures
+ * (defined above).  Entries are added to and deleted from these structures
+ * by these macros, which should be called with ipl raised to splimp().
+ */
+#define	IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
+#define	IF_DROP(ifq)		((ifq)->ifq_drops++)
+#define	IF_ENQUEUE(ifq, m) { \
+	(m)->m_nextpkt = 0; \
+	if ((ifq)->ifq_tail == 0) \
+		(ifq)->ifq_head = m; \
+	else \
+		(ifq)->ifq_tail->m_nextpkt = m; \
+	(ifq)->ifq_tail = m; \
+	(ifq)->ifq_len++; \
+}
+#define	IF_PREPEND(ifq, m) { \
+	(m)->m_nextpkt = (ifq)->ifq_head; \
+	if ((ifq)->ifq_tail == 0) \
+		(ifq)->ifq_tail = (m); \
+	(ifq)->ifq_head = (m); \
+	(ifq)->ifq_len++; \
+}
+#define	IF_DEQUEUE(ifq, m) { \
+	(m) = (ifq)->ifq_head; \
+	if (m) { \
+		if (((ifq)->ifq_head = (m)->m_nextpkt) == 0) \
+			(ifq)->ifq_tail = 0; \
+		(m)->m_nextpkt = 0; \
+		(ifq)->ifq_len--; \
+	} \
+}
+
+#ifdef KERNEL
+#define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
+
+#if defined(__GNUC__) && defined(MT_HEADER)
+static inline int
+if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
+{
+	IF_DROP(ifq);
+	return 0;
+}
+
+static inline int
+if_enq_drop(struct ifqueue *ifq, struct mbuf *m)
+{
+	if (IF_QFULL(ifq) &&
+	    !if_queue_drop(ifq, m))
+		return 0;
+	IF_ENQUEUE(ifq, m);
+	return 1;
+}
+#else
+
+#ifdef MT_HEADER
+int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
+#endif
+
+#endif
+#endif /* KERNEL */
+
+/*
+ * The ifaddr structure contains information about one address
+ * of an interface.  They are maintained by the different address families,
+ * are allocated and attached when an address is set, and are linked
+ * together so all addresses for an interface can be located.
+ */
+struct ifaddr {
+	struct	sockaddr *ifa_addr;	/* address of interface */
+	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
+#define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
+	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
+	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
+	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
+	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
+		__P((int, struct rtentry *, struct sockaddr *));
+	u_short	ifa_flags;		/* mostly rt_flags for cloning */
+	short	ifa_refcnt;		/* references to this structure */
+	int	ifa_metric;		/* cost of going out this interface */
+#ifdef notdef
+	struct	rtentry *ifa_rt;	/* XXXX for ROUTETOIF ????? */
+#endif
+};
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+
+#ifdef KERNEL
+#define	IFAFREE(ifa) \
+	if ((ifa)->ifa_refcnt <= 0) \
+		ifafree(ifa); \
+	else \
+		(ifa)->ifa_refcnt--;
+
+extern	struct ifnethead ifnet;
+extern	int ifqmaxlen;
+extern	struct ifnet loif[];
+extern	int if_index;
+extern	struct ifaddr **ifnet_addrs;
+
+void	ether_ifattach __P((struct ifnet *));
+void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));
+int	ether_output __P((struct ifnet *,
+	   struct mbuf *, struct sockaddr *, struct rtentry *));
+int	ether_ioctl __P((struct ifnet *, int, caddr_t));
+
+void	if_attach __P((struct ifnet *));
+void	if_down __P((struct ifnet *));
+void	if_up __P((struct ifnet *));
+#ifdef vax
+void	ifubareset __P((int));
+#endif
+/*void	ifinit __P((void));*/ /* declared in systm.h for main() */
+int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
+int	ifpromisc __P((struct ifnet *, int));
+struct	ifnet *ifunit __P((char *));
+
+int	if_poll_recv_slow __P((struct ifnet *ifp, int *quotap));
+void	if_poll_xmit_slow __P((struct ifnet *ifp, int *quotap));
+void	if_poll_throttle __P((void));
+void	if_poll_unthrottle __P((void *));
+void	if_poll_init __P((void));
+void	if_poll __P((void));
+
+struct	ifaddr *ifa_ifwithaddr __P((struct sockaddr *));
+struct	ifaddr *ifa_ifwithdstaddr __P((struct sockaddr *));
+struct	ifaddr *ifa_ifwithnet __P((struct sockaddr *));
+struct	ifaddr *ifa_ifwithroute __P((int, struct sockaddr *,
+					struct sockaddr *));
+struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
+void	ifafree __P((struct ifaddr *));
+
+int	looutput __P((struct ifnet *,
+	   struct mbuf *, struct sockaddr *, struct rtentry *));
+#endif /* KERNEL */
+
+
+#endif /* !_NET_IF_VAR_H_ */
