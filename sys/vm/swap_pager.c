@@ -1613,8 +1613,11 @@ swp_pager_async_iodone(bp)
 	 * adjust pip.  NOTE: the original parent may still have its own
 	 * pip refs on the object.
 	 */
-	if (object)
+	if (object != NULL) {
+		VM_OBJECT_LOCK(object);
 		vm_object_pip_wakeupn(object, bp->b_npages);
+		VM_OBJECT_UNLOCK(object);
+	}
 
 	/*
 	 * release the physical I/O buffer
