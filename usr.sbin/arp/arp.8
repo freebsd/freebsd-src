@@ -47,18 +47,18 @@
 .Fl a
 .Nm
 .Fl d Ar hostname
-.Op Cm proxy
+.Op Cm pub
 .Nm
 .Fl d
 .Fl a
 .Nm
 .Fl s Ar hostname ether_addr
 .Op Cm temp
-.Op Cm pub
+.Op Cm pub Op Cm only
 .Nm
 .Fl S Ar hostname ether_addr
 .Op Cm temp
-.Op Cm pub
+.Op Cm pub Op Cm only
 .Nm
 .Fl f Ar filename
 .Sh DESCRIPTION
@@ -86,10 +86,17 @@ A super-user may delete an entry for the host called
 with the
 .Fl d
 flag.
-The
-.Cm proxy
-keyword is sometimes required when deleting published ARP entries.
-This flag may be combined with the
+It the
+.Cm pub
+keyword is specified, only
+.Dq published
+.Tn ARP
+entry
+for this host will be deleted.
+.Pp
+Alternatively, the
+.Fl d
+flag may be combined with the
 .Fl a
 flag to delete all entries.
 .It Fl n
@@ -109,7 +116,9 @@ The entry will be permanent unless the word
 is given in the command. 
 If the word
 .Cm pub
-is given, the entry will be "published"; i.e., this system will
+is given, the entry will be
+.Dq published ;
+i.e., this system will
 act as an
 .Tn ARP
 server,
@@ -123,6 +132,16 @@ can be given as
 in which case the interfaces on this host will be examined,
 and if one of them is found to occupy the same subnet, its
 Ethernet address will be used.
+If the
+.Cm only
+keyword is also specified, this will create a
+.Dq "published (proxy only)"
+entry.
+This type of entry is created automatically if
+.Nm
+detects that the routing table entry for
+.Ar hostname
+already exists.
 .It Fl S Ar hostname ether_addr
 Is just like
 .Fl s
