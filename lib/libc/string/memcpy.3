@@ -82,5 +82,10 @@ is implemented using
 .Xr bcopy 3 ,
 and therefore the strings may overlap.
 On other systems, copying overlapping strings may produce surprises.
-A simpler solution is to not use
-.Fn memcpy .
+Programs intended to be portable should use
+.Xr memmove 3
+when
+.Fa src
+and
+.Fa dst
+may overlap.
