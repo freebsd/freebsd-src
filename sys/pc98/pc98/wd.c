@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.37 1997/12/02 21:06:54 phk Exp $
+ *	$Id: wd.c,v 1.38 1997/12/06 14:27:40 bde Exp $
  */
 
 /* TODO:
@@ -350,6 +350,7 @@ wdprobe(struct isa_device *dvp)
 		break;
 	    }
 	}
+	du->dk_altport = du->dk_port + wd_ctlr;
 	if ((PC98_SYSTEM_PARAMETER(0x55d) & 3) == 0) {
 		goto nodevice;
 	}
@@ -1271,6 +1272,7 @@ oops:
 	 */
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
             && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
+	    && wdtab[unit].b_active) {
 		int	chk, dummy, multisize;
 		multisize = chk = du->dk_currentiosize * DEV_BSIZE;
 		if( du->dk_bc < chk) {
@@ -1335,8 +1337,13 @@ outt:
 
 			/* see if more to transfer */
 			if (du->dk_bc > 0 && (du->dk_flags & DKFL_ERROR) == 0) {
-				wdtab[unit].b_active = 0;
-				wdstart(unit);
+				if( (du->dk_flags & DKFL_SINGLE) ||
+					((bp->b_flags & B_READ) == 0)) {
+					wdtab[unit].b_active = 0;
+					wdstart(unit);
+				} else {
+					du->dk_timeout = 1 + 3;
+				}
 				return;	/* next chunk is started */
 			} else if ((du->dk_flags & (DKFL_SINGLE | DKFL_ERROR))
 				   == DKFL_ERROR) {
@@ -1351,7 +1358,7 @@ outt:
 
 done: ;
 		/* done with this transfer, with or without error */
-		du->dk_flags &= ~DKFL_SINGLE;
+		du->dk_flags &= ~(DKFL_SINGLE|DKFL_DMA);
 		bufq_remove( &wdtab[unit].controller_queue, bp);
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
@@ -1719,7 +1726,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 			outb(wdc + wd_seccnt, count);
 		}
 	}
-	if (wdwait(du, command == WDCC_DIAGNOSE || command == WDCC_IDC
+	if (wdwait(du, (command == WDCC_DIAGNOSE || command == WDCC_IDC)
 		       ? 0 : WDCS_READY, TIMEOUT) < 0)
 		return (1);
 	if (old_epson_note)
@@ -2170,7 +2177,6 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	default:
 		return (ENOTTY);
 	}
-	return (error);
 }
 
 #ifdef B_FORMAT
@@ -2467,9 +2473,9 @@ wdreset(struct disk *du)
 		DELAY(10 * 1000);
 		epson_outb(du->dk_altport, WDCTL_IDS);
 		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
-		    || (du->dk_error = epson_errorf(wdc + wd_error)) != 0x01)
+		    || (du->dk_error = epson_errorf(du->dk_port + wd_error)) != 0x01)
 			return (1);
-		epson_outb(wdc + wd_ctlr, WDCTL_4BIT);
+		epson_outb(du->dk_altport, WDCTL_4BIT);
 		err = 0;
 	}
 	else {
