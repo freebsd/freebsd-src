@@ -578,10 +578,7 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 		err = ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		if (err) {
 			printf("ccdbuffer error %d\n", err);
-			/* We're screwed */
-			bp->bio_resid -= bcount;
-			bp->bio_error = ENOMEM;
-			bp->bio_flags |= BIO_ERROR;
+			biofinish(bp, NULL, err);
 			return;
 		}
 		rcount = cbp[0]->cb_buf.bio_bcount;
