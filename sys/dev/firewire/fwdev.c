@@ -636,6 +636,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		}
 		ir->buf = malloc(
 			ibufreq->rx.nchunk * ibufreq->rx.npacket
+			/* XXX psize must be 2^n and less or
+						equal to PAGE_SIZE */
 			* ((ibufreq->rx.psize + 3) &~3),
 			M_DEVBUF, M_DONTWAIT);
 		if(ir->buf == NULL){
@@ -648,6 +650,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		}
 		it->buf = malloc(
 			ibufreq->tx.nchunk * ibufreq->tx.npacket
+			/* XXX psize must be 2^n and less or
+						equal to PAGE_SIZE */
 			* ((ibufreq->tx.psize + 3) &~3),
 			M_DEVBUF, M_DONTWAIT);
 		if(it->buf == NULL){

@@ -1149,10 +1149,9 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 
 	ndbpp = PAGE_SIZE / (sizeof(struct fwohcidb) * dbch->ndesc);
 	dbch->npages = (dbch->ndb + ndbpp - 1)/ ndbpp;
-#if 0
-	printf("ndesc: %d, ndbpp: %d, ndb: %d, npages: %d\n",
-		dbch->ndesc, ndbpp, dbch->ndb, dbch->npages);
-#endif
+	if (firewire_debug)
+		printf("ndesc: %d, ndbpp: %d, ndb: %d, npages: %d\n",
+			dbch->ndesc, ndbpp, dbch->ndb, dbch->npages);
 	if (dbch->npages > FWOHCI_DBCH_MAX_PAGES) {
 		printf("npages(%d) > DBCH_MAX_PAGES(%d)\n",
 				dbch->npages, FWOHCI_DBCH_MAX_PAGES);
@@ -1457,41 +1456,42 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 	    vtophys(((struct fwohcidb_tr *)(dbch->xferq.stdma2->start))->db) | dbch->ndesc;
 			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
 			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
+		} else {
+			if (firewire_debug)
+				device_printf(fc->dev,
+				"fwohci_itxbuf_enable: queue underrun\n");
 		}
-	} else if(!(stat & OHCI_CNTL_DMA_RUN)) {
-		if (firewire_debug)
-			printf("fwohci_itxbuf_enable: kick 0x%08x\n",
-				OREAD(sc, OHCI_ITCTL(dmach)));
-		fw_tbuf_update(&sc->fc, dmach, 0);
-		if(dbch->xferq.stdma == NULL){
-			return err;
-		}
-#if 0
-		OWRITE(sc, OHCI_ITCTLCLR(dmach), OHCI_CNTL_DMA_RUN);
-#endif
-		OWRITE(sc, OHCI_IT_MASKCLR, 1 << dmach);
-		OWRITE(sc, OHCI_IT_STATCLR, 1 << dmach);
-		OWRITE(sc, OHCI_IT_MASK, 1 << dmach);
-		fwohci_txbufdb(sc, dmach, dbch->xferq.stdma);
-		if(dbch->xferq.stdma2 != NULL){
-			fwohci_txbufdb(sc, dmach, dbch->xferq.stdma2);
-			((struct fwohcidb_tr *)
+		return err;
+	}
+	if (firewire_debug)
+		printf("fwohci_itxbuf_enable: kick 0x%08x\n", stat);
+	fw_tbuf_update(&sc->fc, dmach, 0);
+	if(dbch->xferq.stdma == NULL){
+		return err;
+	}
+	if(dbch->xferq.stdma2 == NULL){
+		/* wait until 2 chunks buffered */
+		return err;
+	}
+	OWRITE(sc, OHCI_IT_MASKCLR, 1 << dmach);
+	OWRITE(sc, OHCI_IT_STATCLR, 1 << dmach);
+	OWRITE(sc, OHCI_IT_MASK, 1 << dmach);
+	fwohci_txbufdb(sc, dmach, dbch->xferq.stdma);
+	fwohci_txbufdb(sc, dmach, dbch->xferq.stdma2);
+	((struct fwohcidb_tr *)
 		(dbch->xferq.stdma->end))->db[dbch->ndesc - 1].db.desc.cmd
 			|= OHCI_BRANCH_ALWAYS;
-			((struct fwohcidb_tr *)(dbch->xferq.stdma->end))->db[dbch->ndesc - 1].db.desc.depend =
+	((struct fwohcidb_tr *)(dbch->xferq.stdma->end))->db[dbch->ndesc - 1].db.desc.depend =
 		    vtophys(((struct fwohcidb_tr *)(dbch->xferq.stdma2->start))->db) | dbch->ndesc;
-			((struct fwohcidb_tr *)(dbch->xferq.stdma->end))->db[0].db.desc.depend =
+	((struct fwohcidb_tr *)(dbch->xferq.stdma->end))->db[0].db.desc.depend =
 		    vtophys(((struct fwohcidb_tr *)(dbch->xferq.stdma2->start))->db) | dbch->ndesc;
-			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
-			((struct fwohcidb_tr *) (dbch->xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
-		}else{
-			((struct fwohcidb_tr *) (dbch->xferq.stdma->end))->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
-			((struct fwohcidb_tr *) (dbch->xferq.stdma->end))->db[0].db.desc.depend &= ~0xf;
-		}
-		OWRITE(sc, OHCI_ITCMD(dmach),
-			vtophys(((struct fwohcidb_tr *)
-				(dbch->xferq.stdma->start))->db) | dbch->ndesc);
+	((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
+	((struct fwohcidb_tr *) (dbch->xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
+	OWRITE(sc, OHCI_ITCMD(dmach),
+		vtophys(((struct fwohcidb_tr *)
+			(dbch->xferq.stdma->start))->db) | dbch->ndesc);
 #define CYCLE_OFFSET	1
+	if ((stat & OHCI_CNTL_DMA_RUN) == 0) {
 		if(dbch->xferq.flag & FWXFERQ_DV){
 			db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma->start;
 			fp = (struct fw_pkt *)db_tr->buf;
@@ -1518,17 +1518,20 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 				cycle = CYCLE_MOD;
 		}
 		cycle_match = ((sec << 13) | cycle) & 0x7ffff;
-		if (firewire_debug)
-			printf("cycle_match: 0x%04x->0x%04x\n",
-						cycle_now, cycle_match);
 		/* Clear cycle match counter bits */
 		OWRITE(sc, OHCI_ITCTLCLR(dmach), 0xffff0000);
 		OWRITE(sc, OHCI_ITCTL(dmach),
 				OHCI_CNTL_CYCMATCH_S | (cycle_match << 16)
 				| OHCI_CNTL_DMA_RUN);
 		OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_DMA_IT);
-	} else {
-		OWRITE(sc, OHCI_ITCTL(dmach), OHCI_CNTL_DMA_WAKE);
+		if (firewire_debug)
+			printf("cycle_match: 0x%04x->0x%04x\n",
+						cycle_now, cycle_match);
+	} else if ((stat & OHCI_CNTL_CYCMATCH_S) == 0) {
+		if (firewire_debug)
+			printf("fwohci_itxbuf_enable: restart 0x%08x\n", stat);
+		OWRITE(sc, OHCI_ITCTLCLR(dmach), OHCI_CNTL_DMA_RUN);
+		OWRITE(sc, OHCI_ITCTL(dmach), OHCI_CNTL_DMA_RUN);
 	}
 	return err;
 }
@@ -1957,6 +1960,17 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 		fp->mode.ld[2] |= htonl((fc->cyctimer(fc) + 0x4000) & 0xf000);
 	}
 #endif
+	/* 
+	 * XXX interrupt could be missed.
+	 * We have to check more than one buffer/chunk
+	 */
+	if (firewire_debug && dbch->xferq.stdma2 != NULL) {
+		db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma2->end;
+		stat = db_tr->db[2].db.desc.status;
+		if (stat)
+			printf("XXX stdma2 already done stat:0x%x\n", stat);
+	}
+		
 	stat = OREAD(sc, OHCI_ITCTL(dmach)) & 0x1f;
 	switch(stat){
 	case FWOHCIEV_ACKCOMPL:
