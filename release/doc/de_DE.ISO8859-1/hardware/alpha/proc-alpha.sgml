@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.7 2002/05/26 10:25:57 ue Exp $
-  basiert auf: 1.13.2.22
+  basiert auf: 1.13.2.23
 -->
 
 <sect1>
@@ -1736,8 +1736,10 @@ cpu     EV4</programlisting>
         gleichen Typ sein, damit dies funktioniert; au&szlig;erdem
         mu&szlig; das System explizit auf die Nutzung des 8 SIMM Modus
         konfiguriert werden.  Sie m&uuml;ssen 8 SIMMs benutzen,
-        4 SIMMs auf 2 B&auml;nke verteilt funktioniert
-        nicht.</para>
+        4 SIMMs auf 2 B&auml;nke verteilt funktioniert nicht.  Bei der
+        PC164 kann mit 8 128 MByte SIMMs ein maximaler Speicherausbau
+        von 1 GByte erreicht werden.  Das Handbuch behauptet, der
+        maximale Speicherausbau betrage 512 MByte.</para>
 
       <para>Der SRM kann von Qlogic 10xx Karten oder dem Symbios
         53C810[A] booten.  Neuere Versionen des Symbios 810 wie der

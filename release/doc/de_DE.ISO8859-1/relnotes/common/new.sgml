@@ -1,6 +1,6 @@
 <!--
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.43 2002/05/31 20:44:33 ue Exp $
-  basiert auf: 1.22.2.248
+  basiert auf: 1.22.2.249
 -->
 
 <articleinfo>
@@ -630,8 +630,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
 	<para><application>sendmail</application> wurde auf Version
 	  8.12.3 aktualisiert.  &man.sendmail.8; wird nicht mehr SUID
-	  root Programm installiert (jetzt SGID smmsp).  Weitere
-	  Informationen sind in
+	  <username>root</username> Programm installiert (jetzt SGID
+	  <groupname>smmsp</groupname>).  Weitere Informationen sind in
 	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
 	  und <filename>/etc/mail/README</filename>
 	  verf&uuml;gbar.</para>
