@@ -282,8 +282,8 @@ ng_eiface_init(void *xsc)
 }
 
 /*
- * We simply relay the packet to the ether hook, if it is connected.
- * We have been throughthe netgraph locking an are guaranteed to
+ * We simply relay the packet to the "ether" hook, if it is connected.
+ * We have been through the netgraph locking and are guaranteed to
  * be the only code running in this node at this time.
  */
 static void
