@@ -34,7 +34,7 @@
 .Nd
 PS/2 mouse style pointing device driver
 .Sh SYNOPSIS
-.Cd "options PSM_HOOKAPM"
+.Cd "options PSM_HOOKRESUME"
 .Cd "options PSM_RESETAFTERSUSPEND"
 .Cd "options KBD_RESETDELAY=N"
 .Cd "options KBD_MAXWAIT=N"
@@ -191,7 +191,7 @@ driver.
 They may be set in the kernel configuration file 
 .Pq see Xr config 8 .
 .Bl -tag -width MOUSE
-.It Em PSM_HOOKAPM
+.It Em PSM_HOOKRESUME
 The built-in PS/2 pointing device of some laptop computers is somehow
 not operable immediately after the system `resumes' from 
 the power saving mode,
@@ -202,15 +202,15 @@ waking up the device quickly. This option will add a piece of code
 to the 
 .Nm
 driver to hook
-the APM `resume' event and exercise some harmless I/O operations to the
+the `resume' event and exercise some harmless I/O operations to the
 device.
 .It Em PSM_RESETAFTERSUSPEND
 This option adds more drastic action for the above problem.
 It will make the
 .Nm
-driver to reset the pointing device after the APM resume event.
+driver to reset the pointing device after the resume event.
 It has no effect unless the
-.Em PSM_HOOKAPM
+.Em PSM_HOOKRESUME
 option is enabled as well.
 .It Em KBD_RESETDELAY=X, KBD_MAXWAIT=Y
 The
@@ -600,7 +600,7 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLE
-.Dl "options PSM_HOOKAPM"
+.Dl "options PSM_HOOKRESUME"
 .Dl "device psm0 at atkbdc? irq 12"
 .Pp
 Add the
@@ -720,7 +720,7 @@ and Interlink VersaPad, treat the tapping action
 as fourth button events.
 .Pp
 It is reported that Interlink VersaPad rquires both
-.Em PSM_HOOKAPM
+.Em PSM_HOOKRESUME
 and
 .Em PSM_RESETAFTERSUSPEND
 options in order to recover from suspended state.
