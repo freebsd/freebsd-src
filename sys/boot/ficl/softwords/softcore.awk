@@ -1,6 +1,15 @@
 #!/usr/bin/awk -f
+#
 # Convert forth source files to a giant C string
+#
 # Joe Abley <jabley@patho.gen.nz>, 12 January 1999
+#
+# 02-oct-1999:  Cleaned up awk slightly; added some additional logic
+#               suggested by dcs to compress the stored forth program.
+#
+# Note! This script uses strftime() which is a gawk-ism, and the
+# POSIX [[:space:]] character class.
+#
 # $FreeBSD$
 
 BEGIN \
@@ -26,9 +35,9 @@ BEGIN \
 
 # some general early substitutions
 {
-  gsub("\t", "    ");			# replace each tab with 4 spaces
-  gsub("\"", "\\\"");			# escape quotes
-  gsub("\\\\[[:space:]]+$", "");	# toss empty comments
+  gsub(/\t/, "    ");			# replace each tab with 4 spaces
+  gsub(/\"/, "\\\"");			# escape quotes
+  gsub(/\\[[:space:]]+$/, "");		# toss empty comments
 }
 
 # strip out empty lines
@@ -38,18 +47,18 @@ BEGIN \
 }
 
 # emit / ** lines as multi-line C comments
-/^\\[[:space:]]\*\*/ && (commenting == 0) \
+/^\\[[:space:]]\*\*/ \
 {
-  sub("^\\\\[[:space:]]", "");
-  printf "/*\n%s\n", $0;
+  sub(/^\\[[:space:]]/, "");
+  if (commenting == 0) printf "/*\n";
+  printf "%s\n", $0;
   commenting = 1;
   next;
 }
 
-/^\\[[:space:]]\*\*/ \
+# strip blank lines
+/^[[:space:]]*$/ \
 {
-  sub("^\\\\[[:space:]]", "");
-  printf "%s\n", $0;
   next;
 }
 
@@ -64,13 +73,44 @@ function end_comments()
 /^\\[[:space:]]#/ \
 {
   if (commenting) end_comments();
-  sub("^\\\\[[:space:]]", "");
+  sub(/^\\[[:space:]]/, "");
   printf "%s\n", $0;
   next;
 }
 
-# toss all other full-line comments
+# toss all other full-line \ comments
 /^\\/ \
+{
+  if (commenting) end_comments();
+  next;
+}
+
+# lop off trailing \ comments
+/\\[[:space:]]+/ \
+{
+  sub(/\\[[:space:]]+.*$/, "");
+}
+
+# expunge ( ) comments
+/[[:space:]]+\([[:space:]][^)]*\)/ \
+{
+  sub(/[[:space:]]+\([[:space:]][^)]*\)/, "");
+}
+
+# remove leading spaces
+/^[[:space:]]+/ \
+{
+  sub(/^[[:space:]]+/, "");
+}
+
+# removing trailing spaces
+/[[:space:]]+$/ \
+{
+  sub(/[[:space:]]+$/, "");
+}
+
+# strip out empty lines again (preceding rules may have generated some)
+/^[[:space:]]*$/ \
 {
   if (commenting) end_comments();
   next;
@@ -80,9 +120,7 @@ function end_comments()
 {
   if (commenting) end_comments();
 
-  sub("\\\\[[:space:]]+.*$", "");	# lop off trailing \ comments
-  sub("[[:space:]]+$", "");		# remove trailing spaces
-  printf "    \"%s \\n\"\n", $0;
+  printf "    \"%s \"\n", $0;
   next;
 }
 
