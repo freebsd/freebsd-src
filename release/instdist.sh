@@ -10,9 +10,9 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.30 1994/11/24 20:52:16 jkh Exp $
+# $Id: instdist.sh,v 1.31 1994/11/27 13:03:00 ats Exp $
 
-if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
+if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
 else
 	_INSTINST_SH_LOADED_=yes
@@ -21,47 +21,34 @@ fi
 # Grab the miscellaneous functions.
 . /stand/miscfuncs.sh
 
-# Set some reasonable defaults.
-TAR=tar
-TAR_FLAGS="--unlink -xvf"
-MNT=/mnt
-
 # Set the initial state for media installation.
 media_set_defaults()
 {
-	media_type=""
-	media_device=""
-	media_distribution=""
-	distrib_subdir=""
-	clear=""
-	ipaddr=""
-	hostname=""
-	ether_intr=""
-	domain=""
-	netmask="0xffffff00"
-	ifconfig_flags=""
-	remote_hostip=""
-	tmp_dir="/usr/tmp"
-	ftp_path=""
-	nfs_path=""
-	nfs_options=""
-	serial_interface="/dev/tty00"
-	serial_speed="38400"
+	MEDIA_TYPE=""
+	MEDIA_DEVICE=""
+	MEDIA_DISTRIBUTION=""
+	DISTRIB_SUBDIR=""
+	TMPDIR="/usr/tmp"
+	FTP_PATH=""
+	NFS_PATH=""
 }
 
 # Set the installation media to undefined.
 media_reset()
 {
-	media_device=""
-	media_type=""
-	media_distribution=""
+	MEDIA_DEVICE=""
+	MEDIA_TYPE=""
+	MEDIA_DISTRIBUTION=""
+	FTP_PATH=""
+	NFS_PATH=""
+	NFS_OPTIONS=""
 }
 
 # Set the location of our temporary unpacking directory.
 media_set_tmpdir()
 {
-	title="Chose temporary directory"
-	default_value="/usr/tmp"
+	TITLE="Chose temporary directory"
+	DEFAULT_VALUE="${TMPDIR}"
 	if ! input \
 "Please specify the name of a directory containing enough free
 space to hold the temporary files for this distribution.  At
@@ -72,15 +59,15 @@ for you.  If you do not have enough free space to hold both the
 packed and unpacked distribution files, consider using the NFS
 or CDROM installation methods as they require no temporary
 storage."; then return 1; fi
-	tmp_dir=$answer
-	mkdir -p $tmp_dir
+	TMPDIR=${ANSWER}
+	mkdir -p ${TMPDIR}
 	return 0
 }
 
 media_cd_tmpdir()
 {
-	if ! cd $tmp_dir > /dev/ttyv1 2>&1; then
-		error "No such file or directory for ${tmp_dir}, sorry!  Please fix this and try again."
+	if ! cd ${TMPDIR} > /dev/ttyv1 2>&1; then
+		error "No such file or directory for ${TMPDIR}, sorry!  Please fix this and try again."
 		return 1
 	fi
 }
@@ -88,16 +75,15 @@ media_cd_tmpdir()
 media_rm_tmpdir()
 {
 	cd /
-	if dialog --title "Delete contents?" $clear --yesno \
-          "Do you wish to delete the contents of ${tmp_dir}?" -1 -1; then
-		rm -rf $tmp_dir/*
+	if dialog --title "Delete contents?" --yesno \
+          "Do you wish to delete the contents of ${TMPDIR}?" -1 -1; then
+		rm -rf ${TMPDIR}/*
 	fi
 }
 
 media_select_ftp_site()
 {
-	dialog $clear --title "Please specify an ftp site" \
-	--menu \
+	dialog --title "Please specify an ftp site" --menu \
 "FreeBSD is distributed from a number of sites on the Internet.\n\
 Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
@@ -115,50 +101,50 @@ binary set are only guaranteed to be available from the Primary site." \
    "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
    "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
-	retval=$?
-	answer=`cat ${TMP}/menu.tmp.$$`
+	RETVAL=$?
+	ANSWER=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
-	case $answer in
+	if ! handle_rval ${RETVAL}; then return 1; fi
+	case ${ANSWER} in
 	Primary)
-		ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	U.S-2)
-		ftp_path="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	U.S-3)
-		ftp_path="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}"
 	;;
 
    	U.S-4)
-		ftp_path="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	Taiwan)
-		ftp_path="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	Australia)
-		ftp_path="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}"
 	;;
 
 	France)
-		ftp_path="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	Finland)
-		ftp_path="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}"
 	;;
 
 	Russia)
-		ftp_path="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}"
+		FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}"
 	;;
 
 	other)
-		title="FTP Installation Information"
-		default_value="$ftp_path"
+		TITLE="FTP Installation Information"
+		DEFAULT_VALUE="${FTP_PATH}"
 		if ! input \
 "Please specify the machine and directory location of the
 distribution you wish to load.  This should be either a \"URL style\"
@@ -166,7 +152,7 @@ specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
 the name of a host to connect to.  If only a host name is specified,
 the installation assumes that you will properly connect and \"mget\"
 the files yourself."; then return 1; fi
-		ftp_path=$answer
+		FTP_PATH=${ANSWER}
 	;;
 	esac
 }
@@ -177,9 +163,13 @@ media_extract_dist()
 		message "Verifying checksums for distribution.  Please wait!"
 		if sh ./do_cksum.sh; then
 			if [ -f extract.sh ]; then
-				message "Extracting ${media_distribution} distribution.  Please wait!"
-				sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
-				dialog $clear --title "Extraction Complete" --msgbox "Please press return to continue" -1 -1
+				message "Extracting ${MEDIA_DISTRIBUTION} distribution.  Please wait!"
+				if [ -f ./.is_interactive]; then
+					sh ./extract.sh
+				else
+					sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
+				fi
+				dialog --title "Extraction Complete" --msgbox "Please press return to continue" -1 -1
 			else
 				error "No installation script found!"
 			fi
@@ -193,10 +183,10 @@ media_extract_dist()
 
 media_install_set()
 {
-	case $media_type in
+	case ${MEDIA_TYPE} in
 	cdrom|nfs|ufs|doshd)
-		if ! cd ${media_device}/${media_distribution} > /dev/ttyv1 2>&1; then
-			error "Unable to cd to ${media_device}/${media_distribution} directory."
+		if ! cd ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION} > /dev/ttyv1 2>&1; then
+			error "Unable to cd to ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION} directory."
 			media_reset
 		else
 			media_extract_dist
@@ -208,13 +198,17 @@ media_install_set()
 	tape)
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
-		confirm "Please mount tape for ${media_device}."
-		if [ "$media_device" = "ftape" ]; then
-			dialog --title "Results of tape extract" $clear \
-			  --prgbox "ft | $TAR $TAR_FLAGS -" 10 72
+		confirm "Please mount tape for ${MEDIA_DEVICE}."
+		if [ "${MEDIA_DEVICE}" = "ftape" ]; then
+			progress "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -"
+			dialog --title "Results of floppy tape extract" \
+			  --prgbox "${FT_CMD} | ${TAR_CMD} ${TAR_FLAGS} -" \
+				10 72
 		else
-			dialog --title "Results of tape extract" $clear \
-			  --prgbox "$TAR $TAR_FLAGS $media_device" 10 72
+			progress "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}"
+			dialog --title "Results of tape extraction" \
+			  --prgbox "${TAR_CMD} ${TAR_FLAGS} ${MEDIA_DEVICE}" \
+				10 72
 		fi
 		media_extract_dist
 		media_rm_tmpdir
@@ -223,19 +217,21 @@ media_install_set()
 	dosfd)
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
-		copying="yes"
-		while [ "$copying" = "yes" ]; do
+		COPYING="yes"
+		progress "Preparing to extract from DOS floppies"
+		while [ "${COPYING}" = "yes" ]; do
+			progress "Asking for DOS diskette"
 			if dialog --title "Insert distribution diskette" \
-			  $clear --yesno "Please enter the next diskette and press OK to continue or Cancel if finished" -1 -1; then
+			  --yesno "Please enter the next diskette and select <OK> to continue or <Cancel> if finished" -1 -1; then
 				umount ${MNT} > /dev/null 2>&1
-				if ! mount_msdos ${media_device} ${MNT}; then
+				if ! mount_msdos ${MEDIA_DEVICE} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
 				else
-					( tar -cf - -C ${MNT} . | tar -xvf - ) >/dev/ttyv1 2>&1
+					( ${TAR_CMD} -cf - -C ${MNT} . | ${TAR_CMD} -xvf - ) >/dev/ttyv1 2>&1
 					umount ${MNT}
 				fi
 			else
-				copying="no"
+				COPYING="no"
 			fi
 		done
 		media_extract_dist
@@ -246,16 +242,16 @@ media_install_set()
 	ftp)
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
-		if ! echo $media_device | grep -q -v 'ftp://'; then
+		if ! echo ${MEDIA_DEVICE} | grep -q -v 'ftp://'; then
 			message "Fetching distribution using ncftp.\nUse ALT-F2 to see output, ALT-F1 to return."
-			if ! ncftp $media_device/${media_distribution}/* < /dev/null > /dev/ttyv1 2>&1; then
-				error "Couldn't fetch ${media_distribution} distribution from\n${media_device}!"
+			if ! ncftp ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION}/* < /dev/null > /dev/ttyv1 2>&1; then
+				error "Couldn't fetch ${MEDIA_DISTRIBUTION} distribution from\n${MEDIA_DEVICE}!"
 			else
 				media_extract_dist
 			fi
 		else
 			dialog --clear
-			ftp $media_device
+			ftp ${MEDIA_DEVICE}
 			dialog --clear
 			media_extract_dist
 		fi
@@ -267,10 +263,10 @@ media_install_set()
 
 media_select_distribution()
 {
-	media_distribution=""
-	while [ "$media_distribution" = "" ]; do
+	MEDIA_DISTRIBUTION=""
+	while [ "${MEDIA_DISTRIBUTION}" = "" ]; do
 
-	dialog $clear --title "Please specify a distribution to load" \
+	dialog --title "Please specify a distribution to load" \
 	--menu \
 "FreeBSD is separated into a number of distributions for ease of\n\
 installation.  With repeated passes through this screen, you'll be\n\
@@ -280,57 +276,56 @@ from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
 illegally, thanks!  When finished, select <Cancel>." \
 -1 -1 10 \
   "?diskfree"  "How much disk space do I have free?" \
-  "bindist" "Binary base files (mandatory - $BINSIZE)" \
-  "games" "Games and other frivolities (optional - $GAMESIZE)" \
-  "manpages" "Manual pages (optional - $MANSIZE)" \
-  "proflibs" "Profiled libraries (optional - $PROFSIZE)" \
-  "dict" "Spelling checker dictionary files (optional - $DICTSIZE)" \
-  "srcdist" "Sources for everything but DES (optional - $SRCSIZE)" \
-  "secrdist" "DES encryption code (and sources) (optional - $SECRSIZE)" \
-  "compat1xdist" "FreeBSD 1.x binary compatability (optional - $COMPATSIZE)" \
-  "XFree86-3.1" "The XFree86 3.1 distribution (optional - $X11SIZE)" \
+  "bindist" "Binary base files (mandatory - ${BINSIZE})" \
+  "games" "Games and other frivolities (optional - ${GAMESIZE})" \
+  "manpages" "Manual pages (optional - ${MANSIZE})" \
+  "proflibs" "Profiled libraries (optional - ${PROFSIZE})" \
+  "dict" "Spelling checker dictionary files (optional - ${DICTSIZE})" \
+  "srcdist" "Sources for everything but DES (optional - ${SRCSIZE})" \
+  "secrdist" "DES encryption code (and sources) (optional - ${SECRSIZE})" \
+  "compat1xdist" "FreeBSD 1.x binary compatability (optional - ${COMPATSIZE})" \
+  "XFree86-3.1" "The XFree86 3.1 distribution (optional - ${X11SIZE})" \
      2> ${TMP}/menu.tmp.$$
-	retval=$?
-	media_distribution=`cat ${TMP}/menu.tmp.$$`
+	RETVAL=$?
+	MEDIA_DISTRIBUTION=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
-	if [ "$media_distribution" = "?diskfree" ]; then
+	if ! handle_rval ${RETVAL}; then return 1; fi
+	if [ "${MEDIA_DISTRIBUTION}" = "?diskfree" ]; then
 		if df -k > ${TMP}/df.out; then
-			dialog $clear \
-			--title "How much free space do I have?" \
-			--textbox ${TMP}/df.out 15 76
+			dialog --title "How much free space do I have?" \
+			  --textbox ${TMP}/df.out 15 76
 		else
 			error "Couldn't get disk usage information! :-("
 		fi
-		media_distribution=""
+		MEDIA_DISTRIBUTION=""
 	fi
 	done
 }
 
 media_get_possible_subdir()
 {
-	if [ -f ${MNT}/${media_distribution}/extract.sh ]; then return; fi
-	default_value="$distrib_subdir"
-	title="Distribution Subdirectory"
+	if [ -f ${MNT}/${MEDIA_DISTRIBUTION}/extract.sh ]; then return; fi
+	DEFAULT_VALUE="${DISTRIB_SUBDIR}"
+	TITLE="Distribution Subdirectory"
 	if input \
 "If the distributions are in a subdirectory of the mount point,
 please enter it here (no leading slash - it should be relative
 to the mount point).  The directory you enter should be the
 *parent* directory of any distribution subdirectories."; then
-		if [ "$answer" != "" ]; then
-			media_device=${media_device}/$answer
-			distrib_subdir=$answer
+		if [ "${ANSWER}" != "" ]; then
+			MEDIA_DEVICE=${MEDIA_DEVICE}/${ANSWER}
+			DISTRIB_SUBDIR=${ANSWER}
 		fi
 	fi
 }
 
-# Get values into $media_type and $media_device.  Call network initialization
+# Get values into $MEDIA_TYPE and $MEDIA_DEVICE.  Call network initialization
 # if necessary.
 media_chose()
 {
-	while [ "$media_device" = "" ]; do
+	while [ "${MEDIA_DEVICE}" = "" ]; do
 
-	dialog $clear --title "Installation From" \
+	dialog --title "Installation From" \
 --menu \
 "Before installing a distribution, you need to chose and/or configure\n\
 a method of installation.  Please pick from one of the following options.\n\
@@ -345,99 +340,99 @@ to proceed." -1 -1 7 \
 	"FTP" "Load distribution using FTP" \
 	"UFS" "Load the distribution from existing UFS partition" \
 	"NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
-	retval=$?
-	choice=`cat ${TMP}/menu.tmp.$$`
+	RETVAL=$?
+	CHOICE=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then return 1; fi
+	if ! handle_rval ${RETVAL}; then return 1; fi
 
-	case $choice in
+	case ${CHOICE} in
 	?Kern)
 		if dmesg > ${TMP}/dmesg.out; then
-			dialog $clear \
-			--title "What do I have in this machine again?" \
-			--textbox ${TMP}/dmesg.out 22 76
+			dialog --title "Kernel boot message output" \
+			  --textbox ${TMP}/dmesg.out 22 76
 		else
 			error "Couldn't get dmesg information! :-("
 		fi
 	;;
 
 	Tape)
-		dialog $clear --title "Chose Tape Type" \
---menu "Which type of tape drive do you have attached to your \n\
+		dialog --title "Chose Tape Type" --menu \
+"Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
-		"floppy" "Floppy tape drive" \
-			2> ${TMP}/menu.tmp.$$
-		retval=$?
-		choice=`cat ${TMP}/menu.tmp.$$`
+		"floppy" "Floppy tape drive" 2> ${TMP}/menu.tmp.$$
+		RETVAL=$?
+		CHOICE=`cat ${TMP}/menu.tmp.$$`
 		rm -f ${TMP}/menu.tmp.$$
-		if ! handle_rval $retval; then continue; fi
-		media_type=tape;
-		case $choice in
+		if ! handle_rval ${RETVAL}; then continue; fi
+		MEDIA_TYPE=tape;
+		case ${CHOICE} in
 			SCSI)
-				media_device=/dev/rst0
+				MEDIA_DEVICE=/dev/rst0
 			;;
+
 			QIC)
-				media_device=/dev/rwt0
+				MEDIA_DEVICE=/dev/rwt0
 			;;
+
 			floppy)
-				media_device=ftape
+				MEDIA_DEVICE=ftape
 			;;
 		esac
 	;;
 
 	CDROM)
-		dialog $clear --title "Chose CDROM Type" \
---menu "Which type of CDROM drive do you have attached to your \n\
+		dialog --title "Chose CDROM Type" --menu \
+"Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n" -1 -1 2 \
 		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
 			2> ${TMP}/menu.tmp.$$
-		retval=$?
-		choice=`cat ${TMP}/menu.tmp.$$`
+		RETVAL=$?
+		CHOICE=`cat ${TMP}/menu.tmp.$$`
 		rm -f ${TMP}/menu.tmp.$$
-		if ! handle_rval $retval; then continue; fi
-		media_type=cdrom;
-		case $choice in
+		if ! handle_rval ${RETVAL}; then continue; fi
+		MEDIA_TYPE=cdrom;
+		case ${CHOICE} in
 			SCSI)
-				media_device=/dev/cd0a
+				MEDIA_DEVICE=/dev/cd0a
 			;;
 			Mitsumi)
-				media_device=/dev/mcd0a
+				MEDIA_DEVICE=/dev/mcd0a
 			;;
 		esac
 		umount ${MNT} > /dev/null 2>&1
-		if ! mount_cd9660 $media_device ${MNT} > /dev/ttyv1 2>&1; then
-			error "Unable to mount $media_device on ${MNT}"
-			media_device=""
+		if ! mount_cd9660 ${MEDIA_DEVICE} ${MNT} > /dev/ttyv1 2>&1; then
+			error "Unable to mount ${MEDIA_DEVICE} on ${MNT}"
+			MEDIA_DEVICE=""
 		else
-			media_device=${MNT}
+			MEDIA_DEVICE=${MNT}
 			media_get_possible_subdir
 		fi
 	;;
 
 	DOS)
-		default_value="/dev/fd0"
+		DEFAULT_VALUE="/dev/fd0"
 		if input \
 "Please specify the device pointing at your DOS partition or
 floppy media.  For a hard disk, this might be something like
 /dev/wd0h or /dev/sd0h (as identified in the disklabel editor).
 For the "A" floppy drive, it's /dev/fd0, for the "B" floppy
 drive it's /dev/fd1\n"; then
-			media_device=$answer
-			if echo $media_device | grep -q -v 'fd://'; then
+			MEDIA_DEVICE=${ANSWER}
+			if echo ${MEDIA_DEVICE} | grep -q -v fd; then
 				umount ${MNT} > /dev/null 2>&1
-				if ! mount_msdos $media_device ${MNT} > /dev/ttyv1 2>&1; then
-					error "Unable to mount $media_device"
-					media_device=""
+				if ! mount_msdos ${MEDIA_DEVICE} ${MNT} > /dev/ttyv1 2>&1; then
+					error "Unable to mount ${MEDIA_DEVICE}"
+					MEDIA_DEVICE=""
 				else
-					media_type=doshd
-					media_device=${MNT}
+					MEDIA_TYPE=doshd
+					MEDIA_DEVICE=${MNT}
 					media_get_possible_subdir
 				fi
 			else
-				media_type=dosfd
+				MEDIA_TYPE=dosfd
 			fi
 		fi
 	;;
@@ -445,59 +440,59 @@ drive it's /dev/fd1\n"; then
 	FTP)
 		if ! network_setup; then continue; fi
 		if media_select_ftp_site; then
-			media_type=ftp
-			media_device=$ftp_path
+			MEDIA_TYPE=ftp
+			MEDIA_DEVICE=${FTP_PATH}
 		fi
 	;;
 
 	NFS)
 		if ! network_setup; then continue; fi
-		title="NFS Installation Information"
-		default_value="$nfs_path"
+		TITLE="NFS Installation Information"
+		DEFAULT_VALUE="${NFS_PATH}"
 		if ! input \
 "Please specify a machine and directory mount point for the
 distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/${DISTNAME}).  The remote
 directory *must* be be exported to your machine (or globally)
 for this to work!\n"; then continue; fi
-		nfs_path=$answer
+		NFS_PATH=${ANSWER}
 
-		default_value=""
+		DEFAULT_VALUE="${NFS_OPTIONS}"
 		if input \
 "Do you wish to specify any options to NFS?  If you're installing
-from a Sun 4.1.x system, you may wish to specify \`resvport' to send
+from a Sun 4.1.x system, you may wish to specify \`-o resvport' to send
 NFS requests over a privileged port (use this if you get nasty
 \`\`credential too weak'' errors from the server).  When using a slow
-ethernet card or network link, \`-r=1024,-w=1024' may also prove helpful.
+ethernet card or network link, \`-o -r=1024,-w=1024' may also prove helpful.
 Options, if any, should be separated by commas."; then
-			if [ "$answer" != "" ]; then
-				nfs_options="-o $answer"
+			if [ "${ANSWER}" != "" ]; then
+				NFS_OPTIONS="${ANSWER}"
 			fi
 		fi
-		media_type=nfs
-		nfs_path=$answer
+		MEDIA_TYPE=nfs
+		NFS_PATH=${ANSWER}
 		umount ${MNT} > /dev/null 2>&1
-		if ! mount_nfs $nfs_options $nfs_path ${MNT} > /dev/ttyv1 2>&1; then
-			error "Unable to mount $nfs_path"
+		if ! mount_nfs ${NFS_OPTIONS} ${NFS_PATH} ${MNT} > /dev/ttyv1 2>&1; then
+			error "Unable to mount ${NFS_PATH}"
 		else
-			message "$nfs_path mounted successfully"
-			media_device=${MNT}
+			message "${NFS_PATH} mounted successfully"
+			MEDIA_DEVICE=${MNT}
 			media_get_possible_subdir
 		fi
 	;;
 
 	UFS)
-		dialog $clear --title "User Intervention Requested" --msgbox "
+		dialog --title "User Intervention Requested" --msgbox "
 Please mount the filesystem you wish to use somewhere convenient and
 exit the shell when you're through.  I'll ask you for the location
-of the distribution when we come back." -1 -1
+of the distribution's parent directory when we come back." -1 -1
 		dialog --clear
 		/stand/sh
-		title="Please enter directory"
-		default_value="${MNT}"
+		TITLE="Please enter directory"
+		DEFAULT_VALUE="${MNT}"
 		if input "Ok, now give me the full pathname of the parent directorys for the distribution(s)."; then
-			media_type=ufs
-			media_device=$answer
+			MEDIA_TYPE=ufs
+			MEDIA_DEVICE=${ANSWER}
 		fi
 	;;
 	esac
