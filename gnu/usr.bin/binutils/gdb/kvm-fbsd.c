@@ -382,21 +382,30 @@ kcore_xfer_kmem (memaddr, myaddr, len, write, target)
      int write;
      struct target_ops *target;
 {
-  int n;
+  int ns;
+  int nu;
 
-  if (!memaddr)
-    return (0);
+  if (memaddr >= (CORE_ADDR)VM_MAXUSER_ADDRESS)
+    nu = 0;
+  else
+    {
+      nu = xfer_umem (memaddr, myaddr, len, write);
+      if (nu <= 0)
+	return (0);
+      if (nu == len)
+	return (nu);
+      memaddr += nu;
+      if (memaddr != (CORE_ADDR)VM_MAXUSER_ADDRESS)
+	return (nu);
+      myaddr += nu;
+      len -= nu;
+    }
 
-  if (memaddr < kernel_start)
-    return xfer_umem (memaddr, myaddr, len, write);
+  ns = (write ? kvm_write : kvm_read) (core_kd, memaddr, myaddr, len);
+  if (ns < 0)
+    ns = 0;
 
-  n = write ?
-    kvm_write (core_kd, memaddr, myaddr, len) :
-    kvm_read (core_kd, memaddr, myaddr, len) ;
-
-  if (n < 0)
-    return 0;
-  return n;
+  return (nu + ns);
 }
 
 static int
