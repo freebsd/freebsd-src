@@ -92,7 +92,6 @@
 #include <pci/pcivar.h>
 
 
-#include "sio.h"
 #include "sc.h"
 
 #ifndef CONSPEED
