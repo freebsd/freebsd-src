@@ -320,6 +320,7 @@ tcp_close(tp)
 	struct socket *so = inp->inp_socket;
 	register struct mbuf *m;
 	register struct rtentry *rt;
+	int dosavessthresh;
 
 	/*
 	 * If we got enough samples through the srtt filter,
@@ -364,15 +365,31 @@ tcp_close(tp)
 			tcpstat.tcps_cachedrttvar++;
 		}
 		/*
+		 * The old comment here said:
 		 * update the pipelimit (ssthresh) if it has been updated
 		 * already or if a pipesize was specified & the threshhold
 		 * got below half the pipesize.  I.e., wait for bad news
 		 * before we start updating, then update on both good
 		 * and bad news.
+		 *
+		 * But we want to save the ssthresh even if no pipesize is
+		 * specified explicitly in the route, because such
+		 * connections still have an implicit pipesize specified
+		 * by the global tcp_sendspace.  In the absence of a reliable
+		 * way to calculate the pipesize, it will have to do.
 		 */
+		i = tp->snd_ssthresh;
+#if 1
+		if (rt->rt_rmx.rmx_sendpipe != 0)
+			dosavessthresh = (i < rt->rt_rmx.rmx_sendpipe / 2);
+		else
+			dosavessthresh = (i < so->so_snd.sb_hiwat / 2);
+#else
+		dosavessthresh = (i < rt->rt_rmx.rmx_sendpipe / 2);
+#endif
 		if (((rt->rt_rmx.rmx_locks & RTV_SSTHRESH) == 0 &&
-		    ((i = tp->snd_ssthresh) != 0) && rt->rt_rmx.rmx_ssthresh) ||
-		    i < (rt->rt_rmx.rmx_sendpipe / 2)) {
+		     i != 0 && rt->rt_rmx.rmx_ssthresh != 0)
+		    || dosavessthresh) {
 			/*
 			 * convert the limit from user data bytes to
 			 * packets then to packet data bytes.
