@@ -313,7 +313,7 @@ in_pcbbind(inp, nam, p)
 					 * occurred above.
 					 */
 					inp->inp_laddr.s_addr = INADDR_ANY;
-					return (EAGAIN);
+					return (EADDRNOTAVAIL);
 				}
 				--*lastport;
 				if (*lastport > first || *lastport < last)
@@ -334,7 +334,7 @@ in_pcbbind(inp, nam, p)
 					 * occurred above.
 					 */
 					inp->inp_laddr.s_addr = INADDR_ANY;
-					return (EAGAIN);
+					return (EADDRNOTAVAIL);
 				}
 				++*lastport;
 				if (*lastport < first || *lastport > last)
