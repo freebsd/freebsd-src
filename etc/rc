@@ -330,6 +330,11 @@ case "`mount -d -a -t nfs 2> /dev/null`" in
 	;;
 esac
 
+# If we booted a special kernel remove the record so we will boot
+# the default kernel next time
+#
+rm -f /boot/nextboot.conf
+
 # Whack the pty perms back into shape.
 #
 if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
