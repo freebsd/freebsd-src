@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: rtld_start.S,v 1.1 1998/09/04 19:03:57 dfr Exp $	*/
 /*	From: NetBSD: rtld_start.S,v 1.1 1996/12/16 20:38:09 cgd Exp 	*/
 
 /*
@@ -129,8 +129,10 @@ _rtld_bind_start:
 $100:	ldgp    gp, 0(gp)
 	.prologue 1
 	/* Set up the arguments for _rtld_bind. */
+	subq	at_reg, t12, a1		/* calculate reloc offset */
 	ldq     a0, 8(t12)		/* object structure */
-	mov	at_reg, a1		/* offset of reloc entry */
+	subq	a1, 20, a1		/* = (at - t11 - 20) / 12 * 24 */
+	addq	a1, a1, a1
 	CALL(_rtld_bind)
 
 	/* Move the destination address into position.  */
