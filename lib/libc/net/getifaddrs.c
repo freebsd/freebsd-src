@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #endif
 
+#include <errno.h>
 #include <ifaddrs.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #define	HAVE_IFM_DATA
 #endif
 
+#define MAX_SYSCTL_TRY 5
+
 int
 getifaddrs(struct ifaddrs **pif)
 {
@@ -91,6 +94,7 @@ getifaddrs(struct ifaddrs **pif)
 	int dcnt = 0;
 	int ncnt = 0;
 #ifdef	NET_RT_IFLIST
+	int ntry = 0;
 	int mib[6];
 	size_t needed;
 	char *buf;
@@ -123,14 +127,31 @@ getifaddrs(struct ifaddrs **pif)
 	mib[3] = 0;             /* wildcard address family */
 	mib[4] = NET_RT_IFLIST;
 	mib[5] = 0;             /* no flags */
-	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		return (-1);
-	if ((buf = malloc(needed)) == NULL)
-		return (-1);
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
-		free(buf);
-		return (-1);
-	}
+	do {
+		/*
+		 * We'll try to get addresses several times in case that
+		 * the number of addresses is unexpectedly increased during
+		 * the two sysctl calls.  This should rarely happen, but we'll
+		 * try to do our best for applications that assume success of
+		 * this library (which should usually be the case).
+		 * Portability note: since FreeBSD does not add margin of
+		 * memory at the first sysctl, the possibility of failure on
+		 * the second sysctl call is a bit higher.
+		 */
+
+		if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
+			return (-1);
+		if ((buf = malloc(needed)) == NULL)
+			return (-1);
+		if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+			if (errno != ENOMEM || ++ntry >= MAX_SYSCTL_TRY) {
+				free(buf);
+				return (-1);
+			}
+			free(buf);
+			buf = NULL;
+		} 
+	} while (buf == NULL);
 
 	for (next = buf; next < buf + needed; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)(void *)next;
