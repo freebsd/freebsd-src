@@ -1760,7 +1760,7 @@ SetVariable(struct cmdargs const *arg)
       break;
 
     if (long_val == 0)
-      *change = DEF_MRU;
+      *change = 0;
     else if (long_val < MIN_MRU) {
       log_Printf(LogWARN, "MRU %ld: too small - min %d\n", long_val, MIN_MRU);
       res = 1;
