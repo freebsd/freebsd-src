@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1999/01/04 08:02:13 kato Exp $
+#	$Id: Makefile,v 1.1 1999/02/03 08:39:08 kato Exp $
 #
 
 PROG=	boot
@@ -8,8 +8,8 @@ SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/boot
 BINMODE=	444
-CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-		-mno-486 \
+CFLAGS=		-Os -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+		-mno-486 -mrtd \
 		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
