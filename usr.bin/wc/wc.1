@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: wc.1,v 1.4 1997/02/22 19:57:44 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt WC 1
@@ -44,10 +44,10 @@
 .Sh SYNOPSIS
 .Nm wc
 .Op Fl clw
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm wc
+.Nm
 utility displays the number of lines, words, and bytes contained in each
 input
 .Ar file
@@ -77,7 +77,7 @@ is written to the standard output.
 .El
 .Pp
 When an option is specified,
-.Nm wc
+.Nm
 only reports the information requested by that option.
 The default action is equivalent to specifying all of the flags.
 .Pp
@@ -85,13 +85,13 @@ If no files are specified, the standard input is used and no
 file name is displayed.
 .Pp
 The
-.Nm wc
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr isspace 3
 .Sh COMPATIBILITY
 Historically, the
-.Nm wc
+.Nm
 utility was documented to define a word as a ``maximal string of
 characters delimited by <space>, <tab> or <newline> characters''.
 The implementation, however, didn't handle non-printing characters
@@ -105,7 +105,7 @@ function, as required by
 .St -p1003.2 .
 .Sh STANDARDS
 The
-.Nm wc
+.Nm
 function conforms to
 .St -p1003.2 .
 .Sh HISTORY
