@@ -40,12 +40,12 @@
 .Nd laminate files
 .Sh SYNOPSIS
 .Nm
-.Op Fl f Ar min.max
+.Op Fl f Ar min . Ns Ar max
 .Op Fl s Ar sepstring
 .Op Fl t Ar c 
 .Ar file ...
 .Nm
-.Op Fl p Ar min.max
+.Op Fl p Ar min . Ns Ar max
 .Op Fl s Ar sepstring
 .Op Fl t Ar c 
 .Ar file ...
@@ -68,9 +68,9 @@ If the option letter is capitalized it affects all subsequent files
 until it appears again uncapitalized.
 The options are described below.
 .Bl -tag -width indent
-.It Fl f Ar min.max
+.It Fl f Ar min . Ns Ar max
 Print line fragments according to the format string
-.Ar min.max ,
+.Ar min . Ns Ar max ,
 where
 .Ar min
 is the minimum field width and
@@ -81,7 +81,7 @@ If
 begins with a zero, zeros will be added to make up the field width,
 and if it begins with a `\-', the fragment will be left-adjusted
 within the field.
-.It Fl p Ar min.max
+.It Fl p Ar min . Ns Ar max
 Like
 .Fl f ,
 but pad this file's field when end-of-file is reached

@@ -90,15 +90,14 @@ Specifies that linking against dynamic libraries can take place. If a library
 specifier of the form -lx appears on the command line,
 .Nm
 searches for a library of the from libx.so.n.m
-.Po see the \&
+(see the
 .Fl l
-option
-.Pc
+option)
 according to the search rules in effect. If such a file can not be
 found a traditional archive is looked for.
 This options can appear anywhere on the command line and is complementary
 to
-.Fl B Ns Ar static.
+.Fl B Ns Ar static .
 .It Fl B Ns Ar forcedynamic
 This is similar to
 .Fl B Ns Ar dynamic
@@ -143,7 +142,7 @@ Force allocation of commons even producing relocatable output.
 Force alias definitions of procedure calls in non-PIC code. Useful to
 obtain shareable code in the presence of run-time relocations as such
 calls will be re-directed through the Procedure Linkage Table (see
-.Xr link 5)
+.Xr link 5 )
 .It Fl e Ar entry-symbol
 Specifies the entry symbol for an executable.
 .It Fl f
@@ -161,12 +160,12 @@ output. If the
 .Fl B Ns Ar dynamic
 option is in effect, a shared library of the
 form lib<spec>.so.m.n
-.Po where \&
+(where
 .Em m
 is the major, and
 .Em n
-is the minor version number, respectively
-.Pc is searched for first. The
+is the minor version number, respectively)
+is searched for first. The
 library with the highest version found in the search path is selected.
 If no shared library is found or the
 .Fl B Ns Ar static
@@ -187,22 +186,20 @@ Produce a
 output file.
 .It Fl nostdlib
 Do not search the built-in path
-.Po
-usually
-.Dq /usr/lib
-.Pc
+(usually
+.Dq /usr/lib )
 for
 .Fl l
 specified libraries.
 .It Fl O Ar filename
 Specifies the name of the output file.
 The file is created as
-.Ar filename .tmp
+.Ar filename Ns Pa .tmp
 and when output is complete renamed to
 .Ar filename .
 .It Fl o Ar filename
 Specifies the name of the output file. Defaults to
-.Dq a.out.
+.Dq Pa a.out .
 .It Fl Q
 Produce a
 .Dv QMAGIC

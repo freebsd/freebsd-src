@@ -88,33 +88,33 @@ returns 0 on success and -1 on failure.
 .Fn uu_lock
 may return any of the following values:
 .Pp
-.Dv UU_LOCK_INUSE:
+.Dv UU_LOCK_INUSE :
 The lock is in use by another process.
 .Pp
-.Dv UU_LOCK_OK:
+.Dv UU_LOCK_OK :
 The lock was successfully created.
 .Pp
-.Dv UU_LOCK_OPEN_ERR:
+.Dv UU_LOCK_OPEN_ERR :
 The lock file could not be opened via
 .Xr open 2 .
 .Pp
-.Dv UU_LOCK_READ_ERR:
+.Dv UU_LOCK_READ_ERR :
 The lock file could not be read via
 .Xr read 2 .
 .Pp
-.Dv UU_LOCK_CREAT_ERR:
+.Dv UU_LOCK_CREAT_ERR :
 Can't create temporary lock file via
 .Xr creat 2 .
 .Pp
-.Dv UU_LOCK_WRITE_ERR:
+.Dv UU_LOCK_WRITE_ERR :
 The current process id could not be written to the lock file via a call to
 .Xr write 2 .
 .Pp
-.Dv UU_LOCK_LINK_ERR:
+.Dv UU_LOCK_LINK_ERR :
 Can't link temporary lock file via
 .Xr link 2 .
 .Pp
-.Dv UU_LOCK_TRY_ERR:
+.Dv UU_LOCK_TRY_ERR :
 Locking attempts are failed after 5 tries.
 .Pp
 If a value of
@@ -137,14 +137,14 @@ and
 .Fn uu_lock_txfr
 may return any of the following values:
 .Pp
-.Dv UU_LOCK_OK:
+.Dv UU_LOCK_OK :
 The transfer was successful.  The specified process now holds the device
 lock.
 .Pp
-.Dv UU_LOCK_OWNER_ERR:
+.Dv UU_LOCK_OWNER_ERR :
 The current process does not already own a lock on the specified device.
 .Pp
-.Dv UU_LOCK_WRITE_ERR:
+.Dv UU_LOCK_WRITE_ERR :
 The new process id could not be written to the lock file via a call to
 .Xr write 2 .
 .Sh ERRORS

@@ -59,7 +59,7 @@ utility reads a
 source file from standard input and produces a
 .Dv LC_CTYPE
 binary file on standard output suitable for placement in
-.Dv /usr/share/locale/\fIlanguage\fP/LC_CTYPE.
+.Pa /usr/share/locale/ Ns Ar language Ns Pa /LC_CTYPE .
 .Pp
 The format of
 .Ar src-file
@@ -189,12 +189,12 @@ through
 Defines the tolower mappings.
 .Dv RUNE2
 is the lower case representation of
-.Dv RUNE1.
+.Dv RUNE1 .
 .It Dv MAPUPPER
 Defines the toupper mappings.
 .Dv RUNE2
 is the upper case representation of
-.Dv RUNE1.
+.Dv RUNE1 .
 .It Dv TODIGIT
 Defines a map from runes to their digit value.
 .Dv RUNE2

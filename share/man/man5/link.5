@@ -75,7 +75,7 @@ through the .size assembler directive.
 PIC code differs from conventional code
 in that it accesses data variables through an indirection table, the
 Global Offset Table, by convention accessible by the reserved name
-.Em _GLOBAL_OFFSET_TABLE_.
+.Dv _GLOBAL_OFFSET_TABLE_ .
 The exact mechanism used for this is machine dependent, usually a machine
 register is reserved for the purpose.
 The rational behind this construct
@@ -105,7 +105,7 @@ If this symbol is non-zero, it points at a data structure from
 which the location of the necessary relocation- and symbol information can
 be derived.
 This is most notably used by the start-up module,
-.Em crt0.
+.Em crt0 .
 The _DYNAMIC structure is conventionally located at the start of the data
 segment of the image to which it pertains.
 .Pp
@@ -138,11 +138,11 @@ The current version numbers understood by
 and 
 .Xr ld.so 1
 are
-.Em LD_VERSION_SUN (3),
+.Em LD_VERSION_SUN (3) ,
 which is used by the
 .Tn SunOS
 4.x releases, and
-.Em LD_VERSION_BSD (8),
+.Em LD_VERSION_BSD (8) ,
 which has been in use since
 .Fx 1.1 .
 .It Fa d_un
@@ -214,7 +214,7 @@ The number of buckets in
 .Fa sdt_hash
 .It Fa sdt_strings
 The location of the symbol string table that goes with
-.Fa sdt_nzlist.
+.Fa sdt_nzlist .
 .It Fa sdt_str_sz
 The size of the string table.
 .It Fa sdt_text_sz
@@ -262,7 +262,7 @@ see also
 .Xr ldconfig 8
 .Pc
 for a shared object matching
-.Em lib\&<sod_name>\&.so.n.m.
+.Em lib\&<sod_name>\&.so.n.m .
 If not set,
 .Fa sod_name
 should point at a full path name for the desired shared object.
@@ -325,7 +325,7 @@ An array of these lives in the shared object's
 text segment and is addressed by the
 .Fa sdt_nzlist
 field of
-.Fa section_dispatch_table.
+.Fa section_dispatch_table .
 .Bd -literal -offset indent
 struct nzlist {
 	struct nlist	nlist;
@@ -449,7 +449,7 @@ The address were a breakpoint will be set by the run-time linker to
 divert control to the debugger.
 This address is determined by the start-up
 module,
-.Em crt0.o,
+.Pa crt0.o ,
 to be some convenient place before the call to _main.
 .It Fa dd_bpt_shadow
 Contains the original instruction that was at

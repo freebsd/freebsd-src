@@ -364,7 +364,8 @@ Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
 A
-.Em Netgraph queueable reqest item ,usually refered to as an 
+.Em Netgraph queueable reqest item ,
+usually refered to as an
 .Em item ,
 is recieved by the function.
 The item contains a pointer to an mbuf and metadata about the packet.
@@ -441,7 +442,7 @@ conformance with Frame Relay standards.
 The node may elect to nominate a different receive data function
 for data received on a particular hook, to simplify coding. It uses
 the 
-.Fn NG_HOOK_SET_RCVDATA "hook, fn"
+.Fn NG_HOOK_SET_RCVDATA hook fn
 macro to do this. The function receives the same arguments in every way
 other than it will receive all (and only) packets from that hook.
 .It Receive control message
@@ -468,7 +469,7 @@ The return address is retrieved from the
 using the
 .Fn NGI_RETADDR
 macro and is of type 
-.Em ng_ID_t.
+.Em ng_ID_t .
 All control messages and replies are
 allocated with
 .Fn malloc
@@ -491,7 +492,7 @@ the message out another hook to that on which it arrived.
 The node may elect to nominate a different receive message function
 for messages received on a particular hook, to simplify coding. It uses
 the 
-.Fn NG_HOOK_SET_RCVMSG "hook, fn"
+.Fn NG_HOOK_SET_RCVMSG hook fn
 macro to do this. The function receives the same arguments in every way
 other than it will receive all (and only) messages from that hook.
 .El
@@ -661,7 +662,7 @@ node ID
 Of type 
 .Em ng_ID_t ,
 This property can be retrieved using the macro 
-.Fn NG_NODE_ID "node".
+.Fn NG_NODE_ID "node" .
 .Pp
 .It
 node name
@@ -684,7 +685,7 @@ You may place anything of type
 .Em pointer
 here.
 Use the macros
-.Fn NG_NODE_SET_PRIVATE "node, value"
+.Fn NG_NODE_SET_PRIVATE node value
 and
 .Fn NG_NODE_PRIVATE "node"
 to set and retrieve this property.
@@ -702,10 +703,10 @@ hooks
 The node may have a number of hooks.
 A traversal method is provided to allow all the hooks to be
 tested for some condition.
-.Fn NG_NODE_FOREACH_HOOK "node, fn, arg, rethook"
+.Fn NG_NODE_FOREACH_HOOK node fn arg rethook
 where fn is a function that will be called for each hook
 with the form
-.Fn fn "hook, arg"
+.Fn fn hook arg
 and returning 0 to terminate the search. If the search is terminated, then 
 .Em rethook
 will be set to the hook at which the search was terminated.
@@ -727,7 +728,7 @@ You may place anything of type
 .Em pointer
 here.
 Use the macros
-.Fn NG_HOOK_SET_PRIVATE "hook, value"
+.Fn NG_HOOK_SET_PRIVATE hook value
 and
 .Fn NG_HOOK_PRIVATE "hook"
 to set and retrieve this property.
@@ -761,9 +762,9 @@ unless you have another reference still valid.
 Over-ride receive functions.
 .Pp
 The
-.Fn NG_HOOK_SET_RCVDATA "hook, fn"
+.Fn NG_HOOK_SET_RCVDATA hook fn
 and
-.Fn NG_HOOK_SET_RCVMSG "hook, fn"
+.Fn NG_HOOK_SET_RCVMSG hook fn
 macros can be used to set over-ride methods that will be used in preference
 to the generic receive data and reveive message functions. To unset these
 use the macros to set them to NULL. They will only be used for data and
@@ -1152,7 +1153,7 @@ It has 4 hooks:
 and
 .Dv right2left .
 Data entering from the right is passed to the left and duplicated on
-.Dv right2left,
+.Dv right2left ,
 and data entering from the left is passed to the right and
 duplicated on
 .Dv left2right .
@@ -1222,7 +1223,7 @@ A server and client side implememtation of PPPoE. Used in conjunction with
 either 
 .Xr ppp 8
 or the 
-.Em mpd port.
+.Em mpd port .
 .It BRIDGE
 This node, togther with the ethernet nodes allows a very flexible
 bridging system to be implemented.

@@ -48,7 +48,8 @@ variable specified by
 and unblocks the mutex specified by
 .Fa mutex .
 The waiting thread unblocks only after another thread calls
-.Xr pthread_cond_signal 3 , or
+.Xr pthread_cond_signal 3 ,
+or
 .Xr pthread_cond_broadcast 3
 with the same condition variable, and the current thread requires the lock
 on

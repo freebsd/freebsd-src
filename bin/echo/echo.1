@@ -44,19 +44,24 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl n
-.Op "string ..."
+.Op Ar string ...
 .Sh DESCRIPTION
 The
 .Nm
-utility writes any specified operands, separated by single blank (`` '')
-characters and followed by a newline (``\en'') character, to the standard
+utility writes any specified operands, separated by single blank
+.Pq Ql "\ "
+characters and followed by a newline
+.Pq Ql \en
+character, to the standard
 output.
 .Pp
 The following option is available:
 .Bl -tag -width flag
 .It Fl n
 Do not print the trailing newline character.  This may also be
-achieved by appending `\ec' to the end of the string, as is done
+achieved by appending
+.Ql \ec
+to the end of the string, as is done
 by iBCS2 compatible systems.
 .El
 .Pp

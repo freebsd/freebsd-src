@@ -941,20 +941,13 @@ is found.
 .Pp
 For loops are typically used to apply a set of rules to a list of files.
 The syntax of a for loop is:
-.Bl -tag -width Ds
-.It Xo
-.Ic \&.for
-.Ar variable
-.Ic in
-.Ar expression
-.Xc
-.It Xo
-<make-rules>
-.Xc
-.It Xo
-.Ic \&.endfor
-.Xc
+.Pp
+.Bl -tag -width indent -compact
+.It Ic .for Ar variable Ic in Ar expression
+.It <make-rules>
+.It Ic \&.endfor
 .El
+.Pp
 After the for
 .Ar expression
 is evaluated, it is split into words.

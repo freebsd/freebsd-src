@@ -19,9 +19,10 @@ Root's
 file
 .Pa /etc/crontab
 has to contain the line
-.nf
+.Bd -literal
 */5     *       *       *       *       root    /usr/libexec/atrun
-.fi
+.Ed
+.Pp
 so that
 .Xr atrun 8
 gets invoked every five minutes.

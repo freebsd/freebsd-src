@@ -649,7 +649,7 @@ The
 system reserves indices between
 .Sy SHN_LORESERVE
 and
-.Sy SHN_HIRESERVE,
+.Sy SHN_HIRESERVE ,
 inclusive.
 The section header table does not contain entries for the
 reserved indices.
@@ -1191,18 +1191,25 @@ This value down to and including
 are reserved for processor-specific semantics.
 .Pp
 There are macros for packing and unpacking the binding and type fields:
+.Pp
 .Bl -tag -width "ELF32_ST_INFO(bind, type)" -compact
-.It Dv ELF32_ST_BIND(info)
+.It Xo
+.Fn ELF32_ST_BIND info
+.Xc
 or
-.Sy ELF64_ST_BIND(info)
+.Fn ELF64_ST_BIND info
 extract a binding from an st_info value.
-.It Dv ELF64_ST_TYPE(info)
+.It Xo
+.Fn ELF64_ST_TYPE info
+.Xc
 or
-.Sy ELF32_ST_TYPE(info)
+.Fn ELF32_ST_TYPE info
 extract a type from an st_info value.
-.It Dv ELF32_ST_INFO(bind, type)
+.It Xo
+.Fn ELF32_ST_INFO bind type
+.Xc
 or
-.Sy ELF64_ST_INFO(bind, type)
+.Fn ELF64_ST_INFO bind type
 convert a binding and a type into an st_info value.
 .El
 .El
