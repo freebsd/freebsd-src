@@ -317,7 +317,7 @@ struct fd_data {
 	struct	callout_handle tohandle;
 	struct	devstat *device_stats;
 	dev_t	masterdev;
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	eventhandler_tag clonetag;
 	dev_t	clonedevs[NUMDENS - 1];
 #endif
@@ -388,7 +388,7 @@ static int fdc_detach(device_t dev);
 static void fdc_add_child(device_t, const char *, int);
 static int fdc_attach(device_t);
 static int fdc_print_child(device_t, device_t);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 static void fd_clone (void *, char *, int, dev_t *);
 #endif
 static int fd_probe(device_t);
@@ -1121,7 +1121,7 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 /*
  * Create a clone device upon request by devfs.
  */
@@ -1331,12 +1331,12 @@ fd_attach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
 #endif
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	{
 	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
@@ -1359,7 +1359,7 @@ fd_detach(device_t dev)
 	untimeout(fd_turnoff, fd, fd->toffhandle);
 	devstat_remove_entry(fd->device_stats);
 	destroy_dev(fd->masterdev);
-#ifndef BURN_BRIDGES
+#ifdef GONE_IN_5
 	{
 	int i;
 	for (i = 0; i < NUMDENS - 1; i++)
