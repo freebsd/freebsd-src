@@ -81,6 +81,9 @@ static struct cdevsw acpi_cdevsw = {
 struct mtx	acpi_mutex;
 #endif
 
+/* Local pools for managing system resources for ACPI child devices. */
+struct rman acpi_rman_io, acpi_rman_mem;
+
 struct acpi_quirks {
     char	*OemId;
     uint32_t	OemRevision;
@@ -111,10 +114,7 @@ static int	acpi_read_ivar(device_t dev, device_t child, int index,
 			uintptr_t *result);
 static int	acpi_write_ivar(device_t dev, device_t child, int index,
 			uintptr_t value);
-static int	acpi_set_resource(device_t dev, device_t child, int type,
-			int rid, u_long start, u_long count);
-static int	acpi_get_resource(device_t dev, device_t child, int type,
-			int rid, u_long *startp, u_long *countp);
+static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
@@ -162,8 +162,9 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_print_child,		acpi_print_child),
     DEVMETHOD(bus_read_ivar,		acpi_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_write_ivar),
-    DEVMETHOD(bus_set_resource,		acpi_set_resource),
-    DEVMETHOD(bus_get_resource,		acpi_get_resource),
+    DEVMETHOD(bus_get_resource_list,	acpi_get_rlist),
+    DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
+    DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
     DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
@@ -394,6 +395,20 @@ acpi_attach(device_t dev)
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
     sc->acpi_dev = dev;
+
+    /* Initialize resource manager. */
+    acpi_rman_io.rm_type = RMAN_ARRAY;
+    acpi_rman_io.rm_start = 0;
+    acpi_rman_io.rm_end = 0xffff;
+    acpi_rman_io.rm_descr = "I/O ports";
+    if (rman_init(&acpi_rman_io) != 0)
+	panic("acpi rman_init IO ports failed");
+    acpi_rman_mem.rm_type = RMAN_ARRAY;
+    acpi_rman_mem.rm_start = 0;
+    acpi_rman_mem.rm_end = ~0ul;
+    acpi_rman_mem.rm_descr = "I/O memory addresses";
+    if (rman_init(&acpi_rman_mem) != 0)
+	panic("acpi rman_init memory failed");
 
 #ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
@@ -824,56 +839,102 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 /*
  * Handle child resource allocation/removal
  */
-static int
-acpi_set_resource(device_t dev, device_t child, int type, int rid,
-		  u_long start, u_long count)
+static struct resource_list *
+acpi_get_rlist(device_t dev, device_t child)
 {
-    struct acpi_device		*ad = device_get_ivars(child);
-    struct resource_list	*rl = &ad->ad_rl;
+    struct acpi_device		*ad;
 
-    resource_list_add(rl, type, rid, start, start + count -1, count);
-
-    return(0);
-}
-
-static int
-acpi_get_resource(device_t dev, device_t child, int type, int rid,
-		  u_long *startp, u_long *countp)
-{
-    struct acpi_device		*ad = device_get_ivars(child);
-    struct resource_list	*rl = &ad->ad_rl;
-    struct resource_list_entry	*rle;
-
-    rle = resource_list_find(rl, type, rid);
-    if (!rle)
-	return(ENOENT);
-	
-    if (startp)
-	*startp = rle->start;
-    if (countp)
-	*countp = rle->count;
-
-    return (0);
+    ad = device_get_ivars(child);
+    return (&ad->ad_rl);
 }
 
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
+    struct resource_list_entry *rle;
+    struct resource *res;
+    struct rman *rm;
+    int needactivate;
 
-    return (resource_list_alloc(rl, bus, child, type, rid, start, end, count,
-	    flags));
+    /*
+     * If this is an allocation of the "default" range for a given RID, and
+     * we know what the resources for this device are (i.e., they're on the
+     * child's resource list), use those start/end values.
+     */
+    if (start == 0UL && end == ~0UL) {
+	rle = resource_list_find(rl, type, *rid);
+	if (rle == NULL)
+	    return (NULL);
+	start = rle->start;
+	end = rle->end;
+	count = rle->count;
+    }
+
+    /* If we don't manage this address, pass the request up to the parent. */
+    rle = acpi_sysres_find(type, start);
+    if (rle == NULL) {
+	return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
+	    start, end, count, flags));
+    }
+
+    /* We only handle memory and IO resources through rman. */
+    switch (type) {
+    case SYS_RES_IOPORT:
+	rm = &acpi_rman_io;
+	break;
+    case SYS_RES_MEMORY:
+	rm = &acpi_rman_mem;
+	break;
+    default:
+	panic("acpi_alloc_resource: invalid res type %d", type);
+    }
+
+    /* If we do know it, allocate it from the local pool. */
+    needactivate = flags & RF_ACTIVE;
+    flags &= ~RF_ACTIVE;
+    res = rman_reserve_resource(rm, start, end, count, flags, child);
+    if (res == NULL)
+	return (NULL);
+
+    /* Copy the bus tag from the pre-allocated resource. */
+    rman_set_bustag(res, rman_get_bustag(rle->res));
+    if (type == SYS_RES_IOPORT)
+	rman_set_bushandle(res, res->r_start);
+
+    /* If requested, activate the resource using the parent's method. */
+    if (needactivate)
+	if (bus_activate_resource(child, type, *rid, res) != 0) {
+	    rman_release_resource(res);
+	    return (NULL);
+	}
+
+    return (res);
 }
 
 static int
-acpi_release_resource(device_t bus, device_t child, int type, int rid, struct resource *r)
+acpi_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
 {
-    struct acpi_device *ad = device_get_ivars(child);
-    struct resource_list *rl = &ad->ad_rl;
+    int ret;
 
-    return (resource_list_release(rl, bus, child, type, rid, r));
+    /*
+     * If we know about this address, deactivate it and release it to the
+     * local pool.  If we don't, pass this request up to the parent.
+     */
+    if (acpi_sysres_find(type, rman_get_start(r)) == NULL) {
+	if (rman_get_flags(r) & RF_ACTIVE) {
+	    ret = bus_deactivate_resource(child, type, rid, r);
+	    if (ret != 0)
+		return (ret);
+	}
+	ret = rman_release_resource(r);
+    } else
+	ret = BUS_RELEASE_RESOURCE(device_get_parent(bus), child, type, rid, r);
+
+    return (ret);
 }
 
 /* Allocate an IO port or memory resource, given its GAS. */
@@ -1043,8 +1104,8 @@ acpi_probe_children(device_t bus)
 {
     ACPI_HANDLE	parent;
     ACPI_STATUS	status;
-    static char	*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
     int		i;
+    static char	*scopes[] = {"\\_PR_", "\\_TZ_", "\\_SI", "\\_SB_", NULL};
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_ASSERTLOCK;
@@ -1091,6 +1152,28 @@ acpi_probe_children(device_t bus)
     return_VOID;
 }
 
+static int
+acpi_probe_order(ACPI_HANDLE handle, int level, int *order)
+{
+    int ret;
+
+    ret = 0;
+    /* IO port and memory system resource holders are first. */
+    if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02")) {
+	*order = 1;
+	ret = 1;
+    }
+
+    /* The embedded controller is needed to handle accesses early. */
+    if (acpi_MatchHid(handle, "PNP0C09")) {
+	*order = 2;
+	ret = 1;
+    }
+
+    *order = (level + 1) * 10;
+    return (ret);
+}
+
 /*
  * Evaluate a child device and determine whether we might attach a device to
  * it.
@@ -1099,7 +1182,8 @@ static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     ACPI_OBJECT_TYPE	type;
-    device_t		child, bus = (device_t)context;
+    device_t		child, bus;
+    int			order, probe_now;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1107,6 +1191,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     if (acpi_avoid(handle))
 	return_ACPI_STATUS (AE_OK);
 
+    bus = (device_t)context;
     if (ACPI_SUCCESS(AcpiGetType(handle, &type))) {
 	switch(type) {
 	case ACPI_TYPE_DEVICE:
@@ -1122,7 +1207,8 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n",
 			     acpi_name(handle)));
-	    child = BUS_ADD_CHILD(bus, level * 10, NULL, -1);
+	    probe_now = acpi_probe_order(handle, level, &order);
+	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
 		break;
 
@@ -1154,6 +1240,8 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    acpi_parse_resources(child, handle, &acpi_res_parse_set, NULL);
 
 	    /* If we're debugging, probe/attach now rather than later */
+	    if (probe_now)
+		device_probe_and_attach(child);
 	    ACPI_DEBUG_EXEC(device_probe_and_attach(child));
 	    break;
 	}
@@ -1342,13 +1430,12 @@ acpi_BatteryIsPresent(device_t dev)
 }
 
 /*
- * Match a HID string against a device
+ * Match a HID string against a handle
  */
 BOOLEAN
-acpi_MatchHid(device_t dev, char *hid) 
+acpi_MatchHid(ACPI_HANDLE h, char *hid) 
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_HANDLE		h;
     ACPI_BUFFER		buf;
     ACPI_STATUS		error;
     int			ret, i;
@@ -1356,15 +1443,13 @@ acpi_MatchHid(device_t dev, char *hid)
     ACPI_ASSERTLOCK;
 
     ret = FALSE;
-    if (hid == NULL)
-	return (FALSE);
-    if ((h = acpi_get_handle(dev)) == NULL)
-	return (FALSE);
+    if (hid == NULL || h == NULL)
+	return (ret);
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
-	return (FALSE);
+	return (ret);
     devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
