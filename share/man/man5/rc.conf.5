@@ -1821,6 +1821,16 @@ most secure).  See
 .Xr init 8
 for the list of possible security levels and their effect
 on system operation.
+.It Va lomac_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to enable Low Watermark Mandatory Access Control (LOMAC) at boot-time.
+This security model enforces integrity constraints for system processes;
+see
+.Xr lomac 4
+for a complete description of the LOMAC model, as well as its impact
+on system operation.
 .It Va start_vinum
 .Pq Vt bool
 Set to
