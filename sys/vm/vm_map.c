@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57.2.1 1996/12/15 09:57:13 davidg Exp $
+ * $Id: vm_map.c,v 1.57.2.2 1997/01/26 03:14:59 dyson Exp $
  */
 
 /*
@@ -2033,7 +2033,15 @@ vmspace_fork(vm1)
                                                                        old_entry->start));
                                 old_entry->object.vm_object = object;
                                 old_entry->offset = (vm_offset_t) 0;
-                        }
+                        } else if (old_entry->needs_copy) {
+				vm_object_shadow(&old_entry->object.vm_object,
+						 &old_entry->offset,
+						 OFF_TO_IDX(old_entry->end -
+							    old_entry->start));
+
+				old_entry->needs_copy = 0;
+				object = old_entry->object.vm_object;
+			}
 
 			/*
 			 * Clone the entry, referencing the sharing map.
