@@ -31,6 +31,9 @@
 
 #include <sys/cdefs.h>
 
+#define PROPERTY_MAX_NAME	64
+#define PROPERTY_MAX_VALUE	512
+
 /* for properties.c */
 typedef struct _property {
 	struct _property *next;
