@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.6 1994/12/17 04:04:42 davidg Exp $
+ * $Id: kern_malloc.c,v 1.7 1995/01/09 16:04:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -135,8 +135,7 @@ malloc(size, type, flags)
 		else
 			allocsize = 1 << indx;
 		npg = clrnd(btoc(allocsize));
-		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg),
-					   !(flags & M_NOWAIT));
+		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
 		if (va == NULL) {
 			splx(s);
 			return ((void *) NULL);
