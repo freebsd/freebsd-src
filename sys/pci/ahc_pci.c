@@ -173,8 +173,8 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	},
 	/* aic7859 based controllers */
 	{
-		ID_AHA_2930CU & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AHA_2930CU,
+		ID_ALL_MASK,
 		"Adaptec 2930CU SCSI adapter",
 		ahc_aic7859_setup
 	},
@@ -465,8 +465,8 @@ static const int ahc_num_pci_devs =
 static struct ahc_pci_identity *ahc_find_pci_device(pcici_t tag);
 static void check_extport(struct ahc_softc *ahc, u_int *sxfrctl1);
 static void configure_termination(struct ahc_softc *ahc,
-				  struct seeprom_config *sc,
 				  struct seeprom_descriptor *sd,
+				  u_int adapter_control,
 	 			  u_int *sxfrctl1);
 
 static void ahc_ultra2_term_detect(struct ahc_softc *ahc,
@@ -839,8 +839,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
  				our_id = 0x07;
 				sxfrctl1 = STPWEN;
 			}
-			ahc_outb(ahc, SCSICONF,
-				 (our_id & 0x07)|ENSPCHK|RESET_SCSI);
+			ahc_outb(ahc, SCSICONF, our_id|ENSPCHK|RESET_SCSI);
 
 			ahc->our_id = our_id;
 		}
@@ -882,8 +881,10 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 {
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
-	u_int8_t  scsi_conf;
+	u_int	  scsi_conf;
+	u_int	  adapter_control;
 	int	  have_seeprom;
+	int	  have_autoterm;
 
 	sd.sd_tag = ahc->tag;
 	sd.sd_bsh = ahc->bsh;
@@ -910,7 +911,6 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	sd.sd_DI = SEEDI;
 
 	have_seeprom = acquire_seeprom(ahc, &sd);
-
 	if (have_seeprom) {
 
 		if (bootverbose) 
@@ -928,8 +928,8 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 				/* Check checksum */
 				int i;
 				int maxaddr;
+				u_int32_t checksum;
 				u_int16_t *scarray;
-				u_int16_t checksum;
 
 				maxaddr = (sizeof(sc)/2) - 1;
 				checksum = 0;
@@ -937,7 +937,8 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 
 				for (i = 0; i < maxaddr; i++)
 					checksum = checksum + scarray[i];
-				if (checksum == 0 || checksum != sc.checksum) {
+				if (checksum == 0
+				 || (checksum & 0xFFFF) != sc.checksum) {
 					if (bootverbose && sd.sd_chip == C56_66)
 						printf ("checksum error\n");
 					have_seeprom = 0;
@@ -1050,24 +1051,42 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		ahc_outb(ahc, ULTRA_ENB + 1, (ultraenb >> 8) & 0xff);
 	}
 
+	/*
+	 * Cards that have the external logic necessary to talk to
+	 * a SEEPROM, are almost certain to have the remaining logic
+	 * necessary for auto-termination control.  This assumption
+	 * hasn't failed yet...
+	 */
+	have_autoterm = have_seeprom;
+	if (have_seeprom)
+		adapter_control = sc.adapter_control;
+	else
+		adapter_control = CFAUTOTERM;
+
+	/*
+	 * Some low-cost chips have SEEPROM and auto-term control built
+	 * in, instead of using a GAL.  They can tell us directly
+	 * if the termination logic is enabled.
+	 */
 	if ((ahc->features & AHC_SPIOCAP) != 0) {
-		if ((ahc_inb(ahc, SPIOCAP) & SSPIOCPS) != 0) {
-			configure_termination(ahc, &sc, &sd, sxfrctl1);
-		}
-	} else if (have_seeprom) {
-		configure_termination(ahc, &sc, &sd, sxfrctl1);
+		if ((ahc_inb(ahc, SPIOCAP) & SSPIOCPS) != 0)
+			have_autoterm = TRUE;
+		else
+			have_autoterm = FALSE;
 	}
+
+	if (have_autoterm)
+		configure_termination(ahc, &sd, adapter_control, sxfrctl1);
 
 	release_seeprom(&sd);
 }
 
 static void
 configure_termination(struct ahc_softc *ahc,
-		      struct seeprom_config *sc,
 		      struct seeprom_descriptor *sd,
+		      u_int adapter_control,
 		      u_int *sxfrctl1)
 {
-	int max_targ = sc->max_targets & CFMAXTARG;
 	u_int8_t brddat;
 	
 	brddat = 0;
@@ -1084,7 +1103,7 @@ configure_termination(struct ahc_softc *ahc,
 	 * on or we will release the seeprom.
 	 */
 	SEEPROM_OUTB(sd, sd->sd_MS | sd->sd_CS);
-	if ((sc->adapter_control & CFAUTOTERM) != 0
+	if ((adapter_control & CFAUTOTERM) != 0
 	 || (ahc->features & AHC_ULTRA2) != 0) {
 		int internal50_present;
 		int internal68_present;
@@ -1105,14 +1124,19 @@ configure_termination(struct ahc_softc *ahc,
 					       &enablePRI_low,
 					       &enablePRI_high,
 					       &eeprom_present);
-			if ((sc->adapter_control & CFSEAUTOTERM) == 0) {
-				enableSEC_low = (sc->adapter_control & CFSTERM);
-				enableSEC_high =
-				    (sc->adapter_control & CFWSTERM);
+			if ((adapter_control & CFSEAUTOTERM) == 0) {
+				if (bootverbose)
+					printf("%s: Manual SE Termination\n",
+					       ahc_name(ahc));
+				enableSEC_low = (adapter_control & CFSTERM);
+				enableSEC_high = (adapter_control & CFWSTERM);
 			}
-			if ((sc->adapter_control & CFAUTOTERM) == 0) {
+			if ((adapter_control & CFAUTOTERM) == 0) {
+				if (bootverbose)
+					printf("%s: Manual LVD Termination\n",
+					       ahc_name(ahc));
 				enablePRI_low = enablePRI_high =
-				    (sc->adapter_control & CFLVDSTERM);
+				    (adapter_control & CFLVDSTERM);
 			}
 			/* Make the table calculations below happy */
 			internal50_present = 0;
@@ -1129,9 +1153,8 @@ configure_termination(struct ahc_softc *ahc,
 					     &eeprom_present);
 		}
 
-		if (max_targ <= 8) {
+		if ((ahc->features & AHC_WIDE) == 0)
 			internal68_present = 0;
-		}
 
 		if (bootverbose) {
 			if ((ahc->features & AHC_ULTRA2) == 0) {
@@ -1168,7 +1191,7 @@ configure_termination(struct ahc_softc *ahc,
 			       "time!\n", ahc_name(ahc));
 		}
 
-		if ((max_targ > 8)
+		if ((ahc->features & AHC_WIDE) != 0
 		 && ((externalcable_present == 0)
 		  || (internal68_present == 0)
 		  || (enableSEC_high != 0))) {
@@ -1211,11 +1234,8 @@ configure_termination(struct ahc_softc *ahc,
 		write_brdctl(ahc, brddat);
 
 	} else {
-		if (sc->adapter_control & CFSTERM) {
-			if ((ahc->features & AHC_ULTRA2) != 0)
-				brddat |= BRDDAT5;
-			else
-				*sxfrctl1 |= STPWEN;
+		if ((adapter_control & CFSTERM) != 0) {
+			*sxfrctl1 |= STPWEN;
 
 			if (bootverbose)
 				printf("%s: %sLow byte termination Enabled\n",
@@ -1224,7 +1244,7 @@ configure_termination(struct ahc_softc *ahc,
 								    : "");
 		}
 
-		if (sc->adapter_control & CFWSTERM) {
+		if ((adapter_control & CFWSTERM) != 0) {
 			brddat |= BRDDAT6;
 			if (bootverbose)
 				printf("%s: %sHigh byte termination Enabled\n",
@@ -1253,7 +1273,6 @@ ahc_ultra2_term_detect(struct ahc_softc *ahc, int *enableSEC_low,
 	 * BRDDAT3 = Enable Primary low byte termination
 	 */
 	brdctl = read_brdctl(ahc);
-
 	*eeprom_present = brdctl & BRDDAT7;
 	*enableSEC_high = (brdctl & BRDDAT6);
 	*enableSEC_low = (brdctl & BRDDAT5);
@@ -1364,7 +1383,7 @@ write_brdctl(ahc, value)
 		brdctl = BRDSTB;
 	 	if (ahc->channel == 'B')
 			brdctl |= BRDCS;
-	} else if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7890) {
+	} else if ((ahc->features & AHC_ULTRA2) != 0) {
 		brdctl = 0;
 	} else {
 		brdctl = BRDSTB|BRDCS;
@@ -1372,12 +1391,12 @@ write_brdctl(ahc, value)
 	ahc_outb(ahc, BRDCTL, brdctl);
 	brdctl |= value;
 	ahc_outb(ahc, BRDCTL, brdctl);
-	if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7890)
+	if ((ahc->features & AHC_ULTRA2) != 0)
 		brdctl |= BRDSTB_ULTRA2;
 	else
 		brdctl &= ~BRDSTB;
 	ahc_outb(ahc, BRDCTL, brdctl);
-	if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7890)
+	if ((ahc->features & AHC_ULTRA2) != 0)
 		brdctl = 0;
 	else
 		brdctl &= ~BRDCS;
@@ -1395,7 +1414,7 @@ read_brdctl(ahc)
 		brdctl = BRDRW;
 	 	if (ahc->channel == 'B')
 			brdctl |= BRDCS;
-	} else if ((ahc->chip & AHC_CHIPID_MASK) == AHC_AIC7890) {
+	} else if ((ahc->features & AHC_ULTRA2) != 0) {
 		brdctl = BRDRW_ULTRA2;
 	} else {
 		brdctl = BRDRW|BRDCS;
