@@ -104,7 +104,7 @@ acdattach(struct atapi_softc *atp)
 {
     struct acd_softc *cdp;
     struct changer *chp;
-    int32_t error, count;
+    int32_t count, error = 0;
     static int32_t acd_cdev_done = 0, acdnlun = 0;
 
     if (!acd_cdev_done) {

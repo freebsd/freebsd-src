@@ -154,7 +154,7 @@ astattach(struct atapi_softc *atp)
 static int32_t
 ast_sense(struct ast_softc *stp)
 {
-    int32_t count, error;
+    int32_t count, error = 0;
 
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
