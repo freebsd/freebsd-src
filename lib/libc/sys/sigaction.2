@@ -460,7 +460,7 @@ There are three possible prototypes the handler may match:
 .Fn handler int "int code" "struct sigcontext *scp" ;
 .It POSIX SA_SIGINFO:
 .Ft void
-.Fn handler int "siginfo_t *info" "void *context" ;
+.Fn handler int "siginfo_t *info" "ucontext_t *uap" ;
 .El
 .Pp
 The handler function should match the SA_SIGINFO prototype if the
@@ -528,7 +528,7 @@ handler points to an instance of struct
 sigcontext.
 .Pp
 The
-.Fa context
+.Fa uap
 argument to a POSIX SA_SIGINFO handler points to an instance of
 ucontext_t.
 .Sh ERRORS
@@ -608,4 +608,5 @@ flags are featuring options commonly found in other operating systems.
 .Xr setjmp 3 ,
 .Xr siginterrupt 3 ,
 .Xr sigsetops 3 ,
+.Xr ucontext 3 ,
 .Xr tty 4
