@@ -266,8 +266,10 @@
 178	STD	LINUX	{ int linux_rt_sigqueueinfo(void); }
 179	STD	LINUX	{ int linux_rt_sigsuspend(linux_sigset_t *newset, \
 				size_t sigsetsize); }
-180	STD	LINUX	{ int linux_pread(void); }
-181	STD	LINUX	{ int linux_pwrite(void); }
+180	STD	LINUX	{ int linux_pread(int fd, char *buf, size_t nbyte, \
+				off_t offset); }
+181	STD	LINUX	{ int linux_pwrite(int fd, const char *buf, \
+				size_t nbyte, off_t offset); }
 182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
 183	STD	LINUX	{ int linux_getcwd(char *buf, unsigned long bufsize); }
 184	STD	LINUX	{ int linux_capget(void); }
