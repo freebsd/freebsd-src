@@ -22,7 +22,6 @@ sed	-e '/pty/d' \
 	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
-	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
@@ -49,7 +48,7 @@ sed	-e '/pty/d' \
 	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
-	-e '/RANDOMDEV/d' \
+	-e '/ncr/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
