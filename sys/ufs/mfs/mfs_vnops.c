@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.27 1997/10/16 22:01:05 phk Exp $
+ * $Id: mfs_vnops.c,v 1.28 1997/10/19 01:36:49 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-static int	mfs_badop __P((void));
+static int	mfs_badop __P((struct vop_generic_args *));
 static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
 static int	mfs_fsync __P((struct vop_fsync_args *));
@@ -65,15 +65,20 @@ static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
  */
 vop_t **mfs_vnodeop_p;
 static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
+	{ &vop_default_desc,		(vop_t *) mfs_badop },
 	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
+	{ &vop_bwrite_desc,		(vop_t *) vop_defaultop },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
+	{ &vop_islocked_desc,		(vop_t *) vop_defaultop },
+	{ &vop_lock_desc,		(vop_t *) vop_defaultop },
 	{ &vop_open_desc,		(vop_t *) mfs_open },
 	{ &vop_print_desc,		(vop_t *) mfs_print },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
 	{ &vop_strategy_desc,		(vop_t *) mfs_strategy },
+	{ &vop_unlock_desc,		(vop_t *) vop_defaultop },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc mfs_vnodeop_opv_desc =
@@ -284,9 +289,12 @@ mfs_print(ap)
  * Block device bad operation
  */
 static int
-mfs_badop()
+mfs_badop(struct vop_generic_args *ap)
 {
+	int i;
 
-	panic("mfs_badop called");
-	/* NOTREACHED */
+	printf("mfs_badop[%s]\n", ap->a_desc->vdesc_name);
+	i = vop_defaultop(ap);
+	printf("mfs_badop[%s] = %d\n", ap->a_desc->vdesc_name,i);
+	return (i);
 }
