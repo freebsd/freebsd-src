@@ -149,6 +149,12 @@ init_param2(int physpages)
 	 */
 	maxproc = NPROC;
 	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
+	/*
+	 * Limit maxproc so that kmap entries cannot be exhausted by
+	 * processes.
+	 */
+	if (maxproc > (physpages / 12))
+		maxproc = physpages / 12;
 	maxfiles = MAXFILES;
 	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
 	maxprocperuid = (maxproc * 9) / 10;
