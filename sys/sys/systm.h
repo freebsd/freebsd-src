@@ -159,7 +159,7 @@ int	susword __P((void *base, int word));
 void	realitexpire __P((void *));
 
 void	hardclock __P((struct clockframe *frame));
-void	softclock __P((void));
+void	softclock __P((void *));
 void	statclock __P((struct clockframe *frame));
 
 void	startprofclock __P((struct proc *));
@@ -204,22 +204,6 @@ struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
 /* Interrupt management */
-void		setdelayed __P((void));
-void		setsoftast __P((void));
-void		setsoftcambio __P((void));
-void		setsoftcamnet __P((void));
-void		setsoftclock __P((void));
-void		setsoftnet __P((void));
-void		setsofttty __P((void));
-void		setsoftvm __P((void));
-void		setsofttq __P((void));
-void		schedsoftcamnet __P((void));
-void		schedsoftcambio __P((void));
-void		schedsoftnet __P((void));
-void		schedsofttty __P((void));
-void		schedsoftvm __P((void));
-void		schedsofttq __P((void));
-intrmask_t	softclockpending __P((void));
 void		spl0 __P((void));
 intrmask_t	splbio __P((void));
 intrmask_t	splcam __P((void));

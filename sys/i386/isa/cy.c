@@ -133,7 +133,7 @@
 #define	siosetwater	cysetwater
 #define	comstop		cystop
 #define	siowrite	cywrite
-#define	sio_registered	cy_registered
+#define	sio_irec	cy_irec
 #define	sio_timeout	cy_timeout
 #define	sio_timeout_handle cy_timeout_handle
 #define	sio_timeouts_until_log	cy_timeouts_until_log
@@ -391,7 +391,7 @@ static struct cdevsw sio_cdevsw = {
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
-static	bool_t	sio_registered;
+static	struct	intrhand *sio_ih;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -607,10 +607,10 @@ cyattach_common(cy_iobase, cy_align)
 	com_addr(unit) = com;
 	splx(s);
 
-	if (!sio_registered) {
+	if (sio_ih == NULL)
 		cdevsw_add(&sio_cdevsw);
-		register_swi(SWI_TTY, siopoll);
-		sio_registered = TRUE;
+		sio_ih = sinthand_add("tty:sio", &tty_ithd, siopoll, NULL,
+		    SWI_TTY, 0);
 	}
 	make_dev(&sio_cdevsw, unit,
 		UID_ROOT, GID_WHEEL, 0600, "ttyc%r%r", adapter,
@@ -1174,7 +1174,8 @@ siointr(unit)
 #ifndef SOFT_HOTCHAR
 			if (line_status & CD1400_RDSR_SPECIAL
 			    && com->hotchar != 0)
-				setsofttty();
+				sched_swi(sio_ih, SWI_NOSWITCH);
+
 #endif
 #if 1 /* XXX "intelligent" PFO error handling would break O error handling */
 			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
@@ -1201,7 +1202,7 @@ siointr(unit)
 			++com->bytes_in;
 #ifdef SOFT_HOTCHAR
 			if (com->hotchar != 0 && recv_data == com->hotchar)
-				setsofttty();
+				sched_swi(sio_ih, SWI_NOSWITCH);
 #endif
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
@@ -1251,7 +1252,7 @@ siointr(unit)
 						if (com->hotchar != 0
 						    && recv_data
 						       == com->hotchar)
-							setsofttty();
+							sched_swi(sio_ih, SWI_NOSWITCH);
 #endif
 						ioptr[0] = recv_data;
 						ioptr[com->ierroff] = 0;
@@ -1266,7 +1267,7 @@ siointr(unit)
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
-						setsofttty();
+						sched_swi(sio_ih, SWI_NOSWITCH);
 #endif
 				} while (--count != 0);
 			} else {
@@ -1291,7 +1292,7 @@ siointr(unit)
 #ifdef SOFT_HOTCHAR
 					if (com->hotchar != 0
 					    && recv_data == com->hotchar)
-						setsofttty();
+						sched_swi(sio_ih, SWI_NOSWITCH);
 #endif
 					ioptr[0] = recv_data;
 					ioptr[com->ierroff] = 0;
@@ -1356,7 +1357,7 @@ cont:
 			if (!(com->state & CS_CHECKMSR)) {
 				com_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				setsofttty();
+				sched_swi(sio_ih, SWI_NOSWITCH);
 			}
 
 #ifdef SOFT_CTS_OFLOW
@@ -1487,7 +1488,7 @@ cont:
 					if (!(com->state & CS_ODONE)) {
 						com_events += LOTS_OF_EVENTS;
 						com->state |= CS_ODONE;
-						setsofttty();
+						sched_swi(sio_ih, SWI_NOSWITCH);
 					}
 					break;
 				case ETC_BREAK_ENDED:
@@ -1501,7 +1502,7 @@ cont:
 				if (!(com->extra_state & CSE_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
 					com->extra_state |= CSE_ODONE;
-					setsofttty();
+					sched_swi(sio_ih, SWI_NOSWITCH);
 				}
 				cd_outb(iobase, CD1400_SRER, cy_align,
 					com->intr_enable
@@ -1559,7 +1560,7 @@ cont:
 					com->state |= CS_ODONE;
 
 					/* handle at high level ASAP */
-					setsofttty();
+					sched_swi(sio_ih, SWI_NOSWITCH);
 				}
 			}
 		}
@@ -1579,7 +1580,7 @@ terminate_tx_service:
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-	schedsofttty();
+	sched_swi(sio_ih, SWI_NOSWITCH);
 
 	COM_UNLOCK();
 }

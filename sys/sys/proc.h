@@ -348,7 +348,7 @@ struct ithd {
 	LIST_ENTRY(ithd) it_list;	/* All interrupt threads */
 	int		it_need;	/* Needs service */
 	int		irq;		/* irq */
-	struct intrec	*it_ih;		/* head of handler queue */
+	struct intrhand	*it_ih;		/* head of handler queue */
 	struct ithd	*it_interrupted; /* Who we interrupted */
 
 	/* Fields used only for hard interrupt threads */

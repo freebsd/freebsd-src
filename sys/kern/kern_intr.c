@@ -44,105 +44,18 @@
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 
-struct swilist {
-	swihand_t	*sl_handler;
-	struct swilist	*sl_next;
-};
+#include <net/netisr.h>		/* prototype for legacy_setsoftnet */
 
-static struct swilist swilists[NSWI];
-u_long softintr_count[NSWI];
-static struct proc *softithd;
-volatile u_int sdelayed;
-volatile u_int spending;
+struct intrhand *net_ih;
+struct intrhand *vm_ih;
+struct intrhand *softclock_ih;
+struct ithd	*clk_ithd;
+struct ithd	*tty_ithd;
 
 static void start_softintr(void *);
-static void intr_soft(void *);
-
-void
-register_swi(intr, handler)
-	int intr;
-	swihand_t *handler;
-{
-	struct swilist *slp, *slq;
-	int s;
-
-	if (intr < 0 || intr >= NSWI)
-		panic("register_swi: bad intr %d", intr);
-	if (handler == swi_generic || handler == swi_null)
-		panic("register_swi: bad handler %p", (void *)handler);
-	slp = &swilists[intr];
-	s = splhigh();
-	if (shandlers[intr] == swi_null)
-		shandlers[intr] = handler;
-	else {
-		if (slp->sl_next == NULL) {
-			slp->sl_handler = shandlers[intr];
-			shandlers[intr] = swi_generic;
-		}
-		slq = malloc(sizeof(*slq), M_DEVBUF, M_NOWAIT);
-		if (slq == NULL)
-			panic("register_swi: malloc failed");
-		slq->sl_handler = handler;
-		slq->sl_next = NULL;
-		while (slp->sl_next != NULL)
-			slp = slp->sl_next;
-		slp->sl_next = slq;
-	}
-	splx(s);
-}
-
-void
-swi_dispatcher(intr)
-	int intr;
-{
-	struct swilist *slp;
-
-	slp = &swilists[intr];
-	do {
-		(*slp->sl_handler)();
-		slp = slp->sl_next;
-	} while (slp != NULL);
-}
-
-void
-unregister_swi(intr, handler)
-	int intr;
-	swihand_t *handler;
-{
-	struct swilist *slfoundpred, *slp, *slq;
-	int s;
-
-	if (intr < 0 || intr >= NSWI)
-		panic("unregister_swi: bad intr %d", intr);
-	if (handler == swi_generic || handler == swi_null)
-		panic("unregister_swi: bad handler %p", (void *)handler);
-	slp = &swilists[intr];
-	s = splhigh();
-	if (shandlers[intr] == handler)
-		shandlers[intr] = swi_null;
-	else if (slp->sl_next != NULL) {
-		slfoundpred = NULL;
-		for (slq = slp->sl_next; slq != NULL;
-		    slp = slq, slq = slp->sl_next)
-			if (slq->sl_handler == handler)
-				slfoundpred = slp;
-		slp = &swilists[intr];
-		if (slfoundpred != NULL) {
-			slq = slfoundpred->sl_next;
-			slfoundpred->sl_next = slq->sl_next;
-			free(slq, M_DEVBUF);
-		} else if (slp->sl_handler == handler) {
-			slq = slp->sl_next;
-			slp->sl_next = slq->sl_next;
-			slp->sl_handler = slq->sl_handler;
-			free(slq, M_DEVBUF);
-		}
-		if (slp->sl_next == NULL)
-			shandlers[intr] = slp->sl_handler;
-	}
-	splx(s);
-}
+static void swi_net(void *);
 
 int
 ithread_priority(flags)
@@ -181,175 +94,197 @@ ithread_priority(flags)
 	return pri;
 }
 
+void sithd_loop(void *);
+
+struct intrhand *
+sinthand_add(const char *name, struct ithd **ithdp, driver_intr_t handler, 
+	    void *arg, int pri, int flags)
+{
+	struct proc *p;
+	struct ithd *ithd;
+	struct intrhand *ih;		
+	struct intrhand *this_ih;
+
+	ithd = (ithdp != NULL) ? *ithdp : NULL;
+
+
+	if (ithd == NULL) {
+		int error;
+		ithd = malloc(sizeof (struct ithd), M_DEVBUF, M_WAITOK | M_ZERO);
+		error = kthread_create(sithd_loop, NULL, &p,
+			RFSTOPPED | RFHIGHPID, "swi%d: %s", pri, name);
+		if (error)
+			panic("inthand_add: Can't create interrupt thread");
+		ithd->it_proc = p;
+		p->p_ithd = ithd;
+		p->p_rtprio.type = RTP_PRIO_ITHREAD;
+		p->p_rtprio.prio = pri + PI_SOFT;	/* soft interrupt */
+		p->p_stat = SWAIT;			/* we're idle */
+		/* XXX - some hacks are _really_ gross */
+		if (pri == SWI_CLOCK)
+			p->p_flag |= P_NOLOAD;
+		if (ithdp != NULL)
+			*ithdp = ithd;
+	}
+	this_ih = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK | M_ZERO);
+	this_ih->ih_handler = handler;
+	this_ih->ih_argument = arg;
+	this_ih->ih_flags = flags;
+	this_ih->ih_ithd = ithd;
+	this_ih->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
+	if ((ih = ithd->it_ih)) {
+		while (ih->ih_next != NULL)
+			ih = ih->ih_next;
+		ih->ih_next = this_ih;
+	} else
+		ithd->it_ih = this_ih;
+	strcpy(this_ih->ih_name, name);
+	return (this_ih);
+}
+
+
 /*
- * Schedule the soft interrupt handler thread.
+ * Schedule a heavyweight software interrupt process. 
  */
 void
-sched_softintr(void)
+sched_swi(struct intrhand *ih, int flag)
 {
+	struct ithd *it = ih->ih_ithd;	/* and the process that does it */
+	struct proc *p = it->it_proc;
+
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
+		
+	CTR3(KTR_INTR, "sched_sihand pid %d(%s) need=%d",
+		p->p_pid, p->p_comm, it->it_need);
 
 	/*
-	 * If we don't have an interrupt resource or an interrupt thread for
-	 * this IRQ, log it as a stray interrupt.
+	 * Set it_need so that if the thread is already running but close
+	 * to done, it will do another go-round.  Then get the sched lock
+	 * and see if the thread is on whichkqs yet.  If not, put it on
+	 * there.  In any case, kick everyone so that if the new thread
+	 * is higher priority than their current thread, it gets run now.
 	 */
-	if (softithd == NULL)
-		panic("soft interrupt scheduled too early");
-
-	CTR3(KTR_INTR, "sched_softintr pid %d(%s) spending=0x%x",
-		softithd->p_pid, softithd->p_comm, spending);
-
-	/*
-	 * Get the sched lock and see if the thread is on whichkqs yet.
-	 * If not, put it on there.  In any case, kick everyone so that if
-	 * the new thread is higher priority than their current thread, it
-	 * gets run now.
-	 */
-	mtx_enter(&sched_lock, MTX_SPIN);
-	if (softithd->p_stat == SWAIT) { /* not on run queue */
-		CTR1(KTR_INTR, "sched_softintr: setrunqueue %d",
-		    softithd->p_pid);
-/*		membar_lock(); */
-		softithd->p_stat = SRUN;
-		setrunqueue(softithd);
-		aston();
-	}
-	mtx_exit(&sched_lock, MTX_SPIN);
-#if 0	
-	aston();			/* ??? check priorities first? */
-#else
-	need_resched();
-#endif
-}
-
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
-
-/*
- * Start soft interrupt thread.
- */
-static void
-start_softintr(dummy)
-	void *dummy;
-{
-	int error;
-
-	if (softithd != NULL) {		/* we already have a thread */
-		printf("start_softintr: already running");
-		return;
-	}
-
-	error = kthread_create(intr_soft, NULL, &softithd,
-		RFSTOPPED | RFHIGHPID, "softinterrupt");
-	if (error)
-		panic("start_softintr: kthread_create error %d\n", error);
-
-	softithd->p_rtprio.type = RTP_PRIO_ITHREAD;
-	softithd->p_rtprio.prio = PI_SOFT;	/* soft interrupt */
-	softithd->p_stat = SWAIT;		/* we're idle */
-	softithd->p_flag |= P_NOLOAD;
-}
-
-/*
- * Software interrupt process code.
- */
-static void
-intr_soft(dummy)
-	void *dummy;
-{
-	int i;
-	u_int pend;
-
-	/* Main loop */
-	for (;;) {
-		CTR3(KTR_INTR, "intr_soft pid %d(%s) spending=0x%x",
-		    curproc->p_pid, curproc->p_comm, spending);
-
-		/*
-		 * Service interrupts.  If another interrupt arrives
-		 * while we are running, they will set spending to
-		 * denote that we should make another pass.
-		 */
-		pend = atomic_readandclear_int(&spending);
-		while ((i = ffs(pend))) {
-			i--;
-			atomic_add_long(&softintr_count[i], 1);
-			pend &= ~ (1 << i);
-			mtx_enter(&Giant, MTX_DEF);
-			if (shandlers[i] == swi_generic)
-				swi_dispatcher(i);
-			else
-				(shandlers[i])();
-			mtx_exit(&Giant, MTX_DEF);
+	ih->ih_need = 1;
+	if (!(flag & SWI_DELAY)) {
+		it->it_need = 1;
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (p->p_stat == SWAIT) { /* not on run queue */
+			CTR1(KTR_INTR, "sched_ithd: setrunqueue %d", p->p_pid);
+/*			membar_lock(); */
+			p->p_stat = SRUN;
+			setrunqueue(p);
+			aston();
 		}
+		else {
+			CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
+				p->p_pid, it->it_need, p->p_stat );
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+		need_resched();
+	}
+}
+
+/*
+ * This is the main code for soft interrupt threads.
+ */
+void
+sithd_loop(void *dummy)
+{
+	struct ithd *it;		/* our thread context */
+	struct intrhand *ih;		/* and our interrupt handler chain */
+	
+	struct proc *p = curproc;
+	it = p->p_ithd;			/* point to myself */
+
+	/*
+	 * As long as we have interrupts outstanding, go through the
+	 * list of handlers, giving each one a go at it.
+	 */
+	for (;;) {
+		CTR3(KTR_INTR, "sithd_loop pid %d(%s) need=%d",
+		     p->p_pid, p->p_comm, it->it_need);
+		while (it->it_need) {
+			/*
+			 * Service interrupts.  If another interrupt
+			 * arrives while we are running, they will set
+			 * it_need to denote that we should make
+			 * another pass.
+			 */
+			it->it_need = 0;
+			for (ih = it->it_ih; ih != NULL; ih = ih->ih_next) {
+				if (!ih->ih_need)
+					continue;
+				ih->ih_need = 0;
+				CTR5(KTR_INTR,
+				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
+				    p->p_pid, (void *)ih,
+				    (void *)ih->ih_handler, ih->ih_argument,
+				    ih->ih_flags);
+
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
+					mtx_enter(&Giant, MTX_DEF);
+				ih->ih_handler(ih->ih_argument);
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
+					mtx_exit(&Giant, MTX_DEF);
+			}
+		}
+
 		/*
 		 * Processed all our interrupts.  Now get the sched
-		 * lock.  This may take a while and spending may get
+		 * lock.  This may take a while and it_need may get
 		 * set again, so we have to check it again.
 		 */
 		mtx_enter(&sched_lock, MTX_SPIN);
-		if (spending == 0) {
-			CTR1(KTR_INTR, "intr_soft pid %d: done",
-			    curproc->p_pid);
-			curproc->p_stat = SWAIT; /* we're idle */
+		if (!it->it_need) {
+			p->p_stat = SWAIT; /* we're idle */
+			CTR1(KTR_INTR, "sithd_loop pid %d: done", p->p_pid);
 			mi_switch();
-			CTR1(KTR_INTR, "intr_soft pid %d: resumed",
-			    curproc->p_pid);
+			CTR1(KTR_INTR, "sithd_loop pid %d: resumed", p->p_pid);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 	}
 }
 
+SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
+
 /*
- * Bits in the spending bitmap variable must be set atomically because
- * spending may be manipulated by interrupts or other cpu's without holding 
- * any locks.
- *
- * Note: setbits uses a locked or, making simple cases MP safe.
+ * Start standard software interrupt threads
  */
-#define DO_SETBITS(name, var, bits) \
-void name(void)					\
-{						\
-	atomic_set_int(var, bits);		\
-	sched_softintr();			\
+static void
+start_softintr(dummy)
+	void *dummy;
+{
+	net_ih = sinthand_add("net", NULL, swi_net, NULL, SWI_NET, 0);
+	softclock_ih = 
+	    sinthand_add("clock", &clk_ithd, softclock, NULL, SWI_CLOCK, 0);
+	vm_ih = sinthand_add("vm", NULL, swi_vm, NULL, SWI_VM, 0);
 }
-
-#define DO_SETBITS_AND_NO_MORE(name, var, bits)	\
-void name(void)					\
-{						\
-	atomic_set_int(var, bits);		\
-}
-
-DO_SETBITS(setsoftcamnet,&spending, SWI_CAMNET_PENDING)
-DO_SETBITS(setsoftcambio,&spending, SWI_CAMBIO_PENDING)
-DO_SETBITS(setsoftclock, &spending, SWI_CLOCK_PENDING)
-DO_SETBITS(setsoftnet,   &spending, SWI_NET_PENDING)
-DO_SETBITS(setsofttty,   &spending, SWI_TTY_PENDING)
-DO_SETBITS(setsoftvm,	 &spending, SWI_VM_PENDING)
-DO_SETBITS(setsofttq,	 &spending, SWI_TQ_PENDING)
-
-DO_SETBITS_AND_NO_MORE(schedsoftcamnet, &sdelayed, SWI_CAMNET_PENDING)
-DO_SETBITS_AND_NO_MORE(schedsoftcambio, &sdelayed, SWI_CAMBIO_PENDING)
-DO_SETBITS_AND_NO_MORE(schedsoftnet, &sdelayed, SWI_NET_PENDING)
-DO_SETBITS_AND_NO_MORE(schedsofttty, &sdelayed, SWI_TTY_PENDING)
-DO_SETBITS_AND_NO_MORE(schedsoftvm, &sdelayed, SWI_VM_PENDING)
-DO_SETBITS_AND_NO_MORE(schedsofttq, &sdelayed, SWI_TQ_PENDING)
 
 void
-setdelayed(void)
+legacy_setsoftnet()
 {
-	int pend;
-
-	pend = atomic_readandclear_int(&sdelayed);
-	if (pend != 0) {
-		atomic_set_int(&spending, pend);
-		sched_softintr();
-	}
+	sched_swi(net_ih, SWI_NOSWITCH);
 }
 
-intrmask_t
-softclockpending(void)
+/*
+ * XXX: This should really be in the network code somewhere and installed
+ * via a SI_SUB_SOFINTR, SI_ORDER_MIDDLE sysinit.
+ */
+void	(*netisrs[32]) __P((void));
+u_int	netisr;
+
+static void
+swi_net(void *dummy)
 {
-	return (spending & SWI_CLOCK_PENDING);
+	u_int bits;
+	int i;
+
+	bits = atomic_readandclear_int(&netisr);
+	while ((i = ffs(bits)) != 0) {
+		i--;
+		netisrs[i]();
+		bits &= ~(1 << i);
+	}
 }
 
 /*

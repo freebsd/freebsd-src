@@ -605,6 +605,10 @@ u_int32_t cam_dflags;
 u_int32_t cam_debug_delay;
 #endif
 
+/* Pointers to software interrupt handlers */
+struct intrhand *camnet_ih;
+struct intrhand *cambio_ih;
+
 #if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
 #error "You must have options CAMDEBUG to use options CAM_DEBUG_FLAGS"
 #endif
@@ -693,9 +697,7 @@ static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xpt_finishconfig(struct cam_periph *periph, union ccb *ccb);
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
-static swihand_t swi_camnet;
-static swihand_t swi_cambio;
-static void	 camisr(cam_isrq_t *queue);
+static void	 camisr(void *);
 #if 0
 static void	 xptstart(struct cam_periph *periph, union ccb *work_ccb);
 static void	 xptasync(struct cam_periph *periph,
@@ -1363,8 +1365,10 @@ xpt_init(dummy)
 	}
 
 	/* Install our software interrupt handlers */
-	register_swi(SWI_CAMNET, swi_camnet);
-	register_swi(SWI_CAMBIO, swi_cambio);
+	camnet_ih = sinthand_add("camnet", NULL, camisr, &cam_netq,
+		SWI_CAMNET, 0);
+	cambio_ih = sinthand_add("cambio", NULL, camisr, &cam_bioq,
+		SWI_CAMBIO, 0);
 }
 
 static cam_status
@@ -3400,8 +3404,8 @@ xpt_polled_action(union ccb *start_ccb)
 	   && (--timeout > 0)) {
 		DELAY(1000);
 		(*(sim->sim_poll))(sim);
-		swi_camnet();
-		swi_cambio();		
+		camisr(&cam_netq);
+		camisr(&cam_bioq);
 	}
 	
 	dev->ccbq.devq_openings++;
@@ -3411,8 +3415,8 @@ xpt_polled_action(union ccb *start_ccb)
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
 			(*(sim->sim_poll))(sim);
-			swi_camnet();
-			swi_cambio();
+			camisr(&cam_netq);
+			camisr(&cam_bioq);
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
 				break;
@@ -4527,13 +4531,13 @@ xpt_done(union ccb *done_ccb)
 			TAILQ_INSERT_TAIL(&cam_bioq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			setsoftcambio();
+			sched_swi(cambio_ih, SWI_NOSWITCH);
 			break;
 		case CAM_PERIPH_NET:
 			TAILQ_INSERT_TAIL(&cam_netq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			setsoftcamnet();
+			sched_swi(camnet_ih, SWI_NOSWITCH);
 			break;
 		}
 	}
@@ -6240,26 +6244,10 @@ xptpoll(struct cam_sim *sim)
 {
 }
 
-/*
- * Should only be called by the machine interrupt dispatch routines,
- * so put these prototypes here instead of in the header.
- */
-
 static void
-swi_camnet(void)
+camisr(void *V_queue)
 {
-	camisr(&cam_netq);
-}
-
-static void
-swi_cambio(void)
-{
-	camisr(&cam_bioq);
-}
-
-static void
-camisr(cam_isrq_t *queue)
-{
+	cam_isrq_t *queue = V_queue;
 	int	s;
 	struct	ccb_hdr *ccb_h;
 

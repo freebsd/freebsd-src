@@ -96,12 +96,6 @@ static struct cdevsw mem_cdevsw = {
 	/* bmaj */	-1
 };
 
-#if NHWI > 0
-#define	ICU_LEN (NHWI)
-#else
-#define	ICU_LEN (NSWI)
-#endif
-
 struct mem_range_softc mem_range_softc;
 
 static int

@@ -216,7 +216,6 @@ clkintr(struct clockframe frame)
 	switch (timer0_state) {
 
 	case RELEASED:
-		setdelayed();
 		break;
 
 	case ACQUIRED:
@@ -224,7 +223,6 @@ clkintr(struct clockframe frame)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(&frame);
-			setdelayed();
 		}
 		break;
 
@@ -239,7 +237,6 @@ clkintr(struct clockframe frame)
 		mtx_exit(&clock_lock, MTX_SPIN);
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
-		setdelayed();
 		break;
 
 	case RELEASE_PENDING:
@@ -258,7 +255,6 @@ clkintr(struct clockframe frame)
 			timer_func = hardclock;
 			timer0_state = RELEASED;
 			hardclock(&frame);
-			setdelayed();
 		}
 		break;
 	}
@@ -967,7 +963,7 @@ cpu_initclocks()
 	int diag;
 #ifdef APIC_IO
 	int apic_8254_trial;
-	struct intrec *clkdesc;
+	struct intrhand *clkdesc;
 #endif /* APIC_IO */
 
 	if (statclock_disable) {

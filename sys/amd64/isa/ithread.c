@@ -165,7 +165,7 @@ void
 ithd_loop(void *dummy)
 {
 	struct ithd *me;		/* our thread context */
-	struct intrec *ih;		/* and our interrupt handler chain */
+	struct intrhand *ih;		/* and our interrupt handler chain */
 
 	me = curproc->p_ithd;		/* point to myself */
 
@@ -200,17 +200,17 @@ ithd_loop(void *dummy)
 #if 0
 			membar_unlock(); /* push out "it_need=0" */
 #endif
-			for (ih = me->it_ih; ih != NULL; ih = ih->next) {
+			for (ih = me->it_ih; ih != NULL; ih = ih->ih_next) {
 				CTR5(KTR_INTR,
 				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
 				    me->it_proc->p_pid, (void *)ih,
-				    (void *)ih->handler, ih->argument,
-				    ih->flags);
+				    (void *)ih->ih_handler, ih->ih_argument,
+				    ih->ih_flags);
 
-				if ((ih->flags & INTR_MPSAFE) == 0)
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
 					mtx_enter(&Giant, MTX_DEF);
-				ih->handler(ih->argument);
-				if ((ih->flags & INTR_MPSAFE) == 0)
+				ih->ih_handler(ih->ih_argument);
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
 					mtx_exit(&Giant, MTX_DEF);
 			}
 		}

@@ -30,12 +30,6 @@
 #define	_MACHINE_IPL_H_
 
 /*
- * Software interrupt bit numbers
- */
-#define NSWI		32
-#define NHWI		0
-
-/*
  * Interprocessor interrupts for SMP.
  */
 #define IPI_INVLTLB		0x0001
@@ -50,4 +44,4 @@ void smp_ipi_all_but_self(u_int64_t ipi);
 void smp_ipi_self(u_int64_t ipi);
 void smp_handle_ipi(struct trapframe *frame);
 
-#endif /* !_MACHINE_MD_VAR_H_ */
+#endif /* !_MACHINE_IPL_H_ */

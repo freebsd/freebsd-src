@@ -398,7 +398,6 @@ handleclock(void* arg)
 	}
 
 	hardclock(arg);
-	setdelayed();
 }
 
 /*

@@ -42,6 +42,4 @@
 #include <i386/isa/icu_ipl.h>
 #endif
 
-#define	NSWI		7
-
 #endif /* !_MACHINE_IPL_H_ */
