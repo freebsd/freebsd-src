@@ -74,11 +74,8 @@ ufs_inactive(ap)
 	mode_t mode;
 	int error = 0;
 
-	VI_LOCK(vp);
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_inactive: pushing active", vp);
-	VI_UNLOCK(vp);
-
 	/*
 	 * Ignore inodes related to stale file handles.
 	 */
@@ -122,7 +119,6 @@ ufs_inactive(ap)
 		}
 	}
 out:
-	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
