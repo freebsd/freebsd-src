@@ -32,7 +32,7 @@
 .\"	@(#)rsh.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd October 16, 2002
 .Dt RSH 1
 .Os
 .Sh NAME
@@ -40,10 +40,9 @@
 .Nd remote shell
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46Kdnx
-.Op Fl t Ar timeout
-.Op Fl k Ar realm
+.Op Fl 46dn
 .Op Fl l Ar username
+.Op Fl t Ar timeout
 .Ar host
 .Op command
 .Sh DESCRIPTION
@@ -69,27 +68,18 @@ The options are as follows:
 Use IPv4 addresses only.
 .It Fl 6
 Use IPv6 addresses only.
-.It Fl K
-Turn off all Kerberos authentication.
 .It Fl d
 Turn on socket debugging (using
 .Xr setsockopt 2 )
 on the
 .Tn TCP
 sockets used for communication with the remote host.
-.It Fl k Ar realm
-Cause
-.Nm
-to obtain tickets for the remote host in
-.Ar realm
-instead of the remote host's realm as determined by
-.Xr krb_realmofhost 3 .
 .It Fl l Ar username
 Allow the remote
 .Ar username
 to be specified.
 By default, the remote username is the same as the local username.
-Kerberos authentication is used, and authorization is determined
+Authorization is determined
 as in
 .Xr rlogin 1 .
 .It Fl n
@@ -98,11 +88,6 @@ Redirect input from the special device
 (see the
 .Sx BUGS
 section of this manual page).
-.It Fl x
-Turn on
-.Tn DES
-encryption for all data exchange.
-This may introduce a significant delay in response time.
 .It Fl t Ar timeout
 Allow a
 .Ar timeout
@@ -149,9 +134,6 @@ to
 .Sh SEE ALSO
 .Xr rlogin 1 ,
 .Xr setsockopt 2 ,
-.Xr kerberos 3 ,
-.Xr krb_realmofhost 3 ,
-.Xr krb_sendauth 3 ,
 .Xr rcmd 3 ,
 .Xr ruserok 3 ,
 .Xr auth.conf 5 ,
