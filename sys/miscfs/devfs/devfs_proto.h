@@ -14,8 +14,6 @@ int dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount 
 void dev_free_name(devnm_p devnmp) /*proto*/;
 int devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/;
 int devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/;
-int get_cdev_major_num(caddr_t addr)	/*proto*/;
-int get_bdev_major_num(caddr_t addr)	/*proto*/;
 int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p *nm_pp) /*proto*/ ;
 int devfs_init(void) /*proto*/;
 int devfs_mount( struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct proc *p) /*proto*/;
