@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.27 1997/06/04 10:27:53 kato Exp $
+ *	$Id: sio.c,v 1.28 1997/06/06 13:09:53 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -199,6 +199,7 @@
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 #define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
+#define COM_ST16650A(dev)	((dev)->id_flags & 0x20000)
 #define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
 #ifndef PC98
@@ -278,6 +279,7 @@ struct com_s {
 	u_char	extra_state;	/* more flag bits, separate for order trick */
 	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
+	bool_t	st16650a;	/* Is a Startech 16650A or RTS/CTS compat */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 	u_char	mcr_image;	/* copy of value written to MCR */
 #ifdef COM_MULTIPORT
@@ -1288,6 +1290,7 @@ sioattach(isdp)
 #endif /* PC98 */
 	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
 	DELAY(100);
+	com->st16650a = 0;
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_RX_LOW:
 		printf(" 16450");
@@ -1303,8 +1306,14 @@ sioattach(isdp)
 			printf(" 16550A fifo disabled");
 		} else {
 			com->hasfifo = TRUE;
-			printf(" 16550A");
-			com->tx_fifo_size = COM_FIFOSIZE(isdp);
+			if (COM_ST16650A(isdp)) {
+				com->st16650a = 1;
+				com->tx_fifo_size = 32;
+				printf(" ST16650A");
+			} else {
+				com->tx_fifo_size = COM_FIFOSIZE(isdp);
+				printf(" 16550A");
+			}
 		}
 #ifdef COM_ESP
 		for (espp = likely_esp_ports; *espp != 0; espp++)
@@ -1313,11 +1322,14 @@ sioattach(isdp)
 				break;
 			}
 #endif
-		if (!com->tx_fifo_size)
-			com->tx_fifo_size = 16;
-		else
-			printf(" lookalike with %d bytes FIFO",
-			    com->tx_fifo_size);
+		if (!com->st16650a) {
+			if (!com->tx_fifo_size)
+				com->tx_fifo_size = 16;
+			else
+				printf(" lookalike with %d bytes FIFO",
+				    com->tx_fifo_size);
+		}
+
 		break;
 	}
 	
@@ -2715,13 +2727,21 @@ retry:
 		if (inb(iobase + com_dlbh) != dlbh)
 			outb(iobase + com_dlbh, dlbh);
 	}
+
+
 	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
+
 #ifdef PC98
 	} else
 		com_cflag_and_speed_set(com, cflag, t->c_ospeed);
 #endif
 	if (!(tp->t_state & TS_TTSTOP))
+		if (com->st16650a) {
+			outb(iobase + com_cfcr, 0xbf);
+			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x40);
+		}
 		com->state |= CS_TTGO;
+
 	if (cflag & CRTS_IFLOW) {
 		com->state |= CS_RTS_IFLOW;
 		/*
@@ -2742,7 +2762,12 @@ retry:
 		else
 #endif
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
+		if (com->st16650a) {
+			outb(iobase + com_cfcr, 0xbf);
+			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x40);
+		}
 	}
+
 
 	/*
 	 * Set up state to handle output flow control.
@@ -2760,11 +2785,25 @@ retry:
 		} else {
 #endif
 		if (!(com->last_modem_status & MSR_CTS))
+		if (com->st16650a) {
+			outb(iobase + com_cfcr, 0xbf);
+			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x80);
+		}
+	} else {
+		if (com->st16650a) {
+			outb(iobase + com_cfcr, 0xbf);
+			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x80);
+		}
 			com->state &= ~CS_ODEVREADY;
 #ifdef PC98
 		}
 #endif
 	}
+
+
+	outb(iobase + com_cfcr, com->cfcr_image);
+
+
 	/* XXX shouldn't call functions while intrs are disabled. */
 	disc_optim(tp, t, com);
 	/*
