@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: async.h,v 1.2.4.7 1998/04/07 00:53:17 brian Exp $
+ *	$Id: async.h,v 1.3 1998/05/21 21:43:57 brian Exp $
  */
 
 #define HDLCSIZE	(MAX_MRU*2+6)
@@ -33,8 +33,8 @@ struct async {
   int length;
   u_char hbuff[HDLCSIZE];	/* recv buffer */
   u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_long my_accmap;
-  u_long his_accmap;
+  u_int32_t my_accmap;
+  u_int32_t his_accmap;
 
   struct {
     u_char EscMap[33];

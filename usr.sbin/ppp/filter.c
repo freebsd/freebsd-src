@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.23 1998/05/21 21:45:13 brian Exp $
+ * $Id: filter.c,v 1.24 1998/06/15 19:06:07 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -59,7 +59,7 @@
 static int filter_Nam2Proto(int, char const *const *);
 static int filter_Nam2Op(const char *);
 
-static const u_long netmasks[33] = {
+static const u_int32_t netmasks[33] = {
   0x00000000,
   0x80000000, 0xC0000000, 0xE0000000, 0xF0000000,
   0xF8000000, 0xFC000000, 0xFE000000, 0xFF000000,
