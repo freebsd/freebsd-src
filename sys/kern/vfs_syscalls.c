@@ -1341,7 +1341,7 @@ lseek(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
-	if (fp->f_type != DTYPE_VNODE) {
+	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
 		fdrop(fp, td);
 		return (ESPIPE);
 	}

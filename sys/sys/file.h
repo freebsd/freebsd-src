@@ -94,6 +94,7 @@ struct fileops {
 };
 
 #define DFLAG_PASSABLE	0x01	/* may be passed via unix sockets. */
+#define DFLAG_SEEKABLE	0x02	/* seekable / nonsequential */
 
 /*
  * Kernel descriptor table.
