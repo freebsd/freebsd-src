@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.77 1996/05/04 07:39:01 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.78 1996/05/04 17:26:55 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -235,6 +235,7 @@
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
+	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
