@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.51 1996/07/09 03:07:51 jkh Exp $
+ * $Id: label.c,v 1.32.2.38 1996/07/09 03:13:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -250,14 +250,6 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     ret->newfs = newfs;
     if (!size)
 	    return ret;
-    for (target = size; target; target--) {
-	for (divisor = 4096 ; divisor > 1023; divisor--) {
-	    if (!(target % divisor)) {
-		sprintf(ret->newfs_cmd + strlen(ret->newfs_cmd), " -u %ld",divisor);
-		return ret;
-	    }
-	}
-    }
     return ret;
 }
 
@@ -723,7 +715,6 @@ diskLabel(char *str)
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
-		    tmp->private_free = safe_free;
 		    safe_free(p);
 		}
 		else
