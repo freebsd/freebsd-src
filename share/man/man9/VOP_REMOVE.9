@@ -59,7 +59,7 @@ Both
 .Fa dvp
 and 
 .Fa vp
-should be locked on entry and are unlocked and released on exit.
+should be locked on entry and remain locked on return.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
 .Sh PSEUDOCODE
