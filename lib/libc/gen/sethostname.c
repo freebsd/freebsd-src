@@ -39,10 +39,10 @@ static char sccsid[] = "@(#)sethostname.c	8.1 (Berkeley) 6/4/93";
 #include <sys/sysctl.h>
 
 #if __STDC__
-long
+int
 sethostname(const char *name, int namelen)
 #else
-long
+int
 sethostname(name, namelen)
 	char *name;
 	int namelen;
