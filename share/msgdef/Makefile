@@ -52,6 +52,7 @@ FR_LINKS=	fr_CA
 DE_LINKS=	de_AT de_CH
 CZ_LINKS=	sk_SK
 IT_LINKS=	it_CH
+NL_LINKS=	nl_BE
 
 .SUFFIXES: .src .out
 
@@ -95,6 +96,12 @@ afterinstall:
 	ln -sf ../it_IT.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
 	ln -sf ../it_IT.ISO8859-1/LC_MESSAGES \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
+.endfor
+.for link in ${NL_LINKS}
+	ln -sf ../nl_NL.ISO8859-1/LC_MESSAGES \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
+	ln -sf ../nl_NL.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
 .endfor
 .for link in ${CZ_LINKS}
