@@ -49,7 +49,7 @@ DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMD} ${LIBCOM_ERR} \
 		${LIBSL} ${LIBREADLINE}
-NOMAN=		yes
+MAN=		k5admin.8
 
 .include <bsd.prog.mk>
 
@@ -66,6 +66,9 @@ kadm5/kadm5_err.h: kadm5 kadm5_err.h
 
 kadm5:
 	mkdir ${.TARGET}
+
+k5admin.8:	kadmin.8
+	ln -sf ${.OODATE} ${.TARGET}
 
 CLEANFILES+=	kadm5/private.h kadm5/admin.h kadm5/kadm5_err.h
 CLEANDIRS+=	kadm5
