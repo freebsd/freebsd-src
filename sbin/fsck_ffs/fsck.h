@@ -78,12 +78,21 @@ struct inostat {
 /*
  * Inode states.
  */
-#define	USTATE	01		/* inode not allocated */
-#define	FSTATE	02		/* inode is file */
-#define	DSTATE	03		/* inode is directory */
-#define	DFOUND	04		/* directory found during descent */
-#define	DCLEAR	05		/* directory is to be cleared */
-#define	FCLEAR	06		/* file is to be cleared */
+#define	USTATE	0x1		/* inode not allocated */
+#define	FSTATE	0x2		/* inode is file */
+#define	FZLINK	0x3		/* inode is file with a link count of zero */
+#define	DSTATE	0x4		/* inode is directory */
+#define	DZLINK	0x5		/* inode is directory with a zero link count  */
+#define	DFOUND	0x6		/* directory found during descent */
+/*     		0x7		   UNUSED - see S_IS_DVALID() definition */
+#define	DCLEAR	0x8		/* directory is to be cleared */
+#define	FCLEAR	0x9		/* file is to be cleared */
+/*     	DUNFOUND === (state == DSTATE || state == DZLINK) */
+#define	S_IS_DUNFOUND(state)	(((state) & ~0x1) == DSTATE)
+/*     	DVALID   === (state == DSTATE || state == DZLINK || state == DFOUND) */
+#define	S_IS_DVALID(state)	(((state) & ~0x3) == DSTATE)
+#define	INO_IS_DUNFOUND(ino)	S_IS_DUNFOUND(inoinfo(ino)->ino_state)
+#define	INO_IS_DVALID(ino)	S_IS_DVALID(inoinfo(ino)->ino_state)
 /*
  * Inode state information is contained on per cylinder group lists
  * which are described by the following structure.
@@ -203,15 +212,6 @@ struct dups {
 };
 struct dups *duplist;		/* head of dup list */
 struct dups *muldup;		/* end of unique duplicate dup block numbers */
-
-/*
- * Linked list of inodes with zero link counts.
- */
-struct zlncnt {
-	struct zlncnt *next;
-	ino_t zlncnt;
-};
-struct zlncnt *zlnhead;		/* head of zero link count list */
 
 /*
  * Inode cache data structures.

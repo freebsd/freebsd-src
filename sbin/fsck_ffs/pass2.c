@@ -91,6 +91,7 @@ pass2(void)
 
 	case FSTATE:
 	case FCLEAR:
+	case FZLINK:
 		pfatal("ROOT INODE NOT DIRECTORY");
 		if (reply("REALLOCATE")) {
 			freeino(ROOTINO);
@@ -109,6 +110,7 @@ pass2(void)
 		break;
 
 	case DSTATE:
+	case DZLINK:
 		break;
 
 	default:
@@ -196,7 +198,7 @@ pass2(void)
 		if (inp->i_parent == 0 || inp->i_isize == 0)
 			continue;
 		if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
-		    inoinfo(inp->i_number)->ino_state == DSTATE)
+		    INO_IS_DUNFOUND(inp->i_number))
 			inoinfo(inp->i_number)->ino_state = DFOUND;
 		if (inp->i_dotdot == inp->i_parent ||
 		    inp->i_dotdot == (ino_t)-1)
@@ -405,6 +407,7 @@ again:
 			goto again;
 
 		case DSTATE:
+		case DZLINK:
 			if (inoinfo(idesc->id_number)->ino_state == DFOUND)
 				inoinfo(dirp->d_ino)->ino_state = DFOUND;
 			/* FALLTHROUGH */
@@ -435,6 +438,7 @@ again:
 			/* FALLTHROUGH */
 
 		case FSTATE:
+		case FZLINK:
 			if (dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {
 				fileerror(idesc->id_number, dirp->d_ino,
 				    "BAD TYPE VALUE");
