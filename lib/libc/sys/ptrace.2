@@ -17,15 +17,17 @@
 .Fn ptrace "int request" "pid_t pid" "caddr_t addr" "int data"
 .Sh DESCRIPTION
 .Fn ptrace
-provides tracing and debugging facilities.  It allows one process (the
+provides tracing and debugging facilities.
+It allows one process (the
 .Em tracing
 process) to control another (the
 .Em traced
-process).  Most of the time, the traced process runs normally, but when
-it receives a signal
-(see
+process).
+Most of the time, the traced process runs normally, but when it
+receives a signal (see
 .Xr sigaction 2 ) ,
-it stops.  The tracing process is expected to notice this via
+it stops.
+The tracing process is expected to notice this via
 .Xr wait 2
 or the delivery of a
 .Dv SIGCHLD
@@ -48,10 +50,11 @@ can be:
 .Bl -tag -width 12n
 .It Dv PT_TRACE_ME
 This request is the only one used by the traced process; it declares
-that the process expects to be traced by its parent.  All the other
-arguments are ignored.  (If the parent process does not expect to trace
-the child, it will probably be rather confused by the results; once the
-traced process stops, it cannot be made to continue except via
+that the process expects to be traced by its parent.
+All the other arguments are ignored.
+(If the parent process does not expect to trace the child, it will
+probably be rather confused by the results; once the traced process
+stops, it cannot be made to continue except via
 .Fn ptrace . )
 When a process has used this request and calls
 .Xr execve 2
@@ -64,22 +67,24 @@ be ignored.
 .It Dv PT_READ_I , Dv PT_READ_D
 These requests read a single
 .Vt int
-of data from the traced process' address space.  Traditionally,
+of data from the traced process' address space.
+Traditionally,
 .Fn ptrace
 has allowed for machines with distinct address spaces for instruction
 and data, which is why there are two requests: conceptually,
 .Dv PT_READ_I
 reads from the instruction space and
 .Dv PT_READ_D
-reads from the data space.  In the current
+reads from the data space.
+In the current
 .Fx
-implementation, these
-two requests are completely identical.  The
+implementation, these two requests are completely identical.
+The
 .Fa addr
 argument specifies the address (in the traced process' virtual address
-space) at which the read is to be done.  This address does not have to
-meet any alignment constraints.  The value read is returned as the
-return value from
+space) at which the read is to be done.
+This address does not have to meet any alignment constraints.  
+The value read is returned as the return value from
 .Eo \&
 .Fn ptrace
 .Ec .
@@ -88,7 +93,8 @@ These requests parallel
 .Dv PT_READ_I
 and
 .Dv PT_READ_D ,
-except that they write rather than read.  The
+except that they write rather than read.
+The
 .Fa data
 argument supplies the value to be written.
 .It Dv PT_CONTINUE
@@ -115,17 +121,20 @@ had been used with
 .Dv SIGKILL
 given as the signal to be delivered.
 .It Dv PT_ATTACH
-This request allows a process to gain control of an otherwise unrelated
-process and begin tracing it.  It does not need any cooperation from
-the to-be-traced process.  In this case,
+This request allows a process to gain control of an otherwise
+unrelated process and begin tracing it.
+It does not need any cooperation from the to-be-traced process.  In
+this case,
 .Fa pid
-specifies the process ID of the to-be-traced process, and the other two
-arguments are ignored.  This request requires that the target process
-must have the same real UID as the tracing process, and that it must
-not be executing a setuid or setgid executable.  (If the tracing
-process is running as root, these restrictions do not apply.)  The
-tracing process will see the newly-traced process stop and may then
-control it as if it had been traced all along.
+specifies the process ID of the to-be-traced process, and the other
+two arguments are ignored.
+This request requires that the target process must have the same real
+UID as the tracing process, and that it must not be executing a setuid
+or setgid executable.
+(If the tracing process is running as root, these restrictions do not
+apply.)
+The tracing process will see the newly-traced process stop and may
+then control it as if it had been traced all along.
 .It Dv PT_DETACH
 This request is like PT_CONTINUE, except that it does not allow
 specifying an alternate place to continue execution, and after it
@@ -133,8 +142,8 @@ succeeds, the traced process is no longer traced and continues
 execution normally.
 .El
 .Pp
-Additionally, machine-specific requests can exist.  On the i386, these
-are:
+Additionally, machine-specific requests can exist.
+On the i386, these are:
 .Bl -tag -width 12n
 .It Dv PT_GETREGS
 This request reads the traced process' machine registers into the
@@ -241,8 +250,8 @@ was neither 0 nor a legal signal number.
 .Dv PT_GETDBREGS ,
 or
 .Dv PT_SETDBREGS
-was attempted on a process with no valid register set.  (This is
-normally true only of system processes.)
+was attempted on a process with no valid register set.
+(This is normally true only of system processes.)
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact
