@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.281 1998/09/26 03:38:38 yokota Exp $
+ *	$Id: syscons.c,v 1.282 1998/09/29 02:00:56 ache Exp $
  */
 
 #include "sc.h"
@@ -4068,7 +4068,7 @@ copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
     font_loading_in_progress = FALSE;
 }
 
-void
+static void
 set_destructive_cursor(scr_stat *scp)
 {
     u_char cursor[32];
@@ -4076,7 +4076,8 @@ set_destructive_cursor(scr_stat *scp)
     int font_size;
     int i;
 
-    if (!ISFONTAVAIL(get_adapter(scp)->va_flags) || !ISTEXTSC(scp))
+    if (!ISFONTAVAIL(get_adapter(scp)->va_flags)
+	|| (scp->status & (GRAPHICS_MODE | PIXEL_MODE)))
 	return;
 
     if (scp->font_size < 14) {
