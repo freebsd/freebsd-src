@@ -42,7 +42,6 @@
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	0
 #define	NDOSPART	16
-#define	NEXTDOSPART	32	/* XXX: For biosdisk.c in sys/boot.  Probably wrong */
 #define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
 
 struct pc98_partition {
