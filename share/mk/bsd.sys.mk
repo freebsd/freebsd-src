@@ -8,30 +8,21 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
-.if ${MACHINE_ARCH} == "i386"
-CSTD		?=	c99
-.elif ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "powerpc" || \
-      ${MACHINE_ARCH} == "amd64"
-#	Can't use "c99" below due to lack of alloca.S for non-i386 platforms.
-CSTD		?=	gnu99
-.else
-CSTD		?=
-.endif
-.if ${CSTD} != ""
-. if ${CSTD} == "k&r"
-CFLAGS		+=	-traditional
-. elif ${CSTD} == "c89" || ${CSTD} == "c90"
-CFLAGS		+=	-std=iso9899:1990
-. elif ${CSTD} == "c94" || ${CSTD} == "c95"
-CFLAGS		+=	-std=iso9899:199409
-. elif ${CSTD} == "c99"
-CFLAGS		+=	-std=iso9899:1999
-. else
-CFLAGS		+=	-std=${CSTD}
-. endif
-.endif
-
 .if !defined(NO_WARNS)
+. if defined(CSTD)
+.  if ${CSTD} == "k&r"
+CFLAGS		+=	-traditional
+.  elif ${CSTD} == "c89" || ${CSTD} == "c90"
+CFLAGS		+=	-std=iso9899:1990
+.  elif ${CSTD} == "c94" || ${CSTD} == "c95"
+CFLAGS		+=	-std=iso9899:199409
+.  elif ${CSTD} == "c99"
+CFLAGS		+=	-std=iso9899:1999
+.  else
+CFLAGS		+=	-std=${CSTD}
+.  endif
+CFLAGS		+=	-pedantic
+. endif
 . if defined(WARNS)
 .  if ${WARNS} > 0
 CFLAGS		+=	-Wsystem-headers
@@ -48,13 +39,8 @@ CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
 .  if ${WARNS} > 3
 CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
 .  endif
-#	XXX: the warning that was here became problematic.
-#.  if ${WARNS} > 4
 # BDECFLAGS
 .  if ${WARNS} > 5
-.   if ${CSTD} != ""
-CFLAGS		+=	-pedantic
-.   endif
 CFLAGS		+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 .  endif
 .  if ${WARNS} > 1 && ${WARNS} < 5
