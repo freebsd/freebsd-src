@@ -16,6 +16,6 @@ __FBSDID("$FreeBSD$");
 
 typedef	void led_t(void *, int);
 dev_t led_create(led_t *func, void *priv, char const *name);
-void led_destroy(dev_t);
+void led_destroy(dev_t *dev);
 
 #endif /* _DEV_LED_H */

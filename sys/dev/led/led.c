@@ -173,6 +173,8 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 					sbuf_cat(sb, "Ac");
 				else if (*s == ' ')
 					sbuf_cat(sb, "B");
+				else if (*s == '\n')
+					sbuf_cat(sb, "D");
 			}
 			sbuf_cat(sb, "J");
 			break;
