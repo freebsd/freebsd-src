@@ -125,6 +125,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"txp",		"3Com 3cR990 ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"ti",		"Alteon Networks PCI gigabit ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"tl",		"Texas Instruments ThunderLAN PCI ethernet card"		},
+    { DEVICE_TYPE_NETWORK,	"vge",		"VIA VT612x PCI gigabit ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"vr",		"VIA VT3043/VT86C100A Rhine PCI ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"vlan",		"IEEE 802.1Q VLAN network interface"				},
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},
