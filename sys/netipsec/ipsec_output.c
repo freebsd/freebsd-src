@@ -345,12 +345,12 @@ ipsec4_process_packet(
 	struct secasindex saidx;
 	struct secasvar *sav;
 	struct ip *ip;
-	int s, error, i, off;
+	int error, i, off;
 
 	KASSERT(m != NULL, ("ipsec4_process_packet: null mbuf"));
 	KASSERT(isr != NULL, ("ipsec4_process_packet: null isr"));
 
-	s = splnet();			/* insure SA contents don't change */
+	mtx_lock(&isr->lock);		/* insure SA contents don't change */
 
 	isr = ipsec_nextisr(m, isr, AF_INET, &saidx, &error);
 	if (isr == NULL)
@@ -469,10 +469,10 @@ ipsec4_process_packet(
 	} else {
 		error = ipsec_process_done(m, isr);
 	}
-	splx(s);
+	mtx_unlock(&isr->lock);
 	return error;
 bad:
-	splx(s);
+	mtx_unlock(&isr->lock);
 	if (m)
 		m_freem(m);
 	return error;

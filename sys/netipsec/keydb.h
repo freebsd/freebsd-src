@@ -83,6 +83,7 @@ struct comp_algo;
 /* Security Association */
 struct secasvar {
 	LIST_ENTRY(secasvar) chain;
+	struct mtx lock;		/* update/access lock */
 
 	u_int refcnt;			/* reference count */
 	u_int8_t state;			/* Status of this Association */
