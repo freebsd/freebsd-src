@@ -12,7 +12,7 @@
  * its use.
  */
 
-#define TITLE	"FreeBSD 2.0-950112-SNAP Install"
+#define TITLE	"FreeBSD 2.0-950127-SNAP Install"
 
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
