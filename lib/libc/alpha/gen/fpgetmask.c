@@ -1,4 +1,5 @@
 /*	$NetBSD: fpgetmask.c,v 1.1 1995/04/29 05:10:55 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1995 Christopher G. Demetriou
@@ -39,11 +40,11 @@ struct params {
         u_int64_t mask;
 };
 
-fp_except
+fp_except_t
 fpgetmask()
 {
         struct params p;
 
 	sysarch(ALPHA_GET_FPMASK, (char *) &p);
-	return((fp_except) p.mask);
+	return((fp_except_t) p.mask);
 }
