@@ -39,9 +39,13 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.14 1996/05/23 15:14:18 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.40 1996/05/31 06:30:15 gibbs Exp $"
 
+#if defined(__NetBSD__)
+#include "../../../../dev/ic/aic7xxxreg.h"
+#elif defined(__FreeBSD__)
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
+#endif
 
 /*
  * We can't just use ACCUM in the sequencer code because it
@@ -79,6 +83,11 @@ reset:
 start:
 	and	FLAGS,0x0f		/* clear target specific flags */
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
+	clr	SCSIRATE		/*
+					 * We don't know the target we will
+					 * connect to, so default to narrow
+					 * transfers to avoid parity problems.
+					 */
 poll_for_work:
 	/*
 	 * Are we a twin channel device?
@@ -495,11 +504,12 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	test	SSTAT0,SPIORDY	jz p_mesgout_loop
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	dec	DINDEX
 	or	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
@@ -862,10 +872,11 @@ inb_next:
 	or	CLRSINT0, CLRSPIORDY
 	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
 inb_next_wait:
-	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
+	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
 inb_first:
 	mov	DINDEX,SINDEX
+	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
 	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/

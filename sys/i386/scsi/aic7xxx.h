@@ -30,13 +30,54 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.10.2.8 1996/04/28 19:34:00 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.28 1996/05/30 07:19:59 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
 #define _AIC7XXX_H_
 
+#if defined(__FreeBSD__)
 #include "ahc.h"                /* for NAHC from config */
+#endif
+
+#if defined(__NetBSD__)
+/*
+ * convert FreeBSD's <sys/queue.h> symbols to NetBSD's
+ */
+#define	STAILQ_ENTRY		SIMPLEQ_ENTRY
+#define	STAILQ_HEAD		SIMPLEQ_HEAD
+#define	STAILQ_INIT		SIMPLEQ_INIT
+#define	STAILQ_INSERT_HEAD	SIMPLEQ_INSERT_HEAD
+#define	STAILQ_INSERT_TAIL	SIMPLEQ_INSERT_TAIL
+#define	STAILQ_REMOVE_HEAD(head, field)	\
+	SIMPLEQ_REMOVE_HEAD(head, (head)->sqh_first, field)
+#define	stqh_first		sqh_first
+#define	stqe_next		sqe_next
+#endif
+
+#if defined(__FreeBSD__)
+#define	AHC_INB(ahc, port)	\
+	inb((ahc)->baseport+(port))
+#define	AHC_INSB(ahc, port, valp, size)	\
+	insb((ahc)->baseport+(port), valp, size)
+#define	AHC_OUTB(ahc, port, val)	\
+	outb((ahc)->baseport+(port), val)
+#define	AHC_OUTSB(ahc, port, valp, size)	\
+	outsb((ahc)->baseport+(port), valp, size)
+#define	AHC_OUTSL(ahc, port, valp, size)	\
+	outsl((ahc)->baseport+(port), valp, size)
+#elif defined(__NetBSD__)
+#define	AHC_INB(ahc, port)	\
+	bus_io_read_1((ahc)->sc_bc, (ahc)->sc_ioh, port)
+#define	AHC_INSB(ahc, port, valp, size)	\
+	bus_io_read_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
+#define	AHC_OUTB(ahc, port, val)	\
+	bus_io_write_1((ahc)->sc_bc, (ahc)->sc_ioh, port, val)
+#define	AHC_OUTSB(ahc, port, valp, size)	\
+	bus_io_write_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
+#define	AHC_OUTSL(ahc, port, valp, size)	\
+	bus_io_write_multi_4((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
+#endif
 
 #define	AHC_NSEG	256	/* number of dma segments supported */
 
@@ -50,7 +91,9 @@
 
 
 typedef unsigned long int physaddr;
+#if defined(__FreeBSD__)
 extern u_long ahc_unit;
+#endif
 
 struct ahc_dma_seg {
         physaddr addr;
@@ -158,10 +201,19 @@ struct scb {
 };
 
 struct ahc_data {
+#if defined(__FreeBSD__)
 	int	unit;
+#elif defined(__NetBSD__)
+	struct device sc_dev;
+	void	*sc_ih;
+	bus_chipset_tag_t sc_bc;
+	bus_io_handle_t sc_ioh;
+#endif
 	ahc_type type;
 	ahc_flag flags;
+#if defined(__FreeBSD__)
 	u_long	baseport;
+#endif
 	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
 	struct	scb *pagedout_ntscbs[16];/* 
 					  * Paged out, non-tagged scbs
@@ -223,13 +275,28 @@ struct ahc_data {
 extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 #endif
 
+#if defined(__FreeBSD__)
+
 extern int bootverbose;
+
+char *ahc_name __P((struct ahc_data *ahc));
 
 void ahc_reset __P((u_long iobase));
 struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
+#elif defined(__NetBSD__)
+
+#define	ahc_name(ahc)	(ahc)->sc_dev.dv_xname
+
+void ahc_reset __P((char *devname, bus_chipset_tag_t bc, bus_io_handle_t ioh));
+void ahc_construct __P((struct ahc_data *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
+#endif
 void ahc_free __P((struct ahc_data *));
 int ahc_init __P((struct ahc_data *));
 int ahc_attach __P((struct ahc_data *));
+#if defined(__FreeBSD__)
 void ahc_intr __P((void *arg));
+#elif defined(__NetBSD__)
+int ahc_intr __P((void *arg));
+#endif
 
 #endif  /* _AIC7XXX_H_ */
