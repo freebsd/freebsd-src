@@ -508,7 +508,8 @@ static int cp_attach (device_t dev)
 		d->pp.pp_if.if_name	= "cp";
 #endif
 		d->pp.pp_if.if_mtu	= PP_MTU;
-		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST |
+				IFF_NEEDSGIANT;
 		d->pp.pp_if.if_ioctl	= cp_sioctl;
 		d->pp.pp_if.if_start	= cp_ifstart;
 		d->pp.pp_if.if_watchdog	= cp_ifwatchdog;
