@@ -65,9 +65,9 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd *pw;
-	int ch, howto, i, fd, kflag, lflag, nflag, qflag, pflag, sverrno;
+	int ch, howto, i, fd, lflag, nflag, qflag, pflag, sverrno;
 	u_int pageins;
-	char *kernel, *p;
+	char *kernel = NULL, *p;
 	const char *user;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
@@ -75,14 +75,13 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	kflag = lflag = nflag = qflag = 0;
+	lflag = nflag = qflag = 0;
 	while ((ch = getopt(argc, argv, "dk:lnpq")) != -1)
 		switch(ch) {
 		case 'd':
 			howto |= RB_DUMP;
 			break;
 		case 'k':
-			kflag = 1;
 			kernel = optarg;
 			break;
 		case 'l':
@@ -118,7 +117,7 @@ main(int argc, char *argv[])
 		err(1, NULL);
 	}
 
-	if (kflag) {
+	if (kernel != NULL) {
 		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT, 0444);
 		if (fd > -1) {
 			(void)write(fd, "nextboot_enable=\"YES\"\n", 22);
