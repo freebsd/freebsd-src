@@ -3,6 +3,8 @@
  *
  *   Mink is the former name of the S/KEY authentication system.
  *   Many references for mink  may still be found in this program.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -10,14 +12,11 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <errno.h>
 
 #include "skey.h"
 #include "pathnames.h"
