@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.1 1995/07/30 09:33:29 jkh Exp $
+ * $Id: ftp.c,v 1.2 1995/07/31 02:27:58 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -112,8 +112,7 @@ zap(FTP_t ftp)
     int i;
 
     i = writes(ftp->fd_ctrl,"QUIT\r\n");
-    if (isDebug())
-	msgDebug("Zapping ftp connection on %d returns %d\n", ftp->fd_ctrl, i);
+    debug(ftp, "Zapping ftp connection on %d returns %d\n", ftp->fd_ctrl, i);
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
     ftp->state = init;
@@ -323,8 +322,7 @@ FtpGet(FTP_t ftp, char *file)
 	    return zap(ftp);
 	}
 	else if (i > 299) {
-	    if (isDebug())
-		msgDebug("FTP: No such file %s, moving on.\n", file);
+	    debug(ftp, "FTP: No such file %s, moving on.\n", file);
 	    close(s);
 	    return -1;
 	}
@@ -362,8 +360,7 @@ FtpGet(FTP_t ftp, char *file)
 	    return zap(ftp);
 	}
 	else if (i > 299) {
-	    if (isDebug())
-		msgDebug("FTP: No such file %s, moving on.\n", file);
+	    debug(ftp, "FTP: No such file %s, moving on.\n", file);
 	    close(s);
 	    return -1;
         }
