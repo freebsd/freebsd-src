@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.17 1998/09/17 16:32:00 andreas Exp $
+#	$Id: Makefile.inc1,v 1.18 1998/09/21 08:55:50 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -668,6 +668,10 @@ _libm=	lib/libm
 _libm=	lib/msun
 .endif
 
+.if !defined(NOPERL)
+_libperl=		gnu/usr.bin/perl/libperl
+.endif
+
 #
 # bootstrap-libraries - build just enough libraries for the bootstrap
 # tools, and install them under ${WORLDTMP}.
@@ -688,7 +692,7 @@ bootstrap-libraries:
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
     ${_libcrypt} lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib \
-    gnu/usr.bin/perl/libperl
+    ${_libperl}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
@@ -707,7 +711,8 @@ bootstrap-libraries:
 libraries:
 .for _lib in lib/libcom_err ${_libcrypt} ${_libm} lib/libmytinfo \
     lib/libncurses lib/libtermcap \
-    gnu/lib gnu/usr.bin/cc/libgcc lib usr.bin/lex/lib usr.sbin/pcvt/keycap
+    gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
+    usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
