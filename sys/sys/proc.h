@@ -399,6 +399,7 @@ int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
 void	procinit __P((void));
+int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
 void	setrunnable __P((struct proc *));
