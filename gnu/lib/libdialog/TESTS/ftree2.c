@@ -8,6 +8,7 @@
  * file ./ftree2.test with xterm widget tree from 
  * preprocess editres(1) dump needed !!!
  *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -15,7 +16,7 @@
 #include <dialog.h>
 
 int
-main(int argc, unsigned char *argv[])
+main(int argc, char *argv[])
 {
 	int retval;
 	unsigned char *tresult;

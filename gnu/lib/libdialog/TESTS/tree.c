@@ -5,6 +5,7 @@
  *
  * Copyright (c) 1998, Anatoly A. Orehovsky
  *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -56,7 +57,7 @@ unsigned char *names1[] = {
 };
 
 int
-main(int argc, unsigned char *argv[])
+main(int argc, char *argv[])
 {
 	int retval;
 	unsigned char *tresult;

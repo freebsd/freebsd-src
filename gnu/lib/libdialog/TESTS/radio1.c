@@ -52,7 +52,7 @@ static dialogMenuItem menu5[] = {
 
 /* Kick it off, James! */
 int
-main(int argc, unsigned char *argv[])
+main(int argc, char *argv[])
 {
     int retval;
     
