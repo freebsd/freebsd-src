@@ -54,8 +54,6 @@
 #define PF_INET6	AF_INET6
 #endif
 
-#define HAVE_INET6_STRUCTS
-
 #ifndef HAS_INET6_STRUCTS
 /* Replace with structure from later rev of O/S if known. */
 struct in6_addr {
