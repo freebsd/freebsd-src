@@ -204,7 +204,8 @@ a value of zero is returned and
 .Xr fsck 8
 will assume that the filesystem does not need to be checked.
 .Bd -literal
-#define	FSTAB_RW	"rw"	/* read-write device */
+#define	FSTAB_RW	"rw"	/* read/write device */
+#define	FSTAB_RQ	"rq"	/* read/write with quotas */
 #define	FSTAB_RO	"ro"	/* read-only device */
 #define	FSTAB_SW	"sw"	/* swap device */
 #define	FSTAB_XX	"xx"	/* ignore totally */
@@ -212,11 +213,11 @@ will assume that the filesystem does not need to be checked.
 struct fstab {
 	char	*fs_spec;	/* block special device name */
 	char	*fs_file;	/* filesystem path prefix */
-	char	*fs_vfstype;	/* type of filesystem */
-	char	*fs_mntops;	/* comma separated mount options */
-	char	*fs_type;	/* rw, ro, sw, or xx */
+	char	*fs_vfstype;	/* File system type, ufs, nfs */
+	char	*fs_mntops;	/* Mount options ala -o */
+	char	*fs_type;	/* FSTAB_* from fs_mntops */
 	int	fs_freq;	/* dump frequency, in days */
-	int	fs_passno;	/* pass number on parallel dump */
+	int	fs_passno;	/* pass number on parallel fsck */
 };
 .Ed
 .Pp
