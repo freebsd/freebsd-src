@@ -1,11 +1,12 @@
 #	$FreeBSD$
 
+BINDIR=		/boot
 BASE= 		cdboot
 PROG= 		${BASE}
 NOMAN=
-NEWVERSWHAT=	"SRM CD9660 boot" alpha
-LOAD_ADDRESS=	${PRIMARY_LOAD_ADDRESS}
+STRIP=
 
-CFLAGS+=	-DLOADER_CDROM_SUPPORT
+${BASE}: ${BASE}-4.0R.gz.uu
+	uudecode -p ${.CURDIR}/${BASE}-4.0R.gz.uu | gunzip > ${BASE}
 
-.include	<${.CURDIR}/../common/Makefile.common>
+.include <bsd.prog.mk>
