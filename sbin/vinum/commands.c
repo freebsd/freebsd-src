@@ -493,7 +493,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 
     if (argc == 0)					    /* start everything */
 	/* XXX how should we do this right? */
-	vinum_read(1, NULL, NULL);			    /* that's what vinum_read does now */
+	vinum_read(0, NULL, NULL);			    /* that's what vinum_read does now */
     else {						    /* start specified objects */
 	int index;
 	enum objecttype type;
