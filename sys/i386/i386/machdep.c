@@ -73,10 +73,6 @@
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
 
-#ifdef SYSVSHM
-#include <sys/shm.h>
-#endif
-
 #ifdef SYSVMSG
 #include <sys/msg.h>
 #endif
@@ -329,9 +325,6 @@ again:
 
 	valloc(callout, struct callout, ncallout);
 	valloc(callwheel, struct callout_tailq, callwheelsize);
-#ifdef SYSVSHM
-	valloc(shmsegs, struct shmid_ds, shminfo.shmmni);
-#endif
 #ifdef SYSVSEM
 	valloc(sema, struct semid_ds, seminfo.semmni);
 	valloc(sem, struct sem, seminfo.semmns);

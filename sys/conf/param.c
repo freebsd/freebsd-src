@@ -46,10 +46,6 @@
 
 #include <sys/param.h>
 
-#ifdef SYSVSHM
-#include <machine/vmparam.h>
-#include <sys/shm.h>
-#endif
 #ifdef SYSVSEM
 #include <sys/sem.h>
 #endif
@@ -89,35 +85,6 @@ int	mbuf_wait = 32;				/* mbuf sleep time in ticks */
 #define	NSFBUFS (512 + MAXUSERS * 16)
 #endif
 int	nsfbufs = NSFBUFS;
-
-/*
- * Values in support of System V compatible shared memory.	XXX
- */
-#ifdef SYSVSHM
-#ifndef SHMMAX
-#define	SHMMAX	(SHMMAXPGS*PAGE_SIZE)
-#endif
-#ifndef SHMMIN
-#define	SHMMIN	1
-#endif
-#ifndef SHMMNI
-#define	SHMMNI	32			/* <= SHMMMNI in shm.h */
-#endif
-#ifndef SHMSEG
-#define	SHMSEG	8
-#endif
-#ifndef SHMALL
-#define	SHMALL	(SHMMAXPGS)
-#endif
-
-struct	shminfo shminfo = {
-	SHMMAX,
-	SHMMIN,
-	SHMMNI,
-	SHMSEG,
-	SHMALL
-};
-#endif
 
 /*
  * Values in support of System V compatible semaphores.
