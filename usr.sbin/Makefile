@@ -22,6 +22,7 @@ SUBDIR=	IPXrouted \
 	crunch \
 	ctm \
 	daemon \
+	dconschat \
 	dev_mkdb \
 	diskpart \
 	edquota \
