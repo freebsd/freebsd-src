@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51 1995/05/30 08:16:18 rgrimes Exp $
+ * $Id: vm_pageout.c,v 1.51.4.1 1996/01/31 13:12:39 davidg Exp $
  */
 
 /*
@@ -109,6 +109,8 @@ extern int vfs_update_wakeup;
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
+
+static void vm_req_vmdaemon __P((void));
 
 /*
  * vm_pageout_clean:
@@ -499,17 +501,6 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	return;
 }
 
-void
-vm_req_vmdaemon()
-{
-	static int lastrun = 0;
-
-	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
-		wakeup((caddr_t) &vm_daemon_needed);
-		lastrun = ticks;
-	}
-}
-
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
@@ -747,6 +738,7 @@ rescan1:
 				wakeup((caddr_t) &vfs_update_wakeup);
 			}
 		}
+#ifndef NO_SWAPPING
 		/*
 		 * now swap processes out if we are in low memory conditions
 		 */
@@ -755,12 +747,15 @@ rescan1:
 			vm_pageout_req_swapout = 1;
 			vm_req_vmdaemon();
 		}
+#endif
 	}
 
+#ifndef NO_SWAPPING
 	if ((cnt.v_inactive_count + cnt.v_free_count + cnt.v_cache_count) <
 	    (cnt.v_inactive_target + cnt.v_free_min)) {
 		vm_req_vmdaemon();
 	}
+#endif
 
 	/*
 	 * make sure that we have swap space -- if we are low on memory and
@@ -876,6 +871,18 @@ vm_pageout()
 	}
 }
 
+#ifndef NO_SWAPPING
+static void
+vm_req_vmdaemon()
+{
+	static int lastrun = 0;
+
+	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
+		wakeup((caddr_t) &vm_daemon_needed);
+		lastrun = ticks;
+	}
+}
+
 void
 vm_daemon()
 {
@@ -957,3 +964,4 @@ restart:
 	}
 	vm_object_cache_unlock();
 }
+#endif /* !NO_SWAPPING */

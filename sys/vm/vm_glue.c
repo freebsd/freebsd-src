@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20.4.2 1995/10/16 20:43:05 davidg Exp $
+ * $Id: vm_glue.c,v 1.20.4.3 1996/01/29 12:11:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -395,11 +395,11 @@ loop:
 	goto loop;
 }
 
+#ifndef NO_SWAPPING
+
 #define	swappable(p) \
 	(((p)->p_lock == 0) && \
 		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO|P_SWAPPING)) == P_INMEM)
-
-extern int vm_pageout_free_min;
 
 /*
  * Swapout is driven by the pageout daemon.  Very simple, we find eligible
@@ -509,6 +509,7 @@ swapout(p)
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;
 }
+#endif /* !NO_SWAPPING */
 
 /*
  * The rest of these routines fake thread handling
