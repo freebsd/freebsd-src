@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.144 1995/10/10 05:05:28 bde Exp $
+ *	$Id: machdep.c,v 1.145 1995/10/28 16:57:54 markm Exp $
  */
 
 #include "npx.h"
@@ -440,15 +440,30 @@ again:
 	}
 }
 
+int
+register_netisr(num, handler)
+	int num;
+	netisr_t *handler;
+{
+	
+	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
+		printf("register_netisr: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	netisrs[num] = handler;
+	return (0);
+}
+
 void
-setup_netisrs(struct linker_set *ls)
+setup_netisrs(ls)
+	struct linker_set *ls;
 {
 	int i;
 	const struct netisrtab *nit;
 
 	for(i = 0; ls->ls_items[i]; i++) {
 		nit = (const struct netisrtab *)ls->ls_items[i];
-		netisrs[nit->nit_num] = nit->nit_isr;
+		register_netisr(nit->nit_num, nit->nit_isr);
 	}
 }
 
@@ -1542,7 +1557,7 @@ init386(first)
 
 	/*
 	 * XXX
-	 * The last chunk must contain at leat one page plus the message
+	 * The last chunk must contain at least one page plus the message
 	 * buffer to avoid complicating other code (message buffer address
 	 * calculation, etc.).
 	 */
