@@ -102,6 +102,7 @@ sub override ($$) {
 		eval "*\$name = sub {
 			\\\$repsub2->(
 				\\\$real_addr, \\\@_) };";
+		\@r;
 		}, \@_)
 };
 EOF
