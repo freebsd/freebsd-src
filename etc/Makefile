@@ -100,7 +100,7 @@ distribution: distrib-dirs
 	 cd ../cf/cf; make tcpproto.cf; \
 	    install -o root -g wheel -m 644 tcpproto.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
-	(cd ../; install -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
+	(cd ../; install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; make install)
 .endif
 
