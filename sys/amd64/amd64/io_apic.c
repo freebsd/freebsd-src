@@ -548,10 +548,11 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 
 		/*
 		 * Assume that pin 0 on the first I/O APIC is an ExtINT pin
-		 * and that pins 1-15 are ISA interrupts.  Assume that all
+		 * if mixed mode is enabled and an ISA interrupt if not.
+		 * Assume that pins 1-15 are ISA interrupts and that all
 		 * other pins are PCI interrupts.
 		 */
-		if (intpin->io_vector == 0)
+		if (intpin->io_vector == 0 && mixed_mode_enabled)
 			ioapic_set_extint(io, i);
 		else if (intpin->io_vector < IOAPIC_ISA_INTS) {
 			intpin->io_bus = APIC_BUS_ISA;
