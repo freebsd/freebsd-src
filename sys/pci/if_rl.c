@@ -1830,7 +1830,8 @@ rl_ioctl(ifp, command, data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		ifp->if_capenable = ifr->ifr_reqcap;
+		ifp->if_capenable &= ~IFCAP_POLLING;
+		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
