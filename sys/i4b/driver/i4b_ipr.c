@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.55 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_ipr.c,v 1.59 2000/08/28 07:24:58 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:38:51 1999]
+ *	last edit-date: [Fri Aug 25 20:25:21 2000]
  *
  *---------------------------------------------------------------------------*
  *
@@ -80,6 +80,11 @@
 #else
 #include <sys/ioctl.h>
 #endif
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #include <sys/kernel.h>
 #include <sys/protosw.h>
 
@@ -193,6 +198,13 @@ struct ipr_softc {
 	int		sc_fn;		/* flag, first null acct	*/
 #endif	
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct callout	sc_callout;
+#endif
+#if defined(__FreeBSD__)
+	struct callout_handle	sc_callout;
+#endif
+
 #ifdef I4BIPRADJFRXP
 	int		sc_first_pkt;	/* flag, first rxd packet	*/
 #endif
@@ -279,7 +291,7 @@ i4biprattach()
 	{
 		ipr_init_linktab(i);
 
-		DBGL4(L4_DIALST, "i4biprattach", ("setting dial state to ST_IDLE\n"));
+		NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
 		sc->sc_state = ST_IDLE;
 		
@@ -302,6 +314,10 @@ i4biprattach()
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX | IPR_AUTOCOMP;
 #else
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX;
+#endif
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+		callout_init(&sc->sc_callout);
 #endif
 
 		sc->sc_if.if_mtu = I4BIPRMTU;
@@ -360,7 +376,12 @@ i4biprattach()
 		sc->sc_dialresp = DSTAT_NONE;	/* no response */
 		sc->sc_lastdialresp = DSTAT_NONE;
 		
+#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
+		/* do not call bpfattach in ether_ifattach */
+		ether_ifattach(&sc->sc_if, 0);
+#else
 		if_attach(&sc->sc_if);
+#endif
 
 #if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
@@ -411,7 +432,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	if(!(ifp->if_flags & IFF_UP))
 	{
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: interface is DOWN!\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: interface is DOWN!", unit);
 		m_freem(m);
 		splx(s);
 		sc->sc_if.if_oerrors++;
@@ -427,7 +448,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		switch(sc->sc_dialresp)
 		{
 			case DSTAT_TFAIL:	/* transient failure */
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: transient dial failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: transient dial failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -437,7 +458,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				break;
 
 			case DSTAT_PFAIL:	/* permanent failure */
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: permanent dial failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: permanent dial failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -447,7 +468,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				break;
 
 			case DSTAT_INONLY:	/* no dialout allowed*/
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: dialout not allowed failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: dialout not allowed failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -458,8 +479,8 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		}
 #endif
 
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: send dial request message!\n", unit));
-		DBGL4(L4_DIALST, "i4biproutput", ("ipr%d: setting dial state to ST_DIALING\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: send dial request message!", unit);
+		NDBGL4(L4_DIALST, "ipr%d: setting dial state to ST_DIALING", unit);
 		i4b_l4_dialout(BDRV_IPR, unit);
 		sc->sc_state = ST_DIALING;
 	}
@@ -493,7 +514,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	if(IF_QFULL(ifq))
 	{
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: send queue full!\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
 		IF_DROP(ifq);
 		m_freem(m);
 		splx(s);
@@ -501,7 +522,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		return(ENOBUFS);
 	}
 	
-	DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: add packet to send queue!\n", unit));
+	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
 	
 	IF_ENQUEUE(ifq, m);
 
@@ -747,7 +768,7 @@ ipr_connect(int unit, void *cdp)
 
 	s = SPLI4B();
 
-	DBGL4(L4_DIALST, "ipr_connect", ("ipr%d: setting dial state to ST_CONNECTED\n", unit));
+	NDBGL4(L4_DIALST, "ipr%d: setting dial state to ST_CONNECTED", unit);
 
 	sc->sc_if.if_flags |= IFF_RUNNING;
 	sc->sc_state = ST_CONNECTED_W;
@@ -782,7 +803,16 @@ ipr_connect(int unit, void *cdp)
 
 	if(sc->sc_cdp->isdntxdelay > 0)
 	{
-		timeout((TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)sc, sc->sc_cdp->isdntxdelay /* hz*1 */);
+		int delay;
+
+		if (hz == 100) {
+			delay = sc->sc_cdp->isdntxdelay;	/* avoid any rounding */
+		} else {
+			delay = sc->sc_cdp->isdntxdelay*hz;
+			delay /= 100;
+		}
+
+		START_TIMER(sc->sc_callout, (TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)sc,  delay);
 	}
 	else
 	{
@@ -809,8 +839,8 @@ ipr_disconnect(int unit, void *cdp)
 
 	if (cd != sc->sc_cdp)
 	{
-		DBGL4(L4_IPRDBG, "ipr_disconnect", ("ipr%d: channel %d not active\n",
-				cd->driver_unit, cd->channelid));
+		NDBGL4(L4_IPRDBG, "ipr%d: channel %d not active",
+				cd->driver_unit, cd->channelid);
 		return;
 	}
 
@@ -827,7 +857,7 @@ ipr_disconnect(int unit, void *cdp)
 	
 	sc->sc_cdp = (call_desc_t *)0;	
 
-	DBGL4(L4_DIALST, "ipr_disconnect", ("setting dial state to ST_IDLE\n"));
+	NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
 	sc->sc_dialresp = DSTAT_NONE;
 	sc->sc_lastdialresp = DSTAT_NONE;	
@@ -846,12 +876,12 @@ ipr_dialresponse(int unit, int status, cause_t cause)
 	struct ipr_softc *sc = &ipr_softc[unit];
 	sc->sc_dialresp = status;
 
-	DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: last=%d, this=%d\n",
-		unit, sc->sc_lastdialresp, sc->sc_dialresp));
+	NDBGL4(L4_IPRDBG, "ipr%d: last=%d, this=%d",
+		unit, sc->sc_lastdialresp, sc->sc_dialresp);
 
 	if(status != DSTAT_NONE)
 	{
-		DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: clearing queues\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: clearing queues", unit);
 		iprclearqueues(sc);
 	}
 }
@@ -1045,7 +1075,7 @@ error:
 
 	if(IF_QFULL(&ipintrq))
 	{
-		DBGL4(L4_IPRDBG, "ipr_rx_data_rdy", ("ipr%d: ipintrq full!\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
 
 		IF_DROP(&ipintrq);
 		sc->sc_if.if_ierrors++;
@@ -1130,7 +1160,7 @@ ipr_tx_queue_empty(int unit)
 
 		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
-			DBGL4(L4_IPRDBG, "ipr_rx_data_rdy", ("ipr%d: tx queue full!\n", unit));
+			NDBGL4(L4_IPRDBG, "ipr%d: tx queue full!", unit);
 			m_freem(m);
 		}
 		else

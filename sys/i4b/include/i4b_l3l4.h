@@ -27,11 +27,11 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.27 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_l3l4.h,v 1.32 2000/08/24 11:48:57 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:56 1999]
+ *	last edit-date: [Fri Jun  2 14:29:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -121,6 +121,12 @@ drvr_link_t *ibc_ret_linktab(int unit);
 void ibc_set_linktab(int unit, isdn_link_t *ilt);
 #endif
 
+/* global linktab functions for ING network driver */
+
+drvr_link_t *ing_ret_linktab(int unit);
+void ing_set_linktab(int unit, isdn_link_t *ilt);
+
+
 /*---------------------------------------------------------------------------*
  *	this structure describes one call/connection on one B-channel
  *	and all its parameters
@@ -150,7 +156,9 @@ typedef struct
 	
 	u_char	dst_telno[TELNO_MAX];	/* destination number	*/
 	u_char	src_telno[TELNO_MAX];	/* source number	*/
+
 	int	scr_ind;		/* screening ind for incoming call */
+	int	prs_ind;		/* presentation ind for incoming call */
 	
 	int	Q931state;		/* Q.931 state for call	*/
 	int	event;			/* event to be processed */
@@ -192,6 +200,17 @@ typedef struct
 	struct	callout_handle	T310_callout;
 	struct	callout_handle	T313_callout;
 	struct	callout_handle	T400_callout;
+	int	callouts_inited;		/* must init before use */
+#endif
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct	callout	idle_timeout_handle;
+	struct	callout	T303_callout;
+	struct	callout	T305_callout;
+	struct	callout	T308_callout;
+	struct	callout	T309_callout;
+	struct	callout	T310_callout;
+	struct	callout	T313_callout;
+	struct	callout	T400_callout;
 	int	callouts_inited;		/* must init before use */
 #endif
 
@@ -257,11 +276,9 @@ typedef struct
 	void	(*N_CONNECT_RESPONSE)	(unsigned int, int, int);
 	void	(*N_DISCONNECT_REQUEST)	(unsigned int, int);
 	void	(*N_ALERT_REQUEST)	(unsigned int);	
-	void    (*N_SET_TRACE) 		(int unit, int val);
-	int     (*N_GET_TRACE) 		(int unit);
 	int     (*N_DOWNLOAD)		(int unit, int numprotos, struct isdn_dr_prot *protocols);
 	int     (*N_DIAGNOSTICS)	(int unit, struct isdn_diagnostic_request*);
-	void	(*N_MGMT_COMMAND)	(int unit, int cmd, int parm);
+	void	(*N_MGMT_COMMAND)	(int unit, int cmd, void *);
 } ctrl_desc_t;
 
 extern ctrl_desc_t ctrl_desc[MAX_CONTROLLERS];

@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -34,18 +34,32 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- *	$Id: i4b_isppp.c,v 1.35 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_isppp.c,v 1.44 2000/08/31 07:07:26 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:39:06 1999]
+ *	last edit-date: [Thu Aug 31 09:02:27 2000]
  *
  *---------------------------------------------------------------------------*/
 
+
+#ifndef __NetBSD__
+#define USE_ISPPP
+#endif
 #include "i4bisppp.h"
 
+#ifndef USE_ISPPP
+
+#ifdef __FreeBSD__
+#include "sppp.h"
+#endif
+
+#ifndef __NetBSD__
 #if NI4BISPPP == 0
 # error "You need to define `pseudo-device sppp <N>' with options ISPPP"
+#endif
+#endif
+
 #endif
 
 #include <sys/param.h>
@@ -71,9 +85,13 @@
 #include <net/slcompress.h>
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
+#ifndef USE_ISPPP
 #include <net/if_sppp.h>
 #else
-#include <i4b/sppp/if_sppp.h>
+#include <machine/i4b_isppp.h>
+#endif /* USE_ISPPP */
+#else
+#include <net/if_sppp.h>
 #endif
 
 
@@ -135,7 +153,7 @@
 PDEVSTATIC void i4bispppattach(void *);
 PSEUDO_SET(i4bispppattach, i4b_isppp);
 #else
-PDEVSTATIC void i4bispppattach __P((void));
+PDEVSTATIC void i4bispppattach(void);
 #endif
 
 #define I4BISPPPACCT		1	/* enable accounting messages */
@@ -199,6 +217,7 @@ static void	i4bisppp_tlf(struct sppp *sp);
 static void	i4bisppp_state_changed(struct sppp *sp, int new_state);
 static void	i4bisppp_negotiation_complete(struct sppp *sp);
 static void	i4bisppp_watchdog(struct ifnet *ifp);
+time_t   	i4bisppp_idletime(int unit);
 
 /* initialized by L4 */
 
@@ -222,7 +241,7 @@ PDEVSTATIC void
 #ifdef __FreeBSD__
 i4bispppattach(void *dummy)
 #else
-i4bispppattach(void)
+i4bispppattach()
 #endif
 {
 	struct i4bisppp_softc *sc = i4bisppp_softc;
@@ -253,7 +272,14 @@ i4bispppattach(void)
 #endif
 
 		sc->sc_if.if_mtu = PP_MTU;
+
+#ifdef __NetBSD__
+		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT |
+					IFF_MULTICAST;
+#else
 		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
+#endif
+
 		sc->sc_if.if_type = IFT_ISDNBASIC;
 		sc->sc_state = ST_IDLE;
 
@@ -297,8 +323,17 @@ i4bispppattach(void)
 		sc->sc_if_un.scu_sp.pp_con = i4bisppp_negotiation_complete;
 		sc->sc_if_un.scu_sp.pp_chg = i4bisppp_state_changed;
 
+#ifndef USE_ISPPP
 		sppp_attach(&sc->sc_if);
+#else
+		isppp_attach(&sc->sc_if);
+#endif
+#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
+		/* do not call bpfattach in ether_ifattach */
+		ether_ifattach(&sc->sc_if, 0);
+#else
 		if_attach(&sc->sc_if);
+#endif
 
 #if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
@@ -327,7 +362,11 @@ i4bisppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data)
 
 	int error;
 
+#ifndef USE_ISPPP		
 	error = sppp_ioctl(&sc->sc_if, cmd, data);
+#else
+	error = isppp_ioctl(&sc->sc_if, cmd, data);
+#endif
 	if (error)
 		return error;
 
@@ -356,7 +395,11 @@ i4bisppp_start(struct ifnet *ifp)
 	/* int s; */
 	int unit = IFP2UNIT(ifp);
 
+#ifndef USE_ISPPP
 	if (sppp_isempty(ifp))
+#else
+	if (isppp_isempty(ifp))
+#endif
 		return;
 
 	if(sc->sc_state != ST_CONNECTED)
@@ -368,7 +411,11 @@ i4bisppp_start(struct ifnet *ifp)
 	 * splx(s);
 	 */
 
+#ifndef USE_ISPPP
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
+#else
+	while ((m = isppp_dequeue(&sc->sc_if)) != NULL)
+#endif
 	{
 
 #if NBPFILTER > 0 || NBPF > 0
@@ -387,14 +434,15 @@ i4bisppp_start(struct ifnet *ifp)
 
 		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
-			DBGL4(L4_ISPDBG, "i4bisppp_start", ("isp%d, tx queue full!\n", unit));
+			NDBGL4(L4_ISPDBG, "isp%d, tx queue full!", unit);
 			m_freem(m);
 		}
 		else
 		{
 			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-
+#if 0
 			sc->sc_if.if_obytes += m->m_pkthdr.len;
+#endif
 			sc->sc_outb += m->m_pkthdr.len;
 			sc->sc_if.if_opackets++;
 		}
@@ -554,7 +602,9 @@ i4bisppp_connect(int unit, void *cdp)
 #endif
 
 	sp->pp_up(sp);		/* tell PPP we are ready */
-
+#ifndef __NetBSD__
+	sp->pp_last_sent = sp->pp_last_recv = SECOND;
+#endif
 	splx(s);
 }
 
@@ -573,7 +623,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 	/* new stuff to check that the active channel is being closed */
 	if (cd != sc->sc_cdp)
 	{
-		DBGL4(L4_ISPDBG, "i4bisppp_disconnect", ("isp%d, channel%d not active!\n", unit, cd->channelid));
+		NDBGL4(L4_ISPDBG, "isp%d, channel%d not active!", unit, cd->channelid);
 		splx(s);
 		return;
 	}
@@ -608,17 +658,25 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 {
 	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
 
-	DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: status=%d, cause=%d\n", unit, status, cause));
+	NDBGL4(L4_ISPDBG, "isp%d: status=%d, cause=%d", unit, status, cause);
 
 	if(status != DSTAT_NONE)
 	{
 		struct mbuf *m;
 		
-		DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: clearing queues\n", unit));
+		NDBGL4(L4_ISPDBG, "isp%d: clearing queues", unit);
 
+#ifndef USE_ISPPP
 		if(!(sppp_isempty(&sc->sc_if)))
+#else
+		if(!(isppp_isempty(&sc->sc_if)))
+#endif		
 		{
+#ifndef USE_ISPPP
 			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
+#else
+			while((m = isppp_dequeue(&sc->sc_if)) != NULL)
+#endif
 				m_freem(m);
 		}
 	}
@@ -654,7 +712,9 @@ i4bisppp_rx_data_rdy(int unit)
 	microtime(&sc->sc_if.if_lastchange);
 
 	sc->sc_if.if_ipackets++;
+#if 0
 	sc->sc_if.if_ibytes += m->m_pkthdr.len;
+#endif
 
 #if I4BISPPPACCT
 	sc->sc_inb += m->m_pkthdr.len;
@@ -680,7 +740,11 @@ i4bisppp_rx_data_rdy(int unit)
 
 	s = splimp();
 
+#ifndef USE_ISPPP
 	sppp_input(&sc->sc_if, m);
+#else
+	isppp_input(&sc->sc_if, m);
+#endif
 
 	splx(s);
 }
@@ -694,6 +758,28 @@ static void
 i4bisppp_tx_queue_empty(int unit)
 {
 	i4bisppp_start(&i4bisppp_softc[unit].sc_if);	
+}
+
+/*---------------------------------------------------------------------------*
+ *	THIS should be used instead of last_active_time to implement
+ *	an activity timeout mechanism.
+ *
+ *	Sending back the time difference unneccessarily complicates the
+ *	idletime checks in i4b_l4.c. Return the largest time instead.
+ *	That way the code in i4b_l4.c needs only minimal changes.
+ *---------------------------------------------------------------------------*/
+time_t
+i4bisppp_idletime(int unit)
+{
+#ifdef __NetBSD__
+       return(i4bisppp_softc[unit].sc_cdp->last_active_time);
+#else
+	struct sppp *sp;
+	sp = (struct sppp *) &i4bisppp_softc[unit];
+
+	return((sp->pp_last_recv < sp->pp_last_sent) ?
+			sp->pp_last_sent : sp->pp_last_recv);
+#endif
 }
 
 /*---------------------------------------------------------------------------*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l3timer.c - timer and timeout handling for layer 3
  *	------------------------------------------------------
  *
- *	$Id: i4b_l3timer.c,v 1.14 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l3timer.c,v 1.17 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:18 1999]
+ *      last edit-date: [Thu Aug 24 12:49:50 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,17 +43,15 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -94,7 +92,7 @@ void i4b_l3_stop_all_timers(call_desc_t *cd)
 static void
 T303_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T303_timeout", ("SETUP not answered, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "SETUP not answered, cr = %d", cd->cr);
 	next_l3state(cd, EV_T303EXP);
 }
 
@@ -107,14 +105,10 @@ T303_start(call_desc_t *cd)
 	if (cd->T303 == TIMER_ACTIVE)
 		return;
 		
-	DBGL3(L3_T_MSG, "T303_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T303 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T303_callout = timeout((TIMEOUT_FUNC_T)T303_timeout, (void *)cd, T303VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T303_timeout, (void *)cd, T303VAL);
-#endif
+	START_TIMER(cd->T303_callout, T303_timeout, cd, T303VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -128,15 +122,11 @@ T303_stop(call_desc_t *cd)
 	
 	if(cd->T303 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T303_timeout, (void *)cd, cd->T303_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T303_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T303_callout, T303_timeout, cd);
 		cd->T303 = TIMER_IDLE;
 	}
 	CRIT_END;
-	DBGL3(L3_T_MSG, "T303_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 /*---------------------------------------------------------------------------*
@@ -145,7 +135,7 @@ T303_stop(call_desc_t *cd)
 static void
 T305_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T305_timeout", ("DISC not answered, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "DISC not answered, cr = %d", cd->cr);
 	next_l3state(cd, EV_T305EXP);
 }
 
@@ -158,14 +148,10 @@ T305_start(call_desc_t *cd)
 	if (cd->T305 == TIMER_ACTIVE)
 		return;
 		
-	DBGL3(L3_T_MSG, "T305_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T305 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T305_callout = timeout((TIMEOUT_FUNC_T)T305_timeout, (void *)cd, T305VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T305_timeout, (void *)cd, T305VAL);
-#endif
+	START_TIMER(cd->T305_callout, T305_timeout, cd, T305VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -179,16 +165,12 @@ T305_stop(call_desc_t *cd)
 	
 	if(cd->T305 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T305_timeout, (void *)cd, cd->T305_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T305_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T305_callout, T305_timeout, cd);
 		cd->T305 = TIMER_IDLE;
 	}
 	CRIT_END;
 	
-	DBGL3(L3_T_MSG, "T305_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 /*---------------------------------------------------------------------------*
@@ -197,7 +179,7 @@ T305_stop(call_desc_t *cd)
 static void
 T308_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T308_timeout", ("REL not answered, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "REL not answered, cr = %d", cd->cr);
 	next_l3state(cd, EV_T308EXP);
 }
 
@@ -210,14 +192,10 @@ T308_start(call_desc_t *cd)
 	if(cd->T308 == TIMER_ACTIVE)
 		return;
 		
-	DBGL3(L3_T_MSG, "T308_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T308 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T308_callout = timeout((TIMEOUT_FUNC_T)T308_timeout, (void *)cd, T308VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T308_timeout, (void *)cd, T308VAL);
-#endif
+	START_TIMER(cd->T308_callout, T308_timeout, cd, T308VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -231,16 +209,12 @@ T308_stop(call_desc_t *cd)
 	
 	if(cd->T308 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T308_timeout, (void *)cd, cd->T308_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T308_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T308_callout, T308_timeout, cd);
 		cd->T308 = TIMER_IDLE;
 	}
 	CRIT_END;
 	
-	DBGL3(L3_T_MSG, "T308_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 /*---------------------------------------------------------------------------*
@@ -249,7 +223,7 @@ T308_stop(call_desc_t *cd)
 static void
 T309_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T309_timeout", ("datalink not reconnected, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "datalink not reconnected, cr = %d", cd->cr);
 	next_l3state(cd, EV_T309EXP);
 }
 
@@ -262,14 +236,10 @@ T309_start(call_desc_t *cd)
 	if (cd->T309 == TIMER_ACTIVE)
 		return;
 
-	DBGL3(L3_T_MSG, "T309_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T309 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T309_callout = timeout((TIMEOUT_FUNC_T)T309_timeout, (void *)cd, T309VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T309_timeout, (void *)cd, T309VAL);
-#endif
+	START_TIMER(cd->T309_callout, T309_timeout, cd, T309VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -283,16 +253,12 @@ T309_stop(call_desc_t *cd)
 	
 	if(cd->T309 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T309_timeout, (void *)cd, cd->T309_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T309_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T309_callout, T309_timeout, cd);
 		cd->T309 = TIMER_IDLE;
 	}
 	CRIT_END;
 	
-	DBGL3(L3_T_MSG, "T309_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 /*---------------------------------------------------------------------------*
@@ -301,7 +267,7 @@ T309_stop(call_desc_t *cd)
 static void
 T310_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T310_timeout", ("CALL PROC timeout, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "CALL PROC timeout, cr = %d", cd->cr);
 	next_l3state(cd, EV_T310EXP);
 }
 
@@ -314,14 +280,10 @@ T310_start(call_desc_t *cd)
 	if (cd->T310 == TIMER_ACTIVE)
 		return;
 		
-	DBGL3(L3_T_MSG, "T310_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T310 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T310_callout = timeout((TIMEOUT_FUNC_T)T310_timeout, (void *)cd, T310VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T310_timeout, (void *)cd, T310VAL);
-#endif
+	START_TIMER(cd->T310_callout, T310_timeout, cd, T310VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -335,16 +297,12 @@ T310_stop(call_desc_t *cd)
 	
 	if(cd->T310 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T310_timeout, (void *)cd, cd->T310_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T310_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T310_callout, T310_timeout, cd);
 		cd->T310 = TIMER_IDLE;
 	}
 	CRIT_END;
 
-	DBGL3(L3_T_MSG, "T310_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 /*---------------------------------------------------------------------------*
@@ -353,7 +311,7 @@ T310_stop(call_desc_t *cd)
 static void
 T313_timeout(call_desc_t *cd)
 {
-	DBGL3(L3_T_ERR, "T313_timeout", ("CONN ACK not received, cr = %d\n", cd->cr));
+	NDBGL3(L3_T_ERR, "CONN ACK not received, cr = %d", cd->cr);
 	next_l3state(cd, EV_T313EXP);
 }
 
@@ -366,14 +324,10 @@ T313_start(call_desc_t *cd)
 	if (cd->T313 == TIMER_ACTIVE)
 		return;
 		
-	DBGL3(L3_T_MSG, "T313_start", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 	cd->T313 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	cd->T313_callout = timeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd, T313VAL);
-#else
-	timeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd, T313VAL);
-#endif
+	START_TIMER(cd->T313_callout, T313_timeout, cd, T313VAL);
 }
 
 /*---------------------------------------------------------------------------*
@@ -388,15 +342,11 @@ T313_stop(call_desc_t *cd)
 	if(cd->T313 != TIMER_IDLE)
 	{
 		cd->T313 = TIMER_IDLE;
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd, cd->T313_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)T313_timeout, (void *)cd);
-#endif
+		STOP_TIMER(cd->T313_callout, T313_timeout, cd);
 	}
 	CRIT_END;
 	
-	DBGL3(L3_T_MSG, "T313_stop", ("cr = %d\n", cd->cr));
+	NDBGL3(L3_T_MSG, "cr = %d", cd->cr);
 }
 
 #endif /* NI4BQ931 > 0 */

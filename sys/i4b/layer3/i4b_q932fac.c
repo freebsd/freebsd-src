@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_q932fac.c - Q932 facility handling
  *	--------------------------------------
  *
- *	$Id: i4b_q932fac.c,v 1.8 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_q932fac.c,v 1.11 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:51 1999]
+ *      last edit-date: [Mon May 29 16:57:04 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,16 +43,15 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#else
-#include <sys/ioctl.h>
-#endif
-
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -105,24 +104,24 @@ i4b_aoc(unsigned char *buf, call_desc_t *cd)
 	{
 		case FAC_PROTO_ROP:
 			break;
-			
+
 		case FAC_PROTO_CMIP:
-			DBGL3(L3_A_MSG, "i4b_facility", ("CMIP Protocol (Q.941), UNSUPPORTED\n"));
+			NDBGL3(L3_A_MSG, "CMIP Protocol (Q.941), UNSUPPORTED");
 			return(-1);
 			break;
 
 		case FAC_PROTO_ACSE:
-			DBGL3(L3_A_MSG, "i4b_facility", ("ACSE Protocol (X.217/X.227), UNSUPPORTED!\n"));
+			NDBGL3(L3_A_MSG, "ACSE Protocol (X.217/X.227), UNSUPPORTED!");
 			return(-1);
 			break;
 
 		default:
-			DBGL3(L3_A_ERR, "i4b_facility", ("Unknown Protocol, UNSUPPORTED!\n"));
+			NDBGL3(L3_A_ERR, "Unknown Protocol, UNSUPPORTED!");
 			return(-1);
 			break;
 	}
 
-	DBGL3(L3_A_MSG, "i4b_facility", ("Remote Operations Protocol\n"));
+	NDBGL3(L3_A_MSG, "Remote Operations Protocol");
 
 	/* next byte */
 	
@@ -382,7 +381,7 @@ F_2(int val)
 {
 	if(val != -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Invoke ID = %d\n", val));
+		NDBGL3(L3_A_MSG, "Invoke ID = %d", val);
 		state = ST_EXP_OP_VAL;
 	}
 }
@@ -395,7 +394,7 @@ F_3(int val)
 {
 	if(val != -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Operation Value = %d\n", val));
+		NDBGL3(L3_A_MSG, "Operation Value = %d", val);
 	
 		operation_value = val;
 		
@@ -429,7 +428,7 @@ F_4_1(int val)
 {
 	if(val == -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Free of Charge\n"));
+		NDBGL3(L3_A_MSG, "Free of Charge");
 		/* units = 0; XXXX */
 		state = ST_EXP_NIX;
 	}
@@ -443,7 +442,7 @@ F_4_2(int val)
 {
 	if(val == -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Charge not available\n"));
+		NDBGL3(L3_A_MSG, "Charge not available");
 		/* units = -1; 	XXXXXX ??? */
 		state = ST_EXP_NIX;
 	}
@@ -477,7 +476,7 @@ F_7(int val)
 {
 	if(val != -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Number of Units = %d\n", val));
+		NDBGL3(L3_A_MSG, "Number of Units = %d", val);
 		units = val;
 		state = ST_EXP_TOCI;
 	}
@@ -491,7 +490,7 @@ F_8(int val)
 {
 	if(val != -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Subtotal/Total = %d\n", val));
+		NDBGL3(L3_A_MSG, "Subtotal/Total = %d", val);
 		/* type_of_charge = val; */
 		state = ST_EXP_DBID;
 	}
@@ -505,7 +504,7 @@ F_9(int val)
 {
 	if(val != -1)
 	{
-		DBGL3(L3_A_MSG, "i4b_facility", ("Billing ID = %d\n", val));
+		NDBGL3(L3_A_MSG, "Billing ID = %d", val);
 		/* billing_id = val; */
 		state = ST_EXP_NIX;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,58 +27,52 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.20 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_debug.h,v 1.32 2000/07/24 12:22:08 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:06:59 1999]
+ *      last edit-date: [Wed May 31 09:51:34 2000]
  *
  *---------------------------------------------------------------------------*/
 
-#define DO_I4B_DEBUG	/* enable debugging code inclusion */
+#if !defined DO_I4B_DEBUG
+# define DO_I4B_DEBUG 1		/* default = include debugging code */
+#elif DO_I4B_DEBUG != 0
+# undef DO_I4B_DEBUG
+# define DO_I4B_DEBUG 1
+#endif
 
-#undef DO_I4B_MAXDEBUG	/* enable ALL debug messages by default	*/
+#undef DO_I4B_MAXDEBUG		/* default = disable ALL debug messages */
 
-#ifdef DO_I4B_DEBUG
+#if DO_I4B_DEBUG
 
 extern unsigned int i4b_l1_debug;
 extern unsigned int i4b_l2_debug;
 extern unsigned int i4b_l3_debug;
 extern unsigned int i4b_l4_debug;
 
-#define DBGL1(bits, routine, what)			\
-	if(bits & i4b_l1_debug)				\
-	{						\
-		printf("i4b-L1-%s: ", routine);	\
-		printf what ;				\
-	}
+#define NDBGL1(bits, fmt, args...)				 	\
+	if(bits & i4b_l1_debug)						\
+	{ printf("i4b-L1 %s: " fmt "\n", __FUNCTION__ , ##args ); }
 
-#define DBGL2(bits, routine, what)			\
-	if(bits & i4b_l2_debug)				\
-	{						\
-		printf("i4b-L2-%s: ", routine);	\
-		printf what ;				\
-	}
-
-#define DBGL3(bits, routine, what)			\
-	if(bits & i4b_l3_debug)				\
-	{						\
-		printf("i4b-L3-%s: ", routine);	\
-		printf what ;				\
-	}
-
-#define DBGL4(bits, routine, what)			\
-	if(bits & i4b_l4_debug)				\
-	{						\
-		printf("i4b-L4-%s: ", routine);	\
-		printf what ;				\
-	}
+#define NDBGL2(bits, fmt, args...)				 	\
+	if(bits & i4b_l2_debug)						\
+	{ printf("i4b-L2 %s: " fmt "\n", __FUNCTION__ , ##args ); }
+	
+#define NDBGL3(bits, fmt, args...)				 	\
+	if(bits & i4b_l3_debug)						\
+	{ printf("i4b-L3 %s: " fmt "\n", __FUNCTION__ , ##args ); }
+	
+#define NDBGL4(bits, fmt, args...)				 	\
+	if(bits & i4b_l4_debug)						\
+	{ printf("i4b-L4 %s: " fmt "\n", __FUNCTION__ , ##args ); }
+	
 #else /* !DO_I4B_DEBUG */
 
-#define DBGL1(bits, routine, what);
-#define DBGL2(bits, routine, what);
-#define DBGL3(bits, routine, what);
-#define DBGL4(bits, routine, what);
+#define NDBGL1(bits, fmt, args...);
+#define NDBGL2(bits, fmt, args...);
+#define NDBGL3(bits, fmt, args...);
+#define NDBGL4(bits, fmt, args...);
 
 #endif /* DO_I4B_DEBUG */
 
@@ -98,9 +92,11 @@ extern unsigned int i4b_l4_debug;
 #define L1_T_ERR	0x0800		/* Timer error messages	*/
 #define L1_H_XFRERR	0x1000		/* HSCX data xfer error */
 #define L1_I_CICO	0x2000		/* ISAC command in/out	*/
+#define L1_S_MSG	0x4000		/* silent messages (soft-HDLC)	*/
+#define L1_S_ERR	0x8000		/* error messages (soft-HDLC)	*/
 
-#define L1_DEBUG_MAX	0x3fef		/* all messages on except IRQ!	*/
-#define L1_DEBUG_ERR (L1_H_ERR | L1_I_ERR | L1_F_ERR | L1_T_ERR | L1_ERROR)
+#define L1_DEBUG_MAX	0xffef		/* all messages on except IRQ!	*/
+#define L1_DEBUG_ERR (L1_S_ERR | L1_H_ERR | L1_I_ERR | L1_F_ERR | L1_T_ERR | L1_ERROR)
 
 #ifndef L1_DEBUG_DEFAULT
 #ifdef DO_I4B_MAXDEBUG
@@ -176,8 +172,9 @@ extern unsigned int i4b_l4_debug;
 #define L4_TINADBG	0x0100		/* tina driver debug messages	*/
 #define L4_TINAMSG	0x0200		/* tina driver messages		*/
 #define L4_TINAERR	0x0400		/* tina driver error messages	*/
+#define L4_INGDBG	0x0800		/* ing driver debug messages	*/
 
-#define L4_DEBUG_MAX	0x07ff		/* all messages on	*/
+#define L4_DEBUG_MAX	0x0fff		/* all messages on	*/
 #define L4_DEBUG_ERR	(L4_ERR | L4_TINADBG |  L4_TINAMSG | L4_TINAERR)
 
 #ifndef L4_DEBUG_DEFAULT
@@ -205,8 +202,22 @@ typedef struct {
 #define	I4B_CTL_SET_DEBUG	_IOW('C', 1, ctl_debug_t)
 
 /*---------------------------------------------------------------------------*
- *	get hscx statistics
+ *	generic get chipset statistics
  *---------------------------------------------------------------------------*/
+
+/* for the ihfc-driver: structure for HFC-1/S/SP statistics */
+
+typedef struct {
+	int txframes;
+	int rxframes;
+	int xdu;
+	int rdo;
+	int crc;
+	int rab;
+} hfcstat_t;
+
+
+/* for the isic-driver: structure for HSCX statistics */
 
 typedef struct {
 	int unit;	/* controller number */
@@ -218,44 +229,61 @@ typedef struct {
 	int xdu;
 	int rfo;
 } hscxstat_t;
-	
-#define	I4B_CTL_GET_HSCXSTAT	_IOWR('C', 2, hscxstat_t)
 
-#define	I4B_CTL_CLR_HSCXSTAT	_IOW('C', 3, hscxstat_t)
+/* generic statistics structure */
+
+struct chipstat {
+	int driver_type;		/* type, L1DRVR_XXXX		*/
+	int driver_unit;		/* the unit number		*/
+	int driver_bchannel;		/* the B-channel		*/
+	union stats {			/* union for all drivers	*/
+		hfcstat_t  hfcstat;	/* for ihfc driver, L1DRVR_IHFC	*/
+		hscxstat_t hscxstat;	/* for isic driver, L1DRVR_ISIC	*/
+	} stats;
+};
+
+/* get statistics */
+
+#define	I4B_CTL_GET_CHIPSTAT	_IOWR('C', 2, struct chipstat)
+
+/* clear statistics */
+
+#define	I4B_CTL_CLR_CHIPSTAT	_IOW('C', 3, struct chipstat)
 
 /*---------------------------------------------------------------------------*
  *	get LAPD/Q.921 statistics
  *---------------------------------------------------------------------------*/
 typedef struct {
-				/* transmit */
 
-	u_long	tx_i;	/* I 	*/
-	u_long	tx_rr;	/* RR	*/
-	u_long	tx_rnr;	/* RNR 	*/
-	u_long	tx_rej;	/* REJ	*/
+	/* transmit */
+
+	u_long	tx_i;		/* I 	*/
+	u_long	tx_rr;		/* RR	*/
+	u_long	tx_rnr;		/* RNR 	*/
+	u_long	tx_rej;		/* REJ	*/
 	u_long	tx_sabme;	/* SABME*/
-	u_long	tx_dm;	/* DM	*/
+	u_long	tx_dm;		/* DM	*/
 	u_long	tx_disc;	/* DISC */
-	u_long	tx_ua;	/* UA	*/
+	u_long	tx_ua;		/* UA	*/
 	u_long	tx_frmr;	/* FRMR	*/	
-	u_long	tx_tei;	/* TEI	*/
+	u_long	tx_tei;		/* TEI	*/
 
-				/* receive */
+	/* receive */
 
-	u_long	rx_i;	/* I    */
-	u_long	rx_rr;	/* RR   */
-	u_long	rx_rnr;	/* RNR  */
-	u_long	rx_rej;	/* REJ  */
+	u_long	rx_i;		/* I    */
+	u_long	rx_rr;		/* RR   */
+	u_long	rx_rnr;		/* RNR  */
+	u_long	rx_rej;		/* REJ  */
 	u_long	rx_sabme;	/* SABME*/
-	u_long	rx_tei;	/* TEI	*/
-	u_long	rx_ui;	/* UI	*/
+	u_long	rx_tei;		/* TEI	*/
+	u_long	rx_ui;		/* UI	*/
 	u_long	rx_disc;	/* DISC */
-	u_long	rx_xid;	/* XID	*/
-	u_long	rx_dm;	/* DM	*/
-	u_long	rx_ua;	/* UA	*/
+	u_long	rx_xid;		/* XID	*/
+	u_long	rx_dm;		/* DM	*/
+	u_long	rx_ua;		/* UA	*/
 	u_long	rx_frmr;	/* FRMR	*/	
 	
-					/* errors */
+	/* errors */
 
 	u_long	err_rx_len;	/* incorrect length */
 	u_long	err_rx_badf;	/* bad frame type */

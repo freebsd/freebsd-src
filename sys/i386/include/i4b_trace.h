@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_trace.h - header file for trace data read device
  *	----------------------------------------------------
  *
- *	$Id: i4b_trace.h,v 1.7 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_trace.h,v 1.8 2000/03/08 16:08:18 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:07:25 1999]
+ *      last edit-date: [Wed Mar  8 16:41:43 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,8 +70,7 @@ typedef struct {
  *	get/set current trace flag settings
  *---------------------------------------------------------------------------*/
 	
-#define	I4B_TRC_GET	_IOR('T', 0, int)	/* get trace settings	*/
-#define	I4B_TRC_SET	_IOW('T', 1, int)	/* set trace settings	*/
+#define	I4B_TRC_SET	_IOW('T', 0, int)	/* set trace settings	*/
 
 #define TRACE_OFF       0x00		/* tracing off 		*/
 #define TRACE_I		0x01		/* trace L1 INFO's on	*/
@@ -87,7 +86,7 @@ typedef struct {
 	int txflags;		/* d and/or b channel	*/
 } i4b_trace_setupa_t;
 
-#define	I4B_TRC_SETA	_IOW('T', 2, i4b_trace_setupa_t) /* set analyze mode */
-#define	I4B_TRC_RESETA	_IOW('T', 3, int)	/* reset analyze mode	*/
+#define	I4B_TRC_SETA	_IOW('T', 1, i4b_trace_setupa_t) /* set analyze mode */
+#define	I4B_TRC_RESETA	_IOW('T', 2, int)	/* reset analyze mode	*/
 
 #endif /* _I4B_TRACE_H_ */
