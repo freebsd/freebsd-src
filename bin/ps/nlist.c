@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nlist.c,v 1.4 1994/10/02 08:33:29 davidg Exp $
+ *	$Id: nlist.c,v 1.5 1994/11/24 13:13:55 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -25,17 +25,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.5 1995/05/30 00:06:47 rgrimes Exp $
+ *	$Id: main.c,v 1.6 1996/08/11 16:48:11 ache Exp $
  */
 
 #ifndef lint
-char *copyright =
+static char * const copyright =
 "@(#) Copyright (c) 1993 Andrew Moore, Talke Studio. \n\
  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char *rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
+static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,11 @@ main(argc, argv)
 {
 	int c, n;
 	long status = 0;
+#if __GNUC__
+	/* Avoid longjmp clobbering */
+	(void) &argc;
+	(void) &argv;
+#endif
 
 	(void)setlocale(LC_ALL, "");
 

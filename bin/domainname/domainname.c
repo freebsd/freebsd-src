@@ -29,18 +29,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id: domainname.c,v 1.5 1995/03/19 13:28:17 joerg Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93"; */
-static const char rcsid[] =
-	"$Id: domainname.c,v 1.4 1994/09/26 02:14:27 wollman Exp $";
+static char const sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <sys/param.h>

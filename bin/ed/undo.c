@@ -24,11 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: undo.c,v 1.3 1994/09/24 02:55:32 davidg Exp $
  */
 
 #ifndef lint
-static char *rcsid = "@(#)undo.c,v 1.1 1994/02/01 00:34:44 alm Exp";
+static char * const rcsid = "@(#)undo.c,v 1.1 1994/02/01 00:34:44 alm Exp";
 #endif /* not lint */
 
 #include "ed.h"
