@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.5 1998/12/14 06:37:37 dillon Exp $
+ *	@(#) $Id: fore_load.c,v 1.6 1999/04/24 20:17:05 peter Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.5 1998/12/14 06:37:37 dillon Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.6 1999/04/24 20:17:05 peter Exp $");
 #endif
 
 
@@ -107,11 +107,7 @@ static struct pci_device fore_pci_device = {
 #endif
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(fore_pci, fore_pci_device);
-#else
-DATA_SET(pcidevice_set, fore_pci_device);
-#endif /* COMPAT_PCI_DRIVER */
 #endif
 
 

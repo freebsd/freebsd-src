@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.7 1998/12/14 06:32:55 dillon Exp $
+ *	$Id: if_lnc_p.c,v 1.8 1999/04/24 20:14:00 peter Exp $
  */
 
 #include "pci.h"
@@ -49,11 +49,7 @@ static struct pci_device lnc_pci_driver = {
 	NULL
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (lnc_pci, lnc_pci_driver);
-#else
-DATA_SET (pcidevice_set, lnc_pci_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 static const char*
 lnc_pci_probe (pcici_t tag, pcidi_t type)

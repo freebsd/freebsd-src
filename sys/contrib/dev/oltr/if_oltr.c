@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_oltr.c,v 1.3 1999/04/21 07:02:19 peter Exp $
+ * $Id: if_oltr.c,v 1.4 1999/04/24 20:24:02 peter Exp $
  */
 
 
@@ -259,11 +259,7 @@ static struct pci_device oltr_device = {
     NULL
 };
 
-#ifndef COMPAT_PCI_DRIVER
-DATA_SET(pcidevice_set, oltr_device);
-#else
 COMPAT_PCI_DRIVER(oltr_pci, oltr_device);
-#endif /* COMPAT_PCI_DRIVER */
 int pci_cards = 0;
 #endif /* NPCI */
 

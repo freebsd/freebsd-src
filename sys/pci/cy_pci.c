@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.12 1999/04/24 20:13:58 peter Exp $
+ *	$Id: cy_pci.c,v 1.13 1999/05/02 20:42:13 peter Exp $
  */
 
 /*
@@ -65,11 +65,7 @@ static struct pci_device cy_device = {
         &cy_count,
         NULL
 };
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(cy_pci, cy_device);
-#else
-DATA_SET(pcidevice_set, cy_device);
-#endif /* COMPAT_PCI_DRIVER */
 
 static const char *
 cy_probe(config_id, device_id)

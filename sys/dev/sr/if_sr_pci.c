@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.7 1998/12/14 06:32:56 dillon Exp $
+ * $Id: if_sr_p.c,v 1.8 1999/04/24 20:14:01 peter Exp $
  */
 
 #include "pci.h"
@@ -65,13 +65,10 @@ static struct pci_device sr_pci_driver =
 	sr_pci_probe,
 	sr_pci_attach,
 	&src_count,
-	NULL};
+	NULL
+};
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (sr_pci, sr_pci_driver);
-#else
-DATA_SET (pcidevice_set, sr_pci_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 static const char *
 sr_pci_probe(pcici_t tag, pcidi_t type)

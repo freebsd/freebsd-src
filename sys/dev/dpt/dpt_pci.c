@@ -32,7 +32,7 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$Id: dpt_pci.c,v 1.11 1998/12/14 06:32:55 dillon Exp $"
+#ident "$Id: dpt_pci.c,v 1.12 1999/04/24 20:13:58 peter Exp $"
 
 #include "opt_devfs.h"
 #include "opt_dpt.h"
@@ -78,11 +78,7 @@ static  struct pci_device dpt_pci_driver =
 	NULL
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(dpt_pci, dpt_pci_driver);
-#else
-DATA_SET(pcidevice_set, dpt_pci_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 /*
  * Probe the PCI device.

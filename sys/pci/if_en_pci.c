@@ -114,11 +114,7 @@ static struct pci_device endevice = {
 	NULL,
 };  
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (en, endevice);
-#else
-DATA_SET (pcidevice_set, endevice);
-#endif /* COMPAT_PCI_DRIVER */
 
 /*
  * local defines (PCI specific stuff)
