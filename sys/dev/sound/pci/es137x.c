@@ -74,15 +74,15 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 /* device private data */
 struct es_info;
 
-typedef struct es_chinfo {
+struct es_chinfo {
 	struct es_info *parent;
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, num;
 	u_int32_t fmt;
-} es_chinfo_t;
+};
 
-typedef struct es_info {
+struct es_info {
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_dma_tag_t	parent_dmat;
@@ -92,7 +92,7 @@ typedef struct es_info {
 	u_long		ctrl;
 	u_long		sctrl;
 	struct es_chinfo pch, rch;
-} es_info_t;
+};
 
 /* -------------------------------------------------------------------- */
 
@@ -101,13 +101,11 @@ static void     es_intr(void *);
 
 static void	es1371_wrcodec(void *, int, u_int32_t);
 static u_int32_t es1371_rdcodec(void *, int);
-static u_int	es1371_wait_src_ready(es_info_t *);
-static void	es1371_src_write(es_info_t *, u_short, unsigned short);
-static u_int	es1371_adc_rate(es_info_t *, u_int, int);
-static u_int	es1371_dac_rate(es_info_t *, u_int, int);
-static int	es1371_init(es_info_t *es);
-static int	eschan1371_setspeed(void *data, u_int32_t speed);
-
+static u_int	es1371_wait_src_ready(struct es_info *);
+static void	es1371_src_write(struct es_info *, u_short, unsigned short);
+static u_int	es1371_adc_rate(struct es_info *, u_int, int);
+static u_int	es1371_dac_rate(struct es_info *, u_int, int);
+static int	es1371_init(struct es_info *es, int);
 static int      es1370_init(struct es_info *);
 static int      es1370_wrcodec(struct es_info *, u_char, u_char);
 
@@ -116,6 +114,7 @@ static void *eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
 static int   eschan_setdir(void *data, int dir);
 static int   eschan_setformat(void *data, u_int32_t format);
 static int   eschan1370_setspeed(void *data, u_int32_t speed);
+static int   eschan1371_setspeed(void *data, u_int32_t speed);
 static int   eschan_setblocksize(void *data, u_int32_t blocksize);
 static int   eschan_trigger(void *data, int go);
 static int   eschan_getptr(void *data);
@@ -464,7 +463,7 @@ es1370_init(struct es_info *es)
 
 /* ES1371 specific */
 int
-es1371_init(struct es_info *es)
+es1371_init(struct es_info *es, int rev)
 {
 	int idx;
 
@@ -474,7 +473,14 @@ es1371_init(struct es_info *es)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
+	if (rev == 7 || rev >= 9) {
+#define ES1371_BINTSUMM_OFF 0x07
+		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
+		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
+	} else { /* pre ac97 2.1 card */
+		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
+		if (debug > 0) printf("es_init pre ac97 2.1\n");
+	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 	bus_space_write_4(es->st, es->sh, ES1371_REG_LEGACY, 0);
 	/* AC'97 warm reset to start the bitclk */
@@ -592,7 +598,7 @@ es1371_rdcodec(void *s, int addr)
 }
 
 static u_int
-es1371_src_read(es_info_t *es, u_short reg)
+es1371_src_read(struct es_info *es, u_short reg)
 {
   	unsigned int r;
 
@@ -604,7 +610,7 @@ es1371_src_read(es_info_t *es, u_short reg)
 }
 
 static void
-es1371_src_write(es_info_t *es, u_short reg, u_short data){
+es1371_src_write(struct es_info *es, u_short reg, u_short data){
 	u_int r;
 
 	r = es1371_wait_src_ready(es) &
@@ -615,7 +621,7 @@ es1371_src_write(es_info_t *es, u_short reg, u_short data){
 }
 
 static u_int
-es1371_adc_rate(es_info_t *es, u_int rate, int set)
+es1371_adc_rate(struct es_info *es, u_int rate, int set)
 {
   	u_int n, truncm, freq, result;
 
@@ -648,7 +654,7 @@ es1371_adc_rate(es_info_t *es, u_int rate, int set)
 }
 
 static u_int
-es1371_dac_rate(es_info_t *es, u_int rate, int set)
+es1371_dac_rate(struct es_info *es, u_int rate, int set)
 {
   	u_int freq, r, result, dac, dis;
 
@@ -672,7 +678,7 @@ es1371_dac_rate(es_info_t *es, u_int rate, int set)
 }
 
 static u_int
-es1371_wait_src_ready(es_info_t *es)
+es1371_wait_src_ready(struct es_info *es)
 {
   	u_int t, r;
 
@@ -758,7 +764,7 @@ es_pci_attach(device_t dev)
 	}
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID) {
-		if(-1 == es1371_init(es)) {
+		if(-1 == es1371_init(es, pci_get_revid(dev))) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 		}
