@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: bindresvport.c,v 1.2 1995/05/30 05:41:13 rgrimes Exp $";
+static char *rcsid = "$Id: bindresvport.c,v 1.3 1995/10/22 14:51:11 phk Exp $";
 #endif
 
 /*
@@ -47,14 +47,13 @@ static char *rcsid = "$Id: bindresvport.c,v 1.2 1995/05/30 05:41:13 rgrimes Exp 
 /*
  * Bind a socket to a privileged IP port
  */
-bindresvport(sd, sin)
+int bindresvport(sd, sin)
 	int sd;
 	struct sockaddr_in *sin;
 {
 	int res;
 	static short port;
 	struct sockaddr_in myaddr;
-	extern int errno;
 	int i;
 
 #define STARTPORT 600
