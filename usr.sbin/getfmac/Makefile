@@ -2,7 +2,6 @@
 
 PROG=   getfmac
 MAN=	getfmac.8
-SRCS=   getfmac.c
 
 WARNS?=	6
 

@@ -4,7 +4,6 @@
 
 PROG=	pnpinfo
 MAN=	pnpinfo.8
-SRCS=	pnpinfo.c
 
 CFLAGS+= -I${.CURDIR}/../../sys
 

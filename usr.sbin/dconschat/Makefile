@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	dconschat
-SRCS=	dconschat.c
 MAN=	dconschat.8
 
 CFLAGS+= -I${.CURDIR}/../../sys
