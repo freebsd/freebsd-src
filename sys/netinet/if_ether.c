@@ -58,6 +58,7 @@
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/if_llc.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -290,23 +291,24 @@ arprequest(ac, sip, tip, enaddr)
 	register struct ether_header *eh;
 	register struct ether_arp *ea;
 	struct sockaddr sa;
+	static u_char	llcx[] = { 0x82, 0x40, LLC_SNAP_LSAP, LLC_SNAP_LSAP,
+				   LLC_UI, 0x00, 0x00, 0x00, 0x08, 0x06 };
 
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return;
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	switch (ac->ac_if.if_type) {
 	case IFT_ISO88025:
-		m->m_len = sizeof(*ea) + 10;
-		m->m_pkthdr.len = sizeof(*ea) + 10;
-		MH_ALIGN(m, sizeof(*ea) + 10);
-		(void)memcpy(mtod(m, caddr_t),
-		    "\x82\x40\xaa\xaa\x03\x00\x00\x00\x08\x06", 10);
+		m->m_len = sizeof(*ea) + sizeof(llcx);
+		m->m_pkthdr.len = sizeof(*ea) + sizeof(llcx);
+		MH_ALIGN(m, sizeof(*ea) + sizeof(llcx));
+		(void)memcpy(mtod(m, caddr_t), llcx, sizeof(llcx));
 		(void)memcpy(sa.sa_data, etherbroadcastaddr, 6);
 		(void)memcpy(sa.sa_data + 6, enaddr, 6);
-		sa.sa_data[6] |= 0x80;
-		sa.sa_data[12] = 0x10;
-		sa.sa_data[13] = 0x40;
-		ea = (struct ether_arp *)(mtod(m, char *) + 10);
+		sa.sa_data[6] |= TR_RII;
+		sa.sa_data[12] = TR_AC;
+		sa.sa_data[13] = TR_LLC_FRAME;
+		ea = (struct ether_arp *)(mtod(m, char *) + sizeof(llcx));
 		bzero((caddr_t)ea, sizeof (*ea));
 		ea->arp_hrd = htons(ARPHRD_IEEE802);
 		break;
@@ -504,7 +506,7 @@ in_arpinput(m)
 	struct sockaddr_dl *sdl;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
-	int op;
+	int op, rif_len;
 
 	ea = mtod(m, struct ether_arp *);
 	op = ntohs(ea->arp_op);
@@ -580,7 +582,7 @@ in_arpinput(m)
 		}
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
-                sdl->sdl_rcf = NULL;
+                sdl->sdl_rcf = (u_short)0;
 		/*
 		 * If we receive an arp from a token-ring station over
 		 * a token-ring nic then try to save the source
@@ -588,30 +590,29 @@ in_arpinput(m)
 		 */
 		if (ac->ac_if.if_type == IFT_ISO88025) {
 			th = (struct iso88025_header *)m->m_pkthdr.header;
-			if ((th->iso88025_shost[0] & 0x80) &&
-			    ((th->rcf & 0x001f) > 2)) {
-				sdl->sdl_rcf = (th->rcf & 0x8000) ?
-				    (th->rcf & 0x7fff) :
-				    (th->rcf | 0x8000);
-				memcpy(sdl->sdl_route, th->rseg,
-				    (th->rcf & 0x001f)  - 2);
-				sdl->sdl_rcf = sdl->sdl_rcf & 0xff1f;
+			rif_len = TR_RCF_RIFLEN(th->rcf);
+			if ((th->iso88025_shost[0] & TR_RII) &&
+			    (rif_len > 2)) {
+				sdl->sdl_rcf = th->rcf;
+				sdl->sdl_rcf ^= htons(TR_RCF_DIR);
+				memcpy(sdl->sdl_route, th->rd, rif_len - 2);
+				sdl->sdl_rcf &= ~htons(TR_RCF_BCST_MASK);
 				/*
 				 * Set up source routing information for
 				 * reply packet (XXX)
 				 */
-				m->m_data -= (th->rcf & 0x001f);
-				m->m_len  += (th->rcf & 0x001f);
-				m->m_pkthdr.len += (th->rcf & 0x001f);
+				m->m_data -= rif_len;
+				m->m_len  += rif_len;
+				m->m_pkthdr.len += rif_len;
 			} else {
-				th->iso88025_shost[0] &= 0x7f;
+				th->iso88025_shost[0] &= ~TR_RII;
 			}
 			m->m_data -= 8;
 			m->m_len  += 8;
 			m->m_pkthdr.len += 8;
 			th->rcf = sdl->sdl_rcf;
 		} else {
-			sdl->sdl_rcf = NULL;
+			sdl->sdl_rcf = (u_short)0;
 		}
 		if (rt->rt_expire)
 			rt->rt_expire = time_second + arpt_keep;
@@ -689,16 +690,16 @@ reply:
 		memcpy(th->iso88025_shost, ac->ac_enaddr,
 		    sizeof(th->iso88025_shost));
 		/* Set the source routing bit if neccesary */
-		if (th->iso88025_dhost[0] & 0x80) {
-			th->iso88025_dhost[0] &= 0x7f;
-			if ((th->rcf & 0x001f) - 2)
-				th->iso88025_shost[0] |= 0x80;
+		if (th->iso88025_dhost[0] & TR_RII) {
+			th->iso88025_dhost[0] &= ~TR_RII;
+			if (TR_RCF_RIFLEN(th->rcf) > 2)
+				th->iso88025_shost[0] |= TR_RII;
 		}
 		/* Copy the addresses, ac and fc into sa_data */
 		memcpy(sa.sa_data, th->iso88025_dhost,
 		    sizeof(th->iso88025_dhost) * 2);
-		sa.sa_data[(sizeof(th->iso88025_dhost) * 2)] = 0x10;
-		sa.sa_data[(sizeof(th->iso88025_dhost) * 2) + 1] = 0x40;
+		sa.sa_data[(sizeof(th->iso88025_dhost) * 2)] = TR_AC;
+		sa.sa_data[(sizeof(th->iso88025_dhost) * 2) + 1] = TR_LLC_FRAME;
 		break;
 	case IFT_ETHER:
 	case IFT_FDDI:
