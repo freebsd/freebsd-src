@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.296
+    Original revision: 1.299
 -->
 
 <articleinfo>
@@ -298,6 +298,9 @@
 
     <para arch="sparc64">SBus ベースのデバイスがサポートされました.</para>
 
+    <para>&man.snp.4; デバイスは static ではなくなり,
+      モジュールとしてコンパイルできるようになりました. &merged;</para>
+
     <para arch="i386">&man.spic.4; ドライバが追加されました.
       これは Sony 製ラップトップに搭載されているジョグダイアルデバイスへ
       アクセスを提供するものです.</para>
@@ -521,6 +524,14 @@
 	カーネルオプションが追加されました.
 	これは最近の Athlon CPU で BIOS が SSE 機能ビットをセットするのを
 	忘れている場合に, セットするようにするものです.</para>
+
+      <para arch="sparc64">&os; が UltraSPARC プラットフォームに
+	対応しました.
+	以下のマシンが異なった度合いでサポートされています:
+	Ultra 1, Ultra 2, Ultra 5/10, Ultra60, Blade 100.
+	SMP にも対応しており, 2 プロセッサの Ultra 2 と 2 プロセッサの
+	Ultra 60 でテストされています.</para>
+
     </sect3>
 
     <sect3>
@@ -1420,7 +1431,13 @@ hw.pcic.irq="0"</programlisting>
         API が追加されました.</para>
 
       <para arch="i386">Intel 443MX, 810, 815, 815E
-        統合サウンドデバイス用のドライバが追加されました.</para>
+        統合サウンドデバイス用のドライバが追加されました. &merged;</para>
+
+      <para arch="i386">via82c686 サウンドドライバが
+	VIA VT8233 に対応しました. &merged;</para>
+
+      <para arch="i386">ich サウンドドライバが SiS 7012 チップセットに
+	対応しました. &merged;</para>
     </sect3>
 
     <sect3>
@@ -1870,7 +1887,9 @@ hw.pcic.irq="0"</programlisting>
 
     <para>An <quote>off-by-one</quote> bug has been fixed in
       <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed a connecting SSH client to execute arbitrary
+      could have allowed an authenticated remote user to cause
+      &man.sshd.8; to execute arbitrary code with superuser
+      privileges, or allowed a connecting SSH client to execute arbitrary
       code with the privileges of the client user.  (See security
       advisory <ulink
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)
@@ -3056,7 +3075,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.watch.8; に &man.snp.4; デバイスを使うようにする
-      <option>-f</option> オプションが追加されました.</para>
+      <option>-f</option> オプションが追加されました. &merged;</para>
 
     <para>Perl スクリプトだった &man.which.1; が
       C プログラムに変更されました.</para>
@@ -3232,6 +3251,9 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>libreadline</application> がバージョン
         4.2 に更新されました.</para>
+
+      <para><application>libz</application> が 1.1.4 に
+	更新されました.</para>
 
       <para><application>lint</application> は NetBSD &man.lint.1; の
 	2002/03/03 版スナップショットに更新されました.</para>
