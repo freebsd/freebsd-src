@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.2 1994/11/03 01:05:34 wollman Exp $
+ * $Id: in_rmx.c,v 1.4 1994/12/02 03:32:24 wollman Exp $
  */
 
 /*
@@ -18,14 +18,6 @@
  *     to be deleted in some random collection of circumstances, so that
  *     a large quantity of stale routing data is not kept in kernel memory
  *     indefinitely.  See in_rtqtimo() below for the exact mechanism.
- *
- * At least initially, we think that this should have lower overhead than
- * using the existing `expire' mechanism and walking the radix tree
- * periodically, deleting things as we go.  That method would be relatively
- * easy to implement within the framework used here, and in the future
- * we made code both ways, so that folks with large routing tables can use
- * the external queue, and the majority with small routing tables can do
- * the tree-walk.
  */
 
 /*
