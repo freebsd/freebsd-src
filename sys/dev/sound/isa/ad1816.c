@@ -71,6 +71,7 @@ static snd_mixer ad1816_mixer = {
     	"ad1816 mixer",
     	ad1816mix_init,
 	NULL,
+	NULL,
     	ad1816mix_set,
     	ad1816mix_setrecsrc,
 };

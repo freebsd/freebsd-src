@@ -112,6 +112,7 @@ static snd_mixer mss_mixer = {
     	"MSS mixer",
     	mssmix_init,
 	NULL,
+	NULL,
     	mssmix_set,
     	mssmix_setrecsrc,
 };
@@ -122,6 +123,7 @@ static int ymmix_setrecsrc(snd_mixer *m, u_int32_t src);
 static snd_mixer yamaha_mixer = {
     	"OPL3-SAx mixer",
     	ymmix_init,
+	NULL,
 	NULL,
     	ymmix_set,
     	ymmix_setrecsrc,

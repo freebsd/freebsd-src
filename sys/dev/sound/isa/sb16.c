@@ -164,6 +164,7 @@ static snd_mixer sb_mixer = {
     	"SoundBlaster mixer",
     	sbmix_init,
 	NULL,
+	NULL,
     	sbmix_set,
     	sbmix_setrecsrc,
 };
