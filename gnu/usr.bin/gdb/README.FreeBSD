@@ -10,10 +10,7 @@ what I had available for testing, though.
 
 There's rudimentary support for attaching to a running process and
 debugging (attach/detach commands in gdb). This works best if the
-program being debugged was compiled with -g, of course. Be aware that
-detaching frequently results in the death of the process being debugged
-(Trace/BKPT Trap). Haven't figured what's going on yet. Use this at your
-own risk! I had to stop somewhere for the release :-)
+program being debugged was compiled with -g, of course.
 
 Note that a plain vanilla gdb-4.13 without kernal debugging or
 attach/detach support can be made by removing the
