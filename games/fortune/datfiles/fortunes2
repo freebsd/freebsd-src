@@ -36847,12 +36847,18 @@ A:	Post the correct answer at once!  We can't have people go on
 	whole net right away!
 		-- Emily Postnews Answers Your Questions on Netiquette
 %
+Q:	What did one regex say to the other?
+A:	.+
+%
 Q:	What did Tarzan say when he saw the elephants coming over the hill?
 A:	"The elephants are coming over the hill."
 
 Q:	What did he say when saw them coming over the hill wearing
 		sunglasses?
 A:	Nothing, for he didn't recognize them.
+%
+Q:	What did the regular expression match?
+A:	Identified the patterns "matc" and "match"
 %
 Q:	What do a blonde and your computer have in common?
 A:	You don't know how much either of them mean to you until
@@ -37029,6 +37035,9 @@ A:	A nervous wreck.
 Q:	What looks like a cat, flies like a bat, brays like a donkey, and
 	plays like a monkey?
 A:	Nothing.
+%
+Q:	What regular expression do you often see around christmas?
+A:	[^L]
 %
 Q:	What's black and white and red all over?
 A:	Two nuns in a chainsaw fight.
