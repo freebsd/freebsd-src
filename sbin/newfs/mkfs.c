@@ -710,7 +710,7 @@ next:
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		j = sprintf(tmpbuf, " %ld%s",
+		j = snprintf(tmpbuf, sizeof(tmpbuf), " %ld%s",
 		    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "" );
 		if (i + j >= width) {
