@@ -520,7 +520,6 @@ most:
 	cd ${.CURDIR}/libexec;		${MAKE} all
 	cd ${.CURDIR}/usr.bin;		${MAKE} all
 	cd ${.CURDIR}/usr.sbin;		${MAKE} all
-	cd ${.CURDIR}/gnu/libexec;	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} all
 	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} all
 
@@ -539,7 +538,6 @@ installmost:
 	cd ${.CURDIR}/libexec;		${MAKE} install
 	cd ${.CURDIR}/usr.bin;		${MAKE} install
 	cd ${.CURDIR}/usr.sbin;		${MAKE} install
-	cd ${.CURDIR}/gnu/libexec;	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} install
 	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} install
 
