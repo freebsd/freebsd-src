@@ -2,7 +2,6 @@
 
 LIB=		groff
 INTERNALLIB=	YES
-INTERNALSTATICLIB=YES
 SRCS=		assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc\
 		error.cc fatal.cc filename.cc font.cc fontfile.cc\
 		htmlindicate.cc lf.cc lineno.cc macropath.cc\

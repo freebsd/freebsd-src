@@ -7,7 +7,6 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 
 LIB=	dhcp
 INTERNALLIB=		true
-INTERNALSTATICLIB=	true
 
 SRCS=	alloc.c bpf.c comapi.c conflex.c ctrace.c discover.c dispatch.c \
 	dlpi.c dns.c ethernet.c execute.c fddi.c icmp.c inet.c lpf.c \

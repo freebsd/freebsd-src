@@ -16,10 +16,7 @@ WARNS=	2
 CFLAGS+= -I${SRCDIR}/bfd
 CFLAGS+= -DBFD_VERSION=\"${VERSION_DATE}\" -DBFD_VERSION_DATE=${VERSION_DATE}
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
-NOPROFILE=	true
-NOPIC=		true
 INTERNALLIB=	true
-INTERNALSTATICLIB=true
 CLEANFILES+=	config.h targmatch.h
 
 # If set, BINUTILSDISTDIR is the path to a directory containing the full GNU

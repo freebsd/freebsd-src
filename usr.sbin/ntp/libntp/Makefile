@@ -3,11 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/libntp
 
 LIB= ntp
-NOPROFILE=		true
 INTERNALLIB=		true
-NOPIC=			true
-INTERNALSTATICLIB=	true
-NOMAN=			true
 
 SRCS=	a_md5encrypt.c	adjtime.c	atoint.c	atolfp.c \
 	atouint.c	audio.c	authencrypt.c	authkeys.c \
