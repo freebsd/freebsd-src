@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_insert 9
+.Dt VM_MAP_INSERT 9
 .Sh NAME
 .Nm vm_map_insert
 .Nd insert an object into a map
@@ -35,7 +35,11 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_insert "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset" "vm_offset_t start" "vm_offset_t end" "vm_prot_t prot" "vm_prot_t max" "int cow"
+.Fo vm_map_insert
+.Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
+.Fa "vm_offset_t start" "vm_offset_t end" "vm_prot_t prot"
+.Fa "vm_prot_t max" "int cow"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_insert
@@ -65,11 +69,11 @@ argument specifies the flags which should be propagated to the new entry,
 for example, to indicate that this is a copy-on-write mapping.
 .Sh IMPLEMENTATION NOTES
 This function implicitly creates a new
-.Dv vm_map_entry
+.Vt vm_map_entry
 by calling the internal function
 .Fn vm_map_entry_create .
 This function may use the
-.Dv Giant
+.Va Giant
 lock to ensure that only a single thread is present in the function.
 .Sh RETURN VALUES
 The

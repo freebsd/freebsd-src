@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_protect 9
+.Dt VM_MAP_PROTECT 9
 .Sh NAME
 .Nm vm_map_protect
 .Nd apply protection bits to a virtual memory region
@@ -35,7 +35,10 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_protect "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "vm_prot_t new_prot" "boolean_t set_max"
+.Fo vm_map_protect
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "vm_prot_t new_prot"
+.Fa "boolean_t set_max"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_protect
@@ -53,10 +56,10 @@ If
 is TRUE,
 .Fa new_prot
 is treated as the new
-.Dv max_protection
+.Va max_protection
 setting for each underlying entry.
 Otherwise, only the
-.Dv protection
+.Va protection
 field is affected.
 .Pp
 The range MUST be contiguous, and MUST NOT contain sub-maps.
@@ -64,7 +67,7 @@ The range MUST be contiguous, and MUST NOT contain sub-maps.
 The function acquires a lock on the
 .Fa map
 for the duration, by calling
-.Xr vm_map_lock .
+.Xr vm_map_lock 9 .
 .Sh RETURN VALUES
 The
 .Fn vm_map_protect
@@ -78,7 +81,7 @@ is returned.
 If the value of
 .Fa new_prot
 would exceed
-.Dv max_protection
+.Va max_protection
 for an entry within the range,
 .Dv KERN_PROTECTION_FAILURE
 is returned.

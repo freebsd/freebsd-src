@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_lookup 9
+.Dt VM_MAP_LOOKUP 9
 .Sh NAME
 .Nm vm_map_lookup ,
 .Nm vm_map_lookup_done
@@ -36,14 +36,19 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_lookup "vm_map_t *var_map" "vm_offset_t vaddr" "vm_prot_t fault_type" "vm_map_entry_t *out_entry" "vm_object_t *object" "vm_pindex_t *pindex" "vm_prot_t *out_prot" "boolean_t *wired"
+.Fo vm_map_lookup
+.Fa "vm_map_t *var_map" "vm_offset_t vaddr" "vm_prot_t fault_type"
+.Fa "vm_map_entry_t *out_entry" "vm_object_t *object" "vm_pindex_t *pindex"
+.Fa "vm_prot_t *out_prot" "boolean_t *wired"
+.Fc
 .Ft void
 .Fn vm_map_lookup_done "vm_map_t map" "vm_map_entry_t entry"
 .Sh DESCRIPTION
 The
 .Fn vm_map_lookup
 function attempts to find the
-vm_object, page index and protection, for the given virtual address
+.Vt vm_object ,
+page index and protection, for the given virtual address
 .Fa vaddr ,
 in the map
 .Fa var_map ,

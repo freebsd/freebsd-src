@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_wire 9
+.Dt VM_MAP_WIRE 9
 .Sh NAME
 .Nm vm_map_wire ,
 .Nm vm_map_unwire
@@ -38,7 +38,9 @@
 .Ft int
 .Fn vm_map_wire "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "int flags"
 .Ft int
-.Fn vm_map_unwire "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "int flags"
+.Fo vm_map_unwire
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_wire
@@ -97,7 +99,9 @@ The functions return
 if all pages within the range were [un]wired successfully.
 .Pp
 Otherwise, if the specified range was not valid,
-or if the map changed while the MAP_ENTRY_IN_TRANSITION flag was set,
+or if the map changed while the
+.Dv MAP_ENTRY_IN_TRANSITION
+flag was set,
 .Dv KERN_INVALID_ADDRESS
 is returned.
 .Sh SEE ALSO

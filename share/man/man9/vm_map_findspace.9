@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_findspace 9
+.Dt VM_MAP_FINDSPACE 9
 .Sh NAME
 .Nm vm_map_findspace
 .Nd find a free region within a map
@@ -35,7 +35,9 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_findspace "vm_map_t map" "vm_offset_t start" "vm_size_t length" "vm_offset_t *addr"
+.Fo vm_map_findspace
+.Fa "vm_map_t map" "vm_offset_t start" "vm_size_t length" "vm_offset_t *addr"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_findspace
@@ -57,7 +59,7 @@ This routine may call
 to grow the kernel's address space, if and only if the mapping is being
 made within the kernel address space, and if insufficient space remains
 in the
-.Dv kernel_map .
+.Va kernel_map .
 .Sh RETURN VALUES
 The
 .Fn vm_map_findspace

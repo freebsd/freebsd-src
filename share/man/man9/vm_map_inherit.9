@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_inherit 9
+.Dt VM_MAP_INHERIT 9
 .Sh NAME
 .Nm vm_map_inherit
 .Nd set fork inheritance flags for a range within a map
@@ -35,7 +35,10 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_inherit "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "vm_inherit_t new_inheritance"
+.Fo vm_map_inherit
+.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end"
+.Fa "vm_inherit_t new_inheritance"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_inherit
@@ -59,7 +62,7 @@ This affects how the map will be shared with child maps when the
 associated process forks.
 .Sh IMPLEMENTATION NOTES
 The
-.Fn
+.Fn vm_map_inherit
 function obtains a lock on the
 .Fa map
 using
