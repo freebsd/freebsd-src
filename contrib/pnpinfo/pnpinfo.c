@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpinfo.c,v 1.16 1996/05/05 23:56:38 smpatel Exp $
+ *      $Id: pnpinfo.c,v 1.1.1.1 1997/09/19 15:36:00 jmg Exp $
  */
 
 #include <sys/time.h>
@@ -61,7 +61,7 @@ pnp_read(int d)
     return inb( (rd_port << 2) + 3) & 0xff;
 }
 
-u_char
+u_short
 pnp_readw(int d)
 {
     int c = pnp_read(d) << 8 ;
