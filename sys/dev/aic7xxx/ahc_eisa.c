@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.7 1999/04/23 23:29:00 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.8 1999/05/08 21:59:17 dfr Exp $
  */
 
 #include "eisa.h"
@@ -143,19 +143,13 @@ aic7770_attach(device_t dev)
 	ahc_chip chip;
 	bus_dma_tag_t parent_dmat;
 	struct ahc_softc *ahc;
-	struct resource *io = 0;
-	struct resource *irq = 0;
+	struct resource *io;
 	int error, rid;
 	int shared;
 
 	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
-		return ENOMEM;
-	}
-
+	io = NULL;
+	ahc = NULL;
 	switch (eisa_get_id(dev)) {
 	case EISA_DEVICE_ID_ADAPTEC_274x:
 	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
@@ -187,15 +181,23 @@ aic7770_attach(device_t dev)
 		goto bad;
 	}
 
+	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		return ENOMEM;
+	}
+
 	if (!(ahc = ahc_alloc(dev, io, SYS_RES_IOPORT, rid,
 			      parent_dmat, chip, AHC_AIC7770_FE, AHC_FNONE,
 			      NULL)))
 		goto bad;
 
+	io = NULL;
+	
 	ahc->channel = 'A';
 	ahc->channel_b = 'B';
 	if (ahc_reset(ahc) != 0) {
-		ahc_free(ahc);
 		goto bad;
 	}
 
@@ -333,7 +335,6 @@ aic7770_attach(device_t dev)
 	 * Generic aic7xxx initialization.
 	 */
 	if (ahc_init(ahc)) {
-		ahc_free(ahc);
 		/*
 		 * The board's IRQ line is not yet enabled so it's safe
 		 * to release the irq.
@@ -352,10 +353,12 @@ aic7770_attach(device_t dev)
 	return 0;
 
  bad:
-	if (io)
+	if (ahc != NULL)
+		ahc_free(ahc);
+	
+	if (io != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+
 	return -1;
 }
 
