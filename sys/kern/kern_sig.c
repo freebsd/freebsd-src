@@ -2020,8 +2020,8 @@ ptracestop(struct thread *td, int sig)
 	PROC_LOCK(p->p_pptr);
 	psignal(p->p_pptr, SIGCHLD);
 	PROC_UNLOCK(p->p_pptr);
+	stop(p);
 	mtx_lock_spin(&sched_lock);
-	stop(p);	/* uses schedlock too eventually */
 	thread_suspend_one(td);
 	PROC_UNLOCK(p);
 	DROP_GIANT();
@@ -2216,8 +2216,7 @@ issignal(td)
 /*
  * Put the argument process into the stopped state and notify the parent
  * via wakeup.  Signals are handled elsewhere.  The process must not be
- * on the run queue.  Must be called with the proc p locked and the scheduler
- * lock held.
+ * on the run queue.  Must be called with the proc p locked.
  */
 static void
 stop(struct proc *p)
