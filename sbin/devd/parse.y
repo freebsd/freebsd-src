@@ -100,16 +100,19 @@ set_option
 attach_block
 	: ATTACH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
 		{ add_attach($2, $4); }
+	| ATTACH NUMBER BEGINBLOCK ENDBLOCK SEMICOLON
 	;
 
 detach_block
 	: DETACH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
 		{ add_detach($2, $4); }
+	| DETACH NUMBER BEGINBLOCK ENDBLOCK SEMICOLON
 	;
 
 nomatch_block
 	: NOMATCH NUMBER BEGINBLOCK match_or_action_list ENDBLOCK SEMICOLON
 		{ add_nomatch($2, $4); }
+	| NOMATCH NUMBER BEGINBLOCK ENDBLOCK SEMICOLON
 	;
 
 match_or_action_list
