@@ -272,12 +272,10 @@ restart:
 	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
 	bzero(fs->fs_active, len);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = bread(vp, fragstoblks(fs, cgtod(fs, cg)), fs->fs_bsize,
-		    KERNCRED, &nbp);
-		if (error) {
-			brelse(nbp);
+		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		    fs->fs_bsize, KERNCRED, 0, &nbp);
+		if (error)
 			goto out;
-		}
 		error = cgaccount(cg, vp, nbp, 1);
 		bawrite(nbp);
 		if (error)
@@ -330,12 +328,10 @@ restart:
 		if ((ACTIVECGNUM(fs, cg) & ACTIVECGOFF(cg)) != 0)
 			continue;
 		redo++;
-		error = bread(vp, fragstoblks(fs, cgtod(fs, cg)), fs->fs_bsize,
-			KERNCRED, &nbp);
-		if (error) {
-			brelse(nbp);
+		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		    fs->fs_bsize, KERNCRED, 0, &nbp);
+		if (error)
 			goto out1;
-		}
 		error = cgaccount(cg, vp, nbp, 2);
 		bawrite(nbp);
 		if (error)
@@ -777,7 +773,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
 	blkno = 0;
 	if (lbn < NDADDR) {
-		blkno = cancelip->i_din1->di_db[lbn];
+		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
 	} else {
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
@@ -789,12 +785,17 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 		blkno = ((ufs1_daddr_t *)(bp->b_data))[indiroff];
 		bqrelse(bp);
 	}
-	error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
-	    fs->fs_bsize, KERNCRED, 0, &bp);
-	if (error)
-		return (error);
-	if (blkno == 0 && (error = readblock(bp, lbn)))
-		return (error);
+	if (blkno != 0) {
+		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
+			return (error);
+	} else {
+		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		    fs->fs_bsize, KERNCRED, 0, &bp);
+		if (error)
+			return (error);
+		if ((error = readblock(bp, lbn)) != 0)
+			return (error);
+	}
 	/*
 	 * Set a snapshot inode to be a zero length file, regular files
 	 * to be completely unallocated.
@@ -1034,7 +1035,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
 	blkno = 0;
 	if (lbn < NDADDR) {
-		blkno = cancelip->i_din2->di_db[lbn];
+		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
 	} else {
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
@@ -1046,12 +1047,17 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 		blkno = ((ufs2_daddr_t *)(bp->b_data))[indiroff];
 		bqrelse(bp);
 	}
-	error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
-	    fs->fs_bsize, KERNCRED, 0, &bp);
-	if (error)
-		return (error);
-	if (blkno == 0 && (error = readblock(bp, lbn)))
-		return (error);
+	if (blkno != 0) {
+		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
+			return (error);
+	} else {
+		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		    fs->fs_bsize, KERNCRED, 0, &bp);
+		if (error)
+			return (error);
+		if ((error = readblock(bp, lbn)) != 0)
+			return (error);
+	}
 	/*
 	 * Set a snapshot inode to be a zero length file, regular files
 	 * to be completely unallocated.
