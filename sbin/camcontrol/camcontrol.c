@@ -282,6 +282,11 @@ getdevtree(void)
 	bufsize = sizeof(struct dev_match_result) * 100;
 	ccb.cdm.match_buf_len = bufsize;
 	ccb.cdm.matches = (struct dev_match_result *)malloc(bufsize);
+	if (ccb.cdm.matches == NULL) {
+		warnx("can't malloc memory for matches");
+		close(fd);
+		return(1);
+	}
 	ccb.cdm.num_matches = 0;
 
 	/*
@@ -1202,6 +1207,11 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	 * to hold them all.
 	 */
 	defect_list = malloc(dlist_length);
+	if (defect_list == NULL) {
+		warnx("can't malloc memory for defect list");
+		error = 1;
+		goto defect_bailout;
+	}
 
 	rdd_cdb =(struct scsi_read_defect_data_10 *)&ccb->csio.cdb_io.cdb_bytes;
 
@@ -1678,6 +1688,11 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 				fd_data = 1;
 
 			data_ptr = (u_int8_t *)malloc(data_bytes);
+			if (data_ptr == NULL) {
+				warnx("can't malloc memory for data_ptr");
+				error = 1;
+				goto scsicmd_bailout;
+			}
 			break;
 		case 'o':
 			if (arglist & CAM_ARG_CMD_IN) {
@@ -1700,6 +1715,11 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			hook.got = 0;
 			datastr = cget(&hook, NULL);
 			data_ptr = (u_int8_t *)malloc(data_bytes);
+			if (data_ptr == NULL) {
+				warnx("can't malloc memory for data_ptr");
+				error = 1;
+				goto scsicmd_bailout;
+			}
 			/*
 			 * If the user supplied "-" instead of a format, he
 			 * wants the data to be read from stdin.
