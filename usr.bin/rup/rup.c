@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rup.c,v 1.1.1.1 1994/08/28 15:01:31 csgr Exp $";
+static char rcsid[] = "$Id: rup.c,v 1.2 1995/05/30 06:33:26 rgrimes Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -95,6 +95,7 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 	struct hostent *hp;
 	char *host;
 	statstime *host_stat = (statstime *)replyp;
+	int year1, year2;
 
 	if (search_host(raddrp->sin_addr))
 		return(0);
@@ -115,14 +116,21 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 	tmp_time = localtime((time_t *)&host_stat->curtime.tv_sec);
 	host_time = *tmp_time;
 
+	tmp_time = gmtime((time_t *)&host_stat->curtime.tv_sec);
+	year1 = tmp_time->tm_year;
+	tmp_time = gmtime((time_t *)&host_stat->boottime.tv_sec);
+	year2 = tmp_time->tm_year;
+
 	host_stat->curtime.tv_sec -= host_stat->boottime.tv_sec;
 
 	tmp_time = gmtime((time_t *)&host_stat->curtime.tv_sec);
 	host_uptime = *tmp_time;
 
 	if (host_uptime.tm_yday != 0)
-		sprintf(days_buf, "%3d day%s, ", host_uptime.tm_yday,
-			(host_uptime.tm_yday > 1) ? "s" : "");
+		sprintf(days_buf, "%3d day%s, ", host_uptime.tm_yday + 
+			(365 * (year1 - year2)),
+			((host_uptime.tm_yday + (365*(year1 - year2)))> 1) ?
+			"s" : "");
 	else
 		days_buf[0] = '\0';
 
