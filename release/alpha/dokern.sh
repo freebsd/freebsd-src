@@ -40,7 +40,7 @@ sed	-e '/	pci$/d' \
 	-e '/	xl/d' \
 	-e '/pty/d' \
 	-e '/pass/d' \
-	-e '/apm0/d' \
+	-e '/	apm/d' \
 	-e '/ppp/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
@@ -62,7 +62,7 @@ else
 
 sed	-e '/pty/d' \
 	-e '/pass/d' \
-	-e '/apm0/d' \
+	-e '/	apm/d' \
 	-e '/ppp/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
@@ -99,7 +99,7 @@ elif [ "${ARCH}" = "alpha" ]; then
 
 sed	-e '/pty/d' \
 	-e '/pass/d' \
-	-e '/apm0/d' \
+	-e '/	apm/d' \
 	-e '/ppp/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
