@@ -112,8 +112,6 @@ ASSYM(TD_PCB,		offsetof(struct thread, td_pcb));
 ASSYM(TDF_ASTPENDING,	TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED,	TDF_NEEDRESCHED);
 
-ASSYM(TF_SPECIAL_IIP, offsetof(struct trapframe, tf_special.iip));
-
 ASSYM(UC_MCONTEXT,	offsetof(ucontext_t, uc_mcontext));
 
 ASSYM(VM_MAX_ADDRESS,	VM_MAX_ADDRESS);
