@@ -190,14 +190,22 @@
   </sect2>
 
   <sect2>
-    <title>Alternative Upgrade Techniques</title>
+    <title>Upgrading from Source Code</title>
 
     <para>Those interested in an upgrade method that allows more
-    flexibility and sophistication should take a look at the
-    <quote>Upgrading FreeBSD from source</quote> tutorial found at
-    http://www.FreeBSD.org/docs.html.  This method requires reliable
-    network connectivity, extra disk space and spare time, but has
+    flexibility and sophistication should take a look at
+    <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The
+    Cutting Edge</ulink> in the &os; Handbook.  This procedure involves
+    rebuilding all of &os; from source code.  It requires reliable
+    network connectivity, extra disk space, and time, but has
     advantages for networks and other more complex
-    installations.</para>
+    installations.  This is roughly the same procedure as is used for
+    track the -STABLE or -CURRENT development branches.</para>
+
+    <para><filename>/usr/src/UPDATING</filename> contains important
+    information on updating a &os; system from source code.  It lists
+    various issues resulting from changes in &os; that may affect an
+    upgrade.<para>
   </sect2>
 </sect1>  
