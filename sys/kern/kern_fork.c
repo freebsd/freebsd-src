@@ -130,6 +130,10 @@ rfork(p, uap)
 	int error;
 	struct proc *p2;
 
+	/* Don't allow kernel only flags. */
+	if ((uap->flags & RFKERNELONLY) != 0)
+		return (EINVAL);
+
 	error = fork1(p, uap->flags, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2 ? p2->p_pid : 0;
