@@ -1,3 +1,4 @@
+/* LINTLIBRARY */
 /*-
  * Copyright 2001 David E. O'Brien.
  * All rights reserved.

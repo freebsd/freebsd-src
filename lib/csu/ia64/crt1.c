@@ -1,3 +1,4 @@
+/* LINTLIBRARY */
 /*-
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
@@ -45,8 +46,8 @@
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-#pragma weak _DYNAMIC
 extern int _DYNAMIC;
+#pragma weak _DYNAMIC
 
 extern void _fini(void);
 extern void _init(void);
