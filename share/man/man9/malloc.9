@@ -154,27 +154,8 @@ will return
 .Dv NULL
 rather than block.
 Note that
-.Dv M_WAITOK
-is defined to be 0, meaning that blocking operation is the default.
-Also note that
 .Dv M_NOWAIT
 is required when running in an interrupt context.
-.Pp
-Programmers should be careful not to confuse
-.Dv M_NOWAIT ,
-the
-.Fn malloc
-flag, with
-.Dv M_DONTWAIT ,
-an
-.Xr mbuf 9
-allocation flag, which is not a valid argument to
-.Fn malloc .
-.It Dv M_WAITOK
-Indicates that it is Ok to wait for resources.  It is unconveniently
-defined as 0 so care should be taken never to compare against this value
-directly or try to AND it as a flag.  The default operation is to block
-until the memory allocation succeeds.
 .Fn malloc ,
 .Fn realloc ,
 and
