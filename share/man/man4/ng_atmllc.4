@@ -43,37 +43,36 @@ SubNetwork Attachment Point (SNAP) header.
 This node currently handles the Ethernet and FDDI protocols.
 .Pp
 The node transmits and receives ATM PDUs on the
-.Dv atm
+.Va atm
 hook.
 Received PDUs are decoded and forwarded to the
-.Dv ether
+.Va ether
 or
-.Dv fddi
+.Va fddi
 hooks as appropriate.
 Data received on the
-.Dv ether
+.Va ether
 or
-.Dv fddi
-hooks are assumed to be full ethernet or fddi packets as appropriate and are
+.Va fddi
+hooks are assumed to be full Ethernet or FDDI packets as appropriate and are
 encapsulated into a PDU and transmitted via the
-.Dv atm
+.Va atm
 hook.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width foobar
-.It Dv atm
+.Bl -tag -width indent
+.It Va atm
 ATM connection.
-Typically this hook would be connected to a
+Typically, this hook would be connected to a
 .Xr ng_atm 4
 node, which handles transmission of ATM PDUs over an ATM device.
-.It Dv ether
+.It Va ether
 Ethernet connection.
-This hook sends and receives ethernet frames.
+This hook sends and receives Ethernet frames.
 This would normally be connected to an
 .Xr ng_eiface 4
 node if in use.
-.It Dv fddi
+.It Va fddi
 FDDI connection.
 This hook sends and receives FDDI frames.
 .El

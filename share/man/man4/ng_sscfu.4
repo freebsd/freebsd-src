@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -37,13 +37,13 @@
 .Nm ng_sscfu
 .Nd netgraph SSCF at the UNI node type
 .Sh SYNOPSIS
-.Fd #include <netnatm/saal/sscopdef.h>
-.Fd #include <netnatm/saal/sscfudef.h>
-.Fd #include <netgraph/atm/ng_sscfu.h>
+.In netnatm/saal/sscopdef.h
+.In netnatm/saal/sscfudef.h
+.In netgraph/atm/ng_sscfu.h
 .Sh DESCRIPTION
 The
-.Nm
-netgraph node implements ITU-T recommendation Q.2130.
+.Nm sscfu
+netgraph node type implements ITU-T recommendation Q.2130.
 This recommendation specifies the Service Specific Coordination
 Function at the UNI.
 This is a thin sub-layer between the SSCOP (see
@@ -51,29 +51,31 @@ This is a thin sub-layer between the SSCOP (see
 and the UNI signalling.
 This node does not really implement a protocol but
 provides a mapping between the signals at the upper layer of the SSCOP and
-the signals, the UNI expects at its lower layer.
+the signals the UNI expects at its lower layer.
 It also provides default values for the parameters of the SSCOP.
 .Pp
 After creation of the node, the SSCF instance must be created by sending
-an enable message to the node.
+an
+.Dq enable
+message to the node.
 If the node is enabled, default SSCOP parameters
-can be retrieved and and set in the corresponding SSCOP instance.
+can be retrieved and set in the corresponding SSCOP instance.
 .Pp
-The node is shutdown either by a
+The node is shut down either by a
 .Dv NGM_SHUTDOWN
-message or when all hooks are disconnected.
+message, or when all hooks are disconnected.
 .Sh HOOKS
 Each
-.Nm
+.Nm sscfu
 node has two hooks with fixed names:
-.Bl -tag -width upper
-.It Dv lower
+.Bl -tag -width ".Va upper"
+.It Va lower
 This hook is the interface to the SSCOP.
 The interface expected here is exactly
 that which is exported by the
 .Xr ng_sscop 4
 node type.
-.It Dv upper
+.It Va upper
 This is the interface to the UNI.
 It uses the following message format:
 .Bd -literal
@@ -83,7 +85,9 @@ struct sscfu_arg {
 };
 .Ed
 .Pp
-.Fa sig
+The
+.Va sig
+field
 is one of the following signals:
 .Bd -literal
 enum saal_sig {
@@ -100,29 +104,29 @@ enum saal_sig {
 };
 .Ed
 .Pp
-The arrows in the comment show the direction of the signal whether it
+The arrows in the comment show the direction of the signal, whether it
 is a signal that comes out of the node
-.Ql ->
+.Pq Ql -> ,
 or is sent by the node user to the node
-.Ql <- .
-The type of data expected for the signal is specified in parentheses.
+.Pq Ql <- .
+The type of the data expected for the signal is specified in parentheses.
 This data starts at the
-.Fa data
+.Va data
 field of the message structure.
 .El
 .Pp
 If the
-.Dv lower
+.Va lower
 hook is disconnected and the node is enabled, the protocol state is
 reset.
 .Sh CONTROL MESSAGES
 The
-.Nm
+.Nm sscfu
 node understands the generic messages plus the following:
-.Bl -tag -width xxx
+.Bl -tag -width indent
 .It Dv NGM_SSCFU_GETDEFPARAM
 This message returns a
-.Fa sscop_param
+.Vt sscop_param
 structure, which contains the default parameters for the SSCOP at the
 UNI.
 This structure should be used for a
@@ -130,20 +134,21 @@ This structure should be used for a
 message to the SSCOP node below the SSCF.
 .It Dv NGM_SSCFU_ENABLE
 This message creates the actual SSCF instance and initializes it.
-Until this is done, parameters may not be retrieved not set and all message
+Until this is done, parameters may neither be retrieved nor set,
+and all messages
 received on any hook are discarded.
 .It Dv NGM_SSCFU_DISABLE
 Destroy the SSCF instance.
-After this all messages on any hooks are discarded.
+After this, all messages on any hooks are discarded.
 .It Dv NGM_SSCFU_GETDEBUG
-Retrieve the debugging flags in an
+Retrieve the debugging flags in a
 .Vt uint32_t .
 .It Dv NGM_SSCFU_SETDEBUG
 Set debugging flags.
-The argument must be an
+The argument must be a
 .Vt uint32_t .
 .It Dv NGM_SSCFU_GETSTATE
-Retrieve the current state of the SSCFU instance in an
+Retrieve the current state of the SSCFU instance in a
 .Vt uint32_t .
 If the node has not been enabled, 0 is returned.
 .El
@@ -153,4 +158,4 @@ If the node has not been enabled, 0 is returned.
 .Xr ng_sscop 4 ,
 .Xr ngctl 8
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org
+.An Harti Brandt Aq harti@FreeBSD.org

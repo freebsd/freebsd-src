@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\" Author: Vincent Jardin <vjardin@free.fr>
 .\"
 .\" $FreeBSD$
@@ -39,17 +39,17 @@
 .Nm ng_atmpif
 .Nd netgraph HARP/ATM Virtual Physical Interface
 .Sh SYNOPSIS
-.Fd #include <netgraph/netgraph.h>
-.Fd #include <netgraph/atm/ng_atmpif.h>
+.In netgraph/netgraph.h
+.In netgraph/atm/ng_atmpif.h
 .Sh DESCRIPTION
 The
-.Nm
+.Nm atmpif
 netgraph node type allows the emulation of
 .Xr atm 8
 (netatm/HARP) Physical devices (PIF) to be connected to the
 .Xr netgraph 4
 networking subsystem.
-Moreover it includes protection of the PDU against duplication and
+Moreover, it includes protection of the PDU against duplication and
 desequencement.
 It supports up to 65535 VCs and up to 255 VPs.
 AAL0, AAL3/4 and AAL5
@@ -61,13 +61,14 @@ stack when one does not have an ATM board or when the available boards do not
 have enough features.
 .Pp
 When a node
-.Nm
 is created, a PIF is created automatically.
-It is named hvaX.
+It is named
+.Li hvaX .
 It has the same features as any other HARP devices.
 The PIF is removed when the node is removed.
 .Sh HOOKS
-There is only one hook: link.
+There is only one hook:
+.Va link .
 This hook can be connected to any other
 Netgraph node.
 For example, in order
@@ -76,12 +77,15 @@ to test the HARP stack over UDP, it can be connected on a
 node.
 .Sh CONTROL MESSAGES
 This node type supports the generic messages plus the following:
-.Bl -tag -width xxx
-.It Dv NGM_ATMPIF_SET_CONFIG Ta setconfig
+.Pp
+.Bl -tag -width indent -compact
+.It Dv NGM_ATMPIF_SET_CONFIG Pq Li setconfig
 Configures the debugging features of the node and a virtual
 Peak Cell Rate (PCR).
-It uses the same structure as NGM_ATMPIF_GET_CONFIG.
-.It Dv NGM_ATMPIF_GET_CONFIG Ta getconfig
+It uses the same structure as
+.Dv NGM_ATMPIF_GET_CONFIG .
+.Pp
+.It Dv NGM_ATMPIF_GET_CONFIG Pq Li getconfig
 Returns a structure defining the configuration of the interface:
 .Bd -literal
 struct ng_vatmpif_config {
@@ -91,12 +95,15 @@ struct ng_vatmpif_config {
 };
 .Ed
 Note that the following debugging flags can be used:
-.Bl -column ATM_PH_LLCSNAP -offset indent
-.It Dv VATMPIF_DEBUG_NONE Ta disable debugging
-.It Dv VATMPIF_DEBUG_PACKET Ta enable debugging
+.Pp
+.Bl -tag -width ".Dv VATMPIF_DEBUG_PACKET" -offset indent -compact
+.It Dv VATMPIF_DEBUG_NONE
+disable debugging
+.It Dv VATMPIF_DEBUG_PACKET
+enable debugging
 .El
 .Pp
-.It Dv NGM_ATMPIF_GET_LINK_STATUS Ta getlinkstatus
+.It Dv NGM_ATMPIF_GET_LINK_STATUS Pq Li getlinkstatus
 Returns the last received sequence number, the last sent sequence
 number and the current total PCR that is reserved among all the VCCs
 of the interface.
@@ -108,10 +115,10 @@ struct ng_atmpif_link_status {
 };
 .Ed
 .Pp
-.It Dv NGM_ATMPIF_GET_STATS Ta getstats
-.It Dv NGM_ATMPIF_CLR_STATS Ta clrstats
-.It Dv NGM_ATMPIF_GETCLR_STATS Ta getclrstats
-It returns the node's statistics, it clears them or it returns and reset
+.It Dv NGM_ATMPIF_GET_STATS Pq Li getstats
+.It Dv NGM_ATMPIF_CLR_STATS Pq Li clrstats
+.It Dv NGM_ATMPIF_GETCLR_STATS Pq Li getclrstats
+It returns the node's statistics, it clears them or it returns and resets
 their values to 0.
 The following stats are provided.
 .Bd -literal
@@ -149,5 +156,5 @@ struct hva_stats_aal5 {
 .Xr ng_ksocket 4 ,
 .Xr ngctl 8
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org
+.An Harti Brandt Aq harti@FreeBSD.org
 .An Vincent Jardin Aq vjardin@wanadoo.fr
