@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.19 1999/01/09 02:36:19 msmith Exp $
+ *	$Id: biosdisk.c,v 1.20 1999/01/10 18:22:23 steve Exp $
  */
 
 /*
@@ -760,7 +760,7 @@ bd_getdev(struct i386_devdesc *dev)
     int 			major;
     int				rootdev;
     char			*nip, *cp;
-    int				unitofs = 0;
+    int				unitofs = 0, i, unit;
 
     biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
     DEBUG("unit %d BIOS device %d", dev->d_kind.biosdisk.unit, biosdev);
@@ -783,22 +783,32 @@ bd_getdev(struct i386_devdesc *dev)
 	if ((od->od_flags & BD_LABELOK) && (od->od_disklabel.d_type == DTYPE_SCSI)) {
 	    /* label OK, disk labelled as SCSI */
 	    major = DAMAJOR;
-	    /* check for unit number correction hint */
+	    /* check for unit number correction hint, now deprecated */
 	    if ((nip = getenv("num_ide_disks")) != NULL) {
-		unitofs = strtol(nip, &cp, 0);
+		i = strtol(nip, &cp, 0);
 		/* check for parse error */
-		if ((cp == nip) || (*cp != 0))
-		    unitofs = 0;
+		if ((cp != nip) && (*cp == 0))
+		    unitofs = i;
 	    }
 	} else {
 	    /* assume an IDE disk */
 	    major = WDMAJOR;
 	}
     }
+    /* XXX a better kludge to set the root disk unit number */
+    if ((nip = getenv("root_disk_unit")) != NULL) {
+	i = strtol(nip, &cp, 0);
+	/* check for parse error */
+	if ((cp != nip) && (*cp == 0))
+	    unit = i;
+    } else {
+	(biosdev & 0x7f) - unitofs;					/* allow for #wd compenstation in da case */
+    }
+
     rootdev = MAKEBOOTDEV(major,
 			  (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
 			  (dev->d_kind.biosdisk.slice + 1) & 0xf, 
-			  (biosdev & 0x7f) - unitofs,			/* allow for #wd compenstation in da case */
+			  unit,
 			  dev->d_kind.biosdisk.partition);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
