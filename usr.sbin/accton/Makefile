@@ -4,6 +4,6 @@
 PROG=	accton
 MAN=	accton.8
 
-WARNS?=	2
+WARNS?=	4
 
 .include <bsd.prog.mk>
