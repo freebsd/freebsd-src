@@ -2082,11 +2082,11 @@ DMenu MenuUsermgmt = {
 DMenu MenuSecurity = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "System Security Options Menu",
-    "This menu allows you to configure aspects of the operating systme\n"
-    "policy.  If configured improperly, these settings may result in\n"
-    "substantially impaired system operation.  Please read the system\n"
-    "documentation carefully before modifying these settings.  Many\n"
-    "settings will take affect only following a system reboot.",
+    "This menu allows you to configure aspects of the operating system security\n"
+    "policy.  Please read the system documentation carefully before modifying\n"
+    "these settings, as they may cause service disruption if used improperly.\n"
+    "\n"
+    "Most settings will take affect only following a system reboot.",
     "Configure system security options",
     NULL,
     { { "X Exit",      "Exit this menu (returning to previous)",
