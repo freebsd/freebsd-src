@@ -4,6 +4,8 @@
 SMDIR=	${.CURDIR}/../../contrib/sendmail/src
 .PATH:	${SMDIR}
 
+BINDIR?=/usr/libexec/sendmail
+
 PROG=	sendmail
 
 # Define the database format to use for aliases et al.
@@ -29,10 +31,6 @@ LDADD=	-lutil -lwrap
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8 
-LINKS=	${BINDIR}/sendmail /usr/bin/newaliases \
-	${BINDIR}/sendmail /usr/bin/mailq \
-	${BINDIR}/sendmail /usr/bin/hoststat \
-	${BINDIR}/sendmail ${BINDIR}/purgestat
 BINMODE=4555
 
 beforeinstall:
