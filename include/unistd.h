@@ -140,6 +140,7 @@ int	 initgroups __P((const char *, int));
 int	 iruserok __P((unsigned long, int, const char *, const char *));
 int	 issetugid __P((void));
 int	 lchown __P((const char *, uid_t, gid_t));
+char	*mkdtemp __P((char *));
 int	 mknod __P((const char *, mode_t, dev_t));
 int	 mkstemp __P((char *));
 char	*mktemp __P((char *));
