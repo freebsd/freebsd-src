@@ -682,9 +682,8 @@ thread_exit(void)
 	} else {
 		PROC_UNLOCK(p);
 	}
-	td->td_state	= TDS_INACTIVE;
-	/* XXX Shouldn't cpu_throw() here. */
-	mtx_assert(&sched_lock, MA_OWNED);
+	td->td_state = TDS_INACTIVE;
+	CTR1(KTR_PROC, "thread_exit: cpu_throw() thread %p", td);
 	cpu_throw(td, choosethread());
 	panic("I'm a teapot!");
 	/* NOTREACHED */

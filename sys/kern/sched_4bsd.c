@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
-#define KTR_4BSD	0x0
-
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
@@ -725,14 +723,15 @@ sched_add(struct thread *td)
 
 #ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
-		CTR1(KTR_4BSD, "adding kse:%p to gbl runq", ke);
+		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
 		ke->ke_runq = &runq;
 	} else {
-		CTR1(KTR_4BSD, "adding kse:%p to pcpu runq", ke);
+		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p)to pcpu runq", ke, td);
 		if (!SKE_RUNQ_PCPU(ke))
 			ke->ke_runq = &runq_pcpu[PCPU_GET(cpuid)];
 	}
 #else
+	CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to runq", ke, td);
 	ke->ke_runq = &runq;
 #endif
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
@@ -777,12 +776,12 @@ sched_choose(void)
 	if (ke == NULL || 
 	    (kecpu != NULL && 
 	     kecpu->ke_thread->td_priority < ke->ke_thread->td_priority)) {
-		CTR2(KTR_4BSD, "choosing kse %p from pcpu runq %d", kecpu,
+		CTR2(KTR_RUNQ, "choosing kse %p from pcpu runq %d", kecpu,
 		     PCPU_GET(cpuid));
 		ke = kecpu;
 		rq = &runq_pcpu[PCPU_GET(cpuid)];
 	} else { 
-		CTR1(KTR_4BSD, "choosing kse %p from main runq", ke);
+		CTR1(KTR_RUNQ, "choosing kse %p from main runq", ke);
 	}
 
 #else

@@ -213,8 +213,8 @@ kse_reassign(struct kse *ke)
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
-		sched_add(td);
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
+		sched_add(td);
 		return;
 	}
 
@@ -327,7 +327,8 @@ setrunqueue(struct thread *td)
 	struct thread *td2;
 	struct thread *tda;
 
-	CTR1(KTR_RUNQ, "setrunqueue: td%p", td);
+	CTR4(KTR_RUNQ, "setrunqueue: td:%p ke:%p kg:%p pid:%d",
+	    td, td->td_kse, td->td_ksegrp, td->td_proc->p_pid);
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
@@ -351,6 +352,8 @@ setrunqueue(struct thread *td)
 			 * There is a free one so it's ours for the asking..
 			 */
 			ke = TAILQ_FIRST(&kg->kg_iq);
+			CTR2(KTR_RUNQ, "setrunqueue: kg:%p: Use free ke:%p",
+			    kg, ke);
 			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
 			ke->ke_state = KES_THREAD;
 			kg->kg_idle_kses--;
@@ -359,6 +362,9 @@ setrunqueue(struct thread *td)
 			 * None free, but there is one we can commandeer.
 			 */
 			ke = tda->td_kse;
+			CTR3(KTR_RUNQ,
+			    "setrunqueue: kg:%p: take ke:%p from td: %p",
+			    kg, ke, tda);
 			sched_rem(tda);
 			tda->td_kse = NULL;
 			ke->ke_thread = NULL;
@@ -423,6 +429,9 @@ setrunqueue(struct thread *td)
 			ke->ke_thread = td2;
 		}
 		sched_add(ke->ke_thread);
+	} else {
+		CTR3(KTR_RUNQ, "setrunqueue: held: td%p kg%p pid%d",
+			td, td->td_ksegrp, td->td_proc->p_pid);
 	}
 }
 
@@ -639,8 +648,8 @@ runq_add(struct runq *rq, struct kse *ke)
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
 	rqh = &rq->rq_queues[pri];
-	CTR4(KTR_RUNQ, "runq_add: p=%p pri=%d %d rqh=%p",
-	    ke->ke_proc, ke->ke_thread->td_priority, pri, rqh);
+	CTR5(KTR_RUNQ, "runq_add: td=%p ke=%p pri=%d %d rqh=%p",
+	    ke->ke_thread, ke, ke->ke_thread->td_priority, pri, rqh);
 	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
 }
 
@@ -706,8 +715,8 @@ runq_remove(struct runq *rq, struct kse *ke)
 		("runq_remove: process swapped out"));
 	pri = ke->ke_rqindex;
 	rqh = &rq->rq_queues[pri];
-	CTR4(KTR_RUNQ, "runq_remove: p=%p pri=%d %d rqh=%p",
-	    ke, ke->ke_thread->td_priority, pri, rqh);
+	CTR5(KTR_RUNQ, "runq_remove: td=%p, ke=%p pri=%d %d rqh=%p",
+	    ke->ke_thread, ke, ke->ke_thread->td_priority, pri, rqh);
 	KASSERT(ke != NULL, ("runq_remove: no proc on busy queue"));
 	TAILQ_REMOVE(rqh, ke, ke_procq);
 	if (TAILQ_EMPTY(rqh)) {
