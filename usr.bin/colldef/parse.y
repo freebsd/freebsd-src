@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.7 1997/02/22 19:54:31 peter Exp $
+ * $Id: parse.y,v 1.8 1997/03/11 14:40:40 peter Exp $
  */
 
 #include <err.h>
@@ -40,6 +40,7 @@
 extern int line_no;
 extern FILE *yyin;
 void yyerror(char *fmt, ...);
+static void usage __P((void));
 
 char map_name[FILENAME_MAX] = ".";
 
@@ -233,9 +234,7 @@ main(ac, av)
 			break;
 
 		  default:
-			fprintf(stderr, "Usage: %s [-o out_file] [-I map_dir] [in_file]\n",
-				av[0]);
-			exit(EX_OK);
+			usage();
 		}
 	}
 	ac -= optind;
@@ -248,6 +247,13 @@ main(ac, av)
 		__collate_substitute_table[ch][0] = ch;
 	yyparse();
 	return 0;
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: colldef [-o out_file] [-I map_dir] [filename]\n");
+	exit(EX_OK);
 }
 
 void yyerror(char *fmt, ...)
