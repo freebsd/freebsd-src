@@ -336,6 +336,10 @@ struct aac_softc
 	struct aac_container_tq	aac_container_tqh;
 	aac_lock_t		aac_container_lock;
 
+	/* Protect the sync fib */
+#define AAC_SYNC_LOCK_FORCE	(1 << 0)
+	aac_lock_t		aac_sync_lock;
+
 	/* delayed activity infrastructure */
 #if __FreeBSD_version >= 500005
 	struct task		aac_task_complete;	/* deferred-completion
@@ -373,9 +377,12 @@ extern int		aac_resume(device_t dev);
 extern void		aac_intr(void *arg);
 extern void		aac_submit_bio(struct bio *bp);
 extern void		aac_biodone(struct bio *bp);
-extern int		aac_dump_enqueue(struct aac_disk *ad, u_int32_t lba,
-					 void *data, int nblks);
-extern void		aac_dump_complete(struct aac_softc *sc);
+extern int		aac_get_sync_fib(struct aac_softc *sc,
+					 struct aac_fib **fib, int flags);
+extern void		aac_release_sync_fib(struct aac_softc *sc);
+extern int		aac_sync_fib(struct aac_softc *sc, u_int32_t command,
+				     u_int32_t xferstate, struct aac_fib *fib,
+				     u_int16_t datasize);
 
 /*
  * Debugging levels:
@@ -400,7 +407,7 @@ extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib,
 extern void	aac_print_aif(struct aac_softc *sc,
 			      struct aac_aif_command *aif);
 
-# define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __func__)
+#define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __func__)
 
 #else
 # define debug(level, fmt, args...)
