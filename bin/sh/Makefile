@@ -24,6 +24,7 @@ builtins.h builtins.c: ${.CURDIR}/mkbuiltins ${.CURDIR}/builtins
 
 init.c: mkinit ${SRCS}
 	./mkinit '${CC} -c ${CFLAGS} ${LDFLAGS} init.c' ${.ALLSRC}
+	touch ${.TARGET}
 
 mkinit: ${.CURDIR}/mkinit.c
 	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mkinit.c -o $@
