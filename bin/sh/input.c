@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.5 1996/09/01 10:20:18 peter Exp $
+ *	$Id: input.c,v 1.6 1996/09/03 14:15:50 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
+static char const sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #endif /* not lint */
 
 #include <stdio.h>	/* defines BUFSIZ */
@@ -84,8 +84,8 @@ struct parsefile {
 	struct parsefile *prev;	/* preceding file on stack */
 	int linno;		/* current line */
 	int fd;			/* file descriptor (or -1 if string) */
-	int nleft;		/* number of chars left in line */
-	int lleft;		/* number of lines left in buffer */
+	int nleft;		/* number of chars left in this line */
+	int lleft;		/* number of lines left in this buffer */
 	char *nextc;		/* next char in buffer */
 	char *buf;		/* input buffer */
 	struct strpush *strpush; /* for pushing strings at this level */
@@ -106,6 +106,7 @@ int whichprompt;		/* 1 == PS1, 2 == PS2 */
 EditLine *el;			/* cookie for editline package */
 
 STATIC void pushfile __P((void));
+static int preadfd __P((void));
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -138,7 +139,7 @@ pfgets(line, len)
 	char *line;
 	int len;
 {
-	register char *p = line;
+	char *p = line;
 	int nleft = len;
 	int c;
 
@@ -165,17 +166,20 @@ pfgets(line, len)
  */
 
 int
-pgetc() {
+pgetc()
+{
 	return pgetc_macro();
 }
 
+
 static int
-pread()
+preadfd()
 {
 	int nr;
-
 	parsenextc = parsefile->buf;
+
 retry:
+#ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
 		const char *rl_cp;
 
@@ -184,12 +188,11 @@ retry:
 			nr = 0;
 		else {
 			/* XXX - BUFSIZE should redesign so not necessary */
-			(void)strcpy(parsenextc, rl_cp);
+			(void) strcpy(parsenextc, rl_cp);
 		}
-
-	} else {
+	} else
+#endif
 		nr = read(parsefile->fd, parsenextc, BUFSIZ - 1);
-	}
 
 	if (nr <= 0) {
                 if (nr < 0) {
@@ -206,7 +209,7 @@ retry:
                                 }
                         }
                 }
-		nr = -1;
+                nr = -1;
 	}
 	return nr;
 }
@@ -217,12 +220,13 @@ retry:
  * 1) If a string was pushed back on the input, pop it;
  * 2) If an EOF was pushed back (parsenleft == EOF_NLEFT) or we are reading
  *    from a string so we can't refill the buffer, return EOF.
- * 3) If there is more in the buffer, use it; else call read to fill it.
- * 4) Process input up to next newline, deleting nul characters.
+ * 3) If there is more in this buffer, use it else call read to fill it.
+ * 4) Process input up to the next newline, deleting nul characters.
  */
 
 int
-preadbuffer() {
+preadbuffer()
+{
 	char *p, *q;
 	int more;
 	int something;
@@ -241,7 +245,7 @@ preadbuffer() {
 
 again:
 	if (parselleft <= 0) {
-		if ((parselleft = pread()) == -1) {
+		if ((parselleft = preadfd()) == -1) {
 			parselleft = parsenleft = EOF_NLEFT;
 			return PEOF;
 		}
@@ -400,6 +404,7 @@ void
 setinputfd(fd, push)
 	int fd, push;
 {
+	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
 		pushfile();
 		parsefile->buf = ckmalloc(BUFSIZ);

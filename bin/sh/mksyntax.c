@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mksyntax.c,v 1.5 1996/08/12 22:14:47 ache Exp $
+ *	$Id: mksyntax.c,v 1.6 1996/09/01 10:20:56 peter Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -117,8 +117,8 @@ static void digit_convert __P((void));
 
 int
 main(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char c;
 	char d;
@@ -151,7 +151,9 @@ main(argc, argv)
 		if (d == c)
 			break;
 	}
+#if 0
 	printf("%s %d bit chars\n", sign? "signed" : "unsigned", nbits);
+#endif
 	if (nbits > 9) {
 		fputs("Characters can't have more than 9 bits\n", stderr);
 		exit(2);
@@ -166,8 +168,8 @@ main(argc, argv)
 			digit_contig = 0;
 	}
 
-	fputs("#include <ctype.h>\n", hfile);
 	fputs("#include <sys/cdefs.h>\n", hfile);
+	fputs("#include <ctype.h>\n", hfile);
 
 	/* Generate the #define statements in the header file */
 	fputs("/* Syntax classes */\n", hfile);
@@ -354,7 +356,7 @@ static char *macro[] = {
 };
 
 static void
-output_type_macros() 
+output_type_macros()
 {
 	char **pp;
 
@@ -375,7 +377,7 @@ output_type_macros()
  */
 
 static void
-digit_convert() 
+digit_convert()
 {
 	int maxdigit;
 	static char digit[] = "0123456789";

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.3 1996/09/01 10:21:23 peter Exp $
+ *	$Id: output.c,v 1.4 1996/09/03 14:15:56 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -51,8 +51,8 @@ static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
  *	Our output routines may be smaller than the stdio routines.
  */
 
+#include <sys/types.h>        /* quad_t */
 #include <sys/ioctl.h>
-#include <sys/types.h>	/* quad_t */
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
@@ -79,7 +79,7 @@ static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 
 
 struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 100, 2, 0};;
+struct output errout = {NULL, 0, NULL, 100, 2, 0};
 struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
@@ -140,8 +140,8 @@ out2str(p)
 
 void
 outstr(p, file)
-	register const char *p;
-	register struct output *file;
+	const char *p;
+	struct output *file;
 	{
 	while (*p)
 		outc(*p++, file);
@@ -338,7 +338,7 @@ fmtstr(va_alist)
  * Formatted output.  This routine handles a subset of the printf formats:
  * - Formats supported: d, u, o, X, s, and c.
  * - The x format is also accepted but is treated like X.
- * - The l and q modifiers is accepted.
+ * - The l and q modifiers are accepted.
  * - The - and # flags are accepted; # only works with the o format.
  * - Width and precision may be specified with any format except c.
  * - An * may be given for the width or precision.
@@ -349,20 +349,16 @@ fmtstr(va_alist)
 
 #define TEMPSIZE 24
 
-#ifdef __STDC__
 static const char digit[] = "0123456789ABCDEF";
-#else
-static const char digit[17] = "0123456789ABCDEF";
-#endif
 
 
 void
 doformat(dest, f, ap)
-	register struct output *dest;
-	register char *f;		/* format string */
+	struct output *dest;
+	char *f;		/* format string */
 	va_list ap;
 	{
-	register char c;
+	char c;
 	char temp[TEMPSIZE];
 	int flushleft;
 	int sharp;
@@ -427,10 +423,10 @@ doformat(dest, f, ap)
 		}
 		switch (*f) {
 		case 'd':
-			if (islong)
-				l = va_arg(ap, long);
-			else if (isquad)
+			if (isquad)
 				l = va_arg(ap, quad_t);
+			else if (islong)
+				l = va_arg(ap, long);
 			else
 				l = va_arg(ap, int);
 			sign = 0;
@@ -453,10 +449,10 @@ doformat(dest, f, ap)
 			base = 16;
 uns_number:	  /* an unsigned number */
 			sign = 0;
-			if (islong)
-				num = va_arg(ap, unsigned long);
-			else if (isquad)
+			if (isquad)
 				num = va_arg(ap, u_quad_t);
+			else if (islong)
+				num = va_arg(ap, unsigned long);
 			else
 				num = va_arg(ap, unsigned int);
 number:		  /* process a number */
@@ -565,7 +561,7 @@ xwrite(fd, buf, nbytes)
  */
 
 int
-xioctl(fd, request, arg) 
+xioctl(fd, request, arg)
 	int fd;
 	unsigned long request;
 	char * arg;

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.11.2.3 1997/06/19 15:14:23 jkh Exp $
+ *	$Id: expand.c,v 1.11.2.4 1997/06/19 17:57:30 jkh Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
+static char const sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -95,9 +95,9 @@ struct arglist exparg;		/* holds expanded arg list */
 STATIC void argstr __P((char *, int));
 STATIC char *exptilde __P((char *, int));
 STATIC void expbackq __P((union node *, int, int));
-STATIC int subevalvar __P((char *, char *, int, int, int));
+STATIC int subevalvar __P((char *, char *, int, int, int, int));
 STATIC char *evalvar __P((char *, int));
-STATIC int varisset __P((char *));
+STATIC int varisset __P((char *, int));
 STATIC void varvalue __P((char *, int, int));
 STATIC void recordregion __P((int, int, int));
 STATIC void ifsbreakup __P((char *, struct arglist *));
@@ -210,10 +210,10 @@ expandarg(arg, arglist, flag)
 
 STATIC void
 argstr(p, flag)
-	register char *p;
+	char *p;
 	int flag;
 {
-	register char c;
+	char c;
 	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
 
@@ -324,6 +324,16 @@ expari(flag)
 	char *p, *start;
 	int result;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
+
+	while (ifsfirst.next != NULL) {
+		struct ifsregion *ifsp;
+		INTOFF;
+		ifsp = ifsfirst.next->next;
+		ckfree(ifsfirst.next);
+		ifsfirst.next = ifsp;
+		INTON;
+	}
+	ifslastp = NULL;
 
 	/*
 	 * This routine is slightly over-compilcated for
@@ -442,30 +452,35 @@ expbackq(cmd, quoted, flag)
 
 
 STATIC int
-subevalvar(p, str, subtype, startloc, varflags)
+subevalvar(p, str, strloc, subtype, startloc, varflags)
 	char *p;
 	char *str;
+	int strloc;
 	int subtype;
 	int startloc;
 	int varflags;
 {
-
 	char *startp;
 	char *loc = NULL;
 	int c = 0;
 	int saveherefd = herefd;
 	struct nodelist *saveargbackq = argbackq;
+	int amount;
+
 	herefd = -1;
 	argstr(p, 0);
 	STACKSTRNUL(expdest);
 	herefd = saveherefd;
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
+	if (str == NULL)
+	    str = stackblock() + strloc;
 
 	switch (subtype) {
 	case VSASSIGN:
 		setvar(str, startp, 0);
-		STADJUST(startp - expdest, expdest);
+		amount = startp - expdest;
+		STADJUST(amount, expdest);
 		varflags &= ~VSNUL;
 		if (c != 0)
 			*loc = c;
@@ -482,7 +497,7 @@ subevalvar(p, str, subtype, startloc, varflags)
 		return 0;
 
 	case VSTRIMLEFT:
-		for (loc = startp; loc < str - 1; loc++) {
+		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
 			if (patmatch(str, startp)) {
@@ -508,7 +523,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	case VSTRIMRIGHT:
 		for (loc = str - 1; loc >= startp; loc--) {
 			if (patmatch(str, loc)) {
-				expdest = loc;
+				amount = loc - expdest;
+				STADJUST(amount, expdest);
 				return 1;
 			}
 		}
@@ -517,7 +533,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
 			if (patmatch(str, loc)) {
-				expdest = loc;
+				amount = loc - expdest;
+				STADJUST(amount, expdest);
 				return 1;
 			}
 		}
@@ -529,7 +546,8 @@ subevalvar(p, str, subtype, startloc, varflags)
 	}
 
 recordleft:
-	expdest = (str - 1) - (loc - startp);
+	amount = ((str - 1) - (loc - startp)) - expdest;
+	STADJUST(amount, expdest);
 	while (loc != str - 1)
 		*startp++ = *loc++;
 	return 1;
@@ -568,7 +586,7 @@ evalvar(p, flag)
 	p = strchr(p, '=') + 1;
 again: /* jump here after setting a variable with ${var=text} */
 	if (special) {
-		set = varisset(var);
+		set = varisset(var, varflags & VSNUL);
 		val = NULL;
 	} else {
 		val = lookupvar(var);
@@ -583,15 +601,13 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			char *exp, *oexpdest = expdest;
 			varvalue(var, varflags & VSQUOTE, flag & EXP_FULL);
 			if (subtype == VSLENGTH) {
-				for (exp = oexpdest;exp != expdest; exp++)
-					varlen++;
-				expdest = oexpdest;
+				varlen = expdest - stackblock() - startloc;
+				STADJUST(-varlen, expdest);
 			}
 		} else {
-			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX 
+			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX
 								  : BASESYNTAX;
 
 			if (subtype == VSLENGTH) {
@@ -608,11 +624,11 @@ again: /* jump here after setting a variable with ${var=text} */
 			}
 		}
 	}
-		
+
 	if (subtype == VSPLUS)
 		set = ! set;
 
-	easy = ((varflags & VSQUOTE) == 0 || 
+	easy = ((varflags & VSQUOTE) == 0 ||
 		(*var == '@' && shellparam.nparam != 1));
 
 
@@ -625,7 +641,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		if (!easy)
 			break;
 record:
-		recordregion(startloc, expdest - stackblock(), 
+		recordregion(startloc, expdest - stackblock(),
 			     varflags & VSQUOTE);
 		break;
 
@@ -651,15 +667,22 @@ record:
 		 */
 		STPUTC('\0', expdest);
 		pat = expdest;
-		if (subevalvar(p, pat, subtype, startloc, varflags))
+		if (subevalvar(p, NULL, expdest - stackblock(), subtype,
+			       startloc, varflags))
 			goto record;
+		else {
+			int amount = (expdest - pat) + 1;
+			STADJUST(-amount, expdest);
+		}
 		break;
 
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, subtype, startloc, varflags))
+			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+				varflags &= ~VSNUL;
 				goto again;
+			}
 			break;
 		}
 		if (easy)
@@ -697,24 +720,39 @@ record:
  */
 
 STATIC int
-varisset(name)
+varisset(name, nulok)
 	char *name;
-	{
-	char **ap;
-	int num;
+	int nulok;
+{
 
-	if (*name == '!') {
-		if (backgndpid == -1)
-			return 0;
-	} else if (*name == '@' || *name == '*') {
+	if (*name == '!')
+		return backgndpid != -1;
+	else if (*name == '@' || *name == '*') {
 		if (*shellparam.p == NULL)
 			return 0;
+
+		if (nulok) {
+			char **av;
+
+			for (av = shellparam.p; *av; av++)
+				if (**av != '\0')
+					return 1;
+			return 0;
+		}
 	} else if (is_digit(*name)) {
-		num = atoi(name);
-		ap = shellparam.p;
-		while (num-- > 0)
-			if (*ap++ == NULL)
-				return 0;
+		char *ap;
+		int num = atoi(name);
+
+		if (num > shellparam.nparam)
+			return 0;
+
+		if (num == 0)
+			ap = arg0;
+		else
+			ap = shellparam.p[num - 1];
+
+		if (nulok && (ap == NULL || *ap == '\0'))
+			return 0;
 	}
 	return 1;
 }
@@ -814,12 +852,12 @@ allargs:
  */
 
 STATIC void
-recordregion(start, end, nulonly) 
+recordregion(start, end, nulonly)
 	int start;
 	int end;
 	int nulonly;
 {
-	register struct ifsregion *ifsp;
+	struct ifsregion *ifsp;
 
 	if (ifslastp == NULL) {
 		ifsp = &ifsfirst;
@@ -849,7 +887,7 @@ ifsbreakup(string, arglist)
 	struct ifsregion *ifsp;
 	struct strlist *sp;
 	char *start;
-	register char *p;
+	char *p;
 	char *q;
 	char *ifs;
 	int ifsspc;
@@ -918,7 +956,7 @@ char *expdir;
 STATIC void
 expandmeta(str, flag)
 	struct strlist *str;
-	int flag;
+	int flag __unused;
 {
 	char *p;
 	struct strlist **savelastp;
@@ -976,7 +1014,7 @@ expmeta(enddir, name)
 	char *enddir;
 	char *name;
 	{
-	register char *p;
+	char *p;
 	char *q;
 	char *start;
 	char *endname;
@@ -1192,8 +1230,8 @@ pmatch(pattern, string)
 	char *pattern;
 	char *string;
 	{
-	register char *p, *q;
-	register char c;
+	char *p, *q;
+	char c;
 
 	p = pattern;
 	q = string;
@@ -1292,7 +1330,7 @@ void
 rmescapes(str)
 	char *str;
 	{
-	register char *p, *q;
+	char *p, *q;
 
 	p = str;
 	while (*p != CTLESC) {

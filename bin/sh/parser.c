@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: parser.c,v 1.16 1996/09/10 02:42:33 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+static char const sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -120,7 +120,7 @@ STATIC int readtoken1 __P((int, char const *, char *, int));
 STATIC int noexpand __P((char *));
 STATIC void synexpect __P((int));
 STATIC void synerror __P((char *));
-STATIC void setprompt __P((int)); 
+STATIC void setprompt __P((int));
 
 
 /*
@@ -129,7 +129,7 @@ STATIC void setprompt __P((int));
  */
 
 union node *
-parsecmd(interact) 
+parsecmd(interact)
 	int interact;
 {
 	int t;
@@ -151,7 +151,7 @@ parsecmd(interact)
 
 
 STATIC union node *
-list(nlflag) 
+list(nlflag)
 	int nlflag;
 {
 	union node *n1, *n2, *n3;
@@ -278,7 +278,7 @@ pipeline() {
 	}
 	tokpushback++;
 	if (negate) {
-		notnode = (union node *)stalloc(sizeof (struct nnot));
+		notnode = (union node *)stalloc(sizeof(struct nnot));
 		notnode->type = NNOT;
 		notnode->nnot.com = n1;
 		n1 = notnode;
@@ -300,6 +300,7 @@ command() {
 	redir = NULL;
 	n1 = NULL;
 	rpp = &redir;
+
 	/* Check for redirection which may precede command */
 	while (readtoken() == TREDIR) {
 		*rpp = n2 = redirnode;
@@ -473,8 +474,8 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		 */
 		if (!redir)
 			synexpect(-1);
-	case TAND:	/* XXX merge query! */
-	case TOR:	/* XXX merge query! */
+	case TAND:
+	case TOR:
 	case TNL:
 	case TEOF:
 	case TWORD:
@@ -593,7 +594,7 @@ void fixredir(n, text, err)
 	else if (text[0] == '-' && text[1] == '\0')
 		n->ndup.dupfd = -1;
 	else {
-		
+
 		if (err)
 			synerror("Bad fd number");
 		else
@@ -704,12 +705,12 @@ readtoken() {
 		/*
 		 * check for keywords and aliases
 		 */
-		if (t == TWORD && !quoteflag) 
+		if (t == TWORD && !quoteflag)
 		{
-			register char * const *pp;
+			char * const *pp;
 
 			for (pp = (char **)parsekwd; *pp; pp++) {
-				if (**pp == *wordtext && equal(*pp, wordtext)) 
+				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
 					lasttoken = t = pp - parsekwd + KWDOFFSET;
 					TRACE(("keyword %s recognized\n", tokname[t]));
@@ -758,7 +759,7 @@ out:
 
 STATIC int
 xxreadtoken() {
-	register c;
+	int c;
 
 	if (tokpushback) {
 		tokpushback = 0;
@@ -1057,7 +1058,7 @@ checkend: {
 		}
 		if (c == *eofmark) {
 			if (pfgets(line, sizeof line) != NULL) {
-				register char *p, *q;
+				char *p, *q;
 
 				p = line;
 				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
@@ -1207,7 +1208,7 @@ badsub:				synerror("Bad substitution");
 				subtype = p - types + VSNORMAL;
 				break;
 			case '%':
-			case '#': 
+			case '#':
 				{
 					int cc = c;
 					subtype = c == '#' ? VSTRIMLEFT :
@@ -1248,6 +1249,11 @@ parsebackq: {
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler;
 	int savelen;
+	int saveprompt;
+#if __GNUC__
+	/* Avoid longjmp clobbering */
+	(void) &saveprompt;
+#endif
 
 	savepbq = parsebackquote;
 	if (setjmp(jmploc.loc)) {
@@ -1271,25 +1277,58 @@ parsebackq: {
                 /* We must read until the closing backquote, giving special
                    treatment to some slashes, and then push the string and
                    reread it as input, interpreting it normally.  */
-                register char *out;
-                register c;
+                char *out;
+                int c;
                 int savelen;
                 char *str;
 
+
                 STARTSTACKSTR(out);
-                while ((c = pgetc ()) != '`') {
-                       if (c == PEOF) {
-                                startlinno = plinno;
-                                synerror("EOF in backquote substitution");
-                       }
-                       if (c == '\\') {
-                                c = pgetc ();
+		for (;;) {
+			if (needprompt) {
+				setprompt(2);
+				needprompt = 0;
+			}
+			switch (c = pgetc()) {
+			case '`':
+				goto done;
+
+			case '\\':
+                                if ((c = pgetc()) == '\n') {
+					plinno++;
+					if (doprompt)
+						setprompt(2);
+					else
+						setprompt(0);
+					/*
+					 * If eating a newline, avoid putting
+					 * the newline into the new character
+					 * stream (via the STPUTC after the
+					 * switch).
+					 */
+					continue;
+				}
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         STPUTC('\\', out);
-                       }
-                       STPUTC(c, out);
+				break;
+
+			case '\n':
+				plinno++;
+				needprompt = doprompt;
+				break;
+
+			case PEOF:
+			        startlinno = plinno;
+				synerror("EOF in backquote substitution");
+ 				break;
+
+			default:
+				break;
+			}
+			STPUTC(c, out);
                 }
+done:
                 STPUTC('\0', out);
                 savelen = out - stackblock();
                 if (savelen > 0) {
@@ -1304,13 +1343,30 @@ parsebackq: {
 	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 	(*nlpp)->next = NULL;
 	parsebackquote = oldstyle;
+
+	if (oldstyle) {
+		saveprompt = doprompt;
+		doprompt = 0;
+	}
+
 	n = list(0);
-        if (!oldstyle && (readtoken() != TRP))
-                synexpect(TRP);
+
+	if (oldstyle)
+		doprompt = saveprompt;
+	else {
+		if (readtoken() != TRP)
+			synexpect(TRP);
+	}
+
 	(*nlpp)->n = n;
-        /* Start reading from old file again.  */
-        if (oldstyle)
+        if (oldstyle) {
+		/*
+		 * Start reading from old file again, ignoring any pushed back
+		 * tokens left from the backquote parsing
+		 */
                 popfile();
+		tokpushback = 0;
+	}
 	while (stackblocksize() <= savelen)
 		growstackblock();
 	STARTSTACKSTR(out);
@@ -1373,8 +1429,8 @@ STATIC int
 noexpand(text)
 	char *text;
 	{
-	register char *p;
-	register char c;
+	char *p;
+	char c;
 
 	p = text;
 	while ((c = *p++) != '\0') {
@@ -1396,7 +1452,7 @@ int
 goodname(name)
 	char *name;
 	{
-	register char *p;
+	char *p;
 
 	p = name;
 	if (! is_name(*p))
@@ -1416,7 +1472,7 @@ goodname(name)
  */
 
 STATIC void
-synexpect(token) 
+synexpect(token)
 	int token;
 {
 	char msg[64];
@@ -1459,8 +1515,8 @@ setprompt(which)
  */
 char *
 getprompt(unused)
-	void *unused;
-	{
+	void *unused __unused;
+{
 	switch (whichprompt) {
 	case 0:
 		return "";

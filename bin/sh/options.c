@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.8 1996/10/29 03:12:48 steve Exp $
+ *	$Id: options.c,v 1.8.2.1 1996/12/21 21:10:25 joerg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <signal.h>
@@ -74,6 +74,7 @@ char *minusc;			/* argument to -c option */
 STATIC void options __P((int));
 STATIC void minus_o __P((char *, int));
 STATIC void setoption __P((int, int));
+STATIC int getopts __P((char *, char *, char **, char ***, char **));
 
 
 /*
@@ -108,10 +109,12 @@ procargs(argc, argv)
 		commandname = arg0 = *argptr++;
 		setinputfile(commandname, 0);
 	}
-	if (*argptr && minusc)
-		/* Posix.2: first arg after -c cmd is $0, remainder $1... */
+	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */
+	if (argptr && minusc && *argptr)
 		arg0 = *argptr++;
+
 	shellparam.p = argptr;
+	shellparam.reset = 1;
 	/* assert(shellparam.malloc == 0 && shellparam.nparam == 0); */
 	while (*argptr) {
 		shellparam.nparam++;
@@ -137,10 +140,10 @@ optschanged()
  */
 
 STATIC void
-options(cmdline) 
+options(cmdline)
 	int cmdline;
 {
-	register char *p;
+	char *p;
 	int val;
 	int c;
 
@@ -312,7 +315,7 @@ freeparam(param)
 int
 shiftcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	int n;
 	char **ap1, **ap2;
@@ -344,7 +347,7 @@ shiftcmd(argc, argv)
 int
 setcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	if (argc == 1)
 		return showvarscmd(argc, argv);
@@ -359,6 +362,16 @@ setcmd(argc, argv)
 }
 
 
+void
+getoptsreset(value)
+	const char *value;
+{
+	if (number(value) == 1) {
+		shellparam.optnext = NULL;
+		shellparam.reset = 1;
+	}
+}
+
 /*
  * The getopts builtin.  Shellparam.optnext points to the next argument
  * to be processed.  Shellparam.optptr points to the next character to
@@ -369,57 +382,123 @@ setcmd(argc, argv)
 int
 getoptscmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
-	register char *p, *q;
-	char c;
+	char **optbase = NULL;
+
+	if (argc < 3)
+		error("Usage: getopts optstring var [arg]");
+	else if (argc == 3)
+		optbase = shellparam.p;
+	else
+		optbase = &argv[3];
+
+	if (shellparam.reset == 1) {
+		shellparam.optnext = optbase;
+		shellparam.optptr = NULL;
+		shellparam.reset = 0;
+	}
+
+	return getopts(argv[1], argv[2], optbase, &shellparam.optnext,
+		       &shellparam.optptr);
+}
+
+STATIC int
+getopts(optstr, optvar, optfirst, optnext, optptr)
+	char *optstr;
+	char *optvar;
+	char **optfirst;
+	char ***optnext;
+	char **optptr;
+{
+	char *p, *q;
+	char c = '?';
+	int done = 0;
+	int ind = 0;
+	int err = 0;
 	char s[10];
 
-	if (argc != 3)
-		error("Usage: getopts optstring var");
-	if (shellparam.optnext == NULL) {
-		shellparam.optnext = shellparam.p;
-		shellparam.optptr = NULL;
-	}
-	if ((p = shellparam.optptr) == NULL || *p == '\0') {
-		p = *shellparam.optnext;
+	if ((p = *optptr) == NULL || *p == '\0') {
+		/* Current word is done, advance */
+		if (*optnext == NULL)
+			return 1;
+		p = **optnext;
 		if (p == NULL || *p != '-' || *++p == '\0') {
 atend:
-			fmtstr(s, 10, "%d", shellparam.optnext - shellparam.p + 1);
-			setvar("OPTIND", s, 0);
-			shellparam.optnext = NULL;
-			return 1;
+			ind = *optnext - optfirst + 1;
+			*optnext = NULL;
+			p = NULL;
+			done = 1;
+			goto out;
 		}
-		shellparam.optnext++;
+		(*optnext)++;
 		if (p[0] == '-' && p[1] == '\0')	/* check for "--" */
 			goto atend;
 	}
+
 	c = *p++;
-	for (q = argv[1] ; *q != c ; ) {
+	for (q = optstr; *q != c; ) {
 		if (*q == '\0') {
-			out1fmt("Illegal option -%c\n", c);
+			if (optstr[0] == ':') {
+				s[0] = c;
+				s[1] = '\0';
+				err |= setvarsafe("OPTARG", s, 0);
+			}
+			else {
+				out1fmt("Illegal option -%c\n", c);
+				(void) unsetvar("OPTARG");
+			}
 			c = '?';
-			goto out;
+			goto bad;
 		}
 		if (*++q == ':')
 			q++;
 	}
+
 	if (*++q == ':') {
-		if (*p == '\0' && (p = *shellparam.optnext++) == NULL) {
-			out1fmt("No arg for -%c option\n", c);
-			c = '?';
-			shellparam.optnext--;
-			goto out;
+		if (*p == '\0' && (p = **optnext) == NULL) {
+			if (optstr[0] == ':') {
+				s[0] = c;
+				s[1] = '\0';
+				err |= setvarsafe("OPTARG", s, 0);
+				c = ':';
+			}
+			else {
+				out1fmt("No arg for -%c option\n", c);
+				(void) unsetvar("OPTARG");
+				c = '?';
+			}
+			goto bad;
 		}
-		setvar("OPTARG", p, 0);
+
+		if (p == **optnext)
+			(*optnext)++;
+		setvarsafe("OPTARG", p, 0);
 		p = NULL;
 	}
+	else
+		setvarsafe("OPTARG", "", 0);
+	ind = *optnext - optfirst + 1;
+	goto out;
+
+bad:
+	ind = 1;
+	*optnext = NULL;
+	p = NULL;
 out:
-	shellparam.optptr = p;
+	*optptr = p;
+	fmtstr(s, sizeof(s), "%d", ind);
+	err |= setvarsafe("OPTIND", s, VNOFUNC);
 	s[0] = c;
 	s[1] = '\0';
-	setvar(argv[2], s, 0);
-	return 0;
+	err |= setvarsafe(optvar, s, 0);
+	if (err) {
+		*optnext = NULL;
+		*optptr = NULL;
+		flushall();
+		exraise(EXERROR);
+	}
+	return done;
 }
 
 /*
@@ -437,7 +516,7 @@ int
 nextopt(optstring)
 	char *optstring;
 	{
-	register char *p, *q;
+	char *p, *q;
 	char c;
 
 	if ((p = optptr) == NULL || *p == '\0') {

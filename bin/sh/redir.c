@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: redir.c,v 1.4 1995/10/21 00:47:31 joerg Exp $
+ *	$Id: redir.c,v 1.5 1996/09/01 10:21:36 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -103,7 +103,8 @@ redirect(redir, flags)
 	struct redirtab *sv = NULL;
 	int i;
 	int fd;
-	char memory[10];		/* file descriptors to write to memory */
+	int try;
+	char memory[10];	/* file descriptors to write to memory */
 
 	for (i = 10 ; --i >= 0 ; )
 		memory[i] = 0;
@@ -117,24 +118,41 @@ redirect(redir, flags)
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
+		try = 0;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
-			continue; /* redirect from/to myself */
+			continue; /* redirect from/to same file descriptor */
+
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-			if ((i = copyfd(fd, 10)) != EMPTY) {
+again:
+			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+				switch (errno) {
+				case EBADF:
+					if (!try) {
+						openredirect(n, memory);
+						try++;
+						goto again;
+					}
+					/* FALLTHROUGH*/
+				default:
+					INTON;
+					error("%d: %s", fd, strerror(errno));
+					break;
+				}
+			}
+			if (!try) {
 				sv->renamed[fd] = i;
 				close(fd);
 			}
 			INTON;
-			if (i == EMPTY)
-				error("Out of file descriptors");
 		} else {
 			close(fd);
 		}
-                if (fd == 0)
-                        fd0_redirected++;
-		openredirect(n, memory);
+		if (fd == 0)
+			fd0_redirected++;
+		if (!try)
+			openredirect(n, memory);
 	}
 	if (memory[1])
 		out1 = &memout;
@@ -262,7 +280,7 @@ out:
 
 void
 popredir() {
-	register struct redirtab *rp = redirlist;
+	struct redirtab *rp = redirlist;
 	int i;
 
 	for (i = 0 ; i < 10 ; i++) {
@@ -313,7 +331,7 @@ fd0_redirected_p () {
 
 void
 clearredir() {
-	register struct redirtab *rp;
+	struct redirtab *rp;
 	int i;
 
 	for (rp = redirlist ; rp ; rp = rp->next) {
@@ -335,16 +353,18 @@ clearredir() {
  */
 
 int
-copyfd(from, to) 
+copyfd(from, to)
 	int from;
 	int to;
 {
 	int newfd;
 
 	newfd = fcntl(from, F_DUPFD, to);
-	if (newfd < 0 && errno == EMFILE)
-		return EMPTY;
-	if (newfd < 0)
-		error("%d: %s", from, strerror(errno));
+	if (newfd < 0) {
+		if (errno == EMFILE)
+			return EMPTY;
+		else
+			error("%d: %s", from, strerror(errno));
+	}
 	return newfd;
 }

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.5 1996/08/12 22:14:50 ache Exp $
+ *	$Id: var.c,v 1.6 1996/09/01 10:21:52 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
+static char const sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <unistd.h>
@@ -58,11 +58,11 @@ static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #include "syntax.h"
 #include "options.h"
 #include "mail.h"
-#include "parser.h"
 #include "var.h"
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#include "parser.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -75,6 +75,7 @@ struct varinit {
 	struct var *var;
 	int flags;
 	char *text;
+	void (*func) __P((const char *));
 };
 
 
@@ -94,31 +95,42 @@ struct var vvers;
 #if ATTY
 struct var vterm;
 #endif
+struct var voptind;
 
 const struct varinit varinit[] = {
 #if ATTY
-	{&vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY="},
+	{ &vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
+	  NULL },
 #endif
 #ifndef NO_HISTORY
-	{&vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE="},
+	{ &vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
+	  sethistsize },
 #endif
-	{&vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n"},
-	{&vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL="},
-	{&vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH="},
-	{&vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin"},
+	{ &vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
+	  NULL },
+	{ &vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
+	  NULL },
+	{ &vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
+	  NULL },
+	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin",
+	  changepath },
 	/*
 	 * vps1 depends on uid
 	 */
-	{&vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> "},
+	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	  NULL },
 #if ATTY
-	{&vterm,	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM="},
+	{ &vterm,	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM=",
+	  NULL },
 #endif
-	{NULL,	0,				NULL}
+	{ &voptind,	VSTRFIXED|VTEXTFIXED,		"OPTIND=1",
+	  getoptsreset },
+	{ NULL,	0,				NULL,
+	  NULL }
 };
 
 struct var *vartab[VTABSIZE];
 
-STATIC int unsetvar __P((char *));
 STATIC struct var **hashvar __P((char *));
 STATIC int varequal __P((char *, char *));
 STATIC int localevar __P((char *));
@@ -161,6 +173,7 @@ initvar() {
 			*vpp = vp;
 			vp->text = ip->text;
 			vp->flags = ip->flags;
+			vp->func = ip->func;
 		}
 	}
 	/*
@@ -173,6 +186,33 @@ initvar() {
 		vps1.text = geteuid() ? "PS1=$ " : "PS1=# ";
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
+}
+
+/*
+ * Safe version of setvar, returns 1 on success 0 on failure.
+ */
+
+int
+setvarsafe(name, val, flags)
+	char *name, *val;
+	int flags;
+{
+	struct jmploc jmploc;
+	struct jmploc *volatile savehandler = handler;
+	int err = 0;
+#if __GNUC__
+	/* Avoid longjmp clobbering */
+	(void) &err;
+#endif
+
+	if (setjmp(jmploc.loc))
+		err = 1;
+	else {
+		handler = &jmploc;
+		setvar(name, val, flags);
+	}
+	handler = savehandler;
+	return err;
 }
 
 /*
@@ -264,23 +304,27 @@ setvareq(s, flags)
 	for (vp = *vpp ; vp ; vp = vp->next) {
 		if (varequal(s, vp->text)) {
 			if (vp->flags & VREADONLY) {
-				int len = strchr(s, '=') - s;
+				size_t len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
 			INTOFF;
-			if (vp == &vpath)
-				changepath(s + 5);	/* 5 = strlen("PATH=") */
+
+			if (vp->func && (flags & VNOFUNC) == 0)
+				(*vp->func)(strchr(s, '=') + 1);
+
 			if ((vp->flags & (VTEXTFIXED|VSTACK)) == 0)
 				ckfree(vp->text);
-			vp->flags &=~ (VTEXTFIXED|VSTACK|VUNSET);
+
+			vp->flags &= ~(VTEXTFIXED|VSTACK|VUNSET);
 			vp->flags |= flags;
 			vp->text = s;
+
+			/*
+			 * We could roll this to a function, to handle it as
+			 * a regular variable function callback, but why bother?
+			 */
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
-#ifndef NO_HISTORY
-			if (vp == &vhistsize)
-				sethistsize();
-#endif
 			if ((vp->flags & VEXPORT) && localevar(s)) {
 				putenv(s);
 				(void) setlocale(LC_ALL, "");
@@ -294,6 +338,7 @@ setvareq(s, flags)
 	vp->flags = flags;
 	vp->text = s;
 	vp->next = *vpp;
+	vp->func = NULL;
 	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
@@ -455,8 +500,8 @@ shprocvar() {
 
 int
 showvarscmd(argc, argv)
-	int argc;
-	char **argv; 
+	int argc __unused;
+	char **argv __unused;
 {
 	struct var **vpp;
 	struct var *vp;
@@ -479,7 +524,7 @@ showvarscmd(argc, argv)
 int
 exportcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	struct var **vpp;
 	struct var *vp;
@@ -529,8 +574,8 @@ found:;
 
 int
 localcmd(argc, argv)
-	int argc;
-	char **argv; 
+	int argc __unused;
+	char **argv __unused;
 {
 	char *name;
 
@@ -621,7 +666,7 @@ poplocalvars() {
 int
 setvarcmd(argc, argv)
 	int argc;
-	char **argv; 
+	char **argv;
 {
 	if (argc <= 2)
 		return unsetcmd(argc, argv);
@@ -641,8 +686,8 @@ setvarcmd(argc, argv)
 
 int
 unsetcmd(argc, argv)
-	int argc;
-	char **argv; 
+	int argc __unused;
+	char **argv __unused;
 {
 	char **ap;
 	int i;
@@ -673,7 +718,7 @@ unsetcmd(argc, argv)
  * Unset the specified variable.
  */
 
-STATIC int
+int
 unsetvar(s)
 	char *s;
 	{
@@ -692,7 +737,7 @@ unsetvar(s)
 				unsetenv(s);
 				setlocale(LC_ALL, "");
 			}
-			vp->flags &=~ VEXPORT;
+			vp->flags &= ~VEXPORT;
 			vp->flags |= VUNSET;
 			if ((vp->flags & VSTRFIXED) == 0) {
 				if ((vp->flags & VTEXTFIXED) == 0)
@@ -716,13 +761,13 @@ unsetvar(s)
 
 STATIC struct var **
 hashvar(p)
-	register char *p;
+	char *p;
 	{
 	unsigned int hashval;
 
-	hashval = ((unsigned char)*p) << 4;
+	hashval = ((unsigned char) *p) << 4;
 	while (*p && *p != '=')
-		hashval += (unsigned char)*p++;
+		hashval += (unsigned char) *p++;
 	return &vartab[hashval % VTABSIZE];
 }
 
@@ -736,7 +781,7 @@ hashvar(p)
 
 STATIC int
 varequal(p, q)
-	register char *p, *q;
+	char *p, *q;
 	{
 	while (*p == *q++) {
 		if (*p++ == '=')
