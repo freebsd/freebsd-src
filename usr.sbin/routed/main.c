@@ -114,7 +114,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmpAtT:F:P:")) != EOF) {
+	while ((n = getopt(argc, argv, "sqdghmAtT:F:P:")) != EOF) {
 		switch (n) {
 		case 's':
 			supplier = 1;
