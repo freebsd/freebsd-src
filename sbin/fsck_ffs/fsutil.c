@@ -264,6 +264,8 @@ rwerror(mesg, blk)
 	ufs_daddr_t blk;
 {
 
+	if (bkgrdcheck)
+		exit(EEXIT);
 	if (preen == 0)
 		printf("\n");
 	pfatal("CANNOT %s: %ld", mesg, blk);
@@ -645,10 +647,10 @@ pfatal(fmt, va_alist)
 	va_start(ap);
 #endif
 	if (!preen) {
-		(void)vfprintf(stderr, fmt, ap);
+		(void)vfprintf(stdout, fmt, ap);
 		va_end(ap);
 		if (usedsoftdep)
-			(void)fprintf(stderr,
+			(void)fprintf(stdout,
 			    "\nUNEXPECTED SOFT UPDATE INCONSISTENCY\n");
 		/*
 		 * Force foreground fsck to clean up inconsistency.
@@ -659,7 +661,7 @@ pfatal(fmt, va_alist)
 			if (sysctlbyname("vfs.ffs.setflags", 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				pwarn("CANNOT SET FS_NEEDSFSCK FLAG\n");
-			fprintf(stderr, "CANNOT RUN IN BACKGROUND\n");
+			fprintf(stdout, "CANNOT RUN IN BACKGROUND\n");
 			ckfini(0);
 			exit(EEXIT);
 		}
@@ -667,9 +669,9 @@ pfatal(fmt, va_alist)
 	}
 	if (cdevname == NULL)
 		cdevname = "fsck";
-	(void)fprintf(stderr, "%s: ", cdevname);
-	(void)vfprintf(stderr, fmt, ap);
-	(void)fprintf(stderr,
+	(void)fprintf(stdout, "%s: ", cdevname);
+	(void)vfprintf(stdout, fmt, ap);
+	(void)fprintf(stdout,
 	    "\n%s: UNEXPECTED%sINCONSISTENCY; RUN fsck MANUALLY.\n",
 	    cdevname, usedsoftdep ? " SOFT UPDATE " : " ");
 	/*
@@ -706,8 +708,8 @@ pwarn(fmt, va_alist)
 	va_start(ap);
 #endif
 	if (preen)
-		(void)fprintf(stderr, "%s: ", cdevname);
-	(void)vfprintf(stderr, fmt, ap);
+		(void)fprintf(stdout, "%s: ", cdevname);
+	(void)vfprintf(stdout, fmt, ap);
 	va_end(ap);
 }
 
@@ -730,7 +732,7 @@ panic(fmt, va_alist)
 	va_start(ap);
 #endif
 	pfatal("INTERNAL INCONSISTENCY:");
-	(void)vfprintf(stderr, fmt, ap);
+	(void)vfprintf(stdout, fmt, ap);
 	va_end(ap);
 	exit(EEXIT);
 }

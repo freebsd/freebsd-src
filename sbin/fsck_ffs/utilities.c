@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <ctype.h>
 #include <fstab.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -64,11 +65,20 @@ blockcheck(origname)
 	char *origname;
 {
 	struct stat stslash, stblock, stchar;
-	char *newname, *raw;
+	char *newname, *raw, *cp;
 	struct fstab *fsinfo;
 	int retried = 0, len;
+	static char device[MAXPATHLEN];
 
 	newname = origname;
+	if (stat(newname, &stblock) < 0) {
+		cp = strrchr(newname, '/');
+		if (cp == 0) {
+			(void)snprintf(device, sizeof(device), "%s%s",
+				_PATH_DEV, newname);
+			newname = device;
+		}
+	}
 retry:
 	if (stat(newname, &stblock) < 0) {
 		printf("Can't stat %s: %s\n", newname, strerror(errno));
@@ -90,7 +100,7 @@ retry:
 			printf(
 			    "Can't resolve %s to character special device.\n",
 			    origname);
-			return (0);
+			return (origname);
 		}
 		newname = fsinfo->fs_spec;
 		retried++;

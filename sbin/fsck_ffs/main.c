@@ -63,8 +63,6 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-int returntosingle;
-
 static void usage __P((void));
 static int argtoi __P((int flag, char *req, char *str, int base));
 static int docheck __P((struct fstab *fsp));
@@ -84,7 +82,7 @@ main(argc, argv)
 
 	sync();
 	skipclean = 1;
-	while ((ch = getopt(argc, argv, "b:Bc:dfm:npy")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:dfFm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -107,6 +105,10 @@ main(argc, argv)
 
 		case 'f':
 			skipclean = 0;
+			break;
+
+		case 'F':
+			bkgrdcheck = 1;
 			break;
 
 		case 'm':
@@ -154,7 +156,7 @@ main(argc, argv)
 		(void)setrlimit(RLIMIT_DATA, &rlimit);
 	}
 	while (argc-- > 0)
-		(void)checkfilesys(blockcheck(*argv++), 0, 0L, 0);
+		(void)checkfilesys(*argv++, 0, 0L, 0);
 
 	if (returntosingle)
 		ret = 2;
@@ -193,15 +195,46 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	struct zlncnt *zlnp;
 	ufs_daddr_t blks;
 	ufs_daddr_t files;
-	int cylno;
+	int cylno, size;
 
 	if (preen && child)
 		(void)signal(SIGQUIT, voidquit);
 	cdevname = filesys;
 	if (debug && preen)
 		pwarn("starting\n");
+	/*
+	 * Make best effort to get the disk name. Check first to see
+	 * if it is listed among the mounted filesystems. Failing that
+	 * check to see if it is listed in /etc/fstab.
+	 */
+	mntp = getmntpt(filesys);
+	if (mntp != NULL)
+		filesys = mntp->f_mntfromname;
+	else
+		filesys = blockcheck(filesys);
+	/*
+	 * If -F flag specified, check to see whether a background check
+	 * is possible and needed. If possible and needed, exit with
+	 * status zero. Otherwise exit with status non-zero. A non-zero
+	 * exit status will cause a foreground check to be run.
+	 */
 	sblock_init();
-
+	if (bkgrdcheck) {
+		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
+			exit(3);	/* Cannot read superblock */
+		close(fsreadfd);
+		if (sblock.fs_flags & FS_NEEDSFSCK)
+			exit(4);	/* Earlier background failed */
+		if ((sblock.fs_flags & FS_DOSOFTDEP) == 0)
+			exit(5);	/* Not running soft updates */
+		size = MIBSIZE;
+		if (sysctlnametomib("vfs.ffs.adjrefcnt", adjrefcnt, &size) < 0)
+			exit(6);	/* Lacks kernel support */
+		if ((mntp == NULL && sblock.fs_clean == 1) ||
+		    (mntp != NULL && (sblock.fs_flags & FS_UNCLEAN) == 0))
+			exit(7);	/* Filesystem clean, report it now */
+		exit(0);
+	}
 	/*
 	 * If we are to do a background check:
 	 *	Get the mount point information of the filesystem
@@ -209,7 +242,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 *	return created snapshot file
 	 *	if not found, clear bkgrdflag and proceed with normal fsck
 	 */
-	mntp = getmntpt(filesys);
 	if (bkgrdflag) {
 		if (mntp == NULL) {
 			bkgrdflag = 0;
@@ -432,7 +464,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 }
 
 /*
- * Get the directory that the device is mounted on.
+ * Get the mount point information for name.
  */
 static struct statfs *
 getmntpt(name)
@@ -441,27 +473,35 @@ getmntpt(name)
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
 	char *devname;
-	struct statfs *mntbuf;
-	int i, mntsize;
+	struct statfs *mntbuf, *statfsp;
+	int i, mntsize, isdev;
 
-	if (stat(name, &devstat) != 0 ||
-	    !(S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode)))
+	if (stat(name, &devstat) != 0)
 		return (NULL);
+	if (S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode))
+		isdev = 1;
+	else
+		isdev = 0;
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
-		if (strcmp(mntbuf[i].f_fstypename, "ufs") != 0)
-			continue;
-		devname = mntbuf[i].f_mntfromname;
+		statfsp = &mntbuf[i];
+		devname = statfsp->f_mntfromname;
 		if (*devname != '/') {
 			strcpy(device, _PATH_DEV);
 			strcat(device, devname);
-			devname = device;
+			strcpy(statfsp->f_mntfromname, device);
+		}
+		if (isdev == 0) {
+			if (strcmp(name, statfsp->f_mntonname))
+				continue;
+			return (statfsp);
 		}
 		if (stat(devname, &mntdevstat) == 0 &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
-			return (&mntbuf[i]);
+			return (statfsp);
 	}
-	return (NULL);
+	statfsp = NULL;
+	return (statfsp);
 }
 
 static void
