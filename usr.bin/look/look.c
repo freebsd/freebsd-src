@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: look.c,v 1.8 1997/09/15 08:31:20 jkh Exp $";
+	"$Id: look.c,v 1.9 1997/09/15 11:02:10 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -104,7 +104,7 @@ main(argc, argv)
 	char *argv[];
 {
 	struct stat sb;
-	int ch, fd, termchar;
+	int ch, fd, termchar, match;
 	unsigned char *back, *file, *front, *string, *p;
 
 	(void) setlocale(LC_CTYPE, "");
@@ -129,31 +129,31 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	switch (argc) {
-	case 2:				/* Don't set -df for user. */
-		string = *argv++;
-		file = *argv;
-		break;
-	case 1:				/* But set -df by default. */
-		dflag = fflag = 1;
-		string = *argv;
-		break;
-	default:
+	if (argc == 0)
 		usage();
-	}
+	if (argc == 1) 			/* But set -df by default. */
+		dflag = fflag = 1;
+	string = *argv++;
+	if (argc >= 2)
+		file = *argv++;
 
 	if (termchar != '\0' && (p = strchr(string, termchar)) != NULL)
 		*++p = '\0';
+	match = 1;
 
-	if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
-		err(2, "%s", file);
-	if (sb.st_size > SIZE_T_MAX)
-		errx(2, "%s: %s", file, strerror(EFBIG));
-	if ((front = mmap(NULL,
-	    (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
-		err(2, "%s", file);
-	back = front + sb.st_size;
-	exit(look(string, front, back));
+	do {
+		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
+			err(2, "%s", file);
+		if (sb.st_size > SIZE_T_MAX)
+			errx(2, "%s: %s", file, strerror(EFBIG));
+		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
+			err(2, "%s", file);
+		back = front + sb.st_size;
+		match *= (look(string, front, back));
+		close(fd);
+	} while (argc-- > 2 && (file = *argv++));
+
+	exit(match);
 }
 
 int
@@ -334,6 +334,6 @@ compare(s1, s2, back)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: look [-df] [-t char] string [file]\n");
+	(void)fprintf(stderr, "usage: look [-df] [-t char] string [file ...]\n");
 	exit(2);
 }
