@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.165 1998/05/06 12:01:16 jkh Exp $
+ * $Id: menus.c,v 1.166 1998/05/24 20:01:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1337,7 +1337,7 @@ DMenu MenuSysconsKeymap = {
       { "Icelandic (accent)", "Icelandic ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso.acc" },
       { "Icelandic",	"Icelandic ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso" },
       { "Italian",	"Italian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=it.iso" },
-      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer.iso" },
+      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer" },
       { "Japanese 106",	"Japanese 106 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.106" },
       { "Norway ISO",	"Norwegian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=norwegian.iso" },
       { "Russia CP866",	"Russian CP866 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.cp866" },
