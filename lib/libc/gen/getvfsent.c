@@ -4,8 +4,6 @@
  * This file is in the public domain.
  */
 
-#define _OLD_VFSCONF
-
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -18,6 +16,10 @@
 #include <stdio.h>
 #include <errno.h>
 #include <paths.h>
+
+/* XXX hide some compatibility problems. */
+#undef getvfsbyname
+#define vfsconf		ovfsconf
 
 #define _PATH_MODLOAD	"/sbin/modload"	/* XXX should be in header file */
 
