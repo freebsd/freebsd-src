@@ -228,7 +228,7 @@ based clones.  SMC Elite Ultra is also supported.
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
-DEC DC21040, DC21041, or DC21140 based NICs (SMC???? DE???)
+DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
 Fujitsu MB86960A/MB86965A
 
@@ -511,4 +511,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.8 1996/06/11 15:39:53 jkh Exp $
+$Id: relnotes.hlp,v 1.9 1996/06/27 07:13:45 jkh Exp $
