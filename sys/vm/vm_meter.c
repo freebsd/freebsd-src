@@ -104,21 +104,21 @@ vmmeter()
 		wakeup(&proc0);
 }
 
-SYSCTL_INT(_vm, VM_V_FREE_MIN, v_free_min,
+SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &cnt.v_free_min, 0, "");
-SYSCTL_INT(_vm, VM_V_FREE_TARGET, v_free_target,
+SYSCTL_UINT(_vm, VM_V_FREE_TARGET, v_free_target,
 	CTLFLAG_RW, &cnt.v_free_target, 0, "");
-SYSCTL_INT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
+SYSCTL_UINT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
 	CTLFLAG_RW, &cnt.v_free_reserved, 0, "");
-SYSCTL_INT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
+SYSCTL_UINT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
 	CTLFLAG_RW, &cnt.v_inactive_target, 0, "");
-SYSCTL_INT(_vm, VM_V_CACHE_MIN, v_cache_min,
+SYSCTL_UINT(_vm, VM_V_CACHE_MIN, v_cache_min,
 	CTLFLAG_RW, &cnt.v_cache_min, 0, "");
-SYSCTL_INT(_vm, VM_V_CACHE_MAX, v_cache_max,
+SYSCTL_UINT(_vm, VM_V_CACHE_MAX, v_cache_max,
 	CTLFLAG_RW, &cnt.v_cache_max, 0, "");
-SYSCTL_INT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
+SYSCTL_UINT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
-SYSCTL_INT(_vm, OID_AUTO, v_free_severe,
+SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
 	CTLFLAG_RW, &cnt.v_free_severe, 0, "");
 
 SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, 
@@ -229,85 +229,85 @@ SYSCTL_NODE(_vm, OID_AUTO, stats, CTLFLAG_RW, 0, "VM meter stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, sys, CTLFLAG_RW, 0, "VM meter sys stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0, "VM meter vm stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO,
+SYSCTL_UINT(_vm_stats_sys, OID_AUTO,
 	v_swtch, CTLFLAG_RD, &cnt.v_swtch, 0, "Context switches");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO,
+SYSCTL_UINT(_vm_stats_sys, OID_AUTO,
 	v_trap, CTLFLAG_RD, &cnt.v_trap, 0, "Traps");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO,
+SYSCTL_UINT(_vm_stats_sys, OID_AUTO,
 	v_syscall, CTLFLAG_RD, &cnt.v_syscall, 0, "Syscalls");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO, v_intr, CTLFLAG_RD,
+SYSCTL_UINT(_vm_stats_sys, OID_AUTO, v_intr, CTLFLAG_RD,
     &cnt.v_intr, 0, "Hardware interrupts");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO, v_soft, CTLFLAG_RD, 
+SYSCTL_UINT(_vm_stats_sys, OID_AUTO, v_soft, CTLFLAG_RD, 
     &cnt.v_soft, 0, "Software interrupts");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_vm_faults, CTLFLAG_RD, &cnt.v_vm_faults, 0, "VM faults");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_cow_faults, CTLFLAG_RD, &cnt.v_cow_faults, 0, "COW faults");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_cow_optim, CTLFLAG_RD, &cnt.v_cow_optim, 0, "Optimized COW faults");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_zfod, CTLFLAG_RD, &cnt.v_zfod, 0, "Zero fill");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_ozfod, CTLFLAG_RD, &cnt.v_ozfod, 0, "Optimized zero fill");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_swapin, CTLFLAG_RD, &cnt.v_swapin, 0, "Swapin operations");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_swapout, CTLFLAG_RD, &cnt.v_swapout, 0, "Swapout operations");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_swappgsin, CTLFLAG_RD, &cnt.v_swappgsin, 0, "Swapin pages");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_swappgsout, CTLFLAG_RD, &cnt.v_swappgsout, 0, "Swapout pages");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_vnodein, CTLFLAG_RD, &cnt.v_vnodein, 0, "Vnodein operations");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_vnodeout, CTLFLAG_RD, &cnt.v_vnodeout, 0, "Vnodeout operations");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_vnodepgsin, CTLFLAG_RD, &cnt.v_vnodepgsin, 0, "Vnodein pages");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_vnodepgsout, CTLFLAG_RD, &cnt.v_vnodepgsout, 0, "Vnodeout pages");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_intrans, CTLFLAG_RD, &cnt.v_intrans, 0, "In transit page blocking");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_reactivated, CTLFLAG_RD, &cnt.v_reactivated, 0, "Reactivated pages");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_pdwakeups, CTLFLAG_RD, &cnt.v_pdwakeups, 0, "Pagedaemon wakeups");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_pdpages, CTLFLAG_RD, &cnt.v_pdpages, 0, "Pagedaemon page scans");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_dfree, CTLFLAG_RD, &cnt.v_dfree, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_pfree, CTLFLAG_RD, &cnt.v_pfree, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_tfree, CTLFLAG_RD, &cnt.v_tfree, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_page_size, CTLFLAG_RD, &cnt.v_page_size, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_page_count, CTLFLAG_RD, &cnt.v_page_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_free_reserved, CTLFLAG_RD, &cnt.v_free_reserved, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_free_target, CTLFLAG_RD, &cnt.v_free_target, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_free_min, CTLFLAG_RD, &cnt.v_free_min, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_free_count, CTLFLAG_RD, &cnt.v_free_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_wire_count, CTLFLAG_RD, &cnt.v_wire_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_active_count, CTLFLAG_RD, &cnt.v_active_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_inactive_target, CTLFLAG_RD, &cnt.v_inactive_target, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_inactive_count, CTLFLAG_RD, &cnt.v_inactive_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_cache_count, CTLFLAG_RD, &cnt.v_cache_count, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_cache_min, CTLFLAG_RD, &cnt.v_cache_min, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_cache_max, CTLFLAG_RD, &cnt.v_cache_max, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_pageout_free_min, CTLFLAG_RD, &cnt.v_pageout_free_min, 0, "");
-SYSCTL_INT(_vm_stats_vm, OID_AUTO,
+SYSCTL_UINT(_vm_stats_vm, OID_AUTO,
 	v_interrupt_free_min, CTLFLAG_RD, &cnt.v_interrupt_free_min, 0, "");
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	zero_page_count, CTLFLAG_RD, &vm_page_zero_count, 0, "");
