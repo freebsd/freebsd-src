@@ -101,6 +101,8 @@ int
 update_form(struct form *form)
 {
 
+	show_form(form);
+
 	switch (form->field[form->current_field].type) {
 		case F_MENU:
 			field_menu(form);
@@ -114,8 +116,6 @@ update_form(struct form *form)
 		case F_TEXT:
 		default:
 	}
-
-	show_form(form);
 
 	return (done);
 }
@@ -379,11 +379,11 @@ field_input(struct form *form)
 		if (field->field.input->lbl_flag) {
 			field->field.input->lbl_flag = 0;
 		}
-		if (ch == F_CHOME) {
+		if ((ch == F_CHOME) || (ch == '')) {
 				disp_off = 0;
 				cursor = 0;
 				abspos = 0;
-		} else if (ch == F_CEND) {
+		} else if ((ch == F_CEND) || (ch == '')) {
 				disp_off = DISPOFF;
 				abspos = len;
 				cursor = CURSPOS;
@@ -396,7 +396,7 @@ field_input(struct form *form)
 						len - abspos);
 				--len;
 			}
-		} else if ((ch == F_CLEFT) || (ch == F_CBS)) {
+		} else if ((ch == F_CLEFT) || (ch == F_CBS) || (ch == '')) {
 			if (!abspos)
 				beep();
 			else {
@@ -413,7 +413,7 @@ field_input(struct form *form)
 					++cursor;
 				}
 			}
-		} else if (ch == F_CRIGHT) {
+		} else if ((ch == F_CRIGHT) || (ch == '')) {
 			if (abspos == len)
 				beep();
 			else {
