@@ -37,18 +37,16 @@
 rain \- animated raindrops display
 .SH SYNOPSIS
 rain
+[ \-d delay ]
 .SH DESCRIPTION
 .PP
 .ad b
 .IR Rain 's
 display is modeled after the VAX/VMS program of the same name.
-The terminal has to be set for 9600 baud to obtain the proper effect.
-.PP
-As with all programs that use
-.IR termcap ,
-the TERM environment
-variable must be set (and exported) to the type of the terminal being used.
-.SH FILES
-/etc/termcap
+To obtain the proper effect, either the terminal must be set for 9600
+baud or the
+.Fl d
+option must be used to specify a delay, in milliseconds, between each
+update.  A reasonable delay is 120; the default is 0.
 .SH AUTHOR
 Eric P. Scott
