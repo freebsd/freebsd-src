@@ -44,21 +44,25 @@ unsigned long
 ___runetype(c)
 	__ct_rune_t c;
 {
-	int x;
+	size_t lim;
 	_RuneRange *rr = &_CurrentRuneLocale->runetype_ext;
-	_RuneEntry *re = rr->ranges;
+	_RuneEntry *base, *re;
 
 	if (c < 0 || c == EOF)
 		return(0L);
 
-	for (x = 0; x < rr->nranges; ++x, ++re) {
-		if (c < re->min)
-			return(0L);
-		if (c <= re->max) {
+	/* Binary search -- see bsearch.c for explanation. */
+	base = rr->ranges;
+	for (lim = rr->nranges; lim != 0; lim >>= 1) {
+		re = base + (lim >> 1);
+		if (re->min <= c && c <= re->max) {
 			if (re->types)
 			    return(re->types[c - re->min]);
 			else
 			    return(re->map);
+		} else if (c > re->max) {
+			base = re + 1;
+			lim--;
 		}
 	}
 
