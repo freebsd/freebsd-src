@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.289 1998/09/17 01:00:23 asami Exp $
+#	$Id: bsd.port.mk,v 1.290 1998/09/17 01:22:05 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -92,6 +92,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # NO_CDROM		- Port may not go on CDROM.
 # NO_PACKAGE	- Port should not be packaged but distfiles can be put on
 #				  ftp sites and CDROMs.
+# BROKEN_ELF	- Port doesn't build on ELF machines.
 # BROKEN		- Port is broken.
 #
 # This variable is a boolean, so you don't need to set it to the reason.
@@ -575,6 +576,7 @@ MAKE_ENV+=		PREFIX=${PREFIX} LOCALBASE=${LOCALBASE} X11BASE=${X11BASE} MOTIFLIB=
 
 .if exists(/usr/bin/fetch)
 FETCH_CMD?=		/usr/bin/fetch
+#FETCH_BEFORE_ARGS+=	$${CKSIZE:+-S $$CKSIZE}
 .else
 FETCH_CMD?=		/usr/bin/ftp
 .endif
@@ -979,6 +981,8 @@ _MANPAGES:=	${_MANPAGES:S/$/.gz/}
 # Don't build a port if it's restricted and we don't want to get
 # into that.
 #
+# Don't build a port on an ELF machine if it's broken for ELF.
+#
 # Don't build a port if it's broken.
 ################################################################
 
@@ -1016,6 +1020,8 @@ IGNORE=	"is restricted: ${RESTRICTED}"
 IGNORE=	"defines NO_CONFIGURE, which is obsoleted"
 .elif defined(NO_PATCH)
 IGNORE=	"defines NO_PATCH, which is obsoleted"
+.elif (defined(BROKEN_ELF) && (${PORTOBJFORMAT} == "elf"))
+IGNORE=	"is broken for ELF: ${BROKEN_ELF}"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
@@ -1152,6 +1158,8 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
+				DIR=${DIST_SUBDIR}; \
+				CKSIZE=`${GREP} "^SIZE ($${DIR:+$$DIR/}$$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 				if ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} ${FETCH_AFTER_ARGS}; then \
 					continue 2; \
 				fi \
@@ -1174,6 +1182,8 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${PATCH_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
+				DIR=${DIST_SUBDIR}; \
+				CKSIZE=`${GREP} "^SIZE ($${DIR:+$$DIR/}$$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 				if ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} ${FETCH_AFTER_ARGS}; then \
 					continue 2; \
 				fi \
@@ -1373,7 +1383,7 @@ _PORT_USE: .USE
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch-depends
 .endif
 .if make(real-extract)
-	@cd ${.CURDIR} && ${MAKE} checksum
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} checksum REAL_EXTRACT=yes
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
 .endif
 .if make(real-install)
@@ -1596,7 +1606,7 @@ pre-distclean:
 .if !target(distclean)
 distclean: pre-distclean clean
 	@${ECHO_MSG} "===>  Dist cleaning for ${PKGNAME}"
-	@(if [ -d ${_DISTDIR} ]; then \
+	@(if [ "X${DISTFILES}${PATCHFILES}" != "X" -a -d ${_DISTDIR} ]; then \
 		cd ${_DISTDIR}; \
 		${RM} -f ${DISTFILES} ${PATCHFILES}; \
 	fi)
@@ -1614,6 +1624,8 @@ fetch-list:
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${MASTER_SITES}; do \
+				DIR=${DIST_SUBDIR}; \
+				CKSIZE=`${GREP} "^SIZE ($${DIR:+$$DIR/}$$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 				${ECHO} -n ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} "${FETCH_AFTER_ARGS}" '||' ; \
 					break; \
 			done; \
@@ -1625,6 +1637,8 @@ fetch-list:
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
+				DIR=${DIST_SUBDIR}; \
+				CKSIZE=`${GREP} "^SIZE ($${DIR:+$$DIR/}$$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 				${ECHO} -n ${FETCH_CMD} ${FETCH_BEFORE_ARGS} $${site}$${file} "${FETCH_AFTER_ARGS}" '||' ; \
 					break; \
 			done; \
@@ -1648,9 +1662,15 @@ makesum: fetch
 		${ECHO} "MD5 ($$file) = IGNORE" >> ${MD5_FILE}; \
 	done
 .endif
+# this line goes after the ${MD5} above
+#		echo "SIZE ($$file) = "`wc -c < $$file` >> ${MD5_FILE}; \
+
 
 .if !target(checksum)
-checksum: fetch
+checksum:
+.if !defined(REAL_EXTRACT)
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch
+.endif
 	@if [ ! -f ${MD5_FILE} ]; then \
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
