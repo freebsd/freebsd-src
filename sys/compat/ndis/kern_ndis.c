@@ -902,15 +902,22 @@ ndis_convert_res(arg)
 	ndis_miniport_block	*block;
 	device_t		dev;
 	struct resource_list	*brl;
+	struct resource_list_entry	*brle;
+#if __FreeBSD_version < 600022
 	struct resource_list	brl_rev;
-	struct resource_list_entry	*brle, *n;
+	struct resource_list_entry	*n;
+#endif
 	int 			error = 0;
 
 	sc = arg;
 	block = sc->ndis_block;
 	dev = sc->ndis_dev;
 
+#if __FreeBSD_version < 600022
 	SLIST_INIT(&brl_rev);
+#else
+	STAILQ_INIT(&brl_rev);
+#endif
 
 	rl = malloc(sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1)),
@@ -928,6 +935,7 @@ ndis_convert_res(arg)
 
 	if (brl != NULL) {
 
+#if __FreeBSD_version < 600022
 		/*
 		 * We have a small problem. Some PCI devices have
 		 * multiple I/O ranges. Windows orders them starting
@@ -954,6 +962,9 @@ ndis_convert_res(arg)
 		}
 
 		SLIST_FOREACH(brle, &brl_rev, link) {
+#else
+		STAILQ_FOREACH(brle, &brl, link) {
+#endif
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
@@ -994,11 +1005,13 @@ ndis_convert_res(arg)
 
 bad:
 
+#if __FreeBSD_version < 600022
 	while (!SLIST_EMPTY(&brl_rev)) {
 		n = SLIST_FIRST(&brl_rev);
 		SLIST_REMOVE_HEAD(&brl_rev, link);
 		free (n, M_TEMP);
 	}
+#endif
 
 	return(error);
 }

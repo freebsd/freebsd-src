@@ -196,7 +196,11 @@ ndis_attach_pci(dev)
 
 	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
 	if (rl != NULL) {
+#if __FreeBSD_version < 600022
+		SLIST_FOREACH(rle, rl, link) {
+#else
 		STAILQ_FOREACH(rle, rl, link) {
+#endif
 			switch (rle->type) {
 			case SYS_RES_IOPORT:
 				sc->ndis_io_rid = rle->rid;
