@@ -95,6 +95,7 @@ __RCSID("$FreeBSD$");
 #else
 #include <varargs.h>
 #endif
+#include <unistd.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
@@ -161,8 +162,6 @@ MainParseArgs(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	char *p;
 	int c;
 
