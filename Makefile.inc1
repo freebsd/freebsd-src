@@ -159,7 +159,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 #
 # Building a world goes through the following stages
 #
-# 1. libbuild stage [BMAKE]
+# 1. legacy stage [BMAKE]
 #	This stage is responsible for creating compatibility
 #	shims that are needed by the bootstrap-tools,
 #	build-tools and cross-tools stages.
@@ -281,15 +281,15 @@ _worldtmp:
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _dir in lib include/sys
-	mkdir -p ${WORLDTMP}/build/usr/${_dir}
+.for _dir in lib include include/sys
+	mkdir -p ${WORLDTMP}/legacy/usr/${_dir}
 .endfor
-_libbuild:
+_legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 1: libbuild"
+	@echo ">>> stage 1: legacy release compatibility shims"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} libbuild
+	cd ${.CURDIR}; ${BMAKE} legacy
 _bootstrap-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -350,7 +350,7 @@ everything:
 
 WMAKE_TGTS=
 .if !defined(SUBDIR_OVERRIDE)
-WMAKE_TGTS+=	_worldtmp _libbuild _bootstrap-tools
+WMAKE_TGTS+=	_worldtmp _legacy _bootstrap-tools
 .endif
 WMAKE_TGTS+=	_cleanobj _obj _build-tools
 .if !defined(SUBDIR_OVERRIDE)
@@ -618,16 +618,20 @@ installmost:
 #
 
 #
-# libbuild: Build compatibility shims for the next three targets
+# legacy: Build compatibility shims for the next three targets
 #
-libbuild:
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_strfile=	games/fortune/strfile
+.endif
+
+legacy:
 .for _tool in tools/build
 	@${ECHODIR} "===> ${_tool}"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
 	    ${MAKE} DIRPRFX=${_tool}/ depend; \
 	    ${MAKE} DIRPRFX=${_tool}/ all; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/build install
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
 #

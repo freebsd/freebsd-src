@@ -9,10 +9,10 @@
 CFLAGS+=	-D__FBSDID=__RCSID
 .endif
 
-CFLAGS+=	-I${WORLDTMP}/build/usr/include
-DPADD=		${WORLDTMP}/build/usr/lib/libbuild.a
-LDADD=		-lbuild
-LDFLAGS=	-L${WORLDTMP}/build/usr/lib
+CFLAGS+=	-I${WORLDTMP}/legacy/usr/include
+DPADD=		${WORLDTMP}/legacy/usr/lib/libegacy.a
+LDADD=		-legacy
+LDFLAGS=	-L${WORLDTMP}/legacy/usr/lib
 
 OLD_MAKE_CONF?=	/etc/make.conf
 .if exists(${OLD_MAKE_CONF})
