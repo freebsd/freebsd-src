@@ -2087,13 +2087,18 @@ nosys(td, args)
  * stored credentials rather than those of the current process.
  */
 void
-pgsigio(sigio, sig, checkctty)
-	struct sigio *sigio;
+pgsigio(sigiop, sig, checkctty)
+	struct sigio **sigiop;
 	int sig, checkctty;
 {
-	if (sigio == NULL)
-		return;
+	struct sigio *sigio;
 
+	SIGIO_LOCK();
+	sigio = *sigiop;
+	if (sigio == NULL) {
+		SIGIO_UNLOCK();
+		return;
+	}
 	if (sigio->sio_pgid > 0) {
 		PROC_LOCK(sigio->sio_proc);
 		if (CANSIGIO(sigio->sio_ucred, sigio->sio_proc->p_ucred))
@@ -2112,6 +2117,7 @@ pgsigio(sigio, sig, checkctty)
 		}
 		PGRP_UNLOCK(sigio->sio_pgrp);
 	}
+	SIGIO_UNLOCK();
 }
 
 static int

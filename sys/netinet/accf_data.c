@@ -30,11 +30,9 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 
 /* accept filter that holds a socket until data arrives */
 
@@ -59,15 +57,11 @@ static void
 sohasdata(struct socket *so, void *arg, int waitflag)
 {
 
-	SIGIO_SLOCK();
-	if (!soreadable(so)) {
-		SIGIO_SUNLOCK();
+	if (!soreadable(so))
 		return;
-	}
 
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
 	soisconnected_locked(so);
-	SIGIO_SUNLOCK();
 	return;
 }

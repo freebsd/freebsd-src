@@ -39,7 +39,6 @@
 #include <sys/domain.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -47,7 +46,6 @@
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -149,10 +147,8 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
-	SIGIO_SLOCK();
 	soisconnected_locked(so);
 	so->so_options |= SO_USELOOPBACK;
-	SIGIO_SUNLOCK();
 	splx(s);
 	return 0;
 }

@@ -198,7 +198,7 @@ logtimeout(void *arg)
 	msgbuftrigger = 0;
 	selwakeup(&logsoftc.sc_selp);
 	if ((logsoftc.sc_state & LOG_ASYNC) && logsoftc.sc_sigio != NULL)
-		pgsigio(logsoftc.sc_sigio, SIGIO, 0);
+		pgsigio(&logsoftc.sc_sigio, SIGIO, 0);
 	if (logsoftc.sc_state & LOG_RDWAIT) {
 		wakeup((caddr_t)msgbufp);
 		logsoftc.sc_state &= ~LOG_RDWAIT;

@@ -63,6 +63,7 @@
 #include <sys/event.h>
 #include <sys/sx.h>
 #include <sys/socketvar.h>
+#include <sys/signalvar.h>
 
 #include <machine/limits.h>
 
@@ -113,7 +114,7 @@ struct filelist filehead;	/* head of list of open files */
 int nfiles;			/* actual number of open files */
 extern int cmask;	
 struct sx filelist_lock;	/* sx to protect filelist */
-struct sx sigio_lock;		/* sx to protect pointers to sigio */
+struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 
 /*
  * System calls on descriptors.
@@ -536,14 +537,14 @@ void
 funsetown(sigio)
 	struct sigio *sigio;
 {
-	int s;
 
-	if (sigio == NULL)
+	SIGIO_LOCK();
+	if (sigio == NULL) {
+		SIGIO_UNLOCK();
 		return;
-
-	s = splhigh();
+	}
 	*(sigio->sio_myref) = NULL;
-	splx(s);
+	SIGIO_UNLOCK();
 	if ((sigio)->sio_pgid < 0) {
 		struct pgrp *pg = (sigio)->sio_pgrp;
 		PGRP_LOCK(pg);
@@ -566,7 +567,6 @@ void
 funsetownlst(sigiolst)
 	struct sigiolst *sigiolst;
 {
-	int s;
 	struct sigio *sigio;
 	struct proc *p;
 	struct pgrp *pg;
@@ -591,9 +591,9 @@ funsetownlst(sigiolst)
 	}
 
 	while ((sigio = SLIST_FIRST(sigiolst)) != NULL) {
-		s = splhigh();
+		SIGIO_LOCK();
 		*(sigio->sio_myref) = NULL;
-		splx(s);
+		SIGIO_UNLOCK();
 		if (pg != NULL) {
 			KASSERT(sigio->sio_pgid < 0, ("Proc sigio in pgrp sigio list"));
 			KASSERT(sigio->sio_pgrp == pg, ("Bogus pgrp in sigio list"));
@@ -632,7 +632,7 @@ fsetown(pgid, sigiop)
 	struct proc *proc;
 	struct pgrp *pgrp;
 	struct sigio *sigio;
-	int s, ret;
+	int ret;
 
 	if (pgid == 0) {
 		funsetown(*sigiop);
@@ -706,9 +706,9 @@ fsetown(pgid, sigiop)
 		PGRP_UNLOCK(pgrp);
 	}
 	sx_sunlock(&proctree_lock);
-	s = splhigh();
+	SIGIO_LOCK();
 	*sigiop = sigio;
-	splx(s);
+	SIGIO_UNLOCK();
 	return (0);
 
 fail:
@@ -2187,5 +2187,5 @@ filelistinit(dummy)
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	sx_init(&filelist_lock, "filelist lock");
-	sx_init(&sigio_lock, "sigio lock");
+	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 }

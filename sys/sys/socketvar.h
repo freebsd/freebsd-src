@@ -283,27 +283,21 @@ struct xsocket {
 			} while(0)
 
 #define	sorwakeup_locked(so)	do {						\
-					SIGIO_ASSERT(SX_SLOCKED); /* XXX */	\
 					if (sb_notify(&(so)->so_rcv))		\
 						sowakeup((so), &(so)->so_rcv);	\
 				} while (0)
 
 #define	sorwakeup(so)		do {						\
-					SIGIO_SLOCK();				\
 					sorwakeup_locked(so);			\
-					SIGIO_SUNLOCK();			\
 				} while (0)
 
 #define	sowwakeup_locked(so)	do {						\
-					SIGIO_ASSERT(SX_SLOCKED); /* XXX */	\
 					if (sb_notify(&(so)->so_snd))		\
 						sowakeup((so), &(so)->so_snd);	\
 				} while (0)
 
 #define	sowwakeup(so)		do {						\
-					SIGIO_SLOCK();				\
 					sowwakeup_locked(so);			\
-					SIGIO_SUNLOCK();			\
 				} while (0)
 
 #ifdef _KERNEL

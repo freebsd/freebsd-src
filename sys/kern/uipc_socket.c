@@ -1527,7 +1527,7 @@ sohasoutofband(so)
 	register struct socket *so;
 {
 	if (so->so_sigio != NULL)
-		pgsigio(so->so_sigio, SIGURG, 0);
+		pgsigio(&so->so_sigio, SIGURG, 0);
 	selwakeup(&so->so_rcv.sb_sel);
 }
 
