@@ -951,7 +951,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The ephemeral port range used for TCP and UDP has been
 	changed to 49152&ndash;65535 (the old default was
 	1024&ndash;5000).  This increases the number of concurrent
-	outgoing connections/streams.</para>
+	outgoing connections/streams. &merged;</para>
     </sect3>
 
     <sect3>
@@ -2819,7 +2819,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	supported by &man.rc.conf.5;. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC8.</para>
+	updated to 3.0.1RC8. &merged;</para>
 
       <para><application>Kerberos IV</application> has been updated to
 	1.0.5. &merged;</para>
@@ -2859,7 +2859,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 4.1.0. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Centaury</quote> release) has been imported,
+        (<quote>Cinchona</quote> release) has been imported,
         replacing
         <application>Linux-PAM</application>.</para>
 
@@ -2877,10 +2877,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">Version 1.4.3 of the
 	<application>smbfs</application> userland utilities have been
 	imported. &merged;</para>
-
-      <para>&man.sort.1; from <application>NetBSD</application> (as of
-	22 March 2002) is now the system sorting program, replacing
-	<application>GNU sort</application>.</para>
 
       <para><application>tcpdump</application> has been updated to
 	3.6.3. &merged;</para>
