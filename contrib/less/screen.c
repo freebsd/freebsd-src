@@ -67,6 +67,7 @@ extern int fd0;
 #endif
 #if OS2
 #include <sys/signal.h>
+#include "pckeys.h"
 #endif
 #if HAVE_SYS_STREAM_H
 #include <sys/stream.h>
@@ -89,6 +90,7 @@ extern int fd0;
 
 #if OS2
 #define	DEFAULT_TERM		"ansi"
+static char *windowid;
 #else
 #define	DEFAULT_TERM		"unknown"
 #endif
@@ -226,6 +228,7 @@ extern int swindow;
 extern int no_init;
 extern int quit_at_eof;
 extern int more_mode;
+extern int no_keypad;
 extern int sigs;
 extern int wscroll;
 extern int screen_trashed;
@@ -422,6 +425,9 @@ raw_mode(on)
 		 */
 		s = save_term;
 	}
+#if HAVE_FSYNC
+	fsync(2);
+#endif
 	tcsetattr(2, TCSADRAIN, &s);
 #if MUST_SET_LINE_DISCIPLINE
 	if (!on)
@@ -711,6 +717,27 @@ scrsize()
 		_scrsize(s);
 		sys_width = s[0];
 		sys_height = s[1];
+		/*
+		 * When using terminal emulators for XFree86/OS2, the
+		 * _scrsize function does not work well.
+		 * Call the scrsize.exe program to get the window size.
+		 */
+		windowid = getenv("WINDOWID");
+		if (windowid != NULL)
+		{
+			FILE *fd = popen("scrsize", "rt");
+			if (fd != NULL)
+			{
+				int w, h;
+				fscanf(fd, "%i %i", &w, &h);
+				if (w > 0 && h > 0)
+				{
+					sys_width = w;
+					sys_height = h;
+				}
+				pclose(fd);
+			}
+		}
 	}
 #else
 #ifdef TIOCGWINSZ
@@ -834,7 +861,7 @@ special_key_str(key)
 {
 	static char tbuf[40];
 	char *s;
-#if MSDOS_COMPILER
+#if MSDOS_COMPILER || OS2
 	static char k_right[]		= { '\340', PCK_RIGHT, 0 };
 	static char k_left[]		= { '\340', PCK_LEFT, 0  };
 	static char k_ctl_right[]	= { '\340', PCK_CTL_RIGHT, 0  };
@@ -851,12 +878,56 @@ special_key_str(key)
 	static char k_pagedown[]	= { '\340', PCK_PAGEDOWN, 0 };
 	static char k_pageup[]		= { '\340', PCK_PAGEUP, 0 };
 	static char k_f1[]		= { '\340', PCK_F1, 0 };
-#else
+#endif
+#if !MSDOS_COMPILER
 	char *sp = tbuf;
 #endif
 
 	switch (key)
 	{
+#if OS2
+	/*
+	 * If windowid is not NULL, assume less is executed in 
+	 * the XFree86 environment.
+	 */
+	case SK_RIGHT_ARROW:
+		s = windowid ? ltgetstr("kr", &sp) : k_right;
+		break;
+	case SK_LEFT_ARROW:
+		s = windowid ? ltgetstr("kl", &sp) : k_left;
+		break;
+	case SK_UP_ARROW:
+		s = windowid ? ltgetstr("ku", &sp) : k_up;
+		break;
+	case SK_DOWN_ARROW:
+		s = windowid ? ltgetstr("kd", &sp) : k_down;
+		break;
+	case SK_PAGE_UP:
+		s = windowid ? ltgetstr("kP", &sp) : k_pageup;
+		break;
+	case SK_PAGE_DOWN:
+		s = windowid ? ltgetstr("kN", &sp) : k_pagedown;
+		break;
+	case SK_HOME:
+		s = windowid ? ltgetstr("kh", &sp) : k_home;
+		break;
+	case SK_END:
+		s = windowid ? ltgetstr("@7", &sp) : k_end;
+		break;
+	case SK_DELETE:
+		if (windowid)
+		{
+			s = ltgetstr("kD", &sp);
+			if (s == NULL)
+			{
+				tbuf[0] = '\177';
+				tbuf[1] = '\0';
+				s = tbuf;
+			}
+		} else
+			s = k_delete;
+		break;
+#endif
 #if MSDOS_COMPILER
 	case SK_RIGHT_ARROW:
 		s = k_right;
@@ -885,6 +956,8 @@ special_key_str(key)
 	case SK_DELETE:
 		s = k_delete;
 		break;
+#endif
+#if MSDOS_COMPILER || OS2
 	case SK_INSERT:
 		s = k_insert;
 		break;
@@ -1437,21 +1510,15 @@ win32_deinit_term()
 	public void
 init()
 {
-	if (no_init)
-	{
-#if MSDOS_COMPILER==WIN32C
-		/* no_init or not, never trash win32 console colors. */
-		initcolor();
-		flush();
-#endif
-		return;
-	}
 #if !MSDOS_COMPILER
-	tputs(sc_init, sc_height, putchr);
-	tputs(sc_s_keypad, sc_height, putchr);
+	if (!no_init)
+		tputs(sc_init, sc_height, putchr);
+	if (!no_keypad)
+		tputs(sc_s_keypad, sc_height, putchr);
 #else
 #if MSDOS_COMPILER==WIN32C
-	win32_init_term();
+	if (!no_init)
+		win32_init_term();
 #endif
 	initcolor();
 	flush();
@@ -1465,24 +1532,22 @@ init()
 	public void
 deinit()
 {
-	if (no_init)
-	{
-#if MSDOS_COMPILER==WIN32C
-		/* no_init or not, never trash win32 console colors. */
-		SETCOLORS(sy_fg_color, sy_bg_color);
-#endif
-		return;
-	}
-
 	if (!init_done)
 		return;
 #if !MSDOS_COMPILER
-	tputs(sc_e_keypad, sc_height, putchr);
-	tputs(sc_deinit, sc_height, putchr);
+	if (!no_keypad)
+		tputs(sc_e_keypad, sc_height, putchr);
+	if (!no_init)
+		tputs(sc_deinit, sc_height, putchr);
 #else
+	/* Restore system colors. */
 	SETCOLORS(sy_fg_color, sy_bg_color);
 #if MSDOS_COMPILER==WIN32C
-	win32_deinit_term();
+	if (!no_init)
+		win32_deinit_term();
+#else
+	/* Need clreol to make SETCOLORS take effect. */
+	clreol();
 #endif
 #endif
 	init_done = 0;
@@ -1558,6 +1623,7 @@ add_line()
 #endif
 }
 
+#if 0
 /*
  * Remove the n topmost lines and scroll everything below it in the 
  * window upward.  This is needed to stop leaking the topmost line 
@@ -1611,6 +1677,105 @@ remove_top(n)
 	goto_line(sc_height - n - 1);
 #endif
 }
+#endif
+
+#if MSDOS_COMPILER==WIN32C
+/*
+ * Clear the screen.
+ */
+	static void
+win32_clear()
+{
+	/*
+	 * This will clear only the currently visible rows of the NT
+	 * console buffer, which means none of the precious scrollback
+	 * rows are touched making for faster scrolling.  Note that, if
+	 * the window has fewer columns than the console buffer (i.e.
+	 * there is a horizontal scrollbar as well), the entire width
+	 * of the visible rows will be cleared.
+	 */
+	COORD topleft;
+	DWORD nchars;
+	DWORD winsz;
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+	/* get the number of cells in the current buffer */
+	GetConsoleScreenBufferInfo(con_out, &csbi);
+	winsz = csbi.dwSize.X * (csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+	topleft.X = 0;
+	topleft.Y = csbi.srWindow.Top;
+
+	curr_attr = MAKEATTR(nm_fg_color, nm_bg_color);
+	FillConsoleOutputCharacter(con_out, ' ', winsz, topleft, &nchars);
+	FillConsoleOutputAttribute(con_out, curr_attr, winsz, topleft, &nchars);
+}
+
+/*
+ * Remove the n topmost lines and scroll everything below it in the 
+ * window upward.
+ */
+	public void
+win32_scroll_up(n)
+	int n;
+{
+	SMALL_RECT rcSrc, rcClip;
+	CHAR_INFO fillchar;
+	COORD topleft;
+	COORD new_org;
+	DWORD nchars;
+	DWORD size;
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+	if (n <= 0)
+		return;
+
+	if (n >= sc_height - 1)
+	{
+		win32_clear();
+		_settextposition(1,1);
+		return;
+	}
+
+	/* Get the extent of what will remain visible after scrolling. */
+	GetConsoleScreenBufferInfo(con_out, &csbi);
+	rcSrc.Left    = csbi.srWindow.Left;
+	rcSrc.Top     = csbi.srWindow.Top + n;
+	rcSrc.Right   = csbi.srWindow.Right;
+	rcSrc.Bottom  = csbi.srWindow.Bottom;
+
+	/* Get the clip rectangle. */
+	rcClip.Left   = rcSrc.Left;
+	rcClip.Top    = csbi.srWindow.Top;
+	rcClip.Right  = rcSrc.Right;
+	rcClip.Bottom = rcSrc.Bottom ;
+
+	/* Move the source text to the top of the screen. */
+	new_org.X = rcSrc.Left;
+	new_org.Y = 0;
+
+	/* Fill the right character and attributes. */
+	fillchar.Char.AsciiChar = ' ';
+	fillchar.Attributes = MAKEATTR(nm_fg_color, nm_bg_color);
+
+	/* Scroll the window. */
+	SetConsoleTextAttribute(con_out, fillchar.Attributes);
+	ScrollConsoleScreenBuffer(con_out, &rcSrc, &rcClip, new_org, &fillchar);
+
+	/* Clear remaining lines at bottom. */
+	topleft.X = csbi.dwCursorPosition.X;
+	topleft.Y = rcSrc.Bottom - n;
+	size = (n * csbi.dwSize.X) + (rcSrc.Right - topleft.X);
+	FillConsoleOutputCharacter(con_out, ' ', size, topleft,
+		&nchars);
+	FillConsoleOutputAttribute(con_out, fillchar.Attributes, size, topleft,
+		&nchars);
+	SetConsoleTextAttribute(con_out, curr_attr);
+
+	/* Move cursor n lines up from where it was. */
+	csbi.dwCursorPosition.Y -= n;
+	SetConsoleCursorPosition(con_out, csbi.dwCursorPosition);
+}
+#endif
 
 /*
  * Move cursor to lower left corner of screen.
@@ -1806,7 +1971,7 @@ vbell()
 beep()
 {
 #if !MSDOS_COMPILER
-	putchr('\7');
+	putchr(CONTROL('G'));
 #else
 #if MSDOS_COMPILER==WIN32C
 	MessageBeep(0);
@@ -1839,30 +2004,7 @@ clear()
 #else
 	flush();
 #if MSDOS_COMPILER==WIN32C
-	/*
-	 * This will clear only the currently visible rows of the NT
-	 * console buffer, which means none of the precious scrollback
-	 * rows are touched making for faster scrolling.  Note that, if
-	 * the window has fewer columns than the console buffer (i.e.
-	 * there is a horizontal scrollbar as well), the entire width
-	 * of the visible rows will be cleared.
-	 */
-    {
-	COORD topleft;
-	DWORD nchars;
-	DWORD winsz;
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-
-	/* get the number of cells in the current buffer */
-	GetConsoleScreenBufferInfo(con_out, &csbi);
-	winsz = csbi.dwSize.X * (csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
-	topleft.X = 0;
-	topleft.Y = csbi.srWindow.Top;
-
-	curr_attr = MAKEATTR(nm_fg_color, nm_bg_color);
-	FillConsoleOutputCharacter(con_out, ' ', winsz, topleft, &nchars);
-	FillConsoleOutputAttribute(con_out, curr_attr, winsz, topleft, &nchars);
-    }
+	win32_clear();
 #else
 	_clearscreen(_GCLEARSCREEN);
 #endif
