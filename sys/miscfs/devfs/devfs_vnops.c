@@ -1305,9 +1305,7 @@ devfs_open( struct vop_open_args *ap)
 	int error;
 	dn_p	dnp;
 	struct cdevsw *dsw;
-	dev_t bdev, dev = vp->v_rdev;
-	struct vnode *bvp;
-
+	dev_t dev = vp->v_rdev;
 
 	if ((error = devfs_vntodn(vp,&dnp)) != 0)
 		return error;
