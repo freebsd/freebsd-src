@@ -102,20 +102,20 @@ would be
 .Bl -tag -width indent
 .It Ic move Xo
 .Ar <from ET> <from EU> <to ET> <to EU>
-.Op inv
+.Op Cm inv
 .Xc
 Move the media unit from
 .Ar <from ET/EU>
 to
 .Ar <to ET/EU> .
 If the optional modifier
-.Dq inv
+.Cm inv
 is specified, the media unit will be inverted before insertion.
 .It Ic exchange Xo
 .Ar <src ET> <src EU> <dst1 ET> <dst1 EU>
 .Op Ar <dst2 ET> <dst2 ET>
-.Op inv1
-.Op inv2
+.Op Cm inv1
+.Op Cm inv2
 .Xc
 Perform a media unit exchange operation.  The media unit in
 .Ar <src ET/EU>
@@ -131,9 +131,9 @@ is omitted and the values
 .Ar <src ET/EU>
 are used in their place.
 The optional modifiers
-.Dq inv1
+.Cm inv1
 and
-.Dq inv2
+.Cm inv2
 specify whether the media units are to be inverted before insertion into
 .Ar <dst1 ET/EU>
 and
@@ -155,12 +155,12 @@ to its previous element in the changer.
 .Pp
 .It Ic position Xo
 .Ar <to ET> <to EU>
-.Op inv
+.Op Cm inv
 .Xc
 Position the picker in front of the element described by
 .Ar <to ET/EU> .
 If the optional modifier
-.Dq inv
+.Cm inv
 is specified, the media unit will be inverted before insertion.
 .Pp
 Note that not all changers behave as expected when issued this command.
