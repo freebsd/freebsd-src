@@ -185,7 +185,7 @@ struct sysent sysent[] = {
 	{ 2, (sy_call_t *)fstatfs },			/* 158 = fstatfs */
 	{ 0, (sy_call_t *)nosys },			/* 159 = nosys */
 	{ 0, (sy_call_t *)nosys },			/* 160 = nosys */
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 	{ 2, (sy_call_t *)getfh },			/* 161 = getfh */
 #else
 	{ 0, (sy_call_t *)nosys },			/* 161 = nosys */

@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.6 1995/06/27 11:06:43 dfr Exp $
+ * $Id: nfs_srvcache.c,v 1.7 1995/12/17 21:12:27 phk Exp $
  */
 
+#ifndef NFS_NOSERVER 
 /*
  * Reference: Chet Juszczak, "Improving the Performance and Correctness
  *		of an NFS Server", in Proc. Winter 1989 USENIX Conference,
@@ -336,3 +337,5 @@ nfsrv_cleancache()
 	}
 	numnfsrvcache = 0;
 }
+
+#endif /* NFS_NOSERVER */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.12 1995/12/03 10:02:59 bde Exp $
+ * $Id: nfs_socket.c,v 1.13 1995/12/17 21:12:25 phk Exp $
  */
 
 /*
@@ -143,6 +143,7 @@ static int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
 static int	nfs_reconnect __P((struct nfsreq *rep));
 static int	nfsrv_getstream __P((struct nfssvc_sock *,int));
 
+#ifndef NFS_NOSERVER 
 int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 				    struct nfssvc_sock *slp,
 				    struct proc *procp,
@@ -174,6 +175,7 @@ int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 	nfsrv_noop,
 	nfsrv_noop
 };
+#endif /* NFS_NOSERVER */
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -715,6 +717,7 @@ nfs_reply(myrep)
 		nfsm_dissect(tl, u_long *, 2*NFSX_UNSIGNED);
 		rxid = *tl++;
 		if (*tl != rpc_reply) {
+#ifndef NFS_NOSERVER
 			if (nmp->nm_flag & NFSMNT_NQNFS) {
 				if (nqnfs_callback(nmp, mrep, md, dpos))
 					nfsstats.rpcinvalid++;
@@ -722,6 +725,10 @@ nfs_reply(myrep)
 				nfsstats.rpcinvalid++;
 				m_freem(mrep);
 			}
+#else
+			nfsstats.rpcinvalid++;
+			m_freem(mrep);
+#endif
 nfsmout:
 			if (myrep->r_flags & R_GETONEREP)
 				return (0);
@@ -1104,6 +1111,7 @@ nfsmout:
 	return (error);
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Generate the rpc reply header
  * siz arg. is used to decide if adding a cluster is worthwhile
@@ -1256,6 +1264,7 @@ nfs_rephead(siz, nd, slp, err, cache, frev, mrq, mbp, bposp)
 	return (0);
 }
 
+
 /*
  * Nfs timer routine
  * Scan the nfsreq list and retranmit any requests that have timed out
@@ -1385,6 +1394,8 @@ nfs_timer(arg)
 	splx(s);
 	timeout(nfs_timer, (void *)0, nfs_ticks);
 }
+
+#endif /* NFS_NOSERVER */
 
 /*
  * Test for a termination condition pending on the process.
@@ -1593,6 +1604,7 @@ nfs_realign(m, hsiz)
 	}
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
@@ -2145,6 +2157,7 @@ nfsrv_wakenfsd(slp)
 	slp->ns_flag |= SLP_DOREC;
 	nfsd_head_flag |= NFSD_CHECKSLP;
 }
+#endif /* NFS_NOSERVER */
 
 static int
 nfs_msg(p, server, msg)

@@ -494,7 +494,7 @@ struct	fstatfs_args {
 	int fd;
 	struct statfs * buf;
 };
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 struct	getfh_args {
 	char * fname;
 	fhandle_t * fhp;
@@ -824,7 +824,7 @@ int	nfssvc __P((struct proc *, struct nfssvc_args *, int []));
 #endif
 int	statfs __P((struct proc *, struct statfs_args *, int []));
 int	fstatfs __P((struct proc *, struct fstatfs_args *, int []));
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 int	getfh __P((struct proc *, struct getfh_args *, int []));
 #else
 #endif
@@ -995,7 +995,7 @@ struct	ogetdirentries_args {
 	u_int count;
 	long * basep;
 };
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 #else
 #endif
 #ifdef LFS
