@@ -81,5 +81,8 @@ extern vm_map_t exech_map;
 extern vm_map_t u_map;
 
 extern vm_offset_t kernel_vm_end;
+/* XXX - elsewhere? */
+extern void *contigmalloc1(u_long, int, int, u_long, u_long, u_long, u_long,
+			   vm_map_t);
 
 #endif				/* _VM_VM_KERN_H_ */

@@ -1271,7 +1271,7 @@ vm_page_test_dirty(m)
  * for statistics and for allocations of less than a page.
  */
 void *
-contigmalloc(size, type, flags, low, high, alignment, boundary)
+contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
 	unsigned long size;	/* should be size_t here and for malloc() */
 	int type;
 	int flags;
@@ -1279,6 +1279,7 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 	unsigned long high;
 	unsigned long alignment;
 	unsigned long boundary;
+	vm_map_t map;
 {
 	int i, s, start;
 	vm_offset_t addr, phys, tmp_addr;
@@ -1429,7 +1430,7 @@ again1:
 		 * Allocate kernel VM, unfree and assign the physical pages to it and
 		 * return kernel VM pointer.
 		 */
-		tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
+		tmp_addr = addr = kmem_alloc_pageable(map, size);
 		if (addr == 0) {
 			/*
 			 * XXX We almost never run out of kernel virtual
@@ -1454,6 +1455,20 @@ again1:
 	return NULL;
 }
 
+void *
+contigmalloc(size, type, flags, low, high, alignment, boundary)
+	unsigned long size;	/* should be size_t here and for malloc() */
+	int type;
+	int flags;
+	unsigned long low;
+	unsigned long high;
+	unsigned long alignment;
+	unsigned long boundary;
+{
+	return contigmalloc1(size, type, flags, low, high, alignment, boundary,
+			     kernel_map);
+}
+
 vm_offset_t
 vm_page_alloc_contig(size, low, high, alignment)
 	vm_offset_t size;
@@ -1461,8 +1476,8 @@ vm_page_alloc_contig(size, low, high, alignment)
 	vm_offset_t high;
 	vm_offset_t alignment;
 {
-	return ((vm_offset_t)contigmalloc(size, M_DEVBUF, M_NOWAIT, low, high,
-					  alignment, 0ul));
+	return ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
+					  alignment, 0ul, kernel_map));
 }
 
 #include "opt_ddb.h"
