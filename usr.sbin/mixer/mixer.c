@@ -217,8 +217,14 @@ main(int argc, char *argv[])
 			else if (r > 100)
 				r = 100;
 
-			printf("Setting the mixer %s to %d:%d.\n", names[dev],
-			    l, r);
+			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
+				warn("MIXER_READ");
+				argc--; argv++;
+				continue;
+			}
+
+			printf("Setting the mixer %s from %d:%d to %d:%d.\n",
+			    names[dev], bar & 0x7f, (bar >> 8) & 0x7f, l, r);
 
 			l |= r << 8;
 			if (ioctl(baz, MIXER_WRITE(dev), &l) == -1)
