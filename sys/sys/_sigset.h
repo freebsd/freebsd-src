@@ -39,7 +39,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS__SIGSET_H_
+#ifndef _SYS__SIGSET_H_
 #define	_SYS__SIGSET_H_
 
 /*
@@ -53,7 +53,7 @@
 #define	_SIG_VALID(sig)	((sig) <= _SIG_MAXSIG && (sig) > 0)
 
 typedef struct __sigset {
-	unsigned int	__bits[_SIG_WORDS];
+	__uint32_t __bits[_SIG_WORDS];
 } sigset_t;
 
-#endif	/* !_SYS__SIGSET_H_ */
+#endif /* !_SYS__SIGSET_H_ */
