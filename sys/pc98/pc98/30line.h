@@ -106,6 +106,7 @@ static void gdc_wait_vsync(void);
 static int check_gdc_clock(void);
 
 static int gdc_INFO = _25L;
+static int gdc_FH = _24KHZ;
 static void initialize_gdc(unsigned int, int);
 
 static unsigned int master_param[2][2][8] = {
