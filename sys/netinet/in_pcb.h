@@ -149,6 +149,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 
 #ifdef KERNEL
 void	in_losing __P((struct inpcb *));
+void	in_rtchange __P((struct inpcb *, int));
 int	in_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
 int	in_pcbbind __P((struct inpcb *, struct sockaddr *, struct proc *));
 int	in_pcbconnect __P((struct inpcb *, struct sockaddr *, struct proc *));
@@ -165,6 +166,8 @@ struct inpcb *
 	    struct in_addr, u_int, struct in_addr, u_int, int));
 void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
+void	in_pcbnotifyall __P((struct inpcbhead *, struct sockaddr *,
+	    int, void (*)(struct inpcb *, int)));
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
