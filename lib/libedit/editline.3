@@ -87,8 +87,8 @@
 .Fn history_init
 .Ft void
 .Fn history_end "History *h"
-.Ft HistEvent *
-.Fn history "History h" "int op" "..."
+.Ft const HistEvent *
+.Fn history "History *h" "int op" "..."
 .Sh DESCRIPTION
 The
 .Nm
@@ -529,4 +529,4 @@ should not modify the supplied
 .Va argv[0] .
 .Pp
 The tokenization functions are not publically defined in
-.Fd <histedit.h>
+.Li <histedit.h> .
