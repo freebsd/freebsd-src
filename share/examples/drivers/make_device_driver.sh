@@ -15,6 +15,10 @@
 #
 # Trust me, RUN THIS SCRIPT :)
 #
+# TODO:
+#   o generate foo_isa.c, foo_pci.c, foo_pccard.c, foo_cardbus.c, and foovar.h
+#   o Put pccard stuff in here.
+#
 # $FreeBSD$"
 #
 #
@@ -171,6 +175,9 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #define SOME_PORT 123
 #define EXPECTED_VALUE 0x42
 
+#define DEV2SOFTC(dev)	((struct ${1}_softc *) (dev)->si_drv1)
+#define DEVICE2SOFTC(dev) ((struct ${1}_softc *) device_get_softc(dev))
+
 /* 
  * device specific Misc defines 
  */
@@ -199,14 +206,11 @@ struct ${1}_softc {
 	char	buffer[BUFFERSIZE];	/* if we needed to buffer something */
 } ;
 
-typedef	struct ${1}_softc *sc_p;
-
-
 /* Function prototypes (these should all be static) */
 static int ${1}_deallocate_resources(device_t device);
 static int ${1}_allocate_resources(device_t device);
-static int ${1}_attach(device_t device, sc_p scp);
-static int ${1}_detach(device_t device, sc_p scp);
+static int ${1}_attach(device_t device, struct ${1}_softc *scp);
+static int ${1}_detach(device_t device, struct ${1}_softc *scp);
 
 static d_open_t		${1}open;
 static d_close_t	${1}close;
@@ -237,9 +241,11 @@ static struct cdevsw ${1}_cdevsw = {
 
 static devclass_t ${1}_devclass;
  
-/*****************************************\
-* ISA Attachment structures and functions
-\*****************************************/
+/*
+ *****************************************
+ * ISA Attachment structures and functions
+ *****************************************
+ */
 static void ${1}_isa_identify (driver_t *, device_t);
 static int ${1}_isa_probe (device_t);
 static int ${1}_isa_attach (device_t);
@@ -270,6 +276,11 @@ DRIVER_MODULE(${1}, isa, ${1}_isa_driver, ${1}_devclass, 0, 0);
 
 /*
  * Here list some port addresses we might expect our widget to appear at:
+ * This list should only be used for cards that have some non-destructive
+ * (to other cards) way of probing these address.  Otherwise the driver
+ * should not go looking for instances of itself, but instead rely on
+ * the hints file.  Strange failures for people with other cards might
+ * result.
  */
 static struct localhints {
 	int ioport;
@@ -307,6 +318,8 @@ static struct localhints {
  *
  * For PNP devices:
  * If the device is always PNP capable then this function can be removed.
+ * The ISA PNP system will have automatically added it to the system and
+ * so your identify routine needn't do anything.
  *
  * If the device is mentionned in the 'hints' file then this
  * function can be removed. All devices mentionned in the hints
@@ -361,8 +374,10 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 #endif
 	}
 #if 0
-	Do some smart probing (e.g. like the lnc driver)
-	and add a child for each one found.
+	/*
+	 * Do some smart probing (e.g. like the lnc driver)
+	 * and add a child for each one found.
+	 */
 #endif
 
 	return;
@@ -381,7 +396,7 @@ ${1}_isa_probe (device_t device)
 {
 	int error;
 	device_t parent = device_get_parent(device);
-	sc_p scp = device_get_softc(device);
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 	u_long	port_start, port_count;
 
 
@@ -515,8 +530,8 @@ errexit:
 static int
 ${1}_isa_attach (device_t device)
 {
-	sc_p	scp	= device_get_softc(device);
         int	error;
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_attach(device, scp);
         if (error) {
@@ -534,16 +549,18 @@ ${1}_isa_attach (device_t device)
 static int
 ${1}_isa_detach (device_t device)
 {
-	sc_p	scp	= device_get_softc(device);
         int	error;
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_detach(device, scp);
         return (error);
 }
 
-/***************************************\
-* PCI Attachment structures and code	*
-\***************************************/
+/*
+ ***************************************
+ * PCI Attachment structures and code
+ ***************************************
+ */
 
 static int	${1}_pci_probe	__P((device_t));
 static int	${1}_pci_attach	__P((device_t));
@@ -565,6 +582,11 @@ static driver_t ${1}_pci_driver = {
 
 
 DRIVER_MODULE(${1}, pci, ${1}_pci_driver, ${1}_devclass, 0, 0);
+/*
+ * Cardbus is a pci bus plus extra, so use the pci driver unless special
+ * things need to be done only in the cardbus case.
+ */
+DRIVER_MODULE(${1}, cardbus, ${1}_pci_driver, ${1}_devclass, 0, 0);
 
 static struct _pcsid
 {
@@ -572,14 +594,14 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] = {
 	{ 0x1234abcd,	"ACME PCI Widgetplus"	},
-	{ 0x1234fedc,	"Happy moon brand RIPOFFplus"	},
+	{ 0x1243fedc,	"Happy moon brand RIPOFFplus"	},
 	{ 0x00000000,	NULL					}
 };
 
 /*
  * See if this card is specifically mentionned in our list of known devices.
  * Theoretically we might also put in a weak bid for some devices that
- * report themselves o be some generic type of device if we can handle
+ * report themselves to be some generic type of device if we can handle
  * that generic type. (other PCI_XXX calls give that info).
  * This would allow a specific driver to over-ride us.
  *
@@ -596,7 +618,7 @@ ${1}_pci_probe (device_t device)
 		++ep;
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
-		return 0; /* If there may be a better driver, return -2 */
+		return 0; /* If there might be a better driver, return -2 */
 	} else {
 		return ENXIO;
 	}
@@ -605,8 +627,8 @@ ${1}_pci_probe (device_t device)
 static int
 ${1}_pci_attach(device_t device)
 {
-	sc_p	scp	= device_get_softc(device);
         int	error;
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_attach(device, scp);
         if (error) {
@@ -618,22 +640,24 @@ ${1}_pci_attach(device_t device)
 static int
 ${1}_pci_detach (device_t device)
 {
-	sc_p	scp	= device_get_softc(device);
         int	error;
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
         error =  ${1}_detach(device, scp);
         return (error);
 }
 
 
-/****************************************\
-*  Common Attachment subfunctions	*
-\****************************************/
+/*
+ ****************************************
+ *  Common Attachment subfunctions
+ ****************************************
+ */
 static int
-${1}_attach(device_t device, sc_p scp)
+${1}_attach(device_t device, struct ${1}_softc * scp)
 {
-	int	unit	= device_get_unit(device);
 	device_t parent	= device_get_parent(device);
+	int	unit	= device_get_unit(device);
 
 	scp->dev = make_dev(&${1}_cdevsw, 0,
 			UID_ROOT, GID_OPERATOR, 0600, "${1}%d", unit);
@@ -650,12 +674,14 @@ ${1}_attach(device_t device, sc_p scp)
 	/*
 	 * The type should be one of:
 	 *	INTR_TYPE_TTY
-	 *	(INTR_TYPE_TTY | INTR_TYPE_FAST) 
-	 *	INTR_TYPE_BIO 
-	 *	INTR_TYPE_CAM 
-	 *	INTR_TYPE_NET 
-	 *	INTR_TYPE_MISC 
-	 * This will probably change with SMPng.
+	 *	INTR_TYPE_BIO
+	 *	INTR_TYPE_CAM
+	 *	INTR_TYPE_NET
+	 *	INTR_TYPE_MISC
+	 * This will probably change with SMPng.  INTR_TYPE_FAST may be
+	 * or'd into this type to mark the interrupt fast.  However, fast
+	 * interrupts cannot be shared at all so special precautions are
+	 * necessary when coding fast interrutp routines.
 	 */
 	if (scp->res_irq) {
 		/* default to the tty mask for registration */  /* XXX */
@@ -670,6 +696,10 @@ ${1}_attach(device_t device, sc_p scp)
 	/*
 	 * If we want to access the memory we will need
 	 * to know where it was mapped.
+	 *
+	 * Use of this function is discouraged, however.  You should
+	 * be accessing the device with the bus_space API if at all
+	 * possible.
 	 */
 	scp->vaddr = rman_get_virtual(scp->res_memory);
 	return 0;
@@ -683,7 +713,7 @@ errexit:
 }
 
 static int
-${1}_detach(device_t device, sc_p scp)
+${1}_detach(device_t device, struct ${1}_softc *scp)
 {
 	device_t parent = device_get_parent(device);
 
@@ -692,6 +722,11 @@ ${1}_detach(device_t device, sc_p scp)
 	 * to make sure it is stopped safely. The alternative is to 
 	 * simply REFUSE to detach if it's busy. What you do depends on 
 	 * your specific situation.
+	 *
+	 * Sometimes the parent bus will detach you anyway, even if you
+	 * are busy.  You must cope with that possibility.  Your hardware
+	 * might even already be gone in the case of cardbus or pccard
+	 * devices.
 	 */
 	/* ZAP some register */
 
@@ -719,7 +754,7 @@ static int
 ${1}_allocate_resources(device_t device)
 {
 	int error;
-	sc_p scp = device_get_softc(device);
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 	int	size = 16; /* SIZE of port range used */
 
 	scp->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
@@ -757,7 +792,7 @@ errexit:
 static int
 ${1}_deallocate_resources(device_t device)
 {
-	sc_p scp = device_get_softc(device);
+	struct ${1}_softc *scp = DEVICE2SOFTC(device);
 
 	if (scp->res_irq != 0) {
 		bus_deactivate_resource(device, SYS_RES_IRQ,
@@ -796,10 +831,13 @@ ${1}_deallocate_resources(device_t device)
 static void
 ${1}intr(void *arg)
 {
-	sc_p scp	= arg;
+	struct ${1}_softc *scp = (struct ${1}_softc *) arg;
 
 	/* 
 	 * well we got an interupt, now what?
+	 *
+	 * Make sure that the interrupt routine will always terminate,
+	 * even in the face of "bogus" data from the card.
 	 */
 	return;
 }
@@ -807,7 +845,7 @@ ${1}intr(void *arg)
 static int
 ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
 	switch (cmd) {
 	case DHIOCRESET:
@@ -828,7 +866,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 static int
 ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
 	/* 
 	 * Do processing
@@ -839,7 +877,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 static int
 ${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
 	/* 
 	 * Do processing
@@ -850,7 +888,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
 static int
 ${1}read(dev_t dev, struct uio *uio, int ioflag)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	 toread;
 
 
@@ -865,7 +903,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 static int
 ${1}write(dev_t dev, struct uio *uio, int ioflag)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 	int	towrite;
 
 	/* 
@@ -879,7 +917,7 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 static int
 ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
 	/* 
 	 * Given a byte offset into your device, return the PHYSICAL
@@ -898,7 +936,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 static int
 ${1}poll(dev_t dev, int which, struct proc *p)
 {
-	sc_p scp	= dev->si_drv1;
+	struct ${1}_softc *scp = DEV2SOFTC(dev);
 
 	/* 
 	 * Do processing
