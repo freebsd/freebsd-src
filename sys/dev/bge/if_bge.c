@@ -211,7 +211,6 @@ static void bge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static u_int8_t	bge_eeprom_getbyte	(struct bge_softc *, int, u_int8_t *);
 static int bge_read_eeprom	(struct bge_softc *, caddr_t, int, int);
 
-static uint32_t bge_mchash	(const uint8_t *);
 static void bge_setmulti	(struct bge_softc *);
 
 static void bge_handle_events	(struct bge_softc *);
@@ -1133,27 +1132,6 @@ bge_init_tx_ring(sc)
 	return(0);
 }
 
-#define BGE_POLY	0xEDB88320
-
-static uint32_t
-bge_mchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? BGE_POLY : 0);
-	}
-
-	return(crc & 0x7F);
-}
-
 static void
 bge_setmulti(sc)
 	struct bge_softc *sc;
@@ -1181,7 +1159,8 @@ bge_setmulti(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = bge_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0x7F;
 		hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
 	}
 

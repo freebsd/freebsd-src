@@ -1847,7 +1847,6 @@ gem_setladrf(sc)
 	struct sockaddr_dl *sdl;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
-	u_char *cp;
 	u_int32_t crc;
 	u_int32_t hash[16];
 	u_int32_t v;
@@ -1892,23 +1891,8 @@ gem_setladrf(sc)
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)inm->ifma_addr;
-		cp = LLADDR(sdl);
-		crc = 0xffffffff;
-		for (len = sdl->sdl_alen; --len >= 0;) {
-			int octet = *cp++;
-			int i;
+		crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
 
-#define MC_POLY_LE	0xedb88320UL	/* mcast crc, little endian */
-			for (i = 0; i < 8; i++) {
-				if ((crc & 1) ^ (octet & 1)) {
-					crc >>= 1;
-					crc ^= MC_POLY_LE;
-				} else {
-					crc >>= 1;
-				}
-				octet >>= 1;
-			}
-		}
 		/* Just want the 8 most significant bits. */
 		crc >>= 24;
 

@@ -160,7 +160,6 @@ static int sf_setvlan		(struct sf_softc *, int, u_int32_t);
 #endif
 
 static u_int8_t sf_read_eeprom	(struct sf_softc *, int);
-static uint32_t sf_mchash	(const uint8_t *);
 
 static int sf_miibus_readreg	(device_t, int, int);
 static int sf_miibus_writereg	(device_t, int, int, int);
@@ -259,30 +258,6 @@ csr_write_4(sc, reg, val)
 	return;
 }
 
-static u_int32_t
-sf_mchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc, carry;
-	int idx, bit;
-	uint8_t data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	/* return the filter bit position */
-	return(crc >> 23 & 0x1FF);
-}
-
 /*
  * Copy the address 'mac' into the perfect RX filter entry at
  * offset 'idx.' The perfect filter only has 16 entries so do
@@ -325,12 +300,12 @@ sf_sethash(sc, mac, prio)
 	caddr_t			mac;
 	int			prio;
 {
-	u_int32_t		h = 0;
+	u_int32_t		h;
 
 	if (mac == NULL)
 		return(EINVAL);
 
-	h = sf_mchash(mac);
+	h = ether_crc32_be(mac, ETHER_ADDR_LEN) >> 23;
 
 	if (prio) {
 		SF_SETBIT(sc, SF_RXFILT_HASH_BASE + SF_RXFILT_HASH_PRIOOFF +
