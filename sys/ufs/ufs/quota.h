@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.3 (Berkeley) 8/19/94
- * $Id: quota.h,v 1.10 1997/02/22 09:47:43 peter Exp $
+ * $Id: quota.h,v 1.11 1997/07/13 15:43:54 bde Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_H_
@@ -196,7 +196,7 @@ int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	quotactl __P((const char *, int, int, char *));
+int	quotactl __P((const char *, int, int, void *));
 __END_DECLS
 
 #endif /* KERNEL */
