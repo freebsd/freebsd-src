@@ -213,10 +213,11 @@ parsefile(void)
 static void
 parse_card(void)
 {
-	char   *man, *vers;
+	char   *man, *vers, *tmp;
 	struct card *cp;
 	int     i, iosize;
 	struct card_config *confp, *lastp;
+	struct ether *ether;
 
 	confp = 0;
 	man = newstr(next_tok());
@@ -277,11 +278,22 @@ parse_card(void)
 			break;
 		case KWD_ETHER:
 			/* ether */
-			cp->ether = num_tok();
-			if (cp->ether == -1) {
-				error("illegal ether address offset");
-				cp->ether = 0;
+			ether = xmalloc(sizeof(*ether));
+			ether->type = ETHTYPE_GENERIC;
+			tmp = next_tok();
+			if (strcmp("attr2", tmp) == 0)
+				ether->type = ETHTYPE_ATTR2;
+			else {
+				pusht = 1;
+				ether->value = num_tok();
+				if (ether->value == -1) {
+					error("illegal ether address offset");
+					free(ether);
+					break;
+				}
 			}
+			ether->next = cp->ether;
+			cp->ether = ether;
 			break;
 		case KWD_INSERT:
 			/* insert */
