@@ -11,17 +11,17 @@
 .if !defined(NO_WARNS)
 . if defined(CSTD)
 .  if ${CSTD} == "k&r"
-CFLAGS		+= -traditional
+CFLAGS		+=	-traditional
 .  elif ${CSTD} == "c89" || ${CSTD} == "c90"
-CFLAGS		+= -std=iso9899:1990
+CFLAGS		+=	-std=iso9899:1990
 .  elif ${CSTD} == "c94" || ${CSTD} == "c95"
-CFLAGS		+= -std=iso9899:199409
+CFLAGS		+=	-std=iso9899:199409
 .  elif ${CSTD} == "c99"
-CFLAGS		+= -std=iso9899:1999
+CFLAGS		+=	-std=iso9899:1999
 .  else
-CFLAGS		+= -std=${CSTD}
+CFLAGS		+=	-std=${CSTD}
 .  endif
-CFLAGS		+= -pedantic
+CFLAGS		+=	-pedantic
 . endif
 . if defined(WARNS)
 .  if ${WARNS} > 0
