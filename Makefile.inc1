@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.32 1998/10/11 19:02:27 rnordier Exp $
+#	$Id: Makefile.inc1,v 1.33 1998/10/13 08:13:32 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -602,6 +602,8 @@ _aout_nm	= usr.bin/nm
 _aout_ranlib	= usr.bin/ranlib
 _aout_size	= usr.bin/size
 _aout_strip	= usr.bin/strip
+# boot block/loader tools:
+_btxld		= usr.sbin/btxld
 .endif
 
 #
@@ -824,7 +826,7 @@ build-tools:
 		usr.bin/wc		\
 		usr.bin/xargs		\
 		usr.bin/yacc		\
-		usr.sbin/btxld		\
+		${_btxld}		\
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
 		usr.sbin/zic		\
