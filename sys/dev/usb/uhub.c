@@ -1,9 +1,5 @@
-/*	$NetBSD: uhub.c,v 1.61 2002/10/01 01:25:25 thorpej Exp $	*/
+/*	$NetBSD: uhub.c,v 1.64 2003/02/08 03:32:51 ichiro Exp $	*/
 /*	$FreeBSD$	*/
-
-/* Also already merged from netbsd:
- *	$NetBSD: uhub.c,v 1.64 2003/02/08 03:32:51 ichiro Exp $
- */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -109,7 +105,7 @@ USB_DECLARE_DRIVER(uhub);
 
 /* Create the driver instance for the hub connected to hub case */
 CFATTACH_DECL(uhub_uhub, sizeof(struct uhub_softc),
-    uhub_match, uhub_attach, uhub_detach, uhub_activate)
+    uhub_match, uhub_attach, uhub_detach, uhub_activate);
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
 			DEVMETHOD(bus_driver_added, uhub_driver_added),
