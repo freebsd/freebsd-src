@@ -17,3 +17,8 @@ perl5		markm	wants to be (reasonably) sure that commits do
 telnet		markm	commits _must_ be made to src/crypto/telnet
 			first, only then to "base" telnet via "make
 			unifdef"
+i386 boot[012]	jhb	Pre-commit review preferred.  Robert Nordier would
+			probably also like to review these as well.
+cdboot		jhb	Pre-commit review requested.
+pxeboot		jhb	Pre-commit review requested.
+witness		jhb	Pre-commit review requested.
