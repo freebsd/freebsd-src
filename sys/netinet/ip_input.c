@@ -722,6 +722,12 @@ ours:
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
 
+		if (maxnipq == 0) {
+                	ipstat.ips_fragments++;
+			ipstat.ips_fragdropped++;
+			goto bad;
+		}
+
 		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
 		/*
 		 * Look for queue of fragments
@@ -739,8 +745,13 @@ ours:
 
 		fp = 0;
 
-		/* check if there's a place for the new queue */
-		if (nipq > maxnipq) {
+		/*
+		 * Enforce upper bound on number of fragmented packets
+		 * for which we attempt reassembly;
+		 * If maxnipq is 0, never accept fragments. (Handled above.)
+		 * If maxnipq is -1, accept all fragments without limitation.
+		 */
+		if ((nipq > maxnipq) && (maxnipq > 0)) {
 		    /*
 		     * drop something from the tail of the current queue
 		     * before proceeding further
@@ -751,11 +762,14 @@ ours:
 			    struct ipq *r = TAILQ_LAST(&ipq[i], ipqhead);
 			    if (r) {
 				ip_freef(&ipq[i], r);
+				ipstat.ips_fragtimeout++;
 				break;
 			    }
 			}
-		    } else
+		    } else {
 			ip_freef(&ipq[sum], q);
+			ipstat.ips_fragtimeout++;
+		    }
 		}
 found:
 		/*
@@ -971,12 +985,6 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
 	if (fp == 0) {
-		/*
-		 * Enforce upper bound on number of fragmented packets
-		 * for which we attempt reassembly;
-		 * If maxfrag is 0, never accept fragments.
-		 * If maxfrag is -1, accept all fragments without limitation.
-		 */
 		if ((t = m_get(M_NOWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
