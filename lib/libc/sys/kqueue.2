@@ -34,12 +34,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/event.h>
 .Ft int
 .Fn kqueue "void"
 .Ft int
-.Fn kevent "int kq" "int nchanges" "struct kevent **changelist" \
-"int nevents" "struct kevent *eventlist" "struct timespec *timeout"
+.Fn kevent "int kq" "int nchanges" "struct kevent **changelist" "int nevents" "struct kevent *eventlist" "struct timespec *timeout"
 .Sh DESCRIPTION
 .Fn kqueue
 provides a generic method of notifying the user when an event
