@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sods.c,v 1.4 1997/02/22 15:46:44 peter Exp $
+ * $Id: sods.c,v 1.5 1997/09/02 21:54:39 jdp Exp $
  */
 
 #include <assert.h>
@@ -435,6 +435,7 @@ static void
 dump_sym(const struct nlist *np)
 {
     char type[8];
+    char aux[8];
     char weak;
     char *p;
 
@@ -479,16 +480,25 @@ dump_sym(const struct nlist *np)
     case N_ECOMM:	strcpy(type, "ecomm");  break;
     case N_ECOML:	strcpy(type, "ecoml");  break;
     case N_LENG:	strcpy(type, "leng");  break;
-    default:		snprintf(type, sizeof type, "0x%02x", np->n_type);
+    default:
+	snprintf(type, sizeof type, "%#02x", np->n_type);
+	break;
     }
 
     if (np->n_type & N_EXT && type[0] != '0')
 	for (p = type;  *p != '\0';  ++p)
 	    *p = toupper(*p);
 
+    switch (N_AUX(np)) {
+    case 0:		strcpy(aux, "");  break;
+    case AUX_OBJECT:	strcpy(aux, "objt");  break;
+    case AUX_FUNC:	strcpy(aux, "func");  break;
+    default:		snprintf(aux, sizeof aux, "%#01x", N_AUX(np));  break;
+    }
+
     weak = N_BIND(np) == BIND_WEAK ? 'w' : ' ';
 
-    printf("%c%-5s %8lx", weak, type, np->n_value);
+    printf("%c%-6s %-4s %8lx", weak, type, aux, np->n_value);
 }
 
 static void
