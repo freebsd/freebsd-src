@@ -25,14 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_dummy.c,v 1.5 1997/02/22 09:38:19 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/resourcevar.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>

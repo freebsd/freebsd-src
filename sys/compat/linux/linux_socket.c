@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: linux_socket.c,v 1.7 1997/02/22 09:38:25 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -34,9 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/proc.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <netinet/in.h>
 
