@@ -228,6 +228,7 @@ void	pmap_setdevram __P((unsigned long long basea, vm_offset_t sizea));
 int	pmap_uses_prom_console __P((void));
 pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
+void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
 unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 void	pmap_set_opt	__P((unsigned *));
