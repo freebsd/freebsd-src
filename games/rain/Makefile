@@ -2,7 +2,7 @@
 
 PROG=	rain
 MAN6=	rain.6
-DPADD=	${LIBCURSES} ${LIBCOMPAT}
-LDADD=	-lcurses -lcompat
+DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
+LDADD=	-ltermcap -lcompat
 
 .include <bsd.prog.mk>
