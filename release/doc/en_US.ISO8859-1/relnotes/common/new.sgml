@@ -602,6 +602,9 @@
       the version in textutils 2.0.21 to the version in textutils
       2.1.</para>
 
+    <para><application>Heimdal Kerberos</application> has been
+      updated from 0.5.1 to 0.6.</para>
+
     <para>The <application>ISC DHCP</application> client has been
       updated from 3.0.1rc11 to 3.0.1rc12.</para>
 
