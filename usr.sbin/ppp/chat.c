@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.52 1998/10/27 22:53:25 brian Exp $
+ *	$Id: chat.c,v 1.53 1999/01/28 01:56:31 brian Exp $
  */
 
 #include <sys/param.h>
@@ -65,6 +65,7 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "cbcp.h"
+#include "command.h"
 #include "datalink.h"
 #ifndef NORADIUS
 #include "radius.h"
@@ -724,11 +725,13 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
 {
   pid_t pid;
   int fids[2];
-  char *vector[MAXARGS], *startout, *endout;
-  int stat, nb;
+  char *argv[MAXARGS], *vector[MAXARGS], *startout, *endout;
+  int stat, nb, argc;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
-  MakeArgs(command, vector, VECSIZE(vector));
+  argc = MakeArgs(command, vector, VECSIZE(vector));
+  command_Expand(argv, argc, (char const *const *)vector,
+                 physical->dl->bundle, 0);
 
   if (pipe(fids) < 0) {
     log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
@@ -749,8 +752,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     else
       fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
     setuid(geteuid());
-    execvp(vector[0], vector);
-    fprintf(stderr, "execvp failed: %s: %s\n", vector[0], strerror(errno));
+    execvp(argv[0], argv);
+    fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
     exit(127);
   } else {
     char *name = strdup(vector[0]);

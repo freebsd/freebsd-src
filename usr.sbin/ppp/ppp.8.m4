@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.145 1999/02/11 10:14:08 brian Exp $
+.\" $Id: ppp.8,v 1.146 1999/02/11 16:34:15 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3262,6 +3262,11 @@ This, of course means that it is possible to execute an entirely external
 command rather than using the internal one.  See
 .Xr chat 8
 for a good alternative.
+.Pp
+The external command that is executed is subjected to the same special
+word expansions as the
+.Dq !bg
+command.
 .It set enddisc Op label|IP|MAC|magic|psn value
 This command sets our local endpoint discriminator.  If set prior to
 LCP negotiation,
