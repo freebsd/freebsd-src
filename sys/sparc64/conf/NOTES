@@ -56,7 +56,6 @@ device		ofw_console	# Open Firmware console device
 option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 
 device		sab		# Siemens SAB82532 based serial ports
-device		zs		# Zilog 8530 based serial ports
 
 
 #####################################################################
