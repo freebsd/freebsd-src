@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.147 1999/01/25 10:19:03 brian Exp $
+ * $Id: main.c,v 1.148 1999/01/28 01:56:33 brian Exp $
  *
  *	TODO:
  */
@@ -239,7 +239,6 @@ CheckLabel(const char *label, struct prompt *prompt, int mode)
   const char *err;
 
   if ((err = system_IsValid(label, prompt, mode)) != NULL) {
-    fprintf(stderr, "You may not use ppp in this mode with this label\n");
     fprintf(stderr, "%s: %s\n", label, err);
     if (mode == PHYS_DIRECT)
       log_Printf(LogWARN, "Label %s rejected -direct connection: %s\n",
@@ -297,10 +296,8 @@ main(int argc, char **argv)
   /* Allow output for the moment (except in direct mode) */
   if (mode == PHYS_DIRECT)
     prompt = NULL;
-  else {
+  else
     SignalPrompt = prompt = prompt_Create(NULL, NULL, PROMPT_STD);
-    prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(mode));
-  }
 
   ID0init();
   if (ID0realuid() != 0) {
@@ -324,6 +321,8 @@ main(int argc, char **argv)
       CheckLabel(argv[arg], prompt, mode);
   else
     CheckLabel("default", prompt, mode);
+
+  prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(mode));
 
   if ((bundle = bundle_Create(TUN_PREFIX, mode, (const char **)argv)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
