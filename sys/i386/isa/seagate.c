@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id$
+ * $Id: seagate.c,v 1.20 1997/02/22 09:37:05 peter Exp $
  */
 
 /*
@@ -132,6 +132,8 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+
+#include "ioconf.h"
 
 #ifdef DEBUG
 #   define PRINT(s)     printf s

@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id$
+ * $Id: aic6360.c,v 1.26 1997/02/22 09:35:55 peter Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -132,6 +132,8 @@
 #include <i386/isa/isa_device.h>
 
 #include <sys/kernel.h>
+
+#include "ioconf.h"
 
 /* Definitions, most of them has turned out to be unneccesary, but here they
  * are anyway.

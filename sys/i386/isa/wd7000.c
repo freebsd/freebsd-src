@@ -71,6 +71,8 @@
 
 #include <i386/isa/isa_device.h>
 
+#include "ioconf.h"
+
 static struct scsi_device wds_dev =
 {
  	NULL,

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id$
+ *      $Id: bt5xx-445.c,v 1.6 1997/02/22 09:35:58 peter Exp $
  */
 
 /*
@@ -39,6 +39,8 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/scsi/btreg.h>
+
+#include "ioconf.h"
 
 static	int bt_isa_probe __P((struct isa_device *dev));
 static	int bt_isa_attach __P((struct isa_device *dev));
