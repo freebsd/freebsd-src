@@ -1,0 +1,31 @@
+.\"
+.\" Written by Jörg Wunsch, placed in the public domain.
+.\"
+.\"      $Id$
+.\"
+.Dd September 29, 1997
+.Os
+.Dt PSROFF 1
+.Sh NAME
+.Nm psroff
+.Nd format and print troff files
+.Sh SYNOPSIS
+.Nm psroff
+.Op Ar files ...
+.Sh DESCRIPTION
+The
+.Nm
+utility formats troff input from
+.Ar files
+(or from standard input if no file name has been given), and sends it
+in PostScript format to a printer.  See the documentation for the
+.Fl l
+option to
+.Xr groff 1
+for how this is done.
+.Sh SEE ALSO
+.Xr groff 1
+.Sh HISTORY
+The
+.Nm
+utility is part of the GNU groff package.
