@@ -81,22 +81,12 @@ extern long pps_errcnt;		/* calibration errors */
 extern long pps_stbcnt;		/* stability limit exceeded */
 #endif /* PPS_SYNC */
 
-int
-ntp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
-	   void *newp, size_t newlen, struct proc *p)
+static int
+ntp_sysctl SYSCTL_HANDLER_ARGS
 {
 	struct timeval atv;
 	struct ntptimeval ntv;
 	int s;
-
-	/* All names at this level are terminal. */
-	if (namelen != 1) {
-		return ENOTDIR;
-	}
-
-	if (name[0] != NTP_PLL_GETTIME) {
-		return EOPNOTSUPP;
-	}
 
 	s = splclock();
 #ifdef EXT_CLOCK
@@ -163,8 +153,13 @@ ntp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	    time_status & (STA_PPSWANDER | STA_PPSERROR)) {
 		ntv.time_state = TIME_ERROR;
 	}
-	return(sysctl_rdstruct(oldp, oldlenp, newp, &ntv, sizeof ntv));
+	return (sysctl_handle_opaque(oidp, &ntv, sizeof ntv, req));
 }
+
+SYSCTL_NODE(_kern, KERN_NTP_PLL, ntp_pll, CTLFLAG_RW, 0,
+	"NTP kernel PLL related stuff");
+SYSCTL_PROC(_kern_ntp_pll, NTP_PLL_GETTIME, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, sizeof(struct ntptimeval) , ntp_sysctl, "");
 
 /*
  * ntp_adjtime() - NTP daemon application interface
