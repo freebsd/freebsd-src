@@ -744,7 +744,7 @@ static int
 ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
                   struct in_addr hisaddr, int silent)
 {
-  struct in_addr mask, oaddr, none = { INADDR_ANY };
+  struct in_addr mask, oaddr;
 
   mask = addr2mask(myaddr);
 
@@ -764,7 +764,7 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
     iface_inDelete(bundle->iface, oaddr);
 
   if (bundle->ncp.ipcp.cfg.sendpipe > 0 || bundle->ncp.ipcp.cfg.recvpipe > 0)
-    bundle_SetRoute(bundle, RTM_CHANGE, hisaddr, myaddr, none, 0, 0);
+    rt_Update(bundle, hisaddr, myaddr);
 
   if (Enabled(bundle, OPT_SROUTES))
     route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr,

@@ -23,13 +23,12 @@
  *
  */
 
-#include <sys/types.h>
-
 #include <ctype.h>
 #ifdef __FreeBSD__
 #include <openssl/des.h>
 #include <sha.h>
 #else
+#include <sys/types.h>
 #include <stdlib.h>
 #include <des.h>
 #include <openssl/sha.h>

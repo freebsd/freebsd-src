@@ -40,6 +40,7 @@
 #include <string.h>
 #include <sys/sysctl.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "layer.h"
 #include "defs.h"
@@ -67,6 +68,7 @@
 #include "route.h"
 #include "prompt.h"
 #include "iface.h"
+#include "id.h"
 
 
 static void
@@ -142,7 +144,7 @@ p_sockaddr(struct prompt *prompt, struct sockaddr *phost,
             sprintf(buf+f*3, "%02x:", MAC[f]);
           buf[f*3-1] = '\0';
         } else
-	  strcpy(buf, "??:??:??:??:??:??");
+          strcpy(buf, "??:??:??:??:??:??");
       } else
         sprintf(buf, "<IFT type %d>", dl->sdl_type);
     }  else if (dl->sdl_slen)
@@ -458,7 +460,7 @@ route_IfDelete(struct bundle *bundle, int all)
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
     log_Printf(LogERROR, "route_IfDelete: sysctl: estimate: %s\n",
-	      strerror(errno));
+              strerror(errno));
     return;
   }
 
@@ -468,7 +470,7 @@ route_IfDelete(struct bundle *bundle, int all)
 
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
     log_Printf(LogERROR, "route_IfDelete: sysctl: getroute: %s\n",
-	      strerror(errno));
+              strerror(errno));
     free(sp);
     return;
   }
@@ -490,18 +492,18 @@ route_IfDelete(struct bundle *bundle, int all)
       route_ParseHdr(rtm, sa);
       if (sa[RTAX_DST] && sa[RTAX_DST]->sa_family == AF_INET) {
         log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
-                  " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
-                  Index2Nam(rtm->rtm_index), rtm->rtm_flags,
-	          inet_ntoa(((struct sockaddr_in *)sa[RTAX_DST])->sin_addr));
+                   " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
+                   Index2Nam(rtm->rtm_index), rtm->rtm_flags,
+                   inet_ntoa(((struct sockaddr_in *)sa[RTAX_DST])->sin_addr));
         if (sa[RTAX_GATEWAY] && rtm->rtm_index == bundle->iface->index &&
-	    (all || (rtm->rtm_flags & RTF_GATEWAY))) {
+            (all || (rtm->rtm_flags & RTF_GATEWAY))) {
           if (sa[RTAX_GATEWAY]->sa_family == AF_INET ||
               sa[RTAX_GATEWAY]->sa_family == AF_LINK) {
             if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
                 (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
               log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n",
                          pass);
-              bundle_SetRoute(bundle, RTM_DELETE, in[RTAX_DST]->sin_addr,
+              rt_Set(bundle, RTM_DELETE, in[RTAX_DST]->sin_addr,
                               sa_none, sa_none, 0, 0);
             } else
               log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
@@ -513,6 +515,67 @@ route_IfDelete(struct bundle *bundle, int all)
       }
     }
   }
+  free(sp);
+}
+
+
+/*
+ *  Update the MTU on all routes for the given interface
+ */
+void
+route_UpdateMTU(struct bundle *bundle)
+{
+  struct rt_msghdr *rtm;
+  struct sockaddr *sa[RTAX_MAX];
+  struct sockaddr_in **in;
+  size_t needed;
+  char *sp, *cp, *ep;
+  int mib[6];
+
+  log_Printf(LogDEBUG, "route_UpdateMTU (%d)\n", bundle->iface->index);
+  in = (struct sockaddr_in **)sa;
+
+  mib[0] = CTL_NET;
+  mib[1] = PF_ROUTE;
+  mib[2] = 0;
+  mib[3] = 0;
+  mib[4] = NET_RT_DUMP;
+  mib[5] = 0;
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    log_Printf(LogERROR, "route_IfDelete: sysctl: estimate: %s\n",
+              strerror(errno));
+    return;
+  }
+
+  sp = malloc(needed);
+  if (sp == NULL)
+    return;
+
+  if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
+    log_Printf(LogERROR, "route_IfDelete: sysctl: getroute: %s\n",
+              strerror(errno));
+    free(sp);
+    return;
+  }
+  ep = sp + needed;
+
+  for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
+    rtm = (struct rt_msghdr *)cp;
+    route_ParseHdr(rtm, sa);
+    if (sa[RTAX_DST] && sa[RTAX_DST]->sa_family == AF_INET &&
+        sa[RTAX_GATEWAY] && /* sa[RTAX_NETMASK] && */
+        rtm->rtm_index == bundle->iface->index &&
+        (sa[RTAX_GATEWAY]->sa_family == AF_INET ||
+         sa[RTAX_GATEWAY]->sa_family == AF_LINK)) {
+      log_Printf(LogTCPIP, "route_UpdateMTU: Netif: %d (%s), dst %s, mtu %d\n",
+                 rtm->rtm_index, Index2Nam(rtm->rtm_index),
+                 inet_ntoa(((struct sockaddr_in *)sa[RTAX_DST])->sin_addr),
+                 bundle->mtu);
+      rt_Update(bundle, in[RTAX_DST]->sin_addr,
+                         in[RTAX_GATEWAY]->sin_addr);
+    }
+  }
+
   free(sp);
 }
 
@@ -541,31 +604,31 @@ route_Change(struct bundle *bundle, struct sticky_route *r,
   for (; r; r = r->next) {
     if ((r->type & ROUTE_DSTMYADDR) && r->dst.s_addr != me.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      rt_Set(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = me;
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_DSTHISADDR) && r->dst.s_addr != peer.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      rt_Set(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = peer;
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_DSTDNS0) && r->dst.s_addr != peer.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      rt_Set(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = dns[0];
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_DSTDNS1) && r->dst.s_addr != peer.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
+      rt_Set(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = dns[1];
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
       r->gw = peer;
-    bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1, 0);
+    rt_Set(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1, 0);
   }
 }
 
@@ -665,4 +728,187 @@ route_ShowSticky(struct prompt *p, struct sticky_route *r, const char *tag,
     else
       prompt_Printf(p, "%s\n", inet_ntoa(r->gw));
   }
+}
+
+struct rtmsg {
+  struct rt_msghdr m_rtm;
+  char m_space[64];
+};
+
+int
+rt_Set(struct bundle *bundle, int cmd, struct in_addr dst,
+                struct in_addr gateway, struct in_addr mask, int bang, int ssh)
+{
+  struct rtmsg rtmes;
+  int s, nb, wb;
+  char *cp;
+  const char *cmdstr;
+  struct sockaddr_in rtdata;
+  int result = 1;
+
+  if (bang)
+    cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
+  else
+    cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
+  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
+  if (s < 0) {
+    log_Printf(LogERROR, "rt_Set: socket(): %s\n", strerror(errno));
+    return result;
+  }
+  memset(&rtmes, '\0', sizeof rtmes);
+  rtmes.m_rtm.rtm_version = RTM_VERSION;
+  rtmes.m_rtm.rtm_type = cmd;
+  rtmes.m_rtm.rtm_addrs = RTA_DST;
+  rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
+  rtmes.m_rtm.rtm_pid = getpid();
+  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+
+  if (cmd == RTM_ADD) {
+    if (bundle->ncp.ipcp.cfg.sendpipe > 0) {
+      rtmes.m_rtm.rtm_rmx.rmx_sendpipe = bundle->ncp.ipcp.cfg.sendpipe;
+      rtmes.m_rtm.rtm_inits |= RTV_SPIPE;
+    }
+    if (bundle->ncp.ipcp.cfg.recvpipe > 0) {
+      rtmes.m_rtm.rtm_rmx.rmx_recvpipe = bundle->ncp.ipcp.cfg.recvpipe;
+      rtmes.m_rtm.rtm_inits |= RTV_RPIPE;
+    }
+  }
+
+  memset(&rtdata, '\0', sizeof rtdata);
+  rtdata.sin_len = sizeof rtdata;
+  rtdata.sin_family = AF_INET;
+  rtdata.sin_port = 0;
+  rtdata.sin_addr = dst;
+
+  cp = rtmes.m_space;
+  memcpy(cp, &rtdata, rtdata.sin_len);
+  cp += rtdata.sin_len;
+  if (cmd == RTM_ADD) {
+    if (gateway.s_addr == INADDR_ANY) {
+      if (!ssh)
+        log_Printf(LogERROR, "rt_Set: Cannot add a route with"
+                   " destination 0.0.0.0\n");
+      close(s);
+      return result;
+    } else {
+      rtdata.sin_addr = gateway;
+      memcpy(cp, &rtdata, rtdata.sin_len);
+      cp += rtdata.sin_len;
+      rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+    }
+  }
+
+  if (dst.s_addr == INADDR_ANY)
+    mask.s_addr = INADDR_ANY;
+
+  if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
+    rtdata.sin_addr = mask;
+    memcpy(cp, &rtdata, rtdata.sin_len);
+    cp += rtdata.sin_len;
+    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
+  }
+
+  nb = cp - (char *)&rtmes;
+  rtmes.m_rtm.rtm_msglen = nb;
+  wb = ID0write(s, &rtmes, nb);
+  if (wb < 0) {
+    log_Printf(LogTCPIP, "rt_Set failure:\n");
+    log_Printf(LogTCPIP, "rt_Set:  Cmd = %s\n", cmdstr);
+    log_Printf(LogTCPIP, "rt_Set:  Dst = %s\n", inet_ntoa(dst));
+    log_Printf(LogTCPIP, "rt_Set:  Gateway = %s\n",
+               inet_ntoa(gateway));
+    log_Printf(LogTCPIP, "rt_Set:  Mask = %s\n", inet_ntoa(mask));
+failed:
+    if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
+                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
+      if (!bang) {
+        log_Printf(LogWARN, "Add route failed: %s already exists\n",
+		  dst.s_addr == 0 ? "default" : inet_ntoa(dst));
+        result = 0;	/* Don't add to our dynamic list */
+      } else {
+        rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
+        if ((wb = ID0write(s, &rtmes, nb)) < 0)
+          goto failed;
+      }
+    } else if (cmd == RTM_DELETE &&
+             (rtmes.m_rtm.rtm_errno == ESRCH ||
+              (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
+      if (!bang)
+        log_Printf(LogWARN, "Del route failed: %s: Non-existent\n",
+                  inet_ntoa(dst));
+    } else if (rtmes.m_rtm.rtm_errno == 0) {
+      if (!ssh || errno != ENETUNREACH)
+        log_Printf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
+                   inet_ntoa(dst), strerror(errno));
+    } else
+      log_Printf(LogWARN, "%s route failed: %s: %s\n",
+		 cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
+  }
+
+  log_Printf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
+            wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
+  close(s);
+
+  return result;
+}
+
+void
+rt_Update(struct bundle *bundle, struct in_addr dst, struct in_addr gw)
+{
+  struct rtmsg rtmes;
+  int s, wb;
+  struct sockaddr_in rtdata;
+
+  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
+  if (s < 0) {
+    log_Printf(LogERROR, "rt_Update: socket(): %s\n", strerror(errno));
+    return;
+  }
+
+  memset(&rtmes, '\0', sizeof rtmes);
+  rtmes.m_rtm.rtm_version = RTM_VERSION;
+  rtmes.m_rtm.rtm_type = RTM_CHANGE;
+  rtmes.m_rtm.rtm_addrs = RTA_DST;
+  rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
+  rtmes.m_rtm.rtm_pid = getpid();
+  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+
+  if (bundle->ncp.ipcp.cfg.sendpipe > 0) {
+    rtmes.m_rtm.rtm_rmx.rmx_sendpipe = bundle->ncp.ipcp.cfg.sendpipe;
+    rtmes.m_rtm.rtm_inits |= RTV_SPIPE;
+  }
+
+  if (bundle->ncp.ipcp.cfg.recvpipe > 0) {
+    rtmes.m_rtm.rtm_rmx.rmx_recvpipe = bundle->ncp.ipcp.cfg.recvpipe;
+    rtmes.m_rtm.rtm_inits |= RTV_RPIPE;
+  }
+
+  rtmes.m_rtm.rtm_rmx.rmx_mtu = bundle->mtu;
+  rtmes.m_rtm.rtm_inits |= RTV_MTU;
+
+  memset(&rtdata, '\0', sizeof rtdata);
+  rtdata.sin_len = sizeof rtdata;
+  rtdata.sin_family = AF_INET;
+  rtdata.sin_port = 0;
+  rtdata.sin_addr = dst;
+
+  memcpy(rtmes.m_space, &rtdata, rtdata.sin_len);
+  rtmes.m_rtm.rtm_msglen = rtmes.m_space + rtdata.sin_len - (char *)&rtmes;
+
+  wb = ID0write(s, &rtmes, rtmes.m_rtm.rtm_msglen);
+  if (wb < 0) {
+    log_Printf(LogTCPIP, "rt_Update failure:\n");
+    log_Printf(LogTCPIP, "rt_Update:  Dst = %s\n", inet_ntoa(dst));
+    log_Printf(LogTCPIP, "rt_Update:  Gateway = %s\n", inet_ntoa(gw));
+
+    if (rtmes.m_rtm.rtm_errno == 0)
+      log_Printf(LogWARN, "%s: Change route failed: errno: %s\n",
+                 inet_ntoa(dst), strerror(errno));
+    else
+      log_Printf(LogWARN, "%s: Change route failed: %s\n",
+		 inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
+  }
+  log_Printf(LogDEBUG, "wrote %d: cmd = Change, dst = %x, gateway = %x\n",
+            wb, (unsigned)dst.s_addr, (unsigned)gw.s_addr);
+  close(s);
 }

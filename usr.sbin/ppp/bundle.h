@@ -152,8 +152,6 @@ extern const char *bundle_PhaseName(struct bundle *);
 extern void bundle_NewPhase(struct bundle *, u_int);
 extern void bundle_LinksRemoved(struct bundle *);
 extern int  bundle_LinkIsUp(const struct bundle *);
-extern int bundle_SetRoute(struct bundle *, int, struct in_addr,
-                           struct in_addr, struct in_addr, int, int);
 extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Down(struct bundle *, int);
 extern void bundle_Open(struct bundle *, const char *, int, int);
