@@ -303,6 +303,13 @@ dwlpx_maxdevs(u_int b)
 static u_int32_t dwlpx_cfgread(u_int, u_int, u_int, u_int, u_int, int);
 static void dwlpx_cfgwrite(u_int, u_int, u_int, u_int, u_int, int, u_int32_t);
 
+#if	0
+#define	RCFGP	printf
+#else
+#define	RCFGP	if (0) printf
+#endif
+
+
 static u_int32_t
 dwlpx_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 {
@@ -311,38 +318,43 @@ dwlpx_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	u_int32_t *dp, data, rvp, pci_idsel, hpcdev;
 	unsigned long paddr;
 	int hose, ionode;
-	int secondary = 0, s = 0, i;
+	int s = 0, i;
+
+	RCFGP("CFGREAD %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
 
 	rvp = data = ~0;
-
+	if (bh == (u_int8_t)-1)
+		bh = bus >> 4;
 	ionode = ((bh >> 2) & 0x7);
 	hose = (bh & 0x3);
 	dev = dwlpxs[ionode][hose];
 	if (dev == (device_t) 0) {
+		RCFGP(" (no dev)\n");
 		return (data);
 	}
 	sc = DWLPX_SOFTC(dev);
-	if (sc->nhpc < 1)
+	bus &= 0xf;
+
+	if (sc->nhpc < 1) {
+		RCFGP(" (no hpcs)\n");
 		return (data);
-	else if (sc->nhpc < 2 && slot >= 4)
+	} else if (sc->nhpc < 2 && slot >= 4) {
+		RCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
 		return (data);
-	else if (sc->nhpc < 3 && slot >= 8)
+	} else if (sc->nhpc < 3 && slot >= 8) {
+		RCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
 		return (data);
-	else if (slot >= DWLPX_MAXDEV)
+	} else if (slot >= DWLPX_MAXDEV) {
+		RCFGP(" (bad slot (%d))\n", slot);
 		return (data);
+	}
 	hpcdev = slot >> 2;
 	pci_idsel = (1 << ((slot & 0x3) + 2));
 	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
 
-	if (secondary) {
+	if (bus) {
 		paddr &= 0x1fffff;
-		paddr |= (secondary << 21);
-
-#if	0
-		printf("read secondary %d reg %x (paddr %lx)",
-		    secondary, offset, tag);
-#endif
-
+		paddr |= (bus << 21);
 		alpha_pal_draina();
 		s = splhigh();
 		/*
@@ -364,17 +376,11 @@ dwlpx_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
 	paddr |= 1L << 39;
 
 	dp = (u_int32_t *)KV(paddr);
-
-#if	0
-printf("CFGREAD %d.%d.%d.%d.%d.%d.%d -> paddr 0x%lx",
-ionode+4, hose, bus, slot, func, off, sz, paddr);
-#endif
-
+	RCFGP(" hose %d node%d paddr 0x%lx", bh, ionode+4, paddr);
 	if (badaddr(dp, sizeof (*dp)) == 0) {
 		data = *dp;
 	}
-
-	if (secondary) {
+	if (bus) {
 		alpha_pal_draina();
 		for (i = 0; i < sc->nhpc; i++) {
 			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
@@ -396,52 +402,61 @@ ionode+4, hose, bus, slot, func, off, sz, paddr);
 	} else {
 		rvp = data;
 	}
-
-#if	0
-printf(" data 0x%x -> 0x%x\n", data, rvp);
-#endif
+	RCFGP(" data %x->0x%x\n", data, rvp);
 	return (rvp);
 }
+
+#if	0
+#define	WCFGP	printf
+#else
+#define	WCFGP	if (0) printf
+#endif
 
 static void
 dwlpx_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 	int sz, u_int32_t data)
 {
 	int hose, ionode;
-	int secondary = 0, s = 0, i;
+	int s = 0, i;
 	u_int32_t *dp, rvp, pci_idsel, hpcdev;
 	unsigned long paddr;
 	struct dwlpx_softc *sc;
 	device_t dev;
 
+	WCFGP("CFGWRITE %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
+	if (bh == (u_int8_t)-1)
+		bh = bus >> 4;
 	ionode = ((bh >> 2) & 0x7);
 	hose = (bh & 0x3);
 	dev = dwlpxs[ionode][hose];
 	if (dev == (device_t) 0) {
+		WCFGP(" (no dev)\n");
 		return;
 	}
 	sc = DWLPX_SOFTC(dev);
-	if (sc->nhpc < 1)
+	bus &= 0xf;
+
+	if (sc->nhpc < 1) {
+		WCFGP(" (no hpcs)\n");
 		return;
-	else if (sc->nhpc < 2 && slot >= 4)
+	} else if (sc->nhpc < 2 && slot >= 4) {
+		WCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
 		return;
-	else if (sc->nhpc < 3 && slot >= 8)
+	} else if (sc->nhpc < 3 && slot >= 8) {
+		WCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
 		return;
-	else if (slot >= DWLPX_MAXDEV)
+	} else if (slot >= DWLPX_MAXDEV) {
+		WCFGP(" (bad slot (%d))\n", slot);
 		return;
+	}
 	hpcdev = slot >> 2;
 	pci_idsel = (1 << ((slot & 0x3) + 2));
 	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
+	bus = 0;
 
-	if (secondary) {
+	if (bus) {
 		paddr &= 0x1fffff;
-		paddr |= (secondary << 21);
-
-#if	0
-		printf("write secondary %d reg %x (paddr %lx)",
-		    secondary, offset, tag);
-#endif
-
+		paddr |= (bus << 21);
 		alpha_pal_draina();
 		s = splhigh();
 		/*
@@ -461,8 +476,8 @@ dwlpx_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 	paddr |= ((unsigned long) hose) << 34;
 	paddr |= ((unsigned long) ionode) << 36;
 	paddr |= 1L << 39;
-
 	dp = (u_int32_t *)KV(paddr);
+	WCFGP(" hose %d node%d paddr 0x%lx\n", bh, ionode+4, paddr);
 	if (badaddr(dp, sizeof (*dp)) == 0) {
 		u_int32_t new_data;
 		if (sz == 1) {
@@ -472,15 +487,9 @@ dwlpx_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
 		} else  {
 			new_data = data;
 		}
-
-#if	0
-printf("CFGWRITE %d.%d.%d.%d.%d.%d.%d paddr 0x%lx data 0x%x -> 0x%x\n",
-ionode+4, hose, bus, slot, func, off, sz, paddr, data, new_data);
-#endif
-
 		*dp = new_data;
 	}
-	if (secondary) {
+	if (bus) {
 		alpha_pal_draina();
 		for (i = 0; i < sc->nhpc; i++) {
 			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
