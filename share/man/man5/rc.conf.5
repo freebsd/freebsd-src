@@ -1518,6 +1518,20 @@ is set to
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
+.It Ar diskcheckd_enable
+(bool) Set to
+.Ar YES
+if you want to start
+.Xr diskcheckd 8
+at system boot time.
+.It Ar diskcheckd_flags
+If
+.Ar diskcheckd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr diskcheckd 8
+daemon.
 .It Va dumpdev
 .Pq Vt str
 If not set to
