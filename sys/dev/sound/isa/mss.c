@@ -289,6 +289,11 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->conf_base);
 		mss->conf_base = 0;
     	}
+	if (mss->indir) {
+		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
+				     mss->indir);
+		mss->indir = 0;
+	}
     	if (mss->parent_dmat) {
 		bus_dma_tag_destroy(mss->parent_dmat);
 		mss->parent_dmat = 0;
@@ -1339,7 +1344,6 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
-
 	if (opti_detect(dev, mss)) {
 		switch (mss->bd_id) {
 			case MD_OPTI924:
@@ -1592,6 +1596,13 @@ opti_detect(device_t dev, struct mss_info *mss)
 
 		if (opti_read(mss, 1) != 0xff) {
 			return 1;
+		} else {
+			if (mss->indir)
+				bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid, mss->indir);
+			mss->indir = NULL;
+			if (mss->conf_base)
+				bus_release_resource(dev, SYS_RES_IOPORT, mss->conf_rid, mss->conf_base);
+			mss->conf_base = NULL;
 		}
 	}
 	return 0;
@@ -2045,12 +2056,6 @@ opti_init(device_t dev, struct mss_info *mss)
 	/* OPTixxx has I/DRQ registers */
 
 	device_set_flags(dev, device_get_flags(dev) | DV_F_TRUE_MSS);
-
-	if (mss->indir) {
-		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
-			mss->indir);
-		mss->indir_rid = -1;
-	}
 
 	return 0;
 }
