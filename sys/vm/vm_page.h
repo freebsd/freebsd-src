@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.39 1998/05/24 04:25:27 dyson Exp $
+ * $Id: vm_page.h,v 1.40 1998/06/07 17:13:14 dfr Exp $
  */
 
 /*
@@ -353,10 +353,6 @@ vm_page_hold(vm_page_t mem)
 {
 	mem->hold_count++;
 }
-
-#ifdef DIAGNOSTIC
-#include <sys/systm.h>		/* make GCC shut up */
-#endif
 
 static __inline void
 vm_page_unhold(vm_page_t mem)

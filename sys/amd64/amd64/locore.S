@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.107 1998/04/06 15:42:26 peter Exp $
+ *	$Id: locore.s,v 1.108 1998/06/03 01:59:42 msmith Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -45,7 +45,6 @@
 
 #include "apm.h"
 #include "opt_bootp.h"
-#include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_nfs.h"
 #include "opt_userconfig.h"
