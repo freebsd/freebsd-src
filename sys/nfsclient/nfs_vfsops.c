@@ -359,6 +359,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 		maxfsize = fxdr_hyper(&fsp->fs_maxfilesize);
 		if (maxfsize > 0 && maxfsize < nmp->nm_maxfilesize)
 			nmp->nm_maxfilesize = maxfsize;
+		nmp->nm_mountp->mnt_stat.f_iosize = nfs_iosize(nmp);
 		nmp->nm_state |= NFSSTA_GOTFSINFO;
 	}
 	m_freem(mrep);
@@ -785,8 +786,12 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
-	nmp->nm_wsize = NFS_WSIZE;
-	nmp->nm_rsize = NFS_RSIZE;
+	if ((argp->flags & NFSMNT_NFSV3) && argp->sotype == SOCK_STREAM) {
+		nmp->nm_wsize = nmp->nm_rsize = NFS_MAXDATA;
+	} else {
+		nmp->nm_wsize = NFS_WSIZE;
+		nmp->nm_rsize = NFS_RSIZE;
+	}
 	nmp->nm_readdirsize = NFS_READDIRSIZE;
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
@@ -832,10 +837,14 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	*vpp = NFSTOV(np);
 
 	/*
-	 * Get file attributes for the mountpoint.  This has the side
-	 * effect of filling in (*vpp)->v_type with the correct value.
+	 * Get file attributes and transfer parameters for the
+	 * mountpoint.  This has the side effect of filling in
+	 * (*vpp)->v_type with the correct value.
 	 */
-	VOP_GETATTR(*vpp, &attrs, curthread->td_ucred, curthread);
+	if (argp->flags & NFSMNT_NFSV3)
+		nfs_fsinfo(nmp, *vpp, curthread->td_ucred, curthread);
+	else
+		VOP_GETATTR(*vpp, &attrs, curthread->td_ucred, curthread);
 
 	/*
 	 * Lose the lock but keep the ref.
@@ -905,6 +914,13 @@ nfs_root(struct mount *mp, struct vnode **vpp)
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
+	/*
+	 * Get transfer parameters and attributes for root vnode once.
+	 */
+	if ((nmp->nm_state & NFSSTA_GOTFSINFO) == 0 &&
+	    (nmp->nm_flag & NFSMNT_NFSV3)) {
+		nfs_fsinfo(nmp, vp, curthread->td_ucred, curthread);
+	}
 	if (vp->v_type == VNON)
 	    vp->v_type = VDIR;
 	vp->v_vflag |= VV_ROOT;
