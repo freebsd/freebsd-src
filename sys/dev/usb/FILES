@@ -7,7 +7,7 @@ Makefile		to install .h files
 Makefile.usbdevs	to run devlist2h.awk
 TODO			just a list of things to do
 devlist2h.awk		script to generate usbdevs*.h
-files.usb		config inclued file
+files.usb		config include file
 hid.c			subroutines to parse and access HID data
 hid.h			API for hid.c
 ohci.c			Host controller driver for OHCI
@@ -25,6 +25,7 @@ ukbd.c			USB keyboard driver
 ukbdmap.c		wscons key mapping for ukbd
 ukbdvar.h		API for ukbd.c
 ulpt.c			USB printer class driver
+umass.c                 USB mass storage driver (bulk only for now)
 umodem.c		USB modem (CDC ACM) driver
 ums.c			USB mouse driver
 usb.c			usb (bus) device driver
