@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	mv
-WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -4,6 +4,7 @@
 
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c lomac.c
+WARNS=	0
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+= -DCOLORLS
