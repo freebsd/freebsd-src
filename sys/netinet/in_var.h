@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.5 1994/08/21 05:27:30 paul Exp $
+ * $Id: in_var.h,v 1.6 1994/09/06 22:42:20 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -72,7 +72,8 @@ struct	in_aliasreq {
  * Given a pointer to an in_ifaddr (ifaddr),
  * return a pointer to the addr as a sockaddr_in.
  */
-#define	IA_SIN(ia) (&(((struct in_ifaddr *)(ia))->ia_addr))
+#define IA_SIN(ia)    (&(((struct in_ifaddr *)(ia))->ia_addr))
+#define IA_DSTSIN(ia) (&(((struct in_ifaddr *)(ia))->ia_dstaddr))
 
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
@@ -93,7 +94,8 @@ extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 	register struct in_ifaddr *ia; \
 \
 	for (ia = in_ifaddr; \
-	    ia != NULL && IA_SIN(ia)->sin_addr.s_addr != (addr).s_addr; \
+	    ia != NULL && ((ia->ia_ifp->if_flags & IFF_POINTOPOINT)? \
+		IA_DSTSIN(ia):IA_SIN(ia))->sin_addr.s_addr != (addr).s_addr; \
 	    ia = ia->ia_next) \
 		 continue; \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
