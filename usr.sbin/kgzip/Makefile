@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.1.1.1 1999/07/19 18:00:18 rnordier Exp $
 
 PROG=	kgzip
 SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c
