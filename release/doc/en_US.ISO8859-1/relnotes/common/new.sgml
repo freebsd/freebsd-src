@@ -280,6 +280,13 @@
       FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, and Transmeta
       Crusoe LongRun, has been added. &merged;</para>
 
+      <para arch="alpha">Support for the following hardware has been removed
+      from the installation kernel to make it fit on a 1.44MB floppy again:
+      Multia, NoName, PC64, EB64, Aspen Alpine, sa (SCSI tape), amr, parallel
+      port support,  vx (3c590, 3c595), pcn (AMD Am79C97x PCI 10/100), 
+      sf (Adaptec AIC-6915), sis (SiS 900/SiS 7016), ste (Sundance ST201 
+      (D-Link DFE-550TX)), wb (Winbond W89C840F).</para>
+
     </sect3>
 
     <sect3>
