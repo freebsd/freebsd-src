@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 48 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -157,9 +157,11 @@ AcpiDsInitOneObject (
     OBJECT_TYPE_INTERNAL    Type;
     ACPI_STATUS             Status;
     ACPI_INIT_WALK_INFO     *Info = (ACPI_INIT_WALK_INFO *) Context;
+    UINT8                   TableRevision;
 
 
     Info->ObjectCount++;
+    TableRevision = Info->TableDesc->Pointer->Revision;
 
     /*
      * We are only interested in objects owned by the table that
@@ -194,6 +196,15 @@ AcpiDsInitOneObject (
 
         DEBUG_PRINT_RAW (ACPI_OK, ("."));
 
+        /*
+         * Set the execution data width (32 or 64) based upon the
+         * revision number of the parent ACPI table.
+         */
+
+        if (TableRevision == 1)
+        {
+            ((ACPI_NAMESPACE_NODE *)ObjHandle)->Flags |= ANOBJ_DATA_WIDTH_32;
+        }
 
         /*
          * Always parse methods to detect errors, we may delete
@@ -214,15 +225,10 @@ AcpiDsInitOneObject (
         }
 
         /*
-         * Keep the parse tree only if we are parsing all methods
-         * at init time (versus just-in-time)
+         * Delete the parse tree.  We simple re-parse the method
+         * for every execution since there isn't much overhead
          */
-
-        if (AcpiGbl_WhenToParseMethods != METHOD_PARSE_AT_INIT)
-        {
-            AcpiNsDeleteNamespaceSubtree (ObjHandle);
-        }
-
+        AcpiNsDeleteNamespaceSubtree (ObjHandle);
         break;
 
     default:
@@ -267,10 +273,10 @@ AcpiDsInitializeObjects (
     DEBUG_PRINT_RAW (ACPI_OK, ("Parsing Methods:"));
 
 
-    Info.MethodCount = 0;
-    Info.OpRegionCount = 0;
-    Info.ObjectCount = 0;
-    Info.TableDesc = TableDesc;
+    Info.MethodCount    = 0;
+    Info.OpRegionCount  = 0;
+    Info.ObjectCount    = 0;
+    Info.TableDesc      = TableDesc;
 
 
     /* Walk entire namespace from the supplied root */
@@ -511,7 +517,7 @@ AcpiDsInitObjectFromOp (
  *
  ****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiDsBuildInternalSimpleObj (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op,
@@ -563,7 +569,6 @@ AcpiDsBuildInternalSimpleObj (
                                    Op->Value.String, Op->AmlOffset));
                     }
                     *ObjDescPtr = NULL;
-                    return_ACPI_STATUS (AE_OK);
                 }
 
                 return_ACPI_STATUS (Status);

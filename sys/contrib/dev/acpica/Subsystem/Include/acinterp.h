@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 82 $
+ *       $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -417,7 +417,8 @@ AcpiAmlResolveToValue (
 
 ACPI_STATUS
 AcpiAmlResolveNodeToValue (
-    ACPI_NAMESPACE_NODE     **StackPtr);
+    ACPI_NAMESPACE_NODE     **StackPtr,
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiAmlResolveObjectToValue (
@@ -533,6 +534,11 @@ void
 AcpiAmlExitInterpreter (
     void);
 
+void
+AcpiAmlTruncateFor32bitTable (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
 BOOLEAN
 AcpiAmlValidateObjectType (
     ACPI_OBJECT_TYPE        Type);
@@ -544,10 +550,6 @@ AcpiAmlAcquireGlobalLock (
 ACPI_STATUS
 AcpiAmlReleaseGlobalLock (
     BOOLEAN                 Locked);
-
-UINT32
-AcpiAmlBufSeq (
-    void);
 
 UINT32
 AcpiAmlDigitsNeeded (
@@ -578,7 +580,7 @@ AcpiAmlBuildCopyInternalPackageObject (
 ACPI_STATUS
 AcpiAmlSystemMemorySpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -587,7 +589,7 @@ AcpiAmlSystemMemorySpaceHandler (
 ACPI_STATUS
 AcpiAmlSystemIoSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -596,7 +598,7 @@ AcpiAmlSystemIoSpaceHandler (
 ACPI_STATUS
 AcpiAmlPciConfigSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -605,7 +607,7 @@ AcpiAmlPciConfigSpaceHandler (
 ACPI_STATUS
 AcpiAmlEmbeddedControllerSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -614,7 +616,7 @@ AcpiAmlEmbeddedControllerSpaceHandler (
 ACPI_STATUS
 AcpiAmlSmBusSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,

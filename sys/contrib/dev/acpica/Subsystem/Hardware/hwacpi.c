@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI hardware functions - mode and timer
- *              $Revision: 24 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -149,11 +149,11 @@ AcpiHwInitialize (
 
     /* We must have the ACPI tables by the time we get here */
 
-    if (!AcpiGbl_FACP)
+    if (!AcpiGbl_FADT)
     {
         AcpiGbl_RestoreAcpiChipset = FALSE;
 
-        DEBUG_PRINT (ACPI_ERROR, ("HwInitialize: No FACP!\n"));
+        DEBUG_PRINT (ACPI_ERROR, ("HwInitialize: No FADT!\n"));
 
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
@@ -217,27 +217,21 @@ AcpiHwInitialize (
         /* Target system supports ACPI mode */
 
         /*
-         * The purpose of this block of code is to save the initial state
+         * The purpose of this code is to save the initial state
          * of the ACPI event enable registers. An exit function will be
          * registered which will restore this state when the application
          * exits. The exit function will also clear all of the ACPI event
          * status bits prior to restoring the original mode.
          *
          * The location of the PM1aEvtBlk enable registers is defined as the
-         * base of PM1aEvtBlk + PM1aEvtBlkLength / 2. Since the spec further
+         * base of PM1aEvtBlk + DIV_2(PM1aEvtBlkLength). Since the spec further
          * fully defines the PM1aEvtBlk to be a total of 4 bytes, the offset
          * for the enable registers is always 2 from the base. It is hard
          * coded here. If this changes in the spec, this code will need to
          * be modified. The PM1bEvtBlk behaves as expected.
          */
 
-        AcpiGbl_Pm1EnableRegisterSave =
-            AcpiOsIn16 ((AcpiGbl_FACP->Pm1aEvtBlk + 2));
-        if (AcpiGbl_FACP->Pm1bEvtBlk)
-        {
-            AcpiGbl_Pm1EnableRegisterSave |=
-                AcpiOsIn16 ((AcpiGbl_FACP->Pm1bEvtBlk + 2));
-        }
+        AcpiGbl_Pm1EnableRegisterSave = (UINT16) AcpiHwRegisterRead (ACPI_MTX_LOCK, PM1_EN);
 
 
         /*
@@ -245,12 +239,12 @@ AcpiHwInitialize (
          * block is not fixed, so the buffer must be allocated with malloc
          */
 
-        if (AcpiGbl_FACP->Gpe0Blk && AcpiGbl_FACP->Gpe0BlkLen)
+        if (AcpiGbl_FADT->XGpe0Blk.Address && AcpiGbl_FADT->Gpe0BlkLen)
         {
-            /* GPE0 specified in FACP  */
+            /* GPE0 specified in FADT  */
 
             AcpiGbl_Gpe0EnableRegisterSave =
-                AcpiCmAllocate (DIV_2 (AcpiGbl_FACP->Gpe0BlkLen));
+                AcpiCmAllocate (DIV_2 (AcpiGbl_FADT->Gpe0BlkLen));
             if (!AcpiGbl_Gpe0EnableRegisterSave)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -258,11 +252,10 @@ AcpiHwInitialize (
 
             /* Save state of GPE0 enable bits */
 
-            for (Index = 0; Index < DIV_2 (AcpiGbl_FACP->Gpe0BlkLen); Index++)
+            for (Index = 0; Index < DIV_2 (AcpiGbl_FADT->Gpe0BlkLen); Index++)
             {
                 AcpiGbl_Gpe0EnableRegisterSave[Index] =
-                    AcpiOsIn8 (AcpiGbl_FACP->Gpe0Blk +
-                    DIV_2 (AcpiGbl_FACP->Gpe0BlkLen));
+                    (UINT8) AcpiHwRegisterRead (ACPI_MTX_LOCK, GPE0_EN_BLOCK | Index);
             }
         }
 
@@ -271,12 +264,12 @@ AcpiHwInitialize (
             AcpiGbl_Gpe0EnableRegisterSave = NULL;
         }
 
-        if (AcpiGbl_FACP->Gpe1Blk && AcpiGbl_FACP->Gpe1BlkLen)
+        if (AcpiGbl_FADT->XGpe1Blk.Address && AcpiGbl_FADT->Gpe1BlkLen)
         {
             /* GPE1 defined */
 
             AcpiGbl_Gpe1EnableRegisterSave =
-                AcpiCmAllocate (DIV_2 (AcpiGbl_FACP->Gpe1BlkLen));
+                AcpiCmAllocate (DIV_2 (AcpiGbl_FADT->Gpe1BlkLen));
             if (!AcpiGbl_Gpe1EnableRegisterSave)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -284,11 +277,10 @@ AcpiHwInitialize (
 
             /* save state of GPE1 enable bits */
 
-            for (Index = 0; Index < DIV_2 (AcpiGbl_FACP->Gpe1BlkLen); Index++)
+            for (Index = 0; Index < DIV_2 (AcpiGbl_FADT->Gpe1BlkLen); Index++)
             {
                 AcpiGbl_Gpe1EnableRegisterSave[Index] =
-                    AcpiOsIn8 (AcpiGbl_FACP->Gpe1Blk +
-                    DIV_2 (AcpiGbl_FACP->Gpe1BlkLen));
+                    (UINT8) AcpiHwRegisterRead (ACPI_MTX_LOCK, GPE1_EN_BLOCK | Index);
             }
         }
 
@@ -329,7 +321,7 @@ AcpiHwSetMode (
     {
         /* BIOS should have disabled ALL fixed and GP events */
 
-        AcpiOsOut8 (AcpiGbl_FACP->SmiCmd, AcpiGbl_FACP->AcpiEnable);
+        AcpiOsOut8 (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiEnable);
         DEBUG_PRINT (ACPI_INFO, ("Attempting to enable ACPI mode\n"));
     }
 
@@ -340,7 +332,7 @@ AcpiHwSetMode (
          * enable bits to default
          */
 
-        AcpiOsOut8 (AcpiGbl_FACP->SmiCmd, AcpiGbl_FACP->AcpiDisable);
+        AcpiOsOut8 (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiDisable);
         DEBUG_PRINT (ACPI_INFO,
                     ("Attempting to enable Legacy (non-ACPI) mode\n"));
     }
@@ -375,7 +367,7 @@ AcpiHwGetMode (void)
     FUNCTION_TRACE ("HwGetMode");
 
 
-    if (AcpiHwRegisterAccess (ACPI_READ, ACPI_MTX_LOCK, SCI_EN))
+    if (AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, SCI_EN))
     {
         return_VALUE (SYS_MODE_ACPI);
     }
@@ -468,7 +460,7 @@ AcpiHwPmtTicks (void)
 
     FUNCTION_TRACE ("AcpiPmtTicks");
 
-    Ticks = AcpiOsIn32 (AcpiGbl_FACP->PmTmrBlk);
+    Ticks = AcpiOsIn32 ((ACPI_IO_ADDRESS) AcpiGbl_FADT->XPmTmrBlk.Address);
 
     return_VALUE (Ticks);
 }
@@ -491,7 +483,7 @@ AcpiHwPmtResolution (void)
 {
     FUNCTION_TRACE ("AcpiPmtResolution");
 
-    if (0 == AcpiGbl_FACP->TmrValExt)
+    if (0 == AcpiGbl_FADT->TmrValExt)
     {
         return_VALUE (24);
     }

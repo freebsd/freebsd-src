@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 26 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,7 @@
 #define _COMPONENT          TABLE_MANAGER
         MODULE_NAME         ("tbget")
 
+#define RSDP_CHECKSUM_LENGTH 20
 
 /*******************************************************************************
  *
@@ -227,7 +228,7 @@ AcpiTbGetTablePtr (
 
 ACPI_STATUS
 AcpiTbGetTable (
-    void                    *PhysicalAddress,
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     ACPI_TABLE_HEADER       *BufferPtr,
     ACPI_TABLE_DESC         *TableInfo)
 {
@@ -353,9 +354,10 @@ AcpiTbGetAllTables (
 
         MEMSET (&TableInfo, 0, sizeof (ACPI_TABLE_DESC));
 
-        /* Get the table via the RSDT */
+        /* Get the table via the XSDT */
 
-        Status = AcpiTbGetTable ((void *) AcpiGbl_RSDT->TableOffsetEntry[Index],
+        Status = AcpiTbGetTable ((ACPI_PHYSICAL_ADDRESS)
+                                AcpiGbl_XSDT->TableOffsetEntry[Index],
                                 TablePtr, &TableInfo);
 
         /* Ignore a table that failed verification */
@@ -388,23 +390,21 @@ AcpiTbGetAllTables (
     }
 
 
-    /* Dump the FACP Header */
-
-    DEBUG_PRINT (TRACE_TABLES, ("Hex dump of FADT Header:\n"));
-    DUMP_BUFFER ((UINT8 *) AcpiGbl_FACP, sizeof (ACPI_TABLE_HEADER));
-
-    /* Dump the entire FACP */
-
-    DEBUG_PRINT (TRACE_TABLES,
-        ("Hex dump of FADT (After header), size %d (0x%x)\n",
-        AcpiGbl_FACP->header.Length, AcpiGbl_FACP->header.Length));
-    DUMP_BUFFER ((UINT8 *) (&AcpiGbl_FACP->FirmwareCtrl), AcpiGbl_FACP->header.Length);
+    /*
+     * Convert the FADT to a common format.  This allows earlier revisions of the
+     * table to coexist with newer versions, using common access code.
+     */
+    Status = AcpiTbConvertTableFadt ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
 
     /*
      * Get the minimum set of ACPI tables, namely:
      *
-     * 1) FACP (via RSDT in loop above)
+     * 1) FADT (via RSDT in loop above)
      * 2) FACS
      * 3) DSDT
      *
@@ -412,8 +412,8 @@ AcpiTbGetAllTables (
 
 
     /*
-     * Get the FACS (must have the FACP first, from loop above)
-     * AcpiTbGetTableFacs will fail if FACP pointer is not valid
+     * Get the FACS (must have the FADT first, from loop above)
+     * AcpiTbGetTableFacs will fail if FADT pointer is not valid
      */
 
     Status = AcpiTbGetTableFacs (TablePtr, &TableInfo);
@@ -421,6 +421,7 @@ AcpiTbGetAllTables (
     {
         return_ACPI_STATUS (Status);
     }
+
 
     /* Install the FACS */
 
@@ -430,10 +431,23 @@ AcpiTbGetAllTables (
         return_ACPI_STATUS (Status);
     }
 
+    /*
+     * Create the common FACS pointer table
+     * (Contains pointers to the original table)
+     */
 
-    /* Get the DSDT (We know that the FACP if valid now) */
+    Status = AcpiTbBuildCommonFacs (&TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    Status = AcpiTbGetTable ((void *) AcpiGbl_FACP->Dsdt, TablePtr, &TableInfo);
+
+    /*
+     * Get the DSDT (We know that the FADT is valid now)
+     */
+
+    Status = AcpiTbGetTable (AcpiGbl_FADT->XDsdt, TablePtr, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -463,8 +477,12 @@ AcpiTbGetAllTables (
      * Initialize the capabilities flags.
      * Assumes that platform supports ACPI_MODE since we have tables!
      */
-
     AcpiGbl_SystemFlags |= AcpiHwGetModeCapabilities ();
+
+
+    /* Always delete the RSDP mapping, we are done with it */
+
+    AcpiTbDeleteAcpiTable (ACPI_TABLE_RSDP);
 
     return_ACPI_STATUS (Status);
 }
@@ -484,7 +502,7 @@ AcpiTbGetAllTables (
 
 ACPI_STATUS
 AcpiTbVerifyRsdp (
-    void                    *RsdpPhysicalAddress)
+    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress)
 {
     ACPI_TABLE_DESC         TableInfo;
     ACPI_STATUS             Status;
@@ -498,7 +516,7 @@ AcpiTbVerifyRsdp (
      * Obtain access to the RSDP structure
      */
     Status = AcpiOsMapMemory (RsdpPhysicalAddress,
-                                sizeof (ROOT_SYSTEM_DESCRIPTOR_POINTER),
+                                sizeof (RSDP_DESCRIPTOR),
                                 (void **) &TablePtr);
     if (ACPI_FAILURE (Status))
     {
@@ -516,7 +534,7 @@ AcpiTbVerifyRsdp (
         goto Cleanup;
     }
 
-    if (AcpiTbChecksum (TablePtr, sizeof (ROOT_SYSTEM_DESCRIPTOR_POINTER)) != 0)
+    if (AcpiTbChecksum (TablePtr, RSDP_CHECKSUM_LENGTH) != 0)
     {
         /* Nope, BAD Checksum */
 
@@ -524,10 +542,12 @@ AcpiTbVerifyRsdp (
         goto Cleanup;
     }
 
+    /* TBD: Check extended checksum if table version >= 2 */
+
     /* The RSDP supplied is OK */
 
     TableInfo.Pointer      = (ACPI_TABLE_HEADER *) TablePtr;
-    TableInfo.Length       = sizeof (ROOT_SYSTEM_DESCRIPTOR_POINTER);
+    TableInfo.Length       = sizeof (RSDP_DESCRIPTOR);
     TableInfo.Allocation   = ACPI_MEM_MAPPED;
     TableInfo.BasePointer  = TablePtr;
 
@@ -542,14 +562,14 @@ AcpiTbVerifyRsdp (
 
     /* Save the RSDP in a global for easy access */
 
-    AcpiGbl_RSDP = (ROOT_SYSTEM_DESCRIPTOR_POINTER *) TableInfo.Pointer;
+    AcpiGbl_RSDP = (RSDP_DESCRIPTOR *) TableInfo.Pointer;
     return_ACPI_STATUS (Status);
 
 
     /* Error exit */
 Cleanup:
 
-    AcpiOsUnmapMemory (TablePtr, sizeof (ROOT_SYSTEM_DESCRIPTOR_POINTER));
+    AcpiOsUnmapMemory (TablePtr, sizeof (RSDP_DESCRIPTOR));
     return_ACPI_STATUS (Status);
 }
 
@@ -572,6 +592,9 @@ AcpiTbGetTableRsdt (
 {
     ACPI_TABLE_DESC         TableInfo;
     ACPI_STATUS             Status = AE_OK;
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress;
+    UINT32                  SignatureLength;
+    char                    *TableSignature;
 
 
     FUNCTION_TRACE ("AcpiTbGetTableRsdt");
@@ -585,62 +608,84 @@ AcpiTbGetTableRsdt (
         ("RSDP located at %p, RSDT physical=%p \n",
         AcpiGbl_RSDP, AcpiGbl_RSDP->RsdtPhysicalAddress));
 
-    Status = AcpiTbGetTable ((void *) AcpiGbl_RSDP->RsdtPhysicalAddress,
-                                NULL, &TableInfo);
+    /*
+     * For RSDP revision 0 or 1, we use the RSDT.
+     * For RSDP revision 2 (and above), we use the XSDT
+     */
+    if (AcpiGbl_RSDP->Revision < 2)
+    {
+#ifdef _IA64
+        /* 0.71 RSDP has 64bit Rsdt address field */
+        PhysicalAddress = ((RSDP_DESCRIPTOR_REV071 *)AcpiGbl_RSDP)->RsdtPhysicalAddress;
+#else
+        PhysicalAddress = AcpiGbl_RSDP->RsdtPhysicalAddress;
+#endif
+        TableSignature = RSDT_SIG;
+        SignatureLength = sizeof (RSDT_SIG) -1;
+    }
+    else
+    {
+        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) AcpiGbl_RSDP->XsdtPhysicalAddress;
+        TableSignature = XSDT_SIG;
+        SignatureLength = sizeof (XSDT_SIG) -1;
+    }
+
+
+    /* Get the RSDT/XSDT */
+
+    Status = AcpiTbGetTable (PhysicalAddress, NULL, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINT (ACPI_ERROR, ("GetTableRsdt: Could not get the RSDT, %s\n",
             AcpiCmFormatException (Status)));
-
-        if (Status == AE_BAD_SIGNATURE)
-        {
-            /* Invalid RSDT signature */
-
-            REPORT_ERROR (("Invalid signature where RSDP indicates RSDT should be located\n"));
-
-            DUMP_BUFFER (AcpiGbl_RSDP, 20);
-
-            DEBUG_PRINT_RAW (ACPI_ERROR,
-                ("RSDP points to RSDT at %lXh, but RSDT signature is invalid\n",
-                (void *) AcpiGbl_RSDP->RsdtPhysicalAddress));
-        }
-
-        REPORT_ERROR (("Unable to locate the RSDT\n"));
         return_ACPI_STATUS (Status);
     }
 
 
-    /* Always delete the RSDP mapping */
+    /* Check the RSDT or XSDT signature */
 
-    AcpiTbDeleteAcpiTable (ACPI_TABLE_RSDP);
+    if (STRNCMP ((char *) TableInfo.Pointer, TableSignature,
+                    SignatureLength))
+    {
+        /* Invalid RSDT or XSDT signature */
 
-    /* Save the table pointers and allocation info */
+        REPORT_ERROR (("Invalid signature where RSDP indicates %s should be located\n",
+                        TableSignature));
 
-    Status = AcpiTbInitTableDescriptor (ACPI_TABLE_RSDT, &TableInfo);
+        DUMP_BUFFER (AcpiGbl_RSDP, 20);
+
+        DEBUG_PRINT_RAW (ACPI_ERROR,
+            ("RSDP points to %X at %lXh, but signature is invalid\n",
+            TableSignature, (void *) AcpiGbl_RSDP->RsdtPhysicalAddress));
+
+        return_ACPI_STATUS (Status);
+    }
+
+
+    /* Valid RSDT signature, verify the checksum */
+
+    Status = AcpiTbVerifyTableChecksum (TableInfo.Pointer);
+
+
+    /* Convert and/or copy to an XSDT structure */
+
+    Status = AcpiTbConvertToXsdt (&TableInfo, NumberOfTables);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    AcpiGbl_RSDT = (ROOT_SYSTEM_DESCRIPTION_TABLE *) TableInfo.Pointer;
+    /* Save the table pointers and allocation info */
 
+    Status = AcpiTbInitTableDescriptor (ACPI_TABLE_XSDT, &TableInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    /* Valid RSDT signature, verify the checksum */
+    AcpiGbl_XSDT = (XSDT_DESCRIPTOR *) TableInfo.Pointer;
 
-    DEBUG_PRINT (ACPI_INFO, ("RSDT located at %p\n", AcpiGbl_RSDT));
-
-    Status = AcpiTbVerifyTableChecksum ((ACPI_TABLE_HEADER *) AcpiGbl_RSDT);
-
-    /*
-     * Determine the number of tables pointed to by the RSDT.
-     * This is defined by the ACPI Specification to be the number of
-     * pointers contained within the RSDT.  The size of the pointers
-     * is architecture-dependent.
-     */
-
-    *NumberOfTables = ((AcpiGbl_RSDT->header.Length -
-                        sizeof (ACPI_TABLE_HEADER)) / sizeof (void *));
-
+    DEBUG_PRINT (ACPI_INFO, ("XSDT located at %p\n", AcpiGbl_XSDT));
 
     return_ACPI_STATUS (Status);
 }
@@ -656,9 +701,9 @@ AcpiTbGetTableRsdt (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Returns a pointer to the FACS as defined in FACP.  This
- *              function assumes the global variable FACP has been
- *              correctly initialized.  The value of FACP->FirmwareCtrl
+ * DESCRIPTION: Returns a pointer to the FACS as defined in FADT.  This
+ *              function assumes the global variable FADT has been
+ *              correctly initialized.  The value of FADT->FirmwareCtrl
  *              into a far pointer which is returned.
  *
  *****************************************************************************/
@@ -677,14 +722,14 @@ AcpiTbGetTableFacs (
     FUNCTION_TRACE ("TbGetTableFacs");
 
 
-    /* Must have a valid FACP pointer */
+    /* Must have a valid FADT pointer */
 
-    if (!AcpiGbl_FACP)
+    if (!AcpiGbl_FADT)
     {
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
-    Size = sizeof (FIRMWARE_ACPI_CONTROL_STRUCTURE);
+    Size = sizeof (FACS_DESCRIPTOR);
     if (BufferPtr)
     {
         /*
@@ -708,7 +753,7 @@ AcpiTbGetTableFacs (
     {
         /* Just map the physical memory to our address space */
 
-        Status = AcpiTbMapAcpiTable ((void *) AcpiGbl_FACP->FirmwareCtrl,
+        Status = AcpiTbMapAcpiTable (AcpiGbl_FADT->XFirmwareCtrl,
                                         &Size, &TablePtr);
         if (ACPI_FAILURE(Status))
         {

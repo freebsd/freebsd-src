@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 35 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -125,20 +125,6 @@
         MODULE_NAME         ("psargs")
 
 
-UINT32
-AcpiPsPkgLengthEncodingSize (
-    UINT32                  FirstByte)
-{
-
-    /*
-     * Bits 6-7 contain the number of bytes
-     * in the encoded package length (-1)
-     */
-
-    return ((FirstByte >> 6) + 1);
-}
-
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiPsGetNextPackageLength
@@ -151,58 +137,6 @@ AcpiPsPkgLengthEncodingSize (
  * DESCRIPTION: Decode and return a package length field
  *
  ******************************************************************************/
-
-UINT32
-xxxAcpiPsGetNextPackageLength (
-    ACPI_PARSE_STATE        *ParserState)
-{
-    UINT32                  EncodingLength;
-    UINT32                  PackageLength = 0;
-    UINT8                   *AmlPtr = ParserState->Aml;
-
-
-    FUNCTION_TRACE ("PsGetNextPackageLength");
-
-
-    EncodingLength = AcpiPsPkgLengthEncodingSize ((UINT32) GET8 (AmlPtr));
-
-
-    switch (EncodingLength)
-    {
-    case 1: /* 1-byte encoding (bits 0-5) */
-
-        PackageLength =  ((UINT32) GET8 (AmlPtr) & 0x3f);
-        break;
-
-
-    case 2: /* 2-byte encoding (next byte + bits 0-3) */
-
-        PackageLength = ((((UINT32) GET8 (AmlPtr + 1)) << 4)  |
-                         (((UINT32) GET8 (AmlPtr)) & 0x0f));
-        break;
-
-
-    case 3: /* 3-byte encoding (next 2 bytes + bits 0-3) */
-
-        PackageLength = ((((UINT32) GET8 (AmlPtr + 2)) << 12) |
-                         (((UINT32) GET8 (AmlPtr + 1)) << 4)  |
-                         (((UINT32) GET8 (AmlPtr)) & 0x0f));
-        break;
-
-
-    case 4: /* 4-byte encoding (next 3 bytes + bits 0-3) */
-
-        PackageLength = ((((UINT32) GET8 (AmlPtr + 3)) << 20) |
-                         (((UINT32) GET8 (AmlPtr + 2)) << 12) |
-                         (((UINT32) GET8 (AmlPtr + 1)) << 4)  |
-                         (((UINT32) GET8 (AmlPtr)) & 0x0f));
-        break;
-    }
-
-    ParserState->Aml += EncodingLength;
-
-    return_VALUE (PackageLength);
-}
 
 UINT32
 AcpiPsGetNextPackageLength (
@@ -223,32 +157,33 @@ AcpiPsGetNextPackageLength (
     {
     case 0: /* 1-byte encoding (bits 0-5) */
 
-        Length = (EncodedLength & 0x3f);
+        Length = (EncodedLength & 0x3F);
         break;
 
 
     case 1: /* 2-byte encoding (next byte + bits 0-3) */
 
-        Length = (GET8 (ParserState->Aml) << 4) | (EncodedLength & 0xf);
+        Length = ((GET8 (ParserState->Aml) << 04) |
+                 (EncodedLength & 0x0F));
         ParserState->Aml++;
         break;
 
 
     case 2: /* 3-byte encoding (next 2 bytes + bits 0-3) */
 
-        Length = ( (GET8 (ParserState->Aml + 1) << 12)
-               | (GET8 (ParserState->Aml) << 4)
-               | (EncodedLength & 0xf));
+        Length = ((GET8 (ParserState->Aml + 1) << 12) |
+                  (GET8 (ParserState->Aml)     << 04) |
+                  (EncodedLength & 0x0F));
         ParserState->Aml += 2;
         break;
 
 
     case 3: /* 4-byte encoding (next 3 bytes + bits 0-3) */
 
-        Length = ( (GET8 (ParserState->Aml + 2) << 20)
-               | (GET8 (ParserState->Aml + 1) << 12)
-               | (GET8 (ParserState->Aml) << 4)
-               | (EncodedLength & 0xf));
+        Length = ((GET8 (ParserState->Aml + 2) << 20) |
+                  (GET8 (ParserState->Aml + 1) << 12) |
+                  (GET8 (ParserState->Aml)     << 04) |
+                  (EncodedLength & 0x0F));
         ParserState->Aml += 3;
         break;
     }
@@ -570,6 +505,11 @@ AcpiPsGetNextNamepath (
 
                     NameOp->Node = MethodNode;
                     AcpiPsAppendArg (Arg, NameOp);
+
+                    if (!(ACPI_OPERAND_OBJECT  *) MethodNode->Object)
+                    {
+                        return_VOID;
+                    }
 
                     *ArgCount = ((ACPI_OPERAND_OBJECT  *) MethodNode->Object)->Method.ParamCount;
                 }

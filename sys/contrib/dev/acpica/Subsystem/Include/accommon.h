@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: accommon.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 80 $
+ *       $Revision: 81 $
  *
  *****************************************************************************/
 
@@ -154,7 +154,7 @@ AcpiCmSubsystemShutdown (
     void);
 
 ACPI_STATUS
-AcpiCmValidateFacp (
+AcpiCmValidateFadt (
     void);
 
 /*

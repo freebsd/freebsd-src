@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 71 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -155,7 +155,7 @@ AcpiGetHandle (
     ACPI_HANDLE             *RetHandle)
 {
     ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_NAMESPACE_NODE     *Node = NULL;
     ACPI_NAMESPACE_NODE     *PrefixNode = NULL;
 
 
@@ -168,14 +168,13 @@ AcpiGetHandle (
     {
         AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
 
-        Node = AcpiNsConvertHandleToEntry (Parent);
-        if (!Node)
+        PrefixNode = AcpiNsConvertHandleToEntry (Parent);
+        if (!PrefixNode)
         {
             AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
             return (AE_BAD_PARAMETER);
         }
 
-        PrefixNode = Node->Child;
         AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
     }
 
@@ -191,8 +190,7 @@ AcpiGetHandle (
     /*
      *  Find the Node and convert to the user format
      */
-    Node = NULL;
-    Status = AcpiNsGetNode (Pathname, PrefixNode, &Node);
+    Status = AcpiNsGetNode (Pathname, Node, &Node);
 
     *RetHandle = NULL;
     if(ACPI_SUCCESS(Status))

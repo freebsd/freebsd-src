@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 16 $
+ *              $Revision: 18 $
  *
  ******************************************************************************/
 
@@ -291,18 +291,21 @@ AcpiDbExecute (
     UINT32                  Flags)
 {
     ACPI_STATUS             Status;
+    ACPI_BUFFER             ReturnObj;
+
+
+#ifdef ACPI_DEBUG
     UINT32                  PreviousAllocations;
     UINT32                  PreviousSize;
     UINT32                  Allocations;
     UINT32                  Size;
-    ACPI_BUFFER             ReturnObj;
 
 
     /* Memory allocation tracking */
 
     PreviousAllocations = AcpiGbl_CurrentAllocCount;
     PreviousSize = AcpiGbl_CurrentAllocSize;
-
+#endif
 
     Info.Name = Name;
     Info.Args = Args;
@@ -311,6 +314,8 @@ AcpiDbExecute (
     AcpiDbExecuteSetup (&Info);
     Status = AcpiDbExecuteMethod (&Info, &ReturnObj);
 
+
+#ifdef ACPI_DEBUG
 
     /* Memory allocation tracking */
 
@@ -324,7 +329,7 @@ AcpiDbExecute (
         AcpiOsPrintf ("Outstanding: %ld allocations of total size %ld after execution\n",
                         Allocations, Size);
     }
-
+#endif
 
     if (ACPI_FAILURE (Status))
     {

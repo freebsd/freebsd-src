@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 45 $
+ *              $Revision: 48 $
  *
  ******************************************************************************/
 
@@ -218,8 +218,8 @@ AcpiDsIsResultUsed (
         case AML_IF_OP:
         case AML_WHILE_OP:
 
-            /* 
-             * If we are executing the predicate AND this is the predicate op, 
+            /*
+             * If we are executing the predicate AND this is the predicate op,
              * we will use the return value!
              */
 
@@ -235,9 +235,8 @@ AcpiDsIsResultUsed (
             break;
         }
 
-   
-        /* Fall through to not used case below */
 
+        /* Fall through to not used case below */
 
 
     case OPTYPE_NAMED_OBJECT:   /* Scope, method, etc. */
@@ -393,6 +392,7 @@ AcpiDsCreateOperand (
         ParentOp = Arg->Parent;
         if ((AcpiPsIsNodeOp (ParentOp->Opcode)) &&
             (ParentOp->Opcode != AML_METHODCALL_OP) &&
+            (ParentOp->Opcode != AML_REGION_OP) &&
             (ParentOp->Opcode != AML_NAMEPATH_OP))
         {
             /* Enter name into namespace if not found */
@@ -521,7 +521,7 @@ AcpiDsCreateOperand (
                  * a missing or null operand!
                  */
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("DsCreateOperand: Could not pop result\n"));
+                    ("DsCreateOperand: Missing or null operand, %s\n", AcpiCmFormatException (Status)));
                 return_ACPI_STATUS (Status);
             }
 
