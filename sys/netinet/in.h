@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.22 1996/10/22 22:25:54 sos Exp $
+ * $Id: in.h,v 1.22.2.1 1996/11/11 23:40:37 phk Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -301,7 +301,8 @@ struct ip_mreq {
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
 #define IPCTL_INTRQDROPS	11	/* number of netisr q drops */
-#define	IPCTL_MAXID		12
+#define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
+#define	IPCTL_MAXID		13
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -316,6 +317,7 @@ struct ip_mreq {
  	{ "directed-broadcast", CTLTYPE_INT }, \
 	{ "intr-queue-maxlen", CTLTYPE_INT }, \
 	{ "intr-queue-drops", CTLTYPE_INT }, \
+	{ "accept_sourceroute", CTLTYPE_INT }, \
 }
 
 
