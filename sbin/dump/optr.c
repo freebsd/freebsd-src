@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <signal.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -195,7 +196,7 @@ timeest()
 	time_t	tnow;
 	int deltat;
 
-	(void) time((time_t *) &tnow);
+	(void) time(&tnow);
 	if (tnow >= tschedule) {
 		tschedule = tnow + 300;
 		if (blockswritten < 500)
@@ -207,6 +208,16 @@ timeest()
 			(blockswritten * 100.0) / tapesize,
 			deltat / 3600, (deltat % 3600) / 60);
 	}
+}
+
+/*
+ * Schedule a printout of the estimate in the next call to timeest().
+ */
+void
+infosch(signal)
+	int signal;
+{
+	tschedule = 0;
 }
 
 void
