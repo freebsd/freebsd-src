@@ -135,6 +135,7 @@ extern struct proc *npxproc;
 extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch. */
 extern struct segment_descriptor *tss_gdt;
+extern int	witness_spin_check;
 
 #endif /* SMP || KLD_MODULE */
 
