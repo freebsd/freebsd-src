@@ -1,3 +1,56 @@
+Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.0.6: Release tar file made.
+
+Sun Jun 25 15:08:19 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.0.5: Release tar file made.
+
+Wed May 17 19:04:54 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi, gawk.1, awkcard.in: Documented %u.  Ooops.
+
+Tue May  2 11:44:13 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* texinfo.tex: Updated to version 1999-10-01.07.
+	* gawk.texi: Redid page breaking for new texinfo.tex.
+
+Thu Apr  6 12:32:49 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi: Change info dir file entry to `(gawk)' from
+	  `(gawk.info)'.
+	* Makefile.in [$(infodir)/gawk.info]: Fix grep test is
+	  accordance with above.
+
+Sun Feb 13 15:36:32 2000  Paul Eggert  <eggert@twinsun.com>
+
+	* gawk.texi: Mention that arithmetic is done in double
+	  precision floating point, and point to Goldberg's paper for
+	  people who want to know more.  Fix some other minor floating
+	  point discussion issues.
+
+Wed Nov  3 17:04:35 1999  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.1: Lots of troff ``lint'' from Paul Eggert.  Not all
+	  of his changes, just the ones I thought worth doing.
+
+Mon Oct 11 16:53:54 1999  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Makefile.in (gawk.dvi): Put $(srcdir) first in TEXINPUTS,
+	  and also just use texi2dvi, don't run texindex and tex
+	  manually.  Doing so is no longer necessary.
+
+Mon Aug  9 13:06:01 1999  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* gawk.texi: New node `Array Efficiency' on the best use
+	  of subscripting to avoid memory bloat.
+
+Thu Jul 29 23:15:34 1999  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Makefile.in ($(infodir)/gawk.info): Removed loop around
+	  $(INSTALL_DATA), since there's only one Info file to install,
+	  install it directly.
+
 Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
 
 	* Release 3.0.4: Release tar file made.  This time for sure.

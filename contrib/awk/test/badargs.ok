@@ -19,5 +19,6 @@ POSIX options:		GNU long options:
 	-W usage		--usage
 	-W version		--version
 
-Report bugs to bug-gnu-utils@prep.ai.mit.edu,
-with a Cc: to arnold@gnu.ai.mit.edu
+To report bugs, see node `Bugs' in `gawk.info', which
+is section `Reporting Problems and Bugs' in the
+printed version.
