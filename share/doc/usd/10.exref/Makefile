@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.2 1995/02/04 19:59:58 phk Exp $
+#	$Id: Makefile,v 1.3 1995/07/26 13:52:56 wollman Exp $
 
 VOLUME=	usd/10.exref
 SRCS=	ex.rm
@@ -19,7 +19,7 @@ SFILE=	summary.${PRINTER}
 all:	${DFILE} ${SFILE}
 
 ${SFILE}: ex.summary
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIP} > ${.TARGET}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
 
 afterinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
