@@ -48,9 +48,9 @@ u_short		flags=0;			/* New entry flags 	   */
 #define AC	2	/* Accounting action */
 
 
-#define S_SEP1		"f" /* of "from" */
-#define S_SEP2		"t" /* of "to"   */
-#define S_SEP3		"v" /* of "via"  */
+#define S_SEP1		"fr" /* of "from" */
+#define S_SEP2		"to" /* of "to"   */
+#define S_SEP3		"vi" /* of "via"  */
 
 #define P_AC		"a" /* of "accept" for policy action */
 #define P_DE		"d" /* of "deny" for policy action   */
