@@ -40,7 +40,7 @@
 .Nm mount_mfs
 .Nd construct a new file system
 .Sh SYNOPSIS
-.Nm newfs
+.Nm
 .Op Fl NO
 .Op Fl S Ar sector-size
 .Op Fl T Ar disktype
@@ -118,7 +118,7 @@ corresponding file system.
 The parameters to
 .Nm mount_mfs
 are the same as those to
-.Nm Ns .
+.Nm .
 If the
 .Fl T
 flag is specified (see below), the special file is unused.
@@ -179,7 +179,6 @@ with read/write-behind achieve higher performance with this feature disabled, so
 this value should be left at the default value of 0 milliseconds.  See
 .Xr tunefs 8
 for more details on how to set this option.
-.ne 1i
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -246,7 +245,7 @@ Specify that the disk does not contain any partitions, and that
 .Nm
 should build a file system on the whole disk.
 This option is useful for synthetic disks such as
-.Nm vinum.
+.Nm vinum .
 .El
 .Pp
 The following options override the standard sizes for the disk geometry. 
@@ -291,7 +290,6 @@ bad sector allocation.
 .It Fl r Ar revolutions/minute
 The speed of the disk in revolutions per minute.  This value is no longer of
 interest, since all the parameters which depend on it are usually disabled.
-.ne 1i
 .It Fl t Ar #tracks/cylinder
 The number of tracks/cylinder available for data allocation by the file
 system.

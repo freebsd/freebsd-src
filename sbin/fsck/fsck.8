@@ -40,13 +40,13 @@
 .Nm fsck
 .Nd filesystem consistency check and interactive repair
 .Sh SYNOPSIS
-.Nm fsck
+.Nm
 .Fl p
 .Op Fl f
 .Op Fl m Ar mode
 .Op Ar filesystem
 .Ar ...
-.Nm fsck
+.Nm
 .Op Fl ny
 .Op Fl b Ar block#
 .Op Fl c Ar level
@@ -162,7 +162,7 @@ and
 combined.
 .Pp
 The following flags are interpreted by
-.Nm Ns .
+.Nm .
 .Bl -tag -width indent
 .It Fl b
 Use the block specified immediately after the flag as
@@ -203,7 +203,7 @@ first line of output from
 .Xr dumpfs 8 .
 .It Fl f
 Force
-.Nm fsck
+.Nm
 to check
 .Sq clean
 filesystems when preening.
@@ -232,7 +232,7 @@ do not open the filesystem for writing.
 Preen filesystems (see above).
 .It Fl y
 Assume a yes response to all questions asked by 
-.Nm Ns ;
+.Nm ;
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
 .El

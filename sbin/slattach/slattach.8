@@ -40,7 +40,7 @@
 .Nm slattach
 .Nd attach serial lines as network interfaces
 .Sh SYNOPSIS
-.Nm slattach
+.Nm
 .Op Fl a
 .Op Fl c
 .Op Fl e Ar exit-command
@@ -124,12 +124,12 @@ using more than one slip line.
 When
 .Nm
 is connected for the first time,
-.Ql Nm "sh -c" Ar unit-command Nm \-1 Ar new
+.Ql Nm "sh -c" Ar unit-command \-1 new
 is run.
 When
 .Nm
 is disconnected,
-.Ql Nm "sh -c" Ar unit-command old Nm \-1
+.Ql Nm "sh -c" Ar unit-command old \-1
 is run.
 .Nm Slattach
 will abort if the unit number
@@ -233,7 +233,7 @@ slattach \-r 'kermit -y dial.script >kermit.log 2>&1'
 .Sh DIAGNOSTICS
 Look for error messages in
 .Pa /var/log/messages
-.Pf ( Nm slattach
+.No ( Nm
 is a daemon).
 Messages indicating the specified interface does not exit, the
 requested address is unknown, the user is not privileged and tried to
