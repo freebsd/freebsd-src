@@ -30,10 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.38 1996/09/10 08:31:57 bde Exp $
+ *	$Id: support.s,v 1.39 1996/09/20 16:52:09 bde Exp $
  */
 
-#include <sys/errno.h>
+#include "opt_temporary.h"			/* for I586_*_B* */
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
@@ -44,10 +44,19 @@
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10
 
-
 	.data
+	.globl	_bcopy_vector
+_bcopy_vector:
+	.long	_generic_bcopy
 	.globl	_bzero
-_bzero:	.long	_generic_bzero
+_bzero:
+	.long	_generic_bzero
+	.globl	_ovbcopy_vector
+_ovbcopy_vector:
+	.long	_generic_bcopy
+kernel_fpu_lock:
+	.byte	0xfe
+	.space	3
 
 	.text
 
@@ -174,66 +183,147 @@ do0:
 	ret
 #endif
 
-#if 0	/* Actually lowers performance in real-world cases */
 #if defined(I586_CPU) || defined(I686_CPU)
-ALTENTRY(i586_bzero)
-ENTRY(i686_bzero)
+ENTRY(i586_bzero)
+	movl	4(%esp),%edx
+	movl	8(%esp),%ecx
+
+	/*
+	 * The FPU register method is twice as fast as the integer register
+	 * method unless the target is in the L1 cache and we pre-allocate a
+	 * cache line for it (then the integer register method is 4-5 times
+	 * faster).  However, we never pre-allocate cache lines, since that
+	 * would make the integer method 25% or more slower for the common
+	 * case when the target isn't in either the L1 cache or the L2 cache.
+	 * Thus we normally use the FPU register method unless the overhead
+	 * would be too large.
+	 */
+	cmpl	$256,%ecx	/* empirical; clts, fninit, smsw cost a lot */
+	jb	intreg_i586_bzero
+
+	/*
+	 * The FPU registers may belong to an application or to fastmove()
+	 * or to another invocation of bcopy() or ourself in a higher level
+	 * interrupt or trap handler.  Preserving the registers is
+	 * complicated since we avoid it if possible at all levels.  We
+	 * want to localize the complications even when that increases them.
+	 * Here the extra work involves preserving CR0_TS in TS.
+	 * `npxproc != NULL' is supposed to be the condition that all the
+	 * FPU resources belong to an application, but npxproc and CR0_TS
+	 * aren't set atomically enough for this condition to work in
+	 * interrupt handlers.
+	 *
+	 * Case 1: FPU registers belong to the application: we must preserve
+	 * the registers if we use them, so we only use the FPU register
+	 * method if the target size is large enough to amortize the extra
+	 * overhead for preserving them.  CR0_TS must be preserved although
+	 * it is very likely to end up as set.
+	 *
+	 * Case 2: FPU registers belong to fastmove(): fastmove() currently
+	 * makes the registers look like they belong to an application so
+	 * that cpu_switch() and savectx() don't have to know about it, so
+	 * this case reduces to case 1.
+	 *
+	 * Case 3: FPU registers belong to the kernel: don't use the FPU
+	 * register method.  This case is unlikely, and supporting it would
+	 * be more complicated and might take too much stack.
+	 *
+	 * Case 4: FPU registers don't belong to anyone: the FPU registers
+	 * don't need to be preserved, so we always use the FPU register
+	 * method.  CR0_TS must be preserved although it is very likely to
+	 * always end up as clear.
+	 */
+	cmpl	$0,_npxproc
+	je	i586_bz1
+	cmpl	$256+184,%ecx		/* empirical; not quite 2*108 more */
+	jb	intreg_i586_bzero
+	sarb	$1,kernel_fpu_lock
+	jc	intreg_i586_bzero
+	smsw	%ax
+	clts
+	subl	$108,%esp
+	fnsave	0(%esp)
+	jmp	i586_bz2
+
+i586_bz1:
+	sarb	$1,kernel_fpu_lock
+	jc	intreg_i586_bzero
+	smsw	%ax
+	clts
+	fninit				/* XXX should avoid needing this */
+i586_bz2:
+	fldz
+
+	/*
+	 * Align to an 8 byte boundary (misalignment in the main loop would
+	 * cost a factor of >= 2).  Avoid jumps (at little cost if it is
+	 * already aligned) by always zeroing 8 bytes and using the part up
+	 * to the _next_ alignment position.
+	 */
+	fstl	0(%edx)
+	addl	%edx,%ecx		/* part of %ecx -= new_%edx - %edx */
+	addl	$8,%edx
+	andl	$~7,%edx
+	subl	%edx,%ecx
+
+	/*
+	 * Similarly align `len' to a multiple of 8.
+	 */
+	fstl	-8(%edx,%ecx)
+	decl	%ecx
+	andl	$~7,%ecx
+
+	/*
+	 * This wouldn't be any faster if it were unrolled, since the loop
+	 * control instructions are much faster than the fstl and/or done
+	 * in parallel with it so their overhead is insignificant.
+	 */
+fpureg_i586_bzero_loop:
+	fstl	0(%edx)
+	addl	$8,%edx
+	subl	$8,%ecx
+	cmpl	$8,%ecx
+	jae	fpureg_i586_bzero_loop
+
+	cmpl	$0,_npxproc
+	je	i586_bz3
+	frstor	0(%esp)
+	addl	$108,%esp
+	lmsw	%ax
+	movb	$0xfe,kernel_fpu_lock
+	ret
+
+i586_bz3:
+	fstpl	%st(0)
+	lmsw	%ax
+	movb	$0xfe,kernel_fpu_lock
+	ret
+
+intreg_i586_bzero:
+	/*
+	 * `rep stos' seems to be the best method in practice for small
+	 * counts.  Fancy methods usually take too long to start up due
+	 * to cache and BTB misses.
+	 */
 	pushl	%edi
-	movl	8(%esp),%edi	/* destination pointer */
-	movl	12(%esp),%edx	/* size (in 8-bit words) */
-
-	xorl	%eax,%eax	/* store data */
-	cld
-
-/* If less than 100 bytes to write, skip tricky code.  */
-	cmpl	$100,%edx
-	movl	%edx,%ecx	/* needed when branch is taken! */
-	jl	2f
-
-/* First write 0-3 bytes to make the pointer 32-bit aligned.  */
-	movl	%edi,%ecx	/* Copy ptr to ecx... */
-	negl	%ecx		/* ...and negate that and... */
-	andl	$3,%ecx		/* ...mask to get byte count.  */
-	subl	%ecx,%edx	/* adjust global byte count */
-	rep
-	stosb
-
-	subl	$32,%edx	/* offset count for unrolled loop */
-	movl	(%edi),%ecx	/* Fetch destination cache line */
-
-	.align	2,0x90		/* supply 0x90 for broken assemblers */
-1:
-	movl	28(%edi),%ecx	/* allocate cache line for destination */
-	subl	$32,%edx	/* decr loop count */
-	movl	%eax,0(%edi)	/* store words pairwise */
-	movl	%eax,4(%edi)
-	movl	%eax,8(%edi)
-	movl	%eax,12(%edi)
-	movl	%eax,16(%edi)
-	movl	%eax,20(%edi)
-	movl	%eax,24(%edi)
-	movl	%eax,28(%edi)
-
-	leal	32(%edi),%edi	/* update destination pointer */
-	jge	1b
-	leal	32(%edx),%ecx
-
-/* Write last 0-7 full 32-bit words (up to 8 words if loop was skipped).  */
-2:
+	movl	%edx,%edi
+	xorl	%eax,%eax
 	shrl	$2,%ecx
+	cld
 	rep
 	stosl
-
-/* Finally write the last 0-3 bytes.  */
-	movl	%edx,%ecx
+	movl	12(%esp),%ecx
 	andl	$3,%ecx
-	rep
-	stosb
-
+	jne	1f
 	popl	%edi
 	ret
-#endif
-#endif
+
+1:
+	rep
+	stosb
+	popl	%edi
+	ret
+#endif /* I586_CPU || I686_CPU */
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
@@ -256,7 +346,7 @@ bcopyb:
 	movl	20(%esp),%ecx
 	movl	%edi,%eax
 	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping? */
+	cmpl	%ecx,%eax			/* overlapping && src < dst? */
 	jb	1f
 	cld					/* nope, copy forwards */
 	rep
@@ -279,13 +369,19 @@ bcopyb:
 	cld
 	ret
 
+ENTRY(bcopy)
+	MEXITCOUNT
+	jmp	*_bcopy_vector
+
+ENTRY(ovbcopy)
+	MEXITCOUNT
+	jmp	*_ovbcopy_vector
+
 /*
- * (ov)bcopy(src, dst, cnt)
+ * generic_bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
-ALTENTRY(ovbcopy)
-ENTRY(bcopy)
-bcopy:
+ENTRY(generic_bcopy)
 	pushl	%esi
 	pushl	%edi
 	movl	12(%esp),%esi
@@ -294,7 +390,7 @@ bcopy:
 
 	movl	%edi,%eax
 	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping? */
+	cmpl	%ecx,%eax			/* overlapping && src < dst? */
 	jb	1f
 
 	shrl	$2,%ecx				/* copy by 32-bit words */
@@ -330,6 +426,141 @@ bcopy:
 	cld
 	ret
 
+ENTRY(i586_bcopy)
+	pushl	%esi
+	pushl	%edi
+	movl	12(%esp),%esi
+	movl	16(%esp),%edi
+	movl	20(%esp),%ecx
+
+	movl	%edi,%eax
+	subl	%esi,%eax
+	cmpl	%ecx,%eax			/* overlapping && src < dst? */
+	jb	1f
+
+	cmpl	$1024,%ecx
+	jb	small_i586_bcopy
+
+	sarb	$1,kernel_fpu_lock
+	jc	small_i586_bcopy
+	cmpl	$0,_npxproc
+	je	i586_bc1
+	smsw	%dx
+	clts
+	subl	$108,%esp
+	fnsave	0(%esp)
+	jmp	4f
+
+i586_bc1:
+	smsw	%dx
+	clts
+	fninit				/* XXX should avoid needing this */
+
+	ALIGN_TEXT
+4:
+	pushl	%ecx
+#define	DCACHE_SIZE	8192
+	cmpl	$(DCACHE_SIZE-512)/2,%ecx
+	jbe	2f
+	movl	$(DCACHE_SIZE-512)/2,%ecx
+2:
+	subl	%ecx,0(%esp)
+	cmpl	$256,%ecx
+	jb	5f			/* XXX should prefetch if %ecx >= 32 */
+	pushl	%esi
+	pushl	%ecx
+	ALIGN_TEXT
+3:
+	movl	0(%esi),%eax
+	movl	32(%esi),%eax
+	movl	64(%esi),%eax
+	movl	96(%esi),%eax
+	movl	128(%esi),%eax
+	movl	160(%esi),%eax
+	movl	192(%esi),%eax
+	movl	224(%esi),%eax
+	addl	$256,%esi
+	subl	$256,%ecx
+	cmpl	$256,%ecx
+	jae	3b
+	popl	%ecx
+	popl	%esi
+5:
+	ALIGN_TEXT
+large_i586_bcopy_loop:
+	fildq	0(%esi)
+	fildq	8(%esi)
+	fildq	16(%esi)
+	fildq	24(%esi)
+	fildq	32(%esi)
+	fildq	40(%esi)
+	fildq	48(%esi)
+	fildq	56(%esi)
+	fistpq	56(%edi)
+	fistpq	48(%edi)
+	fistpq	40(%edi)
+	fistpq	32(%edi)
+	fistpq	24(%edi)
+	fistpq	16(%edi)
+	fistpq	8(%edi)
+	fistpq	0(%edi)
+	addl	$64,%esi
+	addl	$64,%edi
+	subl	$64,%ecx
+	cmpl	$64,%ecx
+	jae	large_i586_bcopy_loop
+	popl	%eax
+	addl	%eax,%ecx
+	cmpl	$64,%ecx
+	jae	4b
+
+	cmpl	$0,_npxproc
+	je	i586_bc2
+	frstor	0(%esp)
+	addl	$108,%esp
+i586_bc2:
+	lmsw	%dx
+	movb	$0xfe,kernel_fpu_lock
+
+/*
+ * This is a duplicate of the main part of generic_bcopy.  See the comments
+ * there.  Jumping into generic_bcopy would cost a whole 0-1 cycles and
+ * would mess up high resolution profiling.
+ */
+	ALIGN_TEXT
+small_i586_bcopy:
+	shrl	$2,%ecx
+	cld
+	rep
+	movsl
+	movl	20(%esp),%ecx
+	andl	$3,%ecx
+	rep
+	movsb
+	popl	%edi
+	popl	%esi
+	ret
+
+	ALIGN_TEXT
+1:
+	addl	%ecx,%edi
+	addl	%ecx,%esi
+	decl	%edi
+	decl	%esi
+	andl	$3,%ecx
+	std
+	rep
+	movsb
+	movl	20(%esp),%ecx
+	shrl	$2,%ecx
+	subl	$3,%esi
+	subl	$3,%edi
+	rep
+	movsl
+	popl	%edi
+	popl	%esi
+	cld
+	ret
 
 /*
  * Note: memcpy does not support overlapping copies
