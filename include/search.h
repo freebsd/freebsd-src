@@ -1,9 +1,9 @@
-/*	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $	*/
-/* $FreeBSD$ */
-
-/*
+/*-
  * Written by J.T. Conklin <jtc@netbsd.org>
  * Public domain.
+ *
+ *	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SEARCH_H_
@@ -17,16 +17,16 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-typedef struct entry {
-	char *key;
-	void *data;
+typedef	struct entry {
+	char	*key;
+	void	*data;
 } ENTRY;
 
-typedef enum {
+typedef	enum {
 	FIND, ENTER
 } ACTION;
 
-typedef enum {
+typedef	enum {
 	preorder,
 	postorder,
 	endorder,
@@ -34,7 +34,7 @@ typedef enum {
 } VISIT;
 
 #ifdef _SEARCH_PRIVATE
-typedef struct node {
+typedef	struct node {
 	char         *key;
 	struct node  *llink, *rlink;
 } node_t;
@@ -46,9 +46,13 @@ void	 hdestroy(void);
 ENTRY	*hsearch(ENTRY, ACTION);
 void	*tdelete(const void * __restrict, void ** __restrict,
 	    int (*)(const void *, const void *));
-void	*tfind(const void *, void **, int (*)(const void *, const void *));
+void	*tfind(const void *, void * const *,
+	    int (*)(const void *, const void *));
 void	*tsearch(const void *, void **, int (*)(const void *, const void *));
-void      twalk(const void *, void (*)(const void *, VISIT, int));
+void	 twalk(const void *, void (*)(const void *, VISIT, int));
+/*
+ * XXX missing insque(), lsearch(), remque().
+ */
 __END_DECLS
 
 #endif /* !_SEARCH_H_ */
