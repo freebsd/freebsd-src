@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.8 1994/08/13 03:49:36 wollman Exp $
+ *	$Id: db_interface.c,v 1.9 1994/09/02 04:12:02 davidg Exp $
  */
 
 /*
@@ -232,9 +232,24 @@ db_write_bytes(addr, size, data)
 	}
 }
 
+/*
+ * XXX move this to machdep.c and allow it to be called iff any debugger is
+ * installed.
+ * XXX msg is not printed.
+ */
 void
 Debugger (msg)
 	const char *msg;
 {
-	asm ("int $3");
+	static volatile u_char in_Debugger;
+ 
+	if (!in_Debugger) {
+		in_Debugger = 1;
+#ifdef __GNUC__
+		asm("int $3");
+#else
+		int3();
+#endif
+		in_Debugger = 0;
+	}
 }
