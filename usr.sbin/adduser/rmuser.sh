@@ -159,10 +159,10 @@ rm_user() {
 #
 prompt_yesno() {
 	# The argument is required
-	[ -n "$1" ] && msg=$1 || return
+	[ -n "$1" ] && msg="$1" || return
 
         while : ; do
-                echo -n $msg
+                echo -n "$msg"
                 read _ans
                 case $_ans in
                 [Nn][Oo]|[Nn])
@@ -300,7 +300,7 @@ for _user in $userlist ; do
 			continue
 		fi
 		_homedir=`echo $userrec | awk -F: '{print $9}'`
-		if prompt_yesno "Remove user's home directory ($_homedir)?: "; then
+		if prompt_yesno "Remove user's home directory ($_homedir)? "; then
 			pw_rswitch="-r"
 		fi
 	else
