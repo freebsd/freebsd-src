@@ -81,7 +81,7 @@ char **argv;
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, "k:f:")) !=  -1)
+    while ((ch = getopt(argc, argv, "k:f:")) != -1)
 	switch(ch) {
 	case 'k':
 	    add_to_keep_list(optarg);

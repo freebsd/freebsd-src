@@ -63,7 +63,7 @@ char *argv[];
 	long freq = -1;
 	int no = -1;
 
-	while( (c = getopt(argc, argv, "f:n:")) !=  -1)
+	while( (c = getopt(argc, argv, "f:n:")) != -1)
 	{
 		switch(c)
 		{

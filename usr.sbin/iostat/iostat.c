@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)iostat.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: iostat.c,v 1.5.2.3 1997/09/22 06:25:38 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ main(argc, argv)
 
 	interval = reps = 0;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "c:M:N:w:")) !=  -1)
+	while ((ch = getopt(argc, argv, "c:M:N:w:")) != -1)
 		switch(ch) {
 		case 'c':
 			if ((reps = atoi(optarg)) <= 0)

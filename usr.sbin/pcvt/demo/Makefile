@@ -9,7 +9,7 @@ all: $(DEMOS) $(PROG)
 install: ${DEMOS}
 	@${ECHO} "to look at the demos, execute:"
 	@${ECHO} "        \"cat <filename>.vt\""
-	@${ECHO} "if it is an animation an it runs too fast, try out:"
+	@${ECHO} "if it is an animation and it runs too fast, try out:"
 	@${ECHO} "        \"playvt -f <filename>.vt -d<some-delay-val>\""
 
 .include <bsd.prog.mk>

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kgmon.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kgmon.c,v 1.6.2.2 1997/09/24 06:34:04 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -96,7 +96,7 @@ main(int argc, char **argv)
 	seteuid(getuid());
 	kmemf = NULL;
 	system = NULL;
-	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) !=  -1) {
+	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != -1) {
 		switch((char)ch) {
 
 		case 'M':

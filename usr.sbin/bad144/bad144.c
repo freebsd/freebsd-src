@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 198019861988
+ * Copyright (c) 1980, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,16 +33,16 @@
 
 #ifndef lint
 static const char copyright[] =
-"@(#) Copyright (c) 1993, 198019861988\n\
+"@(#) Copyright (c) 1980, 1986, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 #if 0
-static const char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)bad144.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: bad144.c,v 1.12.2.3 1997/12/11 09:17:20 bde Exp $";
+	"$Id: bad144.c,v 1.12.2.4 1997/12/11 09:32:35 bde Exp $";
 #endif /* not lint */
 
 /*

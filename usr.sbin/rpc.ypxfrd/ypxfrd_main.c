@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypxfrd_main.c,v 1.1.1.1.2.2 1997/11/06 07:32:21 charnier Exp $";
+	"$Id: ypxfrd_main.c,v 1.1.1.1.2.3 1997/11/07 03:16:22 wpaul Exp $";
 #endif /* not lint */
 
 #include "ypxfrd.h"
@@ -193,7 +193,7 @@ main(argc, argv)
 	int asize = sizeof (saddr);
 	int ch;
 
-	while ((ch = getopt(argc, argv, "p:h")) !=  -1) {
+	while ((ch = getopt(argc, argv, "p:h")) != -1) {
 		switch(ch) {
 		case 'p':
 			yp_dir = optarg;

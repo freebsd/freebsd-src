@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ac.c,v 1.4.2.1 1997/08/29 05:14:56 imp Exp $";
+	"$Id: ac.c,v 1.4.2.2 1997/09/02 06:28:56 charnier Exp $";
 #endif
 
 #include <sys/types.h>
@@ -28,8 +28,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utmp.h>
 #include <unistd.h>
+#include <utmp.h>
 
 /*
  * this is for our list of currently logged in sessions
@@ -230,7 +230,7 @@ main(argc, argv)
 	(void) setlocale(LC_TIME, "");
 
 	fp = NULL;
-	while ((c = getopt(argc, argv, "Dc:dpt:w:")) !=  -1) {
+	while ((c = getopt(argc, argv, "Dc:dpt:w:")) != -1) {
 		switch (c) {
 #ifdef DEBUG
 		case 'D':

@@ -155,7 +155,7 @@ void init_file(char *filename)
   status_info = (FileLayout *)
     mmap(NULL, 0x10000000, PROT_READ | PROT_WRITE, MAP_SHARED, status_fd, 0);
 
-  if (status_info == (FileLayout *) -1)
+  if (status_info == (FileLayout *) MAP_FAILED)
     warn("unable to mmap() status file");
 
   status_file_len = lseek(status_fd, 0L, SEEK_END);

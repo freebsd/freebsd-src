@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)repquota.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: repquota.c,v 1.5 1997/10/13 11:05:07 charnier Exp $";
+	"$Id: repquota.c,v 1.3.6.2 1997/11/05 07:29:16 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -101,7 +101,7 @@ main(argc, argv)
 	long i, argnum, done = 0;
 	char ch, *qfnp;
 
-	while ((ch = getopt(argc, argv, "aguv")) !=  -1) {
+	while ((ch = getopt(argc, argv, "aguv")) != -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;
