@@ -164,15 +164,16 @@ struct bt848_registers {
     BTBYTE (o_vscale_hi);	/* cc, cd,ce,cf */
     BTBYTE (o_vscale_lo);	/* d0, d1,d2,d3 */
     BTBYTE (color_fmt);		/* d4, d5,d6,d7 */
-    BTBYTE (color_ctl);		/* d8, d9,da,db */
-#define BT848_COLOR_CTL_EXT_FRMRATE	(1<<7)
-#define BT848_COLOR_CTL_COLOR_BARS	(1<<6)
-#define BT848_COLOR_CTL_RGB_DED		(1<<5)
-#define BT848_COLOR_CTL_GAMMA		(1<<4)
+    bregister_t color_ctl_swap		:4; /* d8 */
 #define BT848_COLOR_CTL_WSWAP_ODD	(1<<3)
 #define BT848_COLOR_CTL_WSWAP_EVEN	(1<<2)
 #define BT848_COLOR_CTL_BSWAP_ODD	(1<<1)
 #define BT848_COLOR_CTL_BSWAP_EVEN	(1<<0)
+    bregister_t color_ctl_gamma		:1;
+    bregister_t color_ctl_rgb_ded	:1;
+    bregister_t color_ctl_color_bars	:1;
+    bregister_t color_ctl_ext_frmrate	:1;
+    int		:24;		/* d9,da,db */
     BTBYTE (cap_ctl);		/* dc, dd,de,df */
 #define BT848_CAP_CTL_DITH_FRAME	(1<<4)
 #define BT848_CAP_CTL_VBI_ODD		(1<<3)
@@ -333,6 +334,8 @@ struct format_params {
   float hactive_frac;
 };
 
+
+typedef struct bktr_clip bktr_clip_t;
 /*
  * BrookTree 848  info structure, one per bt848 card installed.
  */
@@ -355,7 +358,8 @@ struct bktr_softc {
     short	current;	/* frame number in buffer (1-frames) */
     short	rows;		/* number of rows in a frame */
     short	cols;		/* number of columns in a frame */
-    short	depth;		/* number of byte per pixel */
+    int		pixfmt;         /* active pixel format (idx into fmt tbl) */
+    int		pixfmt_compat;  /* Y/N - in meteor pix fmt compat mode */
     u_long	format;		/* frame format rgb, yuv, etc.. */
     short	frames;		/* number of frames allocated */
     int		frame_size;	/* number of bytes in a frame */
@@ -417,6 +421,17 @@ struct bktr_softc {
     u_char		audio_mux_select;	/* current mode of the audio */
     u_char		audio_mute_state;	/* mute state of the audio */
     u_char		format_params;
+    u_long              current_sol;
+    u_long              current_col;
+    int                 clip_start;
+    int                 line_length;
+    int                 last_y;
+    int                 y;
+    int                 y2;
+    int                 yclip;
+    int                 yclip2;
+    int                 max_clip_node;
+    bktr_clip_t		clip_list[100];
 };
 
 typedef struct bktr_softc bktr_reg_t;
