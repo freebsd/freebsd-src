@@ -1860,12 +1860,22 @@ is specified, the shell removes that alias.
 If
 .Fl a
 is specified, all aliases are removed.
-.It Ic unset Ar name ...
-The specified variables and functions are unset and unexported.
-If a given
+.It Xo
+.Ic unset
+.Op Fl fv
+.Ar name ...
+.Xc
+The specified variables or functions are unset and unexported.
+If the
+.Fl v
+option is specified or no options are given, the
 .Ar name
-corresponds to both a variable and a function,
-both the variable and the function are unset.
+arguments are treated as variable names.
+If the
+.Fl f
+option is specified, the
+.Ar name
+arguments are treated as function names.
 .It Ic wait Op Ar job
 Wait for the specified
 .Ar job
