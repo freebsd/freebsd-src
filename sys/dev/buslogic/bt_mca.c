@@ -179,7 +179,7 @@ bt_mca_probe (device_t dev)
 
 	bt_mark_probed_iop(iobase);
 
-	mca_add_iospace(dev, iobase, iosize, RF_ALLOCATED);
+	mca_add_iospace(dev, iobase, iosize);
 
 	/* And allocate them */
 	bt_mca_alloc_resources(dev);
