@@ -3,7 +3,8 @@
 # machine-independent net sources
 .PATH: ${.CURDIR}/${MACHINE}/net ${.CURDIR}/net
 
-SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
+SRCS+=	addr2ascii.c ascii2addr.c \
+	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
 	getservbyport.c getservent.c herror.c inet_addr.c inet_lnaof.c \
@@ -17,12 +18,14 @@ SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
 
-MAN3+=	net/byteorder.3 net/ethers.3 net/gethostbyname.3 net/getnetent.3 \
+MAN3+=	net/addr2ascii.3 \
+	net/byteorder.3 net/ethers.3 net/gethostbyname.3 net/getnetent.3 \
 	net/getprotoent.3 net/getservent.3 net/inet.3 net/linkaddr.3 \
 	net/rcmd.3 net/resolver.3
 
 # not installed: net/ns.3 net/iso_addr.3
 
+MLINKS+=addr2ascii.3 ascii2addr.3
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
 	byteorder.3 ntohs.3
 MLINKS+=ethers.3 ether_line.3 ethers.3 ether_aton.3 ethers.3 ether_ntoa.3 \
