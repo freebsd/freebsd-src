@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.5.2.2 1996/12/04 16:01:15 phk Exp $
+ *	$Id: lpt.c,v 1.5.2.3 1997/01/17 14:56:54 kato Exp $
  */
 
 /*
@@ -315,7 +315,7 @@ static struct cdevsw lpt_cdevsw =
 	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
 	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
 
-
+#ifndef	PC98
 /*
  * Internal routine to lptprobe to do port tests of one byte value
  */
@@ -336,6 +336,7 @@ lpt_port_test (int port, u_char data, u_char mask)
 		port, data, temp, timeout);
 	return (temp == data);
 }
+#endif
 
 /*
  * New lpt port probe Geoff Rehmet - Rhodes University - 14/2/94
@@ -391,8 +392,14 @@ lptprobe(struct isa_device *dvp)
 	int		port;
 	static short	next_bios_lpt = 0;
 	int		status;
-	u_char		data;
-	u_char		mask;
+	static u_char	testbyte[18] = {
+		0x55,			/* alternating zeros */
+		0xaa,			/* alternating ones */
+		0xfe, 0xfd, 0xfb, 0xf7,
+		0xef, 0xdf, 0xbf, 0x7f,	/* walking zero */
+		0x01, 0x02, 0x04, 0x08,
+		0x10, 0x20, 0x40, 0x80	/* walking one */
+	};
 	int		i;
 
 	/*
@@ -415,27 +422,12 @@ lptprobe(struct isa_device *dvp)
 
 	/* Port was explicitly specified */
 	/* This allows probing of ports unknown to the BIOS */
-
 	port = dvp->id_iobase + lpt_data;
-	mask = 0xff;
-	data = 0x55;				/* Alternating zeros */
-	if (!lpt_port_test(port, data, mask))
-		{ status = 0 ; goto end_probe ; }
-
-	data = 0xaa;				/* Alternating ones */
-	if (!lpt_port_test(port, data, mask))
-		{ status = 0 ; goto end_probe ; }
-
-	for (i = 0; i < 8; i++)	{		/* Walking zero */
-		data = ~(1 << i);
-		if (!lpt_port_test(port, data, mask))
-			{ status = 0 ; goto end_probe ; }
-	}
-
-	for (i = 0; i < 8; i++)	{		/* Walking one */
-		data = (1 << i);
-		if (!lpt_port_test(port, data, mask))
-			{ status = 0 ; goto end_probe ; }
+	for (i = 0; i < 18; i++) {
+		if (!lpt_port_test(port, testbyte[i], 0xff)) {
+			status = 0;
+			goto end_probe;
+		}
 	}
 
 end_probe:
