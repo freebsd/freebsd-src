@@ -59,6 +59,9 @@ static struct {
 	{ "nosimmutable",	SF_IMMUTABLE,	0 },
 	{ "nosunlnk",		SF_NOUNLINK,	0 },
 	{ "nosunlink",		SF_NOUNLINK,	0 },
+#ifdef SF_SNAPSHOT
+	{ "nosnapshot",		SF_SNAPSHOT,	0 },
+#endif
 	{ "nouappnd",		UF_APPEND,	0 },
 	{ "nouappend",		UF_APPEND,	0 },
 	{ "nouchg",		UF_IMMUTABLE,	0 },
