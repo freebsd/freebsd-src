@@ -80,7 +80,7 @@ Either a host name or an IP address may be specified.
 .Pp
 By default
 .Nm
-construct the name of a whois server to use from the top-level domain
+constructs the name of a whois server to use from the top-level domain
 .Pq Tn TLD
 of the supplied (single) argument, and appending
 .Qq Li .whois-servers.net .
@@ -101,11 +101,10 @@ that server will be queried also, provided that the
 .Fl Q
 option is not specified.
 .Pp
-If no required
-.Pa whois-servers.net
-subdomain found, fallback to
-.Pa whois.crsnic.net
-provided.
+If the query is not a domain name or IP address,
+.Nm
+will fall back to
+.Pa whois.crsnic.net .
 .It Fl i
 Use the Network Solutions Registry for Internet Numbers
 .Pq Pa whois.networksolutions.com
