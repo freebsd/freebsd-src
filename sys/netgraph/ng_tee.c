@@ -153,10 +153,9 @@ ngt_constructor(node_p *nodep)
 	sc_p privdata;
 	int error = 0;
 
-	MALLOC(privdata, sc_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
+	MALLOC(privdata, sc_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT|M_ZERO);
 	if (privdata == NULL)
 		return (ENOMEM);
-	bzero(privdata, sizeof(*privdata));
 
 	if ((error = ng_make_node_common(&ng_tee_typestruct, nodep))) {
 		FREE(privdata, M_NETGRAPH);

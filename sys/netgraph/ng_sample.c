@@ -152,10 +152,10 @@ ng_xxx_constructor(node_p *nodep)
 	int i, error;
 
 	/* Initialize private descriptor */
-	MALLOC(privdata, xxx_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
+	MALLOC(privdata, xxx_p, sizeof(*privdata), M_NETGRAPH,
+		M_NOWAIT | M_ZERO);
 	if (privdata == NULL)
 		return (ENOMEM);
-	bzero(privdata, sizeof(struct XXX));
 	for (i = 0; i < XXX_NUM_DLCIS; i++) {
 		privdata->channel[i].dlci = -2;
 		privdata->channel[i].channel = i;

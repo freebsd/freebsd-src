@@ -208,12 +208,11 @@ ngt_open(dev_t dev, struct tty *tp)
 	}
 
 	/* Initialize private struct */
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto done;
 	}
-	bzero(sc, sizeof(*sc));
 	sc->tp = tp;
 	sc->hotchar = NG_TTY_DFL_HOTCHAR;
 	sc->qtail = &sc->qhead;
