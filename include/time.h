@@ -46,6 +46,7 @@
 #define	_TIME_H_
 
 #include <sys/cdefs.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 
 #if __POSIX_VISIBLE > 0 && __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
@@ -58,10 +59,6 @@
 
 /* Frequency of the clock ticks reported by clock().  */
 #define	CLOCKS_PER_SEC	128
-
-#ifndef	NULL
-#define	NULL	0
-#endif
 
 #ifndef _CLOCK_T_DECLARED
 typedef	__clock_t	clock_t;

@@ -28,7 +28,7 @@
 
 #ifndef NULL
 
-#if defined(__LP64__) || defined(__amd64__)
+#if defined(__ia64__) || defined(__amd64__)
 #define	NULL	0L
 #else
 #define	NULL	0
