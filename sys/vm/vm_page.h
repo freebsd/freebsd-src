@@ -133,6 +133,12 @@ struct vm_page {
 #elif PAGE_SIZE == 8192
 	u_short	valid;			/* map of valid DEV_BSIZE chunks */
 	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
+#elif PAGE_SIZE == 16384
+	u_int valid;			/* map of valid DEV_BSIZE chunks */
+	u_int dirty;			/* map of dirty DEV_BSIZE chunks */
+#elif PAGE_SIZE == 32768
+	u_long valid;			/* map of valid DEV_BSIZE chunks */
+	u_long dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
 	u_int cow;			/* page cow mapping count */
 };
