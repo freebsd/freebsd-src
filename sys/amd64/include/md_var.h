@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.19 1997/10/27 17:23:04 bde Exp $
+ *	$Id: md_var.h,v 1.20 1997/11/20 19:30:34 bde Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -55,6 +55,7 @@ extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
 extern	char	sigcode[];
 extern	int	szsigcode;
+extern	int	busdma_swi_pending;
 
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
@@ -81,6 +82,7 @@ void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
+void	busdma_swi __P((void));
 
 #ifdef PC98
 extern int need_pre_dma_flush;
