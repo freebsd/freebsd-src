@@ -54,38 +54,29 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/time.h>
 
-#include <nfs/rpcv2.h>
-#include <nfs/nfs.h>
-
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-/* Global defs */
-#ifdef DEBUG
-int debug = 1;
-#else
-int debug = 0;
-#endif
+#define	MAXNFSDCNT      20
 
-void nonfs(int);
-void reapchild(int);
-void usage(void);
+static void
+usage(void)
+{
+	(void)fprintf(stderr, "usage: nfsiod [-n num_servers]\n");
+	exit(1);
+}
 
-/*
- * Nfsiod does asynchronous buffered I/O on behalf of the NFS client.
- * It does not have to be running for correct operation, but will
- * improve throughput.
- */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, num_servers;
 	struct vfsconf vfc;
 	int error;
+	unsigned int iodmin;
+	unsigned int iodmax;
+	size_t len;
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -94,20 +85,23 @@ main(argc, argv)
 		endvfsent();	/* flush cache */
 		error = getvfsbyname("nfs", &vfc);
 	}
-	if(error)
+	if (error)
 		errx(1, "NFS support is not available in the running kernel");
 
-#define	MAXNFSDCNT      20
-#define	DEFNFSDCNT       1
-	num_servers = DEFNFSDCNT;
+	num_servers = 0;
 	while ((ch = getopt(argc, argv, "n:")) != -1)
 		switch (ch) {
 		case 'n':
 			num_servers = atoi(optarg);
-			if (num_servers < 1 || num_servers > MAXNFSDCNT) {
+			if (num_servers < 1) {
 				warnx("nfsiod count %d; reset to %d",
-				    num_servers, DEFNFSDCNT);
-				num_servers = DEFNFSDCNT;
+				    num_servers, 1);
+				num_servers = 1;
+			}
+			if (num_servers > MAXNFSDCNT) {
+				warnx("nfsiod count %d; reset to %d",
+				    num_servers, MAXNFSDCNT);
+				num_servers = MAXNFSDCNT;
 			}
 			break;
 		case '?':
@@ -117,67 +111,31 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	/*
-	 * XXX
-	 * Backward compatibility, trailing number is the count of daemons.
-	 */
-	if (argc > 1)
+	if (argc > 0)
 		usage();
-	if (argc == 1) {
-		num_servers = atoi(argv[0]);
-		if (num_servers < 1 || num_servers > MAXNFSDCNT) {
-			warnx("nfsiod count %d; reset to %d", num_servers,
-			    DEFNFSDCNT);
-			num_servers = DEFNFSDCNT;
-		}
+
+	if (num_servers == 0)
+		exit(0);		/* no change */
+
+	len = sizeof iodmin;
+	error = sysctlbyname("vfs.nfs.iodmin", &iodmin, &len, NULL, 0);
+	if (error < 0)
+		err(1, "sysctlbyname(\"vfs.nfs.iodmin\")");
+	len = sizeof iodmax;
+	error = sysctlbyname("vfs.nfs.iodmax", &iodmax, &len, NULL, 0);
+	if (error < 0)
+		err(1, "sysctlbyname(\"vfs.nfs.iodmin\")");
+	/* Catch the case where we're lowering num_servers below iodmin */
+	if (iodmin > num_servers) {
+		iodmin = num_servers;
+		error = sysctlbyname("vfs.nfs.iodmin", NULL, 0, &iodmin,
+		    sizeof iodmin);
+		if (error < 0)
+			err(1, "sysctlbyname(\"vfs.nfs.iodmin\")");
 	}
-
-	if (debug == 0) {
-		daemon(0, 0);
-		(void)signal(SIGHUP, SIG_IGN);
-		(void)signal(SIGINT, SIG_IGN);
-		(void)signal(SIGQUIT, SIG_IGN);
-		(void)signal(SIGSYS, nonfs);
-	}
-	(void)signal(SIGCHLD, reapchild);
-
-	openlog("nfsiod:", LOG_PID, LOG_DAEMON);
-
-	while (num_servers--)
-		switch (fork()) {
-		case -1:
-			syslog(LOG_ERR, "fork: %m");
-			exit (1);
-		case 0:
-			if (nfssvc(NFSSVC_BIOD, NULL) < 0) {
-				syslog(LOG_ERR, "nfssvc: %m");
-				exit (1);
-			}
-			exit(0);
-		}
-	exit (0);
+	iodmax = num_servers;
+	error = sysctlbyname("vfs.nfs.iodmax", NULL, 0, &iodmax, sizeof iodmax);
+	if (error < 0)
+		err(1, "sysctlbyname(\"vfs.nfs.iodmax\")");
 }
 
-void
-nonfs(signo)
-	int signo;
-{
-	syslog(LOG_ERR, "missing system call: NFS not available");
-}
-
-void
-reapchild(signo)
-	int signo;
-{
-
-	while (wait3(NULL, WNOHANG, NULL) > 0) {
-		/* nothing */
-	};
-}
-
-void
-usage()
-{
-	(void)fprintf(stderr, "usage: nfsiod [-n num_servers]\n");
-	exit(1);
-}
