@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.65 1998/04/05 11:49:34 phk Exp $
+ * $Id: kern_clock.c,v 1.66 1998/04/06 08:26:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -756,7 +756,7 @@ tco_forward(void)
 		timedelta -= tickdelta;
 	}
 
-	if (tc->offset_nano >= 1000000000ULL << 32) {
+	while (tc->offset_nano >= 1000000000ULL << 32) {
 		tc->offset_nano -= 1000000000ULL << 32;
 		tc->offset_sec++;
 		tc->frequency = tc->tweak->frequency;
@@ -771,7 +771,7 @@ tco_forward(void)
 	tc->nanotime.tv_sec = tc->offset_sec + boottime.tv_sec;
 	tc->nanotime.tv_nsec = (tc->offset_nano >> 32) + boottime.tv_usec * 1000;
 	tc->microtime.tv_usec = tc->offset_micro + boottime.tv_usec;
-	if (tc->nanotime.tv_nsec > 1000000000) {
+	if (tc->nanotime.tv_nsec >= 1000000000) {
 		tc->nanotime.tv_nsec -= 1000000000;
 		tc->microtime.tv_usec -= 1000000;
 		tc->nanotime.tv_sec++;
