@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.4 1995/02/27 03:18:28 amurai Exp $
+ * $Id: timeout.h,v 1.5 1995/03/11 15:18:50 amurai Exp $
  *
  *	TODO:
  */
@@ -42,6 +42,7 @@ struct pppTimer {
 #define	TIMER_EXPIRED	2
 
 struct pppTimer *TimerList;
+extern int TimerServiceRequest;	/* If this is >0, call TimerService() */
 
 extern void StartTimer __P((struct pppTimer *));
 extern void StopTimer __P((struct pppTimer *));

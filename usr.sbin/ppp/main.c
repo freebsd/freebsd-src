@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.3 1996/12/23 18:13:36 jkh Exp $
+ * $Id: main.c,v 1.22.2.4 1997/01/12 21:52:48 joerg Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -790,6 +790,17 @@ DoLoop()
 #ifndef SIGALRM
     usleep(TICKUNIT);
     TimerService();
+#else
+    if( TimerServiceRequest > 0 ) {
+#ifdef DEBUG
+       logprintf( "Invoking TimerService before select()\n" );
+#endif
+       /* Maybe a bit cautious.... */
+       TimerServiceRequest = -1;
+       TimerService();
+       TimerServiceRequest = 0;
+       continue;
+    }
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
@@ -818,13 +829,28 @@ DoLoop()
     tp = (dial_up && RedialTimer.state != TIMER_RUNNING) ? &timeout : NULL;
     i = select(tun_in+10, &rfds, &wfds, &efds, tp);
 #endif
+
     if ( i == 0 ) {
         continue;
     }
 
+    if( TimerServiceRequest > 0 ) {
+       /* we want to service any SIGALRMs even if we got it before calling 
+          select. */
+       int rem_errno = errno;
+#ifdef DEBUG
+       logprintf( "Invoking TimerService\n" );
+#endif
+       /* Maybe a bit cautious.... */
+       TimerServiceRequest = -1;
+       TimerService();
+       TimerServiceRequest = 0;
+       errno = rem_errno;
+    }
+
     if ( i < 0 ) {
        if ( errno == EINTR ) {
-          continue;            /* Got SIGALRM, Do check a queue for dialing */
+          continue;            /* Got a signal - should have been dealt with */
        }
        perror("select");
        break;
