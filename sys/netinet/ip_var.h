@@ -191,9 +191,10 @@ void	ipip_input(struct mbuf *, int);
 void	rsvp_input(struct mbuf *, int);
 int	ip_rsvp_init(struct socket *);
 int	ip_rsvp_done(void);
-int	ip_rsvp_vif_init(struct socket *, struct sockopt *);
-int	ip_rsvp_vif_done(struct socket *, struct sockopt *);
-void	ip_rsvp_force_done(struct socket *);
+extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
+extern void	(*ip_rsvp_force_done)(struct socket *);
+extern void	(*rsvp_input_p)(struct mbuf *m, int off);
+
 
 #ifdef IPDIVERT
 void	div_init(void);
