@@ -88,6 +88,8 @@ int pcic_get_memory_offset(device_t bus, device_t child, int rid,
 int pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long *value);
 unsigned char pcic_getb_io(struct pcic_slot *sp, int reg);
+driver_intr_t	pcic_isa_intr;
+int		pcic_isa_intr1(void *);
 void pcic_putb_io(struct pcic_slot *sp, int reg, unsigned char val);
 int pcic_set_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t offset, u_int32_t *deltap);
@@ -98,3 +100,4 @@ int pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t *intr, void *arg, void **cookiep);
 int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie);
+timeout_t 	pcic_timeout;
