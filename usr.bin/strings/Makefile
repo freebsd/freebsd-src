@@ -2,5 +2,6 @@
 
 PROG=	strings
 BINDIR= /usr/libexec/aout
+MAN1aout=strings.1aout
 
 .include <bsd.prog.mk>

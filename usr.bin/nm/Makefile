@@ -2,5 +2,6 @@
 
 PROG=	nm
 BINDIR= /usr/libexec/aout
+MAN1aout=nm.1aout
 
 .include <bsd.prog.mk>
