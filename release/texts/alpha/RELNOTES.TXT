@@ -203,7 +203,7 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
         Data Technology DTC3130 (all variants)
-	Diamond FirePort (all)
+        Diamond FirePort (all)
         NCR cards (all)
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
@@ -266,11 +266,11 @@ Unmaintained drivers, they might or might not work for your hardware:
 
 Adaptec Duralink PCI fast Ethernet adapters based on the Adaptec
 AIC-6915 fast Ethernet controller chip, including the following:
-  ANA-62011 64-bit single port 10/100baseTX adapter
-  ANA-62022 64-bit dual port 10/100baseTX adapter
-  ANA-62044 64-bit quad port 10/100baseTX adapter
-  ANA-69011 32-bit single port 10/100baseTX adapter
-  ANA-62020 64-bit single port 100baseFX adapter
+  ANA-62011 64-bit single port 10/100-BaseTX adapter
+  ANA-62022 64-bit dual port 10/100-BaseTX adapter
+  ANA-62044 64-bit quad port 10/100-BaseTX adapter
+  ANA-69011 32-bit single port 10/100-BaseTX adapter
+  ANA-62020 64-bit single port 100-BaseFX adapter
 
 Allied-Telesis AT1700 and RE2000 cards
 
@@ -335,8 +335,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
   Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
-  Racore 8165 10/100baseTX
-  Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+  Racore 8165 10/100-BaseTX
+  Racore 8148 10-BaseT/100-BaseTX/100-BaseFX multi-personality
 
 ADMtek Inc. AL981-based PCI fast Ethernet NICs
 
@@ -661,16 +661,6 @@ or, if you've loaded the doc distribution:
 Special mention to:
 
         The donors listed at http://www.freebsd.org/handbook/donors.html
-
-        Justin M. Seger <jseger@freebsd.org> for almost single-handedly
-        converting the ports collection to ELF.
-
-        Doug Rabson <dfr@freebsd.org> and John Birrell <jb@freebsd.org>
-        for making FreeBSD/alpha happen and to the NetBSD project for
-        substantial indirect aid.
-
-        Peter Wemm <peter@freebsd.org> for the new kernel module system
-        (with substantial aid from Doug Rabson).
 
         And to the many thousands of FreeBSD users and testers all over the
         world, without whom this release simply would not have been possible.
