@@ -824,7 +824,7 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -T (show stats counters)\n", p);
 	fprintf(stderr, "\t%s -i iface -C (show current config)\n", p);
 	fprintf(stderr, "\t%s -i iface -t 0|1|2|3|4 (set TX speed)\n", p);
-	fprintf(stderr, "\t%s -i iface -s 0|1|2|3 (set power same mode)\n", p);
+	fprintf(stderr, "\t%s -i iface -s 0|1|2|3 (set power save mode)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 1|2|3|4] -a AP (specify AP)\n", p);
 	fprintf(stderr, "\t%s -i iface -b val (set beacon period)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 0|1] -d val (set diversity)\n", p);
