@@ -273,6 +273,18 @@ vm_fork(p1, p2, flags)
 }
 
 /*
+ * Called after process has been wait(2)'ed apon and is being reaped.
+ * The idea is to reclaim resources that we could not reclaim while  
+ * the process was still executing.
+ */
+void
+vm_waitproc(struct proc *p)
+{
+	cpu_wait(p);
+	vmspace_exitfree(p);	/* and clean-out the vmspace */
+}
+
+/*
  * Set default limits for VM system.
  * Called for proc 0, and then inherited by all others.
  *

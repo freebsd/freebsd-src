@@ -256,9 +256,6 @@ cpu_wait(p)
 {
 	/* drop per-process resources */
 	pmap_dispose_proc(p);
-
-	/* and clean-out the vmspace */
-	vmspace_free(p->p_vmspace);
 }
 
 /*
