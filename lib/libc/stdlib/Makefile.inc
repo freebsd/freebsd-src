@@ -1,4 +1,4 @@
-#	@(#)Makefile.inc	8.2 (Berkeley) 2/16/94
+#	@(#)Makefile.inc	8.3 (Berkeley) 2/4/95
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/${MACHINE}/stdlib ${.CURDIR}/stdlib
@@ -6,7 +6,7 @@
 SRCS+=	abort.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c strhash.c heapsort.c labs.c \
 	ldiv.c malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
-	realpath.c setenv.c strtod.c strtol.c strtoq.c strtoul.c \
+	setenv.c strtod.c strtol.c strtoq.c strtoul.c \
 	strtouq.c system.c
 
 # machine-dependent stdlib sources
@@ -18,7 +18,7 @@ MAN3+=	stdlib/abort.3 stdlib/abs.3 stdlib/alloca.3 stdlib/atexit.3 \
 	stdlib/getenv.3 stdlib/getopt.3 stdlib/getsubopt.3 stdlib/labs.3 \
 	stdlib/ldiv.3 stdlib/malloc.3 stdlib/memory.3 stdlib/qsort.3 \
 	stdlib/radixsort.3 stdlib/rand.3 stdlib/random.3 \
-	stdlib/realpath.3 stdlib/strtod.3 stdlib/strtol.3 stdlib/strtoul.3 \
+	stdlib/strtod.3 stdlib/strtol.3 stdlib/strtoul.3 \
 	stdlib/system.3
 
 MLINKS+=getenv.3 setenv.3 getenv.3 unsetenv.3 getenv.3 putenv.3
