@@ -51,7 +51,7 @@ dofs_vn () {
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
 	disklabel -Brw /dev/r${VNDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -T ${FSLABEL} -o space -m 1 /dev/r${VNDEVICE}c
+	newfs -i ${FSINODE} -o space -m 1 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
@@ -91,9 +91,6 @@ dofs_md () {
 	fi
 
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
-	# this suppresses the `invalid primary partition table: no magic'
-	awk 'BEGIN {printf "%c%c", 85, 170}' |\
-	    dd of=${FSIMG} obs=1 seek=510 conv=notrunc 2>/dev/null
 
 	MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
 	if [ ! -c /dev/${MDDEVICE} ] ; then
@@ -104,7 +101,7 @@ dofs_md () {
 			exit 1
 		fi
 	fi
-	disklabel -Brw /dev/${MDDEVICE} ${FSLABEL}
+	disklabel -Brw ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
