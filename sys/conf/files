@@ -329,6 +329,7 @@ dev/iicbus/iicsmb.c	optional iicsmb					\
 dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
+dev/isp/isp_pci.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	count lnc
@@ -1104,7 +1105,6 @@ pci/if_wb.c		optional wb
 pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
-pci/isp_pci.c		optional isp
 pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
