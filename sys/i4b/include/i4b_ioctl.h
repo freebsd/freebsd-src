@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Oct 10 16:12:07 2000]
+ *      last edit-date: [Thu Oct 26 08:52:59 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -49,7 +49,7 @@
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
 #define	REL		96		/* release number	*/
-#define STEP		00		/* release step		*/
+#define STEP		1		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -96,9 +96,10 @@
 #define L1DRVR_IFPI     2		/* ifpi - driver	*/
 #define L1DRVR_IHFC     3		/* ihfc - driver	*/
 #define L1DRVR_IFPNP    4		/* ifpnp - driver	*/
+#define L1DRVR_ICCHP	5		/* icchp - driver	*/
 
 /* MAXL1DRVR MUST be updated when more passive drivers are added !!! */
-#define MAXL1DRVR       (L1DRVR_IFPNP + 1)
+#define MAXL1DRVR       (L1DRVR_ICCHP + 1)
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -132,17 +133,17 @@
 #define CARD_TYPEP_16_3C	25	/* Teles S0/16.3c PnP (HFC-S/SP	*/
 #define CARD_TYPEP_ACERP10	26	/* Acer ISDN P10 (HFC-S)	*/
 #define CARD_TYPEP_TELEINT_NO_1	27	/* TELEINT ISDN SPEED No. 1 (HFC-1) */
+#define CARD_TYPEP_CCD_HFCS_PCI	28	/* Cologne Chip HFC-S PCI based	*/
 
 /*
  * in case you add support for more cards, please update:
  *
  *	isdnd:		controller.c, name_of_controller()
- *	diehl/diehlctl:	main.c, listall()
  *
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		27	/* max type */
+#define CARD_TYPEP_MAX		28	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
