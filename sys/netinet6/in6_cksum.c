@@ -110,7 +110,7 @@ in6_cksum(m, nxt, off, len)
 			u_int32_t	ph_len;
 			u_int8_t	ph_zero[3];
 			u_int8_t	ph_nxt;
-		} ph __attribute__((__packed__));
+		} ph __packed;
 	} uph;
 	union {
 		u_int8_t	c[2];

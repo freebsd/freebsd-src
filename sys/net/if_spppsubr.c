@@ -212,14 +212,14 @@ struct ppp_header {
 	u_char address;
 	u_char control;
 	u_short protocol;
-} __attribute__((__packed__));
+} __packed;
 #define PPP_HEADER_LEN          sizeof (struct ppp_header)
 
 struct lcp_header {
 	u_char type;
 	u_char ident;
 	u_short len;
-} __attribute__((__packed__));
+} __packed;
 #define LCP_HEADER_LEN          sizeof (struct lcp_header)
 
 struct cisco_packet {
@@ -229,7 +229,7 @@ struct cisco_packet {
 	u_short rel;
 	u_short time0;
 	u_short time1;
-} __attribute__((__packed__));
+} __packed;
 #define CISCO_PACKET_LEN	sizeof (struct cisco_packet)
 
 /*

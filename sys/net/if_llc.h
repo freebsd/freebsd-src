@@ -56,15 +56,15 @@ struct llc {
 		u_int8_t format_id;
 		u_int8_t class;
 		u_int8_t window_x2;
-	    } type_u __attribute__((__packed__));
+	    } type_u __packed;
 	    struct {
 		u_int8_t num_snd_x2;
 		u_int8_t num_rcv_x2;
-	    } type_i __attribute__((__packed__));
+	    } type_i __packed;
 	    struct {
 		u_int8_t control;
 		u_int8_t num_rcv_x2;
-	    } type_s __attribute__((__packed__));
+	    } type_s __packed;
 	    struct {
 	        u_int8_t control;
 		/*
@@ -76,18 +76,18 @@ struct llc {
 		u_int8_t frmr_control;
 		u_int8_t frmr_control_ext;
 		u_int8_t frmr_cause;
-	    } type_frmr __attribute__((__packed__));
+	    } type_frmr __packed;
 	    struct {
 		u_int8_t  control;
 		u_int8_t  org_code[3];
 		u_int16_t ether_type;
-	    } type_snap __attribute__((__packed__));
+	    } type_snap __packed;
 	    struct {
 		u_int8_t control;
 		u_int8_t control_ext;
-	    } type_raw __attribute__((__packed__));
-	} llc_un /* XXX __attribute__((__packed__)) ??? */;
-} __attribute__((__packed__));
+	    } type_raw __packed;
+	} llc_un /* XXX __packed ??? */;
+} __packed;
 
 struct frmrinfo {
 	u_int8_t frmr_rej_pdu0;
@@ -95,7 +95,7 @@ struct frmrinfo {
 	u_int8_t frmr_control;
 	u_int8_t frmr_control_ext;
 	u_int8_t frmr_cause;
-} __attribute__((__packed__));
+} __packed;
 
 #define	llc_control		llc_un.type_u.control
 #define	llc_control_ext		llc_un.type_raw.control_ext
