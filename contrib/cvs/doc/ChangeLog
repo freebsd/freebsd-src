@@ -1,3 +1,122 @@
+Sun Jul 26 02:42:20 1998  Noel Cragg  <noel@swish.red-bean.com>
+
+	* cvs.texinfo (config): TopLevelAdmin variable.
+
+	* cvsclient.texi (Requests): fix typo.
+
+1998-07-14  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Requests): "remove" is like "add" in the sense
+	that it is the "ci" request which does most of the work.
+
+1998-06-23  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Excluding directories): Fix order of
+	"!first-dir/sdir" and "first-dir" to match what CVS actually
+	accepts.  Reported by Tim McIntosh of sterling.com.
+
+1998-06-09  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Using keywords): Rewrite to be less specific to
+	source code in C.  The old text was worse than that; it was
+	specific to certain versions of GCC (not even current GCC's, I
+	don't think) (reported most recently by Mitchell Perilstein;
+	if memory serves by others before that).
+
+1998-06-08  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Concurrency): Also mention #cvs.lock.  Don't
+	mention #cvs.tfl; it is quite old (before CVS 1.5).
+	(Locks, Backing up, Concurrency): Add more index entries.
+
+1998-06-03  Ian Lance Taylor  <ian@cygnus.com>
+
+	* cvs.texinfo (Tracking sources): Clarify that the vendor branch
+	is only made the head revision when you import a new file, not any
+	time you import a file.
+
+1998-05-23  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (What is CVS?): info-cvs-request is now at gnu.org
+	and is no longer handled by a human (hallelujah).
+
+1998-05-12  Jim Meyering  <meyering@ascend.com>
+
+	* cvs.texinfo: Add an info dir entry.
+	Remove trailing white space.
+
+1998-05-05  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Be more explicit that -m 'COPY' has no
+	effect on binary files.
+
+1998-05-02  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* RCSFILES: Add more discussion of the order of the revisions.
+
+1998-04-27  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (loginfo example): Also give example of sending
+	mail.  Use internal variable $USER rather than expecting CVS to
+	set the environment variable $USER.  Change unnecessary 'sed'
+	invocation to 'cat' (it suffered from the same problem in terms of
+	internal variables versus environment variables).
+
+	* cvs.texinfo (Error messages): Add "conflict: removed FILE was
+	modified by second party".
+
+1998-04-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Common options): Update comment about meaning of
+	HEAD in cvs diff.
+
+1998-04-12  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Dates): Also mention log -d.
+
+	* cvs.texinfo (Invoking CVS): No space is allowed between -r or -w
+	and its argument, for the log command.
+
+1998-04-11  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsclient.texi (Dates): New section, explaining the deal with
+	date formats.
+
+1998-04-09  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Global options, Invoking CVS): Fix typo
+	("files files" -> "files").
+	(Invoking CVS): Make -q and -Q more concise.
+	(Invoking CVS): Use @var for metavariables in "diff -r".
+
+1998-03-17  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (~/.cvsrc): In example, put "checkout" rather than
+	"co" into .cvsrc; we just finished explaining that only the former
+	works!  Thanks to Lenny Foner for reporting this.
+
+	* cvs.texinfo (Copying): Remove this node.  This basically
+	restores the status quo prior to 18 Oct 1996 (before then the node
+	existed but was empty).
+	(before Top): Adjust copyright notice accordingly.
+
+1998-03-12  Tim Pierce  <twp@skepsis.com>
+
+	* RCSFILES: Updated description of `hardlinks' newphrases.
+
+1998-03-07  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Tags, Sticky tags, Creating a branch, Accessing
+	branches): Rename release-0-1 tag to rel-0-1 and likewise for
+	release-0-1-patches and release-0-4.  This fixes an overfull hbox.
+	(diff options): Reformat table to fix underfull hboxes and such.
+
+1998-03-07  Tim Pierce  <twp@skepsis.com>
+
+	* cvs.texinfo (Editing files, Special Files): Document hardlinks.
+	Various cleanups to PreservePermissions text.
+	* RCSFILES: Document PreservePermissions newphrases.
+
 1998-03-04  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (Special Files): Add notes about client/server CVS
@@ -213,13 +332,13 @@ Sun Nov 30 20:38:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (Wrappers): Add comment: we don't document %s.
 
-Mon Nov 24 23:00:09 1997  Karl Fogel  <kfogel@floss.red-bean.com> 
+Mon Nov 24 23:00:09 1997  Karl Fogel  <kfogel@floss.red-bean.com>
 	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvsclient.texi: Move Protocol Notes node to the end.
 
 	* cvsclient.texi (Request intro): new node/section.
-	(Protocol): added some introductory material.  
+	(Protocol): added some introductory material.
 	Rearranged menu into General Conventions, Protocol specification,
 	and Example etc sections.
 	(File Modes): replaces Modes, for consistency.
@@ -418,7 +537,7 @@ Sat Sep  6 11:29:15 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 Fri Sep  5 14:42:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (BUGS): Remove mention of unsupported resources page
-	on http://www.cyclic.com, as it might go away in a future 
+	on http://www.cyclic.com, as it might go away in a future
 	reorganization.
 
 	* DIFFUTILS-2.7-BUG: Further info from Eggert.
@@ -1229,7 +1348,7 @@ Tue Mar 18 15:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 	(A sample session): Add comment about how we need an introduction
 	and what might go into one.  Also bring in the paragraph from
 	Basic concepts introducing modules, but comment it out.
-	(Viewing differences): Add comment about 
+	(Viewing differences): Add comment about
 	(Basic concepts): Removed; its content has been farmed out as
 	described above, and as the comment said, it was fundamentally
 	flawed.
@@ -1544,7 +1663,7 @@ Thu Nov 14 10:22:58 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
 	chunks, and about atomicity to be focused more on the protocol
 	than the current implementation.
 	(Notes): Remove this node.  The attempt to describe the basic
-	model has pretty much been replaced by the Introduction.  
+	model has pretty much been replaced by the Introduction.
 	The material about how to start the client is incomplete and
 	better left to cvs.texinfo.  And the item about the lack of
 	SERVER_FLOWCONTROL is obsolete now that SERVER_FLOWCONTROL is the
@@ -1700,7 +1819,7 @@ Mon Sep 30 18:17:34 1996  Greg A. Woods  <woods@most.weird.com>
 	GREPBIN.
 	(export examples): add one.
 	(import options): describe the effect of '-b 1'.
-	
+
 Mon Sep 30 08:09:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo: Adjust comments concerning A4 vs. US letter,
@@ -2404,14 +2523,14 @@ Sun Dec 31 10:53:47 1995  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 Sun Dec 24 02:37:51 1995  Karl Fogel  <kfogel@floss.cyclic.com>
 
-        * cvs.texinfo (Using the client with password authentication): 
+        * cvs.texinfo (Using the client with password authentication):
         tixed fypos.
 
 Sun Dec 24 00:00:16 1995  Karl Fogel  <kfogel@floss.cyclic.com>
 
         * cvs.texinfo (Remote repositories): use @code{rsh} most places,
         because it is the name of a program, and because I am a pedant.
-        Refer to new node "Password authenticated". 
+        Refer to new node "Password authenticated".
         (Password authenticated): new node.
         (Setting up the server for password authentication): new node.
         (Using the client with password authentication): new node.

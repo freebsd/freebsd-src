@@ -15,20 +15,6 @@ similar file for the unix-like operating systems (not yet, at least).
 This file also might contain some platform-specific bugs.
 
 
-* One cannot specify some files as binary in a "cvs import" using
-CVSROOT/cvswrappers (for why, note that client_process_import_file has
-no way of knowing about CVSROOT/cvswrappers which is off on the
-server).
-
-
-* I don't think that "cvs add" honors any of the -k wrappers, at least
-not in client/server mode.  I would think it should.  Getting
-CVSROOT/cvswrappers to work would presumably best be done by keeping a
-copy of it in the CVS directory on the client, as has also been
-discussed for CVS/Template, &c.  Getting a client-side .cvswrappers to
-work is a separate issue.
-
-
 * Need more work on the procedure for fixing it if a binary file is
 accidentally added in text mode (sanity.sh test cases, better
 documentation, probably update and/or admin -kb should update

@@ -35,19 +35,15 @@ described in the SEE ALSO section of this manpage).
 .IX  "release control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
 .IX  "source control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
 .IX  revisions  "cvs command"  ""  "\fLcvs\fP \- source control"
-.B cvs
-is a front end to the
-.BR rcs ( 1 )
-revision control system which extends
-the notion of revision control from a collection of files in a single
-directory to a hierarchical collection of directories consisting of
-revision controlled files.
-These directories and files can be combined together to form a software
-release.
-.B cvs
-provides the functions necessary to manage these software releases and to
-control the concurrent editing of source files among multiple software
-developers.
+CVS is a version control system, which allows you to keep old versions
+of files (usually source code), keep a log of who, when, and why
+changes occurred, etc., like RCS or SCCS.  Unlike the simpler systems,
+CVS does not just operate on one file at a time or one directory at a
+time, but operates on hierarchical collections of directories
+consisting of version controlled files.  CVS helps to manage releases
+and to control the concurrent editing of source files among multiple
+authors.  CVS allows triggers to enable/log/control various
+operations and works well over a wide area network.
 .SP
 .B cvs
 keeps a single copy of the master sources.
@@ -175,7 +171,7 @@ Use
 .I bindir
 as the directory where
 .SM RCS
-programs are located.
+programs are located (CVS 1.9 and older).
 Overrides the setting of the
 .SM RCSBIN
 environment variable.
@@ -185,7 +181,6 @@ This value should be specified as an absolute pathname.
 Use
 .I CVS_root_directory
 as the root directory pathname of the master
-.SM RCS
 source repository.
 Overrides the setting of the
 .SM CVSROOT
@@ -318,7 +313,6 @@ working directory.)
 .TP
 .B admin
 Execute
-.SM RCS
 control functions on the source repository.  (Changes
 repository directly; uses working directory without changing it.)
 .TP
@@ -366,7 +360,6 @@ as a ``vendor branch''.  (Changes repository.)
 .TP
 .B log
 Display
-.SM RCS
 log information.
 (Does not change repository or working directory.)
 .TP
@@ -435,11 +428,8 @@ even with these standard options.
 \fB\-D\fP \fIdate_spec\fP
 Use the most recent revision no later than \fIdate_spec\fP (a single
 argument, date description specifying a date in the
-past).  A wide variety of date formats are supported by the underlying
-.SM RCS
-facilities, similar to those described in
-.BR co ( 1 ),
-but not exactly the same.
+past).  A wide variety of date formats are supported, in particular
+ISO ("1972-09-24 20:05") or Internet ("24 Sep 1972 20:05").
 The \fIdate_spec\fP is interpreted as being in the local timezone, unless a
 specific timezone is specified.
 The specification is ``sticky'' when you use it to make a
@@ -492,12 +482,8 @@ commands.
 .TP
 \fB\-k\fP \fIkflag\fP
 Alter the default
-.SM RCS
-processing of keywords; all the
-.B \-k
-options described in
-.BR co ( 1 )
-are available.  The \fB\-k\fP option is available with the
+processing of keywords.
+The \fB\-k\fP option is available with the
 .BR add ", " checkout ", " diff ", " export ", "
 .BR rdiff ", and " update
 commands.  Your \fIkflag\fP specification is ``sticky'' when you use
@@ -507,10 +493,8 @@ this option with the \fBcheckout\fP or \fBupdate\fP commands,
 continues to use it with future \fBupdate\fP commands on the same file
 until you specify otherwise.
 .SP
-Some of the more useful \fIkflag\fPs are \-ko and \-kb (for binary files,
-only compatible with
-.SM RCS
-version 5.7 or later), and \-kv which is useful for an
+Some of the more useful \fIkflag\fPs are \-ko and \-kb (for binary files),
+and \-kv which is useful for an
 .B export
 where you wish to retain keyword information after an
 .B import
@@ -600,9 +584,7 @@ make your own copy of a file: \fBcvs\fP remembers the \fItag\fP and
 continues to use it on future \fBupdate\fP commands, until you specify
 otherwise.
 .I tag
-can be either a symbolic or numeric tag, in
-.SM RCS
-fashion.
+can be either a symbolic or numeric tag.
 Specifying the
 .B \-q
 global option along with the
@@ -659,7 +641,6 @@ working directory.
 Use the
 .B add
 command to create a new file or directory in the
-.SM RCS
 source repository.
 The files or directories specified with
 .B add
@@ -676,7 +657,6 @@ If the argument to
 .` "cvs add"
 refers to an immediate sub-directory, the directory is
 created at the correct place in the
-.SM RCS
 source repository, and the necessary
 .B cvs
 administration files are created in your working directory.
@@ -719,7 +699,6 @@ or
 .` "cvs update -d".)
 .SP
 The added files are not placed in the
-.SM RCS
 source repository until you use
 .` "cvs commit"
 to make the change permanent.
@@ -757,9 +736,8 @@ file and can be changed with
 Specifying
 .` "-ko"
 is useful for checking in binaries that
-shouldn't have the
-.SM RCS
-id strings expanded.
+shouldn't have
+keywords expanded.
 .TP
 \fBadmin\fP [\fIrcs-options\fP] \fIfiles.\|.\|.\fP
 .I Requires:
@@ -774,14 +752,9 @@ repository.
 This is the
 .B cvs
 interface to assorted administrative
-.SM RCS
-facilities, documented in
+facilities, similar to
 .BR rcs ( 1 ).
-.` "cvs admin"
-simply passes all its options and arguments to the
-.B rcs
-command; it does no filtering or other processing.
-This command does work recursively, however, so extreme care should be
+This command works recursively, so extreme care should be
 used.
 .TP
 \fBcheckout\fP [\fBoptions\fP] \fImodules\fP.\|.\|.
@@ -820,7 +793,6 @@ You can then edit these source files at any time (regardless of whether
 other software developers are editing their own copies of the sources);
 update them to include new changes applied by others to the source
 repository; or commit your work as a permanent change to the
-.SM RCS
 repository.
 .SP
 Note that
@@ -987,7 +959,6 @@ the time is right.
 .SP
 When all is well, an editor is invoked to allow you to enter a log
 message that will be written to one or more logging programs and placed in the
-.SM RCS
 source repository file.
 You can instead specify the log message on the command line with the
 .B \-m
@@ -997,12 +968,8 @@ option to specify that the argument \fIfile\fP contains the log message.
 .SP
 The
 .B \-r
-option can be used to commit to a particular symbolic or numeric revision
-within the
-.SM RCS
-file.
+option can be used to commit to a particular symbolic or numeric revision.
 For example, to bring all your files up to the
-.SM RCS
 revision ``3.0'' (including those that haven't changed), you might do:
 .SP
 .in +1i
@@ -1154,7 +1121,6 @@ option is useful when
 .B export
 is used.
 This causes any
-.SM RCS
 keywords to be expanded such that an
 .B import
 done at some other site will not lose the keyword revision information.
@@ -1330,7 +1296,6 @@ For an up to date list of ignored file names, see the Cederqvist manual (as
 described in the SEE ALSO section of this manpage).
 .SP
 The outside source is saved in a first-level
-.SM RCS
 branch, by default
 .` "1.1.1".
 Updates are leaves of this
@@ -1390,13 +1355,7 @@ nothing.
 .B rlog
 .br
 Display log information for \fIfiles\fP.
-.` "cvs log"
-calls
-the
-.SM RCS
-utility \fBrlog\fP; all the options described in
-.BR rlog ( 1 )
-are available.  Among the more useful \fBrlog\fP options are \fB\-h\fP
+Among the more useful options are \fB\-h\fP
 to display only the header (including tag definitions, but omitting
 most of the full log); \fB\-r\fP to select logs on particular
 revisions or ranges of revisions; and \fB\-d\fP to select particular
@@ -1443,14 +1402,6 @@ option to the
 command when patching the old sources, so that
 .B patch
 is able to find the files that are located in other directories.
-.SP
-If you use the option \fB\-V\fP \fIvn\fP,
-.SM RCS
-keywords are expanded according to the rules current in
-.SM RCS
-version \fIvn\fP (the expansion format changed with
-.SM RCS
-version 5).
 .SP
 The standard option \fIflags\fP \fB\-f\fP, and \fB\-l\fP
 are available with this command.  There are also several
@@ -1769,7 +1720,6 @@ recent versions available in the repository.
 \fBA\fP \fIfile\fP
 The file has been \fIadded\fP to your private copy of the sources, and
 will be added to the
-.SM RCS
 source repository when you run
 .` "cvs commit"
 on the file.
@@ -1778,7 +1728,6 @@ This is a reminder to you that the file needs to be committed.
 \fBR\fP \fIfile\fP
 The file has been \fIremoved\fP from your private copy of the sources, and
 will be removed from the
-.SM RCS
 source repository when you run
 .` "cvs commit"
 on the file.
@@ -1797,14 +1746,12 @@ directory.
 \fBC\fP \fIfile\fP
 A \fIconflict\fP was detected while trying to merge your changes to
 \fIfile\fP with changes from the source repository.  \fIfile\fP (the
-copy in your working directory) is now the output of the
-.BR rcsmerge ( 1 )
-command on the two versions; an unmodified copy of your file is also
+copy in your working directory) is now the result of merging
+the two versions; an unmodified copy of your file is also
 in your working directory, with the name `\fB.#\fP\fIfile\fP\fB.\fP\fIversion\fP',
 where
 .I version
 is the
-.SM RCS
 revision that your modified file started from.
 (Note that some systems automatically purge files that begin with
 \&
@@ -2037,7 +1984,6 @@ Directory for removed source files.
 A lock directory created by
 .B cvs
 when doing sensitive changes to the
-.SM RCS
 source repository.
 .TP
 #cvs.tfl.\fIpid\fP
@@ -2082,9 +2028,8 @@ Specifies the full pathname where to find
 programs, such as
 .BR co ( 1 )
 and
-.BR ci ( 1 ).
-If not set, a compiled-in value is used; see the display from
-.` "cvs \-v".
+.BR ci ( 1 )
+(CVS 1.9 and older).
 .TP
 .SM CVSEDITOR
 Specifies the program to use for recording log messages during
@@ -2150,6 +2095,8 @@ module and vendor branch support and author of the
 .BR checkin ( 1 )
 shell script (the ancestor of
 .` "cvs import").
+.TP
+And many others too numerous to mention here.
 .SH "SEE ALSO"
 The most comprehensive manual for CVS is
 Version Management with CVS by Per Cederqvist et al.  Depending on

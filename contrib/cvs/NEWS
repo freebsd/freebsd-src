@@ -1,8 +1,19 @@
 Changes since 1.9:
 
+* There is a new feature, enabled by TopLevelAdmin in CVSROOT/config,
+which tells CVS to modify the behavior of the "checkout" command.  The
+command now creates a CVS directory at the top level of the new
+working directory, in addition to CVS directories created within
+checked-out directories.  See the Cederqvist for details.
+
+* There is an optional set of features, enabled by PreservePermissions
+in CVSROOT/config, which allow CVS to store unix-specific file
+information such as permissions, file ownership, and links.  See the
+Cederqvist for details.
+
 * One can now authenticate and encrypt using the GSSAPI network
-security interface.  For details see the description of :gserver: in
-CVSROOT, and the -a global option.
+security interface.  For details see the Cederqvist's description of
+specifying :gserver: in CVSROOT, and the -a global option.
 
 * All access to RCS files is now implemented internally rather than by
 calling RCS programs.  The main user-visible consequence of this is
@@ -49,10 +60,6 @@ repository machine anyway).  See the "Repository" section of
 cvs.texinfo for details, including a discussion of security issues.
 Note that the requirement that read-only users be able to create locks
 and write the history file still applies.
-
-* The "checkout" command now creates a CVS directory at the top level
-of the new working directory, in addition to CVS directories created
-within checked-out directories.
 
 * There is a new administrative file verifymsg which is like editinfo
 but merely validates the message, rather than also getting it from the

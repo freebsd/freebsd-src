@@ -434,7 +434,15 @@ diff_fileproc (callerdat, finfo)
 		exists = 0;
 		/* special handling for TAG_HEAD */
 		if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
-		    exists = vers->vn_rcs != NULL;
+		{
+		    char *head =
+			(vers->vn_rcs == NULL
+			 ? NULL
+			 : RCS_branch_head (vers->srcfile, vers->vn_rcs));
+		    exists = head != NULL;
+		    if (head != NULL)
+			free (head);
+		}
 		else
 		{
 		    Vers_TS *xvers;
@@ -814,7 +822,9 @@ diff_file_nodiff (finfo, vers, empty_file)
     {
 	/* special handling for TAG_HEAD */
 	if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
-	    use_rev1 = xstrdup (vers->vn_rcs);
+	    use_rev1 = ((vers->vn_rcs == NULL || vers->srcfile == NULL)
+			? NULL
+			: RCS_branch_head (vers->srcfile, vers->vn_rcs));
 	else
 	{
 	    xvers = Version_TS (finfo, NULL, diff_rev1, diff_date1, 1, 0);
@@ -827,7 +837,9 @@ diff_file_nodiff (finfo, vers, empty_file)
     {
 	/* special handling for TAG_HEAD */
 	if (diff_rev2 && strcmp (diff_rev2, TAG_HEAD) == 0)
-	    use_rev2 = xstrdup (vers->vn_rcs);
+	    use_rev2 = ((vers->vn_rcs == NULL || vers->srcfile == NULL)
+			? NULL
+			: RCS_branch_head (vers->srcfile, vers->vn_rcs));
 	else
 	{
 	    xvers = Version_TS (finfo, NULL, diff_rev2, diff_date2, 1, 0);

@@ -1,3 +1,8 @@
+1998-06-28  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.1: Update various items which were out of date.  Mostly
+	these related to CVS no longer calling external RCS programs.
+
 Mon Jan 12 11:10:21 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.1: Refer to Cederqvist as Cederqvist not as cvs.texinfo.

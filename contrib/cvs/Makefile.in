@@ -222,7 +222,7 @@ dist: spec
 	    ${MAKE} dist-dir DISTDIR="$${DISTDIR}" \
 	  ); \
 	done
-	tar chf${TAR_VERBOSE} - `cat .fname` | ${GZIP} > "`cat .fname`.tar${GZIP_EXT}"
+	(unset GZIP; tar chf${TAR_VERBOSE} - `cat .fname` | ${GZIP} > "`cat .fname`.tar${GZIP_EXT}")
 	rm -rf `cat .fname` .fname .version
 
 .PHONY: dist-dir
