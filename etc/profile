@@ -2,10 +2,14 @@
 # Uncomment this to give you the default 4.2 behavior, where disk 
 # information is shown in K-Blocks
 # BLOCKSIZE=K; export BLOCKSIZE
-# Uncomment next line to activate Russian locale
+# Uncomment next two lines to activate Russian locale
 # LANG=ru_SU.KOI8-R; export LANG
-# Uncomment next line to activate Italian locale
+# MM_CHARSET=KOI8-R; export MM_CHARSET
+# Uncomment next two lines to activate Italian locale
 # LANG=it_IT.ISO_8859-1; export LANG
+# MM_CHARSET=ISO-8859-1; export MM_CHARSET
 # For full locales list check /usr/share/locale/*
 # Read system messages
 # msgs -f
+# Allow terminal messages
+# mesg y
