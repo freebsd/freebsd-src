@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.185 1997/05/22 00:17:08 jkh Exp $
+ * $Id: install.c,v 1.186 1997/05/22 04:04:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -461,7 +461,7 @@ installNovice(dialogMenuItem *self)
     dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
-	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
+	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
 	       "then use the (A)ll command to select the default partitioning scheme followed\n"
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
