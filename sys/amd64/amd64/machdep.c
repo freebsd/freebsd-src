@@ -2196,7 +2196,7 @@ set_dbregs(p, dbregs)
 	 * from within kernel mode?
 	 */
 
-	if (p->p_cred->pc_ucred->cr_uid != 0) {
+	if (p->p_ucred->cr_uid != 0) {
 		if (dbregs->dr7 & 0x3) {
 			/* dr0 is enabled */
 			if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)
