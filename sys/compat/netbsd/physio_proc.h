@@ -30,8 +30,8 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _I386_PHYSIO_PROC_H_
-#define _I386_PHYSIO_PROC_H_
+#ifndef _COMPAT_NETBSD_PHYSIO_PROC_H_
+#define _COMPAT_NETBSD_PHYSIO_PROC_H_
 #include <sys/queue.h>
 
 struct buf;
@@ -54,4 +54,4 @@ physio_proc_leave(pp)
 	struct physio_proc *pp;
 {
 }
-#endif /* _I386_PHYSIO_PROC_H_ */
+#endif /* _COMPAT_NETBSD_PHYSIO_PROC_H_ */

@@ -32,8 +32,8 @@
  * Copyright (c) 1996 Naofumi HONDA.  All rights reserved.
  */
 
-#ifndef _I386_DVCFG_H_
-#define _I386_DVCFG_H_
+#ifndef _COMPAT_NETBSD_DVCFG_H_
+#define _COMPAT_NETBSD_DVCFG_H_
 
 typedef void *dvcfg_hw_t;
 
@@ -62,4 +62,4 @@ dvcfg_hw(selp, num)
 }
 
 #define	DVCFG_HW(SELP, NUM)	dvcfg_hw((SELP), (NUM))
-#endif	/* _I386_DVCFG_H_ */
+#endif	/* _COMPAT_NETBSD_DVCFG_H_ */

@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
 #ifdef __FreeBSD__
 #include <machine/bus.h>
 
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
+#include <compat/netbsd/dvcfg.h>
+#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
