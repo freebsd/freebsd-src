@@ -222,6 +222,9 @@ main(int argc, char *argv[])
 	} else if (argv[0][0] != '/') {
 		dkname = argv[0];
 		asprintf(&specname, "%s%s", _PATH_DEV, argv[0]);
+	} else if (strncmp(argv[0], _PATH_DEV, strlen(_PATH_DEV)) == 0) {
+		dkname = argv[0] + strlen(_PATH_DEV);
+		specname = argv[0];
 	} else {
 		dkname = strrchr(argv[0], '/');
 		dkname++;
