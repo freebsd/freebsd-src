@@ -178,6 +178,9 @@ typedef	_BSD_TIMER_T_	timer_t;
  * manipulate such bit fields (the filesystem macros use chars).
  * FD_SETSIZE may be defined by the user, but the default here should
  * be enough for most uses.
+ *
+ * WARNING!  temporary masks are stored on the kernel stack, do not increase
+ * this value past 2048 without fixing the issue in kern/sys_generic.c:select()
  */
 #ifndef	FD_SETSIZE
 #define	FD_SETSIZE	1024
