@@ -143,6 +143,13 @@ pcm_setflags(device_t dev, u_int32_t val)
 	d->flags = val;
 }
 
+void *
+pcm_getdevinfo(device_t dev)
+{
+    	snddev_info *d = device_get_softc(dev);
+	return d->devinfo;
+}
+
 void
 pcm_setswap(device_t dev, pcm_swap_t *swap)
 {
