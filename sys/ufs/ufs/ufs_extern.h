@@ -67,6 +67,8 @@ void	 ufs_dirbad __P((struct inode *, doff_t, char *));
 int	 ufs_dirbadentry __P((struct vnode *, struct direct *, int));
 int	 ufs_dirempty __P((struct inode *, ino_t, struct ucred *));
 int	 ufs_direnter __P((struct inode *, struct vnode *,struct componentname *));
+int	 ufs_direnter2 __P((struct vnode *, struct direct *, struct ucred *,
+		struct proc *));
 int	 ufs_dirremove __P((struct vnode *, struct componentname*));
 int	 ufs_dirrewrite
 	    __P((struct inode *, struct inode *, struct componentname *));

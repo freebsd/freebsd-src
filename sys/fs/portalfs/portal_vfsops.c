@@ -62,6 +62,7 @@
 #include <sys/un.h>
 #include <miscfs/portal/portal.h>
 
+static int	portal_init __P((struct vfsconf *));
 static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
 static int	portal_start __P((struct mount *mp, int flags, struct proc *p));

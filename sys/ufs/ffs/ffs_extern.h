@@ -75,6 +75,7 @@ int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
+int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
 int	ffs_isblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *));
@@ -95,6 +96,7 @@ int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
 
 #ifdef DIAGNOSTIC
+int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
 void	ffs_checkoverlap __P((struct buf *, struct inode *));
 #endif
 
