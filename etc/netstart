@@ -1,28 +1,7 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.20 1995/02/08 16:42:12 wpaul Exp $
+#	$Id: netstart,v 1.21 1995/03/16 16:57:59 wollman Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
-
-defaultrouter=NO
-routedflags=-q
-timedflags=NO
-xntpdflags="NO"
-tickadj="-Aq"	# this is inoperative unless xntpd is enabled; NO to disable
-ntpdate="NO"
-#ntpdate="-b -s ntp-0 ntp-1 ntp-2"
-rwhod=NO
-sendmail_flags="-bd -q30m"
-amdflags="NO"
-nfs_client=NO
-nfs_server=NO
-nis_clientflags="NO"
-nis_serverflags="NO"
-yppasswddflags="NO"
-#yppasswddflags"-m /var/yp/master.passwd -s -f"
-name_server=NO
-savecore=NO
-#kerberos_server=YES
-#gated=YES
 
 # my-name is my symbolic name
 # my-netmask is specified in /etc/networks
