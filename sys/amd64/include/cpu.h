@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.32 1997/08/21 06:32:48 charnier Exp $
+ *	$Id: cpu.h,v 1.33 1997/08/30 02:51:58 kato Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -144,8 +144,10 @@ struct cpu_nameclass {
 }
 
 #ifdef KERNEL
+extern char	btext[];
 extern int	cpu;
 extern int	cpu_class;
+extern char	etext[];
 extern u_char	intr_nesting_level;
 extern int	want_resched;	/* resched was called */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.21 1997/10/11 18:31:24 phk Exp $
+ * $Id: subr_prof.c,v 1.22 1997/10/12 20:24:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -54,9 +54,6 @@ static void kmstartup __P((void *));
 SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
-
-extern char btext[];
-extern char etext[];
 
 #ifdef GUPROF
 void
