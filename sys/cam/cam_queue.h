@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.h,v 1.2 1998/12/15 08:12:03 gibbs Exp $
+ *      $Id: cam_queue.h,v 1.3 1999/04/07 22:57:48 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_QUEUE_H
@@ -136,6 +136,10 @@ void		camq_insert(struct camq *queue, cam_pinfo *new_entry);
  * queue order.
  */
 cam_pinfo	*camq_remove(struct camq *queue, int index);
+#define CAMQ_HEAD 1	/* Head of queue index */
+
+/* Index the first element in the heap */
+#define CAMQ_GET_HEAD(camq) ((camq)->queue_array[CAMQ_HEAD])
 
 /*
  * camq_change_priority: Raise or lower the priority of an entry

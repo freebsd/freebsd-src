@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.10 1999/01/21 08:29:02 dillon Exp $
+ *      $Id: cam_periph.c,v 1.11 1999/04/06 03:05:36 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1047,6 +1047,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			ccb->ccb_h.retry_count--;
 		error = 0;
 		break;
+	case CAM_AUTOSENSE_FAIL:
 	case CAM_SCSI_STATUS_ERROR:
 
 		switch (ccb->csio.scsi_status) {
@@ -1354,7 +1355,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 								  err_action);
 				}
 			} else if (ccb->csio.scsi_status == 
-				   SCSI_STATUS_CHECK_COND) {
+				   SCSI_STATUS_CHECK_COND
+				&& status != CAM_AUTOSENSE_FAIL) {
 				/* no point in decrementing the retry count */
 				panic("cam_periph_error: scsi status of "
 				      "CHECK COND returned but no sense "
@@ -1459,7 +1461,6 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		}
 		break;
 	case CAM_REQ_CMP_ERR:
-	case CAM_AUTOSENSE_FAIL:
 	case CAM_CMD_TIMEOUT:
 	case CAM_UNEXP_BUSFREE:
 	case CAM_UNCOR_PARITY:
