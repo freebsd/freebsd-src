@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 1999
+.Dd September 4, 2004
 .Dt SIS 4
 .Os
 .Sh NAME
@@ -44,27 +44,11 @@ The
 .Nm
 driver provides support for PCI Ethernet adapters and embedded
 controllers based on the Silicon Integrated Systems SiS 900
-and SiS 7016 Fast Ethernet controller chips, including:
-.Pp
-.Bl -bullet -compact -offset indent
-.It
-@Nifty FNECHARD IFC USUP-TX
-.It
-MELCO LGY-PCI-TXC
-.It
-SiS 630, 635, and 735 motherboard chipsets
-.El
+and SiS 7016 Fast Ethernet controller chips.
 .Pp
 This driver also supports
 adapters based on the National Semiconductor DP83815 (MacPhyter)
-PCI Ethernet controller chip, such as:
-.Pp
-.Bl -bullet -compact -offset indent
-.It
-Netgear FA311-TX
-.It
-Netgear FA312-TX
-.El
+PCI Ethernet controller chip.
 .Pp
 The SiS 900 is a 100Mbps Ethernet MAC and MII-compliant transceiver
 in a single package.
@@ -126,6 +110,26 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Silicon Integrated Systems SiS 900 and SiS 7016 based
+Fast Ethernet adapters and embedded controllers, as well as Fast Ethernet
+adapters based on the National Semiconductor DP83815 (MacPhyter) chip.
+Supported adapters include:
+.Pp
+.Bl -bullet -compact
+.It
+@Nifty FNECHARD IFC USUP-TX
+.It
+MELCO LGY-PCI-TXC
+.It
+Netgear FA311-TX (DP83815)
+.It
+Netgear FA312-TX (DP83815)
+.It
+SiS 630, 635, and 735 motherboard chipsets
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sis%d: couldn't map ports/memory"
