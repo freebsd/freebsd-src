@@ -127,6 +127,16 @@ typedef	__gid_t		gid_t;		/* group id */
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _IN_ADDR_T_DECLARED
+typedef	__uint32_t	in_addr_t;	/* base type for internet address */
+#define	_IN_ADDR_T_DECLARED
+#endif
+
+#ifndef _IN_PORT_T_DECLARED
+typedef	__uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED
+#endif
+
 #ifndef _ID_T_DECLARED
 typedef	__id_t		id_t;		/* can hold a uid_t or pid_t */
 #define	_ID_T_DECLARED
