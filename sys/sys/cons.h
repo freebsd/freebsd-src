@@ -67,7 +67,6 @@ struct consdev {
 	cn_dbctl_t	*cn_dbctl;
 				/* debugger control interface */
 	struct	tty *cn_tp;	/* tty structure for console device */
-	dev_t	cn_dev;		/* major/minor of device */
 	short	cn_pri;		/* pecking order; the higher the better */
 	void	*cn_arg;	/* drivers method argument */
 	int	cn_unit;	/* some drivers prefer this */
