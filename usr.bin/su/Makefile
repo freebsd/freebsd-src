@@ -3,9 +3,6 @@
 PROG=	su
 SRCS=	su.c
 
-LDADD=	-lmd
-DPADD=	${LIBMD} 
-
 #LC_AUTH=-DLOGIN_CAP_AUTH
 COPTS+= -DLOGIN_CAP $(LC_AUTH)
 LDADD+= -lutil
@@ -29,6 +26,9 @@ DPADD+=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
+
+LDADD+= -lmd
+DPADD+= ${LIBMD}
 
 BINOWN=	root
 BINMODE=4555
