@@ -607,7 +607,7 @@ sendrequest(cmd, local, remote, printnames)
 		rc = -1;
 		switch (curtype) {
 		case TYPE_A:
-			rc = fseek(fin, (long) restart_point, SEEK_SET);
+			rc = fseeko(fin, restart_point, SEEK_SET);
 			break;
 		case TYPE_I:
 		case TYPE_L:
@@ -1019,18 +1019,18 @@ recvrequest(cmd, local, remote, lmode, printnames, ignorespecial)
 	case TYPE_A:
 		if (is_retr && restart_point) {
 			int ch;
-			long i, n;
+			off_t i, n;
 
-			if (fseek(fout, 0L, SEEK_SET) < 0)
+			if (fseeko(fout, (off_t)0, SEEK_SET) < 0)
 				goto done;
-			n = (long)restart_point;
+			n = restart_point;
 			for (i = 0; i++ < n;) {
 				if ((ch = getc(fout)) == EOF)
 					goto done;
 				if (ch == '\n')
 					i++;
 			}
-			if (fseek(fout, 0L, SEEK_CUR) < 0) {
+			if (fseeko(fout, (off_t)0, SEEK_CUR) < 0) {
 done:
 				warn("local: %s", local);
 				progress = oprogress;
