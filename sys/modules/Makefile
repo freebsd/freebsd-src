@@ -158,6 +158,7 @@ SUBDIR+=3dfx \
 	aout \
 	apm \
 	ar \
+	awi \
 	arcnet \
 	bktr \
 	coff \
@@ -198,7 +199,6 @@ SUBDIR+=aac \
 	acpi \
 	asr \
 	atspeaker \
-	awi \
 	cardbus \
 	cbb \
 	ciss \
@@ -212,8 +212,7 @@ SUBDIR+=aac \
 	vesa
 	
 .elif ${MACHINE} == "pc98"
-SUBDIR+=awi \
-	pcspeaker \
+SUBDIR+=pcspeaker \
 	pmc \
 	snc
 .endif
