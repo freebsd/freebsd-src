@@ -1,5 +1,5 @@
 /* MD4.H - header file for MD4C.C
- * $FreeBSD$
+ * $Id$
  */
 
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All

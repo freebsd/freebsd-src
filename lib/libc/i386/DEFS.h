@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/cdefs.h>

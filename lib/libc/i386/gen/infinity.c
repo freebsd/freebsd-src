@@ -1,6 +1,6 @@
 /*
  * infinity.c
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <math.h>

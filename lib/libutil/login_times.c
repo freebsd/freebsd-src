@@ -20,7 +20,7 @@
  *
  * Login period parsing and comparison functions.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <stdio.h>

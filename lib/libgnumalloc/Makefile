@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
