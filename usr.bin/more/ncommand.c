@@ -763,7 +763,7 @@ cdeftog(cident, args)
 	extern int horiz_off, wraplines;
 
 	ENDPARSE;
-	settog("_stat", 1, 2, "on", "off");
+	settog("_statprompt", 1, 2, "on", "off");
 	settog("_ls_direction", 0, 2, "forw", "back");
 	settog("_ls_sense", 0, 2, "noinvert", "invert");
 	setvari("_curhscroll", (long) horiz_off);
@@ -1253,7 +1253,8 @@ cfile_list(cident, args)
  * stat <<on|off>>
  *
  * Display the detailed statistics as part of the prompt.  The toggle option
- * variable is called _stat (giving ${_stat_s} and ${_stat_n}).
+ * variable is called _statprompt (giving ${_statprompt_s} and
+ * ${_statprompt_n}).
  */
 static const char *
 cstat(cident, args)
@@ -1265,7 +1266,7 @@ cstat(cident, args)
 	ARGTOG(onoff, 2, "on", "off");
 	ENDPARSE;
 	statprompt(onoff);
-	settog("_stat", onoff, 2, "on", "off");
+	settog("_statprompt", onoff, 2, "on", "off");
 	return args;
 }
 
