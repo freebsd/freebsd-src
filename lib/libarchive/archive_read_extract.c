@@ -502,6 +502,18 @@ archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
 		mkdirpath(a, name);
 		if (mkdir(name, mode) == 0)
 			return (ARCHIVE_OK);
+		/*
+		 * Yes, people really do type "tar -cf - foo/." for
+		 * reasons that I cannot fathom.  When they do, the
+		 * dir "foo" gets created in mkdirpath() and the
+		 * mkdir("foo/.") just above still fails.  So, I've
+		 * added yet another check here to catch this
+		 * particular case.
+		 *
+		 * There must be a better way ...
+		 */
+		if (stat(name, &st) == 0  &&  S_ISDIR(st.st_mode))
+			return (ARCHIVE_OK);
 	} else {
 		/* Stat failed? */
 		archive_set_error(a, errno, "Can't test directory");
