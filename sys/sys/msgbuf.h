@@ -71,7 +71,7 @@ int	msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen,
 	    u_int *seqp);
 
 #if !defined(MSGBUF_SIZE)
-#define	MSGBUF_SIZE	(32768 * bootverbose ? 2 : 1)
+#define	MSGBUF_SIZE	32768
 #endif
 
 #endif
