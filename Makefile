@@ -1,11 +1,9 @@
 #
-#	$Id: Makefile,v 1.109.2.31 1998/06/02 18:55:17 jhay Exp $
+#	$Id: Makefile,v 1.109.2.32 1998/06/29 10:15:32 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
 #	-DMAKE_KERBEROS4 to build KerberosIV
-#	-DALLLANG to build documentation for all languages
-#	  (where available -- see share/doc/Makefile)
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
