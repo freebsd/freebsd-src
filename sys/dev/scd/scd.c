@@ -54,7 +54,6 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/cdio.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
 
@@ -435,8 +434,6 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		return EIO;
 
 	switch (cmd) {
-	case DIOCSBAD:
-		return EINVAL;
 	case DIOCGDINFO:
 		*(struct disklabel *)addr = cd->dlabel;
 		return 0;
