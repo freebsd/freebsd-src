@@ -2271,7 +2271,7 @@ ttwakeup(struct tty *tp)
 {
 
 	if (SEL_WAITING(&tp->t_rsel))
-		selwakeup(&tp->t_rsel);
+		selwakeuppri(&tp->t_rsel, TTIPRI);
 	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
 		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(TSA_HUP_OR_INPUT(tp));
@@ -2286,7 +2286,7 @@ ttwwakeup(struct tty *tp)
 {
 
 	if (SEL_WAITING(&tp->t_wsel) && tp->t_outq.c_cc <= tp->t_olowat)
-		selwakeup(&tp->t_wsel);
+		selwakeuppri(&tp->t_wsel, TTOPRI);
 	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
 		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==

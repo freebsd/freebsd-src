@@ -82,6 +82,7 @@ static int	dofileread(struct thread *, struct file *, int, void *,
 		    size_t, off_t, int);
 static int	dofilewrite(struct thread *, struct file *, int,
 		    const void *, size_t, off_t, int);
+static void	doselwakeup(struct selinfo *, int);
 
 /*
  * Read system call.
@@ -1162,12 +1163,30 @@ selrecord(selector, sip)
 	mtx_unlock(&sellock);
 }
 
-/*
- * Do a wakeup when a selectable event occurs.
- */
+/* Wake up a selecting thread. */
 void
 selwakeup(sip)
 	struct selinfo *sip;
+{
+	doselwakeup(sip, -1);
+}
+
+/* Wake up a selecting thread, and set its priority. */
+void
+selwakeuppri(sip, pri)
+	struct selinfo *sip;
+	int pri;
+{
+	doselwakeup(sip, pri);
+}
+
+/*
+ * Do a wakeup when a selectable event occurs.
+ */
+static void
+doselwakeup(sip, pri)
+	struct selinfo *sip;
+	int pri;
 {
 	struct thread *td;
 
@@ -1176,7 +1195,7 @@ selwakeup(sip)
 	if ((sip->si_flags & SI_COLL) != 0) {
 		nselcoll++;
 		sip->si_flags &= ~SI_COLL;
-		cv_broadcast(&selwait);
+		cv_broadcastpri(&selwait, pri);
 	}
 	if (td == NULL) {
 		mtx_unlock(&sellock);
@@ -1188,6 +1207,8 @@ selwakeup(sip)
 	if (td->td_wchan == &selwait) {
 		cv_waitq_remove(td);
 		TD_CLR_SLEEPING(td);
+		if (pri >= PRI_MIN && pri <= PRI_MAX && td->td_priority > pri)
+			td->td_priority = pri;
 		setrunnable(td);
 	} else
 		td->td_flags &= ~TDF_SELECT;

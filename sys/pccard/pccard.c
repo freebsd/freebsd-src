@@ -162,7 +162,7 @@ disable_slot_to(struct slot *slt)
 	else
 		printf("pccard: card deactivated, slot %d\n", slt->slotnum);
 	pccard_remove_beep();
-	selwakeup(&slt->selp);
+	selwakeuppri(&slt->selp, PZERO);
 }
 
 /*

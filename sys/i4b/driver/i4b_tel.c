@@ -791,7 +791,7 @@ tel_connect(int unit, void *cdp)
 			sc->devstate &= ~ST_RDWAITDATA;
 			wakeup( &sc->result);
 		}
-		selwakeup(&sc->selp);
+		selwakeuppri(&sc->selp, TTIPRI);
 	}
 }
 
@@ -835,7 +835,7 @@ tel_disconnect(int unit, void *cdp)
 			sc->devstate &= ~ST_RDWAITDATA;
 			wakeup( &sc->result);
 		}
-		selwakeup(&sc->selp);
+		selwakeuppri(&sc->selp, TTIPRI);
 
 		if (sc->devstate & ST_TONE) {
 			sc->devstate &= ~ST_TONE;
@@ -864,7 +864,7 @@ tel_dialresponse(int unit, int status, cause_t cause)
 			sc->devstate &= ~ST_RDWAITDATA;
 			wakeup( &sc->result);
 		}
-		selwakeup(&sc->selp);
+		selwakeuppri(&sc->selp, TTIPRI);
 	}
 }
 	
@@ -891,7 +891,7 @@ tel_rx_data_rdy(int unit)
 		sc->devstate &= ~ST_RDWAITDATA;
 		wakeup( &sc->isdn_linktab->rx_queue);
 	}
-	selwakeup(&sc->selp);
+	selwakeuppri(&sc->selp, TTOPRI);
 }
 
 /*---------------------------------------------------------------------------*
@@ -912,7 +912,7 @@ tel_tx_queue_empty(int unit)
 	if(sc->devstate & ST_TONE) {
 		tel_tone(sc);
 	} else {
-		selwakeup(&sc->selp);
+		selwakeuppri(&sc->selp, TTIPRI);
 	}
 }
 

@@ -451,11 +451,11 @@ wakeup_other(struct tty *tp, int flag)
 
 	GETPARTS(tp, ourpart, otherpart);
 	if (flag & FREAD) {
-		selwakeup(&otherpart->nm_tty.t_rsel);
+		selwakeuppri(&otherpart->nm_tty.t_rsel, TTIPRI);
 		wakeup(TSA_PTC_READ((&otherpart->nm_tty)));
 	}
 	if (flag & FWRITE) {
-		selwakeup(&otherpart->nm_tty.t_wsel);
+		selwakeuppri(&otherpart->nm_tty.t_wsel, TTOPRI);
 		wakeup(TSA_PTC_WRITE((&otherpart->nm_tty)));
 	}
 }

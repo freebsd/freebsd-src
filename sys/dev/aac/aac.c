@@ -2717,7 +2717,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 		if (sc->aac_state & AAC_STATE_AIF_SLEEPER)
 			wakeup(sc->aac_aifq);
 		/* Wakeup any poll()ers */
-		selwakeup(&sc->rcv_select);
+		selwakeuppri(&sc->rcv_select, PRIBIO);
 	}
 	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
 

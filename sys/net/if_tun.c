@@ -213,7 +213,7 @@ tunstart(struct ifnet *ifp)
 	}
 	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
 		pgsigio(&tp->tun_sigio, SIGIO, 0);
-	selwakeup(&tp->tun_rsel);
+	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 }
 
 static void
@@ -324,7 +324,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	}
 
 	funsetown(&tp->tun_sigio);
-	selwakeup(&tp->tun_rsel);
+	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 
 	TUNDEBUG (ifp, "closed\n");
 	err = rman_release_resource(tp->tun_unit);

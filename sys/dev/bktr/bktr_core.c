@@ -821,7 +821,7 @@ common_bktr_intr( void *arg )
 
 		/* If someone has a select() on /dev/vbi, inform them */
 		if (SEL_WAITING(&bktr->vbi_select)) {
-			selwakeup(&bktr->vbi_select);
+			selwakeuppri(&bktr->vbi_select, VBIPRI);
 		}
 
 

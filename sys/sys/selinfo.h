@@ -58,6 +58,7 @@ struct selinfo {
 void	clear_selinfo_list(struct thread *td);
 void	selrecord(struct thread *selector, struct selinfo *sip);
 void	selwakeup(struct selinfo *sip);
+void	selwakeuppri(struct selinfo *sip, int pri);
 #endif
 
 #endif /* !_SYS_SELINFO_H_ */

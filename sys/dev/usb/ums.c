@@ -394,7 +394,7 @@ ums_detach(device_t self)
 	}
 	if (sc->state & UMS_SELECT) {
 		sc->state &= ~UMS_SELECT;
-		selwakeup(&sc->rsel);
+		selwakeuppri(&sc->rsel, PZERO);
 	}
 
 	destroy_dev(sc->dev);
@@ -533,7 +533,7 @@ ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
 	}
 	if (sc->state & UMS_SELECT) {
 		sc->state &= ~UMS_SELECT;
-		selwakeup(&sc->rsel);
+		selwakeuppri(&sc->rsel, PZERO);
 	}
 }
 Static int

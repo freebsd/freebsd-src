@@ -980,7 +980,7 @@ pcic_reset(void *chan)
 		sp->putb(sp, PCIC_TIME_CMD1, 0xf);
 		sp->putb(sp, PCIC_TIME_RECOV1, 0);
 	}
-	selwakeup(&slt->selp);
+	selwakeuppri(&slt->selp, PZERO);
 }
 
 /*

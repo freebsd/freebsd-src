@@ -475,7 +475,7 @@ tapclose(dev, foo, bar, td)
 	}
 
 	funsetown(&tp->tap_sigio);
-	selwakeup(&tp->tap_rsel);
+	selwakeuppri(&tp->tap_rsel, PZERO+1);
 
 	tp->tap_flags &= ~TAP_OPEN;
 	tp->tap_pid = 0;
@@ -606,7 +606,7 @@ tapifstart(ifp)
 		if ((tp->tap_flags & TAP_ASYNC) && (tp->tap_sigio != NULL))
 			pgsigio(&tp->tap_sigio, SIGIO, 0);
 
-		selwakeup(&tp->tap_rsel);
+		selwakeuppri(&tp->tap_rsel, PZERO+1);
 		ifp->if_opackets ++; /* obytes are counted in ether_output */
 	}
 
