@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.58 1996/07/31 09:29:25 jkh Exp $
+ * $Id: disks.c,v 1.59 1996/07/31 10:55:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -274,6 +274,7 @@ diskPartition(Device *dev, Disk *d)
 		char *val, tmp[20], *cp;
 		int size, subtype;
 		chunk_e partitiontype;
+		WINDOW *save = savescr();
 
 		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD partition in blocks\n"
@@ -303,6 +304,7 @@ diskPartition(Device *dev, Disk *d)
 		    record_chunks(d);
 		    }
 		}
+		restorescr(save);
 	    }
 	    break;
 
