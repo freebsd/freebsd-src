@@ -222,7 +222,14 @@ ipatm_ioctl(code, data, arg1)
 
 		/*
 		 * Notify the responsible ARP service
+		 *
+		 * XXX: if there is one.  No idea how this happens, but at
+		 * least don't panic on a NULL pointer if it does.
 		 */
+		if (inp->inf_serv == NULL) {
+			err = ENXIO;
+			break;
+		}
 		err = (*inp->inf_serv->is_ioctl)(code, data, inp->inf_isintf);
 		break;
 
