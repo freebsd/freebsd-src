@@ -701,7 +701,7 @@ ParseDoDependency (char *line)
 		 * no errors in this, as they would have been discovered
 		 * in the initial Var_Subst and we wouldn't be here.
 		 */
-		int 	length;
+		size_t length;
 		Boolean	freeIt;
 		char	*result;
 
@@ -2013,7 +2013,8 @@ static char *
 ParseSkipLine(int skip, int keep_newline)
 {
     char *line;
-    int c, lastc, lineLength = 0;
+    int c, lastc;
+    size_t lineLength = 0;
     Buffer buf;
 
     buf = Buf_Init(MAKE_BSIZE);
@@ -2095,7 +2096,7 @@ ParseReadLine(void)
 				 * shell command */
     char 	  *line;    	/* Result */
     char          *ep;		/* to strip trailing blanks */
-    int	    	  lineLength;	/* Length of result */
+    size_t lineLength;		/* Length of result */
     int		  lineno;	/* Saved line # */
 
     semiNL = FALSE;
