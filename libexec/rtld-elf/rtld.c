@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.7 1998/09/04 19:03:57 dfr Exp $
+ *      $Id: rtld.c,v 1.8 1998/09/05 03:31:00 jdp Exp $
  */
 
 /*
@@ -801,8 +801,13 @@ gethints(void)
 static void
 init_rtld(caddr_t mapbase)
 {
-    /* Conjure up an Obj_Entry structure for the dynamic linker. */
-
+    /*
+     * Conjure up an Obj_Entry structure for the dynamic linker.
+     *
+     * The "path" member is supposed to be dynamically-allocated, but we
+     * aren't yet initialized sufficiently to do that.  Below we will
+     * replace the static version with a dynamically-allocated copy.
+     */
     obj_rtld.path = "/usr/libexec/ld-elf.so.1";
     obj_rtld.rtld = true;
     obj_rtld.mapbase = mapbase;
@@ -834,6 +839,9 @@ obj_rtld.got = NULL;
     /* Make the object list empty again. */
     obj_list = NULL;
     obj_tail = &obj_list;
+
+    /* Replace the path with a dynamically allocated copy. */
+    obj_rtld.path = xstrdup(obj_rtld.path);
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
