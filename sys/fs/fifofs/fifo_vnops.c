@@ -66,7 +66,6 @@ struct fifoinfo {
 	long		fi_writers;
 };
 
-static int	fifo_badop(void);
 static int	fifo_print(struct vop_print_args *);
 static int	fifo_lookup(struct vop_lookup_args *);
 static int	fifo_open(struct vop_open_args *);
@@ -95,30 +94,30 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
-	{ &vop_create_desc,		(vop_t *) fifo_badop },
+	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
 	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) fifo_badop },
+	{ &vop_link_desc,		(vop_t *) vop_panic },
 	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) fifo_badop },
-	{ &vop_mknod_desc,		(vop_t *) fifo_badop },
+	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
+	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
-	{ &vop_readdir_desc,		(vop_t *) fifo_badop },
-	{ &vop_readlink_desc,		(vop_t *) fifo_badop },
-	{ &vop_reallocblks_desc,	(vop_t *) fifo_badop },
+	{ &vop_readdir_desc,		(vop_t *) vop_panic },
+	{ &vop_readlink_desc,		(vop_t *) vop_panic },
+	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
 	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_remove_desc,		(vop_t *) fifo_badop },
-	{ &vop_rename_desc,		(vop_t *) fifo_badop },
-	{ &vop_rmdir_desc,		(vop_t *) fifo_badop },
+	{ &vop_remove_desc,		(vop_t *) vop_panic },
+	{ &vop_rename_desc,		(vop_t *) vop_panic },
+	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_symlink_desc,		(vop_t *) fifo_badop },
+	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };
@@ -609,15 +608,4 @@ fifo_advlock(ap)
 {
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
-}
-
-/*
- * Fifo bad operation
- */
-static int
-fifo_badop()
-{
-
-	panic("fifo_badop called");
-	/* NOTREACHED */
 }
