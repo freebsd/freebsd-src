@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.15 1997/12/29 21:08:33 brian Exp $
+.\"	$Id: scsi.8,v 1.16 1998/01/03 10:11:38 brian Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -248,7 +248,7 @@ To do an inquiry to
 .Pa /dev/rsd2c :
 .Bd -literal -offset indent
 root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 \e
-"s8 z8 z16 z4" FUJITSU M2654S-512 010P
+      "s8 z8 z16 z4" 
 .Ed
 .Pp
 To edit mode page 1 (the Read-Write Error Recovery Page)
