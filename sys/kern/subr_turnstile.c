@@ -218,14 +218,11 @@ struct mutex_prof {
 	const char	*name;
 	const char	*file;
 	int		line;
-	/*
-	 * XXX should use specialized struct members instead of an array
-	 * and these silly #defines.
-	 */
-#define MPROF_MAX 0
-#define MPROF_TOT 1
-#define MPROF_CNT 2
-	uintmax_t	counter[3];
+	struct {
+		uintmax_t	max;
+		uintmax_t	tot;
+		uintmax_t	cur;
+	} cnt;
 	struct mutex_prof *next;
 };
 
@@ -297,12 +294,11 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i)
 		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
-		    mprof_buf[i].counter[MPROF_MAX] / 1000,
-		    mprof_buf[i].counter[MPROF_TOT] / 1000,
-		    mprof_buf[i].counter[MPROF_CNT],
-		    mprof_buf[i].counter[MPROF_CNT] == 0 ? (uintmax_t)0 :
-			mprof_buf[i].counter[MPROF_TOT] /
-			(mprof_buf[i].counter[MPROF_CNT] * 1000),
+		    mprof_buf[i].cnt.max / 1000,
+		    mprof_buf[i].cnt.tot / 1000,
+		    mprof_buf[i].cnt.cur,
+		    mprof_buf[i].cnt.cur == 0 ? (uintmax_t)0 :
+			mprof_buf[i].cnt.tot / (mprof_buf[i].cnt.cur * 1000),
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
 	mtx_unlock_spin(&mprof_mtx);
 	sbuf_finish(sb);
@@ -397,10 +393,10 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		 * Record if the mutex has been held longer now than ever
 		 * before.
 		 */
-		if (now - acqtime > mpp->counter[MPROF_MAX])
-			mpp->counter[MPROF_MAX] = now - acqtime;
-		mpp->counter[MPROF_TOT] += now - acqtime;
-		mpp->counter[MPROF_CNT]++;
+		if (now - acqtime > mpp->cnt.max)
+			mpp->cnt.max = now - acqtime;
+		mpp->cnt.tot += now - acqtime;
+		mpp->cnt.cur++;
 unlock:
 		mtx_unlock_spin(&mprof_mtx);
 	}
