@@ -164,6 +164,10 @@ ELFNAMEEND(check)(int fd, const char *fn)
 #define	EM_SPARCV9	43
 #endif
 	case EM_SPARCV9: break;
+#ifndef EM_X86_64
+#define	EM_X86_64	62
+#endif
+	case EM_X86_64: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */
 
         default:
