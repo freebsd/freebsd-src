@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                        FreeBSD Release 2.2-960428-SNAP
+                        FreeBSD Release 2.2-960430-SNAP
 
 
 0. What's new since 2.2-960323-SNAP?
@@ -492,4 +492,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.3 1996/04/25 19:04:45 jkh Exp $
+$Id: relnotes.hlp,v 1.4 1996/04/28 06:08:41 jkh Exp $
