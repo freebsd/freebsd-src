@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.17 1997/01/24 21:06:03 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.18 1997/01/29 21:16:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -508,7 +508,6 @@ extern void	mediaShutdownFTP(Device *dev);
 extern void	globalsInit(void);
 
 /* index.c */
-int		index_get(char *fname, PkgNodePtr papa);
 int		index_read(FILE *fp, PkgNodePtr papa);
 int		index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
 void		index_init(PkgNodePtr top, PkgNodePtr plist);

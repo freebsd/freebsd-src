@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.17 1997/01/20 16:15:27 jkh Exp $
+ * $Id: config.c,v 1.51.2.18 1997/01/24 21:05:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -541,9 +541,10 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
+	    mediaDevice->shutdown(mediaDevice);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	msgNotify("Got INDEX successfully, now building packages menu..");
+	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&top, &plist);
 	if (index_read(fp, &top)) {
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"

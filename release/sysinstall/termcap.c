@@ -77,6 +77,6 @@ set_termcap(void)
 	msgDebug("Unable to get terminal size - errno %d\n", errno);
 	ts.ts_lines = 0;
     }
-    StatusLine = ts.ts_lines ? ts.ts_lines : (OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE);
+    StatusLine = ts.ts_lines ? ts.ts_lines - 1: (OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE);
     return 0;
 }

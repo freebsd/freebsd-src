@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.18.2.6 1997/01/19 09:59:28 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.7 1997/01/29 21:46:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,13 +47,34 @@ Boolean ftpInitted = FALSE;
 static FILE *OpenConn;
 int FtpPort;
 
+/* Brings up attached network device, if any - takes FTP device as arg */
+static Boolean
+netup(Device *dev)
+{
+    Device *netdev = (Device *)dev->private;
+
+    if (netdev)
+	return netdev->init(netdev);
+    else
+	return TRUE;	/* No net == happy net */
+}
+
+/* Brings down attached network device, if any - takes FTP device as arg */
+static void
+netDown(Device *dev)
+{
+    Device *netdev = (Device *)dev->private;
+
+    if (netdev)
+	netdev->shutdown(netdev);
+}
+
 Boolean
 mediaInitFTP(Device *dev)
 {
     int i, code;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
-    Device *netdev = (Device *)dev->private;
 
     if (ftpInitted)
 	return TRUE;
@@ -67,7 +88,7 @@ mediaInitFTP(Device *dev)
     }
 
     /* If we can't initialize the network, bag it! */
-    if (netdev && !netdev->init(netdev))
+    if (!netUp(dev))
 	return FALSE;
 
 try:
@@ -75,8 +96,7 @@ try:
     if (!cp) {
 	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL) {
 	    msgConfirm("Unable to get proper FTP path.  FTP media not initialized.");
-	    if (netdev)
-		netdev->shutdown(netdev);
+	    netDown(dev);
 	    return FALSE;
 	}
     }
@@ -85,8 +105,7 @@ try:
     dir = variable_get(VAR_FTP_DIR);
     if (!hostname || !dir) {
 	msgConfirm("Missing FTP host or directory specification.  FTP media not initialized,");
-	if (netdev)
-	    netdev->shutdown(netdev);
+	netDown(dev);
 	return FALSE;
     }
     user = variable_get(VAR_FTP_USER);
@@ -145,12 +164,12 @@ try:
     return TRUE;
 
 punt:
+    ftpInitted = FALSE;
     if (OpenConn != NULL) {
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    if (netdev)
-	netdev->shutdown(netdev);
+    netDown(dev);
     variable_unset(VAR_FTP_PATH);
     return FALSE;
 }
@@ -177,6 +196,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	    variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev)) {
+		netDown(dev);
 		fclose(OpenConn);
 		OpenConn = NULL;
 		return NULL;
@@ -216,8 +236,6 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownFTP(Device *dev)
 {
-    /* Device *netdev = (Device *)dev->private; */
-
     if (!ftpInitted)
 	return;
 
@@ -226,6 +244,5 @@ mediaShutdownFTP(Device *dev)
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    /* if (netdev) netdev->shutdown(netdev); */
     ftpInitted = FALSE;
 }
