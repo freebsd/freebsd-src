@@ -595,7 +595,7 @@ static int
 es1371_rdcd(kobj_t obj, void *s, int addr)
 {
   	int sl;
-  	unsigned t, x;
+  	unsigned t, x = 0;
   	struct es_info *es = (struct es_info *)s;
 
   	if (debug > 0) printf("rdcodec addr 0x%x ... ", addr);
