@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2003 Stuart Walsh<stu@ipng.org.uk>
  * and Duncan Barclay<dmlb@dmlb.org>
+ * Modifications for FreeBSD-stable by Edwin Groothuis
+ * <edwin at mavetju.org
+ * < http://lists.freebsd.org/mailman/listinfo/freebsd-bugs>>
  */
 
 /*
@@ -24,12 +27,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$ 
  */
 
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,12 +73,7 @@
 #include <dev/mii/miivar.h>
 #if __FreeBSD_version > 500000
 #include "miidevs.h"
-#else
-#include "miibus_if.h"
-#endif
-#include <dev/mii/brgphyreg.h>
 
-#if __FreeBSD_version > 500000
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #endif
@@ -87,17 +84,10 @@ MODULE_DEPEND(bfe, pci, 1, 1, 1);
 MODULE_DEPEND(bfe, ether, 1, 1, 1);
 MODULE_DEPEND(bfe, miibus, 1, 1, 1);
 
-#if __FreeBSD_version < 500000
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-#endif
 
 #define BFE_DEVDESC_MAX		64	/* Maximum device description length */
-
-#if __FreeBSD_version < 500000
-#define BPF_MTAP(ifp, m)            bpf_mtap((ifp), (m))
-#define ETHER_ALIGN                     2
-#endif
 
 static struct bfe_type bfe_devs[] = {
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM4401,
@@ -241,7 +231,7 @@ bfe_dma_alloc(device_t dev)
 			&sc->bfe_tx_tag);
 
 	if (error) {
-		device_printf(dev, "count not allocate dma tag\n");
+		device_printf(dev, "could not allocate dma tag\n");
 		return(ENOMEM);
 	}
 
@@ -256,7 +246,7 @@ bfe_dma_alloc(device_t dev)
 			&sc->bfe_rx_tag);
 
 	if (error) {
-		device_printf(dev, "count not allocate dma tag\n");
+		device_printf(dev, "could not allocate dma tag\n");
 		return(ENOMEM);
 	}
 
@@ -330,40 +320,44 @@ bfe_dma_alloc(device_t dev)
 static int
 bfe_attach(device_t dev)
 {
-	int s;
 	struct ifnet *ifp;
 	struct bfe_softc *sc;
 	int unit, error = 0, rid;
-	u_int32_t command;
-	
-	s = splimp ();
-	
-	sc = device_get_softc(dev);
-	bzero (sc, sizeof (struct bfe_softc));
 
-#if __FreeBSD_version > 500000
+	sc = device_get_softc(dev);
+
 	mtx_init(&sc->bfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 			MTX_DEF | MTX_RECURSE);
-#endif
 
 	unit = device_get_unit(dev);
 	sc->bfe_dev = dev;
 	sc->bfe_unit = unit;
 
-	/* 
+	/*
+	 * Handle power management nonsense.
+	 */
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		u_int32_t membase, irq;
+
+		/* Save important PCI config data. */
+		membase = pci_read_config(dev, BFE_PCI_MEMLO, 4);
+		irq = pci_read_config(dev, BFE_PCI_INTLINE, 4);
+
+		/* Reset the power state. */
+		printf("bfe%d: chip is is in D%d power mode -- setting to D0\n", 
+				sc->bfe_unit, pci_get_powerstate(dev));
+
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+
+		/* Restore PCI config data. */
+		pci_write_config(dev, BFE_PCI_MEMLO, membase, 4);
+		pci_write_config(dev, BFE_PCI_INTLINE, irq, 4);
+	}
+
+	/*
 	 * Map control/status registers.
 	 */
-	/*pci_enable_busmaster(dev);*/
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	command |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	
-	if (!(command & PCIM_CMD_MEMEN)) {
-	    printf("bfe%d: failed to enable memory mapping!\n", unit);
-	    error = ENXIO;
-	    goto fail;
-	}
+	pci_enable_busmaster(dev);
 
 	rid = BFE_PCI_MEMLO;
 	sc->bfe_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, 
@@ -444,8 +438,6 @@ bfe_attach(device_t dev)
 		goto fail;
 	}
 fail:
-	splx (s);
-	
 	if(error)
 		bfe_release_resources(sc);
 	return(error);
@@ -456,7 +448,7 @@ bfe_detach(device_t dev)
 {
 	struct bfe_softc *sc;
 	struct ifnet *ifp;
-	int s;
+	BFE_VAR(s);
 
 	sc = device_get_softc(dev);
 
@@ -465,15 +457,14 @@ bfe_detach(device_t dev)
 
 	ifp = &sc->arpcom.ac_if;
 
-#if __FreeBSD_version > 500000
 	if (device_is_attached(dev)) {
 		bfe_stop(sc);
+#if __FreeBSD_version > 500000
 		ether_ifdetach(ifp);
-	}
 #else
-	bfe_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 #endif
+	}
 
 	bfe_chip_reset(sc);
 
@@ -483,9 +474,7 @@ bfe_detach(device_t dev)
 
 	bfe_release_resources(sc);
 	BFE_UNLOCK(sc);
-#if __FreeBSD_version > 500000
 	mtx_destroy(&sc->bfe_mtx);
-#endif
 
 	return(0);
 }
@@ -498,7 +487,7 @@ static void
 bfe_shutdown(device_t dev)
 {
 	struct bfe_softc *sc;
-	int s;
+	BFE_VAR(s);
 
 	sc = device_get_softc(dev);
 	BFE_LOCK(sc);
@@ -539,6 +528,25 @@ static void
 bfe_miibus_statchg(device_t dev)
 {
 	return;
+}
+
+static void
+bfe_tx_ring_free(struct bfe_softc *sc)
+{
+    int i;
+    
+    for(i = 0; i < BFE_TX_LIST_CNT; i++) {
+        if(sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
+            m_freem(sc->bfe_tx_ring[i].bfe_mbuf);
+            sc->bfe_tx_ring[i].bfe_mbuf = NULL;
+            bus_dmamap_unload(sc->bfe_tag,
+                    sc->bfe_tx_ring[i].bfe_map);
+            bus_dmamap_destroy(sc->bfe_tag,
+                    sc->bfe_tx_ring[i].bfe_map);
+        }
+    }
+    bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
+    bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
 }
 
 static void
@@ -667,7 +675,7 @@ static void
 bfe_clear_stats(struct bfe_softc *sc)
 {
 	u_long reg;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -684,7 +692,7 @@ static int
 bfe_resetphy(struct bfe_softc *sc)
 {
 	u_int32_t val;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 	bfe_writephy(sc, 0, BMCR_RESET);
@@ -702,7 +710,7 @@ bfe_resetphy(struct bfe_softc *sc)
 static void
 bfe_chip_halt(struct bfe_softc *sc)
 {
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 	/* disable interrupts - not that it actually does..*/
@@ -723,7 +731,7 @@ static void
 bfe_chip_reset(struct bfe_softc *sc)
 {
 	u_int32_t val;    
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -1022,7 +1030,7 @@ static int
 bfe_readphy(struct bfe_softc *sc, u_int32_t reg, u_int32_t *val)
 {
 	int err; 
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 	/* Clear MII ISR */
@@ -1043,7 +1051,7 @@ static int
 bfe_writephy(struct bfe_softc *sc, u_int32_t reg, u_int32_t val)
 {
 	int status;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 	CSR_WRITE_4(sc, BFE_EMAC_ISTAT, BFE_EMAC_INT_MII);
@@ -1067,7 +1075,7 @@ static int
 bfe_setupphy(struct bfe_softc *sc)
 {
 	u_int32_t val;
-	int s;
+	BFE_VAR(s);
 	BFE_LOCK(sc);
 
 	/* Enable activity LED */
@@ -1103,34 +1111,28 @@ static void
 bfe_txeof(struct bfe_softc *sc)
 {
 	struct ifnet *ifp;
-	int i, cnt;
-	int s;
+	int i, chipidx;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
-	cnt = CSR_READ_4(sc, BFE_DMATX_STAT) & BFE_STAT_CDMASK;
-	cnt /= sizeof(struct bfe_desc);
+	chipidx = CSR_READ_4(sc, BFE_DMATX_STAT) & BFE_STAT_CDMASK;
+	chipidx /= sizeof(struct bfe_desc);
 
+    i = sc->bfe_tx_cons;
 	/* Go through the mbufs and free those that have been transmitted */
-	for(i = sc->bfe_tx_cons; sc->bfe_tx_cnt > 0; sc->bfe_tx_cnt--) {
+    while(i != chipidx) {
 		struct bfe_data *r = &sc->bfe_tx_ring[i];
-
-		if (i == cnt)
-			break;
-
 		if(r->bfe_mbuf != NULL) {
 			ifp->if_opackets++;
-			m_free(r->bfe_mbuf);
+			m_freem(r->bfe_mbuf);
 			r->bfe_mbuf = NULL;
 			bus_dmamap_unload(sc->bfe_tag, r->bfe_map);
 		}
-
-		if(i == BFE_TX_LIST_CNT - 1)
-			i = 0;
-		else
-			i++;
+        sc->bfe_tx_cnt--;
+        BFE_INC(i, BFE_TX_LIST_CNT);
 	}
 
 	if(i != sc->bfe_tx_cons) {
@@ -1156,7 +1158,7 @@ bfe_rxeof(struct bfe_softc *sc)
 	struct bfe_data *r;
 	int cons;
 	u_int32_t status, current, len, flags;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 	cons = sc->bfe_rx_cons;
@@ -1203,13 +1205,9 @@ bfe_rxeof(struct bfe_softc *sc)
 #if __FreeBSD_version > 500000
 		(*ifp->if_input)(ifp, m);
 #else
-		ether_input(ifp, (struct ether_header *)rxheader, m);
+		ether_input(ifp, NULL, m);
 #endif
-
-		if (cons == BFE_RX_LIST_CNT - 1)
-			cons = 0;
-		else
-			cons++;
+        BFE_INC(cons, BFE_RX_LIST_CNT);
 	}
 	sc->bfe_rx_cons = cons;
 	BFE_UNLOCK(sc);
@@ -1221,7 +1219,7 @@ bfe_intr(void *xsc)
 	struct bfe_softc *sc = xsc;
 	struct ifnet *ifp;
 	u_int32_t istat, imask, flag;
-	int s;
+	BFE_VAR(s);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1335,10 +1333,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 			bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREREAD);
 
 			frag = cur;
-			if (cur == BFE_TX_LIST_CNT - 1)
-				cur = 0;
-			else 
-				cur++;
+            BFE_INC(cur, BFE_TX_LIST_CNT);
 			cnt++;
 		}
 	}
@@ -1364,8 +1359,7 @@ bfe_start(struct ifnet *ifp)
 	struct bfe_softc *sc;
 	struct mbuf *m_head = NULL;
 	int idx;
-	int done = 0;
-	int s;
+	BFE_VAR(s);
 
 	sc = ifp->if_softc;
 	idx = sc->bfe_tx_prod;
@@ -1386,7 +1380,7 @@ bfe_start(struct ifnet *ifp)
 		return;
 	}
 
-	while(!done) {
+	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if(m_head == NULL)
 			break;
@@ -1398,7 +1392,6 @@ bfe_start(struct ifnet *ifp)
 		if(bfe_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
-			done = 1;
 			break;
 		}
 
@@ -1426,7 +1419,7 @@ bfe_init(void *xsc)
 {
 	struct bfe_softc *sc = (struct bfe_softc*)xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -1468,7 +1461,7 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
-	int s;
+	BFE_VAR(s);
 
 	sc = ifp->if_softc;
 
@@ -1496,7 +1489,7 @@ bfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct bfe_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -1515,7 +1508,7 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
 	int error = 0;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -1539,9 +1532,21 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			mii = device_get_softc(sc->bfe_miibus);
 			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 			break;
+#if __FreeBSD_version > 500000
 		default:
 			error = ether_ioctl(ifp, command, data); 
 			break;
+#else
+		case SIOCSIFADDR:
+		case SIOCGIFADDR:
+		case SIOCSIFMTU:
+			error = ether_ioctl(ifp, command, data);
+			break;
+
+		default:
+			error = EINVAL;
+			break;
+#endif
 	}
 
 	BFE_UNLOCK(sc);
@@ -1552,7 +1557,7 @@ static void
 bfe_watchdog(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
-	int s;
+	BFE_VAR(s);
 
 	sc = ifp->if_softc;
 
@@ -1573,7 +1578,7 @@ bfe_tick(void *xsc)
 {
 	struct bfe_softc *sc = xsc;
 	struct mii_data *mii;
-	int s;
+	BFE_VAR(s);
 
 	if (sc == NULL)
 		return;
@@ -1594,6 +1599,10 @@ bfe_tick(void *xsc)
 	if (!sc->bfe_link && mii->mii_media_status & IFM_ACTIVE &&
 			IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) 
 		sc->bfe_link++;
+#ifdef FALSE
+	if (!sc->bfe_link)
+		sc->bfe_link++;
+#endif
 
 	BFE_UNLOCK(sc);
 }
@@ -1606,7 +1615,7 @@ static void
 bfe_stop(struct bfe_softc *sc)
 {
 	struct ifnet *ifp;
-	int s;
+	BFE_VAR(s);
 
 	BFE_LOCK(sc);
 
@@ -1615,6 +1624,7 @@ bfe_stop(struct bfe_softc *sc)
 	ifp = &sc->arpcom.ac_if;
 
 	bfe_chip_halt(sc);
+    bfe_tx_ring_free(sc);
 	bfe_rx_ring_free(sc);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);

@@ -425,10 +425,22 @@
 #if __FreeBSD_version > 500000
 #define BFE_LOCK(scp)       mtx_lock(&sc->bfe_mtx)
 #define BFE_UNLOCK(scp)     mtx_unlock(&sc->bfe_mtx)
+#define BFE_VAR(s)
 #else
 #define BFE_LOCK(scp)       s=splimp()
 #define BFE_UNLOCK(scp)     splx(s)
+#define BFE_VAR(s)	    int s
+#define BPF_MTAP(_ifp,_m) do {					\
+			if ((_ifp)->if_bpf)			\
+				bpf_mtap((_ifp), (_m));		\
+			} while (0)
+#define ETHER_ALIGN                     2
+#define mtx_destroy(a)
+#define mtx_init(a,b,c,d)
+#define device_is_attached(a)	1
 #endif
+
+#define BFE_INC(x, y)       (x) = ((x) == ((y)-1)) ? 0 : (x)+1
 
 struct bfe_data {
     struct mbuf     *bfe_mbuf;
