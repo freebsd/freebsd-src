@@ -185,8 +185,14 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		/* FALLTHROUGH */
 	case 1:
 	case 0:
-		while (remain-- > 0)
+		wc = (unsigned char)*s++;
+		while (--remain > 0) {
+			if (*s == '\0') {
+				errno = EILSEQ;
+				return ((size_t)-1);
+			}
 			wc = (wc << 8) | (unsigned char)*s++;
+		}
 		break;
 	}
 	wc = (wc & ~CEI->mask) | CEI->bits[set];
