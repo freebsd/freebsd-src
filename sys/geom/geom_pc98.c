@@ -57,7 +57,7 @@
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 {
-	int i;
+	u_int u;
 
 	d->dp_mid = ptr[0];
 	d->dp_sid = ptr[1];
@@ -72,8 +72,8 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 	d->dp_esect = ptr[12];
 	d->dp_ehd = ptr[13];
 	d->dp_ecyl = g_dec_le2(ptr + 14);
-	for (i = 0; i < sizeof(d->dp_name); i++)
-		d->dp_name[i] = ptr[16 + i];
+	for (u = 0; u < sizeof(d->dp_name); u++)
+		d->dp_name[u] = ptr[16 + u];
 }
 
 struct g_pc98_softc {
@@ -88,25 +88,25 @@ g_pc98_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_pc98_softc *mp;
 	struct g_slicer *gsp;
-	int index;
+	int idx;
 
 	pp = bp->bio_to;
-	index = pp->index;
+	idx = pp->index;
 	gp = pp->geom;
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "PC98::type", mp->type[index]))
+		if (g_handleattr_int(bp, "PC98::type", mp->type[idx]))
 			return (1);
 		if (g_handleattr_off_t(bp, "PC98::offset",
-				       gsp->slices[index].offset))
+				       gsp->slices[idx].offset))
 			return (1);
 	}
 	return (0);
 }
 
 static void
-g_pc98_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
+g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_pc98_softc *mp;
@@ -152,7 +152,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
 	int error, i, npart;
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
@@ -233,7 +232,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			ms->type[i] = (ms->dp[i].dp_sid << 8) |
 				ms->dp[i].dp_mid;
 			g_topology_lock();
-			pp2 = g_slice_addslice(gp, i,
+			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 			    ms->dp[i].dp_scyl * spercyl,
 			    (ms->dp[i].dp_ecyl - ms->dp[i].dp_scyl + 1) *
 					       spercyl,
@@ -244,14 +243,12 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		break;
 	}
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			g_error_provider(pp, 0);
-		return (gp);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
 	}
-	g_std_spoiled(cp);
-	return (NULL);
+	return (gp);
 }
 
 static struct g_class g_pc98_class = {

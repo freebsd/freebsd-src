@@ -231,7 +231,7 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 	gcg.class.len = strlen(gcg.class.u.name);
 	gcg.provider.u.name = dest;
 	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = 0;
+	gcg.flag = GCFG_CREATE;
 	gcg.len = sizeof buf;
 	gcg.ptr = buf;
 	
@@ -266,7 +266,7 @@ cmd_detach(const char *dest)
 	gcg.class.len = strlen(gcg.class.u.name);
 	gcg.provider.u.name = dest;
 	gcg.provider.len = strlen(gcg.provider.u.name);
-	gcg.flag = 1;
+	gcg.flag = GCFG_DISMANTLE;
 	
 	i = ioctl(gfd, GEOMCONFIGGEOM, &gcg);
 	if (i != 0)
@@ -418,7 +418,16 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 	if (i != (int)gl->sectorsize)
 		err(1, "write");
 	printf("Wrote key %d at %jd\n", key, (intmax_t)offset);
-
+#if 0
+	printf("s0 = %jd\n", (intmax_t)gl->sector0);
+	printf("sN = %jd\n", (intmax_t)gl->sectorN);
+	printf("l[0] = %jd\n", (intmax_t)gl->lsector[0]);
+	printf("l[1] = %jd\n", (intmax_t)gl->lsector[1]);
+	printf("l[2] = %jd\n", (intmax_t)gl->lsector[2]);
+	printf("l[3] = %jd\n", (intmax_t)gl->lsector[3]);
+	printf("k = %jd\n", (intmax_t)gl->keyoffset);
+	printf("ss = %jd\n", (intmax_t)gl->sectorsize);
+#endif
 }
 
 static void
@@ -434,6 +443,16 @@ cmd_destroy(struct g_bde_key *gl, int nkey)
 	for (i = 0; i < G_BDE_MAXKEYS; i++)
 		if (i != nkey)
 			gl->lsector[i] = ~0;
+}
+
+static int
+sorthelp(const void *a, const void *b)
+{
+	const off_t *oa, *ob;
+
+	oa = a;
+	ob = b;
+	return (*oa - *ob);
 }
 
 static void
@@ -522,7 +541,6 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		if (!*p || *q)
 			errx(1, "first_sector not a proper number");
 	}
-	gl->sector0 = first_sector * gl->sectorsize;
 
 	/* <last_sector> */
 	p = property_find(params, "last_sector");
@@ -552,6 +570,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		total_sectors--;
 		gl->flags |= 1;
 	}
+	gl->sector0 = first_sector * gl->sectorsize;
 
 	if (total_sectors != (last_sector - first_sector) + 1)
 		errx(1, "total_sectors disagree with first_sector and last_sector");
@@ -597,6 +616,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		while (o < gl->sectorN);
 		gl->lsector[u] = o;
 	}
+	qsort(gl->lsector, G_BDE_MAXKEYS, sizeof gl->lsector[0], sorthelp);
 
 	/* Flush sector zero if we use it for lockfile data */
 	if (gl->flags & 1) {
@@ -721,8 +741,7 @@ main(int argc, char **argv)
 			if (!*optarg || *q)
 				usage("-n argument not numeric\n");
 			if (n_opt < -1 || n_opt > G_BDE_MAXKEYS)
-				usage("-n argument out of range\n");
-			break;
+				usage("-n argument out of range\n"); break;
 		default:
 			usage("Invalid option\n");
 		}
@@ -743,7 +762,7 @@ main(int argc, char **argv)
 	}
 
 	memset(&sc, 0, sizeof sc);
-	sc.consumer = (struct g_consumer *)&dfd;
+	sc.consumer = (void *)&dfd;
 	gl = &sc.key;
 	switch(action) {
 	case ACT_ATTACH:
