@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.59 1996/01/23 22:55:08 joerg Exp $
+ *	$Id: mcd.c,v 1.60 1996/01/30 10:31:06 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1433,9 +1433,8 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 	struct ioc_toc_header th;
 	int rc, n, trk, len = te->data_len;
 
-	if (   len > sizeof(entries)
-	    || len < sizeof(struct cd_toc_entry)
-	    || (len % sizeof(struct cd_toc_entry)) != 0
+	if (   len < sizeof(entries[0])
+	    || (len % sizeof(entries[0])) != 0
 	   )
 		return EINVAL;
 	if (te->address_format != CD_MSF_FORMAT &&
