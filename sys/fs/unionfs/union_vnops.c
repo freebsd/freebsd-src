@@ -704,7 +704,6 @@ union_mknod(ap)
 	int error = EROFS;
 
 	if ((dvp = union_lock_upper(dun, cnp->cn_proc)) != NULL) {
-		struct vnode *vp;
 		error = VOP_MKNOD(dvp, ap->a_vpp, cnp, ap->a_vap);
 		union_unlock_upper(dvp, cnp->cn_proc);
 	}
