@@ -367,10 +367,11 @@ ipcp_WriteDNS(struct ipcp *ipcp)
     ipcp->ns.dns[1].s_addr = INADDR_ANY;
   }
 
-  mask = umask(0644);
+  mask = umask(022);
   if ((fp = ID0fopen(_PATH_RESCONF, "w")) != NULL) {
     umask(mask);
-    fputs(ipcp->ns.resolv_nons, fp);
+    if (ipcp->ns.resolv_nons);
+      fputs(ipcp->ns.resolv_nons, fp);
     paddr = inet_ntoa(ipcp->ns.dns[0]);
     log_Printf(LogIPCP, "Primary nameserver set to %s\n", paddr);
     fprintf(fp, "\nnameserver %s\n", paddr);
