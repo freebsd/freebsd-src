@@ -4,7 +4,7 @@
 PROG=	xinstall
 MAN=	install.1
 
-install: maninstall
+realinstall:
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${PROG} ${DESTDIR}${BINDIR}/install
 
