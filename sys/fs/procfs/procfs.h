@@ -140,7 +140,6 @@ int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct
 int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dorlimit __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int procfs_fullpath __P((struct proc *p, char **retbuf, char **retfreebuf));
 
 /* Return 1 if process has special kernel digging privileges */
 int procfs_kmemaccess __P((struct proc *));
