@@ -73,6 +73,7 @@ SUBDIR=	adjkerntz \
 	slattach \
 	spppcontrol \
 	startslip \
+	sunlabel \
 	swapon \
 	sysctl \
 	tunefs \
@@ -106,10 +107,6 @@ SUBDIR+=fdisk
 SUBDIR+=fdisk \
 	gpt \
 	mca
-.endif
-
-.if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=sunlabel
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
