@@ -137,14 +137,8 @@ do_system_command (command)
   else
     status = system (command);
 
-  /*
-   * Ultrix returns 127 for failure.  Is this normal?
-   */
-  if (status == 127)
-    {
-      gripe_system_command (status);
-      return 0;
-    }
+  if (status)
+    return 0;
   else
     return 1;
 }
