@@ -603,14 +603,16 @@ add_each_addr(struct socket *so, struct rr_prefix *rpp, struct rp_addr *rap)
 	if (ia6 != NULL) {
 		if (ia6->ia6_ifpr == NULL) {
 			/* link this addr and the prefix each other */
-			IFAFREE(&rap->ra_addr->ia_ifa);
+			if (rap->ra_addr)
+				IFAFREE(&rap->ra_addr->ia_ifa);
 			rap->ra_addr = ia6;
 			rap->ra_addr->ia_ifa.ifa_refcnt++;
 			ia6->ia6_ifpr = rp2ifpr(rpp);
 			return;
 		}
 		if (ia6->ia6_ifpr == rp2ifpr(rpp)) {
-			IFAFREE(&rap->ra_addr->ia_ifa);
+			if (rap->ra_addr)
+				IFAFREE(&rap->ra_addr->ia_ifa);
 			rap->ra_addr = ia6;
 			rap->ra_addr->ia_ifa.ifa_refcnt++;
 			return;
