@@ -85,3 +85,5 @@ o The ``set device'' command now expects each device to be specified as an
   on commas and spaces.
 o The ``show modem'' command is depricated and has been changed to
   ``show physical''.
+o The words ``host'' and ``port'' are no longer accepted by the ``set filter''
+  command.  Removing them should yield the same results as before.
