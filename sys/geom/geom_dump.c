@@ -155,8 +155,6 @@ g_conftxt(void *p)
 			break;
 	if (mp != NULL)
 		g_conftxt_class(sb, mp);
-	else
-		printf("no DISK\n");
 	sbuf_finish(sb);
 	wakeup(p);
 }
