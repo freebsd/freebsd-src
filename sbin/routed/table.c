@@ -1728,6 +1728,7 @@ rtadd(naddr	dst,
 				    rhead, rt->rt_nodes)) {
 		msglog("rnh_addaddr() failed for %s mask=%#lx",
 		       naddr_ntoa(dst), (u_long)mask);
+		free(rt);
 	}
 }
 
