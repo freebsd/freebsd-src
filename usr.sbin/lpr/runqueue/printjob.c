@@ -116,6 +116,7 @@ static char	width[10] = "-w";	/* page width in static characters */
 static char	tfile[] = TFILENAME;	/* file name for filter output */
 
 static void       abortpr __P((int));
+static void	  alarmhandler __P((int));
 static void       banner __P((char *, char *));
 static int        dofork __P((int));
 static int        dropit __P((int));
@@ -1350,6 +1351,8 @@ init()
 	sprintf(&width[2], "%ld", PW);
 	if (cgetnum(bp, "pl", &PL) < 0)
 		PL = DEFLENGTH;
+	if (cgetnum(bp, "ct", &CT) < 0)
+		CT = DEFTIMEOUT;
 	sprintf(&length[2], "%ld", PL);
 	if (cgetnum(bp,"px", &PX) < 0)
 		PX = 0;
@@ -1455,6 +1458,7 @@ opennet(cp)
 	register int i;
 	int resp, port;
 	char save_ch;
+	void (*savealrm)(int);
 
 	save_ch = *cp;
 	*cp = '\0';
@@ -1467,7 +1471,10 @@ opennet(cp)
 
 	for (i = 1; ; i = i < 256 ? i << 1 : i) {
 		resp = -1;
+		savealrm = signal(SIGALRM, alarmhandler);
+		alarm(CT);
 		pfd = getport(cp, port);
+		(void)signal(SIGALRM, savealrm);
 		if (pfd < 0 && errno == ECONNREFUSED)
 			resp = 1;
 		else if (pfd >= 0) {
@@ -1527,10 +1534,14 @@ openrem()
 {
 	register int i, n;
 	int resp;
+	void (*savealrm)(int);
 
 	for (i = 1; ; i = i < 256 ? i << 1 : i) {
 		resp = -1;
+		savealrm = signal(SIGALRM, alarmhandler);
+		alarm(CT);
 		pfd = getport(RM, 0);
+		(void)signal(SIGALRM, savealrm);
 		if (pfd >= 0) {
 			(void) snprintf(line, sizeof(line), "\2%s\n", RP);
 			n = strlen(line);
@@ -1654,4 +1665,10 @@ pstatus(msg, va_alist)
 	strcat(buf, "\n");
 	(void) write(fd, buf, strlen(buf));
 	(void) close(fd);
+}
+
+void
+alarmhandler(signo)
+{
+	/* ignored */
 }
