@@ -141,7 +141,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	OpenSSL_add_all_algorithms();
 
 	/* get user name and home directory */
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	pam_err = pam_get_user(pamh, &user, NULL);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 	pwd = getpwnam(user);
@@ -363,7 +363,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		return (PAM_SUCCESS);
 
 	/* switch to user credentials */
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	pam_err = pam_get_user(pamh, &user, NULL);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 	pwd = getpwnam(user);
