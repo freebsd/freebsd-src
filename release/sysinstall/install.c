@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.72 1995/11/05 01:00:31 jkh Exp $
+ * $Id: install.c,v 1.71.2.73 1995/11/05 02:22:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -675,7 +675,7 @@ installFilesystems(char *str)
 		       "that you have the appropriate device entries already in /dev.");
 	}
 	msgNotify("Checking integrity of existing %s filesystem.", dname);
-	i = vsystem("fsck -y /dev/%sa", dname);
+	i = vsystem("fsck -y %s", dname);
 	if (i) {
 	    dialog_clear();
 	    msgConfirm("Warning: fsck returned status of %d for %s.\n"
