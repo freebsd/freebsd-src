@@ -91,18 +91,19 @@
 #  endif
 #endif
 
-static struct {
+struct {
 	DATA_TYPE aligned;
 	char _;
 	char misaligned[sizeof(DATA_TYPE)];
 } data;
 
+DATA_TYPE *aligned = &data.aligned;
+DATA_TYPE *misaligned = (DATA_TYPE *)data.misaligned;
+DATA_TYPE value = DATA_VALUE;
+
 int
 main()
 {
-	DATA_TYPE *aligned = &data.aligned;
-	DATA_TYPE *misaligned = (DATA_TYPE *)data.misaligned;
-	DATA_TYPE value = DATA_VALUE;
 
 	/* Set PSR.ac. */
 	asm volatile("sum 8");
