@@ -306,9 +306,9 @@ FreeBSD system.
 Want to find a specific port, just type the following under /usr/ports,
 or one its subdirectories:
 
-	"make search port=<port-name>"
+	"make search name=<port-name>"
     or
-	"make search key="<keyword>"
+	"make search key=<keyword>"
 %
 Want to see how much virtual memory you're using? Just type "swapinfo" to
 be shown information about the usage of your swap partitions.
