@@ -134,6 +134,7 @@ uint32_t rman_make_alignment_flags(uint32_t size);
 
 u_long	rman_get_start(struct resource *_r);
 u_long	rman_get_end(struct resource *_r);
+struct device *rman_get_device(struct resource *);
 u_long	rman_get_size(struct resource *_r);
 u_int	rman_get_flags(struct resource *_r);
 void	rman_set_virtual(struct resource *_r, void *_v);
