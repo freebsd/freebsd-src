@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.110 1999/01/24 02:32:14 dillon Exp $
+ * $Id: swap_pager.c,v 1.111 1999/01/24 06:04:51 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -520,7 +520,7 @@ swap_pager_freespace(object, start, size)
  *	The source object is of type OBJT_SWAP.
  *
  *	The source and destination objects must be 
- *	locked or inaccessible (XXX are they ???)
+ *	locked or inaccessible (XXX are they ?)
  */
 
 void
