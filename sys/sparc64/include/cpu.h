@@ -74,6 +74,9 @@
 
 #ifdef _KERNEL
 
+extern	char btext[];
+extern	char etext[];
+
 void	fork_trampoline(void);
 
 static __inline u_int64_t
