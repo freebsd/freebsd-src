@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.12 1999/04/19 14:14:12 peter Exp $ */
+/* $Id: trap.c,v 1.13 1999/04/23 19:53:38 dt Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -637,11 +637,12 @@ syscall(code, framep)
 	case EJUSTRETURN:
 		break;
 	default:
-		if (p->p_sysent->sv_errsize)
+		if (p->p_sysent->sv_errsize) {
 			if (error >= p->p_sysent->sv_errsize)
 				error = -1; /* XXX */
 			else
 				error = p->p_sysent->sv_errtbl[error];
+		}
 		framep->tf_regs[FRAME_V0] = error;
 		framep->tf_regs[FRAME_A3] = 1;
 		break;
