@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.3 1993/10/16 14:39:08 rgrimes Exp $
+ *	$Id: cpufunc.h,v 1.4 1993/11/07 17:42:47 wollman Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -13,7 +13,7 @@
 
 #ifdef	__GNUC__
 
-static __inline int bdb(void)
+static inline int bdb(void)
 {
 	extern int bdb_exists;
 
@@ -23,13 +23,13 @@ static __inline int bdb(void)
 	return (1);
 }
 
-static __inline void
+static inline void
 disable_intr(void)
 {
 	__asm __volatile("cli");
 }
 
-static __inline void
+static inline void
 enable_intr(void)
 {
 	__asm __volatile("sti");
@@ -41,7 +41,7 @@ enable_intr(void)
  */
 #define	inb(port)	((u_char) u_int_inb(port))
 
-static __inline u_int
+static inline u_int
 u_int_inb(u_int port)
 {
 	u_char	data;
@@ -54,7 +54,7 @@ u_int_inb(u_int port)
 	return data;
 }
 
-static __inline void
+static inline void
 outb(u_int port, u_char data)
 {
 	register u_char	al asm("ax");
@@ -63,7 +63,8 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
-static __inline__
+static inline
+int
 imin(a, b)
 	int a, b;
 {
@@ -71,7 +72,8 @@ imin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
+int
 imax(a, b)
 	int a, b;
 {
@@ -79,7 +81,7 @@ imax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned int
 min(a, b)
 	unsigned int a, b;
@@ -88,7 +90,7 @@ min(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned int
 max(a, b)
 	unsigned int a, b;
@@ -97,7 +99,7 @@ max(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 long
 lmin(a, b)
 	long a, b;
@@ -106,7 +108,7 @@ lmin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 long
 lmax(a, b)
 	long a, b;
@@ -115,7 +117,7 @@ lmax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned long
 ulmin(a, b)
 	unsigned long a, b;
@@ -124,7 +126,7 @@ ulmin(a, b)
 	return (a < b ? a : b);
 }
 
-static __inline__
+static inline
 unsigned long
 ulmax(a, b)
 	unsigned long a, b;
@@ -133,7 +135,8 @@ ulmax(a, b)
 	return (a > b ? a : b);
 }
 
-static __inline__
+static inline
+int
 ffs(mask)
 	register long mask;
 {
@@ -148,7 +151,8 @@ ffs(mask)
 	}
 }
 
-static __inline__
+static inline
+int
 bcmp(v1, v2, len)
 	void *v1, *v2;
 	register unsigned len;
@@ -161,10 +165,10 @@ bcmp(v1, v2, len)
 	return (0);
 }
 
-static __inline__
+static inline
 size_t
 strlen(s1)
-	register __const__ char *s1;
+	register const char *s1;
 {
 	register size_t len;
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_input.c,v 1.2 1993/10/16 16:47:16 rgrimes Exp $
  */
 
 /*
@@ -32,7 +32,9 @@
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
+#include "ddb/ddb.h"
 #include <ddb/db_output.h>
 
 /*
@@ -239,12 +241,15 @@ db_check_interrupt()
 	}
 }
 
-cnmaygetc ()
+int
+cnmaygetc (void)
 {
 	return (-1);
 }
 
 /* called from kdb_trap in db_interface.c */
+void
 cnpollc (flag)
+	int flag;
 {
 }	

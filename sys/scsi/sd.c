@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 2.7 93/10/24 12:44:40 julian Exp Locker: julian $
+ *      $Id: sd.c,v 1.12 1993/11/18 05:03:02 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -72,8 +72,8 @@ int     Debugger();
 
 errval	sdgetdisklabel __P((unsigned char unit));
 errval	sd_get_parms __P((int unit, int flags));
-errval  sdstrategy();
-void    sdstart();
+void	sdstrategy __P((struct buf *));
+void    sdstart __P((u_int32));
 
 struct scsi_device sd_switch =
 {
@@ -358,7 +358,7 @@ sdminphys(bp)
  * can understand.  The transfer is described by a buf and will include
  * only one physical transfer.
  */
-errval 
+void
 sdstrategy(bp)
 	struct buf *bp;
 {
@@ -427,7 +427,7 @@ sdstrategy(bp)
 	sdstart(unit);
 
 	splx(opri);
-	return 0;
+	return /*0*/;
 bad:
 	bp->b_flags |= B_ERROR;
 done:
@@ -437,7 +437,7 @@ done:
 	 */
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
-	return 0;
+	return /*0*/;
 }
 
 /*

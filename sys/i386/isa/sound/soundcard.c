@@ -491,7 +491,7 @@ request_sound_timer (int count)
   int             tmp = count;
 
   if (count < 0)
-    timeout (sequencer_timer, 0, -count);
+    timeout ((timeout_func_t)sequencer_timer, 0, -count);
   else
     {
 
@@ -505,7 +505,7 @@ request_sound_timer (int count)
       if (!count)
 	count = 1;
 
-      timeout (sequencer_timer, 0, count);
+      timeout ((timeout_func_t)sequencer_timer, 0, count);
     }
   timer_running = 1;
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.8 1993/11/14 23:53:32 ache Exp $
+ *	$Id: isa.c,v 1.9 1993/11/17 00:21:03 ache Exp $
  */
 
 /*
@@ -48,7 +48,8 @@
  */
 
 #include "param.h"
-#include "systm.h"
+#include "systm.h"		/* isn't it a joy */
+#include "kernel.h"		/* to have three of these */
 #include "conf.h"
 #include "file.h"
 #include "buf.h"
@@ -80,7 +81,7 @@
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
 
-int config_isadev __P((struct isa_device *, u_int *));
+void config_isadev __P((struct isa_device *, u_int *));
 
 /*
  * print a conflict message
@@ -250,6 +251,7 @@ isa_configure() {
 /*
  * Configure an ISA device.
  */
+void
 config_isadev(isdp, mp)
 	struct isa_device *isdp;
 	u_int *mp;
@@ -338,7 +340,9 @@ extern	IDTVEC(intrdefault);
  * Fill in default interrupt table (in case of spuruious interrupt
  * during configuration of kernel, setup interrupt control unit
  */
-isa_defaultirq() {
+void
+isa_defaultirq() 
+{
 	int i;
 
 	/* icu vectors */
@@ -505,6 +509,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
  * Return true if special handling needed.
  */
 
+int
 isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
@@ -548,7 +553,7 @@ isa_allocphysmem(caddr_t va, unsigned length, void (*func)()) {
 	isaphysmemunblock = func;
 	while (isaphysmemflag & B_BUSY) {
 		isaphysmemflag |= B_WANTED;
-		tsleep(&isaphysmemflag, PRIBIO, "isaphys", 0);
+		tsleep((caddr_t)&isaphysmemflag, PRIBIO, "isaphys", 0);
 	}
 	isaphysmemflag |= B_BUSY;
 
@@ -565,7 +570,7 @@ isa_freephysmem(caddr_t va, unsigned length) {
 	isaphysmemflag &= ~B_BUSY;
 	if (isaphysmemflag & B_WANTED) {
 		isaphysmemflag &= B_WANTED;
-		wakeup(&isaphysmemflag);
+		wakeup((caddr_t)&isaphysmemflag);
 		if (isaphysmemunblock)
 			(*isaphysmemunblock)();
 	}
@@ -575,7 +580,10 @@ isa_freephysmem(caddr_t va, unsigned length) {
  * Handle a NMI, possibly a machine check.
  * return true to panic system, false to ignore.
  */
-isa_nmi(cd) {
+int
+isa_nmi(cd) 
+	int cd;
+{
 
 	log(LOG_CRIT, "\nNMI port 61 %x, port 70 %x\n", inb(0x61), inb(0x70));
 	return(0);
@@ -584,7 +592,10 @@ isa_nmi(cd) {
 /*
  * Caught a stray interrupt, notify
  */
-isa_strayintr(d) {
+void
+isa_strayintr(d)
+	int d;
+{
 
 	/* DON'T BOTHER FOR NOW! */
 	/* for some reason, we get bursts of intr #7, even if not enabled! */
@@ -616,9 +627,8 @@ isa_strayintr(d) {
 #define	CF		(1 * TIMER_FREQ)
 #define	TIMER_FREQ	1193182	/* XXX - should be elsewhere */
 
-extern int hz;			/* XXX - should be elsewhere */
-
-int DELAY(n)
+void
+DELAY(n)
 	int n;
 {
 	int counter_limit;
@@ -683,7 +693,11 @@ int DELAY(n)
 #endif
 }
 
-getit(unit, timer) {
+int
+getit(unit, timer) 
+	int unit;
+	int timer;
+{
 	int high;
 	int low;
 
@@ -710,19 +724,23 @@ getit(unit, timer) {
 	return ((high << 8) | low);
 }
 
-static beeping;
-static
-sysbeepstop(f)
+static int beeping;
+
+static void
+sysbeepstop(f, dummy)
+	caddr_t f;
+	int dummy;
 {
 	/* disable counter 2 */
 	outb(0x61, inb(0x61) & 0xFC);
 	if (f)
-		timeout(sysbeepstop, 0, f);
+		timeout(sysbeepstop, (caddr_t)0, (int)f);
 	else
 		beeping = 0;
 }
 
-void sysbeep(int pitch, int period)
+void 
+sysbeep(int pitch, int period)
 {
 
 	outb(0x61, inb(0x61) | 3);	/* enable counter 2 */
@@ -739,14 +757,17 @@ void sysbeep(int pitch, int period)
 	
 	if (!beeping) {
 		beeping = period;
-		timeout(sysbeepstop, period/2, period);
+		timeout(sysbeepstop, (caddr_t)(period/2), period);
 	}
 }
 
 /*
  * Pass command to keyboard controller (8042)
  */
-unsigned kbc_8042cmd(val) {
+unsigned
+kbc_8042cmd(val) 
+	int val;
+{
 	
 	while (inb(KBSTATP)&KBS_IBF);
 	if (val) outb(KBCMDP, val);

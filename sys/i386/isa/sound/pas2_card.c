@@ -129,6 +129,7 @@ set_pas_irq (int interrupt_level)
   return retcode;
 #else
   /* #  error This routine does not work with this OS	 */
+  return EINVAL;
 #endif
 }
 
