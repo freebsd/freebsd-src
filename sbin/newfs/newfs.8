@@ -50,6 +50,8 @@
 .Op Fl d Ar rotdelay
 .Op Fl e Ar maxbpg
 .Op Fl f Ar frag-size
+.Op Fl g Ar avgfilesize
+.Op Fl h Ar avfpdir
 .Op Fl i Ar bytes
 .Op Fl k Ar skew
 .Op Fl l Ar interleave
@@ -200,6 +202,10 @@ ranging in value between
 and
 .Ar blocksize .
 The default is 1024 bytes.
+.It Fl g Ar avgfilesize
+The expected average file size for the file system.
+.It Fl h Ar avgfpdir
+The expected average number of files per directory on the file system.
 .It Fl i Ar number of bytes per inode
 Specify the density of inodes in the file system.
 The default is to create an inode for every
