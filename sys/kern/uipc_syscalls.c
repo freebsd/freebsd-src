@@ -1851,7 +1851,7 @@ retry_lookup:
 			 */
 			error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
 			    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
-			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
+			    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
 			if (error)
