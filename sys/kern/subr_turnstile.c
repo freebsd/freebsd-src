@@ -234,7 +234,7 @@ propagate_priority(struct thread *td)
 		 * finish waking this thread up.  We can detect this case
 		 * by checking to see if this thread has been given a
 		 * turnstile by either turnstile_signal() or
-		 * turnstile_wakeup().  In this case, treat the thread as
+		 * turnstile_broadcast().  In this case, treat the thread as
 		 * if it was already running.
 		 */
 		if (td->td_turnstile != NULL) {
@@ -567,7 +567,7 @@ turnstile_signal(struct turnstile *ts)
  * the turnstile chain locked.
  */
 void
-turnstile_wakeup(struct turnstile *ts)
+turnstile_broadcast(struct turnstile *ts)
 {
 	struct turnstile_chain *tc;
 	struct turnstile *ts1;
