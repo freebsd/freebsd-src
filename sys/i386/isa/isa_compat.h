@@ -34,7 +34,6 @@
 #include "ar.h"
 #include "cs.h"
 #include "cx.h"
-#include "ed.h"
 #include "el.h"
 #include "ep.h"
 #include "ex.h"
@@ -106,7 +105,6 @@ extern struct isa_driver msedriver;
 extern struct isa_driver  ardriver;
 extern struct isa_driver  csdriver;
 extern struct isa_driver  cxdriver;
-extern struct isa_driver  eddriver;
 extern struct isa_driver  eldriver;
 extern struct isa_driver  epdriver;
 extern struct isa_driver  exdriver;
@@ -172,9 +170,6 @@ static struct old_isa_driver old_drivers[] = {
 /* Sensitive BIO */
 
 /* Sensitive NET */
-#if NED > 0
-	{ INTR_TYPE_NET, &eddriver },
-#endif
 #if NFE > 0
 	{ INTR_TYPE_NET, &fedriver },
 #endif
