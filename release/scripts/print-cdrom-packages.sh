@@ -61,35 +61,35 @@ CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 else
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
-CDROM_SET_1="${CDROM_SET_1} x11/kde2"
-CDROM_SET_1="${CDROM_SET_1} x11/gnome"
+CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/enlightenment"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/fvwm2"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/sawfish"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/windowmaker"
-CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
+CDROM_SET_1="${CDROM_SET_1} x11/gnome"
+CDROM_SET_1="${CDROM_SET_1} x11/kde2"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
-CDROM_SET_1="${CDROM_SET_1} shells/bash2"
-CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs20"
-CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
-CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
-CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
-CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
-CDROM_SET_1="${CDROM_SET_1} print/acroread"
+CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
+CDROM_SET_1="${CDROM_SET_1} print/acroread"
 CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript6-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
+CDROM_SET_1="${CDROM_SET_1} shells/bash2"
+CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
+CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
+CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
+CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
+CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 
 # VERY common build dependencies
-CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
+CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
 
 ## End of set for CDROM #1
