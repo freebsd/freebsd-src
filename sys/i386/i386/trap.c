@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.53.2.3 1995/10/10 00:45:46 davidg Exp $
+ *	$Id: trap.c,v 1.53.2.4 1996/01/13 10:46:30 davidg Exp $
  */
 
 /*
@@ -161,7 +161,9 @@ userret(p, frame, oticks)
 			addupc(frame->tf_eip, &p->p_stats->p_prof,
 			    ticks * profscale);
 #else
-			addupc(frame->tf_eip, &p->p_stats->p_prof, ticks);
+			extern int psratio;
+			addupc(frame->tf_eip, &p->p_stats->p_prof,
+			    ticks * psratio);
 #endif
 		}
 	}
