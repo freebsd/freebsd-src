@@ -30,7 +30,7 @@
  *	ispcvt - check for pcvt driver running and its options
  *	------------------------------------------------------
  *
- *	Last Edit-Date: [Mon Mar 27 16:29:18 2000]
+ *	Last Edit-Date: [Fri Mar 31 10:24:43 2000]
  *
  * $FreeBSD$
  *
@@ -216,6 +216,10 @@ char *argv[];
 		next();
 		fprintf(stderr,"XSERVER              = %s",
 			(pcvtinfo.compile_opts & CONF_XSERVER) ? "ON" : "OFF");
+
+		next();
+		fprintf(stderr,"PCVT_GREENSAVER      = %s",
+			(pcvtinfo.compile_opts & CONF_GREENSAVER) ? "ON" : "OFF");
 
 		fprintf(stderr,"\n\n");
 	}
