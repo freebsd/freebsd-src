@@ -1746,7 +1746,7 @@ for commands and tracked aliases
 the complete pathname of the command is printed.
 .It Xo
 .Ic ulimit
-.Op Fl HSacdflmnust
+.Op Fl HSabcdflmnust
 .Op Ar limit
 .Xc
 Set or display resource limits (see
@@ -1786,6 +1786,8 @@ The remaining options specify which resource value is to be
 displayed or modified.
 They are mutually exclusive.
 .Bl -tag -width Ds
+.It Fl b Ar sbsize
+The maximum size of socket buffer usage, in bytes.
 .It Fl c Ar coredumpsize
 The maximal size of core dump files, in 512-byte blocks.
 .It Fl d Ar datasize
