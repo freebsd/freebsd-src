@@ -112,8 +112,23 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+#if !defined(PAGE_SIZE_4K) && !defined(PAGE_SIZE_8K) && !defined(PAGE_SIZE_16K)
+#define PAGE_SIZE_8K
+#endif
+
+#ifdef PAGE_SIZE_4K
 #define	PAGE_SIZE	4096			/* bytes/page */
 #define PAGE_SHIFT	12
+#endif
+#ifdef PAGE_SIZE_8K
+#define	PAGE_SIZE	8192			/* bytes/page */
+#define PAGE_SHIFT	13
+#endif
+#ifdef PAGE_SIZE_16K
+#define	PAGE_SIZE	16384			/* bytes/page */
+#define PAGE_SHIFT	14
+#endif
+
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
