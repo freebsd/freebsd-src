@@ -94,7 +94,7 @@ main(int argc, char **argv)
 		case 'f':
 			dev = optarg;
 			break;
-	
+
 		case 'F':
 			force = 1;
 			break;
@@ -136,7 +136,7 @@ main(int argc, char **argv)
 			verbose = 1;
 			break;
 
-		default: 
+		default:
 			usage();
 		}
 	}
@@ -149,11 +149,11 @@ main(int argc, char **argv)
 	if ((fd = open(dev, O_RDWR, 0)) < 0)
 		err(EX_NOINPUT, "open(%s)", dev);
 
-	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
+	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
 
-	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
+	if (ioctl(fd, CDRIOCWRITESPEED, &speed) < 0)
+		err(EX_IOERR, "ioctl(CDRIOCWRITESPEED)");
 
 	global_fd_for_cleanup = fd;
 	err_set_exit(cleanup);
@@ -164,26 +164,26 @@ main(int argc, char **argv)
 			break;
 		}
 		if (!strcasecmp(argv[arg], "msinfo")) {
-		        struct ioc_read_toc_single_entry entry;
+			struct ioc_read_toc_single_entry entry;
 			struct ioc_toc_header header;
 
-			if (ioctl(fd, CDIOREADTOCHEADER, &header) < 0) 
+			if (ioctl(fd, CDIOREADTOCHEADER, &header) < 0)
 				err(EX_IOERR, "ioctl(CDIOREADTOCHEADER)");
 			bzero(&entry, sizeof(struct ioc_read_toc_single_entry));
 			entry.address_format = CD_LBA_FORMAT;
 			entry.track = header.ending_track;
-			if (ioctl(fd, CDIOREADTOCENTRY, &entry) < 0) 
+			if (ioctl(fd, CDIOREADTOCENTRY, &entry) < 0)
 				err(EX_IOERR, "ioctl(CDIOREADTOCENTRY)");
-			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0)
 				err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
-			fprintf(stdout, "%d,%d\n", 
+			fprintf(stdout, "%d,%d\n",
 				ntohl(entry.entry.addr.lba), addr);
 
 			break;
 		}
 		if ((!strcasecmp(argv[arg], "erase") ||
 		     !strcasecmp(argv[arg], "blank")) && !test_write) {
-		    	int blank, pct, last = 0;
+			int blank, pct, last = 0;
 
 			if (!strcasecmp(argv[arg], "erase"))
 				blank = CDR_B_ALL;
@@ -194,15 +194,15 @@ main(int argc, char **argv)
 					blank == CDR_B_ALL ? "eras" : "blank");
 
 			if (ioctl(fd, CDRIOCBLANK, &blank) < 0)
-        			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
+				err(EX_IOERR, "ioctl(CDRIOCBLANK)");
 			while (1) {
 				sleep(1);
 				if (ioctl(fd, CDRIOCGETPROGRESS, &pct) == -1)
 					err(EX_IOERR,"ioctl(CDRIOGETPROGRESS)");
 				if (pct > 0 && !quiet)
-					fprintf(stderr, 
+					fprintf(stderr,
 						"%sing CD - %d %% done     \r",
-						blank == CDR_B_ALL ? 
+						blank == CDR_B_ALL ?
 						"eras" : "blank", pct);
 				if (pct == 100 || (pct == 0 && last > 90))
 					break;
@@ -268,7 +268,7 @@ main(int argc, char **argv)
 			FILE *fp;
 
 			if ((fp = fopen(argv[arg], "r")) == NULL)
-	 			err(EX_NOINPUT, "fopen(%s)", argv[arg]);
+				err(EX_NOINPUT, "fopen(%s)", argv[arg]);
 
 			while (fgets(file_buf, sizeof(file_buf), fp) != NULL) {
 				if (*file_buf == '#' || *file_buf == '\n')
@@ -295,7 +295,7 @@ main(int argc, char **argv)
 				err(EX_IOERR, "ioctl(CDRIOCINITWRITER)");
 			cdopen = 1;
 		}
-		if (dao) 
+		if (dao)
 			do_DAO(fd, test_write, multi);
 		else
 			do_TAO(fd, test_write, preemp, dvdrw);
@@ -304,7 +304,7 @@ main(int argc, char **argv)
 		if (!quiet)
 			fprintf(stderr, "fixating CD, please wait..\n");
 		if (ioctl(fd, CDRIOCFIXATE, &multi) < 0)
-        		err(EX_IOERR, "ioctl(CDRIOCFIXATE)");
+			err(EX_IOERR, "ioctl(CDRIOCFIXATE)");
 	}
 
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) {
@@ -385,14 +385,14 @@ do_DAO(int fd, int test_write, int multi)
 
 	int bt2df[16] = { 0x0,    -1,   -1,   -1,   -1,   -1,   -1,   -1,
 			  0x10, 0x30, 0x20,   -1, 0x21,   -1,   -1,   -1 };
-	
-	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
+
+	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
 	if (verbose)
 		fprintf(stderr, "next writeable LBA %d\n", addr);
 
 	cue_ent(&cue[j++], bt2ctl[tracks[0].block_type], 0x01, 0x00, 0x0,
-		(bt2df[tracks[0].block_type] & 0xf0) | 
+		(bt2df[tracks[0].block_type] & 0xf0) |
 		(tracks[0].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
 
 	for (i = 0; i < notracks; i++) {
@@ -407,7 +407,7 @@ do_DAO(int fd, int test_write, int multi)
 			addr += tracks[i].pregap;
 			tracks[i].addr = addr;
 
-			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type], 
+			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type],
 				0x01, i+1, 0x1, bt2df[tracks[i].block_type],
 				0x00, addr);
 
@@ -415,14 +415,14 @@ do_DAO(int fd, int test_write, int multi)
 		else {
 			if (tracks[i].pregap) {
 				if (tracks[i].block_type > 0x7) {
-					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type],
 						0x01, i+1, 0x0,
-						(bt2df[tracks[i].block_type] & 0xf0) | 
+						(bt2df[tracks[i].block_type] & 0xf0) |
 						(tracks[i].block_type < 8 ? 0x01 :0x04),
 						0x00, addr);
 				}
 				else
-					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type],
 						0x01, i+1, 0x0,
 						bt2df[tracks[i].block_type],
 						0x00, addr);
@@ -441,7 +441,7 @@ do_DAO(int fd, int test_write, int multi)
 	}
 
 	cue_ent(&cue[j++], bt2ctl[tracks[i - 1].block_type], 0x01, 0xaa, 0x01,
-		(bt2df[tracks[i - 1].block_type] & 0xf0) | 
+		(bt2df[tracks[i - 1].block_type] & 0xf0) |
 		(tracks[i - 1].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
 
 	sheet.len = j * 8;
@@ -451,7 +451,7 @@ do_DAO(int fd, int test_write, int multi)
 	sheet.session_format = format;
 	if (verbose) {
 		u_int8_t *ptr = (u_int8_t *)sheet.entries;
-		
+
 		fprintf(stderr,"CUE sheet:");
 		for (i = 0; i < sheet.len; i++)
 			if (i % 8)
@@ -460,7 +460,7 @@ do_DAO(int fd, int test_write, int multi)
 				fprintf(stderr,"\n%02x", ptr[i]);
 		fprintf(stderr,"\n");
 	}
-	
+
 	if (ioctl(fd, CDRIOCSENDCUE, &sheet) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
 
@@ -488,7 +488,7 @@ do_TAO(int fd, int test_write, int preemp, int dvdrw)
 		if (dvdrw)
 			tracks[i].addr = 0;
 		else
-			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, 
+			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR,
 				  &tracks[i].addr) < 0)
 				err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
 
@@ -515,10 +515,10 @@ do_format(int the_fd, int force, char *type)
 		err(EX_IOERR, "ioctl(CDRIOCREADFORMATCAPS)");
 
 	if (verbose) {
-		fprintf(stderr, "format list entries=%zd\n", 
+		fprintf(stderr, "format list entries=%zd\n",
 			capacities.length / sizeof(struct cdr_format_capacity));
 		fprintf(stderr, "current format: blocks=%u type=0x%x block_size=%u\n",
-			ntohl(capacities.blocks), capacities.type, 
+			ntohl(capacities.blocks), capacities.type,
 			NTOH3B(capacities.block_size));
 	}
 
@@ -546,7 +546,7 @@ do_format(int the_fd, int force, char *type)
 	}
 	if (i == count)
 		err(EX_IOERR, "could not find a valid format capacity");
-	
+
 	if (!quiet)
 		fprintf(stderr,"formatting with blocks=%u type=0x%x param=%u\n",
 			ntohl(capacities.format[i].blocks),
@@ -571,7 +571,7 @@ do_format(int the_fd, int force, char *type)
 		if (ioctl(the_fd, CDRIOCGETPROGRESS, &pct) == -1)
 			err(EX_IOERR, "ioctl(CDRIOGETPROGRESS)");
 		if (pct > 0 && !quiet)
-			fprintf(stderr, "formatting DVD - %d %% done     \r", 
+			fprintf(stderr, "formatting DVD - %d %% done     \r",
 				pct);
 		if (pct == 100 || (pct == 0 && last > 90))
 			break;
@@ -605,7 +605,7 @@ write_file(int fd, struct track_info *track_info)
 		if (track_info->file == STDIN_FILENO)
 			fprintf(stderr, "writing from stdin\n");
 		else
-			fprintf(stderr, 
+			fprintf(stderr,
 				"writing from file %s size %jd KB\n",
 				track_info->file_name, (intmax_t)filesize);
 	}
@@ -615,7 +615,7 @@ write_file(int fd, struct track_info *track_info)
 			     track_info->file_size == -1
 				? track_info->block_size * BLOCKS
 				: MIN((track_info->file_size - size),
-				      track_info->block_size * BLOCKS))) > 0) {	
+				      track_info->block_size * BLOCKS))) > 0) {
 		int res;
 
 		if (count % track_info->block_size) {
@@ -641,7 +641,7 @@ write_file(int fd, struct track_info *track_info)
 				pct = (size / 1024) * 100 / filesize;
 				fprintf(stderr, " (%d%%)", pct);
 			}
-			fprintf(stderr, " total %jd KB\r", 
+			fprintf(stderr, " total %jd KB\r",
 			    (intmax_t)tot_size / 1024);
 		}
 		if (track_info->file_size != -1
@@ -681,7 +681,7 @@ void
 cleanup(int dummy __unused)
 {
 	if (ioctl(global_fd_for_cleanup, CDRIOCSETBLOCKSIZE,
-	    &saved_block_size) < 0) 
+	    &saved_block_size) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
 }
 
