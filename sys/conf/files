@@ -40,17 +40,17 @@ emu10k1-alsa%diked.h		optional pcm pci			   \
 	compile-with	"CC=${CC} AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"emu10k1-alsa%diked.h"
-miidevs.h			standard				   \
+miidevs.h			optional mii				   \
 	dependency	"$S/tools/miidevs2h.awk $S/dev/mii/miidevs"	   \
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"miidevs.h"
-pccarddevs.h			standard				   \
+pccarddevs.h			optional pccard				   \
 	dependency	"$S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
-usbdevs.h			standard				   \
+usbdevs.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	no-obj no-implicit-rule before-depend				   \
