@@ -1723,7 +1723,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	if (pvo->pvo_vaddr & PVO_MANAGED) {
 		struct	vm_page *pg;
 
-		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo * PTE_RPGN);
+		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
 		if (pg != NULL) {
 			pmap_attr_save(pg, pvo->pvo_pte.pte_lo &
 			    (PTE_REF | PTE_CHG));
