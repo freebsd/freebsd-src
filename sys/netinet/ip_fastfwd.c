@@ -221,7 +221,7 @@ ip_fastforward(struct mbuf *m)
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
 			ipstat.ips_badhlen++;
-			goto drop;
+			return 1;
 		}
 		ip = mtod(m, struct ip *);
 	}
