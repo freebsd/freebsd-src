@@ -895,6 +895,26 @@
       </itemizedlist>
     </para>
 
+    <para>National Semiconductor DP83820 and DP83821 Gigabit Ethernet
+    NICs (&man.nge.4 driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Addtron AEG320T</para>
+        </listitem>
+        <listitem>
+	  <para>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</para>
+        </listitem>
+        <listitem>
+	  <para>D-Link DGE-500T</para>
+        </listitem>
+        <listitem>
+	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    
+
     <para>Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
       <itemizedlist>

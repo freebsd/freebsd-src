@@ -659,7 +659,7 @@ libreadline has been upgraded to 4.2.
 The ifconfig(8) command can set the link-layer address of an interface.
 [MERGED]
 
-ifconfig(8) can now accept addresses in slash/CIDR notation.
+ifconfig(8) can now accept addresses in slash/CIDR notation. [MERGED]
 
 setproctitle(3) has been moved from libutil to libc. [MERGED]
 
@@ -1101,6 +1101,8 @@ functionality, tar compatability enhancements, and a number of bug
 fixes.
 
 Ukranian language support has been added to the FreeBSD console.
+
+The performance of the ELF dynamic linker has been improved. [MERGED]
 
 
 2. Supported Configurations
