@@ -209,12 +209,22 @@ ichss_pci_probe(device_t dev)
 static int
 ichss_probe(device_t dev)
 {
+	struct cf_setting set;
 	device_t perf_dev;
+	int count, type;
 
-	/* If the ACPI perf driver has attached, let it manage things. */
-	perf_dev = devclass_get_device(devclass_find("acpi_perf"), 0);
-	if (perf_dev && device_is_attached(perf_dev))
-		return (ENXIO);
+	/*
+	 * If the ACPI perf driver has attached and is not just offering
+	 * info, let it manage things.  
+	 */
+	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	if (perf_dev && device_is_attached(perf_dev)) {
+		type = 0;
+		count = 1;
+		CPUFREQ_DRV_SETTINGS(perf_dev, &set, &count, &type);
+		if ((type & CPUFREQ_FLAG_INFO_ONLY) == 0)
+			return (ENXIO);
+	}
 
 	device_set_desc(dev, "SpeedStep ICH");
 	return (-1000);
