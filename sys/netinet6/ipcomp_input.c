@@ -86,13 +86,9 @@
 extern struct protosw inetsw[];
 
 void
-#if __STDC__
-ipcomp4_input(struct mbuf *m, ...)
-#else
-ipcomp4_input(m, va_alist)
+ipcomp4_input(m, off)
 	struct mbuf *m;
-	va_dcl
-#endif
+	int off;
 {
 	struct mbuf *md;
 	struct ip *ip;
@@ -104,13 +100,7 @@ ipcomp4_input(m, va_alist)
 	int error;
 	size_t newlen, olen;
 	struct secasvar *sav = NULL;
-	int off, proto;
-	va_list ap;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = mtod(m, struct ip *)->ip_p;
-	va_end(ap);
+	int proto;
 
 	if (m->m_pkthdr.len < off + sizeof(struct ipcomp)) {
 		ipseclog((LOG_DEBUG, "IPv4 IPComp input: assumption failed "
@@ -129,6 +119,7 @@ ipcomp4_input(m, va_alist)
 	}
 	ipcomp = mtod(md, struct ipcomp *);
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 	nxt = ipcomp->comp_nxt;
 #ifdef _IP_VHL
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;

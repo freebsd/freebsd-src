@@ -127,25 +127,16 @@ encap_init()
 
 #ifdef INET
 void
-#if __STDC__
-encap4_input(struct mbuf *m, ...)
-#else
-encap4_input(m, va_alist)
+encap4_input(m, off)
 	struct mbuf *m;
-	va_dcl
-#endif
+	int off;
 {
-	int off, proto;
 	struct ip *ip;
+	int proto;
 	struct sockaddr_in s, d;
 	const struct protosw *psw;
 	struct encaptab *ep, *match;
-	va_list ap;
 	int prio, matchprio;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	va_end(ap);
 
 	ip = mtod(m, struct ip *);
 	proto = ip->ip_p;

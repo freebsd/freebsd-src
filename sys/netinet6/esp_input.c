@@ -100,13 +100,9 @@
 extern struct protosw inetsw[];
 
 void
-#if __STDC__
-esp4_input(struct mbuf *m, ...)
-#else
-esp4_input(m, va_alist)
+esp4_input(m, off)
 	struct mbuf *m;
-	va_dcl
-#endif
+	int off;
 {
 	struct ip *ip;
 	struct esp *esp;
@@ -119,13 +115,7 @@ esp4_input(m, va_alist)
 	int ivlen;
 	size_t hlen;
 	size_t esplen;
-	va_list ap;
-	int off, proto;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = mtod(m, struct ip *)->ip_p;
-	va_end(ap);
+	int proto;
 
 	/* sanity check for alignment. */
 	if (off % 4 != 0 || m->m_pkthdr.len % 4 != 0) {
@@ -146,6 +136,7 @@ esp4_input(m, va_alist)
 	}
 
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 	esp = (struct esp *)(((u_int8_t *)ip) + off);
 #ifdef _IP_VHL
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
