@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
  */
 
 #include <stddef.h>
@@ -306,28 +307,14 @@ static u_short  gus_read16(int reg);
 static void     gus_write_addr(int reg, u_long address, int is16bit);
 static void     IwaveLineLevel(char level, char index);
 static void     IwaveInputSource(BYTE index, BYTE source);
-static void     IwaveDelay(WORD count);
-static void     IwaveStopDma(BYTE path);
 static void     IwavePnpGetCfg(void);
 static void     IwavePnpDevice(BYTE dev);
 static void     IwavePnpSetCfg(void);
 static void     IwavePnpKey(void);
 static BYTE     IwavePnpIsol(PORT * pnpread);
-static void     IwaveCfgIOSpace(void);
-
-static void     IwavePnpSerial(PORT pnprdp, BYTE csn,
-							   BYTE * vendor, DWORD * serial);
-
-
 static void     IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data);
-static void     IwavePnpEeprom(BYTE ctrl);
 static void     IwavePnpActivate(BYTE dev, BYTE bool);
-				
-static void     IwavePnpPower(BYTE mode);
 static void     IwavePnpWake(BYTE csn);
-static PORT     IwavePnpIOcheck(PORT base, BYTE no_ports);
-				
-static BYTE     IwavePnpGetCSN(DWORD VendorID, BYTE csn_max);
 static BYTE     IwavePnpPing(DWORD VendorID);
 static WORD     IwaveMemSize(void);
 static BYTE     IwaveMemPeek(ADDRESS addr);
@@ -3011,53 +2998,6 @@ isolation_protocol(int rd_port)
 
 
 
-static void 
-IwaveDelay(WORD count)
-{
-	WORD            cur_cnt = 0, last_cnt;
-	BYTE            reg, portb;
-
-	count = 1193 * count;	/* convert number of ms to counter */
-	last_cnt = count;
-	portb = inb(0x61) & 0xFC;
-	outb(0x61, portb);	/* disable counter */
-	outb(0x43, 0xB0);	/* load LSB first then MSB */
-	outb(0x42, (BYTE) count);
-	outb(0x42, (BYTE) (count >> 8));
-	outb(0x61, (BYTE) (portb | 0x01));	/* enable counter */
-	while (cur_cnt <= count) {
-		outb(0x43, 0x80);	/* latch counter */
-		reg = inb(0x42);/* read latched value */
-		cur_cnt = (((WORD) inb(0x42)) << 8) | reg;
-		if (cur_cnt > last_cnt)
-			break;
-		last_cnt = cur_cnt;
-	}
-	outb(0x61, portb);	/* disable counter */
-}
-
-/*
- * ########################################################################
- * 
- * FUNCTION: IwaveStopDma
- * 
- * PROFILE: This function stops an active DMA transfer to or from the record or
- * playback FIFOs. Set the "path" variable to either PLAYBACK or RECORD.
- * ########################################################################
- */
-
-static void 
-IwaveStopDma(BYTE path)
-{
-	BYTE            reg;
-
-	ENTER_CRITICAL;
-	reg = inb(iw.pcodar) & 0xE0;
-	outb(iw.pcodar, reg | _CFIG1I);	/* select CFIG1I */
-	outb(iw.cdatap, (BYTE) (inb(iw.cdatap) & ~path));	/* disable playback path */
-	LEAVE_CRITICAL;
-}
-
 /*
  * ########################################################################
  * 
@@ -3237,58 +3177,6 @@ IwavePnpSetCfg(void)
 	LEAVE_CRITICAL;
 }
 
-static void 
-IwaveCfgIOSpace(void)
-{
-	ENTER_CRITICAL;
-	IwavePnpDevice(AUDIO);	/* select audio device */
-	outb(_PIDXR, 0x60);	/* select P2X0HI */
-	outb(_PNPWRP, (BYTE) (iw.p2xr >> 8));	/* set P2XR[9:8] */
-	outb(_PIDXR, 0x61);	/* select P2X0LI */
-	outb(_PNPWRP, (BYTE) iw.p2xr);	/* set P2XR[7:4] */
-	/* P2XR[3:0]=0   */
-	outb(_PIDXR, 0x62);	/* select P3X0HI */
-	outb(_PNPWRP, (BYTE) (iw.p3xr >> 8));	/* set P3XR[9:8] */
-	outb(_PIDXR, 0x63);	/* select P3X0LI */
-	outb(_PNPWRP, (BYTE) (iw.p3xr));	/* set P3XR[7:3] */
-	/* P3XR[2:0]=0   */
-	outb(_PIDXR, 0x64);	/* select PHCAI */
-	outb(_PNPWRP, (BYTE) (iw.pcodar >> 8));	/* set PCODAR[9:8] */
-	outb(_PIDXR, 0x65);	/* select PLCAI */
-	outb(_PNPWRP, (BYTE) iw.pcodar);	/* set PCODAR[7:2] */
-
-	IwavePnpDevice(EXT);
-	outb(_PIDXR, 0x60);	/* select PRAHI */
-	outb(_PNPWRP, (BYTE) (iw.pcdrar >> 8));	/* set PCDRAR[9:8] */
-	outb(_PIDXR, 0x61);	/* select PRALI */
-	outb(_PNPWRP, (BYTE) iw.pcdrar);	/* set PCDRAR[7:3] */
-	/* PCDRAR[2:0]=0 */
-	outb(_PIDXR, 0x62);	/* select PATAHI */
-	outb(_PNPWRP, (BYTE) (iw.pataar >> 8));	/* set PATAAR[9:8] */
-	outb(_PIDXR, 0x63);	/* select PATALI */
-	outb(_PNPWRP, (BYTE) iw.pataar);	/* set PATAAR[7:1] */
-	/* PATAAR[0]=0 */
-	IwavePnpDevice(GAME);
-	outb(_PIDXR, 0x60);	/* select P201HI */
-	outb(_PNPWRP, (BYTE) (iw.p201ar >> 8));	/* set P201RAR[9:8] */
-	outb(_PIDXR, 0x61);	/* select P201LI */
-	outb(_PNPWRP, (BYTE) iw.p201ar);	/* set P201AR[7:6] */
-
-	IwavePnpDevice(EMULATION);
-	outb(_PIDXR, 0x60);	/* select P388HI */
-	outb(_PNPWRP, (BYTE) (iw.p388ar >> 8));	/* set P388AR[9:8] */
-	outb(_PIDXR, 0x61);	/* select P388LI */
-	outb(_PNPWRP, (BYTE) iw.p388ar);	/* set P388AR[7:6] */
-
-	IwavePnpDevice(MPU401);
-	outb(_PIDXR, 0x60);	/* select P401HI */
-	outb(_PNPWRP, (BYTE) (iw.p401ar >> 8));	/* set P401AR[9:8] */
-	outb(_PIDXR, 0x61);	/* select P401LI */
-	outb(_PNPWRP, (BYTE) iw.p401ar);	/* set P401AR[7:1] */
-	LEAVE_CRITICAL;
-}
-
-
 /* ######################################################################## */
 /* FILE: iwpnp.c */
 /* */
@@ -3362,73 +3250,6 @@ IwavePnpIsol(PORT * pnpread)
 
 /* ######################################################################## */
 /* */
-/* FUNCTION: IwavePnpSerial */
-/* */
-/* PROFILE: This function reads the first nine bytes of the data from */
-/* the serial EEPROM and returns the Vendor ID and the serial */
-/* number. First, it resets the EEPROM control logic by */
-/* issuing a WAKE[CSN] command. The function will return an */
-/* ASCII string for the vendor ID into the char array pointed */
-/* to by "vendor" in the VVVNNNN format. The serial number */
-/* is placed in the 32-bit variable pointed to by "serial". */
-/* Note that the 9th byte is read but not used as it is invalid */
-/* when the serial identifier is read via PRESDI. */
-/* */
-/* This function assumes that the PNP state machine is not in */
-/* the "wait for key state". Otherwise, unpredictable results */
-/* will be obtained. */
-/* */
-/* ######################################################################## */
-static void
-IwavePnpSerial(PORT pnprdp,
-	       BYTE csn,
-	       BYTE * vendor,
-	       DWORD * serial)
-{
-	BYTE            presdi, digit, i;
-
-	*serial = 0L;
-
-	/* ####################################### */
-	/* Reset Serial EEPROM logic */
-	/* ####################################### */
-	IwavePnpWake(csn);	/* Wake card up */
-
-	for (i = 1; i <= 4; i++) {
-		IwavePnpPeek(pnprdp, 1, &presdi);
-
-		switch (i) {
-		case 1:
-			*(vendor++) = ((presdi & 0x7C) >> 2) | 0x40;	/* 1st char */
-			*vendor = (presdi & 0x03) << 3;	/* isolate bits[4:3] of
-							 * 2nd char */
-			break;
-		case 2:
-			*vendor = ((presdi & 0xE0) >> 5) | (*vendor);
-			*(vendor++) = (*vendor) | 0x40;	/* 2nd char */
-			*vendor = (presdi & 0x1F) | 0x40;	/* 3rd char */
-			break;
-		case 3:
-		case 4:
-			digit = (presdi & 0xF0) >> 4;
-			if (digit <= 0x09)
-				*(++vendor) = digit + 0x30;	/* ASCII of digit */
-			else
-				*(++vendor) = (digit & 0x07) + 0x3F;
-			digit = presdi & 0x0F;
-			if (digit <= 0x09)
-				*(++vendor) = digit + 0x30;
-			else
-				*(++vendor) = (digit & 0x07) + 0x3F;
-			break;
-		}
-	}
-	*(++vendor) = '\0';
-	IwavePnpPeek(pnprdp, 4, (BYTE *) serial);
-	IwavePnpPeek(pnprdp, 1, NULL);	/* discard checksum */
-}
-/* ######################################################################## */
-/* */
 /* FUNCTION: IwavePnpPeek */
 /* */
 /* PROFILE: This function will return the number of specified bytes of */
@@ -3461,24 +3282,6 @@ IwavePnpPeek(PORT pnprdp, WORD bytes, BYTE * data)
 		if (data != NULL)
 			*(data++) = datum;	/* store it */
 	}
-}
-/* ######################################################################## */
-/* */
-/* FUNCTION: IwavePnpEeprom */
-/* */
-/* PROFILE: This function allows the caller to control the serial */
-/* EEPROM directly while the audio device is inactive. To */
-/* de-activate the audio device issue the call */
-/* IwavePnpActivate(AUDIO,OFF). */
-/* */
-/* ######################################################################## */
-static void 
-IwavePnpEeprom(BYTE ctrl)
-{
-	ENTER_CRITICAL;
-	outb(_PIDXR, 0xF1);	/* select PSECI */
-	outb(_PNPWRP, ctrl);	/* write PSECI */
-	LEAVE_CRITICAL;
 }
 /* ######################################################################## */
 /* */
@@ -3521,26 +3324,6 @@ IwavePnpDevice(BYTE dev)
 }
 /* ######################################################################## */
 /* */
-/* FUNCTION: IwavePnpPower */
-/* */
-/* PROFILE: This function allows the caller to disable major sections of */
-/* the InterWave to prevent them from consuming power and */
-/* loading the ISA bus. */
-/* */
-/* It is assumed that the PNP state machine is in configuration */
-/* mode. */
-/* */
-/* ######################################################################## */
-static void 
-IwavePnpPower(BYTE mode)
-{
-	ENTER_CRITICAL;
-	outb(_PIDXR, _PPWRI);	/* select PPWRI */
-	outb(_PNPWRP, mode);	/* write PPWRI */
-	LEAVE_CRITICAL;
-}
-/* ######################################################################## */
-/* */
 /* FUNCTION: IwavePnpWake */
 /* */
 /* PROFILE: This function issues a WAKE[CSN] command to the InterWave. If */
@@ -3558,83 +3341,6 @@ IwavePnpWake(BYTE csn)
 	outb(_PIDXR, _PWAKEI);	/* select PWAKEI */
 	outb(_PNPWRP, csn);	/* write csn */
 	LEAVE_CRITICAL;
-}
-/* ######################################################################## */
-/* */
-/* FUNCTION: IwavePnpIOcheck */
-/* */
-/* PROFILE: This function allows the caller to perform a conflict check */
-/* on an I/O port to be used by a logical device. The function */
-/* receives the base address of the I/O range as well as the */
-/* number of ports in the range and then performs the I/O check */
-/* protocol. It returns the address of the port if a conflict */
-/* is detected or IO_CHK if no conflict is detected. */
-/* */
-/* This function assumes that the logical device has been de- */
-/* activated and that the PNP state machine is in config mode. */
-/* */
-/* ######################################################################## */
-static PORT 
-IwavePnpIOcheck(PORT base, BYTE no_ports)
-{
-	BYTE            i;
-	PORT            portid;
-
-	outb(_PIDXR, RANGE_IOCHK);	/* select IO range check reg */
-
-	for (i = 0; i < no_ports; i++) {
-		portid = base + i;	/* port to check */
-		outb(_PNPWRP, 0x02);	/* must drive 0xAA onto bus */
-		if (inb(portid) != 0xAA)
-			return (portid);	/* IO conflict detected */
-
-		outb(_PNPWRP, 0x03);	/* must drive 0x55 onto bus */
-		if (inb(portid) != 0x55)
-			return (portid);	/* IO conflict detected */
-	}
-	return (IO_OK);
-}
-/* ######################################################################## */
-/* */
-/* FUNCTION: IwavePnpGetCSN */
-/* */
-/* PROFILE: This function allows the caller to detect an InterWave based */
-/* adapter board and will return its asigned CSN so that an */
-/* an application can access its PnP interface and determine the */
-/* borad's current configuration. In conducting its search for */
-/* the InterWave IC, the function will use the first 32 bits of */
-/* the Serial Identifier called the vendor ID in the PnP ISA */
-/* spec. The last 4 bits in the Vendor ID represent a revision */
-/* number for the particular product and this function gives the */
-/* caller the option of taking this revision number into account */
-/* or not in the search. If the function fails to find the */
-/* InterWave IC it will return FALSE. */
-/* */
-/* ######################################################################## */
-static BYTE 
-IwavePnpGetCSN(DWORD VendorID, BYTE csn_max)
-{
-	BYTE            csn;
-	DWORD           vendor;
-
-	IwavePnpKey();		/* Key to access PnP Interface */
-	VendorID &= (0xFFFFFFF0);	/* reset 4 least significant bits */
-
-	for (csn = 1; csn <= csn_max; csn++) {
-		IwavePnpWake(csn);	/* Select card */
-		IwavePnpPeek(iw.pnprdp, 4, (BYTE *) & vendor);	/* get vendor ID */
-		vendor &= (0xFFFFFFF0);
-		if (vendor == VendorID) {	/* If IDs match, InterWave is
-						 * found */
-			outb(_PIDXR, 0x02);	/* Place all cards in
-						 * wait-for-key state */
-			outb(0x0A79, 0x02);
-			return (csn);
-		}
-	}
-	outb(_PIDXR, 0x02);	/* Place all cards in wait-for-key state */
-	outb(0x0A79, 0x02);
-	return (FALSE);		/* InterWave IC not found */
 }
 /* ######################################################################## */
 /* */

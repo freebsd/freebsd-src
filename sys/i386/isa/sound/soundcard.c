@@ -409,7 +409,6 @@ sndattach(struct isa_device * dev)
     static int      seq_initialized = 0;
     struct address_info hw_config;
     char   *dname;
-    void   *tmp;
 
     /*
      * Associate interrupt handlers with devices.  XXX this may be incomplete.
