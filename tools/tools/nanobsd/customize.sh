@@ -61,7 +61,7 @@ installlocalfiles() {
 }
 
 movelocaletc() {
-  if [ ! -d ${WD}/etc/local ]; then
+  if [ ! -d ${WD}/etc/local -a -d ${WD}/usr/local/etc ]; then
     mv ${WD}/usr/local/etc ${WD}/etc/local
     ln -s ../../etc/local ${WD}/usr/local/etc
   fi
