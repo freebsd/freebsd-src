@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.12 1995/05/15 22:57:53 davidg Exp $
+ *	$Id: rtsock.c,v 1.13 1995/05/30 08:08:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -62,6 +62,10 @@ static struct mbuf *
 static int	rt_msg2 __P((int,
 		    struct rt_addrinfo *, caddr_t, struct walkarg *));
 static void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
+extern int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
+extern int	sysctl_iflist __P((int af, struct walkarg *w));
+extern int	sysctl_rtable __P((int *name, u_int namelen, void* where,
+				   size_t *given, void *new, size_t newlen));
 
 /* Sleazy use of local variables throughout file, warning!!!! */
 #define dst	info.rti_info[RTAX_DST]
@@ -629,10 +633,11 @@ rt_newaddrmsg(cmd, ifa, error, rt)
  * This is used in dumping the kernel table via sysctl().
  */
 int
-sysctl_dumpentry(rn, w)
+sysctl_dumpentry(rn, vw)
 	struct radix_node *rn;
-	register struct walkarg *w;
+	void *vw;
 {
+	register struct walkarg *w = vw;
 	register struct rtentry *rt = (struct rtentry *)rn;
 	int error = 0, size;
 	struct rt_addrinfo info;
@@ -723,10 +728,10 @@ sysctl_iflist(af, w)
 int
 sysctl_rtable(name, namelen, where, given, new, newlen)
 	int	*name;
-	int	namelen;
-	caddr_t	where;
+	u_int	namelen;
+	void	*where;
 	size_t	*given;
-	caddr_t	*new;
+	void	*new;
 	size_t	newlen;
 {
 	register struct radix_node_head *rnh;
@@ -766,7 +771,7 @@ sysctl_rtable(name, namelen, where, given, new, newlen)
 		free(w.w_tmem, M_RTABLE);
 	w.w_needed += w.w_given;
 	if (where) {
-		*given = w.w_where - where;
+		*given = w.w_where - (caddr_t)where;
 		if (*given < w.w_needed)
 			return (ENOMEM);
 	} else {
