@@ -181,7 +181,7 @@ static driver_t sk_driver = {
 
 static devclass_t sk_devclass;
 
-DRIVER_MODULE(skc, pci, sk_driver, sk_devclass, 0, 0);
+DRIVER_MODULE(if_sk, pci, sk_driver, sk_devclass, 0, 0);
 
 #define SK_SETBIT(sc, reg, x)		\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
