@@ -1152,13 +1152,6 @@ print_version_info ()
           major_version, minor_version);
 }
 
-  if (nbytes && temp == (void *)NULL)
-    memory_error ("xrealloc", nbytes);
-
-  return (temp);
-}
-
-
 /* If EXIT_VALUE is zero, print the full usage message to stdout.
    Otherwise, just say to use --help for more info.
    Then exit with EXIT_VALUE. */
