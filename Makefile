@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.14 1994/08/26 20:44:12 paul Exp $
+#	$Id: Makefile,v 1.15 1994/09/03 02:38:28 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -11,6 +11,7 @@
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
+#	-DNOEBONES do not make eBones (kerberosIV)
 #
 # XXX2	Mandatory, and Kerberos will not build sucessfully yet
 
@@ -41,6 +42,10 @@ SUBDIR+= lib
 .endif
 .if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
 SUBDIR+= kerberosIV
+.endif
+.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) \
+			&& !defined(NOEBONES)
+SUBDIR+= eBones
 .endif
 .if exists(libexec)
 SUBDIR+= libexec
@@ -160,13 +165,17 @@ includes:
 	cd ${.CURDIR}/include &&		${MAKE} install
 #XXX	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
 #XXX	cd ${.CURDIR}/gnu/usr.bin/cc/libobjc &&	${MAKE} beforeinstall
-.if !defined(NOCRYPT) && !defined(NOKERBEROS)
+.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
 .endif
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
+.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) && \
+			!defined(NOEBONES)
+	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
+.endif
 
 libraries:
 	@echo "--------------------------------------------------------------"
@@ -191,7 +200,7 @@ libraries:
 .endif
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.if !defined(NOCRYPT) && !defined(NOKERBEROS)
+.if exists(kerberosIV) && !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/acl && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/kerberosIV/des && \
@@ -199,6 +208,17 @@ libraries:
 	cd ${.CURDIR}/kerberosIV/kdb && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/kerberosIV/krb && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(eBones) && !defined(NOCRYPT) && defined(NOKERBEROS) && \
+			!defined(NOEBONES)
+	cd ${.CURDIR}/eBones/des && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/eBones/acl && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/eBones/kdb && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/eBones/krb && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
