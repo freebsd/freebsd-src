@@ -2346,6 +2346,11 @@ device		ums0
 # the Billionton USB100 and the Melco LU-ATX NICs. Also
 # works with the ADMtek AN986 Pegasus eval board.
 device		aue0
+#
+# Kawasaki LSI ethernet. Supports the LinkSys USB10T,
+# Entrega USB-NET-E45, Peracom Ethernet Adapter, and
+# the 3Com 3c19250.
+device		kue0
 
 # debugging options for the USB subsystem
 #
