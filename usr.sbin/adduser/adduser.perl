@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.4 1997/07/28 10:45:08 wosch Exp $
+# $Id: adduser.perl,v 1.19.2.5 1997/07/31 15:25:35 pst Exp $
 
 
 # read variables
@@ -104,13 +104,13 @@ sub shells_read {
 	}
     }
 
-# Allow /nonexistent and /bin/date as a valid shell for system utils
+    # Allow /nonexistent and /bin/date as a valid shell for system utils
     push(@list, "/nonexistent");
-    push(@shellpref, "no");
+    push(@shellpref, "no") if !grep(/^no$/, @shellpref);
     $shell{"no"} = "/nonexistent";
 
     push(@list, "/bin/date");
-    push(@shellpref, "date");
+    push(@shellpref, "date") if !grep(/^date$/, @shellpref);
     $shell{"date"} = "/bin/date";
 
     return $err;
@@ -295,7 +295,7 @@ sub new_users_name {
     local($name);
 
     while(1) {
-	$name = &confirm_list("Enter username", 1, "A-Za-z0-9_", "");
+ 	$name = &confirm_list("Enter username", 1, "a-z0-9_-", "");
 	if (length($name) > 8) {
 	    warn "Username is longer than 8 chars\a\n";
 	    next;
@@ -308,7 +308,7 @@ sub new_users_name {
 sub new_users_name_valid {
     local($name) = @_;
 
-    if ($name !~ /^[a-z0-9]+$/) {
+    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
 	warn "Wrong username. " .
 	    "Please use only lowercase characters or digits\a\n";
 	return 0;
