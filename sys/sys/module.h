@@ -117,10 +117,10 @@ struct module_stat {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	modnext(int modid);
-int	modfnext(int modid);
-int	modstat(int modid, struct module_stat* stat);
-int	modfind(const char *name);
+int	modnext(int _modid);
+int	modfnext(int _modid);
+int	modstat(int _modid, struct module_stat* _stat);
+int	modfind(const char *_name);
 __END_DECLS
 
 #endif
