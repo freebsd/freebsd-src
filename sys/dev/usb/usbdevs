@@ -252,6 +252,7 @@ vendor MCT		0x0711	MCT
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
+vendor ASIX		0x077b	ASIX Electronics
 vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk Corp
 vendor BRIMAX		0x078e	Brimax
@@ -450,6 +451,9 @@ product APPLE SPEAKERS		0x1101	Speakers
 
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
+
+/* ASIX Electronics products */
+product ASIX AX88172            0x2226  USB 2.0 10/100 ethernet controller
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer adapter
