@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.7 1999/01/10 18:51:49 wpaul Exp $
+ *	$Id: if_vr.c,v 1.18 1999/02/23 06:47:52 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.7 1999/01/10 18:51:49 wpaul Exp $";
+	"$Id: if_vr.c,v 1.18 1999/02/23 06:47:52 wpaul Exp $";
 #endif
 
 /*
@@ -108,6 +108,10 @@ static struct vr_type vr_devs[] = {
 		"VIA VT3043 Rhine I 10/100BaseTX" },
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE_II,
 		"VIA VT86C100A Rhine II 10/100BaseTX" },
+	{ DELTA_VENDORID, DELTA_DEVICEID_RHINE_II,
+		"Delta Electronics Rhine II 10/100BaseTX" },
+	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_RHINE_II,
+		"Addtron Technology Rhine II 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
