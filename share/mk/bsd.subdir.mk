@@ -61,10 +61,10 @@ _SUBDIRUSE: .USE
 			grep -w $${entry} \
 			    ${SUBDIR_CHANGE}/${DIRPRFX}/subdirdrop \
 				> /dev/null); then \
-			if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+			if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 				${ECHODIR} \
-				    "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
-				edir=$${entry}.${MACHINE}; \
+				    "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
+				edir=$${entry}.${MACHINE_ARCH}; \
 				cd ${.CURDIR}/$${edir}; \
 			else \
 				${ECHODIR} "===> ${DIRPRFX}$$entry"; \
@@ -79,8 +79,8 @@ _SUBDIRUSE: .USE
 	done
 
 ${SUBDIR}::
-	@if test -d ${.TARGET}.${MACHINE}; then \
-		cd ${.CURDIR}/${.TARGET}.${MACHINE}; \
+	@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
+		cd ${.CURDIR}/${.TARGET}.${MACHINE_ARCH}; \
 	else \
 		cd ${.CURDIR}/${.TARGET}; \
 	fi; \

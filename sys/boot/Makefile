@@ -1,11 +1,13 @@
+# $FreeBSD$
+
 # Build the add-in FORTH interpreter
 SUBDIR+=		ficl
 
 # Pick the machine-dependant subdir based on the target architecture.
-SUBDIR+=		${MACHINE}
+SUBDIR+=		${MACHINE_ARCH}
 
 # Build ARC / AlphaBIOS executable on the Alpha
-.if ${MACHINE} == "alpha"
+.if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=		arc
 .endif
 

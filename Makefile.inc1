@@ -778,7 +778,7 @@ _elf2exe=	usr.sbin/elf2exe
 _kldlinux=	sys/modules/linux
 .endif
 .if ${OBJFORMAT} == "aout"
-_netboot=	sys/${MACHINE}/boot/netboot
+_netboot=	sys/${MACHINE_ARCH}/boot/netboot
 .endif
 
 BTMAKEFLAGS=	${MK_FLAGS} -D_BUILD_TOOLS
@@ -921,7 +921,7 @@ legacy-build:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/${MACHINE}/boot && \
+	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && \
 		${XMAKE} -DNOMAN -B obj depend; ${XMAKE} -DNOMAN all;
 .endif
 
@@ -960,7 +960,7 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/${MACHINE}/boot && ${MAKE} -DNOMAN install
+	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && ${MAKE} -DNOMAN install
 .endif
 .endif
 

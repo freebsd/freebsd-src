@@ -13,9 +13,9 @@
 LIB=	m
 CFLAGS+=-I${.CURDIR}/common_source
 
-.if (${MACHINE} == "ieee")
+.if (${MACHINE_ARCH} == "ieee")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/ieee
 # common_source
 SRCS+=	acosh.c asincos.c asinh.c atan.c atanh.c cosh.c erf.c exp.c \
@@ -26,7 +26,7 @@ SRCS+=	atan2.c sincos.c tan.c
 # ieee
 SRCS+=	cabs.c cbrt.c support.c
 
-.elif (${MACHINE} == "hp300" || ${MACHINE} == "luna68k")
+.elif (${MACHINE_ARCH} == "hp300" || ${MACHINE_ARCH} == "luna68k")
 
 HARDWARE=mc68881
 .PATH:	${.CURDIR}/mc68881 ${.CURDIR}/common_source ${.CURDIR}/ieee
@@ -53,9 +53,9 @@ SRCS+=	atan2.c sincos.c tan.c
 # ieee
 SRCS+=	cabs.c cbrt.c support.c
 
-.elif (${MACHINE} == "mips")
+.elif (${MACHINE_ARCH} == "mips")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/ieee
 CFLAGS+= -Dnational
 # common_source
@@ -67,13 +67,13 @@ SRCS+=	atan2.c sincos.c tan.c
 # ieee
 SRCS+=	cabs.c cbrt.c support.c
 
-.elif (${MACHINE} == "national")
+.elif (${MACHINE_ARCH} == "national")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/national \
-.elif (${MACHINE} == "national")
+.elif (${MACHINE_ARCH} == "national")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/national \
 	${.CURDIR}/ieee
 # common_source
@@ -87,9 +87,9 @@ SRCS+=	sqrt.s support.s
 # ieee
 SRCS+=	cabs.c cbrt.c
 
-.elif (${MACHINE} == "sparc")
+.elif (${MACHINE_ARCH} == "sparc")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:  ${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/ieee
 # common_source
 SRCS+=	acosh.c asincos.c asinh.c atan.c atanh.c cosh.c erf.c exp.c \
@@ -101,9 +101,9 @@ SRCS+=	atan2.c sincos.c tan.c
 # ieee
 SRCS+=	cabs.c cbrt.c support.c
 
-.elif (${MACHINE} == "tahoe")
+.elif (${MACHINE_ARCH} == "tahoe")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/common ${.CURDIR}/tahoe \
 # common_source
 SRCS+=	acosh.c asincos.c asinh.c atan.c atanh.c cosh.c erf.c exp.c \
@@ -114,9 +114,9 @@ SRCS+=	atan2.c sincos.c tan.c
 # tahoe
 SRCS+=	cabs.s cbrt.s sqrt.s support.s infnan.s
 
-.elif (${MACHINE} == "vax")
+.elif (${MACHINE_ARCH} == "vax")
 
-HARDWARE=${MACHINE}
+HARDWARE=${MACHINE_ARCH}
 .PATH:	${.CURDIR}/common_source ${.CURDIR}/vax
 # common_source
 SRCS+=	acosh.c asincos.c asinh.c atan.c atanh.c cosh.c erf.c exp.c \

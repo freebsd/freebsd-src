@@ -9,8 +9,7 @@ FORMATS=	freebsd
 
 # Only build the cross tools when not cross-compiling.
 __MA!=/sbin/sysctl -b hw.machine_arch
-__M!=/sbin/sysctl -b hw.machine
-.if ${__MA} == ${MACHINE_ARCH} || ${__M} == ${MACHINE}
+.if ${__MA} == ${MACHINE_ARCH}
 .if defined(CROSS_ARCH)
 .for _g in ${CROSS_ARCH}
 .if (${GASES:R:M${_g:R}} == "")
