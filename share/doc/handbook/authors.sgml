@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.5 1995/07/29 13:08:00 jfieber Exp $ -->
+<!-- $Id: authors.sgml,v 1.6 1995/08/25 22:14:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -7,6 +7,7 @@ entities when referencing people.
 -->
 
 <!ENTITY a.asami "Satoshi Asami <tt>&lt;asami@FreeBSD.org&gt;</tt>">
+<!ENTITY a.awebster "Andrew Webster <tt>&lt;awebster@dataradio.com&gt;</tt>">
 <!ENTITY a.davidg "David Greenman <tt>&lt;davidg@Root.COM&gt;</tt>">
 <!ENTITY a.dufalt "Peter Dufault <tt>&lt;dufault@hda.com&gt;</tt>">
 <!ENTITY a.gclarkii "Gary Clark II <tt>&lt;gclarkii@FreeBSD.org&gt;</tt>">
@@ -24,4 +25,5 @@ entities when referencing people.
 <!ENTITY a.phk "Poul-Henning Kamp <tt>&lt;phk@FreeBSD.org&gt;</tt>">
 <!ENTITY a.paul "Paul Richards <tt>&lt;paul@FreeBSD.org&gt;</tt>">
 <!ENTITY a.rgrimes "Rodney Grimes <tt>&lt;rgrimes@FreeBSD.org&gt;</tt>">
+<!ENTITY a.whiteside "Don Whiteside <tt>&lt;whiteside@acm.org&gt;</tt>">
 <!ENTITY a.wilko "Wilko Bulte <tt>&lt;wilko@yedi.iaf.nl&gt;</tt>">
