@@ -46,6 +46,16 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
+compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_ioctl.c	optional	compat_linux
+compat/linux/linux_ipc.c	optional	compat_linux
+compat/linux/linux_mib.c	optional	compat_linux
+compat/linux/linux_misc.c	optional	compat_linux
+compat/linux/linux_signal.c	optional	compat_linux
+compat/linux/linux_socket.c	optional	compat_linux
+compat/linux/linux_stats.c	optional	compat_linux
+compat/linux/linux_util.c	optional	compat_linux
+#
 contrib/dev/fla/fla.c		optional	fla
 msysosak.o			optional	fla			\
 	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu" 		\
@@ -326,19 +336,11 @@ i386/isa/wst.c			optional	wst wdc	\
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
-i386/linux/linux_file.c		optional	compat_linux
-i386/linux/linux_ioctl.c	optional	compat_linux
-i386/linux/linux_ipc.c		optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		   \
 	dependency 	"linux_assym.h"
-i386/linux/linux_mib.c		optional	compat_linux
-i386/linux/linux_misc.c		optional	compat_linux
-i386/linux/linux_signal.c	optional	compat_linux
-i386/linux/linux_socket.c	optional	compat_linux
-i386/linux/linux_stats.c	optional	compat_linux
+i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
-i386/linux/linux_util.c		optional	compat_linux
 svr4/imgact_svr4.c		optional	compat_svr4
 svr4/svr4_fcntl.c		optional	compat_svr4
 svr4/svr4_filio.c		optional	compat_svr4
