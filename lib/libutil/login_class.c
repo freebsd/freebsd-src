@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$Id: login_class.c,v 1.8 1998/06/03 08:12:00 jb Exp $
+ *	$Id: login_class.c,v 1.9 1998/07/28 01:30:16 ache Exp $
  */
 
 #include <stdio.h>
@@ -364,13 +364,13 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     /* Setup the user's group permissions */
     if (flags & LOGIN_SETGROUP) {
 	if (setgid(pwd->pw_gid) != 0) {
-	    syslog(LOG_ERR, "setgid(%ld): %m", (long)pwd->pw_gid);
+	    syslog(LOG_ERR, "setgid(%lu): %m", (u_long)pwd->pw_gid);
 	    login_close(llc);
 	    return -1;
 	}
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
-	    syslog(LOG_ERR, "initgroups(%s,%ld): %m", pwd->pw_name,
-		   (long)pwd->pw_gid);
+	    syslog(LOG_ERR, "initgroups(%s,%lu): %m", pwd->pw_name,
+		   (u_long)pwd->pw_gid);
 	    login_close(llc);
 	    return -1;
 	}
@@ -389,7 +389,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* This needs to be done after anything that needs root privs */
     if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
-	syslog(LOG_ERR, "setuid(%ld): %m", (long)uid);
+	syslog(LOG_ERR, "setuid(%lu): %m", (u_long)uid);
 	return -1;	/* Paranoia again */
     }
 
