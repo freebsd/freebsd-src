@@ -108,15 +108,17 @@
 /*
  * There is a 128-byte region in the superblock reserved for in-core
  * pointers to summary information. Originally this included an array
- * of pointers to blocks of struct csum; now there are just two
+ * of pointers to blocks of struct csum; now there are just three
  * pointers and the remaining space is padded with fs_ocsp[].
  *
  * NOCSPTRS determines the size of this padding. One pointer (fs_csp)
  * is taken away to point to a contiguous array of struct csum for
  * all cylinder groups; a second (fs_maxcluster) points to an array
- * of cluster sizes that is computed as cylinder groups are inspected.
+ * of cluster sizes that is computed as cylinder groups are inspected,
+ * and the third points to an array that tracks the creation of new
+ * directories.
  */
-#define	NOCSPTRS	((128 / sizeof(void *)) - 2)
+#define	NOCSPTRS	((128 / sizeof(void *)) - 3)
 
 /*
  * A summary of contiguous blocks of various sizes is maintained
@@ -140,6 +142,18 @@
  */
 #define MINFREE		8
 #define DEFAULTOPT	FS_OPTTIME
+
+/*
+ * Grigoriy Orlov <gluk@ptci.ru> has done some extensive work to fine
+ * tune the layout preferences for directories within a filesystem.
+ * His algorithm can be tuned by adjusting the following parameters
+ * which tell the system the average file size and the average number
+ * of files per directory. These defaults are well selected for typical
+ * filesystems, but may need to be tuned for odd cases like filesystems
+ * being used for sqiud caches or news spools.
+ */
+#define AVFILESIZ	16384	/* expected average file size */
+#define AFPDIR		64	/* expected number of files per directory */
 
 /*
  * The maximum number of snapshot nodes that can be associated
@@ -273,12 +287,15 @@ struct fs {
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS];	/* padding; was list of fs_cs buffers */
+	u_int8_t *fs_contigdirs;	/* # of contiguously allocated dirs */
 	struct csum *fs_csp;		/* cg summary info buffer for fs_cs */
 	int32_t	*fs_maxcluster;		/* max cluster in each cyl group */
 	int32_t	 fs_cpc;		/* cyl per cycle in postbl */
 	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
 	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
-	int32_t	 fs_sparecon[30];	/* reserved for future constants */
+	int32_t	 fs_avgfilesize;	/* expected average file size */
+	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
+	int32_t	 fs_sparecon[28];	/* reserved for future constants */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
 	int32_t	 fs_inodefmt;		/* format of on-disk inodes */

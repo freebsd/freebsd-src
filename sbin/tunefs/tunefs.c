@@ -91,9 +91,10 @@ main(argc, argv)
 	char *special, *name;
 	struct stat st;
 	int Aflag = 0, active = 0;
-	int aflag = 0, dflag = 0, eflag = 0, mflag = 0;
-	int nflag = 0, oflag = 0, pflag = 0;
-	int avalue = 0, dvalue = 0, evalue = 0, mvalue = 0, ovalue = 0;
+	int aflag = 0, dflag = 0, eflag = 0, fflag = 0, mflag = 0;
+	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
+	int avalue = 0, dvalue = 0, evalue = 0, fvalue = 0;
+	int mvalue = 0, ovalue = 0, svalue = 0;
 	char *nvalue = NULL; 
 	struct fstab *fs;
 	char *chg[2], device[MAXPATHLEN];
@@ -104,7 +105,7 @@ main(argc, argv)
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Aa:d:e:m:n:o:p")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:d:e:f:m:n:o:ps:")) != -1)
 	  switch (ch) {
 	  case 'A':
 		found_arg = 1;
@@ -131,6 +132,14 @@ main(argc, argv)
 		if (evalue < 1)
 			errx(10, "%s must be >= 1 (was %s)", name, optarg);
 		eflag = 1;
+		break;
+	  case 'f':
+		found_arg = 1;
+		name = "average file size";
+		fvalue = atoi(optarg);
+		if (fvalue < 1)
+			errx(10, "%s must be >= 1 (was %s)", name, optarg);
+		fflag = 1;
 		break;
 	  case 'm':
 		found_arg = 1;
@@ -167,6 +176,14 @@ main(argc, argv)
 	  case 'p':
 		found_arg = 1;
 		pflag = 1;
+		break;
+	  case 's':
+		found_arg = 1;
+		name = "expected number of files per directory";
+		svalue = atoi(optarg);
+		if (svalue < 1)
+			errx(10, "%s must be >= 1 (was %s)", name, optarg);
+		sflag = 1;
 		break;
 	  default:
 		usage();
@@ -239,6 +256,17 @@ again:
 			sblock.fs_maxbpg = evalue;
 		}
 	}
+	if (fflag) {
+		name = "average file size";
+		if (sblock.fs_avgfilesize == fvalue) {
+			warnx("%s remains unchanged as %d", name, fvalue);
+		}
+		else {
+			warnx("%s changes from %d to %d",
+					name, sblock.fs_avgfilesize, fvalue);
+			sblock.fs_avgfilesize = fvalue;
+		}
+	}
 	if (mflag) {
 		name = "minimum percentage of free space";
 		if (sblock.fs_minfree == mvalue) {
@@ -291,6 +319,17 @@ again:
 				warnx(OPTWARN, "space", "<", MINFREE);
 		}
 	}
+	if (sflag) {
+		name = "expected number of files per directory";
+		if (sblock.fs_avgfpdir == svalue) {
+			warnx("%s remains unchanged as %d", name, svalue);
+		}
+		else {
+			warnx("%s changes from %d to %d",
+					name, sblock.fs_avgfpdir, svalue);
+			sblock.fs_avgfpdir = svalue;
+		}
+	}
 
 	putsb(&sblock, special, Aflag);
 	if (active) {
@@ -307,9 +346,9 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-m minfree]",
-"              [-p] [-n enable | disable] [-o space | time]",
-"              special | filesystem");
+"usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-f avgfilesize]",
+"              [-m minfree] [-p] [-n enable | disable] [-o space | time]",
+"              [-s filesperdir] special | filesystem");
 	exit(2);
 }
 
@@ -366,6 +405,10 @@ printfs()
 	      sblock.fs_rotdelay);
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
+	warnx("average file size: (-f)                            %d",
+	      sblock.fs_avgfilesize);
+	warnx("average number of files in a directory: (-s)       %d",
+	      sblock.fs_avgfpdir);
 	warnx("minimum percentage of free space: (-m)             %d%%",
 	      sblock.fs_minfree);
 	warnx("optimization preference: (-o)                      %s",
