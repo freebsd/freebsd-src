@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.46 1996/07/16 17:11:39 jkh Exp $
+ * $Id: config.c,v 1.47 1996/08/03 10:10:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -333,8 +333,8 @@ configSaverTimeout(dialogMenuItem *self)
 	return DITEM_SUCCESS | DITEM_REDRAW;
     }
     else
-	return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
-	    ? DITEM_SUCCESS : DITEM_FAILURE;
+	return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
+	    ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 int
@@ -349,7 +349,7 @@ configNTP(dialogMenuItem *self)
 	snprintf(tmp, 255, "%s=%s", VAR_NTPDATE, variable_get(VAR_NTPDATE));
 	self->aux = (int)tmp;
     }
-    return status;
+    return status | DITEM_RESTORE;
 }
 
 int
@@ -425,9 +425,9 @@ skip:
 int
 configRoutedFlags(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_ROUTEDFLAGS, 
+    return (variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
+			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 int
@@ -456,7 +456,7 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
@@ -464,7 +464,7 @@ configPackages(dialogMenuItem *self)
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
 	    mediaDevice->close(mediaDevice, fd);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	mediaDevice->close(mediaDevice, fd);
 	index_sort(&top);
@@ -502,7 +502,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 int
@@ -511,12 +511,11 @@ configPorts(dialogMenuItem *self)
     char *cp, *dist = NULL; /* Shut up compiler */
     int status = DITEM_SUCCESS, tries = 0;
 
-    dialog_clear_norefresh();
     if (!variable_get(VAR_PORTS_PATH))
 	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-    dialog_clear_norefresh();
     while (!directory_exists(dist)) {
 	if (++tries > 2) {
+	    dialog_clear_norefresh();
 	    msgConfirm("You appear to be having some problems with your CD drive\n"
 		       "or perhaps cannot find the second CD.  This step will now\n"
 		       "therefore be skipped.");
@@ -528,6 +527,7 @@ configPorts(dialogMenuItem *self)
 	cdromMounted = CD_WE_MOUNTED_IT;
 	mediaDevice->shutdown(mediaDevice);
 
+	dialog_clear_norefresh();
 	msgConfirm("The ports collection is now on the second CDROM due to\n"
 		   "space constraints.  Please remove the first CD from the\n"
 		   "drive at this time and insert the second CDROM.  You will\n"
@@ -535,12 +535,14 @@ configPorts(dialogMenuItem *self)
 		   "you wish to use the ports collection.  When you're ready,\n"
 		   "please press [ENTER].");
 	if (!mediaDevice->init(mediaDevice)) {
+	    dialog_clear_norefresh();
 	    msgConfirm("Mount failed - either the CDROM isn't in the drive or\n"
 		       "you did not allow sufficient time for the drive to become\n"
 		       "ready before pressing [ENTER].  Please try again.");
 	}
     }
 
+    dialog_clear_norefresh();
     cp = msgGetInput("/usr/ports",
 		     "Where would you like to create the link tree?\n"
 		     "(press [ENTER] for default location).  The link tree should\n"
@@ -557,12 +559,14 @@ configPorts(dialogMenuItem *self)
     if (strcmp(cp, "/usr/ports")) {
 	unlink("/usr/ports");
 	if (symlink(cp, "/usr/ports") == -1) {
+	    dialog_clear_norefresh();
 	    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
 		       "I can't continue, sorry!", cp);
 	    status = DITEM_FAILURE;
 	    goto fixup;
 	}
 	else {
+	    dialog_clear_norefresh();
 	    msgConfirm("NOTE: This directory is also now symlinked to /usr/ports\n"
 		       "which, for a variety of reasons, is the directory the ports\n"
 		       "framework expects to find its files in.  You should refer to\n"
@@ -570,13 +574,16 @@ configPorts(dialogMenuItem *self)
 		       "ports collection.", cp);
 	}
     }
+    dialog_clear_norefresh();
     msgNotify("Making a link tree from %s to %s.", dist, cp);
     if (DITEM_STATUS(lndir(dist, cp)) != DITEM_SUCCESS) {
+	dialog_clear_norefresh();
 	msgConfirm("The lndir function returned an error status and may not have.\n"
 		   "successfully generated the link tree.  You may wish to inspect\n"
 		   "the /usr/ports directory carefully for any missing link files.");
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("The /usr/ports directory is now ready to use.  When the system comes\n"
 		   "up fully, you can cd to this directory and type `make' in any sub-\n"
 		   "directory for which you'd like to compile a port.  You can also\n"
@@ -587,10 +594,12 @@ fixup:
     tries = 0;
     while (++tries < 3) {
 	mediaDevice->shutdown(mediaDevice);
+	dialog_clear_norefresh();
 	msgConfirm("Done with the second CD.  Please remove it and reinsert the first\n"
 		   "CDROM now.  It may be required for subsequence installation steps.\n\n"
 		   "When you've done so, please press [ENTER].");
 	if (!mediaDevice->init(mediaDevice)) {
+	    dialog_clear_norefresh();
 	    msgConfirm("Mount failed - either the CDROM isn't in the drive or\n"
 		       "you did not allow sufficient time for the drive to become\n"
 		       "ready before pressing [ENTER].  Please try again.");
@@ -621,6 +630,10 @@ configNovell(dialogMenuItem *self)
 {
     int ret = DITEM_SUCCESS;
 
+    if (!RunningAsRoot) {
+	msgConfirm("This package can only be installed in multi-user mode.");
+	return ret;
+    }
     if (variable_get(VAR_NOVELL))
 	variable_unset(VAR_NOVELL);
     else {
@@ -628,7 +641,7 @@ configNovell(dialogMenuItem *self)
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
 	    variable_set2(VAR_NOVELL, "YES");
     }
-    return ret;
+    return ret | DITEM_RESTORE;
 }
 
 /* Load pcnfsd package */
@@ -658,6 +671,7 @@ configNFSServer(dialogMenuItem *self)
     if (!file_readable("/etc/exports")) {
 	WINDOW *w = savescr();
 
+	dialog_clear_norefresh();
 	msgConfirm("Operating as an NFS server means that you must first configure\n"
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
