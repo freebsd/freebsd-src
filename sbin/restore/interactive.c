@@ -32,16 +32,18 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)interactive.c	8.5 (Berkeley) 5/1/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
-#include <ufs/ffs/fs.h>
 #include <protocols/dumprestore.h>
 
 #include <setjmp.h>
@@ -436,7 +438,7 @@ copynext(input, output)
 
 /*
  * Canonicalize file names to always start with ``./'' and
- * remove any imbedded "." and ".." components.
+ * remove any embedded "." and ".." components.
  */
 void
 canon(rawname, canonname, len)
@@ -452,7 +454,7 @@ canon(rawname, canonname, len)
 	else
 		(void) strcpy(canonname, "./");
 	if (strlen(canonname) + strlen(rawname) >= len) {
-		fprintf(stderr, "canonname: not enough bufferspace\n");
+		fprintf(stderr, "canonname: not enough buffer space\n");
 		done(1);
 	}
 		
@@ -522,7 +524,7 @@ printlist(name, basename)
 		}
 	} else {
 		entries = 0;
-		while (dp = rst_readdir(dirp))
+		while ((dp = rst_readdir(dirp)))
 			entries++;
 		rst_closedir(dirp);
 		list = (struct afile *)malloc(entries * sizeof(struct afile));
@@ -538,7 +540,7 @@ printlist(name, basename)
 		(void) strncpy(locname, name, MAXPATHLEN);
 		(void) strncat(locname, "/", MAXPATHLEN);
 		namelen = strlen(locname);
-		while (dp = rst_readdir(dirp)) {
+		while ((dp = rst_readdir(dirp))) {
 			if (dp == NULL)
 				break;
 			if (!dflag && TSTINO(dp->d_ino, dumpmap) == 0)
