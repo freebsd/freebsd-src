@@ -67,12 +67,18 @@ int             sndwrite (int dev, struct uio *uio);
 int             sndselect (int dev, int rw);
 static void	sound_mem_init(void);
 
+unsigned
 long
 get_time()
 {
 extern struct timeval time;
+struct timeval timecopy;
+int x = splclock();
  
-   return(time.tv_usec + (time.tv_sec*1000000));
+   timecopy = time;
+   splx(x);
+   return ((unsigned long)timecopy.tv_usec*HZ)/1000000 +
+	  (unsigned long)timecopy.tv_sec*HZ;
 }
  
 

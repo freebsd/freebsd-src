@@ -225,7 +225,7 @@ extern int hz;
  * ticks.  This can overflow, so the timeout might be real big...
  * 
  */
-extern long get_time(void);
+extern unsigned long get_time(void);
 #define GET_TIME() get_time()
 /*#define GET_TIME()	(lbolt)	*/ /* Returns current time (1/HZ secs since boot) */
 

@@ -102,14 +102,15 @@ static int
 wait_data_avail (int t)
 {
   int             loopc = 5000000;
+  unsigned long   tt;
 
-  t += GET_TIME ();
+  tt = t + GET_TIME ();
   do
     {
       if (INB (DSP_DATA_AVAIL) & 0x80)
 	return 1;
     }
-  while (--loopc && GET_TIME () < t);
+  while (--loopc && GET_TIME () < tt);
   printk ("!data_avail l=%d\n", loopc);
   return 0;
 }
