@@ -578,10 +578,10 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 		 * destination, in case of sharing the cache with IPv6.
 		 */
 		ro = &inp->inp_route;
-		if (ro->ro_rt &&
-		    (ro->ro_dst.sa_family != AF_INET ||
-		     satosin(&ro->ro_dst)->sin_addr.s_addr != faddr.s_addr ||
-		     inp->inp_socket->so_options & SO_DONTROUTE)) {
+		if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+		    ro->ro_dst.sa_family != AF_INET ||
+		    satosin(&ro->ro_dst)->sin_addr.s_addr != faddr.s_addr ||
+		    inp->inp_socket->so_options & SO_DONTROUTE)) {
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = (struct rtentry *)0;
 		}
