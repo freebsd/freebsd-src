@@ -42,17 +42,41 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.35 1996/04/03 05:23:44 dyson Exp $
+ * 	$Id: pmap.h,v 1.36 1996/04/30 12:02:11 phk Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-#include <machine/pte.h>
+#define	PG_V		0x00000001
+#define PG_RW		0x00000002
+#define PG_u		0x00000004
+#define	PG_PROT		0x00000006 /* all protection bits . */
+#define	PG_NC_PWT	0x00000008 /* page cache write through */
+#define	PG_NC_PCD	0x00000010 /* page cache disable */
+#define PG_N		0x00000018 /* Non-cacheable */
+#define PG_U		0x00000020 /* page was accessed */
+#define	PG_M		0x00000040 /* page was modified */
+#define	PG_PS		0x00000080 /* page is big size */
+#define	PG_G		0x00000100 /* page is global */
+#define PG_W		0x00000200 /* "Wired" pseudoflag */
+#define	PG_FRAME	0xfffff000
 
-typedef unsigned int *pd_entry_t;
-typedef unsigned int *pt_entry_t;
-struct vm_map;
+#define	PG_KR		0x00000000
+#define	PG_KW		0x00000002
+
+/*
+ * Page Protection Exception bits
+ */
+
+#define PGEX_P		0x01	/* Protection violation vs. not present */
+#define PGEX_W		0x02	/* during a Write cycle */
+#define PGEX_U		0x04	/* access from User mode (UPL) */
+
+/*
+ * Pte related macros
+ */
+#define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 /*
  * NKPDE controls the virtual space of the kernel, what ever is left, minus
@@ -79,11 +103,16 @@ struct vm_map;
  * XXX This works for now, but I am not real happy with it, I'll fix it
  * right after I fix locore.s and the magic 28K hole
  */
-#define	APTDPTDI	(NPTEPG-1)	/* alt ptd entry that points to APTD */
+#define	APTDPTDI	(NPDEPG-1)	/* alt ptd entry that points to APTD */
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
 #define KSTKPTEOFF	(NPTEPG-UPAGES) /* pte entry for kernel stack */
+
+#ifndef LOCORE
+typedef unsigned int *pd_entry_t;
+typedef unsigned int *pt_entry_t;
+struct vm_map;
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
@@ -106,14 +135,10 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
-#define	kvtopte(va)	vtopte(va)
-#define	ptetov(pt)	(i386_ptob(pt - PTmap))
-#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
-#define	ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
+#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
-#define	ptetoav(pt)	(i386_ptob(pt - APTmap))
-#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
+#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PAGE_MASK))
 
 #ifdef KERNEL
 /*
@@ -130,13 +155,6 @@ pmap_kextract(vm_offset_t va)
 	return pa;
 }
 #endif
-
-/*
- * macros to generate page directory/table indices
- */
-
-#define	pdei(va)	(((va)&PD_MASK)>>PD_SHIFT)
-#define	ptei(va)	(((va)&PT_MASK)>>PG_SHIFT)
 
 /*
  * Pmap stuff
@@ -198,5 +216,6 @@ void	pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 
 #endif /* KERNEL */
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_PMAP_H_ */

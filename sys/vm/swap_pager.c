@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.62 1996/03/03 21:11:05 dyson Exp $
+ * $Id: swap_pager.c,v 1.63 1996/03/06 04:31:46 dyson Exp $
  */
 
 /*
@@ -208,7 +208,7 @@ swap_pager_init()
 	/*
 	 * Calculate the swap allocation constants.
 	 */
-	dmmin = CLBYTES / DEV_BSIZE;
+	dmmin = PAGE_SIZE / DEV_BSIZE;
 	dmmax = btodb(SWB_NPAGES * PAGE_SIZE) * 2;
 }
 

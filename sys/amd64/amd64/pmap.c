@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.85 1996/04/07 02:23:05 dyson Exp $
+ *	$Id: pmap.c,v 1.86 1996/04/22 05:23:08 dyson Exp $
  */
 
 /*
@@ -113,8 +113,8 @@ static void	init_pv_entries __P((int));
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
-#define	pmap_pde(m, v)	(&((m)->pm_pdir[((vm_offset_t)(v) >> PD_SHIFT)&1023]))
-#define pdir_pde(m, v) (m[((vm_offset_t)(v) >> PD_SHIFT)&1023])
+#define	pmap_pde(m, v)	(&((m)->pm_pdir[((vm_offset_t)(v) >> PDRSHIFT)&(NPDEPG-1)]))
+#define pdir_pde(m, v) (m[((vm_offset_t)(v) >> PDRSHIFT)&(NPDEPG-1)])
 
 #define pmap_pte_pa(pte)	(*(int *)(pte) & PG_FRAME)
 
@@ -1663,7 +1663,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size)
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
 
 static int pmap_prefault_pageorder[] = {
-	-NBPG, NBPG, -2 * NBPG, 2 * NBPG
+	-PAGE_SIZE, PAGE_SIZE, -2 * PAGE_SIZE, 2 * PAGE_SIZE
 };
 
 void
@@ -2180,7 +2180,7 @@ pmap_pid_dump(int pid) {
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
 					for(j=0;j<1024;j++) {
-						unsigned va = base + (j << PG_SHIFT);
+						unsigned va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
 							if (index) {
 								index = 0;
@@ -2232,7 +2232,7 @@ pads(pm)
 	for (i = 0; i < 1024; i++)
 		if (pm->pm_pdir[i])
 			for (j = 0; j < 1024; j++) {
-				va = (i << PD_SHIFT) + (j << PG_SHIFT);
+				va = (i << PDRSHIFT) + (j << PAGE_SHIFT);
 				if (pm == kernel_pmap && va < KERNBASE)
 					continue;
 				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)

@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.78 1996/03/30 14:57:02 peter Exp $
+#	$Id: Makefile.i386,v 1.79 1996/04/27 07:30:49 joerg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -164,7 +164,7 @@ install: kernel
 	fi
 	install -c -m 555 -o root -g wheel -fschg kernel /
 
-ioconf.o: ioconf.c $S/sys/param.h machine/pte.h $S/sys/buf.h \
+ioconf.o: ioconf.c $S/sys/param.h $S/sys/buf.h \
     ${I386}/isa/isa_device.h ${I386}/isa/isa.h ${I386}/isa/icu.h
 	${CC} -c ${CFLAGS} ioconf.c
 
