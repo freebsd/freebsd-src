@@ -17,17 +17,13 @@
  */
 
 #include "alpha/alpha.h"
+#include "alpha/elf.h"
 
 #undef	WCHAR_TYPE
 #define	WCHAR_TYPE "int"
 
 #undef	WCHAR_TYPE_SIZE
 #define	WCHAR_TYPE_SIZE 32
-
-/* FreeBSD-specific things: */
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__FreeBSD__ -D__alpha__ -D__alpha"
 
 /* Look for the include files in the system-defined places.  */
 
@@ -72,19 +68,6 @@
 
 #undef ASM_FINAL_SPEC
 
-/* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
-   libc, depending on whether we're doing profiling.  */
-
-#undef LIB_SPEC
-#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:-lc}%{pthread:-lpthread -lc}}%{pg:%{!pthread:-lc_p}%{pthread:-lpthread_p -lc_p}}}"
-
-/* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
-   for the special GCC options -static, -assert, and -nostdlib.  */
-
-#undef LINK_SPEC
-#define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e __start}}} -dc -dp %{static:-Bstatic} %{assert*}"
-
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  Under FreeBSD/Alpha, the assembler does
    nothing special with -pg. */
@@ -101,3 +84,54 @@
 
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+
+#undef TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/alpha ELF)");
+
+#undef SDB_DEBUGGING_INFO
+#define SDB_DEBUGGING_INFO
+#undef DBS_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO
+
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE  \
+ ((len > 1 && !strncmp (str, "gsdb", len)) ? SDB_DEBUG : DBX_DEBUG)
+
+#undef CPP_PREDEFINES
+#define CPP_PREDEFINES "-Dunix -D__alpha -D__alpha__ -D__ELF__ -D__FreeBSD__=3 -Asystem(unix) -Asystem(FreeBSD) -Acpu(alpha) -Amachine(alpha)"
+
+#undef LINK_SPEC
+#define LINK_SPEC "-m elf64alpha					\
+  %{O*:-O3} %{!O*:-O1}						\
+  %{assert*}							\
+  %{shared:-shared}						\
+  %{!shared:							\
+    -dc -dp							\
+    %{!nostdlib:%{!r*:%{!e*:-e _start}}}			\
+    %{!static:							\
+      %{rdynamic:-export-dynamic}				\
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
+    %{static:-static}}"
+
+/* Provide a STARTFILE_SPEC for FreeBSD that is compatible with the
+   non-aout version used on i386. */
+   
+#undef	STARTFILE_SPEC
+#define STARTFILE_SPEC \
+ "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
+    %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+
+/* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
+   the file which provides part of the support for getting C++
+   file-scope static object deconstructed after exiting `main' */
+
+#undef	ENDFILE_SPEC
+#define ENDFILE_SPEC \
+  "%{!shared:crtend.o%s} %{shared:crtendS.o%s}"
+
+/* Handle #pragma weak and #pragma pack.  */
+
+#define HANDLE_SYSV_PRAGMA
+
+#undef SET_ASM_OP
+#define SET_ASM_OP	".set"
