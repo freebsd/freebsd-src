@@ -95,7 +95,7 @@ functionality. [MERGED]
 
 twe 3ware ATA RAID driver added. [MERGED]
 
-The tap driver, a virtual Ethernet device driver for bridged 
+The tap driver, a virtual Ethernet device driver for bridged
 configurations, has been added.  [MERGED]
 
 accept_filters, a kernel feature to reduce overheads when accepting
@@ -126,7 +126,7 @@ SMP support has been largely reworked, incorporating code from BSD/OS
 5.0.  One of the main features of SMPng ("SMP Next Generation") is to
 allow more processes to run in kernel, without the need for spin locks
 that can dramatically reduce the efficiency of multiple processors.
-Interrupt handlers now have contexts associated with them that allow 
+Interrupt handlers now have contexts associated with them that allow
 them to be blocked, which reduces the need to lock out interrupts.
 
 The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
@@ -136,7 +136,7 @@ The kernel and modules have been moved to the directory /boot/kernel,
 so they can be easily manipulated together.  The boot loader has been
 updated to make this change as seamless as possible.
 
-A filesystem snapshot capability has been added to FFS.  Details can 
+A filesystem snapshot capability has been added to FFS.  Details can
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
 Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
@@ -175,7 +175,7 @@ set to the cache size in kilobytes.  The old options are still
 supported for backwards compatibility. [MERGED]
 
 The NCPU, NAPIC, NBUS, and NINTR kernel configuration options,
-for configuring SMP kernels, have been removed.  NCPU is now set to a 
+for configuring SMP kernels, have been removed.  NCPU is now set to a
 maximum of 16, and the other, aforementioned options are now dynamic.
 [MERGED]
 
@@ -238,11 +238,11 @@ The uscanner(4) driver for basic USB scanner support using SANE. See
 the SANE home page for supported scanners. HP ScanJet 4100C, 5200C
 and 6300C are known to be working.
 
-The umodem(4) driver for USB modems. Supported so far is only the 
+The umodem(4) driver for USB modems. Supported so far is only the
 3Com 5605 and Metricom Ricochet GS wireless USB modems.
 
-The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
-They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
+The ncv, nsp, and stg drivers have been ported from NetBSD/pc98.
+They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50
 based PC-Card/ISA SCSI controllers. [MERGED]
 
 The cd(4) driver now has support for write operations.  This allows
@@ -367,7 +367,7 @@ rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 String-handling library calls in many programs were fixed to reduce the
 possibility of buffer overflow-related exploits.  [MERGED]
 
-TCP now uses stronger randomness in choosing its initial sequence 
+TCP now uses stronger randomness in choosing its initial sequence
 numbers (see security advisory FreeBSD-SA-00:52). [MERGED]
 
 Several buffer overflows in tcpdump(1) were corrected (see security
@@ -407,7 +407,7 @@ Several vulnerabilities in procfs(4) were fixed (see security advisory
 FreeBSD-SA-00:77).  [MERGED]
 
 A bug in OpenSSH in which a server was unable to disable ssh-agent or
-X11 forwarding was fixed (see security advisory FreeBSD-SA-01:01).  
+X11 forwarding was fixed (see security advisory FreeBSD-SA-01:01).
 [MERGED]
 
 A bug in ipfw(8) and ipfw6(8) in which inbound TCP segments could
@@ -537,7 +537,7 @@ of files, has been added.  [MERGED]
 syslogd(8) can take a -n option to disable DNS queries for every
 request. [MERGED]
 
-kenv(1), a command to dump the kernel environment, has been added. 
+kenv(1), a command to dump the kernel environment, has been added.
 [MERGED]
 
 The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
@@ -566,8 +566,8 @@ finger.conf(5) file. [MERGED]
 finger(1) now has support for a .pubkey file.
 
 nsswitch support has been merged from NetBSD.  By creating an
-nsswitch.conf(5) file, FreeBSD can be configured so that various 
-databases such as passwd(5) and group(5) can be looked up using flat 
+nsswitch.conf(5) file, FreeBSD can be configured so that various
+databases such as passwd(5) and group(5) can be looked up using flat
 files, NIS, or Hesiod.  The old hosts.conf(5) file is no longer used.
 
 sshd X11Forwarding is now turned on by default on server (any risk is
@@ -587,7 +587,7 @@ Binutils have been upgraded to 2.10.1. [MERGED]
 
 libreadline has been upgraded to 4.1. [MERGED]
 
-The ifconfig(8) command can set the link-layer address of an interface. 
+The ifconfig(8) command can set the link-layer address of an interface.
 [MERGED]
 
 setproctitle(3) has been moved from libutil to libc. [MERGED]
@@ -769,7 +769,7 @@ including syslog records and /dev/console output. [MERGED]
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
 deprecated in favor of MaxStartups. [MERGED]
 
-Entropy from the random(4) device is now periodically saved to files 
+Entropy from the random(4) device is now periodically saved to files
 in /var/db/entropy.
 
 cdcontrol(1) now uses the CDROM environment variable to pick a default
@@ -913,7 +913,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     HP Embedded NetRAID
 Booting from these controllers is supported.
 
-Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x
 firmware:
     DAC960P
     DAC960PD
@@ -924,7 +924,7 @@ firmware:
     AcceleRAID 150
     AcceleRAID 250
     eXtremeRAID 1100
-Booting from these controllers is supported. EISA adapters are not 
+Booting from these controllers is supported. EISA adapters are not
 supported.
 
 Mylex PCI to SCSI RAID controllers with 6.x firmware:
@@ -933,7 +933,7 @@ Mylex PCI to SCSI RAID controllers with 6.x firmware:
     AcceleRAID 352
     eXtremeRAID 2000
     eXtremeRAID 3000
-Compatible Mylex controllers not listed should work, but have not been 
+Compatible Mylex controllers not listed should work, but have not been
 verified.
 
 3ware Escalade ATA RAID controllers.  All members of the 5000 and
@@ -958,7 +958,7 @@ NCR 53C500 based PC-Card SCSI host adapters:
     New Media Corporation BASICS SCSI
     Qlogic Fast SCSI
     RATOC REX-9530, REX-5572 (as SCSI only)
-    
+
 TMC 18C30, 18C50 based ISA/PC-Card SCSI host adapters:
     Future Domain SCSI2GO
     IBM SCSI PCMCIA Card
@@ -993,7 +993,7 @@ The following CD-ROM type systems are supported at this time:
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
 
-  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller.
 
   UltraStor 14F, 24F and 34F SCSI controllers.
 
@@ -1003,8 +1003,8 @@ NOT YET supported under the new CAM SCSI subsystem:
 
   WD7000 SCSI controller.
 
-  [ Note:  There is work-in-progress to port the UltraStor driver to 
-    the new CAM SCSI framework, but no estimates on when or if it will 
+  [ Note:  There is work-in-progress to port the UltraStor driver to
+    the new CAM SCSI framework, but no estimates on when or if it will
     be completed. ]
 
 Unmaintained drivers, they might or might not work for your hardware:
@@ -1175,7 +1175,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C529 (MCA), 3C579, 
+3Com 3C509, 3C529 (MCA), 3C579,
 3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA),
 3C590/592/595/900/905/905B/905C PCI,
 3C556/556B MiniPCI,
@@ -1377,7 +1377,7 @@ AVM Fritz!Card classic
 AVM Fritz!Card PnP
 AVM Fritz!Card PCI
 Creatix ISDN-S0
-Creatix ISDN-S0 P&P 
+Creatix ISDN-S0 P&P
 Dr. Neuhaus Niccy Go@ and compatibles
 Dynalink IS64PH
 ELSA PCC-16
@@ -1423,7 +1423,7 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to
 become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
