@@ -1,0 +1,94 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: rup.1,v 1.1 1993/09/16 01:15:35 jtc Exp $
+.\"
+.Dd June 7, 1993
+.Dt RUP 1
+.Os BSD 4.3
+.Sh NAME
+.Nm rup 
+.Nd remote status display
+.Sh SYNOPSIS
+.Nm rup
+.Op Ar host ...
+.Sh DESCRIPTION
+.Nm rup
+displays a summary of the current system status of a particular
+.Em host 
+or all hosts on the local network.
+The output shows the current time of day, how long the system has
+been up,
+and the load averages.
+The load average numbers give the number of jobs in the run queue
+averaged over 1, 5 and 15 minutes.
+.Pp
+The
+.Xr rpc.rstatd 8
+daemon must be running on the remote host for this command to
+work.
+.Nm rup
+uses an RPC protocol defined in /usr/include/rpcsvc/rstat.x.
+.Sh EXAMPLE
+.Bd -unfilled -offset indent -compact
+example% rup otherhost
+otherhost   7:36am  up 6 days, 16:45,  load average: 0.20, 0.23, 0.18
+example%
+.Ed
+.Sh DIAGNOSTICS
+.Bl -tag -width indent
+.It rup: RPC: Program not registered
+The
+.Xr rpc.rstatd 8
+daemon has not been started on the remote host.
+.It rup: RPC: Timed out
+A communication error occurred.  Either the network is
+excessively congested, or the
+.Xr rpc.rstatd 8
+daemon has terminated on the remote host.
+.It rup: RPC: Port mapper failure - RPC: Timed out
+The remote host is not running the portmapper (see
+.Xr portmap 8 ),
+and cannot accomodate any RPC-based services.  The host may be down.
+.El
+.Sh SEE ALSO
+.Xr portmap 8 ,
+.Xr rpc.rstatd 8
+.Sh HISTORY
+The
+.Nm rwall
+command
+appeared in
+.Em Sun-OS .
+.Sh BUGS
+The sorting options are not implemented.
