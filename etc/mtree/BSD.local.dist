@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.17.2.2 1996/12/10 16:53:56 joerg Exp $
+#     $Id: BSD.local.dist,v 1.17.2.3 1996/12/12 10:46:08 asami Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -115,6 +115,8 @@
         dict
         ..
         doc
+        ..
+        examples
         ..
         misc
         ..
