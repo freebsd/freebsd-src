@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.83 1999/01/09 21:50:58 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.84 1999/01/20 21:42:40 jdp Exp $
 #
 
 .if !target(__initialized__)
@@ -50,7 +50,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 STRIP?=	-s
 .endif
 
-.if ${OBJFORMAT} != aout || make(checkdpadd)
+.if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)
 .include <bsd.libnames.mk>
 .endif
 
