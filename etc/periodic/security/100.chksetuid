@@ -35,12 +35,12 @@ then
     source_periodic_confs
 fi
 
-LOG="${daily_status_security_logdir}"
+. /etc/periodic/security/security.functions
+
 rc=0
 
 case "$daily_status_security_chksetuid_enable" in
     [Yy][Ee][Ss])
-	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	echo ""
 	echo 'Checking setuid files and devices:'
 	# XXX Note that there is the possibility of overrunning the args to ls
@@ -54,24 +54,10 @@ case "$daily_status_security_chksetuid_enable" in
 	        find $mount -xdev -type f \
 			\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
 			\( -perm -u+s -or -perm -g+s \) -print0
-	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort -k 11 > ${TMP}
-	fi
-
-	if [ ! -f ${LOG}/setuid.today ]; then
-	    rc=1
-	    echo "No ${LOG}/setuid.today"
-	    cp ${TMP} ${LOG}/setuid.today || rc=3
-	fi
-
-	if ! cmp ${LOG}/setuid.today ${TMP} >/dev/null
-	then
-	    [ $rc -lt 1 ] && rc=1
-	    echo "${host} setuid diffs:"
-	    diff -b ${LOG}/setuid.today ${TMP}
-	    mv ${LOG}/setuid.today ${LOG}/setuid.yesterday || rc=3
-	    mv ${TMP} ${LOG}/setuid.today || rc=3
-	fi
-	rm -f ${TMP};;
+	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort -k 11 |
+	      check_diff setuid - "${host} setuid diffs:"
+	    rc=$?
+	fi;;
     *)	rc=0;;
 esac
 
