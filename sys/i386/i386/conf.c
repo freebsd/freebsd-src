@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85 1995/05/30 07:59:16 rgrimes Exp $
+ *	$Id: conf.c,v 1.85.4.1 1995/09/15 06:20:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -208,6 +208,23 @@ d_ioctl_t	stioctl;
 #define	stsize		zerosize
 #endif
 
+#include "od.h"
+#if NOD > 0
+d_open_t	odopen;
+d_close_t	odclose;
+d_strategy_t	odstrategy;
+d_ioctl_t	odioctl;
+d_psize_t	odsize;
+#define	oddump	nxdump
+#else
+#define	odopen		nxopen
+#define	odclose		nxclose
+#define	odstrategy	nxstrategy
+#define	odioctl		nxioctl
+#define	oddump		nxdump
+#define	odsize		zerosize
+#endif
+
 #include "cd.h"
 #if NCD > 0
 d_open_t	cdopen;
@@ -294,6 +311,19 @@ d_psize_t	atasize;
 #define	atadump		nxdump
 #endif
 
+#include "wcd.h"
+#if NWCD > 0
+d_open_t	wcdopen;
+d_close_t	wcdclose;
+d_strategy_t	wcdstrategy;
+d_ioctl_t	wcdioctl;
+#else
+#define wcdopen		nxopen
+#define wcdclose	nxclose
+#define wcdstrategy	nxstrategy
+#define wcdioctl	nxioctl
+#endif
+
 #include "ch.h"
 #if NCH > 0
 d_open_t	chopen;
@@ -356,6 +386,24 @@ d_psize_t	vnsize;
 #define	vnsize		zerosize
 #endif
 
+/* Matrox Meteor capture card */
+#include "meteor.h"
+#if     NMETEOR > 0
+d_open_t        meteor_open; 
+d_close_t       meteor_close;
+d_read_t        meteor_read;
+d_write_t       meteor_write;
+d_ioctl_t       meteor_ioctl;
+d_mmap_t        meteor_mmap;
+#else 
+#define meteor_open     nxopen
+#define meteor_close    nxclose 
+#define meteor_read     nxread
+#define meteor_write    nxwrite
+#define meteor_ioctl    nxioctl
+#define meteor_mmap     nxmmap
+#endif
+
 #define swopen		noopen
 #define swclose		noclose
 #define swioctl		noioc
@@ -404,7 +452,12 @@ struct bdevsw	bdevsw[] =
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
 	  matcddump,	matcdsize,	0 },
 	{ ataopen,	ataclose,	atastrategy,	ataioctl,	/*18*/
-	  atadump,	atasize,	0 }
+	  atadump,	atasize,	0 },
+	{ wcdopen,      wcdclose,       wcdstrategy,    wcdioctl,       /*19*/
+	  nxdump,       zerosize,       0 },
+	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
+	  oddump,	odsize,		0 },
+
 /*
  * If you need a bdev major number for a driver that you intend to donate
  * back to the group or release publically, please contact the FreeBSD team
@@ -422,9 +475,9 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "sc.h"
 #include "vt.h"
 #if NSC > 0
-# if NVT > 0
+# if NVT > 0 && !defined(LINT)
 #  error "sc0 and vt0 are mutually exclusive"
-# endif /* NVT > 0 */
+# endif
 d_open_t	scopen;
 d_close_t	scclose;
 d_rdwr_t	scread, scwrite;
@@ -810,6 +863,23 @@ d_ioctl_t	gscioctl;
 #define gscioctl	nxioctl
 #endif
 
+#include "crd.h"
+#if NCRD > 0
+d_open_t	crdopen;
+d_close_t	crdclose;
+d_rdwr_t	crdread, crdwrite;
+d_ioctl_t	crdioctl;
+d_select_t	crdselect;
+#else
+#define crdopen		nxopen
+#define crdclose	nxclose
+#define crdread		nxread
+#define crdwrite	nxwrite
+#define	crdioctl	nxioctl
+#define crdselect	nxselect
+
+#endif
+
 #include "joy.h"
 #if NJOY > 0
 d_open_t	joyopen;
@@ -821,6 +891,21 @@ d_ioctl_t	joyioctl;
 #define joyclose	nxclose
 #define joyread		nxread
 #define	joyioctl	nxioctl
+#endif
+
+#include "asc.h"
+#if NASC > 0
+d_open_t      ascopen;
+d_close_t     ascclose;
+d_rdwr_t      ascread;
+d_ioctl_t     ascioctl;
+d_select_t    ascselect;
+#else
+#define ascopen               nxopen
+#define ascclose      nxclose
+#define ascread               nxread
+#define ascioctl      nxioctl
+#define ascselect       nxselect
 #endif
 
 #include "tun.h"
@@ -881,6 +966,49 @@ d_ttycv_t	cydevtotty;
 #define cymmap		nxmmap
 #define cystrategy	nxstrategy
 #define	cydevtotty	nxdevtotty
+#endif
+
+#include "dgb.h"      
+#if NDGB > 0
+d_open_t		dgbopen;     
+d_close_t		dgbclose;   
+d_rdwr_t		dgbread;
+d_rdwr_t		dgbwrite; 
+d_ioctl_t		dgbioctl;   
+d_select_t		dgbselect; 
+d_stop_t		dgbstop;     
+#define	dgbreset	nxreset
+#else
+#define dgbopen		nxopen
+#define dgbclose	nxclose
+#define dgbread		nxread
+#define dgbwrite	nxwrite
+#define dgbioctl	nxioctl
+#define dgbstop		nxstop
+#define dgbreset	nxreset
+#define dgbselect	nxselect
+#endif
+
+/* Specialix serial driver */
+#include "si.h"
+#if	NSI > 0
+d_open_t        siopen;
+d_close_t       siclose;
+d_read_t        siread;
+d_write_t       siwrite;
+d_ioctl_t	siioctl;
+d_stop_t        sistop;
+d_ttycv_t	sidevtotty;
+#define sireset	nxreset
+#else
+#define	siopen		nxopen
+#define siclose		nxclose
+#define siread		nxread
+#define siwrite		nxwrite
+#define siioctl		nxioctl
+#define sistop		nxstop
+#define sireset		nxreset
+#define	sidevtotty	nxdevtotty
 #endif
 
 #include "ity.h"
@@ -1161,9 +1289,9 @@ struct cdevsw	cdevsw[] =
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
 	  sscselect,	sscmmap,	sscstrategy },
-	{ nxopen,	nxclose,	nxread,		nxwrite,	/*50*/
-	  nxioctl,	nxstop,		nxreset,	nodevtotty,/* pcmcia */
-	  nxselect,	nxmmap,		NULL },
+	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
+	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
+	  crdselect,	nommap,		NULL },
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
 	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
 	  seltrue,	nommap,		NULL},
@@ -1185,9 +1313,9 @@ struct cdevsw	cdevsw[] =
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
-	{ nxopen,	nxclose,	nxread,		nxwrite,	/*58*/
-	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* unused */
-	  nxselect,	nxmmap,		NULL },
+	{ dgbopen,      dgbclose,       dgbread,        dgbwrite,       /*58*/
+	  dgbioctl,     dgbstop,        dgbreset,       nodevtotty, /* dgb */
+	  dgbselect,    nommap,         NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
 	  seltrue,	nommap,         NULL },
@@ -1212,6 +1340,22 @@ struct cdevsw	cdevsw[] =
 	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
 	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
 	  seltrue,	nommap,		labpcstrategy },
+        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
+          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
+          seltrue, meteor_mmap, NULL },
+	{ siopen,	siclose,	siread,		siwrite,	/*68*/
+	  siioctl,	sistop,		sireset,	sidevtotty,/* slxos */
+	  ttselect,	nxmmap,		NULL },
+	{ wcdopen,      wcdclose,       rawread,        nowrite,        /*69*/
+	  wcdioctl,     nostop,         nullreset,      nodevtotty,/* atapi */
+	  seltrue,      nommap,         wcdstrategy },
+	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
+	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
+	  seltrue,	nommap,		odstrategy },
+	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
+	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
+	  ascselect,    nommap,         NULL }
+
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
@@ -1264,21 +1408,30 @@ isdisk(dev, type)
 {
 
 	switch (major(dev)) {
-	case 15:
+	case 15:		/* VBLK: vn, VCHR: cd */
 		return (1);
-	case 0:
-	case 2:
-	case 4:
-	case 6:
-	case 7:
+	case 0:			/* wd */
+	case 2:			/* fd */
+	case 4:			/* sd */
+	case 6:			/* cd */
+	case 7:			/* mcd */
+	case 16:		/* scd */
+	case 17:		/* matcd */
+	case 18:		/* ata */
+	case 19:		/* wcd */
+	case 20:		/* od */
 		if (type == VBLK)
 			return (1);
 		return (0);
-	case 3:
-	case 9:
-	case 13:
-	case 29:
-	case 43:
+	case 3:			/* wd */
+	case 9:			/* fd */
+	case 13:		/* sd */
+	case 29:		/* mcd */
+	case 43:		/* vn */
+	case 45:		/* scd */
+	case 46:		/* matcd */
+	case 69:		/* wcd */
+	case 70:		/* od */
 		if (type == VCHR)
 			return (1);
 		/* fall through */
@@ -1300,14 +1453,18 @@ chrtoblk(dev)
 	int blkmaj;
 
 	switch (major(dev)) {
-	case 3:		blkmaj = 0;  break;
-	case 9:		blkmaj = 2;  break;
-	case 10:	blkmaj = 3;  break;
-	case 13:	blkmaj = 4;  break;
-	case 14:	blkmaj = 5;  break;
-	case 15:	blkmaj = 6;  break;
-	case 29:	blkmaj = 7;  break;
-	case 43:	blkmaj = 15; break;
+	case 3:		blkmaj = 0;  break; /* wd */
+	case 9:		blkmaj = 2;  break; /* fd */
+	case 10:	blkmaj = 3;  break; /* wt */
+	case 13:	blkmaj = 4;  break; /* sd */
+	case 14:	blkmaj = 5;  break; /* st */
+	case 15:	blkmaj = 6;  break; /* cd */
+	case 29:	blkmaj = 7;  break; /* mcd */
+	case 43:	blkmaj = 15; break; /* vn */
+	case 45:	blkmaj = 16; break; /* scd */
+	case 46:	blkmaj = 17; break; /* matcd */
+	case 69:	blkmaj = 19; break; /* wcd */
+	case 70:	blkmaj = 20; break; /* od */
 	default:
 		return (NODEV);
 	}
