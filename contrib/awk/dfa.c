@@ -1,5 +1,5 @@
 /* dfa.c - deterministic extended regexp routines for GNU
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright 1988, 1998, 2000 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 /* Written June, 1988 by Mike Haertel
    Modified July, 1988 by Arthur David Olson to assist BMG speedups  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -26,10 +29,14 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#ifndef VMS
+#include <sys/types.h>
+#else
+#include <stddef.h>
+#endif
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
-#include <sys/types.h>
 extern char *calloc(), *malloc(), *realloc();
 extern void free();
 #endif
@@ -77,6 +84,29 @@ extern void free();
 #define ISCNTRL(C) (isascii(C) && iscntrl(C))
 #endif
 
+/* ISASCIIDIGIT differs from ISDIGIT, as follows:
+   - Its arg may be any int or unsigned int; it need not be an unsigned char.
+   - It's guaranteed to evaluate its argument exactly once.
+   - It's typically faster.
+   Posix 1003.2-1992 section 2.5.2.1 page 50 lines 1556-1558 says that
+   only '0' through '9' are digits.  Prefer ISASCIIDIGIT to ISDIGIT unless
+   it's important to use the locale's definition of `digit' even when the
+   host does not conform to Posix.  */
+#define ISASCIIDIGIT(c) ((unsigned) (c) - '0' <= 9)
+
+/* If we (don't) have I18N.  */
+/* glibc defines _ */
+#ifndef _
+# ifdef HAVE_LIBINTL_H
+#  include <libintl.h>
+#  ifndef _
+#   define _(Str) gettext (Str)
+#  endif
+# else
+#  define _(Str) (Str)
+# endif
+#endif
+
 #ifndef __FreeBSD__
 #include "regex.h"
 #else
@@ -84,57 +114,56 @@ extern void free();
 #endif
 #include "dfa.h"
 
-#ifdef __STDC__
-typedef void *ptr_t;
-#else
-typedef char *ptr_t;
-#ifndef const
-#define const
+/* HPUX, define those as macros in sys/param.h */
+#ifdef setbit
+# undef setbit
 #endif
+#ifdef clrbit
+# undef clrbit
 #endif
 
-static void dfamust _RE_ARGS((struct dfa *dfa));
+static void dfamust PARAMS ((struct dfa *dfa));
 
-static ptr_t xcalloc _RE_ARGS((size_t n, size_t s));
-static ptr_t xmalloc _RE_ARGS((size_t n));
-static ptr_t xrealloc _RE_ARGS((ptr_t p, size_t n));
+static ptr_t xcalloc PARAMS ((size_t n, size_t s));
+static ptr_t xmalloc PARAMS ((size_t n));
+static ptr_t xrealloc PARAMS ((ptr_t p, size_t n));
 #ifdef DEBUG
-static void prtok _RE_ARGS((token t));
+static void prtok PARAMS ((token t));
 #endif
-static int tstbit _RE_ARGS((int b, charclass c));
-static void setbit _RE_ARGS((int b, charclass c));
-static void clrbit _RE_ARGS((int b, charclass c));
-static void copyset _RE_ARGS((charclass src, charclass dst));
-static void zeroset _RE_ARGS((charclass s));
-static void notset _RE_ARGS((charclass s));
-static int equal _RE_ARGS((charclass s1, charclass s2));
-static int charclass_index _RE_ARGS((charclass s));
-static int looking_at _RE_ARGS((const char *s));
-static token lex _RE_ARGS((void));
-static void addtok _RE_ARGS((token t));
-static void atom _RE_ARGS((void));
-static int nsubtoks _RE_ARGS((int tindex));
-static void copytoks _RE_ARGS((int tindex, int ntokens));
-static void closure _RE_ARGS((void));
-static void branch _RE_ARGS((void));
-static void regexp _RE_ARGS((int toplevel));
-static void copy _RE_ARGS((position_set *src, position_set *dst));
-static void insert _RE_ARGS((position p, position_set *s));
-static void merge _RE_ARGS((position_set *s1, position_set *s2, position_set *m));
-static void delete _RE_ARGS((position p, position_set *s));
-static int state_index _RE_ARGS((struct dfa *d, position_set *s,
+static int tstbit PARAMS ((int b, charclass c));
+static void setbit PARAMS ((int b, charclass c));
+static void clrbit PARAMS ((int b, charclass c));
+static void copyset PARAMS ((charclass src, charclass dst));
+static void zeroset PARAMS ((charclass s));
+static void notset PARAMS ((charclass s));
+static int equal PARAMS ((charclass s1, charclass s2));
+static int charclass_index PARAMS ((charclass s));
+static int looking_at PARAMS ((const char *s));
+static token lex PARAMS ((void));
+static void addtok PARAMS ((token t));
+static void atom PARAMS ((void));
+static int nsubtoks PARAMS ((int tindex));
+static void copytoks PARAMS ((int tindex, int ntokens));
+static void closure PARAMS ((void));
+static void branch PARAMS ((void));
+static void regexp PARAMS ((int toplevel));
+static void copy PARAMS ((position_set *src, position_set *dst));
+static void insert PARAMS ((position p, position_set *s));
+static void merge PARAMS ((position_set *s1, position_set *s2, position_set *m));
+static void delete PARAMS ((position p, position_set *s));
+static int state_index PARAMS ((struct dfa *d, position_set *s,
 			  int newline, int letter));
-static void build_state _RE_ARGS((int s, struct dfa *d));
-static void build_state_zero _RE_ARGS((struct dfa *d));
-static char *icatalloc _RE_ARGS((char *old, char *new));
-static char *icpyalloc _RE_ARGS((char *string));
-static char *istrstr _RE_ARGS((char *lookin, char *lookfor));
-static void ifree _RE_ARGS((char *cp));
-static void freelist _RE_ARGS((char **cpp));
-static char **enlist _RE_ARGS((char **cpp, char *new, size_t len));
-static char **comsubs _RE_ARGS((char *left, char *right));
-static char **addlists _RE_ARGS((char **old, char **new));
-static char **inboth _RE_ARGS((char **left, char **right));
+static void build_state PARAMS ((int s, struct dfa *d));
+static void build_state_zero PARAMS ((struct dfa *d));
+static char *icatalloc PARAMS ((char *old, char *new));
+static char *icpyalloc PARAMS ((char *string));
+static char *istrstr PARAMS ((char *lookin, char *lookfor));
+static void ifree PARAMS ((char *cp));
+static void freelist PARAMS ((char **cpp));
+static char **enlist PARAMS ((char **cpp, char *new, size_t len));
+static char **comsubs PARAMS ((char *left, char *right));
+static char **addlists PARAMS ((char **old, char **new));
+static char **inboth PARAMS ((char **left, char **right));
 
 #ifdef __FreeBSD__
 static int collate_range_cmp (a, b)
@@ -154,39 +183,34 @@ static int collate_range_cmp (a, b)
 #endif
 
 static ptr_t
-xcalloc(n, s)
-     size_t n;
-     size_t s;
+xcalloc (size_t n, size_t s)
 {
   ptr_t r = calloc(n, s);
 
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
 static ptr_t
-xmalloc(n)
-     size_t n;
+xmalloc (size_t n)
 {
   ptr_t r = malloc(n);
 
   assert(n != 0);
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
 static ptr_t
-xrealloc(p, n)
-     ptr_t p;
-     size_t n;
+xrealloc (ptr_t p, size_t n)
 {
   ptr_t r = realloc(p, n);
 
   assert(n != 0);
   if (!r)
-    dfaerror("Memory exhausted");
+    dfaerror(_("Memory exhausted"));
   return r;
 }
 
@@ -206,8 +230,7 @@ xrealloc(p, n)
 #ifdef DEBUG
 
 static void
-prtok(t)
-     token t;
+prtok (token t)
 {
   char *s;
 
@@ -245,33 +268,25 @@ prtok(t)
 /* Stuff pertaining to charclasses. */
 
 static int
-tstbit(b, c)
-     int b;
-     charclass c;
+tstbit (int b, charclass c)
 {
   return c[b / INTBITS] & 1 << b % INTBITS;
 }
 
 static void
-setbit(b, c)
-     int b;
-     charclass c;
+setbit (int b, charclass c)
 {
   c[b / INTBITS] |= 1 << b % INTBITS;
 }
 
 static void
-clrbit(b, c)
-     int b;
-     charclass c;
+clrbit (int b, charclass c)
 {
   c[b / INTBITS] &= ~(1 << b % INTBITS);
 }
 
 static void
-copyset(src, dst)
-     charclass src;
-     charclass dst;
+copyset (charclass src, charclass dst)
 {
   int i;
 
@@ -280,8 +295,7 @@ copyset(src, dst)
 }
 
 static void
-zeroset(s)
-     charclass s;
+zeroset (charclass s)
 {
   int i;
 
@@ -290,8 +304,7 @@ zeroset(s)
 }
 
 static void
-notset(s)
-     charclass s;
+notset (charclass s)
 {
   int i;
 
@@ -300,9 +313,7 @@ notset(s)
 }
 
 static int
-equal(s1, s2)
-     charclass s1;
-     charclass s2;
+equal (charclass s1, charclass s2)
 {
   int i;
 
@@ -317,8 +328,7 @@ static struct dfa *dfa;
 
 /* Find the index of charclass s in dfa->charclasses, or allocate a new charclass. */
 static int
-charclass_index(s)
-     charclass s;
+charclass_index (charclass s)
 {
   int i;
 
@@ -337,15 +347,17 @@ static reg_syntax_t syntax_bits, syntax_bits_set;
 /* Flag for case-folding letters into sets. */
 static int case_fold;
 
+/* End-of-line byte in data.  */
+static unsigned char eolbyte;
+
 /* Entry point to set syntax options. */
 void
-dfasyntax(bits, fold)
-     reg_syntax_t bits;
-     int fold;
+dfasyntax (reg_syntax_t bits, int fold, int eol)
 {
   syntax_bits_set = 1;
   syntax_bits = bits;
   case_fold = fold;
+  eolbyte = eol;
 }
 
 /* Lexical analyzer.  All the dross that deals with the obnoxious
@@ -353,7 +365,6 @@ dfasyntax(bits, fold)
    reader is referred to the GNU Regex documentation for the
    meaning of the @#%!@#%^!@ syntax bits. */
 
-static char *lexstart;		/* Pointer to beginning of input string. */
 static char *lexptr;		/* Pointer to next input character. */
 static int lexleft;		/* Number of characters remaining. */
 static token lasttok;		/* Previous token returned; initially END. */
@@ -366,10 +377,12 @@ static int minrep, maxrep;	/* Repeat counts for {m,n}. */
 #define FETCH(c, eoferr)   	      \
   {			   	      \
     if (! lexleft)	   	      \
-      if (eoferr != 0)	   	      \
-	dfaerror(eoferr);  	      \
-      else		   	      \
-	return lasttok = END;	      \
+      {				      \
+	if (eoferr != 0)	      \
+	  dfaerror (eoferr);	      \
+	else		   	      \
+	  return lasttok = END;	      \
+      }				      \
     (c) = (unsigned char) *lexptr++;  \
     --lexleft;		   	      \
   }
@@ -392,8 +405,8 @@ FUNC(is_print, ISPRINT)
 FUNC(is_graph, ISGRAPH)
 FUNC(is_cntrl, ISCNTRL)
 
-static int is_blank(c)
-int c;
+static int
+is_blank (int c)
 {
    return (c == ' ' || c == '\t');
 }
@@ -403,7 +416,7 @@ int c;
    the class.  The leading [ has already been eaten by the lexical analyzer. */
 static struct {
   const char *name;
-  int (*pred) _RE_ARGS((int));
+  int (*pred) PARAMS ((int));
 } prednames[] = {
   { ":alpha:]", is_alpha },
   { ":upper:]", is_upper },
@@ -420,9 +433,11 @@ static struct {
   { 0 }
 };
 
+/* Return non-zero if C is a `word-constituent' byte; zero otherwise.  */
+#define IS_WORD_CONSTITUENT(C) (ISALNUM(C) || (C) == '_')
+
 static int
-looking_at(s)
-     const char *s;
+looking_at (char const *s)
 {
   size_t len;
 
@@ -433,12 +448,14 @@ looking_at(s)
 }
 
 static token
-lex()
+lex (void)
 {
   token c, c1, c2;
   int backslash = 0, invert;
   charclass ccl;
   int i;
+  char lo[2];
+  char hi[2];
 
   /* Basic plan: We fetch a character.  If it's a backslash,
      we set the backslash flag and go through the loop again.
@@ -455,7 +472,7 @@ lex()
 	  if (backslash)
 	    goto normal_char;
 	  if (lexleft == 0)
-	    dfaerror("Unfinished \\ escape");
+	    dfaerror(_("Unfinished \\ escape"));
 	  backslash = 1;
 	  break;
 
@@ -561,44 +578,76 @@ lex()
 	    goto normal_char;
 	  if (backslash != ((syntax_bits & RE_NO_BK_BRACES) == 0))
 	    goto normal_char;
-	  minrep = maxrep = 0;
+	  if (!(syntax_bits & RE_CONTEXT_INDEP_OPS) && laststart)
+	    goto normal_char;
+
+	  if (syntax_bits & RE_NO_BK_BRACES)
+	    {
+	      /* Scan ahead for a valid interval; if it's not valid,
+		 treat it as a literal '{'.  */
+	      int lo = -1, hi = -1;
+	      char const *p = lexptr;
+	      char const *lim = p + lexleft;
+	      for (;  p != lim && ISASCIIDIGIT (*p);  p++)
+		lo = (lo < 0 ? 0 : lo * 10) + *p - '0';
+	      if (p != lim && *p == ',')
+		while (++p != lim && ISASCIIDIGIT (*p))
+		  hi = (hi < 0 ? 0 : hi * 10) + *p - '0';
+	      else
+		hi = lo;
+	      if (p == lim || *p != '}'
+		  || lo < 0 || RE_DUP_MAX < hi || (0 <= hi && hi < lo))
+		goto normal_char;
+	    }
+
+	  minrep = 0;
 	  /* Cases:
 	     {M} - exact count
 	     {M,} - minimum count, maximum is infinity
-	     {,M} - 0 through M
 	     {M,N} - M through N */
-	  FETCH(c, "unfinished repeat count");
-	  if (ISDIGIT(c))
+	  FETCH(c, _("unfinished repeat count"));
+	  if (ISASCIIDIGIT (c))
 	    {
 	      minrep = c - '0';
 	      for (;;)
 		{
-		  FETCH(c, "unfinished repeat count");
-		  if (!ISDIGIT(c))
+		  FETCH(c, _("unfinished repeat count"));
+		  if (! ISASCIIDIGIT (c))
 		    break;
 		  minrep = 10 * minrep + c - '0';
 		}
 	    }
-	  else if (c != ',')
-	    dfaerror("malformed repeat count");
+	  else
+	    dfaerror(_("malformed repeat count"));
 	  if (c == ',')
-	    for (;;)
-	      {
-		FETCH(c, "unfinished repeat count");
-		if (!ISDIGIT(c))
-		  break;
-		maxrep = 10 * maxrep + c - '0';
-	      }
+	    {
+	      FETCH (c, _("unfinished repeat count"));
+	      if (! ISASCIIDIGIT (c))
+		maxrep = -1;
+	      else
+		{
+		  maxrep = c - '0';
+		  for (;;)
+		    {
+		      FETCH (c, _("unfinished repeat count"));
+		      if (! ISASCIIDIGIT (c))
+			break;
+		      maxrep = 10 * maxrep + c - '0';
+		    }
+		  if (0 <= maxrep && maxrep < minrep)
+		    dfaerror (_("malformed repeat count"));
+		}
+	    }
 	  else
 	    maxrep = minrep;
 	  if (!(syntax_bits & RE_NO_BK_BRACES))
 	    {
 	      if (c != '\\')
-		dfaerror("malformed repeat count");
-	      FETCH(c, "unfinished repeat count");
+		dfaerror(_("malformed repeat count"));
+	      FETCH(c, _("unfinished repeat count"));
 	    }
 	  if (c != '}')
-	    dfaerror("malformed repeat count");
+	    dfaerror(_("malformed repeat count"));
 	  laststart = 0;
 	  return lasttok = REPMN;
 
@@ -640,7 +689,7 @@ lex()
 	  zeroset(ccl);
 	  notset(ccl);
 	  if (!(syntax_bits & RE_DOT_NEWLINE))
-	    clrbit('\n', ccl);
+	    clrbit(eolbyte, ccl);
 	  if (syntax_bits & RE_DOT_NOT_NULL)
 	    clrbit('\0', ccl);
 	  laststart = 0;
@@ -652,22 +701,21 @@ lex()
 	    goto normal_char;
 	  zeroset(ccl);
 	  for (c2 = 0; c2 < NOTCHAR; ++c2)
-	    if (ISALNUM(c2))
+	    if (IS_WORD_CONSTITUENT(c2))
 	      setbit(c2, ccl);
-	  setbit('_', ccl);
 	  if (c == 'W')
 	    notset(ccl);
 	  laststart = 0;
 	  return lasttok = CSET + charclass_index(ccl);
-	
+
 	case '[':
 	  if (backslash)
 	    goto normal_char;
 	  zeroset(ccl);
-	  FETCH(c, "Unbalanced [");
+	  FETCH(c, _("Unbalanced ["));
 	  if (c == '^')
 	    {
-	      FETCH(c, "Unbalanced [");
+	      FETCH(c, _("Unbalanced ["));
 	      invert = 1;
 	    }
 	  else
@@ -694,15 +742,15 @@ lex()
 			  setbit(c2, ccl);
 		      lexptr += strlen(prednames[c1].name);
 		      lexleft -= strlen(prednames[c1].name);
-		      FETCH(c1, "Unbalanced [");
+		      FETCH(c1, _("Unbalanced ["));
 		      goto skip;
 		    }
 	      if (c == '\\' && (syntax_bits & RE_BACKSLASH_ESCAPE_IN_LISTS))
-		FETCH(c, "Unbalanced [");
-	      FETCH(c1, "Unbalanced [");
+		FETCH(c, _("Unbalanced ["));
+	      FETCH(c1, _("Unbalanced ["));
 	      if (c1 == '-')
 		{
-		  FETCH(c2, "Unbalanced [");
+		  FETCH(c2, _("Unbalanced ["));
 		  if (c2 == ']')
 		    {
 		      /* In the case [x-], the - is an ordinary hyphen,
@@ -715,8 +763,8 @@ lex()
 		    {
 		      if (c2 == '\\'
 			  && (syntax_bits & RE_BACKSLASH_ESCAPE_IN_LISTS))
-			FETCH(c2, "Unbalanced [");
-		      FETCH(c1, "Unbalanced [");
+			FETCH(c2, _("Unbalanced ["));
+		      FETCH(c1, _("Unbalanced ["));
 		    }
 		}
 	      else
@@ -742,17 +790,26 @@ lex()
 		  }
 	      }
 #else
-	      while (c <= c2)
+	      lo[0] = c;  lo[1] = '\0';
+	      hi[0] = c2; hi[1] = '\0';
+	      for (c = 0; c < NOTCHAR; c++)
 		{
-		  setbit(c, ccl);
-		  if (case_fold)
-		    if (ISUPPER(c))
-		      setbit(tolower(c), ccl);
-		    else if (ISLOWER(c))
-		      setbit(toupper(c), ccl);
-		  ++c;
+		  char ch[2];
+		  ch[0] = c;  ch[1] = '\0';
+		  if (strcoll (lo, ch) <= 0 && strcoll (ch, hi) <= 0)
+		    {
+		      setbit (c, ccl);
+		      if (case_fold)
+			{
+			  if (ISUPPER (c))
+			    setbit (tolower (c), ccl);
+			  else if (ISLOWER (c))
+			    setbit (toupper (c), ccl);
+			}
+		    }
 		}
 #endif
+
 	    skip:
 	      ;
 	    }
@@ -761,7 +818,7 @@ lex()
 	    {
 	      notset(ccl);
 	      if (syntax_bits & RE_HAT_LISTS_NOT_NEWLINE)
-		clrbit('\n', ccl);
+		clrbit(eolbyte, ccl);
 	    }
 	  laststart = 0;
 	  return lasttok = CSET + charclass_index(ccl);
@@ -801,8 +858,7 @@ static int depth;		/* Current depth of a hypothetical stack
 /* Add the given token to the parse tree, maintaining the depth count and
    updating the maximum depth if necessary. */
 static void
-addtok(t)
-     token t;
+addtok (token t)
 {
   REALLOC_IF_NECESSARY(dfa->tokens, token, dfa->talloc, dfa->tindex);
   dfa->tokens[dfa->tindex++] = t;
@@ -861,7 +917,7 @@ addtok(t)
    The parser builds a parse tree in postfix form in an array of tokens. */
 
 static void
-atom()
+atom (void)
 {
   if ((tok >= 0 && tok < NOTCHAR) || tok >= CSET || tok == BACKREF
       || tok == BEGLINE || tok == ENDLINE || tok == BEGWORD
@@ -875,7 +931,7 @@ atom()
       tok = lex();
       regexp(0);
       if (tok != RPAREN)
-	dfaerror("Unbalanced (");
+	dfaerror(_("Unbalanced ("));
       tok = lex();
     }
   else
@@ -884,8 +940,7 @@ atom()
 
 /* Return the number of tokens in the given subexpression. */
 static int
-nsubtoks(tindex)
-int tindex;
+nsubtoks (int tindex)
 {
   int ntoks1;
 
@@ -907,8 +962,7 @@ int tindex;
 
 /* Copy the given subexpression to the top of the tree. */
 static void
-copytoks(tindex, ntokens)
-     int tindex, ntokens;
+copytoks (int tindex, int ntokens)
 {
   int i;
 
@@ -917,7 +971,7 @@ copytoks(tindex, ntokens)
 }
 
 static void
-closure()
+closure (void)
 {
   int tindex, ntokens, i;
 
@@ -927,7 +981,7 @@ closure()
       {
 	ntokens = nsubtoks(dfa->tindex);
 	tindex = dfa->tindex - ntokens;
-	if (maxrep == 0)
+	if (maxrep < 0)
 	  addtok(PLUS);
 	if (minrep == 0)
 	  addtok(QMARK);
@@ -952,7 +1006,7 @@ closure()
 }
 
 static void
-branch()
+branch (void)
 {
   closure();
   while (tok != RPAREN && tok != OR && tok >= 0)
@@ -963,8 +1017,7 @@ branch()
 }
 
 static void
-regexp(toplevel)
-     int toplevel;
+regexp (int toplevel)
 {
   branch();
   while (tok == OR)
@@ -982,21 +1035,17 @@ regexp(toplevel)
    length of the string, so s can include NUL characters.  D is a pointer to
    the struct dfa to parse into. */
 void
-dfaparse(s, len, d)
-     char *s;
-     size_t len;
-     struct dfa *d;
-
+dfaparse (char *s, size_t len, struct dfa *d)
 {
   dfa = d;
-  lexstart = lexptr = s;
+  lexptr = s;
   lexleft = len;
   lasttok = END;
   laststart = 1;
   parens = 0;
 
   if (! syntax_bits_set)
-    dfaerror("No syntax specified");
+    dfaerror(_("No regexp syntax bits specified"));
 
   tok = lex();
   depth = d->depth;
@@ -1004,7 +1053,7 @@ dfaparse(s, len, d)
   regexp(1);
 
   if (tok != END)
-    dfaerror("Unbalanced )");
+    dfaerror(_("Unbalanced )"));
 
   addtok(END - d->nregexps);
   addtok(CAT);
@@ -1019,9 +1068,7 @@ dfaparse(s, len, d)
 
 /* Copy one set to another; the destination must be large enough. */
 static void
-copy(src, dst)
-     position_set *src;
-     position_set *dst;
+copy (position_set *src, position_set *dst)
 {
   int i;
 
@@ -1035,9 +1082,7 @@ copy(src, dst)
    the same index then their constraints are logically or'd together.
    S->elems must point to an array large enough to hold the resulting set. */
 static void
-insert(p, s)
-     position p;
-     position_set *s;
+insert (position p, position_set *s)
 {
   int i;
   position t1, t2;
@@ -1062,10 +1107,7 @@ insert(p, s)
 /* Merge two sets of positions into a third.  The result is exactly as if
    the positions of both sets were inserted into an initially empty set. */
 static void
-merge(s1, s2, m)
-     position_set *s1;
-     position_set *s2;
-     position_set *m;
+merge (position_set *s1, position_set *s2, position_set *m)
 {
   int i = 0, j = 0;
 
@@ -1088,9 +1130,7 @@ merge(s1, s2, m)
 
 /* Delete a position from a set. */
 static void
-delete(p, s)
-     position p;
-     position_set *s;
+delete (position p, position_set *s)
 {
   int i;
 
@@ -1107,11 +1147,7 @@ delete(p, s)
    state.  Newline and letter tell whether we got here on a newline or
    letter, respectively. */
 static int
-state_index(d, s, newline, letter)
-     struct dfa *d;
-     position_set *s;
-     int newline;
-     int letter;
+state_index (struct dfa *d, position_set *s, int newline, int letter)
 {
   int hash = 0;
   int constraint;
@@ -1176,12 +1212,8 @@ state_index(d, s, newline, letter)
    that position with the elements of its follow labeled with an appropriate
    constraint.  Repeat exhaustively until no funny positions are left.
    S->elems must be large enough to hold the result. */
-static void epsclosure _RE_ARGS((position_set *s, struct dfa *d));
-
 static void
-epsclosure(s, d)
-     position_set *s;
-     struct dfa *d;
+epsclosure (position_set *s, struct dfa *d)
 {
   int i, j;
   int *visited;
@@ -1293,9 +1325,7 @@ epsclosure(s, d)
    scheme; the number of elements in each set deeper in the stack can be
    used to determine the address of a particular set's array. */
 void
-dfaanalyze(d, searchflag)
-     struct dfa *d;
-     int searchflag;
+dfaanalyze (struct dfa *d, int searchflag)
 {
   int *nullable;		/* Nullable stack. */
   int *nfirstpos;		/* Element count stack for firstpos sets. */
@@ -1556,10 +1586,7 @@ dfaanalyze(d, searchflag)
    create a new group labeled with the characters of C and insert this
    position in that group. */
 void
-dfastate(s, d, trans)
-     int s;
-     struct dfa *d;
-     int trans[];
+dfastate (int s, struct dfa *d, int trans[])
 {
   position_set grps[NOTCHAR];	/* As many as will ever be needed. */
   charclass labels[NOTCHAR];	/* Labels corresponding to the groups. */
@@ -1588,9 +1615,9 @@ dfastate(s, d, trans)
     {
       initialized = 1;
       for (i = 0; i < NOTCHAR; ++i)
-	if (ISALNUM(i))
+	if (IS_WORD_CONSTITUENT(i))
 	  setbit(i, letters);
-      setbit('\n', newline);
+      setbit(eolbyte, newline);
     }
 
   zeroset(matches);
@@ -1611,7 +1638,7 @@ dfastate(s, d, trans)
 	{
 	  if (! MATCHES_NEWLINE_CONTEXT(pos.constraint,
 					 d->states[s].newline, 1))
-	    clrbit('\n', matches);
+	    clrbit(eolbyte, matches);
 	  if (! MATCHES_NEWLINE_CONTEXT(pos.constraint,
 					 d->states[s].newline, 0))
 	    for (j = 0; j < CHARCLASS_INTS; ++j)
@@ -1721,12 +1748,8 @@ dfastate(s, d, trans)
       else
 	state_letter = state;
       for (i = 0; i < NOTCHAR; ++i)
-	if (i == '\n')
-	  trans[i] = state_newline;
-	else if (ISALNUM(i))
-	  trans[i] = state_letter;
-	else
-	  trans[i] = state;
+	trans[i] = (IS_WORD_CONSTITUENT(i)) ? state_letter : state;
+      trans[eolbyte] = state_newline;
     }
   else
     for (i = 0; i < NOTCHAR; ++i)
@@ -1750,7 +1773,7 @@ dfastate(s, d, trans)
 
       /* Find out if the new state will want any context information. */
       wants_newline = 0;
-      if (tstbit('\n', labels[i]))
+      if (tstbit(eolbyte, labels[i]))
 	for (j = 0; j < follows.nelem; ++j)
 	  if (PREV_NEWLINE_DEPENDENT(follows.elems[j].constraint))
 	    wants_newline = 1;
@@ -1782,9 +1805,9 @@ dfastate(s, d, trans)
 	    {
 	      int c = j * INTBITS + k;
 
-	      if (c == '\n')
+	      if (c == eolbyte)
 		trans[c] = state_newline;
-	      else if (ISALNUM(c))
+	      else if (IS_WORD_CONSTITUENT(c))
 		trans[c] = state_letter;
 	      else if (c < NOTCHAR)
 		trans[c] = state;
@@ -1805,9 +1828,7 @@ dfastate(s, d, trans)
    TODO: Improve this comment, get rid of the unnecessary redundancy. */
 
 static void
-build_state(s, d)
-     int s;
-     struct dfa *d;
+build_state (int s, struct dfa *d)
 {
   int *trans;			/* The new transition table. */
   int i;
@@ -1873,8 +1894,8 @@ build_state(s, d)
 
   /* Keep the newline transition in a special place so we can use it as
      a sentinel. */
-  d->newlines[s] = trans['\n'];
-  trans['\n'] = -1;
+  d->newlines[s] = trans[eolbyte];
+  trans[eolbyte] = -1;
 
   if (ACCEPTING(s, *d))
     d->fails[s] = trans;
@@ -1883,8 +1904,7 @@ build_state(s, d)
 }
 
 static void
-build_state_zero(d)
-     struct dfa *d;
+build_state_zero (struct dfa *d)
 {
   d->tralloc = 1;
   d->trcount = 0;
@@ -1910,18 +1930,14 @@ build_state_zero(d)
    match needs to be verified by a backtracking matcher.  Otherwise
    we store a 0 in *backref. */
 char *
-dfaexec(d, begin, end, newline, count, backref)
-     struct dfa *d;
-     char *begin;
-     char *end;
-     int newline;
-     int *count;
-     int *backref;
+dfaexec (struct dfa *d, char *begin, char *end,
+	 int newline, int *count, int *backref)
 {
   register int s, s1, tmp;	/* Current state. */
   register unsigned char *p;	/* Current input character. */
   register int **trans, *t;	/* Copy of d->trans so it can be optimized
 				   into a register. */
+  register unsigned char eol = eolbyte;	/* Likewise for eolbyte.  */
   static int sbit[NOTCHAR];	/* Table for anding with d->success. */
   static int sbit_init;
 
@@ -1931,12 +1947,8 @@ dfaexec(d, begin, end, newline, count, backref)
 
       sbit_init = 1;
       for (i = 0; i < NOTCHAR; ++i)
-	if (i == '\n')
-	  sbit[i] = 4;
-	else if (ISALNUM(i))
-	  sbit[i] = 2;
-	else
-	  sbit[i] = 1;
+	sbit[i] = (IS_WORD_CONSTITUENT(i)) ? 2 : 1;
+      sbit[eol] = 4;
     }
 
   if (! d->tralloc)
@@ -1945,34 +1957,25 @@ dfaexec(d, begin, end, newline, count, backref)
   s = s1 = 0;
   p = (unsigned char *) begin;
   trans = d->trans;
-  *end = '\n';
+  *end = eol;
 
   for (;;)
     {
-      /* The dreaded inner loop. */
-      if ((t = trans[s]) != 0)
-	do
-	  {
-	    s1 = t[*p++];
-	    if (! (t = trans[s1]))
-	      goto last_was_s;
-	    s = t[*p++];
-	  }
-        while ((t = trans[s]) != 0);
-      goto last_was_s1;
-    last_was_s:
-      tmp = s, s = s1, s1 = tmp;
-    last_was_s1:
+      while ((t = trans[s]) != 0) { /* hand-optimized loop */
+	s1 = t[*p++];
+        if ((t = trans[s1]) == 0) {
+           tmp = s ; s = s1 ; s1 = tmp ; /* swap */
+           break;
+        }
+	s = t[*p++];
+      }
 
       if (s >= 0 && p <= (unsigned char *) end && d->fails[s])
 	{
 	  if (d->success[s] & sbit[*p])
 	    {
 	      if (backref)
-		if (d->states[s].backref)
-		  *backref = 1;
-		else
-		  *backref = 0;
+		*backref = (d->states[s].backref != 0);
 	      return (char *) p;
 	    }
 
@@ -1982,7 +1985,7 @@ dfaexec(d, begin, end, newline, count, backref)
 	}
 
       /* If the previous character was a newline, count it. */
-      if (count && (char *) p <= end && p[-1] == '\n')
+      if (count && (char *) p <= end && p[-1] == eol)
 	++*count;
 
       /* Check if we've run off the end of the buffer. */
@@ -1996,7 +1999,7 @@ dfaexec(d, begin, end, newline, count, backref)
 	  continue;
 	}
 
-      if (p[-1] == '\n' && newline)
+      if (p[-1] == eol && newline)
 	{
 	  s = d->newlines[s1];
 	  continue;
@@ -2009,8 +2012,7 @@ dfaexec(d, begin, end, newline, count, backref)
 /* Initialize the components of a dfa that the other routines don't
    initialize for themselves. */
 void
-dfainit(d)
-     struct dfa *d;
+dfainit (struct dfa *d)
 {
   d->calloc = 1;
   MALLOC(d->charclasses, charclass, d->calloc);
@@ -2024,15 +2026,16 @@ dfainit(d)
   d->tralloc = 0;
 
   d->musts = 0;
+  d->realtrans = 0;
+  d->fails = 0;
+  d->newlines = 0;
+  d->success = 0;
+
 }
 
 /* Parse and analyze a single string of the given length. */
 void
-dfacomp(s, len, d, searchflag)
-     char *s;
-     size_t len;
-     struct dfa *d;
-     int searchflag;
+dfacomp (char *s, size_t len, struct dfa *d, int searchflag)
 {
   if (case_fold)	/* dummy folding in service of dfamust() */
     {
@@ -2041,13 +2044,13 @@ dfacomp(s, len, d, searchflag)
 
       lcopy = malloc(len);
       if (!lcopy)
-	dfaerror("out of memory");
-      
+	dfaerror(_("out of memory"));
+
       /* This is a kludge. */
       case_fold = 0;
       for (i = 0; i < len; ++i)
-	if (ISUPPER(s[i]))
-	  lcopy[i] = tolower(s[i]);
+	if (ISUPPER ((unsigned char) s[i]))
+	  lcopy[i] = tolower ((unsigned char) s[i]);
 	else
 	  lcopy[i] = s[i];
 
@@ -2071,8 +2074,7 @@ dfacomp(s, len, d, searchflag)
 
 /* Free the storage held by the components of a dfa. */
 void
-dfafree(d)
-     struct dfa *d;
+dfafree (struct dfa *d)
 {
   int i;
   struct dfamust *dm, *ndm;
@@ -2133,9 +2135,9 @@ dfafree(d)
 	Type	left		right		is		in
 	----	----		-----		--		--
 	char c	# c		# c		# c		# c
-	
+
 	CSET	ZERO		ZERO		ZERO		ZERO
-	
+
 	STAR	ZERO		ZERO		ZERO		ZERO
 
 	QMARK	ZERO		ZERO		ZERO		ZERO
@@ -2146,12 +2148,12 @@ dfafree(d)
 		p->left :	q->right :	q->is!=ZERO) ?	q->in plus
 		p->is##q->left	p->right##q->is	p->is##q->is :	p->right##q->left
 						ZERO
-					
+
 	OR	longest common	longest common	(do p->is and	substrings common to
 		leading		trailing	q->is have same	p->in and q->in
-		(sub)sequence	(sub)sequence	length and	
-		of p->left	of p->right	content) ?	
-		and q->left	and q->right	p->is : NULL	
+		(sub)sequence	(sub)sequence	length and
+		of p->left	of p->right	content) ?
+		and q->left	and q->right	p->is : NULL
 
    If there's anything else we recognize in the tree, all four sequences get set
    to zero-length sequences.  If there's something we don't recognize in the tree,
@@ -2178,15 +2180,13 @@ dfafree(d)
    Does optimization actually accomplish anything,
    or is the automaton you get from "psi|epsilon" (for example)
    the same as the one you get from "psi" (for example)?
-  
+
    Are optimizable r.e.'s likely to be used in real-life situations
    (something like 'ab*' is probably unlikely; something like is
    'psi|epsilon' is likelier)? */
 
 static char *
-icatalloc(old, new)
-     char *old;
-     char *new;
+icatalloc (char *old, char *new)
 {
   char *result;
   size_t oldsize, newsize;
@@ -2207,16 +2207,13 @@ icatalloc(old, new)
 }
 
 static char *
-icpyalloc(string)
-     char *string;
+icpyalloc (char *string)
 {
   return icatalloc((char *) NULL, string);
 }
 
 static char *
-istrstr(lookin, lookfor)
-     char *lookin;
-     char *lookfor;
+istrstr (char *lookin, char *lookfor)
 {
   char *cp;
   size_t len;
@@ -2229,16 +2226,14 @@ istrstr(lookin, lookfor)
 }
 
 static void
-ifree(cp)
-     char *cp;
+ifree (char *cp)
 {
   if (cp != NULL)
     free(cp);
 }
 
 static void
-freelist(cpp)
-     char **cpp;
+freelist (char **cpp)
 {
   int i;
 
@@ -2252,10 +2247,7 @@ freelist(cpp)
 }
 
 static char **
-enlist(cpp, new, len)
-     char **cpp;
-     char *new;
-     size_t len;
+enlist (char **cpp, char *new, size_t len)
 {
   int i, j;
 
@@ -2300,9 +2292,7 @@ enlist(cpp, new, len)
    list of their distinct common substrings. Return NULL if something
    seems wild. */
 static char **
-comsubs(left, right)
-     char *left;
-     char *right;
+comsubs (char *left, char *right)
 {
   char **cpp;
   char *lcp;
@@ -2336,9 +2326,7 @@ comsubs(left, right)
 }
 
 static char **
-addlists(old, new)
-char **old;
-char **new;
+addlists (char **old, char **new)
 {
   int i;
 
@@ -2356,9 +2344,7 @@ char **new;
 /* Given two lists of substrings, return a new list giving substrings
    common to both. */
 static char **
-inboth(left, right)
-     char **left;
-     char **right;
+inboth (char **left, char **right)
 {
   char **both;
   char **temp;
@@ -2399,16 +2385,14 @@ typedef struct
 } must;
 
 static void
-resetmust(mp)
-must *mp;
+resetmust (must *mp)
 {
   mp->left[0] = mp->right[0] = mp->is[0] = '\0';
   freelist(mp->in);
 }
 
 static void
-dfamust(dfa)
-struct dfa *dfa;
+dfamust (struct dfa *dfa)
 {
   must *musts;
   must *mp;
