@@ -220,11 +220,17 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 	/* Output a record for the thread: */
 	snprintf(s, sizeof(s),
-	    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+	    "--------------------\nThread %p (%s) prio %3d state %s",
 	    pthread, (pthread->name == NULL) ? "" : pthread->name,
-	    pthread->active_priority, thread_info[i].name, pthread->fname,
-	    pthread->lineno);
+	    pthread->active_priority, thread_info[i].name);
 	__sys_write(fd, s, strlen(s));
+	/* And now where it is. */
+	if (pthread->fname != NULL) {
+		snprintf(s, sizeof(s), " [%s:%d]", pthread->fname,
+		    pthread->lineno);
+		__sys_write(fd, s, strlen(s));
+	}
+	__sys_write(fd, "\n", 1);
 
 	if (long_version != 0) {
 		/* Check if this is the running thread: */
