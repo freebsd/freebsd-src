@@ -280,7 +280,8 @@ rl_dma_map_txbuf(arg, segs, nseg, error)
 /*
  * Send a read command and address to the EEPROM, check for ACK.
  */
-static void rl_eeprom_putbyte(sc, addr)
+static void
+rl_eeprom_putbyte(sc, addr)
 	struct rl_softc		*sc;
 	int			addr;
 {
@@ -310,7 +311,8 @@ static void rl_eeprom_putbyte(sc, addr)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void rl_eeprom_getword(sc, addr, dest)
+static void
+rl_eeprom_getword(sc, addr, dest)
 	struct rl_softc		*sc;
 	int			addr;
 	u_int16_t		*dest;
@@ -351,7 +353,8 @@ static void rl_eeprom_getword(sc, addr, dest)
 /*
  * Read a sequence of words from the EEPROM.
  */
-static void rl_read_eeprom(sc, dest, off, cnt, swap)
+static void
+rl_read_eeprom(sc, dest, off, cnt, swap)
 	struct rl_softc		*sc;
 	caddr_t			dest;
 	int			off;
@@ -391,7 +394,8 @@ static void rl_read_eeprom(sc, dest, off, cnt, swap)
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
-static void rl_mii_sync(sc)
+static void
+rl_mii_sync(sc)
 	struct rl_softc		*sc;
 {
 	register int		i;
@@ -411,7 +415,8 @@ static void rl_mii_sync(sc)
 /*
  * Clock a series of bits through the MII.
  */
-static void rl_mii_send(sc, bits, cnt)
+static void
+rl_mii_send(sc, bits, cnt)
 	struct rl_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
@@ -436,7 +441,8 @@ static void rl_mii_send(sc, bits, cnt)
 /*
  * Read an PHY register through the MII.
  */
-static int rl_mii_readreg(sc, frame)
+static int
+rl_mii_readreg(sc, frame)
 	struct rl_softc		*sc;
 	struct rl_mii_frame	*frame;
 	
@@ -529,7 +535,8 @@ fail:
 /*
  * Write to a PHY register through the MII.
  */
-static int rl_mii_writereg(sc, frame)
+static int
+rl_mii_writereg(sc, frame)
 	struct rl_softc		*sc;
 	struct rl_mii_frame	*frame;
 	
@@ -574,7 +581,8 @@ static int rl_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int rl_miibus_readreg(dev, phy, reg)
+static int
+rl_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -644,7 +652,8 @@ static int rl_miibus_readreg(dev, phy, reg)
 	return(frame.mii_data);
 }
 
-static int rl_miibus_writereg(dev, phy, reg, data)
+static int
+rl_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -704,7 +713,8 @@ static int rl_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void rl_miibus_statchg(dev)
+static void
+rl_miibus_statchg(dev)
 	device_t		dev;
 {
 	return;
@@ -713,7 +723,8 @@ static void rl_miibus_statchg(dev)
 /*
  * Calculate CRC of a multicast group address, return the upper 6 bits.
  */
-static u_int8_t rl_calchash(addr)
+static u_int8_t
+rl_calchash(addr)
 	caddr_t			addr;
 {
 	u_int32_t		crc, carry;
@@ -741,7 +752,8 @@ static u_int8_t rl_calchash(addr)
 /*
  * Program the 64-bit multicast hash filter.
  */
-static void rl_setmulti(sc)
+static void
+rl_setmulti(sc)
 	struct rl_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -791,7 +803,8 @@ static void rl_setmulti(sc)
 	return;
 }
 
-static void rl_reset(sc)
+static void
+rl_reset(sc)
 	struct rl_softc		*sc;
 {
 	register int		i;
@@ -813,7 +826,8 @@ static void rl_reset(sc)
  * Probe for a RealTek 8129/8139 chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int rl_probe(dev)
+static int
+rl_probe(dev)
 	device_t		dev;
 {
 	struct rl_type		*t;
@@ -836,7 +850,8 @@ static int rl_probe(dev)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int rl_attach(dev)
+static int
+rl_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -1081,7 +1096,8 @@ fail:
 	return(error);
 }
 
-static int rl_detach(dev)
+static int
+rl_detach(dev)
 	device_t		dev;
 {
 	struct rl_softc		*sc;
@@ -1116,7 +1132,8 @@ static int rl_detach(dev)
 /*
  * Initialize the transmit descriptors.
  */
-static int rl_list_tx_init(sc)
+static int
+rl_list_tx_init(sc)
 	struct rl_softc		*sc;
 {
 	struct rl_chain_data	*cd;
@@ -1156,7 +1173,8 @@ static int rl_list_tx_init(sc)
  * on a 32-bit boundary. To achieve this, we pass RL_ETHER_ALIGN (2 bytes)
  * as the offset argument to m_devget(). 
  */
-static void rl_rxeof(sc)
+static void
+rl_rxeof(sc)
 	struct rl_softc		*sc;
 {
         struct ether_header	*eh;
@@ -1284,7 +1302,8 @@ static void rl_rxeof(sc)
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
-static void rl_txeof(sc)
+static void
+rl_txeof(sc)
 	struct rl_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -1340,7 +1359,8 @@ static void rl_txeof(sc)
 	return;
 }
 
-static void rl_tick(xsc)
+static void
+rl_tick(xsc)
 	void			*xsc;
 {
 	struct rl_softc		*sc;
@@ -1399,7 +1419,8 @@ done:
 }
 #endif /* DEVICE_POLLING */
 
-static void rl_intr(arg)
+static void
+rl_intr(arg)
 	void			*arg;
 {
 	struct rl_softc		*sc;
@@ -1468,7 +1489,8 @@ done:
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int rl_encap(sc, m_head)
+static int
+rl_encap(sc, m_head)
 	struct rl_softc		*sc;
 	struct mbuf		*m_head;
 {
@@ -1519,7 +1541,8 @@ static int rl_encap(sc, m_head)
  * Main transmit routine.
  */
 
-static void rl_start(ifp)
+static void
+rl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct rl_softc		*sc;
@@ -1579,7 +1602,8 @@ static void rl_start(ifp)
 	return;
 }
 
-static void rl_init(xsc)
+static void
+rl_init(xsc)
 	void			*xsc;
 {
 	struct rl_softc		*sc = xsc;
@@ -1688,7 +1712,8 @@ static void rl_init(xsc)
 /*
  * Set media options.
  */
-static int rl_ifmedia_upd(ifp)
+static int
+rl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct rl_softc		*sc;
@@ -1704,7 +1729,8 @@ static int rl_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void rl_ifmedia_sts(ifp, ifmr)
+static void
+rl_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -1721,7 +1747,8 @@ static void rl_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int rl_ioctl(ifp, command, data)
+static int
+rl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1768,7 +1795,8 @@ static int rl_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void rl_watchdog(ifp)
+static void
+rl_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct rl_softc		*sc;
@@ -1790,7 +1818,8 @@ static void rl_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void rl_stop(sc)
+static void
+rl_stop(sc)
 	struct rl_softc		*sc;
 {
 	register int		i;
@@ -1834,7 +1863,8 @@ static void rl_stop(sc)
  * settings in case the BIOS doesn't restore them properly on
  * resume.
  */
-static int rl_suspend(dev)
+static int
+rl_suspend(dev)
 	device_t		dev;
 {
 	register int		i;
@@ -1861,7 +1891,8 @@ static int rl_suspend(dev)
  * doesn't, re-enable busmastering, and restart the interface if
  * appropriate.
  */
-static int rl_resume(dev)
+static int
+rl_resume(dev)
 	device_t		dev;
 {
 	register int		i;
@@ -1896,7 +1927,8 @@ static int rl_resume(dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void rl_shutdown(dev)
+static void
+rl_shutdown(dev)
 	device_t		dev;
 {
 	struct rl_softc		*sc;
