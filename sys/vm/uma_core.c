@@ -129,6 +129,10 @@ static int uma_boot_free = 0;
 /* Is the VM done starting up? */
 static int booted = 0;
 
+/* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
+static u_int uma_max_ipers;
+static u_int uma_max_ipers_ref;
+
 /*
  * This is the handle used to schedule events that need to happen
  * outside of the allocation fast path.
@@ -1011,9 +1015,10 @@ static void
 zone_small_init(uma_zone_t zone)
 {
 	uma_keg_t keg;
-	int rsize;
-	int memused;
-	int ipers;
+	u_int rsize;
+	u_int memused;
+	u_int wastedspace;
+	u_int shsize;
 
 	keg = zone->uz_keg;
 	KASSERT(keg != NULL, ("Keg is null in zone_small_init"));
@@ -1021,40 +1026,53 @@ zone_small_init(uma_zone_t zone)
 
 	if (rsize < UMA_SMALLEST_UNIT)
 		rsize = UMA_SMALLEST_UNIT;
-
 	if (rsize & keg->uk_align)
 		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
 
 	keg->uk_rsize = rsize;
-
-	rsize += 1;	/* Account for the byte of linkage */
-	keg->uk_ipers = (UMA_SLAB_SIZE - sizeof(struct uma_slab)) / rsize;
 	keg->uk_ppera = 1;
 
-	KASSERT(keg->uk_ipers != 0, ("zone_small_init: ipers is 0, uh-oh!"));
-	memused = keg->uk_ipers * keg->uk_rsize;
+	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+		rsize += UMA_FRITMREF_SZ;	/* linkage & refcnt */
+		shsize = sizeof(struct uma_slab_refcnt);
+	} else {
+		rsize += UMA_FRITM_SZ;	/* Account for linkage */
+		shsize = sizeof(struct uma_slab);
+	}
 
-	/* Can we do any better? */
-	if ((keg->uk_flags & UMA_ZONE_REFCNT) ||
-	    ((UMA_SLAB_SIZE - memused) >= UMA_MAX_WASTE)) {
-		/*
-		 * We can't do this if we're internal or if we've been
-		 * asked to not go to the VM for buckets.  If we do this we
-		 * may end up going to the VM (kmem_map) for slabs which we
-		 * do not want to do if we're UMA_ZFLAG_CACHEONLY as a
-		 * result of UMA_ZONE_VM, which clearly forbids it.
-		 */
-		if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) ||
-		    (keg->uk_flags & UMA_ZFLAG_CACHEONLY))
-			return;
-		ipers = UMA_SLAB_SIZE / keg->uk_rsize;
-		if ((keg->uk_flags & UMA_ZONE_REFCNT) ||
-		    (ipers > keg->uk_ipers)) {
-			keg->uk_flags |= UMA_ZONE_OFFPAGE;
-			if ((keg->uk_flags & UMA_ZONE_MALLOC) == 0)
-				keg->uk_flags |= UMA_ZONE_HASH;
-			keg->uk_ipers = ipers;
-		}
+	keg->uk_ipers = (UMA_SLAB_SIZE - shsize) / rsize;
+	KASSERT(keg->uk_ipers != 0, ("zone_small_init: ipers is 0"));
+	memused = keg->uk_ipers * rsize + shsize;
+	wastedspace = UMA_SLAB_SIZE - memused;
+
+	/*
+	 * We can't do OFFPAGE if we're internal or if we've been
+	 * asked to not go to the VM for buckets.  If we do this we
+	 * may end up going to the VM (kmem_map) for slabs which we
+	 * do not want to do if we're UMA_ZFLAG_CACHEONLY as a
+	 * result of UMA_ZONE_VM, which clearly forbids it.
+	 */
+	if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) ||
+	    (keg->uk_flags & UMA_ZFLAG_CACHEONLY))
+		return;
+
+	if ((wastedspace >= UMA_MAX_WASTE) &&
+	    (keg->uk_ipers < (UMA_SLAB_SIZE / keg->uk_rsize))) {
+		keg->uk_ipers = UMA_SLAB_SIZE / keg->uk_rsize;
+		KASSERT(keg->uk_ipers <= 255,
+		    ("zone_small_init: keg->uk_ipers too high!"));
+#ifdef UMA_DEBUG
+		printf("UMA decided we need offpage slab headers for "
+		    "zone: %s, calculated wastedspace = %d, "
+		    "maximum wasted space allowed = %d, "
+		    "calculated ipers = %d, "
+		    "new wasted space = %d\n", zone->uz_name, wastedspace,
+		    UMA_MAX_WASTE, keg->uk_ipers,
+		    UMA_SLAB_SIZE - keg->uk_ipers * keg->uk_rsize);
+#endif
+		keg->uk_flags |= UMA_ZONE_OFFPAGE;
+		if ((keg->uk_flags & UMA_ZONE_MALLOC) == 0)
+			keg->uk_flags |= UMA_ZONE_HASH;
 	}
 }
 
@@ -1137,20 +1155,31 @@ keg_ctor(void *mem, int size, void *udata)
 		keg->uk_init = zero_init;
 
 	/*
-	 * The +1 byte added to uk_size is to account for the byte of
+	 * The +UMA_FRITM_SZ added to uk_size is to account for the
 	 * linkage that is added to the size in zone_small_init().  If
 	 * we don't account for this here then we may end up in
 	 * zone_small_init() with a calculated 'ipers' of 0.
 	 */
-	if ((keg->uk_size+1) > (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
-		zone_large_init(zone);
-	else
-		zone_small_init(zone);
+	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+		if ((keg->uk_size+UMA_FRITMREF_SZ) >
+		    (UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt)))
+			zone_large_init(zone);
+		else
+			zone_small_init(zone);
+	} else {
+		if ((keg->uk_size+UMA_FRITM_SZ) >
+		    (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
+			zone_large_init(zone);
+		else
+			zone_small_init(zone);
+	}
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT)
-		keg->uk_slabzone = slabrefzone;
-	else if (keg->uk_flags & UMA_ZONE_OFFPAGE)
-		keg->uk_slabzone = slabzone;
+	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
+		if (keg->uk_flags & UMA_ZONE_REFCNT)
+			keg->uk_slabzone = slabrefzone;
+		else
+			keg->uk_slabzone = slabzone;
+	}
 
 	/*
 	 * If we haven't booted yet we need allocations to go through the
@@ -1181,17 +1210,35 @@ keg_ctor(void *mem, int size, void *udata)
 	 * justified offset into the memory on an ALIGN_PTR boundary.
 	 */
 	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE)) {
-		int totsize;
+		u_int totsize;
 
 		/* Size of the slab struct and free list */
-		totsize = sizeof(struct uma_slab) + keg->uk_ipers;
+		if (keg->uk_flags & UMA_ZONE_REFCNT)
+			totsize = sizeof(struct uma_slab_refcnt) +
+			    keg->uk_ipers * UMA_FRITMREF_SZ;
+		else
+			totsize = sizeof(struct uma_slab) +
+			    keg->uk_ipers * UMA_FRITM_SZ;
+
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
 		keg->uk_pgoff = UMA_SLAB_SIZE - totsize;
-		totsize = keg->uk_pgoff + sizeof(struct uma_slab)
-		    + keg->uk_ipers;
-		/* I don't think it's possible, but I'll make sure anyway */
+
+		if (keg->uk_flags & UMA_ZONE_REFCNT)
+			totsize = keg->uk_pgoff + sizeof(struct uma_slab_refcnt)
+			    + keg->uk_ipers * UMA_FRITMREF_SZ;
+		else
+			totsize = keg->uk_pgoff + sizeof(struct uma_slab)
+			    + keg->uk_ipers * UMA_FRITM_SZ;
+
+		/*
+		 * The only way the following is possible is if with our
+		 * UMA_ALIGN_PTR adjustments we are now bigger than
+		 * UMA_SLAB_SIZE.  I haven't checked whether this is
+		 * mathematically possible for all cases, so we make
+		 * sure here anyway.
+		 */
 		if (totsize > UMA_SLAB_SIZE) {
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
@@ -1395,7 +1442,8 @@ uma_startup(void *bootmem)
 {
 	struct uma_zctor_args args;
 	uma_slab_t slab;
-	int slabsize;
+	u_int slabsize;
+	u_int objsize, totsize, wsize;
 	int i;
 
 #ifdef UMA_DEBUG
@@ -1412,6 +1460,77 @@ uma_startup(void *bootmem)
 	 * recurse on it.
 	 */
 	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF | MTX_RECURSE);
+
+	/*
+	 * Figure out the maximum number of items-per-slab we'll have if
+	 * we're using the OFFPAGE slab header to track free items, given
+	 * all possible object sizes and the maximum desired wastage
+	 * (UMA_MAX_WASTE).
+	 *
+	 * We iterate until we find an object size for
+	 * which the calculated wastage in zone_small_init() will be
+	 * enough to warrant OFFPAGE.  Since wastedspace versus objsize
+	 * is an overall increasing see-saw function, we find the smallest
+	 * objsize such that the wastage is always acceptable for objects
+	 * with that objsize or smaller.  Since a smaller objsize always
+	 * generates a larger possible uma_max_ipers, we use this computed
+	 * objsize to calculate the largest ipers possible.  Since the
+	 * ipers calculated for OFFPAGE slab headers is always larger than
+	 * the ipers initially calculated in zone_small_init(), we use
+	 * the former's equation (UMA_SLAB_SIZE / keg->uk_rsize) to
+	 * obtain the maximum ipers possible for offpage slab headers.
+	 *
+	 * It should be noted that ipers versus objsize is an inversly
+	 * proportional function which drops off rather quickly so as
+	 * long as our UMA_MAX_WASTE is such that the objsize we calculate
+	 * falls into the portion of the inverse relation AFTER the steep
+	 * falloff, then uma_max_ipers shouldn't be too high (~10 on i386).
+	 *
+	 * Note that we have 8-bits (1 byte) to use as a freelist index
+	 * inside the actual slab header itself and this is enough to
+	 * accomodate us.  In the worst case, a UMA_SMALLEST_UNIT sized
+	 * object with offpage slab header would have ipers =
+	 * UMA_SLAB_SIZE / UMA_SMALLEST_UNIT (currently = 256), which is
+	 * 1 greater than what our byte-integer freelist index can
+	 * accomodate, but we know that this situation never occurs as
+	 * for UMA_SMALLEST_UNIT-sized objects, we will never calculate
+	 * that we need to go to offpage slab headers.  Or, if we do,
+	 * then we trap that condition below and panic in the INVARIANTS case.
+	 */
+	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab) - UMA_MAX_WASTE;
+	totsize = wsize;
+	objsize = UMA_SMALLEST_UNIT;
+	while (totsize >= wsize) {
+		totsize = (UMA_SLAB_SIZE - sizeof(struct uma_slab)) /
+		    (objsize + UMA_FRITM_SZ);
+		totsize *= (UMA_FRITM_SZ + objsize);
+		objsize++;
+	}
+	if (objsize > UMA_SMALLEST_UNIT)
+		objsize--;
+	uma_max_ipers = UMA_SLAB_SIZE / objsize;
+
+	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt) - UMA_MAX_WASTE;
+	totsize = wsize;
+	objsize = UMA_SMALLEST_UNIT;
+	while (totsize >= wsize) {
+		totsize = (UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt)) /
+		    (objsize + UMA_FRITMREF_SZ);
+		totsize *= (UMA_FRITMREF_SZ + objsize);
+		objsize++;
+	}
+	if (objsize > UMA_SMALLEST_UNIT)
+		objsize--;
+	uma_max_ipers_ref = UMA_SLAB_SIZE / objsize;
+
+	KASSERT((uma_max_ipers_ref <= 255) && (uma_max_ipers <= 255),
+	    ("uma_startup: calculated uma_max_ipers values too large!"));
+
+#ifdef UMA_DEBUG
+	printf("Calculated uma_max_ipers (for OFFPAGE) is %d\n", uma_max_ipers);
+	printf("Calculated uma_max_ipers_slab (for OFFPAGE) is %d\n",
+	    uma_max_ipers_ref);
+#endif
 
 	/* "manually" create the initial zone */
 	args.name = "UMA Kegs";
@@ -1468,9 +1587,7 @@ uma_startup(void *bootmem)
 	 * This is the max number of free list items we'll have with
 	 * offpage slabs.
 	 */
-	slabsize = UMA_SLAB_SIZE - sizeof(struct uma_slab);
-	slabsize /= UMA_MAX_WASTE;
-	slabsize++;			/* In case there it's rounded */
+	slabsize = uma_max_ipers * UMA_FRITM_SZ;
 	slabsize += sizeof(struct uma_slab);
 
 	/* Now make a zone for slab headers */
@@ -1483,10 +1600,7 @@ uma_startup(void *bootmem)
 	 * We also create a zone for the bigger slabs with reference
 	 * counts in them, to accomodate UMA_ZONE_REFCNT zones.
 	 */
-	slabsize = UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt);
-	slabsize /= UMA_MAX_WASTE;
-	slabsize++;
-	slabsize += 4 * slabsize;
+	slabsize = uma_max_ipers_ref * UMA_FRITMREF_SZ;
 	slabsize += sizeof(struct uma_slab_refcnt);
 	slabrefzone = uma_zcreate("UMA RCntSlabs",
 				  slabsize,
