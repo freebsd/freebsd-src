@@ -1,4 +1,5 @@
 .\" Startup file for troff.
+.\" $FreeBSD$
 .\" This is tested by pic.
 .nr 0p 0
 .\" Use .do here, so that it works with -C.
@@ -24,7 +25,7 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4
 .\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
 .ie "\*[.T]"koi8-r" \{\
 .do hla us-ru
-.do hpf hyphen.us-ru
+.do hpf locale/hyphen.us-ru
 .   \}
 .el \{\
 .do hla us
