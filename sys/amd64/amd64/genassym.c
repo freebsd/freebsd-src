@@ -55,7 +55,6 @@
 #ifdef KTR_PERCPU
 #include <sys/ktr.h>
 #endif
-#include <machine/frame.h>
 #include <machine/bootinfo.h>
 #include <machine/tss.h>
 #include <sys/vmmeter.h>
@@ -73,7 +72,7 @@
 #ifdef SMP
 #include <machine/apic.h>
 #endif
-#include <machine/segments.h>
+#include <machine/cpu.h>
 #include <machine/sigframe.h>
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
@@ -182,6 +181,8 @@ ASSYM(GD_SWITCHTICKS, offsetof(struct globaldata, gd_switchticks));
 ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
 ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
 ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
+ASSYM(AST_PENDING, AST_PENDING);
+ASSYM(AST_RESCHED, AST_RESCHED);
 ASSYM(GD_INTR_NESTING_LEVEL, offsetof(struct globaldata, gd_intr_nesting_level));
 
 #ifdef USER_LDT
