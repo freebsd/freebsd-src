@@ -350,7 +350,7 @@ found:
 			xfer = fw_xfer_alloc(M_FWE);
 			if (xfer == NULL)
 				break;
-			xfer->spd = tx_speed;
+			xfer->send.spd = tx_speed;
 			xfer->fc = fwe->fd.fc;
 			xfer->retry_req = fw_asybusy;
 			xfer->sc = (caddr_t)fwe;
@@ -447,7 +447,6 @@ fwe_output_callback(struct fw_xfer *xfer)
 		ifp->if_oerrors ++;
 		
 	m_freem(xfer->mbuf);
-	xfer->send.buf = NULL;
 	fw_xfer_unload(xfer);
 
 	s = splimp();
@@ -529,12 +528,11 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 
 		/* keep ip packet alignment for alpha */
 		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
-		fp = (struct fw_pkt *)&xfer->dst; /* XXX */
-		xfer->dst = *((int32_t *)&fwe->pkt_hdr);
+		fp = &xfer->send.hdr;
+		*(u_int32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
 		fp->mode.stream.len = m->m_pkthdr.len;
-		xfer->send.buf = (caddr_t) fp;
 		xfer->mbuf = m;
-		xfer->send.len = m->m_pkthdr.len + HDR_LEN;
+		xfer->send.pay_len = m->m_pkthdr.len;
 
 		if (fw_asyreq(fwe->fd.fc, -1, xfer) != 0) {
 			/* error */
