@@ -158,7 +158,7 @@ main(argc, argv)
 			verbose = 1;
 			break;
 		case 'r':
-			init_flags |= MNT_RDONLY;
+			options = catopt(options, "ro");
 			break;
 		case 't':
 			if (vfslist != NULL)
@@ -173,7 +173,7 @@ main(argc, argv)
 			verbose = 1;
 			break;
 		case 'w':
-			init_flags &= ~MNT_RDONLY;
+			options = catopt(options, "noro");
 			break;
 		case '?':
 		default:
