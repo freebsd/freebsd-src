@@ -61,7 +61,7 @@ initialization using settings found in the
 .Pa /boot/device.hints
 file.
 .Pp
-This driver is mostly based on Cirrus Logic CL-CD180 driver.
+This driver is mostly based on the Cirrus Logic CL-CD180 driver.
 .Sh DIAGNOSTICS
 The following driver specific error messages
 may be reported:
@@ -71,7 +71,7 @@ An internal buffer overflow error has occurred on
 the listed channel.
 The
 .Nm
-driver will need reloaded to correct this.
+driver will need to be reloaded to correct this.
 .It "rc%d: Bad char chan %d"
 The channel has obtained a bad set of characters.
 .It "rc%d: Got extra chars chan %d"
@@ -84,7 +84,7 @@ Data sent from channel
 to the rx buffer was different then expected.
 .It "rc%d: channel %d command timeout, rc.c line: %d"
 A command timeout has occurred on the channel, the
-.Pa src/sys/dev/rc.c
+.Pa src/sys/dev/rc/rc.c
 file can be consulted for more information.
 .El
 .Sh SEE ALSO
