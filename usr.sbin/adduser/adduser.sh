@@ -187,25 +187,31 @@ add_user() {
 	_passwdmethod=
 
 	_name="-n '$username'"
-	[ -n "$uuid" ] && _uid="-u '$uuid'"
-	[ -n "$ulogingroup" ] && _group="-g '$ulogingroup'"
-	[ -n "$ugroups" ] && _grouplist="-G '$ugroups'"
-	[ -n "$ushell" ] && _shell="-s '$ushell'"
-	[ -n "$uhome" ] && _home="-m -d '$uhome'"
-	[ -n "$uclass" ] && _class="-L '$uclass'"
-	[ -n "$ugecos" ] && _comment="-c '$ugecos'"
-	[ -n "$udotdir" ] && _dotdir="-k '$udotdir'"
-	[ -n "$uexpire" ] && _expire="-e '$uexpire'"
-	[ -n "$upwexpire" ] && _pwexpire="-p '$upwexpire'"
+	[ -n "$uuid" ] && _uid='-u "$uuid"'
+	[ -n "$ulogingroup" ] && _group='-g "$ulogingroup"'
+	[ -n "$ugroups" ] && _grouplist='-G "$ugroups"'
+	[ -n "$ushell" ] && _shell='-s "$ushell"'
+	[ -n "$uhome" ] && _home='-m -d "$uhome"'
+	[ -n "$uclass" ] && _class='-L "$uclass"'
+	[ -n "$ugecos" ] && _comment='-c "$ugecos"'
+	[ -n "$udotdir" ] && _dotdir='-k "$udotdir"'
+	[ -n "$uexpire" ] && _expire='-e "$uexpire"'
+	[ -n "$upwexpire" ] && _pwexpire='-p "$upwexpire"'
 	case $passwdtype in
 	no)
 		_passwdmethod="-w no"
 		_passwd="-h -"
 		;;
 	yes)
+		# Note on processing the password: The outer double quotes
+		# make literal everything except ` and \ and $.
+		# The outer single quotes make literal ` and $.
+		# We can ensure the \ isn't treated specially by specifying
+		# the -r switch to the read command used to obtain the input.
+		#
 		_passwdmethod="-w yes"
 		_passwd="-h 0"
-		_upasswd="echo '$upass' |"
+		_upasswd='echo "$upass" |'
 		;;
 	none)
 		_passwdmethod="-w none"
@@ -521,7 +527,7 @@ get_password() {
 input_from_file() {
 	_field=
 
-	while read fileline ; do
+	while read -r fileline ; do
 		case "$fileline" in
 		\#*|'')
 			return 0
@@ -629,7 +635,7 @@ input_interactive() {
 					trap 'stty echo; exit' 0 1 2 3 15
 					stty -echo
 					echo -n "Enter password: "
-					read upass
+					read -r upass
 					echo''
 					echo -n "Enter password again: "
 					read _passconfirm
