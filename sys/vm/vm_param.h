@@ -76,7 +76,7 @@
 /*
  * CTL_VM identifiers
  */
-#define	VM_METER		1	/* struct vmmeter */
+#define	VM_TOTAL		1	/* struct vmtotal */
 #define	VM_LOADAVG	 	2	/* struct loadavg */
 #define VM_V_FREE_MIN		3	/* cnt.v_free_min */
 #define VM_V_FREE_TARGET	4	/* cnt.v_free_target */
@@ -91,7 +91,7 @@
 
 #define CTL_VM_NAMES { \
 	{ 0, 0 }, \
-	{ "vmmeter", CTLTYPE_STRUCT }, \
+	{ "vmtotal", CTLTYPE_STRUCT }, \
 	{ "loadavg", CTLTYPE_STRUCT }, \
 	{ "v_free_min", CTLTYPE_INT }, \
 	{ "v_free_target", CTLTYPE_INT }, \

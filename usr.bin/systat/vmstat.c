@@ -784,7 +784,7 @@ getinfo(ls)
 
 	size = sizeof(ls->Total);
 	mib[0] = CTL_VM;
-	mib[1] = VM_METER;
+	mib[1] = VM_TOTAL;
 	if (sysctl(mib, 2, &ls->Total, &size, NULL, 0) < 0) {
 		error("Can't get kernel info: %s\n", strerror(errno));
 		bzero(&ls->Total, sizeof(ls->Total));
