@@ -61,7 +61,7 @@ INCLUDES+= -I/usr/include
 
 # This hack lets us use the Intel ACPICA code without spamming a new 
 # include path into 100+ source files.
-INCLUDES+= -I$S/contrib/dev/acpica/Subsystem/Include
+INCLUDES+= -I$S/contrib/dev/acpica
 
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
