@@ -31,6 +31,9 @@
 #include <dev/sound/pci/csareg.h>
 #include <machine/cpufunc.h>
 
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+
 static devclass_t midi_devclass;
 
 #ifndef DDB
@@ -162,8 +165,8 @@ csamidi_probe(device_t dev)
 
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
-	scp->io_rid = CS461x_IO_OFFSET;
-	scp->mem_rid = CS461x_MEM_OFFSET;
+	scp->io_rid = PCIR_MAPS;
+	scp->mem_rid = PCIR_MAPS + 4;
 	scp->irq_rid = 0;
 
 	device_set_desc(dev, s);
@@ -515,12 +518,12 @@ static int
 csamidi_allocres(sc_p scp, device_t dev)
 {
 	if (scp->io == NULL) {
-		scp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->io_rid, 0, ~0, CS461x_IO_SIZE, RF_ACTIVE);
+		scp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->io_rid, 0, ~0, 1, RF_ACTIVE);
 		if (scp->io == NULL)
 			return (1);
 	}
 	if (scp->mem == NULL) {
-		scp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->mem_rid, 0, ~0, CS461x_MEM_SIZE, RF_ACTIVE);
+		scp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &scp->mem_rid, 0, ~0, 1, RF_ACTIVE);
 		if (scp->mem == NULL)
 			return (1);
 	}
