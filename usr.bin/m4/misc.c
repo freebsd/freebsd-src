@@ -229,7 +229,6 @@ basename(s)
 register char *s;
 {
 	register char *p;
-	extern char *strrchr();
 
 	if ((p = strrchr(s, '/')) == NULL)
 		return s;
