@@ -45,6 +45,7 @@
 .Sh SYNOPSIS
 .Nm pgrep
 .Op Fl flnvx
+.Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -60,6 +61,7 @@
 .Nm pkill
 .Op Fl Ar signal
 .Op Fl fnvx
+.Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -84,7 +86,11 @@ command searches the process table on the running system and signals all
 processes that match the criteria given on the command line.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl d Ar delim"
+.Bl -tag -width ".Fl F Ar pidfile"
+.It Fl F Ar pidfile
+Restrict matches to process which pid is stored in
+.Ar pidfile
+file.
 .It Fl G Ar gid
 Restrict matches to processes with a real group ID in the comma-separated
 list
