@@ -27,7 +27,7 @@
 #include "ui_objects.h"
 
 extern PKG_info p_inf;
-
+extern char *StartDir;
 
 /*
  * Local prototypes
@@ -171,7 +171,7 @@ preview_pkg(void)
 
     use_helpfile(PREVIEW_FS_HLP);
     use_helpline("Select package to preview");
-    fname = dialog_fselect(".", "*.tgz");
+    fname = dialog_fselect(StartDir ? StartDir : ".", "*.tgz");
     while (fname) {
         use_helpfile(PREVIEW_HLP);
         use_helpline("use PgUp and PgDn and arrow-keys to move through the text");
@@ -191,7 +191,7 @@ preview_pkg(void)
         free(tmp_file);
 	use_helpfile(PREVIEW_FS_HLP);
 	use_helpline("Select package to preview");
-        fname = dialog_fselect(".", "*.tgz");
+        fname = dialog_fselect(StartDir ? StartDir : ".", "*.tgz");
     }
     if (fname) free(fname);
     use_helpfile(NULL);
@@ -212,7 +212,7 @@ install_batch(void)
     quit = FALSE;
     while (!quit) {
 	use_helpline("Select directory where the pkg's reside");
-	if (dialog_dselect(".", "*.tgz")) {
+	if (dialog_dselect(StartDir ? StartDir : ".", "*.tgz")) {
 	    quit = TRUE;
 	} else {
 	    install_pkgs_indir();
@@ -272,7 +272,7 @@ install_pkgs_indir(void)
     /* now build a list of the packages in the chosen directory */
     /* and display them in a list */
     
-    get_dir(".", "*.tgz", &d, &n);
+    get_dir(StartDir ? StartDir : ".", "*.tgz", &d, &n);
     get_filenames(d, n, &fnames, &nf);
     FreeDir(d, n); 	/* free the space allocated to d */
 
