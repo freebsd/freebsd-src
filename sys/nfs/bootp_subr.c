@@ -847,8 +847,8 @@ bootpc_init(void)
    */
   call.vend[j++]=57;
   call.vend[j++]=2;
-  call.vend[j++]=(1200) % 256;
   call.vend[j++]=(1200) / 256;
+  call.vend[j++]=(1200) % 256;
 
   call.vend[j++]=255;
   
