@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/signalvar.h>
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
