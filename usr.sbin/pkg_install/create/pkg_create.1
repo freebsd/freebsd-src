@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.25 1998/05/24 03:11:17 steve Exp $	
+.\"	$Id: pkg_create.1,v 1.26 1998/06/26 07:15:37 jkoshy Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -36,7 +36,9 @@
 .Op Fl p Ar prefix
 .Op Fl f Ar contents
 .Op Fl i Ar iscript
+.Op Fl I Ar piscript
 .Op Fl k Ar dscript
+.Op Fl K Ar pdscript
 .Op Fl r Ar rscript
 .Op Fl s Ar srcdir
 .Op Fl t Ar template
@@ -102,9 +104,28 @@ are dumped, rather than the links themselves.
 .It Fl i Ar iscript
 Set
 .Ar iscript
-to be the install procedure for the package.  This can be any
+to be the pre-install procedure for the package.  This can be any executable
+program (or shell script).  It will be invoked automatically when the
+package is later installed. It will be passed the package's name as the
+first argument.
+
+.Cm Note:
+if the
+.Cm Fl I
+option is not given, this script will serve as both the pre-install and the
+post-install script for the package, differentiating between the
+functionality by passing the keywords
+.Ar PRE-INSTALL
+and
+.Ar POST-INSTALL
+respectively, along with the package's name.
+.It Fl I Ar piscript
+Set
+.Ar piscript
+to be the post-install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
-when the package is later installed.
+when the package is later installed. It will be passed the package's name as
+the first argument.
 .It Fl P Ar pkgs
 Set the initial package dependency list to
 .Ar pkgs .
@@ -120,9 +141,29 @@ the package.
 .It Fl k Ar dscript
 Set
 .Ar dscript
-to be the de-install procedure for the package.  This can be any
-executable program (or shell script).  It will be invoked automatically
-when the package is later (if ever) de-installed.
+to be the de-install procedure for the package.  This can be any executable
+program (or shell script).  It will be invoked automatically when the
+package is later (if ever) de-installed. It will be passed the package's
+name as the first argument.
+
+.Cm Note:
+if the
+.Cm Fl K
+option is not given, this script will serve as both the de-install and the
+post-deinstall script for the package, differentiating between the
+functionality by passing the keywords
+.Ar DEINSTALL
+and
+.Ar POST-DEINSTALL
+respectively, along with the package's name.
+.It Fl K Ar pdscript
+Set
+.Ar pdscript
+to be the post-deinstall procedure for the package.  This can be any
+executable program (or shell script).  It will be invoked automatically when
+the package is later de-installed. It will be passed the package's name as
+the first argument.
+
 .It Fl r Ar rscript
 Set
 .Ar rscript
