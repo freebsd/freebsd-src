@@ -38,22 +38,6 @@
 #ifndef _NETATM_PORT_H
 #define	_NETATM_PORT_H
 
-/*
- * User-space memory management
- *
- * UM_ALLOC(size)	Returns an allocated kernel memory chunk of size bytes.
- * UM_FREE(addr)	Free a kernel memory chunk of size bytes.
- * UM_COPY(from, to, len)
- *			Copies len bytes of data from from to to.
- * UM_ZERO(addr, len)	Zeros len bytes of data from addr.
- *
- */
-#define	UM_ALLOC(size)		malloc((size_t)(size))
-#define	UM_FREE(addr)		free((void *)(addr))
-#define	UM_COPY(from, to, len)	bcopy((void *)(from), (void *)(to),\
-						(size_t)(len))
-#define	UM_ZERO(addr, len)	bzero((void *)(addr), (size_t)(len))
-
 
 #ifdef _KERNEL
 /*
@@ -267,7 +251,7 @@ typedef struct mbuf	KBuffer;
 			& ~(sizeof(long) - 1));		\
 }
 #define	KB_HEADROOM(bfr, n) {				\
-	/* n = M_LEADINGSPACE(bfr) XXX */		\
+	/* N = m_leadingspace(BFR) XXX */		\
 	(n) = ((bfr)->m_flags & M_EXT ? (bfr)->m_data - (bfr)->m_ext.ext_buf : \
 		(bfr)->m_flags & M_PKTHDR ? (bfr)->m_data - (bfr)->m_pktdat : \
 			(bfr)->m_data - (bfr)->m_dat);	\
