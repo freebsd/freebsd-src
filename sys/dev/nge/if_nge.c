@@ -146,52 +146,50 @@ static struct nge_type nge_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int nge_probe		(device_t);
-static int nge_attach		(device_t);
-static int nge_detach		(device_t);
+static int nge_probe(device_t);
+static int nge_attach(device_t);
+static int nge_detach(device_t);
 
-static int nge_alloc_jumbo_mem	(struct nge_softc *);
-static void nge_free_jumbo_mem	(struct nge_softc *);
-static void *nge_jalloc		(struct nge_softc *);
-static void nge_jfree		(void *, void *);
+static int nge_alloc_jumbo_mem(struct nge_softc *);
+static void nge_free_jumbo_mem(struct nge_softc *);
+static void *nge_jalloc(struct nge_softc *);
+static void nge_jfree(void *, void *);
 
-static int nge_newbuf		(struct nge_softc *,
-					struct nge_desc *, struct mbuf *);
-static int nge_encap		(struct nge_softc *,
-					struct mbuf *, u_int32_t *);
-static void nge_rxeof		(struct nge_softc *);
-static void nge_txeof		(struct nge_softc *);
-static void nge_intr		(void *);
-static void nge_tick		(void *);
-static void nge_start		(struct ifnet *);
-static int nge_ioctl		(struct ifnet *, u_long, caddr_t);
-static void nge_init		(void *);
-static void nge_stop		(struct nge_softc *);
-static void nge_watchdog		(struct ifnet *);
-static void nge_shutdown		(device_t);
-static int nge_ifmedia_upd	(struct ifnet *);
-static void nge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static int nge_newbuf(struct nge_softc *, struct nge_desc *, struct mbuf *);
+static int nge_encap(struct nge_softc *, struct mbuf *, u_int32_t *);
+static void nge_rxeof(struct nge_softc *);
+static void nge_txeof(struct nge_softc *);
+static void nge_intr(void *);
+static void nge_tick(void *);
+static void nge_start(struct ifnet *);
+static int nge_ioctl(struct ifnet *, u_long, caddr_t);
+static void nge_init(void *);
+static void nge_stop(struct nge_softc *);
+static void nge_watchdog(struct ifnet *);
+static void nge_shutdown(device_t);
+static int nge_ifmedia_upd(struct ifnet *);
+static void nge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static void nge_delay		(struct nge_softc *);
-static void nge_eeprom_idle	(struct nge_softc *);
-static void nge_eeprom_putbyte	(struct nge_softc *, int);
-static void nge_eeprom_getword	(struct nge_softc *, int, u_int16_t *);
-static void nge_read_eeprom	(struct nge_softc *, caddr_t, int, int, int);
+static void nge_delay(struct nge_softc *);
+static void nge_eeprom_idle(struct nge_softc *);
+static void nge_eeprom_putbyte(struct nge_softc *, int);
+static void nge_eeprom_getword(struct nge_softc *, int, u_int16_t *);
+static void nge_read_eeprom(struct nge_softc *, caddr_t, int, int, int);
 
-static void nge_mii_sync	(struct nge_softc *);
-static void nge_mii_send	(struct nge_softc *, u_int32_t, int);
-static int nge_mii_readreg	(struct nge_softc *, struct nge_mii_frame *);
-static int nge_mii_writereg	(struct nge_softc *, struct nge_mii_frame *);
+static void nge_mii_sync(struct nge_softc *);
+static void nge_mii_send(struct nge_softc *, u_int32_t, int);
+static int nge_mii_readreg(struct nge_softc *, struct nge_mii_frame *);
+static int nge_mii_writereg(struct nge_softc *, struct nge_mii_frame *);
 
-static int nge_miibus_readreg	(device_t, int, int);
-static int nge_miibus_writereg	(device_t, int, int, int);
-static void nge_miibus_statchg	(device_t);
+static int nge_miibus_readreg(device_t, int, int);
+static int nge_miibus_writereg(device_t, int, int, int);
+static void nge_miibus_statchg(device_t);
 
-static void nge_setmulti	(struct nge_softc *);
-static u_int32_t nge_crc	(struct nge_softc *, caddr_t);
-static void nge_reset		(struct nge_softc *);
-static int nge_list_rx_init	(struct nge_softc *);
-static int nge_list_tx_init	(struct nge_softc *);
+static void nge_setmulti(struct nge_softc *);
+static u_int32_t nge_crc(struct nge_softc *, caddr_t);
+static void nge_reset(struct nge_softc *);
+static int nge_list_rx_init(struct nge_softc *);
+static int nge_list_tx_init(struct nge_softc *);
 
 #ifdef NGE_USEIOSPACE
 #define NGE_RES			SYS_RES_IOPORT
@@ -245,7 +243,8 @@ DRIVER_MODULE(miibus, nge, miibus_driver, miibus_devclass, 0, 0);
 #define SIO_CLR(x)					\
 	CSR_WRITE_4(sc, NGE_MEAR, CSR_READ_4(sc, NGE_MEAR) & ~x)
 
-static void nge_delay(sc)
+static void
+nge_delay(sc)
 	struct nge_softc	*sc;
 {
 	int			idx;
@@ -256,7 +255,8 @@ static void nge_delay(sc)
 	return;
 }
 
-static void nge_eeprom_idle(sc)
+static void
+nge_eeprom_idle(sc)
 	struct nge_softc	*sc;
 {
 	register int		i;
@@ -285,7 +285,8 @@ static void nge_eeprom_idle(sc)
 /*
  * Send a read command and address to the EEPROM, check for ACK.
  */
-static void nge_eeprom_putbyte(sc, addr)
+static void
+nge_eeprom_putbyte(sc, addr)
 	struct nge_softc	*sc;
 	int			addr;
 {
@@ -315,7 +316,8 @@ static void nge_eeprom_putbyte(sc, addr)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void nge_eeprom_getword(sc, addr, dest)
+static void
+nge_eeprom_getword(sc, addr, dest)
 	struct nge_softc	*sc;
 	int			addr;
 	u_int16_t		*dest;
@@ -362,7 +364,8 @@ static void nge_eeprom_getword(sc, addr, dest)
 /*
  * Read a sequence of words from the EEPROM.
  */
-static void nge_read_eeprom(sc, dest, off, cnt, swap)
+static void
+nge_read_eeprom(sc, dest, off, cnt, swap)
 	struct nge_softc	*sc;
 	caddr_t			dest;
 	int			off;
@@ -387,7 +390,8 @@ static void nge_read_eeprom(sc, dest, off, cnt, swap)
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
-static void nge_mii_sync(sc)
+static void
+nge_mii_sync(sc)
 	struct nge_softc		*sc;
 {
 	register int		i;
@@ -407,7 +411,8 @@ static void nge_mii_sync(sc)
 /*
  * Clock a series of bits through the MII.
  */
-static void nge_mii_send(sc, bits, cnt)
+static void
+nge_mii_send(sc, bits, cnt)
 	struct nge_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
@@ -432,7 +437,8 @@ static void nge_mii_send(sc, bits, cnt)
 /*
  * Read an PHY register through the MII.
  */
-static int nge_mii_readreg(sc, frame)
+static int
+nge_mii_readreg(sc, frame)
 	struct nge_softc		*sc;
 	struct nge_mii_frame	*frame;
 	
@@ -524,7 +530,8 @@ fail:
 /*
  * Write to a PHY register through the MII.
  */
-static int nge_mii_writereg(sc, frame)
+static int
+nge_mii_writereg(sc, frame)
 	struct nge_softc		*sc;
 	struct nge_mii_frame	*frame;
 	
@@ -570,7 +577,8 @@ static int nge_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int nge_miibus_readreg(dev, phy, reg)
+static int
+nge_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -588,7 +596,8 @@ static int nge_miibus_readreg(dev, phy, reg)
 	return(frame.mii_data);
 }
 
-static int nge_miibus_writereg(dev, phy, reg, data)
+static int
+nge_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -607,7 +616,8 @@ static int nge_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void nge_miibus_statchg(dev)
+static void
+nge_miibus_statchg(dev)
 	device_t		dev;
 {
 	struct nge_softc	*sc;
@@ -637,7 +647,8 @@ static void nge_miibus_statchg(dev)
 	return;
 }
 
-static u_int32_t nge_crc(sc, addr)
+static u_int32_t
+nge_crc(sc, addr)
 	struct nge_softc	*sc;
 	caddr_t			addr;
 {
@@ -666,7 +677,8 @@ static u_int32_t nge_crc(sc, addr)
 	return((crc >> 21) & 0x00000FFF);
 }
 
-static void nge_setmulti(sc)
+static void
+nge_setmulti(sc)
 	struct nge_softc	*sc;
 {
 	struct ifnet		*ifp;
@@ -723,7 +735,8 @@ static void nge_setmulti(sc)
 	return;
 }
 
-static void nge_reset(sc)
+static void
+nge_reset(sc)
 	struct nge_softc	*sc;
 {
 	register int		i;
@@ -755,7 +768,8 @@ static void nge_reset(sc)
  * Probe for an NatSemi chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int nge_probe(dev)
+static int
+nge_probe(dev)
 	device_t		dev;
 {
 	struct nge_type		*t;
@@ -778,7 +792,8 @@ static int nge_probe(dev)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int nge_attach(dev)
+static int
+nge_attach(dev)
 	device_t		dev;
 {
 	int			s;
@@ -964,7 +979,8 @@ fail:
 	return(error);
 }
 
-static int nge_detach(dev)
+static int
+nge_detach(dev)
 	device_t		dev;
 {
 	struct nge_softc	*sc;
@@ -999,7 +1015,8 @@ static int nge_detach(dev)
 /*
  * Initialize the transmit descriptors.
  */
-static int nge_list_tx_init(sc)
+static int
+nge_list_tx_init(sc)
 	struct nge_softc	*sc;
 {
 	struct nge_list_data	*ld;
@@ -1037,7 +1054,8 @@ static int nge_list_tx_init(sc)
  * we arrange the descriptors in a closed ring, so that the last descriptor
  * points back to the first.
  */
-static int nge_list_rx_init(sc)
+static int
+nge_list_rx_init(sc)
 	struct nge_softc	*sc;
 {
 	struct nge_list_data	*ld;
@@ -1071,7 +1089,8 @@ static int nge_list_rx_init(sc)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int nge_newbuf(sc, c, m)
+static int
+nge_newbuf(sc, c, m)
 	struct nge_softc	*sc;
 	struct nge_desc		*c;
 	struct mbuf		*m;
@@ -1118,7 +1137,8 @@ static int nge_newbuf(sc, c, m)
 	return(0);
 }
 
-static int nge_alloc_jumbo_mem(sc)
+static int
+nge_alloc_jumbo_mem(sc)
 	struct nge_softc	*sc;
 {
 	caddr_t			ptr;
@@ -1160,7 +1180,8 @@ static int nge_alloc_jumbo_mem(sc)
 	return(0);
 }
 
-static void nge_free_jumbo_mem(sc)
+static void
+nge_free_jumbo_mem(sc)
 	struct nge_softc	*sc;
 {
 	register int		i;
@@ -1180,7 +1201,8 @@ static void nge_free_jumbo_mem(sc)
 /*
  * Allocate a jumbo buffer.
  */
-static void *nge_jalloc(sc)
+static void *
+nge_jalloc(sc)
 	struct nge_softc	*sc;
 {
 	struct nge_jpool_entry   *entry;
@@ -1202,7 +1224,8 @@ static void *nge_jalloc(sc)
 /*
  * Release a jumbo buffer.
  */
-static void nge_jfree(buf, args)
+static void
+nge_jfree(buf, args)
 	void			*buf;
 	void			*args;
 {
@@ -1236,7 +1259,8 @@ static void nge_jfree(buf, args)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void nge_rxeof(sc)
+static void
+nge_rxeof(sc)
 	struct nge_softc	*sc;
 {
         struct ether_header	*eh;
@@ -1350,7 +1374,8 @@ static void nge_rxeof(sc)
  * the list buffers.
  */
 
-static void nge_txeof(sc)
+static void
+nge_txeof(sc)
 	struct nge_softc	*sc;
 {
 	struct nge_desc		*cur_tx = NULL;
@@ -1409,7 +1434,8 @@ static void nge_txeof(sc)
 	return;
 }
 
-static void nge_tick(xsc)
+static void
+nge_tick(xsc)
 	void			*xsc;
 {
 	struct nge_softc	*sc;
@@ -1443,7 +1469,8 @@ static void nge_tick(xsc)
 	return;
 }
 
-static void nge_intr(arg)
+static void
+nge_intr(arg)
 	void			*arg;
 {
 	struct nge_softc	*sc;
@@ -1518,7 +1545,8 @@ static void nge_intr(arg)
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int nge_encap(sc, m_head, txidx)
+static int
+nge_encap(sc, m_head, txidx)
 	struct nge_softc	*sc;
 	struct mbuf		*m_head;
 	u_int32_t		*txidx;
@@ -1594,7 +1622,8 @@ static int nge_encap(sc, m_head, txidx)
  * physical addresses.
  */
 
-static void nge_start(ifp)
+static void
+nge_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct nge_softc	*sc;
@@ -1643,7 +1672,8 @@ static void nge_start(ifp)
 	return;
 }
 
-static void nge_init(xsc)
+static void
+nge_init(xsc)
 	void			*xsc;
 {
 	struct nge_softc	*sc = xsc;
@@ -1812,7 +1842,8 @@ static void nge_init(xsc)
 /*
  * Set media options.
  */
-static int nge_ifmedia_upd(ifp)
+static int
+nge_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct nge_softc	*sc;
@@ -1836,7 +1867,8 @@ static int nge_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void nge_ifmedia_sts(ifp, ifmr)
+static void
+nge_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -1853,7 +1885,8 @@ static void nge_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int nge_ioctl(ifp, command, data)
+static int
+nge_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1933,7 +1966,8 @@ static int nge_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void nge_watchdog(ifp)
+static void
+nge_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct nge_softc	*sc;
@@ -1958,7 +1992,8 @@ static void nge_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void nge_stop(sc)
+static void
+nge_stop(sc)
 	struct nge_softc	*sc;
 {
 	register int		i;
@@ -2015,7 +2050,8 @@ static void nge_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void nge_shutdown(dev)
+static void
+nge_shutdown(dev)
 	device_t		dev;
 {
 	struct nge_softc	*sc;
