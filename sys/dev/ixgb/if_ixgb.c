@@ -1319,7 +1319,8 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgb_init;
 	ifp->if_softc = adapter;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT;
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
 	ifp->if_watchdog = ixgb_watchdog;
