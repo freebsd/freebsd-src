@@ -72,7 +72,7 @@ mountcritremote_start()
 		done
 
 		# Cleanup /var again just in case it's a network mount.
-		/etc/rc.d/cleanvar start
+		/etc/rc.d/cleanvar reload
 		rm -f /var/run/clean_var /var/spool/lock/clean_var
 		;;
 	NetBSD)
