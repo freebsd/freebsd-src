@@ -56,9 +56,9 @@ main()
 
 	if  (res == F_DONE) {
 		printf("You're entries were:\n\n");
-		printf("%s\n",example_fields[3].field.input->input);
-		printf("%s\n",example_fields[5].field.input->input);
-		printf("%s\n",example_fields[7].field.menu->options[example_fields[7].field.menu->selected]);
+		printf("%s\n",input1.input);
+		printf("%s\n",input2.input);
+		printf("%s\n",menu1.options[example_fields[7].field.menu->selected]);
 	} else if (res == F_CANCEL)
 		printf("You cancelled the form\n");
 
