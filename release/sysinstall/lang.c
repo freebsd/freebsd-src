@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: lang.c,v 1.3 1995/05/18 15:29:44 jkh Exp $
+ * $Id: lang.c,v 1.4 1995/05/19 16:58:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,7 @@ lang_set_Italian(char *str)
 void
 lang_set_Japanese(char *str)
 {
-    systemChangeFont(font_iso_8x16);
+    systemChangeFont(font_cp850_8x16); /* must prepare JIS X0201 font? */
     systemChangeLang("ja_JP.ROMAJI");
     systemChangeScreenmap(default_scrnmap);	
     systemChangeTerminal("cons25", termcap_cons25, "cons25-m", termcap_cons25_m);
