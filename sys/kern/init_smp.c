@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.2 1997/07/08 23:21:34 smp Exp smp $
+ * $Id: init_smp.c,v 1.4 1997/07/12 22:33:18 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -44,7 +44,7 @@
 
 #include <machine/cpu.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** IGNORE_IDLEPROCS */
+#include <machine/smptests.h>	/** IGNORE_IDLEPROCS, TEST_TEST1 */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -52,6 +52,10 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+
+#if defined(TEST_TEST1)
+void	ipi_test1(void);
+#endif  /** TEST_TEST1 */
 
 int smp_active = 0;	/* are the APs allowed to run? */
 
@@ -190,8 +194,17 @@ secondary_main()
 	printf("SMP: AP CPU #%d LAUNCHED!!  Starting Scheduling...\n",
 		cpuid);
 
+#if defined(TEST_TEST1)
+/* XXX this would be dangerous for > 2 CPUs! */
+	if (cpuid == IPI_TARGET_TEST1) {
+		lapic.tpr = 0xff;
+		ipi_test1();
+	}
+#else
 	curproc = NULL;			/* ensure no context to save */
 	cpu_switch(curproc);		/* start first process */
+#endif  /** TEST_TEST1 */
+
 	panic("switch returned!");
 }
 
@@ -312,7 +325,6 @@ void *dummy;
 						panic("too many cpus");
 					} else {
 						MSG_FINAL_CPU;
-
 						/*
 						 * It's safe to send IPI's now
 						 * that all CPUs are online.
