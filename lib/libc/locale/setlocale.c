@@ -198,4 +198,6 @@ loadlocale(category)
 		case LC_NUMERIC:
 			return (NULL);
 	}
+	/* Just in case...*/
+	return (NULL);
 }
