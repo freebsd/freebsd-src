@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.15 1995/06/11 19:31:46 rgrimes Exp $
+ * $Id: nfs_vfsops.c,v 1.16 1995/06/27 11:06:51 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -112,6 +112,22 @@ void nfsargs_ntoh __P((struct nfs_args *));
 static struct mount *nfs_mountdiskless __P((char *, char *, int,
     struct sockaddr_in *, struct nfs_args *, register struct vnode **));
 
+static int nfs_iosize(nmp)
+	struct nfsmount* nmp;
+{
+	int iosize;
+
+	/*
+	 * Calculate the size used for io buffers.  Use the larger
+	 * of the two sizes to minimise nfs requests but make sure
+	 * that it is at least one VM page to avoid wasting buffer
+	 * space.
+	 */
+	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
+	if (iosize < NBPG) iosize = NBPG;
+	return iosize;
+}
+
 /*
  * nfs statfs call
  */
@@ -163,7 +179,7 @@ nfs_statfs(mp, sbp, p)
 	sbp->f_type = MOUNT_NFS;
 #endif
 	sbp->f_flags = nmp->nm_flag;
-	sbp->f_iosize = min(nmp->nm_rsize, nmp->nm_wsize);
+	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
 		sbp->f_bsize = NFS_FABLKSIZE;
 		fxdr_hyper(&sfp->sf_tbytes, &tquad);
@@ -662,7 +678,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 * stuck on a dead server and we are holding a lock on the mount
 	 * point.
 	 */
-	mp->mnt_stat.f_iosize = min(nmp->nm_rsize, nmp->nm_wsize);
+	mp->mnt_stat.f_iosize = nfs_iosize(nmp);
 	/*
 	 * A reference count is needed on the nfsnode representing the
 	 * remote root.  If this object is not persistent, then backward

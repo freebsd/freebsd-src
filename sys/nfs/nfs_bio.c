@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.14 1995/05/30 08:12:35 rgrimes Exp $
+ * $Id: nfs_bio.c,v 1.15 1995/06/27 11:06:34 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -107,7 +107,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	p = uio->uio_procp;
 	if ((nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_GOTFSINFO)) == NFSMNT_NFSV3)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
-	biosize = nmp->nm_rsize;
+	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*
 	 * For nfs, cache consistency can only be maintained approximately.
 	 * Although RFC1094 does not specify the criteria, the following is
@@ -464,7 +464,7 @@ nfs_write(ap)
 	 * will be the same size within a filesystem. nfs_writerpc will
 	 * still use nm_wsize when sizing the rpc's.
 	 */
-	biosize = nmp->nm_rsize;
+	biosize = vp->v_mount->mnt_stat.f_iosize;
 	do {
 
 		/*
@@ -619,7 +619,7 @@ nfs_getcacheblk(vp, bn, size, p)
 {
 	register struct buf *bp;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
-	int biosize = nmp->nm_rsize;
+	int biosize = vp->v_mount->mnt_stat.f_iosize;
 
 	if (nmp->nm_flag & NFSMNT_INT) {
 		bp = getblk(vp, bn, size, PCATCH, 0);
