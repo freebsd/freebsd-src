@@ -32,18 +32,23 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <locale.h>
 #include <sys/types.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -202,7 +207,7 @@ main(argc, argv)
 			*p++ = OOBCH;
 
 	if (!next(&s2))
-		err("empty string2");
+		errx(1, "empty string2");
 
 	/* If string2 runs out of characters, use the last one specified. */
 	if (sflag)
@@ -256,38 +261,10 @@ setup(string, arg, str, cflag)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: tr [-cs] string1 string2\n");
-	(void)fprintf(stderr, "       tr [-c] -d string1\n");
-	(void)fprintf(stderr, "       tr [-c] -s string1\n");
-	(void)fprintf(stderr, "       tr [-c] -ds string1 string2\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: tr [-cs] string1 string2",
+		"       tr [-c] -d string1",
+		"       tr [-c] -s string1",
+		"       tr [-c] -ds string1 string2");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "tr: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
