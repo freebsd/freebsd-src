@@ -184,13 +184,6 @@ XENTRY(esigcode)
 	.quad	esigcode-sigcode
 	.text
 	
-/*
- * When starting init, call this to configure the process for user
- * mode.  This will be inherited by other processes.
- */
-	ENTRY_NOPROFILE(prepare_usermode, 0)
-	END(prepare_usermode)
-
 	.data
 	EXPORT(proc0paddr)
 	.quad	0
