@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#17 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#19 $
  *
  * $FreeBSD$
  */
@@ -193,7 +193,7 @@ static __inline struct ahc_initiator_tinfo *
 			ahc_fetch_transinfo(struct ahc_softc *ahc,
 					    char channel, u_int our_id,
 					    u_int remote_id,
-					    struct tmode_tstate **tstate);
+					    struct ahc_tmode_tstate **tstate);
 static __inline struct scb*
 			ahc_get_scb(struct ahc_softc *ahc);
 static __inline void	ahc_free_scb(struct ahc_softc *ahc, struct scb *scb);
@@ -228,7 +228,7 @@ ahc_check_residual(struct scb *scb)
  */
 static __inline struct ahc_initiator_tinfo *
 ahc_fetch_transinfo(struct ahc_softc *ahc, char channel, u_int our_id,
-		    u_int remote_id, struct tmode_tstate **tstate)
+		    u_int remote_id, struct ahc_tmode_tstate **tstate)
 {
 	/*
 	 * Transfer data structures are stored from the perspective
@@ -433,7 +433,7 @@ ahc_intr(struct ahc_softc *ahc)
 		if (ahc->unsolicited_ints > 500
 		 && (ahc->chip & AHC_PCI) != 0
 		 && (ahc_inb(ahc, ERROR) & PCIERRSTAT) != 0)
-			ahc_pci_intr(ahc);
+			ahc->bus_intr(ahc);
 #endif
 	}
 
