@@ -216,11 +216,21 @@ pfs_read(struct vop_read_args *va)
 	if (vn->v_type != VREG)
 		return (EINVAL);
 
+	if (pn->pn_flags & PFS_WRONLY)
+		return (EBADF);
+
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			return (EIO);
 		_PHOLD(proc);
 		PROC_UNLOCK(proc);
+	}
+
+	if (pn->pn_flags & PFS_RAWRD) {
+		error = (pn->pn_func)(curproc, proc, pn, NULL, uio);
+		if (proc != NULL)
+			PRELE(proc);
+		return (error);
 	}
 	
 	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
@@ -230,7 +240,7 @@ pfs_read(struct vop_read_args *va)
 		return (EIO);
 	}
 
-	error = (pn->pn_func)(curthread, proc, pn, sb);
+	error = (pn->pn_func)(curthread, proc, pn, sb, uio);
 
 	if (proc != NULL)
 		PRELE(proc);
@@ -392,7 +402,7 @@ pfs_readlink(struct vop_readlink_args *va)
 	/* sbuf_new() can't fail with a static buffer */
 	sbuf_new(&sb, buf, sizeof buf, 0);
 
-	error = (pn->pn_func)(curthread, proc, pn, &sb);
+	error = (pn->pn_func)(curthread, proc, pn, &sb, NULL);
 
 	if (proc != NULL)
 		PRELE(proc);
@@ -434,8 +444,48 @@ pfs_setattr(struct vop_setattr_args *va)
 }
 
 /*
- * Dummy operations
+ * Read from a file
  */
+static int
+pfs_write(struct vop_read_args *va)
+{
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct uio *uio = va->a_uio;
+	struct proc *proc = NULL;
+	int error;
+
+	if (vn->v_type != VREG)
+		return (EINVAL);
+
+	if (pn->pn_flags & PFS_RDONLY)
+		return (EBADF);
+
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			return (EIO);
+		_PHOLD(proc);
+		PROC_UNLOCK(proc);
+	}
+
+	if (pn->pn_flags & PFS_RAWWR) {
+		error = (pn->pn_func)(curproc, proc, pn, NULL, uio);
+		if (proc != NULL)
+			PRELE(proc);
+		return (error);
+	}
+	
+	/*
+	 * We currently don't support non-raw writers.  It's not very
+	 * hard to do, but it probably requires further changes to the
+	 * sbuf API.
+	 */
+	return (EIO);
+}
+
+/*
+ * Dummy operations */
 static int pfs_erofs(void *va)		{ return (EROFS); }
 #if 0
 static int pfs_null(void *va)		{ return (0); }
@@ -464,7 +514,7 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *)pfs_erofs	},
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
 	{ &vop_symlink_desc,		(vop_t *)pfs_erofs	},
-	{ &vop_write_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_write_desc,		(vop_t *)pfs_write	},
 	/* XXX I've probably forgotten a few that need pfs_erofs */
 	{ NULL,				(vop_t *)NULL		}
 };

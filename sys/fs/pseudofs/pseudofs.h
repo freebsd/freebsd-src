@@ -49,6 +49,15 @@ typedef enum {
 } pfs_type_t;
 
 /*
+ * Flags
+ */
+#define PFS_RDONLY	0x0000	/* read-only (default) */
+#define PFS_WRONLY	0x0001	/* write-only */
+#define PFS_RDWR	0x0002	/* read-write */
+#define PFS_RAWRD	0x0004	/* raw reader */
+#define	PFS_RAWWR	0x0008	/* raw writer */
+
+/*
  * Data structures
  */
 struct pfs_info;
@@ -56,7 +65,8 @@ struct pfs_node;
 struct pfs_bitmap;
 
 #define PFS_FILL_ARGS \
-	struct thread *td, struct proc *p, struct pfs_node *pn, struct sbuf *sb
+	struct thread *td, struct proc *p, struct pfs_node *pn, \
+	struct sbuf *sb, struct uio *uio
 #define PFS_FILL_PROTO(name) \
 	int name(PFS_FILL_ARGS);
 typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
@@ -134,7 +144,7 @@ int	 pfs_uninit		(struct pfs_info *pi, struct vfsconf *vfc);
 /*
  * Now for some initialization magic...
  */
-#define PSEUDOFS(name, root)						\
+#define PSEUDOFS(name, root, version)					\
 									\
 static struct pfs_info name##_info = {					\
 	#name,								\
@@ -174,6 +184,7 @@ static struct vfsops name##_vfsops = {					\
 	vfs_stdextattrctl,						\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
+MODULE_VERSION(name, version);						\
 MODULE_DEPEND(name, pseudofs, 1, 1, 1);
 
 #endif
