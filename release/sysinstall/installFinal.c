@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.2 1995/10/20 07:02:38 jkh Exp $
+ * $Id: installFinal.c,v 1.3 1995/10/20 14:24:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -56,6 +56,9 @@
 int
 installApache(void)
 {
+    msgConfirm("UNDER CONSTRUCTION\n\n"
+	       "This installation option is not yet implemented.  It will\n"
+	       "hopefully be in the final release.");
     return RET_SUCCESS;
 }
 
