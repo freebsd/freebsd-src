@@ -13,10 +13,11 @@
  * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
  * I'll try to keep a version up to date.  I can be reached as follows:
  * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * From Id: crontab.c,v 2.13 1994/01/17 03:20:37 vixie Exp
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 2.13 1994/01/17 03:20:37 vixie Exp $";
+static char rcsid[] = "$Id: crontab.c,v 1.4 1994/04/13 21:57:55 wollman Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -328,7 +329,7 @@ edit_cmd() {
 		perror("fchown");
 		goto fatal;
 	}
-	if (!(NewCrontab = fdopen(t, "r+"))) {
+	if (!(NewCrontab = fdopen(t, "w"))) {
 		perror("fdopen");
 		goto fatal;
 	}
@@ -358,21 +359,15 @@ edit_cmd() {
 		while (EOF != (ch = get_char(f)))
 			putc(ch, NewCrontab);
 	fclose(f);
-	if (fflush(NewCrontab) < OK) {
+	if (fclose(NewCrontab)) {
 		perror(Filename);
 		exit(ERROR_EXIT);
 	}
  again:
-	rewind(NewCrontab);
-	if (ferror(NewCrontab)) {
-		fprintf(stderr, "%s: error while writing new crontab to %s\n",
-			ProgramName, Filename);
+	if (stat(Filename, &statbuf) < 0) {
+		perror("stat");
  fatal:		unlink(Filename);
 		exit(ERROR_EXIT);
-	}
-	if (fstat(t, &statbuf) < 0) {
-		perror("fstat");
-		goto fatal;
 	}
 	mtime = statbuf.st_mtime;
 
@@ -438,8 +433,8 @@ edit_cmd() {
 			WCOREDUMP(waiter) ?"" :"no ");
 		goto fatal;
 	}
-	if (fstat(t, &statbuf) < 0) {
-		perror("fstat");
+	if (stat(Filename, &statbuf) < 0) {
+		perror("stat");
 		goto fatal;
 	}
 	if (mtime == statbuf.st_mtime) {
@@ -448,6 +443,10 @@ edit_cmd() {
 		goto remove;
 	}
 	fprintf(stderr, "%s: installing new crontab\n", ProgramName);
+	if (!(NewCrontab = fopen(Filename, "r"))) {
+		perror(Filename);
+		goto fatal;
+	}
 	switch (replace_cmd()) {
 	case 0:
 		break;
@@ -513,10 +512,10 @@ replace_cmd() {
 
 	/* copy the crontab to the tmp
 	 */
-	rewind(NewCrontab);
 	Set_LineNum(1)
 	while (EOF != (ch = get_char(NewCrontab)))
 		putc(ch, tmp);
+	fclose(NewCrontab);
 	ftruncate(fileno(tmp), ftell(tmp));
 	fflush(tmp);  rewind(tmp);
 
