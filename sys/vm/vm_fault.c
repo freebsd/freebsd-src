@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.43 1996/03/28 04:53:23 dyson Exp $
+ * $Id: vm_fault.c,v 1.44 1996/05/18 03:37:35 dyson Exp $
  */
 
 /*
@@ -324,6 +324,47 @@ readrest:
 			int rv;
 			int faultcount;
 			int reqpage;
+			int ahead, behind;
+
+			ahead = VM_FAULT_READ_AHEAD;
+			behind = VM_FAULT_READ_BEHIND;
+			if (first_object->behavior == OBJ_RANDOM) {
+				ahead = 0;
+				behind = 0;
+			}
+
+			if (first_object->behavior == OBJ_SEQUENTIAL) {
+				vm_pindex_t firstpindex, tmppindex;
+				if (first_pindex <
+					2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1))
+					firstpindex = 0;
+				else
+					firstpindex = first_pindex -
+						2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1);
+
+				for(tmppindex = first_pindex - 1;
+					tmppindex >= first_pindex;
+					--tmppindex) {
+					vm_page_t mt;
+					mt = vm_page_lookup( first_object, tmppindex);
+					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
+						break;
+					if (mt->busy || (mt->flags & PG_BUSY) || mt->hold_count ||
+						mt->wire_count) 
+						continue;
+					if (mt->dirty == 0)
+						vm_page_test_dirty(mt);
+					if (mt->dirty) {
+						vm_page_protect(mt, VM_PROT_NONE);
+						vm_page_deactivate(mt);
+					} else {
+						vm_page_cache(mt);
+					}
+				}
+
+				ahead += behind;
+				behind = 0;
+			}
 
 			/*
 			 * now we find out if any other pages should be paged
@@ -338,8 +379,7 @@ readrest:
 			 * vm_page_t passed to the routine.
 			 */
 			faultcount = vm_fault_additional_pages(
-			    m, VM_FAULT_READ_BEHIND, VM_FAULT_READ_AHEAD,
-			    marray, &reqpage);
+			    m, behind, ahead, marray, &reqpage);
 
 			/*
 			 * Call the pager to retrieve the data, if any, after

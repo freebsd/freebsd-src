@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.8 1995/12/17 07:38:58 bde Exp $
+ * $Id: pmap.h,v 1.9 1996/03/28 04:54:50 dyson Exp $
  */
 
 /*
@@ -105,7 +105,8 @@ void		 pmap_kenter __P((vm_offset_t, vm_offset_t));
 void		 pmap_kremove __P((vm_offset_t));
 vm_offset_t	 pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
 void		 pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size));
+		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size,
+		    int pagelimit));
 boolean_t	 pmap_page_exists __P((pmap_t, vm_offset_t));
 void		 pmap_page_protect __P((vm_offset_t, vm_prot_t));
 void		 pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t,
@@ -122,6 +123,8 @@ void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_zero_page __P((vm_offset_t));
 void		 pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
 		    vm_map_entry_t entry, vm_object_t object));
+int		 pmap_mincore __P((pmap_t pmap, vm_offset_t addr));
+
 #endif /* KERNEL */
 
 #endif /* _PMAP_VM_ */

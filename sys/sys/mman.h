@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.11 1996/03/02 17:42:34 peter Exp $
+ * $Id: mman.h,v 1.12 1996/03/11 02:09:09 hsu Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -83,6 +83,15 @@
 #define	MADV_SEQUENTIAL	2	/* expect sequential page references */
 #define	MADV_WILLNEED	3	/* will need these pages */
 #define	MADV_DONTNEED	4	/* dont need these pages */
+
+/*
+ * Return bits from mincore
+ */
+#define	MINCORE_INCORE	 	 0x1 /* Page is incore */
+#define	MINCORE_REFERENCED	 0x2 /* Page has been referenced by us */
+#define	MINCORE_MODIFIED	 0x4 /* Page has been modified by us */
+#define	MINCORE_REFERENCED_OTHER 0x8 /* Page has been referenced */
+#define	MINCORE_MODIFIED_OTHER	0x10 /* Page has been modified */
 
 #ifndef KERNEL
 
