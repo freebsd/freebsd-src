@@ -2029,8 +2029,13 @@ stat(td, uap)
 	int error;
 	struct nameidata nd;
 
+#ifdef LOOKUP_SHARED
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ,
+	    UIO_USERSPACE, SCARG(uap, path), td);
+#else
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), td);
+#endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, td);

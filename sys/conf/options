@@ -383,6 +383,7 @@ BLKDEV_IOSIZE		opt_global.h
 DEBUG			opt_global.h
 DEBUG_LOCKS		opt_global.h
 DEBUG_VFS_LOCKS		opt_global.h
+LOOKUP_SHARED		opt_global.h
 DIAGNOSTIC		opt_global.h
 ENABLE_VFS_IOOPT	opt_global.h
 INVARIANT_SUPPORT	opt_global.h
