@@ -160,7 +160,7 @@ cmd_list
 			if (fromname)
 				free(fromname);
 			fromname = (char *) 0;
-			restart_point = (off_t) 0;
+			restart_point = 0;
 		}
 	| cmd_list rcmd
 	;
@@ -767,7 +767,7 @@ cmd
 rcmd
 	: RNFR check_login_ro SP pathname CRLF
 		{
-			restart_point = (off_t) 0;
+			restart_point = 0;
 			if ($2 && $4) {
 				if (fromname)
 					free(fromname);
