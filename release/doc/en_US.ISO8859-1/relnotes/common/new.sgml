@@ -201,6 +201,10 @@
       <para arch="i386,pc98,sparc64">The &man.patm.4; driver has been added to
         support IDT77252 based ATM interfaces.</para>
 
+      <para>The &man.rl.4; driver now has support for the RealTek
+	8139C+ Fast Ethernet chipset and the RealTek 8169 Gigabit
+	Ethernet chip.</para>
+
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.
         &merged;</para>
@@ -239,6 +243,9 @@
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+      <para>&man.ccd.4; can now operate on raw disks and other
+	&man.geom.4; providers.</para>
 
       <para>The &man.da.4; driver no longer tries to send 6-byte
 	commands to USB and Firewire devices.  The quirks for these
@@ -287,6 +294,9 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.acpidb.8;, an ACPI DSDT debugger, has been
+      added.</para>
+
     <para>&man.arp.8; now supports a <option>-i</option> option
       to limit the scope of the current operation to the ARP entries
       on a particular interface.  This option applies to the display
@@ -305,6 +315,10 @@
       and only sends DHCP requests on interfaces that are up.  The
       polling interval can be controlled with the <option>-i</option>
       option.</para>
+
+    <para>The &man.iasl.8; utility, a compiler/decompiler for ACPI
+      Source Language (ASL) and ACPI Machine language (AML), has been
+      added.</para>
 
     <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
       command now support ranges of rule numbers.
