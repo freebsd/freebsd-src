@@ -92,7 +92,7 @@ Scan_Disk(struct disk *d)
 	u_long l;
 	int i,j,fd;
 
-        strcpy(device,_PATH_DEV"r");
+        strcpy(device,_PATH_DEV);
         strcat(device,d->name);
 
         fd = open(device,O_RDWR);
