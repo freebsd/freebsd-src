@@ -187,7 +187,13 @@ USB_ATTACH(ugen)
 	}
 
 #ifdef __FreeBSD__
-	cdevsw_add(&ugen_cdevsw);
+	{
+		static int global_init_done = 0;
+		if (!global_init_done) {
+			cdevsw_add(&ugen_cdevsw);
+			global_init_done = 1;
+		}
+	}
 #endif
 	USB_ATTACH_SUCCESS_RETURN;
 }
