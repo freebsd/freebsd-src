@@ -121,6 +121,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     
+    crsres = NULL;
     buf.Pointer = NULL;
     crsbuf.Pointer = NULL;
     prsbuf.Pointer = NULL;
@@ -348,6 +349,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     /* XXX Data.Irq and Data.ExtendedIrq are implicitly structure-copied. */
     crsbuf.Pointer = NULL;
+    crsres = NULL;
     if (prsres->Id == ACPI_RSTYPE_IRQ) {
 	resbuf.Id = ACPI_RSTYPE_IRQ;
 	resbuf.Length = ACPI_SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
@@ -378,6 +380,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 		      AcpiFormatException(status));
 	goto out;
     }
+    crsres = &resbuf;
     
     /* Return the interrupt we just routed. */
     device_printf(pcib, "slot %d INT%c routed to irq %d via %s\n", 
@@ -386,6 +389,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     interrupt = Interrupts[0];
 
 out:
+    if (PCI_INTERRUPT_VALID(interrupt) && crsres != NULL)
+	acpi_config_intr(dev, crsres);
     if (crsbuf.Pointer != NULL)
 	AcpiOsFree(crsbuf.Pointer);
     if (prsbuf.Pointer != NULL)

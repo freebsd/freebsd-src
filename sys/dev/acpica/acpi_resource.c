@@ -46,6 +46,94 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("RESOURCE")
 
+struct lookup_irq_request {
+    ACPI_RESOURCE *acpi_res;
+    struct resource *res;
+    int		counter;
+    int		rid;
+    int		found;
+};
+
+static ACPI_STATUS
+acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
+{
+    struct lookup_irq_request *req;
+    u_int irqnum, irq;
+
+    switch (res->Id) {
+    case ACPI_RSTYPE_IRQ:
+    case ACPI_RSTYPE_EXT_IRQ:
+	if (res->Id == ACPI_RSTYPE_IRQ) {
+	    irqnum = res->Data.Irq.NumberOfInterrupts;
+	    irq = res->Data.Irq.Interrupts[0];
+	} else {
+	    irqnum = res->Data.ExtendedIrq.NumberOfInterrupts;
+	    irq = res->Data.ExtendedIrq.Interrupts[0];
+	}
+	if (irqnum != 1)
+	    break;
+	req = (struct lookup_irq_request *)context;
+	if (req->counter != req->rid) {
+	    req->counter++;
+	    break;
+	}
+	req->found = 1;
+	KASSERT(irq == rman_get_start(req->res),
+	    ("IRQ resources do not match"));
+	bcopy(res, req->acpi_res, sizeof(ACPI_RESOURCE));
+	return (AE_CTRL_TERMINATE);
+    }
+    return (AE_OK);
+}
+
+ACPI_STATUS
+acpi_lookup_irq_resource(device_t dev, int rid, struct resource *res,
+    ACPI_RESOURCE *acpi_res)
+{
+    struct lookup_irq_request req;
+    ACPI_STATUS status;
+
+    req.acpi_res = acpi_res;
+    req.res = res;
+    req.counter = 0;
+    req.rid = rid;
+    req.found = 0;
+    status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
+	acpi_lookup_irq_handler, &req);
+    if (ACPI_SUCCESS(status) && req.found == 0)
+	status = AE_NOT_FOUND;
+    return (status);
+}
+
+void
+acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
+{
+    u_int irq;
+    int pol, trig;
+
+    switch (res->Id) {
+    case ACPI_RSTYPE_IRQ:
+	KASSERT(res->Data.Irq.NumberOfInterrupts == 1,
+	    ("%s: multiple interrupts", __func__));
+	irq = res->Data.Irq.Interrupts[0];
+	trig = res->Data.Irq.EdgeLevel;
+	pol = res->Data.Irq.ActiveHighLow;
+	break;
+    case ACPI_RSTYPE_EXT_IRQ:
+	KASSERT(res->Data.ExtendedIrq.NumberOfInterrupts == 1,
+	    ("%s: multiple interrupts", __func__));
+	irq = res->Data.ExtendedIrq.Interrupts[0];
+	trig = res->Data.ExtendedIrq.EdgeLevel;
+	pol = res->Data.ExtendedIrq.ActiveHighLow;
+	break;
+    default:
+	panic("%s: bad resource type %u", __func__, res->Id);
+    }
+    BUS_CONFIG_INTR(dev, irq, (trig == ACPI_EDGE_SENSITIVE) ?
+	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
+	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);	
+}
+
 /*
  * Fetch a device's resources and associate them with the device.
  *
@@ -497,9 +585,6 @@ acpi_res_set_irq(device_t dev, void *context, u_int32_t *irq, int count,
 	return;
 
     bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
-    BUS_CONFIG_INTR(dev, *irq, (trig == ACPI_EDGE_SENSITIVE) ?
-	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
-	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
 }
 
 static void
