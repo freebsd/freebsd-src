@@ -197,10 +197,6 @@ fdc_isa_attach(device_t dev)
 	int error;
 
 	fdc = device_get_softc(dev);
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
-	if (error == 0)
-		fdc->flags |= FDC_ISPNP;
-
 	error = fdc_isa_alloc_resources(dev, fdc);
 	if (error == 0)
 		error = fdc_attach(dev);

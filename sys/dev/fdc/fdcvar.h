@@ -39,7 +39,6 @@ enum fdc_type {
  */
 struct fdc_data {
 	int	fdcu;		/* our unit number */
-	int	dmacnt;
 	int	dmachan;
 	int	flags;
 #define FDC_HASDMA	0x01
@@ -47,8 +46,6 @@ struct fdc_data {
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
 #define FDC_NODMA	0x40
-#define FDC_ISPNP	0x80
-#define FDC_ISPCMCIA	0x100
 	struct	fd_data *fd;	/* The active drive */
 	int	retry;
 	int	fdout;		/* mirror of the w/o digital output reg */
