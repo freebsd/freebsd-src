@@ -38,7 +38,7 @@
 #include <sys/sysctl.h>
 #include <machine/clock.h>
 
-#define _COMPONENT	ACPI_IBM
+#define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("IBM")
 
 #define IBM_RTC_MISCKEY 0x65

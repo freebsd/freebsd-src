@@ -35,9 +35,14 @@
 #include <sys/module.h>
 #include <dev/acpica/acpivar.h>
 #include <sys/sysctl.h>
+
+#define _COMPONENT	ACPI_OEM
+ACPI_MODULE_NAME("Sony")
+
 #define ACPI_SONY_GET_BRIGHTNESS "GBRT"
 #define ACPI_SONY_SET_BRIGHTNESS "SBRT"
 #define ACPI_SONY_GET_PID "GPID"
+
 /*
  * SNY5001
  *  [GS]BRT [GS]PBR [GS]CTR [GS]PCR [GS]CMI [CDPW GCDP]? GWDP PWAK PWRN 
