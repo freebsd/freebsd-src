@@ -441,11 +441,11 @@ acpi_tz_monitor(void *Context)
 
     /* update temperature-related flags */
     newflags = TZ_THFLAG_NONE;
-    if ((sc->tz_zone.psv != -1) && (temp >= sc->tz_zone.psv))
+    if (sc->tz_zone.psv != -1 && temp >= sc->tz_zone.psv)
 	newflags |= TZ_THFLAG_PSV;
-    if ((sc->tz_zone.hot != -1) && (temp >= sc->tz_zone.hot))
+    if (sc->tz_zone.hot != -1 && temp >= sc->tz_zone.hot)
 	newflags |= TZ_THFLAG_HOT;
-    if ((sc->tz_zone.crt != -1) && (temp >= sc->tz_zone.crt))
+    if (sc->tz_zone.crt != -1 && temp >= sc->tz_zone.crt)
 	newflags |= TZ_THFLAG_CRT;
 
     /* If the active cooling state has changed, we have to switch things. */
@@ -483,7 +483,7 @@ acpi_tz_monitor(void *Context)
 	device_printf(sc->tz_dev,
 	    "WARNING - current temperature (%d.%dC) exceeds system limits\n",
 		      TZ_KELVTOC(sc->tz_temperature));
-	/* shutdown_nice(RB_POWEROFF);*/
+	shutdown_nice(RB_POWEROFF);
     }
     sc->tz_thflags = newflags;
 
