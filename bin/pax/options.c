@@ -78,6 +78,9 @@ static void cpio_options __P((register int, register char **));
 static void cpio_usage __P((void));
 #endif
 
+#define GZIP_CMD	"gzip"		/* command to run as gzip */
+#define COMPRESS_CMD	"compress"	/* command to run as compress */
+
 /*
  *	Format specific routine table - MUST BE IN SORTED ORDER BY NAME
  *	(see pax.h for description of each function)
@@ -192,7 +195,7 @@ pax_options(argc, argv)
 	/*
 	 * process option flags
 	 */
-	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:B:DE:G:HLPT:U:XYZ"))
+	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:zB:DE:G:HLPT:U:XYZ"))
 	    != -1) {
 		switch (c) {
 		case 'a':
@@ -375,6 +378,12 @@ pax_options(argc, argv)
 				(void)fprintf(stderr, " %s", fsub[i].name);
 			(void)fputs("\n\n", stderr);
 			pax_usage();
+			break;
+		case 'z':
+			/*
+			 * use gzip.  Non standard option.
+			 */
+			gzip_program = GZIP_CMD;
 			break;
 		case 'B':
 			/*
@@ -694,6 +703,12 @@ tar_options(argc, argv)
 			 */
 			act = EXTRACT;
 			break;
+		case 'z':
+			/*
+			 * use gzip.  Non standard option.
+			 */
+			gzip_program = GZIP_CMD;
+			break;
 		case 'B':
 			/*
 			 * Nothing to do here, this is pax default
@@ -722,6 +737,12 @@ tar_options(argc, argv)
 			 * do not pass over mount points in the file system
 			 */
 			Xflag = 1;
+			break;
+		case 'Z':
+			/*
+			 * use compress.
+			 */
+			gzip_program = COMPRESS_CMD;
 			break;
 		case '0':
 			arcname = DEV_0;
@@ -1075,18 +1096,18 @@ void
 pax_usage()
 #endif
 {
-	(void)fputs("usage: pax [-cdnv] [-E limit] [-f archive] ", stderr);
+	(void)fputs("usage: pax [-cdnvz] [-E limit] [-f archive] ", stderr);
 	(void)fputs("[-s replstr] ... [-U user] ...", stderr);
 	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs("[pattern ...]\n", stderr);
-	(void)fputs("       pax -r [-cdiknuvDYZ] [-E limit] ", stderr);
+	(void)fputs("       pax -r [-cdiknuvzDYZ] [-E limit] ", stderr);
 	(void)fputs("[-f archive] [-o options] ... \n", stderr);
 	(void)fputs("	   [-p string] ... [-s replstr] ... ", stderr);
 	(void)fputs("[-U user] ... [-G group] ...\n	   ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs(" [pattern ...]\n", stderr);
-	(void)fputs("       pax -w [-dituvHLPX] [-b blocksize] ", stderr);
+	(void)fputs("       pax -w [-dituvzHLPX] [-b blocksize] ", stderr);
 	(void)fputs("[ [-a] [-f archive] ] [-x format] \n", stderr);
 	(void)fputs("	   [-B bytes] [-s replstr] ... ", stderr);
 	(void)fputs("[-o options] ... [-U user] ...", stderr);
@@ -1114,7 +1135,7 @@ void
 tar_usage()
 #endif
 {
-	(void)fputs("usage: tar -{txru}[cevfbmopwBHLPX014578] [tapefile] ",
+	(void)fputs("usage: tar -{txru}[cevfbmopwzBHLPXZ014578] [tapefile] ",
 		 stderr);
 	(void)fputs("[blocksize] file1 file2...\n", stderr);
 	exit(1);
