@@ -402,7 +402,7 @@ tc_windup(void)
 }
 
 static int
-sysctl_kern_timecounter_hardware (SYSCTL_HANDLER_ARGS)
+sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 {
 	char newname[32];
 	struct timecounter *newtc, *tc;
