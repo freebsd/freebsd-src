@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: interrupt.h,v 1.4 1997/06/02 10:46:20 dfr Exp $
+ * $Id: interrupt.h,v 1.5 1997/06/08 17:15:31 ache Exp $
  */
 
 /* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
@@ -37,7 +37,6 @@ int intr_destroy(struct intrec *idesc);
 
 int intr_connect(struct intrec *idesc);
 int intr_disconnect(struct intrec *idesc);
-int intr_registered(int irq);
 
 /* XXX emulate old interface for now ... */
 int register_intr __P((int intr, int device_id, u_int flags,
