@@ -43,6 +43,7 @@ struct cfid {
     ViceFid	cfid_fid;
 };
 
+struct mbuf;
 struct mount;
 
 int coda_vfsopstats_init(void);
