@@ -563,7 +563,7 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libhdb \
 .endif
 
 build-tools:
-.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
+.for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_libroken4} ${_libkrb5} lib/libncurses ${_share}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
