@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.12 1999/02/12 20:39:05 ache Exp $
+ * $Id: parse.y,v 1.13 1999/02/12 20:56:49 ache Exp $
  */
 
 #include <err.h>
@@ -83,16 +83,12 @@ charmap : DEFN CHAR {
 	strcpy(charmap_table[$2], $1);
 }
 ;
-substitute : SUBSTITUTE STRING WITH STRING {
-	u_char ch = $2[0];
-
-	if (strlen($2) > 1)
-		yyerror("Only characters can be substituted, not strings");
-	if (ch == '\0')
+substitute : SUBSTITUTE CHAR WITH STRING {
+	if ($2 == '\0')
 		yyerror("NUL character can't be substituted");
-	if (strchr($4, ch) != NULL)
-		yyerror("Char 0x%02x substitution is recursive", ch);
-	strcpy(__collate_substitute_table[ch], $4);
+	if (strchr($4, $2) != NULL)
+		yyerror("Char 0x%02x substitution is recursive", $2);
+	strcpy(__collate_substitute_table[$2], $4);
 }
 ;
 order : ORDER order_list {
