@@ -53,6 +53,7 @@
 static __inline void
 breakpoint(void)
 {
+	__asm(".word      0xe7ffffff");
 }
 
 struct cpu_functions {

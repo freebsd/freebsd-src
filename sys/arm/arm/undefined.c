@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 #ifdef FAST_FPE
 #include <sys/acct.h>
 #endif
@@ -188,6 +191,7 @@ undefinedinstruction(trapframe_t *frame)
 		enable_interrupts(I32_bit);
 
 	frame->tf_pc -= INSN_SIZE;
+	atomic_add_int(&cnt.v_trap, 1);
 
 	fault_pc = frame->tf_pc;
 
@@ -251,13 +255,30 @@ undefinedinstruction(trapframe_t *frame)
 			       fault_code) == 0)
 		    break;
 
-	if (uh == NULL) {
+	if (uh == NULL && (fault_code & FAULT_USER)) {
 		/* Fault has not been handled */
 		trapsignal(td, SIGILL, 0);
 	}
 
-	if ((fault_code & FAULT_USER) == 0)
+	if ((fault_code & FAULT_USER) == 0) {
+		if (fault_instruction == KERNEL_BREAKPOINT) {
+#ifdef KDB
+		kdb_trap(0, 0, frame);
+#else
+		printf("No debugger in kernel.\n");
+#endif
+		frame->tf_pc += 4;
 		return;
+		} else {
+#ifdef KDB
+			printf("Undefined instruction in kernel.\n");
+			kdb_trap(0, 0, frame);
+#else
+			panic("Undefined instruction in kernel.\n");
+#endif
+		}
+		
+	}		
 
 #ifdef FAST_FPE
 	/* Optimised exit code */
