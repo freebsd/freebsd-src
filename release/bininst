@@ -13,7 +13,7 @@
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.23 1994/11/09 23:02:11 jkh Exp $
+# $Id: bininst,v 1.24 1994/11/10 05:27:57 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -134,7 +134,7 @@ for you then your best bet may be to simply hit ESC twice to get \n\
 a subshell and proceed manually on your own.  If you are already \n\
 finished with installation, select cancel to go on.\n\n\
 	Please choose one of the following:" 20 72 5 \
-	"Tape" "Load distribution from SCSI or QIC tape" \
+	"Tape" "Load distribution from SCSI, QIC or floppy tape" \
 	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
         "DOS" "Load from DOS floppies or a DOS hard disk partition" \
         "FTP" "Load distribution using FTP" \
@@ -150,9 +150,10 @@ finished with installation, select cancel to go on.\n\n\
 		dialog $clear --title "Chose Tape Type" \
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 20 72 2 \
+		Choose one of the following:" 20 72 3 \
 		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
+		"floppy" "Floppy tape drive" \
 			2> ${TMP}/menu.tmp.$$
 		retval=$?
 		choice=`cat ${TMP}/menu.tmp.$$`
@@ -165,6 +166,9 @@ system?  FreeBSD supports the following types:\n\n\
 			;;
 			QIC)
 				media_device=/dev/rwt0
+			;;
+			floppy)
+				media_device=ftape
 			;;
 		esac
 	;;
@@ -419,8 +423,13 @@ install_set()
 		if ! set_tmpdir; then return; fi
 		if ! cd_tmpdir; then return; fi
 		confirm "Please mount tape for ${media_device}."
-		dialog --title "Results of tape extract" $clear \
-			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
+		if [ "$media_device" = "ftape" ]; then
+			dialog --title "Results of tape extract" $clear \
+			  --prgbox "ft | $TAR $TAR_FLAGS -" 10 72
+		else
+			dialog --title "Results of tape extract" $clear \
+			  --prgbox "$TAR $TAR_FLAGS $media_device" 10 72
+		fi
 		extract_dist
 		rm_tmpdir
 	;;

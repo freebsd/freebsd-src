@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.30 1994/11/09 23:07:04 phk Exp $
+#	$Id: Makefile,v 1.31 1994/11/10 05:27:56 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -22,7 +22,7 @@ CPIO1+= mt mv rcp rm rmdir sh sleep stty sync test [ -sh
 CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
 CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
 CPIO1+= reboot restore slattach swapon umount route
-CPIO1+= rdump rrestore halt
+CPIO1+= rdump rrestore halt ft
 CPIO1+= ftp rsh sed telnet rlogin grep
 
 CPIO2=  etc/services etc/protocols
