@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.4 1998/11/08 12:39:06 dfr Exp $
+ * $Id: xrpu.c,v 1.5 1998/12/14 06:32:58 dillon Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -228,9 +228,11 @@ DATA_SET (pcidevice_set, xrpu_device);
 static const char* 
 xrpu_probe (pcici_t tag, pcidi_t typea)
 {
-	int data = pci_conf_read(tag, PCI_CLASS_REG);
-	u_int id = pci_conf_read(tag, PCI_ID_REG);
+	u_int id;
 	const char *vendor, *chip, *type;
+
+	(void)pci_conf_read(tag, PCI_CLASS_REG);
+	id = pci_conf_read(tag, PCI_ID_REG);
 
 	vendor = chip = type = 0;
 
