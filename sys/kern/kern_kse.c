@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/smp.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -176,11 +177,13 @@ struct kse_thr_interrupt_args {
 int
 kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
+	struct kse_execve_args args;
 	struct proc *p;
 	struct thread *td2;
 	struct kse_upcall *ku;
 	struct kse_thr_mailbox *tmbx;
 	uint32_t flags;
+	int error;
 
 	p = td->td_proc;
 
@@ -255,6 +258,20 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			mtx_unlock_spin(&sched_lock);
 		}
 		return (0);
+
+	case KSE_INTR_EXECVE:
+		error = copyin((void *)uap->data, &args, sizeof(args));
+		if (error)
+			return (error);
+		error = kern_execve(td, args.path, args.argv, args.envp, NULL);
+		if (error == 0) {
+			PROC_LOCK(p);
+			SIGSETOR(td->td_siglist, args.sigpend);
+			PROC_UNLOCK(p);
+			kern_sigprocmask(td, SIG_SETMASK, &args.sigmask, NULL,
+			    0);
+		}
+		return (error);
 
 	default:
 		return (EINVAL);

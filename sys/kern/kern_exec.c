@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/namei.h>
 #include <sys/sf_buf.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
@@ -78,8 +79,6 @@ MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
-static int kern_execve(struct thread *td, char *fname, char **argv,
-	char **envv, struct mac *mac_p);
 static int do_execve(struct thread *td, char *fname, char **argv,
 	char **envv, struct mac *mac_p);
 
@@ -207,7 +206,7 @@ __mac_execve(td, uap)
 #endif
 }
 
-static int
+int
 kern_execve(td, fname, argv, envv, mac_p)
 	struct thread *td;
 	char *fname;

@@ -31,6 +31,7 @@
 #include <sys/signal.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
+#include <sys/mac.h>
 
 struct mbuf;
 struct msghdr;
@@ -98,6 +99,8 @@ int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_unlink(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_execve(struct thread *td, char *fname, char **argv, char **envv,
+	    struct mac *mac_p);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */

@@ -112,6 +112,16 @@ struct kse_mailbox {
 #define KSE_INTR_SENDSIG	3
 #define KSE_INTR_SIGEXIT	4
 #define KSE_INTR_DBSUSPEND	5
+#define KSE_INTR_EXECVE		6
+
+struct kse_execve_args {
+	sigset_t	sigmask;
+	sigset_t	sigpend;
+	char		*path;
+	char		**argv;
+	char		**envp;
+	void		*reserved;
+};
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
