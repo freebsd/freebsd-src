@@ -270,6 +270,7 @@ dev/dpt/dpt_pci.c	optional dpt pci
 dev/dpt/dpt_scsi.c	optional dpt
 dev/ed/if_ed.c		optional ed
 dev/ed/if_ed_pccard.c	optional ed card
+dev/ed/if_ed_pccard.c	optional ed pccard
 dev/ed/if_ed_pci.c	optional ed pci
 dev/en/midway.c		count en
 dev/ep/if_ep.c		optional ep
@@ -1092,7 +1093,7 @@ dev/pccbb/pccbb.c	optional pccbb
 pci/pci.c		count pci
 pci/pci_compat.c	optional pci compat_oldpci \
 	warning "Old PCI driver compatability shims present."
-pci/pcic_p.c		optional pcic pci
+pci/pcic_p.c		optional pcic pci card
 pci/pcisupport.c	optional pci
 pci/pci_if.m		optional pci
 pci/pcib_if.m		optional pci
