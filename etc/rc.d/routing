@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.6 1997/05/03 11:22:17 jkh Exp $
+#	$Id: rc.network,v 1.7 1997/05/13 08:22:27 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -170,7 +170,7 @@ network_pass3() {
 		    echo -n ' nfsprivport=YES'
 		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
 	    fi
-	    echo -n ' nfsd';		nfsd -u -t 4
+	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
 	    if [ "X$rpc_lockd_enable" = X"YES" ]; then
 		echo -n ' rpc.lockd';		rpc.lockd
 	    fi
@@ -180,7 +180,7 @@ network_pass3() {
     fi
     
     if [ "X${nfs_client_enable}" = X"YES" ]; then
-	    echo -n ' nfsiod';		nfsiod -n 4
+	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
     fi
 
     if [ "X${amd_enable}" = X"YES" ]; then
