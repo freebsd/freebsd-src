@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kadm5_locl.h,v 1.21 1999/12/02 17:05:06 joda Exp $ */
+/* $Id: kadm5_locl.h,v 1.23 2000/07/08 11:57:40 assar Exp $ */
 
 #ifndef __KADM5_LOCL_H__
 #define __KADM5_LOCL_H__
@@ -45,6 +45,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -76,6 +77,7 @@
 #include "admin.h"
 #include "kadm5_err.h"
 #include <hdb.h>
+#include <der.h>
 #include <roken.h>
 #include <parse_units.h>
 #include "private.h"

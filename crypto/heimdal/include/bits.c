@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,36 +33,22 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: bits.c,v 1.16 1999/12/02 17:04:57 joda Exp $");
+RCSID("$Id: bits.c,v 1.18 2000/08/27 05:42:46 assar Exp $");
 #endif
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 
-static void
-my_strupr(char *s)
-{
-    char *p = s;
-
-    while(*p){
-	if(islower((unsigned char)*p))
-	    *p = toupper((unsigned char)*p);
-	p++;
-    }	
-}
-
-
 #define BITSIZE(TYPE)						\
 {								\
-    int b = 0; TYPE x = 1, zero = 0; char *pre = "u_";		\
+    int b = 0; TYPE x = 1, zero = 0; char *pre = "u";		\
     char tmp[128], tmp2[128];					\
     while(x){ x <<= 1; b++; if(x < zero) pre=""; }		\
     if(b >= len){						\
         int tabs;						\
 	sprintf(tmp, "%sint%d_t" , pre, len);			\
 	sprintf(tmp2, "typedef %s %s;", #TYPE, tmp);		\
-	my_strupr(tmp);						\
 	tabs = 5 - strlen(tmp2) / 8;				\
         fprintf(f, "%s", tmp2);					\
 	while(tabs-- > 0) fprintf(f, "\t");			\
@@ -70,6 +56,19 @@ my_strupr(char *s)
         return;                                                 \
     }								\
 }
+
+#ifndef HAVE___ATTRIBUTE__
+#define __attribute__(x)
+#endif
+
+static void
+try_signed(FILE *f, int len)  __attribute__ ((unused));
+
+static void
+try_unsigned(FILE *f, int len) __attribute__ ((unused));
+
+static int
+print_bt(FILE *f, int flag) __attribute__ ((unused));
 
 static void
 try_signed(FILE *f, int len)
@@ -132,7 +131,7 @@ int main(int argc, char **argv)
     }
     fprintf(f, "/* %s -- this file was generated for %s by\n", fn, HOST);
     fprintf(f, "   %*s    %s */\n\n", (int)strlen(fn), "", 
-	    "$Id: bits.c,v 1.16 1999/12/02 17:04:57 joda Exp $");
+	    "$Id: bits.c,v 1.18 2000/08/27 05:42:46 assar Exp $");
     fprintf(f, "#ifndef %s\n", hb);
     fprintf(f, "#define %s\n", hb);
     fprintf(f, "\n");
@@ -173,22 +172,42 @@ int main(int argc, char **argv)
 #endif /* HAVE_INT64_T */
 #endif
 
-#ifndef HAVE_U_INT8_T
+#ifndef HAVE_UINT8_T
     flag = print_bt(f, flag);
     try_unsigned (f, 8);
-#endif /* HAVE_INT8_T */
-#ifndef HAVE_U_INT16_T
+#endif /* HAVE_UINT8_T */
+#ifndef HAVE_UINT16_T
     flag = print_bt(f, flag);
     try_unsigned (f, 16);
+#endif /* HAVE_UINT16_T */
+#ifndef HAVE_UINT32_T
+    flag = print_bt(f, flag);
+    try_unsigned (f, 32);
+#endif /* HAVE_UINT32_T */
+#if 0
+#ifndef HAVE_UINT64_T
+    flag = print_bt(f, flag);
+    try_unsigned (f, 64);
+#endif /* HAVE_UINT64_T */
+#endif
+
+#define X(S) fprintf(f, "typedef uint" #S "_t u_int" #S "_t;\n")
+#ifndef HAVE_U_INT8_T
+    flag = print_bt(f, flag);
+    X(8);
+#endif /* HAVE_U_INT8_T */
+#ifndef HAVE_U_INT16_T
+    flag = print_bt(f, flag);
+    X(16);
 #endif /* HAVE_U_INT16_T */
 #ifndef HAVE_U_INT32_T
     flag = print_bt(f, flag);
-    try_unsigned (f, 32);
+    X(32);
 #endif /* HAVE_U_INT32_T */
 #if 0
 #ifndef HAVE_U_INT64_T
     flag = print_bt(f, flag);
-    try_unsigned (f, 64);
+    X(64);
 #endif /* HAVE_U_INT64_T */
 #endif
 

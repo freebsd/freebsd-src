@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,6 +32,8 @@
  */
 
 #include "krb5_locl.h"
+
+RCSID("$Id: keyblock.c,v 1.11 2000/03/23 03:38:25 assar Exp $");
 
 void
 krb5_free_keyblock_contents(krb5_context context,

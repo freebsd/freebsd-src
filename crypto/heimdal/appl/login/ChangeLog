@@ -1,3 +1,57 @@
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* login.c: remove some krb5_free_context that might happen at
+	unappropriate times
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* login.c (main): handle krb5_init_context failure consistently
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): set the group on the tty.
+	(r_flag): comment out
+	* login.c (krb5_to4): always return a value
+
+2000-10-15  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): check another return code
+
+2000-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c (do_login): set PATH to something sane;
+	(start_logout_process): avoid getting signals sent to the parent
+
+	* login_locl.h: _PATH_DEFPATH
+
+2000-07-01  Assar Westerlund  <assar@sics.se>
+
+	* login.c (login_timeout): add back
+
+2000-06-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* env.c: new file for environment related functions
+
+	* login.c: move environment stuff to separate file, allow
+	specifying list of environment files via login.conf
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (LDADD): add otp
+	* login.c: add reading of /etc/environment.  From Ake Sandgren
+	<ake@cs.umu.se>
+	add otp support. From Daniel Kouril <kouril@ics.muni.cz>
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): work-around for setuid and capabilities bug
+	fixed in Linux 2.2.16
+
+2000-04-09  Assar Westerlund  <assar@sics.se>
+
+	* login.c: allow conversion of v5 -> v4 tickets when logging in
+	with forwarded tickets
+
 1999-11-09  Johan Danielsson  <joda@pdc.kth.se>
 
 	* conf.c: remove case for not having cgetent, since it's in roken

@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: cmds.c,v 1.36 1999/09/16 20:37:28 assar Exp $");
+RCSID("$Id: cmds.c,v 1.41 2000/07/18 10:00:31 joda Exp $");
 
 typedef void (*sighand)(int);
 
@@ -435,7 +435,7 @@ void
 mput(int argc, char **argv)
 {
     int i;
-    RETSIGTYPE (*oldintr)();
+    RETSIGTYPE (*oldintr)(int);
     int ointer;
     char *tp;
 
@@ -566,16 +566,17 @@ get(int argc, char **argv)
 {
     char *mode;
 
-    if (restart_point)
+    if (restart_point) {
 	if (curtype == TYPE_I)
 	    mode = "r+wb";
 	else
 	    mode = "r+w";
-    else
+    } else {
 	if (curtype == TYPE_I)
 	    mode = "wb";
 	else
 	    mode = "w";
+    }
 
     getit(argc, argv, 0, mode);
 }
@@ -647,6 +648,7 @@ getit(int argc, char **argv, int restartit, char *mode)
 			int cmdret;
 			int yy, mo, day, hour, min, sec;
 			struct tm *tm;
+			time_t mtime = stbuf.st_mtime;
 
 			overbose = verbose;
 			if (debug == 0)
@@ -665,7 +667,7 @@ getit(int argc, char **argv, int restartit, char *mode)
 				return (0);
 			}
 
-			tm = gmtime(&stbuf.st_mtime);
+			tm = gmtime(&mtime);
 			tm->tm_mon++;
 			tm->tm_year += 1900;
 
@@ -1223,7 +1225,7 @@ void
 shell(int argc, char **argv)
 {
 	pid_t pid;
-	RETSIGTYPE (*old1)(), (*old2)();
+	RETSIGTYPE (*old1)(int), (*old2)(int);
 	char shellnam[40], *shell, *namep; 
 	int status;
 
@@ -1611,7 +1613,7 @@ void
 doproxy(int argc, char **argv)
 {
 	struct cmd *c;
-	RETSIGTYPE (*oldintr)();
+	RETSIGTYPE (*oldintr)(int);
 
 	if (argc < 2 && !another(&argc, &argv, "command")) {
 		printf("usage: %s command\n", argv[0]);

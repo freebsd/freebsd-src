@@ -37,14 +37,14 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-RCSID("$Id: init_c.c,v 1.35 2000/01/28 03:20:18 assar Exp $");
+RCSID("$Id: init_c.c,v 1.40 2000/12/31 08:00:23 assar Exp $");
 
 static void
 set_funcs(kadm5_client_context *c)
 {
 #define SET(C, F) (C)->funcs.F = kadm5 ## _c_ ## F
     SET(c, chpass_principal);
-    SET(c, chpass_principal);
+    SET(c, chpass_principal_with_key);
     SET(c, create_principal);
     SET(c, delete_principal);
     SET(c, destroy);
@@ -288,21 +288,10 @@ get_cred_cache(krb5_context context,
     return ret;
 }
 
-static kadm5_ret_t 
-kadm5_c_init_with_context(krb5_context context,
-			  const char *client_name, 
-			  const char *password,
-			  krb5_prompter_fct prompter,
-			  const char *keytab,
-			  krb5_ccache ccache,
-			  const char *service_name,
-			  kadm5_config_params *realm_params,
-			  unsigned long struct_version,
-			  unsigned long api_version,
-			  void **server_handle)
+static kadm5_ret_t
+kadm_connect(kadm5_client_context *ctx)
 {
     kadm5_ret_t ret;
-    kadm5_client_context *ctx;
     krb5_principal server;
     krb5_ccache cc;
     int s;
@@ -311,15 +300,12 @@ kadm5_c_init_with_context(krb5_context context,
     int error;
     char portstr[NI_MAXSERV];
     char *hostname, *slash;
+    krb5_context context = ctx->context;
 
     memset (&hints, 0, sizeof(hints));
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
-
-    ret = _kadm5_c_init_context(&ctx, realm_params, context);
-    if(ret)
-	return ret;
-
+    
     snprintf (portstr, sizeof(portstr), "%u", ntohs(ctx->kadmind_port));
 
     hostname = ctx->admin_server;
@@ -347,8 +333,9 @@ kadm5_c_init_with_context(krb5_context context,
 	krb5_warnx (context, "failed to contact %s", hostname);
 	return KADM5_FAILURE;
     }
-    ret = get_cred_cache(context, client_name, service_name, 
-			 password, prompter, keytab, ccache, &cc);
+    ret = get_cred_cache(context, ctx->client_name, ctx->service_name, 
+			 NULL, ctx->prompter, ctx->keytab, 
+			 ctx->ccache, &cc);
     
     if(ret) {
 	freeaddrinfo (ai);
@@ -358,7 +345,7 @@ kadm5_c_init_with_context(krb5_context context,
     ret = krb5_parse_name(context, KADM5_ADMIN_SERVICE, &server);
     if(ret) {
 	freeaddrinfo (ai);
-	if(ccache == NULL)
+	if(ctx->ccache == NULL)
 	    krb5_cc_close(context, cc);
 	close(s);
 	return ret;
@@ -370,19 +357,18 @@ kadm5_c_init_with_context(krb5_context context,
 			server, AP_OPTS_MUTUAL_REQUIRED, 
 			NULL, NULL, cc, NULL, NULL, NULL);
     if(ret == 0) {
-	krb5_data params, enc_data;
-	ret = _kadm5_marshal_params(context, realm_params, &params);
+	krb5_data params;
+	ret = _kadm5_marshal_params(context, ctx->realm_params, &params);
 	
-	ret = krb5_mk_priv(context,
-			   ctx->ac,
-			   &params,
-			   &enc_data,
-			   NULL);
-
-	ret = krb5_write_message(context, &s, &enc_data);
-	
+	ret = krb5_write_priv_message(context, ctx->ac, &s, &params);
 	krb5_data_free(&params);
-	krb5_data_free(&enc_data);
+	if(ret) {
+	    freeaddrinfo (ai);
+	    close(s);
+	    if(ctx->ccache == NULL)
+		krb5_cc_close(context, cc);
+	    return ret;
+	}
     } else if(ret == KRB5_SENDAUTH_BADAPPLVERS) {
 	close(s);
 
@@ -396,8 +382,6 @@ kadm5_c_init_with_context(krb5_context context,
 	    freeaddrinfo (ai);
 	    return errno;
 	}
-	freeaddrinfo (ai);
-
 	ret = krb5_sendauth(context, &ctx->ac, &s, 
 			    KADMIN_OLD_APPL_VERSION, NULL, 
 			    server, AP_OPTS_MUTUAL_REQUIRED, 
@@ -410,13 +394,70 @@ kadm5_c_init_with_context(krb5_context context,
     }
     
     krb5_free_principal(context, server);
-    if(ccache == NULL)
+    if(ctx->ccache == NULL)
 	krb5_cc_close(context, cc);
     if(ret) {
 	close(s);
 	return ret;
     }
     ctx->sock = s;
+    
+    return 0;
+}
+
+kadm5_ret_t
+_kadm5_connect(void *handle)
+{
+    kadm5_client_context *ctx = handle;
+    if(ctx->sock == -1)
+	return kadm_connect(ctx);
+    return 0;
+}
+
+static kadm5_ret_t 
+kadm5_c_init_with_context(krb5_context context,
+			  const char *client_name, 
+			  const char *password,
+			  krb5_prompter_fct prompter,
+			  const char *keytab,
+			  krb5_ccache ccache,
+			  const char *service_name,
+			  kadm5_config_params *realm_params,
+			  unsigned long struct_version,
+			  unsigned long api_version,
+			  void **server_handle)
+{
+    kadm5_ret_t ret;
+    kadm5_client_context *ctx;
+    krb5_ccache cc;
+
+    ret = _kadm5_c_init_context(&ctx, realm_params, context);
+    if(ret)
+	return ret;
+
+    if(password != NULL && *password != '\0') {
+	ret = get_cred_cache(context, client_name, service_name, 
+			     password, prompter, keytab, ccache, &cc);
+	if(ret)
+	    return ret; /* XXX */
+	ccache = cc;
+    }
+    
+
+    if (client_name != NULL)
+	ctx->client_name = strdup(client_name);
+    else
+	ctx->client_name = NULL;
+    if (service_name != NULL)
+	ctx->service_name = strdup(service_name);
+    else
+	ctx->service_name = NULL;
+    ctx->prompter = prompter;
+    ctx->keytab = keytab;
+    ctx->ccache = ccache;
+    ctx->realm_params = realm_params;
+    ctx->sock = -1;
+    
     *server_handle = ctx;
     return 0;
 }
@@ -437,7 +478,9 @@ init_context(const char *client_name,
     kadm5_ret_t ret;
     kadm5_server_context *ctx;
     
-    krb5_init_context(&context);
+    ret = krb5_init_context(&context);
+    if (ret)
+	return ret;
     ret = kadm5_c_init_with_context(context,
 				    client_name,
 				    password,

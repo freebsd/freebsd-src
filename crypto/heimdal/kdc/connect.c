@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.70 2000/02/19 18:41:24 assar Exp $");
+RCSID("$Id: connect.c,v 1.80 2000/10/08 21:36:29 assar Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -129,10 +129,18 @@ add_standard_ports (int family)
     add_port_service(family, "kerberos", 88, "tcp");
     add_port_service(family, "kerberos-sec", 88, "udp");
     add_port_service(family, "kerberos-sec", 88, "tcp");
-    add_port_service(family, "kerberos-iv", 750, "udp");
-    add_port_service(family, "kerberos-iv", 750, "tcp");
     if(enable_http)
 	add_port_service(family, "http", 80, "tcp");
+#ifdef KRB4
+    if(enable_v4) {
+	add_port_service(family, "kerberos-iv", 750, "udp");
+	add_port_service(family, "kerberos-iv", 750, "tcp");
+    }
+    if(enable_524) {
+	add_port_service(family, "krb524", 4444, "udp");
+	add_port_service(family, "krb524", 4444, "tcp");
+    }
+#endif
 #ifdef KASERVER
     if (enable_kaserver)
 	add_port_service(family, "afs3-kaserver", 7004, "udp");
@@ -195,9 +203,30 @@ struct descr {
     time_t timeout;
     struct sockaddr_storage __ss;
     struct sockaddr *sa;
-    int sock_len;
+    socklen_t sock_len;
     char addr_string[128];
 };
+
+static void
+init_descr(struct descr *d)
+{
+    memset(d, 0, sizeof(*d));
+    d->sa = (struct sockaddr *)&d->__ss;
+    d->s = -1;
+}
+
+/*
+ * re-intialize all `n' ->sa in `d'.
+ */
+
+static void
+reinit_descrs (struct descr *d, int n)
+{
+    int i;
+
+    for (i = 0; i < n; ++i)
+	d[i].sa = (struct sockaddr *)&d[i].__ss;
+}
 
 /*
  * Create the socket (family, type, port) in `d'
@@ -211,9 +240,7 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
     struct sockaddr *sa = (struct sockaddr *)&__ss;
     int sa_size;
 
-    memset(d, 0, sizeof(*d));
-    d->sa = (struct sockaddr *)&d->__ss;
-    d->s = -1;
+    init_descr (d);
 
     ret = krb5_addr2sockaddr (a, sa, &sa_size, port);
     if (ret) {
@@ -286,7 +313,8 @@ init_sockets(struct descr **desc)
     parse_ports(port_str);
     d = malloc(addresses.len * num_ports * sizeof(*d));
     if (d == NULL)
-	krb5_errx(context, 1, "malloc(%u) failed", num_ports * sizeof(*d));
+	krb5_errx(context, 1, "malloc(%lu) failed",
+		  (unsigned long)num_ports * sizeof(*d));
 
     for (i = 0; i < num_ports; i++){
 	for (j = 0; j < addresses.len; ++j) {
@@ -311,7 +339,9 @@ init_sockets(struct descr **desc)
     krb5_free_addresses (context, &addresses);
     d = realloc(d, num * sizeof(*d));
     if (d == NULL && num != 0)
-	krb5_errx(context, 1, "realloc(%u) failed", num * sizeof(*d));
+	krb5_errx(context, 1, "realloc(%lu) failed",
+		  (unsigned long)num * sizeof(*d));
+    reinit_descrs (d, num);
     *desc = d;
     return num;
 }
@@ -482,30 +512,35 @@ de_http(char *buf)
 #define TCP_TIMEOUT 4
 
 /*
- * accept a new TCP connection on `d[index]'
+ * accept a new TCP connection on `d[parent]' and store it in `d[child]'
  */
 
 static void
-add_new_tcp (struct descr *d, int index, int min_free)
+add_new_tcp (struct descr *d, int parent, int child)
 {
     int s;
 
-    d->sock_len = sizeof(d->__ss);
-    s = accept(d[index].s, d->sa, &d->sock_len);
+    if (child == -1)
+	return;
+
+    d[child].sock_len = sizeof(d[child].__ss);
+    s = accept(d[parent].s, d[child].sa, &d[child].sock_len);
     if(s < 0) {
 	krb5_warn(context, errno, "accept");
 	return;
     }
-    if(min_free == -1){
-	close(s);
+	    
+    if (s >= FD_SETSIZE) {
+	krb5_warnx(context, "socket FD too large");
+	close (s);
 	return;
     }
-	    
-    d[min_free].s = s;
-    d[min_free].timeout = time(NULL) + TCP_TIMEOUT;
-    d[min_free].type = SOCK_STREAM;
-    addr_to_string (d[min_free].sa, d[min_free].sock_len,
-		    d[min_free].addr_string, sizeof(d[min_free].addr_string));
+
+    d[child].s = s;
+    d[child].timeout = time(NULL) + TCP_TIMEOUT;
+    d[child].type = SOCK_STREAM;
+    addr_to_string (d[child].sa, d[child].sock_len,
+		    d[child].addr_string, sizeof(d[child].addr_string));
 }
 
 /*
@@ -556,7 +591,7 @@ handle_vanilla_tcp (struct descr *d)
     krb5_ret_int32(sp, &len);
     krb5_storage_free(sp);
     if(d->len - 4 >= len) {
-	memcpy(d->buf, d->buf + 4, d->len - 4);
+	memmove(d->buf, d->buf + 4, d->len - 4);
 	return 1;
     }
     return 0;
@@ -709,8 +744,9 @@ loop(void)
 	int min_free = -1;
 	int max_fd = 0;
 	int i;
+
 	FD_ZERO(&fds);
-	for(i = 0; i < ndescr; i++){
+	for(i = 0; i < ndescr; i++) {
 	    if(d[i].s >= 0){
 		if(d[i].type == SOCK_STREAM && 
 		   d[i].timeout && d[i].timeout < time(NULL)) {
@@ -721,8 +757,10 @@ loop(void)
 		}
 		if(max_fd < d[i].s)
 		    max_fd = d[i].s;
+		if (max_fd >= FD_SETSIZE)
+		    krb5_errx(context, 1, "fd too large");
 		FD_SET(d[i].s, &fds);
-	    }else if(min_free < 0 || i < min_free)
+	    } else if(min_free < 0 || i < min_free)
 		min_free = i;
 	}
 	if(min_free == -1){
@@ -730,11 +768,12 @@ loop(void)
 	    tmp = realloc(d, (ndescr + 4) * sizeof(*d));
 	    if(tmp == NULL)
 		krb5_warnx(context, "No memory");
-	    else{
+	    else {
 		d = tmp;
+		reinit_descrs (d, ndescr);
 		memset(d + ndescr, 0, 4 * sizeof(*d));
 		for(i = ndescr; i < ndescr + 4; i++)
-		    d[i].s = -1;
+		    init_descr (&d[i]);
 		min_free = ndescr;
 		ndescr += 4;
 	    }

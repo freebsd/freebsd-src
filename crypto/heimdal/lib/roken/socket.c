@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,28 +33,10 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: socket.c,v 1.3 1999/12/02 16:58:52 joda Exp $");
-#endif
-
-#include <string.h>
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_NETINET_IN_SYSTM_H
-#include <netinet/in_systm.h>
-#endif
-#ifdef HAVE_NETINET_IP_H
-#include <netinet/ip.h>
+RCSID("$Id: socket.c,v 1.5 2000/07/27 04:41:06 assar Exp $");
 #endif
 
 #include <roken.h>
-
 #include <err.h>
 
 /*
@@ -246,9 +228,9 @@ socket_set_port (struct sockaddr *sa, int port)
 void
 socket_set_debug (int sock)
 {
+#if defined(SO_DEBUG) && defined(HAVE_SETSOCKOPT)
     int on = 1;
 
-#if defined(SO_DEBUG) && defined(HAVE_SETSOCKOPT)
     if (setsockopt (sock, SOL_SOCKET, SO_DEBUG, (void *) &on, sizeof (on)) < 0)
 	warn ("setsockopt SO_DEBUG (ignored)");
 #endif

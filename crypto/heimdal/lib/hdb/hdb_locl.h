@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb_locl.h,v 1.13 2000/02/06 05:17:05 assar Exp $ */
+/* $Id: hdb_locl.h,v 1.14 2000/11/14 06:57:17 assar Exp $ */
 
 #ifndef __HDB_LOCL_H__
 #define __HDB_LOCL_H__
@@ -67,8 +67,10 @@
 #include <db.h>
 #endif
 
-#ifdef HAVE_NDBM_H
+#if defined(HAVE_NDBM_H)
 #include <ndbm.h>
+#elif defined(HAVE_GDBM_NDBM_H)
+#include <gdbm/ndbm.h>
 #endif
 
 int hdb_principal2key(krb5_context, krb5_principal, krb5_data*);

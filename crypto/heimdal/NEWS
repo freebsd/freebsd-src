@@ -1,3 +1,142 @@
+Changes in release 0.3e
+
+ * rcp program included
+
+ * fix buffer overrun in ftpd
+
+ * handle omitted sequence numbers as zeroes to handle MIT krb5 that
+   cannot generate zero sequence numbers
+
+ * handle v4 /.k files better
+
+ * configure/portability fixes
+
+ * fixes in parsing of options to kadmin (sub-)commands
+
+ * handle errors in kadmin load better
+
+ * bug fixes
+
+Changes in release 0.3d
+
+ * add krb5-config
+
+ * fix a bug in 3des gss-api mechanism, making it compatible with the
+   specification and the MIT implementation
+
+ * make telnetd only allow a specific list of environment variables to
+   stop it from setting `sensitive' variables
+
+ * try to use an existing libdes
+
+ * lib/krb5, kdc: use correct usage type for ap-req messages.  This
+   should improve compatability with MIT krb5 when using 3DES
+   encryption types
+
+ * kdc: fix memory allocation problem
+
+ * update config.guess and config.sub
+
+ * lib/roken: more stuff implemented
+
+ * bug fixes and portability enhancements
+
+Changes in release 0.3c
+
+ * lib/krb5: memory caches now support the resolve operation
+
+ * appl/login: set PATH to some sane default
+
+ * kadmind: handle several realms
+
+ * bug fixes (including memory leaks)
+
+Changes in release 0.3b
+
+ * kdc: prefer default-salted keys on v5 requests
+
+ * kdc: lowercase hostnames in v4 mode
+
+ * hprop: handle more types of MIT salts
+
+ * lib/krb5: fix memory leak
+
+ * bug fixes
+
+Changes in release 0.3a:
+
+ * implement arcfour-hmac-md5 to interoperate with W2K
+
+ * modularise the handling of the master key, and allow for other
+   encryption types. This makes it easier to import a database from
+   some other source without having to re-encrypt all keys.
+
+ * allow for better control over which encryption types are created
+
+ * make kinit fallback to v4 if given a v4 KDC
+
+ * make klist work better with v4 and v5, and add some more MIT
+   compatibility options
+
+ * make the kdc listen on the krb524 (4444) port for compatibility
+   with MIT krb5 clients
+
+ * implement more DCE/DFS support, enabled with --enable-dce, see
+   lib/kdfs and appl/dceutils
+
+ * make the sequence numbers work correctly
+
+ * bug fixes
+
+Changes in release 0.2t:
+
+ * bug fixes
+
+Changes in release 0.2s:
+
+ * add OpenLDAP support in hdb
+
+ * login will get v4 tickets when it receives forwarded tickets
+
+ * xnlock supports both v5 and v4
+
+ * repair source routing for telnet
+
+ * fix building problems with krb4 (krb_mk_req)
+
+ * bug fixes
+
+Changes in release 0.2r:
+
+ * fix realloc memory corruption bug in kdc
+
+ * `add --key' and `cpw --key' in kadmin
+
+ * klist supports listing v4 tickets
+
+ * update config.guess and config.sub
+
+ * make v4 -> v5 principal name conversion more robust
+
+ * support for anonymous tickets
+
+ * new man-pages
+
+ * telnetd: do not negotiate KERBEROS5 authentication if there's no keytab.
+
+ * use and set expiration and not password expiration when dumping
+   to/from ka server databases / krb4 databases
+
+ * make the code happier with 64-bit time_t
+
+ * follow RFC2782 and by default do not look for non-underscore SRV names
+
+Changes in release 0.2q:
+
+ * bug fix in tcp-handling in kdc
+
+ * bug fix in expand_hostname
+
 Changes in release 0.2p:
 
  * bug fix in `kadmin load/merge'

@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds_pw.c,v 1.38 2000/02/07 03:17:20 assar Exp $");
+RCSID("$Id: init_creds_pw.c,v 1.44 2000/07/24 03:46:40 assar Exp $");
 
 static int
 get_config_time (krb5_context context,
@@ -178,9 +178,9 @@ print_expire (krb5_context context,
 	if (lr->val[i].lr_type == 6
 	    && lr->val[i].lr_value <= t) {
 	    char *p;
+	    time_t tmp = lr->val[i].lr_value;
 	    
-	    asprintf (&p, "Your password will expire at %s",
-		      ctime(&lr->val[i].lr_value));
+	    asprintf (&p, "Your password will expire at %s", ctime(&tmp));
 	    (*prompter) (context, data, p, 0, NULL);
 	    free (p);
 	    return;
@@ -190,9 +190,9 @@ print_expire (krb5_context context,
     if (rep->enc_part.key_expiration
 	&& *rep->enc_part.key_expiration <= t) {
 	char *p;
+	time_t t = *rep->enc_part.key_expiration;
 
-	asprintf (&p, "Your password/account will expire at %s",
-		  ctime(rep->enc_part.key_expiration));
+	asprintf (&p, "Your password/account will expire at %s", ctime(&t));
 	(*prompter) (context, data, p, 0, NULL);
 	free (p);
     }
@@ -263,6 +263,8 @@ get_init_creds_common(krb5_context context,
     }
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_SALT)
 	;			/* XXX */
+    if (options->flags & KRB5_GET_INIT_CREDS_OPT_ANONYMOUS)
+	flags->b.request_anonymous = options->anonymous;
     return 0;
 }
 
@@ -291,9 +293,12 @@ change_password (krb5_context context,
 
     krb5_get_init_creds_opt_init (&options);
     krb5_get_init_creds_opt_set_tkt_life (&options, 60);
-    krb5_get_init_creds_opt_set_preauth_list (&options,
-					      old_options->preauth_list,
-					      old_options->preauth_list_length);					      
+    krb5_get_init_creds_opt_set_forwardable (&options, FALSE);
+    krb5_get_init_creds_opt_set_proxiable (&options, FALSE);
+    if (old_options->flags & KRB5_GET_INIT_CREDS_OPT_PREAUTH_LIST)
+	krb5_get_init_creds_opt_set_preauth_list (&options,
+						  old_options->preauth_list,
+						  old_options->preauth_list_length);					      
 
     krb5_data_zero (&result_code_string);
     krb5_data_zero (&result_string);
@@ -438,6 +443,12 @@ krb5_get_init_creds_password(krb5_context context,
 	    done = 1;
 	    break;
 	case KRB5KDC_ERR_KEY_EXPIRED :
+	    /* try to avoid recursion */
+
+	    if (in_tkt_service != NULL
+		&& strcmp (in_tkt_service, "kadmin/changepw") == 0)
+		goto out;
+
 	    ret = change_password (context,
 				   client,
 				   password,

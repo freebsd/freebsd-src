@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_get.c,v 1.27 1999/12/02 17:05:01 joda Exp $");
+RCSID("$Id: der_get.c,v 1.28 2000/04/06 17:19:53 assar Exp $");
 
 #include <version.h>
 
@@ -216,6 +216,33 @@ decode_integer (const unsigned char *p, size_t len,
     len -= l;
     ret += l;
     e = der_get_int (p, reallen, num, &l);
+    if (e) return e;
+    p += l;
+    len -= l;
+    ret += l;
+    if(size) *size = ret;
+    return 0;
+}
+
+int
+decode_unsigned (const unsigned char *p, size_t len,
+		 unsigned *num, size_t *size)
+{
+    size_t ret = 0;
+    size_t l, reallen;
+    int e;
+
+    e = der_match_tag (p, len, UNIV, PRIM, UT_Integer, &l);
+    if (e) return e;
+    p += l;
+    len -= l;
+    ret += l;
+    e = der_get_length (p, len, &reallen, &l);
+    if (e) return e;
+    p += l;
+    len -= l;
+    ret += l;
+    e = der_get_unsigned (p, reallen, num, &l);
     if (e) return e;
     p += l;
     len -= l;

@@ -1,3 +1,106 @@
+2001-01-30  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump version to 3:0:2
+	* acquire_cred.c, init_sec_context.c, release_cred.c: add support
+	for getting creds from a keytab, from fvdl@netbsd.org
+
+	* copy_ccache.c: add gss_krb5_copy_ccache
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* get_mic.c: cast parameters to des function to non-const pointers
+ 	to handle the case where these functions actually take non-const
+ 	des_cblock *
+
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): use krb5_rd_cred2
+	instead of krb5_rd_cred
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 2:3:1
+
+2000-12-08  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c (wrap_des3): use the checksum as ivec when encrypting the
+	sequence number
+	* unwrap.c (unwrap_des3): use the checksum as ivec when encrypting
+	the sequence number
+	* init_sec_context.c (init_auth): always zero fwd_data
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* accept_sec_context.c: de-pointerise auth_context parameter to
+	krb5_mk_rep
+
+2000-11-15  Assar Westerlund  <assar@sics.se>
+
+	* init_sec_context.c (init_auth): update to new
+	krb5_build_authenticator
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): bump to 2:2:1
+
+2000-08-27  Assar Westerlund  <assar@sics.se>
+
+	* init_sec_context.c: actually pay attention to `time_req'
+	* init_sec_context.c: re-organize.  leak less memory.
+	* gssapi_locl.h (gssapi_krb5_encapsulate, gss_krb5_getsomekey):
+	update prototypes add assert.h
+	* gssapi.h (GSS_KRB5_CONF_C_QOP_DES, GSS_KRB5_CONF_C_QOP_DES3_KD):
+	add
+	* verify_mic.c: re-organize and add 3DES code
+	* wrap.c: re-organize and add 3DES code
+	* unwrap.c: re-organize and add 3DES code
+	* get_mic.c: re-organize and add 3DES code
+	* encapsulate.c (gssapi_krb5_encapsulate): do not free `in_data',
+	let the caller do that.  fix the callers.
+
+2000-08-16  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 2:1:1
+
+2000-07-29  Assar Westerlund  <assar@sics.se>
+
+	* decapsulate.c (gssapi_krb5_verify_header): sanity-check length
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump version to 2:0:1
+
+2000-07-22  Assar Westerlund  <assar@sics.se>
+
+	* gssapi.h: update OID for GSS_C_NT_HOSTBASED_SERVICE and other
+	details from rfc2744
+
+2000-06-29  Assar Westerlund  <assar@sics.se>
+
+	* address_to_krb5addr.c (gss_address_to_krb5addr): actually use
+	`int' instead of `sa_family_t' for the address family.
+
+2000-06-21  Assar Westerlund  <assar@sics.se>
+
+	* add support for token delegation.  From Daniel Kouril
+	<kouril@ics.muni.cz> and Miroslav Ruda <ruda@ics.muni.cz>
+
+2000-05-15  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libgssapi_la_LDFLAGS): set version to 1:1:1
+
+2000-04-12  Assar Westerlund  <assar@sics.se>
+
+	* release_oid_set.c (gss_release_oid_set): clear set for
+	robustness.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* release_name.c (gss_release_name): reset input_name for
+	robustness.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* release_buffer.c (gss_release_buffer): set value to NULL to be
+	more robust.  From GOMBAS Gabor <gombasg@inf.elte.hu>
+	* add_oid_set_member.c (gss_add_oid_set_member): actually check if
+	the oid is a member first.  leave the oid_set unchanged if realloc
+	fails.
+
 2000-02-13  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: set version to 1:0:1

@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997 Kungliga Tekniska Högskolan
-.\" $Id: krb5_openlog.3,v 1.4 1999/04/07 14:06:32 joda Exp $
+.\" $Id: krb5_openlog.3,v 1.5 2001/01/26 22:43:22 assar Exp $
 .Dd August 6, 1997
 .Dt KRB5_OPENLOG 3
 .Os HEIMDAL
@@ -16,40 +16,28 @@
 .Nd Heimdal logging functions
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
-
-.\" ouch!
-.ds xx \\*(fP\fR(\fP\\*(lI*\\*(fP
-.ds xy \fR)\|\fP
-.Fn "\\*(lItypedef void \\*(xxkrb5_log_log_func_t\\*(xy" "const char *time" "const char *message" "void *data" 
-.Fn "\\*(lItypedef void \\*(xxkrb5_log_close_func_t\\*(xy" "void *data" 
-
+.Ft "typedef void"
+.Fn "\*(lp*krb5_log_log_func_t\*(rp" "const char *time" "const char *message" "void *data" 
+.Ft "typedef void"
+.Fn "\*(lp*krb5_log_close_func_t\*(rp" "void *data" 
 .Ft krb5_error_code
 .Fn krb5_addlog_dest "krb5_context context" "krb5_log_facility *facility" "const char *destination"
-
 .Ft krb5_error_code
 .Fn krb5_addlog_func "krb5_context context" "krb5_log_facility *facility" "int min" "int max" "krb5_log_log_func_t log" "krb5_log_close_func_t close" "void *data"
-
 .Ft krb5_error_code
 .Fn krb5_closelog "krb5_context context" "krb5_log_facility *facility"
-
 .Ft krb5_error_code
 .Fn krb5_initlog "krb5_context context" "const char *program" "krb5_log_facility **facility"
-
 .Ft krb5_error_code
 .Fn krb5_log "krb5_context context" "krb5_log_facility *facility" "int level" "const char *format" "..."
-
 .Ft krb5_error_code
 .Fn krb5_log_msg "krb5_context context" "krb5_log_facility *facility" "char **reply" "int level" "const char *format" "..."
-
 .Ft krb5_error_code
 .Fn krb5_openlog "krb5_context context" "const char *program" "krb5_log_facility **facility"
-
 .Ft krb5_error_code
 .Fn krb5_vlog "krb5_context context" "krb5_log_facility *facility" "int level" "const char *format" "va_list arglist"
-
 .Ft krb5_error_code
 .Fn krb5_vlog_msg "krb5_context context" "krb5_log_facility *facility" "char **reply" "int level" "const char *format" "va_list arglist"
-
 .Sh DESCRIPTION
 These functions logs messages to one or more destinations.
 .Pp
@@ -97,7 +85,6 @@ is a standard
 .Fn printf
 style format string (but see the BUGS section).
 .Pp
-
 If you want better control of where things gets logged, you can instead of using 
 .Fn krb5_openlog
 call 
@@ -135,9 +122,7 @@ calls
 and then calls 
 .Fn krb5_addlog_dest
 for each destination found.
-
 .Ss Destinations
-
 The defined destinations (as specified in
 .Pa krb5.conf )
 follows:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,13 +32,16 @@
  */
 
 #include "ktutil_locl.h"
+#include <err.h>
 
-RCSID("$Id: ktutil.c,v 1.26 2000/02/07 04:29:25 assar Exp $");
+RCSID("$Id: ktutil.c,v 1.30 2001/01/25 12:44:37 assar Exp $");
 
 static int help_flag;
 static int version_flag;
 int verbose_flag;
 char *keytab_string; 
+
+static char keytab_buf[256];
 
 static int help(int argc, char **argv);
 
@@ -127,7 +130,9 @@ main(int argc, char **argv)
     int optind = 0;
     krb5_error_code ret;
     set_progname(argv[0]);
-    krb5_init_context(&context);
+    ret = krb5_init_context(&context);
+    if (ret)
+	errx (1, "krb5_init_context failed: %d", ret);
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
     if(help_flag)
@@ -143,6 +148,10 @@ main(int argc, char **argv)
     if(keytab_string) {
 	ret = krb5_kt_resolve(context, keytab_string, &keytab);
     } else {
+	if(krb5_kt_default_name (context, keytab_buf, sizeof(keytab_buf)))
+	    strlcpy (keytab_buf, "unknown", sizeof(keytab_buf));
+	keytab_string = keytab_buf;
+
 	ret = krb5_kt_default(context, &keytab);
     }
     if(ret)

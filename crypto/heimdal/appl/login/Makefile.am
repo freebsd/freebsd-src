@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.16 1999/10/30 08:51:45 assar Exp $
+# $Id: Makefile.am,v 1.19 2000/11/15 22:51:08 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -6,27 +6,30 @@ INCLUDES += $(INCLUDE_krb4)
 
 bin_PROGRAMS = login
 
-login_SOURCES = \
+login_SOURCES =					\
+		conf.c				\
+		env.c				\
 		login.c				\
-		osfc2.c				\
-		read_string.c			\
-		utmp_login.c			\
-		utmpx_login.c			\
-		tty.c				\
-		stty_default.c			\
 		login_access.c			\
 		login_locl.h			\
-		login_proto.h			\
-		conf.c				\
-		shadow.c
+		login_protos.h			\
+		osfc2.c				\
+		read_string.c			\
+		shadow.c			\
+		stty_default.c			\
+		tty.c				\
+		utmp_login.c			\
+		utmpx_login.c
 
-LDADD = $(LIB_kafs) \
+LDADD = $(LIB_otp) \
+	$(LIB_kafs) \
 	$(top_builddir)/lib/krb5/libkrb5.la \
 	$(LIB_krb4) \
-	$(top_builddir)/lib/des/libdes.la \
+	$(LIB_des) \
 	$(top_builddir)/lib/asn1/libasn1.la \
 	$(LIB_roken) \
-	$(LIB_security)
+	$(LIB_security) \
+	$(DBLIB)
 
 $(srcdir)/login_protos.h:
 	cd $(srcdir); perl ../../cf/make-proto.pl -o login_protos.h $(login_SOURCES) || rm -f login_protos.h

@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,10 +33,9 @@
  */
 
 #include "make_cmds.h"
-RCSID("$Id: parse.y,v 1.6 1999/12/16 10:34:11 assar Exp $");
+RCSID("$Id: parse.y,v 1.7 2000/06/27 02:37:18 assar Exp $");
 
-void yyerror (char *s);
-void error_message(char *, ...);
+static void yyerror (char *s);
 
 struct string_list* append_string(struct string_list*, char*);
 void free_string_list(struct string_list *list);
@@ -129,7 +128,7 @@ flag		: STRING
 
 %%
 
-void
+static void
 yyerror (char *s)
 {
     error_message ("%s\n", s);

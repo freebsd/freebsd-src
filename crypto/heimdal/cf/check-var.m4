@@ -1,20 +1,22 @@
-dnl $Id: check-var.m4,v 1.2 1999/03/01 09:52:23 joda Exp $
+dnl $Id: check-var.m4,v 1.5 2000/12/15 04:54:06 assar Exp $
 dnl
-dnl AC_CHECK_VAR(includes, variable)
-AC_DEFUN(AC_CHECK_VAR, [
-AC_MSG_CHECKING(for $2)
-AC_CACHE_VAL(ac_cv_var_$2, [
-AC_TRY_LINK([extern int $2;
-int foo() { return $2; }],
+dnl rk_CHECK_VAR(variable, includes)
+AC_DEFUN([rk_CHECK_VAR], [
+AC_MSG_CHECKING(for $1)
+AC_CACHE_VAL(ac_cv_var_$1, [
+AC_TRY_LINK([extern int $1;
+int foo() { return $1; }],
 	    [foo()],
-	    ac_cv_var_$2=yes, ac_cv_var_$2=no)
+	    ac_cv_var_$1=yes, ac_cv_var_$1=no)
 ])
-define([foo], [HAVE_]translit($2, [a-z], [A-Z]))
-
-AC_MSG_RESULT(`eval echo \\$ac_cv_var_$2`)
-if test `eval echo \\$ac_cv_var_$2` = yes; then
-	AC_DEFINE_UNQUOTED(foo, 1, [define if you have $2])
-	AC_CHECK_DECLARATION([$1],[$2])
+ac_foo=`eval echo \\$ac_cv_var_$1`
+AC_MSG_RESULT($ac_foo)
+if test "$ac_foo" = yes; then
+	AC_DEFINE_UNQUOTED(AC_TR_CPP(HAVE_[]$1), 1, 
+		[Define if you have the `]$1[' variable.])
+	m4_ifval([$2], AC_CHECK_DECLARATION([$2],[$1]))
 fi
-undefine([foo])
 ])
+
+AC_WARNING_ENABLE([obsolete])
+AU_DEFUN([AC_CHECK_VAR], [rk_CHECK_VAR([$2], [$1])], [foo])

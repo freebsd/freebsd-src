@@ -1,3 +1,98 @@
+2001-01-09  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_is): use krb5_rd_cred2 instead
+	of krb5_rd_cred
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* telnet/main.c (krb5_init): check krb5_init_context for success
+	* libtelnet/kerberos5.c (kerberos5_init): check krb5_init_context
+	for success
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (sourceroute): make it not break if the
+	rfc2292 api does not exist
+
+2000-12-09  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (scrub_env): add supporting non-file TERMCAP
+	variables
+
+2000-12-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (scrub_env): remove some const-ness
+	* telnetd/sys_term.c (scrub_env): add LOGNAME and POSIXLY_CORRECT
+	to the list of authorized environment variables to be compatible
+	with linux-telnetd
+
+	* telnetd/sys_term.c (scrub_env): change filtering algoritm from
+	allowing everything except a few bad cases to not allowing
+	anything except a few non-dangerous cases
+
+2000-12-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* libtelnet/kerberos5.c: de-pointerise auth_context parameter to
+	krb5_mk_rep
+
+2000-11-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* libtelnet/kerberos5.c: print the principal we're trying to use
+
+	* libtelnet/kerberos.c: print the principal we're trying to use
+
+2000-11-16  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/misc-proto.h (telnet_getenv): const-ize some
+
+2000-11-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: fake entry if no tgetent
+
+2000-10-08  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/utility.c (stilloob): check that fds are not too large
+	to select on
+	(ttloop): remove confusing output of errno
+	* telnetd/telnetd.c (my_telnet): check that fds are not too large
+	to select on
+	* telnet/utilities.c (EmptyTerminal): check that fds are not too
+	large to select on
+	* telnet/sys_bsd.c (process_rings): check that fds are not too
+	large to select on
+	* telnet/network.c (stilloob): check that fds are not too large to
+	select on
+
+2000-06-09  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c: remove all setuid(getuid()).  we do not
+	support telnet being setuid root
+
+2000-05-05  Assar Westerlund  <assar@sics.se>
+
+	* telnet/externs.h (sourceroute): update prototype
+	* telnet/commands.c (tn): re-enable source routing
+	(sourceroute): make it work again based on the code from
+	itojun@kame.net
+
+2000-03-28  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): clean-up a tiny little bit.  give-up if
+	we do not manage to connect to any address
+
+2000-03-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (*): make sure to always call time, ctime,
+	and gmtime with `time_t's.  there were some types (like in
+	lastlog) that we believed to always be time_t.  this has proven
+	wrong on Solaris 8 in 64-bit mode, where they are stored as 32-bit
+	quantities but time_t has gone up to 64 bits
+
+2000-03-03  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c (kerberos5_init): check that we do have a
+	keytab before saying that we will support KERBEROS5
+
 2000-02-12  Assar Westerlund  <assar@sics.se>
 
 	* telnet/commands.c (tn): only set tos for AF_INET.  From
