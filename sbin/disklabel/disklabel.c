@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.15 1998/06/28 18:59:04 bde Exp $";
+	"$Id: disklabel.c,v 1.16 1998/07/20 11:34:06 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -274,15 +274,25 @@ main(argc, argv)
 		if (installboot && argc == 3) {
 			makelabel(argv[2], 0, &lab);
 			argc--;
+
+			/*
+			 * We only called makelabel() for its side effect
+			 * of setting the bootstrap file names.  Discard
+			 * all changes to `lab' so that all values in the
+			 * final label come from the ASCII label.
+			 */
+			bzero((char *)&lab, sizeof(lab));
 		}
 #endif
 		if (argc != 2)
 			usage();
-		lp = makebootarea(bootarea, &lab, f);
 		if (!(t = fopen(argv[1], "r")))
 			err(4, "%s", argv[1]);
-		if (getasciilabel(t, lp))
-			error = writelabel(f, bootarea, lp);
+		if (!getasciilabel(t, &lab))
+			exit(1);
+		lp = makebootarea(bootarea, &lab, f);
+		*lp = lab;
+		error = writelabel(f, bootarea, lp);
 		break;
 
 	case WRITE:
@@ -529,9 +539,7 @@ makebootarea(boot, dp, f)
 	int b;
 #if NUMBOOT > 0
 	char *dkbasename;
-#if NUMBOOT == 1
 	struct stat sb;
-#endif
 #ifdef __i386__
 	char *tmpbuf;
 	int i, found;
@@ -646,13 +654,18 @@ makebootarea(boot, dp, f)
 	b = open(bootxx, O_RDONLY);
 	if (b < 0)
 		err(4, "%s", bootxx);
+	if (fstat(b, &sb) != 0)
+		err(4, "%s", bootxx);
+	if (dp->d_secsize + sb.st_size > dp->d_bbsize)
+		errx(4, "%s too large", bootxx);
 	if (read(b, &boot[dp->d_secsize],
 		 (int)(dp->d_bbsize-dp->d_secsize)) < 0)
 		err(4, "%s", bootxx);
 #else
 	if (read(b, boot, (int)dp->d_bbsize) < 0)
 		err(4, "%s", xxboot);
-	(void)fstat(b, &sb);
+	if (fstat(b, &sb) != 0)
+		err(4, "%s", xxboot);
 	bootsize = (int)sb.st_size - dp->d_bbsize;
 	if (bootsize > 0) {
 		/* XXX assume d_secsize is a power of two */
@@ -991,7 +1004,7 @@ getasciilabel(f, lp)
 		}
 		if (streq(cp, "bytes/sector")) {
 			v = atoi(tp);
-			if (v <= 0 || (v % 512) != 0) {
+			if (v <= 0 || (v % DEV_BSIZE) != 0) {
 				fprintf(stderr,
 				    "line %d: %s: bad sector size\n",
 				    lineno, tp);
