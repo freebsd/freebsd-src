@@ -96,8 +96,9 @@
 #include <sys/socket.h>
 #ifdef ANCACHE
 #include <sys/syslog.h>
-#include <sys/sysctl.h>
 #endif
+#include <sys/sysctl.h>
+#include <machine/clock.h>	/* for DELAY */  
 
 #include <sys/module.h>
 #include <sys/sysctl.h>
@@ -107,6 +108,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/resource.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -137,6 +139,7 @@ static const char rcsid[] =
 
 /* These are global because we need them in sys/pci/if_an_p.c. */
 static void an_reset		(struct an_softc *);
+static int an_init_mpi350_desc	(struct an_softc *);
 static int an_ioctl		(struct ifnet *, u_long, caddr_t);
 static void an_init		(void *);
 static int an_init_tx_ring	(struct an_softc *);
@@ -147,17 +150,24 @@ static void an_txeof		(struct an_softc *, int);
 
 static void an_promisc		(struct an_softc *, int);
 static int an_cmd		(struct an_softc *, int, int);
+static int an_cmd_struct	(struct an_softc *, struct an_command *,
+					struct an_reply *);
 static int an_read_record	(struct an_softc *, struct an_ltv_gen *);
 static int an_write_record	(struct an_softc *, struct an_ltv_gen *);
+static void an_kick		(struct an_softc *);
 static int an_read_data		(struct an_softc *, int, int, caddr_t, int);
 static int an_write_data	(struct an_softc *, int, int, caddr_t, int);
 static int an_seek		(struct an_softc *, int, int, int);
 static int an_alloc_nicmem	(struct an_softc *, int, int *);
+static int an_dma_malloc	(struct an_softc *, bus_size_t,
+					struct an_dma_alloc *, int);
+static void an_dma_free		(struct an_softc *, struct an_dma_alloc *);
+static void an_dma_malloc_cb	(void *, bus_dma_segment_t *, int, int);
 static void an_stats_update	(void *);
 static void an_setdef		(struct an_softc *, struct an_req *);
 #ifdef ANCACHE
 static void an_cache_store	(struct an_softc *, struct ether_header *,
-					struct mbuf *, unsigned short);
+					struct mbuf *, u_int8_t, u_int8_t);
 #endif
 
 /* function definitions for use with the Cisco's Linux configuration
@@ -184,10 +194,17 @@ static int an_media_change	(struct ifnet *);
 static void an_media_status	(struct ifnet *, struct ifmediareq *);
 
 static int	an_dump = 0;
+static int	an_cache_mode = 0;
+
+#define DBM 0
+#define PERCENT 1
+#define RAW 2
 
 static char an_conf[256];
+static char an_conf_cache[256];
 
 /* sysctl vars */
+
 SYSCTL_NODE(_machdep, OID_AUTO, an, CTLFLAG_RD, 0, "dump RID");
 
 /* XXX violate ethernet/netgraph callback hooks */
@@ -201,17 +218,16 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 	char 	*s = an_conf;
 
 	last = an_dump;
-	bzero(an_conf, sizeof(an_conf));
 
 	switch (an_dump) {
 	case 0:
-		strcat(an_conf, "off");
+		strcpy(an_conf, "off");
 		break;
 	case 1:
-		strcat(an_conf, "type");
+		strcpy(an_conf, "type");
 		break;
 	case 2:
-		strcat(an_conf, "dump");
+		strcpy(an_conf, "dump");
 		break;
 	default:
 		snprintf(an_conf, 5, "%x", an_dump);
@@ -220,7 +236,7 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_string(oidp, an_conf, sizeof(an_conf), req);
 
-	if (strncmp(an_conf,"off", 4) == 0) {
+	if (strncmp(an_conf,"off", 3) == 0) {
 		an_dump = 0;
  	}
 	if (strncmp(an_conf,"dump", 4) == 0) {
@@ -250,6 +266,44 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
             0, sizeof(an_conf), sysctl_an_dump, "A", "");
+
+static int
+sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
+{
+	int	error, last;
+
+	last = an_cache_mode;
+
+	switch (an_cache_mode) {
+	case 1:
+		strcpy(an_conf_cache, "per");
+		break;
+	case 2:
+		strcpy(an_conf_cache, "raw");
+		break;
+	default:
+		strcpy(an_conf_cache, "dbm");
+		break;
+	}
+
+	error = sysctl_handle_string(oidp, an_conf_cache, 
+			sizeof(an_conf_cache), req);
+
+	if (strncmp(an_conf_cache,"dbm", 3) == 0) {
+		an_cache_mode = 0;
+	}
+	if (strncmp(an_conf_cache,"per", 3) == 0) {
+		an_cache_mode = 1;
+ 	}
+	if (strncmp(an_conf_cache,"raw", 3) == 0) {
+		an_cache_mode = 2;
+	}
+
+	return error;
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
+            0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
 
 /*
  * We probe for an Aironet 4500/4800 card by attempting to
@@ -288,10 +342,11 @@ an_probe(dev)
 	ssid.an_type = AN_RID_SSIDLIST;
 
         /* Make sure interrupts are disabled. */
-        CSR_WRITE_2(sc, AN_INT_EN, 0);
-        CSR_WRITE_2(sc, AN_EVENT_ACK, 0xFFFF);
+        CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
+        CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 0xFFFF);
 
 	an_reset(sc);
+	/* No need for an_init_mpi350_desc since it will be done in attach */
 
 	if (an_cmd(sc, AN_CMD_READCFG, 0))
 		return(0);
@@ -330,6 +385,46 @@ an_alloc_port(dev, rid, size)
 }
 
 /*
+ * Allocate a memory resource with the given resource id.
+ */
+int an_alloc_memory(device_t dev, int rid, int size)
+{
+	struct an_softc *sc = device_get_softc(dev);
+	struct resource *res;
+
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				 0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->mem_rid = rid;
+		sc->mem_res = res;
+		sc->mem_used = size;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
+}
+
+/*
+ * Allocate a auxilary memory resource with the given resource id.
+ */
+int an_alloc_aux_memory(device_t dev, int rid, int size)
+{
+	struct an_softc *sc = device_get_softc(dev);
+	struct resource *res;
+
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				 0ul, ~0ul, size, RF_ACTIVE);
+	if (res) {
+		sc->mem_aux_rid = rid;
+		sc->mem_aux_res = res;
+		sc->mem_aux_used = size;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
+}
+
+/*
  * Allocate an irq resource with the given resource id.
  */
 int
@@ -352,6 +447,69 @@ an_alloc_irq(dev, rid, flags)
 	}
 }
 
+static void
+an_dma_malloc_cb(arg, segs, nseg, error)
+	void *arg;
+	bus_dma_segment_t *segs;
+	int nseg;
+	int error;
+{
+	bus_addr_t *paddr = (bus_addr_t*) arg;
+	*paddr = segs->ds_addr;
+}
+
+/*
+ * Alloc DMA memory and set the pointer to it
+ */
+static int
+an_dma_malloc(sc, size, dma, mapflags)
+	struct an_softc *sc;
+	bus_size_t size;
+	struct an_dma_alloc *dma;
+	int mapflags;
+{
+	int r;
+
+	r = bus_dmamap_create(sc->an_dtag, BUS_DMA_NOWAIT, &dma->an_dma_map);
+	if (r != 0)
+		goto fail_0;
+
+	r = bus_dmamem_alloc(sc->an_dtag, (void**) &dma->an_dma_vaddr,
+			     BUS_DMA_NOWAIT, &dma->an_dma_map);
+	if (r != 0)
+		goto fail_1;
+
+	r = bus_dmamap_load(sc->an_dtag, dma->an_dma_map, dma->an_dma_vaddr,
+		            size,
+			    an_dma_malloc_cb,
+			    &dma->an_dma_paddr,
+			    mapflags | BUS_DMA_NOWAIT);
+	if (r != 0)
+		goto fail_2;
+
+	dma->an_dma_size = size;
+	return (0);
+
+fail_2:
+	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
+fail_1:
+	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
+fail_0:
+	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
+	dma->an_dma_map = NULL;
+	return (r);
+}
+
+static void
+an_dma_free(sc, dma)
+	struct an_softc *sc;
+	struct an_dma_alloc *dma;
+{
+	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
+	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
+	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
+}
+
 /*
  * Release all resources
  */
@@ -360,17 +518,152 @@ an_release_resources(dev)
 	device_t dev;
 {
 	struct an_softc *sc = device_get_softc(dev);
+	int i;
 
 	if (sc->port_res) {
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     sc->port_rid, sc->port_res);
 		sc->port_res = 0;
 	}
+	if (sc->mem_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+				     sc->mem_rid, sc->mem_res);
+		sc->mem_res = 0;
+	}
+	if (sc->mem_aux_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+				     sc->mem_aux_rid, sc->mem_aux_res);
+		sc->mem_aux_res = 0;
+	}
 	if (sc->irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ,
 				     sc->irq_rid, sc->irq_res);
 		sc->irq_res = 0;
 	}
+	if (sc->an_rid_buffer.an_dma_paddr) {
+		an_dma_free(sc, &sc->an_rid_buffer);
+	}
+	for (i = 0; i < AN_MAX_RX_DESC; i++)
+		if (sc->an_rx_buffer[i].an_dma_paddr) {
+			an_dma_free(sc, &sc->an_rx_buffer[i]);
+		}
+	for (i = 0; i < AN_MAX_TX_DESC; i++)
+		if (sc->an_tx_buffer[i].an_dma_paddr) {
+			an_dma_free(sc, &sc->an_tx_buffer[i]);
+		}
+	if (sc->an_dtag) {
+		bus_dma_tag_destroy(sc->an_dtag);
+	}
+
+}
+
+int
+an_init_mpi350_desc(sc)
+	struct an_softc *sc;
+{
+	struct an_command	cmd_struct;
+	struct an_reply		reply;
+	struct an_card_rid_desc an_rid_desc;
+	struct an_card_rx_desc	an_rx_desc;
+	struct an_card_tx_desc	an_tx_desc;
+	int			i, desc;
+
+	if(!sc->an_rid_buffer.an_dma_paddr)
+		an_dma_malloc(sc, AN_RID_BUFFER_SIZE,
+				 &sc->an_rid_buffer, 0);
+	for (i = 0; i < AN_MAX_RX_DESC; i++)
+		if(!sc->an_rx_buffer[i].an_dma_paddr)
+			an_dma_malloc(sc, AN_RX_BUFFER_SIZE,
+				      &sc->an_rx_buffer[i], 0);
+	for (i = 0; i < AN_MAX_TX_DESC; i++)
+		if(!sc->an_tx_buffer[i].an_dma_paddr)
+			an_dma_malloc(sc, AN_TX_BUFFER_SIZE,
+				      &sc->an_tx_buffer[i], 0);
+
+	/*
+	 * Allocate RX descriptor
+	 */
+	bzero(&reply,sizeof(reply));
+	cmd_struct.an_cmd   = AN_CMD_ALLOC_DESC;
+	cmd_struct.an_parm0 = AN_DESCRIPTOR_RX;
+	cmd_struct.an_parm1 = AN_RX_DESC_OFFSET;
+	cmd_struct.an_parm2 = AN_MAX_RX_DESC;
+	if (an_cmd_struct(sc, &cmd_struct, &reply)) {
+		printf("an%d: failed to allocate RX descriptor\n", 
+		       sc->an_unit);
+		return(EIO);
+	}
+
+	for (desc = 0; desc < AN_MAX_RX_DESC; desc++) {
+		bzero(&an_rx_desc, sizeof(an_rx_desc));
+		an_rx_desc.an_valid = 1;
+		an_rx_desc.an_len = AN_RX_BUFFER_SIZE;
+		an_rx_desc.an_done = 0;
+		an_rx_desc.an_phys = sc->an_rx_buffer[desc].an_dma_paddr;
+
+		for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
+			CSR_MEM_AUX_WRITE_4(sc, AN_RX_DESC_OFFSET 
+					    + (desc * sizeof(an_rx_desc))
+					    + (i * 4),
+					    ((u_int32_t*)&an_rx_desc)[i]);
+	}
+
+	/*
+	 * Allocate TX descriptor
+	 */
+
+	bzero(&reply,sizeof(reply));
+	cmd_struct.an_cmd   = AN_CMD_ALLOC_DESC;
+	cmd_struct.an_parm0 = AN_DESCRIPTOR_TX;
+	cmd_struct.an_parm1 = AN_TX_DESC_OFFSET;
+	cmd_struct.an_parm2 = AN_MAX_TX_DESC;
+	if (an_cmd_struct(sc, &cmd_struct, &reply)) {
+		printf("an%d: failed to allocate TX descriptor\n", 
+		       sc->an_unit);
+		return(EIO);
+	}
+
+	for (desc = 0; desc < AN_MAX_TX_DESC; desc++) {
+		bzero(&an_tx_desc, sizeof(an_tx_desc));
+		an_tx_desc.an_offset = 0;
+		an_tx_desc.an_eoc = 0;
+		an_tx_desc.an_valid = 0;
+		an_tx_desc.an_len = 0;
+		an_tx_desc.an_phys = sc->an_tx_buffer[desc].an_dma_paddr;
+
+		for (i = 0; i < sizeof(an_tx_desc) / 4; i++)
+			CSR_MEM_AUX_WRITE_4(sc, AN_TX_DESC_OFFSET
+					    + (desc * sizeof(an_tx_desc))
+					    + (i * 4),
+					    ((u_int32_t*)&an_tx_desc)[i]);
+	}
+
+	/*
+	 * Allocate RID descriptor
+	 */
+
+	bzero(&reply,sizeof(reply));
+	cmd_struct.an_cmd   = AN_CMD_ALLOC_DESC;
+	cmd_struct.an_parm0 = AN_DESCRIPTOR_HOSTRW;
+	cmd_struct.an_parm1 = AN_HOST_DESC_OFFSET;
+	cmd_struct.an_parm2 = 1;
+	if (an_cmd_struct(sc, &cmd_struct, &reply)) {
+		printf("an%d: failed to allocate host descriptor\n", 
+		       sc->an_unit);
+		return(EIO);
+	}
+
+	bzero(&an_rid_desc, sizeof(an_rid_desc));
+	an_rid_desc.an_valid = 1;
+	an_rid_desc.an_len = AN_RID_BUFFER_SIZE;
+	an_rid_desc.an_rid = 0;
+	an_rid_desc.an_phys = sc->an_rid_buffer.an_dma_paddr;
+
+	for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
+		CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
+				    ((u_int32_t*)&an_rid_desc)[i]);
+
+	return(0);
 }
 
 int
@@ -380,6 +673,7 @@ an_attach(sc, unit, flags)
 	int flags;
 {
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	int			error;
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -389,9 +683,15 @@ an_attach(sc, unit, flags)
 	sc->an_associated = 0;
 	sc->an_monitor = 0;
 	sc->an_was_monitor = 0;
+	sc->an_flash_buffer = NULL;
 
 	/* Reset the NIC. */
 	an_reset(sc);
+	if(sc->mpi350) {
+		error = an_init_mpi350_desc(sc);
+		if (error)
+			return(error);
+	}
 
 	/* Load factory config */
 	if (an_cmd(sc, AN_CMD_READCFG, 0)) {
@@ -440,6 +740,23 @@ an_attach(sc, unit, flags)
 		mtx_destroy(&sc->an_mtx);
 		return(EIO);
 	}
+
+#ifdef ANCACHE
+	/* Read the RSSI <-> dBm map */
+	sc->an_have_rssimap = 0;
+	if (sc->an_caps.an_softcaps & 8) {
+		sc->an_rssimap.an_type = AN_RID_RSSI_MAP;
+		sc->an_rssimap.an_len = sizeof(struct an_ltv_rssi_map);
+		if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_rssimap)) {
+			printf("an%d: unable to get RSSI <-> dBM map\n", sc->an_unit);
+		} else {
+			printf("an%d: got RSSI <-> dBM map\n", sc->an_unit);
+			sc->an_have_rssimap = 1;
+		}
+	} else {
+		printf("an%d: no RSSI <-> dBM map\n", sc->an_unit);
+	}
+#endif
 
 	bcopy((char *)&sc->an_caps.an_oemaddr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
@@ -520,146 +837,252 @@ an_rxeof(sc)
 	struct an_rxframe rx_frame;
 	struct an_rxframe_802_3 rx_frame_802_3;
 	struct mbuf    *m;
-	int             len, id, error = 0;
-	int             ieee80211_header_len;
-	u_char          *bpf_buf;
-	u_short         fc1;
+	int		len, id, error = 0, i, count = 0;
+	int		ieee80211_header_len;
+	u_char		*bpf_buf;
+	u_short		fc1;
+	struct an_card_rx_desc an_rx_desc;
+	u_int8_t	*buf;
 
 	ifp = &sc->arpcom.ac_if;
 
-	id = CSR_READ_2(sc, AN_RX_FID);
+	if (!sc->mpi350) {
+		id = CSR_READ_2(sc, AN_RX_FID);
 
-	if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
-		/* read raw 802.11 packet */
-	        bpf_buf = sc->buf_802_11;
+		if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
+			/* read raw 802.11 packet */
+			bpf_buf = sc->buf_802_11;
 
-		/* read header */
-		if (an_read_data(sc, id, 0x0, (caddr_t)&rx_frame,
-				 sizeof(rx_frame))) {
-			ifp->if_ierrors++;
-			return;
-		}
-
-		/*
-		 * skip beacon by default since this increases the
-		 * system load a lot
-		 */
-
-		if (!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
-		    (rx_frame.an_frame_ctl & IEEE80211_FC0_SUBTYPE_BEACON)) {
-			return;
-		}
-
-		if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER) {
-			len = rx_frame.an_rx_payload_len
-				+ sizeof(rx_frame);
-			/* Check for insane frame length */
-			if (len > sizeof(sc->buf_802_11)) {
-				printf("an%d: oversized packet received (%d, %d)\n",
-				       sc->an_unit, len, MCLBYTES);
+			/* read header */
+			if (an_read_data(sc, id, 0x0, (caddr_t)&rx_frame,
+					 sizeof(rx_frame))) {
 				ifp->if_ierrors++;
 				return;
 			}
 
-			bcopy((char *)&rx_frame,
-			      bpf_buf, sizeof(rx_frame));
+			/*
+			 * skip beacon by default since this increases the
+			 * system load a lot
+			 */
 
-			error = an_read_data(sc, id, sizeof(rx_frame),
-					     (caddr_t)bpf_buf+sizeof(rx_frame),
-					     rx_frame.an_rx_payload_len);
+			if (!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
+			    (rx_frame.an_frame_ctl & 
+			     IEEE80211_FC0_SUBTYPE_BEACON)) {
+				return;
+			}
+
+			if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER) {
+				len = rx_frame.an_rx_payload_len
+					+ sizeof(rx_frame);
+				/* Check for insane frame length */
+				if (len > sizeof(sc->buf_802_11)) {
+					printf("an%d: oversized packet "
+					       "received (%d, %d)\n",
+					       sc->an_unit, len, MCLBYTES);
+					ifp->if_ierrors++;
+					return;
+				}
+
+				bcopy((char *)&rx_frame,
+				      bpf_buf, sizeof(rx_frame));
+
+				error = an_read_data(sc, id, sizeof(rx_frame),
+					    (caddr_t)bpf_buf+sizeof(rx_frame),
+					    rx_frame.an_rx_payload_len);
+			} else {
+				fc1=rx_frame.an_frame_ctl >> 8;
+				ieee80211_header_len = 
+					sizeof(struct ieee80211_frame);
+				if ((fc1 & IEEE80211_FC1_DIR_TODS) &&
+				    (fc1 & IEEE80211_FC1_DIR_FROMDS)) {
+					ieee80211_header_len += ETHER_ADDR_LEN;
+				}
+
+				len = rx_frame.an_rx_payload_len
+					+ ieee80211_header_len;
+				/* Check for insane frame length */
+				if (len > sizeof(sc->buf_802_11)) {
+					printf("an%d: oversized packet "
+					       "received (%d, %d)\n",
+					       sc->an_unit, len, MCLBYTES);
+					ifp->if_ierrors++;
+					return;
+				}
+
+				ih = (struct ieee80211_frame *)bpf_buf;
+
+				bcopy((char *)&rx_frame.an_frame_ctl,
+				      (char *)ih, ieee80211_header_len);
+
+				error = an_read_data(sc, id, sizeof(rx_frame) +
+					    rx_frame.an_gaplen,
+					    (caddr_t)ih +ieee80211_header_len,
+					    rx_frame.an_rx_payload_len);
+			}
+			/* dump raw 802.11 packet to bpf and skip ip stack */
+			BPF_TAP(ifp, bpf_buf, len);
 		} else {
-			fc1=rx_frame.an_frame_ctl >> 8;
-			ieee80211_header_len = sizeof(struct ieee80211_frame);
-			if ((fc1 & IEEE80211_FC1_DIR_TODS) &&
-			    (fc1 & IEEE80211_FC1_DIR_FROMDS)) {
-				ieee80211_header_len += ETHER_ADDR_LEN;
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			if (m == NULL) {
+				ifp->if_ierrors++;
+				return;
 			}
+			MCLGET(m, M_DONTWAIT);
+			if (!(m->m_flags & M_EXT)) {
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+			m->m_pkthdr.rcvif = ifp;
+			/* Read Ethernet encapsulated packet */
 
-			len = rx_frame.an_rx_payload_len
-				+ ieee80211_header_len;
+#ifdef ANCACHE
+			/* Read NIC frame header */
+			if (an_read_data(sc, id, 0, (caddr_t)&rx_frame, 
+					 sizeof(rx_frame))) {
+				ifp->if_ierrors++;
+				return;
+			}
+#endif
+			/* Read in the 802_3 frame header */
+			if (an_read_data(sc, id, 0x34, 
+					 (caddr_t)&rx_frame_802_3,
+					 sizeof(rx_frame_802_3))) {
+				ifp->if_ierrors++;
+				return;
+			}
+			if (rx_frame_802_3.an_rx_802_3_status != 0) {
+				ifp->if_ierrors++;
+				return;
+			}
 			/* Check for insane frame length */
+			len = rx_frame_802_3.an_rx_802_3_payload_len;
 			if (len > sizeof(sc->buf_802_11)) {
-				printf("an%d: oversized packet received (%d, %d)\n",
+				printf("an%d: oversized packet "
+				       "received (%d, %d)\n",
 				       sc->an_unit, len, MCLBYTES);
 				ifp->if_ierrors++;
 				return;
 			}
+			m->m_pkthdr.len = m->m_len =
+				rx_frame_802_3.an_rx_802_3_payload_len + 12;
 
-			ih = (struct ieee80211_frame *)bpf_buf;
+			eh = mtod(m, struct ether_header *);
 
-			bcopy((char *)&rx_frame.an_frame_ctl,
-			      (char *)ih, ieee80211_header_len);
+			bcopy((char *)&rx_frame_802_3.an_rx_dst_addr,
+			      (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
+			bcopy((char *)&rx_frame_802_3.an_rx_src_addr,
+			      (char *)&eh->ether_shost, ETHER_ADDR_LEN);
 
-			error = an_read_data(sc, id, sizeof(rx_frame) +
-					     rx_frame.an_gaplen,
-					     (caddr_t)ih +ieee80211_header_len,
-					     rx_frame.an_rx_payload_len);
-		}
-		/* dump raw 802.11 packet to bpf and skip ip stack */
-		BPF_TAP(ifp, bpf_buf, len);
-	} else {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
-		if (m == NULL) {
-			ifp->if_ierrors++;
-			return;
-		}
-		MCLGET(m, M_DONTWAIT);
-		if (!(m->m_flags & M_EXT)) {
-			m_freem(m);
-			ifp->if_ierrors++;
-			return;
-		}
-		m->m_pkthdr.rcvif = ifp;
-		/* Read Ethernet encapsulated packet */
+			/* in mbuf header type is just before payload */
+			error = an_read_data(sc, id, 0x44, 
+				    (caddr_t)&(eh->ether_type),
+				    rx_frame_802_3.an_rx_802_3_payload_len);
 
+			if (error) {
+				m_freem(m);
+				ifp->if_ierrors++;
+				return;
+			}
+			ifp->if_ipackets++;
+
+			/* Receive packet. */
 #ifdef ANCACHE
-		/* Read NIC frame header */
-		if (an_read_data(sc, id, 0, (caddr_t) & rx_frame, sizeof(rx_frame))) {
-			ifp->if_ierrors++;
-			return;
-		}
+			an_cache_store(sc, eh, m, 
+				       rx_frame.an_rx_signal_strength,
+				       rx_frame.an_rsvd0);
 #endif
-		/* Read in the 802_3 frame header */
-		if (an_read_data(sc, id, 0x34, (caddr_t) & rx_frame_802_3,
-				 sizeof(rx_frame_802_3))) {
-			ifp->if_ierrors++;
-			return;
+			(*ifp->if_input)(ifp, m);
 		}
-		if (rx_frame_802_3.an_rx_802_3_status != 0) {
-			ifp->if_ierrors++;
-			return;
-		}
-		/* Check for insane frame length */
-		if (rx_frame_802_3.an_rx_802_3_payload_len > MCLBYTES) {
-			ifp->if_ierrors++;
-			return;
-		}
-		m->m_pkthdr.len = m->m_len =
-			rx_frame_802_3.an_rx_802_3_payload_len + 12;
 
-		eh = mtod(m, struct ether_header *);
+	} else { /* MPI-350 */
+		for (count = 0; count < AN_MAX_RX_DESC; count++){
+			for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
+				((u_int32_t*)&an_rx_desc)[i] 
+					= CSR_MEM_AUX_READ_4(sc, 
+						AN_RX_DESC_OFFSET 
+						+ (count * sizeof(an_rx_desc))
+						+ (i * 4));
 
-		bcopy((char *)&rx_frame_802_3.an_rx_dst_addr,
-		      (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
-		bcopy((char *)&rx_frame_802_3.an_rx_src_addr,
-		      (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+			if (an_rx_desc.an_done && !an_rx_desc.an_valid) {
+				buf = sc->an_rx_buffer[count].an_dma_vaddr;
 
-		/* in mbuf header type is just before payload */
-		error = an_read_data(sc, id, 0x44, (caddr_t)&(eh->ether_type),
-				     rx_frame_802_3.an_rx_802_3_payload_len);
+				MGETHDR(m, M_DONTWAIT, MT_DATA);
+				if (m == NULL) {
+					ifp->if_ierrors++;
+					return;
+				}
+				MCLGET(m, M_DONTWAIT);
+				if (!(m->m_flags & M_EXT)) {
+					m_freem(m);
+					ifp->if_ierrors++;
+					return;
+				}
+				m->m_pkthdr.rcvif = ifp;
+				/* Read Ethernet encapsulated packet */
 
-		if (error) {
-			m_freem(m);
-			ifp->if_ierrors++;
-			return;
-		}
-		ifp->if_ipackets++;
-
-		/* Receive packet. */
+				/* 
+				 * No ANCACHE support since we just get back
+				 * an Ethernet packet no 802.11 info
+				 */
+#if 0
 #ifdef ANCACHE
-		an_cache_store(sc, eh, m, rx_frame.an_rx_signal_strength);
+				/* Read NIC frame header */
+				bcopy(buf, (caddr_t)&rx_frame, 
+				      sizeof(rx_frame));
 #endif
-		(*ifp->if_input)(ifp, m);
+#endif
+				/* Check for insane frame length */
+				len = an_rx_desc.an_len + 12;
+				if (len > MCLBYTES) {
+					printf("an%d: oversized packet "
+					       "received (%d, %d)\n",
+					       sc->an_unit, len, MCLBYTES);
+					ifp->if_ierrors++;
+					return;
+				}
+
+				m->m_pkthdr.len = m->m_len =
+					an_rx_desc.an_len + 12;
+				
+				eh = mtod(m, struct ether_header *);
+				
+				bcopy(buf, (char *)eh,
+				      m->m_pkthdr.len);
+				
+				ifp->if_ipackets++;
+				
+				/* Receive packet. */
+#if 0
+#ifdef ANCACHE
+				an_cache_store(sc, eh, m, 
+					       rx_frame.an_rx_signal_strength,
+					       rx_frame.an_rsvd0);
+#endif
+#endif
+				(*ifp->if_input)(ifp, m);
+			
+				an_rx_desc.an_valid = 1;
+				an_rx_desc.an_len = AN_RX_BUFFER_SIZE;
+				an_rx_desc.an_done = 0;
+				an_rx_desc.an_phys = 
+					sc->an_rx_buffer[count].an_dma_paddr;
+			
+				for (i = 0; i < sizeof(an_rx_desc) / 4; i++)
+					CSR_MEM_AUX_WRITE_4(sc, 
+						AN_RX_DESC_OFFSET 
+						+ (count * sizeof(an_rx_desc))
+						+ (i * 4),
+						((u_int32_t*)&an_rx_desc)[i]);
+				
+			} else {
+				printf("an%d: Didn't get valid RX packet "
+				       "%x %x %d\n",
+				       sc->an_unit,
+				       an_rx_desc.an_done,
+				       an_rx_desc.an_valid, an_rx_desc.an_len);
+			}
+		}
 	}
 }
 
@@ -676,21 +1099,28 @@ an_txeof(sc, status)
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	id = CSR_READ_2(sc, AN_TX_CMP_FID);
+	if (!sc->mpi350) {
+		id = CSR_READ_2(sc, AN_TX_CMP_FID);
 
-	if (status & AN_EV_TX_EXC) {
-		ifp->if_oerrors++;
-	} else
-		ifp->if_opackets++;
+		if (status & AN_EV_TX_EXC) {
+			ifp->if_oerrors++;
+		} else
+			ifp->if_opackets++;
 
-	for (i = 0; i < AN_TX_RING_CNT; i++) {
-		if (id == sc->an_rdata.an_tx_ring[i]) {
-			sc->an_rdata.an_tx_ring[i] = 0;
-			break;
+		for (i = 0; i < AN_TX_RING_CNT; i++) {
+			if (id == sc->an_rdata.an_tx_ring[i]) {
+				sc->an_rdata.an_tx_ring[i] = 0;
+				break;
+			}
 		}
-	}
 
-	AN_INC(sc->an_rdata.an_tx_cons, AN_TX_RING_CNT);
+		AN_INC(sc->an_rdata.an_tx_cons, AN_TX_RING_CNT);
+	} else { /* MPI 350 */
+		AN_INC(sc->an_rdata.an_tx_cons, AN_MAX_TX_DESC);
+		if (sc->an_rdata.an_tx_prod ==
+		    sc->an_rdata.an_tx_cons)
+			sc->an_rdata.an_tx_empty = 1;
+	}
 
 	return;
 }
@@ -758,43 +1188,44 @@ an_intr(xsc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* Disable interrupts. */
-	CSR_WRITE_2(sc, AN_INT_EN, 0);
+	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
 
-	status = CSR_READ_2(sc, AN_EVENT_STAT);
-	CSR_WRITE_2(sc, AN_EVENT_ACK, ~AN_INTRS);
+	status = CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350));
+	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), ~AN_INTRS);
 
 	if (status & AN_EV_AWAKE) {
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_AWAKE);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_AWAKE);
 	}
 
 	if (status & AN_EV_LINKSTAT) {
-		if (CSR_READ_2(sc, AN_LINKSTAT) == AN_LINKSTAT_ASSOCIATED)
+		if (CSR_READ_2(sc, AN_LINKSTAT(sc->mpi350)) 
+		    == AN_LINKSTAT_ASSOCIATED)
 			sc->an_associated = 1;
 		else
 			sc->an_associated = 0;
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_LINKSTAT);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_LINKSTAT);
 	}
 
 	if (status & AN_EV_RX) {
 		an_rxeof(sc);
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_RX);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_RX);
 	}
 
 	if (status & AN_EV_TX) {
 		an_txeof(sc, status);
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_TX);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_TX);
 	}
 
 	if (status & AN_EV_TX_EXC) {
 		an_txeof(sc, status);
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_TX_EXC);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_TX_EXC);
 	}
 
 	if (status & AN_EV_ALLOC)
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_ALLOC);
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_ALLOC);
 
 	/* Re-enable interrupts. */
-	CSR_WRITE_2(sc, AN_INT_EN, AN_INTRS);
+	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS);
 
 	if ((ifp->if_flags & IFF_UP) && (ifp->if_snd.ifq_head != NULL))
 		an_start(ifp);
@@ -802,6 +1233,82 @@ an_intr(xsc)
 	AN_UNLOCK(sc);
 
 	return;
+}
+
+static void
+an_kick(sc)
+        struct an_softc         *sc;
+{
+        int i;
+
+        CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350),  AN_CMD_NOOP2);
+
+        if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+                CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
+        } else {
+                for (i = 0; i < AN_TIMEOUT; i++) {
+                        if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) 
+			    & AN_EV_CMD)
+                                break;
+                }
+                if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+                        CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
+                }
+                CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
+                if (i == AN_TIMEOUT) {
+			printf ("COULDN'T CLEAR\n");
+                }
+        }
+}
+
+static int
+an_cmd_struct(sc, cmd, reply)
+	struct an_softc		*sc;
+	struct an_command	*cmd;
+	struct an_reply		*reply;
+{
+	int			i;
+
+	for (i = 0; i != AN_TIMEOUT; i++) {
+		if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+			DELAY(10);
+		}
+		else
+			break;
+	}
+	if( i == AN_TIMEOUT) {
+		printf("BUSY\n");
+		return(ETIMEDOUT);
+	}
+
+	CSR_WRITE_2(sc, AN_PARAM0(sc->mpi350), cmd->an_parm0);
+	CSR_WRITE_2(sc, AN_PARAM1(sc->mpi350), cmd->an_parm1);
+	CSR_WRITE_2(sc, AN_PARAM2(sc->mpi350), cmd->an_parm2);
+	CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), cmd->an_cmd);
+
+	for (i = 0; i < AN_TIMEOUT; i++) {
+		if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) & AN_EV_CMD)
+			break;
+	}
+
+	if (i == AN_TIMEOUT)
+		an_kick(sc);
+
+	reply->an_resp0 = CSR_READ_2(sc, AN_RESP0(sc->mpi350));
+	reply->an_resp1 = CSR_READ_2(sc, AN_RESP1(sc->mpi350));
+	reply->an_resp2 = CSR_READ_2(sc, AN_RESP2(sc->mpi350));
+	reply->an_status = CSR_READ_2(sc, AN_STATUS(sc->mpi350));
+
+	if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY)
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CLR_STUCK_BUSY);
+
+	/* Ack the command */
+	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
+
+	if (i == AN_TIMEOUT)
+		return(ETIMEDOUT);
+
+	return(0);
 }
 
 static int
@@ -812,34 +1319,34 @@ an_cmd(sc, cmd, val)
 {
 	int			i, s = 0;
 
-	CSR_WRITE_2(sc, AN_PARAM0, val);
-	CSR_WRITE_2(sc, AN_PARAM1, 0);
-	CSR_WRITE_2(sc, AN_PARAM2, 0);
-	CSR_WRITE_2(sc, AN_COMMAND, cmd);
+	CSR_WRITE_2(sc, AN_PARAM0(sc->mpi350), val);
+	CSR_WRITE_2(sc, AN_PARAM1(sc->mpi350), 0);
+	CSR_WRITE_2(sc, AN_PARAM2(sc->mpi350), 0);
+	CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), cmd);
 
 	for (i = 0; i < AN_TIMEOUT; i++) {
-		if (CSR_READ_2(sc, AN_EVENT_STAT) & AN_EV_CMD)
+		if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) & AN_EV_CMD)
 			break;
 		else {
-			if (CSR_READ_2(sc, AN_COMMAND) == cmd)
-				CSR_WRITE_2(sc, AN_COMMAND, cmd);
+			if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) == cmd)
+				CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), cmd);
 		}
 	}
 
 	for (i = 0; i < AN_TIMEOUT; i++) {
-		CSR_READ_2(sc, AN_RESP0);
-		CSR_READ_2(sc, AN_RESP1);
-		CSR_READ_2(sc, AN_RESP2);
-		s = CSR_READ_2(sc, AN_STATUS);
+		CSR_READ_2(sc, AN_RESP0(sc->mpi350));
+		CSR_READ_2(sc, AN_RESP1(sc->mpi350));
+		CSR_READ_2(sc, AN_RESP2(sc->mpi350));
+		s = CSR_READ_2(sc, AN_STATUS(sc->mpi350));
 		if ((s & AN_STAT_CMD_CODE) == (cmd & AN_STAT_CMD_CODE))
 			break;
 	}
 
 	/* Ack the command */
-	CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_CMD);
+	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
 
-	if (CSR_READ_2(sc, AN_COMMAND) & AN_CMD_BUSY)
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_CLR_STUCK_BUSY);
+	if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY)
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CLR_STUCK_BUSY);
 
 	if (i == AN_TIMEOUT)
 		return(ETIMEDOUT);
@@ -879,6 +1386,10 @@ an_read_record(sc, ltv)
 	struct an_softc		*sc;
 	struct an_ltv_gen	*ltv;
 {
+	struct an_ltv_gen	*an_ltv;
+	struct an_card_rid_desc an_rid_desc;
+	struct an_command	cmd;
+	struct an_reply		reply;
 	u_int16_t		*ptr;
 	u_int8_t		*ptr2;
 	int			i, len;
@@ -886,43 +1397,84 @@ an_read_record(sc, ltv)
 	if (ltv->an_len < 4 || ltv->an_type == 0)
 		return(EINVAL);
 
-	/* Tell the NIC to enter record read mode. */
-	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type)) {
-		printf("an%d: RID access failed\n", sc->an_unit);
-		return(EIO);
+	if (!sc->mpi350){
+		/* Tell the NIC to enter record read mode. */
+		if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type)) {
+			printf("an%d: RID access failed\n", sc->an_unit);
+			return(EIO);
+		}
+
+		/* Seek to the record. */
+		if (an_seek(sc, ltv->an_type, 0, AN_BAP1)) {
+			printf("an%d: seek to record failed\n", sc->an_unit);
+			return(EIO);
+		}
+
+		/*
+		 * Read the length and record type and make sure they
+		 * match what we expect (this verifies that we have enough
+		 * room to hold all of the returned data).
+		 * Length includes type but not length.
+		 */
+		len = CSR_READ_2(sc, AN_DATA1);
+		if (len > (ltv->an_len - 2)) {
+			printf("an%d: record length mismatch -- expected %d, "
+			       "got %d for Rid %x\n", sc->an_unit,
+			       ltv->an_len - 2, len, ltv->an_type);
+			len = ltv->an_len - 2;
+		} else {
+			ltv->an_len = len + 2;
+		}
+
+		/* Now read the data. */
+		len -= 2;	/* skip the type */
+		ptr = &ltv->an_val;
+		for (i = len; i > 1; i -= 2)
+			*ptr++ = CSR_READ_2(sc, AN_DATA1);
+		if (i) {
+			ptr2 = (u_int8_t *)ptr;
+			*ptr2 = CSR_READ_1(sc, AN_DATA1);
+		}
+	} else { /* MPI-350 */
+		an_rid_desc.an_valid = 1;
+		an_rid_desc.an_len = AN_RID_BUFFER_SIZE;
+		an_rid_desc.an_rid = 0;
+		an_rid_desc.an_phys = sc->an_rid_buffer.an_dma_paddr;
+		bzero(sc->an_rid_buffer.an_dma_vaddr, AN_RID_BUFFER_SIZE);
+
+		bzero(&cmd, sizeof(cmd));
+		bzero(&reply, sizeof(reply));
+		cmd.an_cmd = AN_CMD_ACCESS|AN_ACCESS_READ;
+		cmd.an_parm0 = ltv->an_type;
+
+		for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
+			CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
+					    ((u_int32_t*)&an_rid_desc)[i]);
+
+		if (an_cmd_struct(sc, &cmd, &reply)
+		    || reply.an_status & AN_CMD_QUAL_MASK) {
+			printf("an%d: failed to read RID %x %x %x %x %x, %d\n", 
+			       sc->an_unit, ltv->an_type, 
+			       reply.an_status,
+			       reply.an_resp0,
+			       reply.an_resp1,
+			       reply.an_resp2,
+			       i);
+			return(EIO);
+		}
+
+		an_ltv = (struct an_ltv_gen *)sc->an_rid_buffer.an_dma_vaddr;
+		if (an_ltv->an_len + 2 < an_rid_desc.an_len) {
+			an_rid_desc.an_len = an_ltv->an_len;
+		}
+
+		if (an_rid_desc.an_len > 2)
+			bcopy(&an_ltv->an_type,
+			      &ltv->an_val, 
+			      an_rid_desc.an_len - 2);
+		ltv->an_len = an_rid_desc.an_len + 2;
 	}
 
-	/* Seek to the record. */
-	if (an_seek(sc, ltv->an_type, 0, AN_BAP1)) {
-		printf("an%d: seek to record failed\n", sc->an_unit);
-		return(EIO);
-	}
-
-	/*
-	 * Read the length and record type and make sure they
-	 * match what we expect (this verifies that we have enough
-	 * room to hold all of the returned data).
-	 * Length includes type but not length.
-	 */
-	len = CSR_READ_2(sc, AN_DATA1);
-	if (len > (ltv->an_len - 2)) {
-		printf("an%d: record length mismatch -- expected %d, "
-		    "got %d for Rid %x\n", sc->an_unit,
-		    ltv->an_len - 2, len, ltv->an_type);
-		len = ltv->an_len - 2;
-	} else {
-		ltv->an_len = len + 2;
-	}
-
-	/* Now read the data. */
-	len -= 2;	/* skip the type */
-	ptr = &ltv->an_val;
-	for (i = len; i > 1; i -= 2)
-		*ptr++ = CSR_READ_2(sc, AN_DATA1);
-	if (i) {
-		ptr2 = (u_int8_t *)ptr;
-		*ptr2 = CSR_READ_1(sc, AN_DATA1);
-	}
 	if (an_dump)
 		an_dump_record(sc, ltv, "Read");
 
@@ -937,6 +1489,10 @@ an_write_record(sc, ltv)
 	struct an_softc		*sc;
 	struct an_ltv_gen	*ltv;
 {
+	struct an_card_rid_desc an_rid_desc;
+	struct an_command	cmd;
+	struct an_reply		reply;
+	char			*buf;
 	u_int16_t		*ptr;
 	u_int8_t		*ptr2;
 	int			i, len;
@@ -944,29 +1500,84 @@ an_write_record(sc, ltv)
 	if (an_dump)
 		an_dump_record(sc, ltv, "Write");
 
-	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type))
+	if (!sc->mpi350){
+		if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type))
+			return(EIO);
+
+		if (an_seek(sc, ltv->an_type, 0, AN_BAP1))
+			return(EIO);
+
+		/*
+		 * Length includes type but not length.
+		 */
+		len = ltv->an_len - 2;
+		CSR_WRITE_2(sc, AN_DATA1, len);
+
+		len -= 2;	/* skip the type */
+		ptr = &ltv->an_val;
+		for (i = len; i > 1; i -= 2)
+			CSR_WRITE_2(sc, AN_DATA1, *ptr++);
+		if (i) {
+			ptr2 = (u_int8_t *)ptr;
+			CSR_WRITE_1(sc, AN_DATA0, *ptr2);
+		}
+
+		if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_WRITE, ltv->an_type))
+			return(EIO);
+	} else { /* MPI-350 */
+
+		for (i = 0; i != AN_TIMEOUT; i++) {
+			if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+				DELAY(10);
+		}
+			else
+				break;
+		}
+		if (i == AN_TIMEOUT) {
+			printf("BUSY\n");
+		}
+
+		an_rid_desc.an_valid = 1;
+		an_rid_desc.an_len = ltv->an_len - 2;
+		an_rid_desc.an_rid = ltv->an_type;
+		an_rid_desc.an_phys = sc->an_rid_buffer.an_dma_paddr;
+
+		bcopy(&ltv->an_type, sc->an_rid_buffer.an_dma_vaddr,
+		      an_rid_desc.an_len);
+
+		bzero(&cmd,sizeof(cmd));
+		bzero(&reply,sizeof(reply));
+		cmd.an_cmd = AN_CMD_ACCESS|AN_ACCESS_WRITE;
+		cmd.an_parm0 = ltv->an_type;
+
+		for (i = 0; i < sizeof(an_rid_desc) / 4; i++)
+			CSR_MEM_AUX_WRITE_4(sc, AN_HOST_DESC_OFFSET + i * 4, 
+					    ((u_int32_t*)&an_rid_desc)[i]);
+
+		if ((i = an_cmd_struct(sc, &cmd, &reply))) {
+		printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
+		       sc->an_unit, ltv->an_type, 
+		       reply.an_status,
+		       reply.an_resp0,
+		       reply.an_resp1,
+		       reply.an_resp2,
+		       i);
 		return(EIO);
+		}
 
-	if (an_seek(sc, ltv->an_type, 0, AN_BAP1))
-		return(EIO);
+		ptr = (u_int16_t *)buf;
 
-	/*
-	 * Length includes type but not length.
-	 */
-	len = ltv->an_len - 2;
-	CSR_WRITE_2(sc, AN_DATA1, len);
-
-	len -= 2;	/* skip the type */
-	ptr = &ltv->an_val;
-	for (i = len; i > 1; i -= 2)
-		CSR_WRITE_2(sc, AN_DATA1, *ptr++);
-	if (i) {
-		ptr2 = (u_int8_t *)ptr;
-		CSR_WRITE_1(sc, AN_DATA0, *ptr2);
+		if (reply.an_status & AN_CMD_QUAL_MASK) {
+			printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
+			       sc->an_unit, ltv->an_type, 
+			       reply.an_status,
+			       reply.an_resp0,
+			       reply.an_resp1,
+			       reply.an_resp2,
+			       i);
+			return(EIO);
+		}
 	}
-
-	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_WRITE, ltv->an_type))
-		return(EIO);
 
 	return(0);
 }
@@ -1125,14 +1736,14 @@ an_alloc_nicmem(sc, len, id)
 	}
 
 	for (i = 0; i < AN_TIMEOUT; i++) {
-		if (CSR_READ_2(sc, AN_EVENT_STAT) & AN_EV_ALLOC)
+		if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) & AN_EV_ALLOC)
 			break;
 	}
 
 	if (i == AN_TIMEOUT)
 		return(ETIMEDOUT);
 
-	CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_ALLOC);
+	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_ALLOC);
 	*id = CSR_READ_2(sc, AN_ALLOC_FID);
 
 	if (an_seek(sc, *id, 0, AN_BAP0))
@@ -1247,6 +1858,8 @@ an_promisc(sc, promisc)
 {
 	if (sc->an_was_monitor)
 		an_reset(sc);
+		if (sc->mpi350)
+			an_init_mpi350_desc(sc);	
 	if (sc->an_monitor || sc->an_was_monitor)
 		an_init(sc);
 
@@ -1827,16 +2440,19 @@ an_init_tx_ring(sc)
 	if (sc->an_gone)
 		return (0);
 
-	for (i = 0; i < AN_TX_RING_CNT; i++) {
-		if (an_alloc_nicmem(sc, 1518 +
-		    0x44, &id))
-			return(ENOMEM);
-		sc->an_rdata.an_tx_fids[i] = id;
-		sc->an_rdata.an_tx_ring[i] = 0;
+	if (!sc->mpi350) {
+		for (i = 0; i < AN_TX_RING_CNT; i++) {
+			if (an_alloc_nicmem(sc, 1518 +
+			    0x44, &id))
+				return(ENOMEM);
+			sc->an_rdata.an_tx_fids[i] = id;
+			sc->an_rdata.an_tx_ring[i] = 0;
+		}
 	}
 
 	sc->an_rdata.an_tx_prod = 0;
 	sc->an_rdata.an_tx_cons = 0;
+	sc->an_rdata.an_tx_empty = 1;
 
 	return(0);
 }
@@ -1863,6 +2479,8 @@ an_init(xsc)
 	/* Allocate the TX buffers */
 	if (an_init_tx_ring(sc)) {
 		an_reset(sc);
+		if (sc->mpi350)
+			an_init_mpi350_desc(sc);	
 		if (an_init_tx_ring(sc)) {
 			printf("an%d: tx buffer allocation "
 			    "failed\n", sc->an_unit);
@@ -1896,6 +2514,9 @@ an_init(xsc)
 			}
 		}
 	}
+
+	if (sc->an_have_rssimap)
+		sc->an_config.an_rxmode |= AN_RXMODE_NORMALIZED_RSSI;
 
 	/* Set the ssid list */
 	sc->an_ssidlist.an_type = AN_RID_SSIDLIST;
@@ -1935,7 +2556,7 @@ an_init(xsc)
 		an_cmd(sc, AN_CMD_SET_MODE, 0xffff);
 
 	/* enable interrupts */
-	CSR_WRITE_2(sc, AN_INT_EN, AN_INTRS);
+	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1954,9 +2575,11 @@ an_start(ifp)
 	struct mbuf		*m0 = NULL;
 	struct an_txframe_802_3	tx_frame_802_3;
 	struct ether_header	*eh;
-	int			id;
-	int			idx;
+	int			id, idx, i;
 	unsigned char           txcontrol;
+	struct an_card_tx_desc an_tx_desc;
+	u_int8_t		*ptr;
+	u_int8_t		*buf;
 
 	sc = ifp->if_softc;
 
@@ -1981,55 +2604,129 @@ an_start(ifp)
 	}
 
 	idx = sc->an_rdata.an_tx_prod;
-	bzero((char *)&tx_frame_802_3, sizeof(tx_frame_802_3));
 
-	while (sc->an_rdata.an_tx_ring[idx] == 0) {
-		IF_DEQUEUE(&ifp->if_snd, m0);
-		if (m0 == NULL)
-			break;
+	if (!sc->mpi350) {
+		bzero((char *)&tx_frame_802_3, sizeof(tx_frame_802_3));
 
-		id = sc->an_rdata.an_tx_fids[idx];
-		eh = mtod(m0, struct ether_header *);
+		while (sc->an_rdata.an_tx_ring[idx] == 0) {
+			IF_DEQUEUE(&ifp->if_snd, m0);
+			if (m0 == NULL)
+				break;
 
-		bcopy((char *)&eh->ether_dhost,
-		    (char *)&tx_frame_802_3.an_tx_dst_addr, ETHER_ADDR_LEN);
-		bcopy((char *)&eh->ether_shost,
-		    (char *)&tx_frame_802_3.an_tx_src_addr, ETHER_ADDR_LEN);
+			id = sc->an_rdata.an_tx_fids[idx];
+			eh = mtod(m0, struct ether_header *);
 
-		tx_frame_802_3.an_tx_802_3_payload_len =
-		  m0->m_pkthdr.len - 12;  /* minus src/dest mac & type */
+			bcopy((char *)&eh->ether_dhost,
+			      (char *)&tx_frame_802_3.an_tx_dst_addr, 
+			      ETHER_ADDR_LEN);
+			bcopy((char *)&eh->ether_shost,
+			      (char *)&tx_frame_802_3.an_tx_src_addr, 
+			      ETHER_ADDR_LEN);
 
-                m_copydata(m0, sizeof(struct ether_header) - 2 ,
-                    tx_frame_802_3.an_tx_802_3_payload_len,
-                    (caddr_t)&sc->an_txbuf);
+			/* minus src/dest mac & type */
+			tx_frame_802_3.an_tx_802_3_payload_len =
+				m0->m_pkthdr.len - 12;  
 
-		txcontrol = AN_TXCTL_8023;
-		/* write the txcontrol only */
-		an_write_data(sc, id, 0x08, (caddr_t)&txcontrol,
+			m_copydata(m0, sizeof(struct ether_header) - 2 ,
+				   tx_frame_802_3.an_tx_802_3_payload_len,
+				   (caddr_t)&sc->an_txbuf);
+
+			txcontrol = AN_TXCTL_8023;
+			/* write the txcontrol only */
+			an_write_data(sc, id, 0x08, (caddr_t)&txcontrol,
+				      sizeof(txcontrol));
+
+			/* 802_3 header */
+			an_write_data(sc, id, 0x34, (caddr_t)&tx_frame_802_3,
+				      sizeof(struct an_txframe_802_3));
+
+			/* in mbuf header type is just before payload */
+			an_write_data(sc, id, 0x44, (caddr_t)&sc->an_txbuf,
+				      tx_frame_802_3.an_tx_802_3_payload_len);
+
+			/*
+			 * If there's a BPF listner, bounce a copy of
+			 * this frame to him.
+			 */
+			BPF_MTAP(ifp, m0);
+
+			m_freem(m0);
+			m0 = NULL;
+
+			sc->an_rdata.an_tx_ring[idx] = id;
+			if (an_cmd(sc, AN_CMD_TX, id))
+				printf("an%d: xmit failed\n", sc->an_unit);
+
+			AN_INC(idx, AN_TX_RING_CNT);
+		}
+	} else { /* MPI-350 */
+		while (sc->an_rdata.an_tx_empty ||
+		    idx != sc->an_rdata.an_tx_cons) {
+			IF_DEQUEUE(&ifp->if_snd, m0);
+			if (m0 == NULL) {
+				break;
+			}
+			buf = sc->an_tx_buffer[idx].an_dma_vaddr;
+
+			eh = mtod(m0, struct ether_header *);
+
+			/* DJA optimize this to limit bcopy */
+			bcopy((char *)&eh->ether_dhost,
+			      (char *)&tx_frame_802_3.an_tx_dst_addr, 
+			      ETHER_ADDR_LEN);
+			bcopy((char *)&eh->ether_shost,
+			      (char *)&tx_frame_802_3.an_tx_src_addr, 
+			      ETHER_ADDR_LEN);
+
+			/* minus src/dest mac & type */
+			tx_frame_802_3.an_tx_802_3_payload_len =
+				m0->m_pkthdr.len - 12; 
+
+			m_copydata(m0, sizeof(struct ether_header) - 2 ,
+				   tx_frame_802_3.an_tx_802_3_payload_len,
+				   (caddr_t)&sc->an_txbuf);
+
+			txcontrol = AN_TXCTL_8023;
+			/* write the txcontrol only */
+			bcopy((caddr_t)&txcontrol, &buf[0x08],
 			      sizeof(txcontrol));
 
-		/* 802_3 header */
-		an_write_data(sc, id, 0x34, (caddr_t)&tx_frame_802_3,
+			/* 802_3 header */
+			bcopy((caddr_t)&tx_frame_802_3, &buf[0x34],
 			      sizeof(struct an_txframe_802_3));
 
-		/* in mbuf header type is just before payload */
-		an_write_data(sc, id, 0x44, (caddr_t)&sc->an_txbuf,
-			    tx_frame_802_3.an_tx_802_3_payload_len);
+			/* in mbuf header type is just before payload */
+			bcopy((caddr_t)&sc->an_txbuf, &buf[0x44],
+			      tx_frame_802_3.an_tx_802_3_payload_len);
 
-		/*
-		 * If there's a BPF listner, bounce a copy of
-		 * this frame to him.
-		 */
-		BPF_MTAP(ifp, m0);
 
-		m_freem(m0);
-		m0 = NULL;
+			bzero(&an_tx_desc, sizeof(an_tx_desc));
+			an_tx_desc.an_offset = 0;
+			an_tx_desc.an_eoc = 1;
+			an_tx_desc.an_valid = 1;
+			an_tx_desc.an_len =  0x44 +
+				tx_frame_802_3.an_tx_802_3_payload_len;
+			an_tx_desc.an_phys = sc->an_tx_buffer[idx].an_dma_paddr;
+			ptr = (u_int8_t*)&an_tx_desc;
+			for (i = 0; i < sizeof(an_tx_desc); i++) {
+				CSR_MEM_AUX_WRITE_1(sc, AN_TX_DESC_OFFSET + i,
+						    ptr[i]);
+			}
 
-		sc->an_rdata.an_tx_ring[idx] = id;
-		if (an_cmd(sc, AN_CMD_TX, id))
-			printf("an%d: xmit failed\n", sc->an_unit);
+			/*
+			 * If there's a BPF listner, bounce a copy of
+			 * this frame to him.
+			 */
+			BPF_MTAP(ifp, m0);
 
-		AN_INC(idx, AN_TX_RING_CNT);
+			m_freem(m0);
+			m0 = NULL;
+
+			CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_ALLOC);
+
+			AN_INC(idx, AN_MAX_TX_DESC);
+			sc->an_rdata.an_tx_empty = 0;
+		}
 	}
 
 	if (m0 != NULL)
@@ -2062,7 +2759,7 @@ an_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	an_cmd(sc, AN_CMD_FORCE_SYNCLOSS, 0);
-	CSR_WRITE_2(sc, AN_INT_EN, 0);
+	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
 	an_cmd(sc, AN_CMD_DISABLE, 0);
 
 	for (i = 0; i < AN_TX_RING_CNT; i++)
@@ -2071,6 +2768,11 @@ an_stop(sc)
 	untimeout(an_stats_update, sc, sc->an_stat_ch);
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+
+	if (sc->an_flash_buffer) {
+		free(sc->an_flash_buffer, M_DEVBUF);
+		sc->an_flash_buffer = NULL;
+	}
 
 	AN_UNLOCK(sc);
 
@@ -2094,6 +2796,8 @@ an_watchdog(ifp)
 	printf("an%d: device timeout\n", sc->an_unit);
 
 	an_reset(sc);
+	if (sc->mpi350)
+		an_init_mpi350_desc(sc);	
 	an_init(sc);
 
 	ifp->if_oerrors++;
@@ -2175,11 +2879,12 @@ SYSCTL_INT(_machdep, OID_AUTO, an_cache_iponly, CTLFLAG_RW,
  * strength in MAC (src) indexed cache.
  */
 static void
-an_cache_store (sc, eh, m, rx_quality)
+an_cache_store (sc, eh, m, rx_rssi, rx_quality)
 	struct an_softc *sc;
 	struct ether_header *eh;
 	struct mbuf *m;
-	unsigned short rx_quality;
+	u_int8_t rx_rssi;
+	u_int8_t rx_quality;
 {
 	struct ip *ip = 0;
 	int i;
@@ -2211,7 +2916,7 @@ an_cache_store (sc, eh, m, rx_quality)
 
 #ifdef SIGDEBUG
 	printf("an: q value %x (MSB=0x%x, LSB=0x%x) \n",
-	    rx_quality & 0xffff, rx_quality >> 8, rx_quality & 0xff);
+		rx_rssi & 0xffff, rx_rssi >> 8, rx_rssi & 0xff);
 #endif
 
 	/* find the ip header.  we want to store the ip_src
@@ -2288,7 +2993,41 @@ an_cache_store (sc, eh, m, rx_quality)
 	}
 	bcopy( eh->ether_shost, sc->an_sigcache[cache_slot].macsrc,  6);
 
-	sc->an_sigcache[cache_slot].signal = rx_quality;
+
+	switch (an_cache_mode) {
+	case DBM:
+		if (sc->an_have_rssimap) {
+			sc->an_sigcache[cache_slot].signal = 
+				- sc->an_rssimap.an_entries[rx_rssi].an_rss_dbm;
+			sc->an_sigcache[cache_slot].quality = 
+				- sc->an_rssimap.an_entries[rx_quality].an_rss_dbm;
+		} else {
+			sc->an_sigcache[cache_slot].signal = rx_rssi - 100;
+			sc->an_sigcache[cache_slot].quality = rx_quality - 100;
+		}
+		break;
+	case PERCENT:
+		if (sc->an_have_rssimap) {
+			sc->an_sigcache[cache_slot].signal = 
+				sc->an_rssimap.an_entries[rx_rssi].an_rss_pct;
+			sc->an_sigcache[cache_slot].quality = 
+				sc->an_rssimap.an_entries[rx_quality].an_rss_pct;
+		} else {
+			if (rx_rssi > 100)
+				rx_rssi = 100;
+			if (rx_quality > 100)
+				rx_quality = 100;
+			sc->an_sigcache[cache_slot].signal = rx_rssi;
+			sc->an_sigcache[cache_slot].quality = rx_quality;
+		}
+		break;
+	case RAW:
+		sc->an_sigcache[cache_slot].signal = rx_rssi;
+		sc->an_sigcache[cache_slot].quality = rx_quality;
+		break;
+	}
+
+	sc->an_sigcache[cache_slot].noise = 0;
 
 	return;
 }
@@ -2552,7 +3291,9 @@ writerids(ifp, l_ioctl)
  * Linux driver
  */
 
-#define FLASH_DELAY(x) tsleep(ifp, PZERO, "flash", ((x) / hz) + 1);
+#define FLASH_DELAY(x)	tsleep(ifp, PZERO, "flash", ((x) / hz) + 1);
+#define FLASH_COMMAND	0x7e7e
+#define FLASH_SIZE	32 * 1024
 
 static int
 unstickbusy(ifp)
@@ -2560,8 +3301,9 @@ unstickbusy(ifp)
 {
 	struct an_softc *sc = ifp->if_softc;
 
-	if (CSR_READ_2(sc, AN_COMMAND) & AN_CMD_BUSY) {
-		CSR_WRITE_2(sc, AN_EVENT_ACK, AN_EV_CLR_STUCK_BUSY);
+	if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
+		CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 
+			    AN_EV_CLR_STUCK_BUSY);
 		return 1;
 	}
 	return 0;
@@ -2584,7 +3326,7 @@ WaitBusy(ifp, uSec)
 	while ((statword & AN_CMD_BUSY) && delay <= (1000 * 100)) {
 		FLASH_DELAY(10);
 		delay += 10;
-		statword = CSR_READ_2(sc, AN_COMMAND);
+		statword = CSR_READ_2(sc, AN_COMMAND(sc->mpi350));
 
 		if ((AN_CMD_BUSY & statword) && (delay % 200)) {
 			unstickbusy(ifp);
@@ -2609,12 +3351,12 @@ cmdreset(ifp)
 
 	an_cmd(sc, AN_CMD_DISABLE, 0);
 
-	if (!(status = WaitBusy(ifp, 600))) {
+	if (!(status = WaitBusy(ifp, AN_TIMEOUT))) {
 		printf("an%d: Waitbusy hang b4 RESET =%d\n",
 		       sc->an_unit, status);
 		return -EBUSY;
 	}
-	CSR_WRITE_2(sc, AN_COMMAND, AN_CMD_FW_RESTART);
+	CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), AN_CMD_FW_RESTART);
 
 	FLASH_DELAY(1000);	/* WAS 600 12/7/00 */
 
@@ -2630,7 +3372,6 @@ cmdreset(ifp)
 /*
  * STEP 2) Put the card in legendary flash mode
  */
-#define FLASH_COMMAND  0x7e7e
 
 static int
 setflashmode(ifp)
@@ -2639,10 +3380,10 @@ setflashmode(ifp)
 	int             status;
 	struct an_softc *sc = ifp->if_softc;
 
-	CSR_WRITE_2(sc, AN_SW0, FLASH_COMMAND);
-	CSR_WRITE_2(sc, AN_SW1, FLASH_COMMAND);
-	CSR_WRITE_2(sc, AN_SW0, FLASH_COMMAND);
-	CSR_WRITE_2(sc, AN_COMMAND, FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_SW0(sc->mpi350), FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_SW1(sc->mpi350), FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_SW0(sc->mpi350), FLASH_COMMAND);
+	CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350), FLASH_COMMAND);
 
 	/*
 	 * mdelay(500); // 500ms delay
@@ -2650,7 +3391,7 @@ setflashmode(ifp)
 
 	FLASH_DELAY(500);
 
-	if (!(status = WaitBusy(ifp, 600))) {
+	if (!(status = WaitBusy(ifp, AN_TIMEOUT))) {
 		printf("Waitbusy hang after setflash mode\n");
 		return -EIO;
 	}
@@ -2674,7 +3415,7 @@ flashgchar(ifp, matchbyte, dwelltime)
 
 
 	do {
-		rchar = CSR_READ_2(sc, AN_SW1);
+		rchar = CSR_READ_2(sc, AN_SW1(sc->mpi350));
 
 		if (dwelltime && !(0x8000 & rchar)) {
 			dwelltime -= 10;
@@ -2684,13 +3425,13 @@ flashgchar(ifp, matchbyte, dwelltime)
 		rbyte = 0xff & rchar;
 
 		if ((rbyte == matchbyte) && (0x8000 & rchar)) {
-			CSR_WRITE_2(sc, AN_SW1, 0);
+			CSR_WRITE_2(sc, AN_SW1(sc->mpi350), 0);
 			success = 1;
 			break;
 		}
 		if (rbyte == 0x81 || rbyte == 0x82 || rbyte == 0x83 || rbyte == 0x1a || 0xffff == rchar)
 			break;
-		CSR_WRITE_2(sc, AN_SW1, 0);
+		CSR_WRITE_2(sc, AN_SW1(sc->mpi350), 0);
 
 	} while (dwelltime > 0);
 	return success;
@@ -2721,7 +3462,7 @@ flashpchar(ifp, byte, dwelltime)
 	 * Wait for busy bit d15 to go false indicating buffer empty
 	 */
 	do {
-		pollbusy = CSR_READ_2(sc, AN_SW0);
+		pollbusy = CSR_READ_2(sc, AN_SW0(sc->mpi350));
 
 		if (pollbusy & 0x8000) {
 			FLASH_DELAY(50);
@@ -2743,14 +3484,14 @@ flashpchar(ifp, byte, dwelltime)
 	 * Port is clear now write byte and wait for it to echo back
 	 */
 	do {
-		CSR_WRITE_2(sc, AN_SW0, byte);
+		CSR_WRITE_2(sc, AN_SW0(sc->mpi350), byte);
 		FLASH_DELAY(50);
 		dwelltime -= 50;
-		echo = CSR_READ_2(sc, AN_SW1);
+		echo = CSR_READ_2(sc, AN_SW1(sc->mpi350));
 	} while (dwelltime >= 0 && echo != byte);
 
 
-	CSR_WRITE_2(sc, AN_SW1, 0);
+	CSR_WRITE_2(sc, AN_SW1(sc->mpi350), 0);
 
 	return echo == byte;
 }
@@ -2759,9 +3500,6 @@ flashpchar(ifp, byte, dwelltime)
  * Transfer 32k of firmware data from user buffer to our buffer and send to
  * the card
  */
-
-static char     flashbuffer[1024 * 38];	/* RAW Buffer for flash will be
-					 * dynamic next */
 
 static int
 flashputbuf(ifp)
@@ -2773,16 +3511,23 @@ flashputbuf(ifp)
 
 	/* Write stuff */
 
-	bufp = (unsigned short *)flashbuffer;
+	bufp = sc->an_flash_buffer;
 
-	CSR_WRITE_2(sc, AN_AUX_PAGE, 0x100);
-	CSR_WRITE_2(sc, AN_AUX_OFFSET, 0);
+	if (!sc->mpi350) {
+		CSR_WRITE_2(sc, AN_AUX_PAGE, 0x100);
+		CSR_WRITE_2(sc, AN_AUX_OFFSET, 0);
 
-	for (nwords = 0; nwords != 16384; nwords++) {
-		CSR_WRITE_2(sc, AN_AUX_DATA, bufp[nwords] & 0xffff);
+		for (nwords = 0; nwords != FLASH_SIZE / 2; nwords++) {
+			CSR_WRITE_2(sc, AN_AUX_DATA, bufp[nwords] & 0xffff);
+		}
+	} else {
+		for (nwords = 0; nwords != FLASH_SIZE / 4; nwords++) {
+			CSR_MEM_AUX_WRITE_4(sc, 0x8000, 
+				((u_int32_t *)bufp)[nwords] & 0xffff);
+		}
 	}
 
-	CSR_WRITE_2(sc, AN_SW0, 0x8000);
+	CSR_WRITE_2(sc, AN_SW0(sc->mpi350), 0x8000);
 
 	return 0;
 }
@@ -2819,6 +3564,11 @@ flashcard(ifp, l_ioctl)
 	struct an_softc	*sc;
 
 	sc = ifp->if_softc;
+	if (sc->mpi350) {
+		printf("an%d: flashing not supported on MPI 350 yet\n", 
+		       sc->an_unit);
+		return(-1);
+	}
 	status = l_ioctl->command;
 
 	switch (l_ioctl->command) {
@@ -2826,7 +3576,15 @@ flashcard(ifp, l_ioctl)
 		return cmdreset(ifp);
 		break;
 	case AIROFLSHSTFL:
-		return setflashmode(ifp);
+		if (sc->an_flash_buffer) {
+			free(sc->an_flash_buffer, M_DEVBUF);
+			sc->an_flash_buffer = NULL;
+		}
+		sc->an_flash_buffer = malloc(FLASH_SIZE, M_DEVBUF, M_WAITOK);
+		if (sc->an_flash_buffer)
+			return setflashmode(ifp);
+		else
+			return ENOBUFS;
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
 		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
@@ -2845,12 +3603,12 @@ flashcard(ifp, l_ioctl)
 			return 0;
 		break;
 	case AIROFLPUTBUF:	/* Send 32k to card */
-		if (l_ioctl->len > sizeof(flashbuffer)) {
-			printf("an%d: Buffer to big, %x %zx\n", sc->an_unit,
-			       l_ioctl->len, sizeof(flashbuffer));
+		if (l_ioctl->len > FLASH_SIZE) {
+			printf("an%d: Buffer to big, %x %x\n", sc->an_unit,
+			       l_ioctl->len, FLASH_SIZE);
 			return -EINVAL;
 		}
-		copyin(l_ioctl->data, &flashbuffer, l_ioctl->len);
+		copyin(l_ioctl->data, sc->an_flash_buffer, l_ioctl->len);
 
 		if ((status = flashputbuf(ifp)) != 0)
 			return -EIO;
@@ -2872,4 +3630,3 @@ flashcard(ifp, l_ioctl)
 
 	return -EINVAL;
 }
-
