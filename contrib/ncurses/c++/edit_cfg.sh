@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.7 1999/09/12 02:00:14 tom Exp $
+# $Id: edit_cfg.sh,v 1.8 2000/07/01 16:07:37 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -36,6 +36,7 @@
 #	$1 = ncurses_cfg.h
 #	$2 = etip.h
 #
+echo "substituting autoconf'd values from $1 into $2"
 for name in \
 	CPP_HAS_PARAM_INIT \
 	ETIP_NEEDS_MATH_EXCEPTION \
@@ -49,16 +50,18 @@ do
 	mv $2 $2.bak
 	if ( grep "[ 	]$name[ 	]1" $1 2>&1 >/dev/null)
 	then
-		sed -e 's/define '$name'.*$/  define '$name' 1/' $2.bak >$2
+		value=1
+		sed -e 's/define '$name'.*$/define '$name' 1/' $2.bak >$2
 	else
-		sed -e 's/define '$name'.*$/  define '$name' 0/' $2.bak >$2
+		value=0
+		sed -e 's/define '$name'.*$/define '$name' 0/' $2.bak >$2
 	fi
 	if (cmp -s $2 $2.bak)
 	then
-		echo '** same: '$name
+		echo '... '$name $value
 		mv $2.bak $2
 	else
-		echo '** edit: '$name
+		echo '... '$name $value
 		rm -f $2.bak
 	fi
 done

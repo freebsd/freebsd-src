@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_move.c
 **
@@ -41,23 +40,22 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_move.c,v 1.8 1998/02/11 12:13:53 tom Exp $")
+MODULE_ID("$Id: lib_move.c,v 1.9 2000/04/29 21:11:19 tom Exp $")
 
 int
 wmove(WINDOW *win, int y, int x)
 {
-	T((T_CALLED("wmove(%p,%d,%d)"), win, y, x));
+    T((T_CALLED("wmove(%p,%d,%d)"), win, y, x));
 
-	if (win && 
-	    x >= 0  &&  x <= win->_maxx  &&
-	    y >= 0  &&  y <= win->_maxy)
-	{
-		win->_curx = (short)x;
-		win->_cury = (short)y;
+    if (win &&
+	x >= 0 && x <= win->_maxx &&
+	y >= 0 && y <= win->_maxy) {
+	win->_curx = (NCURSES_SIZE_T) x;
+	win->_cury = (NCURSES_SIZE_T) y;
 
-		win->_flags &= ~_WRAPPED;
-		win->_flags |= _HASMOVED;
-		returnCode(OK);
-	} else
-		returnCode(ERR);
+	win->_flags &= ~_WRAPPED;
+	win->_flags |= _HASMOVED;
+	returnCode(OK);
+    } else
+	returnCode(ERR);
 }

@@ -1,8 +1,40 @@
 // * This makes emacs happy -*-Mode: C++;-*-
+/****************************************************************************
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
+
+/****************************************************************************
+ *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
+ ****************************************************************************/
+
 #ifndef _CURSESP_H
 #define _CURSESP_H
 
-// $Id: cursesp.h,v 1.11 1999/07/31 09:46:05 juergen Exp $
+// $Id: cursesp.h,v 1.12 1999/10/31 00:00:02 tom Exp $
 
 #include <cursesw.h>
 
@@ -29,14 +61,14 @@ private:
 protected:
   void set_user(void *user) {
     UserHook* uptr = (UserHook*)::panel_userptr (p);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==p);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==p);
     uptr->m_user = user;
   }
   // Set the user pointer of the panel.
   
   void *get_user() {
     UserHook* uptr = (UserHook*)::panel_userptr (p);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==p);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==p);
     return uptr->m_user;
   }
   

@@ -36,18 +36,19 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_delete.c,v 1.2 1998/02/11 12:14:01 tom Exp $")
+MODULE_ID("$Id: p_delete.c,v 1.4 1999/11/25 13:49:26 juergen Exp $")
 
 int
 del_panel(PANEL *pan)
 {
+  int err = OK;
   if(pan)
     {
       dBug(("--> del_panel %s", USER_PTR(pan->user)));
-      if(_nc_panel_is_linked(pan))
-	(void)hide_panel(pan);
+      HIDE_PANEL(pan,err,FALSE);
       free((void *)pan);
-      return(OK);
     }
-  return(ERR);
+  else
+    err = ERR;
+  return(err);
 }

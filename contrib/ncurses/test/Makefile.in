@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.54 1999/10/23 20:01:19 tom Exp $
+# $Id: Makefile.in,v 1.58 2000/05/28 01:28:39 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -46,6 +46,7 @@ libdir		= @libdir@
 includedir	= @includedir@
 
 CC		= @CC@
+CPP		= @CPP@
 
 CFLAGS		= @CFLAGS@
 CPPFLAGS	=  -I../test -I$(srcdir) @CPPFLAGS@ -DHAVE_CONFIG_H
@@ -98,6 +99,7 @@ TESTS = \
 	ncurses$x \
 	newdemo$x \
 	rain$x \
+	railroad$x \
 	tclock$x \
 	testaddch$x \
 	testcurs$x \
@@ -161,6 +163,9 @@ newdemo$x: $(MODEL)/newdemo.o $(LOCAL_LIBS)
 rain$x: $(MODEL)/rain.o $(LOCAL_LIBS)
 	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/rain.o $(LDFLAGS_DEFAULT)
 
+railroad$x: $(MODEL)/railroad.o $(LOCAL_LIBS)
+	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/railroad.o $(LDFLAGS_DEFAULT)
+
 tclock$x: $(MODEL)/tclock.o $(LOCAL_LIBS)
 	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/tclock.o $(LDFLAGS_DEFAULT) $(MATH_LIB)
 
@@ -182,8 +187,9 @@ worm$x: $(MODEL)/worm.o $(LOCAL_LIBS)
 xmas$x: $(MODEL)/xmas.o $(LOCAL_LIBS)
 	@ECHO_LINK@ $(LINK) -o $@ $(MODEL)/xmas.o $(LDFLAGS_DEFAULT)
 
-install:
-install.libs:
+libs \
+install \
+install.libs \
 install.test:
 
 uninstall:

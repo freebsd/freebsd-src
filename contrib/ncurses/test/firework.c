@@ -1,5 +1,5 @@
 /*
- * $Id: firework.c,v 1.15 1999/10/16 21:33:39 tom Exp $
+ * $Id: firework.c,v 1.16 1999/11/13 23:39:16 tom Exp $
  */
 #include <test.priv.h>
 
@@ -133,7 +133,7 @@ main(
 
     if (has_colors()) {
 	start_color();
-#ifdef NCURSES_VERSION
+#ifdef HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    my_bg = -1;
 #endif

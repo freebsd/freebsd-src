@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: color.c,v 1.1 1999/04/18 01:24:45 tom Exp $")
+MODULE_ID("$Id: color.c,v 1.2 2000/03/04 21:05:54 tom Exp $")
 
 /*
  * Color terminal tests.  Has only one entry point: test_color().
@@ -306,7 +306,7 @@ load_palette(int n)
 
 static int
 rainbow(int n)
-{				/* print the programable color display */
+{				/* print the programmable color display */
 	int i, c, d, palette_full, initial_pair;
 	static const struct {
 		const char *name;
