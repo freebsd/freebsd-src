@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.13 1997/05/08 13:45:43 peter Exp $
+ * $Id: ansi.h,v 1.14 1998/01/08 00:27:30 alex Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_
@@ -46,18 +46,18 @@
  *	#undef	_BSD_SIZE_T_
  *	#endif
  */
-#define	_BSD_CLOCK_T_	unsigned long		/* clock() */
+#define	_BSD_CLOCK_T_	unsigned long		/* clock()... */
+#define	_BSD_CLOCKID_T_	int			/* clock_gettime()... */
 #define	_BSD_PTRDIFF_T_	int			/* ptr1 - ptr2 */
 #define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t (see below) */
 #define	_BSD_SIZE_T_	unsigned int		/* sizeof() */
 #define	_BSD_SSIZE_T_	int			/* byte count or error */
-#define	_BSD_TIME_T_	long			/* time() */
+#define	_BSD_TIME_T_	long			/* time()... */
+#define	_BSD_TIMER_T_	int			/* timer_gettime()... */
+#define	_BSD_UINT8_T_	unsigned char		/* unsigned exactly 8 bits */
+#define	_BSD_UINT16_T_	unsigned short		/* unsigned exactly 16 bits */
+#define	_BSD_UINT32_T_	unsigned int		/* unsigned exactly 32 bits */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
-#define	_BSD_CLOCKID_T_	int
-#define	_BSD_TIMER_T_	int
-#define	_BSD_UINT8_T_	unsigned char
-#define	_BSD_UINT16_T_	unsigned short
-#define	_BSD_UINT32_T_	unsigned int
 
 /*
  * Types which are fundamental to the implementation and must be used
@@ -66,7 +66,7 @@
  * use _BSD_XXX_T_ without undef'ing it.
  */
 #define	_BSD_CT_RUNE_T_	int			/* arg type for ctype funcs */
-#define	_BSD_OFF_T_	long long		/* file offset */
+#define	_BSD_OFF_T_	__int64_t		/* file offset */
 #define	_BSD_PID_T_	int			/* process [group] */
 #define	_BSD_VA_LIST_	char *			/* va_list */
 
@@ -94,5 +94,20 @@
  */
 #define	_BSD_CLK_TCK_		128
 #define	_BSD_CLOCKS_PER_SEC_	128
+
+/*
+ * Typedefs for especially magic types.  #define's wouldn't work in the
+ * __GNUC__ case, since __attribute__(()) only works in certain contexts.
+ * This is not in <machine/types.h>, since that has too much namespace
+ * pollution for inclusion in ANSI headers, yet we need __int64_t in at
+ * least <stdio.h>.
+ */
+#ifdef __GNUC__
+typedef	int __attribute__((__mode__(__DI__)))		 __int64_t;
+typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
+#else
+typedef	long long					 __int64_t;
+typedef	unsigned long long				__uint64_t;
+#endif
 
 #endif /* !_MACHINE_ANSI_H_ */
