@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.15 1995/08/03 17:08:19 jkh Exp $
+$Id: MIRROR.SITES,v 1.16 1995/08/05 02:04:18 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -34,6 +34,9 @@ Germany		ftp://ftp.uni-paderborn.de/freebsd
 
 Germany         ftp://ftp.leo.org/pub/comp/os/bsd/FreeBSD
                 <bsd@leo.org>
+
+Germany		ftp://ftp.tu-dresden.de/pub/soft/unix/bsd/FreeBSD
+		<pdsowner@rcs1.urz.tu-dresden.de>
 
 Ireland		ftp://ftp.internet-eireann.ie/pub/FreeBSD
 		<ftpadmin@internet-eireann.ie>
