@@ -1571,7 +1571,7 @@ initall()
 
 	if (dbfd < 0)
 		return;
-	srandom(getpid());
+	srandomdev();
 	time(&acctstart);
 	initdeck(deck);
 	uid = getuid();

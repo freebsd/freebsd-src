@@ -58,6 +58,8 @@ static char sccsid[] = "@(#)snake.c	8.2 (Berkeley) 1/7/94";
 #include <fcntl.h>
 #include <pwd.h>
 #include <time.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "snake.h"
 #include "pathnames.h"
@@ -93,6 +95,9 @@ int repeat=1;
 long tv;
 char *tn;
 
+int rawscores;
+FILE *logfile;
+
 main(argc,argv)
 int argc;
 char **argv;
@@ -100,13 +105,17 @@ char **argv;
 	extern char *optarg;
 	extern int optind;
 	int ch, i, j, k;
-	long atol();
 	void stop();
 
-	(void)time(&tv);
-	srandom((int)tv);
+	rawscores = open(_PATH_RAWSCORES, O_RDWR|O_CREAT, 0664);
+	logfile = fopen(_PATH_LOGFILE, "a");
 
-	while ((ch = getopt(argc, argv, "l:w:")) !=  -1)
+	/* revoke privs */
+	setgid(getgid());
+
+	srandomdev();
+
+	while ((ch = getopt(argc, argv, "l:w:")) != -1)
 		switch((char)ch) {
 #ifdef notdef
 		case 'd':
@@ -464,7 +473,6 @@ post(iscore, flag)
 int	iscore, flag;
 {
 	short	score = iscore;
-	int	rawscores;
 	short	uid;
 	short	oldbest=0;
 	short	allbwho=0, allbscore=0;
@@ -477,7 +485,7 @@ int	iscore, flag;
 		pr("No saved scores for uid %d.\n", uid);
 		return(1);
 	}
-	if ((rawscores = open(_PATH_RAWSCORES, O_RDWR|O_CREAT, 0644)) < 0) {
+	if (rawscores == -1) {
 		pr("No score file %s: %s.\n", _PATH_RAWSCORES,
 		    strerror(errno));
 		return(1);
@@ -485,14 +493,14 @@ int	iscore, flag;
 	/* Figure out what happened in the past */
 	read(rawscores, &allbscore, sizeof(short));
 	read(rawscores, &allbwho, sizeof(short));
-	lseek(rawscores, ((long)uid)*sizeof(short), 0);
+	lseek(rawscores, ((off_t)uid)*sizeof(short), 0);
 	read(rawscores, &oldbest, sizeof(short));
 	if (!flag)
 		return (score > oldbest ? 1 : 0);
 
 	/* Update this jokers best */
 	if (score > oldbest) {
-		lseek(rawscores, ((long)uid)*sizeof(short), 0);
+		lseek(rawscores, ((off_t)uid)*sizeof(short), 0);
 		write(rawscores, &score, sizeof(short));
 		pr("You bettered your previous best of $%d\n", oldbest);
 	} else
@@ -501,7 +509,7 @@ int	iscore, flag;
 	/* See if we have a new champ */
 	p = getpwuid(allbwho);
 	if (p == NULL || score > allbscore) {
-		lseek(rawscores, (long)0, 0);
+		lseek(rawscores, (off_t)0, 0);
 		write(rawscores, &score, sizeof(short));
 		write(rawscores, &uid, sizeof(short));
 		if (allbwho)
@@ -577,7 +585,7 @@ struct point *sp, *np;
 	}
 	for(w=i=0; i<8; i++)
 		w+= wt[i];
-	vp = (( rand() >> 6 ) & 01777) %w;
+	vp = random() % w;
 	for(i=0; i<8; i++)
 		if (vp <wt[i])
 			break;
@@ -779,7 +787,7 @@ pushsnake()
 		{
 			surround(&you);
 			i = (cashvalue) % 10;
-			bonus = ((rand()>>8) & 0377)% 10;
+			bonus = random() % 10;
 			ll();
 			pr("%d\n", bonus);
 			delay(30);
@@ -880,10 +888,9 @@ int num;
 logit(msg)
 char *msg;
 {
-	FILE *logfile;
 	long t;
 
-	if ((logfile=fopen(_PATH_LOGFILE, "a")) != NULL) {
+	if (logfile != NULL) {
 		time(&t);
 		fprintf(logfile, "%s $%d %dx%d %s %s",
 		    getlogin(), cashvalue, lcnt, ccnt, msg, ctime(&t));

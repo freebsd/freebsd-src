@@ -56,7 +56,7 @@ FILE	*oldcharac, *newcharac;		/* to open old and new files */
 	exit(1);
 	}
 
-    srandom((unsigned) time((long *) NULL));	/* prime random numbers */
+    srandomdev();
 
     while (fread((char *) &Oldplayer, sizeof(struct oldplayer), 1, oldcharac) == 1)
 	/* read and convert old structures into new */

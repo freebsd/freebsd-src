@@ -42,16 +42,19 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)quiz.c	8.2 (Berkeley) 1/3/94";
+static char sccsid[] = "@(#)quiz.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
+
+#include <ctype.h>
 #include <errno.h>
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <time.h>
+#include <unistd.h>
+
 #include "quiz.h"
 #include "pathnames.h"
 
@@ -78,8 +81,11 @@ main(argc, argv)
 	register int ch;
 	char *indexfile;
 
+	/* revoke */
+	setgid(getgid());
+
 	indexfile = _PATH_QUIZIDX;
-	while ((ch = getopt(argc, argv, "i:t")) !=  -1)
+	while ((ch = getopt(argc, argv, "i:t")) != -1)
 		switch(ch) {
 		case 'i':
 			indexfile = optarg;
@@ -216,7 +222,7 @@ quiz()
 	int next;
 	char *answer, *s, *t, question[LINE_SZ];
 
-	srandom(time(NULL));
+	srandomdev();
 	guesses = rights = wrongs = 0;
 	for (;;) {
 		if (qsize == 0)
@@ -296,10 +302,10 @@ next_cat(s)
 		case '\0':
 			return (NULL);
 		case '\\':
+			s++;
 			break;
 		case ':':
 			return (s);
-			s++;
 		}
 	/* NOTREACHED */
 }

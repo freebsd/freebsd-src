@@ -9,4 +9,8 @@ DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/saillog
+
 .include <bsd.prog.mk>

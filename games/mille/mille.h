@@ -37,6 +37,7 @@
 # include	<ctype.h>
 # include	<curses.h>
 # include	<string.h>
+# include       <stdlib.h>
 
 /*
  * @(#)mille.h	1.1 (Berkeley) 4/1/82

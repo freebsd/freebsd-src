@@ -37,6 +37,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <stdlib.h>
 #include "machdep.h"
 
 	/* program mode */
@@ -55,7 +56,7 @@ char nobells;				/* -b, don't ring bell before Signal */
 	/* other initial modes */
 char issetuid;				/* running setuid */
 
-#define die()		((rand() >> 3) % 6 + 1)
+#define die()           (random() % 6 + 1)
 #define sqr(a)		((a) * (a))
 #define abs(a)		((a) > 0 ? (a) : -(a))
 #define min(a,b)	((a) < (b) ? (a) : (b))
@@ -191,18 +192,18 @@ struct File {
 	char struck;			/* 66 */
 	struct ship *captured;		/* 68 */
 	short pcrew;			/* 70 */
-	char movebuf[10];		/* 72 */
-	char drift;			/* 82 */
+	char movebuf[60];		/* 72 */
+	char drift;			/* 132 */
 	short nfoul;
 	short ngrap;
-	struct snag foul[NSHIP];	/* 84 */
-	struct snag grap[NSHIP];	/* 124 */
-	char RH;			/* 224 */
-	char RG;			/* 226 */
-	char RR;			/* 228 */
-	char FS;			/* 230 */
-	char explode;			/* 232 */
-	char sink;			/* 234 */
+	struct snag foul[NSHIP];	/* 134 */
+	struct snag grap[NSHIP];	/* 144 */
+	char RH;			/* 274 */
+	char RG;			/* 276 */
+	char RR;			/* 278 */
+	char FS;			/* 280 */
+	char explode;			/* 282 */
+	char sink;			/* 284 */
 	char dir;
 	short col;
 	short row;
@@ -301,7 +302,6 @@ double arctan();
 char *saywhat();
 struct ship *closestenemy();
 
-char *calloc();
 char *rindex();
 char *strcpy();
 char *strcat();

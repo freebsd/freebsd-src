@@ -59,8 +59,8 @@ reg char	*av[]; {
 
 	reg bool	restore;
 
-	/* run as the user */
-	setuid(getuid());
+	/* revoke */
+	setgid(getgid());
 
 	if (strcmp(av[0], "a.out") == 0) {
 		outf = fopen("q", "w");
@@ -93,11 +93,7 @@ reg char	*av[]; {
 	leaveok(Score, TRUE);
 	leaveok(Miles, TRUE);
 	clearok(curscr, TRUE);
-# ifndef PROF
-	srandom(getpid());
-# else
-	srandom(0);
-# endif
+	srandomdev();
 	crmode();
 	noecho();
 	signal(SIGINT, rub);

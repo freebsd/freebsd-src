@@ -49,7 +49,9 @@ static char sccsid[] = "@(#)worm.c	8.1 (Berkeley) 5/31/93";
 #include <ctype.h>
 #include <curses.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <termios.h>
+#include <unistd.h>
 
 #define newlink() (struct body *) malloc(sizeof (struct body));
 #define HEAD '@'
@@ -85,12 +87,15 @@ main(argc, argv)
 {
 	char ch;
 
+	/* revoke */
+	setgid(getgid());
+
 	if (argc == 2)
 		start_len = atoi(argv[1]);
 	if ((start_len <= 0) || (start_len > 500))
 		start_len = LENGTH;
 	setbuf(stdout, outbuf);
-	srand(getpid());
+	srandomdev();
 	signal(SIGALRM, wake);
 	signal(SIGINT, leave);
 	signal(SIGQUIT, leave);
@@ -175,7 +180,7 @@ wake()
 
 rnd(range)
 {
-	return abs((rand()>>5)+(rand()>>5)) % range;
+	return random() % range;
 }
 
 newpos(bp)

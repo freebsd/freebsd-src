@@ -36,6 +36,7 @@
  *	@(#)rogue.h	8.1 (Berkeley) 5/31/93
  */
 
+#include <string.h>
 /*
  * rogue.h
  *
@@ -426,10 +427,6 @@ extern object level_monsters;
 
 /* external routine declarations.
  */
-char *strcpy();
-char *strncpy();
-char *strcat();
-
 char *mon_name();
 char *get_ench_color();
 char *name_of();
@@ -457,7 +454,8 @@ object *object_at();
 object *pick_up();
 struct id *get_id_table();
 unsigned short gr_what_is();
-long rrandom();
+#define rrandom random
+#define srrandom(x) srandomdev()
 long lget_number();
 long xxx();
 void byebye(), onintr(), error_save();

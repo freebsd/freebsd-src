@@ -23,7 +23,7 @@
 
 setrandom()
 {
-	(void) srandom((int) time ((time_t *) 0));
+	(void) srandomdev();
 }
 
 struct tm *

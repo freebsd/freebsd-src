@@ -68,10 +68,12 @@ main()
 	struct	passwd	*p;
 
 	fd = fopen(recfile, "r");
+
 	if (fd == NULL) {
 		perror(recfile);
 		exit(1);
 	}
+
 	printf("Snake players scores to date\n");
 	fread(&whoallbest, sizeof(short), 1, fd);
 	fread(&allbest, sizeof(short), 1, fd);

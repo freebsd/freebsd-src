@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 
 short write_failed = 0;
 char *save_file = (char *) 0;
+static char save_name[80];
 
 extern boolean detect_monster;
 extern short cur_level, max_level;
@@ -108,7 +109,8 @@ char *sfile;
 			sfile = name_buffer;
 		}
 	}
-	setuid(getuid());
+	/* revoke */
+	setgid(getgid());
 	if (	((fp = fopen(sfile, "w")) == NULL) ||
 			((file_id = md_get_file_id(sfile)) == -1)) {
 		message("problem accessing the save file", 0);
@@ -158,15 +160,18 @@ char *sfile;
 	if (write_failed) {
 		(void) md_df(sfile);	/* delete file */
 	} else {
+		if (strcmp(sfile, save_name) == 0)
+			save_name[0] = 0;
 		clean_up("");
 	}
 }
 
-static char save_name[80];
-
 static del_save_file()
 {
-	setuid(getuid());
+	if (!save_name[0])
+		return;
+	/* revoke */
+	setgid(getgid());
 	md_df(save_name);
 }
 

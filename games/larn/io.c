@@ -157,7 +157,7 @@ newgame()
 	{
 	register long *p,*pe;
 	for (p=c,pe=c+100; p<pe; *p++ =0);
-	time(&initialtime);		srand(initialtime);
+	time(&initialtime);             srandomdev();
 	lcreat((char*)0);	/* open buffering for output to terminal */
 	}
 
