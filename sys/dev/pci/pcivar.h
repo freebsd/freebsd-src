@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.8 1996/01/23 21:47:17 se Exp $
+**  $Id: pcivar.h,v 1.9 1996/01/25 18:32:00 se Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -187,7 +187,7 @@ struct pci_externalize_buffer {
 **-----------------------------------------------------------------
 */
 
-int pci_map_mem (pcici_t tag, u_long entry, u_long  * va, u_long * pa);
+int pci_map_mem (pcici_t tag, u_long entry, vm_offset_t *va, vm_offset_t *pa);
 
 /*-----------------------------------------------------------------
 **
