@@ -184,6 +184,14 @@
       deprecated.  In fact, there are no plans to remove this
       option.</para>
 
+    <para>&man.ftpd.8; has a bug in its virtual hosting function
+      triggered if <filename>/etc/ftphosts</filename> defines a
+      virtual host whose IP address can resolve back to a hostname.
+      In that case the daemon will be exiting on <literal>SIGSEGV</literal>
+      (signal 11) if started from &man.inetd.8;, or may malfunction
+      unpredictably if running stand-alone.  This bug has been fixed
+      in &os; &release.current;.</para>
+
 ]]>
   </sect1>
 </article>
