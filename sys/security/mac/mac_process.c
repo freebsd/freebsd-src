@@ -998,6 +998,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	FREE(mpc->mpc_ops, M_MACOPVEC);
 	mpc->mpc_ops = NULL;
+	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
 
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
