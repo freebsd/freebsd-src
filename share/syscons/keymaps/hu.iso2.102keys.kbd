@@ -1,3 +1,7 @@
+# This is an as-close-as-possible (closer :-) representation of the
+# Hungarian keyboard standard (after M$'s W*).  There are so many PCs in
+# Hungary with that type of keyboard.
+# 
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
@@ -46,7 +50,7 @@
   041   '0'     21    nop    nop    nop    nop    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   251    219    fs     fs     164    nop    fs     fs      C
-  044   'y'    'Y'    em     em     '>'    nop    em     em      C
+  044   'y'    'Y'    em     em     '>'    '<'    em     em      C
   045   'x'    'X'    can    can    '#'    nop    can    can     C
   046   'c'    'C'    etx    etx    '&'    nop    etx    etx     C
   047   'v'    'V'    syn    syn    '@'    nop    nul    nul     C
@@ -55,7 +59,7 @@
   050   'm'    'M'    cr     cr     '<'    nop    cr     cr      C
   051   ','    '?'    nop    nop    ';'    nop    nop    nop     O
   052   '.'    ':'    nop    nop    '>'    nop    nop    nop     O
-  053   '-'    '_'    us     us     '*'    nop    nop    nop     O
+  053   '-'    '_'    ns     ns     '*'    nop    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
@@ -107,6 +111,31 @@
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
+# the left Windows key. If you would like to use them,
+# program these keys with:
+# kbdcontrol -f 62 'strings you would like to send'
   105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+# the right Windows key.
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+# the right Menu pointer key.
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  108   nop    nop    nop    nop    nop    nop    nop    nop     O
+  109   nop    nop    nop    nop    nop    nop    nop    nop     O
+  110   nop    nop    nop    nop    nop    nop    nop    nop     O
+  111   nop    nop    nop    nop    nop    nop    nop    nop     O
+  112   nop    nop    nop    nop    nop    nop    nop    nop     O
+  113   nop    nop    nop    nop    nop    nop    nop    nop     O
+  114   nop    nop    nop    nop    nop    nop    nop    nop     O
+  115   nop    nop    nop    nop    nop    nop    nop    nop     O
+  116   nop    nop    nop    nop    nop    nop    nop    nop     O
+  117   nop    nop    nop    nop    nop    nop    nop    nop     O
+  118   nop    nop    nop    nop    nop    nop    nop    nop     O
+  119   nop    nop    nop    nop    nop    nop    nop    nop     O
+  120   nop    nop    nop    nop    nop    nop    nop    nop     O
+  121   nop    nop    nop    nop    nop    nop    nop    nop     O
+  122   nop    nop    nop    nop    nop    nop    nop    nop     O
+  123   nop    nop    nop    nop    nop    nop    nop    nop     O
+  124   nop    nop    nop    nop    nop    nop    nop    nop     O
+  125   nop    nop    nop    nop    nop    nop    nop    nop     O
+  126   nop    nop    nop    nop    nop    nop    nop    nop     O
+  127   nop    nop    nop    nop    nop    nop    nop    nop     O
