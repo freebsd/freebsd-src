@@ -167,7 +167,6 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	pst \
-	raidframe \
 	${_random} \
 	${_ray} \
 	rc \
