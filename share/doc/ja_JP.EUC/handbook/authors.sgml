@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.55 -->
+<!-- Original revision: 1.57 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -69,6 +69,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:csgr@FreeBSD.ORG'
   name='&lt;csgr@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.danny  "Daniel O'Callaghan
+  <tt><htmlurl url='mailto:danny@FreeBSD.ORG'
+  name='&lt;danny@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.darrenr "Darren Reed 
   <tt><htmlurl url='mailto:darrenr@FreeBSD.ORG' 
   name='&lt;darrenr@FreeBSD.ORG&gt;'></tt>">
@@ -100,6 +104,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.dyson "John Dyson
   <tt><htmlurl url='mailto:dyson@FreeBSD.ORG'
   name='&lt;dyson@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.eivind  "Eivind Eklund
+  <tt><htmlurl url='mailto:perhaps@yes.no'
+  name='&lt;perhaps@yes.no&gt;'></tt>">
 
 <!ENTITY a.erich  "Eric L. Hernes
   <tt><htmlurl url='mailto:erich@FreeBSD.ORG'
