@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.12 1998/08/24 10:20:36 cracauer Exp $";
+	"$Id: trap.c,v 1.13 1998/08/25 08:49:47 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -76,7 +76,7 @@ static const char rcsid[] =
 
 MKINIT char sigmode[NSIG];	/* current value of signal */
 int pendingsigs;		/* indicates some signal received */
-int in_dotrap = 0;		/* Do we execute in a trap handler? */
+int in_dotrap;			/* do we execute in a trap handler? */
 static char *trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG]; 
 				/* indicates specified signal received */
