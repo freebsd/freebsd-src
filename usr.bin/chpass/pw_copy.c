@@ -65,8 +65,8 @@ pw_copy(ffd, tfd, pw)
 
 	snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
 	snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
-	snprintf(chgstr, sizeof(chgstr), "%lu", pw->pw_change);
-	snprintf(expstr, sizeof(expstr), "%lu", pw->pw_expire);
+	snprintf(chgstr, sizeof(chgstr), "%ld", pw->pw_change);
+	snprintf(expstr, sizeof(expstr), "%ld", pw->pw_expire);
 
 	if (!(from = fdopen(ffd, "r")))
 		pw_error(_PATH_MASTERPASSWD, 1, 1);
@@ -96,7 +96,7 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
-		(void)fprintf(to, "%s:%s:%s:%s:%s:%ld:%ld:%s:%s:%s\n",
+		(void)fprintf(to, "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
 		    pw->pw_name, pw->pw_passwd,
 		    pw->pw_fields & _PWF_UID ? uidstr : "",
 		    pw->pw_fields & _PWF_GID ? gidstr : "",
@@ -117,7 +117,7 @@ pw_copy(ffd, tfd, pw)
 			pw_error(NULL, 0, 1);
 		} else
 #endif /* YP */
-		(void)fprintf(to, "%s:%s:%s:%s:%s:%ld:%ld:%s:%s:%s\n",
+		(void)fprintf(to, "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s\n",
 		    pw->pw_name, pw->pw_passwd,
 		    pw->pw_fields & _PWF_UID ? uidstr : "",
 		    pw->pw_fields & _PWF_GID ? gidstr : "",
