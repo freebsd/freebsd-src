@@ -62,24 +62,22 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
 
 int	aflag;		/* all filesystems */
 int	gflag;		/* operate on group quotas */
 int	uflag;		/* operate on user quotas */
 int	vflag;		/* verbose */
 
-int hasquota __P((struct fstab *, int, char **));
-int oneof __P((char *, char *[], int));
-int quotaonoff __P((struct fstab *fs, int, int, char *));
-int readonly __P((struct fstab *));
-static void usage __P((void));
+int hasquota(struct fstab *, int, char **);
+int oneof(char *, char *[], int);
+int quotaonoff(struct fstab *fs, int, int, char *);
+int readonly(struct fstab *);
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	register struct fstab *fs;
 	char ch, *qfnp, *whoami;

@@ -97,16 +97,14 @@ u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 int	vflag;			/* verbose */
 int	aflag;			/* all filesystems */
 
-int hasquota __P((struct fstab *, int, char **));
-int oneof __P((char *, char *[], int));
-int repquota __P((struct fstab *, int, char *));
-char *timeprt __P((time_t));
-static void usage __P((void));
+int hasquota(struct fstab *, int, char **);
+int oneof(char *, char *[], int);
+int repquota(struct fstab *, int, char *);
+char *timeprt(time_t);
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	register struct fstab *fs;
 	register struct passwd *pw;

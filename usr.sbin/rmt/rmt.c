@@ -75,14 +75,12 @@ FILE	*debug;
 #define	DEBUG1(f,a)	if (debug) fprintf(debug, f, a)
 #define	DEBUG2(f,a1,a2)	if (debug) fprintf(debug, f, a1, a2)
 
-char	*checkbuf __P((char *, int));
-void	 error __P((int));
-void	 getstring __P((char *));
+char	*checkbuf(char *, int);
+void	 error(int);
+void	 getstring(char *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int rval;
 	char c;
@@ -229,17 +227,17 @@ getstring(bp)
 }
 
 char *
-checkbuf(record, size)
-	char *record;
+checkbuf(rec, size)
+	char *rec;
 	int size;
 {
 
 	if (size <= maxrecsize)
-		return (record);
-	if (record != 0)
-		free(record);
-	record = malloc(size);
-	if (record == 0) {
+		return (rec);
+	if (rec != 0)
+		free(rec);
+	rec = malloc(size);
+	if (rec == 0) {
 		DEBUG("rmtd: cannot allocate buffer space\n");
 		exit(4);
 	}
@@ -247,7 +245,7 @@ checkbuf(record, size)
 	while (size > 1024 &&
 	       setsockopt(0, SOL_SOCKET, SO_RCVBUF, &size, sizeof (size)) < 0)
 		size -= 1024;
-	return (record);
+	return (rec);
 }
 
 void
