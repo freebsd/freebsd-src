@@ -7,3 +7,4 @@ makedb:
 	makewhatis ${DESTDIR}${BINDIR}/man
 
 .include <bsd.subdir.mk>
+.include "${.CURDIR}/../Makefile.inc"
