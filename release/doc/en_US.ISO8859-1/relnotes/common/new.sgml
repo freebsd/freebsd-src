@@ -393,10 +393,10 @@
 	the transmission rate.  &merged;</para>
 
       <para>The per-interface &man.polling.4; support has been
-	implemented.  Currently &man.dc.4;, &man.fxp.4;,
-	&man.em.4;, &man.nge.4;, &man.re.4;, &man.rl.4;, &man.sis.4;,
-	&man.ste.4;, and &man.vr.4;
-	support this capability and it can be controlled
+	implemented.  All of the network drivers that support &man.polling.4;
+	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
+	&man.rl.4;, &man.sis.4;, &man.ste.4;, and &man.vr.4;)
+	now also support this capability and it can be controlled
 	via &man.ifconfig.8;.</para>
     </sect3>
 
