@@ -623,10 +623,13 @@ sendit(td, s, mp, flags)
 	struct sockaddr *to;
 	int error;
 
+	mtx_lock(&Giant);
 	if (mp->msg_name != NULL) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error)
-			return error;
+		if (error) {
+			to = NULL;
+			goto bad;
+		}
 		mp->msg_name = to;
 	} else
 		to = NULL;
@@ -669,6 +672,7 @@ sendit(td, s, mp, flags)
 bad:
 	if (to)
 		FREE(to, M_SONAME);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -691,7 +695,6 @@ kern_sendit(td, s, mp, flags, control)
 	int iovlen;
 #endif
 
-	mtx_lock(&Giant);
 	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		goto bad2;
 
@@ -752,7 +755,6 @@ kern_sendit(td, s, mp, flags, control)
 bad:
 	fputsock(so);
 bad2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
