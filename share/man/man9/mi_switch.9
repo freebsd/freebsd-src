@@ -66,8 +66,7 @@ can be enumerated as follows:
 .Bl -enum -offset indent
 .It
 from within
-.Xr sleep 9
-,
+.Xr sleep 9 ,
 .Xr tsleep 9
 and
 .Xr msleep 9
@@ -91,14 +90,14 @@ in the signal handling code
 (see
 .Xr issignal 9 )
 if a signal is delivered that causes a process to stop.
-.It 
-When a thread dies in 
+.It
+When a thread dies in
 .Xr thread_exit 9
 and control of the processor can be passed to the next runnable thread.
 .It
 In
 .Xr thread_suspend_check 9
-where a thread needs to stop execution due to the suspension state of 
+where a thread needs to stop execution due to the suspension state of
 the process as a whole.
 .El
 .Pp
@@ -114,13 +113,16 @@ signal to be posted to the process, while exceeding the hard limit will
 cause a
 .Dv SIGKILL .
 .Pp
-If the thread is still in 
-.Em TDS_RUNNING
-state mi_switch will put it back onto the run queue, assuming that
-it will want to run again soon. If it is in one of the other 
-states  and KSE threading is enabled, the associated
+If the thread is still in the
+.Dv TDS_RUNNING
+state,
+.Fn mi_switch
+will put it back onto the run queue, assuming that
+it will want to run again soon.
+If it is in one of the other
+states and KSE threading is enabled, the associated
 .Em KSE
-will be made available to to any higher priority threads from the same 
+will be made available to any higher priority threads from the same
 group, to allow them to be scheduled next.
 .Pp
 After these administrative tasks are done,
