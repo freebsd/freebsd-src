@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.29 1996/11/15 17:30:29 nate Exp $
+ * $Id: psm.c,v 1.30 1996/11/27 22:52:25 phk Exp $
  */
 
 /*
@@ -433,7 +433,10 @@ psmprobe(struct isa_device *dvp)
     if (unit >= NPSM)
         return (0);
 
-    sc = psm_softc[unit];
+    sc =  malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
+
+    bzero(sc, sizeof *sc);
+
     sc->addr = ioport;
     if (bootverbose)
         ++verbose;
@@ -487,6 +490,7 @@ psmprobe(struct isa_device *dvp)
     if (sc->command_byte == -1) {
         printf("psm%d: unable to get the current command byte value.\n",
             unit);
+	free(sc, M_DEVBUF);
         return (0);
     }
 
@@ -524,6 +528,7 @@ psmprobe(struct isa_device *dvp)
                 unit, i);
         if (bootverbose)
             --verbose;
+	free(sc, M_DEVBUF);
         return (0);
     }
 
@@ -536,6 +541,7 @@ psmprobe(struct isa_device *dvp)
         restore_controller(ioport, sc->command_byte);
         if (verbose)
             printf("psm%d: failed to reset the aux device.\n", unit);
+	free(sc, M_DEVBUF);
         return (0);
     }
     /*
@@ -550,6 +556,7 @@ psmprobe(struct isa_device *dvp)
             printf("psm%d: failed to enable the aux device.\n", unit);
         if (bootverbose)
             --verbose;
+	free(sc, M_DEVBUF);
         return (0);
     }
     empty_both_buffers(ioport);    /* remove stray data if any */
@@ -565,6 +572,7 @@ psmprobe(struct isa_device *dvp)
             printf("psm%d: unknown device type (%d).\n", unit, sc->hw.hwid);
         if (bootverbose)
             --verbose;
+	free(sc, M_DEVBUF);
         return (0);
     }
     switch (sc->hw.hwid) {
@@ -613,6 +621,7 @@ psmprobe(struct isa_device *dvp)
         KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT);
 
     /* done */
+    psm_softc[unit] = sc;
     return (IO_PSMSIZE);
 }
 
@@ -620,10 +629,7 @@ static int
 psmattach(struct isa_device *dvp)
 {
     int unit = dvp->id_unit;
-    struct psm_softc *sc = psm_softc[unit] = 
-	malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
-
-    bzero(sc, sizeof *sc);
+    struct psm_softc *sc = psm_softc[unit];
 
     /* initial operation mode */
     sc->mode.accelfactor = PSM_ACCEL;
