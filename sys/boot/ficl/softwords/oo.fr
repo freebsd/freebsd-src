@@ -1,6 +1,9 @@
 \ ** ficl/softwords/oo.fr
 \ ** F I C L   O - O   E X T E N S I O N S
 \ ** john sadler aug 1998
+\
+\ $FreeBSD$
+
 
 .( loading ficl O-O extensions ) cr
 7 ficl-vocabulary oop
@@ -216,6 +219,10 @@ set-current previous
 \ instance of the class. This word gets compiled into
 \ the wordlist of every class by the SUB method.
 \ PRECONDITION: current-class contains the class address
+\ why use a state variable instead of the stack?
+\ >> Stack state is not well-defined during compilation	(there are
+\ >> control structure match codes on the stack, of undefined size
+\ >> easiest way around this is use of this thread-local variable
 \
 : do-do-instance  ( -- )
     s" : .do-instance does> [ current-class @ ] literal ;" 
@@ -232,7 +239,8 @@ set-current previous
 \
 :noname
 	wordlist
-	create  immediate
+	create  
+    immediate
 	0       ,	\ NULL parent class
 	dup     ,	\ wid
 	3 cells ,	\ instance size 
@@ -293,6 +301,24 @@ previous
 : new-array   ( n class metaclass "name" -- ) 
 	metaclass => array 
 	--> array-init
+;
+
+\ Create an anonymous initialized instance from the heap
+: alloc   \ ( class metaclass -- instance class )
+    locals| meta class |
+    class meta metaclass => get-size allocate   ( -- addr fail-flag )
+    abort" allocate failed "                    ( -- addr )
+    class 2dup --> init
+;
+
+\ Create an anonymous array of initialized instances from the heap
+: alloc-array   \ ( n class metaclass -- instance class )
+    locals| meta class nobj |
+    class meta metaclass => get-size 
+    nobj * allocate                 ( -- addr fail-flag )
+    abort" allocate failed "        ( -- addr )
+    nobj over class --> array-init
+    class 
 ;
 
 \ create a proxy object with initialized payload address given
@@ -410,6 +436,14 @@ do-do-instance
 		&init execute
 		&next execute  drop to inst
 	loop
+;
+
+\ free storage allocated to a heap instance by alloc or alloc-array
+\ NOTE: not protected against errors like FREEing something that's
+\ really in the dictionary.
+: free   \ ( instance class -- )
+	drop free 
+	abort" free failed "
 ;
 
 \ Instance aliases for common class methods
