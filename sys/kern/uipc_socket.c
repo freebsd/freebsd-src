@@ -155,7 +155,6 @@ soalloc(int mflags)
 #endif
 		SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
 		SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
-		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
 		mtx_lock(&so_global_mtx);
 		so->so_gencnt = ++so_gencnt;
