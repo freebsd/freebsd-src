@@ -29,7 +29,6 @@
 
 #include <sys/param.h>
 #include <sys/exec.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <string.h>

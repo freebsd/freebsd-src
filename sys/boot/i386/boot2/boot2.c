@@ -18,8 +18,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/reboot.h>
-#include <sys/diskslice.h>
 #include <sys/disklabel.h>
 #include <sys/diskmbr.h>
 #include <sys/dirent.h>

@@ -40,7 +40,7 @@
 #include <stand.h>
 
 #include <sys/param.h>
-#include <sys/reboot.h>
+#include <machine/bootinfo.h>
 #include <machine/psl.h>
 
 #include <stdarg.h>
