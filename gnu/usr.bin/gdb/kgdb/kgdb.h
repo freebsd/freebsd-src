@@ -29,15 +29,19 @@
 #ifndef _KGDB_H_
 #define	_KGDB_H_
 
+struct	thread_info;
+
 extern kvm_t *kvm;
 extern int verbose;
 
 struct kthr {
 	struct kthr	*next;
+	uintptr_t	paddr;
 	uintptr_t	kaddr;
 	uintptr_t	kstack;
 	uintptr_t	pcb;
 	int		tid;
+	int		pid;
 };
 
 extern struct kthr *curkthr;
@@ -48,8 +52,12 @@ void kgdb_trgt_store_registers(int);
 
 struct kthr *kgdb_thr_first(void);
 struct kthr *kgdb_thr_init(void);
-struct kthr *kgdb_thr_lookup(int);
+struct kthr *kgdb_thr_lookup_tid(int);
+struct kthr *kgdb_thr_lookup_pid(int);
+struct kthr *kgdb_thr_lookup_paddr(uintptr_t);
+struct kthr *kgdb_thr_lookup_taddr(uintptr_t);
 struct kthr *kgdb_thr_next(struct kthr *);
 struct kthr *kgdb_thr_select(struct kthr *);
+char        *kgdb_thr_extra_thread_info(int);
 
 #endif /* _KGDB_H_ */
