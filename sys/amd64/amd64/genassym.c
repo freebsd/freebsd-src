@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.17 1994/10/15 13:32:47 davidg Exp $
+ *	$Id: genassym.c,v 1.18 1994/10/26 10:18:24 jkh Exp $
  */
 
+#include <stdio.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
@@ -72,14 +73,12 @@ main()
 	struct rusage *rup = (struct rusage *)0;
 	struct uprof *uprof = (struct uprof *)0;
 	struct vmspace *vms = (struct vmspace *)0;
-	vm_map_t map = (vm_map_t)0;
-	pmap_t pmap = (pmap_t)0;
 	struct pcb *pcb = (struct pcb *)0;
 	struct trapframe *tf = (struct trapframe *)0;
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo_t *bootinfo = (struct bootinfo_t *)0;
-	register unsigned i;
 
+	/* XXX should use %p to print pointers.  About 80 lines are wrong. */
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
 	printf("#define\tP_FORW %d\n", &p->p_forw);
 	printf("#define\tP_BACK %d\n", &p->p_back);
@@ -121,8 +120,8 @@ main()
 #ifdef SYSVSHM
 	printf("#define\tSHMMAXPGS %d\n", SHMMAXPGS);
 #endif
-	printf("#define\tUSRSTACK 0x%x\n", USRSTACK);
-	printf("#define\tVM_MAXUSER_ADDRESS 0x%x\n", VM_MAXUSER_ADDRESS);
+	printf("#define\tUSRSTACK 0x%lx\n", USRSTACK);
+	printf("#define\tVM_MAXUSER_ADDRESS 0x%lx\n", VM_MAXUSER_ADDRESS);
 	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
 	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
 	printf("#define\tNMBCLUSTERS %d\n", NMBCLUSTERS);
@@ -202,6 +201,6 @@ main()
 	printf("#define\tBOOTINFO_KERNELNAME %d\n", &bootinfo->kernelname);
 	printf("#define\tBOOTINFO_NFS_DISKLESS %d\n", &bootinfo->nfs_diskless);
 	printf("#define\tNFSDISKLESS_SIZE %d\n", sizeof(struct nfs_diskless));
-	return 0;
-}
 
+	return (0);
+}
