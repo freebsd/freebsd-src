@@ -491,7 +491,8 @@ ptcpoll(dev, events, td)
 	int s;
 
 	if ((tp->t_state & TS_CONNECTED) == 0)
-		return (seltrue(dev, events, td) | POLLHUP);
+		return (events & 
+		   (POLLHUP | POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM));
 
 	/*
 	 * Need to block timeouts (ttrstart).
