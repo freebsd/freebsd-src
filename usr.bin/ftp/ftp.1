@@ -1,4 +1,4 @@
-.\" 	$Id: ftp.1,v 1.9 1999/06/25 14:11:12 ru Exp $
+.\" 	$Id: ftp.1,v 1.10 1999/07/01 14:32:07 ru Exp $
 .\" 	$NetBSD: ftp.1,v 1.21 1997/06/10 21:59:58 lukem Exp $
 .\"
 .\" Copyright (c) 1985, 1989, 1990, 1993
@@ -1346,9 +1346,10 @@ By default, this is bound to the TAB key.
 utilizes the following environment variables.
 .Bl -tag -width "FTP_PASSIVE_MODE"
 .It Ev FTP_PASSIVE_MODE
-If set to
-.Sq YES ,
-use passive mode FTP by default.
+If this variable is set to something else than
+.Sq NO ,
+.Nm
+will use passive mode by default.
 .It Ev FTPSERVER
 Host to use as gate-ftp server when
 .Ic gate
