@@ -136,6 +136,11 @@ acpi_isa_identify(driver_t *driver, device_t bus)
     ACPI_HANDLE		parent;
     ACPI_STATUS		status;
 
+    /*If this driver is loaded from userland ,just ignore*/
+    if(!cold){
+	    return;
+    }
+
     /*
      * Look for the _SB_ scope, which will contain all the devices
      * we are likely to support.
