@@ -2,17 +2,19 @@
 # $FreeBSD$
 
 LIB=	des
-SRCS=	cbc3_enc.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
-	ecb3_enc.c ecb_enc.c  ede_enc.c  enc_read.c enc_writ.c \
-	ncbc_enc.c new_rkey.c ofb64enc.c ofb_enc.c  pcbc_enc.c \
-	qud_cksm.c rand_key.c read_pwd.c rpc_enc.c  set_key.c  \
-	str2key.c  cfb64ede.c ofb64ede.c supp.c     xcbc_enc.c
+SRCS=	cbc_cksm.c pcbc_enc.c qud_cksm.c cbc3_enc.c \
+	cfb64ede.c cfb64enc.c cfb_enc.c ecb3_enc.c \
+	enc_read.c enc_writ.c ofb64ede.c ofb64enc.c ofb_enc.c  \
+	rand_key.c rpc_enc.c  str2key.c  supp.c \
+	xcbc_enc.c cbc_enc.c ncbc_enc.c ecb_enc.c set_key.c \
+	des_enc.c read_pwd.c rnd_keys.c
 HEADER=	des.h
 
 SHLIB_MAJOR=	3
-SHLIB_MINOR=	0
 
-CFLAGS+=	-Wall
+DESDIR=	${.CURDIR}/../../../crypto/libdes
+
+CFLAGS+=	-I${DESDIR} -Wall
 CLEANFILES+=	des_crypt.3
 
 MAN3=	des_crypt.3
@@ -34,8 +36,10 @@ MLINKS= des_crypt.3 des_read_password.3 \
 
 beforeinstall:
 .for i in ${HEADER}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${DESDIR}/$i \
 		${DESTDIR}/usr/include
 .endfor
 
 .include <bsd.lib.mk>
+
+.PATH:	${DESDIR}
