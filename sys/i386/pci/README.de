@@ -1,4 +1,4 @@
-$Id: README.de,v 1.2 1994/10/11 18:33:07 thomas Exp $
+$Id: README.de,v 1.3 1994/10/12 11:19:36 se Exp $
 
 ----------------
 
@@ -24,29 +24,11 @@ switch the driver to the correct port.
 	ifconfig de0 altphys	Thinwire/AUI port
 	ifconfig de0 -altphys	10baseT/UTP port
 
-This driver requires the NCR 53C810 PCI SCSI package to be installed.
-This can be obtained from FTP.Uni-Koeln.DE:~ftp/packages/FreeBSD/PCI-SCSI.
-Make sure the date of the NCR 53C810 PCI SCSI package is later than 
-October 10th, 1994.
+To enable this driver, you first need to add the following lines to
+your config file (in i386/conf):
 
-[All paths are relative to the top of sys source area, usually
-/usr/src/sys.]
-
-The following files need to be moved into their respective
-directories:
-
-	if_de.c	   	-->	i386/pci
-	dc21040.h	-->	i386/pci
-
-You will need to apply the following patches:
-
-	pat.files.i386  -->	i386/conf/files.i386
-
-After that is done you will need to edit your config file (in
-i386/conf) and lines similar to:
-
-	controller pci0
-	device de0
+        controller pci0
+        device de0
 
 The PCI support code will automatically determine and enable the
 correct IRQ.

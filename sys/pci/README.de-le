@@ -1,4 +1,4 @@
-$Id: README,v 1.5 1994/08/16 20:40:56 thomas Exp $
+$Id: README.de-le,v 1.1 1994/10/01 20:16:44 wollman Exp $
 
 ----------------
 
@@ -7,13 +7,12 @@ drivers are in no way supported by Digital Equipment.  See the
 disclaimers in the sources for more information.  Please be aware that
 Digital does not employee me to write drivers for FreeBSD.
 
-This kit contains two drivers:
+This kit contains one driver:
 
 	de	DEC DE435 PCI NIC or compatible
-	le	DEC EtherWORKS II/EtherWORKS III NICs
 
-See README.de and README.le for information and installation
-instruction specific to each driver.
+See README.de for information and installation instruction specific to this
+driver.
 
 Could you please send me the startup messages in the boot
 long along with the type of your PC once the driver configures?  
