@@ -39,12 +39,14 @@
 #define	PCIC_PD672X	3		/* Cirrus logic 627x */
 #define	PCIC_PD6710	4		/* Cirrus logic 6710 */
 #define	PCIC_CL6729	5		/* Cirrus logic 6729 */
-#define	PCIC_VG468	6		/* Vadem 468 */
-#define	PCIC_VG469	7		/* Vadem 469 */
-#define	PCIC_RF5C396	8		/* Ricoh RF5C396 */
-#define	PCIC_IBM_KING	9		/* IBM KING PCMCIA Controller */
-#define	PCIC_PC98	10		/* NEC PC98 PCMCIA Controller */
-#define	PCIC_TI1130	11		/* TI PCI1130 CardBus */
+#define	PCIC_VG365	6		/* Vadem 365 */
+#define	PCIC_VG465      7		/* Vadem 465 */
+#define	PCIC_VG468	8		/* Vadem 468 */
+#define	PCIC_VG469	9		/* Vadem 469 */
+#define	PCIC_RF5C396	10		/* Ricoh RF5C396 */
+#define	PCIC_IBM_KING	11		/* IBM KING PCMCIA Controller */
+#define	PCIC_PC98	12		/* NEC PC98 PCMCIA Controller */
+#define	PCIC_TI1130	13		/* TI PCI1130 CardBus */
 
 /*
  *	Address of the controllers. Each controller can manage
