@@ -1,7 +1,7 @@
 .\" opiegen.1: Manual page for the opiegen(1) program.
 .\"
 .\" %%% portions-copyright-cmetz-96
-.\" Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 .\" Reserved. The Inner Net License Version 2 applies to these portions of
 .\" the software.
 .\" You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@
 .\"
 .\"	History:
 .\"
+.\"	Modified by cmetz for OPIE 2.4. Fixed *roff bug.
 .\"     Created by cmetz for OPIE 2.2 from opiekey.1.
 .\"
 .ll 6i
@@ -56,7 +57,8 @@ wintermute$
 .BR opiegen(1)
 can lull a user into revealing his/her password when remotely logged in, thus
 defeating the purpose of OPIE. This is especially a problem with xterm. 
-.BR opiegen(1) implements simple checks to reduce the risk of a user making
+.BR opiegen(1)
+implements simple checks to reduce the risk of a user making
 this mistake. Better checks are needed.
 .LP
 
