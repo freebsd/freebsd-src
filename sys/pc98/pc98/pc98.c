@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.1 1996/11/16 21:18:40 phk Exp $
+ *	$Id: pc98.c,v 1.10.2.2 1996/12/29 11:05:57 joerg Exp $
  */
 
 /*
@@ -519,7 +519,7 @@ isa_defaultirq()
 #else
 	outb(IO_ICU1+2, 0x1d);		/* (master) 8086 mode */
 #endif
-	outb(IO_ICU1+2, 0x7f);		/* leave interrupts masked */
+	outb(IO_ICU1+2, 0xff);		/* leave interrupts masked */
 	outb(IO_ICU1, 0x0a);		/* default to IRR on read */
 
 	outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
