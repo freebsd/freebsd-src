@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.17 1995/10/07 06:24:08 swallace Exp $
+	$Id: syscalls.master,v 1.18 1995/10/07 23:56:20 swallace Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -42,6 +42,9 @@
 3	STD	POSIX	{ int read(int fd, char *buf, u_int nbyte); }
 4	STD	POSIX	{ int write(int fd, char *buf, u_int nbyte); }
 5	STD	POSIX	{ int open(char *path, int flags, int mode); }
+; XXX should be		{ int open(const char *path, int flags, ...); }
+; but we're not ready for `const' or varargs.
+; XXX man page says `mode_t mode'.
 6	STD	POSIX	{ int close(int fd); }
 7	STD	BSD	{ int wait4(int pid, int *status, int options, \
 			    struct rusage *rusage); } wait4 wait_args int
@@ -59,8 +62,10 @@
 			    int flags); }
 19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
 20	STD	POSIX	{ pid_t getpid(void); }
-21	STD	BSD	{ int mount(char *type, char *path, int flags, \
+21	STD	BSD	{ int mount(int type, char *path, int flags, \
 			    caddr_t data); }
+; XXX 4.4lite2 uses `char *type' but we're not ready for that.
+; XXX `path' should have type `const char *' but we're not ready for that.
 22	STD	BSD	{ int unmount(char *path, int flags); }
 23	STD	POSIX	{ int setuid(uid_t uid); }
 24	STD	POSIX	{ uid_t getuid(void); }
@@ -116,21 +121,35 @@
 			    int arg); } getkerninfo getkerninfo_args int
 64	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
-65	STD	BSD	{ int msync(caddr_t addr, size_t len, int flags); }
+65	STD	BSD	{ int msync(caddr_t addr, int len, int flags); }
+; XXX should be		{ int msync(caddr_t addr, size_t len, int flags); }
+; but man page and old args struct have `int len'.
 66	NOARGS	BSD	{ int vfork(void); } vfork fork_args int
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
 69	STD	BSD	{ int sbrk(int incr); }
 70	STD	BSD	{ int sstk(int incr); }
-71	COMPAT	BSD	{ int mmap(caddr_t addr, size_t len, int prot, \
+71	COMPAT	BSD	{ int mmap(caddr_t addr, int len, int prot, \
 			    int flags, int fd, long pos); }
+; XXX should be		{ int mmap(caddr_t addr, size_t len, int prot,
+;			    int flags, int fd, long pos); }
+; but old args struct has `int len'.
 72	STD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
-73	STD	BSD	{ int munmap(caddr_t addr, size_t len); }
-74	STD	BSD	{ int mprotect(caddr_t addr, size_t len, int prot); }
-75	STD	BSD	{ int madvise(caddr_t addr, size_t len, int behav); }
+73	STD	BSD	{ int munmap(caddr_t addr, int len); }
+; XXX should be		{ int munmap(caddr_t addr, size_t len); }
+; but man page and old args struct have `int len'.
+74	STD	BSD	{ int mprotect(caddr_t addr, int len, int prot); }
+; XXX should be		{ int mprotect(caddr_t addr, size_t len, int prot); }
+; but man page and old args struct have `int len'.
+75	STD	BSD	{ int madvise(caddr_t addr, int len, int behav); }
+; XXX should be		{ int madvise(caddr_t addr, size_t len, int behav); }
+; but man page, madvise() prototype and old args struct have `int len'.
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
-78	STD	BSD	{ int mincore(caddr_t addr, size_t len, char *vec); }
+78	STD	BSD	{ int mincore(caddr_t addr, int len, char *vec); }
+; XXX should be		{ int mincore(caddr_t addr, size_t len, char *vec); }
+; but man page, and old args struct have `int len'.
+; XXX mincore() prototype isn't in <sys/mman.h>.
 79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
 80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	STD	POSIX	{ int getpgrp(void); }
@@ -147,7 +166,10 @@
 89	STD	BSD	{ int getdtablesize(void); }
 90	STD	POSIX	{ int dup2(u_int from, u_int to); }
 91	UNIMPL	BSD	getdopt
-92	STD	POSIX	{ int fcntl(int fd, int cmd, void *arg); }
+92	STD	POSIX	{ int fcntl(int fd, int cmd, int arg); }
+; XXX should be		{ int fcntl(int fd, int cmd, ...); }
+; but we're not ready for varargs.
+; XXX man page says `int arg' too.
 93	STD	BSD	{ int select(u_int nd, fd_set *in, fd_set *ou, \
 			    fd_set *ex, struct timeval *tv); }
 94	UNIMPL	BSD	setdopt
@@ -249,7 +271,7 @@
 #endif
 162	STD	BSD	{ int getdomainname(char *domainname, int len); }
 163	STD	BSD	{ int setdomainname(char *domainname, int len); }
-164	STD	BSD	{ int uname(struct outsname *name); }
+164	STD	BSD	{ int uname(struct utsname *name); }
 165	STD	BSD	{ int sysarch(int op, char *parms); }
 166	STD	BSD	{ int rtprio(int function, pid_t pid, \
 			    struct rtprio *rtp); }
@@ -258,17 +280,20 @@
 #ifdef SYSVSEM
 169	STD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
 			    int a5); }
+; XXX should be		{ int semsys(int which, ...); }
 #else
 169	UNIMPL	NOHIDE	nosys
 #endif
 #ifdef SYSVMSG
 170	STD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
 			    int a5, int a6); }
+; XXX should be		{ int msgsys(int which, ...); }
 #else
 170	UNIMPL	NOHIDE nosys
 #endif
 #ifdef SYSVSHM
 171	STD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
+; XXX should be		{ int shmsys(int which, ...); }
 #else
 171	UNIMPL	BSD	nosys
 #endif
