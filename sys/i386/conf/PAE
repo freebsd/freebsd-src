@@ -46,7 +46,6 @@ nodevice	nsp
 nodevice	stg
 
 nodevice	asr
-nodevice	ciss
 nodevice	dpt
 nodevice	iir
 nodevice	mly

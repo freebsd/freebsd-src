@@ -770,6 +770,7 @@ ciss_init_requests(struct ciss_softc *sc)
 	cr = &sc->ciss_request[i];
 	cr->cr_sc = sc;
 	cr->cr_tag = i;
+	bus_dmamap_create(sc->ciss_buffer_dmat, 0, &cr->cr_datamap);
 	ciss_enqueue_free(cr);
     }
     return(0);
@@ -1341,6 +1342,8 @@ ciss_accept_media_complete(struct ciss_request *cr)
 static void
 ciss_free(struct ciss_softc *sc)
 {
+    struct ciss_request *cr;
+
     debug_called(1);
 
     /* we're going away */
@@ -1372,6 +1375,9 @@ ciss_free(struct ciss_softc *sc)
     /* destroy DMA tags */
     if (sc->ciss_parent_dmat)
 	bus_dma_tag_destroy(sc->ciss_parent_dmat);
+
+    while ((cr = ciss_dequeue_free(sc)) != NULL)
+	bus_dmamap_destroy(sc->ciss_buffer_dmat, cr->cr_datamap);
     if (sc->ciss_buffer_dmat)
 	bus_dma_tag_destroy(sc->ciss_buffer_dmat);
 
@@ -1380,7 +1386,7 @@ ciss_free(struct ciss_softc *sc)
 	bus_dmamap_unload(sc->ciss_command_dmat, sc->ciss_command_map);
 	bus_dmamem_free(sc->ciss_command_dmat, sc->ciss_command, sc->ciss_command_map);
     }
-    if (sc->ciss_buffer_dmat)
+    if (sc->ciss_command_dmat)
 	bus_dma_tag_destroy(sc->ciss_command_dmat);
 
     /* disconnect from CAM */
