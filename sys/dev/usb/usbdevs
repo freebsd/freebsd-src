@@ -258,6 +258,7 @@ vendor MIDIMAN		0x0763	Midiman
 vendor LINKSYS2		0x077b	Linksys
 vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk Corp
+vendor LOGITEC		0x0789	Logitec Corp
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis Communications
 vendor ABL		0x0794	ABL Electronics
@@ -854,6 +855,9 @@ product LOGITECH RB6		0xc503	Cordless keyboard
 product LOGITECH MX700		0xc506	Cordless optical mouse
 product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
+/* Logitec Corp. products */
+product	LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
+
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
 
@@ -980,6 +984,7 @@ product PALM TUNGSTEN_T		0x0060	Palm Tungsten T
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
+product	PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
 
 /* Peracom products */
