@@ -212,10 +212,6 @@ struct cdevsw {
 	int			d_spare3;
 };
 
-#endif /* _KERNEL */
-
-#ifdef _KERNEL
-
 #define NUMCDEVSW 256
 
 #define MAXMINOR	0xffff00ffU
