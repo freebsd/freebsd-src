@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <net/if.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -156,7 +158,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-i <inffile>] -s <sysfile> "
-	    "[-o outfile]\n", __progname);
+	    "[-d devname] [-o outfile]\n", __progname);
 	exit(1);
 }
 
@@ -169,9 +171,10 @@ main(int argc, char *argv[])
 	unsigned char	*ptr;
 	int		i;
 	char		*inffile = NULL, *sysfile = NULL, *outfile = NULL;
+	char		*dname = NULL;
 	int		ch;
 
-	while((ch = getopt(argc, argv, "i:s:o:")) != -1) {
+	while((ch = getopt(argc, argv, "i:s:o:n:")) != -1) {
 		switch(ch) {
 		case 'i':
 			inffile = optarg;
@@ -181,6 +184,9 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			outfile = optarg;
+			break;
+		case 'n':
+			dname = optarg;
 			break;
 		default:
 			usage();
@@ -218,12 +224,20 @@ main(int argc, char *argv[])
 
 	fprintf(outfp, "\n/*\n");
 	fprintf(outfp, " * Generated from %s and %s (%d bytes)\n",
-	    inffile, sysfile, fsize);
+	    inffile == NULL ? "<notused>" : inffile, sysfile, fsize);
 	fprintf(outfp, " */\n\n");
 
-	if (fp == NULL) {
+	if (dname != NULL) {
+		if (strlen(dname) > IFNAMSIZ)
+			err(1, "selected device name '%s' is "
+			    "too long (max chars: %d)", dname, IFNAMSIZ);
+		fprintf (outfp, "#define NDIS_DEVNAME \"%s\"\n", dname);
+		fprintf (outfp, "#define NDIS_MODNAME %s\n", dname);
+	}
+
+	if (inffile == NULL) {
 		fprintf (outfp, "ndis_cfg ndis_regvals[] = {\n");
-        	fprintf (outfp, "\t{ NULL, NULL, ndis_parm_int, { 0 } }\n");
+        	fprintf (outfp, "\t{ NULL, NULL, { 0 }, 0 }\n");
 
 		fprintf (outfp, "};\n\n");
 	} else {
