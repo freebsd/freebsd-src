@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.0.2.31.2.4 1997/11/12 10:48:43 darrenr Exp $
+ * $Id: ip_compat.h,v 2.0.2.31.2.8 1997/12/02 13:42:52 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -50,17 +50,18 @@ struct  ether_addr {
 };
 #endif
 
-#ifdef __sgi
-# ifdef IPFILTER_LKM
-#  define IPL_PRFX ipl
-#  define IPL_EXTERN(ep) ipl##ep
-# else
-#  define IPL_PRFX ipfilter
+#if defined(__sgi) && !defined(IPFILTER_LKM)
+# ifdef __STDC__
 #  define IPL_EXTERN(ep) ipfilter##ep
+# else
+#  define IPL_EXTERN(ep) ipfilter/**/ep
 # endif
 #else
-# define IPL_PRFX ipl
-# define IPL_EXTERN(ep) ipl##ep
+# ifdef __STDC__
+#  define IPL_EXTERN(ep) ipl##ep
+# else
+#  define IPL_EXTERN(ep) ipl/**/ep
+# endif
 #endif
 
 #ifdef	linux
@@ -110,7 +111,8 @@ struct  ether_addr {
 /*
  * These operating systems already take care of the problem for us.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || \
+    defined(__sgi)
 typedef u_int32_t       u_32_t;
 #else
 /*
@@ -689,6 +691,7 @@ typedef	struct	icmp	icmphdr_t;
 typedef	struct	ip	ip_t;
 typedef	struct	ether_header	ether_header_t;
 #endif /* linux */
+typedef	struct	tcpiphdr	tcpiphdr_t;
 
 #if defined(hpux) || defined(linux)
 struct	ether_addr	{
