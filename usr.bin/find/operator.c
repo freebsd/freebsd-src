@@ -128,7 +128,7 @@ yankexpr(planp)
 
 /*
  * paren_squish --
- *	replaces "parentheisized" plans in our search plan with "expr" nodes.
+ *	replaces "parenthesized" plans in our search plan with "expr" nodes.
  */
 PLAN *
 paren_squish(plan)
