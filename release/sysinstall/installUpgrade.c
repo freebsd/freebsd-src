@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.11 1997/04/28 10:34:41 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.12 1997/05/09 07:43:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mount.h>
+
+static int installUpgradeNonInteractive(dialogMenuItem *self);
 
 typedef struct _hitList {
     enum { JUST_COPY, CALL_HANDLER } action ;
@@ -152,6 +154,9 @@ installUpgrade(dialogMenuItem *self)
 {
     char *saved_etc;
     Boolean extractingBin = TRUE;
+
+    if (variable_get(VAR_NONINTERACTIVE))
+	return installUpgradeNonInteractive(self);
 
     variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
@@ -276,7 +281,7 @@ media:
 
 	if (saved_etc) {
 	    msgNotify("Preserving /etc directory..");
-	    if (vsystem("tar -cf - -C /etc . | tar -xpf - -C %s", saved_etc))
+	    if (vsystem("tar -cBpf - -C /etc . | tar -xBpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
 			     "Do you want to continue anyway?", saved_etc) != 0)
 		    return DITEM_FAILURE | DITEM_RESTORE;
@@ -349,5 +354,136 @@ media:
 	       "to the Emergency Holographic Shell [ALT-F4] at this point to do\n"
 	       "that, now would be a good time.  When you're ready to reboot into\n"
 	       "the new system, just exit the installation.");
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+installUpgradeNonInteractive(dialogMenuItem *self)
+{
+    char *saved_etc;
+    Boolean extractingBin = TRUE;
+
+    variable_set2(SYSTEM_STATE, "upgrade");
+
+    /* Make sure at least BIN is selected */
+    Dists |= DIST_BIN;
+
+    if (RunningAsInit) {
+	Device **devs;
+	int i, cnt;
+	char *cp;
+
+	cp = variable_get(VAR_DISK);
+	devs = deviceFind(cp, DEVICE_TYPE_DISK);
+	cnt = deviceCount(devs);
+	if (!cnt) {
+	    msgConfirm("No disks found!  Please verify that your disk controller is being\n"
+		       "properly probed at boot time.  See the Hardware Guide on the\n"
+		       "Documentation menu for clues on diagnosing this type of problem.");
+	    return DITEM_FAILURE;
+	}
+	else {
+	    /* Enable all the drives befor we start */
+	    for (i = 0; i < cnt; i++)
+		devs[i]->enabled = TRUE;
+	}
+
+	msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
+		   "you will be expected to Mount any partitions you're interested in\n"
+		   "upgrading.  DO NOT set the Newfs flag to Y on anything in the label editor\n"
+		   "unless you're absolutely sure you know what you're doing!  In this\n"
+		   "instance, you'll be using the label editor as little more than a fancy\n"
+		   "screen-oriented partition mounting tool.\n\n"
+		   "Once you're done in the label editor, press Q to return here for the next\n"
+		   "step.");
+
+	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
+	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
+		       "aborted.");
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+
+	/* Don't write out MBR info */
+	variable_set2(DISK_PARTITIONED, "written");
+	if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
+	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
+		       "aborted.");
+	    variable_unset(DISK_PARTITIONED);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+
+	if (extractingBin) {
+	    msgNotify("chflags'ing old binaries - please wait.");
+	    (void)vsystem("chflags -R noschg /mnt/");
+	}
+	msgNotify("Updating /stand on root filesystem");
+	(void)vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
+
+	if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
+	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
+		       "root partition or the way it's mounted if this doesn't work.");
+	    variable_unset(DISK_PARTITIONED);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	chdir("/");
+	systemCreateHoloshell();
+    }
+
+    if (!mediaVerify() || !mediaDevice->init(mediaDevice)) {
+	msgNotify("Upgrade: Couldn't initialize media.");
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    saved_etc = "/usr/tmp/etc";
+    Mkdir(saved_etc);
+    msgNotify("Preserving /etc directory..");
+    if (vsystem("tar -cpBf - -C /etc . | tar -xpBf - -C %s", saved_etc)) {
+	msgNotify("Unable to backup your /etc into %s.", saved_etc);
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (file_readable("/kernel")) {
+	msgNotify("Moving old kernel to /kernel.prev");
+	system("chflags noschg /kernel && mv /kernel /kernel.prev");
+    }
+
+    msgNotify("Beginning extraction of distributions..");
+    if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
+	msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+		   "should be considered a failure and started from the beginning, sorry!\n"
+		   "The system will reboot now.");
+	dialog_clear();
+	systemShutdown(1);
+    }
+    else if (Dists) {
+	if (!(Dists & DIST_BIN)) {
+	    msgNotify("The extraction process seems to have had some problems, but we got most\n"
+		       "of the essentials.  We'll treat this as a warning since it may have been\n"
+		       "only non-essential distributions which failed to upgrade.");
+	}
+	else {
+	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+		       "should be considered a failure and started from the beginning, sorry!\n"
+		       "The system will reboot now.");
+	    dialog_clear();
+	    systemShutdown(1);
+	}
+    }
+
+    msgNotify("OK, now it's time to go pound on your root a little bit to create all the\n"
+	      "/dev entries and such that a new system expects to see.  I'll also perform a\n"
+	      "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
+	      "on top of an existing system..");
+    if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE) {
+	msgNotify("Hmmmmm.  The fixups don't seem to have been very happy.\n"
+		  "You may wish to examine the system a little more closely when\n"
+		  "it comes time to merge your /etc customizations back.");
+    }
+    
+    msgNotify("First stage of upgrade completed successfully.");
+    if (vsystem("tar -cpBf - -C %s . | tar --unlink -xpBf - -C /etc", saved_etc)) {
+	msgNotify("Unable to resurrect your old /etc!");
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
     return DITEM_SUCCESS | DITEM_REDRAW;
 }

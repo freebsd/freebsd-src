@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.18 1997/06/12 09:01:25 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.19 1997/06/18 05:12:01 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -156,10 +156,6 @@ tcpOpenDialog(Device *devp)
     char                *tmp;
     char		title[80];
 
-    if (!RunningAsInit) {
-	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
-	    return DITEM_SUCCESS;
-    }
     /* Initialise vars from previous device values */
     if (devp->private) {
 	DevInfo *di = (DevInfo *)devp->private;
@@ -346,9 +342,15 @@ tcpDeviceSelect(void)
     cnt = deviceCount(devs);
     rval = NULL;
 
-    if (!cnt)
+    if (!cnt) {
 	msgConfirm("No network devices available!");
-    else if (cnt == 1) {
+	return NULL;
+    }
+    else if (!RunningAsInit) {
+	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
+	    return devs[0];
+    }
+    if (cnt == 1) {
 	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
 	    rval = devs[0];
     }
