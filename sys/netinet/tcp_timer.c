@@ -160,9 +160,9 @@ int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 1, 1, 1, 1, 2, 4, 8, 16, 32, 64, 64, 64 };
 
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
-    { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
+    { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 512, 512, 512 };
 
-static int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
+static int tcp_totbackoff = 2559;	/* sum of tcp_backoff[] */
 
 /*
  * TCP timer processing.
