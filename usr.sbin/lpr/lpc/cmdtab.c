@@ -70,7 +70,7 @@ char	uphelp[] =	"enable everything and restart spooling daemon";
 
 struct cmd cmdtab[] = {
 	{ "abort",	aborthelp,	PR,	0,		abort_q },
-	{ "clean",	cleanhelp,	PR,	init_clean,	clean_q },
+	{ "clean",	cleanhelp,	PR,	clean_gi,	clean_q },
 	{ "enable",	enablehelp,	PR,	0,		enable_q },
 	{ "exit",	quithelp,	0,	quit,		0 },
 	{ "disable",	disablehelp,	PR,	0, 		disable_q },
@@ -82,7 +82,7 @@ struct cmd cmdtab[] = {
 	{ "status",	statushelp,	0,	0,		status },
 	{ "setstatus",	setstatushelp,	PR|M,	setstatus_gi,	setstatus_q },
 	{ "stop",	stophelp,	PR,	0,		stop_q },
-	{ "tclean",	tcleanhelp,	0,	init_tclean,	clean_q },
+	{ "tclean",	tcleanhelp,	0,	tclean_gi,	clean_q },
 	{ "topq",	topqhelp,	PR,	topq,		0 },
 	{ "up",		uphelp,		PR,	0,		up_q },
 	{ "?",		helphelp,	0,	help,		0 },
