@@ -199,9 +199,8 @@ thr_accounting(struct pthread *thread)
  * that require certain resources between the call to fork() and
  * the call to an exec function are undefined.
  *
- * Here it is not safe to reinitialize the library after fork().
- * Because memory management may be corrupted, further calling
- * malloc()/free() may cause undefined behavior.
+ * It is not safe to free memory after fork(), because these data
+ * structures may be in inconsistent state.
  */
 void
 _kse_single_thread(struct pthread *curthread)
