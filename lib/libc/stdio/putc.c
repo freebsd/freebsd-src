@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
+#include "local.h"
 #include "libc_private.h"
 
 /*
@@ -60,6 +61,7 @@ putc(c, fp)
 {
 	int retval;
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	retval = __sputc(c, fp);
 	FUNLOCKFILE(fp);
 	return (retval);

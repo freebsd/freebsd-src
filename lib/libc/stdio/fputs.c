@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "fvwrite.h"
 #include "libc_private.h"
+#include "local.h"
 
 /*
  * Write the given string to the given file.
@@ -64,6 +65,7 @@ fputs(s, fp)
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
 	FUNLOCKFILE(fp);
 	return (retval);

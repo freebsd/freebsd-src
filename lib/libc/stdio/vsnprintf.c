@@ -54,6 +54,7 @@ vsnprintf(str, n, fmt, ap)
 	size_t on;
 	int ret;
 	FILE f;
+	struct __sFILEX ext;
 
 	on = n;
 	if (n != 0)
@@ -64,6 +65,8 @@ vsnprintf(str, n, fmt, ap)
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n;
+	f._extra = &ext;
+	INITEXTRA(&f);
 	ret = __vfprintf(&f, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';
