@@ -1799,6 +1799,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SNDCTL_DSP_GETOPTR;
 		return (ioctl(td, (struct ioctl_args *)args));
 
+	case LINUX_SNDCTL_DSP_SETDUPLEX:
+		args->cmd = SNDCTL_DSP_SETDUPLEX;
+		return (ioctl(td, (struct ioctl_args *)args));
+
 	case LINUX_SNDCTL_DSP_GETODELAY:
 		args->cmd = SNDCTL_DSP_GETODELAY;
 		return (ioctl(td, (struct ioctl_args *)args));
