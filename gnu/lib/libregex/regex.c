@@ -125,6 +125,10 @@ init_syntax_once ()
 
 #endif /* not emacs */
 
+#ifdef __FreeBSD__
+#include "collate.h"
+#endif
+
 /* Get the interface, including the syntax bits.  */
 #include "regex.h"
 
@@ -2315,9 +2319,21 @@ compile_range (p_ptr, pend, translate, syntax, b)
   (*p_ptr)++;
 
   /* If the start is after the end, the range is empty.  */
+#ifdef __FreeBSD__
+  if (__collcmp (range_start, range_end) > 0)
+#else
   if (range_start > range_end)
+#endif
     return syntax & RE_NO_EMPTY_RANGES ? REG_ERANGE : REG_NOERROR;
 
+#ifdef __FreeBSD__
+   for (this_char = 0; this_char < 1 << BYTEWIDTH; this_char++)
+	if (   __collcmp(range_start, this_char) <= 0
+	    && __collcmp(this_char, range_end) <= 0
+	   ) {
+		SET_LIST_BIT (TRANSLATE (this_char));
+	     }
+#else
   /* Here we see why `this_char' has to be larger than an `unsigned
      char' -- the range is inclusive, so if `range_end' == 0xff
      (assuming 8-bit characters), we would otherwise go into an infinite
@@ -2326,7 +2342,7 @@ compile_range (p_ptr, pend, translate, syntax, b)
     {
       SET_LIST_BIT (TRANSLATE (this_char));
     }
-
+#endif
   return REG_NOERROR;
 }
 
