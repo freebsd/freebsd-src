@@ -36,7 +36,7 @@
 .\"     @(#)exit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 6, 2002
 .Dt EXIT 3
 .Os
 .Sh NAME
@@ -79,6 +79,17 @@ and
 If portability is not a concern, you may
 use the values described in
 .Xr sysexits 3 .
+.Pp
+Note that
+.Fn exit
+does nothing to prevent bottomless recursion should a function registered
+using
+.Xr atexit 3
+itself call
+.Fn exit .
+Such functions should call
+.Xr _exit 2
+instead (although this has other effects as well which may not be desired).
 .Sh RETURN VALUES
 The
 .Fn exit
