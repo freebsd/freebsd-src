@@ -5643,7 +5643,7 @@ bad:
 #ifdef __FreeBSD__
 /*
  * FreeBSD supports cksum offloads for the following drivers.
- *  em(4), fxp(4), gx(4), ixgb(4), lge(4), ndis(4), nge(4), re(4),
+ *  em(4), fxp(4), ixgb(4), lge(4), ndis(4), nge(4), re(4),
  *   ti(4), txp(4), xl(4)
  *
  * CSUM_DATA_VALID | CSUM_PSEUDO_HDR :
