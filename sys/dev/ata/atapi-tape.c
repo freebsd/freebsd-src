@@ -148,6 +148,8 @@ astattach(struct atapi_softc *atp)
 		   UID_ROOT, GID_OPERATOR, 0640, "nrast%d", stp->lun);
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
+        sprintf(stp->atp->devname, "ast%d", stp->lun);
     return 0;
 }
 

@@ -198,8 +198,9 @@ atapi_getparam(struct atapi_softc *atp)
     /* select drive */
     outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
     DELAY(1);
-    ata_command(atp->controller, atp->unit, ATA_C_ATAPI_IDENTIFY,
-		0, 0, 0, 0, 0, ATA_WAIT_INTR);	   
+    if (ata_command(atp->controller, atp->unit, ATA_C_ATAPI_IDENTIFY,
+		0, 0, 0, 0, 0, ATA_WAIT_INTR))
+	return -1;
     if (atapi_wait(atp, ATA_S_DRQ))
 	return -1;
     insw(atp->controller->ioaddr + ATA_DATA, buffer,
@@ -261,7 +262,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     splx(s);
 
 #ifdef ATAPI_DEBUG
-    printf("atapi: phew, got back from tsleep\n");
+    printf("%s: phew, got back from tsleep\n", request->device->devname);
 #endif
     error = request->error;
     free(request, M_ATAPI);
@@ -276,7 +277,8 @@ atapi_transfer(struct atapi_request *request)
     int8_t reason;
 
 #ifdef ATAPI_DEBUG
-    printf("atapi: starting %s ", atapi_cmd2str(request->ccb[0]));
+    printf("%s: starting %s ", 
+	   request->device->devname, atapi_cmd2str(request->ccb[0]));
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
     /* start timeout for this command */
@@ -306,10 +308,11 @@ atapi_transfer(struct atapi_request *request)
     }
 
     /* start ATAPI operation */
-    ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
-		request->bytecount, 0, 0, 0, 
-		(atp->flags & ATAPI_F_DMA_USED) ? ATA_F_DMA : 0,
-		ATA_IMMEDIATE);
+    if (ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
+		    request->bytecount, 0, 0, 0, 
+		    (atp->flags & ATAPI_F_DMA_USED) ? ATA_F_DMA : 0,
+		    ATA_IMMEDIATE))
+	printf("%s: failure to send ATAPI packet command\n", atp->devname);
 
     if (atp->flags & ATAPI_F_DMA_USED)
 	ata_dmastart(atp->controller);
@@ -330,7 +333,7 @@ atapi_transfer(struct atapi_request *request)
     }
     if (timout <= 0) {
 	request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	printf("atapi_transfer: device hanging on packet cmd\n");
+	printf("%s: failure to execute ATAPI packet command\n", atp->devname);
 	return;
     }
 
@@ -353,7 +356,7 @@ atapi_interrupt(struct atapi_request *request)
 	*buffer = (int8_t *)&request->sense;
 
 #ifdef ATAPI_DEBUG
-    printf("atapi_interrupt: enter\n");
+    printf("%s: atapi_interrupt: enter\n", atp->devname);
 #endif
     reason = (inb(atp->controller->ioaddr+ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
 	     (atp->controller->status & ATA_S_DRQ);
@@ -361,7 +364,7 @@ atapi_interrupt(struct atapi_request *request)
     if (reason == ATAPI_P_CMDOUT) {
 	if (!(atp->controller->status & ATA_S_DRQ)) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("atapi_interrupt: command interrupt, but no DRQ\n");
+	    printf("%s: command interrupt, but no DRQ\n", atp->devname);
 	    goto op_finished;
 	}
 	outsw(atp->controller->ioaddr + ATA_DATA, request->ccb,
@@ -373,7 +376,7 @@ atapi_interrupt(struct atapi_request *request)
 	dma_stat = ata_dmadone(atp->controller);
 
     if (atapi_wait(atp, 0) < 0) {
-	printf("atapi_interrupt: timeout waiting for status");
+	printf("%s: timeout waiting for status", atp->devname);
 	atp->flags &= ~ATAPI_F_DMA_USED; 
 	request->result = inb(atp->controller->ioaddr + ATA_ERROR) | 
 			  ATAPI_SK_RESERVED;
@@ -396,17 +399,15 @@ atapi_interrupt(struct atapi_request *request)
     length = inb(atp->controller->ioaddr + ATA_CYL_LSB);
     length |= inb(atp->controller->ioaddr + ATA_CYL_MSB) << 8;
 #ifdef ATAPI_DEBUG
-    printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
+    printf("%s: length=%d reason=0x%02x\n", atp->devname, length, reason);
 #endif
 
     switch (reason) {
     case ATAPI_P_WRITE:
 	if (request->flags & A_READ) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("ata%d-%s: %s trying to write on read buffer\n",
-		   atp->controller->lun,
-		   (atp->unit == ATA_MASTER) ? "master" : "slave",
-		   atapi_cmd2str(atp->cmd));
+	    printf("%s: %s trying to write on read buffer\n",
+		   atp->devname, atapi_cmd2str(atp->cmd));
 	    goto op_finished;
 	}
 	atapi_write(request, length);
@@ -415,20 +416,15 @@ atapi_interrupt(struct atapi_request *request)
     case ATAPI_P_READ:
 	if (!(request->flags & A_READ)) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
-	    printf("ata%d-%s: %s trying to read on write buffer\n",
-		   atp->controller->lun,
-		   (atp->unit == ATA_MASTER) ? "master" : "slave",
-		   atapi_cmd2str(atp->cmd));
+	    printf("%s: %s trying to read on write buffer\n",
+		   atp->devname, atapi_cmd2str(atp->cmd));
 	    goto op_finished;
 	}
 	atapi_read(request, length);
 	return ATA_OP_CONTINUES;
 
     case ATAPI_P_DONEDRQ:
-	printf("ata%d-%s: %s DONEDRQ\n",
-	       atp->controller->lun,
-	       (atp->unit == ATA_MASTER) ? "master" : "slave",
-	       atapi_cmd2str(atp->cmd));
+	printf("%s: %s DONEDRQ\n", atp->devname, atapi_cmd2str(atp->cmd));
 	if (request->flags & A_READ)
 	    atapi_read(request, length);
 	else
@@ -445,14 +441,14 @@ atapi_interrupt(struct atapi_request *request)
 
 #ifdef ATAPI_DEBUG
 	if (request->bytecount > 0) {
-	    printf("atapi_interrupt: %s size problem, %d bytes residue\n",
-		   (request->flags & A_READ) ? "read" : "write", 
+	    printf("%s: %s size problem, %d bytes residue\n",
+		   atp->devname, (request->flags & A_READ) ? "read" : "write", 
 		   request->bytecount);
 	}
 #endif
 	goto op_finished;
     default:
-	printf("atapi_interrupt: unknown transfer phase %d\n", reason);
+	printf("%s: unknown transfer phase %d\n", atp->devname, reason);
     }
 
 op_finished:
@@ -473,7 +469,8 @@ op_finished:
     	if (request->result) {
 	    switch ((request->result & ATAPI_SK_MASK)) {
 	    case ATAPI_SK_RESERVED:
-		printf("atapi_error: %s - timeout error = %02x\n", 
+		printf("%s: %s - timeout error = %02x\n", 
+		       atp->devname,
 		       atapi_cmd2str(atp->cmd), request->result & ATAPI_E_MASK);
 		request->error = EIO;
 		break;
@@ -483,8 +480,8 @@ op_finished:
 		break;
 
 	    case ATAPI_SK_RECOVERED_ERROR:
-		printf("atapi_error: %s - recovered error\n", 
-		       atapi_cmd2str(atp->cmd));
+		printf("%s: %s - recovered error\n", 
+		       atp->devname, atapi_cmd2str(atp->cmd));
 		request->error = 0;
 		break;
 
@@ -498,8 +495,8 @@ op_finished:
 		break;
 
 	    default: 
-		printf("atapi: %s - %s asc=%02x ascq=%02x error=%02x\n",
-		       atapi_cmd2str(atp->cmd), 
+		printf("%s: %s - %s asc=%02x ascq=%02x error=%02x\n",
+		       atp->devname, atapi_cmd2str(atp->cmd), 
 		       atapi_skey2str(request->sense.sense_key), 
 		       request->sense.asc, request->sense.ascq,
 		       request->result & ATAPI_E_MASK);
@@ -514,7 +511,7 @@ op_finished:
             wakeup((caddr_t)request);	
     }
 #ifdef ATAPI_DEBUG
-    printf("atapi_interrupt: error=0x%02x\n", request->result);
+    printf("%s: error=0x%02x\n", request->device->devname, request->result);
 #endif
     return ATA_OP_FINISHED;
 }
@@ -559,7 +556,7 @@ atapi_dump(int8_t *label, void *data, int32_t len)
 {
     u_int8_t *p = data;
 
-    printf ("atapi: %s %02x", label, *p++);
+    printf ("%s %02x", label, *p++);
     while (--len > 0) 
 	printf ("-%02x", *p++);
     printf ("\n");
@@ -575,8 +572,8 @@ atapi_read(struct atapi_request *request, int32_t length)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->bytecount < length) {
-	printf("atapi_interrupt: read data overrun %d/%d\n",
-	       length, request->bytecount);
+	printf("%s: read data overrun %d/%d\n",
+	       request->device->devname, length, request->bytecount);
 #ifdef ATA_16BIT_ONLY
 	insw(request->device->controller->ioaddr + ATA_DATA, 
 	     (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
@@ -604,8 +601,8 @@ atapi_write(struct atapi_request *request, int32_t length)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->bytecount < length) {
-	printf("atapi_interrupt: write data underrun %d/%d\n",
-	       length, request->bytecount);
+	printf("%s: write data underrun %d/%d\n",
+	       request->device->devname, length, request->bytecount);
 #ifdef ATA_16BIT_ONLY
 	outsw(request->device->controller->ioaddr + ATA_DATA, 
 	      (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
@@ -629,9 +626,8 @@ atapi_timeout(struct atapi_request *request)
     struct atapi_softc *atp = request->device;
 
     atp->controller->running = NULL;
-    printf("ata%d-%s: atapi_timeout: cmd=%s - resetting\n", 
-	   atp->controller->lun, (atp->unit == ATA_MASTER) ? "master" : "slave",
-	   atapi_cmd2str(request->ccb[0]));
+    printf("%s: atapi_timeout: cmd=%s - resetting\n", 
+	   atp->devname, atapi_cmd2str(request->ccb[0]));
 #ifdef ATAPI_DEBUG
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
