@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -474,6 +475,9 @@ recvLocal:
 #endif
 	/* Continue with upper layer processing */
 	ether_demux(ifp, eh, m);
+	/* First chunk of an mbuf contains good junk */
+	if (harvest.ethernet)
+		random_harvest(m, 16, 3, 0, RANDOM_NET);
 }
 
 /*
