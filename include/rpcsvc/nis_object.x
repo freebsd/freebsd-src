@@ -36,7 +36,6 @@
  */
 
 /* From: %#pragma ident	"@(#)nis_object.x	1.10	94/05/03 SMI" */
-%#pragma ident "$Id: nis_object.x,v 1.2 1996/07/29 14:31:02 wpaul Exp $"
 
 #if RPC_HDR
 %
