@@ -32,8 +32,6 @@ SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-DEFAULTS= rc.conf pccard.conf periodic.conf
-
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
 .if !defined(NO_SENDMAIL)
@@ -71,8 +69,7 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
 	    pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
-	cd ${.CURDIR}/defaults; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${DEFAULTS} ${DESTDIR}/etc/defaults
+	cd ${.CURDIR}/defaults; ${MAKE} install
 	cd ${.CURDIR}/periodic; ${MAKE} install
 	cd ${.CURDIR}/rc.d; ${MAKE} install
 	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
@@ -197,7 +194,7 @@ etc-examples:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}/usr/share/examples/etc
-	cd ${.CURDIR}/defaults; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults
+	cd ${.CURDIR}/defaults; ${MAKE} install \
+	    DESTDIR=${DESTDIR}/usr/share/examples
 
 .include <bsd.prog.mk>
