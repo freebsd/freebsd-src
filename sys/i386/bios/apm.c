@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.54 1997/03/28 18:38:19 phk Exp $
+ *	$Id: apm.c,v 1.55 1997/03/29 11:06:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -692,10 +692,10 @@ apmattach(struct isa_device *dvp)
 	apm_addr.offset  = sc->cs_entry;
 
 	if ((dvp->id_flags & 0x10)) {
-		if ((dvp->id_flags & 0xf) => 0x2) {
+		if ((dvp->id_flags & 0xf) >= 0x2) {
 			apm_driver_version(0x102);
 		} 
-		if (!apm_version && (dvp->id_flags & 0xf) => 0x1) {
+		if (!apm_version && (dvp->id_flags & 0xf) >= 0x1) {
 			apm_driver_version(0x101);
 		}
 	} else {
