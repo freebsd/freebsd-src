@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
-.\"	$Id$
+.\"	$Id: ip.4,v 1.8 1997/02/22 13:24:34 peter Exp $
 .\"
 .Dd November 30, 1993
 .Dt IP 4
@@ -39,6 +39,7 @@
 .Nm ip
 .Nd Internet Protocol
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Ft int
@@ -344,6 +345,7 @@ and may be used only with the
 .Dv SOCK_RAW 
 type.
 .Bd -literal
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
 int hincl = 1;                  /* 1 = on, 0 = off */
