@@ -115,6 +115,9 @@ static LIST_HEAD(,uma_zone) uma_zones = LIST_HEAD_INITIALIZER(&uma_zones);
 /* This mutex protects the zone list */
 static struct mtx uma_mtx;
 
+/* These are the pcpu cache locks */
+static struct mtx uma_pcpu_mtx[MAXCPU];
+
 /* Linked list of boot time pages */
 static LIST_HEAD(,uma_slab) uma_boot_pages =
     LIST_HEAD_INITIALIZER(&uma_boot_pages);
@@ -249,7 +252,7 @@ zone_timeout(uma_zone_t zone)
 		for (cpu = 0; cpu < maxcpu; cpu++) {
 			if (CPU_ABSENT(cpu))
 				continue;
-			CPU_LOCK(zone, cpu); 
+			CPU_LOCK(cpu); 
 			cache = &zone->uz_cpu[cpu];
 			/* Add them up, and reset */
 			alloc += cache->uc_allocs;
@@ -258,7 +261,7 @@ zone_timeout(uma_zone_t zone)
 				free += cache->uc_allocbucket->ub_ptr + 1;
 			if (cache->uc_freebucket)
 				free += cache->uc_freebucket->ub_ptr + 1;
-			CPU_UNLOCK(zone, cpu);
+			CPU_UNLOCK(cpu);
 		}
 	}
 
@@ -514,7 +517,7 @@ cache_drain(uma_zone_t zone)
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
-		CPU_LOCK(zone, cpu);
+		CPU_LOCK(cpu);
 		cache = &zone->uz_cpu[cpu];
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
@@ -543,7 +546,7 @@ cache_drain(uma_zone_t zone)
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
-		CPU_UNLOCK(zone, cpu);
+		CPU_UNLOCK(cpu);
 	}
 
 	zone->uz_cachefree = 0;
@@ -985,8 +988,6 @@ zone_ctor(void *mem, int size, void *udata)
 	struct uma_zctor_args *arg = udata;
 	uma_zone_t zone = mem;
 	int privlc;
-	int cplen;
-	int cpu;
 
 	bzero(zone, size);
 	zone->uz_name = arg->name;
@@ -1032,12 +1033,6 @@ zone_ctor(void *mem, int size, void *udata)
 		privlc = 1;
 	else
 		privlc = 0;
-
-	/* We do this so that the per cpu lock name is unique for each zone */
-	memcpy(zone->uz_lname, "PCPU ", 5);
-	cplen = min(strlen(zone->uz_name) + 1, LOCKNAME_LEN - 6);
-	memcpy(zone->uz_lname+5, zone->uz_name, cplen);
-	zone->uz_lname[LOCKNAME_LEN - 1] = '\0';
 
 	/*
 	 * If we're putting the slab header in the actual page we need to
@@ -1107,9 +1102,6 @@ zone_ctor(void *mem, int size, void *udata)
 		zone->uz_count = zone->uz_ipers - 1;
 	else
 		zone->uz_count = UMA_BUCKET_SIZE - 1;
-
-	for (cpu = 0; cpu < maxcpu; cpu++)
-		CPU_LOCK_INIT(zone, cpu, privlc);
 }
 
 /* 
@@ -1124,10 +1116,8 @@ static void
 zone_dtor(void *arg, int size, void *udata)
 {
 	uma_zone_t zone;
-	int cpu;
 
 	zone = (uma_zone_t)arg;
-
 	ZONE_LOCK(zone);
 	zone->uz_wssize = 0;
 	ZONE_UNLOCK(zone);
@@ -1141,10 +1131,6 @@ zone_dtor(void *arg, int size, void *udata)
 	if (zone->uz_free != 0)
 		printf("Zone %s was not empty (%d items).  Lost %d pages of memory.\n",
 		    zone->uz_name, zone->uz_free, zone->uz_pages);
-
-	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) == 0)
-		for (cpu = 0; cpu < maxcpu; cpu++)
-			CPU_LOCK_FINI(zone, cpu);
 
 	ZONE_UNLOCK(zone);
 	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
@@ -1209,6 +1195,10 @@ uma_startup(void *bootmem)
 	args.flags = UMA_ZONE_INTERNAL;
 	/* The initial zone has no Per cpu queues so it's smaller */
 	zone_ctor(zones, sizeof(struct uma_zone), &args);
+
+	/* Initialize the pcpu cache lock set once and for all */
+	for (i = 0; i < maxcpu; i++)
+		CPU_LOCK_INIT(i);
 
 #ifdef UMA_DEBUG
 	printf("Filling boot free list.\n");
@@ -1339,7 +1329,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 
 zalloc_restart:
 	cpu = PCPU_GET(cpuid);
-	CPU_LOCK(zone, cpu);
+	CPU_LOCK(cpu);
 	cache = &zone->uz_cpu[cpu];
 
 zalloc_start:
@@ -1360,7 +1350,7 @@ zalloc_start:
 			uma_dbg_alloc(zone, NULL, item);
 			ZONE_UNLOCK(zone);
 #endif
-			CPU_UNLOCK(zone, cpu);
+			CPU_UNLOCK(cpu);
 			if (zone->uz_ctor)
 				zone->uz_ctor(item, zone->uz_size, udata);
 			if (flags & M_ZERO)
@@ -1410,7 +1400,7 @@ zalloc_start:
 		goto zalloc_start;
 	} 
 	/* We are no longer associated with this cpu!!! */
-	CPU_UNLOCK(zone, cpu);
+	CPU_UNLOCK(cpu);
 
 	/* Bump up our uz_count so we get here less */
 	if (zone->uz_count < UMA_BUCKET_SIZE - 1)
@@ -1655,7 +1645,7 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int flags)
 
 	ZONE_UNLOCK(zone);
 
-	if (zone->uz_ctor != NULL) 
+	if (zone->uz_ctor != NULL)
 		zone->uz_ctor(item, zone->uz_size, udata);
 	if (flags & M_ZERO)
 		bzero(item, zone->uz_size);
@@ -1693,7 +1683,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
-	CPU_LOCK(zone, cpu);
+	CPU_LOCK(cpu);
 	cache = &zone->uz_cpu[cpu];
 
 zfree_start:
@@ -1718,7 +1708,7 @@ zfree_start:
 				uma_dbg_free(zone, NULL, item);
 			ZONE_UNLOCK(zone);
 #endif
-			CPU_UNLOCK(zone, cpu);
+			CPU_UNLOCK(cpu);
 			return;
 		} else if (cache->uc_allocbucket) {
 #ifdef UMA_DEBUG_ALLOC
@@ -1772,7 +1762,7 @@ zfree_start:
 		goto zfree_start;
 	}
 	/* We're done with this CPU now */
-	CPU_UNLOCK(zone, cpu);
+	CPU_UNLOCK(cpu);
 
 	/* And the zone.. */
 	ZONE_UNLOCK(zone);
