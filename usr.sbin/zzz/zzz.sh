@@ -18,19 +18,19 @@ APM_SUSPEND_DELAY=machdep.apm_suspend_delay
 # Check for ACPI support
 if sysctl $ACPI_SUSPEND_STATE >/dev/null 2>&1; then
 	# Get configured suspend state
-	SUSPEND_STATE=`sysctl $ACPI_SUSPEND_STATE | sed 's|^.*: S||'`
+	SUSPEND_STATE=`sysctl -n $ACPI_SUSPEND_STATE `
 
 	# Get list of supported suspend states
-	SUPPORTED_STATES=`sysctl $ACPI_SUPPORTED_STATES | sed 's|^.*: ||'`
+	SUPPORTED_STATES=`sysctl -n $ACPI_SUPPORTED_STATES `
 
 	# Check if the configured suspend state is supported by the system
-	if echo $SUPPORTED_STATES | grep S$SUSPEND_STATE >/dev/null; then
+	if echo $SUPPORTED_STATES | grep $SUSPEND_STATE >/dev/null; then
 		# execute ACPI style suspend command
 		exec acpiconf -s $SUSPEND_STATE
 	else
-		echo -n "Requested suspend state S$ACPI_SUSPEND_STATE "
+		echo -n "Requested suspend state $SUSPEND_STATE "
 		echo -n "is not supported.  "
-		echo    "Supported states: $ACPI_SUPPORTED_STATES"
+		echo    "Supported states: $SUPPORTED_STATES"
 	fi
 # Check for APM support
 elif sysctl $APM_SUSPEND_DELAY >/dev/null 2>&1; then
