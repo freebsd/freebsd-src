@@ -382,9 +382,9 @@ spec_poll(ap)
 	    ("spec_poll() on un-referenced dev_t (%s)", devtoname(dev)));
 	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
+		/* XXX: not yet DROP_GIANT(); */
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
-		PICKUP_GIANT();
+		/* XXX: not yet PICKUP_GIANT(); */
 	} else
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
 	cdevsw_rel(dsw);
