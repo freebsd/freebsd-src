@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.61 1996/12/07 07:44:05 dyson Exp $
+ * $Id: vm_map.c,v 1.62 1996/12/14 17:54:15 dyson Exp $
  */
 
 /*
@@ -153,6 +153,7 @@ vm_size_t kentry_data_size;
 static vm_map_entry_t kentry_free;
 static vm_map_t kmap_free;
 extern char kstack[];
+extern int inmprotect;
 
 static int kentry_count;
 static vm_offset_t mapvm_start, mapvm, mapvmmax;
@@ -170,7 +171,6 @@ static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
-static void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 
 void
 vm_map_startup()
@@ -849,28 +849,19 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 }
 
 /*
- *	vm_map_simplify_entry:	[ internal use only ]
+ *	vm_map_simplify_entry:
  *
- *	Simplify the given map entry by:
- *		removing extra sharing maps
- *		[XXX maybe later] merging with a neighbor
+ *	Simplify the given map entry by merging with either neighbor.
  */
-static void
+void
 vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
 	vm_map_entry_t next, prev;
-	vm_size_t nextsize, prevsize, esize;
+	vm_size_t prevsize, esize;
 
-	/*
-	 * If this entry corresponds to a sharing map, then see if we can
-	 * remove the level of indirection. If it's not a sharing map, then it
-	 * points to a VM object, so see if we can merge with either of our
-	 * neighbors.
-	 */
-
-	if (entry->is_sub_map || entry->is_a_map || entry->wired_count)
+	if (entry->is_sub_map || entry->is_a_map)
 		return;
 
 	prev = entry->prev;
@@ -888,7 +879,7 @@ vm_map_simplify_entry(map, entry)
 		     (prev->inheritance == entry->inheritance) &&
 		     (prev->is_a_map == FALSE) &&
 		     (prev->is_sub_map == FALSE) &&
-		     (prev->wired_count == 0)) {
+		     (prev->wired_count == entry->wired_count)) {
 			if (map->first_free == prev)
 				map->first_free = entry;
 			if (map->hint == prev)
@@ -904,7 +895,6 @@ vm_map_simplify_entry(map, entry)
 
 	next = entry->next;
 	if (next != &map->header) {
-		nextsize = next->end - next->start;
 		esize = entry->end - entry->start;
 		if ((entry->end == next->start) &&
 		    (next->object.vm_object == entry->object.vm_object) &&
@@ -918,7 +908,7 @@ vm_map_simplify_entry(map, entry)
 		    (next->inheritance == entry->inheritance) &&
 		    (next->is_a_map == FALSE) &&
 		    (next->is_sub_map == FALSE) &&
-		    (next->wired_count == 0)) {
+		    (next->wired_count == entry->wired_count)) {
 			if (map->first_free == next)
 				map->first_free = entry;
 			if (map->hint == next)
@@ -1117,8 +1107,9 @@ vm_map_protect(map, start, end, new_prot, set_max)
 
 	if (vm_map_lookup_entry(map, start, &entry)) {
 		vm_map_clip_start(map, entry, start);
-	} else
+	} else {
 		entry = entry->next;
+	}
 
 	/*
 	 * Make a first pass to check for protection violations.
@@ -1710,6 +1701,7 @@ vm_map_pageable(map, start, end, new_pageable)
 			(void) vm_map_pageable(map, start, failed, TRUE);
 			return (rv);
 		}
+		vm_map_simplify_entry(map, start_entry);
 	}
 
 	vm_map_unlock(map);
@@ -2296,6 +2288,7 @@ RetryLookup:;
 		entry = tmp_entry;
 		*out_entry = entry;
 	}
+	
 	/*
 	 * Handle submaps.
 	 */
@@ -2464,62 +2457,6 @@ vm_map_lookup_done(map, entry)
 	 */
 
 	vm_map_unlock_read(map);
-}
-
-/*
- *	Routine:	vm_map_simplify
- *	Purpose:
- *		Attempt to simplify the map representation in
- *		the vicinity of the given starting address.
- *	Note:
- *		This routine is intended primarily to keep the
- *		kernel maps more compact -- they generally don't
- *		benefit from the "expand a map entry" technology
- *		at allocation time because the adjacent entry
- *		is often wired down.
- */
-void
-vm_map_simplify(map, start)
-	vm_map_t map;
-	vm_offset_t start;
-{
-	vm_map_entry_t this_entry;
-	vm_map_entry_t prev_entry;
-
-	vm_map_lock(map);
-	if ((vm_map_lookup_entry(map, start, &this_entry)) &&
-	    ((prev_entry = this_entry->prev) != &map->header) &&
-	    (prev_entry->end == start) &&
-	    (prev_entry->object.vm_object == this_entry->object.vm_object) &&
-	    ((prev_entry->offset + (prev_entry->end - prev_entry->start))
-		== this_entry->offset) &&
-
-	    (map->is_main_map) &&
-
-	    (prev_entry->is_a_map == FALSE) &&
-	    (prev_entry->is_sub_map == FALSE) &&
-
-	    (this_entry->is_a_map == FALSE) &&
-	    (this_entry->is_sub_map == FALSE) &&
-
-	    (prev_entry->inheritance == this_entry->inheritance) &&
-	    (prev_entry->protection == this_entry->protection) &&
-	    (prev_entry->max_protection == this_entry->max_protection) &&
-	    (prev_entry->wired_count == this_entry->wired_count) &&
-
-	    (prev_entry->copy_on_write == this_entry->copy_on_write) &&
-	    (prev_entry->needs_copy == this_entry->needs_copy)) {
-		if (map->first_free == this_entry)
-			map->first_free = prev_entry;
-		if (map->hint == this_entry)
-			SAVE_HINT(map, prev_entry);
-		vm_map_entry_unlink(map, this_entry);
-		prev_entry->end = this_entry->end;
-		if (this_entry->object.vm_object)
-			vm_object_deallocate(this_entry->object.vm_object);
-		vm_map_entry_dispose(map, this_entry);
-	}
-	vm_map_unlock(map);
 }
 
 #include "opt_ddb.h"
