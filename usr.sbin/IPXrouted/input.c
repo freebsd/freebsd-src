@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: input.c,v 1.5 1997/02/22 16:00:56 peter Exp $
  */
 
 #ifndef lint
@@ -69,10 +69,11 @@ rip_input(from, size)
 	struct sockaddr *from;
 	int size;
 {
+	int newsize;
+	int rtchanged = 0;
 	struct rt_entry *rt;
 	struct netinfo *n;
 	struct interface *ifp = 0;
-	int newsize;
 	struct afswitch *afp;
 	struct sockaddr_ipx *ipxp;
 
@@ -116,7 +117,7 @@ rip_input(from, size)
 			if (ipx_neteqnn(n->rip_dst, ipx_anynet) &&
 		            ntohs(n->rip_metric) == HOPCNT_INFINITY &&
 			    size == 0) {
-				supply(from, 0, ifp);
+				supply(from, 0, ifp, 0);
 				return;
 			}
 			/*
@@ -195,9 +196,10 @@ rip_input(from, size)
 		/* are we talking to ourselves? */
 		if ((ifp = if_ifwithaddr(from)) != 0) {
 			rt = rtfind(from);
-			if (rt == 0 || (rt->rt_state & RTS_INTERFACE) == 0)
+			if (rt == 0 || (rt->rt_state & RTS_INTERFACE) == 0) {
 				addrouteforif(ifp);
-			else
+				rtchanged = 1;
+			} else
 				rt->rt_timer = 0;
 			return;
 		}
@@ -211,17 +213,21 @@ rip_input(from, size)
 		} else if ((ifp = if_ifwithdstaddr(from)) != 0) {
 			if(ftrace) fprintf(ftrace, "Got partner\n");
 			addrouteforif(ifp);
+			rtchanged = 1;
 		}
 		for (; size > 0; size -= sizeof (struct netinfo), n++) {
 			struct sockaddr *sa;
 			if (size < sizeof (struct netinfo))
 				break;
-			if ((unsigned) ntohs(n->rip_metric) >= HOPCNT_INFINITY)
+			if ((unsigned) ntohs(n->rip_metric) > HOPCNT_INFINITY)
 				continue;
 			rt = rtfind(sa = ipx_nettosa(n->rip_dst));
 			if (rt == 0) {
+				if (ntohs(n->rip_metric) == HOPCNT_INFINITY)
+					continue;
 				rtadd(sa, from, ntohs(n->rip_metric),
 					ntohs(n->rip_ticks), 0);
+				rtchanged = 1;
 				continue;
 			}
 
@@ -237,12 +243,11 @@ rip_input(from, size)
 			 * from anywhere and less ticks or
 			 * if same ticks and shorter,
 			 * or getting stale and equivalent.
-			 *
-			 * XXX I don't think this is quite right.
 			 */
 			if (!equal(from, &rt->rt_router) &&
-			    ntohs(n->rip_ticks == rt->rt_ticks) &&
-			    ntohs(n->rip_metric == rt->rt_metric)) {
+			    ntohs(n->rip_ticks) == rt->rt_ticks &&
+			    ntohs(n->rip_metric) == rt->rt_metric &&
+			    ntohs(n->rip_metric) != HOPCNT_INFINITY) {
 				register struct rt_entry *trt = rt->rt_clone;
 
 				while (trt) {
@@ -266,16 +271,34 @@ rip_input(from, size)
 			    ((ntohs(n->rip_ticks) == rt->rt_ticks) &&
 			    (ntohs(n->rip_metric) < rt->rt_metric)) ||
 			    (rt->rt_timer > (EXPIRE_TIME*2/3) &&
-			    rt->rt_metric == ntohs(n->rip_metric))) {
+			    rt->rt_metric == ntohs(n->rip_metric) &&
+			    ntohs(n->rip_metric) != HOPCNT_INFINITY)) {
 				rtchange(rt, from, ntohs(n->rip_metric),
 					ntohs(n->rip_ticks));
-				rt->rt_timer = 0;
+				if (ntohs(n->rip_metric) == HOPCNT_INFINITY)
+					rt->rt_timer = EXPIRE_TIME;
+				else
+					rt->rt_timer = 0;
+				rtchanged = 1;
 			} else if (equal(from, &rt->rt_router) &&
 				   (ntohs(n->rip_ticks) == rt->rt_ticks) &&
-				   (ntohs(n->rip_metric) == rt->rt_metric)) {
+				   (ntohs(n->rip_metric) == rt->rt_metric) &&
+				   (ntohs(n->rip_metric) != HOPCNT_INFINITY)) {
 				rt->rt_timer = 0;
 			}
 		}
+		if (rtchanged) {
+			register struct rthash *rh;
+			register struct rt_entry *rt;
+
+			toall(supply, NULL, 1);
+			for (rh = nethash; rh < &nethash[ROUTEHASHSIZ]; rh++)
+				for (rt = rh->rt_forw;
+				    rt != (struct rt_entry *)rh;
+				    rt = rt->rt_forw)
+					rt->rt_state &= ~RTS_CHANGED;
+		}
+
 		return;
 	}
 }
