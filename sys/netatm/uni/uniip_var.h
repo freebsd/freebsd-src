@@ -52,7 +52,7 @@ struct uniip {
 	u_char		uip_arpstate;	/* ARP interface state (see below) */
 	struct arpmap	uip_arpsvrmap;	/* ATMARP server map info */
 	struct ipvcc	*uip_arpsvrvcc;	/* ATMARP server's VCC */
-	int		uip_nprefix;	/* Count of IP prefixes (server only) */
+	u_int		uip_nprefix;	/* Count of IP prefixes (server only) */
 	struct uniarp_prf *uip_prefix;	/* Array of IP prefixes (server only) */
 	struct atm_time	uip_arptime;	/* ARP timer controls */
 };
