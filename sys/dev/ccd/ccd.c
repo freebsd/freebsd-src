@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.17.2.1 1997/01/10 04:09:13 dyson Exp $ */
+/* $Id: ccd.c,v 1.17.2.2 1998/02/15 08:15:08 jkh Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -948,8 +948,6 @@ ccdintr(cs, bp)
 	register struct ccd_softc *cs;
 	register struct buf *bp;
 {
-
-      s = splbio();
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
 		printf("ccdintr(%x, %x)\n", cs, bp);
