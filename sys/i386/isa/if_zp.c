@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.8 1995/08/16 23:34:28 nate Exp $
+ *	$Id: if_zp.c,v 1.9 1995/10/13 19:47:53 wollman Exp $
  */
 /*-
  * TODO:
@@ -164,6 +164,11 @@ enum memtype {
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -1957,6 +1962,24 @@ zpioctl(ifp, cmd, data)
 	    arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
 #endif
 	    break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+	    {
+		register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+
+		if (ipx_nullhost(*ina))
+		    ina->x_host =
+			*(union ipx_host *) (sc->arpcom.ac_enaddr);
+		else {
+		    ifp->if_flags &= ~IFF_RUNNING;
+		    bcopy((caddr_t) ina->x_host.c_host,
+			  (caddr_t) sc->arpcom.ac_enaddr,
+			  sizeof(sc->arpcom.ac_enaddr));
+		}
+		zpinit(ifp->if_unit);
+		break;
+	    }
 #endif
 #ifdef NS
 	case AF_NS:

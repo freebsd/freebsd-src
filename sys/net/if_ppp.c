@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.21 1995/09/09 18:10:23 davidg Exp $ */
+/* $Id: if_ppp.c,v 1.22 1995/10/05 00:33:27 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -697,6 +697,11 @@ pppoutput(ifp, m0, dst, rt)
       if (ip->ip_tos & IPTOS_LOWDELAY)
           ifq = &sc->sc_fastq;
 
+	break;
+#endif
+#ifdef IPX
+    case AF_IPX:
+	protocol = PPP_IPX;
 	break;
 #endif
 #ifdef NS

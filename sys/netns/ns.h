@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $Id: ns.h,v 1.3 1994/08/21 06:22:07 paul Exp $
+ * $Id: ns.h,v 1.4 1995/07/29 11:41:49 bde Exp $
  */
 
 #ifndef _NETNS_NS_H_
@@ -150,6 +150,7 @@ u_short ns_cksum();
 __BEGIN_DECLS
 extern struct ns_addr ns_addr __P((const char *));
 extern char *ns_ntoa __P((struct ns_addr));
+extern char *_ns_spectHex __P((const char *));
 __END_DECLS
 
 #endif

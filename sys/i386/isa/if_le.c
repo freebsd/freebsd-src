@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.19 1995/09/19 18:55:12 bde Exp $
+ * $Id: if_le.c,v 1.20 1995/10/13 19:47:49 wollman Exp $
  */
 
 /*
@@ -63,6 +63,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -569,7 +574,26 @@ le_ioctl(
 		    break;
 		}
 #endif /* INET */
+#ifdef IPX
+		/* This magic copied from if_is.c; I don't use XNS,
+		 * so I have no way of telling if this actually
+		 * works or not.
+		 */
+		case AF_IPX: {
+		    struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+		    if (ipx_nullhost(*ina)) {
+			ina->x_host = *(union ipx_host *)(sc->le_ac.ac_enaddr);
+		    } else {
+			ifp->if_flags &= ~IFF_RUNNING;
+			bcopy((caddr_t)ina->x_host.c_host,
+			      (caddr_t)sc->le_ac.ac_enaddr,
+			      sizeof sc->le_ac.ac_enaddr);
+		    }
 
+		    (*ifp->if_init)(ifp->if_unit);
+		    break;
+		}
+#endif /* IPX */
 #ifdef NS
 		/* This magic copied from if_is.c; I don't use XNS,
 		 * so I have no way of telling if this actually
@@ -590,7 +614,6 @@ le_ioctl(
 		    break;
 		}
 #endif /* NS */
-
 		default: {
 		    (*ifp->if_init)(ifp->if_unit);
 		    break;

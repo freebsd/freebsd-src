@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.17 1995/06/26 16:11:51 wollman Exp $
+ *	$Id: in_proto.c,v 1.18 1995/09/21 17:58:07 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,10 @@
 /*
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
+
+#ifdef IPXIP
+void	ipxip_input(), ipxip_ctlinput();
+#endif
 
 #ifdef NSIP
 void	idpip_input(), nsip_ctlinput();
@@ -141,6 +145,13 @@ struct protosw inetsw[] = {
   eoninput,	0,		eonctlinput,		0,
   0,
   eonprotoinit,	0,		0,		0,
+},
+#endif
+#ifdef IPXIP
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR,
+  ipxip_input,	rip_output,	ipxip_ctlinput,	0,
+  rip_usrreq,
+  0,		0,		0,		0,
 },
 #endif
 #ifdef NSIP
