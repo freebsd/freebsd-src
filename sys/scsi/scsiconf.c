@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id$
+ *      $Id: scsiconf.c,v 1.64.2.7 1996/12/20 20:49:09 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -1256,6 +1256,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		make_readable(manu, "unknown", sizeof(manu));
 		make_readable(model, "unknown", sizeof(model));
 		make_readable(version, "????", sizeof(version));
+		type = T_UNKNOWN;
 	}
 
 	sc_print_start(sc_link);
