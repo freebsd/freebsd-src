@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.66.2.2 1996/12/12 11:18:27 jkh Exp $
+ * $Id: system.c,v 1.66.2.3 1997/01/03 06:38:22 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -42,7 +42,7 @@ handle_intr(int sig)
     WINDOW *save = savescr();
 
     if (!msgYesNo("Are you sure you want to abort the installation?"))
-	systemShutdown(1);
+	systemShutdown(-1);
     else
 	restorescr(save);
 }
@@ -115,7 +115,7 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (mediaDevice)
+    if (status >=0 && mediaDevice)
 	mediaDevice->shutdown(mediaDevice);
 
     /* Shut down the dialog library */
