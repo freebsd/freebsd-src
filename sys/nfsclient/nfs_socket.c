@@ -160,7 +160,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 {
 	struct socket *so;
 	int error, rcvreserve, sndreserve;
-	int opt, pktscale;
+	int pktscale;
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
@@ -174,10 +174,6 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		goto bad;
 	so = nmp->nm_so;
 	nmp->nm_soflags = so->so_proto->pr_flags;
-
-	opt = 1;
-	(void)so_setsockopt(so, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	(void)so_setsockopt(so, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
 	/*
 	 * Some servers require that the client port be a reserved port number.
