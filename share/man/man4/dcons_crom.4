@@ -42,18 +42,22 @@ The
 .Nm
 exposes buffer address of
 .Xr dcons 4
-via Configuration ROM which is accessed by
-.Xr FireWire 4
-.
+through Configuration ROM of
+.Xr FireWire 4 .
+This address is supposed to be used by
+.Xr dconschat 8 .
 .El
 .Sh SEE ALSO
 .Xr dcons 4 ,
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
-.Xr fwchat 8 ,
-.Xr fwcontrol 8 ,
+.Xr dconschat 8 ,
+.Xr fwcontrol 8 .
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
 .Sh BUGS
-This driver is still under development.
+If you load dcons_crom.ko manually after booted, you may have to initiate
+a bus reset by
+.Dq Nm fwcontrol -r
+to update Configuration ROM.
 .Pp
