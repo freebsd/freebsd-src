@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.81 1997/11/21 18:14:02 bde Exp $
+ *	$Id: autoconf.c,v 1.82 1997/11/21 18:27:08 bde Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
+#include "opt_bootp.h"
 #include "opt_cd9660.h"
 
 #include <sys/param.h>
