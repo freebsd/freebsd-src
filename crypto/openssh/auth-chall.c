@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-chall.c,v 1.8 2001/05/18 14:13:28 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "auth.h"
 #include "log.h"

@@ -23,11 +23,10 @@
  */
 #include "includes.h"
 RCSID("$OpenBSD: auth-skey.c,v 1.19 2002/06/19 00:27:55 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #ifdef SKEY
 
-#include <opie.h>
+#include <skey.h>
 
 #include "xmalloc.h"
 #include "auth.h"
@@ -46,11 +45,9 @@ skey_query(void *ctx, char **name, char **infotxt,
 	Authctxt *authctxt = ctx;
 	char challenge[1024], *p;
 	int len;
-	struct opie opie;
+	struct skey skey;
 
-	if (opie_haskey(authctxt->user) != 0)
-		return -1;
-	if (opiechallenge(&opie, authctxt->user, challenge) == -1)
+	if (skeychallenge(&skey, authctxt->user, challenge) == -1)
 		return -1;
 
 	*name  = xstrdup("");
@@ -76,8 +73,8 @@ skey_respond(void *ctx, u_int numresponses, char **responses)
 
 	if (authctxt->valid &&
 	    numresponses == 1 &&
-	    opie_haskey(authctxt->pw->pw_name) == 0 &&
-	    opie_passverify(authctxt->pw->pw_name, responses[0]) != -1)
+	    skey_haskey(authctxt->pw->pw_name) == 0 &&
+	    skey_passcheck(authctxt->pw->pw_name, responses[0]) != -1)
 	    return 0;
 	return -1;
 }

@@ -24,9 +24,17 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth.c,v 1.43 2002/05/17 14:27:55 millert Exp $");
-RCSID("$FreeBSD$");
 
+#ifdef HAVE_LOGIN_H
+#include <login.h>
+#endif
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+#include <shadow.h>
+#endif /* defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW) */
+
+#ifdef HAVE_LIBGEN_H
 #include <libgen.h>
+#endif
 
 #include "xmalloc.h"
 #include "match.h"
@@ -67,10 +75,52 @@ allowed_user(struct passwd * pw)
 	const char *hostname = NULL, *ipaddr = NULL;
 	char *shell;
 	int i;
+#ifdef WITH_AIXAUTHENTICATE
+	char *loginmsg;
+#endif /* WITH_AIXAUTHENTICATE */
+#if !defined(USE_PAM) && defined(HAVE_SHADOW_H) && \
+	!defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
+	struct spwd *spw;
 
 	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
 	if (!pw || !pw->pw_name)
 		return 0;
+
+#define	DAY		(24L * 60 * 60) /* 1 day in seconds */
+	spw = getspnam(pw->pw_name);
+	if (spw != NULL) {
+		time_t today = time(NULL) / DAY;
+		debug3("allowed_user: today %d sp_expire %d sp_lstchg %d"
+		    " sp_max %d", (int)today, (int)spw->sp_expire,
+		    (int)spw->sp_lstchg, (int)spw->sp_max);
+
+		/*
+		 * We assume account and password expiration occurs the
+		 * day after the day specified.
+		 */
+		if (spw->sp_expire != -1 && today > spw->sp_expire) {
+			log("Account %.100s has expired", pw->pw_name);
+			return 0;
+		}
+
+		if (spw->sp_lstchg == 0) {
+			log("User %.100s password has expired (root forced)",
+			    pw->pw_name);
+			return 0;
+		}
+
+		if (spw->sp_max != -1 &&
+		    today > spw->sp_lstchg + spw->sp_max) {
+			log("User %.100s password has expired (password aged)",
+			    pw->pw_name);
+			return 0;
+		}
+	}
+#else
+	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
+	if (!pw || !pw->pw_name)
+		return 0;
+#endif
 
 	/*
 	 * Get the shell from the password data.  An empty shell field is
@@ -150,6 +200,24 @@ allowed_user(struct passwd * pw)
 			}
 		ga_free();
 	}
+
+#ifdef WITH_AIXAUTHENTICATE
+	if (loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &loginmsg) != 0) {
+		if (loginmsg && *loginmsg) {
+			/* Remove embedded newlines (if any) */
+			char *p;
+			for (p = loginmsg; *p; p++) {
+				if (*p == '\n')
+					*p = ' ';
+			}
+			/* Remove trailing newline */
+			*--p = '\0';
+			log("Login restricted for %s: %.100s", pw->pw_name, loginmsg);
+		}
+		return 0;
+	}
+#endif /* WITH_AIXAUTHENTICATE */
+
 	/* We found no reason not to let this user try to log on... */
 	return 1;
 }

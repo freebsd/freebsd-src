@@ -1,5 +1,4 @@
 /*	$OpenBSD: auth.h,v 1.39 2002/05/31 11:35:15 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -133,6 +132,9 @@ int	auth_krb5_password(Authctxt *authctxt, const char *password);
 void	krb5_cleanup_proc(void *authctxt);
 #endif /* KRB5 */
 
+#include "auth-pam.h"
+#include "auth2-pam.h"
+
 Authctxt *do_authentication(void);
 Authctxt *do_authentication2(void);
 
@@ -186,5 +188,5 @@ void	 auth_debug_reset(void);
 #define AUTH_FAIL_LOG (AUTH_FAIL_MAX/2)
 #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 
-#define SKEY_PROMPT "\nOPIE Password: "
+#define SKEY_PROMPT "\nS/Key Password: "
 #endif

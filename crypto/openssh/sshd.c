@@ -43,12 +43,15 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshd.c,v 1.246 2002/06/20 23:05:56 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
+#ifdef HAVE_SECUREWARE
+#include <sys/security.h>
+#include <prot.h>
+#endif
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -63,9 +66,6 @@ RCSID("$FreeBSD$");
 #include "uidswap.h"
 #include "compat.h"
 #include "buffer.h"
-#include <poll.h>
-#include <time.h>
-
 #include "cipher.h"
 #include "kex.h"
 #include "key.h"
@@ -96,7 +96,11 @@ int deny_severity = LOG_WARNING;
 #define O_NOCTTY	0
 #endif
 
+#ifdef HAVE___PROGNAME
 extern char *__progname;
+#else
+char *__progname;
+#endif
 
 /* Server configuration options. */
 ServerOptions options;
@@ -108,7 +112,11 @@ char *config_file_name = _PATH_SERVER_CONFIG_FILE;
  * Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
  * Default value is AF_UNSPEC means both IPv4 and IPv6.
  */
-extern int IPv4or6;
+#ifdef IPV4_DEFAULT
+int IPv4or6 = AF_INET;
+#else
+int IPv4or6 = AF_UNSPEC;
+#endif
 
 /*
  * Debug mode flag.  This can be set on the command line.  If debug
@@ -132,6 +140,7 @@ int log_stderr = 0;
 
 /* Saved arguments to main(). */
 char **saved_argv;
+int saved_argc;
 
 /*
  * The sockets that the server is listening; this is used in the SIGHUP
@@ -781,7 +790,14 @@ main(int ac, char **av)
 	Key *key;
 	int ret, key_used = 0;
 
+#ifdef HAVE_SECUREWARE
+	(void)set_auth_parameters(ac, av);
+#endif
+	__progname = get_progname(av[0]);
+	init_rng();
+
 	/* Save argv. */
+	saved_argc = ac;
 	saved_argv = av;
 
 	/* Initialize configuration options to their default values. */
@@ -895,6 +911,15 @@ main(int ac, char **av)
 	    SYSLOG_FACILITY_AUTH : options.log_facility,
 	    !inetd_flag);
 
+#ifdef _CRAY
+	/* Cray can define user privs drop all prives now!
+	 * Not needed on PRIV_SU systems!
+	 */
+	drop_cray_privs();
+#endif
+
+	seed_rng();
+
 	/* Read server configuration options from the configuration file. */
 	read_server_config(&options, config_file_name);
 
@@ -993,6 +1018,16 @@ main(int ac, char **av)
 	if (test_flag)
 		exit(0);
 
+	/*
+	 * Clear out any supplemental groups we may have inherited.  This
+	 * prevents inadvertent creation of files with bad modes (in the
+	 * portable version at least, it's certainly possible for PAM 
+	 * to create a file, and we can't control the code in every 
+	 * module which might be used).
+	 */
+	if (setgroups(0, NULL) < 0)
+		debug("setgroups() failed: %.200s", strerror(errno));
+
 	/* Initialize the log (it is reinitialized below in case we forked). */
 	if (debug_flag && !inetd_flag)
 		log_stderr = 1;
@@ -1090,8 +1125,9 @@ main(int ac, char **av)
 
 			/* Bind the socket to the desired port. */
 			if (bind(listen_sock, ai->ai_addr, ai->ai_addrlen) < 0) {
-				error("Bind to port %s on %s failed: %.200s.",
-				    strport, ntop, strerror(errno));
+				if (!ai->ai_next)
+				    error("Bind to port %s on %s failed: %.200s.",
+					    strport, ntop, strerror(errno));
 				close(listen_sock);
 				continue;
 			}
@@ -1133,7 +1169,7 @@ main(int ac, char **av)
 			 * fail if there already is a daemon, and this will
 			 * overwrite any old pid in the file.
 			 */
-			f = fopen(options.pid_file, "w");
+			f = fopen(options.pid_file, "wb");
 			if (f) {
 				fprintf(f, "%ld\n", (long) getpid());
 				fclose(f);
@@ -1313,8 +1349,11 @@ main(int ac, char **av)
 	 * setlogin() affects the entire process group.  We don't
 	 * want the child to be able to affect the parent.
 	 */
+#if 0
+	/* XXX: this breaks Solaris */
 	if (setsid() < 0)
 		error("setsid: %.100s", strerror(errno));
+#endif
 
 	/*
 	 * Disable the key regeneration alarm.  We will not regenerate the
@@ -1327,7 +1366,7 @@ main(int ac, char **av)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGQUIT, SIG_DFL);
 	signal(SIGCHLD, SIG_DFL);
-	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, SIG_DFL);
 
 	/*
 	 * Set socket options for the connection.  We want the socket to

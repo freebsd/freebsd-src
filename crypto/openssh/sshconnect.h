@@ -1,5 +1,4 @@
 /*	$OpenBSD: sshconnect.h,v 1.17 2002/06/19 00:27:55 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.

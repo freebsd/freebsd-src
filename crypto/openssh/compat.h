@@ -1,5 +1,4 @@
 /*	$OpenBSD: compat.h,v 1.32 2002/04/10 08:21:47 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.

@@ -41,7 +41,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: ssh.c,v 1.179 2002/06/12 01:09:52 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -74,11 +73,19 @@ RCSID("$FreeBSD$");
 #include "scard.h"
 #endif
 
+#ifdef HAVE___PROGNAME
 extern char *__progname;
+#else
+char *__progname;
+#endif
 
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
-extern int IPv4or6;
+#ifdef IPV4_DEFAULT
+int IPv4or6 = AF_INET;
+#else
+int IPv4or6 = AF_UNSPEC;
+#endif
 
 /* Flag indicating whether debug mode is on.  This can be set on the command line. */
 int debug_flag = 0;
@@ -213,6 +220,9 @@ main(int ac, char **av)
 	extern int optind, optreset;
 	extern char *optarg;
 
+	__progname = get_progname(av[0]);
+	init_rng();
+
 	/*
 	 * Save the original real uid.  It will be needed later (uid-swapping
 	 * may clobber the real uid).
@@ -220,6 +230,7 @@ main(int ac, char **av)
 	original_real_uid = getuid();
 	original_effective_uid = geteuid();
 
+#ifdef HAVE_SETRLIMIT
 	/* If we are installed setuid root be careful to not drop core. */
 	if (original_real_uid != original_effective_uid) {
 		struct rlimit rlim;
@@ -227,10 +238,11 @@ main(int ac, char **av)
 		if (setrlimit(RLIMIT_CORE, &rlim) < 0)
 			fatal("setrlimit failed: %.100s", strerror(errno));
 	}
+#endif
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		log("unknown user %d", original_real_uid);
+		log("You don't exist, go away!");
 		exit(1);
 	}
 	/* Take a copy of the returned structure. */
@@ -580,30 +592,21 @@ again:
 	/* reinit */
 	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, 1);
 
+	seed_rng();
+
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
 
 	if (options.hostname != NULL)
 		host = options.hostname;
 
-	/* Find canonic host name. */
-	if (strchr(host, '.') == 0) {
-		struct addrinfo hints;
-		struct addrinfo *ai = NULL;
-		int errgai;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = IPv4or6;
-		hints.ai_flags = AI_CANONNAME;
-		hints.ai_socktype = SOCK_STREAM;
-		errgai = getaddrinfo(host, NULL, &hints, &ai);
-		if (errgai == 0) {
-			if (ai->ai_canonname != NULL)
-				host = xstrdup(ai->ai_canonname);
-			freeaddrinfo(ai);
-		}
-	}
 	/* Disable rhosts authentication if not running as root. */
+#ifdef HAVE_CYGWIN
+	/* Ignore uid if running under Windows */
+	if (!options.use_privileged_port) {
+#else
 	if (original_effective_uid != 0 || !options.use_privileged_port) {
+#endif
 		debug("Rhosts Authentication disabled, "
 		    "originating port will not be trusted.");
 		options.rhosts_authentication = 0;
@@ -612,7 +615,11 @@ again:
 
 	if (ssh_connect(host, &hostaddr, options.port, IPv4or6,
 	    options.connection_attempts,
+#ifdef HAVE_CYGWIN
+	    options.use_privileged_port,
+#else
 	    original_effective_uid == 0 && options.use_privileged_port,
+#endif
 	    options.proxy_command) != 0)
 		exit(1);
 
