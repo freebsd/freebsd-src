@@ -159,6 +159,7 @@ struct atmio_vcctable {
 #define	ATM_RATE_622M		1412830
 #define	ATM_RATE_2_4G		5651320
 
+#ifdef _KERNEL
 /*
  * Common fields for all ATM interfaces. Each driver's softc must start with
  * this structure.
@@ -169,6 +170,7 @@ struct ifatm {
 	void		*phy;		/* usually SUNI */
 	void		*ngpriv;	/* netgraph link */
 };
+#endif
 
 /*
  * Keep structures in sync with ng_atm.h
