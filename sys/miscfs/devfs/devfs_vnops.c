@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.33 1996/11/21 07:18:59 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.34 1997/02/12 16:19:11 mpp Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1742,11 +1742,12 @@ devfs_dropvnode(dn_p dnp)
 	((int (*) __P((struct  vop_readlink_args *)))devfs_enotsupp)
 */
 #define devfs_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
-#define devfs_lock ((int (*) __P((struct  vop_lock_args *)))nullop)
-#define devfs_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
+#define devfs_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define devfs_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
 #define devfs_bmap ((int (*) __P((struct  vop_bmap_args *)))devfs_badop)
 #define devfs_strategy ((int (*) __P((struct  vop_strategy_args *)))devfs_badop)
-#define devfs_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define devfs_islocked \
+	((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define devfs_advlock ((int (*) __P((struct vop_advlock_args *)))devfs_enotsupp)
 #define devfs_blkatoff \
 	((int (*) __P((struct  vop_blkatoff_args *)))devfs_enotsupp)
