@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -39,12 +39,13 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_SIGNAL_H_
+#ifndef _SYS_SIGNAL_H_
 #define	_SYS_SIGNAL_H_
 
 #include <sys/cdefs.h>
 #include <sys/_sigset.h>
-#include <machine/signal.h>     /* sig_atomic_t; trap codes; sigcontext */
+
+#include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
 
 /*
  * System defined signals.
@@ -136,7 +137,7 @@
  * have the same calling protocol so there is no problem in practice.
  * A bit in sa_flags could be used to specify the number of args.
  */
-typedef void __sighandler_t(int);
+typedef	void __sighandler_t(int);
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 #ifndef _SIGSET_T_DECLARED
@@ -165,15 +166,15 @@ struct sigevent {
  * XXX missing sigev_notify_function, sigev_notify_attributes.
  */
 };
-#define sigev_signo		__sigev_u.__sigev_signo
+#define	sigev_signo		__sigev_u.__sigev_signo
 #if __BSD_VISIBLE
-#define sigev_notify_kqueue	__sigev_u.__sigev_notify_kqueue
+#define	sigev_notify_kqueue	__sigev_u.__sigev_notify_kqueue
 #endif
 
 #define	SIGEV_NONE	0		/* No async notification */
 #define	SIGEV_SIGNAL	1		/* Generate a queued signal */
 #if __BSD_VISIBLE
-#define SIGEV_KEVENT	3		/* Generate a kevent */
+#define	SIGEV_KEVENT	3		/* Generate a kevent */
 #endif
 /*
  * XXX missing SIGEV_THREAD.
@@ -181,12 +182,12 @@ struct sigevent {
 #endif /* __POSIX_VISIBLE >= 199309 */
 
 #if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE
-typedef struct __siginfo {
+typedef	struct __siginfo {
 	int	si_signo;		/* signal number */
 	int	si_errno;		/* errno association */
 	/*
 	 * Cause of signal, one of the SI_ macros or signal-specific
-	 * values, i.e. one of the FPE_... values for SIGFPE. This
+	 * values, i.e. one of the FPE_... values for SIGFPE.  This
 	 * value is equivalent to the second argument to an old-style
 	 * FreeBSD signal handler.
 	 */
@@ -224,12 +225,12 @@ struct sigaction {
 #endif
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
-#define SA_NOCLDSTOP	0x0008	/* do not generate SIGCHLD on child stop */
+#define	SA_NOCLDSTOP	0x0008	/* do not generate SIGCHLD on child stop */
 #endif /* __POSIX_VISIBLE || __XSI_VISIBLE */
 
 #if __XSI_VISIBLE
-#define SA_ONSTACK	0x0001	/* take signal on signal stack */
-#define SA_RESTART	0x0002	/* restart system call on signal return */
+#define	SA_ONSTACK	0x0001	/* take signal on signal stack */
+#define	SA_RESTART	0x0002	/* restart system call on signal return */
 #define	SA_RESETHAND	0x0004	/* reset to SIG_DFL when taking signal */
 #define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
 #define	SA_NOCLDWAIT	0x0020	/* don't keep zombies around */
@@ -243,18 +244,18 @@ struct sigaction {
 #endif
 
 #if __BSD_VISIBLE
-#define NSIG		32	/* number of old signals (counting 0) */
+#define	NSIG		32	/* number of old signals (counting 0) */
 #endif
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
-#define SI_USER		0x10001
-#define SI_QUEUE	0x10002
-#define SI_TIMER	0x10003
-#define SI_ASYNCIO	0x10004
-#define SI_MESGQ	0x10005
+#define	SI_USER		0x10001
+#define	SI_QUEUE	0x10002
+#define	SI_TIMER	0x10003
+#define	SI_ASYNCIO	0x10004
+#define	SI_MESGQ	0x10005
 #endif
 #if __BSD_VISIBLE
-#define SI_UNDEFINED	0
+#define	SI_UNDEFINED	0
 #endif
 
 #if __BSD_VISIBLE
@@ -292,13 +293,13 @@ struct sigvec {
 	int	sv_flags;		/* see signal options below */
 };
 
-#define SV_ONSTACK	SA_ONSTACK
-#define SV_INTERRUPT	SA_RESTART	/* same bit, opposite sense */
-#define SV_RESETHAND	SA_RESETHAND
-#define SV_NODEFER	SA_NODEFER
-#define SV_NOCLDSTOP	SA_NOCLDSTOP
-#define SV_SIGINFO	SA_SIGINFO
-#define sv_onstack sv_flags	/* isn't compatibility wonderful! */
+#define	SV_ONSTACK	SA_ONSTACK
+#define	SV_INTERRUPT	SA_RESTART	/* same bit, opposite sense */
+#define	SV_RESETHAND	SA_RESETHAND
+#define	SV_NODEFER	SA_NODEFER
+#define	SV_NOCLDSTOP	SA_NOCLDSTOP
+#define	SV_SIGINFO	SA_SIGINFO
+#define	sv_onstack	sv_flags	/* isn't compatibility wonderful! */
 #endif
 
 #if __XSI_VISIBLE
@@ -317,7 +318,7 @@ struct sigstack {
  * Macro for converting signal number to a mask suitable for
  * sigblock().
  */
-#define sigmask(m)	(1 << ((m)-1))
+#define	sigmask(m)	(1 << ((m)-1))
 #endif
 
 #if __BSD_VISIBLE
@@ -341,4 +342,4 @@ __BEGIN_DECLS
 __sighandler_t *signal(int, __sighandler_t *);
 __END_DECLS
 
-#endif	/* !_SYS_SIGNAL_H_ */
+#endif /* !_SYS_SIGNAL_H_ */
