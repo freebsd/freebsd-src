@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.59 1998/12/14 05:00:59 dillon Exp $
+ * $Id: union_vnops.c,v 1.60 1999/01/27 22:42:08 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -1734,24 +1734,17 @@ union_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
-	int error;
-	struct vnode *savedvp;
-
-	savedvp = bp->b_vp;
-	bp->b_vp = OTHERVP(bp->b_vp);
+	struct vnode *othervp = OTHERVP(bp->b_vp);
 
 #ifdef DIAGNOSTIC
-	if (bp->b_vp == NULLVP)
+	if (othervp == NULLVP)
 		panic("union_strategy: nil vp");
 	if (((bp->b_flags & B_READ) == 0) &&
-	    (bp->b_vp == LOWERVP(savedvp)))
+	    (othervp == LOWERVP(bp->b_vp)))
 		panic("union_strategy: writing to lowervp");
 #endif
 
-	error = VOP_STRATEGY(bp->b_vp, bp);
-	bp->b_vp = savedvp;
-
-	return (error);
+	return (VOP_STRATEGY(othervp, bp));
 }
 
 /*

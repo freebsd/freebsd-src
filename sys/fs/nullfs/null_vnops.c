@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.31 1999/01/27 22:42:06 dillon Exp $
+ *	$Id: null_vnops.c,v 1.32 1999/01/28 00:57:50 dillon Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.31 1999/01/27 22:42:06 dillon Exp $
+ * $Id: null_vnops.c,v 1.32 1999/01/28 00:57:50 dillon Exp $
  */
 
 /*
@@ -192,7 +192,6 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 	&null_bug_bypass, 0, "");
 
 static int	null_access __P((struct vop_access_args *ap));
-static int	null_bwrite __P((struct vop_bwrite_args *ap));
 static int	null_getattr __P((struct vop_getattr_args *ap));
 static int	null_inactive __P((struct vop_inactive_args *ap));
 static int	null_lock __P((struct vop_lock_args *ap));
@@ -200,7 +199,6 @@ static int	null_lookup __P((struct vop_lookup_args *ap));
 static int	null_print __P((struct vop_print_args *ap));
 static int	null_reclaim __P((struct vop_reclaim_args *ap));
 static int	null_setattr __P((struct vop_setattr_args *ap));
-static int	null_strategy __P((struct vop_strategy_args *ap));
 static int	null_unlock __P((struct vop_unlock_args *ap));
 
 /*
@@ -595,63 +593,12 @@ null_print(ap)
 }
 
 /*
- * XXX - vop_strategy must be hand coded because it has no
- * vnode in its arguments.
- * This goes away with a merged VM/buffer cache.
- */
-static int
-null_strategy(ap)
-	struct vop_strategy_args /* {
-		struct buf *a_bp;
-	} */ *ap;
-{
-	struct buf *bp = ap->a_bp;
-	int error;
-	struct vnode *savedvp;
-
-	savedvp = bp->b_vp;
-	bp->b_vp = NULLVPTOLOWERVP(bp->b_vp);
-
-	error = VOP_STRATEGY(bp->b_vp, bp);
-
-	bp->b_vp = savedvp;
-
-	return (error);
-}
-
-/*
- * XXX - like vop_strategy, vop_bwrite must be hand coded because it has no
- * vnode in its arguments.
- * This goes away with a merged VM/buffer cache.
- */
-static int
-null_bwrite(ap)
-	struct vop_bwrite_args /* {
-		struct buf *a_bp;
-	} */ *ap;
-{
-	struct buf *bp = ap->a_bp;
-	int error;
-	struct vnode *savedvp;
-
-	savedvp = bp->b_vp;
-	bp->b_vp = NULLVPTOLOWERVP(bp->b_vp);
-
-	error = VOP_BWRITE(bp);
-
-	bp->b_vp = savedvp;
-
-	return (error);
-}
-
-/*
  * Global vfs data structures
  */
 vop_t **null_vnodeop_p;
 static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) null_bypass },
 	{ &vop_access_desc,		(vop_t *) null_access },
-	{ &vop_bwrite_desc,		(vop_t *) null_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) null_getattr },
 	{ &vop_inactive_desc,		(vop_t *) null_inactive },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
@@ -659,7 +606,6 @@ static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_print_desc,		(vop_t *) null_print },
 	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) null_setattr },
-	{ &vop_strategy_desc,		(vop_t *) null_strategy },
 	{ &vop_unlock_desc,		(vop_t *) null_unlock },
 	{ NULL, NULL }
 };

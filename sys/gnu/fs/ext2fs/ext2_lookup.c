@@ -841,7 +841,7 @@ ext2_direnter(ip, dvp, cnp)
 		ep = (struct ext2_dir_entry *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
-	error = VOP_BWRITE(bp);
+	error = VOP_BWRITE(bp->b_vp, bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
@@ -880,7 +880,7 @@ ext2_dirremove(dvp, cnp)
 		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 			return (error);
 		ep->inode = 0;
-		error = VOP_BWRITE(bp);
+		error = VOP_BWRITE(bp->b_vp, bp);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (error);
 	}
@@ -891,7 +891,7 @@ ext2_dirremove(dvp, cnp)
 	    (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->rec_len += dp->i_reclen;
-	error = VOP_BWRITE(bp);
+	error = VOP_BWRITE(bp->b_vp, bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
@@ -914,7 +914,7 @@ ext2_dirrewrite(dp, ip, cnp)
 	if ((error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->inode = ip->i_number;
-	error = VOP_BWRITE(bp);
+	error = VOP_BWRITE(bp->b_vp, bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.113 1999/04/28 11:38:20 phk Exp $
+ * $Id: ufs_vnops.c,v 1.114 1999/05/11 19:55:05 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -1421,7 +1421,7 @@ ufs_mkdir(ap)
 		}
 	}
 	if ((error = UFS_UPDATE(tvp, !DOINGSOFTDEP(tvp))) != 0) {
-		(void)VOP_BWRITE(bp);
+		(void)VOP_BWRITE(bp->b_vp, bp);
 		goto bad;
 	}
 	VN_POLLEVENT(dvp, POLLWRITE); /* XXX right place? */
@@ -1436,7 +1436,7 @@ ufs_mkdir(ap)
 	 * an appropriate ordering dependency to the buffer which ensures that
 	 * the buffer is written before the new name is written in the parent.
 	 */
-	if (!DOINGSOFTDEP(dvp) && ((error = VOP_BWRITE(bp)) != 0))
+	if (!DOINGSOFTDEP(dvp) && ((error = VOP_BWRITE(bp->b_vp, bp)) != 0))
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.25 1998/07/30 17:40:45 bde Exp $
+ * $Id: umap_vnops.c,v 1.26 1998/12/07 21:58:34 archie Exp $
  */
 
 /*
@@ -57,7 +57,6 @@ static int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,
 	&umap_bug_bypass, 0, "");
 
-static int	umap_bwrite __P((struct vop_bwrite_args *ap));
 static int	umap_bypass __P((struct vop_generic_args *ap));
 static int	umap_getattr __P((struct vop_getattr_args *ap));
 static int	umap_inactive __P((struct vop_inactive_args *ap));
@@ -65,7 +64,6 @@ static int	umap_lock __P((struct vop_lock_args *ap));
 static int	umap_print __P((struct vop_print_args *ap));
 static int	umap_reclaim __P((struct vop_reclaim_args *ap));
 static int	umap_rename __P((struct vop_rename_args *ap));
-static int	umap_strategy __P((struct vop_strategy_args *ap));
 static int	umap_unlock __P((struct vop_unlock_args *ap));
 
 /*
@@ -433,48 +431,6 @@ umap_reclaim(ap)
 }
 
 static int
-umap_strategy(ap)
-	struct vop_strategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
-{
-	struct buf *bp = ap->a_bp;
-	int error;
-	struct vnode *savedvp;
-
-	savedvp = bp->b_vp;
-	bp->b_vp = UMAPVPTOLOWERVP(bp->b_vp);
-
-	error = VOP_STRATEGY(bp->b_vp, ap->a_bp);
-
-	bp->b_vp = savedvp;
-
-	return (error);
-}
-
-static int
-umap_bwrite(ap)
-	struct vop_bwrite_args /* {
-		struct buf *a_bp;
-	} */ *ap;
-{
-	struct buf *bp = ap->a_bp;
-	int error;
-	struct vnode *savedvp;
-
-	savedvp = bp->b_vp;
-	bp->b_vp = UMAPVPTOLOWERVP(bp->b_vp);
-
-	error = VOP_BWRITE(ap->a_bp);
-
-	bp->b_vp = savedvp;
-
-	return (error);
-}
-
-
-static int
 umap_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -549,14 +505,12 @@ umap_rename(ap)
 vop_t **umap_vnodeop_p;
 static struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) umap_bypass },
-	{ &vop_bwrite_desc,		(vop_t *) umap_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) umap_getattr },
 	{ &vop_inactive_desc,		(vop_t *) umap_inactive },
 	{ &vop_lock_desc,		(vop_t *) umap_lock },
 	{ &vop_print_desc,		(vop_t *) umap_print },
 	{ &vop_reclaim_desc,		(vop_t *) umap_reclaim },
 	{ &vop_rename_desc,		(vop_t *) umap_rename },
-	{ &vop_strategy_desc,		(vop_t *) umap_strategy },
 	{ &vop_unlock_desc,		(vop_t *) umap_unlock },
 	{ NULL, NULL }
 };
