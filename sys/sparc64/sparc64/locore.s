@@ -44,6 +44,7 @@
  * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3,
  *	       u_long ofw_vec)
  */
+ENTRY(btext)
 ENTRY(_start)
 	/*
 	 * Initialize misc state to known values.  Interrupts disabled, normal
