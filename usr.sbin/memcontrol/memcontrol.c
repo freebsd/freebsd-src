@@ -50,6 +50,7 @@ struct
     {"write-through",	MDF_WRITETHROUGH,	MDF_SETTABLE},
     {"write-back",	MDF_WRITEBACK,		MDF_SETTABLE},
     {"write-protect",	MDF_WRITEPROTECT,	MDF_SETTABLE},
+    {"unknown",		MDF_UNKNOWN,		0},
     {"fixed-base",	MDF_FIXBASE,		0},
     {"fixed-length",	MDF_FIXLEN,		0},
     {"set-by-firmware",	MDF_FIRMWARE,		0},
