@@ -1,0 +1,183 @@
+...\"
+...\" Copyright (c) 1994  
+...\" Open Software Foundation, Inc. 
+...\"  
+...\" Permission is hereby granted to use, copy, modify and freely distribute 
+...\" the software in this file and its documentation for any purpose without 
+...\" fee, provided that the above copyright notice appears in all copies and 
+...\" that both the copyright notice and this permission notice appear in 
+...\" supporting documentation.  Further, provided that the name of Open 
+...\" Software Foundation, Inc. ("OSF") not be used in advertising or 
+...\" publicity pertaining to distribution of the software without prior 
+...\" written permission from OSF.  OSF makes no representations about the 
+...\" suitability of this software for any purpose.  It is provided "as is" 
+...\" without express or implied warranty. 
+...\"
+...\" Copyright (c) 1996 X Consortium
+...\" Copyright (c) 1996 Dalrymple Consulting
+...\" 
+...\" Permission is hereby granted, free of charge, to any person obtaining a copy
+...\" of this software and associated documentation files (the "Software"), to deal
+...\" in the Software without restriction, including without limitation the rights
+...\" to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+...\" copies of the Software, and to permit persons to whom the Software is
+...\" furnished to do so, subject to the following conditions:
+...\" 
+...\" The above copyright notice and this permission notice shall be included in
+...\" all copies or substantial portions of the Software.
+...\" 
+...\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+...\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+...\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+...\" X CONSORTIUM OR DALRYMPLE CONSULTING BE LIABLE FOR ANY CLAIM, DAMAGES OR
+...\" OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+...\" ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+...\" OTHER DEALINGS IN THE SOFTWARE.
+...\" 
+...\" Except as contained in this notice, the names of the X Consortium and
+...\" Dalrymple Consulting shall not be used in advertising or otherwise to
+...\" promote the sale, use or other dealings in this Software without prior
+...\" written authorization.
+...\"
+...\" Translated with /usr/local/lib/tpt/ref-man.ts by fld on cord, Wed 07 Feb 1996, 21:59
+.Dd September 5, 1996
+.Os FreeBSD 2.2
+.Dt SGMLFMT 1
+.Sh "NAME"
+instant - manipulates ESIS from parsed SGML instance
+.Sh "Synopsis"
+.na
+.Pp
+\fBinstant\fP [ \fB-bhuvxHISW\fP ]  [ \fB-t\fP \fIfile\fP]  [ \fB-o\fP \fIfile\fP]  [ \fB-D\fP \fIvariable\fP\fB=\fP\fIvalue\fP ...]  [ \fB-i\fP \fIid\fP]  [ \fB-l\fP \fIdirectory\fP]  [\fIfile\fP] 
+.ad
+.Sh "DESCRIPTION"
+.Pp
+The \fBinstant\fP program manipulates an SGML document instance in a variety of ways, 
+including translating into a form suitable for a formatting application and printing information about this instance. 
+Input to \fBinstant\fP is the output of \fBsgmls\fP, whose format is called Element Structure Information Set (ESIS).
+.Sh "FLAGS"
+.Pp
+The following are the possible command line options to \fBinstant\fP. Output is sent to the standard output, except where otherwise noted.
+.\"'br\" labeled list
+.Bl -tag -width Ds
+.It "\fB-t\fP \fIfile\fP"
+Translate the SGML instance to another form, usually suitable for a formatting application. 
+The \fIfile\fP is called a translation spec, which specifies how the tags are to be translated. See \fBtranspec\fP(4). 
+By convention, names for \fIfile\fP use the suffix \fB.ts\fP, for \fItranslation spec\fP.
+.It "\fB-d\fP"
+"Data hack" \(em strip newline at the beginning of data records
+.It "\fB-f \fIlength\fR"
+Set the threshold for the length, in characters,
+of an <Entry>, over which it is called a block of filled text, to \fIlength\fR.
+.It "\fB-o\fP \fIfile\fP "
+Write all output (except error and warning messages) to file \fIfile\fP. By default, output goes to stdout.
+.It "\fB-h\fP"
+Print a text representation of the hierarchy of the instance elements. 
+The deeper an element is in the tree, the more it is indented. The data content is not printed.
+.It "\fB-u\fP"
+Print a summary of the usage of each element in the instance. 
+Information given includes attributes, number of children, and depth in the hierarchy. 
+.It "\fB-S\fP"
+Print some statistics about element usage in the instance, including how often each element is used 
+and how much PCDATA is contained.
+.It "\fB-x\fP"
+Print the context of each element in the instance, from each element to the root of the document tree.
+.It "\fB-v\fP"
+Validate the SGML instance based on the set of constraints or descriptions in the transpec file. 
+This flags tells \fBinstant\fP to turn off normal output, leaving only diagnostics. 
+.It "\fB-l\fP \fIdirectory\fP"
+Try to read the translation specs or other files from in the directory \fIdirectory\fP 
+if not found in the current directory. 
+This is called the library directory. 
+The environment variable \fITPT_LIB\fP may also be used to specify this.
+.It "\fB-b\fP"
+Interactive browser mode. The user is prompted for actions, 
+which include moving among and examining the various nodes in the hierarchy of the instance, displaying information about them, etc.
+.It "\fB-I\fP"
+List the IDs of all elements in the instance that have an ID.  The format is more suitable for other programs than humans. 
+Lines show the ID, element GI, filename, and line, separated by colons. 
+(This depends on the \fB-l\fP option to \fBsgmls\fP which provide filenames and line numbers.)
+.It "\fB-i\fP \fIid\fP"
+When translating the instance, begin processing at the element whose ID is \fIid\fP instead of the topmost element.
+.It "\fB-D\fP \fIvariable\fP\fB=\fP\fIvalue\fP"
+Define the variable \fIvariable\fP with value \fIvalue\fP. 
+.It "\fB-W\fP"
+Do not print warning messages.
+.It "\fB-H\fP"
+Print a help message briefly describing the options.
+.It "\fIfile\fP"
+Read the instance from the file \fIfile\fP. 
+This is expected to be the output of the program \fBsgmls\fP.
+If not specified, \fBinstant\fP reads the instance from its standard input.
+.El
+.\"'br\" labeled list end
+.Pp
+In some cases it makes no sense to combine options. 
+This is especially true if one of the options is to perform a translation. No checking is done for this.
+.Sh "INTERACTIVE BROWSER"
+.Pp
+These are the commands to the interactive browser:
+.Bl -tag -width Ds
+.\"'br\" labeled list
+.It "\fBcd\fP \fIargs ...\fP"
+Change to a different element in the hierarchy. 
+\fBcd\fP \fBid\fP \fIid\fP will change to the element whose ID is \fIid\fP. 
+\fBcd\fP \fIN\fP will change to the \fIN\fPth child element of the current element. 
+Several values of \fIN\fP may be specified, so the program will change to successively descending elements in the hierarchy. 
+The string \fB..\fP may appear for \fIN\fP to move up a level in the hierarchy (like in a unix file system).
+A \fB/\fP may be specified for \fIN\fP to change to the top of the hierarchy.
+.It "\fBcont\fP"
+Print the context of each element.
+.It "\fBdata\fP \fIN\fP"
+Show the data content (PCDATA, RCDATA, and DATA) of child node N.
+.It "\fBfind\fP \fIspec\fP"
+Find paths to elements matching \fIspec\fP, where \fIspec\fP may be one of:
+.Bl -tag -width Ds
+.\".RS +\n(INu
+.It "\fBparent\fP \fIgi\fP"
+Find all elements whose parent element is \fIgi\fP. 
+.It "\fBchild\fP \fIgi\fP"
+Find all elements which have a child element \fIgi\fP. 
+.It "\fBgi\fP \fIgi\fP"
+Find all elements whose name is \fIgi\fP. 
+.It "\fBattr\fP \fIname\fP \fIvalue\fP"
+Find all elements that have a attribute \fIname\fP that have a value \fIvalue\fP. 
+.\".RE
+.El
+.It "\fBid\fP \fIID\fP"
+Show location of element whose ID is \fIID\fP.
+If \fIID\fP is \fB?\fP, it will list all IDs with the paths to them. 
+.It "\fBls\fP"
+List information about the current element in the hierarchy. 
+This includes element name, line number in instance, context, attributes and their values, child elements, data directly within this element, 
+and the order of the current element among its siblings.
+.It "\fBq\fP \fIrelation\fP \fIelement\fP"
+Report whether or not the current element has the relation \fIrelation\fP to the named element \fIelement\fP. 
+Values of \fIrelation\fP are the same as for \fB_followrel\fP in \fBtranspec\fP reference page.
+.It "\fBstat\fP"
+Show statistics about the hierarchy. 
+.It "\fBsum\fP"
+Show a tag usage summary about the hierarchy. 
+.It "\fBtran\fP \fIoutfile\fP"
+Write translated output to file \fIoutfile\fP. 
+If \fIoutfile\fP is not specified, output is sent to stdout.
+.It "\fBtree\fP"
+Print a textual representation of the hierarchy of the instance, where deeper elements are indented more. 
+.It "\fBwhere\fP"
+Show current position in the hierarchy. 
+.It "<\fBcontrol-D\fP>"
+Exits the program. 
+.El
+.Pp
+The \fBstat\fP, \fBsum\fP, \fBtree\fP, \fBcont\fP commands take an optional first argument (of any value),
+which means to only consider the entire instance instead of the hierarchy from the current element.
+.Sh "FILES"
+.Bl -tag -width Ds
+.It "\fIfile\fP\fB.ts\fP"
+Translation specification file.
+.El
+.Sh "SEE ALSO"
+.Pp
+.Xr transpec 5 ,
+.Xr sgmls 1 ,
+Standard Generalized Markup Language (SGML), ISO 8879.
