@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.30 1994/08/07 13:10:19 davidg Exp $
+ *	$Id: pmap.c,v 1.31 1994/08/07 14:53:10 davidg Exp $
  */
 
 /*
@@ -159,7 +159,7 @@ extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
 
 #if BSDVM_COMPAT
-#include "msgbuf.h"
+#include <sys/msgbuf.h>
 
 /*
  * All those kernel PT submaps that BSD is so fond of

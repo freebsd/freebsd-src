@@ -45,16 +45,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: subr_rlist.c,v 1.5 1993/12/22 12:51:39 davidg Exp $
  */
 
-#include "param.h"
-#include "systm.h"
-#include "cdefs.h"
-#include "malloc.h"
-#include "rlist.h"
-#include "vm/vm.h"
-#include "vm/vm_map.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/cdefs.h>
+#include <sys/malloc.h>
+#include <sys/rlist.h>
+#include <vm/vm.h>
+#include <vm/vm_map.h>
 
 extern vm_map_t kernel_map;
 

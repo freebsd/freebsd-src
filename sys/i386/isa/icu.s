@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.7 1993/12/20 14:58:21 wollman Exp $
+ *	$Id: icu.s,v 1.9 1994/05/25 08:58:55 rgrimes Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
  * numbers are used without translation in the masks.
  */
 
-#include "../net/netisr.h"
+#include <net/netisr.h>
 
 	.data
 	.globl	_cpl

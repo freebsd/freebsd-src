@@ -23,17 +23,17 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.3 1993/11/25 01:30:01 wollman Exp $
+ *	$Id: db_access.c,v 1.4 1993/12/19 00:49:42 wollman Exp $
  */
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
  */
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "ddb/ddb.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 
 /*
  * Access unaligned data items on aligned (longword)

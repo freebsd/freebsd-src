@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.25 1994/05/03 05:44:53 rgrimes Exp $
+ *      $Id: aha1542.c,v 1.27 1994/05/25 08:57:57 rgrimes Exp $
  */
 
 /*
@@ -21,7 +21,7 @@
 
 #include <sys/types.h>
 #ifdef	KERNEL			/* don't laugh.. look for main() */
-#include <aha.h>
+#include "aha.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,7 +38,7 @@
 
 #ifdef	KERNEL
 #include "ddb.h"
-#include "kernel.h"
+#include <sys/kernel.h>
 #else /*KERNEL */
 #define NAHA 1
 #endif /*KERNEL */

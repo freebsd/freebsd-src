@@ -34,17 +34,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.2 1993/10/16 14:15:09 rgrimes Exp $
+ *	$Id: swapgeneric.c,v 1.3 1993/11/03 18:05:42 nate Exp $
  */
 
-#include "machine/pte.h"
+#include <machine/pte.h>
 
-#include "sys/param.h"
-#include "sys/conf.h"
-#include "sys/buf.h"
-#include "sys/vm.h"
-#include "sys/systm.h"
-#include "sys/reboot.h"
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/buf.h>
+#include <sys/vm.h>
+#include <sys/systm.h>
+#include <sys/reboot.h>
 
 /*
  * Generic configuration;  all in one

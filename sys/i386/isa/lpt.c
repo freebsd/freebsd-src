@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.13 1994/06/08 14:34:54 davidg Exp $
+ *	$Id: lpt.c,v 1.13 1994/08/13 00:37:03 phk Exp $
  */
 
 /*
@@ -102,34 +102,34 @@
 #include "lpt.h"
 #if NLPT > 0
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "user.h"
-#include "buf.h"
-#include "kernel.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "uio.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/buf.h>
+#include <sys/kernel.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/uio.h>
+#include <sys/syslog.h>
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/lptreg.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/lptreg.h>
 
-#include "i386/include/lpt.h"
+#include <i386/include/lpt.h>
 
 #ifdef INET
-#include "mbuf.h"
-#include "socket.h"
-#include "../net/if.h"
-#include "../net/if_types.h"
-#include "../net/netisr.h"
-#include "../net/route.h"
-#include "../netinet/in.h"
-#include "../netinet/in_systm.h"
-#include "../netinet/in_var.h"
-#include "../netinet/ip.h"
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/netisr.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
 #endif /* INET */
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */

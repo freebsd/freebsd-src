@@ -14,13 +14,13 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.14 1994/01/11 07:24:32 rgrimes Exp $
+ *      $Id: aha1742.c,v 1.16 1994/05/25 08:58:13 rgrimes Exp $
  */
 
 #include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
-#include <ahb.h>
+#include "ahb.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -56,7 +56,7 @@ typedef timeout_func_t timeout_t;
 #endif
 
 typedef unsigned long int physaddr;
-#include "kernel.h"
+#include <sys/kernel.h>
 
 #define KVTOPHYS(x)   vtophys(x)
 

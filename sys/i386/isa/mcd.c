@@ -39,28 +39,28 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.15 1994/04/20 07:06:41 davidg Exp $
+ *	$Id: mcd.c,v 1.17 1994/05/25 08:59:30 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include "mcd.h"
 #if NMCD > 0
-#include "types.h"
-#include "param.h"
-#include "systm.h"
-#include "conf.h"
-#include "file.h"
-#include "buf.h"
-#include "stat.h"
-#include "uio.h"
-#include "ioctl.h"
-#include "cdio.h"
-#include "errno.h"
-#include "dkbad.h"
-#include "disklabel.h"
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "mcdreg.h"
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/buf.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/ioctl.h>
+#include <sys/cdio.h>
+#include <sys/errno.h>
+#include <sys/dkbad.h>
+#include <sys/disklabel.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/mcdreg.h>
 
 /* user definable options */
 /*#define MCD_TO_WARNING_ON*/	/* define to get timeout messages */

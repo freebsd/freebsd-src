@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.5 1993/11/25 01:30:08 wollman Exp $
+ *	$Id: db_output.c,v 1.6 1993/12/19 00:49:45 wollman Exp $
  */
 
 /*
@@ -35,11 +35,11 @@
  * Printf and character output for debugger.
  */
 
-#include "param.h"
-#include "systm.h"
-#include "machine/stdarg.h"
-#include "ddb/ddb.h"
-#include "machine/cons.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <machine/stdarg.h>
+#include <ddb/ddb.h>
+#include <machine/cons.h>
 
 /*
  *	Character output - tracks position in line.
