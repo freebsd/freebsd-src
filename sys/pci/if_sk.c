@@ -1703,6 +1703,11 @@ static void sk_intr(xsc)
 
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
 
+	if (ifp0 != NULL && ifp0->if_snd.ifq_head != NULL)
+		sk_start(ifp0);
+	if (ifp1 != NULL && ifp1->if_snd.ifq_head != NULL)
+		sk_start(ifp1);
+
 	return;
 }
 
