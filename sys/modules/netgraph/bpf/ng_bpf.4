@@ -81,7 +81,7 @@ This node type supports the generic control messages, plus the following:
 This command sets the filter program that will be applied to incoming
 data on a hook.  The following structure must be supplied as an argument:
 .Bd -literal -offset 4n
-struct ngm_bpf_hookprog {
+struct ng_bpf_hookprog {
   char            thisHook[NG_HOOKLEN+1];   /* name of hook */
   char            ifMatch[NG_HOOKLEN+1];    /* match dest hook */
   char            ifNotMatch[NG_HOOKLEN+1]; /* !match dest hook */
@@ -111,7 +111,7 @@ This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the
 corresponding
-.Dv "struct ngm_bpf_hookprog"
+.Dv "struct ng_bpf_hookprog"
 as shown above.
 .It Dv NGM_BPF_GET_STATS
 This command takes an
