@@ -169,7 +169,8 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ld (%ldK bytes)\n", ia64_ptob(Maxmem), ia64_ptob(Maxmem) / 1024);
+	printf("real memory  = %ld (%ld MB)\n", ia64_ptob(Maxmem),
+	    ia64_ptob(Maxmem) / 1048576);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -188,8 +189,8 @@ cpu_startup(dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ldK bytes)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1024);
+	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
+	    ptoa(cnt.v_free_count) / 1048576);
  
 	if (fpswa_interface == NULL)
 		printf("Warning: no FPSWA package supplied\n");
