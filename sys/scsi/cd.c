@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.20 1994/08/27 16:14:31 davidg Exp $
+ *      $Id: cd.c,v 1.21 1994/08/29 21:25:11 ache Exp $
  */
 
 #define SPLCD splbio
@@ -424,7 +424,7 @@ cdstrategy(bp)
 	/*
 	 * Use a bounce buffer if necessary
 	 */
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 	if (cd->sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
 #endif

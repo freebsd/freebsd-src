@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id$
+ * $Id: st.c,v 1.17 1994/08/02 07:52:34 davidg Exp $
  */
 
 /*
@@ -904,7 +904,7 @@ ststrategy(bp)
 	/*      
 	 * Use a bounce buffer if necessary
 	 */      
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 	if (st->sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
 #endif

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.25 1994/08/07 03:31:52 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.26 1994/08/07 14:53:11 davidg Exp $
  */
 
 #include "npx.h"
@@ -55,7 +55,7 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 vm_map_t	io_map;
 volatile int	kvasfreecnt;
 
@@ -512,7 +512,7 @@ vm_bounce_init()
 	bouncefree = bouncepages;
 
 }
-#endif /* NOBOUNCE */
+#endif /* BOUNCE_BUFFERS */
 /*
  * quick version of vm_fault
  */
