@@ -457,6 +457,19 @@ wchan(KINFO *k, VARENT *ve)
 }
 
 void
+nwchan(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	if (k->ki_p->ki_wchan) {
+		(void)printf("%0*lx", v->width,
+		    (long)k->ki_p->ki_wchan);
+	} else
+		(void)printf("%-*s", v->width, "-");
+}
+
+void
 mwchan(KINFO *k, VARENT *ve)
 {
 	VAR *v;

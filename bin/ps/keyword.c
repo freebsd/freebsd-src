@@ -127,6 +127,7 @@ static VAR var[] = {
 		LONG, "ld", 0},
 	{"nvcsw", "NVCSW", NULL, USER, rvar, NULL, 5, ROFF(ru_nvcsw),
 		LONG, "ld", 0},
+	{"nwchan", "NWCHAN", NULL, LJUST, nwchan, NULL, 8, 0, CHAR, NULL, 0},
 	{"oublk", "OUBLK", NULL, USER, rvar, NULL, 4, ROFF(ru_oublock),
 		LONG, "ld", 0},
 	{"oublock", "", "oublk", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
