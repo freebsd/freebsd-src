@@ -8,7 +8,6 @@ struct scd_mbx {
 	int		sz;
 	u_long		skip;
 	struct bio *	bp;
-	int		p_offset;
 	short		count;
 };
 
@@ -18,7 +17,6 @@ struct scd_data {
 	short			flags;
 	int			blksize;
 	u_long			disksize;
-	struct disklabel	dlabel;
 	int			openflag;
 	struct {
 		unsigned int	adr :4;
