@@ -238,7 +238,7 @@ raw_cat(rfd)
 	register int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
-	static char *buf;
+	static char *buf = NULL;
 	struct stat sbuf;
 
 	wfd = fileno(stdout);
@@ -268,7 +268,7 @@ udom_open(path, flags)
 {
 	struct sockaddr_un sou;
 	int fd;
-	int len;
+	unsigned int len;
 
 	bzero(&sou, sizeof(sou));
 
