@@ -81,13 +81,6 @@
 #include <i386/isa/ic/hd64570.h>
 #include <i386/isa/if_arregs.h>
 
-#ifndef NETGRAPH
-#include "sppp.h"
-#if NSPPP <= 0
-#error device 'ar' require sppp.
-#endif /* NSPPP <= 0 */
-#endif /* NETGRAPH */
-
 #ifdef TRACE
 #define TRC(x)               x
 #else
