@@ -116,6 +116,8 @@
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
+    <bridgehead renderas="sect3">GEOM</bridgehead>
+
     <para>The &man.geom.4;-based disk partitioning code in the kernel
       will not allow an open partition to be overwritten.  This
       usually prevents the use of <command>disklabel -B</command> to
@@ -123,6 +125,8 @@
       <literal>a</literal> partition overlaps the space where the boot
       blocks are stored.  A suggested workaround is to boot from an
       alternate disk, a CDROM, or a fixit floppy.</para>
+
+    <bridgehead renderas="sect3">&man.dump.8;</bridgehead>
 
     <para>When using disk media with sector sizes larger than 512
       bytes (for instance, &man.gbde.4; encrypted disks), the
@@ -138,16 +142,25 @@
     <para>A simpler workaround is to use &man.tar.1; or &man.cpio.1;
       to make backup copies.</para>
 
+    <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
+
     <para>Hangs have been reported during &os; 5.0 snapshot
       installations when installing to &man.mly.4;-supported RAID
       arrays, in hardware configurations that appear to work fine
       under &os; 4.7-RELEASE.</para>
 
+    <bridgehead renderas="sect3">NETNCP/Netware File System
+      Support</bridgehead>
+
     <para>NETNCP and nwfs appear to be as-yet unadapted for KSE, and
       hence not working.</para>
 
+    <bridgehead renderas="sect3">&man.iir.4; controller</bridgehead>
+
     <para>During installation, the &man.iir.4; controller appears to
       probe correctly, but finds no disk devices.</para>
+
+    <bridgehead renderas="sect3">&man.truss.1; race condition</bridgehead>
 
     <para>&man.truss.1; appears to contain a race condition during the
       start-up of debugging, which can result in &man.truss.1; failing
@@ -161,16 +174,22 @@
       for this sufficiently changes process execution handling that it
       has been deferred until after 5.0.</para>
 
+    <bridgehead renderas="sect3">Disk Partitioning in Installer</bridgehead>
+
     <para>Some bugs have been reported in &man.sysinstall.8; disk
       partitioning.  One observed problem on the i386 is that
       &man.sysinstall.8; cannot recalculate the free space left on a
       disk after changing the type of an FDISK-type partition.</para>
+
+    <bridgehead renderas="sect3">Stale Documentation</bridgehead>
 
     <para>In some case, documentation (such as the FAQ or Handbook)
       has not been updated to take into account &os; &release.prev;
       features.  Examples of areas where documentation is still
       needed include &man.gbde.8; and the new <quote>fast
       IPsec</quote> implementation.</para>
+
+    <bridgehead renderas="sect3">SMB File System</bridgehead>
 
     <para>Attempting to unmount smbfs shares may fail with
       <errorname>Device busy</errorname> errors even when the
@@ -182,6 +201,8 @@
       shares may cause a kernel panic.  This bug has been fixed in
       &release.current;.</para>
 
+    <bridgehead renderas="sect3">&man.fstat.2;</bridgehead>
+
     <para>When called on a connected socket file descriptor,
       &man.fstat.2; is supposed to return the number of bytes
       available to read in the <varname>st_size</varname> member of
@@ -189,6 +210,8 @@
       <varname>st_size</varname> is always erroneously reported as
       <literal>0</literal> on TCP sockets.  This bug has been fixed in
       &release.current;.</para>
+
+    <bridgehead renderas="sect3">Kernel Event Queues</bridgehead>
 
     <para>The &man.kqueue.2; <literal>EVFILT_READ</literal> filter
       erroneously indicates that <literal>0</literal> bytes are
@@ -198,12 +221,17 @@
       <literal>EVFILT_READ</literal> is also broken on TCP sockets.
       This bug has been fixed in &release.current;.</para>
 
+    <bridgehead renderas="sect3">POSIX Named Semaphores</bridgehead>
+
     <para>&os; &release.prev; introduced support for POSIX named semaphores
       but the implementation contains a critical bug that causes
       &man.sem.open.3; to incorrectly handle the opening of the same
       semaphore multiple times by the same process, and that causes
       &man.sem.close.3; to crash calling programs.  This bug has been
       fixed in &release.current;.</para>
+
+    <bridgehead renderas="sect3"><filename>/dev/tty</filename>
+      Permissions</bridgehead>
 
     <para>&os; &release.prev; has a minor bug in how the permissions of
       <filename>/dev/tty</filename> are handled.  This can be
@@ -213,6 +241,8 @@
       non-<groupname>tty</groupname> group user.  &man.ssh.1; will
       fail because it cannot open <filename>/dev/tty</filename>.  This
       bug has been fixed in &release.current;.</para>
+
+    <bridgehead renderas="sect3">&man.growfs.8;</bridgehead>
 
     <para>&man.growfs.8; no longer works on &man.vinum.4; volumes (and
       presumably, on &man.geom.4; entities) since these subsystems no
