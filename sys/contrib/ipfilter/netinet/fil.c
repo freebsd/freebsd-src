@@ -806,7 +806,7 @@ int out;
 	/*
 	 * disable delayed checksums.
 	 */
-	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+	if (out && (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)) {
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
