@@ -248,6 +248,12 @@ decimal number in angle braces, for example,
 This priority code should map into the priorities defined in the
 include file
 .Aq Pa sys/syslog.h .
+.Pp
+For security reasons,
+.Nm
+will not append to log files that do not exist;
+therefore, they must be created manually before running
+.Nm .
 .Sh FILES
 .Bl -tag -width /var/run/syslog.pid -compact
 .It Pa /etc/syslog.conf
