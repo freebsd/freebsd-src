@@ -13,11 +13,15 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.32 1996/03/18 23:30:14 nate Exp $
+ *	$Id: apm.c,v 1.33 1996/03/19 04:39:53 nate Exp $
  */
 
 #include "apm.h"
 
+#if NAPM > 1
+#error only one APM device may be configured
+#endif
+ 
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
