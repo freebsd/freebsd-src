@@ -81,7 +81,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	/*
 	 * Determine privileges now, but don't apply until we've found
-	 * a DAC match that has failed to allow access.
+	 * a DAC entry that matches but has failed to allow access.
 	 */
 #ifndef CAPABILITIES
 	if (suser_xxx(cred, NULL, PRISON_ROOT) == 0)
@@ -115,9 +115,10 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 #endif /* CAPABILITIES */
 
 	/*
-	 * Check the owner.
-	 * Also, record locations of ACL_MASK and ACL_OTHER for reference
-	 * later if the owner doesn't match.
+	 * The owner matches if the effective uid associated with the
+	 * credential matches that of the ACL_USER_OBJ entry.  While we're
+	 * doing the first scan, also cache the location of the ACL_MASK
+	 * and ACL_OTHER entries, preventing some future iterations.
 	 */
 	acl_mask = acl_other = NULL;
 	for (i = 0; i < acl->acl_cnt; i++) {
@@ -156,22 +157,26 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	}
 
 	/*
+	 * An ACL_OTHER entry should always exist in a valid access
+	 * ACL.  If it doesn't, then generate a serious failure.  For now,
+	 * this means a debugging message and EPERM, but in the future
+	 * should probably be a panic.
+	 */
+	if (acl_other == NULL) {
+		/*
+		 * XXX This should never happen
+		 */
+		printf("vaccess_acl_posix1e: ACL_OTHER missing\n");
+		return (EPERM);
+	}
+
+	/*
 	 * Checks against ACL_USER, ACL_GROUP_OBJ, and ACL_GROUP fields
 	 * are masked by an ACL_MASK entry, if any.  As such, first identify
 	 * the ACL_MASK field, then iterate through identifying potential
 	 * user matches, then group matches.  If there is no ACL_MASK,
 	 * assume that the mask allows all requests to succeed.
-	 * Also keep track of the location of ACL_OTHER for later consumption.
 	 */
-	if (acl_other == NULL) {
-		/*
-		 * XXX: This should never happen.  Only properly formatted
-		 * ACLs should be passed to vaccess_acl_posix1e.
-		 * Should make this a panic post-debugging.
-		 */
-		printf("vaccess_acl_posix1e: ACL_OTHER missing\n");
-		return (EPERM);
-	}
 	if (acl_mask != NULL) {
 		acl_mask_granted = 0;
 		if (acl_mask->ae_perm & ACL_EXECUTE)
@@ -184,11 +189,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		acl_mask_granted = VEXEC | VREAD | VWRITE;
 
 	/*
-	 * We have to check each type even if we know ACL_MASK will reject,
-	 * as we need to know what match there might have been, and
-	 * therefore what further types we might be allowed to check.
-	 * Do the checks twice -- once without privilege, and a second time
-	 * with, if there was a match.
+	 * Iterate through user ACL entries.  Do checks twice, first
+	 * without privilege, and then if a match is found but failed,
+	 * a second time with privilege.
 	 */
 
 	/*
@@ -223,7 +226,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	 * Group match is best-match, not first-match, so find a 
 	 * "best" match.  Iterate across, testing each potential group
 	 * match.  Make sure we keep track of whether we found a match
-	 * or not, so that we know if we can move on to ACL_OTHER.
+	 * or not, so that we know if we should try again with any
+	 * available privilege, or if we should move on to ACL_OTHER.
 	 */
 	group_matched = 0;
 	for (i = 0; i < acl->acl_cnt; i++) {
