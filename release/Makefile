@@ -458,6 +458,7 @@ release.3:
 	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DMAKE_KERBEROS5 \
 	    SUBDIR_OVERRIDE="kerberos5 ${K5PROGS}" \
 	    buildworld distributeworld DISTDIR=${RD}/trees
+	rm -f ${RD}/trees/krb5/usr/share/info/dir
 .endif
 	-chflags -R noschg ${RD}/trees
 	touch release.3
