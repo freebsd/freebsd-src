@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.31 1996/05/24 01:39:50 dyson Exp $
+ * $Id: kern_lkm.c,v 1.32 1996/09/03 22:52:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -703,6 +703,15 @@ _lkm_dev(lkmtp, cmd)
 			break;
 
 		case LM_DT_CHAR:
+			if ((i = args->lkm_offset) == -1)
+				descrip = (dev_t) -1;
+			else
+				descrip = makedev(args->lkm_offset,0);
+			if ( err = cdevsw_add(&descrip, args->lkm_dev.cdev,
+					&(args->lkm_olddev.cdev))) {
+				break;
+			}
+			args->lkm_offset = major(descrip) ;
 			break;
 
 		default:
@@ -714,11 +723,11 @@ _lkm_dev(lkmtp, cmd)
 	case LKM_E_UNLOAD:
 		/* current slot... */
 		i = args->lkm_offset;
+		descrip = makedev(i,0);
 
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
 			/* replace current slot contents with old contents */
-			descrip = makedev(i,0);
 			bdevsw_add(&descrip, args->lkm_olddev.bdev,NULL);
 			break;
 
