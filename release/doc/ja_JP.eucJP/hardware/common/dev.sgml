@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.73
+        Original revision: 1.75
 -->
 
 <sect1>
@@ -2410,6 +2410,9 @@
         <listitem>
 	  <para>Diamond Rio 500, 600, 800 MP3 プレーヤ (&man.urio.4; ドライバ)</para>
 	</listitem>
+	<listitem>
+	  <para>D-Link DSB-R100 USB Radio (ufm ドライバ)</para>
+	</listitem>
       </itemizedlist>
     </para>
     <para arch="i386">モデム (umodem ドライバ)
@@ -2584,3 +2587,9 @@
       (xrpu ドライバ).</para>
   </sect2>
 </sect1>
+<!-- 
+     Local Variables:
+     mode: sgml
+     sgml-parent-document: ("../i386/article.sgml" "article" "articleinfo")
+     End:
+-->
