@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.13 1995/10/08 00:06:07 swallace Exp $
+ * $Id: kern_prot.c,v 1.14 1995/11/04 10:50:55 davidg Exp $
  */
 
 /*
@@ -205,7 +205,7 @@ getgroups(p, uap, retval)
 	return (0);
 }
 
-struct getsid_args {
+struct setsid_args {
         int     dummy;
 };
 
@@ -213,7 +213,7 @@ struct getsid_args {
 int
 setsid(p, uap, retval)
 	register struct proc *p;
-	struct getsid_args *uap;
+	struct setsid_args *uap;
 	int *retval;
 {
 
