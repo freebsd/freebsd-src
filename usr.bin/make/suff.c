@@ -195,8 +195,8 @@ static int SuffPrintTrans(void *, void *);
  */
 static char    *
 SuffStrIsPrefix (pref, str)
-    register char  *pref;	/* possible prefix */
-    register char  *str;	/* string to check */
+    char  *pref;		/* possible prefix */
+    char  *str;			/* string to check */
 {
     while (*str && *pref == *str) {
 	pref++;
@@ -222,11 +222,11 @@ SuffStrIsPrefix (pref, str)
  */
 static char *
 SuffSuffIsSuffix (s, str)
-    register Suff  *s;		/* possible suffix */
+    Suff	   *s;		/* possible suffix */
     char           *str;	/* string to examine */
 {
-    register char  *p1;	    	/* Pointer into suffix name */
-    register char  *p2;	    	/* Pointer into string being examined */
+    char	   *p1;	    	/* Pointer into suffix name */
+    char	   *p2;	    	/* Pointer into string being examined */
 
     p1 = s->name + s->nameLen;
     p2 = str;
@@ -491,10 +491,10 @@ SuffParseTransform(str, srcPtr, targPtr)
     Suff    	  	**srcPtr;   	/* Place to store source of trans. */
     Suff    	  	**targPtr;  	/* Place to store target of trans. */
 {
-    register LstNode	srcLn;	    /* element in suffix list of trans source*/
-    register Suff    	*src;	    /* Source of transformation */
-    register LstNode    targLn;	    /* element in suffix list of trans target*/
-    register char    	*str2;	    /* Extra pointer (maybe target suffix) */
+    LstNode		srcLn;	    /* element in suffix list of trans source*/
+    Suff	    	*src;	    /* Source of transformation */
+    LstNode		targLn;	    /* element in suffix list of trans target*/
+    char	    	*str2;	    /* Extra pointer (maybe target suffix) */
     LstNode 	    	singleLn;   /* element in suffix list of any suffix
 				     * that exactly matches str */
     Suff    	    	*single = NULL;/* Source of possible transformation to
@@ -867,8 +867,8 @@ Suff_GetPath (sname)
 void
 Suff_DoPaths()
 {
-    register Suff   	*s;
-    register LstNode  	ln;
+    Suff	   	*s;
+    LstNode	  	ln;
     char		*ptr;
     Lst	    	    	inIncludes; /* Cumulative .INCLUDES path */
     Lst	    	    	inLibs;	    /* Cumulative .LIBS path */
@@ -1222,7 +1222,7 @@ SuffFindCmds (targ, slst)
     Lst		slst;
 {
     LstNode 	  	ln; 	/* General-purpose list node */
-    register GNode	*t, 	/* Target GNode */
+    GNode		*t, 	/* Target GNode */
 	    	  	*s; 	/* Source GNode */
     int	    	  	prefLen;/* The length of the defined prefix */
     Suff    	  	*suff;	/* Suffix on matching beastie */

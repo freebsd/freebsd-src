@@ -158,7 +158,7 @@ GNode *
 Targ_NewGN (name)
     char           *name;	/* the name to stick in the new node */
 {
-    register GNode *gn;
+    GNode *gn;
 
     gn = (GNode *) emalloc (sizeof (GNode));
     gn->name = estrdup (name);
@@ -291,9 +291,9 @@ Targ_FindList (names, flags)
 				 * name */
 {
     Lst            nodes;	/* result list */
-    register LstNode  ln;		/* name list element */
-    register GNode *gn;		/* node in tLn */
-    char    	  *name;
+    LstNode	   ln;		/* name list element */
+    GNode	   *gn;		/* node in tLn */
+    char    	   *name;
 
     nodes = Lst_Init (FALSE);
 
@@ -485,9 +485,9 @@ Targ_FmtTime (time)
  */
 void
 Targ_PrintType (type)
-    register int    type;
+    int    type;
 {
-    register int    tbit;
+    int    tbit;
 
 #define PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
 #define PRINTDBIT(attr) case CONCAT(OP_,attr): if (DEBUG(TARG)) printf("." #attr " "); break

@@ -182,7 +182,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
     Lst	    	    nodeLst;   	    /* Lst on which to place the nodes */
     GNode   	    *ctxt;  	    /* Context in which to expand variables */
 {
-    register char   *cp;	    /* Pointer into line */
+    char            *cp;	    /* Pointer into line */
     GNode	    *gn;     	    /* New node */
     char	    *libName;  	    /* Library-part of specification */
     char	    *memName;  	    /* Member-part of specification */

@@ -1672,7 +1672,7 @@ JobStart(gn, flags, previous)
     Job 	  *previous;  /* The previous Job structure for this node,
 			       * if any. */
 {
-    register Job  *job;       /* new job descriptor */
+    Job	  	  *job;       /* new job descriptor */
     char	  *argv[4];   /* Argument vector to shell */
     Boolean	  cmdsOK;     /* true if the nodes commands were all right */
     Boolean 	  local;      /* Set true if the job was run locally */
@@ -1961,11 +1961,11 @@ JobStart(gn, flags, previous)
 
 static char *
 JobOutput(job, cp, endp, msg)
-    register Job *job;
-    register char *cp, *endp;
+    Job *job;
+    char *cp, *endp;
     int msg;
 {
-    register char *ecp;
+    char *ecp;
 
     if (commandShell->noPrint) {
 	ecp = Str_FindSubstring(cp, commandShell->noPrint);
@@ -2034,15 +2034,15 @@ JobOutput(job, cp, endp, msg)
  */
 STATIC void
 JobDoOutput(job, finish)
-    register Job   *job;	  /* the job whose output needs printing */
+    Job		   *job;	  /* the job whose output needs printing */
     Boolean	   finish;	  /* TRUE if this is the last time we'll be
 				   * called for this job */
 {
     Boolean       gotNL = FALSE;  /* true if got a newline */
     Boolean       fbuf;  	  /* true if our buffer filled up */
-    register int  nr;	      	  /* number of bytes read */
-    register int  i;	      	  /* auxiliary index into outBuf */
-    register int  max;	      	  /* limit for i (end of current data) */
+    int		  nr;	      	  /* number of bytes read */
+    int		  i;	      	  /* auxiliary index into outBuf */
+    int		  max;	      	  /* limit for i (end of current data) */
     int		  nRead;      	  /* (Temporary) number of bytes read */
 
     FILE      	  *oFILE;	  /* Stream pointer to shell's output file */
@@ -2182,7 +2182,7 @@ end_loop:
 	    (void) fprintf(stdout, "Results of making %s:\n", job->node->name);
 	    (void) fflush(stdout);
 	    while (fgets(inLine, sizeof(inLine), oFILE) != NULL) {
-		register char	*cp, *endp, *oendp;
+		char	*cp, *endp, *oendp;
 
 		cp = inLine;
 		oendp = endp = inLine + strlen(inLine);
@@ -2233,7 +2233,7 @@ Job_CatchChildren(block)
     Boolean	  block;    	/* TRUE if should block on the wait. */
 {
     int    	  pid;	    	/* pid of dead child */
-    register Job  *job;	    	/* job descriptor for dead child */
+    Job		  *job;	    	/* job descriptor for dead child */
     LstNode       jnode;    	/* list element for finding job */
     int	  	  status;   	/* Exit/termination status */
 
@@ -2317,8 +2317,8 @@ Job_CatchOutput()
     int           	  nfds;
     struct timeval	  timeout;
     fd_set           	  readfds;
-    register LstNode	  ln;
-    register Job   	  *job;
+    LstNode		  ln;
+    Job		   	  *job;
 #ifdef RMT_WILL_WATCH
     int	    	  	  pnJobs;   	/* Previous nJobs */
 #endif
@@ -2584,9 +2584,9 @@ static Shell *
 JobMatchShell(name)
     char	  *name;      /* Final component of shell path */
 {
-    register Shell *sh;	      /* Pointer into shells table */
-    Shell	   *match;    /* Longest-matching shell */
-    register char *cp1,
+    Shell	  *sh;	      /* Pointer into shells table */
+    Shell	  *match;     /* Longest-matching shell */
+    char	  *cp1,
 		  *cp2;
     char	  *eoname;
 
@@ -2658,8 +2658,8 @@ Job_ParseShell(line)
 {
     char    	  **words;
     int	    	  wordCount;
-    register char **argv;
-    register int  argc;
+    char	  **argv;
+    int		  argc;
     char    	  *path;
     Shell   	  newShell;
     Boolean 	  fullSpec = FALSE;
@@ -3045,7 +3045,7 @@ void
 JobFlagForMigration(hostID)
     int 	  hostID;    	/* ID of host we used, for matching children. */
 {
-    register Job  *job;	    	/* job descriptor for dead child */
+    Job		  *job;	    	/* job descriptor for dead child */
     LstNode       jnode;    	/* list element for finding job */
 
     if (DEBUG(JOB)) {
