@@ -270,7 +270,11 @@ in the configuration file.  For example, the line
 
 is synonomous with
 .Fl log .
-Empty lines and lines beginning with '#' are ignored.
+.Pp
+Trailing spaces and empty lines are ignored.
+A
+.Ql \&#
+sign will mark the remaining of the line as a comment.
 
 .It Fl reverse
 Reverse operation of natd. This can be useful in some 
