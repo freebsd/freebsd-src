@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.29 1997/12/16 17:40:17 eivind Exp $
+ * $Id: kern_resource.c,v 1.30 1998/01/19 12:39:00 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -258,7 +258,17 @@ rtprio(curp, uap)
 			if (uap->pid)
 				return (EPERM);
 			/* can't set realtime priority */
+/*
+ * Realtime priority has to be restricted for reasons which should be
+ * obvious. However, for idle priority, there is a potential for
+ * system deadlock if an idleprio process gains a lock on a resource
+ * that other processes need (and the idleprio process can't run
+ * due to a CPU-bound normal process). Fix me! XXX
+ */
+#if 0
 			if (rtp.type == RTP_PRIO_REALTIME)
+#endif
+			if (rtp.type != RTP_PRIO_NORMAL)
 				return (EPERM);
 		}
 		switch (rtp.type) {
