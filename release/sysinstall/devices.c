@@ -104,6 +104,9 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"				},
+#ifdef PC98
+    { DEVICE_TYPE_NETWORK,	"snc",		"SONIC ethernet card"						},
+#endif
     { DEVICE_TYPE_NETWORK,	"sn",		"SMC/Megahertz ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"ste",		"Sundance ST201 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sk",		"SysKonnect PCI gigabit ethernet card"				},
@@ -120,7 +123,6 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
 #ifdef PC98
-    { DEVICE_TYPE_NETWORK,	"snc",		"SONIC ethernet card"						},
     { DEVICE_TYPE_DISK, 	"wd%d",		"IDE disk device",		3, 65538, 8, 16			},
     { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",		69, 2, 8, 4			},
     { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	87, 0, 8, 4			},
