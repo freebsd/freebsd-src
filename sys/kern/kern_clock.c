@@ -154,6 +154,7 @@ hardclock(frame)
 	register struct clockframe *frame;
 {
 	register struct proc *p;
+	int need_softclock = 0;
 
 	p = curproc;
 	if (p != idleproc) {
@@ -187,16 +188,25 @@ hardclock(frame)
 		statclock(frame);
 
 	tc_windup();
-	ticks++;
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
+	mtx_enter(&callout_lock, MTX_SPIN);
+	ticks++;
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
-		sched_swi(softclock_ih, SWI_NOSWITCH);
+		need_softclock = 1;
 	} else if (softticks + 1 == ticks)
 		++softticks;
+	mtx_exit(&callout_lock, MTX_SPIN);
+
+	/*
+	 * sched_swi acquires sched_lock, so we don't want to call it with
+	 * callout_lock held; incorrect locking order.
+	 */
+	if (need_softclock)
+		sched_swi(softclock_ih, SWI_NOSWITCH);
 }
 
 /*
