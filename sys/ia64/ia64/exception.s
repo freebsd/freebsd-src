@@ -299,7 +299,7 @@ ia64_vector_table:
 
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=12<<2		// XXX get page size from VHPT
+	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
 	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
@@ -369,7 +369,7 @@ ia64_vector_table:
 
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=12<<2		// XXX get page size from VHPT
+	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
 	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
@@ -439,7 +439,7 @@ ia64_vector_table:
 
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=12<<2		// XXX get page size from VHPT
+	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
 	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
