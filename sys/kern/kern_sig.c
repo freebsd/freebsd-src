@@ -219,7 +219,7 @@ do_sigaction(p, sig, act, oact, old)
 {
 	register struct sigacts *ps;
 
-	if (sig <= 0 || sig > _SIG_MAXSIG)
+	if (!_SIG_VALID(sig))
 		return (EINVAL);
 
 	PROC_LOCK(p);
@@ -1053,7 +1053,7 @@ kill(td, uap)
 	register struct proc *p;
 	int error = 0;
 
-	if ((u_int)uap->signum > _SIG_MAXSIG)
+	if (!_SIG_VALID(uap->signum))
 		return (EINVAL);
 
 	mtx_lock(&Giant);
@@ -1105,7 +1105,7 @@ okillpg(td, uap)
 {
 	int error;
 
-	if ((u_int)uap->signum > _SIG_MAXSIG)
+	if (!_SIG_VALID(uap->signum))
 		return (EINVAL);
 	mtx_lock(&Giant);
 	error = killpg1(td->td_proc, uap->signum, uap->pgid, 0);
@@ -1220,10 +1220,8 @@ psignal(p, sig)
 	struct thread *td;
 	struct ksegrp *kg;
 
-	if (sig > _SIG_MAXSIG || sig <= 0) {
-		printf("psignal: signal %d\n", sig);
-		panic("psignal signal number");
-	}
+	KASSERT(_SIG_VALID(sig),
+	    ("psignal(): invalid signal %d\n", sig));
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
