@@ -13,7 +13,6 @@ SUBDIR=	accf_data \
 	bridge \
 	ccd \
 	cd9660 \
-	ciss \
 	coda \
 	cue \
 	dc \
@@ -91,6 +90,7 @@ SUBDIR=	accf_data \
 SUBDIR+=aac \
 	asr \
 	bktr \
+	ciss \
 	coff \
 	fpu \
 	gnufpu \
