@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.20 1994/11/15 13:42:18 ache Exp $
+#	$Id: Makefile,v 1.21 1995/03/18 07:03:51 rgrimes Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -46,10 +46,18 @@ beforeinstall: ${SHARED}
 		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
-	@${ECHO} creating osreldate.h
+.if exists (${.CURDIR}/../sys/conf/newvers.sh)
+	@${ECHO} creating osreldate.h from newvers.sh
+	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
+	JUST_TELL_ME=please ;						\
+	. ${.CURDIR}/../sys/conf/newvers.sh ;				\
+	echo \#'define __FreeBSD_version' $$RELDATE >> ${OSREL}.new
+.else
+	@${ECHO} creating osreldate.h from sysctl info
 	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
 		>> ${OSREL}.new
+.endif
 	@if cmp -s ${OSREL} ${OSREL}.new ; then \
 		rm -f ${OSREL}.new ; else \
 		mv -f ${OSREL}.new ${OSREL} ; fi
