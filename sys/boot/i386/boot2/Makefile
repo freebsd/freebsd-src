@@ -26,7 +26,7 @@ BTX=	${.CURDIR}/../btx
 
 REL1=	0x700
 ORG1=	0x7c00
-ORG2=	0x1000
+ORG2=	0x2000
 
 # Setting this to anything else gives UFS1+2 support and larger
 # boot2 binary.
