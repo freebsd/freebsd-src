@@ -78,6 +78,7 @@ extern const union ipx_host ipx_broadhost;
 
 struct ifnet;
 struct ipx_addr;
+struct ipxpcb;
 struct mbuf;
 struct thread;
 struct route;
