@@ -125,6 +125,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     
+    buf.Pointer = NULL;
+    crsbuf.Pointer = NULL;
+    prsbuf.Pointer = NULL;
     interrupt = 255;
 
     /* ACPI numbers pins 0-3, not 1-4 like the BIOS */
@@ -184,7 +187,6 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Verify that this is a PCI link device, and that it's present.
      */
-    buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &buf))) {
 	device_printf(pcib, "couldn't validate PCI interrupt link device %s\n",
@@ -210,14 +212,12 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Get the current and possible resources for the interrupt link device.
      */
-    crsbuf.Pointer = NULL;
     crsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(pcib, "couldn't get PCI interrupt link device _CRS data - %s\n",
 		      AcpiFormatException(status));
 	goto out;	/* this is fatal */
     }
-    prsbuf.Pointer = NULL;
     prsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetPossibleResources(lnkdev, &prsbuf))) {
 	device_printf(pcib, "couldn't get PCI interrupt link device _PRS data - %s\n",
