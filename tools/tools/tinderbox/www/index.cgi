@@ -33,6 +33,8 @@ use 5.006_001;
 use strict;
 use POSIX qw(strftime);
 
+my $STALE = 8 * 3600;
+
 my %BRANCHES;
 
 my %ARCHES;
@@ -100,6 +102,8 @@ MAIN:{
     }
     print "      </tr>\n";
 
+    my $now = time();
+
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
 	    my $html =  "      <tr>
@@ -111,6 +115,8 @@ MAIN:{
 		if (-f "$DIR/$log.brief") {
 		    my @stat = stat("$DIR/$log.brief");
 		    my $class = success("$DIR/$log.brief") ? "ok" : "fail";
+		    $class .= "-stale"
+			if ($now - $stat[9] > $STALE);
 		    $links .= "<span class=\"$class\">" .
 			strftime("%Y-%m-%d %H:%M&nbsp;UTC", gmtime($stat[9])) .
 			"</span><br />";
