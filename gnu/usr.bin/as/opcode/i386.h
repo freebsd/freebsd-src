@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $Id: i386.h,v 1.2 1994/12/11 20:46:55 sef Exp $ */
+/* $Id: i386.h,v 1.3 1995/05/30 04:48:01 rgrimes Exp $ */
 
 static const template i386_optab[] = {
 
@@ -27,7 +27,7 @@ static const template i386_optab[] = {
 { "mov", 2, 0x88, _, DW|Modrm, Reg, Reg|Mem, 0 },
 { "mov", 2, 0xb0, _, ShortFormW, Imm, Reg, 0 },
 { "mov", 2, 0xc6, _,  W|Modrm,  Imm, Reg|Mem, 0 },
-{ "mov", 2, 0x8c, _, D|Modrm,  SReg3|SReg2, Reg16|Mem16, 0 },
+{ "mov", 2, 0x8c, _, D|Modrm,  SReg3|SReg2, WordReg|WordMem, 0 },
 /* move to/from control debug registers */
 { "mov", 2, 0x0f20, _, D|Modrm, Control, Reg32, 0},
 { "mov", 2, 0x0f21, _, D|Modrm, Debug, Reg32, 0},
@@ -760,6 +760,8 @@ static const reg_entry i386_regtab[] = {
   /* debug registers */
   {"db0", Debug, 0},   {"db1", Debug, 1},   {"db2", Debug, 2},
   {"db3", Debug, 3},   {"db6", Debug, 6},   {"db7", Debug, 7},
+  {"dr0", Debug, 0},   {"dr1", Debug, 1},   {"dr2", Debug, 2},
+  {"dr3", Debug, 3},   {"dr6", Debug, 6},   {"dr7", Debug, 7},
   /* test registers */
   {"tr6", Test, 6}, {"tr7", Test, 7},
   /* float registers */

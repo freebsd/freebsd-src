@@ -19,7 +19,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: read.c,v 1.5 1994/12/23 22:36:15 nate Exp $";
+static char rcsid[] = "$Id: read.c,v 1.6 1995/05/30 04:46:31 rgrimes Exp $";
 #endif
 
 #define MASK_CHAR (0xFF)	/* If your chars aren't 8 bits, you will
@@ -644,6 +644,7 @@ int arg;
 	    as_bad("Alignment not a power of 2");
 
 	temp = i;
+
 	if (*input_line_pointer == ',') {
 		input_line_pointer ++;
 		temp_fill = get_absolute_expression();
@@ -740,11 +741,7 @@ void
 	register int temp;
 
 	temp = get_absolute_expression();
-#ifdef MANY_SEGMENTS
-	subseg_new (SEG_E1, (subsegT)temp);
-#else
 	subseg_new (SEG_DATA, (subsegT)temp);
-#endif
 
 #ifdef OBJ_VMS
 	const_flag = 0;
@@ -939,12 +936,7 @@ int needs_align;	/* 1 if this was a ".bss" directive, which may require
 			align = 0;
 			as_warn("Alignment negative. 0 assumed.");
 		}
-#ifdef MANY_SEGMENTS
-#define SEG_BSS SEG_E2
-		record_alignment(SEG_E2, align);
-#else
 		record_alignment(SEG_BSS, align);
-#endif
 	} /* if needs align */
 
 	*p = 0;
@@ -1022,15 +1014,8 @@ void s_lsym() {
 	}
 	input_line_pointer ++;
 	segment = expression(& exp);
-	if (segment != SEG_ABSOLUTE
-#ifdef MANY_SEGMENTS
-	    && ! ( segment >= SEG_E0 && segment <= SEG_UNKNOWN)
-#else
-	    && segment != SEG_DATA
-	    && segment != SEG_TEXT
-	    && segment != SEG_BSS
-#endif
-	    && segment != SEG_REGISTER) {
+	if (segment != SEG_ABSOLUTE && !SEG_NORMAL(segment) &&
+	    segment != SEG_REGISTER) {
 		as_bad("Bad expression: %s", segment_name(segment));
 		ignore_rest_of_line();
 		return;
@@ -1274,6 +1259,28 @@ void s_type() {
 	demand_empty_rest_of_line();
 } /* s_type() */
 
+void s_weak() {
+	register char *name;
+	register int c;
+	register symbolS *	symbolP;
+
+	do {
+		name = input_line_pointer;
+		c = get_symbol_end();
+		symbolP = symbol_find_or_make(name);
+		* input_line_pointer = c;
+		SKIP_WHITESPACE();
+		symbolP->sy_bind = BIND_WEAK;
+		if (c == ',') {
+			input_line_pointer++;
+			SKIP_WHITESPACE();
+			if (*input_line_pointer == '\n')
+				c='\n';
+		}
+	} while (c == ',');
+	demand_empty_rest_of_line();
+} /* s_weak() */
+
 void s_space() {
 	long temp_repeat;
 	register long temp_fill;
@@ -1305,11 +1312,7 @@ void
 	register int temp;
 
 	temp = get_absolute_expression();
-#ifdef MANY_SEGMENTS
-	subseg_new (SEG_E0, (subsegT)temp);
-#else
 	subseg_new (SEG_TEXT, (subsegT)temp);
-#endif
 	demand_empty_rest_of_line();
 } /* s_text() */
 
@@ -1429,16 +1432,8 @@ symbolS *	symbolP;
 		    break;
 
 	    default:
-#ifdef MANY_SEGMENTS
+		    know(SEG_NORMAL(segment));
 		    S_SET_SEGMENT(symbolP, segment);
-#else
-		    switch (segment) {
-		    case SEG_DATA:	S_SET_SEGMENT(symbolP, SEG_DATA); break;
-		    case SEG_TEXT:	S_SET_SEGMENT(symbolP, SEG_TEXT); break;
-		    case SEG_BSS:	S_SET_SEGMENT(symbolP, SEG_BSS); break;
-		    default:	as_fatal("failed sanity check.");
-		    }	/* switch on segment */
-#endif
 #if defined(OBJ_AOUT) | defined(OBJ_BOUT)
 		    if (ext) {
 			    S_SET_EXTERNAL(symbolP);
