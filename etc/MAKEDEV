@@ -81,6 +81,7 @@
 #	lpt*	Printer
 #	ppi*	Parallel port i/o
 #	pps*	Pulse per second timing interface
+#	pcfclock*  Parallel time sync interface
 #
 # I2C and SMBus:
 #	iic*	I2C devices
@@ -864,6 +865,11 @@ iic*)
 smb*)
 	unit=`expr $i : 'smb\(.*\)'`
 	mknod smb$unit c 106 $unit
+	;;
+
+pcfclock*)
+	unit=`expr $i : 'pcfclock\(.*\)'`
+	mknod pcfclock$unit c 140 $unit
 	;;
 
 ppi*)
