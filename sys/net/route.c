@@ -1042,8 +1042,10 @@ rtinit(ifa, cmd, flags)
 		 * have already existed or something. (XXX)
 		 */
 		if (rt->rt_ifa != ifa) {
-			printf("rtinit: wrong ifa (%p) was (%p)\n", ifa,
-				rt->rt_ifa);
+			if (!(rt->rt_ifa->ifa_ifp->if_flags &
+			    (IFF_POINTOPOINT|IFF_LOOPBACK)))
+				printf("rtinit: wrong ifa (%p) was (%p)\n",
+				    ifa, rt->rt_ifa);
 			/*
 			 * Ask that the protocol in question
 			 * remove anything it has associated with
@@ -1052,7 +1054,7 @@ rtinit(ifa, cmd, flags)
 			if (rt->rt_ifa->ifa_rtrequest)
 			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
 			/*
-			 * Remove the referenve to the it's ifaddr.
+			 * Remove the reference to its ifaddr.
 			 */
 			IFAFREE(rt->rt_ifa);
 			/*
