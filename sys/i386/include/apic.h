@@ -39,7 +39,7 @@
  * Base Address of Built-in APIC in memory location
  * is 0xfee00000.
  * 
- * Map of APIC REgisters:
+ * Map of APIC Registers:
  * 
  * Offset (hex)    Description                     Read/Write state
  * 000             Reserved
