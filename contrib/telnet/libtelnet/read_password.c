@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)read_password.c	8.3 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -101,7 +105,7 @@ local_des_read_pw_string(s,max,prompt,verify)
     if (ioctl(0,TIOCSETP,(char *)&tty_state) == -1)
 	return -1;
     while (!ok) {
-	(void) printf(prompt);
+	(void) printf("%s", prompt);
 	(void) fflush(stdout);
 	while (!fgets(s, max, stdin));
 
