@@ -69,5 +69,7 @@ afterinstall:
 	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
 		${LOCALEDIR}/${link}.US-ASCII/LC_CTYPE
 .endfor
+	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
+		${LOCALEDIR}/tr_TR.ISO8859-9/LC_CTYPE
 
 .include <bsd.prog.mk>
