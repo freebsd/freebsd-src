@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
+#include <opt_ddb.h>
+
 /*
  * Multiple symbol tables
  */
@@ -308,7 +310,11 @@ db_printsym(off, strategy)
 		db_printf("%#lr", (unsigned long)off);
 		return;
 	}
+#ifdef DDB_NUMSYM
+	db_printf("%#lr = %s", (unsigned long)off, name);
+#else
 	db_printf("%s", name);
+#endif
 	if (d)
 		db_printf("+%+#lr", (long)d);
 	if (strategy == DB_STGY_PROC) {
