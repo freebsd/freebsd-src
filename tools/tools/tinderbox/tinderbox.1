@@ -187,6 +187,15 @@ Note that this is a lengthy process which requires root privileges.
 .Pp
 The commands are executed in the order in which they are listed above,
 regardless of the order in which they are listed on the command line.
+.Pp
+Finally, any arguments of the form
+.Ar variable Ns = Ns Ar value
+are interpreted as environment variables which are exported into the
+build environment.
+These variables are not allowed to override those set by the script
+itself (see
+.Sx ENVIRONMENT
+below).
 .Sh NOTES
 The
 .Nm
@@ -275,12 +284,12 @@ if a patch was specified.
 .Va YES
 .El
 .Sh SEE ALSO
-.Xr build 7 ,
 .Xr cvs 1 ,
 .Xr make 1 ,
 .Xr patch 1 ,
-.Xr release 7 ,
-.Xr tbmaster 1
+.Xr tbmaster 1 ,
+.Xr build 7 ,
+.Xr release 7
 .Sh AUTHORS
 .Nm
 was written by
