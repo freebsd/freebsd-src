@@ -46,6 +46,7 @@
 .Op Fl k Ar keywords
 .Op Fl p Ar path
 .Op Fl s Ar seed
+.Op Fl X Ar exclude-list
 .Sh DESCRIPTION
 The utility
 .Nm mtree
@@ -117,6 +118,19 @@ except a status of 2 is returned if the file hierarchy did not match
 the specification.
 .It Fl x
 Don't descend below mount points in the file hierarchy.
+.It Fl X Ar exclude-list
+The specified file contains
+.Xr fnmatch 3
+patterns matching files to be excluded from
+the specification, one to a line.
+If the pattern contains a
+.Ql \&/
+character, it will be matched against entire pathnames (relative to
+the starting directory); otherwise,
+it will be matched against basenames only.  No comments are allowed in
+the
+.Ar exclude-list
+file.
 .El
 .Pp
 Specifications are mostly composed of ``keywords'', i.e. strings that
