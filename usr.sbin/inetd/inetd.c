@@ -544,6 +544,11 @@ main(int argc, char **argv)
 		syslog(LOG_ERR, "pipe: %m");
 		exit(EX_OSERR);
 	}
+	if (fcntl(signalpipe[0], F_SETFD, FD_CLOEXEC) < 0 ||
+	    fcntl(signalpipe[1], F_SETFD, FD_CLOEXEC) < 0) {
+		syslog(LOG_ERR, "signalpipe: fcntl (F_SETFD, FD_CLOEXEC): %m");
+		exit(EX_OSERR);
+	}
 	FD_SET(signalpipe[0], &allsock);
 #ifdef SANITY_CHECK
 	nsock++;
@@ -724,11 +729,6 @@ main(int argc, char **argv)
 		    sigsetmask(0L);
 		    if (pid == 0) {
 			    if (dofork) {
-				if (debug)
-					warnx("+ closing from %d", maxsock);
-				for (tmpint = maxsock; tmpint > 2; tmpint--)
-					if (tmpint != ctrl)
-						(void) close(tmpint);
 				sigaction(SIGALRM, &saalrm, (struct sigaction *)0);
 				sigaction(SIGCHLD, &sachld, (struct sigaction *)0);
 				sigaction(SIGHUP, &sahup, (struct sigaction *)0);
@@ -779,8 +779,17 @@ main(int argc, char **argv)
 				if (debug)
 					warnx("%d execl %s",
 						getpid(), sep->se_server);
-				dup2(ctrl, 0);
-				close(ctrl);
+				/* Clear close-on-exec. */
+				if (fcntl(ctrl, F_SETFD, 0) < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: fcntl (F_SETFD, 0): %m",
+						sep->se_service, sep->se_proto);
+					_exit(EX_OSERR);
+				}
+				if (ctrl != 0) {
+					dup2(ctrl, 0);
+					close(ctrl);
+				}
 				dup2(0, 1);
 				dup2(0, 2);
 				if ((pwd = getpwnam(sep->se_user)) == NULL) {
@@ -1257,6 +1266,13 @@ setup(struct servtab *sep)
 				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
+		return;
+	}
+	/* Set all listening sockets to close-on-exec. */
+	if (fcntl(sep->se_fd, F_SETFD, FD_CLOEXEC) < 0) {
+		syslog(LOG_ERR, "%s/%s: fcntl (F_SETFD, FD_CLOEXEC): %m",
+		    sep->se_service, sep->se_proto);
+		close(sep->se_fd);
 		return;
 	}
 #define	turnon(fd, opt) \
