@@ -4363,8 +4363,7 @@ clear_inodedeps(p)
 	 * Ugly code to find mount point given pointer to superblock.
 	 */
 	fs = inodedep->id_fs;
-	for (mp = CIRCLEQ_FIRST(&mountlist); mp != (void *)&mountlist;
-	     mp = CIRCLEQ_NEXT(mp, mnt_list))
+	TAILQ_FOREACH(mp, &mountlist, mnt_list)
 		if ((mp->mnt_flag & MNT_SOFTDEP) && fs == VFSTOUFS(mp)->um_fs)
 			break;
 	/*

@@ -447,7 +447,7 @@ xxx_vfs_root_fdtab(dummy)
 	register struct filedesc0	*fdp = &filedesc0;
 
 	/* Get the vnode for '/'.  Set fdp->fd_fd.fd_cdir to reference it. */
-	if (VFS_ROOT(CIRCLEQ_FIRST(&mountlist), &rootvnode))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
 		panic("cannot find root vnode");
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);

@@ -97,7 +97,7 @@ struct statfs {
 LIST_HEAD(vnodelst, vnode);
 
 struct mount {
-	CIRCLEQ_ENTRY(mount) mnt_list;		/* mount list */
+	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
 	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
@@ -403,7 +403,7 @@ void	vfs_unbusy __P((struct mount *, struct proc *));
 void	vfs_unmountall __P((void));
 int	vfs_register __P((struct vfsconf *));
 int	vfs_unregister __P((struct vfsconf *));
-extern	CIRCLEQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
+extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct simplelock mountlist_slock;
 extern	struct nfs_public nfs_pub;
 
