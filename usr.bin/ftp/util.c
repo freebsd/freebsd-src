@@ -624,7 +624,7 @@ progressmeter(flag)
 	ratio = MAX(ratio, 0);
 	ratio = MIN(ratio, 100);
 	n = snprintf(buf + len, sizeof(buf) - len, "\r%3d%% ", ratio);
-	if (n > 0)
+	if (n > 0 || len < sizeof(buf) - len)
 		len += n;
 
 	barlength = ttywidth - 30;
@@ -635,7 +635,7 @@ progressmeter(flag)
 "*****************************************************************************"
 "*****************************************************************************",
 		    barlength - i, "");
-		if (n > 0)
+		if (n > 0 || len < sizeof(buf) - len)
 			len += n;
 	}
 
@@ -648,7 +648,7 @@ progressmeter(flag)
 	n = snprintf(buf + len, sizeof(buf) - len,
 	    " %5qd %c%c ", (long long)abbrevsize, prefixes[i],
 	    prefixes[i] == ' ' ? ' ' : 'B');
-	if (n > 0)
+	if (n > 0 || len < sizeof(buf) - len)
 		len += n;
 
 	timersub(&now, &lastupdate, &wait);
@@ -685,14 +685,14 @@ progressmeter(flag)
 			else
 				n = snprintf(buf + len, sizeof(buf) - len,
 				    "   ");
- 			if (n > 0)
+			if (n > 0 || len < sizeof(buf) - len)
 				len += n;
 			i = remaining % SECSPERHOUR;
 			len += snprintf(buf + len, sizeof(buf) - len,
 			    "%02d:%02d ETA", i / 60, i % 60);
 		}
 	}
-	if (n > 0)
+	if (n > 0 || len < sizeof(buf) - len)
 		len += n;
 	(void)write(STDOUT_FILENO, buf, len);
 
