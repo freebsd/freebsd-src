@@ -967,7 +967,7 @@ ihfc_Dsel_fifo(ihfc_sc_t *sc, u_char chan, u_char flag)
 /*---------------------------------------------------------------------------*
  *	Data handler for D channel(write) - chan 0		(HFC-S/SP)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_hdlc_Dwrite (ihfc_sc_t *sc, u_char chan)
 {
 	register u_int32_t  sendlen;
@@ -1028,7 +1028,7 @@ ihfc_hdlc_Dwrite (ihfc_sc_t *sc, u_char chan)
  *	NOTE: Max framelength is (511 - 3) = 508 bytes, when only one frame
  *	      is received at a time.
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_hdlc_Dread (ihfc_sc_t *sc, u_char chan)
 {
 	register u_char	    tmp = -1;
@@ -1143,7 +1143,7 @@ ihfc_cmdr_hdlr (ihfc_sc_t *sc, u_char cmdr)
 /*---------------------------------------------------------------------------*
  *	Data handler for D channel(write) - chan 0 		(HFC-1)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_isac_Dwrite (ihfc_sc_t *sc, u_char chan)
 {
 	register u_char   sendlen = 32;
@@ -1195,7 +1195,7 @@ ihfc_isac_Dwrite (ihfc_sc_t *sc, u_char chan)
 /*---------------------------------------------------------------------------*
  *	Data handler for D channel(read) - chan 1 		(HFC-1)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_isac_Dread (ihfc_sc_t *sc, u_char chan)
 {
 	register u_char   cmd = 0;
@@ -1279,7 +1279,7 @@ ihfc_isac_Dread (ihfc_sc_t *sc, u_char chan)
  *
  *	NOTE: No XDU checking!
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_trans_Bwrite (ihfc_sc_t *sc, u_char chan)
 {
 	register u_short  sendlen;
@@ -1328,7 +1328,7 @@ ihfc_trans_Bwrite (ihfc_sc_t *sc, u_char chan)
  *	Data handler for B channel(read) - chan 3 and 5		(HFC-1/S/SP)
  *	(this code is optimized)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_trans_Bread (ihfc_sc_t *sc, u_char chan)
 {
 	register u_short  reclen;
@@ -1390,7 +1390,7 @@ ihfc_trans_Bread (ihfc_sc_t *sc, u_char chan)
  *	
  *	NOTE: Software HDLC encoding!
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_hdlc_Bwrite (ihfc_sc_t *sc, u_char chan)
 {
 	register u_short  blevel  = S_HDLC_BLEVEL;
@@ -1474,7 +1474,7 @@ ihfc_hdlc_Bwrite (ihfc_sc_t *sc, u_char chan)
  *	
  *	NOTE: Software HDLC decoding!
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_hdlc_Bread (ihfc_sc_t *sc, u_char chan)
 {
 	register u_char   blevel = S_HDLC_BLEVEL;
@@ -1580,7 +1580,7 @@ ihfc_hdlc_Bread (ihfc_sc_t *sc, u_char chan)
  *
  *	NOTE: This filter is only for testing purpose.
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_test_Bwrite (ihfc_sc_t *sc, u_char chan)
 {
 	struct mbuf *m;
@@ -1646,7 +1646,7 @@ ihfc_test_Bwrite (ihfc_sc_t *sc, u_char chan)
  *
  *	NOTE: This filter is only for testing purpose.
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_test_Bread (ihfc_sc_t *sc, u_char chan)
 {
 	static u_short toterrors = 0;
