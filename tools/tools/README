@@ -14,3 +14,4 @@ epfe 		extract printing filter examples from printing.sgml
 tcl_bmake	generates a bmake Makefile for src/lib/libtcl
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
+scsi-defects	Get at the primary or grown defect list of a SCSI disk.
