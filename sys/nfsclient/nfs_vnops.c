@@ -434,6 +434,7 @@ nfs_open(struct vop_open_args *ap)
 			np->n_mtime = vattr.va_mtime;
 		}
 	}
+	np->ra_expect_lbn = 0;
 	return (0);
 }
 
