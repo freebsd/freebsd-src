@@ -6,8 +6,8 @@
 PROG=	usbhidctl
 SRCS=	usbhid.c
 
-LDADD+=	-lusb
-DPADD+=	${LIBUSB}
+LDADD+=	-lusbhid
+DPADD+=	${LIBUSBHID}
 
 .include <bsd.prog.mk>
 .include <bsd.subdir.mk>
