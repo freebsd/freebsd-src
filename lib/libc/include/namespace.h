@@ -38,6 +38,7 @@
  * ISO C (C90) section.  Most names in libc aren't in ISO C, so they
  * should be here.  Most aren't here...
  */
+#define		err				_err
 #define		warn				_warn
 
 /*
