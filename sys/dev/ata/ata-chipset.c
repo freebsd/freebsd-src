@@ -314,10 +314,10 @@ ata_ali_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ALI_5229, 0xc4, 0, ALICABLE,   ATA_UDMA5, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0xc2, 0, ALICABLE,   ATA_UDMA4, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x20, 0, ALIOLD,     ATA_UDMA2, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x00, 0, ALIOLD,     ATA_WDMA2, "AcerLabs Aladdin" },
+    {{ ATA_ALI_5229, 0xc4, 0, ALICABLE, ATA_UDMA5, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0xc2, 0, ALICABLE, ATA_UDMA4, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0x20, 0, ALIOLD,   ATA_UDMA2, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0x00, 0, ALIOLD,   ATA_WDMA2, "AcerLabs Aladdin" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1276,11 +1276,11 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII0680, 0x00, SII_SETCLK, 0x00,	ATA_UDMA6, "SiI 0680" },
-     { ATA_CMD649,  0x00, 0,	      SII_INTR, ATA_UDMA5, "CMD 649" },
-     { ATA_CMD648,  0x00, 0,	      SII_INTR, ATA_UDMA4, "CMD 648" },
-     { ATA_CMD646,  0x07, 0,	      0x00,	ATA_UDMA2, "CMD 646U2" },
-     { ATA_CMD646,  0x00, 0,	      0x00,	ATA_WDMA2, "CMD 646" },
+    {{ ATA_SII0680, 0x00, 0, SII_SETCLK, ATA_UDMA6, "SiI 0680" },
+     { ATA_CMD649,  0x00, 0, SII_INTR,   ATA_UDMA5, "CMD 649" },
+     { ATA_CMD648,  0x00, 0, SII_INTR,   ATA_UDMA4, "CMD 648" },
+     { ATA_CMD646,  0x07, 0, SII_ENINTR, ATA_UDMA2, "CMD 646U2" },
+     { ATA_CMD646,  0x00, 0, SII_ENINTR, ATA_WDMA2, "CMD 646" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -1313,7 +1313,10 @@ ata_sii_chipinit(device_t dev)
 	return ENXIO;
     }
 
-    if (ctlr->chip->cfg1 == SII_SETCLK) {
+    if (ctlr->chip->cfg2 & SII_ENINTR)
+	pci_write_config(dev, 0x71, 0x01, 1);
+
+    if (ctlr->chip->cfg2 & SII_SETCLK) {
 	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
 	    pci_write_config(dev, 0x8a, 
 			     (pci_read_config(dev, 0x8a, 1) & 0x0F) | 0x10, 1);

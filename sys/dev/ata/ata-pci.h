@@ -220,8 +220,9 @@ struct ata_pci_controller {
 #define SWKS66		1
 #define SWKS100		2
 
-#define SII_SETCLK	1
 #define SII_INTR	0x01
+#define SII_SETCLK	0x02
+#define SII_ENINTR	0x04
 
 #define SIS_SOUTH	1
 #define SIS133NEW	2
