@@ -123,6 +123,14 @@ loadlocale(category)
 		return (current_categories[LC_CTYPE]);
 	}
 
+	if (category == LC_COLLATE) {
+		if (__collate_load_tables(new_categories[LC_COLLATE]) < 0)
+			return (NULL);
+		(void)strcpy(current_categories[LC_COLLATE],
+		    new_categories[LC_COLLATE]);
+		return (current_categories[LC_COLLATE]);
+	}
+
 	if (!strcmp(new_categories[category], "C") ||
 		!strcmp(new_categories[category], "POSIX")) {
 
