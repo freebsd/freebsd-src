@@ -55,7 +55,12 @@ void
 findmail(user, buf)
 	char *user, *buf;
 {
-	(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, user);
+	char	*tmp = getenv("MAIL");
+
+	if (tmp == NULL)
+		(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, user);
+	else
+		(void)strcpy(buf, tmp);
 }
 
 /*
