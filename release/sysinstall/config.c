@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.5 1995/05/31 22:19:09 jkh Exp $
+ * $Id: config.c,v 1.15.2.6 1995/05/31 22:22:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -294,6 +294,7 @@ void
 configResolv(void)
 {
     FILE *fp;
+    char *cp;
     static Boolean hostsModified = FALSE;
 
     if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
@@ -313,13 +314,13 @@ configResolv(void)
 
 skip:
     /* Tack ourselves at the end of /etc/hosts */
-    if (getenv(VAR_IPADDR) && !hostsModified) {
+    cp = getenv(VAR_IPADDR);
+    if (cp && cp[0] != '0' && !hostsModified) {
 	fp = fopen("/etc/hosts", "a");
 	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
 	fclose(fp);
 	hostsModified = TRUE;
     }
-    /* If there's no kernel but there is a kernel.GENERIC, link it over */
 }
 
 int
