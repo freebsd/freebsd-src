@@ -43,7 +43,6 @@
 
 
 /* From: #pragma ident	"@(#)nis_db.h	1.8	94/05/03 SMI" */
-#pragma ident "$Id: nis_db.h,v 1.3 1996/07/29 13:59:13 wpaul Exp $"
 
 /*
  * Note: although the version of <rpcsvc/nis_db.h> shipped with Solaris
