@@ -69,7 +69,7 @@ static struct _devname {
     { DEVICE_TYPE_CDROM,	"matcd%d",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
 #endif
     { DEVICE_TYPE_CDROM,	"acd%d",	"ATAPI/IDE CDROM",	117, 0, 8, 4				},
-    { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4				},
+    { DEVICE_TYPE_TAPE, 	"sa%d",		"SCSI tape drive",	14, 0, 16, 4				},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4				},
     { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
     { DEVICE_TYPE_DISK, 	"ad%d",		"ATA/IDE disk device",	116, 65538, 8, 16			},
