@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.12 1997/02/22 09:41:54 peter Exp $
+ * $Id: ipx_ip.c,v 1.13 1997/03/24 11:33:33 bde Exp $
  */
 
 /*
@@ -46,11 +46,12 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
-#include <sys/protosw.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -300,9 +301,10 @@ struct ifnet *ifp;
 struct ifreq ifr_ipxip = {"ipxip0"};
 
 int
-ipxip_route(so, m)
+ipxip_route(so, m, p)
 	struct socket *so;
 	register struct mbuf *m;
+	struct proc *p;
 {
 	register struct ipxip_req *rq = mtod(m, struct ipxip_req *);
 	struct sockaddr_ipx *ipx_dst = (struct sockaddr_ipx *)&rq->rq_ipx;
@@ -370,10 +372,10 @@ ipxip_route(so, m)
 	ifr_ipxip.ifr_name[4] = '0' + ipxipif.if_unit - 1;
 	ifr_ipxip.ifr_dstaddr = * (struct sockaddr *) ipx_dst;
 	(void)ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn);
+			(struct ifnet *)ifn, p);
 	satoipx_addr(ifr_ipxip.ifr_addr).x_host = ipx_thishost;
 	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn));
+			(struct ifnet *)ifn, p));
 }
 
 int

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.11 1997/02/22 09:41:57 peter Exp $
+ * $Id: ipx_usrreq.c,v 1.12 1997/04/05 20:05:09 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -75,15 +76,15 @@ SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
             &ipxrecvspace, 0, "");
 
 static	int ipx_usr_abort(struct socket *so);
-static	int ipx_attach(struct socket *so, int proto);
-static	int ipx_bind(struct socket *so, struct mbuf *nam);
-static	int ipx_connect(struct socket *so, struct mbuf *nam);
+static	int ipx_attach(struct socket *so, int proto, struct proc *p);
+static	int ipx_bind(struct socket *so, struct mbuf *nam, struct proc *p);
+static	int ipx_connect(struct socket *so, struct mbuf *nam, struct proc *p);
 static	int ipx_detach(struct socket *so);
 static	int ipx_disconnect(struct socket *so);
 static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
-		     struct mbuf *addr, struct mbuf *control);
+		     struct mbuf *addr, struct mbuf *control, struct proc *p);
 static	int ipx_shutdown(struct socket *so);
-static	int ripx_attach(struct socket *so, int proto);
+static	int ripx_attach(struct socket *so, int proto, struct proc *p);
 
 struct pr_usrreqs ipx_usrreqs = {
 	ipx_usr_abort, pru_accept_notsupp, ipx_attach, ipx_bind,
@@ -312,11 +313,12 @@ ipx_output(ipxp, m0)
 
 /* ARGSUSED */
 int
-ipx_ctloutput(req, so, level, name, value)
+ipx_ctloutput(req, so, level, name, value, p)
 	int req, level;
 	struct socket *so;
 	int name;
 	struct mbuf **value;
+	struct proc *p;
 {
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -408,12 +410,12 @@ ipx_ctloutput(req, so, level, name, value)
 			break;
 #ifdef IPXIP
 		case SO_IPXIP_ROUTE:
-			error = ipxip_route(so, *value);
+			error = ipxip_route(so, *value, p);
 			break;
 #endif /* IPXIP */
 #ifdef IPXTUNNEL
 		case SO_IPXTUNNEL_ROUTE
-			error = ipxtun_route(so, *value);
+			error = ipxtun_route(so, *value, p);
 			break;
 #endif
 		default:
@@ -442,9 +444,10 @@ ipx_usr_abort(so)
 }
 
 static int
-ipx_attach(so, proto)
+ipx_attach(so, proto, p)
 	struct socket *so;
 	int proto;
+	struct proc *p;
 {
 	int error;
 	int s;
@@ -453,7 +456,7 @@ ipx_attach(so, proto)
 	if (ipxp != NULL)
 		return (EINVAL);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxpcb);
+	error = ipx_pcballoc(so, &ipxpcb, p);
 	splx(s);
 	if (error == 0)
 		error = soreserve(so, ipxsendspace, ipxrecvspace);
@@ -461,19 +464,21 @@ ipx_attach(so, proto)
 }
 
 static int
-ipx_bind(so, nam)
+ipx_bind(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	return (ipx_pcbbind(ipxp, nam));
+	return (ipx_pcbbind(ipxp, nam, p));
 }
 
 static int
-ipx_connect(so, nam)
+ipx_connect(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	int error;
 	int s;
@@ -482,7 +487,7 @@ ipx_connect(so, nam)
 	if (!ipx_nullhost(ipxp->ipxp_faddr))
 		return (EISCONN);
 	s = splnet();
-	error = ipx_pcbconnect(ipxp, nam);
+	error = ipx_pcbconnect(ipxp, nam, p);
 	splx(s);
 	if (error == 0)
 		soisconnected(so);
@@ -532,12 +537,13 @@ ipx_peeraddr(so, nam)
 }
 
 static int
-ipx_send(so, flags, m, nam, control)
+ipx_send(so, flags, m, nam, control, p)
 	struct socket *so;
 	int flags;
 	struct mbuf *m;
 	struct mbuf *nam;
 	struct mbuf *control;
+	struct proc *p;
 {
 	int error;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
@@ -554,7 +560,7 @@ ipx_send(so, flags, m, nam, control)
 		 * Must block input while temporarily connected.
 		 */
 		s = splnet();
-		error = ipx_pcbconnect(ipxp, nam);
+		error = ipx_pcbconnect(ipxp, nam, p);
 		if (error) {
 			splx(s);
 			goto send_release;
@@ -600,18 +606,19 @@ ipx_sockaddr(so, nam)
 }
 
 static int
-ripx_attach(so, proto)
+ripx_attach(so, proto, p)
 	struct socket *so;
 	int proto;
+	struct proc *p;
 {
 	int error = 0;
 	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	if (!(so->so_state & SS_PRIV) || (ipxp != NULL))
-		return (EINVAL);
+	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return (error);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxrawpcb);
+	error = ipx_pcballoc(so, &ipxrawpcb, p);
 	splx(s);
 	if (error)
 		return (error);
