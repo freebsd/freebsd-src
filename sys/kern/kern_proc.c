@@ -187,10 +187,10 @@ enterpgrp(p, pgid, mksess)
 		 */
 		KASSERT(p->p_pid == pgid,
 		    ("enterpgrp: new pgrp and pid != pgid"));
-		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
-		    M_WAITOK);
 		if ((np = pfind(savepid)) == NULL || np != p)
 			return (ESRCH);
+		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
+		    M_WAITOK);
 		if (mksess) {
 			register struct session *sess;
 
