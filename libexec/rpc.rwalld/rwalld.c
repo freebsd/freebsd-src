@@ -28,20 +28,24 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <unistd.h>
-#include <sys/types.h>
+#include <err.h>
 #include <pwd.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/socket.h>
 #include <signal.h>
-#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <rpcsvc/rwall.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #ifdef OSF
 #define WALL_CMD "/usr/sbin/wall"
@@ -52,10 +56,12 @@ static char rcsid[] = "$Id$";
 void wallprog_1();
 void possess();
 void killkids();
+static void usage __P((void));
 
 int nodaemon = 0;
 int from_inetd = 1;
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -68,10 +74,8 @@ main(argc, argv)
 
 	if (argc == 2 && !strcmp(argv[1], "-n"))
 		nodaemon = 1;
-	if (argc != 1 && !nodaemon) {
-		printf("usage: %s [-n]\n", argv[0]);
-		exit(1);
-	}
+	if (argc != 1 && !nodaemon)
+		usage();
 
 	if (geteuid() == 0) {
 		struct passwd *pep = getpwnam("nobody");
@@ -96,45 +100,45 @@ main(argc, argv)
                         possess();
 
                 (void)pmap_unset(WALLPROG, WALLVERS);
-                if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-                        perror("socket");
-                        exit(1);
-                }
+                if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+                        err(1, "socket");
                 bzero((char *)&sa, sizeof sa);
-                if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0) {
-                        perror("bind");
-                        exit(1);
-                }
+                if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0)
+                        err(1, "bind");
 
                 salen = sizeof sa;
-                if (getsockname(s, (struct sockaddr *)&sa, &salen)) {
-                        perror("getsockname");
-                        exit(1);
-                }
+                if (getsockname(s, (struct sockaddr *)&sa, &salen))
+                        err(1, "getsockname");
 
                 pmap_set(WALLPROG, WALLVERS, IPPROTO_UDP, ntohs(sa.sin_port));
-                if (dup2(s, 0) < 0) {
-                        perror("dup2");
-                        exit(1);
-                }
+                if (dup2(s, 0) < 0)
+                        err(1, "dup2");
                 (void)pmap_unset(WALLPROG, WALLVERS);
         }
 
 	(void)signal(SIGCHLD, killkids);
 
+	openlog("rpc.rwalld", LOG_CONS|LOG_PID, LOG_DAEMON);
+
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
-		(void)fprintf(stderr, "cannot create udp service.\n");
+		syslog(LOG_ERR, "cannot create udp service");
 		exit(1);
 	}
 	if (!svc_register(transp, WALLPROG, WALLVERS, wallprog_1, proto)) {
-		(void)fprintf(stderr, "unable to register (WALLPROG, WALLVERS, udp).\n");
+		syslog(LOG_ERR, "unable to register (WALLPROG, WALLVERS, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 	svc_run();
-	(void)fprintf(stderr, "svc_run returned\n");
+	syslog(LOG_ERR, "svc_run returned");
 	exit(1);
+}
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: rpc.rwalld [-n]\n");
+	exit(1);
 }
 
 void possess()
@@ -162,6 +166,7 @@ void *wallproc_wall_1(s)
 			exit(0);
 		}
 	}
+	return(NULL);
 }
 
 void
@@ -201,7 +206,7 @@ wallprog_1(rqstp, transp)
 		svcerr_systemerr(transp);
 	}
 	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
+		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}
 leave:
