@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/ktr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -534,11 +535,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
  * the starting segment on entrace, and the ending segment on exit.
  * first indicates if this is the first invocation of this function.
  */
-static int
+static __inline int
 _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
     			bus_dmamap_t map,
 			void *buf, bus_size_t buflen,
-			struct thread *td,
+			pmap_t pmap,
 			int flags,
 			bus_addr_t *lastaddrp,
 			int *segp,
@@ -551,23 +552,22 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bus_addr_t paddr;
 	int needbounce = 0;
 	int seg;
-	pmap_t pmap;
 
 	segs = dmat->segments;
 
 	if (map == NULL)
 		map = &nobounce_dmamap;
 
-	if (td != NULL)
-		pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	else
-		pmap = NULL;
-
-	if ((dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
-	 || dmat->boundary > 0 || dmat->alignment > 1)
-	 && map != &nobounce_dmamap && map->pagesneeded == 0) {
+	if ((map != &nobounce_dmamap && map->pagesneeded == 0) 
+	 && (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
+	 || dmat->boundary > 0 || dmat->alignment > 1)) {
 		vm_offset_t	vendaddr;
 
+		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
+		    "alignment= %d", dmat->lowaddr, ptoa((vm_paddr_t)Maxmem),
+		    dmat->boundary, dmat->alignment);
+		CTR3(KTR_BUSDMA, "map= %p, nobouncemap= %p, pagesneeded= %d",
+		    map, &nobounce_dmamap, map->pagesneeded);
 		/*
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
@@ -583,9 +583,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			}
 			vaddr += PAGE_SIZE;
 		}
+		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
-
-	vaddr = (vm_offset_t)buf;
 
 	/* Reserve Necessary Bounce Pages */
 	if (map->pagesneeded != 0) {
@@ -610,6 +609,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		mtx_unlock(&bounce_lock);
 	}
 
+	vaddr = (vm_offset_t)buf;
 	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
 
@@ -773,17 +773,18 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	int nsegs, error, first, i;
 	bus_size_t resid;
 	struct iovec *iov;
-	struct thread *td = NULL;
+	pmap_t pmap;
 
 	flags |= BUS_DMA_NOWAIT;
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
-		td = uio->uio_td;
-		KASSERT(td != NULL,
+		KASSERT(uio->uio_td != NULL,
 			("bus_dmamap_load_uio: USERSPACE but no proc"));
-	}
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
+	} else
+		pmap = NULL;
 
 	nsegs = 0;
 	error = 0;
@@ -800,7 +801,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
 					addr, minlen,
-					td, flags, &lastaddr, &nsegs, first);
+					pmap, flags, &lastaddr, &nsegs, first);
 			first = 0;
 
 			resid -= minlen;
