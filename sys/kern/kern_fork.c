@@ -538,6 +538,8 @@ again:
 		FILEDESC_UNLOCK(p1->p_fd);
 	} else
 		fd = fdshare(p1);
+	PGRPSESS_XLOCK();
+	PGRP_LOCK(p1->p_pgrp);
 	PROC_LOCK(p2);
 	p2->p_fd = fd;
 
@@ -570,6 +572,8 @@ again:
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
+	PGRP_UNLOCK(p1->p_pgrp);
+	PGRPSESS_XUNLOCK();
 
 	/*
 	 * Attach the new process to its parent.
