@@ -198,7 +198,7 @@ log(int level, const char *fmt, ...)
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
-	msgbuftrigger = 1
+	msgbuftrigger = 1;
 }
 
 #define CONSCHUNK 128
@@ -237,7 +237,7 @@ log_console(struct uio *uio)
 	}
 	if (!nl)
 		msglogchar('\n', pri);
-	msgbuftrigger = 1
+	msgbuftrigger = 1;
 	FREE(miov, M_TEMP);
 	FREE(consbuffer, M_TEMP);
 	return;
@@ -260,7 +260,7 @@ printf(const char *fmt, ...)
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (!panicstr)
-		msgbuftrigger = 1
+		msgbuftrigger = 1;
 	consintr = savintr;		/* reenable interrupts */
 	return retval;
 }
@@ -279,7 +279,7 @@ vprintf(const char *fmt, va_list ap)
 	pca.pri = -1;
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	if (!panicstr)
-		msgbuftrigger = 1
+		msgbuftrigger = 1;
 	consintr = savintr;		/* reenable interrupts */
 	return retval;
 }
