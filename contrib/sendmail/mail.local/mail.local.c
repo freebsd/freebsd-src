@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.4 2003/01/15 19:17:15 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.5 2003/03/15 23:43:20 gshapiro Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -1148,7 +1148,7 @@ tryagain:
 		goto err1;
 	}
 
-	/* Get the starting offset of the new message for biff. */
+	/* Get the starting offset of the new message */
 	curoff = lseek(mbfd, (off_t) 0, SEEK_END);
 
 	if (!nobiff)
