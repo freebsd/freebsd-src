@@ -154,7 +154,7 @@
 
 #ifdef __GNUC__
 #define __strong_reference(sym,aliassym)	\
-	extern __typeof (sym) aliassym __attribute__ ((alias (#sym)));
+	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)));
 #ifdef __ELF__
 #ifdef __STDC__
 #define	__weak_reference(sym,alias)	\
