@@ -685,11 +685,10 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     const Obj_Entry **defobj_out, bool in_plt)
 {
     const Elf_Sym *ref;
-    const Elf_Sym *strongdef;
-    const Elf_Sym *weakdef;
+    const Elf_Sym *def;
+    const Elf_Sym *symp;
     const Obj_Entry *obj;
-    const Obj_Entry *strongobj;
-    const Obj_Entry *weakobj;
+    const Obj_Entry *defobj;
     const char *name;
     unsigned long hash;
 
@@ -698,71 +697,68 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     hash = elf_hash(name);
 
     if (refobj->symbolic) {	/* Look first in the referencing object */
-	const Elf_Sym *def = symlook_obj(name, hash, refobj, in_plt);
-	if (def != NULL) {
+	if ((symp = symlook_obj(name, hash, refobj, in_plt)) != NULL) {
 	    *defobj_out = refobj;
-	    return def;
+	    return symp;
 	}
     }
 
     /*
-     * Look in all loaded objects.  Skip the referencing object, if
-     * we have already searched it.  We keep track of the first weak
-     * definition and the first strong definition we encounter.  If
-     * we find a strong definition we stop searching, because there
-     * won't be anything better than that.
+     * Look in all loaded objects.  Skip the referencing object,
+     * if we have already searched it.  We remember the first weak
+     * definition we encounter, but we keep searching for a strong
+     * definition.  If we find a strong definition we stop searching,
+     * because there won't be anything better than that.
      */
-    strongdef = weakdef = NULL;
-    strongobj = weakobj = NULL;
+    def = NULL;
+    defobj = NULL;
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	if (obj != refobj || !refobj->symbolic) {
-	    const Elf_Sym *def = symlook_obj(name, hash, obj, in_plt);
-	    if (def != NULL) {
-		if (ELF_ST_BIND(def->st_info) == STB_WEAK) {
-		    if (weakdef == NULL) {
-			weakdef = def;
-			weakobj = obj;
-		    }
-		} else {
-		    strongdef = def;
-		    strongobj = obj;
-		    break;	/* We are done. */
+	if (obj == refobj && refobj->symbolic)
+	    continue;
+	if ((symp = symlook_obj(name, hash, obj, in_plt)) != NULL) {
+	    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
+		def = symp;
+		defobj = obj;
+		if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
+		    *defobj_out = defobj;
+		    return def;
 		}
 	    }
 	}
     }
 
     /*
-     * If we still don't have a strong definition, search the dynamic
+     * We still don't have a strong definition.  Search the dynamic
      * linker itself, and possibly resolve the symbol from there.
      * This is how the application links to dynamic linker services
      * such as dlopen.  Only the values listed in the "exports" array
      * can be resolved from the dynamic linker.
      */
-    if (strongdef == NULL) {
-	const Elf_Sym *def = symlook_obj(name, hash, &obj_rtld, in_plt);
-	if (def != NULL && is_exported(def)) {
-	    if (ELF_ST_BIND(def->st_info) == STB_WEAK) {
-		if (weakdef == NULL) {
-		    weakdef = def;
-		    weakobj = &obj_rtld;
-		}
-	    } else {
-		strongdef = def;
-		strongobj = &obj_rtld;
+    if ((symp = symlook_obj(name, hash, &obj_rtld, in_plt)) != NULL &&
+      is_exported(symp)) {
+	if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
+	    def = symp;
+	    defobj = &obj_rtld;
+	    if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
+		*defobj_out = defobj;
+		return def;
 	    }
 	}
     }
 
-    if (strongdef != NULL) {
-	*defobj_out = strongobj;
-	return strongdef;
-    }
-    if (weakdef != NULL) {
-	*defobj_out = weakobj;
-	return weakdef;
+    /*
+     * We didn't find a strong definition.  Accept a weak definition
+     * if we found one.
+     */
+    if (def != NULL) {
+	*defobj_out = defobj;
+	return def;
     }
 
+    /*
+     * We found no definition.  If the reference is weak, treat the
+     * symbol as having the value zero.
+     */
     if (ELF_ST_BIND(ref->st_info) == STB_WEAK) {
 	*defobj_out = obj_main;
 	return &sym_zero;
