@@ -256,6 +256,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	vm_offset_t off;
 	vm_offset_t pa;
 	vm_offset_t va;
+	vm_size_t physsz;
 	ihandle_t pmem;
 	ihandle_t vmem;
 	int sz;
@@ -292,12 +293,15 @@ pmap_bootstrap(vm_offset_t ekva)
 	sz /= sizeof(*mra);
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
+	physsz = 0;
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
 		CTR2(KTR_PMAP, "start=%#lx size=%#lx", mra[i].mr_start,
 		    mra[i].mr_size);
 		phys_avail[j] = mra[i].mr_start;
 		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
+		physsz += mra[i].mr_size;
 	}
+	physmem = btoc(physsz);
 
 	/*
 	 * Allocate the kernel tsb and lock it in the tlb.
