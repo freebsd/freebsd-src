@@ -139,6 +139,9 @@ This is intended to allow local mail submission via
 a localhost-only listening SMTP service required for running
 .Xr sendmail 8
 as a non-set-user-ID binary.
+Note that this does not work inside
+.Xr jail 2
+systems as jails do not allow binding to just the localhost interface.
 .It Va sendmail_submit_flags
 .Pq Vt str
 If

@@ -11,11 +11,12 @@ default) holds the mail if an MTA can not be contacted.
 To accomplish this, under the default setup, an MTA must be listening on
 localhost port 25.  If the rc.conf sendmail_enable option is set to "NO",
 a sendmail daemon will still be started and bound only to the localhost
-interface in order to accept command line submitted mail.  If this is not
-a desirable solution, it can be disabled using the sendmail_submit_enable
-rc.conf option.  However, if both sendmail_enable and sendmail_submit_enable
-are set to "NO", you must do one of two things for command line submitted
-mail:
+interface in order to accept command line submitted mail (note that this
+does not work inside jail(2) systems as jails do not allow binding to
+just the localhost interface).  If this is not a desirable solution, it
+can be disabled using the sendmail_submit_enable rc.conf option.  However,
+if both sendmail_enable and sendmail_submit_enable are set to "NO", you
+must do one of two things for command line submitted mail:
 
 1. Designate an alternative host for the submission agent to contact
    by altering /etc/mail/freebsd.submit.mc (or setting SENDMAIL_SUBMIT_MC
