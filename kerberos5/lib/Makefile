@@ -1,5 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	libroken libvers libasn1 libhdb libkafs5 libkrb5 libkadm5clnt libkadm5srv libsl libgssapi
+SUBDIR=	libasn1 libgssapi libhdb libkadm5clnt libkadm5srv \
+	libkafs5 libkrb5 libroken libsl libvers
 
 .include <bsd.subdir.mk>

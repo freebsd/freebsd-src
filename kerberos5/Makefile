@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	doc lib libexec usr.bin usr.sbin
+SUBDIR=	doc tools lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on Kerberos.
 KPROGS=	lib/libpam \
@@ -10,22 +10,22 @@ KPROGS=	lib/libpam \
 kerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; \
-	${MAKE} ${MFLAGS} depend; \
-	${MAKE} ${MFLAGS} all; \
-	${MAKE} ${MFLAGS} install
+	${MAKE} cleandir; \
+	${MAKE} obj; \
+	${MAKE} depend; \
+	${MAKE} all; \
+	${MAKE} install
 .endfor
 
 # This target is used to rebuild these programs WITHOUT Kerberos.
 dekerberize:
 .for entry in ${KPROGS}
 	cd ${.CURDIR}/../${entry}; \
-	${MAKE} ${MFLAGS} -DNO_KERBEROS cleandir; \
-	${MAKE} ${MFLAGS} -DNO_KERBEROS obj; \
-	${MAKE} ${MFLAGS} -DNO_KERBEROS depend; \
-	${MAKE} ${MFLAGS} -DNO_KERBEROS all; \
-	${MAKE} ${MFLAGS} -DNO_KERBEROS install
+	${MAKE} -DNO_KERBEROS cleandir; \
+	${MAKE} -DNO_KERBEROS obj; \
+	${MAKE} -DNO_KERBEROS depend; \
+	${MAKE} -DNO_KERBEROS all; \
+	${MAKE} -DNO_KERBEROS install
 .endfor
 
 .include <bsd.subdir.mk>

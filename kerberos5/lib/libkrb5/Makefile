@@ -99,23 +99,20 @@ SRCS=	\
 	krb5_err.c			\
 	k524_err.c			\
 	heim_err.c			\
-	${.OBJDIR}/k524_err.h		\
-	${.OBJDIR}/heim_err.h
+	k524_err.h			\
+	heim_err.h
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5		\
 	-I${KRB5DIR}/lib/asn1		\
-	-I${KRB5DIR}/lib/des		\
 	-I${KRB5DIR}/lib/roken		\
-	-I${KRB5DIR}/include		\
-	-I${KRB5OBJDIR}			\
-	-I${ASN1OBJDIR}
+	-I.
 
 INCS=	krb5.h				\
 	krb5-protos.h			\
-	${.CURDIR}/../../include/krb5-types.h \
-	${.OBJDIR}/heim_err.h		\
-	${.OBJDIR}/krb5_err.h		\
-	${.OBJDIR}/k524_err.h
+	krb5-types.h			\
+	heim_err.h			\
+	krb5_err.h			\
+	k524_err.h
 
 MAN=	\
 	krb5.3				\
@@ -323,4 +320,4 @@ MLINKS=	\
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/krb5
-.PATH:		${KRB5DIR}/lib/des
+.PATH:		${.CURDIR}/../../include
