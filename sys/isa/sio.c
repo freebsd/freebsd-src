@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.167 1997/05/18 21:22:11 phk Exp $
+ *	$Id: sio.c,v 1.168 1997/05/29 05:00:34 peter Exp $
  */
 
 #include "opt_comconsole.h"
@@ -120,6 +120,7 @@
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
 #define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 #define	COM_NOTST3(dev)		((dev)->id_flags & 0x10000)
+#define	COM_FIFOSIZE(dev)	(((dev)->id_flags & 0xff000000) >> 24)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
@@ -884,79 +885,25 @@ sioattach(isdp)
 		if (COM_NOFIFO(isdp)) {
 			printf(" 16550A fifo disabled");
 		} else {
-			/* Detect the fifo size. */
-			int i, n;
-
-			/* Enable and reset the FIFO. */
-			outb (iobase+com_fifo, FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST);
-
-			/* Set the loopback mode, 57600 baud. */
-			outb (iobase+com_cfcr, CFCR_DLAB);
-			outb (iobase+com_dlbh, 0);
-			outb (iobase+com_dlbl, 2);
-			outb (iobase+com_cfcr, CFCR_8BITS);
-			outb (iobase+com_mcr, MCR_LOOPBACK);
-			inb (iobase+com_lsr);
-
-			/* Put data into transmit FIFO and wait until overrun. */
-			for (i=n=0; i<20000; ++i) {
-				unsigned char lsr = inb (iobase+com_lsr);
-				if (lsr & LSR_OE)
-					break;
-				if (lsr & LSR_TXRDY) {
-					outb (iobase+com_data, 0x5A);
-					++n;
-				}
-			}
-			outb (iobase+com_mcr, 0);
-			outb (iobase+com_fifo, 0);
-
 			com->hasfifo = TRUE;
-			if (n > 40) {
-				com->tx_fifo_size = 64;
-				printf(" 16750");
-			} else if (n > 24) {
-				com->tx_fifo_size = 32;
-				printf(" 16650");
-			} else {
-				com->tx_fifo_size = 16;
-				printf(" 16550A");
-			}
-#ifdef COM_ESP
-			for (espp = likely_esp_ports; *espp != 0; espp++)
-				if (espattach(isdp, com, *espp)) {
-					com->tx_fifo_size = 1024;
-					break;
-				}
-#endif
-		}
-#if 0
-		/*
-		 * Check for the Startech ST16C650 chip.
-		 * it has a shadow register under the com_iir,
-		 * which can only be accessed when cfcr == 0xff
-		 */
-		{
-		u_char i, j;
-
-		i = inb(iobase + com_iir);
-		outb(iobase + com_cfcr, 0xff);
-		outb(iobase + com_iir, 0x0);
-		outb(iobase + com_cfcr, CFCR_8BITS);
-		j = inb(iobase + com_iir);
-		outb(iobase + com_iir, i);
-		if (i != j) {
 			printf(" 16550A");
-		} else {
-			com->tx_fifo_size = 32;
-			printf(" 16650");
+			com->tx_fifo_size = COM_FIFOSIZE(isdp);
 		}
-		if (!com->tx_fifo_size)
-			printf(" fifo disabled");
-		}
+#ifdef COM_ESP
+		for (espp = likely_esp_ports; *espp != 0; espp++)
+			if (espattach(isdp, com, *espp)) {
+				com->tx_fifo_size = 1024;
+				break;
+			}
 #endif
+		if (!com->tx_fifo_size)
+			com->tx_fifo_size = 16;
+		else
+			printf(" lookalike with %d bytes FIFO",
+			    com->tx_fifo_size);
 		break;
 	}
+	
 #ifdef COM_ESP
 	if (com->esp) {
 		/*
