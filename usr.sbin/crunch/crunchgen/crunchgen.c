@@ -993,7 +993,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		    p->ident, p->ident);
 		fprintf(outmk, "\n");
 		fprintf(outmk, "%s_clean:\n", p->ident);
-		fprintf(outmk, "\t(cd $(%s_SRCDIR) && $(MAKE) clean)\n\n",
+		fprintf(outmk, "\t(cd $(%s_SRCDIR) && $(MAKE) $(BUILDOPTS) clean)\n\n",
 		    p->ident);
 	} else {
 		fprintf(outmk, "%s_make:\n", p->ident);
