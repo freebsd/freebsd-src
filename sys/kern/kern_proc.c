@@ -298,12 +298,24 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 int
 kse_yield(struct thread *td, struct kse_yield_args *uap)
 {
+	struct thread *td2;
 
+	/* KSE-enabled processes only, please. */
+	if ((td->td_proc->p_flag & P_KSES) == 0)
+		return (EINVAL);
+
+	/* Don't discard the last thread. */
+	td2 = FIRST_THREAD_IN_PROC(td->td_proc);
+	KASSERT(td2 != NULL, ("kse_yield: no threads in our proc"));
+	if (TAILQ_NEXT(td, td_plist) == NULL)
+		return (EINVAL);
+
+	/* Abandon thread. */
 	PROC_LOCK(td->td_proc);
 	mtx_lock_spin(&sched_lock);
 	thread_exit();
 	/* NOTREACHED */
-	return(0);
+	return (0);
 }
 
 int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
@@ -364,11 +376,9 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 	mtx_lock_spin(&sched_lock);
 	mi_switch();	/* Save current registers to PCB. */
 	mtx_unlock_spin(&sched_lock);
-	newkse->ke_upcall = mbx.kmbx_upcall;
-	newkse->ke_stackbase  = mbx.kmbx_stackbase;
-	newkse->ke_stacksize = mbx.kmbx_stacksize;
 	newkse->ke_mailbox = uap->mbx;
-	cpu_save_upcall(td, newkse);
+	newkse->ke_upcall = mbx.km_func;
+	bcopy(&mbx.km_stack, &newkse->ke_stack, sizeof(stack_t));
 	/* Note that we are the returning syscall */
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -850,6 +860,13 @@ fill_kinfo_proc(p, kp)
 	}
 	if (p->p_state != PRS_ZOMBIE) {
 		td = FIRST_THREAD_IN_PROC(p);
+		if (td == NULL) {
+			/* XXXKSE: This should never happen. */
+			printf("fill_kinfo_proc(): pid %d has no threads!\n",
+			    p->p_pid);
+			mtx_unlock_spin(&sched_lock);
+			return;
+		}
 		if (!(p->p_flag & P_KSES)) {
 			if (td->td_wmesg != NULL) {
 				strncpy(kp->ki_wmesg, td->td_wmesg,
