@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.7 2000/04/02 11:10:53 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.8 2000/08/13 22:22:02 augustss Exp $	*/
 
 /*
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
@@ -72,7 +72,7 @@ typedef struct hid_item {
 	struct hid_item *next;
 } hid_item_t;
 
-#define HID_PAGE(u) ((u) >> 16)
+#define HID_PAGE(u) (((u) >> 16) & 0xffff)
 #define HID_USAGE(u) ((u) & 0xffff)
 
 /* Obtaining a report descriptor, descr.c: */
