@@ -75,6 +75,7 @@ struct ngcmd {
 #define CMDRTN_QUIT		3
 
 /* Available commands */
+extern const struct ngcmd config_cmd;
 extern const struct ngcmd connect_cmd;
 extern const struct ngcmd debug_cmd;
 extern const struct ngcmd help_cmd;
