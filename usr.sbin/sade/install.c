@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.75 1996/01/29 20:17:27 joerg Exp $
+ * $Id: install.c,v 1.76 1996/03/02 07:31:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,9 +242,9 @@ installFixit(char *str)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
-    if (!directoryExists("/tmp"))
+    if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
-    if (!directoryExists("/var/tmp/vi.recover")) {
+    if (!directory_exists("/var/tmp/vi.recover")) {
 	if (Mkdir("/var/tmp/vi.recover", NULL) != RET_SUCCESS) {
 	    dialog_clear();
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
@@ -385,7 +385,7 @@ int
 installCommit(char *str)
 {
     int i;
-    extern Boolean cdromMounted;
+    extern int cdromMounted;
 
     if (!mediaVerify())
 	return RET_FAIL;
@@ -469,7 +469,7 @@ installCommit(char *str)
 	if (!msgYesNo("Does this system have a mouse attached to it?"))
 	    dmenuOpenSimple(&MenuMouse);
 
-	if (directoryExists("/usr/X11R6")) {
+	if (directory_exists("/usr/X11R6")) {
 	    dialog_clear();
 	    if (!msgYesNo("Would you like to configure your X server at this time?"))
 		systemExecute("/usr/X11R6/bin/xf86config");
@@ -604,7 +604,7 @@ installFixup(char *str)
 
 	msgNotify("Fixing permissions..");
 	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
-	if (directoryExists("/usr/X11R6")) {
+	if (directory_exists("/usr/X11R6")) {
 	    system("chmod -R a+r /usr/X11R6");
 	    system("find /usr/X11R6 -type d | xargs chmod a+x");
 	}

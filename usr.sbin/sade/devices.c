@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.39 1996/02/10 09:33:52 phk Exp $
+ * $Id: devices.c,v 1.40 1996/03/02 07:31:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,17 +66,11 @@ static struct {
     char *description;
 } device_names[] = {
     { DEVICE_TYPE_CDROM,	"cd0a",		"SCSI CDROM drive"					},
-    { DEVICE_TYPE_CDROM,	"cd1a",		"SCSI CDROM drive (2nd unit)"				},
     { DEVICE_TYPE_CDROM,	"mcd0a",	"Mitsumi (old model) CDROM drive"			},
-    { DEVICE_TYPE_CDROM,	"mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
     { DEVICE_TYPE_CDROM,	"scd0a",	"Sony CDROM drive - CDU31/33A type",			},
-    { DEVICE_TYPE_CDROM,	"scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
     { DEVICE_TYPE_CDROM,	"matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
-    { DEVICE_TYPE_CDROM,	"matcd1a",	"Matsushita CDROM (2nd unit)"				},
     { DEVICE_TYPE_CDROM,	"wcd0c",	"ATAPI IDE CDROM"					},
-    { DEVICE_TYPE_CDROM,	"wcd1c",	"ATAPI IDE CDROM (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
-    { DEVICE_TYPE_TAPE, 	"rst1",		"SCSI tape drive (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"rft0",		"Floppy tape drive (QIC-02)"				},
     { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
@@ -92,6 +86,7 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
+    { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
@@ -217,7 +212,7 @@ deviceGetAll(void)
 
 	    /* Look for existing DOS partitions to register */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
-		if (c1->type == fat) {
+		if (c1->type == fat || c1->type == extended) {
 		    Device *dev;
 		    char devname[80];
 
@@ -243,8 +238,8 @@ deviceGetAll(void)
 	switch(device_names[i].type) {
 	case DEVICE_TYPE_CDROM:
 	    fd = deviceTry(device_names[i].name, try);
-	    if (fd >= 0) {
-		if (fd) close(fd);
+	    if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
+		if (fd >= 0) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
 				     mediaShutdownCDROM, NULL);
