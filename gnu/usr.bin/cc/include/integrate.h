@@ -100,7 +100,7 @@ struct inline_remap
       rtx dest;
       rtx equiv;
     }  equiv_sets[MAX_RECOG_OPERANDS];
-  /* Record the last thing assigned to pc.  This is used for folded 
+  /* Record the last thing assigned to pc.  This is used for folded
      conditional branch insns.  */
   rtx last_pc_value;
 #ifdef HAVE_cc0

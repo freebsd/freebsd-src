@@ -20,27 +20,27 @@ main ()
     test_posix_extended ();
     test_posix_interface ();
     break;
-    
+
   case other_test:
     test_others ();
     break;
-  
+
   case posix_basic_test:
     test_posix_basic ();
     break;
-  
+
   case posix_extended_test:
     test_posix_extended ();
     break;
-  
+
   case posix_interface_test:
     test_posix_interface ();
     break;
-  
+
   case regress_test:
     test_regress ();
     break;
-    
+
   default:
     fprintf (stderr, "Unknown test %d.\n", t);
   }

@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: yppush.c,v 1.3 1995/04/02 01:10:13 wpaul Exp $
+	$Id: yppush.c,v 1.5 1995/04/02 20:01:50 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -119,7 +119,7 @@ __yppushproc_null_1(void * req, struct svc_req * rqstp) {
 static inline void *
 __yppushproc_xfrresp_1(yppushresp_xfr *req, struct svc_req * rqstp) {
 	static int resp;
-	
+
 	if (req->status!=YPPUSH_SUCC)
 		fprintf(stderr, "%s: %s\n", progname, yppush_err_string(req->status));
 	return &resp;
@@ -255,7 +255,7 @@ getOrderNum( void)
 		fprintf(stderr, "%s: %s: cannot open\n", progname, mapPath);
 		return -1;
 	}
-	
+
 	o.data="YP_LAST_MODIFIED"; o.size=strlen(o.data);
 	(db->get)(db,&o,&d,0);
 	if (d.data==NULL) {
@@ -280,7 +280,7 @@ doPushClient( const char *targetHost)
 {
 	struct ypreq_xfr req;
 	static struct timeval tv={0,0};
-	
+
 	req.map_parms.domain=DomainName;
 	req.map_parms.map=(char *)MapName;
 	req.map_parms.peer=ThisHost;
@@ -380,7 +380,7 @@ yppushForeach(int status, const char *inKey, int inKeylen,
 	doPush(targetHost);
 	return 0;
 }
-	
+
 static void
 intrHandler(int sig)
 {

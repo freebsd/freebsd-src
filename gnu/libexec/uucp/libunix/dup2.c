@@ -47,7 +47,7 @@ dup2 (oold, onew)
   if (oold == onew)
     return onew;
   (void) close (onew);
-  
+
 #ifdef F_DUPFD
   return fcntl (oold, F_DUPFD, onew);
 #else

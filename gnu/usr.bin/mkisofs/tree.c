@@ -103,15 +103,15 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
   flush_file_hash();
   s_entry = this_dir->contents;
   while(s_entry){
-	  
+
 	  /* First assume no conflict, and handle this case */
-	  
+
 	  if(!(s_entry1 = find_file_hash(s_entry->isorec.name))){
 		  add_file_hash(s_entry);
 		  s_entry = s_entry->next;
 		  continue;
 	  };
-	  
+
 	  if(s_entry1 == s_entry){
 		  fprintf(stderr,"Fatal goof\n");
 		  exit(1);
@@ -127,7 +127,7 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	  count = 0;
 	  while(count < 1000){
 		  sprintf(newname,"%s.%3.3d%s", rootname,  count,
-			  (s_entry->isorec.flags[0] == 2 || 
+			  (s_entry->isorec.flags[0] == 2 ||
 			   omit_version_number ? "" : ";1"));
 
 #ifdef VMS
@@ -147,10 +147,10 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 		  fprintf(stderr,"Unable to  generate unique  name for file %s\n", s_entry->name);
 		  exit(1);
 	  };
-	  
+
 	  /* OK, now we have a good replacement name.  Now decide which one
 	     of these two beasts should get the name changed */
-	  
+
 	  if(s_entry->priority < s_entry1->priority) {
 		  fprintf(stderr,"Using %s for  %s%s%s (%s)\n", newname,  this_dir->whole_name, SPATH_SEPARATOR, s_entry->name, s_entry1->name);
 		  s_entry->isorec.name_len[0] =  strlen(newname);
@@ -188,10 +188,10 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	  /* First we need to figure out how big this table is */
 	  for (s_entry = this_dir->contents; s_entry; s_entry = s_entry->next){
 		  if(strcmp(s_entry->name, ".") == 0  ||
-		     strcmp(s_entry->name, "..") == 0) continue; 
+		     strcmp(s_entry->name, "..") == 0) continue;
 		  if(s_entry->table) tablesize += 35 + strlen(s_entry->table);
 	  };
-		  table = (struct directory_entry *) 
+		  table = (struct directory_entry *)
 		e_malloc(sizeof (struct directory_entry));
  	memset(table, 0, sizeof(struct directory_entry));
 	table->table = NULL;
@@ -213,10 +213,10 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	memset(table->table, 0, ROUND_UP(tablesize));
 #if 1	  /* WALNUT CREEK -- 950126 */
 	iso9660_file_length  (trans_tbl, table, 0);
-#else	  
+#else
 	iso9660_file_length  (trans_tbl, table, 1);
-#endif	  
-		
+#endif
+
 	if(use_RockRidge){
 		fstatbuf.st_mode = 0444 | S_IFREG;
 		fstatbuf.st_nlink = 1;
@@ -228,7 +228,7 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 
   for(s_entry = this_dir->contents; s_entry; s_entry = s_entry->next){
 	  new_reclen = strlen(s_entry->isorec.name);
-	  
+
 	  if(s_entry->isorec.flags[0] ==  2){
 		  if (strcmp(s_entry->name,".") && strcmp(s_entry->name,"..")) {
 			  path_table_size += new_reclen + sizeof(struct iso_path_table) - 1;
@@ -242,16 +242,16 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	  if(path_table_size & 1) path_table_size++;  /* For odd lengths we pad */
 	  s_entry->isorec.name_len[0] = new_reclen;
 
-	  new_reclen += 
+	  new_reclen +=
 		  sizeof(struct iso_directory_record) -
 			  sizeof(s_entry->isorec.name);
-	  
-	  if (new_reclen & 1)	
+
+	  if (new_reclen & 1)
 		  new_reclen++;
 	  if(use_RockRidge){
 		  new_reclen += s_entry->rr_attr_size;
 
-		  if (new_reclen & 1)	
+		  if (new_reclen & 1)
 			  new_reclen++;
 	  };
 	  if(new_reclen > 0xff) {
@@ -273,7 +273,7 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 		  if(strcmp(s_entry->name, ".") == 0  ||
 		     strcmp(s_entry->name, "..") == 0) continue;
 
-		  sprintf(buffer,"%c %-34s%s",s_entry->table[0],  
+		  sprintf(buffer,"%c %-34s%s",s_entry->table[0],
 			  s_entry->isorec.name, s_entry->table+1);
 		  memcpy(table->table + count, buffer, strlen(buffer));
 		  count +=  strlen(buffer);
@@ -289,18 +289,18 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 
   /* Now go through the directory and figure out how large this one will be.
      Do not split a directory entry across a sector boundary */
-  
+
   s_entry = this_dir->contents;
   this_dir->ce_bytes = 0;
   while(s_entry){
 	  new_reclen = s_entry->isorec.length[0];
 	  if ((this_dir->size & (SECTOR_SIZE - 1)) + new_reclen >= SECTOR_SIZE)
-		  this_dir->size = (this_dir->size + (SECTOR_SIZE - 1)) & 
+		  this_dir->size = (this_dir->size + (SECTOR_SIZE - 1)) &
 			  ~(SECTOR_SIZE - 1);
 	  this_dir->size += new_reclen;
 
 	  /* See if continuation entries were used on disc */
-	  if(use_RockRidge && 
+	  if(use_RockRidge &&
 	     s_entry->rr_attr_size != s_entry->total_rr_attr_size) {
 	    unsigned char * pnt;
 	    int len;
@@ -316,9 +316,9 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	    while(len > 3){
 	      if(pnt[0] == 'C' && pnt[1] == 'E') {
 		nbytes = get_733(pnt+20);
-		
+
 		if((this_dir->ce_bytes & (SECTOR_SIZE - 1)) + nbytes >=
-		   SECTOR_SIZE) this_dir->ce_bytes = 
+		   SECTOR_SIZE) this_dir->ce_bytes =
 		     ROUND_UP(this_dir->ce_bytes);
 		/* Now store the block in the ce buffer */
 		this_dir->ce_bytes += nbytes;
@@ -340,7 +340,7 @@ static void generate_reloc_directory()
 
 	/* Create an  entry for our internal tree */
 	time (&current_time);
-	reloc_dir = (struct directory *) 
+	reloc_dir = (struct directory *)
 		e_malloc(sizeof(struct directory));
 	memset(reloc_dir, 0, sizeof(struct directory));
 	reloc_dir->parent = root;
@@ -350,11 +350,11 @@ static void generate_reloc_directory()
 	reloc_dir->whole_name = strdup("./rr_moved");
 	reloc_dir->de_name =  strdup("rr_moved");
 	reloc_dir->extent = 0;
-	
+
 	new_reclen  = strlen(reloc_dir->de_name);
-	
+
 	/* Now create an actual directory  entry */
-	s_entry = (struct directory_entry *) 
+	s_entry = (struct directory_entry *)
 		e_malloc(sizeof (struct directory_entry));
 	memset(s_entry, 0, sizeof(struct directory_entry));
 	s_entry->next = root->contents;
@@ -378,12 +378,12 @@ static void generate_reloc_directory()
 					       "rr_moved", s_entry,
 					       &fstatbuf, &fstatbuf, 0);
 	};
-	
+
 	/* Now create the . and .. entries in rr_moved */
 	/* Now create an actual directory  entry */
-	s_entry = (struct directory_entry *) 
+	s_entry = (struct directory_entry *)
 		e_malloc(sizeof (struct directory_entry));
-	memcpy(s_entry, root->contents, 
+	memcpy(s_entry, root->contents,
 	       sizeof(struct directory_entry));
 	s_entry->name = strdup(".");
 	iso9660_file_length (".", s_entry, 1);
@@ -398,10 +398,10 @@ static void generate_reloc_directory()
 					       ".", s_entry,
 					       &fstatbuf, &fstatbuf, 0);
 	};
-	
-	s_entry = (struct directory_entry *) 
+
+	s_entry = (struct directory_entry *)
 		e_malloc(sizeof (struct directory_entry));
-	memcpy(s_entry, root->contents, 
+	memcpy(s_entry, root->contents,
 	       sizeof(struct directory_entry));
 	s_entry->name = strdup("..");
 	iso9660_file_length ("..", s_entry, 1);
@@ -559,7 +559,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 		  exit(1);
 	  };
 
-	  this_dir->parent = parent; 
+	  this_dir->parent = parent;
 	  this_dir->depth = parent->depth + 1;
 
 	  if(!parent->subdir)
@@ -651,14 +651,14 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 			    continue;  /* Non Rock Ridge discs - ignore all symlinks */
 		    };
 	    }
-	    
+
 	    /* Here we handle a different kind of case.  Here we have a symlink,
 	       but we want to follow symlinks.  If we run across a directory loop,
 	       then we need to pretend that we are not following symlinks for this file.
 	       If this is the first time we have seen this, then make this seem
 	       as if there was no symlink there in the first place */
-	       	       
-	    else if(strcmp(d_entry->d_name, ".") && 
+
+	    else if(strcmp(d_entry->d_name, ".") &&
 	       strcmp(d_entry->d_name, "..")) {
 		    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf))){
 			    fprintf(stderr, "Infinite loop detected (%s)\n", whole_path);
@@ -671,11 +671,11 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 			    lstatbuf = statbuf;
 			    add_directory_hash(statbuf.st_dev, STAT_INODE(statbuf));
 		    };
-	    };	    
+	    };
     };
 
 #ifdef VMS
-    if(!S_ISDIR(lstatbuf.st_mode) && (statbuf.st_fab_rfm != FAB$C_FIX && 
+    if(!S_ISDIR(lstatbuf.st_mode) && (statbuf.st_fab_rfm != FAB$C_FIX &&
 				      statbuf.st_fab_rfm != FAB$C_STMLF)) {
       fprintf(stderr,"Warning - file %s has an unsupported VMS record"
 	      " format (%d)\n",
@@ -684,14 +684,14 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 #endif
 
     if(S_ISREG(lstatbuf.st_mode) && (status = access(whole_path, R_OK))){
-      fprintf(stderr, "File %s is not readable (errno = %d) - ignoring\n", 
+      fprintf(stderr, "File %s is not readable (errno = %d) - ignoring\n",
 	      whole_path, errno);
       continue;
     }
 
     /* Add this so that we can detect directory loops with hard links.
      If we are set up to follow symlinks, then we skip this checking. */
-    if(!follow_links && S_ISDIR(lstatbuf.st_mode) && strcmp(d_entry->d_name, ".") && 
+    if(!follow_links && S_ISDIR(lstatbuf.st_mode) && strcmp(d_entry->d_name, ".") &&
        strcmp(d_entry->d_name, "..")) {
 	    if(find_directory_hash(statbuf.st_dev, STAT_INODE(statbuf))) {
 		    fprintf(stderr,"Directory loop - fatal goof (%s %x %d).\n",
@@ -716,10 +716,10 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 	    fprintf(stderr,
 		    "Unable to stat file %s - ignoring and continuing.\n",
 		    whole_path);
-	    continue; 
+	    continue;
     };
 
-    s_entry = (struct directory_entry *) 
+    s_entry = (struct directory_entry *)
       e_malloc(sizeof (struct directory_entry));
     s_entry->next = this_dir->contents;
     this_dir->contents = s_entry;
@@ -750,24 +750,24 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 
     /* Directories are assigned sizes later on */
     if (!S_ISDIR(statbuf.st_mode)) {
-	set_733(s_entry->isorec.size, statbuf.st_size); 
+	set_733(s_entry->isorec.size, statbuf.st_size);
 
-	if (S_ISCHR(lstatbuf.st_mode) || S_ISBLK(lstatbuf.st_mode) || 
+	if (S_ISCHR(lstatbuf.st_mode) || S_ISBLK(lstatbuf.st_mode) ||
 	    S_ISFIFO(lstatbuf.st_mode) || S_ISSOCK(lstatbuf.st_mode)
 	  || S_ISLNK(lstatbuf.st_mode))
-	  s_entry->size = 0; 
+	  s_entry->size = 0;
 	else
-	  s_entry->size = statbuf.st_size; 
+	  s_entry->size = statbuf.st_size;
     } else
       s_entry->isorec.flags[0] = 2;
 
-    if (strcmp(d_entry->d_name,".") && strcmp(d_entry->d_name,"..") && 
+    if (strcmp(d_entry->d_name,".") && strcmp(d_entry->d_name,"..") &&
 	S_ISDIR(statbuf.st_mode) && this_dir->depth >  RR_relocation_depth){
 		  if(!reloc_dir) generate_reloc_directory();
 
-		  s_entry1 = (struct directory_entry *) 
+		  s_entry1 = (struct directory_entry *)
 			  e_malloc(sizeof (struct directory_entry));
-		  memcpy(s_entry1, this_dir->contents, 
+		  memcpy(s_entry1, this_dir->contents,
 			 sizeof(struct directory_entry));
 		  s_entry1->table = NULL;
 		  s_entry1->name = strdup(this_dir->contents->name);
@@ -800,7 +800,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 		  s_entry->inode = UNCACHED_INODE;
 		  deep_flag = NEED_CL;
 	  };
- 
+
     if(generate_tables && strcmp(s_entry->name, ".") && strcmp(s_entry->name, "..")) {
 	    char  buffer[2048];
 	    switch(lstatbuf.st_mode & S_IFMT){
@@ -841,7 +841,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 	    };
 	    s_entry->table = strdup(buffer);
     };
-    
+
     if(S_ISDIR(statbuf.st_mode)){
             int dflag;
 	    if (strcmp(d_entry->d_name,".") && strcmp(d_entry->d_name,"..")) {
@@ -861,7 +861,7 @@ FDECL2(scan_directory_tree,char *, path, struct directory_entry *, de){
 	    generate_rock_ridge_attributes(whole_path,
 					   d_entry->d_name, s_entry,
 					   &statbuf, &lstatbuf, deep_flag);
-	    
+
     }
   }
   closedir(current_dir);

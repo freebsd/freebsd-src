@@ -1,9 +1,12 @@
-/* $Header: util.h,v 2.0 86/09/17 15:40:06 lwall Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
  *
- * $Log:	util.h,v $
+ * $Log: util.h,v $
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0  86/09/17  15:40:06  lwall
  * Baseline for netwide release.
- * 
+ *
  */
 
 /* and for those machine that can't handle a variable argument list */

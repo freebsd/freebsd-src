@@ -291,7 +291,7 @@ sdbout_init (asm_file, input_file_name, syms)
     if (DECL_NAME (t) && IDENTIFIER_POINTER (DECL_NAME (t)) != 0
 	&& !strcmp (IDENTIFIER_POINTER (DECL_NAME (t)), "__vtbl_ptr_type"))
       sdbout_symbol (t, 0);
-#endif  
+#endif
 
 #if 0 /* Nothing need be output for the predefined types.  */
   /* Get all permanent types that have typedef names,

@@ -5,13 +5,13 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)cplus-dem.c	5.4 (Berkeley) 4/30/91";*/
-static char rcsid[] = "$Id: cplus-dem.c,v 1.2 1993/08/01 18:46:58 mycroft Exp $";
+static char rcsid[] = "$Id: cplus-dem.c,v 1.3 1993/11/09 04:18:51 paul Exp $";
 #endif /* not lint */
 
-/* Demangler for GNU C++ 
+/* Demangler for GNU C++
    Copyright (C) 1989 Free Software Foundation, Inc.
    written by James Clark (jjc@jclark.uucp)
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 1, or (at your option)
@@ -34,7 +34,7 @@ static char rcsid[] = "$Id: cplus-dem.c,v 1.2 1993/08/01 18:46:58 mycroft Exp $"
 /* This file exports one function
 
    char *cplus_demangle (const char *name)
-   
+
    If `name' is a mangled function name produced by g++, then
    a pointer to a malloced string giving a C++ representation
    of the name will be returned; otherwise NULL will be returned.
@@ -42,9 +42,9 @@ static char rcsid[] = "$Id: cplus-dem.c,v 1.2 1993/08/01 18:46:58 mycroft Exp $"
    is returned.
 
    For example,
-   
+
    cplus_demangle ("_foo__1Ai")
-   
+
    returns
 
    "A::foo(int)"
@@ -65,7 +65,7 @@ static char rcsid[] = "$Id: cplus-dem.c,v 1.2 1993/08/01 18:46:58 mycroft Exp $"
 #include <strings.h>
 #define memcpy(s1, s2, n) bcopy ((s2), (s1), (n))
 #define memcmp(s1, s2, n) bcmp ((s2), (s1), (n))
-#define strchr index 
+#define strchr index
 #define strrchr rindex
 #endif
 
@@ -358,12 +358,12 @@ get_count (type, count)
     {
       const char *p = *type;
       int n = *count;
-      do 
+      do
 	{
 	  n *= 10;
 	  n += *p - '0';
 	  p += 1;
-	} 
+	}
       while (isdigit (*p));
       if (*p == '_')
 	{
@@ -451,7 +451,7 @@ do_type (type, result)
 		n *= 10;
 		n += **type - '0';
 		*type += 1;
-	      } 
+	      }
 	    while (isdigit (**type));
 	    if (strlen (*type) < n)
 	      {
@@ -783,7 +783,7 @@ static void
 munge_function_name (name)
      string *name;
 {
-  if (!string_empty (name) && name->p - name->b >= 3 
+  if (!string_empty (name) && name->p - name->b >= 3
       && name->b[0] == 'o' && name->b[1] == 'p' && name->b[2] == '$')
     {
       int i;
@@ -810,7 +810,7 @@ munge_function_name (name)
 	  for (i = 0; i < sizeof (optable)/sizeof (optable[0]); i++)
 	    {
 	      int len = name->p - name->b - 3;
-	      if (strlen (optable[i].in) == len 
+	      if (strlen (optable[i].in) == len
 		  && memcmp (optable[i].in, name->b + 3, len) == 0)
 		{
 		  string_clear (name);
@@ -882,7 +882,7 @@ string_init (s)
   s->b = s->p = s->e = NULL;
 }
 
-static void 
+static void
 string_clear (s)
      string *s;
 {

@@ -68,7 +68,7 @@ bfd_nullvoidptr (ignore)
 }
 
 /*ARGSUSED*/
-int 
+int
 bfd_0 (ignore)
      bfd *ignore;
 {
@@ -76,7 +76,7 @@ bfd_0 (ignore)
 }
 
 /*ARGSUSED*/
-unsigned int 
+unsigned int
 bfd_0u (ignore)
      bfd *ignore;
 {
@@ -104,7 +104,7 @@ _bfd_n1 (ignore_abfd)
 }
 
 /*ARGSUSED*/
-void 
+void
 bfd_void (ignore)
      bfd *ignore;
 {
@@ -180,7 +180,7 @@ bfd_zmalloc (size)
    contents (0 for non-archive elements).  For archive entries this is the
    first octet in the file, NOT the beginning of the archive header. */
 
-static 
+static
 int
 real_read (where, a,b, file)
      PTR where;
@@ -418,7 +418,7 @@ bfd_add_to_string_table (table, new_string, table_length, free_ptr)
 
   if ((size_t)(offset + string_length) >= space_length) {
     /* Make sure we will have enough space */
-    while ((size_t)(offset + string_length) >= space_length) 
+    while ((size_t)(offset + string_length) >= space_length)
       space_length += space_length/2; /* grow by 50% */
 
     base = (char *) realloc (base, space_length);
@@ -433,7 +433,7 @@ bfd_add_to_string_table (table, new_string, table_length, free_ptr)
   *table = base;
   *table_length = space_length;
   *free_ptr = base + offset + string_length;
-  
+
   return true;
 }
 
@@ -445,7 +445,7 @@ bfd_add_to_string_table (table, new_string, table_length, free_ptr)
 
 /* FIXME: Should these take a count argument?
    Answer (gnu@cygnus.com):  No, but perhaps they should be inline
-                             functions in swap.h #ifdef __GNUC__. 
+                             functions in swap.h #ifdef __GNUC__.
                              Gprof them later and find out.  */
 
 /*
@@ -511,7 +511,7 @@ DESCRIPTION
 .#define bfd_get_signed_64(abfd, ptr) \
 .		 BFD_SEND(abfd, bfd_getx_signed_64, (ptr))
 .
-*/ 
+*/
 
 /*
 FUNCTION
@@ -563,7 +563,7 @@ DESCRIPTION
 .#define bfd_h_get_signed_64(abfd, ptr) \
 .		 BFD_SEND(abfd, bfd_h_getx_signed_64, (ptr))
 .
-*/ 
+*/
 
 /* Sign extension to bfd_signed_vma.  */
 #define COERCE16(x) (((bfd_signed_vma) (x) ^ 0x8000) - 0x8000)
@@ -611,7 +611,7 @@ bfd_putb16 (data, addr)
 
 void
 bfd_putl16 (data, addr)
-     bfd_vma data;             
+     bfd_vma data;
      register bfd_byte *addr;
 {
   addr[0] = (bfd_byte )data;

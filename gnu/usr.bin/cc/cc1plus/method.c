@@ -4,7 +4,7 @@
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
    This file is part of GNU CC.
-   
+
 GNU CC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
@@ -837,7 +837,7 @@ build_static_name (basetype, name)
 			       + strlen (basename));
   sprintf (buf, STATIC_NAME_FORMAT, basename, IDENTIFIER_POINTER (name));
   return get_identifier (buf);
-}  
+}
 
 /* Generate an identifier that encodes the (ANSI) exception TYPE. */
 
@@ -1865,10 +1865,10 @@ emit_thunk (thunk_fndecl)
 	      else
 		entry_parm = gen_rtx (MEM, TYPE_MODE (passed_type),
 				      gen_rtx (PLUS, Pmode,
-					       internal_arg_pointer, 
+					       internal_arg_pointer,
 					       offset_rtx));
 	    }
-	  
+
 	  this_rtx = entry_parm;
 	}
 
@@ -2037,12 +2037,12 @@ build_copy_constructor (fndecl)
 	  current_base_init_list = tree_cons (TYPE_NESTED_NAME (basetype),
 					      p, current_base_init_list);
 	}
-	
+
       for (i = 0; i < n_bases; ++i)
 	{
 	  tree p, basetype = TREE_VEC_ELT (binfos, i);
 	  if (TREE_VIA_VIRTUAL (basetype))
-	    continue;	  
+	    continue;
 
 	  basetype = BINFO_TYPE (basetype);
 	  p = convert (build_reference_type (basetype), parm);

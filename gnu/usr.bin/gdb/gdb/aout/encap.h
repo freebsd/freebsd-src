@@ -21,7 +21,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
  * We only use the coff headers to tell the kernel
- * how to exec the file.  Therefore, the only fields that need to 
+ * how to exec the file.  Therefore, the only fields that need to
  * be filled in are the scnptr and vaddr for the text and data
  * sections, and the vaddr for the bss.  As far as coff is concerned,
  * there is no symbol table, relocation, or line numbers.
@@ -31,7 +31,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * and a_flags.  If a_machtype is M_386, and a_flags & A_ENCAP is
  * true, then the bsd header is preceeded by a coff header.  Macros
  * like N_TXTOFF and N_TXTADDR use this field to find the bsd header.
- * 
+ *
  * The only problem is to track down the bsd exec header.  The
  * macros HEADER_OFFSET, etc do this.
  */
@@ -82,7 +82,7 @@ struct coffheader
    separate GNU nm for every architecture!!?  Unfortunately, it needs to
    be this way, since the COFF_MAGIC value is determined by the kernel
    we're trying to fool here.  */
-   
+
 #define COFF_MAGIC_I386 0514 /* I386MAGIC */
 #define COFF_MAGIC_M68K 0520 /* MC68MAGIC */
 #define	COFF_MAGIC_A29K 0x17A	/* Used by asm29k cross-tools */
@@ -111,7 +111,7 @@ short __header_offset_temp;
    Non-encapsulated a.out files that are linked ZMAGIC have a text
    segment that starts at 0 and an N_TXTADR similarly offset to 0.
    They too are page-aligned with each other, but they include the
-   a.out header as part of the text. 
+   a.out header as part of the text.
 
    The _N_HDROFF gets sizeof struct exec added to it, so we have
    to compensate here.  See <a.out.gnu.h>.  */

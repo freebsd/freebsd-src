@@ -25,7 +25,7 @@
  *  19/12/93 - menu will now scroll if there are more items than can fit
  *             on the screen.
  *           - added 'checklist', a dialog box with a list of options that
- *             can be turned on or off. A list of options that are on is 
+ *             can be turned on or off. A list of options that are on is
  *             returned on exit.
  *
  *  20/12/93 - Version 0.15 released.
@@ -67,7 +67,7 @@
  *  13/01/94 - some changes for easier porting to other Unix systems (tested
  *             on Ultrix, SunOS and HPUX)
  *           - Version 0.3 released.
- * 
+ *
  *  08/06/94 - Patches by Stuart Herbert - S.Herbert@shef.ac.uk
  * 	       Fixed attr_clear and the textbox stuff to work with ncurses 1.8.5
  * 	       Fixed the wordwrap routine - it'll actually wrap properly now

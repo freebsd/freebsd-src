@@ -48,10 +48,10 @@ mmalloc_detach (md)
     {
 
       mtemp = *(struct mdesc *) md;
-      
+
       /* Now unmap all the pages associated with this region by asking for a
 	 negative increment equal to the current size of the region. */
-      
+
       if ((mtemp.morecore (&mtemp, mtemp.base - mtemp.top)) == NULL)
 	{
 	  /* Update the original malloc descriptor with any changes */

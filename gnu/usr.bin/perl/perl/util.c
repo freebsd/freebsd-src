@@ -1,4 +1,4 @@
-/* $RCSfile: util.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:40 $
+/* $RCSfile: util.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,42 +6,45 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: util.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:40  nate
  * PERL!
  *
  * Revision 4.0.1.6  92/06/11  21:18:47  lwall
  * patch34: boneheaded typo in my_bcopy()
- * 
+ *
  * Revision 4.0.1.5  92/06/08  16:08:37  lwall
  * patch20: removed implicit int declarations on functions
  * patch20: Perl now distinguishes overlapped copies from non-overlapped
  * patch20: fixed confusion between a *var's real name and its effective name
  * patch20: bcopy() and memcpy() now tested for overlap safety
  * patch20: added Atari ST portability
- * 
+ *
  * Revision 4.0.1.4  91/11/11  16:48:54  lwall
  * patch19: study was busted by 4.018
  * patch19: added little-endian pack/unpack options
- * 
+ *
  * Revision 4.0.1.3  91/11/05  19:18:26  lwall
  * patch11: safe malloc code now integrated into Perl's malloc when possible
  * patch11: index("little", "longer string") could visit faraway places
  * patch11: warn '-' x 10000 dumped core
  * patch11: forked exec on non-existent program now issues a warning
- * 
+ *
  * Revision 4.0.1.2  91/06/07  12:10:42  lwall
  * patch4: new copyright notice
  * patch4: made some allowances for "semi-standard" C
  * patch4: index() could blow up searching for null string
  * patch4: taintchecks could improperly modify parent in vfork()
  * patch4: exec would close files even if you cleared close-on-exec flag
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:19:25  lwall
  * patch1: random cleanup in cpp namespace
- * 
+ *
  * Revision 4.0  91/03/20  01:56:39  lwall
  * 4.0 baseline.
- * 
+ *
  */
 /*SUPPRESS 112*/
 
@@ -420,7 +423,7 @@ unsigned char fold[] = {
 	192,	193,	194,	195,	196,	197,	198,	199,
 	200,	201,	202,	203,	204,	205,	206,	207,
 	208,	209,	210,	211,	212,	213,	214,	215,
-	216,	217,	218,	219,	220,	221,	222,	223,	
+	216,	217,	218,	219,	220,	221,	222,	223,
 	224,	225,	226,	227,	228,	229,	230,	231,
 	232,	233,	234,	235,	236,	237,	238,	239,
 	240,	241,	242,	243,	244,	245,	246,	247,
@@ -682,7 +685,7 @@ STR *littlestr;
     register unsigned char *bigend;
     register unsigned char *littleend;
 
-    if ((pos = screamfirst[littlestr->str_rare]) < 0) 
+    if ((pos = screamfirst[littlestr->str_rare]) < 0)
 	return Nullch;
 #ifndef lint
     little = (unsigned char *)(littlestr->str_ptr);

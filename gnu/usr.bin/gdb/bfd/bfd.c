@@ -32,10 +32,10 @@ SECTION
 
 CODE_FRAGMENT
 .
-.struct _bfd 
+.struct _bfd
 .{
 .    {* The filename the application opened the BFD with.  *}
-.    CONST char *filename;                
+.    CONST char *filename;
 .
 .    {* A pointer to the target jump table.             *}
 .    const struct bfd_target *xvec;
@@ -66,7 +66,7 @@ CODE_FRAGMENT
 .    {* When a file is closed by the caching routines, BFD retains
 .       state information on the file here: *}
 .
-.    file_ptr where;              
+.    file_ptr where;
 .
 .    {* and here: (``once'' means at least once) *}
 .
@@ -79,7 +79,7 @@ CODE_FRAGMENT
 .
 .    {* File modified time, if mtime_set is true: *}
 .
-.    long mtime;          
+.    long mtime;
 .
 .    {* Reserved for an unimplemented file locking extension.*}
 .
@@ -98,13 +98,13 @@ CODE_FRAGMENT
 .
 .    {* Format_specific flags*}
 .
-.    flagword flags;              
+.    flagword flags;
 .
 .    {* Currently my_archive is tested before adding origin to
 .       anything. I believe that this can become always an add of
 .       origin, with origin set to 0 for non archive files.   *}
 .
-.    file_ptr origin;             
+.    file_ptr origin;
 .
 .    {* Remember when output has begun, to stop strange things
 .       from happening. *}
@@ -116,7 +116,7 @@ CODE_FRAGMENT
 .    {* The number of sections *}
 .    unsigned int section_count;
 .
-.    {* Stuff only useful for object files: 
+.    {* Stuff only useful for object files:
 .       The start address. *}
 .    bfd_vma start_address;
 .
@@ -124,17 +124,17 @@ CODE_FRAGMENT
 .    unsigned int symcount;
 .
 .    {* Symbol table for output BFD (with symcount entries) *}
-.    struct symbol_cache_entry  **outsymbols;             
+.    struct symbol_cache_entry  **outsymbols;
 .
 .    {* Pointer to structure which contains architecture information*}
 .    struct bfd_arch_info *arch_info;
 .
 .    {* Stuff only useful for archives:*}
-.    PTR arelt_data;              
+.    PTR arelt_data;
 .    struct _bfd *my_archive;     {* The containing archive BFD.  *}
 .    struct _bfd *next;           {* The next BFD in the archive.  *}
 .    struct _bfd *archive_head;   {* The first BFD in the archive.  *}
-.    boolean has_armap;           
+.    boolean has_armap;
 .
 .    {* A chain of BFD structures involved in a link.  *}
 .    struct _bfd *link_next;
@@ -145,7 +145,7 @@ CODE_FRAGMENT
 .
 .    {* Used by the back end to hold private data. *}
 .
-.    union 
+.    union
 .      {
 .      struct aout_data_struct *aout_data;
 .      struct artdata *aout_ar_data;
@@ -171,7 +171,7 @@ CODE_FRAGMENT
 .      struct cisco_core_struct *cisco_core_data;
 .      PTR any;
 .      } tdata;
-.  
+.
 .    {* Used by the application to hold private data*}
 .    PTR usrdata;
 .
@@ -719,7 +719,7 @@ bfd_scan_vma (string, end, base)
       (string[0] == '0') && ((string[1] == 'x') || (string[1] == 'X')))
     string += 2;
   /* XXX should we also skip over "0b" or "0B" if base is 2? */
-    
+
 /* Speed could be improved with a table like hex_value[] in gas.  */
 #define HEX_VALUE(c) \
   (isxdigit(c) ?				\
@@ -747,7 +747,7 @@ SYNOPSIS
 	boolean bfd_copy_private_bfd_data(bfd *ibfd, bfd *obfd);
 
 DESCRIPTION
-	Copy private BFD information from the BFD @var{ibfd} to the 
+	Copy private BFD information from the BFD @var{ibfd} to the
 	the BFD @var{obfd}.  Return <<true>> on success, <<false>> on error.
 	Possible error returns are:
 
@@ -793,7 +793,7 @@ DESCRIPTION
 .#define bfd_get_relocated_section_contents(abfd, link_info, link_order, data, relocateable, symbols) \
 .	BFD_SEND (abfd, _bfd_get_relocated_section_contents, \
 .                 (abfd, link_info, link_order, data, relocateable, symbols))
-. 
+.
 .#define bfd_relax_section(abfd, section, link_info, again) \
 .       BFD_SEND (abfd, _bfd_relax_section, (abfd, section, link_info, again))
 .

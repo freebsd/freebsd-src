@@ -354,7 +354,7 @@ skip_node_characters (string, newlines_okay)
 
 	  continue;
 	}
-      
+
       /* If the character following the close paren is a space or period,
 	 then this node name has no more characters associated with it. */
       if (c == '\t' ||

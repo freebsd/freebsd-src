@@ -440,7 +440,7 @@ value_of_internalvar (var)
 #ifdef IS_TRAPPED_INTERNALVAR
   if (IS_TRAPPED_INTERNALVAR (var->name))
     return VALUE_OF_TRAPPED_INTERNALVAR (var);
-#endif 
+#endif
 
   val = value_copy (var->value);
   if (VALUE_LAZY (val))
@@ -578,7 +578,7 @@ value_as_double (val)
 {
   double foo;
   int inv;
-  
+
   foo = unpack_double (VALUE_TYPE (val), VALUE_CONTENTS (val), &inv);
   if (inv)
     error ("Invalid floating value found in program.");
@@ -797,13 +797,13 @@ value_fn_field (arg1p, f, j, type, offset)
 
   sym = lookup_symbol (TYPE_FN_FIELD_PHYSNAME (f, j),
 		       0, VAR_NAMESPACE, 0, NULL);
-  if (! sym) 
+  if (! sym)
 	return NULL;
 /*
 	error ("Internal error: could not find physical method named %s",
 		    TYPE_FN_FIELD_PHYSNAME (f, j));
 */
-  
+
   v = allocate_value (ftype);
   VALUE_ADDRESS (v) = BLOCK_START (SYMBOL_BLOCK_VALUE (sym));
   VALUE_TYPE (v) = ftype;
@@ -814,7 +814,7 @@ value_fn_field (arg1p, f, j, type, offset)
       *arg1p = value_ind (value_cast (lookup_pointer_type (type),
 				      value_addr (*arg1p)));
 
-    /* Move the `this' pointer according to the offset. 
+    /* Move the `this' pointer according to the offset.
     VALUE_OFFSET (*arg1p) += offset;
     */
     }
@@ -844,7 +844,7 @@ value_virtual_fn_field (arg1p, f, j, type, offset)
      should serve just fine as a function type).  Then, index into
      the table, and convert final value to appropriate function type.  */
   value_ptr entry, vfn, vtbl;
-  value_ptr vi = value_from_longest (builtin_type_int, 
+  value_ptr vi = value_from_longest (builtin_type_int,
 				     (LONGEST) TYPE_FN_FIELD_VOFFSET (f, j));
   struct type *fcontext = TYPE_FN_FIELD_FCONTEXT (f, j);
   struct type *context;
@@ -870,7 +870,7 @@ value_virtual_fn_field (arg1p, f, j, type, offset)
 
   /* The virtual function table is now an array of structures
      which have the form { int16 offset, delta; void *pfn; }.  */
-  vtbl = value_ind (value_primitive_field (arg1, 0, 
+  vtbl = value_ind (value_primitive_field (arg1, 0,
 					   TYPE_VPTR_FIELDNO (context),
 					   TYPE_VPTR_BASETYPE (context)));
 
@@ -884,7 +884,7 @@ value_virtual_fn_field (arg1p, f, j, type, offset)
     {
       /* Move the `this' pointer according to the virtual function table. */
       VALUE_OFFSET (arg1) += value_as_long (value_field (entry, 0));
-      
+
       if (! VALUE_LAZY (arg1))
 	{
 	  VALUE_LAZY (arg1) = 1;
@@ -956,7 +956,7 @@ value_headof (in_arg, btype, dtype)
   nelems = longest_to_int (value_as_long (value_field (entry, 2)));
   for (i = 1; i <= nelems; i++)
     {
-      entry = value_subscript (vtbl, value_from_longest (builtin_type_int, 
+      entry = value_subscript (vtbl, value_from_longest (builtin_type_int,
 						      (LONGEST) i));
       /* This won't work if we're using thunks. */
       if (TYPE_CODE (VALUE_TYPE (entry)) != TYPE_CODE_STRUCT)
@@ -1331,7 +1331,7 @@ value_from_longest (type, num)
     case TYPE_CODE_RANGE:
       store_signed_integer (VALUE_CONTENTS_RAW (val), len, num);
       break;
-      
+
     case TYPE_CODE_REF:
     case TYPE_CODE_PTR:
       /* This assumes that all pointers of a given length

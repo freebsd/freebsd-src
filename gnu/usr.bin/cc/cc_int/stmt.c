@@ -735,7 +735,7 @@ expand_goto (label)
 	  addr = copy_rtx (p->nonlocal_goto_handler_slot);
 	  temp = copy_to_reg (replace_rtx (addr, virtual_stack_vars_rtx,
 					   hard_frame_pointer_rtx));
-	  
+
 	  /* Restore the stack pointer.  Note this uses fp just restored.  */
 	  addr = p->nonlocal_goto_stack_level;
 	  if (addr)
@@ -892,11 +892,11 @@ bc_expand_goto_internal (opcode, label, body)
 	  if (body && DECL_BIT_FIELD (body))
 	    error ("jump to `%s' invalidly jumps into binding contour",
 		   IDENTIFIER_POINTER (DECL_NAME (body)));
-	  
+
 	  /* Emit immediate jump */
 	  bc_emit_bytecode (opcode);
 	  bc_emit_bytecode_labelref (label);
-	  
+
 #ifdef DEBUG_PRINT_CODE
 	  fputc ('\n', stderr);
 #endif
@@ -1601,7 +1601,7 @@ expand_expr_stmt (exp)
       /* Restore stack depth */
       if (stack_depth < org_stack_depth)
 	abort ();
-      
+
       bc_emit_instruction (drop);
 
       last_expr_type = TREE_TYPE (exp);
@@ -1640,7 +1640,7 @@ expand_expr_stmt (exp)
       else
 	{
 	  rtx lab = gen_label_rtx ();
-	  
+
 	  /* Compare the value with itself to reference it.  */
 	  emit_cmp_insn (last_expr_value, last_expr_value, EQ,
 			 expand_expr (TYPE_SIZE (last_expr_type),
@@ -1801,8 +1801,8 @@ expand_end_stmt_expr (t)
     {
       int i;
       tree t;
-      
-      
+
+
       /* At this point, all expressions have been evaluated in order.
 	 However, all expression values have been popped when evaluated,
 	 which means we have to recover the last expression value.  This is
@@ -1811,20 +1811,20 @@ expand_end_stmt_expr (t)
 	 is here recovered by undoing the `drop'.  Since `drop' is
 	 equivalent to `adjustackSI [1]', it can be undone with `adjstackSI
 	 [-1]'. */
-      
+
       bc_adjust_stack (-1);
-      
+
       if (!last_expr_type)
 	last_expr_type = void_type_node;
-      
+
       t = make_node (RTL_EXPR);
       TREE_TYPE (t) = last_expr_type;
       RTL_EXPR_RTL (t) = NULL;
       RTL_EXPR_SEQUENCE (t) = NULL;
-      
+
       /* Don't consider deleting this expr or containing exprs at tree level.  */
       TREE_THIS_VOLATILE (t) = 1;
-      
+
       last_expr_type = 0;
       return t;
     }
@@ -2123,7 +2123,7 @@ expand_end_loop ()
   register rtx start_label;
   rtx last_test_insn = 0;
   int num_insns = 0;
-    
+
   if (output_bytecode)
     {
       bc_expand_end_loop ();
@@ -2502,7 +2502,7 @@ expand_return (retval)
       bc_emit_instruction (ret);
       return;
     }
-  
+
   /* If function wants no value, give it none.  */
   if (TREE_CODE (TREE_TYPE (TREE_TYPE (current_function_decl))) == VOID_TYPE)
     {
@@ -3472,7 +3472,7 @@ bc_expand_decl_init (decl)
 
   bc_adjust_stack (stack_depth - org_stack_depth);
 }
- 
+
 
 /* CLEANUP is an expression to be executed at exit from this binding contour;
    for example, in C++, it might call the destructor for this variable.
@@ -4158,7 +4158,7 @@ all_cases_count (type, spareness)
 		}
 	      prev = TREE_VALUE (t);
 	    }
-	  
+
 	}
     }
   return count;
@@ -4260,7 +4260,7 @@ mark_seen_cases (type, cases_seen, count, sparseness)
 			      TREE_INT_CST_LOW (val), TREE_INT_CST_HIGH (val),
 			      &xlo, &xhi);
 		}
-	      
+
 	      if (xhi == 0 && xlo >= 0 && xlo < count)
 		BITARRAY_SET (cases_seen, xlo);
 	    }
@@ -4684,7 +4684,7 @@ expand_end_case (orig_index)
 	      use_cost_table
 		= (TREE_CODE (TREE_TYPE (orig_index)) != ENUMERAL_TYPE
 		   && estimate_case_costs (thiscase->data.case_stmt.case_list));
-	      balance_case_nodes (&thiscase->data.case_stmt.case_list, 
+	      balance_case_nodes (&thiscase->data.case_stmt.case_list,
 				  NULL_PTR);
 	      emit_case_nodes (index, thiscase->data.case_stmt.case_list,
 			       default_label, index_type);
@@ -4921,7 +4921,7 @@ bc_expand_end_case (expr)
       /* Bad mode */
       abort ();
 
-    
+
   bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thiscase->exit_label));
 
   /* Possibly issue enumeration warnings.  */
@@ -4943,7 +4943,7 @@ bc_expand_end_case (expr)
 
 /* Return unique bytecode ID. */
 
-int 
+int
 bc_new_uid ()
 {
   static int bc_uid = 0;

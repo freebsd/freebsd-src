@@ -23,7 +23,7 @@ SUBSECTION
 	S-Record handling
 
 DESCRIPTION
-	
+
 	Ordinary S-Records cannot hold anything but addresses and
 	data, so that's all that we implement.
 
@@ -41,10 +41,10 @@ DESCRIPTION
 	up and output them when it's time to close the bfd.
 
 	An s record looks like:
-	
+
 EXAMPLE
 	S<type><length><address><data><checksum>
-	
+
 DESCRIPTION
 	Where
 	o length
@@ -60,7 +60,7 @@ DESCRIPTION
 	7) four byte address termination record
 	8) three byte address termination record
 	9) two byte address termination record
-	
+
 	o address
 	is the start address of the data following, or in the case of
 	a termination record, the start address of the image
@@ -100,7 +100,7 @@ EXAMPLE
 DESCRIPTION
 	We allow symbols to be anywhere in the data stream - the module names
 	are always ignored.
-		
+
 */
 
 #include "bfd.h"

@@ -1,5 +1,5 @@
 PROG=	rcsclean
-SRCS=	rcsclean.c 
+SRCS=	rcsclean.c
 CFLAGS+= -I${.CURDIR}/../lib
 LDADD=	${LIBRCS}
 DPADD=	${LIBRCS}

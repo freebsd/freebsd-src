@@ -4,7 +4,7 @@
  * Foundation.
  *
  *	from: @(#)symseg.h	5.4 (Berkeley) 4/30/91
- *	$Id: symseg.h,v 1.2 1993/08/01 18:46:59 mycroft Exp $
+ *	$Id: symseg.h,v 1.3 1993/11/09 04:19:05 paul Exp $
  */
 
 /* GDB symbol table format definitions.
@@ -150,7 +150,7 @@ struct type
   /* Type that is a pointer to this type.
      Zero if no such pointer-to type is known yet.
      The debugger may add the address of such a type
-     if it has to construct one later.  */ 
+     if it has to construct one later.  */
   struct type *pointer_type;
   /* Type that is a function returning this type.
      Zero if no such function type is known here.
@@ -342,7 +342,7 @@ struct sourcevector
 };
 
 /* Line number and address of one line.  */
- 
+
 struct line
 {
   int linenum;

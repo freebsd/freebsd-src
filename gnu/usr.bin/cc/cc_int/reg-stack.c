@@ -765,7 +765,7 @@ record_asm_reg_life (insn, regstack, operands, constraints,
 
   int *operand_matches = (int *) alloca (n_operands * sizeof (int *));
 
-  enum reg_class *operand_class 
+  enum reg_class *operand_class
     = (enum reg_class *) alloca (n_operands * sizeof (enum reg_class *));
 
   int reg_used_as_output[FIRST_PSEUDO_REGISTER];
@@ -1257,7 +1257,7 @@ find_blocks (first)
 		   && SET_DEST (pat) == pc_rtx
 		   && uses_reg_or_mem (SET_SRC (pat)))
 	    computed_jump = 1;
-		    
+
 	  if (computed_jump)
 	    {
 	      for (x = label_value_list; x; x = XEXP (x, 1))
@@ -2243,7 +2243,7 @@ subst_asm_stack_regs (insn, regstack, operands, operands_loc, constraints,
   rtx body = PATTERN (insn);
 
   int *operand_matches = (int *) alloca (n_operands * sizeof (int *));
-  enum reg_class *operand_class 
+  enum reg_class *operand_class
     = (enum reg_class *) alloca (n_operands * sizeof (enum reg_class *));
 
   rtx *note_reg;		/* Array of note contents */

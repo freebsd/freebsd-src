@@ -1,18 +1,18 @@
 /* tc-vax.c - vax-specific -
    Copyright (C) 1987, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -77,12 +77,12 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  * The "how long" refers merely to the displacement length.
  * The address usually has some constant bytes in it as well.
  *
- 
+
  groups for VAX address relaxing.
- 
+
  1.	"foo" pc-relative.
  length of byte, word, long
- 
+
  2a.	J<cond> where <cond> is a simple flag test.
  length of byte, word, long.
  VAX opcodes are:	(Hex)
@@ -100,7 +100,7 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  blssu/bcs	1f
  Always, you complement 0th bit to reverse condition.
  Always, 1-byte opcode, then 1-byte displacement.
- 
+
  2b.	J<cond> where cond tests a memory bit.
  length of byte, word, long.
  Vax opcodes are:	(Hex)
@@ -114,7 +114,7 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  bbcci		e7
  Always, you complement 0th bit to reverse condition.
  Always, 1-byte opcde, longword-address, byte-address, 1-byte-displacement
- 
+
  2c.	J<cond> where cond tests low-order memory bit
  length of byte,word,long.
  Vax opcodes are:	(Hex)
@@ -122,7 +122,7 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  blbc		e9
  Always, you complement 0th bit to reverse condition.
  Always, 1-byte opcode, longword-address, 1-byte displacement.
- 
+
  3.	Jbs/Jbr.
  length of byte,word,long.
  Vax opcodes are:	(Hex)
@@ -130,7 +130,7 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  brb		11
  These are like (2) but there is no condition to reverse.
  Always, 1 byte opcode, then displacement/absolute.
- 
+
  4a.	JacbX
  length of word, long.
  Vax opcodes are:	(Hex)
@@ -146,7 +146,7 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  The double-byte op-codes don't hurt: we never want to modify the
  opcode, so we don't care how many bytes are between the opcode and
  the operand.
- 
+
  4b.	JXobXXX
  length of long, long, byte.
  Vax opcodes are:	(Hex)
@@ -156,14 +156,14 @@ FLONUM_TYPE float_operand[VIT_MAX_OPERANDS];
  sobgtr		f5
  Always, we cannot reverse the sense of the branch; we have a byte
  displacement.
- 
+
  The only time we need to modify the opcode is for class 2 instructions.
  After relax() we may complement the lowest order bit of such instruction
  to reverse sense of branch.
- 
+
  For class 2 instructions, we store context of "where is the opcode literal".
  We can change an opcode's lowest order bit without breaking anything else.
- 
+
  We sometimes store context in the operand literal. This way we can figure out
  after relax() what the original addressing mode was.
  */
@@ -263,11 +263,11 @@ void
 	char *errtxt;
 	FLONUM_TYPE *fP;
 	int i;
-	
+
 	if (*(errtxt = vip_begin (1, "$", "*", "`"))) {
 		as_fatal("VIP_BEGIN error:%s", errtxt);
 	}
-	
+
 	for (i = 0, fP = float_operand;
 	     fP < float_operand + VIT_MAX_OPERANDS;
 	     i++, fP++) {
@@ -290,7 +290,7 @@ int nbytes;		/* Number of bytes in the output. */
 {
 	int n;
 	long v;
-	
+
 	n = nbytes;
 	v = value;
 	while (nbytes--) {
@@ -312,7 +312,7 @@ long value;		/* The value of the bits. */
 {
 	char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 	int nbytes;		/* Number of bytes in the output. */
-	
+
 	nbytes = fixP->fx_size;
 	while (nbytes--) {
 		*buf++ = value;		/* Lint wants & MASK_CHAR. */
@@ -343,7 +343,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 	int is_undefined;		/* 1 if operand expression's */
 	/* segment not known yet. */
 	int length_code;
-	
+
 	char *p;
 	register struct vop *operandP;/* An operand. Scans all operands. */
 	char *save_input_line_pointer;
@@ -354,13 +354,13 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 	register struct vop *end_operandP;	/* -> slot just after last operand */
 	/* Limit of the for (each operand). */
 	register expressionS *expP;	/* -> expression values for this operand */
-	
+
 	/* These refer to an instruction operand expression. */
 	segT to_seg;			/* Target segment of the address.	 */
 	register valueT this_add_number;
 	register struct symbol *this_add_symbol;	/* +ve (minuend) symbol. */
 	register struct symbol *this_subtract_symbol;	/* -ve(subtrahend) symbol. */
-	
+
 	long opcode_as_number;	/* As a number. */
 	char *opcode_as_chars;	/* Least significant byte 1st. */
 	/* As an array of characters. */
@@ -374,7 +374,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 	char *vip ();
 	LITTLENUM_TYPE literal_float[8];
 	/* Big enough for any floating point literal. */
-	
+
 	if (*(p = vip (&v, instruction_string))) {
 		as_fatal("vax_assemble\"%s\" in=\"%s\"", p, instruction_string);
 	}
@@ -397,16 +397,16 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 	     expP = exp_of_operand,
 	     floatP = float_operand,
 	     end_operandP = v.vit_operand + v.vit_operands;
-	     
+
 	     operandP < end_operandP;
-	     
+
 	     operandP++, expP++, floatP++) { /* for each operand */
 		if (*(operandP->vop_error)) {
 			as_warn ("Ignoring statement because \"%s\"", (operandP->vop_error));
 			goofed = 1;
 		} else { /* statement has no syntax goofs: lets sniff the expression */
 			int can_be_short = 0;	/* 1 if a bignum can be reduced to a short literal. */
-			
+
 			input_line_pointer = operandP->vop_expr_begin;
 			c_save = operandP->vop_expr_end[1];
 			operandP->vop_expr_end[1] = '\0';
@@ -428,7 +428,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 			case SEG_ABSOLUTE:
 			case SEG_UNKNOWN:
 				break;
-				
+
 			case SEG_DIFFERENCE:
 			case SEG_PASS1:
 				/*
@@ -447,7 +447,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 				need_pass_2 = 1;
 				as_warn("Can't relocate expression");
 				break;
-				
+
 			case SEG_BIG:
 				/* Preserve the bits. */
 				if (expP->X_add_number > 0) {
@@ -465,7 +465,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 							    (literal_float[0] & 0xFC0F) == 0x4000
 								&& literal_float[1] == 0;
 							break;
-							
+
 						case 'd':
 							can_be_short =
 							    (literal_float[0] & 0xFC0F) == 0x4000
@@ -473,7 +473,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 								    && literal_float[2] == 0
 									&& literal_float[3] == 0;
 							break;
-							
+
 						case 'g':
 							can_be_short =
 							    (literal_float[0] & 0xFF81) == 0x4000
@@ -481,7 +481,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 								    && literal_float[2] == 0
 									&& literal_float[3] == 0;
 							break;
-							
+
 						case 'h':
 							can_be_short = ((literal_float[0] & 0xFFF8) == 0x4000
 									&& (literal_float[1] & 0xE000) == 0
@@ -492,14 +492,14 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 									&& literal_float[6] == 0
 									&& literal_float[7] == 0);
 							break;
-							
+
 						default:
 							BAD_CASE(-expP->X_add_number);
 							break;
 						} /* switch (float type) */
 					} /* if (could want to become S^#...) */
 				} /* bignum or flonum ? */
-				
+
 				if (operandP->vop_short == 's'
 				    || operandP->vop_short == 'i'
 				    || (operandP->vop_short == ' '
@@ -543,27 +543,27 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 								operandP->vop_reg = 0xF; /* VAX PC. */
 							} else { /* Encode short literal now. */
 								int temp = 0;
-								
+
 								switch (-expP->X_add_number) {
 								case 'f':
 								case 'd':
 									temp = literal_float[0] >> 4;
 									break;
-									
+
 								case 'g':
 									temp = literal_float[0] >> 1;
 									break;
-									
+
 								case 'h':
 									temp = ((literal_float[0] << 3) & 070)
 									    | ((literal_float[1] >> 13) & 07);
 									break;
-									
+
 								default:
 									BAD_CASE(-expP->X_add_number);
 									break;
 								}
-								
+
 								floatP->low[0] = temp & 077;
 								floatP->low[1] = 0;
 							} /* if can be short literal float */
@@ -592,7 +592,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 				 * 32 bits of the number to X_add_number.
 				 */
 				break;
-				
+
 			default:
 				BAD_CASE (to_seg);
 				break;
@@ -604,14 +604,14 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 			operandP->vop_expr_end[1] = c_save;
 		}
 	} /* for (each operand) */
-	
+
 	input_line_pointer = save_input_line_pointer;
-	
+
 	if (need_pass_2 || goofed) {
 		return;
 	}
 
-	
+
 	/* Emit op-code. */
 	/* Remember where it is, in case we want to modify the op-code later. */
 	opcode_low_byteP = frag_more (v.vit_opcode_nbytes);
@@ -621,9 +621,9 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 	     expP = exp_of_operand,
 	     floatP = float_operand,
 	     end_operandP = v.vit_operand + v.vit_operands;
-	     
+
 	     operandP < end_operandP;
-	     
+
 	     operandP++,
 	     floatP++,
 	     expP++) { /* for each operand */
@@ -632,7 +632,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 			/* Legality of indexed mode already checked: it is OK */
 			FRAG_APPEND_1_CHAR (0x40 + operandP->vop_ndx);
 		}			/* if (vop_ndx >= 0) */
-		
+
 		/* Here to make main operand frag(s). */
 		this_add_number = expP->X_add_number;
 		this_add_symbol = expP->X_add_symbol;
@@ -973,7 +973,7 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 									 * We stored our constant as LITTLENUMs, not bytes.
 									 */
 									LITTLENUM_TYPE *lP;
-									
+
 									lP = floatP->low;
 									if (nbytes & 1) {
 										know(nbytes == 1);
@@ -997,12 +997,12 @@ char *instruction_string;	/* A string: assemble 1 instruction. */
 						if (length == 0) {
 							if (to_seg == SEG_ABSOLUTE) {
 								register long test;
-								
+
 								test = this_add_number;
-								
+
 								if (test < 0)
 								    test = ~test;
-								
+
 								length = test & 0xffff8000 ? 4
 								    : test & 0xffffff80 ? 2
 									: 1;
@@ -1047,7 +1047,7 @@ register segT segment;
 {
 	register char *p;
 	register int old_fr_fix;
-	
+
 	old_fr_fix = fragP->fr_fix;
 	switch (fragP->fr_subtype) {
 	case ENCODE_RELAX (STATE_PC_RELATIVE, STATE_UNDF):
@@ -1062,7 +1062,7 @@ register segT segment;
 		    frag_wane(fragP);
 	    }
 	    break;
-	    
+
     case ENCODE_RELAX (STATE_CONDITIONAL_BRANCH, STATE_UNDF):
 	if (S_GET_SEGMENT(fragP->fr_symbol) == segment) {
 		fragP->fr_subtype = ENCODE_RELAX (STATE_CONDITIONAL_BRANCH, STATE_BYTE);
@@ -1078,7 +1078,7 @@ register segT segment;
 		frag_wane(fragP);
 	}
 	    break;
-	    
+
     case ENCODE_RELAX (STATE_COMPLEX_BRANCH, STATE_UNDF):
 	if (S_GET_SEGMENT(fragP->fr_symbol) == segment) {
 		fragP->fr_subtype = ENCODE_RELAX (STATE_COMPLEX_BRANCH, STATE_WORD);
@@ -1096,7 +1096,7 @@ register segT segment;
 		frag_wane(fragP);
 	}
 	    break;
-	    
+
     case ENCODE_RELAX (STATE_COMPLEX_HOP, STATE_UNDF):
 	if (S_GET_SEGMENT(fragP->fr_symbol) == segment) {
 		fragP->fr_subtype = ENCODE_RELAX (STATE_COMPLEX_HOP, STATE_BYTE);
@@ -1113,7 +1113,7 @@ register segT segment;
 		frag_wane(fragP);
 	}
 	    break;
-	    
+
     case ENCODE_RELAX (STATE_ALWAYS_BRANCH, STATE_UNDF):
 	if (S_GET_SEGMENT(fragP->fr_symbol) == segment) {
 		fragP->fr_subtype = ENCODE_RELAX (STATE_ALWAYS_BRANCH, STATE_BYTE);
@@ -1127,7 +1127,7 @@ register segT segment;
 		frag_wane(fragP);
 	}
 	    break;
-	    
+
     default:
 	    break;
     }
@@ -1161,7 +1161,7 @@ register fragS *fragP;
 	/* Where, in file space, is _var of *fragP? */
 	long target_address = 0;
 	/* Where, in file space, does addr point? */
-	
+
 	know(fragP->fr_type == rs_machine_dependent);
 	length_code = fragP->fr_subtype & 3;	/* depends on ENCODE_RELAX() */
 	know(length_code >= 0 && length_code < 3);
@@ -1174,33 +1174,33 @@ register fragS *fragP;
 	address_of_var = fragP->fr_address + where;
 
 	switch (fragP->fr_subtype) {
-		
+
 	case ENCODE_RELAX(STATE_PC_RELATIVE, STATE_BYTE):
 	    know(*addressP == 0 || *addressP == 0x10); /* '@' bit. */
 	    addressP[0] |= 0xAF; /* Byte displacement. */
 	    addressP[1] = target_address - (address_of_var + 2);
 	    extension = 2;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_PC_RELATIVE, STATE_WORD):
 	know(*addressP == 0 || *addressP == 0x10); /* '@' bit. */
 	    addressP[0] |= 0xCF; /* Word displacement. */
 	    md_number_to_chars(addressP + 1, target_address - (address_of_var + 3), 2);
 	    extension = 3;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_PC_RELATIVE, STATE_LONG):
 	know(*addressP == 0 || *addressP == 0x10); /* '@' bit. */
 	    addressP[0] |= 0xEF; /* Long word displacement. */
 	    md_number_to_chars(addressP + 1, target_address - (address_of_var + 5), 4);
 	    extension = 5;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_CONDITIONAL_BRANCH, STATE_BYTE):
 	addressP[0] = target_address - (address_of_var + 1);
 	    extension = 1;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_CONDITIONAL_BRANCH, STATE_WORD):
 	opcodeP[0] ^= 1;		/* Reverse sense of test. */
 	    addressP[0] = 3;
@@ -1208,7 +1208,7 @@ register fragS *fragP;
 	    md_number_to_chars(addressP + 2, target_address - (address_of_var + 4), 2);
 	    extension = 4;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_CONDITIONAL_BRANCH, STATE_LONG):
 	opcodeP[0] ^= 1;		/* Reverse sense of test. */
 	    addressP[0] = 6;
@@ -1217,30 +1217,30 @@ register fragS *fragP;
 	    md_number_to_chars(addressP + 3, target_address, 4);
 	    extension = 7;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_ALWAYS_BRANCH, STATE_BYTE):
 	addressP[0] = target_address - (address_of_var + 1);
 	    extension = 1;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_ALWAYS_BRANCH, STATE_WORD):
 	opcodeP[0] += VAX_WIDEN_WORD;	/* brb -> brw, bsbb -> bsbw */
 	    md_number_to_chars(addressP, target_address - (address_of_var + 2), 2);
 	    extension = 2;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_ALWAYS_BRANCH, STATE_LONG):
 	opcodeP[0] += VAX_WIDEN_LONG;	/* brb -> jmp, bsbb -> jsb */
 	    addressP[0] = VAX_PC_RELATIVE_MODE;
 	    md_number_to_chars(addressP + 1, target_address - (address_of_var + 5), 4);
 	    extension = 5;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_COMPLEX_BRANCH, STATE_WORD):
 	md_number_to_chars(addressP, target_address - (address_of_var + 2), 2);
 	    extension = 2;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_COMPLEX_BRANCH, STATE_LONG):
 	addressP[0] = 2;
 	    addressP[1] = 0;
@@ -1251,12 +1251,12 @@ register fragS *fragP;
 	    md_number_to_chars(addressP + 6, target_address, 4);
 	    extension = 10;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_COMPLEX_HOP, STATE_BYTE):
 	addressP[0] = target_address - (address_of_var + 1);
 	    extension = 1;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_COMPLEX_HOP, STATE_WORD):
 	addressP[0] = 2;
 	    addressP[1] = VAX_BRB;
@@ -1265,7 +1265,7 @@ register fragS *fragP;
 	    md_number_to_chars(addressP + 4, target_address - (address_of_var + 6), 2);
 	    extension = 6;
 	    break;
-	    
+
     case ENCODE_RELAX(STATE_COMPLEX_HOP, STATE_LONG):
 	addressP[0] = 2;
 	    addressP[1] = VAX_BRB;
@@ -1275,7 +1275,7 @@ register fragS *fragP;
 	    md_number_to_chars(addressP + 5, target_address, 4);
 	    extension = 9;
 	    break;
-	    
+
     default:
 	    BAD_CASE(fragP->fr_subtype);
 	    break;
@@ -1284,13 +1284,13 @@ register fragS *fragP;
 } /* md_convert_frag() */
 
 /* Translate internal format of relocation info into target format.
-   
+
    On vax: first 4 bytes are normal unsigned long, next three bytes
    are symbolnum, least sig. byte first.  Last byte is broken up with
    the upper nibble as nuthin, bit 3 as extern, bits 2 & 1 as length, and
    bit 0 as pcrel. */
 #ifdef comment
-void 
+void
     md_ri_to_chars (the_bytes, ri)
 char *the_bytes;
 struct reloc_info_generic ri;
@@ -1315,27 +1315,27 @@ relax_addressT segment_address_in_file;
 	 * In: length of relocation (or of address) in chars: 1, 2 or 4.
 	 * Out: GNU LD relocation length code: 0, 1, or 2.
 	 */
-	
+
 	static unsigned char nbytes_r_length[] = { 42, 0, 1, 42, 2 };
 	long r_symbolnum;
-	
+
 	know(fixP->fx_addsy != NULL);
-	
+
 	md_number_to_chars(where,
 			   fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
-	
+
 	where[6] = (r_symbolnum >> 16) & 0x0ff;
 	where[5] = (r_symbolnum >> 8) & 0x0ff;
 	where[4] = r_symbolnum & 0x0ff;
 	where[7] = ((((!S_IS_DEFINED(fixP->fx_addsy)) << 3)  & 0x08)
 		    | ((nbytes_r_length[fixP->fx_size] << 1) & 0x06)
 		    | (((fixP->fx_pcrel << 0) & 0x01) & 0x0f));
-	
+
 	return;
 } /* tc_aout_fix_to_chars() */
 /*
@@ -1418,7 +1418,7 @@ static struct hash_control *op_hash = NULL; /* handle of the OPCODE hash table *
 
 static const short int vax_operand_width_size[256] =
 {
-	
+
 #define _ 0
 	_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
 	_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
@@ -1489,12 +1489,12 @@ static const short int vax_operand_width_size[256] =
 You have just broken the encoding below, which assumes the sign bit
     means 'I am an imaginary instruction'.
 #endif
-    
+
 #if (VIT_OPCODE_SPECIAL != 0x40000000)
 You have just broken the encoding below, which assumes the 0x40 M bit means
     'I am not to be "optimised" the way normal branches are'.
 #endif
-    
+
     static const struct vot
     synthetic_votstrs[] =
 {
@@ -1519,7 +1519,7 @@ You have just broken the encoding below, which assumes the 0x40 M bit means
 	{"jcc",		{"b?", 0x8000001e}},
 	{"jlssu",	{"b?", 0x8000001f}},
 	{"jcs",		{"b?", 0x8000001f}},
-	
+
 	{"jacbw",	{"rwrwmwb!", 0xC000003d}},
 	{"jacbf",	{"rfrfmfb!", 0xC000004f}},
 	{"jacbd",	{"rdrdmdb!", 0xC000006f}},
@@ -1527,7 +1527,7 @@ You have just broken the encoding below, which assumes the 0x40 M bit means
 	{"jacbl",	{"rlrlmlb!", 0xC00000f1}},
 	{"jacbg",	{"rgrgmgb!", 0xC0004ffd}},
 	{"jacbh",	{"rhrhmhb!", 0xC0006ffd}},
-	
+
 	{"jbs",		{"rlvbb?", 0x800000e0}},
 	{"jbc",		{"rlvbb?", 0x800000e1}},
 	{"jbss",	{"rlvbb?", 0x800000e2}},
@@ -1538,17 +1538,17 @@ You have just broken the encoding below, which assumes the 0x40 M bit means
 	{"jbcci",	{"rlvbb?", 0x800000e7}},
 	{"jlbs",	{"rlb?", 0x800000e8}},	/* JF changed from rlvbb? */
 	{"jlbc",	{"rlb?", 0x800000e9}},	/* JF changed from rlvbb? */
-	
+
 	{"jaoblss",	{"rlmlb:", 0xC00000f2}},
 	{"jaobleq",	{"rlmlb:", 0xC00000f3}},
 	{"jsobgeq",	{"mlb:", 0xC00000f4}},	/* JF was rlmlb: */
 	{"jsobgtr",	{"mlb:", 0xC00000f5}},	/* JF was rlmlb: */
-	
+
 	/* CASEx has no branch addresses in our conception of it. */
 	/* You should use ".word ..." statements after the "case ...". */
-	
+
 	{"", ""} /* empty is end sentinel */
-	
+
 }; /* synthetic_votstrs */
 
 /*
@@ -1569,7 +1569,7 @@ char *immediate, *indirect, *displen;
 {
 	const struct vot *vP;	/* scan votstrs */
 	char *retval;	/* error text */
-	
+
 	if ((op_hash = hash_new())) {
 		retval = "";		/* OK so far */
 		for (vP = votstrs; *vP->vot_name && !*retval; vP++) {
@@ -1586,7 +1586,7 @@ char *immediate, *indirect, *displen;
 #ifndef CONST_TABLE
 	vip_op_defaults(immediate, indirect, displen);
 #endif
-	
+
 	return (retval);
 }
 
@@ -1642,9 +1642,9 @@ char *instring;		/* Text of a vax instruction: we modify. */
 	register char c;		/* Remember char, (we clobber it */
 	/* with '\0' temporarily). */
 	register vax_opcodeT oc;	/* Op-code of this instruction. */
-	
+
 	char *vip_op ();
-	
+
 	bug = "";
 	if (*instring == ' ')
 	    ++instring;			/* Skip leading whitespace. */
@@ -1754,7 +1754,7 @@ main ()
 {
 	char *p;
 	char *vip_begin ();
-	
+
 	printf ("0 means no synthetic instructions.   ");
 	printf ("Value for vip_begin?  ");
 	gets (answer);
@@ -1865,9 +1865,9 @@ int				/* return -1 or 0:15 */
 char c1, c2, c3;		/* c3 == 0 if 2-character reg name */
 {
 	register int retval;		/* return -1:15 */
-	
+
 	retval = -1;
-	
+
 	if (isupper (c1))
 	    c1 = tolower (c1);
 	if (isupper (c2))
@@ -2041,7 +2041,7 @@ static const char
 				_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _/*P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _*/
 				    D _ _ _ _ _ _ _ _ _ _ _ _ _ _ _/*`  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o*/
 					_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _/*p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~  ^?*/
-					    
+
 					    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 						_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 						    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
@@ -2070,7 +2070,7 @@ int bit;
 char *syms;
 {
 	unsigned char t;
-	
+
 	while (t= *syms++)
 	    vip_metacharacters[t]|=bit;
 }
@@ -2191,26 +2191,26 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	 */
 	char access;			/* vop_access. */
 	char width;			/* vop_width. */
-	
+
 	int vax_reg_parse ();		/* returns 0:15 or -1 if not a register */
-	
+
 	access = vopP->vop_access;
 	width = vopP->vop_width;
 	bug =				/* none of our code bugs (yet) */
 	    err =			/* no user text errors */
 		wrn = "";			/* no warnings even */
-	
+
 	p = optext;
-	
+
 	if (*p == ' ')		/* Expect all whitespace reduced to ' '. */
 	    p++;			/* skip over whitespace */
-	
+
 	if (at = INDIRECTP (*p)) {				/* 1 if *p == '@'(or '*' for Un*x) */
 		p++;			/* at is determined */
 		if (*p == ' ')		/* Expect all whitespace reduced to ' '. */
 		    p++;			/* skip over whitespace */
 	}
-	
+
 	/*
 	 * This code is subtle. It tries to detect all legal (letter)'^'
 	 * but it doesn't waste time explicitly testing for premature '\0' because
@@ -2218,7 +2218,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	 */
 	{
 		register char c;
-		
+
 		c = *p;
 		if (isupper (c))
 		    c = tolower (c);
@@ -2227,13 +2227,13 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 		else			/* no (letter) '^' seen */
 		    len = ' ';		/* len is determined */
 	}
-	
+
 	if (*p == ' ')		/* Expect all whitespace reduced to ' '. */
 	    p++;			/* skip over whitespace */
-	
+
 	if (hash = IMMEDIATEP (*p))	/* 1 if *p == '#' ('$' for Un*x) */
 	    p++;			/* hash is determined */
-	
+
 	/*
 	 * p points to what may be the beginning of an expression.
 	 * We have peeled off the front all that is peelable.
@@ -2241,7 +2241,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	 *
 	 * Lets point q at the end of the text and parse that (backwards).
 	 */
-	
+
 	for (q = p; *q; q++)
 	    ;
 	q--;				/* now q points at last char of text */
@@ -2250,7 +2250,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	    q--;
 	/* reverse over whitespace, but don't */
 	/* run back over *p */
-	
+
 	/*
 	 * As a matter of policy here, we look for [Rn], although both Rn and S^#
 	 * forbid [Rn]. This is because it is easy, and because only a sick
@@ -2289,7 +2289,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 		}
 	} else
 	    ndx = -1;			/* no ']', so no iNDeX register */
-	
+
 	/*
 	 * If err = "..." then we lost: run away.
 	 * Otherwise ndx == -1 if there was no "[...]".
@@ -2302,12 +2302,12 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	/* run back over *p */
 	if (!*err) {
 		sign = 0;			/* no ()+ or -() seen yet */
-		
+
 		if (q > p + 3 && *q == '+' && q[-1] == ')') {
 			sign = 1;		/* we saw a ")+" */
 			q--;			/* q points to ')' */
 		}
-		
+
 		if (*q == ')' && q > p + 2) {
 			paren = 1;		/* assume we have "(...)" */
 			while (q >= p && *q != '(')
@@ -2403,7 +2403,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	/*
 	 * have reg. -1:absent; else 0:15
 	 */
-	
+
 	/*
 	 * We have:  err, at, len, hash, ndx, sign, paren, reg.
 	 * Also, any remaining expression is from *p through *q inclusive.
@@ -2416,7 +2416,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	 * We want:  len, mode, reg, ndx, err, p, q, wrn, bug.
 	 * We will deliver a 4-bit reg, and a 4-bit mode.
 	 */
-	
+
 	/*
 	 * Case of branch operand. Different. No L^B^W^I^S^ allowed for instance.
 	 *
@@ -2588,7 +2588,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 		at = 1;
 		paren = 0;
 	}
-	
+
 	/*
 	 * Case of (Rn)+, which is slightly different.
 	 *
@@ -2654,11 +2654,11 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 				reg = -1;		/* no register any more */
 			}
 			err = " ";		/* win */
-			
+
 			/* JF a bugfix, I think! */
 			if (at && access == 'a')
 			    vopP->vop_nbytes=4;
-			
+
 			mode = (at ? 9 : 8);
 			reg = PC;
 			if ((access == 'm' || access == 'w') && !at)
@@ -2750,7 +2750,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 			break;
 		}
 	}
-	
+
 	/*
 	 * here with completely specified     mode
 	 *					len
@@ -2758,10 +2758,10 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	 *					expression   p,q
 	 *					ndx
 	 */
-	
+
 	if (*err == ' ')
 	    err = "";			/* " " is no longer an error */
-	
+
 	vopP->vop_mode = mode;
 	vopP->vop_reg = reg;
 	vopP->vop_short = len;
@@ -2771,13 +2771,13 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
 	vopP->vop_error = err;
 	vopP->vop_warn = wrn;
 	return (bug);
-	
+
 }				/* vip_op() */
 
 /*
-  
+
   Summary of vip_op outputs.
-  
+
   mode	reg	len	ndx
   (Rn) => @Rn
   {@}Rn			5+@	n	' '	optional
@@ -2787,7 +2787,7 @@ struct vop *vopP;		/* In: vop_access, vop_width. */
   {@}(Rn)+		8+@	n	' '	optional
   {@}#foo, no S^		8+@	PC	" i"	optional
   {@}{q^}{(Rn)}		10+@+q	option	" bwl"	optional
-  
+
   */
 
 #ifdef TEST			/* #Define to use this testbed. */
@@ -2821,7 +2821,7 @@ char my_displen[200];
 main ()
 {
 	char *vip_op ();		/* make cc happy */
-	
+
 	printf ("enter immediate symbols eg enter #   ");
 	gets (my_immediate);
 	printf ("enter indirect symbols  eg enter @   ");
@@ -2870,7 +2870,7 @@ main ()
 		case '-':
 			my_operand_length = 0;
 			break;
-			
+
 		default:
 			my_operand_length = 2;
 			printf ("I dn't understand access width %c\n", mywidth);
@@ -2929,7 +2929,7 @@ fragS *frag;
 symbolS *to_symbol;
 {
 	long offset;
-	
+
 	offset = to_addr - (from_addr + 1);
 	*ptr++ = 0x31;
 	md_number_to_chars(ptr, offset, 2);
@@ -2943,7 +2943,7 @@ fragS *frag;
 symbolS *to_symbol;
 {
 	long offset;
-	
+
 	offset = to_addr - S_GET_VALUE(to_symbol);
 	*ptr++ = 0x17;
 	*ptr++ = 0x9F;
@@ -2963,20 +2963,20 @@ char ***vecP;
 {
 	char *temp_name;		/* name for -t or -d options */
 	char opt;
-	
+
 	switch (**argP) {
 	case 'J':
 		/* as_warn ("I can do better than -J!"); */
 		break;
-		
+
 	case 'S':
 		as_warn ("SYMBOL TABLE not implemented");
 		break;			/* SYMBOL TABLE not implemented */
-		
+
 	case 'T':
 		as_warn ("TOKEN TRACE not implemented");
 		break;			/* TOKEN TRACE not implemented */
-		
+
 	case 'd':
 	case 't':
 		opt= **argP;
@@ -2994,38 +2994,38 @@ char ***vecP;
 			as_warn ("I expected a filename after -%c.",opt);
 			temp_name = "{absent}";
 		}
-		
+
 		if (opt == 'd')
 		    as_warn ("Displacement length %s ignored!", temp_name);
 		else
 		    as_warn ("I don't need or use temp. file \"%s\".", temp_name);
 		break;
-		
+
 	case 'V':
 		as_warn ("I don't use an interpass file! -V ignored");
 		break;
-		
+
 #ifdef OBJ_VMS
         case '+':	/* For g++ */
 		break;
-		
+
 	case '1':	/* For backward compatibility */
 		break;
-		
+
 	case 'h':	/* No hashing of mixed-case names */
 		vms_name_mapping = 0;
 		(*argP)++;
 		if (**argP) vms_name_mapping = *((*argP)++) - '0';
 		(*argP)--;
 		break;
-		
+
 	case 'H':	/* Show new symbol after hash truncation */
 		break;
 #endif
-		
+
 	default:
 		return 0;
-		
+
 	}
 	return 1;
 }
@@ -3040,7 +3040,7 @@ char *name;
 	return 0;
 }
 
-/* Parse an operand that is machine-specific.  
+/* Parse an operand that is machine-specific.
    We just return without modifying the expression if we have nothing
    to do.  */
 

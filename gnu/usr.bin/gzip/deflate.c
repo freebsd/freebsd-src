@@ -68,7 +68,7 @@
 #include "lzw.h" /* just for consistency checking */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: deflate.c,v 0.15 1993/06/24 10:53:53 jloup Exp $";
+static char rcsid[] = "$Id: deflate.c,v 1.3 1993/10/14 00:32:29 nate Exp $";
 #endif
 
 /* ===========================================================================
@@ -623,7 +623,7 @@ local ulg deflate_fast()
                      * the next lookahead bytes will be emitted as literals.
                      */
                 } while (--match_length != 0);
-	        strstart++; 
+	        strstart++;
             } else {
 	        strstart += match_length;
 	        match_length = 0;
@@ -638,7 +638,7 @@ local ulg deflate_fast()
             Tracevv((stderr,"%c",window[strstart]));
             flush = ct_tally (0, window[strstart]);
             lookahead--;
-	    strstart++; 
+	    strstart++;
         }
         if (flush) FLUSH_BLOCK(0), block_start = strstart;
 

@@ -60,7 +60,7 @@ initialize (mdp)
   struct mdesc *mdp;
 {
   mdp -> heapsize = HEAP / BLOCKSIZE;
-  mdp -> heapinfo = (malloc_info *) 
+  mdp -> heapinfo = (malloc_info *)
     align (mdp, mdp -> heapsize * sizeof (malloc_info));
   if (mdp -> heapinfo == NULL)
     {
@@ -143,7 +143,7 @@ mmalloc (md, size)
     }
 
   mdp = MD_TO_MDP (md);
-      
+
   if (mdp -> mmalloc_hook != NULL)
     {
       return ((*mdp -> mmalloc_hook) (md, size));

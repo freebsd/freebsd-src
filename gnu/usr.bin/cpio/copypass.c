@@ -135,12 +135,12 @@ process_copy_pass ()
 	    /* User said to link it if possible.  Try and link to
 	       the original copy.  If that fails we'll still try
 	       and link to a copy we've already made.  */
-	    link_res = link_to_name (output_name.ds_string, 
+	    link_res = link_to_name (output_name.ds_string,
 				     input_name.ds_string);
 	  if ( (link_res < 0) && (in_file_stat.st_nlink > 1) )
-	    link_res = link_to_maj_min_ino (output_name.ds_string, 
-				major (in_file_stat.st_dev), 
-				minor (in_file_stat.st_dev), 
+	    link_res = link_to_maj_min_ino (output_name.ds_string,
+				major (in_file_stat.st_dev),
+				minor (in_file_stat.st_dev),
 				in_file_stat.st_ino);
 #endif
 
@@ -275,10 +275,10 @@ process_copy_pass ()
 	     Set link_name to the original file name.  */
 	  if (link_flag)
 	    /* User said to link it if possible.  */
-	    link_res = link_to_name (output_name.ds_string, 
+	    link_res = link_to_name (output_name.ds_string,
 				     input_name.ds_string);
 	  if ( (link_res < 0) && (in_file_stat.st_nlink > 1) )
-	    link_res = link_to_maj_min_ino (output_name.ds_string, 
+	    link_res = link_to_maj_min_ino (output_name.ds_string,
 			major (in_file_stat.st_dev),
 			minor (in_file_stat.st_dev),
 			in_file_stat.st_ino);
@@ -377,7 +377,7 @@ process_copy_pass ()
     fprintf (stderr, "%d blocks\n", res);
 }
 
-/* Try and create a hard link from FILE_NAME to another file 
+/* Try and create a hard link from FILE_NAME to another file
    with the given major/minor device number and inode.  If no other
    file with the same major/minor/inode numbers is known, add this file
    to the list of known files and associated major/minor/inode numbers
@@ -411,7 +411,7 @@ link_to_maj_min_ino (file_name, st_dev_maj, st_dev_min, st_ino)
 }
 
 /* Try and create a hard link from LINK_NAME to LINK_TARGET.  If
-   `create_dir_flag' is set, any non-existent (parent) directories 
+   `create_dir_flag' is set, any non-existent (parent) directories
    needed by LINK_NAME will be created.  If the link is successfully
    created and `verbose_flag' is set, print "LINK_TARGET linked to LINK_NAME\n".
    If the link can not be created and `link_flag' is set, print

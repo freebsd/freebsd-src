@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tcp_rcsid[] = "$Id: tcp.c,v 1.34 1994/01/30 21:01:46 ian Rel $";
+const char tcp_rcsid[] = "$Id: tcp.c,v 1.2 1994/05/07 18:09:01 ache Exp $";
 #endif
 
 #if HAVE_TCP
@@ -308,7 +308,7 @@ ftcp_open (qconn, ibaud, fwait)
 	      ulog (LOG_ERROR, "fork: %s", strerror (errno));
 	      _exit (EXIT_FAILURE);
 	    }
-	      
+
 	  if (ipid != 0)
 	    _exit (EXIT_SUCCESS);
 

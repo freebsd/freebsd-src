@@ -67,7 +67,7 @@ class parsebuf : public streambuf {
 
     // Length of current line, not counting either '\n'.
     int line_length() { return _line_length; }
-    // Current line - not a copy, so file ops may trash it. 
+    // Current line - not a copy, so file ops may trash it.
     virtual char* current_line();
     virtual streampos seekoff(streamoff, _seek_dir, int mode=ios::in|ios::out);
     virtual streambuf* setbuf(char* p, int len);

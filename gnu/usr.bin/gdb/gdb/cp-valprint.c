@@ -86,7 +86,7 @@ cp_print_class_method (valaddr, type, stream)
 	{
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
-	  
+
 	  for (j = 0; j < len2; j++)
 	    {
 	      QUIT;
@@ -110,7 +110,7 @@ cp_print_class_method (valaddr, type, stream)
 	{
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
-	  
+
 	  for (j = 0; j < len2; j++)
 	    {
 	      QUIT;
@@ -263,7 +263,7 @@ cp_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 	      fprintf_filtered (stream, "\n");
 	      print_spaces_filtered (2 + 2 * recurse, stream);
 	    }
-	  else 
+	  else
 	    {
 	      wrap_here (n_spaces (2 + 2 * recurse));
 	    }
@@ -321,7 +321,7 @@ cp_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 		}
 	      else
 		{
-	           val_print (TYPE_FIELD_TYPE (type, i), 
+	           val_print (TYPE_FIELD_TYPE (type, i),
 			      valaddr + TYPE_FIELD_BITPOS (type, i) / 8,
 			      0, stream, format, 0, recurse + 1, pretty);
 		}
@@ -442,7 +442,7 @@ cp_print_class_member (valaddr, domain, stream, prefix)
      GDB_FILE *stream;
      char *prefix;
 {
-  
+
   /* VAL is a byte offset into the structure type DOMAIN.
      Find the name of the field for that offset and
      print it.  */

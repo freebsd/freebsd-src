@@ -198,7 +198,7 @@ init_cadillac ()
       case EWOULDBLOCK:
 	sleep (5);
 	return;
-      
+
       case 0:
 	fatal ("init_cadillac: EOF on connection to kernel, exiting\n");
 	break;

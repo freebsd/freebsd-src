@@ -13,7 +13,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  */
 
 #include "dialog.h"
@@ -85,13 +85,13 @@ typedef struct ComposeObj {
  **********************************************************************/
 
 void		RefreshStringObj(StringObj *so);
-StringObj 	*NewStringObj(WINDOW *win, char *title, char *s, 
+StringObj 	*NewStringObj(WINDOW *win, char *title, char *s,
 			      int y, int x, int w, int len);
 int		SelectStringObj(StringObj *so);
 void		DelStringObj(StringObj *so);
 
 void		RefreshListObj(ListObj *lo);
-ListObj 	*NewListObj(WINDOW *win, char *title, char **list, 
+ListObj 	*NewListObj(WINDOW *win, char *title, char **list,
 			    char *listelt, int y, int x, int h, int w, int n);
 void		UpdateListObj(ListObj *lo, char **list, int n);
 int		SelectListObj(ListObj *lo);
@@ -101,7 +101,7 @@ void            MarkAllListObj(ListObj *lo);
 void            UnMarkAllListObj(ListObj *lo);
 
 void		RefreshButtonObj(ButtonObj *bo);
-ButtonObj 	*NewButtonObj(WINDOW *win, char *title, int *pushed, 
+ButtonObj 	*NewButtonObj(WINDOW *win, char *title, int *pushed,
 			      int y, int x);
 int		SelectButtonObj(ButtonObj *bo);
 void		DelButtonObj(ButtonObj *bo);

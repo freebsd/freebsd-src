@@ -1,4 +1,4 @@
-/* $RCSfile: a2p.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:09 $
+/* $RCSfile: a2p.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:53 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,18 +6,21 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: a2p.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:53  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:09  nate
  * PERL!
  *
  * Revision 4.0.1.2  92/06/08  16:12:23  lwall
  * patch20: hash tables now split only if the memory is available to do so
- * 
+ *
  * Revision 4.0.1.1  91/06/07  12:12:27  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:57:07  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #define VOIDUSED 1

@@ -2,22 +2,22 @@
  * node.c -- routines for node management
  */
 
-/* 
+/*
  * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
- * 
+ *
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
- * 
+ *
  * GAWK is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GAWK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GAWK; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -99,7 +99,7 @@ register NODE *n;
 
 /*
  * the following lookup table is used as an optimization in force_string
- * (more complicated) variations on this theme didn't seem to pay off, but 
+ * (more complicated) variations on this theme didn't seem to pay off, but
  * systematic testing might be in order at some point
  */
 static const char *values[] = {
@@ -260,7 +260,7 @@ int flags;
 		memcpy(r->stptr, s, len);
 	}
 	r->stptr[len] = '\0';
-	       
+
 	if (flags & SCAN) {	/* scan for escape sequences */
 		char *pf;
 		register char *ptm;
@@ -368,16 +368,16 @@ register NODE *tmp;
 /*
  * Parse a C escape sequence.  STRING_PTR points to a variable containing a
  * pointer to the string to parse.  That pointer is updated past the
- * characters we use.  The value of the escape sequence is returned. 
+ * characters we use.  The value of the escape sequence is returned.
  *
  * A negative value means the sequence \ newline was seen, which is supposed to
- * be equivalent to nothing at all. 
+ * be equivalent to nothing at all.
  *
  * If \ is followed by a null character, we return a negative value and leave
- * the string pointer pointing at the null character. 
+ * the string pointer pointing at the null character.
  *
  * If \ is followed by 000, we return 0 and leave the string pointer after the
- * zeros.  A value of 0 does not mean end of string.  
+ * zeros.  A value of 0 does not mean end of string.
  *
  * Posix doesn't allow \x.
  */

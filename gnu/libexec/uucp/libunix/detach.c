@@ -38,7 +38,7 @@
 #ifdef TIOCNOTTY
 #define HAVE_TIOCNOTTY 1
 #else
-#define HAVE_TIOCNOTTY 0 
+#define HAVE_TIOCNOTTY 0
 #endif
 
 #if HAVE_FCNTL_H

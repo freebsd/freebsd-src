@@ -402,7 +402,7 @@
 	     : "=d" (__w)						\
 	     : "%dI" ((USItype)(u)),					\
 	       "dI" ((USItype)(v)));					\
-    __w; })  
+    __w; })
 #endif /* __i960__ */
 
 #if defined (__mc68000__)

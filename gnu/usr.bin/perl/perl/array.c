@@ -1,4 +1,4 @@
-/* $RCSfile: array.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:34 $
+/* $RCSfile: array.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:31 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,22 +6,25 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: array.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:31  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:34  nate
  * PERL!
  *
  * Revision 4.0.1.3  92/06/08  11:45:05  lwall
  * patch20: Perl now distinguishes overlapped copies from non-overlapped
- * 
+ *
  * Revision 4.0.1.2  91/11/05  16:00:14  lwall
  * patch11: random cleanup
  * patch11: passing non-existend array elements to subrouting caused core dump
- * 
+ *
  * Revision 4.0.1.1  91/06/07  10:19:08  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:03:32  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"

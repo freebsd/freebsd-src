@@ -1,6 +1,6 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-/* 
+/*
 Copyright (C) 1988, 1992 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -42,7 +42,7 @@ typedef void (*one_arg_error_handler_t)(const char*);
 typedef void (*two_arg_error_handler_t)(const char*, const char*);
 
 long         gcd(long, long);
-long         lg(unsigned long); 
+long         lg(unsigned long);
 double       pow(double, long);
 long         pow(long, long);
 
@@ -60,30 +60,30 @@ extern _VOLATILE_VOID default_two_arg_error_handler(const char*, const char*);
 
 extern two_arg_error_handler_t lib_error_handler;
 
-extern two_arg_error_handler_t 
+extern two_arg_error_handler_t
        set_lib_error_handler(two_arg_error_handler_t f);
 
 
 #if !defined(IV)
 
 #if ! _G_MATH_H_INLINES /* hpux and SCO define this in math.h */
-inline double abs(double arg) 
+inline double abs(double arg)
 {
   return (arg < 0.0)? -arg : arg;
 }
 #endif
 
-inline float abs(float arg) 
+inline float abs(float arg)
 {
   return (arg < 0.0)? -arg : arg;
 }
 
-inline short abs(short arg) 
+inline short abs(short arg)
 {
   return (arg < 0)? -arg : arg;
 }
 
-inline long abs(long arg) 
+inline long abs(long arg)
 {
   return (arg < 0)? -arg : arg;
 }

@@ -30,7 +30,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    In many cases, even if a file was compiled with no special options for
    debugging at all, as long as was not stripped it will contain sufficient
    information to build useful minimal symbol tables using this structure.
-   
+
    Even when a file contains enough debugging information to build a full
    symbol table, these minimal symbols are still useful for quickly mapping
    between names and addresses, and vice versa.  They are also sometimes used
@@ -249,7 +249,7 @@ lookup_minimal_symbol_by_pc (pc)
 
 	      if (hi >= 0
 		  && ((best_symbol == NULL) ||
-		      (SYMBOL_VALUE_ADDRESS (best_symbol) < 
+		      (SYMBOL_VALUE_ADDRESS (best_symbol) <
 		       SYMBOL_VALUE_ADDRESS (&msymbol[hi]))))
 		{
 		  best_symbol = &msymbol[hi];
@@ -458,7 +458,7 @@ compact_minimal_symbols (msymbol, mcount)
       copyfrom = copyto = msymbol;
       while (copyfrom < msymbol + mcount - 1)
 	{
-	  if (SYMBOL_VALUE_ADDRESS (copyfrom) == 
+	  if (SYMBOL_VALUE_ADDRESS (copyfrom) ==
 	      SYMBOL_VALUE_ADDRESS ((copyfrom + 1)) &&
 	      (STREQ (SYMBOL_NAME (copyfrom), SYMBOL_NAME ((copyfrom + 1)))))
 	    {
@@ -529,7 +529,7 @@ install_minimal_symbols (objfile)
       /* Copy in the existing minimal symbols, if there are any.  */
 
       if (objfile->minimal_symbol_count)
-        memcpy ((char *)msymbols, (char *)objfile->msymbols, 
+        memcpy ((char *)msymbols, (char *)objfile->msymbols,
 		objfile->minimal_symbol_count * sizeof (struct minimal_symbol));
 
       /* Walk through the list of minimal symbol bunches, adding each symbol
@@ -537,10 +537,10 @@ install_minimal_symbols (objfile)
 	 current, possibly partially filled bunch (thus we use the current
 	 msym_bunch_index for the first bunch we copy over), and thereafter
 	 each bunch is full. */
-      
+
       mcount = objfile->minimal_symbol_count;
       leading_char = bfd_get_symbol_leading_char (objfile->obfd);
-      
+
       for (bunch = msym_bunch; bunch != NULL; bunch = bunch -> next)
 	{
 	  for (bindex = 0; bindex < msym_bunch_index; bindex++, mcount++)
@@ -556,13 +556,13 @@ install_minimal_symbols (objfile)
 	}
 
       /* Sort the minimal symbols by address.  */
-      
+
       qsort (msymbols, mcount, sizeof (struct minimal_symbol),
 	     compare_minimal_symbols);
-      
+
       /* Compact out any duplicates, and free up whatever space we are
 	 no longer using.  */
-      
+
       mcount = compact_minimal_symbols (msymbols, mcount);
 
       obstack_blank (&objfile->symbol_obstack,

@@ -28,7 +28,7 @@
 
 #define ESC '\033'
 #define DEL '\177'
-#define TAB '\011'	
+#define TAB '\011'
 #define RET '\r'
 #define LFD '\n'
 #define SPC ' '

@@ -289,7 +289,7 @@ common_type (t1, t2)
 	{
 	  /* Pick the longest list, and hang on the other
 	     list.  */
-	
+
 	  if (list_length (a1) < list_length (a2))
 	     attributes = a2, a2 = a1;
 
@@ -333,7 +333,7 @@ common_type (t1, t2)
         return build_type_attribute_variant (t2, attributes);
 
       /* Same precision.  Prefer longs to ints even when same size.  */
-  
+
       if (TYPE_MAIN_VARIANT (t1) == long_unsigned_type_node
 	  || TYPE_MAIN_VARIANT (t2) == long_unsigned_type_node)
         return build_type_attribute_variant (long_unsigned_type_node,
@@ -1117,13 +1117,13 @@ signed_or_unsigned_type (unsignedp, type)
     return type;
   if (TYPE_PRECISION (type) == TYPE_PRECISION (signed_char_type_node))
     return unsignedp ? unsigned_char_type_node : signed_char_type_node;
-  if (TYPE_PRECISION (type) == TYPE_PRECISION (integer_type_node)) 
+  if (TYPE_PRECISION (type) == TYPE_PRECISION (integer_type_node))
     return unsignedp ? unsigned_type_node : integer_type_node;
-  if (TYPE_PRECISION (type) == TYPE_PRECISION (short_integer_type_node)) 
+  if (TYPE_PRECISION (type) == TYPE_PRECISION (short_integer_type_node))
     return unsignedp ? short_unsigned_type_node : short_integer_type_node;
-  if (TYPE_PRECISION (type) == TYPE_PRECISION (long_integer_type_node)) 
+  if (TYPE_PRECISION (type) == TYPE_PRECISION (long_integer_type_node))
     return unsignedp ? long_unsigned_type_node : long_integer_type_node;
-  if (TYPE_PRECISION (type) == TYPE_PRECISION (long_long_integer_type_node)) 
+  if (TYPE_PRECISION (type) == TYPE_PRECISION (long_long_integer_type_node))
     return (unsignedp ? long_long_unsigned_type_node
 	    : long_long_integer_type_node);
   return type;
@@ -1187,7 +1187,7 @@ c_sizeof (type)
     }
 
   /* Convert in case a char is more than one unit.  */
-  t = size_binop (CEIL_DIV_EXPR, TYPE_SIZE (type), 
+  t = size_binop (CEIL_DIV_EXPR, TYPE_SIZE (type),
 		  size_int (TYPE_PRECISION (char_type_node)));
   /* size_binop does not put the constant in range, so do it now.  */
   if (TREE_CODE (t) == INTEGER_CST && force_fit_type (t, 0))
@@ -1221,7 +1221,7 @@ c_sizeof_nowarn (type)
     }
 
   /* Convert in case a char is more than one unit.  */
-  t = size_binop (CEIL_DIV_EXPR, TYPE_SIZE (type), 
+  t = size_binop (CEIL_DIV_EXPR, TYPE_SIZE (type),
 		     size_int (TYPE_PRECISION (char_type_node)));
   force_fit_type (t, 0);
   return t;
@@ -1919,7 +1919,7 @@ build_array_ref (array, idx)
       TREE_THIS_VOLATILE (rval)
 	|= (TYPE_VOLATILE (TREE_TYPE (TREE_TYPE (array)))
 	    /* This was added by rms on 16 Nov 91.
-	       It fixes  vol struct foo *a;  a->elts[1] 
+	       It fixes  vol struct foo *a;  a->elts[1]
 	       in an inline function.
 	       Hope it doesn't break something else.  */
 	    | TREE_THIS_VOLATILE (array));
@@ -2217,10 +2217,10 @@ get_member_function_from_ptrfunc (instance_ptrptr, instance, function)
 	  aref = save_expr (aref);
 
 	  /* Save the intermediate result in a SAVE_EXPR so we don't have to
-	     compute each component of the virtual function pointer twice.  */ 
+	     compute each component of the virtual function pointer twice.  */
 	  if (/* !building_cleanup && */ TREE_CODE (aref) == INDIRECT_REF)
 	    TREE_OPERAND (aref, 0) = save_expr (TREE_OPERAND (aref, 0));
-      
+
 	  delta = build (PLUS_EXPR, integer_type_node,
 			 build_conditional_expr (e1, build_component_ref (aref, delta_identifier, 0, 0), integer_zero_node),
 			 delta);
@@ -2365,7 +2365,7 @@ build_function_call_real (function, params, require_complete, flags)
   /* C++ */
   value_type = TREE_TYPE (fntype) ? TREE_TYPE (fntype) : void_type_node;
   {
-    register tree result = 
+    register tree result =
       build (CALL_EXPR, value_type,
 	     function, coerced_params, NULL_TREE);
 
@@ -2386,7 +2386,7 @@ build_function_call (function, params)
 {
   return build_function_call_real (function, params, 1, LOOKUP_NORMAL);
 }
-     
+
 tree
 build_function_call_maybe (function, params)
      tree function, params;
@@ -2409,7 +2409,7 @@ build_function_call_maybe (function, params)
    NAME is an IDENTIFIER_NODE or 0.  It is used only for error messages.
 
    This is also where warnings about wrong number of args are generated.
-   
+
    Return a list of expressions for the parameters as converted.
 
    Both VALUES and the returned value are chains of TREE_LIST nodes
@@ -2745,7 +2745,7 @@ build_binary_op (code, arg1, arg2, convert_p)
 	  int convert_index = IS_AGGR_TYPE (type2);
 	  /* Avoid being tripped up by things like (ARG1 != 0).  */
 	  tree types[2], try;
-	  
+
 	  types[0] = type1; types[1] = type2;
 	  if (code == TRUTH_ANDIF_EXPR || code == TRUTH_ORIF_EXPR)
 	    try = build_type_conversion (code, bool_type_node,
@@ -2754,7 +2754,7 @@ build_binary_op (code, arg1, arg2, convert_p)
 	    {
 	      try = build_type_conversion (code, types[convert_index ^ 1],
 					   args[convert_index], 1);
-	  
+
 	      if (try == 0
 		  && args[1] == integer_zero_node
 		  && (code == NE_EXPR || code == EQ_EXPR))
@@ -2908,7 +2908,7 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
 	    cp_warning ("division by zero in `%E / 0'", op0);
 	  else if (TREE_CODE (op1) == REAL_CST && real_zerop (op1))
 	    cp_warning ("division by zero in `%E / 0.'", op0);
-	      
+
 	  if (!(code0 == INTEGER_TYPE && code1 == INTEGER_TYPE))
 	    resultcode = RDIV_EXPR;
 	  else
@@ -2963,7 +2963,7 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
 	cp_warning ("division by zero in `%E % 0'", op0);
       else if (code1 == REAL_TYPE && real_zerop (op1))
 	cp_warning ("division by zero in `%E % 0.'", op0);
-      
+
       if (code0 == INTEGER_TYPE && code1 == INTEGER_TYPE)
 	{
 	  /* Although it would be tempting to shorten always here, that loses
@@ -3274,7 +3274,7 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
 			TYPE_SIZE (TREE_TYPE (type0)) == 0 ? "in" : "",
 			TYPE_SIZE (TREE_TYPE (type1)) == 0 ? "in" : "",
 			type0, type1);
-	  else if (pedantic 
+	  else if (pedantic
 		   && TREE_CODE (TREE_TYPE (type0)) == FUNCTION_TYPE)
 	    pedwarn ("ANSI C++ forbids ordered comparisons of pointers to functions");
 	}
@@ -3438,7 +3438,7 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
 	     pass the copies by reference, then copy them back afterward.  */
 	  tree xop0 = op0, xop1 = op1, xresult_type = result_type;
 	  enum tree_code xresultcode = resultcode;
-	  tree val 
+	  tree val
 	    = shorten_compare (&xop0, &xop1, &xresult_type, &xresultcode);
 	  if (val != 0)
 	    return convert (bool_type_node, val);
@@ -3477,7 +3477,7 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
 		primop0 = get_narrower (TREE_OPERAND (op0, 0), &unsignedp0);
 	      if (TREE_CODE (primop1) == BIT_NOT_EXPR)
 		primop1 = get_narrower (TREE_OPERAND (op1, 0), &unsignedp1);
-	      
+
 	      if (TREE_CODE (primop0) == INTEGER_CST
 		  || TREE_CODE (primop1) == INTEGER_CST)
 		{
@@ -3533,9 +3533,9 @@ build_binary_op_nodefault (code, orig_op0, orig_op1, error_code)
   if (! converted)
     {
       if (TREE_TYPE (op0) != result_type)
-	op0 = convert (result_type, op0); 
+	op0 = convert (result_type, op0);
       if (TREE_TYPE (op1) != result_type)
-	op1 = convert (result_type, op1); 
+	op1 = convert (result_type, op1);
     }
 
   {
@@ -3744,7 +3744,7 @@ build_component_addr (arg, argtype, msg)
     }
   return rval;
 }
-   
+
 /* Construct and perhaps optimize a tree representation
    for a unary operation.  CODE, a tree_code, specifies the operation
    and XARG is the operand.  */
@@ -3900,7 +3900,7 @@ build_unary_op (code, xarg, noconvert)
 
     case NOP_EXPR:
       break;
-      
+
     case PREINCREMENT_EXPR:
     case POSTINCREMENT_EXPR:
     case PREDECREMENT_EXPR:
@@ -3955,7 +3955,7 @@ build_unary_op (code, xarg, noconvert)
 	  pedwarn ("ANSI C++ forbids %sing an enum",
 		   (code == PREINCREMENT_EXPR || code == POSTINCREMENT_EXPR)
 		   ? "increment" : "decrement");
-	    
+
 	/* Compute the increment.  */
 
 	if (typecode == POINTER_TYPE)
@@ -4223,7 +4223,7 @@ convert_sequence (conversions, arg)
    but which we can accept as lvalues.
 
    If ARG is not a kind of expression we can handle, return zero.  */
-   
+
 tree
 unary_complex_lvalue (code, arg)
      enum tree_code code;
@@ -4308,7 +4308,7 @@ unary_complex_lvalue (code, arg)
 	    }
 
 	  return convert (build_pointer_type (TREE_TYPE (arg)),
-			  size_binop (EASY_DIV_EXPR, 
+			  size_binop (EASY_DIV_EXPR,
 				      DECL_FIELD_BITPOS (t),
 				      size_int (BITS_PER_UNIT)));
 	}
@@ -4476,7 +4476,7 @@ build_x_conditional_expr (ifexp, op1, op2)
     rval = build_opfncall (COND_EXPR, LOOKUP_SPECULATIVELY, ifexp, op1, op2);
   if (rval)
     return build_opfncall (COND_EXPR, LOOKUP_NORMAL, ifexp, op1, op2);
-  
+
   return build_conditional_expr (ifexp, op1, op2);
 }
 
@@ -5684,7 +5684,7 @@ build_modify_expr (lhs, modifycode, rhs)
       tree vbases = CLASSTYPE_VBASECLASSES (lhstype);
       tree lhs_addr = build_unary_op (ADDR_EXPR, lhs, 0);
       tree rhs_addr;
-	  
+
       /* Memberwise assignment would cause NEWRHS to be
 	 evaluated for every member that gets assigned.
 	 By wrapping side-effecting exprs in a SAVE_EXPR,
@@ -5700,7 +5700,7 @@ build_modify_expr (lhs, modifycode, rhs)
 	   will result in expand_expr expanding the call without knowing
 	   that it should run the cleanup.  */
 	newrhs = save_expr (break_out_cleanups (newrhs));
-	  
+
       if (TREE_CODE (newrhs) == COND_EXPR)
 	rhs_addr = rationalize_conditional_expr (ADDR_EXPR, newrhs);
       else
@@ -5764,7 +5764,7 @@ build_modify_expr (lhs, modifycode, rhs)
   if (TREE_CODE (lhstype) == ARRAY_TYPE)
     {
       int from_array;
-      
+
       /* Allow array assignment in compiler-generated code.  */
       if ((pedantic || flag_ansi)
 	  && ! DECL_ARTIFICIAL (current_function_decl))
@@ -5956,7 +5956,7 @@ get_delta_difference (from, to, force)
 {
   tree delta = integer_zero_node;
   tree binfo;
-  
+
   if (to == from)
     return delta;
 
@@ -6062,7 +6062,7 @@ build_ptrmemfunc (type, pfn, force)
 	  delta = fold (size_binop (PLUS_EXPR, delta, ndelta));
 	  delta2 = fold (size_binop (PLUS_EXPR, ndelta2, delta2));
 	  e1 = fold (build (GT_EXPR, integer_type_node, index, integer_zero_node));
-	  
+
 	  u = build_nt (CONSTRUCTOR, 0, tree_cons (delta2_identifier, delta2, NULL_TREE));
 	  u = build_nt (CONSTRUCTOR, 0, tree_cons (NULL_TREE, delta,
 						   tree_cons (NULL_TREE, index,
@@ -6690,7 +6690,7 @@ convert_for_initialization (exp, type, rhs, flags, errtype, fndecl, parmnum)
 
   /* We accept references to incomplete types, so we can
      return here before checking if RHS is of complete type.  */
-     
+
   if (codel == REFERENCE_TYPE)
     {
       /* This should eventually happen in convert_arguments.  */
@@ -6709,7 +6709,7 @@ convert_for_initialization (exp, type, rhs, flags, errtype, fndecl, parmnum)
 	    cp_error_at ("in passing argument %P of `%+D'", parmnum, fndecl);
 	}
       return rhs;
-    }      
+    }
 
   rhs = require_complete_type (rhs);
   if (rhs == error_mark_node)
@@ -7011,7 +7011,7 @@ c_expand_return (retval)
 	  && !TREE_STATIC (whats_returned))
 	cp_warning_at ("address of local variable `%D' returned", whats_returned);
     }
-  
+
   /* Now deal with possible C++ hair:
      (1) Compute the return value.
      (2) If there are aggregate values with destructors which

@@ -15,7 +15,7 @@ Makefile: Makefile.in Configure
 	./Configure
 	echo "Type make again to build mkisofs."
 
-mkisofs: Makefile $(OBJS) 
+mkisofs: Makefile $(OBJS)
 	$(CC) $(LDFLAGS) -o mkisofs  $(OBJS)
 
 install: mkisofs mkisofs.8
@@ -29,7 +29,7 @@ tree.o: tree.c mkisofs.h iso9660.h exclude.h
 write.o: write.c mkisofs.h iso9660.h
 	$(CC) $(CFLAGS) write.c
 
-hash.o: hash.c mkisofs.h 
+hash.o: hash.c mkisofs.h
 	$(CC) $(CFLAGS) hash.c
 
 rock.o: rock.c mkisofs.h iso9660.h

@@ -127,7 +127,7 @@ nlm_symtab_read (abfd, addr, objfile)
   struct cleanup *back_to;
   CORE_ADDR symaddr;
   enum minimal_symbol_type ms_type;
-  
+
   storage_needed = bfd_get_symtab_upper_bound (abfd);
   if (storage_needed < 0)
     error ("Can't read symbols from %s: %s", bfd_get_filename (abfd),
@@ -136,11 +136,11 @@ nlm_symtab_read (abfd, addr, objfile)
     {
       symbol_table = (asymbol **) xmalloc (storage_needed);
       back_to = make_cleanup (free, symbol_table);
-      number_of_symbols = bfd_canonicalize_symtab (abfd, symbol_table); 
+      number_of_symbols = bfd_canonicalize_symtab (abfd, symbol_table);
       if (number_of_symbols < 0)
 	error ("Can't read symbols from %s: %s", bfd_get_filename (abfd),
 	       bfd_errmsg (bfd_get_error ()));
-  
+
       for (i = 0; i < number_of_symbols; i++)
 	{
 	  sym = symbol_table[i];
@@ -172,7 +172,7 @@ nlm_symtab_read (abfd, addr, objfile)
 
 
 /* Scan and build partial symbols for a symbol file.
-   We have been initialized by a call to nlm_symfile_init, which 
+   We have been initialized by a call to nlm_symfile_init, which
    currently does nothing.
 
    SECTION_OFFSETS is a set of offsets to apply to relocate the symbols
@@ -283,7 +283,7 @@ nlm_symfile_offsets (objfile, addr)
     {
       ANOFFSET (section_offsets, i) = addr;
     }
-  
+
   return (section_offsets);
 }
 

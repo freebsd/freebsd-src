@@ -78,7 +78,7 @@ espopen (pazargs, frd, pipid)
       errno = ierr;
       return NULL;
     }
-    
+
   *pipid = ipid;
 
   return eret;

@@ -98,7 +98,7 @@ static int lockfd;
 int
 pw_lock()
 {
-	/* 
+	/*
 	 * If the master password file doesn't exist, the system is hosed.
 	 * Might as well try to build one.  Set the close-on-exec bit so
 	 * that users can't get at the encrypted passwords while editing.
@@ -162,7 +162,7 @@ pw_edit(notsetuid)
 		editor = _PATH_VI;
 	if (p = strrchr(editor, '/'))
 		++p;
-	else 
+	else
 		p = editor;
 
 	if (!(pid = vfork())) {

@@ -1,18 +1,18 @@
 /* b.out object file format
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation; either version 2,
    or (at your option) any later version.
-   
+
    GAS is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
    the GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA
@@ -94,7 +94,7 @@ struct exec {
 	unsigned long a_entry;	/* Runtime start address		*/
 	unsigned long a_trsize;	/* Length of text relocation info	*/
 	unsigned long a_drsize;	/* Length of data relocation info	*/
-	
+
 	/* Added for i960 */
 	unsigned long a_tload;	/* Text runtime load address		*/
 	unsigned long a_dload;	/* Data runtime load address		*/
@@ -277,7 +277,7 @@ struct relocation_info {
 #define H_SET_VERSION(h,v)		((h)->header.a_version = (v))
 #endif /* EXEC_VERSION */
 
-/* 
+/*
  * Current means for getting the name of a segment.
  * This will change for infinite-segments support (e.g. COFF).
  */

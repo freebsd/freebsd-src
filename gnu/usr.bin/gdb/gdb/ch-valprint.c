@@ -66,7 +66,7 @@ chill_val_print_array_elements (type, valaddr, address, stream,
   unsigned int reps;
   LONGEST low_bound =  TYPE_FIELD_BITPOS (range_type, 0);
   LONGEST high_bound = TYPE_FIELD_BITPOS (range_type, 1);
-      
+
   elttype = TYPE_TARGET_TYPE (type);
   eltlen = TYPE_LENGTH (elttype);
   len = TYPE_LENGTH (type) / eltlen;
@@ -91,7 +91,7 @@ chill_val_print_array_elements (type, valaddr, address, stream,
 
       rep1 = i + 1;
       reps = 1;
-      while ((rep1 < len) && 
+      while ((rep1 < len) &&
 	     !memcmp (valaddr + i * eltlen, valaddr + rep1 * eltlen, eltlen))
 	{
 	  ++reps;
@@ -249,7 +249,7 @@ chill_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	  fputs_filtered ("NULL", stream);
 	  return 0;
 	}
-      
+
       if (TYPE_CODE (elttype) == TYPE_CODE_FUNC)
 	{
 	  /* Try to print what function it points to.  */
@@ -261,7 +261,7 @@ chill_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	{
 	  print_address_numeric (addr, 1, stream);
 	}
-      
+
       /* For a pointer to char or unsigned char, also print the string
 	 pointed to, unless pointer is null.  */
       if (TYPE_LENGTH (elttype) == 1
@@ -351,7 +351,7 @@ chill_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
 	  struct type *inner = TYPE_FIELD_TYPE (type, 1);
 	  long length = unpack_long (TYPE_FIELD_TYPE (type, 0), valaddr);
 	  char *data_addr = valaddr + TYPE_FIELD_BITPOS (type, 1) / 8;
-	  
+
 	  switch (TYPE_CODE (inner))
 	    {
 	    case TYPE_CODE_STRING:
@@ -474,7 +474,7 @@ chill_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 	      fprintf_filtered (stream, "\n");
 	      print_spaces_filtered (2 + 2 * recurse, stream);
 	    }
-	  else 
+	  else
 	    {
 	      wrap_here (n_spaces (2 + 2 * recurse));
 	    }
@@ -496,7 +496,7 @@ chill_print_value_fields (type, valaddr, stream, format, recurse, pretty,
 	    }
 	  else
 	    {
-	      chill_val_print (TYPE_FIELD_TYPE (type, i), 
+	      chill_val_print (TYPE_FIELD_TYPE (type, i),
 			       valaddr + TYPE_FIELD_BITPOS (type, i) / 8,
 			       0, stream, format, 0, recurse + 1, pretty);
 	    }

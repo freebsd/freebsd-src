@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/23 17:17:15 $
- *           $Source: /users/faustus/xchess/RCS/board.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:08 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/board.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -164,12 +164,12 @@ board_move(b, m)
 		if (m->piece.color == WHITE) {
 			if (m->fromx == 0)
 				b->white_cant_castle_q = true;
-			else if (m->fromx == 7) 
+			else if (m->fromx == 7)
 				b->white_cant_castle_k = true;
 		} else {
 			if (m->fromx == 0)
 				b->black_cant_castle_q = true;
-			else if (m->fromx == 7) 
+			else if (m->fromx == 7)
 				b->black_cant_castle_k = true;
 		}
 	}

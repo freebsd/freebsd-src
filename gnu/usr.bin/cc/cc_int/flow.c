@@ -57,7 +57,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    register.  The bit is 1 if the register is live at the beginning
    of the basic block.
 
-   Two types of elements can be added to an insn's REG_NOTES.  
+   Two types of elements can be added to an insn's REG_NOTES.
    A REG_DEAD note is added to an insn's REG_NOTES for any register
    that meets both of two conditions:  The value in the register is not
    needed in subsequent insns and the insn does not replace the value in
@@ -291,7 +291,7 @@ static void mark_label_ref		PROTO((rtx, rtx, int));
 static void life_analysis		PROTO((rtx, int));
 void allocate_for_life_analysis		PROTO((void));
 static void init_regset_vector		PROTO((regset *, regset, int, int));
-static void propagate_block		PROTO((regset, rtx, rtx, int, 
+static void propagate_block		PROTO((regset, rtx, rtx, int,
 					       regset, int));
 static int insn_dead_p			PROTO((rtx, regset, int));
 static int libcall_dead_p		PROTO((rtx, regset, rtx, rtx));
@@ -549,7 +549,7 @@ find_basic_blocks (f, nonlocal_label_list)
 		     && SET_DEST (pat) == pc_rtx
 		     && uses_reg_or_mem (SET_SRC (pat)))
 	      computed_jump = 1;
-		    
+
 	    if (computed_jump)
 	      {
 		for (x = label_value_list; x; x = XEXP (x, 1))
@@ -894,14 +894,14 @@ life_analysis (f, nregs)
 		  if (GET_CODE (tem) == USE
 		      || GET_CODE (tem) == CLOBBER)
 		    continue;
-		    
+
 		  if (GET_CODE (tem) != SET
 		      || GET_CODE (SET_DEST (tem)) != REG
 		      || GET_CODE (SET_SRC (tem)) != REG
 		      || REGNO (SET_DEST (tem)) != REGNO (SET_SRC (tem)))
 		    break;
 		}
-		
+
 	      if (i == XVECLEN (PATTERN (insn), 0)
 		  /* Insns carrying these notes are useful later on.  */
 		  && ! find_reg_note (insn, REG_EQUAL, NULL_RTX))
@@ -971,7 +971,7 @@ life_analysis (f, nregs)
 	[HARD_FRAME_POINTER_REGNUM / REGSET_ELT_BITS]
 	  |= (REGSET_ELT_TYPE) 1 << (HARD_FRAME_POINTER_REGNUM
 				     % REGSET_ELT_BITS);
-#endif      
+#endif
       }
 
   /* Mark all global registers as being live at the end of the function
@@ -1363,7 +1363,7 @@ propagate_block (old, first, last, final, significant, bnum)
 	       && NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG)
 	loop_depth--;
 
-      /* If we have LOOP_DEPTH == 0, there has been a bookkeeping error. 
+      /* If we have LOOP_DEPTH == 0, there has been a bookkeeping error.
 	 Abort now rather than setting register status incorrectly.  */
       if (loop_depth == 0)
 	abort ();
@@ -1394,7 +1394,7 @@ propagate_block (old, first, last, final, significant, bnum)
 	    = (insn_dead_p (PATTERN (insn), old, 0)
 	       /* Don't delete something that refers to volatile storage!  */
 	       && ! INSN_VOLATILE (insn));
-	  int libcall_is_dead 
+	  int libcall_is_dead
 	    = (insn_is_dead && note != 0
 	       && libcall_dead_p (PATTERN (insn), old, note, insn));
 
@@ -1490,7 +1490,7 @@ propagate_block (old, first, last, final, significant, bnum)
 	      mark_set_regs (old, dead, PATTERN (insn),
 			     final ? insn : NULL_RTX, significant);
 
-	      /* If an insn doesn't use CC0, it becomes dead since we 
+	      /* If an insn doesn't use CC0, it becomes dead since we
 		 assume that every insn clobbers it.  So show it dead here;
 		 mark_used_regs will set it live if it is referenced.  */
 	      cc0_live = 0;
@@ -1637,7 +1637,7 @@ insn_dead_p (x, needed, call_ok)
       if (GET_CODE (r) == CC0)
 	return ! cc0_live;
 #endif
-      
+
       if (GET_CODE (r) == MEM && last_mem_set && ! MEM_VOLATILE_P (r)
 	  && rtx_equal_p (r, last_mem_set))
 	return 1;
@@ -1880,9 +1880,9 @@ mark_set_1 (needed, dead, x, insn, significant)
       || (GET_CODE (reg) == REG
 	  && last_mem_set != 0 && reg_overlap_mentioned_p (reg, last_mem_set)))
     last_mem_set = 0;
-    
+
   if (GET_CODE (reg) == MEM && ! side_effects_p (reg)
-      /* There are no REG_INC notes for SP, so we can't assume we'll see 
+      /* There are no REG_INC notes for SP, so we can't assume we'll see
 	 everything that invalidates it.  To be safe, don't eliminate any
 	 stores though SP; none of them should be redundant anyway.  */
       && ! reg_mentioned_p (stack_pointer_rtx, reg))
@@ -1975,7 +1975,7 @@ mark_set_1 (needed, dead, x, insn, significant)
 	      reg_n_sets[regno]++;
 
 	      reg_n_refs[regno] += loop_depth;
-		  
+
 	      /* The insns where a reg is live are normally counted
 		 elsewhere, but we want the count to include the insn
 		 where the reg is set, and the normal counting mechanism
@@ -2167,7 +2167,7 @@ find_auto_inc (needed, x, insn)
 
 	      /* INCR will become a NOTE and INSN won't contain a
 		 use of ADDR.  If a use of ADDR was just placed in
-		 the insn before INSN, make that the next use. 
+		 the insn before INSN, make that the next use.
 		 Otherwise, invalidate it.  */
 	      if (GET_CODE (PREV_INSN (insn)) == INSN
 		  && GET_CODE (PATTERN (PREV_INSN (insn))) == SET
@@ -2478,7 +2478,7 @@ mark_used_regs (needed, live, x, final, insn)
 	    mark_used_regs (needed, live, SET_SRC (x), final, insn);
 	    return;
 	  }
-	    
+
 	/* Storing in STRICT_LOW_PART is like storing in a reg
 	   in that this SET might be dead, so ignore it in TESTREG.
 	   but in some other ways it is like using the reg.
@@ -2550,7 +2550,7 @@ mark_used_regs (needed, live, x, final, insn)
   {
     register char *fmt = GET_RTX_FORMAT (code);
     register int i;
-    
+
     for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
       {
 	if (fmt[i] == 'e')

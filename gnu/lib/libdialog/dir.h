@@ -1,5 +1,5 @@
-/* 
- * include file for dir.c 
+/*
+ * include file for dir.c
  *
  * Copyright (c) 1995, Marc van Kempen
  *
@@ -12,7 +12,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  */
 
 #include <sys/types.h>
@@ -25,7 +25,7 @@ typedef struct DirList {             /* structure to hold the directory entries 
     int         link;                /* is it a link ? */
     char        *linkname;           /* the name of the file the link points to */
 } DirList;
- 
+
 #ifndef TRUE
 #define TRUE (1)
 #endif

@@ -1,8 +1,8 @@
 /*
   ALPHA interface for CHESS
-   
+
   Revision: 4-25-88
-   
+
   Copyright (C) 1986, 1987, 1988 Free Software Foundation, Inc.
   Copyright (c) 1988  John Stanback
 
@@ -88,12 +88,12 @@ TerminateSearch()
 InputCommand()
 
 /*
-   Process the users command. If easy mode is OFF (the computer is 
-   thinking on opponents time) and the program is out of book, then make 
-   the 'hint' move on the board and call SelectMove() to find a response. 
-   The user terminates the search by entering ^C (quit siqnal) before 
-   entering a command. If the opponent does not make the hint move, then 
-   set Sdepth to zero. 
+   Process the users command. If easy mode is OFF (the computer is
+   thinking on opponents time) and the program is out of book, then make
+   the 'hint' move on the board and call SelectMove() to find a response.
+   The user terminates the search by entering ^C (quit siqnal) before
+   entering a command. If the opponent does not make the hint move, then
+   set Sdepth to zero.
 */
 
 {
@@ -123,7 +123,7 @@ char s[80];
       ft = time((time_t *)0) - time0;
       epsquare = tmp;
     }
-  
+
   signal(SIGINT,Die); signal(SIGQUIT,Die);
   while (!(ok || quit))
     {
@@ -136,7 +136,7 @@ char s[80];
           Sdepth = 0;
           ft = 0;
         }
-        
+
       if (strcmp(s,"bd") == 0)
         {
           ClrScreen();
@@ -179,7 +179,7 @@ char s[80];
           Sdepth = 0;
           ok = true;
         }
-      if (strcmp(s,"white") == 0)  
+      if (strcmp(s,"white") == 0)
         {
           computer = white; opponent = black;
           ok = true; force = false;
@@ -191,7 +191,7 @@ char s[80];
           ok = true; force = false;
           Sdepth = 0;
         }
-      if (strcmp(s,"remove") == 0 && GameCnt >= 1) 
+      if (strcmp(s,"remove") == 0 && GameCnt >= 1)
         {
           Undo(); Undo();
         }
@@ -220,7 +220,7 @@ char s[80];
       if (strcmp(s,"p") == 0) ShowPostnValues();
       if (strcmp(s,"debug") == 0) DoDebug();
     }
-    
+
   ClearMessage();
   ElapsedTime(1);
   if (force)
@@ -234,10 +234,10 @@ char s[80];
 
 EditBoard()
 
-/* 
-   Set up a board position. Pieces are entered by typing the piece 
-   followed by the location. For example, Nf3 will place a knight on 
-   square f3. 
+/*
+   Set up a board position. Pieces are entered by typing the piece
+   followed by the location. For example, Nf3 will place a knight on
+   square f3.
 */
 
 {
@@ -322,7 +322,7 @@ help()
   gotoXY(10,24); printz("Easy mode: ");
   if (easy) printz("ON"); else printz("OFF");
   gotoXY(40,21); printz("Depth: %d",MaxSearchDepth);
-  gotoXY(40,22); printz("Random: "); 
+  gotoXY(40,22); printz("Random: ");
   if (dither) printz("ON"); else printz("OFF");
   gotoXY(40,23); printz("Transposition table: ");
   if (hashflag) printz("ON"); else printz("OFF");
@@ -390,7 +390,7 @@ OutputMove()
   gotoXY(50,17); printz("My move is: %s",mvstr1);
   if (beep) putchar(7);
   ClrEoln();
-  
+
   gotoXY(50,24);
   if (root->flags & draw) printz("Draw game!");
   else if (root->score == -9999) printz("opponent mates!");
@@ -398,7 +398,7 @@ OutputMove()
   else if (root->score < -9000) printz("opponent will soon mate!");
   else if (root->score > 9000)  printz("computer will soon mate!");
   ClrEoln();
-  
+
   if (post)
     {
       gotoXY(50,22); printz("Nodes=   %6ld",NodeCnt); ClrEoln();
@@ -409,10 +409,10 @@ OutputMove()
 
 ElapsedTime(iop)
 
-/* 
-   Determine the time that has passed since the search was started. If 
-   the elapsed time exceeds the target (ResponseTime+ExtraTime) then set 
-   timeout to true which will terminate the search. 
+/*
+   Determine the time that has passed since the search was started. If
+   the elapsed time exceeds the target (ResponseTime+ExtraTime) then set
+   timeout to true which will terminate the search.
 */
 
 short iop;
@@ -515,7 +515,7 @@ short r,c; char x;
 UpdateDisplay(f,t,flag,iscastle)
 short f,t,flag,iscastle;
 {
-short i,l,z; 
+short i,l,z;
   if (flag)
     {
       gotoXY(56,2); printz("CHESS");
@@ -557,12 +557,12 @@ short i,l,z;
 GetOpenings()
 
 /*
-   Read in the Opening Book file and parse the algebraic notation for a 
-   move into an unsigned integer format indicating the from and to 
-   square. Create a linked list of opening lines of play, with 
-   entry->next pointing to the next line and entry->move pointing to a 
-   chunk of memory containing the moves. More Opening lines of up to 256 
-   half moves may be added to gnuchess.book. 
+   Read in the Opening Book file and parse the algebraic notation for a
+   move into an unsigned integer format indicating the from and to
+   square. Create a linked list of opening lines of play, with
+   entry->next pointing to the next line and entry->move pointing to a
+   chunk of memory containing the moves. More Opening lines of up to 256
+   half moves may be added to gnuchess.book.
 */
 
 {
@@ -587,7 +587,7 @@ unsigned short mv,*mp,tmp[100];
             mp = (unsigned short *)malloc((i+1)*sizeof(unsigned short));
             entry->mv = mp;
             entry->next = Book;
-            Book = entry; 
+            Book = entry;
             for (j = 1; j <= i; j++) *(mp++) = tmp[j];
             *mp = 0;
             i = 0; side = white;
@@ -690,7 +690,7 @@ short sq,i,c;
 
   ShowMessage("File name: ");
   scanz("%s",fname);
-  
+
   if (fname[0] == '\0' || access(fname,W_OK) == -1) strcpy(fname,"chess.000");
   fd = fopen(fname,"w");
   fprintf(fd,"%d %d %d\n",computer+1,opponent+1,Game50);
@@ -737,7 +737,7 @@ short i,f,t;
     }
   fprintf(fd,"\n\n");
   fclose(fd);
-} 
+}
 
 
 Undo()
@@ -851,7 +851,7 @@ SelectLevel()
   gotoXY(20,11); printz(" 8.    1 move  in  15 minutes");
   gotoXY(20,12); printz(" 9.    1 move  in  60 minutes");
   gotoXY(20,13); printz("10.    1 move  in 600 minutes");
-  
+
   OperatorTime = 0; TCmoves = 60; TCminutes = 5;
 
   gotoXY(20,17); printz("Enter Level: ");

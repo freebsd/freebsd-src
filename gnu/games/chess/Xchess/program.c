@@ -20,7 +20,7 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 1994/01/07 11:10:40 $
+/* RCS Info: $Revision: 1.3 $ on $Date: 1994/11/04 02:11:30 $
  *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/program.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
@@ -62,7 +62,7 @@ program_init(name)
 		sprintf (moves, "%d", movesperunit);
 		if (proghost)
 			execl("/usr/ucb/rsh", "rsh", proghost, name,
-					moves, time, 
+					moves, time,
 					(char *) NULL);
 		else
 			execl(name, name, moves, time, (char *) NULL);

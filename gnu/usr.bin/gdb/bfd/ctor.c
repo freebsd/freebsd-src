@@ -31,7 +31,7 @@ SECTION
 	which is static may also be have a type which requires
 	`construction'; the contructor must be called before the data
 	can be referenced, so the contructor must be called before the
-	program begins. 
+	program begins.
 
 	The common solution to this problem is for the compiler to
 	call a magic function as the first statement before <<main>>.
@@ -47,12 +47,12 @@ SECTION
 	such over the result looking for strange <<__GLOBAL__$>>
 	symbols, generate a C program from this, compile it, and link
 	with the partially linked input. This process is usually
-	called <<collect>>. 
+	called <<collect>>.
 
 	Some versions of <<a.out>> use something called the
 	<<set_vector>> mechanism.  The constructor symbols are output
 	from the compiler with a special stab code saying that they
-	are constructors, and the linker can deal with them directly. 
+	are constructors, and the linker can deal with them directly.
 
 	BFD allows applications (i.e., the linker) to deal with
 	constructor information independently of their external
@@ -61,11 +61,11 @@ SECTION
 	of the contructor information.  The application can
 	interrogate the database to find out what it wants.  The
 	construction data essential for the linker to be able to
-	perform its job are: 
+	perform its job are:
 
 	o asymbol -
 	The asymbol of the contructor entry point contains all the
-	information necessary to call the function. 
+	information necessary to call the function.
 
 	o table id -
 	The type of symbol, i.e., is it a constructor, a destructor or
@@ -76,7 +76,7 @@ SECTION
 	creates these sections as if they were tables of pointers to
 	the entry points, and builds relocation entries to go with
 	them so that the tables can be relocated along with the data
-	they reference. 
+	they reference.
 
 	These sections are marked with a special bit
 	(<<SEC_CONSTRUCTOR>>), which the linker notices and does with
@@ -92,10 +92,10 @@ SECTION
 
 /*
 INTERNAL_FUNCTION
-	bfd_constructor_entry 
+	bfd_constructor_entry
 
 SYNOPSIS
-	boolean bfd_constructor_entry(bfd *abfd, 
+	boolean bfd_constructor_entry(bfd *abfd,
 		asymbol **symbol_ptr_ptr,
 		CONST char*type);
 
@@ -113,7 +113,7 @@ DESCRIPTION
 
 */
 
- 
+
 boolean
 bfd_constructor_entry (abfd, symbol_ptr_ptr, type)
      bfd *abfd;

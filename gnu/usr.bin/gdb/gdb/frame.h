@@ -140,7 +140,7 @@ struct frame_saved_regs
 /* Use the alternate method of avoiding running up off the end of the frame
    chain or following frames back into the startup code.  See the comments
    in objfiles.h. */
-   
+
 #define FRAME_CHAIN_VALID(chain, thisframe)	\
   ((chain) != 0					\
    && !inside_main_func ((thisframe) -> pc)	\

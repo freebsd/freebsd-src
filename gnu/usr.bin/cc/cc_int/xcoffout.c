@@ -187,7 +187,7 @@ stab_to_sclass (stab)
       return C_GSYM;
 
     case N_FNAME:
-      UNKNOWN_STAB ("N_FNAME"); 
+      UNKNOWN_STAB ("N_FNAME");
       abort();
 
     case N_FUN:
@@ -199,7 +199,7 @@ stab_to_sclass (stab)
 
 #ifdef N_MAIN
     case N_MAIN:
-      UNKNOWN_STAB ("N_MAIN"); 
+      UNKNOWN_STAB ("N_MAIN");
       abort ();
 #endif
 
@@ -207,7 +207,7 @@ stab_to_sclass (stab)
       return C_RSYM;
 
     case N_SSYM:
-      UNKNOWN_STAB ("N_SSYM"); 
+      UNKNOWN_STAB ("N_SSYM");
       abort ();
 
     case N_RPSYM:
@@ -223,59 +223,59 @@ stab_to_sclass (stab)
       return C_ENTRY;
 
     case N_SO:
-      UNKNOWN_STAB ("N_SO"); 
+      UNKNOWN_STAB ("N_SO");
       abort ();
 
     case N_SOL:
-      UNKNOWN_STAB ("N_SOL"); 
+      UNKNOWN_STAB ("N_SOL");
       abort ();
 
     case N_SLINE:
-      UNKNOWN_STAB ("N_SLINE"); 
+      UNKNOWN_STAB ("N_SLINE");
       abort ();
 
 #ifdef N_DSLINE
     case N_DSLINE:
-      UNKNOWN_STAB ("N_DSLINE"); 
+      UNKNOWN_STAB ("N_DSLINE");
       abort ();
 #endif
 
 #ifdef N_BSLINE
     case N_BSLINE:
-      UNKNOWN_STAB ("N_BSLINE"); 
+      UNKNOWN_STAB ("N_BSLINE");
       abort ();
 #endif
 #if 0
       /* This has the same value as N_BSLINE.  */
     case N_BROWS:
-      UNKNOWN_STAB ("N_BROWS"); 
+      UNKNOWN_STAB ("N_BROWS");
       abort ();
 #endif
 
 #ifdef N_BINCL
     case N_BINCL:
-      UNKNOWN_STAB ("N_BINCL"); 
+      UNKNOWN_STAB ("N_BINCL");
       abort ();
 #endif
 
 #ifdef N_EINCL
     case N_EINCL:
-      UNKNOWN_STAB ("N_EINCL"); 
+      UNKNOWN_STAB ("N_EINCL");
       abort ();
 #endif
 
 #ifdef N_EXCL
     case N_EXCL:
-      UNKNOWN_STAB ("N_EXCL"); 
+      UNKNOWN_STAB ("N_EXCL");
       abort ();
 #endif
 
     case N_LBRAC:
-      UNKNOWN_STAB ("N_LBRAC"); 
+      UNKNOWN_STAB ("N_LBRAC");
       abort ();
 
     case N_RBRAC:
-      UNKNOWN_STAB ("N_RBRAC"); 
+      UNKNOWN_STAB ("N_RBRAC");
       abort ();
 
     case N_BCOMM:
@@ -286,31 +286,31 @@ stab_to_sclass (stab)
       return C_ECOML;
 
     case N_LENG:
-      UNKNOWN_STAB ("N_LENG"); 
+      UNKNOWN_STAB ("N_LENG");
       abort ();
 
     case N_PC:
-      UNKNOWN_STAB ("N_PC"); 
+      UNKNOWN_STAB ("N_PC");
       abort ();
 
 #ifdef N_M2C
     case N_M2C:
-      UNKNOWN_STAB ("N_M2C"); 
+      UNKNOWN_STAB ("N_M2C");
       abort ();
 #endif
 
 #ifdef N_SCOPE
     case N_SCOPE:
-      UNKNOWN_STAB ("N_SCOPE"); 
+      UNKNOWN_STAB ("N_SCOPE");
       abort ();
 #endif
 
     case N_CATCH:
-      UNKNOWN_STAB ("N_CATCH"); 
+      UNKNOWN_STAB ("N_CATCH");
       abort ();
 
     default:
-      UNKNOWN_STAB ("default"); 
+      UNKNOWN_STAB ("default");
       abort ();
   }
 }
@@ -437,7 +437,7 @@ xcoffout_begin_block (file, line, n)
 {
   tree decl = current_function_decl;
 
-  
+
   /* The IBM AIX compiler does not emit a .bb for the function level scope,
      so we avoid it here also.  */
   if (n != 1)

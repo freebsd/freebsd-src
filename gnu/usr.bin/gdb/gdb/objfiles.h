@@ -52,7 +52,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    process startup code.  Since we have no guarantee that the linked
    in startup modules have any debugging information that gdb can use,
    we need to avoid following frame pointers back into frames that might
-   have been built in the startup code, as we might get hopelessly 
+   have been built in the startup code, as we might get hopelessly
    confused.  However, we almost always have debugging information
    available for main().
 
@@ -86,7 +86,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 struct entry_info
 {
-  
+
   /* The value we should use for this objects entry point.
      The illegal/unknown value needs to be something other than 0, ~0
      for instance, which is much less likely than 0. */
@@ -103,7 +103,7 @@ struct entry_info
 
   /* Start (inclusive) and end (exclusive) of object file containing the
      entry point. */
-  
+
   CORE_ADDR entry_file_lowpc;
   CORE_ADDR entry_file_highpc;
 

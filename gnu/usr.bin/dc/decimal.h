@@ -1,4 +1,4 @@
-/* 
+/*
  * Header file for decimal.c (arbitrary precision decimal arithmetic)
  *
  * Copyright (C) 1984 Free Software Foundation, Inc.

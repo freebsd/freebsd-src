@@ -33,7 +33,7 @@ ieee_extended_to_double (ext_format, from, to)
   unsigned char *ufrom = (unsigned char *)from;
   double dto;
   unsigned long mant0, mant1, exponent;
-  
+
   memcpy (&mant0, &from[MANBYTE_H], 4);
   memcpy (&mant1, &from[MANBYTE_L], 4);
   exponent = ((ufrom[EXPBYTE_H] & (unsigned char)~SIGNMASK) << 8) | ufrom[EXPBYTE_L];
@@ -43,7 +43,7 @@ ieee_extended_to_double (ext_format, from, to)
      difference.  It will end up as Infinity or something close.  */
   if (exponent == EXT_EXP_NAN) {
     /* We have a NaN source.  */
-    dto = 0.123456789;	/* Not much else useful to do -- we don't know if 
+    dto = 0.123456789;	/* Not much else useful to do -- we don't know if
 			   the host system even *has* NaNs, nor how to
 			   generate an innocuous one if it does.  */
   } else
@@ -118,7 +118,7 @@ double_to_ieee_extended (ext_format, from, to)
   /* OK, now store it in extended format. */
   to[EXPBYTE_H] |= (unsigned char)(exponent >> 8);	/* Retain sign */
   to[EXPBYTE_L] =  (unsigned char) exponent;
-  
+
   memcpy (&to[MANBYTE_H], &mant0, 4);
   memcpy (&to[MANBYTE_L], &mant1, 4);
 }

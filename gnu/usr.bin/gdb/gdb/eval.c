@@ -71,7 +71,7 @@ parse_and_eval_address (exp)
 {
   struct expression *expr = parse_expression (exp);
   register CORE_ADDR addr;
-  register struct cleanup *old_chain = 
+  register struct cleanup *old_chain =
       make_cleanup (free_current_contents, &expr);
 
   addr = value_as_pointer (evaluate_expression (expr));
@@ -419,7 +419,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	  argvec[1] = arg2;
 	  argvec[0] = 0;
 	  strcpy(tstr, &exp->elts[pc2+2].string);
-          if (!argvec[0]) 
+          if (!argvec[0])
 	    {
 	      temp = arg2;
 	      argvec[0] =
@@ -624,7 +624,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	    error ("cannot subscript something of type `%s'",
 		   TYPE_NAME (VALUE_TYPE (arg1)));
 	}
-			   
+
       if (binop_user_defined_p (op, arg1, arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL);
       else
@@ -636,7 +636,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
       if (noside == EVAL_SKIP)
 	goto nosideret;
       return value_in (arg1, arg2);
-      
+
     case MULTI_SUBSCRIPT:
       (*pos) += 2;
       nargs = longest_to_int (exp->elts[pc + 1].longconst);
@@ -662,7 +662,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	      /* If the user attempts to subscript something that has no target
 		 type (like a plain int variable for example), then report this
 		 as an error. */
-	      
+
 	      type = TYPE_TARGET_TYPE (VALUE_TYPE (arg1));
 	      if (type != NULL)
 		{
@@ -676,7 +676,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 			 TYPE_NAME (VALUE_TYPE (arg1)));
 		}
 	    }
-	  
+
 	  if (binop_user_defined_p (op, arg1, arg2))
 	    {
 	      arg1 = value_x_binop (arg1, arg2, op, OP_NULL);
@@ -695,12 +695,12 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  goto nosideret;
 	}
-      
+
       oldpos = *pos;
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, EVAL_AVOID_SIDE_EFFECTS);
       *pos = oldpos;
-      
-      if (binop_user_defined_p (op, arg1, arg2)) 
+
+      if (binop_user_defined_p (op, arg1, arg2))
 	{
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  return value_x_binop (arg1, arg2, op, OP_NULL);
@@ -721,12 +721,12 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  goto nosideret;
 	}
-      
+
       oldpos = *pos;
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, EVAL_AVOID_SIDE_EFFECTS);
       *pos = oldpos;
-      
-      if (binop_user_defined_p (op, arg1, arg2)) 
+
+      if (binop_user_defined_p (op, arg1, arg2))
 	{
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  return value_x_binop (arg1, arg2, op, OP_NULL);
@@ -824,7 +824,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL);
 	}
-      else 
+      else
 	{
 	  tem = value_less (arg1, arg2) || value_equal (arg1, arg2);
 	  return value_from_longest (builtin_type_int, (LONGEST) tem);
@@ -903,7 +903,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 
     case UNOP_ADDR:
       /* C++: check for and handle pointer to members.  */
-      
+
       op = exp->elts[*pos].opcode;
 
       if (noside == EVAL_SKIP)
@@ -956,7 +956,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	}
       else
 	{
-	  arg2 = value_add (arg1, value_from_longest (builtin_type_char, 
+	  arg2 = value_add (arg1, value_from_longest (builtin_type_char,
 						   (LONGEST) 1));
 	  return value_assign (arg1, arg2);
 	}
@@ -971,7 +971,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	}
       else
 	{
-	  arg2 = value_sub (arg1, value_from_longest (builtin_type_char, 
+	  arg2 = value_sub (arg1, value_from_longest (builtin_type_char,
 						   (LONGEST) 1));
 	  return value_assign (arg1, arg2);
 	}
@@ -986,7 +986,7 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	}
       else
 	{
-	  arg2 = value_add (arg1, value_from_longest (builtin_type_char, 
+	  arg2 = value_add (arg1, value_from_longest (builtin_type_char,
 						   (LONGEST) 1));
 	  value_assign (arg1, arg2);
 	  return arg1;
@@ -1002,12 +1002,12 @@ evaluate_subexp (expect_type, exp, pos, noside)
 	}
       else
 	{
-	  arg2 = value_sub (arg1, value_from_longest (builtin_type_char, 
+	  arg2 = value_sub (arg1, value_from_longest (builtin_type_char,
 						   (LONGEST) 1));
 	  value_assign (arg1, arg2);
 	  return arg1;
 	}
-	
+
     case OP_THIS:
       (*pos) += 1;
       return value_of_this (1);
@@ -1188,7 +1188,7 @@ evaluate_subexp_for_sizeof (exp, pos)
 
     case UNOP_MEMVAL:
       (*pos) += 3;
-      return value_from_longest (builtin_type_int, 
+      return value_from_longest (builtin_type_int,
 			      (LONGEST) TYPE_LENGTH (exp->elts[pc + 1].type));
 
     case OP_VAR_VALUE:

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsinfo_rcsid[] = "$Id: vsinfo.c,v 1.10 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_vsinfo_rcsid[] = "$Id: vsinfo.c,v 1.2 1994/05/07 18:13:23 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -531,7 +531,7 @@ _uuconf_iv2_system_internal (qglobal, zsystem, qsys)
 		    qsys->uuconf_pzpath = pznew;
 		    zline = NULL;
 		    cline = 0;
-		  }      
+		  }
 
 		if (getline (&zline, &cline, e) < 0)
 		  {

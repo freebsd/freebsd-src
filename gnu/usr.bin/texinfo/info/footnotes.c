@@ -47,7 +47,7 @@ find_footnotes_window ()
 }
 
 /* Manufacture a node containing the footnotes of this node, and
-   return the manufactured node.  If NODE has no footnotes, return a 
+   return the manufactured node.  If NODE has no footnotes, return a
    NULL pointer. */
 NODE *
 make_footnotes_node (node)
@@ -126,7 +126,7 @@ make_footnotes_node (node)
     while (text_start < fn_node->nodelen)
       if (fn_node->contents[text_start++] == '\n')
 	break;
-  
+
     result->nodelen = strlen (header) + fn_node->nodelen - text_start;
 
     /* Set the contents of this node. */

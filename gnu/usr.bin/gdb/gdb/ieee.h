@@ -38,7 +38,7 @@ typedef union ieee_w_variable {
 
 
 typedef enum ieee_record
-{ 
+{
   ieee_number_start_enum = 0x00,
   ieee_number_end_enum=0x7f,
   ieee_number_repeat_start_enum = 0x80,
@@ -62,31 +62,31 @@ typedef enum ieee_record
   ieee_load_constant_bytes_enum = 0xed,
   ieee_load_with_relocation_enum = 0xe4,
 
-  ieee_variable_A_enum = 0xc1,			               
-  ieee_variable_B_enum = 0xc2,			               
-  ieee_variable_C_enum = 0xc3,			               
-  ieee_variable_D_enum = 0xc4,			               
-  ieee_variable_E_enum = 0xc5,			               
-  ieee_variable_F_enum = 0xc6,			               
-  ieee_variable_G_enum = 0xc7,			               
-  ieee_variable_H_enum = 0xc8,			               
-  ieee_variable_I_enum = 0xc9,			               
-  ieee_variable_J_enum = 0xca,			               
-  ieee_variable_K_enum = 0xcb,			               
-  ieee_variable_L_enum = 0xcc,			               
-  ieee_variable_M_enum = 0xcd,			               
-  ieee_variable_N_enum = 0xce,			               
-  ieee_variable_O_enum = 0xcf,			               
-  ieee_variable_P_enum = 0xd0,			               
-  ieee_variable_Q_enum = 0xd1,			               
-  ieee_variable_R_enum = 0xd2,			               
-  ieee_variable_S_enum = 0xd3,			               
-  ieee_variable_T_enum = 0xd4,			               
-  ieee_variable_U_enum = 0xd5,			               
-  ieee_variable_V_enum = 0xd6,			               
-  ieee_variable_W_enum = 0xd7,			               
-  ieee_variable_X_enum = 0xd8,			               
-  ieee_variable_Y_enum = 0xd9,			               
+  ieee_variable_A_enum = 0xc1,
+  ieee_variable_B_enum = 0xc2,
+  ieee_variable_C_enum = 0xc3,
+  ieee_variable_D_enum = 0xc4,
+  ieee_variable_E_enum = 0xc5,
+  ieee_variable_F_enum = 0xc6,
+  ieee_variable_G_enum = 0xc7,
+  ieee_variable_H_enum = 0xc8,
+  ieee_variable_I_enum = 0xc9,
+  ieee_variable_J_enum = 0xca,
+  ieee_variable_K_enum = 0xcb,
+  ieee_variable_L_enum = 0xcc,
+  ieee_variable_M_enum = 0xcd,
+  ieee_variable_N_enum = 0xce,
+  ieee_variable_O_enum = 0xcf,
+  ieee_variable_P_enum = 0xd0,
+  ieee_variable_Q_enum = 0xd1,
+  ieee_variable_R_enum = 0xd2,
+  ieee_variable_S_enum = 0xd3,
+  ieee_variable_T_enum = 0xd4,
+  ieee_variable_U_enum = 0xd5,
+  ieee_variable_V_enum = 0xd6,
+  ieee_variable_W_enum = 0xd7,
+  ieee_variable_X_enum = 0xd8,
+  ieee_variable_Y_enum = 0xd9,
   ieee_variable_Z_enum = 0xda,
   ieee_function_plus_enum = 0xa5,
   ieee_function_minus_enum = 0xa6,
@@ -116,7 +116,7 @@ ieee_nn_record = 0xf0,
   ieee_weak_external_reference_enum= 0xf4,
   ieee_repeat_data_enum = 0xf7
 } ieee_record_enum_type;
-		 
+
 
 typedef struct ieee_section {
   unsigned int section_index;

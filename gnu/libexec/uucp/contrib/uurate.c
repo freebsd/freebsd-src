@@ -44,7 +44,7 @@
  *      - redesigned the printed layout (sticked to those 80 column tubes).
  *      - 'Retry time not ...' and ' ERROR: All matching ports ...' will now be
  *        counted as calls and will raise the failed-call counter.
- *      - times now shown as hh:mm:ss; the fields may hold up to 999 hrs  
+ *      - times now shown as hh:mm:ss; the fields may hold up to 999 hrs
  *        (a month equals 744 hrs at max). Printing will be as follows:
  *
  *         hrs > 0  hh:mm:ss
@@ -52,7 +52,7 @@
  *         sec > 0        ss
  *         leading zeroes are suppressed.
  *
- *      - the bytes xfered will be given in thousands only (we're counting 
+ *      - the bytes xfered will be given in thousands only (we're counting
  *        so 1K is 1000 bytes!). Sums up to 9,999,999.9 thousand can be shown.
  *      - dropped the fractions of a byte in columns: bytes/second (avg cps).
  *      - File statistic changed to display in/out in one row instead of 2
@@ -60,7 +60,7 @@
  *      - eliminated the goto in command report and tightened the code; also
  *        the 'goto usage' has been replaced by a call to void usage() with no
  *        return (exit 1).
- *      - a totaling is done for all reports now; the total values are held 
+ *      - a totaling is done for all reports now; the total values are held
  *        within the structure; after finishing read there will be an alloc
  *        for a site named 'Total' so that the totals line will be printed
  *        more or less automatically.
@@ -84,6 +84,9 @@
  *        get knowledge of
  */
 /* $Log: uurate.c,v $
+ * Revision 1.2  1994/05/07  18:09:35  ache
+ * Upgrade to version 1.05
+ *
  * Revision 1.15  1994/04/07  21:47:11  kdburg
  * printed 'no data avail' while there was data; layout chnaged
  * (cosmetic only)
@@ -139,7 +142,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$Id: uurate.c,v 1.15 1994/04/07 21:47:11 kdburg Rel $";
+static char rcsid[] = "$Id: uurate.c,v 1.2 1994/05/07 18:09:35 ache Exp $";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"
@@ -288,7 +291,7 @@ int main(argc, argv)
          char *argv[];
 {
   FILE *Log = NULL;
-  int c; 
+  int c;
   char *p, *s, *stt, *flq = NULL;
   char Hostname[MAXHOSTNAMELEN]; /* def taken from <sys/param.h> */
   char Filename[15];             /* filename to be printed */
@@ -318,7 +321,7 @@ int main(argc, argv)
    else
       strcpy(Pgm_name,argv[0]);
    def_logs[0] = Pgm_name;
-   
+
   /*
    * I wish the compiler had the #error directive!
    */
@@ -345,7 +348,7 @@ int main(argc, argv)
   Tstat  = (char *)getmem(sizeof(STATFILE));
   Tlog   = LOGFILE;
   Tstat  = STATFILE;
-  
+
   /*
    * Process the command line arguments
    */
@@ -423,8 +426,8 @@ int main(argc, argv)
   /*
    * If further args present, Assume rest are logfiles for us to process
    * which should be given in pairs (log plus stat) otherwise the results may
-   * not come out as expected! If no further args are present take input from 
-   * Log and Stat files provided in the compilation environment of Taylor UUCP. 
+   * not come out as expected! If no further args are present take input from
+   * Log and Stat files provided in the compilation environment of Taylor UUCP.
    * If -i was given, Log already points to stdin and no file args are accepted.
    */
 
@@ -454,7 +457,7 @@ int main(argc, argv)
       else                            /* Read from current logs */
       {
          def_logs[1] = Tlog;      /* prime the */
-         def_logs[2] = Tstat;     /*   file names */   
+         def_logs[2] = Tstat;     /*   file names */
          if (! be_quiet)
             printf("   Config for this run: ");
 
@@ -480,7 +483,7 @@ int main(argc, argv)
                  printf("%s\n",noConf);
          }
          def_logs[1] = Tlog;      /* final setting of */
-         def_logs[2] = Tstat;     /*   file names */   
+         def_logs[2] = Tstat;     /*   file names */
          argv = def_logs;            /* Bash argvec to log/stat files */
          argc = sizeof(def_logs) / sizeof(def_logs[0]);
        }
@@ -514,7 +517,7 @@ int main(argc, argv)
        strncpy(Filename,argv[1],sizeof(Filename)-1);
     else
        strncpy(Filename,++flq,sizeof(Filename)-1);
-       
+
     strcpy(in_date,"   n/a");
     strcpy(in_time,"   n/a");
     p_done = FALSE;             /* no info printed yet */
@@ -543,7 +546,7 @@ int main(argc, argv)
       if (NULL != (stt = strchr(p, '(')))
       {
          if (! p_done && ! use_stdin && ! be_quiet)
-         {  
+         {
 
 #if HAVE_TAYLOR_LOGGING
          sscanf(++stt,"%s%*c%[^.]",in_date,in_time);
@@ -586,7 +589,7 @@ int main(argc, argv)
          * transfer record, determine the direction. If not then
          * skip the line if it is not interesting.
          */
-      
+
       if ((s = strchr(++s, ')')) == NULL)
          continue;
 
@@ -596,7 +599,7 @@ int main(argc, argv)
          if ((s = strchr(++s, ')')) == NULL)
             continue;                     /* yes but strange layout */
 #endif /* HAVE_V2_LOGGING */
-#endif /* ! HAVE_TAYLOR_LOGGING  */ 
+#endif /* ! HAVE_TAYLOR_LOGGING  */
 
        logmsg = s + 2;            /* Message is 2 characters after ')' */
        if ((0 != strncmp(logmsg, "Call complete", 13)) &&
@@ -651,8 +654,8 @@ int main(argc, argv)
                                 last->next = cur;
                              break;
                           }
-                     }   /*  while (e != NULL) */ 
-                 }    /*  hosts == NULL  */ 
+                     }   /*  while (e != NULL) */
+                 }    /*  hosts == NULL  */
               }   /* cur == NULL */
        }
 
@@ -768,7 +771,7 @@ int main(argc, argv)
         /*
          * Handle end of call. Pick up the connect time.
          * position is on the closing paren of date/time info
-         * i.e: ) text....  
+         * i.e: ) text....
          */
 
         if (0 == strncmp(logmsg, "Call complete", 13))
@@ -795,7 +798,7 @@ int main(argc, argv)
         if (0 == strncmp(logmsg, "failed after ",13))
            logmsg += 13;        /* the transmission failed for any reason */
                                 /* so advance pointer */
-        if (0 == strncmp(logmsg, "sent", 4)) 
+        if (0 == strncmp(logmsg, "sent", 4))
            sent = OUT;
         else if (0 == strncmp(logmsg, "received", 8))
                 sent = IN;
@@ -821,7 +824,7 @@ int main(argc, argv)
     }   /* end of while (fgets(logline...)) */
 
     if (stt != NULL && ! use_stdin && ! be_quiet && ! no_records)
-    {  
+    {
 
 #if HAVE_TAYLOR_LOGGING
          sscanf(dt_info,"%s%*c%[^.]",in_date,in_time);
@@ -848,7 +851,7 @@ int main(argc, argv)
        {
           if (! be_quiet && no_records)
              printf("   %-14s %10s\n",Filename, " is empty ");
-       }         
+       }
      }
      fclose(Log);
 
@@ -895,11 +898,11 @@ int main(argc, argv)
               tot->call[OUT].flow[IN].files += cur->call[OUT].flow[IN].files;
               tot->call[IN].flow[OUT].files  += cur->call[IN].flow[OUT].files;
               tot->call[OUT].flow[OUT].files += cur->call[OUT].flow[OUT].files;
-              tot->call[OUT].succs += cur->call[OUT].succs; 
-              tot->call[OUT].calls += cur->call[OUT].calls; 
+              tot->call[OUT].succs += cur->call[OUT].succs;
+              tot->call[OUT].calls += cur->call[OUT].calls;
               tot->call[OUT].connect_time += cur->call[OUT].connect_time;
-              tot->call[IN].succs += cur->call[IN].succs; 
-              tot->call[IN].calls += cur->call[IN].calls; 
+              tot->call[IN].succs += cur->call[IN].succs;
+              tot->call[IN].calls += cur->call[IN].calls;
               tot->call[IN].connect_time += cur->call[IN].connect_time;
            }
          }
@@ -981,7 +984,7 @@ int main(argc, argv)
                    cur->Hostname, rf, sf,
                    t1, t2, t3, t4, t5,
                    ir, or);
-        } 
+        }
         if (! hdr_done)
         {
             puts("\n(I) No data found to print Compact summary report");
@@ -1077,7 +1080,7 @@ int main(argc, argv)
                                     prot->pr_eorder,
                                     prot->pr_ereject);
                       type = NULL;
-                   } 
+                   }
                 }
             }
         }
@@ -1171,7 +1174,7 @@ int main(argc, argv)
      {
         char t1[32], t2[32];
         double rate = 0, time = 0;
-        int b = 0; 
+        int b = 0;
         int lineOut = 0;
 
         hdr_done = FALSE;
@@ -1179,7 +1182,7 @@ int main(argc, argv)
         {
             lineOut = 0;
             for (sent= IN; sent <= OUT; ++sent)
-            {  
+            {
                 b    = cur->call[IN].flow[sent].bytes +
                        cur->call[OUT].flow[sent].bytes;
                 time = cur->call[IN].flow[sent].time +
@@ -1215,7 +1218,7 @@ int main(argc, argv)
                           t1, t2, rate);
                     lineOut = 1;
                  }
-            }    /* end:  for (sent ... ) */  
+            }    /* end:  for (sent ... ) */
             if (lineOut)
                 printf("\n");
         }    /* end:  for (cur= ... ) */
@@ -1263,7 +1266,7 @@ int main(argc, argv)
                hdr_done = TRUE;
             }
 
-            flow = cur->call[IN].flow[IN].time + 
+            flow = cur->call[IN].flow[IN].time +
                    cur->call[IN].flow[OUT].time +
                    cur->call[OUT].flow[IN].time +
                    cur->call[OUT].flow[OUT].time;
@@ -1296,12 +1299,12 @@ int main(argc, argv)
    */
 
   if (show_commands || show_all)
-  { 
+  {
      if (have_commands)
      {
         int ncmds, i, match;
 
-        /* 
+        /*
          *  layout the header line. The column's header is the command name
          */
 
@@ -1331,7 +1334,7 @@ int main(argc, argv)
                fputs("  ------", stdout);
            putchar('\n');
 
-        /* 
+        /*
          *  print out the number of executions for each host/command
          */
 
@@ -1353,7 +1356,7 @@ int main(argc, argv)
                   for(ec= cur->cmds; ec != NULL; ec= ec->next)
                   {
                      if ( 0 == strcmp(cmd->Commandname, ec->Commandname) )
-                     { 
+                     {
                         printf(" %7d", ec->count);
                         match = TRUE;
                         break;
@@ -1366,7 +1369,7 @@ int main(argc, argv)
             }
 
          /*
-          *  print the totals line 
+          *  print the totals line
           */
 
             fputs("   --------", stdout);
@@ -1402,7 +1405,7 @@ int main(argc, argv)
    */
 
   /* ------------------------------------------------------------------
-   *                    display the help 
+   *                    display the help
    * ------------------------------------------------------------------
    */
 
@@ -1644,7 +1647,7 @@ int chk_config(char *T_conf,int be_quiet, int type)
             fprintf(stderr,"%s (C) ended due to errors\n",
                                                Pgm_name);
             return (8);
-         } 
+         }
       }
    }
    else

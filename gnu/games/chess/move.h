@@ -11,7 +11,7 @@ extern short taxidata[64][64];
 
 extern void Initialize_dist();
 #endif
-  
+
 #if (NEWMOVE >= 2)
 struct sqdata {
   short nextpos;

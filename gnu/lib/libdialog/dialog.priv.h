@@ -49,7 +49,7 @@
 
 #ifndef ctrl
 #define ctrl(a)          ((a) - 'a' + 1)
-#endif 
+#endif
 
 #ifndef HAVE_NCURSES
 #ifndef ACS_ULCORNER
@@ -101,7 +101,7 @@ bool use_shadow = USE_SHADOW;
 #endif
 
 
-/* 
+/*
  * Attribute values, default is for mono display
  */
 chtype attributes[] = {

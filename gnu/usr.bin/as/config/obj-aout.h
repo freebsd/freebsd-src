@@ -1,23 +1,23 @@
 /* obj-aout.h, a.out object file format for gas, the assembler.
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation; either version 2,
    or (at your option) any later version.
-   
+
    GAS is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
    the GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   $Id: obj-aout.h,v 1.2 1993/11/30 20:57:40 jkh Exp $
+   $Id: obj-aout.h,v 1.3 1994/12/23 22:37:34 nate Exp $
  */
 
 
@@ -271,7 +271,7 @@ typedef struct nlist obj_symbol_type; /* Symbol table entry */
 #define H_SET_ENTRY_POINT(h,v)		((h)->header.a_entry = (v))
 #define H_SET_STRING_SIZE(h,v)		((h)->string_table_size = (v))
 
-/* 
+/*
  * Current means for getting the name of a segment.
  * This will change for infinite-segments support (e.g. COFF).
  */

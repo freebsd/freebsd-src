@@ -22,7 +22,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* This module provides definitions used for creating and adding to
    the symbol table.  These routines are called from various symbol-
-   file-reading routines.  
+   file-reading routines.
 
    They originated in dbxread.c of gdb-4.2, and were split out to
    make xcoffread.c more maintainable by sharing code.

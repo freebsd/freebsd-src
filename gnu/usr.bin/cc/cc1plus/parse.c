@@ -3709,7 +3709,7 @@ case 25:
     break;}
 case 26:
 #line 379 "parse.y"
-{ 
+{
 		  yyval.ttype = build_tree_list (yyvsp[0].ttype, NULL_TREE);
 		 ttpa:
 		  if (TREE_PURPOSE (yyval.ttype) == signature_type_node)
@@ -4290,7 +4290,7 @@ case 135:
     break;}
 case 136:
 #line 898 "parse.y"
-{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node, 
+{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node,
 			       bool_truthvalue_conversion (yyvsp[-1].ttype)); ;
     break;}
 case 137:
@@ -4301,7 +4301,7 @@ case 137:
     break;}
 case 138:
 #line 908 "parse.y"
-{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node, 
+{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node,
 			       bool_truthvalue_conversion (yyvsp[-1].ttype)); ;
     break;}
 case 139:
@@ -4310,7 +4310,7 @@ case 139:
     break;}
 case 140:
 #line 916 "parse.y"
-{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node, 
+{ yyval.ttype = build1 (CLEANUP_POINT_EXPR, bool_type_node,
 			       bool_truthvalue_conversion (yyval.ttype)); ;
     break;}
 case 141:
@@ -4338,12 +4338,12 @@ case 142:
     break;}
 case 143:
 #line 941 "parse.y"
-{ 
+{
 		  finish_decl (yyvsp[-1].ttype, yyvsp[0].ttype, yyvsp[-3].ttype, 0);
 		  resume_momentary (yyvsp[-2].itype);
-		  yyval.ttype = yyvsp[-1].ttype; 
+		  yyval.ttype = yyvsp[-1].ttype;
 		  if (TREE_CODE (TREE_TYPE (yyval.ttype)) == ARRAY_TYPE)
-		    cp_error ("definition of array `%#D' in condition", yyval.ttype); 
+		    cp_error ("definition of array `%#D' in condition", yyval.ttype);
 		;
     break;}
 case 145:
@@ -4360,12 +4360,12 @@ case 147:
     break;}
 case 149:
 #line 964 "parse.y"
-{ yyval.ttype = tree_cons (NULL_TREE, yyval.ttype, 
+{ yyval.ttype = tree_cons (NULL_TREE, yyval.ttype,
 		                  build_tree_list (NULL_TREE, yyvsp[0].ttype)); ;
     break;}
 case 150:
 #line 967 "parse.y"
-{ yyval.ttype = tree_cons (NULL_TREE, yyval.ttype, 
+{ yyval.ttype = tree_cons (NULL_TREE, yyval.ttype,
 		                  build_tree_list (NULL_TREE, error_mark_node)); ;
     break;}
 case 151:
@@ -4522,7 +4522,7 @@ case 178:
 case 179:
 #line 1083 "parse.y"
 {
-		  yyval.ttype = yyvsp[-1].ttype; 
+		  yyval.ttype = yyvsp[-1].ttype;
 		  pedwarn ("old style placement syntax, use () instead");
 		;
     break;}
@@ -4553,7 +4553,7 @@ case 184:
 #line 1113 "parse.y"
 { yyvsp[-1].ttype = tree_cons (NULL_TREE, yyvsp[-1].ttype, void_list_node);
 		  TREE_PARMLIST (yyvsp[-1].ttype) = 1;
-		  yyval.ttype = build_parse_node (CALL_EXPR, NULL_TREE, yyvsp[-1].ttype, 
+		  yyval.ttype = build_parse_node (CALL_EXPR, NULL_TREE, yyvsp[-1].ttype,
 					 NULL_TREE); ;
     break;}
 case 185:
@@ -4568,9 +4568,9 @@ case 187:
     break;}
 case 188:
 #line 1128 "parse.y"
-{ 
+{
 		  tree init = build_nt (CONSTRUCTOR, NULL_TREE,
-					nreverse (yyvsp[-2].ttype)); 
+					nreverse (yyvsp[-2].ttype));
 		  if (flag_ansi)
 		    pedwarn ("ANSI C++ forbids constructor-expressions");
 		  /* Indicate that this was a GNU C constructor expression.  */
@@ -4791,7 +4791,7 @@ case 238:
 case 239:
 #line 1322 "parse.y"
 { /* [eichin:19911016.1902EST] */
-                  yyval.ttype = build_x_function_call (yyvsp[-3].ttype, yyvsp[-1].ttype, current_class_decl); 
+                  yyval.ttype = build_x_function_call (yyvsp[-3].ttype, yyvsp[-1].ttype, current_class_decl);
                   /* here we instantiate_class_template as needed... */
                   do_pending_templates ();
                 ;
@@ -5068,8 +5068,8 @@ case 264:
     break;}
 case 265:
 #line 1551 "parse.y"
-{ 
-		  if (TREE_CODE (TREE_TYPE (yyvsp[-3].ttype)) 
+{
+		  if (TREE_CODE (TREE_TYPE (yyvsp[-3].ttype))
 		      != TREE_CODE (TREE_TYPE (IDENTIFIER_GLOBAL_VALUE (yyvsp[-1].ttype))))
 		    cp_error ("`%E' is not of type `%T'", yyvsp[-3].ttype, yyvsp[-1].ttype);
 		  yyval.ttype = convert (void_type_node, yyvsp[-3].ttype);
@@ -5077,7 +5077,7 @@ case 265:
     break;}
 case 266:
 #line 1558 "parse.y"
-{ 
+{
 		  if (yyvsp[-4].ttype != yyvsp[-1].ttype)
 		    cp_error ("destructor specifier `%T::~%T()' must have matching names", yyvsp[-4].ttype, yyvsp[-1].ttype);
 		  if (TREE_CODE (TREE_TYPE (yyvsp[-5].ttype))
@@ -5190,7 +5190,7 @@ case 287:
     break;}
 case 288:
 #line 1707 "parse.y"
-{ yyval.ttype = build_parse_node (CALL_EXPR, yyval.ttype, empty_parms (), 
+{ yyval.ttype = build_parse_node (CALL_EXPR, yyval.ttype, empty_parms (),
 					 NULL_TREE); ;
     break;}
 case 289:
@@ -5231,7 +5231,7 @@ case 299:
     break;}
 case 300:
 #line 1743 "parse.y"
-{ yyval.ttype = decl_tree_cons (NULL_TREE, yyvsp[-2].ttype, 
+{ yyval.ttype = decl_tree_cons (NULL_TREE, yyvsp[-2].ttype,
 				       chainon (yyvsp[-1].ttype, chainon (yyvsp[0].ttype, yyval.ttype))); ;
     break;}
 case 301:
@@ -5357,7 +5357,7 @@ case 332:
 		  if (have_extern_spec && !used_extern_spec)
 		    {
 		      current_declspecs = decl_tree_cons
-			(NULL_TREE, get_identifier ("extern"), 
+			(NULL_TREE, get_identifier ("extern"),
 			 current_declspecs);
 		      used_extern_spec = 1;
 		    }
@@ -5379,7 +5379,7 @@ case 334:
 		  if (have_extern_spec && !used_extern_spec)
 		    {
 		      current_declspecs = decl_tree_cons
-			(NULL_TREE, get_identifier ("extern"), 
+			(NULL_TREE, get_identifier ("extern"),
 			 current_declspecs);
 		      used_extern_spec = 1;
 		    }
@@ -5674,8 +5674,8 @@ case 391:
     break;}
 case 392:
 #line 2178 "parse.y"
-{ 
-		  yyungetc (';', 1); current_aggr = yyval.ttype; yyval.ttype = yyvsp[-1].ttype; 
+{
+		  yyungetc (';', 1); current_aggr = yyval.ttype; yyval.ttype = yyvsp[-1].ttype;
 		  if (yyvsp[-3].ttype == ridpointers[(int) RID_TEMPLATE])
 		    instantiate_class_template (yyval.ttype, 2);
 		;
@@ -6003,7 +6003,7 @@ case 425:
     break;}
 case 426:
 #line 2498 "parse.y"
-{ if (yyval.ttype == void_type_node) yyval.ttype = NULL_TREE; 
+{ if (yyval.ttype == void_type_node) yyval.ttype = NULL_TREE;
 		;
     break;}
 case 427:
@@ -6042,7 +6042,7 @@ case 433:
     break;}
 case 434:
 #line 2538 "parse.y"
-{ 
+{
 		  yyval.ttype = grok_x_components (yyval.ttype, yyvsp[0].ttype);
 		;
     break;}
@@ -7119,7 +7119,7 @@ case 671:
 case 672:
 #line 3543 "parse.y"
 {
-		  yyval.ttype = build_tree_list (NULL_TREE, yyval.ttype); 
+		  yyval.ttype = build_tree_list (NULL_TREE, yyval.ttype);
 		  TREE_PARMLIST (yyval.ttype) = 1;
 		;
     break;}

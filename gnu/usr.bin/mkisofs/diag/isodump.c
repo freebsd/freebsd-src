@@ -211,7 +211,7 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 			cont_extent = isonum_733(pnt+4);
 			cont_offset = isonum_733(pnt+12);
 			cont_size = isonum_733(pnt+20);
-			printf("=[%x,%x,%d]", cont_extent, cont_offset, 
+			printf("=[%x,%x,%d]", cont_extent, cont_offset,
 			       cont_size);
 		};
 
@@ -259,7 +259,7 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 
 				slen -= (pnts[1] + 2);
 				pnts += (pnts[1] + 2);
-				
+
 		       };
 			if(cflag) printf("+");
 			printf("=%s", symlink);
@@ -276,12 +276,12 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 		};
 	};
 	if(ncount) printf("]");
-	if (!cont_flag && flag1 != flag2) 
+	if (!cont_flag && flag1 != flag2)
 	  printf("Flag %x != %x", flag1, flag2, goof++);
 	return flag2;
 }
 
-int 
+int
 dump_rr(struct iso_directory_record * idr)
 {
 	int len;
@@ -320,7 +320,7 @@ showblock(int flag){
 		  printf("[%2d] ", idr->volume_sequence_number[0]);
 		  printf("%5x ", *((unsigned int *) idr->extent));
 		  printf("%8d ", *((unsigned int *) idr->size));
-		  printf ((idr->flags[0] & 2) ? "*" : " "); 
+		  printf ((idr->flags[0] & 2) ? "*" : " ");
 		  if(idr->name_len[0] == 1 && idr->name[0] == 0)
 			  printf(".             ");
 		  else if(idr->name_len[0] == 1 && idr->name[0] == 1)
@@ -372,7 +372,7 @@ main(int argc, char * argv[]){
   file_addr = file_addr << 11;
 
 /* Now setup the keyboard for single character input. */
-#ifdef USE_TERMIOS 
+#ifdef USE_TERMIOS
 	if(tcgetattr(0, &savetty) == -1)
 #else
 	if(ioctl(0, TCGETA, &savetty) == -1)
@@ -416,7 +416,7 @@ main(int argc, char * argv[]){
 	  c = getbyte(&file_addr);
 	  if (c == search[0]) break;
 	};
-	for (j=1;j<strlen(search);j++) 
+	for (j=1;j<strlen(search);j++)
 	  if(search[j] != getbyte()) break;
 	if(j==strlen(search)) break;
       };
@@ -428,7 +428,7 @@ main(int argc, char * argv[]){
   reset_tty();
   fclose(infile);
 }
-  
+
 
 
 

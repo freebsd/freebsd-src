@@ -186,7 +186,7 @@ struct internal_exec
     char a_relaxable;           /* Enough info for linker relax */
 };
 
-/* Magic number is written 
+/* Magic number is written
 < MSB        >
 3130292827262524232221201918171615141312111009080706050403020100
 < FLAGS      >< MACHINE TYPE ><  MAGIC NUMBER		       >
@@ -277,7 +277,7 @@ typedef struct aout_symbol {
 struct aoutdata {
   struct internal_exec *hdr;		/* exec file header */
   aout_symbol_type *symbols;		/* symtab for input bfd */
-  
+
   /* For ease, we do this */
   asection *textsec;
   asection *datasec;
@@ -572,7 +572,7 @@ aout_stab_name PARAMS ((int code));
 	      if (!NAME(aout,squirt_out_relocs)(abfd, obj_datasec (abfd)))    \
 		return false;						      \
 	    }								      \
-      }									      
+      }
 #endif
 
 #endif /* ! defined (LIBAOUT_H) */

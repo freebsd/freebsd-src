@@ -5,7 +5,7 @@
 /* #undef const */
 
 /* Define if the system supports file names longer than 14 characters.  */
-#define HAVE_LONG_FILE_NAMES 
+#define HAVE_LONG_FILE_NAMES
 
 /* Define if the system has pathconf().  */
 /* #undef HAVE_PATHCONF */

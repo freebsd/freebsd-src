@@ -59,7 +59,7 @@ _bfd_new_bfd ()
   nbfd->sections = (asection *)NULL;
   nbfd->format = bfd_unknown;
   nbfd->my_archive = (bfd *)NULL;
-  nbfd->origin = 0;				
+  nbfd->origin = 0;
   nbfd->opened_once = false;
   nbfd->output_has_begun = false;
   nbfd->section_count = 0;
@@ -238,7 +238,7 @@ bfd_fdopenr (filename, target, fd)
   case O_RDWR: nbfd->direction = both_direction; break;
   default: abort ();
   }
-				
+
   if (! bfd_cache_init (nbfd))
     return NULL;
 
@@ -418,7 +418,7 @@ bfd_close_all_done (abfd)
 
 
 /*
-FUNCTION	
+FUNCTION
 	bfd_alloc_size
 
 SYNOPSIS

@@ -1419,14 +1419,14 @@ yylex ()
   switch (c) {
   case 0:
     return 0;
-    
+
   case ' ':
   case '\t':
   case '\r':
   case '\n':
     lexptr++;
     goto retry;
-    
+
   case 'L':
     /* Capital L may start a wide-string or wide-character constant.  */
     if (lexptr[1] == '\'')
@@ -1564,7 +1564,7 @@ yylex ()
 
     /* This is always a signed type.  */
     yylval.integer.unsignedp = 0;
-    
+
     return CHAR;
 
     /* some of these chars are invalid in constant expressions;
@@ -1622,7 +1622,7 @@ yylex ()
   if (c >= '0' && c <= '9' && !keyword_parsing) {
     /* It's a number */
     for (namelen = 0;
-	 c = tokstart[namelen], is_idchar[c] || c == '.'; 
+	 c = tokstart[namelen], is_idchar[c] || c == '.';
 	 namelen++)
       ;
     return parse_number (namelen);
@@ -1648,7 +1648,7 @@ yylex ()
     for (namelen = 0; is_idchar[tokstart[namelen]]; namelen++)
       ;
   }
-  
+
   lexptr += namelen;
   yylval.name.address = tokstart;
   yylval.name.length = namelen;
@@ -1701,7 +1701,7 @@ parse_escape (string_ptr)
     case 0:
       (*string_ptr)--;
       return 0;
-      
+
     case '0':
     case '1':
     case '2':
@@ -1828,7 +1828,7 @@ parse_c_expression (string)
      char *string;
 {
   lexptr = string;
-  
+
   if (lexptr == 0 || *lexptr == 0) {
     error ("empty #if expression");
     return 0;			/* don't include the #if group */

@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1989 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -25,7 +25,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
 /*
-  An AllocRing holds the last n malloc'ed strings, reallocating/reusing 
+  An AllocRing holds the last n malloc'ed strings, reallocating/reusing
   one only when the queue wraps around. It thus guarantees that the
   last n allocations are intact. It is useful for things like I/O
   formatting where reasonable restrictions may be made about the

@@ -2149,7 +2149,7 @@ DECLARE_INFO_COMMAND (info_goto_node, "Read a node name and select it")
 
 		add_pointer_to_array
 		  (entry, items_index, items, items_slots, 100, REFERENCE *);
-	      }		
+	      }
 
 	    if (this_is_the_current_fb)
 	      {

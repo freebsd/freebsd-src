@@ -1,6 +1,9 @@
-/* $RCSfile: malloc.c,v $$Revision: 1.2 $$Date: 1993/08/24 17:57:39 $
+/* $RCSfile: malloc.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:54 $
  *
  * $Log: malloc.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:54  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.2  1993/08/24  17:57:39  nate
  * Fix for ALIGN macros in PERL that conflict with 4.4 macros
  *
@@ -11,19 +14,19 @@
  * patch20: removed implicit int declarations on functions
  * patch20: hash tables now split only if the memory is available to do so
  * patch20: realloc(0, size) now does malloc in case library routines call it
- * 
+ *
  * Revision 4.0.1.3  91/11/05  17:57:40  lwall
  * patch11: safe malloc code now integrated into Perl's malloc when possible
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:20:45  lwall
  * patch4: many, many itty-bitty portability fixes
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:48:31  lwall
  * patch1: Configure now figures out malloc ptr type
- * 
+ *
  * Revision 4.0  91/03/20  01:28:52  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #ifndef lint
@@ -37,12 +40,12 @@ static char sccsid[] = "@(#)malloc.c	4.3 (Berkeley) 9/16/83";
  * malloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
  *
- * This is a very fast storage allocator.  It allocates blocks of a small 
+ * This is a very fast storage allocator.  It allocates blocks of a small
  * number of different sizes, and keeps free lists of each size.  Blocks that
- * don't exactly fit are passed up to the next larger size.  In this 
+ * don't exactly fit are passed up to the next larger size.  In this
  * implementation, the available sizes are 2^n-4 (or 2^n-12) bytes long.
  * This is designed for use in a program that uses vast quantities of memory,
- * but bombs when it runs out. 
+ * but bombs when it runs out.
  */
 
 #include "EXTERN.h"
@@ -161,7 +164,7 @@ malloc(nbytes)
 	 * space used per block for accounting.
 	 */
   	nbytes += sizeof (union overhead) + RSLOP;
-  	nbytes = (nbytes + 3) &~ 3; 
+  	nbytes = (nbytes + 3) &~ 3;
   	shiftr = (nbytes - 1) >> 2;
 	/* apart from this loop, this is O(1) */
   	while (shiftr >>= 1)
@@ -170,7 +173,7 @@ malloc(nbytes)
 	 * If nothing in hash bucket right now,
 	 * request more memory from the system.
 	 */
-  	if (nextf[bucket] == NULL)    
+  	if (nextf[bucket] == NULL)
   		morecore(bucket);
   	if ((p = (union overhead *)nextf[bucket]) == NULL) {
 #ifdef safemalloc
@@ -256,7 +259,7 @@ morecore(bucket)
 	/* take 2k unless the block is bigger than that */
   	rnu = (bucket <= 8) ? 11 : bucket + 3;
 #else
-	/* take 16k unless the block is bigger than that 
+	/* take 16k unless the block is bigger than that
 	   (80286s like large segments!), probably good on the atari too */
   	rnu = (bucket <= 11) ? 14 : bucket + 3;
 #endif
@@ -294,7 +297,7 @@ morecore(bucket)
 void
 free(mp)
 	MALLOCPTRTYPE *mp;
-{   
+{
   	register MEM_SIZE size;
 	register union overhead *op;
 	char *cp = (char*)mp;
@@ -353,9 +356,9 @@ int reall_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 MALLOCPTRTYPE *
 realloc(mp, nbytes)
-	MALLOCPTRTYPE *mp; 
+	MALLOCPTRTYPE *mp;
 	MEM_SIZE nbytes;
-{   
+{
   	register MEM_SIZE onb;
 	union overhead *op;
   	char *res;
@@ -419,7 +422,7 @@ realloc(mp, nbytes)
 			 * space used per block for accounting.
 			 */
 			nbytes += sizeof (union overhead) + RSLOP;
-			nbytes = (nbytes + 3) &~ 3; 
+			nbytes = (nbytes + 3) &~ 3;
 			op->ov_size = nbytes - 1;
 			*((u_int *)((caddr_t)op + nbytes - RSLOP)) = RMAGIC;
 		}
@@ -480,7 +483,7 @@ findbucket(freep, srchlen)
 #ifdef MSTATS
 /*
  * mstats - print out statistics about malloc
- * 
+ *
  * Prints two lines of numbers, one showing the length of the free list
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.

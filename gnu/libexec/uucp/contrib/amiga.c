@@ -1,10 +1,10 @@
 /* Wrapper code for Taylor UUCP on Amiga Unix (SVR4) for cron invoked UUCP */
 /* processes.                                                              */
 
-/* The problem:  Cron is not a "licensed" process. any process that grabs a 
+/* The problem:  Cron is not a "licensed" process. any process that grabs a
    controlling terminal needs to be licensed.  Taylor UUCP needs controlling
-   terminals.  Taylor UUCP does relinquish the controlling terminal before 
-   fork(), so the "UUCP" license is appropriate. 
+   terminals.  Taylor UUCP does relinquish the controlling terminal before
+   fork(), so the "UUCP" license is appropriate.
    This simple program does the "right" thing, but *MUST* be SETUID ROOT */
 
 /* Written by: Lawrence E. Rosenman <ler@lerami.lerctr.org> */
@@ -36,7 +36,7 @@ int main(int argc,char *argv[],char *envp)
 	 exit(1);
   }
   setgid(pw->pw_gid); /* set gid to uucp */
-  setuid(pw->pw_uid); /* set uid to uucp */ 
+  setuid(pw->pw_uid); /* set uid to uucp */
   argv[0]=name; /* have PS not lie... */
   execv("/usr/local/lib/uucp/uucico",argv); /* go to the real program */
   exit(errno);

@@ -38,6 +38,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsfcmp.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.9  1991/10/07  17:32:46  eggert
  * Count log lines correctly.
  *
@@ -69,24 +72,24 @@ Report problems and direct all questions to:
  *
  * Revision 4.5  89/05/01  15:12:42  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.4  88/08/09  19:12:50  eggert
  * Shrink stdio code size.
- * 
+ *
  * Revision 4.3  87/12/18  11:40:02  narten
  * lint cleanups (Guy Harris)
- * 
+ *
  * Revision 4.2  87/10/18  10:33:06  narten
- * updting version number. Changes relative to 1.1 actually relative to 
+ * updting version number. Changes relative to 1.1 actually relative to
  * 4.1
- * 
+ *
  * Revision 1.2  87/03/27  14:22:19  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/10  16:24:04  wft
  * Marker matching now uses trymatch(). Marker pattern is now
  * checked precisely.
- * 
+ *
  * Revision 3.1  82/12/04  13:21:40  wft
  * Initial revision.
  *
@@ -101,7 +104,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(fcmpId, "$Id: rcsfcmp.c,v 5.9 1991/10/07 17:32:46 eggert Exp $")
+libId(fcmpId, "$Id: rcsfcmp.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
 
 	static int
 discardkeyval(c, f)

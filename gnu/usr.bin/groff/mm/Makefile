@@ -3,7 +3,7 @@ TMACGRP?=	bin
 TMACMODE?=	444
 TMACDIR?=	/usr/share/tmac
 
-FILES=		0.MT 5.MT 4.MT ms.cov se_ms.cov 
+FILES=		0.MT 5.MT 4.MT ms.cov se_ms.cov
 LOCALE=		locale se_locale
 
 MAN7=		groff_mm.7 groff_mmse.7

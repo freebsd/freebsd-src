@@ -79,7 +79,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.\n";
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-  
+
 #if !defined(S_ISREG) && defined(S_IFREG)
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #endif
@@ -257,25 +257,25 @@ char *text_buffer_maxend;	/* allocated end of text_buffer */
   while (0)
 
 /* Occurrences table.
-   
+
    The `keyword' pointer provides the central word, which is surrounded
    by a left context and a right context.  The `keyword' and `length'
    field allow full 8-bit characters keys, even including NULs.  At other
    places in this program, the name `keyafter' refers to the keyword
    followed by its right context.
-   
+
    The left context does not extend, towards the beginning of the file,
    further than a distance given by the `left' value.  This value is
    relative to the keyword beginning, it is usually negative.  This
    insures that, except for white space, we will never have to backward
    scan the source text, when it is time to generate the final output
    lines.
-   
+
    The right context, indirectly attainable through the keyword end, does
    not extend, towards the end of the file, further than a distance given
    by the `right' value.  This value is relative to the keyword
    beginning, it is usually positive.
-   
+
    When automatic references are used, the `reference' value is the
    overall line number in all input files read so far, in this case, it
    is of type (int).  When input references are used, the `reference'
@@ -302,7 +302,7 @@ size_t number_of_occurs[1];	/* number of used slots in occurs_table */
 
 #define ALLOC_NEW_OCCURS(language) \
   BUMP_ALLOC (occurs_table[language], number_of_occurs[language], 9, OCCURS)
-     
+
 
 /* Communication among output routines.  */
 
@@ -472,7 +472,7 @@ alloc_and_compile_regex (const char *string)
   /* The fastmap should be compiled before `re_match'.  The following
      call is not mandatory, because `re_search' is always called sooner,
      and it compiles the fastmap if this has not been done yet.  */
-     
+
   re_compile_fastmap (pattern);
 
   /* Do not waste extra allocated space.  */
@@ -581,7 +581,7 @@ swallow_file_in_memory (const char *file_name, BLOCK *block)
 
   /* As special cases, a file name which is NULL or "-" indicates standard
      input, which is already opened.  In all other cases, open the file from
-     its name.  */ 
+     its name.  */
 
   if (!file_name || !*file_name || strcmp (file_name, "-") == 0)
     file_handle = fileno (stdin);
@@ -1363,8 +1363,8 @@ fix_output_parameters (void)
 	 . One ending the tail field.
 	 . One beginning the before field, another ending the keyafter field.
 	 . One ending the tail field, another beginning the before field.
-	 . One ending the keyafter field, another beginning the head field. 
-	 
+	 . One ending the keyafter field, another beginning the head field.
+
 	 So, there is at most two truncation marks, which could appear both
 	 on the left side of the center of the output line, both on the
 	 right side, or one on either side.  */
@@ -1987,7 +1987,7 @@ main (int argc, char *const argv[])
   /* Decode program options.  */
 
   program_name = argv[0];
-  
+
   while ((optchar = getopt_long (argc, argv, "ACF:GM:ORS:TW:b:i:fg:o:trw:",
 				 long_options, NULL)),
 	 optchar != EOF)

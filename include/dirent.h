@@ -37,7 +37,7 @@
 #define _DIRENT_H_
 
 /*
- * The kernel defines the format of directory entries returned by 
+ * The kernel defines the format of directory entries returned by
  * the getdirentries(2) system call.
  */
 #include <sys/dirent.h>

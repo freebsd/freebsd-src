@@ -14,17 +14,17 @@
 ** but WITHOUT ANY WARRANTY; without even the implied warranty of
 ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 ** General Public License for more details.
-** 
+**
 ** You should have received a copy of the GNU General Public
 ** License along with the NYS YP Server; see the file COPYING.  If
 ** not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 ** Cambridge, MA 02139, USA.
 **
 ** Author: Peter Eriksson <pen@signum.se>
-** Ported to FreeBSD and hacked all to pieces 
+** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.4 1995/04/01 19:31:12 wpaul Exp $
+**	$Id: server.c,v 1.5 1995/05/03 14:36:12 wpaul Exp $
 **
 */
 
@@ -170,7 +170,7 @@ void *ypproc_null_2_svc(void *dummy,
 {
     static int foo;
     struct sockaddr_in *rqhost;
-    
+
 
     rqhost = svc_getcaller(rqstp->rq_xprt);
     if (!is_valid_host(rqhost))
@@ -184,14 +184,14 @@ void *ypproc_null_2_svc(void *dummy,
     return (void *) &foo;
 }
 
-    
+
 /*
 ** Return 1 if the name is a valid domain name served by us, else 0.
 */
 static int is_valid_domain(const char *domain)
 {
     struct stat sbuf;
-    
+
 
     if (domain == NULL ||
 	strcmp(domain, "binding") == 0 ||
@@ -199,7 +199,7 @@ static int is_valid_domain(const char *domain)
 	strcmp(domain, ".") == 0 ||
 	strchr(domain, '/'))
 	return 0;
-    
+
     if (stat(domain, &sbuf) < 0 || !S_ISDIR(sbuf.st_mode))
 	return 0;
 
@@ -213,10 +213,10 @@ bool_t *ypproc_domain_2_svc(domainname *name,
 {
     static bool_t result;
     struct sockaddr_in *rqhost;
-    
-    
+
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
-	
+
     if (debug_flag)
 	Perror("ypproc_domain(\"%s\") [From: %s:%d]\n",
 		*name,
@@ -227,19 +227,19 @@ bool_t *ypproc_domain_2_svc(domainname *name,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
-    
+
     if (is_valid_domain(*name))
 	result = TRUE;
     else
 	result = FALSE;
-    
+
     if (debug_flag)
 	Perror("\t-> %s.\n",
 		(result == TRUE ? "Ok" : "Not served by us"));
-    
+
     return &result;
 }
 
@@ -250,7 +250,7 @@ bool_t *ypproc_domain_nonack_2_svc(domainname *name,
     static bool_t result;
     struct sockaddr_in *rqhost;
 
-    
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -263,7 +263,7 @@ bool_t *ypproc_domain_nonack_2_svc(domainname *name,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -275,10 +275,10 @@ bool_t *ypproc_domain_nonack_2_svc(domainname *name,
 	/* Bail out and don't return any RPC value */
 	return NULL;
     }
-    
+
     if (debug_flag)
 	Perror("\t-> OK.\n");
-    
+
     result = TRUE;
     return &result;
 }
@@ -300,12 +300,12 @@ static DB *open_database(const char *domain,
     strcpy(buf, domain);
     strcat(buf, "/");
     strcat(buf, map);
-    
+
     dbp = dbopen(buf,O_RDONLY|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
 
     if (debug_flag > 1 && dbp == NULL)
 	Perror("dbopen(): ",strerror(errno));
-    
+
     return dbp;
 }
 
@@ -326,8 +326,8 @@ int read_database(DB *dbp,
 {
     int first_flag = 0;
     DBT nkey, ckey, dummyval;
-    
-    
+
+
     if (ikey == NULL || ikey->data == NULL)
     {
 	(dbp->seq)(dbp,&ckey,&dummyval,R_FIRST);
@@ -351,7 +351,7 @@ int read_database(DB *dbp,
 	else
 	    ckey = *ikey;
     }
-    
+
     if (ckey.data == NULL)
     {
 	return (flags & F_NEXT) ? YP_NOMORE : YP_NOKEY;
@@ -375,14 +375,14 @@ int read_database(DB *dbp,
 		else
 		    return YP_FALSE;
 	}
-	
+
 	if ((flags & F_ALL) || strncmp(ckey.data, "YP_", 3) != 0)
 	{
 	    if (okey)
 		*okey = ckey;
 	    else if (ikey == NULL || ikey->data != ckey.data)
 		free(ckey.data);
-	    
+
 	    return YP_TRUE;
 	}
 
@@ -414,11 +414,11 @@ static unsigned long get_dtm(const char *domain,
     struct stat sbuf;
     char buf[1025];
 
-    
+
     strcpy(buf, domain);
     strcat(buf, "/");
     strcat(buf, map);
-    
+
     if (stat(buf, &sbuf) < 0)
 	return 0;
     else
@@ -435,7 +435,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     static ypresp_val result;
     struct sockaddr_in *rqhost;
 
-    
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -443,7 +443,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 	Perror("ypproc_match(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\t\tdomainname = \"%s\"\n",
 		key->domain);
 	Perror("\t\tmapname = \"%s\"\n",
@@ -457,7 +457,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -481,7 +481,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 	free(result.val.valdat_val);
 	result.val.valdat_val = NULL;
     }
-    
+
     if (key->domain[0] == '\0' || key->map[0] == '\0')
 	result.stat = YP_BADARGS;
     else if (!is_valid_domain(key->domain))
@@ -489,7 +489,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     else
     {
 	DBT rdat, qdat;
-	
+
 	DB *dbp = open_database(key->domain, key->map);
 	if (dbp == NULL)
 	    result.stat = YP_NOMAP;
@@ -509,7 +509,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 	    (void)(dbp->close)(dbp);
 	}
     }
-	
+
 	if (debug_flag)
 	{
 	if (result.stat == YP_TRUE)
@@ -536,15 +536,15 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 
 	if (debug_flag)
 	    Perror("Doing DNS lookup of %s\n", key->key.keydat_val);
-	
+
 	if (strcmp(key->map, "hosts.byname") == 0)
 	    cp = dnsname(key->key.keydat_val);
 	else  if (strcmp(key->map, "hosts.byaddr") == 0)
 	    cp = dnsaddr(key->key.keydat_val);
-	    
+
 	if (cp)
 	{
-	    
+
 	    if (debug_flag)
 		Perror("\t-> OK (%s)\n", cp);
 
@@ -563,7 +563,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 	    result.stat = YP_NOKEY;
 	}
     }
-    
+
     return &result;
 }
 
@@ -574,7 +574,7 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
 {
     static ypresp_key_val result;
     struct sockaddr_in *rqhost;
-    
+
 
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
@@ -583,7 +583,7 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
 	Perror("ypproc_first(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\tdomainname = \"%s\"\n", key->domain);
 	Perror("\tmapname = \"%s\"\n", key->map);
 #if 0
@@ -597,7 +597,7 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -621,7 +621,7 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
 	free(result.key.keydat_val);
 	result.key.keydat_val = NULL;
     }
-    
+
     result.val.valdat_len = 0;
     if (result.val.valdat_val)
     {
@@ -636,7 +636,7 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
     else
     {
 	DBT dkey, dval;
-	
+
 	DB *dbp = open_database(key->domain, key->map);
 	if (dbp == NULL)
 	    result.stat = YP_NOMAP;
@@ -648,15 +648,15 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
 	    {
 		result.key.keydat_len = dkey.size;
 		result.key.keydat_val = dkey.data;
-		
+
 		result.val.valdat_len = dval.size;
 		result.val.valdat_val = dval.data;
 	    }
-	    
+
 	    (void)(dbp->close)(dbp);
 	}
     }
-    
+
     if (debug_flag)
     {
 	if (result.stat == YP_TRUE)
@@ -665,11 +665,11 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
 		    result.key.keydat_val,
 		    (int) result.val.valdat_len,
 		    result.val.valdat_val);
-		    
+
 	else
 	    Perror("\t-> Error #%d\n", result.stat);
     }
-    
+
     return &result;
 }
 
@@ -679,8 +679,8 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
 {
     static ypresp_key_val result;
     struct sockaddr_in *rqhost;
-    
-    
+
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -688,7 +688,7 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
 	Perror("ypproc_next(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\tdomainname = \"%s\"\n", key->domain);
 	Perror("\tmapname = \"%s\"\n", key->map);
 	Perror("\tkeydat = \"%.*s\"\n",
@@ -700,7 +700,7 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -724,14 +724,14 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
 	free(result.key.keydat_val);
 	result.key.keydat_val = NULL;
     }
-    
+
     result.val.valdat_len = 0;
     if (result.val.valdat_val)
     {
 	free(result.val.valdat_val);
 	result.val.valdat_val = NULL;
     }
-    
+
     if (key->map[0] == '\0' || key->domain[0] == '\0')
 	result.stat = YP_BADARGS;
     else if (!is_valid_domain(key->domain))
@@ -755,14 +755,14 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
 	    {
 		result.key.keydat_len = okey.size;
 		result.key.keydat_val = okey.data;
-		
+
 		result.val.valdat_len = dval.size;
 		result.val.valdat_val = dval.data;
 	    }
 	    (void)(dbp->close)(dbp);
 	}
     }
-    
+
     if (debug_flag)
     {
 	if (result.stat == YP_TRUE)
@@ -774,7 +774,7 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
 	else
 	    Perror("\t-> Error #%d\n", result.stat);
     }
-    
+
     return &result;
 }
 
@@ -817,7 +817,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	Perror("ypproc_xfr_2_svc(): [From: %s:%d]\n\tmap_parms:\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-	
+
 	print_ypmap_parms(&xfr->map_parms);
 	Perror("\t\ttransid = %u\n", xfr->transid);
 	Perror("\t\tprog = %u\n", xfr->prog);
@@ -828,7 +828,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -857,7 +857,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	    sprintf (g, "%u", xfr->prog);
 	    sprintf (p, "%u", xfr->port);
 	    execl(ypxfr_command, "ypxfr", "-d", xfr->map_parms.domain, "-h",
-		xfr->map_parms.peer, "-f", "-C", t, g, 
+		xfr->map_parms.peer, "-f", "-C", t, g,
 		inet_ntoa(rqhost->sin_addr), p, xfr->map_parms.map, NULL);
 	    Perror("ypxfr execl(): %s",strerror(errno));
 	    exit(0);
@@ -883,7 +883,7 @@ void *ypproc_clear_2_svc(void *dummy,
 {
     static int foo;
     struct sockaddr_in *rqhost;
-    
+
 
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
@@ -891,12 +891,12 @@ void *ypproc_clear_2_svc(void *dummy,
     	Perror("ypproc_clear_2_svc() [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
     if (!is_valid_host(rqhost))
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -927,7 +927,7 @@ static int ypall_encode(ypresp_key_val *val,
 
     dkey.data = val->key.keydat_val;
     dkey.size = val->key.keydat_len;
-    
+
     val->stat = read_database((DB *) data, &dkey, &okey, &dval, F_NEXT);
 
     if (val->stat == YP_TRUE)
@@ -939,7 +939,7 @@ static int ypall_encode(ypresp_key_val *val,
 	val->val.valdat_len = dval.size;
     }
 
-    
+
     return val->stat;
 }
 
@@ -951,7 +951,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
     extern __xdr_ypall_cb_t __xdr_ypall_cb;
     struct sockaddr_in *rqhost;
 
-    
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -959,7 +959,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
 	Perror("ypproc_all_2_svc(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\t\tdomain = \"%s\"\n", nokey->domain);
 	Perror("\t\tmap = \"%s\"\n", nokey->map);
     }
@@ -968,14 +968,14 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
     __xdr_ypall_cb.u.encode = NULL;
     __xdr_ypall_cb.u.close  = NULL;
     __xdr_ypall_cb.data = NULL;
-   
+
     result.more = TRUE;
 
     /*
@@ -991,7 +991,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
 	result.ypresp_all_u.val.stat = YP_YPERR;
 	return &result;
     }
-    
+
     if (nokey->map[0] == '\0' || nokey->domain[0] == '\0')
 	result.ypresp_all_u.val.stat = YP_BADARGS;
     else if (!is_valid_domain(nokey->domain))
@@ -999,7 +999,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
     else
     {
 	DBT dkey, dval;
-	
+
 	DB *dbp = open_database(nokey->domain, nokey->map);
 	if (dbp == NULL)
 	    result.ypresp_all_u.val.stat = YP_NOMAP;
@@ -1015,7 +1015,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
 	    {
 		result.ypresp_all_u.val.key.keydat_len = dkey.size;
 		result.ypresp_all_u.val.key.keydat_val = dkey.data;
-		
+
 		result.ypresp_all_u.val.val.valdat_len = dval.size;
 		result.ypresp_all_u.val.val.valdat_val = dval.data;
 
@@ -1029,7 +1029,7 @@ ypresp_all *ypproc_all_2_svc(ypreq_nokey *nokey,
 	    (void)(dbp->close)(dbp);
 	}
     }
-    
+
     return &result;
 }
 
@@ -1039,8 +1039,8 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 {
     static ypresp_master result;
     struct sockaddr_in *rqhost;
-    
-    
+
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -1048,7 +1048,7 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 	Perror("ypproc_master_2_svc(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\t\tdomain = \"%s\"\n", nokey->domain);
 	Perror("\t\tmap = \"%s\"\n", nokey->map);
     }
@@ -1057,7 +1057,7 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -1096,7 +1096,7 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 
 	    key.size = sizeof("YP_MASTER_NAME")-1;
 	    key.data = "YP_MASTER_NAME";
-	    
+
 	    if ((dbp->get)(dbp,&key,&val,0))
 		val.data = NULL;
 
@@ -1125,7 +1125,7 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 
     if (debug_flag)
 	Perror("\t-> Peer = \"%s\"\n", result.peer);
-    
+
     return &result;
 }
 
@@ -1135,8 +1135,8 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 {
     static ypresp_order result;
     struct sockaddr_in *rqhost;
-    
-    
+
+
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
     if (debug_flag)
@@ -1144,7 +1144,7 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 	Perror("ypproc_order_2_svc(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\t\tdomain = \"%s\"\n", nokey->domain);
 	Perror("\t\tmap = \"%s\"\n", nokey->map);
     }
@@ -1153,7 +1153,7 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
@@ -1188,7 +1188,7 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 
 	    key.size = sizeof("YP_LAST_MODIFIED")-1;
 	    key.data = "YP_LAST_MODIFIED";
-	    
+
 	    (dbp->get)(dbp,&key,&val,0);
 	    if (val.data == NULL)
 	    {
@@ -1208,7 +1208,7 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 
     if (debug_flag)
 	Perror("-> Order # %d\n", result.ordernum);
-    
+
     return &result;
 }
 
@@ -1257,7 +1257,7 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
 {
     static ypresp_maplist result;
     struct sockaddr_in *rqhost;
-    
+
 
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
@@ -1266,7 +1266,7 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
 	Perror("ypproc_maplist_2_svc(): [From: %s:%d]\n",
 		inet_ntoa(rqhost->sin_addr),
 		ntohs(rqhost->sin_port));
-		
+
 	Perror("\t\tdomain = \"%s\"\n", *name);
     }
 
@@ -1274,13 +1274,13 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
     {
 	if (debug_flag)
 	    Perror("\t-> Ignored (not a valid source host)\n");
-	
+
 	return NULL;
     }
 
     if (result.maps)
 	free_maplist(result.maps);
-    
+
     result.maps = NULL;
 
     if ((*name)[0] == '\0')
@@ -1300,13 +1300,13 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
 	    {
 		Perror("%s: opendir: %s", progname,strerror(errno));
 	    }
-	    
+
 	    result.stat = YP_BADDB;
 	}
 	else
 	{
 	    struct dirent *dep;
-	    
+
 	    while ((dep = readdir(dp)) != NULL)
 		if (add_maplist(&result.maps, dep->d_name) < 0)
 		{
@@ -1317,7 +1317,7 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
 	    result.stat = YP_TRUE;
 	}
     }
-    
+
     if (debug_flag)
     {
 	if (result.stat == YP_TRUE)
@@ -1336,6 +1336,6 @@ ypresp_maplist *ypproc_maplist_2_svc(domainname *name,
 	else
 	    Perror("\t-> Error #%d\n", result.stat);
     }
-    
+
     return &result;
 }

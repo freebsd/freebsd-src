@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.12 1994/12/23 22:30:42 nate Exp $
+ *	$Id: ld.h,v 1.13 1995/03/04 17:46:07 nate Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software
@@ -446,7 +446,7 @@ extern int	list_warning_symbols;
  * Define a linked list of strings which define symbols which should be
  * treated as set elements even though they aren't.  Any symbol with a prefix
  * matching one of these should be treated as a set element.
- * 
+ *
  * This is to make up for deficiencies in many assemblers which aren't willing
  * to pass any stabs through to the loader which they don't understand.
  */
@@ -465,10 +465,10 @@ extern symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
 /*
  * Each input file, and each library member ("subfile") being loaded, has a
  * `file_entry' structure for it.
- * 
+ *
  * For files specified by command args, these are contained in the vector which
  * `file_table' points to.
- * 
+ *
  * For library members, they are dynamically allocated, and chained through the
  * `chain' field. The chain is found in the `subfiles' field of the
  * `file_entry'. The `file_entry' objects for the members have `superfile'

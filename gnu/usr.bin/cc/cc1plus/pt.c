@@ -275,7 +275,7 @@ end_template_decl (d1, d2, is_class, defn)
   /* So that duplicate_decls can do the right thing.  */
   if (defn)
     DECL_INITIAL (decl) = error_mark_node;
-  
+
   /* If context of decl is non-null (i.e., method template), add it
      to the appropriate class template, and pop the binding levels.  */
   if (! is_class && DECL_CONTEXT (DECL_TEMPLATE_RESULT (decl)) != NULL_TREE)
@@ -347,16 +347,16 @@ grok_template_type (tvec, type)
     case FUNCTION_TYPE:
       {
 	tree p;
-	
+
 	/* take care of function's return type first */
 	grok_template_type (tvec, &TREE_TYPE (*type));
-	
+
 	/* take care of function's arguments */
 	for (p = TYPE_ARG_TYPES (*type); p; p = TREE_CHAIN (p))
 	  grok_template_type (tvec, &TREE_VALUE (p));
 	return;
       }
-    default:     
+    default:
       break;
     }
   return;
@@ -1110,7 +1110,7 @@ list_eq (t1, t2)
   return list_eq (TREE_CHAIN (t1), TREE_CHAIN (t2));
 }
 
-static tree 
+static tree
 lookup_nested_type_by_name (ctype, name)
         tree ctype, name;
 {
@@ -1166,7 +1166,7 @@ tsubst (t, args, nargs, in_decl)
       if (TYPE_PTRMEMFUNC_P (t))
 	return build_ptrmemfunc_type
 	  (tsubst (TYPE_PTRMEMFUNC_FN_TYPE (t), args, nargs, in_decl));
-	  
+
       /* else fall through */
 
     case ERROR_MARK:
@@ -1208,7 +1208,7 @@ tsubst (t, args, nargs, in_decl)
       {
 	tree r;
 	tree fnargs, result;
-	
+
 	if (type == TREE_TYPE (t)
 	    && (DECL_CONTEXT (t) == NULL_TREE
 		|| TREE_CODE_CLASS (TREE_CODE (DECL_CONTEXT (t))) != 't'))
@@ -1604,7 +1604,7 @@ tsubst (t, args, nargs, in_decl)
         rt = IDENTIFIER_TYPE_VALUE (id);
 
 	/* kung: this part handles nested type in template definition */
-        
+
 	if ( !ANON_AGGRNAME_P (DECL_NAME(TYPE_NAME(t))))
           {
 	    rt = search_nested_type_in_tmpl (rt, t);
@@ -1689,7 +1689,7 @@ instantiate_template (tmpl, targ_ptr)
       DECL_ARGUMENTS (olddecl) = TREE_CHAIN (DECL_ARGUMENTS (olddecl));
       DECL_ARGUMENTS (fndecl) = TREE_CHAIN (DECL_ARGUMENTS (fndecl));
     }
-     
+
   t = DECL_TEMPLATE_INFO (tmpl);
 
   /* If we have a preexisting version of this function, don't expand
@@ -1718,7 +1718,7 @@ instantiate_template (tmpl, targ_ptr)
 	input_filename = p->filename = t->filename;
 
 	extract_interface_info ();
-	
+
 	if (interface_unknown && flag_external_templates && ! DECL_IN_SYSTEM_HEADER (tmpl))
 	  warn_if_unknown_interface ();
 	if (interface_unknown || !flag_external_templates)
@@ -2375,7 +2375,7 @@ void
 do_pending_templates ()
 {
   struct pending_template* t;
-  
+
   for ( t = pending_templates; t; t = t->next)
     {
       instantiate_class_template (t->id, 1);
@@ -2393,7 +2393,7 @@ add_pending_template (pt)
      tree pt;
 {
   struct pending_template *p;
-  
+
   p = (struct pending_template *) malloc (sizeof (struct pending_template));
   p->next = pending_templates;
   pending_templates = p;
@@ -2506,7 +2506,7 @@ do_type_instantiation (name, storage)
 	  rest_of_type_compilation (t, 1);
 	}
     }
-  
+
   {
     tree tmp;
     /* Classes nested in template classes currently don't have an

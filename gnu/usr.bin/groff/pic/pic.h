@@ -94,7 +94,7 @@ void lex_cleanup();
 
 extern int flyback_flag;
 extern int command_char;
-// zero_length_line_flag is non-zero if zero-length lines are drawn 
+// zero_length_line_flag is non-zero if zero-length lines are drawn
 // as dots by the output device
 extern int zero_length_line_flag;
 extern int driver_extension_flag;

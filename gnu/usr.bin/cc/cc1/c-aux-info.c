@@ -474,7 +474,7 @@ gen_type (ret_val, t, style)
         case TYPE_DECL:
           data_type = IDENTIFIER_POINTER (DECL_NAME (t));
           break;
- 
+
         case INTEGER_TYPE:
           data_type = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (t)));
           /* Normally, `unsigned' is part of the deal.  Not so if it comes

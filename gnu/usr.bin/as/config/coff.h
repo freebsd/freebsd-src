@@ -1,18 +1,18 @@
 /* coff.h
    Copyright (C) 1987, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -69,7 +69,7 @@ struct filehdr {
 
 /*
  *	Intel 80960 (I960) processor flags.
- *	F_I960TYPE == mask for processor type field. 
+ *	F_I960TYPE == mask for processor type field.
  */
 
 #define	F_I960TYPE	(0xf000)
@@ -105,7 +105,7 @@ struct filehdr {
 # define I386MAGIC	0x14c
 # define I386BADMAG(x) (((x).f_magic != I386MAGIC))
 #endif /* not TE_I386AIX */
- 
+
 
 #define	FILHDR	struct filehdr
 #define	FILHSZ	sizeof(FILHDR)
@@ -137,7 +137,7 @@ typedef struct {
 #define PAGEMAGIC3	(0415) /* (?) like ZMAGIC, but address zero mapped. */
 #define A_MAGIC5	(0437) /* (?) "system overlay, separated I&D" */
 /* intended for non-unix cross development */
-#define SASMAGIC	(010000) /* Single Address Space */    
+#define SASMAGIC	(010000) /* Single Address Space */
 #define MASMAGIC	(020000) /* (?) "Multiple (separate I & D) Address Spaces" */
 
 typedef	struct aouthdr {
@@ -242,7 +242,7 @@ struct scnhdr {
 	unsigned short	s_nreloc;	/* number of relocation entries	*/
 	unsigned short	s_nlnno;	/* number of line number entries */
 	long		s_flags;	/* flags */
-	
+
 #ifdef TC_I960
 	unsigned long	s_align;	/* section alignment */
 #endif /* TC_I960 */
@@ -324,7 +324,7 @@ struct lineno {
 };
 
 #define	LINENO	struct lineno
-#define	LINESZ	sizeof(LINENO) 
+#define	LINESZ	sizeof(LINENO)
 
 
 /********************** SYMBOLS **********************/
@@ -344,23 +344,23 @@ struct syment {
 	} _n;
 	long		n_value;	/* value of symbol */
 	short		n_scnum;	/* section number */
-	
+
 #ifdef TC_I960
 	/* This isn't yet used on the i960.  In some formats this
 	   is two bytes of padding.  In others, it is missing entirely. */
 	unsigned short	n_flags;	/* copy of flags from filhdr */
 #endif /* TC_I960 */
-	
+
 #ifdef TC_A29K
 	unsigned short	n_type;		/* type and derived type */
 #else /* TC_A29K */
 	/* at least i960 uses long */
 	unsigned long	n_type;		/* type and derived type */
 #endif /* TC_A29K */
-	
+
 	char		n_sclass;	/* storage class */
 	char		n_numaux;	/* number of aux. entries */
-	
+
 #ifndef TC_A29K
 	char		pad2[2];	/* force alignment */
 #endif /* TC_A29K */
@@ -373,12 +373,12 @@ struct syment {
 #define n_ptr		_n._n_nptr[1]
 #define n_zeroes	_n._n_n._n_zeroes
 #define n_offset	_n._n_n._n_offset
-    
+
     /*
      * Relocatable symbols have number of the section in which they are defined,
      * or one of the following:
      */
-    
+
 #define N_SCNUM	((short) 1-65535) /* section num where symbol defined */
 #define N_UNDEF	((short)0)  /* undefined symbol */
 #define N_ABS	((short)-1) /* value of symbol is absolute */
@@ -463,7 +463,7 @@ union auxent {
 		} x_fcnary;
 		unsigned short x_tvndx;		/* tv index */
 	} x_sym;
-	
+
 	/* This was just a struct x_file with x_fname only in a29k.  xoxorich. */
 	union {
 		char x_fname[FILNMLEN];
@@ -472,21 +472,21 @@ union auxent {
 			long x_offset;
 		} x_n;
 	} x_file;
-	
+
 	struct {
 		long x_scnlen;			/* section length */
 		unsigned short x_nreloc;	/* # relocation entries */
 		unsigned short x_nlinno;	/* # line numbers */
 	} x_scn;
-	
+
 	struct {
 		long		x_tvfill;	/* tv fill value */
 		unsigned short	x_tvlen;	/* length of .tv */
-		
+
 		/* This field was typo'd x_tvrna on a29k. xoxorich. */
 		unsigned short	x_tvran[2];	/* tv range */
 	} x_tv;		/* info about .tv section (in auxent of symbol .tv)) */
-	
+
 #ifdef TC_I960
 	/******************************************
 	 *  I960-specific *2nd* aux. entry formats
@@ -496,16 +496,16 @@ union auxent {
 #define x_stdindx x_stindx
 		long x_stindx;	/* sys. table entry */
 	} x_sc;	/* system call entry */
-	
+
 	struct {
 		unsigned long x_balntry; /* BAL entry point */
 	} x_bal; /* BAL-callable function */
-	
+
 	struct {
 		unsigned long	x_timestamp;	        /* time stamp */
 		char 	x_idstring[20];	        /* producer identity string */
 	} x_ident;	                        /* Producer ident info */
-	
+
 	char a[sizeof(struct syment)];	/* force auxent/syment sizes to match */
 #endif /* TC_I960 */
 };
@@ -592,7 +592,7 @@ struct reloc {
 /*
  * X86 generic
  *	8-bit offset reference in 8-bits
- *	8-bit offset reference in 16-bits 
+ *	8-bit offset reference in 16-bits
  *	12-bit segment reference
  *	auxiliary relocation entry
  */
@@ -625,7 +625,7 @@ struct reloc {
 #define  R_IND24	015
 #define  R_IND32	016
 
-/* 
+/*
  * XL generics
  *	10-bit direct reference
  *	10-bit "relative" reference
@@ -646,7 +646,7 @@ struct reloc {
  *	32-bit direct reference with bytes swapped
  */
 #define  R_DIR32S	012
- 
+
 #endif /* TC_I386 */
 
 #if defined(TE_I386AIX)
@@ -710,7 +710,7 @@ typedef struct ksigmask {
 
 struct corehdr {
 	char cd_magic[4];		/* COR_MAGIC = "core" */
-	
+
 	/* general information about the dump itself */
 	struct dumpseg { /* table of contents for dump */
 		long cs_type; /* seg. type; see below */
@@ -718,7 +718,7 @@ struct corehdr {
 		long cs_offset;	/* offset (in dump) of segment */
 		long cs_address; /* address segment had in mem */
 	} cd_segs[MAX_CORE_SEGS];
-	
+
 	/* general information about the process */
 	char cd_comm[CD_NAMELEN]; /* command being run */
 	char cd_mach[CD_NAMELEN]; /* type of machine it ran on */
@@ -728,24 +728,24 @@ struct corehdr {
 	char cd_dptrsize; /* sizeof(char *) */
 	char cd_tptrsize; /* sizeof(int (*)()) */
 	char cd_unused;
-	
+
 	/* user-mode program state */
 	long cd_regs[NUM_REGS];	/* user-mode general registers	*/
 	struct env387 cd_fpregs; /* user-mode floating-point state */
-	
+
 	/* kernel-mode program state */
 	int (*cd_sig[NSIG])(); /* disposition of signals */
 	ksigmask_t cd_sigmask; /* signals to be blocked	*/
 	ksigmask_t cd_sigpend; /* signals currently pending */
 	long cd_cursig;	/* signal that caused the dump */
-	
+
 	long cd_pid; /* process ID of the corpse */
 	long cd_ppid; /* parent process ID of corpse */
 	short cd_uid; /* process effective user ID */
 	short cd_ruid; /* process real user ID */
 	short cd_gid; /* process effective group ID */
 	short cd_rgid; /* process real group ID	*/
-	
+
 	uinfo_t	cd_uinfo; /* buffer of user information	*/
 	char cd_locname[32]; /* name of /local */
 	char cd_uvers[CD_NAMELEN]; /* user version string */

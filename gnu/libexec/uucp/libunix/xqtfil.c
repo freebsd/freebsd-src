@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtfil_rcsid[] = "$Id: xqtfil.c,v 1.7 1994/01/30 21:09:20 ian Rel $";
+const char xqtfil_rcsid[] = "$Id: xqtfil.c,v 1.2 1994/05/07 18:11:42 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -220,7 +220,7 @@ zsysdep_get_xqt (pzsystem, pferr)
 #endif
 	  return zret;
 	}
-	    
+
       /* If we've reached the end of the directory, then if we are
 	 using subdirectories loop around to read the next one,
 	 otherwise we are finished.  */

@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -36,11 +36,11 @@ struct BitSetRep
   unsigned short  s[1];         // bits start here
 };
 
-extern BitSetRep*   BitSetalloc(BitSetRep*, const unsigned short*, 
+extern BitSetRep*   BitSetalloc(BitSetRep*, const unsigned short*,
                                 int, int, int);
 extern BitSetRep*   BitSetcopy(BitSetRep*, const BitSetRep*);
 extern BitSetRep*   BitSetresize(BitSetRep*, int);
-extern BitSetRep*   BitSetop(const BitSetRep*, const BitSetRep*, 
+extern BitSetRep*   BitSetop(const BitSetRep*, const BitSetRep*,
                              BitSetRep*, char);
 extern BitSetRep*   BitSetcmpl(const BitSetRep*, BitSetRep*);
 
@@ -69,7 +69,7 @@ class BitSet
 protected:
   BitSetRep*          rep;
 
-  
+
 public:
 
 // constructors
@@ -116,7 +116,7 @@ public:
   int                test(int from, int to) const;
 
   BitSetBit          operator [] (int i);
-  
+
 // iterators
 
   int                first(int b = 1) const;
@@ -132,13 +132,13 @@ public:
   int                empty() const;
   int                virtual_bit() const;
   int                count(int b = 1) const;
-  
+
 // convertors & IO
 
-  friend BitSet      atoBitSet(const char* s, 
+  friend BitSet      atoBitSet(const char* s,
                                char f='0', char t='1', char star='*');
   // BitSettoa is deprecated; do not use in new programs.
-  friend const char* BitSettoa(const BitSet& x, 
+  friend const char* BitSettoa(const BitSet& x,
                                char f='0', char t='1', char star='*');
 
   friend BitSet      shorttoBitSet(unsigned short w);
@@ -193,7 +193,7 @@ inline BitSet::BitSet(const BitSet& x) :rep(BitSetcopy(0, x.rep)) {}
 inline BitSet::~BitSet() { if (rep != &_nilBitSetRep) delete rep; }
 
 inline BitSet& BitSet::operator =  (const BitSet& y)
-{ 
+{
   rep = BitSetcopy(rep, y.rep);
   return *this;
 }
@@ -258,27 +258,27 @@ inline BitSet operator ~ (const BitSet& x) return r
 
 #else /* NO_NRV */
 
-inline BitSet operator & (const BitSet& x, const BitSet& y) 
+inline BitSet operator & (const BitSet& x, const BitSet& y)
 {
   BitSet r; and(x, y, r); return r;
 }
 
-inline BitSet operator | (const BitSet& x, const BitSet& y) 
+inline BitSet operator | (const BitSet& x, const BitSet& y)
 {
   BitSet r; or(x, y, r); return r;
 }
 
-inline BitSet operator ^ (const BitSet& x, const BitSet& y) 
+inline BitSet operator ^ (const BitSet& x, const BitSet& y)
 {
   BitSet r; xor(x, y, r); return r;
 }
 
-inline BitSet operator - (const BitSet& x, const BitSet& y) 
+inline BitSet operator - (const BitSet& x, const BitSet& y)
 {
   BitSet r; diff(x, y, r); return r;
 }
 
-inline BitSet operator ~ (const BitSet& x) 
+inline BitSet operator ~ (const BitSet& x)
 {
   BitSet r; ::complement(x, r); return r;
 }
@@ -329,7 +329,7 @@ inline int BitSet::test(int p) const
 {
   if (p < 0) error("Illegal bit index");
   int index = BitSet_index(p);
-  return (index >= rep->len)? rep->virt : 
+  return (index >= rep->len)? rep->virt :
          ((rep->s[index] & (1 << BitSet_pos(p))) != 0);
 }
 

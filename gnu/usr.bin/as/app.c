@@ -24,7 +24,7 @@
    pair.  This needs better error-handling.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: app.c,v 1.2 1993/11/03 00:51:05 paul Exp $";
+static char rcsid[] = "$Id: app.c,v 1.3 1994/12/23 22:35:59 nate Exp $";
 #endif
 
 #include <stdio.h>
@@ -64,7 +64,7 @@ static int process_escape PARAMS ((int));
    built statically at compile time rather than dynamically
    each and every time the assembler is run.  xoxorich. */
 
-void 
+void
 do_scrub_begin ()
 {
   const char *p;
@@ -122,13 +122,13 @@ do_scrub_begin ()
 
 FILE *scrub_file;
 
-int 
+int
 scrub_from_file ()
 {
   return getc (scrub_file);
 }
 
-void 
+void
 scrub_to_file (ch)
      int ch;
 {
@@ -138,13 +138,13 @@ scrub_to_file (ch)
 char *scrub_string;
 char *scrub_last_string;
 
-int 
+int
 scrub_from_string ()
 {
   return scrub_string == scrub_last_string ? EOF : *scrub_string++;
 }				/* scrub_from_string() */
 
-void 
+void
 scrub_to_string (ch)
      int ch;
 {
@@ -194,7 +194,7 @@ app_push ()
   return (char *) saved;
 }
 
-void 
+void
 app_pop (arg)
      char *arg;
 {
@@ -215,7 +215,7 @@ app_pop (arg)
 
 /* @@ This assumes that \n &c are the same on host and target.  This is not
    necessarily true.  */
-static int 
+static int
 process_escape (ch)
      int ch;
 {
@@ -239,7 +239,7 @@ process_escape (ch)
       return ch;
     }
 }
-int 
+int
 do_scrub_next_char (get, unget)
      int (*get) ();
      void (*unget) ();

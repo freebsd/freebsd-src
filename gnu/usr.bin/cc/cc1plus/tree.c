@@ -37,7 +37,7 @@ lvalue_p (ref)
 {
   if (! language_lvalue_valid (ref))
     return 0;
-  
+
   if (TREE_CODE (TREE_TYPE (ref)) == REFERENCE_TYPE)
     return 1;
 
@@ -763,7 +763,7 @@ layout_basetypes (rec, binfos)
 #if 0
 	  /* bpk: Disabled this check until someone is willing to
 	     claim it as theirs and explain exactly what circumstances
-	     warrant the warning.  */ 
+	     warrant the warning.  */
 	  if (warn_nonvdtor && TYPE_HAS_DESTRUCTOR (basetype)
 	      && DECL_VINDEX (TREE_VEC_ELT (CLASSTYPE_METHOD_VEC (basetype), 0)) == NULL_TREE)
 	    {
@@ -1147,7 +1147,7 @@ make_binfo (offset, binfo, vtable, virtuals, chain)
   BINFO_VPTR_FIELD (new_binfo) = NULL_TREE;
 
   if (binfo && BINFO_BASETYPES (binfo) != NULL_TREE)
-    BINFO_BASETYPES (new_binfo) = copy_node (BINFO_BASETYPES (binfo));      
+    BINFO_BASETYPES (new_binfo) = copy_node (BINFO_BASETYPES (binfo));
   return new_binfo;
 }
 
@@ -1330,7 +1330,7 @@ is_overloaded_fn (x)
 int
 really_overloaded_fn (x)
      tree x;
-{     
+{
   if (TREE_CODE (x) == TREE_LIST
       && (TREE_CODE (TREE_VALUE (x)) == FUNCTION_DECL
 	  || TREE_CODE (TREE_VALUE (x)) == TEMPLATE_DECL))
@@ -1347,7 +1347,7 @@ get_first_fn (from)
     return from;
 
   my_friendly_assert (TREE_CODE (from) == TREE_LIST, 9);
-  
+
   return TREE_VALUE (from);
 }
 
@@ -1687,7 +1687,7 @@ make_deep_copy (t)
 	return build_ptrmemfunc_type
 	  (make_deep_copy (TYPE_PTRMEMFUNC_FN_TYPE (t)));
       /* else fall through */
-      
+
       /*  This list is incomplete, but should suffice for now.
 	  It is very important that `sorry' does not call
 	  `report_error_function'.  That could cause an infinite loop.  */

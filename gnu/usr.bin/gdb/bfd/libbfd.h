@@ -393,7 +393,7 @@ void	bfd_assert PARAMS ((char*,int));
 FILE *	bfd_cache_lookup_worker PARAMS ((bfd *));
 
 extern bfd *bfd_last_cache;
-    
+
 /* Now Steve, what's the story here? */
 #ifdef lint
 #define itos(x) "l"
@@ -410,13 +410,13 @@ extern const bfd_target * const bfd_default_vector[];
 
 /* And more follows */
 
-void 
+void
 bfd_check_init PARAMS ((void));
 
-void 
+void
 bfd_write_bigendian_4byte_int PARAMS ((bfd *abfd,  int i));
 
-unsigned int 
+unsigned int
 bfd_log2 PARAMS ((bfd_vma x));
 
 #define BFD_CACHE_MAX_OPEN 10
@@ -426,20 +426,20 @@ extern bfd *bfd_last_cache;
     ((x)==bfd_last_cache? \
       (FILE*)(bfd_last_cache->iostream): \
        bfd_cache_lookup_worker(x))
-boolean 
+boolean
 bfd_cache_init  PARAMS ((bfd *abfd));
 
-boolean 
+boolean
 bfd_cache_close  PARAMS ((bfd *abfd));
 
-FILE* 
+FILE*
 bfd_open_file PARAMS ((bfd *abfd));
 
 FILE *
 bfd_cache_lookup_worker PARAMS ((bfd *abfd));
 
-boolean 
-bfd_constructor_entry PARAMS ((bfd *abfd, 
+boolean
+bfd_constructor_entry PARAMS ((bfd *abfd,
     asymbol **symbol_ptr_ptr,
     CONST char*type));
 
@@ -447,7 +447,7 @@ const struct reloc_howto_struct *
 bfd_default_reloc_type_lookup
  PARAMS ((bfd *abfd, bfd_reloc_code_real_type  code));
 
-boolean 
+boolean
 bfd_generic_relax_section
  PARAMS ((bfd *abfd,
     asection *section,
@@ -464,15 +464,15 @@ bfd_generic_get_relocated_section_contents  PARAMS ((bfd *abfd,
     asymbol **symbols));
 
 extern bfd_arch_info_type bfd_default_arch_struct;
-boolean 
+boolean
 bfd_default_set_arch_mach PARAMS ((bfd *abfd,
     enum bfd_architecture arch,
     unsigned long mach));
 
-void 
+void
 bfd_arch_init PARAMS ((void));
 
-void 
+void
 bfd_arch_linkin PARAMS ((bfd_arch_info_type *ptr));
 
 CONST bfd_arch_info_type *
@@ -480,7 +480,7 @@ bfd_default_compatible
  PARAMS ((CONST bfd_arch_info_type *a,
     CONST bfd_arch_info_type *b));
 
-boolean 
+boolean
 bfd_default_scan PARAMS ((CONST struct bfd_arch_info *info, CONST char *string));
 
 struct elf_internal_shdr *

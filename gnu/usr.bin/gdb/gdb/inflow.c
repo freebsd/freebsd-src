@@ -404,7 +404,7 @@ child_terminal_info (args, from_tty)
   /* First the fcntl flags.  */
   {
     int flags;
-    
+
     flags = tflags_inferior;
 
     printf_filtered ("File descriptor flags = ");
@@ -422,11 +422,11 @@ child_terminal_info (args, from_tty)
     flags &= ~(O_ACCMODE);
 
 #ifdef O_NONBLOCK
-    if (flags & O_NONBLOCK) 
+    if (flags & O_NONBLOCK)
       printf_filtered (" | O_NONBLOCK");
     flags &= ~O_NONBLOCK;
 #endif
-    
+
 #if defined (O_NDELAY)
     /* If O_NDELAY and O_NONBLOCK are defined to the same thing, we will
        print it as O_NONBLOCK, which is good cause that is what POSIX
@@ -608,7 +608,7 @@ set_sigio_trap ()
   if (target_activity_function)
     {
       old_sigio = (void (*) ()) signal (SIGIO, handle_sigio);
-      fcntl (target_activity_fd, F_SETOWN, getpid()); 
+      fcntl (target_activity_fd, F_SETOWN, getpid());
       old_fcntl_flags = fcntl (target_activity_fd, F_GETFL, 0);
       fcntl (target_activity_fd, F_SETFL, old_fcntl_flags | FASYNC);
     }

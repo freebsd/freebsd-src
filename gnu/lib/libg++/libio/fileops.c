@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -68,14 +68,14 @@ extern int errno;
    (The pointers save_gptr() and save_egptr() are the values
    of gptr() and egptr() at the time putback mode was entered.)
    The OS position corresponds to that of save_egptr().
-   
+
    LINE BUFFERED OUTPUT:
    During line buffered output, pbase()==base() && epptr()==base().
    However, ptr() may be anywhere between base() and ebuf().
    This forces a call to filebuf::overflow(int C) on every put.
    If there is more space in the buffer, and C is not a '\n',
    then C is inserted, and pptr() incremented.
-   
+
    UNBUFFERED STREAMS:
    If a filebuf is unbuffered(), the _shortbuf[1] is used as the buffer.
 */
@@ -108,7 +108,7 @@ _IO_file_close_it(fp)
   _IO_unsave_markers(fp);
 
   status = fp->_jumps->__close(fp);
-  
+
   /* Free buffer. */
   _IO_setb(fp, NULL, NULL, 0);
   _IO_setg(fp, NULL, NULL, NULL);
@@ -228,7 +228,7 @@ _IO_do_write(fp, data, to_do)
        unpredictable. */
     fp->_offset = _IO_pos_BAD;
   else if (fp->_IO_read_end != fp->_IO_write_base)
-    { 
+    {
       _IO_pos_t new_pos = fp->_jumps->__seek(fp, fp->_IO_write_base - fp->_IO_read_end, 1);
       if (new_pos == _IO_pos_BAD)
 	return EOF;
@@ -337,7 +337,7 @@ _IO_file_sync(fp)
   /*    char* ptr = cur_ptr(); */
   if (fp->_IO_write_ptr > fp->_IO_write_base)
     if (_IO_do_flush(fp)) return EOF;
-  delta = fp->_IO_read_ptr - fp->_IO_read_end; 
+  delta = fp->_IO_read_ptr - fp->_IO_read_end;
   if (delta != 0)
     {
 #ifdef TODO
@@ -643,7 +643,7 @@ _IO_file_xsputn(f, data, n)
       if (_IO_do_write(f, s, count) == EOF)
 	return n - to_do;
       to_do = dont_write;
-      
+
       /* Now write out the remainder.  Normally, this will fit in the
 	 buffer, but it's somewhat messier for line-buffered files,
 	 so we let _IO_default_xsputn handle the general case. */
@@ -710,7 +710,7 @@ _IO_file_xsgetn(fp, data, n)
 	       else
 		 fp->_flags |= _IO_ERR_SEEN, count = 0;
 	     }
-	  
+
 	  s += count;
 	  more -= count;
 	}

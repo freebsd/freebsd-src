@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hdnams_rcsid[] = "$Id: hdnams.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_hdnams_rcsid[] = "$Id: hdnams.c,v 1.2 1994/05/07 18:12:21 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -65,7 +65,7 @@ uuconf_hdb_dialer_names (pglobal, ppzdialers)
 	  iret = UUCONF_FOPEN_FAILED | UUCONF_ERROR_ERRNO;
 	  break;
 	}
-      
+
       qglobal->ilineno = 0;
 
       while (_uuconf_getline (qglobal, &zline, &cline, e) > 0)

@@ -8,7 +8,7 @@ DPADD=	${LIBCURSES} ${LIBTERMCAP}
 LDADD=	-lcurses -ltermcap
 HIDEGAME=hidegame
 
-beforeinstall: 
+beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/gnuchess.book \
 	    ${DESTDIR}/usr/share/games
 

@@ -1,24 +1,24 @@
 /* read.h - of read.c
 
    Copyright (C) 1986, 1990, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: read.h,v 1.3 1993/11/30 20:55:45 jkh Exp $
+ * $Id: read.h,v 1.4 1994/12/23 22:36:17 nate Exp $
  */
 
 
@@ -37,8 +37,8 @@ extern char *input_line_pointer; /* -> char we are parsing now. */
 #endif
 
 
-#define	LEX_NAME	(1)	/* may continue a name */		      
-#define LEX_BEGIN_NAME	(2)	/* may begin a name */			      
+#define	LEX_NAME	(1)	/* may continue a name */
+#define LEX_BEGIN_NAME	(2)	/* may begin a name */
 
 #define is_name_beginner(c)     ( lex_type[c] & LEX_BEGIN_NAME )
 #define is_part_of_name(c)      ( lex_type[c] & LEX_NAME       )
@@ -61,7 +61,7 @@ extern char is_end_of_line[];
 extern const char comment_chars[];
 extern const char line_comment_chars[];
 extern const char line_separator_chars[];
- 
+
 #if __STDC__ == 1
 
 char *demand_copy_C_string(int *len_pointer);

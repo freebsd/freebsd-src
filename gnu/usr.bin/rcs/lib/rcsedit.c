@@ -36,6 +36,11 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsedit.c,v $
+ * Revision 1.2  1994/05/14  07:00:22  rgrimes
+ * Add new option -K from David Dawes that allows you to turn on and off
+ * specific keyword substitution during a rcs co command.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
  *
@@ -85,50 +90,50 @@ Report problems and direct all questions to:
  *
  * Revision 4.8  89/05/01  15:12:35  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.7  88/11/08  13:54:14  narten
  * misplaced semicolon caused infinite loop
- * 
+ *
  * Revision 4.6  88/08/09  19:12:45  eggert
  * Shrink stdio code size; allow cc -R.
- * 
+ *
  * Revision 4.5  87/12/18  11:38:46  narten
  * Changes from the 43. version. Don't know the significance of the
  * first change involving "rewind". Also, additional "lint" cleanup.
  * (Guy Harris)
- * 
+ *
  * Revision 4.4  87/10/18  10:32:21  narten
  * Updating version numbers. Changes relative to version 1.1 actually
  * relative to 4.1
- * 
+ *
  * Revision 1.4  87/09/24  13:59:29  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.3  87/09/15  16:39:39  shepler
  * added an initializatin of the variables editline and linecorr
  * this will be done each time a file is processed.
  * (there was an obscure bug where if co was used to retrieve multiple files
  *  it would dump)
  * fix attributed to  Roy Morris @FileNet Corp ...!felix!roy
- * 
+ *
  * Revision 1.2  87/03/27  14:22:17  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/05/12  13:10:30  wft
  * Added new markers Id and RCSfile; added locker to Header and Id.
  * Overhauled expandline completely() (problem with $01234567890123456789@).
  * Moved trymatch() and marker table to rcskeys.c.
- * 
+ *
  * Revision 3.7  83/05/12  13:04:39  wft
  * Added retry to expandline to resume after failed match which ended in $.
  * Fixed truncation problem for $19chars followed by@@.
  * Log no longer expands full path of RCS file.
- * 
+ *
  * Revision 3.6  83/05/11  16:06:30  wft
  * added retry to expandline to resume after failed match which ended in $.
  * Fixed truncation problem for $19chars followed by@@.
- * 
+ *
  * Revision 3.5  82/12/04  13:20:56  wft
  * Added expansion of keyword Locker.
  *
@@ -157,7 +162,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(editId, "$Id: rcsedit.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
+libId(editId, "$Id: rcsedit.c,v 1.2 1994/05/14 07:00:22 rgrimes Exp $")
 
 static void keyreplace P((enum markers,struct hshentry const*,FILE*));
 

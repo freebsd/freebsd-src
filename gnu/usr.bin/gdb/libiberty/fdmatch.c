@@ -32,7 +32,7 @@ DESCRIPTION
 
 	Check to see if two open file descriptors refer to the same file.
 	This is useful, for example, when we have an open file descriptor
-	for an unnamed file, and the name of a file that we believe to 
+	for an unnamed file, and the name of a file that we believe to
 	correspond to that fd.  This can happen when we are exec'd with
 	an already open file (stdout for example) or from the SVR4 /proc
 	calls that return open file descriptors for mapped address spaces.

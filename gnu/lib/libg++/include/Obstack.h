@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -84,127 +84,127 @@ public:
 
 inline Obstack::~Obstack()
 {
-  _free(0); 
+  _free(0);
 }
 
 inline void* Obstack::base()
 {
-  return objectbase; 
+  return objectbase;
 }
 
 inline void* Obstack::next_free()
 {
-  return nextfree; 
+  return nextfree;
 }
 
 inline int Obstack::alignment_mask()
 {
-  return alignmentmask; 
+  return alignmentmask;
 }
 
 inline int Obstack::chunk_size()
 {
-  return chunksize; 
+  return chunksize;
 }
 
 inline int Obstack::size()
 {
-  return nextfree - objectbase; 
+  return nextfree - objectbase;
 }
 
 inline int Obstack::room()
 {
-  return chunklimit - nextfree; 
+  return chunklimit - nextfree;
 }
 
 inline void Obstack:: grow(const void* data, int size)
 {
-  if (nextfree+size > chunklimit) 
+  if (nextfree+size > chunklimit)
     newchunk(size);
   memcpy(nextfree, data, size);
-  nextfree += size; 
+  nextfree += size;
 }
 
 inline void Obstack:: grow(const void* data, int size, char terminator)
 {
-  if (nextfree+size+1 > chunklimit) 
+  if (nextfree+size+1 > chunklimit)
     newchunk(size+1);
   memcpy(nextfree, data, size);
-  nextfree += size; 
-  *(nextfree)++ = terminator; 
+  nextfree += size;
+  *(nextfree)++ = terminator;
 }
 
 inline void Obstack:: grow(const char* s)
 {
-  grow((const void*)s, strlen(s), 0); 
+  grow((const void*)s, strlen(s), 0);
 }
 
 inline void Obstack:: grow(char c)
 {
-  if (nextfree+1 > chunklimit) 
-    newchunk(1); 
-  *(nextfree)++ = c; 
+  if (nextfree+1 > chunklimit)
+    newchunk(1);
+  *(nextfree)++ = c;
 }
 
 inline void Obstack:: blank(int size)
 {
-  if (nextfree+size > chunklimit) 
+  if (nextfree+size > chunklimit)
     newchunk(size);
-  nextfree += size; 
+  nextfree += size;
 }
 
 inline void* Obstack::finish(char terminator)
 {
-  grow(terminator); 
-  return finish(); 
+  grow(terminator);
+  return finish();
 }
 
 inline void* Obstack::copy(const void* data, int size)
 {
   grow (data, size);
-  return finish(); 
+  return finish();
 }
 
 inline void* Obstack::copy(const void* data, int size, char terminator)
 {
-  grow(data, size, terminator); 
-  return finish(); 
+  grow(data, size, terminator);
+  return finish();
 }
 
 inline void* Obstack::copy(const char* s)
 {
-  grow((const void*)s, strlen(s), 0); 
-  return finish(); 
+  grow((const void*)s, strlen(s), 0);
+  return finish();
 }
 
 inline void* Obstack::copy(char c)
 {
   grow(c);
-  return finish(); 
+  return finish();
 }
 
 inline void* Obstack::alloc(int size)
 {
   blank(size);
-  return finish(); 
+  return finish();
 }
 
-inline void Obstack:: free(void* obj)     
+inline void Obstack:: free(void* obj)
 {
   if (obj >= (void*)chunk && obj<(void*)chunklimit)
     nextfree = objectbase = (char *) obj;
-  else 
-    _free(obj); 
+  else
+    _free(obj);
 }
 
 inline void Obstack:: grow_fast(char c)
 {
-  *(nextfree)++ = c; 
+  *(nextfree)++ = c;
 }
 
 inline void Obstack:: blank_fast(int size)
 {
-  nextfree += size; 
+  nextfree += size;
 }
 
 inline void Obstack:: shrink(int size) // from ken@cs.rochester.edu

@@ -292,7 +292,7 @@ struct type *builtin_type_chill_long;
 struct type *builtin_type_chill_ulong;
 struct type *builtin_type_chill_real;
 
-struct type ** const (chill_builtin_types[]) = 
+struct type ** const (chill_builtin_types[]) =
 {
   &builtin_type_chill_bool,
   &builtin_type_chill_char,

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hdial_rcsid[] = "$Id: hdial.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_hdial_rcsid[] = "$Id: hdial.c,v 1.2 1994/05/07 18:12:20 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -133,7 +133,7 @@ uuconf_hdb_dialer_info (pglobal, zname, qdialer)
 		  bnext = *zsubs;
 		  while (bnext != '\0')
 		    {
-		      if (bnext == '=') 
+		      if (bnext == '=')
 			qdialer->uuconf_zdialtone = zsubs + 1;
 		      else if (bnext == '-')
 			qdialer->uuconf_zpause = zsubs + 1;

@@ -37,7 +37,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    the opcode or the addition of data to the opcode.
    The operands in the source instruction are checked for inconsistent
    semantics.
- 
+
 	F : 32 bit float	general form
 	L : 64 bit float	    "
 	B : byte		    "
@@ -115,7 +115,7 @@ struct not			/* ns32k opcode text */
 };
 
 /* Instructions look like this:
-    
+
    basic instruction--1, 2, or 3 bytes
    index byte for operand A, if operand A is indexed--1 byte
    index byte for operand B, if operand B is indexed--1 byte
@@ -129,7 +129,7 @@ struct not			/* ns32k opcode text */
    The implied operands are associated with operands other than A and B.
 
    Each operand has a digit and a letter.
-   
+
    The digit gives the position in the assembly language.  The letter,
    one of the following, tells us what kind of operand it is.  */
 

@@ -39,21 +39,21 @@ extern test_type t;
 
 extern char *concat (char *, char *);
 
-extern void general_test (unsigned pattern_should_be_valid, 
+extern void general_test (unsigned pattern_should_be_valid,
 		          unsigned match_whole_string,
 			  const char *pat, char *str1, char *str2,
-		          int start, int range, int end, 
-              		  char *correct_fastmap, 
+		          int start, int range, int end,
+              		  char *correct_fastmap,
                           struct re_registers *correct_regs, int can_be_null);
 
 
 extern void init_pattern_buffer (regex_t *pattern_buffer_ptr);
 
-extern void test_compile (unsigned valid_pattern, int error_code_expected,  
+extern void test_compile (unsigned valid_pattern, int error_code_expected,
 			  const char *pattern, regex_t *pattern_buffer_ptr,
 			  int cflags);
 
-extern char *delimiter_to_ops (char *source, char left_delimiter, 
+extern char *delimiter_to_ops (char *source, char left_delimiter,
 			       char right_delimiter);
 
 
@@ -61,18 +61,18 @@ extern void test_search_return (int, const char *, char *);
 
 extern void test_berk_search (const char *pattern, char *string);
 
-extern void test_fastmap (const char *pat, char *fastmap_string, unsigned invert, 
+extern void test_fastmap (const char *pat, char *fastmap_string, unsigned invert,
 	    		  unsigned match_newline);
 
 extern void test_fastmap_search (const char *pat, char *str, char *fastmap_string,
-				 unsigned invert, unsigned match_newline, 
+				 unsigned invert, unsigned match_newline,
 		                 int can_be_null, int start0, int end0);
 
-extern void test_all_registers (char *pat, char *str1, char *str2, 
-			       int start0, int end0, int start1, int end1, 
-		               int start2, int end2, int start3, int end3, 
-                	       int start4, int end4, int start5, int end5, 
-	                       int start6, int end6, int start7, int end7, 
+extern void test_all_registers (char *pat, char *str1, char *str2,
+			       int start0, int end0, int start1, int end1,
+		               int start2, int end2, int start3, int end3,
+                	       int start4, int end4, int start5, int end5,
+	                       int start6, int end6, int start7, int end7,
            		       int start8, int end8, int start9, int end9);
 
 extern void print_pattern_info (const char *pattern, regex_t *pattern_buffer_ptr);

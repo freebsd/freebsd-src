@@ -1,17 +1,17 @@
-/* Demangler for GNU C++ 
+/* Demangler for GNU C++
    Copyright (C) 1989, 1992 Free Software Foundation, Inc.
    written by James Clark (jjc@jclark.uucp)
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -20,39 +20,39 @@
    require changes for any other version. */
 
 /* This file exports one function
-   
+
    char *cplus_demangle (const char *name)
-   
+
    If `name' is a mangled function name produced by g++, then
    a pointer to a malloced string giving a C++ representation
    of the name will be returned; otherwise NULL will be returned.
    It is the caller's responsibility to free the string which
    is returned.
-   
+
    For example,
-   
+
    cplus_demangle ("_foo__1Ai")
-   
+
    returns
-   
+
    "A::foo(int)"
-   
+
    This file imports xmalloc and xrealloc, which are like malloc and
    realloc except that they generate a fatal error if there is no
    available memory. */
 
 /* #define nounderscore 1 /* define this is names don't start with _ */
-    
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-    
+
 #if !defined(sequent) && !defined(NeXT)
 #include <memory.h>
 #else
-#define memcpy(s1, s2, n) strncpy(s1, s2, n) 
+#define memcpy(s1, s2, n) strncpy(s1, s2, n)
 #define memcmp(s1, s2, n) strncmp(s1, s2, n)
-#define strchr(s, c) index(s, c) 
+#define strchr(s, c) index(s, c)
 #endif
 
 #if __STDC__ != 1
@@ -170,7 +170,7 @@ const char *type;
 	int const_flag = 0;
 	int i;
 	const char *p;
-	
+
 	if (type == NULL || *type == '\0')
 	    return NULL;
 #ifndef nounderscore
@@ -205,9 +205,9 @@ const char *type;
 			}
 		    return NULL;
 	    }
-	
+
 	string_init (&decl);
-	
+
 	if (p == type)
 	    {
 		    if (!isdigit (p[2]))
@@ -223,7 +223,7 @@ const char *type;
 		    munge_function_name (&decl);
 	    }
 	p += 2;
-	
+
 	switch (*p)
 	    {
 	    case 'C':
@@ -280,7 +280,7 @@ const char *type;
 		    success = do_args (&p, &decl);
 		    break;
 	    }
-	
+
 	for (i = 0; i < ntypes; i++)
 	    if (typevec[i] != NULL)
 		free (typevec[i]);
@@ -291,7 +291,7 @@ const char *type;
 		    typevec = NULL;
 		    typevec_size = 0;
 	    }
-	
+
 	if (success)
 	    {
 		    string_appendn (&decl, "", 1);
@@ -318,12 +318,12 @@ int *count;
 	    {
 		    const char *p = *type;
 		    int n = *count;
-		    do 
+		    do
 			{
 				n *= 10;
 				n += *p - '0';
 				p += 1;
-			} 
+			}
 		    while (isdigit (*p));
 		    if (*p == '_')
 			{
@@ -347,10 +347,10 @@ string *result;
 	int success;
 	string decl;
 	const char *remembered_type;
-	
+
 	string_init (&decl);
 	string_init (result);
-	
+
 	done = 0;
 	success = 1;
 	while (success && !done)
@@ -362,12 +362,12 @@ string *result;
 				*type += 1;
 				string_prepend (&decl, "*");
 				break;
-				
+
 			case 'R':
 				*type += 1;
 				string_prepend (&decl, "&");
 				break;
-				
+
 			case 'T':
 				*type += 1;
 				if (!get_count (type, &n) || n >= ntypes)
@@ -378,7 +378,7 @@ string *result;
 					    type = &remembered_type;
 				    }
 				break;
-				
+
 			case 'F':
 				*type += 1;
 				if (!string_empty (&decl) && decl.b[0] == '*')
@@ -391,13 +391,13 @@ string *result;
 				else
 				    *type += 1;
 				break;
-				
+
 			case 'M':
 			case 'O':
 				{
 					int constp = 0;
 					int volatilep = 0;
-					
+
 					member = **type == 'M';
 					*type += 1;
 					if (!isdigit (**type))
@@ -411,7 +411,7 @@ string *result;
 						    n *= 10;
 						    n += **type - '0';
 						    *type += 1;
-					    } 
+					    }
 					while (isdigit (**type));
 					if (strlen (*type) < n)
 					    {
@@ -465,7 +465,7 @@ string *result;
 					    }
 					break;
 				}
-				
+
 			case 'C':
 				if ((*type)[1] == 'P')
 				    {
@@ -475,14 +475,14 @@ string *result;
 					    string_prepend (&decl, "const");
 					    break;
 				    }
-				
+
 				/* fall through */
 			default:
 				done = 1;
 				break;
 			}
 	    }
-	
+
 	done = 0;
 	non_empty = 0;
 	while (success && !done)
@@ -518,7 +518,7 @@ string *result;
 				break;
 			}
 	    }
-	
+
 	if (success)
 	    switch (**type)
 		{
@@ -613,7 +613,7 @@ string *result;
 			success = 0;
 			break;
 		}
-	
+
 	if (success)
 	    {
 		    if (!string_empty (&decl))
@@ -643,7 +643,7 @@ string *result;
 	int len;
 	const char *start;
 	const char *end;
-	
+
 	start = *type;
 	if (!do_type (type, result))
 	    return 0;
@@ -679,9 +679,9 @@ string *decl;
 {
 	string arg;
 	int need_comma = 0;
-	
+
 	string_append (decl, "(");
-	
+
 	while (**type != '_' && **type != '\0' && **type != 'e' && **type != 'v')
 	    {
 		    if (**type == 'N')
@@ -714,7 +714,7 @@ string *decl;
 				need_comma = 1;
 			}
 	    }
-	
+
 	if (**type == 'v')
 	    *type += 1;
 	else if (**type == 'e')
@@ -724,7 +724,7 @@ string *decl;
 			string_append (decl, ",");
 		    string_append (decl, "...");
 	    }
-	
+
 	string_append (decl, ")");
 	return 1;
 }
@@ -733,7 +733,7 @@ static void
     munge_function_name (name)
 string *name;
 {
-	if (!string_empty (name) && name->p - name->b >= 3 
+	if (!string_empty (name) && name->p - name->b >= 3
 	    && name->b[0] == 'o' && name->b[1] == 'p' && name->b[2] == '$')
 	    {
 		    int i;
@@ -760,7 +760,7 @@ string *name;
 				for (i = 0; i < sizeof (optable)/sizeof (optable[0]); i++)
 				    {
 					    int len = name->p - name->b - 3;
-					    if (strlen (optable[i].in) == len 
+					    if (strlen (optable[i].in) == len
 						&& memcmp (optable[i].in, name->b + 3, len) == 0)
 						{
 							string_clear (name);
@@ -832,7 +832,7 @@ string *s;
 	s->b = s->p = s->e = NULL;
 }
 
-static void 
+static void
     string_clear (s)
 string *s;
 {
@@ -914,7 +914,7 @@ const char *s;
 int n;
 {
 	char *q;
-	
+
 	if (n == 0)
 	    return;
 	string_need (p, n);

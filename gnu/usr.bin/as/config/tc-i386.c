@@ -1,18 +1,18 @@
 /* i386.c -- Assemble code for the Intel 80386
    Copyright (C) 1989, 1991, 1992 Free Software Foundation.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -25,7 +25,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-i386.c,v 1.2 1993/11/30 20:57:41 jkh Exp $";
+static char rcsid[] = "$Id: tc-i386.c,v 1.3 1994/12/23 22:37:35 nate Exp $";
 #endif
 
 #include "as.h"
@@ -42,19 +42,19 @@ typedef struct {
 	/* SUFFIX holds the opcode suffix (e.g. 'l' for 'movl') if given. */
 	char suffix;
 	/* Operands are coded with OPERANDS, TYPES, DISPS, IMMS, and REGS. */
-	
+
 	/* OPERANDS gives the number of given operands. */
 	unsigned int operands;
-	
+
 	/* REG_OPERANDS, DISP_OPERANDS, MEM_OPERANDS, IMM_OPERANDS give the number of
 	   given register, displacement, memory operands and immediate operands. */
 	unsigned int reg_operands, disp_operands, mem_operands, imm_operands;
-	
+
 	/* TYPES [i] is the type (see above #defines) which tells us how to
 	   search through DISPS [i] & IMMS [i] & REGS [i] for the required
 	   operand. */
 	unsigned int types[MAX_OPERANDS];
-	
+
 	/* Displacements (if given) for each operand. */
 	expressionS *disps[MAX_OPERANDS];
 
@@ -62,32 +62,32 @@ typedef struct {
 	/* Relocation type for operand */
 	enum reloc_type disp_reloc[MAX_OPERANDS];
 #endif
-	
+
 	/* Immediate operands (if given) for each operand. */
 	expressionS *imms[MAX_OPERANDS];
-	
+
 	/* Register operands (if given) for each operand. */
 	reg_entry *regs[MAX_OPERANDS];
-	
+
 	/* BASE_REG, INDEX_REG, and LOG2_SCALE_FACTOR are used to encode
 	   the base index byte below.  */
 	reg_entry *base_reg;
 	reg_entry *index_reg;
 	unsigned int log2_scale_factor;
-	
+
 	/* SEG gives the seg_entry of this insn.  It is equal to zero unless
 	   an explicit segment override is given. */
 	const seg_entry *seg;	/* segment for memory operands (if given) */
-	
+
 	/* PREFIX holds all the given prefix opcodes (usually null).
 	   PREFIXES is the size of PREFIX. */
  /* richfix: really unsigned? */
 	unsigned char prefix[MAX_PREFIXES];
 	unsigned int prefixes;
-	
+
 	/* RM and IB are the modrm byte and the base index byte where the addressing
 	   modes of this insn are encoded. */
-	
+
 	modrm_byte        rm;
 	base_index_byte   bi;
 
@@ -144,7 +144,7 @@ static char save_stack[32];
 static char *save_stack_p;	/* stack pointer */
 #define END_STRING_AND_SAVE(s)      *save_stack_p++ = *s; *s = '\0'
 #define RESTORE_END_STRING(s)       *s = *--save_stack_p
-    
+
     /* The instruction we're assembling. */
     static i386_insn i;
 
@@ -188,7 +188,7 @@ const relax_typeS md_relax_table[] = {
 	{1, 1, 0, 0},
 	{1, 1, 0, 0},
 	{1, 1, 0, 0},
-	
+
 	/* For now we don't use word displacement jumps:  they may be
 	   untrustworthy. */
 	{127+1, -128+1, 0, ENCODE_RELAX_STATE(COND_JUMP,DWORD) },
@@ -199,7 +199,7 @@ const relax_typeS md_relax_table[] = {
 	   1 opcode prefix; 3 displacement bytes */
 	{0, 0, 4, 0},
 	{1, 1, 0, 0},
-	
+
 	{127+1, -128+1, 0, ENCODE_RELAX_STATE(UNCOND_JUMP,DWORD) },
 	/* word jmp adds 2 bytes to frag:
 	   1 opcode prefix; 1 displacement bytes */
@@ -208,7 +208,7 @@ const relax_typeS md_relax_table[] = {
 	   0 opcode prefix; 3 displacement bytes */
 	{0, 0, 3, 0},
 	{1, 1, 0, 0},
-	
+
 };
 
 #if __STDC__ == 1
@@ -283,22 +283,22 @@ static struct hash_control *prefix_hash = (struct hash_control *) 0;
 void md_begin ()
 {
 	char * hash_err;
-	
+
 	obstack_begin (&o,4096);
-	
+
 	/* initialize op_hash hash table */
 	op_hash = hash_new();		/* xmalloc handles error */
-	
+
 	{
 		register const template *optab;
 		register templates *core_optab;
 		char *prev_name;
-		
+
 		optab = i386_optab;		/* setup for loop */
 		prev_name = optab->name;
 		obstack_grow (&o, optab, sizeof(template));
 		core_optab = (templates *) xmalloc (sizeof (templates));
-		
+
 		for (optab++; optab < i386_optab_end; optab++) {
 			if (! strcmp (optab->name, prev_name)) {
 				/* same name as before --> append to current template list */
@@ -321,43 +321,43 @@ void md_begin ()
 			}
 		}
 	}
-	
+
 	/* initialize reg_hash hash table */
 	reg_hash = hash_new();
 	{
 		register const reg_entry *regtab;
-		
+
 		for (regtab = i386_regtab; regtab < i386_regtab_end; regtab++) {
 			hash_err = hash_insert (reg_hash, regtab->reg_name, regtab);
 			if (hash_err && *hash_err) goto hash_error;
 		}
 	}
-	
+
 	esp = (reg_entry *) hash_find (reg_hash, "esp");
 	ebp = (reg_entry *) hash_find (reg_hash, "ebp");
-	
+
 	/* initialize reg_hash hash table */
 	prefix_hash = hash_new();
 	{
 		register const prefix_entry *prefixtab;
-		
+
 		for (prefixtab = i386_prefixtab;
 		     prefixtab < i386_prefixtab_end; prefixtab++) {
 			hash_err = hash_insert (prefix_hash, prefixtab->prefix_name, prefixtab);
 			if (hash_err && *hash_err) goto hash_error;
 		}
 	}
-	
+
 	/* fill in lexical tables:  opcode_chars, operand_chars, space_chars */
-	{  
+	{
 		register unsigned int c;
-		
+
 		memset(opcode_chars, '\0', sizeof(opcode_chars));
 		memset(operand_chars, '\0', sizeof(operand_chars));
 		memset(space_chars, '\0', sizeof(space_chars));
 		memset(identifier_chars, '\0', sizeof(identifier_chars));
 		memset(digit_chars, '\0', sizeof(digit_chars));
-		
+
 		for (c = 0; c < 256; c++) {
 			if (islower(c) || isdigit(c)) {
 				opcode_chars[c] = c;
@@ -370,17 +370,17 @@ void md_begin ()
 			} else if (c == ')' || c == '(') {
 				register_chars[c] = c;
 			}
-			
+
 			if (isupper(c) || islower(c) || isdigit(c))
 			    operand_chars[c] = c;
 			else if (c && strchr(operand_special_chars, c))
 			    operand_chars[c] = c;
-			
+
 			if (isdigit(c) || c == '-') digit_chars[c] = c;
-			
+
 			if (isalpha(c) || c == '_' || c == '.' || isdigit(c))
 			    identifier_chars[c] = c;
-			
+
 			if (c == ' ' || c == '\t') space_chars[c] = c;
 		}
 	}
@@ -401,7 +401,7 @@ i386_insn *x;
 {
 	register template *p;
 	int i;
-	
+
 	fprintf (stdout, "%s: template ", line);
 	pte (&x->tm);
 	fprintf (stdout, "  modrm:  mode %x  reg %x  reg/mem %x",
@@ -488,7 +488,7 @@ static void pt (t)
 unsigned int t;
 {
 	register struct type_name *ty;
-	
+
 	if (t == Unknown) {
 		fprintf (stdout, "Unknown");
 	} else {
@@ -510,22 +510,22 @@ char *line;
 {
 	/* Holds temlate once we've found it. */
 	register template *t;
-	
+
 	/* Possible templates for current insn */
 	templates *current_templates = (templates *) 0;
-	
+
 	/* Initialize globals. */
 	memset(&i, '\0', sizeof(i));
 	memset(disp_expressions, '\0', sizeof(disp_expressions));
 	memset(im_expressions, '\0', sizeof(im_expressions));
 	save_stack_p = save_stack;	/* reset stack pointer */
-	
+
 	/* Fist parse an opcode & call i386_operand for the operands.
-	   We assume that the scrubber has arranged it so that line[0] is the valid 
+	   We assume that the scrubber has arranged it so that line[0] is the valid
 	   start of a (possibly prefixed) opcode. */
 	{
 		register char *l = line;		/* Fast place to put LINE. */
-		
+
 		/* 1 if operand is pending after ','. */
 		unsigned int expecting_operand = 0;
 		/* 1 if we found a prefix only acceptable with string insns. */
@@ -533,7 +533,7 @@ char *line;
 		/* Non-zero if operand parens not balenced. */
 		unsigned int paren_not_balenced;
 		char * token_start = l;
-		
+
 		while (! is_space_char(*l) && *l != END_OF_INSN) {
 			if (! is_opcode_char(*l)) {
 				as_bad("invalid character %s in opcode", output_invalid(*l));
@@ -544,7 +544,7 @@ char *line;
 			} else {      /* this opcode's got a prefix */
 				register unsigned int q;
 				register prefix_entry * prefix;
-				
+
 				if (l == token_start) {
 					as_bad("expecting prefix; got nothing");
 					return;
@@ -578,7 +578,7 @@ char *line;
 			as_bad("expecting opcode; got nothing");
 			return;
 		}
-		
+
 		/* Lookup insn in hash; try intel & att naming conventions if appropriate;
 		   that is:  we only use the opcode suffix 'b' 'w' or 'l' if we need to. */
 		current_templates = (templates *) hash_find (op_hash, token_start);
@@ -599,7 +599,7 @@ char *line;
 			}
 		}
 		RESTORE_END_STRING (l);
-		
+
 		/* check for rep/repne without a string instruction */
 		if (expecting_string_instruction &&
 		    ! IS_STRING_INSTRUCTION (current_templates->
@@ -607,7 +607,7 @@ char *line;
 			as_bad("expecting string instruction after rep/repne");
 			return;
 		}
-		
+
 		/* There may be operands to parse. */
 		if (*l != END_OF_INSN &&
 		    /* For string instructions, we ignore any operands if given.  This
@@ -671,7 +671,7 @@ char *line;
 						return;
 					}
 				}
-				
+
 				/* now *l must be either ',' or END_OF_INSN */
 				if (*l == ',') {
 					if (*++l == END_OF_INSN) { /* just skip it, if it's \n complain */
@@ -682,18 +682,18 @@ char *line;
 			} while (*l != END_OF_INSN); /* until we get end of insn */
 		}
 	}
-	
+
 	/* Now we've parsed the opcode into a set of templates, and have the
 	   operands at hand.
 	   Next, we find a template that matches the given insn,
 	   making sure the overlap of the given operands types is consistent
 	   with the template operand types. */
-	
+
 #define MATCH(overlap,given_type) \
 	(overlap && \
 	 (overlap & (JumpAbsolute|BaseIndex|Mem8)) \
 	 == (given_type & (JumpAbsolute|BaseIndex|Mem8)))
-	    
+
 	    /* If m0 and m1 are register matches they must be consistent
 	       with the expected operand types t0 and t1.
 	       That is, if both m0 & m1 are register matches
@@ -717,16 +717,16 @@ char *line;
 			expressionS * exp;
 			unsigned int overlap2;
 			unsigned int found_reverse_match;
-			
+
 			overlap0 = overlap1 = overlap2 = found_reverse_match = 0;
 			for (t = current_templates->start;
 			     t < current_templates->end;
 			     t++) {
-				
+
 				/* must have right number of operands */
 				if (i.operands != t->operands) continue;
 				else if (!t->operands) break;	/* 0 operands always matches */
-				
+
 				overlap0 = i.types[0] & t->operand_types[0];
 				switch (t->operands) {
 				case 1:
@@ -739,17 +739,17 @@ char *line;
 					    ! CONSISTENT_REGISTER_MATCH(overlap0, overlap1,
 									t->operand_types[0],
 									t->operand_types[1])) {
-						
+
 						/* check if other direction is valid ... */
 						if (! (t->opcode_modifier & COMES_IN_BOTH_DIRECTIONS))
 						    continue;
-						
+
 						/* try reversing direction of operands */
 						overlap0 = i.types[0] & t->operand_types[1];
 						overlap1 = i.types[1] & t->operand_types[0];
 						if (! MATCH (overlap0,i.types[0]) ||
 						    ! MATCH (overlap1,i.types[1]) ||
-						    ! CONSISTENT_REGISTER_MATCH (overlap0, overlap1, 
+						    ! CONSISTENT_REGISTER_MATCH (overlap0, overlap1,
 										 t->operand_types[0],
 										 t->operand_types[1])) {
 							/* does not match either direction */
@@ -766,7 +766,7 @@ char *line;
 						    ! CONSISTENT_REGISTER_MATCH (overlap0, overlap2,
 										 t->operand_types[0],
 										 t->operand_types[2]) ||
-						    ! CONSISTENT_REGISTER_MATCH (overlap1, overlap2, 
+						    ! CONSISTENT_REGISTER_MATCH (overlap1, overlap2,
 										 t->operand_types[1],
 										 t->operand_types[2]))
 						    continue;
@@ -780,11 +780,11 @@ char *line;
 				as_bad("operands given don't match any known 386 instruction");
 				return;
 			}
-			
+
 			/* Copy the template we found (we may change it!). */
 			memcpy(&i.tm, t, sizeof(template));
 			t = &i.tm;			/* alter new copy of template */
-			
+
 			/* If there's no opcode suffix we try to invent one based on register
 			   operands. */
 			if (! i.suffix && i.reg_operands) {
@@ -799,7 +799,7 @@ char *line;
 						    DWORD_OPCODE_SUFFIX;
 				    }
 			}
-			
+
 			/* Make still unresolved immediate matches conform to size of immediate
 			   given in i.suffix. Note:  overlap2 cannot be an immediate!
 			   We assume this. */
@@ -823,32 +823,32 @@ char *line;
 				overlap1 &= (i.suffix == BYTE_OPCODE_SUFFIX ? (Imm8|Imm8S) :
 					     (i.suffix == WORD_OPCODE_SUFFIX ? Imm16 : Imm32));
 			}
-			
+
 			i.types[0] = overlap0;
 			i.types[1] = overlap1;
 			i.types[2] = overlap2;
-			
+
 			if (overlap0 & ImplicitRegister) i.reg_operands--;
 			if (overlap1 & ImplicitRegister) i.reg_operands--;
 			if (overlap2 & ImplicitRegister) i.reg_operands--;
 			if (overlap0 & Imm1) i.imm_operands = 0; /* kludge for shift insns */
-			
+
 			if (found_reverse_match) {
 				unsigned int save;
 				save = t->operand_types[0];
 				t->operand_types[0] = t->operand_types[1];
 				t->operand_types[1] = save;
 			}
-			
+
 			/* Finalize opcode.  First, we change the opcode based on the operand
 			   size given by i.suffix: we never have to change things for byte insns,
 			   or when no opcode suffix is need to size the operands. */
-			
+
 			if (! i.suffix && (t->opcode_modifier & W)) {
 				as_bad("no opcode suffix given and no register operands; can't size instruction");
 				return;
 			}
-			
+
 			if (i.suffix && i.suffix != BYTE_OPCODE_SUFFIX) {
 				/* Select between byte and word/dword operations. */
 				if (t->opcode_modifier & W)
@@ -864,17 +864,17 @@ char *line;
 					i.prefix[i.prefixes++] = WORD_PREFIX_OPCODE;
 				}
 			}
-			
+
 			/* For insns with operands there are more diddles to do to the opcode. */
 			if (i.operands) {
 				/* If we found a reverse match we must alter the opcode direction bit
 				   found_reverse_match holds bit to set (different for int &
 				   float insns). */
-				
+
 				if (found_reverse_match) {
 					t->base_opcode |= found_reverse_match;
 				}
-				
+
 				/*
 				  The imul $imm, %reg instruction is converted into
 				  imul $imm, %reg, %reg. */
@@ -882,7 +882,7 @@ char *line;
 					i.regs[2] = i.regs[1]; /* Pretend we saw the 3 operand case. */
 					i.reg_operands = 2;
 				}
-				
+
 				/* Certain instructions expect the destination to be in the i.rm.reg
 				   field.  This is by far the exceptional case.  For these instructions,
 				   if the source operand is a register, we must reverse the i.rm.reg
@@ -895,7 +895,7 @@ char *line;
 					i.regs[first_reg_operand] = i.regs[second_reg_operand];
 					i.regs[second_reg_operand] = tmp;
 				}
-				
+
 				if (t->opcode_modifier & ShortForm) {
 					/* The register or float register operand is in operand 0 or 1. */
 					unsigned int o = (i.types[0] & (Reg|FloatReg)) ? 0 : 1;
@@ -925,7 +925,7 @@ char *line;
 					   be put into the modrm byte.
 					   Now, we make the modrm & index base bytes based on all the info
 					   we've collected. */
-					
+
 					/* i.reg_operands MUST be the number of real register operands;
 					   implicit registers do not count. */
 					if (i.reg_operands == 2) {
@@ -947,9 +947,9 @@ char *line;
 						if (i.mem_operands) {
 							unsigned int fake_zero_displacement = 0;
 							unsigned int o = (i.types[0] & Mem) ? 0 : ((i.types[1] & Mem) ? 1 : 2);
-							
+
 							/* Encode memory operand into modrm byte and base index byte. */
-							
+
 							if (i.base_reg == esp && ! i.index_reg) {
 								/* <disp>(%esp) becomes two byte modrm with no index register. */
 								i.rm.regmem = ESCAPE_TO_TWO_BYTE_ADDRESSING;
@@ -1020,12 +1020,12 @@ char *line;
 								exp->X_add_symbol = (symbolS *) 0;
 								exp->X_subtract_symbol = (symbolS *) 0;
 							}
-							
+
 							/* Select the correct segment for the memory operand. */
 							if (i.seg) {
 								unsigned int seg_index;
 								const seg_entry *default_seg;
-								
+
 								if (i.rm.regmem == ESCAPE_TO_TWO_BYTE_ADDRESSING) {
 									seg_index = (i.rm.mode<<3) | i.bi.base;
 									default_seg = two_byte_segment_defaults[seg_index];
@@ -1045,7 +1045,7 @@ char *line;
 								}
 							}
 						}
-						
+
 						/* Fill in i.rm.reg or i.rm.regmem field with register operand
 						   (if any) based on t->extension_opcode. Again, we must be careful
 						   to make sure that segment/control/debug/test registers are coded
@@ -1059,13 +1059,13 @@ char *line;
 							if (t->extension_opcode != None)
 							    i.rm.regmem = i.regs[o]->reg_num;
 							else i.rm.reg = i.regs[o]->reg_num;
-							
+
 							/* Now, if no memory operand has set i.rm.mode = 0, 1, 2
 							   we must set it to 3 to indicate this is a register operand
 							   int the regmem field */
 							if (! i.mem_operands) i.rm.mode = 3;
 						}
-						
+
 						/* Fill in i.rm.reg field with extension opcode (if any). */
 						if (t->extension_opcode != None)
 						    i.rm.reg = t->extension_opcode;
@@ -1073,21 +1073,21 @@ char *line;
 				}
 			}
 		}
-	
+
 	/* Handle conversion of 'int $3' --> special int3 insn. */
 	if (t->base_opcode == INT_OPCODE && i.imms[0]->X_add_number == 3) {
 		t->base_opcode = INT3_OPCODE;
 		i.imm_operands = 0;
 	}
-	
+
 	/* We are ready to output the insn. */
 	{
 		register char * p;
-		
+
 		/* Output jumps. */
 		if (t->opcode_modifier & Jump) {
 			int n = i.disps[0]->X_add_number;
-			
+
 			switch (i.disps[0]->X_seg) {
 			case SEG_ABSOLUTE:
 				if (fits_in_signed_byte(n)) {
@@ -1145,7 +1145,7 @@ char *line;
 		} else if (t->opcode_modifier & (JumpByte|JumpDword)) {
 			int size = (t->opcode_modifier & JumpByte) ? 1 : 4;
 			int n = i.disps[0]->X_add_number;
-			
+
 			if (fits_in_unsigned_byte(t->base_opcode)) {
 				FRAG_APPEND_1_CHAR (t->base_opcode);
 			} else {
@@ -1154,7 +1154,7 @@ char *line;
 				*p++ = (t->base_opcode >> 8) & 0xff;
 				*p = t->base_opcode & 0xff;
 			}
-			
+
 			p =  frag_more (size);
 			switch (i.disps[0]->X_seg) {
 			case SEG_ABSOLUTE:
@@ -1193,14 +1193,14 @@ char *line;
 			 */
 			int	nopbytes = 0;
 #endif
-			
+
 			/* First the prefix bytes. */
 			for (q = i.prefix; q < i.prefix + i.prefixes; q++) {
 				p =  frag_more (1);
 				nopbytes += 1;
 				md_number_to_chars (p, (unsigned int) *q, 1);
 			}
-			
+
 			/* Now the opcode; be careful about word order here! */
 			if (fits_in_unsigned_byte(t->base_opcode)) {
 				nopbytes += 1;
@@ -1224,7 +1224,7 @@ char *line;
 				*p++ = (t->base_opcode >>  8) & 0xff;
 				*p =   (t->base_opcode      ) & 0xff;
 			}
-			
+
 			/* Now the modrm byte and base index byte (if present). */
 			if (t->opcode_modifier & Modrm) {
 				p =  frag_more (1);
@@ -1240,10 +1240,10 @@ char *line;
 					md_number_to_chars (p,(i.bi.base<<0 | i.bi.index<<3 | i.bi.scale<<6), 1);
 				}
 			}
-			
+
 			if (i.disp_operands) {
 				register unsigned int n;
-				
+
 				for (n = 0; n < i.operands; n++) {
 					if (i.disps[n]) {
 						if (i.disps[n]->X_seg == SEG_ABSOLUTE) {
@@ -1274,11 +1274,11 @@ char *line;
 					}
 				}
 			}				/* end displacement output */
-			
+
 			/* output immediate */
 			if (i.imm_operands) {
 				register unsigned int n;
-				
+
 				for (n = 0; n < i.operands; n++) {
 					if (i.imms[n]) {
 						if (i.imms[n]->X_seg == SEG_ABSOLUTE) {
@@ -1317,13 +1317,13 @@ char *line;
 				}
 			}				/* end immediate output */
 		}
-		
+
 #ifdef DEBUG386
 		if (flagseen['D']) {
 			pi (line, &i);
 		}
 #endif /* DEBUG386 */
-		
+
 	}
 	return;
 }
@@ -1335,21 +1335,21 @@ static int i386_operand (operand_string)
 char *operand_string;
 {
 	register char *op_string = operand_string;
-	
+
 	/* Address of '\0' at end of operand_string. */
 	char * end_of_operand_string = operand_string + strlen(operand_string);
-	
+
 	/* Start and end of displacement string expression (if found). */
 	char *displacement_string_start = NULL;
 	char *displacement_string_end = NULL;
-	
+
 	/* We check for an absolute prefix (differentiating,
 	   for example, 'jmp pc_relative_label' from 'jmp *absolute_label'. */
 	if (*op_string == ABSOLUTE_PREFIX) {
 		op_string++;
 		i.types[this_operand] |= JumpAbsolute;
 	}
-	
+
 	/* Check if operand is a register. */
 	if (*op_string == REGISTER_PREFIX) {
 		register reg_entry *r;
@@ -1451,14 +1451,14 @@ char *operand_string;
 		/* This is a memory reference of some sort. */
 		register char * base_string;
 		unsigned int found_base_index_form;
-		
+
 	do_memory_reference:
 		if (i.mem_operands == MAX_MEMORY_OPERANDS) {
 			as_bad("more than 1 memory reference in instruction");
 			return 0;
 		}
 		i.mem_operands++;
-		
+
 		/* Determine type of memory operand from opcode_suffix;
 		   no opcode suffix implies general memory references. */
 		switch (i.suffix) {
@@ -1472,7 +1472,7 @@ char *operand_string;
 		default:
 			i.types[this_operand] |= Mem32;
 		}
-		
+
 		/*  Check for base index form.  We detect the base index form by
 		    looking for an ')' at the end of the operand, searching
 		    for the '(' matching it, and finding a REGISTER_PREFIX or ','
@@ -1492,7 +1492,7 @@ char *operand_string;
 			if (*base_string == REGISTER_PREFIX || *base_string == ',')
 			    found_base_index_form = 1;
 		}
-		
+
 		/* If we can't parse a base index register expression, we've found
 		   a pure displacement expression.  We set up displacement_string_start
 		   and displacement_string_end for the code below. */
@@ -1502,15 +1502,15 @@ char *operand_string;
 		} else {
 			char *base_reg_name, *index_reg_name, *num_string;
 			int num;
-			
+
 			i.types[this_operand] |= BaseIndex;
-			
+
 			/* If there is a displacement set-up for it to be parsed later. */
 			if (base_string != op_string + 1) {
 				displacement_string_start = op_string;
 				displacement_string_end = base_string - 1;
 			}
-			
+
 			/* Find base register (if any). */
 			if (*base_string != ',') {
 				base_reg_name = base_string++;
@@ -1528,7 +1528,7 @@ char *operand_string;
 				}
 				RESTORE_END_STRING (base_string);
 			}
-			
+
 			/* Now check seperator; must be ',' ==> index reg
 			   OR num ==> no index reg. just scale factor
 			   OR ')' ==> end. (scale factor = 1) */
@@ -1537,7 +1537,7 @@ char *operand_string;
 				       operand_string);
 				return 0;
 			}
-			
+
 			/* There may index reg here; and there may be a scale factor. */
 			if (*base_string == ',' && *(base_string+1) == REGISTER_PREFIX) {
 				index_reg_name = ++base_string;
@@ -1549,7 +1549,7 @@ char *operand_string;
 				}
 				RESTORE_END_STRING (base_string);
 			}
-			
+
 			/* Check for scale factor. */
 			if (*base_string == ',' && isdigit(*(base_string+1))) {
 				num_string = ++base_string;
@@ -1582,7 +1582,7 @@ char *operand_string;
 				}
 			}
 		}
-		
+
 		/* If there's an expression begining the operand, parse it,
 		   assuming displacement_string_start and displacement_string_end
 		   are meaningful. */
@@ -1689,7 +1689,7 @@ char *operand_string;
 				goto seg_unimplemented;
 			}
 		}
-		
+
 		/* Make sure the memory operand we've been dealt is valid. */
 		if (i.base_reg && i.index_reg &&
 		    ! (i.base_reg->reg_type & i.index_reg->reg_type & Reg)) {
@@ -1740,7 +1740,7 @@ register segT	segment;
 {
 	register unsigned char *	opcode;
 	register int		old_fr_fix;
-	
+
 	old_fr_fix = fragP->fr_fix;
 	opcode = (unsigned char *) fragP->fr_opcode;
 	/* We've already got fragP->fr_subtype right;  all we have to do is check
@@ -1764,7 +1764,7 @@ register segT	segment;
 #endif
 				 NO_RELOC, (symbolS *)0);
 			break;
-			
+
 		default:
 			/* This changes the byte-displacement jump 0x7N -->
 			   the dword-displacement jump 0x0f8N */
@@ -1809,18 +1809,18 @@ register fragS *	fragP;
 	unsigned int opcode_address;
 	unsigned int extension = 0;
 	int displacement_from_opcode_start;
-	
+
 	opcode = (unsigned char *) fragP->fr_opcode;
-	
+
 	/* Address we want to reach in file space. */
 	target_address = S_GET_VALUE(fragP->fr_symbol) + fragP->fr_offset;
-	
+
 	/* Address opcode resides at in file space. */
 	opcode_address = fragP->fr_address + fragP->fr_fix;
-	
+
 	/* Displacement from opcode start to fill into instruction. */
 	displacement_from_opcode_start = target_address - opcode_address;
-	
+
 	switch (fragP->fr_subtype) {
 	case ENCODE_RELAX_STATE (COND_JUMP, BYTE):
     case ENCODE_RELAX_STATE (UNCOND_JUMP, BYTE):
@@ -1828,7 +1828,7 @@ register fragS *	fragP;
 	extension = 1;		/* 1 opcode + 1 displacement */
 	where_to_put_displacement = &opcode[1];
 	break;
-	
+
  case ENCODE_RELAX_STATE (COND_JUMP, WORD):
      opcode[1] = TWO_BYTE_OPCODE_ESCAPE;
 	opcode[2] = opcode[0] + 0x10;
@@ -1836,27 +1836,27 @@ register fragS *	fragP;
 	extension = 4;		/* 3 opcode + 2 displacement */
 	where_to_put_displacement = &opcode[3];
 	break;
-	
+
  case ENCODE_RELAX_STATE (UNCOND_JUMP, WORD):
      opcode[1] = 0xe9;
 	opcode[0] = WORD_PREFIX_OPCODE;
 	extension = 3;		/* 2 opcode + 2 displacement */
 	where_to_put_displacement = &opcode[2];
 	break;
-	
+
  case ENCODE_RELAX_STATE (COND_JUMP, DWORD):
      opcode[1] = opcode[0] + 0x10;
 	opcode[0] = TWO_BYTE_OPCODE_ESCAPE;
 	extension = 5;		/* 2 opcode + 4 displacement */
 	where_to_put_displacement = &opcode[2];
 	break;
-	
+
  case ENCODE_RELAX_STATE (UNCOND_JUMP, DWORD):
      opcode[0] = 0xe9;
 	extension = 4;		/* 1 opcode + 4 displacement */
 	where_to_put_displacement = &opcode[1];
 	break;
-	
+
  default:
 	BAD_CASE(fragP->fr_subtype);
 	break;
@@ -1880,7 +1880,7 @@ fragS *frag;
 symbolS *to_symbol;
 {
 	long offset;
-	
+
 	offset = to_addr - (from_addr + 2);
 	md_number_to_chars (ptr, (long) 0xeb, 1); /* opcode for byte-disp jump */
 	md_number_to_chars (ptr + 1, offset, 1);
@@ -1893,7 +1893,7 @@ fragS	*frag;
 symbolS	*to_symbol;
 {
 	long offset;
-	
+
 	if (flagseen['m']) {
 		offset = to_addr - S_GET_VALUE(to_symbol);
 		md_number_to_chars (ptr, 0xe9, 1); /* opcode for long jmp */
@@ -1944,7 +1944,7 @@ long	value;		/* The value of the bits. */
 int	nbytes;		/* Number of bytes in the output. */
 {
 	register char * p = con;
-	
+
 	switch (nbytes) {
 	case 1:
 		p[0] = value & 0xff;
@@ -1966,8 +1966,8 @@ int	nbytes;		/* Number of bytes in the output. */
 
 
 /* Apply a fixup (fixS) to segment data, once it has been determined
-   by our caller that we have all the info we need to fix it up. 
-   
+   by our caller that we have all the info we need to fix it up.
+
    On the 386, immediates, displacements, and data pointers are all in
    the same (little-endian) format, so we don't need to care about which
    we are handling.  */
@@ -1978,7 +1978,7 @@ fixS * fixP;		/* The fix we're to put in */
 long	value;		/* The value of the bits. */
 {
 	register char * p = fixP->fx_where + fixP->fx_frag->fr_literal;
-	
+
 	switch (fixP->fx_size) {
 	case 1:
 		*p = value;
@@ -2012,7 +2012,7 @@ int	nbytes;		/* Number of bytes in the input. */
 	return retval;
 }
 
-/* Not needed for coff since relocation structure does not 
+/* Not needed for coff since relocation structure does not
    contain bitfields. */
 #if defined(OBJ_AOUT) | defined(OBJ_BOUT)
 #ifdef comment
@@ -2028,8 +2028,8 @@ struct reloc_info_generic *ri;
 	the_bytes[6] = (ri->r_symbolnum >> 16) & 0x0ff;
 	the_bytes[5] = (ri->r_symbolnum >> 8) & 0x0ff;
 	the_bytes[4] = ri->r_symbolnum & 0x0ff;
-	the_bytes[7] = (((ri->r_extern << 3)  & 0x08) | ((ri->r_length << 1) & 0x06) | 
-			((ri->r_pcrel << 0)  & 0x01)) & 0x0F; 
+	the_bytes[7] = (((ri->r_extern << 3)  & 0x08) | ((ri->r_length << 1) & 0x06) |
+			((ri->r_pcrel << 0)  & 0x01)) & 0x0F;
 }
 #endif /* comment */
 
@@ -2042,20 +2042,20 @@ relax_addressT segment_address_in_file;
 	 * In: length of relocation (or of address) in chars: 1, 2 or 4.
 	 * Out: GNU LD relocation length code: 0, 1, or 2.
 	 */
-	
+
 	static unsigned char nbytes_r_length[] = { 42, 0, 1, 42, 2 };
 	long r_symbolnum;
-	
+
 	know(fixP->fx_addsy != NULL);
-	
+
 	md_number_to_chars(where,
 			   fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
-	
+
 #ifdef PIC
 	{
 	int	extra_bits = 0;
@@ -2113,7 +2113,7 @@ relax_addressT segment_address_in_file;
 		    | ((nbytes_r_length[fixP->fx_size] << 1) & 0x06)
 		    | (((fixP->fx_pcrel << 0) & 0x01) & 0x0f));
 #endif
-	
+
 	return;
 } /* tc_aout_fix_to_chars() */
 
@@ -2136,23 +2136,23 @@ int *sizeP;
 	LITTLENUM_TYPE words[MAX_LITTLENUMS];
 	LITTLENUM_TYPE *wordP;
 	char	*t;
-	
+
 	switch (type) {
 	case 'f':
 	case 'F':
 		prec = 2;
 		break;
-		
+
 	case 'd':
 	case 'D':
 		prec = 4;
 		break;
-		
+
 	case 'x':
 	case 'X':
 		prec = 5;
 		break;
-		
+
 	default:
 		*sizeP=0;
 		return "Bad call to md_atof ()";
@@ -2160,7 +2160,7 @@ int *sizeP;
 	t = atof_ieee (input_line_pointer,type,words);
 	if (t)
 	    input_line_pointer=t;
-	
+
 	*sizeP = prec * sizeof(LITTLENUM_TYPE);
 	/* this loops outputs the LITTLENUMs in REVERSE order; in accord with
 	   the bigendian 386 */
@@ -2187,7 +2187,7 @@ char *reg_string;          /* reg_string starts *before* REGISTER_PREFIX */
 	register char *s = reg_string;
 	register char *p;
 	char reg_name_given[MAX_REG_NAME_SIZE];
-	
+
 	s++;				/* skip REGISTER_PREFIX */
 	for (p = reg_name_given; is_register_char (*s); p++, s++) {
 		*p = register_chars[*s];
@@ -2219,7 +2219,7 @@ char *name;
 	return 0;
 }
 
-/* Parse an operand that is machine-specific.  
+/* Parse an operand that is machine-specific.
    We just return without modifying the expression if we have nothing
    to do.  */
 
@@ -2328,7 +2328,7 @@ static void s_bss()
   subseg_new (SEG_BSS, (subsegT)temp);
   demand_empty_rest_of_line();
 }
-  
+
 /*
  * Local Variables:
  * comment-column: 0

@@ -137,7 +137,7 @@ remember_protocol_qualifiers ()
     else if (wordlist[i].rid == RID_BYCOPY)
       wordlist[i].name = "bycopy";
     else if (wordlist[i].rid == RID_ONEWAY)
-      wordlist[i].name = "oneway";   
+      wordlist[i].name = "oneway";
 }
 
 void
@@ -878,7 +878,7 @@ struct try_type
   char long_long_flag;
 };
 
-struct try_type type_sequence[] = 
+struct try_type type_sequence[] =
 {
   { &integer_type_node, 0, 0, 0},
   { &unsigned_type_node, 1, 0, 0},
@@ -1073,7 +1073,7 @@ yylex ()
 		   && TREE_CODE (DECL_INITIAL (lastiddecl)) == STRING_CST)
 	    {
 	      tree stringval = DECL_INITIAL (lastiddecl);
-	      
+
 	      /* Copy the string value so that we won't clobber anything
 		 if we put something in the TREE_CHAIN of this one.  */
 	      yylval.ttype = build_string (TREE_STRING_LENGTH (stringval),
@@ -1525,7 +1525,7 @@ yylex ()
 			 << (i * HOST_BITS_PER_CHAR));
 		low |= (HOST_WIDE_INT) parts[i] << (i * HOST_BITS_PER_CHAR);
 	      }
-	    
+
 	    yylval.ttype = build_int_2 (low, high);
 	    TREE_TYPE (yylval.ttype) = long_long_unsigned_type_node;
 

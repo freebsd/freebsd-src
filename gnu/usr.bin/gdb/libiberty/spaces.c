@@ -32,7 +32,7 @@ DESCRIPTION
 	Returns a pointer to a memory region filled with the specified
 	number of spaces and null terminated.  The returned pointer is
 	valid until at least the next call.
-	
+
 BUGS
 
 */

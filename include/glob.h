@@ -57,7 +57,7 @@ typedef struct {
 	 * and lstat(2).
 	 */
 	void (*gl_closedir) __P((void *));
-	struct dirent *(*gl_readdir) __P((void *));	
+	struct dirent *(*gl_readdir) __P((void *));
 	void *(*gl_opendir) __P((const char *));
 	int (*gl_lstat) __P((const char *, struct stat *));
 	int (*gl_stat) __P((const char *, struct stat *));

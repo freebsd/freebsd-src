@@ -4,17 +4,17 @@
    Copyright (C) 1989-1992 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -861,7 +861,7 @@ get_vec9 (param, valp)
 
   return param;
 }
-  
+
 #define hexval(z) \
   (isdigit (z) ? (z) - '0' :						\
    islower (z) ? (z) - 'a' + 10 : 					\
@@ -1018,33 +1018,33 @@ fixS *fixP;
 long val;
 {
 	char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-	
+
 	fixP->fx_addnumber = val;
-	
-	
+
+
 	switch (fixP->fx_r_type) {
-		
+
 	case RELOC_IW16:
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_LO16:
 		buf[0] = val >> 8;
 		buf[1] = val;
 		break;
-		
+
 	case RELOC_HI16:
 		buf[0] = val >> 24;
 		buf[1] = val >> 16;
 		break;
-		
+
 	case RELOC_PC16:
 		val += 4;
 		buf[0] = val >> 10;
 		buf[1] = val >> 2;
 		break;
-		
+
 	case RELOC_PC26:
 		val += 4;
 		buf[0] |= (val >> 26) & 0x03;
@@ -1052,14 +1052,14 @@ long val;
 		buf[2] = val >> 10;
 		buf[3] = val >> 2;
 		break;
-		
+
 	case RELOC_32:
 		buf[0] = val >> 24;
 		buf[1] = val >> 16;
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case NO_RELOC:
 		switch (fixP->fx_size) {
 		case 4:
@@ -1070,16 +1070,16 @@ long val;
 		case 1:
 			*buf = val;
 			break;
-			
+
 		default:
 			abort ();
 		}
-		
+
 	default:
 		as_bad("bad relocation type: 0x%02x", fixP->fx_r_type);
 		break;
 	}
-	
+
 	return;
 } /* md_apply_fix() */
 
@@ -1267,7 +1267,7 @@ emit_relocations (fixP, segment_address_in_file)
 	    ri.r_type = fixP->fx_r_type;
 	    if (fixP->fx_pcrel) {
 /*		ri.r_addend -= fixP->fx_where;          */
-		ri.r_addend -= ri.r_address;            
+		ri.r_addend -= ri.r_address;
 	    } else {
 		ri.r_addend = fixP->fx_addnumber;
 	    }
@@ -1281,7 +1281,7 @@ emit_relocations (fixP, segment_address_in_file)
 #endif /* comment */
 
 /* Translate internal representation of relocation info to target format.
-   
+
    On m88k: first 4 bytes are normal unsigned long address,
    next three bytes are index, most sig. byte first.
    Byte 7 is broken up with bit 7 as external,
@@ -1298,9 +1298,9 @@ relax_addressT segment_address_in_file;
 	long r_extern;
 	long r_addend = 0;
 	long r_address;
-	
+
 	know(fixP->fx_addsy);
-	
+
 	if (!S_IS_DEFINED(fixP->fx_addsy)) {
 		r_extern = 1;
 		r_index = fixP->fx_addsy->sy_number;
@@ -1308,31 +1308,31 @@ relax_addressT segment_address_in_file;
 		r_extern = 0;
 		r_index = S_GET_TYPE(fixP->fx_addsy);
 	}
-	
+
 	/* this is easy */
 	md_number_to_chars(where,
 			   r_address = fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	/* now the fun stuff */
 	where[4] = (r_index >> 16) & 0x0ff;
 	where[5] = (r_index >> 8) & 0x0ff;
 	where[6] = r_index & 0x0ff;
 	where[7] = ((r_extern << 7)  & 0x80) | (0 & 0x70) | (fixP->fx_r_type & 0xf);
-	
+
 	/* Also easy */
 	if (fixP->fx_addsy->sy_frag) {
 		r_addend = fixP->fx_addsy->sy_frag->fr_address;
 	}
-	
+
 	if (fixP->fx_pcrel) {
 		r_addend -= r_address;
 	} else {
 		r_addend = fixP->fx_addnumber;
 	}
-	
+
 	md_number_to_chars(&where[8], r_addend, 4);
-	
+
 	return;
 } /* tc_aout_fix_to_chars() */
 

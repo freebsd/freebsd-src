@@ -37,7 +37,7 @@ ParseInput(dw)
 	    push_env (dw);
 	for (;;) {
 		switch (DviGetC(dw, &c)) {
-		case '\n':	
+		case '\n':
 			break;
 		case ' ':	/* when input is text */
 		case 0:		/* occasional noise creeps in */
@@ -206,13 +206,13 @@ char		*buf;
 	int v[DRAW_ARGS_MAX];
 	int i;
 	char *ptr;
-	
+
 	v[0] = v[1] = v[2] = v[3] = 0;
-	
+
 	if (buf[0] == '\0')
 		return;
 	ptr = buf+1;
-	
+
 	for (i = 0; i < DRAW_ARGS_MAX; i++) {
 		if (sscanf(ptr, "%d", v + i) != 1)
 			break;
@@ -221,7 +221,7 @@ char		*buf;
 		while (*ptr != '\0' && *ptr != ' ')
 			ptr++;
 	}
-	
+
 	switch (buf[0]) {
 	case 'l':				/* draw a line */
 		DrawLine(dw, v[0], v[1]);
@@ -263,7 +263,7 @@ char		*buf;
 #endif
 		break;
 	}
-	
+
 	if (buf[0] == 'e') {
 		if (i > 0)
 			dw->dvi.state->x += v[0];
@@ -276,7 +276,7 @@ char		*buf;
 				dw->dvi.state->x += v[i];
 		}
 	}
-} 
+}
 
 static
 ParseDeviceControl(dw)				/* Parse the x commands */

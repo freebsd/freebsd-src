@@ -149,8 +149,8 @@ write_out_header (file_hdr, out_des)
 	{
 	  switch (file_hdr->c_mode & CP_IFMT)
 	    {
-	      /* HP/UX cpio creates archives that look just like ordinary 
-		 archives, but for devices it sets major = 0, minor = 1, and 
+	      /* HP/UX cpio creates archives that look just like ordinary
+		 archives, but for devices it sets major = 0, minor = 1, and
 		 puts the actual major/minor number in the filesize field.  */
 	      case CP_IFCHR:
 	      case CP_IFBLK:
@@ -165,7 +165,7 @@ write_out_header (file_hdr, out_des)
 		short_hdr.c_rdev = makedev (0, 1);
 		break;
 	      default:
-		short_hdr.c_rdev = makedev (file_hdr->c_rdev_maj, 
+		short_hdr.c_rdev = makedev (file_hdr->c_rdev_maj,
 					    file_hdr->c_rdev_min);
 		break;
 	    }
@@ -431,7 +431,7 @@ process_copy_out ()
 						    file_hdr.c_dev_maj,
 						    file_hdr.c_dev_min)))
 		    {
-		      /* This file is linked to another file already in the 
+		      /* This file is linked to another file already in the
 		         archive, so write it out as a hard link. */
 		      file_hdr.c_mode = (file_stat.st_mode & 07777);
 		      file_hdr.c_mode |= CP_IFREG;
@@ -439,7 +439,7 @@ process_copy_out ()
 		      write_out_header (&file_hdr, out_file_des);
 		      break;
 		    }
-		  add_inode (file_hdr.c_ino, file_hdr.c_name, 
+		  add_inode (file_hdr.c_ino, file_hdr.c_name,
 			     file_hdr.c_dev_maj, file_hdr.c_dev_min);
 		}
 	      file_hdr.c_filesize = 0;
@@ -719,7 +719,7 @@ writeout_other_defers (file_hdr, out_des)
 /* When writing newc and crc format archives we defer multiply linked
    files until we have seen all of the links to the file.  If a file
    has links to it that aren't going into the archive, then we will
-   never see the "last" link to the file, so at the end we just write 
+   never see the "last" link to the file, so at the end we just write
    all of the leftover defered files into the archive.  */
 
 static void

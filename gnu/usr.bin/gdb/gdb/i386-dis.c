@@ -28,7 +28,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * of the "Opcode Map" chapter (Appendix A) of the Intel 80386
  * Programmers Manual.  Usually, there is a capital letter, followed
  * by a small letter.  The capital letter tell the addressing mode,
- * and the small letter tells about the operand size.  Refer to 
+ * and the small letter tells about the operand size.  Refer to
  * the Intel manual for details.
  */
 
@@ -515,83 +515,83 @@ struct dis386 dis386_twobyte[] = {
   { GRP6 },
   { GRP7 },
   { "larS", Gv, Ew },
-  { "lslS", Gv, Ew },  
+  { "lslS", Gv, Ew },
   { "(bad)" },
   { "(bad)" },
   { "clts" },
-  { "(bad)" },  
+  { "(bad)" },
   /* 08 */
   { "invd" },
   { "wbinvd" },
-  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 10 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 18 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 20 */
   /* these are all backward in appendix A of the intel book */
   { "movl", Rd, Cd },
   { "movl", Rd, Dd },
   { "movl", Cd, Rd },
-  { "movl", Dd, Rd },  
+  { "movl", Dd, Rd },
   { "movl", Rd, Td },
   { "(bad)" },
   { "movl", Td, Rd },
-  { "(bad)" },  
+  { "(bad)" },
   /* 28 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 30 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 38 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 40 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 48 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 50 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 58 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 60 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 68 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 70 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 78 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* 80 */
   { "jo", Jv },
   { "jno", Jv },
   { "jb", Jv },
-  { "jae", Jv },  
+  { "jae", Jv },
   { "je", Jv },
   { "jne", Jv },
   { "jbe", Jv },
-  { "ja", Jv },  
+  { "ja", Jv },
   /* 88 */
   { "js", Jv },
   { "jns", Jv },
   { "jp", Jv },
-  { "jnp", Jv },  
+  { "jnp", Jv },
   { "jl", Jv },
   { "jge", Jv },
   { "jle", Jv },
-  { "jg", Jv },  
+  { "jg", Jv },
   /* 90 */
   { "seto", Eb },
   { "setno", Eb },
@@ -609,48 +609,48 @@ struct dis386 dis386_twobyte[] = {
   { "setl", Eb },
   { "setge", Eb },
   { "setle", Eb },
-  { "setg", Eb },  
+  { "setg", Eb },
   /* a0 */
   { "pushl", fs },
   { "popl", fs },
   { "(bad)" },
-  { "btS", Ev, Gv },  
+  { "btS", Ev, Gv },
   { "shldS", Ev, Gv, Ib },
   { "shldS", Ev, Gv, CL },
   { "(bad)" },
-  { "(bad)" },  
+  { "(bad)" },
   /* a8 */
   { "pushl", gs },
   { "popl", gs },
   { "(bad)" },
-  { "btsS", Ev, Gv },  
+  { "btsS", Ev, Gv },
   { "shrdS", Ev, Gv, Ib },
   { "shrdS", Ev, Gv, CL },
   { "(bad)" },
-  { "imulS", Gv, Ev },  
+  { "imulS", Gv, Ev },
   /* b0 */
   { "cmpxchgb", Eb, Gb },
   { "cmpxchgS", Ev, Gv },
   { "lssS", Gv, Mp },	/* 386 lists only Mp */
-  { "btrS", Ev, Gv },  
+  { "btrS", Ev, Gv },
   { "lfsS", Gv, Mp },	/* 386 lists only Mp */
   { "lgsS", Gv, Mp },	/* 386 lists only Mp */
   { "movzbS", Gv, Eb },
-  { "movzwS", Gv, Ew },  
+  { "movzwS", Gv, Ew },
   /* b8 */
   { "(bad)" },
   { "(bad)" },
   { GRP8 },
-  { "btcS", Ev, Gv },  
+  { "btcS", Ev, Gv },
   { "bsfS", Gv, Ev },
   { "bsrS", Gv, Ev },
   { "movsbS", Gv, Eb },
-  { "movswS", Gv, Ew },  
+  { "movswS", Gv, Ew },
   /* c0 */
   { "xaddb", Eb, Gb },
   { "xaddS", Ev, Gv },
-  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* c8 */
   { "bswap", eAX },
   { "bswap", eCX },
@@ -661,23 +661,23 @@ struct dis386 dis386_twobyte[] = {
   { "bswap", eSI },
   { "bswap", eDI },
   /* d0 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* d8 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* e0 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* e8 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* f0 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
   /* f8 */
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
-  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },  
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
+  { "(bad)" },  { "(bad)" },  { "(bad)" },  { "(bad)" },
 };
 
 static char obuf[100];
@@ -951,7 +951,7 @@ ckprefix ()
 }
 
 static int dflag;
-static int aflag;		
+static int aflag;
 
 static char op1out[100], op2out[100], op3out[100];
 static int op_address[3], op_ad, op_index[3];
@@ -977,7 +977,7 @@ print_insn_i386 (pc, info)
   int enter_instruction;
   char *first, *second, *third;
   int needcomma;
-  
+
   struct dis_private priv;
   bfd_byte *inbuf = priv.the_buffer;
 
@@ -999,7 +999,7 @@ print_insn_i386 (pc, info)
   start_pc = pc;
   start_codep = inbuf;
   codep = inbuf;
-  
+
   ckprefix ();
 
   FETCH_DATA (info, codep + 1);
@@ -1007,16 +1007,16 @@ print_insn_i386 (pc, info)
     enter_instruction = 1;
   else
     enter_instruction = 0;
-  
+
   obufp = obuf;
-  
+
   if (prefixes & PREFIX_REPZ)
     oappend ("repz ");
   if (prefixes & PREFIX_REPNZ)
     oappend ("repnz ");
   if (prefixes & PREFIX_LOCK)
     oappend ("lock ");
-  
+
   if ((prefixes & PREFIX_FWAIT)
       && ((*codep < 0xd8) || (*codep > 0xdf)))
     {
@@ -1024,20 +1024,20 @@ print_insn_i386 (pc, info)
       (*info->fprintf_func) (info->stream, "fwait");
       return (1);
     }
-  
+
   /* these would be initialized to 0 if disassembling for 8086 or 286 */
   dflag = 1;
   aflag = 1;
-  
+
   if (prefixes & PREFIX_DATA)
     dflag ^= 1;
-  
+
   if (prefixes & PREFIX_ADR)
     {
       aflag ^= 1;
       oappend ("addr16 ");
     }
-  
+
   if (*codep == 0x0f)
     {
       FETCH_DATA (info, codep + 2);
@@ -1065,34 +1065,34 @@ print_insn_i386 (pc, info)
     {
       if (dp->name == NULL)
 	dp = &grps[dp->bytemode1][reg];
-      
+
       putop (dp->name);
-      
+
       obufp = op1out;
       op_ad = 2;
       if (dp->op1)
 	(*dp->op1)(dp->bytemode1);
-      
+
       obufp = op2out;
       op_ad = 1;
       if (dp->op2)
 	(*dp->op2)(dp->bytemode2);
-      
+
       obufp = op3out;
       op_ad = 0;
       if (dp->op3)
 	(*dp->op3)(dp->bytemode3);
     }
-  
+
   obufp = obuf + strlen (obuf);
   for (i = strlen (obuf); i < 6; i++)
     oappend (" ");
   oappend (" ");
   (*info->fprintf_func) (info->stream, "%s", obuf);
-  
+
   /* enter instruction is printed with operands in the
    * same order as the intel book; everything else
-   * is printed in reverse order 
+   * is printed in reverse order
    */
   if (enter_instruction)
     {
@@ -1374,9 +1374,9 @@ dofloat ()
 {
   struct dis386 *dp;
   unsigned char floatop;
-  
+
   floatop = codep[-1];
-  
+
   if (mod != 3)
     {
       putop (float_mem[(floatop - 0xd8) * 8 + reg]);
@@ -1385,7 +1385,7 @@ dofloat ()
       return;
     }
   codep++;
-  
+
   dp = &float_reg[floatop - 0xd8][reg];
   if (dp->name == NULL)
     {
@@ -1434,7 +1434,7 @@ putop (template)
      char *template;
 {
   char *p;
-  
+
   for (p = template; *p; p++)
     {
       switch (*p)
@@ -1507,14 +1507,14 @@ OP_E (bytemode)
   int index;
   int scale;
   int havebase;
-  
+
   /* skip mod/rm byte */
   codep++;
-  
+
   havesib = 0;
   havebase = 0;
   disp = 0;
-  
+
   if (mod == 3)
     {
       switch (bytemode)
@@ -1537,7 +1537,7 @@ OP_E (bytemode)
 	}
       return (0);
     }
-  
+
   append_prefix ();
   if (rm == 4)
     {
@@ -1549,7 +1549,7 @@ OP_E (bytemode)
       base = *codep & 7;
       codep++;
     }
-  
+
   switch (mod)
     {
     case 0:
@@ -1589,21 +1589,21 @@ OP_E (bytemode)
 	}
       break;
     }
-  
+
   if (mod != 0 || rm == 5 || (havesib && base == 5))
     {
       sprintf (scratchbuf, "0x%x", disp);
       oappend (scratchbuf);
     }
-  
-  if (havebase || havesib) 
+
+  if (havebase || havesib)
     {
       oappend ("(");
       if (havebase)
 	oappend (names32[base]);
-      if (havesib) 
+      if (havesib)
 	{
-	  if (index != 4) 
+	  if (index != 4)
 	    {
 	      sprintf (scratchbuf, ",%s", names32[index]);
 	      oappend (scratchbuf);
@@ -1620,7 +1620,7 @@ int
 OP_G (bytemode)
      int bytemode;
 {
-  switch (bytemode) 
+  switch (bytemode)
     {
     case b_mode:
       oappend (names8[reg]);
@@ -1681,8 +1681,8 @@ OP_REG (code)
      int code;
 {
   char *s;
-  
-  switch (code) 
+
+  switch (code)
     {
     case indir_dx_reg: s = "(%dx)"; break;
 	case ax_reg: case cx_reg: case dx_reg: case bx_reg:
@@ -1717,8 +1717,8 @@ OP_I (bytemode)
      int bytemode;
 {
   int op;
-  
-  switch (bytemode) 
+
+  switch (bytemode)
     {
     case b_mode:
       FETCH_DATA (the_info, codep + 1);
@@ -1747,8 +1747,8 @@ OP_sI (bytemode)
      int bytemode;
 {
   int op;
-  
-  switch (bytemode) 
+
+  switch (bytemode)
     {
     case b_mode:
       FETCH_DATA (the_info, codep + 1);
@@ -1778,8 +1778,8 @@ OP_J (bytemode)
 {
   int disp;
   int mask = -1;
-  
-  switch (bytemode) 
+
+  switch (bytemode)
     {
     case b_mode:
       FETCH_DATA (the_info, codep + 1);
@@ -1826,16 +1826,16 @@ OP_DIR (size)
      int size;
 {
   int seg, offset;
-  
-  switch (size) 
+
+  switch (size)
     {
     case lptr:
-      if (aflag) 
+      if (aflag)
 	{
 	  offset = get32 ();
 	  seg = get16 ();
-	} 
-      else 
+	}
+      else
 	{
 	  offset = get16 ();
 	  seg = get16 ();
@@ -1848,7 +1848,7 @@ OP_DIR (size)
 	offset = get32 ();
       else
 	offset = (short)get16 ();
-      
+
       offset = start_pc + codep - start_codep + offset;
       set_op (offset);
       sprintf (scratchbuf, "0x%x", offset);
@@ -1867,12 +1867,12 @@ OP_OFF (bytemode)
      int bytemode;
 {
   int off;
-  
+
   if (aflag)
     off = get32 ();
   else
     off = get16 ();
-  
+
   sprintf (scratchbuf, "0x%x", off);
   oappend (scratchbuf);
   return (0);
@@ -1946,7 +1946,7 @@ int
 OP_rm (bytemode)
      int bytemode;
 {
-  switch (bytemode) 
+  switch (bytemode)
     {
     case d_mode:
       oappend (names32[rm]);

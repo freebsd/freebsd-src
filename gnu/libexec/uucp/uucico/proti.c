@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char proti_rcsid[] = "$Id: proti.c,v 1.29 1994/03/26 03:39:05 ian Rel $";
+const char proti_rcsid[] = "$Id: proti.c,v 1.2 1994/05/07 18:13:48 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -866,7 +866,7 @@ fisenddata (qdaemon, zdata, cdata, ilocal, iremote, ipos)
 
   DEBUG_MESSAGE4 (DEBUG_PROTO,
 		  "fisenddata: Sending packet %d size %d local %d remote %d",
-		  iIsendseq, (int) cdata, ilocal, iremote);		  
+		  iIsendseq, (int) cdata, ilocal, iremote);
 
   iIsendseq = INEXTSEQ (iIsendseq);
   ++cIsent_packets;
@@ -1535,7 +1535,7 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 
     case NAK:
       /* We must resend the requested packet.  */
-      {      
+      {
 	int iseq;
 	char *zsend;
 	size_t clen;
@@ -1598,7 +1598,7 @@ fiprocess_packet (qdaemon, zhdr, zfirst, cfirst, zsecond, csecond, pfexit)
 		zsend[IHDR_CHECK] = IHDRCHECK_VAL (zsend);
 		iIlocal_ack = iIrecseq;
 	      }
-	      
+
 	    ++cIresent_packets;
 
 	    clen = CHDRCON_GETBYTES (zsend[IHDR_CONTENTS1],

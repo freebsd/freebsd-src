@@ -666,7 +666,7 @@ strerror (errnoval)
       /* In range, and a valid message.  Just return the message. */
       msg = (char *) sys_errlist[errnoval];
     }
-  
+
   return (msg);
 }
 

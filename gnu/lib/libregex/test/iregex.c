@@ -42,7 +42,7 @@ main (argc, argv)
 
       /* Some C compilers don't like `char pat[500] = ""'.  */
       pat[0] = 0;
-      
+
       printf ("Pattern (%s) = ", pat);
       gets (pat);
       scanstring (pat);
@@ -71,7 +71,7 @@ main (argc, argv)
       if (i >= 0)
         print_regs (regs);
       putchar ('\n');
-      
+
       i = re_search (&buf, str, strlen (str), 0, strlen (str), &regs);
       printf ("Search value %d.\t", i);
       if (i >= 0)
@@ -144,7 +144,7 @@ print_regs (regs)
   int i, end;
 
   printf ("Registers: ");
-  
+
   if (regs.num_regs == 0 || regs.start[0] == -1)
     {
       printf ("(none)");

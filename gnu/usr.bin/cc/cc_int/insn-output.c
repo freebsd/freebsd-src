@@ -454,7 +454,7 @@ output_55 (operands, insn)
   if (REG_P (operands[0]) && operands[1] == const0_rtx)
     return AS2 (xor%L0,%k0,%k0);
 
-  if (REG_P (operands[0]) && operands[1] == const1_rtx 
+  if (REG_P (operands[0]) && operands[1] == const1_rtx
       && (link = find_reg_note (insn, REG_WAS_0, 0))
       /* Make sure the insn that stored the 0 is still present.  */
       && ! INSN_DELETED_P (XEXP (link, 0))
@@ -2958,7 +2958,7 @@ output_239 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return "seta %0"; 
+ return "seta %0";
 }
 
 static char *
@@ -2980,7 +2980,7 @@ output_243 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return "setb %0"; 
+ return "setb %0";
 }
 
 static char *
@@ -3002,7 +3002,7 @@ output_247 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return "setae %0"; 
+ return "setae %0";
 }
 
 static char *
@@ -3024,7 +3024,7 @@ output_251 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return "setbe %0"; 
+ return "setbe %0";
 }
 
 static char *

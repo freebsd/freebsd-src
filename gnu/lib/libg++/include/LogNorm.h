@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Dirk Grunwald (grunwald@cs.uiuc.edu)
 
@@ -19,7 +19,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #ifdef __GNUG__
 #pragma interface
 #endif
-#define _LogNormal_h 
+#define _LogNormal_h
 
 #include <Normal.h>
 
@@ -44,7 +44,7 @@ inline void LogNormal::setState()
     pMean = log(m2 / sqrt(logVariance + m2) );
 // from ch@heike.informatik.uni-dortmund.de:
 // (was   pVariance = log((sqrt(logVariance + m2)/m2 )); )
-    pStdDev = sqrt(log((logVariance + m2)/m2 )); 
+    pStdDev = sqrt(log((logVariance + m2)/m2 ));
 }
 
 inline LogNormal::LogNormal(double mean, double variance, RNG *gen)

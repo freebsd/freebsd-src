@@ -1,18 +1,18 @@
 /* coff object file format
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -28,7 +28,7 @@
 #include "bfd.h"
 #include "coff/a29k.h"
 
-/* This internal_lineno crap is to stop namespace pollution from the bfd internal 
+/* This internal_lineno crap is to stop namespace pollution from the bfd internal
    coff headerfile. */
 
 #define internal_lineno bfd_internal_lineno
@@ -45,7 +45,7 @@
   #define SYMENT struct internal_syment
   #define AUXENT union internal_auxent
   #define SCNHDR struct internal_scnhdr
-  #define LINENO struct bfd_internal_lineno 
+  #define LINENO struct bfd_internal_lineno
   #define AOUTHDR struct internal_aouthdr
   #define FILHDR struct internal_filehdr
   #define AOUTHDRSZ sizeof(struct external_aouthdr)
@@ -90,12 +90,12 @@ extern bfd *stdoutput;
 
 /* Define some processor dependent values according to the processor we are on. */
 #ifdef TC_M68K
-    
+
 #define BYTE_ORDERING		F_AR32W    /* See filehdr.h for more info. */
 #ifndef FILE_HEADER_MAGIC
 #define FILE_HEADER_MAGIC	MC68MAGIC  /* ... */
 #endif /* FILE_HEADER_MAGIC */
-    
+
 #elif defined(TC_I386)
 
 #define BYTE_ORDERING		F_AR32WR   /* See filehdr.h for more info. */
@@ -119,12 +119,12 @@ extern bfd *stdoutput;
 
 #else
 you lose
-#endif 
-    
+#endif
+
 #ifndef OBJ_COFF_MAX_AUXENTRIES
 #define OBJ_COFF_MAX_AUXENTRIES 1
 #endif /* OBJ_COFF_MAX_AUXENTRIES */
-    
+
     extern const short seg_N_TYPE[];
 extern const segT  N_TYPE_seg[];
 
@@ -161,7 +161,7 @@ typedef struct {
 
 /* Symbol table macros and constants */
 
-/* Possible and usefull section number in symbol table 
+/* Possible and usefull section number in symbol table
  * The values of TEXT, DATA and BSS may not be portable.
  */
 
@@ -215,7 +215,7 @@ typedef struct {
 /* The zeroes if symbol name is longer than 8 chars */
 #define S_GET_ZEROES(s)		((s)->sy_symbol.ost_entry.n_zeroes)
 /* The value of the symbol */
-#define S_GET_VALUE(s)		((unsigned) ((s)->sy_symbol.ost_entry.n_value))	
+#define S_GET_VALUE(s)		((unsigned) ((s)->sy_symbol.ost_entry.n_value))
 /* The numeric value of the segment */
 #define S_GET_SEGMENT(s)        (N_TYPE_seg[(s)->sy_symbol.ost_entry.n_scnum+4])
 /* The data type */
@@ -546,7 +546,7 @@ void c_section_header(
 #else
 		      SCNHDR *header,
 #endif
-		      
+
 		      char *name,
 		      long core_address,
 		      long size,

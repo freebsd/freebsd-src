@@ -122,7 +122,7 @@ int iline;
 int rr_goof;
 
 
-int 
+int
 dump_rr(struct iso_directory_record * idr){
 	int len;
 	char * pnt;
@@ -166,9 +166,9 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 		else iline += sprintf(lbuffer+iline,"[");
 		iline += sprintf(lbuffer+iline,"%c%c", pnt[0], pnt[1]);
 
-		if(pnt[0] < 'A' || pnt[0] > 'Z' || pnt[1] < 'A' || 
+		if(pnt[0] < 'A' || pnt[0] > 'Z' || pnt[1] < 'A' ||
 		   pnt[1] > 'Z') {
-			iline += sprintf(lbuffer+iline,"**BAD SUSP %d %d]", 
+			iline += sprintf(lbuffer+iline,"**BAD SUSP %d %d]",
 					 pnt[0], pnt[1], rr_goof++);
 			return flag2;
 		};
@@ -237,7 +237,7 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 				  strcat(symlink,"/");
 				slen -= (pnts[1] + 2);
 				pnts += (pnts[1] + 2);
-				
+
 		       };
 			if(symlink[0] != 0) {
 			  iline += sprintf(lbuffer+iline,"=%s", symlink);
@@ -255,7 +255,7 @@ int parse_rr(unsigned char * pnt, int len, int cont_flag)
 		};
 	};
 	if(ncount) iline += sprintf(lbuffer+iline,"]");
-	if (!cont_flag && flag1 && flag1 != flag2) 
+	if (!cont_flag && flag1 && flag1 != flag2)
 	  iline += sprintf(lbuffer+iline,"Flag %x != %x", flag1, flag2, rr_goof++);
 	return flag2;
 }
@@ -304,7 +304,7 @@ check_tree(int file_addr, int file_size, int parent_addr){
 		  size = isonum_733(idr->size);
 		  iline += sprintf(&lbuffer[iline],"%5x ", extent);
 		  iline += sprintf(&lbuffer[iline],"%8d ", size);
-		  iline += sprintf (&lbuffer[iline], "%c", (idr->flags[0] & 2) ? '*' : ' '); 
+		  iline += sprintf (&lbuffer[iline], "%c", (idr->flags[0] & 2) ? '*' : ' ');
 
 		  if(idr->name_len[0] > 33 || idr->name_len[0] < 0)
 		    iline += sprintf(&lbuffer[iline],"File name length=(%d)",
@@ -323,7 +323,7 @@ check_tree(int file_addr, int file_size, int parent_addr){
 				  iline += sprintf(&lbuffer[iline],"***** Directory has null extent.", goof++);
 			  if(i1 != 1)
 				  iline += sprintf(&lbuffer[iline],"***** .. not second entry.", rr_goof++);
-			  
+
 		  } else {
 		          if(i1 < 2) iline += sprintf(&lbuffer[iline]," Improper sorting.", rr_goof++);
 			  for(j=0; j<idr->name_len[0]; j++) iline += sprintf(&lbuffer[iline],"%c", idr->name[j]);
@@ -481,7 +481,7 @@ main(int argc, char * argv[]){
 
   if(!ngoof) printf("No errors found\n");
 }
-  
+
 
 
 

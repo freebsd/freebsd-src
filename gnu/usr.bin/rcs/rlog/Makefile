@@ -1,5 +1,5 @@
 PROG=	rlog
-SRCS=	rlog.c 
+SRCS=	rlog.c
 CFLAGS+= -I${.CURDIR}/../lib
 LDADD=  ${LIBRCS}
 DPADD=  ${LIBRCS}

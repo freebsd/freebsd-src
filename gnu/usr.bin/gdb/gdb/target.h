@@ -26,8 +26,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    specific to the communications interface between us and the
    target.
 
-   A TARGET is an interface between the debugger and a particular 
-   kind of file or process.  Targets can be STACKED in STRATA, 
+   A TARGET is an interface between the debugger and a particular
+   kind of file or process.  Targets can be STACKED in STRATA,
    so that more than one target can potentially respond to a request.
    In particular, memory accesses will walk down the stack of targets
    until they find a target that is interested in handling that particular
@@ -313,9 +313,9 @@ extern struct target_ops	*current_target;
 /* Attaches to a process on the target side.  Arguments are as passed
    to the `attach' command by the user.  This routine can be called
    when the target is not on the target-stack, if the target_can_run
-   routine returns 1; in that case, it must push itself onto the stack.  
+   routine returns 1; in that case, it must push itself onto the stack.
    Upon exit, the target should be ready for normal operations, and
-   should be ready to deliver the status of the process immediately 
+   should be ready to deliver the status of the process immediately
    (without waiting) to an upcoming target_wait call.  */
 
 #define	target_attach(args, from_tty)	\
@@ -416,8 +416,8 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
 	(*current_target->to_insert_breakpoint) (addr, save)
 
 /* Remove a breakpoint at address ADDR in the target machine.
-   SAVE is a pointer to the same save area 
-   that was previously passed to target_insert_breakpoint.  
+   SAVE is a pointer to the same save area
+   that was previously passed to target_insert_breakpoint.
    Result is 0 for success, or an errno value.  */
 
 #define	target_remove_breakpoint(addr, save)	\
@@ -487,7 +487,7 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
    ALLARGS is a string containing the arguments to the program.
    ENV is the environment vector to pass.  Errors reported with error().
    On VxWorks and various standalone systems, we ignore exec_file.  */
- 
+
 #define	target_create_inferior(exec_file, args, env)	\
 	(*current_target->to_create_inferior) (exec_file, args, env)
 
@@ -525,7 +525,7 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
 
 /* Does the target have a stack?  (Exec files don't, VxWorks doesn't, until
    we start a process.)  */
-   
+
 #define	target_has_stack	\
 	(current_target->to_has_stack)
 

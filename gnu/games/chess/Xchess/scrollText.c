@@ -1,7 +1,7 @@
 /*
  * A Scrollable Text Output Window
  *
- * David Harrison 
+ * David Harrison
  * University of California,  Berkeley
  * 1986
  *
@@ -204,7 +204,7 @@ int bg, fg, cur;		/* Background, foreground, and cursor colors */
     XWindowAttributes winInfo;	/* Window information                */
     int index;
     XGCValues gc_val;
-    
+
     if (textWindows == (XAssocTable *) 0) {
 	textWindows = XCreateAssocTable(32);
 	if (textWindows == (XAssocTable *) 0) return(0);
@@ -259,7 +259,7 @@ int bg, fg, cur;		/* Background, foreground, and cursor colors */
 				      winInfo.width - BARSIZE,
 				      0, BARSIZE - (2*BARBORDER),
 				      winInfo.height - (2*BARBORDER),
-				      BARBORDER, 
+				      BARBORDER,
 				      fg, bg);
     XSelectInput(display, newWin->scrollBar, ExposureMask|ButtonReleaseMask);
     XMapRaised(display, newWin->scrollBar);
@@ -302,7 +302,7 @@ int bg, fg, cur;		/* Background, foreground, and cursor colors */
 	newWin->fontGC[index] = 0;
     }
 
-    
+
     /* Initialize size of first line */
     newWin->txtBuffer[0]->lineHeight = newWin->theFonts[0].ascent +
 	newWin->theFonts[0].descent;
@@ -391,7 +391,7 @@ struct txtWin *textInfo;	/* Text window information */
 	 (startPos > 0) && (textInfo->mainBuffer[startPos] != '\n');
 	 startPos--)
       /* null loop body */;
-    
+
     /* Clear out the old line start array */
     for (index = 0;  index < textInfo->numLines;  index++) {
 	InitLine(textInfo->txtBuffer[index]);
@@ -411,7 +411,7 @@ struct txtWin *textInfo;	/* Text window information */
     curfont = 0;
     for (index = 0;  index < textInfo->bufSpot;  index++) {
 	theChar = bufptr[index] & CHARMASK;
-	
+
 	if ((bufptr[index] & FONTMASK) != curfont) {
 	    int newFontNum, heightDiff;
 
@@ -503,7 +503,7 @@ int newColor;			/* Color of font           */
     struct txtWin *textInfo;
     int redrawFlag;
     XGCValues gc_val;
-    
+
     if ((fontNumber < 0) || (fontNumber >= MAXFONTS)) return 0;
     if ((textInfo = (struct txtWin *)
 	 XLookUpAssoc(display, textWindows, (XID) textWin)) == 0)
@@ -518,7 +518,7 @@ int newColor;			/* Color of font           */
     gc_val.plane_mask = AllPlanes;
     gc_val.graphics_exposures = 1;
     gc_val.function = GXcopy;
-    
+
     if (textInfo->fontGC[fontNumber] != 0)
     {
 	XChangeGC(display, textInfo->fontGC[fontNumber],
@@ -532,7 +532,7 @@ int newColor;			/* Color of font           */
 						 GCFunction |
 						 GCPlaneMask |
 						 GCGraphicsExposures,
-						 &gc_val); 
+						 &gc_val);
 
 
     redrawFlag = (textInfo->theFonts[fontNumber].fid != 0) &&
@@ -622,7 +622,7 @@ struct txtWin *textInfo;	/* Text window information */
     if (bottom == textInfo->h-(2*BARBORDER)) bottom--;
 
     XFillRectangle(display, textInfo->scrollBar,
-		   textInfo->bgGC, 
+		   textInfo->bgGC,
 		   0, 0, BARSIZE, top-1);
 #ifdef __FreeBSD__
     XFillRectangle(display, textInfo->scrollBar,
@@ -648,7 +648,7 @@ Display *display;
 Window w;
 /*
  * This routine clears a scrollable text window.  It resets the current
- * writing position to the upper left hand corner of the screen. 
+ * writing position to the upper left hand corner of the screen.
  * NOTE:  THIS ALSO CLEARS THE CONTENTS OF THE TEXT WINDOW BUFFER AND
  * RESETS THE SCROLL BAR.  Returns 0 if the window is not a text window.
  * This should be used *instead* of XClear.
@@ -674,7 +674,7 @@ Window w;
     textInfo->endLine = 0;
     textInfo->curLine = 0;
     textInfo->curX = 0;
-    textInfo->curY = YPADDING + textInfo->theFonts[textInfo->curFont].ascent 
+    textInfo->curY = YPADDING + textInfo->theFonts[textInfo->curFont].ascent
 	+ textInfo->theFonts[textInfo->curFont].descent;
 
     textInfo->bottomSpace = textInfo->h - YPADDING -
@@ -1119,7 +1119,7 @@ int ypos;			/* Y position for line       */
 	    curX += CharSize(textInfo, lineIndex, index);
 	    glyph++;
 	}
-	
+
 	/* Flush out the glyphs */
 	XFillRectangle(display, textInfo->mainWindow,
 		       textInfo->bgGC,
@@ -1191,7 +1191,7 @@ int flagWord;			/* DODISP or nothing */
 		if ((textInfo->curY + thisLine->lineHeight + heightDiff +
 		     INTERLINE) > textInfo->h)
 		  {
-		      /* 
+		      /*
 		       * General approach:  "unscroll" the last line up
 		       * and then call ScrollDown to do the right thing.
 		       */
@@ -1210,7 +1210,7 @@ int flagWord;			/* DODISP or nothing */
 			(textInfo->bottomSpace + INTERLINE +
 			 thisLine->lineHeight);
 		  }
-		else 
+		else
 		  {
 		      /* Just update bottom space */
 		      textInfo->bottomSpace -= heightDiff;
@@ -1251,7 +1251,7 @@ register char *str;		/* 0 terminated string */
  *   - A new font can be chosen using the sequence '^F<digit>' where
  *     <digit> is 0-7.  The directive will be ignored if
  *     there is no font in the specified slot.
- * Returns 0 if something went wrong.  
+ * Returns 0 if something went wrong.
  */
 {
     register int fontIndex;
@@ -1260,7 +1260,7 @@ register char *str;		/* 0 terminated string */
 
     if ((textInfo = (struct txtWin *) XLookUpAssoc(display, textWindows, (XID) w)) == 0)
       return 0;
-    
+
     /* See if screen needs to be updated */
     if (textInfo->flagWord & SCREENWRONG) {
 	TxtRepaint(display, textInfo->mainWindow);
@@ -1292,7 +1292,7 @@ register char *str;		/* 0 terminated string */
 		    continue;
 	    }
 	}
-	
+
 	/* Inline code for handling normal character case */
 	if ((*str >= LOWCHAR) && (*str <= HIGHCHAR)) {
 	    register XFontStruct *thisFont;
@@ -1324,21 +1324,21 @@ register char *str;		/* 0 terminated string */
 		  HandleNewLine(display, textInfo, DODISP | NONEWLINE);
 		  thisLine = textInfo->txtBuffer[textInfo->curLine];
 	      }
-	    
+
 	    /* Ready to draw character */
 	    XDrawString(display, textInfo->mainWindow,
-			DEFAULT_GC, 
+			DEFAULT_GC,
 			textInfo->curX += charWidth,
-			textInfo->curY + thisLine->lineHeight, 
+			textInfo->curY + thisLine->lineHeight,
 			str, 1);
-	    
+
 	    /* Append character onto main buffer */
 	    if (textInfo->bufSpot >= textInfo->bufAlloc)
 	      /* Make room for more characters */
 	      ExpandBuffer(textInfo);
 	    textInfo->mainBuffer[(textInfo->bufSpot)++] =
 	      (textInfo->curFont << FONTSHIFT) | (*str);
-	    
+
 	    /* Update the line start array */
 	    thisLine->lineLength += 1;
 	    thisLine->lineWidth += charWidth;
@@ -1384,7 +1384,7 @@ register char *str;		/* NULL terminated string */
     if ((textInfo = (struct txtWin *) XLookUpAssoc(display, textWindows, (XID) w)
 	 ) == 0)
       return 0;
-    
+
     for ( /* str is ok */ ; (*str != 0) ; str++) {
 	/* Check to see if we are waiting on a font */
 	if (textInfo->flagWord & FONTNUMWAIT) {
@@ -1402,7 +1402,7 @@ register char *str;		/* NULL terminated string */
 	    register XFontStruct *thisFont;
 	    register struct txtLine *thisLine;
 	    register int charWidth;
-	    
+
 	    /* Determine size of character */
 	    thisFont = &(textInfo->theFonts[textInfo->curFont]);
 
@@ -1429,7 +1429,7 @@ register char *str;		/* NULL terminated string */
 	      ExpandBuffer(textInfo);
 	    textInfo->mainBuffer[(textInfo->bufSpot)++] =
 	      (textInfo->curFont << FONTSHIFT) | (*str);
-	    
+
 	    /* Update the line start array */
 	    thisLine->lineLength += 1;
 	    thisLine->lineWidth += charWidth;
@@ -1455,7 +1455,7 @@ Display *display;
 Window w;
 /*
  * Repaints the given scrollable text window.  The routine repaints
- * the entire window.  For handling exposure events,  the TxtFilter 
+ * the entire window.  For handling exposure events,  the TxtFilter
  * routine should be used.
  */
 {
@@ -1589,7 +1589,7 @@ struct txtWin *textInfo;	/* Text window information   */
 	       0, textInfo->h - textInfo->bottomSpace,
 	       textInfo->w, textInfo->bottomSpace);
 #endif
-    
+
     UpdateExposures(display, textInfo);
     UpdateScroll(display, textInfo);
 
@@ -1774,7 +1774,7 @@ XEvent *evt;
 	return 0;
 
     if ((textInfo = (struct txtWin *)
-	 XLookUpAssoc(display, textWindows, (XID) w)) == 0)	
+	 XLookUpAssoc(display, textWindows, (XID) w)) == 0)
 	return 0;
 
     /* Determine whether it's main window or not */

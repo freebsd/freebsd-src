@@ -177,7 +177,7 @@ value_subscripted_rvalue (array, idx)
 }
 
 /* Check to see if either argument is a structure.  This is called so
-   we know whether to go ahead with the normal binop or look for a 
+   we know whether to go ahead with the normal binop or look for a
    user defined function instead.
 
    For now, we do not overload the `=' operator.  */
@@ -198,7 +198,7 @@ binop_user_defined_p (op, arg1, arg2)
 }
 
 /* Check to see if argument is a structure.  This is called so
-   we know whether to go ahead with the normal unop or look for a 
+   we know whether to go ahead with the normal unop or look for a
    user defined function instead.
 
    For now, we do not overload the `&' operator.  */
@@ -215,7 +215,7 @@ int unop_user_defined_p (op, arg1)
 }
 
 /* We know either arg1 or arg2 is a structure, so try to find the right
-   user defined function.  Create an argument vector that calls 
+   user defined function.  Create an argument vector that calls
    arg1.operator @ (arg1,arg2) and return that value (where '@' is any
    binary operator which is legal for GNU C++).
 
@@ -249,7 +249,7 @@ value_x_binop (arg1, arg2, op, otherop)
   argvec[2] = arg2;
   argvec[3] = 0;
 
-  /* make the right function name up */  
+  /* make the right function name up */
   strcpy(tstr, "operator__");
   ptr = tstr+8;
   switch (op)
@@ -269,7 +269,7 @@ value_x_binop (arg1, arg2, op, otherop)
     case BINOP_MIN:		strcpy(ptr,"<?"); break;
     case BINOP_MAX:		strcpy(ptr,">?"); break;
     case BINOP_ASSIGN:		strcpy(ptr,"="); break;
-    case BINOP_ASSIGN_MODIFY:	
+    case BINOP_ASSIGN_MODIFY:
       switch (otherop)
 	{
 	case BINOP_ADD:		strcpy(ptr,"+="); break;
@@ -298,7 +298,7 @@ value_x_binop (arg1, arg2, op, otherop)
     }
 
   argvec[0] = value_struct_elt (&arg1, argvec+1, tstr, &static_memfuncp, "structure");
-  
+
   if (argvec[0])
     {
       if (static_memfuncp)
@@ -315,7 +315,7 @@ value_x_binop (arg1, arg2, op, otherop)
 }
 
 /* We know that arg1 is a structure, so try to find a unary user
-   defined operator that matches the operator in question.  
+   defined operator that matches the operator in question.
    Create an argument vector that calls arg1.operator @ (arg1)
    and return that value (where '@' is (almost) any unary operator which
    is legal for GNU C++).  */
@@ -342,7 +342,7 @@ value_x_unop (arg1, op)
   argvec[1] = value_addr (arg1);
   argvec[2] = 0;
 
-  /* make the right function name up */  
+  /* make the right function name up */
   strcpy(tstr,"operator__");
   ptr = tstr+8;
   strcpy(mangle_tstr, "__");
@@ -410,7 +410,7 @@ value_concat (arg1, arg2)
   /* First figure out if we are dealing with two values to be concatenated
      or a repeat count and a value to be repeated.  INVAL1 is set to the
      first of two concatenated values, or the repeat count.  INVAL2 is set
-     to the second of the two concatenated values or the value to be 
+     to the second of the two concatenated values or the value to be
      repeated. */
 
   if (TYPE_CODE (VALUE_TYPE (arg2)) == TYPE_CODE_INT)
@@ -487,7 +487,7 @@ value_concat (arg1, arg2)
 	}
       if (TYPE_CODE (VALUE_TYPE (inval2)) == TYPE_CODE_CHAR)
 	{
-	  *(ptr + inval1len) = 
+	  *(ptr + inval1len) =
 	    (char) unpack_long (VALUE_TYPE (inval2), VALUE_CONTENTS (inval2));
 	}
       else
@@ -506,7 +506,7 @@ value_concat (arg1, arg2)
 	  error ("Bitstrings or booleans can only be concatenated with other bitstrings or booleans.");
 	}
       error ("unimplemented support for bitstring/boolean concatenation.");
-    }      
+    }
   else
     {
       /* We don't know how to concatenate these operands. */
@@ -589,25 +589,25 @@ value_binop (arg1, arg2, op)
 	  LONGEST v1, v2, v;
 	  v1 = value_as_long (arg1);
 	  v2 = value_as_long (arg2);
-	  
+
 	  switch (op)
 	    {
 	    case BINOP_BITWISE_AND:
 	      v = v1 & v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_IOR:
 	      v = v1 | v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_XOR:
 	      v = v1 ^ v2;
 	      break;
-	      
+
 	    default:
 	      error ("Invalid operation on booleans.");
 	    }
-	  
+
 	  val = allocate_value (builtin_type_chill_bool);
 	  store_signed_integer (VALUE_CONTENTS_RAW (val),
 				TYPE_LENGTH (VALUE_TYPE (val)),
@@ -626,29 +626,29 @@ value_binop (arg1, arg2, op)
 	  unsigned LONGEST v1, v2, v;
 	  v1 = (unsigned LONGEST) value_as_long (arg1);
 	  v2 = (unsigned LONGEST) value_as_long (arg2);
-	  
+
 	  switch (op)
 	    {
 	    case BINOP_ADD:
 	      v = v1 + v2;
 	      break;
-	      
+
 	    case BINOP_SUB:
 	      v = v1 - v2;
 	      break;
-	      
+
 	    case BINOP_MUL:
 	      v = v1 * v2;
 	      break;
-	      
+
 	    case BINOP_DIV:
 	      v = v1 / v2;
 	      break;
-	      
+
 	    case BINOP_REM:
 	      v = v1 % v2;
 	      break;
-	      
+
 	    case BINOP_MOD:
 	      /* Knuth 1.2.4, integer only.  Note that unlike the C '%' op,
 	         v1 mod 0 has a defined value, v1. */
@@ -669,43 +669,43 @@ value_binop (arg1, arg2, op)
 		  v = v1 - (v2 * v);
 		}
 	      break;
-	      
+
 	    case BINOP_LSH:
 	      v = v1 << v2;
 	      break;
-	      
+
 	    case BINOP_RSH:
 	      v = v1 >> v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_AND:
 	      v = v1 & v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_IOR:
 	      v = v1 | v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_XOR:
 	      v = v1 ^ v2;
 	      break;
-	      
+
 	    case BINOP_LOGICAL_AND:
 	      v = v1 && v2;
 	      break;
-	      
+
 	    case BINOP_LOGICAL_OR:
 	      v = v1 || v2;
 	      break;
-	      
+
 	    case BINOP_MIN:
 	      v = v1 < v2 ? v1 : v2;
 	      break;
-	      
+
 	    case BINOP_MAX:
 	      v = v1 > v2 ? v1 : v2;
 	      break;
-	      
+
 	    default:
 	      error ("Invalid binary operation on numbers.");
 	    }
@@ -732,29 +732,29 @@ value_binop (arg1, arg2, op)
 	  LONGEST v1, v2, v;
 	  v1 = value_as_long (arg1);
 	  v2 = value_as_long (arg2);
-	  
+
 	  switch (op)
 	    {
 	    case BINOP_ADD:
 	      v = v1 + v2;
 	      break;
-	      
+
 	    case BINOP_SUB:
 	      v = v1 - v2;
 	      break;
-	      
+
 	    case BINOP_MUL:
 	      v = v1 * v2;
 	      break;
-	      
+
 	    case BINOP_DIV:
 	      v = v1 / v2;
 	      break;
-	      
+
 	    case BINOP_REM:
 	      v = v1 % v2;
 	      break;
-	      
+
 	    case BINOP_MOD:
 	      /* Knuth 1.2.4, integer only.  Note that unlike the C '%' op,
 	         X mod 0 has a defined value, X. */
@@ -779,43 +779,43 @@ value_binop (arg1, arg2, op)
 		  v = v1 - (v2 * v);
 		}
 	      break;
-	      
+
 	    case BINOP_LSH:
 	      v = v1 << v2;
 	      break;
-	      
+
 	    case BINOP_RSH:
 	      v = v1 >> v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_AND:
 	      v = v1 & v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_IOR:
 	      v = v1 | v2;
 	      break;
-	      
+
 	    case BINOP_BITWISE_XOR:
 	      v = v1 ^ v2;
 	      break;
-	      
+
 	    case BINOP_LOGICAL_AND:
 	      v = v1 && v2;
 	      break;
-	      
+
 	    case BINOP_LOGICAL_OR:
 	      v = v1 || v2;
 	      break;
-	      
+
 	    case BINOP_MIN:
 	      v = v1 < v2 ? v1 : v2;
 	      break;
-	      
+
 	    case BINOP_MAX:
 	      v = v1 > v2 ? v1 : v2;
 	      break;
-	      
+
 	    default:
 	      error ("Invalid binary operation on numbers.");
 	    }

@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.3 $ on $Date: 86/11/23 17:18:35 $
- *           $Source: /users/faustus/xchess/RCS/valid.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:08 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/valid.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -49,10 +49,10 @@ valid_move(m, b)
 	board_move(&tb, m);
 	if (ischeck(&tb, m->piece.color))
 		return (false);
-	
+
 	if (ischeck(&tb, ((m->piece.color == WHITE) ? BLACK : WHITE)))
 		m->check = true;
-	
+
 	return (true);
 }
 
@@ -66,7 +66,7 @@ couldmove(m, b)
 	switch (m->type) {
 	    case KCASTLE:
 		if ((m->piece.color == WHITE) && (b->white_cant_castle_k) ||
-				(m->piece.color == BLACK) && 
+				(m->piece.color == BLACK) &&
 				(b->black_cant_castle_k))
 			return (false);
 		if ((b->square[m->fromy][5].color != NONE) ||
@@ -78,7 +78,7 @@ couldmove(m, b)
 
 	    case QCASTLE:
 		if ((m->piece.color == WHITE) && (b->white_cant_castle_q) ||
-				(m->piece.color == BLACK) && 
+				(m->piece.color == BLACK) &&
 				(b->black_cant_castle_q))
 			return (false);
 		if ((b->square[m->fromy][1].color != NONE) ||
@@ -129,7 +129,7 @@ couldmove(m, b)
 				 */
 				if (m->enpassant) {
 					if (b->square[(m->piece.color == WHITE)
-						    ? 3 : 4][m->tox].color == 
+						    ? 3 : 4][m->tox].color ==
 						    ((m->piece.color == WHITE) ?
 						    BLACK : WHITE))
 						break;

@@ -1,6 +1,6 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-/* 
+/*
 Copyright (C) 1989 Free Software Foundation
     written by Eric Newton (newton@rocky.oswego.edu)
 
@@ -237,7 +237,7 @@ inline int (mvinsch)(int y, int x, char c)
  *
  */
 
-class CursesWindow 
+class CursesWindow
 {
 protected:
   static int     count;           // count of all active windows:
@@ -385,102 +385,102 @@ inline int CursesWindow::width()
   return maxx() - begx() + 1;
 }
 
-inline int CursesWindow::box(char vert, char  hor)    
+inline int CursesWindow::box(char vert, char  hor)
 {
-  return ::box(w, vert, hor); 
+  return ::box(w, vert, hor);
 }
 
-inline int CursesWindow::overlay(CursesWindow &win)         
+inline int CursesWindow::overlay(CursesWindow &win)
 {
-  return ::overlay(w, win.w); 
+  return ::overlay(w, win.w);
 }
 
-inline int CursesWindow::overwrite(CursesWindow &win)       
+inline int CursesWindow::overwrite(CursesWindow &win)
 {
-  return ::overwrite(w, win.w); 
+  return ::overwrite(w, win.w);
 }
 
-inline int CursesWindow::scroll()                     
+inline int CursesWindow::scroll()
 {
-  return ::scroll(w); 
+  return ::scroll(w);
 }
 
 
-inline int CursesWindow::touchwin()                   
+inline int CursesWindow::touchwin()
 {
-  return ::touchwin(w); 
+  return ::touchwin(w);
 }
 
-inline int CursesWindow::addch(const char ch)         
+inline int CursesWindow::addch(const char ch)
 {
-  return ::waddch(w, ch); 
+  return ::waddch(w, ch);
 }
 
-inline int CursesWindow::addstr(const char * str)     
+inline int CursesWindow::addstr(const char * str)
 {
   // The (char*) cast is to hack around prototypes in curses.h that
   // have const missing in the parameter lists.  [E.g. SVR4]
-  return ::waddstr(w, (char*)str); 
+  return ::waddstr(w, (char*)str);
 }
 
-inline int CursesWindow::clear()                      
+inline int CursesWindow::clear()
 {
-  return ::wclear(w); 
+  return ::wclear(w);
 }
 
-inline int CursesWindow::clrtobot()                   
+inline int CursesWindow::clrtobot()
 {
-  return ::wclrtobot(w); 
+  return ::wclrtobot(w);
 }
 
-inline int CursesWindow::clrtoeol()                   
+inline int CursesWindow::clrtoeol()
 {
-  return ::wclrtoeol(w); 
+  return ::wclrtoeol(w);
 }
 
-inline int CursesWindow::delch()                      
+inline int CursesWindow::delch()
 {
-  return ::wdelch(w); 
+  return ::wdelch(w);
 }
 
-inline int CursesWindow::deleteln()                   
+inline int CursesWindow::deleteln()
 {
-  return ::wdeleteln(w); 
+  return ::wdeleteln(w);
 }
 
-inline int CursesWindow::erase()                      
+inline int CursesWindow::erase()
 {
-  return ::werase(w); 
+  return ::werase(w);
 }
 
-inline int CursesWindow::getch()                      
+inline int CursesWindow::getch()
 {
-  return ::wgetch(w); 
+  return ::wgetch(w);
 }
 
-inline int CursesWindow::getstr(char * str)           
+inline int CursesWindow::getstr(char * str)
 {
-  return ::wgetstr(w, str); 
+  return ::wgetstr(w, str);
 }
 
-inline int CursesWindow::inch()                       
+inline int CursesWindow::inch()
 {
-  return winch(w); 
+  return winch(w);
 }
 
-inline int CursesWindow::insch(char c)               
+inline int CursesWindow::insch(char c)
 {
-  return ::winsch(w, c); 
+  return ::winsch(w, c);
 }
 
-inline int CursesWindow::insertln()                   
+inline int CursesWindow::insertln()
 {
-  return ::winsertln(w); 
+  return ::winsertln(w);
 }
 
-inline int CursesWindow::move(int y, int x)           
+inline int CursesWindow::move(int y, int x)
 {
-  return ::wmove(w, y, x); 
+  return ::wmove(w, y, x);
 }
 
 
@@ -524,56 +524,56 @@ inline int CursesWindow::mvinsch(int y, int x, char ch)
   return (::wmove(w, y, x)==ERR) ? ERR : ::winsch(w, ch);
 }
 
-inline int CursesWindow::refresh()                   
+inline int CursesWindow::refresh()
 {
-  return ::wrefresh(w); 
+  return ::wrefresh(w);
 }
 
-inline int CursesWindow::clearok(int bf)             
+inline int CursesWindow::clearok(int bf)
 {
-  return ::clearok(w,bf); 
+  return ::clearok(w,bf);
 }
 
-inline int CursesWindow::leaveok(int bf)             
+inline int CursesWindow::leaveok(int bf)
 {
-  return ::leaveok(w,bf); 
+  return ::leaveok(w,bf);
 }
 
-inline int CursesWindow::scrollok(int bf)            
+inline int CursesWindow::scrollok(int bf)
 {
-  return ::scrollok(w,bf); 
+  return ::scrollok(w,bf);
 }
 
 #ifndef _no_flushok
-inline int CursesWindow::flushok(int bf)            
+inline int CursesWindow::flushok(int bf)
 {
-  return ::flushok(w, bf); 
+  return ::flushok(w, bf);
 }
 #endif
 
-inline void CursesWindow::getyx(int& y, int& x)       
+inline void CursesWindow::getyx(int& y, int& x)
 {
-  ::getyx(w, y, x); 
+  ::getyx(w, y, x);
 }
 
-inline int CursesWindow::standout()                   
+inline int CursesWindow::standout()
 {
-  return ::wstandout(w); 
+  return ::wstandout(w);
 }
 
-inline int CursesWindow::standend()                   
+inline int CursesWindow::standend()
 {
-  return ::wstandend(w); 
+  return ::wstandend(w);
 }
 
-inline int CursesWindow::lines()                      
+inline int CursesWindow::lines()
 {
-  return LINES; 
+  return LINES;
 }
 
-inline int CursesWindow::cols()                       
+inline int CursesWindow::cols()
 {
-  return COLS; 
+  return COLS;
 }
 
 inline CursesWindow* CursesWindow::child()

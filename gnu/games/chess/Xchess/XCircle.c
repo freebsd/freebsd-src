@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 86/11/23 17:17:04 $
- *           $Source: /users/faustus/xchess/RCS/XCircle.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:12 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/XCircle.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -143,7 +143,7 @@ XCircle(win, x, y, rad, start, end, width, height, pixel, func, planes)
 	verts[0].flags |= VertexStartClosed;
 	verts[j].x = verts[0].x;
 	verts[j].y = verts[0].y;
-	verts[j].flags = (verts[0].flags & ~VertexStartClosed) | 
+	verts[j].flags = (verts[0].flags & ~VertexStartClosed) |
 			VertexEndClosed;
 	for (i = 0; i < 15; i++) {
 		if (dp)

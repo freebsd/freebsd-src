@@ -1,15 +1,18 @@
-/* $RCSfile: regcomp.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: regcomp.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  * $Log: regcomp.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
  * Revision 4.0.1.1  91/06/07  11:49:40  lwall
  * patch4: no change
- * 
+ *
  * Revision 4.0  91/03/20  01:39:09  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 /*

@@ -163,7 +163,7 @@ static int simple_only;
 /* If nonzero, do not output information for non-overlapping diffs.  */
 static int overlap_only;
 
-/* If nonzero, show information for 3_way and DIFF_2ND diffs.  
+/* If nonzero, show information for 3_way and DIFF_2ND diffs.
    1= show 2nd only when 1st and 3rd differ
    2= show 2nd when DIFF_2ND (1 and 3 have same change relative to 2) */
 static int show_2nd;

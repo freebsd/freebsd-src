@@ -1,4 +1,4 @@
-/* $RCSfile: stab.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: stab.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: stab.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
@@ -18,14 +21,14 @@
  * patch20: the debugger made perl forget the last pattern used by //
  * patch20: paragraph mode now skips extra newlines automatically
  * patch20: ($<,$>) = ... didn't work on some architectures
- * 
+ *
  * Revision 4.0.1.3  91/11/05  18:35:33  lwall
  * patch11: length($x) was sometimes wrong for numeric $x
  * patch11: perl now issues warning if $SIG{'ALARM'} is referenced
  * patch11: *foo = undef coredumped
  * patch11: solitary subroutine references no longer trigger typo warnings
  * patch11: local(*FILEHANDLE) had a memory leak
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:55:53  lwall
  * patch4: new copyright notice
  * patch4: added $^P variable to control calling of perldb routines
@@ -34,14 +37,14 @@
  * patch4: default top-of-form format is now FILEHANDLE_TOP
  * patch4: length($`), length($&), length($') now optimized to avoid string copy
  * patch4: $^D |= 1024 now does syntax tree dump at run-time
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:10:24  lwall
  * patch1: Configure now differentiates getgroups() type from getgid() type
  * patch1: you may now use "die" and "caller" in a signal handler
- * 
+ *
  * Revision 4.0  91/03/20  01:39:41  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -1038,7 +1041,7 @@ register STAB *stab;
 ARRAY *stab_array(stab)
 register STAB *stab;
 {
-    if (((STBP*)(stab->str_ptr))->stbp_array) 
+    if (((STBP*)(stab->str_ptr))->stbp_array)
 	return ((STBP*)(stab->str_ptr))->stbp_array;
     else
 	return ((STBP*)(aadd(stab)->str_ptr))->stbp_array;

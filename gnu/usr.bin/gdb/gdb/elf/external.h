@@ -27,7 +27,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    I.E. it describes the in-file representation of ELF.  It requires
    the elf-common.h file which contains the portions that are common to
    both the internal and external representations. */
-   
+
 /* The 64-bit stuff is kind of random.  Perhaps someone will publish a
    spec someday.  */
 

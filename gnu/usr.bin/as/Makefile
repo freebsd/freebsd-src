@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.6 1994/12/23 22:35:56 nate Exp $
+#	$Id: Makefile,v 1.7 1995/01/16 17:40:57 ache Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -38,7 +38,7 @@ SUBDIR+= doc
 
 beforedepend ${PROG}: ${CONF_HEADERS}
 
-targ-cpu.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/tc-$(gas_target).h 
+targ-cpu.h: Makefile config/Makefile.$(MACHINE) $(.CURDIR)/config/tc-$(gas_target).h
 	@cmp -s $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h || \
 	    ( ${ECHO} "updating ${.TARGET}..." ; /bin/rm -f targ-cpu.h ; \
 	    cp $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h )

@@ -67,7 +67,7 @@ static char *ixp_firstobj;
 	       The sublevel list is not changed at this point.
 
    -- On "})" the list for the current level is appended to the sublevel
-	      list. 
+	      list.
 
    -- On ";"  sublevel lists are appended to the current level lists.
 	      The reason is this: if they have not been superseded by the
@@ -155,7 +155,7 @@ iterator_expand (stmt)
 }
 
 
-static void 
+static void
 expand_stmt_with_iterators_1 (stmt, iter_list)
      tree stmt, iter_list;
 {
@@ -254,7 +254,7 @@ collect_iterators (exp, list)
 	      case RTL_EXPR:
 		return list;
 	      }
-		
+
 	    for (i = 0; i < num_args; i++)
 	      list = collect_iterators (TREE_OPERAND (exp, i), list);
 	    return list;
@@ -363,7 +363,7 @@ static void
 isn_append (x, y)
      struct iter_stack_node *x, *y;
 {
-  if (x->first == 0) 
+  if (x->first == 0)
     return;
 
   if (y->first == 0)
@@ -408,7 +408,7 @@ void
 push_iterator_stack ()
 {
   struct iter_stack_node *new_top
-    = (struct iter_stack_node*) 
+    = (struct iter_stack_node*)
       obstack_alloc (&ixp_obstack, sizeof (struct iter_stack_node));
 
   new_top->first = 0;
@@ -442,7 +442,7 @@ add_ixpansion (idecl, pro_start, pro_end, epi_start, epi_end)
      rtx pro_start, pro_end, epi_start, epi_end;
 {
   struct ixpansion* newix;
-    
+
   /* Do nothing if we are not inside "({...})",
      as in that case this expansion can't need subsequent RTL modification.  */
   if (iter_stack == 0)
@@ -490,18 +490,18 @@ delete_ixpansion (idecl)
 
 	    for (insn = NEXT_INSN (ix->ixprologue_start);
 		 insn != ix->ixprologue_end;
-		 insn = NEXT_INSN (insn)) 
+		 insn = NEXT_INSN (insn))
 	      delete_insn (insn);
 	    for (insn = NEXT_INSN (ix->ixepilogue_start);
 		 insn != ix->ixepilogue_end;
-		 insn = NEXT_INSN (insn)) 
+		 insn = NEXT_INSN (insn))
 	      delete_insn (insn);
 	  }
 
 	/* Delete this ixpansion from sublevel_ixpansions.  */
 	if (previx)
 	  previx->next = ix->next;
-	else 
+	else
 	  sublevel_ixpansions.first = ix->next;
 	if (sublevel_ixpansions.last == ix)
 	  sublevel_ixpansions.last = previx;
@@ -563,7 +563,7 @@ pixl (head)
   fprintf (stderr, "> ");
   if (head == 0)
     fprintf (stderr, "(empty)");
-	
+
   for (current=head; current; current = next)
     {
       tree node = current->ixdecl;

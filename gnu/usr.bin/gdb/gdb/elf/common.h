@@ -26,7 +26,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    that are common to both the internal and external representations.
    For example, ELFMAG0 is the byte 0x7F in both the internal (in-memory)
    and external (in-file) representations. */
-   
+
 
 /* Fields in e_ident[] */
 

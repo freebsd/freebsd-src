@@ -1,4 +1,4 @@
-/* $RCSfile: spat.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: spat.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,16 +6,19 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: spat.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
  * Revision 4.0.1.1  91/06/07  11:51:59  lwall
  * patch4: new copyright notice
  * patch4: added global modifier for pattern matches
- * 
+ *
  * Revision 4.0  91/03/20  01:39:36  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 struct scanpat {

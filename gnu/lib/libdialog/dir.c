@@ -3,7 +3,7 @@
  *
  *	Program:	dir.c
  *	Author:		Marc van Kempen
- *	desc:		Directory routines, sorting and reading 
+ *	desc:		Directory routines, sorting and reading
  *
  * Copyright (c) 1995, Marc van Kempen
  *
@@ -16,7 +16,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  ****************************************************************************/
 
 #include <sys/types.h>
@@ -71,7 +71,7 @@ static int	_showdotfiles = TRUE;
  *
  ****************************************************************************/
 
-int 
+int
 dir_select_nd(
 #if defined __linux__
   const struct dirent *d
@@ -79,8 +79,8 @@ dir_select_nd(
   struct dirent *d
 #endif
 )
-/* 
- *	desc:	allways include a directory entry <d>, except 
+/*
+ *	desc:	allways include a directory entry <d>, except
  *		for the current directory and other dot-files
  *		keep '..' however.
  *	pre:	<d> points to a dirent
@@ -90,13 +90,13 @@ dir_select_nd(
     if (strcmp(d->d_name, ".")==0 ||
 	  (d->d_name[0] == '.' && strlen(d->d_name) > 1 && d->d_name[1] != '.')) {
 	return(FALSE);
-    } else {	
+    } else {
 	return(TRUE);
     }
 }/* dir_select_nd() */
 
 
-int 
+int
 dir_select(
 #ifdef __linux__
   const struct dirent *d
@@ -104,8 +104,8 @@ dir_select(
   struct dirent *d
 #endif
 )
-/* 
- *	desc:	allways include a directory entry <d>, except 
+/*
+ *	desc:	allways include a directory entry <d>, except
  *		for the current directory
  *	pre:	<d> points to a dirent
  *	post:	returns TRUE if d->d_name != "." else FALSE
@@ -118,16 +118,16 @@ dir_select(
 	}
 } /* dir_select() */
 
-int 
+int
 dir_select_root_nd(
-#ifdef __linux__ 
+#ifdef __linux__
   const struct dirent *d
 #else
   struct dirent *d
 #endif
 )
-/* 
- *	desc:	allways include a directory entry <d>, except 
+/*
+ *	desc:	allways include a directory entry <d>, except
  *		for the current directory and the parent directory.
  *		Also skip any other dot-files.
  *	pre:	<d> points to a dirent
@@ -142,22 +142,22 @@ dir_select_root_nd(
 } /* dir_select_root_nd() */
 
 
-int 
+int
 dir_select_root(
-#ifdef __linux__ 
+#ifdef __linux__
   const struct dirent *d
 #else
   struct dirent *d
 #endif
 )
-/* 
- *	desc:	allways include a directory entry <d>, except 
+/*
+ *	desc:	allways include a directory entry <d>, except
  *		for the current directory and the parent directory
  *	pre:	<d> points to a dirent
  *	post:	returns TRUE if d->d_name[0] != "." else FALSE
  */
 {
-	if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {	
+	if (strcmp(d->d_name, ".") == 0 || strcmp(d->d_name, "..") == 0) {
 		return(FALSE);
 	} else {
 	    return(TRUE);
@@ -185,7 +185,7 @@ dir_alphasort(const void *d1, const void *d2)
  *
  */
 {
-    DirList	*f1 = ((DirList *) d1), 
+    DirList	*f1 = ((DirList *) d1),
 		*f2 = ((DirList *) d2);
     struct stat	*s1 = &(f1->filestatus);
     struct stat	*s2 = &(f2->filestatus);
@@ -197,7 +197,7 @@ dir_alphasort(const void *d1, const void *d2)
     if (strcmp(((DirList *) d2)->filename, "..") == 0) {
 	return(1);
     }
-    
+
     /* put directories first */
     if ((s1->st_mode & S_IFDIR) && (s2->st_mode & S_IFDIR)) {
 	return(strcmp(f1->filename, f2->filename));
@@ -212,7 +212,7 @@ dir_alphasort(const void *d1, const void *d2)
 
 } /* dir_alphasort() */
 
-	
+
 int
 dir_sizesort(const void *d1, const void *d2)
 /*
@@ -220,7 +220,7 @@ dir_sizesort(const void *d1, const void *d2)
  *
  */
 {
-    DirList	*f1 = ((DirList *) d1), 
+    DirList	*f1 = ((DirList *) d1),
 		*f2 = ((DirList *) d2);
     struct stat	*s1 = &(f1->filestatus);
     struct stat	*s2 = &(f2->filestatus);
@@ -232,12 +232,12 @@ dir_sizesort(const void *d1, const void *d2)
     if (strcmp(((DirList *) d2)->filename, "..") == 0) {
 	return(1);
     }
-	
+
     /* put directories first */
     if ((s1->st_mode & S_IFDIR) && (s2->st_mode & S_IFDIR)) {
-	return(s1->st_size < s2->st_size ? 
-	       -1 
-	       : 
+	return(s1->st_size < s2->st_size ?
+	       -1
+	       :
 	       s1->st_size >= s2->st_size);
     };
     if (s1->st_mode & S_IFDIR) {
@@ -246,11 +246,11 @@ dir_sizesort(const void *d1, const void *d2)
     if (s2->st_mode & S_IFDIR) {
 	return(1);
     }
-    return(s1->st_size < s2->st_size ? 
-	   -1 
-	   : 
+    return(s1->st_size < s2->st_size ?
+	   -1
+	   :
 	   s1->st_size >= s2->st_size);
-    
+
 } /* dir_sizesort() */
 
 int
@@ -259,11 +259,11 @@ dir_datesort(const void *d1, const void *d2)
  *	desc:	compare d1 and d2 on date, but put directories always first
  */
 {
-    DirList	*f1 = ((DirList *) d1), 
+    DirList	*f1 = ((DirList *) d1),
 		*f2 = ((DirList *) d2);
     struct stat	*s1 = &(f1->filestatus);
     struct stat	*s2 = &(f2->filestatus);
-	
+
 
     /* check for '..' */
     if (strcmp(((DirList *) d1)->filename, "..") == 0) {
@@ -272,12 +272,12 @@ dir_datesort(const void *d1, const void *d2)
     if (strcmp(((DirList *) d2)->filename, "..") == 0) {
 	return(1);
     }
-	
+
     /* put directories first */
     if ((s1->st_mode & S_IFDIR) && (s2->st_mode & S_IFDIR)) {
-	return(s1->st_mtime < s2->st_mtime ? 
-	       -1 
-	       : 
+	return(s1->st_mtime < s2->st_mtime ?
+	       -1
+	       :
 	       s1->st_mtime >= s2->st_mtime);
     };
     if (s1->st_mode & S_IFDIR) {
@@ -286,13 +286,13 @@ dir_datesort(const void *d1, const void *d2)
     if (s2->st_mode & S_IFDIR) {
 	return(1);
     }
-    return(s1->st_mtime < s2->st_mtime ? 
-	   -1 
-	   : 
+    return(s1->st_mtime < s2->st_mtime ?
+	   -1
+	   :
 	   s1->st_mtime >= s2->st_mtime);
 
 } /* dir_datesort() */
-		
+
 
 int
 null_strcmp(char *s1, char *s2)
@@ -303,15 +303,15 @@ null_strcmp(char *s1, char *s2)
 	if ((s1 == NULL) && (s2 == NULL)) {
 		return(0);
 	}
-	if (s1 == NULL) {		
-		return(-1);		
+	if (s1 == NULL) {
+		return(-1);
 	}
 	if (s2 == NULL) {
 		return(1);
 	}
 	return(strcmp(s1, s2));
 } /* null_strcmp() */
-		
+
 
 int
 dir_extsort(const void *d1, const void *d2)
@@ -322,7 +322,7 @@ dir_extsort(const void *d1, const void *d2)
  *	post:	see code
  */
 {
-    DirList	*f1 = ((DirList *) d1), 
+    DirList	*f1 = ((DirList *) d1),
 		*f2 = ((DirList *) d2);
     struct stat	*s1 = &(f1->filestatus);
     struct stat	*s2 = &(f2->filestatus);
@@ -337,10 +337,10 @@ dir_extsort(const void *d1, const void *d2)
     if (strcmp(((DirList *) d2)->filename, "..") == 0) {
 	return(1);
     }
-	
+
 
     /* find the first extension */
-    
+
     ext1 = f1->filename + strlen(f1->filename);
     extf = FALSE;
     while (!extf && (ext1 > f1->filename)) {
@@ -353,21 +353,21 @@ dir_extsort(const void *d1, const void *d2)
     }
     /* ext1 == NULL if there's no "extension" else ext1 points */
     /* to the first character of the extension string */
-    
+
     /* find the second extension */
-    
+
     ext2 = f2->filename + strlen(f2->filename);
     extf = FALSE;
     while (!extf && (ext2 > f2->filename)) {
 	extf = (*--ext2 == '.');
-    } 
+    }
     if (!extf) {
 	ext2 = NULL;
     } else {
 	ext2++;
     }
     /* idem as for ext1 */
-    
+
     if ((s1->st_mode & S_IFDIR) && (s2->st_mode & S_IFDIR)) {
 	ret = null_strcmp(ext1, ext2);
 	if (ret == 0) {
@@ -431,7 +431,7 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 	/* Solution:							*/
 	/*	manually insert the parent directory as the only	*/
 	/*	directory entry, and return.				*/
-	
+
 	if (*n == -1) {
 	    *n = 1;
 	    *dir = (DirList *) malloc(sizeof(DirList));
@@ -440,7 +440,7 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 	    (*dir)[0].filestatus = status;
 	    (*dir)[0].link = FALSE;
 	    return;
-	}			
+	}
 
 	*dir = (DirList *) malloc( *n * sizeof(DirList) );
 	d = 0;
@@ -450,7 +450,7 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 	    lstat(dire[j]->d_name, &status);
 	    /* check if this file is to be included */
 	    /* always include directories, the rest is subject to fmask */
-	    if (S_ISDIR(status.st_mode) 
+	    if (S_ISDIR(status.st_mode)
 		|| fnmatch(fmask, dire[j]->d_name, FNM_NOESCAPE) != FNM_NOMATCH) {
 		strcpy((*dir)[i].filename, dire[j]->d_name);
 		(*dir)[i].filestatus = status;
@@ -478,7 +478,7 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 	    j++;
 	}
 	*n = i;
-	
+
 	/* sort the directory with the directory names on top */
 	qsort((*dir), *n, sizeof(DirList), _sort_func);
 
@@ -490,13 +490,13 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 
 	return;
 }/* get_dir() */
-	
+
 
 void
 FreeDir(DirList *d, int n)
 /*
  * 	desc:	free the dirlist d
- *	pre:	d != NULL 
+ *	pre:	d != NULL
  *	post:	memory allocated to d has been released
  */
 {

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protg_rcsid[] = "$Id: protg.c,v 1.65 1994/03/26 03:39:05 ian Rel $";
+const char protg_rcsid[] = "$Id: protg.c,v 1.2 1994/05/07 18:13:46 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -137,7 +137,7 @@ const char protg_rcsid[] = "$Id: protg.c,v 1.65 1994/03/26 03:39:05 ian Rel $";
 /* Maximum amount of data in a single packet.  This is set by the <k>
    field in the header; the amount of data in a packet is
    2 ** (<k> + 4).  <k> ranges from 1 to 8.  */
-    
+
 #define CMAXDATAINDEX (8)
 
 #define CMAXDATA (1 << (CMAXDATAINDEX + 4))
@@ -446,7 +446,7 @@ fgstart (qdaemon, pzlog)
 	    iGrequest_packsize, qdaemon->qproto->bname);
       iseg = 1;
     }
-  
+
   if (iGrequest_winsize <= 0 || iGrequest_winsize > 7)
     {
       ulog (LOG_ERROR, "Illegal window size %d for '%c' protocol",
@@ -561,7 +561,7 @@ fvstart (qdaemon, pzlog)
   if (iGrequest_packsize == IPACKSIZE)
     iGrequest_packsize = 1024;
   return fgstart (qdaemon, pzlog);
-}  
+}
 
 /* Exchange initialization messages with the other system.
 
@@ -1140,7 +1140,7 @@ fgwait_for_packet (qdaemon, freturncontrol, ctimeout, cretries)
       size_t cneed;
       boolean ffound;
       size_t crec;
-  
+
       if (! fgprocess_data (qdaemon, TRUE, freturncontrol, &fexit,
 			    &cneed, &ffound))
 	return FALSE;
@@ -1502,7 +1502,7 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 	  cinbuf -= CFRAMELEN;
 
 	  /* Make sure we have enough data.  If we don't, wait for
-	     more.  */	     
+	     more.  */
 
 	  cwant = (int) CPACKLEN (ab);
 	  if (cinbuf < cwant)
@@ -1511,7 +1511,7 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 		*pcneed = cwant - cinbuf;
 	      return TRUE;
 	    }
-	  
+
 	  /* Set up the data pointers and compute the checksum.  */
 	  if (iPrecend >= iPrecstart)
 	    cfirst = cwant;
@@ -1546,7 +1546,7 @@ fgprocess_data (qdaemon, fdoacks, freturncontrol, pfexit, pcneed, pffound)
 		       (((0xaaaa - (icheck ^ (ab[IFRAME_CONTROL] & 0xff)))
 			 & 0xffff)));
 	}
-      
+
       ihdrcheck = (unsigned short) (((ab[IFRAME_CHECKHIGH] & 0xff) << 8)
 				    | (ab[IFRAME_CHECKLOW] & 0xff));
 

@@ -161,7 +161,7 @@ short sq,side;
       u = p[u].nextpos;
     }
     else {
-      if (color[u] == side && 
+      if (color[u] == side &&
 	  (board[u] == queen || board[u] == bishop))
 	return(true);
       u = p[u].nextdir;
@@ -175,7 +175,7 @@ short sq,side;
       u = p[u].nextpos;
     }
     else {
-      if (color[u] == side && 
+      if (color[u] == side &&
 	  (board[u] == queen || board[u] == rook))
 	return(true);
       u = p[u].nextdir;
@@ -201,8 +201,8 @@ short sq,side;
 BRscan(sq,s,mob)
 short sq,*s,*mob;
 /*
-   Find Bishop and Rook mobility, XRAY attacks, and pins. Increment the 
-   hung[] array if a pin is found. 
+   Find Bishop and Rook mobility, XRAY attacks, and pins. Increment the
+   hung[] array if a pin is found.
 */
 {
   register short u,piece,pin;
@@ -260,7 +260,7 @@ short side,xside,ply;
   register struct sqdata *p;
   short i,piece,*PL;
   struct leaf *node;
-  
+
   TrPnt[ply+1] = TrPnt[ply];
   node = &Tree[TrPnt[ply]];
   PL = PieceList[side];
@@ -312,17 +312,17 @@ short side,xside,ply;
 #if (NEWMOVE > 5)
 GenMoves(ply,sq,side,xside)
      short ply,sq,side,xside;
- 
+
 /*
   Generate moves for a piece. The moves are taken from the
   precalulated array posdata. If the board is free, next move
   is choosen from nextpos else from nextdir.
 */
- 
+
 {
   register short u,piece;
   register struct sqdata *p;
-	 
+
   piece = board[sq];
   p = posdata[side][piece][sq];
   if (piece == pawn) {
@@ -339,7 +339,7 @@ GenMoves(ply,sq,side,xside)
       }
       u = p[u].nextpos;
     }
-  }  
+  }
   else {
     u = p[sq].nextpos;
     while (u != sq) {
@@ -352,6 +352,6 @@ GenMoves(ply,sq,side,xside)
 	u = p[u].nextdir;
       }
     }
-  }    
-} 
+  }
+}
 #endif

@@ -27,7 +27,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    I.E. it describes the in-memory representation of ELF.  It requires
    the elf-common.h file which contains the portions that are common to
    both the internal and external representations. */
-   
+
 
 /* NOTE that these structures are not kept in the same order as they appear
    in the object file.  In some cases they've been reordered for more optimal

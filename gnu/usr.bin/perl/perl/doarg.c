@@ -1,4 +1,4 @@
-/* $RCSfile: doarg.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* $RCSfile: doarg.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:30 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doarg.c,v $
+ * Revision 1.2  1994/09/11  03:17:30  gclarkii
+ * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
+ * Added casts to shutup warnings in doio.c
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -18,7 +22,7 @@
  * Revision 4.0.1.7  92/06/11  21:07:11  lwall
  * patch34: join with null list attempted negative allocation
  * patch34: sprintf("%6.4s", "abcdefg") didn't print "abcd  "
- * 
+ *
  * Revision 4.0.1.6  92/06/08  12:34:30  lwall
  * patch20: removed implicit int declarations on funcions
  * patch20: pattern modifiers i and o didn't interact right
@@ -28,10 +32,10 @@
  * patch20: usersub routines didn't reclaim temp values soon enough
  * patch20: ($<,$>) = ... didn't work on some architectures
  * patch20: added Atari ST portability
- * 
+ *
  * Revision 4.0.1.5  91/11/11  16:31:58  lwall
  * patch19: added little-endian pack/unpack options
- * 
+ *
  * Revision 4.0.1.4  91/11/05  16:35:06  lwall
  * patch11: /$foo/o optimizer could access deallocated data
  * patch11: minimum match length calculation in regexp is now cumulative
@@ -40,10 +44,10 @@
  * patch11: sprintf() now supports any length of s field
  * patch11: indirect subroutine calls through magic vars (e.g. &$1) didn't work
  * patch11: defined(&$foo) and undef(&$foo) didn't work
- * 
+ *
  * Revision 4.0.1.3  91/06/10  01:18:41  lwall
  * patch10: pack(hh,1) dumped core
- * 
+ *
  * Revision 4.0.1.2  91/06/07  10:42:17  lwall
  * patch4: new copyright notice
  * patch4: // wouldn't use previous pattern if it started with a null character
@@ -53,14 +57,14 @@
  * patch4: chop("") was returning "\0" rather than ""
  * patch4: vector logical operations &, | and ^ sometimes returned null string
  * patch4: syscall couldn't pass numbers with most significant bit set on sparcs
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:40:14  lwall
  * patch1: fixed undefined environ problem
  * patch1: fixed debugger coredump on subroutines
- * 
+ *
  * Revision 4.0  91/03/20  01:06:42  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -911,7 +915,7 @@ register STR **sarg;
 		xlen = strlen(xs);
 		break;
 	    case '0': case '1': case '2': case '3': case '4':
-	    case '5': case '6': case '7': case '8': case '9': 
+	    case '5': case '6': case '7': case '8': case '9':
 	    case '.': case '#': case '-': case '+': case ' ':
 		continue;
 	    case 'l':

@@ -1,8 +1,8 @@
-/* Demangler for GNU C++ 
+/* Demangler for GNU C++
    Copyright 1989, 1991 Free Software Foundation, Inc.
    Written by James Clark (jjc@jclark.uucp)
    Rewritten by Fred Fish (fnf@cygnus.com) for ARM and Lucid demangling
-   
+
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
 modify it under the terms of the GNU Library General Public
@@ -319,7 +319,7 @@ cplus_demangle_opname (opname, result, options)
   result[0] = '\0';
   ret = 0;
   work->options = options;
-  
+
   if (opname[0] == '_' && opname[1] == '_'
 	  && opname[2] == 'o' && opname[3] == 'p')
     {
@@ -367,12 +367,12 @@ cplus_demangle_opname (opname, result, options)
 		      strcat (result, optable[i].out);
 		      ret = 1;
 		      break;
-		    }		      
+		    }
 		}
 	    }
 	}
     }
-  else if (len >= 3 
+  else if (len >= 3
       && opname[0] == 'o'
       && opname[1] == 'p'
       && strchr (cplus_markers, opname[2]) != NULL)
@@ -400,7 +400,7 @@ cplus_demangle_opname (opname, result, options)
 	  for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
 	    {
 	      len1 = len - 3;
-	      if (strlen (optable[i].in) == len1 
+	      if (strlen (optable[i].in) == len1
 		  && memcmp (optable[i].in, opname + 3, len1) == 0)
 		{
 		  strcat (result, "operator");
@@ -482,7 +482,7 @@ int cplus_match (mangled, text, text_len)
 	DMGL_PARAMS	Function parameters are included.
 
    For example,
-   
+
    cplus_demangle ("foo__1Ai", DMGL_PARAMS)		=> "A::foo(int)"
    cplus_demangle ("foo__1Ai", DMGL_PARAMS | DMGL_ANSI)	=> "A::foo(int)"
    cplus_demangle ("foo__1Ai", 0)			=> "A::foo"
@@ -511,7 +511,7 @@ cplus_demangle (mangled, options)
       work -> options = options;
       if ((work->options & DMGL_STYLE_MASK) == 0)
 	work->options |= (int)current_demangling_style & DMGL_STYLE_MASK;
-      
+
       string_init (&decl);
 
       /* First check to see if gnu style demangling is active and if the
@@ -557,16 +557,16 @@ mop_up (work, declp, success)
   char *demangled = NULL;
 
   /* Discard the remembered types, if any. */
-  
+
   forget_types (work);
   if (work -> typevec != NULL)
     {
       free ((char *) work -> typevec);
     }
-  
+
   /* If demangling was successful, ensure that the demangled string is null
      terminated and return it.  Otherwise, free the demangling decl. */
-  
+
   if (!success)
     {
       string_delete (declp);
@@ -640,7 +640,7 @@ demangle_signature (work, mangled, declp)
 	      }
 	    oldmangled = NULL;
 	    break;
-	  
+
 	  case 'S':
 	    /* Static member function */
 	    if (oldmangled == NULL)
@@ -660,7 +660,7 @@ demangle_signature (work, mangled, declp)
 	    (*mangled)++;
 	    work -> const_type = 1;
 	    break;
-	  
+
 	  case '0': case '1': case '2': case '3': case '4':
 	  case '5': case '6': case '7': case '8': case '9':
 	    if (oldmangled == NULL)
@@ -678,7 +678,7 @@ demangle_signature (work, mangled, declp)
 	      }
 	    oldmangled = NULL;
 	    break;
-	  
+
 	  case 'F':
 	    /* Function */
 	    /* ARM style demangling includes a specific 'F' character after
@@ -701,10 +701,10 @@ demangle_signature (work, mangled, declp)
 	      }
 	    success = demangle_args (work, mangled, declp);
 	    break;
-	  
+
 	  case 't':
 	    /* G++ Template */
-	    string_init(&trawname); 
+	    string_init(&trawname);
 	    string_init(&tname);
             if (oldmangled == NULL)
               {
@@ -901,7 +901,7 @@ demangle_template (work, mangled, tname, trawname)
 	    }
 	  string_append (tname, "=");
 	  while (*old_p && !done)
-	    {	
+	    {
 	      switch (*old_p)
 		{
 		  case 'P':
@@ -954,7 +954,7 @@ demangle_template (work, mangled, tname, trawname)
 		  string_appendn (tname, "-", 1);
 		  (*mangled)++;
 		}
-	      while (isdigit (**mangled))	
+	      while (isdigit (**mangled))
 		{
 		  string_appendn (tname, *mangled, 1);
 		  (*mangled)++;
@@ -967,7 +967,7 @@ demangle_template (work, mangled, tname, trawname)
 		  string_appendn (tname, "-", 1);
 		  (*mangled)++;
 		}
-	      while (isdigit (**mangled))	
+	      while (isdigit (**mangled))
 		{
 		  string_appendn (tname, *mangled, 1);
 		  (*mangled)++;
@@ -976,7 +976,7 @@ demangle_template (work, mangled, tname, trawname)
 		{
 		  string_appendn (tname, ".", 1);
 		  (*mangled)++;
-		  while (isdigit (**mangled))	
+		  while (isdigit (**mangled))
 		    {
 		      string_appendn (tname, *mangled, 1);
 		      (*mangled)++;
@@ -986,7 +986,7 @@ demangle_template (work, mangled, tname, trawname)
 		{
 		  string_appendn (tname, "e", 1);
 		  (*mangled)++;
-		  while (isdigit (**mangled))	
+		  while (isdigit (**mangled))
 		    {
 		      string_appendn (tname, *mangled, 1);
 		      (*mangled)++;
@@ -1009,7 +1009,7 @@ demangle_template (work, mangled, tname, trawname)
   if (tname->p[-1] == '>')
     string_append (tname, " ");
   string_append (tname, ">");
-  
+
 /*
       if (work -> static_type)
 	{
@@ -1160,7 +1160,7 @@ demangle_class (work, mangled, declp)
 	    }
 	  else
 	    {
-	      work -> constructor -= 1; 
+	      work -> constructor -= 1;
 	    }
 	}
       string_prepend (declp, "::");
@@ -1198,7 +1198,7 @@ DESCRIPTION
 	the mangled name.  Upon exit, it should point to the first character
 	of the signature if demangling was successful, or to the first
 	unconsumed character if demangling of the prefix was unsuccessful.
-	
+
 	Returns 1 on success, 0 otherwise.
  */
 
@@ -1265,10 +1265,10 @@ demangle_prefix (work, mangled, declp)
       i = strspn (scan, "_");
       if (i > 2)
 	{
-	  scan += (i - 2); 
+	  scan += (i - 2);
 	}
     }
- 
+
   if (scan == NULL)
     {
       success = 0;
@@ -1292,7 +1292,7 @@ demangle_prefix (work, mangled, declp)
 	  consume_count (mangled);
 	  string_append (declp, *mangled);
 	  *mangled += strlen (*mangled);
-	  success = 1; 
+	  success = 1;
 	}
       else
 	{
@@ -1354,7 +1354,7 @@ demangle_prefix (work, mangled, declp)
       string_append (declp, *mangled);
       *mangled += strlen (*mangled);
       success = 1;
-    } 
+    }
   return (success);
 }
 
@@ -1708,7 +1708,7 @@ demangle_qualified (work, mangled, result, isfuncname, append)
 	  if (!success) break;
 	}
       else
-        {	
+        {
 	  namelength = consume_count (mangled);
       	  if (strlen (*mangled) < namelength)
 	    {
@@ -1740,7 +1740,7 @@ demangle_qualified (work, mangled, result, isfuncname, append)
       string_appendn (&temp, (*mangled) - namelength, namelength);
     }
 
-  /* Now either prepend the temp buffer to the result, or append it, 
+  /* Now either prepend the temp buffer to the result, or append it,
      depending upon the state of the append flag. */
 
   if (append)
@@ -1796,12 +1796,12 @@ get_count (type, count)
 	{
 	  p = *type;
 	  n = *count;
-	  do 
+	  do
 	    {
 	      n *= 10;
 	      n += *p - '0';
 	      p++;
-	    } 
+	    }
 	  while (isdigit (*p));
 	  if (*p == '_')
 	    {
@@ -1867,7 +1867,7 @@ do_type (work, mangled, result)
 	    if (**mangled == '_')
 	      {
 		string_appendn (&decl, p, *mangled - p);
-		string_append (&decl, "]");             
+		string_append (&decl, "]");
 		*mangled += 1;
 	      }
 	    else
@@ -2331,7 +2331,7 @@ demangle_args (work, mangled, declp)
       if ((**mangled == 'N') || (**mangled == 'T'))
 	{
 	  temptype = *(*mangled)++;
-	  
+
 	  if (temptype == 'N')
 	    {
 	      if (!get_count (mangled, &r))
@@ -2459,7 +2459,7 @@ demangle_function_name (work, mangled, declp, scan)
 	}
     }
 
-  if (declp->p - declp->b >= 3 
+  if (declp->p - declp->b >= 3
       && declp->b[0] == 'o'
       && declp->b[1] == 'p'
       && strchr (cplus_markers, declp->b[2]) != NULL)
@@ -2487,7 +2487,7 @@ demangle_function_name (work, mangled, declp, scan)
 	  for (i = 0; i < sizeof (optable) / sizeof (optable[0]); i++)
 	    {
 	      int len = declp->p - declp->b - 3;
-	      if (strlen (optable[i].in) == len 
+	      if (strlen (optable[i].in) == len
 		  && memcmp (optable[i].in, declp->b + 3, len) == 0)
 		{
 		  string_clear (declp);
@@ -2558,7 +2558,7 @@ demangle_function_name (work, mangled, declp, scan)
 		      string_append (declp, "operator");
 		      string_append (declp, optable[i].out);
 		      break;
-		    }		      
+		    }
 		}
 	    }
 	}
@@ -2612,7 +2612,7 @@ string_init (s)
   s->b = s->p = s->e = NULL;
 }
 
-static void 
+static void
 string_clear (s)
      string *s;
 {
@@ -2748,7 +2748,7 @@ static void
 usage (stream, status)
      FILE *stream;
      int status;
-{    
+{
   fprintf (stream, "\
 Usage: %s [-_] [-n] [-s {gnu,lucid,arm}] [--strip-underscores]\n\
        [--no-strip-underscores] [--format={gnu,lucid,arm}]\n\
@@ -2853,7 +2853,7 @@ main (argc, argv)
 	    {
 	      int skip_first = strip_underscore && i > 1 && mbuffer[0] == '_';
 	      mbuffer[i] = 0;
-	      
+
 	      result = cplus_demangle (mbuffer+skip_first,
 				       DMGL_PARAMS | DMGL_ANSI);
 	      if (result)

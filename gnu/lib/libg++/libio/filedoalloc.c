@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -74,7 +74,7 @@ _IO_file_doallocate(fp)
 
   if (_IO_cleanup_registration_needed)
     (*_IO_cleanup_registration_needed)();
-  
+
   if (fp->_fileno < 0 || fp->_jumps->__stat(fp, &st) < 0)
     {
       couldbetty = 0;

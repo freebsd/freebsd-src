@@ -34,7 +34,7 @@ class charinfo {
   char transparent_translate;	// non-zero means translation applies to
 				// to transparent throughput
 public:
-  enum { 
+  enum {
     ENDS_SENTENCE = 1,
     BREAK_BEFORE = 2,
     BREAK_AFTER = 4,

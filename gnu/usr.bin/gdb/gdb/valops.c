@@ -207,13 +207,13 @@ value_zero (type, lv)
   return val;
 }
 
-/* Return a value with type TYPE located at ADDR.  
+/* Return a value with type TYPE located at ADDR.
 
    Call value_at only if the data needs to be fetched immediately;
    if we can be 'lazy' and defer the fetch, perhaps indefinately, call
    value_at_lazy instead.  value_at_lazy simply records the address of
-   the data and sets the lazy-evaluation-required flag.  The lazy flag 
-   is tested in the VALUE_CONTENTS macro, which is used if and when 
+   the data and sets the lazy-evaluation-required flag.  The lazy flag
+   is tested in the VALUE_CONTENTS macro, which is used if and when
    the contents are actually required.  */
 
 value_ptr
@@ -276,7 +276,7 @@ value_fetch_lazy (val)
   CORE_ADDR addr = VALUE_ADDRESS (val) + VALUE_OFFSET (val);
 
   if (TYPE_LENGTH (VALUE_TYPE (val)))
-    read_memory (addr, VALUE_CONTENTS_RAW (val), 
+    read_memory (addr, VALUE_CONTENTS_RAW (val),
 	         TYPE_LENGTH (VALUE_TYPE (val)));
   VALUE_LAZY (val) = 0;
   return 0;
@@ -482,7 +482,7 @@ Can't handle bitfield which doesn't fit in a single register.");
 	    /* Just find out where to put it.  */
 	    get_saved_register ((char *)NULL,
 			        &optim, &addr, frame, regno, &lval);
-	    
+
 	    if (optim)
 	      error ("Attempt to assign to a value that was optimized out.");
 	    if (lval == lval_memory)
@@ -494,7 +494,7 @@ Can't handle bitfield which doesn't fit in a single register.");
 	  }
       }
       break;
-	
+
 
     default:
       error ("Left operand of assignment is not an lvalue.");
@@ -514,7 +514,7 @@ Can't handle bitfield which doesn't fit in a single register.");
   memcpy (VALUE_CONTENTS_RAW (val), VALUE_CONTENTS (fromval),
 	  TYPE_LENGTH (type));
   VALUE_TYPE (val) = type;
-  
+
   return val;
 }
 
@@ -631,7 +631,7 @@ value_coerce_function (arg1)
 
   return value_from_longest (lookup_pointer_type (VALUE_TYPE (arg1)),
 		(LONGEST) (VALUE_ADDRESS (arg1) + VALUE_OFFSET (arg1)));
-}  
+}
 
 /* Return a pointer value for the object for which ARG1 is the contents.  */
 
@@ -800,7 +800,7 @@ value_arg_push (sp, arg)
   return value_push (sp, value_arg_coerce (arg));
 }
 
-/* Determine a function's address and its return type from its value. 
+/* Determine a function's address and its return type from its value.
    Calls error() if the function is not valid for calling.  */
 
 static CORE_ADDR
@@ -994,7 +994,7 @@ call_function_by_hand (function, nargs, args)
 
     if (struct_return)
       len += TYPE_LENGTH (value_type);
-    
+
     for (i = nargs - 1; i >= 0; i--)
       len += TYPE_LENGTH (VALUE_TYPE (value_arg_coerce (args[i])));
 #ifdef CALL_DUMMY_STACK_ADJUST
@@ -1072,7 +1072,7 @@ call_function_by_hand (function, nargs, args)
      it doesn't cost us anything but space and if the function is pcc
      it will ignore this value, we will make that assumption.
 
-     Also note that on some machines (like the sparc) pcc uses a 
+     Also note that on some machines (like the sparc) pcc uses a
      convention like gcc's.  */
 
   if (struct_return)
@@ -1220,7 +1220,7 @@ value_array (lowbound, highbound, elemvec)
 
   rangetype = create_range_type ((struct type *) NULL, builtin_type_int,
 				 lowbound, highbound);
-  arraytype = create_array_type ((struct type *) NULL, 
+  arraytype = create_array_type ((struct type *) NULL,
 				 VALUE_TYPE (elemvec[0]), rangetype);
   val = value_at_lazy (arraytype, addr);
   return (val);
@@ -1309,7 +1309,7 @@ typecmp (staticp, t1, t2)
       while (TYPE_CODE (tt1) == TYPE_CODE_PTR
 	  && (TYPE_CODE(tt2)==TYPE_CODE_ARRAY || TYPE_CODE(tt2)==TYPE_CODE_PTR))
 	{
-	   tt1 = TYPE_TARGET_TYPE(tt1); 
+	   tt1 = TYPE_TARGET_TYPE(tt1);
 	   tt2 = TYPE_TARGET_TYPE(tt2);
 	}
       if (TYPE_CODE(tt1) == TYPE_CODE(tt2)) continue;
@@ -1436,13 +1436,13 @@ search_struct_method (name, arg1p, args, offset, static_memfuncp, type)
 	  if (cplus_demangle_opname(t_field_name, dem_opname, DMGL_ANSI))
 	    t_field_name = dem_opname;
 	  else if (cplus_demangle_opname(t_field_name, dem_opname, 0))
-	    t_field_name = dem_opname; 
+	    t_field_name = dem_opname;
 	}
       if (t_field_name && STREQ (t_field_name, name))
 	{
 	  int j = TYPE_FN_FIELDLIST_LENGTH (type, i) - 1;
 	  struct fn_field *f = TYPE_FN_FIELDLIST1 (type, i);
- 	  name_matched = 1; 
+ 	  name_matched = 1;
 
 	  if (j > 0 && args == 0)
 	    error ("cannot resolve overloaded method `%s'", name);
@@ -1666,7 +1666,7 @@ check_field_in (type, name)
   for (i = TYPE_N_BASECLASSES (type) - 1; i >= 0; i--)
     if (check_field_in (TYPE_BASECLASS (type, i), name))
       return 1;
-      
+
   return 0;
 }
 
@@ -1725,7 +1725,7 @@ value_struct_elt_for_reference (domain, offset, curtype, name, intype)
   for (i = TYPE_NFIELDS (t) - 1; i >= TYPE_N_BASECLASSES (t); i--)
     {
       char *t_field_name = TYPE_FIELD_NAME (t, i);
-      
+
       if (t_field_name && STREQ (t_field_name, name))
 	{
 	  if (TYPE_FIELD_STATIC (t, i))
@@ -1741,7 +1741,7 @@ value_struct_elt_for_reference (domain, offset, curtype, name, intype)
 	    }
 	  if (TYPE_FIELD_PACKED (t, i))
 	    error ("pointers to bitfield members not allowed");
-	  
+
 	  return value_from_longest
 	    (lookup_reference_type (lookup_member_type (TYPE_FIELD_TYPE (t, i),
 							domain)),
@@ -1774,13 +1774,13 @@ value_struct_elt_for_reference (domain, offset, curtype, name, intype)
 	  if (cplus_demangle_opname(t_field_name, dem_opname, DMGL_ANSI))
 	    t_field_name = dem_opname;
 	  else if (cplus_demangle_opname(t_field_name, dem_opname, 0))
-	    t_field_name = dem_opname; 
+	    t_field_name = dem_opname;
 	}
       if (t_field_name && STREQ (t_field_name, name))
 	{
 	  int j = TYPE_FN_FIELDLIST_LENGTH (t, i);
 	  struct fn_field *f = TYPE_FN_FIELDLIST1 (t, i);
-	  
+
 	  if (intype == 0 && j > 1)
 	    error ("non-unique member `%s' requires type instantiation", name);
 	  if (intype)
@@ -1793,7 +1793,7 @@ value_struct_elt_for_reference (domain, offset, curtype, name, intype)
 	    }
 	  else
 	    j = 0;
-	  
+
 	  if (TYPE_FN_FIELD_STUB (f, j))
 	    check_stub_method (t, i, j);
 	  if (TYPE_FN_FIELD_VIRTUAL_P (f, j))
