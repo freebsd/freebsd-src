@@ -255,7 +255,7 @@ stf_encapcheck(m, off, proto, arg)
 	struct ip ip;
 	struct in6_ifaddr *ia6;
 	struct stf_softc *sc;
-	struct in_addr a, b;
+	struct in_addr a, b, mask;
 
 	sc = (struct stf_softc *)arg;
 	if (sc == NULL)
@@ -297,10 +297,11 @@ stf_encapcheck(m, off, proto, arg)
 	 * fail on: src = 10.1.1.1, ia6->ia_addr = 2002:0b00:.../24
 	 */
 	bzero(&a, sizeof(a));
-	a.s_addr = GET_V4(&ia6->ia_addr.sin6_addr)->s_addr;
-	a.s_addr &= GET_V4(&ia6->ia_prefixmask.sin6_addr)->s_addr;
+	bcopy(GET_V4(&ia6->ia_addr.sin6_addr), &a, sizeof(a));
+	bcopy(GET_V4(&ia6->ia_prefixmask.sin6_addr), &mask, sizeof(mask));
+	a.s_addr &= mask.s_addr;
 	b = ip.ip_src;
-	b.s_addr &= GET_V4(&ia6->ia_prefixmask.sin6_addr)->s_addr;
+	b.s_addr &= mask.s_addr;
 	if (a.s_addr != b.s_addr)
 		return 0;
 
@@ -487,15 +488,17 @@ stf_output(ifp, m, dst, rt)
 
 static int
 isrfc1918addr(in)
-	struct in_addr *in;
+	struct in_addr *in;	/* 16-bit aligned */
 {
+	u_char *a = (u_char *)in;
+
 	/*
 	 * returns 1 if private address range:
 	 * 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 	 */
-	if ((ntohl(in->s_addr) & 0xff000000) >> 24 == 10 ||
-	    (ntohl(in->s_addr) & 0xfff00000) >> 16 == 172 * 256 + 16 ||
-	    (ntohl(in->s_addr) & 0xffff0000) >> 16 == 192 * 256 + 168)
+	if (a[0] == 10 ||
+	    (a[0] == 172 && (a[1] & 0xf0) == 16) ||
+	    (a[1] == 192 && a[1] == 168))
 		return 1;
 
 	return 0;
@@ -504,21 +507,20 @@ isrfc1918addr(in)
 static int
 stf_checkaddr4(sc, in, inifp)
 	struct stf_softc *sc;
-	struct in_addr *in;
+	struct in_addr *in;	/* 16-bit aligned */
 	struct ifnet *inifp;	/* incoming interface */
 {
 	struct in_ifaddr *ia4;
+	u_char *a = (u_char *)in;
 
 	/*
 	 * reject packets with the following address:
 	 * 224.0.0.0/4 0.0.0.0/8 127.0.0.0/8 255.0.0.0/8
 	 */
-	if (IN_MULTICAST(ntohl(in->s_addr)))
+	if ((a[0] & 0xf0) == 0xe0)
 		return -1;
-	switch ((ntohl(in->s_addr) & 0xff000000) >> 24) {
-	case 0: case 127: case 255:
+	if (a[0] == 0 || a[0] == 127 || a[0] == 255)
 		return -1;
-	}
 
 	/*
 	 * reject packets with private address range.
@@ -536,7 +538,7 @@ stf_checkaddr4(sc, in, inifp)
 	{
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
+		if (bcmp(in, &ia4->ia_broadaddr.sin_addr, sizeof(*in)) == 0)
 			return -1;
 	}
 
@@ -550,7 +552,7 @@ stf_checkaddr4(sc, in, inifp)
 		bzero(&sin, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_addr = *in;
+		bcopy(in, &sin.sin_addr, sizeof(*in));
 		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
 		if (!rt || rt->rt_ifp != inifp) {
 #if 0
