@@ -114,6 +114,12 @@
 #define	APIC_IPI_DEST_ALL	-2
 #define	APIC_IPI_DEST_OTHERS	-3
 
+#define	APIC_BUS_UNKNOWN	-1
+#define	APIC_BUS_ISA		0
+#define	APIC_BUS_EISA		1
+#define	APIC_BUS_PCI		2
+#define	APIC_BUS_MAX		APIC_BUS_PCI
+
 /*
  * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
  * CPU's and I/O APIC's.
@@ -142,6 +148,7 @@ int	ioapic_get_vector(void *cookie, u_int pin);
 int	ioapic_next_logical_cluster(void);
 void	ioapic_register(void *cookie);
 int	ioapic_remap_vector(void *cookie, u_int pin, int vector);
+int	ioapic_set_bus(void *cookie, u_int pin, int bus_type);
 int	ioapic_set_extint(void *cookie, u_int pin);
 int	ioapic_set_nmi(void *cookie, u_int pin);
 int	ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol);
