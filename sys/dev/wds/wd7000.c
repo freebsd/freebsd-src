@@ -898,7 +898,7 @@ wds_done(struct wds *wp, struct wds_req *r, u_int8_t stat)
 		wp->wdsr_free |= (1 << r->id);
 	}
 
-	DBG(DBX "wds%d: request 0x%x done\n", wp->unit, (u_int) r);
+	DBG(DBX "wds%d: request %p done\n", wp->unit, r);
 }
 
 /* command returned bad status, request sense */
@@ -940,8 +940,8 @@ wds_runsense(struct wds *wp, struct wds_req *r)
 		wdsr_ccb_done(wp, r, r->ccb, CAM_AUTOSENSE_FAIL);
 		return CAM_AUTOSENSE_FAIL;
 	} else {
-		DBG(DBX "wds%d: enqueued status cmd 0x%x, r=0x%x\n",
-			wp->unit, r->cmd.scb[0] & 0xFF, (u_int) r);
+		DBG(DBX "wds%d: enqueued status cmd 0x%x, r=%p\n",
+			wp->unit, r->cmd.scb[0] & 0xFF, r);
 		/* don't free CCB yet */
 		smallog3('*', ccb_h->target_id + '0',
 			 ccb_h->target_lun + '0');
@@ -1155,8 +1155,8 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 		wdsr_ccb_done(wp, r, r->ccb, CAM_RESRC_UNAVAIL);
 		return;
 	}
-	DBG(DBX "wds%d: enqueued cmd 0x%x, r=0x%x\n", unit,
-	    r->cmd.scb[0] & 0xFF, (u_int) r);
+	DBG(DBX "wds%d: enqueued cmd 0x%x, r=%p\n", unit,
+	    r->cmd.scb[0] & 0xFF, r);
 
 	smallog3('+', ccb_h->target_id + '0', ccb_h->target_lun + '0');
 }
@@ -1366,7 +1366,7 @@ cmdtovirt(struct wds *wp, u_int32_t phys)
 {
 	char	*a;
 
-	a = WDSTOVIRT(wp, phys);
+	a = WDSTOVIRT(wp, (uintptr_t)phys);
 	if( a < (char *)&wp->dx->req[0] || a>= (char *)&wp->dx->req[MAXSIMUL]) {
 		device_printf(wp->dev, "weird phys address 0x%x\n", phys);
 		return (NULL);
