@@ -37,9 +37,9 @@
  *		Last but not least, many thanx to UCB and the FreeBSD
  *		team for creating and maintaining such a wonderful O/S.
  *
- * TODO: * Add EISA and ISA probe code.
+ * TODO: * Add ISA probe code.
  *	     * Add driver-level RSID-0. This will allow interoperability with
- *	       NiceTry, M$-Doze, Win-Dog, Slowlaris, etc. in recognizing RAID
+ *	       NiceTry, M$-Doze, Win-Dog, Slowlaris, etc., in recognizing RAID
  *	       arrays that span controllers (Wow!).
  */
 
@@ -64,7 +64,8 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.6 1998/06/02 00:32:38 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.32 1998/08/03 16:45:12 root Exp root $"
+
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -83,6 +84,13 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+/* The HBA reset option uses the same timer as the lost IRQ option*/
+#ifdef DPT_RESET_HBA
+#ifndef DPT_LOST_IRQ
+#define DPT_LOST_IRQ
+#endif
+#endif
+
 #include <sys/dpt.h>
 
 #ifdef INLINE
@@ -97,6 +105,8 @@
 int dpt_controllers_present = 0;
 
 /* Function Prototypes */
+
+#define microtime_now dpt_time_now()
 
 static INLINE u_int32_t dpt_inl(dpt_softc_t * dpt, u_int32_t offset);
 static INLINE u_int8_t dpt_inb(dpt_softc_t * dpt, u_int32_t offset);
@@ -368,6 +378,117 @@ dpt_raid_busy(dpt_softc_t * dpt)
 		return (0);
 }
 
+#ifdef DPT_RESET_HBA
+
+/*
+**	Function name : dpt_reset_hba
+**
+**	Description : Reset the HBA and properly discard all pending work
+**	Input :       Minor Device Number
+**	Output :      Nothing
+*/
+
+static void
+dpt_reset_hba(int minor)
+{
+    dpt_softc_t      *dpt;
+    eata_ccb_t       *ccb;
+    int               ospl;
+    dpt_ccb_t         dccb, *dccbp;
+    int               result;
+    struct scsi_xfer *xs;
+    
+    if ((dpt = dpt_minor2softc(minor)) == NULL) {
+	printf("DPT:  Ignoring invalid minor %d in dpt_reset_hba\n", minor);
+	return;
+    }
+	
+    /* Prepare a control block.  The SCSI command part is immaterial */
+    dccb.xs = NULL;
+    dccb.flags = 0;
+    dccb.state = DPT_CCB_STATE_NEW;
+    dccb.std_callback = NULL;
+    dccb.wrbuff_callback = NULL;
+
+    ccb = &dccb.eata_ccb;
+    ccb->CP_OpCode = EATA_CMD_RESET;
+    ccb->SCSI_Reset = 0;
+    ccb->HBA_Init = 1;
+    ccb->Auto_Req_Sen = 1;
+    ccb->cp_id = 0; /* Should be ignored */
+    ccb->DataIn = 1;
+    ccb->DataOut = 0;
+    ccb->Interpret = 1;
+    ccb->reqlen = htonl(sizeof(struct scsi_sense_data));
+    ccb->cp_statDMA = htonl(vtophys(&ccb->cp_statDMA));
+    ccb->cp_reqDMA = htonl(vtophys(&ccb->cp_reqDMA));
+    ccb->cp_viraddr = (u_int32_t) & ccb;
+
+    ccb->cp_msg[0] = HA_IDENTIFY_MSG | HA_DISCO_RECO;
+    ccb->cp_scsi_cmd = 0;  /* Should be ignored */
+
+    /* Lock up the submitted queue.  We are very persistant here */
+    ospl = splcam();
+    while (dpt->queue_status & DPT_SUBMITTED_QUEUE_ACTIVE) {
+	DELAY(100);
+    }
+	
+    dpt->queue_status |= DPT_SUBMITTED_QUEUE_ACTIVE;
+    splx(ospl);
+
+    /* Send the RESET message */
+    if ((result = dpt_send_eata_command(dpt, &dccb.eata_ccb,
+					EATA_CMD_RESET, 0, 0, 0, 0)) != 0) {
+	printf("dpt%d: Failed to send the RESET message.\n"
+	       "      Trying cold boot (ouch!)\n", dpt->unit);
+	
+	
+	if ((result = dpt_send_eata_command(dpt, &dccb.eata_ccb,
+					    EATA_COLD_BOOT, 0, 0, 0, 0))
+	    != 0) {
+	    panic("dpt%d:  Faild to cold boot the HBA\n", dpt->unit);
+	}
+#ifdef DPT_MEASURE_PERFORMANCE
+	dpt->performance.cold_boots++;
+#endif /* DPT_MEASURE_PERFORMANCE */
+    }
+	
+#ifdef DPT_MEASURE_PERFORMANCE
+	dpt->performance.warm_starts++;
+#endif /* DPT_MEASURE_PERFORMANCE */
+	
+    printf("dpt%d:  Aborting pending requests.  O/S should re-submit\n",
+	   dpt->unit);
+
+    while ((dccbp = TAILQ_FIRST(&dpt->completed_ccbs)) != NULL) {
+	struct scsi_xfer *xs = dccbp->xs;
+	    
+	/* Not all transactions have xs structs */
+	if (xs != NULL) {
+	    /* Tell the kernel proper this did not complete well */
+	    xs->error |= XS_SELTIMEOUT;
+	    xs->flags |= SCSI_ITSDONE;
+	    scsi_done(xs);
+	}
+	    
+	dpt_Qremove_submitted(dpt, dccbp);
+	
+	/* Remember, Callbacks are NOT in the standard queue */
+	if (dccbp->std_callback != NULL) {
+	    (dccbp->std_callback) (dpt, dccbp->eata_ccb.cp_channel,  dccbp);
+	} else {
+	    ospl = splcam();
+	    dpt_Qpush_free(dpt, dccbp);
+	    splx(ospl);
+	}
+    }
+	
+    printf("dpt%d: reset done aborting all pending commands\n", dpt->unit);
+    dpt->queue_status &= ~DPT_SUBMITTED_QUEUE_ACTIVE;
+}
+
+#endif /* DPT_RESET_HBA */ 
+
 /**
  * Build a Command Block for target mode READ/WRITE BUFFER,
  * with the ``sync'' bit ON.
@@ -438,18 +559,12 @@ dpt_target_ccb(dpt_softc_t * dpt, int bus, u_int8_t target, u_int8_t lun,
 
 /* Setup a target mode READ command */
 
-#define cmd_ct dpt->performance.command_count[(int)ccb->eata_ccb.cp_scsi_cmd];
-
 static void
 dpt_set_target(int redo, dpt_softc_t * dpt,
 	       u_int8_t bus, u_int8_t target, u_int8_t lun, int mode,
 	       u_int16_t length, u_int16_t offset, dpt_ccb_t * ccb)
 {
 	int             ospl;
-
-#ifdef DPT_MEASURE_PERFORMANCE
-	struct timeval  now;
-#endif
 
 	if (dpt->target_mode_enabled) {
 		ospl = splcam();
@@ -461,9 +576,8 @@ dpt_set_target(int redo, dpt_softc_t * dpt,
 		ccb->transaction_id = ++dpt->commands_processed;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-		++cmd_ct;
-		microtime(&now);
-		ccb->command_started = now;
+		dpt->performance.command_count[ccb->eata_ccb.cp_scsi_cmd]++;
+		ccb->command_started = microtime_now;
 #endif
 		dpt_Qadd_waiting(dpt, ccb);
 		dpt_sched_queue(dpt);
@@ -477,11 +591,11 @@ dpt_set_target(int redo, dpt_softc_t * dpt,
 
 /**
  * Schedule a buffer to be sent to another target.
- * The work will be scheduled and the callback provided will be called when the work is
- * actually done.
+ * The work will be scheduled and the callback provided will be called when
+ * the work is actually done.
  *
- * Please NOTE:  ``Anyone'' can send a buffer, but only registered clients get notified
-                 of receipt of buffers.
+ * Please NOTE:  ``Anyone'' can send a buffer, but only registered clients
+ * get notified of receipt of buffers.
  */
 
 int
@@ -498,9 +612,6 @@ dpt_send_buffer(int unit,
 	dpt_softc_t    *dpt;
 	dpt_ccb_t      *ccb = NULL;
 	int             ospl;
-#ifdef DPT_MEASURE_PERFORMANCE
-	struct timeval  now;
-#endif
 
 	/* This is an external call.  Be a bit paranoid */
 	for (dpt = TAILQ_FIRST(&dpt_softc_list);
@@ -540,18 +651,17 @@ valid_unit:
 		splx(ospl);
 
 		bcopy(dpt->rw_buffer[channel][target][lun] + offset, data, length);
-		dpt_target_ccb(dpt, channel, target, lun, ccb, mode, SCSI_TM_WRITE_BUFFER,
-			       length, offset);
-		ccb->std_callback = (ccb_callback) callback;	/* A hack.  Potential
-								 * trouble */
+		dpt_target_ccb(dpt, channel, target, lun, ccb, mode, 
+					   SCSI_TM_WRITE_BUFFER,
+					   length, offset);
+		ccb->std_callback = (ccb_callback) callback; /* Potential trouble */
 
 		ospl = splcam();
 		ccb->transaction_id = ++dpt->commands_processed;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-		++cmd_ct;
-		microtime(&now);
-		ccb->command_started = now;
+		dpt->performance.command_count[ccb->eata_ccb.cp_scsi_cmd]++;
+		ccb->command_started = microtime_now;
 #endif
 		dpt_Qadd_waiting(dpt, ccb);
 		dpt_sched_queue(dpt);
@@ -748,9 +858,9 @@ dpt_send_eata_command(dpt_softc_t * dpt, eata_ccb_t * cmd_block,
 	u_int8_t        result;
 	u_int32_t       test;
 	u_int32_t       swapped_cmdaddr;
-
+	
 	if (!retries)
-		retries = 1000;
+		retries = 10000;
 
 	/*
 	 * I hate this polling nonsense. Wish there was a way to tell the DPT
@@ -779,6 +889,11 @@ dpt_send_eata_command(dpt_softc_t * dpt, eata_ccb_t * cmd_block,
 #endif
 		return (1);
 	}
+
+	/* The controller is alive, advance the wedge timer */
+#ifdef DPT_RESET_HBA
+		dpt->last_contact = microtime_now;
+#endif
 
 	if (cmd_block != NULL) {
 		swapped_cmdaddr = vtophys(cmd_block);
@@ -865,7 +980,6 @@ dpt_user_cmd(dpt_softc_t * dpt, eata_pt_t * user_cmd,
 	int             submitted;
 	dpt_ccb_t      *ccb;
 	void           *data;
-	struct timeval  now;
 
 	data = NULL;
 	channel = minor2hba(minor_no);
@@ -1013,9 +1127,8 @@ dpt_user_cmd(dpt_softc_t * dpt, eata_pt_t * user_cmd,
 	ccb->data = data;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	++dpt->performance.command_count[(int) ccb->eata_ccb.cp_scsi_cmd];
-	microtime(&now);
-	ccb->command_started = now;
+	++dpt->performance.command_count[ccb->eata_ccb.cp_scsi_cmd];
+	ccb->command_started = microtime_now;
 #endif
 	ospl = splcam();
 	dpt_Qadd_waiting(dpt, ccb);
@@ -1851,6 +1964,11 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 	ospl = splcam();
 	if ((dpt->state & DPT_LOST_IRQ_SET) == 0) {
 		printf("dpt%d: Initializing Lost IRQ Timer\n", dpt->unit);
+#ifdef DPT_RESET_HBA
+		printf("dpt%d: HBA will reset if irresponsive for %d seconds\n",
+			   dpt->unit, DPT_RESET_HBA);
+		dpt->last_contact = microtime_now;
+#endif
 		dpt->state |= DPT_LOST_IRQ_SET;
 		timeout(dpt_irq_timeout, dpt, hz);
 	}
@@ -2109,13 +2227,20 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 		if ((status & HA_SERROR) || (ndx == xs->timeout)) {
 			xs->error = XS_DRIVER_STUFFUP;
 		}
+#ifdef DPT_RESET_HBA
+		else {
+			/*
+			 * We received a reply and did not time out.
+			 * Advance the wedge counter.
+			 */
+			dpt->last_contact = microtime_now;
+		}
+#endif /* DPT_RESET_HBA */
 
 		dpt_Qpush_free(dpt, ccb);
 		splx(ospl);
 		return (COMPLETE);
 	} else {
-		struct timeval  junk;
-
 		/**
 		 * Not a polled command.
 		 * The command can be queued normally.
@@ -2129,10 +2254,8 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 		ccb->transaction_id = ++dpt->commands_processed;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-#define cmd_ndx (int)ccb->eata_ccb.cp_scsi_cmd
-		++dpt->performance.command_count[cmd_ndx];
-		microtime(&junk);
-		ccb->command_started = junk;
+		++dpt->performance.command_count[ccb->eata_ccb.cp_scsi_cmd];
+		ccb->command_started = microtime_now;
 #endif
 		dpt_Qadd_waiting(dpt, ccb);
 		splx(ospl);
@@ -2275,12 +2398,7 @@ dpt_intr(void *arg)
 #endif
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	{
-		struct timeval  junk;
-
-		microtime(&junk);
-		dpt->performance.intr_started = junk;
-	}
+		dpt->performance.intr_started = microtime_now;
 #endif
 
 	/* First order of business is to check if this interrupt is for us */
@@ -2297,12 +2415,17 @@ dpt_intr(void *arg)
 #endif
 		return;
 	}
+
+	/* The controller is alive, advance the wedge timer */
+#ifdef DPT_RESET_HBA
+		dpt->last_contact = microtime_now;
+#endif
+
 	if (!dpt->handle_interrupts) {
 #ifdef DPT_MEASURE_PERFORMANCE
 		++dpt->performance.aborted_interrupts;
 #endif
-		status = dpt_inb(dpt, HA_RSTATUS);	/* This CLEARS
-							 * interrupts */
+		status = dpt_inb(dpt, HA_RSTATUS);	/* This CLEARS interrupts! */
 		return;
 	}
 	/**
@@ -2332,12 +2455,10 @@ dpt_intr(void *arg)
 
 #ifdef DPT_HANDLE_TIMEOUTS
 	if (dccb->state & DPT_CCB_STATE_MARKED_LOST) {
-		struct timeval  now;
 		u_int32_t       age;
 		struct scsi_xfer *xs = dccb->xs;
 
-		microtime(&now);
-		age = dpt_time_delta(dccb->command_started, now);
+		age = dpt_time_delta(dccb->command_started, microtime_now);
 
 		printf("dpt%d: Salvaging Tx %d from the jaws of destruction "
 		       "(%d/%d)\n",
@@ -2484,11 +2605,8 @@ dpt_intr(void *arg)
 #ifdef DPT_MEASURE_PERFORMANCE
 	{
 		u_int32_t       result;
-		struct timeval  junk;
 
-		microtime(&junk);
-
-		result = dpt_time_delta(dpt->performance.intr_started, junk);
+		result = dpt_time_delta(dpt->performance.intr_started, microtime_now);
 
 		if (result != ~0) {
 			if (dpt->performance.max_intr_time < result)
@@ -2595,14 +2713,13 @@ dpt_complete(dpt_softc_t * dpt)
 #ifdef DPT_MEASURE_PERFORMANCE
 				{
 					u_int32_t       result;
-					struct timeval  junk;
 
-					microtime(&junk);
-					ccb->command_ended = junk;
 #define time_delta dpt_time_delta(ccb->command_started,	ccb->command_ended)
-					result = time_delta;
 #define maxctime dpt->performance.max_command_time[ccb->eata_ccb.cp_scsi_cmd]
 #define minctime dpt->performance.min_command_time[ccb->eata_ccb.cp_scsi_cmd]
+					
+					ccb->command_ended = microtime_now;
+					result = time_delta;
 
 					if (result != ~0) {
 						if (maxctime < result) {
@@ -2689,7 +2806,7 @@ dpt_process_completion(dpt_softc_t * dpt,
 		struct scsi_rw_big *cmd;
 		int             op_type;
 
-		cmd = (struct scsi_rw_big *) & ccb->eata_ccb.cp_scsi_cmd;
+		cmd = (struct scsi_rw_big *) &ccb->eata_ccb.cp_scsi_cmd;
 
 		switch (cmd->op_code) {
 		case 0xa8:	/* 12-byte READ	 */
@@ -2865,6 +2982,10 @@ dpt_process_completion(dpt_softc_t * dpt,
  * basis.
  * It is a completely ugly hack which purpose is to handle the problem of
  * missing interrupts on certain platforms..
+ *
+ * An additional task is to optionally check if the controller is wedged.
+ * A wedeged controller is one which has not accepted a command, nor sent
+ * an interrupt in the last DPT_RESET_HBA seconds.
  */
 
 static void
@@ -2883,6 +3004,34 @@ dpt_irq_timeout(void *arg)
 			printf("dpt %d: %d lost Interrupts Recovered\n",
 			       dpt->unit, ++dpt->lost_interrupts);
 		}
+#ifdef DPT_RESET_HBA
+		{
+			int max_wedge, contact_delta;
+
+			if (TAILQ_EMPTY(&dpt->waiting_ccbs)) {
+				dpt->last_contact = microtime_now;
+			} else {
+				/* If nothing is waiting, we cannot assume we are wedged */
+				if (DPT_RESET_HBA < 1)
+					max_wedge = 1000000;
+				else
+					max_wedge = 1000000 * DPT_RESET_HBA;
+
+				contact_delta = dpt_time_delta(dpt->last_contact,
+											   microtime_now);
+
+				if (contact_delta > max_wedge) {
+					printf("dpt%d: Appears wedged for %d.%d (%d.0)seconds.\n"
+						   "      Resetting\n",
+						   dpt->unit, contact_delta/1000000,
+						   (contact_delta % 1000000) / 100000,
+						   DPT_RESET_HBA);
+					dpt_reset_hba(dpt);
+				}
+			}
+		}
+#endif /* DPT_RESET_HBA */
+
 		dpt->state &= ~DPT_LOST_IRQ_ACTIVE;
 	}
 	timeout(dpt_irq_timeout, (caddr_t) dpt, hz * 1);
@@ -2933,13 +3082,10 @@ dpt_handle_timeouts(dpt_softc_t * dpt)
 	     ccb != NULL;
 	     ccb = TAILQ_NEXT(ccb, links)) {
 		struct scsi_xfer *xs;
-		struct timeval  now;
 		u_int32_t       age, max_age;
 
 		xs = ccb->xs;
-
-		microtime(&now);
-		age = dpt_time_delta(ccb->command_started, now);
+		age = dpt_time_delta(ccb->command_started, microtime_now);
 
 #define TenSec	10000000
 
@@ -3054,10 +3200,8 @@ dpt_Qremove_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_MEASURE_PERFORMANCE
 	u_int32_t       complete_time;
-	struct timeval  now;
 
-	microtime(&now);
-	complete_time = dpt_time_delta(ccb->command_ended, now);
+	complete_time = dpt_time_delta(ccb->command_ended, microtime_now);
 
 	if (complete_time != ~0) {
 		if (dpt->performance.max_complete_time < complete_time)
@@ -3102,7 +3246,7 @@ static INLINE_Q void
 dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_FREELIST_IS_STACK
-	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links);
+	TAILQ_INSERT_HEAD(&dpt->free_ccbs, ccb, links)
 #else
 	TAILQ_INSERT_TAIL(&dpt->free_ccbs, ccb, links);
 #endif
@@ -3116,14 +3260,11 @@ dpt_Qpush_free(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 static INLINE_Q void
 dpt_Qadd_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
-	struct timeval  junk;
-
 	TAILQ_INSERT_TAIL(&dpt->waiting_ccbs, ccb, links);
 	++dpt->waiting_ccbs_count;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	microtime(&junk);
-	ccb->command_ended = junk;
+	ccb->command_ended = microtime_now;
 	if (dpt->waiting_ccbs_count > dpt->performance.max_waiting_count)
 		dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
 #endif
@@ -3138,14 +3279,11 @@ dpt_Qadd_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 static INLINE_Q void
 dpt_Qpush_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
-	struct timeval  junk;
-
 	TAILQ_INSERT_HEAD(&dpt->waiting_ccbs, ccb, links);
 	++dpt->waiting_ccbs_count;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	microtime(&junk);
-	ccb->command_ended = junk;
+	ccb->command_ended = microtime_now;
 
 	if (dpt->performance.max_waiting_count < dpt->waiting_ccbs_count)
 		dpt->performance.max_waiting_count = dpt->waiting_ccbs_count;
@@ -3163,11 +3301,9 @@ static INLINE_Q void
 dpt_Qremove_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_MEASURE_PERFORMANCE
-	struct timeval  now;
 	u_int32_t       waiting_time;
 
-	microtime(&now);
-	waiting_time = dpt_time_delta(ccb->command_ended, now);
+	waiting_time = dpt_time_delta(ccb->command_ended, microtime_now);
 
 	if (waiting_time != ~0) {
 		if (dpt->performance.max_waiting_time < waiting_time)
@@ -3190,14 +3326,11 @@ dpt_Qremove_waiting(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 static INLINE_Q void
 dpt_Qadd_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
-	struct timeval  junk;
-
 	TAILQ_INSERT_TAIL(&dpt->submitted_ccbs, ccb, links);
 	++dpt->submitted_ccbs_count;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	microtime(&junk);
-	ccb->command_ended = junk;
+	ccb->command_ended = microtime_now;
 	if (dpt->performance.max_submit_count < dpt->submitted_ccbs_count)
 		dpt->performance.max_submit_count = dpt->submitted_ccbs_count;
 #endif
@@ -3212,14 +3345,11 @@ dpt_Qadd_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 static INLINE_Q void
 dpt_Qadd_completed(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
-	struct timeval  junk;
-
 	TAILQ_INSERT_TAIL(&dpt->completed_ccbs, ccb, links);
 	++dpt->completed_ccbs_count;
 
 #ifdef DPT_MEASURE_PERFORMANCE
-	microtime(&junk);
-	ccb->command_ended = junk;
+	ccb->command_ended = microtime_now;
 	if (dpt->performance.max_complete_count < dpt->completed_ccbs_count)
 		dpt->performance.max_complete_count =
 			dpt->completed_ccbs_count;
@@ -3236,11 +3366,9 @@ static INLINE_Q void
 dpt_Qremove_submitted(dpt_softc_t * dpt, dpt_ccb_t * ccb)
 {
 #ifdef DPT_MEASURE_PERFORMANCE
-	struct timeval  now;
 	u_int32_t       submit_time;
 
-	microtime(&now);
-	submit_time = dpt_time_delta(ccb->command_ended, now);
+	submit_time = dpt_time_delta(ccb->command_ended, microtime_now);
 
 	if (submit_time != ~0) {
 		ccb->submitted_time = submit_time;
@@ -3336,11 +3464,26 @@ checkit:
 	/**
 	 * What we do for a shutdown, is give the DPT early power loss
 	 * warning
-       . */
+     */
+#ifdef DPT_SHUTDOWN_SLEEP
+	DELAY(DPT_SHUTDOWN_SLEEP * 1000);
+
+	if (dpt->state & DPT_HA_SHUTDOWN_ACTIVE) {
+	  ospl = splcam();
+	  dpt->state &= ~DPT_HA_SHUTDOWN_ACTIVE;
+	  splx(ospl);
+	  printf("dpt%d: WARNING:  After sleeping for %d seconds, "
+			 "I am re-enabled\n",
+			 dpt->unit);
+	  printf("                Any further I/O is NOT guranteed to "
+			 "complete!\n");
+	}
+#else
 	(void) dpt_send_immediate(dpt, NULL, EATA_POWER_OFF_WARN, 0, 0);
 	printf("dpt%d: Controller was warned of shutdown and is now "
 	       "disabled\n",
 	       dpt->unit);
+#endif
 
 	return;
 }
@@ -3692,3 +3835,5 @@ scsi_cmd_name(u_int8_t cmd)
  *  c++-friend-offset:            0
  * End:
  */
+
+
