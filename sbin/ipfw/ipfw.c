@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.72 1999/08/01 16:57:24 green Exp $";
+	"$Id: ipfw.c,v 1.73 1999/08/11 15:36:13 luigi Exp $";
 #endif /* not lint */
 
 
@@ -1087,6 +1087,7 @@ add(ac,av)
 			/* we really store dont_match probability */
 			(long)rule.pipe_ptr = (long)((1 - d) * 0x7fffffff) ;
 		}
+		av += 2 ; ac -= 2 ;
 	}
 
 	if (ac == 0)
