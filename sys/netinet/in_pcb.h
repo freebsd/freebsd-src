@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.11 1996/02/22 21:32:22 peter Exp $
+ * $Id: in_pcb.h,v 1.12 1996/08/23 18:59:07 phk Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -96,11 +96,11 @@ void	 in_pcbdisconnect __P((struct inpcb *));
 int	 in_pcbladdr __P((struct inpcb *, struct mbuf *,
 	    struct sockaddr_in **));
 struct inpcb *
-	 in_pcblookup __P((struct inpcbhead *,
+	 in_pcblookup __P((struct inpcbinfo *,
 	    struct in_addr, u_int, struct in_addr, u_int, int));
 struct inpcb *
 	 in_pcblookuphash __P((struct inpcbinfo *,
-	    struct in_addr, u_int, struct in_addr, u_int));
+	    struct in_addr, u_int, struct in_addr, u_int, int));
 void	 in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
 void	 in_pcbrehash __P((struct inpcb *));
