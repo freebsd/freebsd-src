@@ -59,7 +59,7 @@
 /*
  * One structure allocated per session.
  */
-struct	session {
+struct session {
 	int	s_count;		/* Ref cnt; pgrps in session. */
 	struct	proc *s_leader;		/* Session leader. */
 	struct	vnode *s_ttyvp;		/* Vnode of controlling terminal. */
@@ -72,7 +72,7 @@ struct	session {
 /*
  * One structure allocated per process group.
  */
-struct	pgrp {
+struct pgrp {
 	LIST_ENTRY(pgrp) pg_hash;	/* Hash chain. */
 	LIST_HEAD(, proc) pg_members;	/* Pointer to pgrp members. */
 	struct	session *pg_session;	/* Pointer to session. */
@@ -81,7 +81,7 @@ struct	pgrp {
 	int	pg_jobc;	/* # procs qualifying pgrp for job control */
 };
 
-struct	procsig {
+struct procsig {
 	sigset_t ps_sigignore;	/* Signals being ignored. */
 	sigset_t ps_sigcatch;	/* Signals being caught by user. */
 	int	 ps_flag;
@@ -95,7 +95,7 @@ struct	procsig {
 /*
  * pargs, used to hold a copy of the command line, if it had a sane length.
  */
-struct	pargs {
+struct pargs {
 	u_int	ar_ref;		/* Reference count. */
 	u_int	ar_length;	/* Length. */
 	u_char	ar_args[0];	/* Arguments. */
@@ -142,7 +142,7 @@ struct ithd;
 struct nlminfo;
 struct trapframe;
 
-struct	proc {
+struct proc {
 	TAILQ_ENTRY(proc) p_procq;	/* (j) Run/mutex queue. */
 	TAILQ_ENTRY(proc) p_slpq;	/* (j) Sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */

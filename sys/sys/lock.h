@@ -51,7 +51,7 @@
  * recursion and the lock itself must explicitly allow recursion.
  */
 
-struct	lock_class {
+struct lock_class {
 	const	char *lc_name;
 	u_int	lc_flags;
 };
@@ -98,7 +98,7 @@ struct	lock_class {
  * recursion count of a lock.  Lock instances are held in lists.  Spin locks
  * are held in a per-cpu list while sleep locks are held in per-process list.
  */
-struct	lock_instance {
+struct lock_instance {
 	struct	lock_object *li_lock;
 	const	char *li_file;		/* File and line of last acquire. */
 	int	li_line;
@@ -117,7 +117,7 @@ struct	lock_instance {
  */
 #define	LOCK_NCHILDREN	3
 
-struct	lock_list_entry {
+struct lock_list_entry {
 	struct	lock_list_entry *ll_next;
 	struct	lock_instance ll_children[LOCK_NCHILDREN];
 	u_int	ll_count;

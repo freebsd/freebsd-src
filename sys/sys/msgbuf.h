@@ -37,7 +37,7 @@
 #ifndef _SYS_MSGBUF_H_
 #define _SYS_MSGBUF_H_
 
-struct	msgbuf {
+struct msgbuf {
 #define	MSG_MAGIC	0x063062
 	unsigned int	msg_magic;
 	unsigned int	msg_size;		/* size of buffer area */

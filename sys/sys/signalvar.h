@@ -48,7 +48,7 @@
  * Process signal actions and state, needed only within the process
  * (not necessarily resident).
  */
-struct	sigacts {
+struct sigacts {
 	sig_t	ps_sigact[_SIG_MAXSIG];	/* disposition of signals */
 	sigset_t ps_catchmask[_SIG_MAXSIG];	/* signals to be blocked */
 	sigset_t ps_sigonstack;		/* signals to take on sigstack */
@@ -70,7 +70,7 @@ typedef struct {
 	union sigval	si_value;
 } osiginfo_t;
 
-struct	osigaction {
+struct osigaction {
 	union {
 		void    (*__sa_handler) __P((int));
 		void    (*__sa_sigaction) __P((int, osiginfo_t *, void *));

@@ -68,7 +68,7 @@
 typedef	u_quad_t	unp_gen_t;
 LIST_HEAD(unp_head, unpcb);
 
-struct	unpcb {
+struct unpcb {
 	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
 	struct	socket *unp_socket;	/* pointer back to socket */
 	struct	vnode *unp_vnode;	/* if associated with file */
@@ -105,7 +105,7 @@ struct	unpcb {
 
 /* Hack alert -- this structure depends on <sys/socketvar.h>. */
 #ifdef	_SYS_SOCKETVAR_H_
-struct	xunpcb {
+struct xunpcb {
 	size_t	xu_len;			/* length of this structure */
 	struct	unpcb *xu_unpp;		/* to help netstat, fstat */
 	struct	unpcb xu_unp;		/* our information */
@@ -123,7 +123,7 @@ struct	xunpcb {
 	u_quad_t	xu_alignment_hack;
 };
 
-struct	xunpgen {
+struct xunpgen {
 	size_t	xug_len;
 	u_int	xug_count;
 	unp_gen_t xug_gen;

@@ -58,7 +58,7 @@ TAILQ_HEAD(rqhead, proc);
  * Bit array which maintains the status of a run queue.  When a queue is
  * non-empty the bit corresponding to the queue number will be set.
  */
-struct	rqbits {
+struct rqbits {
 	rqb_word_t rqb_bits[RQB_LEN];
 };
 
@@ -66,7 +66,7 @@ struct	rqbits {
  * Run queue structure.  Contains an array of run queues on which processes
  * are placed, and a structure to maintain the status of each queue.
  */
-struct	runq {
+struct runq {
 	struct	rqbits rq_status;
 	struct	rqhead rq_queues[RQ_NQS];
 };
