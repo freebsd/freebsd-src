@@ -165,7 +165,7 @@ load()
 		}
 		nfsdiskless.swap_saddr.sin_len = sizeof(struct sockaddr_in);
 		nfsdiskless.swap_saddr.sin_family = AF_INET;
-		nfsdiskless.swap_saddr.sin_port = swap_nfs_port;
+		nfsdiskless.swap_saddr.sin_port = htons(swap_nfs_port);
 		nfsdiskless.swap_saddr.sin_addr.s_addr = 
 			htonl(arptable[ARP_SWAPSERVER].ipaddr);
         	nfsdiskless.swap_args.sotype = SOCK_DGRAM;
@@ -191,7 +191,7 @@ load()
 	}
 	nfsdiskless.root_saddr.sin_len = sizeof(struct sockaddr_in);
 	nfsdiskless.root_saddr.sin_family = AF_INET;
-	nfsdiskless.root_saddr.sin_port = root_nfs_port;
+	nfsdiskless.root_saddr.sin_port = htons(root_nfs_port);
 	nfsdiskless.root_saddr.sin_addr.s_addr = 
 		htonl(arptable[ARP_ROOTSERVER].ipaddr);
         nfsdiskless.root_args.sotype = SOCK_DGRAM;
