@@ -1879,8 +1879,8 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 	if (pvo->pvo_pte.pte_lo & PVO_WIRED)
-		pvo->pvo_pmap->pm_stats.wired_count++;
-	pvo->pvo_pmap->pm_stats.resident_count++;
+		pm->pm_stats.wired_count++;
+	pm->pm_stats.resident_count++;
 
 	/*
 	 * We hope this succeeds but it isn't required.
