@@ -104,6 +104,8 @@ struct vm_map_entry {
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
+	vm_size_t adj_free;		/* amount of adjacent free space */
+	vm_size_t max_free;		/* max free space in subtree */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
 	vm_eflags_t eflags;		/* map entry flags */
@@ -187,7 +189,6 @@ struct vm_map {
 	u_char system_map;		/* Am I a system map? */
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
-	vm_map_entry_t first_free;	/* First free space hint */
 	pmap_t pmap;			/* (c) Physical map */
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
