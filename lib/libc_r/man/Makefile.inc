@@ -5,6 +5,7 @@
 .PATH: ${.CURDIR}/man
 
 MAN+=	pthread_attr.3 \
+	pthread_attr_get_np.3 \
 	pthread_cancel.3 \
 	pthread_cleanup_pop.3 \
 	pthread_cleanup_push.3 \
