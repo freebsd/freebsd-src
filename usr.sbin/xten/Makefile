@@ -2,7 +2,7 @@
 
 PROG=	xten
 SRCS=	xten.c
-CFLAGS+=-I. -I/usr/src/libexec/xtend
+CFLAGS+=-I. -I${.CURDIR}/../../libexec/xtend
 
 MAN1=	xten.1
 
