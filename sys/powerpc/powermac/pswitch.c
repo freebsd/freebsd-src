@@ -29,7 +29,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -137,9 +139,5 @@ pswitch_intr(void *arg)
 
 	dev = (device_t)arg;
 
-#ifdef DDB
-	Debugger(device_get_nameunit(dev));
-#else
-	device_printf(dev, "close, but no debugger\n");
-#endif
+	kdb_enter(device_get_nameunit(dev));
 }
