@@ -9,16 +9,12 @@ MLINKS+= keycap.3 kgetent.3 \
 MAN+=	man5/keycap.5
 SRCS=	keycap.c
 
-KEYCAPSRC=	keycap.src
-CAPDIR=	/usr/share/misc
-CAPPATH=	$(CAPDIR)/keycap.pcvt
+FILES=	keycap.src
+FILESDIR= /usr/share/misc
+FILESNAME= keycap.pcvt
 
-CFLAGS+= -DKEYCAP_PATH=\"$(CAPPATH)\"
+CFLAGS+= -DKEYCAP_PATH=\"${FILESDIR}/${FILESNAME}\"
 
 #CLEANFILES+=	keycap.0 man5/keycap.0
-
-beforeinstall:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
 
 .include <bsd.lib.mk>
