@@ -187,7 +187,7 @@ network_pass1() {
 			if [ -n "${ifconfig_args}" ]; then
 				ifconfig ${ifn} ${ifconfig_args} alias
 				eval showstat_$ifn=1
-				alias=`expr ${alias} + 1`
+				alias=$((${alias} + 1))
 			else
 				break;
 			fi

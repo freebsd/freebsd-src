@@ -148,7 +148,7 @@ atm_pass2() {
 		netindx=0
 		while [ ${netindx} -lt ${netcnt} ]; do
 			net="${netname}${netindx}"
-			netindx=`expr ${netindx} + 1`
+			netindx=$((${netindx} + 1))
 			echo -n " ${net}"
 
 			# Configure atmarp server
