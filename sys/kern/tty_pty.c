@@ -214,14 +214,9 @@ ptsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 static	int
 ptsread(struct cdev *dev, struct uio *uio, int flag)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
 	struct tty *tp = dev->si_tty;
-	struct ptsc *pt = dev->si_drv1;
-	struct pgrp *pg;
 	int error = 0;
 
-again:
 	if (tp->t_oproc)
 		error = ttyld_read(tp, uio, flag);
 	ptcwakeup(tp, FWRITE);
@@ -463,7 +458,6 @@ ptcwrite(struct cdev *dev, struct uio *uio, int flag)
 	int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
-	struct ptsc *pt = dev->si_drv1;
 	int error = 0;
 
 again:
