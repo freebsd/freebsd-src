@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.2 1994/02/23 16:47:04 rgrimes Exp $
+#	$Id: cpio.magic,v 1.3 1994/02/25 23:34:08 alm Exp $
 #
 set_tmp_dir()
 {
@@ -291,7 +291,7 @@ configure()
 	*)
 		intf=
 		while [ "$intf" = "" ]; do
-			echo -n "What is the primary interface name (i.e. we0, etc.)? "
+			echo -n "What is the primary interface name (i.e. ed0, etc.)? "
 			read intf
 		done
 		echo -n "What is the hostname for this interface? [$hname] "
