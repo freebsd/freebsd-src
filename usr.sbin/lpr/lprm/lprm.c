@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	uid = getuid();
 	euid = geteuid();
 	seteuid(uid);	/* be safe */
-	name = argv[0];
+	progname = argv[0];
 	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);
 
