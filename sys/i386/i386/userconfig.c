@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id$
+ **      $Id: userconfig.c,v 1.97 1997/11/25 19:30:36 markm Exp $
  **/
 
 /**
@@ -284,6 +284,7 @@ static DEV_INFO device_info[] = {
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
 {"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
+{"awe",         "AWE32 MIDI",                           0,              CLS_MMEDIA},
 {"pas",         "ProAudio Spectrum PCM and MIDI",	0,		CLS_MMEDIA},
 {"gus",         "Gravis Ultrasound, Ultrasound 16 and Ultrasound MAX",0,CLS_MMEDIA},
 {"gusxvi",      "Gravis Ultrasound 16-bit PCM",		0,		CLS_MMEDIA},
@@ -2370,7 +2371,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: userconfig.c,v 1.97 1997/11/25 19:30:36 markm Exp $
  */
 
 #include "scbus.h"
