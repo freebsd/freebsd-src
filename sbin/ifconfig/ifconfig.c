@@ -35,6 +35,9 @@
  *  951109 - Andrew@pubnix.net - Changed to iterative buffer growing mechanism
  *				 for ifconfig -a so all interfaces are queried.
  *
+ *  960101 - peter@freebsd.org - Blow away the SIOCGIFCONF code and use
+ *				 sysctl() to get the structured interface conf
+ *				 and parse the messages in there. REALLY UGLY!
  */
 #ifndef lint
 static char copyright[] =
@@ -49,9 +52,12 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
@@ -88,7 +94,7 @@ struct	iso_ifreq	iso_ridreq;
 struct	iso_aliasreq	iso_addreq;
 struct	sockaddr_in	netmask;
 
-char	name[30];
+char	name[32];
 int	flags;
 int	metric;
 int	mtu;
@@ -179,18 +185,65 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
-	{ "ether", AF_INET, ether_status, NULL },
+/*	{ "ether", AF_INET, ether_status, NULL }, XXX - broken */
 	{ 0,	0,	    0,		0 }
 };
 
 struct afswtch *afp;	/*the address family being set or asked about*/
+
+void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
+int	ifconfig __P((int argc, char *argv[], int af, struct afswtch *rafp));
+
+
+/*
+ * Expand the compacted form of addresses as returned via the
+ * configuration read via sysctl().
+ */
+
+#define ROUNDUP(a) \
+	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+
+void
+rt_xaddrs(cp, cplim, rtinfo)
+	caddr_t cp, cplim;
+	struct rt_addrinfo *rtinfo;
+{
+	struct sockaddr *sa;
+	int i;
+
+	memset(rtinfo->rti_info, 0, sizeof(rtinfo->rti_info));
+	for (i = 0; (i < RTAX_MAX) && (cp < cplim); i++) {
+		if ((rtinfo->rti_addrs & (1 << i)) == 0)
+			continue;
+		rtinfo->rti_info[i] = sa = (struct sockaddr *)cp;
+		ADVANCE(cp, sa);
+	}
+}
+
+
+/*
+ * Grunge for new-style sysctl() decoding.. :-(
+ * Apologies to the world for committing gross things like this in 1996..
+ */
+struct if_msghdr *ifm;
+struct ifa_msghdr *ifam;
+struct sockaddr_dl *sdl;
+struct rt_addrinfo info;
+char *buf, *lim, *next;
+
+
 
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
 	int af = AF_INET;
-	register struct afswtch *rafp;
+	struct afswtch *rafp;
+
+	size_t needed;
+	int mib[6],  len;
+	int all;
 
 	if (argc < 2) {
 		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s%s",
@@ -215,107 +268,120 @@ main(argc, argv)
 		rafp = afp;
 		af = ifr.ifr_addr.sa_family = rafp->af_af;
 	}
-	s = socket(af, SOCK_DGRAM, 0);
-	if (s < 0) {
-		perror("ifconfig: socket");
-		exit(1);
-	}
-	if (strstr(name, "-a")) {
-		char *buffer;
-		struct ifconf ifc;
-		struct ifreq *ifptr, *end;
-		int ifflags, selectflag = -1;
-		int oldbufsize, bufsize = sizeof(struct ifreq);	
 
-		if (strstr(name, "-au"))
-			selectflag = 1;
-		if (strstr(name, "-ad"))
-			selectflag = 0;
-		buffer = malloc(bufsize);	/* allocate first buffer */
-		ifc.ifc_len = bufsize;		/* Initial setting */
-		/*
-		 * Itterate through here until we don't get any more data
-		 */
-		do {
-			oldbufsize = ifc.ifc_len;
-			bufsize += 1+sizeof(struct ifreq);
-			buffer = realloc((void *)buffer, bufsize);
-			ifc.ifc_len = bufsize;
-			ifc.ifc_buf = buffer;
-			if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-				perror("ifconfig (SIOCGIFCONF)");
-				exit (1);
-			}
-		} while (ifc.ifc_len > oldbufsize);
-		
-		ifflags = ifc.ifc_req->ifr_flags;
-		end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-		ifptr = ifc.ifc_req;
-		while (ifptr < end) {
-			sprintf(ifr.ifr_name,"%s",ifptr->ifr_name);
-			sprintf(name,"%s",ifptr->ifr_name);
-			close(s);
-			if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
-				perror("ifconfig: socket");
-				exit(1);
-			}
-			if (ifptr->ifr_flags == ifflags) 
-				ifconfig(argc,argv,af,rafp,selectflag);
-			if(ifptr->ifr_addr.sa_len)	/* Dohw! */
-				ifptr = (struct ifreq *) ((caddr_t) ifptr +
-				ifptr->ifr_addr.sa_len -
-				sizeof(struct sockaddr));
-			ifptr++;
+	mib[0] = CTL_NET;
+	mib[1] = PF_ROUTE;
+	mib[2] = 0;
+	mib[3] = AF_INET;
+	mib[4] = NET_RT_IFLIST;
+	mib[5] = 0;
+
+	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
+		errx(1, "route-sysctl-estimate");
+	if ((buf = malloc(needed)) == NULL)
+		errx(1, "malloc");
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
+		errx(1, "actual retrieval of interface table");
+	lim = buf + needed;
+
+	all = 0;
+	if (strcmp(name, "-a") == 0)
+		all = 1;	/* All interfaces */
+	else if (strcmp(name, "-au") == 0)
+		all = 2;	/* All IFF_UPinterfaces */
+	else if (strcmp(name, "-ad") == 0)
+		all = 3;	/* All !IFF_UP interfaces */
+
+	for (next = buf; next < lim; next += ifm->ifm_msglen) {
+
+		ifm = (struct if_msghdr *)next;
+
+		/* XXX: Swallow up leftover NEWADDR messages */
+		if (ifm->ifm_type == RTM_NEWADDR)
+			continue;
+
+		if (ifm->ifm_type == RTM_IFINFO) {
+			sdl = (struct sockaddr_dl *)(ifm + 1);
+			flags = ifm->ifm_flags;
+		} else {
+			errx(1, "out of sync parsing NET_RT_IFLIST");
 		}
-		free(buffer);
-	} else
-		ifconfig(argc,argv,af,rafp, -1);
+
+		switch(all) {
+		case -1:
+		case 0:
+			if (strlen(name) != sdl->sdl_nlen)
+				continue; /* not same len */
+			if (strncmp(name, sdl->sdl_data, sdl->sdl_nlen) != 0)
+				continue; /* not same name */
+			break;
+		case 1:
+			break;	/* always do it */
+		case 2:
+			if ((flags & IFF_UP) == 0)
+				continue; /* not up */
+			break;
+		case 3:
+			if (flags & IFF_UP)
+				continue; /* not down */
+			break;
+		}
+
+		if (all > 0) {
+			strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
+			name[sdl->sdl_nlen] = '\0';
+		}
+
+		if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
+			perror("ifconfig: socket");
+			exit(1);
+		}
+
+		ifconfig(argc,argv,af,rafp);
+
+		close(s);
+
+		if (all == 0) {
+			all = -1; /* flag it as 'done' */
+			break;
+		}
+	}
+	free(buf);
+
+	if (all == 0)
+		errx(1, "interface %s does not exist..", name);
+	
 
 	exit (0);
 }
 
 
 
-ifconfig(argc,argv,af,rafp,flag)
+int
+ifconfig(argc,argv,af,rafp)
 	int argc;
 	char *argv[];
 	int af;
 	struct afswtch *rafp;
-	int flag;
 {
-	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
-		Perror("ioctl (SIOCGIFFLAGS)");
-		exit(1);
-	}
-
-	switch(flag) {
-	case 0:
-		if (ifr.ifr_flags & IFF_UP)
-			return(0);
-		break;
-	case 1:
-		if (!(ifr.ifr_flags & IFF_UP))
-			return(0);
-		break;
-	case -1:
-	default:
-		break;
-	}
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	flags = ifr.ifr_flags;
+
 	if (ioctl(s, SIOCGIFMETRIC, (caddr_t)&ifr) < 0)
 		perror("ioctl (SIOCGIFMETRIC)");
 	else
 		metric = ifr.ifr_metric;
+
 	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0)
 		perror("ioctl (SIOCGIFMTU)");
 	else
 		mtu = ifr.ifr_mtu;
+
 	if (argc == 0) {
 		status();
 		return(0);
 	}
+
 	while (argc > 0) {
 		register struct cmd *p;
 
@@ -506,6 +572,8 @@ status()
 {
 	register struct afswtch *p = afp;
 	short af = ifr.ifr_addr.sa_family;
+	char *mynext;
+	struct if_msghdr *myifm;
 
 	printf("%s: ", name);
 	printb("flags", flags, IFFBITS);
@@ -514,61 +582,78 @@ status()
 	if (mtu)
 		printf(" mtu %d", mtu);
 	putchar('\n');
-	if ((p = afp) != NULL) {
-		(*p->af_status)(1);
-	} else for (p = afs; p->af_name; p++) {
-		ifr.ifr_addr.sa_family = p->af_af;
-		(*p->af_status)(0);
+
+	myifm = ifm;
+
+	while (1) {
+
+		mynext = next + ifm->ifm_msglen;
+
+		if (mynext >= lim)
+			break;
+
+		myifm = (struct if_msghdr *)mynext;
+
+		if (myifm->ifm_type != RTM_NEWADDR)
+			break;
+
+		next = mynext;
+
+		ifm = (struct if_msghdr *)next;
+
+		ifam = (struct ifa_msghdr *)myifm;
+		info.rti_addrs = ifam->ifam_addrs;
+
+		/* Expand the compacted addresses */
+		rt_xaddrs((char *)(ifam + 1), ifam->ifam_msglen + (char *)ifam,
+			  &info);
+
+
+		if ((p = afp) != NULL) {
+			(*p->af_status)(1);
+		} else for (p = afs; p->af_name; p++) {
+			ifr.ifr_addr.sa_family = p->af_af;
+			(*p->af_status)(0);
+		}
 	}
+	ether_status();
 }
 
 in_status(force)
 	int force;
 {
-	struct sockaddr_in *sin;
+	struct sockaddr_in *sin, null_sin;
 	char *inet_ntoa();
+	
 
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-	if (ioctl(s, SIOCGIFADDR, (caddr_t)&ifr) < 0) {
-		if (errno == EADDRNOTAVAIL || errno == EAFNOSUPPORT) {
-			if (!force)
-				return;
-			bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-		} else
-			perror("ioctl (SIOCGIFADDR)");
+	memset(&null_sin, 0, sizeof(null_sin));
+
+	sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
+	if (!sin) {
+		if (!force)
+			return;
+		warnx("%s has no AF_INET IFA address!", name);
+		sin = &null_sin;
 	}
-	sin = (struct sockaddr_in *)&ifr.ifr_addr;
 	printf("\tinet %s ", inet_ntoa(sin->sin_addr));
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-	if (ioctl(s, SIOCGIFNETMASK, (caddr_t)&ifr) < 0) {
-		if (errno != EADDRNOTAVAIL)
-			perror("ioctl (SIOCGIFNETMASK)");
-		bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-	} else
-		netmask.sin_addr =
-		    ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+
 	if (flags & IFF_POINTOPOINT) {
-		if (ioctl(s, SIOCGIFDSTADDR, (caddr_t)&ifr) < 0) {
-			if (errno == EADDRNOTAVAIL)
-			    bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			else
-			    perror("ioctl (SIOCGIFDSTADDR)");
-		}
-		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-		sin = (struct sockaddr_in *)&ifr.ifr_dstaddr;
+		/* note RTAX_BRD overlap with IFF_BROADCAST */
+		sin = (struct sockaddr_in *)info.rti_info[RTAX_BRD];
+		if (!sin)
+			sin = &null_sin;
 		printf("--> %s ", inet_ntoa(sin->sin_addr));
 	}
-	printf("netmask 0x%x ", ntohl(netmask.sin_addr.s_addr));
+
+	sin = (struct sockaddr_in *)info.rti_info[RTAX_NETMASK];
+	if (!sin)
+		sin = &null_sin;
+	printf("netmask 0x%x ", ntohl(sin->sin_addr.s_addr));
+
 	if (flags & IFF_BROADCAST) {
-		if (ioctl(s, SIOCGIFBRDADDR, (caddr_t)&ifr) < 0) {
-			if (errno == EADDRNOTAVAIL)
-			    bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			else
-			    perror("ioctl (SIOCGIFADDR)");
-		}
-		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-		sin = (struct sockaddr_in *)&ifr.ifr_addr;
-		if (sin->sin_addr.s_addr != 0)
+		/* note RTAX_BRD overlap with IFF_POINTOPOINT */
+		sin = (struct sockaddr_in *)info.rti_info[RTAX_BRD];
+		if (sin && sin->sin_addr.s_addr != 0)
 			printf("broadcast %s", inet_ntoa(sin->sin_addr));
 	}
 	putchar('\n');
@@ -577,7 +662,7 @@ in_status(force)
 ipx_status(force)
 	int force;
 {
-	struct sockaddr_ipx *sipx;
+	struct sockaddr_ipx *sipx, null_sipx;
 
 	close(s);
 	s = socket(AF_IPX, SOCK_DGRAM, 0);
@@ -587,35 +672,32 @@ ipx_status(force)
 		perror("ifconfig: socket");
 		exit(1);
 	}
-	if (ioctl(s, SIOCGIFADDR, (caddr_t)&ifr) < 0) {
-		if (errno == EADDRNOTAVAIL || errno == EAFNOSUPPORT) {
-			if (!force)
-				return;
-			bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-		} else
-			perror("ioctl (SIOCGIFADDR)");
+
+	memset(&null_sipx, 0, sizeof(null_sipx));
+
+	sipx = (struct sockaddr_ipx *)info.rti_info[RTAX_IFA];
+	if (!sipx) {
+		if (!force)
+			return;
+		warnx("%s has no AF_IPX IFA address!", name);
+		sipx = &null_sipx;
 	}
-	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	sipx = (struct sockaddr_ipx *)&ifr.ifr_addr;
 	printf("\tipx %s ", ipx_ntoa(sipx->sipx_addr));
-	if (flags & IFF_POINTOPOINT) { /* by W. Nesheim@Cornell */
-		if (ioctl(s, SIOCGIFDSTADDR, (caddr_t)&ifr) < 0) {
-			if (errno == EADDRNOTAVAIL)
-			    bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			else
-			    Perror("ioctl (SIOCGIFDSTADDR)");
-		}
-		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-		sipx = (struct sockaddr_ipx *)&ifr.ifr_dstaddr;
+
+	if (flags & IFF_POINTOPOINT) {
+		sipx = (struct sockaddr_ipx *)info.rti_info[RTAX_BRD];
+		if (!sipx)
+			sipx = &null_sipx;
 		printf("--> %s ", ipx_ntoa(sipx->sipx_addr));
 	}
 	putchar('\n');
+
 }
 
 xns_status(force)
 	int force;
 {
-	struct sockaddr_ns *sns;
+	struct sockaddr_ns *sns, null_sns;
 
 	close(s);
 	s = socket(AF_NS, SOCK_DGRAM, 0);
@@ -625,36 +707,31 @@ xns_status(force)
 		perror("ifconfig: socket");
 		exit(1);
 	}
-	if (ioctl(s, SIOCGIFADDR, (caddr_t)&ifr) < 0) {
-		if (errno == EADDRNOTAVAIL || errno == EAFNOSUPPORT) {
-			if (!force)
-				return;
-			bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-		} else
-			perror("ioctl (SIOCGIFADDR)");
+	memset(&null_sns, 0, sizeof(null_sns));
+
+	sns = (struct sockaddr_ns *)info.rti_info[RTAX_IFA];
+	if (!sns) {
+		if (!force)
+			return;
+		warnx("%s has no AF_NS IFA address!", name);
+		sns = &null_sns;
 	}
-	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	sns = (struct sockaddr_ns *)&ifr.ifr_addr;
 	printf("\tns %s ", ns_ntoa(sns->sns_addr));
-	if (flags & IFF_POINTOPOINT) { /* by W. Nesheim@Cornell */
-		if (ioctl(s, SIOCGIFDSTADDR, (caddr_t)&ifr) < 0) {
-			if (errno == EADDRNOTAVAIL)
-			    bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			else
-			    Perror("ioctl (SIOCGIFDSTADDR)");
-		}
-		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-		sns = (struct sockaddr_ns *)&ifr.ifr_dstaddr;
+
+	if (flags & IFF_POINTOPOINT) {
+		sns = (struct sockaddr_ns *)info.rti_info[RTAX_BRD];
+		if (!sns)
+			sns = &null_sns;
 		printf("--> %s ", ns_ntoa(sns->sns_addr));
 	}
+
 	putchar('\n');
 }
 
 iso_status(force)
 	int force;
 {
-	struct sockaddr_iso *siso;
-	struct iso_ifreq ifr;
+	struct sockaddr_iso *siso, null_siso;
 
 	close(s);
 	s = socket(AF_ISO, SOCK_DGRAM, 0);
@@ -664,123 +741,49 @@ iso_status(force)
 		perror("ifconfig: socket");
 		exit(1);
 	}
-	bzero((caddr_t)&ifr, sizeof(ifr));
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (ioctl(s, SIOCGIFADDR_ISO, (caddr_t)&ifr) < 0) {
-		if (errno == EADDRNOTAVAIL || errno == EAFNOSUPPORT) {
-			if (!force)
-				return;
-			bzero((char *)&ifr.ifr_Addr, sizeof(ifr.ifr_Addr));
-		} else {
-			perror("ioctl (SIOCGIFADDR_ISO)");
-			exit(1);
-		}
+
+	memset(&null_siso, 0, sizeof(null_siso));
+
+	siso = (struct sockaddr_iso *)info.rti_info[RTAX_IFA];
+	if (!siso) {
+		if (!force)
+			return;
+		warnx("%s has no AF_ISO IFA address!", name);
+		siso = &null_siso;
 	}
-	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
-	siso = &ifr.ifr_Addr;
 	printf("\tiso %s ", iso_ntoa(&siso->siso_addr));
-	if (ioctl(s, SIOCGIFNETMASK_ISO, (caddr_t)&ifr) < 0) {
-		if (errno != EADDRNOTAVAIL)
-			perror("ioctl (SIOCGIFNETMASK_ISO)");
-	} else {
+
+	/* XXX: is this right? is the ISO netmask meant to be before P2P? */
+	siso = (struct sockaddr_iso *)info.rti_info[RTAX_NETMASK];
+	if (siso)
 		printf(" netmask %s ", iso_ntoa(&siso->siso_addr));
-	}
+
 	if (flags & IFF_POINTOPOINT) {
-		if (ioctl(s, SIOCGIFDSTADDR_ISO, (caddr_t)&ifr) < 0) {
-			if (errno == EADDRNOTAVAIL)
-			    bzero((char *)&ifr.ifr_Addr, sizeof(ifr.ifr_Addr));
-			else
-			    Perror("ioctl (SIOCGIFDSTADDR_ISO)");
-		}
-		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
-		siso = &ifr.ifr_Addr;
+		siso = (struct sockaddr_iso *)info.rti_info[RTAX_BRD];
+		if (!siso)
+			siso = &null_siso;
 		printf("--> %s ", iso_ntoa(&siso->siso_addr));
 	}
+
 	putchar('\n');
 }
 
-kread(addr, buf, size)
-        u_long addr;
-        char *buf;
-        int size;
-{
 
-        if (kvm_read(kvmd, addr, buf, size) != size)
-                return (-1);
-        return (0);
-}
-
-/* Unashamedly stolen from netstat -- maybe someday we can us sysctl() */
 ether_status()
 {
-	struct nlist nl[] = { { "_ifnet" } , "" };
-	u_long addr, addr2;
-	struct ifnet ifnet;
-	union {
-		struct ifaddr ifa;
-		struct in_ifaddr in;
-		struct ns_ifaddr ns;
-		struct iso_ifaddr iso;
-	} ifaddr;
 	char *cp;
-	struct sockaddr *sa;
-	struct sockaddr_dl *sdl;
-	int n,m;
-	char ifacename[IFNAMSIZ];
+	int n;
 
-	/*
-	 * If we fail here it probably means we don't have permission to
-	 * read /dev/kmem. Best to just silently bail out. If we have
-	 * an error *after* we succeed in opening /dev/kmem, then we
-	 * should report it.
-	 */
-	if ((kvmd = kvm_open(NULL,NULL,NULL,O_RDONLY,NULL)) == NULL)
-		return;
-	if (kvm_nlist(kvmd, nl) < 0 || nl[0].n_type == 0) {
-		perror("ifconfig: kvm_nlist()");
-		return;
+	cp = (char *)LLADDR(sdl);
+	if ((n = sdl->sdl_alen) > 0) {
+		if (sdl->sdl_type == IFT_ETHER)
+			printf ("\tether ");
+		else
+			printf ("\tlladdr ");
+             	while (--n >= 0)
+			printf("%02x%c",*cp++ & 0xff, n>0? ':' : ' ');
+		putchar('\n');
 	}
-	if (kread(nl[0].n_value, (char *)&addr, sizeof(addr))) {
-		perror("_ifnet");
-		return;
-	}
-	addr2 = 0;
-	while (addr || addr2) {
-		if (addr2 == 0) {
-                        if (kread(addr, (char *)&ifnet, sizeof ifnet) ||
-                           kread((u_long)ifnet.if_name, ifacename, IFNAMSIZ)){
-					perror("ifconfig: kvm_read()");
-					return;
-			}
-			addr = (u_long)ifnet.if_next;
-			addr2 = (u_long)ifnet.if_addrlist;
-		}
-		if (kread(addr2, (char *)&ifaddr, sizeof ifaddr)) {
-			addr2 = 0;
-                        continue;
-                }
-		sprintf(ifacename,"%s%d",ifacename, ifnet.if_unit);
-		if (!strncmp(name, ifacename, strlen(name))) {
-#define CP(x) ((char *)(x))
-			cp = (CP(ifaddr.ifa.ifa_addr) - CP(addr2)) +
-				CP(&ifaddr); sa = (struct sockaddr *)cp;
-			if (sa->sa_family == AF_LINK) {
-				sdl = (struct sockaddr_dl *)sa;
-				cp = (char *)LLADDR(sdl);
-				if ((n = sdl->sdl_alen) > 0) {
-					printf ("\tether ");
-                               		while (--n >= 0)
-						m += printf("%02x%c",
-							*cp++ & 0xff,
-							n > 0 ? ':' : ' ');
-					putchar('\n');
-				}
-				break;
-			}
-		}
-		addr2 = (u_long)ifaddr.ifa.ifa_next;
-	}
-	kvm_close(kvmd);
 }
 
 Perror(cmd)
