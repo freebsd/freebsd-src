@@ -68,5 +68,6 @@ typedef struct __mcontext {
 #define mc_vrsave	mc_av[1]
 
 #define _MC_VERSION	0x1
+#define _MC_VERSION_KSE 0xee	/* partial ucontext for libpthread */
 
 #endif	/* !_MACHINE_UCONTEXT_H_ */
