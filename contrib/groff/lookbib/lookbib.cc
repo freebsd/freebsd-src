@@ -72,8 +72,8 @@ int main(int argc, char **argv)
       }
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU lookbib version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU lookbib version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }

@@ -30,4 +30,4 @@ DESC: DESC.in
 
 fonts:
 	$(MAKE) -f $(srcdir)/generate/Makefile srcdir=$(srcdir)/generate \
-	  HPFTODIT=../hpftodit/hpftodit
+	  HPFTODIT=$(top_builddir)/src/utils/hpftodit/hpftodit

@@ -5,11 +5,12 @@
 .\" Don't warn about non-existent fonts.
 .warn \n[.warn]-(\n[.warn]/131072%2*131072)
 .po 0
-.if !"\*[.T]"koi8-r" .if c\[char173] .shc \[char173]
+.if c\[shc] .shc \[shc]
 .de tty-char
 .if !c\\$1 .char \\$1 "\\$2
 ..
-.if c\(md .tr \(bu\(md
+.ie c\(pc .tr \(bu\(pc
+.el .if c\(md .tr \(bu\(md
 .tty-char \(bu \z+o
 .tty-char \(14 1/4
 .tty-char \(12 1/2

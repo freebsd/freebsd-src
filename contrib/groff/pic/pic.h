@@ -24,11 +24,11 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include <stdlib.h>
 #include <errno.h>
 
-#ifndef MATH_H_DECLARES_HYPOT
+#ifdef NEED_DECLARATION_HYPOT
 extern "C" {
   double hypot(double, double);
 }
-#endif
+#endif /* NEED_DECLARATION_HYPOT */
 
 #include "assert.h"
 #include "cset.h"

@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -28,19 +28,27 @@ the original English.
 .SH NAME
 tfmtodit \- create font files for use with groff \-Tdvi
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBtfmtodit 'u
+.ti \niu
 .B tfmtodit
-[
-.B \-sv
-]
-[
-.BI \-g gf_file
-]
-[
-.BI \-k skewchar
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-sv
+.OP \-g gf_file
+.OP \-k skewchar
 .I tfm_file
 .I map_file
 .I font
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 .B tfmtodit
 creates a font file for use with

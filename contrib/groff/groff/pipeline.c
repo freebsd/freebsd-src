@@ -95,7 +95,187 @@ extern void c_fatal P((const char *, const char *, const char *, const char *));
 
 static void sys_fatal P((const char *));
 static const char *xstrsignal P((int));
-static char *itoa P((int));
+static char *i_to_a P((int));
+
+/* MSVC can support asynchronous processes, but it's unlikely to have
+   fork().  So, until someone writes an emulation, let them at least
+   have a workable groff by using the good-ole DOS pipe simulation
+   via temporary files...  */
+
+#if defined(__MSDOS__) || (defined(_WIN32) && !defined(__CYGWIN32__))
+
+#include <process.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <string.h>
+
+#include "nonposix.h"
+
+/* A signal handler that just records that a signal has happened.  */
+static int child_interrupted;
+
+static RETSIGTYPE signal_catcher (int signo)
+{
+  child_interrupted++;
+}
+
+static const char *sh = "sh";
+static const char *command = "command";
+
+const char *
+system_shell_name (void)
+{
+  static const char *shell_name;
+
+  /* We want them to be able to use a Unixy shell if they have it
+     installed.  Let spawnlp try to find it, but if it fails, default
+     to COMMAND.COM.  */
+  if (shell_name == NULL)
+    {
+      int sh_found = spawnlp (P_WAIT, sh, sh, "-c", ":", NULL) == 0;
+
+      if (sh_found)
+	shell_name = sh;
+      else
+	shell_name = command;
+    }
+  return shell_name;
+}
+
+const char *
+system_shell_dash_c (void)
+{
+  if (strcmp (system_shell_name(), sh) == 0)
+    return "-c";
+  else
+    return "/c";
+}
+
+int
+is_system_shell (const char *shell)
+{
+  char monocased_shell[FILENAME_MAX];
+  size_t shlen;
+  int ibase = 0, idot, i;
+
+  if (!shell)	/* paranoia */
+    return 0;
+  idot = shlen = strlen(shell);
+
+  for (i = 0; i < shlen; i++)
+    {
+      if (isalpha(shell[i]))
+	monocased_shell[i] = tolower(shell[i]);
+      else
+	{
+	  monocased_shell[i] = shell[i];
+	  if (shell[i] == '.')
+	    idot = i;
+	  else if (shell[i] == '/' || shell[i] == '\\' || shell[i] == ':')
+	    {
+	      ibase = i + 1;
+	      idot = shlen;
+	    }
+	}
+    }
+  monocased_shell[i] = '\0';
+
+  /* "sh" and "sh.exe" should compare equal.  */
+  return
+    strncmp(monocased_shell + ibase, system_shell_name(), idot - ibase) == 0
+    && (idot == shlen
+	|| strcmp(monocased_shell + idot, ".exe") == 0
+	|| strcmp(monocased_shell + idot, ".com") == 0);
+}
+
+/* MSDOS doesn't have `fork', so we need to simulate the pipe by
+   running the programs in sequence with redirected standard streams.  */
+
+int run_pipeline (ncommands, commands)
+     int ncommands;
+     char ***commands;
+{
+  int save_stdin = dup(0);
+  int save_stdout = dup(1);
+  char *tmpfiles[2];
+  char tem1[L_tmpnam], tem2[L_tmpnam];
+  int infile  = 0;
+  int outfile = 1;
+  int i, f, ret = 0;
+
+  tmpfiles[0] = tmpnam(tem1);
+  tmpfiles[1] = tmpnam(tem2);
+
+  for (i = 0; i < ncommands; i++)
+    {
+      int exit_status;
+      RETSIGTYPE (*prev_handler)(int);
+
+      if (i)
+	{
+	  /* redirect stdin from temp file */
+	  f = open(tmpfiles[infile], O_RDONLY|O_BINARY, 0666);
+	  if (f < 0)
+	    sys_fatal("open stdin");
+	  if (dup2(f, 0) < 0)
+	    sys_fatal("dup2 stdin"); 
+	  if (close(f) < 0)
+	    sys_fatal("close stdin");
+	}
+      if (i < ncommands - 1)
+	{
+	  /* redirect stdout to temp file */
+	  f = open(tmpfiles[outfile], O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0666);
+	  if (f < 0)
+	    sys_fatal("open stdout");
+	  if (dup2(f, 1) < 0)
+	    sys_fatal("dup2 stdout");
+	  if (close(f) < 0)
+	    sys_fatal("close stdout");
+	}
+      else if (dup2(save_stdout, 1) < 0)
+	sys_fatal("restore stdout");
+
+      /* run the program */
+      child_interrupted = 0;
+      prev_handler = signal(SIGINT, signal_catcher);
+      exit_status = spawnvp(P_WAIT, commands[i][0], commands[i]);
+      signal(SIGINT, prev_handler);
+      if (child_interrupted)
+	{
+	  error("%1: Interrupted", commands[i][0], (char *)0, (char *)0);
+	  ret |= 2;
+	}
+      else if (exit_status < 0)
+	{
+	  error("couldn't exec %1: %2", commands[i][0],
+		strerror(errno), (char *)0);
+	  fflush(stderr);		/* just in case error() doesn't */
+	  ret |= 4;
+	}
+      if (exit_status != 0)
+	ret |= 1;
+
+      /* There's no sense to continue with the pipe if one of the
+	 programs has ended abnormally, is there?  */
+      if (ret != 0)
+	break;
+
+      /* swap temp files: make output of this program be input for the next */
+      infile = 1 - infile;
+      outfile = 1 - outfile;
+    }
+
+  if (dup2(save_stdin, 0) < 0)
+    sys_fatal("restore stdin");
+
+  unlink(tmpfiles[0]);
+  unlink(tmpfiles[1]);
+
+  return ret;
+}
+
+#else  /* not __MSDOS__, not _WIN32 */
 
 int run_pipeline(ncommands, commands)
      int ncommands;
@@ -203,12 +383,14 @@ int run_pipeline(ncommands, commands)
 	}
 	else
 	  error("unexpected status %1",
-		itoa(status), (char *)0, (char *)0);
+		i_to_a(status), (char *)0, (char *)0);
 	break;
       }
   }
   return ret;
 }
+
+#endif /* not __MSDOS__, not _WIN32 */
 
 static void sys_fatal(s)
      const char *s;
@@ -216,7 +398,7 @@ static void sys_fatal(s)
   c_fatal("%1: %2", s, strerror(errno), (char *)0);
 }
 
-static char *itoa(n)
+static char *i_to_a(n)
      int n;
 {
   static char buf[12];

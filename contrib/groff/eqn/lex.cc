@@ -19,7 +19,7 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include "eqn.h"
-#include "eqn.tab.h"
+#include "eqn_tab.h"
 #include "stringclass.h"
 #include "ptable.h"
 
@@ -471,7 +471,7 @@ int top_input::get_location(char **fnp, int *lnp)
 
 argument_macro_input::argument_macro_input(const char *body, int ac, 
 					   char **av, input *x)
-: input(x), argc(ac), ap(0)
+: input(x), ap(0), argc(ac)
 {
   int i;
   for (i = 0; i < argc; i++)

@@ -77,8 +77,6 @@ Then is you ask for R at pointsize 16, groff will first look for
 R.display and then R.  Probably necessary to be able to specify a
 separate unitwidth for each sizesuffix (eg. for X).
 
-Request to copy an environment into the current environment.
-
 Variant of `.it' for which a line interrupted with \c counts as one
 input line.
 
@@ -105,7 +103,7 @@ optionally print the contents of a macro.
 Provide some way to round numbers to multiples of the current
 horizontal or vertical resolution.
 
-Better string-processing support (substring, length, search).
+Better string-processing support (search).
 
 Generalized ligatures.
 

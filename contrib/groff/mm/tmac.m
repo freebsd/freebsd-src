@@ -3,11 +3,11 @@
 .ds RE \\$2
 ..
 .\"
-.\" $Id: tmac.m,v 1.32 1999/09/03 05:33:12 jh Exp $
-.@revision $Revision: 1.32 $
+.\" $Id: tmac.m,v 1.2 2000/02/21 20:32:58 jhaegg Exp $
+.@revision $Revision: 1.2 $
 .ig
 
-Copyright (C) 1991-1998 Free Software Foundation, Inc.
+Copyright (C) 1991-2000 Free Software Foundation, Inc.
 mgm is written by Jörgen Hägg <jh@axis.se>
 
 mgm is free software; you can redistribute it and/or modify it under
@@ -167,6 +167,7 @@ Index		array!index
 .nr @ps \n[.ps]
 .nr @vs \n[.v]
 .if \n[D]>1 .tm @ps=\n[@ps], @vs=\n[@vs]
+.if \n[D]>3 .tm INIT: l:\n[.l] p:\n[.p] o:\n[.o]
 .\"
 .\"	Page length
 .if r L \{\
@@ -539,10 +540,12 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\" Break here to avoid problems with new linesetting of the previous line.
 .\" Hope this doesn't break anything else :-)
 .\" Don't break if arg_4 is a '1'.
+.if \\n[D]>2 .tm PGFORM: \\$*
 .if ''\\$4' .br
+.if \\n[D]>3 .tm PGFORM: IN l:\\n[.l] p:\\n[.p] o:\\n[.o]
 .ie !''\\$1' \{\
 .	ll \\$1
-.	nr @ll \n[.l]
+.	nr @ll \\n[.l]
 .	nr @cur-ll \\n[@ll]
 .	lt \\n[@ll]u
 .\}
@@ -553,17 +556,23 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"
 .ie !''\\$2' \{\
 .	pl \\$2
-.	nr @pl \n[.p]
+.	nr @pl \\n[.p]
 .\}
 .el .pl \\n[@pl]u
 .\"
 .ie !''\\$3' \{\
 .	po \\$3
-.	nr @po \n[.o]
+.	nr @po \\n[.o]
 .\}
 .el .po \\n[@po]u
+.if \\n[D]>3 .tm PGFORM: OUT l:\\n[.l] p:\\n[.p] o:\\n[.o]
+.if \\n[D]>2 .tm PGFORM: ll=\\n[@ll], pl=\\n[@pl], po=\\n[@po]
 'in 0
 .pg@move-trap
+.if \\n[D]>2 \{\
+.	tm Traps:
+.	ptr
+.\}
 ..
 .\"-------------
 .\" .MOVE y [[x] linelength]
@@ -911,8 +920,14 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if \\n[hd*level]=1 .ds H1txt \\$2\\$3
 .\"
 .\" This is a little fix to be able to get correct H1 heading number
-.\" in page headers.
-.nr H1h \\n[H1] 1
+.\" in page headers. Special attention was needed when other formats are used.
+.ie !''\\g[H1]' \{\
+.	ds hd*format \\g[H1]
+.	af H1 0
+.	nr H1h \\n[H1] 1
+.	af H1 \\*[hd*format]
+.\}
+.el .nr H1h \\n[H1] 1
 .if \\n[hd*level]=1 .nr H1h +1
 .\"
 .\"	Check if it's time for new page. Only if text has
@@ -1105,6 +1120,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .de pg@enable-trap
 .wh \\n[pg*foot-trap]u pg@footer
 .if \\n[D]>2 .tm pg@enable-trap .t=\\n[.t] nl=\\n[nl]
+.if \\n[D]>2 .ptr
 ..
 .de pg@disable-trap
 .ch pg@footer
@@ -2923,13 +2939,27 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 ..
 .de AE
 ..
-.\" I am planning to use mgm for some time :-)
-.nr cov*year 1900+\n[yr]
-.ds cov*new-date \*[MO\n[mo]] \n[dy], \n[cov*year]
+.\" fixed for 2000, now uses \n[year].
+.de ISODATE
+.	\" support for ISO-date
+.	nr cov*mm \\n[mo]
+.	nr cov*dd \\n[dy]
+.	af cov*mm 01
+.	af cov*dd 01
+.	ie '0'\\$1' \{\
+.		ds cov*new-date \\*[MO\\n[mo]] \\n[dy], \\n[year]
+.	\}
+.	el \{\
+.		ds cov*new-date \\n[year]-\\n[cov*mm]-\\n[cov*dd]
+.	\}
+..
+.ISODATE 0
 .als DT cov*new-date
 .de ND
 .ds cov*new-date \\$1
 ..
+.\" switch to ISO-date if register Iso exist: YYYY-MM-DD
+.if r Iso .ISODATE 1
 .\"-------------------
 .\" save technical numbers.
 .de TM
@@ -2981,21 +3011,20 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"
 .\" init reference system
 .de INITR
-.ds qrf*file \\$1
+.ds qrf*file \\$1.qrf
 .nr qrf*pass 2
 .if \\n[D]>1 .tm INITR: source \\*[qrf*file]
-.if \\n[Ref] \{\
-.	tm .\\\\" Filename: \\$1
+.ie \\n[Ref] \{\
+.	tm .\\\\" Rfilename: \\*[qrf*file]
 .\}
-'so  \\*[qrf*file]
-.\}
+.el 'so  \\*[qrf*file]
 ..
 .\"---------------
 .\" set a reference.
 .de SETR
 .if \\n[.$]<1 .@error "SETR:reference name missing"
-.ie !r qrf*pass .tm "SETR: No .INITR in this file"
-.el \{\
+.if !r qrf*pass .tm "SETR: No .INITR in this file"
+.if \\n[Ref] \{\
 .	ds qrf*name qrf*ref-\\$1
 .	if \\n[D]>2 .tm SETR: ref \\*[qrf*name]=\\*[hd*mark],\\n[%]
 .	\" heading-number
@@ -3011,7 +3040,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\}
 ..
 .\"---------------
-.\" get misc-string, output <->42<-> in pass 1
+.\" get misc-string
 .\" If two arg -> set var. arg to misc-string.
 .de GETST
 .if \\n[.$]<1 .@error "GETST:reference name missing"
@@ -3024,7 +3053,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\}
 ..
 .\"---------------
-.\" get header-number, output X.X.X. in pass 1
+.\" get header-number
 .\" If two arg -> set var. arg to header-number.
 .de GETHN
 .if \\n[.$]<1 .@error "GETHN:reference name missing"
@@ -3036,13 +3065,13 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\}
 ..
 .\"---------------
-.\" get page-number, output 9999 in pass 1
+.\" get page-number
 .\" If two arg -> set var. arg to page-number.
 .de GETPN
 .if \\n[.$]<1 .@error "GETPN:reference name missing"
 .if !r qrf*pass .tm "GETPN: No .INITR in this file"
 .ds qrf*name qrf*ref-\\$1
-.if d \\*[qrf*name]-pn
+.if d \\*[qrf*name]-pn \{\
 .	ie \\n[.$]>1 .ds \\$2 \\*[\\*[qrf*name]-pn]
 .	el \\*[\\*[qrf*name]-pn]\c
 .\}
@@ -3066,53 +3095,64 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 ..
 .\"--------------------
 .\" Another type of index system
-.\" INITI filename [type]
+.\" INITI type filename [macro]
 .de INITI
-.if \\n[.$]<1 .@error "INITI:filename missing"
+.if \\n[.$]<1 .@error "INITI:type missing"
 .\" ignore if INITI has already been used
-.if r ind*pass .@error "INITI:already initialyzed"
-.nr ind*pass 1
-.ds ind*file \\$1.ind
-.ie \\n[.$]<2 .ds ind*type N
-.el .ds ind*type \\$2
+.if \\n[.$]>1 \{\
+.	if d ind*file .@error "INITI:file already set"
+.	ds ind*file \\$2.ind
+.	if \\n[D]>1 .tm INITI: source \\*[ind*file]
+.\}
+.if !d ind*file .@error "INITI:file not specified"
+.ds ind*type \\$1
+.if \\n[Ref] \{\
+.	if \\n[.$]>2 .tm .\\\\" Imacro: \\$3
+.\}
 ..
 .\"---------------
 .de IND
-.if !r ind*pass .@error "IND: No .INITI in this file"
+.if !d ind*file .@error "IND: No active INITI"
+.if \\n[D]>1 .tm IND: type=\\*[ind*type]
+.ds ind*ref
 .if '\\*[ind*type]'N' .ds ind*ref \\n[%]
 .if '\\*[ind*type]'H' .ds ind*ref \\*[hd*mark]
 .if '\\*[ind*type]'B' .ds ind*ref \\*[hd*mark]\t\\n[%]
+.if '\\*[ind*ref]'' .@error "IND:wrong index type: \\*[ind*ref]"
 .\"
-.if \\n[.$] .ds ind*line \\$1
+.ds ind*line \\$1
 .while \\n[.$]>0 \{\
 .	shift
 .	as ind*line \t\\$1
 .\}
 .as ind*line \\*[ind*ref]
-.tm \\*[ind*line]
+.if \\n[Ref] .tm .\\\\" IND \\*[ind*line]
 ..
 .\" print index
 .de INDP
-.\" sort the index
-.if !\\n[Cp] .pg@next-page
-.\" print INDEX
-.\" execute user-defined macros
-.if d TXIND .TXIND
-.ie d TYIND .TYIND
+.ie \\n[Ref] .tm .\\\\" Index: \\*[ind*file]
 .el \{\
-.	SK
-.	ce
+.	if !\\n[Cp] .pg@next-page
+.	\" print INDEX
+.	\" execute user-defined macros
+.	if d TXIND .TXIND
+.	ie d TYIND .TYIND
+.	el \{\
+.		SK
+.		ce
 \\*[Index]
-.	SP 3
-.	2C
-.	nf
+.		SP 3
+.		2C
+.		nf
+.	\}
+'	so  \\*[ind*file]
+.	ie d TZIND .TZIND
+.	el \{\
+.		fi
+.		1C
+.	\}
 .\}
-.pso \\*[Indcmd] \\*[ind*file]
-.ie d TZIND .TZIND
-.el \{\
-.	fi
-.	1C
-.\}
+.rm ind*file
 ..
 .\"########################### module let ############################
 .\" Letter macros
