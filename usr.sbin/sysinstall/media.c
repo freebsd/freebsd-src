@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.39 1996/06/08 07:02:21 jkh Exp $
+ * $Id: media.c,v 1.40 1996/06/16 21:57:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -288,6 +288,11 @@ mediaSetFTP(dialogMenuItem *self)
 
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	if (isDebug())
+	    msgDebug("mediaSetFTP: Net device init failed.\n");
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    }
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
 	*(cp++) = '\0';
@@ -310,7 +315,7 @@ mediaSetFTP(dialogMenuItem *self)
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
-
+    variable_set2(VAR_FTP_PORT, itoa(port));
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
@@ -376,6 +381,11 @@ mediaSetNFS(dialogMenuItem *self)
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE;
+    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	if (isDebug())
+	    msgDebug("mediaSetNFS: Net device init failed\n");
+	return DITEM_FAILURE;
+    }
     *idx = '\0';
     msgNotify("Looking up host %s..", cp);
     if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
