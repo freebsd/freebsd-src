@@ -519,7 +519,8 @@ main(argc, argv)
 		 * here as we would otherwise fail when trying to find
 		 * the interface.
 		 */
-		if (argc > 0 && strcmp(argv[0], "create") == 0) {
+		if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
+		    strcmp(argv[0], "plumb") == 0)) {
 			clone_create();
 			argc--, argv++;
 			if (argc == 0)
