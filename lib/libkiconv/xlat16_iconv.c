@@ -113,6 +113,23 @@ kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
 	return (-1);
 }
 
+int
+kiconv_add_xlat16_cspairs(const char *foreigncode, const char *localcode)
+{
+	int error;
+
+	error = kiconv_add_xlat16_cspair(foreigncode, localcode,
+	    KICONV_FROM_LOWER | KICONV_FROM_UPPER);
+	if (error)
+		return (error);
+	error = kiconv_add_xlat16_cspair(localcode, foreigncode,
+	    KICONV_LOWER | KICONV_UPPER);
+	if (error)
+		return (error);
+	
+	return (0);
+}
+
 static struct xlat16_table
 kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 {
@@ -366,6 +383,13 @@ my_iconv_char(iconv_t cd, const u_char **ibuf, size_t * ilen, u_char **obuf,
 
 int
 kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
+{
+	errno = EINVAL;
+	return (-1);
+}
+
+int
+kiconv_add_xlat16_cspairs(const char *tocode, const char *fromcode)
 {
 	errno = EINVAL;
 	return (-1);
