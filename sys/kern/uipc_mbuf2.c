@@ -310,6 +310,17 @@ m_dup1(struct mbuf *m, int off, int len, int wait)
 	return n;
 }
 
+/* Free a packet tag. */
+static void
+_m_tag_free(struct m_tag *t)
+{
+#ifdef MAC
+	if (t->m_tag_id == PACKET_TAG_MACLABEL)
+		mac_destroy_mbuf_tag(t);
+#endif
+	free(t, M_PACKET_TAGS);
+}
+
 /* Get a packet tag structure along with specified data following. */
 struct m_tag *
 m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
@@ -321,37 +332,9 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 	t = malloc(len + sizeof(struct m_tag), M_PACKET_TAGS, wait);
 	if (t == NULL)
 		return NULL;
-	t->m_tag_id = type;
-	t->m_tag_len = len;
-	t->m_tag_cookie = cookie;
+	m_tag_setup(t, cookie, type, len);
+	t->m_tag_free = _m_tag_free;
 	return t;
-}
-
-/* Free a packet tag. */
-void
-m_tag_free(struct m_tag *t)
-{
-#ifdef MAC
-	if (t->m_tag_id == PACKET_TAG_MACLABEL)
-		mac_destroy_mbuf_tag(t);
-#endif
-	free(t, M_PACKET_TAGS);
-}
-
-/* Prepend a packet tag. */
-void
-m_tag_prepend(struct mbuf *m, struct m_tag *t)
-{
-	KASSERT(m && t, ("m_tag_prepend: null argument, m %p t %p", m, t));
-	SLIST_INSERT_HEAD(&m->m_pkthdr.tags, t, m_tag_link);
-}
-
-/* Unlink a packet tag. */
-void
-m_tag_unlink(struct mbuf *m, struct m_tag *t)
-{
-	KASSERT(m && t, ("m_tag_unlink: null argument, m %p t %p", m, t));
-	SLIST_REMOVE(&m->m_pkthdr.tags, t, m_tag, m_tag_link);
 }
 
 /* Unlink and free a packet tag. */
@@ -472,25 +455,4 @@ m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
 		tprev = t;
 	}
 	return 1;
-}
-
-/* Initialize tags on an mbuf. */
-void
-m_tag_init(struct mbuf *m)
-{
-	SLIST_INIT(&m->m_pkthdr.tags);
-}
-
-/* Get first tag in chain. */
-struct m_tag *
-m_tag_first(struct mbuf *m)
-{
-	return SLIST_FIRST(&m->m_pkthdr.tags);
-}
-
-/* Get next tag in chain. */
-struct m_tag *
-m_tag_next(struct mbuf *m, struct m_tag *t)
-{
-	return SLIST_NEXT(t, m_tag_link);
 }
