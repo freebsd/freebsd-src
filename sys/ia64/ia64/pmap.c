@@ -133,7 +133,8 @@ MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 #define PMAP_DIAGNOSTIC
 #endif
 
-#define MINPV 2048
+#define MINPV 2048	/* Preallocate at least this many */
+#define MAXPV 20480	/* But no more than this */
 
 #if 0
 #define PMAP_DIAGNOSTIC
@@ -521,6 +522,8 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
+	if (initial_pvs > MAXPV)
+		initial_pvs = MAXPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_zone_set_allocf(pvzone, pmap_allocf);
