@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040607:
+	Splitting kern_thread.c into 2 files (adding kern_kse.c)
+	requires that you re-run config after updating your tree.
+
 20040601:
 	The MIDI drivers have been removed. Until the new module-friendly
 	ones are merged, remove or comment out midi and seq from your
