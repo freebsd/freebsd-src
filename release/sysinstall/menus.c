@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.56 1997/11/05 05:54:29 obrien Exp $
+ * $Id: menus.c,v 1.89.2.57 1997/11/26 22:50:30 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1322,14 +1322,20 @@ DMenu MenuSysconsKeymap = {
       { "Brazil ISO",	"Brazil ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=br275.iso" },
       { "Danish CP865",	"Danish Code Page 865 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.cp865" },
       { "Danish ISO",	"Danish ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.iso" },
+      { "French ISO (accent)", "French ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.iso.acc" },
       { "French ISO",	"French ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.iso" },
       { "German CP850",	"German Code Page 850 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.cp850"	},
       { "German ISO",	"German ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.iso" },
+      { "Icelandic (accent)", "Icelandic ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso.acc" },
+      { "Icelandic",	"Icelandic ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso" },
       { "Italian",	"Italian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=it.iso" },
+      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer" },
       { "Japanese 106",	"Japanese 106 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.106" },
       { "Norway ISO",	"Norwegian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=norwegian.iso" },
       { "Russia CP866",	"Russian CP866 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.cp866" },
       { "Russia KOI8-R", "Russian KOI8-R keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.koi8-r" },
+      { "Slovenian", "Slovenian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=si.iso.acc" },
+      { "Spanish (accent)", "Spanish ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=spanish.iso.acc" },
       { "Spanish",	"Spanish ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=spanish.iso" },
       { "Swedish CP850", "Swedish Code Page 850 keymap", dmenuVarCheck,	dmenuSetKmapVariable, NULL, "keymap=swedish.cp850" },
       { "Swedish ISO",	"Swedish ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=swedish.iso" },

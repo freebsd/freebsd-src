@@ -56,15 +56,16 @@ rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
 
-KEYMAPS= be.iso br275.iso danish.iso fr.iso german.iso it.iso jp.106 \
-	norwegian.iso ru.koi8-r spanish.iso swedish.iso \
-	swissgerman.iso uk.iso us.dvorak us.iso
+KEYMAPS= be.iso br275.iso danish.iso fr.iso german.iso it.iso \
+	icelandic.iso jp.106 norwegian.iso ru.koi8-r si.iso spanish.iso \
+	swedish.iso swissgerman.iso uk.iso us.dvorak us.iso
 
 
 keymap.h:
 	rm -f keymap.tmp
 	for map in ${KEYMAPS} ; do \
-		kbdcontrol -L $$map >> keymap.tmp ; \
+		kbdcontrol -L $$map | \
+			sed -e '/^static accentmap_t/,$$d' >> keymap.tmp ; \
 	done
 	echo "static struct keymapInfo keymapInfos[] = {" >> keymap.tmp
 	for map in ${KEYMAPS} ; do \
