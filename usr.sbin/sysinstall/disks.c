@@ -678,7 +678,7 @@ diskPartitionWrite(dialogMenuItem *self)
     }
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written", 0);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 /* Partition a disk based wholly on which variables are set */

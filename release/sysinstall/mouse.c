@@ -67,7 +67,7 @@ mousedTest(dialogMenuItem *self)
 		vsystem("ln -fs /dev/sysmouse /dev/mouse"); /* backwards compat */
 	}
 
-	return DITEM_SUCCESS;
+	return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 int
