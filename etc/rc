@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.156 1998/09/16 05:42:37 jdp Exp $
+#	$Id: rc,v 1.157 1998/09/16 22:42:56 brian Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -346,7 +346,8 @@ if [ "X${local_startup}" != X"NO" ]; then
 	echo -n 'Local package initialization:'
 	for dir in ${local_startup}; do
 		[ -d ${dir} ] && for script in ${dir}/*.sh; do
-			[ -x ${script} ] && ${script} start
+			[ -x ${script} ] && \
+				(trap 'exit 1' 2 ; ${script} start ; echo -n)
 		done
 	done
 	echo .
