@@ -42,16 +42,4 @@
 #ifndef _SYS_DKSTAT_H_
 #define _SYS_DKSTAT_H_ 1
 
-#define	CP_USER		0
-#define	CP_NICE		1
-#define	CP_SYS		2
-#define	CP_INTR		3
-#define	CP_IDLE		4
-#define	CPUSTATES	5
-
-#ifdef _KERNEL
-
-extern long cp_time[CPUSTATES];
-#endif
-
 #endif /* _SYS_DKSTAT_H_ */
