@@ -558,17 +558,10 @@ again:
 	PROC_UNLOCK(p2);
 
 	/*
-	 * If p_limit is still copy-on-write, bump refcnt,
-	 * otherwise get a copy that won't be modified.
-	 * (If PL_SHAREMOD is clear, the structure is shared
-	 * copy-on-write.)
+	 * p_limit is copy-on-write, bump refcnt,
 	 */
-	if (p1->p_limit->p_lflags & PL_SHAREMOD)
-		p2->p_limit = limcopy(p1->p_limit);
-	else {
-		p2->p_limit = p1->p_limit;
-		p2->p_limit->p_refcnt++;
-	}
+	p2->p_limit = p1->p_limit;
+	p2->p_limit->p_refcnt++;
 
 	/*
 	 * Setup linkage for kernel based threading
