@@ -38,12 +38,15 @@
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/atomic.h>
 #include <machine/globaldata.h>
 #include <machine/pmap.h>
 #include <machine/clock.h>
 
-int			boot_cpu_id;
+int	boot_cpu_id;
 
 int
 cpu_mp_probe()
@@ -66,7 +69,7 @@ cpu_mp_announce()
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int32_t cpus, u_int64_t ipi)
+ipi_selected(u_int cpus, u_int64_t ipi)
 {
 
 	CTR2(KTR_SMP, "ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
