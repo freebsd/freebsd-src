@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.217 1998/09/26 14:47:16 dfr Exp $
+ *	$Id: sio.c,v 1.218 1998/11/15 18:25:17 dfr Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -3118,6 +3118,7 @@ static pnpid_t siopnp_ids[] = {
 	{ 0x7121b04e, "SupraExpress 56i Sp"},
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
+	{ 0x31307256, "USR3031"},
 	{ 0 }
 };
 
