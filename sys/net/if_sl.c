@@ -309,7 +309,7 @@ slcreate()
 #ifdef SLIP_IFF_OPTS
 	    SLIP_IFF_OPTS;
 #else
-	    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
+	    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST | IFF_NEEDSGIANT;
 #endif
 	sc->sc_if.if_type = IFT_SLIP;
 	sc->sc_if.if_ioctl = slioctl;
@@ -609,6 +609,8 @@ slstart(tp)
 	register struct ip *ip;
 	int s;
 	register int len = 0;
+
+	GIANT_REQUIRED;		/* tty */
 
 	for (;;) {
 		/*
