@@ -216,6 +216,9 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
+	if (!dumping)
+	    callout_reset(&request->callout, request->timeout * hz,
+			  (timeout_t*)ata_timeout, request);
 	if (request->bio && !(request->flags & ATA_R_TIMEOUT)) {
 	    ATA_DEBUG_RQ(request, "finish bio_taskqueue");
 	    bio_taskqueue(request->bio, (bio_task_t *)ata_completed, request);
