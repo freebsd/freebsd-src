@@ -1,0 +1,6 @@
+#
+# $Id: Makefile.i386,v 1.1 1998/03/12 02:55:32 jdp Exp $
+#
+
+SRCS+=		mips-dis.c
+CFLAGS+=	-DARCH_mips
