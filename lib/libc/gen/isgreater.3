@@ -56,29 +56,29 @@ Each of the macros
 and
 .Fn islessgreater
 take arguments
-.Va x
+.Fa x
 and
-.Va y
+.Fa y
 and return a non-zero value if and only if its nominal
 relation on
-.Va x
+.Fa x
 and
-.Va y
+.Fa y
 is true.
 These macros always return zero if either
-argument is a not a number (NaN), but unlike the corresponding C
+argument is not a number (NaN), but unlike the corresponding C
 operators, they never raise a floating point exception.
 .Pp
 The
 .Fn isunordered
 macro takes arguments
-.Va x
+.Fa x
 and
-.Va y
+.Fa y
 and returns non-zero if and only if neither
-.Va x
+.Fa x
 nor
-.Va y
+.Fa y
 are NaNs.
 For any pair of floating-point values, one
 of the relationships (less, greater, equal, unordered) holds.
@@ -93,7 +93,7 @@ The
 .Fn isless ,
 .Fn islessequal ,
 .Fn islessgreater ,
-and 
+and
 .Fn isunordered
 macros conform to
 .St -isoC-99 .
