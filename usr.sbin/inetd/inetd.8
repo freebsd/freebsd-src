@@ -89,7 +89,9 @@ section for more information on TCP Wrappers support.
 Turn on TCP Wrapping for internal services which are built in to
 .Nm inetd .
 .It Fl c Ar maximum
-Specify the default maximum number of services that can be invoked.
+Specify the default maximum number of
+simultaneous invocations of each service;
+the default is unlimited.
 May be overridden on a per-service basis with the "max-child"
 parameter.
 .It Fl C Ar rate
@@ -100,6 +102,7 @@ May be overridden on a per-service basis with the
 .It Fl R Ar rate
 Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
+A rate of 0 allows an unlimited number of invocations.
 .It Fl a
 Specify a specific IP address to bind to.
 Alternatively, a hostname can be specified,
@@ -647,7 +650,7 @@ Each
 policy specifier is applied to all the following lines in
 .Pa inetd.conf
 until the next policy specifier.
-An empty policy specifer resets the IPsec policy.
+An empty policy specifier resets the IPsec policy.
 .Pp
 If an invalid IPsec policy specifier appears in
 .Pa inetd.conf ,
