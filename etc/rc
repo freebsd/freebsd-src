@@ -41,10 +41,10 @@
 stty status '^T'
 
 # Set shell to ignore SIGINT (2), but not children;
-# shell catches SIGQUIT (3) and returns to single user after fsck.
+# shell catches SIGQUIT (3) and returns to single user.
 #
 trap : 2
-trap : 3	# shouldn't be needed
+trap "echo 'Boot interrupted'; exit 1" 3
 
 HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
