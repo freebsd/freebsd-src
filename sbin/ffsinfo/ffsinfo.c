@@ -123,7 +123,7 @@ main(int argc, char **argv)
 {
 	DBG_FUNC("main")
 	char	*device, *special;
-	char	ch;
+	int	ch;
 	size_t	len;
 	struct stat	st;
 	struct csum	*dbg_csp;
