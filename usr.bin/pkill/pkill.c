@@ -125,7 +125,7 @@ main(int argc, char **argv)
 	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
 	char *execf, *coref, *swapf;
-	int i, j, ch, bestidx, rv, criteria;
+	int i, j, ch, bestidx, rv, criteria, drop_privs;
 	void (*action)(struct kinfo_proc *);
 	struct kinfo_proc *kp;
 	struct list *li;
@@ -169,12 +169,21 @@ main(int argc, char **argv)
 #endif
 
 	criteria = 0;
+	drop_privs = 0;
 
-	while ((ch = getopt(argc, argv, "G:P:U:d:fg:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "G:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
 		switch (ch) {
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
 			criteria = 1;
+			break;
+		case 'M':
+			coref = optarg;
+			drop_privs = 1;
+			break;
+		case 'N':
+			execf = optarg;
+			drop_privs = 1;
 			break;
 		case 'P':
 			makelist(&ppidlist, LT_GENERIC, optarg);
@@ -234,6 +243,15 @@ main(int argc, char **argv)
 		criteria = 1;
 	if (!criteria)
 		usage();
+
+	/*
+	 * Discard privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (drop_privs) {
+		setgid(getgid());
+		setuid(getuid());
+	}
 
 	mypid = getpid();
 
@@ -426,9 +444,9 @@ usage(void)
 		ustr = "[-signal] [-fnvx]";
 
 	fprintf(stderr,
-		"usage: %s %s [-G gid] [-P ppid] [-U uid] [-g pgrp] [-s sid]\n"
-		"             [-t tty] [-u euid] pattern ...\n", getprogname(),
-		ustr);
+		"usage: %s %s [-G gid] [-M core] [-N system]\n"
+		"             [-P ppid] [-U uid] [-g pgrp] [-s sid] [-t tty]\n"
+		"             [-u euid] pattern ...\n", getprogname(), ustr);
 
 	exit(STATUS_ERROR);
 }
