@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.45 1998/12/29 20:36:22 cwt Exp $";
+	"$Id: syslogd.c,v 1.46 1998/12/29 23:14:50 cwt Exp $";
 #endif /* not lint */
 
 /*
@@ -251,7 +251,7 @@ struct	filed consfile;
 int	Debug;			/* debug flag */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
-int	finet;			/* Internet datagram socket */
+int	finet = -1;		/* Internet datagram socket */
 int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -394,7 +394,8 @@ main(argc, argv)
 				die(0);
 		}
 	}
-	finet = socket(AF_INET, SOCK_DGRAM, 0);
+	if (SecureMode > 1)
+		finet = socket(AF_INET, SOCK_DGRAM, 0);
 	if (finet >= 0) {
 		struct servent *sp;
 
