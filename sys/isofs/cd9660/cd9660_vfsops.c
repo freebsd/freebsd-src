@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.22 1997/04/14 18:15:46 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.23 1997/04/29 15:52:53 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -313,6 +313,15 @@ iso_mountfs(devvp, mp, p, argp)
 		isonum_733 (high_sierra?
 			    pri_sierra->volume_space_size:
 			    pri->volume_space_size);
+	/*
+	 * Since an ISO9660 multi-session CD can also access previous
+	 * sessions, we have to include them into the space consider-
+	 * ations.  This doesn't yield a very accurate number since
+	 * parts of the old sessions might be inaccessible now, but we
+	 * can't do much better.  This is also important for the NFS
+	 * filehandle validation.
+	 */
+	isomp->volume_space_size += argp->ssector;
 	bcopy (rootp, isomp->root, sizeof isomp->root);
 	isomp->root_extent = isonum_733 (rootp->extent);
 	isomp->root_size = isonum_733 (rootp->size);
