@@ -724,6 +724,9 @@ uhci_power(int why, void *v)
 #endif
 		sc->sc_bus.use_polling++;
 		sc->sc_suspend = why;
+		UWRITE2(sc, UHCI_INTR, 0);	/* disable interrupts */
+		uhci_globalreset(sc);		/* reset the controller */
+		uhci_reset(sc);
 		if (cmd & UHCI_CMD_RS)
 			uhci_run(sc, 0); /* in case BIOS has started it */
 

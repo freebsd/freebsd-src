@@ -1,3 +1,4 @@
+/*	$NetBSD: uvisor.c,v 1.9 2001/01/23 14:04:14 augustss Exp $	*/
 /*      $FreeBSD$	*/
 
 /* Also already merged from NetBSD:
@@ -163,6 +164,8 @@ struct uvisor_softc {
 
 Static usbd_status uvisor_init(struct uvisor_softc *);
 
+Static usbd_status clie_3_5_init(struct uvisor_softc *);
+
 Static void uvisor_close(void *, int);
 
 struct ucom_callback uvisor_callback = {
@@ -221,6 +224,7 @@ static const struct uvisor_type uvisor_devs[] = {
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_41 }, 0 },
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_S360 }, PALM4 },
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_NX60 }, PALM4 },
+	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_35 }, 0 },
 /*	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_25 }, PALM4 },*/
 };
 #define uvisor_lookup(v, p) ((const struct uvisor_type *)usb_lookup(uvisor_devs, v, p))
@@ -336,7 +340,12 @@ USB_ATTACH(uvisor)
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &uvisor_callback;
 
-	err = uvisor_init(sc);
+	if (uaa->vendor == USB_VENDOR_SONY &&
+	    uaa->product == USB_PRODUCT_SONY_CLIE_35)
+		err = clie_3_5_init(sc);
+	else
+		err = uvisor_init(sc);
+
 	if (err) {
 		printf("%s: init failed, %s\n", USBDEVNAME(ucom->sc_dev),
 		       usbd_errstr(err));
@@ -482,6 +491,76 @@ uvisor_init(struct uvisor_softc *sc)
 	DPRINTF(("uvisor_init: avail=%d\n", UGETW(avail)));
 
 	DPRINTF(("uvisor_init: done\n"));
+	return (err);
+}
+
+usbd_status
+clie_3_5_init(struct uvisor_softc *sc)
+{
+	usbd_status err;
+	usb_device_request_t req;
+	char buffer[256];
+
+	/*
+	 * Note that PEG-300 series devices expect the following two calls.
+	 */
+
+	/* get the config number */
+	DPRINTF(("clie_3_5_init: getting config info\n"));
+	req.bmRequestType = UT_READ;
+	req.bRequest = UR_GET_CONFIG;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 1);
+	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, buffer);
+	if (err)
+		return (err);
+
+	/* get the interface number */
+	DPRINTF(("clie_3_5_init: get the interface number\n"));
+	req.bmRequestType = UT_READ_DEVICE;
+	req.bRequest = UR_GET_INTERFACE;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 1);
+	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, buffer);
+	if (err)
+		return (err);
+
+#ifdef USB_DEBUG
+	{
+		struct uvisor_connection_info coninfo;
+		int i, np;
+		char *string;
+
+		np = UGETW(coninfo.num_ports);
+		DPRINTF(("%s: Number of ports: %d\n", USBDEVNAME(sc->sc_ucom.sc_dev), np));
+		for (i = 0; i < np; ++i) {
+			switch (coninfo.connections[i].port_function_id) {
+			case UVISOR_FUNCTION_GENERIC:
+				string = "Generic";
+				break;
+			case UVISOR_FUNCTION_DEBUGGER:
+				string = "Debugger";
+				break;
+			case UVISOR_FUNCTION_HOTSYNC:
+				string = "HotSync";
+				break;
+			case UVISOR_FUNCTION_REMOTE_FILE_SYS:
+				string = "Remote File System";
+				break;
+			default:
+				string = "unknown";
+				break;	
+			}
+			DPRINTF(("%s: port %d, is for %s\n",
+			    USBDEVNAME(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
+			    string));
+		}
+	}
+#endif
+
+	DPRINTF(("clie_3_5_init: done\n"));
 	return (err);
 }
 

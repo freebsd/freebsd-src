@@ -1,9 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.101 2002/06/01 23:51:04 lukem Exp $	*/
-
-/* Also already have from NetBSD:
- *	$NetBSD: usbdi.c,v 1.102 2002/07/11 21:14:35 augustss Exp $
- *	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $
- */
+/*	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $	*/
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -1118,11 +1113,9 @@ usbd_get_endpoint_descriptor(usbd_interface_handle iface, u_int8_t address)
 int
 usbd_ratecheck(struct timeval *last)
 {
-#if 0
-	static struct timeval errinterval = { 0, 250000 }; /* 0.25 s*/
-
-	return (ratecheck(last, &errinterval));
-#endif
+	if (last->tv_sec == time_second)
+		return (0);
+	last->tv_sec = time_second;
 	return (1);
 }
 

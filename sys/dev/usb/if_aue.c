@@ -208,7 +208,7 @@ Static int aue_miibus_writereg(device_ptr_t, int, int, int);
 Static void aue_miibus_statchg(device_ptr_t);
 
 Static void aue_setmulti(struct aue_softc *);
-Static u_int32_t aue_crc(caddr_t);
+Static uint32_t aue_mchash(const uint8_t *);
 Static void aue_reset(struct aue_softc *);
 
 Static int aue_csr_read_1(struct aue_softc *, int);
@@ -523,9 +523,11 @@ aue_miibus_statchg(device_ptr_t dev)
 #define AUE_BITS	6
 
 Static u_int32_t
-aue_crc(caddr_t addr)
+aue_mchash(const uint8_t *addr)
 {
-	u_int32_t		idx, bit, data, crc;
+	uint32_t crc;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
@@ -567,7 +569,7 @@ aue_setmulti(struct aue_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = aue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = aue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		AUE_SETBIT(sc, AUE_MAR + (h >> 3), 1 << (h & 0x7));
 	}
 
