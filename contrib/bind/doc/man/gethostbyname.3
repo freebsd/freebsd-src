@@ -31,19 +31,19 @@
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
 .Ft extern int 
-.Fa h_errno;
+.Fa h_errno ;
 .Pp
 .Ft struct hostent *
-.Fn gethostbyname "char *name";
+.Fn gethostbyname "char *name"
 .Ft struct hostent *
-.Fn gethostbyname2 "char *name" "int af";
+.Fn gethostbyname2 "char *name" "int af"
 .Ft struct hostent *
-.Fn gethostbyaddr "char *addr" "int len, type";
+.Fn gethostbyaddr "char *addr" "int len, type"
 .Ft struct hostent *
 .Fn gethostent
-.Fn sethostent "int stayopen";
+.Fn sethostent "int stayopen"
 .Fn endhostent
-.Fn herror "char *string";
+.Fn herror "char *string"
 .Sh DESCRIPTION
 .Fn Gethostbyname ,
 .Fn gethostbyname2 ,
@@ -140,21 +140,17 @@ Otherwise, queries are performed using UDP datagrams.
 .Fn Endhostent
 closes the TCP connection.
 .Sh ENVIRONMENT
-.Bl -tag -width "HOSTALIASES  " -compress
+.Bl -tag -width "HOSTALIASES  " -compact
 .It Ev HOSTALIASES
 Name of file containing 
 .Pq Ar host alias , full hostname
 pairs.
 .El
 .Sh FILES
-.Bl -tag -width "HOSTALIASES  " -compress
+.Bl -tag -width "HOSTALIASES  " -compact
 .It Pa /etc/hosts
 See
 .Xr hosts @FORMAT_EXT@ .
-.It Ev HOSTALIASES
-Name of file containing 
-.Pq Ar host alias , full hostname
-pairs.
 .El
 .Sh DIAGNOSTICS
 .Pp
@@ -222,7 +218,7 @@ when
 is built to use only the routines to lookup in
 .Pa /etc/hosts 
 and not the name server:
-.Bd  -filled -offset indent
+.Bd -ragged -offset indent
 .Pp
 .Fn Gethostent
 reads the next line of

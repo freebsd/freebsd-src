@@ -1,4 +1,4 @@
-.\" $Id: inet_cidr.3,v 8.2 1999/01/08 18:54:24 vixie Exp $
+.\" $Id: inet_cidr.3,v 8.3 2001/08/08 07:50:06 marka Exp $
 .\"
 .\"Copyright (c) 1998,1999 by Internet Software Consortium
 .\"
@@ -44,13 +44,13 @@ converts an address from network to presentation format.
 .Pp
 .Ft af
 describes the type of address that is being passed in
-.Ft src. 
+.Ft src .
 .\"Currently defined types are AF_INET and AF_INET6.
 Currently only AF_INET is supported.
 .Pp
 .Ft src
 is an address in network byte order, its length is determined from
-.Ft af.
+.Ft af .
 .Pp
 .Ft bits
 specifies the number of bits in the netmask unless it is -1 in which case
@@ -71,13 +71,13 @@ Check errno for reason.
 converts and address from presentation format, with optional CIDR
 reperesentation, to network format.
 The resulting address is zero filled if there were insufficint bits in
-.Ft src.
+.Ft src .
 .Pp
 .Ft af
 describes the type of address that is being passed in via 
 .Ft src
 and determines the size of 
-.Ft dst.
+.Ft dst .
 .Pp
 .Ft src
 is an address in presentation format.
