@@ -39,18 +39,18 @@ int
 dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
 	    int cnt, void *it, unsigned char *result, int *ch, int *sc)
 {
-    int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-	l, k, scroll = 0, max_choice, item_no, redraw_menu = FALSE;
+    int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button, choice,
+	l, k, scroll, max_choice, item_no, redraw_menu = FALSE;
     char okButton, cancelButton;
+    int rval = 0;
     WINDOW *dialog, *menu;
     unsigned char **items = NULL;
     dialogMenuItem *ditems;
     
 draw:
-    if (ch)  /* restore menu item info */
-	choice = *ch;
-    if (sc)
-	scroll = *sc;
+    choice = ch ? *ch : 0;
+    scroll = sc ? *sc : 0;
+    button = 0;
     
     /* If item_no is a positive integer, use old item specification format */
     if (cnt >= 0) {
@@ -77,30 +77,30 @@ draw:
     item_x = 0;
     /* Find length of longest item in order to center menu */
     for (i = 0; i < item_no; i++) {
-	l = strlen(items[i*2]);
+	l = strlen(items[i * 2]);
 	for (j = 0; j < item_no; j++) {
-	    k = strlen(items[j*2 + 1]);
+	    k = strlen(items[j * 2 + 1]);
 	    tag_x = MAX(tag_x, l + k + 2);
 	}
 	item_x = MAX(item_x, l);
     }
     if (height < 0)
-	height = strheight(prompt)+menu_height+4+2;
+	height = strheight(prompt) + menu_height + 4 + 2;
     if (width < 0) {
 	i = strwidth(prompt);
 	j = ((title != NULL) ? strwidth(title) : 0);
-	width = MAX(i,j);
-	width = MAX(width,tag_x+4)+4;
+	width = MAX(i, j);
+	width = MAX(width, tag_x + 4) + 4;
     }
-    width = MAX(width,24);
+    width = MAX(width, 24);
     
     if (width > COLS)
 	width = COLS;
     if (height > LINES)
 	height = LINES;
     /* center dialog box on screen */
-    x = DialogX ? DialogX : (COLS - width)/2;
-    y = DialogY ? DialogY : (LINES - height)/2;
+    x = DialogX ? DialogX : (COLS - width) / 2;
+    y = DialogY ? DialogY : (LINES - height) / 2;
     
 #ifdef HAVE_NCURSES
     if (use_shadow)
@@ -109,45 +109,46 @@ draw:
     dialog = newwin(height, width, y, x);
     if (dialog == NULL) {
 	endwin();
-	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
+	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height, width, y, x);
 	return -1;
     }
     keypad(dialog, TRUE);
     
     draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
     wattrset(dialog, border_attr);
-    wmove(dialog, height-3, 0);
+    wmove(dialog, height - 3, 0);
     waddch(dialog, ACS_LTEE);
-    for (i = 0; i < width-2; i++)
+    for (i = 0; i < width - 2; i++)
 	waddch(dialog, ACS_HLINE);
     wattrset(dialog, dialog_attr);
     waddch(dialog, ACS_RTEE);
-    wmove(dialog, height-2, 1);
-    for (i = 0; i < width-2; i++)
+    wmove(dialog, height - 2, 1);
+    for (i = 0; i < width - 2; i++)
 	waddch(dialog, ' ');
     
     if (title != NULL) {
 	wattrset(dialog, title_attr);
-	wmove(dialog, 0, (width - strlen(title))/2 - 1);
+	wmove(dialog, 0, (width - strlen(title)) / 2 - 1);
 	waddch(dialog, ' ');
 	waddstr(dialog, title);
 	waddch(dialog, ' ');
     }
     wattrset(dialog, dialog_attr);
     wmove(dialog, 1, 2);
-    print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
+    print_autowrap(dialog, prompt, height - 1, width - 2, width, 1, 2, TRUE, FALSE);
     
-    menu_width = width-6;
+    menu_width = width - 6;
     getyx(dialog, cur_y, cur_x);
     box_y = cur_y + 1;
-    box_x = (width - menu_width)/2 - 1;
+    box_x = (width - menu_width) / 2 - 1;
     
     /* create new window for the menu */
     menu = subwin(dialog, menu_height, menu_width, y + box_y + 1, x + box_x + 1);
     if (menu == NULL) {
 	delwin(dialog);
 	endwin();
-	fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", menu_height,menu_width,y+box_y+1,x+box_x+1);
+	fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", menu_height, menu_width,
+		y + box_y + 1, x + box_x + 1);
 	return -1;
     }
     keypad(menu, TRUE);
@@ -160,14 +161,15 @@ draw:
     
     /* Print the menu */
     for (i = 0; i < max_choice; i++)
-	print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice, DREF(ditems, scroll + i));
+	print_item(menu, items[(scroll + i) * 2], items[(scroll + i) * 2 + 1], i,
+		   i == choice, DREF(ditems, scroll + i));
     wnoutrefresh(menu);
     print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
     
-    display_helpline(dialog, height-1, width);
+    display_helpline(dialog, height - 1, width);
     
-    x = width/2-11;
-    y = height-2;
+    x = width / 2 - 11;
+    y = height - 2;
     
     if (ditems && result) {
 	cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
@@ -185,7 +187,6 @@ draw:
     }
     
     wrefresh(dialog);
-    
     while (key != ESC) {
 	key = wgetch(dialog);
 	
@@ -207,12 +208,13 @@ draw:
 	    }
 	    else if (result)
 		strcpy(result, items[(scroll + choice) * 2]);
-	    delwin(menu);
-	    delwin(dialog);
-	    return 0;
+	    rval = 0;
+	    key = ESC;	/* Punt! */
+	    break;
 	}
+
 	/* Shortcut to cancel? */
-	else if (toupper(key) == cancelButton) {
+	if (toupper(key) == cancelButton) {
 	    if (ditems && result && ditems[CANCEL_BUTTON].fire) {
 		int status;
 		WINDOW *save;
@@ -225,34 +227,33 @@ draw:
 		}
 		delwin(save);
 	    }
-	    delwin(menu);
-	    delwin(dialog);
-	    return 1;
+	    rval = 1;
+	    key = ESC;	/* Run away! */
+	    break;
 	}
-	
+
 	/* Check if key pressed matches first character of any item tag in menu */
 	for (i = 0; i < max_choice; i++)
-	    if (key < 0x100 && toupper(key) == toupper(items[(scroll+i)*2][0]))
+	    if (key < 0x100 && toupper(key) == toupper(items[(scroll + i) * 2][0]))
 		break;
 	
-	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
-	    key == KEY_UP || key == KEY_DOWN || key == '-' || key == '+' || key == '' || key == '') {
+	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || KEY_IS_UP(key) || KEY_IS_DOWN(key)) {
 	    if (key >= '1' && key <= MIN('9', '0'+max_choice))
 		i = key - '1';
-	    else if (key == KEY_UP || key == '-' || key == '') {
+	    else if (KEY_IS_UP(key)) {
 		if (!choice) {
 		    if (scroll) {
 			/* Scroll menu down */
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (menu_height > 1) {
 			    /* De-highlight current first item before scrolling down */
-			    print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, FALSE, DREF(ditems, scroll));
+			    print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, FALSE, DREF(ditems, scroll));
 			    scrollok(menu, TRUE);
 			    wscrl(menu, -1);
 			    scrollok(menu, FALSE);
 			}
 			scroll--;
-			print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, TRUE, DREF(ditems, scroll));
+			print_item(menu, items[scroll * 2], items[scroll * 2 + 1], 0, TRUE, DREF(ditems, scroll));
 			wnoutrefresh(menu);
 			print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
 			wrefresh(dialog);
@@ -262,21 +263,23 @@ draw:
 		else
 		    i = choice - 1;
 	    }
-	    else if (key == KEY_DOWN || key == '+' || key == '')
+	    else if (KEY_IS_DOWN(key))
 		if (choice == max_choice - 1) {
-		    if (scroll+choice < item_no-1) {
+		    if (scroll + choice < item_no - 1) {
 			/* Scroll menu up */
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (menu_height > 1) {
 			    /* De-highlight current last item before scrolling up */
-			    print_item(menu, items[(scroll + max_choice - 1) * 2], items[(scroll + max_choice - 1) * 2 + 1],
+			    print_item(menu, items[(scroll + max_choice - 1) * 2],
+				       items[(scroll + max_choice - 1) * 2 + 1],
 				       max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
 			    scrollok(menu, TRUE);
 			    scroll(menu);
 			    scrollok(menu, FALSE);
 			}
 			scroll++;
-			print_item(menu, items[(scroll + max_choice - 1) * 2], items[(scroll + max_choice - 1) * 2 + 1],
+			print_item(menu, items[(scroll + max_choice - 1) * 2],
+				   items[(scroll + max_choice - 1) * 2 + 1],
 				   max_choice - 1, TRUE, DREF(ditems, scroll + max_choice - 1));
 			wnoutrefresh(menu);
 			print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
@@ -304,16 +307,10 @@ draw:
 	    continue;    /* wait for another key press */
 	}
 	
-	/* save info about menu item position */
-	if (ch)
-	    *ch = choice;
-	if (sc)
-	    *sc = scroll;
-	
 	switch (key) {
 	case KEY_PPAGE:
-	    if (scroll > height-4) {	/* can we go up? */
-		scroll -= (height-4);
+	    if (scroll > height - 4) {	/* can we go up? */
+		scroll -= (height - 4);
 	    } else {
 		scroll = 0;
 	    }
@@ -323,7 +320,8 @@ draw:
 	case KEY_NPAGE:
 	    if (scroll + menu_height >= item_no-1 - menu_height) { /* can we go down a full page? */
 		scroll = item_no - menu_height;
-		if (scroll < 0) scroll = 0;
+		if (scroll < 0)
+		    scroll = 0;
 	    } else {
 		scroll += menu_height;
 	    }
@@ -338,7 +336,8 @@ draw:
 	    
 	case KEY_END:
 	    scroll = item_no - menu_height;
-	    if (scroll < 0) scroll = 0;
+	    if (scroll < 0)
+		scroll = 0;
 	    choice = max_choice - 1;
 	    redraw_menu = TRUE;
 	    break;
@@ -381,7 +380,12 @@ draw:
 			delwin(save);
 			if (status & DITEM_CONTINUE)
 			    continue;
-			else if (status & DITEM_RECREATE && !(status & DITEM_LEAVE_MENU)) {
+			else if (status & DITEM_LEAVE_MENU) {
+			    /* Allow a fire action to take us out of the menu */
+			    key = ESC;
+			    break;
+			}
+			else if (status & DITEM_RECREATE) {
 			    delwin(menu);
 			    delwin(dialog);
 			    dialog_clear();
@@ -392,18 +396,25 @@ draw:
 		else if (result)
 		    strcpy(result, items[(scroll+choice)*2]);
 	    }
-	    delwin(menu);
-	    delwin(dialog);
-	    return button;
+	    rval = button;
+	    key = ESC;
+	    break;
 	    
 	case ESC:
+	    rval = -1;
 	    break;
 	    
 	case KEY_F(1):
 	case '?':
 	    display_helpfile();
-	break;
+	    break;
 	}
+	
+	/* save info about menu item position */
+	if (ch)
+	    *ch = choice;
+	if (sc)
+	    *sc = scroll;
 	
 	if (redraw_menu) {
 	    for (i = 0; i < max_choice; i++) {
@@ -416,12 +427,10 @@ draw:
 	    redraw_menu = FALSE;
 	}
     }
-    
     delwin(menu);
     delwin(dialog);
-    return -1;    /* ESC pressed */
+    return rval;
 }
-/* End of dialog_menu() */
 
 
 /*
