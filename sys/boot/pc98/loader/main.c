@@ -102,6 +102,8 @@ main(void)
 	setenv("console", "comconsole", 1);
     if (initial_howto & RB_MUTE)
 	setenv("console", "nullconsole", 1);
+    if (initial_howto & RB_MULTIPLE)
+	setenv("boot_multicons", "YES", 1);
     cons_probe();
 
     /*
@@ -130,6 +132,10 @@ main(void)
 	if (devsw[i]->dv_init != NULL)
 	    (devsw[i]->dv_init)();
     printf("BIOS %dkB/%dkB available memory\n", bios_basemem / 1024, bios_extmem / 1024);
+    if (initial_bootinfo != NULL) {
+	initial_bootinfo->bi_basemem = bios_basemem / 1024;
+	initial_bootinfo->bi_extmem = bios_extmem / 1024;
+    }
 
 #ifndef PC98
     /* detect ACPI for future reference */
