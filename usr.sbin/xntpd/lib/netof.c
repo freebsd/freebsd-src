@@ -7,11 +7,11 @@
 #include "ntp_fp.h"
 #include "ntp_stdlib.h"
 
-u_long
+u_int32_t
 netof(num)
-	u_long num;
+	u_int32_t num;
 {
-	register u_long netnum;
+	register u_int32_t netnum;
 
 	netnum = num;
 	if(IN_CLASSC(netnum))
