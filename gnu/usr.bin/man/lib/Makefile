@@ -1,23 +1,14 @@
-LIB = man
+LIB=	man
+INTERNALLIB= true
+INTERNALSTATICLIB= true
 
-.if exists(${.OBJDIR})
-CONFH=  ${.OBJDIR}/config.h
-.else
-CONFH=  ${.CURDIR}/config.h
-.endif
+CFLAGS+= -DSTDC_HEADERS
+CLEANFILES+= config.h
+SRCS=	gripes.c util.c
 
-NOPROFILE=	YES
+all: config.h
 
-CFLAGS+= -I${.CURDIR} -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_COMPRESS -DALT_SYSTEMS
-CLEANFILES+=	${CONFH}
-SRCS =	util.c gripes.c ${CONFH}
-
-libman.a:: ${CONFH}
-
-install:
-	@echo -n
-
-${CONFH}: ${.CURDIR}/config.h_dist ${.CURDIR}/../Makefile.inc
+config.h: ${.CURDIR}/config.h_dist ${.CURDIR}/../Makefile.inc
 	sed -e 's,%apropos%,${apropos},' -e 's,%whatis%,${whatis},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%nroff%,${nroff},' -e 's,%tbl%,${tbl},' \
@@ -28,6 +19,6 @@ ${CONFH}: ${.CURDIR}/config.h_dist ${.CURDIR}/../Makefile.inc
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
 	    -e 's,%compress%,${compress},' \
 	    -e 's,%compext%,${compext},' \
-        ${.CURDIR}/config.h_dist > ${CONFH}
+	    ${.CURDIR}/config.h_dist > ${.TARGET}
 
 .include <bsd.lib.mk>
