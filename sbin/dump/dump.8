@@ -33,7 +33,7 @@
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd March 1, 2002
 .Dt DUMP 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Nd filesystem backup
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0123456789acknu
+.Op Fl 0123456789acknSu
 .Op Fl B Ar records
 .Op Fl b Ar blocksize
 .Op Fl D Ar dumpdates
@@ -194,6 +194,9 @@ If this amount is exceeded,
 prompts for a new tape.
 It is recommended to be a bit conservative on this option.
 The default tape length is 2300 feet.
+.It Fl S
+Display an estimate of the backup size and the number of
+tapes required, and exit without actually performing the dump.
 .It Fl T Ar date
 Use the specified date as the starting time for the dump
 instead of the time determined from looking in

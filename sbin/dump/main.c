@@ -99,6 +99,7 @@ main(argc, argv)
 	char *map;
 	int ch;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
+	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
 	time_t t;
@@ -119,9 +120,9 @@ main(argc, argv)
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kns:T:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:kns:ST:uWwD:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:ns:T:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:ns:ST:uWwD:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -180,6 +181,10 @@ main(argc, argv)
 
 		case 's':		/* tape size, feet */
 			tsize = numarg("tape size", 1L, 0L) * 12 * 10;
+			break;
+
+		case 'S':               /* exit after estimating # of tapes */
+			just_estimate = 1;
 			break;
 
 		case 'T':		/* time of last dump */
@@ -420,6 +425,13 @@ main(argc, argv)
 		    tapesize, fetapes);
 	}
 
+        /*
+         * If the user only wants an estimate of the number of
+         * tapes, exit now.
+         */
+        if (just_estimate)
+                exit(0);
+
 	/*
 	 * Allocate tape buffer.
 	 */
@@ -508,7 +520,7 @@ usage()
 #ifdef KERBEROS
 		"k"
 #endif
-		"nu] [-B records] [-b blocksize] [-D dumpdates]\n"
+		"nSu] [-B records] [-b blocksize] [-D dumpdates]\n"
 		"            [-d density] [-f file ] [-h level] [-s feet] "
 		"[-T date] filesystem\n"
 		"       dump [-W | -w]\n");
