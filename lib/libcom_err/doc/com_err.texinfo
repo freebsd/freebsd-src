@@ -1,8 +1,7 @@
 \input texinfo @c -*-texinfo-*-
 
-@c $Header$
-@c $Source$
-@c $Locker$
+@c $Header: /home/ncvs/src/lib/libcom_err/doc/com_err.texinfo,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+@c $Source: /home/ncvs/src/lib/libcom_err/doc/com_err.texinfo,v $
 
 @c Note that although this source file is in texinfo format (more
 @c or less), it is not yet suitable for turning into an ``info''
@@ -28,8 +27,10 @@
 @endgroup
 @end iftex
 
+@c %**start of header (This is for running Texinfo on a region.)
 @setfilename com_err
 @settitle A Common Error Description Library for UNIX
+@c %**end of header (This is for running Texinfo on a region.)
 
 @ifinfo
 This file documents the use of the Common Error Description library.
@@ -114,10 +115,31 @@ from the remainder of this package.
 @end titlepage
 
 @ifinfo
-@c should put a menu here someday....
+@node Top, Why com_err?, (dir), (dir)
+@comment  node-name,  next,  previous,  up
+@top General Introduction
+
+@menu
+* Why com_err?::                What is all this for?
+* Error codes::                 What's an error code, anyway?
+* Error table source file::     How to describe an error table.
+* The error-table compiler::    How to compile the table.
+* Run-time support routines::   How to use from within your program.
+* Coding Conventions::          Stylistic issues.
+* Building and Installation::   How to build and install.
+* Bug Reports::                 You have found a bug?  Report it.
+* Acknowledgements::            Whom to thank...
+
+@end menu
+
 @end ifinfo
 
 @page
+
+@ifinfo
+@node Why com_err?, Error codes, Top, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
 
 @section Why com_err?
 
@@ -154,6 +176,11 @@ error codes accidentally returned before making the table known, which is
 of the form @samp{unknown code foo 32}, where @samp{foo} would be the name
 of the table.
 
+@ifinfo
+@node Error codes, Error table source file, Why com_err?, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
+
 @section Error codes
 
 Error codes themselves are 32 bit (signed) integers, of which the high
@@ -181,6 +208,11 @@ requires that @t{long} variables be at least 32 bits; any system which does
 not support 32-bit @t{long} values cannot make use of this package (nor
 much other software that assumes an ANSI-C environment base) without
 significant effort.
+
+@ifinfo
+@node Error table source file, The error-table compiler, Error codes, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
 
 @section Error table source file
 
@@ -219,6 +251,11 @@ error table might be:
 
 @end example
 
+@ifinfo
+@node The error-table compiler, Run-time support routines, Error table source file, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
+
 @section The error-table compiler
 
 The error table compiler is named @code{compile_et}.  It takes one
@@ -239,6 +276,11 @@ and @kbd{K&R-C}, and some abbreviated forms of each.  Eventually, this will
 be extended to include some support for C++.  The default is currently
 @kbd{K&R-C}, though the generated sources will have ANSI-C code
 conditionalized on the symbol @t{__STDC__}.
+
+@ifinfo
+@node Run-time support routines, Coding Conventions, The error-table compiler, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
 
 @section Run-time support routines
 
@@ -382,6 +424,11 @@ consistency, @code{printf}-style interpretation is suggested, via
 @code{vsprintf} (or @code{_doprnt} on BSD systems without full support for
 the ANSI C library).
 
+@ifinfo
+@node Coding Conventions, Building and Installation, Run-time support routines, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
+
 @section Coding Conventions
 
 The following conventions are just some general stylistic conventions
@@ -492,6 +539,11 @@ error:
 @}
 @end example
 
+@ifinfo
+@node Building and Installation, Bug Reports, Coding Conventions, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
+
 @section Building and Installation
 
 The distribution of this package will probably be done as a compressed
@@ -533,10 +585,20 @@ bugs present that may interfere with building or using this package on
 other systems.  If they are reported to me, they can probably be fixed for
 the next version.
 
+@ifinfo
+@node Bug Reports, Acknowledgements, Building and Installation, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
+
 @section Bug Reports
 
 Please send any comments or bug reports to the principal author: Ken
 Raeburn, @t{Raeburn@@Athena.MIT.EDU}.
+
+@ifinfo
+@node Acknowledgements, , Bug Reports, (dir)
+@comment  node-name,  next,  previous,  up
+@end ifinfo
 
 @section Acknowledgements
 
