@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)syslog.c	8.5 (Berkeley) 4/29/95";
 */
 static const char rcsid[] =
-  "$Id: syslog.c,v 1.15 1998/03/06 02:12:02 brian Exp $";
+  "$Id: syslog.c,v 1.16 1998/03/06 03:10:49 brian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -61,7 +61,7 @@ static const char rcsid[] =
 #endif
 
 static int	LogFile = -1;		/* fd for log */
-static int	connected;		/* have done connect */
+static int	connected = -1;		/* have done connect */
 static int	opened;			/* have done openlog() */
 static int	LogStat = 0;		/* status bits, set by openlog() */
 static const char *LogTag = NULL;	/* string to tag the entry with */
@@ -286,7 +286,7 @@ disconnectlog()
 		close(LogFile);
 		LogFile = -1;
 	}
-	connected = 0;			/* retry connect */
+	connected = -1;			/* retry connect */
 }
 
 static void
@@ -299,7 +299,7 @@ connectlog()
 			return;
 		(void)fcntl(LogFile, F_SETFD, 1);
 	}
-	if (LogFile != -1 && !connected) {
+	if (LogFile != -1 && connected == -1) {
 		SyslogAddr.sun_len = sizeof(SyslogAddr);
 		SyslogAddr.sun_family = AF_UNIX;
 		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
@@ -307,7 +307,7 @@ connectlog()
 		connected = connect(LogFile, (struct sockaddr *)&SyslogAddr,
 			sizeof(SyslogAddr)) != -1;
 
-		if (!connected) {
+		if (connected == -1) {
 			/*
 			 * Try the old "/dev/log" path, for backward
 			 * compatibility.
@@ -319,7 +319,7 @@ connectlog()
 				sizeof(SyslogAddr)) != -1;
 		}
 
-		if (!connected) {
+		if (connected == -1) {
 			(void)close(LogFile);
 			LogFile = -1;
 		}
@@ -348,7 +348,7 @@ closelog()
 {
 	(void)close(LogFile);
 	LogFile = -1;
-	connected = 0;
+	connected = -1;
 }
 
 /* setlogmask -- set the log mask level */
