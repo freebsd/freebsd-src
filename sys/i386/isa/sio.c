@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.95 1995/04/15 21:45:16 bde Exp $
+ *	$Id: sio.c,v 1.96 1995/04/23 12:41:57 bde Exp $
  */
 
 #include "sio.h"
@@ -304,7 +304,9 @@ static	int	commajor;
 #if 0 /* XXX TK2.0 */
 struct tty	*sio_tty[NSIO];
 #else
+/* must be not static, used by pstat -t */
 struct tty	sio_tty[NSIO];
+int             nsio_tty = NSIO;
 #endif
 
 #ifdef KGDB
