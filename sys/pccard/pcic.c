@@ -84,7 +84,7 @@ SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 int pcic_override_irq = 0;
 TUNABLE_INT("machdep.pccard.pcic_irq", &pcic_override_irq);
 TUNABLE_INT("hw.pcic.irq", &pcic_override_irq);
-SYSCTL_INT(_hw_pcic, OID_AUTO, override_irq, CTLFLAG_RD,
+SYSCTL_INT(_hw_pcic, OID_AUTO, irq, CTLFLAG_RD,
     &pcic_override_irq, 0,
     "Override the IRQ configured by the config system for all pcic devices");
 
