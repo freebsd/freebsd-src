@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: wrreg.c,v 1.8 1997/10/06 11:35:56 charnier Exp $";
+	"$Id: wrreg.c,v 1.9 1997/11/18 21:08:08 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -59,7 +59,7 @@ wrreg_main(argc, argv)
 	if (argc != 4)
 		usage();
 	sprintf(name, CARD_DEVICE, atoi(argv[1]));
-	fd = open(name, 2);
+	fd = open(name, O_RDWR);
 	if (fd < 0)
 		err(1, "%s", name);
 	if (sscanf(argv[2], "%x", &reg) != 1 ||
