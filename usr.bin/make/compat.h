@@ -41,9 +41,10 @@
 #ifndef compat_h_29e49e8c
 #define	compat_h_29e49e8c
 
+struct GNode;
 struct Lst;
 
 void Compat_Run(struct Lst *);
-int Compat_RunCommand(void *, void *);
+int Compat_RunCommand(char *, struct GNode *);
 
 #endif /* compat_h_29e49e8c */
