@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.117 2001/12/27 11:27:11 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.118 2001/12/27 18:48:28 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -913,12 +913,23 @@ ohci_allocx(struct usbd_bus *bus)
 	usbd_xfer_handle xfer;
 
 	xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
-	if (xfer != NULL)
+	if (xfer != NULL) {
 		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, xfer, next);
-	else
+#ifdef DIAGNOSTIC
+		if (xfer->busy_free != XFER_FREE) {
+			printf("ohci_allocx: xfer=%p not free, 0x%08x\n", xfer,
+			       xfer->busy_free);
+		}
+#endif
+	} else {
 		xfer = malloc(sizeof(struct ohci_xfer), M_USB, M_NOWAIT);
-	if (xfer != NULL)
+	}
+	if (xfer != NULL) {
 		memset(xfer, 0, sizeof (struct ohci_xfer));
+#ifdef DIAGNOSTIC
+		xfer->busy_free = XFER_BUSY;
+#endif
+	}
 	return (xfer);
 }
 
@@ -927,6 +938,14 @@ ohci_freex(struct usbd_bus *bus, usbd_xfer_handle xfer)
 {
 	struct ohci_softc *sc = (struct ohci_softc *)bus;
 
+#ifdef DIAGNOSTIC
+	if (xfer->busy_free != XFER_BUSY) {
+		printf("ohci_freex: xfer=%p not busy, 0x%08x\n", xfer,
+			xfer->busy_free);
+		return;
+	}
+	xfer->busy_free = XFER_FREE;
+#endif
 	SIMPLEQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
 }
 
