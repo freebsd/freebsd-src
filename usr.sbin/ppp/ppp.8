@@ -1154,7 +1154,7 @@ to enable a
 on the port where the modem is attached.
 For example:
 .Pp
-.Dl ttyd1 "/usr/libexec/getty std.38400" dialup on secure
+.Dl ttyd1 Qo /usr/libexec/getty std.38400 Qc dialup on secure
 .Pp
 Don't forget to send a
 .Dv HUP
@@ -1164,6 +1164,27 @@ process to start the
 .Xr getty 8 :
 .Pp
 .Dl # kill -HUP 1
+.Pp
+It is usually also necessary to train your modem to the same DTR speed
+as the getty:
+.Bd -literal -offset indent
+# ppp
+ppp ON awfulhak> set device /dev/cuaa1
+ppp ON awfulhak> set speed 38400
+ppp ON awfulhak> term
+deflink: Entering terminal mode on /dev/cuaa1
+Type `~?' for help
+at
+OK
+at
+OK
+atz
+OK
+at
+OK
+~.
+ppp ON awfulhak> quit
+.Ed
 .It
 Create a
 .Pa /usr/local/bin/ppplogin
