@@ -201,7 +201,7 @@ put_arobj(cfp, sb)
 	CF *cfp;
 	struct stat *sb;
 {
-	int lname;
+	size_t lname;
 	char *name;
 	struct ar_hdr *hdr;
 	off_t size;
@@ -253,7 +253,7 @@ put_arobj(cfp, sb)
 	if (write(cfp->wfd, hb, sizeof(HDR)) != sizeof(HDR))
 		error(cfp->wname);
 	if (lname) {
-		if (write(cfp->wfd, name, lname) != lname)
+		if ((size_t)write(cfp->wfd, name, lname) != lname)
 			error(cfp->wname);
 		already_written = lname;
 	}
