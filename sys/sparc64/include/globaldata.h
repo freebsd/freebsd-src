@@ -56,7 +56,7 @@ struct globaldata {
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
-	volatile int	gd_ktr_idx;		/* Index into trace table */
+	int	gd_ktr_idx;			/* Index into trace table */
 	char	*gd_ktr_buf;
 	char	gd_ktr_buf_data[0];
 #endif
