@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.252
+    Original revision: 1.253
 -->
 
 <articleinfo>
@@ -114,10 +114,11 @@
 
     <para arch="i386">&os; ブートローダは 16K ディスクブロックの
       ファイルシステムからもブートできるようになりました (従来は 8K ま
-      ででした).</para>
+      ででした). &merged;</para>
 
     <para arch="alpha">&os; ブートローダは 8K より大きなブロック
-      サイズのファイルシステムからもブートできるようになりました.</para>
+      サイズのファイルシステムからもブートできるようになりました.
+      &merged;</para>
 
     <para>出荷時の状態で USB デバイスをサポートするため,
       <filename>GENERIC</filename> カーネルと
@@ -2629,19 +2630,6 @@ hw.pcic.irq="0"</programlisting>
       自動可変サイズのパーティションは, 他のパーティション
       が削除されると自動的にその容量を吸収するようになりました.
       &merged;</para>
-
-    <para arch="alpha">&man.sysinstall.8; で作成されるファイルシステム
-      は, &man.newfs.8; の新しいデフォルトではなく, 従来のデフォルトブ
-      ロック, フラグメントサイズである 8192 と1024 バイトが用いられま
-      す.
-      &os; &release.current; において &man.newfs.8; のデフォルト
-      パラメータが変更されました (この文書の
-      <link linkend="newfs-block-frag-sizes">
-	対応するリリースノート</link> を参照) が, &arch; の
-      ブートストラップコードはルートファイルシステムのブロックサイズが
-      8192 バイトであることを仮定しています.
-      この変更により新規インストールにおいてルートファイルシステムの
-      パラメータが正しく設定されるようになります. &merged;</para>
 
     <para>&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました.
