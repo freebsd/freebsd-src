@@ -135,6 +135,8 @@
 
 #ifndef LOCORE
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/queue.h>
 
 #ifdef PAE
@@ -276,6 +278,7 @@ struct md_page {
 };
 
 struct pmap {
+	struct mtx		pm_mtx;
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_int			pm_active;	/* active on cpus */
@@ -292,6 +295,17 @@ typedef struct pmap	*pmap_t;
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
 #define kernel_pmap	(&kernel_pmap_store)
+
+#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_ASSERT(pmap, type) \
+				mtx_assert(&(pmap)->pm_mtx, (type))
+#define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
+				    NULL, MTX_DEF)
+#define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
+#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
+#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
+#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 #endif
 
 /*
