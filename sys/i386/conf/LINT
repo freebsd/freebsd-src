@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.218 1995/12/09 16:10:20 phk Exp $
+#	$Id: LINT,v 1.219 1995/12/10 10:50:32 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -49,8 +49,9 @@ options		"OPEN_MAX=128"
 # fully-featured but GPL-licensed emulator taken from Linux.
 #
 options		MATH_EMULATE		#Support for x87 emulation
-#options        GPL_MATH_EMULATE        #Support for x87 emualtion via
-                                        #new math emulator 
+# Don't enable both of these in a real config.
+options		GPL_MATH_EMULATE	#Support for x87 emualtion via
+					#new math emulator 
 
 #
 # This directive defines a number of things:
@@ -413,7 +414,7 @@ options		BOUNCE_BUFFERS
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
+options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD >= 2.0.5
 options		XSERVER			# include code for XFree86
 options		FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
@@ -838,5 +839,7 @@ controller	pcic0 at crd?
 options		POWERFAIL_NMI	# make it beep instead of panicing
 
 # More undocumented options for linting.
+
 options		COMPAT_LINUX
+options		"EXT2FS"
 options		"IBCS2"
