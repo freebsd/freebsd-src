@@ -1062,7 +1062,7 @@ main(int argc, char *argv[])
 	/* Have now read in the data. Next get the message to be printed. */
 	if (*argv) {
 		for(i=0, j=0; i < argc; i++)
-			j += strlen(argv[i]) + (i != 0);
+			j += strlen(argv[i]) + 1;
 		if ((message = malloc((size_t)j)) == NULL) 
 			err(1, "malloc");
 		strcpy(message, *argv);
