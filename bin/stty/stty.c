@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stty.c,v 1.9 1997/02/22 14:05:54 peter Exp $
+ *	$Id: stty.c,v 1.10 1997/03/28 15:24:41 imp Exp $
  */
 
 #ifndef lint
@@ -159,6 +159,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: stty: [-a|-e|-g] [-f file] [options]\n");
+	(void)fprintf(stderr, "usage: stty [-a|-e|-g] [-f file] [options]\n");
 	exit (1);
 }
