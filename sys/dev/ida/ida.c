@@ -483,6 +483,9 @@ ida_intr(void *data)
 			    "ignoring completion %jx\n", (intmax_t)completed);
 			continue;
 		}
+		/* Handle "Bad Command List" errors. */
+		if ((completed & 3) && (qcb->hwqcb->req.error == 0))
+			qcb->hwqcb->req.error = CMD_REJECTED;
 		ida_done(ida, qcb);
 	}
 	ida_start(ida);
