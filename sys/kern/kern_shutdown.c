@@ -219,6 +219,7 @@ boot(howto)
 			sync(&proc0, NULL);
 			DELAY(50000 * iter);
 		}
+		printf("\n");
 		/*
 		 * Count only busy local buffers to prevent forcing 
 		 * a fsck if we're just a client of a wedged NFS server
@@ -227,36 +228,28 @@ boot(howto)
 		for (bp = &buf[nbuf]; --bp >= buf; ) {
 			if (((bp->b_flags&B_INVAL) == 0 && BUF_REFCNT(bp)) ||
 			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI)) {
-				if (bp->b_dev == NODEV)
+				if (bp->b_dev == NODEV) {
 					CIRCLEQ_REMOVE(&mountlist,
 					    bp->b_vp->v_mount, mnt_list);
-				else
-					nbusy++;
+					continue;
+				}
+				nbusy++;
+#if defined(SHOW_BUSYBUFS) || defined(DIAGNOSTIC)
+				printf(
+			    "%d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
+				    nbusy, devtoname(bp->b_dev),
+				    bp->b_flags, (long)bp->b_blkno,
+				    (long)bp->b_lblkno);
+#endif
 			}
-
-
 		}
 		if (nbusy) {
 			/*
 			 * Failed to sync all blocks. Indicate this and don't
 			 * unmount filesystems (thus forcing an fsck on reboot).
 			 */
-			printf("giving up\n");
-#ifdef SHOW_BUSYBUFS
-			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & B_INVAL) == 0 &&
-				    BUF_REFCNT(bp) > 0) {
-					nbusy++;
-					printf(
-			"%d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
-					    nbusy, devtoname(bp->b_dev),
-					    bp->b_flags, (long)bp->b_blkno,
-					    (long)bp->b_lblkno);
-				}
-			}
+			printf("giving up on %d buffers\n", nbusy);
 			DELAY(5000000);	/* 5 seconds */
-#endif
 		} else {
 			printf("done\n");
 			/*
