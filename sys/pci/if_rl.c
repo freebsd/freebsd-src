@@ -609,6 +609,17 @@ static int rl_miibus_readreg(dev, phy, reg)
 			RL_UNLOCK(sc);
 			return(0);
 			break;
+		/*
+		 * Allow the rlphy driver to read the media status
+		 * register. If we have a link partner which does not
+		 * support NWAY, this is the register which will tell
+		 * us the results of parallel detection.
+		 */
+		case RL_MEDIASTAT:
+			rval = CSR_READ_1(sc, RL_MEDIASTAT);
+			RL_UNLOCK(sc);
+			return(rval);
+			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
 			RL_UNLOCK(sc);
