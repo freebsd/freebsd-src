@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vax.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
     /*
@@ -43,7 +44,6 @@
      *	(see asgnsamples for use and explanation.)
      */
 #define OFFSET_OF_CODE	2
-#define	UNITS_TO_CODE	(OFFSET_OF_CODE / sizeof(UNIT))
 
     /*
      *	register for pc relative addressing

@@ -87,6 +87,8 @@ typedef	int64_t UNIT;
 #else
 typedef	u_short UNIT;		/* unit of profiling */
 #endif
+#define	UNITS_TO_CODE	(OFFSET_OF_CODE / sizeof(UNIT))
+
 char	*a_outname;
 #define	A_OUTNAME		"a.out"
 
