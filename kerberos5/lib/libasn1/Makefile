@@ -63,7 +63,7 @@ GEN=						\
 	asn1_TransitedEncoding.x		\
 	asn1_UNSIGNED.x
 
-INCLUDES=krb5_asn1.h asn1_err.h 
+INCS=	krb5_asn1.h asn1_err.h 
 
 .include <bsd.lib.mk>
 

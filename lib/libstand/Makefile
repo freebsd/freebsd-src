@@ -9,6 +9,7 @@
 LIB=		stand
 NOPROFILE=	YES
 NOPIC=		YES
+INCS=		stand.h
 MAN=		libstand.3
 
 CFLAGS+= -ffreestanding
@@ -150,9 +151,5 @@ SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c bzipfs.c
 SRCS+=	netif.c nfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/stand.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

@@ -10,7 +10,7 @@ krb5-config: krb5-config.in
 		-e "s,@prefix\@,/,g" \
 		-e "s,@exec_prefix\@,/,g" \
 		-e "s,@libdir\@,${LIBDIR},g" \
-		-e "s,@includedir\@,${INCDIR},g" \
+		-e "s,@includedir\@,${INCLUDEDIR},g" \
 		-e "s,@LIB_crypt\@,-lcrypt,g" \
 		-e "s,@LIB_dbopen\@,,g" \
 		-e "s,@LIB_des_appl\@,-lcrypto,g" \

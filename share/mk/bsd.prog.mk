@@ -94,9 +94,6 @@ _EXTRADEPEND:
 .endif
 
 .if !target(install)
-.if !target(beforeinstall)
-beforeinstall:
-.endif
 
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
@@ -144,7 +141,6 @@ realinstall:
 	done; true
 .endif
 .endif !target(realinstall)
-realinstall: beforeinstall
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
@@ -200,12 +196,12 @@ _FILESINS_${file:T}: ${file}
 .endfor
 .endif
 
+realinstall: _incsinstall
+
 .if !defined(NOMAN)
 realinstall: _maninstall
 .endif
 
-install: afterinstall
-afterinstall: realinstall
 .endif
 
 .if !target(lint)
@@ -228,6 +224,8 @@ tags: ${SRCS}
 .endif
 .endif
 .endif
+
+.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>

@@ -16,7 +16,7 @@ CFLAGS+=	-DKRB4 -I${KRB4DIR}/lib/krb
 WARNS?=		2
 
 INCS=		${TELNETDIR}/arpa/telnet.h
-INCDIR=		/usr/include/arpa
+INCSDIR=	${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>
 

@@ -271,18 +271,6 @@ _EXTRADEPEND:
 .endif
 
 .if !target(install)
-.if !target(beforeinstall)
-beforeinstall: _includeinstall
-.endif
-
-_includeinstall:
-.if defined(INCS)
-.for header in ${INCS}
-	cd ${.CURDIR} && \
-	${INSTALL} -C -o ${INCOWN} -g ${INCGRP} -m ${INCMODE} \
-	    ${header} ${DESTDIR}${INCDIR}
-.endfor
-.endif
 
 .if defined(PRECIOUSLIB) && !defined(NOFSCHG)
 SHLINSTALLFLAGS+= -fschg
@@ -297,7 +285,6 @@ _SHLINSTALLFLAGS:=	${SHLINSTALLFLAGS}
 _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
-realinstall: beforeinstall
 realinstall: _libinstall
 _libinstall:
 .if !defined(INTERNALLIB)
@@ -320,6 +307,12 @@ _libinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
+.endif
+
+realinstall:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -342,23 +335,21 @@ _libinstall:
 		ln -fs $$l $$t; \
 	done; true
 .endif
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
-.endif
+
+realinstall: _incsinstall
 
 .if !defined(NOMAN)
 realinstall: _maninstall
 .endif
 
-install: afterinstall
-afterinstall: realinstall
 .endif
 
 .if !target(lint)
 lint: ${SRCS:M*.c}
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
+
+.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
