@@ -395,7 +395,7 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
     /* If _PTC not present or other failure, try the P_BLK. */
     if (sc->cpu_p_cnt == NULL) {
 	/* The spec says P_BLK must be at least 6 bytes long. */
-	if (sc->cpu_p_blk_len != 6)
+	if (sc->cpu_p_blk == 0 || sc->cpu_p_blk_len != 6)
 	    return (ENXIO);
 	gas.Address = sc->cpu_p_blk;
 	gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
