@@ -1,80 +1,21 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.2-BETA
+                          FreeBSD Release 3.0-SNAPSHOT
 
-This is an BETA release of FreeBSD 2.2-RELEASE and is aimed primarily
+This is a SNAPSHOT release of FreeBSD 3.0-CURRENT and is aimed primarily
 at release testers.  Some parts of the documentation may not be updated
 yet and should be reported if and when seen.  Naturally, any installation
 failures or crashes should also be reported ASAP by sending mail to
 bugs@freebsd.org or using the send-pr command (those preferring a WEB based
 interface can also see http://www.freebsd.org/send-pr.html).
 
-For information about the layout of the 2.2-BETA release directory,
+For information about the layout of the 3.0-SNAPSHOT release directory,
 see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
 For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
 files.
 
 
-0. What's new since 2.1.X-RELEASE
+0. What's new since 2.2.X-RELEASE
 ------------------------------------
-
-Support for the SDL RISCom N2pci sync serial card.
-
-Support for Cyclades Cyclom-Y (multi-port async serial) PCI adaptors
-as well as multiple controllers and the 32-Y (if you are currently using
-the Cyclades serial adapter, you should re-make your /dev entries and
-remove the old ones).
-
-Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
-
-Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
-
-The 3COM 3c590 / 3c595 drivers have improved considerably, and also
-includes support for EISA and 3c90x devices now.
-
-You need only change your kernel settings *once* now, on initial startup
-from the floppy.  They will be preserved on the subsequently installed
-kernel.
-
-Update to gcc 2.7.2.1 & add support for weak symbols.
-
-Many things moved/brought into /usr/src/contrib, updating and
-cleaning up the source tree accordingly.
-
-Support for compiled-in shared library ld paths.
-
-Update sgmlfmt to `instant'.
-
-Protection against the widely reported SYN attack.
-
-Support for SNMP-style interface MIBs, including full RFC
-1650-compliant MIBs for the `de' (DEC 21x4x) and `ed' (SMC/WD/Novell)
-drivers.
-
-/stand/sysinstall moved even more towards a system management tool.
-
-The syscons and psm drivers now have a new underlying shared keyboard
-driver, eliminating many of the previously existing problems with
-their mutual interaction.
-
-2.2 is the first release that includes full CD-R support for the
-Plasmon RF41xx, HP4020i, and Philips CDD2000 drives.  The driver is
-still under development (in particular to extend its usability for
-other devices), but it has been proved to be stable by now.
-
-Support for NFSv3 clients and servers went into the 2.2 sources
-shortly after branching off the 2.0.5/2.1.X tree.  There are also
-other options available with NFS, like the ability to turn an NFSv2
-server into asynchronous write mode (which is in violation of the
-specs, but has precedents e.g. in SGI Irix).
-
-The mount option `async' allows asynchronous metadata updates on UFS
-file systems, something that is the default e.g. on Linux' ext2fs.
-This speeds up many i-node intensive filesystem operations (like
-rm -r) at the cost of an increased risk in case of a system crash.
-The installation itself makes use of this feature, and could be
-drastically accelerated by this.  (A bindist-only installation from a
-SCSI CD-ROM can now complete in less than 5 minutes on a fast
-machine!)
 
 The ATAPI CD-ROM support is now reported to work for quite an
 impressive number of drives.  In other words, all the drives that
@@ -106,7 +47,7 @@ for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our release of FreeBSD 2.0 almost 2 years ago, the performance,
+Since our release of FreeBSD 2.0 over 2 years ago, the performance,
 feature set and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance but reduces FreeBSD's memory
