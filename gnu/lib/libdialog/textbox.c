@@ -219,6 +219,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
         break;
       case 'K':    /* Previous line */
       case 'k':
+      case '\020':	/* ^P */
       case KEY_UP:
         if (!begin_reached) {
           back_lines(page_length+1);
@@ -266,6 +267,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
         break;
       case 'J':    /* Next line */
       case 'j':
+      case '\016':	/* ^N */
       case KEY_DOWN:
         if (!end_reached) {
           begin_reached = 0;
