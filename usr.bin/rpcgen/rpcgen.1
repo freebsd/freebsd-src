@@ -1,5 +1,6 @@
 .\" @(#)rpcgen.1 1.35 93/06/02 SMI
 .\" Copyright 1985-1993 Sun Microsystems, Inc.
+.\" $FreeBSD$
 .Dd March 28, 1993
 .Dt RPCGEN 1
 .Os
@@ -501,15 +502,12 @@ by
 tcp,
 use:
 .Dl example% rpcgen -n tcp -o prot_svc.c prot.x
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr cc 1 ,
 .Xr rpc 3 ,
 .Xr syslog 3 ,
 .Xr inetd 8
 .\" .BR rpc_svc_calls (3)
-.Pp
-The
-.Nm
-chapter in the
-.Tn NETP
-manual.
+.Rs
+.%T The Nm rpcgen No chapter in the NETP manual
+.Re

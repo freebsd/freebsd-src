@@ -68,7 +68,7 @@ function call to do the task.
 .Xr sysctl 8
 .Sh BUGS
 It is possible on some systems that a
-.Xr sync
+.Xr sync 2
 occurring simultaneously with a crash may cause
 file system damage.  See
 .Xr fsck 8 .
@@ -77,7 +77,9 @@ An
 .Nm update
 command appeared in
 .At v6 ,
-and was usually started by /etc/rc when the system went multi-user.
+and was usually started by
+.Pa /etc/rc
+when the system went multi-user.
 A kernel initiated
 .Nm update
 process first appeared in
