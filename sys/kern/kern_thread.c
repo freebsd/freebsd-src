@@ -1603,11 +1603,18 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_CAN_UNBIND;
 		mtx_unlock_spin(&sched_lock);
+		ku = td->td_upcall;
 		if ((p->p_flag & PS_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
-		    (td->td_upcall->ku_flags & KUF_DOUPCALL) == 0) {
+		    (ku->ku_flags & KUF_DOUPCALL) == 0) {
 			thread_update_usr_ticks(td, 0);
+			nanotime(&ts);
+			error = copyout(&ts, 
+				(caddr_t)&ku->ku_mailbox->km_timeofday,
+				sizeof(ts));
 			td->td_mailbox = 0;
+			if (error)
+				goto out;
 			return (0);
 		}
 		error = thread_export_context(td);
