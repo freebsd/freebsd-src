@@ -153,15 +153,13 @@ void		osendsig(sig_t, int, sigset_t *, u_long);
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = ctob(physmem);
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "LU", "");
 
 long		Maxmem = 0;
