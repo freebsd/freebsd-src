@@ -43,9 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#ifdef __ia64__
-#include <machine/pal.h>
-#endif
 #include <sys/rman.h>
 
 #include "acpi.h"
@@ -155,7 +152,6 @@ static void	acpi_cpu_startup_throttling(void);
 static void	acpi_cpu_startup_cx(void);
 static void	acpi_cpu_throttle_set(uint32_t speed);
 static void	acpi_cpu_idle(void);
-static void	acpi_cpu_c1(void);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS);
@@ -916,17 +912,6 @@ acpi_cpu_idle()
     end_time = acpi_TimerDelta(end_time, start_time);
     sc->cpu_prev_sleep = PM_USEC(end_time) - cx_next->trans_lat;
     ACPI_ENABLE_IRQS();
-}
-
-/* Put the CPU in C1 in a machine-dependant way. */
-static void
-acpi_cpu_c1()
-{
-#ifdef __ia64__
-    ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
-#else
-    __asm __volatile("sti; hlt");
-#endif
 }
 
 /*
