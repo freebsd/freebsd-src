@@ -97,6 +97,7 @@ main(int argc, char **argv)
 	struct stat buf;
 	int ch, len;
 	char *p;
+	char xxx[MAXPATHLEN];
 
 	while ((ch = getopt(argc, argv, "d:gp")) != -1)
 		switch (ch) {
@@ -156,15 +157,13 @@ main(int argc, char **argv)
 	 * for "sys" (to make genassym.c work along with #include <sys/xxx>)
 	 * and similarly for "machine".
 	 */
-	{
-	char xxx[MAXPATHLEN];
 	if (*srcdir == '\0')
 		(void)snprintf(xxx, sizeof(xxx), "../../include");
 	else
 		(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
 		    srcdir, machinename);
+	(void) unlink(path("machine"));
 	(void) symlink(xxx, path("machine"));
-	}
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
