@@ -101,9 +101,11 @@
 #define CONFIG_YM3812
 #endif
 
+#ifdef PC98
 #include "nss.h"
 #if NNSS != 0
 #define CONFIG_NSS
+#endif
 #endif
 
 #define ALLOW_POLL
