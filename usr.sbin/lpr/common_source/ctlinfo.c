@@ -193,13 +193,15 @@ __END_DECLS
  *	  g   - "file name", plot(1G) file to print, ie 'lpr -g'
  *	  l   - "file name", text file with control chars which should
  *		be printed literally, ie 'lpr -l'  (note: some printers
- *		take this id as a request to print a postscript file)
+ *		take this id as a request to print a postscript file,
+ *		and because of *that* some OS's use 'l' to indicate
+ *		that a datafile is a postscript file)
  *	  n   - "file name", ditroff(1) file to print, ie 'lpr -n'
  *	  o   - "file name", a postscript file to print.  This id is
  *		described in the original RFC, but not much has been
  *		done with it.  This 'lpr' does not generate control
  *		lines with 'o'-actions, but lpd's printjob processing
- *		will treat it the same as 'f'.
+ *		will treat it the same as 'l'.
  *	  p   - "file name", text file to print with pr(1), ie 'lpr -p'
  *	  t   - "file name", troff(1) file to print, ie 'lpr -t'
  *	  v   - "file name", plain raster file to print
