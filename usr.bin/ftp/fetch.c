@@ -270,6 +270,7 @@ url_get(origline, proxyenv)
 	break;
       }
 	freeaddrinfo(res0);
+	res0 = NULL;
 
 	/*
 	 * Construct and send the request.  We're expecting a return
