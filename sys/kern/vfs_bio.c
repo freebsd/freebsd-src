@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.131 1997/10/26 20:55:04 phk Exp $
+ * $Id: vfs_bio.c,v 1.132 1997/10/28 15:58:24 bde Exp $
  */
 
 /*
@@ -1898,7 +1898,7 @@ vfs_update()
 		tsleep(&vfs_update_wakeup, PUSER, "update",
 		    hz * vfs_update_interval);
 		vfs_update_wakeup = 0;
-		sync(curproc, NULL, NULL);
+		sync(curproc, NULL);
 	}
 }
 

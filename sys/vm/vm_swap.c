@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.46 1997/09/07 16:21:11 bde Exp $
+ * $Id: vm_swap.c,v 1.47 1997/09/14 03:19:42 peter Exp $
  */
 
 #include <sys/param.h>
@@ -166,10 +166,9 @@ struct swapon_args {
 
 /* ARGSUSED */
 int
-swapon(p, uap, retval)
+swapon(p, uap)
 	struct proc *p;
 	struct swapon_args *uap;
-	int *retval;
 {
 	register struct vnode *vp;
 	dev_t dev;

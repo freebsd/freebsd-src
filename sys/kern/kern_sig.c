@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.33 1997/09/02 20:05:41 bde Exp $
+ * $Id: kern_sig.c,v 1.34 1997/09/13 19:42:12 joerg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -93,10 +93,9 @@ struct sigaction_args {
 #endif
 /* ARGSUSED */
 int
-sigaction(p, uap, retval)
+sigaction(p, uap)
 	struct proc *p;
 	register struct sigaction_args *uap;
-	int *retval;
 {
 	struct sigaction vec;
 	register struct sigaction *sa;
@@ -284,14 +283,13 @@ struct sigprocmask_args {
 };
 #endif
 int
-sigprocmask(p, uap, retval)
+sigprocmask(p, uap)
 	register struct proc *p;
 	struct sigprocmask_args *uap;
-	int *retval;
 {
 	int error = 0;
 
-	*retval = p->p_sigmask;
+	p->p_retval[0] = p->p_sigmask;
 	(void) splhigh();
 
 	switch (uap->how) {
@@ -322,13 +320,12 @@ struct sigpending_args {
 #endif
 /* ARGSUSED */
 int
-sigpending(p, uap, retval)
+sigpending(p, uap)
 	struct proc *p;
 	struct sigpending_args *uap;
-	int *retval;
 {
 
-	*retval = p->p_siglist;
+	p->p_retval[0] = p->p_siglist;
 	return (0);
 }
 
@@ -345,10 +342,9 @@ struct osigvec_args {
 #endif
 /* ARGSUSED */
 int
-osigvec(p, uap, retval)
+osigvec(p, uap)
 	struct proc *p;
 	register struct osigvec_args *uap;
-	int *retval;
 {
 	struct sigvec vec;
 	register struct sigacts *ps = p->p_sigacts;
@@ -403,14 +399,13 @@ struct osigblock_args {
 };
 #endif
 int
-osigblock(p, uap, retval)
+osigblock(p, uap)
 	register struct proc *p;
 	struct osigblock_args *uap;
-	int *retval;
 {
 
 	(void) splhigh();
-	*retval = p->p_sigmask;
+	p->p_retval[0] = p->p_sigmask;
 	p->p_sigmask |= uap->mask &~ sigcantmask;
 	(void) spl0();
 	return (0);
@@ -422,14 +417,13 @@ struct osigsetmask_args {
 };
 #endif
 int
-osigsetmask(p, uap, retval)
+osigsetmask(p, uap)
 	struct proc *p;
 	struct osigsetmask_args *uap;
-	int *retval;
 {
 
 	(void) splhigh();
-	*retval = p->p_sigmask;
+	p->p_retval[0] = p->p_sigmask;
 	p->p_sigmask = uap->mask &~ sigcantmask;
 	(void) spl0();
 	return (0);
@@ -448,10 +442,9 @@ struct sigsuspend_args {
 #endif
 /* ARGSUSED */
 int
-sigsuspend(p, uap, retval)
+sigsuspend(p, uap)
 	register struct proc *p;
 	struct sigsuspend_args *uap;
-	int *retval;
 {
 	register struct sigacts *ps = p->p_sigacts;
 
@@ -480,10 +473,9 @@ struct osigstack_args {
 #endif
 /* ARGSUSED */
 int
-osigstack(p, uap, retval)
+osigstack(p, uap)
 	struct proc *p;
 	register struct osigstack_args *uap;
-	int *retval;
 {
 	struct sigstack ss;
 	struct sigacts *psp;
@@ -514,10 +506,9 @@ struct sigaltstack_args {
 #endif
 /* ARGSUSED */
 int
-sigaltstack(p, uap, retval)
+sigaltstack(p, uap)
 	struct proc *p;
 	register struct sigaltstack_args *uap;
-	int *retval;
 {
 	struct sigacts *psp;
 	struct sigaltstack ss;
@@ -606,10 +597,9 @@ struct kill_args {
 #endif
 /* ARGSUSED */
 int
-kill(cp, uap, retval)
+kill(cp, uap)
 	register struct proc *cp;
 	register struct kill_args *uap;
-	int *retval;
 {
 	register struct proc *p;
 	register struct pcred *pc = cp->p_cred;
@@ -646,10 +636,9 @@ struct okillpg_args {
 #endif
 /* ARGSUSED */
 int
-okillpg(p, uap, retval)
+okillpg(p, uap)
 	struct proc *p;
 	register struct okillpg_args *uap;
-	int *retval;
 {
 
 	if ((u_int)uap->signum >= NSIG)
@@ -1302,10 +1291,9 @@ struct nosys_args {
 #endif
 /* ARGSUSED */
 int
-nosys(p, args, retval)
+nosys(p, args)
 	struct proc *p;
 	struct nosys_args *args;
-	int *retval;
 {
 
 	psignal(p, SIGSYS);

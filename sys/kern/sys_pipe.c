@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.33 1997/09/14 02:43:25 peter Exp $
+ * $Id: sys_pipe.c,v 1.34 1997/10/06 08:30:08 peter Exp $
  */
 
 /*
@@ -147,12 +147,11 @@ vm_zone_t pipe_zone;
 
 /* ARGSUSED */
 int
-pipe(p, uap, retval)
+pipe(p, uap)
 	struct proc *p;
 	struct pipe_args /* {
 		int	dummy;
 	} */ *uap;
-	int retval[];
 {
 	register struct filedesc *fdp = p->p_fd;
 	struct file *rf, *wf;
@@ -172,7 +171,7 @@ pipe(p, uap, retval)
 	error = falloc(p, &rf, &fd);
 	if (error)
 		goto free2;
-	retval[0] = fd;
+	p->p_retval[0] = fd;
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
 	rf->f_ops = &pipeops;
@@ -184,7 +183,7 @@ pipe(p, uap, retval)
 	wf->f_type = DTYPE_PIPE;
 	wf->f_ops = &pipeops;
 	wf->f_data = (caddr_t)wpipe;
-	retval[1] = fd;
+	p->p_retval[1] = fd;
 
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
@@ -192,7 +191,7 @@ pipe(p, uap, retval)
 	return (0);
 free3:
 	ffree(rf);
-	fdp->fd_ofiles[retval[0]] = 0;
+	fdp->fd_ofiles[p->p_retval[0]] = 0;
 free2:
 	(void)pipeclose(wpipe);
 	(void)pipeclose(rpipe);

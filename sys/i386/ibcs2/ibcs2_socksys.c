@@ -45,19 +45,18 @@ struct setipdomainname_args {
 
 /* Local prototypes */
 static int ibcs2_getipdomainname __P((struct proc *,
-				      struct getipdomainname_args *, int *));
+				      struct getipdomainname_args *));
 static int ibcs2_setipdomainname __P((struct proc *,
-				      struct setipdomainname_args *, int *));
+				      struct setipdomainname_args *));
 
 /*
  * iBCS2 socksys calls.
  */
 
 int
-ibcs2_socksys(p, uap, retval)
+ibcs2_socksys(p, uap)
 	register struct proc *p;
 	register struct ibcs2_socksys_args *uap;
-	int *retval;
 {
 	int error;
 	int realargs[7]; /* 1 for command, 6 for recvfrom */
@@ -78,55 +77,55 @@ ibcs2_socksys(p, uap, retval)
 	passargs = (void *)(realargs + 1);
 	switch (realargs[0]) {
 	case SOCKSYS_ACCEPT:
-		return accept(p, passargs, retval);
+		return accept(p, passargs);
 	case SOCKSYS_BIND:
-		return bind(p, passargs, retval);
+		return bind(p, passargs);
 	case SOCKSYS_CONNECT:
-		return connect(p, passargs, retval);
+		return connect(p, passargs);
 	case SOCKSYS_GETPEERNAME:
-		return getpeername(p, passargs, retval);
+		return getpeername(p, passargs);
 	case SOCKSYS_GETSOCKNAME:
-		return getsockname(p, passargs, retval);
+		return getsockname(p, passargs);
 	case SOCKSYS_GETSOCKOPT:
-		return getsockopt(p, passargs, retval);
+		return getsockopt(p, passargs);
 	case SOCKSYS_LISTEN:
-		return listen(p, passargs, retval);
+		return listen(p, passargs);
 	case SOCKSYS_RECV:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_RECVFROM:
-		return recvfrom(p, passargs, retval);
+		return recvfrom(p, passargs);
 	case SOCKSYS_SEND:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_SENDTO:
-		return sendto(p, passargs, retval);
+		return sendto(p, passargs);
 	case SOCKSYS_SETSOCKOPT:
-		return setsockopt(p, passargs, retval);
+		return setsockopt(p, passargs);
 	case SOCKSYS_SHUTDOWN:
-		return shutdown(p, passargs, retval);
+		return shutdown(p, passargs);
 	case SOCKSYS_SOCKET:
-		return socket(p, passargs, retval);
+		return socket(p, passargs);
 	case SOCKSYS_SELECT:
-		return select(p, passargs, retval);
+		return select(p, passargs);
 	case SOCKSYS_GETIPDOMAIN:
-		return ibcs2_getipdomainname(p, passargs, retval);
+		return ibcs2_getipdomainname(p, passargs);
 	case SOCKSYS_SETIPDOMAIN:
-		return ibcs2_setipdomainname(p, passargs, retval);
+		return ibcs2_setipdomainname(p, passargs);
 	case SOCKSYS_ADJTIME:
-		return adjtime(p, passargs, retval);
+		return adjtime(p, passargs);
 	case SOCKSYS_SETREUID:
-		return setreuid(p, passargs, retval);
+		return setreuid(p, passargs);
 	case SOCKSYS_SETREGID:
-		return setregid(p, passargs, retval);
+		return setregid(p, passargs);
 	case SOCKSYS_GETTIME:
-		return gettimeofday(p, passargs, retval);
+		return gettimeofday(p, passargs);
 	case SOCKSYS_SETTIME:
-		return settimeofday(p, passargs, retval);
+		return settimeofday(p, passargs);
 	case SOCKSYS_GETITIMER:
-		return getitimer(p, passargs, retval);
+		return getitimer(p, passargs);
 	case SOCKSYS_SETITIMER:
-		return setitimer(p, passargs, retval);
+		return setitimer(p, passargs);
 
 	default:
 		printf("socksys unknown %08x %08x %08x %08x %08x %08x %08x\n",
@@ -139,10 +138,9 @@ ibcs2_socksys(p, uap, retval)
 
 /* ARGSUSED */
 static int
-ibcs2_getipdomainname(p, uap, retval)
+ibcs2_getipdomainname(p, uap)
         struct proc *p;
         struct getipdomainname_args *uap;
-        int *retval;
 {
 	char hname[MAXHOSTNAMELEN], *dptr;
 	int len;
@@ -164,10 +162,9 @@ ibcs2_getipdomainname(p, uap, retval)
 
 /* ARGSUSED */
 static int
-ibcs2_setipdomainname(p, uap, retval)
+ibcs2_setipdomainname(p, uap)
         struct proc *p;
         struct setipdomainname_args *uap;
-        int *retval;
 {
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;

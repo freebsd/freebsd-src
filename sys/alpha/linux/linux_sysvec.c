@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.18 1997/08/25 23:41:39 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.19 1997/09/01 02:12:39 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -268,10 +268,9 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
  * a machine fault.
  */
 int
-linux_sigreturn(p, args, retval)
+linux_sigreturn(p, args)
 	struct proc *p;
 	struct linux_sigreturn_args *args;
-	int *retval;
 {
 	struct linux_sigcontext *scp, context;
 	register struct trapframe *regs;

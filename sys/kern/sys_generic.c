@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.30 1997/10/11 18:31:24 phk Exp $
+ * $Id: sys_generic.c,v 1.31 1997/10/12 20:24:02 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -65,8 +65,8 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int, int *));
-static int	pollscan __P((struct proc *, struct pollfd *, int, int *));
+static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
+static int	pollscan __P((struct proc *, struct pollfd *, int));
 
 /*
  * Read system call.
@@ -80,10 +80,9 @@ struct read_args {
 #endif
 /* ARGSUSED */
 int
-read(p, uap, retval)
+read(p, uap)
 	struct proc *p;
 	register struct read_args *uap;
-	int *retval;
 {
 	register struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
@@ -128,7 +127,7 @@ read(p, uap, retval)
 	if (KTRPOINT(p, KTR_GENIO) && error == 0)
 		ktrgenio(p->p_tracep, uap->fd, UIO_READ, &ktriov, cnt, error);
 #endif
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 	return (error);
 }
 
@@ -143,10 +142,9 @@ struct readv_args {
 };
 #endif
 int
-readv(p, uap, retval)
+readv(p, uap)
 	struct proc *p;
 	register struct readv_args *uap;
-	int *retval;
 {
 	register struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
@@ -215,7 +213,7 @@ readv(p, uap, retval)
 		FREE(ktriov, M_TEMP);
 	}
 #endif
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 done:
 	if (needfree)
 		FREE(needfree, M_IOV);
@@ -233,10 +231,9 @@ struct write_args {
 };
 #endif
 int
-write(p, uap, retval)
+write(p, uap)
 	struct proc *p;
 	register struct write_args *uap;
-	int *retval;
 {
 	register struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
@@ -281,7 +278,7 @@ write(p, uap, retval)
 		ktrgenio(p->p_tracep, uap->fd, UIO_WRITE,
 		    &ktriov, cnt, error);
 #endif
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 	return (error);
 }
 
@@ -296,10 +293,9 @@ struct writev_args {
 };
 #endif
 int
-writev(p, uap, retval)
+writev(p, uap)
 	struct proc *p;
 	register struct writev_args *uap;
-	int *retval;
 {
 	register struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
@@ -371,7 +367,7 @@ writev(p, uap, retval)
 		FREE(ktriov, M_TEMP);
 	}
 #endif
-	*retval = cnt;
+	p->p_retval[0] = cnt;
 done:
 	if (needfree)
 		FREE(needfree, M_IOV);
@@ -390,10 +386,9 @@ struct ioctl_args {
 #endif
 /* ARGSUSED */
 int
-ioctl(p, uap, retval)
+ioctl(p, uap)
 	struct proc *p;
 	register struct ioctl_args *uap;
-	int *retval;
 {
 	register struct file *fp;
 	register struct filedesc *fdp;
@@ -531,10 +526,9 @@ struct select_args {
 };
 #endif
 int
-select(p, uap, retval)
+select(p, uap)
 	register struct proc *p;
 	register struct select_args *uap;
-	int *retval;
 {
 	/*
 	 * The magic 2048 here is chosen to be just enough for FD_SETSIZE
@@ -620,8 +614,8 @@ select(p, uap, retval)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	error = selscan(p, ibits, obits, uap->nd, retval);
-	if (error || *retval)
+	error = selscan(p, ibits, obits, uap->nd);
+	if (error || p->p_retval[0])
 		goto done;
 	s = splhigh();
 	/* this should be timercmp(&time, &atv, >=) */
@@ -663,10 +657,10 @@ done:
 }
 
 static int
-selscan(p, ibits, obits, nfd, retval)
+selscan(p, ibits, obits, nfd)
 	struct proc *p;
 	fd_mask **ibits, **obits;
-	int nfd, *retval;
+	int nfd;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register int msk, i, j, fd;
@@ -695,7 +689,7 @@ selscan(p, ibits, obits, nfd, retval)
 			}
 		}
 	}
-	*retval = n;
+	p->p_retval[0] = n;
 	return (0);
 }
 
@@ -710,10 +704,9 @@ struct poll_args {
 };
 #endif
 int
-poll(p, uap, retval)
+poll(p, uap)
 	register struct proc *p;
 	register struct poll_args *uap;
-	register_t *retval;
 {
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
@@ -756,8 +749,8 @@ poll(p, uap, retval)
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds), retval);
-	if (error || *retval)
+	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
+	if (error || p->p_retval[0])
 		goto done;
 	s = splhigh();
 	if (timo && timercmp(&time, &atv, >=)) {
@@ -792,11 +785,10 @@ out:
 }
 
 static int
-pollscan(p, fds, nfd, retval)
+pollscan(p, fds, nfd)
 	struct proc *p;
 	struct pollfd *fds;
 	int nfd;
-	register_t *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	int i;
@@ -822,7 +814,7 @@ pollscan(p, fds, nfd, retval)
 			}
 		}
 	}
-	*retval = n;
+	p->p_retval[0] = n;
 	return (0);
 }
 
@@ -838,12 +830,11 @@ struct openbsd_poll_args {
 };
 #endif
 int
-openbsd_poll(p, uap, retval)
+openbsd_poll(p, uap)
 	register struct proc *p;
 	register struct openbsd_poll_args *uap;
-	register_t *retval;
 {
-	return (poll(p, (struct poll_args *)uap, retval));
+	return (poll(p, (struct poll_args *)uap));
 }
 
 /*ARGSUSED*/

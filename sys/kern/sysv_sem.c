@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.18 1997/02/22 09:39:22 peter Exp $ */
+/*	$Id: sysv_sem.c,v 1.19 1997/08/02 14:31:38 bde Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -21,14 +21,13 @@ SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
-int __semctl __P((struct proc *p, struct __semctl_args *uap, int *retval));
+int __semctl __P((struct proc *p, struct __semctl_args *uap));
 struct semget_args;
-int semget __P((struct proc *p, struct semget_args *uap, int *retval));
+int semget __P((struct proc *p, struct semget_args *uap));
 struct semop_args;
-int semop __P((struct proc *p, struct semop_args *uap, int *retval));
+int semop __P((struct proc *p, struct semop_args *uap));
 struct semconfig_args;
-int semconfig __P((struct proc *p, struct semconfig_args *uap, 
-		int *retval));
+int semconfig __P((struct proc *p, struct semconfig_args *uap));
 #endif
 
 static struct sem_undo *semu_alloc __P((struct proc *p));
@@ -76,7 +75,7 @@ seminit(dummy)
  * Entry point for all SEM calls
  */
 int
-semsys(p, uap, retval)
+semsys(p, uap)
 	struct proc *p;
 	/* XXX actually varargs. */
 	struct semsys_args /* {
@@ -86,7 +85,6 @@ semsys(p, uap, retval)
 		int	a4;
 		int	a5;
 	} */ *uap;
-	int *retval;
 {
 
 	while (semlock_holder != NULL && semlock_holder != p)
@@ -94,7 +92,7 @@ semsys(p, uap, retval)
 
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
-	return ((*semcalls[uap->which])(p, &uap->a2, retval));
+	return ((*semcalls[uap->which])(p, &uap->a2));
 }
 
 /*
@@ -119,10 +117,9 @@ struct semconfig_args {
 #endif
 
 int
-semconfig(p, uap, retval)
+semconfig(p, uap)
 	struct proc *p;
 	struct semconfig_args *uap;
-	int *retval;
 {
 	int eval = 0;
 
@@ -143,7 +140,7 @@ semconfig(p, uap, retval)
 		break;
 	}
 
-	*retval = 0;
+	p->p_retval[0] = 0;
 	return(eval);
 }
 
@@ -330,10 +327,9 @@ struct __semctl_args {
 #endif
 
 int
-__semctl(p, uap, retval)
+__semctl(p, uap)
 	struct proc *p;
 	register struct __semctl_args *uap;
-	int *retval;
 {
 	int semid = uap->semid;
 	int semnum = uap->semnum;
@@ -482,7 +478,7 @@ __semctl(p, uap, retval)
 	}
 
 	if (eval == 0)
-		*retval = rval;
+		p->p_retval[0] = rval;
 	return(eval);
 }
 
@@ -495,10 +491,9 @@ struct semget_args {
 #endif
 
 int
-semget(p, uap, retval)
+semget(p, uap)
 	struct proc *p;
 	register struct semget_args *uap;
-	int *retval;
 {
 	int semid, eval;
 	int key = uap->key;
@@ -597,7 +592,7 @@ semget(p, uap, retval)
 	}
 
 found:
-	*retval = IXSEQ_TO_IPCID(semid, sema[semid].sem_perm);
+	p->p_retval[0] = IXSEQ_TO_IPCID(semid, sema[semid].sem_perm);
 	return(0);
 }
 
@@ -610,10 +605,9 @@ struct semop_args {
 #endif
 
 int
-semop(p, uap, retval)
+semop(p, uap)
 	struct proc *p;
 	register struct semop_args *uap;
-	int *retval;
 {
 	int semid = uap->semid;
 	int nsops = uap->nsops;
@@ -868,7 +862,7 @@ done:
 #ifdef SEM_DEBUG
 	printf("semop:  done\n");
 #endif
-	*retval = 0;
+	p->p_retval[0] = 0;
 	return(0);
 }
 

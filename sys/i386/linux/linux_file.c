@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.13 1997/04/05 14:50:56 dfr Exp $
+ *  $Id: linux_file.c,v 1.14 1997/04/06 10:10:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,7 @@
 #include <i386/linux/linux_util.h>
 
 int
-linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
+linux_creat(struct proc *p, struct linux_creat_args *args)
 {
     struct open_args /* {
 	char *path;
@@ -65,11 +65,11 @@ linux_creat(struct proc *p, struct linux_creat_args *args, int *retval)
     bsd_open_args.path = args->path;
     bsd_open_args.mode = args->mode;
     bsd_open_args.flags = O_WRONLY | O_CREAT | O_TRUNC;
-    return open(p, &bsd_open_args, retval);
+    return open(p, &bsd_open_args);
 }
 
 int
-linux_open(struct proc *p, struct linux_open_args *args, int *retval)
+linux_open(struct proc *p, struct linux_open_args *args)
 {
     struct open_args /* {
 	char *path;
@@ -118,11 +118,11 @@ linux_open(struct proc *p, struct linux_open_args *args, int *retval)
     bsd_open_args.path = args->path;
     bsd_open_args.mode = args->mode;
 
-    error = open(p, &bsd_open_args, retval);
+    error = open(p, &bsd_open_args);
     if (!error && !(bsd_open_args.flags & O_NOCTTY) && 
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 	struct filedesc *fdp = p->p_fd;
-	struct file *fp = fdp->fd_ofiles[*retval];
+	struct file *fp = fdp->fd_ofiles[p->p_retval[0]];
 
 	if (fp->f_type == DTYPE_VNODE)
 	    (fp->f_ops->fo_ioctl)(fp, TIOCSCTTY, (caddr_t) 0, p);
@@ -183,7 +183,7 @@ bsd_to_linux_flock(struct flock *bsd_flock, struct linux_flock *linux_flock)
 }
 
 int
-linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
+linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 {
     int error, result;
     struct fcntl_args /* {
@@ -216,26 +216,27 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
     switch (args->cmd) {
     case LINUX_F_DUPFD:
 	fcntl_args.cmd = F_DUPFD;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
 
     case LINUX_F_GETFD:
 	fcntl_args.cmd = F_GETFD;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
 
     case LINUX_F_SETFD:
 	fcntl_args.cmd = F_SETFD;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
 
     case LINUX_F_GETFL:
 	fcntl_args.cmd = F_GETFL;
-	error = fcntl(p, &fcntl_args, &result);
-	*retval = 0;
-	if (result & O_RDONLY) *retval |= LINUX_O_RDONLY;
-	if (result & O_WRONLY) *retval |= LINUX_O_WRONLY;
-	if (result & O_RDWR) *retval |= LINUX_O_RDWR;
-	if (result & O_NDELAY) *retval |= LINUX_O_NONBLOCK;
-	if (result & O_APPEND) *retval |= LINUX_O_APPEND;
-	if (result & O_FSYNC) *retval |= LINUX_O_SYNC;
+	error = fcntl(p, &fcntl_args);
+	result = p->p_retval[0];
+	p->p_retval[0] = 0;
+	if (result & O_RDONLY) p->p_retval[0] |= LINUX_O_RDONLY;
+	if (result & O_WRONLY) p->p_retval[0] |= LINUX_O_WRONLY;
+	if (result & O_RDWR) p->p_retval[0] |= LINUX_O_RDWR;
+	if (result & O_NDELAY) p->p_retval[0] |= LINUX_O_NONBLOCK;
+	if (result & O_APPEND) p->p_retval[0] |= LINUX_O_APPEND;
+	if (result & O_FSYNC) p->p_retval[0] |= LINUX_O_SYNC;
 	return error;
 
     case LINUX_F_SETFL:
@@ -243,7 +244,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	if (args->arg & LINUX_O_APPEND) fcntl_args.arg |= O_APPEND;
 	if (args->arg & LINUX_O_SYNC) fcntl_args.arg |= O_FSYNC;
 	fcntl_args.cmd = F_SETFL;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
     
     case LINUX_F_GETLK:
 	if ((error = copyin((caddr_t)args->arg, (caddr_t)&linux_flock,
@@ -252,7 +253,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_GETLK;
 	fcntl_args.arg = (int)bsd_flock;
-	if (error = fcntl(p, &fcntl_args, retval))
+	if (error = fcntl(p, &fcntl_args))
 	    return error;
 	bsd_to_linux_flock(bsd_flock, &linux_flock);
 	return copyout((caddr_t)&linux_flock, (caddr_t)args->arg,
@@ -265,7 +266,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_SETLK;
 	fcntl_args.arg = (int)bsd_flock;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
 
     case LINUX_F_SETLKW:
 	if ((error = copyin((caddr_t)args->arg, (caddr_t)&linux_flock,
@@ -274,7 +275,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	linux_to_bsd_flock(&linux_flock, bsd_flock);
 	fcntl_args.cmd = F_SETLKW;
 	fcntl_args.arg = (int)bsd_flock;
-	return fcntl(p, &fcntl_args, retval);
+	return fcntl(p, &fcntl_args);
 
     case LINUX_F_SETOWN:
     case LINUX_F_GETOWN:
@@ -290,7 +291,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	    return EBADF;
 	if (fp->f_type == DTYPE_SOCKET) {
 	    fcntl_args.cmd = args->cmd == LINUX_F_SETOWN ? F_SETOWN : F_GETOWN;
-	    return fcntl(p, &fcntl_args, retval); 
+	    return fcntl(p, &fcntl_args); 
 	}
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type != VCHR)
@@ -302,7 +303,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 	if (!d_tty || (!(tp = (*d_tty)(va.va_rdev))))
 	    return EINVAL;
 	if (args->cmd == LINUX_F_GETOWN) {
-	    retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
+	    p->p_retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 	    return 0;
 	}
 	if ((long)args->arg <= 0) {
@@ -323,7 +324,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args, int *retval)
 }
 
 int
-linux_lseek(struct proc *p, struct linux_lseek_args *args, int *retval)
+linux_lseek(struct proc *p, struct linux_lseek_args *args)
 {
 
     struct lseek_args /* {
@@ -341,12 +342,12 @@ linux_lseek(struct proc *p, struct linux_lseek_args *args, int *retval)
     tmp_args.fd = args->fdes;
     tmp_args.offset = (off_t)args->off;
     tmp_args.whence = args->whence;
-    error = lseek(p, &tmp_args, retval);
+    error = lseek(p, &tmp_args);
     return error;
 }
 
 int
-linux_llseek(struct proc *p, struct linux_llseek_args *args, int *retval)
+linux_llseek(struct proc *p, struct linux_llseek_args *args)
 {
 	struct lseek_args bsd_args;
 	int error;
@@ -362,13 +363,13 @@ linux_llseek(struct proc *p, struct linux_llseek_args *args, int *retval)
 	bsd_args.offset = off;
 	bsd_args.whence = args->whence;
 
-	if ((error = lseek(p, &bsd_args, retval)))
+	if ((error = lseek(p, &bsd_args)))
 		return error;
 
-	if ((error = copyout(retval, (caddr_t)args->res, sizeof (off_t))))
+	if ((error = copyout(p->p_retval, (caddr_t)args->res, sizeof (off_t))))
 		return error;
 
-	retval[0] = 0;
+	p->p_retval[0] = 0;
 	return 0;
 }
 
@@ -384,18 +385,18 @@ struct linux_dirent {
     ALIGN((((char *)&(de)->dname - (char *)de) + (namlen) + 1))
 
 int
-linux_readdir(struct proc *p, struct linux_readdir_args *args, int *retval)
+linux_readdir(struct proc *p, struct linux_readdir_args *args)
 {
 	struct linux_getdents_args lda;
 
 	lda.fd = args->fd;
 	lda.dent = args->dent;
 	lda.count = 1;
-	return linux_getdents(p, &lda, retval);
+	return linux_getdents(p, &lda);
 }
 
 int
-linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
+linux_getdents(struct proc *p, struct linux_getdents_args *args)
 {
     register struct dirent *bdp;
     struct vnode *vp;
@@ -556,7 +557,7 @@ again:
 	nbytes = resid + linuxreclen;
 
 eof:
-    *retval = nbytes - resid;
+    p->p_retval[0] = nbytes - resid;
 out:
     if (cookies)
 	free(cookies, M_TEMP);
@@ -570,7 +571,7 @@ out:
  */
 
 int
-linux_access(struct proc *p, struct linux_access_args *args, int *retval)
+linux_access(struct proc *p, struct linux_access_args *args)
 {
 	struct access_args bsd;
 	caddr_t sg;
@@ -585,11 +586,11 @@ linux_access(struct proc *p, struct linux_access_args *args, int *retval)
 	bsd.path = args->path;
 	bsd.flags = args->flags;
 
-	return access(p, &bsd, retval);
+	return access(p, &bsd);
 }
 
 int
-linux_unlink(struct proc *p, struct linux_unlink_args *args, int *retval)
+linux_unlink(struct proc *p, struct linux_unlink_args *args)
 {
 	struct unlink_args bsd;
 	caddr_t sg;
@@ -603,11 +604,11 @@ linux_unlink(struct proc *p, struct linux_unlink_args *args, int *retval)
 #endif
 	bsd.path = args->path;
 
-	return unlink(p, &bsd, retval);
+	return unlink(p, &bsd);
 }
 
 int
-linux_chdir(struct proc *p, struct linux_chdir_args *args, int *retval)
+linux_chdir(struct proc *p, struct linux_chdir_args *args)
 {
 	struct chdir_args bsd;
 	caddr_t sg;
@@ -621,11 +622,11 @@ linux_chdir(struct proc *p, struct linux_chdir_args *args, int *retval)
 #endif
 	bsd.path = args->path;
 
-	return chdir(p, &bsd, retval);
+	return chdir(p, &bsd);
 }
 
 int
-linux_chmod(struct proc *p, struct linux_chmod_args *args, int *retval)
+linux_chmod(struct proc *p, struct linux_chmod_args *args)
 {
 	struct chmod_args bsd;
 	caddr_t sg;
@@ -640,11 +641,11 @@ linux_chmod(struct proc *p, struct linux_chmod_args *args, int *retval)
 	bsd.path = args->path;
 	bsd.mode = args->mode;
 
-	return chmod(p, &bsd, retval);
+	return chmod(p, &bsd);
 }
 
 int
-linux_chown(struct proc *p, struct linux_chown_args *args, int *retval)
+linux_chown(struct proc *p, struct linux_chown_args *args)
 {
 	struct chown_args bsd;
 	caddr_t sg;
@@ -661,11 +662,11 @@ linux_chown(struct proc *p, struct linux_chown_args *args, int *retval)
 	bsd.uid = args->uid;
 	bsd.gid = args->gid;
 
-	return chown(p, &bsd, retval);
+	return chown(p, &bsd);
 }
 
 int
-linux_mkdir(struct proc *p, struct linux_mkdir_args *args, int *retval)
+linux_mkdir(struct proc *p, struct linux_mkdir_args *args)
 {
 	struct mkdir_args bsd;
 	caddr_t sg;
@@ -680,11 +681,11 @@ linux_mkdir(struct proc *p, struct linux_mkdir_args *args, int *retval)
 	bsd.path = args->path;
 	bsd.mode = args->mode;
 
-	return mkdir(p, &bsd, retval);
+	return mkdir(p, &bsd);
 }
 
 int
-linux_rmdir(struct proc *p, struct linux_rmdir_args *args, int *retval)
+linux_rmdir(struct proc *p, struct linux_rmdir_args *args)
 {
 	struct rmdir_args bsd;
 	caddr_t sg;
@@ -698,11 +699,11 @@ linux_rmdir(struct proc *p, struct linux_rmdir_args *args, int *retval)
 #endif
 	bsd.path = args->path;
 
-	return rmdir(p, &bsd, retval);
+	return rmdir(p, &bsd);
 }
 
 int
-linux_rename(struct proc *p, struct linux_rename_args *args, int *retval)
+linux_rename(struct proc *p, struct linux_rename_args *args)
 {
 	struct rename_args bsd;
 	caddr_t sg;
@@ -718,11 +719,11 @@ linux_rename(struct proc *p, struct linux_rename_args *args, int *retval)
 	bsd.from = args->from;
 	bsd.to = args->to;
 
-	return rename(p, &bsd, retval);
+	return rename(p, &bsd);
 }
 
 int
-linux_symlink(struct proc *p, struct linux_symlink_args *args, int *retval)
+linux_symlink(struct proc *p, struct linux_symlink_args *args)
 {
 	struct symlink_args bsd;
 	caddr_t sg;
@@ -738,11 +739,11 @@ linux_symlink(struct proc *p, struct linux_symlink_args *args, int *retval)
 	bsd.path = args->path;
 	bsd.link = args->to;
 
-	return symlink(p, &bsd, retval);
+	return symlink(p, &bsd);
 }
 
 int
-linux_execve(struct proc *p, struct linux_execve_args *args, int *retval)
+linux_execve(struct proc *p, struct linux_execve_args *args)
 {
 	struct execve_args bsd;
 	caddr_t sg;
@@ -758,11 +759,11 @@ linux_execve(struct proc *p, struct linux_execve_args *args, int *retval)
 	bsd.argv = args->argp;
 	bsd.envv = args->envp;
 
-	return execve(p, &bsd, retval);
+	return execve(p, &bsd);
 }
 
 int
-linux_readlink(struct proc *p, struct linux_readlink_args *args, int *retval)
+linux_readlink(struct proc *p, struct linux_readlink_args *args)
 {
 	struct readlink_args bsd;
 	caddr_t sg;
@@ -778,11 +779,11 @@ linux_readlink(struct proc *p, struct linux_readlink_args *args, int *retval)
 	bsd.buf = args->buf;
 	bsd.count = args->count;
 
-	return readlink(p, &bsd, retval);
+	return readlink(p, &bsd);
 }
 
 int
-linux_truncate(struct proc *p, struct linux_truncate_args *args, int *retval)
+linux_truncate(struct proc *p, struct linux_truncate_args *args)
 {
 	struct otruncate_args bsd;
 	caddr_t sg;
@@ -796,6 +797,6 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args, int *retval)
 #endif
 	bsd.path = args->path;
 
-	return otruncate(p, &bsd, retval);
+	return otruncate(p, &bsd);
 }
 

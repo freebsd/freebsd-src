@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.41 1997/10/11 18:31:22 phk Exp $
+ * $Id: kern_descrip.c,v 1.42 1997/10/12 20:23:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -97,13 +97,13 @@ struct getdtablesize_args {
 #endif
 /* ARGSUSED */
 int
-getdtablesize(p, uap, retval)
+getdtablesize(p, uap)
 	struct proc *p;
 	struct getdtablesize_args *uap;
-	int *retval;
 {
 
-	*retval = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	p->p_retval[0] = 
+	    min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	return (0);
 }
 
@@ -118,10 +118,9 @@ struct dup2_args {
 #endif
 /* ARGSUSED */
 int
-dup2(p, uap, retval)
+dup2(p, uap)
 	struct proc *p;
 	struct dup2_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register u_int old = uap->from, new = uap->to;
@@ -133,7 +132,7 @@ dup2(p, uap, retval)
 	    new >= maxfilesperproc)
 		return (EBADF);
 	if (old == new) {
-		*retval = new;
+		p->p_retval[0] = new;
 		return (0);
 	}
 	if (new >= fdp->fd_nfiles) {
@@ -149,7 +148,7 @@ dup2(p, uap, retval)
 		 */
 		(void) closef(fdp->fd_ofiles[new], p);
 	}
-	return (finishdup(fdp, (int)old, (int)new, retval));
+	return (finishdup(fdp, (int)old, (int)new, p->p_retval));
 }
 
 /*
@@ -162,10 +161,9 @@ struct dup_args {
 #endif
 /* ARGSUSED */
 int
-dup(p, uap, retval)
+dup(p, uap)
 	struct proc *p;
 	struct dup_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp;
 	u_int old;
@@ -185,7 +183,7 @@ dup(p, uap, retval)
 		return (EBADF);
 	if ((error = fdalloc(p, 0, &new)))
 		return (error);
-	return (finishdup(fdp, (int)old, new, retval));
+	return (finishdup(fdp, (int)old, new, p->p_retval));
 }
 
 /*
@@ -200,10 +198,9 @@ struct fcntl_args {
 #endif
 /* ARGSUSED */
 int
-fcntl(p, uap, retval)
+fcntl(p, uap)
 	struct proc *p;
 	register struct fcntl_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
@@ -226,10 +223,10 @@ fcntl(p, uap, retval)
 			return (EINVAL);
 		if ((error = fdalloc(p, newmin, &i)))
 			return (error);
-		return (finishdup(fdp, uap->fd, i, retval));
+		return (finishdup(fdp, uap->fd, i, p->p_retval));
 
 	case F_GETFD:
-		*retval = *pop & 1;
+		p->p_retval[0] = *pop & 1;
 		return (0);
 
 	case F_SETFD:
@@ -237,7 +234,7 @@ fcntl(p, uap, retval)
 		return (0);
 
 	case F_GETFL:
-		*retval = OFLAGS(fp->f_flag);
+		p->p_retval[0] = OFLAGS(fp->f_flag);
 		return (0);
 
 	case F_SETFL:
@@ -258,12 +255,12 @@ fcntl(p, uap, retval)
 
 	case F_GETOWN:
 		if (fp->f_type == DTYPE_SOCKET) {
-			*retval = ((struct socket *)fp->f_data)->so_pgid;
+			p->p_retval[0] = ((struct socket *)fp->f_data)->so_pgid;
 			return (0);
 		}
 		error = (*fp->f_ops->fo_ioctl)
-			(fp, TIOCGPGRP, (caddr_t)retval, p);
-		*retval = -*retval;
+			(fp, TIOCGPGRP, (caddr_t)p->p_retval, p);
+		p->p_retval[0] = - p->p_retval[0];
 		return (error);
 
 	case F_SETOWN:
@@ -371,10 +368,9 @@ struct close_args {
 #endif
 /* ARGSUSED */
 int
-close(p, uap, retval)
+close(p, uap)
 	struct proc *p;
 	struct close_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
@@ -408,10 +404,9 @@ struct ofstat_args {
 #endif
 /* ARGSUSED */
 int
-ofstat(p, uap, retval)
+ofstat(p, uap)
 	struct proc *p;
 	register struct ofstat_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
@@ -459,10 +454,9 @@ struct fstat_args {
 #endif
 /* ARGSUSED */
 int
-fstat(p, uap, retval)
+fstat(p, uap)
 	struct proc *p;
 	register struct fstat_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
@@ -507,10 +501,9 @@ struct fpathconf_args {
 #endif
 /* ARGSUSED */
 int
-fpathconf(p, uap, retval)
+fpathconf(p, uap)
 	struct proc *p;
 	register struct fpathconf_args *uap;
-	int *retval;
 {
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
@@ -525,13 +518,13 @@ fpathconf(p, uap, retval)
 	case DTYPE_SOCKET:
 		if (uap->name != _PC_PIPE_BUF)
 			return (EINVAL);
-		*retval = PIPE_BUF;
+		p->p_retval[0] = PIPE_BUF;
 		return (0);
 
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = (struct vnode *)fp->f_data;
-		return (VOP_PATHCONF(vp, uap->name, retval));
+		return (VOP_PATHCONF(vp, uap->name, p->p_retval));
 
 	default:
 		panic("fpathconf");
@@ -913,10 +906,9 @@ struct flock_args {
 #endif
 /* ARGSUSED */
 int
-flock(p, uap, retval)
+flock(p, uap)
 	struct proc *p;
 	register struct flock_args *uap;
-	int *retval;
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.11 1997/08/10 18:15:20 sos Exp $
+ *  $Id: linux_ipc.c,v 1.12 1997/10/28 10:50:02 kato Exp $
  */
 
 
@@ -40,16 +40,16 @@
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
 
-static int linux_semop __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_semget __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_semctl __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_msgsnd __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_msgrcv __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_msgctl __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_shmat __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_shmdt __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_shmget __P((struct proc *, struct linux_ipc_args *, int *));
-static int linux_shmctl __P((struct proc *, struct linux_ipc_args *, int *));
+static int linux_semop __P((struct proc *, struct linux_ipc_args *));
+static int linux_semget __P((struct proc *, struct linux_ipc_args *));
+static int linux_semctl __P((struct proc *, struct linux_ipc_args *));
+static int linux_msgsnd __P((struct proc *, struct linux_ipc_args *));
+static int linux_msgrcv __P((struct proc *, struct linux_ipc_args *));
+static int linux_msgctl __P((struct proc *, struct linux_ipc_args *));
+static int linux_shmat __P((struct proc *, struct linux_ipc_args *));
+static int linux_shmdt __P((struct proc *, struct linux_ipc_args *));
+static int linux_shmget __P((struct proc *, struct linux_ipc_args *));
+static int linux_shmctl __P((struct proc *, struct linux_ipc_args *));
 
 struct linux_ipc_perm {
     linux_key_t key;
@@ -160,7 +160,7 @@ bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct linux_shmid_ds *lsp)
 }
 
 static int
-linux_semop(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_semop(struct proc *p, struct linux_ipc_args *args)
 {
 	struct semop_args /* {
 	int	semid;
@@ -171,11 +171,11 @@ linux_semop(struct proc *p, struct linux_ipc_args *args, int *retval)
 	bsd_args.semid = args->arg1;
 	bsd_args.sops = (struct sembuf *)args->ptr;
 	bsd_args.nsops = args->arg2;
-	return semop(p, &bsd_args, retval);
+	return semop(p, &bsd_args);
 }
 
 static int
-linux_semget(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_semget(struct proc *p, struct linux_ipc_args *args)
 {
 	struct semget_args /* {
 	key_t	key;
@@ -186,11 +186,11 @@ linux_semget(struct proc *p, struct linux_ipc_args *args, int *retval)
 	bsd_args.key = args->arg1;
 	bsd_args.nsems = args->arg2;
 	bsd_args.semflg = args->arg3;
-	return semget(p, &bsd_args, retval);
+	return semget(p, &bsd_args);
 }
 
 static int
-linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_semctl(struct proc *p, struct linux_ipc_args *args)
 {
 	struct linux_semid_ds	linux_semid;
 	struct semid_ds	bsd_semid;
@@ -246,7 +246,7 @@ linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 		if (error)
 			return error;
 		bsd_args.arg = (union semun *)unptr;
-		return __semctl(p, &bsd_args, retval);
+		return __semctl(p, &bsd_args);
 	case LINUX_IPC_STAT:
 		bsd_args.cmd = IPC_STAT;
 		unptr = stackgap_alloc(&sg, sizeof(union semun *));
@@ -255,7 +255,7 @@ linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 		if (error)
 			return error;
 		bsd_args.arg = (union semun *)unptr;
-		error = __semctl(p, &bsd_args, retval);
+		error = __semctl(p, &bsd_args);
 		if (error)
 			return error;
 		error = copyin(dsp, (caddr_t)&bsd_semid, sizeof(bsd_semid));
@@ -274,11 +274,11 @@ linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 		uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
 		return EINVAL;
 	}
-	return __semctl(p, &bsd_args, retval);
+	return __semctl(p, &bsd_args);
 }
 
 static int
-linux_msgsnd(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_msgsnd(struct proc *p, struct linux_ipc_args *args)
 {
     struct msgsnd_args /* {
 	int     msqid;   
@@ -291,11 +291,11 @@ linux_msgsnd(struct proc *p, struct linux_ipc_args *args, int *retval)
     bsd_args.msgp = args->ptr;
     bsd_args.msgsz = args->arg2;
     bsd_args.msgflg = args->arg3;
-    return msgsnd(p, &bsd_args, retval);
+    return msgsnd(p, &bsd_args);
 }
 
 static int
-linux_msgrcv(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_msgrcv(struct proc *p, struct linux_ipc_args *args)
 {
     struct msgrcv_args /* {     
         int 	msqid;   
@@ -310,11 +310,11 @@ linux_msgrcv(struct proc *p, struct linux_ipc_args *args, int *retval)
     bsd_args.msgsz = args->arg2;
     bsd_args.msgtyp = 0;
     bsd_args.msgflg = args->arg3;
-    return msgrcv(p, &bsd_args, retval);
+    return msgrcv(p, &bsd_args);
 }
 
 static int
-linux_msgget(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_msgget(struct proc *p, struct linux_ipc_args *args)
 {
     struct msgget_args /* {
 	key_t	key;
@@ -323,11 +323,11 @@ linux_msgget(struct proc *p, struct linux_ipc_args *args, int *retval)
 
     bsd_args.key = args->arg1;
     bsd_args.msgflg = args->arg2;
-    return msgget(p, &bsd_args, retval);
+    return msgget(p, &bsd_args);
 }
 
 static int
-linux_msgctl(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_msgctl(struct proc *p, struct linux_ipc_args *args)
 {
     struct msgctl_args /* {
 	int     msqid; 
@@ -338,11 +338,11 @@ linux_msgctl(struct proc *p, struct linux_ipc_args *args, int *retval)
     bsd_args.msqid = args->arg1;
     bsd_args.cmd = args->arg2;
     bsd_args.buf = (struct msqid_ds *)args->ptr;
-    return msgctl(p, &bsd_args, retval);
+    return msgctl(p, &bsd_args);
 }
 
 static int
-linux_shmat(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_shmat(struct proc *p, struct linux_ipc_args *args)
 {
     struct shmat_args /* {
 	int shmid;
@@ -354,27 +354,27 @@ linux_shmat(struct proc *p, struct linux_ipc_args *args, int *retval)
     bsd_args.shmid = args->arg1;
     bsd_args.shmaddr = args->ptr;
     bsd_args.shmflg = args->arg2;
-    if ((error = shmat(p, &bsd_args, retval)))
+    if ((error = shmat(p, &bsd_args)))
 	return error;
-    if ((error = copyout(retval, (caddr_t)args->arg3, sizeof(int))))
+    if ((error = copyout(p->p_retval, (caddr_t)args->arg3, sizeof(int))))
 	return error;
-    retval[0] = 0;
+    p->p_retval[0] = 0;
     return 0;
 }
 
 static int
-linux_shmdt(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_shmdt(struct proc *p, struct linux_ipc_args *args)
 {
     struct shmdt_args /* {
 	void *shmaddr;
     } */ bsd_args;
 
     bsd_args.shmaddr = args->ptr;
-    return shmdt(p, &bsd_args, retval);
+    return shmdt(p, &bsd_args);
 }
 
 static int
-linux_shmget(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_shmget(struct proc *p, struct linux_ipc_args *args)
 {
     struct shmget_args /* {
 	key_t key;
@@ -385,11 +385,11 @@ linux_shmget(struct proc *p, struct linux_ipc_args *args, int *retval)
     bsd_args.key = args->arg1;
     bsd_args.size = args->arg2;
     bsd_args.shmflg = args->arg3;
-    return shmget(p, &bsd_args, retval);
+    return shmget(p, &bsd_args);
 }
 
 static int
-linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_shmctl(struct proc *p, struct linux_ipc_args *args)
 {
     struct shmid_ds bsd_shmid;
     struct linux_shmid_ds linux_shmid;
@@ -406,7 +406,7 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 	bsd_args.shmid = args->arg1;
 	bsd_args.cmd = IPC_STAT;
 	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
-	if ((error = shmctl(p, &bsd_args, retval)))
+	if ((error = shmctl(p, &bsd_args)))
 	    return error;
 	if ((error = copyin((caddr_t)bsd_args.buf, (caddr_t)&bsd_shmid,
 		    	    sizeof(struct shmid_ds))))
@@ -425,7 +425,7 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 	    return error;
 	bsd_args.shmid = args->arg1;
 	bsd_args.cmd = IPC_SET;
-	return shmctl(p, &bsd_args, retval);
+	return shmctl(p, &bsd_args);
 
     case LINUX_IPC_RMID:
 	bsd_args.shmid = args->arg1;
@@ -438,7 +438,7 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 	if ((error = copyout((caddr_t)&bsd_shmid, (caddr_t)bsd_args.buf,
 		     	     sizeof(struct shmid_ds))))
 	    return error;
-	return shmctl(p, &bsd_args, retval);
+	return shmctl(p, &bsd_args);
 
     case LINUX_IPC_INFO:
     case LINUX_SHM_STAT:
@@ -452,31 +452,31 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 }
 
 int
-linux_ipc(struct proc *p, struct linux_ipc_args *args, int *retval)
+linux_ipc(struct proc *p, struct linux_ipc_args *args)
 {
     switch (args->what) {
     case LINUX_SEMOP:
-	return linux_semop(p, args, retval);
+	return linux_semop(p, args);
     case LINUX_SEMGET:
-	return linux_semget(p, args, retval);
+	return linux_semget(p, args);
     case LINUX_SEMCTL:
-	return linux_semctl(p, args, retval);
+	return linux_semctl(p, args);
     case LINUX_MSGSND:
-	return linux_msgsnd(p, args, retval);
+	return linux_msgsnd(p, args);
     case LINUX_MSGRCV:
-	return linux_msgrcv(p, args, retval);
+	return linux_msgrcv(p, args);
     case LINUX_MSGGET:
-	return linux_msgget(p, args, retval);
+	return linux_msgget(p, args);
     case LINUX_MSGCTL:
-	return linux_msgctl(p, args, retval);
+	return linux_msgctl(p, args);
     case LINUX_SHMAT:
-	return linux_shmat(p, args, retval);
+	return linux_shmat(p, args);
     case LINUX_SHMDT:
-	return linux_shmdt(p, args, retval);
+	return linux_shmdt(p, args);
     case LINUX_SHMGET:
-	return linux_shmget(p, args, retval);
+	return linux_shmget(p, args);
     case LINUX_SHMCTL:
-	return linux_shmctl(p, args, retval);
+	return linux_shmctl(p, args);
     default:
 	uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
 	return ENOSYS;

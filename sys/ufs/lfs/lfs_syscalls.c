@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.10 (Berkeley) 5/14/95
- * $Id: lfs_syscalls.c,v 1.18 1997/03/22 08:03:51 bde Exp $
+ * $Id: lfs_syscalls.c,v 1.19 1997/03/23 00:45:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -94,10 +94,9 @@ struct lfs_markv_args {
 };
 #endif
 int
-lfs_markv(p, uap, retval)
+lfs_markv(p, uap)
 	struct proc *p;
 	struct lfs_markv_args *uap;
-	int *retval;
 {
 	struct segment *sp;
 	BLOCK_INFO *blkp;
@@ -273,10 +272,9 @@ struct lfs_bmapv_args {
 };
 #endif
 int
-lfs_bmapv(p, uap, retval)
+lfs_bmapv(p, uap)
 	struct proc *p;
 	struct lfs_bmapv_args *uap;
-	int *retval;
 {
 	BLOCK_INFO *blkp;
 	struct mount *mntp;
@@ -343,10 +341,9 @@ struct lfs_segclean_args {
 };
 #endif
 int
-lfs_segclean(p, uap, retval)
+lfs_segclean(p, uap)
 	struct proc *p;
 	struct lfs_segclean_args *uap;
-	int *retval;
 {
 	CLEANERINFO *cip;
 	SEGUSE *sup;
@@ -406,10 +403,9 @@ struct lfs_segwait_args {
 };
 #endif
 int
-lfs_segwait(p, uap, retval)
+lfs_segwait(p, uap)
 	struct proc *p;
 	struct lfs_segwait_args *uap;
-	int *retval;
 {
 	struct mount *mntp;
 	struct timeval atv;

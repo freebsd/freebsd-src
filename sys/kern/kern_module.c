@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.3 1997/10/24 05:29:07 jmg Exp $
+ *	$Id: kern_module.c,v 1.4 1997/10/28 15:58:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,7 @@
 #include <sys/sysent.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <sys/proc.h>
 
 #define M_MODULE	M_TEMP		/* XXX */
 
@@ -195,15 +196,15 @@ module_getfnext(module_t mod)
  * Syscalls.
  */
 int
-modnext(struct proc* p, struct modnext_args* uap, int* retval)
+modnext(struct proc* p, struct modnext_args* uap)
 {
     module_t mod;
 
-    *retval = -1;
+    p->p_retval[0] = -1;
     if (SCARG(uap, modid) == 0) {
 	mod = TAILQ_FIRST(&modules);
 	if (mod) {
-	    *retval = mod->id;
+	    p->p_retval[0] = mod->id;
 	    return 0;
 	} else
 	    return ENOENT;
@@ -214,32 +215,32 @@ modnext(struct proc* p, struct modnext_args* uap, int* retval)
 	return ENOENT;
 
     if (TAILQ_NEXT(mod, link))
-	*retval = TAILQ_NEXT(mod, link)->id;
+	p->p_retval[0] = TAILQ_NEXT(mod, link)->id;
     else
-	*retval = 0;
+	p->p_retval[0] = 0;
     return 0;
 }
 
 int
-modfnext(struct proc* p, struct modfnext_args* uap, int* retval)
+modfnext(struct proc* p, struct modfnext_args* uap)
 {
     module_t mod;
 
-    *retval = -1;
+    p->p_retval[0] = -1;
 
     mod = module_lookupbyid(SCARG(uap, modid));
     if (!mod)
 	return ENOENT;
 
     if (TAILQ_NEXT(mod, flink))
-	*retval = TAILQ_NEXT(mod, flink)->id;
+	p->p_retval[0] = TAILQ_NEXT(mod, flink)->id;
     else
-	*retval = 0;
+	p->p_retval[0] = 0;
     return 0;
 }
 
 int
-modstat(struct proc* p, struct modstat_args* uap, int* retval)
+modstat(struct proc* p, struct modstat_args* uap)
 {
     module_t mod;
     int error = 0;
@@ -274,14 +275,14 @@ modstat(struct proc* p, struct modstat_args* uap, int* retval)
     if (error = copyout(&mod->id, &stat->id, sizeof(int)))
 	goto out;
 
-    *retval = 0;
+    p->p_retval[0] = 0;
 
 out:
     return error;
 }
 
 int
-modfind(struct proc* p, struct modfind_args* uap, int* retval)
+modfind(struct proc* p, struct modfind_args* uap)
 {
     int error = 0;
     char name[MAXMODNAME];
@@ -294,7 +295,7 @@ modfind(struct proc* p, struct modfind_args* uap, int* retval)
     if (!mod)
 	error = ENOENT;
     else
-	*retval = mod->id;
+	p->p_retval[0] = mod->id;
 
 out:
     return error;

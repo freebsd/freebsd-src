@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_msg.c,v 1.3 1997/02/22 09:33:23 peter Exp $
+ * $Id: ibcs2_msg.c,v 1.4 1997/07/20 09:39:44 bde Exp $
  */
 
 /*
@@ -41,29 +41,26 @@
 
 
 int
-ibcs2_getmsg(p, uap, retval)
+ibcs2_getmsg(p, uap)
 	struct proc *p;
 	struct ibcs2_getmsg_args *uap;
-	int *retval;
 {
 	return 0; /* fake */
 }
 
 int
-ibcs2_putmsg(p, uap, retval)
+ibcs2_putmsg(p, uap)
 	struct proc *p;
 	struct ibcs2_putmsg_args *uap;
-	int *retval;
 {
 	return 0; /* fake */
 }
 
 
 int
-ibcs2_poll(p, uap, retval)
+ibcs2_poll(p, uap)
 	struct proc *p;
 	struct ibcs2_poll_args *uap;
-	int *retval;
 {
 	int error, i;
 	fd_set *readfds, *writefds, *exceptfds;
@@ -110,12 +107,12 @@ ibcs2_poll(p, uap, retval)
 			FD_SET(conv.fd, writefds);
 		FD_SET(conv.fd, exceptfds);
 	}
-	if (error = select(p, &tmp_select, retval))
+	if (error = select(p, &tmp_select))
 		return error;
-	if (*retval == 0)
+	if (p->p_retval[0] == 0)
 		return 0;
-	*retval = 0;
-	for (*retval = 0, i = 0; i < uap->nfds; i++) {
+	p->p_retval[0] = 0;
+	for (p->p_retval[0] = 0, i = 0; i < uap->nfds; i++) {
 		copyin(uap->fds + i*sizeof(struct ibcs2_poll),
 		       &conv, sizeof(conv));
 		conv.revents = 0;
@@ -130,7 +127,7 @@ ibcs2_poll(p, uap, retval)
 			if (FD_ISSET(conv.fd, exceptfds))
 				conv.revents |= IBCS2_POLLERR;
 			if (conv.revents)
-				++*retval;
+				++p->p_retval[0];
 		}
 		if (error = copyout(&conv,
 				    uap->fds + i*sizeof(struct ibcs2_poll),

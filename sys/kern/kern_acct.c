@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.16 1997/09/02 20:05:36 bde Exp $
+ *	$Id: kern_acct.c,v 1.17 1997/09/21 22:00:04 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -108,12 +108,11 @@ SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
  * previous implementation done by Mark Tinguely.
  */
 int
-acct(a1, uap, a3)
+acct(a1, uap)
 	struct proc *a1;
 	struct acct_args /* {
 		syscallarg(char *) path;
 	} */ *uap;
-	int *a3;
 {
 	struct proc *p = curproc;	/* XXX */
 	struct nameidata nd;

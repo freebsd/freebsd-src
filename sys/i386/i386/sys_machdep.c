@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.26 1997/10/10 09:44:08 peter Exp $
+ *	$Id: sys_machdep.c,v 1.27 1997/10/10 12:42:54 peter Exp $
  *
  */
 
@@ -83,32 +83,31 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(p, uap, retval)
+sysarch(p, uap)
 	struct proc *p;
 	register struct sysarch_args *uap;
-	int *retval;
 {
 	int error = 0;
 
 	switch(uap->op) {
 #ifdef	USER_LDT
 	case I386_GET_LDT:
-		error = i386_get_ldt(p, uap->parms, retval);
+		error = i386_get_ldt(p, uap->parms, p->p_retval);
 		break;
 
 	case I386_SET_LDT:
-		error = i386_set_ldt(p, uap->parms, retval);
+		error = i386_set_ldt(p, uap->parms, p->p_retval);
 		break;
 #endif
 #ifdef VM86
 	case I386_GET_IOPERM:
-		error = i386_get_ioperm(p, uap->parms, retval);
+		error = i386_get_ioperm(p, uap->parms, p->p_retval);
 		break;
 	case I386_SET_IOPERM:
-		error = i386_set_ioperm(p, uap->parms, retval);
+		error = i386_set_ioperm(p, uap->parms, p->p_retval);
 		break;
 	case I386_VM86:
-		error = vm86_sysarch(p, uap->parms, retval);
+		error = vm86_sysarch(p, uap->parms, p->p_retval);
 		break;
 #endif
 	default:

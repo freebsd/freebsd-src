@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.19 1997/10/11 18:31:22 phk Exp $
+ * $Id: kern_ktrace.c,v 1.20 1997/10/12 20:23:48 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -245,10 +245,9 @@ struct ktrace_args {
 #endif
 /* ARGSUSED */
 int
-ktrace(curp, uap, retval)
+ktrace(curp, uap)
 	struct proc *curp;
 	register struct ktrace_args *uap;
-	int *retval;
 {
 #ifdef KTRACE
 	register struct vnode *vp = NULL;
@@ -353,10 +352,9 @@ done:
  */
 /* ARGSUSED */
 int
-utrace(curp, uap, retval)
+utrace(curp, uap)
 	struct proc *curp;
 	register struct utrace_args *uap;
-	int *retval;
 {
 #ifdef KTRACE
 	struct ktr_header *kth;
