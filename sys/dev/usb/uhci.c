@@ -1547,7 +1547,7 @@ uhci_device_request(reqh)
 		    UGETW(req->wIndex), UGETW(req->wLength),
 		    addr, endpt));
 
-	ls = dev->lowspeed ? UHCI_TD_LS : 0;
+	ls = dev->lowspeed ? UHCI_TD_LOWSPEED : 0;
 	isread = req->bmRequestType & UT_READ;
 	len = UGETW(req->wLength);
 
