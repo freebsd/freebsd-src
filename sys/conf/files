@@ -22,6 +22,8 @@ cfs/cfs_venus.c		optional vcfs
 cfs/cfs_vfsops.c	optional vcfs
 cfs/cfs_vnodeops.c	optional vcfs
 ddb/db_access.c		optional ddb
+ddb/db_kld.c		optional ddb db_kld_symbols
+ddb/db_elf.c		optional ddb db_elf_symbols
 ddb/db_aout.c		optional ddb
 ddb/db_break.c		optional ddb
 ddb/db_command.c	optional ddb
