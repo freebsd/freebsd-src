@@ -1,8 +1,8 @@
-/* $Id: endian.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
-/* From: NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp */
+/* $Id$ */
+/* From: NetBSD: float.h,v 1.6 1997/07/17 21:36:03 thorpej Exp */
 
 /*
- * Copyright (c) 1987, 1991, 1993
+ * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,66 +32,48 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)endian.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _ENDIAN_H_
-#define	_ENDIAN_H_
-
-/*
- * Define the order of 32-bit words in 64-bit words.
- */
-#define _QUAD_HIGHWORD 1
-#define _QUAD_LOWWORD 0
-
-#ifndef _POSIX_SOURCE
-/*
- * Definitions for byte order, according to byte significance from low
- * address to high.
- */
-#define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
-#define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
-#define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
-
-#define	BYTE_ORDER	LITTLE_ENDIAN
+#ifndef _ALPHA_FLOAT_H_
+#define _ALPHA_FLOAT_H_
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
-
-typedef u_int32_t in_addr_t;
-typedef u_int16_t in_port_t;
 
 __BEGIN_DECLS
-in_addr_t	htonl __P((in_addr_t));
-in_port_t	htons __P((in_port_t));
-in_addr_t	ntohl __P((in_addr_t));
-in_port_t	ntohs __P((in_port_t));
-u_int16_t	bswap16 __P((u_int16_t));
-u_int32_t	bswap32 __P((u_int32_t));
-u_int64_t	bswap64 __P((u_int64_t));
+int	__flt_rounds __P((void));
 __END_DECLS
 
-/*
- * Macros for network/external number representation conversion.
- */
-#if BYTE_ORDER == BIG_ENDIAN && !defined(lint)
-#define	ntohl(x)	(x)
-#define	ntohs(x)	(x)
-#define	htonl(x)	(x)
-#define	htons(x)	(x)
+#define FLT_RADIX	2		/* b */
+#define FLT_ROUNDS	__flt_rounds()
 
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
+#define FLT_MANT_DIG	24		/* p */
+#define FLT_EPSILON	1.19209290E-07F	/* b**(1-p) */
+#define FLT_DIG		6		/* floor((p-1)*log10(b))+(b == 10) */
+#define FLT_MIN_EXP	-125		/* emin */
+#define FLT_MIN		1.17549435E-38F	/* b**(emin-1) */
+#define FLT_MIN_10_EXP	-37		/* ceil(log10(b**(emin-1))) */
+#define FLT_MAX_EXP	128		/* emax */
+#define FLT_MAX		3.40282347E+38F	/* (1-b**(-p))*b**emax */
+#define FLT_MAX_10_EXP	38		/* floor(log10((1-b**(-p))*b**emax)) */
 
-#else
+#define DBL_MANT_DIG	53
+#define DBL_EPSILON	2.2204460492503131E-16
+#define DBL_DIG		15
+#define DBL_MIN_EXP	-1021
+#define DBL_MIN		2.2250738585072014E-308
+#define DBL_MIN_10_EXP	-307
+#define DBL_MAX_EXP	1024
+#define DBL_MAX		1.7976931348623157E+308
+#define DBL_MAX_10_EXP	308
 
-#define	NTOHL(x)	(x) = ntohl((in_addr_t)x)
-#define	NTOHS(x)	(x) = ntohs((in_port_t)x)
-#define	HTONL(x)	(x) = htonl((in_addr_t)x)
-#define	HTONS(x)	(x) = htons((in_port_t)x)
-#endif
-#endif /* !_POSIX_SOURCE */
-#endif /* !_ENDIAN_H_ */
+#define LDBL_MANT_DIG	DBL_MANT_DIG
+#define LDBL_EPSILON	DBL_EPSILON
+#define LDBL_DIG	DBL_DIG
+#define LDBL_MIN_EXP	DBL_MIN_EXP
+#define LDBL_MIN	DBL_MIN
+#define LDBL_MIN_10_EXP	DBL_MIN_10_EXP
+#define LDBL_MAX_EXP	DBL_MAX_EXP
+#define LDBL_MAX	DBL_MAX
+#define LDBL_MAX_10_EXP	DBL_MAX_10_EXP
+
+#endif	/* _ALPHA_FLOAT_H_ */
