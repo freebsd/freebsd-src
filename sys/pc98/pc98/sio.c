@@ -734,6 +734,7 @@ static	struct speedtab comspeedtab[] = {
 	{ 4800,		COMBRD(4800) },
 	{ 9600,		COMBRD(9600) },
 	{ 19200,	COMBRD(19200) },
+	{ 28800,	COMBRD(28800) },
 	{ 38400,	COMBRD(38400) },
 	{ 57600,	COMBRD(57600) },
 	{ 115200,	COMBRD(115200) },
@@ -999,10 +1000,12 @@ struct pci_ids {
 
 static struct pci_ids pci_ids[] = {
 	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
-	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
-	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
+	{ 0x2000131f, "CyberSerial (1-port) 16550", 0x10 },
 	{ 0x01101407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
 	{ 0x01111407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
+	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
+	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
+	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
 	/* { 0xXXXXXXXX, "Xircom Cardbus modem", 0x10 }, */
 	{ 0x00000000, NULL, 0 }
 };
@@ -4168,7 +4171,7 @@ static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
-#ifdef __i386__
+#ifndef __alpha__
 CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc,
 	    siocnputc, NULL);
 #endif
@@ -4577,10 +4580,14 @@ siocnputc(dev, c)
 	else
 		iobase = siocniobase;
 	s = spltty();
+	if (sio_inited)
+		mtx_lock_spin(&sio_lock);
 	siocnopen(&sp, iobase, comdefaultrate);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
+	if (sio_inited)
+		mtx_unlock_spin(&sio_lock);
 	splx(s);
 }
 
