@@ -1203,7 +1203,7 @@ tcp_attach(so, td)
 		if (error)
 			return (error);
 	}
-	error = in_pcballoc(so, &tcbinfo, td, "tcpinp");
+	error = in_pcballoc(so, &tcbinfo, "tcpinp");
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
