@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.52 1998/04/17 22:37:03 des Exp $
+ *	$Id: if_fxp.c,v 1.53 1998/08/02 00:28:45 dg Exp $
  */
 
 /*
@@ -1448,6 +1448,7 @@ fxp_mediastatus(ifp, ifmr)
 	case FXP_PHY_DP83840:
 	case FXP_PHY_DP83840A:
 	case FXP_PHY_82555:
+	case FXP_PHY_82555B:
 		flags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_BMCR);
 		ifmr->ifm_active = IFM_ETHER;
 		if (flags & FXP_PHY_BMCR_AUTOEN)
