@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -175,6 +177,9 @@ loop:
 
 	case Pmeminfo:
 	case Pcpuinfo:
+	case Pstat:
+	case Puptime:
+	case Pversion:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
 				(VREAD >> 6);
@@ -251,6 +256,15 @@ linprocfs_rw(ap)
 		break;
 	case Pcpuinfo:
 		rtval = linprocfs_docpuinfo(curp, p, pfs, uio);
+		break;
+	case Pstat:
+		rtval = linprocfs_dostat(curp, p, pfs, uio);
+		break;
+	case Puptime:
+		rtval = linprocfs_douptime(curp, p, pfs, uio);
+		break;
+	case Pversion:
+		rtval = linprocfs_doversion(curp, p, pfs, uio);
 		break;
 	default:
 		rtval = EOPNOTSUPP;
