@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $
+ *	$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $";
+	"$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $";
 #endif
 
 /*
@@ -1434,7 +1434,7 @@ mx_attach(config_id, unit)
 	ifp->if_watchdog = mx_watchdog;
 	ifp->if_init = mx_init;
 	ifp->if_baudrate = 10000000;
-
+	ifp->if_snd.ifq_maxlen = MX_TX_LIST_CNT - 1;
 
 	if (sc->mx_type == MX_TYPE_98713) {
 		if (bootverbose)
