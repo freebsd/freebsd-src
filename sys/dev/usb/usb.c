@@ -425,6 +425,10 @@ usb_task_thread(void *arg)
 	struct usb_task *task;
 	int s;
 
+#ifdef __FreeBSD__
+	mtx_lock(&Giant);
+#endif
+
 	DPRINTF(("usb_task_thread: start\n"));
 
 	s = splusb();
