@@ -170,7 +170,7 @@ struct usbd_request {
 	void		       *hcpriv; /* XXX private use by the HC driver */
 
 #if defined(__FreeBSD__)
-	struct callout_handle  timo_handle;
+	struct callout_handle  timeout_handle;
 #endif
 };
 

@@ -982,8 +982,7 @@ usbd_transfer_cb(reqh)
 	usbd_pipe_handle pipe = reqh->pipe;
 
 	/* Count completed transfers. */
-	++pipe->device->bus->stats.requests
-		[pipe->endpoint->edesc->bmAttributes & UE_XFERTYPE];
+	++pipe->device->bus->stats.requests[pipe->endpoint->edesc->bmAttributes & UE_XFERTYPE];
 
 	/* XXX check retry count */
 	reqh->done = 1;
@@ -994,6 +993,7 @@ usbd_transfer_cb(reqh)
 			      reqh->actlen, reqh->length));
 		reqh->status = USBD_SHORT_XFER;
 	}
+	
 	if (reqh->callback)
 		reqh->callback(reqh, reqh->priv, reqh->status);
 }
@@ -1065,6 +1065,7 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 	if (r != USBD_NORMAL_COMPLETION)
 		goto bad;
 	r = usbd_sync_transfer(reqh);
+
 #if defined(USB_DEBUG) || defined(DIAGNOSTIC)
 	if (reqh->actlen > reqh->length)
 		printf("usbd_do_request: overrun addr=%d type=0x%02x req=0x"
@@ -1075,8 +1076,10 @@ usbd_do_request_flags(dev, req, data, flags, actlen)
 		       UGETW(reqh->request.wLength), 
 		       reqh->length, reqh->actlen);
 #endif
+
 	if (actlen)
 		*actlen = reqh->actlen;
+		
 	if (r == USBD_STALLED) {
 		/* 
 		 * The control endpoint has stalled.  Control endpoints
