@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gcore.c,v 1.6 1997/07/08 11:04:17 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -141,9 +141,9 @@ main(argc, argv)
 		errx(1, "%d: zombie", pid);
 
 	if (p->p_flag & P_WEXIT)
-		errx(1, "process exiting");
+		errx(1, "%d: process exiting", pid);
 	if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
-		errx(1, "%d: system process");
+		errx(1, "%d: system process", pid);
 
 	if (corefile == NULL) {
 		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
