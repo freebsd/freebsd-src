@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.6 1995/01/05 03:59:38 davidg Exp $
+ *	$Id: procfs_mem.c,v 1.7 1995/05/30 08:07:09 rgrimes Exp $
  */
 
 /*
@@ -235,70 +235,3 @@ procfs_findtextvp(p)
 {
 	return (p->p_textvp);
 }
-
-
-#ifdef probably_never
-/*
- * Given process (p), find the vnode from which
- * it's text segment is being mapped.
- *
- * (This is here, rather than in procfs_subr in order
- * to keep all the VM related code in one place.)
- */
-struct vnode *
-procfs_findtextvp(p)
-	struct proc *p;
-{
-	int error;
-	vm_object_t object;
-	vm_offset_t pageno;		/* page number */
-
-	/* find a vnode pager for the user address space */
-
-	for (pageno = VM_MIN_ADDRESS;
-			pageno < VM_MAXUSER_ADDRESS;
-			pageno += PAGE_SIZE) {
-		vm_map_t map;
-		vm_map_entry_t out_entry;
-		vm_prot_t out_prot;
-		boolean_t wired, single_use;
-		vm_offset_t off;
-
-		map = &p->p_vmspace->vm_map;
-		error = vm_map_lookup(&map, pageno,
-			      VM_PROT_READ,
-			      &out_entry, &object, &off, &out_prot,
-			      &wired, &single_use);
-
-		if (!error) {
-			vm_pager_t pager;
-
-			printf("procfs: found vm object\n");
-			vm_map_lookup_done(map, out_entry);
-			printf("procfs: vm object = %x\n", object);
-
-			/*
-			 * At this point, assuming no errors, object
-			 * is the VM object mapping UVA (pageno).
-			 * Ensure it has a vnode pager, then grab
-			 * the vnode from that pager's handle.
-			 */
-
-			pager = object->pager;
-			printf("procfs: pager = %x\n", pager);
-			if (pager)
-				printf("procfs: found pager, type = %d\n", pager->pg_type);
-			if (pager && pager->pg_type == PG_VNODE) {
-				struct vnode *vp;
-
-				vp = (struct vnode *) pager->pg_handle;
-				printf("procfs: vp = 0x%x\n", vp);
-				return (vp);
-			}
-		}
-	}
-
-	printf("procfs: text object not found\n");
-	return (0);
-}
-#endif /* probably_never */
