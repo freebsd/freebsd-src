@@ -4,7 +4,7 @@
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"	Updated by Robert Eckardt <roberte@mep.ruhr-uni-bochum.de>
 .\"
-.\"	$Id: tar.1,v 1.6.2.3 1998/02/15 17:05:30 steve Exp $
+.\"	$Id: tar.1,v 1.6.2.4 1998/07/20 02:30:06 jkoshy Exp $
 .\"
 .Dd 25 August 1997
 .Os FreeBSD
@@ -429,6 +429,8 @@ The
 feature does not work like historical tar programs, and is probably
 untrustworthy.
 .Pp
-The -A command should work to join an arbitrary number of tar archives
+The 
+.Fl A 
+command should work to join an arbitrary number of tar archives
 together, but it does not; attempting to do so leaves the
 end-of-archive blocks in place for the second and subsequent archives.
