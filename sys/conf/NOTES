@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.535 1999/01/15 10:00:11 bde Exp $
+#	$Id: LINT,v 1.536 1999/01/17 19:09:41 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -460,7 +460,7 @@ options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
-options         IPFIREWALL_FORWARD      #enable xparent proxy support
+options         IPFIREWALL_FORWARD      #enable transparent proxy support
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
 options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
 options		IPDIVERT		#divert sockets
