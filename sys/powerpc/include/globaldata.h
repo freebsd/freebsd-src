@@ -55,7 +55,6 @@ struct globaldata {
 	int	gd_inside_intr;
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
-	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */
 
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	lock_list_entry *gd_spinlocks;
