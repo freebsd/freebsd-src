@@ -2130,7 +2130,7 @@ pmap_prefault(pmap, addra, entry)
 
 	mpte = NULL;
 	for (i = 0; i < PAGEORDER_SIZE; i++) {
-		vm_object_t lobject;
+		vm_object_t backing_object, lobject;
 		pt_entry_t *pte;
 
 		addr = addra + pmap_prefault_pageorder[i];
@@ -2150,15 +2150,18 @@ pmap_prefault(pmap, addra, entry)
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
 		lobject = object;
-		for (m = vm_page_lookup(lobject, pindex);
-		    (!m && (lobject->type == OBJT_DEFAULT) && (lobject->backing_object));
-		    lobject = lobject->backing_object) {
+		VM_OBJECT_LOCK(lobject);
+		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
+		    lobject->type == OBJT_DEFAULT &&
+		    (backing_object = lobject->backing_object) != NULL) {
 			if (lobject->backing_object_offset & PAGE_MASK)
 				break;
-			pindex += (lobject->backing_object_offset >> PAGE_SHIFT);
-			m = vm_page_lookup(lobject->backing_object, pindex);
+			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
+			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_UNLOCK(lobject);
+			lobject = backing_object;
 		}
-
+		VM_OBJECT_UNLOCK(lobject);
 		/*
 		 * give-up when a page is not in memory
 		 */
