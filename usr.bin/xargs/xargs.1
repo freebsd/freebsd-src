@@ -160,7 +160,7 @@ directories which start with an uppercase letter in the current
 directory to
 .Pa destdir :
 .Pp
-.Dl /bin/ls -1d [A-Z]* | xargs -J [] cp -rp [] destdir
+.Dl /bin/ls -1d [A-Z]* | xargs -J % cp -rp % destdir
 .Pp
 .It Fl L Ar number
 Call
