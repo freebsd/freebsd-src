@@ -9,10 +9,11 @@ If you would like the label editor to do most of the following *for*
 you, simply type `A' for automatic partitioning of the disk.
 
 If you wish to create partitions manually you may do so by moving the
-selection bar with the arrow keys over the FreeBSD partition(s)
-displayed at the top of the screen.  Typing (C)reate while a partition
-with available free space is selected will allow you to create a BSD
-partition inside of it using some or all of its available space.
+highlighted selection bar with the arrow keys over the FreeBSD
+partition(s) displayed at the top of the screen.  Typing (C)reate
+while a partition with available free space is selected will allow you
+to create a BSD partition inside of it using some or all of its
+available space.
 
 Typing (M)ount over an existing partition entry (displayed in the
 middle of the screen) will allow you to set a mount point for it
@@ -65,74 +66,74 @@ expect a lot of mail or news and do not want to make /var its own
 partition.
 
 If you're new to this installation, you might also want to read the
-following explanation of how FreeBSD new "slice" paradigm for looking
-at disk storage works:
+following explanation of how FreeBSD's new "slice" paradigm for
+looking at disk storage works:
 
 
 In FreeBSD's new system, a device name can be broken up into up to 3
-parts.  Take a typical name like this:  /dev/sd0s1a
+parts.  Take a typical name like ``/dev/sd0s1a'':
 
-        The first three characters represent the drive name.  If we had
-        a system with two SCSI drives on it, we'd see /dev/sd0 and /dev/sd1
-        as possible values in this position (representing the entire drives).
+      The first three characters represent the drive name.  If we had
+      a system with two SCSI drives on it then we'd see /dev/sd0 and
+      /dev/sd1 as the device entries representing the entire drives.
 
-        Next you have the "slice" (or "FDISK Partition") number,
-        as seen in the Partition Editor.  Assume again that our sd0
-        contains two slices: a FreeBSD slice and a DOS slice.  That
-        would give us /dev/sd0s1 and /dev/sd0s2 as names pointing to their
-        respective slices.
+      Next you have the "slice" (or "FDISK Partition") number,
+      as seen in the Partition Editor.  Assuming that our sd0
+      contained two slices, a FreeBSD slice and a DOS slice, that
+      would give us /dev/sd0s1 and /dev/sd0s2 as device entries pointing
+      to the entire slices.
 
-        Next, if a slice is a FreeBSD slice, you can have a number of
-        (confusingly named) "partitions" inside of it.
+      Next, if a slice is a FreeBSD slice, you can have a number of
+      (confusingly named) "partitions" inside of it.
 
-        These partitions are where various filesystems or swap areas live,
-        and using our hypothetical two-SCSI-disk machine again, we might
-        have something like the following layout on sd0:
+      These partitions are where various filesystems or swap areas live,
+      and using our hypothetical two-SCSI-disk machine again, we might
+      have something like the following layout on sd0:
 
-                Name            Mountpoint
-                ----            ----------
-                sd0s1a          /
-                sd0s1b          <swap space>
-                sd0s1e          /usr
+              Name            Mountpoint
+              ----            ----------
+              sd0s1a          /
+              sd0s1b          <swap space>
+              sd0s1e          /usr
 
-        Because of historical convention, there is also a short-cut,
-        or "compatibility slice", that is maintained for easy access
-        to the *first* FreeBSD slice on a disk.  This gives some
-        backwards compatibility to utilities that still may not know
-        how to deal with the new slice scheme.
+      Because of historical convention, there is also a short-cut,
+      or "compatibility slice", that is maintained for easy access
+      to the *first* FreeBSD slice on a disk.  This gives some
+      backwards compatibility to utilities that still may not know
+      how to deal with the new slice scheme.
 
-        The compatibility slice names for our filesystem above would
-        also look like:
+      The compatibility slice names for our filesystem above would
+      also look like:
 
-                Name            Mountpoint
-                ----            ----------
-                sd0a            /
-                sd0b            <swap space>
-                sd0e            /usr
+              Name            Mountpoint
+              ----            ----------
+              sd0a            /
+              sd0b            <swap space>
+              sd0e            /usr
 
-        Again, let it be noted: FreeBSD automatically maps the
-        compatibility slice to the first FreeBSD slice it finds
-        (in this case, sd0s1).  You may have multiple FreeBSD slices on a
-        drive, but only the first one will be mapped to the compatibility
-        slice!
+      Again, let it be noted: FreeBSD automatically maps the
+      compatibility slice to the first FreeBSD slice it finds
+      (in this case, sd0s1).  You may have multiple FreeBSD slices on a
+      drive, but only the first one will be mapped to the compatibility
+      slice!
 
-        The compatibility slice will eventually be phased out, but
-        it is still important right now for several reasons:
+      The compatibility slice will eventually be phased out, but
+      it is still important right now for several reasons:
 
-                1. Some programs, as mentioned before, still don't work
-                   with the slice paradigm and need time to catch up.
+              1. Some programs, as mentioned before, still don't work
+                 with the slice paradigm and need time to catch up.
 
-                2. The FreeBSD boot blocks are unable to look for
-                   a root file system in anything but a compatibility
-                   slice right now.  This means that our root will always
-                   show up on "sd0a" in the above scenario, even though
-                   it really lives over on sd0s1a and would otherwise be
-                   referred to by its full slice name.
+              2. The FreeBSD boot blocks are unable to look for
+                 a root file system in anything but a compatibility
+                 slice right now.  This means that our root will always
+                 show up on "sd0a" in the above scenario, even though
+                 it really lives over on sd0s1a and would otherwise be
+                 referred to by its full slice name.
 
-Once you understand all this, then the label editor becomes fairly
-simple.  You're carving up the FreeBSD slices displayed at the
-top of the screen into smaller pieces, which are displayed in the
-middle of the screen, and then assigning FreeBSD file system names
+Once you understand all this, then the purpose of the label editor
+becomes fairly clear:  You're carving up the FreeBSD slices displayed
+at the top of the screen into smaller pieces, which are displayed in
+the middle of the screen, and then assigning FreeBSD file system names
 (mount points) to them.
 
 You can also use the label editor to mount existing partitions/slices
@@ -147,4 +148,4 @@ No actual changes will be made to the disk until you (C)ommit from the
 Install menu or (W)rite directly from this one.  You're working with
 what is essentially a copy of the disk label(s), both here and in the
 FDISK Partition Editor, and the actual on-disk labels won't be
-affected by any changes you make until you say so.
+affected by any changes you make until you explicitly say so.
