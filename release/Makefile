@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.71 1998/01/27 23:09:44 jkh Exp $
+#	$Id: Makefile,v 1.246.2.72 1998/01/28 04:05:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -298,6 +298,8 @@ release.4:
 		crunchgen ${.CURDIR}/$${j}_crunch.conf && \
 		${MAKE} -f $${j}_crunch.mk all NOCRYPT=yes \
 		    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
+		${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
+		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
