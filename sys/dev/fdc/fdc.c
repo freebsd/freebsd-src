@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.60 1995/05/09 12:25:52 rgrimes Exp $
+ *	$Id: fd.c,v 1.61.2.1 1995/06/08 10:26:23 davidg Exp $
  *
  */
 
@@ -1080,12 +1080,11 @@ fdstrategy(struct buf *bp)
 	fd = &fd_data[fdu];
 	fdc = fd->fdc;
 	fdcu = fdc->fdcu;
-	fdblk = 128 << (fd->ft->secsize);
 
 #if NFT > 0
 	if (FDTYPE(minor(bp->b_dev)) & F_TAPE_TYPE) {
 		/* ft tapes do not (yet) support strategy i/o */
-		bp->b_error = ENXIO;
+		bp->b_error = ENODEV;
 		bp->b_flags |= B_ERROR;
 		goto bad;
 	}
@@ -1096,6 +1095,7 @@ fdstrategy(struct buf *bp)
 		goto bad;
 	}
 #endif
+	fdblk = 128 << (fd->ft->secsize);
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
 			printf(

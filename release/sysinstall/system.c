@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.42 1995/05/29 11:01:39 jkh Exp $
+ * $Id: system.c,v 1.43.2.14 1995/06/09 14:33:36 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -36,13 +36,6 @@ handle_intr(int sig)
 	systemShutdown();
 }
 
-/* Welcome the user to the system */
-void
-systemWelcome(void)
-{
-    printf("Installation system initializing..\n");
-}
-
 /* Initialize system defaults */
 void
 systemInitialize(int argc, char **argv)
@@ -55,23 +48,14 @@ systemInitialize(int argc, char **argv)
     /* Are we running as init? */
     if (getpid() == 1) {
 	setsid();
-	if (argc > 1 && strchr(argv[1],'C')) {
-	    /* Kernel told us that we are on a CDROM root */
-	    close(0); open("/bootcd/dev/console", O_RDWR);
-	    close(1); dup(0);
-	    close(2); dup(0);
-	    OnCDROM = TRUE;
-	    chroot("/bootcd");
-	} else {
-	    close(0); open("/dev/ttyv0", O_RDWR);
-	    close(1); dup(0);
-	    close(2); dup(0);
-	}
+	close(0); open("/dev/ttyv0", O_RDWR);
+	close(1); dup(0);
+	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
 
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
-	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
+	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
@@ -103,7 +87,7 @@ systemShutdown(void)
     /* REALLY exit! */
     if (RunningAsInit) {
 	/* Put the console back */
-	ioctl(DebugFD, VT_RELDISP, 1);
+	ioctl(0, VT_ACTIVATE, 2);
 	reboot(RB_HALT);
     }
     else
@@ -125,39 +109,6 @@ systemExecute(char *command)
     dialog_clear();
     dialog_update();
     return status;
-}
-
-/* Find and execute a shell */
-int
-systemShellEscape(void)
-{
-    char *sh = NULL;
-
-    if (file_executable("/bin/sh"))
-	sh = "/bin/sh";
-    else if (file_executable("/stand/sh"))
-	sh = "/stand/sh";
-    else {
-	msgWarn("No shell available, sorry!");
-	return 1;
-    }
-    setenv("PS1", "freebsd% ", 1);
-    dialog_clear();
-    dialog_update();
-    move(0, 0);
-    standout();
-    addstr("Type `exit' to leave this shell and continue installation");
-    standend();
-    refresh();
-    end_dialog();
-    DialogActive = FALSE;
-    if (fork() == 0)
-	execlp(sh, "-sh", 0);
-    else
-	wait(NULL);
-    dialog_clear();
-    DialogActive = TRUE;
-    return 0;
 }
 
 /* Display a file in a filebox */
@@ -197,43 +148,41 @@ systemHelpFile(char *file, char *buf)
 {
     char *cp;
     static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
+    static char oldlang[64];
+    char extract[64], *default_lang = "en_US.ISO8859-1";
+    int i;
 
     if (!file)
 	return NULL;
 
-    if ((cp = getenv("LANG")) != NULL) {
-	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-	if (oldfile[0]) {
-	    if (!strcmp(buf, oldfile))
-		return oldfile;
-	    else {
-		unlink(oldfile);
-		oldfile[0] = '\0';
-	    }
-	}
-	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
+    if ((cp = getenv("LANG")) == NULL) 
+	cp = default_lang;
+
+    for (i = 0; i < 2; i++) {
 	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if (file_readable(buf)) {
-	    strcpy(oldfile, buf);
+	if (file_readable(buf)) 
 	    return buf;
-	}
-    }
-    /* Fall back to normal imperialistic mode :-) */
-    cp = "en_US.ISO8859-1";
-    snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-    if (oldfile[0]) {
-	if (!strcmp(buf, oldfile))
-	    return oldfile;
-	else {
-	    unlink(oldfile);
+	if (*oldfile) {
+	    int i;
+
+	    i = unlink(oldfile);
+	    if (isDebug())
+		msgDebug("Unlink(%s) = %d\n", oldfile, i);
+	    i = rmdir(oldlang);
+	    if (isDebug())
+		msgDebug("rmdir(%s) = %d\n", oldlang, i);
 	    oldfile[0] = '\0';
 	}
-    }
-    vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
-    snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-    if (file_readable(buf)) {
-	strcpy(oldfile, buf);
-	return buf;
+	snprintf(extract, 64, "%s/%s", cp, file);
+	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", extract);
+	if (file_readable(buf)) {
+	    strcpy(oldfile, buf);
+	    sprintf(oldlang, "/stand/%s", cp);
+	    return buf;
+	}
+	if (cp == default_lang)
+	    break;
+	cp = default_lang;
     }
     return NULL;
 }
@@ -245,7 +194,6 @@ systemChangeFont(const u_char font[])
 	if (ioctl(0, PIO_FONT8x16, font) < 0)
 	    msgConfirm("Sorry!  Unable to load font for %s", getenv("LANG"));
     }
-    dialog_clear();
 }
 
 void
@@ -277,8 +225,10 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    init_acs();
 	    cbreak(); noecho();
 	}
-	dialog_clear();
     }
+    clear();
+    refresh();
+    dialog_clear();
 }
 
 void
@@ -289,7 +239,6 @@ systemChangeScreenmap(const u_char newmap[])
 	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
 		       getenv("LANG"));
     }
-    dialog_clear();
 }
 
 int

@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.12 1995/02/14 21:08:45 rgrimes Exp $
+# $Id: Makefile,v 1.13.2.1 1995/06/07 05:52:05 jkh Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c
@@ -26,6 +26,7 @@ CFLAGS+=	-DKERBEROS \
 		-I${.CURDIR}/../../eBones/include \
 		-I${.CURDIR}/../../eBones/libkadm
 LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err
+DISTRIBUTION=	krb
 .endif
 
 afterinstall:

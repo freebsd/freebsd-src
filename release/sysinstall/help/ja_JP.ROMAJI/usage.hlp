@@ -11,7 +11,6 @@ SHIFT-TAB       mae no koumoku mataha group ni idou shimasu.
 LEFT ARROW      mae no koumoku mataha group ni idou shimasu. (SHIFT-TAB to
                 onaji).
 RETURN          koumoku wo sentaku shimasu.
-ESC             sub-shell wo jikkou shimasu. exit de modorimasu.
 PAGE UP         text box de, mae no page ni modorimasu.
 PAGE DOWN       text box de, tsugi no page ni susumimasu.
 SPACE           "radio button" ya fukusuu no sentakushi ga aru menu de,

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.24 1995/04/28 04:16:30 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.25.2.2 1995/06/10 09:04:13 jkh Exp $";
 #endif
 
 /*
@@ -213,7 +213,7 @@ pkg_do(char *pkg)
 		if (Verbose)
 		    printf(" which is not currently loaded");
 		if (!isURL(p->name)) {
-		    snprintf(path, FILENAME_MAX, "%s/%s", Home, p->name);
+		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
 		    if (fexists(path))
 			cp = path;
 		    else
@@ -393,14 +393,13 @@ pkg_do(char *pkg)
 	    	    (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
 	    	    basename_of(p->name), REQUIRED_BY_FNAME);
 	    cfile = fopen(contents, "a");
-	    if (!cfile) {
-		whinge("Can't open dependency file '%s'!\n\tDependency registration incomplete.",
-		   contents);
-		continue;
+	    if (!cfile)
+		whinge("Warning: Can't open dependency file '%s'!\n\tDependency registration is incomplete.", contents);
+	    else {
+		fprintf(cfile, "%s\n", basename_of(PkgName));
+		if (fclose(cfile) == EOF)
+		    warn("Cannot properly close file %s", contents);
 	    }
-	    fprintf(cfile, "%s\n", basename_of(PkgName));
-	    if (fclose(cfile) == EOF)
-		warn("Cannot properly close file %s", contents);
 	}
 	if (Verbose)
 	    printf("Package %s registered in %s\n", PkgName, LogDir);

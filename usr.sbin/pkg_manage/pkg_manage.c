@@ -192,7 +192,9 @@ get_pkginfo(void)
     }
 
     if (sb.st_size == 0) {
+#if 0
 	dialog_notify("No packages installed or no info available");
+#endif
 	fclose(f);
 	unlink(tmp_file);
 	free(tmp_file);

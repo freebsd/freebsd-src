@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.10 1995/01/20 22:40:02 wollman Exp $
+#	$Id: Makefile,v 1.11.2.1 1995/06/07 05:49:26 jkh Exp $
 
 SUBDIR=	include des acl kdb krb libkadm
 
@@ -12,22 +12,26 @@ SUBDIR+= ext_srvtab kdb_destroy kdb_edit \
 
 SDIR= ${.CURDIR}/..
 
-CODAI?=	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; ${MAKE} ${MFLAGS} depend all install
+CODAI=	${MAKE} ${MFLAGS} cleandir; \
+	${MAKE} ${MFLAGS} obj; \
+	${MAKE} ${MFLAGS} depend all install
+
+CODAD=	${MAKE} ${MFLAGS} MAKE_EBONES=yes cleandir; \
+	${MAKE} ${MFLAGS} MAKE_EBONES=yes obj; \
+	${MAKE} ${MFLAGS} MAKE_EBONES=yes depend all distribute
 
 # These are the programs which depend on kerberos
-# It's nice to know who they are
 kprog:
 	cd ${SDIR}/bin/rcp; ${CODAI}
 	cd ${SDIR}/libexec/rlogind; ${CODAI}
 	cd ${SDIR}/libexec/rshd; ${CODAI}
+	cd ${SDIR}/sbin/mount_nfs; ${CODAI}
+	cd ${SDIR}/sbin/nfsd; ${CODAI}
 	cd ${SDIR}/usr.bin/login; ${CODAI}
 	cd ${SDIR}/usr.bin/passwd; ${CODAI}
 	cd ${SDIR}/usr.bin/rlogin; ${CODAI}
 	cd ${SDIR}/usr.bin/rsh; ${CODAI}
 	cd ${SDIR}/usr.bin/su; ${CODAI}
-	cd ${SDIR}/usr.bin/passwd; ${CODAI}
-	cd ${SDIR}/libexec/kpasswdd; ${CODAI}
 
 bootstrap:
 	cd include; ${MAKE} ${MFLAGS} install
@@ -40,17 +44,16 @@ bootstrap:
 	${MAKE} ${MFLAGS} depend all install kprog
 
 help-distribute:	distribute
-	cd ${SDIR}/bin/rcp; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/libexec/rlogind; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/libexec/rshd; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/login; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/passwd; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/rlogin; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/rsh; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/su; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/usr.bin/passwd; ${MAKE} ${MFLAGS} distribute
-	cd ${SDIR}/libexec/kpasswdd; ${MAKE} ${MFLAGS} distribute
-
+	cd ${SDIR}/bin/rcp; ${CODAD}
+	cd ${SDIR}/libexec/rlogind; ${CODAD}
+	cd ${SDIR}/libexec/rshd; ${CODAD}
+	cd ${SDIR}/sbin/mount_nfs; ${CODAD}
+	cd ${SDIR}/sbin/nfsd; ${CODAD}
+	cd ${SDIR}/usr.bin/login; ${CODAD}
+	cd ${SDIR}/usr.bin/passwd; ${CODAD}
+	cd ${SDIR}/usr.bin/rlogin; ${CODAD}
+	cd ${SDIR}/usr.bin/rsh; ${CODAD}
+	cd ${SDIR}/usr.bin/su; ${CODAD}
 
 .include <bsd.subdir.mk>
 

@@ -10,7 +10,6 @@ FLÈCHE DROITE   Aller sur la rubrique suivante. (même chose que TAB).
 MAJ-TAB         Aller sur la rubrique ou le groupe précédent.
 FLÈCHE GAUCHE   Aller sur la rubrique précédente. (même chose que MAJ-TAB).
 ENTRÉE          Sélectionne la rubrique.
-ESC             Lance un sous-shell (pour diagnostics). Exit sort du shell.
 PAGE PRÉC.      Remonte d'une page, dans les boîtes de texte.
 PAGE SUIV.      Descend d'une page, dans les boîtes de texte.
 ESPACE          Sélectionne/désélectionne l'élément (menus à choix multiples).

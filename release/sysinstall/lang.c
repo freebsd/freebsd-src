@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: lang.c,v 1.5 1995/05/24 21:42:43 jkh Exp $
+ * $Id: lang.c,v 1.6.2.3 1995/06/05 04:39:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,9 +48,9 @@ u_char default_scrnmap[256];
 void
 lang_set_Danish(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("da_DK.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("da_DK.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1,
 			 "cons25l1-m", termcap_cons25l1_m);
 }
@@ -58,45 +58,45 @@ lang_set_Danish(char *str)
 void
 lang_set_Dutch(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("nl_NL.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("nl_NL.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
 void
 lang_set_English(char *str)
 {
-    systemChangeFont(font_cp850_8x16);
-    systemChangeLang("en_US.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("en_US.ISO8859-1");
+    systemChangeFont(font_cp850_8x16);
     systemChangeTerminal("cons25", termcap_cons25, "cons25-m", termcap_cons25_m);
 }
 
 void
 lang_set_French(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("fr_FR.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("fr_FR.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
 void
 lang_set_German(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("de_DE.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("de_DE.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
 void
 lang_set_Italian(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("it_IT.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("it_IT.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
@@ -104,44 +104,44 @@ lang_set_Italian(char *str)
 void
 lang_set_Japanese(char *str)
 {
-    systemChangeFont(font_cp850_8x16); /* must prepare JIS X0201 font? */
-    systemChangeLang("ja_JP.ROMAJI");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("ja_JP.ROMAJI");
+    systemChangeFont(font_cp850_8x16); /* must prepare JIS X0201 font? */
     systemChangeTerminal("cons25", termcap_cons25, "cons25-m", termcap_cons25_m);
 }
 
 void
 lang_set_Norwegian(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("no_NO.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("no_NO.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
 void
 lang_set_Russian(char *str)
 {
-    systemChangeFont(font_cp866_8x16);
-    systemChangeLang("ru_SU.KOI8-R");
     systemChangeScreenmap(koi8_r2cp866);
+    systemChangeLang("ru_SU.KOI8-R");
+    systemChangeFont(font_cp866_8x16);
     systemChangeTerminal("cons25r", termcap_cons25r, "cons25r-m", termcap_cons25r_m);
 }
 
 void
 lang_set_Spanish(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("es_ES.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("es_ES.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }
 
 void
 lang_set_Swedish(char *str)
 {
-    systemChangeFont(font_iso_8x16);
-    systemChangeLang("sv_SV.ISO8859-1");
     systemChangeScreenmap(default_scrnmap);
+    systemChangeLang("sv_SE.ISO8859-1");
+    systemChangeFont(font_iso_8x16);
     systemChangeTerminal("cons25l1", termcap_cons25l1, "cons25l1-m", termcap_cons25l1_m);
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.14 1995/05/29 13:37:41 jkh Exp $
+ * $Id: config.c,v 1.15.2.28 1995/06/10 08:24:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,10 +83,10 @@ nameof(Chunk *c1)
 static char *
 mount_point(Chunk *c1)
 {
-    if (c1->type == fat || (c1->type == part && c1->subtype != FS_SWAP))
-	return ((PartInfo *)c1->private)->mountpoint;
-    else if (c1->type == part && c1->subtype == FS_SWAP)
+    if (c1->type == part && c1->subtype == FS_SWAP)
 	return "none";
+    else if (c1->type == part || c1->type == fat)
+	return ((PartInfo *)c1->private)->mountpoint;
     return "/bogus";
 }
 
@@ -101,7 +101,7 @@ fstype(Chunk *c1)
 	else
 	    return "swap";
     }
-    return "bogfs";
+    return "bogus";
 }
 
 static char *
@@ -121,13 +121,9 @@ fstype_short(Chunk *c1)
 static int
 seq_num(Chunk *c1)
 {
-    if (c1->type == part) {
-	if (c1->subtype != FS_SWAP)
-	    return 1;
-	else
-	    return 0;
-    }
-    return -1;
+    if (c1->type == part && c1->subtype != FS_SWAP)
+	return 1;
+    return 0;
 }
 
 void
@@ -139,6 +135,12 @@ configFstab(void)
     int i, cnt;
     Chunk *c1, *c2;
 
+    if (!RunningAsInit) {
+	if (file_readable("/etc/fstab"))
+	    return;
+	else
+	    msgConfirm("Attempting to rebuild your /etc/fstab file.\nWarning: If you had any CD devices in use before running\nsysinstall then they may NOT be found in this run!");
+    }
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
@@ -146,6 +148,7 @@ configFstab(void)
     }
 
     /* Record all the chunks */
+    nchunks = 0;
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
 	    continue;
@@ -155,11 +158,11 @@ configFstab(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->private)
+		    if (c2->type == part && (c2->subtype == FS_SWAP || c2->private))
 			chunk_list[nchunks++] = c2;
 		}
 	    }
-	    else if (c1->type == fat)
+	    else if (c1->type == fat && c1->private)
 		chunk_list[nchunks++] = c1;
 	}
     }
@@ -175,14 +178,11 @@ configFstab(void)
 
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
-    for (i = 0; i < nchunks; i++) {
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
-		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]),
-		seq_num(chunk_list[i]));
-    }
-
+    for (i = 0; i < nchunks; i++)
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
+		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc", NULL);
-    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs rw 0 0\n");
+    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -191,7 +191,7 @@ configFstab(void)
     /* Write the first one out as /cdrom */
     if (cnt) {
 	Mkdir("/cdrom", NULL);
-	fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660 ro 0 0\n", devs[0]->name);
+	fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -200,9 +200,11 @@ configFstab(void)
 
 	sprintf(cdname, "/cdrom%d", i);
 	Mkdir(cdname, NULL);
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660 ro 0 0\n", devs[i]->name, cdname);
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
+    if (isDebug())
+	msgDebug("Wrote out /etc/fstab file\n");
 }
 
 /*
@@ -266,7 +268,7 @@ configSysconfig(void)
 	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
 	    cnt = deviceCount(devp);
 	    for (j = 0; j < cnt; j++) {
-		if (devp[j]->private) {
+		if (devp[j]->private && strncmp(devp[j]->name, "cuaa", 4)) {
 		    char iname[64];
 
 		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
@@ -277,6 +279,12 @@ configSysconfig(void)
 	}
     }
     fclose(fp);
+
+    /* If we're an NFS server, we need an exports file */
+    if (getenv("nfs_server") && !file_readable("/etc/exports")) {
+	msgConfirm("You have chosen to be an NFS server but have not yet configured\nthe /etc/exports file.  The format for an exports entry is:\n     <mountpoint> <opts> <host [..host]>\nWhere <mounpoint> is the name of a filesystem as specified\nin the Label editor, <opts> is a list of special options we\nwon't concern ourselves with here (``man exports'' when the\nsystem is fully installed) and <host> is one or more host\nnames who are allowed to mount this file system.  Press\n[ENTER] now to invoke the editor on /etc/exports");
+	systemExecute("vi /etc/exports");
+    }
 }
 
 int
@@ -290,14 +298,30 @@ configSaverTimeout(char *str)
     return 0;
 }
 
+int
+configNTP(char *str)
+{
+    char *val;
+
+    val = msgGetInput(NULL, "Enter the name of an NTP server");
+    if (val)
+	variable_set2("ntpdate", val);
+    return 0;
+}
+
 void
 configResolv(void)
 {
     FILE *fp;
+    char *cp;
 
-    if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
-	msgConfirm("Warning: You haven't set a domain name or nameserver.  You will need\nto configure your /etc/resolv.conf file manually to fully use network services.");
+    if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
+
+    if (!getenv(VAR_NAMESERVER)) {
+	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
+	    msgConfirm("Warning:  Missing name server value - network operations\nmay fail as a result!");
+	goto skip;
     }
     Mkdir("/etc", NULL);
     fp = fopen("/etc/resolv.conf", "w");
@@ -305,9 +329,34 @@ configResolv(void)
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
-    fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
+    if (getenv(VAR_DOMAINNAME))
+	fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     fclose(fp);
+    if (isDebug())
+	msgDebug("Wrote out /etc/resolv.conf\n");
+
+skip:
+    /* Tack ourselves at the end of /etc/hosts */
+    cp = getenv(VAR_IPADDR);
+    if (cp && *cp != '0' && getenv(VAR_HOSTNAME)) {
+	fp = fopen("/etc/hosts", "a");
+	fprintf(fp, "%s\t\t%s\n", cp, getenv(VAR_HOSTNAME));
+	fclose(fp);
+	if (isDebug())
+	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
+    }
+}
+
+int
+configRoutedFlags(char *str)
+{
+    char *val;
+
+    val = msgGetInput("-q", "Specify the flags for routed; -q is the default, -s is\na good choice for gateway machines.");
+    if (val)
+	variable_set2("routedflags", val);
+    return 0;
 }
 
 int
@@ -317,39 +366,26 @@ configPackages(char *str)
     pid_t pid;
     Boolean onCD;
 
-    onCD = FALSE;
+    msgConfirm("Warning:  This utility (pkg_manage) is still somewhat experimental\nand may not function for all packages.  If it fails to load the\npackages you want, try running it directly once the system is up or use the\npkg_add, pkg_info and pkg_delete utilities directly.");
     i = -1;
-    if (!mediaDevice || mediaDevice->type != DEVICE_TYPE_CDROM) {
-	if (getpid() == 1) {
-	    if (!mediaSetCDROM(NULL))
-		onCD = FALSE;
-	    else
+    /* If we're running as init, we know that a CD in the drive is probably ours */
+    onCD = file_readable("/cdrom/packages");
+    if (!onCD && RunningAsInit) {
+	if (mediaSetCDROM(NULL)) {
+	    if ((*mediaDevice->init)(mediaDevice))
 		onCD = TRUE;
 	}
-	else
-	    onCD = FALSE;
     }
-    else if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM)
-	onCD = TRUE;
-    if (onCD) {
-	if (!(pid = fork())) {
-	    execl("/stand/sh", "sh", "-c", "pkg_manage /cdrom", (char *)NULL);
+
+    if (!(pid = fork())) {
+	if (onCD && chdir("/cdrom/packages/All"))
 	    exit(1);
-	}
-	else {
-	    pid = waitpid(pid, (int *)&pstat, 0);
-	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-	}
+	execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
+	exit(1);
     }
     else {
-	if (!(pid = fork())) {
-	    execl("/stand/sh", "sh", "-c", "pkg_manage", (char *)NULL);
-	    exit(1);
-	}
-	else {
-	    pid = waitpid(pid, (int *)&pstat, 0);
-	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-	}
+	pid = waitpid(pid, (int *)&pstat, 0);
+	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
     }
     if (i != 0 && isDebug())
 	msgDebug("pkg_manage returns status of %d\n", i);

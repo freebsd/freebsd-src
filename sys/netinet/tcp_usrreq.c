@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.13 1995/04/09 01:29:28 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.14.2.1 1995/06/09 03:21:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -408,6 +408,8 @@ tcp_connect(tp, nam)
 	 * TIME_WAIT state, creating an ADDRINUSE error.
 	 */
 	error = in_pcbladdr(inp, nam, &ifaddr);
+	if (error)
+		return error;
 	oinp = in_pcblookup(inp->inp_pcbinfo->listhead,
 	    sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr

@@ -69,6 +69,10 @@ static struct in_addr *lookup_internet_addr();
 #define PERMIT		1
 #define DENY		0
 
+#ifndef CONSOLE
+#define CONSOLE		"console"
+#endif
+
 struct login_info {
     char   *host_name;			/* host name */
     struct in_addr *internet_addr;	/* null terminated list */
@@ -163,7 +167,7 @@ struct login_info *login_info;
     int     permission;
 
 #ifdef PERMIT_CONSOLE
-    if (login_info->port != 0 && strcasecmp(login_info->port, "console") == 0)
+    if (login_info->port != 0 && strcasecmp(login_info->port, CONSOLE) == 0)
 	return (1);
 #endif
 

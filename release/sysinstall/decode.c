@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.4 1995/05/17 14:39:35 jkh Exp $
+ * $Id: decode.c,v 1.5.2.3 1995/06/02 15:30:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@ decode(DMenu *menu, char *name)
     DMenuItem *tmp;
 
     for (tmp = menu->items; tmp->title; tmp++)
-	if (!strcmp(name, (*tmp->title == '*') ? tmp->title + 1 : tmp->title))
+	if (!strcmp(name, tmp->title))
 	    break;
     if (!tmp->title)
 	return NULL;
@@ -62,11 +62,6 @@ dispatch(DMenuItem *tmp, char *name)
     Boolean failed = FALSE;
 
     switch (tmp->type) {
-	/* User whapped ESC twice and wants a sub-shell */
-    case DMENU_SHELL_ESCAPE:
-	systemShellEscape();
-	break;
-
 	/* We want to simply display a file */
     case DMENU_DISPLAY_FILE:
 	systemDisplayFile((char *)tmp->ptr);
@@ -74,7 +69,7 @@ dispatch(DMenuItem *tmp, char *name)
 
 	/* It's a sub-menu; recurse on it */
     case DMENU_SUBMENU:
-	dmenuOpenSimple((DMenu *)tmp->ptr);
+	(void)dmenuOpenSimple((DMenu *)tmp->ptr);
 	break;
 
 	/* Execute it as a system command */
@@ -105,6 +100,10 @@ dispatch(DMenuItem *tmp, char *name)
 	*((unsigned int *)tmp->ptr) |= tmp->parm;
 	break;
 
+    case DMENU_SET_VALUE:
+	*((unsigned int *)tmp->ptr) = tmp->parm;
+	break;
+
     case DMENU_NOP:
 	break;
 
@@ -122,6 +121,15 @@ decode_and_dispatch_multiple(DMenu *menu, char *names)
 
     string_prune(names);
     names = string_skipwhite(names);
+
+    /* KLUDGE ALERT:
+     * To make multi-choice flag arrays work this assumes that ALL items in
+     * a menu appear in the same mask!!  If you need mixed masks, use
+     * submenus.
+     */
+    if (menu->items[0].type == DMENU_SET_FLAG)
+	*((unsigned int *)menu->items[0].ptr) = 0;
+
     while (names) {
 	char *cp;
 

@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.10 1995/05/29 11:01:31 jkh Exp $
+ * $Id: misc.c,v 1.11.2.2 1995/06/01 22:32:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -243,34 +243,3 @@ Mount(char *mountp, void *dev)
     }
     return 0;
 }
-
-int
-Mount_DOS(char *mountp, void *dev)
-{
-    struct ufs_args ufsargs;
-    char device[80];
-    char mountpoint[FILENAME_MAX];
-
-    if (*((char *)dev) != '/') {
-    	sprintf(device, "/mnt/dev/%s", (char *)dev);
-	sprintf(mountpoint, "/mnt%s", mountp);
-    }
-    else {
-	strcpy(device, dev);
-	strcpy(mountpoint, mountp);
-    }
-    memset(&ufsargs,0,sizeof ufsargs);
-
-    if (Mkdir(mountpoint, NULL)) {
-	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
-	return 1;
-    }
-    msgDebug("mount %s %s\n", device, mountpoint);
-    ufsargs.fspec = device;
-    if (mount(MOUNT_MSDOS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
-	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
-	return 1;
-    }
-    return 0;
-}
-

@@ -10,7 +10,6 @@ PFEIL NACH RECHTS Zum nächsten Feld oder zur nächsten Gruppe (wie TAB).
 SHIFT-TAB         Zum vorherigen Feld oder zur vorherigen Gruppe.
 PFEIL NACH LINKS  Zum vorherigen Feld oder zur vorherigen Gruppe (wie SH-TAB).
 RETURN            Menüpunkt auswählen.
-ESC               Eine Subshell zu Hilfszwecken starten. `exit' beendet sie.
 BILD NACH OBEN    Innerhalb von Textkästen: eine Seite zurück.
 BILD NACH UNTEN   Innerhalb von Textkästen: eine Seite vor.
 LEERTASTE         In Menüs mit mehreren Auswahlmöglichkeiten: umschalten.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.33 1995/05/11 07:44:40 bde Exp $
+ *	$Id: clock.c,v 1.34.2.1 1995/06/09 03:29:17 davidg Exp $
  */
 
 /*
@@ -453,7 +453,7 @@ inittodr(time_t base)
 	splx(s);
 
 	/* Look	if we have a RTC present and the time is valid */
-	if (rtcin(RTC_STATUSD) != RTCSD_PWR)
+	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto wrong_time;
 
 	/* wait	for time update	to complete */
