@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * $Id: tcpip.h,v 1.2 1994/08/02 07:49:19 davidg Exp $
+ * $Id: tcpip.h,v 1.3 1994/08/21 05:27:40 paul Exp $
  */
 
 #ifndef _NETINET_TCPIP_H_
@@ -44,6 +44,16 @@ struct tcpiphdr {
 	struct 	ipovly ti_i;		/* overlaid ip structure */
 	struct	tcphdr ti_t;		/* tcp header */
 };
+#ifdef notyet
+/*
+ * Tcp+ip header, after ip options removed but including TCP options.
+ */
+struct full_tcpiphdr {
+	struct 	ipovly ti_i;		/* overlaid ip structure */
+	struct	tcphdr ti_t;		/* tcp header */
+	char	ti_o[TCP_MAXOLEN];	/* space for tcp options */
+};
+#endif /* notyet */
 #define	ti_next		ti_i.ih_next
 #define	ti_prev		ti_i.ih_prev
 #define	ti_x1		ti_i.ih_x1
