@@ -364,6 +364,7 @@ ukbd_detach(device_t self)
 	struct ukbd_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (sc->sc_enabled)
 		return (ENXIO);
 

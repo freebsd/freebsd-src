@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_subr.c,v 1.27 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: usb_subr.c,v 1.6 1999/01/07 23:31:40 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -725,7 +725,10 @@ usbd_probe_and_attach(parent, dev, port, addr)
 {
 	struct usb_attach_arg uaa;
 	usb_device_descriptor_t *dd = &dev->ddesc;
-	int r, found, i, confi, nifaces;
+#if defined(__NetBSD__)
+	int found = 0;
+#endif
+	int r, i, confi, nifaces;
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 
 #if defined(__FreeBSD__)
@@ -780,19 +783,25 @@ usbd_probe_and_attach(parent, dev, port, addr)
 			ifaces[i] = &dev->ifaces[i];
 		uaa.ifaces = ifaces;
 		uaa.nifaces = nifaces;
-		for (found = i = 0; i < nifaces; i++) {
+		for (i = 0; i < nifaces; i++) {
 			if (!ifaces[i])
 				continue; /* interface already claimed */
 			uaa.iface = ifaces[i];
 			uaa.ifaceno = ifaces[i]->idesc->bInterfaceNumber;
 			if (USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, 
 					  usbd_submatch)) {
+#if defined(__NetBSD__)
 				found++;
 				ifaces[i] = 0; /* consumed */
+#elif defined(__FreeBSD__)
+				return (USBD_NORMAL_COMPLETION);
+#endif
 			}
 		}
+#if defined(__NetBSD__)
 		if (found != 0)
 			return (USBD_NORMAL_COMPLETION);
+#endif
 	}
 	/* No interfaces were attached in any of the configurations. */
 	if (dd->bNumConfigurations > 1)/* don't change if only 1 config */

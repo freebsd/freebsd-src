@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi.h,v 1.16 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi.h,v 1.4 1999/01/07 23:31:43 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -177,8 +177,8 @@ usbd_status usbd_interface_count
 	__P((usbd_device_handle dev, u_int8_t *count));
 #if 0
 u_int8_t usbd_bus_count __P((void));
-#endif
 usbd_status usbd_get_bus_handle __P((u_int8_t index, usbd_bus_handle *bus));
+#endif
 usbd_status usbd_get_root_hub 
 	__P((usbd_bus_handle bus, usbd_device_handle *dev));
 usbd_status usbd_port_count __P((usbd_device_handle hub, u_int8_t *nports));

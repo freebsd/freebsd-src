@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi.c,v 1.20 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi.c,v 1.7 1999/01/07 23:31:42 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -418,14 +418,14 @@ usbd_abort_pipe(pipe)
 	usbd_pipe_handle pipe;
 {
 	usbd_status r;
-	int s, st;
+	int s, state;
 
 	if (pipe->iface->state != USBD_INTERFACE_ACTIVE)
 		return (USBD_INTERFACE_NOT_ACTIVE);
 	s = splusb();
-	st = pipe->state;
+	state = pipe->state;
 	r = usbd_ar_pipe(pipe);
-	pipe->state = st;
+	pipe->state = state;
 	splx(s);
 	return (r);
 }
@@ -664,9 +664,7 @@ usbd_bus_count()
 {
 	return (usb_bus_count());
 }
-#endif
 
-#if defined(__NetBSD__)
 usbd_status 
 usbd_get_bus_handle(index, bus)
 	u_int8_t index;
@@ -1251,7 +1249,7 @@ usbd_driver_load(module_t mod, int what, void *arg)
 		if (error)
 			return 0;	/* XXX maybe transient, or error? */
 
-		for (devcount--; devcount >= 0; devcount--)
+		for (; devcount; devcount--)
 			USB_RECONFIGURE(devlist[devcount]);
 
 		free(devlist, M_TEMP);
