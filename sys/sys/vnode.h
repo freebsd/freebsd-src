@@ -453,8 +453,7 @@ struct vop_generic_args {
 				 || (vp)->v_tag == VT_NFS		\
 				 || (vp)->v_tag == VT_LFS		\
 				 || (vp)->v_tag == VT_ISOFS		\
-				 || (vp)->v_tag == VT_MSDOSFS		\
-				 || (vp)->v_tag == VT_DEVFS)
+				 || (vp)->v_tag == VT_MSDOSFS)
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\
