@@ -35,14 +35,14 @@
 # Bugs: sure
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.2 1995/03/18 02:11:56 ache Exp $
+# $Id: catman.pl,v 1.10 1995/03/18 19:57:22 w Exp $
 #
 
 sub usage {
 
 warn <<EOF;
-usage: catman [-h|-help] [-f|-force] [-p|-print]
-	      [-v|-verbose] directories ...
+usage: catman [-h|-help] [-f|-force] [-p|-print] [-r|remove]
+	      [-v|-verbose] [directories ...]
 EOF
 
 exit 1;
@@ -69,12 +69,12 @@ sub variables {
     $SIG{'TERM'} = 'Exit';
     $tmp = '';			# tmp file
 
-    $ENV{'PATH'} = "/bin:/usr/bin";
+    $ENV{'PATH'} = '/bin:/usr/bin';
 }
 
 sub  Exit {
-    unlink($tmp) if $tmp =~ /^\//; # unlink if a filename
-    die "catman: die on signal SIG@_\n";
+    unlink($tmp) if $tmp ne ""; # unlink if a filename
+    die "$0: die on signal SIG@_\n";
 }
 
 sub parse {
@@ -85,24 +85,47 @@ sub parse {
 	last if /^--$/;
 	if    (/^--?(f|force)$/)     { $force = 1 }
 	elsif (/^--?(p|print)$/)     { $print = 1 }
-#	elsif (/^--?(r|remove)$/)    { $remove = 1 }
+	elsif (/^--?(r|remove)$/)    { $remove = 1 }
 	elsif (/^--?(v|verbose)$/)   { $verbose = 1 }
 	else { &usage }
     }
 
-    return @argv if $#argv >= 0;
+    return &absolute_path(@argv) if $#argv >= 0;
     return @defaultmanpath if $#defaultmanpath >= 0;
 
     warn "Missing directories\n"; &usage;
 }
 
-# stript unused '/'
+# make relative path to absolute path
+sub absolute_path {
+    local(@dirlist) = @_;
+    local($pwd, $dir, @a);
+
+    $pwd = $ENV{'PWD'};
+
+    foreach $dir (@dirlist) {
+	if ($dir !~ "^/") {
+	    chop($pwd = `pwd`) if (!$pwd || $pwd !~ /^\//);
+	    push(@a, "$pwd/$dir");
+	} else {
+	    push(@a, $dir);
+	}
+    }
+    return @a;
+}
+
+# strip unused '/'
 # e.g.: //usr///home// -> /usr/home
 sub stripdir {
     local($dir) = @_;
 
     $dir =~ s|/+|/|g;		# delete double '/'
     $dir =~ s|/$||;		# delete '/' at end
+    $dir =~ s|/(\.\/)+|/|g;	# delete ././././
+
+    $dir =~ s|/+|/|g;		# delete double '/'
+    $dir =~ s|/$||;		# delete '/' at end
+    $dir =~ s|/\.$||;		# delete /. at end
     return $dir if $dir ne "";
     return '/';
 }
@@ -111,14 +134,15 @@ sub stripdir {
 sub parse_dir {
     local($dir) = @_;
     local($subdir, $catdir);
-    local($pwd);
+    local($dev,$ino) = (stat($dir))[01];
 
-    # not absolute path
-    if ($dir !~ /^\//) {
-	chop($cwd = `pwd`);
-	$dir = "$cwd/$dir";
+    if ($dir_visit{$dev,$ino}) {
+	warn "$dir already parsed: $dir_visit{$dev,$ino}\n";
+	return 1;
     }
-
+    $dir_visit{$dev,$ino} = $dir;
+   # $| = 1 if $verbose;
+    
     if ($dir =~ /man$/) {
 	warn "open manpath directory ``$dir''\n" if $verbose;
 	if (!opendir(DIR, $dir)) {
@@ -154,6 +178,7 @@ sub catdir_create {
 	    $exit = 1;
 	    return 0;
 	}
+	return 1;
     }
 
     warn "mkdir ``$catdir''\n" if $verbose || $print;
@@ -164,8 +189,8 @@ sub catdir_create {
 	    $exit = 1;
 	    return 0;
 	}
+	return 1;
     }
-    return 1;
 }
 
 # I: /usr/share/man/man9
@@ -173,7 +198,7 @@ sub catdir_create {
 sub man2cat {
     local($man) = @_;
 
-    $man =~ s/man(\w+)/cat$1/;
+    $man =~ s/man(\w+)$/cat$1/;
     return $man;
 }
 
@@ -181,10 +206,10 @@ sub parse_subdir {
     local($subdir) = @_;
     local($file, $f, $catdir, $catdir_short);
     local($mtime_man, $mtime_cat);
-    local($read);
+    local(%read);
 
     if (!opendir(D, $subdir)) {
-	warn "opendir ``$subdir'': $!\n"; return 0;
+	warn "opendir ``$subdir'': $!\n"; $exit = 1; return 0;
     }
     
     $catdir = &man2cat($subdir);
@@ -199,12 +224,28 @@ sub parse_subdir {
     warn "open man directory: ``$subdir''\n" if $verbose;
 
     foreach $file (readdir(D)) {
-	next if $file =~ /^(\.|\.\.)$/; # skip current and parent directory
+	# skip current and parent directory
+	next if $file eq "." || $file eq "..";
 
-	$read{$file} = 1;
+	# fo_09-o.bar0
+	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
+	    &garbage("$subdir/$file", "Assume garbage")
+		unless -d $file;
+	    next;
+	}
 
-	# replace readable_file with  stat && ...
-	# faster, hackers choise :-)
+	if ($file !~ /\.gz$/) {
+	    if (-e "$file.gz") {
+		&garbage("$subdir/$file", 
+			 "Manpage unused, see compressed version");
+		next;
+	    }
+	    warn "$subdir/$file is uncompressed\n" if $verbose;
+	    $cfile = "$file.gz";
+	} else {
+	    $cfile = "$file";
+	}
+
 	if (!(($mtime_man = ((stat("$file"))[9])) && -r _ && -f _)) {
 	    if (! -d _) {
 		warn "Cannot read file: ``$subdir/$file''\n";
@@ -216,37 +257,22 @@ sub parse_subdir {
 	    next;
 	}
 
-	# fo_09-o.bar0
-	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
-	    warn "Assume garbage: ``$subdir/$file''\n";
-	    next;
-	}
+	$read{$file} = 1;
 
 	# Assume catpages always compressed
-	# if ($mtime_cat = &readable_file("$catdir_short/$file")) {
-	if (($mtime_cat = ((stat("$catdir_short/$file"))[9])) 
+	if (($mtime_cat = ((stat("$catdir_short/$cfile"))[9])) 
 	    && -r _ && -f _) {
 	    if ($mtime_man > $mtime_cat || $force) {
-		&nroff("$subdir/$file", "$catdir/$file");
+		&nroff("$subdir/$file", "$catdir/$cfile");
 	    } else {
 		warn "up to date: $subdir/$file\n" if $verbose;
-	    }
-	} elsif (($mtime_cat = ((stat("$catdir_short/$file$ext"))[9]))
-		 && -r _ && -f _) {
-	    if ($mtime_man > $mtime_cat || $force) {
-		&nroff("$subdir/$file", "$catdir/$file");
-	    } else {
-		warn "up to date: $subdir/$file\n" if $verbose;
+		#print STDERR "." if $verbose;
 	    }
 	} else {
-	    # be paranoid
-	    unlink("$catdir/$file");
-
-	    &nroff("$subdir/$file", "$catdir/$file");
+	    &nroff("$subdir/$file", "$catdir/$cfile");
 	}
     }
     closedir D;
-
 
     if (!opendir(D, $catdir)) {
 	warn "opendir ``$catdir'': $!\n"; return 0;
@@ -257,23 +283,39 @@ sub parse_subdir {
 	next if $file =~ /^(\.|\.\.)$/;	# skip current and parent directory
 
 	if ($file !~ /^[\w\-\[\.]+\.\w+$/) {
-	    warn "Assume garbage: ``$catdir/$file''\n"
+	    &garbage("$catdir/$file", "Assume garbage")
 		unless -d "$catdir/$file";
+	    next;
 	}
 
-	unless ($read{$file}) {
+	if ($file !~ /\.gz$/ && $read{"$file.gz"}) {
+	    &garbage("$catdir/$file", 
+		     "Catpage unused, see compressed version");
+	} elsif (!$read{$file}) {
 	    # maybe a bug in man(1)
 	    # if both manpage and catpage are uncompressed, man reformats
 	    # the manpage and puts a compressed catpage to the
 	    # already existing uncompressed catpage
-	    $f = $file; $f =~ s/$ext$//;
-	    # man page is uncompressed
-	    next if $read{$f};
+	    ($f = $file) =~ s/\.gz$//;
 
-	    warn "Catpage without manpage: $catdir/$file\n";
+	    # man page is uncompressed, catpage is compressed
+	    next if $read{$f};
+	    &garbage("$catdir/$file", "Catpage without manpage");
 	}
     }
     closedir D;
+}
+
+sub garbage {
+    local($file, @text) = @_;
+
+    warn "@text: ``$file''\n";
+    if ($remove) {
+	warn "unlink $file\n";
+	unless ($print) {
+	    unlink($file) || warn "unlink $file: $!\n" ;
+	}
+    }
 }
 
 sub nroff {
