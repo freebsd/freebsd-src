@@ -12,7 +12,6 @@ MLINKS=		groff_ms.7 ms.7
 MLINKS+=	groff_man.7 man.7
 MLINKS+=	groff_me.7 me.7
 MLINKS+=	groff_mdoc.7 mdoc.7 groff_mdoc.7 mdoc.samples.7
-MLINKS+=	groff_mwww.7 mwww.7
 
 CLEANFILES=	${MAN} ${MDOCFILES:S/$/-s/} ${STRIPFILES:S/$/-s/} ${SPECIALFILES:S/$/-s/}
 
