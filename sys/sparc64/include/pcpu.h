@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,23 +29,38 @@
 #ifndef	_MACHINE_GLOBALDATA_H_
 #define	_MACHINE_GLOBALDATA_H_
 
-struct	lock_list_entry;
-struct	pcb;
-struct	proc;
+#ifdef _KERNEL
 
-struct	globaldata {
-	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct	pcb *gd_curpcb;
-	struct	proc *gd_curproc;
-	struct	proc *gd_idleproc;
-	u_int	gd_cpuid;
-	u_int	gd_other_cpus;
-	struct	lock_list_entry *gd_spinlocks;
-	struct	timeval gd_switchtime;
+#include <sys/queue.h>
+
+/*
+ * This structure maps out the global data that needs to be kept on a
+ * per-cpu basis.  genassym uses this to generate offsets for the assembler
+ * code, which also provides external symbols so that C can get at them as
+ * though they were really globals. This structure is pointed to by
+ * the per-cpu system value.
+ * Inside the kernel, the globally reserved register g7 is used to
+ * point at the globaldata structure.
+ */
+struct globaldata {
+	struct	proc *gd_curproc;		/* current process */
+	struct	proc *gd_idleproc;		/* idle process */
+	struct	pcb *gd_curpcb;			/* current pcb */
+	struct	timeval gd_switchtime;	
 	int	gd_switchticks;
-
+	u_int	gd_cpuid;			/* this cpu number */
+	u_int	gd_other_cpus;			/* all other cpus */
+	SLIST_ENTRY(globaldata) gd_allcpu;
+	struct	lock_list_entry *gd_spinlocks;
+#ifdef KTR_PERCPU
+	volatile int	gd_ktr_idx;		/* Index into trace table */
+	char	*gd_ktr_buf;
+	char	gd_ktr_buf_data[0];
+#endif
 	struct	intr_queue *gd_iq;
 	struct	intr_vector *gd_ivt;
 };
 
-#endif /* !_MACHINE_GLOBALDATA_H_ */
+#endif	/* _KERNEL */
+
+#endif	/* !_MACHINE_GLOBALDATA_H_ */
