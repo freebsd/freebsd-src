@@ -99,6 +99,11 @@ pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
     	snddev_info *d = device_get_softc(dev);
 	pcm_channel *ch;
 
+	if (((dir == PCMDIR_PLAY)? d->play : d->rec) == NULL) {
+		device_printf(dev, "bad channel add (%s)\n",
+		              (dir == PCMDIR_PLAY)? "play" : "record");
+		return 1;
+	}
 	ch = (dir == PCMDIR_PLAY)? &d->play[d->playcount] : &d->rec[d->reccount];
 	*ch = *templ;
 	if (chn_init(ch, devinfo, dir)) {
@@ -193,14 +198,16 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 						M_DEVBUF, M_NOWAIT);
     		if (!d->play) goto no;
     		bzero(d->play, numplay * sizeof(pcm_channel));
-	}
+	} else
+		d->play = NULL;
 
 	if (numrec > 0) {
 	  	d->rec = (pcm_channel *)malloc(numrec * sizeof(pcm_channel),
 				       	M_DEVBUF, M_NOWAIT);
     		if (!d->rec) goto no;
     		bzero(d->rec, numrec * sizeof(pcm_channel));
-	}
+	} else
+		d->rec = NULL;
 
 	if (numplay == 0 || numrec == 0)
 		d->flags |= SD_F_SIMPLEX;
