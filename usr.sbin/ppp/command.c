@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.89 1997/10/26 12:42:09 brian Exp $
+ * $Id: command.c,v 1.90 1997/11/04 01:16:59 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -164,7 +164,7 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
   do {
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
-    if (OpenModem(mode) < 0) {
+    if (OpenModem() < 0) {
       if (VarTerm)
 	fprintf(VarTerm, "Failed to open modem.\n");
       break;
@@ -748,7 +748,7 @@ TerminalCommand(struct cmdtab const * list, int argc, char **argv)
   }
   if (!IsInteractive(1))
     return (1);
-  if (OpenModem(mode) < 0) {
+  if (OpenModem() < 0) {
     if (VarTerm)
       fprintf(VarTerm, "Failed to open modem.\n");
     return (1);

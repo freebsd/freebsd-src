@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.28 1997/10/26 01:03:26 brian Exp $
+ * $Id: os.c,v 1.29 1997/10/29 01:19:47 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -68,7 +68,7 @@ SetIpDevice(struct in_addr myaddr,
 	    struct in_addr netmask,
 	    int updown)
 {
-  struct sockaddr_in *sin;
+  struct sockaddr_in *sock_in;
   int s;
   int changeaddr = 0;
   u_long mask, addr;
@@ -115,18 +115,18 @@ SetIpDevice(struct in_addr myaddr,
     /*
      * Set interface address
      */
-    sin = (struct sockaddr_in *) & (ifra.ifra_addr);
-    sin->sin_family = AF_INET;
-    sin->sin_addr = oldmine = myaddr;
-    sin->sin_len = sizeof(*sin);
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_addr);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr = oldmine = myaddr;
+    sock_in->sin_len = sizeof(*sock_in);
 
     /*
      * Set destination address
      */
-    sin = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
-    sin->sin_family = AF_INET;
-    sin->sin_addr = oldhis = hisaddr;
-    sin->sin_len = sizeof(*sin);
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr = oldhis = hisaddr;
+    sock_in->sin_len = sizeof(*sock_in);
 
     /*
      * */
@@ -144,10 +144,10 @@ SetIpDevice(struct in_addr myaddr,
     if (netmask.s_addr && (ntohl(netmask.s_addr) & mask) == mask)
       mask = ntohl(netmask.s_addr);
 
-    sin = (struct sockaddr_in *) & (ifra.ifra_mask);
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = htonl(mask);
-    sin->sin_len = sizeof(*sin);
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_mask);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr.s_addr = htonl(mask);
+    sock_in->sin_len = sizeof(*sock_in);
 
     if (changeaddr) {
 
