@@ -93,7 +93,6 @@ static struct opt {
 	{ MNT_EXPORTED,		"NFS exported" },
 	{ MNT_LOCAL,		"local" },
 	{ MNT_NOATIME,		"noatime" },
-	{ MNT_NODEV,		"nodev" },
 	{ MNT_NOEXEC,		"noexec" },
 	{ MNT_NOSUID,		"nosuid" },
 	{ MNT_NOSYMFOLLOW,	"nosymfollow" },
@@ -750,7 +749,6 @@ flags2opts(flags)
 	if (flags & MNT_SYNCHRONOUS)	res = catopt(res, "sync");
 	if (flags & MNT_NOEXEC)		res = catopt(res, "noexec");
 	if (flags & MNT_NOSUID)		res = catopt(res, "nosuid");
-	if (flags & MNT_NODEV)		res = catopt(res, "nodev");
 	if (flags & MNT_UNION)		res = catopt(res, "union");
 	if (flags & MNT_ASYNC)		res = catopt(res, "async");
 	if (flags & MNT_NOATIME)	res = catopt(res, "noatime");

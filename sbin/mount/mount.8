@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2003
+.Dd November 26, 2004
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -177,12 +177,6 @@ flag.
 Disable read clustering.
 .It Cm noclusterw
 Disable write clustering.
-.It Cm nodev
-Do not interpret character or block special devices on the file system.
-This option is useful for a server that has file systems containing
-special devices for architectures other than its own.
-This option is set automatically when the user does not have super-user
-privileges.
 .It Cm noexec
 Do not allow execution of any binaries on the mounted file system.
 This option is useful for a server that has file systems containing
