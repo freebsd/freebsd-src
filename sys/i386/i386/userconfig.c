@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.95 1997/10/12 20:23:20 phk Exp $
+ **      $Id$
  **/
 
 /**
@@ -291,6 +291,8 @@ static DEV_INFO device_info[] = {
 {"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
 {"opl",         "OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
 {"mpu",         "Roland MPU401 MIDI",			0,		CLS_MMEDIA},
+{"sscape",      "Ensoniq Soundscape MIDI interface",	0,		CLS_MMEDIA},
+{"sscape_mss",  "Ensoniq Soundscape PCM",		0,		CLS_MMEDIA},
 {"uart",        "6850 MIDI UART",			0,		CLS_MMEDIA},
 {"pca",         "PC speaker PCM audio driver",		FLG_FIXED,	CLS_MMEDIA},
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
@@ -2368,7 +2370,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.95 1997/10/12 20:23:20 phk Exp $
+ *      $Id$
  */
 
 #include "scbus.h"
