@@ -32,6 +32,10 @@
 
 	.text
 start:
+	jmp	start1
+
+	.org	0x2d4
+start1:
 	cli
 	movw	%cs, %ax
 	movw	%ax, %ds
