@@ -189,6 +189,7 @@ struct nfs_public nfs_pub;
 
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static vm_zone_t vnode_zone;
+static vm_zone_t vnodepoll_zone;
 
 /* Set to 1 to print out reclaim of active vnodes */
 int	prtactive;
@@ -253,6 +254,15 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
     "Number of times the vnlru process ran without success");
 
+static __inline void
+v_addpollinfo(struct vnode *vp)
+{
+	if (vp->v_pollinfo != NULL)
+		return;
+	vp->v_pollinfo = zalloc(vnodepoll_zone);
+	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", MTX_DEF);
+}
+
 /*
  * Initialize the vnode management data structures.
  */
@@ -269,6 +279,7 @@ vntblinit(void *dummy __unused)
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", MTX_DEF);
 	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
+	vnodepoll_zone = zinit("VNODEPOLL", sizeof (struct vpollinfo), 0, 0, 5);
 	/*
 	 * Initialize the filesystem syncer.
 	 */     
@@ -764,7 +775,6 @@ getnewvnode(tag, mp, vops, vpp)
 		freevnodes--;
 		mtx_unlock(&vnode_free_list_mtx);
 		cache_purge(vp);
-		vp->v_lease = NULL;
 		if (vp->v_type != VBAD) {
 			vgonel(vp, td);
 		} else {
@@ -786,6 +796,11 @@ getnewvnode(tag, mp, vops, vpp)
 				panic("Non-zero write count");
 		}
 #endif
+		if (vp->v_pollinfo) {
+			mtx_destroy(&vp->v_pollinfo->vpi_lock);
+			zfree(vnodepoll_zone, vp->v_pollinfo);
+		}
+		vp->v_pollinfo = NULL;
 		vp->v_flag = 0;
 		vp->v_lastw = 0;
 		vp->v_lasta = 0;
@@ -798,7 +813,6 @@ getnewvnode(tag, mp, vops, vpp)
 		bzero((char *) vp, sizeof *vp);
 		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
 		vp->v_dd = vp;
-		mtx_init(&vp->v_pollinfo.vpi_lock, "vnode pollinfo", MTX_DEF);
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
@@ -2093,7 +2107,8 @@ vclean(vp, flags, td)
 	 * Done with purge, notify sleepers of the grim news.
 	 */
 	vp->v_op = dead_vnodeop_p;
-	vn_pollgone(vp);
+	if (vp->v_pollinfo != NULL)
+		vn_pollgone(vp);
 	vp->v_tag = VT_NON;
 	vp->v_flag &= ~VXLOCK;
 	vp->v_vxproc = NULL;
@@ -2709,8 +2724,10 @@ vn_pollrecord(vp, td, events)
 	struct thread *td;
 	short events;
 {
-	mtx_lock(&vp->v_pollinfo.vpi_lock);
-	if (vp->v_pollinfo.vpi_revents & events) {
+
+	v_addpollinfo(vp);	
+	mtx_lock(&vp->v_pollinfo->vpi_lock);
+	if (vp->v_pollinfo->vpi_revents & events) {
 		/*
 		 * This leaves events we are not interested
 		 * in available for the other process which
@@ -2718,15 +2735,15 @@ vn_pollrecord(vp, td, events)
 		 * (otherwise they would never have been
 		 * recorded).
 		 */
-		events &= vp->v_pollinfo.vpi_revents;
-		vp->v_pollinfo.vpi_revents &= ~events;
+		events &= vp->v_pollinfo->vpi_revents;
+		vp->v_pollinfo->vpi_revents &= ~events;
 
-		mtx_unlock(&vp->v_pollinfo.vpi_lock);
+		mtx_unlock(&vp->v_pollinfo->vpi_lock);
 		return events;
 	}
-	vp->v_pollinfo.vpi_events |= events;
-	selrecord(td, &vp->v_pollinfo.vpi_selinfo);
-	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+	vp->v_pollinfo->vpi_events |= events;
+	selrecord(td, &vp->v_pollinfo->vpi_selinfo);
+	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 	return 0;
 }
 
@@ -2741,8 +2758,10 @@ vn_pollevent(vp, events)
 	struct vnode *vp;
 	short events;
 {
-	mtx_lock(&vp->v_pollinfo.vpi_lock);
-	if (vp->v_pollinfo.vpi_events & events) {
+
+	v_addpollinfo(vp);	
+	mtx_lock(&vp->v_pollinfo->vpi_lock);
+	if (vp->v_pollinfo->vpi_events & events) {
 		/*
 		 * We clear vpi_events so that we don't
 		 * call selwakeup() twice if two events are
@@ -2754,15 +2773,15 @@ vn_pollevent(vp, events)
 		 * a time.  (Perhaps we should only clear those
 		 * event bits which we note?) XXX
 		 */
-		vp->v_pollinfo.vpi_events = 0;	/* &= ~events ??? */
-		vp->v_pollinfo.vpi_revents |= events;
-		selwakeup(&vp->v_pollinfo.vpi_selinfo);
+		vp->v_pollinfo->vpi_events = 0;	/* &= ~events ??? */
+		vp->v_pollinfo->vpi_revents |= events;
+		selwakeup(&vp->v_pollinfo->vpi_selinfo);
 	}
-	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
 
 #define VN_KNOTE(vp, b) \
-	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
+	KNOTE((struct klist *)&vp->v_pollinfo->vpi_selinfo.si_note, (b))
 
 /*
  * Wake up anyone polling on vp because it is being revoked.
@@ -2773,13 +2792,14 @@ void
 vn_pollgone(vp)
 	struct vnode *vp;
 {
-	mtx_lock(&vp->v_pollinfo.vpi_lock);
+
+	mtx_lock(&vp->v_pollinfo->vpi_lock);
         VN_KNOTE(vp, NOTE_REVOKE);
-	if (vp->v_pollinfo.vpi_events) {
-		vp->v_pollinfo.vpi_events = 0;
-		selwakeup(&vp->v_pollinfo.vpi_selinfo);
+	if (vp->v_pollinfo->vpi_events) {
+		vp->v_pollinfo->vpi_events = 0;
+		selwakeup(&vp->v_pollinfo->vpi_selinfo);
 	}
-	mtx_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
 
 
