@@ -39,6 +39,7 @@
 #define	_MACHINE_ENDIAN_H_
 
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
 /*
  * Define the order of 32-bit words in 64-bit words.
@@ -59,6 +60,8 @@
 #endif /* !_POSIX_SOURCE */
 
 #ifdef __GNUC__
+
+__BEGIN_DECLS
 
 static __inline __uint64_t
 __uint8_swap_uint64(__uint64_t __x)
@@ -96,6 +99,8 @@ __ntohs(__uint16_t __x)
 
 	return (__uint8_swap_uint64(__x) >> 48);
 }
+
+__END_DECLS
 
 #endif /* __GNUC__ */
 
