@@ -32,11 +32,15 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id$
+ *	$Id: microtime.s,v 1.8 1997/02/22 09:43:27 peter Exp $
  */
 
 #include "opt_cpu.h"
+#include "opt_smp.h"
 
+#ifdef APIC_IO
+#include <machine/apic.h>
+#endif /* APIC_IO */
 #include <machine/asmacros.h>
 
 #include <i386/isa/icu.h>
@@ -49,7 +53,7 @@
 
 ENTRY(microtime)
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	movl	_i586_ctr_freq, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
@@ -113,15 +117,26 @@ ENTRY(microtime)
 
 	movl	_timer0_max_count, %edx	/* prepare for 2 uses */
 
+#if defined(APIC_IO)
+	movl	_ipending, %eax
+	testl	%eax, _mask8254		/* is soft timer interrupt pending? */
+#else
 	testb	$IRQ0, _ipending	/* is a soft timer interrupt pending? */
+#endif /* APIC_IO */
 	jne	overflow
 
 	/* Do we have a possible overflow condition? */
 	cmpl	_timer0_overflow_threshold, %ecx
 	jbe	1f
 
+#if defined(APIC_IO)
+	movl	_apic_base, %eax
+	movl	APIC_IRR1(%eax), %eax	/** XXX assumption: IRQ0-24 */
+	testl	%eax, _mask8254	/* is a hard timer interrupt pending? */
+#else
 	inb	$IO_ICU1, %al	/* read IRR in ICU */
 	testb	$IRQ0, %al	/* is a hard timer interrupt pending? */
+#endif /* APIC_IO */
 	je	1f
 overflow:
 	subl	%edx, %ecx	/* some intr pending, count timer down through 0 */
@@ -248,7 +263,7 @@ common_microtime:
 
 	ret
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	ALIGN_TEXT
 pentium_microtime:
 	pushfl
