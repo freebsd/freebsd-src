@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.92 1997/10/12 16:21:09 jkh Exp $
+ * $Id: disks.c,v 1.93 1997/10/18 21:22:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -365,7 +365,7 @@ diskPartition(Device *dev)
 		val = msgGetInput(tmp, "New partition type:\n\n"
 				  "Pressing Enter will choose the default, a native FreeBSD\n"
 				  "slice (type 165).  Other popular values are 6 for\n"
-				  "DOS PAT partition, 131 for a Linux ext2fs partition or\n"
+				  "DOS FAT partition, 131 for a Linux ext2fs partition or\n"
 				  "130 for a Linux swap partition.\n\n"
 				  "Note:  If you choose a non-FreeBSD partition type, it will not\n"
 				  "be formatted or otherwise prepared, it will simply reserve space\n"
