@@ -38,9 +38,9 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/module.h>
 #include <sys/iconv.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 
 #include <fs/msdosfs/msdosfsmount.h>
 
@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
 #include "mntopts.h"
 
 #define TRANSITION_PERIOD_HACK
@@ -312,13 +313,14 @@ usage()
 {
 #ifdef TRANSITION_PERIOD_HACK
 	fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]",
-	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] [-W table]",
-	"                     bdev dir");
+	"usage: mount_msdosfs [-9ls] [-D DOS_codepage] [-g gid] [-L locale]",
+	"                     [-M mask] [-m mask] [-o options] [-u uid]",
+	"		      [-W table] special node");
 #else
-	fprintf(stderr, "%s\n%s\n",
-	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]",
-	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] bdev dir");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: mount_msdosfs [-9ls] [-D DOS_codepage] [-g gid] [-L locale]",
+	"                     [-M mask] [-m mask] [-o options] [-u uid]",
+	"		      special node");
 #endif
 	exit(EX_USAGE);
 }
