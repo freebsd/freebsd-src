@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.30 1995/09/09 18:10:24 davidg Exp $
+ * $Id: if_sl.c,v 1.31 1995/09/10 12:22:59 bde Exp $
  */
 
 /*
@@ -526,7 +526,6 @@ slstart(tp)
 		splx(s);
 		if (m == NULL)
 			return 0;
-		sc->sc_flags &= ~SC_OUTWAIT;
 
 		/*
 		 * We do the header compression here rather than in sloutput
@@ -590,6 +589,7 @@ slstart(tp)
 			continue;
 		}
 
+		sc->sc_flags &= ~SC_OUTWAIT;
 		/*
 		 * The extra FRAME_END will start up a new packet, and thus
 		 * will flush any accumulated garbage.  We do this whenever
