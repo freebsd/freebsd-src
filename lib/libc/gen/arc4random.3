@@ -57,7 +57,8 @@ The S-Boxes
 can be in about
 .if t 2\u\s71700\s10\d
 .if n (2**1700)
-states. The
+states.
+The
 .Fn arc4random
 function returns pseudo-random numbers in the range of 0 to
 .if t 2\u\s731\s10\d\(mi1,
@@ -87,7 +88,7 @@ and
 functions using
 .Fn arc4random :
 .Pp
-.Dl #define foo4random() (arc4random()  % ((unsigned)RAND_MAX + 1))
+.Dl "#define foo4random() (arc4random() % ((unsigned)RAND_MAX + 1))"
 .Sh SEE ALSO
 .Xr rand 3 ,
 .Xr random 3 ,

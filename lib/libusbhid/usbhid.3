@@ -65,13 +65,13 @@
 .Fn hid_report_size "report_desc_t d" "hid_kind_t k" "int id"
 .Ft int
 .Fn hid_locate "report_desc_t d" "u_int usage" "hid_kind_t k" "hid_item_t *h" "int id"
-.Ft char *
+.Ft "char *"
 .Fn hid_usage_page "int i"
-.Ft char *
+.Ft "char *"
 .Fn hid_usage_in_page "u_int u"
 .Ft int
 .Fn hid_parse_usage_page "const char *"
-.Ft char *
+.Ft "char *"
 .Fn hid_parse_usage_in_page "const char *"
 .Ft void
 .Fn hid_init "char *file"
@@ -83,7 +83,7 @@
 The
 .Nm
 library provides routines to extract data from USB Human Interface Devices.
-.Ss INTRODUCTION
+.Ss Introduction
 USB HID devices send and receive data layed out in a device dependent way.
 The
 .Nm
@@ -94,7 +94,7 @@ which contains the data layout information and then use this information.
 The routines can be divided into four parts: extraction of the descriptor,
 parsing of the descriptor, translating to/from symbolic names, and
 data manipulation.
-.Ss DESCRIPTOR FUNCTIONS
+.Ss Descriptor Functions
 A report descriptor can be obtained by calling
 .Fn hid_get_report_desc
 with a file descriptor obtained by opening a
@@ -114,7 +114,7 @@ If
 .Fn hid_dispose_report_desc
 fails it will return
 .Dv NULL .
-.Ss DESCRIPTOR PARSING FUNCTIONS
+.Ss Descriptor Parsing Functions
 To parse the report descriptor the
 .Fn hid_start_parse
 function should be called with a report descriptor and a set that
@@ -125,7 +125,7 @@ where
 .Fa k
 is an item of type
 .Vt hid_kind_t .
-The report id (if present) is given by
+The report ID (if present) is given by
 .Fa id .
 The function returns
 .Dv NULL
@@ -164,7 +164,7 @@ function can be used.
 It should be given the usage code of
 the item and its kind and it will fill the item and return
 non-zero if the item was found.
-.Ss Name TRANSLATION FUNCTIONS
+.Ss Name Translation Functions
 The function
 .Fn hid_usage_page
 will return the symbolic name of a usage page, and the function
@@ -190,7 +190,7 @@ with the name of the table.
 Passing
 .Dv NULL
 to this function will cause it to use the default table.
-.Ss Data EXTRACTION FUNCTIONS
+.Ss Data Extraction Functions
 Given the data obtained from a HID device and an item in the
 report descriptor the
 .Fn hid_get_data

@@ -46,11 +46,11 @@
 .Lb libc
 .Sh SYNOPSIS
 .In fstab.h
-.Ft struct fstab *
+.Ft "struct fstab *"
 .Fn getfsent void
-.Ft struct fstab *
+.Ft "struct fstab *"
 .Fn getfsspec "const char *spec"
-.Ft struct fstab *
+.Ft "struct fstab *"
 .Fn getfsfile "const char *file"
 .Ft int
 .Fn setfsent void
@@ -58,7 +58,7 @@
 .Fn endfsent void
 .Ft void
 .Fn setfstab "const char *file"
-.Ft const char *
+.Ft "const char *"
 .Fn getfstab void
 .Sh DESCRIPTION
 The
@@ -103,11 +103,11 @@ function sets the file to be used by subsequent operations.
 The value set by
 .Fn setfstab
 does not persist across calls to
-.Fn endfsent
+.Fn endfsent .
 .Pp
 The
 .Fn getfstab
-function returns the name of the file that that will be used.
+function returns the name of the file that will be used.
 .Pp
 The
 .Fn getfsspec
@@ -145,17 +145,17 @@ The
 function
 returns nothing.
 .Sh ENVIRONMENT
-.Bl -tag -width PATH_FSTAB
-.It Pa PATH_FSTAB
+.Bl -tag -width ".Ev PATH_FSTAB"
+.It Ev PATH_FSTAB
 If the environment variable
-.Pa PATH_FSTAB
-is set all operations are performed against the specified file.
-.Pa PATH_FSTAB
+.Ev PATH_FSTAB
+is set, all operations are performed against the specified file.
+.Ev PATH_FSTAB
 will not be honored if the process environment or memory address space is
 considred
 .Dq tainted .
 (See
-.Fn issetugid
+.Xr issetugid 2
 for more information.)
 .El
 .Sh FILES
