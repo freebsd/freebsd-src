@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.7 1994/06/09 01:50:48 paulus Exp $
+.\" $Id: pppd.8,v 1.14 1995/08/16 01:39:53 paulus Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -36,6 +36,7 @@ NCP for establishing and configuring the Internet Protocol (IP)
 .I <tty_name>
 Communicate over the named device.  The string "/dev/"
 is prepended if necessary.  If no device name is given,
+or if the name of the controlling terminal is given,
 .I pppd
 will use the controlling terminal, and will not fork to put itself in
 the background.
@@ -58,7 +59,7 @@ bit 31 (80000000) represents the character 0x1f or ^_.
 If multiple \fBasyncmap\fR options are
 given, the values are ORed together.
 If no \fBasyncmap\fR option is given, no async character map will be
-negotiated for the receive direction; the peer will then escape
+negotiated for the receive direction; the peer should then escape
 \fIall\fR control characters.
 .TP
 .B auth
@@ -74,13 +75,16 @@ dial the modem and start the remote ppp session.
 Use hardware flow control (i.e. RTS/CTS) to control the flow of data on
 the serial port.
 .TP
+.B -crtscts
+Disable hardware flow control (i.e. RTS/CTS) on the serial port.  If
+neither the \fBcrtscts\fR nor the \fB\-crtscts\fR option is given,
+the hardware flow control setting for the serial port is left
+unchanged.
+.TP
 .B xonxoff
 Use software flow control (i.e. XON/XOFF) to control the flow of data on
-the serial port.  This option is not implemented on BSD or Ultrix systems
+the serial port.  This option is only implemented on Linux systems
 at present.
-.TP
-.B -crtscts
-A synonym for \fBxonxoff\fR.
 .TP
 .B defaultroute
 Add a default route to the system routing tables, using the peer as
@@ -135,7 +139,7 @@ will then just wait passively for a valid LCP packet from the peer
 With this option,
 .I pppd
 will not transmit LCP packets to initiate a connection until a valid
-LCP packet is received from the peer (as for the "passive" option with
+LCP packet is received from the peer (as for the `passive' option with
 old versions of \fIpppd\fR).
 .SH OPTIONS
 .TP
@@ -228,6 +232,21 @@ Don't agree to authenticate using CHAP.
 Disable negotiation of Van Jacobson style IP header compression (use
 default, i.e. no compression).
 .TP
+.B bsdcomp \fInr,nt
+Request that the peer compress packets that it sends, using the
+BSD-Compress scheme, with a maximum code size of \fInr\fR bits, and
+agree to compress packets sent to the peer with a maximum code size of
+\fInt\fR bits.  If \fInt\fR is not specified, it defaults to the value
+given for \fInr\fR.  Values in the range 9 to 15 may be used for
+\fInr\fR and \fInt\fR; larger values give better compression but
+consume more kernel memory for compression dictionaries.
+Alternatively, a value of 0 for \fInr\fR or \fInt\fR disables
+compression in the corresponding direction.
+.TP
+.B \-bsdcomp
+Disables compression; \fBpppd\fR will not request or agree to compress
+packets using the BSD-Compress scheme.
+.TP
 .B debug
 Increase debugging level (same as \fB\-d\fR).
 If this
@@ -235,9 +254,12 @@ option is given, \fIpppd\fR will log the contents of all control
 packets sent or received in a readable form.  The packets are logged
 through syslog with facility \fIdaemon\fR and level \fIdebug\fR.  This
 information can be directed to a file by setting up /etc/syslog.conf
-appropriately (see syslog.conf(5)).  (If \fIpppd\fR is compiled with
-extra debugging enabled, it will log messages using facility
-\fIlocal2\fR instead of \fIdaemon\fR).
+appropriately (see syslog.conf(5)).
+.TP
+.B \-defaultroute
+Disable the \fBdefaultroute\fR option.  The system administrator who
+wishes to prevent users from creating default routes with \fIpppd\fR
+can do so by placing this option in the /etc/ppp/options file.
 .TP
 .B domain \fI<d>
 Append the domain name <d> to the local host name for authentication
@@ -245,10 +267,22 @@ purposes.  For example, if gethostname() returns the name porsche, but the
 fully qualified domain name is porsche.Quotron.COM, you would use the
 domain option to set the domain name to Quotron.COM.
 .TP
+.B ipparam \fIstring
+Provides an extra parameter to the ip-up and ip-down scripts.  If this
+option is given, the \fIstring\fR supplied is given as the 6th
+parameter to those scripts.
+.TP
 .B modem
-Use the modem control lines.  On Ultrix, this option implies hardware
-flow control, as for the \fBcrtscts\fR option.  (This option is not fully
-implemented.)
+Use the modem control lines.  This option is the default.  With this
+option,
+.B pppd
+will wait for the CD (Carrier Detect) signal from the modem to be asserted
+when opening the serial device
+(unless a connect script is specified), and it will drop the DTR (Data
+Terminal Ready) signal briefly when the connection is terminated and before
+executing the connect script.
+On Ultrix, this option implies hardware
+flow control, as for the \fBcrtscts\fR option.  
 .TP
 .B kdebug \fIn
 Enable debugging code in the kernel-level PPP driver.  The argument
@@ -258,7 +292,10 @@ received packets be printed, and 4 to request that the contents of
 transmitted packets be printed.
 .TP
 .B local
-Don't use the modem control lines.
+Don't use the modem control lines.  With this option,
+.B pppd
+will ignore the state of the CD (Carrier Detect) signal from the modem and
+will not change the state of the DTR (Data Terminal Ready) signal.
 .TP
 .B mtu \fI<n>
 Set the MTU [Maximum Transmit Unit] value to \fI<n>\fR.  Unless the
@@ -283,10 +320,26 @@ option).
 Set the assumed name of the remote system for authentication purposes
 to <n>.
 .TP
+.B papcrypt
+Indicates that all secrets in the /etc/ppp/pap-secrets file which
+are used for checking the identity of the peer are encrypted, and thus
+pppd should not accept a password which (before encryption) is
+identical to the secret from the /etc/ppp/pap-secrets file.
+.TP
 .B proxyarp
 Add an entry to this system's ARP [Address Resolution Protocol] table
 with the IP address of the peer and the Ethernet address of this
 system.
+.TP
+.B \-proxyarp
+Disable the \fBproxyarp\fR option.  The system administrator who
+wishes to prevent users from creating proxy ARP entries with
+\fIpppd\fR can do so by placing this option in the /etc/ppp/options
+file.
+.TP
+.B persist
+Do not exit after a connection is terminated; instead try to reopen
+the connection.
 .TP
 .B login
 Use the system password database for authenticating the peer using
@@ -358,6 +411,12 @@ Set the PAP restart interval (retransmission timeout) to <n> seconds
 Set the maximum number of PAP authenticate-request transmissions to
 <n> (default 10).
 .TP
+.B pap-timeout \fI<n>
+Set the maximum time that
+.I pppd
+will wait for the peer to authenticate itself with PAP to
+<n> seconds (0 means no limit).
+.TP
 .B chap-restart \fI<n>
 Set the CHAP restart interval (retransmission timeout for challenges)
 to <n> seconds (default 3).
@@ -424,7 +483,7 @@ directions if desired.
 .LP
 A secrets file is parsed into words as for a options file.  A secret
 is specified by a line containing at least 3 words, in the order
-client, server, secret.  Any following words on the same line are
+client name, server name, secret.  Any following words on the same line are
 taken to be a list of acceptable IP addresses for that client.  If
 there are only 3 words on the line, it is assumed that any IP address
 is OK; to disallow all IP addresses, use "-".  If the secret starts
@@ -480,11 +539,16 @@ When authenticating the peer with PAP, a secret of "" matches any
 password supplied by the peer.  If the password doesn't match the
 secret, the password is encrypted using crypt() and checked against
 the secret again; thus secrets for authenticating the peer can be
-stored in encrypted form.  If the \fBlogin\fR option was specified, the
+stored in encrypted form.  If the \fBpapcrypt\fR option is given, the
+first (unencrypted) comparison is omitted, for better security.
+.LP
+If the \fBlogin\fR option was specified, the
 username and password are also checked against the system password
 database.  Thus, the system administrator can set up the pap-secrets
 file to allow PPP access only to certain users, and to restrict the
-set of IP addresses that each user can use.
+set of IP addresses that each user can use.  Typically, when using the
+\fBlogin\fR option, the secret in /etc/ppp/pap-secrets would be "", to
+avoid the need to have the same secret in two places.
 .LP
 Secrets are selected from the CHAP secrets file as follows:
 .TP 2
@@ -590,27 +654,28 @@ to direct the messages to the desired output device or file.
 The \fBdebug\fR option causes the contents of all control packets sent
 or received to be logged, that is, all LCP, PAP, CHAP or IPCP packets.
 This can be useful if the PPP negotiation does not succeed.
-If debugging is enabled at compile time, \fIpppd\fR uses facility
-LOG_LOCAL2 instead of LOG_DAEMON, and the \fBdebug\fR option
-causes additional debugging messages to be logged.
+If debugging is enabled at compile time, the \fBdebug\fR option also
+causes other debugging messages to be logged.
 .LP
-Debugging can also be enabled by sending a
+Debugging can also be enabled or disabled by sending a
 SIGUSR1 to the
 .I pppd
-process.
-Debugging may be disabled by sending a SIGUSR2 to the
-.I pppd
-process.
+process.  This signal acts as a toggle.
 .SH FILES
 .TP
-.B /var/run/ppp\fIn\fB.pid \fR(BSD), \fB/etc/ppp/ppp\fIn\fB.pid \fR(SunOS)
+.B /var/run/ppp\fIn\fB.pid \fR(BSD or Linux), \fB/etc/ppp/ppp\fIn\fB.pid \fR(others)
 Process-ID for \fIpppd\fR process on ppp interface unit \fIn\fR.
 .TP
 .B /etc/ppp/ip-up
 A program or script which is executed when the link is available for
 sending and receiving IP packets (that is, IPCP has come up).  It is
-executed with the parameters \fIinterface-name tty-device speed
-local-IP-address remote-IP-address\fR.
+executed with the parameters
+.IP
+\fIinterface-name tty-device speed local-IP-address
+remote-IP-address\fR
+.IP
+and with its standard input,
+output and error streams redirected to \fB/dev/null\fR.
 .IP
 This program or script is executed with the same real and effective
 user-ID as \fIpppd\fR, that is, at least the effective user-ID and
@@ -682,20 +747,29 @@ The following signals have the specified effect when sent to the
 process.
 .TP
 .B SIGINT, SIGTERM
-These signals cause \fIpppd\fR to terminate the link (by closing LCP),
+These signals cause \fBpppd\fR to terminate the link (by closing LCP),
 restore the serial device settings, and exit.
 .TP
 .B SIGHUP
-Indicates that the physical layer has been disconnected.  \fIpppd\fR
-will attempt to restore the serial device settings (this may produce
-error messages on Suns), and then exit.
-.SH BUGS
-The use of the modem control lines and the effects of the \fBmodem\fR
-and \fBlocal\fR options are not well defined.
+This signal causes \fBpppd\fR to terminate the link, restore the
+serial device settings, and close the serial device.  If the
+\fBpersist\fR option has been specified, \fBpppd\fR will try to reopen
+the serial device and start another connection.  Otherwise \fBpppd\fR
+will exit.
+.TP
+.B SIGUSR2
+This signal causes
+.B pppd
+to renegotiate compression.  This can be useful to re-enable
+compression after it has been disabled as a result of a fatal
+decompression error.  With the BSD Compress scheme, fatal
+decompression errors generally indicate a bug in one or other
+implementation.
+
 .SH AUTHORS
 Drew Perkins,
 Brad Clements,
 Karl Fox,
 Greg Christy,
-Brad Parker (brad@fcr.com),
-Paul Mackerras (paulus@cs.anu.edu.au)
+Brad Parker,
+Paul Mackerras (paulus@cs.anu.edu.au).

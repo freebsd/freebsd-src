@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.20 1995/08/10 06:51:04 paulus Exp $";
 #endif
 
 /*
@@ -30,41 +30,37 @@ static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
 #include <syslog.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "pppd.h"
-#include "ppp.h"
 #include "fsm.h"
 #include "ipcp.h"
 #include "pathnames.h"
 
 /* global vars */
-ipcp_options ipcp_wantoptions[NPPP];	/* Options that we want to request */
-ipcp_options ipcp_gotoptions[NPPP];	/* Options that peer ack'd */
-ipcp_options ipcp_allowoptions[NPPP];	/* Options we allow peer to request */
-ipcp_options ipcp_hisoptions[NPPP];	/* Options that we ack'd */
-
-extern char ifname[];
-extern char devname[];
-extern int baud_rate;
+ipcp_options ipcp_wantoptions[NUM_PPP];	/* Options that we want to request */
+ipcp_options ipcp_gotoptions[NUM_PPP];	/* Options that peer ack'd */
+ipcp_options ipcp_allowoptions[NUM_PPP];	/* Options we allow peer to request */
+ipcp_options ipcp_hisoptions[NUM_PPP];	/* Options that we ack'd */
 
 /* local vars */
-static int cis_received[NPPP];		/* # Conf-Reqs received */
+static int cis_received[NUM_PPP];		/* # Conf-Reqs received */
 
 /*
  * Callbacks for fsm code.  (CI = Configuration Information)
  */
-static void ipcp_resetci __ARGS((fsm *));	/* Reset our CI */
-static int  ipcp_cilen __ARGS((fsm *));	        /* Return length of our CI */
-static void ipcp_addci __ARGS((fsm *, u_char *, int *)); /* Add our CI */
-static int  ipcp_ackci __ARGS((fsm *, u_char *, int));	/* Peer ack'd our CI */
-static int  ipcp_nakci __ARGS((fsm *, u_char *, int));	/* Peer nak'd our CI */
-static int  ipcp_rejci __ARGS((fsm *, u_char *, int));	/* Peer rej'd our CI */
-static int  ipcp_reqci __ARGS((fsm *, u_char *, int *, int)); /* Rcv CI */
-static void ipcp_up __ARGS((fsm *));		/* We're UP */
-static void ipcp_down __ARGS((fsm *));		/* We're DOWN */
-static void ipcp_script __ARGS((fsm *, char *)); /* Run an up/down script */
+static void ipcp_resetci __P((fsm *));	/* Reset our CI */
+static int  ipcp_cilen __P((fsm *));	        /* Return length of our CI */
+static void ipcp_addci __P((fsm *, u_char *, int *)); /* Add our CI */
+static int  ipcp_ackci __P((fsm *, u_char *, int));	/* Peer ack'd our CI */
+static int  ipcp_nakci __P((fsm *, u_char *, int));	/* Peer nak'd our CI */
+static int  ipcp_rejci __P((fsm *, u_char *, int));	/* Peer rej'd our CI */
+static int  ipcp_reqci __P((fsm *, u_char *, int *, int)); /* Rcv CI */
+static void ipcp_up __P((fsm *));		/* We're UP */
+static void ipcp_down __P((fsm *));		/* We're DOWN */
+static void ipcp_script __P((fsm *, char *)); /* Run an up/down script */
 
-fsm ipcp_fsm[NPPP];		/* IPCP fsm structure */
+fsm ipcp_fsm[NUM_PPP];		/* IPCP fsm structure */
 
 static fsm_callbacks ipcp_callbacks = { /* IPCP callback routines */
     ipcp_resetci,		/* Reset our Configuration Information */
@@ -103,7 +99,7 @@ static fsm_callbacks ipcp_callbacks = { /* IPCP callback routines */
  */
 char *
 ip_ntoa(ipaddr)
-u_long ipaddr;
+u_int32_t ipaddr;
 {
     static char b[64];
 
@@ -130,7 +126,7 @@ ipcp_init(unit)
     ipcp_options *ao = &ipcp_allowoptions[unit];
 
     f->unit = unit;
-    f->protocol = IPCP;
+    f->protocol = PPP_IPCP;
     f->callbacks = &ipcp_callbacks;
     fsm_init(&ipcp_fsm[unit]);
 
@@ -296,7 +292,7 @@ ipcp_addci(f, ucp, lenp)
     if (neg) { \
 	int addrlen = (old? CILEN_ADDRS: CILEN_ADDR); \
 	if (len >= addrlen) { \
-	    u_long l; \
+	    u_int32_t l; \
 	    PUTCHAR(opt, ucp); \
 	    PUTCHAR(addrlen, ucp); \
 	    l = ntohl(val1); \
@@ -359,7 +355,7 @@ ipcp_ackci(f, p, len)
 {
     ipcp_options *go = &ipcp_gotoptions[f->unit];
     u_short cilen, citype, cishort;
-    u_long cilong;
+    u_int32_t cilong;
     u_char cimaxslotindex, cicflag;
 
     /*
@@ -394,7 +390,7 @@ ipcp_ackci(f, p, len)
 #define ACKCIADDR(opt, neg, old, val1, val2) \
     if (neg) { \
 	int addrlen = (old? CILEN_ADDRS: CILEN_ADDR); \
-	u_long l; \
+	u_int32_t l; \
 	if ((len -= addrlen) < 0) \
 	    goto bad; \
 	GETCHAR(citype, p); \
@@ -451,7 +447,7 @@ ipcp_nakci(f, p, len)
     u_char cimaxslotindex, cicflag;
     u_char citype, cilen, *next;
     u_short cishort;
-    u_long ciaddr1, ciaddr2, l;
+    u_int32_t ciaddr1, ciaddr2, l;
     ipcp_options no;		/* options we've seen Naks for */
     ipcp_options try;		/* options to request next time */
 
@@ -498,7 +494,7 @@ ipcp_nakci(f, p, len)
      * Accept the peer's idea of {our,his} address, if different
      * from our idea, only if the accept_{local,remote} flag is set.
      */
-    NAKCIADDR(CI_ADDR, neg_addr, go->old_addrs,
+    NAKCIADDR((go->old_addrs? CI_ADDRS: CI_ADDR), neg_addr, go->old_addrs,
 	      if (go->accept_local && ciaddr1) { /* Do we know our address? */
 		  try.ouraddr = ciaddr1;
 		  IPCPDEBUG((LOG_INFO, "local IP address %s",
@@ -579,16 +575,15 @@ ipcp_nakci(f, p, len)
 	case CI_ADDR:
 	    if (go->neg_addr || no.neg_addr || cilen != CILEN_ADDR)
 		goto bad;
-	    try.neg_addr = 1;
 	    try.old_addrs = 0;
 	    GETLONG(l, p);
 	    ciaddr1 = htonl(l);
 	    if (ciaddr1 && go->accept_local)
 		try.ouraddr = ciaddr1;
+	    if (try.ouraddr != 0)
+		try.neg_addr = 1;
 	    no.neg_addr = 1;
 	    break;
-	default:
-	    goto bad;
 	}
 	p = next;
     }
@@ -623,7 +618,7 @@ ipcp_rejci(f, p, len)
     ipcp_options *go = &ipcp_gotoptions[f->unit];
     u_char cimaxslotindex, ciflag, cilen;
     u_short cishort;
-    u_long cilong;
+    u_int32_t cilong;
     ipcp_options try;		/* options to request next time */
 
     try = *go;
@@ -637,7 +632,7 @@ ipcp_rejci(f, p, len)
 	len >= (cilen = old? CILEN_ADDRS: CILEN_ADDR) && \
 	p[1] == cilen && \
 	p[0] == opt) { \
-	u_long l; \
+	u_int32_t l; \
 	len -= cilen; \
 	INCPTR(2, p); \
 	GETLONG(l, p); \
@@ -722,7 +717,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
     u_char *cip, *next;		/* Pointer to current and next CIs */
     u_short cilen, citype;	/* Parsed len, type */
     u_short cishort;		/* Parsed short value */
-    u_long tl, ciaddr1, ciaddr2;/* Parsed address values */
+    u_int32_t tl, ciaddr1, ciaddr2;/* Parsed address values */
     int rc = CONFACK;		/* Final packet return code */
     int orc;			/* Individual option return code */
     u_char *p;			/* Pointer to next char to parse */
@@ -734,7 +729,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
      * Reset all his options.
      */
     BZERO(ho, sizeof(*ho));
-
+    
     /*
      * Process all his options.
      */
@@ -778,10 +773,17 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 		&& (ciaddr1 == 0 || !wo->accept_remote)) {
 		orc = CONFNAK;
 		if (!reject_if_disagree) {
-		    DECPTR(sizeof (long), p);
+		    DECPTR(sizeof(u_int32_t), p);
 		    tl = ntohl(wo->hisaddr);
 		    PUTLONG(tl, p);
 		}
+	    } else if (ciaddr1 == 0 && wo->hisaddr == 0) {
+		/*
+		 * If neither we nor he knows his address, reject the option.
+		 */
+		orc = CONFREJ;
+		wo->req_addr = 0;	/* don't NAK with 0.0.0.0 later */
+		break;
 	    }
 
 	    /*
@@ -795,7 +797,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 		if (ciaddr2 == 0 || !wo->accept_local) {
 		    orc = CONFNAK;
 		    if (!reject_if_disagree) {
-			DECPTR(sizeof (long), p);
+			DECPTR(sizeof(u_int32_t), p);
 			tl = ntohl(wo->ouraddr);
 			PUTLONG(tl, p);
 		    }
@@ -832,16 +834,23 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 		&& (ciaddr1 == 0 || !wo->accept_remote)) {
 		orc = CONFNAK;
 		if (!reject_if_disagree) {
-		    DECPTR(sizeof (long), p);
+		    DECPTR(sizeof(u_int32_t), p);
 		    tl = ntohl(wo->hisaddr);
 		    PUTLONG(tl, p);
 		}
+	    } else if (ciaddr1 == 0 && wo->hisaddr == 0) {
+		/*
+		 * Don't ACK an address of 0.0.0.0 - reject it instead.
+		 */
+		orc = CONFREJ;
+		wo->req_addr = 0;	/* don't NAK with 0.0.0.0 later */
+		break;
 	    }
-
+	
 	    ho->neg_addr = 1;
 	    ho->hisaddr = ciaddr1;
 	    break;
-
+	
 	case CI_COMPRESSTYPE:
 	    IPCPDEBUG((LOG_INFO, "ipcp: received COMPRESSTYPE "));
 	    if (!ao->neg_vj ||
@@ -862,7 +871,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 	    ho->vj_protocol = cishort;
 	    if (cilen == CILEN_VJ) {
 		GETCHAR(maxslotindex, p);
-		if (maxslotindex > ao->maxslotindex) {
+		if (maxslotindex > ao->maxslotindex) { 
 		    orc = CONFNAK;
 		    if (!reject_if_disagree){
 			DECPTR(1, p);
@@ -878,7 +887,7 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 		    }
 		}
 		ho->maxslotindex = maxslotindex;
-		ho->cflag = wo->cflag;
+		ho->cflag = cflag;
 	    } else {
 		ho->old_vj = 1;
 		ho->maxslotindex = MAX_STATES - 1;
@@ -960,7 +969,7 @@ static void
 ipcp_up(f)
     fsm *f;
 {
-    u_long mask;
+    u_int32_t mask;
     ipcp_options *ho = &ipcp_hisoptions[f->unit];
     ipcp_options *go = &ipcp_gotoptions[f->unit];
 
@@ -1019,7 +1028,7 @@ ipcp_up(f)
     }
 
     /* assign a default route through the interface if required */
-    if (ipcp_wantoptions[f->unit].default_route)
+    if (ipcp_wantoptions[f->unit].default_route) 
 	if (sifdefaultroute(f->unit, ho->hisaddr))
 	    go->default_route = 1;
 
@@ -1047,7 +1056,7 @@ static void
 ipcp_down(f)
     fsm *f;
 {
-    u_long ouraddr, hisaddr;
+    u_int32_t ouraddr, hisaddr;
 
     IPCPDEBUG((LOG_INFO, "ipcp: down"));
 
@@ -1055,7 +1064,7 @@ ipcp_down(f)
     hisaddr = ipcp_hisoptions[f->unit].hisaddr;
     if (ipcp_gotoptions[f->unit].proxy_arp)
 	cifproxyarp(f->unit, hisaddr);
-    if (ipcp_gotoptions[f->unit].default_route)
+    if (ipcp_gotoptions[f->unit].default_route) 
 	cifdefaultroute(f->unit, hisaddr);
     sifdown(f->unit);
     cifaddr(f->unit, ouraddr, hisaddr);
@@ -1083,11 +1092,12 @@ ipcp_script(f, script)
 
     argv[0] = script;
     argv[1] = ifname;
-    argv[2] = devname;
+    argv[2] = devnam;
     argv[3] = strspeed;
     argv[4] = strlocal;
     argv[5] = strremote;
-    argv[6] = NULL;
+    argv[6] = ipparam;
+    argv[7] = NULL;
     run_program(script, argv, 0);
 }
 
@@ -1109,7 +1119,7 @@ ipcp_printpkt(p, plen, printer, arg)
     int code, id, len, olen;
     u_char *pstart, *optend;
     u_short cishort;
-    u_long cilong;
+    u_int32_t cilong;
 
     if (plen < HEADERLEN)
 	return 0;

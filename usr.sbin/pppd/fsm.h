@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.2 1994/04/11 07:18:35 paulus Exp $
+ * $Id: fsm.h,v 1.5 1995/05/19 03:17:35 paulus Exp $
  */
 
 /*
@@ -66,6 +66,7 @@ typedef struct fsm {
     int flags;			/* Contains option bits */
     u_char id;			/* Current id */
     u_char reqid;		/* Current request id */
+    u_char seen_ack;		/* Have received valid Ack/Nak/Rej to Req */
     int timeouttime;		/* Timeout time in milliseconds */
     int maxconfreqtransmits;	/* Maximum Configure-Request transmissions */
     int retransmits;		/* Number of retransmissions left */
@@ -105,20 +106,20 @@ typedef struct fsm {
 #define DEFTIMEOUT	3	/* Timeout time in seconds */
 #define DEFMAXTERMREQS	2	/* Maximum Terminate-Request transmissions */
 #define DEFMAXCONFREQS	10	/* Maximum Configure-Request transmissions */
-#define DEFMAXNAKLOOPS	10	/* Maximum number of nak loops */
+#define DEFMAXNAKLOOPS	5	/* Maximum number of nak loops */
 
 
 /*
  * Prototypes
  */
-void fsm_init __ARGS((fsm *));
-void fsm_lowerup __ARGS((fsm *));
-void fsm_lowerdown __ARGS((fsm *));
-void fsm_open __ARGS((fsm *));
-void fsm_close __ARGS((fsm *));
-void fsm_input __ARGS((fsm *, u_char *, int));
-void fsm_protreject __ARGS((fsm *));
-void fsm_sdata __ARGS((fsm *, int, int, u_char *, int));
+void fsm_init __P((fsm *));
+void fsm_lowerup __P((fsm *));
+void fsm_lowerdown __P((fsm *));
+void fsm_open __P((fsm *));
+void fsm_close __P((fsm *));
+void fsm_input __P((fsm *, u_char *, int));
+void fsm_protreject __P((fsm *));
+void fsm_sdata __P((fsm *, int, int, u_char *, int));
 
 
 /*
