@@ -17,10 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.26 1997/06/25 19:32:26 brian Exp $
+ * $Id: command.c,v 1.24.2.27 1997/06/29 18:37:42 brian Exp $
  *
  */
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <termios.h>
 #include <sys/wait.h>
@@ -841,14 +842,21 @@ char **argv;
 {
   int res = -1;
 
-  if (argc == 1)
+  if (argc > 0 && argc < 3)
     if (strcasecmp(argv[0], "none") == 0) {
       ServerClose();
       LogPrintf(LogPHASE, "Disabling server port.\n");
       res = 0;
-    } else if (*argv[0] == '/')
-      res = ServerLocalOpen(argv[0]);
-    else if (strspn(argv[0], "0123456789") == strlen(argv[0]))
+    } else if (*argv[0] == '/') {
+      mode_t mask;
+      umask(mask = umask(0));
+      if (argc == 2) {
+        unsigned m;
+        if (sscanf(argv[1], "%o", &m) == 1)
+          mask = m;
+      }
+      res = ServerLocalOpen(argv[0], mask);
+    } else if (strspn(argv[0], "0123456789") == strlen(argv[0]))
       res = ServerTcpOpen(atoi(argv[0]));
 
   return res;
@@ -1258,7 +1266,7 @@ struct cmdtab const SetCommands[] = {
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
 	"Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
   { "server",    "socket",     SetServer,	LOCAL_AUTH,
-	"Set server port", "set server|socket TcpPort|LocalName|none"},
+	"Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
 	"Set modem speed", "set speed value"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
