@@ -45,7 +45,7 @@
 .In sys/types.h
 .In sys/socket.h
 .Ft int
-.Fn getsockopt "int s" "int level" "int optname" "void *optval" "socklen_t *optlen"
+.Fn getsockopt "int s" "int level" "int optname" "void * restrict optval" "socklen_t * restrict optlen"
 .Ft int
 .Fn setsockopt "int s" "int level" "int optname" "const void *optval" "socklen_t optlen"
 .Sh DESCRIPTION
