@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.78 1999/06/04 17:34:28 billf Exp $
+#	$Id: Makefile.inc1,v 1.79 1999/07/07 04:46:44 imp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -777,6 +777,9 @@ _perl=		gnu/usr.bin/perl/miniperl
 .if !defined(NOSHARE) && exists(${.CURDIR}/share)
 _scrnmaps=	share/syscons/scrnmaps
 .endif
+.if ${MACHINE_ARCH} == alpha
+_elf2exe=	usr.sbin/elf2exe
+.endif
 .if ${MACHINE_ARCH} == i386
 _kldlinux=	sys/modules/linux
 .endif
@@ -860,6 +863,7 @@ build-tools:
 		usr.bin/yacc		\
 		${_btxld}		\
 		usr.sbin/chown		\
+		${_elf2exe}		\
 		usr.sbin/mtree		\
 		usr.sbin/zic		\
 		bin/sh
