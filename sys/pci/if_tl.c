@@ -223,6 +223,7 @@
 
 #include <pci/if_tlreg.h>
 
+/* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #if !defined(lint)
