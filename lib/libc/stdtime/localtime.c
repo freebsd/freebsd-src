@@ -327,7 +327,7 @@ register struct state * const	sp;
 		if (close(fid) != 0)
 			return -1;
 		p = buf;
-		p += sizeof tzhp->tzh_reserved;
+		p += (sizeof tzhp->tzh_magic) + (sizeof tzhp->tzh_reserved);
 		ttisstdcnt = (int) detzcode(p);
 		p += 4;
 		ttisgmtcnt = (int) detzcode(p);
