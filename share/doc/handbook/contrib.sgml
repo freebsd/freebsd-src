@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.101 1996/07/02 08:42:03 gclarkii Exp $ -->
+<!-- $Id: contrib.sgml,v 1.102 1996/07/10 10:31:28 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -194,6 +194,7 @@
 	  <item>Dave Bodenstab &lt;imdave@synet.net&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Chapeskie &lt;dchapes@zeus.leitch.com&gt;
+	  <item>Dave Edmondson &lt;davided@sco.com&gt;
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>David O'Brien &lt;obrien@cs.ucdavis.edu&gt;
