@@ -255,14 +255,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
-    {
+	{
 		/*
 		 * Maxtor 3000LE USB Drive
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "MAXTOR*", "K040H2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
-    {
+	{
 		/*
 		 * LaCie USB drive, among others
 		 */
@@ -277,7 +277,8 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*
 		 * Microtech USB CameraMate
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*", "Compact Flash*", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*",
+		 "Compact Flash*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -321,7 +322,8 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*
 		 * FujiFilm Camera
 		 */
- 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT", "USB-DRIVEUNIT", "*"},
+ 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT",
+		 "USB-DRIVEUNIT", "*"},
  		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
  	},
 	{
@@ -389,6 +391,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH DSC", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * HP 315 Digital Camera
+		 * PR: kern/41010
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB Camera*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
