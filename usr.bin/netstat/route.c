@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.14 1996/06/08 00:20:42 julian Exp $";
+	"$Id: route.c,v 1.15 1996/06/10 21:03:38 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -96,6 +96,8 @@ struct bits {
 	{ RTF_WASCLONED,'W' },
 	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
+	{ RTF_BLACKHOLE,'B' },
+	{ RTF_BROADCAST,'b' },
 	{ 0 }
 };
 
