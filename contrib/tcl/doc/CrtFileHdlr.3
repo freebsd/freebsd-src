@@ -1,29 +1,32 @@
 '\"
 '\" Copyright (c) 1990-1994 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) CrtFileHdlr.3 1.6 96/03/25 19:59:08
+'\" SCCS: @(#) CrtFileHdlr.3 1.7 97/04/23 16:11:17
 '\" 
 .so man.macros
-.TH Tcl_CreateFileHandler 3 7.5 Tcl "Tcl Library Procedures"
+.TH Tcl_CreateFileHandler 3 8.0 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
-Tcl_CreateFileHandler, Tcl_DeleteFileHandler \- associate procedure callbacks with files or devices
+Tcl_CreateFileHandler, Tcl_DeleteFileHandler \- associate procedure callbacks with files or devices (Unix only)
 .SH SYNOPSIS
 .nf
 \fB#include <tcl.h>\fR
+.VS
 .sp
-\fBTcl_CreateFileHandler\fR(\fIfile, mask, proc, clientData\fR)
+\fBTcl_CreateFileHandler\fR(\fIfd, mask, proc, clientData\fR)
 .sp
-\fBTcl_DeleteFileHandler\fR(\fIfile\fR)
+\fBTcl_DeleteFileHandler\fR(\fIfd\fR)
+.VE
 .SH ARGUMENTS
 .AS Tcl_FileProc clientData
-.AP Tcl_File file in
-Generic file handle for an open file or device (such as returned by
-\fBTcl_GetFile\fR call).
+.VS
+.AP int fd in
+Unix file descriptor for an open file or device.
+.VE
 .AP int mask in
 Conditions under which \fIproc\fR should be called:
 OR-ed combination of \fBTCL_READABLE\fR, \fBTCL_WRITABLE\fR,
@@ -38,10 +41,12 @@ Arbitrary one-word value to pass to \fIproc\fR.
 
 .SH DESCRIPTION
 .PP
+.VS
 \fBTcl_CreateFileHandler\fR arranges for \fIproc\fR to be
 invoked in the future whenever I/O becomes possible on a file
 or an exceptional condition exists for the file.  The file
-is indicated by \fIfile\fR, and the conditions of interest
+is indicated by \fIfd\fR, and the conditions of interest
+.VE
 are indicated by \fImask\fR.  For example, if \fImask\fR
 is \fBTCL_READABLE\fR, \fIproc\fR will be called when
 the file is readable.
@@ -70,12 +75,12 @@ to \fBTcl_CreateFileHandler\fR.
 .PP
 There may exist only one handler for a given file at a given time.
 If \fBTcl_CreateFileHandler\fR is called when a handler already
-exists for \fIfile\fR, then the new callback replaces the information
+exists for \fIfd\fR, then the new callback replaces the information
 that was previously recorded.
 .PP
 \fBTcl_DeleteFileHandler\fR may be called to delete the
-file handler for \fIfile\fR;  if no handler exists for the
-file given by \fIfile\fR then the procedure has no effect.
+file handler for \fIfd\fR;  if no handler exists for the
+file given by \fIfd\fR then the procedure has no effect.
 .PP
 The purpose of file handlers is to enable an application to respond to
 events while waiting for files to become ready for I/O.  For this to work
@@ -85,6 +90,11 @@ block if it reads or writes too much data; while waiting for the I/O to
 complete the application won't be able to service other events. Use
 \fBTcl_SetChannelOption\fR with \fB\-blocking\fR to set the channel into
 blocking or nonblocking mode as required.
+.PP
+.VS
+Note that these interfaces are only supported by the Unix
+implementation of the Tcl notifier.   
+.VE
 
 .SH KEYWORDS
 callback, file, handler

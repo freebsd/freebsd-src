@@ -11,247 +11,21 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclParse.c 1.50 96/03/02 14:46:55
+ * SCCS: @(#) tclParse.c 1.55 97/05/14 13:23:19
  */
 
 #include "tclInt.h"
 #include "tclPort.h"
 
 /*
- * The following table assigns a type to each character.  Only types
- * meaningful to Tcl parsing are represented here.  The table is
- * designed to be referenced with either signed or unsigned characters,
- * so it has 384 entries.  The first 128 entries correspond to negative
- * character values, the next 256 correspond to positive character
- * values.  The last 128 entries are identical to the first 128.  The
- * table is always indexed with a 128-byte offset (the 128th entry
- * corresponds to a 0 character value).
- */
-
-char tclTypeTable[] = {
-    /*
-     * Negative character values, from -128 to -1:
-     */
-
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-
-    /*
-     * Positive character values, from 0-127:
-     */
-
-    TCL_COMMAND_END,   TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_SPACE,         TCL_COMMAND_END,   TCL_SPACE,
-    TCL_SPACE,         TCL_SPACE,         TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_SPACE,         TCL_NORMAL,        TCL_QUOTE,         TCL_NORMAL,
-    TCL_DOLLAR,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_COMMAND_END,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_OPEN_BRACKET,
-    TCL_BACKSLASH,     TCL_COMMAND_END,   TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_OPEN_BRACE,
-    TCL_NORMAL,        TCL_CLOSE_BRACE,   TCL_NORMAL,        TCL_NORMAL,
-
-    /*
-     * Large unsigned character values, from 128-255:
-     */
-
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-    TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,        TCL_NORMAL,
-};
-
-/*
  * Function prototypes for procedures local to this file:
  */
 
-static char *	QuoteEnd _ANSI_ARGS_((char *string, int term));
-static char *	ScriptEnd _ANSI_ARGS_((char *p, int nested));
-static char *	VarNameEnd _ANSI_ARGS_((char *string));
-
-/*
- *----------------------------------------------------------------------
- *
- * Tcl_Backslash --
- *
- *	Figure out how to handle a backslash sequence.
- *
- * Results:
- *	The return value is the character that should be substituted
- *	in place of the backslash sequence that starts at src.  If
- *	readPtr isn't NULL then it is filled in with a count of the
- *	number of characters in the backslash sequence.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-char
-Tcl_Backslash(src, readPtr)
-    char *src;			/* Points to the backslash character of
-				 * a backslash sequence. */
-    int *readPtr;		/* Fill in with number of characters read
-				 * from src, unless NULL. */
-{
-    register char *p = src+1;
-    char result;
-    int count;
-
-    count = 2;
-
-    switch (*p) {
-	case 'a':
-	    result = 0x7;	/* Don't say '\a' here, since some compilers */
-	    break;		/* don't support it. */
-	case 'b':
-	    result = '\b';
-	    break;
-	case 'f':
-	    result = '\f';
-	    break;
-	case 'n':
-	    result = '\n';
-	    break;
-	case 'r':
-	    result = '\r';
-	    break;
-	case 't':
-	    result = '\t';
-	    break;
-	case 'v':
-	    result = '\v';
-	    break;
-	case 'x':
-	    if (isxdigit(UCHAR(p[1]))) {
-		char *end;
-
-		result = (char) strtoul(p+1, &end, 16);
-		count = end - src;
-	    } else {
-		count = 2;
-		result = 'x';
-	    }
-	    break;
-	case '\n':
-	    do {
-		p++;
-	    } while ((*p == ' ') || (*p == '\t'));
-	    result = ' ';
-	    count = p - src;
-	    break;
-	case 0:
-	    result = '\\';
-	    count = 1;
-	    break;
-	default:
-	    if (isdigit(UCHAR(*p))) {
-		result = (char)(*p - '0');
-		p++;
-		if (!isdigit(UCHAR(*p))) {
-		    break;
-		}
-		count = 3;
-		result = (char)((result << 3) + (*p - '0'));
-		p++;
-		if (!isdigit(UCHAR(*p))) {
-		    break;
-		}
-		count = 4;
-		result = (char)((result << 3) + (*p - '0'));
-		break;
-	    }
-	    result = *p;
-	    count = 2;
-	    break;
-    }
-
-    if (readPtr != NULL) {
-	*readPtr = count;
-    }
-    return result;
-}
+static char *	QuoteEnd _ANSI_ARGS_((char *string, char *lastChar,
+		    int term));
+static char *	ScriptEnd _ANSI_ARGS_((char *p, char *lastChar,
+		    int nested));
+static char *	VarNameEnd _ANSI_ARGS_((char *string,  char *lastChar));
 
 /*
  *--------------------------------------------------------------
@@ -299,6 +73,7 @@ TclParseQuotes(interp, string, termChar, flags, termPtr, pvPtr)
 				 * fully-substituted result of parse. */
 {
     register char *src, *dst, c;
+    char *lastChar = string + strlen(string);
 
     src = string;
     dst = pvPtr->next;
@@ -321,7 +96,7 @@ TclParseQuotes(interp, string, termChar, flags, termPtr, pvPtr)
 	    pvPtr->next = dst;
 	    *termPtr = src;
 	    return TCL_OK;
-	} else if (CHAR_TYPE(c) == TCL_NORMAL) {
+	} else if (CHAR_TYPE(src-1, lastChar) == TCL_NORMAL) {
 	    copy:
 	    *dst = c;
 	    dst++;
@@ -364,8 +139,11 @@ TclParseQuotes(interp, string, termChar, flags, termPtr, pvPtr)
 	    src += numRead;
 	    continue;
 	} else if (c == '\0') {
+	    char buf[30];
+	    
 	    Tcl_ResetResult(interp);
-	    sprintf(interp->result, "missing %c", termChar);
+	    sprintf(buf, "missing %c", termChar);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
 	    *termPtr = string-1;
 	    return TCL_ERROR;
 	} else {
@@ -418,7 +196,7 @@ TclParseNestedCmd(interp, string, flags, termPtr, pvPtr)
 
     iPtr->evalFlags = flags | TCL_BRACKET_TERM;
     result = Tcl_Eval(interp, string);
-    *termPtr = iPtr->termPtr;
+    *termPtr = (string + iPtr->termOffset);
     if (result != TCL_OK) {
 	/*
 	 * The increment below results in slightly cleaner message in
@@ -438,7 +216,8 @@ TclParseNestedCmd(interp, string, flags, termPtr, pvPtr)
     }
     strcpy(pvPtr->next, iPtr->result);
     pvPtr->next += length;
-    Tcl_FreeResult(iPtr);
+    
+    Tcl_FreeResult(interp);
     iPtr->result = iPtr->resultSpace;
     iPtr->resultSpace[0] = '\0';
     return TCL_OK;
@@ -483,6 +262,7 @@ TclParseBraces(interp, string, termPtr, pvPtr)
     int level;
     register char *src, *dst, *end;
     register char c;
+    char *lastChar = string + strlen(string);
 
     src = string;
     dst = pvPtr->next;
@@ -505,7 +285,7 @@ TclParseBraces(interp, string, termPtr, pvPtr)
 	}
 	*dst = c;
 	dst++;
-	if (CHAR_TYPE(c) == TCL_NORMAL) {
+	if (CHAR_TYPE(src-1, lastChar) == TCL_NORMAL) {
 	    continue;
 	} else if (c == '{') {
 	    level++;
@@ -552,281 +332,6 @@ TclParseBraces(interp, string, termPtr, pvPtr)
     *dst = '\0';
     pvPtr->next = dst;
     *termPtr = src;
-    return TCL_OK;
-}
-
-/*
- *--------------------------------------------------------------
- *
- * TclParseWords --
- *
- *	This procedure parses one or more words from a command
- *	string and creates argv-style pointers to fully-substituted
- *	copies of those words.
- *
- * Results:
- *	The return value is a standard Tcl result.
- *	
- *	*argcPtr is modified to hold a count of the number of words
- *	successfully parsed, which may be 0.  At most maxWords words
- *	will be parsed.  If 0 <= *argcPtr < maxWords then it
- *	means that a command separator was seen.  If *argcPtr
- *	is maxWords then it means that a command separator was
- *	not seen yet.
- *
- *	*TermPtr is filled in with the address of the character
- *	just after the last one successfully processed in the
- *	last word.  This is either the command terminator (if
- *	*argcPtr < maxWords), the character just after the last
- *	one in a word (if *argcPtr is maxWords), or the vicinity
- *	of an error (if the result is not TCL_OK).
- *	
- *	The pointers at *argv are filled in with pointers to the
- *	fully-substituted words, and the actual contents of the
- *	words are copied to the buffer at pvPtr.
- *
- *	If an error occurrs then an error message is left in
- *	interp->result and the information at *argv, *argcPtr,
- *	and *pvPtr may be incomplete.
- *
- * Side effects:
- *	The buffer space in pvPtr may be enlarged by calling its
- *	expandProc.
- *
- *--------------------------------------------------------------
- */
-
-int
-TclParseWords(interp, string, flags, maxWords, termPtr, argcPtr, argv, pvPtr)
-    Tcl_Interp *interp;		/* Interpreter to use for nested command
-				 * evaluations and error messages. */
-    char *string;		/* First character of word. */
-    int flags;			/* Flags to control parsing (same values as
-				 * passed to Tcl_Eval). */
-    int maxWords;		/* Maximum number of words to parse. */
-    char **termPtr;		/* Store address of terminating character
-				 * here. */
-    int *argcPtr;		/* Filled in with actual number of words
-				 * parsed. */
-    char **argv;		/* Store addresses of individual words here. */
-    register ParseValue *pvPtr;	/* Information about where to place
-				 * fully-substituted word. */
-{
-    register char *src, *dst;
-    register char c;
-    int type, result, argc;
-    char *oldBuffer;		/* Used to detect when pvPtr's buffer gets
-				 * reallocated, so we can adjust all of the
-				 * argv pointers. */
-
-    src = string;
-    oldBuffer = pvPtr->buffer;
-    dst = pvPtr->next;
-    for (argc = 0; argc < maxWords; argc++) {
-	argv[argc] = dst;
-
-	/*
-	 * Skip leading space.
-	 */
-    
-	skipSpace:
-	c = *src;
-	type = CHAR_TYPE(c);
-	while (type == TCL_SPACE) {
-	    src++;
-	    c = *src;
-	    type = CHAR_TYPE(c);
-	}
-    
-	/*
-	 * Handle the normal case (i.e. no leading double-quote or brace).
-	 */
-
-	if (type == TCL_NORMAL) {
-	    normalArg:
-	    while (1) {
-		if (dst == pvPtr->end) {
-		    /*
-		     * Target buffer space is about to run out.  Make
-		     * more space.
-		     */
-	
-		    pvPtr->next = dst;
-		    (*pvPtr->expandProc)(pvPtr, 1);
-		    dst = pvPtr->next;
-		}
-	
-		if (type == TCL_NORMAL) {
-		    copy:
-		    *dst = c;
-		    dst++;
-		    src++;
-		} else if (type == TCL_SPACE) {
-		    goto wordEnd;
-		} else if (type == TCL_DOLLAR) {
-		    int length;
-		    char *value;
-	
-		    value = Tcl_ParseVar(interp, src, termPtr);
-		    if (value == NULL) {
-			return TCL_ERROR;
-		    }
-		    src = *termPtr;
-		    length = strlen(value);
-		    if ((pvPtr->end - dst) <= length) {
-			pvPtr->next = dst;
-			(*pvPtr->expandProc)(pvPtr, length);
-			dst = pvPtr->next;
-		    }
-		    strcpy(dst, value);
-		    dst += length;
-		} else if (type == TCL_COMMAND_END) {
-		    if ((c == ']') && !(flags & TCL_BRACKET_TERM)) {
-			goto copy;
-		    }
-
-		    /*
-		     * End of command;  simulate a word-end first, so
-		     * that the end-of-command can be processed as the
-		     * first thing in a new word.
-		     */
-
-		    goto wordEnd;
-		} else if (type == TCL_OPEN_BRACKET) {
-		    pvPtr->next = dst;
-		    result = TclParseNestedCmd(interp, src+1, flags, termPtr,
-			    pvPtr);
-		    if (result != TCL_OK) {
-			return result;
-		    }
-		    src = *termPtr;
-		    dst = pvPtr->next;
-		} else if (type == TCL_BACKSLASH) {
-		    int numRead;
-    
-		    *dst = Tcl_Backslash(src, &numRead);
-
-		    /*
-		     * The following special check allows a backslash-newline
-		     * to be treated as a word-separator, as if the backslash
-		     * and newline had been collapsed before command parsing
-		     * began.
-		     */
-
-		    if (src[1] == '\n') {
-			src += numRead;
-			goto wordEnd;
-		    }
-		    src += numRead;
-		    dst++;
-		} else {
-		    goto copy;
-		}
-		c = *src;
-		type = CHAR_TYPE(c);
-	    }
-	} else {
-    
-	    /*
-	     * Check for the end of the command.
-	     */
-	
-	    if (type == TCL_COMMAND_END) {
-		if (flags & TCL_BRACKET_TERM) {
-		    if (c == '\0') {
-			Tcl_SetResult(interp, "missing close-bracket",
-				TCL_STATIC);
-			return TCL_ERROR;
-		    }
-		} else {
-		    if (c == ']') {
-			goto normalArg;
-		    }
-		}
-		goto done;
-	    }
-	
-	    /*
-	     * Now handle the special cases: open braces, double-quotes,
-	     * and backslash-newline.
-	     */
-
-	    pvPtr->next = dst;
-	    if (type == TCL_QUOTE) {
-		result = TclParseQuotes(interp, src+1, '"', flags,
-			termPtr, pvPtr);
-	    } else if (type == TCL_OPEN_BRACE) {
-		result = TclParseBraces(interp, src+1, termPtr, pvPtr);
-	    } else if ((type == TCL_BACKSLASH) && (src[1] == '\n')) {
-		/*
-		 * This code is needed so that a backslash-newline at the
-		 * very beginning of a word is treated as part of the white
-		 * space between words and not as a space within the word.
-		 */
-
-		src += 2;
-		goto skipSpace;
-	    } else {
-		goto normalArg;
-	    }
-	    if (result != TCL_OK) {
-		return result;
-	    }
-	
-	    /*
-	     * Back from quotes or braces;  make sure that the terminating
-	     * character was the end of the word.
-	     */
-	
-	    c = **termPtr;
-	    if ((c == '\\') && ((*termPtr)[1] == '\n')) {
-		/*
-		 * Line is continued on next line;  the backslash-newline
-		 * sequence turns into space, which is OK.  No need to do
-		 * anything here.
-		 */
-	    } else {
-		type = CHAR_TYPE(c);
-		if ((type != TCL_SPACE) && (type != TCL_COMMAND_END)) {
-		    if (*src == '"') {
-			Tcl_SetResult(interp,
-				"extra characters after close-quote",
-				TCL_STATIC);
-		    } else {
-			Tcl_SetResult(interp,
-				"extra characters after close-brace",
-				TCL_STATIC);
-		    }
-		    return TCL_ERROR;
-		}
-	    }
-	    src = *termPtr;
-	    dst = pvPtr->next;
-	}
-
-	/*
-	 * We're at the end of a word, so add a null terminator.  Then
-	 * see if the buffer was re-allocated during this word.  If so,
-	 * update all of the argv pointers.
-	 */
-
-	wordEnd:
-	*dst = '\0';
-	dst++;
-	if (oldBuffer != pvPtr->buffer) {
-	    int i;
-
-	    for (i = 0; i <= argc; i++) {
-		argv[i] = pvPtr->buffer + (argv[i] - oldBuffer);
-	    }
-	    oldBuffer = pvPtr->buffer;
-	}
-    }
-
-    done:
-    pvPtr->next = dst;
-    *termPtr = src;
-    *argcPtr = argc;
     return TCL_OK;
 }
 
@@ -914,8 +419,9 @@ TclExpandParseValue(pvPtr, needed)
  */
 
 char *
-TclWordEnd(start, nested, semiPtr)
+TclWordEnd(start, lastChar, nested, semiPtr)
     char *start;		/* Beginning of a word of a Tcl command. */
+    char *lastChar;		/* Terminating character in string. */
     int nested;			/* Zero means this is a top-level command.
 				 * One means this is a nested command (close
 				 * bracket is a word terminator). */
@@ -941,7 +447,7 @@ TclWordEnd(start, nested, semiPtr)
 	    continue;
 	}
 	if ((p[0] == '\\') && (p[1] == '\n')) {
-	    if (p[2] == 0) {
+	    if (p+2 == lastChar) {
 		return p+2;
 	    }
 	    continue;
@@ -954,8 +460,8 @@ TclWordEnd(start, nested, semiPtr)
      */
 
     if (*p == '"') {
-	p = QuoteEnd(p+1, '"');
-	if (*p == 0) {
+	p = QuoteEnd(p+1, lastChar, '"');
+	if (p == lastChar) {
 	    return p;
 	}
 	p++;
@@ -971,7 +477,7 @@ TclWordEnd(start, nested, semiPtr)
 		braces--;
 	    } else if (*p == '{') {
 		braces++;
-	    } else if (*p == 0) {
+	    } else if (p == lastChar) {
 		return p;
 	    }
 	}
@@ -988,8 +494,8 @@ TclWordEnd(start, nested, semiPtr)
 
     while (1) {
 	if (*p == '[') {
-	    p = ScriptEnd(p+1, 1);
-	    if (*p == 0) {
+	    p = ScriptEnd(p+1, lastChar, 1);
+	    if (p == lastChar) {
 		return p;
 	    }
 	    p++;
@@ -1006,8 +512,8 @@ TclWordEnd(start, nested, semiPtr)
 	    (void) Tcl_Backslash(p, &count);
 	    p += count;
 	} else if (*p == '$') {
-	    p = VarNameEnd(p);
-	    if (*p == 0) {
+	    p = VarNameEnd(p, lastChar);
+	    if (p == lastChar) {
 		return p;
 	    }
 	    p++;
@@ -1024,7 +530,7 @@ TclWordEnd(start, nested, semiPtr)
 	    return p-1;
 	} else if ((*p == ']') && nested) {
 	    return p-1;
-	} else if (*p == 0) {
+	} else if (p == lastChar) {
 	    if (nested) {
 		/*
 		 * Nested commands can't end because of the end of the
@@ -1063,9 +569,10 @@ TclWordEnd(start, nested, semiPtr)
  */
 
 static char *
-QuoteEnd(string, term)
+QuoteEnd(string, lastChar, term)
     char *string;		/* Pointer to character just after opening
 				 * "quote". */
+    char *lastChar;		/* Terminating character in string. */
     int term;			/* This character will terminate the
 				 * quoted string (e.g. '"' or ')'). */
 {
@@ -1078,19 +585,19 @@ QuoteEnd(string, term)
 	    p += count;
 	} else if (*p == '[') {
 	    for (p++; *p != ']'; p++) {
-		p = TclWordEnd(p, 1, (int *) NULL);
+		p = TclWordEnd(p, lastChar, 1, (int *) NULL);
 		if (*p == 0) {
 		    return p;
 		}
 	    }
 	    p++;
 	} else if (*p == '$') {
-	    p = VarNameEnd(p);
+	    p = VarNameEnd(p, lastChar);
 	    if (*p == 0) {
 		return p;
 	    }
 	    p++;
-	} else if (*p == 0) {
+	} else if (p == lastChar) {
 	    return p;
 	} else {
 	    p++;
@@ -1120,13 +627,14 @@ QuoteEnd(string, term)
  */
 
 static char *
-VarNameEnd(string)
+VarNameEnd(string, lastChar)
     char *string;		/* Pointer to dollar-sign character. */
+    char *lastChar;		/* Terminating character in string. */
 {
     register char *p = string+1;
 
     if (*p == '{') {
-	for (p++; (*p != '}') && (*p != 0); p++) {
+	for (p++; (*p != '}') && (p != lastChar); p++) {
 	    /* Empty loop body. */
 	}
 	return p;
@@ -1135,7 +643,7 @@ VarNameEnd(string)
 	p++;
     }
     if ((*p == '(') && (p != string+1)) {
-	return QuoteEnd(p+1, ')');
+	return QuoteEnd(p+1, lastChar, ')');
     }
     return p-1;
 }
@@ -1162,8 +670,9 @@ VarNameEnd(string)
  */
 
 static char *
-ScriptEnd(p, nested)
+ScriptEnd(p, lastChar, nested)
     char *p;			/* Script to check. */
+    char *lastChar;		/* Terminating character in string. */
     int nested;			/* Zero means this is a top-level command.
 				 * One means this is a nested command (the
 				 * last character of the script must be
@@ -1187,7 +696,7 @@ ScriptEnd(p, nested)
 		     * this command isn't complete.
 		     */
 
-		    if ((p[1] == '\n') && (p[2] == 0)) {
+		    if ((p[1] == '\n') && (p+2 == lastChar)) {
 			return p+2;
 		    }
 		    Tcl_Backslash(p, &length);
@@ -1195,11 +704,11 @@ ScriptEnd(p, nested)
 		} else {
 		    p++;
 		}
-	    } while ((*p != 0) && (*p != '\n'));
+	    } while ((p != lastChar) && (*p != '\n'));
 	    continue;
 	}
-	p = TclWordEnd(p, nested, &commentOK);
-	if (*p == 0) {
+	p = TclWordEnd(p, lastChar, nested, &commentOK);
+	if (p == lastChar) {
 	    return p;
 	}
 	p++;
@@ -1208,7 +717,7 @@ ScriptEnd(p, nested)
 		return p;
 	    }
 	} else {
-	    if (*p == 0) {
+	    if (p == lastChar) {
 		return p-1;
 	    }
 	}
@@ -1260,13 +769,13 @@ Tcl_ParseVar(interp, string, termPtr)
      *    variable is a scalar variable.
      * 2. The $ sign is not followed by an open curly brace.  Then the
      *    variable name is everything up to the next character that isn't
-     *    a letter, digit, or underscore.  If the following character is an
-     *    open parenthesis, then the information between parentheses is
-     *    the array element name, which can include any of the substitutions
-     *    permissible between quotes.
+     *    a letter, digit, or underscore, or a "::" namespace separator.
+     *    If the following character is an open parenthesis, then the
+     *    information between parentheses is the array element name, which
+     *    can include any of the substitutions permissible between quotes.
      * 3. The $ sign is followed by something that isn't a letter, digit,
-     *    or underscore:  in this case, there is no variable name, and "$"
-     *    is returned.
+     *    underscore, or a "::" namespace separator: in this case,
+     *    there is no variable name, and "$" is returned.
      */
 
     name2 = NULL;
@@ -1289,8 +798,20 @@ Tcl_ParseVar(interp, string, termPtr)
 	string++;
     } else {
 	name1 = string;
-	while (isalnum(UCHAR(*string)) || (*string == '_')) {
-	    string++;
+	while (isalnum(UCHAR(*string)) || (*string == '_')
+	        || (*string == ':')) {
+	    if (*string == ':') {
+		if (*(string+1) == ':') {
+                    string += 2;  /* skip over the initial :: */
+		    while (*string == ':') {
+			string++; /* skip over a subsequent : */
+		    }
+		} else {
+		    break;	  /* : by itself */
+                }
+	    } else {
+		string++;
+	    }
 	}
 	if (string == name1) {
 	    if (termPtr != 0) {
@@ -1339,9 +860,6 @@ Tcl_ParseVar(interp, string, termPtr)
 	*termPtr = string;
     }
 
-    if (((Interp *) interp)->noEval) {
-	return "";
-    }
     c = *name1End;
     *name1End = 0;
     result = Tcl_GetVar2(interp, name1, name2, TCL_LEAVE_ERR_MSG);
@@ -1381,6 +899,6 @@ Tcl_CommandComplete(cmd)
     if (*cmd == 0) {
 	return 1;
     }
-    p = ScriptEnd(cmd, 0);
+    p = ScriptEnd(cmd, cmd+strlen(cmd), 0);
     return (*p != 0);
 }

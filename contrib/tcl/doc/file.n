@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) file.n 1.13 96/04/11 17:03:13
+'\" SCCS: @(#) file.n 1.23 97/04/30 11:37:10
 '\" 
 .so man.macros
-.TH file n 7.5 Tcl "Tcl Built-In Commands"
+.TH file n 7.6 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -19,25 +19,92 @@ file \- Manipulate file names and attributes
 
 .SH DESCRIPTION
 .PP
-.VS
 This command provides several operations on a file's name or attributes.
-\fIName\fR is the name of a file;
-if it starts with a tilde, then tilde substitution is done before
-executing the command (see the manual entry for \fBfilename\fR 
-for details).
-.VE
-\fIOption\fR indicates what to do with the file name.  Any unique
-abbreviation for \fIoption\fR is acceptable.  The valid options are:
+\fIName\fR is the name of a file; if it starts with a tilde, then tilde
+substitution is done before executing the command (see the manual entry for
+\fBfilename\fR for details).  \fIOption\fR indicates what to do with the
+file name.  Any unique abbreviation for \fIoption\fR is acceptable.  The
+valid options are:
 .TP
 \fBfile atime \fIname\fR
+.
 Returns a decimal string giving the time at which file \fIname\fR
 was last accessed.  The time is measured in the standard POSIX
 fashion as seconds from a fixed starting time (often January 1, 1970).
 If the file doesn't exist or its access time cannot be queried then an
 error is generated.
+.VS
+.TP
+\fBfile attributes \fIname\fR
+.br
+\fBfile attributes \fIname\fR ?\fBoption\fR?
+.br
+\fBfile attributes \fIname\fR ?\fBoption value option value...\fR?
+.RS
+This subcommand returns or sets platform specific values associated
+with a file. The first form returns a list of the platform specific
+flags and their values. The second form returns the value for the
+specific option. The third form sets one or more of the values. The
+values are as follows:
+.PP
+On Unix, \fB-group\fR gets or sets the group name for the file. A group id can
+be given to the command, but it returns a group name. \fB-owner\fR
+gets or sets the user name of the owner of the file. The command
+returns the owner name, but the numerical id can be passed when
+setting the owner. \fB-permissions\fR sets or retrieves the octal code
+that chmod(1) uses. This command does not support the symbolic
+attributes for chmod(1) at this time.
+.PP
+On Windows, \fB-archive\fR gives the value or sets or clears the
+archive attribute of the file. \fB-hidden\fR gives the value or sets
+or clears the hidden attribute of the file. \fB-longname\fR will
+expand each path element to its long version. This attribute cannot be
+set. \fB-readonly\fR gives the value or sets or clears the readonly
+attribute of the file. \fB-shortname\fR gives a string where every
+path element is replaced with its short (8.3) version of the
+name. This attribute cannot be set. \fB-system\fR gives or sets or
+clears the value of the system attribute of the file.
+.PP
+On Macintosh, \fB-creator\fR gives or sets the Finder creator type of
+the file. \fB-hidden\fR gives or sets or clears the hidden attribute
+of the file. \fB-readonly\fR gives or sets or clears the readonly
+attribute of the file. Note that directories can only be locked if
+File Sharing is turned on. \fB-type\fR gives or sets the Finder file
+type for the file.
+.RE
+.VE
+.PP
+\fBfile copy \fR?\fB\-force\fR? ?\fB\-\|\-\fR? \fIsource\fR \fItarget\fR
+.br
+\fBfile copy \fR?\fB\-force\fR? ?\fB\-\|\-\fR? \fIsource\fR ?\fIsource\fR ...? \fItargetDir\fR
+.RS
+The first form makes a copy of the file or directory \fIsource\fR under
+the pathname \fItarget\fR.  If \fItarget\fR is an existing directory,
+then the second form is used.  The second form makes a copy inside
+\fItargetDir\fR of each \fIsource\fR file listed.  If a directory is
+specified as a \fIsource\fR, then the contents of the directory will be
+recursively copied into \fItargetDir\fR.  Existing files will not be
+overwritten unless the \fB\-force\fR option is specified.  Trying to
+overwrite a non-empty directory, overwrite a directory with a file, or a
+file with a directory will all result in errors even if \fI\-force\fR was
+specified.  Arguments are processed in the order specified, halting at the
+first error, if any.  A \fB\-\|\-\fR marks the end of switches; the argument
+following the \fB\-\|\-\fR will be treated as a \fIsource\fR even if it
+starts with a \fB\-\fR.
+.RE
+.TP
+\fBfile delete \fR?\fB\-force\fR? ?\fB\-\|\-\fR? \fIpathname\fR ?\fIpathname\fR ... ?
+.
+Removes the file or directory specified by each \fIpathname\fR argument.
+Non-empty directories will be removed only if the \fB\-force\fR option is
+specified.  Trying to delete a non-existant file is not considered an
+error.  Trying to delete a read-only file will cause the file to be deleted,
+even if the \fB\-force\fR flags is not specified.  Arguments are processed
+in the order specified, halting at the first error, if any.  A \fB\-\|\-\fR
+marks the end of switches; the argument following the \fB\-\|\-\fR will be
+treated as a \fIpathname\fR even if it starts with a \fB\-\fR.
 .TP
 \fBfile dirname \fIname\fR
-.VS
 Returns a name comprised of all of the path components in \fIname\fR
 excluding the last element.  If \fIname\fR is a relative file name and
 only contains one path element, then returns ``\fB.\fR'' (or ``\fB:\fR''
@@ -50,7 +117,7 @@ root directory is returned.  For example,
 returns \fBc:/\fR. 
 .PP
 Note that tilde substitution will only be
-performed if it is necessary to complete the command.  For example,
+performed if it is necessary to complete the command. For example,
 .CS
 \fBfile dirname ~/src/foo.c\fR
 .CE
@@ -60,36 +127,35 @@ returns \fB~/src\fR, whereas
 .CE
 returns \fB/home\fR (or something similar).
 .RE
-.VE
 .TP
 \fBfile executable \fIname\fR
-Returns \fB1\fR if file \fIname\fR is executable by
-the current user, \fB0\fR otherwise.
-Under UNIX this command uses the real user and group identifiers,
-not the effective ones.
+.
+Returns \fB1\fR if file \fIname\fR is executable by the current user,
+\fB0\fR otherwise.  
 .TP
 \fBfile exists \fIname\fR
+.
 Returns \fB1\fR if file \fIname\fR exists and the current user has
 search privileges for the directories leading to it, \fB0\fR otherwise.
 .TP
 \fBfile extension \fIname\fR
-Returns all of the characters in \fIname\fR after and including the
-last dot in the last element of \fIname\fR.  If there is no dot in
-the last element of \fIname\fR then returns
-the empty string.
+.
+Returns all of the characters in \fIname\fR after and including the last
+dot in the last element of \fIname\fR.  If there is no dot in the last
+element of \fIname\fR then returns the empty string.
 .TP
 \fBfile isdirectory \fIname\fR
-Returns \fB1\fR if file \fIname\fR is a directory,
-\fB0\fR otherwise.
+.
+Returns \fB1\fR if file \fIname\fR is a directory, \fB0\fR otherwise.
 .TP
 \fBfile isfile \fIname\fR
-Returns \fB1\fR if file \fIname\fR is a regular file,
-\fB0\fR otherwise.
-.VS br
+.
+Returns \fB1\fR if file \fIname\fR is a regular file, \fB0\fR otherwise.
 .TP
 \fBfile join \fIname\fR ?\fIname ...\fR?
-Takes one or more file names and combines them, using the correct
-path separator for the current platform.  If a particular \fIname\fR is
+.
+Takes one or more file names and combines them, using the correct path
+separator for the current platform.  If a particular \fIname\fR is
 relative, then it will be joined to the previous file name argument.
 Otherwise, any earlier arguments will be discarded, and joining will
 proceed from the current argument.  For example,
@@ -103,9 +169,9 @@ Note that any of the names can contain separators, and that the result
 is always canonical for the current platform: \fB/\fR for Unix and
 Windows, and \fB:\fR for Macintosh.
 .RE
-.VE
 .TP
 \fBfile lstat \fIname varName\fR
+.
 Same as \fBstat\fR option (see below) except uses the \fIlstat\fR
 kernel call instead of \fIstat\fR.  This means that if \fIname\fR
 refers to a symbolic link the information returned in \fIvarName\fR
@@ -113,19 +179,38 @@ is for the link rather than the file it refers to.  On systems that
 don't support symbolic links this option behaves exactly the same
 as the \fBstat\fR option.
 .TP
-\fBfile mtime \fIname\fR
-Returns a decimal string giving the time at which file \fIname\fR
-was last modified.  The time is measured in the standard POSIX
-fashion as seconds from a fixed starting time (often January 1, 1970).
-If the file doesn't exist or its modified time cannot be queried then an
-error is generated.
+\fBfile mkdir \fIdir\fR ?\fIdir\fR ...?
+.
+Creates each directory specified.  For each pathname \fIdir\fR specified,
+this command will create all non-existing parent directories as
+well as \fIdir\fR itself.  If an existing directory is specified, then
+no action is taken and no error is returned.  Trying to overwrite an existing
+file with a directory will result in an error.  Arguments are processed in
+the order specified, halting at the first error, if any.
 .TP
-\fBfile owned \fIname\fR
-Returns \fB1\fR if file \fIname\fR is owned by the current user,
-\fB0\fR otherwise.
-.VS br
+\fBfile mtime \fIname\fR
+.
+Returns a decimal string giving the time at which file \fIname\fR was
+last modified.  The time is measured in the standard POSIX fashion as
+seconds from a fixed starting time (often January 1, 1970).  If the file
+doesn't exist or its modified time cannot be queried then an error is
+generated.
+.VS
+.TP
+\fBfile nativename \fIname\fR
+.
+Returns the platform-specific name of the file. This is useful if the
+filename is needed to pass to a platform-specific call, such as exec
+under Windows or AppleScript on the Macintosh.
+.VE
+.TP
+\fBfile owned \fIname\fR 
+.
+Returns \fB1\fR if file \fIname\fR is owned by the current user, \fB0\fR
+otherwise.
 .TP
 \fBfile pathtype \fIname\fR
+.
 Returns one of \fBabsolute\fR, \fBrelative\fR, \fBvolumerelative\fR.  If
 \fIname\fR refers to a specific file on a specific volume, the path type
 will be \fBabsolute\fR.  If \fIname\fR refers to a file relative to the
@@ -133,37 +218,55 @@ current working directory, then the path type will be \fBrelative\fR.  If
 \fIname\fR refers to a file relative to the current working directory on
 a specified volume, or to a specific file on the current working volume, then
 the file type is \fBvolumerelative\fR.
-.VE
 .TP
 \fBfile readable \fIname\fR
-Returns \fB1\fR if file \fIname\fR is readable by
-the current user, \fB0\fR otherwise.
-Under UNIX this command uses the real user and group identifiers,
-not the effective ones.
+.
+Returns \fB1\fR if file \fIname\fR is readable by the current user,
+\fB0\fR otherwise. 
 .TP
 \fBfile readlink \fIname\fR
-Returns the value of the symbolic link given by \fIname\fR (i.e. the
-name of the file it points to).  If
-\fIname\fR isn't a symbolic link or its value cannot be read, then
-an error is returned.  On systems that don't support symbolic links
-this option is undefined.
+.
+Returns the value of the symbolic link given by \fIname\fR (i.e. the name
+of the file it points to).  If \fIname\fR isn't a symbolic link or its
+value cannot be read, then an error is returned.  On systems that don't
+support symbolic links this option is undefined.
+.PP
+\fBfile rename \fR?\fB\-force\fR? ?\fB\-\|\-\fR? \fIsource\fR \fItarget\fR
+.br
+\fBfile rename \fR?\fB\-force\fR? ?\fB\-\|\-\fR? \fIsource\fR ?\fIsource\fR ...? \fItargetDir\fR
+.RS
+The first form takes the file or directory specified by pathname
+\fIsource\fR and renames it to \fItarget\fR, moving the file if the
+pathname \fItarget\fR specifies a name in a different directory.  If
+\fItarget\fR is an existing directory, then the second form is used.  The
+second form moves each \fIsource\fR file or directory into the directory
+\fItargetDir\fR.  Existing files will not be overwritten unless the
+\fB\-force\fR option is specified.  Trying to overwrite a non-empty
+directory, overwrite a directory with a file, or a file with a directory
+will all result in errors.  Arguments are processed in the order specified,
+halting at the first error, if any.  A \fB\-\|\-\fR marks the end of
+switches; the argument following the \fB\-\|\-\fR will be treated as a
+\fIsource\fR even if it starts with a \fB\-\fR.
+.RE
 .TP
 \fBfile rootname \fIname\fR
-Returns all of the characters in \fIname\fR up to but not including
-the last ``.'' character in the last component of name.  If the last
+.
+Returns all of the characters in \fIname\fR up to but not including the
+last ``.'' character in the last component of name.  If the last
 component of \fIname\fR doesn't contain a dot, then returns \fIname\fR.
 .TP
 \fBfile size \fIname\fR
-Returns a decimal string giving the size of file \fIname\fR in bytes.
-If the file doesn't exist or its size cannot be queried then an
-error is generated.
-.VS br
+.
+Returns a decimal string giving the size of file \fIname\fR in bytes.  If
+the file doesn't exist or its size cannot be queried then an error is
+generated.
 .TP
 \fBfile split \fIname\fR
+.
 Returns a list whose elements are the path components in \fIname\fR.  The
 first element of the list will have the same path type as \fIname\fR.
 All other elements will be relative.  Path separators will be discarded
-unless they are needed ensure that an element is unambiguously relative.  
+unless they are needed ensure that an element is unambiguously relative.
 For example, under Unix
 .RS
 .CS
@@ -173,45 +276,56 @@ returns \fB/\0\0foo\0\0./~bar\0\0baz\fR to ensure that later commands
 that use the third component do not attempt to perform tilde
 substitution.
 .RE
-.VE
 .TP
 \fBfile stat  \fIname varName\fR
-Invokes the \fBstat\fR kernel call on \fIname\fR, and uses the
-variable given by \fIvarName\fR to hold information returned from
-the kernel call.
-\fIVarName\fR is treated as an array variable,
-and the following elements of that variable are set: \fBatime\fR,
-\fBctime\fR, \fBdev\fR, \fBgid\fR, \fBino\fR, \fBmode\fR, \fBmtime\fR,
-\fBnlink\fR, \fBsize\fR, \fBtype\fR, \fBuid\fR.
-Each element except \fBtype\fR is a decimal string with the value of
-the corresponding field from the \fBstat\fR return structure; see the
-manual entry for \fBstat\fR for details on the meanings of the values.
-The \fBtype\fR element gives the type of the file in the same form
-returned by the command \fBfile type\fR.
-This command returns an empty string.
+.
+Invokes the \fBstat\fR kernel call on \fIname\fR, and uses the variable
+given by \fIvarName\fR to hold information returned from the kernel call.
+\fIVarName\fR is treated as an array variable, and the following elements
+of that variable are set: \fBatime\fR, \fBctime\fR, \fBdev\fR, \fBgid\fR,
+\fBino\fR, \fBmode\fR, \fBmtime\fR, \fBnlink\fR, \fBsize\fR, \fBtype\fR,
+\fBuid\fR.  Each element except \fBtype\fR is a decimal string with the
+value of the corresponding field from the \fBstat\fR return structure;
+see the manual entry for \fBstat\fR for details on the meanings of the
+values.  The \fBtype\fR element gives the type of the file in the same
+form returned by the command \fBfile type\fR.  This command returns an
+empty string.
 .TP
 \fBfile tail \fIname\fR
-.VS
+.
 Returns all of the characters in \fIname\fR after the last directory
 separator.  If \fIname\fR contains no separators then returns
 \fIname\fR.
-.VE
 .TP
 \fBfile type \fIname\fR
-Returns a string giving the type of file \fIname\fR, which will be
-one of \fBfile\fR, \fBdirectory\fR, \fBcharacterSpecial\fR,
-\fBblockSpecial\fR, \fBfifo\fR, \fBlink\fR, or \fBsocket\fR.
+.
+Returns a string giving the type of file \fIname\fR, which will be one of
+\fBfile\fR, \fBdirectory\fR, \fBcharacterSpecial\fR, \fBblockSpecial\fR,
+\fBfifo\fR, \fBlink\fR, or \fBsocket\fR.
+.TP
+\fBfile volume\fR
+. 
+Returns the absolute paths to the volumes mounted on the system, as a proper 
+Tcl list.  On the Macintosh, this will be a list of the mounted drives, 
+both local and network.  N.B. if two drives have the same name, they will 
+both appear on the volume list, but there is currently no way, from Tcl, to 
+access any but the first of these drives.  On UNIX, the command will always return 
+"/", since all filesystems are locally mounted.  On Windows, it will return 
+a list of the available local drives (e.g. {a:/ c:/}).
 .TP
 \fBfile writable \fIname\fR
-Returns \fB1\fR if file \fIname\fR is writable by
-the current user, \fB0\fR otherwise.
-Under UNIX this command uses the real user and group identifiers,
-not the effective ones.
+.
+Returns \fB1\fR if file \fIname\fR is writable by the current user,
+\fB0\fR otherwise.
+.SH "PORTABILITY ISSUES"
+.TP
+\fBUnix\fR\0\0\0\0\0\0\0
+.
+These commands always operate using the real user and group identifiers,
+not the effective ones. 
 
-.VS
 .SH "SEE ALSO"
 filename
-.VE
 
 .SH KEYWORDS
-attributes, directory, file, name, stat
+attributes, copy files, delete files, directory, file, move files, name, rename files, stat

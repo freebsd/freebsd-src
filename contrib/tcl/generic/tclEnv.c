@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclEnv.c 1.37 96/07/23 16:28:26
+ * SCCS: @(#) tclEnv.c 1.43 97/05/21 17:10:56
  */
 
 /*
@@ -40,7 +40,7 @@ typedef struct EnvInterp {
 				 * or zero. */
 } EnvInterp;
 
-static EnvInterp *firstInterpPtr;
+static EnvInterp *firstInterpPtr = NULL;
 				/* First in list of all managed interpreters,
 				 * or NULL if none. */
 
@@ -96,7 +96,9 @@ TclSetupEnv(interp)
 				 * managed. */
 {
     EnvInterp *eiPtr;
-    int i;
+    char *p, *p2;
+    Tcl_DString ds;
+    int i, sz;
 
     /*
      * First, initialize our environment-related information, if
@@ -107,6 +109,13 @@ TclSetupEnv(interp)
 	EnvInit();
     }
 
+    /*
+     * Next, initialize the DString we are going to use for copying
+     * the names of the environment variables.
+     */
+
+    Tcl_DStringInit(&ds);
+    
     /*
      * Next, add the interpreter to the list of those that we manage.
      */
@@ -124,22 +133,38 @@ TclSetupEnv(interp)
 
     (void) Tcl_UnsetVar2(interp, "env", (char *) NULL, TCL_GLOBAL_ONLY);
     for (i = 0; ; i++) {
-	char *p, *p2;
-
 	p = environ[i];
 	if (p == NULL) {
 	    break;
 	}
 	for (p2 = p; *p2 != '='; p2++) {
-	    /* Empty loop body. */
+	    if (*p2 == 0) {
+		/*
+		 * This condition doesn't seem like it should ever happen,
+		 * but it does seem to happen occasionally under some
+		 * versions of Solaris; ignore the entry.
+		 */
+
+		goto nextEntry;
+	    }
 	}
-	*p2 = 0;
-	(void) Tcl_SetVar2(interp, "env", p, p2+1, TCL_GLOBAL_ONLY);
-	*p2 = '=';
+        sz = p2 - p;
+        Tcl_DStringSetLength(&ds, 0);
+        Tcl_DStringAppend(&ds, p, sz);
+	(void) Tcl_SetVar2(interp, "env", Tcl_DStringValue(&ds),
+                p2+1, TCL_GLOBAL_ONLY);
+	nextEntry:
+	continue;
     }
     Tcl_TraceVar2(interp, "env", (char *) NULL,
 	    TCL_GLOBAL_ONLY | TCL_TRACE_WRITES | TCL_TRACE_UNSETS,
 	    EnvTraceProc, (ClientData) NULL);
+
+    /*
+     * Finally clean up the DString.
+     */
+
+    Tcl_DStringFree(&ds);
 }
 
 /*
@@ -557,9 +582,10 @@ EnvInit()
 #ifdef MAC_TCL
     environSize = TclMacCreateEnv();
 #else
-    char **newEnviron;
+    char **newEnviron, **oldEnviron;
     int i, length;
 
+    oldEnviron = environ;
     if (environSize != 0) {
 	return;
     }
@@ -575,7 +601,7 @@ EnvInit()
     }
     newEnviron[length] = NULL;
     environ = newEnviron;
-    Tcl_CreateExitHandler(EnvExitProc, (ClientData) NULL);
+    Tcl_CreateExitHandler(EnvExitProc, (ClientData) oldEnviron);
 #endif
 }
 
@@ -598,9 +624,10 @@ EnvInit()
 
 static void
 EnvExitProc(clientData)
-    ClientData clientData;		/* Not  used. */
+    ClientData clientData;	/* Old environment pointer -- restore this. */
 {
     char **p;
+    EnvInterp *eiPtr, *nextPtr;
 
     for (p = environ; *p != NULL; p++) {
 	ckfree(*p);
@@ -612,5 +639,12 @@ EnvExitProc(clientData)
      * doesn't choke on exit.
      */
 
-    environ = NULL;
+    environ = (char **) clientData;
+    environSize = 0;
+
+    for (eiPtr = firstInterpPtr; eiPtr != NULL; eiPtr = nextPtr) {
+	nextPtr = eiPtr->nextPtr;
+	ckfree((char *) eiPtr);
+    }
+    firstInterpPtr = NULL;
 }

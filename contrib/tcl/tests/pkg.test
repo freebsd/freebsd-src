@@ -4,18 +4,18 @@
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1995 Sun Microsystems, Inc.
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) pkg.test 1.6 96/03/20 10:50:27
+# SCCS: @(#) pkg.test 1.9 96/11/15 17:56:01
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
 eval package forget [package names]
 package unknown {}
-set oldPath auto_path
+set oldPath $auto_path
 set auto_path ""
 
 test pkg-1.1 {Tcl_PkgProvide procedure} {
@@ -192,7 +192,7 @@ test pkg-2.16 {Tcl_PkgRequire procedure, "package unknown" error} {
 } {1 {testing package unknown} {testing package unknown
     while executing
 "error "testing package unknown""
-    (procedure "pkgUnknown" line 2)
+    (procedure "pkgUnknown" line 1)
     invoked from within
 "pkgUnknown t {}"
     ("package unknown" script)
@@ -545,5 +545,5 @@ test pkg-6.9 {ComparePkgVersions procedure} {
     package vsatisfies 2 1
 } {0}
 
-set auto_path oldPath
+set auto_path $oldPath
 concat

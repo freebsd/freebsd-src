@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPreserve.c 1.17 96/07/23 16:15:34
+ * SCCS: @(#) tclPreserve.c 1.18 96/08/05 13:15:08
  */
 
 #include "tclInt.h"

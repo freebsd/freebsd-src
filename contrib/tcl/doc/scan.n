@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) scan.n 1.11 96/03/25 20:22:44
+'\" SCCS: @(#) scan.n 1.12 96/08/26 13:00:13
 '\" 
 .so man.macros
 .TH scan n "" Tcl "Tcl Built-In Commands"
@@ -21,10 +21,8 @@ scan \- Parse string using conversion specifiers in the style of sscanf
 .PP
 This command parses fields from an input string in the same fashion
 as the ANSI C \fBsscanf\fR procedure and returns a count of the number
-.VS
 of conversions performed, or -1 if the end of the input string is
 reached before any conversions have been performed.
-.VE
 \fIString\fR gives the input to be parsed and \fIformat\fR indicates
 how to parse it, using \fB%\fR conversion specifiers as in \fBsscanf\fR.
 Each \fIvarName\fR gives the name of a variable; when a field is
@@ -118,23 +116,19 @@ then no variable is assigned and the next scan argument is not consumed.
 The behavior of the \fBscan\fR command is the same as the behavior of
 the ANSI C \fBsscanf\fR procedure except for the following differences:
 .IP [1]
-.VS
 \fB%p\fR and \fB%n\fR conversion specifiers are not currently
 supported.
-.VE
 .IP [2]
 For \fB%c\fR conversions a single character value is
 converted to a decimal string, which is then assigned to the
 corresponding \fIvarName\fR;
 no field width may be specified for this conversion.
 .IP [3]
-.VS
 The \fBl\fR, \fBh\fR, and \fBL\fR modifiers are ignored;  integer
 values are always converted as if there were no modifier present
 and real values are always converted as if the \fBl\fR modifier
 were present (i.e. type \fBdouble\fR is used for the internal
 representation).
-.VE
 
 .SH KEYWORDS
 conversion specifier, parse, scan

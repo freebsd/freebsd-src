@@ -1,0 +1,241 @@
+# This file tests the tclUnixFCmd.c file.
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) unixFCmd.test 1.11 97/06/23 17:30:25
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+if {$tcl_platform(platform) != "unix"} {
+    return
+}
+
+if {$user == "root"} {
+    puts "Skipping unixFCmd tests.  They depend on not being able to write to"
+    puts "certain directories.  It would be too dangerous to run them as root."
+    return
+}
+
+proc openup {path} {
+    testchmod 777 $path
+    if {[file isdirectory $path]} {
+	catch {
+	    foreach p [glob [file join $path *]] {
+		openup $p
+	    }
+	}
+    }
+}
+
+proc cleanup {args} {
+    foreach p ". $args" {
+	set x ""
+	catch {
+	    set x [glob [file join $p tf*] [file join $p td*]]
+	}
+	foreach file $x {
+	    if {[catch {file delete -force -- $file}]} {
+		openup $file
+		file delete -force -- $file
+	    }
+	}
+    }
+}
+
+test unixFCmd-1.1 {TclpRenameFile: EACCES} {
+    cleanup
+    file mkdir td1/td2/td3
+    exec chmod 000 td1/td2
+    set msg [list [catch {file rename td1/td2/td3 td2} msg] $msg]
+    exec chmod 755 td1/td2
+    set msg
+} {1 {error renaming "td1/td2/td3": permission denied}}
+test unixFCmd-1.2 {TclpRenameFile: EEXIST} {
+    cleanup
+    file mkdir td1/td2
+    file mkdir td2
+    list [catch {file rename td2 td1} msg] $msg
+} {1 {error renaming "td2" to "td1/td2": file already exists}}
+test unixFCmd-1.3 {TclpRenameFile: EINVAL} {
+    cleanup
+    file mkdir td1
+    list [catch {file rename td1 td1} msg] $msg
+} {1 {error renaming "td1" to "td1/td1": trying to rename a volume or move a directory into itself}}
+test unixFCmd-1.4 {TclpRenameFile: EISDIR} {
+    # can't make it happen
+} {}
+test unixFCmd-1.5 {TclpRenameFile: ENOENT} {
+    cleanup
+    file mkdir td1
+    list [catch {file rename td2 td1} msg] $msg
+} {1 {error renaming "td2": no such file or directory}}
+test unixFCmd-1.6 {TclpRenameFile: ENOTDIR} {
+    # can't make it happen
+} {}
+test unixFCmd-1.7 {TclpRenameFile: EXDEV} {nonPortable} {
+    cleanup
+    file mkdir td1
+    if [file exists /kernel] {
+	set msg [list [catch {file rename /kernel td1} msg] $msg]
+	set a1 {1 {can't unlink "/kernel": permission denied}}
+	expr {$msg == $a1}
+    } else {
+        list 1
+    }
+} {1}
+
+test unixFCmd-2.1 {TclpCopyFile: target exists: lstat(dst) == 0} {
+    cleanup
+    exec touch tf1
+    exec touch tf2
+    file copy -force tf1 tf2
+} {}
+test unixFCmd-2.2 {TclpCopyFile: src is symlink} {
+    cleanup
+    exec ln -s tf1 tf2
+    file copy tf2 tf3
+    file type tf3
+} {link}
+test unixFCmd-2.3 {TclpCopyFile: src is block} {
+    cleanup
+    set null "/dev/null"
+    while {[file type $null] != "characterSpecial"} {
+	set null [file join [file dirname $null] [file readlink $null]]
+    }
+    # file copy $null tf1
+} {}
+test unixFCmd-2.4 {TclpCopyFile: src is fifo} {
+    cleanup
+    if [catch {exec mknod tf1 p}] {
+	list 1
+    } else {
+	file copy tf1 tf2
+	expr {"[file type tf1]" == "[file type tf2]"}
+    }
+} {1}
+test unixFCmd-2.5 {TclpCopyFile: copy attributes} {
+    cleanup
+    exec touch tf1
+    exec chmod 472 tf1
+    file copy tf1 tf2
+    string range [exec ls -l tf2] 0 9
+} {-r--rwx-w-}
+
+test unixFCmd-3.1 {CopyFile not done} {
+} {}
+
+test unixFCmd-4.1 {TclpDeleteFile not done} {
+} {}
+
+test unixFCmd-5.1 {TclpCreateDirectory not done} {
+} {}
+
+test unixFCmd-6.1 {TclpCopyDirectory not done} {
+} {}
+
+test unixFCmd-7.1 {TclpRemoveDirectory not done} {
+} {}
+
+test unixFCmd-8.1 {TraverseUnixTree not done} {
+} {}
+
+test unixFCmd-9.1 {TraversalCopy not done} {
+} {}
+
+test unixFCmd-10.1 {TraversalDelete not done} {
+} {}
+
+test unixFCmd-11.1 {CopyFileAttrs not done} {
+} {}
+
+set testConfig(tclGroup) 0
+if {[catch {exec {groups}} groupList] == 0} {
+    if {[lsearch $groupList tcl] != -1} {
+	set testConfig(tclGroup) 1
+    }
+}
+
+test unixFCmd-12.1 {GetGroupAttribute - file not found} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -group} msg] $msg
+} {1 {could not stat file "foo.test": no such file or directory}}
+test unixFCmd-12.2 {GetGroupAttribute - file found} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attributes foo.test -group}] [file delete -force -- foo.test]
+} {0 {}}
+
+test unixFCmd-13.1 {GetOwnerAttribute - file not found} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -group} msg] $msg
+} {1 {could not stat file "foo.test": no such file or directory}}
+test unixFCmd-13.2 {GetOwnerAttribute} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attributes foo.test -owner} msg] [string compare $msg $user] [file delete -force -- foo.test]
+} {0 0 {}}
+
+test unixFCmd-14.1 {GetPermissionsAttribute - file not found} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -permissions} msg] $msg
+} {1 {could not stat file "foo.test": no such file or directory}}
+test unixFCmd-14.2 {GetPermissionsAttribute} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attribute foo.test -permissions}] [file delete -force -- foo.test]
+} {0 {}}
+
+#groups hard to test
+test unixFCmd-15.1 {SetGroupAttribute - invalid group} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -group foozzz} msg] $msg [file delete -force -- foo.test]
+} {1 {could not set group for file "foo.test": group "foozzz" does not exist} {}}
+test unixFCmd-15.2 {SetGroupAttribute - invalid file} {tclGroup} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -group tcl} msg] $msg
+} {1 {could not set group for file "foo.test": no such file or directory}}
+
+#changing owners hard to do
+test unixFCmd-16.1 {SetOwnerAttribute - current owner} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attributes foo.test -owner $user} msg] $msg [string compare [file attributes foo.test -owner] $user] [file delete -force -- foo.test]
+} {0 {} 0 {}}
+test unixFCmd-16.2 {SetOwnerAttribute - invalid file} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -owner $user} msg] $msg
+} {1 {could not set owner for file "foo.test": no such file or directory}}
+test unixFCmd-16.3 {SetOwnerAttribute - invalid owner} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -owner foozzz} msg] $msg
+} {1 {could not set owner for file "foo.test": user "foozzz" does not exist}}
+
+
+test unixFCmd-17.1 {SetPermissionsAttribute} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attributes foo.test -permissions 0000} msg] $msg [file attributes foo.test -permissions] [file delete -force -- foo.test]
+} {0 {} 00000 {}}
+test unixFCmd-17.2 {SetPermissionsAttribute} {
+    catch {file delete -force -- foo.test}
+    list [catch {file attributes foo.test -permissions 0000} msg] $msg
+} {1 {could not set permissions for file "foo.test": no such file or directory}}
+test unixFCmd-17.3 {SetPermissionsAttribute} {
+    catch {file delete -force -- foo.test}
+    close [open foo.test w]
+    list [catch {file attributes foo.test -permissions foo} msg] $msg [file delete -force -- foo.test]
+} {1 {expected integer but got "foo"} {}}
+
+cleanup    
+
+    
+
+    
+    

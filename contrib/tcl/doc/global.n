@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) global.n 1.5 96/03/25 20:16:10
+'\" SCCS: @(#) global.n 1.6 97/05/18 15:23:09
 '\" 
 .so man.macros
 .TH global n "" Tcl "Tcl Built-In Commands"
@@ -21,10 +21,15 @@ global \- Access global variables
 .PP
 This command is ignored unless a Tcl procedure is being interpreted.
 If so then it declares the given \fIvarname\fR's to be global variables
-rather than local ones.  For the duration of the current procedure
-(and only while executing in the current procedure), any reference to
-any of the \fIvarname\fRs will refer to the global variable by the same
-name.
+rather than local ones.
+Global variables are variables in the global namespace.
+For the duration of the current procedure
+(and only while executing in the current procedure),
+any reference to any of the \fIvarname\fRs
+will refer to the global variable by the same name.
+
+.SH "SEE ALSO"
+namespace(n), variable(n)
 
 .SH KEYWORDS
-global, procedure, variable
+global, namespace, procedure, variable

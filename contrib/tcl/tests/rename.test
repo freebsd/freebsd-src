@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) rename.test 1.13 96/03/20 10:49:22
+# SCCS: @(#) rename.test 1.20 97/06/24 17:26:23
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -44,7 +44,7 @@ set b [l.new a b c]
 rename l.new list
 set c [catch l.new msg2]
 set d [list 111 222]
-test 2.1 {renaming built-in command} {
+test rename-2.1 {renaming built-in command} {
     list $a $msg1 $b $c $msg2 $d
 } {1 {invalid command name "list"} {a b c} 1 {invalid command name "l.new"} {111 222}}
 
@@ -129,3 +129,44 @@ if {[info command testdel] == "testdel"} {
 	list [catch {interp delete foo} msg] $msg $env(value)
     } {0 {} deleted}
 }
+
+# Save the unknown procedure which is modified by the following test.
+
+catch {rename unknown unknown.old}
+
+test rename-5.1 {repeated rename deletion and redefinition of same command} {
+    set SAVED_UNKNOWN "proc unknown "
+    append SAVED_UNKNOWN "\{[info args unknown.old]\} "
+    append SAVED_UNKNOWN "\{[info body unknown.old]\}"
+
+    for {set i 0} {$i < 10} {incr i} {
+        eval $SAVED_UNKNOWN
+        tcl_wordBreakBefore "" 0
+        rename tcl_wordBreakBefore {}
+        rename unknown {}
+    }
+} {}
+
+catch {rename unknown {}}
+catch {rename unknown.old unknown}
+
+
+test rename-6.1 {old code invalidated (epoch incremented) when cmd with compile proc is renamed } {
+    proc x {} {
+        set a 123
+        set b [incr a]
+    }
+    x
+    rename incr incr.old
+    proc incr {} {puts "new incr called!"}
+    catch {x} msg
+    set msg
+} {called "incr" with too many arguments}
+
+catch {rename incr {}}
+catch {rename incr.old incr}
+
+# Make the file return an empty string (cleaner.).
+
+set x ""
+

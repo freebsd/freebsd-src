@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lindex.n 1.7 96/03/25 20:18:43
+'\" SCCS: @(#) lindex.n 1.8 96/08/26 13:00:02
 '\" 
 .so man.macros
 .TH lindex n 7.4 Tcl "Tcl Built-In Commands"
@@ -28,10 +28,8 @@ substitution and command substitution do not occur.
 If \fIindex\fR is negative or greater than or equal to the number
 of elements in \fIvalue\fR, then an empty
 string is returned.
-.VS
 If \fIindex\fR has the value \fBend\fR, it refers to the last element
 in the list.
-.VE
 
 .SH KEYWORDS
 element, index, list

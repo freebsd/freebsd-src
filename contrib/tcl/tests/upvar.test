@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) upvar.test 1.11 96/02/28 21:45:36
+# SCCS: @(#) upvar.test 1.14 96/10/22 11:34:39
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -310,6 +310,11 @@ test upvar-8.7 {errors in upvar command} {
     proc p1 {} {trace variable a w foo; upvar b a}
     list [catch p1 msg] $msg
 } {1 {variable "a" has traces: can't use for upvar}}
+test upvar-8.8 {create nested array with upvar} {
+    proc p1 {} {upvar x(a) b; set b(2) 44}
+    catch {unset x}
+    list [catch p1 msg] $msg
+} {1 {can't set "b(2)": variable isn't array}}
 
 if {[info commands testupvar] != {}} {
     test upvar-9.1 {Tcl_UpVar2 procedure} {

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) proc.n 1.5 96/03/25 20:21:12
+'\" SCCS: @(#) proc.n 1.6 97/05/18 15:49:45
 '\" 
 .so man.macros
 .TH proc n "" Tcl "Tcl Built-In Commands"
@@ -24,6 +24,11 @@ The \fBproc\fR command creates a new Tcl procedure named
 any existing command or procedure there may have been by that name.
 Whenever the new command is invoked, the contents of \fIbody\fR will
 be executed by the Tcl interpreter.
+Normally, \fIname\fR is unqualified
+(does not include the names of any containing namespaces),
+and the new procedure is created in the current namespace.
+If \fIname\fR includes any namespace qualifiers,
+the procedure is created in the specified namespace.
 \fIArgs\fR specifies the formal arguments to the
 procedure.  It consists of a list, possibly empty, each of whose
 elements specifies
@@ -54,6 +59,8 @@ deleted when the procedure returns.  One local variable is automatically
 created for each of the procedure's arguments.
 Global variables can only be accessed by invoking
 the \fBglobal\fR command or the \fBupvar\fR command.
+Namespace variables can only be accessed by invoking
+the \fBvariable\fR command or the \fBupvar\fR command.
 .PP
 The \fBproc\fR command returns an empty string.  When a procedure is
 invoked, the procedure's return value is the value specified in a

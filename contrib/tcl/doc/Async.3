@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) Async.3 1.13 96/03/25 19:56:31
+'\" SCCS: @(#) Async.3 1.14 96/08/26 12:59:41
 '\" 
 .so man.macros
 .TH Tcl_AsyncCreate 3 7.0 Tcl "Tcl Library Procedures"
@@ -25,11 +25,9 @@ int
 \fBTcl_AsyncInvoke\fR(\fIinterp, code\fR)
 .sp
 \fBTcl_AsyncDelete\fR(\fIasync\fR)
-.VS
 .sp
 int
 \fBTcl_AsyncReady\fR()
-.VE
 .SH ARGUMENTS
 .AS Tcl_AsyncHandler clientData
 .AP Tcl_AsyncProc *proc in
@@ -107,21 +105,15 @@ In this case \fIinterp\fR will be NULL and \fIcode\fR will be
 .PP
 The procedure \fBTcl_AsyncInvoke\fR is called to invoke all of the
 handlers that are ready.
-.VS
 The procedure \fBTcl_AsyncReady\fR will return non-zero whenever any
-.VE
 asynchronous handlers are ready;  it can be checked to avoid calls
 to \fBTcl_AsyncInvoke\fR when there are no ready handlers.
-.VS
 Tcl calls \fBTcl_AsyncReady\fR after each command is evaluated
-.VE
 and calls \fBTcl_AsyncInvoke\fR if needed.
 Applications may also call \fBTcl_AsyncInvoke\fR at interesting
 times for that application.
-.VS
 For example, Tcl's event handler calls \fBTcl_AsyncReady\fR
 after each event and calls \fBTcl_AsyncInvoke\fR if needed.
-.VE
 The \fIinterp\fR and \fIcode\fR arguments to \fBTcl_AsyncInvoke\fR
 have the same meaning as for \fIproc\fR:  they identify the active
 interpreter, if any, and the completion code from the command

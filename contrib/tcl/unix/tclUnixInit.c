@@ -8,14 +8,11 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixInit.c 1.14 96/07/10 15:45:24
+ * SCCS: @(#) tclUnixInit.c 1.25 97/06/24 17:28:56
  */
 
 #include "tclInt.h"
 #include "tclPort.h"
-#ifndef NO_UNAME
-#   include <sys/utsname.h>
-#endif
 #if defined(__FreeBSD__)
 #   include <floatingpoint.h>
 #endif
@@ -27,10 +24,25 @@
 #endif
 
 /*
- * Default directory in which to look for libraries:
+ * Default directory in which to look for Tcl library scripts.  The
+ * symbol is defined by Makefile.
  */
 
 static char defaultLibraryDir[200] = TCL_LIBRARY;
+
+/*
+ * Directory in which to look for packages (each package is typically
+ * installed as a subdirectory of this directory).  The symbol is
+ * defined by Makefile.
+ */
+
+static char pkgPath[200] = TCL_PACKAGE_PATH;
+
+/*
+ * Is this module initialized?
+ */
+
+static int initialized = 0;
 
 /*
  * The following string is the startup script executed in new
@@ -41,9 +53,11 @@ static char defaultLibraryDir[200] = TCL_LIBRARY;
  */
 
 static char initScript[] =
-"proc init {} {\n\
-    global tcl_library tcl_version tcl_patchLevel env\n\
-    rename init {}\n\
+"proc tclInit {} {\n\
+    global tcl_library tcl_version tcl_patchLevel env errorInfo\n\
+    global tcl_pkgPath\n\
+    rename tclInit {}\n\
+    set errors {}\n\
     set dirs {}\n\
     if [info exists env(TCL_LIBRARY)] {\n\
 	lappend dirs $env(TCL_LIBRARY)\n\
@@ -60,16 +74,54 @@ static char initScript[] =
     lappend dirs $parentDir/library\n\
     foreach i $dirs {\n\
 	set tcl_library $i\n\
-	if ![catch {uplevel #0 source $i/init.tcl}] {\n\
-	    return\n\
+	if {[file exists $i/init.tcl]} {\n\
+            lappend tcl_pkgPath [file dirname $i]\n\
+	    if ![catch {uplevel #0 source $i/init.tcl} msg] {\n\
+		return\n\
+	    } else {\n\
+		append errors \"$i/init.tcl: $msg\n$errorInfo\n\"\n\
+	    }\n\
 	}\n\
     }\n\
     set msg \"Can't find a usable init.tcl in the following directories: \n\"\n\
-    append msg \"    $dirs\n\"\n\
+    append msg \"    $dirs\n\n\"\n\
+    append msg \"$errors\n\n\"\n\
     append msg \"This probably means that Tcl wasn't installed properly.\n\"\n\
     error $msg\n\
 }\n\
-init";
+tclInit";
+
+/*
+ * Static routines in this file:
+ */
+
+static void	PlatformInitExitHandler _ANSI_ARGS_((ClientData clientData));
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PlatformInitExitHandler --
+ *
+ *	Uninitializes all values on unload, so that this module can
+ *	be later reinitialized.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Returns the module to uninitialized state.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+PlatformInitExitHandler(clientData)
+    ClientData clientData;		/* Unused. */
+{
+    strcpy(defaultLibraryDir, TCL_LIBRARY);
+    strcpy(pkgPath, TCL_PACKAGE_PATH);
+    initialized = 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -97,10 +149,10 @@ TclPlatformInit(interp)
     struct utsname name;
 #endif
     int unameOK;
-    static int initialized = 0;
 
     tclPlatform = TCL_PLATFORM_UNIX;
     Tcl_SetVar(interp, "tcl_library", defaultLibraryDir, TCL_GLOBAL_ONLY);
+    Tcl_SetVar(interp, "tcl_pkgPath", pkgPath, TCL_GLOBAL_ONLY);
     Tcl_SetVar2(interp, "tcl_platform", "platform", "unix", TCL_GLOBAL_ONLY);
     unameOK = 0;
 #ifndef NO_UNAME
@@ -108,8 +160,25 @@ TclPlatformInit(interp)
 	unameOK = 1;
 	Tcl_SetVar2(interp, "tcl_platform", "os", name.sysname,
 		TCL_GLOBAL_ONLY);
-	Tcl_SetVar2(interp, "tcl_platform", "osVersion", name.release,
-		TCL_GLOBAL_ONLY);
+	/*
+	 * The following code is a special hack to handle differences in
+	 * the way version information is returned by uname.  On most
+	 * systems the full version number is available in name.release.
+	 * However, under AIX the major version number is in
+	 * name.version and the minor version number is in name.release.
+	 */
+
+	if ((strchr(name.release, '.') != NULL) || !isdigit(name.version[0])) {
+	    Tcl_SetVar2(interp, "tcl_platform", "osVersion", name.release,
+		    TCL_GLOBAL_ONLY);
+	} else {
+	    Tcl_SetVar2(interp, "tcl_platform", "osVersion", name.version,
+		    TCL_GLOBAL_ONLY);
+	    Tcl_SetVar2(interp, "tcl_platform", "osVersion", ".",
+		    TCL_GLOBAL_ONLY|TCL_APPEND_VALUE);
+	    Tcl_SetVar2(interp, "tcl_platform", "osVersion", name.release,
+		    TCL_GLOBAL_ONLY|TCL_APPEND_VALUE);
+	}
 	Tcl_SetVar2(interp, "tcl_platform", "machine", name.machine,
 		TCL_GLOBAL_ONLY);
     }
@@ -121,6 +190,14 @@ TclPlatformInit(interp)
     }
 
     if (!initialized) {
+
+        /*
+         * Create an exit handler so that uninitialization will be done
+         * on unload.
+         */
+        
+        Tcl_CreateExitHandler(PlatformInitExitHandler, NULL);
+        
 	/*
 	 * The code below causes SIGPIPE (broken pipe) errors to
 	 * be ignored.  This is needed so that Tcl processes don't
@@ -174,4 +251,66 @@ Tcl_Init(interp)
     Tcl_Interp *interp;		/* Interpreter to initialize. */
 {
     return Tcl_Eval(interp, initScript);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_SourceRCFile --
+ *
+ *	This procedure is typically invoked by Tcl_Main of Tk_Main
+ *	procedure to source an application specific rc file into the
+ *	interpreter at startup time.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Depends on what's in the rc script.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Tcl_SourceRCFile(interp)
+    Tcl_Interp *interp;		/* Interpreter to source rc file into. */
+{
+    Tcl_DString temp;
+    char *fileName;
+    Tcl_Channel errChannel;
+
+    fileName = Tcl_GetVar(interp, "tcl_rcFileName", TCL_GLOBAL_ONLY);
+
+    if (fileName != NULL) {
+        Tcl_Channel c;
+	char *fullName;
+
+        Tcl_DStringInit(&temp);
+	fullName = Tcl_TranslateFileName(interp, fileName, &temp);
+	if (fullName == NULL) {
+	    /*
+	     * Couldn't translate the file name (e.g. it referred to a
+	     * bogus user or there was no HOME environment variable).
+	     * Just do nothing.
+	     */
+	} else {
+
+	    /*
+	     * Test for the existence of the rc file before trying to read it.
+	     */
+
+            c = Tcl_OpenFileChannel(NULL, fullName, "r", 0);
+            if (c != (Tcl_Channel) NULL) {
+                Tcl_Close(NULL, c);
+		if (Tcl_EvalFile(interp, fullName) != TCL_OK) {
+		    errChannel = Tcl_GetStdChannel(TCL_STDERR);
+		    if (errChannel) {
+			Tcl_Write(errChannel, interp->result, -1);
+			Tcl_Write(errChannel, "\n", 1);
+		    }
+		}
+	    }
+	}
+        Tcl_DStringFree(&temp);
+    }
 }

@@ -1,0 +1,162 @@
+'\"
+'\" Copyright (c) 1996-1997 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) ObjSetVar.3 1.6 97/05/19 17:35:44
+'\" 
+.so man.macros
+.TH Tcl_ObjSetVar2 3 8.0 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_ObjSetVar2, Tcl_ObjGetVar2 \- manipulate Tcl variables
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+Tcl_Obj *
+\fBTcl_ObjSetVar2\fR(\fIinterp, part1Ptr, part2Ptr, newValuePtr, flags\fR)
+.sp
+Tcl_Obj *
+\fBTcl_ObjGetVar2\fR(\fIinterp, part1Ptr, part2Ptr, flags\fR)
+.SH ARGUMENTS
+.AS Tcl_Interp *newValuePtr
+.AP Tcl_Interp *interp in
+Interpreter containing variable.
+.AP Tcl_Obj *part1Ptr in
+Points to a Tcl object containing the variable's name.
+The name may include a series of \fB::\fR namespace qualifiers
+to specify a variable in a particular namespace.
+May refer to a scalar variable or an element of an array variable.
+.AP Tcl_Obj *part2Ptr in
+If non-NULL, points to an object containing the name of an element
+within an array and \fIpart1Ptr\fR must refer to an array variable.
+.AP Tcl_Obj *newValuePtr in
+Points to a Tcl object containing the new value for the variable.
+.AP int flags in
+OR-ed combination of bits providing additional information for
+operation. See below for valid values.
+.BE
+
+.SH DESCRIPTION
+.PP
+These two procedures may be used to read and modify
+Tcl variables from C code.
+\fBTcl_ObjSetVar2\fR will create a new variable or modify an existing one.
+It sets the specified variable to
+the object referenced by \fInewValuePtr\fR
+and returns a pointer to the object which is the variable's new value.
+The returned object may not be the same one
+referenced by \fInewValuePtr\fR;
+this might happen because variable traces may modify the variable's value.
+The reference count for the variable's old value is decremented
+and the reference count for its new value is incremented.
+If the new value for the variable
+is not the same one referenced by \fInewValuePtr\fR
+(perhaps as a result of a variable trace),
+then \fInewValuePtr\fR's reference count is left unchanged.
+The reference count for the returned object is not incremented
+to reflect the returned reference.
+If the caller needs to keep a reference to the object,
+say in a data structure,
+it must increment its reference count using \fBTcl_IncrRefCount\fR.
+If an error occurs in setting the variable
+(e.g. an array variable is referenced
+without giving an index into the array),
+then NULL is returned.
+.PP
+The variable name specified to \fBTcl_ObjSetVar2\fR consists of two parts.
+\fIpart1Ptr\fR contains the name of a scalar or array variable.
+If \fIpart2Ptr\fR is NULL, the variable must be a scalar.
+If \fIpart2Ptr\fR is not NULL,
+it contains the name of an element in the array named by \fIpart2Ptr\fR.
+As a special case, if the flag TCL_PARSE_PART1 is specified,
+\fIpart1Ptr\fR may contain both an array and an element name:
+if the name contains an open parenthesis and ends with a
+close parenthesis, then the value between the parentheses is
+treated as an element name (which can have any string value) and
+the characters before the first open
+parenthesis are treated as the name of an array variable.
+If the flag TCL_PARSE_PART1 is given,
+\fIpart2Ptr\fR should be NULL since the array and element names
+are taken from \fIpart2Ptr\fR.
+.PP
+The \fIflags\fR argument may be used to specify any of several
+options to the procedures.
+It consists of an OR-ed combination of any of the following
+bits:
+.TP
+\fBTCL_GLOBAL_ONLY\fR
+Under normal circumstances the procedures look up variables as follows:
+If a procedure call is active in \fIinterp\fR,
+a variable is looked up at the current level of procedure call.
+Otherwise, a variable is looked up first in the current namespace,
+then in the global namespace.
+However, if this bit is set in \fIflags\fR then the variable
+is looked up only in the global namespace
+even if there is a procedure call active.
+If both \fBTCL_GLOBAL_ONLY\fR and \fBTCL_NAMESPACE_ONLY\fR are given,
+\fBTCL_GLOBAL_ONLY\fR is ignored.
+.TP
+\fBTCL_NAMESPACE_ONLY\fR
+Under normal circumstances the procedures look up variables as follows:
+If a procedure call is active in \fIinterp\fR,
+a variable is looked up at the current level of procedure call.
+Otherwise, a variable is looked up first in the current namespace,
+then in the global namespace.
+However, if this bit is set in \fIflags\fR then the variable
+is looked up only in the current namespace
+even if there is a procedure call active.
+.TP
+\fBTCL_LEAVE_ERR_MSG\fR
+If an error is returned and this bit is set in \fIflags\fR, then
+an error message will be left in the interpreter's result,
+where it can be retrieved with \fBTcl_GetObjResult\fR
+or \fBTcl_GetStringResult\fR.
+If this flag bit isn't set then no error message is left
+and the interpreter's result will not be modified.
+.TP
+\fBTCL_APPEND_VALUE\fR
+If this bit is set then \fInewValuePtr\fR is appended to the current
+value, instead of replacing it.
+If the variable is currently undefined, then this bit is ignored.
+.TP
+\fBTCL_LIST_ELEMENT\fR
+If this bit is set, then \fInewValuePtr\fR is converted to a valid
+Tcl list element before setting (or appending to) the variable.
+A separator space is appended before the new list element unless
+the list element is going to be the first element in a list or
+sublist (i.e. the variable's current value is empty, or contains
+the single character ``{'', or ends in `` }'').
+.TP
+\fBTCL_PARSE_PART1\fR
+If this bit is set,
+then \fBTcl_ObjGetVar2\fR and \fBTcl_ObjSetVar2\fR
+will parse \fIpart1Ptr\fR
+to obtain both an array name and an element name.
+If the name in \fIpart1Ptr\fR contains an open parenthesis
+and ends with a close parenthesis,
+the name is treated as the name of an element of an array;
+otherwise, the name in \fIpart1Ptr\fR
+is interpreted as the name of a scalar variable.
+When this bit is set,
+\fIpart2Ptr\fR is ignored.
+.PP
+\fBTcl_ObjGetVar2\fR returns the value of the specified variable.
+Its arguments are treated the same way as those for \fBTcl_ObjSetVar2\fR.
+It returns a pointer to the object which is the variable's value.
+The reference count for the returned object is not incremented.
+If the caller needs to keep a reference to the object,
+say in a data structure,
+it must increment the reference count using \fBTcl_IncrRefCount\fR.
+If an error occurs in setting the variable
+(e.g. an array variable is referenced
+without giving an index into the array),
+then NULL is returned.
+
+.SH "SEE ALSO"
+Tcl_GetObjResult, Tcl_GetStringResult, Tcl_GetVar, Tcl_GetVar2, Tcl_SetVar, Tcl_SetVar2, Tcl_TraceVar, Tcl_UnsetVar, Tcl_UnsetVar2
+
+.SH KEYWORDS
+array, interpreter, object, scalar, set, unset, variable

@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLoadDld.c 1.4 96/02/15 11:58:46
+ * SCCS: @(#) tclLoadDld.c 1.5 97/05/14 13:24:22
  */
 
 #include "tclInt.h"
@@ -69,7 +69,9 @@ TclLoadFile(interp, fileName, sym1, sym2, proc1Ptr, proc2Ptr)
 
     if (firstTime) {
 	if (tclExecutableName == NULL) {
-	    interp->result = "don't know name of application binary file, so can't initialize dynamic loader";
+	    Tcl_SetResult(interp,
+		    "don't know name of application binary file, so can't initialize dynamic loader",
+		    TCL_STATIC);
 	    return TCL_ERROR;
 	}
 	returnCode = dld_init(tclExecutableName);

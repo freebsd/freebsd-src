@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclFileName.c 1.23 96/04/19 12:34:28
+ * SCCS: @(#) tclFileName.c 1.28 97/05/14 13:23:48
  */
 
 #include "tclInt.h"
@@ -95,10 +95,13 @@ FileNameCleanup(clientData)
 {
     if (winRootPatternPtr != NULL) {
 	ckfree((char *)winRootPatternPtr);
+        winRootPatternPtr = (regexp *) NULL;
     }
     if (macRootPatternPtr != NULL) {
 	ckfree((char *)macRootPatternPtr);
+        macRootPatternPtr = (regexp *) NULL;
     }
+    initialized = 0;
 }
 
 /*
@@ -901,7 +904,8 @@ Tcl_JoinPath(argc, argv, resultPtr)
  * Side effects:
  *	Information may be left in bufferPtr.
  *
- *---------------------------------------------------------------------- */
+ *----------------------------------------------------------------------
+ */
 
 char *
 Tcl_TranslateFileName(interp, name, bufferPtr)
@@ -1025,6 +1029,17 @@ TclGetExtension(name)
 	    && (lastSep > p)) {
 	p = NULL;
     }
+
+    /*
+     * Back up to the first period in a series of contiguous dots.
+     * This is needed so foo..o will be split on the first dot.
+     */
+
+    if (p != NULL) {
+	while ((p > name) && *(p-1) == '.') {
+	    p--;
+	}
+    }
     return p;
 }
 
@@ -1139,8 +1154,6 @@ Tcl_GlobCmd(dummy, interp, argc, argv)
     Tcl_DStringInit(&buffer);
     separators = NULL;		/* Needed only to prevent gcc warnings. */
     for (i = firstArg; i < argc; i++) {
-	head = tail = "";
-
 	switch (tclPlatform) {
 	case TCL_PLATFORM_UNIX:
 	    separators = "/";
@@ -1324,9 +1337,9 @@ TclDoGlob(interp, separators, headPtr, tail)
     Tcl_DString *headPtr;	/* Completely expanded prefix. */
     char *tail;			/* The unexpanded remainder of the path. */
 {
-    int level, baseLength, quoted, count;
+    int baseLength, quoted, count;
     int result = TCL_OK;
-    char *p, *openBrace, *closeBrace, *name, savedChar;
+    char *p, *openBrace, *closeBrace, *name, *firstSpecialChar, savedChar;
     char lastChar = 0;
     int length = Tcl_DStringLength(headPtr);
 
@@ -1423,7 +1436,6 @@ TclDoGlob(interp, separators, headPtr, tail)
      */
 
     openBrace = closeBrace = NULL;
-    level = 0;
     quoted = 0;
     for (p = tail; *p != '\0'; p++) {
 	if (quoted) {
@@ -1442,12 +1454,12 @@ TclDoGlob(interp, separators, headPtr, tail)
 		closeBrace = p;		/* Balanced braces. */
 		break;
 	    }
-	    Tcl_ResetResult(interp);
-	    interp->result = "unmatched open-brace in file name";
+	    Tcl_SetResult(interp, "unmatched open-brace in file name",
+		    TCL_STATIC);
 	    return TCL_ERROR;
 	} else if (*p == '}') {
-	    Tcl_ResetResult(interp);
-	    interp->result = "unmatched close-brace in file name";
+	    Tcl_SetResult(interp, "unmatched close-brace in file name",
+		    TCL_STATIC);
 	    return TCL_ERROR;
 	}
     }
@@ -1495,13 +1507,19 @@ TclDoGlob(interp, separators, headPtr, tail)
      * this path component.  The variable p is pointing at a quoted or
      * unquoted directory separator or the end of the string.  So we need
      * to check for special globbing characters in the current pattern.
+     * We avoid modifying tail if p is pointing at the end of the string.
      */
 
-    savedChar = *p;
-    *p = '\0';
+    if (*p != '\0') {
+	 savedChar = *p;
+	 *p = '\0';
+	 firstSpecialChar = strpbrk(tail, "*[]?\\");
+	 *p = savedChar;
+    } else {
+	firstSpecialChar = strpbrk(tail, "*[]?\\");
+    }
 
-    if (strpbrk(tail, "*[]?\\") != NULL) {
-	*p = savedChar;
+    if (firstSpecialChar != NULL) {
 	/*
 	 * Look for matching files in the current directory.  The
 	 * implementation of this function is platform specific, but may
@@ -1512,7 +1530,6 @@ TclDoGlob(interp, separators, headPtr, tail)
 
 	return TclMatchFiles(interp, separators, headPtr, tail, p);
     }
-    *p = savedChar;
     Tcl_DStringAppend(headPtr, tail, p-tail);
     if (*p != '\0') {
 	return TclDoGlob(interp, separators, headPtr, p);

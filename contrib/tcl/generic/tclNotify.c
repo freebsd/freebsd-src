@@ -1,71 +1,125 @@
 /* 
  * tclNotify.c --
  *
- *	This file provides the parts of the Tcl event notifier that are
- *	the same on all platforms, plus a few other parts that are used
- *	on more than one platform but not all.
+ *	This file implements the generic portion of the Tcl notifier.
+ *	The notifier is lowest-level part of the event system.  It
+ *	manages an event queue that holds Tcl_Event structures.  The
+ *	platform specific portion of the notifier is defined in the
+ *	tcl*Notify.c files in each platform directory.
  *
- *	The notifier is the lowest-level part of the event system.  It
- *	manages an event queue that holds Tcl_Event structures and a list
- *	of event sources that can add events to the queue.  It also
- *	contains the procedure Tcl_DoOneEvent that invokes the event
- *	sources and blocks to wait for new events, but Tcl_DoOneEvent
- *	is in the platform-specific part of the notifier (in files like
- *	tclUnixNotify.c).
- *
- * Copyright (c) 1995 Sun Microsystems, Inc.
+ * Copyright (c) 1995-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclNotify.c 1.6 96/02/29 09:20:10
+ * SCCS: @(#) tclNotify.c 1.15 97/06/18 17:14:04
  */
 
 #include "tclInt.h"
 #include "tclPort.h"
 
 /*
- * The following variable records the address of the first event
- * source in the list of all event sources for the application.
- * This variable is accessed by the notifier to traverse the list
- * and invoke each event source.
+ * The following static indicates whether this module has been initialized.
  */
 
-TclEventSource *tclFirstEventSourcePtr = NULL;
+static int initialized = 0;
 
 /*
- * The following variables indicate how long to block in the event
- * notifier the next time it blocks (default:  block forever).
+ * For each event source (created with Tcl_CreateEventSource) there
+ * is a structure of the following type:
  */
 
-static int blockTimeSet = 0;	/* 0 means there is no maximum block
-				 * time:  block forever. */
-static Tcl_Time blockTime;	/* If blockTimeSet is 1, gives the
-				 * maximum elapsed time for the next block. */
+typedef struct EventSource {
+    Tcl_EventSetupProc *setupProc;
+    Tcl_EventCheckProc *checkProc;
+    ClientData clientData;
+    struct EventSource *nextPtr;
+} EventSource;
 
 /*
- * The following variables keep track of the event queue.  In addition
- * to the first (next to be serviced) and last events in the queue,
- * we keep track of a "marker" event.  This provides a simple priority
- * mechanism whereby events can be inserted at the front of the queue
- * but behind all other high-priority events already in the queue (this
- * is used for things like a sequence of Enter and Leave events generated
- * during a grab in Tk).
+ * The following structure keeps track of the state of the notifier.
+ * The first three elements keep track of the event queue.  In addition to
+ * the first (next to be serviced) and last events in the queue, we keep
+ * track of a "marker" event.  This provides a simple priority mechanism
+ * whereby events can be inserted at the front of the queue but behind all
+ * other high-priority events already in the queue (this is used for things
+ * like a sequence of Enter and Leave events generated during a grab in
+ * Tk).
  */
 
-static Tcl_Event *firstEventPtr = NULL;
-				/* First pending event, or NULL if none. */
-static Tcl_Event *lastEventPtr = NULL;
-				/* Last pending event, or NULL if none. */
-static Tcl_Event *markerEventPtr = NULL;
-				/* Last high-priority event in queue, or
+static struct {
+    Tcl_Event *firstEventPtr;	/* First pending event, or NULL if none. */
+    Tcl_Event *lastEventPtr;	/* Last pending event, or NULL if none. */
+    Tcl_Event *markerEventPtr;	/* Last high-priority event in queue, or
 				 * NULL if none. */
+    int serviceMode;		/* One of TCL_SERVICE_NONE or
+				 * TCL_SERVICE_ALL. */
+    int blockTimeSet;		/* 0 means there is no maximum block
+				 * time:  block forever. */
+    Tcl_Time blockTime;		/* If blockTimeSet is 1, gives the
+				 * maximum elapsed time for the next block. */
+    int inTraversal;		/* 1 if Tcl_SetMaxBlockTime is being
+				 * called during an event source traversal. */
+    EventSource *firstEventSourcePtr;
+				/* Pointer to first event source in
+				 * global list of event sources. */
+} notifier;
 
 /*
- * Prototypes for procedures used only in this file:
+ * Declarations for functions used in this file.
  */
 
-static int		ServiceEvent _ANSI_ARGS_((int flags));
+static void	InitNotifier _ANSI_ARGS_((void));
+static void	NotifierExitHandler _ANSI_ARGS_((ClientData clientData));
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * InitNotifier --
+ *
+ *	This routine is called to initialize the notifier module.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Creates an exit handler and initializes static data.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+InitNotifier()
+{
+    initialized = 1;
+    memset(&notifier, 0, sizeof(notifier));
+    notifier.serviceMode = TCL_SERVICE_NONE;
+    Tcl_CreateExitHandler(NotifierExitHandler, NULL);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NotifierExitHandler --
+ *
+ *	This routine is called during Tcl finalization.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Clears the notifier intialization flag.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+NotifierExitHandler(clientData)
+    ClientData clientData;  /* Not used. */
+{
+    initialized = 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -112,14 +166,18 @@ Tcl_CreateEventSource(setupProc, checkProc, clientData)
     ClientData clientData;		/* One-word argument to pass to
 					 * setupProc and checkProc. */
 {
-    TclEventSource *sourcePtr;
+    EventSource *sourcePtr;
 
-    sourcePtr = (TclEventSource *) ckalloc(sizeof(TclEventSource));
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    sourcePtr = (EventSource *) ckalloc(sizeof(EventSource));
     sourcePtr->setupProc = setupProc;
     sourcePtr->checkProc = checkProc;
     sourcePtr->clientData = clientData;
-    sourcePtr->nextPtr = tclFirstEventSourcePtr;
-    tclFirstEventSourcePtr = sourcePtr;
+    sourcePtr->nextPtr = notifier.firstEventSourcePtr;
+    notifier.firstEventSourcePtr = sourcePtr;
 }
 
 /*
@@ -150,9 +208,9 @@ Tcl_DeleteEventSource(setupProc, checkProc, clientData)
     ClientData clientData;		/* One-word argument to pass to
 					 * setupProc and checkProc. */
 {
-    TclEventSource *sourcePtr, *prevPtr;
+    EventSource *sourcePtr, *prevPtr;
 
-    for (sourcePtr = tclFirstEventSourcePtr, prevPtr = NULL;
+    for (sourcePtr = notifier.firstEventSourcePtr, prevPtr = NULL;
 	    sourcePtr != NULL;
 	    prevPtr = sourcePtr, sourcePtr = sourcePtr->nextPtr) {
 	if ((sourcePtr->setupProc != setupProc)
@@ -161,7 +219,7 @@ Tcl_DeleteEventSource(setupProc, checkProc, clientData)
 	    continue;
 	}
 	if (prevPtr == NULL) {
-	    tclFirstEventSourcePtr = sourcePtr->nextPtr;
+	    notifier.firstEventSourcePtr = sourcePtr->nextPtr;
 	} else {
 	    prevPtr->nextPtr = sourcePtr->nextPtr;
 	}
@@ -202,44 +260,48 @@ Tcl_QueueEvent(evPtr, position)
     Tcl_QueuePosition position;	/* One of TCL_QUEUE_TAIL, TCL_QUEUE_HEAD,
 				 * TCL_QUEUE_MARK. */
 {
+    if (!initialized) {
+	InitNotifier();
+    }
+
     if (position == TCL_QUEUE_TAIL) {
 	/*
 	 * Append the event on the end of the queue.
 	 */
 
 	evPtr->nextPtr = NULL;
-	if (firstEventPtr == NULL) {
-	    firstEventPtr = evPtr;
+	if (notifier.firstEventPtr == NULL) {
+	    notifier.firstEventPtr = evPtr;
 	} else {
-	    lastEventPtr->nextPtr = evPtr;
+	    notifier.lastEventPtr->nextPtr = evPtr;
 	}
-	lastEventPtr = evPtr;
+	notifier.lastEventPtr = evPtr;
     } else if (position == TCL_QUEUE_HEAD) {
 	/*
 	 * Push the event on the head of the queue.
 	 */
 
-	evPtr->nextPtr = firstEventPtr;
-	if (firstEventPtr == NULL) {
-	    lastEventPtr = evPtr;
+	evPtr->nextPtr = notifier.firstEventPtr;
+	if (notifier.firstEventPtr == NULL) {
+	    notifier.lastEventPtr = evPtr;
 	}	    
-	firstEventPtr = evPtr;
+	notifier.firstEventPtr = evPtr;
     } else if (position == TCL_QUEUE_MARK) {
 	/*
 	 * Insert the event after the current marker event and advance
 	 * the marker to the new event.
 	 */
 
-	if (markerEventPtr == NULL) {
-	    evPtr->nextPtr = firstEventPtr;
-	    firstEventPtr = evPtr;
+	if (notifier.markerEventPtr == NULL) {
+	    evPtr->nextPtr = notifier.firstEventPtr;
+	    notifier.firstEventPtr = evPtr;
 	} else {
-	    evPtr->nextPtr = markerEventPtr->nextPtr;
-	    markerEventPtr->nextPtr = evPtr;
+	    evPtr->nextPtr = notifier.markerEventPtr->nextPtr;
+	    notifier.markerEventPtr->nextPtr = evPtr;
 	}
-	markerEventPtr = evPtr;
+	notifier.markerEventPtr = evPtr;
 	if (evPtr->nextPtr == NULL) {
-	    lastEventPtr = evPtr;
+	    notifier.lastEventPtr = evPtr;
 	}
     }
 }
@@ -269,14 +331,18 @@ Tcl_DeleteEvents(proc, clientData)
 {
     Tcl_Event *evPtr, *prevPtr, *hold;
 
-    for (prevPtr = (Tcl_Event *) NULL, evPtr = firstEventPtr;
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    for (prevPtr = (Tcl_Event *) NULL, evPtr = notifier.firstEventPtr;
              evPtr != (Tcl_Event *) NULL;
              ) {
         if ((*proc) (evPtr, clientData) == 1) {
-            if (firstEventPtr == evPtr) {
-                firstEventPtr = evPtr->nextPtr;
+            if (notifier.firstEventPtr == evPtr) {
+                notifier.firstEventPtr = evPtr->nextPtr;
                 if (evPtr->nextPtr == (Tcl_Event *) NULL) {
-                    lastEventPtr = (Tcl_Event *) NULL;
+                    notifier.lastEventPtr = (Tcl_Event *) NULL;
                 }
             } else {
                 prevPtr->nextPtr = evPtr->nextPtr;
@@ -294,10 +360,10 @@ Tcl_DeleteEvents(proc, clientData)
 /*
  *----------------------------------------------------------------------
  *
- * ServiceEvent --
+ * Tcl_ServiceEvent --
  *
- *	Process one event from the event queue.  This routine is called
- *	by the notifier whenever it wants Tk to process an event.  
+ *	Process one event from the event queue, or invoke an
+ *	asynchronous event handler.
  *
  * Results:
  *	The return value is 1 if the procedure actually found an event
@@ -311,8 +377,8 @@ Tcl_DeleteEvents(proc, clientData)
  *----------------------------------------------------------------------
  */
 
-static int
-ServiceEvent(flags)
+int
+Tcl_ServiceEvent(flags)
     int flags;			/* Indicates what events should be processed.
 				 * May be any combination of TCL_WINDOW_EVENTS
 				 * TCL_FILE_EVENTS, TCL_TIMER_EVENTS, or other
@@ -322,6 +388,21 @@ ServiceEvent(flags)
 {
     Tcl_Event *evPtr, *prevPtr;
     Tcl_EventProc *proc;
+
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    /*
+     * Asynchronous event handlers are considered to be the highest
+     * priority events, and so must be invoked before we process events
+     * on the event queue.
+     */
+    
+    if (Tcl_AsyncReady()) {
+	(void) Tcl_AsyncInvoke((Tcl_Interp *) NULL, 0);
+	return 1;
+    }
 
     /*
      * No event flags is equivalent to TCL_ALL_EVENTS.
@@ -336,7 +417,8 @@ ServiceEvent(flags)
      * that can actually be handled.
      */
 
-    for (evPtr = firstEventPtr; evPtr != NULL; evPtr = evPtr->nextPtr) {
+    for (evPtr = notifier.firstEventPtr; evPtr != NULL;
+	 evPtr = evPtr->nextPtr) {
 	/*
 	 * Call the handler for the event.  If it actually handles the
 	 * event then free the storage for the event.  There are two
@@ -356,23 +438,26 @@ ServiceEvent(flags)
 	proc = evPtr->proc;
 	evPtr->proc = NULL;
 	if ((proc != NULL) && (*proc)(evPtr, flags)) {
-	    if (firstEventPtr == evPtr) {
-		firstEventPtr = evPtr->nextPtr;
+	    if (notifier.firstEventPtr == evPtr) {
+		notifier.firstEventPtr = evPtr->nextPtr;
 		if (evPtr->nextPtr == NULL) {
-		    lastEventPtr = NULL;
+		    notifier.lastEventPtr = NULL;
+		}
+		if (notifier.markerEventPtr == evPtr) {
+		    notifier.markerEventPtr = NULL;
 		}
 	    } else {
-		for (prevPtr = firstEventPtr; prevPtr->nextPtr != evPtr;
-			prevPtr = prevPtr->nextPtr) {
+		for (prevPtr = notifier.firstEventPtr;
+		     prevPtr->nextPtr != evPtr; prevPtr = prevPtr->nextPtr) {
 		    /* Empty loop body. */
 		}
 		prevPtr->nextPtr = evPtr->nextPtr;
 		if (evPtr->nextPtr == NULL) {
-		    lastEventPtr = prevPtr;
+		    notifier.lastEventPtr = prevPtr;
 		}
-	    }
-	    if (markerEventPtr == evPtr) {
-		markerEventPtr = NULL;
+		if (notifier.markerEventPtr == evPtr) {
+		    notifier.markerEventPtr = prevPtr;
+		}
 	    }
 	    ckfree((char *) evPtr);
 	    return 1;
@@ -393,6 +478,64 @@ ServiceEvent(flags)
 	continue;
     }
     return 0;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_GetServiceMode --
+ *
+ *	This routine returns the current service mode of the notifier.
+ *
+ * Results:
+ *	Returns either TCL_SERVICE_ALL or TCL_SERVICE_NONE.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_GetServiceMode()
+{
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    return notifier.serviceMode;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_SetServiceMode --
+ *
+ *	This routine sets the current service mode of the notifier.
+ *
+ * Results:
+ *	Returns the previous service mode.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_SetServiceMode(mode)
+    int mode;			/* New service mode: TCL_SERVICE_ALL or
+				 * TCL_SERVICE_NONE */
+{
+    int oldMode;
+
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    oldMode = notifier.serviceMode;
+    notifier.serviceMode = mode;
+    return oldMode;
 }
 
 /*
@@ -420,11 +563,28 @@ Tcl_SetMaxBlockTime(timePtr)
 				 * the next blocking operation in the
 				 * event notifier. */
 {
-    if (!blockTimeSet || (timePtr->sec < blockTime.sec)
-	    || ((timePtr->sec == blockTime.sec)
-	    && (timePtr->usec < blockTime.usec))) {
-	blockTime = *timePtr;
-	blockTimeSet = 1;
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    if (!notifier.blockTimeSet || (timePtr->sec < notifier.blockTime.sec)
+	    || ((timePtr->sec == notifier.blockTime.sec)
+	    && (timePtr->usec < notifier.blockTime.usec))) {
+	notifier.blockTime = *timePtr;
+	notifier.blockTimeSet = 1;
+    }
+
+    /*
+     * If we are called outside an event source traversal, set the
+     * timeout immediately.
+     */
+
+    if (!notifier.inTraversal) {
+	if (notifier.blockTimeSet) {
+	    Tcl_SetTimer(&notifier.blockTime);
+	} else {
+	    Tcl_SetTimer(NULL);
+	}
     }
 }
 
@@ -459,8 +619,23 @@ Tcl_DoOneEvent(flags)
 				 * TCL_TIMER_EVENTS, TCL_IDLE_EVENTS, or
 				 * others defined by event sources. */
 {
-    TclEventSource *sourcePtr;
+    int result = 0, oldMode;
+    EventSource *sourcePtr;
     Tcl_Time *timePtr;
+
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    /*
+     * The first thing we do is to service any asynchronous event
+     * handlers.
+     */
+    
+    if (Tcl_AsyncReady()) {
+	(void) Tcl_AsyncInvoke((Tcl_Interp *) NULL, 0);
+	return 1;
+    }
 
     /*
      * No event flags is equivalent to TCL_ALL_EVENTS.
@@ -471,108 +646,212 @@ Tcl_DoOneEvent(flags)
     }
 
     /*
+     * Set the service mode to none so notifier event routines won't
+     * try to service events recursively.
+     */
+
+    oldMode = notifier.serviceMode;
+    notifier.serviceMode = TCL_SERVICE_NONE;
+
+    /*
      * The core of this procedure is an infinite loop, even though
      * we only service one event.  The reason for this is that we
-     * might think we have an event ready (e.g. the connection to
-     * the server becomes readable), but then we might discover that
-     * there's nothing interesting on that connection, so no event
-     * was serviced.  Or, the select operation could return prematurely
-     * due to a signal.  The easiest thing in both these cases is
-     * just to loop back and try again.
+     * may be processing events that don't do anything inside of Tcl.
      */
 
     while (1) {
 
 	/*
-	 * The first thing we do is to service any asynchronous event
-	 * handlers.
-	 */
-    
-	if (Tcl_AsyncReady()) {
-	    (void) Tcl_AsyncInvoke((Tcl_Interp *) NULL, 0);
-	    return 1;
-	}
-
-	/*
 	 * If idle events are the only things to service, skip the
 	 * main part of the loop and go directly to handle idle
-	 * events (i.e. don't wait even if TCL_DONT_WAIT isn't set.
+	 * events (i.e. don't wait even if TCL_DONT_WAIT isn't set).
 	 */
 
-	if (flags == TCL_IDLE_EVENTS) {
+	if ((flags & TCL_ALL_EVENTS) == TCL_IDLE_EVENTS) {
 	    flags = TCL_IDLE_EVENTS|TCL_DONT_WAIT;
 	    goto idleEvents;
 	}
 
 	/*
-	 * Ask Tk to service a queued event, if there are any.
+	 * Ask Tcl to service a queued event, if there are any.
 	 */
 
-	if (ServiceEvent(flags)) {
-	    return 1;
+	if (Tcl_ServiceEvent(flags)) {
+	    result = 1;	    
+	    break;
 	}
 
 	/*
-	 * There are no events already queued.  Invoke all of the
-	 * event sources to give them a chance to setup for the wait.
+	 * If TCL_DONT_WAIT is set, be sure to poll rather than
+	 * blocking, otherwise reset the block time to infinity.
 	 */
 
-	blockTimeSet = 0;
-	for (sourcePtr = tclFirstEventSourcePtr; sourcePtr != NULL;
-		sourcePtr = sourcePtr->nextPtr) {
-	    (*sourcePtr->setupProc)(sourcePtr->clientData, flags);
+	if (flags & TCL_DONT_WAIT) {
+	    notifier.blockTime.sec = 0;
+	    notifier.blockTime.usec = 0;
+	    notifier.blockTimeSet = 1;
+	} else {
+	    notifier.blockTimeSet = 0;
 	}
-	if ((flags & TCL_DONT_WAIT) ||
-		((flags & TCL_IDLE_EVENTS) && TclIdlePending())) {
-	    /*
-	     * Don't block:  there are idle events waiting, or we don't
-	     * care about idle events anyway, or the caller asked us not
-	     * to block.
-	     */
 
-	    blockTime.sec = 0;
-	    blockTime.usec = 0;
-	    timePtr = &blockTime;
-	} else if (blockTimeSet) {
-	    timePtr = &blockTime;
+	/*
+	 * Set up all the event sources for new events.  This will
+	 * cause the block time to be updated if necessary.
+	 */
+
+	notifier.inTraversal = 1;
+	for (sourcePtr = notifier.firstEventSourcePtr; sourcePtr != NULL;
+	     sourcePtr = sourcePtr->nextPtr) {
+	    if (sourcePtr->setupProc) {
+		(sourcePtr->setupProc)(sourcePtr->clientData, flags);
+	    }
+	}
+	notifier.inTraversal = 0;
+
+	if ((flags & TCL_DONT_WAIT) || notifier.blockTimeSet) {
+	    timePtr = &notifier.blockTime;
 	} else {
 	    timePtr = NULL;
 	}
 
 	/*
-	 * Wait until an event occurs or the timer expires.
+	 * Wait for a new event or a timeout.  If Tcl_WaitForEvent
+	 * returns -1, we should abort Tcl_DoOneEvent.
 	 */
 
-	if (Tcl_WaitForEvent(timePtr) == TCL_ERROR) {
-	    return 0;
+	result = Tcl_WaitForEvent(timePtr);
+	if (result < 0) {
+	    result = 0;
+	    break;
 	}
 
 	/*
-	 * Give each of the event sources a chance to queue events,
-	 * then call ServiceEvent and give it another chance to
-	 * service events.
+	 * Check all the event sources for new events.
 	 */
 
-	for (sourcePtr = tclFirstEventSourcePtr; sourcePtr != NULL;
-		sourcePtr = sourcePtr->nextPtr) {
-	    (*sourcePtr->checkProc)(sourcePtr->clientData, flags);
-	}
-	if (ServiceEvent(flags)) {
-	    return 1;
+	for (sourcePtr = notifier.firstEventSourcePtr; sourcePtr != NULL;
+	     sourcePtr = sourcePtr->nextPtr) {
+	    if (sourcePtr->checkProc) {
+		(sourcePtr->checkProc)(sourcePtr->clientData, flags);
+	    }
 	}
 
 	/*
-	 * We've tried everything at this point, but nobody had anything
-	 * to do.  Check for idle events.  If none, either quit or go back
-	 * to the top and try again.
+	 * Check for events queued by the notifier or event sources.
+	 */
+
+	if (Tcl_ServiceEvent(flags)) {
+	    result = 1;
+	    break;
+	}
+
+	/*
+	 * We've tried everything at this point, but nobody we know
+	 * about had anything to do.  Check for idle events.  If none,
+	 * either quit or go back to the top and try again.
 	 */
 
 	idleEvents:
-	if ((flags & TCL_IDLE_EVENTS) && TclServiceIdle()) {
-	    return 1;
+	if (flags & TCL_IDLE_EVENTS) {
+	    if (TclServiceIdle()) {
+		result = 1;
+		break;
+	    }
 	}
 	if (flags & TCL_DONT_WAIT) {
-	    return 0;
+	    break;
 	}
     }
+
+    notifier.serviceMode = oldMode;
+    return result;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_ServiceAll --
+ *
+ *	This routine checks all of the event sources, processes
+ *	events that are on the Tcl event queue, and then calls the
+ *	any idle handlers.  Platform specific notifier callbacks that
+ *	generate events should call this routine before returning to
+ *	the system in order to ensure that Tcl gets a chance to
+ *	process the new events.
+ *
+ * Results:
+ *	Returns 1 if an event or idle handler was invoked, else 0.
+ *
+ * Side effects:
+ *	Anything that an event or idle handler may do.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_ServiceAll()
+{
+    int result = 0;
+    EventSource *sourcePtr;
+
+    if (!initialized) {
+	InitNotifier();
+    }
+
+    if (notifier.serviceMode == TCL_SERVICE_NONE) {
+	return result;
+    }
+
+    /*
+     * We need to turn off event servicing like we to in Tcl_DoOneEvent,
+     * to avoid recursive calls.
+     */
+    
+    notifier.serviceMode = TCL_SERVICE_NONE;
+
+    /*
+     * Check async handlers first.
+     */
+
+    if (Tcl_AsyncReady()) {
+	(void) Tcl_AsyncInvoke((Tcl_Interp *) NULL, 0);
+    }
+
+    /*
+     * Make a single pass through all event sources, queued events,
+     * and idle handlers.  Note that we wait to update the notifier
+     * timer until the end so we can avoid multiple changes.
+     */
+
+    notifier.inTraversal = 1;
+    notifier.blockTimeSet = 0;
+
+    for (sourcePtr = notifier.firstEventSourcePtr; sourcePtr != NULL;
+	 sourcePtr = sourcePtr->nextPtr) {
+	if (sourcePtr->setupProc) {
+	    (sourcePtr->setupProc)(sourcePtr->clientData, TCL_ALL_EVENTS);
+	}
+    }
+    for (sourcePtr = notifier.firstEventSourcePtr; sourcePtr != NULL;
+	 sourcePtr = sourcePtr->nextPtr) {
+	if (sourcePtr->checkProc) {
+	    (sourcePtr->checkProc)(sourcePtr->clientData, TCL_ALL_EVENTS);
+	}
+    }
+
+    while (Tcl_ServiceEvent(0)) {
+	result = 1;
+    }
+    if (TclServiceIdle()) {
+	result = 1;
+    }
+
+    if (!notifier.blockTimeSet) {
+	Tcl_SetTimer(NULL);
+    } else {
+	Tcl_SetTimer(&notifier.blockTime);
+    }
+    notifier.inTraversal = 0;
+    notifier.serviceMode = TCL_SERVICE_ALL;
+    return result;
 }

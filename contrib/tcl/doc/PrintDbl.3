@@ -1,14 +1,14 @@
 '\"
 '\" Copyright (c) 1989-1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) PrintDbl.3 1.6 96/03/25 20:05:45
+'\" SCCS: @(#) PrintDbl.3 1.8 97/02/18 16:34:51
 '\" 
 .so man.macros
-.TH Tcl_PrintDouble 3 7.0 Tcl "Tcl Library Procedures"
+.TH Tcl_PrintDouble 3 8.0 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
 Tcl_PrintDouble \- Convert floating value to string
@@ -20,7 +20,11 @@ Tcl_PrintDouble \- Convert floating value to string
 .SH ARGUMENTS
 .AS Tcl_Interp *interp
 .AP Tcl_Interp *interp in
-Interpreter that controls the conversion.
+.VS
+Before Tcl 8.0, the \fBtcl_precision\fR variable in this interpreter
+controlled the conversion.  As of Tcl 8.0, this argument is ignored and
+17 digits of precision are always used for conversion.
+.VE
 .AP double value in
 Floating-point value to be converted.
 .AP char *dst out
@@ -32,14 +36,11 @@ least TCL_DOUBLE_SPACE characters of storage.
 .PP
 \fBTcl_PrintDouble\fR generates a string that represents the value
 of \fIvalue\fR and stores it in memory at the location given by
-\fIdst\fR.  It uses %g format to generate the string, with two
-special twists.  First, the string is guaranteed to contain either
-a ``.'' or an ``e'' so that it doesn't look like an integer (where
-%g would generate an integer with no decimal point, \fBTcl_PrintDouble\fR
-adds ``.0'').  Second, the number of significant digits printed at
-\fIdst\fR is controlled by the \fBtcl_precision\fR variable in
-\fIinterp\fR;  if \fBtcl_precision\fR is undefined then 6 significant
-digits are printed.
+\fIdst\fR.  It uses \fB%g\fR format to generate the string, with one
+special twist: the string is guaranteed to contain either
+a ``.'' or an ``e'' so that it doesn't look like an integer.  Where
+\fB%g\fR would generate an integer with no decimal point, \fBTcl_PrintDouble\fR
+adds ``.0''.
 
 .SH KEYWORDS
 conversion, double-precision, floating-point, string

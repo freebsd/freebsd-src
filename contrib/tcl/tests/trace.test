@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) trace.test 1.24 96/02/16 08:56:32
+# SCCS: @(#) trace.test 1.25 96/08/23 11:44:46
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -142,6 +142,11 @@ test trace-2.5 {trace variable writes} {
     set info
 } {}
 
+# append no longer triggers read traces when fetching the old values of
+# variables before doing the append operation. However, lappend _does_
+# still trigger these read traces. Also lappend triggers only one write
+# trace: after appending all arguments to the list.
+
 test trace-3.1 {trace variable read-modify-writes} {
     catch {unset x}
     set info {}
@@ -150,7 +155,7 @@ test trace-3.1 {trace variable read-modify-writes} {
     append x 456
     lappend x 789
     set info
-} {x {} r 1 {can't read "x": no such variable} x {} r 0 123 x {} r 0 123456}
+} {x {} r 0 123456}
 test trace-3.2 {trace variable read-modify-writes} {
     catch {unset x}
     set info {}
@@ -158,7 +163,7 @@ test trace-3.2 {trace variable read-modify-writes} {
     append x 123
     lappend x 456
     set info
-} {x {} r 1 {can't read "x": no such variable} x {} w 0 123 x {} r 0 123 x {} w 0 {123 456}}
+} {x {} w 0 123 x {} r 0 123 x {} w 0 {123 456}}
 
 # Basic unset-tracing on variables
 
@@ -335,10 +340,9 @@ test trace-7.3 {error returns from traces} {
     catch {unset x}
     set x 123
     set info {}
-    trace var x r traceError
-    trace var x w traceScalar
+    trace var x w traceError
     list [catch {append x 44} msg] $msg $info
-} {1 {can't read "x": trace returned error} {}}
+} {1 {can't set "x": trace returned error} {}}
 test trace-7.4 {error returns from traces} {
     catch {unset x}
     set x 123

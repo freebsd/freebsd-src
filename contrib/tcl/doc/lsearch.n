@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lsearch.n 1.6 96/03/25 20:20:16
+'\" SCCS: @(#) lsearch.n 1.7 96/08/26 13:00:05
 '\" 
 .so man.macros
 .TH lsearch n 7.0 Tcl "Tcl Built-In Commands"
@@ -24,7 +24,6 @@ of them matches \fIpattern\fR.
 If so, the command returns the index of the first matching
 element.
 If not, the command returns \fB\-1\fR.
-.VS
 The \fImode\fR argument indicates how the elements of the list are to
 be matched against \fIpattern\fR and it must have one of the following
 values:
@@ -41,7 +40,6 @@ element using the same rules as the \fBstring match\fR command.
 each list element using the same rules as the \fBregexp\fR command.
 .PP
 If \fImode\fR is omitted then it defaults to \fB\-glob\fR.
-.VE
 
 .SH KEYWORDS
 list, match, pattern, regular expression, search, string

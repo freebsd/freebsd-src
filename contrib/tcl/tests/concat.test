@@ -5,12 +5,12 @@
 # generates output for errors.  No output means no errors were found.
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) concat.test 1.8 96/02/16 08:55:43
+# SCCS: @(#) concat.test 1.10 96/12/20 18:53:31
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -27,13 +27,20 @@ test concat-1.4 {special characters} {
     concat a\{ {b \{c d} \{d
 } "a{ b \\{c d {d"
 
-test concat-2.1 {error: no arguments} {
+test concat-2.1 {error: one empty argument} {
+    concat {}
+} {}
+
+test concat-3.1 {error: no arguments} {
     list [catch concat msg] $msg
 } {0 {}}
 
-test concat-3.1 {pruning off extra white space} {
+test concat-4.1 {pruning off extra white space} {
     concat {} {a b c}
 } {a b c}
-test concat-3.2 {pruning off extra white space} {
+test concat-4.2 {pruning off extra white space} {
     concat x y "  a b c	\n\t  " "   "  " def "
 } {x y a b c def}
+test concat-4.3 {pruning off extra white space sets length correctly} {
+    llength [concat { {{a}} }]
+} 1

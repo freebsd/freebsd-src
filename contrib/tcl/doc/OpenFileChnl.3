@@ -1,16 +1,16 @@
 '\"
-'\" Copyright (c) 1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1996-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\"
-'\" SCCS: @(#) OpenFileChnl.3 1.27 96/03/22 14:55:07
+'\" SCCS: @(#) OpenFileChnl.3 1.39 97/05/09 18:14:49
 .so man.macros
-.TH Tcl_OpenFileChannel 3 7.5 Tcl "Tcl Library Procedures"
+.TH Tcl_OpenFileChannel 3 8.0 Tcl "Tcl Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Tcl_OpenFileChannel, Tcl_OpenCommandChannel, Tcl_Close, Tcl_Read, Tcl_Gets, Tcl_Write, Tcl_Flush, Tcl_Seek, Tcl_Tell, Tcl_Eof, Tcl_InputBlocked, Tcl_GetChannelOption, Tcl_SetChannelOption \- buffered I/O facilities using channels
+Tcl_OpenFileChannel, Tcl_OpenCommandChannel, Tcl_MakeFileChannel, Tcl_GetChannel, Tcl_RegisterChannel, Tcl_UnregisterChannel, Tcl_Close, Tcl_Read, Tcl_Gets, Tcl_Write, Tcl_Flush, Tcl_Seek, Tcl_Tell, Tcl_Eof, Tcl_InputBlocked, Tcl_InputBuffered, Tcl_GetChannelOption, Tcl_SetChannelOption \- buffered I/O facilities using channels
 .SH SYNOPSIS
 .nf
 \fB#include <tcl.h>\fR
@@ -22,9 +22,11 @@ Tcl_Channel
 .sp
 Tcl_Channel
 \fBTcl_OpenCommandChannel\fR(\fIinterp, argc, argv, flags\fR)
+.VS
 .sp
 Tcl_Channel
-\fBTcl_MakeFileChannel\fR(\fIinOsFile, outOsFile, readOrWrite\fR)
+\fBTcl_MakeFileChannel\fR(\fIhandle, readOrWrite\fR)
+.VE
 .sp
 Tcl_Channel
 \fBTcl_GetChannel\fR(\fIinterp, channelName, modePtr\fR)
@@ -43,6 +45,9 @@ int
 .sp
 int
 \fBTcl_Gets\fR(\fIchannel, lineRead\fR)
+.sp
+int
+\fBTcl_GetsObj\fR(\fIchannel, lineObjPtr\fR)
 .sp
 int
 \fBTcl_Write\fR(\fIchannel, buf, toWrite\fR)
@@ -102,14 +107,14 @@ as the standard input of the invoking process; likewise for
 then the pipe can redirect stdio handles to override the stdio handles for
 which \fBTCL_STDIN\fR, \fBTCL_STDOUT\fR and \fBTCL_STDERR\fR have been set.
 If it is set, then such redirections cause an error.
-.AP ClientData inOsFile in
-Operating system specific handle for input from a file. For Unix this is a
-file descriptor, for Windows it is a HANDLE, etc.
-.AP ClientData outOsFile in
-Operating system specific handle for output to a file.
+.VS
+.AP ClientData handle in
+Operating system specific handle for I/O to a file. For Unix this is a
+file descriptor, for Windows it is a HANDLE.
 .AP int readOrWrite in
 OR-ed combination of \fBTCL_READABLE\fR and \fBTCL_WRITABLE\fR to indicate
-which of \fIinOsFile\fR and \fIoutOsFile\fR contains a valid value.
+what operations are valid on \fIhandle\fR.
+.VE
 .AP int *modePtr out
 Points at an integer variable that will receive an OR-ed combination of
 \fBTCL_READABLE\fR and \fBTCL_WRITABLE\fR denoting whether the channel is
@@ -120,11 +125,21 @@ from a procedure such as \fBTcl_OpenFileChannel\fR.
 .AP char *buf in
 An array of bytes in which to store channel input, or from which
 to read channel output.
+.AP int len in
+The length of the input or output.
+.AP int atEnd in
+If nonzero, store the input at the end of the input queue, otherwise store
+it at the head of the input queue.
 .AP int toRead in
 The number of bytes to read from the channel.
 .AP Tcl_DString *lineRead in
 A pointer to a Tcl dynamic string in which to store the line read from the
-channel.  Must have been initialized by the caller.
+channel.  Must have been initialized by the caller.  The line read
+will be appended to any data already in the dynamic string.
+.AP Tcl_Obj *linePtrObj in
+A pointer to a Tcl object in which to store the line read from the
+channel.  The line read will be appended to the current value of the
+object. 
 .AP int toWrite in
 The number of bytes to read from \fIbuf\fR and output to the channel.
 .AP int offset in
@@ -176,6 +191,12 @@ returns NULL and records a POSIX error code that can be
 retrieved with \fBTcl_GetErrno\fR.
 In addition, if \fIinterp\fR is non-NULL, \fBTcl_OpenFileChannel\fR
 leaves an error message in \fIinterp->result\fR after any error.
+.PP
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR, described below.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
 
 .SH TCL_OPENCOMMANDCHANNEL
 .PP
@@ -208,11 +229,22 @@ returns NULL and records a POSIX error code that can be retrieved with
 \fBTcl_GetErrno\fR.
 In addition, \fBTcl_OpenCommandChannel\fR leaves an error message in
 \fIinterp->result\fR if \fIinterp\fR is not NULL.
+.PP
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR, described below.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
 
 .SH TCL_MAKEFILECHANNEL
 .PP
 \fBTcl_MakeFileChannel\fR makes a \fBTcl_Channel\fR from an existing,
 platform-specific, file handle.
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR, described below.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
 
 .SH TCL_GETCHANNEL
 .PP
@@ -228,41 +260,46 @@ open for reading and writing.
 .PP
 \fBTcl_RegisterChannel\fR adds a channel to the set of channels accessible
 in \fIinterp\fR. After this call, Tcl programs executing in that
-interpreter can refer to the channel in input or output operations using the
-name given in the call to \fBTcl_CreateChannel\fR.
-After this call the channel becomes the property of the interpreter.
-The caller should not call \fBTcl_Close\fR for the channel; the
-channel will be closed automatically when it is unregistered from
-the interpreter.
-Furthermore, it is not generally safe to reference the channel
-anymore, since it could be deleted at any time by a \fBclose\fR
-command in the interpreter.
+interpreter can refer to the channel in input or output operations using
+the name given in the call to \fBTcl_CreateChannel\fR.  After this call,
+the channel becomes the property of the interpreter, and the caller should
+not call \fBTcl_Close\fR for the channel; the channel will be closed
+automatically when it is unregistered from the interpreter.
+.PP
+Code executing outside of any Tcl interpreter can call
+\fBTcl_RegisterChannel\fR with \fIinterp\fR as NULL, to indicate that it
+wishes to hold a reference to this channel. Subsequently, the channel can
+be registered in a Tcl interpreter and it will only be closed when the
+matching number of calls to \fBTcl_UnregisterChannel\fR have been made.
+This allows code executing outside of any interpreter to safely hold a
+reference to a channel that is also registered in a Tcl interpreter.
 
 .SH TCL_UNREGISTERCHANNEL
 .PP
 \fBTcl_UnregisterChannel\fR removes a channel from the set of channels
-accessible in \fIinterp\fR. After this call, Tcl programs will no longer
-be able to use the channel's name to refer to the channel in that
-interpreter. If this operation removed the last registration of the channel
-in any interpreter, the channel is also closed and destroyed.
+accessible in \fIinterp\fR. After this call, Tcl programs will no longer be
+able to use the channel's name to refer to the channel in that interpreter.
+If this operation removed the last registration of the channel in any
+interpreter, the channel is also closed and destroyed.
+.PP
+Code not associated with a Tcl interpreter can call
+\fBTcl_UnregisterChannel\fR with \fIinterp\fR as NULL, to indicate to Tcl
+that it no longer holds a reference to that channel. If this is the last
+reference to the channel, it will now be closed.
 
 .SH TCL_CLOSE
 .PP
 \fBTcl_Close\fR destroys the channel \fIchannel\fR, which must denote a
-currently open channel.
-The channel should not be registered in any interpreter when
-\fBTcl_Close\fR is called; see the manual entry for \fBTcl_CreateChannel\fR
-for a description of \fBTcl_RegisterChannel\fR and \fBTcl_UnregisterChannel\fR.
-Buffered output is flushed to the channel's output device prior to
-destroying the channel, and any buffered input is discarded.
-If this is a blocking channel, the call does not return until all
-buffered data is successfully sent to the channel's output device.
-If this is a nonblocking channel and there is buffered output that
-cannot be written without blocking, the call
-returns immediately;  output is flushed in the background and
-the channel will be closed once all of the buffered data has
-been output.
-In this case errors during flushing are not reported. 
+currently open channel. The channel should not be registered in any
+interpreter when \fBTcl_Close\fR is called. Buffered output is flushed to
+the channel's output device prior to destroying the channel, and any
+buffered input is discarded.  If this is a blocking channel, the call does
+not return until all buffered data is successfully sent to the channel's
+output device.  If this is a nonblocking channel and there is buffered
+output that cannot be written without blocking, the call returns
+immediately; output is flushed in the background and the channel will be
+closed once all of the buffered data has been output.  In this case errors
+during flushing are not reported.
 .PP
 If the channel was closed successfully, \fBTcl_Close\fR returns \fBTCL_OK\fR.
 If an error occurs, \fBTcl_Close\fR returns \fBTCL_ERROR\fR and records a
@@ -271,9 +308,13 @@ If the channel is being closed synchronously and an error occurs during
 closing of the channel and \fIinterp\fR is not NULL, an error message is
 left in \fIinterp->result\fR.
 .PP
-Note: it is not safe to call \fBTcl_Close\fR on a channel that has
-been registered in an interpreter using \fBTcl_RegisterChannel\fR;
-see the documentation for \fBTcl_RegisterChannel\fR for details.
+Note: it is not safe to call \fBTcl_Close\fR on a channel that has been
+registered using \fBTcl_RegisterChannel\fR; see the documentation for
+\fBTcl_RegisterChannel\fR, above, for details. If the channel has ever been
+given as the \fBchan\fR argument in a call to \fBTcl_RegisterChannel\fR,
+you should instead use \fBTcl_UnregisterChannel\fR, which will internally
+call \fBTcl_Close\fR when all calls to \fBTcl_RegisterChannel\fR have been
+matched by corresponding calls to \fBTcl_UnregisterChannel\fR.
 
 .SH TCL_READ
 .PP
@@ -307,7 +348,7 @@ current end-of-line recognition mode. End-of-line recognition and the
 various platform-specific modes are described in the manual entry for the
 Tcl \fBfconfigure\fR command.
 
-.SH TCL_GETS
+.SH TCL_GETS AND TCL_GETSOBJ
 .PP
 \fBTcl_Gets\fR reads a line of input from a channel and appends all of
 the characters of the line except for the terminating end-of-line character(s)
@@ -329,7 +370,10 @@ did not contain an end-of-line character.
 When -1 is returned, the \fBTcl_InputBlocked\fR procedure may be
 invoked to determine if the channel is blocked because of input
 unavailability.
-
+.PP
+\fBTcl_GetsObj\fR is the same as \fBTcl_Gets\fR except the resulting
+characters are appended to a Tcl object \fBlineObjPtr\fR rather than a
+dynamic string.
 .SH TCL_WRITE
 .PP
 \fBTcl_Write\fR accepts \fItoWrite\fR bytes of data at \fIbuf\fR for output
@@ -432,6 +476,20 @@ The call always returns zero if the channel is in blocking mode.
 \fBTcl_InputBuffered\fR returns the number of bytes of input currently
 buffered in the internal buffers for a channel. If the channel is not open
 for reading, this function always returns zero.
+
+.VS
+.SH "PLATFORM ISSUES"
+.PP
+The handles returned from \fBTcl_GetChannelHandle\fR depend on the
+platform and the channel type.  On Unix platforms, the handle is
+always a Unix file descriptor as returned from the \fBopen\fR system
+call.  On Windows platforms, the handle is a file \fBHANDLE\fR when
+the channel was created with \fBTcl_OpenFileChannel\fR,
+\fBTcl_OpenCommandChannel\fR, or \fBTcl_MakeFileChannel\fR.  Other
+channel types may return a different type of handle on Windows
+platforms.  On the Macintosh platform, the handle is a file reference
+number as returned from \fBHOpenDF\fR.
+.VE
 
 .SH "SEE ALSO"
 DString(3), fconfigure(n), filename(n), fopen(2), Tcl_CreateChannel(3)

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) string.test 1.12 96/02/16 08:56:29
+# SCCS: @(#) string.test 1.14 97/03/09 17:47:19
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -223,10 +223,16 @@ test string-7.11 {string range} {
 } {1 {wrong # args: should be "string range string first last"}}
 test string-7.12 {string range} {
     list [catch {string range abc abc 1} msg] $msg
-} {1 {expected integer but got "abc"}}
+} {1 {bad index "abc": must be integer or "end"}}
 test string-7.13 {string range} {
     list [catch {string range abc 1 eof} msg] $msg
-} {1 {expected integer or "end" but got "eof"}}
+} {1 {bad index "eof": must be integer or "end"}}
+test string-7.14 {string range} {
+    string range abcdefghijklmnop end end
+} {p}
+test string-7.15 {string range} {
+    string range abcdefghijklmnop e 1000
+} {p}
 
 test string-8.1 {string trim} {
     string trim "    XYZ      "
@@ -263,7 +269,7 @@ test string-9.1 {string trimleft} {
     string trimleft "    XYZ      "
 } {XYZ      }
 test string-9.2 {string trimleft} {
-    list [catch {string triml} msg] $msg
+    list [catch {string trimleft} msg] $msg
 } {1 {wrong # args: should be "string trimleft string ?chars?"}}
 
 test string-10.1 {string trimright} {
@@ -276,11 +282,11 @@ test string-10.3 {string trimright} {
     string trimright ""
 } {}
 test string-10.4 {string trimright errors} {
-    list [catch {string trimr} msg] $msg
+    list [catch {string trimright} msg] $msg
 } {1 {wrong # args: should be "string trimright string ?chars?"}}
 test string-10.5 {string trimright errors} {
     list [catch {string trimg a} msg] $msg
-} {1 {bad option "trimg": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+} {1 {bad option "trimg": must be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
 
 test string-11.1 {string tolower} {
     string tolower ABCDeF
@@ -341,7 +347,7 @@ test string-13.8 {string wordend} {
 
 test string-14.1 {string wordstart} {
     list [catch {string word a} msg] $msg
-} {1 {bad option "word": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+} {1 {ambiguous option "word": must be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
 test string-14.2 {string wordstart} {
     list [catch {string wordstart a} msg] $msg
 } {1 {wrong # args: should be "string wordstart string index"}}
@@ -369,7 +375,7 @@ test string-14.9 {string wordend} {
 
 test string-15.1 {error conditions} {
     list [catch {string gorp a b} msg] $msg
-} {1 {bad option "gorp": should be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
+} {1 {bad option "gorp": must be compare, first, index, last, length, match, range, tolower, toupper, trim, trimleft, trimright, wordend, or wordstart}}
 test string-15.2 {error conditions} {
     list [catch {string} msg] $msg
 } {1 {wrong # args: should be "string option arg ?arg ...?"}}
