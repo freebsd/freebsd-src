@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.73 1996/05/26 07:52:09 dyson Exp $
+ * $Id: vm_pageout.c,v 1.74 1996/05/29 05:15:33 dyson Exp $
  */
 
 /*
@@ -840,7 +840,7 @@ vm_size_t count;
 		cnt.v_free_min = 4;
 	cnt.v_pageout_free_min = 2 + VM_PAGEOUT_PAGE_COUNT
 		+ cnt.v_interrupt_free_min;
-	cnt.v_free_reserved = cnt.v_pageout_free_min + (count / 1024);
+	cnt.v_free_reserved = 4 + cnt.v_pageout_free_min + (count / 768);
 	cnt.v_free_min += cnt.v_free_reserved;
 	return 1;
 }
@@ -898,8 +898,7 @@ vm_pageout()
 		int inactive_target;
 		int s = splvm();
 		if (!vm_pages_needed ||
-			((cnt.v_free_count >= cnt.v_free_reserved) &&
-			 ((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min))) {
+			((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min)) {
 			vm_pages_needed = 0;
 			tsleep(&vm_pages_needed, PVM, "psleep", 0);
 		} else if (!vm_pages_needed) {
