@@ -175,30 +175,33 @@ typedef struct Job {
  * strings is empty when hasErrCtl is FALSE, the command will be executed
  * anyway as is and if it causes an error, so be it.
  */
-typedef struct Shell {
-    char	  *name;	/* the name of the shell. For Bourne and C
-				 * shells, this is used only to find the
-				 * shell description when used as the single
-				 * source of a .SHELL target. For user-defined
-				 * shells, this is the full path of the shell.
-				 */
-    Boolean 	  hasEchoCtl;	/* True if both echoOff and echoOn defined */
-    char          *echoOff;	/* command to turn off echo */
-    char          *echoOn;	/* command to turn it back on again */
-    char          *noPrint;	/* command to skip when printing output from
-				 * shell. This is usually the command which
-				 * was executed to turn off echoing */
-    int           noPLen;	/* length of noPrint command */
-    Boolean	  hasErrCtl;	/* set if can control error checking for
-				 * individual commands */
-    char	  *errCheck;	/* string to turn error checking on */
-    char	  *ignErr;	/* string to turn off error checking */
-    /*
-     * command-line flags
-     */
-    char          *echo;	/* echo commands */
-    char          *exit;	/* exit on error */
-}               Shell;
+#define	DEF_SHELL_STRUCT(TAG, CONST) \
+struct TAG { \
+    CONST char	  *name;	/* the name of the shell. For Bourne and C \
+				 * shells, this is used only to find the \
+				 * shell description when used as the single \
+				 * source of a .SHELL target. For user-defined \
+				 * shells, this is the full path of the shell. \
+				 */ \
+    Boolean 	  hasEchoCtl;	/* True if both echoOff and echoOn defined */ \
+    CONST char    *echoOff;	/* command to turn off echo */ \
+    CONST char    *echoOn;	/* command to turn it back on again */ \
+    CONST char    *noPrint;	/* command to skip when printing output from \
+				 * shell. This is usually the command which \
+				 * was executed to turn off echoing */ \
+    int           noPLen;	/* length of noPrint command */ \
+    Boolean	  hasErrCtl;	/* set if can control error checking for \
+				 * individual commands */ \
+    CONST char	  *errCheck;	/* string to turn error checking on */ \
+    CONST char	  *ignErr;	/* string to turn off error checking */ \
+    /* \
+     * command-line flags \
+     */ \
+    CONST char          *echo;	/* echo commands */ \
+    CONST char          *exit;	/* exit on error */ \
+}
+
+typedef DEF_SHELL_STRUCT(Shell,) Shell;
 
 extern char *shellPath;
 extern char *shellName;
