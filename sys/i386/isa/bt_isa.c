@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.2 1998/09/24 10:43:42 bde Exp $
+ *	$Id: bt_isa.c,v 1.3 1998/10/10 00:44:12 imp Exp $
  */
 
 #include <sys/param.h>
@@ -115,16 +115,12 @@ bt_isa_probe: Failing probe.\n",
 
 		/*
 		 * Ensure this port has not already been claimed already
-		 * by a PCI or EISA adapter.
+		 * by a PCI, EISA or ISA adapter.
 		 */
 		if (bt_check_probed_iop(ioport) != 0)
 			continue;
-
-		/*
-		 * Make sure that we do not conflict with another device's
-		 * I/O address.
-		 */
-		if (haveseen_isadev(dev, CC_IOADDR))
+		dev->id_iobase = bt_isa_ports[port_index].addr;
+		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
 			continue;
 
 		/* Allocate a softc for use during probing */
@@ -178,28 +174,9 @@ bt_isa_probe: Failing probe.\n",
 			/* VL DMA */
 			dev->id_drq = -1;
 		}
-		dev->id_iobase = bt_isa_ports[port_index].addr;
 		dev->id_irq = (config_data.irq << 9);
 		dev->id_intr = bt_isa_intr;
 
-		/*
-		 * OK, check to make sure that we're not stepping on
-		 * someone else's IRQ or DRQ
-		 */
-		if (haveseen_isadev(dev, CC_DRQ)) {
-			printf("bt_isa_probe: Bt card at I/O 0x%x's drq %d "
-				"conflicts, ignoring card.\n", dev->id_iobase, 
-				dev->id_drq);
-			bt_free(bt);
-			return 0;
-		}
-		if (haveseen_isadev(dev, CC_IRQ)) {
-			printf("bt_isa_probe: Bt card at I/O 0x%x's irq %d "
-				"conflicts, ignoring card.\n", dev->id_iobase, 
-				config_data.irq + 9);
-			bt_free(bt);
-			return 0;
-		}
 		bt_unit++;
 		return (BT_NREGS);
 	}
