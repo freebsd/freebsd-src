@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.13 1999/01/10 02:45:51 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.13.2.1 1999/05/11 06:09:01 mjacob Exp $ */
 /* release_5_11_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -1054,7 +1054,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (isp->isp_type & ISP_HA_FC) {
 		fcparam *fcp = isp->isp_param;
 		len = ISP2100_SCRLEN;
-		fcp->isp_scratch = (volatile caddr_t)
+		fcp->isp_scratch = (caddr_t)
 		    malloc(ISP2100_SCRLEN, M_DEVBUF, M_NOWAIT);
 		if (fcp->isp_scratch == NULL) {
 			printf("%s: cannot alloc scratch\n", isp->isp_name);
