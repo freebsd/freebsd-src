@@ -37,7 +37,7 @@
 #define NGM_EIFACE_COOKIE		948105892
 
 /* Interface base name */
-#define NG_EIFACE_EIFACE_NAME		"nge"
+#define NG_EIFACE_EIFACE_NAME		"ngeth"
 #define NG_EIFACE_EIFACE_NAME_MAX	15
 
 /* My hook names */
