@@ -259,7 +259,7 @@ static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
 static void	 reapchild __P((int));
-static void      logxfer __P((char *, long, long));
+static void      logxfer __P((char *, off_t, time_t));
 
 static char *
 curdir()
@@ -1550,7 +1550,7 @@ store(name, mode, unique)
 			 * because we are changing from reading to
 			 * writing.
 			 */
-			if (fseek(fout, 0L, L_INCR) < 0) {
+			if (fseeko(fout, (off_t)0, SEEK_CUR) < 0) {
 				perror_reply(550, name);
 				goto done;
 			}
@@ -2834,8 +2834,8 @@ setproctitle(fmt, va_alist)
 static void
 logxfer(name, size, start)
 	char *name;
-	long size;
-	long start;
+	off_t size;
+	time_t start;
 {
 	char buf[1024];
 	char path[MAXPATHLEN + 1];
@@ -2843,9 +2843,10 @@ logxfer(name, size, start)
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
-		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%ld!%ld\n",
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%qd!%ld\n",
 			ctime(&now)+4, ident, remotehost,
-			path, name, size, now - start + (now == start));
+			path, name, (long long)size,
+			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
 }
