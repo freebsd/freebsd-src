@@ -302,6 +302,12 @@ If
 is being run by root, the default is to restore the owner unless the
 .Fl o
 option is also specified.
+.It Fl -strip-components Ar count ( Fl W Cm strip-components Ns = Ns Ar count )
+(x and t mode only)
+Remove the specified number of leading path elements.
+Pathnames with fewer elements will be silently skipped.
+Note that the pathname is edited after checking inclusion/exclusion patterns
+but before security checks.
 .It Fl T Ar filename
 In x or t mode,
 .Nm
