@@ -53,11 +53,11 @@ struct stack_defn {
 	u_char		sd_flag;	/* Flags (see below) */
 /* Exported functions */
 	int		(*sd_inst)	/* Stack instantiation */
-				__P((struct stack_defn **, Atm_connvc *));
+				(struct stack_defn **, Atm_connvc *);
 	void		(*sd_lower)	/* Lower (from above) command handler */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	void		(*sd_upper)	/* Upper (from below) command handler */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 /* Variables used during stack instantiation */
 	void		*sd_toku;	/* Stack service instance token */
 };
@@ -266,7 +266,7 @@ struct stackq_entry {
 	struct stackq_entry *sq_next;	/* Next entry in queue */
 	int		sq_cmd;		/* Stack command */
 	void		(*sq_func)	/* Destination function */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	void		*sq_token;	/* Destination token */
 	int		sq_arg1;	/* Command-specific argument */
 	int		sq_arg2;	/* Command-specific argument */

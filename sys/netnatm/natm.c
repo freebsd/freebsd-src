@@ -69,22 +69,19 @@ static u_long natm0_recvspace = 16*1024;
 /*
  * FreeBSD new usrreqs supersedes pr_usrreq.
  */
-static int natm_usr_attach __P((struct socket *, int, d_thread_t *));
-static int natm_usr_detach __P((struct socket *));
-static int natm_usr_connect __P((struct socket *, struct sockaddr *,
-				 d_thread_t *));
-static int natm_usr_disconnect __P((struct socket *));
-static int natm_usr_shutdown __P((struct socket *));
-static int natm_usr_send __P((struct socket *, int, struct mbuf *,
-			      struct sockaddr *, struct mbuf *, 
-			      d_thread_t *));
-static int natm_usr_peeraddr __P((struct socket *, struct sockaddr **));
-static int natm_usr_control __P((struct socket *, u_long, caddr_t,
-				 struct ifnet *, d_thread_t *));
-static int natm_usr_abort __P((struct socket *));
-static int natm_usr_bind __P((struct socket *, struct sockaddr *, 
-			      d_thread_t *));
-static int natm_usr_sockaddr __P((struct socket *, struct sockaddr **));
+static int natm_usr_attach(struct socket *, int, d_thread_t *);
+static int natm_usr_detach(struct socket *);
+static int natm_usr_connect(struct socket *, struct sockaddr *, d_thread_t *);
+static int natm_usr_disconnect(struct socket *);
+static int natm_usr_shutdown(struct socket *);
+static int natm_usr_send(struct socket *, int, struct mbuf *,
+			      struct sockaddr *, struct mbuf *, d_thread_t *);
+static int natm_usr_peeraddr(struct socket *, struct sockaddr **);
+static int natm_usr_control(struct socket *, u_long, caddr_t,
+				 struct ifnet *, d_thread_t *);
+static int natm_usr_abort(struct socket *);
+static int natm_usr_bind(struct socket *, struct sockaddr *, d_thread_t *);
+static int natm_usr_sockaddr(struct socket *, struct sockaddr **);
 
 static int
 natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
