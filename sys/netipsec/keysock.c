@@ -567,7 +567,8 @@ struct pr_usrreqs key_usrreqs = {
 	key_disconnect, pru_listen_notsupp, key_peeraddr,
 	pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, key_send, pru_sense_null, key_shutdown,
-	key_sockaddr, sosend, soreceive, sopoll
+	key_sockaddr, sosend, soreceive, sopoll,
+	pru_sosetlabel_null
 };
 
 /* sysctl */

@@ -69,6 +69,7 @@
 #include <net/if_var.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 
 #include <vm/vm.h>
@@ -950,6 +951,18 @@ mac_mls_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
  * Labeling event operations: IPC object.
  */
 static void
+mac_mls_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(solabel);
+	dest = SLOT(inplabel);
+
+	mac_mls_copy_single(source, dest);
+}
+
+static void
 mac_mls_create_mbuf_from_socket(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
@@ -1229,6 +1242,18 @@ mac_mls_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 	/* NOOP: we only accept matching labels, so no need to update */
 }
 
+static void
+mac_mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(solabel);
+	dest = SLOT(inplabel);
+
+	mac_mls_copy(source, dest);
+}
+
 /*
  * Labeling event operations: processes.
  */
@@ -1418,6 +1443,21 @@ mac_mls_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 	i = SLOT(ifnetlabel);
 
 	return (mac_mls_single_in_range(p, i) ? 0 : EACCES);
+}
+
+static int
+mac_mls_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *p, *i;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	p = SLOT(mlabel);
+	i = SLOT(inplabel);
+
+	return (mac_mls_equal_single(p, i) ? 0 : EACCES);
 }
 
 static int
@@ -2378,6 +2418,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_init_cred_label = mac_mls_init_label,
 	.mpo_init_devfsdirent_label = mac_mls_init_label,
 	.mpo_init_ifnet_label = mac_mls_init_label,
+	.mpo_init_inpcb_label = mac_mls_init_label_waitcheck,
 	.mpo_init_ipq_label = mac_mls_init_label_waitcheck,
 	.mpo_init_mbuf_label = mac_mls_init_label_waitcheck,
 	.mpo_init_mount_label = mac_mls_init_label,
@@ -2390,6 +2431,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_cred_label = mac_mls_destroy_label,
 	.mpo_destroy_devfsdirent_label = mac_mls_destroy_label,
 	.mpo_destroy_ifnet_label = mac_mls_destroy_label,
+	.mpo_destroy_inpcb_label = mac_mls_destroy_label,
 	.mpo_destroy_ipq_label = mac_mls_destroy_label,
 	.mpo_destroy_mbuf_label = mac_mls_destroy_label,
 	.mpo_destroy_mount_label = mac_mls_destroy_label,
@@ -2437,6 +2479,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_datagram_from_ipq = mac_mls_create_datagram_from_ipq,
 	.mpo_create_fragment = mac_mls_create_fragment,
 	.mpo_create_ifnet = mac_mls_create_ifnet,
+	.mpo_create_inpcb_from_socket = mac_mls_create_inpcb_from_socket,
 	.mpo_create_ipq = mac_mls_create_ipq,
 	.mpo_create_mbuf_from_mbuf = mac_mls_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = mac_mls_create_mbuf_linklayer,
@@ -2447,6 +2490,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_fragment_match = mac_mls_fragment_match,
 	.mpo_relabel_ifnet = mac_mls_relabel_ifnet,
 	.mpo_update_ipq = mac_mls_update_ipq,
+	.mpo_inpcb_sosetlabel = mac_mls_inpcb_sosetlabel,
 	.mpo_create_cred = mac_mls_create_cred,
 	.mpo_create_proc0 = mac_mls_create_proc0,
 	.mpo_create_proc1 = mac_mls_create_proc1,
@@ -2456,6 +2500,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_cred_visible = mac_mls_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_mls_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_mls_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = mac_mls_check_inpcb_deliver,
 	.mpo_check_mount_stat = mac_mls_check_mount_stat,
 	.mpo_check_pipe_ioctl = mac_mls_check_pipe_ioctl,
 	.mpo_check_pipe_poll = mac_mls_check_pipe_poll,

@@ -767,5 +767,5 @@ struct pr_usrreqs udp6_usrreqs = {
 	pru_connect2_notsupp, in6_control, udp6_detach, udp6_disconnect,
 	pru_listen_notsupp, in6_mapped_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, udp6_send, pru_sense_null, udp_shutdown,
-	in6_mapped_sockaddr, sosend, soreceive, sopoll
+	in6_mapped_sockaddr, sosend, soreceive, sopoll, in_pcbsosetlabel
 };

@@ -590,5 +590,6 @@ struct pr_usrreqs ddp_usrreqs = {
 	at_setsockaddr,
 	sosend,
 	soreceive,
-	sopoll
+	sopoll,
+	pru_sosetlabel_null
 };

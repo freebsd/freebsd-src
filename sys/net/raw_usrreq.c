@@ -295,5 +295,5 @@ struct pr_usrreqs raw_usrreqs = {
 	pru_connect2_notsupp, pru_control_notsupp, raw_udetach, 
 	raw_udisconnect, pru_listen_notsupp, raw_upeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, raw_usend, pru_sense_null, raw_ushutdown,
-	raw_usockaddr, sosend, soreceive, sopoll
+	raw_usockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
 };
