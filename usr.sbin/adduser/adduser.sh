@@ -145,6 +145,7 @@ save_config() {
 	echo "# NOTE: only *some* variables are saved." >> ${ADDUSERCONF}
 	echo "# Last Modified on `${DATECMD}`."		>> ${ADDUSERCONF}
 	echo ''				>> ${ADDUSERCONF}
+	echo "defaultLgroup=$ulogingroup" >> ${ADDUSERCONF}
 	echo "defaultclass=$uclass"	>> ${ADDUSERCONF}
 	echo "defaultgroups=$ugroups"	>> ${ADDUSERCONF}
 	echo "passwdtype=$passwdtype" 	>> ${ADDUSERCONF}
@@ -430,25 +431,23 @@ get_class() {
 # get_logingroup
 #	Reads user's login group. Can be used in both interactive and batch
 #	modes. The specified value can be a group name or its numeric id.
-#	This routine leaves the field blank if nothing is provided. The pw(8)
-#	command will then provide a login group with the same name as the username.
+#	This routine leaves the field blank if nothing is provided and
+#	a default login group has not been set. The pw(8) command
+#	will then provide a login group with the same name as the username.
 #
 get_logingroup() {
-	ulogingroup=
+	ulogingroup="$defaultLgroup"
 	_input=
 
-	# No need to take down a login group for a configuration saving run.
-	[ -n "$configflag" ] && return
-
 	if [ -z "$fflag" ]; then
-		echo -n "Login group [$username]: "
+		echo -n "Login group [${ulogingroup:-$username}]: "
 		read _input
 	else
 		_input="`echo "$fileline" | cut -f3 -d:`"
 	fi
 
 	# Pw(8) will use the username as login group if it's left empty
-	[ -n "$_input" ] && ulogingroup="$_input" || ulogingroup=
+	[ -n "$_input" ] && ulogingroup="$_input"
 }
 
 # get_groups
@@ -713,7 +712,7 @@ input_interactive() {
 	[ -z "$configflag" ] && printf "%-10s : %s\n" "Full Name" "$ugecos"
 	[ -z "$configflag" ] && printf "%-10s : %s\n" "Uid" "$uuid"
 	printf "%-10s : %s\n" "Class" "$uclass"
-	[ -z "$configflag" ] && printf "%-10s : %s %s\n" "Groups" "${ulogingroup:-$username}" "$ugroups"
+	printf "%-10s : %s %s\n" "Groups" "${ulogingroup:-$username}" "$ugroups"
 	printf "%-10s : %s\n" "Home" "$uhome"
 	printf "%-10s : %s\n" "Shell" "$ushell"
 	printf "%-10s : %s\n" "Locked" "$_disable"
@@ -777,6 +776,7 @@ randompass=
 fileline=
 savedpwtype=
 defaultclass=
+defaultLgroup=
 defaultgoups=
 defaultshell="${DEFAULTSHELL}"
 
@@ -833,6 +833,10 @@ for _switch ; do
 	-f)
 		[ "$2" != "-" ] && infile="$2"
 		fflag=yes
+		shift; shift
+		;;
+	-g)
+		defaultLgroup="$2"
 		shift; shift
 		;;
 	-G)
