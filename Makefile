@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.13 1994/08/26 20:16:58 paul Exp $
+#	$Id: Makefile,v 1.14 1994/08/26 20:44:12 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -85,7 +85,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	directories update cleandist mk includes libraries tools
+world:	directories cleandist mk includes libraries tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -177,14 +177,7 @@ libraries:
 	find ${DESTDIR}/usr/lib \! -name '*.s[ao].*' -a \! -type d | \
 		xargs rm -rf
 .endif
-	# XXX The whole GNU block should be doable in one command, as soon		# as libg++ works on FreeBSD 2.0 I will try that out
-#XXX	cd ${.CURDIR}/gnu/lib/libg++ && \
-#XXX		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/lib/libmalloc && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/lib/libreadline && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/lib/libregex && \
+	cd ${.CURDIR}/gnu/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
@@ -196,10 +189,8 @@ libraries:
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
-	# You need the lex lib before you can build kerberosIV
-#XXX	# We don't have lex in the 2.0 tree yet!
-#XXX	cd ${.CURDIR}/usr.bin/lex/lib && \
-#XXX		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/lex/lib && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .if !defined(NOCRYPT) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/kerberosIV/acl && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
