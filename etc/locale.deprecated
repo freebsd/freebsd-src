@@ -5,7 +5,10 @@
 # Make sure that deprecated locale directories and their replacements
 # are set up correctly.
 #
+# Format:
+# <deprecated_locale>	<new_locale>
+#
+ru_RU.ISO_8859-5	ru_RU.ISO8859-5
+ru_SU.CP866		ru_RU.CP866
 ru_SU.KOI8-R		ru_RU.KOI8-R
 ru_SU.ISO_8859-5	ru_RU.ISO8859-5
-ru_SU.CP866		ru_RU.CP866
-ru_RU.ISO_8859-5	ru_RU.ISO8859-5
