@@ -1,4 +1,4 @@
-; $Id: TODO,v 1.8 1995/02/26 02:10:04 phk Exp $
+; $Id: TODO,v 1.9 1995/03/16 05:07:09 paul Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
@@ -159,3 +159,18 @@ EMAIL:	<paul>
 CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
+
+TASKID: 95031701
+TASK:	Implement a file system debugger (fsdb)
+DETAIL:	{ Traditionally, there has been a fsdb(8) program in Unix.
+This program is not part of 4.4BSD, but the current system lacks
+some utility to low-level step through the file system and repair
+(or damage:) something in case fsck tells about problems, but the
+administrator is unlucky with the suggested actions of fsck.
+The original fsdb had a terrible syntax, something more rationale
+should be built instead. }
+EMAIL:	<joerg>
+CATS:	user
+GRADE:	ADVANCED
+STATUS:	OPEN
+
