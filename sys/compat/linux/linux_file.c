@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.16 1997/12/05 19:55:37 bde Exp $
+ *  $Id: linux_file.c,v 1.17 1997/12/16 18:49:23 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -799,6 +799,7 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args)
 	    p->p_pid, args->path);
 #endif
 	bsd.path = args->path;
+	bsd.length = args->length;
 
 	return otruncate(p, &bsd);
 }
