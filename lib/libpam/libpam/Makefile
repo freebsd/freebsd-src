@@ -80,10 +80,13 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_krb5/libpam_krb5.a
 .endif
 STATIC_MODULES+= ${MODOBJDIR}/pam_nologin/libpam_nologin.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_opie/libpam_opie.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_opieaccess/libpam_opieaccess.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_permit/libpam_permit.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_radius/libpam_radius.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_rootok/libpam_rootok.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_securetty/libpam_securetty.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_self/libpam_self.a
+STATIC_MODULES+= ${MODOBJDIR}/pam_ssh/libpam_ssh.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_wheel/libpam_wheel.a
