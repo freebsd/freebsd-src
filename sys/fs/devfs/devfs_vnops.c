@@ -557,7 +557,7 @@ devfs_setattr(ap)
 	    (vap->va_fsid != VNOVAL) ||
 	    (vap->va_fileid != VNOVAL) ||
 	    (vap->va_blocksize != VNOVAL) ||
-	    (vap->va_flags != VNOVAL) ||
+	    (vap->va_flags != VNOVAL && vap->va_flags != 0) ||
 	    (vap->va_rdev != VNOVAL) ||
 	    ((int)vap->va_bytes != VNOVAL) ||
 	    (vap->va_gen != VNOVAL)) {
