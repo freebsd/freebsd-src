@@ -47,10 +47,6 @@ LNOHEADERDIRS=	fs isofs ufs dev
 LSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
 	cam/scsi dev/ppbus dev/usb dev/wi
 
-# For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
-	dev/ppbus dev/usb dev/wi
-
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
 # probably only useful for developers and should be avoided if you do not
@@ -98,7 +94,7 @@ beforeinstall: ${SHARED}
 .endfor
 
 copies:
-.for i in ${LDIRS} ${LSYMSUBDIRS} machine
+.for i in ${LDIRS} ${LNOHEADERDIRS} machine
 	if [ -h ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
@@ -127,10 +123,7 @@ symlinks:
 .endfor
 .for i in ${LNOHEADERDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
-	mkdir ${DESTDIR}/usr/include/$i
-.endfor
-.for i in ${LSYMSUBDIRS}
-	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
+	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
