@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
 #endif
@@ -613,6 +616,7 @@ static struct xpt_softc xsoftc;
 /* Queues for our software interrupt handler */
 typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
 static cam_isrq_t cam_bioq;
+static struct mtx cam_bioq_lock;
 
 /* "Pool" of inactive ccbs managed by xpt_alloc_ccb and xpt_free_ccb */
 static SLIST_HEAD(,ccb_hdr) ccb_freeq;
@@ -1382,6 +1386,8 @@ xpt_init(dummy)
 	TAILQ_INIT(&cam_bioq);
 	SLIST_INIT(&ccb_freeq);
 	STAILQ_INIT(&highpowerq);
+
+	mtx_init(&cam_bioq_lock, "CAM BIOQ lock", NULL, MTX_DEF);
 
 	/*
 	 * The xpt layer is, itself, the equivelent of a SIM.
@@ -4830,8 +4836,6 @@ xpt_done(union ccb *done_ccb)
 {
 	int s;
 
-	GIANT_REQUIRED;
-
 	s = splcam();
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
@@ -4842,9 +4846,11 @@ xpt_done(union ccb *done_ccb)
 		 */
 		switch (done_ccb->ccb_h.path->periph->type) {
 		case CAM_PERIPH_BIO:
+			mtx_lock(&cam_bioq_lock);
 			TAILQ_INSERT_TAIL(&cam_bioq, &done_ccb->ccb_h,
 					  sim_links.tqe);
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
+			mtx_unlock(&cam_bioq_lock);
 			swi_sched(cambio_ih, 0);
 			break;
 		default:
@@ -6973,15 +6979,26 @@ xptpoll(struct cam_sim *sim)
 static void
 camisr(void *V_queue)
 {
-	cam_isrq_t *queue = V_queue;
+	cam_isrq_t *oqueue = V_queue;
+	cam_isrq_t queue;
 	int	s;
 	struct	ccb_hdr *ccb_h;
 
+	/*
+	 * Transfer the ccb_bioq list to a temporary list so we can operate
+	 * on it without needing to lock/unlock on every loop.  The concat
+	 * function with re-init the real list for us.
+	 */
 	s = splcam();
-	while ((ccb_h = TAILQ_FIRST(queue)) != NULL) {
+	mtx_lock(&cam_bioq_lock);
+	TAILQ_INIT(&queue);
+	TAILQ_CONCAT(&queue, oqueue, sim_links.tqe);
+	mtx_unlock(&cam_bioq_lock);
+
+	while ((ccb_h = TAILQ_FIRST(&queue)) != NULL) {
 		int	runq;
 
-		TAILQ_REMOVE(queue, ccb_h, sim_links.tqe);
+		TAILQ_REMOVE(&queue, ccb_h, sim_links.tqe);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 		splx(s);
 
