@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.57 1999/02/05 22:15:51 jkh Exp $
+ * $Id: options.c,v 1.58 1999/04/06 08:25:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,8 +101,6 @@ mediaCheck(Option opt)
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 #define INSTROOT_PROMPT	"Please specify a root directory if installing somewhere other than /"
 #define TIMEOUT_PROMPT	"Please specify the number of seconds to wait for slow media:"
-#define GATED_PKG_PROMPT "Please specify the package name for the gated software:"
-#define PCNFSD_PKG_PROMPT "Please specify the package name for the PCNFSD server:"
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
@@ -137,10 +135,6 @@ static Option Options[] = {
       OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
-{ "Gated package",	"The name of the gated package to install if requested",
-      OPT_IS_VAR,	GATED_PKG_PROMPT,	VAR_GATED_PKG,		varCheck	},
-{ "PCNFSD package",	"The name of the PCNFSD package to install if requested",
-      OPT_IS_VAR,	PCNFSD_PKG_PROMPT,	VAR_PCNFSD_PKG,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",
       OPT_IS_FUNC,	deviceRescan },
 { "Use Defaults",	"Reset all values to startup defaults",
