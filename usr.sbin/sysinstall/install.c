@@ -809,44 +809,6 @@ installFixupBin(dialogMenuItem *self)
 	    fclose(fp);
 	}
 #endif
-#if 0
-	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
-	dialog_clear_norefresh();
-	msgNotify("Remaking all devices.. Please wait!");
-	if (!Fake)
-	    (void)unmount("/dev", MNT_FORCE);
-	if (vsystem("cd /dev; sh MAKEDEV all")) {
-	    msgConfirm("MAKEDEV returned non-zero status");
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-
-	dialog_clear_norefresh();
-	msgNotify("Resurrecting /dev entries for slices..");
-	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-	if (!devs)
-	    msgFatal("Couldn't get a disk device list!");
-
-	/* Resurrect the slices that the former clobbered */
-	for (i = 0; devs[i]; i++) {
-	    Disk *disk = (Disk *)devs[i]->private;
-	    Chunk *c1;
-
-	    if (!devs[i]->enabled)
-		continue;
-	    if (!disk->chunks)
-		msgFatal("No chunk list found for %s!", disk->name);
-	    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-		if (c1->type == freebsd) {
-		    dialog_clear_norefresh();
-		    msgNotify("Making slice entries for %s", c1->name);
-		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
-			msgConfirm("Unable to make slice entries for %s!", c1->name);
-			return DITEM_FAILURE | DITEM_RESTORE;
-		    }
-		}
-	    }
-	}
-#endif
 	
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
