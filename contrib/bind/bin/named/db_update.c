@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_update.c,v 8.39 1999/10/15 19:48:59 vixie Exp $";
+static const char rcsid[] = "$Id: db_update.c,v 8.42 2000/04/21 06:54:04 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_update.c,v 8.39 1999/10/15 19:48:59 vixie E
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -168,10 +168,6 @@ findMyZone(struct namebuf *np, int class) {
 	/* The cache has not yet been primed. */
 	return (DB_Z_CACHE);
 }
-
-
-#define ISVALIDGLUE(xdp) ((xdp)->d_type == T_NS || (xdp)->d_type == T_A \
-			 || (xdp)->d_type == T_AAAA)
 
 /* int
  * db_update(name, odp, newdp, savedpp, flags, htp, from)
@@ -591,9 +587,9 @@ db_update(const char *name,
 					if ((flags & DB_REPLACE) == 0 &&
 					     zones[dp->d_zone].z_type ==
 							Z_PRIMARY) {
-						ns_info(ns_log_db,
+						ns_warning(ns_log_db,
 						      "%s has multiple CNAMES",
-							name);
+							   name);
 						return (CNAMEANDOTHER);
 					} else
 						goto delete;

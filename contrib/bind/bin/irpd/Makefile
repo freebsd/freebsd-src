@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.3 1999/02/22 02:47:55 vixie Exp $
+# $Id: Makefile,v 1.4 2000/05/09 07:02:22 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -68,7 +68,7 @@ tmp_version.c: version.c Makefile ../Makefile ${SRCS} ${HDRS}
 	(u=$${USER-root} d=`pwd` h=`${HOSTNAMECMD}` t=`date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
-	    < version.c > tmp_version.c)
+	    < version.c > tmp_version.c); sleep 1
 
 distclean: clean
 

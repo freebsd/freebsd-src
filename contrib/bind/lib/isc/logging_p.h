@@ -24,6 +24,8 @@ typedef struct log_file_desc {
 	FILE *stream;
 	unsigned int versions;
 	unsigned long max_size;
+	uid_t owner;
+	gid_t group;
 } log_file_desc;
 
 typedef union log_output {

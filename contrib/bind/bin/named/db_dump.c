@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: db_dump.c,v 8.40 1999/10/13 16:39:01 vixie Exp $";
+static const char rcsid[] = "$Id: db_dump.c,v 8.43 2000/04/21 06:54:01 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static const char rcsid[] = "$Id: db_dump.c,v 8.40 1999/10/13 16:39:01 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -144,6 +144,8 @@ doadump()
 	fprintf(fp, "; Dumped at %s", ctimel(tt.tv_sec));
 	if (zones != NULL && nzones != 0)
 		zt_dump(fp);
+	if (fwddata != NULL && fwddata_count != 0)
+		fwd_dump(fp);
 	fputs(
 "; Note: Cr=(auth,answer,addtnl,cache) tag only shown for non-auth RR's\n",
 	      fp);
@@ -200,6 +202,18 @@ zt_dump(FILE *fp) {
 				inet_ntoa(zp->z_axfr_src));
 	}
 	fprintf(fp, ";; --zone table--\n");
+	return (0);
+}
+int
+fwd_dump(FILE *fp) {
+	int i;
+	fprintf(fp, ";; ++forwarders table++\n");
+	for (i=0;i<fwddata_count;i++) {
+		fprintf(fp,"; %s rtt=%d\n",
+			inet_ntoa(fwddata[i]->fwdaddr.sin_addr),
+			fwddata[i]->nsdata->d_nstime);
+	}
+	fprintf(fp, ";; --forwarders table--\n");
 	return (0);
 }
 
@@ -276,9 +290,9 @@ db_dump(struct hashbuf *htp, FILE *fp, int zone, char *origin) {
 				    fprintf(fp, "%d\t",
 					(int)(dp->d_ttl - tt.tv_sec));
 			} else if (dp->d_ttl != USE_MINIMUM)
-				fprintf(fp, "%d\t", (int)dp->d_ttl);
+				fprintf(fp, "%u\t", dp->d_ttl);
 			else
-				fprintf(fp, "%d\t",
+				fprintf(fp, "%u\t",
 				        zones[dp->d_zone].z_minimum);
 			fprintf(fp, "%s\t%s\t",
 				p_class(dp->d_class),

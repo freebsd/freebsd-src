@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_verify.c,v 8.11 1999/10/15 21:06:51 vixie Exp $";
+static const char rcsid[] = "$Id: ns_verify.c,v 8.13 2000/03/29 15:55:00 bwelling Exp $";
 #endif
 
 /* Import. */
@@ -231,6 +231,7 @@ ns_verify(u_char *msg, int *msglen, void *k,
 	if (key != NULL && error != ns_r_badsig && error != ns_r_badkey) {
 		void *ctx;
 		u_char buf[MAXDNAME];
+		u_char buf2[MAXDNAME];
 
 		/* Digest the query signature, if this is a response. */
 		dst_verify_data(SIG_MODE_INIT, key, &ctx, NULL, 0, NULL, 0);
@@ -247,7 +248,12 @@ ns_verify(u_char *msg, int *msglen, void *k,
 				NULL, 0);
 
 		/* Digest the key name. */
-		n = ns_name_ntol(recstart, buf, sizeof(buf));
+		n = ns_name_pton(name, buf2, sizeof(buf2));
+		if (n < 0)
+			return (-1);
+		n = ns_name_ntol(buf2, buf, sizeof(buf));
+		if (n < 0)
+			return (-1);
 		dst_verify_data(SIG_MODE_UPDATE, key, &ctx, buf, n, NULL, 0);
 
 		/* Digest the class and TTL. */
@@ -256,7 +262,12 @@ ns_verify(u_char *msg, int *msglen, void *k,
 				INT16SZ + INT32SZ, NULL, 0);
 
 		/* Digest the algorithm. */
-		n = ns_name_ntol(rdatastart, buf, sizeof(buf));
+		n = ns_name_pton(alg, buf2, sizeof(buf2));
+		if (n < 0)
+			return (-1);
+		n = ns_name_ntol(buf2, buf, sizeof(buf));
+		if (n < 0)
+			return (-1);
 		dst_verify_data(SIG_MODE_UPDATE, key, &ctx, buf, n, NULL, 0);
 
 		/* Digest the time signed and fudge. */
@@ -448,9 +459,6 @@ ns_verify_tcp(u_char *msg, int *msglen, ns_tcp_tsig_state *state,
 			    sigstart, sigfieldlen);
 	if (n < 0)
 		return (-ns_r_badsig);
-
-	if (sigfieldlen > sizeof(state->sig))
-		return (ns_r_badsig);
 
 	if (sigfieldlen > sizeof(state->sig))
 		return (NS_TSIG_ERROR_NO_SPACE);
