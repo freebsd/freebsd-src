@@ -46,7 +46,7 @@ struct pcb {
 
 	uint64_t		pcb_onfault;	/* for copy faults */
 
-#if IA32
+	/* IA32 specific registers. */
 	uint64_t		pcb_ia32_cflg;
 	uint64_t		pcb_ia32_eflag;
 	uint64_t		pcb_ia32_fcr;
@@ -66,10 +66,8 @@ void makectx(struct trapframe *, struct pcb *);
 void restorectx(struct pcb *) __dead2;
 int swapctx(struct pcb *old, struct pcb *new);
 
-#if IA32
 void ia32_restorectx(struct pcb *);
 void ia32_savectx(struct pcb *);
-#endif
 
 #endif
 

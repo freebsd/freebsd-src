@@ -4,12 +4,12 @@
 ITANIUM			opt_global.h
 ITANIUM2		opt_global.h
 
-IA32			opt_global.h
-
 LOG2_ID_PAGE_SIZE	opt_global.h
 LOG2_PAGE_SIZE		opt_global.h
 
 UWX_TRACE_ENABLE	opt_global.h
+
+COMPAT_IA32		opt_compat.h
 
 PPC_PROBE_CHIPSET       opt_ppc.h
 PPC_DEBUG               opt_ppc.h
