@@ -78,17 +78,36 @@ typedef __size_t	size_t;
 
 #define	_PATH_PWD_MKDB		"/usr/sbin/pwd_mkdb"
 
-#define _PWD_VERSION_KEY	"\xFF" "VERSION"
-#define _PWD_CURRENT_VERSION	'\x04'
+/* Historically, the keys in _PATH_MP_DB/_PATH_SMP_DB had the format
+ * `1 octet tag | key', where the tag is one of the _PW_KEY* values
+ * listed below.  These values happen to be ASCII digits.  Starting
+ * with FreeBSD 5.1, the tag is now still a single octet, but the
+ * upper 4 bits are interpreted as a version.  Pre-FreeBSD 5.1 format
+ * entries are version `3' -- this conveniently results in the same
+ * key values as before.  The new, architecture-independent entries
+ * are version `4'.
+ * As it happens, some applications read the database directly.
+ * (Bad app, no cookie!)  Thus, we leave the _PW_KEY* symbols at their
+ * old pre-FreeBSD 5.1 values so these apps still work.  Consequently
+ * we have to do muck around a bit more to get the correct, versioned
+ * tag, and that is what the _PW_VERSIONED macros is about.
+ */
 
 #define _PW_VERSION_MASK	'0xF0'
-#define _PW_VERSION(x)		((unsigned char)((x)<<4))
+#define _PW_VERSIONED(x, v)	((unsigned char)(((x) & 0xCF) | ((v)<<4)))
 
-#define	_PW_KEYBYNAME		'\x01'	/* stored by name */
-#define	_PW_KEYBYNUM		'\x02'	/* stored by entry in the "file" */
-#define	_PW_KEYBYUID		'\x03'	/* stored by uid */
-#define _PW_KEYYPENABLED	'\x04'	/* YP is enabled */
-#define	_PW_KEYYPBYNUM		'\x05'	/* special +@netgroup entries */
+#define	_PW_KEYBYNAME		'\x31'	/* stored by name */
+#define	_PW_KEYBYNUM		'\x32'	/* stored by entry in the "file" */
+#define	_PW_KEYBYUID		'\x33'	/* stored by uid */
+#define _PW_KEYYPENABLED	'\x34'	/* YP is enabled */
+#define	_PW_KEYYPBYNUM		'\x35'	/* special +@netgroup entries */
+
+/* The database also contains a key to indicate the format version of
+ * the entries therein.  There may be other, older versioned entries
+ * as well.
+ */
+#define _PWD_VERSION_KEY	"\xFF" "VERSION"
+#define _PWD_CURRENT_VERSION	'\x04'
 
 #define	_PASSWORD_EFMT1		'_'	/* extended encryption format */
 
