@@ -1775,6 +1775,9 @@
     <sect3>
       <title>Contributed Software</title>
 
+      <para><application>am-utils</application> has been updated to 
+      6.0.7.</para>
+
       <para><application>bc</application> has been updated from 1.04 to
       1.06. &merged;</para>
 
