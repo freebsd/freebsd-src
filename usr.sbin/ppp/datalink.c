@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.35 1999/03/04 17:42:15 brian Exp $
+ *	$Id: datalink.c,v 1.36 1999/04/05 21:52:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -144,6 +144,8 @@ datalink_HangupDone(struct datalink *dl)
     datalink_StartDialTimer(dl, dl->cbcp.fsm.delay);
     cbcp_Down(&dl->cbcp);
     datalink_NewState(dl, DATALINK_OPENING);
+    if (bundle_Phase(dl->bundle) != PHASE_TERMINATE)
+      bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
   } else if (dl->bundle->CleaningUp ||
       (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial.tries || (dl->dial.tries < 0 && !dl->reconnect_tries)) &&
@@ -157,6 +159,8 @@ datalink_HangupDone(struct datalink *dl)
       datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
   } else {
     datalink_NewState(dl, DATALINK_OPENING);
+    if (bundle_Phase(dl->bundle) != PHASE_TERMINATE)
+      bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
     if (dl->dial.tries < 0) {
       datalink_StartDialTimer(dl, dl->cfg.reconnect.timeout);
       dl->dial.tries = dl->cfg.dial.max;
