@@ -2319,7 +2319,7 @@ static struct cmdtab const SetCommands[] = {
   "set mode interactive|auto|ddial|background", (const void *)VAR_MODE},
   {"mrru", NULL, SetVariable, LOCAL_AUTH, "MRRU value",
   "set mrru value", (const void *)VAR_MRRU},
-  {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "MRU value", "set mru [max[imum]] [value]", (const void *)VAR_MRU},
   {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "interface MTU value", "set mtu [max[imum]] [value]", (const void *)VAR_MTU},
