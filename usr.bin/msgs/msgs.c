@@ -84,7 +84,7 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 #include "pathnames.h"
 
-#define CMODE	0666		/* bounds file creation mode */
+#define	CMODE	0644		/* bounds file creation	mode */
 #define NO	0
 #define YES	1
 #define SUPERUSER	0	/* superuser uid */
@@ -330,7 +330,7 @@ int argc; char *argv[];
 			perror(fname);
 			exit(errno);
 		}
-		chmod(fname, 0644);
+		chmod(fname, CMODE);
 
 		fprintf(bounds, "%d %d\n", firstmsg, nextmsg);
 		fclose(bounds);
