@@ -3681,7 +3681,7 @@ vmapbuf(struct buf *bp)
 		 */
 retry:
 		if (vm_fault_quick(addr >= bp->b_data ? addr : bp->b_data,
-		    prot)) {
+		    prot) < 0) {
 			vm_page_lock_queues();
 			for (i = 0; i < pidx; ++i) {
 				vm_page_unhold(bp->b_pages[i]);
