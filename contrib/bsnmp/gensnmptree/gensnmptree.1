@@ -1,0 +1,190 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\"	All rights reserved.
+.\"
+.\" Redistribution of this software and documentation and use in source and
+.\" binary forms, with or without modification, are permitted provided that
+.\" the following conditions are met:
+.\"
+.\" 1. Redistributions of source code or documentation must retain the above
+.\"    copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
+.\" AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+.\" FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+.\" FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+.\" OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Begemot: bsnmp/gensnmptree/gensnmptree.1,v 1.1 2002/08/15 13:27:44 hbb Exp $
+.\"
+.\" Author: Harti Brandt <harti@freebsd.org>
+.\"
+.Dd October 7, 2003
+.Dt gensnmptree 1
+.Os
+.Sh NAME
+.Nm gensnmptree
+.Nd "generate C and header files from a MIB description file"
+.Sh SYNOPSIS
+.Nm
+.Op Fl hel
+.Op Fl p Ar prefix
+.Op Ar name Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to either generate C language tables and header files from
+a MIB description or to numeric OIDs from MIB descriptions. The first form
+is used only for maintaining the
+.Xr snmpd 1
+daemon or for module writers.
+The second form may be used by SNMP client program writers.
+.Pp
+If the
+.Fl e
+option is not used
+.Nm
+reads a MIB description from its standard input and creates two files: a
+C-file
+.Ar prefix Ns tree.c
+containing a table used by
+.Xr snmpd 1
+during PDU processing
+and a header file
+.Ar prefix Ns tree.h
+containing appropriate declarations of the callback functions used in this table
+and the table itself.
+.Pp
+If the
+.Fl e
+option is specified
+.Nm
+expects MIB variable names (only the last component) on its command line.
+It reads a MIB specification from standard input and for each MIB variable
+name emits two C preprocessor defines on its standard output. One define
+.Va OID_ Ns Ar name
+can be used as an array initialized to initialize a
+.Va struct asn_oid .
+The other define
+.Va OIDLEN_ Ns Ar name
+contains the length of the OID.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl h
+Print a short help page.
+.It Fl e
+Enter extract mode.
+.It Fl l
+Generate local preprocessor includes. This is used for bootstrapping
+.Xr snmpd 1 .
+.It Fl p Ar prefix
+Prefix the file names and the table name with
+.Ar prefix .
+.El
+.Sh MIBS
+The syntax of the MIB description file can formally be specified as follows:
+.Bd -unfilled -offset indent
+tree := head elements ')'
+
+entry := head ':' index STRING elements ')'
+
+leaf := head TYPE STRING ACCESS ')'
+
+column := head TYPE ACCESS ')'
+
+head := '(' INT STRING
+
+elements := EMPTY | elements element
+
+element := tree | leaf
+
+index := TYPE | index TYPE
+.Ed
+.Pp
+.Ar TYPE
+specifies a SNMP data type and may be one of
+.Bl -bullet -offset indent -compact
+.It
+NULL
+.It
+INTEGER
+.It
+INTEGER32 (same as INTEGER)
+.It
+UNSIGNED32 (same as GAUGE)
+.It
+OCTETSTRING
+.It
+IPADDRESS
+.It
+OID
+.It
+TIMETICKS
+.It
+COUNTER
+.It
+GAUGE
+.It
+COUNTER64
+.El
+.Pp
+.Ar ACCESS
+specifies the accessibility of the MIB variable (which operation can be
+performed) and is one of
+.Bl -bullet -offset indent -compact
+.It
+GET
+.It
+SET
+.El
+.Pp
+.Ar INT
+is a decimal integer and
+.Ar STRING
+is any string starting with a letter or underscore and consisting of
+letters, digits and underscores, that is not one of the keywords.
+.Sh EXAMPLES
+The following MIB description describes the system group:
+.Bd -literal -offset indent
+(1 internet
+  (2 mgmt
+    (1 mibII
+      (1 system
+        (1 sysDescr OCTETSTRING op_system_group GET)
+        (2 sysObjectId OID op_system_group GET)
+        (3 sysUpTime TIMETICKS op_system_group GET)
+        (4 sysContact OCTETSTRING op_system_group GET SET)
+        (5 sysName OCTETSTRING op_system_group GET SET)
+        (6 sysLocation OCTETSTRING op_system_group GET SET)
+        (7 sysServices INTEGER op_system_group GET)
+        (8 sysORLastChange TIMETICKS op_system_group GET)
+        (9 sysORTable
+          (1 sysOREntry : INTEGER op_or_table
+            (1 sysORIndex INTEGER)
+            (2 sysORID OID GET)
+            (3 sysORDescr OCTETSTRING GET)
+            (4 sysORUpTime TIMETICKS GET)
+        ))
+      )
+    )
+  )
+)
+.Ed
+.Sh SEE ALSO
+.Xr snmpd 1
+.Sh AUTHORS
+.An Hartmut Brandt Aq harti@freebsd.org

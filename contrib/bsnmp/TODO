@@ -1,0 +1,5 @@
+snmpd_mibII:
+	- handle HC counters by periodically polling the kernel counters.
+
+snmpd_netgraph:
+	- make some tables writeable
