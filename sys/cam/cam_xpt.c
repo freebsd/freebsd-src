@@ -561,6 +561,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		/* EasyRAID E5A aka. areca ARC-6010 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "easyRAID", "*", "*" },
+		  CAM_QUIRK_NOHILUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
