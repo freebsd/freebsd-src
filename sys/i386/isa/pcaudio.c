@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.30 1996/09/06 23:07:54 phk Exp $
+ *	$Id: pcaudio.c,v 1.31 1996/09/13 06:29:21 bde Exp $
  */
 
 #include "pca.h"
@@ -35,8 +35,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/ioctl.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
@@ -89,7 +88,7 @@ static	void	*pcac_devfs_token;
 static int pca_sleep = 0;
 static int pca_initialized = 0;
 
-void pcaintr(struct clockframe *frame);
+static void pcaintr(struct clockframe *frame);
 static int pcaprobe(struct isa_device *dvp);
 static int pcaattach(struct isa_device *dvp);
 
@@ -113,7 +112,8 @@ static void pca_continue __P((void));
 static void pca_init __P((void));
 static void pca_pause __P((void));
 
-static inline void conv(const void *table, void *buff, unsigned long n)
+static inline void
+conv(const void *table, void *buff, unsigned long n)
 {
   __asm__("1:\tmovb (%2), %3\n"
           "\txlatb\n"
@@ -144,7 +144,7 @@ pca_volume(int volume)
 
 
 static void
-pca_init()
+pca_init(void)
 {
 	pca_status.open = 0;
 	pca_status.queries = 0;
@@ -209,7 +209,7 @@ pca_stop(void)
 
 
 static void
-pca_pause()
+pca_pause(void)
 {
 	int x = splhigh();
 
@@ -221,7 +221,7 @@ pca_pause()
 
 
 static void
-pca_continue()
+pca_continue(void)
 {
 	int x = splhigh();
 
@@ -280,7 +280,7 @@ pcaattach(struct isa_device *dvp)
 }
 
 
-static	int
+static int
 pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be opened */
@@ -308,7 +308,7 @@ pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 
-static	int
+static int
 pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be closed */
@@ -324,7 +324,7 @@ pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 
-static	int
+static int
 pcawrite(dev_t dev, struct uio *uio, int flag)
 {
 	int count, error, which, x;
@@ -370,7 +370,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 }
 
 
-static	int
+static int
 pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	audio_info_t *auptr;
@@ -434,7 +434,7 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 }
 
 
-void
+static void
 pcaintr(struct clockframe *frame)
 {
 	if (pca_status.index < pca_status.in_use[pca_status.current]) {
@@ -467,7 +467,7 @@ pcaintr(struct clockframe *frame)
 }
 
 
-int
+static int
 pcaselect(dev_t dev, int rw, struct proc *p)
 {
  	int s = spltty();
