@@ -59,12 +59,24 @@ __FBSDID("$FreeBSD$");
 #define FUNC void(*)(void)
 
 __stdcall static void hal_stall_exec_cpu(uint32_t);
+__stdcall static void hal_writeport_buf_ulong(uint32_t *,
+	uint32_t *, uint32_t);
+__stdcall static void hal_writeport_buf_ushort(uint16_t *,
+	uint16_t *, uint32_t);
+__stdcall static void hal_writeport_buf_uchar(uint8_t *,
+	uint8_t *, uint32_t);
 __stdcall static void hal_writeport_ulong(uint32_t *, uint32_t);
 __stdcall static void hal_writeport_ushort(uint16_t *, uint16_t);
 __stdcall static void hal_writeport_uchar(uint8_t *, uint8_t);
 __stdcall static uint32_t hal_readport_ulong(uint32_t *);
 __stdcall static uint16_t hal_readport_ushort(uint16_t *);
 __stdcall static uint8_t hal_readport_uchar(uint8_t *);
+__stdcall static void hal_readport_buf_ulong(uint32_t *,
+	uint32_t *, uint32_t);
+__stdcall static void hal_readport_buf_ushort(uint16_t *,
+	uint16_t *, uint32_t);
+__stdcall static void hal_readport_buf_uchar(uint8_t *,
+	uint8_t *, uint32_t);
 __stdcall static uint8_t hal_lock(/*kspin_lock * */void);
 __stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
 __stdcall static uint8_t hal_irql(void);
@@ -105,6 +117,39 @@ hal_writeport_uchar(port, val)
 	return;
 }
 
+__stdcall static void
+hal_writeport_buf_ulong(port, val, cnt)
+	uint32_t		*port;
+	uint32_t		*val;
+	uint32_t		cnt;
+{
+	bus_space_write_multi_4(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
+}
+
+__stdcall static void
+hal_writeport_buf_ushort(port, val, cnt)
+	uint16_t		*port;
+	uint16_t		*val;
+	uint32_t		cnt;
+{
+	bus_space_write_multi_2(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
+}
+
+__stdcall static void
+hal_writeport_buf_uchar(port, val, cnt)
+	uint8_t			*port;
+	uint8_t			*val;
+	uint32_t		cnt;
+{
+	bus_space_write_multi_1(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
+}
+
 __stdcall static uint16_t
 hal_readport_ushort(port)
 	uint16_t		*port;
@@ -124,6 +169,39 @@ hal_readport_uchar(port)
 	uint8_t			*port;
 {
 	return(bus_space_read_1(I386_BUS_SPACE_IO, 0x0, (uint32_t)port));
+}
+
+__stdcall static void
+hal_readport_buf_ulong(port, val, cnt)
+	uint32_t		*port;
+	uint32_t		*val;
+	uint32_t		cnt;
+{
+	bus_space_read_multi_4(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
+}
+
+__stdcall static void
+hal_readport_buf_ushort(port, val, cnt)
+	uint16_t		*port;
+	uint16_t		*val;
+	uint32_t		cnt;
+{
+	bus_space_read_multi_2(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
+}
+
+__stdcall static void
+hal_readport_buf_uchar(port, val, cnt)
+	uint8_t			*port;
+	uint8_t			*val;
+	uint32_t		cnt;
+{
+	bus_space_read_multi_1(I386_BUS_SPACE_IO, 0x0,
+	    (bus_size_t)port, val, cnt);
+	return;
 }
 
 __stdcall static uint8_t
@@ -167,9 +245,15 @@ image_patch_table hal_functbl[] = {
 	{ "WRITE_PORT_ULONG", (FUNC)hal_writeport_ulong },
 	{ "WRITE_PORT_USHORT", (FUNC)hal_writeport_ushort },
 	{ "WRITE_PORT_UCHAR", (FUNC)hal_writeport_uchar },
+	{ "WRITE_PORT_BUFFER_ULONG", (FUNC)hal_writeport_buf_ulong },
+	{ "WRITE_PORT_BUFFER_USHORT", (FUNC)hal_writeport_buf_ushort },
+	{ "WRITE_PORT_BUFFER_UCHAR", (FUNC)hal_writeport_buf_uchar },
 	{ "READ_PORT_ULONG", (FUNC)hal_readport_ulong },
 	{ "READ_PORT_USHORT", (FUNC)hal_readport_ushort },
 	{ "READ_PORT_UCHAR", (FUNC)hal_readport_uchar },
+	{ "READ_PORT_BUFFER_ULONG", (FUNC)hal_readport_buf_ulong },
+	{ "READ_PORT_BUFFER_USHORT", (FUNC)hal_readport_buf_ushort },
+	{ "READ_PORT_BUFFER_UCHAR", (FUNC)hal_readport_buf_uchar },
 	{ "KfAcquireSpinLock", (FUNC)hal_lock },
 	{ "KfReleaseSpinLock", (FUNC)hal_unlock },
 	{ "KeGetCurrentIrql", (FUNC)hal_irql },
