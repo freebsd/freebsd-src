@@ -68,7 +68,7 @@ for i
       echo "GNU nroff (groff) version @VERSION@"
       exit 0 ;;
     --help)
-      echo "usage: nroff [-cChipt] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
+      echo "usage: nroff [-CchipStUv] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
       exit 0 ;;
     --)
       shift
@@ -89,6 +89,6 @@ done
 
 : ${GROFF_BIN_PATH=@BINDIR@}
 export GROFF_BIN_PATH
-PATH=$GROFF_BIN_PATH:$PATH groff -mtty-char $T $opts ${1+"$@"}
+PATH=$GROFF_BIN_PATH@SEP@$PATH groff -mtty-char $T $opts ${1+"$@"}
 
 # eof
