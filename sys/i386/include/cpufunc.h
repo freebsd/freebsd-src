@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.46 1996/03/26 19:57:56 wollman Exp $
+ *	$Id: cpufunc.h,v 1.47 1996/03/28 20:39:45 wollman Exp $
  */
 
 /*
@@ -368,7 +368,6 @@ void	load_cr3	__P((u_long cr3));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
-int	rtcin		__P((int val));
 
 /*
  * These functions are NOT in support.s and should be declared elsewhere.

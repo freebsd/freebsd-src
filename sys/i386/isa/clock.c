@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.51 1996/01/30 18:56:47 wollman Exp $
+ *	$Id: clock.c,v 1.53 1996/03/23 21:36:03 nate Exp $
  */
 
 /*
@@ -399,6 +399,19 @@ sysbeep(int pitch, int period)
 /*
  * RTC support routines
  */
+
+int
+rtcin(reg)
+	int reg;
+{
+	u_char val;
+
+	outb(IO_RTC, reg);
+	inb(0x84);
+	val = inb(IO_RTC + 1);
+	inb(0x84);
+	return (val);
+}
 
 static __inline void
 writertc(u_char reg, u_char val)

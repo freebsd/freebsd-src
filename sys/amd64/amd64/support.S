@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.30 1995/12/27 18:54:51 davidg Exp $
+ *	$Id: support.s,v 1.31 1995/12/28 23:14:40 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -47,18 +47,6 @@
 _bzero:	.long	_generic_bzero
 
 	.text
-
-/*
- * Support for reading real time clock registers
- */
-ENTRY(rtcin)					/* rtcin(val) */
-	movl	4(%esp),%eax
-	outb	%al,$0x70
-	FASTER_NOP
-	xorl	%eax,%eax
-	inb	$0x71,%al
-	FASTER_NOP
-	ret
 
 /*
  * bcopy family

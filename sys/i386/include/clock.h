@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.8 1995/12/24 08:10:49 davidg Exp $
+ *	$Id: clock.h,v 1.9 1996/01/30 18:56:24 wollman Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -95,6 +95,7 @@ int	acquire_timer0 __P((int rate,
 int	acquire_timer2 __P((int mode));
 int	release_timer0 __P((void));
 int	release_timer2 __P((void));
+int	rtcin __P((int val));
 int	sysbeep __P((int pitch, int period));
 
 #endif /* KERNEL && !LOCORE */
