@@ -38,7 +38,7 @@
 
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 /*
  * Options for setup_myprinter().
