@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1996/06/05 04:36:54 wpaul Exp $
+# $Id: Makefile,v 1.2 1996/06/06 03:59:22 wpaul Exp $
 
 PROG=	rpc.ypxfrd
 SRCS=	ypxfrd_svc.c ypxfrd_server.c yp_error.c \
@@ -12,7 +12,8 @@ MAN8=	rpc.ypxfrd.8
 
 CFLAGS+= -I. -DXFRBLOCKSIZE=65535
 
-LDADD+=-lrpcsvc
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
 
 CLEANFILES= ypxfrd_svc.c ypxfrd.h
 

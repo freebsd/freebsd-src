@@ -3,7 +3,7 @@
 PROG=	fortune
 MAN6=	fortune.6
 CFLAGS+=-DDEBUG -Wall -I${.CURDIR}/../strfile
-DPADD=	${COMPAT}
+DPADD=	${LIBCOMPAT}
 LDADD=	-lcompat
 
 .include "${.CURDIR}/../../Makefile.inc"

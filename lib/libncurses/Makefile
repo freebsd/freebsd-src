@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.17 1996/08/26 09:25:20 peter Exp $
+# $Id: Makefile,v 1.18 1996/08/30 01:58:36 peter Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
@@ -16,7 +16,8 @@ SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
 	lib_insstr.c lib_insdel.c lib_twait.c lib_window.c copyright.c
 
 CFLAGS+= -I. -I${.CURDIR} -Wall -DMYTINFO
-LDADD+=  -lmytinfo
+DPADD=	${LIBMYTINFO}
+LDADD=	-lmytinfo
 
 CLEANFILES+= lib_keyname.c keys.tries
 
