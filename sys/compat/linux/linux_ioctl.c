@@ -2395,7 +2395,7 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	}
 	fdrop(fp, td);
 
-	printf("linux: 'ioctl' fd=%d, cmd=0x%x ('%c',%d) not implemented\n",
+	linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
 	    args->fd, (int)(args->cmd & 0xffff),
 	    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
 

@@ -45,6 +45,7 @@
 #include <machine/vmparam.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
 #include <sys/cdefs.h>
 #include <sys/uio.h>
 
@@ -108,16 +109,18 @@ int linux_emul_find(struct thread *, caddr_t *, char *, char **, int);
 int									\
 linux_ ## s(struct thread *p, struct linux_ ## s ## _args *args)	\
 {									\
-	return (unsupported_msg(p, #s));				\
+	return (unimplemented_syscall(p, #s));				\
 }									\
 struct __hack
 
+void linux_msg(const struct thread *td, const char *fmt, ...)
+	__printflike(2, 3);
+
 static __inline int
-unsupported_msg(struct thread *td, const char *fname)
+unimplemented_syscall(struct thread *td, const char *syscallname)
 {
 
-	printf("linux: syscall %s is obsoleted or not implemented pid %ld "
-	    "(%s)\n", fname, (long)td->td_proc->p_pid, td->td_proc->p_comm);
+	linux_msg(td, "syscall %s not implemented", syscallname);
 	return (ENOSYS);
 }
 

@@ -37,6 +37,8 @@
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
+#include <machine/stdarg.h>
+
 #include <compat/linux/linux_util.h>
 
 const char      linux_emul_path[] = "/compat/linux";
@@ -199,4 +201,18 @@ keeporig:
 	/* Keep the original path; copy it back to the start of the buffer. */
 	bcopy(ptr, buf, len);
 	return error;
+}
+
+void
+linux_msg(const struct thread *td, const char *fmt, ...)
+{
+	va_list ap;
+	struct proc *p;
+
+	p = td->td_proc;
+	printf("linux: pid %d (%s): ", (int)p->p_pid, p->p_comm);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	printf("\n");
 }
