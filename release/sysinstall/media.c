@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.32 1996/06/17 21:57:34 jkh Exp $
+ * $Id: media.c,v 1.25.2.33 1996/06/21 13:12:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -260,6 +260,7 @@ mediaSetFTP(dialogMenuItem *self)
     char *cp, *hostname, *dir;
     extern int FtpPort;
 
+    dialog_clear();
     if (!dmenuOpenSimple(&MenuMediaFTP))
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     else
