@@ -343,7 +343,7 @@ distSetUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
-    CRYPTODists |= DIST_CRYPTO_BIN;
+    CRYPTODists |= DIST_CRYPTO_CRYPTO;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -365,7 +365,7 @@ distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = DIST_BIN | DIST_CRYPTO;
-    CRYPTODists |= DIST_CRYPTO_BIN;
+    CRYPTODists |= DIST_CRYPTO_CRYPTO;
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
