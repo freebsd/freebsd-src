@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.54 1999/01/27 21:49:55 dillon Exp $
+ * $Id: cd9660_vnops.c,v 1.55 1999/04/18 10:58:02 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -210,7 +210,7 @@ cd9660_getattr(ap)
 	register struct vattr *vap = ap->a_vap;
 	register struct iso_node *ip = VTOI(vp);
 
-	vap->va_fsid	= ip->i_dev;
+	vap->va_fsid	= dev2udev(ip->i_dev);
 	vap->va_fileid	= ip->i_number;
 
 	vap->va_mode	= ip->inode.iso_mode;

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.59 1999/05/03 09:47:53 peter Exp $
+ *	$Id: mem.c,v 1.60 1999/05/08 17:48:21 peter Exp $
  */
 
 /*
@@ -49,13 +49,13 @@
 #include "opt_perfmon.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 #include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>

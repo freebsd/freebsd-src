@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.84 1999/05/09 04:58:13 yokota Exp $
+ *	$Id: apm.c,v 1.85 1999/05/09 13:00:41 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -23,12 +23,12 @@
 #include "opt_smp.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <sys/bus.h>

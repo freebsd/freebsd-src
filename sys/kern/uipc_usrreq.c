@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.43 1999/04/28 11:37:07 phk Exp $
+ *	$Id: uipc_usrreq.c,v 1.44 1999/05/10 18:09:39 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -391,7 +391,7 @@ uipc_sense(struct socket *so, struct stat *sb)
 		so2 = unp->unp_conn->unp_socket;
 		sb->st_blksize += so2->so_rcv.sb_cc;
 	}
-	sb->st_dev = NODEV;
+	sb->st_dev = NOUDEV;
 	if (unp->unp_ino == 0)
 		unp->unp_ino = unp_ino++;
 	sb->st_ino = unp->unp_ino;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.10 1999/05/06 18:44:28 peter Exp $
+ *  $Id: linux_stats.c,v 1.11 1999/05/09 10:25:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 {
     struct linux_newstat tbuf;
 
-    tbuf.stat_dev = minor(buf->st_dev) | (major(buf->st_dev) << 10);
+    tbuf.stat_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 10);
     tbuf.stat_ino = buf->st_ino;
     tbuf.stat_mode = buf->st_mode;
     tbuf.stat_nlink = buf->st_nlink;

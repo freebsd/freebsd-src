@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.75 1999/04/28 11:37:54 phk Exp $
+ * $Id: nfs_serv.c,v 1.76 1999/05/06 18:13:04 peter Exp $
  */
 
 /*
@@ -1453,7 +1453,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 				nfsm_reply(0);
 				return (error);
 			} else
-				vap->va_rdev = (dev_t)rdev;
+				vap->va_rdev = rdev;
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 			vput(nd.ni_dvp);
@@ -1619,7 +1619,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		major = fxdr_unsigned(u_int32_t, *tl++);
 		minor = fxdr_unsigned(u_int32_t, *tl);
-		vap->va_rdev = makedev(major, minor);
+		vap->va_rdev = umakedev(major, minor);
 	}
 
 	/*
