@@ -34,14 +34,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: icu_ipl.s,v 1.2 1997/08/22 05:05:05 smp Exp smp $
+ *	$Id: icu_ipl.s,v 1.2 1997/08/24 00:05:13 fsmp Exp $
  */
 
 	.data
 	ALIGN_DATA
-
-	.globl _vec
-_vec:
+vec:
 	.long	 vec0,  vec1,  vec2,  vec3,  vec4,  vec5,  vec6,  vec7
 	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 
@@ -104,7 +102,7 @@ splz_unpend:
 	 * We should change the interface so that the unit number is not
 	 * determined at config time.
 	 */
-	jmp	*_vec(,%ecx,4)
+	jmp	*vec(,%ecx,4)
 
 	ALIGN_TEXT
 splz_swi:
