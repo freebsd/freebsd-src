@@ -89,7 +89,7 @@ user_command(void)
 	fprintf(User, "OK\n");
       }
     } else if(!strcmp("dump\n", cmd)) {
-      snprintf(dumppath, sizeof(dumppath), "%s/%s" X10DIR, X10DUMPNAME);
+      snprintf(dumppath, sizeof(dumppath), "%s/%s", X10DIR, X10DUMPNAME);
       if((dumpf = fopen(dumppath, "w")) != NULL) {
 	for(h = 0; h < 16; h++) {
 	  for(i = 0; i < 16; i++) {
