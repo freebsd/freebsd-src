@@ -166,7 +166,7 @@ shell_exists()
 		fi
 	fi
 	! [ -x "$_sh" ] &&
-	    warn "The shell ($_sh) does not exist or is not executable."
+	    info "The shell ($_sh) does not exist or is not executable."
 
 	return 0
 }
