@@ -561,6 +561,7 @@ SY(_net_link_ether, bdg_split_pkts, "Packets split in bdg_forward");
 SY(_net_link_ether, bdg_thru, "Packets through bridge");
 
 SY(_net_link_ether, bdg_copied, "Packets copied in bdg_forward");
+SY(_net_link_ether, bdg_dropped, "Packets dropped in bdg_forward");
 
 SY(_net_link_ether, bdg_copy, "Force copy in bdg_forward");
 SY(_net_link_ether, bdg_predict, "Correctly predicted header location");
@@ -787,12 +788,22 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
  * If possible (i.e. we can determine that the caller does not need
  * a copy), the packet is consumed here, and bdg_forward returns NULL.
  * Otherwise, a pointer to a copy of the packet is returned.
- *
- * XXX be careful with eh, it can be a pointer into *m
  */
 static struct mbuf *
-bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
+bdg_forward(struct mbuf *m0, struct ifnet *dst)
 {
+#define	EH_RESTORE(_m) do {						   \
+    M_PREPEND((_m), ETHER_HDR_LEN, M_NOWAIT);			   	   \
+    if ((_m) == NULL) {							   \
+	bdg_dropped++;							   \
+	return NULL;							   \
+    }									   \
+    if (eh != mtod((_m), struct ether_header *))			   \
+	bcopy(&save_eh, mtod((_m), struct ether_header *), ETHER_HDR_LEN); \
+    else								   \
+	bdg_predict++;							   \
+} while (0);
+    struct ether_header *eh;
     struct ifnet *src;
     struct ifnet *ifp, *last;
     int shared = bdg_copy ; /* someone else is using the mbuf */
@@ -803,13 +814,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     struct packet_filter_hook *pfh;
     int rv;
 #endif /* PFIL_HOOKS */
-
-    /*
-     * XXX eh is usually a pointer within the mbuf (some ethernet drivers
-     * do that), so we better copy it before doing anything with the mbuf,
-     * or we might corrupt the header.
-     */
-    struct ether_header save_eh = *eh ;
+    struct ether_header save_eh;
 
     DEB(quad_t ticks; ticks = rdtsc();)
 
@@ -823,6 +828,11 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     if (args.rule == NULL)
 	bdg_thru++; /* first time through bdg_forward, count packet */
 
+    /*
+     * The packet arrives with the Ethernet header at the front.
+     */
+    eh = mtod(m0, struct ether_header *);
+
     src = m0->m_pkthdr.rcvif;
     if (src == NULL)			/* packet from ether_output */
 	dst = bridge_dst_lookup(eh, ifp2sc[real_dst->if_index].cluster);
@@ -830,6 +840,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
 	m_freem(m0);
+	bdg_dropped++;
 	return NULL;
     }
     if (dst == BDG_LOCAL) { /* this should not happen as well */
@@ -874,9 +885,20 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    m0 = m_pullup(m0, i) ;
 	    if (m0 == NULL) {
 		printf("-- bdg: pullup failed.\n") ;
+		bdg_dropped++;
 		return NULL ;
 	    }
+	    eh = mtod(m0, struct ether_header *);
 	}
+
+	/*
+	 * Processing below expects the Ethernet header is stripped.
+	 * Furthermore, the mbuf chain might be replaced at various
+	 * places.  To deal with this we copy the header to a temporary
+	 * location, strip the header, and restore it as needed.
+	 */
+	bcopy(eh, &save_eh, ETHER_HDR_LEN);	/* local copy for restore */
+	m_adj(m0, ETHER_HDR_LEN);		/* temporarily strip header */
 
 #ifdef PFIL_HOOKS
 	/*
@@ -897,8 +919,14 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
 		if (pfh->pfil_func) {
 		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
-		    if (rv != 0 || m0 == NULL)
+		    if (m0 == NULL) {
+			bdg_dropped++;
+			return NULL;
+		    }
+		    if (rv != 0) {
+			EH_RESTORE(m0);		/* restore Ethernet header */
 			return m0;
+		    }
 		    ip = mtod(m0, struct ip *);
 		}
 	    /*
@@ -914,8 +942,10 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	/*
 	 * Prepare arguments and call the firewall.
 	 */
-	if (!IPFW_LOADED || bdg_ipfw == 0)
+	if (!IPFW_LOADED || bdg_ipfw == 0) {
+	    EH_RESTORE(m0);	/* restore Ethernet header */
 	    goto forward;	/* not using ipfw, accept the packet */
+	}
 
 	/*
 	 * XXX The following code is very similar to the one in
@@ -929,6 +959,8 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	i = ip_fw_chk_ptr(&args);
 	m0 = args.m;		/* in case the firewall used the mbuf	*/
+
+	EH_RESTORE(m0);		/* restore Ethernet header */
 
 	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
 	    return m0 ;
@@ -944,26 +976,13 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 
 	    if (shared) {
 		m = m_copypacket(m0, M_DONTWAIT);
-		if (m == NULL)	/* copy failed, give up */
-		    return m0;
+		if (m == NULL) {	/* copy failed, give up */
+		    bdg_dropped++;
+		    return NULL;
+		}
 	    } else {
 		m = m0 ; /* pass the original to dummynet */
 		m0 = NULL ; /* and nothing back to the caller */
-	    }
-	    /*
-	     * Prepend the header, optimize for the common case of
-	     * eh pointing into the mbuf.
-	     */
-	    if ( (void *)(eh + 1) == (void *)m->m_data) {
-		m->m_data -= ETHER_HDR_LEN ;
-		m->m_len += ETHER_HDR_LEN ;
-		m->m_pkthdr.len += ETHER_HDR_LEN ;
-		bdg_predict++;
-	    } else {
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-		if (m == NULL) /* nope... */
-		    return m0 ;
-		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
 
 	    args.oif = real_dst;
@@ -986,9 +1005,13 @@ forward:
 	int i = min(m0->m_pkthdr.len, max_protohdr) ;
 
 	m0 = m_pullup(m0, i) ;
-	if (m0 == NULL)
+	if (m0 == NULL) {
+	    bdg_dropped++ ;
 	    return NULL ;
+	}
+	/* NB: eh is not used below; no need to recalculate it */
     }
+
     /*
      * now real_dst is used to determine the cluster where to forward.
      * For packets coming from ether_input, this is the one of the 'src'
@@ -1010,26 +1033,9 @@ forward:
 		m = m_copypacket(m0, M_DONTWAIT);
 		if (m == NULL) {
 		    printf("bdg_forward: sorry, m_copypacket failed!\n");
+		    bdg_dropped++ ;
 		    return m0 ; /* the original is still there... */
 		}
-	    }
-	    /*
-	     * Add header (optimized for the common case of eh pointing
-	     * already into the mbuf) and execute last part of ether_output:
-	     * queue pkt and start output if interface not yet active.
-	     */
-	    if ( (void *)(eh + 1) == (void *)m->m_data) {
-		m->m_data -= ETHER_HDR_LEN ;
-		m->m_len += ETHER_HDR_LEN ;
-		m->m_pkthdr.len += ETHER_HDR_LEN ;
-		bdg_predict++;
-	    } else {
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-		if (!m && verbose)
-		    printf("M_PREPEND failed\n");
-		if (m == NULL)
-		    return m0;
-		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
 	    if (!IF_HANDOFF(&last->if_snd, m, last)) {
 #if 0
@@ -1059,6 +1065,7 @@ forward:
     DEB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
     return m0 ;
+#undef EH_RESTORE
 }
 
 /*
