@@ -158,7 +158,12 @@ prn_octal(s)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: ls [-ACFHLPRTWacdfgiklnoqrstu1]"
+	(void)fprintf(stderr,
+#ifdef COLORLS
+	"usage: ls [-ACFGHLPRTWacdfgiklnoqrstu1]"
+#else
+	"usage: ls [-ACFHLPRTWacdfgiklnoqrstu1]"
+#endif
 		      " [file ...]\n");
 	exit(1);
 }
