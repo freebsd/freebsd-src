@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.35 1996/07/12 19:08:20 jkh Exp $
+ *	$Id: ld.c,v 1.36 1996/10/01 01:22:23 peter Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -1323,7 +1323,7 @@ enter_file_symbols(entry)
 				} else if (strcmp(sp->warning, msg))
 					warnx(
 			"%s: multiple definitions for warning symbol `%s'",
-					get_file_name(entry), sp->name);
+					get_file_name(entry), demangle(sp->name));
 			}
 		} else if (p->n_type & N_EXT) {
 			enter_global_ref(lsp,
@@ -1457,7 +1457,7 @@ enter_global_ref(lsp, name, entry)
 	if (olddef && N_ISWEAK(&nzp->nlist) && !(sp->flags & GS_WEAK)) {
 #ifdef DEBUG
 		printf("%s: not overridden by weak symbol from %s\n",
-			sp->name, get_file_name(entry));
+			demangle(sp->name), get_file_name(entry));
 #endif
 		return;
 	}
@@ -1599,7 +1599,7 @@ enter_global_ref(lsp, name, entry)
 			break;
 		}
 
-		fprintf(stderr, "symbol %s %s%s in ", sp->name,
+		fprintf(stderr, "symbol %s %s%s in ", demangle(sp->name),
 			(N_ISWEAK(&nzp->nlist))?"weakly ":"", reftype);
 		print_file_name (entry, stderr);
 		fprintf(stderr, "\n");
@@ -1856,7 +1856,7 @@ digest_pass1()
 				if (relocatable_output)
 					errx(1,
 				"internal error: global ref to set el %s with -r",
-						sp->name);
+						demangle(sp->name));
 				if (!defs++) {
 					sp->defined = N_SETV | N_EXT;
 					sp->value =
@@ -1937,7 +1937,7 @@ digest_pass1()
 			if (undefined_global_sym_count < 0)
 				errx(1,
 	"internal error: digest_pass1,1: %s: undefined_global_sym_count = %d",
-					sp->name, undefined_global_sym_count);
+					demangle(sp->name), undefined_global_sym_count);
 			continue;
 		}
 
@@ -1985,7 +1985,7 @@ digest_pass1()
 		if (sp->def_lsp) {
 #ifdef DEBUG
 printf("pass1: SO definition for %s, type %x in %s at %#x\n",
-	sp->name, sp->so_defined, get_file_name(sp->def_lsp->entry),
+	demangle(sp->name), sp->so_defined, get_file_name(sp->def_lsp->entry),
 	sp->def_lsp->nzlist.nz_value);
 #endif
 			sp->def_lsp->entry->flags |= E_SYMBOLS_USED;
@@ -1996,7 +1996,7 @@ printf("pass1: SO definition for %s, type %x in %s at %#x\n",
 			if (undefined_global_sym_count < 0)
 				errx(1, "internal error: digest_pass1,2: "
 					"%s: undefined_global_sym_count = %d",
-					sp->name, undefined_global_sym_count);
+					demangle(sp->name), undefined_global_sym_count);
 			if (sp->alias &&
 			    !(sp->alias->flags & GS_REFERENCED)) {
 				sp = sp->alias;
@@ -2006,7 +2006,7 @@ printf("pass1: SO definition for %s, type %x in %s at %#x\n",
 			if (sp->common_size == 0)
 				errx(1, "internal error: digest_pass1,3: "
 					"%s: not a common: %x",
-					sp->name, sp->defined);
+					demangle(sp->name), sp->defined);
 			/*
 			 * Common not bound to shared object data; treat
 			 * it now like other defined symbols were above.
@@ -2093,7 +2093,7 @@ consider_relocation(entry, dataseg)
 				sp = sp->alias;
 			if (sp->flags & GS_TRACE) {
 				fprintf(stderr, "symbol %s has jmpslot in %s\n",
-						sp->name, get_file_name(entry));
+						demangle(sp->name), get_file_name(entry));
 			}
 			alloc_rrs_jmpslot(entry, sp);
 
@@ -2154,7 +2154,7 @@ consider_relocation(entry, dataseg)
 				if (sp->flags & GS_TRACE) {
 					fprintf(stderr,
 					    "symbol %s RRS entry in %s\n",
-					    sp->name, get_file_name(entry));
+					    demangle(sp->name), get_file_name(entry));
 				}
 				alloc_rrs_reloc(entry, sp);
 				continue;
@@ -2375,7 +2375,7 @@ digest_pass2()
 				 */
 				if (sp->so_defined != (N_INDR+N_EXT))
 					warnx( "pass2: %s: alias isn't",
-						sp->name);
+						demangle(sp->name));
 				sp->defined = sp->so_defined;
 				sp->so_defined = 0;
 			}
@@ -2445,7 +2445,7 @@ digest_pass2()
 				undefined_global_sym_count++;
 			if (sp->flags & GS_TRACE)
 				printf("symbol %s assigned to location %#lx\n",
-					sp->name, sp->value);
+					demangle(sp->name), sp->value);
 		}
 
 		/*
@@ -2460,14 +2460,14 @@ digest_pass2()
 			 * It's a common.
 			 */
 			if (sp->defined != (N_UNDF + N_EXT))
-				errx(1, "%s: common isn't", sp->name);
+				errx(1, "%s: common isn't", demangle(sp->name));
 
 		} else if ((size = sp->size) != 0 && sp->defined == N_SIZE) {
 			/*
 			 * It's data from shared object with size info.
 			 */
 			if (!sp->so_defined)
-				errx(1, "%s: Bogus N_SIZE item", sp->name);
+				errx(1, "%s: Bogus N_SIZE item", demangle(sp->name));
 
 		} else
 			/*
@@ -2511,7 +2511,7 @@ digest_pass2()
 		if (write_map)
 			printf("Allocating %s %s: %x at %lx\n",
 				sp->defined==(N_BSS|N_EXT)?"common":"data",
-				sp->name, size, sp->value);
+				demangle(sp->name), size, sp->value);
 
 	} END_EACH_SYMBOL;
 }
@@ -2526,7 +2526,7 @@ write_output()
 	struct stat	statbuf;
 	int		filemode;
 	mode_t		u_mask;
-	
+
 	if (lstat(output_filename, &statbuf) == 0) {
 		if (S_ISREG(statbuf.st_mode))
 			(void)unlink(output_filename);
@@ -2534,7 +2534,7 @@ write_output()
 
 	u_mask = umask(0);
 	(void)umask(u_mask);
-	
+
 	outstream = fopen(output_filename, "w");
 	if (outstream == NULL)
 		err(1, "fopen: %s", output_filename);
@@ -2896,7 +2896,7 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 				if (sp->flags & GS_TRACE) {
 					fprintf(stderr,
 					    "symbol %s defined as %x in %s\n",
-					    sp->name, sp->defined,
+					    demangle(sp->name), sp->defined,
 					    get_file_name(entry) );
 				}
 				if (sp == got_symbol) {
@@ -2923,7 +2923,7 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 					 */
 					if (!sp->size)
 						errx(1, "Copy item isn't: %s",
-							sp->name);
+							demangle(sp->name));
 
 					relocation = addend + sp->value;
 					r->r_address = sp->value;
@@ -2943,7 +2943,7 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 				if (sp->flags & GS_TRACE) {
 					fprintf(stderr,
 					    "symbol %s claims RRS in %s%s\n",
-					    sp->name, get_file_name(entry),
+					    demangle(sp->name), get_file_name(entry),
 					    (sp->so_defined == (N_TEXT+N_EXT) &&
 					    sp->flags & GS_HASJMPSLOT)?
 						" (JMPSLOT)":"");
@@ -3429,7 +3429,7 @@ write_syms()
 			if (building_shared_object)
 				continue;
 			if (!(sp->flags & GS_WEAK))
-				warnx("symbol %s remains undefined", sp->name);
+				warnx("symbol %s remains undefined", demangle(sp->name));
 		}
 
 		if (syms_written >= global_sym_count)
@@ -3468,7 +3468,7 @@ write_syms()
 				if (nl.n_type == (N_INDR|N_EXT) &&
 							sp->value != 0)
 					errx(1, "%s: N_INDR has value %#x",
-							sp->name, sp->value);
+							demangle(sp->name), sp->value);
 				nl.n_value = sp->value;
 				if (sp->def_lsp)
 				    bind = N_BIND(&sp->def_lsp->nzlist.nlist);
@@ -3494,7 +3494,7 @@ write_syms()
 		} else
 			errx(1,
 			      "internal error: %s defined in mysterious way",
-			      sp->name);
+			      demangle(sp->name));
 
 		/*
 		 * Allocate string table space for the symbol name.
@@ -3537,7 +3537,7 @@ write_syms()
 		}
 
 #ifdef DEBUG
-printf("writesym(#%d): %s, type %x\n", syms_written, sp->name, sp->defined);
+printf("writesym(#%d): %s, type %x\n", syms_written, demangle(sp->name), sp->defined);
 #endif
 	} END_EACH_SYMBOL;
 
@@ -3647,7 +3647,7 @@ write_file_syms(entry, syms_written_addr)
 			continue;
 
 		if (discard_locals == DISCARD_ALL ||
-		    (discard_locals == DISCARD_L && 
+		    (discard_locals == DISCARD_L &&
 		     (lsp->flags & LS_L_SYMBOL))) {
 			/*
 			 * The user wants to discard this symbol, but it

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.16 1996/07/12 19:08:27 jkh Exp $
+ *	$Id: rrs.c,v 1.17 1996/10/01 01:22:35 peter Exp $
  */
 
 #include <sys/param.h>
@@ -174,7 +174,7 @@ alloc_rrs_reloc(entry, sp)
 	symbol			*sp;
 {
 #ifdef DEBUG
-printf("alloc_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
+printf("alloc_rrs_reloc: %s in %s\n", demangle(sp->name), get_file_name(entry));
 #endif
 	reserved_rrs_relocs++;
 }
@@ -260,7 +260,7 @@ alloc_rrs_cpy_reloc(entry, sp)
 	if (sp->flags & GS_CPYRELOCRESERVED)
 		return;
 #ifdef DEBUG
-printf("alloc_rrs_copy: %s in %s\n", sp->name, get_file_name(entry));
+printf("alloc_rrs_copy: %s in %s\n", demangle(sp->name), get_file_name(entry));
 #endif
 	sp->flags |= GS_CPYRELOCRESERVED;
 	reserved_rrs_relocs++;
@@ -297,10 +297,10 @@ claim_rrs_reloc(entry, rp, sp, relocation)
 
 	if (rp->r_address < text_start + text_size)
 		warnx("%s: RRS text relocation at %#x for \"%s\"",
-			get_file_name(entry), rp->r_address, sp->name);
+			get_file_name(entry), rp->r_address, demangle(sp->name));
 
 #ifdef DEBUG
-printf("claim_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
+printf("claim_rrs_reloc: %s in %s\n", demangle(sp->name), get_file_name(entry));
 #endif
 	r->r_address = rp->r_address;
 	r->r_symbolnum = sp->rrs_symbolnum;
@@ -308,7 +308,7 @@ printf("claim_rrs_reloc: %s in %s\n", sp->name, get_file_name(entry));
 	if (link_mode & SYMBOLIC) {
 		if (!sp->defined)
 			warnx("Cannot reduce symbol \"%s\" in %s",
-				sp->name, get_file_name(entry));
+				demangle(sp->name), get_file_name(entry));
 		RELOC_EXTERN_P(r) = 0;
 		*relocation += sp->value;
 		(void) md_make_reloc(rp, r, RELTYPE_RELATIVE);
@@ -335,7 +335,7 @@ claim_rrs_jmpslot(entry, rp, sp, addend)
 		errx(1, "internal error: "
 			"%s: claim_rrs_jmpslot: %s: no reservation",
 			get_file_name(entry),
-			sp->name);
+			demangle(sp->name));
 
 	if (sp->jmpslot_offset != -1)
 		return rrs_sdt.sdt_plt + sp->jmpslot_offset;
@@ -346,13 +346,13 @@ claim_rrs_jmpslot(entry, rp, sp, addend)
 #ifdef DEBUG
 printf("claim_rrs_jmpslot: %s: %s(%d) -> offset %x\n",
 	get_file_name(entry),
-	sp->name, sp->rrs_symbolnum, sp->jmpslot_offset);
+	demangle(sp->name), sp->rrs_symbolnum, sp->jmpslot_offset);
 #endif
 
 	if ((link_mode & SYMBOLIC) || rrs_section_type == RRS_PARTIAL) {
 		if (!sp->defined)
 			warnx("Cannot reduce symbol \"%s\" in %s",
-				sp->name, get_file_name(entry));
+				demangle(sp->name), get_file_name(entry));
 
 		md_fix_jmpslot( rrs_plt + sp->jmpslot_offset/sizeof(jmpslot_t),
 				rrs_sdt.sdt_plt + sp->jmpslot_offset,
@@ -414,7 +414,7 @@ claim_rrs_gotslot(entry, rp, lsp, addend)
 	if (!(sp->flags & GS_HASGOTSLOT))
 		errx(1, "internal error: "
 			"%s: claim_rrs_gotslot: %s: no reservation",
-			get_file_name(entry), sp->name);
+			get_file_name(entry), demangle(sp->name));
 
 	if (sp->gotslot_offset != -1) {
 #ifdef DIAGNOSTIC
@@ -423,7 +423,7 @@ claim_rrs_gotslot(entry, rp, lsp, addend)
 		       ? sp->value : 0))
 			errx(1, "%s: %s: gotslot at %#x is multiple valued, "
 				"*got = %#x, addend = %#x, sp->value = %#x",
-				get_file_name(entry), sp->name,
+				get_file_name(entry), demangle(sp->name),
 				sp->gotslot_offset,
 				*GOTP(sp->gotslot_offset), addend, sp->value);
 #endif
@@ -437,14 +437,14 @@ claim_rrs_gotslot(entry, rp, lsp, addend)
 
 	if (current_got_offset > max_got_offset)
 		errx(1, "%s: GOT overflow on symbol `%s' at %#x",
-		      get_file_name(entry), sp->name, RELOC_ADDRESS(rp));
+		      get_file_name(entry), demangle(sp->name), RELOC_ADDRESS(rp));
 
 	sp->gotslot_offset = current_got_offset;
 	current_got_offset += sizeof(got_t);
 
 #ifdef DEBUG
 printf("claim_rrs_gotslot: %s(%d,%#x) slot offset %#x, addend %#x\n",
-	 sp->name, sp->rrs_symbolnum, sp->value, sp->gotslot_offset, addend);
+	 demangle(sp->name), sp->rrs_symbolnum, sp->value, sp->gotslot_offset, addend);
 #endif
 
 	if (sp->defined &&
@@ -464,7 +464,7 @@ printf("claim_rrs_gotslot: %s(%d,%#x) slot offset %#x, addend %#x\n",
 		 * so again all symbols must be known.
 		 */
 		warnx("Cannot reduce symbol \"%s\" in %s",
-		      sp->name, get_file_name(entry));
+		      demangle(sp->name), get_file_name(entry));
 
 	} else {
 
@@ -483,7 +483,7 @@ printf("claim_rrs_gotslot: %s(%d,%#x) slot offset %#x, addend %#x\n",
 		 */
 		if (!sp->defined)
 			warnx("Cannot reduce symbol \"%s\" in %s",
-			      sp->name, get_file_name(entry));
+			      demangle(sp->name), get_file_name(entry));
 		discarded_rrs_relocs++;
 		return sp->gotslot_offset;
 	}
@@ -585,11 +585,11 @@ claim_rrs_cpy_reloc(entry, rp, sp)
 	if (!(sp->flags & GS_CPYRELOCRESERVED))
 		errx(1, "internal error: "
 			"%s: claim_cpy_reloc: %s: no reservation",
-			get_file_name(entry), sp->name);
+			get_file_name(entry), demangle(sp->name));
 
 #ifdef DEBUG
 printf("claim_rrs_copy: %s: %s -> %x\n",
-	get_file_name(entry), sp->name, sp->so_defined);
+	get_file_name(entry), demangle(sp->name), sp->so_defined);
 #endif
 
 	r = rrs_next_reloc();
@@ -1129,14 +1129,14 @@ write_rrs_text()
 				 */
 				if (sp->aux != AUX_FUNC)
 					errx(1, "%s: non-function jmpslot",
-						sp->name);
+						demangle(sp->name));
 				nlp->nz_other = N_OTHER(bind, sp->aux);
 				nlp->nz_value =
 					rrs_sdt.sdt_plt + sp->jmpslot_offset;
 			}
 		} else
 			errx(1, "internal error: %s defined in mysterious way",
-			     sp->name);
+			     demangle(sp->name));
 
 		/* Set symbol's name */
 		nlp->nz_strx = offset;
