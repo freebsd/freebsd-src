@@ -136,7 +136,7 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 	ACPI_HANDLE handle;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_perf", 0) != NULL)
+	if (device_find_child(parent, "acpi_perf", -1) != NULL)
 		return;
 
 	/* Get the handle for the Processor object and check for perf states. */
@@ -145,7 +145,7 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 		return;
 	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PSS", NULL, NULL)))
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "acpi_perf", 0) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "acpi_perf", -1) == NULL)
 		device_printf(parent, "add acpi_perf child failed\n");
 }
 
