@@ -12,6 +12,7 @@ SUBDIR=	adjkerntz \
 	clri \
 	comcontrol \
 	conscontrol \
+	devfs \
 	dhclient \
 	disklabel \
 	dmesg \
