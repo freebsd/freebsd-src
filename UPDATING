@@ -3,6 +3,20 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19991218:
+	sendmail.cf has moved from /etc/sendmail.cf to
+	/etc/mail/sendmail.cf.  You may need to adjust /etc/rc.conf to
+	cope as well as moving sendmail.cf.
+
+19991216:
+	ntp 4.0.98 has replaced the ancient xntpd.  The daemon named
+	changed from xntpd to ntpd, so you may need to update your
+	/etc/rc.conf file.  The ntp.conf files are compatible with the
+	old release, unless you are using a local reference clock.
+	Details about ntp4 can be found at http://www.ntp.org/.
+
+	xntpd will be cvs removed from the repo in about a week.
+
 19991213:
 	Soren updated the ata driver.  Please update to at least this
 	version before submitting bug reports.
