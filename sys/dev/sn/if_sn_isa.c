@@ -31,7 +31,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
@@ -40,18 +39,14 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h> 
 
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/if_media.h> 
 
 #include <machine/clock.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 
-#include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
 
 static int		sn_isa_probe	(device_t);
