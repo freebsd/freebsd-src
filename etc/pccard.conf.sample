@@ -211,20 +211,26 @@ card "HITACHI" "HT-4840-11"
 # Danpex (Alloy, etc.) EN-6200P2
 card "DANPEX" "EN-6200P2"
 	config 0x22 "ed0" ?
+	insert  logger -s Danpex EN-6200P2 inserted
 	insert /etc/pccard_ether $device
+	remove  logger -s Danpex EN-6200P2 removed
 	remove /sbin/ifconfig $device delete
 
 # Fujitsu MBH10303 Ethernet PCMCIA
 card "EAGLE Technology" "NE200 ETHERNET LAN MBH10303  "
 	config 0x1 "fe0" ?
 	insert /etc/pccard_ether $device
+	insert  logger -s Fujitsu MBH10303 inserted
         remove /sbin/ifconfig $device delete
+	remove  logger -s Fujitsu MBH10303 removed
 
 # Compex Net-A adapter
 card "Ethernet" "Adapter"
 	config 0x1 "ed0" ?
 	ether 0xff0
+	insert  logger -s Compex Net-A adapter inserted
 	insert	/etc/pccard_ether $device
+	remove  logger -s Compex Net-A adapter removed
 	remove	/sbin/ifconfig $device delete
  
 # Telecom Device SuperSocket RE450T
@@ -239,13 +245,26 @@ card "Ethernet" "Adapter"
 	config	0x2 "ed0" ?
 #	ether	0x110 00:e0:98
 #	ether	0xff0 00:e0:98
+	insert  logger -s Telecom SuperSocket RE450T inserted
 	insert	/etc/pccard_ether $device
+	remove  logger -s Telecom SuperSocket RE450T removed
 	remove	/sbin/ifconfig $device delete
 
 # D-Link DE-660 NE2000 clone
 card "D-Link" "DE-660"
 	config 0x20 "ed0" ? 0x10
+	insert	logger -s D-Link DE-660 inserted
 	insert /etc/pccard_ether $device link0 -link1
+	remove	logger -s D-Link DE-660 removed
+	remove /sbin/ifconfig $device delete
+
+# D-Link DEF-650 NE2000 clone
+card "D-Link" "DEF-650"
+	config 0x20 "ed0" ? 0x10
+	insert	logger -s D-Link DEF-650 inserted
+	insert /etc/pccard_ether $device
+#	insert /etc/pccard_ether $device link0 -link1
+	remove	logger -s D-Link DEF-650 removed
 	remove /sbin/ifconfig $device delete
 
 # NDC Ethernet Instant-Link NE2000 clone
@@ -259,7 +278,9 @@ card "NDC" "Ethernet"
 # CyQ've ELA-010
 card "CyQ've" "ELA-010"
 	config	0x20 "ed0" ?
+	insert	logger -s CyQ ELA-010 inserted
 	insert	/etc/pccard_ether $device
+	remove	logger -s CyQ ELA-010 removed
 	remove	/sbin/ifconfig $device delete
 
 # Allied Telesis CentreCOM LA-PCM_V2 ethernet card
@@ -269,7 +290,7 @@ card "Allied Telesis, K.K." "CentreCOM LA-PCM_V2"
 	insert logger -s CentreCOM LA-PCM V2 Ethernet card inserted
 	insert /etc/pccard_ether $device
 	remove logger -s CentreCOM LA-PCM V2 Ethernet card removed
-	remove ifconfig $device delete
+	remove /sbin/ifconfig $device delete
 
 #  Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
 card "Intel" "EtherExpress(TM) PRO/100 PC C"
@@ -277,7 +298,7 @@ card "Intel" "EtherExpress(TM) PRO/100 PC C"
 	insert  logger -s Intel EtherExpress PRO/100 Mobile Adapter/16 inserted
 	insert	/etc/pccard_ether $device
 	remove  logger -s Intel EtherExpress PRO/100 Mobile Adapter/16 removed
-	remove  ifconfig $device delete
+	remove  /sbin/ifconfig $device delete
 
 # BayNetworks NETGEAR FA410TXC Fast Ethernet
 card "NETGEAR" "FA410TX"
@@ -285,7 +306,7 @@ card "NETGEAR" "FA410TX"
 	insert  logger -s NETGEAR FA410TX Ethernet inserted
 	insert  /etc/pccard_ether $device
 	remove  logger -s NETGEAR FA410TX Ethernet removed
-	remove  ifconfig $device delete
+	remove  /sbin/ifconfig $device delete
 
 # Network Everywhere Ethernet 10BaseT PC Card
 card "Network Everywhere" "Ethernet 10BaseT PC Card"
@@ -569,7 +590,7 @@ card "SunDisk" "SDP5"
 card "SunDisk" "SDP"
 	config  0x3 "ata1" ?
 	insert  logger -s SunDisk Flash ATA Inserted
-	remove  logger -s SunDisk Flash ATA Removed
+	remove  logger -s SunDisk Flash ATA removed
 
 # Midori Elec Fast Flash
 card "Midori Elec." "FAST FLASH"
@@ -616,6 +637,8 @@ card "New Media" "SCSI"
 # Libretto Floppy disk
 card "Y-E DATA" "External FDD"
 	config  0x4 "fdc0" ?
+	insert	logger -s Libretto Floopy Disk inserted
+	remove	logger -s Libretto Floopy Disk removed
 
 # Viking V.90/K56Flex modem
 card "Viking" "V.90 K56flex"
@@ -662,6 +685,8 @@ card "AT&T" "V34+ Fax Modem"
 # Motorola Montana 
 card "Motorola" "MONTANA 33.6 FAX/MODEM"
 	config 0x21 "sio1" ?
+	insert echo Motorola Montana 33.6K FAX/modem inserted
+	remove echo Motorola Montana 33.6K FAX/modem removed
 
 # AmbiCom 10BaseT card
 card "AmbiCom Inc" "AMB8002T"
@@ -681,6 +706,26 @@ card "3Com" "OfficeConnect 572B"
         insert  /etc/pccard_ether $device
         remove  logger -s 3Com 3CXSH572BT removed
         remove  /sbin/ifconfig $device delete
+
+# Elecom Laneed LD-CDF
+card "Laneed" "LD-CDF"
+        config  0x20 "ed1" ?
+        insert  logger -s Elecom Laneed LD-CDF inserted
+        insert  /etc/pccard_ether $device
+        remove  logger -s Elecom Laneed LD-CDF removed
+        remove  /sbin/ifconfig $device delete
+
+# NTT DoCoMo (formerly NTT Personal) FAX/Data 32K PHS Card Paldio 321S
+card "NTT Personal" "32K Paldio 321S PC CARD"
+        config  0x23 "sio2" ?
+        insert  logger -s NTT Personal Paldio 321S PC Card inserted
+        remove  logger -s NTT Personal Paldio 321S PC Card removed
+
+# NTT DoCoMo (formerly NTT Personal) FAX/Data 32K PHS Card Pladio 341S
+card "NTT Personal" "32K Paldio 341S PC CARD"
+        config  0x23 "sio2" ?
+        insert  logger -s NTT Personal 32K Paldio 341S PC Card inserted
+        remove  logger -s NTT Personal 32K Paldio 341S PC Card removed
 
 # Allied Telesis Ethernet Card inserted
 card "Allied Telesis,K.K" "Ethernet LAN Card"
