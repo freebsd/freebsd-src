@@ -44,7 +44,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
-#include "opt_kstack_pages.h"
 #include "opt_npx.h"
 #ifdef PC98
 #include "opt_pc98.h"
