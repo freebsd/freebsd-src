@@ -958,6 +958,10 @@ sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
 	kg->kg_slptime += child->kg_slptime;
 	kg->kg_runtime += child->kg_runtime;
+	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
+		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
+		kg->kg_slptime /= SCHED_SLP_RUN_THROTTLE;
+	}
 }
 
 void
