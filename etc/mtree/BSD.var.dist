@@ -6,6 +6,12 @@
 /set type=dir uname=bin gname=bin mode=0755
 account
 ..
+/set type=dir uname=root gname=wheel mode=0755
+at
+	past
+	..
+..
+/set type=dir uname=bin gname=bin mode=0755
 backups
 ..
 crash
