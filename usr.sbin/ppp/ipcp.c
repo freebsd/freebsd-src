@@ -42,6 +42,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
