@@ -23,6 +23,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040925:
+	BIND 9 has been imported into the base, and is now fully
+	functional. BIND 8 has now been removed. There are numerous
+	differences between BIND 8 and 9, and users with critical
+	named installations should read the migration documentation
+	in /usr/share/doc/bind9/misc/migration. There is also a
+	new instruction manual in /usr/share/doc/bind9/arm.
+
+	The key differences that most users will experience are in
+	how picky BIND 9 is about zone file format. If you are using
+	named as a resolving (caching) name server, you will likely
+	not have trouble.
+
 20040914:
 	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
 	architectures that have a 64 bit long type to make it compatible to
