@@ -101,7 +101,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_USE_LONG_LONG 1
 
 // Define if C99 features such as lldiv_t, llabs, lldiv should be exposed.
-/* #undef _GLIBCPP_USE_C99 */
+#define _GLIBCPP_USE_C99 1
 
 // Define if code specialized for wchar_t should be used.
 /* #undef _GLIBCPP_USE_WCHAR_T */
@@ -649,10 +649,10 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 /* #undef _GLIBCPP_HAVE_SQRTL */
 
 /* Define if you have the strtof function.  */
-/* #undef _GLIBCPP_HAVE_STRTOF */
+#define _GLIBCPP_HAVE_STRTOF 1
 
 /* Define if you have the strtold function.  */
-/* #undef _GLIBCPP_HAVE_STRTOLD */
+#define _GLIBCPP_HAVE_STRTOLD 1
 
 /* Define if you have the swprintf function.  */
 #define _GLIBCPP_HAVE_SWPRINTF 1
@@ -748,7 +748,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_HAVE_WCSTOD 1
 
 /* Define if you have the wcstof function.  */
-/* #undef _GLIBCPP_HAVE_WCSTOF */
+#define _GLIBCPP_HAVE_WCSTOF 1
 
 /* Define if you have the wcstok function.  */
 #define _GLIBCPP_HAVE_WCSTOK 1
@@ -832,7 +832,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_HAVE_SYS_RESOURCE_H 1
 
 /* Define if you have the <sys/stat.h> header file.  */
-/* #undef _GLIBCPP_HAVE_SYS_STAT_H */
+#define _GLIBCPP_HAVE_SYS_STAT_H 1
 
 /* Define if you have the <sys/types.h> header file.  */
 #define _GLIBCPP_HAVE_SYS_TYPES_H 1
