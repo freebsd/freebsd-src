@@ -157,13 +157,13 @@ files are generated.
 .Pq Vt str
 Empty by default.
 A semi-colon
-.Pq Dq \&;
+.Pq Ql \&;
 delimited list of paths containing
 .Xr kld 4
 modules.
 If empty,
 the contents of the
-.Em kern.module_path
+.Va kern.module_path
 .Xr sysctl 8
 are used.
 .It Va pccard_enable
@@ -702,7 +702,7 @@ for more information.
 .It Va ip_portrange_first
 .Pq Vt int
 If not set to
-.Dq Li NO
+.Dq Li NO ,
 this is the first port in the default portrange.
 Refer to
 .Xr ip 4
@@ -710,7 +710,7 @@ for more information.
 .It Va ip_portrange_last
 .Pq Vt int
 If not set to
-.Dq Li NO
+.Dq Li NO ,
 this is the last port in the default portrange.
 Refer to
 .Xr ip 4
@@ -796,12 +796,12 @@ Aliases should be set as
 .Va ipv6_ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
 .Va ipv6_prefix_ Ns Aq Ar interface
 does something.
-Interfaces that does not have a
+Interfaces that do not have a
 .Va ipv6_ifconfig_ Ns Aq Ar interface
-setting will auto configures by
+setting will be auto configured by
 .Xr rtsol 8
 if the
-.Ar ipv6_gateway_enable
+.Va ipv6_gateway_enable
 is set to
 .Dq Li NO .
 Note that the IPv6 networking code does not support the
@@ -810,7 +810,7 @@ files.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
-.Dq Li NO
+.Dq Li NO ,
 this is the default output interface for scoped addresses.
 Now this works only for IPv6 link local multicast addresses.
 .It Va cloned_interfaces
@@ -1495,7 +1495,7 @@ daemon.
 If set to
 .Dq Li YES ,
 run the
-rpc.ypupdated
+.Nm rpc.ypupdated
 daemon at system boot time.
 .It Va defaultrouter
 .Pq Vt str
@@ -1534,7 +1534,7 @@ in the value, a
 .Va ipv6_route_ Ns Aq Ar element
 variable is assumed to exist
 whose contents will later be passed to a
-.Dq Nm route Cm add -inet6
+.Dq Nm route Cm add Fl inet6
 operation.
 .It Va gateway_enable
 .Pq Vt bool
@@ -1735,7 +1735,7 @@ daemon.
 .It Va stf_interface_ipv4addr
 .Pq Vt str
 If not set to
-.Dq Li NO
+.Dq Li NO ,
 this is the local IPv4 address for 6to4 (IPv6 over IPv4 tunneling
 interface).
 Specify this entry to enable the 6to4 interface.
@@ -1745,7 +1745,7 @@ Prefix length for 6to4 IPv4 addresses, to limit peer address range.
 An effective value is 0-31.
 .It Va stf_interface_ipv6_ifid
 .Pq Vt str
-IPv6 interface id for
+IPv6 interface ID for
 .Xr stf 4 .
 This can be set to
 .Dq Li AUTO .
@@ -1756,7 +1756,7 @@ IPv6 Site Level Aggregator for
 .It Va ipv6_faith_prefix
 .Pq Vt str
 If not set to
-.Dq Li NO
+.Dq Li NO ,
 this is the faith prefix to enable a FAITH IPv6-to-IPv4 TCP
 translator.
 You also need
@@ -1767,7 +1767,7 @@ setup.
 If set to
 .Dq Li YES
 this enables IPv4 mapped IPv6 address communication (like
-::ffff:a.b.c.d).
+.Li ::ffff:a.b.c.d ) .
 .It Va atm_enable
 .Pq Vt bool
 Set to
@@ -2260,12 +2260,12 @@ initial boot time.
 .It Va svr4_enable
 .Pq Vt bool
 If set to
-.Dq Li YES
+.Dq Li YES ,
 enable SysVR4 emulation at boot time.
 .It Va sysvipc_enable
 .Pq Vt bool
 If set to
-.Dq Li YES
+.Dq Li YES ,
 load System V IPC primitives at boot time.
 .It Va clear_tmp_enable
 .Pq Vt bool
@@ -2282,10 +2282,12 @@ NOTE:
 .Pa /usr/lib
 will always be added first, so it need not appear in this list.
 .It Va ldconfig_paths_aout
-.Pq str
+.Pq Vt str
 Set to the list of shared library paths to use with
-.Xr ldconfig 8 .
-legacy aout support.
+.Xr ldconfig 8
+legacy
+.Xr a.out 5
+support.
 .It Va ldconfig_insecure
 .Pq Vt bool
 The
@@ -2350,7 +2352,7 @@ these are the flags to pass to the
 .Xr sshd 8
 daemon.
 .It Va usbd_enable
-.Pq bool
+.Pq Vt bool
 If set to
 .Dq Li YES ,
 run the
@@ -2387,22 +2389,26 @@ jail_vjail_rootdir="/var/jails/vjail/root"
 jail_vjail_exec="/bin/sh /etc/rc"
 .Ed
 .Pp
-The last one is optional. It defaults to
+The last one is optional.
+It defaults to
 .Pa /etc/rc
 if it is not set.
 .It Va jail_set_hostname_allow
 .Pq Vt bool
-If set to NO,
+If set to
+.Dq Li NO ,
 do not allow the root user in a jail to set its hostname.
 .It Va jail_socket_unixiproute_only
 .Pq Vt bool
-If set to NO,
+If set to
+.Dq Li NO ,
 do not allow any protocol,
 besides TCP/IP,
 to be used within a jail.
 .It Va jail_sysvipc_allow
 .Pq Vt bool
-If set to YES,
+If set to
+.Dq Li YES ,
 allow applications within a jail to use System V IPC.
 .It Va unaligned_print
 .Pq Vt bool
@@ -2662,12 +2668,12 @@ device as early as possible in the boot process.
 .It Va entropy_save_sz
 .Pq Vt int
 Size of the entropy cache files saved by
-save-entropy
+.Nm save-entropy
 periodically.
 .It Va entropy_save_num
 .Pq Vt int
 Number of entropy cache files to save by
-save-entropy
+.Nm save-entropy
 periodically.
 .It Va ipsec_enable
 .Pq Vt bool
@@ -2680,7 +2686,7 @@ on
 at boot time.
 .It Va ipsec_file
 .Pq Vt str
-Config file for
+Configuration file for
 .Xr setkey 8 .
 .It Va dmesg_enable
 .Pq Vt bool

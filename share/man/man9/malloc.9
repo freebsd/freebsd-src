@@ -54,7 +54,7 @@
 .In sys/malloc.h
 .Ft void *
 .Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
-.Fn MALLOC "space" "cast" "unsigned long size" "struct malloc_type  *type" "int flags"
+.Fn MALLOC space cast "unsigned long size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
 .Fn FREE "void *addr" "struct malloc_type *type"
@@ -62,11 +62,11 @@
 .Fn realloc "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
 .Ft void *
 .Fn reallocf "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
-.Fn MALLOC_DECLARE "type"
+.Fn MALLOC_DECLARE type
 .In sys/param.h
 .In sys/malloc.h
 .In sys/kernel.h
-.Fn MALLOC_DEFINE "type" "shortdesc" "longdesc"
+.Fn MALLOC_DEFINE type shortdesc longdesc
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -139,7 +139,8 @@ free((addr), type)
 .Pp
 Unlike its standard C library counterpart
 .Pq Xr malloc 3 ,
-the kernel version takes two more arguments.  The
+the kernel version takes two more arguments.
+The
 .Fa flags
 argument further qualifies
 .Fn malloc Ns 's
@@ -160,8 +161,8 @@ Note that
 .Dv M_NOWAIT
 is required when running in an interrupt context.
 .It Dv M_WAITOK
-Indicates that it is ok to wait for resources.  
-If the request cannot be immediately fulfilled the current process is put
+Indicates that it is OK to wait for resources.
+If the request cannot be immediately fulfilled, the current process is put
 to sleep to wait for resources to be released by other processes.
 The
 .Fn malloc ,
@@ -175,10 +176,12 @@ if
 is specified.
 .It Dv M_USE_RESERVE
 Indicates that the system can dig into its reserve in order to obtain the
-requested memory.  This option used to be called M_KERNEL but has been
-renamed to something more obvious.  This option has been deprecated and is
-slowly being removed from the kernel, and so should not be used with any new
-programming.
+requested memory.
+This option used to be called
+.Dv M_KERNEL
+but has been renamed to something more obvious.
+This option has been deprecated and is slowly being removed from the kernel,
+and so should not be used with any new programming.
 .El
 .Pp
 Exactly one of either
@@ -198,7 +201,7 @@ The statistics can be examined by
 A
 .Fa type
 is defined using
-.Va struct malloc_type
+.Vt "struct malloc_type"
 via the
 .Fn MALLOC_DECLARE
 and
@@ -221,13 +224,13 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 .Ed
 .Pp
 In order to use
-.Fn MALLOC_DEFINE
+.Fn MALLOC_DEFINE ,
 one must include
-.Aq sys/param.h
+.Aq Pa sys/param.h
 (instead of
-.Aq sys/types.h )
+.Aq Pa sys/types.h )
 and
-.Aq sys/kernel.h .
+.Aq Pa sys/kernel.h .
 .Sh RETURN VALUES
 The
 .Fn malloc ,
@@ -263,8 +266,8 @@ and
 and
 .Fn reallocf
 may not be called from fast interrupts handlers.
-When called from threaded interrupts
-.Ar flag
+When called from threaded interrupts,
+.Fa flags
 must contain
 .Dv M_NOWAIT .
 .Pp
@@ -274,8 +277,11 @@ and
 .Fn reallocf
 must not be called with
 .Dv M_WAITOK
-while a mutex other than Giant is held.
-Giant may or may not be held when
+while a mutex other than
+.Va Giant
+is held.
+.Va Giant
+may or may not be held when
 .Fn free
 is called.
 .Pp
