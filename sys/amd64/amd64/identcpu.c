@@ -90,7 +90,10 @@ SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
 
 static char cpu_brand[48];
 
-static struct cpu_nameclass amd64_cpus[] = {
+static struct {
+	char	*cpu_name;
+	int	cpu_class;
+} amd64_cpus[] = {
 	{ "Clawhammer",		CPUCLASS_K8 },		/* CPU_CLAWHAMMER */
 	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
 };
