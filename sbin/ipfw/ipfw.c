@@ -873,7 +873,7 @@ show_usage(const char *fmt, ...)
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 "    iplen {length}\n"
 "    ipid {identification number}\n"
-"    iptos [!]{lowdelay|throughput|reliability|mincost|congestion}\n"
+"    iptos [!]{lowdelay|throughput|reliability|mincost|congestion},...\n"
 "    ipttl {time to live}\n"
 "    ipversion {version number}\n"
 "    tcpoptions [!]{mss|window|sack|ts|cc},...\n"

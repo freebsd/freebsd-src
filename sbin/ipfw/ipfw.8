@@ -269,20 +269,32 @@ Each packet can be filtered based on the following information that is
 associated with it:
 .Pp
 .Bl -tag -width "Source and destination IP address" -offset indent -compact
-.It Transmit and receive interface
-(by name or address)
-.It Direction
-(incoming or outgoing)
-.It Source and destination IP address
-(possibly masked)
 .It Protocol
 (TCP, UDP, ICMP, etc.)
+.It Source and destination IP address
+(possibly masked)
 .It Source and destination port
 (lists, ranges or masks)
-.It TCP flags
+.It Direction
+(incoming or outgoing)
+.It Transmit and receive interface
+(by name or address)
+.It IP version
+.It IP type of service
+.It IP datagram length
+.It IP identification
 .It IP fragment flag
+(non-zero IP offset)
+.It IP time to live
 .It IP options
+.It TCP sequence number
+.It TCP acknowledgment number
+.It TCP flags
+(SYN, FIN, ACK, RST, etc.)
+.It TCP window
+.It TCP options
 .It ICMP types
+(for ICMP packets)
 .It User/group ID of the socket associated with the packet
 .El
 .Pp
@@ -473,7 +485,7 @@ keywords mean any protocol will match.
 The
 .Aq Ar address Ns / Ns Ar mask
 may be specified as:
-.Bl -tag -width indent
+.Bl -tag -width "ipno/bits"
 .It Ar ipno
 An IP number of the form 1.2.3.4.
 Only this exact IP number will match the rule.
@@ -627,6 +639,35 @@ when using
 .Em pipes
 because the same packet would be accounted for twice in terms
 of bandwidth, queue occupation, and also counters.
+.It Cm ipversion Ar ver
+Match if the IP header version is
+.Ar ver .
+.It Cm iptos Ar spec
+Match if the IP header contains the comma separated list of
+service types specified in
+.Ar spec .
+The supported IP types of service are:
+.Pp
+.Cm lowdelay
+.Pq Dv IPTOS_LOWDELAY ,
+.Cm throughput
+.Pq Dv IPTOS_THROUGHPUT ,
+.Cm reliability
+.Pq Dv IPTOS_RELIABILITY ,
+.Cm mincost
+.Pq Dv IPTOS_MINCOST ,
+.Cm congestion
+.Pq Dv IPTOS_CE .
+The absence of a particular type may be denoted
+with a
+.Ql ! .
+.It Cm iplen Ar len
+Match if the total length of a packet, including header and data, is
+.Ar len
+bytes.
+.It Cm ipid Ar id
+Match if the identification of IP datagram is
+.Ar id .
 .It Cm frag
 Match if the packet is a fragment and this is not the first
 fragment of the datagram.
@@ -634,6 +675,9 @@ fragment of the datagram.
 may not be used in conjunction with either
 .Cm tcpflags
 or TCP/UDP port specifications.
+.It Cm ipttl Ar ttl
+Match if the time to live of IP datagram is
+.Ar ttl .
 .It Cm ipoptions Ar spec
 Match if the IP header contains the comma separated list of
 options specified in
@@ -651,31 +695,14 @@ The supported IP options are:
 The absence of a particular option may be denoted
 with a
 .Ql ! .
-.It Cm tcpoptions Ar spec
-Match if the TCP header contains the comma separated list of
-options specified in
-.Ar spec .
-The supported TCP options are:
-.Pp
-.Cm mss
-(maximum segment size),
-.Cm window
-(tcp window advertisement),
-.Cm sack
-(selective ack),
-.Cm ts
-(rfc1323 timestamp) and
-.Cm cc
-(rfc1644 t/tcp connection count).
-The absence of a particular option may be denoted
-with a
-.Ql ! .
-.It Cm established
+.It Cm tcpseq Ar seq
 TCP packets only.
-Match packets that have the RST or ACK bits set.
-.It Cm setup
+Match if the TCP header sequence number field is set to
+.Ar seq .
+.It Cm tcpack Ar ack
 TCP packets only.
-Match packets that have the SYN bit set but no ACK bit.
+Match if the TCP header acknowledgment number field is set to
+.Ar ack .
 .It Cm tcpflags Ar spec
 TCP packets only.
 Match if the TCP header contains the comma separated list of
@@ -700,6 +727,38 @@ a non-zero offset.
 See the
 .Cm frag
 option for details on matching fragmented packets.
+.It Cm established
+TCP packets only.
+Match packets that have the RST or ACK bits set.
+.It Cm setup
+TCP packets only.
+Match packets that have the SYN bit set but no ACK bit.
+This is the short form of
+.Dq Li tcpflags\ syn,!ack .
+.It Cm tcpwin Ar win
+TCP packets only.
+Match if the TCP header window field is set to
+.Ar win .
+.It Cm tcpoptions Ar spec
+TCP packets only.
+Match if the TCP header contains the comma separated list of
+options specified in
+.Ar spec .
+The supported TCP options are:
+.Pp
+.Cm mss
+(maximum segment size),
+.Cm window
+(tcp window advertisement),
+.Cm sack
+(selective ack),
+.Cm ts
+(rfc1323 timestamp) and
+.Cm cc
+(rfc1644 t/tcp connection count).
+The absence of a particular option may be denoted
+with a
+.Ql ! .
 .It Cm icmptypes Ar types
 ICMP packets only.
 Match if the ICMP type is in the list
