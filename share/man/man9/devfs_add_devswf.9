@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: devfs_add_devswf.9,v 1.5 1997/04/13 14:49:04 bde Exp $
+.\" $Id: devfs_add_devswf.9,v 1.6 1998/03/12 07:31:17 charnier Exp $
 .\"
 .Dd December 31, 1995
 .Os FreeBSD
@@ -63,9 +63,11 @@ Formatted string including name, and, if applicable, path to device within DEVFS
 It returns a token that can be used to link another name to the same
 device
 .Pq see Xr devfs_link 9 ,
-or destroy the device.
+or destroy the device
+.Pq see Xr devfs_remove_dev 9 .
 .Sh SEE ALSO
 .Xr devfs_link 9
+.Xr devfs_remove_dev 9
 .Sh HISTORY
 The function
 .Nm
