@@ -15,8 +15,7 @@ VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
 curses.c: curses.mus
-	@if [ ! -x ${.CURDIR}/mus ]; then chmod +x ${.CURDIR}/mus; fi
-	${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
+	/usr/bin/perl ${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
