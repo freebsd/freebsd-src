@@ -649,7 +649,7 @@ fork_exit(callout, arg, frame)
 	/*
 	 * Setup the sched_lock state so that we can release it.
 	 */
-	sched_lock.mtx_lock = curproc;
+	sched_lock.mtx_lock = (uintptr_t)curproc;
 	sched_lock.mtx_recurse = 0;
 	mtx_unlock_spin(&sched_lock);
 	/*
