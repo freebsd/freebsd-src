@@ -285,37 +285,6 @@
        'fixed'''.
 
 
-  If you are running a stock FreeBSD 1.1.5 system you can ignore the
-  rest of this section.  If not, make sure you have a spare virtual
-  console which is running a login process (getty).  First check how
-  many virtual consoles you have:
-
-
-        % dmesg|grep sc
-        sc0 at 0x60-0x6f irq 1 on motherboard
-        sc0: VGA color <8 virtual consoles>
-
-
-
-  Then check /etc/ttys to make sure there is at least one ttyv? devices
-  which doesn't have a getty enabled.  FreeBSD 1.1.5 has the first three
-  ``on'' and the last ``off'' so that getty runs on only three:
-
-
-        % grep ttyv /etc/ttys
-        ttyv0  "/usr/libexec/getty Pc" cons25  on secure
-        ttyv1  "/usr/libexec/getty Pc" cons25  on secure
-        ttyv2  "/usr/libexec/getty Pc" cons25  on secure
-        ttyv3  "/usr/libexec/getty Pc" cons25  off secure
-
-
-
-  If your kernel has least 4 VTs and only 3 gettys, this is fine.  If
-  not, either disable a getty in /etc/ttys by changing ``on'' to ``off''
-  or build another kernel with more VTs as described below.
-
-
-
   3.  Installing The Display Manager (xdm)
 
   The display manager makes your PC look like an X terminal.  That is,
@@ -460,11 +429,11 @@
 
         device         sc0     at isa? port "IO_KBD" tty irq 1 vector scintr
 
-  The number of virtual consoles can be set using the NCONS option:
+  The maximum number of virtual consoles can be set using the MAXCONS
+  option:
 
 
-        options                "NCONS=4"               #4 virtual consoles
-
+        options                "MAXCONS=4"               #4 virtual consoles
 
 
   Otherwise, the default without a line like this is 12.  You must have
@@ -476,15 +445,9 @@
   are detected at runtime and no configuration of the server itself is
   required.
 
-  The pcvt console driver is bundled in /usr/ports/util/pcvt in FreeBSD
-  versions 1.0.2 and above.  It can also be ftp-ed from:
-
-  FreeBSD.cdrom.com:/pub/FreeBSD/FreeBSD-1.1/ports/util/pcvt
-  (ftp://FreeBSD.cdrom.com/pub/FreeBSD/FreeBSD-1.1/ports/util/pcvt)
-
-  Refer to the README.FreeBSD
-  (ftp://FreeBSD.cdrom.com/pub/FreeBSD/FreeBSD-1.1/ports/util/pcvt/README.FreeBSD)
-  file there for complete installation instructions.
+  The pcvt console driver is bundled into FreeBSD and may be enabled
+  by changing the `sc0' line in your kernel configuration file to
+  `vt0'.  See /sys/i386/conf/LINT for more details.
 
   The XFree86 servers include support for the MIT-SHM extension.  The
   GENERIC kernel does not support this, so if you want to make use of
@@ -537,18 +500,7 @@
 
   To compile the sources on FreeBSD 1.1 and later, type:
 
-
         make World
-
-
-
-  If you are running an old version of FreeBSD (before 1.1), then type:
-
-
-        make World BOOTSTRAPCFLAGS=-D__FreeBSD__
-
-
-
 
 
 
@@ -560,12 +512,6 @@
   Makefiles, then type ``make''.  Whenever you install additional man
   pages you should update whatis.db by running ``makewhatis
   /usr/X11R6/man''.
-
-  On FreeBSD 1.0 and earlier systems, to avoid the ``Virtual memory
-  exhausted'' message from cc while compiling, increase the data and
-  stack size limits (in csh type ``limit datasize 32M'' and ``limit
-  stacksize 16M'').  This is not needed on FreeBSD 2.0 and later since
-  the defaults are ample.
 
   Note: Starting with XFree86 2.1 and FreeBSD 1.1, the symbol __386BSD__
   no longer gets defined either by the compiler or via the X config
