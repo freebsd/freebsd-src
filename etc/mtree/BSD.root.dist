@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.22 1997/02/23 09:21:06 peter Exp $
+#	$Id: BSD.root.dist,v 1.23 1997/02/28 18:23:14 wosch Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -12,6 +12,14 @@
     ..
 /set type=dir uname=root gname=wheel mode=0755
     etc
+	cron.d
+		daily
+		..
+		weekly
+		..
+		monthly
+		..
+	..
         gnats
         ..
         kerberosIV
