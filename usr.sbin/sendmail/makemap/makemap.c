@@ -312,6 +312,7 @@ main(argc, argv)
 #ifdef NEWDB
 	  case T_HASH:
 		/* tweak some parameters for performance */
+		bzero(&hinfo, sizeof(hinfo));
 		hinfo.nelem = 4096;
 		hinfo.cachesize = dbcachesize;
 
