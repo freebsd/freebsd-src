@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+DEFAULT_VECTOR=	bfd_elf32_i386_freebsd_vec
+
 SRCS+=	cpu-i386.c elf32-i386-fbsd.c elf32-target.h elf32.c elflink.c
-VECS+=	bfd_elf32_i386_freebsd_vec
+VECS=	${DEFAULT_VECTOR}
 .if ${TARGET_ARCH} == "i386"
-CFLAGS+= -DDEFAULT_VECTOR=bfd_elf32_i386_freebsd_vec
-.endif
+CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 
 .if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
 SRCS+=	pe-i386.c pei-i386.c
@@ -12,6 +13,5 @@ VECS+=	i386pe_vec i386pei_vec
 .endif
 
 CLEANFILES+=	elf32-target.h
-
 elf32-target.h:	elfxx-target.h
 	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
