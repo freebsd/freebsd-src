@@ -41,22 +41,19 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a
-.Op Fl M Ar core
-.Op Fl N Ar system
+.Op Fl M Ar core Op Fl N Ar system
 .Sh DESCRIPTION
 The
 .Nm
 utility displays the contents of the system message buffer.
-If neither the
-.Fl N
-nor the
+If the
 .Fl M
-option is specified, the buffer is read from the currently running kernel
+option is not specified, the buffer is read from the currently running kernel
 via the
 .Xr sysctl 3
 interface.
-Otherwise, the buffer is read from the specified core file (or from the
-default one), using the name list from the specified kernel image (or from
+Otherwise, the buffer is read from the specified core file,
+using the name list from the specified kernel image (or from
 the default image).
 .Pp
 The options are as follows:
@@ -67,11 +64,12 @@ This includes any syslog records and
 .Pa /dev/console
 output.
 .It Fl M
-Extract values associated with the name list from the specified core
-instead of the default
-.Pa /dev/kmem .
+Extract values associated with the name list from the specified core.
 .It Fl N
-Extract the name list from the specified system instead of the default,
+If
+.Fl M
+is also specified,
+extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
 .El
 .Sh FILES
