@@ -32,7 +32,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -59,13 +58,6 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#endif
 
 #include <net/net_osdep.h>
 
