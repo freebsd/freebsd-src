@@ -235,7 +235,7 @@ network_pass1() {
 
 		ppp_command="${ppp_command} ${ppp_profile}"
 
-		echo -n "Starting ppp as \"${ppp_user}\""
+		echo "Starting ppp as \"${ppp_user}\""
 		su -m ${ppp_user} -c "exec ${ppp_command}"
 		;;
 	esac
