@@ -64,10 +64,10 @@ struct mbuf;
 struct socket;
 struct sockopt;
 
+int	uipc_connect2(struct socket *so1, struct socket *so2);
 int	uipc_ctloutput(struct socket *so, struct sockopt *sopt);
 int	uipc_usrreq(struct socket *so, int req, struct mbuf *m,
 		struct mbuf *nam, struct mbuf *control);
-int	unp_connect2(struct socket *so, struct socket *so2);
 void	unp_dispose(struct mbuf *m);
 int	unp_externalize(struct mbuf *mbuf, struct mbuf **controlp);
 void	unp_init(void);

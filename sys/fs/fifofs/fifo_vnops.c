@@ -201,7 +201,7 @@ fifo_open(ap)
 		if (error)
 			goto fail2;
 		fip->fi_writesock = wso;
-		error = unp_connect2(wso, rso);
+		error = uipc_connect2(wso, rso);
 		if (error) {
 			(void)soclose(wso);
 fail2:

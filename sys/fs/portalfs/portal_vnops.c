@@ -203,7 +203,7 @@ portal_connect(so, so2)
 		    M_NOWAIT);
 	so2 = so3;
 
-	return (unp_connect2(so, so2));
+	return (uipc_connect2(so, so2));
 }
 
 static int
