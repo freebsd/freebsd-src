@@ -729,6 +729,7 @@ again:
 	p2->p_acflag = AFORK;
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
+		p2->p_state = PRS_NORMAL;
 		setrunqueue(td2);
 		mtx_unlock_spin(&sched_lock);
 	}
@@ -833,7 +834,6 @@ fork_exit(callout, arg, frame)
 
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
-	td->td_state = TDS_RUNNING; /* Already done in switch() on 386. */
 	/*
 	 * Finish setting up thread glue.  We need to initialize
 	 * the thread into a td_critnest=1 state.  Some platforms
