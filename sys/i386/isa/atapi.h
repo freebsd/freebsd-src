@@ -226,8 +226,8 @@ struct atapidrv {                       /* delayed attach info */
 };
 
 struct buf;
-struct wcd;
-typedef void atapi_callback_t(struct wcd *, struct buf *, int, struct atapires);
+struct dmy;
+typedef void atapi_callback_t(struct dmy *, struct buf *, int, struct atapires);
 
 struct atapicmd {                       /* ATAPI command block */
 	struct atapicmd *next;          /* next command in queue */
