@@ -15,4 +15,4 @@ setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
 # A rightous umask
 umask 22
 
-/usr/games/fortune
+[ -x /usr/games/fortune ] && /usr/games/fortune
