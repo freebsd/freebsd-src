@@ -31,7 +31,7 @@
 .Nm libstand
 .Nd support library for standalone executables
 .Sh SYNOPSIS
-.Fd #include <stand.h>
+.In stand.h
 .Sh DESCRIPTION
 .Nm
 provides a set of supporting functions for standalone
@@ -175,7 +175,7 @@ Returns error messages for the subset of errno values supported by
 .It Fn assert expression
 .Pp
 Requires
-.Fd #include <assert.h>
+.In assert.h
 .It Xo
 .Ft int
 .Fn setjmp "jmp_buf env"
@@ -190,7 +190,7 @@ Defined as
 and
 .Fn _lonjmp
 respectively as there is no signal state to manipulate.  Requires
-.Fd #include <setjmp.h>
+.In setjmp.h
 .El
 .Sh CHARACTER I/O
 .Bl -hang -width 10n
@@ -573,20 +573,20 @@ to
 structures.  The following filesystem handlers are supplied by
 .Nm ,
 the consumer may supply other filesystems of their own:
-.Bl -hang -width "cd9660_fsops "
-.It ufs_fsops
+.Bl -hang -width ".Va cd9660_fsops"
+.It Va ufs_fsops
 The
 .Bx
 UFS.
-.It ext2fs_fsops
+.It Va ext2fs_fsops
 Linux ext2fs filesystem.
-.It tftp_fsops
+.It Va tftp_fsops
 File access via TFTP.
-.It nfs_fsops
+.It Va nfs_fsops
 File access via NFS.
-.It cd9660_fsops
+.It Va cd9660_fsops
 ISO 9660 (CD-ROM) filesystem.
-.It zipfs_fsops
+.It Va zipfs_fsops
 Stacked filesystem supporting gzipped files.
 When trying the zipfs filesystem,
 .Nm
@@ -601,8 +601,12 @@ files.  It is only possible to seek a gzipped file forwards, and
 and
 .Fn fstat
 on gzipped files will report an invalid length.
-.It bzipfs_fsops
-The same as zipfs_fsops, but for bzip2-compressed files.
+.It Va bzipfs_fsops
+The same as
+.Va zipfs_fsops ,
+but for
+.Xr bzip2 1 Ns -compressed
+files.
 .El
 .Pp
 The array of

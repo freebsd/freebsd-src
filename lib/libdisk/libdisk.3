@@ -63,8 +63,8 @@
 .Sh LIBRARY
 .Lb libdisk
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <libdisk.h>
+.In sys/types.h
+.In libdisk.h
 .Pp
 .Vt extern const char *chunk_n[] ;
 .Ft const char *
@@ -95,7 +95,7 @@
 .Fn Disk_Names "void"
 .Ft void
 .Fn Set_Boot_Mgr "struct disk *d" "const u_char *bootmgr" "const size_t bootmgr_size"
-.Ft void
+.Ft int
 .Fn Set_Boot_Blocks "struct disk *d" "const u_char *boot1" "const u_char *boot2"
 .Ft int
 .Fn Write_Disk "struct disk *d"

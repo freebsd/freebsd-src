@@ -47,9 +47,9 @@
 .Sh LIBRARY
 .Lb libkvm
 .Sh SYNOPSIS
-.Fd #include <kvm.h>
-.Fd #include <sys/param.h>
-.Fd #include <sys/sysctl.h>
+.In kvm.h
+.In sys/param.h
+.In sys/sysctl.h
 .\" .Fa kvm_t *kd
 .Ft struct kinfo_proc *
 .Fn kvm_getprocs "kvm_t *kd" "int op" "int arg" "int *cnt"

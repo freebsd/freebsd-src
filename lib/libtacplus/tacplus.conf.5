@@ -36,7 +36,9 @@
 .Nm
 contains the information necessary to configure the TACACS+ client
 library.  It is parsed by
-.Xr tac_config 3 .
+.Fn tac_config
+(see
+.Xr libtacplus 3 ) .
 The file contains one or more lines of text, each describing a
 single TACACS+ server which is to be used by the library.  Leading
 white space is ignored, as are empty lines and lines containing
@@ -89,7 +91,9 @@ order, until a valid response is received or the list is exhausted.
 The standard location for this file is
 .Pa /etc/tacplus.conf .
 An alternate pathname may be specified in the call to
-.Xr tac_config 3 .
+.Fn tac_config
+(see
+.Xr libtacplus 3 ) .
 Since the file contains sensitive information in the form of the
 shared secrets, it should not be readable except by root.
 .Sh FILES
