@@ -229,6 +229,7 @@ d_tags(u_int64_t tag) {
 	case 0x6fffffff: return "DT_VERNEEDNUM";
 	case 0x6ffffff0: return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
+	case 0x70000000: return "DT_IA64_PLT_RESERVE";
 	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
 	case 0x7ffffffe: return "DT_SUNW_USED";
 	case 0x7fffffff: return "DT_SUNW_FILTER";
@@ -236,9 +237,22 @@ d_tags(u_int64_t tag) {
 	}
 };
 
-char *e_machines[] = {
-	"EM_NONE", "EM_M32", "EM_SPARC", "EM_386", "EM_68K", "EM_88K",
-	"EM_486", "EM_860", "EM_MIPS"
+const char *
+e_machines(u_int mach)
+{
+	switch (mach) {
+	case EM_NONE:	return "EM_NONE";
+	case EM_M32:	return "EM_M32";
+	case EM_SPARC:	return "EM_SPARC";
+	case EM_386:	return "EM_386";
+	case EM_68K:	return "EM_68K";
+	case EM_88K:	return "EM_88K";
+	case EM_486:	return "EM_486";
+	case EM_860:	return "EM_860";
+	case EM_MIPS:	return "EM_MIPS";
+	case EM_IA_64:	return "EM_IA_64";
+	}
+	return "(unknown machine)";
 };
 
 char *e_types[] = {
@@ -303,6 +317,8 @@ sh_types(u_int64_t sht) {
 	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
 	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
+	case 0x70000000: return "SHT_IA_64_EXT";
+	case 0x70000001: return "SHT_IA_64_UNWIND";
 	case 0x7ffffffd: return "XXX:AUXILIARY";
 	case 0x7fffffff: return "XXX:FILTER";
 	/* 0x80000000 - 0xffffffff application programs */
@@ -563,10 +579,7 @@ elf_print_ehdr(void *e)
 	fprintf(out, "\te_ident: %s %s %s\n", ei_classes[class], ei_data[data],
 	    ei_abis[osabi]);
 	fprintf(out, "\te_type: %s\n", e_types[type]);
-	if (machine < sizeof e_machines / sizeof *e_machines)
-		fprintf(out, "\te_machine: %s\n", e_machines[machine]);
-	else
-		fprintf(out, "\te_machine: %lld\n", machine);
+	fprintf(out, "\te_machine: %s\n", e_machines(machine));
 	fprintf(out, "\te_version: %s\n", ei_versions[version]);
 	fprintf(out, "\te_entry: %#llx\n", entry);
 	fprintf(out, "\te_phoff: %lld\n", phoff);
