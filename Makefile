@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.127 1997/05/21 22:48:51 asami Exp $
+#	$Id: Makefile,v 1.128 1997/05/26 05:27:37 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -388,6 +388,7 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libstdc++ &&      ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
@@ -414,6 +415,7 @@ includes:
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libz &&		${MAKE} beforeinstall
 
 #
 # lib-tools - build tools to compile and install the libraries.
