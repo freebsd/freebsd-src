@@ -513,7 +513,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	"log arp packets arriving on the wrong interface");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_movements, CTLFLAG_RW,
         &log_arp_movements, 0,
-        "log arp replies from MACs different the the one in the cache");
+        "log arp replies from MACs different than the one in the cache");
 
 
 static void
