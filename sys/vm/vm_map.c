@@ -172,6 +172,7 @@ vmspace_alloc(min, max)
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
+	vm->vm_freer = NULL;
 	return (vm);
 }
 
@@ -189,6 +190,24 @@ vm_init2(void)
 	vm_object_init2();
 }
 
+static __inline void
+vmspace_dofree( struct vmspace *vm)
+{
+	CTR1(KTR_VM, "vmspace_free: %p", vm);
+	/*
+	 * Lock the map, to wait out all other references to it.
+	 * Delete all of the mappings and pages they hold, then call
+	 * the pmap module to reclaim anything left.
+	 */
+	vm_map_lock(&vm->vm_map);
+	(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
+	    vm->vm_map.max_offset);
+	vm_map_unlock(&vm->vm_map);
+	pmap_release(vmspace_pmap(vm));
+	vm_map_destroy(&vm->vm_map);
+	zfree(vmspace_zone, vm);
+}
+
 void
 vmspace_free(struct vmspace *vm)
 {
@@ -197,23 +216,17 @@ vmspace_free(struct vmspace *vm)
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	if (--vm->vm_refcnt == 0) {
+	if (--vm->vm_refcnt == 0)
+		vmspace_dofree(vm);
+}
 
-		CTR1(KTR_VM, "vmspace_free: %p", vm);
-		/*
-		 * Lock the map, to wait out all other references to it.
-		 * Delete all of the mappings and pages they hold, then call
-		 * the pmap module to reclaim anything left.
-		 */
-		vm_map_lock(&vm->vm_map);
-		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
-		    vm->vm_map.max_offset);
-		vm_map_unlock(&vm->vm_map);
+void
+vmspace_exitfree(struct proc *p)
+{
+	GIANT_REQUIRED;
 
-		pmap_release(vmspace_pmap(vm));
-		vm_map_destroy(&vm->vm_map);
-		zfree(vmspace_zone, vm);
-	}
+	if (p == p->p_vmspace->vm_freer)
+		vmspace_dofree(p->p_vmspace);
 }
 
 /*
@@ -2317,7 +2330,7 @@ vmspace_fork(struct vmspace *vm1)
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
-	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
+	    (caddr_t) &vm1->vm_endcopy - (caddr_t) &vm1->vm_startcopy);
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
