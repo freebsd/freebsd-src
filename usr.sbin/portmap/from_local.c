@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 #endif
 static const char rcsid[] =
-	"$Id: from_local.c,v 1.5 1997/10/09 07:17:09 charnier Exp $";
+	"$Id: from_local.c,v 1.6 1998/01/21 10:55:39 brian Exp $";
 #endif
 
 #ifdef TEST
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <netdb.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
 
