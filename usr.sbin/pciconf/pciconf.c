@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pciconf.c,v 1.5 1997/10/06 11:38:30 charnier Exp $";
+	"$Id: pciconf.c,v 1.6 1998/09/15 08:21:13 gibbs Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -134,6 +134,7 @@ list_devs(void)
 	int fd;
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
+	int none_count = 0;
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
@@ -167,12 +168,13 @@ list_devs(void)
 			return;
 		}
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
-			if ((p->pd_name == NULL) || (*p->pd_name == '\0'))
-				continue;
 
 			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08lx "
 			       "chip=0x%08lx rev=0x%02x hdr=0x%02x\n", 
-			       p->pd_name, p->pd_unit, 
+			       (p->pd_name && *p->pd_name) ? p->pd_name :
+			       "none",
+			       (p->pd_name && *p->pd_name) ? p->pd_unit :
+			       none_count++,
 			       p->pc_sel.pc_bus, p->pc_sel.pc_dev, 
 			       p->pc_sel.pc_func, (p->pc_class << 16) |
 			       (p->pc_subclass << 8) | p->pc_progif,
