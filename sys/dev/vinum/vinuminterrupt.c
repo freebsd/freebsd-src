@@ -182,7 +182,7 @@ complete_rqe(struct buf *bp)
 	    ubp->b_resid = 0;				    /* completed our transfer */
 	    if (rq->isplex == 0)			    /* volume request, */
 		VOL[rq->volplex.volno].active--;	    /* another request finished */
-	    biodone(ubp);				    /* top level buffer completed */
+	    bufdone(ubp);				    /* top level buffer completed */
 	    freerq(rq);					    /* return the request storage */
 	}
     }
@@ -237,7 +237,7 @@ sdio_done(struct buf *bp)
 	SD[sbp->sdno].writes++;
 	SD[sbp->sdno].bytes_written += sbp->b.b_bcount;
     }
-    biodone(sbp->bp);					    /* complete the caller's I/O */
+    bufdone(sbp->bp);					    /* complete the caller's I/O */
     Free(sbp);
 }
 

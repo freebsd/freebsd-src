@@ -117,8 +117,9 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 #endif
 
 void
-vinumstrategy(struct buf *bp)
+vinumstrategy(struct bio *bip)
 {
+    struct buf *bp = (struct buf *) bip;
     int volno;
     struct volume *vol = NULL;
 
@@ -136,7 +137,7 @@ vinumstrategy(struct buf *bp)
     default:
 	bp->b_error = EIO;				    /* I/O error */
 	bp->b_ioflags |= BIO_ERROR;
-	biodone(bp);
+	bufdone(bp);
 	return;
 
     case VINUM_VOLUME_TYPE:				    /* volume I/O */
@@ -145,11 +146,11 @@ vinumstrategy(struct buf *bp)
 	if (vol->state != volume_up) {			    /* can't access this volume */
 	    bp->b_error = EIO;				    /* I/O error */
 	    bp->b_ioflags |= BIO_ERROR;
-	    biodone(bp);
+	    bufdone(bp);
 	    return;
 	}
 	if (vinum_bounds_check(bp, vol) <= 0) {		    /* don't like them bounds */
-	    biodone(bp);				    /* have nothing to do with this */
+	    bufdone(bp);				    /* have nothing to do with this */
 	    return;
 	}
 	/* FALLTHROUGH */
@@ -193,14 +194,14 @@ vinumstart(struct buf *bp, int reviveok)
     if ((bp->b_bcount % DEV_BSIZE) != 0) {		    /* bad length */
 	bp->b_error = EINVAL;				    /* invalid size */
 	bp->b_ioflags |= BIO_ERROR;
-	biodone(bp);
+	bufdone(bp);
 	return -1;
     }
     rq = (struct request *) Malloc(sizeof(struct request)); /* allocate a request struct */
     if (rq == NULL) {					    /* can't do it */
 	bp->b_error = ENOMEM;				    /* can't get memory */
 	bp->b_ioflags |= BIO_ERROR;
-	biodone(bp);
+	bufdone(bp);
 	return -1;
     }
     bzero(rq, sizeof(struct request));
@@ -259,7 +260,7 @@ vinumstart(struct buf *bp, int reviveok)
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_ioflags |= BIO_ERROR;
 	    }
-	    biodone(bp);
+	    bufdone(bp);
 	    freerq(rq);
 	    return -1;
 	}
@@ -289,7 +290,7 @@ vinumstart(struct buf *bp, int reviveok)
 		bp->b_ioflags |= BIO_ERROR;
 	    }
 	    if ((bp->b_flags & B_DONE) == 0)
-		biodone(bp);
+		bufdone(bp);
 	    freerq(rq);
 	    return -1;
 	}
@@ -482,7 +483,7 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
-		    biodone(bp);
+		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -521,7 +522,7 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
-		    biodone(bp);
+		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 	    }
@@ -566,7 +567,7 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
-		    biodone(bp);
+		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -631,7 +632,7 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
-		    biodone(bp);
+		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 		*diskaddr += rqe->datalen;		    /* look at the remainder */
@@ -857,7 +858,7 @@ abortrequest(struct request *rq, int error)
     bp->b_ioflags |= BIO_ERROR;
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
-    biodone(bp);
+    bufdone(bp);
     return error;					    /* and give up */
 }
 
@@ -899,7 +900,7 @@ sdio(struct buf *bp)
 	}
 	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = EIO;
-	biodone(bp);
+	bufdone(bp);
 	return;
     }
     /*
@@ -909,7 +910,7 @@ sdio(struct buf *bp)
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = EIO;
-	biodone(bp);
+	bufdone(bp);
 	return;
     }
     /* Get a buffer */
@@ -917,7 +918,7 @@ sdio(struct buf *bp)
     if (sbp == NULL) {
 	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = ENOMEM;
-	biodone(bp);
+	bufdone(bp);
 	return;
     }
     bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
@@ -940,7 +941,7 @@ sdio(struct buf *bp)
 	sbp->b.b_bcount -= (endoffset - sd->sectors) * DEV_BSIZE; /* trim */
 	if (sbp->b.b_bcount <= 0) {			    /* nothing to transfer */
 	    bp->b_resid = bp->b_bcount;			    /* nothing transferred */
-	    biodone(bp);
+	    bufdone(bp);
 	    Free(sbp);
 	    return;
 	}
