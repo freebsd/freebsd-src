@@ -163,8 +163,7 @@ ef_detach(struct efnet *sc)
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
-		    for (ifa = ifp->if_addrhead.tqh_first; ifa;
-			 ifa = ifa->ifa_link.tqe_next) {
+		    TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			    rtinit(ifa, (int)RTM_DELETE, 0);
 		    }
 		}
@@ -504,10 +503,10 @@ ef_clone(struct ef_link *efl, int ft)
 	char cbuf[IFNAMSIZ], *ifname;
 	int ifnlen;
 
-	efp = (struct efnet*)malloc(sizeof(struct efnet), M_IFADDR, M_WAITOK);
+	efp = (struct efnet*)malloc(sizeof(struct efnet), M_IFADDR,
+	    M_WAITOK | M_ZERO);
 	if (efp == NULL)
 		return ENOMEM;
-	bzero(efp, sizeof(*efp));
 	efp->ef_ifp = ifp;
 	eifp = &efp->ef_ac.ac_if;
 	ifnlen = 1 + snprintf(cbuf, sizeof(cbuf), "%s%df", ifp->if_name,
@@ -530,7 +529,7 @@ ef_load(void)
 	struct ef_link *efl = NULL;
 	int error = 0, d;
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
