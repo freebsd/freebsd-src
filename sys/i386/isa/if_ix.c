@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.3 1995/02/26 20:13:14 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.4 1995/03/02 07:40:26 rgrimes Exp $
  */
 
 #include "ix.h"
@@ -433,7 +433,7 @@ ixprobe(struct isa_device *dvp) {
 	sc->msize = dvp->id_msize;
 
 	DEBUGBEGIN(DEBUGPROBE)
-	DEBUGDO(printf("Physical address = %x\n", kvtop(sc->maddr));)
+	DEBUGDO(printf("Physical address = %lx\n", kvtop(sc->maddr));)
 	DEBUGEND
 	}
 
@@ -880,19 +880,19 @@ ixinit_rfa(int unit) {
 		     (how_many_frames * (sizeof(rfd_t) + sizeof(rbd_t)));
 		printf("  complete_frame_size = %d\n", complete_frame_size);
 		printf("  how_many_frames = %d\n", how_many_frames);
-		printf("  rfd_head = %x\t\trfd_tail = %x\n",
+		printf("  rfd_head = %lx\t\trfd_tail = %lx\n",
 		       kvtop(sc->rfd_head), kvtop(sc->rfd_tail));
-		printf("  rbd_head = %x\t\trbd_tail = %x\n",
+		printf("  rbd_head = %lx\t\trbd_tail = %lx\n",
 		       kvtop(sc->rbd_head), kvtop(sc->rbd_tail));
 		for (i = 0; i < how_many_frames; i++, rfd++, rbd++, rb += RB_SIZE) {
-			printf("  %d:\trfd = %x\t\trbd = %x\t\trb = %x\n",
+			printf("  %d:\trfd = %lx\t\trbd = %lx\t\trb = %lx\n",
 			       i, kvtop(rfd), kvtop(rbd), kvtop(rb));
 			printf("\trfd->command = %x\n", rfd->command);
 			printf("\trfd->next = %x\trfd->rbd_offset = %x\n",
 			          rfd->next,      rfd->rbd_offset);
 			printf("\trbd->next = %x\trbd->size = %x",
 			          rbd->next,      rbd->size);
-			printf("\trbd->buffer = %x\n\n",
+			printf("\trbd->buffer = %lx\n\n",
 			          rbd->buffer);
 		}
 	DEBUGEND
@@ -904,7 +904,7 @@ ixinit_rfa(int unit) {
 	 * but if someone screws up with the defines it can happen
 	 */
 	DEBUGBEGIN(DEBUGINIT_RFA)
-	DEBUGDO(printf ("  next rb would be at %x\n", kvtop(rb));)
+	DEBUGDO(printf ("  next rb would be at %lx\n", kvtop(rb));)
 	DEBUGDO(printf("ix%d: ixinit_rfa exit\n", unit);)
 	DEBUGEND
 }
@@ -986,19 +986,19 @@ ixinit_tfa(int unit) {
 		tb = sc->maddr + TFA_START + 
 		     (TB_COUNT * (sizeof(cb_transmit_t) + sizeof(tbd_t)));
 		printf("  TB_COUNT = %d\n", TB_COUNT);
-		printf("  cb_head = %x\t\tcb_tail = %x\n",
+		printf("  cb_head = %lx\t\tcb_tail = %lx\n",
 		       kvtop(sc->cb_head), kvtop(sc->cb_tail));
-		printf("  tbd_head = %x\t\ttbd_tail = %x\n",
+		printf("  tbd_head = %lx\t\ttbd_tail = %lx\n",
 		       kvtop(sc->tbd_head), kvtop(sc->tbd_tail));
 		for (i = 0; i < TB_COUNT; i++, cb++, tbd++, tb += TB_SIZE) {
-			printf("  %d:\tcb = %x\t\ttbd = %x\t\ttb = %x\n",
+			printf("  %d:\tcb = %lx\t\ttbd = %lx\t\ttb = %lx\n",
 			       i, kvtop(cb), kvtop(tbd), kvtop(tb));
 			printf("\tcb->common.command = %x\n", cb->common.command);
 			printf("\tcb->common.next = %x\tcb->tbd_offset = %x\n",
 			          cb->common.next,      cb->tbd_offset);
 			printf("\ttbd->act_count = %x", tbd->act_count);
 			printf("\ttbd->next = %x", tbd->next);
-			printf("\ttbd->buffer = %x\n\n",
+			printf("\ttbd->buffer = %lx\n\n",
 			          tbd->buffer);
 		}
 	DEBUGEND
@@ -1010,7 +1010,7 @@ ixinit_tfa(int unit) {
 	 * but if someone screws up with the defines it can happen
 	 */
 	DEBUGBEGIN(DEBUGINIT_TFA)
-	DEBUGDO(printf ("  next tb would be at %x\n", kvtop(tb));)
+	DEBUGDO(printf ("  next tb would be at %lx\n", kvtop(tb));)
 	DEBUGDO(printf("ix%d: ixinit_tfa exit\n", unit);)
 	DEBUGEND
 }
