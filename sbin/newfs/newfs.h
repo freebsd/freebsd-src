@@ -38,19 +38,12 @@
  * variables set up by front end.
  */
 extern int	Nflag;		/* run mkfs without writing file system */
-extern int	Oflag;		/* format as an 4.3BSD file system */
 extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
-extern int	fssize;		/* file system size */
-extern int	ntracks;	/* # tracks/cylinder */
-extern int	nsectors;	/* # sectors/track */
-extern int	nphyssectors;	/* # sectors/track including spares */
-extern int	secpercyl;	/* sectors per cylinder */
+extern u_int	fssize;		/* file system size */
+extern u_int	secpercyl;	/* sectors per cylinder */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
-extern int	rpm;		/* revolutions/minute of drive */
-extern int	interleave;	/* hardware sector interleave */
-extern int	trackskew;	/* sector 0 skew, per track */
 extern int	fsize;		/* fragment size */
 extern int	bsize;		/* block size */
 extern int	cpg;		/* cylinders/cylinder group */
@@ -59,11 +52,9 @@ extern int	minfree;	/* free space threshold */
 extern int	opt;		/* optimization preference (space or time) */
 extern int	density;	/* number of bytes per inode */
 extern int	maxcontig;	/* max contiguous blocks to allocate */
-extern int	rotdelay;	/* rotational delay between blocks */
 extern int	maxbpg;		/* maximum blocks per file in a cyl group */
-extern int	nrpos;		/* # of distinguished rotational positions */
 extern int	bbsize;		/* boot block size */
 extern int	sbsize;		/* superblock size */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
-
+void mkfs (struct partition *, char *, int, int);
