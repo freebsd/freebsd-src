@@ -1092,7 +1092,6 @@ ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp, int local)
 	}
     }
 
-
     /* check if the checksum is OK */
     for (cksum = 0, ckptr = (int32_t *)info, count = 0; count < 511; count++)
 	cksum += *ckptr++;
@@ -1296,7 +1295,7 @@ ar_promise_write_conf(struct ar_softc *rdp)
 	config->raid.total_disks = rdp->total_disks;
 	config->raid.stripe_shift = ffs(rdp->interleave) - 1;
 	config->raid.array_width = rdp->width;
-	config->raid.array_number = rdp->magic_0 >> 16;
+	config->raid.array_number = rdp->lun;
 	config->raid.total_sectors = rdp->total_sectors;
 	config->raid.cylinders = rdp->cylinders - 1;
 	config->raid.heads = rdp->heads - 1;
