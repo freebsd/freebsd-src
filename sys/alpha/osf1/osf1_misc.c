@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/osf1/osf1_misc.c,v 1.47.2.1 2004/09/03 15:30:20 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

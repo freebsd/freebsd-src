@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_lomac/mac_lomac.h,v 1.3 2004/02/22 00:33:11 rwatson Exp $
  */
 /*
  * Definitions for the TrustedBSD LOMAC integrity policy module.

@@ -31,7 +31,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_tap.c,v 1.46.2.1 2004/09/20 05:49:40 rwatson Exp $
  * $Id: if_tap.c,v 0.21 2000/07/23 21:46:02 max Exp $
  */
 

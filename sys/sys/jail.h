@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/jail.h,v 1.21 2004/04/26 19:46:52 bmilekic Exp $
  *
  */
 

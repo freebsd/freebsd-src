@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: virecover,v 1.6 2002/03/22 04:34:00 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/virecover,v 1.8.2.1 2004/10/10 09:50:54 mtm Exp $
 #
 
 # PROVIDE: virecover

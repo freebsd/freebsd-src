@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/cpu.h,v 1.44 2004/08/03 18:44:26 mux Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*

@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinumioctl.c,v 1.51 2004/07/10 21:17:04 marcel Exp $");
 /*-
  * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.

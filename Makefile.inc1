@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile.inc1,v 1.438.2.4.2.1 2004/10/24 09:24:25 scottl Exp $
 #
 # Make command line options:
 #	-DNO_DYNAMICROOT do not link /bin and /sbin dynamically

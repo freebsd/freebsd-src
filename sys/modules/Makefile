@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/Makefile,v 1.393.2.2.2.1 2004/10/24 18:02:52 scottl Exp $
 
 # pcic -- currently broken and being worked on out of tree.
 # oldcard -- specialized use for debugging only.

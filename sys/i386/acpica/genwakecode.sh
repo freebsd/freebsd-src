@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/acpica/genwakecode.sh,v 1.2 2004/07/27 01:33:27 tjr Exp $
 #
 file2c 'static char wakecode[] = {' '};' <acpi_wakecode.bin
 

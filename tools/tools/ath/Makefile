@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/ath/Makefile,v 1.3 2003/12/07 21:38:44 sam Exp $
 #
 # Copyright (c) 2002, 2003	Sam Leffler, Errno Consulting
 # All rights reserved.

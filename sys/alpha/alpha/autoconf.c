@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/autoconf.c,v 1.60 2004/07/28 21:54:56 phk Exp $");
 
 #include "opt_bootp.h"
 #include "opt_isa.h"

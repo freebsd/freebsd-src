@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kse.h,v 1.26 2004/08/08 22:32:20 davidxu Exp $
  */
 
 #ifndef _SYS_KSE_H_

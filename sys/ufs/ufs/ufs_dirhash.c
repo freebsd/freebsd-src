@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_dirhash.c,v 1.19 2004/08/16 10:00:44 dwmalone Exp $");
 
 #include "opt_ufs.h"
 

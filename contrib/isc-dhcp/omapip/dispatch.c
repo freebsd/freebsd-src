@@ -31,7 +31,7 @@
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/isc-dhcp/omapip/dispatch.c,v 1.2 2004/07/06 15:15:14 des Exp $
  */
 
 #include <omapip/omapip_p.h>

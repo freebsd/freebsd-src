@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/mlfk_ipl.c,v 1.13 2004/06/16 09:46:34 phk Exp $
  */
 
 

@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_ihash.c,v 1.20 2004/06/16 09:47:04 phk Exp $
  */
 
 #include <sys/param.h>

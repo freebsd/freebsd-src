@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/geom/Makefile,v 1.12 2004/08/16 06:36:21 pjd Exp $
 
 SUBDIR=	geom_apple \
 	geom_bde \

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_portacl/mac_portacl.c,v 1.5 2004/05/15 20:55:19 cperciva Exp $
  */
 
 /*

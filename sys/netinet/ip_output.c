@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_output.c,v 1.225.2.5 2004/10/03 17:04:40 mlaier Exp $
  */
 
 #include "opt_ipfw.h"

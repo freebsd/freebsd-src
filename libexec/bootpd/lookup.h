@@ -1,5 +1,5 @@
 /* lookup.h */
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/lookup.h,v 1.2 2002/05/28 18:31:41 alfred Exp $ */
 
 #include "bptypes.h"	/* for int32, u_int32 */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/Osd/OsdTable.c,v 1.7.2.1 2004/10/08 18:09:36 njl Exp $
  */
 
 /*

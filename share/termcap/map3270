@@ -31,7 +31,7 @@
 #
 #	@(#)map3270	8.2 (Berkeley) 4/1/94
 #
-#	$FreeBSD$
+#	$FreeBSD: src/share/termcap/map3270,v 1.2 2002/12/30 21:18:05 schweikh Exp $
 
 # This file contains mappings between characters entered from the keyboard,
 # and 3270 keys, for use by programs (like tn3270) doing 3270 emulation

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libkrb5/Makefile,v 1.17 2004/02/05 18:51:49 ru Exp $
 
 LIB=	krb5
 

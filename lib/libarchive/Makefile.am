@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/Makefile.am,v 1.2 2004/08/08 00:48:39 kientzle Exp $
 
 lib_LIBRARIES=	libarchive.a
 

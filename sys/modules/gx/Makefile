@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/gx/Makefile,v 1.1 2001/10/19 02:21:16 jlemon Exp $
 
 .PATH: ${.CURDIR}/../../dev/gx
 

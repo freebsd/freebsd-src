@@ -97,7 +97,7 @@
  *	and
  * 	from: FreeBSD: src/sys/i386/i386/busdma_machdep.c,v 1.24 2001/08/15
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/bus_machdep.c,v 1.39.2.2 2004/09/10 20:22:50 kensmith Exp $
  */
 
 #include <sys/param.h>

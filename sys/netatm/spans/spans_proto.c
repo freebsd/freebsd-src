@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/spans/spans_proto.c,v 1.13 2003/07/24 14:37:01 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

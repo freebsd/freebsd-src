@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/share/sgml/Makefile,v 1.2 2004/08/08 09:23:49 hrs Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_table.c,v 1.5 2004/07/28 06:14:44 kan Exp $	*/
 /*	$OpenBSD: pf_table.c,v 1.47 2004/03/09 21:44:41 mcbride Exp $	*/
 
 /*

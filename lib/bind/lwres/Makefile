@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/bind/lwres/Makefile,v 1.5.2.2 2004/09/30 23:36:08 dougb Exp $
 
 BIND_DIR=	${.CURDIR}/../../../contrib/bind9
 LIB_BIND_REL=	..

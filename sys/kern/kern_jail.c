@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_jail.c,v 1.44 2004/06/27 09:03:21 pjd Exp $");
 
 #include "opt_mac.h"
 

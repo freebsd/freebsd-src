@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/coda/coda_vfsops.c,v 1.51 2004/07/30 22:08:49 phk Exp $");
 
 #include <vcoda.h>
 

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/cam_queue.c,v 1.7 2003/06/10 17:50:20 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libthread_db/Makefile,v 1.5 2004/08/16 03:30:16 davidxu Exp $
 
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 

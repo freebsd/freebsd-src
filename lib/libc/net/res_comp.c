@@ -73,7 +73,7 @@ static char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_comp.c,v 8.11 1997/05/21 19:31:04 halley Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/res_comp.c,v 1.17 2002/03/22 21:52:29 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

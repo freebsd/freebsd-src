@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_sysctl.c,v 1.159 2004/07/28 06:42:41 kan Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

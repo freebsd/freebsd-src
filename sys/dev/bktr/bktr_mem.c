@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bktr/bktr_mem.c,v 1.11 2004/07/15 08:26:00 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

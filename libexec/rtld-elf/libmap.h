@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/libmap.h,v 1.3 2004/03/21 01:21:26 peter Exp $
  */
 
 int	lm_init (void);

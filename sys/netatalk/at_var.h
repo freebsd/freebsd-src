@@ -20,7 +20,7 @@
  *	+1-313-763-0525
  *	netatalk@itd.umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_var.h,v 1.12 2004/03/22 04:50:36 rwatson Exp $
  */
 
 #ifndef _NETATALK_AT_VAR_H_

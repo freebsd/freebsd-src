@@ -66,7 +66,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/esp/ncr53c9xvar.h,v 1.4 2004/08/02 22:55:23 trhodes Exp $ */
 
 #ifndef _DEV_IC_NCR53C9XVAR_H_
 #define _DEV_IC_NCR53C9XVAR_H_

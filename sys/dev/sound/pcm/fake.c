@@ -26,7 +26,7 @@
 
 #include <dev/sound/pcm/sound.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/fake.c,v 1.13 2003/09/07 16:28:03 cg Exp $");
 
 static u_int32_t fk_fmt[] = {
 	AFMT_U8,

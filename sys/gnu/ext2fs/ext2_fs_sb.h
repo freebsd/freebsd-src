@@ -4,7 +4,7 @@
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_fs_sb.h,v 1.4 2004/02/19 09:06:06 tjr Exp $
  */
 /*
  *  linux/include/linux/ext2_fs_sb.h

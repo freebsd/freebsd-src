@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pf.c,v 1.18.2.2 2004/10/03 17:04:39 mlaier Exp $	*/
 /*	$OpenBSD: pf.c,v 1.433.2.2 2004/07/17 03:22:34 brad Exp $ */
 /* add	$OpenBSD: pf.c,v 1.448 2004/05/11 07:34:11 dhartmei Exp $ */
 

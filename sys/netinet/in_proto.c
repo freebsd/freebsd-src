@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_proto.c,v 1.73 2004/08/16 18:32:07 rwatson Exp $
  */
 
 #include "opt_ipdivert.h"

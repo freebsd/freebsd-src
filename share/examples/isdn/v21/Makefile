@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/v21/Makefile,v 1.2 2004/02/05 22:01:28 ru Exp $
 
 PROG=		v21modem
 NOMAN=		1

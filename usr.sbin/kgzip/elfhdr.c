@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/elfhdr.c,v 1.4 2004/06/22 17:05:39 obrien Exp $
  */
 
 #include <sys/endian.h>

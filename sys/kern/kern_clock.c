@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_clock.c,v 1.172 2004/07/10 21:36:01 marcel Exp $");
 
 #include "opt_ntp.h"
 #include "opt_watchdog.h"

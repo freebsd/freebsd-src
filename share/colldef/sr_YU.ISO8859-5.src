@@ -1,6 +1,6 @@
 # Serbian part of ISO8859-5 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/sr_YU.ISO8859-5.src,v 1.1 2002/10/19 12:59:19 ache Exp $
 #
 charmap map.ISO8859-5
 order \

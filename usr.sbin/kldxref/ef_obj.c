@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kldxref/ef_obj.c,v 1.3.2.1 2004/09/03 18:38:47 iedowse Exp $
  */
 
 #include <sys/param.h>

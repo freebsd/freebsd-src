@@ -24,7 +24,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sx/sx_pci.c,v 1.4 2004/05/30 20:08:42 phk Exp $
  */
 
 #include <sys/param.h>

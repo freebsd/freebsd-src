@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/files.arm,v 1.3 2004/05/14 23:42:54 cognet Exp $
 arm/arm/autoconf.c	standard
 arm/arm/bcopy_page.S	standard
 arm/arm/bcopyinout.S		standard

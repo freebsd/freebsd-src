@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/types.c,v 1.4 2004/01/27 21:52:52 ru Exp $
  */
 
 #include "ngctl.h"

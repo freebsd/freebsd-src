@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl
-# $FreeBSD$
+# $FreeBSD: src/crypto/openssl/util/pl/Mingw32.pl,v 1.6 2003/10/01 12:37:51 nectar Exp $
 #
 # Mingw32.pl -- Mingw
 #

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/acpiio.h,v 1.10.2.1 2004/08/19 19:08:57 njl Exp $
  */
 
 /*

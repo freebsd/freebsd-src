@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/__sparc_sigtramp_setup.c,v 1.5 2004/01/10 15:57:06 nectar Exp $");
 
 #include <sys/types.h>
 

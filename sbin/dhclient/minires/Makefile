@@ -1,5 +1,5 @@
 # minires
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/minires/Makefile,v 1.5 2002/05/13 11:09:05 ru Exp $
 
 DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 

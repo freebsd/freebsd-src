@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/tiio.h,v 1.1 2002/06/26 03:37:47 ken Exp $
  */
 /*
  * The ti_stats structure below is from code with the following copyright, 

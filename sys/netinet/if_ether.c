@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/if_ether.c,v 1.128.2.1.2.1 2004/10/26 17:28:36 bms Exp $
  */
 
 /*

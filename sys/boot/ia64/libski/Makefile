@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/libski/Makefile,v 1.12 2004/02/13 04:43:41 marcel Exp $
 
 LIB=		ski
 INTERNALLIB=	true

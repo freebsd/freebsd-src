@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/build/Makefile,v 1.7 2004/03/01 17:47:38 ru Exp $
 
 .PATH: ${.CURDIR}/../../include
 

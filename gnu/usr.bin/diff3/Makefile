@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/diff3/Makefile,v 1.7 2004/02/17 01:28:48 ache Exp $
 
 .PATH:  ${.CURDIR}/../../../contrib/diff
 

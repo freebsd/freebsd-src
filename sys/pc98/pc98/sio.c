@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/sio.c,v 1.227 2004/07/24 15:13:42 nyan Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */

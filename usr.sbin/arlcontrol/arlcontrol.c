@@ -3,7 +3,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/arlcontrol/arlcontrol.c,v 1.3 2004/04/13 19:25:26 fjoe Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

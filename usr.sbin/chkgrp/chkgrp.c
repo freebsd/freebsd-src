@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/chkgrp/chkgrp.c,v 1.8 2003/06/06 07:10:39 roam Exp $");
 
 #include <err.h>
 #include <ctype.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ministat/Makefile,v 1.3 2004/02/05 22:01:28 ru Exp $
 PROG=	ministat
 NOMAN=	yes
 DPADD=	${LIBM}

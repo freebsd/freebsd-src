@@ -33,7 +33,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netgraph/atm/atmpif/ng_atmpif_harp.c,v 1.1.4.1 2004/09/15 15:14:19 andre Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

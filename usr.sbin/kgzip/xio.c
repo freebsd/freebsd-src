@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/xio.c,v 1.3 2000/11/20 20:35:35 rnordier Exp $
  */
 
 #include <err.h>

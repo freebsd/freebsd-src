@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_jumbo.c,v 1.10 2004/07/23 19:36:18 alc Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

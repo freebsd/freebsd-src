@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_print.c,v 1.28 2004/07/10 23:47:18 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/kdb.h>

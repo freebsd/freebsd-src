@@ -38,7 +38,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/ess.c,v 1.31.2.1 2004/10/15 05:14:10 njl Exp $");
 
 #define ESS_BUFFSIZE (4096)
 #define ABS(x) (((x) < 0)? -(x) : (x))

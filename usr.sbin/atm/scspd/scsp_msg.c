@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/usr.sbin/atm/scspd/scsp_msg.c,v 1.4 2002/05/16 23:57:37 arr Exp $
  *
  */
 
@@ -61,7 +61,7 @@
 #include "scsp_var.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/usr.sbin/atm/scspd/scsp_msg.c,v 1.4 2002/05/16 23:57:37 arr Exp $");
 #endif
 
 

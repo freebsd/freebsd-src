@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/whois/whois.c,v 1.40.2.1 2004/09/06 00:21:42 mbr Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -100,7 +100,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/fil.c,v 1.39 2004/06/29 03:39:06 darrenr Exp $";
 #endif
 
 #ifndef	_KERNEL

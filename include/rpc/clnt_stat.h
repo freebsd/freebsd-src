@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/include/rpc/clnt_stat.h,v 1.2 2001/03/20 08:20:50 alfred Exp $ */
 /*
  * Copyright (c) 1986 - 1991, 1994, 1996, 1997 by Sun Microsystems, Inc.
  * All rights reserved.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kern.mk,v 1.42 2004/05/14 13:35:46 cognet Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.

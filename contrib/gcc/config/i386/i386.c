@@ -20,7 +20,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/i386.c,v 1.21 2004/07/28 04:47:35 kan Exp $ */
 
 
 #include "config.h"

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/ahc_eisa.c,v 1.34 2004/08/17 00:14:30 gibbs Exp $");
 
 #include <dev/aic7xxx/aic7xxx_osm.h>
 

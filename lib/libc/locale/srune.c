@@ -28,7 +28,7 @@
 #define	OBSOLETE_IN_6
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/srune.c,v 1.4 2004/05/12 14:09:04 tjr Exp $");
 
 #include <limits.h>
 #include <rune.h>

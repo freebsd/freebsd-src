@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/Makefile.inc,v 1.7 2003/10/30 22:59:41 peter Exp $
 
 CFLAGS+= -DRSRR -Dlog=logit
 

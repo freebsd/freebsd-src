@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iir/iir_ctrl.c,v 1.15 2004/06/16 09:46:46 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

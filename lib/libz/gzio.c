@@ -6,7 +6,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/gzio.c,v 1.10 2004/06/30 23:54:46 tjr Exp $");
 
 #include <stdio.h>
 

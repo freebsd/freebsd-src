@@ -62,7 +62,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/wi/if_wi.c,v 1.168 2004/08/01 23:58:04 mlaier Exp $");
 
 #define WI_HERMES_AUTOINC_WAR	/* Work around data write autoinc bug. */
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */

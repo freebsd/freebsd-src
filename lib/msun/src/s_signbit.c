@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/s_signbit.c,v 1.1 2004/07/19 08:16:10 das Exp $
  */
 
 #include <math.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/acl.h,v 1.27 2004/05/10 18:38:07 rwatson Exp $
  */
 /* 
  * Developed by the TrustedBSD Project.

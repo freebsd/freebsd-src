@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_hci_var.h,v 1.3 2003/04/26 22:35:21 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/hci/ng_hci_var.h,v 1.4 2004/04/09 23:01:39 emax Exp $
  */
 
 #ifndef _NETGRAPH_HCI_VAR_H_

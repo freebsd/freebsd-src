@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ddb/db_variables.c,v 1.21 2004/07/10 23:47:19 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/pci/pci_bus.c,v 1.109 2004/06/03 05:58:30 phk Exp $");
 
 #include "opt_cpu.h"
 

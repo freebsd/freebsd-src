@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/direntry.h,v 1.20 2004/02/19 09:56:58 tjr Exp $ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-

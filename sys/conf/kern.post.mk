@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kern.post.mk,v 1.68.2.1 2004/09/20 17:39:02 ru Exp $
 
 # Part of a unified Makefile for building kernels.  This part includes all
 # the definitions that need to be after all the % directives except %RULES

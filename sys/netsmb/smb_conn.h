@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_conn.h,v 1.10 2004/01/02 22:38:42 tjr Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs_vfsops.c,v 1.39 2004/07/30 22:08:49 phk Exp $
  */
 
 

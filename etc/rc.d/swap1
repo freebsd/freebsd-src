@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: swap1,v 1.8 2002/03/24 15:52:41 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/swap1,v 1.6.2.3 2004/10/16 08:13:19 pjd Exp $
 #
 
 # PROVIDE: localswap

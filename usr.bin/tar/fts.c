@@ -53,7 +53,7 @@
 static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #endif /* LIBC_SCCS and not lint */
 #include "bsdtar_platform.h" /* bsdtar: need platform-specific definitions. */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/fts.c,v 1.2 2004/07/24 22:13:44 kientzle Exp $");
 
 #ifdef linux  /* bsdtar: translate certain system calls to Linux names. */
 #define _open open

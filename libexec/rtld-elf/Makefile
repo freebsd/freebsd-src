@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rtld-elf/Makefile,v 1.31 2004/06/17 19:01:53 cognet Exp $
 
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \

@@ -2,7 +2,7 @@
 
 # rcsfreeze - assign a symbolic revision number to a configuration of RCS files
 
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/rcs/rcsfreeze/rcsfreeze.sh,v 1.9 2001/03/02 16:52:11 ru Exp $
 
 #       The idea is to run rcsfreeze each time a new version is checked
 #       in. A unique symbolic revision number (C_[number], where number

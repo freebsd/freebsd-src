@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/controllers/lpbb/Makefile,v 1.2 2003/06/14 20:43:33 jmg Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/ppbus
 KMOD		= lpbb

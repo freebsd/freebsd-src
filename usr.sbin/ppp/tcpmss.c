@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/tcpmss.c,v 1.7 2004/06/29 07:40:38 brian Exp $
  */
 
 #include <sys/param.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/mbsinit.c,v 1.3 2004/05/12 14:09:04 tjr Exp $");
 
 #include <wchar.h>
 #include "mblocal.h"

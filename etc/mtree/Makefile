@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/Makefile,v 1.1.8.1 2004/09/30 23:36:07 dougb Exp $
 
 FILES=	${_BIND.chroot.dist} \
 	${_BIND.include.dist} \

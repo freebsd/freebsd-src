@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)morse.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/morse/morse.c,v 1.19 2004/05/16 21:49:23 ru Exp $";
 #endif /* not lint */
 
 #include <sys/time.h>

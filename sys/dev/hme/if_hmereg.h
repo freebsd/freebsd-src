@@ -35,7 +35,7 @@
  *
  *	from: NetBSD: hmereg.h,v 1.16 2003/11/02 11:07:45 wiz Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hme/if_hmereg.h,v 1.6 2004/08/05 02:52:33 yongari Exp $
  */
 
 /*

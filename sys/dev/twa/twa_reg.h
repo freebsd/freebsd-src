@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/twa/twa_reg.h,v 1.1.4.1 2004/08/25 17:15:26 vkashyap Exp $
  */
 
 /*

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/genassym.c,v 1.55 2004/05/26 12:06:52 tmm Exp $
  */
 
 #include "opt_kstack_pages.h"

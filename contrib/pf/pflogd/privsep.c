@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pflogd/privsep.c,v 1.2 2004/06/16 23:39:32 mlaier Exp $");
 
 #include <sys/param.h>
 #include <sys/time.h>

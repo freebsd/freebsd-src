@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/rl/Makefile,v 1.10 2001/01/06 14:00:13 obrien Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

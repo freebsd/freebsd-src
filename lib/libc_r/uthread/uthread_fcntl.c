@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fcntl.c,v 1.15 2002/08/29 23:06:07 deischen Exp $
  */
 #include <stdarg.h>
 #include <unistd.h>

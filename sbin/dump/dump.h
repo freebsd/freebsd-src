@@ -28,7 +28,7 @@
  *
  *	@(#)dump.h	8.2 (Berkeley) 4/28/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dump/dump.h,v 1.26 2004/04/13 02:58:06 green Exp $
  */
 
 /*

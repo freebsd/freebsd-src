@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/Makefile,v 1.303.2.2 2004/09/30 23:36:10 dougb Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	ac \

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/xform_ipip.c,v 1.9.2.1 2004/09/15 15:14:19 andre Exp $	*/
 /*	$OpenBSD: ip_ipip.c,v 1.25 2002/06/10 18:04:55 itojun Exp $ */
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),

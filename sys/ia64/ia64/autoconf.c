@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/autoconf.c,v 1.20 2004/07/28 21:54:56 phk Exp $
  */
 
 #include "opt_bootp.h"

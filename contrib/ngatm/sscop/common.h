@@ -25,7 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ngatm/sscop/common.h,v 1.1.1.2.2.1 2004/09/26 03:10:09 des Exp $
  * $Begemot: libunimsg/sscop/common.h,v 1.4 2004/07/08 08:22:27 brandt Exp $
  *
  * Common declaration for the SAAL programs.

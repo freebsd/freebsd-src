@@ -26,7 +26,7 @@
  * Authors:
  *    Sung-Ching Lin <sclin@sis.com.tw>
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis_mm.c,v 1.4 2004/06/11 03:26:59 anholt Exp $
  */
 
 #include "dev/drm/sis.h"

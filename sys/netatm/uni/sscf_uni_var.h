@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/sscf_uni_var.h,v 1.7 2003/07/24 09:14:49 harti Exp $
  *
  */
 

@@ -39,7 +39,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_isppp.c,v 1.25.4.1 2004/10/14 11:48:05 rwatson Exp $");
 
 #include "i4bisppp.h"
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/stringlist.h,v 1.3 2003/01/19 01:16:00 obrien Exp $
  */
 
 #ifndef _STRINGLIST_H

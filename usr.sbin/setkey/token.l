@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/setkey/token.l,v 1.11 2004/03/11 11:41:54 bde Exp $	*/
 /*	$KAME: token.l,v 1.43 2003/07/25 09:35:28 itojun Exp $	*/
 
 /*

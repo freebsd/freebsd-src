@@ -38,7 +38,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: bufaux.c,v 1.32 2004/02/23 15:12:46 markus Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/bufaux.c,v 1.15 2004/02/26 10:52:30 des Exp $");
 
 #include <openssl/bn.h>
 #include "bufaux.h"

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/cam/scsi/scsi_low.h,v 1.7 2004/07/10 20:54:01 marcel Exp $	*/
 /*	$NecBSD: scsi_low.h,v 1.24.10.5 2001/06/26 07:31:46 honda Exp $	*/
 /*	$NetBSD$	*/
 

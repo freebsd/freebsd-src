@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kadmind,v 1.3.6.1 2004/10/10 09:50:53 mtm Exp $
 #
 
 # PROVIDE: kadmin

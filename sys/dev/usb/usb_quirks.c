@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usb_quirks.c,v 1.38.2.1 2004/09/20 05:18:04 sanpei Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/es137x.h,v 1.4 2000/04/05 00:38:00 cg Exp $
  */
 
 #ifndef _ES1370_REG_H

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi_type.h,v 1.4 2004/03/12 21:45:28 trhodes Exp $ */
 /*
  * Copyright (c) 2000, 2001 by LSI Logic Corporation
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/namespace.h,v 1.16 2003/05/01 19:03:13 nectar Exp $
  */
 
 #ifndef _NAMESPACE_H_

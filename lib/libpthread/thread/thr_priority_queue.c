@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_priority_queue.c,v 1.16 2004/08/03 02:22:25 davidxu Exp $
  */
 #include <stdlib.h>
 #include <sys/queue.h>

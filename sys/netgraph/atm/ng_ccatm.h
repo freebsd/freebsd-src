@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ng_ccatm.h,v 1.1 2004/08/12 14:22:00 harti Exp $
  *
  * Interface to ng_ccatm
  */

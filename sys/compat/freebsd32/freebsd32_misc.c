@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/freebsd32/freebsd32_misc.c,v 1.23 2004/06/17 17:16:41 phk Exp $");
 
 #include "opt_compat.h"
 

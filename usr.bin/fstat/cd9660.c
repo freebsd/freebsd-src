@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/fstat/cd9660.c,v 1.5 2004/06/29 21:28:09 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

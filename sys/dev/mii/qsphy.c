@@ -68,7 +68,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/qsphy.c,v 1.13 2004/05/29 18:09:10 marius Exp $");
 
 /*
  * driver for Quality Semiconductor's QS6612 ethernet 10/100 PHY

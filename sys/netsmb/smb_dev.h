@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_dev.h,v 1.4 2004/02/11 12:49:49 tjr Exp $
  */
 #ifndef _NETSMB_DEV_H_
 #define _NETSMB_DEV_H_

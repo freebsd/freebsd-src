@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: sshd,v 1.18 2002/04/29 08:23:34 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/sshd,v 1.6.2.1 2004/10/10 09:50:54 mtm Exp $
 #
 
 # PROVIDE: sshd

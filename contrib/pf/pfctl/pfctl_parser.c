@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pfctl_parser.c,v 1.6 2004/06/17 15:23:51 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

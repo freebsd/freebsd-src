@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/ofw_mem.h,v 1.3 2003/06/07 18:29:29 jake Exp $
  */
 
 #ifndef _MACHINE_OFW_MEM_H_

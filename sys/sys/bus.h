@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/bus.h,v 1.62 2004/07/18 16:30:31 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_

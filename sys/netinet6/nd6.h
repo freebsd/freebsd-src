@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/nd6.h,v 1.18 2003/10/31 16:06:04 ume Exp $	*/
 /*	$KAME: nd6.h,v 1.76 2001/12/18 02:10:31 itojun Exp $	*/
 
 /*

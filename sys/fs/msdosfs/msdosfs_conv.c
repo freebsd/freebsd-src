@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/msdosfs_conv.c,v 1.37 2004/02/19 09:56:58 tjr Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/_pthread_stubs.c,v 1.11 2004/07/29 18:07:08 kan Exp $");
 
 #include <signal.h>
 #include <pthread.h>

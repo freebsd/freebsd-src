@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_uid16.c,v 1.15 2004/08/16 07:28:16 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/lock.h>

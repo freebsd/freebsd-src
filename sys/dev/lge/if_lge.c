@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lge/if_lge.c,v 1.34 2004/08/13 23:18:01 rwatson Exp $");
 
 /*
  * Level 1 LXT1001 gigabit ethernet driver for FreeBSD. Public

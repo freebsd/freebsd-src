@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/acpi_battery.c,v 1.10 2004/08/13 06:21:41 njl Exp $
  */
 
 #include "opt_acpi.h"

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/strvalid.c,v 1.3 2003/06/11 05:23:04 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/libkern.h>

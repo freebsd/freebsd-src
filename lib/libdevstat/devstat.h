@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libdevstat/devstat.h,v 1.10 2003/03/18 17:05:27 phk Exp $
  */
 
 #ifndef _DEVSTAT_H

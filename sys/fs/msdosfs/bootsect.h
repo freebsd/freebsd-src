@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/bootsect.h,v 1.11 2003/12/26 17:24:37 trhodes Exp $ */
 /*	$NetBSD: bootsect.h,v 1.9 1997/11/17 15:36:17 ws Exp $	*/
 
 /*

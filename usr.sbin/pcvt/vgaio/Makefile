@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/vgaio/Makefile,v 1.17 2001/07/20 06:20:09 obrien Exp $
 
 PROG=	vgaio
 MAN=	vgaio.8

@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/time.c,v 1.4 2003/07/19 02:53:46 wollman Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/arc/include/libarc.h,v 1.2 1999/08/28 00:39:34 peter Exp $ */
 
 /*
  * Copyright (c) 1996

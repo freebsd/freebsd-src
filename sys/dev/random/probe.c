@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/random/probe.c,v 1.2 2004/04/11 09:13:42 nyan Exp $");
 
 #include <sys/types.h>
 #include <sys/malloc.h>

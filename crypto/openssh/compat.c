@@ -24,7 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: compat.c,v 1.70 2003/11/02 11:01:03 markus Exp $");
-RCSID("$FreeBSD$");
+RCSID("$FreeBSD: src/crypto/openssh/compat.c,v 1.11 2004/02/26 10:52:30 des Exp $");
 
 #include "buffer.h"
 #include "packet.h"

@@ -2,7 +2,7 @@
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_var.h,v 1.7 2004/07/12 18:39:59 rwatson Exp $
  */
 
 #ifndef _NETATALK_DDP_VAR_H_

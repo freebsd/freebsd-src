@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/iir/iir.h,v 1.10 2004/06/16 09:46:46 phk Exp $ */
 /*
  *       Copyright (c) 2000-04 ICP vortex GmbH
  *       Copyright (c) 2002-04 Intel Corporation

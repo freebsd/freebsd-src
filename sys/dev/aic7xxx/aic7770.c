@@ -46,7 +46,7 @@
 #include "aic7xxx_93cx6.h"
 #else
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/aic7770.c,v 1.17 2004/07/13 16:06:19 stefanf Exp $");
 #include <dev/aic7xxx/aic7xxx_osm.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mac_policy.h,v 1.55 2004/06/24 03:34:43 rwatson Exp $
  */
 /*
  * Kernel interface for MAC policy modules.

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_inline.h,v 1.30 2004/05/24 07:02:25 njl Exp $ */
 /*
  * Qlogic Host Adapter Inline Functions
  *

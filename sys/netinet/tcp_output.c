@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_output.c,v 1.100.2.1.2.1 2004/10/30 20:50:06 rwatson Exp $
  */
 
 #include "opt_inet.h"

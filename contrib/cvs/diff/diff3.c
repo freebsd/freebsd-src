@@ -13,7 +13,7 @@
 
    */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/diff/diff3.c,v 1.6 2004/04/15 01:17:26 peter Exp $
  */
 
 /* Written by Randy Smith */

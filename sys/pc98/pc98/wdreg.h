@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/wdreg.h,v 1.5 2004/04/07 04:59:58 imp Exp $
  */
 
 /*

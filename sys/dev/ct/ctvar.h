@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ct/ctvar.h,v 1.3 2002/03/20 02:04:09 alfred Exp $ */
 /*	$NecBSD: ctvar.h,v 1.4.14.3 2001/06/20 06:13:34 honda Exp $	*/
 /*	$NetBSD$	*/
 

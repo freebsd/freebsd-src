@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_fork.c,v 1.34 2003/11/05 18:18:45 deischen Exp $
  */
 #include <errno.h>
 #include <string.h>

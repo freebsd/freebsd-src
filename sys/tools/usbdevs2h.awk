@@ -1,6 +1,6 @@
 #! /usr/bin/awk -f
 #	$NetBSD: usb/devlist2h.awk,v 1.9 2001/01/18 20:28:22 jdolecek Exp $
-#  $FreeBSD$
+#  $FreeBSD: src/sys/tools/usbdevs2h.awk,v 1.3 2004/04/16 05:22:11 obrien Exp $
 #
 # Copyright (c) 1995, 1996 Christopher G. Demetriou
 # All rights reserved.

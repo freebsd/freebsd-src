@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sbni/if_sbni.c,v 1.18 2004/08/13 23:41:00 rwatson Exp $");
 
 /*
  * Device driver for Granch SBNI12 leased line adapters

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ipfw/Makefile,v 1.12 2002/07/11 17:33:37 bde Exp $
 
 PROG=	ipfw
 SRCS=	ipfw2.c

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/acpica/acpi_pcibvar.h,v 1.3 2004/08/11 14:52:50 njl Exp $
  */
 
 #ifndef	_ACPI_PCIBVAR_H_

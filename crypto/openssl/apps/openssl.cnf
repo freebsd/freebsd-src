@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/crypto/openssl/apps/openssl.cnf,v 1.6 2004/03/17 17:44:38 nectar Exp $
 #
 # OpenSSL example configuration file.
 # This is mostly being used for generation of certificate requests.

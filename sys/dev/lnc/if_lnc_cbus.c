@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/lnc/if_lnc_cbus.c,v 1.7 2004/06/03 06:10:00 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

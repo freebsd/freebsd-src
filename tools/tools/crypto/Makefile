@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/tools/tools/crypto/Makefile,v 1.7 2004/01/22 05:57:48 imp Exp $
 #
 # Copyright (c) 2002, 2003	Sam Leffler, Errno Consulting
 # All rights reserved.

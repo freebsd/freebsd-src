@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntpdc/Makefile,v 1.8 2004/07/22 08:14:37 roberto Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
 

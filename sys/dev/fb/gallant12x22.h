@@ -35,7 +35,7 @@
  *
  * Derived from: @(#)gallant19.h	8.1 (Berkeley) 6/11/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fb/gallant12x22.h,v 1.2 2004/04/07 20:45:57 imp Exp $
  */
 
 static u_char gallant12x22_data[] = {

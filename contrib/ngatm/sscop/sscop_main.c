@@ -25,7 +25,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ngatm/sscop/sscop_main.c,v 1.1.1.2.2.1 2004/09/26 03:10:09 des Exp $
  * $Begemot: libunimsg/sscop/sscop_main.c,v 1.4 2004/07/08 08:22:28 brandt Exp $
  */
 

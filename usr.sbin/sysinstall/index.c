@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/index.c,v 1.102.4.1 2004/11/04 05:04:53 kensmith Exp $
  */
 
 #include <fcntl.h>

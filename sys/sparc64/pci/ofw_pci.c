@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: psycho.c,v 1.35 2001/09/10 16:17:06 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/ofw_pci.c,v 1.14 2004/05/08 13:53:47 marius Exp $
  */
 
 #include "opt_ofw_pci.h"

@@ -21,7 +21,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_sysctl.h,v 1.7 2004/01/06 04:34:52 anholt Exp $
  */
 
 #ifdef __FreeBSD__

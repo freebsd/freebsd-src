@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/altq/altq/altq_priq.c,v 1.2 2004/06/12 00:57:20 mlaier Exp $	*/
 /*	$KAME: altq_priq.c,v 1.11 2003/09/17 14:23:25 kjc Exp $	*/
 /*
  * Copyright (C) 2000-2003

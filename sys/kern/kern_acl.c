@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_acl.c,v 1.45 2004/07/26 07:24:03 cperciva Exp $");
 
 #include "opt_mac.h"
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.sparc64,v 1.4 2003/06/07 18:23:50 jake Exp $ */
 OUTPUT_FORMAT("elf64-sparc", "elf64-sparc",
 	      "elf64-sparc")
 OUTPUT_ARCH(sparc:v9)

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/npx.h,v 1.27 2004/04/07 20:46:05 imp Exp $
  */
 
 /*

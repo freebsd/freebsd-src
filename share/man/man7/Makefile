@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man7/Makefile,v 1.29 2004/01/20 10:27:23 ru Exp $
 
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	ascii.7 \

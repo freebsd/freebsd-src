@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_arm.c,v 1.1 2004/05/14 12:24:03 cognet Exp $");
 
 #include <sys/param.h>
 

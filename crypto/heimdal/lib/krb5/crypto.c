@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 RCSID("$Id: crypto.c,v 1.73.2.4 2004/03/06 16:38:00 lha Exp $");
-/* RCSID("$FreeBSD$"); */
+/* RCSID("$FreeBSD: src/crypto/heimdal/lib/krb5/crypto.c,v 1.10 2004/04/03 21:31:09 nectar Exp $"); */
 
 #undef CRYPTO_DEBUG
 #ifdef CRYPTO_DEBUG

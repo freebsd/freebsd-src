@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/trap.c,v 1.118.2.2 2004/09/03 06:40:24 julian Exp $");
 
 /* #include "opt_fix_unaligned_vax_fp.h" */
 #include "opt_ddb.h"

@@ -3,7 +3,7 @@
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_pcb.c,v 1.44.4.1 2004/10/21 09:30:46 rwatson Exp $
  */
 
 #include <sys/param.h>

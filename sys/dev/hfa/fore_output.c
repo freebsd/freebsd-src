@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_output.c,v 1.18 2004/02/22 16:27:28 mux Exp $
  *
  */
 
@@ -64,7 +64,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_output.c,v 1.18 2004/02/22 16:27:28 mux Exp $");
 #endif
 
 

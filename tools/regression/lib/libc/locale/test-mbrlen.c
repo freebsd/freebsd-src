@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/locale/test-mbrlen.c,v 1.1 2002/10/26 07:56:47 tjr Exp $");
 
 #include <assert.h>
 #include <errno.h>

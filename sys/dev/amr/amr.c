@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/amr/amr.c,v 1.54 2004/08/16 17:23:09 ambrisko Exp $");
 
 /*
  * Driver for the AMI MegaRaid family of controllers.

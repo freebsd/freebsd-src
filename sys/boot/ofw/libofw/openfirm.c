@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/openfirm.c,v 1.10 2004/08/16 15:45:25 marius Exp $");
 
 #include <machine/stdarg.h>
 

@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/vinum/vinum.c,v 1.66 2004/07/15 08:26:04 phk Exp $");
 
 #define STATIC static					    /* nothing while we're testing */
 

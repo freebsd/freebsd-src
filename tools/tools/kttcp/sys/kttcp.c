@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/tools/tools/kttcp/sys/kttcp.c,v 1.3 2004/06/14 21:42:01 rwatson Exp $	*/
 /*	$NetBSD: kttcp.c,v 1.3 2002/07/03 19:36:52 thorpej Exp $	*/
 
 /*

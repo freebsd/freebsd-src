@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/gpt/migrate.c,v 1.7 2004/08/07 06:24:25 marcel Exp $");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>

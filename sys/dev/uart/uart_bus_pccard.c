@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/uart/uart_bus_pccard.c,v 1.8 2004/05/27 03:49:44 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

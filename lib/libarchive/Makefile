@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libarchive/Makefile,v 1.20.2.1 2004/09/09 05:42:22 kientzle Exp $
 
 #
 # Use "make distfile" to build a conventional tar.gz archive

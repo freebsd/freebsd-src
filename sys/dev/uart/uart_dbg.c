@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/uart/uart_dbg.c,v 1.1 2004/07/10 18:08:38 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bktr/bktr_card.c,v 1.24 2004/08/08 01:23:39 sanpei Exp $");
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)

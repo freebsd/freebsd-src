@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/Makefile.inc,v 1.11 2004/08/06 07:27:06 cperciva Exp $
 
 .if exists(${.OBJDIR}/../lib)
 LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.ia64/ttys,v 1.4 2003/10/24 15:44:08 simokawa Exp $
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
 # This file specifies various information about terminals on the system.

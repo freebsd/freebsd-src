@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdbserver/low-fbsd.c,v 1.5 2001/10/10 17:48:42 bde Exp $ */
 
 #include "defs.h"
 #include <sys/wait.h>

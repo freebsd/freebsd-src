@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libthr/thread/thr_atfork.c,v 1.1 2004/06/27 10:01:35 mtm Exp $");
 
 #include <errno.h>
 #include <stdlib.h>

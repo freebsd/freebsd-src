@@ -53,7 +53,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/exca/exca.c,v 1.17 2004/08/16 01:57:06 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

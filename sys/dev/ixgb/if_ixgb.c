@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/if_ixgb.c,v 1.3 2004/08/14 00:17:04 rwatson Exp $*/
 
 #include <dev/ixgb/if_ixgb.h>
 

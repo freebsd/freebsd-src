@@ -23,7 +23,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis_drv.c,v 1.3 2004/06/11 03:26:59 anholt Exp $
  */
 
 #include "dev/drm/sis.h"

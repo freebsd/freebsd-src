@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_trap.c,v 1.270.2.2 2004/09/03 06:40:25 julian Exp $");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"

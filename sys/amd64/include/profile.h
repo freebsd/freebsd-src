@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/profile.h,v 1.41 2004/07/29 18:02:28 kan Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_

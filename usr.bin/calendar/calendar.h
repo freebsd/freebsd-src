@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendar.h,v 1.10 2004/05/28 17:41:36 stefanf Exp $
  */
 
 #include <sys/types.h>

@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_contig.c,v 1.38 2004/08/05 21:54:11 green Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

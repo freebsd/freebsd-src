@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/isa/ofw_isa.c,v 1.8 2004/05/08 13:53:47 marius Exp $
  */
 
 /*

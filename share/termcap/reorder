@@ -1,4 +1,4 @@
-" $FreeBSD$
+" $FreeBSD: src/share/termcap/reorder,v 1.6 2002/09/08 12:47:22 ache Exp $
 /# << EOH -/k a
 /^adm12|/;.,/^[^	]/-m'a
 /^pcplot/;.,/^[^	]/-m'a

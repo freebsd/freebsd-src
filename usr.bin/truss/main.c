@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/truss/main.c,v 1.38 2004/07/17 19:19:36 alfred Exp $");
 
 /*
  * The main module for truss.  Suprisingly simple, but, then, the other

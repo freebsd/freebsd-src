@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/lge/Makefile,v 1.1 2001/05/31 21:44:21 wpaul Exp $
 
 .PATH: ${.CURDIR}/../../dev/lge
 

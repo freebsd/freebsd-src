@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libalias/alias_old.c,v 1.5 2004/07/05 11:10:57 des Exp $");
 
 #include <stdlib.h>
 #include <sys/types.h>

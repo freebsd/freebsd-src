@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $FreeBSD: src/release/doc/ja_JP.eucJP/share/sgml/release.dsl,v 1.11.8.1 2004/10/24 14:51:38 hrs Exp $ -->
 <!-- Original revision: 1.8.2.1.2.1 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [

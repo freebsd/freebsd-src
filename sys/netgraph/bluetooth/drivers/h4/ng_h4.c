@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_h4.c,v 1.5 2003/05/10 05:51:25 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/drivers/h4/ng_h4.c,v 1.10 2004/06/26 08:44:04 phk Exp $
  * 
  * Based on:
  * ---------

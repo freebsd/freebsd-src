@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_init.c,v 1.65 2004/08/12 12:12:12 deischen Exp $
  */
 
 /* Allocate space for global thread variables here: */

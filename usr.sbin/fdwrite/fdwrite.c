@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fdwrite/fdwrite.c,v 1.14 2004/05/30 08:59:09 stefanf Exp $
  *
  */
 

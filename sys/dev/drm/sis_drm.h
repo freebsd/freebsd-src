@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/sis_drm.h,v 1.4 2003/09/09 00:24:31 anholt Exp $
  */
 
 #ifndef __SIS_DRM_H__

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/agp_amd.c,v 1.21 2004/08/16 12:23:53 obrien Exp $");
 
 #include "opt_bus.h"
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mount_nwfs/mount_nwfs.c,v 1.8 2003/07/25 20:56:57 peter Exp $
  */
 #include <sys/param.h>
 #include <sys/stat.h>

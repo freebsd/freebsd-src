@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $FreeBSD$
+# $FreeBSD: src/lib/libpcap/Makefile,v 1.33.2.1 2004/10/01 16:32:05 kensmith Exp $
 
 LIB=	pcap
 SRCS=	grammar.y tokdefs.h version.h pcap-bpf.c \

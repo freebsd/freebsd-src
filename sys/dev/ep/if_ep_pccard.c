@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ep/if_ep_pccard.c,v 1.38 2004/05/27 03:49:41 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

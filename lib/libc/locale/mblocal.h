@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/mblocal.h,v 1.3 2004/07/21 10:54:57 tjr Exp $
  */
 
 #ifndef _MBLOCAL_H_

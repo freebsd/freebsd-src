@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/hptintf.h,v 1.1 2004/10/24 05:37:23 scottl Exp $
  */
 
 #ifndef HPT_INTF_H

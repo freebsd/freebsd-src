@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/autoconf.c,v 1.181 2004/07/28 21:54:56 phk Exp $");
 
 /*
  * Setup the system to run on the current machine.

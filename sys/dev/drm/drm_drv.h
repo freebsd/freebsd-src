@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_drv.h,v 1.26 2004/08/05 07:20:24 mux Exp $
  */
 
 /*

@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdisk/chunk.c,v 1.51 2004/04/21 23:21:13 grehan Exp $");
 
 #include <sys/types.h>
 #include <sys/stdint.h>

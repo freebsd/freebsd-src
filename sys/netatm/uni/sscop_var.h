@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/sscop_var.h,v 1.8 2003/07/24 09:14:50 harti Exp $
  *
  */
 

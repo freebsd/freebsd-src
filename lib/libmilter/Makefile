@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmilter/Makefile,v 1.4 2004/06/01 01:29:41 gshapiro Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libmilter ${SENDMAIL_DIR}/libsm

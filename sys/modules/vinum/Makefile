@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/vinum/Makefile,v 1.24 2002/10/24 03:56:16 kris Exp $
 
 .PATH: ${.CURDIR}/../../dev/vinum
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netkey/key_debug.h,v 1.11 2003/09/30 09:06:58 ume Exp $	*/
 /*	$KAME: key_debug.h,v 1.11 2002/11/05 03:48:34 itojun Exp $	*/
 
 /*

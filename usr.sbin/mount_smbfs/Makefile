@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mount_smbfs/Makefile,v 1.4 2004/02/05 22:44:25 ru Exp $
 
 PROG=	mount_smbfs
 SRCS=	mount_smbfs.c getmntopts.c

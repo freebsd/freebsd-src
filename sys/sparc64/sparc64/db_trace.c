@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/db_trace.c,v 1.20 2004/07/21 05:07:09 marcel Exp $
  */
 
 #include <sys/param.h>

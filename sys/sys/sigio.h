@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sigio.h,v 1.2 2004/04/07 04:19:49 imp Exp $
  */
 
 #ifndef _SYS_SIGIO_H_

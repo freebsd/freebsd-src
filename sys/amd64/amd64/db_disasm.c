@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/db_disasm.c,v 1.27 2003/07/25 21:15:44 obrien Exp $");
 
 /*
  * Instruction disassembler.

@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kmod.mk,v 1.166 2004/08/14 23:53:04 marius Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Kernel Loadable Device
 # drivers (KLD's).

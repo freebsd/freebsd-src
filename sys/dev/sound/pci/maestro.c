@@ -51,7 +51,7 @@
 
 #include <dev/sound/pci/maestro_reg.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/maestro.c,v 1.23.2.1 2004/08/29 20:50:32 green Exp $");
 
 #define inline __inline
 

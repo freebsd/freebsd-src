@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/Make.tags.inc,v 1.15 2003/03/05 19:24:21 peter Exp $
 #	@(#)Make.tags.inc	8.1 (Berkeley) 6/11/93
 
 SYS?=	${.CURDIR}/..

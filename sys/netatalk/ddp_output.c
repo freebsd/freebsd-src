@@ -21,7 +21,7 @@
  *	netatalk@itd.umich.edu
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/netatalk/ddp_output.c,v 1.24 2004/06/13 02:50:05 rwatson Exp $ */
 
 #include "opt_mac.h"
 

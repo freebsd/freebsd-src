@@ -1,5 +1,5 @@
 #! /bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/lib32/build32.sh,v 1.1.2.1 2004/10/06 23:37:35 peter Exp $
 #
 # This script is for running on a self-hosted amd64 machine, with an up-to-date
 # world and toolchain etc.  ie: the installed world is assumed to match the sources.

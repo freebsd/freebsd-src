@@ -31,7 +31,7 @@
  *
  *	$Id: i4b_ihfc_drv.h,v 1.7 2000/09/19 13:50:36 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ihfc/i4b_ihfc_drv.h,v 1.1 2000/10/09 13:28:55 hm Exp $
  *
  *---------------------------------------------------------------------------*/
 #ifndef	I4B_IHFC_DRV_H_

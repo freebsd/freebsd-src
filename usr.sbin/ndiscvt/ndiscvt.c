@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ndiscvt/ndiscvt.c,v 1.9 2004/08/02 18:54:01 wpaul Exp $");
 
 #include <sys/types.h>
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-sparc64.h,v 1.4 2003/01/29 01:06:15 nectar Exp $ */
 /* opensslconf.h */
 
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */

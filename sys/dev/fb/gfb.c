@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/gfb.c,v 1.5 2003/08/24 17:46:06 obrien Exp $");
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/gfb.c,v 1.5 2003/08/24 17:46:06 obrien Exp $");
 
 #include <machine/stdarg.h>
 

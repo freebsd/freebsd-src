@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_common.h,v 1.35 2004/04/07 04:59:56 imp Exp $
  */
 
 

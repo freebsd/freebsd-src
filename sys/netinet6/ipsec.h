@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/ipsec.h,v 1.17 2004/02/16 17:02:44 ume Exp $	*/
 /*	$KAME: ipsec.h,v 1.69 2003/09/10 23:49:11 itojun Exp $	*/
 
 /*

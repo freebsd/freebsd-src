@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_mutex.h,v 1.11 2004/01/25 01:59:26 rwatson Exp $
  */
 
 #ifndef _SYS__MUTEX_H_

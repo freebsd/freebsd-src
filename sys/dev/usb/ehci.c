@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ehci.c,v 1.14 2004/08/02 15:37:34 iedowse Exp $");
 
 /*
  * Copyright (c) 2004 The NetBSD Foundation, Inc.

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.3 (Berkeley) 3/27/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_cd9660/Makefile,v 1.9 2004/02/23 20:13:53 johan Exp $
 
 PROG=	mount_cd9660
 SRCS=	mount_cd9660.c getmntopts.c

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sys_socket.c,v 1.63 2004/07/22 20:40:23 rwatson Exp $");
 
 #include "opt_mac.h"
 

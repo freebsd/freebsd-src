@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/Osd/OsdDebug.c,v 1.8.2.1 2004/09/10 22:14:08 njl Exp $
  */
 
 /*

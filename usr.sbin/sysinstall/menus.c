@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/sysinstall/menus.c,v 1.395.2.2 2004/09/18 07:14:53 bmah Exp $";
 #endif
 
 #include "sysinstall.h"

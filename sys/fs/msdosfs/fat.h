@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/fat.h,v 1.13 2003/12/26 17:24:37 trhodes Exp $ */
 /*	$NetBSD: fat.h,v 1.12 1997/11/17 15:36:36 ws Exp $	*/
 
 /*-

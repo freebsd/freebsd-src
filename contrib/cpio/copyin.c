@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-$FreeBSD$
+$FreeBSD: src/contrib/cpio/copyin.c,v 1.7 2001/03/21 21:17:54 ache Exp $
 */
 
 #include <stdio.h>

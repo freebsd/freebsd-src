@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pf/Makefile,v 1.1.2.1 2004/09/17 18:27:15 mlaier Exp $
 
 NOOBJ=	noobj
 

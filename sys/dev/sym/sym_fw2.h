@@ -55,7 +55,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sym/sym_fw2.h,v 1.7 2002/12/30 21:18:08 schweikh Exp $ */
 
 /*
  *  Scripts for SYMBIOS-Processor

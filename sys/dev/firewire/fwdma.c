@@ -35,7 +35,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/firewire/fwdma.c,v 1.6 2004/03/26 23:17:10 simokawa Exp $");
 #endif
 
 #include <sys/param.h>

@@ -45,7 +45,7 @@
  **/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/moused/moused.c,v 1.67 2004/08/03 18:43:45 philip Exp $");
 
 #include <sys/param.h>
 #include <sys/consio.h>

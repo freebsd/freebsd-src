@@ -28,7 +28,7 @@
 //
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/__divsi3.S,v 1.2 2003/03/03 01:09:45 obrien Exp $");
 
 .section .text
 

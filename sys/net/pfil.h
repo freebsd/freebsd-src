@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/net/pfil.h,v 1.11.2.1 2004/10/03 17:04:39 mlaier Exp $ */
 /*	$NetBSD: pfil.h,v 1.22 2003/06/23 12:57:08 martin Exp $	*/
 
 /*

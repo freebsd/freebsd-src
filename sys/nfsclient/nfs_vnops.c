@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/nfs_vnops.c,v 1.220 2004/07/25 21:24:22 phk Exp $");
 
 /*
  * vnode op calls for Sun NFS version 2 and 3

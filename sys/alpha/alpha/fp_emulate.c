@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/fp_emulate.c,v 1.14 2004/05/06 09:35:57 das Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

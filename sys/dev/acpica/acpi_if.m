@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/acpica/acpi_if.m,v 1.2 2004/07/15 16:29:08 njl Exp $
 #
 
 #include <sys/bus.h>

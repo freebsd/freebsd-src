@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/ia64/eficlock.c,v 1.2 2001/11/12 09:29:05 peter Exp $
  */
 
 #include <sys/param.h>

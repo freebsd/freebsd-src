@@ -33,7 +33,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/isic/i4b_elsa_qs1p.c,v 1.13 2004/05/30 20:27:16 phk Exp $");
 
 #include "opt_i4b.h"
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nwfs/nwfs_io.c,v 1.34 2004/05/06 05:03:20 alc Exp $
  *
  */
 #include <sys/param.h>

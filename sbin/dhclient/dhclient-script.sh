@@ -35,7 +35,7 @@
 #############################################################################
 # $MindStep_Id: dhclient-script.sh,v 1.8 1999/12/07 22:11:08 patrick Exp $
 # $MindStep_Tag: CONTRIB_19991207 $
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/dhclient-script.sh,v 1.2 2002/02/01 18:46:58 alfred Exp $
 #############################################################################
 
 

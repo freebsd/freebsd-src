@@ -12,7 +12,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: hdc64570.h,v 1.1.2.2 2003/11/12 17:31:21 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/hdc64570.h,v 1.1 2004/02/23 20:19:00 rik Exp $
  */
 
 /*

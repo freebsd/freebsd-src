@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/coda/coda_vnops.c,v 1.53 2004/07/28 06:05:41 kan Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

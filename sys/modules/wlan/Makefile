@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/wlan/Makefile,v 1.3 2004/04/10 19:41:15 kan Exp $
 
 .PATH: ${.CURDIR}/../../net80211
 

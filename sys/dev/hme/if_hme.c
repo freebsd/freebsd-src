@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/hme/if_hme.c,v 1.31 2004/08/13 23:14:50 rwatson Exp $");
 
 /*
  * HME Ethernet module driver.

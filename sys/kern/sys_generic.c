@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sys_generic.c,v 1.132.2.1 2004/09/15 14:56:26 andre Exp $");
 
 #include "opt_ktrace.h"
 

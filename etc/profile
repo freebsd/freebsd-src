@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/profile,v 1.14 2004/06/06 11:46:27 schweikh Exp $
 #
 # System-wide .profile file for sh(1).
 #

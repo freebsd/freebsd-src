@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/Makefile,v 1.52 2004/08/16 03:27:28 davidxu Exp $
 #
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

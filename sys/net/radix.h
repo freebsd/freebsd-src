@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/radix.h,v 1.25 2004/04/18 11:48:35 luigi Exp $
  */
 
 #ifndef _RADIX_H_

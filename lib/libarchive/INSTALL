@@ -35,5 +35,5 @@ You should be able to use the following command to build a distribution:
 The result will be a file named libarchive-<version>.tar.gz in
 the object directory.
 
-$FreeBSD$
+$FreeBSD: src/lib/libarchive/INSTALL,v 1.1 2004/08/07 03:09:28 kientzle Exp $
 

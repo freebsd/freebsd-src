@@ -148,7 +148,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/pmap.c,v 1.166 2004/08/15 20:54:25 alc Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

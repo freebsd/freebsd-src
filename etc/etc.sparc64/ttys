@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.sparc64/ttys,v 1.6.4.1 2004/10/07 22:07:31 kensmith Exp $
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
 # This file specifies various information about terminals on the system.

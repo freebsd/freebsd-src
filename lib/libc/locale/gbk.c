@@ -36,7 +36,7 @@
  */
 
 #include <sys/param.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/gbk.c,v 1.11 2004/05/17 11:16:14 tjr Exp $");
 
 #include <errno.h>
 #include <runetype.h>

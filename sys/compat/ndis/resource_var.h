@@ -1,6 +1,6 @@
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/resource_var.h,v 1.2 2004/03/29 02:15:29 wpaul Exp $
  */
 
 typedef int cm_resource_type;

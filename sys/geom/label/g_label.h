@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/label/g_label.h,v 1.3 2004/07/13 12:01:29 pjd Exp $
  */
 
 #ifndef	_G_LABEL_H_

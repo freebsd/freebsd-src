@@ -26,7 +26,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga.h,v 1.5 2004/06/11 03:26:59 anholt Exp $
  */
 
 #ifndef __MGA_H__

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/idt/Makefile,v 1.1 2002/09/30 05:12:39 mdodd Exp $
 
 .PATH:	${.CURDIR}/../../dev/idt
   

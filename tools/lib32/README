@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/lib32/README,v 1.1 2004/03/30 22:57:11 peter Exp $
 
 This script is a stopgap for building tuned 32 bit (but i386 ABI compatable)
 libraries for amd64 systems.  We *know* we have things like CMOV, SSE2 etc

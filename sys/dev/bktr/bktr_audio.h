@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bktr/bktr_audio.h,v 1.3 2003/08/12 09:45:34 alex Exp $ */
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)
  * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879

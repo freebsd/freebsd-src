@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/acpi_timer.c,v 1.35.2.1 2004/10/10 03:15:45 njl Exp $
  */
 #include "opt_acpi.h"
 #include <sys/param.h>

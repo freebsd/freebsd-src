@@ -59,7 +59,7 @@
 
 #include "mixer_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/es137x.c,v 1.51 2004/07/16 03:59:27 tanimura Exp $");
 
 static int debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kldxref/Makefile,v 1.6.6.1 2004/09/03 18:38:47 iedowse Exp $
 
 PROG=	kldxref
 MAN=	kldxref.8

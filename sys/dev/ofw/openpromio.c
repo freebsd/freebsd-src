@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/openpromio.c,v 1.6 2004/08/16 15:45:26 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

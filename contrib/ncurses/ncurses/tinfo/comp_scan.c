@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/comp_scan.c,v 1.6 2002/05/21 05:38:04 peter Exp $ */
 
 /*
  *	comp_scan.c --- Lexical scanner for terminfo compiler.

@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_string.c,v 1.5 2004/08/14 03:45:45 kientzle Exp $");
 
 /*
  * Basic resizable string support, to simplify manipulating arbitrary-sized

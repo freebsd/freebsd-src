@@ -16,7 +16,7 @@
  * works or modified versions.
  *
  * $Cronyx: cpddk.h,v 1.8.4.19 2004/08/10 13:37:20 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cp/cpddk.h,v 1.2 2004/08/16 12:00:07 rik Exp $
  */
 #define NBRD		6	/* the maximum number of installed boards */
 #define NCHAN		4	/* the number of channels on the board */

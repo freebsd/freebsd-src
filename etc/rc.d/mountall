@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: mountall,v 1.3 2000/05/13 08:45:07 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/mountall,v 1.2 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: mountall

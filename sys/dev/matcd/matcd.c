@@ -531,7 +531,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995,2002,2
 /*	Flags in the if_state array */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/matcd/matcd.c,v 1.5 2004/06/16 09:46:49 phk Exp $");
 
 #define	BUSBUSY	0x01			/*<18>Bus is already busy*/
 

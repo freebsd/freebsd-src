@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/idt/idt_harp.c,v 1.5.2.2 2004/09/15 18:38:32 andre Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

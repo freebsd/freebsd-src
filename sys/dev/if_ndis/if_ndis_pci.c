@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/if_ndis/if_ndis_pci.c,v 1.8 2004/08/16 18:50:20 wpaul Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

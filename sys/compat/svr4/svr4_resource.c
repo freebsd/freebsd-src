@@ -66,7 +66,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_resource.c,v 1.16 2004/02/04 21:52:53 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

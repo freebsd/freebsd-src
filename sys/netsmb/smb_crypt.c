@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netsmb/smb_crypt.c,v 1.7 2004/01/02 22:38:42 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/malloc.h>

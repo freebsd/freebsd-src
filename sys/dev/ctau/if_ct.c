@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ctau/if_ct.c,v 1.14.2.1 2004/09/08 12:38:23 rik Exp $");
 
 #include <sys/param.h>
  

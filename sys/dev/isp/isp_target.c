@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp_target.c,v 1.30 2004/05/24 07:02:25 njl Exp $ */
 /*
  * Machine and OS Independent Target Mode Code for the Qlogic SCSI/FC adapters.
  *

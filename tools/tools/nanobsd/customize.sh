@@ -6,7 +6,7 @@
 #
 # See /usr/share/examples/etc/bsd-style-copyright for license terms.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/customize.sh,v 1.1 2004/08/16 22:46:58 thomas Exp $
 # 
 # Usage:
 #

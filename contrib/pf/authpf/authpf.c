@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/authpf/authpf.c,v 1.5 2004/06/16 23:39:30 mlaier Exp $");
 
 #include <sys/param.h>
 #include <sys/file.h>

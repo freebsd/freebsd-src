@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/sendmail/Makefile,v 1.46 2004/08/06 07:27:07 cperciva Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src

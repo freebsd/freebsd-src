@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/Makefile,v 1.25 2004/05/02 17:38:27 marcel Exp $
 
 SUBDIR= lib libexec usr.bin usr.sbin
 

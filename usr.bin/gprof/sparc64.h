@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)i386.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/sparc64.h,v 1.1 2002/03/10 01:25:47 jake Exp $
  */
 
     /*

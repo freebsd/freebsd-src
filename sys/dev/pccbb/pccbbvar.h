@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pccbb/pccbbvar.h,v 1.21 2004/08/12 06:50:29 imp Exp $
  */
 
 /*

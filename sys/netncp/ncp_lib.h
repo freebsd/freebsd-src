@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_lib.h,v 1.6 2002/07/27 23:16:49 dwmalone Exp $
  */
 
 #ifndef _NETNCP_NCP_LIB_H_

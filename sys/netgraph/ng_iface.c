@@ -35,7 +35,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_iface.c,v 1.34 2004/07/14 20:24:21 rwatson Exp $
  * $Whistle: ng_iface.c,v 1.33 1999/11/01 09:24:51 julian Exp $
  */
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/ndis_var.h,v 1.29 2004/08/16 18:50:20 wpaul Exp $
  */
 
 #ifndef _NDIS_VAR_H_

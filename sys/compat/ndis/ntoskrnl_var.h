@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/ndis/ntoskrnl_var.h,v 1.17 2004/08/04 18:22:50 wpaul Exp $
  */
 
 #ifndef _NTOSKRNL_VAR_H_

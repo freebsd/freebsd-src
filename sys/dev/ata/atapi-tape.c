@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/atapi-tape.c,v 1.93 2004/08/05 21:11:33 sos Exp $");
 
 #include "opt_ata.h"
 #include <sys/param.h>

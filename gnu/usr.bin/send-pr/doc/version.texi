@@ -1,3 +1,3 @@
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/usr.bin/send-pr/doc/version.texi,v 1.2 2000/10/29 22:05:52 steve Exp $
 
 @set VERSION 3.113

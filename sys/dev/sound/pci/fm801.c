@@ -29,7 +29,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/fm801.c,v 1.23 2004/07/16 03:59:27 tanimura Exp $");
 
 #define PCI_VENDOR_FORTEMEDIA	0x1319
 #define PCI_DEVICE_FORTEMEDIA1	0x08011319

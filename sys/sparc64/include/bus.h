@@ -69,7 +69,7 @@
  *	and
  *	from: FreeBSD: src/sys/alpha/include/bus.h,v 1.9 2001/01/09
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/bus.h,v 1.33 2004/06/28 03:49:13 scottl Exp $
  */
 
 #ifndef	_MACHINE_BUS_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libufs/Makefile,v 1.10 2003/08/18 15:25:39 obrien Exp $
 
 LIB=	ufs
 SHLIBDIR?= /lib

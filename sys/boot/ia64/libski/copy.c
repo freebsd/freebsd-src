@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/libski/copy.c,v 1.3 2003/04/03 21:36:29 obrien Exp $");
 
 /*
  * MD primitives supporting placement of module data 

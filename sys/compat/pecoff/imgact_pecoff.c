@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/pecoff/imgact_pecoff.c,v 1.33 2004/06/05 02:18:27 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

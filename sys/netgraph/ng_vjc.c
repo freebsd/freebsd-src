@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_vjc.c,v 1.24 2004/05/29 00:51:11 julian Exp $
  * $Whistle: ng_vjc.c,v 1.17 1999/11/01 09:24:52 julian Exp $
  */
 

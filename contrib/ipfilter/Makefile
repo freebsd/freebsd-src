@@ -3,7 +3,7 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/ipfilter/Makefile,v 1.3 2004/06/21 22:53:02 darrenr Exp $
 # $Id: Makefile,v 2.11.2.15 2002/12/02 04:22:56 darrenr Exp $
 #
 BINDEST=/usr/local/bin

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/310.accounting,v 1.8 2001/05/30 20:23:42 brian Exp $
 #
 
 # If there is a global system configuration file, suck it in.

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netatm/uni/uniarp_cache.c,v 1.13 2003/07/29 13:32:10 harti Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

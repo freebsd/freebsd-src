@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libcrypto/Makefile.inc,v 1.39 2004/04/19 11:35:15 ru Exp $
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
@@ -42,7 +42,7 @@ man-update:
 
 man-makefile-update:
 	rm -f ${.CURDIR}/Makefile.man
-	echo '# $$FreeBSD$$' >> ${.CURDIR}/Makefile.man
+	echo '# $$FreeBSD: src/secure/lib/libcrypto/Makefile.inc,v 1.39 2004/04/19 11:35:15 ru Exp $$' >> ${.CURDIR}/Makefile.man
 	echo '# DO NOT EDIT: generated from man-makefile-update target' >> \
 	    ${.CURDIR}/Makefile.man
 	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/one-true-awk/FREEBSD-upgrade,v 1.8 2004/02/08 21:39:18 ru Exp $
 
 Import of the 2004/02/07 version of the "one true awk", as described
 in "The AWK Programming Language", by Al Aho, Brian Kernighan, and

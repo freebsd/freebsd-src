@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_aio.c,v 1.174.2.1 2004/09/06 19:32:00 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

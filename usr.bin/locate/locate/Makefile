@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/locate/locate/Makefile,v 1.15 2002/07/29 09:40:15 ru Exp $
 
 PROG=	locate
 SRCS=	util.c locate.c

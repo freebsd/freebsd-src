@@ -70,7 +70,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ubser.c,v 1.12 2004/08/15 23:39:18 imp Exp $");
 
 /*
  * BWCT serial adapter driver

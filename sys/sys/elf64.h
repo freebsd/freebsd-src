@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/elf64.h,v 1.10 2002/05/30 08:32:18 dfr Exp $
  */
 
 #ifndef _SYS_ELF64_H_

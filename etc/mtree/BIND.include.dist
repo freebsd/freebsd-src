@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BIND.include.dist,v 1.1.2.1 2004/09/30 23:36:07 dougb Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

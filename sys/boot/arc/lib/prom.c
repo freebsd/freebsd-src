@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arc/lib/prom.c,v 1.3 2004/01/04 23:28:01 obrien Exp $");
 
 #define	PROM_E_BOOTED_DEV	"XXX1"
 #define	PROM_E_BOOTED_FILE	"XXX2"

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/ppbus/ppbus_if.m,v 1.2 2000/04/08 14:17:03 dfr Exp $
 #
 
 #include <sys/bus.h>

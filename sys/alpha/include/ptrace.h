@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/ptrace.h,v 1.12 2004/07/13 16:11:04 kensmith Exp $
  */
 
 #ifndef _MACHINE_PTRACE_H_

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ktrdump/ktrdump.c,v 1.8 2004/05/22 08:26:10 rwatson Exp $");
 
 #include <sys/types.h>
 #include <sys/ktr.h>

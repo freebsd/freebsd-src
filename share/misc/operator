@@ -16,4 +16,4 @@ Operator				Associativity
 = += -= *= /= %= <<= >>= &= ^= |=	right to left
 ,					left to right
 
-$FreeBSD$
+$FreeBSD: src/share/misc/operator,v 1.2 2003/01/22 15:19:07 fanf Exp $

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/atomic.h,v 1.32 2004/03/12 21:45:29 trhodes Exp $
  */
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_

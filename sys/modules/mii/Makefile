@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mii/Makefile,v 1.26 2003/09/11 03:53:45 wpaul Exp $
 
 .PATH: ${.CURDIR}/../../dev/mii
 

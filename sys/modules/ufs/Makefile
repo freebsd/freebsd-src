@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ufs/Makefile,v 1.2 2003/06/23 19:41:00 iedowse Exp $
 
 .PATH:	${.CURDIR}/../../ufs/ufs ${.CURDIR}/../../ufs/ffs
 

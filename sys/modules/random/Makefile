@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/random/Makefile,v 1.15 2004/04/11 15:40:18 marcel Exp $
 
 .PATH: ${.CURDIR}/../../dev/random
 .PATH: ${.CURDIR}/../../crypto/rijndael

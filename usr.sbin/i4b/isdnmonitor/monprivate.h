@@ -29,7 +29,7 @@
  *
  *	$Id: monprivate.h,v 1.10 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/monprivate.h,v 1.2 2000/10/09 14:22:42 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:52:25 1999]
  *

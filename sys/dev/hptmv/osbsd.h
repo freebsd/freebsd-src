@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/osbsd.h,v 1.2 2004/10/24 08:38:29 scottl Exp $
  */
 #ifndef _OSBSD_H_
 #define _OSBSD_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/ldpart.h,v 1.6 2003/06/13 00:14:07 jkh Exp $
  */
 
 #ifndef _LDPART_H_

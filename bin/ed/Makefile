@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/ed/Makefile,v 1.30 2004/08/06 07:27:03 cperciva Exp $
 
 PROG=	ed
 SRCS=	buf.c cbc.c glbl.c io.c main.c re.c sub.c undo.c

@@ -34,7 +34,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumext.h,v 1.33 2003/05/23 00:57:48 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumext.h,v 1.42.2.1 2004/09/24 22:40:01 marius Exp $
  */
 
 /* vinumext.h: external definitions */

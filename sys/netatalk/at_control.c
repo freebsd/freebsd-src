@@ -2,7 +2,7 @@
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_control.c,v 1.42 2004/07/19 17:18:58 rwatson Exp $
  */
 
 #include <sys/param.h>

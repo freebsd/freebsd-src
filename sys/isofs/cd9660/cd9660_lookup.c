@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/isofs/cd9660/cd9660_lookup.c,v 1.39 2004/07/03 16:56:45 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

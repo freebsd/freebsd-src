@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/dconschat/Makefile,v 1.1 2003/10/24 15:44:10 simokawa Exp $
 
 PROG=	dconschat
 SRCS=	dconschat.c

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/tdkphy.c,v 1.15 2004/05/29 18:09:10 marius Exp $");
 
 /*
  * Driver for the TDK 78Q2120 MII

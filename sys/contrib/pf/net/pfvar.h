@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pfvar.h,v 1.8.2.2 2004/10/03 17:04:39 mlaier Exp $	*/
 /*	$OpenBSD: pfvar.h,v 1.187 2004/03/22 04:54:18 mcbride Exp $ */
 /* add	$OpenBSD: pfvar.h,v 1.194 2004/05/11 07:34:11 dhartmei Exp $ */
 

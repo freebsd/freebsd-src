@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aha/aha.c,v 1.55 2003/11/13 04:14:53 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

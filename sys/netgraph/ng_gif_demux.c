@@ -60,7 +60,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_gif_demux.c,v 1.9 2004/07/04 16:11:02 stefanf Exp $
  */
 
 /*

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/watchdog/watchdog.c,v 1.2 2004/06/16 09:47:02 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

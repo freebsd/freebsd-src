@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/hpropd/Makefile,v 1.15 2004/02/05 18:51:50 ru Exp $
 
 PROG=	hpropd
 MAN=	hpropd.8

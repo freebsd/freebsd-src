@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/db_machdep.h,v 1.9 2004/07/10 23:47:18 marcel Exp $ */
 /* $NetBSD: db_machdep.h,v 1.6 1997/09/06 02:02:25 thorpej Exp $ */
 
 /*

@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/buslogic/bt_eisa.c,v 1.19 2004/03/17 17:50:29 njl Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

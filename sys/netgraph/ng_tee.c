@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_tee.c,v 1.31 2004/06/26 22:24:16 julian Exp $
  * $Whistle: ng_tee.c,v 1.18 1999/11/01 09:24:52 julian Exp $
  */
 

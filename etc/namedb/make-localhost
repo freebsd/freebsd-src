@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/namedb/make-localhost,v 1.6.8.1 2004/09/30 23:36:07 dougb Exp $
 #
 # make-localhost - edit the appropriate local information into
 # /etc/namedb/localhost.rev

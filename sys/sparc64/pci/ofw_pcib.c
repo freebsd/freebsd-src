@@ -30,7 +30,7 @@
  *
  *	from: FreeBSD: src/sys/dev/pci/pci_pci.c,v 1.3 2000/12/13
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/ofw_pcib.c,v 1.4 2004/08/12 17:41:32 marius Exp $
  */
 
 #include "opt_ofw_pci.h"

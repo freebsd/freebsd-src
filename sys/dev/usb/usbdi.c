@@ -1,7 +1,7 @@
 /*	$NetBSD: usbdi.c,v 1.104 2004/07/17 20:16:13 mycroft Exp $	*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usbdi.c,v 1.86.2.1 2004/09/03 20:01:32 iedowse Exp $");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

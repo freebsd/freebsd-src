@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia64/db_interface.c,v 1.25 2004/07/10 23:47:19 marcel Exp $");
 
 /*
  * Interface to DDB.

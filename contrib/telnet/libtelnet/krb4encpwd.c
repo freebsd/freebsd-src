@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/telnet/libtelnet/krb4encpwd.c,v 1.7 2001/11/30 22:28:07 markm Exp $");
 
 #ifndef lint
 static char sccsid[] = "@(#)krb4encpwd.c	8.3 (Berkeley) 5/30/95";

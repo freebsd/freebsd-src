@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/event.h,v 1.26 2004/08/15 15:36:18 jmg Exp $
  */
 
 #ifndef _SYS_EVENT_H_

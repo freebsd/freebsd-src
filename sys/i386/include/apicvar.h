@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/apicvar.h,v 1.8 2004/06/23 15:29:20 jhb Exp $
  */
 
 #ifndef _MACHINE_APICVAR_H_

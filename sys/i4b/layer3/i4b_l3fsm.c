@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer3/i4b_l3fsm.c,v 1.17 2003/06/10 23:59:33 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

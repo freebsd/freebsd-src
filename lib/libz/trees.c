@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/trees.c,v 1.8 2004/06/30 23:54:46 tjr Exp $");
 
 /* #define GEN_TREES_H */
 

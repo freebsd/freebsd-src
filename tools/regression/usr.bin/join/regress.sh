@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/join/regress.sh,v 1.3 2002/06/24 14:22:38 jmallett Exp $
 
 REGRESSION_START($1)
 

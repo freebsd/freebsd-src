@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pccard/pccard_cis.h,v 1.1 2003/10/07 03:35:48 imp Exp $ */
 
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.

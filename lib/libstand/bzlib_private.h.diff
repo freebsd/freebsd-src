@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libstand/bzlib_private.h.diff,v 1.2 2003/04/25 06:44:56 ru Exp $
 
 --- bzlib_private.h	1 Feb 2002 16:26:19 -0000	1.1.1.2
 +++ bzlib_private.h	25 Apr 2003 03:55:07 -0000

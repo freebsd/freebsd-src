@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/support/Makefile.inc,v 1.7 2003/09/05 18:08:19 kan Exp $
 
 .PATH: ${.CURDIR}/support ${.CURDIR}/../libc/gen ${.CURDIR}/../libc/string
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys

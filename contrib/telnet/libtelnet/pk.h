@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/contrib/telnet/libtelnet/pk.h,v 1.6 2001/11/30 21:06:34 markm Exp $
  */
 
 /* header for the des routines that we will use */

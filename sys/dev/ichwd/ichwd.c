@@ -54,7 +54,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ichwd/ichwd.c,v 1.4 2004/06/13 05:00:19 jmg Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

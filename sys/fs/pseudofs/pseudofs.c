@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/fs/pseudofs/pseudofs.c,v 1.22 2004/07/30 22:08:50 phk Exp $
  */
 
 #include <sys/param.h>

@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/dec_eb64plus.c,v 1.17 2004/07/10 22:29:40 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/reboot.h>

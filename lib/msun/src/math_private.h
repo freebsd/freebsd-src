@@ -11,7 +11,7 @@
 
 /*
  * from: @(#)fdlibm.h 5.1 93/09/24
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/math_private.h,v 1.15 2003/07/23 04:53:46 peter Exp $
  */
 
 #ifndef _MATH_PRIVATE_H_

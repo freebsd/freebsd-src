@@ -1,5 +1,5 @@
 /*	$NetBSD: natm.h,v 1.1 1996/07/04 03:20:12 chuck Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/netnatm/natm.h,v 1.9 2003/08/06 14:34:38 harti Exp $ */
 
 /*
  *

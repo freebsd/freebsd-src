@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libalias/Makefile,v 1.28 2004/07/06 12:15:24 des Exp $
 
 LIB=	alias
 SHLIBDIR?= /lib

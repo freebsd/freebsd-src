@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/Makefile,v 1.12 2004/01/19 13:40:50 ru Exp $
 
 NOOBJ=
 

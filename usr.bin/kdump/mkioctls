@@ -1,6 +1,6 @@
 set -e
 
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/kdump/mkioctls,v 1.37 2004/06/16 23:39:33 mlaier Exp $
 
 if [ "x$1" = "x-s" ]; then
 	use_switch=1

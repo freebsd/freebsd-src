@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: acpi_vid.c,v 1.4 2003/10/13 10:07:36 taku Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/acpica/acpi_video.c,v 1.8 2004/08/13 06:22:20 njl Exp $
  */
 
 #include <sys/param.h>

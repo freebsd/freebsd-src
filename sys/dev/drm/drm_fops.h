@@ -29,7 +29,7 @@
  *    Daryll Strauss <daryll@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_fops.h,v 1.11 2004/06/16 09:46:42 phk Exp $
  */
 
 #include "dev/drm/drmP.h"

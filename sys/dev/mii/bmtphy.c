@@ -68,7 +68,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/bmtphy.c,v 1.8 2004/05/30 17:57:40 phk Exp $");
 
 /*
  * Driver for the Broadcom BCM5201/BCM5202 "Mini-Theta" PHYs.  This also

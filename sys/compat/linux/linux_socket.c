@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_socket.c,v 1.51.2.2 2004/09/03 15:30:20 jhb Exp $");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"

@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_smp.c,v 1.188.2.2 2004/09/09 09:56:58 julian Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

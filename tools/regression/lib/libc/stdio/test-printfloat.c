@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/stdio/test-printfloat.c,v 1.6 2004/01/19 05:59:07 das Exp $");
 
 #include <assert.h>
 #include <err.h>

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libipx/ipx_addr.c,v 1.8 2002/08/25 13:06:32 charnier Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)ipx_addr.c";

@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/paste/paste.c,v 1.14 2004/06/25 01:48:43 tjr Exp $");
 
 #include <sys/types.h>
 

@@ -47,7 +47,7 @@
  *	from: @(#)clock.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: clock.c,v 1.41 2001/07/24 19:29:25 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/eeprom.h,v 1.3 2004/08/12 17:41:32 marius Exp $
  */
 
 #ifndef _MACHINE_EEPROM_H_

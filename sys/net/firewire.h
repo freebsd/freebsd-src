@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/net/firewire.h,v 1.2 2004/06/14 08:17:51 dfr Exp $
  */
 
 #ifndef _NET_FIREWIRE_H_

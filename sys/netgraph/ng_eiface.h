@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$FreeBSD$
+ * 	$FreeBSD: src/sys/netgraph/ng_eiface.h,v 1.6 2003/12/17 13:03:32 ru Exp $
  */
 
 #ifndef _NETGRAPH_NG_EIFACE_H_

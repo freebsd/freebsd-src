@@ -32,7 +32,7 @@
  * Rewritten by:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_dma.c,v 1.10 2004/01/06 04:34:53 anholt Exp $
  */
 
 #include "dev/drm/mga.h"

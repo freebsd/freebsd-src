@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/ministat/README,v 1.1 2003/08/13 07:21:54 phk Exp $
 
 A small tool to do the statistics legwork on benchmarks etc.
 

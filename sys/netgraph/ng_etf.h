@@ -28,7 +28,7 @@
  *
  * Author: Julian Elischer <julian@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_etf.h,v 1.4 2004/01/26 14:05:31 harti Exp $
  */
 
 #ifndef _NETGRAPH_NG_ETF_H_

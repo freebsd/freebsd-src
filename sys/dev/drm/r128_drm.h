@@ -28,7 +28,7 @@
  *    Gareth Hughes <gareth@valinux.com>
  *    Kevin E. Martin <martin@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128_drm.h,v 1.5 2004/06/11 03:26:59 anholt Exp $
  */
 
 #ifndef __R128_DRM_H__

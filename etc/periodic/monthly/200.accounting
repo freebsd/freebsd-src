@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/monthly/200.accounting,v 1.10 2002/09/24 18:53:46 ache Exp $
 #
 
 # If there is a global system configuration file, suck it in.

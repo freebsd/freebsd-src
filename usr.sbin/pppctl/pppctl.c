@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pppctl/pppctl.c,v 1.32 2003/12/07 08:39:29 tjr Exp $");
 
 #include <sys/types.h>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ti/Makefile,v 1.13 2002/06/26 03:34:49 ken Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

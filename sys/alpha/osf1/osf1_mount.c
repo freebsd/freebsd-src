@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/osf1/osf1_mount.c,v 1.18 2003/11/16 21:53:05 kris Exp $");
 
 #include "opt_mac.h"
 #include "opt_nfs.h"

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ahb/ahb.c,v 1.32 2004/03/17 17:50:25 njl Exp $
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_yield.c,v 1.1 2003/04/01 03:46:29 jeff Exp $
  */
 #include <pthread.h>
 #include "thr_private.h"

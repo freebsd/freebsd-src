@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount/mntopts.h,v 1.21 2004/04/09 19:58:30 markm Exp $
  */
 
 struct mntopt {

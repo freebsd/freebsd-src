@@ -5,7 +5,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libncp/ncpl_crypt.c,v 1.2 2001/09/30 22:01:18 dillon Exp $");
 
 #include <sys/param.h>
 #include <sys/errno.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sio/Makefile,v 1.6 2004/05/26 00:53:08 imp Exp $
 
 .if ${MACHINE} == "pc98"
 .PATH: ${.CURDIR}/../../pc98/pc98

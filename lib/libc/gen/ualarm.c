@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)ualarm.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/ualarm.c,v 1.4 2002/12/29 00:59:09 mike Exp $");
 
 #include <sys/time.h>
 #include <unistd.h>

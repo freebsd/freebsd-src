@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/syscallsubr.h,v 1.11 2004/07/17 21:06:36 dwmalone Exp $
  */
 
 #ifndef _SYS_SYSCALLSUBR_H_

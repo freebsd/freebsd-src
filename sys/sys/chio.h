@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/chio.h,v 1.16 2003/05/31 16:54:37 phk Exp $
  */
 
 #ifndef	_SYS_CHIO_H_

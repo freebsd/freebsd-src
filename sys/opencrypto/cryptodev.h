@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/cryptodev.h,v 1.9 2004/02/02 17:06:34 phk Exp $	*/
 /*	$OpenBSD: cryptodev.h,v 1.31 2002/06/11 11:14:29 beck Exp $	*/
 
 /*

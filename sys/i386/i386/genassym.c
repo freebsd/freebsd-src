@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/genassym.c,v 1.148 2004/05/23 16:50:55 bde Exp $");
 
 #include "opt_apic.h"
 #include "opt_compat.h"

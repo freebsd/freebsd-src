@@ -3,7 +3,7 @@
 # This file, originally written by Garrett A. Wollman, is in the public
 # domain.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/gbde,v 1.5.2.2 2004/10/15 06:14:43 pjd Exp $
 #
 
 # PROVIDE: disks

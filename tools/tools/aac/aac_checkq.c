@@ -30,7 +30,7 @@
 #include <sys/ioctl.h>
 #include "/sys/dev/aac/aac_ioctl.h"
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/aac/aac_checkq.c,v 1.1 2004/02/07 03:51:20 scottl Exp $");
 
 /*
  * Simple program to print out the queue stats on the given queue index.

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/nat_cmd.c,v 1.60 2003/09/23 07:41:54 marcus Exp $
  */
 
 #include <sys/param.h>

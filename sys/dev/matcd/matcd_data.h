@@ -37,7 +37,7 @@ SUCH DAMAGE.
 See matcd.c for Edit History
 */
 
-/* $FreeBSD$
+/* $FreeBSD: src/sys/dev/matcd/matcd_data.h,v 1.2 2004/06/16 09:46:49 phk Exp $
 */
 
 /*----------------------------------------------------------------------------

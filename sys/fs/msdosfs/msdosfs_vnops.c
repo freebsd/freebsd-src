@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/msdosfs_vnops.c,v 1.149 2004/07/26 07:24:02 cperciva Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/cam/scsi/scsi_targ_bh.c,v 1.20 2003/09/30 08:03:52 simokawa Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

@@ -26,7 +26,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/r128.h,v 1.6 2004/06/11 03:26:59 anholt Exp $
  */
 
 #ifndef __R128_H__

@@ -1,7 +1,7 @@
 /*
  * Holiday
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.holiday,v 1.28 2004/04/04 07:31:35 jmg Exp $
  */
 
 #ifndef _calendar_holiday_

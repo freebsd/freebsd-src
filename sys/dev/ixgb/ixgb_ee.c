@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/ixgb_ee.c,v 1.1 2004/05/28 00:22:59 tackerman Exp $*/
 
 #include <dev/ixgb/ixgb_hw.h> 
 #include <dev/ixgb/ixgb_ee.h> 

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ofw/libofw/ofw_net.c,v 1.8 2004/08/16 15:45:25 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

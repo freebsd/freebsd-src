@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/tools/make-roken/Makefile,v 1.1 2004/01/31 08:15:56 ru Exp $
 
 PROG=	make-roken
 NOMAN=

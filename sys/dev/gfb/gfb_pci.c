@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gfb/gfb_pci.c,v 1.13 2004/07/10 22:29:41 marcel Exp $");
 
 #include "opt_fb.h"
 

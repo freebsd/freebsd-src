@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.own.mk,v 1.41 2004/02/05 20:48:44 ru Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.

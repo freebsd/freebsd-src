@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_taskqueue.c,v 1.24 2004/08/08 02:37:21 jmg Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/ 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/driver/i4b_ing.c,v 1.22 2004/07/06 06:43:45 ru Exp $");
 
 #include "i4bing.h"
 

@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_sema.c,v 1.5 2004/06/14 18:19:05 jdp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

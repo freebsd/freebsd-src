@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_dma.h,v 1.8 2003/12/23 14:38:42 se Exp $
  */
 
 #include "dev/drm/drmP.h"

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/README,v 1.1 2001/06/09 16:49:49 dfr Exp $ */
 
 Files in this directory and subdirectories are subject to the following
 copyright unless superceded or supplemented by additional specific license

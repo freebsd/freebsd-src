@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ofw/openfirm.c,v 1.13 2004/08/16 15:45:26 marius Exp $");
 /*
  * Copyright (C) 2000 Benno Rice.
  * All rights reserved.

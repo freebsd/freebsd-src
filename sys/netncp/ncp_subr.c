@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netncp/ncp_subr.c,v 1.13 2004/03/14 02:06:28 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

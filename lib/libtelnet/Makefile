@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libtelnet/Makefile,v 1.20 2004/08/06 07:27:04 cperciva Exp $
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet

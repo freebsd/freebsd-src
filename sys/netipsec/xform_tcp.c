@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/netipsec/xform_tcp.c,v 1.3 2004/04/20 14:53:35 bms Exp $ */
 
 /*
  * Copyright (c) 2003 Bruce M. Simpson <bms@spc.org>

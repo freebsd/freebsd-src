@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mtio.h,v 1.28 2004/04/07 04:19:49 imp Exp $
  */
 
 #ifndef	_SYS_MTIO_H_

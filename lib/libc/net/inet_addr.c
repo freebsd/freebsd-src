@@ -59,7 +59,7 @@
 static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/inet_addr.c,v 1.16 2002/04/19 04:46:20 suz Exp $");
 
 #include <sys/param.h>
 

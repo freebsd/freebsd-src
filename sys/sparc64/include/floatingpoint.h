@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/floatingpoint.h,v 1.1 2002/02/10 14:27:20 obrien Exp $
  */
 
 #ifndef _FLOATINGPOINT_H_

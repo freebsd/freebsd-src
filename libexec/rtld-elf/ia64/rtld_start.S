@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/libexec/rtld-elf/ia64/rtld_start.S,v 1.3 2003/05/29 22:58:25 kan Exp $	*/
 /*	From: NetBSD: rtld_start.S,v 1.1 1996/12/16 20:38:09 cgd Exp 	*/
 
 /*

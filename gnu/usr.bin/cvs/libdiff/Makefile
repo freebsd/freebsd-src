@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/libdiff/Makefile,v 1.8 2004/02/17 05:38:45 ache Exp $
 
 MAINTAINER=	peter@FreeBSD.org
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/Makefile.inc,v 1.6 2004/08/06 07:27:06 cperciva Exp $
 
 DEFS_LOCAL= -DPARSE -DHAVE_CONFIG_H
 NTPDEFS=   -DSYS_FREEBSD

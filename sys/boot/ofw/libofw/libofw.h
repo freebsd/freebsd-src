@@ -22,7 +22,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/ofw/libofw/libofw.h,v 1.9 2004/08/02 03:05:09 grehan Exp $
  */
 
 #include "openfirm.h"

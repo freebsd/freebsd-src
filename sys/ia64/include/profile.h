@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/profile.h,v 1.8 2004/05/19 15:41:25 bde Exp $ */
 /* From: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp */
 
 /*

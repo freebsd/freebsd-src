@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_format_cpio.c,v 1.4 2004/04/13 23:45:37 kientzle Exp $");
 
 #include <sys/stat.h>
 #include <errno.h>

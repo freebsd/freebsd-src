@@ -33,7 +33,7 @@
  *
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/thread/thr_kern.c,v 1.112 2004/08/15 16:28:05 dfr Exp $");
 
 #include <sys/types.h>
 #include <sys/kse.h>

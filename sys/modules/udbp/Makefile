@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/udbp/Makefile,v 1.7 2004/06/27 12:33:17 imp Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

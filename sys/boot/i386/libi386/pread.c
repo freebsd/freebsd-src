@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/pread.c,v 1.3 2003/08/25 23:28:31 obrien Exp $");
 
 /* read into destination in flat addr space */
 

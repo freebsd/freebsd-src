@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$FreeBSD$"
+"$FreeBSD: src/contrib/isc-dhcp/common/tables.c,v 1.11 2004/06/26 10:37:41 mbr Exp $"
 "$Id: tables.c,v 1.51.2.8 2004/06/10 17:59:21 dhankins Exp $ Copyright (c) 2004 Internet Systems Consortium.  All rights reserved.\n";
 #endif /* not lint */
 

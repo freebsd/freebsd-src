@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/stdlib/test-mergesort.c,v 1.1 2004/06/25 12:31:12 sobomax Exp $");
 
 #include <assert.h>
 #include <stdio.h>

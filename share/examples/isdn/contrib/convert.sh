@@ -5,7 +5,7 @@
 # by:		Stefan Herrmann <stefan@asterix.webaffairs.net>
 # Date:	Fr  22 Mai 1998 14:18:40 CEST
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/contrib/convert.sh,v 1.1 2001/05/25 13:25:58 hm Exp $
 
 CAT=/bin/cat
 RM=/bin/rm

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/proc_service.h,v 1.2 2004/07/17 17:05:12 marcel Exp $
  */
 
 #ifndef _PROC_SERVICE_H_

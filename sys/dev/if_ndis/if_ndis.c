@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/if_ndis/if_ndis.c,v 1.69.2.1.2.1 2004/10/23 18:58:53 le Exp $");
 
 #include "opt_bdg.h"
 

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/320.whatis,v 1.8 2001/03/02 16:52:09 ru Exp $
 #
 
 # If there is a global system configuration file, suck it in.

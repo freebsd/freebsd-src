@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ccd/layout/ccd0.sh,v 1.1 2003/01/17 12:23:44 phk Exp $
 
 set -e
 

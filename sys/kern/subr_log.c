@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_log.c,v 1.62 2004/06/16 09:47:12 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

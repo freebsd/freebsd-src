@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/swap_pager.c,v 1.256.2.1 2004/09/27 04:53:18 das Exp $");
 
 #include "opt_mac.h"
 #include "opt_swap.h"

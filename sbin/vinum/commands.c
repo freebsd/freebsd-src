@@ -37,7 +37,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: commands.c,v 1.52 2003/05/08 00:33:57 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/commands.c,v 1.60 2004/07/24 19:11:40 le Exp $
  */
 
 #include "vext.h"

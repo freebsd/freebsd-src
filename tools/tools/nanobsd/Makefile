@@ -3,7 +3,7 @@
 #
 # See /usr/share/examples/etc/bsd-style-copyright for license terms.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/Makefile,v 1.8 2004/08/16 22:41:58 thomas Exp $
 
 .include "${.CURDIR}/make.conf"
 

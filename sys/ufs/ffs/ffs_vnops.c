@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_vnops.c,v 1.133 2004/08/15 06:24:42 jmg Exp $");
 
 #include <sys/param.h>
 #include <sys/bio.h>

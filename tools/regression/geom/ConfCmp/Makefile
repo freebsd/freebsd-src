@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/ConfCmp/Makefile,v 1.6 2004/02/24 20:52:58 johan Exp $
 
 PROG=	ConfCmp
 SRCS+=	ConfCmp.c

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/fs/msdosfs/msdosfs_lookup.c,v 1.40.2.1 2004/10/13 16:28:40 delphij Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-

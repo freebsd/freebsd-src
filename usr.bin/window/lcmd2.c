@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)lcmd2.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/window/lcmd2.c,v 1.5 2004/04/04 19:11:01 charnier Exp $");
 
 #include "defs.h"
 #include <string.h> /* System string definitions. */

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/cam/scsi/scsi_ch.h,v 1.4 2003/05/31 16:54:37 phk Exp $ */
 /*	$NetBSD: scsi_changer.h,v 1.11 1998/02/13 08:28:32 enami Exp $	*/
 
 /*

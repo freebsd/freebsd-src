@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/sunlabel/sunlabel.c,v 1.11 2004/06/18 15:08:08 joerg Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

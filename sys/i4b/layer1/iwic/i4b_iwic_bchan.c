@@ -32,7 +32,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/iwic/i4b_iwic_bchan.c,v 1.13 2003/06/10 23:48:55 obrien Exp $");
 
 #include "opt_i4b.h"
 

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/rpc.ypupdated/ypupdated_main.c,v 1.10 2004/05/24 12:28:27 stefanf Exp $");
 
 #include "ypupdate_prot.h"
 #include <stdio.h>

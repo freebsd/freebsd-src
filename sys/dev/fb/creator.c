@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fb/creator.c,v 1.5 2004/07/09 23:12:22 marius Exp $
  */
 
 #include <sys/param.h>

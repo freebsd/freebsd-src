@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.bin/klist/Makefile,v 1.15 2004/02/05 18:51:51 ru Exp $
 
 PROG=	klist
 CFLAGS+=-I${KRB5DIR}/lib/roken

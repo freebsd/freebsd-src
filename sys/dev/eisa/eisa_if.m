@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/eisa/eisa_if.m,v 1.1 2004/06/09 16:56:22 imp Exp $
 #
 
 #include <sys/bus.h>

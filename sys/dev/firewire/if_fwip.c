@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/if_fwip.c,v 1.5 2004/08/13 23:09:41 rwatson Exp $
  */
 
 #include "opt_inet.h"

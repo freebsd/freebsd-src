@@ -4,7 +4,7 @@
 .\"
 .\"	@(#)p1	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/01.cacm/p1,v 1.3 2002/10/30 13:07:34 ru Exp $
 .OH 'The UNIX Time-Sharing System''PSD:1-%'
 .EH 'PSD:1-%''The UNIX Time-Sharing System'
 .ds n \s+2

@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/uio_machdep.c,v 1.4 2004/06/03 10:22:45 tjr Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -54,7 +54,7 @@
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
  * 	from: FreeBSD: src/sys/i386/i386/in_cksum.c,v 1.22 2000/11/25
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/in_cksum.c,v 1.2 2004/04/07 05:00:01 imp Exp $
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer4/i4b_i4bdrv.c,v 1.41 2004/06/16 09:47:10 phk Exp $");
 
 #include "i4bipr.h"
 #include "i4btel.h"

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.7 (Berkeley) 10/12/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/rtsock.c,v 1.113.2.3 2004/09/15 15:14:18 andre Exp $
  */
 
 #include <sys/param.h>

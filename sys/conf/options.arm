@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/conf/options.arm,v 1.1 2004/05/14 11:49:40 cognet Exp $
 ARMFPE		opt_global.h
 CPU_SA1100	opt_global.h
 CPU_SA1110	opt_global.h

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_ttold.c,v 1.13 2004/06/21 22:57:10 phk Exp $");
 
 #ifndef BURN_BRIDGES
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkiconv/xlat16_iconv.c,v 1.3 2004/03/14 05:14:00 bde Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-arm.h,v 1.1 2004/05/14 12:26:51 cognet Exp $ */
 /* opensslconf.h */
 
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */

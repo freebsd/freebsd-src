@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/if.c,v 1.14 2004/08/14 08:36:35 phk Exp $
  */
 
 #include "defs.h"
@@ -35,12 +35,12 @@
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/if.c,v 1.14 2004/08/14 08:36:35 phk Exp $");
 #else
 __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/if.c,v 1.14 2004/08/14 08:36:35 phk Exp $"
 struct interface *ifnet;		/* all interfaces */
 
 /* hash table for all interfaces, big enough to tolerate ridiculous
