@@ -965,6 +965,28 @@ diskLabel(Device *dev)
 		    clear_wins();
 		    break;
 		}
+
+#ifdef __alpha__
+		/*
+		 * The boot blocks require that the root partition is at the
+		 * begining of the disk and cannot boot otherwise. 
+		 * Warn Alpha users if they are about to shoot themselves in
+		 * the foot in this way.
+		 *
+		 * Since partitions may not start precisely at offset 0 we
+		 * check for a "close to 0" instead. :-(
+		 */
+		if ((flags & CHUNK_IS_ROOT) && (tmp->offset > 1024)) {
+		    msgConfirm("Your root partition (a) does not seem to be the first\n"
+			       "partition. The Alpha can only boot from the first partition,\n"
+			       "so it is unlikely that your current disk layout will\n"
+			       "be bootable boot after installation.\n"
+			       "\n"
+			       "Please allocate the root partition before allocating\n"
+			       "any others.\n");
+		}
+#endif	/* alpha */
+
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
@@ -977,7 +999,7 @@ diskLabel(Device *dev)
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
-                /*** This is where we assign focus to new label so it shows ***/
+                /* This is where we assign focus to new label so it shows. */
                 {
                     int i;
 		    label_focus = -1;
