@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/md5.h>
 
 #include <sys/diskmbr.h>
 #include <sys/sbuf.h>
@@ -81,6 +82,7 @@ struct g_mbr_softc {
 	int		type [NDOSPART];
 	u_int		sectorsize;
 	u_char		sec0[512];
+	u_char		slicesum[16];
 };
 
 static int
@@ -89,6 +91,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 	int i, error;
 	off_t l[NDOSPART];
 	struct dos_partition ndp[NDOSPART], *dp;
+	MD5_CTX md5sum;
 
 	g_topology_assert();
 
@@ -149,6 +152,15 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		    ms->sectorsize, "%ss%d", gp->name, 1 + i);
 	}
 	bcopy(sec0, ms->sec0, 512);
+
+	/*
+	 * Calculate MD5 from the first sector and use it for avoiding
+	 * recursive slices creation.
+	 */
+	MD5Init(&md5sum);
+	MD5Update(&md5sum, ms->sec0, sizeof(ms->sec0));
+	MD5Final(ms->slicesum, &md5sum);
+
 	return (0);
 }
 
@@ -202,6 +214,9 @@ g_mbr_start(struct bio *bp)
 		if (g_handleattr_off_t(bp, "MBR::offset",
 		    gsp->slices[idx].offset))
 			return (1);
+		if (g_handleattr(bp, "MBR::slicesum", mp->slicesum,
+		    sizeof(mp->slicesum)))
+			return (1);
 	}
 
 	return (0);
@@ -234,6 +249,8 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	struct g_mbr_softc *ms;
 	u_int fwsectors, sectorsize;
 	u_char *buf;
+	u_char hash[16];
+	MD5_CTX md5sum;
 
 	g_trace(G_T_TOPOLOGY, "mbr_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -242,13 +259,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		return (NULL);
 	g_topology_unlock();
 	do {
-		/* XXX: phk think about this! */
-		if (gp->rank != 2 &&
-		    strcmp(pp->geom->class->name, "LABEL") != 0 &&
-		    strcmp(pp->geom->class->name, "MIRROR") != 0 &&
-		    strcmp(pp->geom->class->name, "NOP") != 0) {
-			break;
-		}
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error)
 			fwsectors = 17;
@@ -259,6 +269,22 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
+
+		/*
+		 * Calculate MD5 from the first sector and use it for avoiding
+		 * recursive slices creation.
+		 */
+		bcopy(buf, ms->sec0, 512);
+		MD5Init(&md5sum);
+		MD5Update(&md5sum, ms->sec0, sizeof(ms->sec0));
+		MD5Final(ms->slicesum, &md5sum);
+
+		error = g_getattr("MBR::slicesum", cp, &hash);
+		if (!error && !bcmp(ms->slicesum, hash, sizeof(hash))) {
+			g_free(buf);
+			break;
+		}
+
 		g_topology_lock();
 		g_mbr_modify(gp, ms, buf);
 		g_topology_unlock();
