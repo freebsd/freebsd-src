@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002, 2003 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +27,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <rune.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 
 int
 wctob(wint_t c)
 {
-	char cc;
+	char buf[MB_LEN_MAX];
 
-	if (c == WEOF || sputrune(c, &cc, 1, NULL) != 1)
+	/*
+	 * We pass NULL as the state pointer to wcrtomb() because we don't
+	 * support state-dependent encodings and don't want to waste time
+	 * creating a zeroed mbstate_t that will not be used.
+	 */
+	if (c == WEOF || wcrtomb(buf, c, NULL) != 1)
 		return (EOF);
-	return ((unsigned char)cc);
+	return ((unsigned char)*buf);
 }
