@@ -1307,7 +1307,7 @@ mac_execve_transition(struct ucred *old, struct ucred *new, struct vnode *vp,
 		return;
 
 	MAC_PERFORM(execve_transition, old, new, vp, &vp->v_label,
-	    interpvnodelabel, imgp);
+	    interpvnodelabel, imgp, imgp->execlabel);
 }
 
 int
@@ -1323,7 +1323,7 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp,
 
 	result = 0;
 	MAC_BOOLEAN(execve_will_transition, ||, old, vp, &vp->v_label,
-	    interpvnodelabel, imgp);
+	    interpvnodelabel, imgp, imgp->execlabel);
 
 	return (result);
 }
@@ -1428,7 +1428,8 @@ mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	if (!mac_enforce_process && !mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label, imgp);
+	MAC_CHECK(check_vnode_exec, cred, vp, &vp->v_label, imgp,
+	    imgp->execlabel);
 
 	return (error);
 }
