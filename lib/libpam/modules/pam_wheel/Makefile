@@ -25,7 +25,6 @@
 # $FreeBSD$
 
 LIB=		pam_wheel
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_wheel.c
 MAN=		pam_wheel.8
 

@@ -25,7 +25,6 @@
 # $FreeBSD$
 
 LIB=		pam_nologin
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_nologin.c
 DPADD=		${LIBUTIL}
 LDADD=		-lutil

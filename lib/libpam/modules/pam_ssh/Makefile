@@ -4,7 +4,6 @@
 SSHSRC=	${.CURDIR}/../../../../crypto/openssh
 
 LIB=		pam_ssh
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_ssh.c
 CFLAGS+=	-I${SSHSRC}
 DPADD=		${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL}
