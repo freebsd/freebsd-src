@@ -932,6 +932,13 @@ struct linux_cdrom_subchnl
 	union linux_cdrom_addr cdsc_reladdr;
 };
 
+struct l_cdrom_read_audio {
+	union linux_cdrom_addr addr;
+	u_char		addr_format;
+	l_int		nframes;
+	u_char		*buf;
+};
+
 struct l_dvd_layer {
 	u_char		book_version:4;
 	u_char		book_type:4;
@@ -1066,6 +1073,18 @@ bsd_to_linux_msf_lba(u_char af, union msf_lba *bp, union linux_cdrom_addr *lp)
 		lp->msf.minute = bp->msf.minute;
 		lp->msf.second = bp->msf.second;
 		lp->msf.frame = bp->msf.frame;
+	}
+}
+
+static void
+linux_to_bsd_msf_lba(u_char af, union linux_cdrom_addr *lp, union msf_lba *bp)
+{
+	if (af == CD_LBA_FORMAT)
+		bp->lba = lp->lba;
+	else {
+		bp->msf.minute = lp->msf.minute;
+		bp->msf.second = lp->msf.second;
+		bp->msf.frame = lp->msf.frame;
 	}
 }
 
@@ -1377,7 +1396,24 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 
 	/* LINUX_CDROMREADMODE2 */
 	/* LINUX_CDROMREADMODE1 */
-	/* LINUX_CDROMREADAUDIO */
+
+	case LINUX_CDROMREADAUDIO: {
+		struct l_cdrom_read_audio lra;
+		struct ioc_read_audio bra;
+
+		error = copyin((caddr_t)args->arg, &lra, sizeof(lra));
+		if (error)
+			break;
+		bra.address_format = lra.addr_format;
+		linux_to_bsd_msf_lba(bra.address_format, &lra.addr,
+		    &bra.address);
+		bra.nframes = lra.nframes;
+		bra.buffer = lra.buf;
+		error = fo_ioctl(fp, CDIOCREADAUDIO, (caddr_t)&bra,
+		    td->td_ucred, td);
+		break;
+	}
+
 	/* LINUX_CDROMEJECT_SW */
 	/* LINUX_CDROMMULTISESSION */
 	/* LINUX_CDROM_GET_UPC */
