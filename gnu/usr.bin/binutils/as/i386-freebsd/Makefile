@@ -1,11 +1,8 @@
 #
-# $Id: Makefile,v 1.1 1998/05/04 22:05:44 jb Exp $
+# $Id: Makefile,v 1.2 1998/05/05 08:57:11 jb Exp $
 #
 
-.include "../Makefile.inc0"
-
-# Get the BINDIR for this host:
-.include "../../Makefile.inc"
+.include "${.CURDIR}/../Makefile.inc0"
 
 .if	${MACHINE_ARCH} == "i386"
 PROG=		as
