@@ -1,4 +1,4 @@
-# $NetBSD: rc.subr,v 1.49 2002/05/21 12:31:01 lukem Exp $
+# $NetBSD: rc.subr,v 1.60 2003/07/26 05:13:47 lukem Exp $
 # $FreeBSD$
 #
 # Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
@@ -815,7 +815,7 @@ run_rc_script()
 	*.sh)				# run in current shell
 		set $_arg ; . $_file
 		;;
-	*[~#]|*.OLD|*.orig)		# scratch file; skip
+	*[~#]|*.OLD|*.orig|*,v)		# scratch file; skip
 		warn "Ignoring scratch file $_file"
 		;;
 	*)				# run in subshell
