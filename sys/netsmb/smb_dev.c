@@ -120,9 +120,10 @@ nsmb_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
 }
 
 static int
-nsmb_dev_open(dev_t dev, int oflags, int devtype, struct proc *p)
+nsmb_dev_open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	struct smb_dev *sdp;
+	struct proc *p = td->td_proc;
 	struct ucred *cred = p->p_ucred;
 	int s;
 
@@ -154,7 +155,7 @@ nsmb_dev_open(dev_t dev, int oflags, int devtype, struct proc *p)
 }
 
 static int
-nsmb_dev_close(dev_t dev, int flag, int fmt, struct proc *p)
+nsmb_dev_close(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
@@ -168,7 +169,7 @@ nsmb_dev_close(dev_t dev, int flag, int fmt, struct proc *p)
 		splx(s);
 		return EBADF;
 	}
-	smb_makescred(&scred, p, NULL);
+	smb_makescred(&scred, td, NULL);
 	ssp = sdp->sd_share;
 	if (ssp != NULL)
 		smb_share_rele(ssp, &scred);
@@ -188,7 +189,7 @@ nsmb_dev_close(dev_t dev, int flag, int fmt, struct proc *p)
 
 
 static int
-nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
@@ -200,7 +201,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if ((sdp->sd_flags & NSMBFL_OPEN) == 0)
 		return EBADF;
 
-	smb_makescred(&scred, p, NULL);
+	smb_makescred(&scred, td, NULL);
 	switch (cmd) {
 	    case SMBIOC_OPENSESSION:
 		if (sdp->sd_vc)
@@ -210,7 +211,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (error)
 			break;
 		sdp->sd_vc = vcp;
-		smb_vc_unlock(vcp, 0, p);
+		smb_vc_unlock(vcp, 0, td);
 		sdp->sd_level = SMBL_VC;
 		break;
 	    case SMBIOC_OPENSHARE:
@@ -223,7 +224,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (error)
 			break;
 		sdp->sd_share = ssp;
-		smb_share_unlock(ssp, 0, p);
+		smb_share_unlock(ssp, 0, td);
 		sdp->sd_level = SMBL_SHARE;
 		break;
 	    case SMBIOC_REQUEST:
@@ -252,7 +253,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 					break;
 				if (on && (vcp->obj.co_flags & SMBV_PERMANENT) == 0) {
 					vcp->obj.co_flags |= SMBV_PERMANENT;
-					smb_vc_ref(vcp, p);
+					smb_vc_ref(vcp);
 				} else if (!on && (vcp->obj.co_flags & SMBV_PERMANENT)) {
 					vcp->obj.co_flags &= ~SMBV_PERMANENT;
 					smb_vc_rele(vcp, &scred);
@@ -270,7 +271,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 					break;
 				if (on && (ssp->obj.co_flags & SMBS_PERMANENT) == 0) {
 					ssp->obj.co_flags |= SMBS_PERMANENT;
-					smb_share_ref(ssp, p);
+					smb_share_ref(ssp);
 				} else if (!on && (ssp->obj.co_flags & SMBS_PERMANENT)) {
 					ssp->obj.co_flags &= ~SMBS_PERMANENT;
 					smb_share_rele(ssp, &scred);
@@ -293,12 +294,12 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			break;
 		if (vcp) {
 			sdp->sd_vc = vcp;
-			smb_vc_unlock(vcp, 0, p);
+			smb_vc_unlock(vcp, 0, td);
 			sdp->sd_level = SMBL_VC;
 		}
 		if (ssp) {
 			sdp->sd_share = ssp;
-			smb_share_unlock(ssp, 0, p);
+			smb_share_unlock(ssp, 0, td);
 			sdp->sd_level = SMBL_SHARE;
 		}
 		break;
@@ -317,7 +318,7 @@ nsmb_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		auio.uio_resid = rwrq->ioc_cnt;
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_rw = (cmd == SMBIOC_READ) ? UIO_READ : UIO_WRITE;
-		auio.uio_procp = p;
+		auio.uio_td = td;
 		if (cmd == SMBIOC_READ)
 			error = smb_read(ssp, rwrq->ioc_fh, &auio, &scred);
 		else
@@ -344,7 +345,7 @@ nsmb_dev_write(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-nsmb_dev_poll(dev_t dev, int events, struct proc *p)
+nsmb_dev_poll(dev_t dev, int events, struct thread *td)
 {
 	return ENODEV;
 }
@@ -411,7 +412,8 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	dev_t dev;
 	int error;
 
-	if ((fp = nsmb_getfp(scred->scr_p->p_fd, fd, FREAD | FWRITE)) == NULL)
+	fp = nsmb_getfp(scred->scr_td->td_proc->p_fd, fd, FREAD | FWRITE);
+	if (fp == NULL)
 		return EBADF;
 	vp = (struct vnode*)fp->f_data;
 	if (vp == NULL)
