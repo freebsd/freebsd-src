@@ -582,10 +582,8 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	int error, sector, size;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
-	if (error)
+	if (error || *vpp != NULL)
 		return (error);
-	if (*vpp != NULL)
-		return (0);
 
 	td = curthread;
 	udfmp = VFSTOUDFFS(mp);
@@ -605,28 +603,10 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
 
-	/*
-	 * Exclusively lock the vnode before adding to hash. Note, that we
-	 * must not release nor downgrade the lock (despite flags argument
-	 * says) till it is fully initialized.
-	 */
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
-
-	/*
-	 * Atomicaly (in terms of vfs_hash operations) check the hash for
-	 * duplicate of vnode being created and add it to the hash. If a
-	 * duplicate vnode was found, it will be vget()ed from hash for us.
-	 */
-	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	if (error || *vpp != NULL) {
 		vput(vp);
-		*vpp = NULL;
 		return (error);
-	}
-
-	/* We lost the race, then throw away our vnode and return existing */
-	if (*vpp != NULL) {
-		vput(vp);
-		return (0);
 	}
 
 	/*
