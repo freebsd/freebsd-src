@@ -44,14 +44,8 @@ union nfsfh;
 typedef union nfsfh nfsfh_t;
 
 #include <sys/ucred.h>
-#define mount __kern_mount
 #include <sys/mount.h>
-#undef mount
 #include <nfs/rpcv2.h>
-#define KERNEL
-#define nfs_init __kern_nfs_init
 #include <nfs/nfs.h>
-#undef nfs_init
-#undef KERNEL
 
 #include <ufs/ufs/ufsmount.h>
