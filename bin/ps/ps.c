@@ -58,7 +58,6 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
-#include <langinfo.h>
 #include <limits.h>
 #include <locale.h>
 #include <nlist.h>
@@ -83,7 +82,6 @@ int	rawcpu;			/* -C */
 int	sumrusage;		/* -S */
 int	termwidth;		/* width of screen (0 == infinity) */
 int	totwidth;		/* calculated width of requested variables */
-int	use_ampm;		/* use AM/PM time */
 
 static int needuser, needcomm, needenv;
 #if defined(LAZY_PS)
@@ -131,7 +129,6 @@ main(argc, argv)
 	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
-	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
 
 	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
