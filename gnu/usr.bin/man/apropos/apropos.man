@@ -34,7 +34,7 @@ standard output.
 displays only complete word matches. 
 .Pp
 .Ar keyword
-really is a regular expression, please read
+really is an extended regular expression, please read
 .Xr grep 1
 manual page for more information about its format.
 .Sh DIAGNOSTICS
