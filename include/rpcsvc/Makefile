@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.20 1998/01/16 11:51:19 bde Exp $
+#	$Id: Makefile,v 1.21 1998/01/19 17:19:09 wpaul Exp $
 
 .SUFFIXES: .x
 
@@ -25,6 +25,8 @@ beforeinstall:
 		${XFILES:S;^;${.CURDIR}/;} \
 		${HDRS} \
 		${DESTDIR}/usr/include/rpcsvc
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 key_prot.h \
+		${DESTDIR}/usr/include/rpc
 
 .x.h:
 	${RPCCOM} -h ${.IMPSRC} -o ${.TARGET}
