@@ -1723,10 +1723,14 @@ fdc_attach(device_t dev)
 	}
 	if (!(fdc->flags & FDC_NODMA)) {
 		error = isa_dma_acquire(fdc->dmachan);
+		if (!error) {
+			error = isa_dma_init(fdc->dmachan,
+			    MAX_BYTES_PER_CYL, M_WAITOK);
+			if (error)
+				isa_dma_release(fdc->dmachan);
+		}
 		if (error)
 			return (error);
-		/* XXX no error return */
-		isa_dmainit(fdc->dmachan, MAX_BYTES_PER_CYL);
 	}
 	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_NEEDS_RESET;
