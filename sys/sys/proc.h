@@ -328,7 +328,6 @@ struct thread {
  * To change these you MUST have the scheduler lock.
  */
 #define	TDF_BORROWING	0x00000001 /* Thread is borrowing pri from another. */
-#define	TDF_UNUSED0	0x00000001 /* --available -- */
 #define	TDF_INPANIC	0x00000002 /* Caused a panic, let it drive crashdump. */
 #define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
