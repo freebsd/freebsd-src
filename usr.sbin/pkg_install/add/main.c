@@ -200,11 +200,23 @@ getpackagesite(void)
     strcat(sitepath, u.machine);
 
     reldate = getosreldate();
-    if (reldate == 500998)
-	strcat(sitepath, "/packages-5.0-release");
-    else if (reldate >= 500999)
+    if (reldate == 410000)
+	strcat(sitepath, "/packages-4.1-release");
+    else if (reldate == 420000)
+	strcat(sitepath, "/packages-4.2-release");
+    else if (reldate == 430000)
+	strcat(sitepath, "/packages-4.3-release");
+    else if (reldate == 440000)
+	strcat(sitepath, "/packages-4.4-release");
+    else if (reldate == 450000)
+	strcat(sitepath, "/packages-4.5-release");
+    else if (300000 <= reldate && reldate <= 399000)
+	strcat(sitepath, "/packages-3-stable");
+    else if (400000 <= reldate && reldate <= 499000)
+	strcat(sitepath, "/packages-4-stable");
+    else if (510000 <= reldate && reldate <= 599000)	/* get real values!! */
 	strcat(sitepath, "/packages-5-stable");
-    else if (reldate >= 500000)
+    else
 	strcat(sitepath, "/packages-current");
 
     strcat(sitepath, "/Latest/");
