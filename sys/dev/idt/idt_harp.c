@@ -762,6 +762,5 @@ idt_receive(nicstar_reg_t * idt, struct mbuf * m, int vpi, int vci)
 	/*
 	 * Schedule callback
 	 */
-	if (! netisr_queue(NETISR_ATM, m))
-		KB_FREEALL(m);
+	netisr_queue(NETISR_ATM, m);	/* mbuf is free'd on failure. */
 }
