@@ -77,7 +77,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#include <netinet/ipprotosw.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -138,17 +137,17 @@ encap4_input(m, va_alist)
 	int off, proto;
 	struct ip *ip;
 	struct sockaddr_in s, d;
-	const struct ipprotosw *psw;
+	const struct protosw *psw;
 	struct encaptab *ep, *match;
 	va_list ap;
 	int prio, matchprio;
 
 	va_start(ap, m);
 	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
 	va_end(ap);
 
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 
 	bzero(&s, sizeof(s));
 	s.sin_family = AF_INET;
@@ -205,17 +204,23 @@ encap4_input(m, va_alist)
 
 	if (match) {
 		/* found a match, "match" has the best one */
-		psw = (const struct ipprotosw *)match->psw;
+		psw = match->psw;
 		if (psw && psw->pr_input) {
 			encap_fillarg(m, match);
-			(*psw->pr_input)(m, off, proto);
+			(*psw->pr_input)(m, off);
 		} else
 			m_freem(m);
 		return;
 	}
 
+	/* for backward compatibility - messy... */
+	if (proto == IPPROTO_IPV4) {
+		ipip_input(m, off);
+		return;
+	}
+
 	/* last resort: inject to raw socket */
-	rip_input(m, off, proto);
+	rip_input(m, off);
 }
 #endif
 

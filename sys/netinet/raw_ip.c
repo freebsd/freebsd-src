@@ -112,14 +112,15 @@ static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
  * mbuf chain.
  */
 void
-rip_input(m, off, proto)
+rip_input(m, off)
 	struct mbuf *m;
-	int off, proto;
+	int off;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct inpcb *inp;
 	struct inpcb *last = 0;
 	struct mbuf *opts = 0;
+	int proto = ip->ip_p;
 
 	ripsrc.sin_addr = ip->ip_src;
 	LIST_FOREACH(inp, &ripcb, inp_list) {
