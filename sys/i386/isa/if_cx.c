@@ -92,6 +92,8 @@ static void cxup (cx_chan_t *c);
 cx_board_t cxboard [NCX];           /* adapter state structures */
 cx_chan_t *cxchan [NCX*NCHAN];      /* unit to channel struct pointer */
 
+extern struct cdevsw cx_cdevsw;
+
 static unsigned short irq_valid_values [] = { 3, 5, 7, 10, 11, 12, 15, 0 };
 static unsigned short drq_valid_values [] = { 5, 6, 7, 0 };
 static unsigned short port_valid_values [] = {
@@ -288,11 +290,7 @@ cxattach (struct isa_device *id)
 		timeout (cxtimeout, 0, hz*5);
 
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
-	{
-	extern struct cdevsw cx_cdevsw;
-
-	make_dev(&cx_cdevsw, 0, 0, 0, 0600, "cx");
-	}
+	make_dev(&cx_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "cx%d", unit);
 	return (1);
 }
 
