@@ -380,7 +380,7 @@ main(argc, argv)
 	...
 	sp = getservbyname("login", "tcp");
 	if (sp == NULL) {
-		fprintf(stderr, "rlogin: tcp/login: unknown service\en");
+		fprintf(stderr, "rlogin: login/tcp: unknown service\en");
 		exit(1);
 	}
 	hp = gethostbyname(argv[1]);
