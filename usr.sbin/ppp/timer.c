@@ -62,6 +62,7 @@ timer_Stop(struct pppTimer *tp)
 void
 timer_Start(struct pppTimer *tp)
 {
+  struct itimerval itimer;
   struct pppTimer *t, *pt;
   u_long ticks = 0;
   int omask;
@@ -76,6 +77,12 @@ timer_Start(struct pppTimer *tp)
     sigsetmask(omask);
     return;
   }
+
+  /* Adjust our first delta so that it reflects what's really happening */
+  if (TimerList && getitimer(ITIMER_REAL, &itimer) == 0)
+    TimerList->rest = itimer.it_value.tv_sec * SECTICKS +
+                      itimer.it_value.tv_usec / TICKUNIT;
+
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
     if (ticks + t->rest >= tp->load)
@@ -99,7 +106,7 @@ timer_Start(struct pppTimer *tp)
     pt->next = tp;
   } else {
     TimerList = tp;
-    timer_InitService(0);	/* Start the Timer Service */
+    timer_InitService(t != NULL);	/* [re]Start the Timer Service */
   }
   if (t)
     t->rest -= tp->rest;
