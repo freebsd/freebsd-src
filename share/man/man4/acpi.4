@@ -99,6 +99,8 @@ Enables loading of a custom ACPI DSDT.
 Name of the DSDT table to load, if loading is enabled.
 .It Va debug.acpi.disabled
 Selectively disables portions of ACPI for debugging purposes.
+.It Va debug.acpi.quirks
+Override any automatic quirks completely.
 .It Va hint.acpi.0.disabled
 Set this to 1 to disable all of ACPI.
 If ACPI has been disabled on your system due to a blacklist entry for your
@@ -107,13 +109,8 @@ BIOS, you can set this to 0 to re-enable ACPI for testing.
 Delay in milliseconds to wait for the EC to respond.
 Try increasing this number if you get the error
 .Qq Li AE_NO_HARDWARE_RESPONSE .
-.It Va hw.acpi.osname
-Some systems' ASL may have problems because they look for names
-of Microsoft operating systems.
-This tunable overrides the value of the
-.Qq Li \e_OS
-object from its default of
-.Qq Li FreeBSD .
+.It Va hw.acpi.host_mem_start
+Override the assumed memory starting address for PCI host bridges.
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.reset_video
