@@ -31,7 +31,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" @(#)pcvt.4, 3.20, Last Edit-Date: [Sun Apr  2 18:23:39 1995]
-.\"	$Id: pcvt.4,v 1.10 1998/03/12 07:30:35 charnier Exp $
+.\"	$Id: pcvt.4,v 1.11 1998/08/26 02:46:24 jkoshy Exp $
 .\"
 .\" Man page pcvt(4) created after pcvt_ioctl.h on 13-Jan-93
 .\" by Joerg Wunsch
@@ -65,17 +65,7 @@ see
 below
 .Pc
 .Pp
-device
-.Em vt0
-at
-.Em isa?
-port
-.Dq Em IO_KBD
-.Em tty
-irq
-.Em 1
-vector
-.Em pcrint
+.Cd "device vt0 at isa? port IO_KBD tty irq 1"
 .Sh DESCRIPTION
 .Ss Overview
 The
