@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.4 1996/03/02 19:37:58 peter Exp $
+ *  $Id: linux_signal.c,v 1.5 1996/03/02 21:00:11 peter Exp $
  */
 
 #include <sys/param.h>
@@ -267,11 +267,15 @@ linux_sigpending(struct proc *p, struct linux_sigpending_args *args,int *retval)
     return copyout(&linux_sig, args->mask, sizeof(linux_sig));
 }
 
+/*
+ * Linux has two extra args, restart and oldmask.  We dont use these,
+ * but it seems that "restart" is actually a context pointer that
+ * enables the signal to happen with a different register set.
+ */
 int
 linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args,int *retval)
 {
     struct sigsuspend_args tmp;
-    int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): sigsuspend(%08x)\n", p->p_pid, args->mask);
@@ -284,7 +288,6 @@ int
 linux_pause(struct proc *p, struct linux_pause_args *args,int *retval)
 {
     struct sigsuspend_args tmp;
-    int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): pause()\n", p->p_pid);
