@@ -43,6 +43,7 @@
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
