@@ -225,22 +225,17 @@ static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 static void	swap_pager_init(void);
 static void	swap_pager_unswapped(vm_page_t);
-static void	swap_pager_strategy(vm_object_t, struct bio *);
 static void	swap_pager_swapoff(struct swdevt *sp, int *sw_used);
 
 struct pagerops swappagerops = {
-	swap_pager_init,	/* early system initialization of pager	*/
-	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
-	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
-	swap_pager_getpages,	/* pagein				*/
-	swap_pager_putpages,	/* pageout				*/
-	swap_pager_haspage,	/* get backing store status for page	*/
-	swap_pager_unswapped,	/* remove swap related to page		*/
-	swap_pager_strategy	/* pager strategy call			*/
+	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
+	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
+	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
+	.pgo_getpages =	swap_pager_getpages,	/* pagein				*/
+	.pgo_putpages =	swap_pager_putpages,	/* pageout				*/
+	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page	*/
+	.pgo_pageunswapped = swap_pager_unswapped,	/* remove swap related to page		*/
 };
-
-static struct buf *getchainbuf(struct bio *bp, struct vnode *vp, int flags);
-static void flushchainbuf(struct buf *nbp);
 
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
@@ -947,154 +942,6 @@ swap_pager_unswapped(m)
 }
 
 /*
- * SWAP_PAGER_STRATEGY() - read, write, free blocks
- *
- *	This implements the vm_pager_strategy() interface to swap and allows
- *	other parts of the system to directly access swap as backing store
- *	through vm_objects of type OBJT_SWAP.  This is intended to be a 
- *	cacheless interface ( i.e. caching occurs at higher levels ).
- *	Therefore we do not maintain any resident pages.  All I/O goes
- *	directly to and from the swap device.
- *	
- *	Note that b_blkno is scaled for PAGE_SIZE
- *
- *	We currently attempt to run I/O synchronously or asynchronously as
- *	the caller requests.  This isn't perfect because we loose error
- *	sequencing when we run multiple ops in parallel to satisfy a request.
- *	But this is swap, so we let it all hang out.
- */
-static void	
-swap_pager_strategy(vm_object_t object, struct bio *bp)
-{
-	vm_pindex_t start;
-	int count;
-	int s;
-	char *data;
-	struct buf *nbp = NULL;
-
-	GIANT_REQUIRED;
-
-	/* XXX: KASSERT instead ? */
-	if (bp->bio_bcount & PAGE_MASK) {
-		biofinish(bp, NULL, EINVAL);
-		printf("swap_pager_strategy: bp %p blk %d size %d, not page bounded\n", bp, (int)bp->bio_pblkno, (int)bp->bio_bcount);
-		return;
-	}
-
-	/*
-	 * Clear error indication, initialize page index, count, data pointer.
-	 */
-	bp->bio_error = 0;
-	bp->bio_flags &= ~BIO_ERROR;
-	bp->bio_resid = bp->bio_bcount;
-	bp->bio_children = 0;
-
-	start = bp->bio_pblkno;
-	count = howmany(bp->bio_bcount, PAGE_SIZE);
-	data = bp->bio_data;
-
-	s = splvm();
-
-	/*
-	 * Deal with BIO_DELETE
-	 */
-	if (bp->bio_cmd == BIO_DELETE) {
-		/*
-		 * FREE PAGE(s) - destroy underlying swap that is no longer
-		 *		  needed.
-		 */
-		swp_pager_meta_free(object, start, count);
-		splx(s);
-		bp->bio_resid = 0;
-		biodone(bp);
-		return;
-	}
-
-	/*
-	 * Execute read or write
-	 */
-	while (count > 0) {
-		daddr_t blk;
-
-		/*
-		 * Obtain block.  If block not found and writing, allocate a
-		 * new block and build it into the object.
-		 */
-
-		blk = swp_pager_meta_ctl(object, start, 0);
-		if ((blk == SWAPBLK_NONE) && (bp->bio_cmd == BIO_WRITE)) {
-			blk = swp_pager_getswapspace(1);
-			if (blk == SWAPBLK_NONE) {
-				bp->bio_error = ENOMEM;
-				bp->bio_flags |= BIO_ERROR;
-				break;
-			}
-			swp_pager_meta_build(object, start, blk);
-		}
-			
-		/*
-		 * Do we have to flush our current collection?  Yes if:
-		 *
-		 *	- no swap block at this index
-		 *	- swap block is not contiguous
-		 */
-		if (nbp && (nbp->b_blkno + btoc(nbp->b_bcount) != blk)) {
-			splx(s);
-			flushchainbuf(nbp);
-			s = splvm();
-			nbp = NULL;
-		}
-
-		/*
-		 * Add new swapblk to nbp, instantiating nbp if necessary.
-		 * Zero-fill reads are able to take a shortcut.
-		 */
-		if (blk == SWAPBLK_NONE) {
-			/*
-			 * We can only get here if we are reading.  Since
-			 * we are at splvm() we can safely modify b_resid,
-			 * even if chain ops are in progress.
-			 */
-			bzero(data, PAGE_SIZE);
-			bp->bio_resid -= PAGE_SIZE;
-		} else {
-			if (nbp == NULL) {
-				nbp = getchainbuf(bp, swapdev_vp, B_ASYNC);
-				nbp->b_blkno = blk;
-				nbp->b_bcount = 0;
-				nbp->b_data = data;
-			}
-			nbp->b_bcount += PAGE_SIZE;
-		}
-		--count;
-		++start;
-		data += PAGE_SIZE;
-	}
-
-	/*
-	 *  Flush out last buffer
-	 */
-	splx(s);
-
-	if (nbp) {
-		flushchainbuf(nbp);
-		/* nbp = NULL; */
-	}
-	/*
-	 * Wait for completion.
-	 */
-	while (bp->bio_children > 0) {
-		bp->bio_flags |= BIO_FLAG1;
-		tsleep(bp, PRIBIO + 4, "bpchain", 0);
-	}
-	if (bp->bio_resid != 0 && !(bp->bio_flags & BIO_ERROR)) {
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_error = EINVAL;
-	}
-	biodone(bp);
-}
-
-/*
  * SWAP_PAGER_GETPAGES() - bring pages in from swap
  *
  *	Attempt to retrieve (m, count) pages from backing store, but make
@@ -1129,12 +976,10 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	mreq = m[reqpage];
 
-	if (mreq->object != object) {
-		panic("swap_pager_getpages: object mismatch %p/%p", 
-		    object, 
-		    mreq->object
-		);
-	}
+	KASSERT(mreq->object == object,
+	    ("swap_pager_getpages: object mismatch %p/%p",
+	    object, mreq->object));
+
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned
 	 * their swapblks.  We require a *contiguous* range that falls entirely
@@ -2194,98 +2039,6 @@ swp_pager_meta_ctl(
  *	chaining is possible.
  */
 
-/*
- *	vm_pager_chain_iodone:
- *
- *	io completion routine for child bp.  Currently we fudge a bit
- *	on dealing with b_resid.   Since users of these routines may issue
- *	multiple children simultaneously, sequencing of the error can be lost.
- */
-static void
-vm_pager_chain_iodone(struct buf *nbp)
-{
-	struct bio *bp;
-
-	bp = nbp->b_caller1;
-	if (bp != NULL) {
-		if (nbp->b_ioflags & BIO_ERROR) {
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_error = nbp->b_error;
-		} else if (nbp->b_resid != 0) {
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_error = EINVAL;
-		} else {
-			bp->bio_resid -= nbp->b_bcount;
-		}
-		nbp->b_caller1 = NULL;
-		bp->bio_children--;
-		if (bp->bio_flags & BIO_FLAG1) {
-			bp->bio_flags &= ~BIO_FLAG1;
-			wakeup(bp);
-		}
-	}
-	nbp->b_flags |= B_DONE;
-	nbp->b_flags &= ~B_ASYNC;
-	relpbuf(nbp, NULL);
-}
-
-/*
- *	getchainbuf:
- *
- *	Obtain a physical buffer and chain it to its parent buffer.  When
- *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
- *	automatically propagated to the parent
- */
-static struct buf *
-getchainbuf(struct bio *bp, struct vnode *vp, int flags)
-{
-	struct buf *nbp;
-
-	GIANT_REQUIRED;
-	nbp = getpbuf(NULL);
-
-	nbp->b_caller1 = bp;
-	bp->bio_children++;
-
-	while (bp->bio_children > 4) {
-		bp->bio_flags |= BIO_FLAG1;
-		tsleep(bp, PRIBIO + 4, "bpchain", 0);
-	}
-
-	nbp->b_iocmd = bp->bio_cmd;
-	nbp->b_ioflags = 0;
-	nbp->b_flags = flags;
-	nbp->b_rcred = crhold(thread0.td_ucred);
-	nbp->b_wcred = crhold(thread0.td_ucred);
-	nbp->b_iodone = vm_pager_chain_iodone;
-
-	if (vp)
-		pbgetvp(vp, nbp);
-	return (nbp);
-}
-
-static void
-flushchainbuf(struct buf *nbp)
-{
-	GIANT_REQUIRED;
-	if (nbp->b_bcount == 0) {
-		bufdone(nbp);
-		return;
-	}
-	if (nbp->b_iocmd == BIO_READ) {
-		++cnt.v_swapin;
-		cnt.v_swappgsin += btoc(nbp->b_bcount);
-	} else {
-		++cnt.v_swapout;
-		cnt.v_swappgsout += btoc(nbp->b_bcount);
-	}
-	nbp->b_bufsize = nbp->b_bcount;
-	if (nbp->b_iocmd == BIO_WRITE)
-		nbp->b_dirtyend = nbp->b_bcount;
-	BUF_KERNPROC(nbp);
-	VOP_STRATEGY(nbp->b_vp, nbp);
-}
-
 
 /*
  *	swapdev_strategy:
@@ -2343,6 +2096,7 @@ swapdev_strategy(ap)
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);
+	bp->b_flags |= B_KEEPGIANT;
 	if (bp->b_vp->v_type == VCHR)
 		VOP_SPECSTRATEGY(bp->b_vp, bp);
 	else
