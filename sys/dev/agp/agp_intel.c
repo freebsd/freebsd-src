@@ -111,6 +111,9 @@ agp_intel_match(device_t dev)
 
 	case 0x25788086:
 		return ("Intel 82875P host to AGP bridge");
+
+	case 0x25608086: /* i845G */
+		return ("Intel 82845G host to AGP bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x8086)
@@ -236,6 +239,7 @@ agp_intel_attach(device_t dev)
 	case 0x25318086: /* i860 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
+	case 0x25608086: /* i845G */
 		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0x00ff, 2);
 		break;
 
@@ -278,6 +282,7 @@ agp_intel_detach(device_t dev)
 				& ~(1 << 1)), 1);
 
 	case 0x1a308086: /* i845 */
+	case 0x25608086: /* i845G */
 	case 0x33408086: /* i855 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
