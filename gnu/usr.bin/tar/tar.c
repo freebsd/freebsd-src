@@ -324,7 +324,7 @@ options (argc, argv)
 
   /* Parse options */
   while ((c = getoldopt (argc, argv,
-	       "-01234567Ab:BcC:df:F:g:GhiIjkK:lL:mMnN:oOpPrRsStT:uUvV:wWxX:yzZ",
+             "-01234567Ab:BcC:df:F:g:GhiI:jkK:lL:mMnN:oOpPrRsStT:uUvV:wWxX:yzZ",
 			 long_options, &ind)) != EOF)
     {
       switch (c)
