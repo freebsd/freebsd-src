@@ -1060,10 +1060,8 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     struct dn_pipe *pipe ;
     u_int64_t len = m->m_pkthdr.len ;
     struct dn_flow_queue *q = NULL ;
-    int s ;
-    int action = fwa->rule->cmd[fwa->rule->act_ofs].opcode;
-
-    s = splimp();
+    int s = splimp();
+    int is_pipe = (fwa->rule->cmd[fwa->rule->act_ofs].opcode == O_PIPE);
 
     pipe_nr &= 0xffff ;
 
@@ -1150,7 +1148,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
      * to schedule it. This involves different actions for fixed-rate or
      * WF2Q queues.
      */
-    if ( action == O_PIPE ) {
+    if (is_pipe) {
 	/*
 	 * Fixed-rate queue: just insert into the ready_heap.
 	 */
