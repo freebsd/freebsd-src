@@ -33,21 +33,8 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.18 1999/01/15 06:00:24 grog Exp grog $
+ * $Id: vinumvar.h,v 1.4.2.1 1999/01/25 04:17:26 grog Exp $
  */
-
-/* #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
-   #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
-   XXX
- */
-
-#if VINUMDEBUG
-/* gdb can't find our global pointers in an LKM, so use this kludge to
- * point to them locally.  */
-#define BROKEN_GDB struct _vinum_conf *VC = &vinum_conf
-#else
-#define BROKEN_GDB
-#endif
 
 #include <sys/time.h>
 #include "vinumstate.h"
@@ -60,7 +47,6 @@
 enum constants {
     VINUM_HEADER = 512,					    /* size of header on disk */
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
-    /* XXX Do we still need this? */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
     CDEV_MAJOR = 91,					    /* major number for character device */
@@ -300,7 +286,6 @@ struct vinum_label {
 
 struct vinum_hdr {
     long long magic;					    /* we're long on magic numbers */
-    /* XXX Get these right for big-endian */
 #define VINUM_MAGIC    22322600044678729LL		    /* should be this */
 #define VINUM_NOMAGIC  22322600044678990LL		    /* becomes this after obliteration */
     int config_length;					    /* size in bytes of each copy of the

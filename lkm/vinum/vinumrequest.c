@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.1.2.1 1999/01/25 04:17:20 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -77,7 +77,6 @@ struct rqinfo *rqip = rqinfo;
 void 
 logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 {
-    BROKEN_GDB;
     int s = splhigh();
 
     vinum_conf.rqipp = &rqip;				    /* XXX for broken gdb */
@@ -113,7 +112,6 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 void 
 vinumstrategy(struct buf *bp)
 {
-    BROKEN_GDB;
     int volno;
     struct volume *vol = NULL;
     struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
@@ -169,7 +167,6 @@ vinumstrategy(struct buf *bp)
 int 
 vinumstart(struct buf *bp, int reviveok)
 {
-    BROKEN_GDB;
     int plexno;
     int maxplex;					    /* maximum number of plexes to handle */
     struct volume *vol;
@@ -419,7 +416,6 @@ bre(struct request *rq,
     daddr_t * diskaddr,
     daddr_t diskend)
 {
-    BROKEN_GDB;
     int sdno;
     struct sd *sd;
     struct rqgroup *rqg;
@@ -575,7 +571,6 @@ enum requeststatus
 build_read_request(struct request *rq,			    /* request */
     int plexindex)
 {							    /* index in the volume's plex table */
-    BROKEN_GDB;
     struct buf *bp;
     daddr_t startaddr;					    /* offset of previous part of transfer */
     daddr_t diskaddr;					    /* offset of current part of transfer */
@@ -646,7 +641,6 @@ build_read_request(struct request *rq,			    /* request */
 enum requeststatus 
 build_write_request(struct request *rq)
 {							    /* request */
-    BROKEN_GDB;
     struct buf *bp;
     daddr_t diskstart;					    /* offset of current part of transfer */
     daddr_t diskend;					    /* and end offset of transfer */
@@ -672,7 +666,6 @@ build_write_request(struct request *rq)
 enum requeststatus 
 build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 {
-    BROKEN_GDB;
     struct sd *sd;					    /* point to subdisk */
     struct volume *vol;
     struct buf *bp;

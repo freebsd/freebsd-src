@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.21 1998/12/30 06:04:31 grog Exp grog $
+ * $Id: vinumio.c,v 1.1.2.1 1999/01/25 04:17:12 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -58,7 +58,6 @@ static int drivecmp(const void *va, const void *vb);
 int
 open_drive(struct drive *drive, struct proc *p, int verbose)
 {
-    BROKEN_GDB;
     struct nameidata nd;
     struct vattr va;
     int error;
@@ -155,7 +154,6 @@ set_drive_parms(struct drive *drive)
 int 
 init_drive(struct drive *drive, int verbose)
 {
-    BROKEN_GDB;
     int error;
 
     if (drive->devicename[0] == '\0') {			    /* no device name yet, default to drive name */
@@ -218,7 +216,6 @@ close_drive(struct drive *drive)
 void 
 remove_drive(int driveno)
 {
-    BROKEN_GDB;
     struct drive *drive = &vinum_conf.drive[driveno];
     long long int nomagic = VINUM_NOMAGIC;		    /* no magic number */
 
@@ -242,7 +239,6 @@ remove_drive(int driveno)
 int
 driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 {
-    BROKEN_GDB;
     int error;
     struct buf *bp;
     char foo[40];
@@ -290,7 +286,6 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 int
 read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 {
-    BROKEN_GDB;
     int error;
     struct buf *bp;
     daddr_t nextbn;
@@ -353,7 +348,6 @@ read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 int 
 write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 {
-    BROKEN_GDB;
     int error;
     struct buf *bp;
     struct uio uio;
@@ -431,7 +425,6 @@ write_drive(struct drive *drive, void *buf, size_t length, off_t offset)
 void 
 drive_io_done(struct buf *bp)
 {
-    BROKEN_GDB;
     wakeup((caddr_t) bp);				    /* Wachet auf! */
     bp->b_flags &= ~B_CALL;				    /* don't do this again */
 }
@@ -453,7 +446,6 @@ drive_io_done(struct buf *bp)
 enum drive_label_info 
 read_drive_label(struct drive *drive, int verbose)
 {
-    BROKEN_GDB;
     int error;
     int result;						    /* result of our search */
     struct vinum_hdr *vhdr;				    /* and as header */
@@ -496,7 +488,6 @@ read_drive_label(struct drive *drive, int verbose)
 struct drive *
 check_drive(char *drivename)
 {
-    BROKEN_GDB;
     int driveno;
     struct drive *drive;
 
@@ -541,7 +532,6 @@ lltoa(long long l, char *s)
 void 
 format_config(char *config, int len)
 {
-    BROKEN_GDB;
     int i;
     int j;
     char *s = config;
@@ -647,7 +637,6 @@ save_config(void)
 void 
 daemon_save_config(void)
 {
-    BROKEN_GDB;
     int error;
     int written_config;					    /* set when we first write the config to disk */
     int driveno;

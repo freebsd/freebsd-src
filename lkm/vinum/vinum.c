@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.23 1999/01/15 05:03:15 grog Exp grog $
+ * $Id: vinum.c,v 1.4.2.1 1999/01/25 04:17:04 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -81,7 +81,6 @@ STATIC int vinum_devsw_installed = 0;
 void
 vinumattach(void *dummy)
 {
-    BROKEN_GDB;
     char *buf;					    /* pointer to temporary buffer */
     struct _ioctl_reply *ioctl_reply;			    /* struct to return */
     struct uio uio;
@@ -147,7 +146,6 @@ vinumattach(void *dummy)
 int 
 vinum_inactive(void)
 {
-    BROKEN_GDB;
     int i;
     int can_do = 1;					    /* assume we can do it */
 
@@ -171,7 +169,6 @@ vinum_inactive(void)
 void 
 free_vinum(int cleardrive)
 {
-    BROKEN_GDB;
     int i;
 
     if (cleardrive) {
@@ -218,7 +215,6 @@ MOD_MISC(vinum);
 STATIC int 
 vinum_load(struct lkm_table *lkmtp, int cmd)
 {
-    BROKEN_GDB;
     vinumattach(NULL);
     return 0;						    /* OK */
 }
@@ -229,7 +225,6 @@ vinum_load(struct lkm_table *lkmtp, int cmd)
 STATIC int 
 vinum_unload(struct lkm_table *lkmtp, int cmd)
 {
-    BROKEN_GDB;
     if (vinum_inactive()) {				    /* is anything open? */
 	struct sync_args dummyarg =
 	{0};
@@ -251,7 +246,6 @@ vinum_unload(struct lkm_table *lkmtp, int cmd)
 int 
 vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-    BROKEN_GDB;
     MOD_DISPATCH(vinum,				    /* module name */
 	lkmtp,						    /* LKM table */
 	cmd,						    /* command */
@@ -269,7 +263,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
     struct sync_args dummyarg =
     {0};
 
-    BROKEN_GDB;
     switch (type) {
     case MOD_LOAD:
 	vinumattach(NULL);
@@ -309,7 +302,6 @@ vinumopen(dev_t dev,
     int fmt,
     struct proc *p)
 {
-    BROKEN_GDB;
     int s;						    /* spl */
     int error;
     unsigned int index;
@@ -418,7 +410,6 @@ vinumclose(dev_t dev,
     int fmt,
     struct proc *p)
 {
-    BROKEN_GDB;
     unsigned int index;
     struct volume *vol;
     struct plex *plex;
@@ -486,7 +477,6 @@ vinumclose(dev_t dev,
 int 
 vinumsize(dev_t dev)
 {
-    BROKEN_GDB;
     struct volume *vol;
     int size;
 

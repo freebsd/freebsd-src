@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.22 1998/12/30 05:07:24 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.1.2.1 1999/01/25 04:17:05 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -90,7 +90,6 @@ struct putchar_arg {
 void 
 throw_rude_remark(int error, char *msg,...)
 {
-    BROKEN_GDB;
     int retval;
     va_list ap;
     char *text;
@@ -143,7 +142,6 @@ int atoi(char *);					    /* no atoi in the kernel */
 int 
 atoi(char *s)
 {							    /* no atoi in the kernel */
-    BROKEN_GDB;
     int r = 0;
     int sign = 1;
 
@@ -161,7 +159,6 @@ atoi(char *s)
 int 
 volume_index(struct volume *vol)
 {
-    BROKEN_GDB;
     int i;
 
     for (i = 0; i < vinum_conf.volumes_used; i++)
@@ -175,7 +172,6 @@ volume_index(struct volume *vol)
 int 
 plex_index(struct plex *plex)
 {
-    BROKEN_GDB;
     int i;
 
     for (i = 0; i < vinum_conf.plexes_used; i++)
@@ -189,7 +185,6 @@ plex_index(struct plex *plex)
 int 
 sd_index(struct sd *sd)
 {
-    BROKEN_GDB;
     int i;
 
     for (i = 0; i < vinum_conf.subdisks_used; i++)
@@ -203,7 +198,6 @@ sd_index(struct sd *sd)
 int 
 drive_index(struct drive *drive)
 {
-    BROKEN_GDB;
     int i;
 
     for (i = 0; i < vinum_conf.drives_used; i++)
@@ -217,7 +211,6 @@ drive_index(struct drive *drive)
 int 
 my_plex(int volno, int plexno)
 {
-    BROKEN_GDB;
     int i;
     struct volume *vol;
 
@@ -233,7 +226,6 @@ my_plex(int volno, int plexno)
 int 
 my_sd(int plexno, int sdno)
 {
-    BROKEN_GDB;
     int i;
     struct plex *plex;
 
@@ -249,7 +241,6 @@ my_sd(int plexno, int sdno)
 void 
 checkkernel(char *op)
 {
-    BROKEN_GDB;
     if (vinum_conf.flags & VF_KERNELOP == 0)
 	throw_rude_remark(EPERM, "Can't perform '%s' from user space", op);
 }
@@ -258,7 +249,6 @@ checkkernel(char *op)
 int 
 give_plex_to_volume(int volno, int plexno)
 {
-    BROKEN_GDB;
     struct volume *vol;
 
     /* XXX It's not an error for the plex to already
@@ -287,7 +277,6 @@ give_plex_to_volume(int volno, int plexno)
 int 
 give_sd_to_plex(int plexno, int sdno)
 {
-    BROKEN_GDB;
     int i;
     struct plex *plex;
     struct sd *sd;
@@ -360,7 +349,6 @@ give_sd_to_plex(int plexno, int sdno)
 static void 
 give_sd_to_drive(int sdno)
 {
-    BROKEN_GDB;
     struct sd *sd;					    /* pointer to subdisk */
     struct drive *drive;				    /* and drive */
     int fe;						    /* index in free list */
@@ -465,7 +453,6 @@ give_sd_to_drive(int sdno)
 int 
 get_empty_drive(void)
 {
-    BROKEN_GDB;
     int driveno;
     struct drive *drive;
 
@@ -498,7 +485,6 @@ get_empty_drive(void)
 int 
 find_drive(const char *name, int create)
 {
-    BROKEN_GDB;
     int driveno;
     struct drive *drive;
 
@@ -532,7 +518,6 @@ find_drive(const char *name, int create)
 int 
 find_drive_by_dev(const char *devname, int create)
 {
-    BROKEN_GDB;
     int driveno;
     struct drive *drive;
 
@@ -562,7 +547,6 @@ find_drive_by_dev(const char *devname, int create)
 int 
 get_empty_sd(void)
 {
-    BROKEN_GDB;
     int sdno;
     struct sd *sd;
 
@@ -591,7 +575,6 @@ get_empty_sd(void)
 void 
 free_drive(struct drive *drive)
 {
-    BROKEN_GDB;
     lockdrive(drive);
     if (drive->vp != NULL)				    /* device open */
 	vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
@@ -609,7 +592,6 @@ free_drive(struct drive *drive)
 int 
 find_subdisk(const char *name, int create)
 {
-    BROKEN_GDB;
     int sdno;
     struct sd *sd;
 
@@ -637,7 +619,6 @@ find_subdisk(const char *name, int create)
 void 
 free_sd(int sdno)
 {
-    BROKEN_GDB;
     struct sd *sd;
     struct drive *drive;
     int fe;						    /* free list entry */
@@ -723,7 +704,6 @@ free_sd(int sdno)
 int 
 get_empty_plex(void)
 {
-    BROKEN_GDB;
     int plexno;
     struct plex *plex;					    /* if we allocate one */
 
@@ -760,7 +740,6 @@ get_empty_plex(void)
 int 
 find_plex(const char *name, int create)
 {
-    BROKEN_GDB;
     int plexno;
     struct plex *plex;
 
@@ -786,7 +765,6 @@ find_plex(const char *name, int create)
 void 
 free_plex(int plexno)
 {
-    BROKEN_GDB;
     struct plex *plex;
 
     plex = &PLEX[plexno];
@@ -803,7 +781,6 @@ free_plex(int plexno)
 int 
 get_empty_volume(void)
 {
-    BROKEN_GDB;
     int volno;
     struct volume *vol;
 
@@ -837,7 +814,6 @@ get_empty_volume(void)
 int 
 find_volume(const char *name, int create)
 {
-    BROKEN_GDB;
     int volno;
     struct volume *vol;
 
@@ -864,7 +840,6 @@ find_volume(const char *name, int create)
 void 
 free_volume(int volno)
 {
-    BROKEN_GDB;
     struct volume *vol;
 
     vol = &VOL[volno];
@@ -881,7 +856,6 @@ free_volume(int volno)
 void 
 config_drive(int update)
 {
-    BROKEN_GDB;
     enum drive_label_info partition_status;		    /* info about the partition */
     int parameter;
     int driveno;					    /* index of drive in vinum_conf */
@@ -981,7 +955,6 @@ config_drive(int update)
 void 
 config_subdisk(int update)
 {
-    BROKEN_GDB;
     int parameter;
     int sdno;						    /* index of sd in vinum_conf */
     struct sd *sd;					    /* and pointer to it */
@@ -1106,7 +1079,6 @@ config_subdisk(int update)
 void 
 config_plex(int update)
 {
-    BROKEN_GDB;
     int parameter;
     int plexno;						    /* index of plex in vinum_conf */
     struct plex *plex;					    /* and pointer to it */
@@ -1225,7 +1197,6 @@ config_plex(int update)
 void 
 config_volume(int update)
 {
-    BROKEN_GDB;
     int parameter;
     int volno;
     struct volume *vol;					    /* collect volume info here */
@@ -1347,7 +1318,6 @@ config_volume(int update)
 int 
 parse_config(char *cptr, struct keywordset *keyset, int update)
 {
-    BROKEN_GDB;
     int status;
 
     status = 0;						    /* until proven otherwise */
@@ -1399,7 +1369,6 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
 int 
 parse_user_config(char *cptr, struct keywordset *keyset)
 {
-    BROKEN_GDB;
     int status;
 
     ioctl_reply = (struct _ioctl_reply *) cptr;
@@ -1699,7 +1668,6 @@ update_volume_config(int volno, int kernelstate)
 void 
 updateconfig(int kernelstate)
 {
-    BROKEN_GDB;
     int plexno;
     int volno;
 

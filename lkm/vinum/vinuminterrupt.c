@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.4 1999/01/12 04:30:12 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.1.2.1 1999/01/25 04:17:11 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -61,7 +61,6 @@ void sdio_done(struct buf *bp);
 void 
 complete_rqe(struct buf *bp)
 {
-    BROKEN_GDB;
     struct rqelement *rqe;
     struct request *rq;
     struct rqgroup *rqg;
@@ -158,7 +157,6 @@ complete_rqe(struct buf *bp)
 void 
 freerq(struct request *rq)
 {
-    BROKEN_GDB;
     struct rqgroup *rqg;
     struct rqgroup *nrqg;				    /* next in chain */
     int rqno;
