@@ -47,7 +47,7 @@
  * Netgraph hook constants etc.
  ********************************************************************/
 /* Node type name. This should be unique among all netgraph node types */
-#define NG_PPPOE_NODE_TYPE	"PPPoE"
+#define NG_PPPOE_NODE_TYPE	"pppoe"
 
 #define NGM_PPPOE_COOKIE		939032003
 
@@ -81,7 +81,7 @@ enum cmd {
  * Structures passed in the various netgraph command messages.
  ***********************/
 /* This structure is returned by the NGM_PPPOE_GET_STATUS command */
-struct ngPPPoEstat {
+struct ngpppoestat {
 	u_int   packets_in;	/* packets in from downstream */
 	u_int   packets_out;	/* packets out towards downstream */
 };
@@ -104,7 +104,7 @@ struct ngPPPoEstat {
  * named hook. The session will then issue the appropriate PADO
  * and begin negotiation.
  */
-struct ngPPPoE_init_data {
+struct ngpppoe_init_data {
 	char	hook[NG_HOOKLEN + 1];	/* hook to monitor on */
 	u_int16_t	data_len;		/* Length of the service name */
 	char	data[0];		/* init data goes here */
@@ -115,13 +115,13 @@ struct ngPPPoE_init_data {
  * (to report which hook has failed or connected). The message is sent
  * to whoever requested the connection. (close may use this too).
  */
-struct ngPPPoE_sts {
+struct ngpppoe_sts {
 	char	hook[NG_HOOKLEN + 1]; /* hook associated with event session */
 };
 
 
 /********************************************************************
- * Constants and definitions specific to PPPoE
+ * Constants and definitions specific to pppoe
  ********************************************************************/
 
 #define PPPOE_TIMEOUT_LIMIT 64
@@ -147,8 +147,8 @@ struct ngPPPoE_sts {
 #define PTT_SYS_ERR  	(0x0202)
 #define PTT_GEN_ERR  	(0x0203)
 
-#define ETHERTYPE_PPPOE_DISC	0x8863	/* PPPoE discovery packets     */
-#define ETHERTYPE_PPPOE_SESS	0x8864	/* PPPoE session packets       */
+#define ETHERTYPE_PPPOE_DISC	0x8863	/* pppoe discovery packets     */
+#define ETHERTYPE_PPPOE_SESS	0x8864	/* pppoe session packets       */
 #else
 #define PTT_EOL		(0x0000)
 #define PTT_SRV_NAME	(0x0101)
@@ -161,8 +161,8 @@ struct ngPPPoE_sts {
 #define PTT_SYS_ERR  	(0x0202)
 #define PTT_GEN_ERR  	(0x0302)
 
-#define ETHERTYPE_PPPOE_DISC	0x6388	/* PPPoE discovery packets     */
-#define ETHERTYPE_PPPOE_SESS	0x6488	/* PPPoE session packets       */
+#define ETHERTYPE_PPPOE_DISC	0x6388	/* pppoe discovery packets     */
+#define ETHERTYPE_PPPOE_SESS	0x6488	/* pppoe session packets       */
 #endif
 
 struct pppoe_tag {
