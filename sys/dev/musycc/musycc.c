@@ -371,7 +371,7 @@ init_card(struct csoftc *csc)
 
 	csc->state = C_INIT;
 	csc->reg->srd = 0x100;
-	tsleep(csc, PZERO | PCATCH, "icard", hz / 10);
+	tsleep(csc, PZERO + PCATCH, "icard", hz / 10);
 	csc->reg->gbp = vtophys(csc->ram);
 	csc->ram->glcd = 0x3f30;	/* XXX: designer magic */
 	
@@ -392,7 +392,7 @@ init_ctrl(struct softc *sc)
 
 	printf("init_ctrl(%p) [%s] [%08x]\n", sc, sc->nodename, sc->csc->reg->glcd);
 	init_8370(sc);
-	tsleep(sc, PZERO | PCATCH, "ds8370", hz);
+	tsleep(sc, PZERO + PCATCH, "ds8370", hz);
 	printf("%s: glcd: [%08x]\n", sc->nodename, sc->csc->reg->glcd);
 	sc->reg->gbp = vtophys(sc->ram);
 	sc->ram->grcd =  0x00000001;	/* RXENBL */
