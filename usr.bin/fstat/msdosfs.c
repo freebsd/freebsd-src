@@ -100,15 +100,16 @@ msdosfs_filestat(vp, fsp)
 	if (!mnt) {
 		if ((mnt = malloc(sizeof(struct dosmount))) == NULL)
 			err(1, NULL);
-		mnt->next = mounts;
-		mounts = mnt;
-		mnt->kptr = denode.de_pmp;
 		if (!KVM_READ(denode.de_pmp, &mnt->data, sizeof mnt->data)) {
+			free(mnt);
 			dprintf(stderr,
 			    "can't read mount info at %p for pid %d\n",
 			    (void *)denode.de_pmp, Pid);
 			return 0;
 		}
+		mnt->next = mounts;
+		mounts = mnt;
+		mnt->kptr = denode.de_pmp;
 	}
 
 	fsp->fsid = dev2udev(denode.de_dev);
