@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)engine.c	8.5 (Berkeley) 3/20/94
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -152,6 +154,16 @@ int eflags;
 	register const sopno gl = g->laststate;
 	char *start;
 	char *stop;
+	/* Boyer-Moore algorithms variables */
+	register unsigned char *pp;
+	int cj, mj;
+	register unsigned char *mustfirst;
+	register unsigned char *mustlast;
+	register int mustlen;
+	register int *matchjump;
+	register int *charjump;
+	register unsigned char *bmp;
+	register unsigned char *bmps;
 
 	/* simplify the situation where possible */
 	if (g->cflags&REG_NOSUB)
@@ -168,12 +180,48 @@ int eflags;
 
 	/* prescreening; this does wonders for this rather slow code */
 	if (g->must != NULL) {
-		for (dp = start; dp < stop; dp++)
-			if (*dp == g->must[0] && stop - dp >= g->mlen &&
-				memcmp(dp, g->must, (size_t)g->mlen) == 0)
-				break;
-		if (dp == stop)		/* we didn't find g->must */
-			return(REG_NOMATCH);
+		if(g->charjump != NULL && g->matchjump != NULL) {
+			mustlen = -g->mlen;
+			mustfirst = g->must;
+			mustlast = g->must + g->mlen - 1;
+			charjump = g->charjump;
+			matchjump = g->matchjump;
+			bmps = stop;
+			pp = mustlast;
+			for(bmp = start+g->mlen-1; bmp < bmps;) {
+				/* Fast skip non-matches */
+				while(bmp < bmps && charjump[*bmp])
+					bmp += charjump[*bmp];
+
+				if(bmp >= bmps)
+					break;
+
+				/* Greedy matcher */
+				/* We depend on not being used for
+				 * for strings of length 1
+				 */
+				while(*--bmp == *--pp && pp != mustfirst);
+
+				if(*bmp == *pp)
+					break;
+
+				/* Jump to next possible match */
+				mj = matchjump[pp - mustfirst];
+				cj = charjump[*bmp];
+				bmp += (cj < mj ? mj : cj);
+				pp = mustlast;				
+			}
+			if(pp != mustfirst)
+				return(REG_NOMATCH);
+		} else {
+			for (dp = start; dp < stop; dp++)
+				if (*dp == g->must[0] &&
+				    stop - dp >= g->mlen &&
+				    memcmp(dp, g->must, (size_t)g->mlen) == 0)
+					break;
+			if (dp == stop)		/* we didn't find g->must */
+				return(REG_NOMATCH);
+		}
 	}
 
 	/* match struct setup */
