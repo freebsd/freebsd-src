@@ -547,6 +547,7 @@ struct wi_ltv_mcast {
 #define WI_SUPPRATES_2M		0x0002
 #define WI_SUPPRATES_5M		0x0004
 #define WI_SUPPRATES_11M	0x0008
+#define	WI_RATES_BITS	"\20\0011M\0022M\0035.5M\00411M"
 
 /*
  * Information frame types.
