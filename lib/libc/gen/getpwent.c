@@ -442,6 +442,8 @@ _createcaches()
 			}
 		}
 	}
+	endgrent();
+	endnetgrent();
 }
 
 /*
