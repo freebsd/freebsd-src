@@ -746,7 +746,7 @@ agp_get_info(device_t dev, struct agp_info *info)
 	info->ai_mode =
 		pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
 	info->ai_aperture_base = rman_get_start(sc->as_aperture);
-	info->ai_aperture_size = rmang_get_size(sc->as_aperture);
+	info->ai_aperture_size = rman_get_size(sc->as_aperture);
 	info->ai_memory_allowed = sc->as_maxmem;
 	info->ai_memory_used = sc->as_allocated;
 }
