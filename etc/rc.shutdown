@@ -17,6 +17,15 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
 
+# Check if /var/db/mounttab is clean.
+case $1 in
+reboot)
+	if [ -f /var/db/mounttab ]; then
+		rpc.umntall
+	fi
+	;;
+esac
+
 echo -n "Shutting down daemon processes: "
 
 # Insert shutdown procedures here
