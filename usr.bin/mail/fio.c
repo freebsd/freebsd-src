@@ -94,6 +94,16 @@ setptr(ibuf)
 			return;
 		}
 		count = strlen(linebuf);
+		/*
+		 * Transforms lines ending in <CR><LF> to just <LF>.
+		 * This allows mail to be able to read Eudora mailboxes.
+		 */
+		if (count >= 2 && linebuf[count - 1] == '\n' &&
+		    linebuf[count - 2] == '\r') {
+			count--;
+			linebuf[count - 1] = '\n';
+		}
+
 		(void) fwrite(linebuf, sizeof *linebuf, count, otf);
 		if (ferror(otf))
 			errx(1, "/tmp");
@@ -160,7 +170,7 @@ putline(obuf, linebuf)
 /*
  * Read up a line from the specified input into the line
  * buffer.  Return the number of characters read.  Do not
- * include the newline at the end.
+ * include the newline (or carriage return) at the end.
  */
 int
 readline(ibuf, linebuf, linesize)
@@ -175,6 +185,8 @@ readline(ibuf, linebuf, linesize)
 		return -1;
 	n = strlen(linebuf);
 	if (n > 0 && linebuf[n - 1] == '\n')
+		linebuf[--n] = '\0';
+	if (n > 0 && linebuf[n - 1] == '\r')
 		linebuf[--n] = '\0';
 	return n;
 }
