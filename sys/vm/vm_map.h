@@ -70,8 +70,7 @@
 #ifndef	_VM_MAP_
 #define	_VM_MAP_
 
-#include <sys/lock.h>
-#include <sys/sx.h>
+#include <sys/lockmgr.h>
 
 #ifdef MAP_LOCK_DIAGNOSTIC
 #include <sys/systm.h>
@@ -153,7 +152,7 @@ struct vm_map_entry {
  */
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
-	struct sx lock;			/* Lock for map data */
+	struct lock lock;		/* Lock for map data */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	u_char system_map;		/* Am I a system map? */
@@ -215,23 +214,14 @@ void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
 	} while (0)
 #endif
 
-void _vm_map_lock(vm_map_t map, const char *file, int line);
-int _vm_map_try_lock(vm_map_t map, const char *file, int line);
-void _vm_map_unlock(vm_map_t map, const char *file, int line);
-void _vm_map_lock_read(vm_map_t map, const char *file, int line);
-void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
-int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
-void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
-
-#define vm_map_lock(map) _vm_map_lock(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_try_lock(map) _vm_map_try_lock(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_unlock(map) _vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_lock_read(map) _vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_unlock_read(map) _vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_lock_upgrade(map) _vm_map_lock_upgrade(map, LOCK_FILE, LOCK_LINE)
-#define vm_map_lock_downgrade(map) _vm_map_lock_downgrade(map, LOCK_FILE, \
-    LOCK_LINE)
-
+void vm_map_lock(vm_map_t map);
+void vm_map_unlock(vm_map_t map);
+void vm_map_lock_read(vm_map_t map);
+void vm_map_unlock_read(vm_map_t map);
+int vm_map_lock_upgrade(vm_map_t map);
+void vm_map_lock_downgrade(vm_map_t map);
+void vm_map_set_recursive(vm_map_t map);
+void vm_map_clear_recursive(vm_map_t map);
 vm_offset_t vm_map_min(vm_map_t map);
 vm_offset_t vm_map_max(vm_map_t map);
 struct pmap *vm_map_pmap(vm_map_t map);
