@@ -297,10 +297,9 @@ cardbus_read_device(device_t pcib, int b, int s, int f)
 
 	if (PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVVENDOR, 4) != -1) {
 		devlist_entry = malloc(sizeof(struct cardbus_devinfo),
-				       M_DEVBUF, M_WAITOK);
+				       M_DEVBUF, M_WAITOK | M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
-		bzero(devlist_entry, sizeof *devlist_entry);
 
 		cfg = &devlist_entry->cfg;
 		
@@ -386,11 +385,9 @@ cardbus_readppb(device_t pcib, int b, int s, int f)
 {
 	pcih1cfgregs *p;
 
-	p = malloc(sizeof (pcih1cfgregs), M_DEVBUF, M_WAITOK);
+	p = malloc(sizeof (pcih1cfgregs), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (p == NULL)
 		return (NULL);
-
-	bzero(p, sizeof *p);
 
 	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_1, 2);
 	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_1, 2);
@@ -432,11 +429,9 @@ cardbus_readpcb(device_t pcib, int b, int s, int f)
 {
 	pcih2cfgregs *p;
 
-	p = malloc(sizeof (pcih2cfgregs), M_DEVBUF, M_WAITOK);
+	p = malloc(sizeof (pcih2cfgregs), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (p == NULL)
 		return (NULL);
-
-	bzero(p, sizeof *p);
 
 	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_2, 2);
 	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_2, 2);
