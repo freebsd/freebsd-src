@@ -1,4 +1,4 @@
-# $Id: es_ES.ISO_8859-1.src,v 1.1 1998/01/01 17:30:21 jmas Exp $
+# $Id: es_ES.ISO_8859-1.src,v 1.1 1998/01/02 11:44:29 helbig Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -35,23 +35,23 @@ diciembre
 #
 # Short weekdays names
 #
-Dom
-Lun
-Mar
-Mié
-Jue
-Vie
-Sáb
+dom
+lun
+mar
+mié
+jue
+vie
+sáb
 #
 # Long weekdays names
 #
-Domingo
-Lunes
-Martes
-Miércoles
-Jueves
-Viernes
-Sábado
+domingo
+lunes
+martes
+miércoles
+jueves
+viernes
+sábado
 #
 # X_fmt
 #
@@ -75,4 +75,4 @@ PM
 #
 # date_fmt
 #
-%A, %e de %B de %Y %X %Z
+%A, %e de %B de %Y, %X %Z
