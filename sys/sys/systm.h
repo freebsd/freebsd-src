@@ -185,7 +185,7 @@ void	usrinfoinit __P((void));
 void	vntblinit __P((void));
 
 /* Finalize the world. */
-void	shutdown_nice __P((void));
+void	shutdown_nice __P((int));
 
 /*
  * Kernel to clock driver interface.

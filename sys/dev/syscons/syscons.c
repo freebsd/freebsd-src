@@ -3101,7 +3101,19 @@ next_code:
 
 	    case RBT:
 #ifndef SC_DISABLE_REBOOT
-		shutdown_nice();
+		shutdown_nice(0);
+#endif
+		break;
+
+	    case HALT:
+#ifndef SC_DISABLE_REBOOT
+		shutdown_nice(RB_HALT);
+#endif
+		break;
+
+	    case PDWN:
+#ifndef SC_DISABLE_REBOOT
+		shutdown_nice(RB_HALT|RB_POWEROFF);
 #endif
 		break;
 

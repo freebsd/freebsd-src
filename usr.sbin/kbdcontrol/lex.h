@@ -61,6 +61,8 @@
 #define TRCTRA		286
 #define TLALTA		287
 #define TRALTA		288
+#define THALT		289
+#define TPDWN		290
 
 extern int number;
 extern char letter;
