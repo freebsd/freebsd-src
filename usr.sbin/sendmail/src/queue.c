@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if QUEUE
-static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.175 (Berkeley) 10/4/97 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.174 (Berkeley) 7/23/97 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.175 (Berkeley) 10/4/97 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -474,7 +474,6 @@ printctladdr(a, tfp)
 	FILE *tfp;
 {
 	char *uname;
-	char *paddr;
 	register ADDRESS *q;
 	uid_t uid;
 	gid_t gid;
@@ -514,12 +513,12 @@ printctladdr(a, tfp)
 	lastuid = uid;
 	lastctladdr = a;
 
-	paddr = denlstring(a->q_paddr, TRUE, FALSE);
 	if (uid == 0 || uname == NULL || uname[0] == '\0')
-		fprintf(tfp, "C:%s\n", paddr);
+		fprintf(tfp, "C");
 	else
-		fprintf(tfp, "C%s:%ld:%ld:%s\n",
-			uname, (long) uid, (long) gid, paddr);
+		fprintf(tfp, "C%s:%ld:%ld",
+			denlstring(uname, TRUE, FALSE), (long) uid, (long) gid);
+	fprintf(tfp, ":%s\n", denlstring(a->q_paddr, TRUE, FALSE));
 }
 /*
 **  RUNQUEUE -- run the jobs in the queue.

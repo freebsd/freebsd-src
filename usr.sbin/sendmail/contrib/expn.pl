@@ -6,19 +6,19 @@
 #       THIS PROGRAM IS ITS OWN MANUAL PAGE.  INSTALL IN man & bin.
 #
 
-# hardcoded constants, should work fine for BSD-based systems
-require 'sys/socket.ph';
-$sockaddr = 'S n a4 x8';
+use 5.001;
+use IO::Socket;
 
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /home/muir/bin/RCS/expn,v 3.9 1995/10/02 17:51:35 muir Exp muir $
+# $Header: /home/muir/bin/RCS/expn,v 3.11 1997/09/10 08:14:02 muir Exp muir $
 
 # TODO:
 #	less magic should apply to command-line addresses
 #	less magic should apply to local addresses
 #	add magic to deal with cross-domain cnames
+#	disconnect & reconnect after 25 commands to the same sendmail 8.8.* host
 
 # Checklist: (hard addresses)
 #	250 Kimmo Suominen <"|/usr/local/mh/lib/slocal -user kim"@grendel.tac.nyc.ny.us>
@@ -96,7 +96,7 @@ $sockaddr = 'S n a4 x8';
 # $debug : -d
 # $valid : -a
 # $levels : -1
-# S : the socket connection to $server
+# $S : the socket connection to $server
 
 $have_nslookup = 1;	# we have the nslookup program
 $port = 'smtp';
@@ -143,12 +143,6 @@ if ($valid) {
 	}
 }
 
-$0 = "$av0 - building local socket";
-($name,$aliases,$proto) = getprotobyname('tcp');
-($name,$aliases,$port) = getservbyname($port,'tcp')
-	unless $port =~ /^\d+/;
-$this = pack($sockaddr, &AF_INET, 0, $thisaddr);
-
 HOST:
 while (@hosts) {
 	$server = shift(@hosts);
@@ -177,15 +171,13 @@ while (@hosts) {
 				
 	# get a connection, or look for an mx
 	$0 = "$av0 - socket to $server";
-	$that = pack($sockaddr, &AF_INET, $port, $thataddr);
-	socket(S, &AF_INET, &SOCK_STREAM, $proto)
-		|| die "socket: $!";
-	$0 = "$av0 - bind to $server";
-	bind(S, $this) 
-		|| die "bind $hostname,0: $!";
-	$0 = "$av0 - connect to $server";
-	print "debug = $debug server = $server\n" if $debug > 8;
-	if (! connect(S, $that) || ($debug == 10 && $server =~ /relay\d.UU.NET$/i)) {
+
+	$S = new IO::Socket::INET (
+		'PeerAddr' => $server,
+		'PeerPort' => $port,
+		'Proto' => 'tcp');
+
+	if (! $S || ($debug == 10 && $server =~ /relay\d.UU.NET$/i)) {
 		$0 = "$av0 - $server: could not connect: $!\n";
 		$emsg = $!;
 		unless (&mxlookup(0,$server,"$server: could not connect: $!",*users)) {
@@ -193,12 +185,12 @@ while (@hosts) {
 		}
 		next HOST;
 	}
-	select((select(S),$| = 1)[0]); # don't buffer output to S
+	$S->autoflush(1);
 
 	# read the greeting
 	$0 = "$av0 - talking to $server";
 	&alarm("greeting with $server",'');
-	while(<S>) {
+	while(<$S>) {
 		alarm(0);
 		print if $watch;
 		if (/^(\d+)([- ])/) {
@@ -210,7 +202,7 @@ while (@hosts) {
 				print STDERR "$server: NOT 220 greeting: $_"
 					if ($debug || $vw);
 				if (&mxlookup(0,$server,"$server: did not respond with a 220 greeting",*users)) {
-					close(S);
+					close($S);
 					next HOST;
 				}
 			}
@@ -222,7 +214,7 @@ while (@hosts) {
 			unless (&mxlookup(0,$server,"$server: did not respond with SMTP codes",*users)) {
 				&giveup('',"$server: did not talk SMTP");
 			}
-			close(S);
+			close($S);
 			next HOST;
 		}
 		&alarm("greeting with $server",'');
@@ -233,7 +225,7 @@ while (@hosts) {
 	$0 = "$av0 - sending helo to $server";
 	&alarm("sending helo to $server","");
 	&ps("helo $hostname");
-	while(<S>) {
+	while(<$S>) {
 		print if $watch;
 		last if /^\d+ /;
 	}
@@ -395,11 +387,11 @@ while (@hosts) {
 	&alarm("sending 'quit' to $server",'');
 	$0 = "$av0 - sending 'quit' to $server";
 	&ps("quit");
-	while(<S>) {
+	while(<$S>) {
 		print if $watch;
 		last if /^\d+ /;
 	}
-	close(S);
+	close($S);
 	alarm(0);
 }
 
@@ -604,7 +596,7 @@ sub expn_vrfy
 			&alarm("${c}'ing $try_u on $server",'',$u);
 			&ps("$c $try_u");
 			alarm(0);
-			$s = <S>;
+			$s = <$S>;
 			if ($s eq '') {
 				return "$server: lost connection";
 			}
@@ -905,7 +897,7 @@ sub ps
 {
 	local($p) = @_;
 	print ">>> $p\n" if $watch;
-	print S "$p\n";
+	print $S "$p\n";
 }
 # return case-adjusted name for a host (for comparison purposes)
 sub trhost 
@@ -1207,7 +1199,7 @@ sub read_response
 	local($done,$watch) = @_;
 	local(@resp);
 	print $s if $watch;
-	while(($done eq "-") && ($s = <S>) && ($s =~ /^\d+([- ])/)) {
+	while(($done eq "-") && ($s = <$S>) && ($s =~ /^\d+([- ])/)) {
 		print $s if $watch;
 		$done = $1;
 		push(@resp,$s);
