@@ -37,11 +37,28 @@
 #ifndef _SYS_UIO_H_
 #define	_SYS_UIO_H_
 
+#include <sys/cdefs.h>
+#include <sys/_types.h>
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif
+
+#ifndef _STRUCT_IOVEC_DECLARED
+#define	_STRUCT_IOVEC_DECLARED
 struct iovec {
 	void	*iov_base;	/* Base address. */
 	size_t	 iov_len;	/* Length. */
 };
+#endif
 
+#if __BSD_VISIBLE
 enum	uio_rw { UIO_READ, UIO_WRITE };
 
 /* Segment flag values. */
@@ -50,6 +67,7 @@ enum uio_seg {
 	UIO_SYSSPACE,		/* from system space */
 	UIO_NOCOPY		/* don't copy, already in object */
 };
+#endif
 
 #ifdef _KERNEL
 
@@ -88,8 +106,6 @@ int	copyinstrfrom(const void *src, void *dst, size_t len,
 	    size_t *copied, int seg);
 
 #else /* !_KERNEL */
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 ssize_t	readv(int, const struct iovec *, int);
