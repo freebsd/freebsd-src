@@ -203,7 +203,7 @@ SYSCTL_UINT(_kern_rpc, OID_AUTO, debug_on, CTLFLAG_RW, &rpcdebugon, 0, "RPC Debu
  */
 static 
 TAILQ_HEAD(, rpctask) rpctask_q;
-struct callout_handle rpcclnt_timer_handle;
+struct callout	rpcclnt_callout;
 
 #ifdef __OpenBSD__
 static int             rpcclnt_send(struct socket *, struct mbuf *, struct mbuf *, struct rpctask *);
@@ -283,8 +283,8 @@ rpcclnt_init(void)
 	timeout_set(&rpcclnt_timer_to, rpcclnt_timer, &rpcclnt_timer_to);
 	rpcclnt_timer(&rpcclnt_timer_to);
 #else /* !__OpenBSD__ */
+	callout_init(&rpcclnt_callout, 0);
 	rpcclnt_timer(NULL);
-
 #endif /* !__OpenBSD__ */
 
 	RPCDEBUG("rpc initialed");
@@ -296,7 +296,7 @@ void
 rpcclnt_uninit(void)
 {
   	RPCDEBUG("uninit");
-	untimeout(rpcclnt_timer, (void *)NULL, rpcclnt_timer_handle);
+	callout_stop(&rpcclnt_callout);
 
 	/* XXX delete sysctl variables? */
 }
@@ -1476,7 +1476,7 @@ rpcclnt_timer(arg)
 #ifdef __OpenBSD__
 	timeout_add(rpcclnt_timer, to, rpcclnt_ticks);
 #else
-	rpcclnt_timer_handle = timeout(rpcclnt_timer, NULL, rpcclnt_ticks);
+	callout_reset(&rpcclnt_callout, rpcclnt_ticks, rpcclnt_timer, NULL);
 #endif
 }
 
