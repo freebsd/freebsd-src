@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.99 1998/05/31 19:00:18 peter Exp $
+ * $Id: nfs_vnops.c,v 1.100 1998/05/31 19:24:19 peter Exp $
  */
 
 
@@ -1128,12 +1128,19 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 			tl += 2;
 			*tl++ = txdr_unsigned(len);
 			*tl++ = txdr_unsigned(*iomode);
+			*tl = txdr_unsigned(len);
 		} else {
+			register u_long x;
+
 			nfsm_build(tl, u_long *, 4 * NFSX_UNSIGNED);
-			*++tl = txdr_unsigned(uiop->uio_offset);
-			tl += 2;
+			/* Set both "begin" and "current" to non-garbage. */
+			x = txdr_unsigned((u_long)uiop->uio_offset);
+			*tl++ = x;	/* "begin offset" */
+			*tl++ = x;	/* "current offset" */
+			x = txdr_unsigned(len);
+			*tl++ = x;	/* total to this offset */
+			*tl = x;	/* size of this write */
 		}
-		*tl = txdr_unsigned(len);
 		nfsm_uiotom(uiop, len);
 		nfsm_request(vp, NFSPROC_WRITE, uiop->uio_procp, cred);
 		if (v3) {
