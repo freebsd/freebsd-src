@@ -40,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "btxv86.h"
 
 static int	elf32_exec(struct preloaded_file *amp);
+static int	elf32_obj_exec(struct preloaded_file *amp);
 
 struct file_format i386_elf = { elf32_loadfile, elf32_exec };
+struct file_format i386_elf_obj = { elf32_obj_loadfile, elf32_obj_exec };
 
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  
@@ -73,4 +75,10 @@ elf32_exec(struct preloaded_file *fp)
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop, modulep, kernend);
 
     panic("exec returned");
+}
+
+static int
+elf32_obj_exec(struct preloaded_file *fp)
+{
+	return (EFTYPE);
 }
