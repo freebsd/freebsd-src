@@ -172,7 +172,7 @@ forward_roundrobin(void)
 {
 	struct pcpu *pc;
 	struct thread *td;
-	cpumask_t id, map;
+	cpumask_t id, map, me;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -183,10 +183,11 @@ forward_roundrobin(void)
 	if (!forward_roundrobin_enabled)
 		return;
 	map = 0;
+	me = PCPU_GET(cpumask);
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		td = pc->pc_curthread;
 		id = pc->pc_cpumask;
-		if (id != PCPU_GET(cpumask) && (id & stopped_cpus) == 0 &&
+		if (id != me && (id & stopped_cpus) == 0 &&
 		    td != pc->pc_idlethread) {
 			td->td_flags |= TDF_NEEDRESCHED;
 			map |= id;
