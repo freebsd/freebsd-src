@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.35 1999/04/07 09:27:56 grog Exp $";
+	"$Id: mkmakefile.c,v 1.36 1999/04/11 03:40:10 grog Exp $";
 #endif /* not lint */
 
 /*
@@ -824,30 +824,8 @@ do_systemspec(f, fl, first)
 	int first;
 {
 
-	if (debugging) {
-		fprintf(f,
-			"KERNEL=\t\t%s\n"
-			"FULLKERNEL=\t%s.debug\n"
-			"INSTALL=\tinstall.debug\n\n"
-			"%s: %s.debug\n",
-			fl->f_needs,
-			fl->f_needs,
-			fl->f_needs,
-			fl->f_needs );
-		fprintf (f,
-			 "\tobjcopy --strip-debug %s.debug %s\n\n",
-			fl->f_needs,
-			fl->f_needs );
-		fprintf(f, "%s.debug: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
-	} else {
-		fprintf(f,
-			"KERNEL=\t\t%s\n"
-			"FULLKERNEL=\t%s\n\n"
-			"INSTALL=\tinstall\n\n",
-			fl->f_needs,
-			fl->f_needs );
-		fprintf(f, "%s: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);
-	}
+	fprintf(f, "KERNEL=\t%s\n", fl->f_needs);
+	fprintf(f, "${FULLKERNEL}: ${SYSTEM_DEP} swap%s.o", fl->f_fn);
 	if (first)
 		fprintf(f, " vers.o");
 	fprintf(f, "\n\t${SYSTEM_LD_HEAD}\n");
