@@ -202,6 +202,7 @@ struct pmap {
 	int			pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct	vm_page		*pm_ptphint;	/* pmap ptp hint */
+	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
 };
 
 #define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
