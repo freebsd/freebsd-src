@@ -2043,6 +2043,14 @@ Similarly, the
 .Dq Li set -E )
 command can be used to enable a subset of
 emacs-style command line editing features.
+.Sh EXIT STATUS
+Errors that are detected by the shell, such as a syntax error, will
+cause the shell to exit with a non-zero exit status.
+If the shell is not an interactive shell, the execution of the shell
+file will be aborted.
+Otherwise the shell will return the exit status of the last command
+executed, or if the exit builtin is used with a numeric argument, it
+will return the argument.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr echo 1 ,
