@@ -1,0 +1,39 @@
+;
+;       This file holds the information on root name servers needed to
+;       initialize cache of Internet domain name servers 
+;       (e.g. reference this file in the "cache  .  <file>"
+;       configuration file of BIND domain name servers).
+;
+;       This file is made available by InterNIC registration services
+;       under anonymous FTP as
+;           file                /domain/named.root
+;           on server           FTP.RS.INTERNIC.NET
+;       -OR- under Gopher at    RS.INTERNIC.NET
+;           under menu          InterNIC Registration Services (NSI)
+;              submenu          InterNIC Registration Archives
+;           file                named.root
+;
+;       last update:    Oct 5, 1994
+;       related version of root zone:   1994100500
+;
+.                        99999999 IN  NS    NS.INTERNIC.NET.
+NS.INTERNIC.NET.         99999999     A     198.41.0.4
+.                        99999999     NS    NS1.ISI.EDU. 
+NS1.ISI.EDU.             99999999     A     128.9.0.107
+.                        99999999     NS    C.PSI.NET.
+C.PSI.NET.               99999999     A     192.33.4.12
+.                        99999999     NS    TERP.UMD.EDU.
+TERP.UMD.EDU.            99999999     A     128.8.10.90
+.                        99999999     NS    NS.NASA.GOV.
+NS.NASA.GOV.             99999999     A     128.102.16.10
+                         99999999     A     192.52.195.10
+.                        99999999     NS    NS.ISC.ORG.
+NS.ISC.ORG.              99999999     A     192.5.5.241
+.                        99999999     NS    NS.NIC.DDN.MIL.
+NS.NIC.DDN.MIL.          99999999     A     192.112.36.4
+.                        99999999     NS    AOS.ARL.ARMY.MIL.
+AOS.ARL.ARMY.MIL.        99999999     A     128.63.4.82
+                         99999999     A     192.5.25.82
+.                        99999999     NS    NIC.NORDU.NET.
+NIC.NORDU.NET.           99999999     A     192.36.148.17
+; End of File
