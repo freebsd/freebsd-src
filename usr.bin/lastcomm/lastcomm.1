@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)lastcomm.1	8.1 (Berkeley) 6/6/93
-.\" $Id: $
+.\"	From: @(#)lastcomm.1	8.1 (Berkeley) 6/6/93
+.\"	$Id: lastcomm.1,v 1.2 1996/06/30 11:58:19 wosch Exp $
 .\"
-.Dd June 6, 1993
+.Dd September 18, 1996
 .Dt LASTCOMM 1
 .Os BSD 3
 .Sh NAME
@@ -52,45 +52,36 @@ With no arguments,
 .Nm lastcomm
 prints information about all the commands recorded
 during the current accounting file's lifetime.
-
 .Pp
 The following options are available:
 .Pp
-.Bl -tag -width Fl
+.Bl -tag -width XXfXfileX -compact
 .Pp
 .It Fl E
-The time the process exited.
-.Pp
+Print the time the process exited.
 .It Fl S
-The time the process started, default.
-
+Print the time the process started.
 .It Fl c
-The amount of cpu time used by the process (in seconds), default.
+Print the amount of cpu time used by the process.
 .It Fl e
-The amount of elapsed time used by the process (in seconds).
+Print the amount of elapsed time used by the process.
 .It Fl s
-The amount of system time used by the process (in seconds).
+Print the amount of system time used by the process.
 .It Fl u
-The amount of user time used by the process (in seconds).
-.El
-
-.Pp
-Use 
-.Op Fl cS
-as default if no one of these previous options called.
-.Pp
-.Pp
-
-.Pp
-.Bl -tag -width Fl
+Print the amount of user time used by the process.
 .It Fl f Ar file
 Read from
 .Ar file
 rather than the default
-accounting file.
+.Pa /var/account/acct .
 .El
 .Pp
-If called with arguments, only accounting entries with a
+If no options are specified,
+.Fl cS
+is assumed.
+If
+.Nm
+is invoked with arguments, only accounting entries with a
 matching
 .Ar command
 name,
@@ -100,7 +91,7 @@ or
 .Ar terminal
 name
 are printed.
-So, for example:
+For example:
 .Pp
 .Dl lastcomm a.out root ttyd0
 .Pp
@@ -122,18 +113,29 @@ Flags, as accumulated by the accounting facilities in the system.
 .It
 The command name under which the process was called.
 .It
-The amount of cpu time used by the process (in seconds).
+The amount of 
+CPU
+.Pq Fl c ,
+wall
+.Pq Fl e ,
+system
+.Pq Fl s ,
+or user
+.Pq Fl u
+time used by the process (in seconds).
 .It
-.\" Wrong: The time the process exited.
-The time the process started.
+The time the process started
+.Pq Fl S
+or exited
+.Pq Fl E .
 .El
 .Pp
 The flags are encoded as follows: ``S'' indicates the command was
 executed by the super-user, ``F'' indicates the command ran after
 a fork, but without a following
 .Xr exec ,
-``C'' indicates the command was run in PDP-11 compatibility mode
-(VAX only),
+.\" ``C'' indicates the command was run in PDP-11 compatibility mode
+.\" (VAX only),
 ``D'' indicates the command terminated with the generation of a
 .Pa core
 file, and ``X'' indicates the command was terminated with a signal.
