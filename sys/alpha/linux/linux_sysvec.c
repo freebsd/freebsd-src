@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.16 1997/08/18 06:58:59 charnier Exp $
+ *  $Id: linux_sysvec.c,v 1.17 1997/08/21 06:33:04 charnier Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -57,7 +57,6 @@ int	linux_fixup __P((int **stack_base, struct image_params *iparams));
 int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
 void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
 void    linux_sendsig __P((sig_t catcher, int sig, int mask, u_long code));
-static void linux_elf_init __P((void *dummy));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -406,6 +405,8 @@ Elf32_Brandinfo linux_brand = {
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
  * "proof of concept" stage and will be fixed shortly
  */
+static void linux_elf_init __P((void *dummy));
+
 static void
 linux_elf_init(dummy)
 	void *dummy;
