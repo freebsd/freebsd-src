@@ -165,7 +165,6 @@ device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
 device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
 device		tx0		# SMC 9432TX (83c170 ``EPIC'')
-device		vr0		# VIA Rhine, Rhine II
 device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -176,6 +175,7 @@ device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste0		# Sundance ST201 (D-Link DFE-550TX)
 device		tl0		# Texas Instruments ThunderLAN
+device		vr0		# VIA Rhine, Rhine II
 device		wb0		# Winbond W89C840F
 device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
