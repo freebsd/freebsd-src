@@ -574,7 +574,7 @@ auth_conv(int num_msg, const struct pam_message **msg,
 }
 
 /*
- * The PAM version as a side effect may put a new username in *user.
+ * The PAM version as a side effect may put a new username in *name.
  */
 int check_user(const char *name, const char *pass)
 {
@@ -623,11 +623,11 @@ int check_user(const char *name, const char *pass)
 		 */
 		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
 		    PAM_SUCCESS) {
-			strcpy(user, (const char *) item);
+			strcpy(name, (const char *) item);
 		} else
 			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
 			pam_strerror(pamh, e));
-		if (isroot(user) && !rootterm(line))
+		if (isroot(name) && !rootterm(line))
 			rval = 0;
 		else
 			rval = 1;
