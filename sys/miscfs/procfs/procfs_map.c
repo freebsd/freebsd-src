@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.17 1998/04/29 04:28:22 dyson Exp $
+ *	$Id: procfs_map.c,v 1.18 1998/12/04 22:54:51 archie Exp $
  */
 
 #include <sys/param.h>
@@ -154,8 +154,8 @@ case OBJT_DEVICE:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
 		snprintf(mebuffer, sizeof(mebuffer),
-		    "0x%x 0x%x %d %d %d %s%s%s %d %d 0x%x %s %s %s\n",
-			entry->start, entry->end,
+		    "0x%lx 0x%lx %d %d %d %s%s%s %d %d 0x%x %s %s %s\n",
+			(u_long)entry->start, (u_long)entry->end,
 			resident, privateresident, id,
 			(entry->protection & VM_PROT_READ)?"r":"-",
 			(entry->protection & VM_PROT_WRITE)?"w":"-",
