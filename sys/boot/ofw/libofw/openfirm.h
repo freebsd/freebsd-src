@@ -69,6 +69,7 @@ typedef	unsigned int		ihandle_t;
 typedef unsigned int		phandle_t;
 typedef unsigned long int	cell_t;
 
+extern int		(*openfirmware)(void *);
 extern phandle_t	chosen;
 
 /*
