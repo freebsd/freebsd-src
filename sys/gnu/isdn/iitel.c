@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.4 1995/07/16 10:11:10 bde Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.4 1995/07/16 10:11:10 bde Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.5  1995/09/08  11:06:57  bde
+ * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
+ * functions were wrong.
+ *
  * Revision 1.4  1995/07/16  10:11:10  bde
  * Don't include <sys/tty.h> in drivers that aren't tty drivers or in general
  * files that don't depend on the internals of <sys/tty.h>
@@ -40,9 +44,9 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.4 1995/07/16 10:11:10 bde Exp 
 #include "param.h"
 #include "buf.h"
 #include "systm.h"
+#include "conf.h"
 #include "ioctl.h"
 #include "proc.h"
-#include "user.h"
 #include "uio.h"
 #include "kernel.h"
 #include "malloc.h"
@@ -82,7 +86,7 @@ itelattach(int ap)
 }
 
 int
-itel_input(int no, int len, char *buf)
+itel_input(int no, int len, char *buf, int dir)
 {
 	struct itel_data *itel= &itel_data[no];
 
