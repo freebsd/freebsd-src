@@ -336,6 +336,20 @@
       pasting, by default bound to
       <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
 
+    <para>The &man.tcp.4; protocol's retransmission timer can now be
+      manipulated with two sysctl's,
+      <varname>net.inet.tcp.rexmit_min</varname> and
+      <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
+      been reduced from one second to 200ms (similar to the Linux default)
+      in order to better handle hicups over interactive connections and
+      improve recovery over lossy fast connections such as wireless links.</para>
+
+    <para>The &man.tcp.4; protocol now has the ability to dynamically
+      limit the send-side window to maximize bandwidth and minimize
+      round trip times.  The feature can be enabled via the
+      <varname>net.inet.tcp.inflight_enable</varname>
+      sysctl.</para>
+
     <para role="historic">Support for USB devices was added to the
       <filename>GENERIC</filename> kernel and to the installation
       programs to support USB devices out of the box.  Note that SRM
