@@ -51,7 +51,7 @@ index(p, ch)
 	for (;; ++u.p) {
 		if (*u.p == ch)
 			return(u.p);
-		if (!*u.p)
+		if (*u.p == '\0')
 			return(NULL);
 	}
 	/* NOTREACHED */

@@ -52,7 +52,7 @@ rindex(p, ch)
 	for (save = NULL;; ++u.p) {
 		if (*u.p == ch)
 			save = u.p;
-		if (!*u.p)
+		if (*u.p == '\0')
 			return(save);
 	}
 	/* NOTREACHED */
