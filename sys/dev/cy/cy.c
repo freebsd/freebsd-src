@@ -428,12 +428,6 @@ sioprobe(dev)
 {
 	cy_addr	iobase;
 
-	while (sio_inited != 2)
-		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
-			mtx_init(&sio_lock, driver_name, NULL, MTX_SPIN);
-			atomic_store_rel_int(&sio_inited, 2);
-		}
-
 	iobase = (cy_addr)dev->id_maddr;
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
@@ -537,6 +531,12 @@ cyattach_common(cy_iobase, cy_align)
 	int	minorbase;
 	int	ncyu;
 	int	unit;
+
+	while (sio_inited != 2)
+		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
+			mtx_init(&sio_lock, driver_name, NULL, MTX_SPIN);
+			atomic_store_rel_int(&sio_inited, 2);
+		}
 
 	adapter = cy_total_devices;
 	if ((u_int)adapter >= NCY) {
