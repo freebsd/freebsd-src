@@ -225,15 +225,17 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
-	    for (k = 1; k < 4; k++) {
-		if (0 == vsystem("dhclient -1 %s", devp->name)) {
-		    dhcpGetInfo(devp);
-		    use_dhcp = TRUE;
-		    break;
-		}
-		msgNotify("Scanning for DHCP servers...  Retry: %d", k);
+	    if (0 == vsystem("dhclient -1 %s", devp->name)) {
+		dhcpGetInfo(devp);
+		use_dhcp = TRUE;
 	    }
+	    else
+		use_dhcp = FALSE;
 	}
+
+	/* Special hack so it doesn't show up oddly in the tcpip setup menu */
+	if (!strcmp(gateway, "NO"))
+	    gateway[0] = '\0';
 
 	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
@@ -273,7 +275,7 @@ tcpOpenDialog(Device *devp)
     }
     if (!gateway[0]) {
 	tmp = variable_get(VAR_GATEWAY);
-	if (tmp)
+	if (tmp && strcmp(tmp, "NO"))
 	    SAFE_STRCPY(gateway, tmp);
     }
     if (!nameserver[0]) {
