@@ -60,13 +60,13 @@ typedef	__wchar_t	wchar_t;
 #endif
 
 typedef struct {
-	int quot;		/* quotient */
-	int rem;		/* remainder */
+	int	quot;		/* quotient */
+	int	rem;		/* remainder */
 } div_t;
 
 typedef struct {
-	long quot;		/* quotient */
-	long rem;		/* remainder */
+	long	quot;
+	long	rem;
 } ldiv_t;
 
 #ifndef NULL
@@ -99,18 +99,18 @@ long	 labs(long) __pure2;
 ldiv_t	 ldiv(long, long) __pure2;
 void	*malloc(size_t);
 int	 mblen(const char *, size_t);
-size_t	 mbstowcs(wchar_t *__restrict , const char *__restrict, size_t);
+size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 void	 qsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
-double	 strtod(const char *__restrict, char **__restrict);
-/* float strtof(const char *__restrict, char **__restrict); */
-long	 strtol(const char *__restrict, char **__restrict, int);
+double	 strtod(const char * __restrict, char ** __restrict);
+/* float strtof(const char * __restrict, char ** __restrict); */
+long	 strtol(const char * __restrict, char ** __restrict, int);
 /* long double
-	 strtold(const char *__restrict, char **__restrict); */
+	 strtold(const char * __restrict, char ** __restrict); */
 unsigned long
 	 strtoul(const char * __restrict, char ** __restrict, int);
 int	 system(const char *);
@@ -144,14 +144,14 @@ long long
 /* LONGLONG */
 lldiv_t	 lldiv(long long, long long) __pure2;
 /* LONGLONG */
-long long	 
-	 strtoll(const char *__restrict, char **__restrict, int);
+long long
+	 strtoll(const char * __restrict, char ** __restrict, int);
 /* LONGLONG */
 unsigned long long
-	 strtoull(const char *__restrict, char **__restrict, int);
+	 strtoull(const char * __restrict, char ** __restrict, int);
 #endif /* __LONG_LONG_SUPPORTED */
 
-void	_Exit(int) __dead2;
+void	 _Exit(int) __dead2;
 #endif /* __ISO_C_VISIBLE >= 1999 */
 
 /*
@@ -176,10 +176,10 @@ void	 unsetenv(const char *);
 /* XXX XSI requires pollution from <sys/wait.h> here.  We'd rather not. */
 /* long	 a64l(const char *); */
 double	 drand48(void);
-/* char	*ecvt(double, int, int *__restrict, int *__restrict); */
+/* char	*ecvt(double, int, int * __restrict, int * __restrict); */
 double	 erand48(unsigned short[3]);
-/* char	*fcvt(double, int, int *__restrict, int *__restrict); */
-/* char	*gcvt(double, int, int *__restrict, int *__restrict); */
+/* char	*fcvt(double, int, int * __restrict, int * __restrict); */
+/* char	*gcvt(double, int, int * __restrict, int * __restrict); */
 #ifndef _GETSUBOPT_DECLARED
 int	 getsubopt(char **, char *const *, char **);
 #define	_GETSUBOPT_DECLARED
@@ -196,7 +196,7 @@ int	 mkstemp(char *);
 #endif
 #ifndef _MKTEMP_DECLARED
 char	*mktemp(char *);
-#define _MKTEMP_DECLARED
+#define	_MKTEMP_DECLARED
 #endif
 long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
@@ -217,10 +217,10 @@ void	 srandom(unsigned long);
 /* int	 unlockpt(int); */
 #endif /* __XSI_VISIBLE */
 
-
 #if __BSD_VISIBLE
 extern const char *_malloc_options;
-extern void (*_malloc_message)(const char *, const char *, const char *, const char *);
+extern void (*_malloc_message)(const char *, const char *, const char *,
+	    const char *);
 
 void	*alloca(size_t);		/* built-in for gcc */
 __uint32_t
@@ -260,7 +260,8 @@ void	 sranddev(void);
 void	 srandomdev(void);
 
 /* Deprecated interfaces, to be removed in FreeBSD 6.0. */
-__int64_t	 strtoq(const char *, char **, int);
+__int64_t
+	 strtoq(const char *, char **, int);
 __uint64_t
 	 strtouq(const char *, char **, int);
 #endif /* __BSD_VISIBLE */
