@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.133 1998/10/02 11:31:36 jkh Exp $
+#	$Id: Makefile,v 1.134 1998/11/09 23:39:02 dima Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -92,7 +92,8 @@ SUBDIR= ac \
 	yppush \
 	ypset \
 	ypserv \
-	zic
+	zic \
+	IPXrouted
 
 SUBDIR+=ipfstat \
 	ipftest \
@@ -116,7 +117,6 @@ SUBDIR+=btxld \
 	pnpinfo \
 	rndcontrol \
 	wlconfig \
-	IPXrouted
 
 SUBDIR+=apm \
 	apmconf \
