@@ -240,9 +240,9 @@ msg(const char *fmt, ...)
 #endif
 	va_start(ap, fmt);
 	(void) vfprintf(stderr, fmt, ap);
+	va_end(ap);
 	(void) fflush(stdout);
 	(void) fflush(stderr);
-	va_end(ap);
 	va_start(ap, fmt);
 	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap);
 	va_end(ap);
@@ -252,6 +252,7 @@ void
 msgtail(const char *fmt, ...)
 {
 	va_list ap;
+
 	va_start(ap, fmt);
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
