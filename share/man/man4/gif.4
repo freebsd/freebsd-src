@@ -50,6 +50,18 @@ On
 .Nm
 can also tunnel ISO traffic over IPv[46] using EON encapsulation.
 .Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.No gifconfig_ Ns Em interface
+variable in
+.Xr rc.conf 5 .
+.Pp
 To use
 .Nm ,
 administrator needs to configure protocol and addresses used for the outer

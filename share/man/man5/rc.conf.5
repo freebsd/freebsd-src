@@ -599,6 +599,26 @@ Entries in
 are automatically appended to
 .Va network_interfaces
 for configuration.
+.It Va gif_interfaces
+.Pq Vt str
+Set to the list of
+.Xr gif 4
+tunnel interfaces to configure on this host.
+A
+.No gifconfig_ Ns Em interface
+variable is assumed to exist for each value of
+.Em interface .
+The value of this variable is used to configure the link layer of the
+tunnel according to the syntax of the
+.Cm tunnel
+option to
+.Xr ifconfig 8 .
+Additionaly, this option insures that each listed interface is created
+via the
+.Cm create
+option to
+.Xr ifconfig 8
+before attempting to configure it.
 .It Va ppp_enable
 .Pq Vt bool
 If set to
