@@ -82,9 +82,9 @@ LongJmp(jmp_buf buf, int retval)
 
     struct JmpBuf *jb = (struct JmpBuf *) buf;
 
-    if ((jb->jb_esp < 0xd0000000)
-	|| (jb->jb_ebp < 0xd0000000)
-	|| (jb->jb_eip < 0xe0000000))
+    if ((jb->jb_esp < 0xc0000000)
+	|| (jb->jb_ebp < 0xc0000000)
+	|| (jb->jb_eip < 0xc0000000))
 	panic("Invalid longjmp");
     longjmp(buf, retval);
 }
