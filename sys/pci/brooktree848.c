@@ -1,4 +1,4 @@
-/* BT848 1.20 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.24 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -199,6 +199,8 @@
                            Fixes for packed 24bpp - FIFO alignment
 1.23            11/17/97   Amancio <hasty@star-gate.com>
                            Added yuv support mpeg encoding 
+1.24            12/27/97   Jonathan Hanna <pangolin@rogers.wave.ca>
+                           Patch to support Philips FR1236MK2 tuner
 
 */
 
@@ -529,6 +531,10 @@ static struct {
 /* PLL on a Philips tuner */
 #define PHILIPS_NTSC_WADDR	0xc6
 #define PHILIPS_NTSC_RADDR	0xc7
+
+/* PLL on a the Philips FR1236MK2 tuner */
+#define PHILIPS_FR1236_NTSC_WADDR      0xc2
+#define PHILIPS_FR1236_NTSC_RADDR      0xc3
 
 /* guaranteed address for any TSA5522/3 (PLL on all(?) tuners) */
 #define TSA552x_WADDR		0xc2
@@ -3714,6 +3720,8 @@ const struct CARDTYPE cards[] = {
 #define PHILIPS_SECAM		6
 #define TEMIC_PALI		7
 #define PHILIPS_PALI		8
+#define PHILIPS_FR1236_NTSC     9
+
 /* XXX FIXME: this list is incomplete */
 
 /* input types */
@@ -3805,9 +3813,17 @@ const struct TUNER tuners[] = {
 	{ "Philips PAL I",			/* the 'name' */
 	   TTYPE_PAL,				/* input type */
 	   0x00,				/* PLL write address */
-	   TSA552x_SCONTROL,			/* control byte for PLL */
-	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+          TSA552x_SCONTROL,                    /* control byte for PLL */
+          { 0x00, 0x00 },                      /* band-switch crosspoints */
+          { 0xa0, 0x90, 0x30 } },              /* the band-switch values */
+
+       /* PHILIPS_FR1236_NTSC */
+       { "Philips FR1236 NTSC FM",             /* the 'name' */
+          TTYPE_NTSC,                          /* input type */
+          PHILIPS_FR1236_NTSC_WADDR,           /* PLL write address */
+	  TSA552x_SCONTROL,			/* control byte for PLL */
+          { 0x00, 0x00 },			/* band-switch crosspoints */
+	  { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
 };
 
 
