@@ -32,7 +32,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2001
+.Dd March 1, 2002
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Ns Ar n
+.Op Fl y
 .Oo
 .Fl d
 .Sm off
@@ -161,6 +162,8 @@ equivalent to
 .It Fl w
 Widen the duration field to show seconds, as well as the
 default days, hours and minutes.
+.It Fl y
+Report the year in the session start time.
 .El
 .Pp
 If multiple arguments are given,
