@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# XXX present but broken: ip_mroute_mod
+# XXX present but broken: ip_mroute_mod, ipfilter
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT)
 _random=	random
@@ -8,7 +8,7 @@ _random=	random
 
 SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	cam ccd cd9660 coda cue dc ed fdesc fxp if_disc if_ef \
-	if_ppp if_sl if_tap if_tun ip6fw ipfilter ipfw ispfw joy kernfs kue \
+	if_ppp if_sl if_tap if_tun ip6fw ipfw ispfw joy kernfs kue \
 	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs pcn portal procfs ${_random} \
 	rl rp sf sis sk sn sound ste syscons ti tl twe tx \
