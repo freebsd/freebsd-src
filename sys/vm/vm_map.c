@@ -1636,35 +1636,39 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			if (object->size < OFF_TO_IDX( offset + size))
 				size = IDX_TO_OFF(object->size) - offset;
 		}
-		if (object && (object->type == OBJT_VNODE)) {
+		if (object && (object->type == OBJT_VNODE) && 
+		    (current->protection & VM_PROT_WRITE)) {
 			/*
-			 * Flush pages if writing is allowed. XXX should we continue
-			 * on an error?
+			 * Flush pages if writing is allowed, invalidate them
+			 * if invalidation requested.  Pages undergoing I/O
+			 * will be ignored by vm_object_page_remove().
 			 *
-			 * XXX Doing async I/O and then removing all the pages from
-			 *     the object before it completes is probably a very bad
-			 *     idea.
+			 * We cannot lock the vnode and then wait for paging
+			 * to complete without deadlocking against vm_fault.
+			 * Instead we simply call vm_object_page_remove() and
+			 * allow it to block internally on a page-by-page 
+			 * basis when it encounters pages undergoing async 
+			 * I/O.
 			 */
-			if (current->protection & VM_PROT_WRITE) {
-				int flags;
-				if (object->type == OBJT_VNODE)
-					vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
-				flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
-				flags |= invalidate ? OBJPC_INVAL : 0;
-		   	    vm_object_page_clean(object,
-					OFF_TO_IDX(offset),
-					OFF_TO_IDX(offset + size + PAGE_MASK),
-					flags);
-				if (invalidate) {
-					vm_object_pip_wait(object, "objmcl");
-					vm_object_page_remove(object,
-						OFF_TO_IDX(offset),
-						OFF_TO_IDX(offset + size + PAGE_MASK),
-						FALSE);
-				}
-				if (object->type == OBJT_VNODE)
-					VOP_UNLOCK(object->handle, 0, curproc);
+			int flags;
+
+			vm_object_reference(object);
+			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curproc);
+			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
+			flags |= invalidate ? OBJPC_INVAL : 0;
+			vm_object_page_clean(object,
+			    OFF_TO_IDX(offset),
+			    OFF_TO_IDX(offset + size + PAGE_MASK),
+			    flags);
+			if (invalidate) {
+				/*vm_object_pip_wait(object, "objmcl");*/
+				vm_object_page_remove(object,
+				    OFF_TO_IDX(offset),
+				    OFF_TO_IDX(offset + size + PAGE_MASK),
+				    FALSE);
 			}
+			VOP_UNLOCK(object->handle, 0, curproc);
+			vm_object_deallocate(object);
 		}
 		start += size;
 	}
