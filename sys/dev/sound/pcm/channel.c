@@ -632,30 +632,33 @@ fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
 int
 chn_reset(struct pcm_channel *c, u_int32_t fmt)
 {
-	int hwspd, r = 0;
+	int hwspd, r;
 
 	CHN_LOCKASSERT(c);
 	c->flags &= CHN_F_RESET;
 	c->interrupts = 0;
 	c->xruns = 0;
-	CHANNEL_RESET(c->methods, c->devinfo);
-	if (fmt) {
+
+	r = CHANNEL_RESET(c->methods, c->devinfo);
+	if (fmt != 0) {
 		hwspd = DSP_DEFAULT_SPEED;
 		/* only do this on a record channel until feederbuilder works */
 		if (c->direction == PCMDIR_REC)
 			RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
 		c->speed = hwspd;
 
-		r = chn_setformat(c, fmt);
+		if (r == 0)
+			r = chn_setformat(c, fmt);
 		if (r == 0)
 			r = chn_setspeed(c, hwspd);
 		if (r == 0)
 			r = chn_setvolume(c, 100, 100);
 	}
-	r = chn_setblocksize(c, 0, 0);
+	if (r == 0)
+		r = chn_setblocksize(c, 0, 0);
 	if (r == 0) {
 		chn_resetbuf(c);
-		CHANNEL_RESETDONE(c->methods, c->devinfo);
+		r = CHANNEL_RESETDONE(c->methods, c->devinfo);
 	}
 	return r;
 }
@@ -665,46 +668,74 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 {
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
+	int ret;
 
 	chn_lockinit(c);
 	CHN_LOCK(c);
 
+	b = NULL;
+	bs = NULL;
+	c->devinfo = NULL;
 	c->feeder = NULL;
+
+	ret = EINVAL;
 	fc = feeder_getclass(NULL);
 	if (fc == NULL)
-		return EINVAL;
+		goto out;
 	if (chn_addfeeder(c, fc, NULL))
-		return EINVAL;
+		goto out;
 
+	ret = ENOMEM;
 	b = sndbuf_create(c->name, "primary");
 	if (b == NULL)
-		return ENOMEM;
+		goto out;
 	bs = sndbuf_create(c->name, "secondary");
-	if (bs == NULL) {
-		sndbuf_destroy(b);
-		return ENOMEM;
-	}
+	if (bs == NULL)
+		goto out;
 	sndbuf_setup(bs, NULL, 0);
 	c->bufhard = b;
 	c->bufsoft = bs;
 	c->flags = 0;
 	c->feederflags = 0;
-	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, dir);
-	if (c->devinfo == NULL) {
-		sndbuf_destroy(bs);
-		sndbuf_destroy(b);
-		return ENODEV;
-	}
-	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0)) {
-		sndbuf_destroy(bs);
-		sndbuf_destroy(b);
-		return ENOMEM;
-	}
-	chn_setdir(c, dir);
 
-	/* And the secondary buffer. */
-	sndbuf_setfmt(b, AFMT_U8);
-	sndbuf_setfmt(bs, AFMT_U8);
+	ret = ENODEV;
+	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, dir);
+	if (c->devinfo == NULL)
+		goto out;
+
+	ret = ENOMEM;
+	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0))
+		goto out;
+
+	ret = chn_setdir(c, dir);
+	if (ret)
+		goto out;
+
+	ret = sndbuf_setfmt(b, AFMT_U8);
+	if (ret)
+		goto out;
+
+	ret = sndbuf_setfmt(bs, AFMT_U8);
+	if (ret)
+		goto out;
+
+
+out:
+	if (ret) {
+		if (c->devinfo) {
+			if (CHANNEL_FREE(c->methods, c->devinfo))
+				sndbuf_free(b);
+		}
+		if (bs)
+			sndbuf_destroy(bs);
+		if (b)
+			sndbuf_destroy(b);
+		c->flags |= CHN_F_DEAD;
+		chn_lockdestroy(c);
+
+		return ret;
+	}
+
 	CHN_UNLOCK(c);
 	return 0;
 }
@@ -841,11 +872,11 @@ chn_tryformat(struct pcm_channel *c, u_int32_t fmt)
 		c->format = fmt;
 		r = chn_buildfeeder(c);
 		if (r == 0) {
-			sndbuf_setfmt(b, c->feeder->desc->out);
-			sndbuf_setfmt(bs, fmt);
+			sndbuf_setfmt(bs, c->format);
 			chn_resetbuf(c);
-			CHANNEL_SETFORMAT(c->methods, c->devinfo, sndbuf_getfmt(b));
-			r = chn_tryspeed(c, c->speed);
+			r = CHANNEL_SETFORMAT(c->methods, c->devinfo, sndbuf_getfmt(b));
+			if (r == 0)
+				r = chn_tryspeed(c, c->speed);
 		}
 		return r;
 	} else
