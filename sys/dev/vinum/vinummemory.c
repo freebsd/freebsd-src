@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.26 2001/01/04 00:15:49 grog Exp grog $
+ * $Id: vinummemory.c,v 1.28 2001/05/23 23:04:06 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -125,7 +125,7 @@ expand_table(void **table, int oldsize, int newsize)
     }
 }
 
-#if VINUMDEBUG						    /* XXX debug */
+#ifdef VINUMDEBUG					    /* XXX debug */
 #define MALLOCENTRIES 16384
 int malloccount = 0;
 int highwater = 0;					    /* highest index ever allocated */
