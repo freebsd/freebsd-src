@@ -13,6 +13,7 @@ DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
 LDADD=	-lkdb -lkrb -ldes
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
 MAN8=	kpasswdd.8
+DISTRIBUTION=	krb
 
 .endif
 
