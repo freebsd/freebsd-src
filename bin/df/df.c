@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: df.c,v 1.18 1997/10/12 13:55:43 joerg Exp $";
+	"$Id: df.c,v 1.19 1997/10/13 09:36:05 joerg Exp $";
 #endif
 #endif /* not lint */
 
@@ -85,7 +85,7 @@ main(argc, argv)
 	struct statfs statfsbuf, *mntbuf;
 	long mntsize;
 	int ch, err, i, maxwidth, rv, width;
-	char *mntpt, **vfslist;
+	char *mntpt, *mntpath, **vfslist;
 
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "iknt:")) != -1)
@@ -148,17 +148,25 @@ main(argc, argv)
 			continue;
 		} else if ((stbuf.st_mode & S_IFMT) == S_IFBLK) {
 			if ((mntpt = getmntpt(*argv)) == 0) {
-				mntpt = mktemp(strdup("/tmp/df.XXXXXX"));
 				mdev.fspec = *argv;
-				if (mkdir(mntpt, DEFFILEMODE) != 0) {
-					warn("%s", mntpt);
+				mntpath = strdup("/tmp/df.XXXXXX");
+				if (mntpath == NULL) {
+					warn("strdup failed");
 					rv = 1;
+					continue;
+				}
+				mntpt = mkdtemp(mntpath);
+				if (mntpt == NULL) {
+					warn("mkdtemp(\"%s\") failed", mntpath);
+					rv = 1;
+					free(mntpath);
 					continue;
 				}
 				if (mount("ufs", mntpt, MNT_RDONLY,
 				    &mdev) != 0) {
 					rv = ufs_df(*argv, maxwidth) || rv;
 					(void)rmdir(mntpt);
+					free(mntpath);
 					continue;
 				} else if (statfs(mntpt, &statfsbuf) == 0) {
 					statfsbuf.f_mntonname[0] = '\0';
@@ -169,6 +177,7 @@ main(argc, argv)
 				}
 				(void)unmount(mntpt, 0);
 				(void)rmdir(mntpt);
+				free(mntpath);
 				continue;
 			}
 		} else
