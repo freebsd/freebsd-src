@@ -12,11 +12,40 @@ stop_dhcp() {
 		pidfile="/var/run/dhclient.${interface}.pid"
 	elif [ -s /var/run/dhcpc.${interface}.pid ]; then
 		pidfile="/var/run/dhcpc.${interface}.pid"
+	elif [ -s /var/run/dhclient.pid ]; then
+		# If dhclient is already running, record
+		# it's interfaces.
+		if [ -x /usr/bin/grep ]; then
+			eval _active_list=\"`/bin/ps -axwww | \
+				/usr/bin/grep dhclient | \
+				/usr/bin/grep -v grep | \
+				/usr/bin/sed -e 's|^.*dhclient||' | \
+				/usr/bin/awk '{for (i=1;i<=NF;i++) \
+					{ if ($i~/[a-zA-Z].[0-9]$/) \
+					{ printf(" %s",$i) } }}'` \
+				\"
+		fi
+
+		_aprefix=
+		for _if in _active_list ; do
+			_test_if=`ifconfig ${_if} 2>&1`
+			case "$_test_if" in
+			"ifconfig: interface $_if does not exist")
+				;;
+			*)
+				_dhcplist="${_dhcplist}${_aprefix}${_if}"
+				[ -z "$_aprefix" ] && _aprefix=' '
+				;;
+			esac
+		done
+
+		pidfile="/var/run/dhclient.pid"
 	else
 		return
 	fi
 	kill `cat ${pidfile}`
 	rm -f ${pidfile}
+	sh `/etc/rc.d/dhclient start`
 }
 
 start_dhcp() {
@@ -35,7 +64,7 @@ start_dhcp() {
 			pidfile="/var/run/dhclient.${interface}.pid"
 			dhclient_flags="${dhclient_flags} -pf ${pidfile}"
 		fi
-		${dhclient_program} ${dhclient_flags} ${interface}
+		${dhclient_program} ${dhclient_flags} $_dhcplist ${interface}
 	else
 		echo "${dhclient_program}: DHCP client software not available"
 	fi
