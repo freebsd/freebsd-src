@@ -179,7 +179,7 @@ struct sockproto {
 /*
  * RFC 2553: protocol-independent placeholder for socket addresses
  */
-#define	_SS_MAXSIZE	128
+#define	_SS_MAXSIZE	128U
 #define	_SS_ALIGNSIZE	(sizeof(int64_t))
 #define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) - sizeof(sa_family_t))
 #define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) - sizeof(sa_family_t) - \

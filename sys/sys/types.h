@@ -171,7 +171,7 @@ typedef	_BSD_TIMER_T_	timer_t;
 #endif
 
 #ifndef _POSIX_SOURCE
-#define	NBBY	8		/* number of bits in a byte */
+#define	NBBY	8U		/* number of bits in a byte */
 
 /*
  * Select uses bit masks of file descriptors in longs.  These macros
@@ -180,14 +180,14 @@ typedef	_BSD_TIMER_T_	timer_t;
  * be enough for most uses.
  */
 #ifndef	FD_SETSIZE
-#define	FD_SETSIZE	1024
+#define	FD_SETSIZE	1024U
 #endif
 
 typedef	unsigned long	fd_mask;
 #define	NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
-#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
+#define	howmany(x, y)	(((x) + ((y) - 1U)) / (y))
 #endif
 
 typedef	struct fd_set {
