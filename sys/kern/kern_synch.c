@@ -74,6 +74,7 @@ int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
+static struct callout loadav_callout;
 static struct callout schedcpu_callout;
 static struct callout roundrobin_callout;
 
@@ -90,7 +91,7 @@ static fixpt_t cexp[3] = {
 };
 
 static void	endtsleep __P((void *));
-static void	loadav __P((struct loadavg *));
+static void	loadav __P((void *arg));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
 
@@ -339,8 +340,6 @@ schedcpu(arg)
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
-	if (time_second % 5 == 0)
-		loadav(&averunnable);
 	wakeup((caddr_t)&lbolt);
 	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
 }
@@ -863,12 +862,14 @@ resetpriority(kg)
  * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
  */
 static void
-loadav(struct loadavg *avg)
+loadav(void *arg)
 {
 	int i, nrun;
+	struct loadavg *avg;
 	struct proc *p;
 	struct ksegrp *kg;
 
+	avg = &averunnable;
 	sx_slock(&allproc_lock);
 	nrun = 0;
 	FOREACH_PROC_IN_SYSTEM(p) {
@@ -888,6 +889,14 @@ nextproc:
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
+
+	/*
+	 * Schedule the next update to occur after 5 seconds, but add a
+	 * random variation to avoid synchronisation with processes that
+	 * run at regular intervals.
+	 */
+	callout_reset(&loadav_callout, hz * 4 + (int)(random() % (hz * 2 + 1)),
+	    loadav, NULL);
 }
 
 /* ARGSUSED */
@@ -898,10 +907,12 @@ sched_setup(dummy)
 
 	callout_init(&schedcpu_callout, 1);
 	callout_init(&roundrobin_callout, 0);
+	callout_init(&loadav_callout, 0);
 
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
 	schedcpu(NULL);
+	loadav(NULL);
 }
 
 /*
