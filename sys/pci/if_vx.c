@@ -113,7 +113,7 @@ static void vxread __P((struct vx_softc *));
 static void vxreset __P((int));
 static void vxstart __P((struct ifnet *));
 static void vxstop __P((int));
-static void vxwatchdog __P((struct ifnet *));
+static void vxwatchdog __P((int));
 
 static struct vx_softc vx_softc[NVX];
 
@@ -251,7 +251,6 @@ vx_pci_attach(
  	printf("Warning! Defective early revision adapter!\n");
     }
 
-    ifp->if_softc = sc;
     ifp->if_unit = unit;
     ifp->if_name = "vx";
     ifp->if_mtu = ETHERMTU;
@@ -290,7 +289,7 @@ vx_pci_attach(
     sc->top = sc->mcur = 0;
 
 #if NBPFILTER > 0
-    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+    bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
    pci_map_int(config_id, (void *) vxintr, (void *) unit, &net_imask);
@@ -470,7 +469,7 @@ static void
 vxstart(ifp)
     struct ifnet *ifp;
 {
-    register struct vx_softc *sc = ifp->if_softc;
+    register struct vx_softc *sc = &vx_softc[ifp->if_unit];
     register u_int len;
     register struct mbuf *m;
     struct mbuf *top;
@@ -554,7 +553,7 @@ startagain:
 
 #if NBPFILTER > 0
     if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, top);
+	bpf_mtap(sc->bpf, top);
     }
 #endif
 
@@ -872,7 +871,7 @@ all_pkt:
 
 #if NBPFILTER > 0
     if (sc->arpcom.ac_if.if_bpf) {
-	bpf_mtap(&sc->arpcom.ac_if, top);
+	bpf_mtap(sc->bpf, top);
 
 	/*
 	 * Note that the interface cannot be in promiscuous mode if there are
@@ -941,7 +940,7 @@ vxioctl(ifp, cmd, data)
     caddr_t data;
 {
     register struct ifaddr *ifa = (struct ifaddr *) data;
-    struct vx_softc *sc = ifp->if_softc;
+    struct vx_softc *sc = &vx_softc[ifp->if_unit];
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
@@ -1055,9 +1054,11 @@ vxreset(unit)
 }
 
 static void
-vxwatchdog(ifp)
-    struct ifnet *ifp;
+vxwatchdog(unit)
+    int unit;
 {
+    struct vx_softc *sc = &vx_softc[unit];
+    struct ifnet *ifp = &sc->arpcom.ac_if;
     /*
     printf("vx: watchdog\n");
 
@@ -1068,7 +1069,7 @@ vxwatchdog(ifp)
     /* vxreset(ifp->if_unit); */
     ifp->if_flags &= ~IFF_OACTIVE;
     vxstart(ifp);
-    vxintr(ifp->if_unit);
+    vxintr(unit);
 }
 
 static void
