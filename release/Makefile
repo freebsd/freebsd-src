@@ -683,7 +683,7 @@ release.9:
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
-	-@rm -rf ${RD}/driversfd
+	@rm -rf ${RD}/driversfd
 	@mkdir ${RD}/driversfd
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
