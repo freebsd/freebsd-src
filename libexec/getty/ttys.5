@@ -56,9 +56,11 @@ Blank lines and comments may appear anywhere in the file; comments
 are delimited by hash marks (``#'') and new lines.
 Any unspecified fields will default to null.
 .Pp
-The first field is the
+The first field is normally the
 name of the terminal special file as it is found in
 .Pa /dev .
+However, it can be any arbitrary string
+when the associated command is not related to a tty.
 .Pp
 The second field of the file is the command to execute for the line,
 usually
@@ -125,6 +127,14 @@ If no group is specified, then the tty becomes a member of the group
 "none".
 For backwards compatibility, the ``group='' should appear last on the
 line, immediately before the optional comment.
+.Pp
+Both the second field and any command specified with ``window=''
+will be split into words and executed using
+.Xr execve 2 .
+Words are separated by any combinations of tabs and spaces.
+Arguments containing whitespace should be enclosed in single quotes
+.Pq ' .
+Note that no shell-style globbing or other variable substitution occurs.
 .Sh EXAMPLES
 .Bd -literal
 # root login on console at 1200 baud
