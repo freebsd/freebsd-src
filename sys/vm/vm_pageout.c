@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.30 1995/01/10 07:32:49 davidg Exp $
+ * $Id: vm_pageout.c,v 1.31 1995/01/24 10:13:58 davidg Exp $
  */
 
 /*
@@ -336,6 +336,9 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	dcount = 0;
 	if (count == 0)
 		count = 1;
+
+	if (object->pager && (object->pager->pg_type == PG_DEVICE))
+		return 0;
 
 	if (object->shadow) {
 		if (object->shadow->ref_count == 1)
