@@ -28,8 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eisaconf.c,v 1.26 1997/02/22 09:32:02 peter Exp $
  */
+
+#include "opt_eisa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -96,7 +99,10 @@ static struct {
 #define	MAX_COL 80
 } reg_state;
 
-/* XXX Global variable, so UserConfig can change it. */
+/* Global variable, so UserConfig can change it. */
+#ifndef EISA_SLOTS
+#define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
+#endif
 int num_eisa_slots = EISA_SLOTS;
 		
 /*
