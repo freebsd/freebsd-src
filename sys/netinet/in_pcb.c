@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.41 1998/03/28 10:18:21 bde Exp $
+ *	$Id: in_pcb.c,v 1.42 1998/03/28 10:33:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -70,8 +70,8 @@ static int ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
 static int ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
 static int ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
 static int ipport_lastauto  = IPPORT_USERRESERVED;	/* 5000 */
-static int ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 40000 */
-static int ipport_hilastauto  = IPPORT_HILASTAUTO;	/* 44999 */
+static int ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
+static int ipport_hilastauto  = IPPORT_HILASTAUTO;	/* 65535 */
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
