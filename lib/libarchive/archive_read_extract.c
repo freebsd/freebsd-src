@@ -74,6 +74,7 @@ struct extract {
 	mode_t			 default_dir_mode;
 	struct archive_string	 mkdirpath;
 	struct fixup_entry	*fixup_list;
+	struct fixup_entry	*current_fixup;
 
 	/*
 	 * Cached stat data from disk for the current entry.
@@ -109,9 +110,9 @@ static int	extract_hard_link(struct archive *, struct archive_entry *, int);
 static int	extract_symlink(struct archive *, struct archive_entry *, int);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
-static int	mkdirpath(struct archive *, const char *);
-static int	mkdirpath_recursive(struct archive *, char *,
-		    const struct stat *, mode_t, int);
+static int	mkdirpath(struct archive *, const char *, int flags);
+static int	mkdirpath_internal(struct archive *, char *, int flags);
+static int	mkdirpath_recursive(struct archive *, char *, int flags);
 static int	restore_metadata(struct archive *, struct archive_entry *,
 		    int flags);
 #ifdef HAVE_POSIX_ACL
@@ -160,6 +161,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	umask(extract->umask = umask(0)); /* Read the current umask. */
 	extract->default_dir_mode = DEFAULT_DIR_MODE & ~extract->umask;
 	extract->pst = NULL;
+	extract->current_fixup = NULL;
 	restore_pwd = -1;
 
 	/*
@@ -217,16 +219,22 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 }
 
 /*
- * Cleanup function for archive_extract.  Free name/mode list and
- * restore permissions and dir timestamps.  This must be done last;
- * otherwise, the dir permission might prevent us from restoring a
- * file.  Similarly, the act of restoring a file touches the directory
- * and changes the timestamp on the dir, so we have to touch-up the
- * timestamps at the end as well.  Note that tar/cpio do not require
- * that archives be in a particular order; there is no way to know
- * when the last file has been restored within a directory, so there's
- * no way to optimize the memory usage here by fixing up the directory
- * any earlier than the end-of-archive.
+ * Cleanup function for archive_extract.  Mostly, this involves processing
+ * the fixup list, which is used to address a number of problems:
+ *   * Dir permissions might prevent us from restoring a file in that
+ *     dir, so we restore the dir 0700 first, then correct the
+ *     mode at the end.
+ *   * Similarly, the act of restoring a file touches the directory
+ *     and changes the timestamp on the dir, so we have to touch-up the
+ *     timestamps at the end as well.
+ *   * Some file flags can interfere with the restore by, for example,
+ *     preventing the creation of hardlinks to those files.
+ *
+ * Note that tar/cpio do not require that archives be in a particular
+ * order; there is no way to know when the last file has been restored
+ * within a directory, so there's no way to optimize the memory usage
+ * here by fixing up the directory any earlier than the
+ * end-of-archive.
  *
  * XXX TODO: Directory ACLs should be restored here, for the same
  * reason we set directory perms here. XXX
@@ -246,6 +254,7 @@ archive_extract_cleanup(struct archive *a)
 	p = sort_dir_list(extract->fixup_list);
 
 	while (p != NULL) {
+		extract->pst = NULL; /* Mark stat buff as out-of-date. */
 		if (p->fixup & FIXUP_TIMES) {
 			struct timeval times[2];
 			times[1].tv_sec = p->mtime;
@@ -336,6 +345,40 @@ sort_dir_list(struct fixup_entry *p)
 	return (p);
 }
 
+/*
+ * Returns a new, initialized fixup entry.
+ */
+static struct fixup_entry *
+new_fixup(struct archive *a, const char *pathname)
+{
+	struct extract *extract;
+	struct fixup_entry *fe;
+
+	extract = a->extract;
+	fe = malloc(sizeof(struct fixup_entry));
+	if (fe == NULL)
+		return (NULL);
+	fe->next = extract->fixup_list;
+	extract->fixup_list = fe;
+	fe->fixup = 0;
+	fe->name = strdup(pathname);
+	return (fe);
+}
+
+/*
+ * Returns a fixup structure for the current entry.
+ */
+static struct fixup_entry *
+current_fixup(struct archive *a, const char *pathname)
+{
+	struct extract *extract;
+
+	extract = a->extract;
+	if (extract->current_fixup == NULL)
+		extract->current_fixup = new_fixup(a, pathname);
+	return (extract->current_fixup);
+}
+
 static int
 extract_file(struct archive *a, struct archive_entry *entry, int flags)
 {
@@ -366,7 +409,7 @@ extract_file(struct archive *a, struct archive_entry *entry, int flags)
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (fd < 0) {
-		mkdirpath(a, name);
+		mkdirpath(a, name, flags);
 		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
 	}
 	if (fd < 0) {
@@ -384,130 +427,169 @@ static int
 extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 {
 	struct extract *extract;
-	const struct stat *st;
-	char *p;
-	size_t len;
-	mode_t mode;
+	struct fixup_entry *fe;
+	char *path, *p;
 
 	extract = a->extract;
+	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	/* Copy path to mutable storage. */
-	archive_strcpy(&(extract->mkdirpath),
-	    archive_entry_pathname(entry));
-	p = extract->mkdirpath.s;
-	len = strlen(p);
-	if (len > 2 && p[len - 1] == '.' && p[len - 2] == '/')
-		p[--len] = '\0'; /* Remove trailing "/." */
-	if (len > 2 && p[len - 1] == '/')
-		p[--len] = '\0'; /* Remove trailing "/" */
-	/* Recursively try to build the path. */
-	st = archive_entry_stat(entry);
-	mode = st->st_mode;
-	/* Obey umask unless ARCHIVE_EXTRACT_PERM for explicit dirs. */
-	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
-		mode &= ~extract->umask;
-	extract->pst = NULL; /* Invalidate cached stat data. */
-	if (mkdirpath_recursive(a, p, st, mode, flags))
+	archive_strcpy(&(extract->mkdirpath), archive_entry_pathname(entry));
+	path = extract->mkdirpath.s;
+
+	/* Deal with any troublesome trailing path elements. */
+	for (;;) {
+		if (*path == '\0')
+			return (ARCHIVE_OK);
+		/* Locate last element; trim trailing '/'. */
+		p = strrchr(path, '/');
+		if (p != NULL) {
+			if (p[1] == '\0') {
+				*p = '\0';
+				continue;
+			}
+			p++;
+		} else
+			p = path;
+		/* Trim trailing '.'. */
+		if (p[0] == '.' && p[1] == '\0') {
+			p[0] = '\0';
+			continue;
+		}
+		/* Just exit on trailing '..'. */
+		if (p[0] == '.' && p[1] == '.' && p[2] == '\0')
+			return (ARCHIVE_OK);
+		break;
+	}
+
+	if (mkdir(path, SECURE_DIR_MODE) == 0)
+		goto success;
+
+	if (extract->pst == NULL && stat(path, &extract->st) == 0)
+		extract->pst = &extract->st;
+
+	if (extract->pst != NULL) {
+		extract->pst = &extract->st;
+		if (S_ISDIR(extract->pst->st_mode))
+			goto success;
+		/* It exists but isn't a dir. */
+		if ((flags & ARCHIVE_EXTRACT_UNLINK))
+			unlink(path);
+	} else {
+		/* Doesn't already exist; try building the parent path. */
+		if (mkdirpath(a, p, flags) != ARCHIVE_OK)
+			return (ARCHIVE_WARN);
+	}
+
+	/* One final attempt to create the dir. */
+	if (mkdirpath_internal(a, path, flags) != ARCHIVE_OK)
 		return (ARCHIVE_WARN);
-	archive_entry_set_mode(entry, 0700);
+
+success:
+	/* Add this dir to the fixup list. */
+	fe = current_fixup(a, path);
+	fe->fixup |= FIXUP_MODE;
+	fe->mode = archive_entry_mode(entry);
+	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
+		fe->mode &= ~extract->umask;
+	if (flags & ARCHIVE_EXTRACT_TIME) {
+		fe->fixup |= FIXUP_TIMES;
+		fe->mtime = archive_entry_mtime(entry);
+		fe->mtime_nanos = archive_entry_mtime_nsec(entry);
+		fe->atime = archive_entry_atime(entry);
+		fe->atime_nanos = archive_entry_atime_nsec(entry);
+	}
+	/* For now, set the mode to SECURE_DIR_MODE. */
+	archive_entry_set_mode(entry, SECURE_DIR_MODE);
 	return (restore_metadata(a, entry, flags));
 }
 
 
 /*
- * Convenience form.
+ * Create the parent of the specified path.  Copy the provided
+ * path into mutable storage first.
  */
 static int
-mkdirpath(struct archive *a, const char *path)
+mkdirpath(struct archive *a, const char *path, int flags)
 {
 	struct extract *extract;
-	char *p;
 
 	extract = a->extract;
 
 	/* Copy path to mutable storage. */
 	archive_strcpy(&(extract->mkdirpath), path);
-	p = extract->mkdirpath.s;
-	p = strrchr(extract->mkdirpath.s, '/');
-	if (p == NULL)
-		return (ARCHIVE_OK);
-	*p = '\0';
 
-	/* Recursively try to build the path. */
-	if (mkdirpath_recursive(a, extract->mkdirpath.s,
-	    NULL, extract->default_dir_mode, 0))
-		return (ARCHIVE_WARN);
-	return (ARCHIVE_OK);
+	return (mkdirpath_internal(a, extract->mkdirpath.s, flags));
 }
 
 /*
- * Returns 0 if it successfully created necessary directories.
+ * Handle remaining setup for mkdirpath_recursive(), assuming
+ * path is already in mutable storage.
+ */
+static int
+mkdirpath_internal(struct archive *a, char *path, int flags)
+{
+	char *slash;
+	mode_t old_umask;
+	int r;
+
+	/* Remove tail element to obtain parent name. */
+	slash = strrchr(path, '/');
+	if (slash == NULL)
+		return (ARCHIVE_OK);
+	*slash = '\0';
+	old_umask = umask(~SECURE_DIR_MODE);
+	r = mkdirpath_recursive(a, path, flags);
+	umask(old_umask);
+	*slash = '/';
+	return (r);
+}
+
+/*
+ * Create the specified dir, recursing to create parents as necessary.
+ *
+ * Returns ARCHIVE_OK if the path exists when we're done here.
  * Otherwise, returns ARCHIVE_WARN.
  */
 static int
-mkdirpath_recursive(struct archive *a, char *path,
-    const struct stat *desired_stat, mode_t mode, int flags)
+mkdirpath_recursive(struct archive *a, char *path, int flags)
 {
 	struct stat st;
 	struct extract *extract;
 	struct fixup_entry *le;
-	char *p;
-	mode_t writable_mode = SECURE_DIR_MODE;
+	char *slash, *base;
 	int r;
 
 	extract = a->extract;
+	r = ARCHIVE_OK;
 
-	if (path[0] == '.' && path[1] == 0)
+	/* Check for special names and just skip them. */
+	slash = strrchr(path, '/');
+	base = strrchr(path, '/');
+	if (slash == NULL)
+		base = path;
+	else
+		base = slash + 1;
+
+	if (base[0] == '\0' ||
+	    (base[0] == '.' && base[1] == '\0') ||
+	    (base[0] == '.' && base[1] == '.' && base[2] == '\0')) {
+		/* Don't bother trying to create null path, '.', or '..'. */
+		if (slash != NULL) {
+			*slash = '\0';
+			r = mkdirpath_recursive(a, path, flags);
+			*slash = '/';
+			return (r);
+		}
 		return (ARCHIVE_OK);
-
-	if (mode != writable_mode ||
-	    (desired_stat != NULL && (flags & ARCHIVE_EXTRACT_TIME))) {
-		/* Add this dir to the fixup list. */
-		le = malloc(sizeof(struct fixup_entry));
-		le->fixup = 0;
-		le->next = extract->fixup_list;
-		extract->fixup_list = le;
-		le->name = strdup(path);
-
-		if (mode != writable_mode) {
-			le->mode = mode;
-			le->fixup |= FIXUP_MODE;
-			mode = writable_mode;
-		}
-		if (flags & ARCHIVE_EXTRACT_TIME) {
-			le->mtime = desired_stat->st_mtime;
-			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(desired_stat);
-			le->atime = desired_stat->st_atime;
-			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(desired_stat);
-			le->fixup |= FIXUP_TIMES;
-		}
 	}
 
 	/*
-	 * Try to make the longest dir first.  Most archives are
-	 * written in a reasonable order, so this will almost always
-	 * save us from having to inspect the parent dirs.
-	 */
-	if (mkdir(path, mode) == 0)
-		return (ARCHIVE_OK);
-	/*
-	 * Do "unlink first" after.  The preceding syscall will always
-	 * fail if something already exists, so we save a little time
-	 * in the common case by not trying to unlink until we know
-	 * something is there.
-	 */
-	if ((flags & ARCHIVE_EXTRACT_UNLINK))
-		unlink(path);
-	/*
 	 * Yes, this should be stat() and not lstat().  Using lstat()
-	 * here loses the ability to extract through symlinks.  If
-	 * clients don't want to extract through symlinks, they should
-	 * specify ARCHIVE_EXTRACT_UNLINK.
-	 *
-	 * Note that this cannot use the extract->st cache.
+	 * here loses the ability to extract through symlinks.  Also note
+	 * that this should not use the extract->st cache.
 	 */
 	if (stat(path, &st) == 0) {
-		/* Already exists! */
 		if (S_ISDIR(st.st_mode))
 			return (ARCHIVE_OK);
 		if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
@@ -515,44 +597,40 @@ mkdirpath_recursive(struct archive *a, char *path,
 			    "Can't create directory '%s'", path);
 			return (ARCHIVE_WARN);
 		}
-		/* Not a dir: remove it and create a directory. */
-		if (unlink(path) == 0 &&
-		    mkdir(path, mode) == 0)
-			return (ARCHIVE_OK);
-	} else if (errno != ENOENT) {
+		if (unlink(path) != 0) {
+			archive_set_error(a, errno,
+			    "Can't create directory '%s': "
+			    "Conflicting file cannot be removed");
+			return (ARCHIVE_WARN);
+		}
+	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
 		archive_set_error(a, errno, "Can't test directory '%s'", path);
 		return (ARCHIVE_WARN);
-	}
-
-	/* Doesn't exist: try creating parent dir. */
-	p = strrchr(path, '/');
-	if (p != NULL) {
-		*p = '\0';	/* Terminate path name. */
-		/* Note that implicit dirs always obey the umask. */
-		r = mkdirpath_recursive(a, path, NULL,
-		    extract->default_dir_mode, 0);
-		*p = '/';	/* Restore the '/' we just overwrote. */
+	} else if (slash != NULL) {
+		*slash = '\0';
+		r = mkdirpath_recursive(a, path, flags);
+		*slash = '/';
 		if (r != ARCHIVE_OK)
 			return (r);
-		/* Parent exists now; let's create the last component. */
-		p++;
-		/* Of course, "", ".", and ".." are easy. */
-		if (p[0] == '\0')
-			return (ARCHIVE_OK);
-		if (p[0] == '.' && p[1] == '\0')
-			return (ARCHIVE_OK);
-		if (p[0] == '.' && p[1] == '.' && p[2] == '\0')
-			return (ARCHIVE_OK);
-		if (mkdir(path, mode) == 0)
-			return (ARCHIVE_OK);
-		/*
-		 * Without the following check, a/b/../b/c/d fails at
-		 * the second visit to 'b', so 'd' can't be created.
-		 */
-		if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
-			return (ARCHIVE_OK);
 	}
+
+	if (mkdir(path, SECURE_DIR_MODE) == 0) {
+		le = new_fixup(a, path);
+		le->fixup |= FIXUP_MODE;
+		le->mode = extract->default_dir_mode;
+		return (ARCHIVE_OK);
+	}
+
+	/*
+	 * Without the following check, a/b/../b/c/d fails at the
+	 * second visit to 'b', so 'd' can't be created.  Note that we
+	 * don't add it to the fixup list here, as it's already been
+	 * added.
+	 */
+	if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
+		return (ARCHIVE_OK);
+
 	archive_set_error(a, errno, "Failed to create dir '%s'", path);
 	return (ARCHIVE_WARN);
 }
@@ -578,7 +656,7 @@ extract_hard_link(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
-		mkdirpath(a, pathname);
+		mkdirpath(a, pathname, flags);
 		r = link(linkname, pathname);
 	}
 
@@ -615,7 +693,7 @@ extract_symlink(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
-		mkdirpath(a, pathname);
+		mkdirpath(a, pathname, flags);
 		r = symlink(linkname, pathname);
 	}
 
@@ -648,7 +726,7 @@ extract_device(struct archive *a, struct archive_entry *entry,
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
-		mkdirpath(a, archive_entry_pathname(entry));
+		mkdirpath(a, archive_entry_pathname(entry), flags);
 		r = mknod(archive_entry_pathname(entry), mode,
 		    archive_entry_rdev(entry));
 	}
@@ -697,7 +775,7 @@ extract_fifo(struct archive *a, struct archive_entry *entry, int flags)
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
-		mkdirpath(a, archive_entry_pathname(entry));
+		mkdirpath(a, archive_entry_pathname(entry), flags);
 		r = mkfifo(archive_entry_pathname(entry),
 		    archive_entry_mode(entry));
 	}
@@ -901,12 +979,8 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 		 * all of this if it's not necessary.
 		 */
 		if ((critical_flags != 0)  &&  (set & critical_flags)) {
-			le = malloc(sizeof(struct fixup_entry));
-			le->fixup = FIXUP_FFLAGS;
-			le->next = extract->fixup_list;
-			extract->fixup_list = le;
-			le->name = strdup(archive_entry_pathname(entry));
-			le->mode = archive_entry_mode(entry);
+			le = current_fixup(a, archive_entry_pathname(entry));
+			le->fixup |= FIXUP_FFLAGS;
 			le->fflags_set = set;
 		} else {
 			r = set_fflags(a, archive_entry_pathname(entry),
