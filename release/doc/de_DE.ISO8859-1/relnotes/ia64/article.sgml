@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/ia64/article.sgml,v 1.1 2002/11/09 20:58:39 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/ia64/article.sgml,v 1.2 2002/11/10 10:47:53 ue Exp $
   basiert auf: 1.1
 -->
 
@@ -22,6 +22,6 @@
 
 ]>
 
-<article>
+<article lang="de">
   &art;
 </article>
