@@ -45,7 +45,7 @@
  * Data types.
  */
 typedef u_char		sa_family_t;
-typedef u_int32_t	socklen_t;
+typedef int		socklen_t;
 
 /*
  * Types
