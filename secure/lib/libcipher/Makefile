@@ -1,8 +1,7 @@
 #
-# $Id: Makefile,v 1.1.1.1 1994/09/07 21:18:07 csgr Exp $
+# $Id: Makefile,v 1.2 1994/09/07 21:48:45 csgr Exp $
 #
 
-SUBDIR=		test
 
 LIB=		cipher
 SRCS=		crypt.c
@@ -13,4 +12,6 @@ NOPROFILE=	yes
 #MLINKS= crypt.3 encrypt.3 crypt.3 setkey.3
 #MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3
 
-.include <bsd.subdir.mk>
+#SUBDIR=		test
+
+.include <bsd.lib.mk>
