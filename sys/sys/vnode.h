@@ -67,7 +67,7 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
  * and should NEVER be inspected by the kernel.
  */
 enum vtagtype	{
-	VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
+	VT_NON, VT_UFS, VT_NFS, VT_UNUSED, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
 	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
 	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS,
 	VT_HPFS, VT_NWFS, VT_PSEUDOFS, VT_SMBFS
@@ -434,7 +434,6 @@ struct vop_generic_args {
  * [dfr] Kludge until I get around to fixing all the vfs locking.
  */
 #define IS_LOCKING_VFS(vp)	((vp)->v_tag == VT_UFS			\
-				 || (vp)->v_tag == VT_MFS		\
 				 || (vp)->v_tag == VT_NFS		\
 				 || (vp)->v_tag == VT_LFS		\
 				 || (vp)->v_tag == VT_ISOFS		\
