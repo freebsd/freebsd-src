@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: SYS.h,v 1.1.1.1 1998/03/09 06:34:40 jb Exp $ */
 /*	From: NetBSD: SYS.h,v 1.5 1997/05/02 18:15:15 kleink Exp */
 
 /*
@@ -74,5 +74,54 @@ LEAF(label,0);				/* XXX # of args? */	\
 	RET;							\
 END(label);
 
+/*
+ * Design note:
+ *
+ * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
+ * syscall needs to be renamed in the threaded library. When building
+ * a normal library, they default to the traditional SYSCALL() and
+ * RSYSCALL(). This avoids the need to #ifdef _THREAD_SAFE everywhere
+ * that the renamed function needs to be called.
+ */
+#ifdef _THREAD_SAFE
+/*
+ * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * name so that the 'C' wrapper can go around the real name.
+ */
+#define	PCALL(name)						\
+	CALL(___CONCAT(_thread_sys_,name))
+
+#define	PLEAF(name, args)					\
+LEAF(___CONCAT(_thread_sys_,name),args)
+
+#define	PEND(name)						\
+END(___CONCAT(_thread_sys_,name))
+
+#define	PSYSCALL(name)						\
+PLEAF(name,0);				/* XXX # of args? */	\
+	CALLSYS_ERROR(name)
+
+#define	PRSYSCALL(name)						\
+PLEAF(name,0);				/* XXX # of args? */	\
+	CALLSYS_ERROR(name)					\
+	RET;							\
+PEND(name)
+
+#define	PPSEUDO(label,name)					\
+PLEAF(label,0);				/* XXX # of args? */	\
+	CALLSYS_ERROR(name);					\
+	RET;							\
+PEND(label)
+
+#else
+/*
+ * The non-threaded library defaults to traditional syscalls where
+ * the function name matches the syscall name.
+ */
+#define	PSYSCALL(x)	SYSCALL(x)
 #define	PRSYSCALL(x)	RSYSCALL(x)
 #define	PPSEUDO(x,y)	PSEUDO(x,y)
+#define	PLEAF(x,y)	LEAF(x,y)
+#define	PEND(x)		END(x)
+#define	PCALL(x)	CALL(x)
+#endif
