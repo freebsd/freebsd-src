@@ -1,4 +1,4 @@
-$FreeBSD$
+/$FreeBSD$
 
 /*
  * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.
@@ -537,6 +537,7 @@ product	CASIO NAMELAND		0x4001	CASIO Nameland EZ-USB
 /* Cherry products */
 product CHERRY MY3000KBD	0x0001	My3000 keyboard
 product CHERRY MY3000HUB	0x0003	My3000 hub
+product	CHERRY CYBOARD		0x0004	CyBoard Keyboard
 
 /* Chic Technology products */
 product CHIC MOUSE1		0x0001	mouse
