@@ -1276,9 +1276,6 @@
         <listitem>
 	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
         </listitem>
-        <listitem>
-	  <para>3c505 Etherlink/+</para>
-        </listitem>
         <listitem arch="i386">
 	  <para>3C507 Etherlink 16/TP (&man.ie.4; driver)</para>
         </listitem>
