@@ -920,8 +920,8 @@ dim_check(Namep q)
 	else if (!ONEOF(nelt->headblock.vtype, MSKINT|MSKREAL))
 		bad_dimtype(q);
 	else if (ISINT(nelt->headblock.vtype)
-		    && nelt->constblock.Const.ci <= 0
-		 || nelt->constblock.Const.cd[0] <= 0)
+			? nelt->constblock.Const.ci <= 0
+			: nelt->constblock.Const.cd[0] <= 0.)
 		dclerr("nonpositive dimension", q);
 	}
 
