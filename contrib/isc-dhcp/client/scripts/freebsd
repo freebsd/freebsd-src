@@ -155,6 +155,7 @@ if [ x$reason = xTIMEOUT ]; then
       mv /etc/resolv.conf.std /etc/resolv.conf
       exit 0
     fi
+  fi
   ifconfig $interface inet -alias $new_ip_address $medium
   for router in $old_routers; do
     route delete default $router >/dev/null 2>&1

@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: conflex.c,v 1.29 1997/10/29 18:32:53 mellon Exp $ Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: conflex.c,v 1.29.2.3 1999/02/09 04:49:04 mellon Exp $ Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -362,6 +362,8 @@ static int intern (atom, dfv)
 			return ALIAS;
 		if (!strcasecmp (atom + 1, "bandoned"))
 			return ABANDONED;
+		if (!strcasecmp (atom + 1, "uthoritative"))
+			return AUTHORITATIVE;
 		break;
 	      case 'b':
 		if (!strcasecmp (atom + 1, "ackoff-cutoff"))
@@ -417,6 +419,8 @@ static int intern (atom, dfv)
 			return FILENAME;
 		if (!strcasecmp (atom + 1, "ixed-address"))
 			return FIXED_ADDR;
+		if (!strcasecmp (atom + 1, "ddi"))
+			return FDDI;
 		break;
 	      case 'g':
 		if (!strcasecmp (atom + 1, "iaddr"))
@@ -462,6 +466,8 @@ static int intern (atom, dfv)
 			return NETMASK;
 		if (!strcasecmp (atom + 1, "ext-server"))
 			return NEXT_SERVER;
+		if (!strcasecmp (atom + 1, "ot"))
+			return TOKEN_NOT;
 		break;
 	      case 'o':
 		if (!strcasecmp (atom + 1, "ption"))
@@ -526,12 +532,18 @@ static int intern (atom, dfv)
 			return TOKEN_RING;
 		break;
 	      case 'u':
+		if (!strncasecmp (atom + 1, "se", 2)) {
+			if (!strcasecmp (atom + 3, "r-class"))
+				return USER_CLASS;
+			if (!strcasecmp (atom + 3, "-host-decl-names"))
+				return USE_HOST_DECL_NAMES;
+			if (!strcasecmp (atom + 3,
+					 "-lease-addr-for-default-route"))
+				return USE_LEASE_ADDR_FOR_DEFAULT_ROUTE;
+			break;
+		}
 		if (!strcasecmp (atom + 1, "id"))
 			return UID;
-		if (!strcasecmp (atom + 1, "ser-class"))
-			return USER_CLASS;
-		if (!strcasecmp (atom + 1, "se-host-decl-names"))
-			return USE_HOST_DECL_NAMES;
 		if (!strcasecmp (atom + 1, "nknown-clients"))
 			return UNKNOWN_CLIENTS;
 		break;

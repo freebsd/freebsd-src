@@ -1,7 +1,7 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 6
-			    June 26, 1998
+		   Version 2, Beta 1, Patchlevel 10
+			  February 8, 1998
 
 			    Release Notes
 
@@ -13,8 +13,8 @@ stable.
 
 Version 1 of the ISC DHCP Distribution includes just a DHCP Server.
 Version 1 has been in feature freeze since late 1996, and is quite
-stable.  This is the release that we would expect most sites to run in
-production.
+stable.  This is the release that we would expect very conservative
+sites to run in production, but it is no longer recommended.
 
 Version 2 of the ISC DHCP Distribution adds a DHCP Client and a
 DHCP/BOOTP Relay Agent to the DHCP Server that was offered in version
@@ -33,18 +33,223 @@ server:
 	  addresses other than the one the server knows they should be
 	  using are disciplined quickly.
 
-This version is now in Beta testing, and is planned for release in
-mid-1998.  It has a number of new features, and is the release that we
-would expect sites that want some stability but need the new lease
-testing feature, or need a client or relay agent.   Note that it is
-possible to run the Version 1 server with the Version 2 client.
+This version has been in a near feature freeze since January of 1998,
+has been in Beta test since then, and is planned for final release in
+mid-1999.  It has a number of important features, and is the release
+that we would expect most sites to run.  It is possible to run the
+Version 1 server with the Version 2 client at sites that want to be
+really conservative.
 
-Version 3 of the ISC DHCP Distribution will add Dynamic DNS Support,
+Version 3 of the ISC DHCP Distribution will add conditional behaviour,
+client classing, Dynamic DNS Support, DHCPv4 16-bit option codes,
 asynchronous DNS query resolution, DHCP Authentication, and possibly
 support for a DHCP Interserver Protocol and live querying of the DHCP
-database.   This release is not expected to be stable in the near
-future, and is intended for sites that are in a position to
+database.  Currently, only client classing and conditional behaviour
+have been implemented - the DNS code is waiting for an enhanced DNS
+resolver.  The code has gone through a major internal restructuring
+which will help to support wider option codes, and possibly IPv6, as
+well as a more sensible memory allocation strategy.  This release is
+running in producion at the ISC, but is not expected to be stable in
+the near future, and is intended for sites that are in a position to
 experiment, or for sites that desperately need the new features.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 10
+
+- Update top-level Makefile so that it exits correctly on errors in
+  submakes under bash/gnu make (dunno which is the culprit, and don't
+  really care).
+
+- Print a more helpful message if no free BPF devices are found.
+
+- Add support for specifying that the server is or is not
+  authoritative for a particular network segment.
+
+- Fix two stupid typos in lpf.c.
+
+- Print a more helpful message if we can't create an LPF socket or
+  can't attach a filter to it.
+
+	     CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 9
+
+- Correct the hopelessly outdated information about Linux at the top
+  of the README - many apologies to the Linux people who have had to
+  read that nonsense for the past couple of snapshots and have been
+  confused or annoyed by it.   I simply hadn't read it recently, and
+  didn't realize how out-of-date it was.
+
+- Print a message if the client finds no broadcast interfaces to
+  configure.
+
+- Add support for use-lease-addr-for-default-route flag in server, so
+  that Windows machines can be made to ARP for all addresses.
+
+- Update README file to mention new Linux gotchas.
+
+- After finally understanding Brian Murrel's code (my fault, not his)
+  to get interface names from /proc/net/dev on Linux, fix what I broke
+  of his code and document it.
+
+- Use sendto rather than send for SOCK_PACKET sockets, because they
+  can't be connected, only bound.   :'(
+
+- Fix up SOCK_PACKET creation so that the kernel doesn't complain
+  about it.
+
+- Fix incorrect tests in linux client script:
+  [ $relmajor == 2 ] -> [ $relmajor -eq 2 ]
+
+- Make typedefs for u8, u16 and u32 types.   These are Linux kernel
+  internal data types which are unfortunately exposed in the linux
+  packetfilter header file.
+
+- Don't include <net/ethernet.h> in lpf.c - it defines things we're
+  already correctly defining elsewhere, and doesn't define any useful
+  new stuff.
+
+- Finally fix client PREINIT bug that causes interfaces not specified
+  on the command line to be preinitialized.   If no interfaces are
+  specified on the command line, all interfaces are still
+  preinitialized.
+
+	     CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 8
+
+- Fix socket API fallback setup code, which was causing Linux servers
+  and clients to loop endlessly on select when run as daemons.
+
+- Add support for Linux 2.2 version number (treated the same as Linux
+  2.1, for now).
+
+- Correct apparent error in DHCPREQUEST destination address handling
+  when in INIT-REBOOT state.
+
+- Do not set BROADCAST flag if we have a valid IP address.
+
+- Remove hard-coded filenames and use system-specific manifest
+  constants.
+
+- Add entry and exit hooks to Linux dhclient-script (should be added
+  to all operating systems once tested).
+
+- Test for linux major and minor version so as to correctly invoke
+  network configuration programs.
+
+- Add support for Linux's gratuitous name change of bpf_insn structure
+  (can't pollute precious Linux sources with the "Berkeley" word, I
+  guess.
+
+- Correct USE_BPF_{SEND,RECEIVE} ifdefs for if_reinitialize_*
+  functions.
+
+- Ensure that we have ifreq structure before initializing interface -
+  if an interface was specified on the command line on Linux, this was
+  not the case.
+
+- Get rid of references to enstamp structure in lpf.c.   Correctly
+  declare and initialize sock_fprog structure (aka bpf_filter
+  structure on non-Linux machines).
+
+- Define ssize_t on Ultrix.
+
+	     CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 7
+
+- Generalize FDDI support.
+
+- Fix potential core dump in interface discovery code.
+
+- Put explicit release versions on startup messages.
+
+	     CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 6
+
+- Add support for Linux Packet Filter (thanks to Brian Murrell, Interlinx).
+
+- Add support for FDDI hardware type.
+
+- Fix a long-standing bug in DLPI support where the ethertype was
+  being set incorrectly (thanks to Gong Wei, CCENet).
+
+- Don't use DLPI RAW mode on Solaris.
+
+- In the client, when a lease expires, the interface to which that
+  lease is attached is unconfigured.   On systems that use the socket
+  API, the interface needs to then be reconfigured with the 0.0.0.0
+  address so that it can be used to get a new address.
+
+- Add fallback support for Linux.   This fixes a problem with the
+  relay agent when relaying over non-broadcast links, and may also fix
+  some obscure problems with unicasting DHCPACKs in both the server and
+  relay agent.
+
+- When allocating leases, if the oldest lease is abandoned, try to
+  find a younger-but-still-expired lease rather than reclaiming the
+  abandoned lease.
+
+- Add more documentation to README.
+
+- The absence of the /etc/dhclient.conf file is no longer considered
+  an error.
+
+- The dhcp client's lease file name can be specified on the command
+  line.
+
+- The DHCP client should no longer zap interfaces that it has not been
+  directed to configure.
+
+- If a client starts up in the init-reboot state, the xid will be a
+  "random" number rather than always being zero, as was previously the
+  case.
+
+- In addition to comparing transaction IDs, compare hardware addresses
+  in response packets to verify that they are ours.
+
+- Rewrite the client lease database after 20 leases have been written.
+
+- Fix the exponential backoff code.
+
+- Add a Y2k comment to indicate that something suspicious-looking is
+  in fact _not_ a problem.
+
+- Use mkstemp if possible.
+
+- Add missing fi in various client scripts.
+
+- Use "search" instead of "domain" in linux resolv.conf files.
+
+- Specify a hop count in all route command on solaris.
+
+- If an allocation fails, don't try to zero out the allocation buffer
+  we didn't get.
+
+- Support subnets that are subsets of other subnets - that is, for
+  example, 10.0.1.0/24 and 10.0.0.0/16.   This is useful in fairly
+  obscure circumstances.
+
+- Don't set the lease end time if it's already expired.
+
+- Don't define INADDR_LOOPBACK on FreeBSD if it's already defined in a
+  system header.
+
+- Use the broadcast address in the relay agent if we are using the BSD
+  socket API.
+
+- Allow host declarations without names.
+
+- Allow the server identifier option to be specified.
+
+- Don't dump hostnames into the lease file if they contain
+  non-printable characters.
+
+- Copy the entire client hardware address buffer that the client sends
+  to the output packet, not just the portion of it that's supposedly
+  significant according to the hardware address length field.   This
+  is done for the benefit of certain Microsoft clients.
+
+- Don't send a second ICMP echo request if we receive two DHCPDISCOVER
+  messages in quick succession.   This prevents a rather annoying
+  timing race in configuring some Win95 clients.
+
+- Fix up dhcp-options man page to make it more readable.   Note that
+  netbios-name-server is the same thing as WINS.
+  
 
 	      CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 5
 
