@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.19 1999/01/17 17:58:52 peter Exp $
+ *	$Id: kern_linker.c,v 1.20 1999/01/19 16:26:32 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -459,6 +459,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 {
     linker_sym_t sym;
     linker_symval_t symval;
+    linker_file_t lf;
     caddr_t address;
     size_t common_size = 0;
     int i;
@@ -480,7 +481,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	}
     }
 
-    if (deps)
+    if (deps) {
 	for (i = 0; i < file->ndeps; i++) {
 	    address = linker_file_lookup_symbol(file->deps[i], name, 0);
 	    if (address) {
@@ -488,6 +489,25 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 		return address;
 	    }
 	}
+
+	/* If we have not found it in the dependencies, search globally */
+	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	    /* But skip the current file if it's on the list */
+	    if (lf == file)
+		continue;
+	    /* And skip the files we searched above */
+	    for (i = 0; i < file->ndeps; i++)
+		if (lf == file->deps[i])
+		    break;
+	    if (i < file->ndeps)
+		continue;
+	    address = linker_file_lookup_symbol(lf, name, 0);
+	    if (address) {
+		KLD_DPF(SYM, ("linker_file_lookup_symbol: global value=%x\n", address));
+		return address;
+	    }
+	}
+    }
 
     if (common_size > 0) {
 	/*
