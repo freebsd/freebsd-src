@@ -44,7 +44,7 @@
  * so that the entire packet being decompressed doesn't have
  * to be in contiguous memory (just the compressed header).
  *
- *	$Id: pppcompress.c,v 1.3 1994/11/01 09:03:20 pst Exp $
+ *	$Id: pppcompress.c,v 1.4 1995/05/30 08:08:17 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -471,9 +471,16 @@ sl_uncompress_tcp_part(bufp, buflen, total_len, type, comp)
 		cs = &comp->rstate[comp->last_recv = ip->ip_p];
 		comp->flags &=~ SLF_TOSS;
 		ip->ip_p = IPPROTO_TCP;
-		hlen = ip->ip_hl;
-		hlen += ((struct tcphdr *)&((int *)ip)[hlen])->th_off;
-		hlen <<= 2;
+		/*
+		 * Calculate the size of the TCP/IP header and make sure that
+		 * we don't overflow the space we have available for it.
+		 */
+		hlen = ip->ip_hl << 2;
+		if (hlen + sizeof(struct tcphdr) > len)
+			goto bad;
+		hlen += ((struct tcphdr *)&((char *)ip)[hlen])->th_off << 2;
+		if (hlen > MAX_HDR)
+			goto bad;
 		BCOPY(ip, &cs->cs_ip, hlen);
 		cs->cs_ip.ip_sum = 0;
 		cs->cs_hlen = hlen;
