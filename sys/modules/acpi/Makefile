@@ -28,7 +28,7 @@ SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utobject.c utxface.c
 
 # OSD layer
 SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
-SRCS+=	acpi_ec.c acpi_lid.c acpi_pcib.c acpi_powerprofile.c
+SRCS+=	acpi_ec.c acpi_lid.c acpi_pcib.c
 SRCS+=	acpi_powerres.c acpi_resource.c acpi_thermal.c acpi_timer.c
 SRCS+=	acpica_support.c
 SRCS+=  OsdDebug.c 
