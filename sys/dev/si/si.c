@@ -116,20 +116,16 @@ static	d_ioctl_t	siioctl;
 
 #define	CDEV_MAJOR	68
 static struct cdevsw si_cdevsw = {
-	/* open */	siopen,
-	/* close */	siclose,
-	/* read */	ttyread,
-	/* write */	siwrite,
-	/* ioctl */	siioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"si",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	siopen,
+	.d_close =	siclose,
+	.d_read =	ttyread,
+	.d_write =	siwrite,
+	.d_ioctl =	siioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"si",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static int si_Nports;

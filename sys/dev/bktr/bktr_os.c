@@ -247,19 +247,15 @@ static	d_poll_t	bktr_poll;
 
 #define CDEV_MAJOR 92 
 static struct cdevsw bktr_cdevsw = {
-	/* open */	bktr_open,
-	/* close */	bktr_close,
-	/* read */	bktr_read,
-	/* write */	bktr_write,
-	/* ioctl */	bktr_ioctl,
-	/* poll */	bktr_poll,
-	/* mmap */	bktr_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"bktr",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	bktr_open,
+	.d_close =	bktr_close,
+	.d_read =	bktr_read,
+	.d_write =	bktr_write,
+	.d_ioctl =	bktr_ioctl,
+	.d_poll =	bktr_poll,
+	.d_mmap =	bktr_mmap,
+	.d_name =	"bktr",
+	.d_maj =	CDEV_MAJOR,
 };
 
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);

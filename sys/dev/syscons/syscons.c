@@ -212,20 +212,17 @@ static	d_ioctl_t	scioctl;
 static	d_mmap_t	scmmap;
 
 static struct cdevsw sc_cdevsw = {
-	/* open */	scopen,
-	/* close */	scclose,
-	/* read */	scread,
-	/* write */	ttywrite,
-	/* ioctl */	scioctl,
-	/* poll */	ttypoll,
-	/* mmap */	scmmap,
-	/* strategy */	nostrategy,
-	/* name */	"sc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter
+	.d_open =	scopen,
+	.d_close =	scclose,
+	.d_read =	scread,
+	.d_write =	ttywrite,
+	.d_ioctl =	scioctl,
+	.d_poll =	ttypoll,
+	.d_mmap =	scmmap,
+	.d_name =	"sc",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter
 };
 
 int

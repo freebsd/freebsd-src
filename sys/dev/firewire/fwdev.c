@@ -67,19 +67,16 @@ static	d_mmap_t	fw_mmap;
 
 struct cdevsw firewire_cdevsw = 
 {
-	/* open */	fw_open,
-	/* close */	fw_close,
-	/* read */	fw_read,
-	/* write */	fw_write,
-	/* ioctl */	fw_ioctl,
-	/* poll */	fw_poll,
-	/* mmap */	fw_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"fw",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_MEM
+	.d_open =	fw_open,
+	.d_close =	fw_close,
+	.d_read =	fw_read,
+	.d_write =	fw_write,
+	.d_ioctl =	fw_ioctl,
+	.d_poll =	fw_poll,
+	.d_mmap =	fw_mmap,
+	.d_name =	"fw",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_MEM
 };
 
 static int

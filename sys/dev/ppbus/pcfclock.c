@@ -67,19 +67,11 @@ static	d_read_t		pcfclock_read;
 
 #define CDEV_MAJOR 140
 static struct cdevsw pcfclock_cdevsw = {
-	/* open */	pcfclock_open,
-	/* close */	pcfclock_close,
-	/* read */	pcfclock_read,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	PCFCLOCK_NAME,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	pcfclock_open,
+	.d_close =	pcfclock_close,
+	.d_read =	pcfclock_read,
+	.d_name =	PCFCLOCK_NAME,
+	.d_maj =	CDEV_MAJOR,
 };
 
 #ifndef PCFCLOCK_MAX_RETRIES

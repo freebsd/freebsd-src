@@ -249,19 +249,13 @@ d_poll_t  uscannerpoll;
 #define USCANNER_CDEV_MAJOR	156
 
 Static struct cdevsw uscanner_cdevsw = {
-	/* open */	uscanneropen,
-	/* close */	uscannerclose,
-	/* read */	uscannerread,
-	/* write */	uscannerwrite,
-	/* ioctl */	noioctl,
-	/* poll */	uscannerpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"uscanner",
-	/* maj */	USCANNER_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	uscanneropen,
+	.d_close =	uscannerclose,
+	.d_read =	uscannerread,
+	.d_write =	uscannerwrite,
+	.d_poll =	uscannerpoll,
+	.d_name =	"uscanner",
+	.d_maj =	USCANNER_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	/* bmaj */	-1
 #endif

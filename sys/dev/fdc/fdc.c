@@ -477,19 +477,15 @@ fdin_rd(fdc_p fdc)
 
 #define CDEV_MAJOR 9
 static struct cdevsw fd_cdevsw = {
-	/* open */	Fdopen,
-	/* close */	fdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	fdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	fdstrategy,
-	/* name */	"fd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
+	.d_open =	Fdopen,
+	.d_close =	fdclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	fdioctl,
+	.d_strategy =	fdstrategy,
+	.d_name =	"fd",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_DISK,
 };
 
 /*

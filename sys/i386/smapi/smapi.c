@@ -54,20 +54,12 @@ static d_ioctl_t smapi_ioctl;
 #define CDEV_MAJOR	183
 
 static struct cdevsw smapi_cdevsw = {
-	/* open */	smapi_open,
-	/* close */	smapi_close,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	smapi_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"smapi",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_MEM,
-	/* kqfilter */	NULL,
+	.d_open =	smapi_open,
+	.d_close =	smapi_close,
+	.d_ioctl =	smapi_ioctl,
+	.d_name =	"smapi",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_MEM,
 };
 
 static int

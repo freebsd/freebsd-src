@@ -85,19 +85,11 @@ int smb_dev_queue(struct smb_dev *ndp, struct smb_rq *rqp, int prio);
 */
 
 static struct cdevsw nsmb_cdevsw = {
-	/* open */	nsmb_dev_open,
-	/* close */	nsmb_dev_close,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */ 	nsmb_dev_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	NSMB_NAME,
-	/* maj */	NSMB_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	nsmb_dev_open,
+	.d_close =	nsmb_dev_close,
+	.d_ioctl =	nsmb_dev_ioctl,
+	.d_name =	NSMB_NAME,
+	.d_maj =	NSMB_MAJOR,
 #ifndef FB_CURRENT
 	/* bmaj */	-1
 #endif

@@ -118,19 +118,14 @@ PERIPHDRIVER_DECLARE(pt, ptdriver);
 #define PT_CDEV_MAJOR 61
 
 static struct cdevsw pt_cdevsw = {
-	/* open */	ptopen,
-	/* close */	ptclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	ptioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	ptstrategy,
-	/* name */	"pt",
-	/* maj */	PT_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ptopen,
+	.d_close =	ptclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	ptioctl,
+	.d_strategy =	ptstrategy,
+	.d_name =	"pt",
+	.d_maj =	PT_CDEV_MAJOR,
 };
 
 #ifndef SCSI_PT_DEFAULT_TIMEOUT

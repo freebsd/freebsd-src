@@ -90,19 +90,13 @@ static	d_read_t	ppiread;
 
 #define CDEV_MAJOR 82
 static struct cdevsw ppi_cdevsw = {
-	/* open */	ppiopen,
-	/* close */	ppiclose,
-	/* read */	ppiread,
-	/* write */	ppiwrite,
-	/* ioctl */	ppiioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ppi",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ppiopen,
+	.d_close =	ppiclose,
+	.d_read =	ppiread,
+	.d_write =	ppiwrite,
+	.d_ioctl =	ppiioctl,
+	.d_name =	"ppi",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #ifdef PERIPH_1284

@@ -182,19 +182,12 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 #define AAC_CDEV_MAJOR	150
 
 static struct cdevsw aac_cdevsw = {
-	aac_open,		/* open */
-	aac_close,		/* close */
-	noread,			/* read */
-	nowrite,		/* write */
-	aac_ioctl,		/* ioctl */
-	aac_poll,		/* poll */
-	nommap,			/* mmap */
-	nostrategy,		/* strategy */
-	"aac",			/* name */
-	AAC_CDEV_MAJOR,		/* major */
-	nodump,			/* dump */
-	nopsize,		/* psize */
-	0,			/* flags */
+	.d_open =	aac_open,
+	.d_close =	aac_close,
+	.d_ioctl =	aac_ioctl,
+	.d_poll =	aac_poll,
+	.d_name =	"aac",
+	.d_maj =	AAC_CDEV_MAJOR,
 };
 
 MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");

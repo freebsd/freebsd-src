@@ -38,19 +38,14 @@ static	d_poll_t	snppoll;
 
 #define CDEV_MAJOR 53
 static struct cdevsw snp_cdevsw = {
-	/* open */	snpopen,
-	/* close */	snpclose,
-	/* read */	snpread,
-	/* write */	snpwrite,
-	/* ioctl */	snpioctl,
-	/* poll */	snppoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"snp",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	snpopen,
+	.d_close =	snpclose,
+	.d_read =	snpread,
+	.d_write =	snpwrite,
+	.d_ioctl =	snpioctl,
+	.d_poll =	snppoll,
+	.d_name =	"snp",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static struct linesw snpdisc = {

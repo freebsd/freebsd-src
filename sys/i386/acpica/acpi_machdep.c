@@ -64,19 +64,13 @@ static d_poll_t apmpoll;
 
 #define CDEV_MAJOR 39
 static struct cdevsw apm_cdevsw = {
-	/* open */	apmopen,
-	/* close */	apmclose,
-	/* read */	noread,
-	/* write */	apmwrite,
-	/* ioctl */	apmioctl,
-	/* poll */	apmpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"apm",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	apmopen,
+	.d_close =	apmclose,
+	.d_write =	apmwrite,
+	.d_ioctl =	apmioctl,
+	.d_poll =	apmpoll,
+	.d_name =	"apm",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static int

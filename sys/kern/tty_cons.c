@@ -71,20 +71,16 @@ static	d_kqfilter_t	cnkqfilter;
 
 #define	CDEV_MAJOR	0
 static struct cdevsw cn_cdevsw = {
-	/* open */	cnopen,
-	/* close */	cnclose,
-	/* read */	cnread,
-	/* write */	cnwrite,
-	/* ioctl */	cnioctl,
-	/* poll */	cnpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"console",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	cnkqfilter,
+	.d_open =	cnopen,
+	.d_close =	cnclose,
+	.d_read =	cnread,
+	.d_write =	cnwrite,
+	.d_ioctl =	cnioctl,
+	.d_poll =	cnpoll,
+	.d_name =	"console",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	cnkqfilter,
 };
 
 struct cn_device {

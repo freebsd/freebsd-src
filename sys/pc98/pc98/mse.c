@@ -138,19 +138,13 @@ static	d_poll_t	msepoll;
 
 #define CDEV_MAJOR 27
 static struct cdevsw mse_cdevsw = {
-	/* open */	mseopen,
-	/* close */	mseclose,
-	/* read */	mseread,
-	/* write */	nowrite,
-	/* ioctl */	mseioctl,
-	/* poll */	msepoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"mse",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	mseopen,
+	.d_close =	mseclose,
+	.d_read =	mseread,
+	.d_ioctl =	mseioctl,
+	.d_poll =	msepoll,
+	.d_name =	"mse",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static	void		mseintr(void *);

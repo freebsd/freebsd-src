@@ -186,19 +186,14 @@ static	d_strategy_t	wtstrategy;
 #define CDEV_MAJOR 10
 
 static struct cdevsw wt_cdevsw = {
-	/* open */	wtopen,
-	/* close */	wtclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	wtioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	wtstrategy,
-	/* name */	"wt",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	wtopen,
+	.d_close =	wtclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	wtioctl,
+	.d_strategy =	wtstrategy,
+	.d_name =	"wt",
+	.d_maj =	CDEV_MAJOR,
 };
 
 

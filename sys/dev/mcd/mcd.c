@@ -161,19 +161,14 @@ static d_strategy_t	mcdstrategy;
 #define CDEV_MAJOR 29
 
 static struct cdevsw mcd_cdevsw = {
-	/* open */	mcdopen,
-	/* close */	mcdclose,
-	/* read */	physread,
-	/* write */	nowrite,
-	/* ioctl */	mcdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	mcdstrategy,
-	/* name */	"mcd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
+	.d_open =	mcdopen,
+	.d_close =	mcdclose,
+	.d_read =	physread,
+	.d_ioctl =	mcdioctl,
+	.d_strategy =	mcdstrategy,
+	.d_name =	"mcd",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_DISK,
 };
 
 #define MCD_RETRYS	5

@@ -228,19 +228,14 @@ static	d_mmap_t	meteor_mmap;
 
 #define CDEV_MAJOR 67
 static struct cdevsw meteor_cdevsw = {
-	/* open */	meteor_open,
-	/* close */	meteor_close,
-	/* read */	meteor_read,
-	/* write */	meteor_write,
-	/* ioctl */	meteor_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	meteor_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"meteor",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	meteor_open,
+	.d_close =	meteor_close,
+	.d_read =	meteor_read,
+	.d_write =	meteor_write,
+	.d_ioctl =	meteor_ioctl,
+	.d_mmap =	meteor_mmap,
+	.d_name =	"meteor",
+	.d_maj =	CDEV_MAJOR,
 };
 #endif
 

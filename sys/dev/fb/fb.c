@@ -363,19 +363,14 @@ static d_mmap_t		fbmmap;
 #define CDEV_MAJOR	123	/* XXX */
 
 static struct cdevsw fb_cdevsw = {
-	/* open */	fbopen,
-	/* close */	fbclose,
-	/* read */	fbread,
-	/* write */	fbwrite,
-	/* ioctl */	fbioctl,
-	/* poll */	nopoll,
-	/* mmap */	fbmmap,
-	/* strategy */	nostrategy,
-	/* name */	FB_DRIVER_NAME,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	fbopen,
+	.d_close =	fbclose,
+	.d_read =	fbread,
+	.d_write =	fbwrite,
+	.d_ioctl =	fbioctl,
+	.d_mmap =	fbmmap,
+	.d_name =	FB_DRIVER_NAME,
+	.d_maj =	CDEV_MAJOR,
 };
 #endif
 

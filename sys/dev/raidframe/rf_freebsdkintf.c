@@ -215,19 +215,11 @@ d_close_t	raidctlclose;
 d_ioctl_t	raidctlioctl;
 
 static struct cdevsw raidctl_cdevsw = {
-	/* open */	raidctlopen,
-	/* close */	raidctlclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	raidctlioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */ 	nostrategy,
-	/* name */	"raidctl",
-	/* maj */	201,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	raidctlopen,
+	.d_close =	raidctlclose,
+	.d_ioctl =	raidctlioctl,
+	.d_name =	"raidctl",
+	.d_maj =	201,
 };
 
 /*

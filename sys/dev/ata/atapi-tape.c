@@ -52,19 +52,15 @@ static	d_close_t	astclose;
 static	d_ioctl_t	astioctl;
 static	d_strategy_t	aststrategy;
 static struct cdevsw ast_cdevsw = {
-	/* open */	astopen,
-	/* close */	astclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	astioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	aststrategy,
-	/* name */	"ast",
-	/* maj */	119,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TAPE | D_TRACKCLOSE,
+	.d_open =	astopen,
+	.d_close =	astclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	astioctl,
+	.d_strategy =	aststrategy,
+	.d_name =	"ast",
+	.d_maj =	119,
+	.d_flags =	D_TAPE | D_TRACKCLOSE,
 };
 
 /* prototypes */

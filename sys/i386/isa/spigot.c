@@ -106,19 +106,14 @@ static	d_mmap_t	spigot_mmap;
 
 #define CDEV_MAJOR 11
 static struct cdevsw spigot_cdevsw = {
-	/* open */	spigot_open,
-	/* close */	spigot_close,
-	/* read */	spigot_read,
-	/* write */	spigot_write,
-	/* ioctl */	spigot_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	spigot_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"spigot",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	spigot_open,
+	.d_close =	spigot_close,
+	.d_read =	spigot_read,
+	.d_write =	spigot_write,
+	.d_ioctl =	spigot_ioctl,
+	.d_mmap =	spigot_mmap,
+	.d_name =	"spigot",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static ointhand2_t	spigintr;

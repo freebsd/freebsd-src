@@ -50,19 +50,12 @@ static void isp_action(struct cam_sim *, union ccb *);
 
 #define ISP_CDEV_MAJOR	248
 static struct cdevsw isp_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	ispioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"isp",
-	/* maj */	ISP_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TAPE,
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	ispioctl,
+	.d_name =	"isp",
+	.d_maj =	ISP_CDEV_MAJOR,
+	.d_flags =	D_TAPE,
 };
 
 static struct ispsoftc *isplist = NULL;

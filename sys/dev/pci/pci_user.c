@@ -74,19 +74,11 @@ static d_ioctl_t	pci_ioctl;
 #endif
 
 struct cdevsw pcicdev = {
-	/* open */	pci_open,
-	/* close */	pci_close,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	pci_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"pci",
-	/* maj */	PCI_CDEV,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	pci_open,
+	.d_close =	pci_close,
+	.d_ioctl =	pci_ioctl,
+	.d_name =	"pci",
+	.d_maj =	PCI_CDEV,
 };
   
 static int

@@ -97,20 +97,14 @@ static struct gfb_type tga_devs[] = {
 #ifdef FB_INSTALL_CDEV
 
 static struct cdevsw tga_cdevsw = {
-	/* open */	pcigfb_open,
-	/* close */	pcigfb_close,
-	/* read */	pcigfb_read,
-	/* write */	pcigfb_write,
-	/* ioctl */	pcigfb_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	pcigfb_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"tga",
-	/* maj */	-1,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	nokqfilter
+	.d_open =	pcigfb_open,
+	.d_close =	pcigfb_close,
+	.d_read =	pcigfb_read,
+	.d_write =	pcigfb_write,
+	.d_ioctl =	pcigfb_ioctl,
+	.d_mmap =	pcigfb_mmap,
+	.d_name =	"tga",
+	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */

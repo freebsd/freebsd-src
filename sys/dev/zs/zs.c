@@ -150,20 +150,16 @@ static void zsttystop(struct tty *tp, int rw);
 static int zsttyparam(struct tty *tp, struct termios *t);
 
 static struct cdevsw zstty_cdevsw = {
-	/* open */	zsttyopen,
-	/* close */	zsttyclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	zsttyioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"zstty",
-	/* major */	MAJOR_AUTO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	zsttyopen,
+	.d_close =	zsttyclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	zsttyioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"zstty",
+	.d_maj =	MAJOR_AUTO,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static struct zstty_softc *zstty_cons;

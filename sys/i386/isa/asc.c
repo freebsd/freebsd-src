@@ -198,19 +198,13 @@ static d_poll_t		ascpoll;
 #define CDEV_MAJOR 71
 
 static struct cdevsw asc_cdevsw = {
-	/* open */	ascopen,
-	/* close */	ascclose,
-	/* read */	ascread,
-	/* write */	nowrite,
-	/* ioctl */	ascioctl,
-	/* poll */	ascpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"asc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ascopen,
+	.d_close =	ascclose,
+	.d_read =	ascread,
+	.d_ioctl =	ascioctl,
+	.d_poll =	ascpoll,
+	.d_name =	"asc",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #define STATIC static

@@ -571,19 +571,15 @@ static	d_ioctl_t	rpioctl;
 
 #define	CDEV_MAJOR	81
 struct cdevsw rp_cdevsw = {
-	/* open */	rpopen,
-	/* close */	rpclose,
-	/* read */	ttyread,
-	/* write */	rpwrite,
-	/* ioctl */	rpioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"rp",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY,
+	.d_open =	rpopen,
+	.d_close =	rpclose,
+	.d_read =	ttyread,
+	.d_write =	rpwrite,
+	.d_ioctl =	rpioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"rp",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY,
 };
 
 static int	rp_num_ports_open = 0;

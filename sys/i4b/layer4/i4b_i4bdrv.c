@@ -79,19 +79,13 @@ static	d_poll_t	i4bpoll;
 #define CDEV_MAJOR 60
 
 static struct cdevsw i4b_cdevsw = {
-	/* open */      i4bopen,
-	/* close */     i4bclose,
-	/* read */      i4bread,
-	/* write */     nowrite,
-	/* ioctl */     i4bioctl,
-	/* poll */      i4bpoll,
-	/* mmap */      nommap,
-	/* strategy */  nostrategy,
-	/* name */      "i4b",
-	/* maj */       CDEV_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     0,
+	.d_open =	i4bopen,
+	.d_close =	i4bclose,
+	.d_read =	i4bread,
+	.d_ioctl =	i4bioctl,
+	.d_poll =	i4bpoll,
+	.d_name =	"i4b",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4battach(void *);

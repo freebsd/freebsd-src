@@ -57,19 +57,11 @@
 /* device structures */
 static	d_ioctl_t	ataioctl;
 static struct cdevsw ata_cdevsw = {  
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	ataioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ata",
-	/* maj */	159,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	ataioctl,
+	.d_name =	"ata",
+	.d_maj =	159,
 };
 
 /* prototypes */

@@ -326,19 +326,13 @@ static driver_t psm_driver = {
 #define CDEV_MAJOR        21
 
 static struct cdevsw psm_cdevsw = {
-	/* open */	psmopen,
-	/* close */	psmclose,
-	/* read */	psmread,
-	/* write */	nowrite,
-	/* ioctl */	psmioctl,
-	/* poll */	psmpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	PSM_DRIVER_NAME,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	psmopen,
+	.d_close =	psmclose,
+	.d_read =	psmread,
+	.d_ioctl =	psmioctl,
+	.d_poll =	psmpoll,
+	.d_name =	PSM_DRIVER_NAME,
+	.d_maj =	CDEV_MAJOR,
 };
 
 /* debug message level */

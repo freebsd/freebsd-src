@@ -81,19 +81,14 @@ static d_poll_t		tunpoll;
 
 #define CDEV_MAJOR 52
 static struct cdevsw tun_cdevsw = {
-	/* open */	tunopen,
-	/* close */	tunclose,
-	/* read */	tunread,
-	/* write */	tunwrite,
-	/* ioctl */	tunioctl,
-	/* poll */	tunpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	TUNNAME,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	tunopen,
+	.d_close =	tunclose,
+	.d_read =	tunread,
+	.d_write =	tunwrite,
+	.d_ioctl =	tunioctl,
+	.d_poll =	tunpoll,
+	.d_name =	TUNNAME,
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void

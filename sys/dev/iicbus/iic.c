@@ -94,19 +94,13 @@ static	d_ioctl_t	iicioctl;
 
 #define CDEV_MAJOR 105
 static struct cdevsw iic_cdevsw = {
-	/* open */	iicopen,
-	/* close */	iicclose,
-	/* read */	iicread,
-	/* write */	iicwrite,
-	/* ioctl */	iicioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"iic",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	iicopen,
+	.d_close =	iicclose,
+	.d_read =	iicread,
+	.d_write =	iicwrite,
+	.d_ioctl =	iicioctl,
+	.d_name =	"iic",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void
