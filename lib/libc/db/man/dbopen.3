@@ -40,8 +40,9 @@
 .Nd "database access methods"
 .Sh SYNOPSIS
 .In sys/types.h
-.In limits.h
 .In db.h
+.In fcntl.h
+.In limits.h
 .Ft DB *
 .Fn dbopen "const char *file" "int flags" "int mode" "DBTYPE type" "const void *openinfo"
 .Sh DESCRIPTION
