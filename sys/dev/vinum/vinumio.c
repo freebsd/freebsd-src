@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.36 2003/04/28 02:54:07 grog Exp $
+ * $Id: vinumio.c,v 1.37 2003/05/04 05:23:42 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -408,13 +408,6 @@ format_config(char *config, int len)
 		volume_state(vol->state));
 	    while (*s)
 		s++;					    /* find the end */
-	    if (vol->preferred_plex >= 0)		    /* preferences, */
-		snprintf(s,
-		    configend - s,
-		    " readpol prefer %s",
-		    vinum_conf.plex[vol->preferred_plex].name);
-	    while (*s)
-		s++;					    /* find the end */
 	    s = sappend("\n", s);
 	}
     }
@@ -422,6 +415,7 @@ format_config(char *config, int len)
     /* Then the plex configuration */
     for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	struct plex *plex;
+	struct volume *vol;
 
 	plex = &vinum_conf.plex[i];
 	if ((plex->state > plex_referenced)
@@ -442,13 +436,20 @@ format_config(char *config, int len)
 		while (*s)
 		    s++;				    /* find the end */
 	    }
-	    if (plex->volno >= 0)			    /* we have a volume */
+	    if (plex->volno >= 0) {			    /* we have a volume */
+		vol = &VOL[plex->volno];
 		snprintf(s,
 		    configend - s,
 		    "vol %s ",
-		    vinum_conf.volume[plex->volno].name);
-	    while (*s)
-		s++;					    /* find the end */
+		    vol->name);
+		while (*s)
+		    s++;				    /* find the end */
+		if ((vol->preferred_plex >= 0)		    /* has a preferred plex */
+		&&vol->plex[vol->preferred_plex] == i)	    /* and it's us */
+		    snprintf(s, configend - s, "preferred ");
+		while (*s)
+		    s++;				    /* find the end */
+	    }
 	    for (j = 0; j < plex->subdisks; j++) {
 		snprintf(s,
 		    configend - s,
@@ -776,12 +777,10 @@ vinum_scandisk(char *devicename)
 	    return ENOMEM;
 	} else
 	    malloced = 1;
-	/* Now det the list of disks */
+	/* Now get the list of disks */
 	kernel_sysctlbyname(&thread0, "kern.disks", devicename,
 	    &alloclen, NULL, 0, NULL);
     }
-    printf("vinum_scandisk: devicename is %s\n", devicename); /* XXX */
-
     status = 0;						    /* success indication */
     vinum_conf.flags |= VF_READING_CONFIG;		    /* reading config from disk */
     partname = Malloc(MAXPATHLEN);			    /* extract name of disk here */
@@ -797,6 +796,12 @@ vinum_scandisk(char *devicename)
     drives = 256;					    /* should be enough for most cases */
     drivelist = (int *) Malloc(drives * sizeof(int));
     CHECKALLOC(drivelist, "Can't allocate memory");
+    error = lock_config();				    /* make sure we're alone here */
+    if (error)
+	return error;
+    error = setjmp(command_fail);			    /* come back here on error */
+    if (error)						    /* longjmped out */
+	return error;
 
     /* Open all drives and find which was modified most recently */
     for (cp = devicename; *cp; cp = ep) {
@@ -883,6 +888,7 @@ vinum_scandisk(char *devicename)
 	    log(LOG_INFO, "vinum: no additional drives found\n");
 	if (malloced)
 	    Free(devicename);
+	unlock_config();
 	return ENOENT;
     }
     /*
@@ -966,6 +972,7 @@ vinum_scandisk(char *devicename)
 	updateconfig(VF_READING_CONFIG);		    /* update from disk config */
     if (malloced)
 	Free(devicename);
+    unlock_config();
     return status;
 }
 
