@@ -422,8 +422,8 @@ show_var(int *oid, int nlen)
 			else
 				printf("%s%ld", val, *(long *)p);
 			val = " ";
-			len -= sizeof (int);
-			p += sizeof (int);
+			len -= sizeof (long);
+			p += sizeof (long);
 		}
 		return (0);
 
