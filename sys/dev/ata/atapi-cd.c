@@ -490,6 +490,7 @@ static int
 acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
+    int timeout = 60;
     
     if (!cdp)
 	return ENXIO;
@@ -498,6 +499,19 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (count_dev(dev) > 1)
 	    return EBUSY;
     }
+
+    /* wait if drive is not finished loading the medium */
+    while (timeout--) {
+	struct atapi_reqsense *sense = cdp->device->result;
+
+	if (!atapi_test_ready(cdp->device))
+	    break;
+	if (sense->sense_key == 2  && sense->asc == 4 && sense->ascq == 1)
+	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
+	else
+	    break;
+    }
+
     if (count_dev(dev) == 1) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
