@@ -96,8 +96,11 @@ struct uidinfo {
 	long	ui_proccnt;		/* number of processes */
 	uid_t	ui_uid;			/* uid */
 	u_short	ui_ref;			/* reference count */
-	struct mtx	ui_mtx;		/* protect all counts/limits */
+	struct mtx	*ui_mtxp;	/* protect all counts/limits */
 };
+
+#define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp);
+#define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp);
 
 struct thread;
 struct kse;

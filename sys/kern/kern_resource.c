@@ -859,7 +859,7 @@ uifind(uid)
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
-			mtx_init(&uip->ui_mtx, "uidinfo struct", MTX_DEF);
+			uip->ui_mtxp = mtx_pool_alloc();
 			uip->ui_uid = uid;
 			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 		}
@@ -877,9 +877,9 @@ uihold(uip)
 	struct uidinfo *uip;
 {
 
-	mtx_lock(&uip->ui_mtx);
+	UIDINFO_LOCK(uip);
 	uip->ui_ref++;
-	mtx_unlock(&uip->ui_mtx);
+	UIDINFO_UNLOCK(uip);
 }
 
 /*-
@@ -903,18 +903,18 @@ uifree(uip)
 {
 
 	/* Prepare for optimal case. */
-	mtx_lock(&uip->ui_mtx);
+	UIDINFO_LOCK(uip);
 
 	if (--uip->ui_ref != 0) {
-		mtx_unlock(&uip->ui_mtx);
+		UIDINFO_UNLOCK(uip);
 		return;
 	}
 
 	/* Prepare for suboptimal case. */
 	uip->ui_ref++;
-	mtx_unlock(&uip->ui_mtx);
+	UIDINFO_UNLOCK(uip);
 	mtx_lock(&uihashtbl_mtx);
-	mtx_lock(&uip->ui_mtx);
+	UIDINFO_LOCK(uip);
 
 	/*
 	 * We must subtract one from the count again because we backed out
@@ -932,13 +932,13 @@ uifree(uip)
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
-		mtx_destroy(&uip->ui_mtx);
+		UIDINFO_UNLOCK(uip);
 		FREE(uip, M_UIDINFO);
 		return;
 	}
 
 	mtx_unlock(&uihashtbl_mtx);
-	mtx_unlock(&uip->ui_mtx);
+	UIDINFO_UNLOCK(uip);
 }
 
 /*
@@ -952,16 +952,16 @@ chgproccnt(uip, diff, max)
 	int	max;
 {
 
-	mtx_lock(&uip->ui_mtx);
+	UIDINFO_LOCK(uip);
 	/* don't allow them to exceed max, but allow subtraction */
 	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
-		mtx_unlock(&uip->ui_mtx);
+		UIDINFO_UNLOCK(uip);
 		return (0);
 	}
 	uip->ui_proccnt += diff;
 	if (uip->ui_proccnt < 0)
 		printf("negative proccnt for uid = %d\n", uip->ui_uid);
-	mtx_unlock(&uip->ui_mtx);
+	UIDINFO_UNLOCK(uip);
 	return (1);
 }
 
@@ -979,12 +979,12 @@ chgsbsize(uip, hiwat, to, max)
 	int s;
 
 	s = splnet();
-	mtx_lock(&uip->ui_mtx);
+	UIDINFO_LOCK(uip);
 	new = uip->ui_sbsize + to - *hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
 		splx(s);
-		mtx_unlock(&uip->ui_mtx);
+		UIDINFO_UNLOCK(uip);
 		return (0);
 	}
 	uip->ui_sbsize = new;
@@ -992,6 +992,6 @@ chgsbsize(uip, hiwat, to, max)
 	if (uip->ui_sbsize < 0)
 		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	splx(s);
-	mtx_unlock(&uip->ui_mtx);
+	UIDINFO_UNLOCK(uip);
 	return (1);
 }
