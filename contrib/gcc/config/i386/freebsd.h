@@ -82,7 +82,7 @@ Boston, MA 02111-1307, USA.  */
 
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=3 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 #define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
 
