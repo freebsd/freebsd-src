@@ -1,4 +1,4 @@
-			   FreeBSD 2.0
+			  FreeBSD 2.0.5
 		         Contributor List
 
 
@@ -36,7 +36,7 @@ Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
 
 
-The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
+The FreeBSD Core Team
 (in alphabetical order):
 
 	Andreas Schulz <ats@FreeBSD.org>
@@ -50,7 +50,6 @@ The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
 	Justin Gibbs <gibbs@FreeBSD.org>
-	Nate Williams <nate@FreeBSD.org>
 	Paul Richards <paul@FreeBSD.org>
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@FreeBSD.org>
@@ -59,23 +58,20 @@ The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 	Søren Schmidt <sos@FreeBSD.org>
 
 
-Officers, The FreeBSD Project:
+Who's Responsible For What:
 
 	President:		Jordan K. Hubbard <jkh@FreeBSD.org>
 	Principle Architect:	David Greenman <davidg@FreeBSD.org>
-
-
-Directors, The FreeBSD Project:
-
 	Documentation:		John Fieber <jfieber@FreeBSD.org>
 	Internationalization:   Andrey A. Chernov <ache@FreeBSD.org>
 	Networking:		Garrett A. Wollman <wollman@FreeBSD.org>
 	Postmaster:		Jonathan M. Bresler <jmb@FreeBSD.org>
-	Release Coordinator:	Poul-Henning Kamp <phk@FreeBSD.org>
+	Public Relations:	Jordan Hubbard <jkh@FreeBSD.org>
+	Release Coordinator:	Jordan Hubbard <jkh@FreeBSD.org>
 	System Administration:	Gary Palmer <gpalmer@FreeBSD.org>
 	WEBMASTERS:		John Fieber <jfieber@FreeBSD.org> and
 				James L. Robinson <jlrobin@FreeBSD.org>
-	XFree86 Project, Inc:	(Liaison) Rich Murphey <rich@FreeBSD.org>
+	XFree86 Project, Inc. Liason:  Rich Murphey <rich@FreeBSD.org>
 
 
 Additional FreeBSD Contributors
@@ -127,6 +123,7 @@ Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
 Martin Renters <martin@innovus.com>
 Matt Thomas <thomas@lkg.dec.com>
+Nate Williams <nate@FreeBSD.org>
 Nobuhiro Yasutomi <nobu@@psrc.isac.co.jp>
 Ollivier Robert <roberto@FreeBSD.org>
 Paul Kranenburg <pk@cs.few.eur.nl>
@@ -251,4 +248,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.9 1995/05/17 17:04:36 lars Exp $
+$Id: CONTRIB.FreeBSD,v 1.10 1995/05/17 20:45:10 torstenb Exp $
