@@ -4,9 +4,9 @@
 PROG=	ping
 MAN=	ping.8
 BINMODE=4555
-COPTS+=	-Wall -Wmissing-prototypes
+CFLAGS+=-Wall -Wmissing-prototypes
 .if ${MACHINE_ARCH} == "alpha"
-COPTS+= -fno-builtin	# GCC's builtin memcpy doesn't do unaligned copies
+CFLAGS+=-fno-builtin	# GCC's builtin memcpy doesn't do unaligned copies
 .endif
 DPADD=	${LIBM}
 LDADD=	-lm
