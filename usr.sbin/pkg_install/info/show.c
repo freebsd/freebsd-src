@@ -32,7 +32,7 @@ static const char rcsid[] =
 #include <md5.h>
 
 void
-show_file(char *title, char *fname)
+show_file(const char *title, const char *fname)
 {
     FILE *fp;
     char line[1024];
@@ -52,7 +52,7 @@ show_file(char *title, char *fname)
 }
 
 void
-show_index(char *title, char *fname)
+show_index(const char *title, const char *fname)
 {
     FILE *fp;
     char line[MAXINDEXSIZE+2];
@@ -73,9 +73,9 @@ show_index(char *title, char *fname)
     fclose(fp);
 }
 
-/* Show a packing list item type.  If type is -1, show all */
+/* Show a packing list item type.  If showall is TRUE, show all */
 void
-show_plist(char *title, Package *plist, plist_t type)
+show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 {
     PackingList p;
     Boolean ign = FALSE;
@@ -84,7 +84,7 @@ show_plist(char *title, Package *plist, plist_t type)
 	printf("%s%s", InfoPrefix, title);
     p = plist->head;
     while (p) {
-	if (p->type != type && type != -1) {
+	if (p->type != type && showall != TRUE) {
 	    p = p->next;
 	    continue;
 	}
@@ -180,11 +180,11 @@ show_plist(char *title, Package *plist, plist_t type)
 
 /* Show all files in the packing list (except ignored ones) */
 void
-show_files(char *title, Package *plist)
+show_files(const char *title, Package *plist)
 {
     PackingList p;
     Boolean ign = FALSE;
-    char *dir = ".";
+    const char *dir = ".";
 
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
@@ -215,11 +215,11 @@ show_files(char *title, Package *plist)
 
 /* Calculate and show size of all installed package files (except ignored ones) */
 void
-show_size(char *title, Package *plist)
+show_size(const char *title, Package *plist)
 {
     PackingList p;
     Boolean ign = FALSE;
-    char *dir = ".";
+    const char *dir = ".";
     struct stat sb;
     char tmp[FILENAME_MAX];
     unsigned long size = 0;
@@ -265,10 +265,10 @@ show_size(char *title, Package *plist)
 
 /* Show files that don't match the recorded checksum */
 void
-show_cksum(char *title, Package *plist)
+show_cksum(const char *title, Package *plist)
 {
     PackingList p;
-    char *dir = ".";
+    const char *dir = ".";
     char tmp[FILENAME_MAX];
 
     if (!Quiet)
@@ -295,7 +295,7 @@ show_cksum(char *title, Package *plist)
 
 /* Show an "origin" path (usually category/portname) */
 void
-show_origin(char *title, Package *plist)
+show_origin(const char *title, Package *plist)
 {
     PackingList p;
 

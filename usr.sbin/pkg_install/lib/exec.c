@@ -106,4 +106,3 @@ vpipe(const char *fmt, ...)
     }
     return rp;
 }
-

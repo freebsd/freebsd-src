@@ -33,7 +33,7 @@ static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vW:x";
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
 Boolean Quiet		= FALSE;
-char *InfoPrefix	= "";
+char *InfoPrefix	= (char *)(uintptr_t)"";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
 struct which_head *whead;

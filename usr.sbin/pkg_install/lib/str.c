@@ -26,7 +26,7 @@ static const char rcsid[] =
 #include "lib.h"
 
 char *
-strconcat(char *s1, char *s2)
+strconcat(const char *s1, const char *s2)
 {
     static char tmp[FILENAME_MAX];
 
@@ -52,14 +52,14 @@ get_dash_string(char **str)
 
 /* Rather Obvious */
 char *
-copy_string(char *str)
+copy_string(const char *str)
 {
     return (str ? strdup(str) : NULL);
 }
 
 /* Return TRUE if 'str' ends in suffix 'suff' */
 Boolean
-suffix(char *str, char *suff)
+suffix(const char *str, const char *suff)
 {
     char *idx;
     Boolean ret = FALSE;
