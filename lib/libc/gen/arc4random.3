@@ -87,7 +87,7 @@ and
 functions using
 .Fn arc4random :
 .Pp
-.Dv #define Fn foo4random ( Fn arc4random Ft % ((unsigned)RAND_MAX + 1))
+.Dl #define foo4random() (arc4random()  % ((unsigned)RAND_MAX + 1))
 .Sh SEE ALSO
 .Xr rand 3 ,
 .Xr random 3 ,
