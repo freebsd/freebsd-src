@@ -23,7 +23,7 @@ else
 		echo "completing the floppy install"; echo
 		echo "Automatic file system check changed the root file system"
 		echo "The system must halt for these corrections to take effect"
-		echo ""
+		echo
 		echo "Halting... press return after the system has halted to"
 		echo "boot from the hard disk again."
 		halt
@@ -67,25 +67,25 @@ export TERM
 echo "${OPSYSTEM} Base System Release ${RELEASE}"
 echo ""
 echo "Congratulations, you've got ${OPSYSTEM} on the hard disk!"
-echo ""
+echo
 echo "Press the return key for more installation instructions"
 read junkit
-echo ""
+echo
 echo "To finish installation:"
 echo "Pick a temporary directory by running set_tmp_dir.  Make sure it's"
 echo "in a place with lots of space, probably under /usr."
 echo "Then, load the remaining distribution files into that temporary"
 echo "directory by issuing one of the following commands:"
-echo ""
-echo "       load_fd	load_qic_tape	load_scsi_tape"
-echo ""
+echo
+echo "	load_fd		load_qic_tape	load_scsi_tape"
+echo
 echo "or by fetching the files with ftp (see the installation notes for"
 echo "information on how to do that)."
-echo ""
+echo
 echo "Once this is complete, extract the distribution files by issuing the"
 echo "command 'extract <distribution>'  where <distribution> is the base name"
 echo "of the distribution files, e.g. 'base10'."
-echo ""
+echo
 echo "Once all of the filesets you wish to install have been extracted,"
 echo "enter the command 'configure' to finish setting up the system"
 echo " "
@@ -167,7 +167,7 @@ load_fd()
 		device=/dev/fd0a
 		[ "$drive" = "B" ] && device=/dev/fd1a
 		echo; echo "Insert floppy in drive $drive: and press RETURN,"
-		echo -n    "or enter option (? for help): "
+		echo -n "or enter option (? for help): "
 		read answer junk
 		[ ! "$answer" ] && answer=c
 		case "$answer" in
@@ -267,11 +267,11 @@ extract()
 }
 configure()
 {
-	echo    "You will now be prompted for information about this"
+	echo	"You will now be prompted for information about this"
 	echo	"machine.  If you hit return, the default answer (in"
 	echo	"brackets) will be used."
 
-	echo    ""
+	echo
 	echo -n "What is this machine's hostname? [unknown.host.domain] "
 	read hname
 
@@ -281,8 +281,8 @@ configure()
 	echo $hname > /etc/myname
 	proto_domain=`echo $hname | sed -e 's/[^.]*\.//'`
 	
-	echo    ""
-	echo    "What domain is this machine in (this is NOT its YP"
+	echo
+	echo	"What domain is this machine in (this is NOT its YP"
 	echo -n "domain name)? [$proto_domain] "
 	read dname
 
@@ -290,13 +290,13 @@ configure()
 		dname=$proto_domain
 	fi
 
-	echo	""
+	echo
 	echo -n "Does this machine have an ethernet interface? [y] "
 	read resp
 	case "$resp" in
 	n*)
-                ;;
-        *)
+		;;
+	*)
 		intf=
 		while [ "$intf" = "" ]; do
 			echo -n "What is the primary interface name (i.e. we0, etc.)? "
@@ -347,16 +347,16 @@ configure()
 		
 		echo "inet $ifname $ifnetmask $ifflags" > /etc/hostname.$intf
 
-		echo    ""
-		echo    "WARNING: if you have any more ethernet interfaces, you"
+		echo	""
+		echo	"WARNING: if you have any more ethernet interfaces, you"
 		echo	"will have to configure them by hand.  Read the comments"
 		echo	"in /etc/netstart to learn how to do this"
-                ;;
+		;;
 	esac
 
 	sync
 
-	echo	""
+	echo
 	echo	"OK.  You should be completely set up now."
 	echo	"You should now reboot your machine by issuing the 'reboot' command"
 	echo	"after removing anything that happens to be in your floppy drive."
