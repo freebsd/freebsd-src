@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id: makewhatis.perl,v 1.10 1996/05/22 00:57:42 wosch Exp $
+# $Id: makewhatis.perl,v 1.11 1996/08/27 20:04:09 wosch Exp $
 
 
 sub usage {
@@ -172,7 +172,7 @@ sub parse_dir {
 	delete $man_red{$file};
     }
 
-    if ($dir =~ /man$/) {
+    if ($dir =~ /man/) {
 	warn "\n" if $verbose && $pointflag;
 	warn "open manpath directory ``$dir''\n" if $verbose;
 	$pointflag = 0;
@@ -218,10 +218,10 @@ sub ext {
     $extension =~ s/$ext$//g;	# strip .gz
     $extension =~ s/.*\///g;	# basename
 
-    if ($extension !~ /\./) {	# no dot
+    if ($extension !~ m%[^/]+\.[^.]+$%) {	# no dot
 	$extension = $filename;
 	#$extension =~ s|/[^/]+$||;
-	$extension =~ s/.*(.)/$1/; # last character
+	$extension =~ s%.*man([^/]+)/[^/]+%$1%; # last character
 	warn "\n" if $verbose && $pointflag;
 	warn "$filename has no extension, try section ``$extension''\n"
 	    if $verbose;
@@ -337,12 +337,13 @@ sub manual {
     while(<F>) {
 	# ``man'' style pages
 	# &&: it takes you only half the user time, regexp is slow!!!
-	if (/^\.SH/ && /^\.SH[ \t]+["]?(NAME|Name|NAMN)["]?/) {
+	if (/^\.SH/ && /^\.SH[ \t]+["]?(NAME|Name|NAMN|BEZEICHNUNG|Ì¾¾Î)["]?/) {
 	    #while(<F>) { last unless /^\./ } # Skip
 	    #chop; $list = $_;
 	    while(<F>) {
 		last if /^\.SH[ \t]/;
 		chop;
+		s/^\.IX\s.*//;            # delete perlpod garbage
 		s/^\.[A-Z]+[ ]+[0-9]+$//; # delete commands
 		s/^\.[A-Za-z]+[ \t]*//;	  # delete commands
 		s/^\.\\".*$//;            #" delete comments
@@ -353,7 +354,7 @@ sub manual {
 		}
 	    }
 	    &out($list); close F; return 1;
-	} elsif (/^\.Sh/ && /^\.Sh[ \t]+["]?(NAME|Name)["]?/) {
+	} elsif (/^\.Sh/ && /^\.Sh[ \t]+["]?(NAME|Name|BEZEICHNUNG|Ì¾¾Î)["]?/) {
 	    # ``doc'' style pages
 	    local($flag) = 0;
 	    while(<F>) {

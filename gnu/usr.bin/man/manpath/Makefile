@@ -1,5 +1,6 @@
 PROG=	manpath
 SRCS=	manpath.c
+MAN1=	manpath.1
 
 .if exists(${.OBJDIR}/../lib)
 LIBDESTDIR=	${.OBJDIR}/../lib
@@ -8,12 +9,6 @@ LIBDESTDIR=	${.CURDIR}/../lib
 .endif
 DPADD=	${LIBDESTDIR}/libman.a
 LDADD=	-L${LIBDESTDIR} -lman
-
-.if exists(${.OBJDIR})
-MAN1=${.OBJDIR}/manpath.1
-.else
-MAN1=${.CURDIR}/manpath.1
-.endif
 
 CFLAGS+= -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS
 CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.OBJDIR}/../lib
