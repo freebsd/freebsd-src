@@ -102,10 +102,10 @@ Write the backup to
 .Ar file
 may be a special device file
 like
-.Pa /dev/rmt12
+.Pa /dev/rst0
 (a tape drive),
-.Pa /dev/rsd1c
-(a disk drive),
+.Pa /dev/rfd1
+(a floppy disk drive),
 an ordinary file,
 or
 .Ql Fl
@@ -122,6 +122,12 @@ or
 .Nm dump
 writes to the named file on the remote host using
 .Xr rmt 8 .
+The default path name of the remote
+.Xr rmt 8
+program is
+.Pa /etc/rmt ;
+this can be overridden by the environment variable
+.Ev RMT .
 .It Cm d Ar density
 Set tape density to
 .Ar density .
@@ -256,7 +262,7 @@ to minimize the number of tapes follows:
 .It
 Always start with a level 0 backup, for example:
 .Bd -literal -offset indent
-/sbin/dump 0uf /dev/nrst1 /usr/src
+/sbin/dump 0uf /dev/nrst0 /usr/src
 .Ed
 .Pp
 This should be done at set intervals, say once a month or once every two months,
@@ -280,9 +286,15 @@ used, also on a cyclical basis.
 .Pp
 After several months or so, the daily and weekly tapes should get
 rotated out of the dump cycle and fresh tapes brought in.
+.Sh ENVIRONMENT
+The environment variable
+.Ev RMT
+will be used to determine the pathname of the remote
+.Xr rmt 8
+program.
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
-.It Pa /dev/rmt8
+.It Pa /dev/rst0
 default tape unit to dump to
 .It Pa /etc/dumpdates
 dump date records
@@ -310,6 +322,11 @@ Fewer than 32 read errors on the filesystem are ignored.
 Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
 is written.
+.Pp
+restore(8) is currently unable to restore dumps that were created
+with a blocksize larger than 32 on some tape drives.  This is likely
+a bug in the tape driver.  Workaround for safety reasons: 
+dump aborts with an error message when choosing a blocksize > 32.
 .Pp
 .Nm Dump
 with the

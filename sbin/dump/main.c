@@ -77,7 +77,7 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 4/15/94";
 int	notify = 0;	/* notify operator flag */
 int	blockswritten = 0;	/* number of blocks written on current tape */
 int	tapeno = 0;	/* current tape number */
-int	density = 0;	/* density in bytes/0.1" */
+int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
 long	dev_bsize = 1;	/* recalculated below */
@@ -167,6 +167,13 @@ main(argc, argv)
 		case 'b':		/* blocks per tape write */
 			ntrec = numarg('b', "number of blocks per write",
 			    1L, 1000L, &argc, &argv);
+			/* XXX restore is unable to restore dumps that 
+			   were created  with a blocksize larger than 32K.
+			   Possibly a bug in the scsi tape driver. */
+			if ( ntrec > 32 ) {
+				msg("please choose a blocksize <= 32\n");
+				exit(X_ABORT);
+			}
 			break;
 
 		case 'B':		/* blocks per output file */
@@ -236,6 +243,7 @@ main(argc, argv)
 		 * 9-track	6250 bpi (625 bytes/.1")	2300 ft.
 		 * cartridge	8000 bpi (100 bytes/.1")	1700 ft.
 		 *						(450*4 - slop)
+		 * hilit19 hits again: "
 		 */
 		if (density == 0)
 			density = cartridge ? 100 : 160;
@@ -362,12 +370,12 @@ main(argc, argv)
 			fetapes =
 			(	  tapesize	/* blocks */
 				* TP_BSIZE	/* bytes/block */
-				* (1.0/density)	/* 0.1" / byte */
+				* (1.0/density)	/* 0.1" / byte " */
 			  +
 				  tapesize	/* blocks */
 				* (1.0/ntrec)	/* streaming-stops per block */
-				* 15.48		/* 0.1" / streaming-stop */
-			) * (1.0 / tsize );	/* tape / 0.1" */
+				* 15.48		/* 0.1" / streaming-stop " */
+			) * (1.0 / tsize );	/* tape / 0.1" " */
 		} else {
 			/* Estimate number of tapes, for old fashioned 9-track
 			   tape */
@@ -375,12 +383,12 @@ main(argc, argv)
 			fetapes =
 			(	  tapesize	/* blocks */
 				* TP_BSIZE	/* bytes / block */
-				* (1.0/density)	/* 0.1" / byte */
+				* (1.0/density)	/* 0.1" / byte " */
 			  +
 				  tapesize	/* blocks */
 				* (1.0/ntrec)	/* IRG's / block */
-				* tenthsperirg	/* 0.1" / IRG */
-			) * (1.0 / tsize );	/* tape / 0.1" */
+				* tenthsperirg	/* 0.1" / IRG " */
+			) * (1.0 / tsize );	/* tape / 0.1" " */
 		}
 		etapes = fetapes;		/* truncating assignment */
 		etapes++;
@@ -440,14 +448,24 @@ main(argc, argv)
 		(void)dumpino(dp, ino);
 	}
 
+	(void)time((time_t *)&(tend_writing));
 	spcl.c_type = TS_END;
 	for (i = 0; i < ntrec; i++)
 		writeheader(maxino - 1);
 	if (pipeout)
-		msg("DUMP: %ld tape blocks\n",spcl.c_tapea);
+		msg("%ld tape blocks\n", spcl.c_tapea);
 	else
-		msg("DUMP: %ld tape blocks on %d volumes(s)\n",
+		msg("%ld tape blocks on %d volumes(s)\n",
 		    spcl.c_tapea, spcl.c_volume);
+
+	/* report dump performance, avoid division through zero */
+	if (tend_writing - tstart_writing == 0)
+		msg("finished in less than a second\n");
+	else
+		msg("finished in %d seconds, throughput %d KBytes/sec\n",
+		    tend_writing - tstart_writing,
+		    spcl.c_tapea / (tend_writing - tstart_writing));
+
 	putdumptime();
 	trewind();
 	broadcast("DUMP IS DONE!\7\7\n");
