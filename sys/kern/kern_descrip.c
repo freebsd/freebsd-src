@@ -1100,10 +1100,15 @@ fdcopy(td)
 	 * kq descriptors cannot be copied.
 	 */
 	if (newfdp->fd_knlistsize != -1) {
-		fpp = newfdp->fd_ofiles;
-		for (i = newfdp->fd_lastfile; i-- >= 0; fpp++) {
-			if (*fpp != NULL && (*fpp)->f_type == DTYPE_KQUEUE)
+		fpp = &newfdp->fd_ofiles[newfdp->fd_lastfile];
+		for (i = newfdp->fd_lastfile; i >= 0; i--, fpp--) {
+			if (*fpp != NULL && (*fpp)->f_type == DTYPE_KQUEUE) {
 				*fpp = NULL;
+				if (i < newfdp->fd_freefile)
+					newfdp->fd_freefile = i;
+			}
+			if (*fpp == NULL && i == newfdp->fd_lastfile && i > 0)
+				newfdp->fd_lastfile--;
 		}
 		newfdp->fd_knlist = NULL;
 		newfdp->fd_knlistsize = -1;
