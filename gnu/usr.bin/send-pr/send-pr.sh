@@ -134,8 +134,7 @@ ARCH=`[ -f /bin/arch ] && /bin/arch`
 MACHINE=`[ -f /bin/machine ] && /bin/machine`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
-USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [--request-id] 
-[--version]"
+USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [--version]"
 REMOVE=
 BATCH=
 
@@ -157,7 +156,6 @@ while [ $# -gt 0 ]; do
     -p | -P | --print) PRINT=true ;;
     -L | --list) FORMAT=norm ;;
     -l | -CL | --lisp) FORMAT=lisp ;;
-    --request-id) REQUEST_ID=true ;;
     -h | --help) echo "$USAGE"; exit 0 ;;
     -V | --version) echo "$VERSION"; exit 0 ;;
     -*) echo "$USAGE" ; exit 1 ;;
@@ -182,20 +180,8 @@ if [ -n "$USER_GNATS_SITE" ]; then
   GNATS_ADDR=$USER_GNATS_SITE-gnats
 fi
 
-if [ "$SUBMITTER" = "unknown" -a -z "$REQUEST_ID" -a -z "$IN_FILE" ]; then
-  cat << '__EOF__'
-It seems that send-pr is not installed with your unique submitter-id.
-You need to run
-
-          install-sid YOUR-SID
-
-where YOUR-SID is the identification code you received with `send-pr'.
-`send-pr' will automatically insert this value into the template field
-`>Submitter-Id'.  If you've downloaded `send-pr' from the Net, use `net'
-for this value.  If you do not know your id, run `send-pr --request-id' to 
-get one from your support site.
-__EOF__
-  exit 1
+if [ "$SUBMITTER" = "unknown" -a -z "$IN_FILE" ]; then
+  SUBMITTER="current-users"
 fi
 
 if [ -r "$DATADIR/gnats/$GNATS_SITE" ]; then
@@ -236,7 +222,7 @@ CATEGORY_C=`echo "$CATEGORIES" | \
 
 ORIGINATOR_C='<Name of the PR author (one line)>'
 ORGANIZATION_C='<Organization of PR author (multiple lines)>'
-CONFIDENTIAL_C='<[ yes | no ] (one line)>'
+CONFIDENTIAL_C='no <FreeBSD PRs are public data>'
 SYNOPSIS_C='<Synopsis of the problem (one line)>'
 SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
 PRIORITY_C='<[ low | medium | high ] (one line)>'
@@ -363,16 +349,7 @@ __EOF__
   fi
 
   chmod u+w $TEMP
-  if [ -z "$REQUEST_ID" ]; then
-    eval $EDIT $TEMP
-  else
-    ed -s $TEMP << '__EOF__'
-/^Subject/s/^Subject:.*/Subject: request for a customer id/
-/^>Category/s/^>Category:.*/>Category: send-pr/
-w
-q
-__EOF__
-  fi
+  eval $EDIT $TEMP
 
   if cmp -s $REF $TEMP ; then
     echo "$COMMAND: problem report not filled out, therefore not sent"
@@ -396,7 +373,7 @@ q
 }'
 
 
-while [ -z "$REQUEST_ID" ]; do
+while true; do
   CNT=0
 
   # 1) Confidential
@@ -404,7 +381,7 @@ while [ -z "$REQUEST_ID" ]; do
   PATTERN=">Confidential:"
   CONFIDENTIAL=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CONFIDENTIAL" in
-    ""|yes|no) CNT=`expr $CNT + 1` ;;
+    ""|no) CNT=`expr $CNT + 1` ;;
     *) echo "$COMMAND: \`$CONFIDENTIAL' is not a valid value for \`Confidential'." ;;
   esac
   #
