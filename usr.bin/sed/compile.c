@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: compile.c,v 1.9 1997/08/11 07:20:58 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -652,6 +652,7 @@ compile_text()
 			text = xmalloc(asize);
 		}
 	}
+	text[size] = '\0';
 	return (xrealloc(text, size + 1));
 }
 
