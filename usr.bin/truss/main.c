@@ -139,7 +139,7 @@ main(int ac, char **av) {
   char *fname = NULL;
   int sigexit = 0;
 
-  outfile = stdout;
+  outfile = stderr;
   while ((c = getopt(ac, av, "p:o:S")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
