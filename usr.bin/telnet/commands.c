@@ -2094,7 +2094,7 @@ ayt_status()
 
 unsigned long inet_addr();
 
-    int
+int
 tn(argc, argv)
     int argc;
     char *argv[];
@@ -2155,7 +2155,7 @@ tn(argc, argv)
 	    continue;
 	}
     usage:
-	printf("usage: %s [-l user] [-a] host-name [port]\n", cmd);
+	printf("usage: telnet [-l user] [-a] host-name [port]\n");
 	setuid(getuid());
 	return 0;
     }
