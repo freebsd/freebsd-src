@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.3 1998/10/09 23:18:43 peter Exp $
+ *	$Id: load_elf.c,v 1.4 1998/10/12 09:13:50 peter Exp $
  */
 
 #include <sys/param.h>
@@ -155,8 +155,11 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	mp->m_name = strdup(filename);
     mp->m_type = strdup(kernel ? elf_kerneltype : elf_moduletype);
 
+
+#ifdef ELF_VERBOSE
     if (kernel)
 	printf("%s entry at %p\n", filename, (void *) dest);
+#endif
 
     mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, kernel);
     if (mp->m_size == 0 || mp->m_addr == 0)
@@ -246,10 +249,14 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	    (long)(phdr[i].p_vaddr + off),
 	    (long)(phdr[i].p_vaddr + off + phdr[i].p_memsz - 1));
 #else
-	if ((phdr[i].p_flags & PF_W) == 0)
-	    printf(" text=0x%lx", (long)phdr[i].p_filesz);
-	else
-	    printf(" data=0x%lx", (long)phdr[i].p_filesz);
+	if ((phdr[i].p_flags & PF_W) == 0) {
+	    printf("text=0x%lx ", (long)phdr[i].p_filesz);
+	} else {
+	    printf("data=0x%lx", (long)phdr[i].p_filesz);
+	    if (phdr[i].p_filesz < phdr[i].p_memsz)
+		printf("+0x%lx", (long)(phdr[i].p_memsz -phdr[i].p_filesz));
+	    printf(" ");
+	}
 #endif
 
 	if (lseek(fd, phdr[i].p_offset, SEEK_SET) == -1) {
@@ -267,8 +274,6 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	    printf(" (bss: 0x%lx-0x%lx)",
 		(long)(phdr[i].p_vaddr + off + phdr[i].p_filesz),
 		(long)(phdr[i].p_vaddr + off + phdr[i].p_memsz - 1));
-#else
-	    printf(" bss=0x%lx", (long)(phdr[i].p_memsz -phdr[i].p_filesz));
 #endif
 
 	    /* no archsw.arch_bzero */
@@ -302,6 +307,8 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
      * try to lseek() on it.
      */
     chunk = ehdr->e_shnum * ehdr->e_shentsize;
+    if (chunk == 0 || ehdr->e_shoff == 0)
+	goto nosyms;
     shdr = malloc(chunk);
     if (shdr == NULL)
 	goto nosyms;
@@ -340,7 +347,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 
     /* Ok, committed to a load. */
 #ifndef ELF_VERBOSE
-    printf(" symbols=[");
+    printf("syms=[");
 #endif
     ssym = lastaddr;
     for (i = symtabindex; i >= 0; i = symstrindex) {
@@ -369,6 +376,8 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	    shdr[i].sh_size, shdr[i].sh_offset,
 	    lastaddr, lastaddr + shdr[i].sh_size);
 #else
+	if (i == symstrindex)
+	    printf("+");
 	printf("0x%x+0x%lx", sizeof(size), size);
 #endif
 
