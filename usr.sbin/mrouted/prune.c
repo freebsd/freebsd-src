@@ -7,11 +7,13 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 1.2 1994/09/08 02:51:23 wollman Exp $
+ * $Id: prune.c,v 1.3 1995/03/16 16:25:55 wollman Exp $
  */
 
 
 #include "defs.h"
+
+#define JAN_1970	2208988800	/* 1970 - 1900 in seconds */
 
 extern int cache_lifetime;
 extern int max_prune_lifetime;
@@ -81,7 +83,7 @@ void prun_add_ttls(kt)
 	if (VIFM_ISSET(vifi, kt->kt_grpmems))
 	    kt->kt_ttls[vifi] = v->uv_threshold;
 	else 
-	    kt->kt_ttls[vifi] = NULL;
+	    kt->kt_ttls[vifi] = 0;
     }
 }
 
@@ -179,8 +181,10 @@ void add_table_entry(origin, mcastgrp)
 		VIFM_SET(i, kt->kt_grpmems);
 	}
 	GET_SCOPE(kt);
-	if (VIFM_ISSET(kt->kt_parent, kt->kt_scope))
-	    kt->kt_grpmems = NULL;
+	if (VIFM_ISSET(kt->kt_parent, kt->kt_scope)) {
+	    kt->kt_grpmems = 0;
+	    kt->kt_scope = -1;		/* make sure we don't forward */
+	}
 	else
 	    kt->kt_grpmems &= ~kt->kt_scope;
     }
@@ -193,8 +197,10 @@ void add_table_entry(origin, mcastgrp)
     prun_add_ttls(kt);
     k_add_rg(kt);
     
-    log(LOG_DEBUG, 0, "add entry s:%x g:%x gm:%x",
-	kt->kt_origin, kt->kt_mcastgrp, kt->kt_grpmems);
+    log(LOG_DEBUG, 0, "add entry (%s %s) vif-list:%x",
+	inet_fmt(kt->kt_origin, s1), 
+	inet_fmt(kt->kt_mcastgrp, s2),
+	kt->kt_grpmems);
     
     /* If there are no leaf vifs
      * which have this group, then
@@ -285,7 +291,6 @@ void del_table_entry(r, mcastgrp, del_flag)
     u_long mcastgrp;
     u_int  del_flag;
 {
-    struct mfcctl  mc;
     struct ktable *kt, *prev_kt;
     struct prunlst *krl;
     
@@ -294,8 +299,8 @@ void del_table_entry(r, mcastgrp, del_flag)
 	     kt = prev_kt->kt_next;
 	     prev_kt = kt) {
 	    if ((kt->kt_origin & r->rt_originmask) == r->rt_origin) {
-		log(LOG_DEBUG, 0, "delete all rtes %x grp %x", 
-		    kt->kt_origin, mcastgrp);
+		log(LOG_DEBUG, 0, "delete all rtes %s",
+		    inet_fmt(kt->kt_origin, s1));
 		
 		k_del_rg(kt);
 		
@@ -321,8 +326,8 @@ void del_table_entry(r, mcastgrp, del_flag)
 	     prev_kt = kt) {
 	    if ((kt->kt_origin & r->rt_originmask) == r->rt_origin &&
 		kt->kt_mcastgrp == mcastgrp) {
-		log(LOG_DEBUG, 0, "delete src %x grp %x", 
-		    kt->kt_origin, mcastgrp);
+		log(LOG_DEBUG, 0, "delete (%s, %s)", 
+		    inet_fmt(kt->kt_origin, s1), inet_fmt(mcastgrp, s2));
 		
 		k_del_rg(kt);
 		
@@ -359,17 +364,18 @@ void update_table_entry(r)
 	    changed = 0;
 	    
 	    if (kt->kt_leaves != r->rt_leaves)
-		changed++;
+		changed |= 0x1;
 	    if (kt->kt_children != r->rt_children)
-		changed++;
+		changed |= 0x2;
 	    if (kt->kt_parent != r->rt_parent)
-		changed++;
+		changed |= 0x4;
 	    
 	    if (!changed)
 		continue;
 	    
-	    log(LOG_DEBUG, 0, "update entry: s %-15s g %-15s",
-		inet_fmt(kt->kt_origin, s1), inet_fmt(kt->kt_mcastgrp, s2));
+	    log(LOG_DEBUG, 0, "updating entry: (%s %s) code:%x",
+		inet_fmt(kt->kt_origin, s1),
+		inet_fmt(kt->kt_mcastgrp, s2), changed);
 	    
 	    /* free prun list entries */
 	    while (kt->kt_rlist) {
@@ -394,8 +400,10 @@ void update_table_entry(r)
 		if (VIFM_ISSET(i, kt->kt_leaves) && grplst_mem(i, kt->kt_mcastgrp))
 		    VIFM_SET(i, kt->kt_grpmems);
 	    }
-	    if (VIFM_ISSET(kt->kt_parent, kt->kt_scope))
-		kt->kt_grpmems = NULL;
+	    if (VIFM_ISSET(kt->kt_parent, kt->kt_scope)) {
+		kt->kt_grpmems = 0;
+		kt->kt_scope = -1;
+	    }
 	    else
 		kt->kt_grpmems &= ~kt->kt_scope;
 	    
@@ -427,13 +435,14 @@ void update_lclgrp(vifi, mcastgrp)
 {
     struct ktable *kt;
     
-    log(LOG_DEBUG, 0, "group %x joined at vif %d", mcastgrp, vifi);
+    log(LOG_DEBUG, 0, "group %s joined at vif %d",
+	inet_fmt(mcastgrp, s1), vifi);
     
     for (kt = kernel_rtable; kt; kt = kt->kt_next)
 	if (kt->kt_mcastgrp == mcastgrp && VIFM_ISSET(vifi, kt->kt_children)) {
 	    VIFM_SET(vifi, kt->kt_grpmems);
 	    kt->kt_grpmems &= ~kt->kt_scope;
-	    if (kt->kt_grpmems == NULL)
+	    if (kt->kt_grpmems == 0)
 		continue;
 	    prun_add_ttls(kt);
 	    k_add_rg(kt);
@@ -447,23 +456,34 @@ void delete_lclgrp(vifi, mcastgrp)
     vifi_t vifi;
     u_long mcastgrp;
 {
-    
     struct ktable *kt;
     
-    log(LOG_DEBUG, 0, "group %x left at vif %d", mcastgrp, vifi);
+    log(LOG_DEBUG, 0, "group %s left at vif %d",
+	inet_fmt(mcastgrp, s1), vifi);
     
     for (kt = kernel_rtable; kt; kt = kt->kt_next)
 	if (kt->kt_mcastgrp == mcastgrp)  {
-	    VIFM_CLR(vifi, kt->kt_grpmems);
-	    prun_add_ttls(kt);
-	    k_add_rg(kt);
-	    
-	    /*
-	     * If there are no more members of this particular group,
-	     *  send prune upstream
-	     */
-	    if (kt->kt_grpmems == NULL && kt->kt_gateway)
-		send_prune(kt);
+	    struct listaddr *vr;
+	    int stop_sending = 1;
+
+	    for (vr = uvifs[vifi].uv_neighbors; vr; vr = vr->al_next)
+		if (no_entry_exists(vr->al_addr, kt))  {
+		    stop_sending = 0;
+		    break;
+		}
+
+	    if (stop_sending) {
+		VIFM_CLR(vifi, kt->kt_grpmems);
+		prun_add_ttls(kt);
+		k_add_rg(kt);
+		
+		/*
+		 * If there are no more members of this particular group,
+		 *  send prune upstream
+		 */
+		if (kt->kt_grpmems == NULL && kt->kt_gateway)
+		    send_prune(kt);
+	    }
 	}	
 }
 
@@ -570,7 +590,6 @@ void accept_prune(src, dst, p, datalen)
     int stop_sending; 
     struct ktable *kt;
     struct prunlst *pr_recv;
-    struct prunlst *krl;
     struct listaddr *vr;
     
     /* Don't process any prunes if router is not pruning */
@@ -579,16 +598,18 @@ void accept_prune(src, dst, p, datalen)
     
     if ((vifi = find_vif(src, dst)) == NO_VIF) {
 	log(LOG_INFO, 0,
-    	    "ignoring prune report from non-neighbor %s", inet_fmt(src, s1));
+    	    "ignoring prune report from non-neighbor %s",
+	    inet_fmt(src, s1));
 	return;
     }
     
-    if (datalen < 0  || datalen > 12)
-	{
-	    log(LOG_WARNING, 0,
-		"received non-decipherable prune report from %s", inet_fmt(src, s1));
-	    return;
-	}
+    /* Check if enough data is present */
+    if (datalen < 12) {
+	log(LOG_WARNING, 0,
+	    "non-decipherable prune from %s",
+	    inet_fmt(src, s1));
+	return;
+    }
     
     for (i = 0; i< 4; i++)
 	((char *)&prun_src)[i] = *p++;
@@ -755,7 +776,7 @@ void chkgrp_graft(vifi, mcastgrp)
 		 * ignore it ; don't graft back
 		 */
 		kt->kt_grpmems &= ~kt->kt_scope;
-		if (kt->kt_grpmems == NULL)
+		if (kt->kt_grpmems == 0)
 		    continue;
 
 		/* set the flag for graft retransmission */
@@ -805,13 +826,15 @@ void accept_graft(src, dst, p, datalen)
     
     if ((vifi = find_vif(src, dst)) == NO_VIF) {
 	log(LOG_INFO, 0,
-    	    "ignoring graft report from non-neighbor %s", inet_fmt(src, s1));
+    	    "ignoring graft from non-neighbor %s",
+	    inet_fmt(src, s1));
 	return;
     }
     
-    if (datalen < 0  || datalen > 8) {
+    if (datalen < 8) {
 	log(LOG_WARNING, 0,
-	    "received non-decipherable graft report from %s", inet_fmt(src, s1));
+	    "received non-decipherable graft from %s",
+	    inet_fmt(src, s1));
 	return;
     }
     
@@ -898,8 +921,10 @@ void send_graft_ack(kt, to)
     send_igmp(src, dst, IGMP_DVMRP, DVMRP_GRAFT_ACK,
 	      htonl(MROUTED_LEVEL), datalen);
     
-    log(LOG_DEBUG, 0, "send graft ack for src:%x, grp:%x to %x",
-	kt->kt_origin, kt->kt_mcastgrp, dst);
+    log(LOG_DEBUG, 0, "sent graft ack (%s, %s) to %s",
+	inet_fmt(kt->kt_origin, s1), inet_fmt(kt->kt_mcastgrp, s2),
+	inet_fmt(dst, s3));
+
 }
 
 /*
@@ -934,8 +959,9 @@ void send_graft(kt)
 	send_igmp(src, dst, IGMP_DVMRP, DVMRP_GRAFT,
 		  htonl(MROUTED_LEVEL), datalen);
     }
-    log(LOG_DEBUG, 0, "send graft for src:%x, grp:%x up to %x",
-	kt->kt_origin, kt->kt_mcastgrp, kt->kt_gateway);
+    log(LOG_DEBUG, 0, "sent graft (%s, %s) to %s",
+	inet_fmt(kt->kt_origin, s1), inet_fmt(kt->kt_mcastgrp, s2),
+	inet_fmt(kt->kt_gateway, s3));
 }
 
 /*
@@ -960,13 +986,15 @@ void accept_g_ack(src, dst, p, datalen)
     
     if ((vifi = find_vif(src, dst)) == NO_VIF) {
 	log(LOG_INFO, 0,
-    	    "ignoring graft ack report from non-neighbor %s", inet_fmt(src, s1));
+    	    "ignoring graft ack report from non-neighbor %s",
+	    inet_fmt(src, s1));
 	return;
     }
     
-    if (datalen < 0  || datalen > 8) {
+    if (datalen < 8) {
 	log(LOG_WARNING, 0,
-	    "received non-decipherable graft ack report from %s", inet_fmt(src, s1));
+	    "received non-decipherable graft ack report from %s",
+	    inet_fmt(src, s1));
 	return;
     }
     
@@ -1036,10 +1064,6 @@ void age_table_entry()
 	/* advance the timer for the kernel entry */
 	kt->kt_timer -= ROUTE_MAX_REPORT_DELAY;
 
-	/* decrement prune timer if need be */
-	if (kt->kt_prsent_timer)
-	    kt->kt_prsent_timer -= ROUTE_MAX_REPORT_DELAY;
-
 	/* retransmit graft if graft sent flag is still set */
 	if (kt->kt_grftsnt) {
 	    register int y;
@@ -1052,24 +1076,35 @@ void age_table_entry()
 	   routers
 	   
 	   Now, if there are subordinate routers, then, what we 
-	   have to do is to decrement each and every router's 
+	   have to do is to decrement each and every router's prune
 	   time entry too and decide if we want to forward on
 	   that link basically
 	   */
 	for (prev_krl = (struct prunlst *)&kt->kt_rlist,
-	     krl = prev_krl->rl_next;
-	     krl;
+	     krl = prev_krl->rl_next; krl;
 	     prev_krl = krl, krl = krl->rl_next) {
+
+	    /* decrement prune timer received from downstream routers */
 	    if ((krl->rl_timer -= ROUTE_MAX_REPORT_DELAY) <= 0) {
-              log(LOG_DEBUG, 0, "forw again s %x g %x on vif %d",
-		    kt->kt_origin, kt->kt_mcastgrp, krl->rl_vifi);
+              log(LOG_DEBUG, 0, "forw again (%s, %s) on vif %d",
+		    inet_fmt(kt->kt_origin, s1),
+		    inet_fmt(kt->kt_mcastgrp, s2),
+		    krl->rl_vifi);
 		
+		/* 
+		 * forwarding now, so entry is not pruned anymore
+		 * reset the cache timer to a largish value also
+		 */
+		kt->kt_prsent_timer = 0;
+
+		/* modify the kernel entry to forward packets */
 		if (!VIFM_ISSET(krl->rl_vifi, kt->kt_grpmems)) {
 		    VIFM_SET(krl->rl_vifi, kt->kt_grpmems);
 		    prun_add_ttls(kt);
 		    k_add_rg(kt);
 		}
 		
+		/* remove the router's prune entry and await new one */
 		kt->kt_prun_count--;
 		prev_krl->rl_next = krl->rl_next;
 		free((char *)krl);
@@ -1089,8 +1124,9 @@ void age_table_entry()
 		kt->kt_timer = CACHE_LIFETIME(cache_lifetime);
 	    }
 	    else {
-		log(LOG_DEBUG, 0, "age route s %x g %x",
-		    kt->kt_origin, kt->kt_mcastgrp);
+		log(LOG_DEBUG, 0, "aging entry (%s, %s)",
+		    inet_fmt(kt->kt_origin, s1),
+		    inet_fmt(kt->kt_mcastgrp, s2));
 		
 		k_del_rg(kt);
 		prev_kt->kt_next = kt->kt_next;
@@ -1293,8 +1329,8 @@ void mtrace(src, dst, group, data, no, datalen)
      * fill in initial response fields
      */
     resp = (struct tr_resp *)p;
-    resp->tr_qarr    = ((tp.tv_sec & 0xffff) << 16) + 
-				((tp.tv_usec >> 4) & 0xffff);
+    resp->tr_qarr    = ((tp.tv_sec + JAN_1970) << 16) + 
+				((tp.tv_usec << 10) / 15625);
 
     resp->tr_vifin   = 0;	/* default values */
     resp->tr_pktcnt  = 0;	/* default values */
@@ -1333,9 +1369,9 @@ void mtrace(src, dst, group, data, no, datalen)
      */
     if (rt == NULL) {
 	src = dst;		/* the dst address of resp. pkt */
-	resp->tr_inaddr   = NULL;
+	resp->tr_inaddr   = 0;
 	resp->tr_rflags   = TR_NO_RTE;
-	resp->tr_rmtaddr = NULL;
+	resp->tr_rmtaddr = 0;
     }
     else {
 	/* get # of packets in on interface */
@@ -1360,14 +1396,14 @@ void mtrace(src, dst, group, data, no, datalen)
      */
     printf("rcount:%d, no:%d\n", rcount, no);
 
-    if ((rcount + 1 == no) || (rt->rt_metric == 1))
+    if ((rcount + 1 == no) || (rt == NULL) || (rt->rt_metric == 1))
 	dst = qry->tr_raddr;
     else
 	dst = rt->rt_gateway;
 
     if (IN_MULTICAST(ntohl(dst))) {
 	k_set_ttl(qry->tr_rttl);
-	send_igmp(src, dst,
+	send_igmp(INADDR_ANY, dst,
 		  IGMP_MTRACE_RESP, no, group,
 		  datalen + RLEN);
 	k_set_ttl(1);

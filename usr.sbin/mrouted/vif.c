@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 1.8 1994/08/24 23:54:45 thyagara Exp $
+ * $Id: vif.c,v 1.2 1994/09/08 02:51:27 wollman Exp $
  */
 
 
@@ -30,6 +30,7 @@ int		udp_socket;	/* Since the honkin' kernel doesn't support */
  */
 static void start_vif();
 static void stop_vif();
+static void age_old_hosts();
 
 /*
  * Initialize the virtual interfaces.
@@ -155,6 +156,7 @@ static void start_vif(vifi)
     /*
      * Install the interface in the kernel's vif structure.
      */
+    log(LOG_DEBUG, 0, "Installing vif %d in kernel\n", vifi);
     k_add_vif(vifi, &uvifs[vifi]);
 
     /*
@@ -186,7 +188,7 @@ static void start_vif(vifi)
 	 */
 	v->uv_flags |= VIFF_QUERIER;
 	send_igmp(src, allhosts_group, IGMP_HOST_MEMBERSHIP_QUERY, 
-		  GROUP_EXPIRE_TIME * 10 / ROUTE_MAX_REPORT_DELAY, 0, 0);
+		  IGMP_MAX_HOST_REPORT_DELAY * IGMP_TIMER_SCALE, 0, 0);
 	age_old_hosts();
     }
 
@@ -335,7 +337,7 @@ vifi_t find_vif(src, dst)
 }
 
 
-age_old_hosts()
+static void age_old_hosts()
 {
     register vifi_t vifi;
     register struct uvif *v;
@@ -365,7 +367,7 @@ void query_groups()
 	if (v->uv_flags & VIFF_QUERIER) {
 	    send_igmp(v->uv_lcl_addr, allhosts_group,
 		      IGMP_HOST_MEMBERSHIP_QUERY, 
-		      GROUP_EXPIRE_TIME * 10 / ROUTE_MAX_REPORT_DELAY, 0, 0);
+		      IGMP_MAX_HOST_REPORT_DELAY * IGMP_TIMER_SCALE, 0, 0);
 	}
     }
     age_old_hosts();
@@ -492,10 +494,10 @@ void leave_group_message( src, dst, group)
 	    g->al_timer = GROUP_EXPIRE_TIME / 10;
 	    send_igmp(v->uv_lcl_addr, g->al_addr,
 		      IGMP_HOST_MEMBERSHIP_QUERY, 
-		      IGMP_MAX_HOST_REPORT_DELAY * 10  / (2*TIMER_INTERVAL),
-		      0, 0);
+		      GROUP_EXPIRE_TIME / 30 * IGMP_TIMER_SCALE,
+		      g->al_addr, 0);
 	    g->al_query = SetQueryTimer(g, vifi, g->al_timer / 3 ,
-			 	IGMP_MAX_HOST_REPORT_DELAY / 2);
+			 	GROUP_EXPIRE_TIME / 30 * IGMP_TIMER_SCALE);
 	    g->al_timerid = SetTimer(vifi, g);	
 	    break;
 	}
@@ -642,7 +644,7 @@ void accept_neighbor_request2(src, dst)
     u_char *p, *ncount;
     struct listaddr *la;
     int	datalen;
-    u_long temp_addr, us, them = src;
+    u_long us, them = src;
 
     /* Determine which of our addresses to use as the source of our response
      * to this query.
@@ -783,7 +785,7 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 {
     register struct uvif *v;
     register struct listaddr *n;
-    u_long genid;
+    u_long genid = 0;
     u_long router;
     int he_hears_me = TRUE;
 
@@ -824,41 +826,48 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
      * Need to reset the prune state of the router if not.
      */
     if (msgtype == DVMRP_PROBE) {
-	int i;
 
-	if (datalen < 4) {
-	    log(LOG_WARNING, 0,
-		"received truncated probe message from %s",
-		inet_fmt(addr, s1));
-	    return;
-	}
+	/* if mrouted level > 3.2, analyze further */
+	if ((level&0xff) > 3 ||
+	    (((level&0xff) == 3) && (((level>>8)&0xff) > 2))) {
 
-	for (i = 0; i < 4; i++)
-	    ((char *)&genid)[i] = *p++;
-	datalen -=4;
+	    int i;
 
-	/* 
-	 * loop through router list and check for one-way ifs.
-	 */
-
-	he_hears_me = FALSE;
-
-	while (datalen > 0) {
 	    if (datalen < 4) {
 		log(LOG_WARNING, 0,
 		    "received truncated probe message from %s",
 		    inet_fmt(addr, s1));
-		return;
+		return FALSE;
 	    }
+
 	    for (i = 0; i < 4; i++)
-		((char *)&router)[i] = *p++;
-	    datalen -= 4;
-	    if (router == v->uv_lcl_addr) {
-		he_hears_me = TRUE;
-		break;
+	      ((char *)&genid)[i] = *p++;
+	    datalen -=4;
+	    
+	    /* 
+	     * loop through router list and check for one-way ifs.
+	     */
+	    
+	    he_hears_me = FALSE;
+	    
+	    while (datalen > 0) {
+		if (datalen < 4) {
+		    log(LOG_WARNING, 0,
+			"received truncated probe message from %s",
+			inet_fmt(addr, s1));
+		    return (FALSE);
+		}
+		for (i = 0; i < 4; i++)
+		  ((char *)&router)[i] = *p++;
+		datalen -= 4;
+		if (router == v->uv_lcl_addr) {
+		    he_hears_me = TRUE;
+		    break;
+		}
 	    }
 	}
     }
+
     /*
      * Look for addr in list of neighbors; if found, reset its timer.
      */
@@ -882,14 +891,39 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 
 		    reset_neighbor_state(vifi, addr);
 		    n->al_genid = genid;
-		    /* need to do a full route report here */
-		    break;
-		}
+		    n->al_pv = level & 0xff;
+		    n->al_mv = (level >> 8) & 0xff;
 
-		/* recurring probe - so no need to do a route report */
-		return FALSE;
+		    /*
+		     * need to do a full route report here
+		     * it gets done by accept_probe()
+		     */
+		    return (TRUE);
+		}
 	    }
-	    break;
+
+	    /*
+	     * update the neighbors version and protocol number
+	     * if changed => router went down and came up, 
+	     * so take action immediately.
+	     */
+	    if ((n->al_pv != (level & 0xff)) ||
+		((n->al_mv != (level >> 8)) & 0xff)) {
+		log(LOG_DEBUG, 0,
+		    "resetting neighbor %s [old:%d.%d, new:%d.%d]",
+		    inet_fmt(addr, s1),
+		    n->al_pv, n->al_mv, level&0xff, (level>>8)&0xff);
+		
+		n->al_pv = level & 0xff;
+		n->al_mv = (level >> 8) & 0xff;
+
+		reset_neighbor_state(vifi, addr);
+	    }
+	    /* recurring probe - so no need to do a route report */
+	    if (msgtype == DVMRP_PROBE)
+	      return (FALSE);
+	    else
+	      return (TRUE);
 	}
     }
 
@@ -1121,7 +1155,7 @@ cbk_t *cbk;
 	 register struct uvif *v = &uvifs[cbk->vifi];
             send_igmp(v->uv_lcl_addr, cbk->g->al_addr,
                       IGMP_HOST_MEMBERSHIP_QUERY,
-                      cbk->q_time * 10 /  TIMER_INTERVAL, 0, 0);
+                      cbk->q_time, 0, 0);
 	    cbk->g->al_query = 0;
 	    free(cbk);
 }
