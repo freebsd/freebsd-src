@@ -1,10 +1,9 @@
-#	$Id: Makefile,v 1.12 1994/08/28 18:48:32 bde Exp $
+#	$Id: Makefile,v 1.13 1994/09/18 19:41:38 swallace Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
 NOMAN=	noman
 LDDIR?= $(.CURDIR)/..
-#PICFLAG=-pic
 PICFLAG=-fpic
 CFLAGS+=-I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE) $(PICFLAG) -DRTLD
 LDFLAGS+=-Bshareable -Bsymbolic -assert nosymbolic
@@ -14,18 +13,9 @@ LDADD+=	-lc_pic -lgcc_pic
 BINDIR= /usr/libexec
 INSTALLFLAGS+=	-fschg
 
-.SUFFIXES: .S
-
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
 $(PROG): ${OBJS} ${DPADD}
-	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDDESTDIR) $(LDADD)
-
-.S.o:
-.if defined(DESTDIR)
-	${CPP} -I${DESTDIR}/usr/include ${.IMPSRC} | ${AS} ${ASFLAGS} -o ${.TARGET} -
-.else
-	${CPP} ${.IMPSRC} | ${AS} ${ASFLAGS} -o ${.TARGET} -
-.endif
+	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDADD)
 
 .include <bsd.prog.mk>

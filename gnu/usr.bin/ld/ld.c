@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.22 1994/06/15 22:39:40 rich Exp $
+ *	$Id: ld.c,v 1.23 1994/12/23 22:30:37 nate Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -135,7 +135,7 @@ int			input_desc;
 
 /* The name of the file to write; "a.out" by default. */
 char		*output_filename;	/* Output file name. */
-int		outdesc;		/* Output file descriptor. */
+FILE		*outstream;		/* Output file descriptor. */
 struct exec	outheader;		/* Output file header. */
 int		magic;			/* Output file magic. */
 int		oldmagic;
@@ -183,11 +183,15 @@ int	undefined_shobj_sym_count;	/* # of undefined symbols referenced
 int	multiple_def_count;		/* # of multiply defined symbols. */
 int	defined_global_sym_count;	/* # of defined global symbols. */
 int	common_defined_global_count;	/* # of common symbols. */
+int	undefined_weak_sym_count;	/* # of weak symbols referenced and
+					   not defined. */
 
+#if notused
 int	special_sym_count;	/* # of linker defined symbols. */
 	/* XXX - Currently, only __DYNAMIC and _G_O_T_ go here if required,
 	 *  perhaps _etext, _edata and _end should go here too.
 	 */
+#endif
 int	global_alias_count;	/* # of aliased symbols */
 int	set_symbol_count;	/* # of N_SET* symbols. */
 int	set_vector_count;	/* # of set vectors in output. */
@@ -346,9 +350,6 @@ main(argc, argv)
 	/* Create the symbols `etext', `edata' and `end'.  */
 	symtab_init(relocatable_output);
 
-	/* Prepare for the run-time linking support. */
-	init_rrs();
-
 	/*
 	 * Determine whether to count the header as part of the text size,
 	 * and initialize the text size accordingly. This depends on the kind
@@ -386,7 +387,7 @@ main(argc, argv)
 	 * Print error messages for any missing symbols, for any warning
 	 * symbols, and possibly multiple definitions
 	 */
-	make_executable = do_warnings(stderr);
+	make_executable &= do_warnings(stderr);
 
 	/* Print a map, if requested.  */
 	if (write_map)
@@ -1344,7 +1345,7 @@ enter_global_ref(lsp, name, entry)
 	int olddef = sp->defined;
 	int com = sp->defined && sp->common_size;
 
-	if (type == (N_INDR | N_EXT)) {
+	if (type == (N_INDR | N_EXT) && !olddef) {
 		sp->alias = getsym(entry->strings + (lsp + 1)->nzlist.nz_strx);
 		if (sp == sp->alias) {
 			warnx("%s: %s is alias for itself",
@@ -1356,6 +1357,10 @@ enter_global_ref(lsp, name, entry)
 		} else {
 			global_alias_count++;
 		}
+#if 0
+		if (sp->flags & GS_REFERENCED)
+			sp->alias->flags |= GS_REFERENCED;
+#endif
 	}
 
 	if (entry->flags & E_DYNAMIC) {
@@ -1383,6 +1388,8 @@ enter_global_ref(lsp, name, entry)
 			/*
 			 * This is an ex common...
 			 */
+			if (com)
+				common_defined_global_count--;
 			sp->common_size = 0;
 			sp->defined = 0;
 		}
@@ -1428,32 +1435,72 @@ enter_global_ref(lsp, name, entry)
 		return;
 	}
 
-#ifdef N_SIZE
+	if (olddef && N_ISWEAK(&nzp->nlist) && !(sp->flags & GS_WEAK)) {
+#ifdef DEBUG
+		printf("%s: not overridden by weak symbol from %s\n",
+			sp->name, get_file_name(entry));
+#endif
+		return;
+	}
+
 	if (type == (N_SIZE | N_EXT)) {
+
 		if (relocatable_output && nzp->nz_value != 0 && sp->size == 0)
 			size_sym_count++;
 		if (sp->size < nzp->nz_value)
 			sp->size = nzp->nz_value;
-	} else
-#endif
-	if (type != (N_UNDF | N_EXT) || nzp->nz_value) {
+
+	} else if (type != (N_UNDF | N_EXT) || nzp->nz_value) {
 
 		/*
 		 * Set `->defined' here, so commons and undefined globals
 		 * can be counted correctly.
 		 */
-		if (!sp->defined || sp->defined == (N_UNDF | N_EXT))
+		if (!sp->defined || sp->defined == (N_UNDF | N_EXT)) {
 			sp->defined = type;
+		}
 
-		if (oldref && !olddef)
+		if ((sp->flags & GS_WEAK) && !N_ISWEAK(&nzp->nlist)) {
+			/*
+			 * Upgrade an existing weak definition.
+			 * We fake it by pretending the symbol is undefined;
+			 * must undo any common fiddling, however.
+			 */
+			if (!oldref)
+				errx(1, "internal error: enter_glob_ref: "
+					"weak symbol not referenced");
+			if (!olddef && !com)
+				undefined_weak_sym_count--;
+			undefined_global_sym_count++;
+			sp->defined = type;
+			sp->flags &= ~GS_WEAK;
+			olddef = 0;
+			if (com)
+				common_defined_global_count--;
+			com = 0;
+			sp->common_size = 0;
+		}
+		if (oldref && !olddef) {
 			/*
 			 * It used to be undefined and we're defining it.
 			 */
 			undefined_global_sym_count--;
-			if (undefined_global_sym_count < 0)
-				errx(1,
-	"internal error: enter_glob_ref: undefined_global_sym_count = %d",
-					undefined_global_sym_count);
+			if (sp->flags & GS_WEAK)
+				/* Used to be a weak reference */
+				undefined_weak_sym_count--;
+			if (undefined_global_sym_count < 0 ||
+			    undefined_weak_sym_count < 0)
+				errx(1, "internal error: enter_glob_ref: "
+					"undefined_global_sym_count = %d, "
+					"undefined_weak_sym_count = %d",
+					undefined_global_sym_count,
+					undefined_weak_sym_count);
+
+		}
+
+		if (N_ISWEAK(&nzp->nlist))
+			/* The definition is weak */
+			sp->flags |= GS_WEAK;
 
 		if (!olddef && type == (N_UNDF | N_EXT) && nzp->nz_value) {
 			/*
@@ -1479,13 +1526,18 @@ enter_global_ref(lsp, name, entry)
 		if (SET_ELEMENT_P(type) && (!olddef || com))
 			set_vector_count++;
 
-	} else if (!oldref && !com)
+	} else if (!oldref && !com) {
 		/*
 		 * An unreferenced symbol can already be defined
 		 * as common by shared objects.
 		 */
 		undefined_global_sym_count++;
-
+		if (N_ISWEAK(&nzp->nlist)) {
+			/* The reference is weak */
+			sp->flags |= GS_WEAK;
+			undefined_weak_sym_count++;
+		}
+	}
 
 	if (sp == end_symbol && (entry->flags & E_JUST_SYMS) &&
 	    !T_flag_specified)
@@ -1495,8 +1547,8 @@ enter_global_ref(lsp, name, entry)
 		register char *reftype;
 		switch (type & N_TYPE) {
 		case N_UNDF:
-			reftype = nzp->nz_value?
-					"defined as common":"referenced";
+			reftype = nzp->nz_value
+				  ? "defined as common" : "referenced";
 			break;
 
 		case N_ABS:
@@ -1515,12 +1567,21 @@ enter_global_ref(lsp, name, entry)
 			reftype = "defined in BSS section";
 			break;
 
+		case N_INDR:
+			reftype = "alias";
+			break;
+
+		case N_SIZE:
+			reftype = "size spec";
+			break;
+
 		default:
 			reftype = "I don't know this type";
 			break;
 		}
 
-		fprintf(stderr, "symbol %s %s in ", sp->name, reftype);
+		fprintf(stderr, "symbol %s %s%s in ", sp->name,
+			(N_ISWEAK(&nzp->nlist))?"weakly ":"", reftype);
 		print_file_name (entry, stderr);
 		fprintf(stderr, "\n");
 	}
@@ -1707,17 +1768,20 @@ printf("set_sect_start = %#x, set_sect_size = %#x\n",
 	}
 
 	if (relocatable_output)
-		/* We write out the original N_SET* symbols */
+		/* We write out the original N_SIZE symbols */
 		global_sym_count += size_sym_count;
 
 #ifdef DEBUG
 printf(
-"global symbols %d (defined %d, undefined %d, aliases %d, warnings 2 * %d), \
-locals: %d, debug symbols: %d, set_symbols %d\n",
+"global symbols %d "
+"(defined %d, undefined %d, weak %d, aliases %d, warnings 2 * %d, "
+"size symbols %d)\ncommons %d, locals: %d, debug symbols: %d, set_symbols %d\n",
 	global_sym_count,
 	defined_global_sym_count, undefined_global_sym_count,
-	global_alias_count, warn_sym_count,
-	local_sym_count, debugger_sym_count, set_symbol_count);
+	undefined_weak_sym_count,
+	global_alias_count, warn_sym_count, size_sym_count,
+	common_defined_global_count, local_sym_count,
+	debugger_sym_count, set_symbol_count);
 #endif
 }
 
@@ -1738,6 +1802,7 @@ digest_pass1()
 	 * definition find this way.
 	 */
 	FOR_EACH_SYMBOL(i, sp) {
+		symbol *spsave;
 		struct localsymbol *lsp;
 		int             defs = 0;
 
@@ -1792,6 +1857,7 @@ digest_pass1()
 					 * of this set vector.
 					 */
 					bzero(&reloc, sizeof(reloc));
+					RELOC_INIT_SEGMENT_RELOC(&reloc);
 					RELOC_ADDRESS(&reloc) =
 						setv_fill_count * sizeof(long);
 					alloc_rrs_segment_reloc(NULL, &reloc);
@@ -1801,15 +1867,18 @@ digest_pass1()
 						&& (type & N_TYPE) != N_FN
 						&& (type & N_TYPE) != N_SIZE) {
 				/* non-common definition */
-				if (defs++ && sp->value != p->n_value
-				    && entry_symbol/*XXX*/) {
+				if (!N_ISWEAK(p))
+					++defs;
+				if (defs > 1) {
 					sp->mult_defs = 1;
 					multiple_def_count++;
+				} else if (!N_ISWEAK(p) ||
+					   (!sp->def_lsp && !sp->common_size)) {
+					sp->def_lsp = lsp;
+					lsp->entry->flags |= E_SYMBOLS_USED;
+					sp->defined = type;
+					sp->aux = N_AUX(p);
 				}
-				sp->def_lsp = lsp;
-				lsp->entry->flags |= E_SYMBOLS_USED;
-				sp->defined = type;
-				sp->aux = N_AUX(p);
 			}
 		}
 
@@ -1846,6 +1915,7 @@ digest_pass1()
 			continue;
 		}
 
+		spsave=sp;
 	again:
 		for (lsp = sp->sorefs; lsp; lsp = lsp->next) {
 			register struct nlist *p = &lsp->nzlist.nlist;
@@ -1858,31 +1928,41 @@ digest_pass1()
 				sp->so_defined = type;
 				sp->aux = N_AUX(p);
 				if (lsp->entry->flags & E_SECONDCLASS)
+					/* Keep looking for something better */
 					continue;
-				lsp->entry->flags |= E_SYMBOLS_USED;
-				if (sp->flags & GS_REFERENCED)
-					undefined_global_sym_count--;
-				else
-					sp->flags |= GS_REFERENCED;
-#ifdef DEBUG
-printf("shr: %s gets defined to %x with value %x\n", sp->name, type, sp->value);
-#endif
-				if (undefined_global_sym_count < 0)
-					errx(1,
-		"internal error: digest_pass1,2: %s: undefined_global_sym_count = %d",
-					sp->name, undefined_global_sym_count);
-				if (sp->alias && !(sp->alias->flags & GS_REFERENCED)) {
-					sp = sp->alias;
-					goto again;
-				}
+				if (N_ISWEAK(p))
+					/* Keep looking for something better */
+					continue;
 				break;
 			}
 		}
+		if (sp->def_lsp) {
+#ifdef DEBUG
+printf("pass1: SO definition for %s, type %x in %s at %#x\n",
+	sp->name, sp->so_defined, get_file_name(sp->def_lsp->entry),
+	sp->def_lsp->nzlist.nz_value);
+#endif
+			sp->def_lsp->entry->flags |= E_SYMBOLS_USED;
+			if (sp->flags & GS_REFERENCED)
+				undefined_global_sym_count--;
+			else
+				sp->flags |= GS_REFERENCED;
+			if (undefined_global_sym_count < 0)
+				errx(1, "internal error: digest_pass1,2: "
+					"%s: undefined_global_sym_count = %d",
+					sp->name, undefined_global_sym_count);
+			if (sp->alias &&
+			    !(sp->alias->flags & GS_REFERENCED)) {
+				sp = sp->alias;
+				goto again;
+			}
+		}
+		sp=spsave;
 	} END_EACH_SYMBOL;
 
 	if (setv_fill_count != set_sect_size/sizeof(long))
-		errx(1, "internal error: allocated set symbol space (%d) \
-doesn't match actual (%d)",
+		errx(1, "internal error: allocated set symbol space (%d) "
+			"doesn't match actual (%d)",
 			set_sect_size/sizeof(long), setv_fill_count);
 }
 
@@ -1987,7 +2067,7 @@ consider_relocation(entry, dataseg)
 			lsp = &entry->symbols[reloc->r_symbolnum];
 			sp = lsp->symbol;
 			if (sp == NULL)
-				errx(1, "%s: internal error, sp==NULL",
+				errx(1, "%s: bogus relocation record",
 					get_file_name(entry));
 
 			if (sp->alias)
@@ -2031,7 +2111,8 @@ consider_relocation(entry, dataseg)
 				alloc_rrs_cpy_reloc(entry, sp);
 				sp->defined = N_SIZE;
 
-			} else if (!sp->defined && sp->common_size == 0)
+			} else if (!sp->defined && sp->common_size == 0 &&
+				   sp->so_defined)
 				alloc_rrs_reloc(entry, sp);
 
 		} else {
@@ -2217,14 +2298,27 @@ digest_pass2()
 			continue;
 
 		if (sp->alias &&
-			(relocatable_output || building_shared_object ||
-				(sp->alias->defined && !sp->alias->so_defined)))
+		    (relocatable_output || building_shared_object ||
+		     (sp->alias->defined && !sp->alias->so_defined))) {
 			/*
 			 * The alias points at a defined symbol, so it
 			 * must itself be counted as one too, in order to
 			 * compute the correct number of symbol table entries.
 			 */
+			if (!sp->defined) {
+				/*
+				 * Change aliased symbol's definition too.
+				 * These things happen if shared object commons
+				 * or data is going into our symbol table.
+				 */
+				if (sp->so_defined != (N_INDR+N_EXT))
+					warnx( "pass2: %s: alias isn't",
+						sp->name);
+				sp->defined = sp->so_defined;
+				sp->so_defined = 0;
+			}
 			defined_global_sym_count++;
+		}
 
 		if ((sp->defined & N_TYPE) == N_SETV) {
 			/*
@@ -2253,6 +2347,7 @@ digest_pass2()
 					struct relocation_info reloc;
 
 					bzero(&reloc, sizeof(reloc));
+					RELOC_INIT_SEGMENT_RELOC(&reloc);
 					RELOC_ADDRESS(&reloc) =
 						(1 + i + length_word_index) *
 								sizeof(long)
@@ -2284,7 +2379,11 @@ digest_pass2()
 				sp->value = sp->def_lsp->nzlist.nz_value;
 			if (sp->so_defined &&
 			    (sp->def_lsp->entry->flags & E_SECONDCLASS))
+				/* Flag second-hand definitions */
 				undefined_global_sym_count++;
+			if (sp->flags & GS_TRACE)
+				printf("symbol %s assigned to location %#x\n",
+					sp->name, sp->value);
 		}
 
 		/*
@@ -2333,10 +2432,8 @@ digest_pass2()
 
 		size = PALIGN(size, sizeof(int));
 
-		while (!(size & align))
+		while (align < MAX_ALIGNMENT && !(size & align))
 			align <<= 1;
-
-		align = align > MAX_ALIGNMENT ? MAX_ALIGNMENT : align;
 
 		bss_size = PALIGN(bss_size + data_size + rrs_data_start, align)
 				- (data_size + rrs_data_start);
@@ -2372,19 +2469,21 @@ write_output()
 			(void)unlink(output_filename);
 	}
 
-	outdesc = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (outdesc < 0)
+	outstream = fopen(output_filename, "w");
+	if (outstream == NULL)
 		err(1, "open: %s", output_filename);
 
 	if (atexit(cleanup))
 		err(1, "atexit");
 
-	if (fstat (outdesc, &statbuf) < 0)
+	if (fstat(fileno(outstream), &statbuf) < 0)
 		err(1, "fstat: %s", output_filename);
 
 	filemode = statbuf.st_mode;
 
-	chmod (output_filename, filemode & ~0111);
+	if (S_ISREG(statbuf.st_mode) &&
+	    chmod(output_filename, filemode & ~0111) == -1)
+		err(1, "chmod: %s", output_filename);
 
 	/* Output the a.out header.  */
 	write_header();
@@ -2406,8 +2505,11 @@ write_output()
 	if (chmod (output_filename, filemode | 0111) == -1)
 		err(1, "chmod: %s", output_filename);
 
-	close(outdesc);
-	outdesc = 0;
+	fflush(outstream);
+	/* Report I/O error such as disk full.  */
+	if (ferror(outstream) || fclose(outstream) != 0)
+		err(1, "write_output: %s", output_filename);
+	outstream = 0;
 }
 
 /* Total number of symbols to be written in the output file. */
@@ -2419,12 +2521,19 @@ write_header()
 	int	flags;
 
 	if (link_mode & SHAREABLE)
+		/* Output is shared object */
 		flags = EX_DYNAMIC | EX_PIC;
-	else if (pic_code_seen)
+	else if (relocatable_output && pic_code_seen)
+		/* Output is relocatable and contains PIC code */
 		flags = EX_PIC;
 	else if (rrs_section_type == RRS_FULL)
+		/* Output is a dynamic executable */
 		flags = EX_DYNAMIC;
 	else
+		/*
+		 * Output is a static executable
+		 * or a non-PIC relocatable object
+		 */
 		flags = 0;
 
 	if (oldmagic && (flags & EX_DPMASK))
@@ -2457,7 +2566,7 @@ write_header()
 	}
 
 	md_swapout_exec_hdr(&outheader);
-	mywrite(&outheader, sizeof (struct exec), 1, outdesc);
+	mywrite(&outheader, sizeof (struct exec), 1, outstream);
 	md_swapin_exec_hdr(&outheader);
 
 	/*
@@ -2466,7 +2575,7 @@ write_header()
 	 */
 
 #ifndef COFF_ENCAPSULATE
-	padfile(N_TXTOFF(outheader) - sizeof outheader, outdesc);
+	padfile(N_TXTOFF(outheader) - sizeof outheader, outstream);
 #endif
 }
 
@@ -2487,7 +2596,7 @@ write_text()
 	if (trace_files)
 		fprintf(stderr, "\n");
 
-	padfile(text_pad, outdesc);
+	padfile(text_pad, outstream);
 }
 
 /*
@@ -2525,7 +2634,7 @@ copy_text(entry)
 			    entry->textrel, entry->ntextrel, entry, 0);
 
 	/* Write the relocated text to the output file.  */
-	mywrite(bytes, 1, entry->header.a_text, outdesc);
+	mywrite(bytes, 1, entry->header.a_text, outstream);
 }
 
 /*
@@ -2542,8 +2651,8 @@ write_data()
 		fprintf(stderr, "Copying and relocating data:\n\n");
 
 	pos = N_DATOFF(outheader) + data_start - rrs_data_start;
-	if (lseek(outdesc, pos, L_SET) != pos)
-		errx(1, "write_data: lseek");
+	if (fseek(outstream, pos, SEEK_SET) != 0)
+		errx(1, "write_data: fseek");
 
 	each_full_file(copy_data, 0);
 	file_close();
@@ -2556,13 +2665,13 @@ write_data()
 	if (set_vector_count) {
 		swap_longs(set_vectors, set_symbol_count + 2*set_vector_count);
 		mywrite(set_vectors, set_symbol_count + 2*set_vector_count,
-				sizeof (unsigned long), outdesc);
+				sizeof (unsigned long), outstream);
 	}
 
 	if (trace_files)
 		fprintf(stderr, "\n");
 
-	padfile(data_pad, outdesc);
+	padfile(data_pad, outstream);
 }
 
 /*
@@ -2596,7 +2705,7 @@ copy_data(entry)
 	perform_relocation(bytes, entry->header.a_data,
 			   entry->datarel, entry->ndatarel, entry, 1);
 
-	mywrite(bytes, 1, entry->header.a_data, outdesc);
+	mywrite(bytes, 1, entry->header.a_data, outstream);
 }
 
 /*
@@ -2657,6 +2766,9 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 					get_file_name(entry));
 
 			sp = lsp->symbol;
+			if (sp == NULL)
+				errx(1, "%s: bogus relocation record",
+					get_file_name(entry));
 			if (sp->alias)
 				sp = sp->alias;
 
@@ -2697,6 +2809,9 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 					get_file_name(entry));
 
 			sp = entry->symbols[symindex].symbol;
+			if (sp == NULL)
+				errx(1, "%s: bogus relocation record",
+					get_file_name(entry));
 			if (sp->alias)
 				sp = sp->alias;
 
@@ -2761,11 +2876,11 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 					    "symbol %s claims RRS in %s%s\n",
 					    sp->name, get_file_name(entry),
 					    (sp->so_defined == (N_TEXT+N_EXT) &&
-					    sp->jmpslot_offset != -1)?
+					    sp->flags & GS_HASJMPSLOT)?
 						" (JMPSLOT)":"");
 				}
 				if (sp->so_defined == (N_TEXT+N_EXT) &&
-				    sp->jmpslot_offset != -1) {
+				    sp->flags & GS_HASJMPSLOT) {
 					/*
 					 * Claim a jmpslot if one was allocated.
 					 *
@@ -2781,8 +2896,10 @@ perform_relocation(data, data_size, reloc, nreloc, entry, dataseg)
 						entry->data_start_address:
 						entry->text_start_address;
 					relocation = addend;
-					if (claim_rrs_reloc(
-						entry, r, sp, &relocation))
+					if ((building_shared_object ||
+					     sp->so_defined) &&
+					    claim_rrs_reloc(entry, r, sp,
+							    &relocation))
 						continue;
 				}
 			}
@@ -3005,7 +3122,7 @@ coptxtrel(entry)
 	}
 	md_swapout_reloc(entry->textrel, entry->ntextrel);
 	mywrite(entry->textrel, entry->ntextrel,
-		sizeof(struct relocation_info), outdesc);
+		sizeof(struct relocation_info), outstream);
 }
 
 static void
@@ -3070,7 +3187,7 @@ copdatrel(entry)
 	}
 	md_swapout_reloc(entry->datarel, entry->ndatarel);
 	mywrite(entry->datarel, entry->ndatarel,
-		sizeof(struct relocation_info), outdesc);
+		sizeof(struct relocation_info), outstream);
 }
 
 void write_file_syms __P((struct file_entry *, int *));
@@ -3078,15 +3195,15 @@ void write_string_table __P((void));
 
 /* Offsets and current lengths of symbol and string tables in output file. */
 
-static int	symbol_table_offset;
-static int	symbol_table_len;
+static int	symtab_offset;
+static int	symtab_len;
 
 /* Address in output file where string table starts. */
-static int	string_table_offset;
+static int	strtab_offset;
 
 /* Offset within string table
    where the strings in `strtab_vector' should be written. */
-static int	string_table_len;
+static int	strtab_len;
 
 /* Total size of string table strings allocated so far,
    including strings in `strtab_vector'. */
@@ -3121,8 +3238,6 @@ assign_string_table_index(name)
 	return index;
 }
 
-FILE           *outstream = (FILE *)0;
-
 /*
  * Write the contents of `strtab_vector' into the string table. This is done
  * once for each file's local&debugger symbols and once for the global
@@ -3133,23 +3248,13 @@ write_string_table()
 {
 	register int i;
 
-	if (lseek(outdesc, string_table_offset + string_table_len, 0) ==
-	    (off_t)-1)
-		err(1, "write_string_table: %s: lseek", output_filename);
-
-	if (!outstream)
-		outstream = fdopen(outdesc, "w");
+	if (fseek(outstream, strtab_offset + strtab_len, SEEK_SET) != 0)
+		err(1, "write_string_table: %s: fseek", output_filename);
 
 	for (i = 0; i < strtab_index; i++) {
-		fwrite (strtab_vector[i], 1, strtab_lens[i], outstream);
-		string_table_len += strtab_lens[i];
+		mywrite(strtab_vector[i], 1, strtab_lens[i], outstream);
+		strtab_len += strtab_lens[i];
 	}
-
-	fflush(outstream);
-
-	/* Report I/O error such as disk full.  */
-	if (ferror(outstream))
-		err(1, "write_string_table: %s", output_filename);
 }
 
 /* Write the symbol table and string table of the output file. */
@@ -3173,10 +3278,10 @@ write_syms()
 	/* Size of string table includes the bytes that store the size.  */
 	strtab_size = sizeof strtab_size;
 
-	symbol_table_offset = N_SYMOFF(outheader);
-	symbol_table_len = 0;
-	string_table_offset = N_STROFF(outheader);
-	string_table_len = strtab_size;
+	symtab_offset = N_SYMOFF(outheader);
+	symtab_len = 0;
+	strtab_offset = N_STROFF(outheader);
+	strtab_len = strtab_size;
 
 	if (strip_symbols == STRIP_ALL)
 		return;
@@ -3264,9 +3369,10 @@ write_syms()
 			 * these, symbol was discounted in digest_pass1()
 			 * (they are in the RRS symbol table).
 			 */
-			if (!building_shared_object)
+			if (building_shared_object)
+				continue;
+			if (!(sp->flags & GS_WEAK))
 				warnx("symbol %s remains undefined", sp->name);
-			continue;
 		}
 
 		if (syms_written >= global_sym_count)
@@ -3296,6 +3402,8 @@ write_syms()
 				nl.n_value = sp->alias->value;
 				nl.n_other = N_OTHER(0, sp->alias->aux);
 			} else {
+				int bind = 0;
+
 				if (sp->defined == N_SIZE)
 					nl.n_type = N_DATA | N_EXT;
 				else
@@ -3305,7 +3413,9 @@ write_syms()
 					errx(1, "%s: N_INDR has value %#x",
 							sp->name, sp->value);
 				nl.n_value = sp->value;
-				nl.n_other = N_OTHER(0, sp->aux);
+				if (sp->def_lsp)
+				    bind = N_BIND(&sp->def_lsp->nzlist.nlist);
+				nl.n_other = N_OTHER(bind, sp->aux);
 			}
 
 		} else if (sp->common_size) {
@@ -3375,18 +3485,17 @@ printf("writesym(#%d): %s, type %x\n", syms_written, sp->name, sp->defined);
 	} END_EACH_SYMBOL;
 
 	if (syms_written != strtab_index || strtab_index != global_sym_count)
-		errx(1, "internal error:\
-wrong number (%d) of global symbols written into output file, should be %d",
-				syms_written, global_sym_count);
+		errx(1, "internal error: wrong number (%d) of global symbols "
+			"written into output file, should be %d",
+			syms_written, global_sym_count);
 
 	/* Output the buffer full of `struct nlist's.  */
 
-	if (lseek(outdesc, symbol_table_offset + symbol_table_len, 0) ==
-	    (off_t)-1)
-		err(1, "write_syms: lseek");
+	if (fseek(outstream, symtab_offset + symtab_len, SEEK_SET) != 0)
+		err(1, "write_syms: fseek");
 	md_swapout_symbols(buf, bufp - buf);
-	mywrite(buf, bufp - buf, sizeof(struct nlist), outdesc);
-	symbol_table_len += sizeof(struct nlist) * (bufp - buf);
+	mywrite(buf, bufp - buf, sizeof(struct nlist), outstream);
+	symtab_len += sizeof(struct nlist) * (bufp - buf);
 
 	/* Write the strings for the global symbols.  */
 	write_string_table();
@@ -3396,18 +3505,19 @@ wrong number (%d) of global symbols written into output file, should be %d",
 	file_close();
 
 	if (syms_written != nsyms)
-		errx(1, "internal error:\
-wrong number of symbols (%d) written into output file, should be %d",
-				syms_written, nsyms);
+		errx(1, "internal error: wrong number of symbols (%d) "
+			"written into output file, should be %d",
+			syms_written, nsyms);
 
-	if (symbol_table_offset + symbol_table_len != string_table_offset)
+	if (symtab_offset + symtab_len != strtab_offset)
 		errx(1,
 		"internal error: inconsistent symbol table length: %d vs %s",
-		symbol_table_offset + symbol_table_len, string_table_offset);
+		symtab_offset + symtab_len, strtab_offset);
 
-	lseek(outdesc, string_table_offset, 0);
+	if (fseek(outstream, strtab_offset, SEEK_SET) != 0)
+		err(1, "write_syms: fseek");
 	strtab_size = md_swap_long(strtab_size);
-	mywrite(&strtab_size, sizeof(int), 1, outdesc);
+	mywrite(&strtab_size, sizeof(int), 1, outstream);
 }
 
 
@@ -3507,10 +3617,11 @@ write_file_syms(entry, syms_written_addr)
 
 	/* All the symbols are now in BUF; write them.  */
 
-	lseek(outdesc, symbol_table_offset + symbol_table_len, 0);
+	if (fseek(outstream, symtab_offset + symtab_len, SEEK_SET) != 0)
+		err(1, "write local symbols: fseek");
 	md_swapout_symbols(buf, bufp - buf);
-	mywrite(buf, bufp - buf, sizeof(struct nlist), outdesc);
-	symbol_table_len += sizeof(struct nlist) * (bufp - buf);
+	mywrite(buf, bufp - buf, sizeof(struct nlist), outstream);
+	symtab_len += sizeof(struct nlist) * (bufp - buf);
 
 	/*
 	 * Write the string-table data for the symbols just written, using
@@ -3546,18 +3657,11 @@ mywrite(buf, count, eltsize, fd)
 	void *buf;
 	int count;
 	int eltsize;
-	int fd;
+	FILE *fd;
 {
-	register int val;
-	register int bytes = count * eltsize;
 
-	while (bytes > 0) {
-		val = write(fd, buf, bytes);
-		if (val <= 0)
-			err(1, "write: %s", output_filename);
-		buf += val;
-		bytes -= val;
-	}
+	if (fwrite(buf, eltsize, count, fd) != count)
+		err(1, "write");
 }
 
 static void
@@ -3565,10 +3669,10 @@ cleanup()
 {
 	struct stat	statbuf;
 
-	if (outdesc <= 0)
+	if (outstream == 0)
 		return;
 
-	if (fstat(outdesc, &statbuf) == 0) {
+	if (fstat(fileno(outstream), &statbuf) == 0) {
 		if (S_ISREG(statbuf.st_mode))
 			(void)unlink(output_filename);
 	}
@@ -3580,8 +3684,8 @@ cleanup()
  */
 void
 padfile(padding, fd)
-	int padding;
-	int fd;
+	int	padding;
+	FILE	*fd;
 {
 	register char *buf;
 	if (padding <= 0)

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.2 1994/02/13 20:47:18 jkh Exp $
+ *	$Id: link.h,v 1.3 1995/02/07 13:26:39 jkh Exp $
  */
 
 /*
@@ -94,11 +94,14 @@ struct nzlist {
 };
 
 #define N_AUX(p)	((p)->n_other & 0xf)
-#define N_RESERVED(p)	(((unsigned int)(p)->n_other >> 4) & 0xf)
+#define N_BIND(p)	(((unsigned int)(p)->n_other >> 4) & 0xf)
 #define N_OTHER(r, v)	(((unsigned int)(r) << 4) | ((v) & 0xf))
 
 #define AUX_OBJECT	1
 #define AUX_FUNC	2
+/*#define BIND_LOCAL	0	not used */
+/*#define BIND_GLOBAL	1	not used */
+#define BIND_WEAK	2
 
 
 /*
@@ -196,7 +199,7 @@ struct	_dynamic {
 	union {
 		struct section_dispatch_table *d_sdt;
 	} d_un;
-	struct ld_entry *d_entry;
+	struct ld_entry *d_entry;	/* XXX */
 };
 
 #define LD_VERSION_SUN		(3)
@@ -230,16 +233,18 @@ struct crt_ldso {
 	struct _dynamic	*crt_dp;	/* Main's __DYNAMIC */
 	char		**crt_ep;	/* environment strings */
 	caddr_t		crt_bp;		/* Breakpoint if run from debugger */
-	char		*crt_prog;	/* Program name */
+	char		*crt_prog;	/* Program name (v3) */
+	char		*crt_ldso;	/* Link editor name (v4) */
+	struct ld_entry	*crt_ldentry;	/* dl*() access (v4) */
 };
 
 /*
  * Version passed from crt0 to ld.so (1st argument to _rtld()).
  */
 #define CRT_VERSION_SUN		1
-#define CRT_VERSION_BSD		2
 #define CRT_VERSION_BSD_2	2
 #define CRT_VERSION_BSD_3	3
+#define CRT_VERSION_BSD_4	4
 
 
 /*
