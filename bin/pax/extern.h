@@ -279,7 +279,7 @@ int ustar_wr __P((register ARCHD *));
  * tty_subs.c
  */
 int tty_init __P((void));
-void tty_prnt __P((char *, ...));
+void tty_prnt __P((const char *, ...)) __printflike(1, 2);
 int tty_read __P((char *, int));
-void pax_warn __P((int, char *, ...));
-void sys_warn __P((int, int, char *, ...));
+void pax_warn __P((int, const char *, ...)) __printflike(2, 3);
+void sys_warn __P((int, int, const char *, ...)) __printflike(3, 4);
