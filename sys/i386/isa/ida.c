@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *    $Id$
+ *    $Id: ida.c,v 1.1 1999/05/25 19:45:17 julian Exp $
  *
  */
 
