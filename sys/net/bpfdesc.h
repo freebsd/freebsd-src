@@ -43,6 +43,7 @@
 #ifndef _NET_BPFDESC_H_
 #define _NET_BPFDESC_H_
 
+#include <sys/callout.h>
 #include <sys/selinfo.h>
 
 /*
@@ -90,7 +91,13 @@ struct bpf_d {
 	struct selinfo	bd_sel;		/* bsd select info */
 #endif
 	struct mtx	bd_mtx;		/* mutex for this descriptor */
+	struct callout	bd_callout;	/* for BPF timeouts with select */
 };
+
+/* Values for bd_state */
+#define BPF_IDLE	0		/* no select in progress */
+#define BPF_WAITING	1		/* waiting for read timeout in select */
+#define BPF_TIMED_OUT	2		/* read timeout has expired in select */
 
 #define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_mtx)
 #define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_mtx)
