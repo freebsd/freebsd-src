@@ -269,9 +269,14 @@ sc_term_tab(scr_stat *scp, int n)
 	if (n < 1)
 		n = 1;
 	i = (scp->xpos & ~7) + 8*n;
-	if (i >= scp->xsize)
-		sc_move_cursor(scp, 0, scp->ypos + 1);
-	else
+	if (i >= scp->xsize) {
+		if (scp->ypos >= scp->ysize - 1) {
+			scp->xpos = 0;
+			scp->ypos++;
+			scp->cursor_pos = scp->ypos*scp->xsize;
+		} else
+			sc_move_cursor(scp, 0, scp->ypos + 1);
+	} else
 		sc_move_cursor(scp, i, scp->ypos);
 }
 
