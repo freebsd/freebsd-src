@@ -71,6 +71,8 @@ static const char rcsid[] =
 				/*    trimming this file. */
 #define CE_TRIMAT	0x0020	/* trim file at a specific time. */
 #define CE_GLOB		0x0040	/* name of the log is file name pattern. */
+#define CE_SIGNALGROUP	0x0080	/* Signal a process-group instead of a single */
+				/*    process when trimming this file. */
 
 #define MIN_PID         5	/* Don't touch pids lower than this */
 #define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
@@ -134,7 +136,7 @@ static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
-static pid_t get_pid(const char *pid_file);
+static int send_signal(const struct conf_entry *ent);
 static time_t parse8601(char *s, char *errline);
 static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
@@ -361,6 +363,102 @@ do_entry(struct conf_entry * ent)
 		}
 	}
 #undef REASON_MAX
+}
+
+/* Send a signal to the pid specified by pidfile */
+static int
+send_signal(const struct conf_entry *ent)
+{
+	pid_t target_pid;
+	int did_notify;
+	FILE *f;
+	long minok, maxok, rval;
+	const char *target_name;
+	char *endp, *linep, line[BUFSIZ];
+
+	did_notify = 0;
+	f = fopen(ent->pid_file, "r");
+	if (f == NULL) {
+		warn("can't open pid file: %s", ent->pid_file);
+		return (did_notify);
+		/* NOTREACHED */
+	}
+
+	if (fgets(line, BUFSIZ, f) == NULL) {
+		/*
+		 * XXX - If the pid file is empty, is that really a
+		 *	problem?  Wouldn't that mean that the process
+		 *	has shut down?  In that case there would be no
+		 *	problem with compressing the rotated log file.
+		 */
+		if (feof(f))
+			warnx("pid file is empty: %s",  ent->pid_file);
+		else
+			warn("can't read from pid file: %s", ent->pid_file);
+		(void) fclose(f);
+		return (did_notify);
+		/* NOTREACHED */
+	}
+	(void) fclose(f);
+
+	target_name = "daemon";
+	minok = MIN_PID;
+	maxok = MAX_PID;
+	if (ent->flags & CE_SIGNALGROUP) {
+		/*
+		 * If we are expected to signal a process-group when
+		 * rotating this logfile, then the value read in should
+		 * be the negative of a valid process ID.
+		 */
+		target_name = "process-group";
+		minok = -MAX_PID;
+		maxok = -MIN_PID;
+	}
+
+	errno = 0;
+	linep = line;
+	while (*linep == ' ')
+		linep++;
+	rval = strtol(linep, &endp, 10);
+	if (*endp != '\0' && !isspacech(*endp)) {
+		warnx("pid file does not start with a valid number: %s",
+		    ent->pid_file);
+		rval = 0;
+	} else if (rval < minok || rval > maxok) {
+		warnx("bad value '%ld' for process number in %s",
+		    rval, ent->pid_file);
+		if (verbose)
+			warnx("\t(expecting value between %ld and %ld)",
+			    minok, maxok);
+		rval = 0;
+	}
+	if (rval == 0) {
+		return (did_notify);
+		/* NOTREACHED */
+	}
+
+	target_pid = rval;
+
+	if (noaction) {
+		did_notify = 1;
+		printf("\tkill -%d %d\n", ent->sig, (int) target_pid);
+	} else if (kill(target_pid, ent->sig)) {
+		/*
+		 * XXX - Iff the error was "no such process", should that
+		 *	really be an error for us?  Perhaps the process
+		 *	is already gone, in which case there would be no
+		 *	problem with compressing the rotated log file.
+		 */
+		warn("can't notify %s, pid %d", target_name,
+		    (int) target_pid);
+	} else {
+		did_notify = 1;
+		if (verbose)
+			printf("%s pid %d notified\n", target_name,
+			    (int) target_pid);
+	}
+
+	return (did_notify);
 }
 
 static void
@@ -798,6 +896,9 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			case 'n':
 				working->flags |= CE_NOSIGNAL;
 				break;
+			case 'u':
+				working->flags |= CE_SIGNALGROUP;
+				break;
 			case 'w':
 				working->flags |= CE_COMPACTWAIT;
 				break;
@@ -878,9 +979,16 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			/*
 			 * This entry did not specify the 'n' flag, which
 			 * means it should signal syslogd unless it had
-			 * specified some other pid-file.  But we only
-			 * try to notify syslog if we are root
+			 * specified some other pid-file (and obviously the
+			 * syslog pid-file will not be for a process-group).
+			 * Also, we should only try to notify syslog if we
+			 * are root.
 			 */
+			if (working->flags & CE_SIGNALGROUP) {
+				warnx("Ignoring flag 'U' in line:\n%s",
+				    errline);
+				working->flags &= ~CE_SIGNALGROUP;
+			}
 			if (needroot)
 				working->pid_file = strdup(_PATH_SYSLOGPID);
 		}
@@ -909,7 +1017,6 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	char tfile[MAXPATHLEN];
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
-	pid_t pid;
 
 	if (archtodir) {
 		char *p;
@@ -1073,31 +1180,19 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	 * to the logfile, and as such, that process has already made sure
 	 * that the logfile is not presently in use.
 	 */
-	pid = 0;
 	need_notification = notified = 0;
 	if (ent->pid_file != NULL) {
 		need_notification = 1;
 		if (!nosignal)
-			pid = get_pid(ent->pid_file);	/* the normal case! */
+			notified = send_signal(ent);	/* the normal case! */
 		else if (rotatereq)
 			need_notification = 0;
 	}
-	if (pid) {
-		if (noaction) {
-			notified = 1;
-			printf("\tkill -%d %d\n", ent->sig, (int) pid);
-		} else if (kill(pid, ent->sig))
-			warn("can't notify daemon, pid %d", (int) pid);
-		else {
-			notified = 1;
-			if (verbose)
-				printf("daemon pid %d notified\n", (int) pid);
-		}
-	}
+
 	if ((flags & CE_COMPACT) || (flags & CE_BZCOMPACT)) {
 		if (need_notification && !notified)
 			warnx(
-			    "log %s.0 not compressed because daemon not notified",
+			    "log %s.0 not compressed because daemon(s) not notified",
 			    log);
 		else if (noaction)
 			if (flags & CE_COMPACT)
@@ -1107,7 +1202,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 		else {
 			if (notified) {
 				if (verbose)
-					printf("small pause to allow daemon to close log\n");
+					printf("small pause to allow daemon(s) to close log\n");
 				sleep(10);
 			}
 			if (archtodir) {
@@ -1241,32 +1336,6 @@ age_old_log(char *file)
 		if (stat(strcat(tmp, COMPRESS_POSTFIX), &sb) < 0)
 			return (-1);
 	return ((int)(timenow - sb.st_mtime + 1800) / 3600);
-}
-
-static pid_t
-get_pid(const char *pid_file)
-{
-	FILE *f;
-	char line[BUFSIZ];
-	pid_t pid = 0;
-
-	if ((f = fopen(pid_file, "r")) == NULL)
-		warn("can't open %s pid file to restart a daemon",
-		    pid_file);
-	else {
-		if (fgets(line, BUFSIZ, f)) {
-			pid = atol(line);
-			if (pid < MIN_PID || pid > MAX_PID) {
-				warnx("preposterous process number: %d",
-				   (int)pid);
-				pid = 0;
-			}
-		} else
-			warn("can't read %s pid file to restart a daemon",
-			    pid_file);
-		(void) fclose(f);
-	}
-	return (pid);
 }
 
 /* Skip Over Blanks */
