@@ -646,9 +646,9 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		status = index_extract(dev, top, tmp2, TRUE);
 		if (DITEM_STATUS(status) != DITEM_SUCCESS) {
 		    if (variable_get(VAR_NO_CONFIRM))
-			msgNotify("Loading of dependant package %s failed", cp);
+			msgNotify("Loading of dependent package %s failed", cp);
 		    else
-			msgConfirm("Loading of dependant package %s failed", cp);
+			msgConfirm("Loading of dependent package %s failed", cp);
 		}
 	    }
 	    else if (!package_exists(cp)) {
