@@ -295,8 +295,8 @@ pccard_detach_card(device_t dev)
 
 static const struct pccard_product *
 pccard_do_product_lookup(device_t bus, device_t dev,
-			 const struct pccard_product *tab, size_t ent_size,
-			 pccard_product_match_fn matchfn)
+    const struct pccard_product *tab, size_t ent_size,
+    pccard_product_match_fn matchfn)
 {
 	const struct pccard_product *ent;
 	int matches;
@@ -308,8 +308,8 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 
 #ifdef DIAGNOSTIC
 	if (sizeof *ent > ent_size)
-		panic("pccard_product_lookup: bogus ent_size %ld",
-		    (long) ent_size);
+		panic("pccard_product_lookup: bogus ent_size %jd",
+		    (intmax_t) ent_size);
 #endif
 	if (pccard_get_vendor(dev, &vendor))
 		return (NULL);
