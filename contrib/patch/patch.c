@@ -1,6 +1,6 @@
 /* patch - a program to apply diffs to original files */
 
-/* $Id: patch.c,v 1.22 1997/06/17 22:32:49 eggert Exp $ */
+/* $Id: patch.c,v 1.23 1997/07/05 10:32:23 eggert Exp $ */
 
 /*
 Copyright 1984, 1985, 1986, 1987, 1988 Larry Wall
@@ -73,7 +73,9 @@ static void init_reject PARAMS ((char const *));
 static void reinitialize_almost_everything PARAMS ((void));
 static void usage PARAMS ((FILE *, int)) __attribute__((noreturn));
 
+static int make_backups;
 static int backup_if_mismatch;
+static char const *version_control;
 static int remove_empty_files;
 
 /* TRUE if -R was specified on command line.  */
@@ -133,18 +135,14 @@ char **argv;
 		 : posixly_correct - 1);
 
     {
-      char const *v;
-
-      v = getenv ("SIMPLE_BACKUP_SUFFIX");
+      char const *v = getenv ("SIMPLE_BACKUP_SUFFIX");
       if (v && *v)
 	simple_backup_suffix = v;
-
-      v = getenv ("PATCH_VERSION_CONTROL");
-      if (! v)
-        v = getenv ("VERSION_CONTROL");
-      if (v && *v)
-	backup_type = get_version (v);
     }
+
+    version_control = getenv ("PATCH_VERSION_CONTROL");
+    if (! version_control)
+      version_control = getenv ("VERSION_CONTROL");
 
     /* Cons up the names of the global temporary files.
        Do this before `cleanup' can possibly be called (e.g. by `pfatal').  */
@@ -157,6 +155,9 @@ char **argv;
     Argc = argc;
     Argv = argv;
     get_some_switches();
+
+    if (make_backups | backup_if_mismatch)
+      backup_type = get_version (version_control);
 
     init_output (outfile, &outstate);
 
@@ -340,7 +341,7 @@ char **argv;
 	      if (! dry_run)
 		{
 		  move_file ((char *) 0, outname, (mode_t) 0,
-			     (backup_type != none
+			     (make_backups
 			      || (backup_if_mismatch && (mismatch | failed))));
 		  removedirs (outname);
 		}
@@ -361,7 +362,7 @@ char **argv;
 		  time_t t;
 
 		  move_file (TMPOUTNAME, outname, instat.st_mode,
-			     (backup_type != none
+			     (make_backups
 			      || (backup_if_mismatch && (mismatch | failed))));
 
 		  if ((set_time | set_utc)
@@ -529,12 +530,12 @@ static char const *const option_help[] =
 "",
 "Backup and version control options:",
 "",
-"  -V STYLE  --version-control=STYLE  Use STYLE version control.",
-"	STYLE is either 'simple', 'numbered', or 'existing'.",
-"",
 "  -b  --backup  Back up the original contents of each file.",
 "  --backup-if-mismatch  Back up if the patch does not match exactly.",
 "  --no-backup-if-mismatch  Back up mismatches only if otherwise requested.",
+"",
+"  -V STYLE  --version-control=STYLE  Use STYLE version control.",
+"	STYLE is either 'simple', 'numbered', or 'existing'.",
 "  -B PREFIX  --prefix=PREFIX  Prepend PREFIX to backup file names.",
 "  -Y PREFIX  --basename-prefix=PREFIX  Prepend PREFIX to backup file basenames.",
 "  -z SUFFIX  --suffix=SUFFIX  Append SUFFIX to backup file names.",
@@ -602,9 +603,10 @@ get_some_switches()
 	   != -1) {
 	switch (optc) {
 	    case 'b':
+		make_backups = 1;
 		 /* Special hack for backward compatibility with CVS 1.9.
 		    If the last 4 args are `-b SUFFIX ORIGFILE PATCHFILE',
-		    treat `-b' as if it were `-z'.  */
+		    treat `-b' as if it were `-b -z'.  */
 		if (Argc - optind == 3
 		    && strcmp (Argv[optind - 1], "-b") == 0
 		    && ! (Argv[optind + 0][0] == '-' && Argv[optind + 0][1])
@@ -613,11 +615,10 @@ get_some_switches()
 		  {
 		    optarg = Argv[optind++];
 		    if (verbosity != SILENT)
-		      say ("warning: the `-b %s' option is obsolete; use `-z %s' instead\n",
+		      say ("warning: the `-b %s' option is obsolete; use `-b -z %s' instead\n",
 			   optarg, optarg);
 		    goto case_z;
 		  }
-		backup_type = simple;
 		break;
 	    case 'B':
 		if (!*optarg)
@@ -693,7 +694,7 @@ get_some_switches()
 		exit (0);
 		break;
 	    case 'V':
-		backup_type = get_version (optarg);
+		version_control = optarg;
 		break;
 #if DEBUGGING
 	    case 'x':
@@ -833,21 +834,29 @@ LINENUM fuzz;
 	    return 0;
 
 	offset = 1 - first_guess;
-	return
-	  ((last_frozen_line <= prefix_context
+	if (last_frozen_line <= prefix_context
 	    && offset <= max_pos_offset
 	    && patch_match (first_guess, offset, (LINENUM) 0, suffix_fuzz))
-	   ? first_guess : 0);
+	  {
+	    last_offset = offset;
+	    return first_guess + offset;
+	  }
+	else
+	  return 0;
       }
 
     if (suffix_fuzz < 0)
       {
 	/* Can only match end of file.  */
 	offset = first_guess - (input_lines - pat_lines + 1);
-	return
-	  ((offset <= max_neg_offset
+	if (offset <= max_neg_offset
 	    && patch_match (first_guess, -offset, prefix_fuzz, (LINENUM) 0))
-	   ? first_guess : 0);
+	  {
+	    last_offset = - offset;
+	    return first_guess - offset;
+	  }
+	else
+	  return 0;
       }
 
     for (offset = 0;  offset <= max_offset;  offset++) {

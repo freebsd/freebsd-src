@@ -2,7 +2,7 @@
 .de Id
 .ds Dt \\$4
 ..
-.Id $Id: patch.man,v 1.20 1997/06/17 22:32:49 eggert Exp $
+.Id $Id: patch.man,v 1.23 1997/07/16 12:26:36 eggert Exp $
 .ds = \-\^\-
 .de Sp
 .if t .sp .3
@@ -32,9 +32,9 @@ program and applies those differences to one or more original files,
 producing patched versions.
 Normally the patched versions are put in place of the originals.
 Backups can be made; see the
-.B \-V
+.B \-b
 or
-.B \*=version\-control
+.B \*=backup
 option.
 The names of the files to be patched are usually taken from the patch file,
 but if there's just one file to be patched it can specified on the
@@ -66,6 +66,8 @@ diff listing to
 .BR patch ,
 and it should work.
 If the entire diff is indented by a consistent amount,
+or if a context diff is encapsulated one or more times by prepending
+"\fB\- \fP" to lines starting with "\fB\-\fP" as specified by Internet RFC 934,
 this is taken into account.
 .PP
 With context diffs, and to a lesser extent with normal diffs,
@@ -171,7 +173,7 @@ environment variable is set, and the best name otherwise.
 If
 .B patch
 is not ignoring \s-1RCS\s0 and \s-1SCCS\s0 (see the
-.BI "\-g " num
+.BI "\-g\ " num
 or
 .BI \*=get= num
 option), and no named files exist
@@ -237,22 +239,15 @@ rename or copy the original instead of removing it.
 When backing up a file that does not exist,
 an empty, unreadable backup file is created
 as a placeholder to represent the nonexistent file.
-.Sp
-This option is equivalent to
-.BR \*=version\-control=simple ;
-see the
+See the
 .B \-V
 or
 .B \*=version\-control
-option.
+option for details about how backup file names are determined.
 .TP
 .B \*=backup\-if\-mismatch
 Back up a file if the patch does not match the file exactly
 and if backups are not otherwise requested.
-The backup file name is calculated as usual,
-except that if the version control method is
-.BR none ,
-a simple backup name is used.
 This is the default unless the
 .B POSIXLY_CORRECT
 environment variable is set.
@@ -265,10 +260,11 @@ This is the default if the
 environment variable is set.
 .TP
 \fB\-B\fP \fIpref\fP  or  \fB\*=prefix=\fP\fIpref\fP
-Prefix simple backup file names with
-.IR pref .
+Prefix
+.I pref
+to a file name when generating its simple backup file name.
 For example, with
-.B "\-B /junk/"
+.B "\-B\ /junk/"
 the simple backup file name for
 .B src/patch/util.c
 is
@@ -510,6 +506,8 @@ backup file names.  The method can also be given by the
 (or, if that's not set, the
 .BR VERSION_CONTROL )
 environment variable, which is overridden by this option.
+The method does not affect whether backup files are made;
+it affects only the names of any backup files that are made.
 .Sp
 The value of
 .I method
@@ -526,10 +524,6 @@ accepted):
 \fBexisting\fP  or  \fBnil\fP
 Make numbered backups of files that already have them,
 otherwise simple backups.
-.TP
-\fBnone\fP
-Do not make backups, unless backup-if-mismatch is in effect
-and patches do not match files.
 This is the default.
 .TP
 \fBnumbered\fP  or  \fBt\fP
@@ -547,7 +541,7 @@ The
 .B \-B
 or
 .BR \*=prefix ,
-.B \-y
+.B \-Y
 or
 .BR \*=basename\-prefix ,
 and
@@ -580,12 +574,13 @@ Set internal debugging flags of interest only to
 .B patch
 patchers.
 .TP
-\fB\-y\fP \fIpref\fP  or  \fB\*=basename\-prefix=\fP\fIpref\fP
-Prefix the basename of the simple backup file name with
-.IR pref .
+\fB\-Y\fP \fIpref\fP  or  \fB\*=basename\-prefix=\fP\fIpref\fP
+Prefix
+.I pref
+to the basename of a file name when generating its simple backup file name.
 For example, with
-.B "\-y .del/"
-the backup file name for
+.B "\-Y\ .del/"
+the simple backup file name for
 .B src/patch/util.c
 is
 .BR src/patch/.del/util.c .
@@ -594,7 +589,13 @@ is
 Use
 .I suffix
 as the simple backup suffix.
-The backup extension may also be specified by the
+For example, with
+.B "\-z\ -"
+the simple backup file name for
+.B src/patch/util.c
+is
+.BR src/patch/util.c- .
+The backup suffix may also be specified by the
 .B SIMPLE_BACKUP_SUFFIX
 environment variable, which is overridden by this option.
 .TP
@@ -653,9 +654,8 @@ it takes the first existing file from the list (old, new, index)
 when intuiting file names from diff headers,
 it does not remove files that are empty after patching,
 it does not ask whether to get files from \s-1RCS\s0 or \s-1SCCS\s0,
-it requires that all options precede the
-files in the command line,
-and by default it does not make backup files.
+it requires that all options precede the files in the command line,
+and it does not backup files when there is a mismatch.
 .TP
 .B SIMPLE_BACKUP_SUFFIX
 Extension to use for simple backup file names instead of
@@ -686,6 +686,10 @@ controlling terminal; used to get answers to questions asked of the user
 .SH "SEE ALSO"
 .BR diff (1),
 .BR ed (1)
+.Sp
+Marshall T. Rose and Einar A. Stefferud,
+Proposed Standard for Message Encapsulation,
+Internet RFC 934 <URL:ftp://ftp.isi.edu/in-notes/rfc934.txt> (1985-01).
 .SH "NOTES FOR PATCH SENDERS"
 There are several things you should bear in mind if you are going to
 be sending out patches.
@@ -912,15 +916,12 @@ in file names.
 .B " \(bu"
 In traditional
 .BR patch ,
-simple backups were enabled by default.
+backups were enabled by default.
 This behavior is now enabled with the
 .B \-b
 or
 .B \*=backup
-option, or by setting the
-.B VERSION_CONTROL
-environment variable to
-.BR simple .
+option.
 .Sp
 Conversely, in \s-1POSIX\s0
 .BR patch ,
@@ -934,12 +935,12 @@ option or by setting the
 environment variable.
 .Sp
 The
-.BI \-b " suffix"
+.BI \-b "\ suffix"
 option
 of traditional
 .B patch
 is equivalent to the
-.BI "\-b \-z" " suffix"
+.BI "\-b\ \-z" "\ suffix"
 options of \s-1GNU\s0
 .BR patch .
 .TP
