@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.195 1998/05/11 02:13:42 dyson Exp $
+ *	$Id: pmap.c,v 1.196 1998/05/11 08:11:57 dyson Exp $
  */
 
 /*
@@ -496,6 +496,7 @@ pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
 	unsigned long long base;
 	unsigned long long mask;
 
+	return;
 	if (cpu != CPU_686)
 		return;
 
