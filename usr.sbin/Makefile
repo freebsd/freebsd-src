@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.83 1996/02/12 15:11:59 wpaul Exp $
+#	$Id: Makefile,v 1.84 1996/02/13 17:30:37 wollman Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
@@ -7,7 +7,8 @@ SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
 	kgmon kvm_mkdb lpr lsdev manctl mkdosfs mrouted mtree named \
 	newsyslog nslookup pcvt pkg_install portmap ppp pppd \
 	pppstats pstat pwd_mkdb quot quotaon rarpd repquota rmt \
-	rndcontrol routed rpc.yppasswdd rwhod sa sendmail sliplogin slstat \
+	rndcontrol routed rpc.lockd rpc.statd rpc.yppasswdd rwhod sa \
+	sendmail sliplogin slstat \
 	spray sup sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw \
 	vnconfig watch wormcontrol xntpd xten ypbind yppoll yppush ypset \
 	ypserv zic
