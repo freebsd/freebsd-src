@@ -94,17 +94,20 @@ set_termcap(void)
 	    if (setenv("TERMCAP", termcap, 1) < 0)
 		return -1;
 	}
-	if (DebugFD == -1)
-	    DebugFD = dup(1);
+	if (DebugFD < 0)
+	    DebugFD = open("/dev/null", O_RDWR, 0);
     }
     else {
 	int i, on;
 
 	if (getpid() == 1) {
 	    DebugFD = open("/dev/ttyv1", O_WRONLY);
-	    on = 1;
-	    i = ioctl(DebugFD, TIOCCONS, (char *)&on);
-	    msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
+	    if (DebugFD != -1) {
+		on = 1;
+		i = ioctl(DebugFD, TIOCCONS, (char *)&on);
+		msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n",
+			 DebugFD, i, !i ? "success" : strerror(errno));
+	    }
 	}
 	if (ColorDisplay) {
 	    if (!term) {
