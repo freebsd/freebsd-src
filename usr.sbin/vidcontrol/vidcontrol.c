@@ -386,7 +386,7 @@ set_console(char *arg)
 	}
 
 	n = atoi(arg);
-	if (n < 1 || n > 12) {
+	if (n < 1 || n > 16) {
 		warnx("console number out of range");
 	} else if (ioctl(0, VT_ACTIVATE, (caddr_t) (long) n) == -1)
 		warn("ioctl(VT_ACTIVATE)");
