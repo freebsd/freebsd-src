@@ -52,37 +52,47 @@ for the LSI Logic Fusion-MPT family of
 .Tn SCSI
 and
 .Tn Fibre Channel
-controllers:
+controllers.
+.Sh HARDWARE
+The following controllers are supported by the
+.Nm
+driver:
 .Pp
-.Bl -bullet -compact -offset indent
+.Bl -bullet -compact
 .It
-53c1030
+LSI Logic 53c1030
 (Dual Ultra320
 .Tn SCSI )
 .It
-FC909
+LSI Logic FC909
 (1Gb/s
 .Tn Fibre Channel )
 .It
-FC909A
+LSI Logic FC909A
 (Dual 1Gb/s
 .Tn Fibre Channel )
 .It
-FC919
+LSI Logic FC919
 (2Gb/s
 .Tn Fibre Channel )
 .It
-FC929
+LSI Logic FC929
 (Dual 2Gb/s
 .Tn Fibre Channel )
 .El
 .Pp
-Some mainboards, e.g.\&
-the
-.Dq "IBM e335"
-have a single port
-53c1030
-controller.
+The
+.Tn SCSI
+controller chips supprted by the
+.Nm
+driver can be found onboard on many systems including:
+.Pp
+.Bl -bullet -compact
+.It
+Dell PowerEdge 1750
+.It
+IBM eServer xSeries 335
+.El
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr ch 4 ,
