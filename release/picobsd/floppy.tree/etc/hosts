@@ -5,9 +5,9 @@
 # for local hosts that share this file.
 127.0.0.1		localhost localhost.mydomain.edu
 127.0.0.1		pico.mydomain.edu
+10.0.0.1	default
 192.168.254.1	vmrouter
 192.168.254.2	vm
-10.0.0.1	default
 
 #ethertable	This line starts the ethernet->hostname mapping
 # main_ether		hostname
