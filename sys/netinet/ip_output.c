@@ -41,6 +41,7 @@
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 #include "opt_ipsec.h"
+#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -106,7 +107,6 @@ static int	ip_setmoptions
 	__P((struct sockopt *, struct ip_moptions **));
 
 int	ip_optcopy __P((struct ip *, struct ip *));
-extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
 
 
 extern	struct protosw inetsw[];
@@ -139,6 +139,11 @@ ip_output(m0, opt, ro, flags, imo)
 	struct secpolicy *sp = NULL;
 #endif
 	u_int16_t divert_cookie;		/* firewall cookie */
+#ifdef PFIL_HOOKS
+	struct packet_filter_hook *pfh;
+	struct mbuf *m1;
+	int rv;
+#endif /* PFIL_HOOKS */
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
 #endif
@@ -431,13 +436,25 @@ sendit:
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
 	 */ 
-	if (fr_checkp) {
-		struct  mbuf    *m1 = m;
-
-		if ((error = (*fr_checkp)(ip, hlen, ifp, 1, &m1)) || !m1)
-			goto done;
-		ip = mtod(m = m1, struct ip *);
-	}
+#ifdef PFIL_HOOKS
+	/*
+	 * Run through list of hooks for output packets.
+	 */
+	m1 = m;
+	pfh = pfil_hook_get(PFIL_OUT, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+		if (pfh->pfil_func) {
+			rv = pfh->pfil_func(ip, hlen, ifp, 1, &m1);
+			if (rv) {
+				error = EHOSTUNREACH;
+				goto done;
+			}
+			m = m1;
+			if (m == NULL)
+				goto done;
+			ip = mtod(m, struct ip *);
+		}
+#endif /* PFIL_HOOKS */
 
 	/*
 	 * Check with the firewall...
