@@ -420,6 +420,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			retval = PAM_SERVICE_ERR;
 		}
 #endif
+		free(old_pwd);
 	}
 	else {
 		/* Very bad juju */
@@ -427,7 +428,6 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		PAM_LOG("Illegal 'flags'");
 	}
 
-	free(old_pwd);
 	return (retval);
 }
 
