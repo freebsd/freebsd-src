@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.8 2001/01/20 01:48:55 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.9 2001/01/20 02:03:53 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.107 2000/12/20 06:05:13; haya Exp $ */
+/* $NetBSD: pcmciadevs,v 1.111 2001/01/20 01:56:16 imp Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -86,10 +86,12 @@
 #define	PCCARD_VENDOR_MELCO	0x8a01	/* Melco Corporation */
 #define	PCCARD_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCCARD_VENDOR_MACNICA	0xc00b	/* MACNICA */
+#define	PCCARD_VENDOR_ROLAND	0xc00c	/* Roland */
 #define	PCCARD_VENDOR_COREGA	0xc00f	/* Corega K.K. */
 #define	PCCARD_VENDOR_ALLIEDTELESIS	0xc00f	/* Allied Telesis K.K. */
 #define	PCCARD_VENDOR_HAGIWARASYSCOM	0xc012	/* Hagiwara SYS-COM */
 #define	PCCARD_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
+#define	PCCARD_VENDOR_EMTAC	0xc250	/* EMTAC Technology Corporation */
 #define	PCCARD_VENDOR_ELSA	0xd601	/* Elsa */
 
 /*
@@ -395,6 +397,11 @@
 #define	PCCARD_PRODUCT_CONTEC_CNETPC	0x0000
 #define	PCCARD_STR_CONTEC_CNETPC	"Contec C-NET(PC)C"
 
+/* Roland */
+#define	PCCARD_CIS_ROLAND_SCP55	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_ROLAND_SCP55	0x0001
+#define	PCCARD_STR_ROLAND_SCP55	"Roland SCP-55"
+
 /* Allied Telesis K.K. */
 #define	PCCARD_CIS_ALLIEDTELESIS_LA_PCM	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_ALLIEDTELESIS_LA_PCM	0x0002
@@ -453,6 +460,11 @@
 #define	PCCARD_CIS_MACNICA_ME1_JEIDA	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_MACNICA_ME1_JEIDA	0x3300
 #define	PCCARD_STR_MACNICA_ME1_JEIDA	"MACNICA ME1 for JEIDA"
+
+/* EMTAC */
+#define	PCCARD_CIS_EMTAC_WLAN	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_EMTAC_WLAN	0x0002
+#define	PCCARD_STR_EMTAC_WLAN	"EMTAC A2424i 11Mbps WLAN Card"
 
 /* Cards we know only by their cis */
 #define	PCCARD_VENDOR_PREMAX	-1	/* Premax */
@@ -587,3 +599,6 @@
 #define	PCCARD_CIS_SMC_2632W	{ "SMC", "SMC2632W", "Version 01.02", NULL }
 #define	PCCARD_PRODUCT_SMC_2632W	-1
 #define	PCCARD_STR_SMC_2632W	"SMC 2632 EZ Connect Wireless PC Card"
+#define	PCCARD_CIS_NANOSPEED_PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version 01.02", NULL }
+#define	PCCARD_PRODUCT_NANOSPEED_PRISM2	-1
+#define	PCCARD_STR_NANOSPEED_PRISM2	"NANOSPEED ROOT-RZ2000 WLAN Card"
