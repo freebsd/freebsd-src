@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.86 1997/05/19 17:32:07 jmz Exp $
+ *      $Id: scsiconf.c,v 1.87 1997/05/21 19:35:11 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -40,6 +40,7 @@
 #include "cd.h"
 #include "ch.h"
 #include "od.h"
+#include "pt.h"
 #include "worm.h"
 
 #include "su.h"
@@ -424,6 +425,16 @@ static struct scsidevs knowndevs[] =
 		"worm", SC_ONE_LU, 0, &worm_mode_plasmon
 	},
 #endif /* NWORM */
+#if NPT > 0
+	/*
+	 * Some of the Epson scanners erroneously respond to more than
+	 * one LUN.
+	 */
+	{
+		T_PROCESSOR, T_PROCESSOR, T_FIXED, "EPSON SC", "*", "*",
+		"pt", SC_ONE_LU
+	},
+#endif /* NPT */
 
 	/*
 	 * Wildcard entries.  Keep them down here below all device
