@@ -1,4 +1,111 @@
 ----------------------------------------
+02 April 2004.  Summary of changes for version 20040402:
+
+1) ACPI CA Core Subsystem:
+
+Fixed an interpreter problem where an indirect store through an
+ArgX parameter was incorrectly applying the "implicit conversion
+rules" during the store.  From the ACPI specification: "If the
+target is a method local or argument (LocalX or ArgX), no
+conversion is performed and the result is stored directly to the
+target".  The new behavior is to disable implicit conversion
+during ALL stores to an ArgX.
+
+Changed the behavior of the _PRW method scan to ignore any and
+all errors returned by a given _PRW.  This prevents the scan from
+aborting from the failure of any single _PRW.
+
+Moved the runtime configuration parameters from the global init
+procedure to static variables in acglobal.h.  This will allow the
+host to override the default values easily.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  76.9K Code,  11.4K Data,   88.3K Total
+    Debug Version:     160.8K Code,  66.1K Data,  226.9K Total
+  Current Release:
+    Non-Debug Version:  77.0K Code,  11.4K Data,   88.4K Total
+    Debug Version:     161.0K Code,  66.3K Data,  227.3K Total
+
+
+2) iASL Compiler/Disassembler:
+
+iASL now fully disassembles SSDTs.  However, External()
+statements are not generated automatically for unresolved symbols
+at this time.  This is a planned feature for future
+implementation.
+
+Fixed a scoping problem in the disassembler that occurs when the
+type of the target of a Scope() operator is overridden.  This
+problem caused an incorrectly nested internal namespace to be
+constructed.
+
+Any warnings or errors that are emitted during disassembly are
+now commented out automatically so that the resulting file can be
+recompiled without any hand editing.
+
+----------------------------------------
+26 March 2004.  Summary of changes for version 20040326:
+
+1) ACPI CA Core Subsystem:
+
+Implemented support for "wake" GPEs via interaction between GPEs
+and the _PRW methods.  Every GPE that is pointed to by one or
+more _PRWs is identified as a WAKE GPE and by default will no
+longer be enabled at runtime.  Previously, we were blindly
+enabling all GPEs with a corresponding _Lxx or _Exx method - but
+most of these turn out to be WAKE GPEs anyway.  We believe this
+has been the cause of thousands of "spurious" GPEs on some
+systems.
+
+This new GPE behavior is can be reverted to the original behavior
+(enable ALL GPEs at runtime) via a runtime flag.
+
+Fixed a problem where aliased control methods could not access
+objects properly.  The proper scope within the namespace was not
+initialized (transferred to the target of the aliased method)
+before executing the target method.
+
+Fixed a potential race condition on internal object deletion on
+the return object in AcpiEvaluateObject.
+
+Integrated a fix for resource descriptors where both _MEM and
+_MTP were being extracted instead of just _MEM.  (i.e. bitmask
+was incorrectly too wide, 0x0F instead of 0x03.)
+
+Added a special case for ACPI_ROOT_OBJECT in AcpiUtGetNodeName,
+preventing a fault in some cases.
+
+Updated Notify() values for debug statements in evmisc.c
+
+Return proper status from AcpiUtMutexInitialize, not just simply
+AE_OK.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  76.5K Code,  11.3K Data,   87.8K Total
+    Debug Version:     160.3K Code,  66.0K Data,  226.3K Total
+  Current Release:
+    Non-Debug Version:  76.9K Code,  11.4K Data,   88.3K Total
+    Debug Version:     160.8K Code,  66.1K Data,  226.9K Total
+
+----------------------------------------
 11 March 2004.  Summary of changes for version 20040311:
 
 1) ACPI CA Core Subsystem:

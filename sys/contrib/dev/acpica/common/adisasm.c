@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: adisasm - Application-level disassembler routines
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -145,7 +145,6 @@ AcpiDsIsResultUsed (
     return TRUE;
 }
 #endif
-
 
 ACPI_STATUS
 AcpiDsRestartControlMethod (
@@ -547,6 +546,18 @@ AdAmlDisassemble (
             AcpiFormatException (Status));
         goto Cleanup;
     }
+
+    /*
+     * TBD: We want to cross reference the namespace here, in order to 
+     * generate External() statements.  The problem is that the parse
+     * tree is in run-time (interpreter) format, not compiler format, 
+     * so we cannot directly use the function below:
+     *
+     *    Status = LkCrossReferenceNamespace ();
+     *
+     * We need to either convert the parse tree or create a new
+     * cross ref function that can handle interpreter parse trees
+     */
 
     /* Optional displays */
 
@@ -958,10 +969,6 @@ AdGetLocalTables (
             Status = AcpiOsTableOverride (&TableHeader, &NewTable);
         }
     }
-
-#ifdef _HPET
-    AfGetHpet ();
-#endif
 
     return AE_OK;
 }
