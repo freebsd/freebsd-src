@@ -50,8 +50,10 @@ PSM_ACCEL		opt_psm.h
 PSM_EMULATION		opt_psm.h
 PSM_CHECKSYNC		opt_psm.h
 PSM_DEBUG		opt_psm.h
+PSM_NO_RESET		opt_psm.h
 
 KBD_RESETDELAY		opt_kbdio.h
+KBD_MAXRETRY		opt_kbdio.h
 KBD_MAXWAIT		opt_kbdio.h
 KBDIO_DEBUG		opt_kbdio.h
 
