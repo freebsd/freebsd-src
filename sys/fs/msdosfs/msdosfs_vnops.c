@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.9 1994/11/29 23:39:15 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.10 1994/12/12 12:35:50 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -129,7 +129,8 @@ msdosfs_create(ap)
 	TIMEVAL_TO_TIMESPEC(&time, &ts);
 	unix2dostime(&ts, &ndirent.de_Date, &ndirent.de_Time);
 	unix2dosfn((u_char *)cnp->cn_nameptr, ndirent.de_Name, cnp->cn_namelen);
-	ndirent.de_Attributes = (ap->a_vap->va_mode & VWRITE) ? 0 : ATTR_READONLY;
+	ndirent.de_Attributes = (ap->a_vap->va_mode & VWRITE)
+				? ATTR_ARCHIVE : ATTR_ARCHIVE | ATTR_READONLY;
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
@@ -329,7 +330,7 @@ msdosfs_getattr(ap)
 #endif
 #endif
 	vap->va_ctime = vap->va_atime;
-	vap->va_flags = dep->de_flag;
+	vap->va_flags = (dep->de_Attributes & ATTR_ARCHIVE) ? 0 : SF_ARCHIVED;
 	vap->va_gen = 0;
 	vap->va_blocksize = dep->de_pmp->pm_bpcluster;
 	vap->va_bytes = (dep->de_FileSize + dep->de_pmp->pm_crbomask) &
@@ -363,21 +364,28 @@ msdosfs_setattr(ap)
 	    (vap->va_blocksize != VNOVAL) ||
 	    (vap->va_rdev != VNOVAL) ||
 	    (vap->va_bytes != VNOVAL) ||
-	    (vap->va_gen != VNOVAL) ||
-	    (vap->va_uid != VNOVAL) ||
-	    (vap->va_gid != VNOVAL)) {
+	    (vap->va_gen != VNOVAL)) {
 #ifdef MSDOSFS_DEBUG
 		printf("msdosfs_setattr(): returning EINVAL\n");
 		printf("    va_type %d, va_nlink %x, va_fsid %x, va_fileid %x\n",
 		       vap->va_type, vap->va_nlink, vap->va_fsid, vap->va_fileid);
 		printf("    va_blocksize %x, va_rdev %x, va_bytes %x, va_gen %x\n",
 		       vap->va_blocksize, vap->va_rdev, vap->va_bytes, vap->va_gen);
-		printf("    va_uid %x, va_gid %x\n",
-		       vap->va_uid, vap->va_gid);
 #endif
 		return EINVAL;
 	}
 
+	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (uid_t)VNOVAL) {
+		if ((cred->cr_uid != dep->de_pmp->pm_uid ||
+		     vap->va_uid != dep->de_pmp->pm_uid ||
+		     (vap->va_gid != dep->de_pmp->pm_gid &&
+		      !groupmember(vap->va_gid, cred))) &&
+		    (error = suser(cred, &ap->a_p->p_acflag)))
+			return error;
+		if (vap->va_uid != dep->de_pmp->pm_uid ||
+		    vap->va_gid != dep->de_pmp->pm_gid)
+			return EINVAL;
+	}
 	if (vap->va_size != VNOVAL) {
 		if (ap->a_vp->v_type == VDIR)
 			return EISDIR;
@@ -393,7 +401,7 @@ msdosfs_setattr(ap)
 	}
 
 	/*
-	 * DOS files only have the ability to have thier writability
+	 * DOS files only have the ability to have their writability
 	 * attribute set, so we use the owner write bit to set the readonly
 	 * attribute.
 	 */
@@ -407,15 +415,31 @@ msdosfs_setattr(ap)
 	}
 
 	if (vap->va_flags != VNOVAL) {
-		error = suser(cred, &ap->a_p->p_acflag);
-		if (error)
+		if (cred->cr_uid != dep->de_pmp->pm_uid &&
+		    (error = suser(cred, &ap->a_p->p_acflag)))
 			return error;
-		if (cred->cr_uid == 0)
-			dep->de_flag = vap->va_flags;
-		else {
-			dep->de_flag &= 0xffff0000;
-			dep->de_flag |= (vap->va_flags & 0xffff);
+		/*
+		 * We are very inconsistent about handling unsupported
+		 * attributes.  We ignored the the access time and the
+		 * read and execute bits.  We were strict for the other
+		 * attributes.
+		 *
+		 * Here we are strict, stricter than ufs in not allowing
+		 * users to attempt to set SF_SETTABLE bits or anyone to
+		 * set unsupported bits.  However, we ignore attempts to
+		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
+		 * sensible file system attempts it a lot.
+		 */
+		if (cred->cr_uid != 0) {
+			if (vap->va_flags & SF_SETTABLE)
+				return EPERM;
 		}
+		if (vap->va_flags & ~SF_ARCHIVED)
+			return EINVAL;
+		if (vap->va_flags & SF_ARCHIVED)
+			dep->de_Attributes &= ~ATTR_ARCHIVE;
+		else if (!(dep->de_Attributes & ATTR_DIRECTORY))
+			dep->de_Attributes |= ATTR_ARCHIVE;
 		dep->de_flag |= DE_MODIFIED;
 	}
 	return error;
