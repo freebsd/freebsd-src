@@ -49,6 +49,6 @@ fpsetmask(mask)
 	struct params p;
 
 	p.mask = (u_int64_t) mask;
-	sysarch(ALPHA_SET_FPMASK, (char *) &p);
+	sysarch(ALPHA_SET_FPMASK, &p);
 	return ((fp_except_t) p.mask);
 }

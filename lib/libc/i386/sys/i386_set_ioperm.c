@@ -29,8 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/sysarch.h>
 
-extern int sysarch(int op, char *parms);
-
 int
 i386_set_ioperm(unsigned int start, unsigned int length, int enable)
 {
@@ -40,5 +38,5 @@ i386_set_ioperm(unsigned int start, unsigned int length, int enable)
 	p.length = length;
 	p.enable = enable;
 
-	return (sysarch(I386_SET_IOPERM, (char *)&p));
+	return (sysarch(I386_SET_IOPERM, &p));
 }

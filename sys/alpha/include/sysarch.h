@@ -52,6 +52,7 @@ union descriptor;
 
 __BEGIN_DECLS
 int		alpha_sethae(u_int64_t);
+int		sysarch(int, void *);
 __END_DECLS
 #endif
 

@@ -29,8 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/sysarch.h>
 
-extern int sysarch(int op, char *parms);
-
 int
 i386_vm86(int fcn, void *data)
 {
@@ -39,5 +37,5 @@ i386_vm86(int fcn, void *data)
 	p.sub_op = fcn;
 	p.sub_args = (char *)data;
 
-	return (sysarch(I386_VM86, (void *)&p));
+	return (sysarch(I386_VM86, &p));
 }
