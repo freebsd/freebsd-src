@@ -235,7 +235,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				 * Fake up a node for this newly
 				 * discovered member of the IBSS.
 				 */
-				ni = ieee80211_fakeup_adhoc_node(ic->ic_sta,
+				ni = ieee80211_fakeup_adhoc_node(&ic->ic_sta,
 						type == IEEE80211_FC0_TYPE_CTL ?
 						    wh->i_addr1 : wh->i_addr2);
 				if (ni == NULL) {
@@ -349,7 +349,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				IEEE80211_DISCARD(ic, IEEE80211_MSG_INPUT,
 				    wh, "data", "%s", "unknown src");
 				/* NB: caller deals with reference */
-				ni = ieee80211_dup_bss(ic->ic_sta, wh->i_addr2);
+				ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
 				if (ni != NULL) {
 					IEEE80211_SEND_MGMT(ic, ni,
 					    IEEE80211_FC0_SUBTYPE_DEAUTH,
@@ -507,7 +507,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				/* XXX this dups work done in ieee80211_encap */
 				/* check if destination is associated */
 				struct ieee80211_node *ni1 =
-				    ieee80211_find_node(ic->ic_sta,
+				    ieee80211_find_node(&ic->ic_sta,
 							eh->ether_dhost);
 				if (ni1 != NULL) {
 					/* XXX check if authorized */
@@ -873,7 +873,7 @@ ieee80211_auth_open(struct ieee80211com *ic, struct ieee80211_frame *wh,
 		}
 		/* always accept open authentication requests */
 		if (ni == ic->ic_bss) {
-			ni = ieee80211_dup_bss(ic->ic_sta, wh->i_addr2);
+			ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
 			if (ni == NULL)
 				return;
 		} else
@@ -1020,7 +1020,7 @@ ieee80211_auth_shared(struct ieee80211com *ic, struct ieee80211_frame *wh,
 		switch (seq) {
 		case IEEE80211_AUTH_SHARED_REQUEST:
 			if (ni == ic->ic_bss) {
-				ni = ieee80211_dup_bss(ic->ic_sta, wh->i_addr2);
+				ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
 				if (ni == NULL) {
 					/* NB: no way to return an error */
 					return;
@@ -1890,7 +1890,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			if ((ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 				if ((capinfo & IEEE80211_CAPINFO_IBSS) == 0)
 					return;
-				ni = ieee80211_fakeup_adhoc_node(ic->ic_sta,
+				ni = ieee80211_fakeup_adhoc_node(&ic->ic_sta,
 						wh->i_addr2);
 			} else
 				ni = ieee80211_dup_bss(&ic->ic_scan, wh->i_addr2);
@@ -2003,10 +2003,10 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				 * send the response so blindly add them to the
 				 * neighbor table.
 				 */
-				ni = ieee80211_fakeup_adhoc_node(ic->ic_sta,
+				ni = ieee80211_fakeup_adhoc_node(&ic->ic_sta,
 					wh->i_addr2);
 			} else
-				ni = ieee80211_dup_bss(ic->ic_sta, wh->i_addr2);
+				ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
 			if (ni == NULL)
 				return;
 			allocbs = 1;
@@ -2172,7 +2172,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			    "[%s] deny %s request, sta not authenticated\n",
 			    ether_sprintf(wh->i_addr2),
 			    reassoc ? "reassoc" : "assoc");
-			ni = ieee80211_dup_bss(ic->ic_sta, wh->i_addr2);
+			ni = ieee80211_dup_bss(&ic->ic_sta, wh->i_addr2);
 			if (ni != NULL) {
 				IEEE80211_SEND_MGMT(ic, ni,
 				    IEEE80211_FC0_SUBTYPE_DEAUTH,

@@ -218,7 +218,6 @@ struct ieee80211_node_table {
 	void			(*nt_timeout)(struct ieee80211_node_table *);
 };
 extern	void ieee80211_node_table_reset(struct ieee80211_node_table *);
-extern	void ieee80211_node_table_free(struct ieee80211_node_table *);
 
 extern	struct ieee80211_node *ieee80211_alloc_node(
 		struct ieee80211_node_table *, const u_int8_t *);

@@ -361,8 +361,7 @@ ath_rate_newstate(struct ath_softc *sc, enum ieee80211_state state)
 		 * For any other operating mode we want to reset the
 		 * tx rate state of each node.
 		 */
-		if (ic->ic_sta != NULL)
-			ieee80211_iterate_nodes(ic->ic_sta, ath_rate_cb, 0);
+		ieee80211_iterate_nodes(&ic->ic_sta, ath_rate_cb, 0);
 		ath_rate_update(sc, ic->ic_bss, 0);
 	}
 	if (ic->ic_fixed_rate == -1 && state == IEEE80211_S_RUN) {
@@ -467,8 +466,8 @@ ath_ratectl(void *arg)
 
 		if (ic->ic_opmode == IEEE80211_M_STA)
 			ath_rate_ctl(sc, ic->ic_bss);	/* NB: no reference */
-		else if (ic->ic_sta != NULL)
-			ieee80211_iterate_nodes(ic->ic_sta, ath_rate_ctl, sc);
+		else
+			ieee80211_iterate_nodes(&ic->ic_sta, ath_rate_ctl, sc);
 	}
 	interval = ath_rateinterval;
 	if (ic->ic_opmode == IEEE80211_M_STA)

@@ -114,7 +114,7 @@ struct ieee80211com {
 	enum ieee80211_state	ic_state;	/* 802.11 state */
 	enum ieee80211_protmode	ic_protmode;	/* 802.11g protection mode */
 	enum ieee80211_roamingmode ic_roaming;	/* roaming mode */
-	struct ieee80211_node_table *ic_sta;	/* stations/neighbors */
+	struct ieee80211_node_table ic_sta;	/* stations/neighbors */
 	u_int32_t		*ic_aid_bitmap;	/* association id map */
 	u_int16_t		ic_max_aid;
 	u_int16_t		ic_sta_assoc;	/* stations associated */
