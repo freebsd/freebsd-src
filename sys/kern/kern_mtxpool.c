@@ -51,7 +51,10 @@ static __inline
 struct mtx *
 _mtx_pool_find(void *ptr)
 {
-    return(&mtx_pool_ary[((int)ptr ^ ((int)ptr >> 6)) & MTX_POOL_MASK]);
+    uintptr_t p;
+
+    p = (uintptr_t)ptr;
+    return(&mtx_pool_ary[(p ^ (p >> 6)) & MTX_POOL_MASK]);
 }
 
 static void
