@@ -32,6 +32,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_PROC_H_
+#define	_MACHINE_PROC_H_
+
 #include <machine/globals.h>
 
 /*
@@ -42,3 +45,5 @@ struct mdthread {
 
 struct mdproc {
 };
+
+#endif /* !_MACHINE_PROC_H_ */
