@@ -91,7 +91,6 @@ struct carp_softc {
 	struct arpcom	 	 sc_ac;		/* Interface clue */
 #define	sc_if			 sc_ac.ac_if
 #define	sc_carpdev		 sc_ac.ac_if.if_carpdev
-	int 		 	 if_flags;	/* UP/DOWN */
 	struct in_ifaddr 	*sc_ia;		/* primary iface address */
 	struct ip_moptions 	 sc_imo;
 #ifdef INET6
@@ -1703,7 +1702,6 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 		break;
 
 	case SIOCDIFADDR:
-		sc->if_flags &= ~IFF_UP;
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
@@ -1723,7 +1721,6 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 
 	case SIOCSIFFLAGS:
 		if (sc->sc_state != INIT && !(ifr->ifr_flags & IFF_UP)) {
-			sc->if_flags &= ~IFF_UP;
  			callout_stop(&sc->sc_ad_tmo);
  			callout_stop(&sc->sc_md_tmo);
  			callout_stop(&sc->sc_md6_tmo);
