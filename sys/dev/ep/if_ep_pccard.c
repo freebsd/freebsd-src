@@ -207,26 +207,26 @@ ep_pccard_attach(device_t dev)
 
 	/* ROM size = 0, ROM base = 0 */
 	/* For now, ignore AUTO SELECT feature of 3C589B and later. */
-	EP_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
+	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, result & 0xc000);
 
 	/* Fake IRQ must be 3 */
-	EP_WRITE_2(sc, EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
+	CSR_WRITE_2(sc, EP_W0_RESOURCE_CFG, (sc->epb.res_cfg & 0x0fff) | 0x3000);
 
-	EP_WRITE_2(sc, EP_W0_PRODUCT_ID, sc->epb.prod_id);
+	CSR_WRITE_2(sc, EP_W0_PRODUCT_ID, sc->epb.prod_id);
 
 	if (sc->epb.mii_trans) {
 		/*
 		 * turn on the MII transciever
 		 */
 		GO_WINDOW(3);
-		EP_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
+		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 		DELAY(1000);
-		EP_WRITE_2(sc, EP_W3_OPTIONS, 0xc040);
-		EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
-		EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
-		while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0xc040);
+		CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
+		CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
+		EP_BUSY_WAIT;
 		DELAY(1000);
-		EP_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
+		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 	} else
 		ep_get_media(sc);
 
@@ -234,7 +234,7 @@ ep_pccard_attach(device_t dev)
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
-	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, ep_intr,
 		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
