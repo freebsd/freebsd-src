@@ -173,6 +173,8 @@ int	 rcmd __P((char **, int, const char *,
 		const char *, const char *, int *));
 int	 rcmd_af __P((char **, int, const char *,
 		const char *, const char *, int *, int));
+int	 rcmdsh __P((char **, int, const char *,
+		const char *, const char *, const char *));
 char	*re_comp __P((const char *));
 int	 re_exec __P((const char *));
 int	 readlink __P((const char *, char *, int));
