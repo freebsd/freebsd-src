@@ -47,3 +47,13 @@ Dieser Modus wird durch nochmaliges Drücken der ,,ScrollLock''-Taste
 wieder verlassen.  Diese Möglichkeit ist vor allem nützlich für
 Subshells oder andere ,,Expertenmodi'', die keine Menüs nutzen.
 
+Sowie das System vollständig installiert ist und im Multi-User-Modus
+läuft, werden mehrere ,,virtuelle Terminals'' aktiviert, auf denen man
+parallel mehrere aktive Sessions bedienen kann.  Mittels ALT-F<n> kann
+zwischen diesen umgeschaltet werden, wobei ,,F<n>'' die Funktionstaste
+(F-Taste) ist, die der Nummer des gewünschten Bildschirms entspricht.
+Das System kommt vorkonfiguriert mit 4 virtuellen Terminals.  Wenn
+mehr davon gewünscht werden, so kann dies nach dem Hochfahren des
+Systems geschehen, indem man sie in der Datei /etc/ttys freischaltet.
+Die maximale Anzahl ist 12.
+
