@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.71 1999/02/06 02:54:45 brian Exp $
+ * $Id: ipcp.c,v 1.72 1999/02/26 21:28:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -288,11 +288,12 @@ ipcp_Show(struct cmdargs const *arg)
                 ipcp->cfg.fsm.maxtrm, ipcp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, " My Address:      %s/%d",
 	        inet_ntoa(ipcp->cfg.my_range.ipaddr), ipcp->cfg.my_range.width);
-
+  prompt_Printf(arg->prompt, ", netmask %s\n", inet_ntoa(ipcp->cfg.netmask));
   if (ipcp->cfg.HaveTriggerAddress)
-    prompt_Printf(arg->prompt, " (trigger with %s)",
+    prompt_Printf(arg->prompt, " Trigger address: %s\n",
                   inet_ntoa(ipcp->cfg.TriggerAddress));
-  prompt_Printf(arg->prompt, "\n VJ compression:  %s (%d slots %s slot "
+
+  prompt_Printf(arg->prompt, " VJ compression:  %s (%d slots %s slot "
                 "compression)\n", command_ShowNegval(ipcp->cfg.vj.neg),
                 ipcp->cfg.vj.slots, ipcp->cfg.vj.slotcomp ? "with" : "without");
 
@@ -479,9 +480,9 @@ ipcp_doproxyall(struct bundle *bundle,
 
   ipcp = &bundle->ncp.ipcp;
   for (rp = ipcp->route; rp != NULL; rp = rp->next) {
-    if (ntohl(rp->mask.s_addr) == INADDR_BROADCAST)
+    if (rp->mask.s_addr == INADDR_BROADCAST)
         continue;
-    n = INADDR_BROADCAST - ntohl(rp->mask.s_addr) - 1;
+    n = ntohl(INADDR_BROADCAST) - ntohl(rp->mask.s_addr) - 1;
     if (n > 0 && n <= 254 && rp->dst.s_addr != INADDR_ANY) {
       addr = rp->dst;
       while (n--) {
@@ -503,14 +504,12 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
 {
   static struct in_addr none = { INADDR_ANY };
   struct in_addr mask, oaddr;
-  u_int32_t addr;
 
-  addr = htonl(myaddr.s_addr);
-  mask.s_addr = addr2mask(addr);
+  mask = addr2mask(myaddr);
 
   if (bundle->ncp.ipcp.ifmask.s_addr != INADDR_ANY &&
-      (ntohl(bundle->ncp.ipcp.ifmask.s_addr) & mask.s_addr) == mask.s_addr)
-    mask.s_addr = htonl(bundle->ncp.ipcp.ifmask.s_addr);
+      (bundle->ncp.ipcp.ifmask.s_addr & mask.s_addr) == mask.s_addr)
+    mask.s_addr = bundle->ncp.ipcp.ifmask.s_addr;
 
   oaddr.s_addr = bundle->iface->in_addrs ?
                  bundle->iface->in_addr[0].ifa.s_addr : INADDR_ANY;
@@ -1215,4 +1214,17 @@ ipcp_UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
     return 0;
 
   return 1;
+}
+
+struct in_addr
+addr2mask(struct in_addr addr)
+{
+  u_int32_t haddr = ntohl(addr.s_addr);
+
+  haddr = IN_CLASSA(haddr) ? IN_CLASSA_NET :
+          IN_CLASSB(haddr) ? IN_CLASSB_NET :
+          IN_CLASSC_NET;
+  addr.s_addr = htonl(haddr);
+
+  return addr;
 }
