@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.45 1995/11/29 10:49:05 julian Exp $
+ * $Id: st.c,v 1.46 1995/11/29 14:41:04 julian Exp $
  */
 
 /*
@@ -835,6 +835,7 @@ st_decide_mode(unit, first_read)
 	case QIC_150:
 	case QIC_525:
 	case QIC_1320:
+	case QIC_3080:
 		st->flags |= ST_FIXEDBLOCKS;
 		if (st->media_blksiz > 0) {
 			st->blksiz = st->media_blksiz;
@@ -889,6 +890,7 @@ done:
 	case QIC_150:
 	case QIC_525:
 	case QIC_1320:
+	case QIC_3080:
 		st->flags &= ~ST_2FM_AT_EOD;
 		break;
 	default:
