@@ -42,6 +42,7 @@
 .Nm
 .Nm rc.conf
 .Nm rc.conf.local
+.Nm rc.early
 .Nm rc.d
 .Nm rc.serial
 .Nm rc.pccard
@@ -166,6 +167,10 @@ is invoked when a single user shell terminates (see
 starts all the daemons on the system, preserves editor files
 and clears the scratch directory
 .Pa /tmp .
+.Pp
+.Nm Rc.early
+is run very early in the startup process, immediately before the
+filesystem check.
 .Pp
 .Nm Rc.serial
 is used to set any special configurations for serial devices.
