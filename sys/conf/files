@@ -796,6 +796,10 @@ fs/umapfs/umap_vnops.c	optional umapfs
 fs/unionfs/union_subr.c	optional unionfs
 fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
+geom/bde/g_bde.c		optional geom_bde
+geom/bde/g_bde_crypt.c		optional geom_bde
+geom/bde/g_bde_lock.c		optional geom_bde
+geom/bde/g_bde_work.c		optional geom_bde
 geom/geom_aes.c		optional geom_aes
 geom/geom_bsd.c		optional geom_bsd
 geom/geom_ctl.c		standard
