@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef WEAK_ALIAS
 WEAK_ALIAS(pipe, _pipe)
+WEAK_ALIAS(__sys_pipe, _pipe)
 #endif
 
 ENTRY(_pipe)
@@ -46,4 +47,4 @@ ENTRY(_pipe)
 	str	r0, [r2, #0x0000]
 	str	r1, [r2, #0x0004]
 	mov	r0, #0x00000000
-	mov	r15, r14
+	RET

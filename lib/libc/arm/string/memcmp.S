@@ -77,7 +77,7 @@ ENTRY(memcmp)
 	/* Are both addresses aligned the same way? */
 	cmp	r2, #0x00
 	eornes	r3, ip, r1
-	moveq	pc, lr			/* len == 0, or same addresses! */
+	RETeq			/* len == 0, or same addresses! */
 	tst	r3, #0x03
 	subne	r2, r2, #0x01
 	bne	.Lmemcmp_bytewise2	/* Badly aligned. Do it the slow way */
@@ -93,25 +93,25 @@ ENTRY(memcmp)
 	ldrb	r0, [ip], #0x01
 	ldrb	r3, [r1], #0x01
 	subs	r0, r0, r3
-	movne	pc, lr
+	RETne
 	subs	r2, r2, #0x01
-	moveq	pc, lr
+	RETeq
 
 	/* Compare up to 2 bytes */
 	ldrb	r0, [ip], #0x01
 	ldrb	r3, [r1], #0x01
 	subs	r0, r0, r3
-	movne	pc, lr
+	RETne
 	subs	r2, r2, #0x01
-	moveq	pc, lr
+	RETeq
 
 	/* Compare 1 byte */
 	ldrb	r0, [ip], #0x01
 	ldrb	r3, [r1], #0x01
 	subs	r0, r0, r3
-	movne	pc, lr
+	RETne
 	subs	r2, r2, #0x01
-	moveq	pc, lr
+	RETeq
 
 	/* Compare 4 bytes at a time, if possible */
 	subs	r2, r2, #0x04
@@ -127,7 +127,7 @@ ENTRY(memcmp)
 	/* Correct for extra subtraction, and check if done */
 	adds	r2, r2, #0x04
 	cmpeq	r0, #0x00		/* If done, did all bytes match? */
-	moveq	pc, lr			/* Yup. Just return */
+	RETeq			/* Yup. Just return */
 
 	/* Re-do the final word byte-wise */
 	sub	ip, ip, #0x04
@@ -142,7 +142,7 @@ ENTRY(memcmp)
 	cmpcs	r0, r3
 	beq	.Lmemcmp_bytewise2
 	sub	r0, r0, r3
-	mov	pc, lr
+	RET
 
 #if defined(_KERNEL) && !defined(_STANDALONE)
 	/*
@@ -158,23 +158,23 @@ ENTRY(memcmp)
 	ldrb	r2, [r1, #0x01]		/* r2 = b2#1 */
 	subs	r0, r0, r3		/* r0 = b1#0 - b2#0 */
 	ldreqb	r3, [ip, #0x01]		/* r3 = b1#1 */
-	movne	pc, lr			/* Return if mismatch on #0 */
+	RETne			/* Return if mismatch on #0 */
 	subs	r0, r3, r2		/* r0 = b1#1 - b2#1 */
 	ldreqb	r3, [r1, #0x02]		/* r3 = b2#2 */
 	ldreqb	r0, [ip, #0x02]		/* r0 = b1#2 */
-	movne	pc, lr			/* Return if mismatch on #1 */
+	RETne			/* Return if mismatch on #1 */
 	ldrb	r2, [r1, #0x03]		/* r2 = b2#3 */
 	subs	r0, r0, r3		/* r0 = b1#2 - b2#2 */
 	ldreqb	r3, [ip, #0x03]		/* r3 = b1#3 */
-	movne	pc, lr			/* Return if mismatch on #2 */
+	RETne			/* Return if mismatch on #2 */
 	subs	r0, r3, r2		/* r0 = b1#3 - b2#3 */
 	ldreqb	r3, [r1, #0x04]		/* r3 = b2#4 */
 	ldreqb	r0, [ip, #0x04]		/* r0 = b1#4 */
-	movne	pc, lr			/* Return if mismatch on #3 */
+	RETne			/* Return if mismatch on #3 */
 	ldrb	r2, [r1, #0x05]		/* r2 = b2#5 */
 	subs	r0, r0, r3		/* r0 = b1#4 - b2#4 */
 	ldreqb	r3, [ip, #0x05]		/* r3 = b1#5 */
-	movne	pc, lr			/* Return if mismatch on #4 */
+	RETne			/* Return if mismatch on #4 */
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
-	mov	pc, lr
+	RET
 #endif

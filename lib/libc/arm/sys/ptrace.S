@@ -63,7 +63,7 @@ ENTRY(ptrace)
 
 	SYSTRAP(ptrace)
 	bcs	PIC_SYM(CERROR, PLT)
-	mov	pc, lr
+	RET
 
 #ifndef _REENTRANT
 #ifdef PIC

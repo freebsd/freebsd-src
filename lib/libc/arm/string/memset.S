@@ -160,7 +160,7 @@ ENTRY(memset)
 	stmgeia	ip!, {r2-r3}
 #endif
 	bgt	.Lmemset_loop128
-	moveq	pc, lr			/* Zero length so just exit */
+	RETeq			/* Zero length so just exit */
 
 	add	r1, r1, #0x80		/* Adjust for extra sub */
 
@@ -179,7 +179,7 @@ ENTRY(memset)
 	stmgeia	ip!, {r2-r3}
 #endif
 	bgt	.Lmemset_loop32
-	moveq	pc, lr			/* Zero length so just exit */
+	RETeq			/* Zero length so just exit */
 
 	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
 
@@ -191,7 +191,7 @@ ENTRY(memset)
 	stmgeia	ip!, {r2-r3}
 	stmgeia	ip!, {r2-r3}
 #endif
-	moveq	pc, lr			/* Zero length so just exit */
+	RETeq			/* Zero length so just exit */
 
 	addlt	r1, r1, #0x10		/* Possibly adjust for extra sub */
 
@@ -200,12 +200,12 @@ ENTRY(memset)
 	subs	r1, r1, #0x04
 	strge	r3, [ip], #0x04
 	bgt	.Lmemset_loop4
-	moveq	pc, lr			/* Zero length so just exit */
+	RETeq			/* Zero length so just exit */
 
 #ifdef __XSCALE__
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
-	moveq	pc, lr
+	RETeq
 	cmp	r1, #2
 #else
 	cmp	r1, #-2
@@ -214,7 +214,7 @@ ENTRY(memset)
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	strgeb	r3, [ip], #0x01		/* Set another byte */
 	strgtb	r3, [ip]		/* and a third */
-	mov	pc, lr			/* Exit */
+	RET			/* Exit */
 
 .Lmemset_wordunaligned:
 	rsb	r2, r2, #0x004
@@ -228,9 +228,9 @@ ENTRY(memset)
 
 .Lmemset_lessthanfour:
 	cmp	r1, #0x00
-	moveq	pc, lr			/* Zero length so exit */
+	RETeq			/* Zero length so exit */
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	cmp	r1, #0x02
 	strgeb	r3, [ip], #0x01		/* Set another byte */
 	strgtb	r3, [ip]		/* and a third */
-	mov	pc, lr			/* Exit */
+	RET			/* Exit */
