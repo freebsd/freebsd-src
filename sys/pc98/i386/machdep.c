@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.72 1998/01/25 12:01:38 kato Exp $
+ *	$Id: machdep.c,v 1.73 1998/01/30 12:03:13 kato Exp $
  */
 
 #include "apm.h"
@@ -557,6 +557,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_sc.sc_trapno = regs->tf_trapno;
 	sf.sf_sc.sc_err = regs->tf_err;
 
+#ifdef VM86
 	/*
 	 * If we're a vm86 process, we want to save the segment registers.
 	 * We also change eflags to be our emulated eflags, not the actual
@@ -582,6 +583,7 @@ sendsig(catcher, sig, mask, code)
 		 */
 		tf->tf_eflags &= ~(PSL_VM | PSL_T | PSL_VIF | PSL_VIP);
 	}
+#endif /* VM86 */
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -637,6 +639,7 @@ sigreturn(p, uap)
 		return(EFAULT);
 
 	eflags = scp->sc_ps;
+#ifdef VM86
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
 		struct vm86_kernel *vm86;
@@ -671,6 +674,7 @@ sigreturn(p, uap)
 		tf->tf_ds = _udatasel;
 		tf->tf_es = _udatasel;
 	} else {
+#endif /* VM86 */
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
@@ -707,7 +711,10 @@ sigreturn(p, uap)
 		}
 		regs->tf_ds = scp->sc_ds;
 		regs->tf_es = scp->sc_es;
+#ifdef VM86
 	}
+#endif
+
 	/* restore scratch registers */
 	regs->tf_eax = scp->sc_eax;
 	regs->tf_ebx = scp->sc_ebx;
@@ -1602,8 +1609,12 @@ init386(first)
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
+#ifdef SMP
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
+#endif
+#ifdef VM86
 	proc0.p_addr->u_pcb.pcb_ext = 0;
+#endif
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
