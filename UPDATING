@@ -5,6 +5,13 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000909:
+	The random device module has been renamed from randomdev.ko to
+	random.ko. You will need to edit your /boot/loader.conf to
+	reflect this if you load this module at boot time.
+	The line should read:
+		random_load="YES"
+
 20000907:
 	The SMPNG commit has happened.  It should work, but if it
 	doesn't, fallback to the PRE_SMPNG CVS tag.
@@ -27,6 +34,19 @@ ITEMS:'
 	is /boot/kernel.
 
 	You *MUST* upgrade your boot loader and kernel at the same time.
+
+	Furthermore, you are urged to delete your old /modules directory
+	before booting the new kernel, since kldload will find stale
+	modules in that directory instead of finding them in the correct
+	path, /boot/kernel.  The most common complaint that this cures
+	is that the linux module crashes your machine after the update.
+
+	if [ ! -d /boot/kernel.old ]; then
+		mv /modules.old /boot/kernel.old
+		chflags noschg /kernel.old
+		mv /kernel.old /boot/kernel.old/kernel.ko
+		chflags schg /boot/kernel.old/kernel.ko
+	fi
 
 20000904:
 	A new issue with the sendmail upgrade has come to light.
