@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.22 1997/10/27 06:15:10 joerg Exp $
+ *  $Id: if_epreg.h,v 1.23 1998/04/17 22:36:35 des Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -86,6 +86,8 @@ struct ep_board {
 				/* data from EEPROM for later use */
 	u_short eth_addr[3];	/* Ethernet address */
 	u_short prod_id;	/* product ID */
+	int	cmd_off;	/* command offset (bit shift) */
+	int	mii_trans;	/* activate MII transiever */
 	u_short res_cfg;	/* resource configuration */
 };
 
@@ -221,6 +223,7 @@ struct ep_board {
 /* Read */
 #define EP_W3_FREE_TX		0x0c
 #define EP_W3_FREE_RX		0x0a
+#define EP_W3_OPTIONS		0x08
 
 /*
  * Window 4 registers. Diagnostics.
@@ -461,3 +464,8 @@ extern	void  ep_intr __P((void *sc));
 extern 	int ep_attach __P((struct ep_softc *sc));
 
 extern	u_int16_t get_e __P((struct ep_softc *sc, int offset));
+
+/*
+ * Config flags
+ */
+#define EP_FLAGS_100TX			0x1
