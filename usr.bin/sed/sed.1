@@ -505,6 +505,19 @@ This is the same as specifying the
 .Fl n
 option on the command line.
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev COLUMNS"
+.It Ev COLUMNS
+If set, specifies the user's preferred output width in column positions.
+The
+.Dq l
+command uses this value to fold long lines to an appropriate width.
+By default,
+.Nm
+attempts to automatically determine the terminal width.
+.El
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
