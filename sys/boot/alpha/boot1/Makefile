@@ -5,7 +5,6 @@
 
 PROG = boot1
 
-.PATH:		${.CURDIR}/../../common
 .PATH:		${.CURDIR}/../libalpha
 
 SRCS=		start.S boot1.c sys.c
