@@ -178,7 +178,6 @@ env_destroy(ENV *self)
 
 	if (self->e_committed)
 		env_swap(self, 0);
-	env_swap(self, 0);
 	SLIST_FOREACH(p, &self->e_head, ee_entries) {
 		free(p->ee_env);
 		free(p);
