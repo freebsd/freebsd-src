@@ -12,7 +12,7 @@ OORG=	-g
 CFLAGS=	-D__DBINTERFACE_PRIVATE -DDEBUG ${STAT} ${OORG} ${INC}
 
 dbtest: ${OBJS} ${PORTDIR}/libdb.a
-	${CC} -o $@ ${OBJS} ${PORTDIR}/libdb.a
+	${CC} -o ${.TARGET} ${OBJS} ${PORTDIR}/libdb.a
 
 strerror.o: ${PORTDIR}/clib/strerror.c
 	${CC} -c ${PORTDIR}/clib/strerror.c
