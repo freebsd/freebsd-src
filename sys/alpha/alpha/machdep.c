@@ -2373,9 +2373,3 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	pcpu->pc_idlepcb.apcb_ptbr = thread0.td_pcb->pcb_hw.apcb_ptbr;
 	pcpu->pc_current_asngen = 1;
 }
-
-intptr_t
-casuptr(intptr_t *p, intptr_t old, intptr_t new)
-{
-	return (-1);
-}
