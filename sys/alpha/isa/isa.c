@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.5 1998/10/25 01:30:16 paul Exp $
+ *	$Id: isa.c,v 1.6 1998/11/15 18:25:16 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -468,27 +468,36 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	int	isdefault;
 	struct	resource *rv, **rvp;
-	struct	isa_device *id = DEVTOISA(child);
+	struct	isa_device *id;
 
+	if (child)
+		id = DEVTOISA(child);
+	else
+		id = NULL;
 	isdefault = (start == 0UL && end == ~0UL && *rid == 0);
 	if (*rid > 1)
 		return 0;
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		if (isdefault && id->id_irq[0] >= 0) {
+		/*
+		 * The hack implementation of intr_create() passes a
+		 * NULL child device.
+		 */
+		if (isdefault && (id == NULL || id->id_irq[0] >= 0)) {
 			start = id->id_irq[0];
 			end = id->id_irq[0];
 			count = 1;
 		}
-		rvp = &id->id_irqres[*rid];
 		rv = rman_reserve_resource(&isa_irq_rman,
 					   start, end, count,
 					   0, child);
 		if (!rv)
 			return 0;
-		*rvp = rv;
-		id->id_irq[*rid] = rv->r_start;
+		if (id) {
+			id->id_irqres[*rid] = rv;
+			id->id_irq[*rid] = rv->r_start;
+		}
 		return rv;
 
 	case SYS_RES_MEMORY:
