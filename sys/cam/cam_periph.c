@@ -214,10 +214,13 @@ failure:
 		TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
 		splx(s);
 		xpt_remove_periph(periph);
+		/* FALLTHROUGH */
 	case 2:
 		xpt_free_path(periph->path);
+		/* FALLTHROUGH */
 	case 1:
 		free(periph, M_DEVBUF);
+		/* FALLTHROUGH */
 	case 0:
 		/* No cleanup to perform. */
 		break;
