@@ -34,6 +34,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define REGISTER_U_ADDR(addr, blockend, regno) \
 	(addr) = i386_register_u_addr ((blockend),(regno));
 
+/* We define our own fetch/store methods */
+#define FETCH_INFERIOR_REGISTERS
+
 extern int
 i386_register_u_addr PARAMS ((int, int));
 

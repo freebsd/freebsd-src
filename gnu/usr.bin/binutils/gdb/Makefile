@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1997/03/15 20:59:59 gj Exp $
+#	$Id: Makefile,v 1.20 1997/03/29 10:33:13 peter Exp $
 
 PROG = gdb
 
@@ -9,11 +9,11 @@ GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 BINDIR= /usr/bin
 SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
-	ch-valprint.c coffread.c command.c complaints.c copying.c core-aout.c \
+	ch-valprint.c coffread.c command.c complaints.c copying.c \
 	corelow.c cp-valprint.c \
 	dcache.c dbxread.c demangle.c dwarfread.c \
 	elfread.c environ.c eval.c exec.c expprint.c \
-	findvar.c fork-child.c i386b-nat.c gdbtypes.c \
+	findvar.c fork-child.c freebsd-nat.c gdbtypes.c \
 	i386-tdep.c infcmd.c inflow.c infptrace.c \
 	infrun.c inftarg.c init.c kcorelow.c language.c \
 	m2-lang.c m2-typeprint.c m2-valprint.c main.c maint.c \
