@@ -33,19 +33,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)pr.c	8.2 (Berkeley) 4/16/94";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -110,10 +113,10 @@ int	addone;			/* page length is odd with double space */
 int	errcnt;			/* error count on file processing */
 char	digs[] = "0123456789";	/* page number translation map */
 
+char	fnamedefault[] = FNAME;
+
 int
-main(argc, argv)
-        int argc;
-        char *argv[];
+main(int argc, char *argv[])
 {
 	int ret_val;
 
@@ -144,9 +147,8 @@ main(argc, argv)
  * Check if we should pause and write an alert character and wait for a
  * carriage return on /dev/tty.
  */
-void
-ttypause(pagecnt)
-	int pagecnt;
+static void
+ttypause(int pagecnt)
 {
 	int pch;
 	FILE *ttyfp;
@@ -167,15 +169,13 @@ ttypause(pagecnt)
  *		Line length is unlimited.
  */
 int
-onecol(argc, argv)
-        int argc;
-        char *argv[];
+onecol(int argc, char *argv[])
 {
-	register int cnt = -1;
-	register int off;
-	register int lrgln;
-	register int linecnt;
-	register int num;
+	int cnt = -1;
+	int off;
+	int lrgln;
+	int linecnt;
+	int num;
 	int lncnt;
 	int pagecnt;
 	int ips;
@@ -314,17 +314,15 @@ onecol(argc, argv)
  * vertcol:	print files with more than one column of output down a page
  */
 int
-vertcol(argc, argv)
-        int argc;
-        char *argv[];
+vertcol(int argc, char *argv[])
 {
-	register char *ptbf;
-	register char **lstdat;
-	register int i;
-	register int j;
-	register int cnt = -1;
-	register int pln;
-	register int *indy;
+	char *ptbf;
+	char **lstdat;
+	int i;
+	int j;
+	int cnt = -1;
+	int pln;
+	int *indy;
 	int cvc;
 	int *lindy;
 	int lncnt;
@@ -637,17 +635,15 @@ vertcol(argc, argv)
  * horzcol:	print files with more than one column of output across a page
  */
 int
-horzcol(argc, argv)
-        int argc;
-        char *argv[];
+horzcol(int argc, char *argv[])
 {
-	register char *ptbf;
-	register int pln;
-	register int cnt = -1;
-	register char *lstdat;
-	register int col = colwd + 1;
-	register int j;
-	register int i;
+	char *ptbf;
+	int pln;
+	int cnt = -1;
+	char *lstdat;
+	int col = colwd + 1;
+	int j;
+	int i;
 	int lncnt;
 	int pagecnt;
 	char *buf;
@@ -782,16 +778,14 @@ horzcol(argc, argv)
  *		more than one file concurrently
  */
 int
-mulfile(argc, argv)
-        int argc;
-        char *argv[];
+mulfile(int argc, char *argv[])
 {
-	register char *ptbf;
-	register int j;
-	register int pln;
-	register int cnt;
-	register char *lstdat;
-	register int i;
+	char *ptbf;
+	int j;
+	int pln;
+	int cnt;
+	char *lstdat;
+	int i;
 	FILE **fbuf;
 	int actf;
 	int lncnt;
@@ -998,19 +992,13 @@ mulfile(argc, argv)
  *	mor:	set if more data in line (not truncated)
  */
 int
-inln(inf, buf, lim, cps, trnc, mor)
-	FILE *inf;
-	char *buf;
-	register int lim;
-	int *cps;
-	int trnc;
-	int *mor;
+inln(FILE *inf, char *buf, int lim, int *cps, int trnc, int *mor)
 {
-	register int col;
-	register int gap = ingap;
-	register int ch = EOF;
-	register char *ptbuf;
-	register int chk = (int)inchar;
+	int col;
+	int gap = ingap;
+	int ch = EOF;
+	char *ptbuf;
+	int chk = (int)inchar;
 
 	ptbuf = buf;
 
@@ -1109,18 +1097,13 @@ inln(inf, buf, lim, cps, trnc, mor)
  *		1 is more, 0 is complete, -1 is no \n's
  */
 int
-otln(buf, cnt, svips, svops, mor)
-	register char *buf;
-	int cnt;
-	int *svops;
-	int *svips;
-	int mor;
+otln(char *buf, int cnt, int *svips, int *svops, int mor)
 {
-	register int ops;		/* last col output */
-	register int ips;		/* last col in buf examined */
-	register int gap = ogap;
-	register int tbps;
-	register char *endbuf;
+	int ops;		/* last col output */
+	int ips;		/* last col in buf examined */
+	int gap = ogap;
+	int tbps;
+	char *endbuf;
 
 	if (ogap) {
 		/*
@@ -1251,13 +1234,10 @@ otln(buf, cnt, svips, svops, mor)
  *	lncnt	number of lines per page
  */
 int
-inskip(inf, pgcnt, lncnt)
-	FILE *inf;
-	register int pgcnt;
-	register int lncnt;
+inskip(FILE *inf, int pgcnt, int lncnt)
 {
-	register int c;
-	register int cnt;
+	int c;
+	int cnt;
 
 	while(--pgcnt > 0) {
 		cnt = lncnt;
@@ -1282,12 +1262,7 @@ inskip(inf, pgcnt, lncnt)
  *	dt	if set skips the date processing (used with -m)
  */
 FILE *
-nxtfile(argc, argv, fname, buf, dt)
-	int argc;
-	char **argv;
-	char **fname;
-	char *buf;
-	int dt;
+nxtfile(int argc, char *argv[], char **fname, char *buf, int dt)
 {
 	FILE *inf = NULL;
 	struct timeval tv;
@@ -1309,7 +1284,7 @@ nxtfile(argc, argv, fname, buf, dt)
 		if (header != NULL)
 			*fname = header;
 		else
-			*fname = FNAME;
+			*fname = fnamedefault;
 		if (nohead)
 			return(inf);
 		if (gettimeofday(&tv, &tz) < 0) {
@@ -1332,7 +1307,7 @@ nxtfile(argc, argv, fname, buf, dt)
 			if (header != NULL)
 				*fname = header;
 			else
-				*fname = FNAME;
+				*fname = fnamedefault;
 			++eoptind;
 			if (nohead || (dt && twice))
 				return(inf);
@@ -1360,7 +1335,7 @@ nxtfile(argc, argv, fname, buf, dt)
 			if (header != NULL)
 				*fname = header;
 			else if (dt)
-				*fname = FNAME;
+				*fname = fnamedefault;
 			else
 				*fname = argv[eoptind];
 			++eoptind;
@@ -1423,12 +1398,9 @@ nxtfile(argc, argv, fname, buf, dt)
  *		numbers as part of the column so spaces may be replaced.
  */
 void
-addnum(buf, wdth, line)
-	register char *buf;
-	register int wdth;
-	register int line;
+addnum(char *buf, int wdth, int line)
 {
-	register char *pt = buf + wdth;
+	char *pt = buf + wdth;
 
 	do {
 		*--pt = digs[line % 10];
@@ -1451,10 +1423,7 @@ addnum(buf, wdth, line)
  *	pagcnt	page number
  */
 int
-prhead(buf, fname, pagcnt)
-	char *buf;
-	char *fname;
-	int pagcnt;
+prhead(char *buf, char *fname, int pagcnt)
 {
 	int ips = 0;
 	int ops = 0;
@@ -1489,9 +1458,7 @@ prhead(buf, fname, pagcnt)
  *	incomp	was a '\n' missing from last line output
  */
 int
-prtail(cnt, incomp)
-	register int cnt;
-	int incomp;
+prtail(int cnt, int incomp)
 {
 	if (nohead) {
 		/*
@@ -1551,8 +1518,7 @@ prtail(cnt, incomp)
  * terminate():	when a SIGINT is recvd
  */
 void
-terminate(which_sig)
-	int which_sig;
+terminate(int which_sig __unused)
 {
 	flsh_errs();
 	exit(1);
@@ -1564,7 +1530,7 @@ terminate(which_sig)
  *		processing has completed
  */
 void
-flsh_errs()
+flsh_errs(void)
 {
 	char buf[BUFSIZ];
 
@@ -1578,19 +1544,19 @@ flsh_errs()
 }
 
 void
-mfail()
+mfail(void)
 {
 	(void)fputs("pr: memory allocation failed\n", err);
 }
 
 void
-pfail()
+pfail(void)
 {
 	(void)fprintf(err, "pr: write failure, %s\n", strerror(errno));
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fputs(
 	 "usage: pr [+page] [-col] [-adFfmprt] [-e[ch][gap]] [-h header]\n",
@@ -1606,11 +1572,9 @@ usage()
  *		checks on options
  */
 int
-setup(argc, argv)
-	register int argc;
-	register char **argv;
+setup(int argc, char *argv[])
 {
-	register int c;
+	int c;
 	int d_first;
 	int eflag = 0;
 	int iflag = 0;
@@ -1863,7 +1827,7 @@ setup(argc, argv)
 	(void) setlocale(LC_TIME, (Lflag != NULL) ? Lflag : "");
 
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
-	timefrmt = d_first ? TIMEFMTD : TIMEFMTM;
+	timefrmt = strdup(d_first ? TIMEFMTD : TIMEFMTM);
 
 	return(0);
 }
