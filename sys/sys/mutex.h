@@ -210,7 +210,7 @@ do {									\
 #ifdef INVARIANTS
 #define MA_OWNED	1
 #define MA_NOTOWNED	2
-#define mtx_assert(m, what) {						\
+#define mtx_assert(m, what) do {					\
 	switch ((what)) {						\
 	case MA_OWNED:							\
 		if (!mtx_owned((m)))					\
@@ -225,7 +225,7 @@ do {									\
 	default:							\
 		panic("unknown mtx_assert at %s:%d", __FILE__, __LINE__); \
 	}								\
-}
+} while(0)
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
 #endif	/* INVARIANTS */
