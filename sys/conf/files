@@ -207,6 +207,7 @@ dev/mii/mii_physubr.c	optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
 dev/mii/pnphy.c		optional miibus
+dev/mii/pnaphy.c	optional miibus
 dev/mii/rlphy.c		optional miibus
 dev/mii/tlphy.c		optional miibus
 dev/mii/ukphy.c		optional miibus
