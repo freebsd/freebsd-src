@@ -127,6 +127,7 @@ typedef struct {
 #define EM_SPARC64	11	/* SPARC v9 64-bit unoffical */
 #define EM_PARISC	15	/* HPPA */
 #define EM_PPC		20	/* PowerPC */
+#define EM_IA_64	50	/* Intel IA-46 Processor */
 #define EM_ALPHA	0x9026	/* Alpha */
 
 /* Special section indexes. */
