@@ -2063,7 +2063,7 @@ dc_attach(device_t dev)
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			if (eaddr[i] != 0x00)
 				break;
-		if (i >= ETHER_ADDR_LEN && OF_getetheraddr2(dev, eaddr) == -1)
+		if (i >= ETHER_ADDR_LEN)
 			OF_getetheraddr(dev, eaddr);
 #endif
 		break;
