@@ -65,7 +65,10 @@
 #include <i386/isa/isa_device.h>
 #include <machine/clock.h>	/* for DELAY */
 
-/* To minimize changes with the code in 2.2.X */
+/*
+ * the following assumes that FreeBSD 3.X uses poll(2) instead of select(2).
+ * This change dates to late 1997.
+ */
 #include <sys/poll.h>
 #define d_select_t d_poll_t
 
@@ -158,7 +161,7 @@ struct _snddev_info {
      */
 
     int     io_base ;	/* primary I/O address for the board */
-    int     alt_base ; /* some codecs are accessible as SB+WSS... */
+    int     alt_base ; /* some codecs are accessible as SB+MSS... */
     int     conf_base ; /* and the opti931 also has a config space */
     int     mix_base ; /* base for the mixer... */
     int     midi_base ; /* base for the midi */
