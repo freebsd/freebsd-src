@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $Id: catman.perl,v 1.7 1996/03/21 18:17:41 wosch Exp $
+# $Id: catman.perl,v 1.8 1996/08/27 20:04:01 wosch Exp $
 
 
 sub usage {
@@ -228,7 +228,7 @@ sub parse_subdir {
 	next if $file eq "." || $file eq "..";
 
 	# fo_09-o.bar0
-	if ($file !~ /^[\w\-\+\[\.]+\.\w+$/) {
+	if ($file !~ /^[\w\-\+\[\.:]+\.\w+$/) {
 	    &garbage("$mandir/$file", "Assume garbage")
 		unless -d "$mandir/$file";
 	    next;
@@ -285,7 +285,7 @@ sub parse_subdir {
     foreach $file (readdir(D)) {
 	next if $file =~ /^(\.|\.\.)$/;	# skip current and parent directory
 
-	if ($file !~ /^[\w\-\+\[\.]+\.\w+$/) {
+	if ($file !~ /^[\w\-\+\[\.:]+\.\w+$/) {
 	    &garbage("$catdir/$file", "Assume garbage")
 		unless -d "$catdir/$file";
 	    next;
