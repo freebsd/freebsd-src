@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.4 1996/11/09 16:33:50 joerg Exp $
+#	$Id: Makefile,v 1.246.2.5 1996/11/12 09:06:05 phk Exp $
 #
 # How to roll a release:
 #
@@ -41,7 +41,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
-BOOTMFSSIZE=		1250
+BOOTMFSSIZE=		1400
 MFSINODE=		42000
 FIXITINODE=		28000
 
@@ -78,7 +78,7 @@ rerelease release:
 	-mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR} NOMAN=1
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P src
@@ -429,6 +429,17 @@ release.9:
 	touch release.9
 
 #
+# --==## Create the compat distributions ##==--
+#
+release.10:
+	@for i in compat1x compat20 compat21; do \
+		mkdir ${RD}/dists/$i && ( cd ${RD}/dists/$i && \
+		uudecode ${.CURDIR}/compat/$i.tgz.uu && \
+		cp ${.CURDIR}/scripts/${i}-install.sh install.sh && \
+		md5 * > CHECKSUM.MD5 ); \
+	done
+
+#
 # --==## Setup a suitable ftp-area ##==--
 #
 ftp.1:
@@ -492,7 +503,7 @@ doTARBALL:
 			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
+		release.7 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
