@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.63 1998/02/25 02:56:58 bde Exp $
+#	$Id: bsd.prog.mk,v 1.64 1998/03/06 06:48:39 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -27,7 +27,6 @@ LDFLAGS+= -static
 .if defined(PROG)
 .if defined(SRCS)
 
-DPSRCS+= ${SRCS:M*.h}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 ${PROG}: ${OBJS}
@@ -153,7 +152,7 @@ all-man:
 .include <bsd.dep.mk>
 
 .if defined(PROG) && !exists(${DEPENDFILE})
-${OBJS}: ${DPSRCS}
+${OBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.obj.mk>
