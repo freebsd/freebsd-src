@@ -959,6 +959,7 @@ zone_ctor(void *mem, int size, void *udata)
 {
 	struct uma_zctor_args *arg = udata;
 	uma_zone_t zone = mem;
+	int privlc;
 	int cplen;
 	int cpu;
 
@@ -991,6 +992,11 @@ zone_ctor(void *mem, int size, void *udata)
 		zone_large_init(zone);
 	else
 		zone_small_init(zone);
+
+	if (arg->flags & UMA_ZONE_MTXCLASS)
+		privlc = 1;
+	else
+		privlc = 0;
 
 	/* We do this so that the per cpu lock name is unique for each zone */
 	memcpy(zone->uz_lname, "PCPU ", 5);
@@ -1053,7 +1059,7 @@ zone_ctor(void *mem, int size, void *udata)
 	    zone->uz_size, zone->uz_ipers,
 	    zone->uz_ppera, zone->uz_pgoff);
 #endif
-	ZONE_LOCK_INIT(zone);
+	ZONE_LOCK_INIT(zone, privlc);
 
 	mtx_lock(&uma_mtx);
 	LIST_INSERT_HEAD(&uma_zones, zone, uz_link);
@@ -1073,7 +1079,7 @@ zone_ctor(void *mem, int size, void *udata)
 		zone->uz_count = UMA_BUCKET_SIZE - 1;
 
 	for (cpu = 0; cpu < maxcpu; cpu++)
-		CPU_LOCK_INIT(zone, cpu);
+		CPU_LOCK_INIT(zone, cpu, privlc);
 }
 
 /* 
@@ -1799,10 +1805,12 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	ZONE_LOCK(zone);
 	if (zone->uz_ppera > 1)
 		zone->uz_maxpages = nitems * zone->uz_ppera;
-	else
+	else 
 		zone->uz_maxpages = nitems / zone->uz_ipers;
+
 	if (zone->uz_maxpages * zone->uz_ipers < nitems)
 		zone->uz_maxpages++;
+
 	ZONE_UNLOCK(zone);
 }
 

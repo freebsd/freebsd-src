@@ -284,16 +284,31 @@ void uma_large_free(uma_slab_t slab);
 
 /* Lock Macros */
 
-#define	ZONE_LOCK_INIT(z)	\
-	mtx_init(&(z)->uz_lock, (z)->uz_name, "UMA zone",	\
-	    MTX_DEF | MTX_DUPOK)
+#define	ZONE_LOCK_INIT(z, lc)					\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    (z)->uz_name, MTX_DEF | MTX_DUPOK);	\
+		else						\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+	} while (0)
+	    
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 #define	ZONE_LOCK(z)	mtx_lock(&(z)->uz_lock)
 #define ZONE_UNLOCK(z)	mtx_unlock(&(z)->uz_lock)
 
-#define	CPU_LOCK_INIT(z, cpu)	\
-	mtx_init(&(z)->uz_cpu[(cpu)].uc_lock, (z)->uz_lname, "UMA cpu",	\
-	    MTX_DEF | MTX_DUPOK)
+#define	CPU_LOCK_INIT(z, cpu, lc)				\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(z)->uz_cpu[(cpu)].uc_lock,	\
+			    (z)->uz_lname, (z)->uz_lname,	\
+			    MTX_DEF | MTX_DUPOK);		\
+		else						\
+			mtx_init(&(z)->uz_cpu[(cpu)].uc_lock,	\
+			    (z)->uz_lname, "UMA cpu",		\
+			    MTX_DEF | MTX_DUPOK);		\
+	} while (0)
 
 #define	CPU_LOCK_FINI(z, cpu)	\
 	mtx_destroy(&(z)->uz_cpu[(cpu)].uc_lock)
