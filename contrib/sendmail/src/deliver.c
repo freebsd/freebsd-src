@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.81 2001/05/23 02:15:42 ca Exp $";
+static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.86 2001/07/20 21:52:55 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -1927,6 +1927,9 @@ tryhost:
 			struct stat stb;
 			extern int DtableSize;
 
+			/* clear the events to turn off SIGALRMs */
+			clear_events();
+
 			/* Reset global flags */
 			RestartRequest = NULL;
 			ShutdownRequest = NULL;
@@ -1936,9 +1939,14 @@ tryhost:
 				(void) close(fileno(e->e_lockfp));
 
 			/* child -- set up input & exec mailer */
-			(void) setsignal(SIGINT, SIG_IGN);
+			(void) setsignal(SIGALRM, sm_signal_noop);
+			(void) setsignal(SIGCHLD, SIG_DFL);
 			(void) setsignal(SIGHUP, SIG_IGN);
+			(void) setsignal(SIGINT, SIG_IGN);
 			(void) setsignal(SIGTERM, SIG_DFL);
+# ifdef SIGUSR1
+			(void) setsignal(SIGUSR1, sm_signal_noop);
+# endif /* SIGUSR1 */
 
 			if (m != FileMailer || stat(tochain->q_user, &stb) < 0)
 				stb.st_mode = 0;
@@ -2071,7 +2079,19 @@ tryhost:
 			/* reset user id */
 			endpwent();
 			if (bitnset(M_SPECIFIC_UID, m->m_flags))
+			{
 				new_euid = m->m_uid;
+
+				/*
+				**  Undo the effects of the uid change in main
+				**  for signal handling.  The real uid may
+				**  be used by mailer in adding a "From "
+				**  line.
+				*/
+
+				if (RealUid != 0 && RealUid != getuid())
+					new_ruid = RealUid;
+			}
 			else if (bitset(S_ISUID, stb.st_mode))
 				new_ruid = stb.st_uid;
 			else if (ctladdr != NULL && ctladdr->q_uid != 0)
@@ -2091,6 +2111,22 @@ tryhost:
 
 				vendor_set_uid(new_euid);
 # if MAILER_SETUID_METHOD == USE_SETEUID
+#  if HASSETREUID
+				/*
+				**  Undo the effects of the uid change in main
+				**  for signal handling.  The real uid may
+				**  be used by mailer in adding a "From "
+				**  line.
+				*/
+
+				if (new_ruid != NO_UID &&
+				    setreuid(RealUid, geteuid()) < 0)
+				{
+					syserr("openmailer: setreuid(%d, %d) failed",
+					       (int) new_ruid, (int) geteuid());
+					exit(EX_OSERR);
+				}
+#  endif /* HASSETREUID */
 				if (seteuid(new_euid) < 0 && suidwarn)
 				{
 					syserr("openmailer: seteuid(%ld) failed",
@@ -3045,7 +3081,7 @@ markfailure(e, q, mci, rcode, ovr)
 **	and if it represents an error, we print it.
 **
 **	Parameters:
-**		pid -- pid of mailer.
+**		mci -- the mailer connection info.
 **		e -- the current envelope.
 **		pv -- the parameter vector that invoked the mailer
 **			(for error messages).
@@ -4925,11 +4961,13 @@ hostsignature(m, host)
 			nmx = getmxrr(hp, mxhosts, mxprefs, TRUE, &rcode);
 			if (nmx <= 0)
 			{
+				int save_errno;
 				register MCI *mci;
 
 				/* update the connection info for this host */
+				save_errno = errno;
 				mci = mci_get(hp, m);
-				mci->mci_errno = errno;
+				mci->mci_errno = save_errno;
 				mci->mci_herrno = h_errno;
 				mci->mci_lastuse = now;
 				if (rcode == EX_NOHOST)
