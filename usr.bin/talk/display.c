@@ -146,13 +146,13 @@ display(win, text, size)
 			text++;
 			continue;
 		}
-		if (!isprint(*text) && *text != '\t') {
+		if (!isprint((unsigned char)*text) && *text != '\t') {
 			waddch(win->x_win, '^');
 			getyx(win->x_win, win->x_line, win->x_col);
 			cch = (*text & 63) + 64;
 			waddch(win->x_win, cch);
 		} else
-			waddch(win->x_win, (unsigned)*text);
+			waddch(win->x_win, (unsigned char)*text);
 		getyx(win->x_win, win->x_line, win->x_col);
 		text++;
 	}
