@@ -39,6 +39,15 @@
 >8	string		WAVE		\b, WAVE audio
 >>20	leshort		1		\b, Microsoft PCM
 >>>34	leshort		>0		\b, %d bit
+>>20	leshort		2		\b, Microsoft ADPCM
+>>20	leshort		6		\b, ITU G.711 a-law
+>>20	leshort		7		\b, ITU G.711 u-law
+>>20	leshort		17		\b, IMA ADPCM
+>>20	leshort		20		\b, ITU G.723 ADPCM (Yamaha)
+>>20	leshort		49		\b, GSM 6.10
+>>20	leshort		64		\b, ITU G.721 ADPCM
+>>20	leshort		80		\b, MPEG
+>>20	leshort		85		\b, MPEG Layer 3
 >>22	leshort		=1		\b, mono
 >>22	leshort		=2		\b, stereo
 >>22	leshort		>2		\b, %d channels

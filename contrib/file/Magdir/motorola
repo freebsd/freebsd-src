@@ -30,3 +30,21 @@
 #
 # Motorola S-Records, from Gerd Truschinski <gt@freebsd.first.gmd.de>
 0   string      S0          Motorola S-Record; binary data in text format
+
+# ATARI ST relocatable PRG
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001
+# (according to Roland Waldi, Oct 21, 1987)
+# besides the magic 0x601a, the text segment size is checked to be
+# not larger than 1 MB (which is a lot on ST).
+# The additional 0x601b distinction I took from Doug Lee's magic.
+0	belong&0xFFFFFFF0	0x601A0000	Atari ST M68K contiguous executable
+>2	belong			x		(txt=%ld,
+>6	belong			x		dat=%ld,
+>10	belong			x		bss=%ld,
+>14	belong			x		sym=%ld)
+0	belong&0xFFFFFFF0	0x601B0000	Atari ST M68K non-contig executable
+>2	belong			x		(txt=%ld,
+>6	belong			x		dat=%ld,
+>10	belong			x		bss=%ld,
+>14	belong			x		sym=%ld)

@@ -182,6 +182,8 @@
 2	string		-lh3-		LHa 2.x? archive data [lh3]
 2	string		-lh4-		LHa (2.x) archive data [lh4]
 2	string		-lh5-		LHa (2.x) archive data [lh5]
+2	string		-lh6-		LHa (2.x) archive data [lh6]
+2	string		-lh7-		LHa (2.x) archive data [lh7]
 >20	byte		x		- header level %d
 
 # RAR archiver (Greg Roelofs, newt@uchicago.edu)
