@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -1863,9 +1864,13 @@ ip_fw_ctl(struct sockopt *sopt)
 	 * Disallow modifications in really-really secure mode, but still allow
 	 * the logging counters to be reset.
 	 */
-	if (securelevel >= 3 && (sopt->sopt_name == IP_FW_ADD ||
-	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)))
-			return (EPERM);
+	if (sopt->sopt_name == IP_FW_ADD ||
+	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)) {
+		error = securelevel_ge(sopt->sopt_td->td_proc->p_ucred, 3);
+		if (error)
+			return (error);
+	}
+
 	error = 0;
 
 	switch (sopt->sopt_name) {
