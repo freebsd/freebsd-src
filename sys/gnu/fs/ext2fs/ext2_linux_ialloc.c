@@ -36,10 +36,8 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
@@ -69,7 +67,7 @@ struct ext2_group_desc * get_group_desc (struct mount * mp,
 						unsigned int block_group,
 						struct buffer_head ** bh)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	unsigned long group_desc;
 	unsigned long desc;
 	struct ext2_group_desc * gdp;
@@ -98,13 +96,13 @@ static void read_inode_bitmap (struct mount * mp,
 			       unsigned long block_group,
 			       unsigned int bitmap_nr)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct ext2_group_desc * gdp;
 	struct buffer_head * bh;
 	int	error;
 
 	gdp = get_group_desc (mp, block_group, NULL);
-	if ((error = bread (VFSTOUFS(mp)->um_devvp, 
+	if ((error = bread (VFSTOEXT2(mp)->um_devvp,
 			    fsbtodb(sb, gdp->bg_inode_bitmap), 
 			    sb->s_blocksize,
 			    NOCRED, &bh)) != 0)
@@ -131,7 +129,7 @@ static void read_inode_bitmap (struct mount * mp,
 static int load_inode_bitmap (struct mount * mp,
 			      unsigned int block_group)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	int i, j;
 	unsigned long inode_bitmap_number;
 	struct buffer_head * inode_bitmap;
@@ -447,14 +445,14 @@ repeat:
 static unsigned long ext2_count_free_inodes (struct mount * mp)
 {
 #ifdef EXT2FS_DEBUG
-        struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+        struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct ext2_super_block * es;
 	unsigned long desc_count, bitmap_count, x;
 	int bitmap_nr;
 	struct ext2_group_desc * gdp;
 	int i;
 
-	lock_super (VFSTOUFS(mp)->um_devvp);
+	lock_super (VFSTOEXT2(mp)->um_devvp);
 	es = sb->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -471,10 +469,10 @@ static unsigned long ext2_count_free_inodes (struct mount * mp)
 	}
 	ext2_debug("stored = %lu, computed = %lu, %lu\n",
 		es->s_free_inodes_count, desc_count, bitmap_count);
-	unlock_super (VFSTOUFS(mp)->um_devvp);
+	unlock_super (VFSTOEXT2(mp)->um_devvp);
 	return desc_count;
 #else
-	return VFSTOUFS(mp)->um_e2fsb->s_free_inodes_count;
+	return VFSTOEXT2(mp)->um_e2fsb->s_free_inodes_count;
 #endif
 }
 #endif /* unused */
