@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1998/01/03 14:09:21 wosch Exp $
 
 SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm
 
@@ -10,6 +10,8 @@ NOMAN = noman
 
 all: ${SCRMAPS}
 
+build-tools: ${SCRMAPS_MK}
+
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
 	    ${SCRMAPS} ${DESTDIR}${SCRDIR}
@@ -20,7 +22,7 @@ ${SCRMAPS}: ${.TARGET:R}.mk
 	rm -f ${.TARGET:R}.tmp
 
 ${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c
-	${CC} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" \
-			-o ${.TARGET} ${.CURDIR}/mkscrfil.c
+	${CC} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" ${LDFLAGS} \
+	    -o ${.TARGET} ${.CURDIR}/mkscrfil.c
 
 .include <bsd.prog.mk>
