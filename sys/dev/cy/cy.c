@@ -80,12 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/tty.h>
 
-#include <machine/bus.h>
 #include <machine/psl.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <isa/isavar.h>
 
 #include <i386/isa/cyreg.h>
 #include <i386/isa/ic/cd1400.h>
@@ -221,7 +216,6 @@ static	char const * const	error_desc[] = {
 
 /* types.  XXX - should be elsewhere */
 typedef u_char	bool_t;		/* boolean */
-typedef u_char volatile *cy_addr;
 
 /* queue of linear buffers */
 struct lbq {
@@ -333,18 +327,11 @@ struct com_s {
 
 devclass_t	cy_devclass;
 
-/* PCI driver entry points. */
-void	*cyattach_common(cy_addr cy_iobase, int cy_align);
-driver_intr_t	siointr1;
-
-static	int	cy_units(cy_addr cy_iobase, int cy_align);
 static	void	cd1400_channel_cmd(struct com_s *com, int cmd);
 static	void	cd1400_channel_cmd_wait(struct com_s *com);
 static	void	cd_etc(struct com_s *com, int etc);
 static	int	cd_getreg(struct com_s *com, int reg);
 static	void	cd_setreg(struct com_s *com, int reg, int val);
-static	int	cy_isa_attach(device_t dev);
-static	int	cy_isa_probe(device_t dev);
 static	timeout_t siodtrwakeup;
 static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
@@ -371,22 +358,6 @@ static int	sio_inited;
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
-
-static device_method_t cy_isa_methods[] = {
-	/* Device interface. */
-	DEVMETHOD(device_probe,		cy_isa_probe),
-	DEVMETHOD(device_attach,	cy_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t cy_isa_driver = {
-	driver_name,
-	cy_isa_methods,
-	0,
-};
-
-DRIVER_MODULE(cy, isa, cy_isa_driver, cy_devclass, 0, 0);
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -429,37 +400,6 @@ static	int	cy_nr_cd1400s[NCY];
 static	int	cy_total_devices;
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
-
-static int
-cy_isa_probe(device_t dev)
-{
-	struct resource *mem_res;
-	cy_addr iobase;
-	int mem_rid;
-
-	if (isa_get_logicalid(dev) != 0)	/* skip PnP probes */
-		return (ENXIO);
-
-	mem_rid = 0;
-	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
-	if (mem_res == NULL) {
-		device_printf(dev, "ioport resource allocation failed\n");
-		return (ENXIO);
-	}
-	iobase = rman_get_virtual(mem_res);
-
-	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
-	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
-	DELAY(500);	/* wait for the board to get its act together */
-
-	/* this is needed to get the board out of reset */
-	cy_outb(iobase, CY_CLEAR_INTR, 0, 0);
-	DELAY(500);
-
-	bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
-	return (cy_units(iobase, 0) == 0 ? ENXIO : 0);
-}
 
 static int
 cy_units(cy_iobase, cy_align)
@@ -511,54 +451,6 @@ cy_units(cy_iobase, cy_align)
 			break;
 	}
 	return (cyu);
-}
-
-static int
-cy_isa_attach(device_t dev)
-{
-	struct resource *irq_res, *mem_res;
-	void *irq_cookie, *vaddr, *vsc;
-	int irq_rid, mem_rid;
-
-	irq_res = NULL;
-	mem_res = NULL;
-
-	mem_rid = 0;
-	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
-	if (mem_res == NULL) {
-		device_printf(dev, "memory resource allocation failed\n");
-		goto fail;
-	}
-	vaddr = rman_get_virtual(mem_res);
-
-	vsc = cyattach_common(vaddr, 0);
-	if (vsc == NULL) {
-		device_printf(dev, "no ports found!\n");
-		goto fail;
-	}
-
-	irq_rid = 0;
-	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0ul, ~0ul, 0ul,
-	    RF_SHAREABLE | RF_ACTIVE);
-	if (irq_res == NULL) {
-		device_printf(dev, "interrupt resource allocation failed\n");
-		goto fail;
-	}
-	if (bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST, cyintr,
-	    vsc, &irq_cookie) != 0) {
-		device_printf(dev, "interrupt setup failed\n");
-		goto fail;
-	}
-
-	return (0);
-
-fail:
-	if (irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
-	if (mem_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
-	return (ENXIO);
 }
 
 void *
