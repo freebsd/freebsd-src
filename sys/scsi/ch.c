@@ -33,10 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.42 1997/09/14 03:19:38 peter Exp $
+ *      $Id: ch.c,v 1.43 1998/01/24 02:54:48 eivind Exp $
  */
 
 #include "opt_devfs.h"
+#include "opt_bounce.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,6 +48,9 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#ifdef BOUNCE_BUFFERS
+#include <sys/buf.h>
+#endif
 
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
@@ -507,6 +511,9 @@ ch_usergetelemstatus(sc, chet, uptr)
 	struct read_element_status_page_header *pg_hdr;
 	struct read_element_status_descriptor *desc;
 	caddr_t data = NULL;
+#ifdef BOUNCE_BUFFERS
+	int datasize = 0;
+#endif
 	size_t size, desclen;
 	int avail, i, error = 0;
 	u_int8_t *user_data = NULL;
@@ -524,7 +531,14 @@ ch_usergetelemstatus(sc, chet, uptr)
 	 * we can allocate enough storage for all of them.  We assume
 	 * that the first one can fit into 1k.
 	 */
+#ifdef BOUNCE_BUFFERS
+	data = (caddr_t)vm_bounce_kva_alloc(btoc(1024));
+	if (!data)
+		return (ENOMEM);
+	datasize = 1024;
+#else
 	data = (caddr_t)malloc(1024, M_DEVBUF, M_WAITOK);
+#endif
 	if (error = ch_getelemstatus(sc, sc->sc_firsts[chet], 1, data, 1024))
 		goto done;
 
@@ -541,8 +555,18 @@ ch_usergetelemstatus(sc, chet, uptr)
 	 * Reallocate storage for descriptors and get them from the
 	 * device.
 	 */
+#ifdef BOUNCE_BUFFERS
+	vm_bounce_kva_alloc_free((vm_offset_t)data, btoc(datasize));
+	data = (caddr_t)vm_bounce_kva_alloc(btoc(size));
+	if (!data) {
+		error = ENOMEM;
+		goto done;
+	}
+	datasize = size;
+#else
 	free(data, M_DEVBUF);
 	data = (caddr_t)malloc(size, M_DEVBUF, M_WAITOK);
+#endif
 	if (error = ch_getelemstatus(sc, sc->sc_firsts[chet],
 	    sc->sc_counts[chet], data, size))
 		goto done;
@@ -570,8 +594,13 @@ ch_usergetelemstatus(sc, chet, uptr)
 	error = copyout(user_data, uptr, avail);
 
  done:
+#ifdef BOUNCE_BUFFERS
+	if (data != NULL)
+		vm_bounce_kva_alloc_free((vm_offset_t)data, btoc(datasize));
+#else
 	if (data != NULL)
 		free(data, M_DEVBUF);
+#endif
 	if (user_data != NULL)
 		free(user_data, M_DEVBUF);
 	return (error);
