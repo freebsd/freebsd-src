@@ -122,6 +122,9 @@
     used to artificially reduce the memory size of a machine for
     testing (or other purposes).</para>
 
+    <para arch="alpha">The console driver has gained support for TGA-based
+    display adapters.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
