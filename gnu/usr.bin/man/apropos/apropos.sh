@@ -15,17 +15,21 @@
 # The University of Texas at Austin
 # Austin, Texas  78712
 #
-# $Id: apropos.sh,v 1.4 1996/07/08 20:03:18 wosch Exp $
+# $Id: apropos.sh,v 1.5 1996/08/27 20:03:55 wosch Exp $
 
 
 PATH=/bin:/usr/bin:$PATH
 db=whatis	# name of whatis data base
 grepopt=''
 
+# man -k complain if exit_nomatch=1 and no keyword matched
+: ${exit_nomatch=0}	
+exit_error=2
+
 # argument test
 case $# in 0)  
 	echo "usage: `basename $0` keyword ..." >&2
-	exit 1
+	exit $exit_error
 	;; 
 esac
 
@@ -61,7 +65,7 @@ done
 
 case X"$mandir" in X)
 	echo "`basename $0`: no whatis databases in $manpath" >&2
-	exit 1
+	exit $exit_error
 esac
 
 
@@ -77,17 +81,18 @@ done |
 	while read line
  	do
 		case $line in
+			# collect error(s)
 			*": nothing appropriate") line2="$line2$line\n";;
+			# matched line or EOF
 			*) break;;
 		esac
 	done
 
 	# nothing found, exit
 	if test -z "$line" -a ! -z "$line2"; then
-		case X"$line2" in X);; *) printf "$line2";; esac
-		exit 1
+		printf "$line2"
+		exit $exit_nomatch
 	else
-		( case X"$line2" in X);; *) printf "$line2";; esac
-		  echo $line; cat ) | $PAGER
+		( printf "$line2"; echo $line; cat ) | $PAGER
 	fi
 )
