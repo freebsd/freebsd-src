@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkdir.c,v 1.12 1998/10/20 06:37:01 msmith Exp $";
+	"$Id: mkdir.c,v 1.13 1998/10/20 08:04:15 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -99,19 +99,20 @@ main(argc, argv)
 		if (pflag) {
 			if (build(*argv, omode))
 				exitval = 1;
-			continue;
-		}
-		if (mkdir(*argv, omode) < 0) {
+		} else if (mkdir(*argv, omode) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
 		}
 		/*
 		 * The mkdir() and umask() calls both honor only the low
 		 * nine bits, so if you try to set a mode including the
-		 * sticky, setuid, setgid bits you lose them.  So chmod().
+		 * sticky, setuid, setgid bits you lose them.  Don't do
+		 * this unless the user has specifically requested a mode,
+		 * as chmod will (obviously) ignore the umask.
 		 */
-		if (chmod(*argv, omode) == -1) {
-			warn("%s", *argv);
+		if ((exitval == 0) && 
+		    (mode != NULL) && (chmod(*argv, omode) == -1)) {
+			warn("chmod %s", *argv);
 			exitval = 1;
 		}
 	}
@@ -169,17 +170,6 @@ build(path, omode)
 				retval = 1;
 				break;
 			}
-                	/*
-                         * The mkdir() and umask() calls both honor only the
-			 * low nine bits, so if you try to set a mode 
-			 * including the sticky, setuid, setgid bits you lose 
-			 * them. So chmod() the last path component to try
-			 * to do what the caller has asked for.
-                         */
-                    	if (last && (chmod(path, omode) == -1)) {
-				warn("%s", path);
-				retval = 1;
-                        }
 		}
 		else if ((sb.st_mode & S_IFMT) != S_IFDIR) {
 			if (last)
@@ -190,7 +180,8 @@ build(path, omode)
 			retval = 1;
 			break;
 		}
-		*p = '/';
+		if (!last)
+		    *p = '/';
 	}
 	if (!first && !last)
 		(void)umask(oumask);
