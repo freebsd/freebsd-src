@@ -228,19 +228,29 @@ f_cut(fp, fname)
 	int ch, field, isdelim;
 	char *pos, *p, sep;
 	int output;
-	char lbuf[_POSIX2_LINE_MAX + 1];
+	char *lbuf, *mlbuf = NULL;
+	size_t lbuflen;
 
-	for (sep = dchar; fgets(lbuf, sizeof(lbuf), fp);) {
+	for (sep = dchar; (lbuf = fgetln(fp, &lbuflen)) != NULL;) {
+		/* Assert EOL has a newline. */
+		if (*(lbuf + lbuflen - 1) != '\n') {
+			/* Can't have > 1 line with no trailing newline. */
+			mlbuf = malloc(lbuflen + 1);
+			if (mlbuf == NULL)
+				err(1, "malloc");
+			memcpy(mlbuf, lbuf, lbuflen);
+			*(mlbuf + lbuflen) = '\n';
+			lbuf = mlbuf;
+		}
 		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
-			if (!(ch = *p))
-				errx(1, "%s: line too long.", fname);
+			ch = *p;
 			/* this should work if newline is delimiter */
 			if (ch == sep)
 				isdelim = 1;
 			if (ch == '\n') {
 				if (!isdelim && !sflag)
-					(void)printf("%s", lbuf);
+					(void)fwrite(lbuf, lbuflen, 1, stdout);
 				break;
 			}
 		}
@@ -272,6 +282,8 @@ f_cut(fp, fname)
 		}
 		(void)putchar('\n');
 	}
+	if (mlbuf != NULL)
+		free(mlbuf);
 }
 
 static void
