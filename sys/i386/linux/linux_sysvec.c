@@ -138,6 +138,45 @@ int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
 	SIGIO, SIGURG, 0
 };
 
+#define LINUX_T_UNKNOWN  255
+static int _bsd_to_linux_trapcode[] = {
+	LINUX_T_UNKNOWN,	/* 0 */
+	6,			/* 1  T_PRIVINFLT */
+	LINUX_T_UNKNOWN,	/* 2 */
+	3,			/* 3  T_BPTFLT */
+	LINUX_T_UNKNOWN,	/* 4 */
+	LINUX_T_UNKNOWN,	/* 5 */
+	16,			/* 6  T_ARITHTRAP */
+	254,			/* 7  T_ASTFLT */
+	LINUX_T_UNKNOWN,	/* 8 */
+	13,			/* 9  T_PROTFLT */
+	1,			/* 10 T_TRCTRAP */
+	LINUX_T_UNKNOWN,	/* 11 */
+	14,			/* 12 T_PAGEFLT */
+	LINUX_T_UNKNOWN,	/* 13 */
+	17,			/* 14 T_ALIGNFLT */
+	LINUX_T_UNKNOWN,	/* 15 */
+	LINUX_T_UNKNOWN,	/* 16 */
+	LINUX_T_UNKNOWN,	/* 17 */
+	0,			/* 18 T_DIVIDE */
+	2,			/* 19 T_NMI */
+	4,			/* 20 T_OFLOW */
+	5,			/* 21 T_BOUND */
+	7,			/* 22 T_DNA */
+	8,			/* 23 T_DOUBLEFLT */
+	9,			/* 24 T_FPOPFLT */
+	10,			/* 25 T_TSSFLT */
+	11,			/* 26 T_SEGNPFLT */
+	12,			/* 27 T_STKFLT */
+	18,			/* 28 T_MCHK */
+	19,			/* 29 T_XMMFLT */
+	15			/* 30 T_RESERVED */
+};
+#define bsd_to_linux_trapcode(code) \
+    ((code)<sizeof(_bsd_to_linux_trapcode)/sizeof(*_bsd_to_linux_trapcode)? \
+     _bsd_to_linux_trapcode[(code)]: \
+     LINUX_T_UNKNOWN)
+
 /*
  * If FreeBSD & Linux have a difference of opinion about what a trap
  * means, deal with it here.
@@ -321,7 +360,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_esp;
 	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
 	frame.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
-	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
+	frame.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 
 #ifdef DEBUG
 	if (ldebug(rt_sendsig))
@@ -458,7 +497,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_esp_at_signal = regs->tf_esp;
 	frame.sf_sc.sc_ss     = regs->tf_ss;
 	frame.sf_sc.sc_err    = regs->tf_err;
-	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
+	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(code);
 
 	bzero(&frame.sf_fpstate, sizeof(struct l_fpstate));
 
