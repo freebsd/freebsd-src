@@ -555,8 +555,9 @@ pnpbios_identify(driver_t *driver, device_t parent)
     if (pt == NULL)
 	return;
 
-    /* ACPI already active */
-    if (devclass_get_softc(devclass_find("acpi"), 0) != NULL)
+    /* Check to see if ACPI is already active. */
+    dev = devclass_get_device(devclass_find("acpi"), 0);
+    if (dev != NULL && device_is_attached(dev)) 
 	return;
 
     /* get count of PnP devices */
