@@ -1881,7 +1881,7 @@ get_local_ip (int s, long *aval)
 	char			intf_name[IFNAMSIZ];
 	int			namelen = IFNAMSIZ;
 	struct air_netif_rsp	*net_info = NULL;
-	struct sockaddr_in	*sin;
+	struct sockaddr_in	*sain;
 
 	/*
 	 * Get physical interface name
@@ -1897,12 +1897,12 @@ get_local_ip (int s, long *aval)
 	if ( net_info == NULL )
 		return;
 
-	sin = (struct sockaddr_in *)&net_info->anp_proto_addr;
+	sain = (struct sockaddr_in *)(void *)&net_info->anp_proto_addr;
 
 	/*
 	 * Fill in answer
 	 */
-	bcopy ( (caddr_t)&sin->sin_addr.s_addr, aval, 4 );
+	bcopy ( (caddr_t)&sain->sin_addr.s_addr, aval, 4 );
 
 	free ( net_info );
 
