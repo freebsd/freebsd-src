@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.44 1997/06/13 06:27:12 charnier Exp $
+ * $Id: ipfw.c,v 1.45 1997/06/23 22:32:13 julian Exp $
  *
  */
 
@@ -807,15 +807,29 @@ add(ac,av)
 		if (!ac)
 			show_usage("missing divert port");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
-		if (rule.fw_divert_port == 0)
-			show_usage("illegal divert port");
+		if (rule.fw_divert_port == 0) {
+			struct servent *s;
+			setservent(1);
+			s = getservbyname(av[-1], "divert");
+			if (s != NULL)
+				rule.fw_divert_port = ntohs(s->s_port);
+			else
+				show_usage("illegal divert port");
+		}
 	} else if (!strncmp(*av,"tee",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_TEE; av++; ac--;
 		if (!ac)
 			show_usage("missing divert port");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
-		if (rule.fw_divert_port == 0)
-			show_usage("illegal divert port");
+		if (rule.fw_divert_port == 0) {
+			struct servent *s;
+			setservent(1);
+			s = getservbyname(av[-1], "divert");
+			if (s != NULL)
+				rule.fw_divert_port = ntohs(s->s_port);
+			else
+				show_usage("illegal divert port");
+		}
 	} else if (!strncmp(*av,"skipto",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
 		if (!ac)
