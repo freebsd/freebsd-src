@@ -36,8 +36,6 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 
-MALLOC_DEFINE(M_STRING, "string", "string buffers");
-
 char *
 strdup(const char *string, struct malloc_type *type)
 {
