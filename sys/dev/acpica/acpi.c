@@ -1071,7 +1071,7 @@ acpi_probe_children(device_t bus)
     bus_generic_attach(bus);
 
     /* Attach wake sysctls. */
-    acpi_wake_sysctl_walk(dev);
+    acpi_wake_sysctl_walk(bus);
 
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "done attaching children\n"));
     return_VOID;
