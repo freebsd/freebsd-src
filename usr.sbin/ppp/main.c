@@ -240,6 +240,7 @@ ProcessArgs(int argc, char **argv, struct switches *sw)
               sw->unit = atoi(argv[arg]);
           } else
             sw->unit = atoi(cp + 4);
+          optc--;			/* this option isn't exclusive */
         } else if (strcmp(cp, "quiet") == 0) {
           sw->quiet = 1;
           optc--;			/* this option isn't exclusive */
