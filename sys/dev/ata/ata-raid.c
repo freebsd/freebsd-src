@@ -542,6 +542,8 @@ arstrategy(struct buf *bp)
 	}
 
 	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT | M_ZERO);
+	BUF_LOCKINIT(&buf1->bp);
+	BUF_LOCK(&buf1->bp, LK_EXCLUSIVE);
 	buf1->bp.b_pblkno = lba;
 	if ((buf1->drive = drv) > 0)
 	    buf1->bp.b_pblkno += rdp->offset;
@@ -622,6 +624,8 @@ arstrategy(struct buf *bp)
 			 buf1->bp.b_pblkno < rdp->lock_start)) {
 			buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
 			bcopy(buf1, buf2, sizeof(struct ar_buf));
+			BUF_LOCKINIT(&buf2->bp);
+			BUF_LOCK(&buf2->bp, LK_EXCLUSIVE);
 			buf1->mirror = buf2;
 			buf2->mirror = buf1;
 			buf2->drive = buf1->drive + rdp->width;
@@ -1400,6 +1404,8 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 
     if (!(bp = (struct buf *)malloc(sizeof(struct buf), M_AR, M_NOWAIT|M_ZERO)))
 	return ENOMEM;
+    BUF_LOCKINIT(bp);
+    BUF_LOCK(bp, LK_EXCLUSIVE);
     bp->b_dev = adp->dev;
     bp->b_data = data;
     bp->b_pblkno = lba;
