@@ -178,7 +178,6 @@ void g_dev_print(void);
 struct g_provider *g_dev_getprovider(dev_t dev);
 
 /* geom_dump.c */
-void g_hexdump(void *ptr, int length);
 void g_trace(int level, const char *, ...);
 #	define G_T_TOPOLOGY	1
 #	define G_T_BIO		2

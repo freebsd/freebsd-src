@@ -62,7 +62,7 @@ g_pc98_print(int i, struct pc98_partition *dp)
 	strncpy(sname, dp->dp_name, 16);
 	sname[16] = '\0';
 
-	g_hexdump(dp, sizeof(dp[0]));
+	hexdump(dp, sizeof(dp[0]), NULL, 0);
 	printf("[%d] mid:%d(0x%x) sid:%d(0x%x)",
 	       i, dp->dp_mid, dp->dp_mid, dp->dp_sid, dp->dp_sid);
 	printf(" s:%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
