@@ -52,6 +52,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
+#include <sys/stdint.h>
 #include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <geom/geom.h>
@@ -288,8 +289,8 @@ g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 	gsp = gp->softc;
 	ms = gsp->softc;
 	if (pp == NULL && cp == NULL) {
-		sbuf_printf(sb, "%s<labeloffset>%lld</labeloffset>\n",
-		    indent, ms->labeloffset);
+		sbuf_printf(sb, "%s<labeloffset>%jd</labeloffset>\n",
+		    indent, (intmax_t)ms->labeloffset);
 	}
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 }
