@@ -138,7 +138,8 @@ ata_attach(device_t dev)
     mtx_init(&ch->state_mtx, "ATA state lock", NULL, MTX_DEF);
 
     /* initialise device(s) on this channel */
-    ch->locking(ch, ATA_LF_LOCK);
+    while (ch->locking(ch, ATA_LF_LOCK) != ch->unit)
+	tsleep(&error, PRIBIO, "ataatch", 1);
     ch->hw.reset(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
 
@@ -243,6 +244,10 @@ ata_reinit(struct ata_channel *ch)
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
 
+    /* poll for locking of this channel */
+    while (ch->locking(ch, ATA_LF_LOCK) != ch->unit)
+	tsleep(&devices, PRIBIO, "atarint", 1);
+
     /* grap the channel lock no matter what */
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_ACTIVE;
@@ -321,6 +326,7 @@ ata_reinit(struct ata_channel *ch)
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_IDLE;
     mtx_unlock(&ch->state_mtx);
+    ch->locking(ch, ATA_LF_UNLOCK);
 
     ata_start(ch);
     return 0;
@@ -335,8 +341,6 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    ch->locking(ch, ATA_LF_LOCK);
-
     while (!gotit) {
 	mtx_lock(&ch->state_mtx);
 	if (ch->state == ATA_IDLE) {
@@ -346,6 +350,7 @@ ata_suspend(device_t dev)
 	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
 	mtx_unlock(&ch->state_mtx);
     }
+    ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
 }
 
@@ -358,9 +363,7 @@ ata_resume(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    ch->locking(ch, ATA_LF_LOCK);
     error = ata_reinit(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
     ata_start(ch);
     return error;
 }
@@ -433,6 +436,7 @@ ata_interrupt(void *data)
 	    else
 		ch->state = ATA_IDLE;
 	    mtx_unlock(&ch->state_mtx);
+	    ch->locking(ch, ATA_LF_UNLOCK);
 	    ata_finish(request);
 	}
     }

@@ -58,9 +58,10 @@ static struct isa_pnp_id ata_ids[] = {
     {0}
 };
 
-static void
+static int
 ata_isa_locknoop(struct ata_channel *ch, int type)
 {
+    return ch->unit;
 }
 
 static void
