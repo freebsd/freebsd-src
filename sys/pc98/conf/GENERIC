@@ -46,6 +46,7 @@ options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	EPSON_BOUNCEDMA		#use bounce buufer for 15-16M
 #options 	EPSON_MEMWIN		#EPSON memory window support
