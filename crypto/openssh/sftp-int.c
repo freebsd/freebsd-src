@@ -436,7 +436,7 @@ process_put(int in, int out, char *src, char *dst, char *pwd, int pflag)
 
 	memset(&g, 0, sizeof(g));
 	debug3("Looking up %s", src);
-	if (glob(src, 0, NULL, &g)) {
+	if (glob(src, 0, NULL, &g) != 0 || g.gl_matchc == 0) {
 		error("File \"%s\" not found.", src);
 		err = -1;
 		goto out;
