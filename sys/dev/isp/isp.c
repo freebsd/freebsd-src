@@ -99,7 +99,7 @@ static void isp_rdnvram_word __P((struct ispsoftc *, int, u_int16_t *));
 /*
  * Reset Hardware.
  *
- * Hit the chip over the head, download new f/w and set it running.
+ * Hit the chip over the head, download new f/w if available and set it running.
  *
  * Locking done elsewhere.
  */
@@ -167,16 +167,6 @@ isp_reset(isp)
 			break;
 		case ISP_HA_FC_2200:
 			revname[1] = '2';
-			/*
-			 * Resident firmware for the 2200 appears
-			 * to have SCCLUN enabled.
-			 */
-#ifndef	ISP2100_SCCLUN
-			if (isp->isp_mdvec->dv_fwlen == 0) {
-				PRINTF("%s: WARNING- using resident f/w without"
-				    " SCCLUN support defined\n", isp->isp_name);
-			}
-#endif
 			break;
 		default:
 			break;
@@ -494,13 +484,16 @@ again:
 	 * whether we have f/w at all and whether a config flag
 	 * has disabled our download.
 	 */
-	if ((isp->isp_mdvec->dv_fwlen == 0) ||
+	if ((isp->isp_mdvec->dv_ispfw != NULL) ||
 	    (isp->isp_confopts & ISP_CFG_NORELOAD)) {
 		dodnld = 0;
 	}
 
-	if (dodnld && isp->isp_mdvec->dv_fwlen) {
-		for (i = 0; i < isp->isp_mdvec->dv_fwlen; i++) {
+	if (dodnld && isp->isp_mdvec->dv_ispfw) {
+		u_int16_t fwlen  = isp->isp_mdvec->dv_fwlen;
+		if (fwlen == 0)
+			fwlen = isp->isp_mdvec->dv_ispfw[3]; /* usually here */
+		for (i = 0; i < fwlen; i++) {
 			mbs.param[0] = MBOX_WRITE_RAM_WORD;
 			mbs.param[1] = isp->isp_mdvec->dv_codeorg + i;
 			mbs.param[2] = isp->isp_mdvec->dv_ispfw[i];
