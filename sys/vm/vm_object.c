@@ -145,7 +145,16 @@ struct vm_object kmem_object_store;
 
 static long object_collapses;
 static long object_bypasses;
+
+/*
+ * next_index determines the page color that is assigned to the next
+ * allocated object.  Accesses to next_index are not synchronized
+ * because the effects of two or more object allocations using
+ * next_index simultaneously are inconsequential.  At any given time,
+ * numerous objects have the same page color.
+ */
 static int next_index;
+
 static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
@@ -211,10 +220,8 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
 	else
 		incr = size;
-	do
-		object->pg_color = next_index;
-	while (!atomic_cmpset_int(&next_index, object->pg_color,
-				  (object->pg_color + incr) & PQ_L2_MASK));
+	object->pg_color = next_index;
+	next_index = (object->pg_color + incr) & PQ_L2_MASK;
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
