@@ -190,7 +190,7 @@ makefile(void)
 		else if (strncmp(line, "%VERSREQ=", sizeof("%VERSREQ=") - 1) == 0) {
 			versreq = atoi(line + sizeof("%VERSREQ=") - 1);
 			if (versreq != CONFIGVERS) {
-				fprintf(stderr, "WARNING: version of config(8) does not match kernel!\n");
+				fprintf(stderr, "ERROR: version of config(8) does not match kernel!\n");
 				fprintf(stderr, "config version = %d, ", CONFIGVERS);
 				fprintf(stderr, "version required = %d\n\n", versreq);
 				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
@@ -200,6 +200,7 @@ makefile(void)
 				fprintf(stderr, "file against the GENERIC or LINT config files for\n");
 				fprintf(stderr, "changes in config syntax, or option/device naming\n");
 				fprintf(stderr, "conventions\n\n");
+				exit(1);
 			}
 		} else
 			fprintf(stderr,
