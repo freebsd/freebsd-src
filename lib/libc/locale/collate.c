@@ -92,23 +92,26 @@ __collate_load_tables(const char *encoding)
 
 	if ((TMP_substitute_table =
 	     malloc(sizeof(__collate_substitute_table))) == NULL) {
+		saverr = errno;
 		(void)fclose(fp);
-		errno = ENOMEM;
+		errno = saverr;
 		return (_LDP_ERROR);
 	}
 	if ((TMP_char_pri_table =
 	     malloc(sizeof(__collate_char_pri_table))) == NULL) {
+		saverr = errno;
 		free(TMP_substitute_table);
 		(void)fclose(fp);
-		errno = ENOMEM;
+		errno = saverr;
 		return (_LDP_ERROR);
 	}
 	if ((TMP_chain_pri_table =
 	     malloc(sizeof(__collate_chain_pri_table))) == NULL) {
+		saverr = errno;
 		free(TMP_substitute_table);
 		free(TMP_char_pri_table);
 		(void)fclose(fp);
-		errno = ENOMEM;
+		errno = saverr;
 		return (_LDP_ERROR);
 	}
 
