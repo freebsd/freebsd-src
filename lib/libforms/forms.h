@@ -24,6 +24,7 @@
 
 #define MAX_FIELD_SIZE 80
 
+
 struct form {
 	int x;
 	int y;
@@ -31,6 +32,8 @@ struct form {
 	int width;
 	struct field *fields;
 };
+
+extern struct form *form;
 
 struct input_field {
 	int y_prompt;
@@ -76,6 +79,6 @@ extern unsigned int keymap[FORM_NO_KEYS];
 
 int init_forms();
 int edit_line(WINDOW *window, struct field *);
-void edit_form(struct form *);
+int edit_form(struct form *);
 void refresh_form(WINDOW *, struct form *);
 struct field *find_link(int);
