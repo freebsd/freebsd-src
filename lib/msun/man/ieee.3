@@ -32,7 +32,7 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd February 25, 1994
+.Dd June 20, 2004
 .Dt IEEE 3
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@
 .Nm nextafterf ,
 .Nm remainder ,
 .Nm remainderf ,
+.Nm scalbln ,
+.Nm scalblnf ,
 .Nm scalbn ,
 .Nm scalbnf
 .Nd functions for IEEE arithmetic
@@ -76,6 +78,10 @@
 .Fn remainder "double x" "double y"
 .Ft float
 .Fn remainderf "float x" "float y"
+.Ft double
+.Fn scalbln "double x" "long n"
+.Ft float
+.Fn scalblnf "float x" "long n"
 .Ft double
 .Fn scalbn "double x" "int n"
 .Ft float
@@ -173,7 +179,9 @@ and
 .Fn remainder \*(If 0
 are invalid operations that produce a \*(Na.
 .Pp
-.Fn scalbn
+.Fn scalbln ,
+.Fn scalblnf ,
+.Fn scalbn ,
 and
 .Fn scalbnf
 return
@@ -187,8 +195,11 @@ The
 functions appeared in
 .Bx 4.3 .
 The
-.Fn copysignl
-function first appeared in
+.Fn copysignl ,
+.Fn scalbln ,
+and
+.Fn scalblnf
+functions first appeared in
 .Fx 5.3 .
 .Sh STANDARDS
 .St -ieee754
