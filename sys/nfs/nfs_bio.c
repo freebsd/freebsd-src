@@ -996,8 +996,10 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			if (VOP_BWRITE(bp->b_vp, bp) == EINTR)
-				return (EINTR);
+			if (VOP_BWRITE(bp->b_vp, bp) == EINTR) {
+				error = EINTR;
+				break;
+			}
 			goto again;
 		}
 
