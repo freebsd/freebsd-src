@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29.2.3 1995/06/01 05:13:20 jkh Exp $
+ * $Id: tcpip.c,v 1.29.2.4 1995/06/01 09:42:31 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -455,6 +455,7 @@ tcpDeviceSelect(void)
 	status = FALSE;
     }
     else if (cnt == 1) {
+	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
 	status = TRUE;
     }
