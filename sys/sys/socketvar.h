@@ -369,7 +369,7 @@ void	sbflush(struct sockbuf *sb);
 void	sbinsertoob(struct sockbuf *sb, struct mbuf *m0);
 void	sbrelease(struct sockbuf *sb, struct socket *so);
 int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
-		       struct thread *td);
+	    struct thread *td);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
@@ -397,8 +397,7 @@ struct socket *
 	sodropablereq(struct socket *head);
 struct socket *
 	sonewconn(struct socket *head, int connstatus);
-int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len,
-			 size_t minlen);
+int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen);
 int	sooptcopyout(struct sockopt *sopt, void *buf, size_t len);
 
 /* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
@@ -407,15 +406,14 @@ int	soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
 int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
 
 int	sopoll(struct socket *so, int events, struct ucred *cred,
-		    struct thread *td);
-int	soreceive(struct socket *so, struct sockaddr **paddr,
-		       struct uio *uio, struct mbuf **mp0,
-		       struct mbuf **controlp, int *flagsp);
+	    struct thread *td);
+int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
+	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
 int	soreserve(struct socket *so, u_long sndcc, u_long rcvcc);
 void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
-		    struct mbuf *top, struct mbuf *control, int flags,
-		    struct thread *td);
+	    struct mbuf *top, struct mbuf *control, int flags,
+	    struct thread *td);
 int	sosetopt(struct socket *so, struct sockopt *sopt);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);

@@ -345,32 +345,30 @@ struct mount_args;
 #endif
 
 struct vfsops {
-	int	(*vfs_mount)	(struct mount *mp, char *path, caddr_t data,
-				    struct nameidata *ndp, struct thread *td);
-	int	(*vfs_start)	(struct mount *mp, int flags,
-				    struct thread *td);
-	int	(*vfs_unmount)	(struct mount *mp, int mntflags,
-				    struct thread *td);
-	int	(*vfs_root)	(struct mount *mp, struct vnode **vpp);
-	int	(*vfs_quotactl)	(struct mount *mp, int cmds, uid_t uid,
-				    caddr_t arg, struct thread *td);
-	int	(*vfs_statfs)	(struct mount *mp, struct statfs *sbp,
-				    struct thread *td);
-	int	(*vfs_sync)	(struct mount *mp, int waitfor,
-				    struct ucred *cred, struct thread *td);
-	int	(*vfs_vget)	(struct mount *mp, ino_t ino, int flags,
-				    struct vnode **vpp);
-	int	(*vfs_fhtovp)	(struct mount *mp, struct fid *fhp,
-				    struct vnode **vpp);
+	int	(*vfs_mount)(struct mount *mp, char *path, caddr_t data,
+		    struct nameidata *ndp, struct thread *td);
+	int	(*vfs_start)(struct mount *mp, int flags, struct thread *td);
+	int	(*vfs_unmount)(struct mount *mp, int mntflags,
+		    struct thread *td);
+	int	(*vfs_root)(struct mount *mp, struct vnode **vpp);
+	int	(*vfs_quotactl)(struct mount *mp, int cmds, uid_t uid,
+		    caddr_t arg, struct thread *td);
+	int	(*vfs_statfs)(struct mount *mp, struct statfs *sbp,
+		    struct thread *td);
+	int	(*vfs_sync)(struct mount *mp, int waitfor, struct ucred *cred,
+		    struct thread *td);
+	int	(*vfs_vget)(struct mount *mp, ino_t ino, int flags,
+		    struct vnode **vpp);
+	int	(*vfs_fhtovp)(struct mount *mp, struct fid *fhp,
+		    struct vnode **vpp);
 	int	(*vfs_checkexp)(struct mount *mp, struct sockaddr *nam,
-				    int *extflagsp, struct ucred **credanonp);
-	int	(*vfs_vptofh)	(struct vnode *vp, struct fid *fhp);
-	int	(*vfs_init)	(struct vfsconf *);
-	int	(*vfs_uninit)	(struct vfsconf *);
+		    int *extflagsp, struct ucred **credanonp);
+	int	(*vfs_vptofh)(struct vnode *vp, struct fid *fhp);
+	int	(*vfs_init)(struct vfsconf *);
+	int	(*vfs_uninit)(struct vfsconf *);
 	int	(*vfs_extattrctl)(struct mount *mp, int cmd,
-					struct vnode *filename_vp,
-					int attrnamespace, const char *attrname,
-					struct thread *td);
+		    struct vnode *filename_vp, int attrnamespace,
+		    const char *attrname, struct thread *td);
 };
 
 #define VFS_MOUNT(MP, PATH, DATA, NDP, P) \
@@ -414,18 +412,18 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount(struct mount *, int, struct thread *td);
-int	vfs_mount (struct thread *td, const char *type, char *path,
+int	vfs_mount(struct thread *td, const char *type, char *path,
 	    int flags, void *data);
 int	vfs_setpublicfs			    /* set publicly exported fs */
-	(struct mount *, struct netexport *, struct export_args *);
+	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
 void	vfs_msync(struct mount *, int);
 void	vfs_unlock(struct mount *);       /* unlock a vfs */
 int	vfs_busy(struct mount *, int, struct mtx *, struct thread *td);
 int	vfs_export			 /* process mount export info */
-	(struct mount *, struct export_args *);
+	    (struct mount *, struct export_args *);
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
-	(struct mount *, struct sockaddr *);
+	    (struct mount *, struct sockaddr *);
 int	vfs_allocate_syncvnode(struct mount *);
 void	vfs_getnewfsid(struct mount *);
 dev_t	vfs_getrootfsid(struct mount *);
