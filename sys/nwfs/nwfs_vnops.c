@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,28 +59,28 @@
 /*
  * Prototypes for NWFS vnode operations
  */
-static int nwfs_create __P((struct vop_create_args *));
-static int nwfs_mknod __P((struct vop_mknod_args *));
-static int nwfs_open __P((struct vop_open_args *));
-static int nwfs_close __P((struct vop_close_args *));
-static int nwfs_access __P((struct vop_access_args *));
-static int nwfs_getattr __P((struct vop_getattr_args *));
-static int nwfs_setattr __P((struct vop_setattr_args *));
-static int nwfs_read __P((struct vop_read_args *));
-static int nwfs_write __P((struct vop_write_args *));
-static int nwfs_fsync __P((struct vop_fsync_args *));
-static int nwfs_remove __P((struct vop_remove_args *));
-static int nwfs_link __P((struct vop_link_args *));
-static int nwfs_lookup __P((struct vop_lookup_args *));
-static int nwfs_rename __P((struct vop_rename_args *));
-static int nwfs_mkdir __P((struct vop_mkdir_args *));
-static int nwfs_rmdir __P((struct vop_rmdir_args *));
-static int nwfs_symlink __P((struct vop_symlink_args *));
-static int nwfs_readdir __P((struct vop_readdir_args *));
-static int nwfs_bmap __P((struct vop_bmap_args *));
-static int nwfs_strategy __P((struct vop_strategy_args *));
-static int nwfs_print __P((struct vop_print_args *));
-static int nwfs_pathconf __P((struct vop_pathconf_args *ap));
+static int nwfs_create(struct vop_create_args *);
+static int nwfs_mknod(struct vop_mknod_args *);
+static int nwfs_open(struct vop_open_args *);
+static int nwfs_close(struct vop_close_args *);
+static int nwfs_access(struct vop_access_args *);
+static int nwfs_getattr(struct vop_getattr_args *);
+static int nwfs_setattr(struct vop_setattr_args *);
+static int nwfs_read(struct vop_read_args *);
+static int nwfs_write(struct vop_write_args *);
+static int nwfs_fsync(struct vop_fsync_args *);
+static int nwfs_remove(struct vop_remove_args *);
+static int nwfs_link(struct vop_link_args *);
+static int nwfs_lookup(struct vop_lookup_args *);
+static int nwfs_rename(struct vop_rename_args *);
+static int nwfs_mkdir(struct vop_mkdir_args *);
+static int nwfs_rmdir(struct vop_rmdir_args *);
+static int nwfs_symlink(struct vop_symlink_args *);
+static int nwfs_readdir(struct vop_readdir_args *);
+static int nwfs_bmap(struct vop_bmap_args *);
+static int nwfs_strategy(struct vop_strategy_args *);
+static int nwfs_print(struct vop_print_args *);
+static int nwfs_pathconf(struct vop_pathconf_args *ap);
 
 /* Global vfs data structures for nwfs */
 vop_t **nwfs_vnodeop_p;
@@ -144,7 +144,7 @@ nwfs_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	struct ucred *cred = ap->a_cred;
 	u_int mode = ap->a_mode;
 	struct nwmount *nmp = VTONWFS(vp);
@@ -182,7 +182,7 @@ nwfs_open(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	int mode = ap->a_mode;
 	struct nwnode *np = VTONW(vp);
 	struct ncp_open_info no;
@@ -247,8 +247,8 @@ nwfs_close(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct nwnode *np = VTONW(vp);
+	struct vnode *vp = ap->a_vp;
+	struct nwnode *np = VTONW(vp);
 	int error;
 
 	NCPVNDEBUG("name=%s,pid=%d,c=%d\n",np->n_name,ap->a_p->p_pid,np->opened);
@@ -287,8 +287,8 @@ nwfs_getattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct nwnode *np = VTONW(vp);
+	struct vnode *vp = ap->a_vp;
+	struct nwnode *np = VTONW(vp);
 	struct vattr *va=ap->a_vap;
 	struct nwmount *nmp = VTONWFS(vp);
 	struct nw_entry_info fattr;
@@ -329,9 +329,9 @@ nwfs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct nwnode *np = VTONW(vp);
-	register struct vattr *vap = ap->a_vap;
+	struct vnode *vp = ap->a_vp;
+	struct nwnode *np = VTONW(vp);
+	struct vattr *vap = ap->a_vap;
 	u_quad_t tsize=0;
 	int error = 0;
 
@@ -386,7 +386,7 @@ nwfs_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	struct uio *uio=ap->a_uio;
 	int error;
 	NCPVNDEBUG("nwfs_read:\n");
@@ -406,7 +406,7 @@ nwfs_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
 	int error;
 
@@ -433,10 +433,10 @@ nwfs_create(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-	register struct vnode *dvp = ap->a_dvp;
-	register struct vattr *vap = ap->a_vap;
+	struct vnode *dvp = ap->a_dvp;
+	struct vattr *vap = ap->a_vap;
 	struct vnode **vpp=ap->a_vpp;
-	register struct componentname *cnp = ap->a_cnp;
+	struct componentname *cnp = ap->a_cnp;
 	struct vnode *vp = (struct vnode *)0;
 	int error = 0, fmode;
 	struct vattr vattr;
@@ -489,10 +489,10 @@ nwfs_remove(ap)
 		struct componentname * a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *dvp = ap->a_dvp;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct nwnode *np = VTONW(vp);
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct nwnode *np = VTONW(vp);
 	struct nwmount *nmp = VTONWFS(vp);
 	int error;
 
@@ -523,12 +523,12 @@ nwfs_rename(ap)
 		struct componentname *a_tcnp;
 	} */ *ap;
 {
-	register struct vnode *fvp = ap->a_fvp;
-	register struct vnode *tvp = ap->a_tvp;
-	register struct vnode *fdvp = ap->a_fdvp;
-	register struct vnode *tdvp = ap->a_tdvp;
-	register struct componentname *tcnp = ap->a_tcnp;
-	register struct componentname *fcnp = ap->a_fcnp;
+	struct vnode *fvp = ap->a_fvp;
+	struct vnode *tvp = ap->a_tvp;
+	struct vnode *fdvp = ap->a_fdvp;
+	struct vnode *tdvp = ap->a_tdvp;
+	struct componentname *tcnp = ap->a_tcnp;
+	struct componentname *fcnp = ap->a_fcnp;
 	struct nwmount *nmp=VTONWFS(fvp);
 	u_int16_t oldtype = 6;
 	int error=0;
@@ -648,10 +648,10 @@ nwfs_mkdir(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-	register struct vnode *dvp = ap->a_dvp;
-/*	register struct vattr *vap = ap->a_vap;*/
-	register struct componentname *cnp = ap->a_cnp;
-	register int len=cnp->cn_namelen;
+	struct vnode *dvp = ap->a_dvp;
+/*	struct vattr *vap = ap->a_vap;*/
+	struct componentname *cnp = ap->a_cnp;
+	int len=cnp->cn_namelen;
 	struct ncp_open_info no;
 	struct nwnode *np;
 	struct vnode *newvp = (struct vnode *)0;
@@ -697,9 +697,9 @@ nwfs_rmdir(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *dvp = ap->a_dvp;
-	register struct componentname *cnp = ap->a_cnp;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
 	struct nwmount *nmp = VTONWFS(vp);
 	struct nwnode *dnp = VTONW(dvp);
 	int error = EIO;
@@ -731,8 +731,8 @@ nwfs_readdir(ap)
 		int a_ncookies;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct uio *uio = ap->a_uio;
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
 	int error;
 
 	if (vp->v_type != VDIR)
@@ -759,13 +759,19 @@ nwfs_fsync(ap)
 /*	return (nfs_flush(ap->a_vp, ap->a_cred, ap->a_waitfor, ap->a_p, 1));*/
     return (0);
 }
+
 /* ARGSUSED */
 static 
 int nwfs_print (ap) 
 	struct vop_print_args /* {
-	struct vnode *a_vp;
+		struct vnode *a_vp;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct nwnode *np = VTONW(vp);
+
+	printf("nwfs node: name = '%s', fid = %d, pfid = %d\n",
+	    np->n_name, np->n_fid.f_id, np->n_fid.f_parent);
 	return (0);
 }
 
@@ -837,7 +843,7 @@ nwfs_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
 
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = vp;
