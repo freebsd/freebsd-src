@@ -182,6 +182,9 @@
     files will attempt to minimize the cache effects of reading and
     writing. &merged;</para>
 
+    <para><literal>OLDCARD</literal> and &man.pccardd.8; now support
+    PCI cards.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -1223,6 +1226,9 @@
     attempts to avoid writing large stretches of zeros to crash dump
     files to save space and time. &merged;</para>
 
+    <para>&man.savecore.8; now works correctly on machines with 2 GB
+    or more of RAM. &merged;</para>
+
     <para>&man.tar.1; now supports the <varname>TAR_RSH</varname>
     variable, principally to enable the use of &man.ssh.1; as a
     transport. &merged;</para>
@@ -1418,6 +1424,12 @@
     <para>&man.df.1; now takes a <option>-l</option> option to only
     display information about locally-mounted filesystems.</para>
 
+    <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
+    now compatable with that of other BSDs. &merged;</para>
+
+    <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
+    been cleaned up and updated.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1487,8 +1499,16 @@
       <para><application>libreadline</application> has been upgraded to
       4.2.</para>
 
-      <para>Linux <application>PAM</application> has been updated to
-      0.75.</para>
+      <para><application>Linux-PAM</application> has been updated to
+      0.75. &merged;</para>
+
+      <para>A number of new <application>Linux-PAM</application> modules
+      have been added, including:  <filename>pam_ftp</filename>,
+      <filename>pam_krb5</filename>,
+      <filename>pam_nologin</filename>,
+      <filename>pam_rootok</filename>,
+      <filename>pam_securetty</filename>,
+      <filename>pam_wheel</filename>.
 
       <para><application>ncurses</application> has been updated to
       5.2-20010512.</para>
@@ -1550,12 +1570,6 @@
 
         <para><application>PAM</application> support for
         <application>OpenSSH</application> has been added.</para>
-
-	<para>The following <application>PAM</application> modules
-	have been added:  <filename>pam_krb5</filename>,
-	<filename>pam_nologin</filename>,
-	<filename>pam_rootok</filename>,
-	<filename>pam_wheel</filename>
 
 	<para>A long-standing bug in <application>OpenSSH</application>,
 	which sometimes resulted in a dropped session when an
