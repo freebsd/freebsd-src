@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.74 1999/05/14 14:57:59 jkh Exp $
+ * $Id: package.c,v 1.75 1999/05/15 14:34:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,6 +131,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     /* If necessary, initialize the ldconfig hints */
     if (!file_readable("/var/run/ld.so.hints"))
 	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
+    vsystem("/sbin/ldconfig -aout /usr/lib/compat/aout /usr/lib/aout /usr/X11R6/lib/aout /usr/local/lib/aout");
 
     /* Be initially optimistic */
     ret = DITEM_SUCCESS | DITEM_RESTORE;
