@@ -27,23 +27,13 @@
  *
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
-#endif /* LIBC_SCCS and not lint */
+/* magic sizes */
+#define MD5_SIZE 16
+#define SHS_SIZE 20
 
-#include <string.h>
-#include "crypt.h"
+char *crypt_des(const char *pw, const char *salt);
+char *crypt_md5(const char *pw, const char *salt);
+char *crypt_sha(const char *pw, const char *salt);
 
-char *
-crypt(char *passwd, char *salt)
-{
-	if (!strncmp(salt, "$1$", 3))
-		return crypt_md5(passwd, salt);
-	if (!strncmp(salt, "$3$", 3))
-		return crypt_sha(passwd, salt);
-#ifdef NONEXPORTABLE_CRYPT
-	return crypt_des(passwd, salt);
-#else
-	return NULL;
-#endif
-}
+extern void _crypt_to64(char *s, unsigned long v, int n);
+
