@@ -233,6 +233,7 @@ struct ata_cmd {
 #define ATAATTACH		5
 #define ATADETACH		6
 #define ATAPICMD		7
+#define ATAREBUILD		8
 
     union {
 	struct {
