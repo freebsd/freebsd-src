@@ -68,6 +68,7 @@ DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 # on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
 AUTO_KEYBOARD_DETECT?= 0
 
+
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
 
@@ -314,7 +315,7 @@ rerelease release:
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
-	echo "echo \">>> make ${.TARGET} Finished on \`LC_TIME=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
+	echo "echo \">>> make ${.TARGET} finished on \`LC_TIME=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -383,6 +384,8 @@ release.3:
 #
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
+# It also prevents ls linking against termcap by disabling color support.
+# See /usr/src/bin/ls/Makefile.
 release.4:
 	@mkdir -p /stand
 	cd ${.CURDIR}/sysinstall && make obj depend all install
@@ -622,6 +625,7 @@ ftp.1:
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 .endif
+	touch ftp.1
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -667,6 +671,7 @@ cdrom.1:
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
+	touch cdrom.1
 
 doc.1:
 	@echo "Making docs..."
