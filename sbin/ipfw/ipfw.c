@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.53 1998/01/08 03:03:50 alex Exp $
+ * $Id: ipfw.c,v 1.54 1998/02/12 00:57:06 alex Exp $
  *
  */
 
@@ -1111,10 +1111,10 @@ badviacombo:
 	/* frag may not be used in conjunction with ports or TCP flags */
 	if (rule.fw_flg & IP_FW_F_FRAG) {
 		if (rule.fw_tcpf || rule.fw_tcpnf)
-			show_usage(EX_USAGE, "can't mix 'frag' and tcpflags");
+			show_usage("can't mix 'frag' and tcpflags");
 
 		if (rule.fw_nports)
-			show_usage(EX_USAGE, "can't mix 'frag' and port specifications");
+			show_usage("can't mix 'frag' and port specifications");
 	}
 
 	if (!do_quiet)
