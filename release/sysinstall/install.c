@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.21 1995/10/07 11:55:26 jkh Exp $
+ * $Id: install.c,v 1.71.2.22 1995/10/07 21:18:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -400,10 +400,11 @@ installFixup(void)
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
 	    if (file_readable("/kernel.ATAPI")) {
+		dialog_clear();
 		if (msgYesNo("There are two kernels available - one for ATAPI (IDE CDROM)\n"
-			     "systems and a GENERIC kernel for all other systems.  The",
-			     "IDE CDROM driver was still in BETA test at the time of this"
-			     "release and therefore got a copy of the generic kernel image"
+			     "systems and a GENERIC kernel for all other systems.  The\n"
+			     "IDE CDROM driver was still in BETA test at the time of this\n"
+			     "release and therefore got a copy of the generic kernel image\n"
 			     "all for itself).\n\n"
 			     "Would you like to install the GENERIC kernel image?  Otherwise\n"
 			     "the ATAPI image will be used.")) {
