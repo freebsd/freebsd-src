@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 5/4/95
- *	$Id: options.h,v 1.2 1994/09/24 02:58:05 davidg Exp $
+ *	$Id: options.h,v 1.3 1996/09/01 10:21:20 peter Exp $
  */
 
 struct shparam {
@@ -62,8 +62,9 @@ struct shparam {
 #define	aflag optlist[12].val
 #define	bflag optlist[13].val
 #define	uflag optlist[14].val
+#define	privileged optlist[15].val
 
-#define NOPTS	15
+#define NOPTS	16
 
 struct optent {
 	const char *name;
@@ -88,6 +89,7 @@ struct optent optlist[NOPTS] = {
 	{ "allexport",	'a',	0 },
 	{ "notify",	'b',	0 },
 	{ "nounset",	'u',	0 },
+	{ "privileged",	'p',	0 },
 };
 #else
 extern struct optent optlist[NOPTS];
