@@ -447,20 +447,16 @@ static struct cdevsw kbd_cdevsw = {
 int
 kbd_attach(keyboard_t *kbd)
 {
-	dev_t dev;
 
 	if (kbd->kb_index >= keyboards)
 		return EINVAL;
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
 
-	dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL, 0600,
+	kbd->kb_dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL, 0600,
 		       "kbd%r", kbd->kb_index);
-	if (dev->si_drv1 == NULL)
-		dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
-				      M_WAITOK);
-	bzero(dev->si_drv1, sizeof(genkbd_softc_t));
-
+	kbd->kb_dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
+			      M_WAITOK | M_ZERO);
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
 	return 0;
 }
@@ -468,17 +464,14 @@ kbd_attach(keyboard_t *kbd)
 int
 kbd_detach(keyboard_t *kbd)
 {
-	dev_t dev;
 
 	if (kbd->kb_index >= keyboards)
 		return EINVAL;
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
 
-	dev = makedev(kbd_cdevsw.d_maj, kbd->kb_index);
-	if (dev->si_drv1)
-		free(dev->si_drv1, M_DEVBUF);
-	destroy_dev(dev);
+	free(kbd->kb_dev->si_drv1, M_DEVBUF);
+	destroy_dev(kbd->kb_dev);
 
 	return 0;
 }
