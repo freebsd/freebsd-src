@@ -894,8 +894,6 @@ pcic_pci_intr(void *arg)
 				pccard_event(sp->slt, card_removed);
 			}
 		}
-		if (event & CB_SE_POWER)
-			device_printf(sc->dev, "Power interrupt\n");
 		if (stat & CB_SS_BADVCC)
 			device_printf(sc->dev, "BAD Vcc request\n");
 
