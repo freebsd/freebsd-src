@@ -123,7 +123,7 @@ static int ArchFindArchive __P((ClientData, ClientData));
 static void ArchFree __P((ClientData));
 static struct ar_hdr *ArchStatMember __P((char *, char *, Boolean));
 static FILE *ArchFindMember __P((char *, char *, struct ar_hdr *, char *));
-#if defined(__svr4__) || defined(__SVR4)
+#if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
 #define SVR4ARCHIVES
 static int ArchSVR4Entry __P((Arch *, char *, size_t, FILE *));
 #endif
@@ -478,7 +478,7 @@ ArchStatMember (archive, member, hash)
      * the comparisons easier...
      */
     cp = strrchr (member, '/');
-    if (cp != NULL)
+    if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0))
 	member = cp + 1;
 
     ln = Lst_Find (archives, (ClientData) archive, ArchFindArchive);
