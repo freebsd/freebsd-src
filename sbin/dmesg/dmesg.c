@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <vis.h>
 #include <sys/syslog.h>
@@ -74,16 +75,14 @@ void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	int ch, newl, skip;
-	char *p, *ep;
 	struct msgbuf *bufp, cur;
-	char *bp, *memf, *nlistf;
+	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q;
 	kvm_t *kd;
-	char buf[5];
-	int all = 0;
-	int pri;
 	size_t buflen, bufpos;
+	int all, ch, pri;
+	char buf[5];
 
+	all = 0;
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
 	while ((ch = getopt(argc, argv, "aM:N:")) != -1)
@@ -105,15 +104,13 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (memf == NULL && nlistf == NULL) {
-		/* Running kernel. Use sysctl. */
+		/* Running kernel. Use sysctl to get an unwrapped buffer. */
 		if (sysctlbyname("kern.msgbuf", NULL, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
 		if ((bp = malloc(buflen)) == NULL)
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
-		/* We get a dewrapped buffer using sysctl. */
-		bufpos = 0;
 	} else {
 		/* Read in kernel message buffer, do sanity checks. */
 		kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg");
@@ -132,58 +129,64 @@ main(int argc, char *argv[])
 		bp = malloc(cur.msg_size);
 		if (!bp)
 			errx(1, "malloc failed");
-		if (kvm_read(kd, (long)cur.msg_ptr, bp, cur.msg_size) !=
-		    cur.msg_size)
+		/* Unwrap the circular buffer to start from the oldest data. */
+		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
+		if (kvm_read(kd, (long)&cur.msg_ptr[bufpos], bp,
+		    cur.msg_size - bufpos) != cur.msg_size - bufpos)
+			errx(1, "kvm_read: %s", kvm_geterr(kd));
+		if (bufpos != 0 && kvm_read(kd, (long)cur.msg_ptr,
+		    &bp[cur.msg_size - bufpos], bufpos) != bufpos)
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		kvm_close(kd);
 		buflen = cur.msg_size;
-		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
 	}
 
 	/*
-	 * The message buffer is circular.  If the buffer has wrapped, the
-	 * write pointer points to the oldest data.  Otherwise, the write
-	 * pointer points to \0's following the data.  Read the entire
-	 * buffer starting at the write pointer and ignore nulls so that
-	 * we effectively start at the oldest data.
+	 * The message buffer is circular, but has been unwrapped so that
+	 * the oldest data comes first.  The data will be preceded by \0's
+	 * if the message buffer was not full.
 	 */
-	p = bp + bufpos;
-	ep = (bufpos == 0 ? bp + buflen : p);
-	newl = skip = 0;
-	do {
-		if (p == bp + buflen)
-			p = bp;
-		ch = *p;
-		/* Skip "\n<.*>" syslog sequences. */
-		if (skip) {
-			if (ch == '\n') {
-				skip = 0;
-				newl = 1;
-			} if (ch == '>') {
-				if (LOG_FAC(pri) == LOG_KERN || all)
-					newl = skip = 0;
-			} else if (ch >= '0' && ch <= '9') {
-				pri *= 10;
-				pri += ch - '0';
-			}
-			continue;
-		}
-		if (newl && ch == '<') {
-			pri = 0;
-			skip = 1;
-			continue;
-		}
-		if (ch == '\0')
-			continue;
-		newl = ch == '\n';
-		(void)vis(buf, ch, 0, 0);
-		if (buf[1] == 0)
-			(void)putchar(buf[0]);
+	p = bp;
+	ep = &bp[buflen];
+	if (*p == '\0') {
+		/* Strip leading \0's */
+		while (p != ep && *p == '\0')
+			p++;
+	} else if (!all) {
+		/* Skip the first line, since it is probably incomplete. */
+		p = memchr(p, '\n', ep - p);
+		if (p == NULL)
+			p = ep;
 		else
-			(void)printf("%s", buf);
-	} while (++p != ep);
-	if (!newl)
-		(void)putchar('\n');
+			p++;
+	}
+	for (; p != ep; p = nextp) {
+		nextp = memchr(p, '\n', ep - p);
+		if (nextp == NULL)
+			nextp = ep;
+		else
+			nextp++;
+		/* Skip ^<[0-9]+> syslog sequences. */
+		if (*p == '<') {
+			pri = 0;
+			for (q = p + 1; q != ep && *q >= '0' && *q <= '9'; q++)
+				pri = pri * 10 + (*q - '0');
+			if (q != ep && *q == '>' && q != p + 1) {
+				if (LOG_FAC(pri) != LOG_KERN && !all)
+					continue;
+				p = q + 1;
+			}
+		}
+		for (; p != nextp; p++) {
+			(void)vis(buf, *p, 0, 0);
+			if (buf[1] == 0)
+				(void)putchar(buf[0]);
+			else
+				(void)printf("%s", buf);
+		}
+		if (nextp == ep && ep[-1] != '\n')
+			(void)putchar('\n');
+	}
 	exit(0);
 }
 
