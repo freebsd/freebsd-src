@@ -336,6 +336,25 @@ new_part(char *mpoint, Boolean newfs)
     return ret;
 }
 
+#if defined(__ia64__)
+static PartInfo *
+new_efi_part(char *mpoint, Boolean newfs)
+{
+    PartInfo *ret;
+
+    if (!mpoint)
+	mpoint = "/efi";
+
+    ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
+    sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
+    /* XXX */
+    strcpy(ret->newfs_cmd, "newfs_msdos ");
+    ret->newfs = newfs;
+    ret->soft = 0;
+    return ret;
+}
+#endif
+
 /* Get the mountpoint for a partition and save it away */
 static PartInfo *
 get_mountpoint(struct chunk *old)
@@ -600,8 +619,17 @@ print_label_chunks(void)
 	        mountpoint = "<none>";
 
 	    /* Now display the newfs field */
-	    if (label_chunk_info[i].type == PART_FAT)
-	        strcpy(newfs, "DOS");
+	    if (label_chunk_info[i].type == PART_FAT) {
+		strcpy(newfs, "DOS");
+#if defined(__ia64__)
+		if (label_chunk_info[i].c->private_data &&
+		    label_chunk_info[i].c->type == efi) {
+			strcat(newfs, "  ");
+			PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
+			strcat(newfs, pi->newfs ? " Y" : " N");
+		}
+#endif
+	    }
 	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
 		strcpy(newfs, "UFS");
 		strcat(newfs,
@@ -1018,6 +1046,24 @@ diskLabel(Device *dev)
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
+#if defined(__ia64__)
+	    else if (label_chunk_info[here].type == PART_FAT &&
+	      label_chunk_info[here].c->type == efi &&
+	      label_chunk_info[here].c->private_data) {
+		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
+		if (!pi->newfs)
+		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
+		else
+		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
+
+		label_chunk_info[here].c->private_data =
+		    new_efi_part(pi->mountpoint, !pi->newfs);
+		safe_free(pi);
+		label_chunk_info[here].c->private_free = safe_free;
+		if (variable_cmp(DISK_LABELLED, "written"))
+		    variable_set2(DISK_LABELLED, "yes", 0);
+	    }
+#endif
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
