@@ -26,7 +26,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd December 8, 1999
+.Dd June 20, 2004
 .Dt EXAMPLE 3
 .Os
 .Sh NAME
@@ -100,8 +100,9 @@ function has no known compatibility issues.
 .\" Delete any errno's that are not returned by your
 .\" function or system call and then tailor the
 .\" remaining text as needed.
-.Fn Example
-will fail if:
+The
+.Fn example
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 Operation not permitted.
@@ -266,19 +267,19 @@ Authentication error.
 .It Bq Er ENEEDAUTH
 Need authenticator.
 .It Bq Er EIDRM
-Identifier removed
+Identifier removed.
 .It Bq Er ENOMSG
-No message of desired type
+No message of desired type.
 .It Bq Er EOVERFLOW
-Value too large to be stored in data type
+Value too large to be stored in data type.
 .It Bq Er ECANCELED
-Operation canceled
+Operation canceled.
 .It Bq Er EILSEQ
-Illegal byte sequence
+Illegal byte sequence.
 .It Bq Er ENOATTR
-Attribute not found
+Attribute not found.
 .It Bq Er EDOOFUS
-Programming error
+Programming error.
 .El
 .Sh SEE ALSO
 .Xr example 1 ,
@@ -301,10 +302,10 @@ Programming error
 .%T "Example Article Title"
 .Re
 .Sh STANDARDS
-If the command conforms to some standard, such as
-.St -p1003.2
+If the function conforms to some standard, such as
+.St -p1003.1-2001
 or
-.St -isoC ,
+.St -isoC-99 ,
 it should be noted here.
 .Sh HISTORY
 The
