@@ -319,7 +319,9 @@ uhci_init(sc)
 	}
 
 	uhci_run(sc, 0);			/* stop the controller */
+#if defined(__NetBSD__)
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
+#endif
 
 	uhci_busreset(sc);
 	
