@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 121 $
+ *              $Revision: 123 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -323,8 +323,8 @@ AcpiExResolveObjectToValue (
 
                 /* Invalid reference object */
 
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Unknown TargetType %X in Index/Reference obj %p\n",
+                ACPI_REPORT_ERROR ((
+                    "During resolve, Unknown TargetType %X in Index/Reference obj %p\n",
                     StackDesc->Reference.TargetType, StackDesc));
                 Status = AE_AML_INTERNAL;
                 break;
@@ -343,7 +343,7 @@ AcpiExResolveObjectToValue (
 
         default:
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Reference opcode %X (%s) in %p\n",
+            ACPI_REPORT_ERROR (("During resolve, Unknown Reference opcode %X (%s) in %p\n",
                 Opcode, AcpiPsGetOpcodeName (Opcode), StackDesc));
             Status = AE_AML_INTERNAL;
             break;

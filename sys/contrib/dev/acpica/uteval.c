@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 49 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -663,4 +663,68 @@ AcpiUtExecute_STA (
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtExecute_Sxds
+ *
+ * PARAMETERS:  DeviceNode          - Node for the device
+ *              *Flags              - Where the status flags are returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Executes _STA for selected device and stores results in
+ *              *Flags.
+ *
+ *              NOTE: Internal function, no parameter validation
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiUtExecute_Sxds (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    UINT8                   *Highest)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_STATUS             Status;
+    UINT32                  i;
+
+
+    ACPI_FUNCTION_TRACE ("UtExecute_Sxds");
+
+
+    for (i = 0; i < 4; i++)
+    {
+        Highest[i] = 0xFF;
+        Status = AcpiUtEvaluateObject (DeviceNode,
+                    (char *) AcpiGbl_HighestDstateNames[i],
+                    ACPI_BTYPE_INTEGER, &ObjDesc);
+        if (ACPI_FAILURE (Status))
+        {
+            if (Status != AE_NOT_FOUND)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                    "%s on Device %4.4s, %s\n",
+                    (char *) AcpiGbl_HighestDstateNames[i],
+                    AcpiUtGetNodeName (DeviceNode),
+                    AcpiFormatException (Status)));
+
+                return_ACPI_STATUS (Status);
+            }
+        }
+        else
+        {
+            /* Extract the Dstate value */
+
+            Highest[i] = (UINT8) ObjDesc->Integer.Value;
+
+            /* Delete the return object */
+
+            AcpiUtRemoveReference (ObjDesc);
+        }
+    }
+
+    return_ACPI_STATUS (AE_OK);
 }
