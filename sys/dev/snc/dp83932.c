@@ -176,7 +176,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	ifp->if_ioctl = sncioctl;
 	ifp->if_start = sncstart;
 	ifp->if_flags =
-	    IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	    IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_NEEDSGIANT;
 	ifp->if_watchdog = sncwatchdog;
         ifp->if_init = sncinit;
         ifp->if_mtu = ETHERMTU;
