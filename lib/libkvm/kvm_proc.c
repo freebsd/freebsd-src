@@ -36,7 +36,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
+static char sccsid[] = "@(#)kvm_proc.c	8.4 (Berkeley) 8/20/94";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -190,7 +190,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct tty tty;
 	struct proc proc;
 
-	for (; cnt < maxcnt && p != NULL; p = proc.p_next) {
+	for (; cnt < maxcnt && p != 0; p = proc.p_list.le_next) {
 		if (KREAD(kd, (u_long)p, &proc)) {
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);

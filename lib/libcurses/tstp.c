@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)tstp.c	8.2 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)tstp.c	8.3 (Berkeley) 5/4/94";
 #endif /* not lint */
 
-#include <curses.h>
 #include <errno.h>
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
 
+#include "curses.h"
 
 /*
  * stop_signal_handler --

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,37 +32,36 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)standout.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)standout.c	8.3 (Berkeley) 8/10/94";
 #endif /* not lint */
 
-#include <curses.h>
+#include "curses.h"
 
 /*
  * wstandout
  *	Enter standout mode.
  */
-char *
+int
 wstandout(win)
-	register WINDOW *win;
+	WINDOW *win;
 {
-	if (!SO && !UC)
-		return (0);
-
-	win->flags |= __WSTANDOUT;
-	return (SO ? SO : UC);
+	/*
+	 * If standout/standend strings, or can underline, set the
+	 * screen standout bit.
+	 */
+	if (SO != NULL && SE != NULL || UC != NULL)
+		win->flags |= __WSTANDOUT;
+	return (1);
 }
 
 /*
  * wstandend --
  *	Exit standout mode.
  */
-char *
+int
 wstandend(win)
-	register WINDOW *win;
+	WINDOW *win;
 {
-	if (!SO && !UC)
-		return (0);
-
 	win->flags &= ~__WSTANDOUT;
-	return (SE ? SE : UC);
+	return (1);
 }

@@ -1,8 +1,8 @@
-#	@(#)Makefile	5.6 (Berkeley) 5/22/91
+#	@(#)Makefile	8.1 (Berkeley) 6/1/93
 
 CFLAGS=	-O -DLIBC_SCCS
 OBJS=	crt0.o gcrt0.o
-CLEANFILES+=	gmon.o moncrt0.o core a.out
+CLEANFILES+=	core a.out
 
 all: ${OBJS}
 
@@ -11,16 +11,8 @@ crt0.o: crt0.c
 	${LD} -x -r ${.TARGET}
 	mv a.out ${.TARGET}
 
-moncrt0.o: crt0.c
+gcrt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DMCRT0 ${.ALLSRC} -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv a.out ${.TARGET}
-
-gcrt0.o: moncrt0.o gmon.o
-	${LD} -x -r -o ${.TARGET} moncrt0.o gmon.o
-
-gmon.o: gmon.c gmon.h
-	${CC} -c ${DEFS} ${.IMPSRC}
 	${LD} -x -r ${.TARGET}
 	mv a.out ${.TARGET}
 
