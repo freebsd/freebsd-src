@@ -801,7 +801,6 @@ void	threadinit(void);
 void	proc_linkup(struct proc *p, struct ksegrp *kg,
 	    struct kse *ke, struct thread *td);
 void	proc_reparent(struct proc *child, struct proc *newparent);
-int	procrunnable(void);
 void	remrunqueue(struct thread *);
 void	resetpriority(struct ksegrp *);
 int	roundrobin_interval(void);
