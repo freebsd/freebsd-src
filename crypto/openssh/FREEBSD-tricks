@@ -2,7 +2,7 @@
 
 # Shell code to remove FreeBSD tags before merging
 grep -rl '\$Fre.BSD:' . >tags
-while read f < tags ; do
+cat tags | while read f ; do
     sed -i.orig -e '/\$Fre.BSD:/d' $f
 done
 
@@ -11,7 +11,7 @@ cat tags |
 xargs perl -n -i.orig -e 'print; s/\$(Id|OpenBSD): [^\$]*\$/\$FreeBSD\$/ && print'
 
 # Shell code to reexpand FreeBSD tags
-while read f < tags ; do
+cat tags | while read f ; do
     id=$(cvs diff $f | grep '\$Fre.BSD:' | sed 's/.*\(\$Fre.BSD:.*\$\).*/\1/') ;
     if [ -n "$id" ] ; then
         sed -i.orig -e "s@\\\$Fre.BSD\\\$@$id@" $f ;
