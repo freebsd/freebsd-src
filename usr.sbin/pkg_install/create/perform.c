@@ -139,18 +139,21 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
     char args[10];
+    int ret;
 
     args[0] = '\0';
-    if (ExcludeFrom)
-	sprintf(args, "-X %s ", ExcludeFrom);
     sprintf(tball, "%s/%s.%s", home, pkg, suffix);
     if (index(suffix, 'z'))	/* Compress/gzip? */
 	strcat(args, "z");
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s', contents:\n", tball);
     strcat(args, "cf");
-    if (vsystem("tar %s %s .", args, tball))
-	barf("tar command failed!");
+    if (ExcludeFrom)
+	ret = vsystem("tar %sX %s %s .", args, tball, ExcludeFrom);
+    else
+	ret = vsystem("tar %s %s .", args, tball);
+    if (ret)
+	barf("tar command failed with code %d", ret);
 }
 
 static void
