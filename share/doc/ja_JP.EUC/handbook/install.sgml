@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.49 -->
+<!-- Original revision: 1.50 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -10,7 +10,7 @@
 <p><em>原作: 不明</em>
 
 <p><em>訳: &a.mita;, <newline>&a.hanai;, <newline>&a.iwasaki;. 
-<newline>26 Janurnuary 1997.</em>
+<newline>26 January 1997.</em>
 
     <p>それでは, FreeBSD のインストールに挑戦してみましょう. 
 	この章には, あなたが何をする必要があるかの簡単なガイドが
