@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.31 1997/10/12 20:24:17 phk Exp $
+ * $Id: uipc_syscalls.c,v 1.32 1997/11/06 19:29:26 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -700,15 +700,16 @@ recvit(p, s, mp, namelenp)
 		if (len <= 0 || fromsa == 0)
 			len = 0;
 		else {
+#ifndef MIN
+#define MIN(a,b) ((a)>(b)?(b):(a))
+#endif
+			/* save sa_len before it is destroyed by MSG_COMPAT */
+			len = MIN(len, fromsa->sa_len);
 #ifdef COMPAT_OLDSOCK
 			if (mp->msg_flags & MSG_COMPAT)
 				((struct osockaddr *)fromsa)->sa_family =
 				    fromsa->sa_family;
 #endif
-#ifndef MIN
-#define MIN(a,b) ((a)>(b)?(b):(a))
-#endif
-			len = MIN(len, fromsa->sa_len);
 			error = copyout(fromsa,
 			    (caddr_t)mp->msg_name, (unsigned)len);
 			if (error)
