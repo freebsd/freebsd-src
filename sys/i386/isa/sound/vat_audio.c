@@ -13,7 +13,8 @@
  * ---WARNING this work is not complete, it still doesn't work
  * ---WARNING
  *
- * Copyright (C) 1993-1994 Amancio Hasty.
+ * Copyright (C) 1993-1994 James Miller
+ * Additional development by Amancio Hasty
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without
