@@ -2623,7 +2623,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_kern_ttys, "S,tty", "All struct ttys");
+	0, 0, sysctl_kern_ttys, "S,xtty", "All ttys");
 SYSCTL_LONG(_kern, OID_AUTO, tty_nin, CTLFLAG_RD,
 	&tk_nin, 0, "Total TTY in characters");
 SYSCTL_LONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
