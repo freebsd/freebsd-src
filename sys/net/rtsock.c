@@ -59,7 +59,7 @@ static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
 
 static struct {
-	int	ip_count;	/* attacked w/ AF_INET */
+	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
 	int	ipx_count;	/* attached w/ AF_IPX */
 	int	any_count;	/* total attached */
