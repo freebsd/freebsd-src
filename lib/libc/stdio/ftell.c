@@ -97,7 +97,7 @@ _ftello(fp, offset)
 	register FILE *fp;
 	fpos_t *offset;
 {
-	register fpos_t pos, spos;
+	register fpos_t pos;
 	size_t n;
 
 	if (fp->_seek == NULL) {
@@ -109,12 +109,10 @@ _ftello(fp, offset)
 	 * Find offset of underlying I/O object, then
 	 * adjust for buffered bytes.
 	 */
-	if (fp->_flags & __SOFF) {
+	if (fp->_flags & __SOFF)
 		pos = fp->_offset;
-		spos = -1;
-	} else {
-get_real_pos:
-		spos = pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
+	else {
+		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 		if (pos == -1)
 			return (1);
 	}
@@ -125,17 +123,9 @@ get_real_pos:
 		 * smaller than that in the underlying object.
 		 */
 		if ((pos -= (HASUB(fp) ? fp->_ur : fp->_r)) < 0) {
-			/* Lost position, resync. */
-			if (HASUB(fp)) {
-				fp->_extra->_up = fp->_bf._base;
-				fp->_ur = 0;
-			} else {
-				fp->_p = fp->_bf._base;
-				fp->_r = 0;
-			}
-			if (spos == -1)
-				goto get_real_pos;
-			pos = spos;
+			fp->_flags |= __SERR;
+			errno = EIO;
+			return (1);
 		}
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
