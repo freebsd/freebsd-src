@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.19 1998/09/17 19:40:30 sos Exp $
+ *	$Id: snake_saver.c,v 1.20 1998/11/04 03:49:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -44,9 +44,10 @@ static char	*message;
 static u_char	**messagep;
 static int	messagelen;
 static u_short	*window;
+static int	blanked;
 
-static void
-snake_saver(int blank)
+static int
+snake_saver(video_adapter_t *adp, int blank)
 {
 	static int	dirx, diry;
 	int		f;
@@ -57,12 +58,11 @@ snake_saver(int blank)
 #define	savs	messagep
 
 	if (blank) {
-		if (!ISTEXTSC(scp))
-			return;
-		if (scrn_blanked <= 0) {
-			scp->status |= SAVER_RUNNING;
-			window = (u_short *)(*biosvidsw.adapter)(scp->adp)->va_window;
-			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
+		if (adp->va_mode_flags & V_INFO_GRAPHICS)
+			return ENODEV;
+		if (blanked <= 0) {
+			window = (u_short *)adp->va_window;
+			fillw(((FG_LIGHTGREY|BG_BLACK)<<8) | scr_map[0x20],
 			      window, scp->xsize * scp->ysize);
 			set_border(scp, 0);
 			dirx = (scp->xpos ? 1 : -1);
@@ -72,16 +72,11 @@ snake_saver(int blank)
 				savs[f] = (u_char *)window + 2 *
 					  (scp->xpos+scp->ypos*scp->xsize);
 			*(savs[0]) = scr_map[*save];
-			f = scp->ysize * scp->xsize + 5;
-			outb(crtc_addr, 14);
-			outb(crtc_addr+1, f >> 8);
-			outb(crtc_addr, 15);
-			outb(crtc_addr+1, f & 0xff);
-			scrn_blanked = 1;
+			blanked = 1;
 		}
-		if (scrn_blanked++ < 4)
-			return;
-		scrn_blanked = 1;
+		if (blanked++ < 4)
+			return 0;
+		blanked = 1;
 		*(savs[messagelen-1]) = scr_map[0x20];
 		for (f=messagelen-1; f > 0; f--)
 			savs[f] = savs[f-1];
@@ -99,43 +94,31 @@ snake_saver(int blank)
 			*(savs[f]) = scr_map[save[f]];
 	}
 	else {
-		if (scrn_blanked > 0) {
-			set_border(scp, scp->border);
-			scrn_blanked = 0;
-			scp->status &= ~SAVER_RUNNING;
-		}
+		blanked = 0;
 	}
+	return 0;
 }
 
 static int
-snake_saver_load(void)
+snake_init(video_adapter_t *adp)
 {
-	int err;
-
 	messagelen = strlen(ostype) + 1 + strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
 	sprintf(message, "%s %s", ostype, osrelease);
 	messagep = malloc(messagelen * sizeof *messagep, M_DEVBUF, M_WAITOK);
-
-	err = add_scrn_saver(snake_saver);
-	if (err != 0) {
-		free(message, M_DEVBUF);
-		free(messagep, M_DEVBUF);
-	}
-	return err;
+	return 0;
 }
 
 static int
-snake_saver_unload(void)
+snake_term(video_adapter_t *adp)
 {
-	int err;
-
-	err = remove_scrn_saver(snake_saver);
-	if (err == 0) {
-		free(message, M_DEVBUF);
-		free(messagep, M_DEVBUF);
-	}
-	return err;
+	free(message, M_DEVBUF);
+	free(messagep, M_DEVBUF);
+	return 0;
 }
 
-SAVER_MODULE(snake_saver);
+static scrn_saver_t snake_module = {
+	"snake_saver", snake_init, snake_term, snake_saver, NULL,
+};
+
+SAVER_MODULE(snake_saver, snake_module);

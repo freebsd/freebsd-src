@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: warp_saver.c,v 1.2 1998/12/28 14:20:13 des Exp $
+ *	$Id: warp_saver.c,v 1.3 1998/12/31 13:38:59 des Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <saver.h>
 
 static u_char *vid;
+static int blanked;
 
 #define SCRW 320
 #define SCRH 200
@@ -47,7 +48,6 @@ static u_char *vid;
 #define STARS (SPP*(1+2+4+8))
 
 static int star[STARS];
-static u_char save_pal[768];
 static u_char warp_pal[768] = {
     0x00, 0x00, 0x00,
     0x66, 0x66, 0x66,
@@ -72,25 +72,18 @@ warp_update(void)
 	}
 }
 
-static void
-warp_saver(int blank)
+static int
+warp_saver(video_adapter_t *adp, int blank)
 {
-    scr_stat *scp = cur_console;
-    static int saved_mode;
     int pl;
 
     if (blank) {
 	/* switch to graphics mode */
-	if (scrn_blanked <= 0) {
+	if (blanked <= 0) {
 	    pl = splhigh();
-	    saved_mode = scp->mode;
-	    scp->mode = M_VGA_CG320;
-	    scp->status |= SAVER_RUNNING|GRAPHICS_MODE;
-	    save_palette(scp, save_pal);
-	    set_mode(scp);
-	    load_palette(scp, warp_pal);
-	    scrn_blanked++;
-	    vid = (u_char *)Crtat;
+	    set_video_mode(adp, M_VGA_CG320, warp_pal, 0);
+	    blanked++;
+	    vid = (u_char *)adp->va_window;
 	    splx(pl);
 	    bzero(vid, SCRW*SCRH);
 	}
@@ -99,30 +92,19 @@ warp_saver(int blank)
 	warp_update();
 	
     } else {
-	/* return to previous video mode */
-	if (scrn_blanked > 0) {
-	    if (saved_mode) {
-		pl = splhigh();
-		scrn_blanked = 0;
-		scp->mode = saved_mode;
-		scp->status &= ~(SAVER_RUNNING|GRAPHICS_MODE);
-		set_mode(scp);
-		load_palette(scp, save_pal);
-		saved_mode = 0;
-		splx(pl);
-	    }
-	}
+	blanked = 0;
     }
+    return 0;
 }
 
 static int
-warp_saver_load(void)
+warp_init(video_adapter_t *adp)
 {
     video_info_t info;
     int i;
 
     /* check that the console is capable of running in 320x200x256 */
-    if ((*biosvidsw.get_info)(cur_console->adp, M_VGA_CG320, &info)) {
+    if (get_mode_info(adp, M_VGA_CG320, &info)) {
         log(LOG_NOTICE, "warp_saver: the console does not support M_VGA_CG320\n");
 	return ENODEV;
     }
@@ -132,13 +114,19 @@ warp_saver_load(void)
 	star[i] = random() % (SCRW*SCRH);
     }
     
-    return add_scrn_saver(warp_saver);
+    blanked = 0;
+
+    return 0;
 }
 
 static int
-warp_saver_unload(void)
+warp_term(video_adapter_t *adp)
 {
-    return remove_scrn_saver(warp_saver);
+    return 0;
 }
 
-SAVER_MODULE(warp_saver);
+static scrn_saver_t warp_module = {
+    "warp_saver", warp_init, warp_term, warp_saver, NULL,
+};
+
+SAVER_MODULE(warp_saver, warp_module);

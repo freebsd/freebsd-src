@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.57 1998/11/20 11:46:43 yokota Exp $
+ * $Id: psm.c,v 1.58 1999/01/06 05:40:01 yokota Exp $
  */
 
 /*
@@ -86,9 +86,10 @@
 #include <machine/limits.h>
 #include <machine/mouse.h>
 
+#include <dev/kbd/atkbdcreg.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/kbdio.h>
 
 /*
  * Driver specific options: the following options may be set by
@@ -1003,7 +1004,7 @@ psmprobe(struct isa_device *dvp)
     psm_softc[unit] = sc;
     kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
     kbdc_lock(sc->kbdc, FALSE);
-    return (IO_PSMSIZE);
+    return ((dvp->id_iobase < 0) ? -1 : IO_PSMSIZE);
 }
 
 static int
