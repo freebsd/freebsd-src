@@ -1972,6 +1972,7 @@ myoob(signo)
 		longjmp(urgcatch, 1);
 	}
 	if (strcmp(cp, "STAT\r\n") == 0) {
+		tmpline[0] = '\0';
 		if (file_size != (off_t) -1)
 			reply(213, "Status: %qd of %qd bytes transferred",
 			    byte_count, file_size);
