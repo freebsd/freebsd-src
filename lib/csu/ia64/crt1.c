@@ -31,11 +31,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
 #ifndef __GNUC__
 #error "GCC is needed to compile this file"
 #endif
+#endif /* lint */
 
 #include <stdlib.h>
+
 #include "libc_private.h"
 #include "crtbrand.c"
 
@@ -45,9 +48,10 @@ struct ps_strings;
 #pragma weak _DYNAMIC
 extern int _DYNAMIC;
 
-extern void _init(void);
 extern void _fini(void);
+extern void _init(void);
 extern int main(int, char **, char **);
+extern void _start(char **, struct ps_strings *, void (*)(void));
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -59,17 +63,10 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 
-/* The entry function. */
-void
-_start(char **ap,
-       struct ps_strings *ps_strings,
-       void (*cleanup)(void))
+static __inline void
+fix_gp(void)
 {
-	int argc;
-	char **argv;
-	char **env;
-	const char *s;
-
+#ifdef __GNUC__
 	/* Calculate gp */
 	__asm __volatile(" \
 		movl gp=@gprel(1f) ; \
@@ -78,8 +75,21 @@ _start(char **ap,
 		;; ; \
 		sub gp=r14,gp ; \
 		;; ");
+#endif
+}
 
-	argc = * (long *) ap;
+/* The entry function. */
+/* ARGSUSED */
+void
+_start(char **ap, struct ps_strings *ps_strings __unused, void (*cleanup)(void))
+{
+	int argc;
+	char **argv;
+	char **env;
+	const char *s;
+
+	fix_gp();
+	argc = *(long *)(void *)ap;
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;
