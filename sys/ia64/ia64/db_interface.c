@@ -270,6 +270,7 @@ db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 	return 0;
 }
 
+#if 0
 /*
  * Print trap reason.
  */
@@ -281,6 +282,7 @@ ddbprinttrap(int vector)
 
 	printf("ddbprinttrap(%d)\n", vector);
 }
+#endif
 
 #define CPUSTOP_ON_DDBBREAK
 #define VERBOSE_CPUSTOP_ON_DDBBREAK
