@@ -61,13 +61,14 @@ typedef struct {
 	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
 	const char *emul_path;
 	const char *interp_path;
-        struct sysentvec *sysvec;
+	struct sysentvec *sysvec;
+	const char *interp_newpath;
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);
 __ElfType(Brandinfo);
 
-#define MAX_BRANDS      8
+#define MAX_BRANDS	8
 
 int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
