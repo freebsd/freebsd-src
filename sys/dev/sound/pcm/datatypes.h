@@ -81,11 +81,7 @@ typedef int (pcmfeed_init_t)(pcm_feeder *feeder);
 typedef int (pcmfeed_free_t)(pcm_feeder *feeder);
 typedef int (pcmfeed_feed_t)(pcm_feeder *feeder, pcm_channel *c, u_int8_t *buffer,
 			     u_int32_t count, struct uio *stream);
-
-#define FEEDER_ROOT	1
-#define FEEDER_FMT 	2
-#define FEEDER_RATE 	3
-#define FEEDER_FILTER 	4
+typedef int (pcmfeed_set_t)(pcm_feeder *feeder, int what, int value);
 
 struct pcm_feederdesc {
 	u_int32_t type;
@@ -94,14 +90,13 @@ struct pcm_feederdesc {
 	int idx;
 };
 
-#define MAXFEEDERS 	256
-
 struct _pcm_feeder {
 	char name[16];
 	int align;
 	struct pcm_feederdesc *desc;
 	pcmfeed_init_t *init;
 	pcmfeed_free_t *free;
+	pcmfeed_set_t *set;
 	pcmfeed_feed_t *feed;
 	void *data;
 	pcm_feeder *source;
@@ -147,8 +142,9 @@ struct _pcm_channel {
 
 	int volume;
 	u_int32_t speed;
-	u_int32_t flags;
 	u_int32_t format;
+	u_int32_t flags;
+	u_int32_t feederflags;
 	u_int32_t blocks;
 
 	int direction;
