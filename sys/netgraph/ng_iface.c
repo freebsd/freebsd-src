@@ -739,7 +739,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __func__));
-	KASSERT(m->m_flags & M_PKTHDR, ("%s: not pkthdr", __func__));
+	M_ASSERTPKTHDR(m);
 	if (m == NULL)
 		return (EINVAL);
 	if ((ifp->if_flags & IFF_UP) == 0) {

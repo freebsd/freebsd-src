@@ -400,12 +400,9 @@ vxstart(ifp)
 startagain:
     /* Sneak a peek at the next packet */
     m = ifp->if_snd.ifq_head;
-    if (m == NULL) {
-	return;
-    }
+    
     /* We need to use m->m_pkthdr.len, so require the header */
-    if ((m->m_flags & M_PKTHDR) == 0)
-	panic("vxstart: no header mbuf");
+    M_ASSERTPKTHDR(m);
     len = m->m_pkthdr.len;
 
     pad = (4 - len) & 3;

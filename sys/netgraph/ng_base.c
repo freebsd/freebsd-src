@@ -335,8 +335,7 @@ static	ng_ID_t nextID = 1;
 		struct mbuf *n;						\
 		int total;						\
 									\
-		if (((m)->m_flags & M_PKTHDR) == 0)			\
-			panic("%s: !PKTHDR", __func__);		\
+		M_ASSERTPKTHDR(m);					\
 		for (total = 0, n = (m); n != NULL; n = n->m_next)	\
 			total += n->m_len;				\
 		if ((m)->m_pkthdr.len != total) {			\

@@ -110,8 +110,7 @@ key_output(m, va_alist)
 		}
 	}
 
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("key_output: not M_PKTHDR ??");
+	M_ASSERTPKTHDR(m);
 
 	KEYDEBUG(KEYDEBUG_KEY_DUMP, kdebug_mbuf(m));
 

@@ -334,6 +334,13 @@ struct mbstat {
 			    & M_EXT) || !MEXT_IS_REF(m)))
 
 /*
+ * Check if the supplied mbuf has a packet header, or else panic.
+ */
+#define M_ASSERTPKTHDR(m)				\
+	KASSERT(m != NULL && m->m_flags & M_PKTHDR,	\
+		("%s: no mbuf packet header!", __func__))
+
+/*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
  * an object of the specified size at the end of the mbuf, longword aligned.
  */

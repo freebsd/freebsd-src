@@ -155,8 +155,7 @@ static int
 discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("discoutput no HDR");
+	M_ASSERTPKTHDR(m);
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m, int *));

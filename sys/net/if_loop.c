@@ -192,8 +192,8 @@ looutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("looutput no HDR");
+
+	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
@@ -276,7 +276,7 @@ if_simloop(ifp, m, af, hlen)
 {
 	int isr;
 
-	KASSERT((m->m_flags & M_PKTHDR) != 0, ("if_simloop: no HDR"));
+	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.rcvif = ifp;
 
 	/* BPF write needs to be handled specially */
