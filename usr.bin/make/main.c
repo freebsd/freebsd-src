@@ -497,8 +497,6 @@ main(int argc, char **argv)
 	if (stat(curdir, &sa) == -1)
 	    err(2, "%s", curdir);
 
-#if defined(__i386__) && defined(__FreeBSD_version) && \
-    __FreeBSD_version > 300003
 	/*
 	 * PC-98 kernel sets the `i386' string to the utsname.machine and
 	 * it cannot be distinguished from IBM-PC by uname(3).  Therefore,
@@ -518,7 +516,6 @@ main(int argc, char **argv)
 				machine = "pc98";
 		}
 	}
-#endif
 
 	/*
 	 * Get the name of this type of MACHINE from utsname
