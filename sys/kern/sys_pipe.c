@@ -768,6 +768,7 @@ pipe_write(fp, uio, cred, flags, p)
 	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
 		return (EPIPE);
 	}
+	++wpipe->pipe_busy;
 
 	/*
 	 * If it is advantageous to resize the pipe buffer, do
@@ -783,15 +784,27 @@ pipe_write(fp, uio, cred, flags, p)
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
 				nbigpipe++;
 			pipeunlock(wpipe);
-		} else {
-			return (error);
 		}
+	}
+
+	/*
+	 * If an early error occured unbusy and return, waking up any pending
+	 * readers.
+	 */
+	if (error) {
+		--wpipe->pipe_busy;
+		if ((wpipe->pipe_busy == 0) && 
+		    (wpipe->pipe_state & PIPE_WANT)) {
+			wpipe->pipe_state &= ~(PIPE_WANT | PIPE_WANTR);
+			wakeup(wpipe);
+		}
+		return(error);
 	}
 		
 	KASSERT(wpipe->pipe_buffer.buffer != NULL, ("pipe buffer gone"));
 
-	++wpipe->pipe_busy;
 	orig_resid = uio->uio_resid;
+
 	while (uio->uio_resid) {
 		int space;
 
@@ -968,6 +981,7 @@ pipe_write(fp, uio, cred, flags, p)
 	}
 
 	--wpipe->pipe_busy;
+
 	if ((wpipe->pipe_busy == 0) && (wpipe->pipe_state & PIPE_WANT)) {
 		wpipe->pipe_state &= ~(PIPE_WANT | PIPE_WANTR);
 		wakeup(wpipe);
@@ -986,9 +1000,10 @@ pipe_write(fp, uio, cred, flags, p)
 	 * Don't return EPIPE if I/O was successful
 	 */
 	if ((wpipe->pipe_buffer.cnt == 0) &&
-		(uio->uio_resid == 0) &&
-		(error == EPIPE))
+	    (uio->uio_resid == 0) &&
+	    (error == EPIPE)) {
 		error = 0;
+	}
 
 	if (error == 0)
 		vfs_timestamp(&wpipe->pipe_mtime);
