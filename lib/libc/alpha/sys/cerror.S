@@ -1,4 +1,4 @@
-/*	$Id: cerror.S,v 1.2 1998/06/09 22:56:24 jb Exp $	*/
+/*	$Id: cerror.S,v 1.3 1998/12/23 11:50:51 dfr Exp $	*/
 /*	From: NetBSD: cerror.S,v 1.4 1996/11/08 00:52:46 cgd Exp 	*/
 
 /*
