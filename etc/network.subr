@@ -96,6 +96,15 @@ network_pass1() {
 				fi
 				;;
 			esac
+			case "${ipfs_enable}" in
+			[Yy][Ee][Ss])
+				if [ -r "/var/db/ipf/ipstate.ipf" ]; then
+					echo -n ' ipfs';
+					eval ${ipfs_program:-/sbin/ipfs -R} \
+						${ipfs_flags}
+				fi
+				;;
+			esac
 		else
 			ipfilter_enable="NO"
 			echo -n ' NO IPF RULES'
