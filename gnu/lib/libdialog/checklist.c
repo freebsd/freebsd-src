@@ -24,6 +24,9 @@
 #include <dialog.h>
 #include "dialog.priv.h"
 
+#ifndef lint
+static const char rcsid[] = "$FreeBSD$";
+#endif
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int status, int choice, int selected, dialogMenuItem *me, int list_width, int item_x, int check_x);
 
@@ -251,9 +254,9 @@ draw:
 	
 	/* Check if key pressed matches first character of any item tag in list */
 	for (i = 0; i < max_choice; i++)
-	    if (key < 0x100 && toupper(key) == toupper(items[(scroll+i)*3][0]))
+	    if (isprint(key) && key < 0x100 && toupper(key) == toupper(items[(scroll+i)*3][0]))
 		break;
-	
+
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
 	    KEY_IS_UP(key) || KEY_IS_DOWN(key) || key == ' ') {
 
