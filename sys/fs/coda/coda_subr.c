@@ -74,9 +74,16 @@ int coda_new = 0;
 struct cnode *coda_freelist = NULL;
 struct cnode *coda_cache[CODA_CACHESIZE];
 
-#define coda_hash(fid) (((fid)->Volume + (fid)->Vnode) & (CODA_CACHESIZE-1))
 #define	CNODE_NEXT(cp)	((cp)->c_next)
-#define ODD(vnode)        ((vnode) & 0x1)
+
+#ifdef CODA_COMPAT_5
+#define coda_hash(fid) \
+    (((fid)->Volume + (fid)->Vnode) & (CODA_CACHESIZE-1))
+#define IS_DIR(cnode)        (cnode.Vnode & 0x1)
+#else
+#define coda_hash(fid) (coda_f2i(fid) & (CODA_CACHESIZE-1))
+#define IS_DIR(cnode)        (cnode.opaque[2] & 0x1)
+#endif
 
 /*
  * Allocate a cnode.
@@ -161,15 +168,13 @@ coda_unsave(cp)
  */
 struct cnode *
 coda_find(fid) 
-     ViceFid *fid;
+     CodaFid *fid;
 {
     struct cnode *cp;
 
     cp = coda_cache[coda_hash(fid)];
     while (cp) {
-	if ((cp->c_fid.Vnode == fid->Vnode) &&
-	    (cp->c_fid.Volume == fid->Volume) &&
-	    (cp->c_fid.Unique == fid->Unique) &&
+	    if (coda_fid_eq(&(cp->c_fid), fid) &&
 	    (!IS_UNMOUNTING(cp)))
 	    {
 		coda_active++;
@@ -218,12 +223,10 @@ coda_kill(whoIam, dcstat)
 #endif
 				count++;
 				CODADEBUG(CODA_FLUSH, 
-					 myprintf(("Live cnode fid %lx.%lx.%lx flags %d count %d\n",
-						   (cp->c_fid).Volume,
-						   (cp->c_fid).Vnode,
-						   (cp->c_fid).Unique, 
-						   cp->c_flags,
-						   vrefcnt(CTOV(cp)))); );
+					  myprintf(("Live cnode fid %s flags %d count %d\n",
+						    coda_f2s(&cp->c_fid),
+						    cp->c_flags,
+						    vrefcnt(CTOV(cp)))); );
 			}
 		}
 	}
@@ -248,7 +251,7 @@ coda_flush(dcstat)
 
     for (hash = 0; hash < CODA_CACHESIZE; hash++) {
 	for (cp = coda_cache[hash]; cp != NULL; cp = CNODE_NEXT(cp)) {  
-	    if (!ODD(cp->c_fid.Vnode)) /* only files can be executed */
+	    if (!IS_DIR(cp->c_fid)) /* only files can be executed */
 		coda_vmflush(cp);
 	}
     }
@@ -268,9 +271,8 @@ coda_testflush(void)
 	for (cp = coda_cache[hash];
 	     cp != NULL;
 	     cp = CNODE_NEXT(cp)) {  
-	    myprintf(("Live cnode fid %lx.%lx.%lx count %d\n",
-		      (cp->c_fid).Volume,(cp->c_fid).Vnode,
-		      (cp->c_fid).Unique, vrefcnt(CTOV(cp))));
+	    myprintf(("Live cnode fid %s count %d\n",
+		      coda_f2s(&cp->c_fid), CTOV(cp)->v_usecount));
 	}
     }
 }
@@ -373,7 +375,7 @@ coda_cacheprint(whoIam)
  * The sixth allows Venus to replace local fids with global ones
  * during reintegration.
  *
- * CODA_REPLACE -- replace one ViceFid with another throughout the name cache 
+ * CODA_REPLACE -- replace one CodaFid with another throughout the name cache 
  */
 
 int handleDownCall(opcode, out)
@@ -396,7 +398,11 @@ int handleDownCall(opcode, out)
 	  coda_clstat.reqs[CODA_PURGEUSER]++;
 	  
 	  /* XXX - need to prevent fsync's */
+#ifdef CODA_COMPAT_5
 	  coda_nc_purge_user(out->coda_purgeuser.cred.cr_uid, IS_DOWNCALL);
+#else
+	  coda_nc_purge_user(out->coda_purgeuser.uid, IS_DOWNCALL);
+#endif
 	  return(0);
       }
 	
@@ -407,7 +413,7 @@ int handleDownCall(opcode, out)
 	  coda_clstat.ncalls++;
 	  coda_clstat.reqs[CODA_ZAPFILE]++;
 	  
-	  cp = coda_find(&out->coda_zapfile.CodaFid);
+	  cp = coda_find(&out->coda_zapfile.Fid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
 	      
@@ -415,11 +421,10 @@ int handleDownCall(opcode, out)
 	      ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 	      if (CTOV(cp)->v_vflag & VV_TEXT)
 		  error = coda_vmflush(cp);
-	      CODADEBUG(CODA_ZAPFILE, myprintf((
-"zapfile: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
-		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
-		  vrefcnt(CTOV(cp)) - 1, error)););
-	      if (vrefcnt(CTOV(cp)) == 1) {
+	      CODADEBUG(CODA_ZAPFILE, 
+			myprintf(("zapfile: fid = %s, refcnt = %d, error = %d\n",
+				  coda_f2s(&cp->c_fid), CTOV(cp)->v_usecount - 1, error)););
+    if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
 	      vrele(CTOV(cp));
@@ -434,17 +439,16 @@ int handleDownCall(opcode, out)
 	  coda_clstat.ncalls++;
 	  coda_clstat.reqs[CODA_ZAPDIR]++;
 	  
-	  cp = coda_find(&out->coda_zapdir.CodaFid);
+	  cp = coda_find(&out->coda_zapdir.Fid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
 	      
 	      cp->c_flags &= ~C_VATTR;
-	      coda_nc_zapParentfid(&out->coda_zapdir.CodaFid, IS_DOWNCALL);
+	      coda_nc_zapParentfid(&out->coda_zapdir.Fid, IS_DOWNCALL);
 
 	      CODADEBUG(CODA_ZAPDIR, myprintf((
-"zapdir: fid = (%lx.%lx.%lx), refcnt = %d\n",
-		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
-		  vrefcnt(CTOV(cp)) - 1)););
+		  "zapdir: fid = %s, refcnt = %d\n",
+		  coda_f2s(&cp->c_fid), CTOV(cp)->v_usecount - 1)););
 	      if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
@@ -461,25 +465,23 @@ int handleDownCall(opcode, out)
 	  coda_clstat.ncalls++;
 	  coda_clstat.reqs[CODA_PURGEFID]++;
 
-	  cp = coda_find(&out->coda_purgefid.CodaFid);
+	  cp = coda_find(&out->coda_purgefid.Fid);
 	  if (cp != NULL) {
 	      vref(CTOV(cp));
-	      if (ODD(out->coda_purgefid.CodaFid.Vnode)) { /* Vnode is a directory */
-		  coda_nc_zapParentfid(&out->coda_purgefid.CodaFid,
-				     IS_DOWNCALL);     
+	      if (IS_DIR(out->coda_purgefid.Fid)) { /* Vnode is a directory */
+		      coda_nc_zapParentfid(&out->coda_purgefid.Fid,IS_DOWNCALL);     
 	      }
 	      cp->c_flags &= ~C_VATTR;
-	      coda_nc_zapfid(&out->coda_purgefid.CodaFid, IS_DOWNCALL);
+	      coda_nc_zapfid(&out->coda_purgefid.Fid, IS_DOWNCALL);
 	      ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
-	      if (!(ODD(out->coda_purgefid.CodaFid.Vnode)) 
+	      if (!(IS_DIR(out->coda_purgefid.Fid)) 
 		  && (CTOV(cp)->v_vflag & VV_TEXT)) {
 		  
 		  error = coda_vmflush(cp);
 	      }
-	      CODADEBUG(CODA_PURGEFID, myprintf(("purgefid: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
-                                            cp->c_fid.Volume, cp->c_fid.Vnode,
-                                            cp->c_fid.Unique, 
-					    vrefcnt(CTOV(cp)) - 1, error)););
+	      CODADEBUG(CODA_PURGEFID, myprintf((
+			 "purgefid: fid = %s, refcnt = %d, error = %d\n",
+			 coda_f2s(&cp->c_fid), CTOV(cp)->v_usecount - 1, error)););
 	      if (vrefcnt(CTOV(cp)) == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
@@ -502,13 +504,10 @@ int handleDownCall(opcode, out)
 	      cp->c_fid = out->coda_replace.NewFid;
 	      coda_save(cp);
 
-	      CODADEBUG(CODA_REPLACE, myprintf(("replace: oldfid = (%lx.%lx.%lx), newfid = (%lx.%lx.%lx), cp = %p\n",
-					   out->coda_replace.OldFid.Volume,
-					   out->coda_replace.OldFid.Vnode,
-					   out->coda_replace.OldFid.Unique,
-					   cp->c_fid.Volume, cp->c_fid.Vnode, 
-					   cp->c_fid.Unique, cp));)
-	      vrele(CTOV(cp));
+	      CODADEBUG(CODA_REPLACE, myprintf((
+			"replace: oldfid = %s, newfid = %s, cp = %p\n",
+			coda_f2s(&out->coda_replace.OldFid),
+			coda_f2s(&cp->c_fid), cp));)	      vrele(CTOV(cp));
 	  }
 	  return (0);
       }

@@ -101,7 +101,7 @@ do {                            \
 struct cnode {
     struct vnode	*c_vnode;
     u_short		 c_flags;	/* flags (see below) */
-    ViceFid		 c_fid;		/* file handle */
+    CodaFid		 c_fid;		/* file handle */
     struct lock		 c_lock;	/* new lock protocol */
     struct vnode	*c_ovp;		/* open vnode pointer */
     u_short		 c_ocount;	/* count of openers */
@@ -197,7 +197,7 @@ extern void coda_unmounting(struct mount *whoIam);
 extern int  coda_vmflush(struct cnode *cp);
 
 /* cfs_vnodeops.h */
-extern struct cnode *make_coda_node(ViceFid *fid, struct mount *vfsp, short type);
+extern struct cnode *make_coda_node(CodaFid *fid, struct mount *vfsp, short type);
 extern int coda_vnodeopstats_init(void);
 
 /* coda_vfsops.h */
