@@ -14,6 +14,11 @@ To link into the kernel:
 To load as a kernel loadable module:
 .Dl kldload joy
 .Pp
+In
+.Pa /boot/device/hints :
+.Cd hint.joy.0.at="isa"
+.Cd hint.joy.0.port="0x201"
+.Pp
 .In machine/joystick.h
 .Sh DESCRIPTION
 The joystick device driver allows applications to read the status of

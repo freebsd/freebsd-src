@@ -36,7 +36,12 @@
 .Cd "options KBD_RESETDELAY=N"
 .Cd "options KBD_MAXWAIT=N"
 .Cd "options KBDIO_DEBUG=N"
-.Cd "device atkbdc0 at isa? port IO_KBD"
+.Cd "device atkbdc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atkbdc.0.at="isa"
+.Cd hint.atkbdc.0.port="0x060"
 .Sh DESCRIPTION
 The keyboard controller
 .Nm

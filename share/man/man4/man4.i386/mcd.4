@@ -33,7 +33,13 @@
 .Nm mcd
 .Nd Mitsumi CD-ROM driver
 .Sh SYNOPSIS
-.Cd "device mcd0 at isa? port 0x300 irq 10"
+.Cd "device mcd 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.mcd.0.at="isa"
+.Cd hint.mcd.0.port="0x300"
+.Cd hint.mcd.0.irq="10"
 .Sh DESCRIPTION
 The
 .Nm

@@ -32,15 +32,15 @@
 .Nm ex
 .Nd "Ethernet device driver for the Intel EtherExpress Pro/10 and Pro/10+"
 .Sh SYNOPSIS
-.Cd "device ex0 at isa? port? irq ?"
+.Cd "device ex"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the 16-bit PCI Intel EtherExpress Pro/10
 and Pro/10+ Ethernet cards based on the Intel i82595 chip.
 .Pp
-If the port start address isn't found, the card will be searched for in the
-I/O address range 0x200 - 0x3a0.  If the IRQ isn't specified, it will be
+The card will be searched for in the
+I/O address range 0x200 - 0x3a0.  If the IRQ will be
 read from the EEPROM on the card.  For correct operation on newer
 cards the Plug-N-Play support should be disabled.
 .Sh DIAGNOSTICS

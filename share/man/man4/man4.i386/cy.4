@@ -45,8 +45,27 @@
 .Nd Cyclades Cyclom-Y serial driver
 .Sh SYNOPSIS
 .Cd "options CY_PCI_FASTINTR"
-.Cd "device cy0 at isa? irq 10 iomem 0xd4000 iosiz 0x2000"
-.Cd "device cy1 at isa? irq 11 iomem 0xd6000 iosiz 0x2000"
+.Cd "device cy 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cy.0.at="isa"
+.Cd hint.cy.0.irq="10"
+.Cd hint.cy.0.maddr="0xd4000"
+.Cd hint.cy.0.msize="0x2000"
+.Pp
+If you have two cards:
+.Cd "options CY_PCI_FASTINTR"
+.Cd "device cy 2"
+.Pp
+.Cd hint.cy.0.at="isa"
+.Cd hint.cy.0.irq="10"
+.Cd hint.cy.0.maddr="0xd4000"
+.Cd hint.cy.0.msize="0x2000"
+.Cd hint.cy.1.at="isa"
+.Cd hint.cy.1.irq="11"
+.Cd hint.cy.1.maddr="0xd6000"
+.Cd hint.cy.1.msize="0x2000"
 .Pp
 Minor numbering:
 .Pp

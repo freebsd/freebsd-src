@@ -55,7 +55,11 @@
 .Cd "options SC_KERNEL_CONS_REV_ATTR=_attribute_"
 .Cd "options SC_DFLT_FONT"
 .Cd "makeoptions SC_DFLT_FONT=_font_name_"
-.Cd "device sc0 at isa?" Op flags Ar flags
+.Cd "device sc"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sc.0.at="isa"
 .Sh DESCRIPTION
 The
 .Nm
@@ -375,13 +379,10 @@ option too.
 The following driver flags can be used to control the
 .Nm
 driver.
-They can be set either in the kernel configuration file
-(see
-.Xr config 8 ) ,
-or else in the User Configuration Menu at boot
-time
-(see
-.Xr boot 8 ) .
+They can be set either in
+.Pa /boot/device.hints ,
+or else at the loader prompt (see
+.Xr loader 8 ) .
 .Bl -tag -width bit_0
 .\".It bit 0 (VISUAL_BELL)
 .\"Uses the ``visual'' bell.
@@ -440,12 +441,23 @@ driver requires the keyboard driver and the video card driver,
 the kernel configuration file should contain the following lines.
 .Pp
 .Bd -literal -offset indent
-device atkbdc0 at isa? port IO_KBD
-device atkbd0 at atkbdc? irq 1
-device vga0 at isa? conflicts
-device sc0 at isa?
+device atkbdc
+device atkbd
+device vga
+device sc
 
 device splash
+.Ed
+You also need the following lines in
+.Pa /bood/device.hints
+for these drivers.
+.Bd -literal -offset indent
+hint.atkbdc.0.at="isa"
+hint.atkbdc.0.port="0x060"
+hint.atkbd.0.at="atkbdc"
+hint.atkbd.0.irq="1"
+hint.vga.0.at="isa"
+hint.sc.0.at="isa"
 .Ed
 .Pp
 If you do not intend to load the splash image or use the screen saver,
@@ -482,7 +494,7 @@ to the kernel.
 .Pp
 .Dl "options SC_DFLT_FONT"
 .Dl "makeoptions SC_DFLT_FONT=cp850
-.Dl "device sc0 at isa?
+.Dl "device sc"
 .Pp
 .\".Sh DIAGNOSTICS
 .Sh CAVEATS

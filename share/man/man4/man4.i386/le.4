@@ -32,7 +32,14 @@
 .Nm le
 .Nd DEC EtherWORKS II/III Ethernet device driver
 .Sh SYNOPSIS
-.Cd "device le0 at isa? port 0x300 irq 5 iomem 0xd0000"
+.Cd "device le 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.le.0.at="isa"
+.Cd hint.le.0.port="0x300"
+.Cd hint.le.0.irq="5"
+.Cd hint.le.0.maddr="0xd0000"
 .Sh DESCRIPTION
 The
 .Nm

@@ -33,7 +33,12 @@
 .Nm scd
 .Nd Sony CDU31/33 CD-ROM driver
 .Sh SYNOPSIS
-.Cd "device scd0 at isa? port 0x230"
+.Cd "device scd 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.scd.0.at="isa"
+.Cd hint.scd.0.port="0x230"
 .Sh DESCRIPTION
 The
 .Nm

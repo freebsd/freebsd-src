@@ -32,7 +32,14 @@
 .Nm lnc
 .Nd AMD Lance/PCnet Ethernet device driver
 .Sh SYNOPSIS
-.Cd "device lnc0 at isa? port 0x280 irq 10 drq 0"
+.Cd "device lnc 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.lnc.0.at="isa"
+.Cd hint.lnc.0.port="0x280"
+.Cd hint.lnc.0.irq="10"
+.Cd hint.lnc.0.drq="0"
 .Sh DESCRIPTION
 The
 .Nm
