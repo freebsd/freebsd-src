@@ -7,7 +7,7 @@ SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
 	mystring.c options.c output.c parser.c redir.c show.c \
 	test.c trap.c var.c
 GENSRCS= builtins.c init.c nodes.c syntax.c
-GENHDRS= builtins.h nodes.h syntax.h token.h y.tab.h
+GENHDRS= builtins.h nodes.h syntax.h token.h
 SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS} y.tab.h
 
 # MLINKS for Shell built in commands for which there are no userland
