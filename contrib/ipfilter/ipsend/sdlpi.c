@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1992-1997 Darren Reed. (from tcplog)
+ * (C)opyright 1992-1998 Darren Reed. (from tcplog)
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -40,7 +40,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sdlpi.c	1.3 10/30/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sdlpi.c,v 2.0.2.6 1997/10/15 14:49:14 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sdlpi.c,v 2.1 1999/08/04 17:31:13 darrenr Exp $";
 #endif
 
 #define	CHUNKSIZE	8192

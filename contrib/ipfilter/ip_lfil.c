@@ -1,24 +1,16 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.0.2.1.2.5 1997/12/02 13:55:57 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.1 1999/08/04 17:29:57 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
 # define	_KERNEL
-#endif
-#ifndef	_KERNEL
-# include <stdio.h>
-# include <string.h>
-# include <stdlib.h>
-# include <ctype.h>
-#else
-# include <linux/module.h>
 #endif
 #include <sys/errno.h>
 #include <sys/types.h>
@@ -29,6 +21,14 @@ static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.0.2.1.2.5 1997/12/02 13:55:5
 #include <sys/uio.h>
 #include <sys/dir.h>
 #include <sys/socket.h>
+#ifndef	_KERNEL
+# include <stdio.h>
+# include <string.h>
+# include <stdlib.h>
+# include <ctype.h>
+#else
+# include <linux/module.h>
+#endif
 
 #include <net/if.h>
 #include <net/route.h>
@@ -67,7 +67,6 @@ int	ipl_inited = 0;
 int	ipl_unreach = ICMP_UNREACH_FILTER;
 u_long	ipl_frouteok[2] = {0, 0};
 
-static	void	fixskip __P((frentry_t **, frentry_t *, int));
 static	int	frzerostats __P((caddr_t));
 static	void	frsync __P((void));
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -146,7 +145,7 @@ int ipldetach()
 	}
 
 	fr_checkp = fr_savep;
-	frflush(IPL_LOGIPF, &i);
+	i = frflush(IPL_LOGIPF, i);
 	ipl_inited = 0;
 
 	ipfr_unload();
@@ -310,7 +309,7 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 			error = EPERM;
 		else {
 			IRCOPY(data, (caddr_t)&tmp, sizeof(tmp));
-			frflush(unit, &tmp);
+			tmp = frflush(unit, tmp);
 			IWCOPY((caddr_t)&tmp, data, sizeof(tmp));
 		}
 		break;
@@ -363,25 +362,6 @@ static void frsync()
 }
 
 
-static void fixskip(listp, rp, addremove)
-frentry_t **listp, *rp;
-int addremove;
-{
-	frentry_t *fp;
-	int rules = 0, rn = 0;
-
-	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rules++)
-		;
-
-	if (!fp)
-		return;
-
-	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
-		if (fp->fr_skip && (rn + fp->fr_skip >= rules))
-			fp->fr_skip += addremove;
-}
-
-
 static int frrequest(unit, req, data, set)
 int unit;
 u_long req;
@@ -393,7 +373,8 @@ caddr_t data;
 	frentry_t frd;
 	frdest_t *fdp;
 	frgroup_t *fg = NULL;
-	int error = 0, in, group;
+	int error = 0, in;
+	u_int group;
 
 	fp = &frd;
 	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
@@ -405,10 +386,10 @@ caddr_t data;
 	 * has been specified, doesn't exist.
 	 */
 	if (fp->fr_grhead &&
-	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL))
+	    fr_findgroup((u_int)fp->fr_grhead, fp->fr_flags, unit, set, NULL))
 		return EEXIST;
 	if (fp->fr_group &&
-	    !fr_findgroup(fp->fr_group, fp->fr_flags, unit, set, NULL))
+	    !fr_findgroup((u_int)fp->fr_group, fp->fr_flags, unit, set, NULL))
 		return ESRCH;
 
 	in = (fp->fr_flags & FR_INQUE) ? 0 : 1;
@@ -498,8 +479,8 @@ caddr_t data;
 			if (unit == IPL_LOGAUTH)
 				return fr_auth_ioctl(data, req, f, ftail);
 			if (f->fr_grhead)
-				fr_delgroup(f->fr_grhead, fp->fr_flags, unit,
-					    set);
+				fr_delgroup((u_int)f->fr_grhead, fp->fr_flags,
+					    unit, set);
 			fixskip(fprev, f, -1);
 			*ftail = f->fr_next;
 			KFREE(f);
@@ -510,7 +491,7 @@ caddr_t data;
 		else {
 			if (unit == IPL_LOGAUTH)
 				return fr_auth_ioctl(data, req, f, ftail);
-			KMALLOC(f, frentry_t *, sizeof(*f));
+			KMALLOC(f, frentry_t *);
 			if (f != NULL) {
 				if (fg && fg->fg_head)
 					fg->fg_head->fr_ref++;
@@ -540,7 +521,7 @@ int iplopen(struct inode *inode, struct file *file)
 {
 	u_int min = GET_MINOR(inode->i_rdev);
 
-	if (2 < min)
+	if (IPL_LOGMAX < min)
 		min = ENXIO;
 	else {
 		MOD_INC_USE_COUNT;
@@ -554,7 +535,7 @@ void iplclose(struct inode *inode, struct file *file)
 {
 	u_int	min = GET_MINOR(inode->i_rdev);
 
-	if (2 >= min) {
+	if (IPL_LOGMAX >= min) {
 		MOD_DEC_USE_COUNT;
 	}
 }
@@ -628,7 +609,7 @@ struct ifnet *ifp;
  
 	ip->ip_sum = 0;
 	ip->ip_sum = ipf_cksum((u_short *)ip, sizeof(ip_t));
-	tcp->th_sum = fr_tcpsum(m, ip, tcp, sizeof(tcpiphdr_t));
+	tcp->th_sum = fr_tcpsum(m, ip, tcp);
 	return ip_forward(m, NULL, IPFWD_NOTTLDEC, ip->ip_dst.s_addr);
 }
 

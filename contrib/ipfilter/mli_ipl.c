@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  * (C)opyright 1997 by Marc Boucher.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -49,7 +49,7 @@ unsigned IPL_EXTERN(devflag) = D_MP;
 char *IPL_EXTERN(mversion) = M_VERSION;
 #endif
 
-kmutex_t ipl_mutex, ipf_mutex, ipfs_mutex;
+kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw;
 kmutex_t ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 
 int     (*fr_checkp) __P((struct ip *, int, void *, int, mb_t **));
@@ -80,12 +80,12 @@ ipl_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst)
 {
 	nif_t *nif;
 
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	for (nif = nif_head; nif; nif = nif->nf_next)
 		if (nif->nf_ifp == ifp)
 			break;
 
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 	if (!nif) {
 		printf("IP Filter: ipl_if_output intf %x NOT FOUND\n", ifp);
 		return ENETDOWN;
@@ -217,7 +217,7 @@ ipfilterattach(void)
 	if (!addr_fk)
 		return ESRCH;
 
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
 	ipff_addr = (int *)addr_ff;
 	
@@ -245,7 +245,7 @@ ipfilterattach(void)
 
 	*ipff_addr = 1; /* enable ipfilter_kernel */
 
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 #else
 	extern int ipfilterflag;
 
@@ -266,7 +266,7 @@ nifattach()
 	struct frentry *f;
 	ipnat_t *np;
 
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
 	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
 		if ((!(ifp->if_flags & IFF_RUNNING)) ||
@@ -291,7 +291,7 @@ nifattach()
 		printf("IP Filter: nifattach nif %x opt %x\n",
 		       ifp, ifp->if_output);
 #endif
-		KMALLOC(nif, nif_t *, sizeof(*nif));
+		KMALLOC(nif, nif_t *);
 		if (!nif) {
 			printf("IP Filter: malloc(%d) for nif_t failed\n",
 			       sizeof(nif_t));
@@ -351,7 +351,7 @@ nifattach()
 
 	nif_interfaces = in_interfaces;
 
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 
 	return;
 }
@@ -368,7 +368,7 @@ ipfsync(void)
 	register nif_t *nif, **qp;
 	register struct ifnet *ifp;
 
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	for (qp = &nif_head; (nif = *qp); ) {
 		for (ifp = ifnet; ifp; ifp = ifp->if_next)
 			if ((nif->nf_ifp == ifp) &&
@@ -403,7 +403,7 @@ ipfsync(void)
 		KFREE(nif);
 		nif = *qp;
 	}
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 
 	nifattach();
 
@@ -420,7 +420,7 @@ nifdetach()
 	nif_t *nif, *qf2, **qp;
 	struct ifnet *ifp;
 
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	/*
 	 * Make two passes, first get rid of all the unknown devices, next
 	 * unlink known devices.
@@ -455,7 +455,7 @@ nifdetach()
 		}
 		KFREE(nif);
 	}
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 
 	return;
 }
@@ -465,7 +465,7 @@ static void
 ipfilterdetach(void)
 {
 #ifdef IPFILTER_LKM
-	MUTEX_ENTER(&ipfs_mutex); /* sets interrupt priority level to splhi */
+	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
 	if (ipff_addr) {
 		*ipff_addr = 0;
@@ -476,7 +476,7 @@ ipfilterdetach(void)
 		*ipff_addr = ipff_value;
 	}
 
-	MUTEX_EXIT(&ipfs_mutex);
+	MUTEX_EXIT(&ipfi_mutex);
 #else
 	extern int ipfilterflag;
 
@@ -514,13 +514,13 @@ ipfilter_sgi_attach(void)
 void
 ipfilter_sgi_intfsync(void)
 {
-	MUTEX_ENTER(&ipfs_mutex);
+	MUTEX_ENTER(&ipfi_mutex);
 	if (nif_interfaces != in_interfaces) {
 		/* if the number of interfaces has changed, resync */
-		MUTEX_EXIT(&ipfs_mutex);
+		MUTEX_EXIT(&ipfi_mutex);
 		ipfsync();
 	} else
-		MUTEX_EXIT(&ipfs_mutex);
+		MUTEX_EXIT(&ipfi_mutex);
 }
 
 #ifdef IPFILTER_LKM
@@ -536,13 +536,14 @@ IPL_EXTERN(unload)(void)
 	error = ipldetach();
 
 	LOCK_DEALLOC(ipl_mutex.l);
+	LOCK_DEALLOC(ipf_rw.l);
 	LOCK_DEALLOC(ipf_auth.l);
 	LOCK_DEALLOC(ipf_natfrag.l);
 	LOCK_DEALLOC(ipf_nat.l);
 	LOCK_DEALLOC(ipf_state.l);
 	LOCK_DEALLOC(ipf_frag.l);
 	LOCK_DEALLOC(ipf_mutex.l);
-	LOCK_DEALLOC(ipfs_mutex.l);
+	LOCK_DEALLOC(ipfi_mutex.l);
 
 	return error;
 }
@@ -555,17 +556,19 @@ IPL_EXTERN(init)(void)
 	int error;
 #endif
 
-	ipfs_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipfi_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_frag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_state.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_nat.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_natfrag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_auth.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_rw.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipl_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 
-	if (!ipfs_mutex.l || !ipf_mutex.l || !ipf_frag.l || !ipf_state.l ||
-	    !ipf_nat.l || !ipf_natfrag.l || !ipf_auth.l || !ipl_mutex.l)
+	if (!ipfi_mutex.l || !ipf_mutex.l || !ipf_frag.l || !ipf_state.l ||
+	    !ipf_nat.l || !ipf_natfrag.l || !ipf_auth.l || !ipf_rw.l ||
+	    !ipl_mutex.l)
 		panic("IP Filter: LOCK_ALLOC failed");
 
 #ifdef IPFILTER_LKM

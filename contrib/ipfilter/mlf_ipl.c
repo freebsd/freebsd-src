@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -23,17 +23,20 @@
 #endif
 #include <sys/systm.h>
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+# ifndef ACTUALLY_LKM_NOT_KERNEL
+#  include "opt_devfs.h"
+# endif
 # include <sys/conf.h>
 # include <sys/kernel.h>
 # ifdef DEVFS
 #  include <sys/devfsext.h>
-#  if defined(IPFILTER) && defined(_KERNEL)
-#   include "opt_devfs.h"
-#  endif
 # endif /*DEVFS*/
 #endif
 #include <sys/conf.h>
 #include <sys/file.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+# include <sys/lock.h>
+#endif
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
@@ -46,6 +49,9 @@
 #include <sys/mbuf.h>
 #if	BSD >= 199506
 # include <sys/sysctl.h>
+#endif
+#if (__FreeBSD_version >= 300000)
+# include <sys/socket.h>
 #endif
 #if (__FreeBSD_version >= 199511)
 #include <net/if.h>
@@ -78,30 +84,7 @@
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
 
-extern	int	lkmenodev __P((void));
-
-static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
-				    NULL };
-static	int	if_ipl_unload __P((struct lkm_table *, int));
-static	int	if_ipl_load __P((struct lkm_table *, int));
-static	int	if_ipl_remove __P((void));
 int	xxxinit __P((struct lkm_table *, int, int));
-
-
-struct	cdevsw	ipldevsw = 
-{
-	iplopen,		/* open */
-	iplclose,		/* close */
-	iplread,		/* read */
-	(void *)nullop,		/* write */
-	iplioctl,		/* ioctl */
-	(void *)nullop,		/* stop */
-	(void *)nullop,		/* reset */
-	(void *)NULL,		/* tty */
-	(void *)nullop,		/* select */
-	(void *)nullop,		/* mmap */
-	NULL			/* strategy */
-};
 
 #ifdef  SYSCTL_INT
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
@@ -139,11 +122,26 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 #endif
 
 #ifdef DEVFS
-void *ipf_devfs[IPL_LOGMAX + 1];
+static void *ipf_devfs[IPL_LOGMAX + 1];
 #endif
 
 #if !defined(__FreeBSD_version) || (__FreeBSD_version < 220000)
 int	ipl_major = 0;
+
+static struct   cdevsw  ipldevsw =
+{
+        iplopen,                /* open */
+        iplclose,               /* close */
+        iplread,                /* read */
+        (void *)nullop,         /* write */
+        iplioctl,               /* ioctl */
+        (void *)nullop,         /* stop */
+        (void *)nullop,         /* reset */
+        (void *)NULL,           /* tty */
+        (void *)nullop,         /* select */
+        (void *)nullop,         /* mmap */
+        NULL                    /* strategy */
+};
 
 MOD_DEV(IPL_VERSION, LM_DT_CHAR, -1, &ipldevsw);
 
@@ -151,20 +149,31 @@ extern struct cdevsw cdevsw[];
 extern int vd_unuseddev __P((void));
 extern int nchrdev;
 #else
-int	ipl_major = CDEV_MAJOR;
 
 static struct cdevsw ipl_cdevsw = {
 	iplopen,	iplclose,	iplread,	nowrite, /* 79 */
 	iplioctl,	nostop,		noreset,	nodevtotty,
+#if (__FreeBSD_version >= 300000)
+	seltrue,	nommap,		nostrategy,	"ipl",
+#else
 	noselect,	nommap,		nostrategy,	"ipl",
+#endif
 	NULL,	-1
 };
 #endif
 
-
-static int iplaction __P((struct lkm_table *, int));
 static void ipl_drvinit __P((void *));
 
+#ifdef ACTUALLY_LKM_NOT_KERNEL
+static  int     if_ipl_unload __P((struct lkm_table *, int));
+static  int     if_ipl_load __P((struct lkm_table *, int));
+static  int     if_ipl_remove __P((void));
+static  int     ipl_major = CDEV_MAJOR;
+
+static int iplaction __P((struct lkm_table *, int));
+static char *ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH, NULL };
+
+extern	int	lkmenodev __P((void));
 
 static int iplaction(lkmtp, cmd)
 struct lkm_table *lkmtp;
@@ -206,7 +215,7 @@ int cmd;
 		if (!err) {
 			printf("IP Filter: unloaded from slot %d\n",
 				ipl_major);
-#  ifdef	DEVFS
+#ifdef	DEVFS
 			if (ipf_devfs[IPL_LOGIPF])
 				devfs_remove_dev(ipf_devfs[IPL_LOGIPF]);
 			if (ipf_devfs[IPL_LOGNAT])
@@ -215,7 +224,7 @@ int cmd;
 				devfs_remove_dev(ipf_devfs[IPL_LOGSTATE]);
 			if (ipf_devfs[IPL_LOGAUTH])
 				devfs_remove_dev(ipf_devfs[IPL_LOGAUTH]);
-#  endif
+#endif
 		}
 		return err;
 	case LKM_E_STAT :
@@ -239,9 +248,22 @@ static int if_ipl_remove __P((void))
 		if ((error = namei(&nd)))
 			return (error);
 		VOP_LEASE(nd.ni_vp, curproc, curproc->p_ucred, LEASE_WRITE);
+#if (__FreeBSD_version >= 300000)
+		VOP_LOCK(nd.ni_vp, LK_RETRY | LK_EXCLUSIVE, curproc);
+		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
+		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+
+		if (nd.ni_dvp == nd.ni_vp)
+			vrele(nd.ni_dvp);
+		else
+			vput(nd.ni_dvp);
+		if (nd.ni_vp != NULLVP)
+			vput(nd.ni_vp);
+#else
 		VOP_LOCK(nd.ni_vp);
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+#endif
 	}
 
 	return 0;
@@ -294,12 +316,16 @@ int cmd;
 		vattr.va_rdev = (ipl_major << 8) | i;
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+#if (__FreeBSD_version >= 300000)
+                vput(nd.ni_dvp);
+#endif
 		if (error)
 			return error;
 	}
 	return 0;
 }
 
+#endif  /* actually LKM */
 
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 220000)
 /*
@@ -322,10 +348,13 @@ int cmd, ver;
 {
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
-#else
+#else	/* __FREEBSD_version >= 220000 */
 # ifdef	IPFILTER_LKM
 #  include <sys/exec.h>
 
+#  if (__FreeBSD_version >= 300000)
+MOD_DEV(if_ipl, LM_DT_CHAR, CDEV_MAJOR, &ipl_cdevsw);
+#  else
 MOD_DECL(if_ipl);
 
 
@@ -337,6 +366,7 @@ static struct lkm_dev _module = {
 	LM_DT_CHAR,
 	{ (void *)&ipl_cdevsw }
 };
+#  endif
 
 
 int if_ipl __P((struct lkm_table *, int, int));
@@ -346,9 +376,13 @@ int if_ipl(lkmtp, cmd, ver)
 struct lkm_table *lkmtp;
 int cmd, ver;
 {
+#  if (__FreeBSD_version >= 300000)
+	MOD_DISPATCH(if_ipl, lkmtp, cmd, ver, iplaction, iplaction, iplaction);
+#  else
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
+#  endif
 }
-# endif
+# endif /* IPFILTER_LKM */
 static ipl_devsw_installed = 0;
 
 static void ipl_drvinit __P((void *unused))

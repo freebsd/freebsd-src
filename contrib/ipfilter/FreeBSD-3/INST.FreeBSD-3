@@ -1,0 +1,24 @@
+To build a kernel with the IP filter, follow these steps:
+
+	1. do "make freebsd3"
+
+	2. do "make install-bsd"
+	   (probably has to be done as root)
+
+	3. run "FreeBSD-3/kinstall" as root
+
+	4. build a new kernel
+
+	5. install the new kernel
+ 
+	6. If not using DEVFS, create devices for IP Filter as follows:
+		mknod /dev/ipl c 79 0
+		mknod /dev/ipnat c 79 1
+		mknod /dev/ipstate c 79 2
+		mknod /dev/ipauth c 79 3
+ 
+	7. reboot
+
+
+Darren Reed
+darrenr@pobox.com

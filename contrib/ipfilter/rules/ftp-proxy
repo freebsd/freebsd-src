@@ -20,7 +20,7 @@ Lets assume your network diagram looks something like this:
 and IP Filter is running on host B.  If you want to proxy FTP from A to C
 then you would do:
 
-map int-c ipaddr-a/32 -> ip-addr-c-net/32 proxy ftp ftp/tcp
+map int-c ipaddr-a/32 -> ip-addr-c-net/32 proxy port ftp ftp/tcp
 
 int-c = name of "interface c"
 ipaddr-a = ip# of interface a
@@ -31,7 +31,7 @@ e.g., if host A was 10.1.1.1, host B had two network interfaces ed0 and vx0
 which had IP#'s 10.1.1.2 and 203.45.67.89 respectively, and host C was
 203.45.67.90, you would do:
 
-map vx0 10.1.1.1/32 -> 203.45.67.91/32 proxy ftp ftp/tcp
+map vx0 10.1.1.1/32 -> 203.45.67.91/32 proxy port ftp ftp/tcp
 
 where:
 ipaddr-a = 10.1.1.1
