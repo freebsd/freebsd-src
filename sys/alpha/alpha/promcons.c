@@ -250,7 +250,7 @@ void
 promcnattach(int alpha_console)
 {
 	prom_consdev.cn_pri = CN_NORMAL;
-	prom_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
+	sprintf(prom_consdev.cn_name, "promcons");
 	make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
 	cnadd(&prom_consdev);
 	promcn_attached = 1;
