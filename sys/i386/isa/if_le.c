@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.29 1996/01/26 09:27:29 phk Exp $
+ * $Id: if_le.c,v 1.30 1996/02/06 18:50:47 wollman Exp $
  */
 
 /*
@@ -723,10 +723,10 @@ le_multi_filter(
 	return;
     }
     sc->le_flags &= ~IFF_MULTICAST;
-    if (sc->le_ac.ac_ipaddr.s_addr != 0) {
+    /* if (interface has had an address assigned) { */
 	le_multi_op(sc, etherbroadcastaddr, TRUE);
 	sc->le_flags |= LE_BRDCSTONLY|IFF_MULTICAST;
-    }
+    /* } */
 #ifdef ISO
     le_multi_op(sc, all_es_snpa, TRUE);
 #endif
