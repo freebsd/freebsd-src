@@ -79,6 +79,7 @@ MAXDSIZ			opt_rlimit.h
 OPEN_MAX		opt_defunct.h
 
 # Net stuff.
+ARP_PROXYALL		opt_defunct.h
 GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
 IPFIREWALL		opt_ipfw.h
