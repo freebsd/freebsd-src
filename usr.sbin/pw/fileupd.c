@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fileupd.c,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: fileupd.c,v 1.1.1.2 1996/12/10 23:58:55 joerg Exp $
  */
 
 #include <stdio.h>
@@ -37,6 +37,33 @@
 #include <unistd.h>
 
 #include "pwupd.h"
+
+int
+extendline(char **buf, int * buflen, int needed)
+{
+	if (needed > *buflen) {
+		char	*tmp = realloc(*buf, needed);
+		if (tmp == NULL)
+			return -1;
+		*buf = tmp;
+		*buflen = needed;
+	}
+	return *buflen;
+}
+
+int
+extendarray(char ***buf, int * buflen, int needed)
+{
+	if (needed > *buflen) {
+		char	**tmp = realloc(*buf, needed * sizeof(char *));
+		if (tmp == NULL)
+			return -1;
+		*buf = tmp;
+		*buflen = needed;
+	}
+	return *buflen;
+}
+
 
 int
 fileupdate(char const * filename, mode_t fmode, char const * newline, char const * prefix, int pfxlen, int updmode)
@@ -67,21 +94,28 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 						close(outfd);
 					else {
 						int             updated = UPD_CREATE;
-						char            line[2048];
+						int		linesize = PWBUFSZ;
+						char           *line = malloc(linesize);
 
-						while (fgets(line, sizeof(line), infp) != NULL) {
+					nextline:
+						while (fgets(line, linesize, infp) != NULL) {
 							char           *p = strchr(line, '\n');
 
-							if (p == NULL) {	/* Line too long */
-								int             ch;
-
-								fputs(line, outfp);
-								while ((ch = fgetc(infp)) != EOF) {
-									fputc(ch, outfp);
-									if (ch == '\n')
-										break;
+							while ((p = strchr(line, '\n')) == NULL) {
+								int	l;
+								if (extendline(&line, &linesize, linesize + PWBUFSZ) == -1) {
+									int	ch;
+									fputs(line, outfp);
+									while ((ch = fgetc(infp)) != EOF) {
+										fputc(ch, outfp);
+										if (ch == '\n')
+											break;
+									}
+									goto nextline;
 								}
-								continue;
+								l = strlen(line);
+								if (fgets(line + l, linesize - l, infp) == NULL)
+									break;
 							}
 							if (*line != '#' && *line != '\n') {
 								if (!updated && strncmp(line, prefix, pfxlen) == 0) {
@@ -127,7 +161,7 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 								 */
 								rewind(infp);
 								rewind(outfp);
-								while (fgets(line, sizeof(line), outfp) != NULL)
+								while (fgets(line, linesize, outfp) != NULL)
 									fputs(line, infp);
 
 								/*
@@ -141,6 +175,7 @@ fileupdate(char const * filename, mode_t fmode, char const * newline, char const
 									ftruncate(infd, ftell(infp));
 							}
 						}
+						free(line);
 						fclose(outfp);
 					}
 					remove(file);

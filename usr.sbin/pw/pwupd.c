@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.c,v 1.1.1.2 1996/12/09 23:55:27 joerg Exp $
+ *	$Id: pwupd.c,v 1.1.1.3 1996/12/10 23:59:02 joerg Exp $
  */
 
 #include <stdio.h>
@@ -118,7 +118,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 	{				/* No -c */
 #endif
 		char            pfx[32];
-		char            pwbuf[MAXPWLINE];
+		char            pwbuf[PWBUFSZ];
 		int             l = sprintf(pfx, "%s:", user);
 
 		/*
