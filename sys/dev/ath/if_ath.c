@@ -995,7 +995,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 */
 	rs = &ni->ni_rates;
 	pktlen = sizeof (struct ieee80211_frame)
-	       + 8 + 2 + 2 + 2+ni->ni_esslen + 2+rs->rs_nrates + 6;
+	       + 8 + 2 + 2 + 2+ni->ni_esslen + 2+rs->rs_nrates + 3 + 6;
 	if (rs->rs_nrates > IEEE80211_RATE_SIZE)
 		pktlen += 2;
 	if (pktlen <= MHLEN)
@@ -1052,6 +1052,9 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	memcpy(frm, ni->ni_essid, ni->ni_esslen);
 	frm += ni->ni_esslen;
 	frm = ieee80211_add_rates(frm, rs);
+	*frm++ = IEEE80211_ELEMID_DSPARMS;
+	*frm++ = 1;
+	*frm++ = ieee80211_chan2ieee(ic, ni->ni_chan);
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
 		*frm++ = IEEE80211_ELEMID_IBSSPARMS;
 		*frm++ = 2;
