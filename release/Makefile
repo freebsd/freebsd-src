@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.111 1995/02/28 01:15:52 phk Exp $
+#	$Id: Makefile,v 1.112 1995/02/28 04:38:21 phk Exp $
 #
 # How to roll a release:
 #
@@ -51,7 +51,7 @@ release:
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr ; cvs co src -P
+	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
 	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
 .endif
