@@ -80,7 +80,12 @@ struct mtx Giant;
 struct mtx sched_lock;
 
 struct globaldata __globaldata;
-char user0[UPAGES * PAGE_SIZE];
+/*
+ * This needs not be aligned as the other user areas, provided that process 0
+ * does not have an fp state (which it doesn't normally).
+ * This constraint is only here for debugging.
+ */
+char user0[UPAGES * PAGE_SIZE] __attribute__ ((aligned (64)));
 struct user *proc0paddr;
 
 vm_offset_t clean_sva;
@@ -303,6 +308,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	proc0.p_addr = (struct user *)user0;
 	tf = (struct trapframe *)(user0 + UPAGES * PAGE_SIZE - sizeof(*tf));
 	proc0.p_frame = tf;
+	tf->tf_tstate = 0;
 
 	/*
 	 * Initialize the per-cpu pointer so we can set curproc.
@@ -389,6 +395,14 @@ ptrace_single_step(struct proc *p)
 void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
+	struct pcb *pcb;
+
+	pcb = &p->p_addr->u_pcb;
+	mtx_lock_spin(&sched_lock);
+	fp_init_pcb(pcb);
+	/* XXX */
+	p->p_frame->tf_tstate &= ~TSTATE_PEF;
+	mtx_unlock_spin(&sched_lock);
 	TODO;
 }
 

@@ -30,17 +30,57 @@
 
 #include "assym.s"
 
+/*
+ * Save and restore FPU state. This is done at switch time.
+ * We could use FPRS_DL and FPRS_DU; however, it is accessible to non-privileged
+ * software, so it is avoided for compatabilities sake.
+ * savefp clobbers %fprs.
+ */
+	.macro	savefp	state, tmp
+	rd	%fprs, \tmp
+	stx	\tmp, [\state + FP_FPRS]
+	or	\tmp, FPRS_FEF, \tmp
+	wr	\tmp, 0, %fprs
+	stx	%fsr, [\state + FP_FSR]
+	rd	%asi, \tmp
+	wr	%g0, ASI_BLK_S, %asi
+	stda	%f0, [\state + FP_FB0] %asi
+	stda	%f16, [\state + FP_FB1] %asi
+	stda	%f32, [\state + FP_FB2] %asi
+	stda	%f48, [\state + FP_FB3] %asi
+	wr	\tmp, 0, %asi
+	membar	#Sync
+	.endm
+	
+	.macro	restrfp	state, tmp
+	rd	%fprs, \tmp
+	or	\tmp, FPRS_FEF, \tmp
+	wr	\tmp, 0, %fprs
+	rd	%asi, \tmp
+	wr	%g0, ASI_BLK_S, %asi
+	ldda	[\state + FP_FB0] %asi, %f0
+	ldda	[\state + FP_FB1] %asi, %f16
+	ldda	[\state + FP_FB2] %asi, %f32
+	ldda	[\state + FP_FB3] %asi, %f48
+	wr	\tmp, 0, %asi
+	membar	#Sync
+	ldx	[\state + FP_FSR], %fsr
+	ldx	[\state + FP_FPRS], \tmp
+	wr	\tmp, 0, %fprs
+	.endm
+
 ENTRY(cpu_switch)
 	save	%sp, -CCFSZ, %sp
 	call	chooseproc
 	 ldx	[PCPU(CURPROC)], %l0
 	cmp	%l0, %o0
-	be,pn	%xcc, 2f
-	 ldx	[PCPU(FPCURPROC)], %l2
-	cmp	%l0, %l2
-	bne,pt	%xcc, 1f
+	be,pn	%xcc, 3f
+	 ldx	[%l0 + P_FRAME], %l2
+	ldx	[%l2 + TF_TSTATE], %l2
+	andcc	%l2, TSTATE_PEF, %l2
+	be,pt	%xcc, 1f
 	 ldx	[PCPU(CURPCB)], %l1
-	PANIC("cpu_switch: fpcurproc", %i0)
+	savefp	%l1 + PCB_FPSTATE, %l3
 1:	flushw
 	wrpr	%g0, 0, %cleanwin
 	stx	%fp, [%l1 + PCB_FP]
@@ -48,22 +88,43 @@ ENTRY(cpu_switch)
 	ldx	[%o0 + P_ADDR], %o1
 	ldx	[%o1 + U_PCB + PCB_FP], %fp
 	ldx	[%o1 + U_PCB + PCB_PC], %i7
-	stx	%o0, [PCPU(CURPROC)]
-	stx	%o1, [PCPU(CURPCB)]
+	ldx	[%o0 + P_FRAME], %l2
+	ldx	[%l2 + TF_TSTATE], %l2
+	andcc	%l2, TSTATE_PEF, %l2
+	be,pt	%xcc, 2f
+	 stx	%o0, [PCPU(CURPROC)]
+	restrfp	%o1 + U_PCB + PCB_FPSTATE, %l4
+2:	stx	%o1, [PCPU(CURPCB)]
 	sub     %fp, CCFSZ, %sp
-2:	ret
+3:	ret
 	 restore
 END(cpu_switch)
 
 ENTRY(savectx)
 	save	%sp, -CCFSZ, %sp
 	flushw
-	ldx	[PCPU(FPCURPROC)], %l0
-	brz,pt	%l0, 1f
-	 nop
-	illtrap
-1:	stx	%fp, [%i0 + PCB_FP]
-	stx	%i7, [%i0 + PCB_PC]
+	ldx	[PCPU(CURPROC)], %l0
+	ldx	[%l0 + P_FRAME], %l0
+	ldx	[%l0 + TF_TSTATE], %l0
+	andcc	%l0, TSTATE_PEF, %l0
+	be,pt	%xcc, 1f
+	 stx	%fp, [%i0 + PCB_FP]
+	add	%i0, PCB_FPSTATE, %o0
+	call	savefpctx
+1:	 stx	%i7, [%i0 + PCB_PC]
 	ret
 	 restore %g0, 0, %o0
 END(savectx)
+
+ENTRY(savefpctx)
+	rd	%fprs, %o2
+	savefp	%o0, %o1
+	retl
+	 wr	%o2, 0, %fprs
+END(savefpctx)
+
+ENTRY(restorefpctx)
+	restrfp	%o0, %o1
+	retl
+	 nop
+END(restorefpctx)

@@ -29,9 +29,12 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -39,6 +42,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/frame.h>
+#include <machine/pcb.h>
 #include <machine/pv.h>
 #include <machine/trap.h>
 #include <machine/tte.h>
@@ -84,8 +88,27 @@ const char *trap_msg[] = {
 void
 trap(struct trapframe *tf)
 {
+	u_quad_t sticks;
+	struct proc *p;
+	int ucode;
+	int sig;
+
+	p = curproc;
+	ucode = tf->tf_type;	/* XXX */
+
+	mtx_lock_spin(&sched_lock);
+	sticks = p->p_sticks;
+	mtx_unlock_spin(&sched_lock);
 
 	switch (tf->tf_type) {
+	case T_FP_DISABLED:
+		if (fp_enable_proc(p))
+			goto user;
+		else {
+			sig =  SIGFPE;
+			goto trapsig;
+		}
+		break;
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
@@ -96,4 +119,19 @@ trap(struct trapframe *tf)
 		break;
 	}
 	panic("trap: %s", trap_msg[tf->tf_type & ~T_KERNEL]);
+
+trapsig:
+	mtx_lock(&Giant);
+	/* Translate fault for emulators. */
+	if (p->p_sysent->sv_transtrap != NULL)
+		sig = (p->p_sysent->sv_transtrap)(sig, tf->tf_type);
+
+	trapsignal(p, sig, ucode);
+	mtx_unlock(&Giant);
+user:
+	userret(p, tf, sticks);
+	if (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
+out:
+	return;
 }
