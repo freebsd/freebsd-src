@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: passwd.1,v 1.13 1999/01/23 08:36:38 markm Exp $
+.\"	$Id: passwd.1,v 1.14 1999/04/30 18:19:42 hoek Exp $
 .\"
 .Dd June 6, 1993
 .Dt PASSWD 1
@@ -50,16 +50,23 @@
 .Op Fl o
 .Sh DESCRIPTION
 .Nm Passwd
-changes the user's local, Kerberos, or NIS password.  First, the user is prompted for their
-current password.
-If the current password is correctly typed, a new password is
-requested.
-The new password must be entered twice to avoid typing errors.
+changes the user's local, Kerberos, or NIS password.  
+If the user is not the super-user,
+.Nm passwd
+first prompts for the current password and will not continue unless the correct
+password is entered.
+.Pp
+When entering the new password, the characters entered do not echo, in order to
+avoid the password being seen by a passer-by.  
+.Nm passwd
+prompts for the new password twice in order to detect typing errors.
 .Pp
 The new password should be at least six characters long (which
 may be overridden using the
 .Xr login.conf 5
-"minpasswordlen" setting for a user's login class) and not purely alphabetic.
+.if t ``minpasswordlen''
+.if n "minpasswordlen"
+setting for a user's login class) and not purely alphabetic.
 Its total length must be less than
 .Dv _PASSWORD_LEN
 (currently 128 characters).
@@ -80,8 +87,10 @@ is used to update the password databases.
 .Pp
 .El
 When changing local or NIS password, the next password change date
-is set according to "passwordtime" capability in the user's
-login class.
+is set according to 
+.if t ``passwordtime''
+.if n "passwordtime"
+capability in the user's login class.
 .Pp
 To change another user's Kerberos password, one must first
 run
@@ -95,7 +104,10 @@ if only the local password is modified.
 has built-in support for NIS. If a user exists in the NIS password
 database but does not exist locally,
 .Nm passwd
-automatically switches into ``yppasswd'' mode. If the specified
+automatically switches into 
+.if t ``yppasswd''
+.if n "yppasswd"
+mode. If the specified
 user does not exist in either the local password database of the
 NIS password maps,
 .Nm passwd
@@ -127,9 +139,14 @@ When NIS is enabled, the
 .Fl l
 flag can be used to force
 .Nm passwd
-into ``local only'' mode. This flag can be used to change the entry
+into 
+.if t ``local only''
+.if n "local only"
+mode. This flag can be used to change the entry
 for a local user when an NIS user exists with the same login name.
-For example, you will sometimes find entries for system ``placeholder''
+For example, you will sometimes find entries for system 
+.if t ``placeholder''
+.if n "placeholder"
 users such as
 .Pa bin
 or
@@ -161,7 +178,10 @@ option and
 .Nm passwd
 is unable to determine the name of the NIS master server (possibly because
 the local domainname isn't set), the name of the NIS master is assumed to
-be ``localhost''. This can be overidden with the
+be 
+.if t ``localhost''.
+.if n "localhost".
+This can be overidden with the
 .Fl s
 flag. The specified hostname need not be the name of an NIS master: the
 name of the NIS master for a given map can be determined by querying any
