@@ -170,6 +170,15 @@ directories (e.g. NFS).
 .It Bq Er EOPNOTSUPP
 The file descriptor is associated with a filesystem and file type that
 do not allow regular read operations on it.
+.It Bq Er EOVERFLOW
+The file descriptor is associated with a regular file,
+.Fa nbytes
+is greater than 0,
+.Fa offset
+is before the end-of-file, and
+.Fa offset
+is greater than or equal to the offset maximum established
+for this filesystem.
 .El
 .Pp
 In addition,
