@@ -1386,8 +1386,10 @@ DMenu MenuSendmail = {
     "There are three options for invoking sendmail at startup.\n"
     "Please select Yes if you want to use sendmail as your mail transfer\n"
     "agent.  Selecting No disables sendmail's network socket for incoming\n"
-    "email, but still enables sendmail for outbound mail.  None disables\n"
-    "sendmail completely at startup.",
+    "email, but still enables sendmail for local and outbound mail.\n"
+    "None disables sendmail completely at startup and disables inbound,\n"
+    "outbound, and local mail.  See /etc/mail/README for more\n"
+    "information.\n",
     NULL,
     NULL,
     {
