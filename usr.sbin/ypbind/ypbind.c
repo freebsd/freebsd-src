@@ -394,7 +394,7 @@ char **argv;
 	int i;
 	DIR *dird;
 	struct dirent *dirp;
-	struct _dom_binding *ypdb;
+	struct _dom_binding *ypdb, *next;
 
 	/* Check that another ypbind isn't already running. */
 	if ((yplockfd = (open(YPBINDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)
@@ -493,7 +493,8 @@ char **argv;
 				syslog(LOG_WARNING, "select: %m");
 			break;
 		default:
-			for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
+			for(ypdb=ypbindlist; ypdb; ypdb=next) {
+				next = ypdb->dom_pnext;
 				if (READFD > 0 && FD_ISSET(READFD, &fdsr)) {
 					handle_children(ypdb);
 					if (children == (MAX_CHILDREN - 1))
