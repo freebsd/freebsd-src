@@ -125,7 +125,6 @@ ASSYM(PCB_RIP, offsetof(struct pcb, pcb_rip));
 ASSYM(PCB_RFLAGS, offsetof(struct pcb, pcb_rflags));
 ASSYM(PCB_FSBASE, offsetof(struct pcb, pcb_fsbase));
 ASSYM(PCB_GSBASE, offsetof(struct pcb, pcb_gsbase));
-ASSYM(PCB_KGSBASE, offsetof(struct pcb, pcb_kgsbase));
 ASSYM(PCB_DS, offsetof(struct pcb, pcb_ds));
 ASSYM(PCB_ES, offsetof(struct pcb, pcb_es));
 ASSYM(PCB_FS, offsetof(struct pcb, pcb_fs));

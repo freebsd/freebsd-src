@@ -106,12 +106,6 @@ ENTRY(cpu_switch)
 	pushfq					/* PSL */
 	popq	PCB_RFLAGS(%r8)
 
-	/* Save kernel %gs.base */
-	movl	$MSR_GSBASE,%ecx
-	rdmsr
-	movl	%eax,PCB_KGSBASE(%r8)
-	movl	%edx,PCB_KGSBASE+4(%r8)
-
 	/* Save userland %fs */
 	movl	$MSR_FSBASE,%ecx
 	rdmsr
@@ -176,12 +170,11 @@ sw1:
 	movl	PCB_DS(%r8),%ds
 	movl	PCB_ES(%r8),%es
 	movl	PCB_FS(%r8),%fs
-	movl	PCB_GS(%r8),%gs
 
-	/* Restore kernel %gs.base */
+	/* Restore userland %gs while preserving kernel gsbase */
 	movl	$MSR_GSBASE,%ecx
-	movl	PCB_KGSBASE(%r8),%eax
-	movl	PCB_KGSBASE+4(%r8),%edx
+	rdmsr
+	movl	PCB_GS(%r8),%gs
 	wrmsr
 
 	/* Restore userland %fs */

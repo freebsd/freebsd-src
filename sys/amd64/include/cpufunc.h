@@ -475,6 +475,41 @@ load_es(u_int sel)
 	__asm __volatile("movl %0,%%es" : : "rm" (sel));
 }
 
+#ifdef _KERNEL
+/* This is defined in <machine/specialreg.h> but is too painful to get to */
+#ifndef	MSR_FSBASE
+#define	MSR_FSBASE	0xc0000100
+#endif
+static __inline void
+load_fs(u_int sel)
+{
+	register u_int32_t fsbase __asm("ecx");
+
+	/* Preserve the fsbase value across the selector load */
+	fsbase = MSR_FSBASE;
+        __asm __volatile("rdmsr; movl %0,%%fs; wrmsr"
+            : : "rm" (sel), "c" (fsbase) : "eax", "edx");
+}
+
+#ifndef	MSR_GSBASE
+#define	MSR_GSBASE	0xc0000101
+#endif
+static __inline void
+load_gs(u_int sel)
+{
+	register u_int32_t gsbase __asm("ecx");
+
+	/*
+	 * Preserve the gsbase value across the selector load.
+	 * Note that we have to disable interrupts because the gsbase
+	 * being trashed happens to be the kernel gsbase at the time.
+	 */
+	gsbase = MSR_GSBASE;
+        __asm __volatile("pushfq; cli; rdmsr; movl %0,%%gs; wrmsr; popfq"
+            : : "rm" (sel), "c" (gsbase) : "eax", "edx");
+}
+#else
+/* Usable by userland */
 static __inline void
 load_fs(u_int sel)
 {
@@ -486,6 +521,7 @@ load_gs(u_int sel)
 {
 	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
 }
+#endif
 
 /* void lidt(struct region_descriptor *addr); */
 static __inline void
