@@ -102,13 +102,21 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 
 	if (vers->ts_user == NULL)
 	{
-	    /*
-	     * There is no user file, but there should be one; remove the
-	     * entry
-	     */
-	    if (!really_quiet)
-		error (0, 0, "warning: new-born %s has disappeared", finfo->fullname);
-	    ret = T_REMOVE_ENTRY;
+	    if (pipeout)
+	    {
+		ret = T_CHECKOUT;
+	    }
+	    else
+	    {
+		/*
+		 * There is no user file, but there should be one; remove the
+		 * entry
+		 */
+		if (!really_quiet)
+		    error (0, 0, "warning: new-born %s has disappeared",
+			   finfo->fullname);
+		ret = T_REMOVE_ENTRY;
+	    }
 	}
 	else if (vers->vn_rcs == NULL ||
 		 RCS_isdead (vers->srcfile, vers->vn_rcs))
@@ -116,29 +124,36 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 	    ret = T_ADDED;
 	else
 	{
-	    if (vers->srcfile->flags & INATTIC
-		&& vers->srcfile->flags & VALID)
+	    if (pipeout)
 	    {
-		/* This file has been added on some branch other than
-		   the one we are looking at.  In the branch we are
-		   looking at, the file was already valid.  */
-		if (!really_quiet)
-		    error (0, 0,
-			   "conflict: %s has been added, but already exists",
-			   finfo->fullname);
+		ret = T_CHECKOUT;
 	    }
 	    else
 	    {
-		/*
-		 * There is an RCS file, so someone else must have checked
-		 * one in behind our back; conflict
-		 */
-		if (!really_quiet)
-		    error (0, 0,
+		if (vers->srcfile->flags & INATTIC
+		    && vers->srcfile->flags & VALID)
+		{
+		    /* This file has been added on some branch other than
+		       the one we are looking at.  In the branch we are
+		       looking at, the file was already valid.  */
+		    if (!really_quiet)
+			error (0, 0,
+			   "conflict: %s has been added, but already exists",
+			       finfo->fullname);
+		}
+		else
+		{
+		    /*
+		     * There is an RCS file, so someone else must have checked
+		     * one in behind our back; conflict
+		     */
+		    if (!really_quiet)
+			error (0, 0,
 			   "conflict: %s created independently by second party",
-			   finfo->fullname);
+			       finfo->fullname);
+		}
+		ret = T_CONFLICT;
 	    }
-	    ret = T_CONFLICT;
 	}
     }
     else if (vers->vn_user[0] == '-')
