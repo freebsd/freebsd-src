@@ -182,8 +182,7 @@ net_strategy()
     return EIO;
 }
 
-/* BOOTP SUPPORT IS BROKEN */
-/* #define SUPPORT_BOOTP */
+#define SUPPORT_BOOTP
 
 /*
  * Get info for NFS boot: our IP address, our hostname,
@@ -198,7 +197,6 @@ net_strategy()
  */
 #ifdef	SUPPORT_BOOTP
 int try_bootp = 1;
-int bootp(int sock);
 #endif
 
 extern n_long ip_convertaddr(char *p);
