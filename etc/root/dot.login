@@ -1,9 +1,14 @@
-#	$Id: dot.login,v 1.6 1994/09/16 04:20:13 rgrimes Exp $
+#	$Id: dot.login,v 1.7 1995/06/29 06:30:43 joerg Exp $
 #
 tset -Q \?$TERM
 stty crt erase ^H
 umask 2
-if ("$0" != "-su") then
-  echo "Don't login as root, login as yourself an use the 'su' command"
+# plain csh is too stupid to get any information on ARGV[0] back
+if (! $?tcsh) then
+  echo "Don't login as root, login as yourself and use the 'su' command"
+else
+  # for tcsh, check if we have been invoked by an "su -"
+  if ("$0" != "-su") \
+    echo "Don't login as root, login as yourself and use the 'su' command"
 endif
 
