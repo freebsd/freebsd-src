@@ -61,7 +61,9 @@ must be of the same type (that is, both directories or both
 non-directories), and must reside on the same file system.
 .Pp
 .Fn Rename
-guarantees that an instance of
+guarantees that if
+.Fa to
+already exists, an instance of
 .Fa to
 will always exist, even if the system should crash in
 the middle of the operation.
