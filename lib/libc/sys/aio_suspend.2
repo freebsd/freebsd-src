@@ -37,24 +37,24 @@
 .Sh DESCRIPTION
 The
 .Fn aio_suspend
-function suspends the calling process until all of the specified
-asynchronous I/O requests have completed or the
+function suspends the calling process until at least one of the
+specified asynchronous I/O requests have completed, a signal is
+delivered, or the
 .Ar timeout
 has passed.
+.Pp
 .Ar iocbs
 is an array of 
 .Ar niocb
-pointers to asynchronous I/O requests.  Array members containing NULL
-will be silently ignored.
+pointers to asynchronous I/O requests.  Array members containing
+NULL will be silently ignored.
 .Sh RETURN VALUES
-If all of the specified asynchronous I/O requests have completed, 
+If one or more of the specified asynchronous I/O requests have
+completed,
 .Fn aio_suspend
-returns 0. If the 
-.Ar timeout
-expired,
-.Dv EAGAIN
-is returned.  Other return values indicate an error condition as
-detailed below.
+returns 0.  Otherwise it returns -1 and sets
+.Va errno
+to indicate the error, as enumerated below.
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
 .Xr aio_error 2 ,
@@ -66,6 +66,10 @@ The
 .Fn aio_suspend
 function will fail if:
 .Bl -tag -width Er
+.It Bq Er EAGAIN
+the 
+.Ar timeout
+expired before any I/O requests completed.
 .It Bq Er EINVAL
 .Ar iocbs
 contains more than
