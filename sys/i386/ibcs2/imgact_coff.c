@@ -91,7 +91,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 	}
 
 	DPRINTF(("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
-		"VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
+		"VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED, OBJT_VNODE, vp, 0x%x)\n",
 		__FILE__, __LINE__, map_addr, map_len, prot, map_offset));
 
 	if ((error = vm_mmap(&vmspace->vm_map,
@@ -100,7 +100,8 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 			     prot,
 			     VM_PROT_ALL,
 			     MAP_PRIVATE | MAP_FIXED,
-			     (caddr_t) vp,
+			     OBJT_VNODE,
+			     vp,
 			     map_offset)) != 0)
 		return error;
 
@@ -136,7 +137,8 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 			    VM_PROT_READ,
 			    VM_PROT_READ,
 			    0,
-			    (caddr_t) vp,
+			    OBJT_VNODE,
+			    vp,
 			    trunc_page(offset + filsz))) != 0)
 		return error;
 
@@ -215,7 +217,8 @@ coff_load_file(struct thread *td, char *name)
 			    VM_PROT_READ,
 		       	    VM_PROT_READ,
 			    0,
-			    (caddr_t) vp,
+			    OBJT_VNODE,
+			    vp,
 			    0)) != 0)
 		goto unlocked_fail;
 
@@ -372,7 +375,8 @@ exec_coff_imgact(imgp)
 				    VM_PROT_READ,
 				    VM_PROT_READ,
 				    0,
-				    (caddr_t) imgp->vp,
+				    OBJT_VNODE,
+				    imgp->vp,
 				    foff)) != 0) {
 	      		error = ENOEXEC;
 			goto fail;

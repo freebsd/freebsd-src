@@ -71,10 +71,6 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
-enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
-		OBJT_DEAD };
-typedef u_char objtype_t;
-
 /*
  *	Types defined:
  *
