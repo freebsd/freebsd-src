@@ -138,11 +138,11 @@ page alluded to above.
 .Ed
 .Pp
 The field
-.Ar sa_len
+.Va sa_len
 contains the total length of the of the structure,
 which may exceed 16 bytes.
 The following address values for
-.Ar sa_family
+.Va sa_family
 are known to the system
 (and additional formats are defined for possible future implementation):
 .Bd -literal
@@ -187,7 +187,7 @@ is made on a socket (typically of type
 in the desired domain.
 Most of the requests supported in earlier releases 
 take an
-.Ar ifreq
+.Vt ifreq
 structure as its parameter.  This structure has the form
 .Bd -literal
 struct	ifreq {
@@ -230,7 +230,7 @@ Set broadcast address for protocol family and interface.
 requests to obtain addresses and requests both to set and
 retrieve other data are still fully supported
 and use the
-.Ar ifreq
+.Vt ifreq
 structure:
 .Bl -tag -width SIOCGIFBRDADDR
 .It Dv SIOCGIFADDR
@@ -257,7 +257,7 @@ Attempt to create the specified interface.
 If the interface name is given without a unit number the system
 will attempt to create a new interface with an arbitrary unit number.
 On sucessful return the
-.Ar ifr_name
+.Va ifr_name
 field will contain the new interface name.
 .It Dv SIOCIFDESTROY
 Attempt to destroy the specified interface.
@@ -286,7 +286,7 @@ identifier itself to include the total size, as described in
 .It Dv SIOCDIFADDR
 This requests deletes the specified address from the list
 associated with an interface.  It also uses the
-.Ar if_aliasreq
+.Vt ifaliasreq
 structure to allow for the possibility of protocols allowing
 multiple masks or destination addresses, and also adopts the
 convention that specification of the default address means
@@ -294,30 +294,30 @@ to delete the first address for the interface belonging to
 the address family in which the original socket was opened.
 .It Dv SIOCGIFCONF
 Get interface configuration list.  This request takes an
-.Ar ifconf
+.Vt ifconf
 structure (see below) as a value-result parameter.  The 
-.Ar ifc_len
+.Va ifc_len
 field should be initially set to the size of the buffer
 pointed to by 
-.Ar ifc_buf .
+.Va ifc_buf .
 On return it will contain the length, in bytes, of the
 configuration list.
 .It Dv SIOCIFGCLONERS
 Get list of clonable interfaces.
 This request takes an
-.Ar if_clonereq
+.Vt if_clonereq
 structure (see below) as a value-result parameter.
 The
-.Ar ifcr_count
+.Va ifcr_count
 field should be set to the number of
 .Dv IFNAMSIZ
 sized strings that can be fit in the buffer pointed to by
-.Ar ifcr_buffer .
-On return
-.Ar ifcr_total
+.Va ifcr_buffer .
+On return,
+.Va ifcr_total
 will be set the the number of clonable interfaces and the buffer pointed
 to by
-.Ar ifcr_buffer
+.Va ifcr_buffer
 will be filled with the names of clonable interfaces aligned on
 .Dv IFNAMSIZ
 boundaries.
