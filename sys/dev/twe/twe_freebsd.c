@@ -797,7 +797,7 @@ twed_detach(device_t dev)
     if (--disks_registered == 0)
 	cdevsw_remove(&tweddisk_cdevsw);
 #else
-    disk_destroy(sc->twed_dev_t);
+    disk_destroy(&sc->twed_disk);
 #endif
 
     return(0);

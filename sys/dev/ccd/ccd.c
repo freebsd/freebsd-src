@@ -1160,7 +1160,7 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 			return (EBUSY);
 		}
 
-		disk_destroy(cs->sc_dev);
+		disk_destroy(cs->sc_disk);
 		free(cs->sc_disk, M_CCD);
 		cs->sc_disk = NULL;
 		/* Declare unit null and void (reset all flags) */
