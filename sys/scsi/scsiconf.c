@@ -398,7 +398,7 @@ static struct scsidevs knowndevs[] =
 	 * -Mary
 	 */
 	{
-		T_READONLY, T_READONLY, T_REMOV, "NAKAMICH", "MJ-4*" ,"*",
+		T_READONLY, T_READONLY, T_REMOV, "NAKAMICH", "MJ-*" ,"*",
 		"cd", SC_MORE_LUS
 	},
 	/* yet another changer */
