@@ -232,6 +232,7 @@
 .\" an alternative, more detailed scheme for naming the manual sections
 .\"
 .ds doc-volume-operating-system BSD
+.nr doc-volume-operating-system-ateol 0
 .ds doc-volume-ds-1 General Commands Manual
 .ds doc-volume-ds-2 System Calls Manual
 .ds doc-volume-ds-3 Library Functions Manual
@@ -306,13 +307,20 @@
 .    ds doc-section \$2
 .    ie \B\$2 \{\
 .      if ((\$2 >= 1) & (\$2 <= 9)) \{\
-.        ds doc-volume "\*[doc-volume-operating-system]
-.        if \A\$3 \{\
-.          if d doc-volume-as-\$3 \
-.            as doc-volume "/\*[doc-volume-as-\$3]
-.        \}
-.        as doc-volume " \*[doc-volume-ds-\$2]
-.    \}\}
+.        ie \n[doc-volume-operating-system-ateol] \{\
+.          ds doc-volume "\*[doc-volume-ds-\$2] \*[doc-volume-operating-system]
+.          if \A\$3 \{\
+.            if d doc-volume-as-\$3 \
+.              as doc-volume "/\*[doc-volume-as-\$3]
+.        \}\}
+.        el \{\
+.          ds doc-volume "\*[doc-volume-operating-system]
+.          if \A\$3 \{\
+.            if d doc-volume-as-\$3 \
+.              as doc-volume "/\*[doc-volume-as-\$3]
+.          \}
+.          as doc-volume " \*[doc-volume-ds-\$2]
+.    \}\}\}
 .    el \{\
 .      ie "\$2"unass" .ds doc-volume DRAFT
 .      el \{ .ie "\$2"draft" .ds doc-volume DRAFT
@@ -885,6 +893,7 @@
 .    if !\n[cR] \
 .      ne 2
 .    br
+.    ns
 .  \}
 ..
 .
