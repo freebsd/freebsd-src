@@ -98,22 +98,20 @@ static struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	9
 	{ "_eintrcnt" },
-#define	X_KMEMSTATISTICS	10
-	{ "_kmemstatistics" },
 #ifdef notyet
-#define	X_DEFICIT	12
+#define	X_DEFICIT	10
 	{ "_deficit" },
-#define	X_FORKSTAT	13
+#define	X_FORKSTAT	11
 	{ "_forkstat" },
-#define X_REC		14
+#define X_REC		12
 	{ "_rectime" },
-#define X_PGIN		15
+#define X_PGIN		13
 	{ "_pgintime" },
-#define	X_XSTATS	16
+#define	X_XSTATS	14
 	{ "_xstats" },
-#define X_END		17
+#define X_END		15
 #else
-#define X_END		18
+#define X_END		10
 #endif
 	{ "" },
 };
@@ -147,6 +145,7 @@ kvm_t *kd;
 
 static void	cpustats(void);
 static void	devstats(void);
+static void	dosysctl(char *);
 static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
@@ -753,73 +752,20 @@ dointr()
 			inttotal / (u_int64_t) uptime);
 }
 
-#define	MAX_KMSTATS	200
-
 void
-domem()
+domem(void)
 {
-	struct malloc_type *ks;
-	int i, j;
-	int first, nkms;
-	long totuse = 0, totfree = 0;
-	uint64_t totreq = 0;
-	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
-	char buf[1024];
-
-	kread(X_KMEMSTATISTICS, &kmsp, sizeof(kmsp));
-	for (nkms = 0; nkms < MAX_KMSTATS && kmsp != NULL; nkms++) {
-		if (sizeof(kmemstats[0]) != kvm_read(kd, (u_long)kmsp,
-		    &kmemstats[nkms], sizeof(kmemstats[0])))
-			err(1, "kvm_read(%p)", (void *)kmsp);
-		if (sizeof(buf) !=  kvm_read(kd, 
-	            (u_long)kmemstats[nkms].ks_shortdesc, buf, sizeof(buf)))
-			err(1, "kvm_read(%p)", 
-			    (const void *)kmemstats[nkms].ks_shortdesc);
-		buf[sizeof(buf) - 1] = '\0';
-		kmemstats[nkms].ks_shortdesc = strdup(buf);
-		kmsp = kmemstats[nkms].ks_next;
-	}
-
-	(void)printf(
-	    "\nMemory statistics by type                          Type  Kern\n");
-	(void)printf(
-"        Type  InUse MemUse HighUse  Limit Requests Limit Limit Size(s)\n");
-	for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
-		if (ks->ks_calls == 0)
-			continue;
-		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9llu%5u%6u",
-		    ks->ks_shortdesc,
-		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
-		    (ks->ks_maxused + 1023) / 1024,
-		    (ks->ks_limit + 1023) / 1024,
-		    (unsigned long long)ks->ks_calls,
-		    ks->ks_limblocks, ks->ks_mapblocks);
-		first = 1;
-		for (j =  1 << MINBUCKET; j < 1 << (MINBUCKET + 16); j <<= 1) {
-			if ((ks->ks_size & j) == 0)
-				continue;
-			if (first)
-				(void)printf("  ");
-			else
-				(void)printf(",");
-			if(j<1024)
-				(void)printf("%d",j);
-			else
-				(void)printf("%dK",j>>10);
-			first = 0;
-		}
-		(void)printf("\n");
-		totuse += ks->ks_memuse;
-		totreq += ks->ks_calls;
-	}
-	(void)printf("\nMemory Totals:  In Use    Free      Requests\n");
-	(void)printf("              %7ldK %6ldK    %13llu\n",
-	     (totuse + 1023) / 1024, (totfree + 1023) / 1024,
-	     (unsigned long long)totreq);
+	dosysctl("kern.malloc");
 }
 
 void
-dozmem()
+dozmem(void)
+{
+	dosysctl("vm.zone");
+}
+
+void
+dosysctl(char *name)
 {
 	char *buf;
 	size_t bufsize;
@@ -829,7 +775,7 @@ dozmem()
 	for (;;) {
 		if ((buf = realloc(buf, bufsize)) == NULL)
 			err(1, "realloc()");
-		if (sysctlbyname("vm.zone", buf, &bufsize, 0, NULL) == 0)
+		if (sysctlbyname(name, buf, &bufsize, 0, NULL) == 0)
 			break;
 		if (errno != ENOMEM)
 			err(1, "sysctl()");
