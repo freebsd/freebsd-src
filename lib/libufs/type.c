@@ -182,19 +182,16 @@ again:	if (stat(name, &st) < 0) {
 int
 ufs_disk_write(struct uufsd *disk)
 {
-	int rofd;
-
 	ERROR(disk, NULL);
 
 	if (disk->d_mine & MINE_WRITE)
 		return 0;
 
-	rofd = disk->d_fd;
+	close(disk->d_fd);
 
 	disk->d_fd = open(disk->d_name, O_RDWR);
 	if (disk->d_fd < 0) {
 		ERROR(disk, "failed to open disk for writing");
-		disk->d_fd = rofd;
 		return -1;
 	}
 
