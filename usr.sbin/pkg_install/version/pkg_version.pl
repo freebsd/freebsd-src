@@ -306,7 +306,7 @@ foreach $packageName (sort keys %currentPackages) {
 	$packagePath = $indexPackages{$packageName}{'path'};
 	
 	if (($indexRefcount > 1) || ($currentRefcount > 1)) {
-	    $versionCode = "?";
+	    $versionCode = "*";
 	    $Comment = "multiple versions (index has $indexVersion)";
 	    $Comment =~ s/\|/,/g;
 	}
@@ -332,7 +332,7 @@ foreach $packageName (sort keys %currentPackages) {
 		$Comment = "succeeds index (index has $indexVersion)";
 	    }
 	    else {
-		$versionCode = "?";
+		$versionCode = "!";
 		$Comment = "Comparison failed";
 	    }
 	}
