@@ -47,6 +47,7 @@
 
 /*
  * XXX doesn't do timestamp or ktr_cpu.
+ * XXX could really use another register.
  */
 #define	ATR(desc, r1, r2, r3, l1, l2) \
 	.sect	.rodata ; \
@@ -55,6 +56,9 @@ l1 ## :	.asciz	desc ; \
 	set	ktr_idx, r1 ; \
 	lduw	[r1], r2 ; \
 l2 ## :	add	r2, 1, r3 ; \
+	set	KTR_ENTRIES - 1, r1 ; \
+	and	r3, r1, r3 ; \
+	set	ktr_idx, r1 ; \
 	casa	[r1] ASI_N, r2, r3 ; \
 	cmp	r2, r3 ; \
 	bne	%icc, l2 ## b ; \
