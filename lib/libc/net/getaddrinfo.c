@@ -1331,10 +1331,9 @@ get_canonname(pai, ai, str)
 	const char *str;
 {
 	if ((pai->ai_flags & AI_CANONNAME) != 0) {
-		ai->ai_canonname = (char *)malloc(strlen(str) + 1);
+		ai->ai_canonname = strdup(str);
 		if (ai->ai_canonname == NULL)
 			return EAI_MEMORY;
-		strlcpy(ai->ai_canonname, str, strlen(str) + 1);
 	}
 	return 0;
 }
