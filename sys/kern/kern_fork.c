@@ -105,6 +105,9 @@ init_fork_list(void *data __unused)
 }
 SYSINIT(fork_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_fork_list, NULL);
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 fork(p, uap)
@@ -114,14 +117,19 @@ fork(p, uap)
 	int error;
 	struct proc *p2;
 
+	mtx_lock(&Giant);
 	error = fork1(p, RFFDG | RFPROC, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2->p_pid;
 		p->p_retval[1] = 0;
 	}
+	mtx_unlock(&Giant);
 	return error;
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 vfork(p, uap)
@@ -131,14 +139,19 @@ vfork(p, uap)
 	int error;
 	struct proc *p2;
 
+	mtx_lock(&Giant);
 	error = fork1(p, RFFDG | RFPROC | RFPPWAIT | RFMEM, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2->p_pid;
 		p->p_retval[1] = 0;
 	}
+	mtx_unlock(&Giant);
 	return error;
 }
 
+/*
+ * MPSAFE
+ */
 int
 rfork(p, uap)
 	struct proc *p;
@@ -148,11 +161,13 @@ rfork(p, uap)
 	struct proc *p2;
 
 	/* mask kernel only flags out of the user flags */
+	mtx_lock(&Giant);
 	error = fork1(p, uap->flags & ~RFKERNELONLY, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2 ? p2->p_pid : 0;
 		p->p_retval[1] = 0;
 	}
+	mtx_unlock(&Giant);
 	return error;
 }
 
@@ -753,12 +768,8 @@ fork_return(p, frame)
 	userret(p, frame, 0);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 	}
 #endif
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }

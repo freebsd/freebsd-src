@@ -106,6 +106,8 @@ SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
 /*
  * Accounting system call.  Written based on the specification and
  * previous implementation done by Mark Tinguely.
+ *
+ * MPSAFE
  */
 int
 acct(a1, uap)
@@ -118,10 +120,12 @@ acct(a1, uap)
 	struct nameidata nd;
 	int error, flags;
 
+	mtx_lock(&Giant);
+
 	/* Make sure that the caller is root. */
 	error = suser(p);
 	if (error)
-		return (error);
+		goto done2;
 
 	/*
 	 * If accounting is to be started to a file, open that file for
@@ -133,12 +137,13 @@ acct(a1, uap)
 		flags = FWRITE;
 		error = vn_open(&nd, &flags, 0);
 		if (error)
-			return (error);
+			goto done2;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
-			return (EACCES);
+			error = EACCES;
+			goto done2;
 		}
 	}
 
@@ -153,7 +158,7 @@ acct(a1, uap)
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
-		return (error);
+		goto done2;
 
 	/*
 	 * Save the new accounting file vnode, and schedule the new
@@ -162,6 +167,8 @@ acct(a1, uap)
 	acctp = nd.ni_vp;
 	callout_init(&acctwatch_callout, 0);
 	acctwatch(NULL);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
