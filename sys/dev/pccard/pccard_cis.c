@@ -50,7 +50,7 @@
 
 #define PCCARDCISDEBUG
 #ifdef PCCARDCISDEBUG
-int	pccardcis_debug = 1;
+int	pccardcis_debug = 0;
 #define	DPRINTF(arg) if (pccardcis_debug) printf arg
 #define	DEVPRINTF(arg) if (pccardcis_debug) device_printf arg
 #else
