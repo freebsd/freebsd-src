@@ -1644,7 +1644,7 @@ trimthenstep6:
 	if (thflags & TH_SYN) {
 		tp = tcp_drop(tp, ECONNRESET);
 		rstreason = BANDLIM_UNLIMITED;
-		goto dropwithreset;
+		goto drop;
 	}
 
 	/*
