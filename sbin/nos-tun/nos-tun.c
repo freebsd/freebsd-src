@@ -239,11 +239,13 @@ int main (int argc, char **argv)
   char *point_to = NULL;
   char *to_point = NULL;
   char *target;
+  char *source = NULL;
   char *protocol = NULL;
   int protnum;
 
   struct sockaddr t_laddr;          /* Source address of tunnel */
   struct sockaddr whereto;          /* Destination of tunnel */
+  struct sockaddr wherefrom;        /* Source of tunnel */
   struct sockaddr_in *to;
 
   char buf[0x2000];                 /* Packets buffer */
@@ -272,7 +274,7 @@ int main (int argc, char **argv)
   argc -= optind;
   argv += optind;
 
-  if (argc != 1 || (devname == NULL) ||
+  if ((argc != 1 && argc != 2) || (devname == NULL) ||
       (point_to == NULL) || (to_point == NULL)) {
     usage();
   }
@@ -282,7 +284,11 @@ int main (int argc, char **argv)
   else
       protnum = atoi(protocol);
 
-  target = *argv;
+  if (argc == 1) {
+      target = *argv;
+  } else {
+      source = *argv++; target = *argv;
+  }
 
   /* Establish logging through 'syslog' */
   openlog("nos-tun", LOG_PID, LOG_DAEMON);
@@ -304,6 +310,15 @@ int main (int argc, char **argv)
   if ((net = socket(AF_INET, SOCK_RAW, protnum)) < 0) {
     syslog(LOG_ERR,"can't open socket - %m");
     Finish(5);
+  }
+
+  if (source) { 
+	if (Set_address(source, (struct sockaddr_in *)&wherefrom))
+	  Finish(9);
+    if (bind(net, &wherefrom, sizeof(wherefrom)) < 0) {
+	  syslog(LOG_ERR, "can't bind source address - %m");
+	  Finish(10);
+	}
   }
 
   if (connect(net,&whereto,sizeof(struct sockaddr_in)) < 0 ) {
@@ -365,7 +380,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-"usage: nos-tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> <target_addr>\n");
+"usage: nos-tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> [<source_addr>] <target_addr>\n");
 	exit(1);
 }
 
