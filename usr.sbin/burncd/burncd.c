@@ -128,6 +128,20 @@ main(int argc, char **argv)
 			block_size = 2048;
 			continue;
 		}
+		if (!strcmp(argv[arg], "mode2")) {
+			track.test_write = test_write;
+			track.track_type = CDR_DB_ROM_MODE2;
+			track.preemp = 0;
+			block_size = 2336;
+			continue;
+		}
+		if (!strcmp(argv[arg], "XAmode1")) {
+			track.test_write = test_write;
+			track.track_type = CDR_DB_XA_MODE1;
+			track.preemp = 0;
+			block_size = 2048;
+			continue;
+		}
 		if ((file = open(argv[arg], O_RDONLY, 0)) < 0) {
 			err(EX_NOINPUT, "open(%s)", argv[arg]);
 		}
